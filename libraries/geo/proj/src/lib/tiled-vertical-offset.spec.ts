@@ -8,9 +8,16 @@ import {
   VerticalOffsetTileLoadError,
 } from "./tiled-vertical-offset";
 
+/** Mirrors encode_values() in derive-gcg2016-tiles.py. */
 const encode = (values: number[]) => {
-  const bytes = new Uint8Array(new Float32Array(values).buffer);
-  return btoa(String.fromCharCode(...bytes));
+  const interleaved = new Uint8Array(new Float32Array(values).buffer);
+  const planes = new Uint8Array(interleaved.length);
+  for (let plane = 0; plane < 4; plane += 1) {
+    for (let index = 0; index < values.length; index += 1) {
+      planes[plane * values.length + index] = interleaved[index * 4 + plane];
+    }
+  }
+  return btoa(String.fromCharCode(...planes));
 };
 
 interface TileOptions {
@@ -49,12 +56,12 @@ const tile = (
   );
 
   return {
-    format: "carma-gcg2016-float32-tile-v2",
+    format: "carma-gcg2016-float32-tile-v3",
     id,
     bounds,
     grid,
     values: {
-      encoding: "base64-float32-little-endian",
+      encoding: "base64-float32-little-endian-planes",
       data: encode(values),
     },
   };
@@ -165,7 +172,7 @@ describe("createTiledVerticalOffsetModel", () => {
       .mockResolvedValueOnce({
         ...tile("N00E000", [0, 0, 4, 4]),
         values: {
-          encoding: "base64-float32-little-endian",
+          encoding: "base64-float32-little-endian-planes",
           data: "not base64",
         },
       })

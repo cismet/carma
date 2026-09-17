@@ -12,14 +12,20 @@ import argparse
 import base64
 import hashlib
 import json
+import math
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
 from osgeo import gdal
 
-REGION = (6.0, 50.0, 10.0, 54.0)
+TERRAIN_RESOURCE = Path(
+    "libraries/commons/resources/src/lib/de.nrw.wuppertal/terrain.ts"
+)
+TERRAIN_RESOURCE_EXPORT = "NRW_DGM1_DHHN2016_TERRARIUM_TERRAIN"
 TILE_SIZE_DEGREES = 2
+TILE_VALUE_ENCODING = "base64-float32-little-endian-planes"
 VERIFICATION_SEED = 4_064
 SPLINE_STENCIL_RADIUS_BEFORE = 1
 SPLINE_STENCIL_SIZE = 5
@@ -51,6 +57,24 @@ BILINEAR_COMPARISON = {
     "rmseMeters": 0.00025106759117135785,
     "p99AbsoluteDifferenceMeters": 0.000650242044784477,
 }
+
+
+def read_terrain_bounds(resource: Path, export_name: str):
+    """Read `bounds` of one exported terrain resource, the single source of
+    truth for how far the elevation data we ship against reaches."""
+    text = resource.read_text(encoding="utf8")
+    start = text.index(f"export const {export_name}")
+    # Stop at the next export, so a renamed or reordered declaration fails loudly
+    # instead of silently handing back a neighbouring resource's bounds.
+    following = text.find("\nexport const ", start + 1)
+    block = text[start:] if following == -1 else text[start:following]
+    match = re.search(r"bounds:\s*\[([^\]]*)\]", block)
+    if match is None:
+        raise RuntimeError(f"{export_name} in {resource} has no bounds")
+    values = [float(part) for part in match.group(1).split(",")]
+    if len(values) != 4:
+        raise RuntimeError(f"{export_name} bounds must have four values")
+    return tuple(values)
 
 
 @dataclass(frozen=True)
@@ -181,6 +205,24 @@ def tile_id(west: int, south: int):
     )
 
 
+def encode_values(values: np.ndarray):
+    """Split the Float32 samples into their four byte planes.
+
+    The sample bytes are only reordered, never altered, so the payload stays an
+    exact copy of the source values. Grouping the like-significance bytes makes
+    the run compressible, which is what the transport layer and git then exploit;
+    an explicit compression step here would save about a further kilobyte on the
+    wire and would cost a DecompressionStream dependency that predates neither
+    Safari 16.4 nor Firefox 113.
+    """
+    interleaved = np.frombuffer(
+        np.ascontiguousarray(values, dtype="<f4").tobytes(), dtype=np.uint8
+    ).reshape(-1, 4)
+    return b"".join(
+        interleaved[:, plane].tobytes() for plane in range(4)
+    )
+
+
 def extract_tile(reference: GdalGridReference, bounds: Bounds, identifier: str):
     source_longitudes = (
         reference.first_longitude
@@ -191,12 +233,10 @@ def extract_tile(reference: GdalGridReference, bounds: Bounds, identifier: str):
         + np.arange(reference.values.shape[0]) * reference.step_latitude
     )
     columns = np.flatnonzero(
-        (source_longitudes >= bounds.west)
-        & (source_longitudes < bounds.east)
+        (source_longitudes >= bounds.west) & (source_longitudes < bounds.east)
     )
     rows = np.flatnonzero(
-        (source_latitudes >= bounds.south)
-        & (source_latitudes < bounds.north)
+        (source_latitudes >= bounds.south) & (source_latitudes < bounds.north)
     )
     if columns.size == 0 or rows.size == 0:
         raise RuntimeError(f"{identifier} contains no source samples")
@@ -209,7 +249,7 @@ def extract_tile(reference: GdalGridReference, bounds: Bounds, identifier: str):
         dtype="<f4",
     )
     return {
-        "format": "carma-gcg2016-float32-tile-v2",
+        "format": "carma-gcg2016-float32-tile-v3",
         "id": identifier,
         "bounds": bounds.as_list(),
         "grid": {
@@ -224,63 +264,62 @@ def extract_tile(reference: GdalGridReference, bounds: Bounds, identifier: str):
             "noDataValue": reference.nodata,
         },
         "values": {
-            "encoding": "base64-float32-little-endian",
-            "data": base64.b64encode(values.tobytes(order="C")).decode("ascii"),
+            "encoding": TILE_VALUE_ENCODING,
+            "data": base64.b64encode(encode_values(values)).decode("ascii"),
         },
     }
 
 
 def decode_tile(tile):
+    """Reference decoder: the exact inverse of `encode_values`, mirrored by the
+    browser implementation in libraries/geo/proj/src/lib/tiled-vertical-offset.ts."""
     grid = tile["grid"]
-    return np.frombuffer(
-        base64.b64decode(tile["values"]["data"]), dtype="<f4"
-    ).reshape((grid["height"], grid["width"]))
+    values = tile["values"]
+    count = grid["height"] * grid["width"]
+    if values["encoding"] == "base64-float32-little-endian":
+        # Superseded payload layout, still read so a regenerated tile can be
+        # compared against the one it replaces.
+        return np.frombuffer(
+            base64.b64decode(values["data"]), dtype="<f4"
+        ).reshape((grid["height"], grid["width"]))
+    if values["encoding"] != TILE_VALUE_ENCODING:
+        raise RuntimeError(f"unsupported encoding {values['encoding']}")
+    planes = np.frombuffer(base64.b64decode(values["data"]), dtype=np.uint8)
+    if planes.size != count * 4:
+        raise RuntimeError("payload does not carry four planes of samples")
+    interleaved = np.empty((count, 4), dtype=np.uint8)
+    for plane in range(4):
+        interleaved[:, plane] = planes[plane * count : (plane + 1) * count]
+    return np.frombuffer(interleaved.tobytes(), dtype="<f4").reshape(
+        (grid["height"], grid["width"])
+    )
 
 
-def sample_from_tiles(
-    tiles_by_id,
-    source_column,
-    source_row,
-    region,
-    tile_size,
-    grid,
-):
-    sample_longitude = (
-        grid["firstLongitude"] + source_column * grid["stepLongitude"]
-    )
-    sample_latitude = (
-        grid["firstLatitude"] + source_row * grid["stepLatitude"]
-    )
-    tile_west = (
-        region[0]
-        + np.floor((sample_longitude - region[0]) / tile_size) * tile_size
-    ).astype(np.int64)
-    tile_south = (
-        region[1]
-        + np.floor((sample_latitude - region[1]) / tile_size) * tile_size
-    ).astype(np.int64)
+def sample_from_tiles(tiles_by_id, source_column, source_row):
+    """Read source samples from whichever tile window contains them.
+
+    Tiles are located by the sample window they declare, not by a degree grid,
+    so one named subset and a multi-tile set resolve through the same path.
+    """
     result = np.full(source_column.shape, np.nan, dtype=np.float64)
-    for west, south in set(zip(tile_west.tolist(), tile_south.tolist())):
-        tile = tiles_by_id.get(tile_id(west, south))
-        if tile is None:
-            continue
-        mask = (tile_west == west) & (tile_south == south)
+    for tile in tiles_by_id.values():
         tile_grid = tile["grid"]
-        columns = source_column[mask] - tile_grid["columnStart"]
-        rows = source_row[mask] - tile_grid["rowStart"]
+        columns = source_column - tile_grid["columnStart"]
+        rows = source_row - tile_grid["rowStart"]
         inside = (
             (columns >= 0)
             & (rows >= 0)
             & (columns < tile_grid["width"])
             & (rows < tile_grid["height"])
         )
-        target_indices = np.flatnonzero(mask)[inside]
+        if not np.any(inside):
+            continue
         values = decode_tile(tile)
-        result[target_indices] = values[rows[inside], columns[inside]]
+        result[inside] = values[rows[inside], columns[inside]]
     return result
 
 
-def interpolate_tiles(tiles_by_id, longitude, latitude, region, tile_size):
+def interpolate_tiles(tiles_by_id, longitude, latitude):
     first_tile = next(iter(tiles_by_id.values()))
     grid = first_tile["grid"]
     column = (longitude - grid["firstLongitude"]) / grid["stepLongitude"]
@@ -295,9 +334,6 @@ def interpolate_tiles(tiles_by_id, longitude, latitude, region, tile_size):
                 tiles_by_id,
                 first_column + column_offset,
                 first_row + row_offset,
-                region,
-                tile_size,
-                grid,
             )
             for row_offset in range(SPLINE_STENCIL_SIZE)
             for column_offset in range(SPLINE_STENCIL_SIZE)
@@ -352,21 +388,22 @@ def verification_points(bounds: Bounds, random_count: int, seed: int):
     return longitude, latitude
 
 
-def verify_tile(
-    reference, tile, tiles_by_id, region, tile_size, random_count, seed
-):
+def verify_tile(reference, tile, tiles_by_id, random_count, seed):
     bounds = Bounds(*tile["bounds"])
     longitude, latitude = verification_points(bounds, random_count, seed)
     expected = reference.interpolate(longitude, latitude)
-    actual = interpolate_tiles(
-        tiles_by_id, longitude, latitude, region, tile_size
-    )
+    actual = interpolate_tiles(tiles_by_id, longitude, latitude)
     supported = np.isfinite(expected) & np.isfinite(actual)
+    # A finite tile set cannot support its own outer boundary, where the stencil
+    # would need samples beyond the last tile. Record how often that happens
+    # instead of dropping it silently from the error metric.
+    unsupported_by_tiles = np.isfinite(expected) & ~np.isfinite(actual)
     absolute_error = np.abs(actual[supported] - expected[supported])
     return {
         "tileId": tile["id"],
         "candidatePointCount": int(supported.size),
         "supportedPointCount": int(np.count_nonzero(supported)),
+        "pointsResolvedOnlyByFullGrid": int(np.count_nonzero(unsupported_by_tiles)),
         "maximumAbsoluteErrorMeters": float(np.max(absolute_error)),
         "p999AbsoluteErrorMeters": float(np.quantile(absolute_error, 0.999)),
         "rmseMeters": float(
@@ -380,7 +417,7 @@ def write_generated_typescript(output_directory: Path, provenance, tiles):
         f'  "{tile["id"]}": () => import("./gcg2016/{tile["id"]}").then((module) => module.default),'
         for tile in tiles
     ]
-    content = f'''// Generated by libraries/commons/resources/src/lib/de/gcg2016/derive-gcg2016-tiles.py. Do not edit.
+    content = f'''// Generated by libraries/geo/gcg2016/src/lib/gcg2016/derive-gcg2016-tiles.py. Do not edit.
 export const GCG2016_PROVENANCE = {json.dumps(provenance, indent=2)} as const;
 
 export const GCG2016_TILE_LOADERS: Readonly<Record<
@@ -401,36 +438,52 @@ def main():
     parser.add_argument(
         "--output-directory",
         type=Path,
-        default=Path("libraries/commons/resources/src/lib/de/gcg2016"),
+        default=Path("libraries/geo/gcg2016/src/lib/gcg2016"),
     )
+    parser.add_argument("--terrain-resource", type=Path, default=TERRAIN_RESOURCE)
+    parser.add_argument("--terrain-export", default=TERRAIN_RESOURCE_EXPORT)
     parser.add_argument(
-        "--region",
+        "--bounds",
         type=float,
         nargs=4,
         metavar=("WEST", "SOUTH", "EAST", "NORTH"),
-        default=REGION,
+        help="override the terrain resource bounds",
     )
     parser.add_argument(
         "--tile-size-degrees", type=int, default=TILE_SIZE_DEGREES
     )
-    parser.add_argument("--verification-random-per-tile", type=int, default=100_000)
+    parser.add_argument("--verification-random-points", type=int, default=100_000)
     arguments = parser.parse_args()
 
-    region = tuple(arguments.region)
-    if any(value != int(value) for value in region):
-        raise ValueError("Tile region bounds must be integer degrees")
+    if arguments.bounds:
+        coverage = tuple(arguments.bounds)
+        coverage_source = "explicit --bounds argument"
+    else:
+        coverage = read_terrain_bounds(
+            arguments.terrain_resource, arguments.terrain_export
+        )
+        coverage_source = (
+            f"{arguments.terrain_export}.bounds in {arguments.terrain_resource}"
+        )
+    if not (coverage[0] < coverage[2] and coverage[1] < coverage[3]):
+        raise ValueError("Bounds must be ordered west < east and south < north")
     tile_size = arguments.tile_size_degrees
     if tile_size <= 0:
         raise ValueError("Tile size must be positive")
-    if any(int(value) % tile_size != 0 for value in region):
-        raise ValueError("Region bounds must align to the tile-size grid")
+    # Snap outward to the tile grid: the bundled tiles are exactly those the
+    # elevation coverage reaches into, so the payload follows the terrain.
+    region = (
+        math.floor(coverage[0] / tile_size) * tile_size,
+        math.floor(coverage[1] / tile_size) * tile_size,
+        math.ceil(coverage[2] / tile_size) * tile_size,
+        math.ceil(coverage[3] / tile_size) * tile_size,
+    )
+
     reference = GdalGridReference(arguments.source_grid)
     tiles = []
     for south in range(int(region[1]), int(region[3]), tile_size):
         for west in range(int(region[0]), int(region[2]), tile_size):
-            bounds = Bounds(
-                west, south, west + tile_size, south + tile_size
-            )
+            bounds = Bounds(west, south, west + tile_size, south + tile_size)
             tiles.append(extract_tile(reference, bounds, tile_id(west, south)))
 
     tiles_by_id = {tile["id"]: tile for tile in tiles}
@@ -439,9 +492,7 @@ def main():
             reference,
             tile,
             tiles_by_id,
-            region,
-            tile_size,
-            arguments.verification_random_per_tile,
+            arguments.verification_random_points,
             VERIFICATION_SEED + index,
         )
         for index, tile in enumerate(tiles)
@@ -454,12 +505,52 @@ def main():
             f"Tiled interpolation differs from the full grid by {maximum_error} m"
         )
 
+    # The per-tile check above proves the tiles reproduce the source grid. This
+    # proves the separate promise the region derivation makes: that the bundled
+    # set can actually serve every point of the elevation coverage it was cut
+    # for. Without it a coverage that outgrows the bundled tiles would ship
+    # silently and only fail in the browser.
+    coverage_longitude, coverage_latitude = verification_points(
+        Bounds(*coverage), arguments.verification_random_points, VERIFICATION_SEED - 1
+    )
+    coverage_expected = reference.interpolate(coverage_longitude, coverage_latitude)
+    coverage_actual = interpolate_tiles(
+        tiles_by_id, coverage_longitude, coverage_latitude
+    )
+    coverage_missing = int(
+        np.count_nonzero(np.isfinite(coverage_expected) & ~np.isfinite(coverage_actual))
+    )
+    if coverage_missing:
+        raise RuntimeError(
+            f"the bundled tiles cannot serve {coverage_missing} points inside the "
+            f"elevation coverage {list(coverage)}"
+        )
+    coverage_supported = np.isfinite(coverage_expected) & np.isfinite(coverage_actual)
+    coverage_error = float(
+        np.max(
+            np.abs(
+                coverage_actual[coverage_supported]
+                - coverage_expected[coverage_supported]
+            )
+        )
+    )
+    if coverage_error > 1e-9:
+        raise RuntimeError(
+            f"Coverage interpolation differs from the full grid by {coverage_error} m"
+        )
+
     source_bytes = arguments.source_grid.read_bytes()
     provenance = {
         "format": "carma-gcg2016-float32-tile-set-v3",
         "supportedRegion": list(region),
         "rootTileSizeDegrees": tile_size,
+        "elevationCoverage": list(coverage),
+        "elevationCoverageSource": coverage_source,
         "samplePartition": "source pixel centers, no duplicated halo",
+        "sampleEncoding": {
+            "id": TILE_VALUE_ENCODING,
+            "steps": "source Float32 little-endian bytes, regrouped into four byte planes, base64",
+        },
         "source": {
             "fileName": arguments.source_grid.name,
             "sha256": hashlib.sha256(source_bytes).hexdigest(),
@@ -471,7 +562,7 @@ def main():
             "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
             "sourceUrl": "https://gdz.bkg.bund.de/index.php/default/quasigeoid-der-bundesrepublik-deutschland-quasigeoid.html",
             "documentationUrl": "https://sgx.geodatenzentrum.de/web_public/gdz/dokumentation/deu/quasigeoid.pdf",
-            "adaptation": "source Float32 samples unchanged; spatially subset and repackaged as independently loadable CARMA TypeScript payload modules",
+            "adaptation": "source Float32 samples unchanged, only regrouped into byte planes; spatially subset to the tiles the bundled elevation coverage reaches and repackaged as independently loadable CARMA TypeScript payload modules",
             "horizontalCrs": "EPSG:10283 (ETRS89/DREF91/2016)",
         },
         "sourceGrid": {
@@ -481,19 +572,25 @@ def main():
             "firstLatitude": reference.first_latitude,
             "stepLongitude": reference.step_longitude,
             "stepLatitude": reference.step_latitude,
-            "sampleEncoding": "source Float32, unchanged",
+            "sampleEncoding": "source Float32",
         },
         "runtimeMethod": "BKG-compatible natural bicubic spline over a local five-by-five source stencil",
         "referenceMethod": "same spline evaluated directly against the complete source GeoTIFF array",
         "officialReferenceValidation": OFFICIAL_REFERENCE_VALIDATION,
         "bilinearComparison": BILINEAR_COMPARISON,
         "verificationSeed": VERIFICATION_SEED,
-        "verificationRandomPointsPerTile": arguments.verification_random_per_tile,
+        "verificationRandomPointsPerTile": arguments.verification_random_points,
         "verificationEdgePointsPerTile": 16_384,
         "totalSupportedVerificationPointCount": sum(
             item["supportedPointCount"] for item in verification
         ),
         "maximumVerifiedDifferenceMeters": maximum_error,
+        "elevationCoverageVerification": {
+            "pointCount": int(coverage_longitude.size),
+            "supportedPointCount": int(np.count_nonzero(coverage_supported)),
+            "pointsTheBundledTilesCannotServe": coverage_missing,
+            "maximumAbsoluteErrorMeters": coverage_error,
+        },
         "verification": verification,
     }
 

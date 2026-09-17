@@ -1,8 +1,9 @@
 # GCG2016 tiles
 
-Status: July 16, 2026. For browser-side transformations between DHHN2016
-normal heights and ellipsoidal heights, the helper in `@carma-geo/proj`
-provides a spatially limited subset of GCG2016. This is a derived
+Status: September 17, 2026. For browser-side transformations between
+DHHN2016 normal heights and ellipsoidal heights, the helper in
+`@carma-geo/proj` interpolates the spatially limited subset of GCG2016 that
+this package, `@carma-geo/gcg2016`, carries. This is a derived
 representation of the official grid, not a separate height model.
 
 ## Source and derivation
@@ -25,20 +26,38 @@ licensed under
 "(c) Bundesamt für Kartographie und Geodäsie - BKG - Deutschland". The
 [BKG product page](https://gdz.bkg.bund.de/index.php/default/quasigeoid-der-bundesrepublik-deutschland-quasigeoid.html)
 is identified as the original source. The CARMA tiles are a technically
-repacked and spatially limited adaptation: raster values and Float32 encoding
-remain unchanged, while file partitioning and the runtime loader are
-CARMA-specific. The generated payloads are TypeScript modules so their dynamic
+repacked and spatially limited adaptation: the Float32 sample values remain
+unchanged and are only regrouped byte-wise, while file partitioning and the
+runtime loader are CARMA-specific. The generated payloads are TypeScript modules so their dynamic
 imports work in consumers that do not enable TypeScript JSON-module resolution.
 
-The derivation copies the binary Float32 values unchanged into four 2° tiles
-for `[6°, 10°) east × [50°, 54°) north`. Each raster value belongs to exactly
-one tile according to its pixel center; no halo rows or columns are duplicated.
-When a spline's 5×5 support window crosses a tile boundary, only the required
-neighboring tile is imported as well. Together, the four payloads occupy
-820,586 bytes before HTTP compression. The `N50E006` tile containing the
-current area of interest is 205,146 bytes before HTTP compression, 119,596
-bytes with Gzip, and 92,870 bytes with Brotli. Vite bundles the dynamically
-imported payload modules as separate chunks.
+The derivation copies the binary Float32 values unchanged into 2° tiles. Each
+raster value belongs to exactly one tile according to its pixel center; no halo
+rows or columns are duplicated. When a spline's 5×5 support window crosses a
+tile boundary, only the required neighboring tile is imported as well.
+
+Which tiles are bundled follows the elevation data the application actually
+ships against: the generator reads `bounds` from
+`NRW_DGM1_DHHN2016_TERRARIUM_TERRAIN` in `@carma-commons/resources` and snaps
+that coverage outward onto the 2° tile grid. For the current coverage
+`[6.48883, 50.831527, 7.764078, 51.597321]` that yields the single tile
+`N50E006`, so the bundled region is `[6°, 8°) east × [50°, 52°) north`. A
+coverage that later grows past those bounds adds the neighboring tiles without
+any code change.
+
+Sample bytes are stored as four byte planes: the payload holds the first byte
+of every little-endian Float32, then every second byte, and so on. Only the
+order changes, never a value, so the tile stays an exact copy of the source
+samples. Grouping like-significance bytes is what makes the run compressible
+for the transport layer and for git. The decoder therefore needs nothing beyond
+`atob` and a `DataView`, stays synchronous, and adds no dependency — an
+explicit compression step in the payload itself would save roughly a further
+kilobyte on the wire and would require `DecompressionStream`, which predates
+neither Safari 16.4 nor Firefox 113.
+
+The `N50E006` payload is 205,271 bytes before HTTP compression, 76,682 bytes
+with Gzip, and 73,807 bytes with Brotli. Vite bundles the dynamically imported
+payload modules as separate chunks.
 
 At runtime, the implementation uses the method reconstructed from the official
 BKG `gintbs` program: five support values per axis, with natural cubic splines
@@ -83,9 +102,9 @@ also contains NoData areas, primarily along its western and northern edges.
 Every query therefore validates all 25 interpolation values. The helper rejects
 its promise with a typed error:
 
-- `UnsupportedVerticalOffsetRegionError`: coordinate outside
-  `[6, 10) × [50, 54)`, incomplete 5×5 window at the outer boundary, or source
-  NoData;
+- `UnsupportedVerticalOffsetRegionError`: coordinate outside the bundled
+  region, currently `[6, 8) × [50, 52)`, incomplete 5×5 window at the outer
+  boundary, or source NoData;
 - `VerticalOffsetTileLoadError`: dynamic import or tile file unavailable;
 - `InvalidVerticalOffsetTileError`: invalid format, encoding, or sample count
   in a loaded tile.
@@ -99,25 +118,29 @@ catch and display them.
 
 ```bash
 python3 \
-  libraries/commons/resources/src/lib/de/gcg2016/derive-gcg2016-tiles.py \
-  --source-grid /path/to/de_bkg_gcg2016.tif \
-  --output-directory \
-    libraries/commons/resources/src/lib/de/gcg2016 \
-  --region 6 50 10 54 \
-  --tile-size-degrees 2 \
-  --verification-random-per-tile 100000
+  libraries/geo/gcg2016/src/lib/gcg2016/derive-gcg2016-tiles.py \
+  --source-grid /path/to/de_bkg_gcg2016.tif
 
 ./.dev-local/scripts/dev-build.mjs prettier --write \
-  libraries/commons/resources/src/lib/de/gcg2016.ts \
-  libraries/commons/resources/src/lib/de/gcg2016/validation.json
+  libraries/geo/gcg2016/src/lib/gcg2016.ts \
+  libraries/geo/gcg2016/src/lib/gcg2016/validation.json
 ```
+
+The output directory, the 2° tile size and the region all default to the
+values above, so a regeneration needs no further arguments. `--bounds`
+overrides the coverage read from the terrain resource and is only for
+experiments: passing a wider box regenerates the correspondingly larger tile
+set and defeats the clamp.
 
 The generator requires GDAL with its Python bindings and NumPy. It validates
 the Float32 values decoded from the generated tiles against the same 5×5
 interpolation on the complete source GeoTIFF. With seed 4064, it generates
-100,000 random points per tile plus 16,384 boundary and seam points. Actual
-source NoData positions and points without a complete outer support window are
-treated as unsupported. Individual values, point counts, and maximum numerical
+100,000 random points per tile plus 16,384 boundary points. Actual source
+NoData positions and points without a complete outer support window are treated
+as unsupported. A second, separate check then proves the promise the region
+derivation makes: it samples the elevation coverage itself and fails the run if
+the bundled tiles cannot serve a point the full grid resolves. Its result is
+recorded as `elevationCoverageVerification`. Individual values, point counts, and maximum numerical
 differences are recorded in `validation.json`.
 
 The spline selection was independently verified against the official BKG

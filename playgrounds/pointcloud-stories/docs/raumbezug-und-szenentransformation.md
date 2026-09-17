@@ -64,7 +64,7 @@ Das Artefakt speichert Quelle, Quell-Hash, Bytezahl, Datensatzanzahl, PROJ-Versi
 
 Andere punktuelle DHHN2016-Werte, etwa Terrainprofil-Samples oder die derzeit als DHHN2016 angenommenen `projectedZ`-Werte der Planarbilder, verwenden den gemeinsamen Helper in `@carma-geo/proj`. Er enthält die originalen GCG2016-Float32-Rasterwerte für `[6°, 10°) Ost × [50°, 54°) Nord` in vier einzeln lazy ladbaren 2°-Kacheln ohne duplizierten Pixel-Halo. Bei internen Kachelgrenzen lädt der Helper nur die tatsächlich benötigte Nachbarkachel. Die bilineare Interpolation entspricht ohne zusätzlichen Modellfehler dem GDAL-Referenzweg. NoData und Koordinaten außerhalb der Region werden abgelehnt statt geklemmt oder extrapoliert.
 
-Ableitung, Quell-Hash, Rasterparameter, 391.281 GDAL-Vergleichspunkte und die gemessene maximale numerische Differenz von `9,237055564881302 × 10⁻¹⁴ m` sind in [`GCG2016-Kacheln`](../../../libraries/commons/resources/src/lib/de/gcg2016/README.md) dokumentiert. Dieser Laufzeitweg ändert nicht die strengere, vollständig offline berechnete NIV-Provenienz.
+Ableitung, Quell-Hash, Rasterparameter, 391.281 GDAL-Vergleichspunkte und die gemessene maximale numerische Differenz von `9,237055564881302 × 10⁻¹⁴ m` sind in [`GCG2016-Kacheln`](../../../libraries/geo/gcg2016/src/lib/gcg2016/README.md) dokumentiert. Dieser Laufzeitweg ändert nicht die strengere, vollständig offline berechnete NIV-Provenienz.
 
 ## Was damit garantiert ist – und was nicht
 

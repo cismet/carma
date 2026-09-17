@@ -1,7 +1,7 @@
 import {
   GCG2016_PROVENANCE,
   GCG2016_TILE_LOADERS,
-} from "@carma-commons/resources/gcg2016";
+} from "@carma-geo/gcg2016";
 import type {
   Latitude,
   LngLatArray,
