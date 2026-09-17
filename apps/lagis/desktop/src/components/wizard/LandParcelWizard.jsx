@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Alert, Button, Modal, Steps } from "antd";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -14,6 +14,7 @@ import JoinChooseStep from "./steps/JoinChooseStep";
 import ResultingStep from "./steps/ResultingStep";
 import SummaryStep from "./steps/SummaryStep";
 import HistoricRebeMipaDialog from "./HistoricRebeMipaDialog";
+import GraphQLPanel from "./GraphQLPanel";
 
 import { STEP, getSteps } from "../../core/wizard/flow";
 import { ACTION_TITLES, WIZARD_ACTIONS } from "../../core/wizard/constants";
@@ -21,6 +22,8 @@ import { findLock } from "../../core/wizard/locks";
 import { findRebeAndMipa } from "../../core/wizard/areaCheck";
 import { runWizardAction } from "../../core/wizard/operations";
 import useStammdaten from "../../core/wizard/useStammdaten";
+import { isRawVisible } from "../../core/wizard/devMode";
+import { setLoggingEnabled } from "../../core/wizard/gqlLog";
 
 import { getLogin } from "../../store/slices/auth";
 import { getflurstuecke } from "../../store/slices/landParcels";
@@ -57,7 +60,8 @@ const keysToCheck = (stepId, data) => {
  * footer mirrors the Swing wizard: Zurück / Weiter / Fertigstellen, with the
  * problem line above it that blocks forward navigation while it is set.
  */
-const LandParcelWizard = ({ open, onClose }) => {
+
+const LandParcelWizard = ({ open, onClose, showGraphQL = true }) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const [, setUrlParams] = useSearchParams();
@@ -74,6 +78,14 @@ const LandParcelWizard = ({ open, onClose }) => {
   const [result, setResult] = useState();
   const [error, setError] = useState();
   const [rebeMipaPrompt, setRebeMipaPrompt] = useState();
+  const showRaw = useMemo(
+    () => (showGraphQL === undefined ? isRawVisible() : showGraphQL),
+    [showGraphQL]
+  );
+  const [tab, setTab] = useState("wizard");
+
+  // no panel, no recording
+  useEffect(() => setLoggingEnabled(showRaw), [showRaw]);
 
   const steps = useMemo(() => getSteps(data.action), [data.action]);
   const currentStep = steps[stepIndex];
@@ -88,7 +100,8 @@ const LandParcelWizard = ({ open, onClose }) => {
     setRebeMipaPrompt(undefined);
   };
 
-  const patch = (changes) => setData((previous) => ({ ...previous, ...changes }));
+  const patch = (changes) =>
+    setData((previous) => ({ ...previous, ...changes }));
 
   /** Changing the action throws away everything the old branch collected. */
   const handleActionChange = ({ action }) => {
@@ -191,11 +204,15 @@ const LandParcelWizard = ({ open, onClose }) => {
       if (!(await checkLocks())) {
         return;
       }
-      const outcome = await runWizardAction(data.action, buildPayload(rebeMipa), {
-        jwt,
-        accountName,
-        currentKeyString,
-      });
+      const outcome = await runWizardAction(
+        data.action,
+        buildPayload(rebeMipa),
+        {
+          jwt,
+          accountName,
+          currentKeyString,
+        }
+      );
       setResult(outcome);
       // the parcel list has changed — reload it so the choosers and the search
       // see the new keys, which is what reloadFlurstueckKeys() did in Swing.
@@ -236,9 +253,10 @@ const LandParcelWizard = ({ open, onClose }) => {
     setUrlParams({
       gem: key.gemarkung.bezeichnung,
       flur: String(key.flur),
-      fstck: removeLeadingZeros(
-        `${key.zaehler}/${key.nenner ?? 0}`
-      ).replace("/", "-"),
+      fstck: removeLeadingZeros(`${key.zaehler}/${key.nenner ?? 0}`).replace(
+        "/",
+        "-"
+      ),
     });
     reset();
     onClose();
@@ -324,15 +342,53 @@ const LandParcelWizard = ({ open, onClose }) => {
     <>
       <Modal
         open={open}
-        title={
-          data.action ? ACTION_TITLES[data.action] : "Flurstück Assistent"
-        }
+        title={data.action ? ACTION_TITLES[data.action] : "Flurstück Assistent"}
         width={760}
         onCancel={handleClose}
         maskClosable={false}
         footer={footer}
       >
-        <div className="flex gap-6 py-2" style={{ minHeight: 320 }}>
+        {showRaw && (
+          <div className="flex gap-1 border-b border-gray-200 -mt-2">
+            {[
+              { key: "wizard", label: "Assistent" },
+              { key: "graphql", label: "GraphQL" },
+            ].map((item) => (
+              <button
+                key={item.key}
+                type="button"
+                onClick={() => setTab(item.key)}
+                className="px-3 py-2 text-sm bg-transparent border-none cursor-pointer"
+                style={{
+                  color: tab === item.key ? "#1677ff" : "#6b7280",
+                  borderBottom:
+                    tab === item.key
+                      ? "2px solid #1677ff"
+                      : "2px solid transparent",
+                  fontWeight: tab === item.key ? 500 : 400,
+                }}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {showRaw && tab === "graphql" && (
+          <div className="py-3">
+            <GraphQLPanel />
+          </div>
+        )}
+
+        {/* kept mounted rather than unmounted: the choosers hold the typed
+            Flurstück in local state, which switching tabs would discard */}
+        <div
+          className="flex gap-6 py-2"
+          style={{
+            minHeight: 320,
+            display: showRaw && tab === "graphql" ? "none" : "flex",
+          }}
+        >
           <Steps
             direction="vertical"
             size="small"

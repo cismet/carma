@@ -36,6 +36,10 @@ import {
   setCurrentLP,
 } from "../../store/slices/lpHistoryNav";
 
+// The wizard's GraphQL tab. undefined follows the default (URL ?showRaw, else
+// localhost only); set it to false to switch the tab off, true to force it on.
+const WIZARD_SHOW_GRAPHQL = undefined;
+
 const UserBar = () => {
   const dispatch = useDispatch();
   const userLogin = useSelector(getLogin);
@@ -188,6 +192,7 @@ const UserBar = () => {
       <LandParcelWizard
         open={wizardOpen}
         onClose={() => setWizardOpen(false)}
+        showGraphQL={WIZARD_SHOW_GRAPHQL}
       />
     </div>
   );

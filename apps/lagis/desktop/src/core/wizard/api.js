@@ -1,5 +1,6 @@
 import { fetchGraphQL } from "../graphql";
 import wizardQueries from "./queries";
+import { finishCall, startCall } from "./gqlLog";
 import { formatKey } from "./keys";
 
 /**
@@ -19,26 +20,43 @@ export class ActionNotSuccessfulError extends Error {
  * here, so a transport error and a GraphQL `errors` payload fail the same way.
  */
 export const run = async (query, variables, jwt) => {
+  const callId = startCall(query, variables);
+  const startedAt = Date.now();
+
+  const fail = (message, response) => {
+    finishCall(callId, {
+      status: "error",
+      ms: Date.now() - startedAt,
+      message,
+      response,
+    });
+    return new ActionNotSuccessfulError(message, response);
+  };
+
   let result;
   try {
     result = await fetchGraphQL(query, variables, jwt);
   } catch (e) {
-    throw new ActionNotSuccessfulError(
-      "Die Verbindung zum Server ist fehlgeschlagen.",
-      e
-    );
+    throw fail("Die Verbindung zum Server ist fehlgeschlagen.", String(e));
   }
   if (result?.status === 401) {
-    throw new ActionNotSuccessfulError("Die Anmeldung ist abgelaufen.");
+    throw fail("Die Anmeldung ist abgelaufen.", result);
   }
   if (!result?.ok) {
-    throw new ActionNotSuccessfulError(
-      `Der Server antwortete mit Status ${result?.status ?? "?"}.`
+    throw fail(
+      `Der Server antwortete mit Status ${result?.status ?? "?"}.`,
+      result
     );
   }
   if (result.errors?.length) {
-    throw new ActionNotSuccessfulError(result.errors[0].message, result.errors);
+    throw fail(result.errors[0].message, result.errors);
   }
+
+  finishCall(callId, {
+    status: "ok",
+    ms: Date.now() - startedAt,
+    response: result.data,
+  });
   return result.data;
 };
 
