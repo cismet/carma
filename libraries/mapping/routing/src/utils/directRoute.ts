@@ -1,15 +1,36 @@
 /**
- * Car travel time, distance and line between two points, from the same MOTIS
- * service the route display uses.
+ * Travel time, distance and line between two points by one mode of travel,
+ * from the same MOTIS service the route display uses.
  *
- * This is the summary alone, nothing drawn: it answers "how far is that by car,
- * really", which is what a ranking of candidates needs, and hands back the line
- * it drove so a caller that wants to show the route has it without asking
- * again. Asking for `CAR` as the only direct mode keeps walking and cycling
- * itineraries out of the answer, so the fastest result is a car result.
+ * This is the summary alone, nothing drawn: it answers "how far is that by
+ * car, really" (or by bike, or on foot), which is what a ranking of candidates
+ * needs, and hands back the line it went along so a caller that wants to show
+ * the route has it without asking again. Asking for the one mode as the only
+ * direct mode keeps the other itineraries out of the answer, so the fastest
+ * result is a result of that mode.
  */
+import type { Mode } from "@motis-project/motis-client";
+
 import { decodePolyline } from "./routeDisplay";
 import { planRoute } from "../services/motisService";
+
+/** the modes a route can be computed for as one line */
+export type TravelMode = "car" | "bike" | "walk";
+
+/** what the service calls each mode */
+const MOTIS_MODE: Record<TravelMode, Mode> = {
+  car: "CAR",
+  bike: "BIKE",
+  walk: "WALK",
+};
+
+/**
+ * How long a direct trip may take before the service drops it, in seconds.
+ * MOTIS's own default is 30 minutes, which a walk across town exceeds and
+ * would then answer with nothing; two hours covers any trip within the city
+ * by any of the three modes.
+ */
+export const DEFAULT_MAX_DIRECT_TIME = 7200;
 
 /** the turn that starts a step, as the service names it */
 export type RouteDirection =
@@ -38,21 +59,24 @@ export interface RouteStep {
   startsAtMeters: number;
 }
 
-export interface CarRouteSummary {
+export interface RouteSummary {
   /** travel time in seconds */
   durationInSeconds: number;
-  /** driven distance in meters */
+  /** travelled distance in meters */
   distanceInMeters: number;
-  /** the driven line as `[lng, lat]` in WGS84; empty when it carried none */
+  /** the travelled line as `[lng, lat]` in WGS84; empty when it carried none */
   coordinates: [number, number][];
-  /** the instructions in driving order; empty when the answer carried none */
+  /** the instructions in travel order; empty when the answer carried none */
   steps: RouteStep[];
 }
 
-export interface FetchCarRouteParams {
+export interface FetchRouteParams {
   from: { lat: number; lng: number };
   to: { lat: number; lng: number };
+  mode: TravelMode;
   time?: Date;
+  /** seconds a direct trip may take; default `DEFAULT_MAX_DIRECT_TIME` */
+  maxDirectTime?: number;
 }
 
 /** what this reads off a direct itinerary; the rest of it is not needed here */
@@ -113,7 +137,8 @@ const pointAlong = (line: [number, number][], fromEnd: boolean) => {
 
 /**
  * The turn between two steps, read off their lines: the service names every
- * car step `CONTINUE` and leaves the turn to whoever draws the arrow. The
+ * car step `CONTINUE` and leaves the turn to whoever draws the arrow (walking
+ * and cycling steps come with their turn and skip this). The
  * heading in, over the last meters of the step before, against the heading
  * out, over the first meters of the step; the difference is the turn. A
  * roundabout cannot be told this way and stays a plain turn.
@@ -239,32 +264,40 @@ const stepsOf = (itinerary: DirectItinerary): RouteStep[] => {
 };
 
 /**
- * The fastest car route between two points, or `null` when the service answers
- * with none (unreachable, off the routed network, or the request failed).
+ * The fastest route between two points by the given mode, or `null` when the
+ * service answers with none (unreachable, off the routed network, longer than
+ * `maxDirectTime`, or the request failed).
  */
-export async function fetchCarRoute(
-  params: FetchCarRouteParams
-): Promise<CarRouteSummary | null> {
-  const { from, to, time = new Date() } = params;
+export async function fetchRoute(
+  params: FetchRouteParams
+): Promise<RouteSummary | null> {
+  const {
+    from,
+    to,
+    mode,
+    time = new Date(),
+    maxDirectTime = DEFAULT_MAX_DIRECT_TIME,
+  } = params;
 
   try {
     const result = await planRoute({
       from,
       to,
       time,
-      directModes: ["CAR"],
+      directModes: [MOTIS_MODE[mode]],
+      maxDirectTime,
     });
     const direct =
       (result.data as { direct?: DirectItinerary[] })?.direct ?? [];
 
-    let best: CarRouteSummary | null = null;
+    let best: RouteSummary | null = null;
     for (const itinerary of direct) {
       const durationInSeconds = itinerary?.duration;
       if (typeof durationInSeconds !== "number") {
         continue;
       }
       // an itinerary carries no distance of its own, so it is the sum of what
-      // its legs drove
+      // its legs cover
       const distanceInMeters = (itinerary.legs ?? []).reduce(
         (sum, leg) => sum + (leg?.distance ?? 0),
         0
@@ -280,7 +313,7 @@ export async function fetchCarRoute(
     }
     return best;
   } catch (error) {
-    console.error("[CAR ROUTE] routing failed", error);
+    console.error("[DIRECT ROUTE] routing failed", { mode, error });
     return null;
   }
 }

@@ -10,7 +10,14 @@ export {
   type RouteProgress,
 } from "./routeChannel";
 export { routeCameraTarget, type RouteCameraTarget } from "./routeCamera";
-export type { RouteMode } from "./routeMode";
+export { travelModeOf, type RouteMode } from "./routeMode";
+export {
+  DEFAULT_ROUTE_MODE,
+  useRouteMode,
+  useRouteModeRequest,
+  useRouteModeState,
+  type RouteModeState,
+} from "./routeModeChannel";
 export { RoutingPanel, RoutingInteractionPanel } from "./RoutingPanel";
 export {
   useRoutingLayerRow,

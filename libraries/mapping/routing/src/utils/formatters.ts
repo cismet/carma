@@ -5,7 +5,7 @@ import {
   type IconDefinition,
 } from "@fortawesome/free-solid-svg-icons";
 
-import type { RouteDirection } from "./carRoute";
+import type { RouteDirection } from "./directRoute";
 
 /**
  * How a route's numbers read, everywhere they are shown: the rows of "In der
