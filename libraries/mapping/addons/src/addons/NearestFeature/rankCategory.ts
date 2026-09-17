@@ -2,11 +2,15 @@ import type { Map as MaplibreMap } from "maplibre-gl";
 
 import type { carma } from "@carma-api";
 import type { DynamicSearchOption } from "@carma-mapping/fuzzy-search";
-import { formatDistance, formatRouteSummary } from "@carma-mapping/routing";
+import {
+  formatDistance,
+  formatRouteSummary,
+  type TravelMode,
+} from "@carma-mapping/routing";
 
 import { collectNearestFromIndex } from "../../lib/featureIndex";
 import { resolveStackedSources } from "../../lib/stackedSources";
-import { rankByCarRoute, type CarRoutesByFeature } from "./carRanking";
+import { rankByRoute, type RoutesByFeature } from "./routeRanking";
 import { CATEGORY_SEPARATOR } from "./categoryInput";
 import type { NearestFeatureCategory } from "./categoryChannel";
 import {
@@ -26,8 +30,9 @@ import type { NearestFeatureRoute } from "./routeLayer";
  *    the ranking reads the tilesets of the sources the style actually has;
  * 2. `collectNearestFromIndex` ranks that layer's `features.json`, which costs
  *    no requests and is complete for the whole layer, on or off screen;
- * 3. `rankByCarRoute` routes those candidates and reorders them by driving
- *    time, so the straight-line ranking only picks who is worth routing;
+ * 3. `rankByRoute` routes those candidates by the chosen mode and reorders
+ *    them by travel time, so the straight-line ranking only picks who is
+ *    worth routing;
  * 4. the map is fitted to the origin and every hit, so all of them are drawn;
  * 5. `queryRenderedFeatures` reads the hits' properties off those drawn
  *    features, which is where the names come from;
@@ -48,10 +53,11 @@ export type RankCategoryOptions = {
   origin: { lat: number; lng: number };
   count: number;
   /**
-   * Route the candidates by car and order them by driving time instead of by
-   * straight-line distance; see `carRanking.ts`.
+   * Route the candidates by this mode and order them by travel time instead
+   * of by straight-line distance; see `routeRanking.ts`. `null` keeps the
+   * straight-line order and asks the service for nothing.
    */
-  carRouteRanking: boolean;
+  mode: TravelMode | null;
   fitPadding: number;
   /** what a row's pick does with its hit; see `pickHit.ts` */
   pickHit: (hit: PickableHit) => void;
@@ -60,8 +66,8 @@ export type RankCategoryOptions = {
 export type RankCategoryResult = {
   rows: DynamicSearchOption[];
   /**
-   * The driven line of every hit that could be routed, in the order of the
-   * rows, for the caller to draw. Empty without car routing, and short of a
+   * The travelled line of every hit that could be routed, in the order of the
+   * rows, for the caller to draw. Empty without route ranking, and short of a
    * row per hit when the routing service could not answer for one of them.
    */
   routes: NearestFeatureRoute[];
@@ -92,7 +98,7 @@ export const rankCategory = async ({
   category,
   origin,
   count,
-  carRouteRanking,
+  mode,
   fitPadding,
   pickHit,
 }: RankCategoryOptions): Promise<RankCategoryResult> => {
@@ -165,9 +171,9 @@ export const rankCategory = async ({
 
   // the straight-line hits are the shortlist; the order the user sees is the
   // one the routing service gives them
-  const { entries: ranked, routes } = carRouteRanking
-    ? await rankByCarRoute(origin, entries)
-    : { entries, routes: new Map() as CarRoutesByFeature };
+  const { entries: ranked, routes } = mode
+    ? await rankByRoute(origin, entries, mode)
+    : { entries, routes: new Map() as RoutesByFeature };
 
   // fit the origin and every hit, so all of them are drawn and can be read
   // back; the bounding boxes are already in WGS84. The padding keeps them out
@@ -198,13 +204,14 @@ export const rankCategory = async ({
       id: entry.id,
       bbox: entry.bbox,
     };
-    if (route && route.coordinates.length > 1) {
+    if (mode && route && route.coordinates.length > 1) {
       shapes.push({
         key,
         hit,
         coordinates: route.coordinates,
         durationInSeconds: route.durationInSeconds,
         distanceInMeters: route.distanceInMeters,
+        mode,
         steps: route.steps,
       });
     }
@@ -220,8 +227,9 @@ export const rankCategory = async ({
       // icon five times over and the names are short of that width
       icon: null,
       ...(detail ? { detail } : {}),
-      // what it takes to get there by car; the straight-line distance is what
-      // is left when the routing service could not answer for this one
+      // what it takes to get there by the chosen mode; the straight-line
+      // distance is what is left when the routing service could not answer
+      // for this one
       hint: route
         ? formatRouteSummary(route.durationInSeconds, route.distanceInMeters)
         : formatDistance(entry.distanceInMeters),
