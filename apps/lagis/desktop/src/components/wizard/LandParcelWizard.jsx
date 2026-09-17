@@ -29,7 +29,6 @@ import { setLoggingEnabled } from "../../core/wizard/gqlLog";
 
 import { getLogin } from "../../store/slices/auth";
 import { getflurstuecke } from "../../store/slices/landParcels";
-import { getLandparcelInternaDataStructure } from "../../store/slices/lagis";
 import { getCurrentLParcelNav } from "../../store/slices/lpHistoryNav";
 import { removeLeadingZeros } from "../../core/tools/helper";
 
@@ -63,13 +62,12 @@ const keysToCheck = (stepId, data) => {
  * problem line above it that blocks forward navigation while it is set.
  */
 
-const LandParcelWizard = ({ open, onClose, showGraphQL = false }) => {
+const LandParcelWizard = ({ open, onClose, showGraphQL = true }) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const [, setUrlParams] = useSearchParams();
   const jwt = useSelector((state) => state.auth.jwt);
   const accountName = useSelector(getLogin);
-  const structure = useSelector(getLandparcelInternaDataStructure);
   const currentKeyString = useSelector(getCurrentLParcelNav);
   const { arten } = useStammdaten();
 
@@ -232,7 +230,7 @@ const LandParcelWizard = ({ open, onClose, showGraphQL = false }) => {
     if (data.action === WIZARD_ACTIONS.HISTORIC) {
       setBusy(true);
       try {
-        const found = await findRebeAndMipa(data.historicKey, structure, jwt);
+        const found = await findRebeAndMipa(data.historicKey, jwt);
         if (found.rebe.length || found.mipa.length) {
           setRebeMipaPrompt(found);
           return;

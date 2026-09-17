@@ -188,20 +188,18 @@ wizardQueries.mipaByGeo = `query MipaByGeo($geo: geometry) {
 
 /* --------------------------------------------------------------- Geometrie */
 
-// The Swing client pulled these areas over WFS (GeometryWorker); here they come
-// from the ALKIS view that the app already reads elsewhere.
-wizardQueries.areasByAlkisIds = `query AreasByAlkisIds($alkisIds: [String!]) {
-  extended_alkis_flurstueck(where: {alkis_id: {_in: $alkisIds}}) {
+// The Swing client pulled areas and geometries over WFS (GeometryWorker); here
+// they come from ALKIS via WuNDa. Runs against the WuNDa endpoint (runWuNDa),
+// not LagIS: the LagIS tables only hold the parcels LagIS already knows, while
+// the Assistent asks above all about parcels that are about to be created.
+// `_in` because a Zusammenlegung checks a whole list of parcels at once.
+wizardQueries.geometriesFromWuNDa = `query GeometriesFromWuNDa($alkisIds: [String!]) {
+  flurstueck(where: {alkis_id: {_in: $alkisIds}}) {
     alkis_id
-    area
-  }
-}`;
-
-wizardQueries.geometryByAlkisId = `query GeometryByAlkisId($alkisId: String!) {
-  extended_alkis_flurstueck(where: {alkis_id: {_eq: $alkisId}}) {
-    alkis_id
-    area
-    geometrie
+    extended_geom {
+      area
+      geo_field
+    }
   }
 }`;
 
