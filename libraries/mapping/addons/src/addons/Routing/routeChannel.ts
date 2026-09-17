@@ -1,5 +1,7 @@
 import { useCallback } from "react";
 
+import type { RouteStep } from "@carma-mapping/routing";
+
 import { useAddonState } from "../../lib/AddonStateContext";
 import type { RouteMode } from "./routeMode";
 
@@ -38,6 +40,12 @@ export type ActiveRoute = {
   distanceInMeters?: number;
   /** how the route was computed, for the icon in front of the summary */
   mode?: RouteMode;
+  /**
+   * The service's driving instructions in driving order, laid end to end
+   * along `coordinates`; a measured straight line has none. Kept stable per
+   * route like the coordinates, so a consumer can key on their identity.
+   */
+  steps?: RouteStep[];
 };
 
 export type ActiveRouteState = {
@@ -90,6 +98,21 @@ export type RouteProgress = {
   remainingSeconds?: number;
   /** 0 where the route starts, 1 at the destination */
   fraction: number;
+  /**
+   * where the user is in the instructions, read off the same snapped place
+   * the meters are; undefined for a route without steps
+   */
+  instruction?: RouteInstruction;
+};
+
+/** the step the user is on, and what comes after it */
+export type RouteInstruction = {
+  /** the step the user is on */
+  current: RouteStep;
+  /** the step after it; undefined on the last one */
+  next?: RouteStep;
+  /** meters left on the current step, i.e. until the next turn */
+  metersToNext: number;
 };
 
 export type RouteNavigation = {

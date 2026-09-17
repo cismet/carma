@@ -205,6 +205,7 @@ export const rankCategory = async ({
         coordinates: route.coordinates,
         durationInSeconds: route.durationInSeconds,
         distanceInMeters: route.distanceInMeters,
+        steps: route.steps,
       });
     }
     const title =
