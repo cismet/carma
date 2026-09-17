@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Alert, Button, Modal, Steps } from "antd";
+import { Alert, Button, Modal, Space, Steps, Tooltip } from "antd";
+import { CodeOutlined, InfoCircleOutlined } from "@ant-design/icons";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
@@ -24,7 +25,6 @@ import { findLock } from "../../core/wizard/locks";
 import { findRebeAndMipa } from "../../core/wizard/areaCheck";
 import { runWizardAction } from "../../core/wizard/operations";
 import useStammdaten from "../../core/wizard/useStammdaten";
-import { isRawVisible } from "../../core/wizard/devMode";
 import { setLoggingEnabled } from "../../core/wizard/gqlLog";
 
 import { getLogin } from "../../store/slices/auth";
@@ -33,6 +33,8 @@ import { getCurrentLParcelNav } from "../../store/slices/lpHistoryNav";
 import { removeLeadingZeros } from "../../core/tools/helper";
 
 const CHOOSE_ACTION_PROBLEM = "Bitte wählen Sie eine der obigen Aktionen aus";
+
+const PANE_STYLE = { height: "min(62vh, 520px)", minHeight: 380 };
 
 /** Keys that have to be free of a Sperre before the step may be left. */
 const keysToCheck = (stepId, data) => {
@@ -78,11 +80,8 @@ const LandParcelWizard = ({ open, onClose, showGraphQL = true }) => {
   const [result, setResult] = useState();
   const [error, setError] = useState();
   const [rebeMipaPrompt, setRebeMipaPrompt] = useState();
-  const showRaw = useMemo(
-    () => (showGraphQL === undefined ? isRawVisible() : showGraphQL),
-    [showGraphQL]
-  );
-  const [tab, setTab] = useState("wizard");
+  const showRaw = showGraphQL === true;
+  const [rawOpen, setRawOpen] = useState(false);
 
   // no panel, no recording
   useEffect(() => setLoggingEnabled(showRaw), [showRaw]);
@@ -294,7 +293,7 @@ const LandParcelWizard = ({ open, onClose, showGraphQL = true }) => {
     }
   };
 
-  const footer = result
+  const footerButtons = result
     ? [
         result.keys?.[0]?.gemarkung && (
           <Button key="switch" type="primary" onClick={switchToResult}>
@@ -342,94 +341,192 @@ const LandParcelWizard = ({ open, onClose, showGraphQL = true }) => {
         ),
       ];
 
+  const header = (
+    <div
+      className="flex items-start justify-between gap-4"
+      style={{ paddingRight: 32 }}
+    >
+      <div>
+        <div style={{ fontSize: 16, fontWeight: 600, lineHeight: 1.3 }}>
+          Flurstück Assistent
+        </div>
+        <div
+          className="text-gray-500"
+          style={{ fontSize: 12, fontWeight: 400 }}
+        >
+          {data.action
+            ? ACTION_TITLES[data.action].replace(/\.\.\.$/, "")
+            : "Aktion wählen"}
+        </div>
+      </div>
+      {showRaw && (
+        <Tooltip title={rawOpen ? "Assistent anzeigen" : "GraphQL anzeigen"}>
+          <Button
+            size="small"
+            shape="circle"
+            type={rawOpen ? "primary" : "text"}
+            icon={<CodeOutlined />}
+            aria-label="GraphQL"
+            onClick={() => setRawOpen(!rawOpen)}
+            style={rawOpen ? undefined : { color: "#8c8c8c" }}
+          />
+        </Tooltip>
+      )}
+    </div>
+  );
+
+  const footer = (
+    <div className="flex items-center justify-between gap-4">
+      <span className="text-gray-400" style={{ fontSize: 12 }}>
+        {!result && data.action
+          ? `Schritt ${stepIndex + 1} von ${steps.length}`
+          : ""}
+      </span>
+      <Space size={8}>{footerButtons}</Space>
+    </div>
+  );
+
+  const graphQLOpen = showRaw && rawOpen;
+
   return (
     <>
       <Modal
         open={open}
-        title={data.action ? ACTION_TITLES[data.action] : "Flurstück Assistent"}
-        width={760}
+        title={header}
+        width={880}
         centered
         onCancel={handleClose}
         maskClosable={false}
         footer={footer}
+        styles={{
+          content: { padding: 0, overflow: "hidden" },
+          header: {
+            padding: "16px 24px",
+            marginBottom: 0,
+            borderBottom: "1px solid #f0f0f0",
+          },
+          body: { padding: 0 },
+          footer: {
+            padding: "12px 24px",
+            marginTop: 0,
+            borderTop: "1px solid #f0f0f0",
+            background: "#fafafa",
+          },
+        }}
       >
-        {showRaw && (
-          <div className="flex gap-1 border-b border-gray-200 -mt-2">
-            {[
-              { key: "wizard", label: "Assistent" },
-              { key: "graphql", label: "GraphQL" },
-            ].map((item) => (
-              <button
-                key={item.key}
-                type="button"
-                onClick={() => setTab(item.key)}
-                className="px-3 py-2 text-sm bg-transparent border-none cursor-pointer"
-                style={{
-                  color: tab === item.key ? "#1677ff" : "#6b7280",
-                  borderBottom:
-                    tab === item.key
-                      ? "2px solid #1677ff"
-                      : "2px solid transparent",
-                  fontWeight: tab === item.key ? 500 : 400,
-                }}
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
-        )}
+        <div style={PANE_STYLE}>
+          {showRaw && (
+            <div
+              style={{
+                display: graphQLOpen ? "block" : "none",
+                height: "100%",
+                overflow: "hidden",
+                padding: "16px 24px",
+              }}
+            >
+              <GraphQLPanel />
+            </div>
+          )}
 
-        {showRaw && tab === "graphql" && (
-          <div className="py-3">
-            <GraphQLPanel />
-          </div>
-        )}
+          {/* kept mounted rather than unmounted: the choosers hold the typed
+              Flurstück in local state, which unmounting would discard */}
+          <div
+            style={{
+              display: graphQLOpen ? "none" : "flex",
+              height: "100%",
+            }}
+          >
+            <div
+              style={{
+                width: 244,
+                flex: "0 0 244px",
+                background: "#fafafa",
+                borderRight: "1px solid #f0f0f0",
+                padding: "20px 16px",
+                overflowY: "auto",
+              }}
+            >
+              <Steps
+                direction="vertical"
+                size="small"
+                current={stepIndex}
+                items={steps.map((step) => ({
+                  title: <span style={{ fontSize: 13 }}>{step.title}</span>,
+                }))}
+              />
+            </div>
 
-        {/* kept mounted rather than unmounted: the choosers hold the typed
-            Flurstück in local state, which switching tabs would discard */}
-        <div
-          className="flex gap-6 py-2"
-          style={{
-            minHeight: 320,
-            display: showRaw && tab === "graphql" ? "none" : "flex",
-          }}
-        >
-          <Steps
-            direction="vertical"
-            size="small"
-            current={stepIndex}
-            style={{ width: 190 }}
-            items={steps.map((step) => ({ title: step.title }))}
-          />
-          <div className="flex-1 flex flex-col justify-between">
-            <div>
-              {result ? (
-                <Alert
-                  type="success"
-                  message="Aktion erfolgreich"
-                  description={
-                    <span style={{ whiteSpace: "pre-line" }}>
-                      {result.message}
-                    </span>
-                  }
-                />
-              ) : (
-                renderStep()
-              )}
-              {error && (
-                <Alert
-                  className="mt-3"
-                  type="error"
-                  message="Die Aktion ist fehlgeschlagen"
-                  description={
-                    <span style={{ whiteSpace: "pre-line" }}>{error}</span>
-                  }
-                />
+            <div
+              style={{
+                flex: 1,
+                minWidth: 0,
+                padding: "20px 24px",
+                overflowY: "auto",
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "space-between",
+              }}
+            >
+              <div>
+                {!result && (
+                  <div
+                    style={{
+                      marginBottom: 16,
+                      paddingBottom: 10,
+                      borderBottom: "1px solid #f0f0f0",
+                      fontSize: 14,
+                      fontWeight: 600,
+                    }}
+                  >
+                    {currentStep.title}
+                  </div>
+                )}
+                {result ? (
+                  <Alert
+                    type="success"
+                    showIcon
+                    message="Aktion erfolgreich"
+                    description={
+                      <span style={{ whiteSpace: "pre-line" }}>
+                        {result.message}
+                      </span>
+                    }
+                  />
+                ) : (
+                  renderStep()
+                )}
+                {error && (
+                  <Alert
+                    className="mt-3"
+                    type="error"
+                    showIcon
+                    message="Die Aktion ist fehlgeschlagen"
+                    description={
+                      <span style={{ whiteSpace: "pre-line" }}>{error}</span>
+                    }
+                  />
+                )}
+              </div>
+              {!result && problem && (
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: 8,
+                    marginTop: 16,
+                    fontSize: 13,
+                    padding: "8px 10px",
+                    borderRadius: 6,
+                    background: "#f0f7ff",
+                    border: "1px solid #d6e4ff",
+                    color: "#1d4ed8",
+                  }}
+                >
+                  <InfoCircleOutlined style={{ marginTop: 3 }} />
+                  <span>{problem}</span>
+                </div>
               )}
             </div>
-            {!result && problem && (
-              <div className="text-blue-700 text-sm mt-3">{problem}</div>
-            )}
           </div>
         </div>
       </Modal>
