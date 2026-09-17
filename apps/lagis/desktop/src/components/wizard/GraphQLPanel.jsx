@@ -27,8 +27,11 @@ const StatusTag = ({ entry }) => {
 };
 
 /**
- * Every GraphQL call the Assistent has made, newest first — document,
- * variables and the server's answer.
+ * Every server call the Assistent has made, newest first — the document or
+ * request body, its parameters and the server's answer.
+ *
+ * Reads are GraphQL; writes are cids SaveObject/DeleteObject, so the two show
+ * up side by side here and the tag says which is which.
  *
  * The point is the failing call: the document shown here is the exact text
  * that was posted, so a schema mismatch can be read off without opening the
@@ -68,7 +71,7 @@ const GraphQLPanel = () => {
               className="border border-gray-200 rounded p-3 flex flex-col gap-2"
             >
               <div className="flex items-center gap-2 flex-wrap">
-                <Tag color={entry.kind === "mutation" ? "volcano" : "blue"}>
+                <Tag color={entry.kind === "query" ? "blue" : "volcano"}>
                   {entry.kind}
                 </Tag>
                 <span className="font-medium">{entry.operation}</span>

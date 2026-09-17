@@ -1,10 +1,12 @@
 import wizardQueries from "./queries";
-import { run, ActionNotSuccessfulError } from "./api";
+import { run, ActionNotSuccessfulError, CLASS } from "./api";
+import { deleteObject, saveAndGetId } from "./cidsActions";
 
 /**
  * Port of the Sperre handling in LagisBroker (isLocked / createLock /
  * releaseLock). Reads go against the `sperre` view, writes against `cs_locks` —
- * the same split the Swing client uses.
+ * the same split the Swing client uses. The write half goes through
+ * SaveObject/DeleteObject like every other write.
  */
 
 const SCHLUESSEL_TABLE = "flurstueck_schluessel";
@@ -63,22 +65,22 @@ export const acquireLock = async (
     );
   }
   const classId = await fetchSchluesselClassId(jwt);
-  const data = await run(
-    wizardQueries.insertLock,
-    {
-      object: {
+  let id;
+  try {
+    id = await saveAndGetId(
+      CLASS.LOCK,
+      {
         class_id: classId,
         object_id: schluesselId,
         user_string: accountName,
         additional_info: formatInfo(contextKeyString),
       },
-    },
-    jwt
-  );
-  const id = data.insert_cs_locks_one?.id;
-  if (!id) {
+      jwt
+    );
+  } catch (e) {
     throw new ActionNotSuccessfulError(
-      `Anlegen einer Sperre für das Flurstück ${keyString} nicht möglich.`
+      `Anlegen einer Sperre für das Flurstück ${keyString} nicht möglich: ${e.message}`,
+      e
     );
   }
   return { id, schluesselId };
@@ -89,7 +91,7 @@ export const releaseLock = async (lock, jwt) => {
     return;
   }
   try {
-    await run(wizardQueries.deleteLock, { id: lock.id }, jwt);
+    await deleteObject(CLASS.LOCK, { id: lock.id }, jwt);
   } catch (e) {
     // Releasing is best effort: the Swing client also only logs this, and
     // failing here would mask the real error of the surrounding action.

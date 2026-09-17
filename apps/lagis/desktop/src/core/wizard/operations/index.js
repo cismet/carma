@@ -10,6 +10,19 @@ import { splitFlurstuecke } from "./split";
 import { joinFlurstuecke } from "./join";
 import { joinSplitFlurstuecke } from "./joinSplit";
 
+/** A short, readable rendering of whatever the server sent back. */
+const describeDetail = (detail) => {
+  if (detail === undefined || detail === null) {
+    return undefined;
+  }
+  const text =
+    typeof detail === "string" ? detail : JSON.stringify(detail, null, 2);
+  if (!text || text === "{}") {
+    return undefined;
+  }
+  return text.length > 600 ? `${text.slice(0, 600)}…` : text;
+};
+
 const HANDLERS = {
   [WIZARD_ACTIONS.CREATE]: createFlurstueck,
   [WIZARD_ACTIONS.RENAME]: renameFlurstueck,
@@ -47,13 +60,20 @@ export const runWizardAction = async (action, payload, context) => {
     journal.commit();
     return result;
   } catch (error) {
+    // keep the stack reachable — the panel shows the payload, not the trace
+    console.error(`[wizard] ${action} failed`, error);
     const failed = await journal.rollback();
     const reason =
       error instanceof ActionNotSuccessfulError
         ? error.message
-        : "Unbekannter Fehler. Bitte wenden Sie sich an Ihren Systemadministrator.";
+        : `Unbekannter Fehler: ${error?.message ?? error}. ` +
+          "Bitte wenden Sie sich an Ihren Systemadministrator.";
+    // the server's own words, when it gave any
+    const detail = describeDetail(error?.detail);
     const enriched = new ActionNotSuccessfulError(
-      `${reason}\n\n${describeRollbackFailures(failed)}`,
+      [reason, detail, describeRollbackFailures(failed)]
+        .filter(Boolean)
+        .join("\n\n"),
       error
     );
     enriched.rollbackFailures = failed;
