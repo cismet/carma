@@ -1,4 +1,5 @@
 import type { FachzwillingRoute } from ".";
+import { DEFAULT_HOME_VIEW_REF } from "../../config/view.config";
 
 const gesundheitItemIds = [
   "wuppPOI:poi_krankenhaeuser",
@@ -52,6 +53,15 @@ export const gesundheitFachzwilling: FachzwillingRoute = {
       },
     },
     "originSearch",
+    "routing",
+    { kind: "cameraRestriction", config: { mode: "unlessNavigating" } },
+    {
+      kind: "locationSimulator",
+      config: {
+        position: [DEFAULT_HOME_VIEW_REF.lng, DEFAULT_HOME_VIEW_REF.lat],
+        speedMetersPerSecond: 8,
+      },
+    },
   ],
   perspectives: [
     {
