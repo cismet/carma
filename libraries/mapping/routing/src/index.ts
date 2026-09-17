@@ -33,10 +33,13 @@ export {
   fetchCarRoute,
   type CarRouteSummary,
   type FetchCarRouteParams,
+  type RouteDirection,
+  type RouteStep,
 } from "./utils/carRoute";
 
-// How a route's numbers read, everywhere they are shown
+// How a route's numbers and instructions read, everywhere they are shown
 export {
+  formatDirection,
   formatDistance,
   formatDuration,
   formatRouteSummary,
