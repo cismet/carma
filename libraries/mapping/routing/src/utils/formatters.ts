@@ -37,6 +37,18 @@ export function formatDistance(meters: number): string {
     : `${KILOMETERS.format(meters / 1000)} km`;
 }
 
+/**
+ * The distance to the next turn, as a navigation shows it: rounded to 10 m
+ * under a kilometer and to 100 m above, so a display fed once a second does
+ * not flicker through every meter. Never "0 m" while there is anything left.
+ */
+export function formatTurnDistance(meters: number): string {
+  if (meters < 1000) {
+    return `${METERS.format(Math.max(10, Math.round(meters / 10) * 10))} m`;
+  }
+  return `${KILOMETERS.format(Math.round(meters / 100) / 10)} km`;
+}
+
 /** "12 Min · 4,3 km" */
 export function formatRouteSummary(
   durationInSeconds: number,

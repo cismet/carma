@@ -43,6 +43,7 @@ export {
   formatDistance,
   formatDuration,
   formatRouteSummary,
+  formatTurnDistance,
   getModeIcon,
   getModeLabel,
 } from "./utils/formatters";
