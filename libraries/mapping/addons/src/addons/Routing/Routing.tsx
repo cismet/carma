@@ -336,6 +336,21 @@ export const Routing = ({
     flyOntoRoute();
   }, [flyOntoRoute]);
 
+  useEffect(() => {
+    if (!libreMap || !navigating) {
+      return;
+    }
+    const release = () => {
+      if (libreMap.getTerrain()) {
+        libreMap._elevationFreeze = false;
+      }
+    };
+    libreMap.on("moveend", release);
+    return () => {
+      libreMap.off("moveend", release);
+    };
+  }, [libreMap, navigating]);
+
   /**
    * The step per fix: where the user is on the route, and what that means for
    * the camera and for what is left.
