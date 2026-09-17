@@ -514,10 +514,13 @@ export const NearestFeature = ({
             steps: picked.steps,
             // the mode the line was ranked by; see `routeRanking.ts`
             mode: picked.mode,
+            // ranked from the device rather than from a searched address or
+            // the configured fallback; the navigation is only offered then
+            fromOwnPosition: publishedOrigin?.own === true,
           }
         : null
     );
-  }, [drawnRoutes, selectedRouteKey, setActiveRoute]);
+  }, [drawnRoutes, selectedRouteKey, publishedOrigin, setActiveRoute]);
   useEffect(() => () => setActiveRoute(null), [setActiveRoute]);
 
   /**
