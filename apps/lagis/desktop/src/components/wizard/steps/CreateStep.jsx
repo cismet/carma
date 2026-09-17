@@ -1,24 +1,63 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Radio, Space } from "antd";
 import { BankOutlined, BlockOutlined } from "@ant-design/icons";
 import { useSelector } from "react-redux";
 import LandParcelKeyChooser from "../LandParcelKeyChooser";
-import { getLandparcelInternaDataStructure } from "../../../store/slices/lagis";
-import { alkisIdForKey } from "../../../core/wizard/areaCheck";
+import { buildAlkisId, fetchGeometryForKey } from "../../../core/wizard/geometry";
 import { FLURSTUECK_ART } from "../../../core/wizard/constants";
+
+// no point in asking ALKIS while the key is still being typed
+const CHECK_DELAY_MS = 400;
+
+const formatArea = (area) =>
+  `${Number(area ?? 0).toLocaleString("de-DE", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })} m²`;
 
 /**
  * Port of CreateActionPanel — pick a not yet existing key and say whether the
- * parcel is städtisch or Abteilung IX. The hint about a missing geometry is the
- * one CreateActionPanel showed when the WFS lookup came back empty.
+ * parcel is städtisch or Abteilung IX. The geometry hint replaces the WFS
+ * lookup the Swing panel did.
  */
 const CreateStep = ({ value, onChange, onProblem }) => {
-  const structure = useSelector(getLandparcelInternaDataStructure);
+  const jwt = useSelector((state) => state.auth.jwt);
   const [chooserStatus, setChooserStatus] = useState({ valid: false });
+  const [geometry, setGeometry] = useState({ status: "idle" });
 
-  const isStaedtisch = value.isStaedtisch ?? true;
   const key = value.createKey;
-  const geometryMissing = key && !alkisIdForKey(key, structure);
+  const alkisId = buildAlkisId(key);
+
+  useEffect(() => {
+    if (!alkisId) {
+      setGeometry({ status: "idle" });
+      return undefined;
+    }
+    let cancelled = false;
+    setGeometry({ status: "checking" });
+    const timer = setTimeout(async () => {
+      try {
+        const found = await fetchGeometryForKey(key, jwt);
+        if (!cancelled) {
+          setGeometry(
+            found
+              ? { status: "found", area: found.area }
+              : { status: "missing" }
+          );
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setGeometry({ status: "error", message: e.message });
+        }
+      }
+    }, CHECK_DELAY_MS);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+    // the ALKIS id identifies the key completely
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [alkisId, jwt]);
 
   const handleValidity = (status) => {
     setChooserStatus(status);
@@ -40,7 +79,7 @@ const CreateStep = ({ value, onChange, onProblem }) => {
       <div>
         <div className="mb-1 font-medium">Art des Flurstücks</div>
         <Radio.Group
-          value={isStaedtisch}
+          value={value.isStaedtisch ?? true}
           onChange={(event) => onChange({ isStaedtisch: event.target.value })}
         >
           <Space direction="vertical" size={4}>
@@ -56,10 +95,23 @@ const CreateStep = ({ value, onChange, onProblem }) => {
         </Radio.Group>
       </div>
 
-      {chooserStatus.valid && geometryMissing && (
+      {chooserStatus.valid && geometry.status === "checking" && (
+        <div className="text-sm text-gray-500">Geometrie wird geprüft...</div>
+      )}
+      {chooserStatus.valid && geometry.status === "found" && (
+        <div className="text-sm text-green-700">
+          Geometrie in ALKIS gefunden ({formatArea(geometry.area)}).
+        </div>
+      )}
+      {chooserStatus.valid && geometry.status === "missing" && (
         <div className="text-amber-600 text-sm">
           Zu diesem Flurstück konnte keine Geometrie gefunden werden. Es kann
           angelegt werden, wird aber nicht auf der Karte dargestellt.
+        </div>
+      )}
+      {chooserStatus.valid && geometry.status === "error" && (
+        <div className="text-amber-600 text-sm">
+          Die Geometrie konnte nicht geprüft werden: {geometry.message}
         </div>
       )}
     </div>

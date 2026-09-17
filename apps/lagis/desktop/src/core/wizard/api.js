@@ -1,4 +1,4 @@
-import { fetchGraphQL } from "../graphql";
+import { fetchGraphQL, fetchGraphQLFromWuNDa } from "../graphql";
 import wizardQueries from "./queries";
 import { finishCall, startCall } from "./gqlLog";
 import { deleteObject, saveObject, saveAndGetId } from "./cidsActions";
@@ -11,7 +11,7 @@ export { ActionNotSuccessfulError, CidsActionError } from "./errors";
  * Runs a document and unwraps it. Every GraphQL call of the wizard goes through
  * here, so a transport error and a GraphQL `errors` payload fail the same way.
  */
-export const run = async (query, variables, jwt) => {
+const execute = async (fetcher, query, variables, jwt) => {
   const callId = startCall(query, variables);
   const startedAt = Date.now();
 
@@ -27,7 +27,7 @@ export const run = async (query, variables, jwt) => {
 
   let result;
   try {
-    result = await fetchGraphQL(query, variables, jwt);
+    result = await fetcher(query, variables, jwt);
   } catch (e) {
     throw fail("Die Verbindung zum Server ist fehlgeschlagen.", String(e));
   }
@@ -51,6 +51,13 @@ export const run = async (query, variables, jwt) => {
   });
   return result.data;
 };
+
+export const run = (query, variables, jwt) =>
+  execute(fetchGraphQL, query, variables, jwt);
+
+/** The WuNDa endpoint, which carries ALKIS. */
+export const runWuNDa = (query, variables, jwt) =>
+  execute(fetchGraphQLFromWuNDa, query, variables, jwt);
 
 /** cids class names, i.e. the database table each write targets. */
 export const CLASS = {
