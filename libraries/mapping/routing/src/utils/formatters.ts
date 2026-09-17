@@ -5,6 +5,8 @@ import {
   type IconDefinition,
 } from "@fortawesome/free-solid-svg-icons";
 
+import type { RouteDirection } from "./carRoute";
+
 /**
  * How a route's numbers read, everywhere they are shown: the rows of "In der
  * Nähe", the note in the info box, the route options list. One place, so the
@@ -43,6 +45,42 @@ export function formatRouteSummary(
   return `${formatDuration(durationInSeconds)} · ${formatDistance(
     distanceInMeters
   )}`;
+}
+
+/**
+ * The turn itself, before the street it leads onto. The verb is left off the
+ * ones that are not a turn: "Abfahrt", "weiter", "wenden", "im Kreisverkehr",
+ * and the roundabout gets no exit number because the service sends none.
+ */
+const DIRECTION_TEXT: Record<RouteDirection, string> = {
+  DEPART: "Abfahrt",
+  CONTINUE: "weiter",
+  SLIGHTLY_LEFT: "leicht links halten",
+  LEFT: "links abbiegen",
+  HARD_LEFT: "scharf links abbiegen",
+  SLIGHTLY_RIGHT: "leicht rechts halten",
+  RIGHT: "rechts abbiegen",
+  HARD_RIGHT: "scharf rechts abbiegen",
+  UTURN_LEFT: "wenden",
+  UTURN_RIGHT: "wenden",
+  CIRCLE_CLOCKWISE: "im Kreisverkehr",
+  CIRCLE_COUNTERCLOCKWISE: "im Kreisverkehr",
+  STAIRS: "Treppe nehmen",
+  ELEVATOR: "Aufzug nehmen",
+};
+
+/**
+ * One instruction as a driver would hear it: "rechts abbiegen auf Bahnstraße",
+ * "weiter auf Friedrich-Engels-Allee", "wenden". Without a street name (an
+ * unnamed way) the turn stands alone rather than saying "auf unbenannter
+ * Straße", which would only lengthen a line that already says what to do.
+ */
+export function formatDirection(
+  direction: RouteDirection,
+  streetName?: string
+): string {
+  const turn = DIRECTION_TEXT[direction] ?? direction;
+  return streetName ? `${turn} auf ${streetName}` : turn;
 }
 
 export function getModeIcon(mode: string): IconDefinition {
