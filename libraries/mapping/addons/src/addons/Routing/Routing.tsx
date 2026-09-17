@@ -16,6 +16,8 @@ import {
   DEFAULT_ARRIVAL_METERS,
   DEFAULT_DURATION,
   DEFAULT_FOLLOW_DURATION,
+  DEFAULT_INSTRUCTION_ORDER,
+  DEFAULT_INSTRUCTION_POSITION,
   DEFAULT_LOOK_AHEAD_METERS,
   DEFAULT_MAP_ONLY,
   DEFAULT_PITCH,
@@ -27,6 +29,7 @@ import {
   DEFAULT_ZOOM,
   REMAINING_PREFIX,
 } from "./config";
+import { InstructionCard } from "./InstructionCard";
 import { RecenterControl } from "./RecenterControl";
 import { ROUTING_LAYER_ID } from "./routing-layer-row";
 import {
@@ -37,7 +40,7 @@ import {
 } from "./routeLine";
 import { routeCameraTarget, type RouteCameraTarget } from "./routeCamera";
 import { useActiveRoute, type RouteProgress } from "./routeChannel";
-import { formatInstruction, formatSteps, stepAt } from "./routeSteps";
+import { stepAt } from "./routeSteps";
 
 /**
  * Puts the user on the route and keeps them there: the map eases to where
@@ -88,6 +91,12 @@ import { formatInstruction, formatSteps, stepAt } from "./routeSteps";
  * The navigation only ends with the route button, the ✕ of its row, arrival,
  * or the route going away.
  *
+ * The next turn is a card at the bottom of the map (`InstructionCard`): the
+ * arrow, the meters to it and the street it leads onto, read off the same
+ * snapped place as the countdown (`progress.instruction`, see `routeSteps`).
+ * Only while the route carries instructions; a measured line has none and
+ * shows no card.
+ *
  * While it runs the layer bar shows a row for it (`useRoutingLayerRow`, in
  * the host's tree like the flood's and the time series' rows): the countdown
  * as its readout, and a ribbon behind it (`RoutingPanel`) with the slider that
@@ -130,6 +139,8 @@ export const Routing = ({
     recenterPosition = DEFAULT_RECENTER_POSITION,
     recenterOrder = DEFAULT_RECENTER_ORDER,
     recenterLabel = DEFAULT_RECENTER_LABEL,
+    instructionPosition = DEFAULT_INSTRUCTION_POSITION,
+    instructionOrder = DEFAULT_INSTRUCTION_ORDER,
     aheadColor = DEFAULT_AHEAD_COLOR,
     travelledColor = DEFAULT_TRAVELLED_COLOR,
     mapOnly = DEFAULT_MAP_ONLY,
@@ -201,27 +212,6 @@ export const Routing = ({
       routeProgress(target, durationInSeconds, distanceInMeters, steps)
     );
   }, []);
-
-  /**
-   * The instructions on the console, the first consumer of them: the whole
-   * list once, when a route that carries any comes into focus, and one line
-   * per step change while navigating. The distance to the next turn is not
-   * logged per fix; the console would only scroll.
-   */
-  useEffect(() => {
-    if (steps && steps.length > 0) {
-      console.debug(`[ROUTING] Anweisungen: ${formatSteps(steps)}`);
-    }
-  }, [steps]);
-  const instruction = progress?.instruction;
-  const currentStep = instruction?.current;
-  useEffect(() => {
-    if (instruction) {
-      console.debug(`[ROUTING] ${formatInstruction(instruction)}`);
-    }
-    // the step is what counts, not the meters left on it, which change per fix
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentStep]);
 
   /**
    * Counts the flights, so a `moveend` of a leave that was overtaken by a new
@@ -574,17 +564,30 @@ export const Routing = ({
     [publishNavigation]
   );
 
-  // the recenter button, only while the user has taken the camera off
-  if (!libreMap || !navigating || following) {
+  if (!libreMap || !navigating) {
     return null;
   }
+  const instruction = progress?.instruction;
   return (
-    <RecenterControl
-      position={recenterPosition}
-      order={recenterOrder}
-      label={recenterLabel}
-      onClick={recenter}
-    />
+    <>
+      {/* the next turn, for as long as the route has instructions to give */}
+      {instruction && (
+        <InstructionCard
+          instruction={instruction}
+          position={instructionPosition}
+          order={instructionOrder}
+        />
+      )}
+      {/* the recenter button, only while the user has taken the camera off */}
+      {!following && (
+        <RecenterControl
+          position={recenterPosition}
+          order={recenterOrder}
+          label={recenterLabel}
+          onClick={recenter}
+        />
+      )}
+    </>
   );
 };
 
