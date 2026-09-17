@@ -15,17 +15,15 @@ export const STEP = {
   JOIN_CHOOSE: "joinChoose",
   RESULTING: "resulting",
   SUMMARY: "summary",
+  ADMIN_AREAS: "adminAreas",
+  USAGE: "usage",
 };
 
 const INITIAL_STEP = { id: STEP.CHOOSE_ACTION, title: "Aktion wählen" };
 
 const BRANCHES = {
-  [WIZARD_ACTIONS.CREATE]: [
-    { id: STEP.CREATE, title: "Flurstück auswählen" },
-  ],
-  [WIZARD_ACTIONS.RENAME]: [
-    { id: STEP.RENAME, title: "Flurstück auswählen" },
-  ],
+  [WIZARD_ACTIONS.CREATE]: [{ id: STEP.CREATE, title: "Flurstück auswählen" }],
+  [WIZARD_ACTIONS.RENAME]: [{ id: STEP.RENAME, title: "Flurstück auswählen" }],
   [WIZARD_ACTIONS.HISTORIC]: [
     { id: STEP.HISTORIC, title: "Flurstück auswählen" },
   ],
@@ -53,9 +51,24 @@ const BRANCHES = {
   ],
 };
 
+/** Asked for every action, after the parcels are settled and before the summary. */
+const COMMON_STEPS = [
+  { id: STEP.ADMIN_AREAS, title: "Verwaltungsbereiche" },
+  { id: STEP.USAGE, title: "Nutzung" },
+];
+
+const withCommonSteps = (branch) => {
+  const summary = branch.findIndex((step) => step.id === STEP.SUMMARY);
+  return summary === -1
+    ? [...branch, ...COMMON_STEPS]
+    : [...branch.slice(0, summary), ...COMMON_STEPS, ...branch.slice(summary)];
+};
+
 /** Step 0 is always the action chooser; the rest depends on what was picked. */
 export const getSteps = (action) =>
-  action ? [INITIAL_STEP, ...BRANCHES[action]] : [INITIAL_STEP];
+  action
+    ? [INITIAL_STEP, ...withCommonSteps(BRANCHES[action])]
+    : [INITIAL_STEP];
 
 /** True once the current step is the last one of the branch. */
 export const isLastStep = (action, index) =>
