@@ -117,6 +117,7 @@ export const OriginSearch = ({
           lat: currentPosition.coords.latitude,
           lng: currentPosition.coords.longitude,
           label: OWN_POSITION_LABEL,
+          own: true,
         }
       : null);
 
@@ -151,8 +152,8 @@ export const OriginSearch = ({
   // starting point any more. Not while the origin is the user: the location
   // mode already draws them, and a second dot on the same spot is just a dot
   // with a shadow.
-  const { lat, lng, label } = origin ?? {};
-  const drawMarker = visible && label !== OWN_POSITION_LABEL;
+  const { lat, lng, label, own } = origin ?? {};
+  const drawMarker = visible && !own;
   const markerRef = useRef<maplibregl.Marker | null>(null);
   useEffect(() => {
     if (!libreMap || !drawMarker || lat === undefined || lng === undefined) {

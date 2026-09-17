@@ -32,6 +32,13 @@ export type ActiveRoute = {
   /** what the destination is called, when the producer knows */
   label?: string;
   /**
+   * The route starts at the device's own position, not at a searched or
+   * configured point. Only such a route is offered for navigation: the camera
+   * follows the device's fixes, and a route that starts somewhere else has no
+   * fixes to follow.
+   */
+  fromOwnPosition?: boolean;
+  /**
    * What it takes to get there, when the producer routed rather than measured:
    * a line the routing service drove has a time and a length, a straight line
    * has neither, and a summary is only shown for the former.

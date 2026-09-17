@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, type CSSProperties } from "react";
 import type { InteractionButton, Layer } from "@carma-mapping/layers";
 import { formatDistance, formatRouteSummary } from "@carma-mapping/routing";
 
+import { useLocationSimulation } from "../LocationSimulator/simulationChannel";
 import { REMAINING_PREFIX } from "./config";
 import { useRouteNavigation } from "./routeChannel";
 
@@ -23,8 +24,9 @@ const READOUT_STYLE: CSSProperties = {
 
 /**
  * The row the layer bar shows while a navigation runs: the title and what is
- * left of the route, which opens the ribbon. Same shape as the flood's and the
- * time series' rows, so a route's tools read as one family.
+ * left of the route, which opens the ribbon while there is one to open. Same
+ * shape as the flood's and the time series' rows, so a route's tools read as
+ * one family.
  *
  * No `tools`: the navigation is not persisted, so the host's rehydrate filter
  * drops the row with the session, and a row that somehow comes back without
@@ -39,20 +41,33 @@ export const ROUTING_LAYER: Layer = {
   visible: true,
   pinned: "last",
   skipSelection: true,
-  rowClickInteractionId: ROUTING_TOOLS_INTERACTION_ID,
 };
 
-const buildInteractionButtons = (label: string): InteractionButton[] => [
+/**
+ * The countdown at the row's end. With a ribbon behind it (the simulator's
+ * slider), it carries the ribbon's id: the readout is lit while the ribbon is
+ * open and clicking it closes the ribbon again. Without one it is a readout
+ * and nothing more; the no-op keeps the host from opening a panel there is
+ * nothing to show in.
+ */
+const buildInteractionButtons = (
+  label: string,
+  hasRibbon: boolean
+): InteractionButton[] => [
   {
-    // same id as `rowClickInteractionId`, so the readout is lit while the
-    // ribbon is open and clicking it closes the ribbon again
     id: ROUTING_TOOLS_INTERACTION_ID,
     icon: (
       <span className="tabular-nums" style={READOUT_STYLE}>
         {label}
       </span>
     ),
-    tooltip: "Navigation einstellen",
+    ...(hasRibbon
+      ? { tooltip: "Navigation einstellen" }
+      : {
+          onClick: () => {
+            /* a readout, not a switch */
+          },
+        }),
   },
 ];
 
@@ -90,6 +105,9 @@ export const useRoutingLayerRow = ({
   const isOn = navigation?.navigating ?? false;
   const progress = navigation?.progress ?? null;
   const stop = navigation?.stop;
+  // the ribbon only holds the simulator's controls; a real device cannot be
+  // moved, so without the simulator the row opens nothing
+  const hasRibbon = useLocationSimulation() !== null;
 
   // the same words the info box note says, so the two never disagree; a
   // route that was only measured carries no minutes and gets the meters alone
@@ -110,9 +128,12 @@ export const useRoutingLayerRow = ({
       iconColor: panelOpen
         ? ROUTING_ICON_COLOR.open
         : ROUTING_ICON_COLOR.closed,
-      interactionButtons: buildInteractionButtons(label),
+      ...(hasRibbon
+        ? { rowClickInteractionId: ROUTING_TOOLS_INTERACTION_ID }
+        : {}),
+      interactionButtons: buildInteractionButtons(label, hasRibbon),
     }),
-    [label, panelOpen]
+    [label, panelOpen, hasRibbon]
   );
 
   const layerRef = useRef(layer);
