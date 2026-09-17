@@ -14,14 +14,46 @@ export const WIZARD_ACTIONS = {
 
 // Order and wording follow the Swing ChoiceActionPanel.
 export const ACTION_CHOICES = [
-  { value: WIZARD_ACTIONS.CREATE, label: "Flurstück einpflegen" },
-  { value: WIZARD_ACTIONS.RENAME, label: "Flurstück umbenennen" },
-  { value: WIZARD_ACTIONS.HISTORIC, label: "Flurstück historisch setzen" },
-  { value: WIZARD_ACTIONS.ACTIVATE, label: "Flurstück aktivieren" },
-  { value: WIZARD_ACTIONS.SPLIT, label: "Flurstück teilen" },
-  { value: WIZARD_ACTIONS.JOIN, label: "Flurstück zusammenlegen" },
-  { value: WIZARD_ACTIONS.SPLIT_JOIN, label: "Flurstück zusammenlegen/teilen" },
-  { value: WIZARD_ACTIONS.CHANGE_KIND, label: "Art des Flurstücks ändern" },
+  {
+    value: WIZARD_ACTIONS.CREATE,
+    label: "Flurstück einpflegen",
+    description: "Ein neues Flurstück in LagIS aufnehmen",
+  },
+  {
+    value: WIZARD_ACTIONS.RENAME,
+    label: "Flurstück umbenennen",
+    description: "Die Bezeichnung eines Flurstücks ändern",
+  },
+  {
+    value: WIZARD_ACTIONS.HISTORIC,
+    label: "Flurstück historisch setzen",
+    description: "Ein Flurstück zum Stichtag historisch setzen",
+  },
+  {
+    value: WIZARD_ACTIONS.ACTIVATE,
+    label: "Flurstück aktivieren",
+    description: "Ein historisches Flurstück wieder aktivieren",
+  },
+  {
+    value: WIZARD_ACTIONS.SPLIT,
+    label: "Flurstück teilen",
+    description: "Ein Flurstück in mehrere Flurstücke aufteilen",
+  },
+  {
+    value: WIZARD_ACTIONS.JOIN,
+    label: "Flurstück zusammenlegen",
+    description: "Mehrere Flurstücke zu einem zusammenlegen",
+  },
+  {
+    value: WIZARD_ACTIONS.SPLIT_JOIN,
+    label: "Flurstück zusammenlegen/teilen",
+    description: "Zusammenlegen und das Ergebnis anschließend teilen",
+  },
+  {
+    value: WIZARD_ACTIONS.CHANGE_KIND,
+    label: "Art des Flurstücks ändern",
+    description: "Die Flurstücksart des Flurstücks wechseln",
+  },
 ];
 
 export const ACTION_TITLES = {

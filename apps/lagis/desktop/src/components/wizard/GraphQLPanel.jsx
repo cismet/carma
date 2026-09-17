@@ -43,12 +43,17 @@ const GraphQLPanel = () => {
   useEffect(() => subscribe(setEntries), []);
 
   return (
-    <div className="flex flex-col gap-3 w-full" style={{ minHeight: 320 }}>
+    <div
+      className="flex flex-col gap-3 w-full"
+      style={{ height: "100%", minHeight: 0 }}
+    >
       <div className="flex items-center justify-between">
         <div className="text-sm text-gray-500">
           {entries.length === 0
             ? "Noch keine Aufrufe"
-            : `${entries.length} Aufruf${entries.length === 1 ? "" : "e"}, neueste zuerst`}
+            : `${entries.length} Aufruf${
+                entries.length === 1 ? "" : "e"
+              }, neueste zuerst`}
         </div>
         <Button size="small" onClick={clearLog} disabled={entries.length === 0}>
           Leeren
@@ -63,7 +68,7 @@ const GraphQLPanel = () => {
       ) : (
         <div
           className="flex flex-col gap-3 overflow-y-auto pr-1"
-          style={{ maxHeight: 460 }}
+          style={{ flex: 1, minHeight: 0 }}
         >
           {entries.map((entry) => (
             <div
