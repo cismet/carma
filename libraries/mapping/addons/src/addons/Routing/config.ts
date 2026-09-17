@@ -21,7 +21,7 @@ export type RoutingConfig = {
   /**
    * the zoom the map goes to on the route, in MapLibre's 512 px tile zoom,
    * the unit of `map.easeTo`; the geoportal's URL hash is written in the
-   * Leaflet convention and shows this value plus one. Default 19, close in
+   * Leaflet convention and shows this value plus one. Default 18, close in
    * the way a navigation app is (the map allows 22)
    */
   zoom?: number;
@@ -70,9 +70,9 @@ export const REMAINING_PREFIX = "noch";
 export const DEFAULT_RECENTER_POSITION: Positions = "topcenter";
 export const DEFAULT_RECENTER_ORDER = 20;
 export const DEFAULT_RECENTER_LABEL = "Zentrieren";
-export const DEFAULT_ZOOM = 19;
 export const DEFAULT_INSTRUCTION_POSITION: Positions = "bottomcenter";
 export const DEFAULT_INSTRUCTION_ORDER = 10;
+export const DEFAULT_ZOOM = 18;
 export const DEFAULT_PITCH = 30;
 export const DEFAULT_LOOK_AHEAD_METERS = 10;
 export const DEFAULT_DURATION = 1200;
