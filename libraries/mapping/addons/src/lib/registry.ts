@@ -63,6 +63,10 @@ import {
 import { OutletAddon, type OutletConfig } from "../addons/outlet/Outlet";
 import { ShowScenes, type ShowScenesConfig } from "../addons/ShowScenes";
 import {
+  RouteModePicker,
+  type RouteModePickerConfig,
+} from "../addons/RouteModePicker";
+import {
   Routing,
   type ActiveRouteState,
   type RouteModeState,
@@ -193,6 +197,7 @@ export type AddonConfigMap = {
   nearestFeatureBahnhoefe: NearestFeatureBahnhoefeConfig;
   nearestFeatureKrankenhaeuser: NearestFeatureKrankenhaeuserConfig;
   originSearch: OriginSearchConfig;
+  routeModePicker: RouteModePickerConfig;
   routing: RoutingConfig;
   /** dev only; never declare it on a shipped route (and it no-ops outside a dev build) */
   locationSimulator: LocationSimulatorConfig;
@@ -590,6 +595,10 @@ export const addonRegistry: {
   originSearch: {
     Component: OriginSearch,
     provides: ["originLocation"],
+  },
+  routeModePicker: {
+    Component: RouteModePicker,
+    provides: ["routeMode"],
   },
   routing: {
     Component: Routing,

@@ -53,6 +53,7 @@ export const gesundheitFachzwilling: FachzwillingRoute = {
       },
     },
     "originSearch",
+    "routeModePicker",
     "routing",
     { kind: "cameraRestriction", config: { mode: "unlessNavigating" } },
     {

@@ -47,6 +47,7 @@ export const SWITCHABLE_KINDS = [
   "nearestFeatureBahnhoefe",
   "nearestFeatureKrankenhaeuser",
   "originSearch",
+  "routeModePicker",
   "routing",
   "locationSimulator",
   "vectorHighlight",
