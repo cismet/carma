@@ -59,6 +59,7 @@ import { OutletAddon, type OutletConfig } from "../addons/outlet/Outlet";
 import {
   Routing,
   type ActiveRouteState,
+  type RouteModeState,
   type RouteNavigationState,
   type RoutingConfig,
 } from "../addons/Routing";
@@ -234,6 +235,13 @@ export type AddonStateMap = {
    * one starting point rather than each keeping their own.
    */
   originLocation: OriginLocationState;
+  /**
+   * how the user travels, and who currently wants the picker on screen; see
+   * `Routing/routeModeChannel.ts`. The "womit?" next to the origin's "von
+   * wo?": "In der Nähe" ranks by it, a routing UI will route by it, and the
+   * `routeModePicker` addon is what writes it.
+   */
+  routeMode: RouteModeState;
   /**
    * the route the user is looking at; see `Routing/routeChannel.ts`. "In der
    * Nähe" publishes the route of the picked hit; anything that produces a
@@ -488,9 +496,10 @@ export const addonRegistry: {
   gazetteerMode: { Component: GazetteerMode },
   homeOverride: { Component: HomeOverride },
   nearestFeature: {
-    // it writes `originLocation` (its request for the input) and reads the
-    // origin from it, but does not require it: without `originSearch` the
-    // channel stays empty and the configured origin is used
+    // it writes `originLocation` and `routeMode` (its requests for the input
+    // and the picker) and reads both, but does not require them: without
+    // `originSearch` the channel stays empty and the configured origin is
+    // used, without `routeModePicker` everything is by car
     Component: NearestFeature,
     requires: ["nearestFeatureCategories"],
     provides: ["activeRoute"],

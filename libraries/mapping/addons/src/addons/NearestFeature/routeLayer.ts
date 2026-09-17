@@ -9,6 +9,7 @@ import {
   ROUTE_CASING,
   ROUTE_GRAY,
   type RouteStep,
+  type TravelMode,
 } from "@carma-mapping/routing";
 
 import type { PickableHit } from "./pickHit";
@@ -16,8 +17,8 @@ import type { PickableHit } from "./pickHit";
 /**
  * The routes of one ranking, drawn on the map.
  *
- * The ranking already drove to every hit to put them in order (see
- * `carRanking.ts`), so the lines are there and cost nothing more to show. They
+ * The ranking already routed to every hit to put them in order (see
+ * `routeRanking.ts`), so the lines are there and cost nothing more to show. They
  * are what makes the list readable: "twelve minutes" says little, the way
  * around the valley says it all.
  *
@@ -37,12 +38,14 @@ export type NearestFeatureRoute = {
   key: string;
   /** the hit the route leads to; a click on the line picks it */
   hit: PickableHit;
-  /** the driven line, `[lng, lat]` in WGS84 */
+  /** the travelled line, `[lng, lat]` in WGS84 */
   coordinates: [number, number][];
   /** what the routing service said it takes; shown once the hit is picked */
   durationInSeconds: number;
   distanceInMeters: number;
-  /** the service's driving instructions along the line; empty when it sent none */
+  /** how the line was travelled; the mode the ranking was asked for */
+  mode: TravelMode;
+  /** the service's instructions along the line; empty when it sent none */
   steps: RouteStep[];
 };
 
