@@ -23,8 +23,9 @@ const SPEED_FACTORS = [0.5, 1, 2, 4];
  * countdown and the line all react as they would to a real fix at that spot,
  * which is what makes every corner of a route checkable without driving to
  * it first. The speed is for the stretches in between: a long route at 4×,
- * a tricky junction at half pace. A real device cannot be moved, and the
- * ribbon says so rather than offering controls that do nothing.
+ * a tricky junction at half pace. A real device cannot be moved, so without
+ * the simulator the row does not open the ribbon at all (`useRoutingLayerRow`);
+ * the text below is the guard for a host that opens it anyway.
  */
 export const RoutingPanel = () => {
   const navigation = useRouteNavigation();

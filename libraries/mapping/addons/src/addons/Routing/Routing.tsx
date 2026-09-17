@@ -483,13 +483,17 @@ export const Routing = ({
   }, [libreMap, navigating, split, colors]);
 
   /**
-   * The button, for as long as there is a route to go along. Re-registered
-   * under the same key when `navigating` flips, which swaps its label and
-   * colour in place; the remover takes it out when the route goes, so a
-   * feature without a route in focus shows no button.
+   * The button, for as long as there is a route to go along: one that starts
+   * at the device's own position. A route from a searched address to a hit is
+   * something to look at, not to drive; the camera would follow fixes that
+   * are nowhere near it. Re-registered under the same key when `navigating`
+   * flips, which swaps its label and colour in place; the remover takes it
+   * out when the route goes, so a feature without a route in focus shows no
+   * button.
    */
+  const navigable = route?.fromOwnPosition === true;
   useEffect(() => {
-    if (!route) {
+    if (!navigable) {
       return;
     }
     return carma.ui.addInfoBoxAction({
@@ -499,7 +503,7 @@ export const Routing = ({
       active: navigating,
       onClick: navigating ? stop : start,
     });
-  }, [carma, route, navigating, start, stop]);
+  }, [carma, navigable, navigating, start, stop]);
 
   /**
    * What the note says: the whole route while it is only in focus, what is

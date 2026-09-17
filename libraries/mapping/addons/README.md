@@ -1145,6 +1145,12 @@ of the route in focus ends it on its own: the user presses the button again
 for the next hit. A feature clicked directly on the map has no route in focus
 and therefore no button; fetching one from the origin is a later step.
 
+Only a route that starts at the device is offered: the producer marks it
+`fromOwnPosition` (the origin search marks its own-position origin `own`, and
+"In der Nähe" passes that on), and the button is registered for such a route
+alone. A route from a searched address to a hit is something to look at, not
+to drive; the camera would follow fixes that are nowhere near it.
+
 `routeNavigation` is what the camera restriction reads (below); the info box
 does not.
 
@@ -1306,6 +1312,11 @@ Dev only: the component does nothing outside a dev build, so the entry on the
 `#/addons` route never fakes a position in a deployment. `Ctrl+Alt+A` switches
 it off to test against the real device; the location mode has to be switched
 off and on for the context to ask the device again.
+
+The navigation's row follows it: its ribbon holds the simulator's slider and
+nothing else, so while no simulation is published (`useLocationSimulation()`
+is null, i.e. outside a dev build) the row carries the countdown as a plain
+readout and opens no ribbon.
 
 | File                                    | |
 | --------------------------------------- | --- |
