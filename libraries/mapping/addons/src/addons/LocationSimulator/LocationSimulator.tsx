@@ -35,9 +35,10 @@ import type { FakeDevice } from "./fakeDevice";
  * after which the user is back home for the next search.
  *
  * The drive can be moved by hand: the addon publishes a handle on the
- * `locationSimulation` channel with `seek` and `setPaused`, which the
- * routing's ribbon turns into a slider and a pause button, so a tester can
- * look at any spot on the route without driving there first.
+ * `locationSimulation` channel with `seek`, `setPaused` and `setSpeedFactor`,
+ * which the routing's ribbon turns into a slider, a pause button and a speed
+ * selector, so a tester can look at any spot on the route without driving
+ * there first, and get through a long route quickly.
  *
  * Dev only: the component does nothing at all outside a dev build, so an
  * entry left on a route never fakes a position in a deployment.
@@ -94,6 +95,16 @@ export const LocationSimulator = ({
     }
   }, [navigating, coordinates, speedMetersPerSecond, lng, lat]);
 
+  // the tester's multiplier on the configured pace, kept across drives so a
+  // route checked at 4× is followed by the next one at 4× too; applied after
+  // the drive above starts, which sets the pace back to the configured one
+  const [speedFactor, setSpeedFactor] = useState(1);
+  useEffect(() => {
+    if (driving) {
+      deviceRef.current?.setSpeed(speedMetersPerSecond * speedFactor);
+    }
+  }, [driving, speedMetersPerSecond, speedFactor]);
+
   // a pause belongs to one drive; the next one starts moving
   const [paused, setPaused] = useState(false);
   useEffect(() => {
@@ -112,9 +123,11 @@ export const LocationSimulator = ({
   const [, publishSimulation] = useAddonState("locationSimulation");
   useEffect(() => {
     publishSimulation({
-      simulation: enabled ? { driving, paused, setPaused, seek } : null,
+      simulation: enabled
+        ? { driving, paused, setPaused, seek, speedFactor, setSpeedFactor }
+        : null,
     });
-  }, [publishSimulation, enabled, driving, paused, seek]);
+  }, [publishSimulation, enabled, driving, paused, seek, speedFactor]);
   // the handle goes with the addon, so nothing offers to move a real device
   useEffect(
     () => () => publishSimulation({ simulation: null }),
