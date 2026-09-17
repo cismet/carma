@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import maplibregl from "maplibre-gl";
 
 import { useMapSelection } from "@carma-mapping/contexts";
+import { getCarmaConf } from "@carma-mapping/engines/maplibre";
 import { utils } from "@carma-appframeworks/portals";
 
 import {
@@ -349,11 +350,13 @@ export const useLibreMapSelectionHandler = (
           id?: string | number;
           vectorId?: string | number;
         } | null;
-        const isReclick =
+        // a style layer opts out with `metadata.carmaConf.zoomOnReclick: false`
+        const zoomOnReclick =
           selectedVectorFeature.id != null &&
           (currentSelected?.id === layer.id ||
             currentSelected?.id === PLACEHOLDER_FEATURE_ID) &&
-          currentSelected?.vectorId === selectedVectorFeature.id;
+          currentSelected?.vectorId === selectedVectorFeature.id &&
+          getCarmaConf(selectedVectorFeature)?.zoomOnReclick !== false;
 
         if (!layer.queryable) {
           const placeholder = createPlaceholderVectorFeature(
@@ -361,7 +364,7 @@ export const useLibreMapSelectionHandler = (
             selectedVectorFeature
           );
           dispatch(setSelectedFeature(placeholder));
-          if (isReclick && map) {
+          if (zoomOnReclick && map) {
             utils.zoomToFeature({
               selectedFeature: placeholder,
               libreMap: map,
@@ -378,7 +381,7 @@ export const useLibreMapSelectionHandler = (
         );
         if (feature) {
           dispatch(setSelectedFeature(feature));
-          if (isReclick && map) {
+          if (zoomOnReclick && map) {
             utils.zoomToFeature({ selectedFeature: feature, libreMap: map });
           }
         } else {

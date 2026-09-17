@@ -9,6 +9,7 @@ export interface CarmaConf {
   propertyTarget?: string; // "source.sourceLayer" format for property lookup
   nonSelectable?: boolean; // exclude from selection hits
   selectable?: boolean; // explicitly mark as selectable
+  zoomOnReclick?: boolean; // false: clicking the selected feature again does not zoom to it
 
   // Hiding forwarding
   hidingForwardingTo?: string[]; // layer IDs to sync hidden state with
