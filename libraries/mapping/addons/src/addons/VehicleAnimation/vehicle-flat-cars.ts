@@ -192,7 +192,16 @@ const dynamicMesh = (
     mesh,
     /** room for this many vertices and indices; arrays handed out before may be replaced */
     reserve: (vertexCount: number, indexCount: number): void => {
-      if (vertexCount <= vertexCapacity && indexCount <= indexCapacity) return;
+      // A frame without cars asks for room for nothing, which the empty
+      // capacity already satisfies; the buffers must still exist once, or the
+      // arrays handed out below are missing and the frame throws.
+      if (
+        arrays.size > 0 &&
+        vertexCount <= vertexCapacity &&
+        indexCount <= indexCapacity
+      ) {
+        return;
+      }
       vertexCapacity = Math.max(vertexCount, vertexCapacity * 2, 1024);
       indexCapacity = Math.max(indexCount, indexCapacity * 2, 1536);
       mesh.geometry.dispose();
