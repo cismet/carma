@@ -153,15 +153,58 @@ const coordinatesOf = (itinerary: DirectItinerary): [number, number][] =>
     return points ? decodePolyline(points, leg.legGeometry?.precision ?? 6) : [];
   });
 
+/** a step as read, before the offsets are known */
+type RawStep = Omit<RouteStep, "startsAtMeters">;
+
+/** a proper turn, as against going on straight or nearly so */
+const isTurn = (direction: RouteDirection) =>
+  direction !== "DEPART" &&
+  direction !== "CONTINUE" &&
+  direction !== "SLIGHTLY_LEFT" &&
+  direction !== "SLIGHTLY_RIGHT";
+
+/**
+ * One step per turn or street change. The service cuts a step at every OSM
+ * way boundary, so a straight kilometer of one street arrives as a dozen
+ * `CONTINUE` steps of a few dozen meters each; read as instructions they say
+ * "weiter auf X" over and over, and the distance to the next real change is
+ * lost among them. A step onto the same street is the same stretch going on
+ * unless the geometry says otherwise: a road bends, and following the bend
+ * is not an instruction, but a street that turns a corner at a junction and
+ * keeps its name on the far side is one. A bend shows up as a slight angle
+ * at a way boundary, a corner as a proper turn, so a same-street step folds
+ * when it goes straight or nearly so and stays when it turns. An unnamed way
+ * folds only when it goes straight on; one that starts with a turn stays its
+ * own step, because the turn is real and only the name is missing.
+ */
+const foldSteps = (steps: RawStep[]): RawStep[] => {
+  const folded: RawStep[] = [];
+  for (const step of steps) {
+    const previous = folded[folded.length - 1];
+    const sameStretch =
+      previous !== undefined &&
+      (step.streetName === ""
+        ? step.direction === "CONTINUE"
+        : step.streetName === previous.streetName && !isTurn(step.direction));
+    if (sameStretch) {
+      previous.distanceInMeters += step.distanceInMeters;
+    } else {
+      folded.push({ ...step });
+    }
+  }
+  return folded;
+};
+
 /**
  * The itinerary's instructions, the legs' steps laid end to end like the line.
- * `startsAtMeters` is summed here, once, so a lookup along the route is a scan
- * and not a sum per fix. The step's own polyline is dropped: the route's line
- * is kept already, and the offset places the step on it.
+ * The turns are read off the raw steps' lines first (the boundaries the
+ * service cuts at are where the geometry is compared), then the steps are
+ * folded, then `startsAtMeters` is summed once, so a lookup along the route is
+ * a scan and not a sum per fix. The step's own polyline is dropped: the
+ * route's line is kept already, and the offset places the step on it.
  */
 const stepsOf = (itinerary: DirectItinerary): RouteStep[] => {
-  const steps: RouteStep[] = [];
-  let startsAtMeters = 0;
+  const raw: RawStep[] = [];
   // the line of the step before, for the turn into this one
   let incoming: [number, number][] = [];
   for (const leg of itinerary.legs ?? []) {
@@ -178,18 +221,21 @@ const stepsOf = (itinerary: DirectItinerary): RouteStep[] => {
         step.relativeDirection === "CONTINUE"
           ? turnBetween(incoming, outgoing)
           : step.relativeDirection;
-      const distanceInMeters = step.distance ?? 0;
-      steps.push({
+      raw.push({
         direction,
         streetName: step.streetName ?? "",
-        distanceInMeters,
-        startsAtMeters,
+        distanceInMeters: step.distance ?? 0,
       });
-      startsAtMeters += distanceInMeters;
       incoming = outgoing;
     }
   }
-  return steps;
+
+  let startsAtMeters = 0;
+  return foldSteps(raw).map((step) => {
+    const placed = { ...step, startsAtMeters };
+    startsAtMeters += step.distanceInMeters;
+    return placed;
+  });
 };
 
 /**
