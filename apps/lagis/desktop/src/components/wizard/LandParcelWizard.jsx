@@ -348,6 +348,7 @@ const LandParcelWizard = ({ open, onClose, showGraphQL = true }) => {
         open={open}
         title={data.action ? ACTION_TITLES[data.action] : "Flurstück Assistent"}
         width={760}
+        centered
         onCancel={handleClose}
         maskClosable={false}
         footer={footer}
