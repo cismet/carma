@@ -27,10 +27,33 @@ export const GCG2016_INTERPOLATION_METHOD = {
   stencil: { longitudeSamples: 5, latitudeSamples: 5 },
   evaluationOrder: ["longitude", "latitude"],
   boundaryCondition: "natural",
-  sourceSamples: "unchanged Float32 GCG2016 grid values",
+  sourceSamples: "GCG2016 grid values on the payload lattice",
 } as const;
 
+/**
+ * How far a value this package returns can sit from what the official BKG
+ * program would print for the same coordinate. It adds the payload lattice
+ * step to the observed agreement with that program, so it is a bound, not an
+ * observation, and it is the same for every coordinate.
+ *
+ * It describes this software only. It says nothing about how well GCG2016
+ * itself models the real quasigeoid — see `physicalModelAccuracyMeters`.
+ */
+export const GCG2016_SOFTWARE_BOUND_METERS = (GCG2016_PROVENANCE.sampleEncoding
+  .quantumMeters +
+  GCG2016_PROVENANCE.officialReferenceValidation
+    .maximumDistanceToRoundedOfficialOutputMeters) as Meters;
+
 export const GCG2016_VALIDATION_METRICS = {
+  /** The single figure to surface in a UI; the entries below explain it. */
+  softwareBoundMeters: GCG2016_SOFTWARE_BOUND_METERS,
+  sampleEncoding: {
+    kind: "lattice-quantisation-of-the-source-samples",
+    quantumMeters: GCG2016_PROVENANCE.sampleEncoding.quantumMeters,
+    maximumSampleDeviationMeters:
+      GCG2016_PROVENANCE.sampleEncoding
+        .maximumDeviationFromSourceFloat32Meters,
+  },
   officialReferenceAgreement: {
     kind: "observed-distance-to-millimetre-rounded-official-output",
     pointCount: GCG2016_PROVENANCE.officialReferenceValidation.pointCount,
@@ -63,6 +86,8 @@ export interface Gcg2016UndulationQueryResult {
     horizontalCrs: string;
   };
   undulationMeters: Meters;
+  /** Constant bound; see `GCG2016_SOFTWARE_BOUND_METERS`. */
+  softwareBoundMeters: Meters;
   resourceTileIds: readonly string[];
   method: typeof GCG2016_INTERPOLATION_METHOD;
   validation: typeof GCG2016_VALIDATION_METRICS;
@@ -80,6 +105,7 @@ export const queryGcg2016Undulation = async (
       horizontalCrs: GCG2016_PROVENANCE.source.horizontalCrs,
     },
     undulationMeters: query.offset as Meters,
+    softwareBoundMeters: GCG2016_SOFTWARE_BOUND_METERS,
     resourceTileIds: query.tileIds,
     method: GCG2016_INTERPOLATION_METHOD,
     validation: GCG2016_VALIDATION_METRICS,

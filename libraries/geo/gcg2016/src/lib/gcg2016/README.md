@@ -26,9 +26,9 @@ licensed under
 "(c) Bundesamt für Kartographie und Geodäsie - BKG - Deutschland". The
 [BKG product page](https://gdz.bkg.bund.de/index.php/default/quasigeoid-der-bundesrepublik-deutschland-quasigeoid.html)
 is identified as the original source. The CARMA tiles are a technically
-repacked and spatially limited adaptation: the Float32 sample values remain
-unchanged and are only regrouped byte-wise, while file partitioning and the
-runtime loader are CARMA-specific. The generated payloads are TypeScript modules so their dynamic
+repacked, spatially limited and requantised adaptation: the sample values are
+stored as indices on a 0.25 mm lattice, while file partitioning and the runtime
+loader are CARMA-specific. The generated payloads are TypeScript modules so their dynamic
 imports work in consumers that do not enable TypeScript JSON-module resolution.
 
 The derivation copies the binary Float32 values unchanged into 2° tiles. Each
@@ -45,18 +45,33 @@ that coverage outward onto the 2° tile grid. For the current coverage
 coverage that later grows past those bounds adds the neighboring tiles without
 any code change.
 
-Sample bytes are stored as four byte planes: the payload holds the first byte
-of every little-endian Float32, then every second byte, and so on. Only the
-order changes, never a value, so the tile stays an exact copy of the source
-samples. Grouping like-significance bytes is what makes the run compressible
-for the transport layer and for git. The decoder therefore needs nothing beyond
-`atob` and a `DataView`, stays synchronous, and adds no dependency — an
-explicit compression step in the payload itself would save roughly a further
+Samples are stored as indices on a 0.25 mm lattice, delta-coded along each
+raster row and written as little-endian `uint16`. The decoder needs only
+`atob`, a running sum per row and one multiply-add, stays synchronous, and adds
+no dependency; an explicit compression step in the payload would save roughly a
 kilobyte on the wire and would require `DecompressionStream`, which predates
 neither Safari 16.4 nor Firefox 113.
 
-The `N50E006` payload is 205,271 bytes before HTTP compression, 76,682 bytes
-with Gzip, and 73,807 bytes with Brotli. Vite bundles the dynamically imported
+The step size is a deliberate choice, not the source's own precision. The
+reference program `gintbs` reports on a whole millimetre, and the agreement
+with it recorded below is 0.502 mm, so a quarter-millimetre lattice keeps the
+combined bound at 0.752 mm — still under the resolution the authority itself
+reports at. For scale, the elevation tiles this grid corrects encode in steps of
+1/256 m and carry a stated accuracy of 0.15 to 0.30 m. The measured deviations
+are smaller than the bound: 0.104 mm per sample and 0.171 mm per interpolated
+query, taken across every two-degree tile of the complete source grid.
+
+The step also fixes the code width. At 0.25 mm the widest two-degree tile in the
+source grid, `N52E012` spanning 7.1159 m, needs 28,464 of the 65,534 usable
+`uint16` codes, so one width covers the whole grid and the decoder needs no
+per-tile branch. A 0.1 mm lattice would have overflowed `uint16` on that tile.
+
+`GCG2016_SOFTWARE_BOUND_METERS` exposes the 0.752 mm bound as a single figure
+for display. It describes this software only and says nothing about how well
+GCG2016 models the real quasigeoid; `physicalModelAccuracyMeters` stays `null`.
+
+The `N50E006` payload is 102,933 bytes before HTTP compression, 39,369 bytes
+with Gzip, and 32,832 bytes with Brotli. Vite bundles the dynamically imported
 payload modules as separate chunks.
 
 At runtime, the implementation uses the method reconstructed from the official
@@ -75,7 +90,8 @@ H_DHHN2016    = h_ellipsoidal - N_GCG2016
 
 The spline interpolates only the unchanged official grid values. It does not
 apply a global polynomial, spherical-harmonic, or coefficient approximation,
-and it introduces no additional quantization. An LOD pyramid is not useful for
+and it introduces no approximation beyond the lattice the samples are stored
+on. An LOD pyramid is not useful for
 this small scalar correction grid. The loader imports the requested 2° tile and
 only those neighboring tiles intersected by the concrete 5×5 support window.
 An explicit `prefetchGcg2016Tiles` call can preload additional tiles.

@@ -8,16 +8,33 @@ import {
   VerticalOffsetTileLoadError,
 } from "./tiled-vertical-offset";
 
+const NO_DATA_CODE = 65_535;
+
 /** Mirrors encode_values() in derive-gcg2016-tiles.py. */
-const encode = (values: number[]) => {
-  const interleaved = new Uint8Array(new Float32Array(values).buffer);
-  const planes = new Uint8Array(interleaved.length);
-  for (let plane = 0; plane < 4; plane += 1) {
-    for (let index = 0; index < values.length; index += 1) {
-      planes[plane * values.length + index] = interleaved[index * 4 + plane];
+const encode = (
+  values: number[],
+  width: number,
+  height: number,
+  offsetMeters: number,
+  quantumMeters: number,
+  noDataValue: number
+) => {
+  const bytes = new Uint8Array(values.length * 2);
+  const view = new DataView(bytes.buffer);
+  for (let row = 0; row < height; row += 1) {
+    let previous = 0;
+    for (let column = 0; column < width; column += 1) {
+      const index = row * width + column;
+      const value = values[index];
+      const code =
+        value === noDataValue
+          ? NO_DATA_CODE
+          : Math.round((value - offsetMeters) / quantumMeters);
+      view.setUint16(index * 2, (code - previous) & 0xffff, true);
+      previous = code;
     }
   }
-  return btoa(String.fromCharCode(...planes));
+  return btoa(String.fromCharCode(...bytes));
 };
 
 interface TileOptions {
@@ -55,14 +72,28 @@ const tile = (
     }
   );
 
+  const finite = values.filter((value) => value !== grid.noDataValue);
+  const offsetMeters = Math.min(...finite);
+  const quantumMeters = 1;
+
   return {
-    format: "carma-gcg2016-float32-tile-v3",
+    format: "carma-gcg2016-uint16-tile-v4",
     id,
     bounds,
     grid,
     values: {
-      encoding: "base64-float32-little-endian-planes",
-      data: encode(values),
+      encoding: "base64-uint16-rowdelta",
+      offsetMeters,
+      quantumMeters,
+      noDataCode: NO_DATA_CODE,
+      data: encode(
+        values,
+        grid.width,
+        grid.height,
+        offsetMeters,
+        quantumMeters,
+        grid.noDataValue
+      ),
     },
   };
 };
@@ -172,7 +203,10 @@ describe("createTiledVerticalOffsetModel", () => {
       .mockResolvedValueOnce({
         ...tile("N00E000", [0, 0, 4, 4]),
         values: {
-          encoding: "base64-float32-little-endian-planes",
+          encoding: "base64-uint16-rowdelta",
+          offsetMeters: 0,
+          quantumMeters: 1,
+          noDataCode: NO_DATA_CODE,
           data: "not base64",
         },
       })

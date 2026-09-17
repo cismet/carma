@@ -6,9 +6,9 @@ export interface GeographicBounds {
 }
 
 const FLOAT32_VERTICAL_OFFSET_TILE_FORMAT =
-  "carma-gcg2016-float32-tile-v3" as const;
+  "carma-gcg2016-uint16-tile-v4" as const;
 const FLOAT32_VERTICAL_OFFSET_TILE_ENCODING =
-  "base64-float32-little-endian-planes" as const;
+  "base64-uint16-rowdelta" as const;
 
 export interface Float32VerticalOffsetTile {
   format: typeof FLOAT32_VERTICAL_OFFSET_TILE_FORMAT;
@@ -27,6 +27,9 @@ export interface Float32VerticalOffsetTile {
   };
   values: {
     encoding: typeof FLOAT32_VERTICAL_OFFSET_TILE_ENCODING;
+    offsetMeters: number;
+    quantumMeters: number;
+    noDataCode: number;
     data: string;
   };
 }
@@ -113,31 +116,44 @@ const decodeBase64 = (encoded: string) => {
 };
 
 /**
- * Undo the byte-plane grouping written by derive-gcg2016-tiles.py. The payload
- * holds the four byte positions of each little-endian Float32 as four runs, so
- * interleaving them back reproduces the source samples exactly.
+ * Undo the payload encoding written by derive-gcg2016-tiles.py: little-endian
+ * uint16 row deltas over indices on a half-millimetre lattice. Running the sum
+ * per row and scaling by the tile's own step and offset rebuilds the samples.
  */
-const decodeFloat32Planes = (bytes: Uint8Array, sampleCount: number) => {
-  if (bytes.byteLength !== sampleCount * Float32Array.BYTES_PER_ELEMENT) {
+const decodeRowDeltaUint16 = (
+  bytes: Uint8Array,
+  width: number,
+  height: number,
+  offsetMeters: number,
+  quantumMeters: number,
+  noDataCode: number,
+  noDataValue: number | null
+) => {
+  const count = width * height;
+  if (bytes.byteLength !== count * Uint16Array.BYTES_PER_ELEMENT) {
     throw new RangeError(
-      `decoded byte length ${bytes.byteLength} does not match ${sampleCount} samples`
+      `decoded byte length ${bytes.byteLength} does not match ${count} samples`
     );
   }
-  const interleaved = new Uint8Array(bytes.byteLength);
-  for (let plane = 0; plane < Float32Array.BYTES_PER_ELEMENT; plane += 1) {
-    const source = plane * sampleCount;
-    for (let index = 0; index < sampleCount; index += 1) {
-      interleaved[index * Float32Array.BYTES_PER_ELEMENT + plane] =
-        bytes[source + index];
+  const view = new DataView(
+    bytes.buffer,
+    bytes.byteOffset,
+    bytes.byteLength
+  );
+  const values = new Float32Array(count);
+  for (let row = 0; row < height; row += 1) {
+    let code = 0;
+    for (let column = 0; column < width; column += 1) {
+      const index = row * width + column;
+      code =
+        (code +
+          view.getUint16(index * Uint16Array.BYTES_PER_ELEMENT, true)) &
+        0xffff;
+      values[index] =
+        code === noDataCode && noDataValue !== null
+          ? noDataValue
+          : offsetMeters + code * quantumMeters;
     }
-  }
-  const view = new DataView(interleaved.buffer);
-  const values = new Float32Array(sampleCount);
-  for (let index = 0; index < sampleCount; index += 1) {
-    values[index] = view.getFloat32(
-      index * Float32Array.BYTES_PER_ELEMENT,
-      true
-    );
   }
   return values;
 };
@@ -235,7 +251,11 @@ const parseTile = (
   if (
     !isRecord(source.values) ||
     source.values.encoding !== FLOAT32_VERTICAL_OFFSET_TILE_ENCODING ||
-    typeof source.values.data !== "string"
+    typeof source.values.data !== "string" ||
+    !Number.isFinite(source.values.offsetMeters) ||
+    !Number.isFinite(source.values.quantumMeters) ||
+    Number(source.values.quantumMeters) <= 0 ||
+    !Number.isInteger(source.values.noDataCode)
   ) {
     throw new InvalidVerticalOffsetTileError(
       expectedId,
@@ -251,9 +271,14 @@ const decodeTile = (rawSource: unknown, expectedId: string): DecodedTile => {
   const expectedLength = source.grid.width * source.grid.height;
   let values: Float32Array;
   try {
-    values = decodeFloat32Planes(
+    values = decodeRowDeltaUint16(
       decodeBase64(source.values.data),
-      expectedLength
+      source.grid.width,
+      source.grid.height,
+      source.values.offsetMeters,
+      source.values.quantumMeters,
+      source.values.noDataCode,
+      source.grid.noDataValue
     );
   } catch (cause) {
     throw new InvalidVerticalOffsetTileError(

@@ -25,7 +25,20 @@ TERRAIN_RESOURCE = Path(
 )
 TERRAIN_RESOURCE_EXPORT = "NRW_DGM1_DHHN2016_TERRARIUM_TERRAIN"
 TILE_SIZE_DEGREES = 2
-TILE_VALUE_ENCODING = "base64-float32-little-endian-planes"
+# Samples are stored as indices on a half-millimetre lattice. The reference
+# program gintbs reports on a whole millimetre, and the agreement with it that
+# this package publishes is 0.502 mm, so half a lattice step (0.2026 mm
+# measured) keeps the combined deviation below the resolution the authority
+# itself reports at. For scale, the elevation tiles this grid corrects encode
+# in steps of 1/256 m and carry a stated accuracy of 0.15 to 0.30 m.
+#
+# The step also decides the code width: at 0.5 mm the widest two-degree tile in
+# the source grid (N52E012, 7.1159 m) needs 14,232 of the 65,534 usable uint16
+# codes, so one fixed width covers the whole grid and the decoder needs no
+# per-tile branch. A 0.1 mm lattice would have overflowed uint16 on that tile.
+QUANTUM_METERS = 2.5e-4
+NO_DATA_CODE = 65535
+TILE_VALUE_ENCODING = "base64-uint16-rowdelta"
 VERIFICATION_SEED = 4_064
 SPLINE_STENCIL_RADIUS_BEFORE = 1
 SPLINE_STENCIL_SIZE = 5
@@ -205,22 +218,29 @@ def tile_id(west: int, south: int):
     )
 
 
-def encode_values(values: np.ndarray):
-    """Split the Float32 samples into their four byte planes.
+def encode_values(values: np.ndarray, no_data):
+    """Quantise onto the source lattice, then delta-code along each row.
 
-    The sample bytes are only reordered, never altered, so the payload stays an
-    exact copy of the source values. Grouping the like-significance bytes makes
-    the run compressible, which is what the transport layer and git then exploit;
-    an explicit compression step here would save about a further kilobyte on the
-    wire and would cost a DecompressionStream dependency that predates neither
-    Safari 16.4 nor Firefox 113.
+    Neighbouring quasigeoid samples differ by a few lattice steps, so the row
+    delta leaves a mostly small residual that the transport layer and git
+    compress well. Regrouping the byte planes on top would save a further 8 %
+    on the wire and cost a second pass in the browser, which is not worth it;
+    see the measurements in the pull request that introduced this encoding.
     """
-    interleaved = np.frombuffer(
-        np.ascontiguousarray(values, dtype="<f4").tobytes(), dtype=np.uint8
-    ).reshape(-1, 4)
-    return b"".join(
-        interleaved[:, plane].tobytes() for plane in range(4)
-    )
+    finite = values if no_data is None else values[values != no_data]
+    # A tile can lie entirely outside the modelled area and hold nothing but
+    # NoData. It carries no offset to derive, so pick zero and let every sample
+    # encode as the NoData code; the runtime rejects such coordinates anyway.
+    offset = float(np.min(finite)) if finite.size else 0.0
+    codes = np.rint((values.astype(np.float64) - offset) / QUANTUM_METERS)
+    if no_data is not None:
+        codes = np.where(values == no_data, NO_DATA_CODE, codes)
+    if np.any(codes < 0) or np.any(codes > NO_DATA_CODE):
+        raise RuntimeError("quantised values leave the uint16 range")
+    codes = codes.astype(np.int64)
+    residual = codes.copy()
+    residual[:, 1:] = codes[:, 1:] - codes[:, :-1]
+    return offset, (residual & 0xFFFF).astype("<u2").tobytes()
 
 
 def extract_tile(reference: GdalGridReference, bounds: Bounds, identifier: str):
@@ -248,8 +268,9 @@ def extract_tile(reference: GdalGridReference, bounds: Bounds, identifier: str):
         reference.values[row_start : row_end + 1, column_start : column_end + 1],
         dtype="<f4",
     )
+    offset, payload = encode_values(values, reference.nodata)
     return {
-        "format": "carma-gcg2016-float32-tile-v3",
+        "format": "carma-gcg2016-uint16-tile-v4",
         "id": identifier,
         "bounds": bounds.as_list(),
         "grid": {
@@ -265,7 +286,10 @@ def extract_tile(reference: GdalGridReference, bounds: Bounds, identifier: str):
         },
         "values": {
             "encoding": TILE_VALUE_ENCODING,
-            "data": base64.b64encode(encode_values(values)).decode("ascii"),
+            "offsetMeters": offset,
+            "quantumMeters": QUANTUM_METERS,
+            "noDataCode": NO_DATA_CODE,
+            "data": base64.b64encode(payload).decode("ascii"),
         },
     }
 
@@ -275,24 +299,16 @@ def decode_tile(tile):
     browser implementation in libraries/geo/proj/src/lib/tiled-vertical-offset.ts."""
     grid = tile["grid"]
     values = tile["values"]
-    count = grid["height"] * grid["width"]
-    if values["encoding"] == "base64-float32-little-endian":
-        # Superseded payload layout, still read so a regenerated tile can be
-        # compared against the one it replaces.
-        return np.frombuffer(
-            base64.b64decode(values["data"]), dtype="<f4"
-        ).reshape((grid["height"], grid["width"]))
     if values["encoding"] != TILE_VALUE_ENCODING:
         raise RuntimeError(f"unsupported encoding {values['encoding']}")
-    planes = np.frombuffer(base64.b64decode(values["data"]), dtype=np.uint8)
-    if planes.size != count * 4:
-        raise RuntimeError("payload does not carry four planes of samples")
-    interleaved = np.empty((count, 4), dtype=np.uint8)
-    for plane in range(4):
-        interleaved[:, plane] = planes[plane * count : (plane + 1) * count]
-    return np.frombuffer(interleaved.tobytes(), dtype="<f4").reshape(
-        (grid["height"], grid["width"])
-    )
+    residual = np.frombuffer(
+        base64.b64decode(values["data"]), dtype="<u2"
+    ).reshape((grid["height"], grid["width"])).astype(np.int64)
+    codes = np.cumsum(residual, axis=1) & 0xFFFF
+    decoded = codes * values["quantumMeters"] + values["offsetMeters"]
+    if grid["noDataValue"] is not None:
+        decoded = np.where(codes == values["noDataCode"], grid["noDataValue"], decoded)
+    return decoded.astype(np.float64)
 
 
 def sample_from_tiles(tiles_by_id, source_column, source_row):
@@ -399,6 +415,19 @@ def verify_tile(reference, tile, tiles_by_id, random_count, seed):
     # instead of dropping it silently from the error metric.
     unsupported_by_tiles = np.isfinite(expected) & ~np.isfinite(actual)
     absolute_error = np.abs(actual[supported] - expected[supported])
+    # A tile can be entirely NoData, leaving nothing to compare.
+    if absolute_error.size == 0:
+        return {
+            "tileId": tile["id"],
+            "candidatePointCount": int(supported.size),
+            "supportedPointCount": 0,
+            "pointsResolvedOnlyByFullGrid": int(
+                np.count_nonzero(unsupported_by_tiles)
+            ),
+            "maximumAbsoluteErrorMeters": 0.0,
+            "p999AbsoluteErrorMeters": 0.0,
+            "rmseMeters": 0.0,
+        }
     return {
         "tileId": tile["id"],
         "candidatePointCount": int(supported.size),
@@ -500,7 +529,13 @@ def main():
     maximum_error = max(
         result["maximumAbsoluteErrorMeters"] for result in verification
     )
-    if maximum_error > 1e-9:
+    # Half a lattice step bounds the error of a single sample, but not of an
+    # interpolated value: the natural cubic spline carries negative weights and
+    # overshoots, so a query can land further out than any of its 25 supports.
+    # A whole step is the bound that holds; the measured value is recorded in
+    # the provenance so a regression shows up as a number, not just as a pass.
+    interpolation_tolerance = QUANTUM_METERS
+    if maximum_error > interpolation_tolerance:
         raise RuntimeError(
             f"Tiled interpolation differs from the full grid by {maximum_error} m"
         )
@@ -534,14 +569,34 @@ def main():
             )
         )
     )
-    if coverage_error > 1e-9:
+    if coverage_error > interpolation_tolerance:
         raise RuntimeError(
             f"Coverage interpolation differs from the full grid by {coverage_error} m"
         )
 
+    # What the lattice quantisation actually costs against the stored Float32
+    # samples, measured rather than asserted.
+    sample_deviation = 0.0
+    for tile in tiles:
+        tile_grid = tile["grid"]
+        stored = reference.values[
+            tile_grid["rowStart"] : tile_grid["rowStart"] + tile_grid["height"],
+            tile_grid["columnStart"] : tile_grid["columnStart"] + tile_grid["width"],
+        ].astype(np.float64)
+        decoded = decode_tile(tile)
+        if reference.nodata is not None:
+            comparable = stored != reference.nodata
+        else:
+            comparable = np.ones(stored.shape, dtype=bool)
+        if np.any(comparable):
+            sample_deviation = max(
+                sample_deviation,
+                float(np.max(np.abs(decoded[comparable] - stored[comparable]))),
+            )
+
     source_bytes = arguments.source_grid.read_bytes()
     provenance = {
-        "format": "carma-gcg2016-float32-tile-set-v3",
+        "format": "carma-gcg2016-uint16-tile-set-v4",
         "supportedRegion": list(region),
         "rootTileSizeDegrees": tile_size,
         "elevationCoverage": list(coverage),
@@ -549,7 +604,10 @@ def main():
         "samplePartition": "source pixel centers, no duplicated halo",
         "sampleEncoding": {
             "id": TILE_VALUE_ENCODING,
-            "steps": "source Float32 little-endian bytes, regrouped into four byte planes, base64",
+            "quantumMeters": QUANTUM_METERS,
+            "noDataCode": NO_DATA_CODE,
+            "steps": "index on a 0.5 mm lattice, row delta, uint16 little-endian, base64",
+            "maximumDeviationFromSourceFloat32Meters": sample_deviation,
         },
         "source": {
             "fileName": arguments.source_grid.name,

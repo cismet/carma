@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
 
+// Absolute undulations are asserted to 5e-4 m. The payload stores samples on a
+// 0.25 mm lattice, so a value can sit up to one lattice step from an evaluation
+// of the unquantised source grid; the tolerance is that bound with headroom,
+// not a figure fitted to the current output. Round-trip identities below stay
+// tight because the same anomaly is added and subtracted.
+
 import type {
   Altitude,
   Coordinates,
@@ -45,7 +51,7 @@ describe("GCG2016 coordinate transformers", () => {
     );
 
     for (const undulation of undulations) {
-      expect(undulation).toBeCloseTo(46.59667038816, 8);
+      expect(undulation).toBeCloseTo(46.59667038816, 3);
     }
   });
 
@@ -53,11 +59,11 @@ describe("GCG2016 coordinate transformers", () => {
     const coordinate = coordinatesByZone[32];
     await expect(getGcg2016UndulationFromUtm(coordinate)).resolves.toBeCloseTo(
       46.59667038816,
-      8
+      3
     );
     await expect(
       dhhn2016ToEllipsoidalHeight(coordinate, dhhn2016Height)
-    ).resolves.toBeCloseTo(207.59867038816, 8);
+    ).resolves.toBeCloseTo(207.59867038816, 3);
   });
 
   it("round-trips single and batched branded UTM heights", async () => {
@@ -98,7 +104,7 @@ describe("GCG2016 coordinate transformers", () => {
     const forward = await transformer.forward(coordinate, dhhn2016Height);
     const inverse = await transformer.inverse(coordinate, forward);
 
-    expect(forward).toBeCloseTo(207.59867038816, 8);
+    expect(forward).toBeCloseTo(207.59867038816, 3);
     expect(inverse).toBeCloseTo(dhhn2016Height, 12);
   });
 
@@ -115,7 +121,7 @@ describe("GCG2016 coordinate transformers", () => {
       horizontalCrs: "EPSG:4326",
       epochTransformation: null,
     });
-    expect(forward).toBeCloseTo(207.59867038816, 6);
+    expect(forward).toBeCloseTo(207.59867038816, 3);
     expect(inverse).toBeCloseTo(dhhn2016Height, 12);
   });
 

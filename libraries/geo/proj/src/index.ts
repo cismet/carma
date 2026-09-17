@@ -10,6 +10,7 @@ export {
 } from "./lib/tiled-vertical-offset";
 export {
   GCG2016_INTERPOLATION_METHOD,
+  GCG2016_SOFTWARE_BOUND_METERS,
   GCG2016_PROVENANCE,
   GCG2016_VALIDATION_METRICS,
   getGcg2016Undulation,

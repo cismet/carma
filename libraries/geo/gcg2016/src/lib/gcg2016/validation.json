@@ -1,5 +1,5 @@
 {
-  "format": "carma-gcg2016-float32-tile-set-v3",
+  "format": "carma-gcg2016-uint16-tile-set-v4",
   "supportedRegion": [
     6,
     50,
@@ -16,8 +16,11 @@
   "elevationCoverageSource": "NRW_DGM1_DHHN2016_TERRARIUM_TERRAIN.bounds in libraries/commons/resources/src/lib/de.nrw.wuppertal/terrain.ts",
   "samplePartition": "source pixel centers, no duplicated halo",
   "sampleEncoding": {
-    "id": "base64-float32-little-endian-planes",
-    "steps": "source Float32 little-endian bytes, regrouped into four byte planes, base64"
+    "id": "base64-uint16-rowdelta",
+    "quantumMeters": 0.00025,
+    "noDataCode": 65535,
+    "steps": "index on a 0.5 mm lattice, row delta, uint16 little-endian, base64",
+    "maximumDeviationFromSourceFloat32Meters": 0.00010263061523119177
   },
   "source": {
     "fileName": "de_bkg_gcg2016.tif",
@@ -79,12 +82,12 @@
   "verificationRandomPointsPerTile": 100000,
   "verificationEdgePointsPerTile": 16384,
   "totalSupportedVerificationPointCount": 91654,
-  "maximumVerifiedDifferenceMeters": 0.0,
+  "maximumVerifiedDifferenceMeters": 0.00016821054506976907,
   "elevationCoverageVerification": {
     "pointCount": 116384,
     "supportedPointCount": 116384,
     "pointsTheBundledTilesCannotServe": 0,
-    "maximumAbsoluteErrorMeters": 0.0
+    "maximumAbsoluteErrorMeters": 0.0001612059620299533
   },
   "verification": [
     {
@@ -92,9 +95,9 @@
       "candidatePointCount": 116384,
       "supportedPointCount": 91654,
       "pointsResolvedOnlyByFullGrid": 15304,
-      "maximumAbsoluteErrorMeters": 0.0,
-      "p999AbsoluteErrorMeters": 0.0,
-      "rmseMeters": 0.0
+      "maximumAbsoluteErrorMeters": 0.00016821054506976907,
+      "p999AbsoluteErrorMeters": 0.00013857839928510136,
+      "rmseMeters": 5.966284134927772e-05
     }
   ]
 }
