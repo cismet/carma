@@ -13,6 +13,8 @@ import SplitChooseStep from "./steps/SplitChooseStep";
 import JoinChooseStep from "./steps/JoinChooseStep";
 import ResultingStep from "./steps/ResultingStep";
 import SummaryStep from "./steps/SummaryStep";
+import AdminAreasStep from "./steps/AdminAreasStep";
+import UsageStep from "./steps/UsageStep";
 import HistoricRebeMipaDialog from "./HistoricRebeMipaDialog";
 import GraphQLPanel from "./GraphQLPanel";
 
@@ -285,6 +287,10 @@ const LandParcelWizard = ({ open, onClose, showGraphQL = false }) => {
         return <ResultingStep {...props} />;
       case STEP.SUMMARY:
         return <SummaryStep {...props} />;
+      case STEP.ADMIN_AREAS:
+        return <AdminAreasStep {...props} />;
+      case STEP.USAGE:
+        return <UsageStep {...props} />;
       default:
         return null;
     }
