@@ -5,98 +5,66 @@
       "layerInfo": {
         "title": "3D-MeshX 2024 (Cesium-Parität)",
         "description": "Inhalt: Das texturierte 3D-Stadtmodell von Wuppertal, Stand 2024. Es ist derselbe Kachelsatz, den die 3D-Ansicht des Geoportals schon zeichnet. Gelände, Gebäude und Bewuchs stecken darin in einem Stück; einzelne Objekte lassen sich nicht anklicken oder abfragen. Die Ebene zeichnet nichts in der zweidimensionalen Karte und wird erst in der 3D-Ansicht sichtbar. Weil das Modell absolute Höhen trägt, schaltet die Ebene das Gelände ein. Datengrundlage: 3D-Mesh 2024, © Stadt Wuppertal.",
-        "tags": [
-          "Basis",
-          "3D",
-          "Mesh"
-        ],
-        "keywords": [
-          "carmaconf://blockLegacyGetFeatureInfo"
-        ]
+        "tags": ["Basis", "3D", "Mesh"],
+        "keywords": ["carmaconf://blockLegacyGetFeatureInfo"]
       },
       "3d": {
         "renderMode": "tiles3d",
         "tilesetUrl": "https://wupp-3d-datax.cismet.de/mesh2024/tileset.json",
         "providesTerrain": true,
-        "terrainMandatory": false,
         "basemap": "none",
-        "errorTarget": 4,
         "baseErrorTarget": 12,
-        "tilesetMinResolutionPx": 2048,
-        "outline": false,
         "colorCorrection": {
-          "gamma": [
-            1.25,
-            1.25,
-            1.23
-          ],
-          "blackPoint": [
-            0,
-            0,
-            0
-          ],
-          "whitePoint": [
-            0.9,
-            0.9,
-            0.92
-          ],
+          "gamma": [1.25, 1.25, 1.23],
+          "blackPoint": [0, 0, 0],
+          "whitePoint": [0.9, 0.9, 0.92],
           "saturation": 1
         },
         "entry": {
-          "level": 3,
           "levels": [
             {
               "level": 0,
               "geometricError": 908.2,
-              "tiles": 5,
               "bytes": 17541680
             },
             {
               "level": 1,
               "geometricError": 453.9,
-              "tiles": 4,
               "bytes": 7572336
             },
             {
               "level": 2,
               "geometricError": 204.5,
-              "tiles": 11,
               "bytes": 12552584
             },
             {
               "level": 3,
               "geometricError": 97.3,
-              "tiles": 15,
               "bytes": 15919395
             },
             {
               "level": 4,
               "geometricError": 42.3,
-              "tiles": 20,
               "bytes": 21283590
             },
             {
               "level": 5,
               "geometricError": 20.3,
-              "tiles": 61,
               "bytes": 52100588
             },
             {
               "level": 6,
               "geometricError": 10.2,
-              "tiles": 198,
               "bytes": 219608433
             },
             {
               "level": 7,
               "geometricError": 5,
-              "tiles": 754,
               "bytes": 665994628
             },
             {
               "level": 8,
               "geometricError": 2.5,
-              "tiles": 5900,
               "bytes": 7367654500
             }
           ],
@@ -114,8 +82,7 @@
             "2/4/1000013tileset.json",
             "2/4/1000009tileset.json"
           ]
-        },
-        "diagnostics": true
+        }
       }
     }
   },

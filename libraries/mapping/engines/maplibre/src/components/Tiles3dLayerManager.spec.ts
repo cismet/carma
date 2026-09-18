@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   resolveTiles3dErrorTarget,
+  resolveTiles3dConfig,
   Tiles3dLayerManager,
 } from "./Tiles3dLayerManager";
 import type { Tiles3dConfig } from "./Tiles3dLayerManager";
@@ -122,6 +123,58 @@ describe("resolveTiles3dErrorTarget", () => {
   });
 });
 
+describe("resolveTiles3dConfig", () => {
+  const legacy: Tiles3dConfig = {
+    renderMode: "tiles3d",
+    tilesetUrl: "https://tiles.test/mesh/tileset.json",
+    terrainMandatory: true,
+  };
+
+  it("completes a legacy mesh style with the mesh loading defaults", () => {
+    expect(resolveTiles3dConfig({ ...legacy, providesTerrain: true })).toEqual({
+      ...legacy,
+      providesTerrain: true,
+      version: 1,
+      errorTarget: 4,
+      baseErrorTarget: 16,
+      tilesetMinResolutionPx: 1024,
+      basemap: "labels",
+      outline: true,
+      diagnostics: false,
+    });
+  });
+
+  it("leaves the mesh strategy off for a tileset that provides no terrain", () => {
+    const resolved = resolveTiles3dConfig(legacy);
+    expect(resolved.baseErrorTarget).toBeUndefined();
+    expect(resolved.tilesetMinResolutionPx).toBeUndefined();
+    expect(resolved.errorTarget).toBe(4);
+  });
+
+  it("keeps explicit values, including the zero that defers to the entry hint", () => {
+    const resolved = resolveTiles3dConfig({
+      ...legacy,
+      version: 1,
+      providesTerrain: true,
+      errorTarget: 6,
+      baseErrorTarget: 12,
+      tilesetMinResolutionPx: 0,
+      basemap: "none",
+      outline: false,
+      diagnostics: true,
+    });
+    expect(resolved).toMatchObject({
+      version: 1,
+      errorTarget: 6,
+      baseErrorTarget: 12,
+      tilesetMinResolutionPx: 0,
+      basemap: "none",
+      outline: false,
+      diagnostics: true,
+    });
+  });
+});
+
 describe("Tiles3dLayerManager", () => {
   beforeEach(() => {
     mocks.buildRuntime.mockReset();
@@ -138,11 +191,11 @@ describe("Tiles3dLayerManager", () => {
     expect(storyMeshStyle).toEqual(geoportalMeshStyle);
     const metadata = geoportalMeshStyle.metadata.carmaConf["3d"];
     expect(metadata.entry.levels.length).toBeGreaterThan(0);
-    expect(metadata).toMatchObject({
-      baseErrorTarget: 12,
-      errorTarget: 4,
-      tilesetMinResolutionPx: 2048,
-    });
+    // The reference file declares the tuned base target and leaves the rest
+    // to the defaults, so a legacy style and this one share every other value.
+    expect(metadata).toMatchObject({ baseErrorTarget: 12 });
+    expect(metadata).not.toHaveProperty("errorTarget");
+    expect(metadata).not.toHaveProperty("tilesetMinResolutionPx");
     // Use the normal draped host to inspect creation synchronously; standalone
     // mounting adds a DEM lookup but must pass the same hierarchy hints.
     render(renderManager({ ...metadata, basemap: "labels" } as Tiles3dConfig));
@@ -157,7 +210,7 @@ describe("Tiles3dLayerManager", () => {
     >;
     expect(runtime.loading.setErrorTarget).toHaveBeenLastCalledWith(4, 12);
     expect(runtime.loading.setTilesetMinResolution).toHaveBeenLastCalledWith(
-      2048
+      1024
     );
   });
 
@@ -166,8 +219,9 @@ describe("Tiles3dLayerManager", () => {
     const runtime = mocks.buildRuntime.mock.results[0]?.value as ReturnType<
       typeof buildFakeRuntime
     >;
+    // A terrain-providing style without a residual resolution gets the default.
     expect(runtime.loading.setTilesetMinResolution).toHaveBeenLastCalledWith(
-      null
+      1024
     );
     rerender(
       renderManager({
@@ -204,18 +258,13 @@ describe("Tiles3dLayerManager", () => {
     const runtime = mocks.buildRuntime.mock.results[0]?.value as ReturnType<
       typeof buildFakeRuntime
     >;
-    expect(runtime.loading.setErrorTarget).toHaveBeenLastCalledWith(
-      4,
-      undefined
-    );
+    // The base target defaults for a terrain-providing tileset.
+    expect(runtime.loading.setErrorTarget).toHaveBeenLastCalledWith(4, 16);
     expect(mocks.addRuntime).toHaveBeenCalledWith(runtime.scene);
 
     rerender(renderManager({ ...baseConfig, errorTarget: 1 }, 1));
     expect(mocks.buildRuntime).toHaveBeenCalledOnce();
-    expect(runtime.loading.setErrorTarget).toHaveBeenLastCalledWith(
-      1,
-      undefined
-    );
+    expect(runtime.loading.setErrorTarget).toHaveBeenLastCalledWith(1, 16);
 
     rerender(
       renderManager({ ...baseConfig, errorTarget: 1, opacity: 0.5 }, 0.5)

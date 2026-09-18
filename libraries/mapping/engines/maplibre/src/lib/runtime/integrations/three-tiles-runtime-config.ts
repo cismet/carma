@@ -49,3 +49,16 @@ export const KICKSTART_INTERVAL_MS = 400;
 export const HIDDEN_TAB_WIPE_DELAY_MS = 30_000;
 
 export const CLAY_COLOR = 0xd6d2ca;
+
+/**
+ * Contract version of a style's `metadata.carmaConf["3d"]` block. A style that
+ * names none is version 1: the legacy shape with `renderMode`, `tilesetUrl` and
+ * `terrainMandatory` alone, which the layer manager completes with defaults.
+ */
+export const TILES3D_STYLE_VERSION = 1;
+/**
+ * Residual resolution of a terrain-providing tileset whose style names none:
+ * the whole extent stays resident at the level that shows it across this many
+ * pixels at the base error target.
+ */
+export const TILESET_MIN_RESOLUTION_DEFAULT_PX = 1024;

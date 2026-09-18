@@ -185,13 +185,14 @@ preparing the reserve. Non-shadow terrain-providing meshes now load in this orde
 
 1. Complete the initial viewport target (`initialPixelError`, story default 12 px).
 2. Prepare the tileset residual surface with its distance-dependent tree
-   transitions (`tilesetMinResolutionPx`, metadata default 2048). Keep the initial
+   transitions (`tilesetMinResolutionPx`, metadata default 1024). Keep the initial
    foreground target while floor discovery, payloads and transitions settle.
 3. Refine the live view towards `idlePixelError` (metadata default 4 px).
 
 The ad-hoc style's `metadata.carmaConf["3d"]`, alongside `colorCorrection`,
-declares `baseErrorTarget: 12`, `errorTarget: 4` and
-`tilesetMinResolutionPx: 2048`. Mesh Coverage reads its initial/idle/residual
+declares `baseErrorTarget: 12`; the idle target of 4 px and the residual
+resolution of 1024 px are the layer manager's defaults, see the style contract
+in the README. Mesh Coverage reads its initial/idle/residual
 control defaults from these fields; explicit story/URL controls override them.
 The regular layer manager forwards the same fields and applies live changes
 without rebuilding the tile pool. Absent/zero residual resolution falls back to

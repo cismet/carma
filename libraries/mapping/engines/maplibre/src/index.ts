@@ -338,6 +338,8 @@ export {
   TILES_ERROR_TARGET_DEFAULT_PIXELS,
   TILES_ERROR_TARGET_MAX_PIXELS,
   TILES_ERROR_TARGET_MIN_PIXELS,
+  TILES3D_STYLE_VERSION,
+  TILESET_MIN_RESOLUTION_DEFAULT_PX,
 } from "./lib/runtime/integrations/three-tiles-runtime-config";
 export type {
   ImageProjector,

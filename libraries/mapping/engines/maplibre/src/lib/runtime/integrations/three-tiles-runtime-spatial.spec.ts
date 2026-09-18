@@ -34,10 +34,9 @@ describe("mesh viewport convergence", () => {
       providesTerrain: true,
       cacheBudgetBytes: 384 * 1024 ** 2,
       entry: {
-        level: 3,
         levels: [
-          { level: 0, geometricError: 908.2, bytes: 17541680, tiles: 5 },
-          { level: 3, geometricError: 97.3, bytes: 36044315, tiles: 15 },
+          { level: 0, geometricError: 908.2, bytes: 17541680 },
+          { level: 3, geometricError: 97.3, bytes: 36044315 },
         ],
       },
     });
