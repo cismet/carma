@@ -181,36 +181,23 @@ const coordinatesOf = (itinerary: DirectItinerary): [number, number][] =>
 /** a step as read, before the offsets are known */
 type RawStep = Omit<RouteStep, "startsAtMeters">;
 
-/** a proper turn, as against going on straight or nearly so */
-const isTurn = (direction: RouteDirection) =>
-  direction !== "DEPART" &&
-  direction !== "CONTINUE" &&
-  direction !== "SLIGHTLY_LEFT" &&
-  direction !== "SLIGHTLY_RIGHT";
-
 /**
- * One step per turn or street change. The service cuts a step at every OSM
- * way boundary, so a straight kilometer of one street arrives as a dozen
- * `CONTINUE` steps of a few dozen meters each; read as instructions they say
- * "weiter auf X" over and over, and the distance to the next real change is
- * lost among them. A step onto the same street is the same stretch going on
- * unless the geometry says otherwise: a road bends, and following the bend
- * is not an instruction, but a street that turns a corner at a junction and
- * keeps its name on the far side is one. A bend shows up as a slight angle
- * at a way boundary, a corner as a proper turn, so a same-street step folds
- * when it goes straight or nearly so and stays when it turns. An unnamed way
- * folds only when it goes straight on; one that starts with a turn stays its
- * own step, because the turn is real and only the name is missing.
+ * One step per turn. The service cuts a step at every OSM way boundary, so a
+ * straight kilometer arrives as a dozen `CONTINUE` steps of a few dozen
+ * meters each; read as instructions they say "weiter auf X" over and over,
+ * and the distance to the next real change is lost among them. What the
+ * geometry calls going straight on is the same stretch, whatever the way is
+ * named: a road that changes its name halfway is not something the driver
+ * does, and a navigation says nothing there. A slight turn stays its own
+ * step, because it is a fork and "leicht rechts halten" is an instruction
+ * even when both arms carry the same name. The folded step keeps the name it
+ * started with, the name of the stretch the user is on.
  */
 const foldSteps = (steps: RawStep[]): RawStep[] => {
   const folded: RawStep[] = [];
   for (const step of steps) {
     const previous = folded[folded.length - 1];
-    const sameStretch =
-      previous !== undefined &&
-      (step.streetName === ""
-        ? step.direction === "CONTINUE"
-        : step.streetName === previous.streetName && !isTurn(step.direction));
+    const sameStretch = previous !== undefined && step.direction === "CONTINUE";
     if (sameStretch) {
       previous.distanceInMeters += step.distanceInMeters;
     } else {
