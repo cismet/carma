@@ -1,3 +1,4 @@
+import { degToRadNumeric, radToDegNumeric } from "@carma-units";
 import { useState, useEffect } from "react";
 import type { CSSProperties } from "react";
 
@@ -307,7 +308,7 @@ export const FovControl = ({ cesiumWidget, style }: FovControlProps) => {
   const handleFovChange = (value: number) => {
     setFovDegrees(Math.round(value * 10) / 10);
     if (cesiumWidget?.camera?.frustum && "fov" in cesiumWidget.camera.frustum) {
-      (cesiumWidget.camera.frustum as any).fov = value * (Math.PI / 180);
+      (cesiumWidget.camera.frustum as any).fov = degToRadNumeric(value);
       requestStoryCesiumRender(cesiumWidget);
     }
   };
@@ -338,7 +339,7 @@ export const FovControl = ({ cesiumWidget, style }: FovControlProps) => {
 
       // Update FOV from camera frustum
       if (camera.frustum && "fov" in camera.frustum) {
-        const currentFov = (camera.frustum as any).fov * (180 / Math.PI);
+        const currentFov = radToDegNumeric((camera.frustum as any).fov);
         setFovDegrees(currentFov);
       }
     };

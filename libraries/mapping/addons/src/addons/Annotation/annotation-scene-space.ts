@@ -1,3 +1,8 @@
+import {
+  EARTH_CIRCUMFERENCE,
+  getWgs84DegFromWebMercator,
+} from "@carma-geo/proj";
+import type { Meters } from "@carma-units";
 import type { Map as MaplibreMap } from "maplibre-gl";
 
 import type { SceneRect } from "./annotation-clip";
@@ -30,9 +35,11 @@ const mercatorY = (lat: number) => {
 
 const lngOf = (x: number) => x * 360 - 180;
 
-const latOf = (y: number) =>
-  (2 * Math.atan(Math.exp((0.5 - y) * 2 * Math.PI)) - Math.PI / 2) *
-  (180 / Math.PI);
+const latOf = (y: number): number =>
+  getWgs84DegFromWebMercator(
+    0 as Meters,
+    ((0.5 - y) * EARTH_CIRCUMFERENCE) as Meters
+  )[1];
 
 export type ScenePoint = { x: number; y: number };
 

@@ -1,3 +1,4 @@
+import { degToRadNumeric } from "@carma-units";
 /**
  * Zero Dependency Utility function to calculate meridian convergence angle.
  * Meridian convergence is the angle between grid north and true north.
@@ -8,10 +9,6 @@
  */
 
 const CENTRAL_MERIDIAN_DEG = 3;
-
-const TO_RADIANS_FACTOR = Math.PI / 180;
-
-const toRadians = (degrees: number): number => degrees * TO_RADIANS_FACTOR;
 
 /**
  * Calculate meridian convergence angle directly from latitude and longitude
@@ -26,9 +23,9 @@ export function calculateUTMConvergence(
   latitude: number
 ): number {
   // Convert degrees to radians
-  const latRad = toRadians(latitude);
-  const lonRad = toRadians(longitude);
-  const cmRad = toRadians(CENTRAL_MERIDIAN_DEG);
+  const latRad = degToRadNumeric(latitude);
+  const lonRad = degToRadNumeric(longitude);
+  const cmRad = degToRadNumeric(CENTRAL_MERIDIAN_DEG);
 
   // Zone is not needed for this calculation, since it's the same for every strip in relation to the strip's Meridian
   const lonLocalStripRad = (lonRad + Math.PI) % (cmRad * 2);

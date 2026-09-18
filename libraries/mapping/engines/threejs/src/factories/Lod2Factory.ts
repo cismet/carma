@@ -1,3 +1,5 @@
+import { WGS84_ELLIPSOID } from "@carma-geo/proj";
+import { degToRadNumeric } from "@carma-units";
 import * as THREE from "three";
 import { Earcut } from "three/src/extras/Earcut.js";
 import { MercatorCoordinate } from "maplibre-gl";
@@ -72,7 +74,9 @@ export interface Lod2Building {
  * shared between the pipeline and this factory, not a measurement, and the two
  * have to agree to the last digit or the heights come back tilted.
  */
-const EARTH_RADIUS_M = 6378137;
+const EARTH_RADIUS_M = WGS84_ELLIPSOID.semiMajorAxis;
+/** Metres of arc per degree on that sphere. */
+const METERS_PER_DEGREE = EARTH_RADIUS_M * degToRadNumeric(1);
 
 /**
  * Height of every vertex of a roof surface, metres above sea level.
@@ -102,8 +106,8 @@ function faceHeights(ring: number[][], face: Lod2RoofFace): Float64Array {
     if (point[1] < lat0) lat0 = point[1];
   }
   const cosLat = Math.cos((lat0 * Math.PI) / 180);
-  const eastPerDeg = (Math.PI * EARTH_RADIUS_M * cosLat) / 180;
-  const northPerDeg = (Math.PI * EARTH_RADIUS_M) / 180;
+  const eastPerDeg = METERS_PER_DEGREE * cosLat;
+  const northPerDeg = METERS_PER_DEGREE;
 
   const out = new Float64Array(ring.length);
   for (let i = 0; i < ring.length; i++) {
@@ -221,7 +225,7 @@ export function buildLod2Meshes(
   scene: THREE.Scene,
   originMerc: MercatorCoordinate,
   mScale: number,
-  colors: BuildingColors = defaultBuildingColors,
+  colors: BuildingColors = defaultBuildingColors
 ): FactoryStats {
   removeBuildingMeshes(scene);
 
@@ -290,7 +294,7 @@ export function buildLod2Meshes(
     const toScene = (lng: number, lat: number, z: number) => {
       const m = MercatorCoordinate.fromLngLat(
         [lng, lat],
-        b.elevation + (z - b.zGround),
+        b.elevation + (z - b.zGround)
       );
       return [
         (m.x - originMerc.x) / mScale,
@@ -332,11 +336,21 @@ export function buildLod2Meshes(
       nz /= nLen;
 
       for (let i = 0; i < n; i++) {
-        const [x, y, z] = toScene(face.ring[i][0], face.ring[i][1], face.heights[i]);
+        const [x, y, z] = toScene(
+          face.ring[i][0],
+          face.ring[i][1],
+          face.heights[i]
+        );
         const v3 = rv * 3;
-        rP[v3] = x; rP[v3 + 1] = y; rP[v3 + 2] = z;
-        rN[v3] = nx; rN[v3 + 1] = ny; rN[v3 + 2] = nz;
-        rC[v3] = cr; rC[v3 + 1] = cg; rC[v3 + 2] = cb;
+        rP[v3] = x;
+        rP[v3 + 1] = y;
+        rP[v3 + 2] = z;
+        rN[v3] = nx;
+        rN[v3 + 1] = ny;
+        rN[v3 + 2] = nz;
+        rC[v3] = cr;
+        rC[v3 + 1] = cg;
+        rC[v3 + 2] = cb;
         rv++;
         flatXZ.push(x, z);
       }
@@ -367,9 +381,15 @@ export function buildLod2Meshes(
       const base = wv;
       const put = (x: number, y: number, z: number) => {
         const v3 = wv * 3;
-        wP[v3] = x; wP[v3 + 1] = y; wP[v3 + 2] = z;
-        wN[v3] = nx; wN[v3 + 1] = 0; wN[v3 + 2] = nz;
-        wC[v3] = wcr; wC[v3 + 1] = wcg; wC[v3 + 2] = wcb;
+        wP[v3] = x;
+        wP[v3 + 1] = y;
+        wP[v3 + 2] = z;
+        wN[v3] = nx;
+        wN[v3 + 1] = 0;
+        wN[v3 + 2] = nz;
+        wC[v3] = wcr;
+        wC[v3 + 1] = wcg;
+        wC[v3 + 2] = wcb;
         wv++;
       };
       put(gax, gay, gaz);
@@ -409,15 +429,33 @@ export function buildLod2Meshes(
   }
 
   const wallGeo = new THREE.BufferGeometry();
-  wallGeo.setAttribute("position", new THREE.BufferAttribute(wP.subarray(0, wv * 3), 3));
-  wallGeo.setAttribute("normal", new THREE.BufferAttribute(wN.subarray(0, wv * 3), 3));
-  wallGeo.setAttribute("color", new THREE.BufferAttribute(wC.subarray(0, wv * 3), 3));
+  wallGeo.setAttribute(
+    "position",
+    new THREE.BufferAttribute(wP.subarray(0, wv * 3), 3)
+  );
+  wallGeo.setAttribute(
+    "normal",
+    new THREE.BufferAttribute(wN.subarray(0, wv * 3), 3)
+  );
+  wallGeo.setAttribute(
+    "color",
+    new THREE.BufferAttribute(wC.subarray(0, wv * 3), 3)
+  );
   wallGeo.setIndex(new THREE.BufferAttribute(wI.subarray(0, wi), 1));
 
   const roofGeo = new THREE.BufferGeometry();
-  roofGeo.setAttribute("position", new THREE.BufferAttribute(rP.subarray(0, rv * 3), 3));
-  roofGeo.setAttribute("normal", new THREE.BufferAttribute(rN.subarray(0, rv * 3), 3));
-  roofGeo.setAttribute("color", new THREE.BufferAttribute(rC.subarray(0, rv * 3), 3));
+  roofGeo.setAttribute(
+    "position",
+    new THREE.BufferAttribute(rP.subarray(0, rv * 3), 3)
+  );
+  roofGeo.setAttribute(
+    "normal",
+    new THREE.BufferAttribute(rN.subarray(0, rv * 3), 3)
+  );
+  roofGeo.setAttribute(
+    "color",
+    new THREE.BufferAttribute(rC.subarray(0, rv * 3), 3)
+  );
   roofGeo.setIndex(new THREE.BufferAttribute(rI.subarray(0, ri), 1));
 
   const wallMesh = new THREE.Mesh(wallGeo, createBuildingMaterial());

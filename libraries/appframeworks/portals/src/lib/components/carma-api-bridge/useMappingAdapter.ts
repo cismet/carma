@@ -1,3 +1,4 @@
+import { radToDegNumeric } from "@carma-units";
 import { useContext, useLayoutEffect } from "react";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { useCesiumContext } from "@carma-mapping/engines/cesium/react/runtime";
@@ -17,8 +18,6 @@ import { useMapStyle } from "../../contexts/MapStyleProvider";
 import type { BackgroundLayerCatalogEntry } from "../../types";
 
 import type { Store } from "redux";
-
-const RAD_TO_DEG = 180 / Math.PI;
 
 export interface MappingPortalState {
   /** The layers currently on the map. */
@@ -152,12 +151,12 @@ export const useMappingAdapter = (store?: Store<MappingPortalState>): void => {
         withCamera((camera) => {
           const p = camera.positionCartographic;
           return {
-            lon: p.longitude * RAD_TO_DEG,
-            lat: p.latitude * RAD_TO_DEG,
+            lon: radToDegNumeric(p.longitude),
+            lat: radToDegNumeric(p.latitude),
             height: p.height,
-            heading: camera.heading * RAD_TO_DEG,
-            pitch: camera.pitch * RAD_TO_DEG,
-            roll: camera.roll * RAD_TO_DEG,
+            heading: radToDegNumeric(camera.heading),
+            pitch: radToDegNumeric(camera.pitch),
+            roll: radToDegNumeric(camera.roll),
           };
         }) ?? null,
       zoomIn3D: () => {

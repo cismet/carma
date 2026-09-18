@@ -1,4 +1,11 @@
-export const EARTH_RADIUS = 6378137;
+import { WGS84_ELLIPSOID } from "@carma-geo/proj";
+
+/**
+ * Sphere radius of the haversine and spherical-excess formulas below. The
+ * WGS84 semi-major axis, not the mean radius, so measured values stay as
+ * they were.
+ */
+const EARTH_RADIUS = WGS84_ELLIPSOID.semiMajorAxis;
 
 export interface MeasurementLabel {
   position: [number, number];

@@ -1,3 +1,5 @@
+import { WGS84_ELLIPSOID } from "@carma-geo/proj";
+import { degToRadNumeric } from "@carma-units";
 import {
   type CesiumGeographicCoordinate,
   type AnnotationNodeLink,
@@ -62,18 +64,16 @@ export const reconcileNodeLinks = ({
   return [...normalizedNodeLinks, ...fallbackSingletonGroups];
 };
 
-const EARTH_RADIUS_METERS = 6_378_137;
+const EARTH_RADIUS_METERS = WGS84_ELLIPSOID.semiMajorAxis;
 const NODE_LINK_DETACH_EPSILON_METERS = 0.1;
-
-const toRadians = (degrees: number) => (degrees * Math.PI) / 180;
 
 const resolveCoordinateDistanceMeters = (
   left: CesiumGeographicCoordinate,
   right: CesiumGeographicCoordinate
 ) => {
-  const deltaLatitudeRad = toRadians(right.latitude - left.latitude);
-  const deltaLongitudeRad = toRadians(right.longitude - left.longitude);
-  const meanLatitudeRad = toRadians((left.latitude + right.latitude) / 2);
+  const deltaLatitudeRad = degToRadNumeric(right.latitude - left.latitude);
+  const deltaLongitudeRad = degToRadNumeric(right.longitude - left.longitude);
+  const meanLatitudeRad = degToRadNumeric((left.latitude + right.latitude) / 2);
   const horizontalEastMeters =
     deltaLongitudeRad * Math.cos(meanLatitudeRad) * EARTH_RADIUS_METERS;
   const horizontalNorthMeters = deltaLatitudeRad * EARTH_RADIUS_METERS;

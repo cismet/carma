@@ -109,10 +109,6 @@ const isIOS = () => {
   );
 };
 
-function degToRad(degrees) {
-  return degrees * (Math.PI / 180);
-}
-
 export const printMap = async (
   center,
   scale,

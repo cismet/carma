@@ -1,3 +1,10 @@
+import {
+  WEB_MERCATOR_MAX_LATITUDE_DEG,
+  WGS84_ELLIPSOID,
+  getWebMercatorFromWgs84Deg,
+} from "@carma-geo/proj";
+import { degToRadNumeric, radToDegNumeric } from "@carma-units";
+import type { Degrees } from "@carma-units";
 import area from "@turf/area";
 import centroid from "@turf/centroid";
 import length from "@turf/length";
@@ -46,23 +53,27 @@ function midpoint([ax, ay]: Position, [bx, by]: Position): Position {
   return [(ax + bx) / 2, (ay + by) / 2];
 }
 
-const DEG_TO_RAD = Math.PI / 180;
-const MERCATOR_MAX_LAT = 85.051129;
-
+/** Web Mercator northing in Earth radii, the unit `dx` in radians uses. */
 function mercatorY(lat: number): number {
-  const clamped = Math.max(-MERCATOR_MAX_LAT, Math.min(MERCATOR_MAX_LAT, lat));
-  return Math.log(Math.tan(Math.PI / 4 + (clamped * DEG_TO_RAD) / 2));
+  const clamped = Math.max(
+    -WEB_MERCATOR_MAX_LATITUDE_DEG,
+    Math.min(WEB_MERCATOR_MAX_LATITUDE_DEG, lat)
+  );
+  return (
+    getWebMercatorFromWgs84Deg(0 as Degrees, clamped as Degrees)[1] /
+    WGS84_ELLIPSOID.semiMajorAxis
+  );
 }
 
 function segmentRotationDegrees(a: Position, b: Position): number {
-  const dx = (b[0] - a[0]) * DEG_TO_RAD;
+  const dx = degToRadNumeric(b[0] - a[0]);
   const dy = mercatorY(b[1]) - mercatorY(a[1]);
   if (dx === 0 && dy === 0) {
     return 0;
   }
   // atan2 is counter-clockwise from east and mercator y grows northwards,
   // while text-rotate turns clockwise on screen — hence the sign flip.
-  let degrees = -Math.atan2(dy, dx) / DEG_TO_RAD;
+  let degrees = -radToDegNumeric(Math.atan2(dy, dx));
   while (degrees > 90) {
     degrees -= 180;
   }

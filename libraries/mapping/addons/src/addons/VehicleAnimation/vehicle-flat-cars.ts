@@ -168,9 +168,7 @@ const rgbOf = (css: string): [number, number, number] => {
 };
 
 const mercatorY = (lat: number): number =>
-  (180 -
-    (180 / Math.PI) * Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI) / 360))) /
-  360;
+  MercatorCoordinate.fromLngLat([0, lat]).y;
 
 /**
  * An indexed mesh whose buffers are rewritten in place: they grow when a

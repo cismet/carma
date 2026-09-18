@@ -1,3 +1,4 @@
+import { degToRadNumeric } from "@carma-units";
 // Minimal copy of the geoportal `helper/gisHelper.js` exports that the Leaflet
 // print helper needs. Only the three symbols consumed by `print.helper.tsx`
 // are reproduced here so the leaflet folder stays self-contained without
@@ -8,10 +9,8 @@ import proj4 from "proj4";
 export const proj4crs3857def =
   "+proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0 +k=1.0 +units=m +nadgrids=@null +wktext  +no_defs";
 
-const degToRad = (degrees) => degrees * (Math.PI / 180);
-
 export const getMeractorScale = (scale, lat) =>
-  scale * (1 / Math.cos(degToRad(lat)));
+  scale * (1 / Math.cos(degToRadNumeric(lat)));
 
 // In the app this defaulted to `proj4crs25832def`; every caller passes
 // `proj4crs3857def`, so the default is kept harmless here.

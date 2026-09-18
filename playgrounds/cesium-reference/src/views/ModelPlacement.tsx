@@ -1,3 +1,4 @@
+import { degToRadNumeric } from "@carma-units";
 import React, { useEffect, useRef, useState } from "react";
 import {
   Entity,
@@ -75,7 +76,7 @@ const ModelPlacement: React.FC = () => {
         );
         viewer.flyTo(modelEntityRef.current, {
           offset: {
-            heading: (Math.PI / 180) * 78,
+            heading: degToRadNumeric(78),
             pitch: 0.05,
             range: 1200,
           },

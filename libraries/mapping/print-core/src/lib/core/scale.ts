@@ -1,3 +1,4 @@
+import { degToRadNumeric } from "@carma-units";
 // Pure scale / bbox math shared by every engine preview.
 
 import type { Orientation, ScaleOption } from "./types";
@@ -22,14 +23,12 @@ export const getPrintPixelSize = (orientation: Orientation) => ({
   height: orientation === "landscape" ? 555 : 802,
 });
 
-const degToRad = (degrees: number) => degrees * (Math.PI / 180);
-
 /**
  * Web-Mercator distorts north-south; the nominal scale must be corrected by
  * the latitude so the printed scale bar is true to ground.
  */
 export const getMercatorScale = (scale: number, lat: number): number =>
-  scale * (1 / Math.cos(degToRad(lat)));
+  scale * (1 / Math.cos(degToRadNumeric(lat)));
 
 export interface BBox {
   minX: number;
@@ -89,8 +88,7 @@ export const getPreviewFontSize = (
 export const getPreviewIsSmallMode = (
   orientation: Orientation,
   width: number
-): boolean =>
-  orientation === "portrait" ? width <= 154 : width <= 278;
+): boolean => (orientation === "portrait" ? width <= 154 : width <= 278);
 
 /** GeoJSON-ish polygon (EPSG:3857) from a bbox — used to seed the preview rect. */
 export function createFeatureFromBBox(bbox: BBox) {

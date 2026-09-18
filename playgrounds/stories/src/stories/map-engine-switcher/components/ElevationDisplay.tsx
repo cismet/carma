@@ -1,3 +1,4 @@
+import type { Radians } from "@carma-units";
 import {
   useEffect,
   useMemo,
@@ -83,11 +84,9 @@ export const ElevationDisplay = ({ style }: ElevationDisplayProps) => {
         }
 
         // Calculate equivalent distance from zoom level
-        const earthCircumference = 40075016.686;
-        const latRad = degToRadNumeric(center.lat);
+        const latRad = degToRadNumeric(center.lat) as Radians;
         const distance =
-          (earthCircumference * Math.cos(latRad)) /
-          Math.pow(2, zoom + 8) /
+          getPixelResolutionFromZoomAtLatitudeRad(zoom, latRad) /
           devicePixelRatio;
         setEquivalentDistance(distance);
 

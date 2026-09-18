@@ -1,3 +1,4 @@
+import { EARTH_RADIUS } from "@carma-geo/proj";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 
@@ -67,7 +68,6 @@ const CONTROL_CATEGORY_MAP = "Map settings";
 const CONTROL_CATEGORY_LINE = "Line";
 const CONTROL_CATEGORY_EXTRUSION = "Extrusion";
 const MODEL_AXES_LENGTH_METERS = 40;
-const EARTH_RADIUS_METERS = 6371008.8;
 const POINT_EXTRUSION_SOURCE_ID = "carma-story-maplibre-point-extrusion-source";
 const POINT_EXTRUSION_LAYER_ID = "carma-story-maplibre-point-extrusion-layer";
 const MEASUREMENT_DIRECT_COLOR = getAnnotationLineComponentCssColor(
@@ -265,7 +265,7 @@ const horizontalDistanceMeters = (start: LinePoint, end: LinePoint) => {
 
   return (
     2 *
-    EARTH_RADIUS_METERS *
+    EARTH_RADIUS *
     Math.atan2(Math.sqrt(haversine), Math.sqrt(Math.max(0, 1 - haversine)))
   );
 };

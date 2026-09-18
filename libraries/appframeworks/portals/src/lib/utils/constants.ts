@@ -1,3 +1,4 @@
+import { DEFAULT_LEAFLET_TILESIZE, EARTH_CIRCUMFERENCE } from "@carma-geo/proj";
 import L from "leaflet";
 import "proj4leaflet";
 import proj4 from "proj4";
@@ -19,9 +20,9 @@ const origin31462 = proj4(
 );
 const getResolutions = function (startlevel = 0, level) {
   var res = [];
-  res[0] = (Math.PI * 2 * 6378137) / 256;
+  res[0] = EARTH_CIRCUMFERENCE / DEFAULT_LEAFLET_TILESIZE;
   for (var i = 1; i < level; i++) {
-    res[i] = (Math.PI * 2 * 6378137) / 256 / Math.pow(2, i);
+    res[i] = EARTH_CIRCUMFERENCE / DEFAULT_LEAFLET_TILESIZE / Math.pow(2, i);
   }
 
   res.splice(0, startlevel);

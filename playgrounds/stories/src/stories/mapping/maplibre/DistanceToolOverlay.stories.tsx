@@ -1,3 +1,4 @@
+import { EARTH_RADIUS } from "@carma-geo/proj";
 import {
   useCallback,
   useEffect,
@@ -94,8 +95,6 @@ import {
 } from "./sample-gltf-asset";
 
 import "maplibre-gl/dist/maplibre-gl.css";
-
-const EARTH_RADIUS_METERS = 6371008.8;
 
 const THREE_LAYER_ID = "carma-story-maplibre-distance-tool-three";
 const THREE_DRAFT_LAYER_ID = "carma-story-maplibre-distance-tool-three-draft";
@@ -645,7 +644,7 @@ const horizontalDistanceMeters = (
 
   return (
     2 *
-    EARTH_RADIUS_METERS *
+    EARTH_RADIUS *
     Math.atan2(Math.sqrt(haversine), Math.sqrt(Math.max(0, 1 - haversine)))
   );
 };

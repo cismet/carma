@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { Cartesian3 } from "@carma-cesium";
+import { Cartesian3, Ellipsoid } from "@carma-cesium";
 
 import { resolveStableDiscNormal } from "./GuidePrimitives";
 
 describe("resolveStableDiscNormal", () => {
   it("keeps vertical surface normals instead of forcing ellipsoid-up", () => {
-    const origin = new Cartesian3(6378137, 0, 0);
+    const origin = new Cartesian3(Ellipsoid.WGS84.maximumRadius, 0, 0);
     const preferredNormal = new Cartesian3(0, 1, 0);
 
     const resolvedNormal = resolveStableDiscNormal(origin, preferredNormal);
@@ -14,7 +14,7 @@ describe("resolveStableDiscNormal", () => {
   });
 
   it("keeps the preferred normal in the same hemisphere as the fallback", () => {
-    const origin = new Cartesian3(6378137, 0, 0);
+    const origin = new Cartesian3(Ellipsoid.WGS84.maximumRadius, 0, 0);
     const preferredNormal = new Cartesian3(0, -1, 0);
     const fallbackNormal = new Cartesian3(0, 1, 0);
 
@@ -28,7 +28,7 @@ describe("resolveStableDiscNormal", () => {
   });
 
   it("falls back to local ellipsoid-up when no usable normal is available", () => {
-    const origin = new Cartesian3(6378137, 0, 0);
+    const origin = new Cartesian3(Ellipsoid.WGS84.maximumRadius, 0, 0);
 
     const resolvedNormal = resolveStableDiscNormal(
       origin,

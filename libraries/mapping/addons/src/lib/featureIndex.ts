@@ -1,3 +1,5 @@
+import { EARTH_RADIUS } from "@carma-geo/proj";
+import { degToRadNumeric } from "@carma-units";
 import type { Map as MaplibreMap } from "maplibre-gl";
 
 import {
@@ -399,9 +401,8 @@ const indexForSource = async (
 /* ranking                                                                    */
 /* -------------------------------------------------------------------------- */
 
-/** turf's mean earth radius, so distances match what the rest of the app shows */
-const EARTH_RADIUS_METERS = 6371008.8;
-const DEGREE = Math.PI / 180;
+/** Metres of arc per degree on the mean sphere. */
+const METERS_PER_DEGREE = EARTH_RADIUS * degToRadNumeric(1);
 
 /**
  * Meters per degree at one latitude: the plane tangent to turf's sphere at the
@@ -415,8 +416,8 @@ const DEGREE = Math.PI / 180;
  * agreement to a millimetre inside 500 m, under 10 m at 15 km, same order.
  */
 const degreeScale = (lat: number): { perLng: number; perLat: number } => ({
-  perLat: EARTH_RADIUS_METERS * DEGREE,
-  perLng: EARTH_RADIUS_METERS * DEGREE * Math.cos(lat * DEGREE),
+  perLat: METERS_PER_DEGREE,
+  perLng: METERS_PER_DEGREE * Math.cos(degToRadNumeric(lat)),
 });
 
 const clamp = (value: number, low: number, high: number) =>
