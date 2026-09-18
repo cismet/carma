@@ -476,8 +476,7 @@ export function createThreeTilesLifecycle(
       // The shared scene owns the local frame. The tileset is mounted once, at
       // the frame's reference fit, inside the layer's local-frame group; a
       // refit moves that group and nothing here, so tiles, light and shadows
-      // move together. Decision: LOCAL-FRAME-MOUNT-20260918 in
-      // engines/maplibre/README.md.
+      // move together. Decision: engines/maplibre/README.md#local-frame-for-ecef-tilesets-sun-and-sky.
       const { localFrame } = frame;
       if (localFrame) {
         runtimeState.referenceToCurrent.copy(localFrame.referenceToCurrent);

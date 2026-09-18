@@ -1083,7 +1083,7 @@ export const buildShadowSimulationScene = (
   /**
    * Sun and sky are evaluated at the shared scene's local frame, the ellipsoid
    * frame the ECEF tilesets mount on, so light and geometry tilt together.
-   * Decision: LOCAL-FRAME-MOUNT-20260918 in engines/maplibre/README.md.
+   * Decision: engines/maplibre/README.md#local-frame-for-ecef-tilesets-sun-and-sky.
    * Before the layer is on the map the frame is unknown and the map centre
    * stands in; the first frame update replaces it.
    */
@@ -1249,7 +1249,7 @@ export const buildShadowSimulationScene = (
   // reference fit. A local-frame refit moves that group alone: tiles, light,
   // casters and receivers move together, so the shadows cancel out of it
   // exactly and only a solar change invalidates them.
-  // Decision: LOCAL-FRAME-MOUNT-20260918 in engines/maplibre/README.md.
+  // Decision: engines/maplibre/README.md#local-frame-for-ecef-tilesets-sun-and-sky.
   const shadowFrame =
     sceneLease.layer.getLocalFrameGroup?.() ?? sceneLease.layer.getScene();
   const sharedBinding = buildShadowLightBinding(

@@ -8,9 +8,9 @@ geometry remains eligible as an offscreen caster in the sun's frustum.
 Decision, synthetic pixel-parity measurements, alternatives and remaining
 live-view limitations: [corridor performance report](../../shadow-simulation/three/CORRIDOR_PERFORMANCE_20260909.md#2026-09-10--mesh-shadow-frustum--native-mask-batch--scratch-reuse).
 
-## Linked receiver/caster detail — LINKED-RECEIVER-CASTER-LOD-20260910
+## Linked receiver/caster detail
 
-- **ID / date / status:** LINKED-RECEIVER-CASTER-LOD-20260910, 2026-09-10;
+- **Anchor / date / status:** `#linked-receivercaster-detail`, 2026-09-10;
   implemented, uncommitted; full live-view convergence remains unverified.
 - **Context and constraints:** Fine visible mesh tiles could receive shadows
   from a coarser retained parent despite all required children being resident.
@@ -259,9 +259,9 @@ live-view limitations: [corridor performance report](../../shadow-simulation/thr
 - **Alternatives:** Separate visibility controllers per toggle were rejected by inspection: one controller could restore a layer that another still needs hidden, or capture that hidden state as its authored value. The combined decision changes only differing properties and restores the authored style on release.
 - **Evidence:** 79 focused registry, drape preparation, shadow-scene, state and UI tests pass. Existing Playwright mesh session: all 9 contour-line layers and 5 contour-label layers independently toggle without camera movement; the house-number layer stays hidden. No build/lint run or commit.
 
-## Mesh memory and shadow casting — MESH-BUDGET-20260908
+## Mesh memory and shadow casting
 
-- **ID / date / status:** MESH-BUDGET-20260908 / 2026-09-08 / implemented, no universal OOM guarantee.
+- **Anchor / date / status:** `#mesh-memory-and-shadow-casting` / 2026-09-08 / implemented, no universal OOM guarantee.
 - **Context and constraints:** Surface meshes must reach requested visible LOD before optional sun-disc refinement. The former device ceiling silently rejected larger explicit budgets. Photogrammetric meshes are not single-valued raster heightfields: back-facing triangles must also occlude sunlight.
 - **Decision:** Explicit mesh cache budgets override conservative device defaults, up to the user-requested 24 GiB maximum. The shadow display panel exposes GiB; blank restores device defaults. Admission uses predicted/resident tile costs including CPU overhead, with bounded accounting drift; this is not a measurement of total process RAM or GPU VRAM. Optional Chromium heap telemetry pauses admission/download/parse at 80% of the reported heap limit and resumes below 65%. Check at most once per second, reclaim unused cache entries and unfinished loads while preserving visible replacements. No render loop for paused queues. WebGL context loss pauses loads until restoration; reported allocation failure latches the pause until explicit budget reconfiguration. Missing telemetry retains the finite admission budget, not unlimited growth. Surface 3D meshes cast with `DoubleSide`; visible render side is unchanged and the separate raster heightfield remains `FrontSide`.
 - **Alternatives and disposition:** Unbounded automatic growth: incompatible by inspection with the absence of portable available-RAM/VRAM telemetry. CPU Compute Pressure and storage quota: incompatible as RAM/VRAM availability signals. Raising the global default to 24 GiB for all devices: rejected by safety constraints; only explicit overrides change it. Front-only photogrammetric casters: excludes away-facing triangles. Full saturation/OOM stress testing: deliberately not performed on the user's active session.
@@ -917,7 +917,7 @@ terrain-mesh runtime to the shared scene.
 
 ### LOD2 terrain corridor reuse
 
-- **ID / date / status:** LOD2-TERRAIN-CORRIDORS-20260910 / 2026-09-10 /
+- **Anchor / date / status:** `#lod2-terrain-corridor-reuse` / 2026-09-10 /
   user-confirmed working in preview ca9b7a957-1789005533718.
 - **Context:** Building-only tilesets do not populate mesh receiver frontiers.
   Using that empty frontier disabled their sunward selection. Independent raster
@@ -944,7 +944,7 @@ terrain-mesh runtime to the shared scene.
 
 ### Local frame for ECEF tilesets, sun and sky
 
-- **ID / date / status:** LOCAL-FRAME-MOUNT-20260918 / 2026-09-18 / implemented
+- **Anchor / date / status:** `#local-frame-for-ecef-tilesets-sun-and-sky` / 2026-09-18 / implemented
   and unit-tested (local-frame group); not yet confirmed in the browser.
 - **Context:** The shared scene is one Mercator tangent plane at its origin.
   ECEF tilesets (`cameraLocalMount`) refitted their own mount at the map centre

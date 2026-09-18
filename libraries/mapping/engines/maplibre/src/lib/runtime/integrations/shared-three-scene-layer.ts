@@ -47,7 +47,7 @@ const LOCAL_FRAME_NOMINAL_HEIGHT_METERS = 200 as Meters;
  * Screen-space error, in CSS pixels, that the current view would show if the
  * scene kept the frame fitted `distance` metres away from its centre.
  *
- * Decision: LOCAL-FRAME-MOUNT-20260918 in engines/maplibre/README.md.
+ * Decision: engines/maplibre/README.md#local-frame-for-ecef-tilesets-sun-and-sky.
  * The frame is a tangent-plane affine at its anchor, so three errors grow with
  * the distance d to it and all are exact at d = 0: the Mercator scale drifts by
  * tan(lat) * d / R and that drift acts across the whole visible half width; the

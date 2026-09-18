@@ -103,8 +103,7 @@ const LIGHT_UP = new THREE.Vector3(0, 1, 0);
  * own space. The fit and its keys are made here, not from the shadow camera's
  * world matrices: the host may be the shared scene's local-frame group, whose
  * placement moves on a refit while receivers, light and every retained page
- * inside it do not. Decision: LOCAL-FRAME-MOUNT-20260918 in
- * engines/maplibre/README.md.
+ * inside it do not. Decision: engines/maplibre/README.md#local-frame-for-ecef-tilesets-sun-and-sky.
  */
 const getLightViewMatrix = (
   position: THREE.Vector3,

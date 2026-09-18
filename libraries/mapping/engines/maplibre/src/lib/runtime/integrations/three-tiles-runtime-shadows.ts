@@ -459,7 +459,7 @@ export function createThreeTilesShadows(
       }
       const sources: ShadowReceiverSource[] = [];
       const sourceTiles = new Set<Tile>();
-      // Decision: LOD2-TERRAIN-CORRIDORS-20260910 in engines/maplibre/README.md.
+      // Decision: engines/maplibre/README.md#lod2-terrain-corridor-reuse.
       // Ground receivers belong to the independent DEM, not the building tree.
       // Ground receivers arrive in frame space, like every shadow-facing box.
       const worldToTiles = runtimeState.frameFromTiles.clone().invert();

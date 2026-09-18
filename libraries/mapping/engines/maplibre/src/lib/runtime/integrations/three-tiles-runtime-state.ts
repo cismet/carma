@@ -182,7 +182,7 @@ export function createThreeTilesRuntimeState(
    * local-frame group for a frame-mounted runtime, else the scene. Unlike
    * `tiles.group.matrixWorld` it is static under a local-frame refit, so the
    * shadow-facing bounds and cache keys derived from it survive one.
-   * Decision: LOCAL-FRAME-MOUNT-20260918 in engines/maplibre/README.md.
+   * Decision: engines/maplibre/README.md#local-frame-for-ecef-tilesets-sun-and-sky.
    */
   const frameFromTiles = new THREE.Matrix4();
   const frameToShadowView = new THREE.Matrix4();

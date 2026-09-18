@@ -213,7 +213,7 @@ export function createThreeTilesAppearance(
           material.needsUpdate = true;
         }
         // Mesh walls/roofs and photogrammetric surfaces occlude from either side.
-        // Decision: MESH-BUDGET-20260908 in engines/maplibre/README.md.
+        // Decision: engines/maplibre/README.md#mesh-memory-and-shadow-casting.
         material.shadowSide = THREE.DoubleSide;
         return;
       }

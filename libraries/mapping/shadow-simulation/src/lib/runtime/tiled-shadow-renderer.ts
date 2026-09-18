@@ -654,7 +654,7 @@ export class TiledShadowRenderer {
     // Page identity is exact: any receiver or sun change re-keys the page and
     // its depth. A local-frame refit changes neither, because receivers,
     // light and pages all live in the host group and move with it
-    // (LOCAL-FRAME-MOUNT-20260918); a solar update must always re-key.
+    // (engines/maplibre/README.md#local-frame-for-ecef-tilesets-sun-and-sky); a solar update must always re-key.
     if (!page) {
       const controller = new ShadowController(this.host);
       controller.setMaxShadowMapSize(this.maxMapSize);

@@ -19,8 +19,7 @@ import type { SceneAccumulationOptions } from "@carma-mapping/engines/three/prim
  * move never touches that content: the group's matrix becomes
  * `referenceToCurrent`, the affine from the reference placement to the current
  * one, and content, light and shadows move together, so a refit cancels out
- * of every shadow. Decision: LOCAL-FRAME-MOUNT-20260918 in
- * engines/maplibre/README.md.
+ * of every shadow. Decision: engines/maplibre/README.md#local-frame-for-ecef-tilesets-sun-and-sky.
  */
 export type SharedThreeSceneLocalFrame = Readonly<{
   /** [longitude, latitude] in degrees, at ellipsoidal height 0. */
