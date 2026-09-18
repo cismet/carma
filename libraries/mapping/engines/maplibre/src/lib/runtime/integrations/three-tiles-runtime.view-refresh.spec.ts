@@ -104,8 +104,7 @@ const mount = (
     baseErrorTargetPixels: 16,
     diagnostics: true,
     entry: {
-      level: 0,
-      levels: [{ level: 0, geometricError: 40, tiles: 1, bytes: 1 }],
+      levels: [{ level: 0, geometricError: 40, bytes: 1 }],
     },
   });
   const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);

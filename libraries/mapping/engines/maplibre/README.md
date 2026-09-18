@@ -10,6 +10,32 @@ the Storybook playgrounds, the ng-topicmap and measurements playgrounds all set
 it. A new consumer without it fails its production build with
 `Invalid value "iife" for option "output.format"`.
 
+## Style contract for `metadata.carmaConf["3d"]`
+
+A tileset is declared by a style's `3d` block. The legacy shape, still served
+by `tiles.cismet.de` and still valid, names only `renderMode: "tiles3d"`, the
+`tilesetUrl` and `terrainMandatory`. `resolveTiles3dConfig` in the layer
+manager completes every block with the same defaults, so a legacy style loads
+the way a fully declared one does:
+
+| Field | Absent means | Note |
+| --- | --- | --- |
+| `version` | `1` | Optional contract version, `TILES3D_STYLE_VERSION`. Never required, so served styles need no lockstep edits. |
+| `providesTerrain` | derived | The host sets it from the `Mesh` tag or a `mesh*.style.json` URL before the block reaches the manager. |
+| `errorTarget` | 4 px | Idle refinement target. |
+| `baseErrorTarget` | 16 px, terrain-providing only | First-pass target and the mesh loading strategy; other tilesets refine straight to the error target. |
+| `tilesetMinResolutionPx` | 1024 px, terrain-providing only | Whole-extent residual resolution. An explicit `0` defers to the `entry` hint instead. |
+| `basemap` | `labels` | Drape the map labels and keep MapLibre terrain; `none` shows the tileset alone. |
+| `outline` | on | `CESIUM_primitive_outline` edges. |
+| `diagnostics` | off | Never ship it on; the stories switch it on themselves. |
+| `entry` | none | Per-level `geometricError` and `bytes` size the resident extent within the memory share; `prefetch` names hierarchy files to warm. |
+| `colorCorrection`, cache budgets | none | Colour grading and memory stay as the runtime decides. |
+
+The bundled `mesh2024-cesium-parity.style.json` copies in the geoportal and the
+stories are the reference for the 2024 mesh. They declare only what differs
+from the defaults or carries data: the tuned base target of 12 px, the
+standalone basemap, the colour grading and the entry hint.
+
 ## Shared-canvas camera views — SHARED-CANVAS-VIEWS-20260916
 
 - **ID / date / status:** SHARED-CANVAS-VIEWS-20260916, 2026-09-16;

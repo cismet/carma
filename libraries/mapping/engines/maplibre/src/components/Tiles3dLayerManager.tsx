@@ -1,5 +1,5 @@
 import type { TextureColorCorrection } from "@carma-commons/resources";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useMemo } from "react";
 
 import { useLibreContext } from "../contexts/LibreContext";
 import {
@@ -20,7 +20,10 @@ import { buildThreeTilesRuntime } from "../lib/runtime/integrations/three-tiles-
 import {
   THREE_TILES_DEFAULT_REQUEST_CONCURRENCY,
   TILES_ERROR_TARGET_DEFAULT_PIXELS,
+  TILES3D_STYLE_VERSION,
+  TILESET_MIN_RESOLUTION_DEFAULT_PX,
 } from "../lib/runtime/integrations/three-tiles-runtime-config";
+import { DEFAULT_MESH_BASE_ERROR_PIXELS } from "../lib/runtime/integrations/three-tiles-load-policy";
 import type {
   ThreeTilesRuntime,
   TilesetEntryHint,
@@ -45,6 +48,13 @@ const STANDALONE_MIN_ELEVATION_FALLBACK_METERS = -500;
 /** What a style has to say for a tileset to be drawn. */
 export interface Tiles3dConfig {
   renderMode: "tiles3d";
+  /**
+   * Contract version of this block, see `TILES3D_STYLE_VERSION`. Optional: a
+   * style without one is version 1, the legacy shape that names only the
+   * tileset and whether terrain is mandatory. Everything else below is
+   * filled in by `resolveTiles3dConfig`.
+   */
+  version?: number;
   colorCorrection?: TextureColorCorrection;
   /** The tileset.json. */
   tilesetUrl: string;
@@ -118,6 +128,44 @@ export const resolveTiles3dErrorTarget = (
   config: Pick<Tiles3dConfig, "errorTarget">
 ): number => config.errorTarget ?? TILES_ERROR_TARGET_DEFAULT_PIXELS;
 
+/** A style config with every default the layer manager applies made explicit. */
+export type ResolvedTiles3dConfig = Tiles3dConfig & {
+  version: number;
+  errorTarget: number;
+  basemap: NonNullable<Tiles3dConfig["basemap"]>;
+  outline: boolean;
+  diagnostics: boolean;
+};
+
+/**
+ * Complete a style's `3d` block with the manager's defaults, so a legacy
+ * style (`renderMode`, `tilesetUrl`, `terrainMandatory`) loads the way a fully
+ * declared one does. A terrain-providing tileset gets the mesh loading
+ * strategy: the base error target of the first pass and a residual resolution
+ * for the whole extent. An explicit `tilesetMinResolutionPx: 0` keeps the
+ * opt-out that defers to the `entry` hint. Other tilesets refine straight to
+ * the error target, as before.
+ */
+export const resolveTiles3dConfig = (
+  config: Tiles3dConfig
+): ResolvedTiles3dConfig => {
+  const providesTerrain = config.providesTerrain === true;
+  return {
+    ...config,
+    version: config.version ?? TILES3D_STYLE_VERSION,
+    errorTarget: resolveTiles3dErrorTarget(config),
+    baseErrorTarget:
+      config.baseErrorTarget ??
+      (providesTerrain ? DEFAULT_MESH_BASE_ERROR_PIXELS : undefined),
+    tilesetMinResolutionPx:
+      config.tilesetMinResolutionPx ??
+      (providesTerrain ? TILESET_MIN_RESOLUTION_DEFAULT_PX : undefined),
+    basemap: config.basemap ?? "labels",
+    outline: config.outline ?? true,
+    diagnostics: config.diagnostics ?? false,
+  };
+};
+
 /** Whether the map can still be asked about its layers, see ThreeLayerManager. */
 function mapIsUsable(map: unknown): boolean {
   const candidate = map as { _removed?: boolean; style?: unknown } | null;
@@ -137,8 +185,9 @@ export function Tiles3dLayerManager({
   // at the right settings instead of flashing opaque or coarse.
   const layerOpacityRef = useRef<number | undefined>(layerOpacity);
   layerOpacityRef.current = layerOpacity;
-  const configRef = useRef(config);
-  configRef.current = config;
+  const resolved = useMemo(() => resolveTiles3dConfig(config), [config]);
+  const configRef = useRef(resolved);
+  configRef.current = resolved;
 
   // Native style-declared tilesets use the shared Three.js scene as well. This
   // is what lets the shadow add-on's directional light and shadow map reach
@@ -200,7 +249,10 @@ export function Tiles3dLayerManager({
             notifySharedThreeSceneRequestStateChanged(map),
         }
       );
-      runtime.loading.setErrorTarget(resolveTiles3dErrorTarget(initialConfig));
+      runtime.loading.setErrorTarget(
+        initialConfig.errorTarget,
+        initialConfig.baseErrorTarget
+      );
       runtime.loading.setTilesetMinResolution(
         initialConfig.tilesetMinResolutionPx !== undefined &&
           initialConfig.tilesetMinResolutionPx > 0
@@ -210,7 +262,7 @@ export function Tiles3dLayerManager({
       runtime.appearance.setOpacity(
         (initialConfig.opacity ?? 1) * (layerOpacityRef.current ?? 1)
       );
-      runtime.appearance.setOutlineVisible(initialConfig.outline ?? true);
+      runtime.appearance.setOutlineVisible(initialConfig.outline);
       runtimeRef.current = runtime;
       lease.layer.addRuntime(runtime.scene);
       // What lets the camera restriction know the map has become three
@@ -302,7 +354,7 @@ export function Tiles3dLayerManager({
       teardown?.();
       lease.release();
     };
-  }, [map, config.tilesetUrl, config.providesTerrain, config.basemap]);
+  }, [map, config.tilesetUrl, config.providesTerrain, resolved.basemap]);
 
   // Terrain is only ever switched on here, never off again: the way back
   // belongs to the terrain control, and so does the setting it persists.
@@ -316,7 +368,7 @@ export function Tiles3dLayerManager({
   // the next change to the layer list would undo a deliberate switch-off.
   useEffect(() => {
     if (!map) return;
-    if (config.basemap === "none") {
+    if (resolved.basemap === "none") {
       // A standalone tileset anchors its own ground; MapLibre terrain would
       // only stream DEM tiles nothing draws on.
       if (mapIsUsable(map) && map.getTerrain()) map.setTerrain(null);
@@ -343,23 +395,23 @@ export function Tiles3dLayerManager({
     return () => {
       map.off("styledata", demandTerrain);
     };
-  }, [map, config.basemap, config.terrainMandatory, config.providesTerrain]);
+  }, [map, resolved.basemap, config.terrainMandatory, config.providesTerrain]);
 
   useEffect(() => {
     runtimeRef.current?.loading.setErrorTarget(
-      resolveTiles3dErrorTarget({ errorTarget: config.errorTarget }),
-      config.baseErrorTarget
+      resolved.errorTarget,
+      resolved.baseErrorTarget
     );
-  }, [config.errorTarget, config.baseErrorTarget]);
+  }, [resolved.errorTarget, resolved.baseErrorTarget]);
 
   useEffect(() => {
     runtimeRef.current?.loading.setTilesetMinResolution(
-      config.tilesetMinResolutionPx !== undefined &&
-        config.tilesetMinResolutionPx > 0
-        ? config.tilesetMinResolutionPx
+      resolved.tilesetMinResolutionPx !== undefined &&
+        resolved.tilesetMinResolutionPx > 0
+        ? resolved.tilesetMinResolutionPx
         : null
     );
-  }, [config.tilesetMinResolutionPx]);
+  }, [resolved.tilesetMinResolutionPx]);
 
   useEffect(() => {
     runtimeRef.current?.loading.setCacheBudget(config.cacheBudgetBytes, {

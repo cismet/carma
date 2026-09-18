@@ -11,6 +11,7 @@ import {
 import {
   acquireSharedThreeScene,
   buildThreeTilesRuntime,
+  TILES_ERROR_TARGET_DEFAULT_PIXELS,
   type ThreeTilesRuntime,
 } from "@carma-mapping/engines/maplibre";
 
@@ -70,8 +71,6 @@ const NEAR_ORTHOGRAPHIC_FOV_DEGREES = 1;
 type MeshParityConfig = {
   tilesetUrl: string;
   baseErrorTarget: number;
-  errorTarget: number;
-  tilesetMinResolutionPx: number;
   colorCorrection?: NonNullable<
     Parameters<typeof buildThreeTilesRuntime>[3]
   >["colorCorrection"];
@@ -155,7 +154,7 @@ export const MeshCoverageScene = ({
         }
       );
       runtime.loading.setErrorTarget(
-        optionsRef.current.idlePixelError ?? MESH_CONFIG.errorTarget
+        optionsRef.current.idlePixelError ?? TILES_ERROR_TARGET_DEFAULT_PIXELS
       );
       runtime.loading.setTilesetMinResolution(
         optionsRef.current.tilesetMinResolutionPx > 0
@@ -181,7 +180,7 @@ export const MeshCoverageScene = ({
   const firstView = useRef(true);
   useEffect(() => {
     runtimeHandle?.loading.setErrorTarget(
-      options.idlePixelError ?? MESH_CONFIG.errorTarget,
+      options.idlePixelError ?? TILES_ERROR_TARGET_DEFAULT_PIXELS,
       options.initialPixelError ?? MESH_CONFIG.baseErrorTarget
     );
   }, [runtimeHandle, options.idlePixelError, options.initialPixelError]);
