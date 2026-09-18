@@ -207,3 +207,16 @@ Main-scene tile preparation and GPU contention remain independent bottlenecks.
 Revisit on a TypeGPU upgrade, device loss, GPU-less browsers, very large diagnostic
 pools, or measured application-frame interference. Do not restore a second SVG
 pipeline to conceal a renderer failure.
+
+## Debugger UI and runtime handles
+
+The tile manager debugger (toolbar, panels, overlays) lives in
+`libraries/mapping/tile-diagnostics-ui`; the stories and the geoportal mount
+the same component. It needs the full runtime handle, which
+`Tiles3dLayerManager` registers per map: `getTiles3dRuntimeHandles(map)` and
+`subscribeTiles3dRuntimeHandles(map, listener)` from
+`@carma-mapping/engines/maplibre`. The geoportal shows the debugger only with
+the development UI (localhost or the developer-mode flag), through
+`TileLoadingDebugHost`; the debugger switches runtime diagnostics on itself
+(`runtime.debug.setDiagnosticsEnabled`) when it opens, so a style does not
+need `diagnostics: true` for it.

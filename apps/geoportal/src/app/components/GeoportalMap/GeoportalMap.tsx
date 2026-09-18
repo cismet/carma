@@ -58,6 +58,7 @@ import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
 import { useAuth } from "@carma-providers/auth";
 import { useLibreMapEnabled } from "../../hooks/useLibreMapEnabled";
+import { TileLoadingDebugHost } from "./TileLoadingDebugHost";
 import {
   defaultLayerConf,
   getLayers as getBackgroundLayers,
@@ -781,6 +782,7 @@ const LeafletGeoportalMap = ({ height, width, allow3d }: MapProps) => {
           <Measurements snappingLayers={maplibreMaps} />
         </TopicMapComponent>
         <AdhocSelectionSync maplibreMapsRef={maplibreMapsRef} />
+        <TileLoadingDebugHost map={maplibreMaps[0] ?? null} />
       </div>
       <GeoportalCesiumHost
         allow3d={allow3d}
