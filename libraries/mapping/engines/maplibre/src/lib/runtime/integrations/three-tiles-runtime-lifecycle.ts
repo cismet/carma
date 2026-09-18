@@ -491,7 +491,11 @@ export function createThreeTilesLifecycle(
         runtimeState.mainViewIntersectionCache = new WeakMap();
         runtimeState.meshDemandSweepPending = true;
         dependencies.requestShadowSelectionRefresh();
-        runtimeState.options.onContentChanged?.();
+        // The refit moves the mount, not the published geometry. An empty
+        // delta asks the shadow scene for a repaint only; leaving the bounds
+        // out would flag a full content invalidation and rebuild every shadow
+        // integral on each pan.
+        runtimeState.options.onContentChanged?.([]);
       }
     }
     // Keep drawing the retained cut at native resolution. While input is
