@@ -1,0 +1,35 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body {
+  overscroll-behavior: contain;
+}
+
+.leaflet-control * img {
+  display: initial;
+}
+
+.ant-tooltip-arrow {
+  display: none !important;
+}
+
+/* Tailwind's `collapse` utility (visibility: collapse) hits Bootstrap's
+   .collapse panels in the datasheet modal; keep opened panels visible. */
+.collapse.show {
+  visibility: visible;
+}
+
+.ls-photo-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.ls-photo-grid img {
+  width: 96px;
+  height: 96px;
+  object-fit: cover;
+  border-radius: 6px;
+}
+
