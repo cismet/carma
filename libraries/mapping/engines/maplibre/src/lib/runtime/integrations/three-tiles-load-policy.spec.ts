@@ -731,14 +731,12 @@ describe("extent floor", () => {
     const share = TILES_LOAD_POLICY.extentMemoryShare;
     const resident = TILES_LOAD_POLICY.extentResidentBytesPerTransferByte;
     const throughLevel4 = (1e6 + 16e6 + 21e6) * resident;
-    expect(resolveExtentGeometricError(levels, 3, throughLevel4 / share)).toBe(
-      42
-    );
-    expect(resolveExtentGeometricError(levels, 3, 1e12)).toBe(10);
+    expect(resolveExtentGeometricError(levels, throughLevel4 / share)).toBe(42);
+    expect(resolveExtentGeometricError(levels, 1e12)).toBe(10);
   });
 
   it("falls back above the entry hint when its resident floor cannot fit", () => {
-    expect(resolveExtentGeometricError(levels, 3, 1)).toBe(900);
+    expect(resolveExtentGeometricError(levels, 1)).toBe(900);
     // 2024 mesh: the hinted L3 floor consumes more than this entire story cache.
     const meshLevels = [
       { level: 0, geometricError: 908.2, bytes: 17541680 },
@@ -746,8 +744,8 @@ describe("extent floor", () => {
       { level: 2, geometricError: 204.5, bytes: 12552584 },
       { level: 3, geometricError: 97.3, bytes: 15919395 },
     ];
-    expect(resolveExtentGeometricError(meshLevels, 3, 384 * MIB)).toBe(908.2);
-    expect(resolveExtentGeometricError(meshLevels, 3, 6 * GIB)).toBe(97.3);
+    expect(resolveExtentGeometricError(meshLevels, 384 * MIB)).toBe(908.2);
+    expect(resolveExtentGeometricError(meshLevels, 6 * GIB)).toBe(97.3);
   });
 
   it("classifies tiles at or above the floor level", () => {
@@ -775,9 +773,9 @@ describe("residual resolution floor", () => {
       { level: 4, geometricError: 42, bytes: 21e6 },
       { level: 5, geometricError: 20, bytes: 52e6 },
     ];
-    expect(resolveExtentGeometricError(levels, 3, 1e12, 30)).toBe(42);
-    expect(resolveExtentGeometricError(levels, 3, 1e12, 0)).toBe(20);
-    expect(resolveExtentGeometricError([], 0, 1e12, 30)).toBe(30);
+    expect(resolveExtentGeometricError(levels, 1e12, 30)).toBe(42);
+    expect(resolveExtentGeometricError(levels, 1e12, 0)).toBe(20);
+    expect(resolveExtentGeometricError([], 1e12, 30)).toBe(30);
   });
 });
 

@@ -701,7 +701,6 @@ export const resolveExtentGeometricError = (
     geometricError: number;
     bytes: number;
   }>,
-  _entryLevel: number,
   ceilingBytes: number,
   /**
    * Residual quality as a geometric error: the floor never goes finer than

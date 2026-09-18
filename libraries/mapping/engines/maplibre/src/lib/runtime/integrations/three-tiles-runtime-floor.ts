@@ -80,7 +80,6 @@ export const createTilesetMinResolutionService = (
     runtimeState.appliedTilesetMinCeilingBytes = runtimeState.ceilingBytes;
     runtimeState.extentGeometricError = resolveExtentGeometricError(
       entry?.levels ?? [],
-      entry?.level ?? 0,
       runtimeState.ceilingBytes,
       residual
     );

@@ -181,11 +181,7 @@ export function createThreeTilesRuntimeState(
   );
   const ringRefinePasses = 0;
   const extentGeometricError = options.entry
-    ? resolveExtentGeometricError(
-        options.entry.levels,
-        options.entry.level,
-        ceilingBytes
-      )
+    ? resolveExtentGeometricError(options.entry.levels, ceilingBytes)
     : Number.POSITIVE_INFINITY;
   // Establish replacement coverage before fine payloads can fill the cache.
   // Metadata defines reserve resolution, not permission to fill it before

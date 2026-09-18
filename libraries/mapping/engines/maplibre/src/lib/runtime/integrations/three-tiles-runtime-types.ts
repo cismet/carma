@@ -288,17 +288,15 @@ export type LitTextureMaterialState = {
 
 /**
  * Hints published with the style for a tileset whose hierarchy is a chain of
- * external files: the level the whole extent stays resident at as a minimum,
- * the per-level tile counts and payload bytes that size how much deeper the
- * extent may stay resident, and the hierarchy files to warm on init so the
- * traversal finds them in the hierarchy cache instead of walking the chain.
+ * external files: the geometric error and payload bytes per level, which size
+ * how deep the whole extent may stay resident within the memory share, and
+ * the hierarchy files to warm on init so the traversal finds them in the
+ * hierarchy cache instead of walking the chain.
  */
 export type TilesetEntryHint = {
-  level: number;
   levels: Array<{
     level: number;
     geometricError: number;
-    tiles: number;
     bytes: number;
   }>;
   prefetch?: string[];

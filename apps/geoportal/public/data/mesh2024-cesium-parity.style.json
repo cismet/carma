@@ -18,12 +18,8 @@
         "renderMode": "tiles3d",
         "tilesetUrl": "https://wupp-3d-datax.cismet.de/mesh2024/tileset.json",
         "providesTerrain": true,
-        "terrainMandatory": false,
         "basemap": "none",
-        "errorTarget": 4,
         "baseErrorTarget": 12,
-        "tilesetMinResolutionPx": 2048,
-        "outline": false,
         "colorCorrection": {
           "gamma": [
             1.25,
@@ -43,60 +39,50 @@
           "saturation": 1
         },
         "entry": {
-          "level": 3,
           "levels": [
             {
               "level": 0,
               "geometricError": 908.2,
-              "tiles": 5,
               "bytes": 17541680
             },
             {
               "level": 1,
               "geometricError": 453.9,
-              "tiles": 4,
               "bytes": 7572336
             },
             {
               "level": 2,
               "geometricError": 204.5,
-              "tiles": 11,
               "bytes": 12552584
             },
             {
               "level": 3,
               "geometricError": 97.3,
-              "tiles": 15,
               "bytes": 15919395
             },
             {
               "level": 4,
               "geometricError": 42.3,
-              "tiles": 20,
               "bytes": 21283590
             },
             {
               "level": 5,
               "geometricError": 20.3,
-              "tiles": 61,
               "bytes": 52100588
             },
             {
               "level": 6,
               "geometricError": 10.2,
-              "tiles": 198,
               "bytes": 219608433
             },
             {
               "level": 7,
               "geometricError": 5,
-              "tiles": 754,
               "bytes": 665994628
             },
             {
               "level": 8,
               "geometricError": 2.5,
-              "tiles": 5900,
               "bytes": 7367654500
             }
           ],
@@ -114,8 +100,7 @@
             "2/4/1000013tileset.json",
             "2/4/1000009tileset.json"
           ]
-        },
-        "diagnostics": true
+        }
       }
     }
   },
