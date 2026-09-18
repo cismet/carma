@@ -122,7 +122,6 @@ export const ShadowSimulationView = ({
     if (!sharedDateState) setSharedDateState(initialDateState);
   }, [initialDateState, setSharedDateState, sharedDateState]);
 
-
   if (targeted) {
     return (
       <ShadowSimulationSecondaryPanel

@@ -484,7 +484,9 @@ describe("three tiles runtime liveness", () => {
         }>;
       }
     ).__carmaTiles3d;
-    const state = [...states].find((candidate) => candidate.layerId === "mesh")!;
+    const state = [...states].find(
+      (candidate) => candidate.layerId === "mesh"
+    )!;
     state.meshBaseCoverageReady = false;
     state.meshDemandSweepPending = false;
     state.viewQualityAuditPasses = 0;

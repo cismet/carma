@@ -15,9 +15,11 @@ vi.mock("@carma-mapping/engines/maplibre", () => ({
   subscribeTiles3dRuntimeHandles: () => () => undefined,
 }));
 vi.mock("@carma-mapping/tile-diagnostics-ui", () => ({
-  TileLoadingDebug: ({ runtimeHandle }: { runtimeHandle: { scene: { id: string } } }) => (
-    <div data-testid="tile-debugger">{runtimeHandle.scene.id}</div>
-  ),
+  TileLoadingDebug: ({
+    runtimeHandle,
+  }: {
+    runtimeHandle: { scene: { id: string } };
+  }) => <div data-testid="tile-debugger">{runtimeHandle.scene.id}</div>,
 }));
 
 describe("TileLoadingDebugHost", () => {
@@ -41,6 +43,8 @@ describe("TileLoadingDebugHost", () => {
       { scene: { id: "mesh", providesTerrain: true } },
     ];
     render(<TileLoadingDebugHost map={map} />);
-    expect((await screen.findByTestId("tile-debugger")).textContent).toBe("mesh");
+    expect((await screen.findByTestId("tile-debugger")).textContent).toBe(
+      "mesh"
+    );
   });
 });

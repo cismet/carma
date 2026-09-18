@@ -129,10 +129,7 @@ import { getLibreDrawMode } from "../../store/slices/measurements.ts";
 
 import LoginForm from "../LoginForm.tsx";
 
-import {
-  LEAFLET_CONFIG,
-  MAP_BACKGROUND_COLOR,
-} from "../../config/app.config";
+import { LEAFLET_CONFIG, MAP_BACKGROUND_COLOR } from "../../config/app.config";
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import "../leaflet.css";
@@ -881,8 +878,12 @@ const LibreGeoportalMap = ({ allow3d }: MapProps) => {
   useLibreTriggerSelectionSync(libreMap);
 
   const { isCesium, isTransitioning } = useMapFrameworkSwitcherContext();
-  const { initialViewApplied, getScene, getSurfaceProvider, getTerrainProvider } =
-    useCesiumContext();
+  const {
+    initialViewApplied,
+    getScene,
+    getSurfaceProvider,
+    getTerrainProvider,
+  } = useCesiumContext();
 
   const maplibreBridge = useMaplibreRuntimeBridge({
     id: "geoportal-maplibre",
@@ -901,7 +902,9 @@ const LibreGeoportalMap = ({ allow3d }: MapProps) => {
 
   // The effective restriction (addon override on top of the app base), so print
   // mode — which forces it — keeps the animated top-down handover.
-  const isTwoDCameraFree = !(useCameraRestriction(libreMap)?.restricted ?? true);
+  const isTwoDCameraFree = !(
+    useCameraRestriction(libreMap)?.restricted ?? true
+  );
 
   // Both engines subscribe to the same view state and both adapters carry
   // bearing/pitch, so when the 2D map may rotate the switch is a read plus an

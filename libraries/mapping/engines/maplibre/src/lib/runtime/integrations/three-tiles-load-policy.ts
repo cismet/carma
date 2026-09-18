@@ -209,7 +209,8 @@ export const resolveTilesCacheCeiling = (
     const styleCeiling = Number.isFinite(overflow)
       ? Math.max(0, budget) + Math.max(0, overflow)
       : Number.POSITIVE_INFINITY;
-    if (Number.isFinite(styleCeiling)) ceiling = Math.min(styleCeiling, hardCap);
+    if (Number.isFinite(styleCeiling))
+      ceiling = Math.min(styleCeiling, hardCap);
   }
   if (
     learnedCeilingBytes !== undefined &&

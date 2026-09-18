@@ -420,7 +420,6 @@ function queryFeaturesWithTerrainFix(
   }
 }
 
-
 /**
  * Calls back once the current style is on screen: the map idles, or its
  * style and tiles report loaded. A repaint loop (animated layers) keeps the
@@ -541,8 +540,7 @@ export const LibreMap = ({
   // Both react-cismap contexts are optional: a playground mounts the map
   // without the topic-map providers of the portals.
   const { clusteringEnabled = false } =
-    useContext<typeof FeatureCollectionContext>(FeatureCollectionContext) ??
-    {};
+    useContext<typeof FeatureCollectionContext>(FeatureCollectionContext) ?? {};
   const { markerSymbolSize: markerSymbolSizeFromContext } =
     useContext<typeof TopicMapStylingContext>(TopicMapStylingContext) ?? {};
   const markerSymbolSize = markerSymbolSizeProp ?? markerSymbolSizeFromContext;
@@ -1834,7 +1832,9 @@ export const LibreMap = ({
                 if (aborted) return;
                 setDetectedTiles3dConfigs((current) =>
                   current.filter((config) =>
-                    tiles3dConfigs.some((next) => next.tilesetUrl === config.tilesetUrl)
+                    tiles3dConfigs.some(
+                      (next) => next.tilesetUrl === config.tilesetUrl
+                    )
                   )
                 );
               });

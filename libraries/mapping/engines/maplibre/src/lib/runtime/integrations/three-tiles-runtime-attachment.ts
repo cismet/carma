@@ -1080,10 +1080,7 @@ export function createThreeTilesRuntimeAttachment(
       "visibilitychange",
       dependencies.handleVisibilityChange
     );
-    window.removeEventListener(
-      "pagehide",
-      dependencies.endCacheCeilingSession
-    );
+    window.removeEventListener("pagehide", dependencies.endCacheCeilingSession);
     dependencies.endCacheCeilingSession();
     runtimeState.unsubscribeTerrainLoading?.();
     runtimeState.unsubscribeTerrainLoading = null;

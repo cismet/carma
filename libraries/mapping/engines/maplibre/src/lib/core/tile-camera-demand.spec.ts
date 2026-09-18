@@ -67,7 +67,10 @@ describe("tile camera demand", () => {
         priority: TILE_CAMERA_PRIORITY.SECONDARY,
         errorTargetPixels: 0.5,
       };
-      for (const views of [[primary, detail], [detail, primary]]) {
+      for (const views of [
+        [primary, detail],
+        [detail, primary],
+      ]) {
         const demand = createTileCameraDemand(snapshotTileCameraViews(views));
         expect(demand.evaluate(box(0), 1)).toMatchObject({
           required: true,
