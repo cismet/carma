@@ -57,12 +57,21 @@ const COMMON_STEPS = [
   { id: STEP.USAGE, title: "Nutzung" },
 ];
 
-const withCommonSteps = (branch) => [...branch, ...COMMON_STEPS];
+const SKIPPED_COMMON_STEPS = {
+  [WIZARD_ACTIONS.HISTORIC]: [STEP.ADMIN_AREAS],
+};
+
+const withCommonSteps = (branch, action) => [
+  ...branch,
+  ...COMMON_STEPS.filter(
+    (step) => !(SKIPPED_COMMON_STEPS[action] ?? []).includes(step.id)
+  ),
+];
 
 /** Step 0 is always the action chooser; the rest depends on what was picked. */
 export const getSteps = (action) =>
   action
-    ? [INITIAL_STEP, ...withCommonSteps(BRANCHES[action])]
+    ? [INITIAL_STEP, ...withCommonSteps(BRANCHES[action], action)]
     : [INITIAL_STEP];
 
 /** True once the current step is the last one of the branch. */
