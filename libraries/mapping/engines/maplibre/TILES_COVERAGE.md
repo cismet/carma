@@ -187,7 +187,7 @@ preparing the reserve. Non-shadow terrain-providing meshes now load in this orde
 2. Prepare the tileset residual surface with its distance-dependent tree
    transitions (`tilesetMinResolutionPx`, metadata default 1024). Keep the initial
    foreground target while floor discovery, payloads and transitions settle.
-3. Refine the live view towards `idlePixelError` (metadata default 4 px).
+3. Refine the live view towards `idlePixelError` (metadata default 6 px for a mesh, 4 px otherwise).
 
 The ad-hoc style's `metadata.carmaConf["3d"]`, alongside `colorCorrection`,
 declares `baseErrorTarget: 12`; the idle target of 4 px and the residual

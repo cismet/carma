@@ -22,6 +22,7 @@ import { ShadowSimulationDisplaySettingsPanel } from "./ShadowSimulationDisplayS
 const meshPresence = vi.hoisted(() => ({ active: false }));
 vi.mock("./use-shadow-mesh-presence", () => ({
   useShadowMeshPresence: () => meshPresence.active,
+  useShadowTilesetErrorTarget: () => 6,
 }));
 afterEach(() => {
   cleanup();

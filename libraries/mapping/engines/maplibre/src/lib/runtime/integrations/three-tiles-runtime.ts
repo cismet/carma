@@ -250,6 +250,8 @@ export function buildThreeTilesRuntime(
       dispose: lifecycle.dispose,
       hasRenderableContent: lifecycle.hasRenderableContent,
       setErrorTarget: loading.setErrorTarget,
+      setErrorTargetOverride: loading.setErrorTargetOverride,
+      getErrorTarget: loading.getErrorTarget,
       setCacheBudget: loading.setCacheBudget,
       getRequestDemand: loading.getRequestDemand,
       prefetchZoom: lifecycle.prefetchZoom,
@@ -279,6 +281,8 @@ export function buildThreeTilesRuntime(
     },
     loading: {
       setErrorTarget: loading.setErrorTarget,
+      setErrorTargetOverride: loading.setErrorTargetOverride,
+      getErrorTarget: loading.getErrorTarget,
       setCacheBudget: loading.setCacheBudget,
       setRequestConcurrency: loading.setRequestConcurrency,
       getRequestDemand: loading.getRequestDemand,

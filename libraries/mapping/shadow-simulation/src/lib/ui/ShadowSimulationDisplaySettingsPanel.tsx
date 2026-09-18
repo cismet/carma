@@ -38,7 +38,10 @@ import {
 } from "../core/shadow-types";
 import { ShadowSimulationRenderSettings } from "./ShadowSimulationRenderSettings";
 import { ShadowSimulationSurfaceSettings } from "./ShadowSimulationSurfaceSettings";
-import { useShadowMeshPresence } from "./use-shadow-mesh-presence";
+import {
+  useShadowMeshPresence,
+  useShadowTilesetErrorTarget,
+} from "./use-shadow-mesh-presence";
 import { SHADOW_QUALITY_LEVELS } from "./shadow-control-utils";
 
 export const ShadowSimulationDisplaySettingsPanel = ({
@@ -54,6 +57,7 @@ export const ShadowSimulationDisplaySettingsPanel = ({
 }) => {
   const { token } = theme.useToken();
   const meshLoaded = useShadowMeshPresence(map);
+  const tilesetErrorTarget = useShadowTilesetErrorTarget(map);
   const [expandedGroups, setExpandedGroups] = useState<string[]>(["quality"]);
   const quality = resolveShadowQuality(state.shadowQuality);
   const isUltraQuality = quality === SHADOW_QUALITY.ULTRA;
@@ -311,6 +315,7 @@ export const ShadowSimulationDisplaySettingsPanel = ({
                       state={state}
                       setState={setState}
                       meshLoaded
+                      tilesetErrorTarget={tilesetErrorTarget}
                     />
                   ) : null,
                 },

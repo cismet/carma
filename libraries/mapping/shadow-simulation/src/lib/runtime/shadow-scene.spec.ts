@@ -52,6 +52,7 @@ vi.mock("@carma-mapping/engines/maplibre", async () => {
       ].join(",")
     ),
     getSharedThreeSceneRuntimes: vi.fn(() => []),
+    TILES_MESH_ERROR_TARGET_DEFAULT_PIXELS: 6,
     subscribeGenericThreeLayers: vi.fn(() => vi.fn()),
     subscribeSharedThreeSceneContent: vi.fn(() => vi.fn()),
     isSharedThreeTerrainLoading: vi.fn(() => false),
@@ -104,11 +105,7 @@ import {
   subscribeShadowProjectionDebugSnapshot,
 } from "./shadow-projection-debug-store";
 import { getDaylightWindow, getSolarPosition } from "../core/solar-position";
-import {
-  DEFAULT_MESH_ERROR_TARGET_PIXELS,
-  SHADOW_BUFFER_LAYOUT,
-  SHADOW_QUALITY,
-} from "../core/shadow-types";
+import { SHADOW_BUFFER_LAYOUT, SHADOW_QUALITY } from "../core/shadow-types";
 import { ShadowTiledScene } from "./shadow-tiled-scene";
 
 describe("shadow scene sun direction", () => {
@@ -2386,11 +2383,13 @@ describe("shadow scene lighting integration", () => {
   it("restyles registered building tiles only while shadow mode is active", () => {
     const setShadowSimulationStyle = vi.fn();
     const setErrorTarget = vi.fn();
+    const setErrorTargetOverride = vi.fn();
     const setCacheBudget = vi.fn();
     vi.mocked(getSharedThreeSceneRuntimes).mockReturnValue([
       {
         providesTerrain: true,
         setErrorTarget,
+        setErrorTargetOverride,
         setCacheBudget,
         setShadowSimulationStyle,
       } as never,
@@ -2413,12 +2412,12 @@ describe("shadow scene lighting integration", () => {
       textureSaturation: 1,
       textureColorCorrection: true,
     });
-    expect(setErrorTarget).toHaveBeenLastCalledWith(
-      DEFAULT_MESH_ERROR_TARGET_PIXELS
-    );
+    // Auto leaves the tileset on its own target: no override at build time.
+    expect(setErrorTarget).not.toHaveBeenCalled();
+    expect(setErrorTargetOverride).toHaveBeenLastCalledWith(null);
 
     controller.updateMeshErrorTarget(0.25);
-    expect(setErrorTarget).toHaveBeenLastCalledWith(0.25);
+    expect(setErrorTargetOverride).toHaveBeenLastCalledWith(0.25);
     controller.updateMeshCacheBudget(24 * 1024 ** 3);
     expect(setCacheBudget).toHaveBeenLastCalledWith(24 * 1024 ** 3);
     const calls = setCacheBudget.mock.calls.length;

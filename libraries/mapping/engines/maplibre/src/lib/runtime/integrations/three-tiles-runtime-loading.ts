@@ -69,6 +69,8 @@ export function createThreeTilesLoading(
     ThreeTilesRuntimeState,
     | "options"
     | "requestedErrorTarget"
+    | "configuredErrorTarget"
+    | "errorTargetOverride"
     | "map"
     | "tiles"
     | "errorTargetTimer"
@@ -1196,7 +1198,7 @@ export function createThreeTilesLoading(
         assignTilePriority(tile as RuntimeTile);
     };
 
-  const setErrorTarget: ThreeTilesRuntimeServices["setErrorTarget"] = (
+  const applyErrorTarget = (
     errorTarget: number,
     initialErrorTarget?: number
   ) => {
@@ -1240,6 +1242,36 @@ export function createThreeTilesLoading(
     runtimeState.tiles?.dispatchEvent({ type: "needs-update" });
     requestRender();
   };
+
+  const requestErrorTarget = (initialErrorTarget?: number) =>
+    applyErrorTarget(
+      runtimeState.errorTargetOverride ?? runtimeState.configuredErrorTarget,
+      initialErrorTarget
+    );
+  /** The host's target; a consumer override, if any, is applied instead. */
+  const setErrorTarget: ThreeTilesRuntimeServices["setErrorTarget"] = (
+    errorTarget,
+    initialErrorTarget
+  ) => {
+    runtimeState.configuredErrorTarget = clamp(
+      errorTarget,
+      TILES_ERROR_TARGET_MIN_PIXELS,
+      TILES_ERROR_TARGET_MAX_PIXELS
+    );
+    requestErrorTarget(initialErrorTarget);
+  };
+  const setErrorTargetOverride: ThreeTilesRuntimeServices["setErrorTargetOverride"] =
+    (errorTarget) => {
+      const next =
+        errorTarget !== null && Number.isFinite(errorTarget)
+          ? errorTarget
+          : null;
+      if (runtimeState.errorTargetOverride === next) return;
+      runtimeState.errorTargetOverride = next;
+      requestErrorTarget();
+    };
+  const getErrorTarget: ThreeTilesRuntimeServices["getErrorTarget"] = () =>
+    runtimeState.configuredErrorTarget;
 
   const setCacheBudget: ThreeTilesRuntimeServices["setCacheBudget"] = (
     bytes?: number,
@@ -1315,6 +1347,8 @@ export function createThreeTilesLoading(
     assignTilePriority,
     prioritizeQueuedTiles,
     setErrorTarget,
+    setErrorTargetOverride,
+    getErrorTarget,
     setCacheBudget,
     setRequestConcurrency,
   };
