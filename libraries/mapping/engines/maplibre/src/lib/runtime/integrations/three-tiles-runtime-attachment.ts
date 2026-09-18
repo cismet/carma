@@ -145,6 +145,7 @@ type ThreeTilesRuntimeAttachmentDependencies = Pick<
   | "handleViewEnd"
   | "handleViewStart"
   | "handleVisibilityChange"
+  | "endCacheCeilingSession"
   | "handleWireBytes"
   | "initialEffectiveErrorTarget"
   | "isTileInMainView"
@@ -1031,6 +1032,8 @@ export function createThreeTilesRuntimeAttachment(
       "visibilitychange",
       dependencies.handleVisibilityChange
     );
+    // A tab killed for memory never gets here; a clean end does.
+    window.addEventListener("pagehide", dependencies.endCacheCeilingSession);
   };
 
   const dispose = () => {
@@ -1077,6 +1080,11 @@ export function createThreeTilesRuntimeAttachment(
       "visibilitychange",
       dependencies.handleVisibilityChange
     );
+    window.removeEventListener(
+      "pagehide",
+      dependencies.endCacheCeilingSession
+    );
+    dependencies.endCacheCeilingSession();
     runtimeState.unsubscribeTerrainLoading?.();
     runtimeState.unsubscribeTerrainLoading = null;
     runtimeState.tiles?.removeEventListener(

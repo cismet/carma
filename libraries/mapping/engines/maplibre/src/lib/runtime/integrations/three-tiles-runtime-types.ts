@@ -223,6 +223,8 @@ export interface ThreeTilesRuntimeOptions {
   mercatorProjection?: MeshMercatorLut;
   /** Optional worker-backed static hierarchy cache; false uses native JSON loading. */
   hierarchyCache?: boolean;
+  /** Persist the learned resident cache ceiling in localStorage (hosts, not tests). */
+  persistCacheCeiling?: boolean;
   /** Bounded pipeline console samples; false disables collection/reporting. */
   tileTelemetry?: boolean;
   /** Dataset metadata; absent means identity, never a dataset-specific fallback. */
