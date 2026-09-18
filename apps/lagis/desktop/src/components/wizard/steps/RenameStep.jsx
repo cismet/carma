@@ -1,24 +1,22 @@
-import React, { useState } from "react";
+import React, { useRef } from "react";
 import LandParcelKeyChooser from "../LandParcelKeyChooser";
 
-/**
- * Port of RenameActionPanel: the parcel to rename on top, the new key below.
- * The new key is preset with Gemarkung and Flur of the old one and inherits its
- * Flurstücksart when the action runs.
- */
+const OLD_KEY_PROMPT =
+  "Bitte wählen Sie das Flurstück aus, das umbenannt werden soll";
+const NEW_KEY_PROMPT = "Bitte geben Sie den neuen Flurstücksschlüssel ein";
+
 const RenameStep = ({ value, onChange, onProblem }) => {
-  const [oldStatus, setOldStatus] = useState({
-    valid: false,
-    message: "Bitte wählen Sie das Flurstück aus, das umbenannt werden soll",
-  });
-  const [newStatus, setNewStatus] = useState({ valid: false, message: "" });
+  // refs, not state: both choosers report while mounting, and the second call
+  // would otherwise still see the first one's status from the old render
+  const oldStatus = useRef({ valid: false, message: OLD_KEY_PROMPT });
+  const newStatus = useRef({ valid: false, message: NEW_KEY_PROMPT });
 
   // The old key is reported first, so the user is guided top to bottom.
-  const report = (oldOne, newOne) => {
-    if (!oldOne.valid) {
-      onProblem(oldOne.message);
-    } else if (!newOne.valid) {
-      onProblem(newOne.message);
+  const report = () => {
+    if (!oldStatus.current.valid) {
+      onProblem(oldStatus.current.message || OLD_KEY_PROMPT);
+    } else if (!newStatus.current.valid) {
+      onProblem(newStatus.current.message || NEW_KEY_PROMPT);
     } else {
       onProblem(null);
     }
@@ -33,8 +31,8 @@ const RenameStep = ({ value, onChange, onProblem }) => {
           value={value.renameKey}
           onChange={(next) => onChange({ renameKey: next })}
           onValidity={(status) => {
-            setOldStatus(status);
-            report(status, newStatus);
+            oldStatus.current = status;
+            report();
           }}
         />
       </div>
@@ -46,8 +44,8 @@ const RenameStep = ({ value, onChange, onProblem }) => {
           preset={value.renameKey}
           onChange={(next) => onChange({ createKey: next })}
           onValidity={(status) => {
-            setNewStatus(status);
-            report(oldStatus, status);
+            newStatus.current = status;
+            report();
           }}
         />
       </div>

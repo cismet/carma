@@ -120,11 +120,6 @@ const GraphQLPanel = () => {
           ))}
         </div>
       )}
-
-      <div className="text-xs text-gray-400">
-        Sichtbar auf localhost. Mit <code>?showRaw=true</code> bzw.{" "}
-        <code>?showRaw=false</code> in der URL lässt sich das erzwingen.
-      </div>
     </div>
   );
 };
