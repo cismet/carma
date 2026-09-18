@@ -9,6 +9,7 @@ import type { LandParcelDataStructure } from "./lib/utils/landParcelSearchHelper
 export * from "./lib/lib-fuzzy-search";
 export { LandParcelSearch } from "./lib/LandParcelSearch";
 export type {
+  LandParcelOptionsContext,
   LandParcelSearchProps,
   ParcelChangeInfo,
 } from "./lib/LandParcelSearch";
@@ -73,7 +74,7 @@ export interface Option {
   sData: SearchResultItem;
   options?: Option[];
   isLandParcel?: boolean;
-  parcelStage?: "gemarkung" | "flur" | "flurstueck";
+  parcelStage?: "gemarkung" | "flur" | "flurstueck" | (string & {});
   parcelData?: Record<string, unknown>;
   dynamicOption?: DynamicSearchOption;
 }
