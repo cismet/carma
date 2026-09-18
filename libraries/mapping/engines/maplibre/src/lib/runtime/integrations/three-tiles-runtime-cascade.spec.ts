@@ -93,6 +93,7 @@ const createPrefetchFixture = (root: RuntimeTile) => {
     map: { triggerRepaint: vi.fn(), isZooming: vi.fn(() => false) },
   };
   const dependencies = {
+    isTileInPrefetchMargin: () => false,
     applyTileDeferral: vi.fn(),
     applyEffectiveErrorTarget: vi.fn(),
     initialEffectiveErrorTarget: () => 2,
