@@ -13,6 +13,7 @@
         "tilesetUrl": "https://wupp-3d-datax.cismet.de/mesh2024/tileset.json",
         "providesTerrain": true,
         "basemap": "none",
+        "errorTarget": 6,
         "baseErrorTarget": 12,
         "colorCorrection": {
           "gamma": [1.25, 1.25, 1.23],

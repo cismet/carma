@@ -74,6 +74,10 @@ export function createThreeTilesRuntimeState(
   const lastTraversalFrameCount = -1;
   const unsubscribeTerrainLoading: (() => void) | null = null;
   const requestedErrorTarget = TILES_ERROR_TARGET_DEFAULT_PIXELS;
+  // The host's target and a consumer override (shadow simulation) on top of
+  // it; requestedErrorTarget is whichever of the two currently applies.
+  const configuredErrorTarget = requestedErrorTarget;
+  const errorTargetOverride: number | null = null;
   const effectiveErrorTarget = options.providesTerrain
     ? initialMeshLoadError(requestedErrorTarget, options.baseErrorTargetPixels)
     : requestedErrorTarget;
@@ -313,6 +317,8 @@ export function createThreeTilesRuntimeState(
     lastTraversalFrameCount,
     unsubscribeTerrainLoading,
     requestedErrorTarget,
+    configuredErrorTarget,
+    errorTargetOverride,
     effectiveErrorTarget,
     errorTargetState,
     errorTargetTimer,

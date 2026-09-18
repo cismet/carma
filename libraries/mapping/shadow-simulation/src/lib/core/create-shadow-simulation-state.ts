@@ -13,7 +13,6 @@ import {
   type SolarLocation,
 } from "./solar-position";
 import {
-  DEFAULT_MESH_ERROR_TARGET_PIXELS,
   DEFAULT_TERRAIN_ERROR_TARGET_PIXELS,
   DEFAULT_MESH_CACHE_BUDGET_BYTES,
   DEFAULT_SHADOW_BUILDING_COLOR,
@@ -31,7 +30,6 @@ export const selectShadowQualityPreset = (
 ): ShadowSimulationState => ({
   ...state,
   shadowQuality,
-  meshErrorTarget: SHADOW_QUALITY_PROFILES[shadowQuality].meshErrorPixels,
   shadowBufferFormat: undefined,
   shadowSunDiscSamples: undefined,
   shadowMsaaSamples: undefined,
@@ -55,7 +53,6 @@ export const createInitialShadowSimulationState = (
     buildingColor: DEFAULT_SHADOW_BUILDING_COLOR,
     shadowQuality: DEFAULT_SHADOW_QUALITY,
     shadowAdaptiveQuality: true,
-    meshErrorTarget: DEFAULT_MESH_ERROR_TARGET_PIXELS,
     terrainErrorTarget: DEFAULT_TERRAIN_ERROR_TARGET_PIXELS,
     meshCacheBudgetBytes: DEFAULT_MESH_CACHE_BUDGET_BYTES,
     showSunDebugVector: true,

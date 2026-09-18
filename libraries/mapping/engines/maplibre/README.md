@@ -22,7 +22,7 @@ the way a fully declared one does:
 | --- | --- | --- |
 | `version` | `1` | Optional contract version, `TILES3D_STYLE_VERSION`. Never required, so served styles need no lockstep edits. |
 | `providesTerrain` | derived | The host sets it from the `Mesh` tag or a `mesh*.style.json` URL before the block reaches the manager. |
-| `errorTarget` | 4 px | Idle refinement target. |
+| `errorTarget` | 4 px, 6 px for terrain-providing tilesets | Idle refinement target; the shadow simulation may override it per view (`setErrorTargetOverride`). |
 | `baseErrorTarget` | 16 px, terrain-providing only | First-pass target and the mesh loading strategy; other tilesets refine straight to the error target. |
 | `tilesetMinResolutionPx` | 1024 px, terrain-providing only | Whole-extent residual resolution. An explicit `0` defers to the `entry` hint instead. |
 | `basemap` | `labels` | Drape the map labels and keep MapLibre terrain; `none` shows the tileset alone. |

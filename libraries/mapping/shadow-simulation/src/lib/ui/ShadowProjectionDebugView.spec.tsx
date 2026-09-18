@@ -61,6 +61,7 @@ vi.mock("@carma-mapping/components", () => ({
   ViewStateVisualizer: () => null,
 }));
 vi.mock("@carma-mapping/engines/maplibre", () => ({
+  TILES_MESH_ERROR_TARGET_DEFAULT_PIXELS: 6,
   getSharedThreeSceneRuntimes: () => source.runtimes,
   subscribeSharedThreeSceneContent: () => () => undefined,
 }));
@@ -289,7 +290,7 @@ describe("projection debug availability", () => {
 
   it("keeps only debug overlays, never surface or quality controls", () => {
     const { queryByText, getByRole, rerender } = render(debugView);
-    expect(queryByText("Mesh-LOD")).toBeNull();
+    expect(queryByText("Tileset-LOD")).toBeNull();
     expect(queryByText("Gebäude volle Deckkraft")).toBeNull();
     expect(queryByText("Tile-Kanten + IDs")).toBeNull();
     source.runtimes = [
@@ -308,7 +309,7 @@ describe("projection debug availability", () => {
         onClose={vi.fn()}
       />
     );
-    expect(queryByText("Mesh-LOD")).toBeNull();
+    expect(queryByText("Tileset-LOD")).toBeNull();
     expect(queryByText("Gebäude volle Deckkraft")).toBeNull();
     expect(queryByText("Qualität")).toBeNull();
     expect(queryByText("Terrain")).toBeNull();

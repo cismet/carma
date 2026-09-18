@@ -31,7 +31,6 @@ export const SHADOW_QUALITY_PROFILES = {
     shadowTexelErrorPixels: 2,
     terrainTileLimit: 96,
     terrainSegments: 128,
-    meshErrorPixels: 4,
     sunSamples: DEFAULT_SHADOW_SUN_DISC_SAMPLES,
     msaaSamples: 0,
   },
@@ -42,7 +41,6 @@ export const SHADOW_QUALITY_PROFILES = {
     shadowTexelErrorPixels: 1,
     terrainTileLimit: 144,
     terrainSegments: 256,
-    meshErrorPixels: 1,
     sunSamples: DEFAULT_SHADOW_SUN_DISC_SAMPLES,
     msaaSamples: 2,
   },
@@ -53,7 +51,6 @@ export const SHADOW_QUALITY_PROFILES = {
     shadowTexelErrorPixels: 0.5,
     terrainTileLimit: 192,
     terrainSegments: 512,
-    meshErrorPixels: 1,
     sunSamples: DEFAULT_SHADOW_SUN_DISC_SAMPLES,
     msaaSamples: 4,
   },
@@ -64,7 +61,6 @@ export const SHADOW_QUALITY_PROFILES = {
     shadowTexelErrorPixels: 0.25,
     terrainTileLimit: 256,
     terrainSegments: 512,
-    meshErrorPixels: 0.25,
     sunSamples: DEFAULT_SHADOW_SUN_DISC_SAMPLES,
     msaaSamples: SHADOW_MSAA_MAX,
   },
@@ -89,7 +85,6 @@ export const resolveShadowTerrainQuality = (
 };
 
 export const DEFAULT_SHADOW_QUALITY: ShadowQualityMultiplier = 64;
-export const DEFAULT_MESH_ERROR_TARGET_PIXELS: MeshErrorTargetPixels = 2;
 export const DEFAULT_TERRAIN_ERROR_TARGET_PIXELS: MeshErrorTargetPixels = 2;
 /** Explicit mesh-only ceiling; browser memory-pressure admission still applies. */
 export const DEFAULT_MESH_CACHE_BUDGET_BYTES = 24 * 1024 ** 3;

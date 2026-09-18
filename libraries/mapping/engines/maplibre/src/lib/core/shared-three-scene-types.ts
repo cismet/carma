@@ -132,6 +132,13 @@ export interface SharedThreeSceneRuntime {
   acknowledgeShadowStage?: (receiverIds: readonly string[]) => void;
   /** Requested screen-space error in pixels; lower loads finer tiles. */
   setErrorTarget?: (errorTarget: number) => void;
+  /**
+   * A consumer's target on top of the host's, the shadow simulation's tileset
+   * LOD for instance; null returns to the host's target.
+   */
+  setErrorTargetOverride?: (errorTarget: number | null) => void;
+  /** The host's target without any override. */
+  getErrorTarget?: () => number;
   setCacheBudget?: (bytes?: number) => void;
   /** World-space elevation span of loaded content intersecting this camera. */
   getViewElevationRange?: (

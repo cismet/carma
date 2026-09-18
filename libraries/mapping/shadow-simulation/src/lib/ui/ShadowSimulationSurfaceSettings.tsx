@@ -16,7 +16,6 @@ import { clamp } from "@carma-commons/math";
 
 import type { ShadowSimulationState } from "../contracts/shadow-simulation";
 import {
-  DEFAULT_MESH_ERROR_TARGET_PIXELS,
   DEFAULT_TERRAIN_ERROR_TARGET_PIXELS,
   DEFAULT_SHADOW_BUILDING_COLOR,
   DEFAULT_SHADOW_BUILDING_COLOR_MIX,
@@ -26,17 +25,22 @@ import {
 } from "../core/shadow-types";
 import { MESH_ERROR_TARGETS } from "./shadow-control-utils";
 
+const TILESET_ERROR_TARGET_AUTO = "auto";
+const formatPixels = (value: number) => `${String(value).replace(".", ",")} px`;
+
 export const ShadowSimulationSurfaceSettings = ({
   state,
   setState,
   meshLoaded = false,
+  tilesetErrorTarget = null,
 }: {
   state: ShadowSimulationState;
   setState: (state: ShadowSimulationState) => void;
   meshLoaded?: boolean;
+  /** The mesh tileset's own target, shown as the Auto choice. */
+  tilesetErrorTarget?: number | null;
 }) => {
   const settings = {
-    meshErrorTarget: state.meshErrorTarget ?? DEFAULT_MESH_ERROR_TARGET_PIXELS,
     terrainColor: state.terrainColor ?? DEFAULT_SHADOW_SURFACE_COLOR,
     buildingsFullOpacity: state.buildingsFullOpacity ?? true,
     buildingColorMix: clamp(
@@ -75,14 +79,28 @@ export const ShadowSimulationSurfaceSettings = ({
       {meshLoaded && (
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           <Typography.Text strong type="secondary">
-            Mesh-LOD
+            Tileset-LOD
           </Typography.Text>
           <Segmented
             data-test-id="shadow-simulation-mesh-quality"
-            value={settings.meshErrorTarget}
-            options={[...MESH_ERROR_TARGETS]}
+            value={state.meshErrorTarget ?? TILESET_ERROR_TARGET_AUTO}
+            options={[
+              {
+                label:
+                  tilesetErrorTarget === null
+                    ? "Auto"
+                    : `Auto (${formatPixels(tilesetErrorTarget)})`,
+                value: TILESET_ERROR_TARGET_AUTO,
+              },
+              ...MESH_ERROR_TARGETS,
+            ]}
             onChange={(value) =>
-              onChange({ meshErrorTarget: value as MeshErrorTargetPixels })
+              onChange({
+                meshErrorTarget:
+                  value === TILESET_ERROR_TARGET_AUTO
+                    ? undefined
+                    : (value as MeshErrorTargetPixels),
+              })
             }
           />
           <>

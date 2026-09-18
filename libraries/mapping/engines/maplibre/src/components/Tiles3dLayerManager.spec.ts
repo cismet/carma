@@ -135,7 +135,7 @@ describe("resolveTiles3dConfig", () => {
       ...legacy,
       providesTerrain: true,
       version: 1,
-      errorTarget: 4,
+      errorTarget: 6,
       baseErrorTarget: 16,
       tilesetMinResolutionPx: 1024,
       basemap: "labels",
@@ -196,8 +196,7 @@ describe("Tiles3dLayerManager", () => {
     expect(metadata.entry.levels.length).toBeGreaterThan(0);
     // The reference file declares the tuned base target and leaves the rest
     // to the defaults, so a legacy style and this one share every other value.
-    expect(metadata).toMatchObject({ baseErrorTarget: 12 });
-    expect(metadata).not.toHaveProperty("errorTarget");
+    expect(metadata).toMatchObject({ errorTarget: 6, baseErrorTarget: 12 });
     expect(metadata).not.toHaveProperty("tilesetMinResolutionPx");
     // Use the normal draped host to inspect creation synchronously; standalone
     // mounting adds a DEM lookup but must pass the same hierarchy hints.
@@ -211,7 +210,7 @@ describe("Tiles3dLayerManager", () => {
     const runtime = mocks.buildRuntime.mock.results[0]?.value as ReturnType<
       typeof buildFakeRuntime
     >;
-    expect(runtime.loading.setErrorTarget).toHaveBeenLastCalledWith(4, 12);
+    expect(runtime.loading.setErrorTarget).toHaveBeenLastCalledWith(6, 12);
     expect(runtime.loading.setTilesetMinResolution).toHaveBeenLastCalledWith(
       1024
     );

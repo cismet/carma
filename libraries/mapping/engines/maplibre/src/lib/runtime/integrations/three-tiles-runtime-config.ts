@@ -6,6 +6,13 @@ export const TILES_ERROR_TARGET_MAX_PIXELS = 50;
 
 export const TILES_ERROR_TARGET_DEFAULT_PIXELS = 4;
 
+/**
+ * Idle target of a terrain-providing (mesh) tileset. The mesh fills the
+ * whole view, so a looser target than a building layer's keeps the selection
+ * affordable; the shadow simulation overrides it per view when asked to.
+ */
+export const TILES_MESH_ERROR_TARGET_DEFAULT_PIXELS = 6;
+
 export const VIEW_QUALITY_AUDIT_PASSES = 2;
 
 export const MESH_SETTLED_AUDIT_INTERVAL_MS = 1_000;

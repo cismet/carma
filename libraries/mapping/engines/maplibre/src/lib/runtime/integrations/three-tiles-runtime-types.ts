@@ -163,6 +163,13 @@ export interface ThreeTilesRuntime {
     /** Final/idle target, with an optional coarser initial view target. */
     setErrorTarget: (errorTarget: number, initialErrorTarget?: number) => void;
     /**
+     * A consumer's target on top of the host's, the shadow simulation's
+     * tileset LOD for instance; null returns to the host's target.
+     */
+    setErrorTargetOverride: (errorTarget: number | null) => void;
+    /** The host's target without any override. */
+    getErrorTarget: () => number;
+    /**
      * Explicit resident cache budget (up to 24 GiB). No budget restores the
      * conservative device default; it is not an available-VRAM measurement.
      */
