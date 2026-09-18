@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Alert, Button, Modal, Space, Steps, Tooltip } from "antd";
-import { CodeOutlined, InfoCircleOutlined } from "@ant-design/icons";
+import { Modal } from "antd";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
@@ -17,7 +16,9 @@ import SummaryStep from "./steps/SummaryStep";
 import AdminAreasStep from "./steps/AdminAreasStep";
 import UsageStep from "./steps/UsageStep";
 import HistoricRebeMipaDialog from "./HistoricRebeMipaDialog";
-import GraphQLPanel from "./GraphQLPanel";
+import WizardModal from "./WizardModal";
+import WizardHeader from "./WizardHeader";
+import WizardFooter from "./WizardFooter";
 
 import { STEP, getSteps } from "../../core/wizard/flow";
 import { ACTION_TITLES, WIZARD_ACTIONS } from "../../core/wizard/constants";
@@ -33,8 +34,6 @@ import { getCurrentLParcelNav } from "../../store/slices/lpHistoryNav";
 import { removeLeadingZeros } from "../../core/tools/helper";
 
 const CHOOSE_ACTION_PROBLEM = "Bitte wählen Sie eine der obigen Aktionen aus";
-
-const PANE_STYLE = { height: "min(62vh, 520px)", minHeight: 380 };
 
 /** Keys that have to be free of a Sperre before the step may be left. */
 const keysToCheck = (stepId, data) => {
@@ -56,15 +55,12 @@ const keysToCheck = (stepId, data) => {
   }
 };
 
-/**
- * Port of ContinuationWizard — the Flurstück-Assistent.
- *
- * Step 0 picks the action, the following steps are the branch for it. The
- * footer mirrors the Swing wizard: Zurück / Weiter / Fertigstellen, with the
- * problem line above it that blocks forward navigation while it is set.
- */
-
-const LandParcelWizard = ({ open, onClose, showGraphQL = true }) => {
+const LandParcelWizard = ({
+  open,
+  onClose,
+  showLogs = false,
+  skipValidation = false,
+}) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const [, setUrlParams] = useSearchParams();
@@ -80,11 +76,8 @@ const LandParcelWizard = ({ open, onClose, showGraphQL = true }) => {
   const [result, setResult] = useState();
   const [error, setError] = useState();
   const [rebeMipaPrompt, setRebeMipaPrompt] = useState();
-  const showRaw = showGraphQL === true;
-  const [rawOpen, setRawOpen] = useState(false);
-
-  // no panel, no recording
-  useEffect(() => setLoggingEnabled(showRaw), [showRaw]);
+  const [logsOpen, setLogsOpen] = useState(false);
+  useEffect(() => setLoggingEnabled(showLogs), [showLogs]);
 
   const steps = useMemo(() => getSteps(data.action), [data.action]);
   const currentStep = steps[stepIndex];
@@ -144,7 +137,7 @@ const LandParcelWizard = ({ open, onClose, showGraphQL = true }) => {
   const handleNext = async () => {
     setBusy(true);
     try {
-      if (await checkLocks()) {
+      if (skipValidation || (await checkLocks())) {
         setProblem(null);
         setStepIndex(stepIndex + 1);
       }
@@ -200,7 +193,7 @@ const LandParcelWizard = ({ open, onClose, showGraphQL = true }) => {
     setBusy(true);
     setError(undefined);
     try {
-      if (!(await checkLocks())) {
+      if (!skipValidation && !(await checkLocks())) {
         return;
       }
       const outcome = await runWizardAction(
@@ -293,243 +286,63 @@ const LandParcelWizard = ({ open, onClose, showGraphQL = true }) => {
     }
   };
 
-  const footerButtons = result
-    ? [
-        result.keys?.[0]?.gemarkung && (
-          <Button key="switch" type="primary" onClick={switchToResult}>
-            Zum Flurstück wechseln
-          </Button>
-        ),
-        <Button key="close" onClick={handleClose}>
-          Schließen
-        </Button>,
-      ].filter(Boolean)
-    : [
-        <Button key="cancel" onClick={handleClose} disabled={busy}>
-          Abbrechen
-        </Button>,
-        <Button
-          key="prev"
-          onClick={() => {
-            setStepIndex(stepIndex - 1);
-            setProblem(null);
-          }}
-          disabled={stepIndex === 0 || busy}
-        >
-          Zurück
-        </Button>,
-        isLast ? (
-          <Button
-            key="finish"
-            type="primary"
-            loading={busy}
-            disabled={Boolean(problem) || !data.action}
-            onClick={handleFinish}
-          >
-            Fertigstellen
-          </Button>
-        ) : (
-          <Button
-            key="next"
-            type="primary"
-            loading={busy}
-            disabled={Boolean(problem)}
-            onClick={handleNext}
-          >
-            Weiter
-          </Button>
-        ),
-      ];
-
-  const header = (
-    <div
-      className="flex items-start justify-between gap-4"
-      style={{ paddingRight: 32 }}
-    >
-      <div>
-        <div style={{ fontSize: 16, fontWeight: 600, lineHeight: 1.3 }}>
-          Flurstück Assistent
-        </div>
-        <div
-          className="text-gray-500"
-          style={{ fontSize: 12, fontWeight: 400 }}
-        >
-          {data.action
-            ? ACTION_TITLES[data.action].replace(/\.\.\.$/, "")
-            : "Aktion wählen"}
-        </div>
-      </div>
-      {showRaw && (
-        <Tooltip title={rawOpen ? "Assistent anzeigen" : "GraphQL anzeigen"}>
-          <Button
-            size="small"
-            shape="circle"
-            type={rawOpen ? "primary" : "text"}
-            icon={<CodeOutlined />}
-            aria-label="GraphQL"
-            onClick={() => setRawOpen(!rawOpen)}
-            style={rawOpen ? undefined : { color: "#8c8c8c" }}
-          />
-        </Tooltip>
-      )}
-    </div>
-  );
+  const canAdvance = Boolean(data.action) && (skipValidation || !problem);
 
   const footer = (
-    <div className="flex items-center justify-between gap-4">
-      <span className="text-gray-400" style={{ fontSize: 12 }}>
-        {!result && data.action
-          ? `Schritt ${stepIndex + 1} von ${steps.length}`
-          : ""}
-      </span>
-      <Space size={8}>{footerButtons}</Space>
-    </div>
+    <WizardFooter
+      result={result}
+      busy={busy}
+      stepIndex={stepIndex}
+      stepCount={steps.length}
+      showStepCount={!result && Boolean(data.action)}
+      isLast={isLast}
+      canAdvance={canAdvance}
+      onSwitchToResult={
+        result?.keys?.[0]?.gemarkung ? switchToResult : undefined
+      }
+      onClose={handleClose}
+      onBack={() => {
+        setStepIndex(stepIndex - 1);
+        setProblem(null);
+      }}
+      onNext={handleNext}
+      onFinish={handleFinish}
+    />
   );
 
-  const graphQLOpen = showRaw && rawOpen;
+  const header = (
+    <WizardHeader
+      subtitle={
+        data.action
+          ? ACTION_TITLES[data.action].replace(/\.\.\.$/, "")
+          : "Aktion wählen"
+      }
+      showLogsToggle={showLogs}
+      logsOpen={logsOpen}
+      onLogsChange={setLogsOpen}
+    />
+  );
+
+  const logsVisible = showLogs && logsOpen;
 
   return (
     <>
-      <Modal
+      <WizardModal
         open={open}
-        title={header}
-        width={880}
-        centered
-        onCancel={handleClose}
-        maskClosable={false}
+        header={header}
         footer={footer}
-        styles={{
-          content: { padding: 0, overflow: "hidden" },
-          header: {
-            padding: "16px 24px",
-            marginBottom: 0,
-            borderBottom: "1px solid #f0f0f0",
-          },
-          body: { padding: 0 },
-          footer: {
-            padding: "12px 24px",
-            marginTop: 0,
-            borderTop: "1px solid #f0f0f0",
-            background: "#fafafa",
-          },
-        }}
+        onCancel={handleClose}
+        steps={steps}
+        stepIndex={stepIndex}
+        stepTitle={result ? null : currentStep.title}
+        showLogs={showLogs}
+        logsVisible={logsVisible}
+        result={result}
+        error={error}
+        problem={result ? null : problem}
       >
-        <div style={PANE_STYLE}>
-          {showRaw && (
-            <div
-              style={{
-                display: graphQLOpen ? "block" : "none",
-                height: "100%",
-                overflow: "hidden",
-                padding: "16px 24px",
-              }}
-            >
-              <GraphQLPanel />
-            </div>
-          )}
-
-          {/* kept mounted rather than unmounted: the choosers hold the typed
-              Flurstück in local state, which unmounting would discard */}
-          <div
-            style={{
-              display: graphQLOpen ? "none" : "flex",
-              height: "100%",
-            }}
-          >
-            <div
-              style={{
-                width: 244,
-                flex: "0 0 244px",
-                background: "#fafafa",
-                borderRight: "1px solid #f0f0f0",
-                padding: "20px 16px",
-                overflowY: "auto",
-              }}
-            >
-              <Steps
-                direction="vertical"
-                size="small"
-                current={stepIndex}
-                items={steps.map((step) => ({
-                  title: <span style={{ fontSize: 13 }}>{step.title}</span>,
-                }))}
-              />
-            </div>
-
-            <div
-              style={{
-                flex: 1,
-                minWidth: 0,
-                padding: "20px 24px",
-                overflowY: "auto",
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "space-between",
-              }}
-            >
-              <div>
-                {!result && (
-                  <div
-                    style={{
-                      marginBottom: 16,
-                      paddingBottom: 10,
-                      borderBottom: "1px solid #f0f0f0",
-                      fontSize: 14,
-                      fontWeight: 600,
-                    }}
-                  >
-                    {currentStep.title}
-                  </div>
-                )}
-                {result ? (
-                  <Alert
-                    type="success"
-                    showIcon
-                    message="Aktion erfolgreich"
-                    description={
-                      <span style={{ whiteSpace: "pre-line" }}>
-                        {result.message}
-                      </span>
-                    }
-                  />
-                ) : (
-                  renderStep()
-                )}
-                {error && (
-                  <Alert
-                    className="mt-3"
-                    type="error"
-                    showIcon
-                    message="Die Aktion ist fehlgeschlagen"
-                    description={
-                      <span style={{ whiteSpace: "pre-line" }}>{error}</span>
-                    }
-                  />
-                )}
-              </div>
-              {!result && problem && (
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "flex-start",
-                    gap: 8,
-                    marginTop: 16,
-                    fontSize: 13,
-                    padding: "8px 10px",
-                    borderRadius: 6,
-                    background: "#f0f7ff",
-                    border: "1px solid #d6e4ff",
-                    color: "#1d4ed8",
-                  }}
-                >
-                  <InfoCircleOutlined style={{ marginTop: 3 }} />
-                  <span>{problem}</span>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </Modal>
+        {renderStep()}
+      </WizardModal>
 
       <HistoricRebeMipaDialog
         open={Boolean(rebeMipaPrompt)}
