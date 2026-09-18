@@ -39,16 +39,21 @@ const GEORADAR_VOLUME_FILES = new Set([
   "capture-026-27x10m.json",
   "capture-026-27x10m.r16",
 ]);
-const localInvestigationData = (
-  pointcloudRoot: string,
-  georadarVolumeRoot: string,
-  georadarMdioRoot: string,
-  georadarSurveyRoot: string,
-  capture026SceneRoot: string,
-  nivControlPointRoot: string,
-  fraunhoferRoot: string,
-  pointcloudTilesetRoot: string
-): Plugin => {
+// Both Storybooks use the same allowlisted routes and owner-relative data root.
+export const localInvestigationData = (mode: string): Plugin => {
+  const environment = loadEnv(mode, __dirname, "");
+  const dataRoot = resolve(
+    __dirname,
+    environment.POINTCLOUD_DATA_ROOT || ".data"
+  );
+  const pointcloudRoot = resolve(dataRoot, "derived");
+  const georadarVolumeRoot = resolve(pointcloudRoot, "georadar-volume");
+  const georadarMdioRoot = resolve(pointcloudRoot, "georadar-mdio");
+  const georadarSurveyRoot = resolve(pointcloudRoot, "georadar-survey");
+  const capture026SceneRoot = resolve(pointcloudRoot, "capture-026-scene");
+  const nivControlPointRoot = resolve(pointcloudRoot, "niv-control-points");
+  const fraunhoferRoot = resolve(dataRoot, "source-inputs/nordbahntrasse");
+  const pointcloudTilesetRoot = resolve(pointcloudRoot, "pointcloud-3dtiles");
   const fraunhoferGeoJsonFiles = new Map([
     [
       "all_vegetation.geojson",
@@ -172,20 +177,6 @@ const localInvestigationData = (
 };
 
 export default defineConfig(({ mode }) => {
-  const environment = loadEnv(mode, __dirname, "");
-  const dataRoot = resolve(
-    __dirname,
-    environment.POINTCLOUD_DATA_ROOT || ".data"
-  );
-  const pointcloudRoot = resolve(dataRoot, "derived");
-  const georadarVolumeRoot = resolve(pointcloudRoot, "georadar-volume");
-  const georadarMdioRoot = resolve(pointcloudRoot, "georadar-mdio");
-  const georadarSurveyRoot = resolve(pointcloudRoot, "georadar-survey");
-  const capture026SceneRoot = resolve(pointcloudRoot, "capture-026-scene");
-  const nivControlPointRoot = resolve(pointcloudRoot, "niv-control-points");
-  const fraunhoferRoot = resolve(dataRoot, "source-inputs/nordbahntrasse");
-  const pointcloudTilesetRoot = resolve(pointcloudRoot, "pointcloud-3dtiles");
-
   return {
     root: __dirname,
     cacheDir: "../../node_modules/.vite/playgrounds/pointcloud-stories",
@@ -204,16 +195,7 @@ export default defineConfig(({ mode }) => {
     plugins: [
       react(),
       nxViteTsPaths(),
-      localInvestigationData(
-        pointcloudRoot,
-        georadarVolumeRoot,
-        georadarMdioRoot,
-        georadarSurveyRoot,
-        capture026SceneRoot,
-        nivControlPointRoot,
-        fraunhoferRoot,
-        pointcloudTilesetRoot
-      ),
+      localInvestigationData(mode),
     ],
     // The COPC decode worker (copc-stream.worker.ts) is bundled in a separate
     // Rollup pass that does not inherit the top-level `plugins`. Without

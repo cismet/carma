@@ -24,6 +24,8 @@ export default defineConfig(() => ({
     plugins: [react(), nxViteTsPaths()],
     base: process.env.BASE_URL || "/",
     worker: {
+      // The terrain worker graph code-splits; iife workers cannot.
+      format: "es" as const,
       plugins: () => [nxViteTsPaths()],
     },
     optimizeDeps: {

@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import * as THREE from "three/webgpu";
@@ -25,13 +26,31 @@ import {
 } from "three/tsl";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 
-import { buildStoryMasonryPanelStyle } from "../../../stories/src/stories/common/ui/story-masonry-layout";
 import {
   buildRampBytes,
   RAMP_NAMES,
   rampCssGradient,
   type RampName,
 } from "../../../ng-topicmap-playground/src/app/pointcloud/colorRamps";
+
+/**
+ * The frosted panel of the stories masonry layout, without the padding and
+ * gap. Kept local: this playground is rendered inside the stories Storybook,
+ * so importing from it would close a project cycle.
+ */
+const GLASS_PANEL_STYLE: CSSProperties = {
+  display: "grid",
+  gap: 0,
+  minWidth: 0,
+  width: "100%",
+  padding: 0,
+  borderRadius: 14,
+  border: "1px solid rgba(255, 255, 255, 0.28)",
+  background: "rgba(248, 250, 252, 0.56)",
+  backdropFilter: "blur(14px) saturate(0.92) brightness(1.03)",
+  WebkitBackdropFilter: "blur(14px) saturate(0.92) brightness(1.03)",
+  boxShadow: "0 10px 30px rgba(15, 23, 42, 0.12)",
+};
 
 export type VolumeView = "top" | "side" | "end" | "ortho3d" | "perspective";
 export type VolumeRenderMode = "voxel" | "composite" | "maximum";
@@ -1251,7 +1270,7 @@ export const GeoradarVolumeExplorer = ({
       <aside
         className="volume-panel"
         style={{
-          ...buildStoryMasonryPanelStyle({ padding: 0, gap: 0 }),
+          ...GLASS_PANEL_STYLE,
           width: 348,
           maxWidth: "calc(100% - 28px)",
         }}

@@ -238,7 +238,8 @@ const FormatterPreview = ({
 };
 
 const meta: Meta<DecimalNumberFormatterStoryProps> = {
-  title: "Common/Formatter",
+  title: "UI/Formatting",
+  id: "common-formatter",
   component: FormatterPreview,
   parameters: {
     layout: "fullscreen",

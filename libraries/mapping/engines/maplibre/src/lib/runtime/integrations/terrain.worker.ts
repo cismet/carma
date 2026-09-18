@@ -11,7 +11,12 @@ const normalsReady = prepareMeshVertexNormalsWasm();
 
 // This module is loaded only by the module Worker, never as a main-thread task.
 let currentTask: AbortController | null = null;
-self.onmessage = async (event: MessageEvent<TerrainWorkerTask | {kind: "cancel-current"}>) => {
+self.onmessage = async (
+  event: MessageEvent<TerrainWorkerTask | { kind: "cancel-current" } | null>
+) => {
+  // Vite can deliver an empty message while replacing a module worker during
+  // Storybook HMR. It is lifecycle noise, not a terrain task.
+  if (!event.data) return;
   if (event.data.kind === "cancel-current") {
     currentTask?.abort();
     return;
@@ -21,7 +26,10 @@ self.onmessage = async (event: MessageEvent<TerrainWorkerTask | {kind: "cancel-c
   try {
     if (["project", "partition", "stitch"].includes(event.data.kind))
       await normalsReady;
-    const result = await executeTerrainWorkerTask(event.data, controller.signal);
+    const result = await executeTerrainWorkerTask(
+      event.data,
+      controller.signal
+    );
     self.postMessage({ result }, { transfer: terrainResultTransfers(result) });
   } catch (error) {
     self.postMessage({

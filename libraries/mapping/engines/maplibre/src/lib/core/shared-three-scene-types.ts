@@ -1,6 +1,7 @@
 import type * as THREE from "three";
 import type { CustomLayerInterface, Map as MaplibreMap } from "maplibre-gl";
 import type { SceneAccumulationOptions } from "@carma-mapping/engines/three/primitives/rendering";
+import type { TileCameraSnapshot, TileCameraView } from "./tile-camera-demand";
 
 /**
  * The local east/up/south frame at the view anchor, on the ellipsoid.
@@ -47,6 +48,8 @@ export interface SharedThreeSceneFrame {
   lookTarget: THREE.Vector3;
   viewport: THREE.Vector2;
   localFrame: SharedThreeSceneLocalFrame;
+  /** Additional world-space views share every runtime's existing tile pool. */
+  tileCameraViews?: readonly TileCameraSnapshot[];
 }
 
 export type SharedThreeSceneShadowView = Readonly<{
@@ -140,6 +143,34 @@ export interface SharedThreeSceneRuntime {
   setTileBoundsVisible?: (visible: boolean) => void;
   /** Outstanding work required before a fixed-state render can converge. */
   getRequestDemand?: () => number;
+  /** Optional zoom-ahead work: one shared pool, spare capacity only, abortable.
+   * The camera is a cropped focus view; levels are relative to normal target LOD. */
+  prefetchZoom?: (
+    request: Readonly<{
+      camera: TileCameraSnapshot;
+      lngLat: readonly [number, number];
+      levels: 1 | 2;
+    }>,
+    signal: AbortSignal
+  ) => Promise<void>;
+  /** Future frustum, excluded from visible coverage/shadow demand. Refresh within
+   * validForMs (default 250 ms); null cancels this source only. */
+  setPrefetchCameraView?: (
+    view: TileCameraSnapshot | null,
+    id: string,
+    validForMs?: number
+  ) => void;
+  getMotionPrefetchStats?: () => Readonly<{
+    stability: number;
+    stableMs: number;
+    latencyMs: number;
+    leadMs: number;
+    requested: number;
+    completed: number;
+    cancelled: number;
+    pending: number;
+    views: number;
+  }>;
   /** Visible content takes priority over optional sun-disc refinement. */
   isMainViewReady?: () => boolean;
   /** Complete observer coverage at the initial progressive error, not final LOD. */
@@ -228,6 +259,22 @@ export type SharedSceneAccumulationController = {
 };
 
 export interface SharedThreeSceneLayer extends CustomLayerInterface {
+  /** Suspend shared scene updates and drawing without releasing resident data. */
+  setRenderingPaused: (paused: boolean) => void;
+  isRenderingPaused: () => boolean;
+  /** Upsert by ID; mutable camera poses are sampled before each scene update. */
+  setTileCameraView: (view: TileCameraView) => void;
+  /** Remove only this source's demand, never another camera's residency. */
+  removeTileCameraView: (id: string) => void;
+  /** Sample a known trajectory ahead without moving its live camera. Call during
+   * animation updates; requests expire unless refreshed. No receiver is added.
+   * Use createCameraFlightPlayer().sampleAhead() for Three camera paths. */
+  requestTileCameraAhead: (
+    viewAt: (aheadMs: number) => TileCameraView,
+    aheadMs: number,
+    validForMs?: number
+  ) => string;
+  removePrefetchCameraView: (id: string) => void;
   addRuntime: (runtime: SharedThreeSceneRuntime) => void;
   removeRuntime: (runtimeId: string) => void;
   hasRuntime: (runtimeId: string) => boolean;
@@ -240,6 +287,9 @@ export interface SharedThreeSceneLayer extends CustomLayerInterface {
   getLocalFrameGroup: () => THREE.Group;
   /** Renderer owned by the mounted MapLibre custom layer, if it is active. */
   getRenderer: () => THREE.WebGLRenderer | null;
+  /** Draw embedded camera regions after MapLibre has finished its frame. */
+  addScreenRenderPass: (render: () => void) => () => void;
+  requestScreenRender: () => void;
   /** Optional synchronous GPU work outside a map frame; false means unsupported. */
   runIdleRender?: (render: () => void) => boolean;
   /**

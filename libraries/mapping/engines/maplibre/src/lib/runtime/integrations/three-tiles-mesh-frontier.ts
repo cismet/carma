@@ -1,5 +1,6 @@
 import type { Tile } from "3d-tiles-renderer/core";
 import {
+  TILES_LOAD_POLICY,
   initialMeshLoadError,
   meshShadowStageError,
 } from "./three-tiles-load-policy";
@@ -10,6 +11,53 @@ const isLoadedMesh = (tile: Tile): boolean =>
   tile.internal?.hasRenderableContent && tile.internal.loadingState === LOADED;
 
 /** O(tree depth) membership check; never enumerate the resident tile pool. */
+/**
+ * Loaded REPLACE ancestors of the displayed cut that still have an in-view
+ * child without any displayed descendant: that quadrant is a hole. Drawn
+ * underneath the finer tiles that exist, the ancestor fills it until the
+ * children arrive, the coverage-first idea of Cesium's skip-LOD ancestor
+ * pass without a stencil buffer. Never a replacement, only an underlay; the
+ * retained cut keeps refusing such an ancestor as a fallback on its own.
+ */
+export const selectMeshUnderlayParents = (
+  displayed: ReadonlySet<Tile>,
+  inView: (tile: Tile) => boolean,
+  ready: (tile: Tile) => boolean = () => true,
+  floor: Iterable<Tile> = []
+): Set<Tile> => {
+  const refined = new Set<Tile>();
+  for (const tile of displayed)
+    for (let parent = tile.parent; parent; parent = parent.parent)
+      refined.add(parent);
+  // An in-view branch under a refined node that neither displays a tile nor
+  // holds a displayed descendant is uncovered; the test descends through
+  // refined nodes, since a hole can sit several levels below the ancestor.
+  // A child the renderer has not preprocessed has no bounds to answer the
+  // view test: unknown coverage is a hole, not proof of being outside.
+  const hasHole = (tile: Tile): boolean =>
+    (tile.children ?? []).some((child) => {
+      if (!child.traversal) return true;
+      if (!inView(child) || displayed.has(child)) return false;
+      return refined.has(child) ? hasHole(child) : true;
+    });
+  const underlay = new Set<Tile>();
+  const floorSet = new Set(floor);
+  for (const ancestor of new Set([...refined, ...floorSet])) {
+    if (displayed.has(ancestor) || ancestor.refine !== "REPLACE") continue;
+    if (!isLoadedMesh(ancestor) || !ready(ancestor) || !inView(ancestor))
+      continue;
+    if (hasHole(ancestor)) underlay.add(ancestor);
+  }
+  // Keep only the finest loaded ancestor per hole: drop any underlay that has
+  // another underlay below it. The extent floor stays: a finer underlay
+  // below it covers one hole, not the floor tile's whole region.
+  for (const tile of [...underlay])
+    for (let parent = tile.parent; parent; parent = parent.parent)
+      if (underlay.has(parent) && !floorSet.has(parent))
+        underlay.delete(parent);
+  return underlay;
+};
+
 export const hasDisplayedAncestor = (
   tile: Tile,
   displayed: ReadonlySet<Tile>
@@ -125,9 +173,22 @@ export const collectLoadedMeshReceiverCandidates = (
   errorPixels: (tile: Tile) => number,
   committed?: ReadonlySet<Tile>,
   presented?: ReadonlySet<Tile>,
-  receiverReady: (tile: Tile) => boolean = isLoadedMesh,
-  retainedAncestors: ReadonlySet<Tile> = new Set()
+  receiverReady: (tile: Tile, support?: boolean) => boolean = isLoadedMesh,
+  retainedAncestors: ReadonlySet<Tile> = new Set(),
+  options?: Readonly<{
+    published: ReadonlySet<Tile>;
+    support: Set<Tile>;
+    /** Publish the first view together; subsequently promote resident reserves. */
+    atomic?: boolean;
+    onIncompletePublishedFamily?: (parent: Tile) => void;
+  }>
 ): Set<Tile> => {
+  options?.support.clear();
+  // Initial quality is a request goal. First publication additionally requires
+  // a useful complete image (<=64px); later movement keeps resident coverage.
+  // This is separate
+  // from shadow receiver/caster publication, which owns its own atomic gate.
+  const residentFallback = Boolean(options?.atomic && options.published.size);
   const refinedAncestors = new Set<Tile>();
   for (const tile of committed ?? []) {
     for (let parent = tile.parent; parent; parent = parent.parent)
@@ -145,34 +206,101 @@ export const collectLoadedMeshReceiverCandidates = (
     }
     return maximumInitialErrorPixels;
   };
-  const visit = (tile: Tile): { cut: Tile[]; complete: boolean } => {
-    if (!inView(tile)) return { cut: [], complete: true };
-    if (!tile.internal || !tile.traversal) return { cut: [], complete: false };
+  const visit = (
+    tile: Tile,
+    completeFamily = false
+  ): { cut: Tile[]; complete: boolean } => {
+    // A raw hierarchy entry the renderer has not preprocessed yet has no
+    // bounds, so it cannot answer the view test; it is unknown coverage, not
+    // proof of being outside the view. Testing the view first let an
+    // unloaded in-view subtree count as covered and stalled the first pass.
+    if (!tile.internal || !tile.traversal) {
+      if (completeFamily) options?.support.add(tile);
+      return { cut: [], complete: false };
+    }
+    const visible = inView(tile);
+    if (!visible && !completeFamily) {
+      // Decision: FRUSTUM-REPLACEMENT-20260914 in TILES_COVERAGE.md.
+      // Replacement completeness is relative to the current demand union.
+      // An offscreen sibling must not recursively create finer support jobs.
+      return { cut: [], complete: true };
+    }
+    // Complete only the immediate replacement family, not another offscreen
+    // refinement tree. Publishing a viewport-only subset forces a downgrade
+    // on the next drag into an unloaded sibling. A ready sibling is retained
+    // with this cut; a missing one uses the existing bounded support queue.
+    if (!visible && completeFamily) {
+      if (
+        tile.internal.hasRenderableContent &&
+        !isMeshTileUnconditionallyRefined(tile)
+      ) {
+        options?.support.add(tile);
+        return isLoadedMesh(tile) && receiverReady(tile, true)
+          ? { cut: [tile], complete: true }
+          : { cut: [], complete: false };
+      }
+      if (
+        tile.internal.hasUnrenderableContent &&
+        tile.internal.loadingState !== LOADED
+      )
+        options?.support.add(tile);
+    }
     if (
       tile.internal.hasUnrenderableContent &&
       tile.internal.loadingState !== LOADED
     )
       return { cut: [], complete: false };
+    if (
+      tile.internal.hasContent === false &&
+      !tile.internal.hasRenderableContent &&
+      !tile.internal.hasUnrenderableContent &&
+      !tile.children?.length
+    )
+      return { cut: [], complete: true };
     const error = errorPixels(tile);
     const fallback =
       isLoadedMesh(tile) &&
       receiverReady(tile) &&
       !isMeshTileUnconditionallyRefined(tile) &&
       Number.isFinite(error) &&
-      error <= maximumInitialErrorPixels &&
-      !refinedAncestors.has(tile) &&
-      !retainedAncestors.has(tile);
+      (options?.atomic
+        ? residentFallback ||
+          error <= TILES_LOAD_POLICY.firstImageMaxErrorPixels
+        : error <= maximumInitialErrorPixels ||
+          options?.published.has(tile) ||
+          tile.children.length === 0) &&
+      (options?.atomic ||
+        (!refinedAncestors.has(tile) && !retainedAncestors.has(tile)));
     const children = tile.children ?? [];
-    if (fallback && (error <= stageError(tile) || children.length === 0))
+    // Decision: DRAG-RESIDENT-SIBLINGS-20260916 in TILES_COVERAGE.md.
+    // A newly visible, resident sibling was not in the previous displayed cut.
+    // Try its ready branch before using the motion-stage parent; otherwise the
+    // retention check sees a partial old cut and downgrades the whole family.
+    // Missing/unready siblings still take the complete parent fallback below.
+    if (
+      fallback &&
+      ((error <= stageError(tile) && !retainedAncestors.has(tile)) ||
+        children.length === 0)
+    )
       return { cut: [tile], complete: true };
     const selected: Tile[] = [];
     let complete = children.length > 0;
     for (const child of children) {
-      const result = visit(child);
+      const result = visit(
+        child,
+        completeFamily ||
+          Boolean(
+            options?.atomic &&
+              tile.refine === "REPLACE" &&
+              tile.internal.hasRenderableContent
+          )
+      );
       selected.push(...result.cut);
       complete &&= result.complete;
     }
     if (fallback && (!complete || tile.refine === "ADD")) {
+      if (!complete && options?.atomic && retainedAncestors.has(tile))
+        options.onIncompletePublishedFamily?.(tile);
       return {
         cut: tile.refine === "ADD" ? [tile, ...selected] : [tile],
         complete: true,
@@ -180,7 +308,10 @@ export const collectLoadedMeshReceiverCandidates = (
     }
     return { cut: selected, complete };
   };
-  return new Set(visit(root).cut);
+  const result = visit(root);
+  return new Set(
+    options?.atomic && !residentFallback && !result.complete ? [] : result.cut
+  );
 };
 
 /**
@@ -196,10 +327,10 @@ export const getReadyMeshRegionCut = (
   demand: (tile: Tile) => { intersects: boolean; errorPixels: number }
 ): readonly Tile[] | null => {
   const visit = (tile: Tile): Tile[] | null => {
-    const target = demand(tile);
-    if (!target.intersects) return [];
     const internal = tile.internal;
     if (!internal) return null;
+    const target = demand(tile);
+    if (!target.intersects) return [];
     const children = tile.children ?? [];
     if (
       internal.hasUnrenderableContent &&
@@ -341,12 +472,17 @@ export const advanceMeshCorridorFrontier = ({
  * local fallback. A slow sibling elsewhere must not hold this branch at 16px.
  * Inspect only the nearest displayable parent: older ancestors may have had
  * their redundant payload evicted after their children replaced them.
+ * The parent-first clause presumes the renderer loads ancestors; in the skip
+ * strategy (`ancestorsLoaded` false) an intermediate level is never requested,
+ * so refinement goes straight from the coarse pass to the target level.
  */
 export const shouldDeferMeshRefinement = (
   tile: Tile,
   requestedError: number,
   errorPixels: (tile: Tile) => number = (tile) => tile.traversal.error,
-  retainedAncestors: ReadonlySet<Tile> = new Set()
+  retainedAncestors: ReadonlySet<Tile> = new Set(),
+  baseError?: number,
+  ancestorsLoaded = true
 ): boolean => {
   for (let parent = tile.parent; parent; parent = parent.parent) {
     if (
@@ -361,8 +497,75 @@ export const shouldDeferMeshRefinement = (
     const error = errorPixels(parent);
     return (
       error <= requestedError ||
-      (error <= initialMeshLoadError(requestedError) && !isLoadedMesh(parent))
+      (ancestorsLoaded &&
+        error <= initialMeshLoadError(requestedError, baseError) &&
+        !isLoadedMesh(parent))
     );
+  }
+  return false;
+};
+
+/** A published surface always refines through its next drawable family.
+ * Zooming changes pixel error, not this tree relationship. Only branches with
+ * no published parent can bootstrap directly to initial quality.
+ */
+export const isNextPublishedMeshLevel = (
+  tile: Tile,
+  published: ReadonlySet<Tile>
+): boolean => {
+  if (
+    !tile.internal?.hasRenderableContent ||
+    isMeshTileUnconditionallyRefined(tile)
+  )
+    return false;
+  for (let parent = tile.parent; parent; parent = parent.parent) {
+    if (
+      !parent.internal?.hasRenderableContent ||
+      isMeshTileUnconditionallyRefined(parent)
+    )
+      continue;
+    return (
+      parent.refine === "REPLACE" &&
+      isLoadedMesh(parent) &&
+      published.has(parent)
+    );
+  }
+  return false;
+};
+
+/**
+ * Ancestors of the displayed cut below the extent floor, into `target`: the
+ * band a zoom-out step regresses through, kept resident by the runtime.
+ */
+export const collectResidentAncestors = (
+  displayed: ReadonlySet<Tile>,
+  extentGeometricError: number,
+  target: Set<Tile>
+): Set<Tile> => {
+  target.clear();
+  for (const tile of displayed) {
+    for (let parent = tile.parent; parent; parent = parent.parent) {
+      if (target.has(parent) || parent.geometricError >= extentGeometricError)
+        break;
+      target.add(parent);
+    }
+  }
+  return target;
+};
+
+/** The nearest ancestor at or above the extent floor is loaded: dropping the tile leaves no hole. */
+export const hasLoadedExtentFloorAncestor = (
+  tile: Tile,
+  extentGeometricError: number
+): boolean => {
+  for (let parent = tile.parent; parent; parent = parent.parent) {
+    // External tileset pages repeat their parent's error but carry no mesh.
+    // They must not hide a resident payload farther up the same ancestry.
+    if (
+      parent.internal?.hasRenderableContent &&
+      parent.geometricError >= extentGeometricError
+    )
+      return isLoadedMesh(parent);
   }
   return false;
 };
@@ -377,6 +580,38 @@ export const isMeshCoveredByLoadedChildren = (
   !visible.has(tile) &&
   (tile.children?.length ?? 0) > 0 &&
   tile.children!.every((child) => visible.has(child) && isLoadedMesh(child));
+
+/**
+ * A resident payload can leave the cache without opening a previously rendered
+ * region only when a loaded REPLACE ancestor or a complete loaded descendant
+ * cut can draw the same region. This deliberately ignores camera visibility:
+ * leaving the viewport is not replacement coverage.
+ */
+export const isMeshCoverageRemovalSafe = (
+  tile: Tile,
+  resident: Pick<ReadonlySet<Tile>, "has">,
+  acceptsAncestor: (ancestor: Tile) => boolean = () => true
+): boolean => {
+  for (let parent = tile.parent; parent; parent = parent.parent) {
+    if (
+      parent.refine === "REPLACE" &&
+      resident.has(parent) &&
+      isLoadedMesh(parent) &&
+      acceptsAncestor(parent)
+    )
+      return true;
+  }
+  const hasCompleteReplacement = (candidate: Tile): boolean => {
+    if (candidate.refine !== "REPLACE" || !candidate.children?.length)
+      return false;
+    return candidate.children.every(
+      (child) =>
+        (resident.has(child) && isLoadedMesh(child)) ||
+        hasCompleteReplacement(child)
+    );
+  };
+  return hasCompleteReplacement(tile);
+};
 
 const ancestors = function* (tile: Tile): Generator<Tile> {
   for (let parent = tile.parent; parent; parent = parent.parent) yield parent;
@@ -463,11 +698,11 @@ export const refineLoadedMeshFrontier = (
 };
 
 /**
- * A single, atomic quadtree coarsening, judged against the requested display
- * error, never the progressive download admission error. Unknown / failed /
- * external content and skipped generations deliberately fail closed.
+ * Atomic coarsening of a complete resident cut, including skipped generations
+ * and non-quadtree REPLACE hierarchies. Error is judged against display demand.
+ * The previous cut must be complete; loading/failed children are not coverage.
  */
-export const canCoarsenMeshQuartet = (
+export const canCoarsenMeshCut = (
   parent: Tile,
   previous: ReadonlySet<Tile>,
   requestedError: number,
@@ -477,15 +712,14 @@ export const canCoarsenMeshQuartet = (
   isLoadedMesh(parent) &&
   Number.isFinite(errorPixels(parent)) &&
   errorPixels(parent) <= requestedError &&
-  parent.children?.length === 4 &&
-  parent.children.every(
-    (child) =>
-      child.parent === parent && previous.has(child) && isLoadedMesh(child)
-  );
+  getReadyMeshRegionCut(parent, previous, Number.MAX_VALUE, () => ({
+    intersects: true,
+    errorPixels: 0,
+  })) !== null;
 
 /** The ancestor closure of the retained cut, not a second tileset traversal.
  * Native REPLACE traversal must reach these branches even during a coarse
- * bootstrap pass. Only current camera SSE may release a complete quartet;
+ * bootstrap pass. Only current camera SSE may release a complete cut;
  * traversal error can include a light camera or a relaxed admission target.
  */
 export const getRetainedMeshAncestors = (
@@ -495,13 +729,16 @@ export const getRetainedMeshAncestors = (
   errorPixels: (tile: Tile) => number
 ): Set<Tile> => {
   const retained = new Set<Tile>();
+  const coarsenable = new Map<Tile, boolean>();
   for (const tile of previous) {
     if (!isLoadedMesh(tile) || !inView(tile)) continue;
     for (const parent of ancestors(tile)) {
-      if (
-        parent.refine === "REPLACE" &&
-        !canCoarsenMeshQuartet(parent, previous, requestedError, errorPixels)
-      )
+      if (!coarsenable.has(parent))
+        coarsenable.set(
+          parent,
+          canCoarsenMeshCut(parent, previous, requestedError, errorPixels)
+        );
+      if (parent.refine === "REPLACE" && !coarsenable.get(parent))
         retained.add(parent);
     }
   }
@@ -513,7 +750,9 @@ export const getRetainedMeshAncestors = (
  * coarse REPLACE ancestor while a sibling is missing. New regions/refinement
  * still use upstream selection. No ancestor and descendant are returned
  * together in a REPLACE family, so retaining detail cannot create a second surface.
- * Only the current visible cut is retained, not a history of camera views.
+ * Published offscreen coverage remains part of the cut until the proposed cut
+ * contains a loaded ancestor or complete loaded descendant replacement. This
+ * lets sparse motion traversals move without turning resident history blank.
  */
 export const retainMeshDetailFrontier = ({
   previous,
@@ -521,45 +760,150 @@ export const retainMeshDetailFrontier = ({
   requestedError,
   inView,
   errorPixels = (tile) => tile.traversal.error,
+  acceptsOffscreenFallback = () => true,
 }: {
   previous: ReadonlySet<Tile>;
   proposed: ReadonlySet<Tile>;
   requestedError: number;
   inView: (tile: Tile) => boolean;
   errorPixels?: (tile: Tile) => number;
+  /** Distance-dependent reserve demand; do not collapse the fringe to the root. */
+  acceptsOffscreenFallback?: (tile: Tile) => boolean;
 }): Set<Tile> => {
   const result = new Set(proposed);
   const rejected = new Set<Tile>();
-  const refined = new Set<Tile>();
+  // Decision: COVERAGE-DIAGNOSTIC-WORK-20260914 in TILES_COVERAGE.md.
+  // Index this cut once. Re-scanning every proposal for each retained tile's
+  // ancestors made ordinary camera motion quadratic in the resident history.
+  const visibility = new Map<Tile, boolean>();
+  const intersectsView = (tile: Tile): boolean => {
+    if (!visibility.has(tile)) visibility.set(tile, inView(tile));
+    return visibility.get(tile)!;
+  };
+  const inViewProposedAncestors = new Set<Tile>();
+  const descendants = new Map<Tile, Set<Tile>>();
+  const indexResult = (tile: Tile) => {
+    for (let parent = tile.parent; parent; parent = parent.parent) {
+      let indexed = descendants.get(parent);
+      if (!indexed) descendants.set(parent, (indexed = new Set()));
+      indexed.add(tile);
+    }
+  };
+  const addResult = (tile: Tile) => {
+    if (result.has(tile)) return;
+    result.add(tile);
+    indexResult(tile);
+  };
+  const removeDescendants = (ancestor: Tile) => {
+    for (const tile of descendants.get(ancestor) ?? []) result.delete(tile);
+  };
   for (const tile of proposed) {
-    for (const parent of ancestors(tile)) refined.add(parent);
+    indexResult(tile);
+    if (!intersectsView(tile)) continue;
+    for (let node: Tile | null = tile; node; node = node.parent) {
+      if (inViewProposedAncestors.has(node)) break;
+      inViewProposedAncestors.add(node);
+    }
   }
+  const previousCoverage = new Map<Tile, boolean>();
+  const coarsenable = new Map<Tile, boolean>();
+  const previouslyCovered = (tile: Tile) => {
+    if (!previousCoverage.has(tile))
+      previousCoverage.set(
+        tile,
+        getReadyMeshRegionCut(
+          tile,
+          previous,
+          Number.MAX_VALUE,
+          (candidate) => ({
+            intersects: !candidate.traversal || intersectsView(candidate),
+            errorPixels: 0,
+          })
+        ) !== null
+      );
+    return previousCoverage.get(tile)!;
+  };
   for (const tile of previous) {
-    if (!isLoadedMesh(tile) || !inView(tile)) continue;
+    if (!isLoadedMesh(tile) || !intersectsView(tile)) continue;
     for (const parent of ancestors(tile)) {
+      if (proposed.has(parent) && !coarsenable.has(parent))
+        coarsenable.set(
+          parent,
+          canCoarsenMeshCut(parent, previous, requestedError, errorPixels)
+        );
       if (
         parent.refine === "REPLACE" &&
         proposed.has(parent) &&
-        !canCoarsenMeshQuartet(parent, previous, requestedError, errorPixels)
+        !coarsenable.get(parent) &&
+        // Preserve fine detail only when it actually covers the current view.
+        // Rejecting a ready parent above a partial old cut leaves permanent
+        // holes after a pan. Coverage takes precedence over retained detail.
+        previouslyCovered(parent)
       ) {
         rejected.add(parent);
       }
     }
   }
   for (const parent of rejected) result.delete(parent);
+  const offscreenAcceptance = new Map<Tile, boolean>();
+  const getLoadedOffscreenFallback = (tile: Tile): Tile | null => {
+    let fallback: Tile | null = null;
+    for (const parent of ancestors(tile)) {
+      if (
+        parent.refine === "REPLACE" &&
+        isLoadedMesh(parent) &&
+        !intersectsView(parent) &&
+        !inViewProposedAncestors.has(parent)
+      ) {
+        if (!offscreenAcceptance.has(parent))
+          offscreenAcceptance.set(parent, acceptsOffscreenFallback(parent));
+        if (offscreenAcceptance.get(parent)) fallback = parent;
+      }
+    }
+    return fallback;
+  };
   for (const tile of previous) {
-    if (!isLoadedMesh(tile) || refined.has(tile)) continue;
+    if (!isLoadedMesh(tile)) continue;
     // Keep the whole previous family under a rejected ancestor, including
     // its fringe, rather than introduce holes at the viewport boundary.
     const parents = [...ancestors(tile)];
-    if (
-      !parents.some(
-        (parent) => parent.refine === "REPLACE" && result.has(parent)
-      ) &&
-      (inView(tile) || parents.some((parent) => rejected.has(parent)))
-    ) {
-      result.add(tile);
+    if (parents.some((parent) => rejected.has(parent))) {
+      addResult(tile);
+      continue;
     }
+    if (result.has(tile) || isMeshCoverageRemovalSafe(tile, result)) continue;
+    // Publication and eviction have different domains. A complete current-view
+    // child cut may replace the coarse draw without refining offscreen siblings.
+    // Keep physical removal governed by isMeshCoverageRemovalSafe (whole extent),
+    // so the resident ancestor still covers later pans. Unknown bounds fail closed.
+    if (
+      intersectsView(tile) &&
+      getReadyMeshRegionCut(tile, result, Number.MAX_VALUE, (candidate) => ({
+        intersects:
+          !candidate.internal ||
+          !candidate.traversal ||
+          intersectsView(candidate),
+        errorPixels: 0,
+      })) !== null
+    )
+      continue;
+    // Pressure may coarsen a wholly offscreen historical family without waiting
+    // for native traversal to propose it. LOADED proves parsed renderable scene
+    // content, though deferred texture promotion may still finish before a later
+    // pan makes this fallback visible. Never load an ancestor from this helper.
+    const offscreenFallback = !intersectsView(tile)
+      ? getLoadedOffscreenFallback(tile)
+      : null;
+    if (offscreenFallback) {
+      removeDescendants(offscreenFallback);
+      addResult(offscreenFallback);
+      continue;
+    }
+    // A partial descendant proposal is not coverage. Keep the previously
+    // published tile and discard those descendants atomically to avoid drawing
+    // an ancestor and descendant together in one REPLACE family.
+    removeDescendants(tile);
+    addResult(tile);
   }
   return result;
 };

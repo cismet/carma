@@ -4,7 +4,7 @@ import { MeshNivCalibrationScene } from "../components/MeshNivCalibrationScene";
 
 const meta = {
   id: "mesh-2024-hoehenfestpunkt-kalibrierung",
-  title: "Mesh 2024/Höhenfestpunkt-Kalibrierung",
+  title: "Applications/Mesh 2024 Höhenfestpunkt-Kalibrierung",
   component: MeshNivCalibrationScene,
   parameters: {
     layout: "fullscreen",
@@ -41,4 +41,6 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const BolzenUndBekanntePunkte: Story = {};
+export const BolzenUndBekanntePunkte: Story = {
+  name: "Mesh 2024 · Höhenfestpunkt-Kalibrierung",
+};

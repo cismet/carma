@@ -128,7 +128,10 @@ import { getLibreDrawMode } from "../../store/slices/measurements.ts";
 
 import LoginForm from "../LoginForm.tsx";
 
-import { LEAFLET_CONFIG } from "../../config/app.config";
+import {
+  LEAFLET_CONFIG,
+  MAP_BACKGROUND_COLOR,
+} from "../../config/app.config";
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import "../leaflet.css";
@@ -941,7 +944,11 @@ const LibreGeoportalMap = ({ allow3d }: MapProps) => {
           // Do not turn MapLibre's default 4096px ceiling into blurry HiDPI
           // output. Its drawing-buffer/GL-limit fallback remains authoritative.
           maxCanvasSize={[Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY]}
+          // The persisted layer stack is known on the first render; the map
+          // loads its final style once instead of a background it replaces.
+          deferInitialStyle
           backgroundLayers={null}
+          backgroundColor={MAP_BACKGROUND_COLOR}
           zoomControls={false}
           fullScreenControl={false}
           terrainControl={false}

@@ -19,7 +19,8 @@ type PlotArgs = {
 };
 
 const meta: Meta<PlotArgs> = {
-  title: "Geo/Range by FOV",
+  title: "Map Navigation/Camera and Scale",
+  id: "geo-range-by-fov",
   args: {
     xAxisMode: DOLLY_ZOOM_X_AXIS_MODES.FOV_DEG,
   },
