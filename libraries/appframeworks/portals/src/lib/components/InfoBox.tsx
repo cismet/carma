@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState } from "react";
+import { useContext, useEffect, useState, type ReactNode } from "react";
 import { ResponsiveInfoBox, MODES } from "./ResponsiveInfoBox";
 import { TopicMapStylingContext } from "react-cismap/contexts/TopicMapStylingContextProvider";
 import {
@@ -30,6 +30,8 @@ interface InfoBoxProps {
   title?: any;
   subtitle?: any;
   additionalInfo?: any;
+  /** lines rendered under the subtitle, e.g. the contributed info box notes */
+  notes?: ReactNode;
   zoomToAllLabel?: any;
   currentlyShownCountLabel?: any;
   collapsedInfoBox?: any;
@@ -74,6 +76,7 @@ export const InfoBox = ({
   title,
   subtitle,
   additionalInfo,
+  notes,
   zoomToAllLabel,
   currentlyShownCountLabel,
   collapsedInfoBox,
@@ -406,6 +409,7 @@ export const InfoBox = ({
                             !subtitle.startsWith("<html>")) && (
                             <p style={{ whiteSpace: "pre-line" }}>{subtitle}</p>
                           )}
+                        {notes}
                       </td>
                     </tr>
                   </tbody>

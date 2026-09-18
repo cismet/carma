@@ -29,6 +29,7 @@ import {
   useOverlayHelper,
   useOverlayTourContext,
 } from "@carma-commons/ui/helper-overlay";
+import { useControlsHidden } from "@carma-appframeworks/portals";
 import { cn } from "@carma-commons/utils";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import { SystemMessageBanner } from "@carma-mapping/layers";
@@ -77,7 +78,10 @@ const TopNavbar = () => {
   const selectedByCategory = useSelector(getSelectedByCategory);
   const zenMode = useSelector(getZenMode);
   const visibleControls = useSelector(getUIVisibleControls);
-  const navbarHidden = zenMode || !visibleControls.navbar;
+  // a contributor's "map only" moment (`carma.ui.hideControls`) hides the
+  // navbar like zen mode does
+  const { hidden: controlsHidden } = useControlsHidden();
+  const navbarHidden = zenMode || !visibleControls.navbar || controlsHidden;
 
   const hintergrundConfig = useMemo(
     () => getCollabedHelpElementsConfig("HINTERGRUND", geoElements),

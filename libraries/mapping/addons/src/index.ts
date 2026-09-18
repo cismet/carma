@@ -275,6 +275,46 @@ export {
   type OriginSearchConfig,
 } from "./addons/OriginSearch";
 export {
+  RouteModePicker,
+  type RouteModePickerConfig,
+} from "./addons/RouteModePicker";
+export {
+  Routing,
+  RoutingPanel,
+  RoutingInteractionPanel,
+  DEFAULT_ROUTE_MODE,
+  routeCameraTarget,
+  useActiveRoute,
+  useRouteMode,
+  useRouteModeRequest,
+  useRouteModeState,
+  useRouteNavigation,
+  useRoutingLayerRow,
+  ROUTING_ICON_COLOR,
+  ROUTING_LAYER,
+  ROUTING_LAYER_ID,
+  ROUTING_TOOLS_INTERACTION_ID,
+  type ActiveRoute,
+  type ActiveRouteState,
+  type RouteCameraTarget,
+  type RouteMode,
+  type RouteModeState,
+  type RouteNavigation,
+  type RouteNavigationState,
+  type RouteProgress,
+  type RoutingConfig,
+  type UseRoutingLayerRowOptions,
+} from "./addons/Routing";
+export {
+  LocationSimulator,
+  createFakeDevice,
+  useLocationSimulation,
+  type FakeDevice,
+  type LocationSimulation,
+  type LocationSimulationState,
+  type LocationSimulatorConfig,
+} from "./addons/LocationSimulator";
+export {
   collectNearestFromIndex,
   primeFeatureIndexes,
   type FeatureIndex,

@@ -28,12 +28,30 @@ export {
   type RouteOption,
 } from "./utils/routeDisplay";
 
-// Car route summary (travel time / driven distance, no geometry)
+// Route summary by one mode of travel (time, distance, line, instructions)
 export {
-  fetchCarRoute,
-  type CarRouteSummary,
-  type FetchCarRouteParams,
-} from "./utils/carRoute";
+  DEFAULT_MAX_DIRECT_TIME,
+  fetchRoute,
+  type FetchRouteParams,
+  type RouteDirection,
+  type RouteStep,
+  type RouteSummary,
+  type TravelMode,
+} from "./utils/directRoute";
+
+// How a route's numbers and instructions read, everywhere they are shown
+export {
+  formatDirection,
+  formatDistance,
+  formatDuration,
+  formatRouteSummary,
+  formatTurnDistance,
+  getModeIcon,
+  getModeLabel,
+} from "./utils/formatters";
+
+// What a route looks like, wherever one is drawn
+export { ROUTE_BLUE, ROUTE_CASING, ROUTE_GRAY } from "./utils/routeColors";
 
 // UI Components
 export { RouteOptionsDrawer } from "./components/RouteOptionsDrawer";

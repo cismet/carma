@@ -3,8 +3,13 @@ import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
 import { useOverlayTourContext } from "@carma-commons/ui/helper-overlay";
 import { registerUi, type UiAdapter } from "@carma-api";
 
+import { addInfoBoxAction } from "../info-box-actions";
+import { addInfoBoxNote } from "../info-box-notes";
+import { requestHideControls } from "../hidden-controls";
+
 /**
- * Registers the `carma.ui` adapter: menu visibility and the helper overlay.
+ * Registers the `carma.ui` adapter: menu visibility, the helper overlay, the
+ * info box stores (actions and notes) and the requests to hide the controls.
  *
  * To add a ui function: extend `UiAdapter` in `@carma-api`, then add the
  * closure to the adapter object below.
@@ -18,6 +23,13 @@ export const useUiAdapter = (): void => {
     const adapter: UiAdapter = {
       openMenu: () => setAppMenuVisible?.(true),
       openHelperOverlay: () => showOverlayHandler(),
+      // the app's info box reads the stores with `useInfoBoxActions` and
+      // `useInfoBoxNotes`
+      registerInfoBoxAction: addInfoBoxAction,
+      registerInfoBoxNote: addInfoBoxNote,
+      // the app's map wrapper, navbar, info box and layer bar read the store
+      // with `useControlsHidden`
+      requestHideControls,
     };
     registerUi(adapter);
     return () => registerUi(null);

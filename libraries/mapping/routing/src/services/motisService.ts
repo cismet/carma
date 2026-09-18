@@ -24,6 +24,8 @@ export interface MotisRouteParams {
   arriveBy?: boolean;
   transitModes?: motis.Mode[];
   directModes?: motis.Mode[];
+  /** seconds a direct trip may take; the service's own default is 30 min */
+  maxDirectTime?: number;
 }
 
 export function formatPlace(place: MotisPlace | string): string {
@@ -52,6 +54,9 @@ export async function planRoute(params: MotisRouteParams) {
       transitModes: params.transitModes || ("" as unknown as motis.Mode[]),
       directModes:
         params.directModes || ("WALK,CAR,BIKE" as unknown as motis.Mode[]),
+      ...(params.maxDirectTime !== undefined
+        ? { maxDirectTime: params.maxDirectTime }
+        : {}),
       withFares: true,
       joinInterlinedLegs: false,
       maxMatchingDistance: 250,
