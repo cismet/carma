@@ -54,7 +54,9 @@ export const ShadowSimulationRenderSettings = ({
           style={{ width: "100%", minWidth: 0 }}
           virtual={false}
           value={
-            tiledShadows ? quality.shadowBufferLayout : SHADOW_BUFFER_LAYOUT.MONO
+            tiledShadows
+              ? quality.shadowBufferLayout
+              : SHADOW_BUFFER_LAYOUT.MONO
           }
           options={[
             { value: SHADOW_BUFFER_LAYOUT.MONO, label: "Einzelpuffer" },

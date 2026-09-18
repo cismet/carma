@@ -58,10 +58,15 @@ describe("three tiles runtime effective error target", () => {
       getPitch: () => view.pitch,
     } as unknown as MaplibreMap;
     // Pin the ceiling the fixtures fill; the desktop default is 6 GiB.
-    const layer = buildThreeTilesRuntime("mesh", "tileset.json", [7.15, 51.25], {
-      cacheBudgetBytes: GIB,
-      cacheOverflowBytes: 0,
-    });
+    const layer = buildThreeTilesRuntime(
+      "mesh",
+      "tileset.json",
+      [7.15, 51.25],
+      {
+        cacheBudgetBytes: GIB,
+        cacheOverflowBytes: 0,
+      }
+    );
     const viewCamera = new THREE.PerspectiveCamera();
     const frame = {
       map,

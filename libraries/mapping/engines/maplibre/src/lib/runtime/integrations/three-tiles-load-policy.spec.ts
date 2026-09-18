@@ -89,9 +89,9 @@ describe("resolveTilesCacheCeiling", () => {
   });
 
   it("scales Chromium desktops by device memory within bounds", () => {
-    expect(
-      resolveTilesCacheCeiling({ ...desktop, deviceMemoryGiB: 0.5 })
-    ).toBe(TILES_CACHE_CEILING_BYTES.desktopMinimum);
+    expect(resolveTilesCacheCeiling({ ...desktop, deviceMemoryGiB: 0.5 })).toBe(
+      TILES_CACHE_CEILING_BYTES.desktopMinimum
+    );
     expect(resolveTilesCacheCeiling({ ...desktop, deviceMemoryGiB: 4 })).toBe(
       4 * TILES_CACHE_CEILING_BYTES.perDeviceMemoryGiB
     );

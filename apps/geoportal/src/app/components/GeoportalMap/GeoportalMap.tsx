@@ -136,10 +136,7 @@ import { getLibreDrawMode } from "../../store/slices/measurements.ts";
 
 import LoginForm from "../LoginForm.tsx";
 
-import {
-  LEAFLET_CONFIG,
-  MAP_BACKGROUND_COLOR,
-} from "../../config/app.config";
+import { LEAFLET_CONFIG, MAP_BACKGROUND_COLOR } from "../../config/app.config";
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import "../leaflet.css";

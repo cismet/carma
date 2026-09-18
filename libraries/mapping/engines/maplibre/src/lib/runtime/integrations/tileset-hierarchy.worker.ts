@@ -96,8 +96,8 @@ const optionalRead = async (url: string) => {
       records
         .get<TilesetHierarchyPage>(key, { touch: false })
         .then((record) => {
-        // Decision: runtime profiling/cache-recovery record in TILES_COVERAGE.md.
-        // A stall parks reads, not the whole
+          // Decision: runtime profiling/cache-recovery record in TILES_COVERAGE.md.
+          // A stall parks reads, not the whole
           // session. Reopen only when an outstanding read actually completes;
           // a permanently blocked database therefore cannot accumulate probes.
           readsAvailable = true;

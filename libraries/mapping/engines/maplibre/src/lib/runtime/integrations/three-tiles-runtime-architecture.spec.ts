@@ -14,9 +14,9 @@ const runtimeModules = readdirSync(directory).filter(
 describe("three tiles runtime architecture", () => {
   it("does not retain the replaced standalone tile loading pipeline", () => {
     const legacyPackage = join(directory, "../../../../../threejs");
-    expect(
-      existsSync(join(legacyPackage, "src/tiles3d/Tiles3dLayer.ts"))
-    ).toBe(false);
+    expect(existsSync(join(legacyPackage, "src/tiles3d/Tiles3dLayer.ts"))).toBe(
+      false
+    );
     expect(
       readFileSync(join(legacyPackage, "src/index.ts"), "utf8")
     ).not.toMatch(/\b(?:buildTiles3dLayer|Tiles3dCustomLayer)\b/);

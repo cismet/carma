@@ -1332,7 +1332,11 @@ describe("three tiles runtime styling", () => {
       "tileset.json",
       [7.15, 51.25],
       // Pin the ceiling this test fills; the desktop default is 6 GiB.
-      { providesTerrain: false, cacheBudgetBytes: 1024 ** 3, cacheOverflowBytes: 0 }
+      {
+        providesTerrain: false,
+        cacheBudgetBytes: 1024 ** 3,
+        cacheOverflowBytes: 0,
+      }
     );
     const viewCamera = new THREE.PerspectiveCamera();
     const frame = {
