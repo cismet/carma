@@ -21,9 +21,11 @@ import type { RouteDirection } from "@carma-mapping/routing";
  * left, head pointing down), so the turns are that glyph turned: a quarter
  * turn anticlockwise (negative in CSS) makes the tail come up from below and
  * the head point right; mirrored first and turned clockwise it points left.
- * The hard turns are turned an eighth less, so the head points back down;
- * the slight ones are the straight arrow leaned a little. CSS transforms
- * apply right to left, so the mirror is written last.
+ * The hard turns are turned an eighth less, so the head points back down.
+ * The slight ones get the plain turn too: the straight arrow leaned a little
+ * read as "the road bends" rather than as something to do, so the glyph says
+ * "turn" and the words ("leicht rechts halten") carry the nuance. CSS
+ * transforms apply right to left, so the mirror is written last.
  */
 export type DirectionIcon = {
   icon: IconDefinition;
@@ -39,10 +41,10 @@ const HARD_LEFT = "rotate(45deg) scaleX(-1)";
 const ICONS: Record<RouteDirection, DirectionIcon> = {
   DEPART: { icon: faLocationArrow },
   CONTINUE: { icon: faArrowUp },
-  SLIGHTLY_LEFT: { icon: faArrowUp, transform: "rotate(-35deg)" },
+  SLIGHTLY_LEFT: { icon: faArrowTurnDown, transform: LEFT },
   LEFT: { icon: faArrowTurnDown, transform: LEFT },
   HARD_LEFT: { icon: faArrowTurnDown, transform: HARD_LEFT },
-  SLIGHTLY_RIGHT: { icon: faArrowUp, transform: "rotate(35deg)" },
+  SLIGHTLY_RIGHT: { icon: faArrowTurnDown, transform: RIGHT },
   RIGHT: { icon: faArrowTurnDown, transform: RIGHT },
   HARD_RIGHT: { icon: faArrowTurnDown, transform: HARD_RIGHT },
   UTURN_LEFT: { icon: faArrowRotateLeft },
