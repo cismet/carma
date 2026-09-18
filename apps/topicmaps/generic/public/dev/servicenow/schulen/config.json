@@ -1,0 +1,171 @@
+{
+  "tm": {
+    "windowtitle": "Schulen Wuppertal",
+    "noFeatureCollection": true,
+    "previewMapPosition": "lat=51.2708421&lng=7.2125083&zoom=12.697",
+    "vectorLayers": [
+      {
+        "name": "Schulen",
+        "layer": "poi_schulen@https://maps.wuppertal.de/poi?service=WMS&request=GetCapabilities&version=1.1.1",
+        "addMetaInfoToHelp": true,
+        "layerType": "vector",
+        "style": "https://tiles.cismet.de/schulen/schule.style.json",
+        "infoboxMapping": [
+          "foto: p.foto",
+          "header:'Bildung'",
+          "headerColor:'#EEB522'",
+          "title:p.name",
+          "additionalInfo:'Träger: ' + p.traeger + ', ' + p.adresse",
+          "subtitle:  'OGS: ' + p.ogs + ', Betreuung: ' + p.gruppe + ', jahrgangsübergreifende Klassen: ' + p.jahrgang",
+          "url:p.homepage",
+          "tel:p.telefon"
+        ],
+        "opacity": 1
+      },
+      {
+        "name": "Grundschulen",
+        "layer": "poi_schulen_grund@https://maps.wuppertal.de/poi?service=WMS&request=GetCapabilities&version=1.1.1",
+        "addMetaInfoToHelp": true,
+        "layerType": "vector",
+        "style": "https://tiles.cismet.de/schulen/grundschule.style.json",
+        "infoboxMapping": [
+          "foto: p.foto",
+          "header:'Grundschule'",
+          "headerColor:p.farbe",
+          "title:p.name",
+          "additionalInfo:'Träger: ' + p.traeger + ', ' + p.adresse",
+          "subtitle:  'OGS: ' + p.ogs + ', Betreuung: ' + p.gruppe + ', jahrgangsübergreifende Klassen: ' + p.jahrgang",
+          "url:p.homepage",
+          "tel:p.telefon"
+        ],
+        "opacity": 1
+      },
+      {
+        "name": "Gymnasien",
+        "layer": "poi_schulen_gym@https://maps.wuppertal.de/poi?service=WMS&request=GetCapabilities&version=1.1.1",
+        "addMetaInfoToHelp": true,
+        "layerType": "vector",
+        "style": "https://tiles.cismet.de/schulen/gymnasium.style.json",
+        "infoboxMapping": [
+          "foto: p.foto",
+          "header:'Gymnasium'",
+          "headerColor:p.farbe",
+          "title:p.name",
+          "additionalInfo:'Träger: ' + p.traeger + ', ' + p.adresse",
+          "subtitle:  'OGS: ' + p.ogs + ', Betreuung: ' + p.gruppe + ', jahrgangsübergreifende Klassen: ' + p.jahrgang",
+          "url:p.homepage",
+          "tel:p.telefon"
+        ],
+        "opacity": 1
+      },
+      {
+        "name": "Realschulen",
+        "layer": "poi_schulen_real@https://maps.wuppertal.de/poi?service=WMS&request=GetCapabilities&version=1.1.1",
+        "addMetaInfoToHelp": true,
+        "layerType": "vector",
+        "style": "https://tiles.cismet.de/schulen/realschule.style.json",
+        "infoboxMapping": [
+          "foto: p.foto",
+          "header:'Realschule'",
+          "headerColor:p.farbe",
+          "title:p.name",
+          "additionalInfo:'Träger: ' + p.traeger + ', ' + p.adresse",
+          "subtitle:  'OGS: ' + p.ogs + ', Betreuung: ' + p.gruppe + ', jahrgangsübergreifende Klassen: ' + p.jahrgang",
+          "url:p.homepage",
+          "tel:p.telefon"
+        ],
+        "opacity": 1
+      },
+      {
+        "name": "Hauptschulen",
+        "layer": "poi_schulen_haupt@https://maps.wuppertal.de/poi?service=WMS&request=GetCapabilities&version=1.1.1",
+        "addMetaInfoToHelp": true,
+        "layerType": "vector",
+        "style": "https://tiles.cismet.de/schulen/hauptschule.style.json",
+        "infoboxMapping": [
+          "foto: p.foto",
+          "header:'Hauptschule'",
+          "headerColor:p.farbe",
+          "title:p.name",
+          "additionalInfo:'Träger: ' + p.traeger + ', ' + p.adresse",
+          "subtitle:  'OGS: ' + p.ogs + ', Betreuung: ' + p.gruppe + ', jahrgangsübergreifende Klassen: ' + p.jahrgang",
+          "url:p.homepage",
+          "tel:p.telefon"
+        ],
+        "opacity": 1
+      },
+      {
+        "name": "Gesamtschulen",
+        "layer": "poi_schulen_gesamt@https://maps.wuppertal.de/poi?service=WMS&request=GetCapabilities&version=1.1.1",
+        "addMetaInfoToHelp": true,
+        "layerType": "vector",
+        "style": "https://tiles.cismet.de/schulen/gesamtschule.style.json",
+        "infoboxMapping": [
+          "foto: p.foto",
+          "header:'Gesamtschule'",
+          "headerColor:p.farbe",
+          "title:p.name",
+          "additionalInfo:'Träger: ' + p.traeger + ', ' + p.adresse",
+          "subtitle:  'OGS: ' + p.ogs + ', Betreuung: ' + p.gruppe + ', jahrgangsübergreifende Klassen: ' + p.jahrgang",
+          "url:p.homepage",
+          "tel:p.telefon"
+        ],
+        "opacity": 1
+      },
+      {
+        "name": "Förderschulen",
+        "layer": "poi_schulen_forder@https://maps.wuppertal.de/poi?service=WMS&request=GetCapabilities&version=1.1.1",
+        "addMetaInfoToHelp": true,
+        "layerType": "vector",
+        "style": "https://tiles.cismet.de/schulen/foerderschule.style.json",
+        "infoboxMapping": [
+          "foto: p.foto",
+          "header:'Förderschule'",
+          "headerColor:p.farbe",
+          "title:p.name",
+          "additionalInfo:'Träger: ' + p.traeger + ', ' + p.adresse",
+          "subtitle:  'OGS: ' + p.ogs + ', Betreuung: ' + p.gruppe + ', jahrgangsübergreifende Klassen: ' + p.jahrgang",
+          "url:p.homepage",
+          "tel:p.telefon"
+        ],
+        "opacity": 1
+      },
+      {
+        "name": "Andere Schulformen",
+        "layer": "poi_schulen_andere@https://maps.wuppertal.de/poi?service=WMS&request=GetCapabilities&version=1.1.1",
+        "addMetaInfoToHelp": true,
+        "layerType": "vector",
+        "style": "https://tiles.cismet.de/schulen/andere.style.json",
+        "infoboxMapping": [
+          "foto: p.foto",
+          "header:'andere Schulform'",
+          "headerColor:p.farbe",
+          "title:p.name",
+          "additionalInfo:'Träger: ' + p.traeger + ', ' + p.adresse",
+          "subtitle:  'OGS: ' + p.ogs + ', Betreuung: ' + p.gruppe + ', jahrgangsübergreifende Klassen: ' + p.jahrgang",
+          "url:p.homepage",
+          "tel:p.telefon"
+        ],
+        "opacity": 1
+      },
+      {
+        "name": "Berufsbildende Schulen",
+        "layer": "poi_schulen_beruf@https://maps.wuppertal.de/poi?service=WMS&request=GetCapabilities&version=1.1.1",
+        "addMetaInfoToHelp": true,
+        "layerType": "vector",
+        "style": "https://tiles.cismet.de/schulen/berufsbildende.style.json",
+        "infoboxMapping": [
+          "foto: p.foto",
+          "header:'Berufsbildende Schule'",
+          "headerColor:p.farbe",
+          "title:p.name",
+          "additionalInfo:'Träger: ' + p.traeger + ', ' + p.adresse",
+          "subtitle:  'OGS: ' + p.ogs + ', Betreuung: ' + p.gruppe + ', jahrgangsübergreifende Klassen: ' + p.jahrgang",
+          "url:p.homepage",
+          "tel:p.telefon"
+        ],
+        "opacity": 1
+      }
+    ]
+  }
+}

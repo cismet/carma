@@ -231,7 +231,13 @@ function App({ name }) {
       setFaultLog((prev) => [...prev, msg]);
     }
   };
-  const slugName = slugify(name, { lower: true });
+  // Nested configs ("servicenow/schulen") keep their "/" as folder separator,
+  // so each path segment is slugified on its own
+  const slugName = name
+    .split("/")
+    .filter((segment) => segment !== "")
+    .map((segment) => slugify(segment, { lower: true }))
+    .join("/");
 
   const hashParams = getHashParams();
   const overrideConfigPath = hashParams.configPath;
@@ -354,7 +360,7 @@ function App({ name }) {
       } else {
         // Fast-path: Add minimal info for layers with style property
         for (const layer of vectorLayers) {
-          if (layer.style) {
+          if (layer.style && layer.capabilitiesLayer) {
             layerInfoObj[layer.capabilitiesLayer] = {
               ...(layer.id ? { id: layer.id } : {}),
               ...(layer.style ? { style: layer.style } : {}),
@@ -796,20 +802,14 @@ function App({ name }) {
       : [];
     if (vectorLayers.length > 0) {
       //check if every layer which has addMetaInfoToHelp turned on
-      // is ready (shown in doneWithFetchingAdditionalInfo)
-      let readyForProduction = false;
-      vectorLayers.forEach((layer) => {
-        const info = layerInformation[layer.capabilitiesLayer];
-        if (
-          (info &&
-            info.addMetaInfoToHelp === true &&
-            info.doneWithFetchingAdditionalInfo === true) ||
-          (info && info.addMetaInfoToHelp === false)
-        ) {
-          readyForProduction = true;
-        } else {
-          readyForProduction = false;
+      // is ready (shown in doneWithFetchingAdditionalInfo);
+      // style-only layers without capabilities never take part in the meta info
+      const readyForProduction = vectorLayers.every((layer) => {
+        if (!layer.capabilitiesLayer || layer.addMetaInfoToHelp !== true) {
+          return true;
         }
+        const info = layerInformation[layer.capabilitiesLayer];
+        return info?.doneWithFetchingAdditionalInfo === true;
       });
 
       if (readyForProduction === true) {

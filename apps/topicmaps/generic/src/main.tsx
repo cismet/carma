@@ -36,13 +36,15 @@ if (typeof global === "undefined") {
 }
 
 function AppWrapper() {
-  let { name } = useParams();
-  // Now you can use 'name' inside your App component or pass it as a prop
-  if (name === undefined) {
+  // The splat captures nested config paths like "servicenow/schulen"
+  const { "*": splat } = useParams();
+  let name = (splat ?? "").replace(/^\/+|\/+$/g, "");
+  if (name === "") {
     name = "GTM_ohne_Konfiguration";
   }
-  //set the window title to the name param but replace the underscores with spaces
-  document.title = name.split("_").join(" ");
+  //set the window title to the last path segment but replace the underscores with spaces
+  const lastSegment = name.split("/").pop() ?? name;
+  document.title = lastSegment.split("_").join(" ");
 
   return <App name={name} />;
 }
@@ -51,7 +53,7 @@ root.render(
   // <StrictMode>
   <Router>
     <Routes>
-      <Route path="/:name?" element={<AppWrapper />}></Route>
+      <Route path="/*" element={<AppWrapper />}></Route>
     </Routes>
   </Router>
   // </StrictMode>

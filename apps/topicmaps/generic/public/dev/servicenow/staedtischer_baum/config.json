@@ -1,0 +1,30 @@
+{
+  "tm": {
+    "windowtitle": "Städtischer Baum Wuppertal",
+    "noFeatureCollection": true,
+    "previewMapPosition": "lat=51.2752662&lng=7.1802909&zoom=14.63",
+    "vectorLayers": [
+      {
+        "name": "Baumbewässerung mit Bürgerbeteiligung",
+        "addMetaInfoToHelp": false,
+        "layerType": "vector",
+        "style": "https://tiles.cismet.de/baumbewaesserung/style.json",
+        "infoboxMapping": [
+          "function createInfoBoxInfo(p) { const item = p.targetProperties || p; const baumart = item.baumart || 'Unbekannte Baumart'; const pflanzjahr = item.pflanzjahr != null ? String(item.pflanzjahr) : null; return { headerColor: '#819b23', header: 'Baumbewässerung', title: baumart, subtitle: pflanzjahr ? 'Pflanzjahr ' + pflanzjahr : 'Pflanzjahr nicht angegeben', genericLinks: [ { url: 'https://tiles.cismet.de/baumbewaesserung/assets/2608_Wasserung_Strassenbaume_WEB.pdf', tooltip: 'Anleitung zur Bewässerung', iconname: 'file-pdf-o', target: 'giessanleitung', }, ], }; }"
+        ],
+        "opacity": 1
+      },
+      {
+        "name": "Stadtbaumkonzept-Pflanzungen 26/27",
+        "layer": "stadtbaumkonzept@https://maps.wuppertal.de/umwelt?service=WMS&request=GetCapabilities&version=1.1.1",
+        "addMetaInfoToHelp": true,
+        "layerType": "vector",
+        "style": "https://tiles.cismet.de/stadtbaumkonzept/style.json",
+        "infoboxMapping": [
+          "function createInfoBoxInfo(p) {  const item = p.targetProperties || p;  const baumartName = item.art || p.baumart || 'Unbekannte Baumart';  return {    headerColor: '#319e31',    header: 'Stadtbaumkonzept',    title: baumartName,    additionalInfo: `Botanischer Name: ${p.baumart || 'Nicht angegeben'}`,    subtitle: `Pflanzsaison: ${p.pflanzsais || 'Nicht angegeben'}`,  };}"
+        ],
+        "opacity": 1
+      }
+    ]
+  }
+}

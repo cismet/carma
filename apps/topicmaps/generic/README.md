@@ -37,6 +37,25 @@ Für eine neue Karte wird im Konfigurationsordner (siehe oben) ein eigener Unter
 meine_neue_karte/
 ```
 
+#### Verschachtelte Konfigurationen (Unterrouten)
+
+Konfigurationen können auch in Unterordnern gruppiert werden. Jeder Pfadabschnitt der URL entspricht dabei einem Ordner im Konfigurationsverzeichnis. Beispiel für die ServiceNow-Karten:
+
+```text
+servicenow/
+  schulen/
+    config.json
+  staedtischer_baum/
+    config.json
+```
+
+- `/#/servicenow/Schulen` lädt `servicenow/schulen/config.json`
+- `/#/servicenow/Staedtischer_Baum` lädt `servicenow/staedtischer_baum/config.json`
+
+Jeder Pfadabschnitt wird einzeln in einen Slug umgewandelt (Kleinbuchstaben; Umlaute werden zu `a`, `o`, `u`, also `Städtischer_Baum` → `stadtischer_baum`). Ordnernamen sollten deshalb ohne Umlaute angelegt werden.
+
+Alle relativen Dateiverweise (`@datei.js`, `@symbol.svg`, `@hilfe.md`) werden relativ zum jeweiligen Unterordner aufgelöst.
+
 ### 2.2. Konfigurationsdateien anlegen
 
 In diesem Ordner wird mindestens eine Datei, `config.json`, benötigt. Optional können weitere Dateien wie `layers.json`, `style.json` etc. angelegt werden, je nach Bedarf und Komplexität.
@@ -79,6 +98,8 @@ Diese Konfiguration zeigt eine leere Karte ohne spziellen Layer mit ZUsatzinform
   
   
 ```
+
+Ein Layer kann auch ganz ohne `layer`-Verweis auf einen WMS auskommen, wenn er nur über einen `style` (Vector Style) und ein eigenes `infoboxMapping` definiert ist (z.B. `servicenow/staedtischer_baum`). In dem Fall gibt es keine Metainformationen aus den Capabilities, `addMetaInfoToHelp` sollte dann auf `false` stehen.
 
 Ohne den angegebenen `style` wird der Style aus dem `carmaConf` Parametern des WMS gesetzt. Das Ffunktioniert auch, dauert aber etwas länger, da zuerst die Capabilities geladen und geparst werden müssen. Wir empfehlen deshalb den Style zusätzlich (wie oben angegeben) zu setzen.
 
