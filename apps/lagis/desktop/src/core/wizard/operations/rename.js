@@ -13,7 +13,11 @@ import {
 } from "../api";
 import { formatKey } from "../keys";
 import { acquireLock, releaseLock } from "../locks";
-import { createFlurstueckForKey, hasHistoryEntry, setHistoricForKey } from "./core";
+import {
+  createFlurstueckForKey,
+  hasHistoryEntry,
+  setHistoricForKey,
+} from "./core";
 import { buildNutzungClone } from "./nutzungClone";
 
 /**
@@ -76,7 +80,10 @@ export const renameFlurstueck = async ({ oldKey, newKey }, ctx) => {
     };
     const emptyArrays = { ar_vertraegeArray: [], ar_baeumeArray: [] };
 
-    if (movedArrays.ar_vertraegeArray.length || movedArrays.ar_baeumeArray.length) {
+    if (
+      movedArrays.ar_vertraegeArray.length ||
+      movedArrays.ar_baeumeArray.length
+    ) {
       await saveFlurstueckArrays(created.flurstueckId, movedArrays, jwt);
       await saveFlurstueckArrays(oldFlurstueck.id, emptyArrays, jwt);
       journal.record(
@@ -110,7 +117,11 @@ export const renameFlurstueck = async ({ oldKey, newKey }, ctx) => {
     await setHistoricForKey(oldKey, new Date(), undefined, ctx);
 
     for (const eintrag of oldFlurstueck.verwaltungsbereichEintraege) {
-      await moveVerwaltungsbereichEintrag(eintrag.id, created.flurstueckId, jwt);
+      await moveVerwaltungsbereichEintrag(
+        eintrag.id,
+        created.flurstueckId,
+        jwt
+      );
       journal.record(`Verschieben des Verwaltungsbereichs ${eintrag.id}`, () =>
         moveVerwaltungsbereichEintrag(eintrag.id, oldFlurstueck.id, jwt)
       );

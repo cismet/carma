@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Alert, Spin, Table } from "antd";
 import { useSelector } from "react-redux";
 import { checkAreas } from "../../../core/wizard/areaCheck";
+import { explain } from "../../../core/wizard/errors";
 import {
   SMALL_AREA_THRESHOLD_SQM,
   WIZARD_ACTIONS,
@@ -55,7 +56,10 @@ const SummaryStep = ({ value, onProblem }) => {
         }
       } catch (e) {
         if (!cancelled) {
-          setState({ loading: false, error: e.message });
+          setState({
+            loading: false,
+            error: explain("Die Flächen konnten nicht geprüft werden", e),
+          });
           onProblem("Fehler beim Prüfen der Geometrien");
         }
       }
@@ -86,7 +90,11 @@ const SummaryStep = ({ value, onProblem }) => {
       key: "area",
       align: "right",
       render: (area, row) =>
-        row.missing ? <span className="text-amber-600">unbekannt</span> : formatArea(area),
+        row.missing ? (
+          <span className="text-amber-600">unbekannt</span>
+        ) : (
+          formatArea(area)
+        ),
     },
   ];
 

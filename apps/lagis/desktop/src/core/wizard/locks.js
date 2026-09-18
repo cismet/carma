@@ -79,7 +79,7 @@ export const acquireLock = async (
     );
   } catch (e) {
     throw new ActionNotSuccessfulError(
-      `Anlegen einer Sperre für das Flurstück ${keyString} nicht möglich: ${e.message}`,
+      `Anlegen einer Sperre für das Flurstück ${keyString} nicht möglich.`,
       e
     );
   }

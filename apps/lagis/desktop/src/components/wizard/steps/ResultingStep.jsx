@@ -60,9 +60,7 @@ const ResultingStep = ({ value, onChange, onProblem }) => {
   return (
     <div className="flex flex-col gap-3">
       <div className="font-medium">
-        {isJoin
-          ? "Flurstück, das entsteht"
-          : `Flurstücke, die entstehen (${count})`}
+        {isJoin ? "Flurstück anlegen" : "Flurstücke anlegen"}
       </div>
       {Array.from({ length: count }).map((_, index) => (
         <LandParcelKeyChooser

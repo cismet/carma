@@ -1,16 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import LandParcelKeyChooser from "../LandParcelKeyChooser";
+import { explain } from "../../../core/wizard/errors";
 import {
   fetchFlurstueckBySchluesselId,
   hasSuccessors,
 } from "../../../core/wizard/api";
 
-/**
- * Port of ActivateActionPanel. Only historic parcels can be activated, and only
- * when they have no successor — the same check the panel ran before enabling
- * the finish button.
- */
 const ActivateStep = ({ value, onChange, onProblem }) => {
   const jwt = useSelector((state) => state.auth.jwt);
   const [checking, setChecking] = useState(false);
@@ -43,7 +39,7 @@ const ActivateStep = ({ value, onChange, onProblem }) => {
       onChange({ activateKey: key });
       onProblem(null);
     } catch (e) {
-      onProblem(e.message);
+      onProblem(explain("Das Flurstück konnte nicht geprüft werden", e));
     } finally {
       setChecking(false);
     }

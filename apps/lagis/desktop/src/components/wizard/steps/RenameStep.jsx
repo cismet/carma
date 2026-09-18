@@ -6,8 +6,6 @@ const OLD_KEY_PROMPT =
 const NEW_KEY_PROMPT = "Bitte geben Sie den neuen Flurstücksschlüssel ein";
 
 const RenameStep = ({ value, onChange, onProblem }) => {
-  // refs, not state: both choosers report while mounting, and the second call
-  // would otherwise still see the first one's status from the old render
   const oldStatus = useRef({ valid: false, message: OLD_KEY_PROMPT });
   const newStatus = useRef({ valid: false, message: NEW_KEY_PROMPT });
 

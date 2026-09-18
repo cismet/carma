@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Tag } from "antd";
 import { useSelector } from "react-redux";
 import { LandParcelSearch } from "@carma-mapping/fuzzy-search";
 import { getLandparcelInternaDataStructure } from "../../store/slices/lagis";
@@ -14,8 +13,8 @@ import {
   presetToSearchText,
   resolveGemarkung,
 } from "../../core/wizard/parcelSearchAdapter";
-import { FLURSTUECK_ART } from "../../core/wizard/constants";
 import useStammdaten from "../../core/wizard/useStammdaten";
+import { explain } from "../../core/wizard/errors";
 
 const INCOMPLETE = "Bitte vervollständigen Sie alle Flurstücke";
 
@@ -50,7 +49,6 @@ const LandParcelKeyChooser = ({
   const pickedRef = useRef(text);
   const checkRef = useRef(0);
 
-  // an empty chooser has to say so, otherwise the step looks complete
   useEffect(() => {
     onValidity(status);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -110,7 +108,10 @@ const LandParcelKeyChooser = ({
       });
     } catch (e) {
       if (token === checkRef.current) {
-        publish(undefined, { valid: false, message: e.message });
+        publish(undefined, {
+          valid: false,
+          message: explain("Flurstück konnte nicht geladen werden", e),
+        });
       }
     }
   };
@@ -120,7 +121,7 @@ const LandParcelKeyChooser = ({
     if (stammdatenError) {
       publish(undefined, {
         valid: false,
-        message: `Gemarkungen konnten nicht geladen werden: ${stammdatenError}`,
+        message: "Gemarkungen konnten nicht geladen werden.",
       });
       return;
     }
@@ -239,24 +240,10 @@ const LandParcelKeyChooser = ({
             showButton={false}
           />
         </div>
-        {value?.art?.bezeichnung && (
-          <Tag
-            color={
-              value.art.bezeichnung === FLURSTUECK_ART.STAEDTISCH
-                ? "blue"
-                : "purple"
-            }
-          >
-            {value.art.bezeichnung}
-          </Tag>
-        )}
-        {value?.gueltigBis && <Tag color="default">historisch</Tag>}
       </div>
-      <div
-        className={`text-xs ${status.valid ? "text-gray-500" : "text-red-600"}`}
-      >
-        {status.message}
-      </div>
+      {status.valid && (
+        <div className="text-xs text-gray-500">{status.message}</div>
+      )}
     </div>
   );
 };
