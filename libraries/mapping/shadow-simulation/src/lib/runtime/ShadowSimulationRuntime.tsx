@@ -32,6 +32,7 @@ import {
 import { useShadowAnimation } from "./hooks/use-shadow-animation";
 
 export const ShadowSimulationRuntime = ({
+  tiledShadows = false,
   libreMap,
   shadowAreaMeters,
   terrain,
@@ -43,6 +44,8 @@ export const ShadowSimulationRuntime = ({
   setDateState,
 }: {
   libreMap: MaplibreMap | null;
+  /** Without it the buffer layout stays the single buffer. */
+  tiledShadows?: boolean;
   shadowAreaMeters?: number;
   terrain?: ShadowTerrainOptions;
   mapLibreTerrain?: RasterDemTerrainResource;
@@ -158,7 +161,7 @@ export const ShadowSimulationRuntime = ({
     if (!state.enabled) return;
     shadowScene.current?.updateRenderQuality({
       shadowAdaptiveQuality: state.shadowAdaptiveQuality,
-      shadowBufferLayout: state.shadowBufferLayout,
+      shadowBufferLayout: tiledShadows ? state.shadowBufferLayout : undefined,
       shadowBufferFormat: state.shadowBufferFormat,
       shadowSunDiscSamples: state.shadowSunDiscSamples,
       shadowMsaaSamples: state.shadowMsaaSamples,
@@ -166,6 +169,7 @@ export const ShadowSimulationRuntime = ({
     });
   }, [
     state.enabled,
+    tiledShadows,
     state.shadowAdaptiveQuality,
     state.shadowBufferLayout,
     state.shadowBufferFormat,

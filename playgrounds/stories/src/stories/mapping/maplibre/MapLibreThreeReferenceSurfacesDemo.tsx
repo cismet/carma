@@ -1973,6 +1973,7 @@ export const MapLibreThreeReferenceSurfacesDemo = (
               timeZone: "Europe/Berlin",
               shadowAreaMeters: options.shadowAreaMeters,
               mapLibreTerrain: terrainResource,
+              experimentalTiledShadows: true,
             }}
             libreMap={map}
             targeted={false}

@@ -80,6 +80,7 @@ export const ShadowSimulationView = ({
     mapLibreTerrain,
     controlPosition = "topleft",
     controlOrder = 70,
+    experimentalTiledShadows = false,
   } = config ?? {};
   const location = useMapCenterSolarLocation(libreMap, latitude, longitude);
   const initialState = useMemo<ShadowSimulationState>(
@@ -172,6 +173,7 @@ export const ShadowSimulationView = ({
         </Control>
       )}
       <ShadowSimulationRuntime
+        tiledShadows={experimentalTiledShadows}
         libreMap={libreMap}
         shadowAreaMeters={shadowAreaMeters}
         terrain={selectedTerrain}
@@ -200,6 +202,7 @@ export const ShadowSimulationView = ({
       {state.showDisplaySettings && (
         <Suspense fallback={null}>
           <ShadowSimulationDisplaySettingsPanel
+            tiledShadows={experimentalTiledShadows}
             state={state}
             setState={setSharedState}
             terrainSources={selectableTerrainSources}
