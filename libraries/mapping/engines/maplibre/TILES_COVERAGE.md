@@ -1436,3 +1436,45 @@ baseline. Raw profiles stay in the session scratchpad.
 **Revisit when:** the local frame can change without a camera signature
 change (the memo keys on the compiled camera set only), or a host updates
 sprite images in place more often than the 200 ms window tolerates.
+
+# Resident cache ceiling policy (2026-09-18)
+
+**ID / date / status:** heading anchor
+`#resident-cache-ceiling-policy-2026-09-18` / 2026-09-18 / implemented.
+
+**Context and constraints:** The mesh needs a large resident cache on a
+desktop (a wide extent plus a refined view exceeded the former 2 GiB ceiling
+and stalled the zoom-in), while an iPhone kills the tab and reloads it when
+the page grows past the memory it grants. The shadow add-on requests a
+24 GiB mesh budget, and a consumer budget used to raise the ceiling on every
+device, so with shadows on an iPhone ran into that reload loop. The desired
+behaviour: 6 GB optimistically where the client permits, otherwise the size
+the client really supports, remembered for later sessions.
+
+**Decision:** Desktop class ceilings scale with reported device memory at
+768 MiB per GiB between 768 MiB and 6 GiB and default to 6 GiB when the
+browser hides memory; phones (384 MiB) and tablets or other mobile devices
+(512 MiB) keep hard caps that a consumer or style budget can only lower,
+never raise. A learned ceiling persists in localStorage
+(`carma:tiles3d-cache-ceiling`): an allocation failure or a lost WebGL
+context learns 75 % of the bytes resident at that moment and applies it at
+once; a session that never ended cleanly (no page hide, no dispose) learns
+50 % of its peak resident bytes on the next start; three clean sessions that
+used at least 90 % of a learned ceiling raise it by half again, up to the
+unlearned ceiling. Hosts opt in with `persistCacheCeiling` (the layer
+manager does); tests and stories without it keep the pure policy.
+
+**Alternatives and disposition:** Measuring free memory directly: not
+possible from a page. Raising phones by consumer budget: rejected by
+inspection (the reload loop). Learning only from allocation failures: not
+sufficient, a memory kill produces no event; the session probe covers it.
+
+**Evidence:** The iPhone 16 simulator on this Mac cannot reproduce the
+memory kill (it has the host's memory): with mesh and shadows it ran a minute
+without errors, only the vendor's non-uniform-scale warning 400 times. The
+policy was verified by state dumps: the simulator's Safari (iOS 18.6) reports
+the iOS ceiling with shadows on; headless desktop Chromium reports 6 GiB.
+Learning and recovery are covered by `three-tiles-cache-ceiling-memory.spec`.
+
+**Revisit when:** a device class needs a different cap, or the page can read
+its memory grant (for example through a future memory measurement API).

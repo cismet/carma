@@ -15,14 +15,21 @@ const UNLOADED_LOADING_STATE = 0;
 export const TILE_MEMORY_ALLOCATION_ERROR =
   /out of memory|allocation failed|failed to allocate|cannot allocate memory/i;
 
+/**
+ * Decision: TILES_COVERAGE.md#resident-cache-ceiling-policy-2026-09-18.
+ * Desktops start optimistically at 6 GiB (scaled down only when the browser
+ * reports little memory); phones and tablets have hard caps that no consumer
+ * budget can raise; a learned ceiling from an allocation failure, a lost
+ * context or a session that never ended cleanly lowers all of them.
+ */
 export const TILES_CACHE_CEILING_BYTES = {
   configuredMaximum: 24 * GIB,
   ios: 384 * MIB,
   mobile: 512 * MIB,
-  desktopDefault: 1 * GIB,
+  desktopDefault: 6 * GIB,
   desktopMinimum: 768 * MIB,
-  desktopMaximum: 2 * GIB,
-  perDeviceMemoryGiB: 256 * MIB,
+  desktopMaximum: 6 * GIB,
+  perDeviceMemoryGiB: 768 * MIB,
   floor: 128 * MIB,
 } as const;
 
@@ -168,13 +175,20 @@ const isMobileDevice = (device: TilesDeviceProfile): boolean =>
 
 export const resolveTilesCacheCeiling = (
   device: TilesDeviceProfile,
-  style?: TilesCacheStyleLimits
+  style?: TilesCacheStyleLimits,
+  /** A ceiling learned from an earlier failure; only ever lowers the result. */
+  learnedCeilingBytes?: number | null
 ): number => {
   let ceiling: number;
+  // A consumer budget may raise a desktop up to the configured maximum, a
+  // phone or tablet never: its class ceiling is the hard cap.
+  let hardCap: number = TILES_CACHE_CEILING_BYTES.configuredMaximum;
   if (isIosDevice(device)) {
     ceiling = TILES_CACHE_CEILING_BYTES.ios;
+    hardCap = ceiling;
   } else if (isMobileDevice(device)) {
     ceiling = TILES_CACHE_CEILING_BYTES.mobile;
+    hardCap = ceiling;
   } else if (
     device.deviceMemoryGiB !== undefined &&
     Number.isFinite(device.deviceMemoryGiB) &&
@@ -195,12 +209,14 @@ export const resolveTilesCacheCeiling = (
     const styleCeiling = Number.isFinite(overflow)
       ? Math.max(0, budget) + Math.max(0, overflow)
       : Number.POSITIVE_INFINITY;
-    if (Number.isFinite(styleCeiling))
-      ceiling = Math.min(
-        styleCeiling,
-        TILES_CACHE_CEILING_BYTES.configuredMaximum
-      );
+    if (Number.isFinite(styleCeiling)) ceiling = Math.min(styleCeiling, hardCap);
   }
+  if (
+    learnedCeilingBytes !== undefined &&
+    learnedCeilingBytes !== null &&
+    Number.isFinite(learnedCeilingBytes)
+  )
+    ceiling = Math.min(ceiling, learnedCeilingBytes);
   return Math.max(TILES_CACHE_CEILING_BYTES.floor, Math.floor(ceiling));
 };
 

@@ -259,6 +259,7 @@ export function Tiles3dLayerManager({
           diagnostics: initialConfig.diagnostics,
           entry: initialConfig.entry,
           hierarchyCache: initialConfig.hierarchyCache,
+          persistCacheCeiling: true,
           colorCorrection: initialConfig.colorCorrection,
           shadowBuildingStyle: initialConfig.shadowBuildingStyle,
           onContentChanged: (changedBounds, changedRoots) =>

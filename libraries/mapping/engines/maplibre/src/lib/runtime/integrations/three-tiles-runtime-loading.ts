@@ -1,4 +1,13 @@
 import { TilesRenderer } from "3d-tiles-renderer";
+import {
+  CACHE_CEILING_FAILURE_FRACTION,
+  CACHE_CEILING_PEAK_WRITE_INTERVAL_MS,
+  EMPTY_CACHE_CEILING_MEMORY,
+  endCacheCeilingSession as endCacheCeilingSessionMemory,
+  learnCacheCeiling,
+  recordCacheCeilingPeak,
+  writeCacheCeilingMemory,
+} from "./three-tiles-cache-ceiling-memory";
 import { type Tile } from "3d-tiles-renderer/core";
 
 import { clamp } from "@carma-commons/math";
@@ -99,6 +108,10 @@ export function createThreeTilesLoading(
     | "displayedMeshFrontier"
     | "meshRefinementSupport"
     | "ceilingBytes"
+    | "cacheCeilingStorage"
+    | "cacheCeilingMemory"
+    | "learnedCeilingBytes"
+    | "cacheCeilingPeakWrittenAt"
     | "lastProgressAt"
     | "deferred"
     | "viewFrustumsReady"
@@ -926,6 +939,20 @@ export function createThreeTilesLoading(
       )
         return;
       runtimeState.lastMemoryCheck = now;
+      const residentCache = getRuntimeCache();
+      if (runtimeState.cacheCeilingMemory && residentCache) {
+        runtimeState.cacheCeilingMemory = recordCacheCeilingPeak(
+          runtimeState.cacheCeilingMemory,
+          residentCache.cachedBytes
+        );
+        if (
+          now - runtimeState.cacheCeilingPeakWrittenAt >=
+          CACHE_CEILING_PEAK_WRITE_INTERVAL_MS
+        ) {
+          runtimeState.cacheCeilingPeakWrittenAt = now;
+          persistCacheCeilingMemory();
+        }
+      }
       const wasPaused = runtimeState.memoryAdmissionPaused;
       // A tab-wide heap ratio includes Vite/HMR, MapLibre and unrelated app
       // state. It can start above the old threshold before the first mesh tile
@@ -956,7 +983,60 @@ export function createThreeTilesLoading(
   const handleContextLost: ThreeTilesRuntimeServices["handleContextLost"] =
     () => {
       runtimeState.contextLost = true;
+      recordCacheCeilingFailure("context-lost");
       applyRequestConcurrency();
+    };
+
+  const unlearnedCeilingBytes = () =>
+    resolveTilesCacheCeiling(runtimeState.deviceProfile, {
+      cacheBudgetBytes: runtimeState.styleCacheBudgetBytes,
+      cacheOverflowBytes: runtimeState.styleCacheOverflowBytes,
+    });
+  const persistCacheCeilingMemory = () => {
+    if (runtimeState.cacheCeilingMemory)
+      writeCacheCeilingMemory(
+        runtimeState.cacheCeilingStorage,
+        runtimeState.cacheCeilingMemory
+      );
+  };
+  const recordCacheCeilingFailure: ThreeTilesRuntimeServices["recordCacheCeilingFailure"] =
+    (reason) => {
+      const cached = getRuntimeCache()?.cachedBytes ?? 0;
+      // A lost context with a mostly empty cache is a GPU reset or a
+      // backgrounded tab, not a memory signal; only a well-filled cache learns.
+      if (reason === "context-lost" && cached < runtimeState.ceilingBytes * 0.5)
+        return;
+      const lesson = learnCacheCeiling(
+        runtimeState.cacheCeilingMemory ?? EMPTY_CACHE_CEILING_MEMORY,
+        Math.max(cached, runtimeState.ceilingBytes) *
+          CACHE_CEILING_FAILURE_FRACTION,
+        reason
+      );
+      if (lesson.learnedBytes === runtimeState.learnedCeilingBytes) return;
+      runtimeState.learnedCeilingBytes = lesson.learnedBytes;
+      if (runtimeState.cacheCeilingMemory) {
+        runtimeState.cacheCeilingMemory = lesson;
+        persistCacheCeilingMemory();
+      }
+      runtimeState.ceilingBytes = resolveTilesCacheCeiling(
+        runtimeState.deviceProfile,
+        {
+          cacheBudgetBytes: runtimeState.styleCacheBudgetBytes,
+          cacheOverflowBytes: runtimeState.styleCacheOverflowBytes,
+        },
+        runtimeState.learnedCeilingBytes
+      );
+      applyCacheBudget();
+    };
+  const endCacheCeilingSession: ThreeTilesRuntimeServices["endCacheCeilingSession"] =
+    () => {
+      if (!runtimeState.cacheCeilingMemory) return;
+      const peak = getRuntimeCache()?.cachedBytes ?? 0;
+      runtimeState.cacheCeilingMemory = endCacheCeilingSessionMemory(
+        recordCacheCeilingPeak(runtimeState.cacheCeilingMemory, peak),
+        unlearnedCeilingBytes()
+      );
+      persistCacheCeilingMemory();
     };
 
   const handleContextRestored: ThreeTilesRuntimeServices["handleContextRestored"] =
@@ -1304,7 +1384,8 @@ export function createThreeTilesLoading(
       {
         cacheBudgetBytes: runtimeState.styleCacheBudgetBytes,
         cacheOverflowBytes: runtimeState.styleCacheOverflowBytes,
-      }
+      },
+      runtimeState.learnedCeilingBytes
     );
     resetEffectiveErrorTarget();
     dependencies.requestShadowSelectionRefresh();
@@ -1352,6 +1433,8 @@ export function createThreeTilesLoading(
     reapplyCacheBoundsIfDrifted,
     sampleMemoryPressure,
     handleContextLost,
+    recordCacheCeilingFailure,
+    endCacheCeilingSession,
     handleContextRestored,
     applyRequestConcurrency,
     applyTilesetMinResolution,
