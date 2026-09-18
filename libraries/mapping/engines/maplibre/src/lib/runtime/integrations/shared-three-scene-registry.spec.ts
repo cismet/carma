@@ -10,6 +10,7 @@ vi.mock("./shared-three-scene-layer", () => ({
 }));
 
 import { buildSharedThreeSceneLayer } from "./shared-three-scene-layer";
+import { registerSharedThreeSceneRuntime } from "./shared-three-scene-content-registry";
 import { acquireSharedThreeScene } from "./shared-three-scene-registry";
 
 describe("shared Three.js scene registry", () => {
@@ -832,6 +833,81 @@ describe("shared Three.js scene registry", () => {
     expect(layout.has("basemap:visibility")).toBe(false);
     expect(paint.get(`${streetLayer.id}:text-color`)).toBe("#333333");
     expect(layout.get(`${streetLayer.id}:text-size`)).toBe(13);
+  });
+
+  it("hides the basemap as soon as a terrain mesh registers after the style settled", () => {
+    const layers = [
+      { id: "basemap", type: "fill" },
+      { id: sharedLayer.id, type: "custom" },
+    ];
+    const layout = new Map<string, unknown>();
+    const paint = new Map<string, unknown>();
+    const terrain = Object.create({ getMeshFrameDelta: () => 42 }) as {
+      getMeshFrameDelta: (zoom: number) => number;
+    };
+    const map = {
+      terrain,
+      getTerrain: vi.fn(() => ({ source: "dem", exaggeration: 1 })),
+      setTerrain: vi.fn(),
+      getStyle: vi.fn(() => ({
+        layers: layers.filter(({ id }) => id !== sharedLayer.id),
+      })),
+      getLayersOrder: vi.fn(() => layers.map(({ id }) => id)),
+      getLayer: vi.fn((id: string) =>
+        id === sharedLayer.id
+          ? { implementation: sharedLayer }
+          : layers.find((layer) => layer.id === id)
+      ),
+      getLayoutProperty: vi.fn((id: string, property: string) =>
+        layout.get(`${id}:${property}`)
+      ),
+      setLayoutProperty: vi.fn(
+        (id: string, property: string, value: unknown) => {
+          const key = `${id}:${property}`;
+          if (value == null) layout.delete(key);
+          else layout.set(key, value);
+        }
+      ),
+      getPaintProperty: vi.fn((id: string, property: string) =>
+        paint.get(`${id}:${property}`)
+      ),
+      setPaintProperty: vi.fn(
+        (id: string, property: string, value: unknown) => {
+          const key = `${id}:${property}`;
+          if (value == null) paint.delete(key);
+          else paint.set(key, value);
+        }
+      ),
+      getFilter: vi.fn(),
+      setFilter: vi.fn(),
+      addLayer: vi.fn(),
+      moveLayer: vi.fn(),
+      removeLayer: vi.fn(),
+      on: vi.fn(),
+      off: vi.fn(),
+    };
+    // The style settled with no mesh: the basemap stays visible.
+    const lease = acquireSharedThreeScene(map as never);
+    expect(layout.has("basemap:visibility")).toBe(false);
+    // A mesh added from the layer list registers without any style or idle
+    // event following; the registration alone has to apply the drape.
+    const mesh = {
+      id: "mesh",
+      providesTerrain: true,
+      mapStyleProjectionBlend: "overlay",
+      getActiveTileVolumes: () => [],
+    };
+    sharedLayer.getRuntimes.mockReturnValue([mesh as never]);
+    const unregister = registerSharedThreeSceneRuntime(
+      map as never,
+      mesh as never
+    );
+    expect(layout.get("basemap:visibility")).toBe("none");
+    // Removing it restores the basemap the same way.
+    sharedLayer.getRuntimes.mockReturnValue([]);
+    unregister();
+    expect(layout.has("basemap:visibility")).toBe(false);
+    lease.release();
   });
 
   it("shows place names only inside active Three terrain tile footprints", () => {

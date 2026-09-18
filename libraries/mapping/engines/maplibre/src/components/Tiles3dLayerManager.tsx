@@ -70,6 +70,13 @@ export interface Tiles3dConfig {
   tilesetMinResolutionPx?: number;
   /** Register the runtime for the diagnostics story (window.__carmaTiles3d). */
   diagnostics?: boolean;
+  /**
+   * Let the shadow simulation restyle this tileset like a building layer
+   * while shadows are on: uniform colour, texture desaturation, colour
+   * grading from the shadow controls. Off by default, so the appearance stays
+   * what this block declares. Outlines always follow `outline`.
+   */
+  shadowBuildingStyle?: boolean;
   /** 0 to 1. */
   opacity?: number;
   /**
@@ -135,6 +142,7 @@ export type ResolvedTiles3dConfig = Tiles3dConfig & {
   basemap: NonNullable<Tiles3dConfig["basemap"]>;
   outline: boolean;
   diagnostics: boolean;
+  shadowBuildingStyle: boolean;
 };
 
 /**
@@ -163,6 +171,7 @@ export const resolveTiles3dConfig = (
     basemap: config.basemap ?? "labels",
     outline: config.outline ?? true,
     diagnostics: config.diagnostics ?? false,
+    shadowBuildingStyle: config.shadowBuildingStyle ?? false,
   };
 };
 
@@ -239,7 +248,7 @@ export function Tiles3dLayerManager({
           diagnostics: initialConfig.diagnostics,
           entry: initialConfig.entry,
           colorCorrection: initialConfig.colorCorrection,
-          shadowBuildingStyle: true,
+          shadowBuildingStyle: initialConfig.shadowBuildingStyle,
           onContentChanged: (changedBounds, changedRoots) =>
             notifySharedThreeSceneContentChanged(map, {
               bounds: changedBounds,

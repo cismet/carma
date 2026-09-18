@@ -141,6 +141,7 @@ describe("resolveTiles3dConfig", () => {
       basemap: "labels",
       outline: true,
       diagnostics: false,
+      shadowBuildingStyle: false,
     });
   });
 
@@ -162,6 +163,7 @@ describe("resolveTiles3dConfig", () => {
       basemap: "none",
       outline: false,
       diagnostics: true,
+      shadowBuildingStyle: true,
     });
     expect(resolved).toMatchObject({
       version: 1,
@@ -171,6 +173,7 @@ describe("resolveTiles3dConfig", () => {
       basemap: "none",
       outline: false,
       diagnostics: true,
+      shadowBuildingStyle: true,
     });
   });
 });

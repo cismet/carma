@@ -28,6 +28,7 @@ the way a fully declared one does:
 | `basemap` | `labels` | Drape the map labels and keep MapLibre terrain; `none` shows the tileset alone. |
 | `outline` | on | `CESIUM_primitive_outline` edges. |
 | `diagnostics` | off | Never ship it on; the stories switch it on themselves. |
+| `shadowBuildingStyle` | off | Let the shadow simulation restyle the tileset as a building layer while shadows are on. Off keeps the declared appearance; outlines always follow `outline`. |
 | `entry` | none | Per-level `geometricError` and `bytes` size the resident extent within the memory share; `prefetch` names hierarchy files to warm. |
 | `colorCorrection`, cache budgets | none | Colour grading and memory stay as the runtime decides. |
 

@@ -271,7 +271,11 @@ export interface ThreeTilesRuntimeOptions {
    * the story reports its own overhead against this.
    */
   diagnostics?: boolean;
-  /** Restyle this tileset like a building layer while shadow mode is active. */
+  /**
+   * Restyle this tileset like a building layer while shadow mode is active.
+   * Off, the shadow simulation leaves materials and outlines as the style
+   * declared them.
+   */
   shadowBuildingStyle?: boolean;
 }
 
