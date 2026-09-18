@@ -48,3 +48,55 @@ body {
   font-size: 16px;
   position: absolute;
 }
+
+/* Cancels the list wrapper's 4px padding outward so the hover highlight and
+   the error tint align with the section headings. The padding gives the same
+   4px back, leaving the content in place. */
+.belis-layer-row {
+  margin-inline: -4px;
+  padding-inline: 8px;
+}
+
+/* A layer whose service did not answer stays usable but is drawn in the
+   Löschmodus red. See helper/layerHealth.ts. */
+.belis-layer-row-error .ant-radio-wrapper,
+.belis-layer-row-error .ant-checkbox-wrapper {
+  color: #cf222e !important;
+}
+
+.belis-layer-row-error .ant-slider-rail {
+  background-color: #f5c2c7 !important;
+}
+.belis-layer-row-error .ant-slider-track {
+  background-color: #cf222e !important;
+}
+.belis-layer-row-error .ant-slider-handle::after {
+  box-shadow: 0 0 0 2px #cf222e !important;
+}
+.belis-layer-row-error:hover .ant-slider-handle::after,
+.belis-layer-row-error .ant-slider-handle:focus::after {
+  box-shadow: 0 0 0 4px #cf222e !important;
+}
+
+.belis-layer-row-error .ant-checkbox-inner,
+.belis-layer-row-error .ant-radio-inner {
+  border-color: #cf222e !important;
+}
+.belis-layer-row-error .ant-checkbox-checked .ant-checkbox-inner {
+  background-color: #cf222e !important;
+  border-color: #cf222e !important;
+}
+.belis-layer-row-error .ant-radio-checked .ant-radio-inner {
+  /* antd fills the checked radio with colorPrimary and draws a white dot on
+     top, so the fill is what has to change. */
+  background-color: #cf222e !important;
+  border-color: #cf222e !important;
+}
+.belis-layer-row-error .ant-radio-checked .ant-radio-inner::after {
+  background-color: #fff !important;
+}
+/* antd draws the focus/hover ring as a separate absolutely positioned span. */
+.belis-layer-row-error .ant-radio-wrapper:hover .ant-radio-inner,
+.belis-layer-row-error .ant-checkbox-wrapper:hover .ant-checkbox-inner {
+  border-color: #cf222e !important;
+}
