@@ -73,7 +73,8 @@ const commonArgTypes: Meta<PlotArgs>["argTypes"] = {
 };
 
 const meta: Meta<PlotArgs> = {
-  title: "Geo/Mercator Zoom",
+  title: "Map Navigation/Camera and Scale",
+  id: "geo-mercator-zoom",
   args: commonArgs,
   argTypes: commonArgTypes,
   parameters: {

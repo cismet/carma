@@ -2,35 +2,21 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 
 import { degToRadNumeric } from "@carma-units";
-import { buildSharedSceneAccumulator } from "@carma-mapping/engines/three/primitives/rendering";
-import { ShadowCorridorAccumulator } from "../runtime/shadow-corridor-accumulator";
 
-import {
-  TiledShadowRenderer,
-  type TiledShadowStats,
-} from "../runtime/tiled-shadow-renderer";
+import { ShadowController } from "../runtime/shadow-controller";
+import { ShadowTiledScene } from "../runtime/shadow-tiled-scene";
 import {
   createTiledShadowReference,
   type ShadowDemoCaster,
 } from "./tiled-shadow-reference";
-import {
-  benchmarkSunShadowPasses,
-  type SunShadowBenchmarkResult,
-} from "./sun-shadow-benchmark";
-import {
-  readSunShadowLinearImage,
-  compareSunShadowLinearImages,
-  type SunShadowImageDifference,
-} from "./sun-shadow-image-comparison";
 
 export type TiledShadowDemoOptions = Readonly<{
   targetPixels: number;
   samples: number;
   elevationDegrees: number;
-  cacheMiB: number;
   maximumMapSize: number;
+  renderScale: number;
   panMeters: number;
-  benchmark: boolean;
   caster: ShadowDemoCaster;
   casterLiftMeters: number;
   animateCamera: boolean;
@@ -38,25 +24,35 @@ export type TiledShadowDemoOptions = Readonly<{
 
 export type TiledShadowDemoStatus = Readonly<{
   phase: string;
+  ready: boolean;
+  revision: number;
+  startedAt: number;
+  revisionStartedAt: number;
+  firstFrameAt: number | null;
+  settledAt: number | null;
+  elapsedMilliseconds: number;
   width: number;
   height: number;
   completedSamples: number;
-  stats: TiledShadowStats;
+  completedPages: number;
+  totalPages: number;
+  stats: ShadowTiledScene["stats"];
   levels: readonly number[];
   cameraPosition: readonly number[];
   cameraTarget: readonly number[];
-  benchmark?: readonly SunShadowBenchmarkResult[];
-  imageDifference?: SunShadowImageDifference;
 }>;
 
-/** DOM host of the shared runtime, used by Mapping/Shadows/Tiled Corridors.
- * Controls change inputs only. No mock cache hits or alternate shadow shader.
+/** Standalone host of the addon tiled stack, including receiver publication.
+ * Replaces the story-only observer atlas; raw depth-cache benchmarks remain in
+ * lower-level modules/tests, not this interactive render path.
+ * Decision: three/STORY_VALIDATION.md, SHADOW-STORY-ADDON-PARITY-20260914.
  */
 export const createTiledShadowDemo = (
   container: HTMLElement,
   initial: TiledShadowDemoOptions,
   onStatus: (status: TiledShadowDemoStatus) => void
 ) => {
+  const startedAt = performance.now();
   const renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.AgXToneMapping;
@@ -67,7 +63,7 @@ export const createTiledShadowDemo = (
   renderer.domElement.style.cssText = "display:block;width:100%;height:100%";
   renderer.domElement.setAttribute(
     "aria-label",
-    "World-fixed shadow corridor reference; drag to orbit or pan"
+    "Addon shadow corridor scene; drag to orbit or pan"
   );
   container.append(renderer.domElement);
   const reference = createTiledShadowReference();
@@ -79,65 +75,93 @@ export const createTiledShadowDemo = (
   controls.target.set(initial.panMeters, 0, 30);
   controls.update();
   const size = new THREE.Vector2();
+  const controller = new ShadowController(reference.scene);
+  controller.setSoftSun(true);
+  const sky = new THREE.Group();
+  const overlay = new THREE.Group();
+  sky.visible = false;
+  overlay.visible = false;
   let options = initial;
-  const buildPages = () =>
-    new TiledShadowRenderer(
-      reference.scene,
-      renderer,
-      options.cacheMiB * 1024 ** 2,
-      options.maximumMapSize
-    );
-  const buildAccumulator = () =>
-    buildSharedSceneAccumulator(options.samples, {
-      format: "rgba16f-32f",
-      msaaSamples: 0,
-    });
-  let pages = buildPages();
-  let accumulator = buildAccumulator();
-  const corridorAccumulator = new ShadowCorridorAccumulator(renderer);
-  let corridorProgress = 0;
-  let corridorSettled = false;
-  let revision = 0;
   let frame = 0;
   let disposed = false;
   let contextLost = false;
-  let benchmarkAbort: AbortController | null = null;
-  let benchmarkDone = false;
-  let benchmark: readonly SunShadowBenchmarkResult[] | undefined;
-  let imageDifference: SunShadowImageDifference | undefined;
+  let revision = 0;
+  let revisionStartedAt = startedAt;
+  let firstFrameAt: number | null = null;
+  let settledAt: number | null = null;
+  let ready = false;
   let tourTime = 0;
   let adjustingControls = false;
   let dragging = false;
   let lastStatusTime = -Infinity;
   let lastStatusPhase = "";
+  let lastStatusRevision = -1;
+  const schedule = () => {
+    if (!disposed && !contextLost && !frame)
+      frame = requestAnimationFrame(render);
+  };
+  const buildTiles = () =>
+    new ShadowTiledScene(reference.scene, renderer, {
+      light: controller.lights[0],
+      sky,
+      overlay,
+      maximumMapSize: Math.min(
+        options.maximumMapSize,
+        renderer.capabilities.maxTextureSize
+      ),
+      requestRepaint: schedule,
+    });
+  let tiles = buildTiles();
+  const sceneFrame = () => ({ renderCamera: camera, viewport: size });
   const publish = (phase: string) => {
     const now = performance.now();
-    if (phase === lastStatusPhase && now - lastStatusTime < 250) return;
+    // A retained view may settle in its first frame and schedule no successor.
+    // Never throttle that revision's only publication behind the previous one.
+    if (
+      revision === lastStatusRevision &&
+      phase === lastStatusPhase &&
+      now - lastStatusTime < 250
+    )
+      return;
+    lastStatusRevision = revision;
     lastStatusTime = now;
     lastStatusPhase = phase;
+    const stats = tiles.stats;
+    const pages = stats.corridorAccumulation?.pageSamples ?? [];
     onStatus({
       phase,
+      ready,
+      revision,
+      startedAt,
+      revisionStartedAt,
+      firstFrameAt,
+      settledAt,
+      elapsedMilliseconds: (settledAt ?? now) - revisionStartedAt,
       width: size.x,
       height: size.y,
-      completedSamples: Math.floor(corridorProgress * options.samples),
-      stats: pages.stats,
-      levels: [...new Set(pages.pageLevels.map((page) => page.level))].sort(),
+      completedSamples: pages.length
+        ? Math.min(...pages.map((page) => page.samples))
+        : 0,
+      completedPages: pages.filter((page) => page.published).length,
+      totalPages: pages.length,
+      stats,
+      levels: [...new Set(tiles.pageLevels.map((page) => page.level))].sort(),
       cameraPosition: camera.position.toArray(),
       cameraTarget: controls.target.toArray(),
-      benchmark,
-      imageDifference,
     });
   };
-  const resetAccumulation = () => accumulator.ensureState(String(++revision));
   const updateView = () => {
-    corridorSettled = false;
+    if (revision > 0) revisionStartedAt = performance.now();
+    revision += 1;
+    settledAt = null;
+    ready = false;
     camera.updateMatrixWorld(true);
     const changed = reference.setCaster(
       options.caster,
       options.casterLiftMeters
     );
     const elevation = degToRadNumeric(options.elevationDegrees);
-    pages.setView(reference.cells, camera, size, options.targetPixels, {
+    const lighting = {
       directionToSun: new THREE.Vector3(
         (Math.cos(elevation) * Math.sqrt(3)) / 2,
         Math.sin(elevation),
@@ -146,96 +170,40 @@ export const createTiledShadowDemo = (
       color: "#fff1d8",
       intensity: 3,
       shadowIntensity: 1,
-    });
-    // Digits are real casters: a changed LOD number invalidates every
-    // intersecting downstream corridor, not only the number's own tile.
-    for (const bounds of [
-      ...changed,
-      ...reference.setLevels(pages.pageLevels),
-    ]) {
-      pages.invalidateCasters(bounds);
-    }
-    resetAccumulation();
-  };
-  const renderRound = (round: number) =>
-    accumulator.renderRound(renderer, size.x, size.y, () =>
-      pages.renderSample(camera, round, options.samples)
+    };
+    // Same central light supplies immediate hard coverage while the addon
+    // completes geometry-owned finite-disc publications independently.
+    const bounds = reference.cells.reduce(
+      (extent, cell) => extent.union(cell.bounds),
+      new THREE.Box3()
     );
-  const composite = () => {
-    renderer.setRenderTarget(null);
-    renderer.clear(true, true, false);
-    accumulator.composite(renderer);
-  };
-  const schedule = () => {
-    if (!disposed && !contextLost && !frame && !benchmarkAbort)
-      frame = requestAnimationFrame(render);
-  };
-  const runBenchmark = async () => {
-    const abort = new AbortController();
-    benchmarkAbort = abort;
-    benchmarkDone = true;
-    try {
-      // This optional diagnostic still isolates depth-cache cold/warm reuse.
-      // Interactive rendering below uses the same corridor-owned integrator
-      // as Geoportal; the reference accumulator is only a benchmark oracle.
-      resetAccumulation();
-      for (let round = 0; round < options.samples; round += 1) {
-        if (abort.signal.aborted) return;
-        renderRound(round);
-        if (round % 4 === 3)
-          await new Promise<void>((resolve) =>
-            requestAnimationFrame(() => resolve())
-          );
-      }
-      // Excluded from timing: compare fresh and reused per-direction results,
-      // not just cache counters. Uses the existing linear HDR readback helper.
-      const original = readSunShadowLinearImage(
-        renderer,
-        accumulator,
-        size.x,
-        size.y
-      );
-      benchmark = await benchmarkSunShadowPasses(
-        renderer,
-        options.samples,
-        (round, mode) => {
-          if (round === 0 && mode === "tiled-cold") pages.clearCache();
-          renderRound(round);
-          if (round === options.samples - 1) composite();
-        },
-        resetAccumulation,
-        abort.signal,
-        publish,
-        { cases: ["tiled-cold", "tiled-warm"], batchRounds: 4 }
-      );
-      imageDifference = compareSunShadowLinearImages(
-        original,
-        readSunShadowLinearImage(renderer, accumulator, size.x, size.y)
-      );
-      publish(
-        "Depth-cache reference benchmark complete; identical per-direction shadows"
-      );
-    } catch (error) {
-      if (!abort.signal.aborted) publish(`Benchmark failed: ${String(error)}`);
-    } finally {
-      if (benchmarkAbort === abort) {
-        benchmarkAbort = null;
-        schedule();
-      }
-    }
+    controller.setMaxShadowMapSize(
+      Math.min(options.maximumMapSize, renderer.capabilities.maxTextureSize)
+    );
+    controller.update({
+      ...lighting,
+      receiverWorldPoints: [bounds.min.x, bounds.max.x].flatMap((x) =>
+        [bounds.min.y, bounds.max.y].flatMap((y) =>
+          [bounds.min.z, bounds.max.z].map((z) => new THREE.Vector3(x, y, z))
+        )
+      ),
+      receiverAnchorWorldPosition: bounds.getCenter(new THREE.Vector3()),
+      minimumElevationMeters: bounds.min.y,
+      maximumElevationMeters: bounds.max.y,
+      quality: 4,
+      groundTexelFit: true,
+      mapTexelBudget: options.maximumMapSize ** 2,
+    });
+    tiles.update(reference.cells, sceneFrame(), lighting, options.targetPixels);
+    const levelChanges = reference.setLevels(tiles.pageLevels);
+    if (changed.length || levelChanges.length)
+      tiles.invalidateContent([...changed, ...levelChanges]);
   };
   function render() {
     frame = 0;
     if (disposed || contextLost) return;
     try {
-      if (
-        options.animateCamera &&
-        !options.benchmark &&
-        !dragging &&
-        corridorSettled
-      ) {
-        // Complete the finite-disc frame before advancing. Never average
-        // different observer poses or silently substitute a centre-ray shadow.
+      if (options.animateCamera && !dragging && ready) {
         tourTime += 0.4;
         const heading = 0.55 * Math.sin(tourTime * 0.25);
         adjustingControls = true;
@@ -259,61 +227,84 @@ export const createTiledShadowDemo = (
       }
       renderer.setRenderTarget(null);
       renderer.clear(true, true, false);
-      const progress = corridorAccumulator.render(camera, pages, {
+      const progress = tiles.renderProgressive(camera, {
         width: size.x,
         height: size.y,
-        viewKey: [
-          ...camera.projectionMatrix.elements,
-          ...camera.matrixWorldInverse.elements,
-        ].join(","),
+        viewKey: String(revision),
         styleEpoch: 0,
         samples: options.samples,
         active: !dragging,
         options: { format: "rgba16f-32f", msaaSamples: 0 },
       });
-      corridorProgress = progress?.progress ?? 0;
-      corridorSettled = progress?.settled ?? false;
-      if (!progress) pages.renderSample(camera, 0, 1);
+      if (!progress && !tiles.render(camera, null, options.samples, false))
+        renderer.render(reference.scene, camera);
+      firstFrameAt ??= performance.now();
+      // The adapter's settled flag is transition-only. Replayed completed views
+      // may emit no new event (e.g. toggling the tour without moving the camera).
+      // Actual page publications plus finished work prove persistent readiness.
+      if (progress) {
+        const pages = tiles.stats.corridorAccumulation?.pageSamples ?? [];
+        ready =
+          progress.progress >= 1 &&
+          !progress.needsRepaint &&
+          pages.length > 0 &&
+          pages.every((page) => page.published);
+        if (ready) settledAt ??= performance.now();
+      }
       publish(
-        !progress
-          ? "Centre-sun preview — motion or native HDR budget limit"
-          : corridorSettled
-          ? options.animateCamera && !options.benchmark
-            ? "Camera tour — full-disc frames"
-            : "Settled — no animation loop"
-          : "Integrating the solar disc per corridor"
+        dragging
+          ? "Moving — retained receiver shadows"
+          : ready
+          ? options.animateCamera
+            ? "Camera tour — completed soft-shadow frame"
+            : "Settled — addon soft-shadow publications ready"
+          : progress
+          ? "Integrating the solar disc — addon receiver stack"
+          : "Hard-shadow preview — awaiting soft-shadow publication"
       );
-      if (progress?.needsRepaint) schedule();
-      else if (options.benchmark && !benchmarkDone) void runBenchmark();
-      else if (options.animateCamera && !options.benchmark) schedule();
+      if (progress?.needsRepaint || (options.animateCamera && ready))
+        schedule();
     } catch (error) {
+      ready = false;
+      settledAt = null;
       publish(`Rendering failed: ${String(error)}`);
     }
   }
-  const cancelBenchmark = () => {
-    benchmarkAbort?.abort();
-    benchmarkAbort = null;
-  };
   const moved = () => {
     if (adjustingControls || contextLost) return;
-    cancelBenchmark();
-    updateView();
+    camera.updateMatrixWorld(true);
+    if (dragging) tiles.updatePresentation(sceneFrame());
+    else updateView();
     schedule();
   };
   controls.addEventListener("change", moved);
   const dragStarted = () => {
     dragging = true;
+    ready = false;
+    settledAt = null;
+    tiles.pausePending();
   };
   const dragEnded = () => {
     dragging = false;
+    updateView();
     schedule();
   };
   controls.addEventListener("start", dragStarted);
   controls.addEventListener("end", dragEnded);
+  let cssWidth = 0;
+  let cssHeight = 0;
+  let pixelRatio = 0;
   const resize = () => {
     const width = Math.max(1, container.clientWidth);
     const height = Math.max(1, container.clientHeight);
-    renderer.setPixelRatio(window.devicePixelRatio || 1);
+    const nextRatio =
+      Math.min(window.devicePixelRatio || 1, 2) * options.renderScale;
+    if (width === cssWidth && height === cssHeight && nextRatio === pixelRatio)
+      return;
+    cssWidth = width;
+    cssHeight = height;
+    pixelRatio = nextRatio;
+    renderer.setPixelRatio(pixelRatio);
     renderer.setSize(width, height, false);
     renderer.getDrawingBufferSize(size);
     camera.aspect = width / height;
@@ -324,47 +315,49 @@ export const createTiledShadowDemo = (
   observer.observe(container);
   const lost = () => {
     contextLost = true;
-    cancelBenchmark();
+    ready = false;
+    settledAt = null;
     cancelAnimationFrame(frame);
     frame = 0;
-    pages.dispose();
-    corridorAccumulator.dispose();
     publish("WebGL context lost — reload the story to recreate resources");
   };
   renderer.domElement.addEventListener("webglcontextlost", lost);
   resize();
   return {
     update(next: TiledShadowDemoOptions) {
-      if (disposed || contextLost) return;
-      cancelBenchmark();
+      if (
+        disposed ||
+        contextLost ||
+        JSON.stringify(next) === JSON.stringify(options)
+      )
+        return;
       const previous = options;
       options = next;
+      if (previous.maximumMapSize !== next.maximumMapSize) {
+        tiles.dispose();
+        tiles = buildTiles();
+      }
       if (
-        previous.cacheMiB !== next.cacheMiB ||
-        previous.maximumMapSize !== next.maximumMapSize
-      ) {
-        pages.dispose();
-        pages = buildPages();
-      }
-      if (previous.samples !== next.samples) {
-        accumulator.dispose();
-        accumulator = buildAccumulator();
-      }
+        previous.samples !== next.samples ||
+        previous.elevationDegrees !== next.elevationDegrees
+      )
+        tiles.cancelPending(
+          previous.elevationDegrees !== next.elevationDegrees
+        );
       if (previous.panMeters !== next.panMeters) {
         const delta = next.panMeters - previous.panMeters;
         camera.position.x += delta;
         controls.target.x += delta;
+        adjustingControls = true;
         controls.update();
+        adjustingControls = false;
       }
-      benchmarkDone = false;
-      benchmark = undefined;
-      imageDifference = undefined;
-      updateView();
+      if (previous.renderScale !== next.renderScale) resize();
+      else updateView();
       schedule();
     },
     dispose() {
       disposed = true;
-      cancelBenchmark();
       cancelAnimationFrame(frame);
       observer.disconnect();
       controls.removeEventListener("change", moved);
@@ -372,9 +365,8 @@ export const createTiledShadowDemo = (
       controls.removeEventListener("end", dragEnded);
       controls.dispose();
       renderer.domElement.removeEventListener("webglcontextlost", lost);
-      accumulator.dispose();
-      corridorAccumulator.dispose();
-      pages.dispose();
+      tiles.dispose();
+      controller.dispose();
       reference.dispose();
       renderer.dispose();
       renderer.domElement.remove();

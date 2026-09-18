@@ -1072,7 +1072,8 @@ const CursorDesignSandbox = ({
 };
 
 const meta: Meta<CursorDesignStoryProps> = {
-  title: "Annotations/Cursor Design",
+  title: "Annotations/Cursors",
+  id: "annotations-cursor-design",
   component: CursorDesignSandbox,
   parameters: {
     layout: "fullscreen",

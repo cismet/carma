@@ -59,6 +59,8 @@ type SharedSceneEntry = {
   layer: SharedThreeSceneLayer;
   references: number;
   disposed: boolean;
+  /** Prevent a synchronous style event from re-entering `map.addLayer`. */
+  mountingLayer: boolean;
   /** All style layers, reused until the layer list changes. */
   styleLayersCache: PointLabelLayersCache | null;
   labelMaintenanceTimer: ReturnType<typeof setTimeout> | null;
@@ -1439,10 +1441,14 @@ const clearLabelMaintenanceTimer = (entry: SharedSceneEntry): void => {
 };
 
 const mountSharedLayer = (map: MaplibreMap, entry: SharedSceneEntry): void => {
+  if (entry.mountingLayer || getMountedSharedThreeSceneLayer(map)) return;
+  entry.mountingLayer = true;
   try {
-    if (!getMountedSharedThreeSceneLayer(map)) map.addLayer(entry.layer);
+    map.addLayer(entry.layer);
   } catch {
     // A style replacement or map teardown can race this callback.
+  } finally {
+    entry.mountingLayer = false;
   }
 };
 
@@ -1537,6 +1543,7 @@ export const acquireSharedThreeScene = (
   map: MaplibreMap
 ): SharedThreeSceneLease => {
   let entry = entries.get(map);
+  if (entry) entry.mountingLayer ??= false;
   if (entry && entry.version !== SHARED_SCENE_ENTRY_VERSION) {
     removeEnsureLayerListeners(map, entry);
     if (entry.labelMaintenanceTimer != null) {
@@ -1617,6 +1624,7 @@ export const acquireSharedThreeScene = (
       layer,
       references: 0,
       disposed: false,
+      mountingLayer: false,
       styleLayersCache: null,
       labelMaintenanceTimer: null,
       lastLabelMaintenanceMs: Number.NEGATIVE_INFINITY,

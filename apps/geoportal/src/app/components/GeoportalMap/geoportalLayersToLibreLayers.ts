@@ -54,6 +54,35 @@ export const layerProvidesTerrainMesh = (layer: Layer): boolean => {
   return /\/mesh[^/]*\.style\.json$/.test(stylePath);
 };
 
+/**
+ * A tileset that shows on its own: no basemap drape, no MapLibre terrain. The
+ * fetched style's carmaConf is merged into the layer's conf, so `3d.basemap`
+ * is readable there; a `carmaconf://standaloneMesh` keyword in the style's
+ * layerInfo works the same way and persists with the layer.
+ */
+export const layerIsStandaloneMesh = (layer: Layer): boolean => {
+  if (!layer.visible) return false;
+  const style = (layer.props as { style?: unknown } | undefined)?.style;
+  const styleConfig = (
+    style as
+      | { metadata?: { carmaConf?: { "3d"?: { basemap?: unknown } } } }
+      | undefined
+  )?.metadata?.carmaConf?.["3d"];
+  if (styleConfig?.basemap === "none") return true;
+  const conf = layer.conf as Record<string, unknown> | undefined;
+  if ((conf?.["3d"] as { basemap?: unknown } | undefined)?.basemap === "none")
+    return true;
+  const flag = conf?.standaloneMesh;
+  return flag === true || flag === "" || flag === "true";
+};
+
+/**
+ * App-owned rows (vehicle animation, measurements, shadow) sit in the layer
+ * stack with a `__` id; they are not user content that needs a basemap.
+ */
+export const isAppOwnedLayer = (layer: Layer): boolean =>
+  layer.id.startsWith("__");
+
 export const parseThreeTilesLayer = (
   layer: Layer
 ): ThreeTilesLibreLayer | null => {

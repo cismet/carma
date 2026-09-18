@@ -6,7 +6,8 @@ import {
   type MercatorZoomReferenceStoryArgs,
 } from "./mercator-zoom.shared";
 const meta: Meta<MercatorZoomReferenceStoryArgs> = {
-  title: "Geo/Mercator Zoom",
+  title: "Map Navigation/Camera and Scale",
+  id: "geo-mercator-zoom",
   component: MercatorZoomReferenceTables,
   parameters: {
     layout: "fullscreen",

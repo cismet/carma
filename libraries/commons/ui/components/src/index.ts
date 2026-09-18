@@ -1,5 +1,20 @@
 export { faRowResize } from "./lib/icons/fa-row-resize";
 export {
+  getViewportPanelLayout,
+  VIEWPORT_PANEL_SIDES,
+  type ViewportPanelSide,
+} from "./lib/core/viewport-panel-layout";
+export {
+  createCanvasImageStrip,
+  type CanvasImageStrip,
+  type CanvasImageStripOptions,
+} from "./lib/runtime/create-canvas-image-strip";
+export {
+  CANVAS_IMAGE_STRIP_INITIAL_VIEW,
+  type CanvasImageStripInitialView,
+  type CanvasImageStripView,
+} from "./lib/core/canvas-image-strip-view";
+export {
   CarmaResponsiveInfoBox,
   type CarmaResponsiveInfoBoxProps,
 } from "./lib/components/CarmaResponsiveInfoBox";
@@ -158,3 +173,21 @@ export {
   type AnnotationCursorOverlayPartDefinition,
   type AnnotationCursorOverlayStrokeCapMode,
 } from "./lib/utils/annotation-cursor-overlay-style";
+export { MetricLog, type MetricLogProps } from "./lib/components/MetricLog";
+export {
+  StripChartPanel,
+  type StripChartPanelProps,
+} from "./lib/components/StripChartPanel";
+export {
+  createMetricRecorder,
+  useMetricRecorder,
+  type MetricLogEntry,
+  type MetricRecorder,
+  type MetricSeriesSpec,
+} from "./lib/hooks/useMetricRecorder";
+export {
+  createStripChart,
+  type StripChart,
+  type StripChartOptions,
+  type StripChartRow,
+} from "./lib/utils/strip-chart";

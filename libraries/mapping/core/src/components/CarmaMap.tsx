@@ -69,6 +69,8 @@ interface CarmaMapProps extends LibreMapProps {
   infoBox?: React.ReactNode;
   vectorStyles?: VectorStyle[];
   backgroundLayers?: string | null;
+  /** Paint of the map where no layer draws; see LibreMap. */
+  backgroundColor?: string;
   libreLayers?: LibreLayer[];
   children?: React.ReactNode;
   /** Extra <Control> siblings injected into the internal ControlLayout.
@@ -338,6 +340,8 @@ const CarmaMapContent = (props: CarmaMapProps) => {
                 selectionEnabled={miniMap ? false : props.selectionEnabled}
                 preserveDrawingBuffer={props.preserveDrawingBuffer}
                 maxCanvasSize={props.maxCanvasSize}
+                deferInitialStyle={props.deferInitialStyle}
+                backgroundColor={props.backgroundColor}
                 interactive={miniMap ? false : props.interactive}
                 debugLog={props.debugLog}
                 logErrors={props.logErrors}

@@ -1165,7 +1165,8 @@ const RenderCapabilityScene = (args: StraightLineRenderCapabilityStoryArgs) => {
 };
 
 const meta: Meta<StraightLineRenderCapabilityStoryArgs> = {
-  title: "MapLibre Playground",
+  title: "Annotations/Measurements",
+  id: "maplibre-playground",
   render: (args) => <RenderCapabilityScene {...args} />,
   args: {
     showBugaBridge: true,
