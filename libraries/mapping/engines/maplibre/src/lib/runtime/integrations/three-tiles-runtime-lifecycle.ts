@@ -1,6 +1,6 @@
 import type { Tile } from "3d-tiles-renderer/core";
 import * as THREE from "three";
-import { getCameraLocalMercatorFit } from "@carma-geo/utils";
+import { getCameraLocalMercatorFit } from "@carma-geo/proj";
 
 import { isLocalhostHostname } from "@carma-commons/utils";
 

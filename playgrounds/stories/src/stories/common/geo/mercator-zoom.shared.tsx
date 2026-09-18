@@ -25,6 +25,8 @@ import {
   DEFAULT_LEAFLET_TILESIZE,
   EARTH_CIRCUMFERENCE,
   WEB_MERCATOR_MAX_LATITUDE_DEG,
+} from "@carma-geo/proj";
+import {
   metersPerPixel,
   mercatorZoomFromDistanceAtLatitudeDeg,
 } from "@carma-geo/utils";

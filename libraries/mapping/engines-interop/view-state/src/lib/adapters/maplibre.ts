@@ -14,7 +14,7 @@ import {
   WEB_MERCATOR_MAX_LATITUDE_DEG,
   getPixelResolutionFromZoomAtLatitudeRad,
   clampLatitudeToWebMercatorExtent,
-} from "@carma-geo/utils";
+} from "@carma-geo/proj";
 import { isFiniteNumber, clamp } from "@carma-commons/math";
 import { degToRadNumeric, radToDegNumeric } from "@carma-units";
 import type { Radians } from "@carma-units";

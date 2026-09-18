@@ -1,4 +1,4 @@
-import { getWebMercatorFromWgs84Deg } from "@carma-geo/proj";
+import { getWebMercatorFromWgs84Deg } from "./web-mercator";
 import { Matrix4 } from "three";
 import { degToRadNumeric } from "@carma-units";
 import type { Degrees, Radians } from "@carma-units";
@@ -10,8 +10,8 @@ import {
   WGS84_E2,
 } from "./geodetic";
 import { getMercatorScaleFactorAtLatitudeRad } from "./mercator";
-import { WEB_MERCATOR_MAX_LATITUDE_DEG } from "./constants/web-map";
-import { EARTH_RADIUS } from "./constants/earth";
+import { WEB_MERCATOR_MAX_LATITUDE_DEG } from "./web-map";
+import { EARTH_RADIUS } from "./earth";
 
 // East/north/up → scene east/up/south. This is an axis permutation, not a CRS.
 const ENU_TO_SCENE = new Matrix4().set(

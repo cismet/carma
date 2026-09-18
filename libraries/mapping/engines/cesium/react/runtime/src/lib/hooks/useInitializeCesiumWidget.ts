@@ -4,7 +4,7 @@ import {
   readLongerEdgeFovFromIntrinsics,
   readRangeFromMetersPerCssPixel,
 } from "@carma-commons/camera/model";
-import { getPixelResolutionFromZoomAtLatitudeRad } from "@carma-geo/utils";
+import { getPixelResolutionFromZoomAtLatitudeRad } from "@carma-geo/proj";
 import {
   Camera,
   Cartesian3,

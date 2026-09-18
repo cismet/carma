@@ -9,7 +9,7 @@ import {
 import { Card, Radio } from "antd";
 
 import { Cartographic } from "@carma-cesium";
-import { getPixelResolutionFromZoomAtLatitudeRad } from "@carma-geo/utils";
+import { getPixelResolutionFromZoomAtLatitudeRad } from "@carma-geo/proj";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import { guardSampleTerrainMostDetailedAsync } from "@carma-mapping/engines/cesium/core";
 import { degToRadNumeric, radToDegNumeric } from "@carma-units";

@@ -7,6 +7,35 @@ export {
   getWebMercatorFromWgs84Deg,
   getWgs84DegFromWebMercator,
 } from "./lib/web-mercator";
+export {
+  WGS84_A,
+  WGS84_B,
+  WGS84_E2,
+  cartographicToEcef,
+  ecefToCartographic,
+  ecefToEnuMatrix,
+  ecefToEnuOffset,
+  enuOffsetToEcef,
+} from "./lib/geodetic";
+export type { CartographicRad } from "./lib/geodetic";
+export {
+  clampLatitudeToWebMercatorExtent,
+  getMercatorScaleFactorAtLatitudeDeg,
+  getMercatorScaleFactorAtLatitudeRad,
+  getPixelResolutionFromZoomAtLatitudeRad,
+  getZoomFromPixelResolutionAtLatitudeRad,
+} from "./lib/mercator";
+export { getCameraLocalMercatorFit } from "./lib/camera-local-mercator-fit";
+export { EARTH_CIRCUMFERENCE, EARTH_RADIUS } from "./lib/earth";
+export {
+  DEFAULT_LEAFLET_TILESIZE,
+  DEFAULT_MERCATOR_LATITUDE_DEG,
+  DEFAULT_MERCATOR_LATITUDE_RAD,
+  DEFAULT_PIXEL_TOLERANCE,
+  DEFAULT_ZOOM_LEVEL,
+  WEB_MERCATOR_MAX_LATITUDE_DEG,
+  WEB_MERCATOR_MAX_LATITUDE_RAD,
+} from "./lib/web-map";
 
 export {
   InvalidVerticalOffsetTileError,

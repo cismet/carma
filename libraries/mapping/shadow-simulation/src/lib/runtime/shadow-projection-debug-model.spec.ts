@@ -9,7 +9,7 @@ import {
 import { describe, expect, it } from "vitest";
 
 import { CAMERA_TYPE } from "@carma-commons/camera/model";
-import { ecefToEnuOffset } from "@carma-geo/utils";
+import { ecefToEnuOffset } from "@carma-geo/proj";
 
 import { SHADOW_BUFFER_LAYOUT } from "../core/shadow-types";
 import type { ShadowSnapshot } from "./shadow-controller";
@@ -266,7 +266,11 @@ describe("buildShadowProjectionDebugModel", () => {
         },
       ],
     };
-    const solarPosition = { instant, azimuthDegrees: 120, elevationDegrees: 30 };
+    const solarPosition = {
+      instant,
+      azimuthDegrees: 120,
+      elevationDegrees: 30,
+    };
     const model = buildShadowProjectionDebugModel(
       buildMap(),
       solarPosition,

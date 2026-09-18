@@ -6,7 +6,7 @@ import {
   cartographicToEcef,
   enuOffsetToEcef,
   ecefToCartographic,
-} from "@carma-geo/utils";
+} from "@carma-geo/proj";
 import type { Meters, Radians } from "@carma-units";
 
 import {

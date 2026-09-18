@@ -1,3 +1,4 @@
+import { EARTH_CIRCUMFERENCE } from "@carma-geo/proj";
 // @vitest-environment node
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -667,8 +668,8 @@ describe("shared Three.js scene registry", () => {
 
     const lease = acquireSharedThreeScene(map as never);
 
-    // 300 m at zoom 16 on the equator: 512 * 2^16 / 40075016.686 px per meter.
-    const expectedPixels = (300 * 512 * 2 ** 16) / 40075016.686;
+    // 300 m at zoom 16 on the equator: 512 * 2^16 / circumference px per meter.
+    const expectedPixels = (300 * 512 * 2 ** 16) / EARTH_CIRCUMFERENCE;
     expect(paint.get(`${placeLayer.id}:text-translate-anchor`)).toBe(
       "viewport"
     );

@@ -1,4 +1,11 @@
-import { getCameraLocalMercatorFit } from "@carma-geo/utils";
+import {
+  EARTH_RADIUS,
+  getCameraLocalMercatorFit,
+  getPixelResolutionFromZoomAtLatitudeRad,
+} from "@carma-geo/proj";
+import { distanceMeters } from "@carma-geo/utils";
+import { degToRad } from "@carma-units";
+import type { CssPixels, Degrees, Meters } from "@carma-units";
 import { synthesizeLodCamera } from "@carma-mapping/engines/threejs";
 import { MercatorCoordinate } from "maplibre-gl";
 import type { Map as MaplibreMap, CustomRenderMethodInput } from "maplibre-gl";
@@ -26,21 +33,19 @@ import { setSharedThreeShadedPresentation } from "./shared-three-scene-content-r
 import { MAP_LOADING_PHASE } from "../../core/map-loading-progress";
 import { publishMapLoadingProgress } from "./map-loading-progress";
 
-const MEAN_EARTH_RADIUS_METERS = 6_371_000;
-const EARTH_CIRCUMFERENCE_METERS = 40_075_016.686;
 const MAPLIBRE_TILE_SIZE = 512;
 /** Screen error the local frame may accumulate before it is refitted. */
-const LOCAL_FRAME_MAX_ERROR_PIXELS = 0.5;
+const LOCAL_FRAME_MAX_ERROR_PIXELS = 0.5 as CssPixels;
 /**
  * Content height the up-vector tilt is charged against. Tall buildings and
  * terrain relief in the served cities stay under it; a taller scene shows the
  * tilt a little earlier than the pixel budget promises.
  */
-const LOCAL_FRAME_NOMINAL_HEIGHT_METERS = 200;
+const LOCAL_FRAME_NOMINAL_HEIGHT_METERS = 200 as Meters;
 
 /**
  * Screen-space error, in CSS pixels, that the current view would show if the
- * scene kept the frame fitted `distanceMeters` away from its centre.
+ * scene kept the frame fitted `distance` metres away from its centre.
  *
  * Decision: LOCAL-FRAME-MOUNT-20260918 in engines/maplibre/README.md.
  * The frame is a tangent-plane affine at its anchor, so three errors grow with
@@ -53,41 +58,27 @@ const LOCAL_FRAME_NOMINAL_HEIGHT_METERS = 200;
  * never. Only scalars are touched per frame; vectors move on a refit.
  */
 const localFrameErrorPixels = (
-  distanceMeters: number,
-  latitudeDegrees: number,
+  distance: Meters,
+  latitude: Degrees,
   zoom: number,
-  pitchDegrees: number,
-  viewportWidthPixels: number
-): number => {
-  const latitude = (latitudeDegrees * Math.PI) / 180;
-  const metersPerPixel =
-    (EARTH_CIRCUMFERENCE_METERS * Math.cos(latitude)) /
-    (MAPLIBRE_TILE_SIZE * 2 ** zoom);
-  const halfViewMeters = (viewportWidthPixels / 2) * metersPerPixel;
-  const scaleDrift =
-    (Math.tan(latitude) * distanceMeters) / MEAN_EARTH_RADIUS_METERS;
-  const scaleErrorMeters = (distanceMeters + halfViewMeters) * scaleDrift;
-  const sagMeters =
-    ((distanceMeters * distanceMeters) / (2 * MEAN_EARTH_RADIUS_METERS)) *
-    Math.sin((pitchDegrees * Math.PI) / 180);
-  const tiltMeters =
-    (LOCAL_FRAME_NOMINAL_HEIGHT_METERS * distanceMeters) /
-    MEAN_EARTH_RADIUS_METERS;
-  return (scaleErrorMeters + sagMeters + tiltMeters) / metersPerPixel;
-};
-
-/** Metres between two geographic points, on the mean sphere. */
-const distanceMeters = (
-  [fromLongitude, fromLatitude]: readonly [number, number],
-  [toLongitude, toLatitude]: readonly [number, number]
-) => {
-  const degreesToMeters = (MEAN_EARTH_RADIUS_METERS * Math.PI) / 180;
-  return Math.hypot(
-    (toLongitude - fromLongitude) *
-      Math.cos((toLatitude * Math.PI) / 180) *
-      degreesToMeters,
-    (toLatitude - fromLatitude) * degreesToMeters
+  pitch: Degrees,
+  viewportWidth: CssPixels
+): CssPixels => {
+  const latitudeRad = degToRad(latitude);
+  const metersPerPixel = getPixelResolutionFromZoomAtLatitudeRad(
+    zoom,
+    latitudeRad,
+    { tileSize: MAPLIBRE_TILE_SIZE }
   );
+  const halfViewMeters = (viewportWidth / 2) * metersPerPixel;
+  const scaleDrift = (Math.tan(latitudeRad) * distance) / EARTH_RADIUS;
+  const scaleErrorMeters = (distance + halfViewMeters) * scaleDrift;
+  const sagMeters =
+    ((distance * distance) / (2 * EARTH_RADIUS)) * Math.sin(degToRad(pitch));
+  const tiltMeters =
+    (LOCAL_FRAME_NOMINAL_HEIGHT_METERS * distance) / EARTH_RADIUS;
+  return ((scaleErrorMeters + sagMeters + tiltMeters) /
+    metersPerPixel) as CssPixels;
 };
 
 const rotationX = new THREE.Matrix4().makeRotationAxis(
@@ -154,11 +145,17 @@ export const buildSharedThreeSceneLayer = (
       !force &&
       localFrame &&
       localFrameErrorPixels(
-        distanceMeters(localFrame.lngLat, lngLat),
-        center.lat,
+        distanceMeters(
+          {
+            longitude: localFrame.lngLat[0] as Degrees,
+            latitude: localFrame.lngLat[1] as Degrees,
+          },
+          { longitude: center.lng as Degrees, latitude: center.lat as Degrees }
+        ) as Meters,
+        center.lat as Degrees,
         map.getZoom?.() ?? 16,
-        map.getPitch?.() ?? 0,
-        map.getCanvas?.()?.clientWidth || 1920
+        (map.getPitch?.() ?? 0) as Degrees,
+        (map.getCanvas?.()?.clientWidth || 1920) as CssPixels
       ) <= LOCAL_FRAME_MAX_ERROR_PIXELS
     ) {
       return localFrame;
