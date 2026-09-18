@@ -164,7 +164,7 @@ export const Routing = ({
   // was only measured has none
   const steps = route?.steps;
 
-  const { currentPosition, activate } = useLocate();
+  const { currentPosition, activate, setTravelHeading } = useLocate();
   const position: [number, number] | null = currentPosition
     ? [currentPosition.coords.longitude, currentPosition.coords.latitude]
     : null;
@@ -245,6 +245,8 @@ export const Routing = ({
       const flight = ++flightRef.current;
       setFollowing(false);
       setProgress(null);
+      // the user is a dot again, not an arrow going somewhere
+      setTravelHeading(null);
       if (!map || !animate) {
         map?.jumpTo({ pitch: 0, bearing: 0 });
         setNavigating(false);
@@ -261,8 +263,11 @@ export const Routing = ({
       });
       map.easeTo({ pitch: 0, bearing: 0, duration });
     },
-    [duration]
+    [duration, setTravelHeading]
   );
+
+  // an addon taken off the map mid-navigation must not leave the arrow behind
+  useEffect(() => () => setTravelHeading(null), [setTravelHeading]);
 
   // the route this navigation was started on is not the one in focus any
   // more, or there is none: the navigation goes with it
@@ -297,6 +302,7 @@ export const Routing = ({
       // so the note counts down from the press rather than from the first fix
       // after it, which is up to a second later
       trackProgress(target);
+      setTravelHeading(target.bearing);
     }
     handledFixRef.current = fixRef.current;
     flightRef.current++;
@@ -315,6 +321,7 @@ export const Routing = ({
     duration,
     snapToleranceMeters,
     trackProgress,
+    setTravelHeading,
   ]);
 
   const start = useCallback(() => {
@@ -388,6 +395,8 @@ export const Routing = ({
         leave(true);
         return;
       }
+      // the arrow turns with the road whether or not the camera follows
+      setTravelHeading(target.bearing);
     }
     if (!following || currentPosition === handledFixRef.current) {
       return;
@@ -418,6 +427,7 @@ export const Routing = ({
     arrivalMeters,
     leave,
     trackProgress,
+    setTravelHeading,
   ]);
 
   /**
