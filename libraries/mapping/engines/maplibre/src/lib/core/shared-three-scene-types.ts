@@ -6,13 +6,21 @@ import type { SceneAccumulationOptions } from "@carma-mapping/engines/three/prim
  * The local east/up/south frame at the view anchor, on the ellipsoid.
  *
  * The shared scene is a single Mercator tangent plane at its origin, so
- * anything that must stay true to the ellipsoid far from that origin mounts at
- * this frame instead: ECEF tilesets, and the sun and sky that light them. It is
- * the same anchor the view-state model keeps as its orbit reference, derived
- * here because the engine layer cannot depend on that model. The frame moves
- * only once the current view would show more than half a pixel of error from
- * keeping it (`localFrameErrorPixels` in the layer), and `revision` changes
- * with every move.
+ * anything that must stay true to the ellipsoid far from that origin mounts on
+ * this frame instead: ECEF tilesets, and the sun and the shadow pages that
+ * light them. It is the same anchor the view-state model keeps as its orbit
+ * reference, derived here because the engine layer cannot depend on that
+ * model. The frame moves only once the current view would show more than half
+ * a pixel of error from keeping it (`localFrameErrorPixels` in the layer), and
+ * `revision` changes with every move.
+ *
+ * Everything mounted on the frame lives in the layer's local-frame group and
+ * is expressed in the reference fit, the frame's first fit after attach. A
+ * move never touches that content: the group's matrix becomes
+ * `referenceToCurrent`, the affine from the reference placement to the current
+ * one, and content, light and shadows move together, so a refit cancels out
+ * of every shadow. Decision: LOCAL-FRAME-MOUNT-20260918 in
+ * engines/maplibre/README.md.
  */
 export type SharedThreeSceneLocalFrame = Readonly<{
   /** [longitude, latitude] in degrees, at ellipsoidal height 0. */
@@ -25,6 +33,12 @@ export type SharedThreeSceneLocalFrame = Readonly<{
    */
   sceneFromLocal: THREE.Matrix4;
   sceneFromLocalRotation: THREE.Matrix4;
+  /** Anchor of the reference fit that frame-mounted content is expressed in. */
+  referenceLngLat: readonly [number, number];
+  sceneFromLocalReference: THREE.Matrix4;
+  /** Matrix of the local-frame group: reference placement to current one. */
+  referenceToCurrent: THREE.Matrix4;
+  currentToReference: THREE.Matrix4;
 }>;
 
 export interface SharedThreeSceneFrame {
@@ -84,6 +98,12 @@ export interface SharedThreeSceneRuntime {
   root: THREE.Object3D;
   /** This runtime already supplies the visible ground surface. */
   providesTerrain?: boolean;
+  /**
+   * The root sits in the layer's local-frame group and holds content in the
+   * frame's reference fit; the group carries it to the current fit. Bounds
+   * this runtime exchanges with the shadow scene are in that reference space.
+   */
+  mountsOnLocalFrame?: boolean;
   /** Project preceding MapLibre ground styling onto selected runtime materials. */
   receivesMapStyleTexture?: boolean | ((material: THREE.Material) => boolean);
   /**
@@ -217,6 +237,8 @@ export interface SharedThreeSceneLayer extends CustomLayerInterface {
   getRuntimes: () => readonly SharedThreeSceneRuntime[];
   /** The current local frame; null until the layer is on a map. */
   getLocalFrame: () => SharedThreeSceneLocalFrame | null;
+  /** Group carrying frame-mounted content; its matrix is `referenceToCurrent`. */
+  getLocalFrameGroup: () => THREE.Group;
   /** Renderer owned by the mounted MapLibre custom layer, if it is active. */
   getRenderer: () => THREE.WebGLRenderer | null;
   /** Optional synchronous GPU work outside a map frame; false means unsupported. */

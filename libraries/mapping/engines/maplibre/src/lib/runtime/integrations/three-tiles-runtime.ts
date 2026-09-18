@@ -63,6 +63,7 @@ export function buildThreeTilesRuntime(
     isTileInMainView: (...args) => spatial.isTileInMainView(...args),
     isChildUnloadable: (...args) => spatial.isChildUnloadable(...args),
     updateRootWorldBounds: (...args) => spatial.updateRootWorldBounds(...args),
+    updateFrameFromTiles: () => spatial.updateFrameFromTiles(),
     getTileScreenError: (...args) => spatial.getTileScreenError(...args),
     getStableTileId: (...args) => debug.getStableTileId(...args),
     getTileCenterness: (...args) => spatial.getTileCenterness(...args),
@@ -88,7 +89,8 @@ export function buildThreeTilesRuntime(
     refreshRenderedMaterials: (...args) =>
       appearance.refreshRenderedMaterials(...args),
     applyMaterialFlags: (...args) => appearance.applyMaterialFlags(...args),
-    readModelWorldBounds: (...args) => spatial.readModelWorldBounds(...args),
+    readModelFrameBounds: (...args) => spatial.readModelFrameBounds(...args),
+    updateFrameFromTiles: () => spatial.updateFrameFromTiles(),
     invalidateShadowRegionRevisions: (...args) =>
       shadows.invalidateShadowRegionRevisions(...args),
     reapplyCacheBoundsIfDrifted: (...args) =>
@@ -153,6 +155,7 @@ export function buildThreeTilesRuntime(
       id: state.layerId,
       originLngLat: state.originLngLat,
       root: state.orientationGroup,
+      mountsOnLocalFrame: state.options.cameraLocalMount === true,
       providesTerrain: state.options.providesTerrain === true,
       receivesMapStyleTexture:
         state.options.providesTerrain === true

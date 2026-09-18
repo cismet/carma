@@ -70,6 +70,10 @@ describe("three tiles runtime effective error target", () => {
         revision: 1,
         sceneFromLocal: new THREE.Matrix4(),
         sceneFromLocalRotation: new THREE.Matrix4(),
+        referenceLngLat: [7.15, 51.25] as const,
+        sceneFromLocalReference: new THREE.Matrix4(),
+        referenceToCurrent: new THREE.Matrix4(),
+        currentToReference: new THREE.Matrix4(),
       },
     };
     layer.loading.setErrorTarget(0.25);

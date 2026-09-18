@@ -62,6 +62,7 @@ import {
   AtmosphericSunlightEvaluator,
   getAtmosphericInputValidationError,
   getAtmosphericSunlightSampleValidationError,
+  rebaseAtmosphericSunlightSample,
   type AtmosphericSunlightSample,
   type AtmosphericSunlightOptions,
   type AtmosphericSkyReference,
@@ -131,6 +132,8 @@ type GenericThreeLayer = ReturnType<typeof getGenericThreeLayers>[number];
 
 type ShadowLightBinding = {
   scene: THREE.Scene;
+  /** Host of light, sun vector and shadow pages: the scene's local-frame group. */
+  frame: THREE.Object3D;
   controller: ShadowController;
   skyLight: THREE.LightProbe;
   atmosphericSky: ReturnType<typeof buildAtmosphericSky>;
@@ -863,10 +866,11 @@ const updateBindingCenter = (binding: ShadowLightBinding) => {
 
 const buildShadowLightBinding = (
   scene: THREE.Scene,
+  frame: THREE.Object3D,
   shadowAreaMeters: number,
   groundAlbedo: THREE.Color
 ): ShadowLightBinding => {
-  const controller = new ShadowController(scene);
+  const controller = new ShadowController(frame);
   const sunLight = controller.lights[0];
   const lightTarget = sunLight.target;
   // Stable, empty host for the tiled renderer; debug geometry is demand-loaded.
@@ -886,6 +890,7 @@ const buildShadowLightBinding = (
   });
   const binding: ShadowLightBinding = {
     scene,
+    frame,
     controller,
     skyLight,
     atmosphericSky,
@@ -946,17 +951,7 @@ const applyAtmosphericSkyLightToBinding = (
   }
 };
 
-/**
- * Frame tilt the scene-space sun may lag behind the shared local frame before
- * the light is re-aimed. The sun's ECEF direction is fixed between solar
- * updates; each local-frame refit only turns its scene-space image by the
- * frame tilt, d / R for d metres of travel. Re-aiming re-keys every tiled
- * shadow page on the new direction, so refits below this tolerance keep the
- * pages and accept the lag: 0.02 degrees is 7.5 % of the sun disc radius,
- * about 2.2 km of travel, and moves the tip of a 200 m shadow by 7 cm.
- * Decision: LOCAL-FRAME-MOUNT-20260918 in engines/maplibre/README.md.
- */
-const SUN_FRAME_TILT_TOLERANCE_RADIANS = THREE.MathUtils.degToRad(0.02);
+const IDENTITY_MATRIX = new THREE.Matrix4();
 
 const applySolarPositionToBinding = (
   binding: ShadowLightBinding,
@@ -1106,14 +1101,72 @@ export const buildShadowSimulationScene = (
   });
   const initialLocalFrame = sceneLease.layer.getLocalFrame?.() ?? null;
   let atmosphereFrameRevision = initialLocalFrame?.revision ?? 0;
-  /** Local up of the frame the binding's sun direction was last aimed in. */
-  const sunAimFrameUp = new THREE.Vector3(0, 1, 0);
   let atmosphereSkyReference = initialLocalFrame
     ? buildAtmosphereSkyReference(
         initialLocalFrame.lngLat,
         initialLocalFrame.sceneFromLocalRotation
       )
     : buildAtmosphereSkyReference([map.getCenter().lng, map.getCenter().lat]);
+  /** Scene to the frame's reference space, where the shadow scene works. */
+  const frameFromScene = (): THREE.Matrix4 =>
+    latestFrame?.localFrame?.currentToReference ??
+    initialLocalFrame?.currentToReference ??
+    IDENTITY_MATRIX;
+  const framePerspectiveCamera = new THREE.PerspectiveCamera();
+  const frameGenericCamera = new THREE.Camera();
+  /**
+   * The observer expressed in frame space, for planning against frame cells.
+   * A faithful copy of the render camera (lens, near/far, layers) whose pose
+   * is brought into the reference fit; the render camera itself while the
+   * frame still sits at its reference.
+   */
+  const getFrameCamera = (frame: SharedThreeSceneFrame): THREE.Camera => {
+    const camera = frame.renderCamera;
+    const { localFrame } = frame;
+    if (!localFrame || localFrame.currentToReference.equals(IDENTITY_MATRIX))
+      return camera;
+    const frameCamera =
+      camera instanceof THREE.PerspectiveCamera
+        ? framePerspectiveCamera.copy(camera, false)
+        : frameGenericCamera.copy(camera, false);
+    frameCamera.matrixAutoUpdate = false;
+    frameCamera.matrixWorldAutoUpdate = false;
+    frameCamera.matrixWorld.multiplyMatrices(
+      localFrame.currentToReference,
+      camera.matrixWorld
+    );
+    frameCamera.matrixWorld.decompose(
+      frameCamera.position,
+      frameCamera.quaternion,
+      frameCamera.scale
+    );
+    frameCamera.matrix.copy(frameCamera.matrixWorld);
+    frameCamera.matrixWorldInverse.multiplyMatrices(
+      camera.matrixWorldInverse,
+      localFrame.referenceToCurrent
+    );
+    return frameCamera;
+  };
+  /** Volumes of a runtime outside the frame group, brought into frame space. */
+  const toFrameVolumes = (
+    runtime: SharedThreeSceneRuntime | null | undefined,
+    volumes: readonly SharedThreeSceneTileVolume[]
+  ): readonly SharedThreeSceneTileVolume[] => {
+    if (runtime?.mountsOnLocalFrame || volumes.length === 0) return volumes;
+    const matrix = frameFromScene();
+    if (matrix.equals(IDENTITY_MATRIX)) return volumes;
+    const box = new THREE.Box3();
+    return volumes.map((volume) => {
+      box.min.set(...volume.minimum);
+      box.max.set(...volume.maximum);
+      box.applyMatrix4(matrix);
+      return {
+        ...volume,
+        minimum: [box.min.x, box.min.y, box.min.z],
+        maximum: [box.max.x, box.max.y, box.max.z],
+      };
+    });
+  };
   const atmosphericSunlight = new AtmosphericSunlightEvaluator();
   let invalidateShadowMap: (
     changedBounds?: readonly THREE.Box3[]
@@ -1191,8 +1244,17 @@ export const buildShadowSimulationScene = (
     : buildTerrainRuntime();
   let initialTerrainStageReady = terrainRuntime === null;
   if (terrainRuntime) sceneLease.layer.addRuntime(terrainRuntime);
+  // Light, sun vector and shadow pages live in the layer's local-frame group,
+  // like the ECEF tilesets they light, and are expressed in the frame's
+  // reference fit. A local-frame refit moves that group alone: tiles, light,
+  // casters and receivers move together, so the shadows cancel out of it
+  // exactly and only a solar change invalidates them.
+  // Decision: LOCAL-FRAME-MOUNT-20260918 in engines/maplibre/README.md.
+  const shadowFrame =
+    sceneLease.layer.getLocalFrameGroup?.() ?? sceneLease.layer.getScene();
   const sharedBinding = buildShadowLightBinding(
     sceneLease.layer.getScene(),
+    shadowFrame,
     initialShadowAreaMeters,
     terrainColor
   );
@@ -1262,6 +1324,7 @@ export const buildShadowSimulationScene = (
           await tiledScene.prewarm({
             cells: buildShadowReceiverNeighbourRing(receiverCells),
             frame: latestFrame,
+            planningCamera: getFrameCamera(latestFrame),
             lighting: {
               directionToSun: sharedBinding.directionToSun,
               color: sharedBinding.sunColor,
@@ -1390,10 +1453,7 @@ export const buildShadowSimulationScene = (
       if (latestSample) applyMapLibreLightSampleImmediately(latestSample);
     }, MAPLIBRE_STYLE_ANIMATION_UPDATE_INTERVAL_MS - elapsedMs);
   };
-  const evaluateAtmosphericSunlightForMap = (
-    position: SolarPosition,
-    invalidateShadowMapForSun = true
-  ) => {
+  const evaluateAtmosphericSunlightForMap = (position: SolarPosition) => {
     // Incident light belongs to the local world, not the viewing camera. A pan
     // must not change its direction/radiance and invalidate every shadow page.
     // The sky still receives the live view camera and observer scene position.
@@ -1457,21 +1517,14 @@ export const buildShadowSimulationScene = (
       atmosphericSunlight.skyTextures
     );
     applyAtmosphericSkyLightToBinding(sharedBinding, sample);
+    // The light lives in the frame group: its direction is the sun's scene
+    // image brought into the reference fit, which no later refit changes.
     applySolarPositionToBinding(
       sharedBinding,
-      sample.directionToSun,
+      sample.directionToSun.clone().transformDirection(frameFromScene()),
       sample.radiance,
-      ATMOSPHERIC_DISPLAY_EXPOSURE,
-      invalidateShadowMapForSun
+      ATMOSPHERIC_DISPLAY_EXPOSURE
     );
-    if (atmosphereSkyReference.sceneFromLocal) {
-      sunAimFrameUp.setFromMatrixColumn(
-        atmosphereSkyReference.sceneFromLocal,
-        1
-      );
-    } else {
-      sunAimFrameUp.set(0, 1, 0);
-    }
     return sample;
   };
   invalidateShadowMap = (changedBounds) => {
@@ -1494,8 +1547,8 @@ export const buildShadowSimulationScene = (
   let renderReceiverErrors: Map<string, number> | null = null;
   let renderedTileVolumes: readonly SharedThreeSceneTileVolume[] = [];
   const readActiveTileVolumes = (): readonly SharedThreeSceneTileVolume[] =>
-    getCoverageRuntimes().flatMap(
-      (runtime) => runtime.getActiveTileVolumes?.() ?? []
+    getCoverageRuntimes().flatMap((runtime) =>
+      toFrameVolumes(runtime, runtime.getActiveTileVolumes?.() ?? [])
     );
   const getActiveTileVolumes = (): readonly SharedThreeSceneTileVolume[] =>
     renderTileVolumes ?? readActiveTileVolumes();
@@ -1625,7 +1678,10 @@ export const buildShadowSimulationScene = (
         : null;
     const receiverBounds = new THREE.Box3();
     const terrainReceivers = receiverFrustum
-      ? terrainRuntime?.getActiveTileVolumes?.().filter((tile) => {
+      ? toFrameVolumes(
+          terrainRuntime,
+          terrainRuntime?.getActiveTileVolumes?.() ?? []
+        ).filter((tile) => {
           // Caster-only terrain must not recursively extend receiver demand.
           receiverBounds.min.fromArray(tile.minimum);
           receiverBounds.max.fromArray(tile.maximum);
@@ -1792,7 +1848,7 @@ export const buildShadowSimulationScene = (
       if (requestRepaint) map.triggerRepaint();
       return;
     }
-    sharedBinding.center.copy(center);
+    sharedBinding.center.copy(center).applyMatrix4(frameFromScene());
     cachedElevationRange ??= getVisibleSceneElevationRange(
       sharedBinding.scene,
       center.y
@@ -1800,17 +1856,19 @@ export const buildShadowSimulationScene = (
     const [minimumElevation, maximumElevation] = cachedElevationRange;
     if (frame) {
       const coveragePoints = getViewportElevationEnvelopePoints(
-        frame.renderCamera,
+        getFrameCamera(frame),
         minimumElevation,
         maximumElevation,
-        center
+        sharedBinding.center
       );
       if (coveragePoints.length > 0) {
         const viewportSize = new THREE.Box3()
           .setFromPoints(coveragePoints)
           .getSize(new THREE.Vector3());
         const viewportRadiusMeters = Math.max(
-          ...coveragePoints.map((point) => point.distanceTo(center))
+          ...coveragePoints.map((point) =>
+            point.distanceTo(sharedBinding.center)
+          )
         );
         sharedBinding.sunVectorLengthMeters =
           Math.min(viewportSize.x, viewportSize.z) *
@@ -1864,22 +1922,21 @@ export const buildShadowSimulationScene = (
           localFrame.lngLat,
           localFrame.sceneFromLocalRotation
         );
-        // The sun's ECEF direction is unchanged; only its scene-space image
-        // turns with the frame, by the same sub-pixel tilt the mounted tiles
-        // just took. The next solar update aims the light in this frame. An
-        // earlier re-aim happens only once the lag exceeds the tilt tolerance,
-        // and then without forcing a shadow-map pass or touching shadow
-        // content or presentation: the camera move behind the refit already
-        // restarts accumulation.
-        const frameUp = new THREE.Vector3().setFromMatrixColumn(
-          localFrame.sceneFromLocalRotation,
-          1
-        );
-        if (
-          latestSolarPosition &&
-          frameUp.angleTo(sunAimFrameUp) > SUN_FRAME_TILT_TOLERANCE_RADIANS
-        ) {
-          evaluateAtmosphericSunlightForMap(latestSolarPosition, false);
+        // The sun is fixed in ECEF and the light sits in the frame group, so
+        // the refit has already carried it; the shadows cancel out. Only the
+        // sky dome, drawn in scene space, takes the retained sample
+        // re-expressed for the new frame. Nothing is re-evaluated, no
+        // shadow-map pass is forced, no shadow content or presentation is
+        // invalidated.
+        if (latestAtmosphericSunlight) {
+          latestAtmosphericSunlight = rebaseAtmosphericSunlightSample(
+            latestAtmosphericSunlight,
+            atmosphereSkyReference
+          );
+          sharedBinding.atmosphericSky.update(
+            latestAtmosphericSunlight.skyFrame,
+            atmosphericSunlight.skyTextures
+          );
         }
       }
       const renderer = sceneLease.layer.getRenderer?.();
@@ -2002,7 +2059,7 @@ export const buildShadowSimulationScene = (
       const visibleTileVolumePoints = committedVolumes.flatMap(
         ({ minimum, maximum }) =>
           getFrustumBoxIntersectionPoints(
-            frame.renderCamera,
+            getFrameCamera(frame),
             new THREE.Box3(
               new THREE.Vector3(...minimum),
               new THREE.Vector3(...maximum)
@@ -2040,7 +2097,7 @@ export const buildShadowSimulationScene = (
         );
         const fullPagePoints = getVisibleShadowReceiverCorners(
           receiverCells,
-          frame.renderCamera
+          getFrameCamera(frame)
         );
         // Capture readiness and fetching must refer to the SAME full source
         // page. Clipping discovery to the screen starves edge-page casters.
@@ -2185,6 +2242,7 @@ export const buildShadowSimulationScene = (
         light: sharedBinding.controller.lights[0],
         sky: sharedBinding.atmosphericSky.mesh,
         overlay: sharedBinding.sunVectorRoot,
+        frame: sharedBinding.frame,
         maximumMapSize: resourceLimits.maxShadowMapSize,
         isCorridorReady: (bounds, errorPixels, receiverBounds) => {
           // Hard capture, soft scheduling and presentation inspect the same
@@ -2327,13 +2385,14 @@ export const buildShadowSimulationScene = (
         },
         // Scale depth demand, never the native-pixel map/style colour pass.
         SHADOW_QUALITY_PROFILES[sharedBinding.shadowQuality]
-          .shadowTexelErrorPixels
+          .shadowTexelErrorPixels,
+        getFrameCamera(latestFrame)
       );
     } else {
       // Receiver pages and their finite-sun captures are world anchored. A
       // camera drag changes only their framebuffer scissor; reproject that
       // presentation without changing corridor or cache identity.
-      tiledScene.updatePresentation(latestFrame);
+      tiledScene.updatePresentation(latestFrame, getFrameCamera(latestFrame));
     }
     return tiledScene;
   };
@@ -2977,14 +3036,14 @@ export const buildShadowSimulationScene = (
       sharedBinding.sunVectorVisible = visible;
       sharedBinding.sunVectorRoot.visible = visible && !!latestSolarPosition;
       if (!visible) {
-        sharedBinding.scene.remove(sharedBinding.sunVectorRoot);
+        sharedBinding.frame.remove(sharedBinding.sunVectorRoot);
         if (sharedBinding.sunVector) {
           sharedBinding.sunVectorRoot.remove(sharedBinding.sunVector.root);
           sharedBinding.sunVector.dispose();
           sharedBinding.sunVector = null;
         }
       } else {
-        sharedBinding.scene.add(sharedBinding.sunVectorRoot);
+        sharedBinding.frame.add(sharedBinding.sunVectorRoot);
         void import("./shadow-sun-vector")
           .then(({ buildSunVector }) => {
             // Closing the panel or disposing the scene while the chunk loads

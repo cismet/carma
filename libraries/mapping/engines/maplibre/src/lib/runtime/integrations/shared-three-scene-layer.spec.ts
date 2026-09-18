@@ -660,4 +660,46 @@ describe("shared scene local frame", () => {
     render();
     expect(layer.getLocalFrame()).toBe(moved);
   });
+
+  it("carries frame-mounted runtimes in a group that moves with the frame", () => {
+    const { layer, map, render } = createProgressiveHost();
+    const group = layer.getLocalFrameGroup();
+    const runtime = (id: string, mountsOnLocalFrame?: boolean) => ({
+      id,
+      originLngLat: [7.15, 51.25] as [number, number],
+      root: new THREE.Group(),
+      mountsOnLocalFrame,
+      update: vi.fn(),
+      dispose: vi.fn(),
+    });
+    const mounted = runtime("mounted", true);
+    const plain = runtime("plain");
+    layer.addRuntime(mounted);
+    layer.addRuntime(plain);
+    expect(mounted.root.parent).toBe(group);
+    expect(plain.root.parent).toBe(layer.getScene());
+    const initial = layer.getLocalFrame()!;
+    const identity = new THREE.Matrix4();
+    expect(initial.referenceToCurrent.equals(identity)).toBe(true);
+    expect(group.matrix.equals(identity)).toBe(true);
+
+    map.getCenter = () => ({ lng: 7.15, lat: 51.3 });
+    render();
+    const moved = layer.getLocalFrame()!;
+    expect(moved.referenceLngLat).toEqual(initial.lngLat);
+    expectMatrixToBeCloseTo(
+      moved.referenceToCurrent,
+      moved.sceneFromLocal
+        .clone()
+        .multiply(initial.sceneFromLocal.clone().invert())
+    );
+    expectMatrixToBeCloseTo(group.matrix, moved.referenceToCurrent);
+    expectMatrixToBeCloseTo(
+      moved.currentToReference.clone().multiply(moved.referenceToCurrent),
+      identity
+    );
+    expect(mounted.root.parent).toBe(group);
+    layer.removeRuntime("mounted");
+    expect(mounted.root.parent).toBeNull();
+  });
 });

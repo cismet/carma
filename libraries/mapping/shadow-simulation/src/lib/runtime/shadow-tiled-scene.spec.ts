@@ -168,7 +168,8 @@ describe("Geoportal tiled scene adapter", () => {
       f.scene,
       f.renderer,
       2 * 2048 ** 2 * 8,
-      2048
+      2048,
+      undefined
     );
   });
 

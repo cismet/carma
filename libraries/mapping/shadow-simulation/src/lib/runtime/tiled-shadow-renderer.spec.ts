@@ -116,7 +116,9 @@ const fixture = (budget = 8 * 1024 ** 2, targetPixels = 1) => {
       if (!(renderCamera instanceof THREE.ArrayCamera))
         colorViews.push(renderCamera);
       else colorViews.push(...renderCamera.cameras);
-      for (const child of scene.children) {
+      const objects: THREE.Object3D[] = [];
+      scene.traverse((object) => objects.push(object));
+      for (const child of objects) {
         if (
           !(child instanceof THREE.DirectionalLight) ||
           !child.visible ||
@@ -663,6 +665,74 @@ describe("shared tiled shadow runtime", () => {
     expect(f.pages.stats.hits).toBe(8);
     expect(f.renderer.clippingPlanes).toBe(f.clipping);
     expect(f.renderer.autoClear).toBe(true);
+    f.pages.dispose();
+  });
+
+  it("leaves fits, keys and depth untouched when the host group moves", () => {
+    const f = fixture();
+    const host = new THREE.Group();
+    host.matrixAutoUpdate = false;
+    f.scene.add(host);
+    const pages = new TiledShadowRenderer(
+      f.scene,
+      f.renderer as unknown as THREE.WebGLRenderer,
+      8 * 1024 ** 2,
+      256,
+      host
+    );
+    const setView = () =>
+      pages.setView(
+        f.cells,
+        f.camera,
+        new THREE.Vector2(1440, 1440),
+        1,
+        f.lighting
+      );
+    setView();
+    for (let i = 0; i < 4; i += 1) pages.renderSample(f.camera, i, 4);
+    expect(
+      host.children.some(
+        (child) => (child as THREE.DirectionalLight).isDirectionalLight
+      )
+    ).toBe(true);
+    const depthRenders = pages.stats.depthRenders;
+    const identity = () =>
+      pages.accumulationPages.map(({ id, revision, presentationKey }) => [
+        id,
+        revision,
+        presentationKey,
+      ]);
+    const retained = identity();
+
+    // A local-frame refit: the layer moves the group and nothing inside it.
+    host.matrix.makeRotationZ(0.001).setPosition(3, 0, -2);
+    host.updateMatrixWorld(true);
+    setView();
+    expect(identity()).toEqual(retained);
+    for (let i = 0; i < 4; i += 1) pages.renderSample(f.camera, i, 4);
+    expect(pages.stats.depthRenders).toBe(depthRenders);
+    expect(pages.stats.hits).toBe(8);
+    pages.dispose();
+    f.pages.dispose();
+  });
+
+  it("re-keys every page on any sun turn, however small, so a time step is never absorbed", () => {
+    const f = fixture();
+    for (let i = 0; i < 4; i += 1) f.pages.renderSample(f.camera, i, 4);
+    const depthRenders = f.pages.stats.depthRenders;
+    const retained = f.pages.accumulationPages.map(({ id, revision }) => [
+      id,
+      revision,
+    ]);
+    // A minute of sun at page resolution can be well under a texel far from
+    // the observer; it still has to move the shadows.
+    f.lighting.directionToSun.set(1e-4, 1, 0).normalize();
+    f.setView();
+    expect(
+      f.pages.accumulationPages.map(({ id, revision }) => [id, revision])
+    ).not.toEqual(retained);
+    for (let i = 0; i < 4; i += 1) f.pages.renderSample(f.camera, i, 4);
+    expect(f.pages.stats.depthRenders).toBeGreaterThan(depthRenders);
     f.pages.dispose();
   });
 

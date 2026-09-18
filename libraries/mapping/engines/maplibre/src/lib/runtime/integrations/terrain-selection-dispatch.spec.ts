@@ -85,6 +85,10 @@ describe("coalesced asynchronous terrain selection", () => {
         revision: 1,
         sceneFromLocal: new Matrix4(),
         sceneFromLocalRotation: new Matrix4(),
+        referenceLngLat: [7.15, 51.25] as const,
+        sceneFromLocalReference: new Matrix4(),
+        referenceToCurrent: new Matrix4(),
+        currentToReference: new Matrix4(),
       },
     };
     frame.lodCamera.position.set(0, 1000, 1000);

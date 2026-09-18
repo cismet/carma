@@ -108,6 +108,14 @@ export const buildSharedThreeSceneLayer = (
   scene.add(
     new THREE.AmbientLight(0xffffff, options.ambientLightIntensity ?? 2.4)
   );
+  // Frame-mounted content is expressed in the local frame's reference fit and
+  // carried to the current fit by this group alone; a refit is one matrix.
+  const localFrameGroup = new THREE.Group();
+  localFrameGroup.name = "shared-three-scene-local-frame";
+  localFrameGroup.matrixAutoUpdate = false;
+  scene.add(localFrameGroup);
+  const runtimeHost = (runtime: SharedThreeSceneRuntime) =>
+    runtime.mountsOnLocalFrame ? localFrameGroup : scene;
   const renderCamera = new THREE.PerspectiveCamera();
   const lodCamera = new THREE.PerspectiveCamera();
   const accumulationRuntime = createSharedThreeSceneAccumulation(layerId);
@@ -160,6 +168,14 @@ export const buildSharedThreeSceneLayer = (
       [lngLat[0], lngLat[1]],
       { correctEllipsoidMetric: true }
     );
+    const referenceLngLat = localFrame?.referenceLngLat ?? lngLat;
+    const sceneFromLocalReference =
+      localFrame?.sceneFromLocalReference ?? sceneFromLocal;
+    const referenceToCurrent = localFrame
+      ? sceneFromLocal
+          .clone()
+          .multiply(sceneFromLocalReference.clone().invert())
+      : new THREE.Matrix4();
     localFrame = {
       lngLat,
       revision: (localFrame?.revision ?? 0) + 1,
@@ -167,7 +183,13 @@ export const buildSharedThreeSceneLayer = (
       sceneFromLocalRotation: new THREE.Matrix4().extractRotation(
         sceneFromLocal
       ),
+      referenceLngLat,
+      sceneFromLocalReference,
+      referenceToCurrent,
+      currentToReference: referenceToCurrent.clone().invert(),
     };
+    localFrameGroup.matrix.copy(referenceToCurrent);
+    localFrameGroup.updateMatrixWorld(true);
     return localFrame;
   };
 
@@ -202,7 +224,7 @@ export const buildSharedThreeSceneLayer = (
       runtimeUpdateOrder = [...runtimes.values()].sort(
         (a, b) => (b.updatePriority ?? 0) - (a.updatePriority ?? 0)
       );
-      scene.add(runtime.root);
+      runtimeHost(runtime).add(runtime.root);
       placeRuntime(runtime);
       if (map) runtime.onAdd?.(map);
       map?.triggerRepaint();
@@ -216,7 +238,7 @@ export const buildSharedThreeSceneLayer = (
       runtimeUpdateOrder = runtimeUpdateOrder.filter(
         (candidate) => candidate !== runtime
       );
-      scene.remove(runtime.root);
+      runtime.root.removeFromParent();
       runtime.dispose();
       map?.triggerRepaint();
     },
@@ -235,6 +257,10 @@ export const buildSharedThreeSceneLayer = (
 
     getLocalFrame() {
       return localFrame;
+    },
+
+    getLocalFrameGroup() {
+      return localFrameGroup;
     },
 
     getRenderer() {
@@ -288,7 +314,7 @@ export const buildSharedThreeSceneLayer = (
       if (map)
         publishMapLoadingProgress(map, MAP_LOADING_PHASE.SHADOW, layerId, 1);
       mapStyleProjection.dispose();
-      for (const runtime of runtimes.values()) scene.remove(runtime.root);
+      for (const runtime of runtimes.values()) runtime.root.removeFromParent();
       depthRangeBridge?.dispose();
       depthRangeBridge = null;
       renderer?.dispose();
@@ -322,7 +348,8 @@ export const buildSharedThreeSceneLayer = (
       renderer.shadowMap.enabled = true;
       renderer.shadowMap.type = THREE.PCFShadowMap;
       for (const runtime of runtimes.values()) {
-        if (runtime.root.parent !== scene) scene.add(runtime.root);
+        const host = runtimeHost(runtime);
+        if (runtime.root.parent !== host) host.add(runtime.root);
         placeRuntime(runtime);
         runtime.onAdd?.(mapInstance);
       }

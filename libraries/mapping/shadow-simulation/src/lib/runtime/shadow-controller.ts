@@ -96,14 +96,30 @@ export type ShadowUpdate = Readonly<{
   mapTexelBudget?: number;
 }>;
 
-const getReceiverBoundsInLightCamera = (
+const LIGHT_UP = new THREE.Vector3(0, 1, 0);
+
+/**
+ * View matrix of a light looking from `position` at `target`, in the host's
+ * own space. The fit and its keys are made here, not from the shadow camera's
+ * world matrices: the host may be the shared scene's local-frame group, whose
+ * placement moves on a refit while receivers, light and every retained page
+ * inside it do not. Decision: LOCAL-FRAME-MOUNT-20260918 in
+ * engines/maplibre/README.md.
+ */
+const getLightViewMatrix = (
+  position: THREE.Vector3,
+  target: THREE.Vector3,
+  view = new THREE.Matrix4()
+): THREE.Matrix4 =>
+  view.lookAt(position, target, LIGHT_UP).setPosition(position).invert();
+
+const getReceiverBoundsInLightSpace = (
   points: readonly THREE.Vector3[],
-  camera: THREE.OrthographicCamera
+  lightView: THREE.Matrix4
 ): LightSpaceBounds | null => {
   if (points.length === 0) return null;
-  camera.updateMatrixWorld(true);
   const projected = points.map((point) =>
-    point.clone().applyMatrix4(camera.matrixWorldInverse)
+    point.clone().applyMatrix4(lightView)
   );
   const left = Math.min(...projected.map(({ x }) => x));
   const right = Math.max(...projected.map(({ x }) => x));
@@ -156,7 +172,7 @@ export class ShadowController {
   } | null = null;
   private disposed = false;
 
-  constructor(private readonly hostScene: THREE.Scene) {
+  constructor(private readonly host: THREE.Object3D) {
     this.lights = Array.from({ length: 1 }, () => {
       const light = new THREE.DirectionalLight(0xffffff, 0);
       light.name = "shadow-simulation-sun";
@@ -167,7 +183,7 @@ export class ShadowController {
       light.shadow.radius = 0;
       light.shadow.bias = 0;
       light.shadow.normalBias = MIN_SHADOW_NORMAL_BIAS_METERS;
-      hostScene.add(light, light.target);
+      host.add(light, light.target);
       return light;
     });
   }
@@ -328,9 +344,9 @@ export class ShadowController {
     primaryLight.target.updateMatrixWorld(true);
     primaryLight.shadow.updateMatrices(primaryLight);
 
-    const receiverBounds = getReceiverBoundsInLightCamera(
+    const receiverBounds = getReceiverBoundsInLightSpace(
       receiverWorldPoints,
-      primaryLight.shadow.camera
+      getLightViewMatrix(primaryLight.position, primaryLight.target.position)
     );
     if (!receiverBounds) return null;
 
@@ -454,7 +470,8 @@ export class ShadowController {
     // Decision MESH-CONTACT-BIAS-20260908 (three/TILED_SHADOW_PAGES.md): mesh
     // contact must not inherit metre-scale heightfield acne suppression.
     const biasLimit =
-      maxReceiverBiasMeters !== undefined && Number.isFinite(maxReceiverBiasMeters)
+      maxReceiverBiasMeters !== undefined &&
+      Number.isFinite(maxReceiverBiasMeters)
         ? Math.max(0, maxReceiverBiasMeters)
         : Infinity;
     light.shadow.bias = Math.max(
@@ -507,7 +524,12 @@ export class ShadowController {
         farMeters: primaryCamera.far,
         shadowMapWidth: shadowFit.mapWidth,
         shadowMapHeight: shadowFit.mapHeight,
-        viewMatrixElements: [...primaryCamera.matrixWorldInverse.elements],
+        viewMatrixElements: [
+          ...getLightViewMatrix(
+            primaryLight.position,
+            primaryLight.target.position
+          ).elements,
+        ],
         projectionMatrixElements: [...primaryCamera.projectionMatrix.elements],
         guardMeters,
         metersPerTexel,
@@ -527,7 +549,7 @@ export class ShadowController {
     this.disposed = true;
     for (const light of this.lights) {
       light.shadow.map?.dispose();
-      this.hostScene.remove(light.target, light);
+      this.host.remove(light.target, light);
     }
   }
 }

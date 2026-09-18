@@ -72,6 +72,10 @@ describe("three tiles runtime styling", () => {
           revision: 1,
           sceneFromLocal: new THREE.Matrix4(),
           sceneFromLocalRotation: new THREE.Matrix4(),
+          referenceLngLat: [7.15, 51.25] as const,
+          sceneFromLocalReference: new THREE.Matrix4(),
+          referenceToCurrent: new THREE.Matrix4(),
+          currentToReference: new THREE.Matrix4(),
         },
       });
       const old = Array.from({ length: MESH_EVICTION_BATCH_SIZE + 2 }, request);
@@ -200,6 +204,10 @@ describe("three tiles runtime styling", () => {
         revision: 1,
         sceneFromLocal: new THREE.Matrix4(),
         sceneFromLocalRotation: new THREE.Matrix4(),
+        referenceLngLat: [7.15, 51.25] as const,
+        sceneFromLocalReference: new THREE.Matrix4(),
+        referenceToCurrent: new THREE.Matrix4(),
+        currentToReference: new THREE.Matrix4(),
       },
     });
     try {
@@ -271,6 +279,10 @@ describe("three tiles runtime styling", () => {
         revision: 1,
         sceneFromLocal: new THREE.Matrix4(),
         sceneFromLocalRotation: new THREE.Matrix4(),
+        referenceLngLat: [7.15, 51.25] as const,
+        sceneFromLocalReference: new THREE.Matrix4(),
+        referenceToCurrent: new THREE.Matrix4(),
+        currentToReference: new THREE.Matrix4(),
       },
     };
     const createTile = (parent: Tile | null, error: number) =>
@@ -346,6 +358,10 @@ describe("three tiles runtime styling", () => {
         revision: 1,
         sceneFromLocal: new THREE.Matrix4(),
         sceneFromLocalRotation: new THREE.Matrix4(),
+        referenceLngLat: [7.15, 51.25] as const,
+        sceneFromLocalReference: new THREE.Matrix4(),
+        referenceToCurrent: new THREE.Matrix4(),
+        currentToReference: new THREE.Matrix4(),
       },
     };
     const first = buildThreeTilesRuntime("first", "first.json", [7.15, 51.25]);
@@ -428,6 +444,10 @@ describe("three tiles runtime styling", () => {
         revision: 1,
         sceneFromLocal: new THREE.Matrix4(),
         sceneFromLocalRotation: new THREE.Matrix4(),
+        referenceLngLat: [7.15, 51.25] as const,
+        sceneFromLocalReference: new THREE.Matrix4(),
+        referenceToCurrent: new THREE.Matrix4(),
+        currentToReference: new THREE.Matrix4(),
       },
     });
     for (let attempt = 0; attempt < 5; attempt += 1) {
@@ -459,6 +479,10 @@ describe("three tiles runtime styling", () => {
           revision: 1,
           sceneFromLocal: new THREE.Matrix4(),
           sceneFromLocalRotation: new THREE.Matrix4(),
+          referenceLngLat: [7.15, 51.25] as const,
+          sceneFromLocalReference: new THREE.Matrix4(),
+          referenceToCurrent: new THREE.Matrix4(),
+          currentToReference: new THREE.Matrix4(),
         },
       });
       renderer!.queueTileForDownload(failedTile);
@@ -544,6 +568,10 @@ describe("three tiles runtime styling", () => {
         revision: 1,
         sceneFromLocal: new THREE.Matrix4(),
         sceneFromLocalRotation: new THREE.Matrix4(),
+        referenceLngLat: [7.15, 51.25] as const,
+        sceneFromLocalReference: new THREE.Matrix4(),
+        referenceToCurrent: new THREE.Matrix4(),
+        currentToReference: new THREE.Matrix4(),
       },
     });
 
@@ -677,6 +705,10 @@ describe("three tiles runtime styling", () => {
         revision: 1,
         sceneFromLocal: new THREE.Matrix4(),
         sceneFromLocalRotation: new THREE.Matrix4(),
+        referenceLngLat: [7.15, 51.25] as const,
+        sceneFromLocalReference: new THREE.Matrix4(),
+        referenceToCurrent: new THREE.Matrix4(),
+        currentToReference: new THREE.Matrix4(),
       },
     });
 
@@ -728,6 +760,10 @@ describe("three tiles runtime styling", () => {
         revision: 1,
         sceneFromLocal: new THREE.Matrix4(),
         sceneFromLocalRotation: new THREE.Matrix4(),
+        referenceLngLat: [7.15, 51.25] as const,
+        sceneFromLocalReference: new THREE.Matrix4(),
+        referenceToCurrent: new THREE.Matrix4(),
+        currentToReference: new THREE.Matrix4(),
       },
     });
 
@@ -770,6 +806,10 @@ describe("three tiles runtime styling", () => {
         revision: 1,
         sceneFromLocal: new THREE.Matrix4(),
         sceneFromLocalRotation: new THREE.Matrix4(),
+        referenceLngLat: [7.15, 51.25] as const,
+        sceneFromLocalReference: new THREE.Matrix4(),
+        referenceToCurrent: new THREE.Matrix4(),
+        currentToReference: new THREE.Matrix4(),
       },
     });
     renderer!.activeTiles.add({
@@ -842,6 +882,10 @@ describe("three tiles runtime styling", () => {
         revision: 1,
         sceneFromLocal: new THREE.Matrix4(),
         sceneFromLocalRotation: new THREE.Matrix4(),
+        referenceLngLat: [7.15, 51.25] as const,
+        sceneFromLocalReference: new THREE.Matrix4(),
+        referenceToCurrent: new THREE.Matrix4(),
+        currentToReference: new THREE.Matrix4(),
       },
     });
     const dispatchSpy = vi.spyOn(renderer!, "dispatchEvent");
@@ -896,6 +940,10 @@ describe("three tiles runtime styling", () => {
         revision: 1,
         sceneFromLocal: new THREE.Matrix4(),
         sceneFromLocalRotation: new THREE.Matrix4(),
+        referenceLngLat: [7.15, 51.25] as const,
+        sceneFromLocalReference: new THREE.Matrix4(),
+        referenceToCurrent: new THREE.Matrix4(),
+        currentToReference: new THREE.Matrix4(),
       },
     };
 
@@ -1004,6 +1052,10 @@ describe("three tiles runtime styling", () => {
         revision: 1,
         sceneFromLocal: new THREE.Matrix4(),
         sceneFromLocalRotation: new THREE.Matrix4(),
+        referenceLngLat: [7.15, 51.25] as const,
+        sceneFromLocalReference: new THREE.Matrix4(),
+        referenceToCurrent: new THREE.Matrix4(),
+        currentToReference: new THREE.Matrix4(),
       },
     });
 
@@ -1091,6 +1143,10 @@ describe("three tiles runtime styling", () => {
         revision: 1,
         sceneFromLocal: new THREE.Matrix4(),
         sceneFromLocalRotation: new THREE.Matrix4(),
+        referenceLngLat: [7.15, 51.25] as const,
+        sceneFromLocalReference: new THREE.Matrix4(),
+        referenceToCurrent: new THREE.Matrix4(),
+        currentToReference: new THREE.Matrix4(),
       },
     });
 
@@ -1115,6 +1171,10 @@ describe("three tiles runtime styling", () => {
         revision: 1,
         sceneFromLocal: new THREE.Matrix4(),
         sceneFromLocalRotation: new THREE.Matrix4(),
+        referenceLngLat: [7.15, 51.25] as const,
+        sceneFromLocalReference: new THREE.Matrix4(),
+        referenceToCurrent: new THREE.Matrix4(),
+        currentToReference: new THREE.Matrix4(),
       },
     });
     queue.sort();
@@ -1205,6 +1265,10 @@ describe("three tiles runtime styling", () => {
         revision: 1,
         sceneFromLocal: new THREE.Matrix4(),
         sceneFromLocalRotation: new THREE.Matrix4(),
+        referenceLngLat: [7.15, 51.25] as const,
+        sceneFromLocalReference: new THREE.Matrix4(),
+        referenceToCurrent: new THREE.Matrix4(),
+        currentToReference: new THREE.Matrix4(),
       },
     });
     const range = layer.scene.getViewElevationRange(camera);
@@ -1212,15 +1276,17 @@ describe("three tiles runtime styling", () => {
     expect(range?.[0]).toBeCloseTo(145);
     expect(range?.[1]).toBeCloseTo(155);
 
-    const boundsSpy = vi.spyOn(THREE.Box3.prototype, "setFromObject");
+    const walkSpy = vi.spyOn(model, "traverse");
     for (let i = 0; i < 100; i += 1) {
       expect(layer.scene.getViewElevationRange(camera)).toEqual(range);
     }
-    expect(boundsSpy).not.toHaveBeenCalled();
+    expect(walkSpy).not.toHaveBeenCalled();
     model.position.y += 10;
     expect(layer.scene.getViewElevationRange(camera)).toEqual([155, 165]);
-    expect(boundsSpy).toHaveBeenCalledOnce();
-    boundsSpy.mockRestore();
+    // The moved model needs no new walk: its bounds are cached in its own
+    // space and only the chain above it is applied per read.
+    expect(walkSpy).not.toHaveBeenCalled();
+    walkSpy.mockRestore();
 
     updateSpy.mockRestore();
     layer.scene.dispose();

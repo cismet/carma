@@ -48,7 +48,9 @@ export function createThreeTilesLifecycle(
     | "tiles"
     | "bytesPredictor"
     | "payloadAwareConcurrency"
-    | "modelWorldBounds"
+    | "modelLocalBounds"
+    | "referenceToCurrent"
+    | "currentToReference"
     | "tilesetUrl"
     | "shadowRegionRevisions"
     | "allocationFailed"
@@ -104,7 +106,8 @@ export function createThreeTilesLifecycle(
     | "getTileDebugProgress"
     | "refreshRenderedMaterials"
     | "applyMaterialFlags"
-    | "readModelWorldBounds"
+    | "readModelFrameBounds"
+    | "updateFrameFromTiles"
     | "invalidateShadowRegionRevisions"
     | "reapplyCacheBoundsIfDrifted"
     | "applyRequestConcurrency"
@@ -203,7 +206,7 @@ export function createThreeTilesLifecycle(
         if (!event.tile || attachment.isDeferredMaterialReady(event.tile))
           dependencies.refreshRenderedMaterials(event.scene);
         else dependencies.applyMaterialFlags(event.scene);
-        const bounds = dependencies.readModelWorldBounds(
+        const bounds = dependencies.readModelFrameBounds(
           event.scene,
           new THREE.Box3()
         );
@@ -253,11 +256,12 @@ export function createThreeTilesLifecycle(
       runtimeState.meshContentRevision += 1;
       const changedBounds: THREE.Box3[] = [];
       if (event.scene) {
-        const cached = runtimeState.modelWorldBounds.get(event.scene);
-        if (cached && !cached.bounds.isEmpty()) {
-          changedBounds.push(cached.bounds.clone());
-        }
-        runtimeState.modelWorldBounds.delete(event.scene);
+        const bounds = dependencies.readModelFrameBounds(
+          event.scene,
+          new THREE.Box3()
+        );
+        if (!bounds.isEmpty()) changedBounds.push(bounds);
+        runtimeState.modelLocalBounds.delete(event.scene);
       }
       if (event.tile) {
         runtimeState.shadowRegionWorldBounds.delete(event.tile);
@@ -457,8 +461,8 @@ export function createThreeTilesLifecycle(
   const cameraMount = new THREE.Group();
   cameraMount.matrixAutoUpdate = false;
   const mountAxisFlip = new THREE.Matrix4().makeRotationY(Math.PI);
-  /** Revision of the shared local frame the tileset is mounted on; 0 = never. */
-  let mountedFrameRevision = 0;
+  /** Anchor of the reference fit the mount was made at; null = never mounted. */
+  let mountedReferenceLngLat: readonly [number, number] | null = null;
   const update: ThreeTilesRuntimeServices["update"] = (
     frame: SharedThreeSceneFrame
   ) => {
@@ -469,16 +473,26 @@ export function createThreeTilesLifecycle(
     )
       return;
     if (runtimeState.options.cameraLocalMount) {
-      // The shared scene owns the local frame and decides when it moves; the
-      // tileset only follows its revision. Nothing here runs per frame beyond
-      // this comparison.
+      // The shared scene owns the local frame. The tileset is mounted once, at
+      // the frame's reference fit, inside the layer's local-frame group; a
+      // refit moves that group and nothing here, so tiles, light and shadows
+      // move together. Decision: LOCAL-FRAME-MOUNT-20260918 in
+      // engines/maplibre/README.md.
       const { localFrame } = frame;
-      if (localFrame && localFrame.revision !== mountedFrameRevision) {
+      if (localFrame) {
+        runtimeState.referenceToCurrent.copy(localFrame.referenceToCurrent);
+        runtimeState.currentToReference.copy(localFrame.currentToReference);
+      }
+      if (
+        localFrame &&
+        (mountedReferenceLngLat?.[0] !== localFrame.referenceLngLat[0] ||
+          mountedReferenceLngLat?.[1] !== localFrame.referenceLngLat[1])
+      ) {
         cameraMount.matrix
           .copy(
             getCameraLocalMercatorFit(
               [runtimeState.originLngLat[0], runtimeState.originLngLat[1]],
-              [localFrame.lngLat[0], localFrame.lngLat[1]],
+              [localFrame.referenceLngLat[0], localFrame.referenceLngLat[1]],
               { correctEllipsoidMetric: true }
             )
           )
@@ -489,15 +503,7 @@ export function createThreeTilesLifecycle(
           cameraMount.add(runtimeState.tiles.group);
         }
         runtimeState.orientationGroup.updateMatrixWorld(true);
-        mountedFrameRevision = localFrame.revision;
-        runtimeState.mainViewIntersectionCache = new WeakMap();
-        runtimeState.meshDemandSweepPending = true;
-        // The sun moves with the same frame, so caster membership is unchanged
-        // and no shadow selection refresh is requested. The refit moves the
-        // mount, not the published geometry: an empty delta asks the shadow
-        // scene for a repaint only, where missing bounds would flag a full
-        // content invalidation and rebuild every shadow integral.
-        runtimeState.options.onContentChanged?.([]);
+        mountedReferenceLngLat = localFrame.referenceLngLat;
       }
     }
     // Keep drawing the retained cut at native resolution. While input is
@@ -594,7 +600,7 @@ export function createThreeTilesLifecycle(
             continue;
           const model = (tile as RuntimeTile).engineData?.scene;
           const bounds =
-            model && dependencies.readModelWorldBounds(model, new THREE.Box3());
+            model && dependencies.readModelFrameBounds(model, new THREE.Box3());
           if (bounds && !bounds.isEmpty()) changedBounds.push(bounds);
           else unknownBounds = true;
         }

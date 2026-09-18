@@ -93,6 +93,10 @@ const mountRuntime = (providesTerrain = false, cameraLocalMount = false) => {
       revision: 1,
       sceneFromLocal: new THREE.Matrix4(),
       sceneFromLocalRotation: new THREE.Matrix4(),
+      referenceLngLat: [7.15, 51.25] as const,
+      sceneFromLocalReference: new THREE.Matrix4(),
+      referenceToCurrent: new THREE.Matrix4(),
+      currentToReference: new THREE.Matrix4(),
     },
   };
   layer.scene.onAdd?.(map);
@@ -114,28 +118,33 @@ describe("three tiles runtime liveness", () => {
     vi.useRealTimers();
   });
 
-  it("refits a retained mount only when the shared local frame moves", () => {
-    const { layer, renderer, map, frame } = mountRuntime(false, true);
+  it("mounts once at the frame's reference fit and leaves the mount alone on a refit", () => {
+    const { layer, renderer, frame } = mountRuntime(false, true);
     try {
       const group = renderer.group;
       const fit = group.parent!;
       const initial = fit.matrix.clone();
       const copy = vi.spyOn(fit.matrix, "copy");
-      layer.scene.update(frame);
-      // The map centre alone moves nothing: the shared scene owns the frame.
-      vi.mocked(map.getCenter).mockReturnValue({
-        lng: 7.3,
-        lat: 51.3,
-      } as ReturnType<MaplibreMap["getCenter"]>);
-      layer.scene.update(frame);
-      expect(copy).not.toHaveBeenCalled();
+      expect(layer.scene.mountsOnLocalFrame).toBe(true);
+      // A refit moves the layer's local-frame group, never the mount.
       frame.localFrame = {
         ...frame.localFrame,
         lngLat: [7.3, 51.3] as const,
         revision: frame.localFrame.revision + 1,
+        referenceToCurrent: new THREE.Matrix4().makeTranslation(10, 0, 0),
+        currentToReference: new THREE.Matrix4().makeTranslation(-10, 0, 0),
       };
       layer.scene.update(frame);
       expect(group.parent).toBe(fit);
+      expect(fit.matrix.equals(initial)).toBe(true);
+      expect(copy).not.toHaveBeenCalled();
+      // A new reference fit, after a re-attach, remounts.
+      frame.localFrame = {
+        ...frame.localFrame,
+        referenceLngLat: [7.3, 51.3] as const,
+        revision: frame.localFrame.revision + 1,
+      };
+      layer.scene.update(frame);
       expect(fit.matrix.equals(initial)).toBe(false);
       expect(fit.matrix.elements.every(Number.isFinite)).toBe(true);
       expect(copy).toHaveBeenCalledOnce();

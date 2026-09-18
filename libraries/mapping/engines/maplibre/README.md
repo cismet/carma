@@ -945,49 +945,75 @@ terrain-mesh runtime to the shared scene.
 ### Local frame for ECEF tilesets, sun and sky
 
 - **ID / date / status:** LOCAL-FRAME-MOUNT-20260918 / 2026-09-18 / implemented
-  and unit-tested; not yet confirmed in the browser.
+  and unit-tested (local-frame group); not yet confirmed in the browser.
 - **Context:** The shared scene is one Mercator tangent plane at its origin.
   ECEF tilesets (`cameraLocalMount`) refitted their own mount at the map centre
   behind a hysteresis distance; each refit re-signed the shadow receiver snapshot
   with the mount matrix and requested a shadow selection refresh, which dropped
   caster proofs and could re-request tiles. The atmosphere observer was frozen
   at the map centre of scene creation, so the sun's scene-space direction did
-  not follow where the tiles were mounted.
+  not follow where the tiles were mounted. Shadows under an orthographic light
+  are invariant under an affine transform applied to light, casters and
+  receivers together, so a refit must be neutral for them unless time changes.
 - **Decision:** The MapLibre wrapper (`SharedThreeSceneLayer`) owns one local
   east/up/south frame at the map centre on the ellipsoid
-  (`SharedThreeSceneLocalFrame`: lngLat, revision, sceneFromLocal,
-  sceneFromLocalRotation) and publishes it on every `SharedThreeSceneFrame`.
-  It is refitted when keeping it would show more than 0.5 px of error in the
-  current view (`localFrameErrorPixels`: Mercator scale drift tan(lat)·d/R over
-  the visible half width, surface sag d²/2R·sin(pitch), up-vector tilt d/R
-  against 200 m of content height), not after a fixed distance; only scalars are
-  compared per frame. Tilesets mount on the frame by revision. The shadow scene
-  evaluates sun and sky at the same frame (`AtmosphericSkyReference.sceneFromLocal`).
-  Caster selection is keyed on the ECEF sun direction
-  (`SharedThreeSceneShadowView.directionToSunECEF`) and the receiver signature no
-  longer includes the mount matrix, so a refit changes no selection key; the
-  runtime reports it as an empty content delta (repaint only). The light is
-  re-aimed by the next solar update, or earlier once the frame tilt since the
-  last aim exceeds 0.02° (`SUN_FRAME_TILT_TOLERANCE_RADIANS`), and then without
-  forcing a shadow-map pass.
+  (`SharedThreeSceneLocalFrame`) and publishes it on every
+  `SharedThreeSceneFrame`. It is refitted when keeping it would show more than
+  0.5 px of error in the current view (`localFrameErrorPixels`: Mercator scale
+  drift tan(lat)·d/R over the visible half width, surface sag d²/2R·sin(pitch),
+  up-vector tilt d/R against 200 m of content height), not after a fixed
+  distance; only scalars are compared per frame. The layer also owns a
+  local-frame group. Frame-mounted runtimes (`mountsOnLocalFrame`) sit in it,
+  mounted once at the frame's reference fit (`referenceLngLat`,
+  `sceneFromLocalReference`); the shadow scene's light, sun vector and page
+  lights live in it too, and every shadow-facing box (tile volumes, corridors,
+  receiver points, cells) is exchanged in that reference space
+  (`frameFromTiles` in the runtime, `getFrameCamera` in the shadow scene). A
+  refit sets the group's matrix to `referenceToCurrent` and nothing else:
+  tiles, light, casters and receivers move by the same affine, so the shadows
+  cancel out of it exactly and only a solar change invalidates them. Fits and
+  keys are made in host space (`getLightViewMatrix`), so a moved group changes
+  no key. Caster selection is keyed on the ECEF sun direction
+  (`SharedThreeSceneShadowView.directionToSunECEF`) and the receiver
+  signature no longer includes the mount matrix. The sun is fixed in ECEF:
+  the retained sample is only re-expressed for the sky dome, drawn in scene
+  space (`rebaseAtmosphericSunlightSample`), nothing is re-evaluated. A refit
+  stays inside the map render: no demand sweep, no selection refresh, no
+  content change, nothing reaches the content registry or React. Page
+  identity stays exact: any receiver or sun change re-keys a page and its
+  depth, so a solar update from the time controls is never absorbed.
 - **Alternatives:** Per-runtime refit behind a hysteresis distance: superseded,
   its error was not tied to the view (incompatible by inspection). Using the
   view-state anchor from `engines-interop/view-state`: incompatible by
-  inspection, engines cannot depend on interop. Re-aiming the sun at every
-  refit: by inspection it re-keys every tiled shadow page (`lightingKey`) per
-  refit, so it is deferred behind the tilt tolerance. A per-frame scalar
-  Mercator scale correction instead of refits: not evaluated. A tolerance
-  derived from the pixel budget instead of a fixed angle: not evaluated; 0.02° is
-  7.5 % of the sun disc radius, about 2.2 km of travel, and moves the tip of a
-  200 m shadow by 7 cm.
-- **Evidence:** engines/maplibre specs pass, including
-  `shared-three-scene-layer.spec` (frame moves only past the pixel budget) and
-  `three-tiles-runtime.liveness.spec` (mount follows the frame revision, not the
-  map centre); shadow-simulation specs pass, including `shadow-scene.spec` (sun
-  re-aimed only past the tilt tolerance, without a forced shadow-map pass).
+  inspection, engines cannot depend on interop. Re-mounting tiles per refit
+  with the light in scene space, re-aiming the sun and tolerating sub-texel
+  page drift (the previous state of this record): superseded, approximate and
+  not neutral; the group is exact by construction. Keeping a page while its
+  receiver bounds or sun direction changed by less than half a texel:
+  measured rejection, at pitch 52° far receivers have texel targets of metres
+  and the retention swallowed whole time steps, so settled soft shadows no
+  longer followed the time slider. A fixed 0.02° frame-tilt tolerance before
+  re-aiming the light, and re-evaluating the atmosphere on a refit:
+  superseded for the same reason. Expressing shadow-facing boxes in
+  ECEF instead of the reference fit: rejected by inspection, the page planner
+  assumes a Y-up frame and float32 GPU paths need local metres. Re-rooting
+  every runtime at the layer origin: not needed, the total ECEF-to-scene fit
+  is root-independent (shown algebraically, not measured). A per-frame scalar
+  Mercator scale correction instead of refits: not evaluated.
+- **Evidence:** engines/maplibre specs pass (701), including
+  `shared-three-scene-layer.spec` (frame moves only past the pixel budget; the
+  group follows it and carries mounted runtimes) and
+  `three-tiles-runtime.liveness.spec` (mount made once at the reference, left
+  alone on a refit); shadow-simulation specs pass (557), including
+  `atmospheric-sunlight.spec` (re-expression keeps radiance and turns only the
+  frame), `shadow-scene.spec` (sun carried by the group on a refit, nothing
+  evaluated, no forced shadow-map pass) and `tiled-shadow-renderer.spec` (a
+  moved host group leaves fits, keys and depth untouched; any sun turn,
+  however small, re-keys every page).
   `shadow-corridor-host-state.spec` and `ShadowSimulationView.spec` fail to load
   the collab geoportal index on dev as well (environment, unrelated). No browser
   or performance measurement yet.
 - **Revisit when:** content taller than 200 m or a wider viewport shows drift
-  before a refit, the tiled page key gains a sun-invariant form, or the
-  view-state anchor becomes available to the engine layer.
+  before a refit, Mercator-placed receivers (raster terrain under LOD2, which
+  cannot move with the group) show the bounded light offset, or the view-state
+  anchor becomes available to the engine layer.

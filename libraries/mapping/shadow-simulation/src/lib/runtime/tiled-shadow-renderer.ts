@@ -175,7 +175,13 @@ export class TiledShadowRenderer {
     private readonly scene: THREE.Scene,
     private readonly renderer: THREE.WebGLRenderer,
     private readonly memoryBudgetBytes: number,
-    maximumMapSize = 4096
+    maximumMapSize = 4096,
+    /**
+     * Where page lights live and what cells, fits and keys are expressed in:
+     * the shared scene's local-frame group when the receivers mount on it.
+     * The group moves on a refit; nothing inside it, and no page, changes.
+     */
+    private readonly host: THREE.Object3D = scene
   ) {
     if (
       !Number.isFinite(memoryBudgetBytes) ||
@@ -645,8 +651,12 @@ export class TiledShadowRenderer {
     ) => number
   ) {
     let page = this.pages.get(plan.id);
+    // Page identity is exact: any receiver or sun change re-keys the page and
+    // its depth. A local-frame refit changes neither, because receivers,
+    // light and pages all live in the host group and move with it
+    // (LOCAL-FRAME-MOUNT-20260918); a solar update must always re-key.
     if (!page) {
-      const controller = new ShadowController(this.scene);
+      const controller = new ShadowController(this.host);
       controller.setMaxShadowMapSize(this.maxMapSize);
       controller.setSoftSun(true);
       page = {

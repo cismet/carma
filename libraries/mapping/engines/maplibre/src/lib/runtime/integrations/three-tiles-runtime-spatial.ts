@@ -19,7 +19,10 @@ import type { RuntimeTile } from "./three-tiles-runtime-types";
 export function createThreeTilesSpatial(
   runtimeState: Pick<
     ThreeTilesRuntimeState,
-    | "modelWorldBounds"
+    | "modelLocalBounds"
+    | "frameFromTiles"
+    | "referenceToCurrent"
+    | "orientationGroup"
     | "tiles"
     | "runtimeVisible"
     | "tileViewElevationProjection"
@@ -59,24 +62,70 @@ export function createThreeTilesSpatial(
   >
 ) {
   let cameraErrors = new WeakMap<RuntimeTile, number>();
-  const readModelWorldBounds: ThreeTilesRuntimeServices["readModelWorldBounds"] =
+  /** Product of the local matrices from `node` up to, excluding, `stop`. */
+  const localChain = (
+    node: THREE.Object3D,
+    stop: THREE.Object3D | null,
+    target: THREE.Matrix4
+  ): THREE.Matrix4 => {
+    target.identity();
+    for (
+      let current: THREE.Object3D | null = node;
+      current && current !== stop;
+      current = current.parent
+    ) {
+      if (current.matrixAutoUpdate) current.updateMatrix();
+      target.premultiply(current.matrix);
+    }
+    return target;
+  };
+  const updateFrameFromTiles: ThreeTilesRuntimeServices["updateFrameFromTiles"] =
+    () => {
+      if (!runtimeState.tiles) return runtimeState.frameFromTiles.identity();
+      // Up to and including the runtime root; its parent is the frame host,
+      // the layer's local-frame group or the scene.
+      return localChain(
+        runtimeState.tiles.group,
+        runtimeState.orientationGroup.parent,
+        runtimeState.frameFromTiles
+      );
+    };
+  const modelChain = new THREE.Matrix4();
+  const readModelFrameBounds: ThreeTilesRuntimeServices["readModelFrameBounds"] =
     (model: THREE.Object3D, target: THREE.Box3): THREE.Box3 => {
-      // Tile payloads are immutable after GLTF publication. Updating the root's
-      // parent chain is cheap; walking every vertex-bearing descendant on every
-      // corridor query was not (15.6 s in one startup trace). Rebuild only if
-      // the runtime placement itself changed.
-      model.updateWorldMatrix(true, false);
-      const cached = runtimeState.modelWorldBounds.get(model);
-      if (cached?.rootMatrixWorld.equals(model.matrixWorld)) {
-        return target.copy(cached.bounds);
+      // Tile payloads are immutable after GLTF publication, so the bounds in
+      // the model's own space are walked once per model (walking every
+      // vertex-bearing descendant per corridor query cost 15.6 s in one
+      // startup trace). Per read only the local chain from the model up to
+      // the runtime root is applied: a moved model is reflected, and a
+      // local-frame refit moves the frame group, never this result, so keys
+      // derived from it survive the refit.
+      let bounds = runtimeState.modelLocalBounds.get(model);
+      if (!bounds) {
+        const localBounds = new THREE.Box3();
+        const box = new THREE.Box3();
+        const matrix = new THREE.Matrix4();
+        model.traverse((object) => {
+          const geometry = (object as THREE.Mesh).geometry as
+            | THREE.BufferGeometry
+            | undefined;
+          if (!geometry) return;
+          if (geometry.boundingBox === null) geometry.computeBoundingBox();
+          if (!geometry.boundingBox || geometry.boundingBox.isEmpty()) return;
+          box
+            .copy(geometry.boundingBox)
+            .applyMatrix4(localChain(object, model, matrix));
+          localBounds.union(box);
+        });
+        bounds = localBounds;
+        runtimeState.modelLocalBounds.set(model, bounds);
       }
-      model.updateWorldMatrix(true, true);
-      target.setFromObject(model);
-      runtimeState.modelWorldBounds.set(model, {
-        rootMatrixWorld: model.matrixWorld.clone(),
-        bounds: target.clone(),
-      });
-      return target;
+      const frameFromModel = localChain(
+        model,
+        runtimeState.tiles?.group ?? null,
+        modelChain
+      ).premultiply(updateFrameFromTiles());
+      return target.copy(bounds).applyMatrix4(frameFromModel);
     };
 
   const getViewElevationRange: ThreeTilesRuntimeServices["getViewElevationRange"] =
@@ -84,11 +133,9 @@ export function createThreeTilesSpatial(
       if (!runtimeState.tiles || !runtimeState.runtimeVisible) return null;
       const currentTiles = runtimeState.tiles;
       camera.updateMatrixWorld(true);
-      currentTiles.group.updateWorldMatrix(true, false);
-      runtimeState.tileViewElevationProjection.multiplyMatrices(
-        camera.projectionMatrix,
-        camera.matrixWorldInverse
-      );
+      runtimeState.tileViewElevationProjection
+        .multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse)
+        .multiply(runtimeState.referenceToCurrent);
       runtimeState.tileViewElevationFrustum.setFromProjectionMatrix(
         runtimeState.tileViewElevationProjection,
         camera.coordinateSystem,
@@ -104,7 +151,7 @@ export function createThreeTilesSpatial(
           continue;
         const model = (tile as RuntimeTile).engineData?.scene;
         if (!model) continue;
-        readModelWorldBounds(model, runtimeState.tileBoundingBox);
+        readModelFrameBounds(model, runtimeState.tileBoundingBox);
         if (runtimeState.tileBoundingBox.isEmpty()) continue;
         if (
           !runtimeState.tileViewElevationFrustum.intersectsBox(
@@ -123,7 +170,7 @@ export function createThreeTilesSpatial(
   const getActiveTileVolumes: ThreeTilesRuntimeServices["getActiveTileVolumes"] =
     (): readonly SharedThreeSceneTileVolume[] => {
       if (!runtimeState.tiles || !runtimeState.runtimeVisible) return [];
-      runtimeState.tiles.group.updateWorldMatrix(true, false);
+      updateFrameFromTiles();
       const volumes: SharedThreeSceneTileVolume[] = [];
       for (const tile of runtimeState.tiles.activeTiles) {
         // Native traversal may keep active metadata/ancestors while the atomic
@@ -147,7 +194,7 @@ export function createThreeTilesSpatial(
         runtimeState.activeTileBoundingBox.makeEmpty();
         const model = activeTile.engineData?.scene;
         if (model) {
-          readModelWorldBounds(model, runtimeState.activeTileBoundingBox);
+          readModelFrameBounds(model, runtimeState.activeTileBoundingBox);
         }
         const boundingVolume = activeTile.engineData?.boundingVolume;
         if (
@@ -160,7 +207,7 @@ export function createThreeTilesSpatial(
             runtimeState.tileBoundsTransform
           );
           runtimeState.tileBoundsTransform.premultiply(
-            runtimeState.tiles.group.matrixWorld
+            runtimeState.frameFromTiles
           );
           runtimeState.activeTileBoundingBox.applyMatrix4(
             runtimeState.tileBoundsTransform
@@ -364,9 +411,7 @@ export function createThreeTilesSpatial(
       }
       // Expanding in ECEF before returning to the local frame can turn a thin
       // city surface into a kilometres-high box and an equally long caster ray.
-      runtimeState.rootBoundsTransform.premultiply(
-        runtimeState.tiles.group.matrixWorld
-      );
+      runtimeState.rootBoundsTransform.premultiply(updateFrameFromTiles());
       runtimeState.rootWorldBoundingBox
         .copy(runtimeState.rootTileBoundingBox)
         .applyMatrix4(runtimeState.rootBoundsTransform);
@@ -442,7 +487,8 @@ export function createThreeTilesSpatial(
       false
     );
   return {
-    readModelWorldBounds,
+    readModelFrameBounds,
+    updateFrameFromTiles,
     getViewElevationRange,
     getActiveTileVolumes,
     isTileInMainView,

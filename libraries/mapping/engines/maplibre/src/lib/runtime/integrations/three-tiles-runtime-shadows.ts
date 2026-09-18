@@ -52,6 +52,10 @@ export function createThreeTilesShadows(
     | "tilesetUrl"
     | "viewFrustumsReady"
     | "tilesToShadowView"
+    | "frameFromTiles"
+    | "frameToShadowView"
+    | "referenceToCurrent"
+    | "currentToReference"
     | "tileBoundingBox"
     | "sourceWorldBoundsTransform"
     | "sourceWorldBoundingBox"
@@ -66,6 +70,7 @@ export function createThreeTilesShadows(
     | "isTileInMainView"
     | "isChildUnloadable"
     | "updateRootWorldBounds"
+    | "updateFrameFromTiles"
     | "getTileScreenError"
     | "getStableTileId"
     | "getTileCenterness"
@@ -175,15 +180,11 @@ export function createThreeTilesShadows(
       // A pending traversal elsewhere is not missing coverage in this committed
       // region. View/model changes invalidate the memo; the regional hierarchy
       // proof below decides readiness, not global loading/refresh flags.
-      runtimeState.tiles.group.updateWorldMatrix(true, false);
-      if (
-        !runtimeState.shadowRegionTransform.equals(
-          runtimeState.tiles.group.matrixWorld
-        )
-      ) {
-        runtimeState.shadowRegionTransform.copy(
-          runtimeState.tiles.group.matrixWorld
-        );
+      // Regional bounds and proofs live in frame space, which a local-frame
+      // refit leaves untouched; only a real placement change resets them.
+      const frameFromTiles = dependencies.updateFrameFromTiles();
+      if (!runtimeState.shadowRegionTransform.equals(frameFromTiles)) {
+        runtimeState.shadowRegionTransform.copy(frameFromTiles);
         runtimeState.shadowRegionWorldBounds = new WeakMap();
         runtimeState.shadowRegionRevisions.clear();
       }
@@ -201,7 +202,7 @@ export function createThreeTilesShadows(
         runtimeState.shadowView.camera
           .getWorldDirection(runtimeState.sunwardDirection)
           .negate()
-          .normalize();
+          .transformDirection(runtimeState.currentToReference);
         const regionalReceivers: ShadowReceiverSource[] = [];
         for (const receiver of runtimeState.shadowView.terrainReceivers ?? []) {
           const clippedBounds = new THREE.Box3(
@@ -233,7 +234,7 @@ export function createThreeTilesShadows(
             runtimeState.tileBoundsTransform
           );
           runtimeState.tileBoundsTransform.premultiply(
-            runtimeState.tiles.group.matrixWorld
+            runtimeState.frameFromTiles
           );
           worldBounds.applyMatrix4(runtimeState.tileBoundsTransform);
           if (!worldBounds.intersectsBox(receiverBounds)) continue;
@@ -254,7 +255,10 @@ export function createThreeTilesShadows(
         }
         regionMask = createShadowReceiverMask(
           regionalReceivers,
-          runtimeState.shadowView.camera.matrixWorldInverse,
+          runtimeState.frameToShadowView.multiplyMatrices(
+            runtimeState.shadowView.camera.matrixWorldInverse,
+            runtimeState.referenceToCurrent
+          ),
           runtimeState.shadowView.casterAngularRadiusRadians
         );
         if (!regionMask) return null;
@@ -279,7 +283,7 @@ export function createThreeTilesShadows(
             const box = new THREE.Box3();
             const transform = new THREE.Matrix4();
             readOrientedTileBounds(volume, box, transform);
-            transform.premultiply(runtimeState.tiles!.group.matrixWorld);
+            transform.premultiply(runtimeState.frameFromTiles);
             cachedBounds = {
               box,
               transform,
@@ -341,7 +345,7 @@ export function createThreeTilesShadows(
           ? null
           : JSON.stringify([
               runtimeState.tilesetUrl,
-              runtimeState.tiles.group.matrixWorld.elements,
+              runtimeState.frameFromTiles.elements,
               errorPixels,
               cut
                 .map((tile) => [
@@ -405,11 +409,12 @@ export function createThreeTilesShadows(
 
       sourceCamera.updateMatrixWorld(true);
       runtimeState.tiles.group.updateWorldMatrix(true, false);
+      dependencies.updateFrameFromTiles();
       if (!dependencies.updateRootWorldBounds()) return null;
       sourceCamera
         .getWorldDirection(runtimeState.sunwardDirection)
         .negate()
-        .normalize();
+        .transformDirection(runtimeState.currentToReference);
       runtimeState.tilesToShadowView.multiplyMatrices(
         sourceCamera.matrixWorldInverse,
         runtimeState.tiles.group.matrixWorld
@@ -456,9 +461,8 @@ export function createThreeTilesShadows(
       const sourceTiles = new Set<Tile>();
       // Decision: LOD2-TERRAIN-CORRIDORS-20260910 in engines/maplibre/README.md.
       // Ground receivers belong to the independent DEM, not the building tree.
-      const worldToTiles = runtimeState.tiles.group.matrixWorld
-        .clone()
-        .invert();
+      // Ground receivers arrive in frame space, like every shadow-facing box.
+      const worldToTiles = runtimeState.frameFromTiles.clone().invert();
       for (const receiver of runtimeState.shadowView?.terrainReceivers ?? []) {
         const bounds = new THREE.Box3(
           new THREE.Vector3(...receiver.minimum),
@@ -488,7 +492,7 @@ export function createThreeTilesShadows(
         );
         if (!runtimeState.tileBoundingBox.isEmpty()) {
           runtimeState.sourceWorldBoundsTransform.multiplyMatrices(
-            runtimeState.tiles.group.matrixWorld,
+            runtimeState.frameFromTiles,
             runtimeState.tileBoundsTransform
           );
           runtimeState.sourceWorldBoundingBox
@@ -733,7 +737,7 @@ export function createThreeTilesShadows(
           const bounds = new THREE.Box3();
           const transform = new THREE.Matrix4();
           readOrientedTileBounds(volume, bounds, transform);
-          transform.premultiply(runtimeState.tiles.group.matrixWorld);
+          transform.premultiply(dependencies.updateFrameFromTiles());
           changedBounds.push(bounds.applyMatrix4(transform));
         }
         invalidateShadowRegionRevisions(

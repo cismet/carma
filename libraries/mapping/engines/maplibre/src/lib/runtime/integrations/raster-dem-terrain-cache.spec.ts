@@ -162,6 +162,10 @@ describe("prepared terrain cache integration", () => {
             revision: 1,
             sceneFromLocal: new Matrix4(),
             sceneFromLocalRotation: new Matrix4(),
+            referenceLngLat: [7.15, 51.25] as const,
+            sceneFromLocalReference: new Matrix4(),
+            referenceToCurrent: new Matrix4(),
+            currentToReference: new Matrix4(),
           },
         });
         await expect(runtime.ready).resolves.toBe(true);
