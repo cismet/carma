@@ -141,6 +141,7 @@ export function createThreeTilesLifecycle(
     | "invalidateShadowRegionRevisions"
     | "reapplyCacheBoundsIfDrifted"
     | "applyRequestConcurrency"
+    | "isTileInPrefetchMargin"
     | "recordCacheCeilingFailure"
     | "endCacheCeilingSession"
     | "applyTilesetMinResolution"

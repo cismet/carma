@@ -1478,3 +1478,40 @@ Learning and recovery are covered by `three-tiles-cache-ceiling-memory.spec`.
 
 **Revisit when:** a device class needs a different cap, or the page can read
 its memory grant (for example through a future memory measurement API).
+
+# Request gate: metadata stubs and margin tiles (2026-09-18)
+
+**ID / date / status:** heading anchor
+`#request-gate-metadata-stubs-and-margin-tiles-2026-09-18` / 2026-09-18 /
+implemented, two regression specs restored.
+
+**Context and constraints:** `isTileRequestNeeded` ended with an in-view-only
+clause. Two consequences, both on this branch before this change: an external
+tileset stub (`hasUnrenderableContent`, no payload) that the native traversal
+marked used was never requested outside the view, and prefetch-margin tiles,
+which the deferral deliberately does not defer, were never requested either.
+A missing stub is worse than a missing payload: `areChildrenProcessed` stays
+false, so `canTraverse` stops at the parent, the parent becomes a leaf, its
+children are never marked used, and nothing below is ever requested. That is
+the zoom-in stall seen from a wide extent: the view stayed at the initial
+16 px target with base coverage never ready and an empty download queue.
+
+**Decision:** A used external-tileset stub is always requestable, in view or
+not: it is metadata, its cost is one small JSON, and the traversal cannot
+proceed without it. The final clause accepts the prefetch margin next to the
+main view, which matches the deferral's own margin rule.
+
+**Alternatives and disposition:** Requesting every used off-view tile:
+rejected by inspection, that is the unbounded fan-out the gate exists to
+prevent. Loosening `canTraverse` instead: not possible, it is vendor code.
+
+**Evidence:** `three-tiles-traversal.spec` "requests an off-frustum
+external-tileset stub but defers its off-frustum root content" and "requests
+margin siblings at low priority without deferring them" both fail on the
+branch baseline and pass with this change; the engine suite goes from 18 to
+16 pre-existing failures with no new ones. Browser: see the zoom profile
+recorded with the loader performance follow-ups.
+
+**Revisit when:** the margin grows beyond a bounded ring, or stub metadata
+becomes expensive (a consolidated subtree file would change that, see the
+hierarchy cache record).

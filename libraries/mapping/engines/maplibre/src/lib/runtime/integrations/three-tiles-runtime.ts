@@ -157,6 +157,8 @@ export function buildThreeTilesRuntime(
       shadows.peekShadowRegionRevision(...args),
   });
   const lifecycle = createThreeTilesLifecycle(state, {
+    isTileInPrefetchMargin: (...args) =>
+      spatial.isTileInPrefetchMargin(...args),
     recordCacheCeilingFailure: (...args) =>
       loading.recordCacheCeilingFailure(...args),
     endCacheCeilingSession: () => loading.endCacheCeilingSession(),

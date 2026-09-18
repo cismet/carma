@@ -63,6 +63,7 @@ export function createThreeTilesCascade(
     | "getTileScreenError"
     | "getTileCameraDemand"
     | "getTileRequestPriority"
+    | "isTileInPrefetchMargin"
     | "applyTileDeferral"
   >
 ) {
@@ -153,8 +154,16 @@ export function createThreeTilesCascade(
     } else if (runtimeState.shadowView) {
       return true;
     }
+    // External tileset metadata carries no payload and gates the traversal:
+    // without it the native pass cannot reach the subtree at all, so a used
+    // stub is always requestable, in view or not.
+    if (runtimeTile.internal.hasUnrenderableContent) return true;
+    // The prefetch margin is bounded and deliberately not deferred; it must
+    // pass this gate too, or its tiles stay unloaded until they enter the view.
+    const requestableRegion =
+      inMainView || dependencies.isTileInPrefetchMargin(runtimeTile);
     return (
-      inMainView &&
+      requestableRegion &&
       (!replacementParentCanCover ||
         (parent !== null &&
           dependencies.getTileScreenError(parent) >
