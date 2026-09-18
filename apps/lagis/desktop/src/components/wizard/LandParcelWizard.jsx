@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Modal } from "antd";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
@@ -23,6 +22,7 @@ import WizardFooter from "./WizardFooter";
 import { STEP, getSteps } from "../../core/wizard/flow";
 import { ACTION_TITLES, WIZARD_ACTIONS } from "../../core/wizard/constants";
 import { findLock } from "../../core/wizard/locks";
+import { explain } from "../../core/wizard/errors";
 import { findRebeAndMipa } from "../../core/wizard/areaCheck";
 import { runWizardAction } from "../../core/wizard/operations";
 import useStammdaten from "../../core/wizard/useStammdaten";
@@ -102,20 +102,8 @@ const LandParcelWizard = ({
   };
 
   const handleClose = () => {
-    if (result || !data.action) {
-      reset();
-      onClose();
-      return;
-    }
-    Modal.confirm({
-      title: "Möchten Sie den Bearbeitungsvorgang beenden?",
-      okText: "Ja",
-      cancelText: "Nein",
-      onOk: () => {
-        reset();
-        onClose();
-      },
-    });
+    reset();
+    onClose();
   };
 
   const checkLocks = async () => {
@@ -142,7 +130,7 @@ const LandParcelWizard = ({
         setStepIndex(stepIndex + 1);
       }
     } catch (e) {
-      setProblem(e.message);
+      setProblem(explain("Das Flurstück konnte nicht geprüft werden", e));
     } finally {
       setBusy(false);
     }
@@ -211,7 +199,7 @@ const LandParcelWizard = ({
       // UserBar rebuilds the lookup as soon as the new list lands in redux.
       dispatch(getflurstuecke(navigate));
     } catch (e) {
-      setError(e.message);
+      setError(e.message || "Die Aktion konnte nicht ausgeführt werden.");
     } finally {
       setBusy(false);
     }
@@ -228,7 +216,9 @@ const LandParcelWizard = ({
           return;
         }
       } catch (e) {
-        setError(e.message);
+        setError(
+          explain("Rechte und Belastungen konnten nicht geprüft werden", e)
+        );
         return;
       } finally {
         setBusy(false);
@@ -339,7 +329,8 @@ const LandParcelWizard = ({
         logsVisible={logsVisible}
         result={result}
         error={error}
-        problem={result ? null : problem}
+        problem={result || stepIndex === 0 ? null : problem}
+        problemTone={problem?.endsWith("...") ? "info" : "error"}
       >
         {renderStep()}
       </WizardModal>

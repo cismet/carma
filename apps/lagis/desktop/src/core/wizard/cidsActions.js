@@ -116,20 +116,16 @@ export const unwrapCidsResult = (payload) => {
  * `{ id, dokumenteArray }`.
  */
 export const saveObject = (className, data, jwt) =>
-  post(
-    LAGIS_SAVE_ENDPOINT,
-    { className, data: JSON.stringify(data) },
-    jwt,
-    { kind: "SaveObject", operation: className }
-  );
+  post(LAGIS_SAVE_ENDPOINT, { className, data: JSON.stringify(data) }, jwt, {
+    kind: "SaveObject",
+    operation: className,
+  });
 
 export const deleteObject = (className, data, jwt) =>
-  post(
-    LAGIS_DELETE_ENDPOINT,
-    { className, data: JSON.stringify(data) },
-    jwt,
-    { kind: "DeleteObject", operation: className }
-  );
+  post(LAGIS_DELETE_ENDPOINT, { className, data: JSON.stringify(data) }, jwt, {
+    kind: "DeleteObject",
+    operation: className,
+  });
 
 /**
  * Digs the id of a newly created object out of the response.

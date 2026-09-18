@@ -19,7 +19,9 @@ export const createFlurstueck = async ({ key, isStaedtisch }, ctx) => {
   const created = await createFlurstueckForKey({ ...key, art }, ctx);
 
   return {
-    message: `Flurstück "${formatKey(created)}" konnte erfolgreich angelegt werden.`,
+    message: `Flurstück "${formatKey(
+      created
+    )}" konnte erfolgreich angelegt werden.`,
     keys: [created],
   };
 };

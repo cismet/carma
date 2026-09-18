@@ -1,8 +1,4 @@
-import {
-  ActionNotSuccessfulError,
-  toDateOnly,
-  updateSchluessel,
-} from "../api";
+import { ActionNotSuccessfulError, toDateOnly, updateSchluessel } from "../api";
 import { FLURSTUECK_ART } from "../constants";
 import { formatKey } from "../keys";
 import { acquireLock, releaseLock } from "../locks";
