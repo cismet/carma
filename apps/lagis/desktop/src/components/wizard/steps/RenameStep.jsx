@@ -39,6 +39,7 @@ const RenameStep = ({ value, onChange, onProblem }) => {
         <LandParcelKeyChooser
           mode="creation"
           incompleteMessage={NEW_KEY_PROMPT}
+          disabled={!value.renameKey}
           value={value.createKey}
           preset={value.renameKey}
           onChange={(next) => onChange({ createKey: next })}
