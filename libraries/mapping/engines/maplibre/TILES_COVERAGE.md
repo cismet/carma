@@ -1196,3 +1196,42 @@ A shared pool's coarse stage/pressure target must not lower the primary observer
 Priority controls which work starts first; the strictest overlapping normalized demand still wins. This preserves demand, not an impossible guarantee of convergence when primary content alone exceeds memory. Single-observer policy remains unchanged.
 
 Validation: current-view refresh regressions exercise both terrain-providing and building-only mesh paths, an 8px global stage with 2px primary demand, repeated secondary zoom changes, and native traversal propagation. Shared camera-demand tests also cover union semantics. The real-manager story `tile-loading-manager-multi-camera-overlap--orbit-and-overlap` loops through separate orbits and nested top-down views one to two zoom levels apart; pause retains its pool. Its 1GiB stress ceiling deliberately exposes pressure. Browser observed 2px requested / 8px effective before the fix; no blanket no-holes or frame-rate acceptance claimed.
+
+# Base-pass backlog gate (2026-09-18)
+
+**ID / date / status:** heading anchor `#base-pass-backlog-gate-2026-09-18` /
+2026-09-18 / measured rejection; not shipped.
+
+**Context and constraints:** The parse backlog gate of
+[VIEWPORT-BACKPRESSURE-20260916](#viewport-backpressure-20260916) only holds
+once `meshBaseCoverageReady` is set. A 2026-09-18 shadow cold-start profile
+showed a parse backlog of 1259 buffers and a download queue of 4646 requests,
+which suggested applying the soft (4 downloads) and hard (0 downloads)
+thresholds during the base pass as well.
+
+**Decision:** Keep the base pass exempt. The backlog came from the shadow
+add-on bypassing the base-pass staging (effective target at the requested
+value from the first frame, no refinement-support tiles); with that bypass in
+place the gate only reorders downloads towards the highest-ranked in-view
+tiles and delays base coverage. Without shadows the base pass never builds a
+backlog (parse queue at most 1-2 buffers), so the gate has nothing to do.
+
+**Alternatives and disposition:** Gate during the base pass: measured
+rejection (evidence below). Fix the staging bypass instead: implemented
+separately (the shadow add-on now follows the base-pass staging).
+
+**Evidence:** Playwright headless Chromium (chromium_headless_shell-1155,
+`--use-gl=angle --use-angle=metal`), Apple M4 Max, viewport 1108 x 586 at 2x,
+dev server of `feat/mesh-tile-loading-manager` at 2c8448b0e, legacy mesh2024
+style with diagnostics on, warm CDN, fresh browser context per run, 500 ms
+in-page samples. Base coverage ready (`meshBaseCoverageReady`) after the style
+was added: no shadows 4.0 s / 4.0 s before, 4.0 s after (parse queue peak 1,
+identical timelines); shadows on 9.6 s / 9.5 s before, 12.0 s / 12.0 s with the
+gate (parse queue peak 132 / 131 before, 28 / 28 with the gate; download queue
+peak 116 before, 135 / 119 with the gate; long tasks 51 / 46 before, 48 / 48
+with the gate). Median download 82-113 ms in all runs; the network was not the
+limit. Two runs per shadow condition, one no-shadow run after; no warm-up runs.
+Raw JSONL series stay in the session scratchpad, not in the tree.
+
+**Revisit when:** the shadow add-on respects the base pass and a shadow cold
+start still shows a parse backlog above the hard limit during the base pass.
