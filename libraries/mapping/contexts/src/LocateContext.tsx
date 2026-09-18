@@ -67,6 +67,14 @@ export interface LocateContextType {
   activate: (options?: { fly?: boolean }) => void;
   deactivate: () => void;
   toggle: () => void;
+  /**
+   * Show the user as an arrow pointing to `heading` (degrees from north)
+   * instead of the dot, for as long as something knows where they are going:
+   * a navigation sets it per fix from the route and clears it with null when
+   * it ends. Survives the marker being rebuilt, so it can be set before the
+   * first fix lands.
+   */
+  setTravelHeading: (heading: number | null) => void;
 }
 
 const INERT: LocateContextType = {
@@ -78,6 +86,7 @@ const INERT: LocateContextType = {
   activate: () => {},
   deactivate: () => {},
   toggle: () => {},
+  setTravelHeading: () => {},
 };
 
 export const LocateContext = createContext<LocateContextType>(INERT);
@@ -136,9 +145,18 @@ export const LocateProvider = ({ map, children }: LocateProviderProps) => {
    */
   const headingRef = useRef<number | null>(null);
   const unsubscribeHeadingRef = useRef<(() => void) | null>(null);
+  /** where the user is going, set by a navigation; null shows the dot */
+  const travelHeadingRef = useRef<number | null>(null);
 
   const applyHeading = useCallback(() => {
-    markerElementRef.current?.setHeading(headingRef.current, markerRef.current);
+    const element = markerElementRef.current;
+    element?.setHeading(headingRef.current, markerRef.current);
+    element?.setTravelHeading(travelHeadingRef.current, markerRef.current);
+  }, []);
+
+  const setTravelHeading = useCallback((heading: number | null) => {
+    travelHeadingRef.current = heading;
+    markerElementRef.current?.setTravelHeading(heading, markerRef.current);
   }, []);
 
   const stopHeading = useCallback(() => {
@@ -405,6 +423,7 @@ export const LocateProvider = ({ map, children }: LocateProviderProps) => {
         activate,
         deactivate,
         toggle,
+        setTravelHeading,
       }}
     >
       {children}
