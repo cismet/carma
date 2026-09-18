@@ -8,7 +8,12 @@ import {
   createEffectiveErrorTargetState,
   createTileBytesPredictor,
   deriveTilePriority,
+  idleRingAllowedError,
   initialMeshLoadError,
+  isExtentFloorTile,
+  nextMemoryErrorTarget,
+  tilesetMinResolutionGeometricError,
+  resolveExtentGeometricError,
   meshShadowStageError,
   nextEffectiveErrorTarget,
   resolveRequestConcurrency,
@@ -226,6 +231,54 @@ describe("createTileBytesPredictor", () => {
 });
 
 describe("deriveTilePriority", () => {
+  it("reaches initial visible quality ahead of caster and reserve work without delaying holes", () => {
+    const base = {
+      distanceFromCamera: 100,
+      depth: 5,
+      inMainFrustum: true,
+      isExternalTileset: false,
+      centerness: 0,
+    };
+    const initial = deriveTilePriority({ ...base, improvesInitialView: true });
+    expect(initial).toBeGreaterThan(
+      deriveTilePriority({
+        ...base,
+        inMainFrustum: false,
+        shadowReceiverCenterness: 1,
+      })
+    );
+    expect(initial).toBeGreaterThan(
+      deriveTilePriority({ ...base, inMainFrustum: false, isExtentFloor: true })
+    );
+    expect(initial).toBeLessThan(
+      deriveTilePriority({ ...base, fillsViewCoverage: true })
+    );
+  });
+  it("puts offscreen baseline repair after visible detail regardless of distance", () => {
+    const floor = {
+      distanceFromCamera: 0,
+      depth: 1,
+      inMainFrustum: false,
+      isExternalTileset: false,
+      centerness: 1,
+      isExtentFloor: true,
+    };
+    expect(deriveTilePriority(floor)).toBeLessThan(
+      deriveTilePriority({
+        ...floor,
+        distanceFromCamera: 100_000,
+        inMainFrustum: true,
+        isExtentFloor: false,
+      })
+    );
+    expect(
+      deriveTilePriority({
+        ...floor,
+        inMainFrustum: true,
+        fillsViewCoverage: true,
+      })
+    ).toBeGreaterThan(deriveTilePriority(floor));
+  });
   it("prioritizes JSON, missing coverage, proven casters, then visible refinement", () => {
     const common = {
       distanceFromCamera: 1,
@@ -648,5 +701,246 @@ describe("resolveRequestConcurrency", () => {
         estimateBytes: 4 * MIB,
       })
     ).toBe(0);
+  });
+});
+
+describe("idleRingAllowedError", () => {
+  it("steps one level per ring from the base error target", () => {
+    expect(idleRingAllowedError(20, 1, 0)).toBe(20);
+    expect(idleRingAllowedError(20, 2, 0)).toBe(40);
+    expect(idleRingAllowedError(20, 4, 0)).toBe(160);
+  });
+
+  it("refines the cascade by the refined levels, never below the anchor", () => {
+    expect(idleRingAllowedError(20, 3, 1)).toBe(40);
+    expect(idleRingAllowedError(20, 3, 2)).toBe(20);
+    expect(idleRingAllowedError(20, 3, 5)).toBe(20);
+  });
+});
+
+describe("extent floor", () => {
+  const levels = [
+    { level: 0, geometricError: 900, bytes: 1e6 },
+    { level: 3, geometricError: 100, bytes: 16e6 },
+    { level: 4, geometricError: 42, bytes: 21e6 },
+    { level: 5, geometricError: 20, bytes: 52e6 },
+    { level: 6, geometricError: 10, bytes: 220e6 },
+  ];
+
+  it("picks the deepest level whose resident bytes fit the memory share", () => {
+    const share = TILES_LOAD_POLICY.extentMemoryShare;
+    const resident = TILES_LOAD_POLICY.extentResidentBytesPerTransferByte;
+    const throughLevel4 = (1e6 + 16e6 + 21e6) * resident;
+    expect(resolveExtentGeometricError(levels, 3, throughLevel4 / share)).toBe(
+      42
+    );
+    expect(resolveExtentGeometricError(levels, 3, 1e12)).toBe(10);
+  });
+
+  it("falls back above the entry hint when its resident floor cannot fit", () => {
+    expect(resolveExtentGeometricError(levels, 3, 1)).toBe(900);
+    // 2024 mesh: the hinted L3 floor consumes more than this entire story cache.
+    const meshLevels = [
+      { level: 0, geometricError: 908.2, bytes: 17541680 },
+      { level: 1, geometricError: 453.9, bytes: 7572336 },
+      { level: 2, geometricError: 204.5, bytes: 12552584 },
+      { level: 3, geometricError: 97.3, bytes: 15919395 },
+    ];
+    expect(resolveExtentGeometricError(meshLevels, 3, 384 * MIB)).toBe(908.2);
+    expect(resolveExtentGeometricError(meshLevels, 3, 6 * GIB)).toBe(97.3);
+  });
+
+  it("classifies tiles at or above the floor level", () => {
+    expect(isExtentFloorTile({ geometricError: 42 }, 42)).toBe(true);
+    expect(isExtentFloorTile({ geometricError: 100 }, 42)).toBe(true);
+    expect(isExtentFloorTile({ geometricError: 20 }, 42)).toBe(false);
+    expect(isExtentFloorTile({ geometricError: 20 }, Infinity)).toBe(false);
+  });
+});
+
+describe("residual resolution floor", () => {
+  it("is the base error scaled by the extent's longest axis over the resolution", () => {
+    // 12 km across 1024 px at 20 px base error: 234 m of geometric error.
+    expect(tilesetMinResolutionGeometricError(20, 12_000, 1024)).toBeCloseTo(
+      234.4,
+      1
+    );
+    expect(tilesetMinResolutionGeometricError(20, Number.NaN, 1024)).toBe(0);
+    expect(tilesetMinResolutionGeometricError(20, 12_000, 0)).toBe(0);
+  });
+
+  it("stops the floor at the first level finer than the residual error", () => {
+    const levels = [
+      { level: 3, geometricError: 100, bytes: 16e6 },
+      { level: 4, geometricError: 42, bytes: 21e6 },
+      { level: 5, geometricError: 20, bytes: 52e6 },
+    ];
+    expect(resolveExtentGeometricError(levels, 3, 1e12, 30)).toBe(42);
+    expect(resolveExtentGeometricError(levels, 3, 1e12, 0)).toBe(20);
+    expect(resolveExtentGeometricError([], 0, 1e12, 30)).toBe(30);
+  });
+});
+
+describe("foveated priority", () => {
+  const base = {
+    depth: 8,
+    inMainFrustum: true,
+    isExternalTileset: false,
+    fillsViewCoverage: false,
+  };
+
+  it("keeps nearest-first order without a weight", () => {
+    const near = deriveTilePriority({
+      ...base,
+      distanceFromCamera: 100,
+      centerness: 0,
+    });
+    const far = deriveTilePriority({
+      ...base,
+      distanceFromCamera: 200,
+      centerness: 1,
+    });
+    expect(near).toBeGreaterThan(far);
+  });
+
+  it("lets a centred tile overtake a nearer edge tile with a weight", () => {
+    const edgeNear = deriveTilePriority({
+      ...base,
+      distanceFromCamera: 100,
+      centerness: 0,
+      foveationWeight: 4,
+    });
+    const centreFar = deriveTilePriority({
+      ...base,
+      distanceFromCamera: 200,
+      centerness: 1,
+      foveationWeight: 4,
+    });
+    expect(centreFar).toBeGreaterThan(edgeNear);
+  });
+});
+
+describe("nextMemoryErrorTarget", () => {
+  const base = { requested: 6, base: 20, cachedBytes: 0, ceilingBytes: 1e9 };
+
+  it("can release a stalled base cut, bounded by current root SSE", () => {
+    const input = {
+      ...base,
+      current: 20,
+      maximum: 40,
+      cacheFull: true,
+      viewConverged: false,
+      now: 10_000,
+      changedAt: 0,
+    };
+    expect(nextMemoryErrorTarget(input).target).toBe(30);
+    expect(nextMemoryErrorTarget({ ...input, current: 35 }).target).toBe(40);
+    expect(nextMemoryErrorTarget({ ...input, maximum: Infinity }).target).toBe(
+      20
+    );
+  });
+
+  it("rises at the ceiling with an unconverged view, never above the base error", () => {
+    const raised = nextMemoryErrorTarget({
+      ...base,
+      current: 6,
+      cacheFull: true,
+      viewConverged: false,
+      cachedBytes: 1e9,
+      now: 10_000,
+      changedAt: 0,
+    });
+    expect(raised.target).toBe(9);
+    expect(raised.changedAt).toBe(10_000);
+    const capped = nextMemoryErrorTarget({
+      ...base,
+      current: 18,
+      cacheFull: true,
+      viewConverged: false,
+      cachedBytes: 1e9,
+      now: 20_000,
+      changedAt: 0,
+    });
+    expect(capped.target).toBe(20);
+    const tooSoon = nextMemoryErrorTarget({
+      ...base,
+      current: 6,
+      cacheFull: true,
+      viewConverged: false,
+      cachedBytes: 1e9,
+      now: 1_000,
+      changedAt: 0,
+    });
+    expect(tooSoon.target).toBe(6);
+    expect(tooSoon.retryInMs).toBe(
+      TILES_LOAD_POLICY.memoryTargetRaiseAfterMs - 1_000 + 1
+    );
+  });
+
+  it("relaxes towards the requested target once memory frees", () => {
+    const relaxed = nextMemoryErrorTarget({
+      ...base,
+      current: 9,
+      cacheFull: false,
+      viewConverged: true,
+      cachedBytes: 1e8,
+      now: 30_000,
+      changedAt: 0,
+    });
+    expect(relaxed.target).toBe(6);
+    const held = nextMemoryErrorTarget({
+      ...base,
+      current: 9,
+      cacheFull: false,
+      viewConverged: true,
+      cachedBytes: 9e8,
+      now: 30_000,
+      changedAt: 0,
+    });
+    expect(held.target).toBe(9);
+    expect(held.retryInMs).toBeNull();
+  });
+
+  it("schedules only the remaining strict relaxation deadline", () => {
+    const pending = nextMemoryErrorTarget({
+      ...base,
+      current: 9,
+      cacheFull: false,
+      viewConverged: true,
+      cachedBytes: 1e8,
+      now: 5_999,
+      changedAt: 0,
+    });
+    expect(pending.target).toBe(9);
+    expect(pending.retryInMs).toBe(2);
+    const noLongerEligible = nextMemoryErrorTarget({
+      ...base,
+      current: 6,
+      cacheFull: false,
+      viewConverged: true,
+      cachedBytes: 1e8,
+      now: 5_999,
+      changedAt: 0,
+    });
+    expect(noLongerEligible.retryInMs).toBeNull();
+  });
+
+  it("does not let unused LRU retention permanently prevent quality recovery", () => {
+    const input = {
+      ...base,
+      current: 9,
+      cacheFull: false,
+      viewConverged: true,
+      cachedBytes: 7.5e8,
+      usedBytes: 5.5e8,
+      now: 30_000,
+      changedAt: 0,
+    };
+    expect(nextMemoryErrorTarget(input).target).toBe(6);
+    expect(nextMemoryErrorTarget({ ...input, usedBytes: 7e8 }).target).toBe(9);
+    expect(nextMemoryErrorTarget({ ...input, cacheFull: true }).target).toBe(9);
+    expect(
+      nextMemoryErrorTarget({ ...input, usedBytes: undefined }).target
+    ).toBe(9);
   });
 });

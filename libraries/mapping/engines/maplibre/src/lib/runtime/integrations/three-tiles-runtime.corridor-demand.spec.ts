@@ -19,7 +19,7 @@ describe("current mesh corridor request admission", () => {
     const f = createMeshCorridorFixture(0, false);
     try {
       f.runtime.scene.setShadowView(null);
-      const route = f.tile("route", -10, 10, -100, 0.25, true, f.root);
+      const route = f.tile("route", -10, 10, -100, 0.01, true, f.root);
       route.internal.hasContent = false;
       route.internal.hasRenderableContent = false;
       route.children = [f.receiver];
@@ -32,11 +32,20 @@ describe("current mesh corridor request admission", () => {
       // A proven empty leaf is still empty; do not invent new requests.
       route.children = [];
       f.renderer.calculateTileViewErrorWithPlugin(route, target);
-      expect(target.error).toBe(0.25);
+      const projection = f.frame.lodCamera.projectionMatrix.elements;
+      const pixelsPerMeter =
+        Math.max(
+          Math.abs(projection[0]) * f.frame.viewport.x,
+          Math.abs(projection[5]) * f.frame.viewport.y
+        ) /
+        2 /
+        99;
+      expect(target.error).toBeCloseTo(route.geometricError * pixelsPerMeter);
       // ADD's parent-error shortcut must not pretend a contentless parent
       // supplies the child's surface either. Preserve the child's own LOD.
       f.root.refine = "ADD";
-      f.setTileError(f.receiver, 0.25);
+      f.receiver.geometricError = 0.01;
+      f.update();
       f.renderer.calculateTileViewErrorWithPlugin(f.receiver, target);
       expect(
         (target.error * f.root.geometricError) / f.receiver.geometricError
@@ -260,7 +269,7 @@ describe("current mesh corridor request admission", () => {
       vi.useRealTimers();
     }
   });
-  it("reaches retained fine branches during bootstrap and admits missing siblings instead of their coarse parent", () => {
+  it("withholds a first-view detail island until its missing sibling is ready", () => {
     const f = createMeshCorridorFixture();
     try {
       // Separate the coverage contract from shadow publication in this fixture.
@@ -272,14 +281,16 @@ describe("current mesh corridor request admission", () => {
       f.root.children = [coarse];
       f.load(fine);
       f.update();
-      // One pass publishes the available cut; the next admits its coverage.
+      // No isolated fine tile may publish before the first complete cut.
       f.update();
+      expect(f.visibleIds()).toEqual([]);
       const target = { inView: false, error: 0, distanceFromCamera: 0 };
       f.renderer.calculateTileViewErrorWithPlugin(coarse, target);
       expect(target.error).toBeGreaterThan(f.renderer.errorTarget);
       f.renderer.queueTileForDownload(coarse);
       f.renderer.queueTileForDownload(missing);
-      expect(f.queued).not.toHaveBeenCalledWith(coarse);
+      // A ready fallback is permitted again; partial detail cannot forbid it.
+      expect(f.queued).toHaveBeenCalledWith(coarse);
       expect(f.queued).toHaveBeenCalledWith(missing);
       f.load(missing);
       f.update();

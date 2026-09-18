@@ -4,16 +4,20 @@ import {
   isMeshCoveredByLoadedChildren,
   getRetainedMeshAncestors,
   hasDisplayedAncestor,
-  canCoarsenMeshQuartet,
+  canCoarsenMeshCut,
   retainMeshDetailFrontier,
   shouldDeferMeshRefinement,
+  isNextPublishedMeshLevel,
   refineLoadedMeshFrontier,
   getReadyMeshRegionCut,
   advanceMeshCorridorFrontier,
   collectLoadedMeshReceiverCandidates,
   selectMeshReceiverCut,
+  selectMeshUnderlayParents,
   isMeshRefinementBeyondStage,
   hasMeshRefinementContentInView,
+  hasLoadedExtentFloorAncestor,
+  isMeshCoverageRemovalSafe,
 } from "./three-tiles-mesh-frontier";
 
 const mesh = (parent: Tile | null = null, error = 0.5): Tile =>
@@ -40,6 +44,227 @@ const retain = (previous: Tile[], proposed: Tile[], requestedError = 1) =>
   });
 
 describe("local progressive mesh admission", () => {
+  it("advances one drawable level after initial coverage, without treating JSON routes as a LOD", () => {
+    const parent = mesh(null, 10);
+    const route = mesh(parent);
+    route.internal.hasRenderableContent = false;
+    const child = mesh(route, 5);
+    const grandchild = mesh(child, 2.5);
+    const displayed = new Set([parent]);
+    expect(isNextPublishedMeshLevel(child, displayed)).toBe(true);
+    expect(isNextPublishedMeshLevel(grandchild, displayed)).toBe(false);
+    displayed.clear();
+    displayed.add(child);
+    expect(isNextPublishedMeshLevel(grandchild, displayed)).toBe(true);
+    parent.traversal.error = 500; // Zoom-in after a zoom-out and pan.
+    displayed.clear();
+    displayed.add(parent);
+    expect(isNextPublishedMeshLevel(child, displayed)).toBe(true);
+    expect(isNextPublishedMeshLevel(grandchild, displayed)).toBe(false);
+    displayed.clear();
+    expect(isNextPublishedMeshLevel(child, displayed)).toBe(false);
+  });
+
+  const atomicCut = (root: Tile, published: Tile[] = []) =>
+    collectLoadedMeshReceiverCandidates(
+      root,
+      6,
+      12,
+      (tile) => tile.traversal.inFrustum,
+      (tile) => tile.traversal.error,
+      undefined,
+      undefined,
+      () => true,
+      new Set(),
+      { published: new Set(published), support: new Set(), atomic: true }
+    );
+
+  it("publishes the first acceptable viewport cut together, never detail islands", () => {
+    const { parent, children } = quartet(mesh(null, 80));
+    parent.internal.loadingState = 0;
+    for (const child of children) child.traversal.error = 10;
+    children[3].internal.loadingState = 2;
+    expect(atomicCut(parent)).toEqual(new Set());
+    children[3].internal.loadingState = 4;
+    expect(atomicCut(parent)).toEqual(new Set(children));
+  });
+
+  it("keeps an already published coarse surface until all replacements are ready", () => {
+    const { parent, children } = quartet(mesh(null, 30));
+    children[3].internal.loadingState = 2;
+    expect(atomicCut(parent, [parent])).toEqual(new Set([parent]));
+    children[3].internal.loadingState = 4;
+    expect(atomicCut(parent, [parent])).toEqual(new Set(children));
+  });
+
+  it("shows complete coarse coverage before the initial quality target is ready", () => {
+    const { parent, children } = quartet(mesh(null, 64));
+    children[3].internal.loadingState = 2;
+    expect(atomicCut(parent)).toEqual(new Set([parent]));
+    children[3].internal.loadingState = 4;
+    expect(atomicCut(parent)).toEqual(new Set(children));
+  });
+
+  it("keeps 500px reserves hidden on startup, but available for later gapless zooms", () => {
+    const { parent, children } = quartet(mesh(null, 500));
+    children.forEach((child) => {
+      child.traversal.error = 64;
+    });
+    children[3].internal.loadingState = 2;
+    expect(atomicCut(parent)).toEqual(new Set());
+    children[3].internal.loadingState = 4;
+    expect(atomicCut(parent)).toEqual(new Set(children));
+    expect(atomicCut(mesh(null, 65))).toEqual(new Set());
+    children.forEach((child) => {
+      child.internal.loadingState = 2;
+    });
+    expect(atomicCut(parent, [parent])).toEqual(new Set([parent]));
+  });
+
+  it("does not open the non-atomic shadow admission gate for coarse startup tiles", () => {
+    const { parent, children } = quartet(mesh(null, 80));
+    for (const child of children) child.internal.loadingState = 2;
+    expect(
+      collectLoadedMeshReceiverCandidates(
+        parent,
+        6,
+        12,
+        () => true,
+        (tile) => tile.traversal.error
+      )
+    ).toEqual(new Set());
+  });
+
+  it.each(["ready", "loading", "material-pending"])(
+    "checks resident siblings before motion-stage coarsening (%s)",
+    (siblingState) => {
+      const { parent, children } = quartet(mesh(null, 10));
+      children.forEach((child) => (child.traversal.error = 3));
+      const previous = new Set(children.slice(0, 3));
+      if (siblingState === "loading") children[3].internal.loadingState = 2;
+      const inView = (tile: Tile) => tile.traversal.inFrustum;
+      const error = (tile: Tile) => tile.traversal.error;
+      const retained = getRetainedMeshAncestors(previous, 4, inView, error);
+      const proposed = collectLoadedMeshReceiverCandidates(
+        parent,
+        12,
+        12,
+        inView,
+        error,
+        undefined,
+        undefined,
+        (tile) => siblingState !== "material-pending" || tile !== children[3],
+        retained,
+        { published: previous, support: new Set(), atomic: true }
+      );
+      // All ready siblings can publish immediately, despite the previously
+      // partial view. An unfinished sibling still requires the gapless parent.
+      const expected = new Set(siblingState === "ready" ? children : [parent]);
+      expect(proposed).toEqual(expected);
+      expect(
+        retainMeshDetailFrontier({
+          previous,
+          proposed,
+          requestedError: 4,
+          inView,
+          errorPixels: error,
+        })
+      ).toEqual(expected);
+    }
+  );
+
+  it("promotes an unpublished coarse reserve immediately when a pan exposes missing children", () => {
+    const { parent, children } = quartet(mesh(null, 80));
+    children[3].internal.loadingState = 2;
+    // The parent was prefetched, not published; the old view only saw three children.
+    const proposed = atomicCut(parent, children.slice(0, 3));
+    expect(proposed).toEqual(new Set([parent]));
+    expect(retain(children.slice(0, 3), [...proposed], 6)).toEqual(
+      new Set([parent])
+    );
+    children[3].internal.loadingState = 4;
+    expect(atomicCut(parent, [parent])).toEqual(new Set(children));
+  });
+
+  it("finishes immediate offscreen siblings before publishing a finer family on repeated drags", () => {
+    const { parent, children } = quartet(mesh(null, 10));
+    children.forEach((child) => (child.traversal.error = 3));
+    const { children: grandchildren } = quartet(children[3]);
+    grandchildren.forEach((child) => (child.internal.loadingState = 0));
+    children[3].internal.loadingState = 2;
+    const support = new Set<Tile>();
+    const inView = (tile: Tile) => tile.traversal.inFrustum;
+    const error = (tile: Tile) => tile.traversal.error;
+    children[3].traversal.inFrustum = false;
+    const select = (published: Set<Tile>, target: number) =>
+      collectLoadedMeshReceiverCandidates(
+        parent,
+        target,
+        12,
+        inView,
+        error,
+        undefined,
+        undefined,
+        () => true,
+        getRetainedMeshAncestors(published, 4, inView, error),
+        { published, support, atomic: true }
+      );
+    expect(select(new Set([parent]), 4)).toEqual(new Set([parent]));
+    expect(support).toEqual(new Set([children[3]]));
+    // Sibling support must stop at its first payload, not request offscreen
+    // grandchildren or wait for their ideal detail.
+    children[3].internal.loadingState = 4;
+    let published = select(new Set([parent]), 4);
+    expect(published).toEqual(new Set(children));
+    for (let drag = 0; drag < 8; drag++) {
+      children.forEach(
+        (child, index) => (child.traversal.inFrustum = index !== drag % 4)
+      );
+      published = retainMeshDetailFrontier({
+        previous: published,
+        proposed: select(published, 12),
+        requestedError: 4,
+        inView,
+        errorPixels: error,
+      });
+      expect(published).toEqual(new Set(children));
+      expect([...support].some((tile) => grandchildren.includes(tile))).toBe(
+        false
+      );
+    }
+  });
+
+  it("does not withhold resident newly exposed branches behind a distant unloaded branch", () => {
+    const { parent, children } = quartet(mesh(null, 80));
+    parent.internal.loadingState = 0;
+    children[3].internal.loadingState = 2;
+    expect(atomicCut(parent, [children[0]])).toEqual(
+      new Set(children.slice(0, 3))
+    );
+  });
+
+  it("accepts known empty branches but waits for unknown topology in the first cut", () => {
+    const { parent, children } = quartet(mesh(null, 80));
+    parent.internal.loadingState = 0;
+    const empty = children[3];
+    empty.internal.hasContent = false;
+    empty.internal.hasRenderableContent = false;
+    empty.internal.loadingState = 0;
+    expect(atomicCut(parent)).toEqual(new Set(children.slice(0, 3)));
+    empty.internal.hasUnrenderableContent = true;
+    expect(atomicCut(parent)).toEqual(new Set());
+  });
+
+  it("repairs an incomplete previous cut with a ready parent instead of keeping a hole", () => {
+    const { parent, children } = quartet(mesh(null, 10));
+    children[3].internal.loadingState = 2;
+    expect(retain(children.slice(0, 3), [parent], 6)).toEqual(
+      new Set([parent])
+    );
+    children[3].internal.loadingState = 4;
+    expect(retain(children, [parent], 6)).toEqual(new Set(children));
+  });
+
   it("accepts proven empty children, but not unknown or external metadata", () => {
     const { parent, children } = quartet(mesh(null, 16));
     const empty = children[0];
@@ -236,6 +461,123 @@ describe("local progressive mesh admission", () => {
         (tile) => tile.traversal.error
       )
     ).toEqual(new Set([ready]));
+  });
+
+  it("publishes only the intersected part of a historical refinement", () => {
+    const { parent, children } = quartet(mesh(null, 28));
+    children.forEach((child) => (child.traversal.error = 10));
+    const inViewChild = children[0];
+    const support = new Set<Tile>();
+    const cut = collectLoadedMeshReceiverCandidates(
+      parent,
+      4,
+      Number.POSITIVE_INFINITY,
+      (tile) => tile === parent || tile === inViewChild,
+      (tile) => tile.traversal.error,
+      undefined,
+      undefined,
+      () => true,
+      new Set(),
+      { published: new Set([parent]), support }
+    );
+    expect(cut).toEqual(new Set([inViewChild]));
+    expect(support).toEqual(new Set());
+  });
+
+  it("does not download missing offscreen siblings", () => {
+    const { parent, children } = quartet(mesh(null, 28));
+    children.forEach((child) => (child.traversal.error = 10));
+    const missing = children[2];
+    missing.internal.loadingState = 0;
+    const support = new Set<Tile>();
+    const cut = collectLoadedMeshReceiverCandidates(
+      parent,
+      4,
+      Number.POSITIVE_INFINITY,
+      (tile) => tile === parent || tile === children[0],
+      (tile) => tile.traversal.error,
+      undefined,
+      undefined,
+      () => true,
+      new Set(),
+      { published: new Set([parent]), support }
+    );
+    expect(cut).toEqual(new Set([children[0]]));
+    expect(support).toEqual(new Set());
+  });
+
+  it("uses the resident parent on pan until the newly intersected sibling is ready", () => {
+    const { parent, children } = quartet(mesh(null, 28));
+    children.forEach((child) => (child.traversal.error = 10));
+    children[1].internal.loadingState = 0;
+    let visible = children[0];
+    const select = () =>
+      collectLoadedMeshReceiverCandidates(
+        parent,
+        4,
+        Number.POSITIVE_INFINITY,
+        (tile) => tile === parent || tile === visible,
+        (tile) => tile.traversal.error
+      );
+    expect(select()).toEqual(new Set([children[0]]));
+    visible = children[1];
+    expect(select()).toEqual(new Set([parent]));
+    children[1].internal.loadingState = 4;
+    expect(select()).toEqual(new Set([children[1]]));
+  });
+
+  it("does not prepare materials for offscreen sibling support", () => {
+    const { parent, children } = quartet(mesh(null, 28));
+    children.forEach((child) => (child.traversal.error = 10));
+    const unready = children[3];
+    const support = new Set<Tile>();
+    const cut = collectLoadedMeshReceiverCandidates(
+      parent,
+      4,
+      Number.POSITIVE_INFINITY,
+      (tile) => tile === parent || tile === children[0],
+      (tile) => tile.traversal.error,
+      undefined,
+      undefined,
+      (tile) => tile !== unready,
+      new Set(),
+      { published: new Set([parent]), support }
+    );
+    expect(cut).toEqual(new Set([children[0]]));
+    expect(support).toEqual(new Set());
+  });
+
+  it("does not descend into unconditional offscreen siblings", () => {
+    const { parent, children } = quartet(mesh(null, 28));
+    children.forEach((child) => (child.traversal.error = 10));
+    const unconditional = children[2];
+    unconditional.traversal.unconditionallyRefine = true;
+    unconditional.internal.loadingState = 0;
+    const grandchildren = quartet(unconditional).children;
+    const missingGrandchild = grandchildren[1];
+    missingGrandchild.internal.loadingState = 0;
+    const support = new Set<Tile>();
+    const select = () =>
+      collectLoadedMeshReceiverCandidates(
+        parent,
+        4,
+        Number.POSITIVE_INFINITY,
+        (tile) => tile === parent || tile === children[0],
+        (tile) => tile.traversal.error,
+        undefined,
+        undefined,
+        () => true,
+        new Set(),
+        { published: new Set([parent]), support }
+      );
+    expect(select()).toEqual(new Set([children[0]]));
+    expect(support).toEqual(new Set());
+    expect(support.has(unconditional)).toBe(false);
+
+    support.clear();
+    missingGrandchild.internal.loadingState = 4;
+    expect(select()).toEqual(new Set([children[0]]));
+    expect(support).toEqual(new Set());
   });
 
   it("retains a bounded parent when its own fine family is incomplete", () => {
@@ -505,7 +847,13 @@ describe("progressive loaded mesh display", () => {
     const displayed = new Set(children.slice(0, 3));
     const proposed = new Set([parent, ...children]);
     const select = () =>
-      refineLoadedMeshFrontier(proposed, 1, () => true, () => 0.5, displayed);
+      refineLoadedMeshFrontier(
+        proposed,
+        1,
+        () => true,
+        () => 0.5,
+        displayed
+      );
     children[3].internal.loadingState = 2;
     expect([...select()]).toEqual([parent]);
     children[3].internal.loadingState = 4;
@@ -515,7 +863,12 @@ describe("progressive loaded mesh display", () => {
     expect(casters.has(parent)).toBe(false);
     // Mere cache residency is not a reason to over-refine unrelated casters.
     expect([
-      ...refineLoadedMeshFrontier(proposed, 1, () => true, () => 0.5),
+      ...refineLoadedMeshFrontier(
+        proposed,
+        1,
+        () => true,
+        () => 0.5
+      ),
     ]).toEqual([parent]);
   });
 
@@ -611,6 +964,56 @@ describe("progressive loaded mesh display", () => {
 });
 
 describe("mesh detail frontier", () => {
+  it("indexes proposed ancestry once instead of rescanning it for every offscreen family", () => {
+    const root = mesh();
+    const families = Array.from({ length: 128 }, () => quartet(mesh(root)));
+    const visible = Array.from({ length: 128 }, () => mesh(root));
+    root.children = [...families.map((f) => f.parent), ...visible];
+    const all = [
+      root,
+      ...visible,
+      ...families.flatMap((f) => [f.parent, ...f.children]),
+    ];
+    let parentReads = 0;
+    for (const tile of all) {
+      const parent = tile.parent;
+      Object.defineProperty(tile, "parent", {
+        get: () => {
+          parentReads += 1;
+          return parent;
+        },
+      });
+    }
+    const visibleSet = new Set(visible);
+    let viewChecks = 0;
+    const previous = new Set(families.flatMap((f) => f.children.slice(0, 2)));
+    const result = retainMeshDetailFrontier({
+      previous,
+      proposed: visibleSet,
+      requestedError: 1,
+      inView: (tile) => {
+        viewChecks += 1;
+        return visibleSet.has(tile);
+      },
+    });
+    const expected = new Set([...visible, ...families.map((f) => f.parent)]);
+    expect(result.size).toBe(expected.size);
+    expect([...result].every((tile) => expected.has(tile))).toBe(true);
+    expect(viewChecks).toBeLessThanOrEqual(all.length);
+    expect(parentReads).toBeLessThan(all.length * 12);
+    // No persistent ancestry/visibility cache: the next camera can need detail again.
+    const refined = new Set(families.flatMap((f) => f.children));
+    const next = retainMeshDetailFrontier({
+      previous: result,
+      proposed: refined,
+      requestedError: 1,
+      inView: () => true,
+    });
+    const expectedNext = new Set([...refined, ...visible]);
+    expect(next.size).toBe(expectedNext.size);
+    expect([...next].every((tile) => expectedNext.has(tile))).toBe(true);
+  });
+
   it("uses current camera SSE, never stale traversal/light error, when coarsening", () => {
     const { parent, children } = quartet(mesh(null, 0.25));
     const select = (cameraError: number) =>
@@ -692,9 +1095,11 @@ describe("mesh detail frontier", () => {
     expect(retain(children, [parent], 16)).toEqual(new Set([parent]));
   });
 
-  it("never skips a generation even when the grandparent meets the target", () => {
+  it("coarsens directly to a loaded superparent when its error meets the target", () => {
     const { parent: grandparent, children: parents } = quartet();
     const fine = parents.flatMap((parent) => quartet(parent).children);
+    expect(retain(fine, [grandparent])).toEqual(new Set([grandparent]));
+    grandparent.traversal.error = 2;
     expect(retain(fine, [grandparent])).toEqual(new Set(fine));
   });
 
@@ -703,18 +1108,16 @@ describe("mesh detail frontier", () => {
     (loadingState) => {
       const { parent, children } = quartet();
       children[0].internal.loadingState = loadingState;
-      expect(canCoarsenMeshQuartet(parent, new Set(children), 1)).toBe(false);
-      expect(retain(children.slice(1), [parent])).toEqual(
-        new Set(children.slice(1))
-      );
+      expect(canCoarsenMeshCut(parent, new Set(children), 1)).toBe(false);
+      // The incomplete previous cut is not coverage. Use the ready fallback,
+      // without mistaking the unfinished child for a loaded replacement.
+      expect(retain(children.slice(1), [parent])).toEqual(new Set([parent]));
     }
   );
 
-  it("does not collapse a partial quartet or unknown parent error", () => {
+  it("repairs a partial quartet but retains complete detail with unknown parent error", () => {
     const { parent, children } = quartet();
-    expect(retain(children.slice(1), [parent])).toEqual(
-      new Set(children.slice(1))
-    );
+    expect(retain(children.slice(1), [parent])).toEqual(new Set([parent]));
     parent.traversal.error = Number.NaN;
     expect(retain(children, [parent])).toEqual(new Set(children));
   });
@@ -728,11 +1131,117 @@ describe("mesh detail frontier", () => {
     expect(retain([...current], finer)).toEqual(new Set(finer));
   });
 
-  it("retains a still-visible omitted tile, but releases tiles leaving the view", () => {
+  it("retains omitted published coverage after it leaves the view", () => {
     const tile = mesh();
     expect(retain([tile], [])).toEqual(new Set([tile]));
     tile.traversal.inFrustum = false;
-    expect(retain([tile], [])).toEqual(new Set());
+    expect(retain([tile], [])).toEqual(new Set([tile]));
+  });
+
+  it("keeps pan history on return until a selected fallback replaces it", () => {
+    const { parent, children } = quartet();
+    const entering = mesh();
+    children.forEach((child) => (child.traversal.inFrustum = false));
+    let current = retain(children, [entering]);
+    expect(current).toEqual(new Set([...children, entering]));
+
+    entering.traversal.inFrustum = false;
+    children.forEach((child) => (child.traversal.inFrustum = true));
+    current = retain([...current], []);
+    expect(current).toEqual(new Set([...children, entering]));
+
+    children.forEach((child) => (child.traversal.inFrustum = false));
+    current = retain([...current], [parent]);
+    expect(current).toEqual(new Set([parent, entering]));
+  });
+
+  it("rejects a partial descendant cut over historical coverage", () => {
+    const parent = mesh();
+    parent.traversal.inFrustum = false;
+    const children = quartet(parent).children;
+    expect(retain([parent], children.slice(0, 3))).toEqual(new Set([parent]));
+    expect(retain([parent], children)).toEqual(new Set(children));
+  });
+
+  it("publishes a complete view cut without permitting eviction of its fallback", () => {
+    const { parent, children } = quartet(mesh(null, 100));
+    const visible = children.slice(0, 3);
+    children[3].traversal.inFrustum = false;
+    children[3].internal.loadingState = 0;
+    const cut = retainMeshDetailFrontier({
+      previous: new Set([parent]),
+      proposed: new Set(visible),
+      requestedError: 4,
+      inView: (tile) => tile.traversal.inFrustum,
+    });
+    expect(cut).toEqual(new Set(visible));
+    expect(isMeshCoverageRemovalSafe(parent, cut)).toBe(false);
+    // On a pan into the missing quadrant, the complete-view test fails again.
+    children[3].traversal.inFrustum = true;
+    expect(retain([parent], visible)).toEqual(new Set([parent]));
+    delete (children[3] as { traversal?: unknown }).traversal;
+    expect(
+      retainMeshDetailFrontier({
+        previous: new Set([parent]),
+        proposed: new Set(visible),
+        requestedError: 4,
+        inView: (tile) => !!tile.traversal?.inFrustum,
+      })
+    ).toEqual(new Set([parent]));
+  });
+
+  it("publishes the coarsest loaded fallback for a wholly offscreen family", () => {
+    const grandparent = mesh();
+    const { parent, children } = quartet(mesh(grandparent));
+    grandparent.children = [parent];
+    grandparent.traversal.inFrustum = false;
+    parent.traversal.inFrustum = false;
+    children.forEach((child) => (child.traversal.inFrustum = false));
+    expect(retain(children, [])).toEqual(new Set([grandparent]));
+  });
+
+  it("de-densifies an offscreen branch only to its permitted reserve level", () => {
+    const { parent: root, children: middle } = quartet();
+    const fine = middle.flatMap((tile) => quartet(tile).children);
+    for (const tile of [root, ...middle, ...fine])
+      tile.traversal.inFrustum = false;
+    const nearby = retainMeshDetailFrontier({
+      previous: new Set(fine),
+      proposed: new Set(),
+      requestedError: 1,
+      inView: () => false,
+      acceptsOffscreenFallback: (tile) => tile !== root,
+    });
+    expect(nearby).toEqual(new Set(middle));
+    // When that same branch is farther away, its superparent becomes sufficient.
+    expect(retain([...nearby], [])).toEqual(new Set([root]));
+    middle[0].internal.loadingState = 2;
+    const missingReplacement = retainMeshDetailFrontier({
+      previous: new Set(fine),
+      proposed: new Set(),
+      requestedError: 1,
+      inView: () => false,
+      acceptsOffscreenFallback: (tile) => tile !== root,
+    });
+    expect(missingReplacement).toEqual(
+      new Set([...middle.slice(1), ...middle[0].children])
+    );
+  });
+
+  it("does not coarsen a family containing an in-view proposed tile", () => {
+    const { parent, children } = quartet();
+    parent.traversal.inFrustum = false;
+    children.forEach((child) => (child.traversal.inFrustum = false));
+    children[0].traversal.inFrustum = true;
+    expect(retain(children, [children[0]])).toEqual(new Set(children));
+  });
+
+  it("keeps offscreen history when no loaded fallback exists", () => {
+    const { parent, children } = quartet();
+    parent.internal.loadingState = 0;
+    parent.traversal.inFrustum = false;
+    children.forEach((child) => (child.traversal.inFrustum = false));
+    expect(retain(children, [])).toEqual(new Set(children));
   });
 
   it("does not affect new coverage or unrelated visible regions", () => {
@@ -749,6 +1258,169 @@ describe("mesh detail frontier", () => {
     parent.refine = "ADD";
     expect(retain(children, [parent, ...children])).toEqual(
       new Set([parent, ...children])
+    );
+  });
+});
+
+describe("coverage-safe cache removal", () => {
+  it("does not replace demanded detail with a loaded but inadequate ancestor", () => {
+    const { parent, children } = quartet();
+    const child = children[0];
+    const resident = new Set([parent, child]);
+    expect(isMeshCoverageRemovalSafe(child, resident, () => false)).toBe(false);
+    expect(isMeshCoverageRemovalSafe(child, resident, () => true)).toBe(true);
+    const finer = quartet(child).children;
+    finer.forEach((tile) => resident.add(tile));
+    expect(isMeshCoverageRemovalSafe(child, resident, () => false)).toBe(true);
+  });
+  it("protects offscreen coverage until a loaded ancestor exists", () => {
+    const { parent, children } = quartet();
+    const child = children[0];
+    parent.internal.loadingState = 0;
+    expect(isMeshCoverageRemovalSafe(child, new Set([child]))).toBe(false);
+    parent.internal.loadingState = 4;
+    expect(isMeshCoverageRemovalSafe(child, new Set([parent, child]))).toBe(
+      true
+    );
+  });
+
+  it("requires a complete loaded replacement cut", () => {
+    const { parent, children } = quartet();
+    const resident = new Set([parent, ...children.slice(0, 3)]);
+    expect(isMeshCoverageRemovalSafe(parent, resident)).toBe(false);
+    resident.add(children[3]);
+    expect(isMeshCoverageRemovalSafe(parent, resident)).toBe(true);
+  });
+
+  it("accepts a complete deeper cut but not an additive ancestor", () => {
+    const { parent, children } = quartet();
+    const grandchildren = quartet(children[0]).children;
+    const resident = new Set([...children.slice(1), ...grandchildren]);
+    expect(isMeshCoverageRemovalSafe(parent, resident)).toBe(true);
+    parent.refine = "ADD";
+    expect(isMeshCoverageRemovalSafe(parent, resident)).toBe(false);
+  });
+});
+
+describe("mesh underlay parents", () => {
+  const inView = (tile: Tile) => tile.traversal.inFrustum;
+
+  it("draws the nearest loaded ancestor under a hole several levels below it", () => {
+    // parent (loaded) -> [west (loaded, refined further), east (unloaded, in view)]
+    const { parent, children } = quartet(mesh(null, 20));
+    const [west, east] = children;
+    const fine = quartet(west).children;
+    east.internal.loadingState = 0;
+    // The eastern child is partially refined too: one fine grandchild is
+    // displayed along the old view edge, the other three are missing.
+    const eastFine = quartet(east).children;
+    eastFine[0].internal.loadingState = 4;
+    for (const tile of eastFine.slice(1)) tile.internal.loadingState = 0;
+    const displayed = new Set([...fine, eastFine[0]]);
+    expect(selectMeshUnderlayParents(displayed, inView)).toEqual(
+      new Set([parent])
+    );
+  });
+
+  it("selects nothing when every in-view branch is covered", () => {
+    const { parent, children } = quartet(mesh(null, 20));
+    expect(selectMeshUnderlayParents(new Set(children), inView)).toEqual(
+      new Set()
+    );
+    // Missing children outside the view are not holes.
+    children[3].internal.loadingState = 0;
+    children[3].traversal.inFrustum = false;
+    expect(
+      selectMeshUnderlayParents(new Set(children.slice(0, 3)), inView)
+    ).toEqual(new Set());
+    expect(parent.refine).toBe("REPLACE");
+  });
+
+  it("never selects an ancestor that is unloaded or not ready", () => {
+    const { parent, children } = quartet(mesh(null, 20));
+    children[0].internal.loadingState = 0;
+    parent.internal.loadingState = 0;
+    expect(
+      selectMeshUnderlayParents(new Set(children.slice(1)), inView)
+    ).toEqual(new Set());
+    parent.internal.loadingState = 4;
+    expect(
+      selectMeshUnderlayParents(new Set(children.slice(1)), inView, () => false)
+    ).toEqual(new Set());
+    expect(
+      selectMeshUnderlayParents(new Set(children.slice(1)), inView)
+    ).toEqual(new Set([parent]));
+  });
+});
+
+describe("hasLoadedExtentFloorAncestor", () => {
+  const withError = (tile: Tile, geometricError: number): Tile =>
+    Object.assign(tile, { geometricError });
+
+  it("looks through external metadata pages to resident floor geometry", () => {
+    const floor = withError(mesh(), 908.22);
+    const page = withError(mesh(floor), 908.22);
+    page.internal.hasRenderableContent = false;
+    const fine = withError(mesh(page), 454);
+    expect(hasLoadedExtentFloorAncestor(fine, 908.2)).toBe(true);
+    floor.internal.loadingState = 0;
+    expect(hasLoadedExtentFloorAncestor(fine, 908.2)).toBe(false);
+  });
+
+  it("is the loaded state of the nearest ancestor at or above the floor", () => {
+    const floor = withError(mesh(), 50);
+    const mid = withError(mesh(floor), 24);
+    const fine = withError(mesh(mid), 6);
+    expect(hasLoadedExtentFloorAncestor(fine, 42)).toBe(true);
+    floor.internal.loadingState = 0;
+    expect(hasLoadedExtentFloorAncestor(fine, 42)).toBe(false);
+  });
+
+  it("ignores loaded ancestors above the floor tile", () => {
+    const root = withError(mesh(), 900);
+    const floor = withError(mesh(root), 50);
+    floor.internal.loadingState = 0;
+    const fine = withError(mesh(floor), 6);
+    expect(hasLoadedExtentFloorAncestor(fine, 42)).toBe(false);
+    expect(hasLoadedExtentFloorAncestor(withError(mesh(), 6), 42)).toBe(false);
+  });
+});
+
+describe("selectMeshUnderlayParents with the extent floor", () => {
+  const inView = () => true;
+
+  it("draws an in-view floor tile under a region with no displayed descendant", () => {
+    const { parent: floor, children } = quartet(mesh(null, 30));
+    for (const child of children) child.internal.loadingState = 0;
+    // No displayed tile anywhere below the floor: nothing refines it, yet
+    // the view shows its region.
+    expect(selectMeshUnderlayParents(new Set(), inView)).toEqual(new Set());
+    expect(
+      selectMeshUnderlayParents(new Set(), inView, () => true, [floor])
+    ).toEqual(new Set([floor]));
+  });
+
+  it("treats a child without traversal state as a hole", () => {
+    const { parent: floor, children } = quartet(mesh(null, 30));
+    const displayed = new Set(children.slice(0, 3));
+    children[3].internal.loadingState = 0;
+    delete (children[3] as { traversal?: unknown }).traversal;
+    expect(selectMeshUnderlayParents(displayed, inView)).toEqual(
+      new Set([floor])
+    );
+  });
+
+  it("keeps the floor next to a finer underlay that covers only one hole", () => {
+    const { parent: floor, children } = quartet(mesh(null, 30));
+    const { parent: mid, children: fine } = quartet(children[0]);
+    fine[3].internal.loadingState = 0;
+    children[1].internal.loadingState = 0;
+    const displayed = new Set(fine.slice(0, 3));
+    expect(
+      selectMeshUnderlayParents(displayed, inView, () => true, [floor])
+    ).toEqual(new Set([mid, floor]));
+    expect(selectMeshUnderlayParents(displayed, inView)).toEqual(
+      new Set([mid])
     );
   });
 });

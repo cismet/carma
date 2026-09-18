@@ -7,6 +7,8 @@ import type { LibreLayer } from "@carma-mapping/core";
 import { geoportalBackgroundToLibreLayers } from "../../components/GeoportalMap/geoportalBackgroundToLibreLayers";
 import {
   geoportalLayersToLibreLayers,
+  isAppOwnedLayer,
+  layerIsStandaloneMesh,
   layerProvidesTerrainMesh,
 } from "../../components/GeoportalMap/geoportalLayersToLibreLayers";
 import { backgroundConfig } from "../../config/backgroundConfig";
@@ -19,11 +21,18 @@ export const useLibreLayers = (): LibreLayer[] => {
   const [shadowState] = useAddonState("shadowSimulation");
 
   const computedLibreLayers = useMemo(() => {
-    const terrainMeshActive = geoportalLayers.some(layerProvidesTerrainMesh);
+    const userLayers = geoportalLayers.filter(
+      (layer) => layer.visible && !isAppOwnedLayer(layer)
+    );
+    const standaloneMeshOnly =
+      userLayers.length > 0 && userLayers.every(layerIsStandaloneMesh);
+    const terrainMeshActive =
+      !standaloneMeshOnly && geoportalLayers.some(layerProvidesTerrainMesh);
     return [
       ...geoportalBackgroundToLibreLayers(backgroundLayer, namedLayers, {
         terrainMeshActive,
         shadowTerrainActive: shadowState?.enabled === true,
+        standaloneMeshOnly,
       }),
       ...geoportalLayersToLibreLayers(geoportalLayers),
     ];

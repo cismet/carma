@@ -1246,7 +1246,8 @@ const CesiumProjectionBenchmarkStory = ({
 };
 
 const meta: Meta<CesiumProjectionBenchmarkStoryArgs> = {
-  title: "Overlay/Layout",
+  title: "Annotations/Labels",
+  id: "overlay-layout",
   component: CesiumProjectionBenchmarkStory,
   parameters: {
     layout: "fullscreen",

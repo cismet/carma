@@ -70,6 +70,7 @@ export type TerrainWorkerTask =
       captureBoundaryState?: boolean;
       prepareShellKeys?: string[];
       probeOnly?: boolean;
+      prepareOnly?: boolean;
     }
   | {
       kind: "decode";

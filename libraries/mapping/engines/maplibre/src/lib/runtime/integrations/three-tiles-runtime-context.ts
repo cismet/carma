@@ -44,6 +44,7 @@ import {
   readTilesDeviceProfile,
 } from "./three-tiles-runtime-vendor";
 import type { TilesCameraSet } from "./tiles-camera-set";
+import type { createTileCameraDemand } from "../../core/tile-camera-demand";
 
 export interface ThreeTilesRuntimeState {
   layerId: string;
@@ -57,6 +58,8 @@ export interface ThreeTilesRuntimeState {
   dracoLoader: DRACOLoader | null;
   tileDebugOverlay: ReturnType<typeof createThreeTilesDebugOverlay> | null;
   cameraSet: TilesCameraSet | null;
+  tileCameraDemand: ReturnType<typeof createTileCameraDemand>;
+  tileCameraSignature: string;
   kickstartTimer: number;
   requestBackoffTimer: number;
   hiddenWipeTimer: number;
@@ -82,13 +85,38 @@ export interface ThreeTilesRuntimeState {
     typeof createPayloadAwareRequestConcurrency
   >;
   memoryAdmissionPaused: boolean;
+  /** Host-requested pause of downloads and parsing (diagnostics); nothing is aborted. */
+  loadingPaused: boolean;
+  /** The public runtime handle, for diagnostics that hold only the state. */
+  hostHandle: unknown;
+  /**
+   * Memory-adaptive error target: raised above the requested target while the
+   * cache is at its ceiling with an unconverged view, lowered again when
+   * memory frees. Never above the base error target.
+   */
+  memoryErrorTarget: number;
+  memoryErrorTargetChangedAt: number;
+  /** Foveated request order, 0 = nearest first (see TilePriorityInput.foveationWeight). */
+  foveationWeight: number;
+  /** Residual quality as a resolution across the extent; null keeps the hinted floor. */
+  tilesetMinResolutionPx: number | null;
+  /** The residual resolution the current floor was resolved for. */
+  appliedTilesetMinResolutionPx: number | null;
+  /** The cache ceiling the current floor was resolved for. */
+  appliedTilesetMinCeilingBytes: number;
+  /** Longest axis of the root's oriented box, known once the root is loaded. */
+  rootLongestAxisMeters: number;
   allocationFailed: boolean;
   contextLost: boolean;
   meshAuditTimer: ReturnType<typeof setTimeout> | null;
   motionCoverageTimer: ReturnType<typeof setTimeout> | null;
   motionCoverageDue: boolean;
   meshDemandSweepPending: boolean;
+  /** Sibling payloads/materials needed to replace the published cut without gaps. */
+  meshRefinementSupport: Set<Tile>;
   meshBaseCoverageReady: boolean;
+  /** Startup reserve pass completed or yielded to a capacity/source limit. */
+  meshInitialReserveSettled: boolean;
   lastMemoryCheck: number;
   normalParseConcurrency: number | null;
   orientationGroup: THREE.Group<THREE.Object3DEventMap>;
@@ -115,6 +143,8 @@ export interface ThreeTilesRuntimeState {
   committedMeshReceiverFrontier: Set<Tile>;
   committedMeshCasterFrontier: Set<Tile>;
   displayedMeshFrontier: Set<Tile>;
+  /** Loaded parents drawn under the displayed cut where in-view children are missing. */
+  meshUnderlayFrontier: Set<Tile>;
   meshContentRevision: number;
   mainViewSourceTiles: Set<Tile>;
   viewQualityAuditPasses: number;
@@ -135,6 +165,29 @@ export interface ThreeTilesRuntimeState {
   marginCamera: THREE.PerspectiveCamera;
   marginProjection: THREE.Matrix4;
   marginFrustum: TilesViewFrustum;
+  ringFrustums: TilesViewFrustum[];
+  /** Levels by which the ring cascade has been refined below its coarse start. */
+  ringRefinePasses: number;
+  /** Geometric error of the level the whole extent stays resident at (Infinity: none). */
+  extentGeometricError: number;
+  /** Set once the first base coverage exists; from then on the extent floor is always admitted. */
+  extentFloorArmed: boolean;
+  /** Refinement waits until an armed traversal has accounted for the floor. */
+  extentFloorAuditPending: boolean;
+  /** Floor tiles the last traversal found not loaded; refinement waits for zero. */
+  extentFloorPending: number;
+  /** Floor tiles in the main view during the last traversal: always underlay candidates. */
+  extentFloorInView: Set<Tile>;
+  /**
+   * Ancestors of the displayed cut down to the floor: loaded at rest and kept
+   * used while their descendants are displayed, so a zoom-out step always
+   * finds the immediate parent resident and the error regresses one level
+   * at a time instead of falling to the floor underlay.
+   */
+  residentAncestors: Set<Tile>;
+  lastRingRefineAt: number;
+  /** Wall time of the last renderer traversal, the frame-cost guard for refinement. */
+  lastTraversalMs: number;
   viewFrustumsReady: boolean;
   tileBoundingSphere: THREE.Sphere;
   tileBoundingBox: THREE.Box3;
@@ -201,6 +254,8 @@ export interface ThreeTilesRuntimeState {
   originalRenderSides: Map<THREE.Material, THREE.Side>;
   separatedSurfaceRenderSides: WeakMap<THREE.Material, THREE.Side>;
   mapStyleProjectionVersion: number;
+  /** Bumped by every group-wide restyle; tile scenes carry the stamp they were styled at. */
+  materialRevision: number;
   normalizedSeparatedSurfaceGeometries: WeakSet<
     THREE.BufferGeometry<
       THREE.NormalBufferAttributes,
@@ -281,6 +336,11 @@ export interface ThreeTilesRuntimeServices {
   requestShadowSelectionRefresh: () => void;
   isPipelineIdle: () => boolean;
   isTileInMainView: (tile: RuntimeTile) => boolean;
+  getTileCameraDemand: (
+    tile: RuntimeTile,
+    includeObserver?: boolean
+  ) => ReturnType<ReturnType<typeof createTileCameraDemand>["evaluate"]>;
+  getTileRequestPriority: (tile: RuntimeTile) => number;
   isChildUnloadable: (child: RuntimeTile) => boolean;
   mainViewWithinErrorFactor: (
     factor: number,
@@ -343,6 +403,7 @@ export interface ThreeTilesRuntimeServices {
     viewportTiles: ReadonlySet<Tile>,
     traversalTiles: ReadonlySet<Tile>
   ) => void;
+  handleTileVisibilityChange: (event: { tile: Tile; visible: boolean }) => void;
   handleModelLoad: (event: {
     scene?: THREE.Object3D;
     tile?: Tile;
@@ -363,6 +424,7 @@ export interface ThreeTilesRuntimeServices {
   handleContextLost: () => void;
   handleContextRestored: () => void;
   applyRequestConcurrency: () => void;
+  applyTilesetMinResolution: () => void;
   handleWireBytes: (_url: string, response: Response) => void;
   scheduleRequestBackoffRecovery: () => void;
   handleViewStart: () => void;
@@ -370,6 +432,8 @@ export interface ThreeTilesRuntimeServices {
   handleViewEnd: () => void;
   prepareViewFrustums: (viewCamera: THREE.Camera) => void;
   isTileInPrefetchMargin: (tile: RuntimeTile) => boolean;
+  /** Innermost idle ring the tile intersects (1-based); the ring after the last frustum is the whole model. 0 only without bounds. */
+  getTileRingIndex: (tile: RuntimeTile) => number;
   applyTileDeferral: (tile: Tile, inView: boolean) => void;
   assignTilePriority: (tile: RuntimeTile) => void;
   prioritizeQueuedTiles: () => void;
@@ -380,7 +444,7 @@ export interface ThreeTilesRuntimeServices {
   update: (frame: SharedThreeSceneFrame) => void;
   setVisible: (visible: boolean) => void;
   setHeightOffset: (offsetMeters: number) => void;
-  setErrorTarget: (errorTarget: number) => void;
+  setErrorTarget: (errorTarget: number, initialErrorTarget?: number) => void;
   setShadowSimulationStyle: (
     style: Readonly<{
       fullOpacity: boolean;

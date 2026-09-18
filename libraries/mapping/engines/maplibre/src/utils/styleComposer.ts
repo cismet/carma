@@ -387,7 +387,11 @@ export class StyleComposer {
       // keep MapLibre terrain available for draping while making its base
       // surfaces transparent underneath a photogrammetric terrain mesh.
       layer.metadata = {
-        ...withTerrainProviderMetadata(styleLayerMetadata, providesTerrain),
+        ...withTerrainProviderMetadata(
+          styleLayerMetadata,
+          providesTerrain,
+          styleJson.metadata as Record<string, unknown> | undefined
+        ),
         "z-index": opts.zIndex,
         "layer-id": layerId,
         ...(vectorLayer.carmaLayerId
