@@ -1,6 +1,7 @@
 import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types/types";
 
 import { isClipProxy } from "./annotation-clip";
+import { isHeadProxy } from "./annotation-arrowhead";
 
 /** a client point read into scene units, see `annotation-plane` */
 export type ScreenToScene = (
@@ -63,6 +64,7 @@ export const sceneHasElementAt = (
       !element.isDeleted &&
       // the element a copy stands for is in here too, at its full size
       !isClipProxy(element) &&
+      !isHeadProxy(element) &&
       contains(element, x, y, pad)
   );
 };
