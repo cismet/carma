@@ -18,6 +18,10 @@ import { fetchGroundElevationMeters } from "../lib/core/ground-elevation";
 import { acquireSharedThreeScene } from "../lib/runtime/integrations/shared-three-scene-registry";
 import { buildThreeTilesRuntime } from "../lib/runtime/integrations/three-tiles-runtime";
 import {
+  registerTiles3dRuntimeHandle,
+  unregisterTiles3dRuntimeHandle,
+} from "../lib/runtime/integrations/tiles3d-runtime-handles";
+import {
   THREE_TILES_DEFAULT_REQUEST_CONCURRENCY,
   TILES_ERROR_TARGET_DEFAULT_PIXELS,
   TILES_MESH_ERROR_TARGET_DEFAULT_PIXELS,
@@ -281,6 +285,7 @@ export function Tiles3dLayerManager({
       );
       runtime.appearance.setOutlineVisible(initialConfig.outline);
       runtimeRef.current = runtime;
+      registerTiles3dRuntimeHandle(map, runtimeId, runtime);
       lease.layer.addRuntime(runtime.scene);
       // What lets the camera restriction know the map has become three
       // dimensional. A tileset stays out of the raycast registry, which
@@ -319,6 +324,7 @@ export function Tiles3dLayerManager({
       }
       teardown = () => {
         runtimeRef.current = null;
+        unregisterTiles3dRuntimeHandle(map, runtimeId);
         if (minElevation !== null) {
           map.off("move", keepFarPlane);
           map.off("render", keepFarPlane);

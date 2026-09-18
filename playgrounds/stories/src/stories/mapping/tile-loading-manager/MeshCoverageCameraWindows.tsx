@@ -12,8 +12,10 @@ import {
   faPlay,
   faWindowRestore,
 } from "@fortawesome/free-solid-svg-icons";
-import { DiagnosticWindowActions } from "./DiagnosticControls";
-import panelCss from "./TileLoadingDebugPanels.css?inline";
+import {
+  DiagnosticWindowActions,
+  TILE_LOADING_DEBUG_PANEL_CSS as panelCss,
+} from "@carma-mapping/tile-diagnostics-ui";
 import {
   NRW_DGM1_DHHN2016_TERRARIUM_TERRAIN,
   WUPPERTAL_CAMERA_FLIGHTS,

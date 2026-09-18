@@ -53,7 +53,7 @@ import {
   NIGHT_TRAFFIC_PATHS,
   NIGHT_TRAFFIC_SIGNALS,
 } from "./data/night-traffic";
-import { TileLoadingDebug } from "./TileLoadingDebug";
+import { TileLoadingDebug } from "@carma-mapping/tile-diagnostics-ui";
 
 export type TileCameraStressArgs = {
   scenario: "panorama" | "facade" | "orbit" | "streetlights" | "night-traffic";
