@@ -149,6 +149,8 @@ export function createThreeTilesRuntimeState(
   const shadowSimulationStyle: SharedThreeSceneShadowStyle | null = null;
   const shadowView: SharedThreeSceneShadowView | null = null;
   const shadowViewSignature = "";
+  const pendingShadowView: SharedThreeSceneShadowView | null = null;
+  const meshInitialBasePassDone = false;
   const shadowSelectionEnabled = false;
   const shadowSelectionNeedsTraversal = false;
   const shadowSelectionRefreshPending = false;
@@ -368,6 +370,8 @@ export function createThreeTilesRuntimeState(
     shadowSimulationStyle,
     shadowView,
     shadowViewSignature,
+    pendingShadowView,
+    meshInitialBasePassDone,
     shadowSelectionEnabled,
     shadowSelectionNeedsTraversal,
     shadowSelectionRefreshPending,

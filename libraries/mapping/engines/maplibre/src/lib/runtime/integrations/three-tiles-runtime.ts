@@ -99,6 +99,8 @@ export function buildThreeTilesRuntime(
   // Callbacks may reference later owners, but factories only construct closures.
   // Engine subscriptions and traversal start in onAdd, after all owners exist.
   const loading = createThreeTilesLoading(state, {
+    applyPendingShadowView: (...args) =>
+      shadows.applyPendingShadowView(...args),
     getTileRequestPriority: (...args) =>
       spatial.getTileRequestPriority(...args),
     getTileCameraDemand: (...args) => spatial.getTileCameraDemand(...args),

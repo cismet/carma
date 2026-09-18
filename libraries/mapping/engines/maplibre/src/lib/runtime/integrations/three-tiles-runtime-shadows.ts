@@ -60,6 +60,8 @@ export function createThreeTilesShadows(
     | "sourceWorldBoundsTransform"
     | "sourceWorldBoundingBox"
     | "shadowViewSignature"
+    | "pendingShadowView"
+    | "meshInitialBasePassDone"
     | "displayedMeshFrontier"
     | "cameraSet"
     | "shadowSignatureDirection"
@@ -757,7 +759,9 @@ export function createThreeTilesShadows(
       runtimeState.pendingMeshReceiverFrontier = null;
     };
 
-  const setShadowView: ThreeTilesRuntimeServices["setShadowView"] = (view) => {
+  const applyShadowView = (
+    view: Parameters<ThreeTilesRuntimeServices["setShadowView"]>[0]
+  ) => {
     // Caster membership for a receiver tile depends on sun direction, not
     // observer position, shadow buffer dimensions or a translated light
     // camera. Keep the existing union and its regional proofs across pans.
@@ -795,6 +799,28 @@ export function createThreeTilesShadows(
     dependencies.notifyRequestStateChange();
   };
 
+  const applyPendingShadowView: ThreeTilesRuntimeServices["applyPendingShadowView"] =
+    () => {
+      if (runtimeState.pendingShadowView === runtimeState.shadowView) return;
+      applyShadowView(runtimeState.pendingShadowView);
+    };
+  const setShadowView: ThreeTilesRuntimeServices["setShadowView"] = (view) => {
+    runtimeState.pendingShadowView = view;
+    if (
+      view &&
+      runtimeState.options.providesTerrain &&
+      !runtimeState.meshInitialBasePassDone
+    ) {
+      // Decision: TILES_COVERAGE.md#shadow-add-on-follows-the-base-pass-staging-2026-09-18
+      // The add-on's view waits for the initial base pass (the view at the
+      // initial target, seams, the whole-extent reserve). Until then the mesh
+      // loads exactly as without shadows; the corridor design takes over
+      // afterwards. Clearing the view never waits.
+      return;
+    }
+    applyShadowView(view);
+  };
+
   const isShadowRegionReady: ThreeTilesRuntimeServices["isShadowRegionReady"] =
     (bounds, errorPixels, receiverBounds) =>
       getShadowRegionRevision(bounds, errorPixels, receiverBounds) !== null;
@@ -828,6 +854,7 @@ export function createThreeTilesShadows(
     maybeFinalizeShadowSelection,
     advanceMeshShadowCorridors,
     setShadowView,
+    applyPendingShadowView,
     isShadowRegionReady,
     getShadowRegionDiagnostics,
   };

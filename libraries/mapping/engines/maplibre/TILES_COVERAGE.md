@@ -1235,3 +1235,72 @@ Raw JSONL series stay in the session scratchpad, not in the tree.
 
 **Revisit when:** the shadow add-on respects the base pass and a shadow cold
 start still shows a parse backlog above the hard limit during the base pass.
+
+# Shadow add-on follows the base-pass staging (2026-09-18)
+
+**ID / date / status:** heading anchor
+`#shadow-add-on-follows-the-base-pass-staging-2026-09-18` / 2026-09-18 /
+implemented; cold-start evidence below.
+
+**Context and constraints:** Seamless whole-tileset base coverage is not
+optional, and the load order on a cold start is fixed: the in-view LOD pyramid
+from the coarsest cut to the initial target, then seams and base coverage
+inside to outside, then the view refined to the idle target, then the rest.
+The shadow simulation is an add-on; it adds receiver and caster demand but
+must not change that order, and a view without shadows must never pay for
+corridor logic. With a shadow view present from the first frame the runtime
+skipped the staging (`applyErrorTargetPolicy` jumps to the requested target
+under `shadowView`, the ancestor bootstrap is off, the receiver cut ignores
+the initial target), so the view loaded at full detail while base coverage
+waited: 9.6 s to `meshBaseCoverageReady` against 4.0 s without shadows, parse
+backlog above 130 buffers, no refinement-support tiles.
+
+**Decision:** A terrain-providing runtime keeps the add-on's view pending
+(`pendingShadowView`) until its initial base pass is done, the point where
+`applyErrorTargetPolicy` would start the idle refinement: view cut ready at
+the initial target and the whole-extent reserve settled
+(`meshInitialBasePassDone`). Until then the mesh loads exactly as without
+shadows and the plain publication assigns receiver and caster roles, so
+shadows still fall on the coarse cut. Then the pending view is applied and the
+corridor design runs unchanged; later view changes apply at once and clearing
+the view never waits. Runtimes without a base pass apply views immediately.
+
+**Alternatives and disposition:** Staging the effective target under an
+active shadow view: measured rejection. The corridor publication only
+publishes at the requested target, so nothing was published at the initial
+target, `readyAt(initialTarget)` never held, the target stayed at 16 px for
+the whole run, the traversal grew to 3581 in-frustum tiles with a parse
+backlog of 1292 and nothing became visible. Also publishing the receiver cut
+at the staged target with the initial-error family limit: rejected by the
+corridor specs (a partial family replaced its parent and the root fallback
+was dropped). Gating downloads on the parse backlog during the base pass:
+measured rejection, see the previous record.
+
+**Evidence:** Playwright headless Chromium (chromium_headless_shell-1155,
+`--use-gl=angle --use-angle=metal`), Apple M4 Max, viewport 1108 x 586 at 2x,
+dev server of `feat/mesh-tile-loading-manager`, legacy mesh2024 style with
+diagnostics on, shadow add-on enabled from the URL hash, fresh browser context
+per run, 500 ms in-page samples, two runs per condition and one no-shadow
+control, no warm-up. `meshBaseCoverageReady` after the style was added: with
+shadows 9.6 s / 9.5 s before, 5.5 s / 6.0 s with the deferral; without
+shadows 4.0 s before and after. With the deferral the shadow run stages like
+the plain run (effective target 16 px with up to 511 refinement-support
+tiles until ready), the view applies at about 6.5 s and the target drops to
+6 px. First 30 s: parse queue peak 132 / 131 before, 110 / 124 after (now
+after the handover instead of from the first second); long tasks 51 / 46
+(3.1 / 2.9 s) before, 44 / 38 (3.0 / 2.7 s) after; frame p95 median 67 ms
+before, 67 / 50 ms after. Runtime state through the diagnostics registry:
+pending view until the base pass is done, then applied, corridor cut
+converged at 166 receivers / 257 casters by 40 s (baseline 151 / 242).
+Screenshots at 3, 5, 6.5, 8, 10, 14 and 20 s show the mesh seamless
+throughout; the headless harness rendered no cast shadows in either build,
+so the shadow pass itself is not compared here. Pan and zoom phases after
+the handover are unchanged against the baseline (visible set collapses after
+a pan, 3600-6000 queued downloads on zoom-out), which is the corridor
+design's own behaviour and tracked separately. Engine suite: the same 18
+failures as the branch baseline, two new tests pass. Raw JSONL series and
+frames stay in the session scratchpad.
+
+**Revisit when:** the corridor publication can publish per stage, or a
+runtime never completes its initial base pass (the view then stays pending;
+no timeout is applied).

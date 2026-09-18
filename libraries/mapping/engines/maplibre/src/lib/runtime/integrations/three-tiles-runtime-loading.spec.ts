@@ -40,9 +40,11 @@ const fixture = (moving = false) => {
     isMoving: () => moving,
     triggerRepaint: vi.fn(),
   } as unknown as MaplibreMap;
+  const applyPendingShadowView = vi.fn();
   const loading = createThreeTilesLoading(state, {
     requestShadowSelectionRefresh: vi.fn(),
     setShadowSelectionEnabled: vi.fn(),
+    applyPendingShadowView,
     isTileInMainView: (tile) => tile.traversal?.inFrustum ?? true,
     getTileCameraDemand: vi.fn(() => ({
       required: false,
@@ -56,7 +58,7 @@ const fixture = (moving = false) => {
     getTileCenterness: () => 0,
     getTileScreenError: (tile) => tile.traversal?.error ?? 100,
   });
-  return { state, loading };
+  return { state, loading, applyPendingShadowView };
 };
 
 describe("local refinement progress", () => {
@@ -218,7 +220,7 @@ describe("local refinement progress", () => {
   });
 
   it("runs initial view, residual tree including queued transitions, then idle refinement", () => {
-    const { state, loading } = fixture();
+    const { state, loading, applyPendingShadowView } = fixture();
     const root = {
       refine: "REPLACE",
       children: [{}],
@@ -243,9 +245,14 @@ describe("local refinement progress", () => {
     state.tiles!.loadingTiles.add(transition);
     loading.applyErrorTargetPolicy();
     expect(state.meshInitialReserveSettled).toBe(false);
+    // The shadow add-on's view stays pending until the reserve settled.
+    expect(state.meshInitialBasePassDone).toBe(false);
+    expect(applyPendingShadowView).not.toHaveBeenCalled();
     state.tiles!.loadingTiles.clear();
     loading.applyErrorTargetPolicy();
     expect(state.meshInitialReserveSettled).toBe(true);
+    expect(state.meshInitialBasePassDone).toBe(true);
+    expect(applyPendingShadowView).toHaveBeenCalledOnce();
     expect(state.effectiveErrorTarget).toBe(10);
     // A later pan does not restart the global startup reserve barrier.
     state.extentFloorPending = 3;
