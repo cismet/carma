@@ -35,34 +35,29 @@ const BRANCHES = {
   ],
   [WIZARD_ACTIONS.SPLIT]: [
     { id: STEP.SPLIT_CHOOSE, title: "Teilung" },
-    { id: STEP.RESULTING, title: "Ergebnis" },
+    { id: STEP.RESULTING, title: "Ergebnis Flurstücke" },
     { id: STEP.SUMMARY, title: "Zusammenfassung" },
   ],
   [WIZARD_ACTIONS.JOIN]: [
     { id: STEP.JOIN_CHOOSE, title: "Zusammenlegen" },
-    { id: STEP.RESULTING, title: "Ergebnis" },
+    { id: STEP.RESULTING, title: "Ergebnis Flurstücke" },
     { id: STEP.SUMMARY, title: "Zusammenfassung" },
   ],
   [WIZARD_ACTIONS.SPLIT_JOIN]: [
     { id: STEP.JOIN_CHOOSE, title: "Zusammenlegen" },
     { id: STEP.SPLIT_CHOOSE, title: "Teilen" },
-    { id: STEP.RESULTING, title: "Ergebnis" },
+    { id: STEP.RESULTING, title: "Ergebnis Flurstücke" },
     { id: STEP.SUMMARY, title: "Zusammenfassung" },
   ],
 };
 
-/** Asked for every action, after the parcels are settled and before the summary. */
+/** Asked for every action, once the parcels are settled. */
 const COMMON_STEPS = [
   { id: STEP.ADMIN_AREAS, title: "Verwaltungsbereiche" },
   { id: STEP.USAGE, title: "Nutzung" },
 ];
 
-const withCommonSteps = (branch) => {
-  const summary = branch.findIndex((step) => step.id === STEP.SUMMARY);
-  return summary === -1
-    ? [...branch, ...COMMON_STEPS]
-    : [...branch.slice(0, summary), ...COMMON_STEPS, ...branch.slice(summary)];
-};
+const withCommonSteps = (branch) => [...branch, ...COMMON_STEPS];
 
 /** Step 0 is always the action chooser; the rest depends on what was picked. */
 export const getSteps = (action) =>

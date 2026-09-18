@@ -15,8 +15,7 @@ import { FLURSTUECK_ART } from "./constants";
 export const isPseudoKey = (key) =>
   key?.art?.bezeichnung === FLURSTUECK_ART.PSEUDO;
 
-export const pad = (value, length) =>
-  String(value ?? "").padStart(length, "0");
+export const pad = (value, length) => String(value ?? "").padStart(length, "0");
 
 /** Five digit Zähler, four digit Nenner only when there is one. */
 export const landparcelLabel = (zaehler, nenner) =>
@@ -63,7 +62,9 @@ export const keysEqual = (a, b) => {
 
 export const hasDuplicateKeys = (keys) =>
   keys.some((key, index) =>
-    keys.some((other, otherIndex) => otherIndex !== index && keysEqual(key, other))
+    keys.some(
+      (other, otherIndex) => otherIndex !== index && keysEqual(key, other)
+    )
   );
 
 /** True once gemarkung/flur/zähler are filled in — nenner stays optional. */

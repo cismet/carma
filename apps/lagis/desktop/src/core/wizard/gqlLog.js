@@ -1,16 +1,3 @@
-/**
- * In-memory log of every server call the Assistent makes — GraphQL reads and
- * cids SaveObject/DeleteObject writes alike.
- *
- * It exists so the raw documents, their variables and the server's answer can
- * be read inside the app instead of in the Network tab — the same need the
- * BelIS Arbeitsauftrag search covers with its "GraphQL Query" block, but
- * covering a whole run rather than one query.
- *
- * Module level on purpose: the log outlives the modal, so a call can still be
- * inspected after the wizard has been closed and reopened.
- */
-
 const MAX_ENTRIES = 60;
 
 let entries = [];
@@ -34,8 +21,7 @@ const operationNameOf = (query) => {
   return firstField ? firstField[1] : "(anonym)";
 };
 
-const kindOf = (query) =>
-  /^\s*mutation\b/.test(query) ? "mutation" : "query";
+const kindOf = (query) => (/^\s*mutation\b/.test(query) ? "mutation" : "query");
 
 /**
  * Turns recording on or off. While off nothing is kept, so switching the panel

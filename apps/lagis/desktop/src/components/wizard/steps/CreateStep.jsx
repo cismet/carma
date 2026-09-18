@@ -3,7 +3,10 @@ import { Radio, Space } from "antd";
 import { BankOutlined, BlockOutlined } from "@ant-design/icons";
 import { useSelector } from "react-redux";
 import LandParcelKeyChooser from "../LandParcelKeyChooser";
-import { buildAlkisId, fetchGeometryForKey } from "../../../core/wizard/geometry";
+import {
+  buildAlkisId,
+  fetchGeometryForKey,
+} from "../../../core/wizard/geometry";
 import { FLURSTUECK_ART } from "../../../core/wizard/constants";
 
 // no point in asking ALKIS while the key is still being typed
@@ -111,7 +114,7 @@ const CreateStep = ({ value, onChange, onProblem }) => {
       )}
       {chooserStatus.valid && geometry.status === "error" && (
         <div className="text-amber-600 text-sm">
-          Die Geometrie konnte nicht geprüft werden: {geometry.message}
+          Die Geometrie konnte nicht geprüft werden.
         </div>
       )}
     </div>

@@ -18,10 +18,7 @@ import { splitFlurstuecke } from "./split";
  * parcels. The pseudo key stays in the database as the hinge of the history
  * graph — the history view knows it and renders it as an unnamed node.
  */
-export const joinSplitFlurstuecke = async (
-  { memberKeys, resultKeys },
-  ctx
-) => {
+export const joinSplitFlurstuecke = async ({ memberKeys, resultKeys }, ctx) => {
   const { jwt, accountName, journal } = ctx;
 
   const arten = ctx.arten ?? (await fetchFlurstueckArten(jwt));

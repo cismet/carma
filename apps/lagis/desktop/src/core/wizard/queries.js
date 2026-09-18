@@ -1,16 +1,5 @@
-/**
- * GraphQL documents for the Flurstück-Assistent — reads only.
- *
- * The /graphql/LAGIS/execute proxy accepts queries, not mutations, so every
- * write goes through the cids SaveObject/DeleteObject actions instead; see
- * cidsActions.js. Table and relationship names follow the ones already used in
- * core/queries/online.js.
- */
-
 const wizardQueries = {};
 export default wizardQueries;
-
-/* ------------------------------------------------------------------ reads */
 
 wizardQueries.flurstueckArten = `query FlurstueckArten {
   flurstueck_art {
@@ -90,7 +79,7 @@ wizardQueries.schluesselByKeyZeroNenner = `query SchluesselByKey($gemarkungId: I
 }`;
 
 wizardQueries.schluesselById = `query SchluesselById($id: Int!) {
-  flurstueck_schluessel_by_pk(id: $id) {
+  flurstueck_schluessel(where: {id: {_eq: $id}}) {
     id
     flur
     flurstueck_zaehler
@@ -186,13 +175,8 @@ wizardQueries.mipaByGeo = `query MipaByGeo($geo: geometry) {
   }
 }`;
 
-/* --------------------------------------------------------------- Geometrie */
+/* Geometrie */
 
-// The Swing client pulled areas and geometries over WFS (GeometryWorker); here
-// they come from ALKIS via WuNDa. Runs against the WuNDa endpoint (runWuNDa),
-// not LagIS: the LagIS tables only hold the parcels LagIS already knows, while
-// the Assistent asks above all about parcels that are about to be created.
-// `_in` because a Zusammenlegung checks a whole list of parcels at once.
 wizardQueries.geometriesFromWuNDa = `query GeometriesFromWuNDa($alkisIds: [String!]) {
   flurstueck(where: {alkis_id: {_in: $alkisIds}}) {
     alkis_id

@@ -86,9 +86,8 @@ export const createFlurstueckForKey = async (key, ctx) => {
       },
       jwt
     );
-    journal.record(
-      `Anlegen des Flurstücksschlüssels "${formatKey(key)}"`,
-      () => deleteSchluessel(schluesselId, jwt)
+    journal.record(`Anlegen des Flurstücksschlüssels "${formatKey(key)}"`, () =>
+      deleteSchluessel(schluesselId, jwt)
     );
   }
 
@@ -206,7 +205,13 @@ export const setHistoricForKey = async (key, date, options, ctx) => {
  * Writes gueltig_bis on the key and closes the Nutzungen plus their Buchungen,
  * the shared tail of both branches of setFlurstueckHistoric.
  */
-const closeParcel = async (key, flurstueck, date, { setLastOwnership }, ctx) => {
+const closeParcel = async (
+  key,
+  flurstueck,
+  date,
+  { setLastOwnership },
+  ctx
+) => {
   const { jwt, accountName, journal } = ctx;
   const keyString = formatKey(key);
   const dateOnly = toDateOnly(date);

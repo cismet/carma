@@ -15,11 +15,11 @@ const execute = async (fetcher, query, variables, jwt) => {
   const callId = startCall(query, variables);
   const startedAt = Date.now();
 
-  const fail = (message, response) => {
+  const fail = (message, response, logMessage = message) => {
     finishCall(callId, {
       status: "error",
       ms: Date.now() - startedAt,
-      message,
+      message: logMessage,
       response,
     });
     return new ActionNotSuccessfulError(message, response);
@@ -36,12 +36,17 @@ const execute = async (fetcher, query, variables, jwt) => {
   }
   if (!result?.ok) {
     throw fail(
-      `Der Server antwortete mit Status ${result?.status ?? "?"}.`,
-      result
+      "Der Server konnte die Anfrage nicht verarbeiten.",
+      result,
+      `Der Server antwortete mit Status ${result?.status ?? "?"}.`
     );
   }
   if (result.errors?.length) {
-    throw fail(result.errors[0].message, result.errors);
+    throw fail(
+      "Die Anfrage an den Server war nicht erfolgreich.",
+      result.errors,
+      result.errors[0].message
+    );
   }
 
   finishCall(callId, {
@@ -84,7 +89,9 @@ const pad2 = (value) => String(value).padStart(2, "0");
  */
 const formatCidsDate = (date, withTime) => {
   const d = date instanceof Date ? date : new Date(date);
-  const day = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+  const day = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(
+    d.getDate()
+  )}`;
   const time = withTime
     ? `${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`
     : "00:00:00";
@@ -116,7 +123,7 @@ export const requireArt = (arten, bezeichnung) => {
   return art;
 };
 
-/* ----------------------------------------------------- Flurstücksschlüssel */
+/* Flurstücksschlüssel */
 
 const mapSchluessel = (row) =>
   row
@@ -166,7 +173,7 @@ export const findSchluesselByKey = async (key, jwt) => {
 
 export const fetchSchluesselById = async (id, jwt) => {
   const data = await run(wizardQueries.schluesselById, { id }, jwt);
-  return mapSchluessel(data.flurstueck_schluessel_by_pk);
+  return mapSchluessel(data.flurstueck_schluessel?.[0]);
 };
 
 export const insertSchluessel = (object, jwt) =>
@@ -187,7 +194,7 @@ export const updateSchluessel = (id, changes, jwt, accountName) =>
 export const deleteSchluessel = (id, jwt) =>
   deleteObject(CLASS.SCHLUESSEL, { id }, jwt);
 
-/* ---------------------------------------------------------------- Flurstück */
+/* Flurstück */
 
 export const fetchFlurstueckBySchluesselId = async (schluesselId, jwt) => {
   const data = await run(
@@ -231,15 +238,11 @@ export const deleteFlurstueck = (id, jwt) =>
 export const saveFlurstueckArrays = (id, arrays, jwt) =>
   saveObject(CLASS.FLURSTUECK, { id, ...arrays }, jwt);
 
-/* ------------------------------------------------------------------ Historie */
+/* Historie */
 
 /** Mirrors LagisBroker.existHistoryEntry / hasFlurstueckSucccessors. */
 export const fetchSuccessorEdges = async (flurstueckId, jwt) => {
-  const data = await run(
-    wizardQueries.successorEdges,
-    { flurstueckId },
-    jwt
-  );
+  const data = await run(wizardQueries.successorEdges, { flurstueckId }, jwt);
   return data.flurstueck_historie ?? [];
 };
 
@@ -257,7 +260,7 @@ export const insertHistoryEdge = (vorgaengerId, nachfolgerId, jwt) =>
 export const deleteHistoryEdge = (id, jwt) =>
   deleteObject(CLASS.HISTORIE, { id }, jwt);
 
-/* ------------------------------------------------------------------ Nutzung */
+/* Nutzung */
 
 export const fetchNutzungenForFlurstueck = async (flurstueckId, jwt) => {
   const data = await run(
@@ -280,7 +283,7 @@ export const deleteNutzung = (id, jwt) =>
 export const updateNutzungBuchung = (id, changes, jwt) =>
   saveObject(CLASS.NUTZUNG_BUCHUNG, { id, ...changes }, jwt);
 
-/* ------------------------------------------------------- angehängte Objekte */
+/* angehängte Objekte */
 
 export const moveDmsUrl = (id, flurstueckId, jwt) =>
   saveObject(CLASS.DMS_URL, { id, fk_flurstueck: flurstueckId }, jwt);

@@ -4,11 +4,6 @@ import { DeleteOutlined, PlusOutlined } from "@ant-design/icons";
 import LandParcelKeyChooser from "../LandParcelKeyChooser";
 import { hasDuplicateKeys } from "../../../core/wizard/keys";
 
-/**
- * Port of JoinActionChoosePanel: a growing list of parcels to merge. At least
- * two are required, none twice, and all of them must share the same
- * Flurstücksart — the merged parcel inherits it.
- */
 const JoinChooseStep = ({ value, onChange, onProblem }) => {
   // memoised: a fresh default array on every render would re-run the effect
   const slots = useMemo(
@@ -77,7 +72,10 @@ const JoinChooseStep = ({ value, onChange, onProblem }) => {
               onClick={() =>
                 setSlots([
                   ...slots,
-                  { id: Math.max(...slots.map((e) => e.id)) + 1, key: undefined },
+                  {
+                    id: Math.max(...slots.map((e) => e.id)) + 1,
+                    key: undefined,
+                  },
                 ])
               }
               title="Flurstück hinzufügen"

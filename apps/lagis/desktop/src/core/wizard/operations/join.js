@@ -6,7 +6,11 @@ import {
 } from "../api";
 import { formatKey } from "../keys";
 import { acquireLock, releaseLocks } from "../locks";
-import { createFlurstueckForKey, hasHistoryEntry, setHistoricForKey } from "./core";
+import {
+  createFlurstueckForKey,
+  hasHistoryEntry,
+  setHistoricForKey,
+} from "./core";
 
 /**
  * Port of JoinActionSteps + LagisBroker.joinFlurstuecke —
@@ -48,7 +52,9 @@ export const joinFlurstuecke = async ({ memberKeys, resultKey }, ctx) => {
       }
       if (await hasHistoryEntry(flurstueck.id, jwt)) {
         throw new ActionNotSuccessfulError(
-          `Es sind bereits Historieneinträge für das Flurstück "${formatKey(memberKey)}" vorhanden.`
+          `Es sind bereits Historieneinträge für das Flurstück "${formatKey(
+            memberKey
+          )}" vorhanden.`
         );
       }
       members.push({ key: memberKey, flurstueck });

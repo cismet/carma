@@ -1,6 +1,9 @@
 import React from "react";
 import { Alert, Modal, Steps } from "antd";
-import { InfoCircleOutlined } from "@ant-design/icons";
+import {
+  ExclamationCircleOutlined,
+  InfoCircleOutlined,
+} from "@ant-design/icons";
 
 import GraphQLPanel from "./GraphQLPanel";
 
@@ -19,6 +22,7 @@ const WizardModal = ({
   result,
   error,
   problem,
+  problemTone = "info",
   children,
 }) => (
   <Modal
@@ -146,12 +150,24 @@ const WizardModal = ({
                 fontSize: 13,
                 padding: "8px 10px",
                 borderRadius: 6,
-                background: "#f0f7ff",
-                border: "1px solid #d6e4ff",
-                color: "#1d4ed8",
+                ...(problemTone === "error"
+                  ? {
+                      background: "#fff2f0",
+                      border: "1px solid #ffccc7",
+                      color: "#cf1322",
+                    }
+                  : {
+                      background: "#f0f7ff",
+                      border: "1px solid #d6e4ff",
+                      color: "#1d4ed8",
+                    }),
               }}
             >
-              <InfoCircleOutlined style={{ marginTop: 3 }} />
+              {problemTone === "error" ? (
+                <ExclamationCircleOutlined style={{ marginTop: 3 }} />
+              ) : (
+                <InfoCircleOutlined style={{ marginTop: 3 }} />
+              )}
               <span>{problem}</span>
             </div>
           )}
