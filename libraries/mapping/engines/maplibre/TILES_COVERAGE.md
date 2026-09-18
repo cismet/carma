@@ -1304,3 +1304,135 @@ frames stay in the session scratchpad.
 **Revisit when:** the corridor publication can publish per stage, or a
 runtime never completes its initial base pass (the view then stays pending;
 no timeout is applied).
+
+# Main-thread glTF parse share (2026-09-18)
+
+**ID / date / status:** heading anchor
+`#main-thread-gltf-parse-share-2026-09-18` / 2026-09-18 / measured; worker
+parsing deferred.
+
+**Context and constraints:** The mesh parses b3dm payloads with two
+main-thread parsers. Moving glTF parsing to a worker only pays off if the
+main thread spends a material share of its busy time in parse stacks.
+
+**Decision:** Keep main-thread parsing. Parse stacks (parseTile, GLTFLoader
+parse, the glTF 1 upgrade fetchData, Draco decode and texture upload) are
+under 10 % of main-thread busy time during a cold start, with or without
+shadows. The main-thread time goes to per-tile demand evaluation and to
+MapLibre's own render, terrain lookups included, which are the targets of
+the follow-up blocks instead.
+
+**Alternatives and disposition:** Worker glTF parse: deferred, not evaluated
+in code; the measured share caps its benefit at roughly 0.4 s of a 6 s busy
+window (no shadows) and 0.6 s of 14.6 s (shadows). Per-tile demand
+evaluation and the native terrain under a mesh: taken up in the follow-ups.
+
+**Evidence:** CDP sampling profiles (500 us interval) of the dev server on
+`feat/mesh-tile-loading-manager` at 7aac18ea9 plus the drape check throttle,
+headless Chromium on Metal, Apple M4 Max, 1108 x 586 at 2x, legacy mesh2024
+style without diagnostics, one run per window. Load window 15.6 s without
+shadows: busy 5.9 s; inclusive parseTile 75 ms, GLTF parse 72 ms, glTF 1
+upgrade fetchData 61 ms, uploadTexture 192 ms, decode 25 ms. Load window
+15.7 s with shadows: busy 14.6 s; parseTile 149 ms, fetchData 116 ms,
+uploadTexture 250 ms, decode 50 ms. Top self time in both windows: MapLibre
+getTerrainData 475 / 974 ms, tile-camera-demand intersectionVertices 307 /
+553 ms, GC 390 / 651 ms; with shadows the inclusive demand family
+(getTileScreenError 948 ms, getTileCameraDemand 773 ms, evaluate 654 ms)
+and the receiver mask match 275 ms. Pan window 39.5 s without shadows: busy
+13.0 s, GC 3.4 s, drape check matchesMapStyleImageRevision 95 ms (432 ms in a
+29.6 s window before the throttle). Raw profiles stay in the session
+scratchpad.
+
+**Revisit when:** the demand evaluation and native terrain costs are gone and
+parsing becomes the largest remaining main-thread share, or payload sizes
+grow (higher resolution mesh).
+
+# Tileset hierarchy cache kept (2026-09-18)
+
+**ID / date / status:** heading anchor
+`#tileset-hierarchy-cache-kept-2026-09-18` / 2026-09-18 / measured; the
+worker-backed hierarchy cache stays.
+
+**Context and constraints:** The `TilesetHierarchyPlugin` restores the
+static tileset hierarchy from a worker-built index instead of fetching each
+tileset JSON page natively. The question was whether this copy of the tree
+stalls the start or brings no measurable benefit on cold starts and reloads;
+in that case it was to be removed. The style contract gained
+`hierarchyCache: false` so a style can switch it off without a code change,
+which is also how the comparison was run.
+
+**Decision:** Keep the plugin. It cuts the tileset JSON round trips of a cold
+start from 24 to 6 and of a reload from 13-15 to 4-6, and it does not
+stall. Time to complete base coverage is within run-to-run noise on a cold
+start and marginally earlier on reloads; the first published cut can arrive
+later on a cold start while the index is built.
+
+**Alternatives and disposition:** Native JSON loading only: measured
+rejection on round trips, no measurable difference on time to ready. A
+smaller or lazily built index: not evaluated.
+
+**Evidence:** Playwright headless Chromium (Metal), Apple M4 Max, persistent
+browser profile per variant (fresh for the cold load, kept for the reloads),
+dev server of `feat/mesh-tile-loading-manager` at 7aac18ea9 plus the block D
+changes, legacy mesh2024 style with diagnostics on and `hierarchyCache`
+switched per style, warm CDN, no warm-up runs. Requests are counted from the
+resource timing buffer after the style was added until
+`meshBaseCoverageReady`. Cache on: cold ready 5.0 s and 6.9 s (two runs),
+tileset JSON requests 6 and 6, first published cut 3.3 s and 3.5 s; reloads
+ready 1.63 s and 1.66 s with 4 and 6 JSON requests, first cut 0.9 s. Cache
+off: cold ready 6.5 s and 5.6 s, JSON requests 24 and 24, first cut 2.3 s and
+3.5 s; reloads ready 1.70 s and 1.77 s with 13 and 15 JSON requests, first cut
+1.04 s and 1.06 s. b3dm requests to ready were 178-198 in every run. Transfer
+sizes are not exposed by the tile CDN. Raw JSONL stays in the session
+scratchpad.
+
+**Revisit when:** the tileset changes shape (more or larger pages), the index
+build time grows, or a first-display budget matters more than time to
+complete base coverage.
+
+# Per-tile frame work: demand memo and drape check throttle (2026-09-18)
+
+**ID / date / status:** heading anchor
+`#per-tile-frame-work-demand-memo-and-drape-check-throttle-2026-09-18` /
+2026-09-18 / implemented, measured on single profile runs.
+
+**Context and constraints:** The 2026-09-18 cold-start profiles (see the
+parse share record above) put the per-tile camera demand family
+(getTileScreenError, getTileCameraDemand, evaluate, intersectionVertices) at
+1.5-2 s of a 15 s shadow load, and the drape cache's byte comparison of
+versionless sprite images at 432 ms in a 30 s no-shadow pan. Neither is
+shadow-only work: the demand family runs in the plain path too, the drape
+check belongs to the basemap projection.
+
+**Decision:** `getTileCameraDemand` memoises its result per tile for the
+lifetime of the compiled tile camera set (a new object per camera
+signature), because priority, attachment and shadow selection ask for the
+same tile several times per frame and the result only changes with the
+cameras. The drape cache compares versionless sprite bytes at most every
+200 ms (`VERSIONLESS_IMAGE_CHECK_INTERVAL_MS`); versioned images keep their
+constant-time check on every call, so an eventless updateImage is detected
+within the window instead of within a frame.
+
+**Alternatives and disposition:** Allocation-free intersectionVertices:
+deferred, not evaluated; the memo removes most calls. Wrapping
+map.updateImage to detect eventless writes exactly: rejected by inspection
+(instance monkeypatching, restore-order hazards with several caches).
+Receiver mask match, MapLibre terrain lookups under a mesh
+(`getTerrainData`, kept on by design for the label drape) and GC pressure
+while panning (3.4 s of 13 s busy): open.
+
+**Evidence:** CDP sampling profiles as in the parse share record, one run
+per window, dev server at 7aac18ea9 plus these changes. Shadow load
+window, inclusive: getTileCameraDemand 773 ms before, 49 ms after; evaluate
+654 ms before, absent after; intersectionVertices 626 ms before, absent
+after; getTileScreenError 948 + 725 ms before, 330 + 251 ms after; main
+thread busy 14.6 s before, 13.3 s after (of 15.7 s). No-shadow load window:
+intersectionVertices 307 ms self before, 8 ms after; busy 5.9 s before,
+6.3 s after (run-to-run noise, MapLibre and texture uploads dominate).
+No-shadow pan window: matchesMapStyleImageRevision 432 ms in 29.6 s before,
+95 ms in 39.5 s after. Specs: engine suite unchanged against the branch
+baseline. Raw profiles stay in the session scratchpad.
+
+**Revisit when:** the local frame can change without a camera signature
+change (the memo keys on the compiled camera set only), or a host updates
+sprite images in place more often than the 200 ms window tolerates.
