@@ -7,7 +7,8 @@ export const REST_SERVICE_LAGIS =
 export const LAGIS_DOMAIN = "LAGIS";
 
 export const REST_SERVICE_WUNDA =
-  import.meta.env.VITE_REST_SERVICE_WUNDA || "https://wunda-api.cismet.de";
+  import.meta.env.VITE_REST_SERVICE_WUNDA ||
+  "https://wunda-ro-cloud-api.cismet.de";
 export const WUNDA_DOMAIN = "WUNDA_BLAU";
 
 export const REST_SERVICES = {
