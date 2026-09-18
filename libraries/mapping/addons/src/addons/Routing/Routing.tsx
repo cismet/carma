@@ -25,6 +25,8 @@ import {
   DEFAULT_RECENTER_ORDER,
   DEFAULT_RECENTER_POSITION,
   DEFAULT_SNAP_TOLERANCE_METERS,
+  DEFAULT_THEN_ANNOUNCE_METERS,
+  DEFAULT_THEN_WITHIN_METERS,
   DEFAULT_TRAVELLED_COLOR,
   DEFAULT_ZOOM,
   REMAINING_PREFIX,
@@ -141,6 +143,8 @@ export const Routing = ({
     recenterLabel = DEFAULT_RECENTER_LABEL,
     instructionPosition = DEFAULT_INSTRUCTION_POSITION,
     instructionOrder = DEFAULT_INSTRUCTION_ORDER,
+    thenWithinMeters = DEFAULT_THEN_WITHIN_METERS,
+    thenAnnounceMeters = DEFAULT_THEN_ANNOUNCE_METERS,
     aheadColor = DEFAULT_AHEAD_COLOR,
     travelledColor = DEFAULT_TRAVELLED_COLOR,
     mapOnly = DEFAULT_MAP_ONLY,
@@ -595,6 +599,8 @@ export const Routing = ({
           instruction={instruction}
           position={instructionPosition}
           order={instructionOrder}
+          thenWithinMeters={thenWithinMeters}
+          thenAnnounceMeters={thenAnnounceMeters}
         />
       )}
       {/* the recenter button, only while the user has taken the camera off */}
