@@ -1515,3 +1515,74 @@ recorded with the loader performance follow-ups.
 **Revisit when:** the margin grows beyond a bounded ring, or stub metadata
 becomes expensive (a consolidated subtree file would change that, see the
 hierarchy cache record).
+
+# Hierarchy sidecar: measured JSON cost and format candidates (2026-09-19)
+
+**ID / date / status:** heading anchor
+`#hierarchy-sidecar-measured-json-cost-and-format-candidates-2026-09-19` /
+2026-09-19 / measured baseline, format proposal, nothing implemented.
+
+**Context and constraints:** The mesh hierarchy ships as nested 3D Tiles
+external tilesets. On disk (read-only listing of the serving host): 49,632
+`tileset.json` documents totalling 1.03 GB, and 2,194,009 b3dm payloads
+totalling 1.77 TB, so roughly 2.4 M nodes at about 430 B per node raw and
+100 B gzipped. A few routing documents dominate: the largest crawled is
+4.83 MiB with 8,146 external children. The question was whether a
+consolidated, streamable sidecar would speed up cold starts, and what it
+would cost in bytes. Requirement from the tileset side: answer "which tiles
+exist here, at which level" for a bounding box, which is also what the shadow
+corridor needs.
+
+**Measured baseline (what a sidecar would replace):** geoportal cold start at
+the profiled viewport (zoom 16.44), hierarchy cache switched off through the
+style so the native JSON path is visible: 21 tileset documents, 6 serial
+dependency rounds, p50 123 ms per document, hierarchy span 616 ms (first
+request 61 ms after the layer was added, last response at 677 ms), 30.1 MiB
+raw and 1.98 MiB gzipped decoded and parsed before the deepest branches can
+be requested. The first leaf payload arrives at 355 ms and b3dm requests take
+274 ms at p50, so hierarchy and payload fetching overlap: the cost lands on
+the deep leaves and on every zoom into a new region, not on the first coarse
+image. A small-file round trip to the same host measured 22 ms.
+
+**Format candidates, all existing prior art, nothing invented:**
+- 3D Tiles 1.1 implicit tiling with `.subtree` files: availability bitstreams
+  at 1 bit per node, bounding volumes and geometric error implied by the
+  subdivision (rootError / 2^level), which is the standard form of storing
+  everything relative to the parent. About 900 KB for the whole city at three
+  bitstreams over 2.4 M nodes, chunked into roughly 600 to 900 files of 1.5
+  to 3 KB. A cold start would fetch the root subtree plus one or two covering
+  subtrees, so about 5 to 10 KB in one or two rounds. Requires regular
+  subdivision, which this tree does not have (8-child, 2-child and
+  8,146-child routing nodes), so it needs the dataset generator to emit a
+  quadtree; 3D Tiles allows explicit tiles beside implicit subtrees for the
+  irregular parts.
+- Paged fixed-record binary hierarchy, as in Potree 2.0 `hierarchy.bin`
+  (22 B per node plus proxy pages), COPC and EPT hierarchy pages: no
+  re-tiling needed. A record of child mask, flags, geometric error as a
+  log-ratio to the parent, and six uint16 bounding-box components relative to
+  the parent box is about 16 B per node, so roughly 38 MB for the whole city
+  against 1.03 GB of JSON, as a typed array with no parse step. The measured
+  21-document pyramid is about 70 k nodes, so about 1.1 MB in one or two
+  range requests.
+- Bounding-box queries over a single file: PMTiles (recursive directories,
+  Hilbert order, HTTP range requests) and FlatGeobuf with its packed Hilbert
+  R-tree (Flatbush) are the established single-file, range-queryable
+  containers; COPC does the same for octrees. Hilbert or Morton ordering
+  turns a box-and-error query into a few contiguous key ranges, which is what
+  the shadow corridor wants instead of walking loaded metadata.
+
+**Quantization:** safe if bounds are rounded outward, so the stored box always
+contains the true box. Frustum, corridor and screen-error tests then stay
+conservative and cannot produce a false negative. Geometric error quantized
+as a ratio to the parent keeps the refinement chain exact enough for the
+stage comparisons, which are ratios themselves.
+
+**Expected gain, from the numbers above:** the hierarchy part of a cold start
+goes from 6 rounds and 616 ms to one or two rounds, about 25 to 60 ms with
+implicit subtrees and about 60 to 120 ms with the paged binary, and the JSON
+parse of 30.1 MiB disappears. On a phone, where the round trip is 100 to
+200 ms instead of 22 ms, the same six rounds cost 0.6 to 1.2 s today.
+
+**Revisit when:** the dataset is regenerated, which is the moment to choose
+implicit tiling, or when a measurement of the zoom-into-new-region case shows
+the hierarchy is no longer the structural blocker.
