@@ -1136,7 +1136,8 @@ const RepresentativeCasesStory = ({
 };
 
 const meta: Meta<LineGeneratorStoryArgs> = {
-  title: "Common/Svg",
+  title: "UI/Line Styles",
+  id: "common-svg",
   component: LiveLineGeneratorStory,
   parameters: {
     layout: "fullscreen",

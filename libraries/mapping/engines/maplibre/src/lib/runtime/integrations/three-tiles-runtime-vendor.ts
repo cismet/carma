@@ -13,6 +13,11 @@ import type { RuntimeTile } from "./three-tiles-runtime-types";
 export const UNLOADED_LOADING_STATE = 0;
 
 export const FAILED_LOADING_STATE = -1;
+/** Upstream `QUEUED` and `LOADING`: a download slot claimed, nothing parsed yet. */
+export const QUEUED_LOADING_STATE = 1;
+export const LOADING_LOADING_STATE = 2;
+export const PARSING_LOADING_STATE = 3;
+export const LOADED_LOADING_STATE = 4;
 
 export const TILE_OUTLINE_FLAG = "isTileOutline";
 
@@ -26,8 +31,20 @@ export const tilesRendererCoreRuntime = TilesRendererCore as unknown as {
 export const tilesCacheUnloadPriorityCallback =
   tilesRendererCoreRuntime.DEFAULT_LRU_CACHE.unloadPriorityCallback;
 
-export const tilesQueuePriorityCallback =
-  tilesRendererCoreRuntime.unifiedPriorityCallback;
+export const tilesQueuePriorityCallback = (
+  first: Tile,
+  second: Tile
+): number => {
+  const firstPriority =
+    (first as RuntimeTile).cameraPriority ?? Number.NEGATIVE_INFINITY;
+  const secondPriority =
+    (second as RuntimeTile).cameraPriority ?? Number.NEGATIVE_INFINITY;
+  return firstPriority === secondPriority
+    ? tilesRendererCoreRuntime.unifiedPriorityCallback(first, second)
+    : firstPriority > secondPriority
+    ? 1
+    : -1;
+};
 
 // Mirrors upstream DEFAULT_NODE_QUEUE.priorityCallback (not exported from the
 // bundled build): children are processed in the load order of their parents.

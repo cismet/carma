@@ -9,7 +9,6 @@
     ".storybook/*.tsx",
     "../ng-topicmap-playground/src/app/pointcloud/**/*.ts",
     "../ng-topicmap-playground/src/app/pointcloud/**/*.tsx",
-    "../ng-topicmap-playground/src/app/backgroundConfig.ts",
-    "../stories/src/stories/common/ui/story-masonry-layout.tsx"
+    "../ng-topicmap-playground/src/app/backgroundConfig.ts"
   ]
 }

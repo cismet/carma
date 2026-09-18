@@ -42,6 +42,21 @@ playgrounds/stories/src/stories/
 
 ## Story Rules
 
+### Navigation And Stable Links (Storybook 8.5.3)
+
+- The main Storybook also indexes the application stories in
+  `playgrounds/pointcloud-stories`; do not duplicate their source files.
+- Sidebar titles describe user-facing scopes, independently of the source
+  folder structure above. Keep diagnostics with their scope and avoid groups
+  containing only one story. Application demos live under `Applications`.
+- Set an explicit, permanent CSF meta `id` in every story file. Preserve the
+  existing ID when changing its `title` or moving the file.
+- Links use `?path=/story/<meta-id>--<export-name-in-kebab-case>` (or
+  `iframe.html?id=<same-id>&viewMode=story`). Keep exported story identifiers
+  stable too; use a story's `name` to change its visible label.
+- This uses the installed Storybook 8.5.3 API, without an upgrade or an alias
+  layer. New stories should follow this convention for durable links.
+
 ### Reuse First
 
 - Prefer stories that reuse shared library components directly.

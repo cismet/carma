@@ -61,7 +61,8 @@ import "cesium/Build/Cesium/Widgets/widgets.css";
 import "leaflet/dist/leaflet.css";
 import "maplibre-gl/dist/maplibre-gl.css";
 const meta: Meta = {
-  title: "Mapping/Controls",
+  title: "Map Navigation/Engine Controls",
+  id: "mapping-controls",
   parameters: {
     layout: "fullscreen",
   },

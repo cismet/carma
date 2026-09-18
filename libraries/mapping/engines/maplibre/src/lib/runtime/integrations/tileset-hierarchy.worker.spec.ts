@@ -11,12 +11,16 @@ const storage = vi.hoisted(() => ({
   pages: new Map<string, unknown>(),
   fail: false,
   writes: 0,
+  readBarrier: null as Promise<void> | null,
+  reads: 0,
 }));
 vi.mock("@carma-commons/utils", () => ({
   resolveDerivedCacheAssetEpoch: () => "producer-fixture-v1",
   createDerivedBufferCache: () => ({
     register: () => ({
       get: async (key: string) => {
+        storage.reads++;
+        await storage.readBarrier;
         if (storage.fail) throw new Error("Storage unavailable");
         const value = storage.pages.get(key);
         return value ? { value: structuredClone(value) } : null;
@@ -66,9 +70,43 @@ beforeEach(() => {
   storage.pages.clear();
   storage.fail = false;
   storage.writes = 0;
+  storage.readBarrier = null;
+  storage.reads = 0;
 });
 afterEach(() => vi.unstubAllGlobals());
 describe("persistent sparse hierarchy worker", () => {
+  it("recovers persistent reads after a slow lookup without accumulating blocked probes", async () => {
+    const fetch = vi.fn(async () => new Response(JSON.stringify(document())));
+    vi.stubGlobal("fetch", fetch);
+    const first = await boot();
+    await first(rootUrl);
+    await first(childUrl);
+    await vi.waitFor(() => expect(storage.writes).toBe(2));
+    const next = await boot();
+    await next(rootUrl);
+    let release!: () => void;
+    storage.readBarrier = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const slow = await next(childUrl);
+    expect(slow.kind).toBe(HIERARCHY_RESULT.page);
+    if (slow.kind !== HIERARCHY_RESULT.page) throw new Error("Missing page");
+    expect(slow.cached).toBe(false);
+    const reads = storage.reads;
+    await next(childUrl);
+    expect(storage.reads).toBe(reads);
+    release();
+    storage.readBarrier = null;
+    await Promise.resolve();
+    await Promise.resolve();
+    fetch.mockClear();
+    const restored = await next(childUrl);
+    expect(restored.kind).toBe(HIERARCHY_RESULT.page);
+    if (restored.kind !== HIERARCHY_RESULT.page)
+      throw new Error("Missing page");
+    expect(restored.cached).toBe(true);
+    expect(fetch).not.toHaveBeenCalled();
+  });
   it("validates root once and restores known children after a new worker without refetch", async () => {
     const fetch = vi.fn(async () => new Response(JSON.stringify(document())));
     vi.stubGlobal("fetch", fetch);

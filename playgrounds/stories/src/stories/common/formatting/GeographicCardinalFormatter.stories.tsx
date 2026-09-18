@@ -527,7 +527,8 @@ const FormatterPreview = ({
 };
 
 const meta: Meta<GeographicCardinalFormatterStoryProps> = {
-  title: "Common/Formatter",
+  title: "UI/Formatting",
+  id: "common-formatter",
   component: FormatterPreview,
   parameters: {
     layout: "fullscreen",

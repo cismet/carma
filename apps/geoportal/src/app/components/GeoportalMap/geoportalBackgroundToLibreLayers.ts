@@ -17,6 +17,8 @@ type NamedLayerConfig = {
 type GeoportalBackgroundLibreOptions = {
   terrainMeshActive?: boolean;
   shadowTerrainActive?: boolean;
+  /** Every visible layer is a standalone tileset: no basemap at all. */
+  standaloneMeshOnly?: boolean;
 };
 
 // Raster bases bake place names into their ground pixels. Shaded terrain uses
@@ -45,6 +47,7 @@ export const geoportalBackgroundToLibreLayers = (
   if (!backgroundLayer || !backgroundLayer.visible) {
     return [];
   }
+  if (options.standaloneMeshOnly) return [];
 
   const result: LibreLayer[] = [];
   const namedLayers = {

@@ -7,6 +7,11 @@ import { distanceMeters } from "@carma-geo/utils";
 import { degToRad } from "@carma-units";
 import type { CssPixels, Degrees, Meters } from "@carma-units";
 import { synthesizeLodCamera } from "@carma-mapping/engines/threejs";
+import {
+  snapshotTileCameraViews,
+  TILE_CAMERA_ROLE,
+  type TileCameraView,
+} from "../../core/tile-camera-demand";
 import { MercatorCoordinate } from "maplibre-gl";
 import type { Map as MaplibreMap, CustomRenderMethodInput } from "maplibre-gl";
 import * as THREE from "three";
@@ -32,6 +37,7 @@ import { runMapLibreIdleRender } from "./maplibre-idle-render";
 import { setSharedThreeShadedPresentation } from "./shared-three-scene-content-registry";
 import { MAP_LOADING_PHASE } from "../../core/map-loading-progress";
 import { publishMapLoadingProgress } from "./map-loading-progress";
+import { MAPLIBRE_EVENT } from "../../../constants/mapEvents";
 
 const MAPLIBRE_TILE_SIZE = 512;
 /** Screen error the local frame may accumulate before it is refitted. */
@@ -190,6 +196,42 @@ export const buildSharedThreeSceneLayer = (
     return localFrame;
   };
 
+  let renderingPaused = false;
+  const screenRenderPasses = new Set<() => void>();
+  const renderScreenPasses = () => {
+    if (!renderer || disposed || renderingPaused) return;
+    for (const render of screenRenderPasses) render();
+  };
+  const tileCameraViews = new Map<string, TileCameraView>();
+  let zoomPrefetch: AbortController | null = null;
+  let zoomPrefetchPending = false;
+  let completedZoomPrefetch = new Set<SharedThreeSceneRuntime>();
+  let zoomFocus: readonly [number, number] | null = null;
+  const cancelZoomPrefetch = () => {
+    zoomPrefetchPending = false;
+    zoomPrefetch?.abort();
+    zoomPrefetch = null;
+    completedZoomPrefetch = new Set();
+  };
+  const startZoomPrefetch = (event: { originalEvent?: Event }) => {
+    cancelZoomPrefetch();
+    zoomPrefetchPending = true;
+    zoomFocus = null;
+    const input = event.originalEvent;
+    if (map && input && "clientX" in input && "clientY" in input) {
+      const bounds = map.getCanvas().getBoundingClientRect();
+      zoomFocus = [
+        Number(input.clientX) - bounds.left,
+        Number(input.clientY) - bounds.top,
+      ];
+    }
+  };
+  const detachZoomPrefetch = () => {
+    cancelZoomPrefetch();
+    map?.off?.(MAPLIBRE_EVENT.ZOOM_START, startZoomPrefetch);
+    map?.off?.(MAPLIBRE_EVENT.ZOOM_END, cancelZoomPrefetch);
+  };
+
   const placeRuntime = (runtime: SharedThreeSceneRuntime) => {
     if (!originMerc || meterScale <= 0) return;
     const runtimeOrigin = MercatorCoordinate.fromLngLat(
@@ -210,6 +252,49 @@ export const buildSharedThreeSceneLayer = (
     id: layerId,
     type: "custom",
     renderingMode: "3d",
+    setRenderingPaused(paused) {
+      renderingPaused = paused;
+      if (!paused) map?.triggerRepaint();
+    },
+    isRenderingPaused: () => renderingPaused,
+
+    setTileCameraView(view) {
+      if (disposed) return;
+      snapshotTileCameraViews([view]);
+      tileCameraViews.set(view.id, view);
+      map?.triggerRepaint();
+    },
+
+    removeTileCameraView(id) {
+      if (tileCameraViews.delete(id)) map?.triggerRepaint();
+    },
+
+    requestTileCameraAhead(viewAt, aheadMs, validForMs = 250) {
+      if (
+        !Number.isFinite(aheadMs) ||
+        aheadMs < 0 ||
+        aheadMs > 5000 ||
+        !Number.isFinite(validForMs) ||
+        validForMs <= 0 ||
+        validForMs > 2000
+      )
+        throw new Error(
+          "Prediction needs aheadMs in [0, 5000] and validity in (0, 2000] ms"
+        );
+      const [view] = snapshotTileCameraViews([viewAt(aheadMs)]);
+      if (!disposed) {
+        for (const runtime of runtimeUpdateOrder)
+          runtime.setPrefetchCameraView?.(view, view.id, validForMs);
+        map?.triggerRepaint();
+      }
+      return view.id;
+    },
+
+    removePrefetchCameraView(id) {
+      for (const runtime of runtimeUpdateOrder)
+        runtime.setPrefetchCameraView?.(null, id);
+      map?.triggerRepaint();
+    },
 
     addRuntime(runtime) {
       if (disposed) return;
@@ -263,6 +348,17 @@ export const buildSharedThreeSceneLayer = (
     getRenderer() {
       return renderer;
     },
+    addScreenRenderPass(render) {
+      screenRenderPasses.add(render);
+      map?.triggerRepaint();
+      return () => {
+        screenRenderPasses.delete(render);
+        map?.triggerRepaint();
+      };
+    },
+    requestScreenRender() {
+      map?.triggerRepaint();
+    },
     runIdleRender(render) {
       return renderer !== null && runMapLibreIdleRender(map, render);
     },
@@ -308,6 +404,7 @@ export const buildSharedThreeSceneLayer = (
     },
 
     detach() {
+      map?.off?.(MAPLIBRE_EVENT.RENDER, renderScreenPasses);
       if (map)
         publishMapLoadingProgress(map, MAP_LOADING_PHASE.SHADOW, layerId, 1);
       mapStyleProjection.dispose();
@@ -325,6 +422,9 @@ export const buildSharedThreeSceneLayer = (
 
     onAdd(mapInstance, gl) {
       map = mapInstance;
+      map.on?.(MAPLIBRE_EVENT.RENDER, renderScreenPasses);
+      map.on?.(MAPLIBRE_EVENT.ZOOM_START, startZoomPrefetch);
+      map.on?.(MAPLIBRE_EVENT.ZOOM_END, cancelZoomPrefetch);
       const center = mapInstance.getCenter();
       originMerc = MercatorCoordinate.fromLngLat([center.lng, center.lat], 0);
       meterScale = originMerc.meterInMercatorCoordinateUnits();
@@ -353,6 +453,7 @@ export const buildSharedThreeSceneLayer = (
     },
 
     render(gl, options: CustomRenderMethodInput) {
+      if (renderingPaused) return;
       if (!map || !renderer || !originMerc || meterScale <= 0) return;
       renderedFrames += 1;
 
@@ -363,16 +464,34 @@ export const buildSharedThreeSceneLayer = (
         .makeTranslation(originMerc.x, originMerc.y, originMerc.z)
         .scale(new THREE.Vector3(meterScale, -meterScale, meterScale))
         .multiply(rotationX);
+      if (options.defaultProjectionData.projectionTransition > 0) {
+        // Local tangent mount on MapLibre's sphere (not WGS84 ECEF).
+        // Keep the resident scene unchanged; only its scene-to-clip mapping changes.
+        const origin = originMerc.toLngLat();
+        const radius = 6371008.8;
+        localFromScene
+          .makeRotationY((origin.lng * Math.PI) / 180)
+          .multiply(
+            new THREE.Matrix4().makeRotationX((-origin.lat * Math.PI) / 180)
+          )
+          .multiply(new THREE.Matrix4().makeTranslation(0, 0, 1))
+          .multiply(rotationX)
+          .scale(new THREE.Vector3(1 / radius, 1 / radius, 1 / radius));
+      }
       const sceneToClipMatrix = mainMatrix.multiply(localFromScene);
 
       syncSharedCanvasViewport(renderer, map.getCanvas(), viewport);
       // Same pose the MapLibre 3D Tiles layer works out for itself, so it
       // lives in the engine rather than here, see synthesizeLodCamera.
       const centerLngLat = map.getCenter();
-      const mapLibreTerrainElevation = map.getTerrain()
-        ? map.queryTerrainElevation(centerLngLat) ??
-          map.getCameraTargetElevation()
-        : 0;
+      const centerElevation = map.getCenterElevation?.();
+      const mapLibreTerrainElevation =
+        typeof centerElevation === "number" && Number.isFinite(centerElevation)
+          ? centerElevation
+          : map.getTerrain()
+          ? map.queryTerrainElevation(centerLngLat) ??
+            map.getCameraTargetElevation()
+          : 0;
       if (
         !synthesizeLodCamera(
           lodCamera,
@@ -399,10 +518,107 @@ export const buildSharedThreeSceneLayer = (
         lookTarget,
         viewport,
         localFrame: currentLocalFrame,
+        tileCameraViews: snapshotTileCameraViews([...tileCameraViews.values()]),
       };
       scene.updateMatrixWorld(true);
       for (const runtime of runtimeUpdateOrder) {
         runtime.update(frame);
+      }
+      // Decision: ZOOM-PREFETCH-20260913, engine README. Foreground demand from
+      // every camera/runtime wins; only one speculative adapter runs at a time.
+      if (
+        zoomPrefetchPending &&
+        zoomPrefetch === null &&
+        map.isZooming?.() &&
+        runtimeUpdateOrder.every(
+          (runtime) =>
+            !runtime.root.visible ||
+            ((runtime.getRequestDemand?.() ?? 0) === 0 &&
+              runtime.isBaseViewReady?.() !== false)
+        )
+      ) {
+        zoomPrefetchPending = false;
+        const controller = new AbortController();
+        zoomPrefetch = controller;
+        const completed = completedZoomPrefetch;
+        const canvas = map.getCanvas();
+        const width = canvas.clientWidth || viewport.x;
+        const height = canvas.clientHeight || viewport.y;
+        const paddedCenter = map.project(map.getCenter());
+        const [x, y] = zoomFocus ?? [paddedCenter.x, paddedCenter.y];
+        const lngLat = map.unproject([x, y]);
+        const camera = renderCamera.clone();
+        // Fixed small focus window, preserving the real perspective/off-axis
+        // pose and elevation extent; no second renderer or scene context.
+        const sx = width / Math.min(128, width);
+        const sy = height / Math.min(128, height);
+        camera.projectionMatrix.premultiply(
+          new THREE.Matrix4().set(
+            sx,
+            0,
+            0,
+            -sx * ((2 * x) / width - 1),
+            0,
+            sy,
+            0,
+            -sy * (1 - (2 * y) / height),
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1
+          )
+        );
+        camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert();
+        const [snapshot] = snapshotTileCameraViews([
+          {
+            id: `${layerId}:zoom-focus`,
+            camera,
+            viewport: [128, 128],
+            errorTargetPixels: 1,
+            role: TILE_CAMERA_ROLE.GEOMETRY,
+          },
+        ]);
+        const request = {
+          camera: snapshot,
+          lngLat: [lngLat.lng, lngLat.lat] as const,
+          levels: 2 as const,
+        };
+        void (async () => {
+          // Leave the MapLibre draw callback before optional traversal/decoding.
+          await new Promise<void>((resolve) => setTimeout(resolve, 0));
+          for (const runtime of runtimeUpdateOrder) {
+            if (controller.signal.aborted) break;
+            if (completed.has(runtime)) continue;
+            if (
+              runtimeUpdateOrder.some(
+                (other) =>
+                  other.root.visible &&
+                  ((other.getRequestDemand?.() ?? 0) > 0 ||
+                    other.isBaseViewReady?.() === false)
+              )
+            ) {
+              // Resume this gesture on the normal demand-completion repaint,
+              // without polling or repeating adapters already fulfilled.
+              if (zoomPrefetch === controller && map?.isZooming?.())
+                zoomPrefetchPending = true;
+              break;
+            }
+            if (runtime.root.visible) {
+              await runtime.prefetchZoom?.(request, controller.signal);
+              if (!controller.signal.aborted) completed.add(runtime);
+            }
+          }
+        })()
+          .catch(() => {
+            /* Speculation never fails the foreground scene. */
+          })
+          .finally(() => {
+            if (zoomPrefetch === controller) zoomPrefetch = null;
+          });
       }
       scene.updateMatrixWorld(true);
 
@@ -424,10 +640,12 @@ export const buildSharedThreeSceneLayer = (
         runtimeUpdateOrder.some(
           (runtime) =>
             runtime.providesTerrain === true ||
-            Boolean(runtime.receivesMapStyleTexture)
+            (runtime.providesTerrain !== false &&
+              Boolean(runtime.receivesMapStyleTexture))
         )
       ) {
-        // The visible ground now belongs to Three. Keep MapLibre's color only
+        // Explicit building-only receivers retain MapLibre's ground. Otherwise
+        // the visible ground belongs to Three. Keep MapLibre's color only
         // in the captured texture; discard its competing fill, DEM and skirts.
         clearMapStyleGroundBeforeThreeTerrain(gl, savedDepthRange);
       }
@@ -441,6 +659,8 @@ export const buildSharedThreeSceneLayer = (
     },
 
     onRemove() {
+      map?.off?.(MAPLIBRE_EVENT.RENDER, renderScreenPasses);
+      detachZoomPrefetch();
       accumulationRuntime.dispose();
       if (map)
         publishMapLoadingProgress(
@@ -460,6 +680,9 @@ export const buildSharedThreeSceneLayer = (
     },
 
     dispose() {
+      map?.off?.(MAPLIBRE_EVENT.RENDER, renderScreenPasses);
+      screenRenderPasses.clear();
+      detachZoomPrefetch();
       accumulationRuntime.dispose();
       if (disposed) return;
       if (map)
@@ -475,6 +698,7 @@ export const buildSharedThreeSceneLayer = (
       disposed = true;
       for (const runtime of runtimes.values()) runtime.dispose();
       runtimes.clear();
+      tileCameraViews.clear();
       scene.clear();
       depthRangeBridge?.dispose();
       depthRangeBridge = null;

@@ -12,6 +12,7 @@ export {
   WGS84_B,
   WGS84_E2,
   cartographicToEcef,
+  projectEllipsoidHorizon,
   ecefToCartographic,
   ecefToEnuMatrix,
   ecefToEnuOffset,

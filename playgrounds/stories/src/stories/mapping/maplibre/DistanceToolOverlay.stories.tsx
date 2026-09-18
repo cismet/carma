@@ -3174,7 +3174,8 @@ const MapLibreDistanceTerrainAuthoringStory = (
 );
 
 const meta: Meta<MapLibreDistanceToolStoryArgs> = {
-  title: "MapLibre Playground",
+  title: "Annotations/Measurements",
+  id: "maplibre-playground",
   render: (args) => <MapLibreDistanceToolStory {...args} />,
   args: {
     lineWidthPx: ANNOTATION_LINE_WIDTH,

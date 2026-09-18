@@ -1,0 +1,153 @@
+.tile-stress {
+  font: 14px/1.45 system-ui, sans-serif;
+  background: #101925;
+  color: #e3eaf2;
+}
+.tile-stress header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: 10px 16px;
+  background: #172536;
+}
+.tile-stress-map {
+  height: 58vh;
+  min-height: 320px;
+}
+.tile-stress-map-shell {
+  position: relative;
+}
+.tile-stress label,
+.tile-stress p {
+  display: block;
+  margin: 10px 16px;
+}
+.tile-stress [role="alert"] {
+  color: #ffb9a7;
+}
+.tile-stress input[type="range"] {
+  display: block;
+  width: 100%;
+}
+/* A horizontal strip is intentional: one-dimensional facade/panorama navigation. */
+.tile-stress-strip {
+  overflow: hidden;
+  height: 320px;
+  width: 100%;
+  background: #172536;
+}
+.tile-stress-strip canvas {
+  display: block;
+  max-width: none;
+  outline-offset: -2px;
+}
+.tile-stress-strip-embedded {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 38%;
+  z-index: 1;
+  background: transparent;
+  border-top: 1px solid #8094ab;
+}
+.tile-stress-review {
+  padding: 8px 16px;
+  border-bottom: 1px solid #806b3b;
+  color: #ffe0a2;
+}
+.tile-stress-strip-labels {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+.tile-stress-strip-tools {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 4px 16px 10px;
+}
+.tile-stress-strip-tools button {
+  border: 1px solid #8292a5;
+  background: #172536;
+  color: inherit;
+  padding: 3px 8px;
+  cursor: pointer;
+}
+.tile-stress-camera .tile-stress-map {
+  height: calc(100dvh - 96px);
+}
+.tile-stress-camera > label,
+.tile-stress-camera > p {
+  margin: 6px 12px;
+}
+.tile-stress-camera .tile-stress-strip-tools {
+  gap: 6px;
+  padding: 4px 12px 8px;
+}
+.tile-stress-strip-tools button,
+.tile-stress-info summary {
+  min-width: 30px;
+  height: 30px;
+  border-radius: 3px;
+}
+.tile-stress-strip-tools button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.tile-stress-strip-tools output {
+  display: inline-block;
+  min-width: 58px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.tile-stress-info {
+  margin-left: auto;
+  position: relative;
+}
+.tile-stress-info summary {
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  list-style: none;
+  border: 1px solid #8292a5;
+  background: #172536;
+  font-size: 20px;
+}
+.tile-stress-info summary::-webkit-details-marker {
+  display: none;
+}
+.tile-stress-info summary:focus-visible,
+.tile-stress-strip-tools button:focus-visible {
+  outline: 2px solid #80bdff;
+  outline-offset: 2px;
+}
+.tile-stress-info-content {
+  position: absolute;
+  z-index: 5;
+  right: 0;
+  bottom: 38px;
+  width: min(560px, calc(100vw - 32px));
+  max-height: 65vh;
+  overflow: auto;
+  padding: 12px;
+  border: 1px solid #50637a;
+  border-radius: 4px;
+  background: rgb(16 25 37 / 96%);
+  box-shadow: 0 6px 24px #0006;
+  font-size: 12px;
+}
+.tile-stress-info-content h3 {
+  margin: 0 0 8px;
+}
+.tile-stress-info-content p,
+.tile-stress-info-content .tile-stress-review,
+.tile-stress-info-content header {
+  margin: 8px 0;
+  padding: 0;
+  position: static;
+  border: 0;
+  background: none;
+}

@@ -7,7 +7,7 @@ export type SurfaceTileMode = (typeof SURFACE_TILE_OPTIONS)[number];
 
 export const SURFACE_TILE_LABELS: Record<SurfaceTileMode, string> = {
   stadtplan: "Vector map",
-  luftbild: "Luftbild raster",
+  luftbild: "True Ortho 03/2024",
 };
 
 export const WUPPERTAL_TERRAIN_SOURCE_ID = "source-wuppertal-terrain";
@@ -16,11 +16,14 @@ const BASEMAP_SOURCE_ID = "source-basemap";
 const BASEMAP_LAYER_ID = "layer-basemap";
 const STADTPLAN_TILE_URL =
   "https://geodaten.metropoleruhr.de/spw2?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=spw2_light&STYLE=default&FORMAT=image/png&TILEMATRIXSET=webmercator_hq&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}";
+// Decision: real 512 px responses, not upscaled 256 px WMTS tiles. The server
+// only caches the 256 px WMTS grid; these WMS tiles use HTTP caching instead.
+// See MESH-REFERENCE-20260914 in MESH_REFERENCE_DECISIONS.md.
 const LUFTBILD_TILE_URL =
-  "https://maps.wuppertal.de/karten?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS=R102:trueortho2022&STYLES=&FORMAT=image/png&TRANSPARENT=false&SRS=EPSG:3857&BBOX={bbox-epsg-3857}&WIDTH=256&HEIGHT=256";
+  "https://geo.udsp.wuppertal.de/geoserver-cloud/ows?service=WMS&version=1.1.1&request=GetMap&layers=GIS-102:trueortho2024&styles=&format=image/png&transparent=true&width=512&height=512&srs=EPSG:3857&bbox={bbox-epsg-3857}&tiled=true";
 
 export const createWuppertalStoryStyle = (
-  surfaceTiles: SurfaceTileMode
+  surfaceTiles: SurfaceTileMode | null
 ): StyleSpecification => {
   const isLuftbild = surfaceTiles === "luftbild";
 
@@ -35,22 +38,39 @@ export const createWuppertalStoryStyle = (
         maxzoom: NRW_DGM1_DHHN2016_TERRARIUM_TERRAIN.maxzoom,
         encoding: NRW_DGM1_DHHN2016_TERRARIUM_TERRAIN.encoding,
       },
-      [BASEMAP_SOURCE_ID]: {
-        type: "raster",
-        tiles: [isLuftbild ? LUFTBILD_TILE_URL : STADTPLAN_TILE_URL],
-        tileSize: 256,
-        attribution: isLuftbild ? "© Stadt Wuppertal" : "© RVR",
-      },
+      ...(surfaceTiles === null
+        ? {}
+        : {
+            [BASEMAP_SOURCE_ID]: {
+              type: "raster" as const,
+              tiles: [isLuftbild ? LUFTBILD_TILE_URL : STADTPLAN_TILE_URL],
+              ...(isLuftbild
+                ? {
+                    minzoom: 10,
+                    maxzoom: 22,
+                    bounds: [
+                      6.986948485777907, 51.09384481369635, 7.410374849511482,
+                      51.406142167786214,
+                    ] as [number, number, number, number],
+                  }
+                : {}),
+              tileSize: isLuftbild ? 512 : 256,
+              attribution: isLuftbild ? "© Stadt Wuppertal" : "© RVR",
+            },
+          }),
     },
-    layers: [
-      {
-        id: BASEMAP_LAYER_ID,
-        type: "raster",
-        source: BASEMAP_SOURCE_ID,
-        paint: {
-          "raster-opacity": isLuftbild ? 1 : 0.9,
-        },
-      },
-    ],
+    layers:
+      surfaceTiles === null
+        ? []
+        : [
+            {
+              id: BASEMAP_LAYER_ID,
+              type: "raster",
+              source: BASEMAP_SOURCE_ID,
+              paint: {
+                "raster-opacity": isLuftbild ? 1 : 0.9,
+              },
+            },
+          ],
   };
 };

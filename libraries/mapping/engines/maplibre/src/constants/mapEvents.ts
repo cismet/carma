@@ -6,6 +6,8 @@ export const MAPLIBRE_EVENT = {
   MOVE_START: "movestart",
   RENDER: "render",
   RESIZE: "resize",
+  ZOOM_START: "zoomstart",
+  ZOOM_END: "zoomend",
   STYLE_DATA: "styledata",
   STYLE_DATA_LOADING: "styledataloading",
   STYLE_LOAD: "style.load",

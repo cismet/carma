@@ -45,6 +45,13 @@ export const MIN_MOBILE_WIDTH = 600;
 export const DEFAULT_CAMERA_FOV_DEG = 60;
 
 /**
+ * What the MapLibre map shows where nothing is drawn: outside a standalone
+ * tileset's coverage, or before its tiles arrive. A neutral midday tone
+ * rather than black or the page background.
+ */
+export const MAP_BACKGROUND_COLOR = "#d8dde3";
+
+/**
  * Addons every route gets. A route declaring the same addon replaces the entry
  * here, see `withDefaultAddons`.
  *

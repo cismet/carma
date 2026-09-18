@@ -8,7 +8,8 @@ import {
 } from "./PointLabelSlots.story-helpers";
 
 const meta = {
-  title: "Overlay/Labels (WIP)",
+  title: "Annotations/Labels/Experiments",
+  id: "overlay-labels-wip",
   parameters: {
     layout: "fullscreen",
     controls: {

@@ -2,20 +2,35 @@ import type { TextureColorCorrection } from "@carma-commons/resources";
 import { useEffect, useRef } from "react";
 
 import { useLibreContext } from "../contexts/LibreContext";
-import { WUPPERTAL_TERRAIN_SOURCE_ID } from "../constants/wuppertalDefaultStyle";
+import {
+  WUPPERTAL_CONFIG,
+  WUPPERTAL_TERRAIN_SOURCE_ID,
+  createTerrainSources,
+} from "../constants/wuppertalDefaultStyle";
 import { add3dPresence, remove3dPresence } from "../utils/threeDPresence";
 import {
   notifySharedThreeSceneContentChanged,
   notifySharedThreeSceneRequestStateChanged,
   registerSharedThreeSceneRuntime,
 } from "../lib/runtime/integrations/shared-three-scene-content-registry";
+import { claimStandaloneTerrain } from "../lib/runtime/integrations/shared-three-terrain-registry";
+import { fetchGroundElevationMeters } from "../lib/core/ground-elevation";
 import { acquireSharedThreeScene } from "../lib/runtime/integrations/shared-three-scene-registry";
 import { buildThreeTilesRuntime } from "../lib/runtime/integrations/three-tiles-runtime";
 import {
   THREE_TILES_DEFAULT_REQUEST_CONCURRENCY,
   TILES_ERROR_TARGET_DEFAULT_PIXELS,
 } from "../lib/runtime/integrations/three-tiles-runtime-config";
-import type { ThreeTilesRuntime } from "../lib/runtime/integrations/three-tiles-runtime-types";
+import type {
+  ThreeTilesRuntime,
+  TilesetEntryHint,
+} from "../lib/runtime/integrations/three-tiles-runtime-types";
+
+/**
+ * Far-plane floor for a standalone tileset whose ground could not be read from
+ * the DEM: well below any ground in the state, see `keepFarPlane`.
+ */
+const STANDALONE_MIN_ELEVATION_FALLBACK_METERS = -500;
 
 // ─────────────────────────────────────────────────────────────
 //  Tiles3dLayerManager: mounts a 3D Tiles tileset named by a style.
@@ -33,8 +48,18 @@ export interface Tiles3dConfig {
   colorCorrection?: TextureColorCorrection;
   /** The tileset.json. */
   tilesetUrl: string;
-  /** Pixels of allowed error; lower asks for more detail. */
+  /** Idle refinement target in pixels; lower asks for more detail. */
   errorTarget?: number;
+  /**
+   * Error target of the first, coarse pass over a terrain-providing tileset
+   * before loading the residual surface and refining to `errorTarget`.
+   * Existing coverage remains until a complete replacement is ready.
+   */
+  baseErrorTarget?: number;
+  /** Residual whole-extent resolution; absent or zero uses the entry hint. */
+  tilesetMinResolutionPx?: number;
+  /** Register the runtime for the diagnostics story (window.__carmaTiles3d). */
+  diagnostics?: boolean;
   /** 0 to 1. */
   opacity?: number;
   /**
@@ -72,6 +97,15 @@ export interface Tiles3dConfig {
   terrainMandatory?: boolean;
   /** The tileset itself supplies terrain, so separate Three.js terrain is redundant. */
   providesTerrain?: boolean;
+  /**
+   * How the map's own content meets the tileset. `labels` (default) drapes
+   * the point labels over a terrain-providing tileset and needs MapLibre
+   * terrain for the centre elevation. `none` shows the tileset on its own:
+   * no drape, no MapLibre terrain, the tileset's ground anchors the map plane.
+   */
+  basemap?: "labels" | "none";
+  /** Root and residency hints for a paged hierarchy, see `TilesetEntryHint`. */
+  entry?: TilesetEntryHint;
 }
 
 export interface Tiles3dLayerManagerProps {
@@ -129,56 +163,146 @@ export function Tiles3dLayerManager({
       "-"
     )}`;
     const lease = acquireSharedThreeScene(map);
-    const runtime = buildThreeTilesRuntime(
-      runtimeId,
-      config.tilesetUrl,
-      origin,
-      {
-        requestConcurrency: THREE_TILES_DEFAULT_REQUEST_CONCURRENCY,
-        cameraLocalMount: true,
-        cacheBudgetBytes: initialConfig.cacheBudgetBytes,
-        cacheOverflowBytes: initialConfig.cacheOverflowBytes,
-        outline: initialConfig.outline,
-        outlineColor: initialConfig.outlineColor,
-        outlineOpacity: initialConfig.outlineOpacity,
-        providesTerrain: config.providesTerrain,
-        colorCorrection: initialConfig.colorCorrection,
-        shadowBuildingStyle: true,
-        onContentChanged: (changedBounds, changedRoots) =>
-          notifySharedThreeSceneContentChanged(map, {
-            bounds: changedBounds,
-            roots: changedRoots,
-          }),
-        onRequestStateChange: () =>
-          notifySharedThreeSceneRequestStateChanged(map),
+    let disposed = false;
+    let teardown: (() => void) | null = null;
+    const standalone = initialConfig.basemap === "none";
+    const build = (groundReferenceMeters: number | null) => {
+      if (disposed) return;
+      const runtime = buildThreeTilesRuntime(
+        runtimeId,
+        config.tilesetUrl,
+        origin,
+        {
+          requestConcurrency: THREE_TILES_DEFAULT_REQUEST_CONCURRENCY,
+          cameraLocalMount: true,
+          cacheBudgetBytes: initialConfig.cacheBudgetBytes,
+          cacheOverflowBytes: initialConfig.cacheOverflowBytes,
+          outline: initialConfig.outline,
+          outlineColor: initialConfig.outlineColor,
+          outlineOpacity: initialConfig.outlineOpacity,
+          providesTerrain: config.providesTerrain,
+          mapStyleDrape: initialConfig.basemap,
+          // The DEM answer anchors the ground before the first traversal; the
+          // probe on arriving tiles is the fallback when no DEM is reachable.
+          groundReferenceMeters: groundReferenceMeters ?? undefined,
+          selfGroundReference: standalone && groundReferenceMeters === null,
+          baseErrorTargetPixels: initialConfig.baseErrorTarget,
+          diagnostics: initialConfig.diagnostics,
+          entry: initialConfig.entry,
+          colorCorrection: initialConfig.colorCorrection,
+          shadowBuildingStyle: true,
+          onContentChanged: (changedBounds, changedRoots) =>
+            notifySharedThreeSceneContentChanged(map, {
+              bounds: changedBounds,
+              roots: changedRoots,
+            }),
+          onRequestStateChange: () =>
+            notifySharedThreeSceneRequestStateChanged(map),
+        }
+      );
+      runtime.loading.setErrorTarget(resolveTiles3dErrorTarget(initialConfig));
+      runtime.loading.setTilesetMinResolution(
+        initialConfig.tilesetMinResolutionPx !== undefined &&
+          initialConfig.tilesetMinResolutionPx > 0
+          ? initialConfig.tilesetMinResolutionPx
+          : null
+      );
+      runtime.appearance.setOpacity(
+        (initialConfig.opacity ?? 1) * (layerOpacityRef.current ?? 1)
+      );
+      runtime.appearance.setOutlineVisible(initialConfig.outline ?? true);
+      runtimeRef.current = runtime;
+      lease.layer.addRuntime(runtime.scene);
+      // What lets the camera restriction know the map has become three
+      // dimensional. A tileset stays out of the raycast registry, which
+      // holds layers that answer `raycast`, and this one does not.
+      add3dPresence(map, runtimeId);
+      const unregisterRuntime = registerSharedThreeSceneRuntime(
+        map,
+        runtime.scene
+      );
+      const releaseStandaloneTerrain = standalone
+        ? claimStandaloneTerrain(map, runtimeId)
+        : null;
+      // Without MapLibre terrain the far plane sits one percent of the camera
+      // distance below elevation zero, and this tileset's ground is anchored
+      // at the DEM height of the layer origin: valleys below that plane were
+      // clipped, a blank that climbed uphill with every zoom step. Terrain
+      // normally feeds the minimum elevation; here the anchor height does.
+      const minElevation = standalone
+        ? groundReferenceMeters !== null
+          ? -groundReferenceMeters
+          : STANDALONE_MIN_ELEVATION_FALLBACK_METERS
+        : null;
+      const keepFarPlane = () => {
+        if (minElevation === null || !mapIsUsable(map)) return;
+        if (map.transform.minElevationForCurrentTile !== minElevation)
+          map.transform.setMinElevationForCurrentTile(minElevation);
+      };
+      if (minElevation !== null) {
+        keepFarPlane();
+        map.on("move", keepFarPlane);
+        map.on("render", keepFarPlane);
+        // The matrices recompute on the next camera change; nudge one.
+        const center = map.getCenter();
+        map.jumpTo({ center: [center.lng + 1e-9, center.lat] });
+        map.jumpTo({ center: [center.lng, center.lat] });
       }
-    );
-    runtime.loading.setErrorTarget(resolveTiles3dErrorTarget(initialConfig));
-    runtime.appearance.setOpacity(
-      (initialConfig.opacity ?? 1) * (layerOpacityRef.current ?? 1)
-    );
-    runtime.appearance.setOutlineVisible(initialConfig.outline ?? true);
-    runtimeRef.current = runtime;
-    lease.layer.addRuntime(runtime.scene);
-    // What lets the camera restriction know the map has become three
-    // dimensional. A tileset stays out of the raycast registry, which
-    // holds layers that answer `raycast`, and this one does not.
-    add3dPresence(map, runtimeId);
-    const unregisterRuntime = registerSharedThreeSceneRuntime(
-      map,
-      runtime.scene
-    );
-
+      teardown = () => {
+        runtimeRef.current = null;
+        if (minElevation !== null) {
+          map.off("move", keepFarPlane);
+          map.off("render", keepFarPlane);
+          if (
+            mapIsUsable(map) &&
+            map.transform.minElevationForCurrentTile === minElevation
+          )
+            map.transform.setMinElevationForCurrentTile(0);
+        }
+        releaseStandaloneTerrain?.();
+        remove3dPresence(map, runtimeId);
+        unregisterRuntime();
+        if (lease.layer.hasRuntime(runtime.scene.id)) {
+          lease.layer.removeRuntime(runtime.scene.id);
+        }
+      };
+    };
+    if (standalone) {
+      // One DEM tile at the origin instead of MapLibre terrain for the whole
+      // viewport. The host's background style declares the terrain source
+      // (LibreMap builds it from the engine's own declaration). On a reload
+      // the manager mounts between the frame that instantiates the source and
+      // the frame that copies its TileJSON onto it, so the live instance
+      // exists without `tiles` yet; the declaration is then the answer, and
+      // `tiles`, `maxzoom` and `encoding` come from one consistent object.
+      type TerrainSourceLike = {
+        tiles?: string[];
+        maxzoom?: number;
+        encoding?: string;
+      };
+      const liveSource = map.getSource(WUPPERTAL_TERRAIN_SOURCE_ID) as
+        | TerrainSourceLike
+        | undefined;
+      const terrainSource: TerrainSourceLike | undefined = liveSource?.tiles
+        ?.length
+        ? liveSource
+        : (createTerrainSources(WUPPERTAL_CONFIG)[
+            WUPPERTAL_TERRAIN_SOURCE_ID
+          ] as TerrainSourceLike | undefined);
+      const template = terrainSource?.tiles?.[0];
+      if (template && terrainSource?.encoding !== "mapbox") {
+        void fetchGroundElevationMeters(origin[0], origin[1], {
+          tileUrlTemplate: template,
+          maxzoom: terrainSource.maxzoom,
+        }).then(build);
+      } else build(null);
+    } else build(null);
     return () => {
-      runtimeRef.current = null;
-      remove3dPresence(map, runtimeId);
-      unregisterRuntime();
-      if (lease.layer.hasRuntime(runtime.scene.id)) {
-        lease.layer.removeRuntime(runtime.scene.id);
-      }
+      disposed = true;
+      teardown?.();
       lease.release();
     };
-  }, [map, config.tilesetUrl, config.providesTerrain]);
+  }, [map, config.tilesetUrl, config.providesTerrain, config.basemap]);
 
   // Terrain is only ever switched on here, never off again: the way back
   // belongs to the terrain control, and so does the setting it persists.
@@ -191,8 +315,14 @@ export function Tiles3dLayerManager({
   // change is never a reason to switch it on a second time. Without that guard
   // the next change to the layer list would undo a deliberate switch-off.
   useEffect(() => {
-    if (!map || (!config.terrainMandatory && !config.providesTerrain)) return;
-
+    if (!map) return;
+    if (config.basemap === "none") {
+      // A standalone tileset anchors its own ground; MapLibre terrain would
+      // only stream DEM tiles nothing draws on.
+      if (mapIsUsable(map) && map.getTerrain()) map.setTerrain(null);
+      return;
+    }
+    if (!config.terrainMandatory && !config.providesTerrain) return;
     terrainSettledRef.current = false;
 
     const demandTerrain = () => {
@@ -213,13 +343,23 @@ export function Tiles3dLayerManager({
     return () => {
       map.off("styledata", demandTerrain);
     };
-  }, [map, config.terrainMandatory, config.providesTerrain]);
+  }, [map, config.basemap, config.terrainMandatory, config.providesTerrain]);
 
   useEffect(() => {
     runtimeRef.current?.loading.setErrorTarget(
-      resolveTiles3dErrorTarget({ errorTarget: config.errorTarget })
+      resolveTiles3dErrorTarget({ errorTarget: config.errorTarget }),
+      config.baseErrorTarget
     );
-  }, [config.errorTarget]);
+  }, [config.errorTarget, config.baseErrorTarget]);
+
+  useEffect(() => {
+    runtimeRef.current?.loading.setTilesetMinResolution(
+      config.tilesetMinResolutionPx !== undefined &&
+        config.tilesetMinResolutionPx > 0
+        ? config.tilesetMinResolutionPx
+        : null
+    );
+  }, [config.tilesetMinResolutionPx]);
 
   useEffect(() => {
     runtimeRef.current?.loading.setCacheBudget(config.cacheBudgetBytes, {

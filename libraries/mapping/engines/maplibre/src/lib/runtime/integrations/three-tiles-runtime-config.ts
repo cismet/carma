@@ -29,6 +29,15 @@ export const MESH_PARSE_CONCURRENCY = 2;
 
 export const MESH_DOWNLOAD_CONCURRENCY = 16;
 
+/**
+ * Skip strategy while the camera moves: downloads and scene commits continue
+ * at a bounded rate so newly exposed ground fills during a drag or a zoom
+ * instead of in one burst afterwards. Parsing commits Three objects on the
+ * renderer thread, hence the small parse limit.
+ */
+export const MESH_MOTION_DOWNLOAD_CONCURRENCY = 8;
+export const MESH_MOTION_PARSE_CONCURRENCY = 2;
+
 export const MESH_PARSE_BACKLOG_SOFT_LIMIT = 12;
 
 export const MESH_PARSE_BACKLOG_HARD_LIMIT = 24;

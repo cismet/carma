@@ -17,6 +17,10 @@ export default defineConfig({
   ],
 
   worker: {
+    // The diagnostics, hierarchy and terrain workers are module workers and
+    // code-split, which rules out the default iife output. The geoportal and
+    // stories configs already set this for the same reason.
+    format: "es",
     plugins: () => [nxViteTsPaths()],
   },
 

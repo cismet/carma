@@ -29,6 +29,29 @@ export const WUPP_MESH_2024: TilesetConfig & {
   type: TilesetType.MESH,
 };
 
+/**
+ * Published root snapshot for reproducible coordinate-reference diagnostics.
+ * Both mesh2024 endpoints returned these values. The transform is column-major;
+ * the oriented bounding box is center plus three half-axis vectors, not an AABB.
+ * WGS84/ECEF is an interpretation for diagnostics, not certified datum provenance.
+ */
+export const WUPP_MESH_2024_ROOT_REFERENCE = {
+  source: WUPP_MESH_2024.url,
+  alternateSources: WUPP_MESH_2024.alternateUrls,
+  retrievedOn: "2026-09-14",
+  evidence: "output/playwright/mesh-crs-source-metadata.log",
+  assetVersion: "1.0",
+  datumStatus: "horizontal and vertical datum not certified by root metadata",
+  transform: [
+    -0.124701, 0.992194, 0, 0, -0.773701, -0.09724, 0.626044, 0, 0.621158,
+    0.078068, 0.779787, 0, 3970046.914097, 498961.576644, 4950543.333325, 1,
+  ],
+  box: [
+    21.049049422586904, 74.31243227567029, -3.2565184752456844, 10646.484375, 0,
+    0, 0, 0, 531.45654296875, 0, 8620.49609375, 0,
+  ],
+} as const;
+
 export const WUPP_LOD2_TILESET: TilesetConfig = {
   url: "https://wupp-3d-data.cismet.de/lod2/tileset.json",
   key: "wupp-lod2",

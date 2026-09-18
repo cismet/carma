@@ -41,6 +41,8 @@ export function createThreeTilesAppearance(
     | "opacity"
     | "wireframe"
     | "mapStyleProjectionVersion"
+    | "materialRevision"
+    | "tiles"
     | "outlineColor"
     | "outlineOpacity"
     | "orientationGroup"
@@ -249,15 +251,21 @@ export function createThreeTilesAppearance(
     root: THREE.Object3D
   ) => {
     dependencies.normalizeSeparatedBuildingSurfaces(root);
+    root.userData.materialRevision = runtimeState.materialRevision;
     const useClayShading = runtimeState.whiteShading;
     const effectiveClayColor = runtimeState.clayColor;
     runtimeState.shadowAppearanceUniforms.uShadowUniformColorMix.value =
       runtimeState.shadowSimulationStyle?.uniformColor
         ? clamp(runtimeState.shadowSimulationStyle.uniformColorMix ?? 1, 0, 1)
         : 0;
+    // Dataset colour correction is part of how the tileset is meant to look,
+    // in the plain view as much as under the shadow simulation, which keeps
+    // its own switch for it.
     const correctionEnabled =
       runtimeState.options.colorCorrection !== undefined &&
-      runtimeState.shadowSimulationStyle?.textureColorCorrection === true;
+      (runtimeState.shadowSimulationStyle
+        ? runtimeState.shadowSimulationStyle.textureColorCorrection === true
+        : true);
     runtimeState.shadowAppearanceUniforms.uShadowTextureSaturation.value =
       clamp(
         (runtimeState.shadowSimulationStyle?.textureSaturation ?? 1) *
@@ -397,7 +405,20 @@ export function createThreeTilesAppearance(
 
   const refreshRenderedMaterials: ThreeTilesRuntimeServices["refreshRenderedMaterials"] =
     (root: THREE.Object3D) => {
+      const groupWide = root === runtimeState.orientationGroup;
+      // A group-wide restyle reaches the tiles attached right now. A tile
+      // hidden at this moment catches up when it next becomes visible
+      // (`handleTileVisibilityChange`), a tile still loading when it arrives:
+      // both compare their stamp against this revision.
+      if (groupWide) runtimeState.materialRevision += 1;
       applyMaterialFlags(root);
+      if (groupWide)
+        for (const tile of runtimeState.tiles?.visibleTiles ?? []) {
+          const scene = (tile as { engineData?: { scene?: THREE.Object3D } })
+            .engineData?.scene;
+          if (scene)
+            scene.userData.materialRevision = runtimeState.materialRevision;
+        }
       runtimeState.mapStyleProjectionVersion += 1;
     };
 

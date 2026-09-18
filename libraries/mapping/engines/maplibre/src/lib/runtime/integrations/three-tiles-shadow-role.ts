@@ -65,3 +65,40 @@ export const setTileShadowRole = (
       setTileShadowMaterialReceiver(material, role.receiver);
   });
 };
+
+const underlays = new WeakSet<Object3D>();
+const underlayDepthWrite = new WeakMap<Material, boolean>();
+
+/**
+ * Draw a fallback parent before everything else and without depth writes:
+ * the finer tiles drawn afterwards cover it wherever they exist, so no bump
+ * of the coarse surface can poke through, and only the missing quadrants
+ * show the parent.
+ */
+export const setTileDepthUnderlay = (
+  root: Object3D,
+  underlay: boolean,
+  renderOrder = -1
+): void => {
+  // Re-applied while an underlay: a restyle in between resets depth writes.
+  if (!underlay && !underlays.has(root)) return;
+  if (underlay) underlays.add(root);
+  else underlays.delete(root);
+  root.traverse((object) => {
+    const mesh = object as Mesh;
+    if (!mesh.isMesh) return;
+    mesh.renderOrder = underlay ? renderOrder : 0;
+    for (const material of Array.isArray(mesh.material)
+      ? mesh.material
+      : [mesh.material]) {
+      if (underlay) {
+        if (!underlayDepthWrite.has(material))
+          underlayDepthWrite.set(material, material.depthWrite);
+        material.depthWrite = false;
+      } else {
+        material.depthWrite = underlayDepthWrite.get(material) ?? true;
+        underlayDepthWrite.delete(material);
+      }
+    }
+  });
+};

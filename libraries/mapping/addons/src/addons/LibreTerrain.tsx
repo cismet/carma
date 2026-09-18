@@ -4,6 +4,8 @@ import type { Map as MaplibreMap } from "maplibre-gl";
 import { Control, type Positions } from "@carma-mapping/map-controls-layout";
 import {
   WUPPERTAL_TERRAIN_SOURCE_ID,
+  hasStandaloneTerrain,
+  subscribeSharedThreeTerrain,
   useCameraRestriction,
 } from "@carma-mapping/engines/maplibre";
 import { LibreTerrainControl } from "@carma-mapping/components";
@@ -45,7 +47,8 @@ const setTerrainEnabled = (
   source: string,
   exaggeration: number
 ) => {
-  if (!enabled) {
+  // A standalone tileset anchors its own ground; terrain stays off for it.
+  if (!enabled || hasStandaloneTerrain(map)) {
     if (map.getTerrain()) {
       map.setTerrain(null);
     }
@@ -82,8 +85,10 @@ const useTerrainWhileCameraFree = (
     };
     apply();
     map.on("styledata", apply);
+    const unsubscribeTerrain = subscribeSharedThreeTerrain(map, apply);
     return () => {
       map.off("styledata", apply);
+      unsubscribeTerrain();
       setTerrainEnabled(map, false, source, exaggeration);
     };
   }, [map, enabled, restricted, source, exaggeration]);

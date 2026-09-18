@@ -12,6 +12,8 @@ import type { LibreLayer } from "@carma-mapping/core";
 import { geoportalBackgroundToLibreLayers } from "../../components/GeoportalMap/geoportalBackgroundToLibreLayers";
 import {
   geoportalLayersToLibreLayers,
+  isAppOwnedLayer,
+  layerIsStandaloneMesh,
   layerProvidesTerrainMesh,
 } from "../../components/GeoportalMap/geoportalLayersToLibreLayers";
 import { backgroundConfig } from "../../config/backgroundConfig";
@@ -37,11 +39,20 @@ export const useLibreLayers = (): LibreLayer[] => {
   }, [geoportalLayers, pathname, search]);
 
   const computedLibreLayers = useMemo(() => {
-    const terrainMeshActive = drawnLayers.some(layerProvidesTerrainMesh);
+    // the mesh decisions look at what is drawn, so a layer its condition keeps
+    // off the map neither holds the base map nor takes it away
+    const userLayers = drawnLayers.filter(
+      (layer) => layer.visible && !isAppOwnedLayer(layer)
+    );
+    const standaloneMeshOnly =
+      userLayers.length > 0 && userLayers.every(layerIsStandaloneMesh);
+    const terrainMeshActive =
+      !standaloneMeshOnly && drawnLayers.some(layerProvidesTerrainMesh);
     return [
       ...geoportalBackgroundToLibreLayers(backgroundLayer, namedLayers, {
         terrainMeshActive,
         shadowTerrainActive: shadowState?.enabled === true,
+        standaloneMeshOnly,
       }),
       ...geoportalLayersToLibreLayers(drawnLayers),
     ];

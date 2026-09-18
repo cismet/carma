@@ -1,4 +1,3 @@
-import { WUPP_MESH_2024 } from "@carma-commons/resources";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -26,7 +25,6 @@ describe("terrain provider metadata", () => {
         },
       },
     };
-
     expect(withTerrainProviderMetadata(carrier, true)).toMatchObject({
       carmaConf: {
         "3d": {
@@ -39,45 +37,57 @@ describe("terrain provider metadata", () => {
       carmaConf: { "3d": { providesTerrain: true } },
     });
   });
-});
 
-describe("dataset color correction metadata", () => {
-  it.each([WUPP_MESH_2024.url, ...WUPP_MESH_2024.alternateUrls])(
-    "attaches the 2024 calibration only to its registered delivery %s",
-    (tilesetUrl) => {
-      const metadata = {
-        carmaConf: { "3d": { renderMode: "tiles3d", tilesetUrl } },
-      };
-      expect(withTerrainProviderMetadata(metadata, true)).toMatchObject({
-        carmaConf: {
-          "3d": { colorCorrection: WUPP_MESH_2024.colorCorrection },
-        },
-      });
-      expect(metadata.carmaConf["3d"]).not.toHaveProperty("colorCorrection");
-    }
-  );
-  it("preserves a catalog calibration and leaves unknown datasets unchanged", () => {
-    const metadata = {
+  it("carries a style-level tileset declaration onto layers without their own", () => {
+    const styleMetadata = {
       carmaConf: {
         "3d": {
           renderMode: "tiles3d",
-          tilesetUrl: WUPP_MESH_2024.url,
+          tilesetUrl: "https://tiles.example.test/tileset.json",
+          basemap: "none",
           colorCorrection: {
-            gamma: [1, 1, 1],
+            gamma: [1.25, 1.25, 1.23],
             blackPoint: [0, 0, 0],
-            whitePoint: [1, 1, 1],
-            saturation: 0.8,
+            whitePoint: [0.9, 0.9, 0.92],
+            saturation: 1,
           },
         },
       },
     };
-    expect(withTerrainProviderMetadata(metadata, true)).toMatchObject(metadata);
+    const carried = withTerrainProviderMetadata(
+      { "z-index": 3 },
+      true,
+      styleMetadata
+    );
+    expect(carried).toMatchObject({
+      "z-index": 3,
+      carmaConf: {
+        "3d": {
+          renderMode: "tiles3d",
+          basemap: "none",
+          providesTerrain: true,
+          colorCorrection: { saturation: 1 },
+        },
+      },
+    });
+    // A layer's own declaration wins over the style's.
+    const own = withTerrainProviderMetadata(
+      { carmaConf: { "3d": { renderMode: "tiles3d", tilesetUrl: "x" } } },
+      false,
+      styleMetadata
+    );
+    expect((own.carmaConf as { "3d": object })["3d"]).not.toHaveProperty(
+      "basemap"
+    );
+  });
+
+  it("adds no calibration of its own for any dataset", () => {
     const unknown = withTerrainProviderMetadata(
       {
         carmaConf: {
           "3d": {
             renderMode: "tiles3d",
-            tilesetUrl: "https://other.example/mesh2024/tileset.json",
+            tilesetUrl: "https://wupp-3d-data.cismet.de/mesh2024/tileset.json",
           },
         },
       },

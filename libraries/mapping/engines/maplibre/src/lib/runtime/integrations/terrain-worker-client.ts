@@ -28,9 +28,12 @@ let disposalError: Error | undefined;
 let dispatchYieldTimer: ReturnType<typeof setTimeout> | undefined;
 const MAX_DISPATCH_BATCH_MS = 2;
 const isOptionalCacheTask = (task: TerrainWorkerTask) =>
-  task.kind === "read-cache" || task.kind === "write-cache" ||
-  task.kind === "read-height-metadata" || task.kind === "write-height-metadata" ||
-  task.kind === "cache-cost" || task.kind === "calibrate-cache";
+  task.kind === "read-cache" ||
+  task.kind === "write-cache" ||
+  task.kind === "read-height-metadata" ||
+  task.kind === "write-height-metadata" ||
+  task.kind === "cache-cost" ||
+  task.kind === "calibrate-cache";
 
 const updateLoad = () => {
   if (disposalError) return;
@@ -107,8 +110,8 @@ const pump = () => {
       }
       const running = slots.filter((candidate) => candidate.job);
       if (running.length >= scaling.concurrency) {
-        const foregroundIndex = queue.findIndex((job) =>
-          !isOptionalCacheTask(job.task)
+        const foregroundIndex = queue.findIndex(
+          (job) => !isOptionalCacheTask(job.task)
         );
         // A cache miss may precede a slow download. When that source finally
         // needs conversion, no further read deadline exists to free hung IDB
@@ -117,13 +120,20 @@ const pump = () => {
         // cooperative abort alone cannot release a hung native storage call.
         // Worker termination aborts uncommitted IDB transactions/releases locks;
         // ordinary terrain work is never killed by this scheduling decision.
-        if (preemptedCacheWorker || foregroundIndex === -1 ||
-          !running.every((slot) => isOptionalCacheTask(slot.job!.task))) return;
-        const victim = [...running].sort((a, b) =>
-          TASK_PRIORITY[b.job!.task.kind] - TASK_PRIORITY[a.job!.task.kind]
+        if (
+          preemptedCacheWorker ||
+          foregroundIndex === -1 ||
+          !running.every((slot) => isOptionalCacheTask(slot.job!.task))
+        )
+          return;
+        const victim = [...running].sort(
+          (a, b) =>
+            TASK_PRIORITY[b.job!.task.kind] - TASK_PRIORITY[a.job!.task.kind]
         )[0];
         preemptedCacheWorker = true;
-        victim.job!.reject(new DOMException("Cache yielded to visible terrain", "AbortError"));
+        victim.job!.reject(
+          new DOMException("Cache yielded to visible terrain", "AbortError")
+        );
         removeSlot(victim);
         // A queued cache read has equal priority to selection; the reclaimed
         // slot must go to the actual foreground work that justified preemption.
@@ -224,10 +234,19 @@ const pump = () => {
         const task = active.job.task;
         // Cache snapshots are already owned by the write, unlike live source
         // tiles. Transfer their geometry instead of cloning it a second time.
-        const transfers = task.kind === "write-cache" ? [
-          task.entry.reliefVertexMask.buffer,
-          ...(task.entry.geometry ? [task.entry.geometry.positions.buffer, task.entry.geometry.normals.buffer, task.entry.geometry.indices.buffer] : []),
-        ] as ArrayBuffer[] : [];
+        const transfers =
+          task.kind === "write-cache"
+            ? ([
+                task.entry.reliefVertexMask.buffer,
+                ...(task.entry.geometry
+                  ? [
+                      task.entry.geometry.positions.buffer,
+                      task.entry.geometry.normals.buffer,
+                      task.entry.geometry.indices.buffer,
+                    ]
+                  : []),
+              ] as ArrayBuffer[])
+            : [];
         if (transfers.length) active.worker.postMessage(task, transfers);
         else active.worker.postMessage(task);
         if (performance.now() - batchStartedAt >= MAX_DISPATCH_BATCH_MS) {
@@ -289,12 +308,15 @@ export const runTerrainWorkerTask = async (
       // Only multi-step idle profiling needs cooperative in-flight abort.
       // Keep the slot owned until its final reply, preventing crossed jobs.
       if (task.kind === "calibrate-cache") {
-        slots.find(slot => slot.job === job)?.worker.postMessage({kind: "cancel-current"});
+        slots
+          .find((slot) => slot.job === job)
+          ?.worker.postMessage({ kind: "cancel-current" });
       }
       job.reject(signal?.reason);
-      if (isOptionalCacheTask(task) && task.kind !== "calibrate-cache") {
-        // IDB need not finish after aborting its caller. Release the optional
-        // cache worker (and its native locks) so visible terrain can proceed.
+      if (task.kind !== "calibrate-cache") {
+        // A cancelled job exclusively owns this slot. Stop obsolete conversion
+        // as well as native cache I/O; shared source requests abort only after
+        // their last consumer leaves. Unrelated worker jobs remain untouched.
         // Removed-slot guards discard even an already-queued late message.
         const active = slots.find((slot) => slot.job === job);
         if (active) removeSlot(active);

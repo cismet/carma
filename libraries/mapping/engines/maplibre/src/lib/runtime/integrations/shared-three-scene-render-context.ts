@@ -40,15 +40,23 @@ const clearSharedDepthBuffer = (
  */
 export const clearMapStyleGroundBeforeThreeTerrain = (
   gl: GroundClearContext,
-  mapLibreDepthRange: DepthRange
+  mapLibreDepthRange: DepthRange,
+  clearColor = true
 ): void => {
-  const clearColor = gl.getParameter(gl.COLOR_CLEAR_VALUE) as Float32Array;
+  const savedClearColor = gl.getParameter(gl.COLOR_CLEAR_VALUE) as Float32Array;
   gl.depthMask(true);
   gl.depthRange(0, 1);
   gl.clearDepth(1);
-  gl.clearColor(0, 0, 0, 0);
-  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-  gl.clearColor(clearColor[0], clearColor[1], clearColor[2], clearColor[3]);
+  if (clearColor) {
+    gl.clearColor(0, 0, 0, 0);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    gl.clearColor(
+      savedClearColor[0],
+      savedClearColor[1],
+      savedClearColor[2],
+      savedClearColor[3]
+    );
+  } else gl.clear(gl.DEPTH_BUFFER_BIT);
   gl.depthRange(mapLibreDepthRange[0], mapLibreDepthRange[1]);
 };
 

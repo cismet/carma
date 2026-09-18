@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
@@ -12,6 +12,15 @@ const runtimeModules = readdirSync(directory).filter(
 );
 
 describe("three tiles runtime architecture", () => {
+  it("does not retain the replaced standalone tile loading pipeline", () => {
+    const legacyPackage = join(directory, "../../../../../threejs");
+    expect(
+      existsSync(join(legacyPackage, "src/tiles3d/Tiles3dLayer.ts"))
+    ).toBe(false);
+    expect(
+      readFileSync(join(legacyPackage, "src/index.ts"), "utf8")
+    ).not.toMatch(/\b(?:buildTiles3dLayer|Tiles3dCustomLayer)\b/);
+  });
   it("keeps independent types and configuration out of the entry module", () => {
     const source = readFileSync(
       join(directory, "three-tiles-runtime.ts"),

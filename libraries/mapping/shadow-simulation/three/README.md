@@ -1,10 +1,13 @@
 # Standalone Three.js shadow reference
 
-Story: **Mapping / Shadows / Sun Disc** in `playgrounds/stories`.
+Stories: top-level **Shadows / Sun Disc** and **Shadows / Corridors** in
+`playgrounds/stories`. Entry: `?path=/story/shadows-sun-disc--reference`.
 
-The additional **Tiled Corridors** story exercises the shared world-fixed page
-renderer, with extruded LOD digits, optional columns and a camera tour. See
-[implementation, measurements and rollout limits](./TILED_SHADOW_PAGES.md).
+**Corridors** mounts the addon's `ShadowTiledScene` directly, with resident fixture
+geometry, extruded LOD digits, optional columns and an opt-in camera tour.
+It no longer bypasses receiver publication through the old observer atlas.
+See [current story validation and defaults](./STORY_VALIDATION.md) and
+[historical tiled implementation/rollout limits](./TILED_SHADOW_PAGES.md).
 
 The renderer-only entry exports the production `ShadowController` and a small
 DOM host for reference fixtures. The host uses the same `buildSharedSceneAccumulator`
@@ -24,9 +27,9 @@ must remain a separate light contribution.
 The default keeps scene samples in linear FP16 and their progressive average in
 FP32. Repeated FP16 or 8-bit averages can accumulate rounding error as sample
 count grows. AgX, output encoding and static dithering happen only at display.
-The three automatic sun-sampling qualities use 128 / 256 / 512 directions;
+The current addon profiles use `DEFAULT_SHADOW_SUN_DISC_SAMPLES` (64 directions);
 increasing depth-map resolution alone cannot remove angular-sampling bands.
-Geoportal additionally offers an 8192-sample Ultra preset; see
+Higher counts up to 8192 remain explicit reference options; see
 [whole-scene quality policy and measurements](../QUALITY_PROFILES.md).
 
 ## Controls
@@ -43,10 +46,13 @@ target within the same texel budget; the status reports actual dimensions,
 ground texels and residual anisotropy when hardware or fidelity limits prevent
 isotropy. The conservative offscreen-caster guard is retained.
 
-Single-channel R8 / R16F / R32F and hybrid R16F→R32F in the story render **solar
+Retained library experiments with R8 / R16F / R32F and hybrid R16F→R32F render **solar
 visibility**, using Three's own shadow query chunks. They are not a monochrome
 replacement for Geoportal's RGB/material/atmosphere compositor. Their reference
 comparison measures visibility, while RGB comparisons measure linear radiance.
+They are deliberately absent from these addon-parity stories, together with
+cached RGB and scalar-only banding controls. The Float32 precision story replaces
+the previous Cached Lighting story; the experimental implementation is preserved.
 
 ## Benchmark interpretation
 
@@ -73,7 +79,8 @@ based only on `navigator.gpu` presence.
 
 ## Cached RGB plus scalar visibility experiment
 
-Story **Cached Lighting** opts into an R buffer with `cachedLighting`. Two
+The retained (not currently exposed as a story) experiment opts into an R buffer
+with `cachedLighting`. Two
 central-sun RGB targets store the unshadowed and indirect-only scene. The shared
 accumulator then combines their linear colors as
 `indirect + meanVisibility * (unshadowed - indirect)` before tone mapping.
@@ -83,7 +90,7 @@ lighting changes, not once per sun sample. Point-sun previews use full RGB.
 Its benchmark interleaves this real method with full RGB sun integration and
 includes the two cache captures plus final composition in each measurement.
 Image error is measured against the full RGB integral, not merely an R32F mask.
-This is currently **story-only, opaque-scene and approximate**: normal/light
+This is currently **experimental, opaque-scene and approximate**: normal/light
 angle, specular response, normal maps and transmitted light need not be static
 across solar directions. A zero mask-buffer error would not validate this model.
 
@@ -140,8 +147,9 @@ The 4096-sample cached RGB result also retains a measured speed advantage:
 2.879 vs 6.173 seconds summed GPU work, median of five interleaved runs,
 including cache capture and final composition. Queries bracket 16-round
 batches for high-count tests, four for <=512. These are not frame times.
-Detail stories default to 4096; Geoportal offers 1024–8192 as explicit slow
-reference options without increasing its automatic 128/256/512 defaults.
+Those historical precision measurements are not current preview defaults.
+Detail stories now use 128 directions and the ordinary reference uses 64;
+1024–8192 remain explicit slow reference options, not automatic preview quality.
 
 Hammersley/concentric and stratified/concentric disc alternatives did not beat
 the existing Vogel sequence over 32 edge orientations at 512/2048 samples.

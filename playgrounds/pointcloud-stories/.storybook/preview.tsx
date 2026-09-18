@@ -1,6 +1,7 @@
 import type { Preview } from "@storybook/react";
 
 import "../src/styles.css";
+import "./standalone-layout.css";
 
 const preview: Preview = {
   parameters: {
@@ -9,15 +10,8 @@ const preview: Preview = {
       panelPosition: "right",
       storySort: {
         order: [
-          "Pointcloud Investigation",
-          [
-            "Overview",
-            "Point Clouds",
-            "Georadar Volume",
-            "Capture 026",
-            "Elevation Calibration",
-            "MapLibre Integration",
-          ],
+          "Applications",
+          ["Point Clouds", "Georadar", "*"],
         ],
       },
     },

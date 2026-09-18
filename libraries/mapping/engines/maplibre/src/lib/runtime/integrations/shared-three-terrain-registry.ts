@@ -78,6 +78,31 @@ export const subscribeSharedThreeTerrain = (
   };
 };
 
+const standaloneClaims = new WeakMap<MaplibreMap, Set<string>>();
+
+/**
+ * A tileset that anchors its own ground on the map plane. While one is on the
+ * map, MapLibre terrain must stay off: it would stream DEM tiles nothing
+ * draws on and lift the camera target away from the tileset's ground.
+ */
+export const claimStandaloneTerrain = (
+  map: MaplibreMap,
+  id: string
+): (() => void) => {
+  const claims = standaloneClaims.get(map) ?? new Set<string>();
+  claims.add(id);
+  standaloneClaims.set(map, claims);
+  notifySharedThreeTerrainChanged(map);
+  return () => {
+    claims.delete(id);
+    if (claims.size === 0) standaloneClaims.delete(map);
+    notifySharedThreeTerrainChanged(map);
+  };
+};
+
+export const hasStandaloneTerrain = (map: MaplibreMap): boolean =>
+  (standaloneClaims.get(map)?.size ?? 0) > 0;
+
 export const registerSharedThreeTerrainSampler = (
   map: MaplibreMap,
   id: string,

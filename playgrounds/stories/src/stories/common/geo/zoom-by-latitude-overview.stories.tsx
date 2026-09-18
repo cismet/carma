@@ -11,7 +11,8 @@ import {
   Z_QUANTIZE_STEPS,
 } from "./mercator-zoom.shared";
 const meta: Meta<MercatorZoomStoryArgs> = {
-  title: "Geo",
+  title: "Map Navigation/Camera and Scale",
+  id: "geo",
   component: MercatorZoomPlots,
   args: {
     standardRangePreset: STANDARD_RANGE_PRESETS.CUSTOM,

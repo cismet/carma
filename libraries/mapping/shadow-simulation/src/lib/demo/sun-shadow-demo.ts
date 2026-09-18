@@ -47,6 +47,9 @@ export type SunShadowDemoStatus = Readonly<{
   backend: "WebGL2";
   phase: string;
   samples: number;
+  completedSamples: number;
+  settled: boolean;
+  settledAfterMilliseconds?: number;
   width: number;
   height: number;
   shadowMapSize: number;
@@ -114,12 +117,17 @@ export const createSunShadowDemo = (
   let imageDifference: SunShadowImageDifference | undefined;
   let banding: SunShadowBanding | undefined;
   let bandingMeasured = false;
+  let accumulationStartedAt = performance.now();
+  let settledAfterMilliseconds: number | undefined;
 
   const publish = (phase: string) =>
     onStatus({
       backend: "WebGL2",
       phase: benchmarkError ? `${phase}\n${benchmarkError}` : phase,
       samples: options.pointSun ? 1 : options.samples,
+      completedSamples: options.pointSun ? 1 : accumulator.nextRound,
+      settled: options.pointSun || accumulator.converged,
+      settledAfterMilliseconds,
       width: drawingSize.x,
       height: drawingSize.y,
       shadowMapSize: options.shadowMapSize,
@@ -131,7 +139,11 @@ export const createSunShadowDemo = (
       imageDifference,
       banding,
     });
-  const reset = () => accumulator.ensureState(String(++stateVersion));
+  const reset = () => {
+    accumulationStartedAt = performance.now();
+    settledAfterMilliseconds = undefined;
+    return accumulator.ensureState(String(++stateVersion));
+  };
 
   const renderRound = (
     round: number,
@@ -317,6 +329,8 @@ export const createSunShadowDemo = (
       }
     }
     const settled = options.pointSun || accumulator.converged;
+    if (settled && settledAfterMilliseconds === undefined)
+      settledAfterMilliseconds = performance.now() - accumulationStartedAt;
     if (
       settled &&
       !bandingMeasured &&
