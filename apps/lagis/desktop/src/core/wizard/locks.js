@@ -1,6 +1,6 @@
 import wizardQueries from "./queries";
 import { run, ActionNotSuccessfulError, CLASS } from "./api";
-import { deleteObject, saveAndGetId } from "./cidsActions";
+import { deleteObject, fetchClassId, saveAndGetId } from "./cidsActions";
 
 /**
  * Port of the Sperre handling in LagisBroker (isLocked / createLock /
@@ -8,29 +8,6 @@ import { deleteObject, saveAndGetId } from "./cidsActions";
  * the same split the Swing client uses. The write half goes through
  * SaveObject/DeleteObject like every other write.
  */
-
-const SCHLUESSEL_TABLE = "flurstueck_schluessel";
-
-let cachedClassId;
-
-const fetchSchluesselClassId = async (jwt) => {
-  if (cachedClassId !== undefined) {
-    return cachedClassId;
-  }
-  const data = await run(
-    wizardQueries.classIdForTable,
-    { tableName: SCHLUESSEL_TABLE },
-    jwt
-  );
-  const row = (data.cs_class ?? [])[0];
-  if (!row) {
-    throw new ActionNotSuccessfulError(
-      "Die Klasse flurstueck_schluessel konnte auf dem Server nicht gefunden werden."
-    );
-  }
-  cachedClassId = row.id;
-  return cachedClassId;
-};
 
 /** Returns the existing Sperre, or undefined when the key is free. */
 export const findLock = async (schluesselId, jwt) => {
@@ -64,7 +41,7 @@ export const acquireLock = async (
       `Es existiert bereits eine Sperre für das Flurstück ${keyString} und wird von dem Benutzer ${existing.user_string} gehalten.`
     );
   }
-  const classId = await fetchSchluesselClassId(jwt);
+  const classId = await fetchClassId(CLASS.SCHLUESSEL, jwt);
   let id;
   try {
     id = await saveAndGetId(
