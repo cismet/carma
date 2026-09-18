@@ -1,9 +1,11 @@
+import { getPixelResolutionFromZoomAtLatitudeRad } from "@carma-geo/proj";
+import { degToRad } from "@carma-units";
+import type { Degrees } from "@carma-units";
 import type { RasterDemTerrainResource } from "@carma-commons/resources";
 import { runTerrainWorkerTask } from "./terrain-worker-client";
 import { resolveRasterMeshErrorMeters } from "../../core/raster-mesh-error";
 
 import {
-  EARTH_CIRCUMFERENCE_METERS,
   assertTileId,
   longitudeToTileX,
   latitudeToTileY,
@@ -120,11 +122,12 @@ const buildSource = (
   let useClock = 0;
 
   const getLevelMaximumGeometricError = (level: number) => {
-    const centerLatitude = (config.bounds[1] + config.bounds[3]) / 2;
-    return (
-      (EARTH_CIRCUMFERENCE_METERS *
-        Math.cos((centerLatitude * Math.PI) / 180)) /
-      (2 ** level * meshSegments)
+    const centerLatitude = ((config.bounds[1] + config.bounds[3]) /
+      2) as Degrees;
+    return getPixelResolutionFromZoomAtLatitudeRad(
+      level,
+      degToRad(centerLatitude),
+      { tileSize: meshSegments }
     );
   };
   const tileIsAvailable = (id: TerrainTileId) =>

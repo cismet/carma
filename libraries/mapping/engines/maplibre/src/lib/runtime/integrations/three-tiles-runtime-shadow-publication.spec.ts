@@ -80,6 +80,7 @@ describe("mesh caster publication", () => {
       isTileInMainView: (tile) => main.has(tile),
       isChildUnloadable: () => false,
       updateRootWorldBounds,
+      updateFrameFromTiles: () => new THREE.Matrix4(),
       getTileScreenError: (tile) => tile.traversal.error,
       getStableTileId: (tile) => tile.content!.uri!,
       getTileCenterness: () => 1,

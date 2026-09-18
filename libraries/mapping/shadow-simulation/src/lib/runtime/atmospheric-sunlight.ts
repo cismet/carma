@@ -55,6 +55,14 @@ export type AtmosphericSkyFrame = Readonly<{
 export type AtmosphericSkyReference = Readonly<{
   observer: AtmosphericObserver;
   scenePosition: THREE.Vector3;
+  /**
+   * Rotation from the observer's east/up/south frame into the scene. The
+   * shared scene is a tangent plane at its own origin; an observer elsewhere
+   * sits on a tangent plane that is tilted against it by the local-frame fit.
+   * Without it the observer frame is taken as the scene frame, which is exact
+   * only at the scene origin.
+   */
+  sceneFromLocal?: THREE.Matrix4;
 }>;
 
 export type AtmosphericSkyTextures = Readonly<{
@@ -257,6 +265,9 @@ const buildAtmosphericSkyFrame = (
     ? getObserverFrame(skyReference.observer)
     : observerFrame;
   const ecefToSceneMatrix = getEcefToSceneMatrix(skyReferenceFrame);
+  if (skyReference?.sceneFromLocal) {
+    ecefToSceneMatrix.premultiply(skyReference.sceneFromLocal);
+  }
   const sceneToEcefMatrix = ecefToSceneMatrix.clone().invert();
   const ellipsoidCenterECEF = (
     skyReference?.scenePosition ?? new THREE.Vector3()
@@ -344,6 +355,38 @@ const getSceneAngles = (direction: THREE.Vector3) => {
   return { azimuthDegrees, elevationDegrees };
 };
 
+/**
+ * Re-express a sample in another sky reference. The sun is fixed in ECEF: a
+ * local-frame refit only turns its scene-space image and the sky's
+ * ECEF-to-scene matrix with the frame the tiles mount on. Radiance, colour
+ * and sky irradiance describe the sun above the observer and are kept, so no
+ * atmosphere is re-evaluated. Decision: engines/maplibre/README.md#local-frame-for-ecef-tilesets-sun-and-sky.
+ */
+export const rebaseAtmosphericSunlightSample = (
+  sample: AtmosphericSunlightSample,
+  skyReference: AtmosphericSkyReference
+): AtmosphericSunlightSample => {
+  const observerFrame = getObserverFrame(skyReference.observer);
+  const directionToSun = ecefDirectionToSceneDirectionWithFrame(
+    sample.skyFrame.directionToSunECEF,
+    observerFrame,
+    new THREE.Vector3()
+  );
+  if (skyReference.sceneFromLocal) {
+    directionToSun.transformDirection(skyReference.sceneFromLocal);
+  }
+  return {
+    ...sample,
+    directionToSun,
+    ...getSceneAngles(directionToSun),
+    skyFrame: buildAtmosphericSkyFrame(
+      sample.skyFrame.directionToSunECEF,
+      observerFrame,
+      skyReference
+    ),
+  };
+};
+
 export const evaluateAtmosphericSunlight = (
   instant: Date,
   observer: AtmosphericObserver,
@@ -359,6 +402,9 @@ export const evaluateAtmosphericSunlight = (
     observerFrame,
     new THREE.Vector3()
   );
+  if (skyReference?.sceneFromLocal) {
+    directionToSun.transformDirection(skyReference.sceneFromLocal);
+  }
   const skyFrame = buildAtmosphericSkyFrame(
     sunDirectionECEF,
     observerFrame,

@@ -139,10 +139,7 @@ export interface ThreeTilesRuntimeState {
   tileBoundingSphere: THREE.Sphere;
   tileBoundingBox: THREE.Box3;
   tileBoundsTransform: THREE.Matrix4;
-  modelWorldBounds: WeakMap<
-    THREE.Object3D<THREE.Object3DEventMap>,
-    { rootMatrixWorld: THREE.Matrix4; bounds: THREE.Box3 }
-  >;
+  modelLocalBounds: WeakMap<THREE.Object3D, THREE.Box3>;
   rootBoundsTransform: THREE.Matrix4;
   sourceWorldBoundsTransform: THREE.Matrix4;
   activeTileBoundingBox: THREE.Box3;
@@ -153,6 +150,10 @@ export interface ThreeTilesRuntimeState {
   tileViewElevationProjection: THREE.Matrix4;
   tileProjectedCenter: THREE.Vector3;
   tilesToShadowView: THREE.Matrix4;
+  frameFromTiles: THREE.Matrix4;
+  frameToShadowView: THREE.Matrix4;
+  referenceToCurrent: THREE.Matrix4;
+  currentToReference: THREE.Matrix4;
   sunwardDirection: THREE.Vector3;
   shadowSignatureDirection: THREE.Vector3;
   shadowReceiverMatch: ShadowReceiverMatch;
@@ -232,10 +233,13 @@ export interface ThreeTilesRuntimeServices {
     first: SharedThreeSceneShadowStyle | null,
     second: SharedThreeSceneShadowStyle | null
   ) => boolean;
-  readModelWorldBounds: (
+  /** Model bounds in the runtime's frame space (see `frameFromTiles`). */
+  readModelFrameBounds: (
     model: THREE.Object3D,
     target: THREE.Box3
   ) => THREE.Box3;
+  /** Refresh and return `frameFromTiles` from the static root chain. */
+  updateFrameFromTiles: () => THREE.Matrix4;
   patchMaterialForProjection: (material: THREE.Material) => void;
   isSeparatedBuildingSurface: (material: THREE.Material) => boolean;
   isRenderedBuildingSurface: (material: THREE.Material) => boolean;
@@ -390,6 +394,8 @@ export interface ThreeTilesRuntimeServices {
   setShadowView: (
     view: Readonly<{
       camera: THREE.Camera;
+      /** Unit direction to the sun in ECEF; keys caster selection when present. */
+      directionToSunECEF?: readonly [number, number, number];
       casterAngularRadiusRadians?: number;
       shadowMapSize: Readonly<{ width: number; height: number }>;
     }> | null

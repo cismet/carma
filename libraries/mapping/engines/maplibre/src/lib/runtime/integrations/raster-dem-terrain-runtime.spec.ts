@@ -192,6 +192,16 @@ describe("buildRasterDemTerrainRuntime", () => {
       lodCamera,
       lookTarget: new Vector3(),
       viewport: new Vector2(1_000, 1_000),
+      localFrame: {
+        lngLat: [7.15, 51.25] as const,
+        revision: 1,
+        sceneFromLocal: new Matrix4(),
+        sceneFromLocalRotation: new Matrix4(),
+        referenceLngLat: [7.15, 51.25] as const,
+        sceneFromLocalReference: new Matrix4(),
+        referenceToCurrent: new Matrix4(),
+        currentToReference: new Matrix4(),
+      },
     };
     const start = async () => {
       runtime.onAdd?.(map as never);
@@ -803,6 +813,16 @@ describe("buildRasterDemTerrainRuntime", () => {
       lodCamera,
       lookTarget: new Vector3(),
       viewport: new Vector2(1_000, 1_000),
+      localFrame: {
+        lngLat: [7.15, 51.25] as const,
+        revision: 1,
+        sceneFromLocal: new Matrix4(),
+        sceneFromLocalRotation: new Matrix4(),
+        referenceLngLat: [7.15, 51.25] as const,
+        sceneFromLocalReference: new Matrix4(),
+        referenceToCurrent: new Matrix4(),
+        currentToReference: new Matrix4(),
+      },
     });
 
     await vi.waitFor(() => expect(requestTile).toHaveBeenCalledTimes(24));
@@ -875,6 +895,16 @@ describe("buildRasterDemTerrainRuntime", () => {
       lodCamera: camera,
       lookTarget: new Vector3(),
       viewport: new Vector2(1_000, 1_000),
+      localFrame: {
+        lngLat: [7.15, 51.25] as const,
+        revision: 1,
+        sceneFromLocal: new Matrix4(),
+        sceneFromLocalRotation: new Matrix4(),
+        referenceLngLat: [7.15, 51.25] as const,
+        sceneFromLocalReference: new Matrix4(),
+        referenceToCurrent: new Matrix4(),
+        currentToReference: new Matrix4(),
+      },
     };
     previous.onAdd?.(map as never);
     await vi.waitFor(() =>
@@ -999,6 +1029,16 @@ describe("buildRasterDemTerrainRuntime", () => {
       lodCamera,
       lookTarget: new Vector3(),
       viewport: new Vector2(1_000, 1_000),
+      localFrame: {
+        lngLat: [7.15, 51.25] as const,
+        revision: 1,
+        sceneFromLocal: new Matrix4(),
+        sceneFromLocalRotation: new Matrix4(),
+        referenceLngLat: [7.15, 51.25] as const,
+        sceneFromLocalReference: new Matrix4(),
+        referenceToCurrent: new Matrix4(),
+        currentToReference: new Matrix4(),
+      },
     });
 
     await expect(runtime.ready).resolves.toBe(true);
@@ -1095,6 +1135,16 @@ describe("buildRasterDemTerrainRuntime", () => {
       lodCamera,
       lookTarget: new Vector3(),
       viewport: new Vector2(1_000, 1_000),
+      localFrame: {
+        lngLat: [7.15, 51.25] as const,
+        revision: 1,
+        sceneFromLocal: new Matrix4(),
+        sceneFromLocalRotation: new Matrix4(),
+        referenceLngLat: [7.15, 51.25] as const,
+        sceneFromLocalReference: new Matrix4(),
+        referenceToCurrent: new Matrix4(),
+        currentToReference: new Matrix4(),
+      },
     });
 
     await expect(runtime.ready).resolves.toBe(true);
@@ -1136,6 +1186,16 @@ describe("buildRasterDemTerrainRuntime", () => {
       lodCamera,
       lookTarget: new Vector3(),
       viewport: new Vector2(1_000, 1_000),
+      localFrame: {
+        lngLat: [7.15, 51.25] as const,
+        revision: 1,
+        sceneFromLocal: new Matrix4(),
+        sceneFromLocalRotation: new Matrix4(),
+        referenceLngLat: [7.15, 51.25] as const,
+        sceneFromLocalReference: new Matrix4(),
+        referenceToCurrent: new Matrix4(),
+        currentToReference: new Matrix4(),
+      },
     };
     runtime.update(frame);
     runtime.update(frame);
@@ -1275,6 +1335,16 @@ describe("buildRasterDemTerrainRuntime", () => {
       lodCamera,
       lookTarget: new Vector3(),
       viewport: new Vector2(1_000, 1_000),
+      localFrame: {
+        lngLat: [7.15, 51.25] as const,
+        revision: 1,
+        sceneFromLocal: new Matrix4(),
+        sceneFromLocalRotation: new Matrix4(),
+        referenceLngLat: [7.15, 51.25] as const,
+        sceneFromLocalReference: new Matrix4(),
+        referenceToCurrent: new Matrix4(),
+        currentToReference: new Matrix4(),
+      },
     });
     await vi.waitFor(() => {
       expect(source.requestTile).toHaveBeenCalledWith(sunTileId);
@@ -1364,6 +1434,16 @@ describe("buildRasterDemTerrainRuntime", () => {
       lodCamera: new PerspectiveCamera(60, 1, 1, 10_000),
       lookTarget: new Vector3(),
       viewport: new Vector2(1_000, 1_000),
+      localFrame: {
+        lngLat: [7.15, 51.25] as const,
+        revision: 1,
+        sceneFromLocal: new Matrix4(),
+        sceneFromLocalRotation: new Matrix4(),
+        referenceLngLat: [7.15, 51.25] as const,
+        sceneFromLocalReference: new Matrix4(),
+        referenceToCurrent: new Matrix4(),
+        currentToReference: new Matrix4(),
+      },
     });
 
     await expect(runtime.ready).resolves.toBe(true);
@@ -1464,6 +1544,16 @@ describe("buildRasterDemTerrainRuntime", () => {
       // Deliberately unrelated to the 1,000 px shadow map: terrain shadow LOD
       // must follow the raster it is rendered into, not the browser viewport.
       viewport: new Vector2(1, 1),
+      localFrame: {
+        lngLat: [7.15, 51.25] as const,
+        revision: 1,
+        sceneFromLocal: new Matrix4(),
+        sceneFromLocalRotation: new Matrix4(),
+        referenceLngLat: [7.15, 51.25] as const,
+        sceneFromLocalReference: new Matrix4(),
+        referenceToCurrent: new Matrix4(),
+        currentToReference: new Matrix4(),
+      },
     });
 
     await expect(runtime.ready).resolves.toBe(true);
@@ -1550,6 +1640,16 @@ describe("buildRasterDemTerrainRuntime", () => {
         lodCamera,
         lookTarget: new Vector3(),
         viewport: new Vector2(1000, 1000),
+        localFrame: {
+          lngLat: [7.15, 51.25] as const,
+          revision: 1,
+          sceneFromLocal: new Matrix4(),
+          sceneFromLocalRotation: new Matrix4(),
+          referenceLngLat: [7.15, 51.25] as const,
+          sceneFromLocalReference: new Matrix4(),
+          referenceToCurrent: new Matrix4(),
+          currentToReference: new Matrix4(),
+        },
       });
       await runtime.ready;
       await vi.waitFor(() =>
@@ -1639,6 +1739,16 @@ describe("buildRasterDemTerrainRuntime", () => {
         lodCamera,
         lookTarget: new Vector3(),
         viewport: new Vector2(1_000, 1_000),
+        localFrame: {
+          lngLat: [7.15, 51.25] as const,
+          revision: 1,
+          sceneFromLocal: new Matrix4(),
+          sceneFromLocalRotation: new Matrix4(),
+          referenceLngLat: [7.15, 51.25] as const,
+          sceneFromLocalReference: new Matrix4(),
+          referenceToCurrent: new Matrix4(),
+          currentToReference: new Matrix4(),
+        },
       });
 
       if (withinInitialTarget) await expect(runtime.ready).resolves.toBe(true);
@@ -1674,6 +1784,16 @@ describe("buildRasterDemTerrainRuntime", () => {
         lodCamera,
         lookTarget: new Vector3(),
         viewport: new Vector2(1_000, 1_000),
+        localFrame: {
+          lngLat: [7.15, 51.25] as const,
+          revision: 1,
+          sceneFromLocal: new Matrix4(),
+          sceneFromLocalRotation: new Matrix4(),
+          referenceLngLat: [7.15, 51.25] as const,
+          sceneFromLocalReference: new Matrix4(),
+          referenceToCurrent: new Matrix4(),
+          currentToReference: new Matrix4(),
+        },
       });
       await vi.waitFor(() => {
         expect(
@@ -1770,6 +1890,16 @@ describe("buildRasterDemTerrainRuntime", () => {
       lodCamera,
       lookTarget: new Vector3(),
       viewport: new Vector2(1_000, 1_000),
+      localFrame: {
+        lngLat: [7.15, 51.25] as const,
+        revision: 1,
+        sceneFromLocal: new Matrix4(),
+        sceneFromLocalRotation: new Matrix4(),
+        referenceLngLat: [7.15, 51.25] as const,
+        sceneFromLocalReference: new Matrix4(),
+        referenceToCurrent: new Matrix4(),
+        currentToReference: new Matrix4(),
+      },
     });
 
     await expect(runtime.ready).resolves.toBe(true);
@@ -1861,6 +1991,16 @@ describe("buildRasterDemTerrainRuntime", () => {
       lodCamera,
       lookTarget: new Vector3(),
       viewport: new Vector2(1_000, 1_000),
+      localFrame: {
+        lngLat: [7.15, 51.25] as const,
+        revision: 1,
+        sceneFromLocal: new Matrix4(),
+        sceneFromLocalRotation: new Matrix4(),
+        referenceLngLat: [7.15, 51.25] as const,
+        sceneFromLocalReference: new Matrix4(),
+        referenceToCurrent: new Matrix4(),
+        currentToReference: new Matrix4(),
+      },
     });
 
     await expect(runtime.ready).resolves.toBe(true);
@@ -1974,6 +2114,16 @@ describe("buildRasterDemTerrainRuntime", () => {
       lodCamera,
       lookTarget: new Vector3(),
       viewport: new Vector2(1_000, 1_000),
+      localFrame: {
+        lngLat: [7.15, 51.25] as const,
+        revision: 1,
+        sceneFromLocal: new Matrix4(),
+        sceneFromLocalRotation: new Matrix4(),
+        referenceLngLat: [7.15, 51.25] as const,
+        sceneFromLocalReference: new Matrix4(),
+        referenceToCurrent: new Matrix4(),
+        currentToReference: new Matrix4(),
+      },
     });
 
     await expect(runtime.ready).resolves.toBe(true);
@@ -2102,6 +2252,16 @@ describe("buildRasterDemTerrainRuntime", () => {
       lodCamera,
       lookTarget: new Vector3(),
       viewport: new Vector2(1_000, 1_000),
+      localFrame: {
+        lngLat: [7.15, 51.25] as const,
+        revision: 1,
+        sceneFromLocal: new Matrix4(),
+        sceneFromLocalRotation: new Matrix4(),
+        referenceLngLat: [7.15, 51.25] as const,
+        sceneFromLocalReference: new Matrix4(),
+        referenceToCurrent: new Matrix4(),
+        currentToReference: new Matrix4(),
+      },
     });
     await expect(runtime.ready).resolves.toBe(true);
 
@@ -2211,6 +2371,16 @@ describe("buildRasterDemTerrainRuntime", () => {
         lodCamera: camera,
         lookTarget: new Vector3(0, 210, 0),
         viewport,
+        localFrame: {
+          lngLat: [7.15, 51.25] as const,
+          revision: 1,
+          sceneFromLocal: new Matrix4(),
+          sceneFromLocalRotation: new Matrix4(),
+          referenceLngLat: [7.15, 51.25] as const,
+          sceneFromLocalReference: new Matrix4(),
+          referenceToCurrent: new Matrix4(),
+          currentToReference: new Matrix4(),
+        },
       });
     };
 
@@ -2316,6 +2486,16 @@ describe("buildRasterDemTerrainRuntime", () => {
         lodCamera,
         lookTarget: new Vector3(),
         viewport: new Vector2(1_000, 1_000),
+        localFrame: {
+          lngLat: [7.15, 51.25] as const,
+          revision: 1,
+          sceneFromLocal: new Matrix4(),
+          sceneFromLocalRotation: new Matrix4(),
+          referenceLngLat: [7.15, 51.25] as const,
+          sceneFromLocalReference: new Matrix4(),
+          referenceToCurrent: new Matrix4(),
+          currentToReference: new Matrix4(),
+        },
       });
     };
 

@@ -1,3 +1,6 @@
+import { getPixelResolutionFromZoomAtLatitudeRad } from "@carma-geo/proj";
+import { degToRad, degToRadNumeric } from "@carma-units";
+import type { Degrees } from "@carma-units";
 import {
   convertFilter,
   type FilterSpecification,
@@ -32,7 +35,6 @@ import {
 
 const SHARED_SCENE_LAYER_ID = "carma-shared-three-scene";
 const SHARED_SCENE_ENTRY_VERSION = 17;
-const EARTH_CIRCUMFERENCE_METERS = 40_075_016.686;
 const MAPLIBRE_TILE_SIZE = 512;
 /** Keep a lifted place name inside the view at high zoom. */
 const MAX_LABEL_LIFT_VIEWPORT_FRACTION = 0.35;
@@ -1180,9 +1182,15 @@ const getLabelLiftPixels = (
     return null;
   }
   const pixelsPerMeter =
-    (MAPLIBRE_TILE_SIZE * 2 ** zoom) /
-    (EARTH_CIRCUMFERENCE_METERS * Math.cos((center.lat * Math.PI) / 180));
-  const lifted = meters * pixelsPerMeter * Math.cos((pitch * Math.PI) / 180);
+    1 /
+    getPixelResolutionFromZoomAtLatitudeRad(
+      zoom,
+      degToRad(center.lat as Degrees),
+      {
+        tileSize: MAPLIBRE_TILE_SIZE,
+      }
+    );
+  const lifted = meters * pixelsPerMeter * Math.cos(degToRadNumeric(pitch));
   const viewportHeight = canvas?.clientHeight ?? 0;
   const cap =
     viewportHeight > 0

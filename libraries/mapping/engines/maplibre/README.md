@@ -8,9 +8,9 @@ geometry remains eligible as an offscreen caster in the sun's frustum.
 Decision, synthetic pixel-parity measurements, alternatives and remaining
 live-view limitations: [corridor performance report](../../shadow-simulation/three/CORRIDOR_PERFORMANCE_20260909.md#2026-09-10--mesh-shadow-frustum--native-mask-batch--scratch-reuse).
 
-## Linked receiver/caster detail — LINKED-RECEIVER-CASTER-LOD-20260910
+## Linked receiver/caster detail
 
-- **ID / date / status:** LINKED-RECEIVER-CASTER-LOD-20260910, 2026-09-10;
+- **Anchor / date / status:** `#linked-receivercaster-detail`, 2026-09-10;
   implemented, uncommitted; full live-view convergence remains unverified.
 - **Context and constraints:** Fine visible mesh tiles could receive shadows
   from a coarser retained parent despite all required children being resident.
@@ -259,9 +259,9 @@ live-view limitations: [corridor performance report](../../shadow-simulation/thr
 - **Alternatives:** Separate visibility controllers per toggle were rejected by inspection: one controller could restore a layer that another still needs hidden, or capture that hidden state as its authored value. The combined decision changes only differing properties and restores the authored style on release.
 - **Evidence:** 79 focused registry, drape preparation, shadow-scene, state and UI tests pass. Existing Playwright mesh session: all 9 contour-line layers and 5 contour-label layers independently toggle without camera movement; the house-number layer stays hidden. No build/lint run or commit.
 
-## Mesh memory and shadow casting — MESH-BUDGET-20260908
+## Mesh memory and shadow casting
 
-- **ID / date / status:** MESH-BUDGET-20260908 / 2026-09-08 / implemented, no universal OOM guarantee.
+- **Anchor / date / status:** `#mesh-memory-and-shadow-casting` / 2026-09-08 / implemented, no universal OOM guarantee.
 - **Context and constraints:** Surface meshes must reach requested visible LOD before optional sun-disc refinement. The former device ceiling silently rejected larger explicit budgets. Photogrammetric meshes are not single-valued raster heightfields: back-facing triangles must also occlude sunlight.
 - **Decision:** Explicit mesh cache budgets override conservative device defaults, up to the user-requested 24 GiB maximum. The shadow display panel exposes GiB; blank restores device defaults. Admission uses predicted/resident tile costs including CPU overhead, with bounded accounting drift; this is not a measurement of total process RAM or GPU VRAM. Optional Chromium heap telemetry pauses admission/download/parse at 80% of the reported heap limit and resumes below 65%. Check at most once per second, reclaim unused cache entries and unfinished loads while preserving visible replacements. No render loop for paused queues. WebGL context loss pauses loads until restoration; reported allocation failure latches the pause until explicit budget reconfiguration. Missing telemetry retains the finite admission budget, not unlimited growth. Surface 3D meshes cast with `DoubleSide`; visible render side is unchanged and the separate raster heightfield remains `FrontSide`.
 - **Alternatives and disposition:** Unbounded automatic growth: incompatible by inspection with the absence of portable available-RAM/VRAM telemetry. CPU Compute Pressure and storage quota: incompatible as RAM/VRAM availability signals. Raising the global default to 24 GiB for all devices: rejected by safety constraints; only explicit overrides change it. Front-only photogrammetric casters: excludes away-facing triangles. Full saturation/OOM stress testing: deliberately not performed on the user's active session.
@@ -917,7 +917,7 @@ terrain-mesh runtime to the shared scene.
 
 ### LOD2 terrain corridor reuse
 
-- **ID / date / status:** LOD2-TERRAIN-CORRIDORS-20260910 / 2026-09-10 /
+- **Anchor / date / status:** `#lod2-terrain-corridor-reuse` / 2026-09-10 /
   user-confirmed working in preview ca9b7a957-1789005533718.
 - **Context:** Building-only tilesets do not populate mesh receiver frontiers.
   Using that empty frontier disabled their sunward selection. Independent raster
@@ -941,3 +941,79 @@ terrain-mesh runtime to the shared scene.
 - **Revisit when:** Ground receiver metadata lacks adequate spatial precision,
   bounds changes cause excess proof invalidation, or live resolution remains low
   after corridor coverage is complete.
+
+### Local frame for ECEF tilesets, sun and sky
+
+- **Anchor / date / status:** `#local-frame-for-ecef-tilesets-sun-and-sky` / 2026-09-18 / implemented
+  and unit-tested (local-frame group); not yet confirmed in the browser.
+- **Context:** The shared scene is one Mercator tangent plane at its origin.
+  ECEF tilesets (`cameraLocalMount`) refitted their own mount at the map centre
+  behind a hysteresis distance; each refit re-signed the shadow receiver snapshot
+  with the mount matrix and requested a shadow selection refresh, which dropped
+  caster proofs and could re-request tiles. The atmosphere observer was frozen
+  at the map centre of scene creation, so the sun's scene-space direction did
+  not follow where the tiles were mounted. Shadows under an orthographic light
+  are invariant under an affine transform applied to light, casters and
+  receivers together, so a refit must be neutral for them unless time changes.
+- **Decision:** The MapLibre wrapper (`SharedThreeSceneLayer`) owns one local
+  east/up/south frame at the map centre on the ellipsoid
+  (`SharedThreeSceneLocalFrame`) and publishes it on every
+  `SharedThreeSceneFrame`. It is refitted when keeping it would show more than
+  0.5 px of error in the current view (`localFrameErrorPixels`: Mercator scale
+  drift tan(lat)·d/R over the visible half width, surface sag d²/2R·sin(pitch),
+  up-vector tilt d/R against 200 m of content height), not after a fixed
+  distance; only scalars are compared per frame. The layer also owns a
+  local-frame group. Frame-mounted runtimes (`mountsOnLocalFrame`) sit in it,
+  mounted once at the frame's reference fit (`referenceLngLat`,
+  `sceneFromLocalReference`); the shadow scene's light, sun vector and page
+  lights live in it too, and every shadow-facing box (tile volumes, corridors,
+  receiver points, cells) is exchanged in that reference space
+  (`frameFromTiles` in the runtime, `getFrameCamera` in the shadow scene). A
+  refit sets the group's matrix to `referenceToCurrent` and nothing else:
+  tiles, light, casters and receivers move by the same affine, so the shadows
+  cancel out of it exactly and only a solar change invalidates them. Fits and
+  keys are made in host space (`getLightViewMatrix`), so a moved group changes
+  no key. Caster selection is keyed on the ECEF sun direction
+  (`SharedThreeSceneShadowView.directionToSunECEF`) and the receiver
+  signature no longer includes the mount matrix. The sun is fixed in ECEF:
+  the retained sample is only re-expressed for the sky dome, drawn in scene
+  space (`rebaseAtmosphericSunlightSample`), nothing is re-evaluated. A refit
+  stays inside the map render: no demand sweep, no selection refresh, no
+  content change, nothing reaches the content registry or React. Page
+  identity stays exact: any receiver or sun change re-keys a page and its
+  depth, so a solar update from the time controls is never absorbed.
+- **Alternatives:** Per-runtime refit behind a hysteresis distance: superseded,
+  its error was not tied to the view (incompatible by inspection). Using the
+  view-state anchor from `engines-interop/view-state`: incompatible by
+  inspection, engines cannot depend on interop. Re-mounting tiles per refit
+  with the light in scene space, re-aiming the sun and tolerating sub-texel
+  page drift (the previous state of this record): superseded, approximate and
+  not neutral; the group is exact by construction. Keeping a page while its
+  receiver bounds or sun direction changed by less than half a texel:
+  measured rejection, at pitch 52° far receivers have texel targets of metres
+  and the retention swallowed whole time steps, so settled soft shadows no
+  longer followed the time slider. A fixed 0.02° frame-tilt tolerance before
+  re-aiming the light, and re-evaluating the atmosphere on a refit:
+  superseded for the same reason. Expressing shadow-facing boxes in
+  ECEF instead of the reference fit: rejected by inspection, the page planner
+  assumes a Y-up frame and float32 GPU paths need local metres. Re-rooting
+  every runtime at the layer origin: not needed, the total ECEF-to-scene fit
+  is root-independent (shown algebraically, not measured). A per-frame scalar
+  Mercator scale correction instead of refits: not evaluated.
+- **Evidence:** engines/maplibre specs pass (701), including
+  `shared-three-scene-layer.spec` (frame moves only past the pixel budget; the
+  group follows it and carries mounted runtimes) and
+  `three-tiles-runtime.liveness.spec` (mount made once at the reference, left
+  alone on a refit); shadow-simulation specs pass (557), including
+  `atmospheric-sunlight.spec` (re-expression keeps radiance and turns only the
+  frame), `shadow-scene.spec` (sun carried by the group on a refit, nothing
+  evaluated, no forced shadow-map pass) and `tiled-shadow-renderer.spec` (a
+  moved host group leaves fits, keys and depth untouched; any sun turn,
+  however small, re-keys every page).
+  `shadow-corridor-host-state.spec` and `ShadowSimulationView.spec` fail to load
+  the collab geoportal index on dev as well (environment, unrelated). No browser
+  or performance measurement yet.
+- **Revisit when:** content taller than 200 m or a wider viewport shows drift
+  before a refit, Mercator-placed receivers (raster terrain under LOD2, which
+  cannot move with the group) show the bounded light offset, or the view-state
+  anchor becomes available to the engine layer.

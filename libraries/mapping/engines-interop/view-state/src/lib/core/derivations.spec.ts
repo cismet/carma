@@ -9,7 +9,7 @@ import {
   cartographicToEcef,
   enuOffsetToEcef,
   getZoomFromPixelResolutionAtLatitudeRad,
-} from "@carma-geo/utils";
+} from "@carma-geo/proj";
 import { degToRadNumeric } from "@carma-units";
 import type { CssPixels, Meters, Radians } from "@carma-units";
 

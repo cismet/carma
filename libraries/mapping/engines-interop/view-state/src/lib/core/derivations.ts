@@ -1,5 +1,5 @@
 import { readMetersPerCssPixelFromIntrinsics } from "@carma-commons/camera/model";
-import { getZoomFromPixelResolutionAtLatitudeRad } from "@carma-geo/utils";
+import { getZoomFromPixelResolutionAtLatitudeRad } from "@carma-geo/proj";
 import { isFiniteNumber } from "@carma-commons/math";
 import type { Meters, Radians } from "@carma-units";
 

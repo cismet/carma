@@ -1,3 +1,4 @@
+import { EARTH_RADIUS } from "@carma-geo/proj";
 // @vitest-environment node
 
 import { SKY_RENDER_ORDER } from "@takram/three-atmosphere";
@@ -33,7 +34,7 @@ describe("atmospheric sky", () => {
         {
           directionToSunECEF: new THREE.Vector3(1, 2, 3).normalize(),
           ecefToSceneMatrix,
-          ellipsoidCenterECEF: new THREE.Vector3(-6_371_000, 0, 0),
+          ellipsoidCenterECEF: new THREE.Vector3(-EARTH_RADIUS, 0, 0),
         },
         {
           transmittanceTexture,
@@ -88,7 +89,9 @@ describe("atmospheric sky", () => {
     expect(sky.mesh.material.irradianceTexture).toBe(irradianceTexture);
     expect(sky.mesh.material.scatteringTexture).toBe(scatteringTexture);
     expect(sky.mesh.material.ellipsoidCenter.toArray()).toEqual([
-      -6_371_000, 0, 0,
+      -EARTH_RADIUS,
+      0,
+      0,
     ]);
     expect(sky.mesh.material.ellipsoidMatrix.equals(ecefToSceneMatrix)).toBe(
       true
@@ -142,7 +145,9 @@ describe("atmospheric sky", () => {
       )
     ).toBe(false);
     expect(sky.mesh.material.ellipsoidCenter.toArray()).toEqual([
-      -6_371_000, 0, 0,
+      -EARTH_RADIUS,
+      0,
+      0,
     ]);
 
     const nextAlbedo = new THREE.Color("#eeeeee");

@@ -1,3 +1,11 @@
+import {
+  EARTH_RADIUS,
+  getCameraLocalMercatorFit,
+  getPixelResolutionFromZoomAtLatitudeRad,
+} from "@carma-geo/proj";
+import { distanceMeters } from "@carma-geo/utils";
+import { degToRad } from "@carma-units";
+import type { CssPixels, Degrees, Meters } from "@carma-units";
 import { synthesizeLodCamera } from "@carma-mapping/engines/threejs";
 import { MercatorCoordinate } from "maplibre-gl";
 import type { Map as MaplibreMap, CustomRenderMethodInput } from "maplibre-gl";
@@ -5,6 +13,7 @@ import * as THREE from "three";
 import type {
   SharedThreeSceneLayer,
   SharedThreeSceneLayerOptions,
+  SharedThreeSceneLocalFrame,
   SharedThreeSceneRuntime,
   SharedThreeSceneFrame,
 } from "../../core/shared-three-scene-types";
@@ -24,6 +33,54 @@ import { setSharedThreeShadedPresentation } from "./shared-three-scene-content-r
 import { MAP_LOADING_PHASE } from "../../core/map-loading-progress";
 import { publishMapLoadingProgress } from "./map-loading-progress";
 
+const MAPLIBRE_TILE_SIZE = 512;
+/** Screen error the local frame may accumulate before it is refitted. */
+const LOCAL_FRAME_MAX_ERROR_PIXELS = 0.5 as CssPixels;
+/**
+ * Content height the up-vector tilt is charged against. Tall buildings and
+ * terrain relief in the served cities stay under it; a taller scene shows the
+ * tilt a little earlier than the pixel budget promises.
+ */
+const LOCAL_FRAME_NOMINAL_HEIGHT_METERS = 200 as Meters;
+
+/**
+ * Screen-space error, in CSS pixels, that the current view would show if the
+ * scene kept the frame fitted `distance` metres away from its centre.
+ *
+ * Decision: engines/maplibre/README.md#local-frame-for-ecef-tilesets-sun-and-sky.
+ * The frame is a tangent-plane affine at its anchor, so three errors grow with
+ * the distance d to it and all are exact at d = 0: the Mercator scale drifts by
+ * tan(lat) * d / R and that drift acts across the whole visible half width; the
+ * surface sags by d^2 / 2R, visible in proportion to the pitch; and the up
+ * vector tilts by d / R, which moves content in proportion to its height. The
+ * sum is compared with half a pixel at the current metres per pixel, so a
+ * zoomed-in view refits after a few hundred metres and a city overview almost
+ * never. Only scalars are touched per frame; vectors move on a refit.
+ */
+const localFrameErrorPixels = (
+  distance: Meters,
+  latitude: Degrees,
+  zoom: number,
+  pitch: Degrees,
+  viewportWidth: CssPixels
+): CssPixels => {
+  const latitudeRad = degToRad(latitude);
+  const metersPerPixel = getPixelResolutionFromZoomAtLatitudeRad(
+    zoom,
+    latitudeRad,
+    { tileSize: MAPLIBRE_TILE_SIZE }
+  );
+  const halfViewMeters = (viewportWidth / 2) * metersPerPixel;
+  const scaleDrift = (Math.tan(latitudeRad) * distance) / EARTH_RADIUS;
+  const scaleErrorMeters = (distance + halfViewMeters) * scaleDrift;
+  const sagMeters =
+    ((distance * distance) / (2 * EARTH_RADIUS)) * Math.sin(degToRad(pitch));
+  const tiltMeters =
+    (LOCAL_FRAME_NOMINAL_HEIGHT_METERS * distance) / EARTH_RADIUS;
+  return ((scaleErrorMeters + sagMeters + tiltMeters) /
+    metersPerPixel) as CssPixels;
+};
+
 const rotationX = new THREE.Matrix4().makeRotationAxis(
   new THREE.Vector3(1, 0, 0),
   Math.PI / 2
@@ -42,6 +99,14 @@ export const buildSharedThreeSceneLayer = (
   scene.add(
     new THREE.AmbientLight(0xffffff, options.ambientLightIntensity ?? 2.4)
   );
+  // Frame-mounted content is expressed in the local frame's reference fit and
+  // carried to the current fit by this group alone; a refit is one matrix.
+  const localFrameGroup = new THREE.Group();
+  localFrameGroup.name = "shared-three-scene-local-frame";
+  localFrameGroup.matrixAutoUpdate = false;
+  scene.add(localFrameGroup);
+  const runtimeHost = (runtime: SharedThreeSceneRuntime) =>
+    runtime.mountsOnLocalFrame ? localFrameGroup : scene;
   const renderCamera = new THREE.PerspectiveCamera();
   const lodCamera = new THREE.PerspectiveCamera();
   const accumulationRuntime = createSharedThreeSceneAccumulation(layerId);
@@ -61,6 +126,69 @@ export const buildSharedThreeSceneLayer = (
   let meterScale = 0;
   let renderedFrames = 0;
   let disposed = false;
+  let originLngLat: readonly [number, number] | null = null;
+  let localFrame: SharedThreeSceneLocalFrame | null = null;
+
+  /**
+   * Fit the local frame at the current map centre. The frame is kept while
+   * the current view would show at most `LOCAL_FRAME_MAX_ERROR_PIXELS` from
+   * it, so the runtimes and lights mounted on it are not disturbed on every
+   * pan frame; `force` refits regardless, on attach.
+   */
+  const refitLocalFrame = (
+    force = false
+  ): SharedThreeSceneLocalFrame | null => {
+    if (!map || !originLngLat) return localFrame;
+    const center = map.getCenter();
+    const lngLat: readonly [number, number] = [center.lng, center.lat];
+    if (
+      !force &&
+      localFrame &&
+      localFrameErrorPixels(
+        distanceMeters(
+          {
+            longitude: localFrame.lngLat[0] as Degrees,
+            latitude: localFrame.lngLat[1] as Degrees,
+          },
+          { longitude: center.lng as Degrees, latitude: center.lat as Degrees }
+        ) as Meters,
+        center.lat as Degrees,
+        map.getZoom?.() ?? 16,
+        (map.getPitch?.() ?? 0) as Degrees,
+        (map.getCanvas?.()?.clientWidth || 1920) as CssPixels
+      ) <= LOCAL_FRAME_MAX_ERROR_PIXELS
+    ) {
+      return localFrame;
+    }
+    const sceneFromLocal = getCameraLocalMercatorFit(
+      [originLngLat[0], originLngLat[1]],
+      [lngLat[0], lngLat[1]],
+      { correctEllipsoidMetric: true }
+    );
+    const referenceLngLat = localFrame?.referenceLngLat ?? lngLat;
+    const sceneFromLocalReference =
+      localFrame?.sceneFromLocalReference ?? sceneFromLocal;
+    const referenceToCurrent = localFrame
+      ? sceneFromLocal
+          .clone()
+          .multiply(sceneFromLocalReference.clone().invert())
+      : new THREE.Matrix4();
+    localFrame = {
+      lngLat,
+      revision: (localFrame?.revision ?? 0) + 1,
+      sceneFromLocal,
+      sceneFromLocalRotation: new THREE.Matrix4().extractRotation(
+        sceneFromLocal
+      ),
+      referenceLngLat,
+      sceneFromLocalReference,
+      referenceToCurrent,
+      currentToReference: referenceToCurrent.clone().invert(),
+    };
+    localFrameGroup.matrix.copy(referenceToCurrent);
+    localFrameGroup.updateMatrixWorld(true);
+    return localFrame;
+  };
 
   const placeRuntime = (runtime: SharedThreeSceneRuntime) => {
     if (!originMerc || meterScale <= 0) return;
@@ -93,7 +221,7 @@ export const buildSharedThreeSceneLayer = (
       runtimeUpdateOrder = [...runtimes.values()].sort(
         (a, b) => (b.updatePriority ?? 0) - (a.updatePriority ?? 0)
       );
-      scene.add(runtime.root);
+      runtimeHost(runtime).add(runtime.root);
       placeRuntime(runtime);
       if (map) runtime.onAdd?.(map);
       map?.triggerRepaint();
@@ -107,7 +235,7 @@ export const buildSharedThreeSceneLayer = (
       runtimeUpdateOrder = runtimeUpdateOrder.filter(
         (candidate) => candidate !== runtime
       );
-      scene.remove(runtime.root);
+      runtime.root.removeFromParent();
       runtime.dispose();
       map?.triggerRepaint();
     },
@@ -122,6 +250,14 @@ export const buildSharedThreeSceneLayer = (
 
     getRuntimes() {
       return [...runtimes.values()];
+    },
+
+    getLocalFrame() {
+      return localFrame;
+    },
+
+    getLocalFrameGroup() {
+      return localFrameGroup;
     },
 
     getRenderer() {
@@ -175,7 +311,7 @@ export const buildSharedThreeSceneLayer = (
       if (map)
         publishMapLoadingProgress(map, MAP_LOADING_PHASE.SHADOW, layerId, 1);
       mapStyleProjection.dispose();
-      for (const runtime of runtimes.values()) scene.remove(runtime.root);
+      for (const runtime of runtimes.values()) runtime.root.removeFromParent();
       depthRangeBridge?.dispose();
       depthRangeBridge = null;
       renderer?.dispose();
@@ -183,6 +319,8 @@ export const buildSharedThreeSceneLayer = (
       map = null;
       originMerc = null;
       meterScale = 0;
+      originLngLat = null;
+      localFrame = null;
     },
 
     onAdd(mapInstance, gl) {
@@ -190,6 +328,8 @@ export const buildSharedThreeSceneLayer = (
       const center = mapInstance.getCenter();
       originMerc = MercatorCoordinate.fromLngLat([center.lng, center.lat], 0);
       meterScale = originMerc.meterInMercatorCoordinateUnits();
+      originLngLat = [center.lng, center.lat];
+      refitLocalFrame(true);
       renderer = new THREE.WebGLRenderer({
         canvas: mapInstance.getCanvas(),
         context: gl,
@@ -205,7 +345,8 @@ export const buildSharedThreeSceneLayer = (
       renderer.shadowMap.enabled = true;
       renderer.shadowMap.type = THREE.PCFShadowMap;
       for (const runtime of runtimes.values()) {
-        if (runtime.root.parent !== scene) scene.add(runtime.root);
+        const host = runtimeHost(runtime);
+        if (runtime.root.parent !== host) host.add(runtime.root);
         placeRuntime(runtime);
         runtime.onAdd?.(mapInstance);
       }
@@ -249,12 +390,15 @@ export const buildSharedThreeSceneLayer = (
       }
       configureSharedRenderCamera(renderCamera, lodCamera, sceneToClipMatrix);
 
+      const currentLocalFrame = refitLocalFrame();
+      if (!currentLocalFrame) return;
       const frame: SharedThreeSceneFrame = {
         map,
         renderCamera,
         lodCamera,
         lookTarget,
         viewport,
+        localFrame: currentLocalFrame,
       };
       scene.updateMatrixWorld(true);
       for (const runtime of runtimeUpdateOrder) {

@@ -23,6 +23,7 @@ import {
   getAtmosphericInputValidationError,
   getAtmosphericSkyFrameValidationError,
   getAtmosphericSunlightSampleValidationError,
+  rebaseAtmosphericSunlightSample,
   type AtmosphericObserver,
 } from "./atmospheric-sunlight";
 
@@ -168,6 +169,47 @@ describe("atmospheric sunlight", () => {
     expect(upScene.x).toBeCloseTo(0, 12);
     expect(upScene.y).toBeCloseTo(1, 12);
     expect(upScene.z).toBeCloseTo(0, 12);
+  });
+
+  it("re-expresses a retained sample in a turned local frame without re-evaluating", () => {
+    const instant = new Date("2026-06-21T10:00:00Z");
+    const scenePosition = new THREE.Vector3(10, 0, -20);
+    const sample = evaluateAtmosphericSunlight(instant, WUPPERTAL, null, null, {
+      observer: WUPPERTAL,
+      scenePosition,
+    });
+    const rotation = new THREE.Matrix4().makeRotationZ(
+      THREE.MathUtils.degToRad(0.05)
+    );
+    const rebased = rebaseAtmosphericSunlightSample(sample, {
+      observer: WUPPERTAL,
+      scenePosition,
+      sceneFromLocal: rotation,
+    });
+    const expectedDirection = sample.directionToSun
+      .clone()
+      .transformDirection(rotation);
+    expect(rebased.directionToSun.angleTo(expectedDirection)).toBeCloseTo(
+      0,
+      10
+    );
+    expect(
+      rebased.skyFrame.directionToSunECEF.equals(
+        sample.skyFrame.directionToSunECEF
+      )
+    ).toBe(true);
+    const expectedMatrix = sample.skyFrame.ecefToSceneMatrix
+      .clone()
+      .premultiply(rotation);
+    rebased.skyFrame.ecefToSceneMatrix.elements.forEach((value, index) => {
+      expect(value).toBeCloseTo(expectedMatrix.elements[index], 10);
+    });
+    expect(rebased.radiance).toBe(sample.radiance);
+    expect(rebased.color).toBe(sample.color);
+    expect(rebased.skyIrradianceCoefficients).toBe(
+      sample.skyIrradianceCoefficients
+    );
+    expect(getAtmosphericSunlightSampleValidationError(rebased)).toBeNull();
   });
 
   it("uses Takram's date and observer position for a local daytime sun", () => {

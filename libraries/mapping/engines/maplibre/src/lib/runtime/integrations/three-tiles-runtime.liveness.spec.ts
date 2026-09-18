@@ -60,13 +60,14 @@ const buildMap = () =>
     on: vi.fn(),
     off: vi.fn(),
     triggerRepaint: vi.fn(),
+    getCenter: vi.fn(() => ({ lng: 7.15, lat: 51.25 })),
   } as unknown as MaplibreMap);
 
 /** Event types seen by a `dispatchEvent` spy (three stamps `target` onto events). */
 const dispatchedTypes = (spy: { mock: { calls: unknown[][] } }) =>
   spy.mock.calls.map(([event]) => (event as { type: string }).type);
 
-const mountRuntime = (providesTerrain = false) => {
+const mountRuntime = (providesTerrain = false, cameraLocalMount = false) => {
   let renderer: LivenessRenderer | undefined;
   vi.spyOn(TilesRenderer.prototype, "update").mockImplementation(function (
     this: TilesRenderer
@@ -77,6 +78,7 @@ const mountRuntime = (providesTerrain = false) => {
   const repaint = map.triggerRepaint as unknown as ReturnType<typeof vi.fn>;
   const layer = buildThreeTilesRuntime("mesh", "tileset.json", [7.15, 51.25], {
     providesTerrain,
+    cameraLocalMount,
   });
   if (providesTerrain) layer.loading.setErrorTarget(1);
   const camera = new THREE.PerspectiveCamera();
@@ -86,6 +88,16 @@ const mountRuntime = (providesTerrain = false) => {
     lodCamera: camera,
     lookTarget: new THREE.Vector3(),
     viewport: new THREE.Vector2(800, 600),
+    localFrame: {
+      lngLat: [7.15, 51.25] as const,
+      revision: 1,
+      sceneFromLocal: new THREE.Matrix4(),
+      sceneFromLocalRotation: new THREE.Matrix4(),
+      referenceLngLat: [7.15, 51.25] as const,
+      sceneFromLocalReference: new THREE.Matrix4(),
+      referenceToCurrent: new THREE.Matrix4(),
+      currentToReference: new THREE.Matrix4(),
+    },
   };
   layer.scene.onAdd?.(map);
   layer.scene.update(frame);
@@ -104,6 +116,41 @@ describe("three tiles runtime liveness", () => {
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
     vi.useRealTimers();
+  });
+
+  it("mounts once at the frame's reference fit and leaves the mount alone on a refit", () => {
+    const { layer, renderer, frame } = mountRuntime(false, true);
+    try {
+      const group = renderer.group;
+      const fit = group.parent!;
+      const initial = fit.matrix.clone();
+      const copy = vi.spyOn(fit.matrix, "copy");
+      expect(layer.scene.mountsOnLocalFrame).toBe(true);
+      // A refit moves the layer's local-frame group, never the mount.
+      frame.localFrame = {
+        ...frame.localFrame,
+        lngLat: [7.3, 51.3] as const,
+        revision: frame.localFrame.revision + 1,
+        referenceToCurrent: new THREE.Matrix4().makeTranslation(10, 0, 0),
+        currentToReference: new THREE.Matrix4().makeTranslation(-10, 0, 0),
+      };
+      layer.scene.update(frame);
+      expect(group.parent).toBe(fit);
+      expect(fit.matrix.equals(initial)).toBe(true);
+      expect(copy).not.toHaveBeenCalled();
+      // A new reference fit, after a re-attach, remounts.
+      frame.localFrame = {
+        ...frame.localFrame,
+        referenceLngLat: [7.3, 51.3] as const,
+        revision: frame.localFrame.revision + 1,
+      };
+      layer.scene.update(frame);
+      expect(fit.matrix.equals(initial)).toBe(false);
+      expect(fit.matrix.elements.every(Number.isFinite)).toBe(true);
+      expect(copy).toHaveBeenCalledOnce();
+    } finally {
+      layer.scene.dispose();
+    }
   });
 
   it("does not let loose external metadata keep offscreen mesh demand alive", () => {

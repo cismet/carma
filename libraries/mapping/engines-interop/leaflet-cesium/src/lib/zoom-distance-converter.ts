@@ -3,7 +3,7 @@ import type { Degrees, Radians } from "@carma-geo/data-structures";
 import {
   getPixelResolutionFromZoomAtLatitudeRad,
   getZoomFromPixelResolutionAtLatitudeRad,
-} from "@carma-geo/utils";
+} from "@carma-geo/proj";
 import type { Zoom } from "@carma-units";
 import { degToRad } from "@carma-units";
 import type { Meters } from "@carma-units";

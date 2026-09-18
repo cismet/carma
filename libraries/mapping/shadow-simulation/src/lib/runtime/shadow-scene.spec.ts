@@ -85,6 +85,7 @@ import {
   subscribeSharedThreeTerrainLoading,
   suppressMapLibreRegularStyleLayers,
   type SharedThreeSceneLayer,
+  type SharedThreeSceneFrame,
 } from "@carma-mapping/engines/maplibre";
 
 import {
@@ -439,6 +440,19 @@ describe("shadow scene lighting integration", () => {
   const setPointLabelOverlayVisible = vi.fn();
   const setMapStyleProjectionVisible = vi.fn();
   let scene: THREE.Scene;
+  let frameGroup: THREE.Group;
+  /** Shadow suns live in the local-frame group, not among the scene's children. */
+  const findShadowLights = () => {
+    const lights: THREE.DirectionalLight[] = [];
+    scene.traverse((object) => {
+      if (
+        (object as THREE.DirectionalLight).isDirectionalLight &&
+        object.name.startsWith("shadow-simulation-sun")
+      )
+        lights.push(object as THREE.DirectionalLight);
+    });
+    return lights;
+  };
   type SharedRuntimeFixture = {
     id: string;
     root: THREE.Object3D;
@@ -479,10 +493,14 @@ describe("shadow scene lighting integration", () => {
     // can finish after assertions and emit browser-only ProgressEvent errors.
     vi.spyOn(THREE.FileLoader.prototype, "load").mockReturnValue(undefined);
     scene = new THREE.Scene();
+    frameGroup = new THREE.Group();
+    frameGroup.matrixAutoUpdate = false;
+    scene.add(frameGroup);
     sharedRuntimes = new Map();
     accumulationController = null;
     sharedLayer = {
       getScene: () => scene,
+      getLocalFrameGroup: () => frameGroup,
       getRenderer: () => null,
       runIdleRender: (render) => {
         render();
@@ -525,19 +543,36 @@ describe("shadow scene lighting integration", () => {
     vi.restoreAllMocks();
   });
 
+  /** A frame whose current fit is `rotation` away from an identity reference. */
+  const localFrameAt = (
+    revision: number,
+    rotation = new THREE.Matrix4()
+  ): SharedThreeSceneFrame["localFrame"] => ({
+    lngLat: [7.15, 51.256] as const,
+    revision,
+    sceneFromLocal: rotation.clone(),
+    sceneFromLocalRotation: rotation.clone(),
+    referenceLngLat: [7.15, 51.256] as const,
+    sceneFromLocalReference: new THREE.Matrix4(),
+    referenceToCurrent: rotation.clone(),
+    currentToReference: rotation.clone().invert(),
+  });
+
   const updateShadows = (
     map: unknown,
     camera: THREE.PerspectiveCamera,
-    lookTarget = new THREE.Vector3()
+    lookTarget = new THREE.Vector3(),
+    localFrame = localFrameAt(1)
   ) => {
     const runtime = sharedRuntimes.get("shadow-simulation-controller");
     expect(runtime?.update).toBeTypeOf("function");
     runtime?.update?.({
-      map,
+      map: map as never,
       renderCamera: camera,
       lodCamera: camera,
       lookTarget,
       viewport: new THREE.Vector2(800, 600),
+      localFrame,
     });
   };
 
@@ -1155,7 +1190,9 @@ describe("shadow scene lighting integration", () => {
       styleEpoch: 3,
       active: true,
     };
-    expect(accumulation.renderProgressive?.(camera, nativeFrame)).toBeUndefined();
+    expect(
+      accumulation.renderProgressive?.(camera, nativeFrame)
+    ).toBeUndefined();
     controller.updateRenderQuality({
       shadowBufferLayout: SHADOW_BUFFER_LAYOUT.TILED,
     });
@@ -1310,6 +1347,16 @@ describe("shadow scene lighting integration", () => {
         lodCamera: camera,
         lookTarget: new THREE.Vector3(),
         viewport,
+        localFrame: {
+          lngLat: [7.15, 51.25] as const,
+          revision: 1,
+          sceneFromLocal: new THREE.Matrix4(),
+          sceneFromLocalRotation: new THREE.Matrix4(),
+          referenceLngLat: [7.15, 51.25] as const,
+          sceneFromLocalReference: new THREE.Matrix4(),
+          referenceToCurrent: new THREE.Matrix4(),
+          currentToReference: new THREE.Matrix4(),
+        },
       };
       const runtime = sharedRuntimes.get("shadow-simulation-controller")!;
       const accumulation = accumulationController!;
@@ -1327,7 +1374,9 @@ describe("shadow scene lighting integration", () => {
         expect(acknowledgeShadowStage).toHaveBeenLastCalledWith([
           "mesh-2024/root/tile-1",
         ]);
-        expect(updateTiled).toHaveBeenCalledTimes(updateCount + (refit ? 1 : 0));
+        expect(updateTiled).toHaveBeenCalledTimes(
+          updateCount + (refit ? 1 : 0)
+        );
         expect(updatePresentation).toHaveBeenCalledTimes(
           presentationCount + (refit ? 0 : 1)
         );
@@ -1681,6 +1730,86 @@ describe("shadow scene lighting integration", () => {
     controller.dispose();
   });
 
+  it("carries the sun with the local-frame group on a refit and re-evaluates nothing", () => {
+    sharedLayer.projectLngLatToScene = ([lng, lat], altitude = 0) =>
+      new THREE.Vector3(lng * 1_000, altitude, lat * 1_000);
+    const map = {
+      getCenter: vi.fn(() => ({ lng: 7.15, lat: 51.256 })),
+      getCanvas: vi.fn(() => ({ clientWidth: 800, clientHeight: 600 })),
+      unproject: vi.fn(([x, y]: [number, number]) => ({
+        lng: 7.15 + (x / 800 - 0.5) * 0.02,
+        lat: 51.256 + (0.5 - y / 600) * 0.02,
+      })),
+      getLight: vi.fn(() => ({ anchor: "viewport" })),
+      isStyleLoaded: vi.fn(() => true),
+      setLight: vi.fn(),
+      on: vi.fn(),
+      off: vi.fn(),
+      triggerRepaint: vi.fn(),
+    };
+    const controller = buildShadowSimulationScene(map as never);
+    controller.updateRenderQuality({
+      shadowBufferLayout: SHADOW_BUFFER_LAYOUT.MONO,
+    });
+    controller.updateSolarPosition({
+      instant: new Date("2026-06-21T10:00:00Z"),
+      azimuthDegrees: 135,
+      elevationDegrees: 45,
+    });
+    const evaluate = vi.spyOn(
+      AtmosphericSunlightEvaluator.prototype,
+      "evaluate"
+    );
+    const camera = new THREE.PerspectiveCamera(60, 4 / 3, 1, 20_000);
+    camera.position.set(7_150, 4_000, 51_256);
+    camera.lookAt(7_150, 0, 51_256);
+    camera.updateProjectionMatrix();
+    camera.updateMatrixWorld(true);
+    const sun = scene.getObjectByName(
+      "shadow-simulation-sun"
+    ) as THREE.DirectionalLight;
+    expect(sun.parent).toBe(frameGroup);
+    const localDirection = () =>
+      sun.position.clone().sub(sun.target.position).normalize();
+    const worldDirection = () => {
+      sun.updateMatrixWorld(true);
+      sun.target.updateMatrixWorld(true);
+      return new THREE.Vector3()
+        .setFromMatrixPosition(sun.matrixWorld)
+        .sub(new THREE.Vector3().setFromMatrixPosition(sun.target.matrixWorld))
+        .normalize();
+    };
+    const tilt = (degrees: number) =>
+      new THREE.Matrix4().makeRotationZ(THREE.MathUtils.degToRad(degrees));
+    updateShadows(map, camera, undefined, localFrameAt(1));
+    const aimed = localDirection();
+    const evaluations = evaluate.mock.calls.length;
+    sun.shadow.needsUpdate = false;
+
+    // The layer moves the group; the light inside keeps its fit, the world
+    // sees it turned with the tiles, and nothing is evaluated or invalidated.
+    for (const [revision, degrees] of [
+      [2, 0.01],
+      [3, 0.5],
+    ] as const) {
+      frameGroup.matrix.copy(tilt(degrees));
+      frameGroup.updateMatrixWorld(true);
+      updateShadows(
+        map,
+        camera,
+        undefined,
+        localFrameAt(revision, tilt(degrees))
+      );
+      expect(localDirection().angleTo(aimed)).toBe(0);
+      expect(
+        worldDirection().angleTo(aimed.clone().applyMatrix4(tilt(degrees)))
+      ).toBeCloseTo(0, 6);
+      expect(evaluate).toHaveBeenCalledTimes(evaluations);
+      expect(sun.shadow.needsUpdate).toBe(false);
+    }
+    controller.dispose();
+  });
+
   it("drives MapLibre and the Three.js sun from the same solar position", async () => {
     const performanceNow = vi.spyOn(performance, "now").mockReturnValue(100);
     const evaluateAtmosphere = vi.spyOn(
@@ -1793,11 +1922,14 @@ describe("shadow scene lighting integration", () => {
     expect(sun.castShadow).toBe(true);
     expect(sun.shadow.autoUpdate).toBe(false);
     expect(sun.shadow.radius).toBe(0);
-    const shadowLights = scene.children.filter(
-      (object): object is THREE.DirectionalLight =>
+    const shadowLights: THREE.DirectionalLight[] = [];
+    scene.traverse((object) => {
+      if (
         (object as THREE.DirectionalLight).isDirectionalLight &&
         object.name.startsWith("shadow-simulation-sun")
-    );
+      )
+        shadowLights.push(object as THREE.DirectionalLight);
+    });
     expect(shadowLights).toHaveLength(1);
     expect(shadowLights.every((light) => light.shadow.intensity === 1)).toBe(
       true
@@ -2368,11 +2500,7 @@ describe("shadow scene lighting integration", () => {
       camera.updateMatrixWorld(true);
       controller.refreshProjectionDebug();
       updateShadows(map, camera);
-      const lights = scene.children.filter(
-        (object): object is THREE.DirectionalLight =>
-          (object as THREE.DirectionalLight).isDirectionalLight &&
-          object.name.startsWith("shadow-simulation-sun")
-      );
+      const lights = findShadowLights();
       for (const [lng, lat] of [
         [mapCenter.lng - viewportHalfWidth, mapCenter.lat - viewportHalfHeight],
         [mapCenter.lng - viewportHalfWidth, mapCenter.lat + viewportHalfHeight],
@@ -2956,6 +3084,16 @@ describe("shadow scene lighting integration", () => {
       lodCamera: camera,
       lookTarget: new THREE.Vector3(7_150, 150, 51_256),
       viewport: new THREE.Vector2(800, 600),
+      localFrame: {
+        lngLat: [7.15, 51.25] as const,
+        revision: 1,
+        sceneFromLocal: new THREE.Matrix4(),
+        sceneFromLocalRotation: new THREE.Matrix4(),
+        referenceLngLat: [7.15, 51.25] as const,
+        sceneFromLocalReference: new THREE.Matrix4(),
+        referenceToCurrent: new THREE.Matrix4(),
+        currentToReference: new THREE.Matrix4(),
+      },
     });
     expect(accumulationController?.active()).toBe(false);
 

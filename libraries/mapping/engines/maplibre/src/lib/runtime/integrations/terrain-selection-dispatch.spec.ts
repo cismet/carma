@@ -1,4 +1,4 @@
-import { Camera, PerspectiveCamera, Vector2, Vector3 } from "three";
+import { Camera, Matrix4, PerspectiveCamera, Vector2, Vector3 } from "three";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { TerrainSelection } from "../../core/terrain-selection";
 import type { TerrainWorkerResult } from "./terrain-worker-task";
@@ -80,6 +80,16 @@ describe("coalesced asynchronous terrain selection", () => {
       lodCamera: new PerspectiveCamera(45, 1, 1, 10000),
       viewport: new Vector2(2560, 1440),
       lookTarget: new Vector3(),
+      localFrame: {
+        lngLat: [7.15, 51.25] as const,
+        revision: 1,
+        sceneFromLocal: new Matrix4(),
+        sceneFromLocalRotation: new Matrix4(),
+        referenceLngLat: [7.15, 51.25] as const,
+        sceneFromLocalReference: new Matrix4(),
+        referenceToCurrent: new Matrix4(),
+        currentToReference: new Matrix4(),
+      },
     };
     frame.lodCamera.position.set(0, 1000, 1000);
     runtime.update(frame);
@@ -98,7 +108,9 @@ describe("coalesced asynchronous terrain selection", () => {
     });
     pending.shift()!({ kind: "select", selection: selection(firstId) });
     await vi.waitFor(() => expect(runWorker).toHaveBeenCalledTimes(2));
-    await vi.waitFor(() => expect(source.requestTile).toHaveBeenCalledWith(firstId));
+    await vi.waitFor(() =>
+      expect(source.requestTile).toHaveBeenCalledWith(firstId)
+    );
     expect(runWorker.mock.calls[1][0].input.lodCameraPosition[0]).toBe(30);
     // An identical frame while pending does not enqueue another walk.
     runtime.update(frame);

@@ -236,7 +236,7 @@ export class ShadowCorridorPresentation {
   has(page: ShadowAccumulationPage, samples: number) {
     const capture = this.captures.get(page.id);
     if (!this.canReplay(page)) return false;
-    // Decision: LINKED-RECEIVER-CASTER-LOD-20260910 in engines/maplibre/README.md.
+    // Decision: engines/maplibre/README.md#linked-receivercaster-detail.
     // Keep old visibility for continuity, but a newly committed geometry cut
     // requires a fresh hard/soft capture even at unchanged sun and resolution.
     if (capture?.casterRevision !== page.casterRevision) return false;

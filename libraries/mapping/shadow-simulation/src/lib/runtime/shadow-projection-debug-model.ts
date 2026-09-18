@@ -2,11 +2,8 @@ import type { Map as MaplibreMap } from "maplibre-gl";
 import { Matrix4, Quaternion, Vector3 } from "three";
 
 import { CAMERA_TYPE, readLocalCameraBasis } from "@carma-commons/camera/model";
-import {
-  distanceMeters,
-  ecefToEnuOffset,
-  enuOffsetToEcef,
-} from "@carma-geo/utils";
+import { ecefToEnuOffset, enuOffsetToEcef } from "@carma-geo/proj";
+import { distanceMeters } from "@carma-geo/utils";
 import {
   buildViewState,
   buildViewStateFromEcef,
@@ -236,7 +233,9 @@ const readVisualizationWorldScaleMeters = (
   // Before any tile arrives, retain the camera-only overview as a fallback.
   return Math.max(
     1,
-    ...viewStates.map(readLocalCameraPosition).map((position) => position.length())
+    ...viewStates
+      .map(readLocalCameraPosition)
+      .map((position) => position.length())
   );
 };
 

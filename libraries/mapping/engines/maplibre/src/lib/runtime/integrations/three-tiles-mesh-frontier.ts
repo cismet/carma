@@ -396,7 +396,7 @@ export const refineLoadedMeshFrontier = (
   errorPixels: (tile: Tile) => number = (tile) => tile.traversal.error,
   minimumFrontier: ReadonlySet<Tile> = new Set()
 ): Set<Tile> => {
-  // Decision: LINKED-RECEIVER-CASTER-LOD-20260910 in engines/maplibre/README.md.
+  // Decision: engines/maplibre/README.md#linked-receivercaster-detail.
   // A parent meeting caster SSE must not mask already displayed finer geometry.
   // Only a missing corridor-relevant sibling may keep its depth fallback alive.
   const requiredAncestors = new Set<Tile>();

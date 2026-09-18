@@ -14,8 +14,9 @@ export const WEB_MERCATOR_MAX_LATITUDE_DEG: Degrees = 85.051129 as Degrees;
 /**
  * Web Mercator maximum latitude in radians.
  */
-export const WEB_MERCATOR_MAX_LATITUDE_RAD: Radians =
-  degToRad(WEB_MERCATOR_MAX_LATITUDE_DEG);
+export const WEB_MERCATOR_MAX_LATITUDE_RAD: Radians = degToRad(
+  WEB_MERCATOR_MAX_LATITUDE_DEG
+);
 
 /**
  * Default zoom level for web map applications.
@@ -35,5 +36,6 @@ export const DEFAULT_MERCATOR_LATITUDE_DEG: Degrees = 51.2 as Degrees;
 /**
  * Default latitude for Mercator calculations in radians.
  */
-export const DEFAULT_MERCATOR_LATITUDE_RAD: Radians =
-  degToRad(DEFAULT_MERCATOR_LATITUDE_DEG);
+export const DEFAULT_MERCATOR_LATITUDE_RAD: Radians = degToRad(
+  DEFAULT_MERCATOR_LATITUDE_DEG
+);

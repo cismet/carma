@@ -165,10 +165,8 @@ export function createThreeTilesRuntimeState(
   const tileBoundingSphere = new THREE.Sphere();
   const tileBoundingBox = new THREE.Box3();
   const tileBoundsTransform = new THREE.Matrix4();
-  const modelWorldBounds = new WeakMap<
-    THREE.Object3D,
-    { rootMatrixWorld: THREE.Matrix4; bounds: THREE.Box3 }
-  >();
+  /** Bounds in each model's own space; payloads are immutable, so kept forever. */
+  const modelLocalBounds = new WeakMap<THREE.Object3D, THREE.Box3>();
   const rootBoundsTransform = new THREE.Matrix4();
   const sourceWorldBoundsTransform = new THREE.Matrix4();
   const activeTileBoundingBox = new THREE.Box3();
@@ -179,6 +177,17 @@ export function createThreeTilesRuntimeState(
   const tileViewElevationProjection = new THREE.Matrix4();
   const tileProjectedCenter = new THREE.Vector3();
   const tilesToShadowView = new THREE.Matrix4();
+  /**
+   * Tiles group to the space the runtime root lives in: the layer's
+   * local-frame group for a frame-mounted runtime, else the scene. Unlike
+   * `tiles.group.matrixWorld` it is static under a local-frame refit, so the
+   * shadow-facing bounds and cache keys derived from it survive one.
+   * Decision: engines/maplibre/README.md#local-frame-for-ecef-tilesets-sun-and-sky.
+   */
+  const frameFromTiles = new THREE.Matrix4();
+  const frameToShadowView = new THREE.Matrix4();
+  const referenceToCurrent = new THREE.Matrix4();
+  const currentToReference = new THREE.Matrix4();
   const sunwardDirection = new THREE.Vector3();
   const shadowSignatureDirection = new THREE.Vector3();
   const shadowReceiverMatch: ShadowReceiverMatch = {
@@ -341,7 +350,7 @@ export function createThreeTilesRuntimeState(
     tileBoundingSphere,
     tileBoundingBox,
     tileBoundsTransform,
-    modelWorldBounds,
+    modelLocalBounds,
     rootBoundsTransform,
     sourceWorldBoundsTransform,
     activeTileBoundingBox,
@@ -352,6 +361,10 @@ export function createThreeTilesRuntimeState(
     tileViewElevationProjection,
     tileProjectedCenter,
     tilesToShadowView,
+    frameFromTiles,
+    frameToShadowView,
+    referenceToCurrent,
+    currentToReference,
     sunwardDirection,
     shadowSignatureDirection,
     shadowReceiverMatch,

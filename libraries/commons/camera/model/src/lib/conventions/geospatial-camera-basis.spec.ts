@@ -1,3 +1,4 @@
+import { WGS84_ELLIPSOID } from "@carma-geo/proj";
 import { Quaternion, Vector3 } from "three";
 import { describe, expect, it } from "vitest";
 
@@ -8,7 +9,7 @@ import {
 } from "./geospatial-camera-basis";
 import { readLocalCameraBasis } from "./local-camera-basis";
 describe("geospatial camera basis", () => {
-  const anchor = new Vector3(6378137, 0, 0);
+  const anchor = new Vector3(WGS84_ELLIPSOID.semiMajorAxis, 0, 0);
 
   it("roundtrips local and world directions at an anchor", () => {
     const localDirection = new Vector3(0.3, 0.5, -0.8).normalize();

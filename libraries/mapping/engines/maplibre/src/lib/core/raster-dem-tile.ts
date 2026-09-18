@@ -1,12 +1,10 @@
+import { WEB_MERCATOR_MAX_LATITUDE_DEG } from "@carma-geo/proj";
 import { degToRadNumeric, radToDegNumeric } from "@carma-units";
 
 import {
   reduceRasterMesh,
   resolveRasterMeshErrorMeters,
 } from "./raster-mesh-error";
-
-export const EARTH_CIRCUMFERENCE_METERS = 40_075_016.68557849;
-const MAX_MERCATOR_LATITUDE = 85.0511287798066;
 
 export type TerrainTileId = Readonly<{
   level: number;
@@ -52,7 +50,10 @@ export const terrainTileKey = ({ level, x, y }: TerrainTileId) =>
   `${level}/${x}/${y}`;
 
 export const clampLatitude = (latitude: number) =>
-  Math.max(-MAX_MERCATOR_LATITUDE, Math.min(MAX_MERCATOR_LATITUDE, latitude));
+  Math.max(
+    -WEB_MERCATOR_MAX_LATITUDE_DEG,
+    Math.min(WEB_MERCATOR_MAX_LATITUDE_DEG, latitude)
+  );
 
 export const longitudeToTileX = (longitude: number, level: number) =>
   ((longitude + 180) / 360) * 2 ** level;

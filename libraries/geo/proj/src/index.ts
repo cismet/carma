@@ -4,6 +4,40 @@ export * from "./lib/defs";
 export * from "./lib/utils";
 
 export {
+  getWebMercatorFromWgs84Deg,
+  getWgs84DegFromWebMercator,
+} from "./lib/web-mercator";
+export {
+  WGS84_A,
+  WGS84_B,
+  WGS84_E2,
+  cartographicToEcef,
+  ecefToCartographic,
+  ecefToEnuMatrix,
+  ecefToEnuOffset,
+  enuOffsetToEcef,
+} from "./lib/geodetic";
+export type { CartographicRad } from "./lib/geodetic";
+export {
+  clampLatitudeToWebMercatorExtent,
+  getMercatorScaleFactorAtLatitudeDeg,
+  getMercatorScaleFactorAtLatitudeRad,
+  getPixelResolutionFromZoomAtLatitudeRad,
+  getZoomFromPixelResolutionAtLatitudeRad,
+} from "./lib/mercator";
+export { getCameraLocalMercatorFit } from "./lib/camera-local-mercator-fit";
+export { EARTH_CIRCUMFERENCE, EARTH_RADIUS } from "./lib/earth";
+export {
+  DEFAULT_LEAFLET_TILESIZE,
+  DEFAULT_MERCATOR_LATITUDE_DEG,
+  DEFAULT_MERCATOR_LATITUDE_RAD,
+  DEFAULT_PIXEL_TOLERANCE,
+  DEFAULT_ZOOM_LEVEL,
+  WEB_MERCATOR_MAX_LATITUDE_DEG,
+  WEB_MERCATOR_MAX_LATITUDE_RAD,
+} from "./lib/web-map";
+
+export {
   InvalidVerticalOffsetTileError,
   UnsupportedVerticalOffsetRegionError,
   VerticalOffsetTileLoadError,
@@ -37,13 +71,10 @@ export type {
   Gcg2016UtmZone,
   Gcg2016Wgs84VerticalTransformer,
 } from "./lib/gcg2016-transformers";
-export {
-  GRS80_ELLIPSOID,
-  utmToEllipsoidSurface,
-  WGS84_ELLIPSOID,
-} from "./lib/utm-ellipsoid";
+export { GRS80_ELLIPSOID, WGS84_ELLIPSOID } from "./lib/ellipsoids";
+export type { ReferenceEllipsoid } from "./lib/ellipsoids";
+export { utmToEllipsoidSurface } from "./lib/utm-ellipsoid";
 export type {
   EllipsoidSurfaceCoordinate,
-  ReferenceEllipsoid,
   UtmReference,
 } from "./lib/utm-ellipsoid";

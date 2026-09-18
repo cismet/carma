@@ -49,6 +49,8 @@ export class ShadowTiledScene {
       light: THREE.DirectionalLight;
       sky: THREE.Object3D;
       overlay: THREE.Object3D;
+      /** Host of page lights and space of cells and fits; defaults to the scene. */
+      frame?: THREE.Object3D;
       maximumMapSize: number;
       isCorridorReady?: (
         bounds: THREE.Box3,
@@ -92,7 +94,8 @@ export class ShadowTiledScene {
       scene,
       renderer,
       host.maximumMapSize ** 2 * 8 * 2,
-      host.maximumMapSize
+      host.maximumMapSize,
+      host.frame
     );
     this.accumulation = new ShadowReceiverAccumulator(renderer);
     if (host.worldBasis && host.corridorRevision && host.dateTimeKey) {
@@ -133,11 +136,14 @@ export class ShadowTiledScene {
     }
   }
 
+  /** `planningCamera` is the observer in the cells' space (the host frame);
+   * rendering keeps using the frame's world cameras. */
   update(
     cells: readonly ShadowReceiverCell[],
     frame: SharedThreeSceneFrame,
     lighting: TiledShadowLighting,
-    targetPixels: number
+    targetPixels: number,
+    planningCamera: THREE.Camera = frame.renderCamera
   ) {
     this.viewport.copy(frame.viewport);
     const key = JSON.stringify([
@@ -147,8 +153,8 @@ export class ShadowTiledScene {
         bounds.max,
         receiverObjectId,
       ]),
-      frame.renderCamera.projectionMatrix.elements,
-      frame.renderCamera.matrixWorldInverse.elements,
+      planningCamera.projectionMatrix.elements,
+      planningCamera.matrixWorldInverse.elements,
       frame.viewport,
       lighting,
       targetPixels,
@@ -156,7 +162,7 @@ export class ShadowTiledScene {
     if (key === this.viewKey) return;
     this.pages.setView(
       cells,
-      frame.renderCamera,
+      planningCamera,
       frame.viewport,
       targetPixels,
       lighting,
@@ -169,9 +175,12 @@ export class ShadowTiledScene {
 
   /** Keep completed corridor textures attached to their receiver tiles while
    * the observer camera moves; capture dimensions are reconsidered on moveend. */
-  updatePresentation(frame: SharedThreeSceneFrame) {
+  updatePresentation(
+    frame: SharedThreeSceneFrame,
+    planningCamera: THREE.Camera = frame.renderCamera
+  ) {
     this.viewport.copy(frame.viewport);
-    this.pages.updatePresentation(frame.renderCamera);
+    this.pages.updatePresentation(planningCamera);
   }
 
   /** Unknown external scene changes still require a full invalidation. Raster
@@ -196,6 +205,7 @@ export class ShadowTiledScene {
     prepare,
     signal,
     yieldToInput = yieldShadowIdleTask,
+    planningCamera,
   }: {
     cells: readonly ShadowReceiverCell[];
     frame: SharedThreeSceneFrame;
@@ -208,12 +218,13 @@ export class ShadowTiledScene {
     ) => Promise<ShadowCasterLease>;
     signal: AbortSignal;
     yieldToInput?: (signal: AbortSignal) => Promise<void>;
+    planningCamera?: THREE.Camera;
   }) {
     if (signal.aborted) return null;
     this.idleStats = null;
     this.pages.setPrewarmView(
       cells,
-      frame.renderCamera,
+      planningCamera ?? frame.renderCamera,
       frame.viewport,
       targetPixels,
       lighting,

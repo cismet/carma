@@ -2,6 +2,7 @@ import {
   BufferAttribute,
   BufferGeometry,
   Camera,
+  Matrix4,
   PerspectiveCamera,
   Vector2,
   Vector3,
@@ -156,6 +157,16 @@ describe("prepared terrain cache integration", () => {
           lodCamera,
           lookTarget: new Vector3(),
           viewport: new Vector2(1000, 1000),
+          localFrame: {
+            lngLat: [7.15, 51.25] as const,
+            revision: 1,
+            sceneFromLocal: new Matrix4(),
+            sceneFromLocalRotation: new Matrix4(),
+            referenceLngLat: [7.15, 51.25] as const,
+            sceneFromLocalReference: new Matrix4(),
+            referenceToCurrent: new Matrix4(),
+            currentToReference: new Matrix4(),
+          },
         });
         await expect(runtime.ready).resolves.toBe(true);
         const sharedSampler = registerSampler.mock.calls[0][2];

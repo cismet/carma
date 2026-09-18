@@ -1,3 +1,10 @@
+import {
+  EARTH_CIRCUMFERENCE,
+  getPixelResolutionFromZoomAtLatitudeRad,
+  getWebMercatorFromWgs84Deg,
+} from "@carma-geo/proj";
+import { degToRad, degToRadNumeric } from "@carma-units";
+import type { Degrees } from "@carma-units";
 // Pure, worker-safe terrain selection contracts and helpers live here.
 // Runtime code supplies only snapshots and source metadata; this module never
 // touches MapLibre, DOM, WebGL, network state, or mesh ownership.
@@ -10,7 +17,6 @@ import {
 
 import {
   boundsIntersect,
-  EARTH_CIRCUMFERENCE_METERS,
   getTileBounds,
   latitudeToTileY,
   longitudeToTileX,
@@ -129,9 +135,11 @@ const createDefaultAdapter = (
   getTileGridIdsForBounds: (bounds, level) => getGridIds(source, bounds, level),
   getTileBounds,
   getTileGeometricError: (level) =>
-    (EARTH_CIRCUMFERENCE_METERS *
-      Math.cos(((source.bounds.south + source.bounds.north) * Math.PI) / 360)) /
-    (2 ** level * source.meshSegments),
+    getPixelResolutionFromZoomAtLatitudeRad(
+      level,
+      degToRad(((source.bounds.south + source.bounds.north) / 2) as Degrees),
+      { tileSize: source.meshSegments }
+    ),
   getTileDataAvailable: (id) =>
     id.level >= source.minzoom &&
     id.level <= source.maxzoom &&
@@ -155,12 +163,13 @@ const projectToLocalWorld = (
   meterScale: number,
   target: Vector3
 ) => {
-  const latitudeRadians = (latitude * Math.PI) / 180;
+  const latitudeRadians = degToRadNumeric(latitude);
   const x = (longitude + 180) / 360;
-  const y =
-    (180 -
-      (180 / Math.PI) * Math.log(Math.tan(Math.PI / 4 + latitudeRadians / 2))) /
-    360;
+  const [, northing] = getWebMercatorFromWgs84Deg(
+    0 as Degrees,
+    latitude as Degrees
+  );
+  const y = 0.5 - northing / EARTH_CIRCUMFERENCE;
   // Reuse the caller's Mercator scale, including its Earth-radius convention.
   const originLatitude = Math.atan(Math.sinh(Math.PI * (1 - 2 * origin[1])));
   const z =

@@ -1,3 +1,4 @@
+import { WGS84_ELLIPSOID } from "./ellipsoids";
 import { Matrix4, Vector3 } from "three";
 
 import type { Altitude } from "@carma-geo/data-structures";
@@ -7,9 +8,9 @@ import type { Radians } from "@carma-units";
 // ---------------------------------------------------------------------------
 
 /** WGS84 semi-major axis (equatorial radius) in meters. */
-export const WGS84_A = 6378137.0;
+export const WGS84_A = WGS84_ELLIPSOID.semiMajorAxis;
 /** WGS84 semi-minor axis (polar radius) in meters. */
-export const WGS84_B = 6356752.314245;
+export const WGS84_B = WGS84_ELLIPSOID.semiMinorAxis;
 /** WGS84 first eccentricity squared. */
 export const WGS84_E2 =
   (WGS84_A * WGS84_A - WGS84_B * WGS84_B) / (WGS84_A * WGS84_A);

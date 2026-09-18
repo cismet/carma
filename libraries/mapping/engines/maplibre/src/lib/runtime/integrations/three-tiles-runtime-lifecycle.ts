@@ -1,5 +1,6 @@
 import type { Tile } from "3d-tiles-renderer/core";
 import * as THREE from "three";
+import { getCameraLocalMercatorFit } from "@carma-geo/proj";
 
 import { isLocalhostHostname } from "@carma-commons/utils";
 
@@ -47,7 +48,9 @@ export function createThreeTilesLifecycle(
     | "tiles"
     | "bytesPredictor"
     | "payloadAwareConcurrency"
-    | "modelWorldBounds"
+    | "modelLocalBounds"
+    | "referenceToCurrent"
+    | "currentToReference"
     | "tilesetUrl"
     | "shadowRegionRevisions"
     | "allocationFailed"
@@ -103,7 +106,8 @@ export function createThreeTilesLifecycle(
     | "getTileDebugProgress"
     | "refreshRenderedMaterials"
     | "applyMaterialFlags"
-    | "readModelWorldBounds"
+    | "readModelFrameBounds"
+    | "updateFrameFromTiles"
     | "invalidateShadowRegionRevisions"
     | "reapplyCacheBoundsIfDrifted"
     | "applyRequestConcurrency"
@@ -202,7 +206,7 @@ export function createThreeTilesLifecycle(
         if (!event.tile || attachment.isDeferredMaterialReady(event.tile))
           dependencies.refreshRenderedMaterials(event.scene);
         else dependencies.applyMaterialFlags(event.scene);
-        const bounds = dependencies.readModelWorldBounds(
+        const bounds = dependencies.readModelFrameBounds(
           event.scene,
           new THREE.Box3()
         );
@@ -252,11 +256,12 @@ export function createThreeTilesLifecycle(
       runtimeState.meshContentRevision += 1;
       const changedBounds: THREE.Box3[] = [];
       if (event.scene) {
-        const cached = runtimeState.modelWorldBounds.get(event.scene);
-        if (cached && !cached.bounds.isEmpty()) {
-          changedBounds.push(cached.bounds.clone());
-        }
-        runtimeState.modelWorldBounds.delete(event.scene);
+        const bounds = dependencies.readModelFrameBounds(
+          event.scene,
+          new THREE.Box3()
+        );
+        if (!bounds.isEmpty()) changedBounds.push(bounds);
+        runtimeState.modelLocalBounds.delete(event.scene);
       }
       if (event.tile) {
         runtimeState.shadowRegionWorldBounds.delete(event.tile);
@@ -449,6 +454,15 @@ export function createThreeTilesLifecycle(
     scheduleMotionCoverage,
   });
   let publishedNativeFrontier = new Set<Tile>();
+  // Live mount: an extra parent between the offset group and the tileset,
+  // refitted at the camera target. Moving the parent moves rendering, picking
+  // and loader bounds together, without replacing the tileset or reparsing any
+  // resident GPU resources.
+  const cameraMount = new THREE.Group();
+  cameraMount.matrixAutoUpdate = false;
+  const mountAxisFlip = new THREE.Matrix4().makeRotationY(Math.PI);
+  /** Anchor of the reference fit the mount was made at; null = never mounted. */
+  let mountedReferenceLngLat: readonly [number, number] | null = null;
   const update: ThreeTilesRuntimeServices["update"] = (
     frame: SharedThreeSceneFrame
   ) => {
@@ -458,6 +472,39 @@ export function createThreeTilesLifecycle(
       !runtimeState.map
     )
       return;
+    if (runtimeState.options.cameraLocalMount) {
+      // The shared scene owns the local frame. The tileset is mounted once, at
+      // the frame's reference fit, inside the layer's local-frame group; a
+      // refit moves that group and nothing here, so tiles, light and shadows
+      // move together. Decision: engines/maplibre/README.md#local-frame-for-ecef-tilesets-sun-and-sky.
+      const { localFrame } = frame;
+      if (localFrame) {
+        runtimeState.referenceToCurrent.copy(localFrame.referenceToCurrent);
+        runtimeState.currentToReference.copy(localFrame.currentToReference);
+      }
+      if (
+        localFrame &&
+        (mountedReferenceLngLat?.[0] !== localFrame.referenceLngLat[0] ||
+          mountedReferenceLngLat?.[1] !== localFrame.referenceLngLat[1])
+      ) {
+        cameraMount.matrix
+          .copy(
+            getCameraLocalMercatorFit(
+              [runtimeState.originLngLat[0], runtimeState.originLngLat[1]],
+              [localFrame.referenceLngLat[0], localFrame.referenceLngLat[1]],
+              { correctEllipsoidMetric: true }
+            )
+          )
+          .premultiply(mountAxisFlip)
+          .multiply(mountAxisFlip);
+        if (cameraMount.parent !== runtimeState.offsetGroup) {
+          runtimeState.offsetGroup.add(cameraMount);
+          cameraMount.add(runtimeState.tiles.group);
+        }
+        runtimeState.orientationGroup.updateMatrixWorld(true);
+        mountedReferenceLngLat = localFrame.referenceLngLat;
+      }
+    }
     // Keep drawing the retained cut at native resolution. While input is
     // active, only a bounded coverage traversal admits missing coarse tiles;
     // moveend immediately runs the full requested-error audit again.
@@ -552,7 +599,7 @@ export function createThreeTilesLifecycle(
             continue;
           const model = (tile as RuntimeTile).engineData?.scene;
           const bounds =
-            model && dependencies.readModelWorldBounds(model, new THREE.Box3());
+            model && dependencies.readModelFrameBounds(model, new THREE.Box3());
           if (bounds && !bounds.isEmpty()) changedBounds.push(bounds);
           else unknownBounds = true;
         }

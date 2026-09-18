@@ -265,6 +265,16 @@ const createHarness = (
       lodCamera: camera,
       lookTarget: new THREE.Vector3(),
       viewport: new THREE.Vector2(800, 600),
+      localFrame: {
+        lngLat: [7.15, 51.25] as const,
+        revision: 1,
+        sceneFromLocal: new THREE.Matrix4(),
+        sceneFromLocalRotation: new THREE.Matrix4(),
+        referenceLngLat: [7.15, 51.25] as const,
+        sceneFromLocalReference: new THREE.Matrix4(),
+        referenceToCurrent: new THREE.Matrix4(),
+        currentToReference: new THREE.Matrix4(),
+      },
     });
     await flush(flushSteps);
   };

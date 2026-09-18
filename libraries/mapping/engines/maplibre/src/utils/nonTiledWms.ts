@@ -1,3 +1,8 @@
+import {
+  getWebMercatorFromWgs84Deg,
+  WEB_MERCATOR_MAX_LATITUDE_DEG,
+} from "@carma-geo/proj";
+import type { Degrees } from "@carma-units";
 /**
  * Non-tiled (single image) WMS support for MapLibre.
  *
@@ -49,8 +54,6 @@ const DEFAULT_BUFFER_PX = 64;
  *  large screens and high device pixel ratios. */
 const DEFAULT_MAX_SIZE_PX = 2048;
 
-const WEB_MERCATOR_MAX_LAT = 85.0511287798;
-
 export interface NonTiledWmsRequest {
   url: string;
   layers: string;
@@ -66,16 +69,15 @@ export interface NonTiledWmsRequest {
 const querySeparator = (url: string): string =>
   url.endsWith("?") ? "" : url.includes("?") ? "&" : "?";
 
-const lngToMercatorX = (lng: number): number => (lng * 20037508.34) / 180;
+const lngToMercatorX = (lng: number): number =>
+  getWebMercatorFromWgs84Deg(lng as Degrees, 0 as Degrees)[0];
 
 const latToMercatorY = (lat: number): number => {
   const clamped = Math.max(
-    -WEB_MERCATOR_MAX_LAT,
-    Math.min(WEB_MERCATOR_MAX_LAT, lat)
+    -WEB_MERCATOR_MAX_LATITUDE_DEG,
+    Math.min(WEB_MERCATOR_MAX_LATITUDE_DEG, lat)
   );
-  const y =
-    Math.log(Math.tan(((90 + clamped) * Math.PI) / 360)) / (Math.PI / 180);
-  return (y * 20037508.34) / 180;
+  return getWebMercatorFromWgs84Deg(0 as Degrees, clamped as Degrees)[1];
 };
 
 export const buildNonTiledWmsUrl = (
@@ -137,8 +139,8 @@ const bufferedBounds = (
   return {
     west: west - lngPad,
     east: east + lngPad,
-    south: Math.max(-WEB_MERCATOR_MAX_LAT, south - latPad),
-    north: Math.min(WEB_MERCATOR_MAX_LAT, north + latPad),
+    south: Math.max(-WEB_MERCATOR_MAX_LATITUDE_DEG, south - latPad),
+    north: Math.min(WEB_MERCATOR_MAX_LATITUDE_DEG, north + latPad),
   };
 };
 
