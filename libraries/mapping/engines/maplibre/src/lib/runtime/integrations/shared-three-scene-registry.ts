@@ -24,6 +24,7 @@ import {
 } from "../../core/terrain-map-style";
 import { MAPLIBRE_EVENT } from "../../../constants/mapEvents";
 import { buildSharedThreeSceneLayer } from "./shared-three-scene-layer";
+import { subscribeSharedThreeSceneContent } from "./shared-three-scene-content-registry";
 import type { SharedThreeSceneLayer } from "../../core/shared-three-scene-types";
 import {
   getMapStylePointLabelLiftMeters,
@@ -34,7 +35,7 @@ import {
 } from "./map-style-layer-suppression";
 
 const SHARED_SCENE_LAYER_ID = "carma-shared-three-scene";
-const SHARED_SCENE_ENTRY_VERSION = 17;
+const SHARED_SCENE_ENTRY_VERSION = 18;
 const MAPLIBRE_TILE_SIZE = 512;
 /** Keep a lifted place name inside the view at high zoom. */
 const MAX_LABEL_LIFT_VIEWPORT_FRACTION = 0.35;
@@ -61,6 +62,8 @@ type SharedSceneEntry = {
   disposed: boolean;
   /** Prevent a synchronous style event from re-entering `map.addLayer`. */
   mountingLayer: boolean;
+  /** Stops following runtime registrations, see `subscribeRuntimeChanges`. */
+  unsubscribeContent: (() => void) | null;
   /** All style layers, reused until the layer list changes. */
   styleLayersCache: PointLabelLayersCache | null;
   labelMaintenanceTimer: ReturnType<typeof setTimeout> | null;
@@ -1514,6 +1517,23 @@ const configureEnsureLayer = (
   };
 };
 
+/**
+ * A runtime that registers after the style settled, a mesh added from the
+ * layer list for instance, changes the drape policy without any style or idle
+ * event following it: the basemap stayed visible under the mesh until the next
+ * interaction. A registration notifies without a content change, so that is
+ * the case maintained here at once; tile content changes carry bounds and are
+ * left to the rate-limited event path.
+ */
+const subscribeRuntimeChanges = (
+  map: MaplibreMap,
+  entry: SharedSceneEntry
+): (() => void) =>
+  subscribeSharedThreeSceneContent(map, (change) => {
+    if (change !== undefined || entry.disposed) return;
+    entry.ensureLayerNow();
+  });
+
 const addEnsureLayerListeners = (
   map: MaplibreMap,
   entry: SharedSceneEntry
@@ -1608,6 +1628,9 @@ export const acquireSharedThreeScene = (
     entry.updateLabelLift ??= () => undefined;
     configureEnsureLayer(map, entry);
     addEnsureLayerListeners(map, entry);
+    entry.unsubscribeContent ??= null;
+    entry.unsubscribeContent?.();
+    entry.unsubscribeContent = subscribeRuntimeChanges(map, entry);
     entry.ensureLayer();
   }
   if (!entry) {
@@ -1625,6 +1648,7 @@ export const acquireSharedThreeScene = (
       references: 0,
       disposed: false,
       mountingLayer: false,
+      unsubscribeContent: null,
       styleLayersCache: null,
       labelMaintenanceTimer: null,
       lastLabelMaintenanceMs: Number.NEGATIVE_INFINITY,
@@ -1652,6 +1676,7 @@ export const acquireSharedThreeScene = (
     configureEnsureLayer(map, nextEntry);
     entries.set(map, nextEntry);
     addEnsureLayerListeners(map, nextEntry);
+    nextEntry.unsubscribeContent = subscribeRuntimeChanges(map, nextEntry);
     nextEntry.ensureLayer();
     entry = nextEntry;
   }
@@ -1774,6 +1799,8 @@ export const acquireSharedThreeScene = (
         current.savedPointLabelVisibilities,
         false
       );
+      current.unsubscribeContent?.();
+      current.unsubscribeContent = null;
       terrainCoverageCache.delete(current.layer);
       current.layer.dispose();
       entries.delete(map);

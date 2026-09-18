@@ -897,8 +897,10 @@ export function createThreeTilesLifecycle(
               )
                 return;
               reportedIncompleteFamilies.add(parent);
-              console.error(
-                "[tiles3d] Incomplete published REPLACE family; repairing siblings",
+              // The missing siblings join the refinement support below and
+              // are re-requested at repair priority; nothing is lost.
+              console.warn(
+                "[tiles3d] Published REPLACE family incomplete; re-requesting siblings",
                 parent.content?.uri
               );
             },
@@ -931,7 +933,10 @@ export function createThreeTilesLifecycle(
                 )
                   return false;
                 const band = dependencies.getTileRingIndex(tile as RuntimeTile);
-                if (band <= 0 || !(tile as RuntimeTile).engineData?.boundingVolume)
+                if (
+                  band <= 0 ||
+                  !(tile as RuntimeTile).engineData?.boundingVolume
+                )
                   return false;
                 const projected = {
                   inView: false,

@@ -1832,7 +1832,8 @@ describe("three tiles runtime styling", () => {
     expect(sourceMaterial.transparent).toBe(false);
     expect(sourceMaterial.depthWrite).toBe(true);
     expect(sourceMaterial.shadowSide).toBe(THREE.DoubleSide);
-    expect(outline.visible).toBe(false);
+    // Outlines follow the style's `outline` alone, shadow mode does not hide them.
+    expect(outline.visible).toBe(true);
 
     const shader = {
       uniforms: {},
