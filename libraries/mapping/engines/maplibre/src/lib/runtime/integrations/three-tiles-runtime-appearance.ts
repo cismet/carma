@@ -425,10 +425,10 @@ export function createThreeTilesAppearance(
   const applyOutlineVisibility: ThreeTilesRuntimeServices["applyOutlineVisibility"] =
     (root: THREE.Object3D) => {
       root.traverse((object) => {
+        // Outlines follow the style's `outline` alone; shadow mode does not
+        // hide them.
         if (object.userData[TILE_OUTLINE_FLAG]) {
-          object.visible = runtimeState.shadowSimulationStyle
-            ? false
-            : runtimeState.outlineVisible;
+          object.visible = runtimeState.outlineVisible;
         }
       });
     };
