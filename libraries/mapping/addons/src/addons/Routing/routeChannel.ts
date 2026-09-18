@@ -118,6 +118,11 @@ export type RouteInstruction = {
   current: RouteStep;
   /** the step after it; undefined on the last one */
   next?: RouteStep;
+  /**
+   * the step after that, for warning of a second turn close behind the
+   * first; undefined when `next` is the last step or there is none
+   */
+  afterNext?: RouteStep;
   /** meters left on the current step, i.e. until the next turn */
   metersToNext: number;
 };

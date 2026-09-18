@@ -19,6 +19,17 @@ export type RoutingConfig = {
   /** default 10 */
   instructionOrder?: number;
   /**
+   * The card warns of a second turn close behind the next one ("dann links
+   * abbiegen") when the stretch between the two is shorter than this, in
+   * meters; default 150
+   */
+  thenWithinMeters?: number;
+  /**
+   * ... and the user is closer to the next turn than this, in meters;
+   * default 300, so the warning is not up for a whole kilometer
+   */
+  thenAnnounceMeters?: number;
+  /**
    * the zoom the map goes to on the route, in MapLibre's 512 px tile zoom,
    * the unit of `map.easeTo`; the geoportal's URL hash is written in the
    * Leaflet convention and shows this value plus one. Default 18, close in
@@ -72,6 +83,8 @@ export const DEFAULT_RECENTER_ORDER = 20;
 export const DEFAULT_RECENTER_LABEL = "Zentrieren";
 export const DEFAULT_INSTRUCTION_POSITION: Positions = "bottomcenter";
 export const DEFAULT_INSTRUCTION_ORDER = 10;
+export const DEFAULT_THEN_WITHIN_METERS = 150;
+export const DEFAULT_THEN_ANNOUNCE_METERS = 300;
 export const DEFAULT_ZOOM = 18;
 export const DEFAULT_PITCH = 30;
 export const DEFAULT_LOOK_AHEAD_METERS = 10;

@@ -31,9 +31,11 @@ export const stepAt = (
   }
   const current = steps[index];
   const next = steps[index + 1];
+  const afterNext = steps[index + 2];
   return {
     current,
     next,
+    afterNext,
     metersToNext: Math.max(
       0,
       current.startsAtMeters + current.distanceInMeters - alongMeters
