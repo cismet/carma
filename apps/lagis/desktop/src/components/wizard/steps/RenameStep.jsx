@@ -38,6 +38,7 @@ const RenameStep = ({ value, onChange, onProblem }) => {
         <div className="mb-1 font-medium">Neuer Flurstücksschlüssel</div>
         <LandParcelKeyChooser
           mode="creation"
+          incompleteMessage={NEW_KEY_PROMPT}
           value={value.createKey}
           preset={value.renameKey}
           onChange={(next) => onChange({ createKey: next })}

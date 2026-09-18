@@ -35,6 +35,9 @@ import { removeLeadingZeros } from "../../core/tools/helper";
 
 const CHOOSE_ACTION_PROBLEM = "Bitte wählen Sie eine der obigen Aktionen aus";
 
+const isHint = (message) =>
+  Boolean(message) && (message.startsWith("Bitte") || message.endsWith("..."));
+
 /** Keys that have to be free of a Sperre before the step may be left. */
 const keysToCheck = (stepId, data) => {
   switch (stepId) {
@@ -330,7 +333,7 @@ const LandParcelWizard = ({
         result={result}
         error={error}
         problem={result || stepIndex === 0 ? null : problem}
-        problemTone={problem?.endsWith("...") ? "info" : "error"}
+        problemTone={isHint(problem) ? "info" : "error"}
       >
         {renderStep()}
       </WizardModal>

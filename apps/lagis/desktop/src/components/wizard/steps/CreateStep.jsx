@@ -18,11 +18,6 @@ const formatArea = (area) =>
     maximumFractionDigits: 2,
   })} m²`;
 
-/**
- * Port of CreateActionPanel — pick a not yet existing key and say whether the
- * parcel is städtisch or Abteilung IX. The geometry hint replaces the WFS
- * lookup the Swing panel did.
- */
 const CreateStep = ({ value, onChange, onProblem }) => {
   const jwt = useSelector((state) => state.auth.jwt);
   const [chooserStatus, setChooserStatus] = useState({ valid: false });
@@ -73,6 +68,7 @@ const CreateStep = ({ value, onChange, onProblem }) => {
         <div className="mb-1 font-medium">Neues Flurstück</div>
         <LandParcelKeyChooser
           mode="creation"
+          incompleteMessage="Bitte geben Sie den neuen Flurstücksschlüssel ein"
           value={key}
           onChange={(next) => onChange({ createKey: next })}
           onValidity={handleValidity}

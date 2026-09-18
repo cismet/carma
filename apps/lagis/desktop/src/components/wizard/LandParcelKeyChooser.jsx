@@ -25,6 +25,7 @@ const LandParcelKeyChooser = ({
   onValidity = () => {},
   preset,
   disabled = false,
+  incompleteMessage = INCOMPLETE,
 }) => {
   const jwt = useSelector((state) => state.auth.jwt);
   const structure = useSelector(getLandparcelInternaDataStructure);
@@ -43,7 +44,7 @@ const LandParcelKeyChooser = ({
               ? "Flurstück ist noch nicht vorhanden und kann angelegt werden"
               : "Aktuell ausgewähltes Flurstück vollständig.",
         }
-      : { valid: false, message: INCOMPLETE }
+      : { valid: false, message: incompleteMessage }
   );
   // the last picked option, to tell a selection apart from typing
   const pickedRef = useRef(text);
@@ -71,7 +72,7 @@ const LandParcelKeyChooser = ({
     presetRef.current = presetText;
     pickedRef.current = presetText;
     setText(presetText);
-    publish(undefined, { valid: false, message: INCOMPLETE });
+    publish(undefined, { valid: false, message: incompleteMessage });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [presetText]);
 
@@ -199,8 +200,8 @@ const LandParcelKeyChooser = ({
       return;
     }
     checkRef.current += 1;
-    if (status.valid || value) {
-      publish(undefined, { valid: false, message: INCOMPLETE });
+    if (!next?.trim() || status.valid || value) {
+      publish(undefined, { valid: false, message: incompleteMessage });
     }
   };
 
@@ -220,7 +221,7 @@ const LandParcelKeyChooser = ({
   }
 
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex flex-col gap-2">
       <div className="flex items-center gap-2">
         <div
           style={{
