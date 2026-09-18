@@ -4,6 +4,11 @@ export * from "./lib/defs";
 export * from "./lib/utils";
 
 export {
+  getWebMercatorFromWgs84Deg,
+  getWgs84DegFromWebMercator,
+} from "./lib/web-mercator";
+
+export {
   InvalidVerticalOffsetTileError,
   UnsupportedVerticalOffsetRegionError,
   VerticalOffsetTileLoadError,
@@ -37,13 +42,10 @@ export type {
   Gcg2016UtmZone,
   Gcg2016Wgs84VerticalTransformer,
 } from "./lib/gcg2016-transformers";
-export {
-  GRS80_ELLIPSOID,
-  utmToEllipsoidSurface,
-  WGS84_ELLIPSOID,
-} from "./lib/utm-ellipsoid";
+export { GRS80_ELLIPSOID, WGS84_ELLIPSOID } from "./lib/ellipsoids";
+export type { ReferenceEllipsoid } from "./lib/ellipsoids";
+export { utmToEllipsoidSurface } from "./lib/utm-ellipsoid";
 export type {
   EllipsoidSurfaceCoordinate,
-  ReferenceEllipsoid,
   UtmReference,
 } from "./lib/utm-ellipsoid";

@@ -2,7 +2,6 @@ import { degToRad, brandedNegate } from "@carma-units";
 import type { Radians, Meters, Degrees } from "@carma-units";
 
 import { EARTH_CIRCUMFERENCE } from "./constants/earth";
-import { WGS84_A } from "./geodetic";
 import {
   DEFAULT_LEAFLET_TILESIZE,
   DEFAULT_MERCATOR_LATITUDE_RAD,
@@ -26,28 +25,6 @@ export const clampLatitudeToWebMercatorExtent = (
     return minMercator;
   }
   return latitude;
-};
-
-/**
- * Forward WGS84 (EPSG:4326) to Web Mercator (EPSG:3857) in metres.
- *
- * Kept here rather than imported from `@carma-geo/proj`, so this package needs
- * no proj4 at runtime for a closed form. EPSG:3857 is defined with spherical
- * formulas on the WGS84 semi-major axis, so this is the definition rather than
- * an approximation of the proj4 result, and it keeps the branded degree and
- * metre types instead of a generic converter coordinate. Latitudes are not
- * clamped, matching proj4's forward transform.
- */
-export const getWebMercatorFromWgs84Deg = (
-  longitude: Degrees,
-  latitude: Degrees
-): [Meters, Meters] => {
-  const lambda = degToRad(longitude);
-  const phi = degToRad(latitude);
-  return [
-    (WGS84_A * lambda) as Meters,
-    (WGS84_A * Math.log(Math.tan(Math.PI / 4 + phi / 2))) as Meters,
-  ];
 };
 
 export const getMercatorScaleFactorAtLatitudeRad = (

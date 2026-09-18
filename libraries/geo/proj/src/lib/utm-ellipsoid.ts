@@ -1,28 +1,18 @@
 import { getUtmToGeographicConverter } from "./proj4";
+import {
+  GRS80_ELLIPSOID,
+  WGS84_ELLIPSOID,
+  type ReferenceEllipsoid,
+} from "./ellipsoids";
 
-export type ReferenceEllipsoid = Readonly<{
-  name: string;
-  semiMajorAxis: number;
-  semiMinorAxis: number;
-}>;
+export { GRS80_ELLIPSOID, WGS84_ELLIPSOID } from "./ellipsoids";
+export type { ReferenceEllipsoid } from "./ellipsoids";
 
 export type UtmReference = Readonly<{
   zone: number;
   hemisphere: "north" | "south";
   ellipsoid: ReferenceEllipsoid;
 }>;
-
-export const GRS80_ELLIPSOID: ReferenceEllipsoid = {
-  name: "GRS 1980",
-  semiMajorAxis: 6_378_137,
-  semiMinorAxis: 6_356_752.314_140_356,
-};
-
-export const WGS84_ELLIPSOID: ReferenceEllipsoid = {
-  name: "WGS 84",
-  semiMajorAxis: 6_378_137,
-  semiMinorAxis: 6_356_752.314_245_179,
-};
 
 const validateReference = ({ zone, ellipsoid }: UtmReference) => {
   if (!Number.isInteger(zone) || zone < 1 || zone > 60) {

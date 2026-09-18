@@ -1,3 +1,4 @@
+import { getWebMercatorFromWgs84Deg } from "@carma-geo/proj";
 import { Matrix4 } from "three";
 import { degToRadNumeric } from "@carma-units";
 import type { Degrees, Radians } from "@carma-units";
@@ -8,10 +9,7 @@ import {
   WGS84_A,
   WGS84_E2,
 } from "./geodetic";
-import {
-  getMercatorScaleFactorAtLatitudeRad,
-  getWebMercatorFromWgs84Deg,
-} from "./mercator";
+import { getMercatorScaleFactorAtLatitudeRad } from "./mercator";
 import { WEB_MERCATOR_MAX_LATITUDE_DEG } from "./constants/web-map";
 import { EARTH_RADIUS } from "./constants/earth";
 
