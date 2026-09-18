@@ -1,6 +1,6 @@
 import { starkregenConstants } from "@cismet-dev/react-cismap-envirometrics-maps/constants";
+import citymapBg from "./assets/images/rain-hazard-map-bg/citymap.png";
 import citymapGrey from "./assets/images/rain-hazard-map-bg/citymapGrey.png";
-import dtkBg from "./assets/images/rain-hazard-map-bg/dtk.png";
 import orthoBg from "./assets/images/rain-hazard-map-bg/ortho.png";
 
 const overridingBaseLayerConf = {
@@ -26,12 +26,17 @@ const overridingBaseLayerConf = {
     },
   },
   namedLayers: {
-    dtk: {
-      type: "wms",
-      url: "https://www.wms.nrw.de/geobasis/wms_nw_dtk",
-      layers: "nw_dtk_col",
-      tiled: "false",
-      version: "1.3.0",
+    spw2Light: {
+      type: "tiles",
+      url: "https://geodaten.metropoleruhr.de/spw2?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=spw2_light&STYLE=default&FORMAT=image/png&TILEMATRIXSET=webmercator_hq&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}",
+      maxNativeZoom: 20,
+      maxZoom: 22,
+    },
+    spw2GrauBlau: {
+      type: "tiles",
+      url: "https://geodaten.metropoleruhr.de/spw2?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=spw2_graublau&STYLE=default&FORMAT=image/png&TILEMATRIXSET=webmercator_hq&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}",
+      maxNativeZoom: 20,
+      maxZoom: 22,
     },
     nrwDOP: {
       type: "wms",
@@ -39,13 +44,6 @@ const overridingBaseLayerConf = {
       layers: "nw_dop_rgb",
       tiled: "false",
       version: "1.1.1",
-    },
-    cismetLight: {
-      type: "vector",
-      attribution:
-        'Hintergrundkarte basierend auf &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> Vektorkarte',
-      style: "https://omt-germany.cismet.de/styles/cismet-light/style.json",
-      // style: "https://sgx.geodatenzentrum.de/gdz_basemapde_vektor/styles/bm_web_gry.json",
     },
   },
 };
@@ -95,19 +93,19 @@ const config = {
   ],
   backgrounds: [
     {
-      layerkey: "cismetLight@100",
+      layerkey: "spw2Light@50",
+      src: citymapBg,
+      title: "Stadtplan (bunt)",
+    },
+    {
+      layerkey: "spw2GrauBlau@60",
       src: citymapGrey,
       title: "Stadtplan (grau)",
     },
     {
-      layerkey: "nrwDOP@60|rvr@30",
+      layerkey: "nrwDOP@60",
       src: orthoBg,
       title: "Luftbildkarte",
-    },
-    {
-      layerkey: "dtk@40",
-      src: dtkBg,
-      title: "DTK (bunt)",
     },
   ],
   // Farbkonfiguration der maximalen Wassertiefen analog Paderborn (Vorgabe Pecher)
