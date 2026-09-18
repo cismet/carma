@@ -18,6 +18,14 @@ import { explain } from "../../core/wizard/errors";
 
 const INCOMPLETE = "Bitte vervollständigen Sie alle Flurstücke";
 
+const DISABLED_FIELD_CLASSES = [
+  "[&_.ant-select-selector]:bg-[#f5f5f5]",
+  "[&_.ant-select-selector]:border-[#d9d9d9]",
+  "[&_input]:bg-transparent",
+  "[&_input]:text-[rgba(0,0,0,0.25)]",
+  "[&_.ant-select-selection-placeholder]:text-[rgba(0,0,0,0.25)]",
+].join(" ");
+
 const LandParcelKeyChooser = ({
   mode = "current",
   value,
@@ -224,22 +232,22 @@ const LandParcelKeyChooser = ({
     <div className="flex flex-col gap-2">
       <div className="flex items-center gap-2">
         <div
-          style={{
-            pointerEvents: disabled ? "none" : undefined,
-            opacity: disabled ? 0.6 : 1,
-          }}
+          className={disabled ? DISABLED_FIELD_CLASSES : undefined}
+          style={{ cursor: disabled ? "not-allowed" : undefined }}
         >
-          <LandParcelSearch
-            pixelwidth={320}
-            landParcelData={structure}
-            value={text}
-            onValueChange={handleValueChange}
-            transformOptions={transformOptions}
-            onOptionSelect={handleOptionSelect}
-            onNotFound={handleNotFound}
-            showDropdownBelow={true}
-            showButton={false}
-          />
+          <div style={{ pointerEvents: disabled ? "none" : undefined }}>
+            <LandParcelSearch
+              pixelwidth={320}
+              landParcelData={structure}
+              value={text}
+              onValueChange={handleValueChange}
+              transformOptions={transformOptions}
+              onOptionSelect={handleOptionSelect}
+              onNotFound={handleNotFound}
+              showDropdownBelow={true}
+              showButton={false}
+            />
+          </div>
         </div>
       </div>
       {status.valid && (
