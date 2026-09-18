@@ -691,9 +691,20 @@
   margin-top: 3px;
   border: 1px solid #d1d5db;
   border-radius: 5px;
-  background:
-    linear-gradient(to right, transparent 49.5%, #e5e7eb 49.5%, #e5e7eb 50.5%, transparent 50.5%),
-    linear-gradient(to bottom, transparent 49.5%, #e5e7eb 49.5%, #e5e7eb 50.5%, transparent 50.5%),
+  background: linear-gradient(
+      to right,
+      transparent 49.5%,
+      #e5e7eb 49.5%,
+      #e5e7eb 50.5%,
+      transparent 50.5%
+    ),
+    linear-gradient(
+      to bottom,
+      transparent 49.5%,
+      #e5e7eb 49.5%,
+      #e5e7eb 50.5%,
+      transparent 50.5%
+    ),
     #f9fafb;
   cursor: crosshair;
   touch-action: none;
@@ -706,8 +717,18 @@
   opacity: 0.35;
 }
 
-.mesh-xy-pad-axis-x { left: 0; right: 0; top: 50%; height: 1px; }
-.mesh-xy-pad-axis-y { top: 0; bottom: 0; left: 50%; width: 1px; }
+.mesh-xy-pad-axis-x {
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+}
+.mesh-xy-pad-axis-y {
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+}
 
 .mesh-xy-pad-point {
   position: absolute;
@@ -728,8 +749,14 @@
   pointer-events: none;
 }
 
-.mesh-xy-pad-label-x { right: 2px; bottom: 2px; }
-.mesh-xy-pad-label-y { left: 3px; top: 2px; }
+.mesh-xy-pad-label-x {
+  right: 2px;
+  bottom: 2px;
+}
+.mesh-xy-pad-label-y {
+  left: 3px;
+  top: 2px;
+}
 
 .pointcloud-registration-pair > button:last-child {
   padding: 3px 5px;
@@ -1379,10 +1406,7 @@
 }
 
 .capture026-georadar-face-editor.is-dragging
-  :is(
-    .capture026-georadar-spline-target,
-    .capture026-georadar-axis-target
-  ) {
+  :is(.capture026-georadar-spline-target, .capture026-georadar-axis-target) {
   cursor: grabbing;
 }
 

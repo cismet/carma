@@ -9,10 +9,12 @@ afterEach(() => {
 describe("diagnostic scheduling modes", () => {
   it("defers frame-driven work outside rendering without waiting for idle", async () => {
     const tasks: Array<() => void> = [];
-    const postTask = vi.fn((run: () => void, _options: { priority: string }) => {
-      tasks.push(run);
-      return Promise.resolve();
-    });
+    const postTask = vi.fn(
+      (run: () => void, _options: { priority: string }) => {
+        tasks.push(run);
+        return Promise.resolve();
+      }
+    );
     vi.stubGlobal("scheduler", { postTask });
     const run = vi.fn();
     scheduleTileDiagnosticTask(run, true);

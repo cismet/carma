@@ -11,9 +11,9 @@ export const MeshMountComparison = (options: MeshMountDemoOptions) => (
     }}
   >
     <header style={{ padding: "2px 6px", font: "12px system-ui" }}>
-      Center / North · Stoffelsberg / South — {options.verticalFovDegrees}° narrow
-      perspective, not true orthography · shared zoom and mount controls · cross
-      marks view center.
+      Center / North · Stoffelsberg / South — {options.verticalFovDegrees}°
+      narrow perspective, not true orthography · shared zoom and mount controls
+      · cross marks view center.
     </header>
     <div
       style={{

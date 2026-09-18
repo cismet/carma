@@ -14,7 +14,10 @@ export {
 } from "./tile-diagnostic-metrics";
 export { createTileDiagnosticOverlay } from "./tile-diagnostic-overlay";
 export { createTileDiagnosticExtents } from "./tile-diagnostic-extents";
-export { createTileDiagnosticScene, HOVER } from "./tile-diagnostic-scene-helpers";
+export {
+  createTileDiagnosticScene,
+  HOVER,
+} from "./tile-diagnostic-scene-helpers";
 export {
   isLoadedMesh,
   collectFloorLeaves,

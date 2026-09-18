@@ -14,10 +14,7 @@ import type {
   ThreeTilesRuntimeState,
   ThreeTilesRuntimeServices,
 } from "./three-tiles-runtime-context";
-import type {
-  RuntimeLruCache,
-  RuntimeTile,
-} from "./three-tiles-runtime-types";
+import type { RuntimeLruCache, RuntimeTile } from "./three-tiles-runtime-types";
 import {
   LOADED_LOADING_STATE,
   UNLOADED_LOADING_STATE,

@@ -44,10 +44,7 @@ export const setTileShadowRole = (
   role: TileShadowRole
 ): void => {
   const previous = roles.get(root);
-  if (
-    previous?.receiver === role.receiver &&
-    previous.caster === role.caster
-  )
+  if (previous?.receiver === role.receiver && previous.caster === role.caster)
     return;
   roles.set(root, role);
   root.traverse((object) => {

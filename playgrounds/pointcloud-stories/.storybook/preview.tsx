@@ -9,10 +9,7 @@ const preview: Preview = {
     options: {
       panelPosition: "right",
       storySort: {
-        order: [
-          "Applications",
-          ["Point Clouds", "Georadar", "*"],
-        ],
+        order: ["Applications", ["Point Clouds", "Georadar", "*"]],
       },
     },
     controls: {
