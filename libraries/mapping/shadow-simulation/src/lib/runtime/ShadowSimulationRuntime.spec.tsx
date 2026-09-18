@@ -11,6 +11,7 @@ import { buildShadowSimulationScene } from "./shadow-scene";
 import { ShadowSimulationRuntime } from "./ShadowSimulationRuntime";
 
 vi.mock("@carma-mapping/engines/maplibre", () => ({
+  TILES_MESH_ERROR_TARGET_DEFAULT_PIXELS: 6,
   getSharedThreeSceneRuntimes: vi.fn(() => []),
   subscribeSharedThreeSceneContent: vi.fn(() => vi.fn()),
   MAPLIBRE_EVENT: {

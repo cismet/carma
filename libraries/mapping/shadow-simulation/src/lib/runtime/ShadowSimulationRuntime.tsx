@@ -18,7 +18,6 @@ import type {
 } from "../contracts/shadow-simulation";
 import { getSolarPosition, type SolarLocation } from "../core/solar-position";
 import {
-  DEFAULT_MESH_ERROR_TARGET_PIXELS,
   DEFAULT_SHADOW_BUILDING_COLOR,
   DEFAULT_SHADOW_BUILDING_COLOR_MIX,
   DEFAULT_SHADOW_BUILDING_TEXTURE_SATURATION,
@@ -63,7 +62,9 @@ export const ShadowSimulationRuntime = ({
     shadowState: state,
     onFrame: (next) => {
       if (!state.enabled) return;
-      shadowScene.current?.updateSolarPosition(getSolarPosition(next, location));
+      shadowScene.current?.updateSolarPosition(
+        getSolarPosition(next, location)
+      );
     },
   });
   const effectiveTerrain = useMemo(
@@ -176,9 +177,7 @@ export const ShadowSimulationRuntime = ({
 
   useEffect(() => {
     if (!state.enabled) return;
-    shadowScene.current?.updateMeshErrorTarget(
-      state.meshErrorTarget ?? DEFAULT_MESH_ERROR_TARGET_PIXELS
-    );
+    shadowScene.current?.updateMeshErrorTarget(state.meshErrorTarget ?? null);
   }, [state.enabled, state.meshErrorTarget, sceneRevision]);
 
   useEffect(() => {

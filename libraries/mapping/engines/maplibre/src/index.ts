@@ -331,6 +331,7 @@ export {
 export { buildThreeTilesRuntime } from "./lib/runtime/integrations/three-tiles-runtime";
 export {
   TILES_ERROR_TARGET_DEFAULT_PIXELS,
+  TILES_MESH_ERROR_TARGET_DEFAULT_PIXELS,
   TILES_ERROR_TARGET_MAX_PIXELS,
   TILES_ERROR_TARGET_MIN_PIXELS,
   TILES3D_STYLE_VERSION,

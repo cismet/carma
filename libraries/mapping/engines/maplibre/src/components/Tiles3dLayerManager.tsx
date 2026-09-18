@@ -20,6 +20,7 @@ import { buildThreeTilesRuntime } from "../lib/runtime/integrations/three-tiles-
 import {
   THREE_TILES_DEFAULT_REQUEST_CONCURRENCY,
   TILES_ERROR_TARGET_DEFAULT_PIXELS,
+  TILES_MESH_ERROR_TARGET_DEFAULT_PIXELS,
   TILES3D_STYLE_VERSION,
   TILESET_MIN_RESOLUTION_DEFAULT_PX,
 } from "../lib/runtime/integrations/three-tiles-runtime-config";
@@ -132,8 +133,12 @@ export interface Tiles3dLayerManagerProps {
 }
 
 export const resolveTiles3dErrorTarget = (
-  config: Pick<Tiles3dConfig, "errorTarget">
-): number => config.errorTarget ?? TILES_ERROR_TARGET_DEFAULT_PIXELS;
+  config: Pick<Tiles3dConfig, "errorTarget" | "providesTerrain">
+): number =>
+  config.errorTarget ??
+  (config.providesTerrain === true
+    ? TILES_MESH_ERROR_TARGET_DEFAULT_PIXELS
+    : TILES_ERROR_TARGET_DEFAULT_PIXELS);
 
 /** A style config with every default the layer manager applies made explicit. */
 export type ResolvedTiles3dConfig = Tiles3dConfig & {

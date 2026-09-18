@@ -67,6 +67,9 @@ export interface ThreeTilesRuntimeState {
   lastTraversalFrameCount: number;
   unsubscribeTerrainLoading: (() => void) | null;
   requestedErrorTarget: number;
+  /** The host's target; requestedErrorTarget applies the override on top of it. */
+  configuredErrorTarget: number;
+  errorTargetOverride: number | null;
   effectiveErrorTarget: number;
   errorTargetState: EffectiveErrorTargetState;
   errorTargetTimer: number;
@@ -445,6 +448,8 @@ export interface ThreeTilesRuntimeServices {
   setVisible: (visible: boolean) => void;
   setHeightOffset: (offsetMeters: number) => void;
   setErrorTarget: (errorTarget: number, initialErrorTarget?: number) => void;
+  setErrorTargetOverride: (errorTarget: number | null) => void;
+  getErrorTarget: () => number;
   setShadowSimulationStyle: (
     style: Readonly<{
       fullOpacity: boolean;
