@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import type { Coordinates } from "@carma-geo/data-structures";
-import { getGcg2016UndulationFromUtm } from "@carma-geo/proj";
+import { getGcg2016HeightAnomalyFromUtm } from "@carma-geo/proj";
 
 import {
   applyCopcRigidRegistration,
   AWG2_DGM1_RIGID_REGISTRATION,
-  AWG2_GCG2016_UNDULATION_METERS,
+  AWG2_GCG2016_HEIGHT_ANOMALY_METERS,
   AWG2_MESH_2024_MICRO_CORRECTION,
   AWG2_REGISTRATION_PROVENANCE,
   deriveCopcRigidMountPose,
@@ -115,23 +115,26 @@ describe("AWG2 spatial registration", () => {
 
   it("keeps the DHHN2016-to-ellipsoid term separate from registration", async () => {
     const { easting, northing } = AWG2_DGM1_RIGID_REGISTRATION.anchor;
-    const undulation = await getGcg2016UndulationFromUtm({
+    const heightAnomaly = await getGcg2016HeightAnomalyFromUtm({
       east: easting as Coordinates.ETRS89UTMEastingMeters,
       north: northing as Coordinates.ETRS89UTMNorthingMeters,
       zone: 32,
     });
 
-    expect(undulation).toBeCloseTo(AWG2_GCG2016_UNDULATION_METERS, 8);
+    // The bundled GCG2016 payload stores samples on a 0.25 mm lattice, so a
+    // query can sit up to one lattice step from the unquantised reference
+    // value this constant was taken from.
+    expect(heightAnomaly).toBeCloseTo(AWG2_GCG2016_HEIGHT_ANOMALY_METERS, 3);
     expect(
       AWG2_REGISTRATION_PROVENANCE.verticalDatumTransformAtAnchor
-        .undulationMeters
-    ).toBe(AWG2_GCG2016_UNDULATION_METERS);
+        .heightAnomalyMeters
+    ).toBe(AWG2_GCG2016_HEIGHT_ANOMALY_METERS);
     expect(
       AWG2_REGISTRATION_PROVENANCE.residualMeters.afterTerrainDatumTransform
         .median
     ).toBeCloseTo(
       AWG2_REGISTRATION_PROVENANCE.residualMeters.rawPointMinusDhhn2016Terrain
-        .median - AWG2_GCG2016_UNDULATION_METERS,
+        .median - AWG2_GCG2016_HEIGHT_ANOMALY_METERS,
       6
     );
   });

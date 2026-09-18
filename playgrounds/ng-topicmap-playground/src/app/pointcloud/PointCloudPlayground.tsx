@@ -49,7 +49,7 @@ import {
   WUPP_MESH_2024,
 } from "@carma-commons/resources";
 import type { Latitude, Longitude } from "@carma-geo/data-structures";
-import { getFromUTM32ToWGS84, getGcg2016Undulation } from "@carma-geo/proj";
+import { getFromUTM32ToWGS84, getGcg2016HeightAnomaly } from "@carma-geo/proj";
 
 import {
   buildCategoryLut,
@@ -104,7 +104,7 @@ import { POINT_CLOUD_PRESET_FEATURE_COLLECTION } from "./pointcloud-preset-featu
 import { createPointTilesetSceneRuntime } from "./pointTilesetSceneRuntime";
 import {
   AWG2_DGM1_RIGID_REGISTRATION,
-  AWG2_GCG2016_UNDULATION_METERS,
+  AWG2_GCG2016_HEIGHT_ANOMALY_METERS,
   AWG2_MESH_2024_MICRO_CORRECTION,
   resolveCopcSourcePosition,
 } from "./pointcloud-spatial-registration";
@@ -275,7 +275,7 @@ interface CloudAssetDef extends PointCloudAssetIdentity {
   /** Empirical rigid registration after the declared/inferred datum transform. */
   registration?: CopcRigidRegistration;
   /** Exact resource-anchor GCG2016 value; otherwise query the cloud center. */
-  geoidUndulationMeters?: number;
+  heightAnomalyMeters?: number;
 }
 
 const CLOUD_ASSETS: CloudAssetDef[] = POINT_CLOUD_DATASETS.map((dataset) => ({
@@ -284,7 +284,7 @@ const CLOUD_ASSETS: CloudAssetDef[] = POINT_CLOUD_DATASETS.map((dataset) => ({
   ...(dataset.id === "awg"
     ? {
         registration: AWG2_DGM1_RIGID_REGISTRATION,
-        geoidUndulationMeters: AWG2_GCG2016_UNDULATION_METERS,
+        heightAnomalyMeters: AWG2_GCG2016_HEIGHT_ANOMALY_METERS,
       }
     : {}),
 }));
@@ -604,7 +604,7 @@ interface CloudState {
   renderedNodes: number;
   visibleNodes: number;
   meta: CopcSceneMetadata | null;
-  geoidUndulation: number | null;
+  heightAnomaly: number | null;
   /** Per-field stats + histograms once loading finished */
   fields: CloudFieldInfo[] | null;
   error: string | null;
@@ -750,7 +750,7 @@ interface CloudSlot {
   memoryBytes: number;
   cacheBudgetBytes: number;
   loadConcurrency: number;
-  geoidUndulation: number | null;
+  heightAnomaly: number | null;
   chunks: CopcPointChunk[];
   chunkCache: Map<
     string,
@@ -931,8 +931,8 @@ const SceneManager = memo(function SceneManager({
     (slot: CloudSlot): number => {
       const settings = cloudSettingsRef.current[slot.def.id];
       if (!settings || !slot.meta || !map) return 0;
-      if (slot.geoidUndulation === null) {
-        throw new Error(`GCG2016 undulation is unavailable for ${slot.def.id}`);
+      if (slot.heightAnomaly === null) {
+        throw new Error(`GCG2016 height anomaly is unavailable for ${slot.def.id}`);
       }
       const [lng, lat] = slot.meta.centerLngLat;
       const surfaceHeightTerrain = terrainActiveRef.current
@@ -941,7 +941,7 @@ const SceneManager = memo(function SceneManager({
       const base = resolveTerrainBaseHeight({
         datum: settings.datum,
         zBase: slot.meta.zBase,
-        geoidUndulation: slot.geoidUndulation,
+        heightAnomaly: slot.heightAnomaly,
         surfaceHeightTerrain,
       });
       return base;
@@ -1451,7 +1451,7 @@ const SceneManager = memo(function SceneManager({
         memoryBytes: 0,
         cacheBudgetBytes,
         loadConcurrency: 1,
-        geoidUndulation: null,
+        heightAnomaly: null,
         chunks: [],
         chunkCache: new Map(),
         desiredNodeKeys: new Set(),
@@ -1483,7 +1483,7 @@ const SceneManager = memo(function SceneManager({
           renderedNodes: 0,
           visibleNodes: 0,
           meta: slot.meta,
-          geoidUndulation: slot.geoidUndulation,
+          heightAnomaly: slot.heightAnomaly,
           fields,
           error: slot.terrainFieldError,
         });
@@ -1496,7 +1496,7 @@ const SceneManager = memo(function SceneManager({
           renderedNodes: 0,
           visibleNodes: 0,
           meta: slot.meta,
-          geoidUndulation: slot.geoidUndulation,
+          heightAnomaly: slot.heightAnomaly,
           fields,
           error: null,
           ...partial,
@@ -1642,7 +1642,7 @@ const SceneManager = memo(function SceneManager({
           renderedNodes: slot.chunks.length,
           visibleNodes: stats.visibleNodeCount,
           meta: slot.meta,
-          geoidUndulation: slot.geoidUndulation,
+          heightAnomaly: slot.heightAnomaly,
           fields,
           error: null,
         });
@@ -1664,7 +1664,7 @@ const SceneManager = memo(function SceneManager({
             centerEast,
             centerNorth,
           ]) as [number, number];
-          const undulation = await getGcg2016Undulation(
+          const heightAnomaly = await getGcg2016HeightAnomaly(
             longitude as Longitude.deg,
             latitude as Latitude.deg
           );
@@ -1677,7 +1677,7 @@ const SceneManager = memo(function SceneManager({
           // out as the DHHN height directly - no extra base offset needed.
           // Anchoring at the cloud's own floor instead (as before) dropped the
           // whole tileset by that floor, roughly 142 m for Oelberg.
-          const anchorHeight = undulation;
+          const anchorHeight = heightAnomaly;
           const tilesetRuntime = createPointTilesetSceneRuntime({
             id: `point-tileset-${def.id}`,
             tilesetUrl: def.url,
@@ -1723,7 +1723,7 @@ const SceneManager = memo(function SceneManager({
               hasRgb: true,
               hasClassification: true,
             };
-            slot.geoidUndulation = undulation;
+            slot.heightAnomaly = heightAnomaly;
             onCloudState(def.id, {
               loading: false,
               loadedPoints: 0,
@@ -1731,7 +1731,7 @@ const SceneManager = memo(function SceneManager({
               renderedNodes: 0,
               visibleNodes: 0,
               meta: slot.meta,
-              geoidUndulation: undulation,
+              heightAnomaly: heightAnomaly,
               fields: null,
               error: null,
             });
@@ -1751,9 +1751,9 @@ const SceneManager = memo(function SceneManager({
         slot.source = source;
         const meta = source.metadata;
         const [longitude, latitude] = meta.centerLngLat;
-        slot.geoidUndulation =
-          def.geoidUndulationMeters ??
-          (await getGcg2016Undulation(
+        slot.heightAnomaly =
+          def.heightAnomalyMeters ??
+          (await getGcg2016HeightAnomaly(
             longitude as Longitude.deg,
             latitude as Latitude.deg
           ));
@@ -2895,7 +2895,7 @@ export function PointCloudPlayground({
     const settings = cloudSettings[def.id];
     const state = cloudStates[def.id];
     let datumOffsetMeters: number | null = null;
-    if (state?.meta && state.geoidUndulation !== null) {
+    if (state?.meta && state.heightAnomaly !== null) {
       try {
         const [lng, lat] = state.meta.centerLngLat;
         const surfaceHeightTerrain =
@@ -2906,7 +2906,7 @@ export function PointCloudPlayground({
           resolveTerrainBaseHeight({
             datum: settings.datum,
             zBase: state.meta.zBase,
-            geoidUndulation: state.geoidUndulation,
+            heightAnomaly: state.heightAnomaly,
             surfaceHeightTerrain,
           }) - state.meta.zBase;
       } catch {

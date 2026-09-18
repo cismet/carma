@@ -1,8 +1,27 @@
 {
-  "format": "carma-gcg2016-float32-tile-set-v3",
-  "supportedRegion": [6.0, 50.0, 10.0, 54.0],
+  "format": "carma-gcg2016-uint16-tile-set-v4",
+  "supportedRegion": [
+    6,
+    50,
+    8,
+    52
+  ],
   "rootTileSizeDegrees": 2,
+  "elevationCoverage": [
+    6.48883,
+    50.831527,
+    7.764078,
+    51.597321
+  ],
+  "elevationCoverageSource": "NRW_DGM1_DHHN2016_TERRARIUM_TERRAIN.bounds in libraries/commons/resources/src/lib/de.nrw.wuppertal/terrain.ts",
   "samplePartition": "source pixel centers, no duplicated halo",
+  "sampleEncoding": {
+    "id": "base64-uint16-rowdelta",
+    "quantumMeters": 0.00025,
+    "noDataCode": 65535,
+    "steps": "index on a 0.5 mm lattice, row delta, uint16 little-endian, base64",
+    "maximumDeviationFromSourceFloat32Meters": 0.00010263061523119177
+  },
   "source": {
     "fileName": "de_bkg_gcg2016.tif",
     "sha256": "598f18324dea7f8e72421d18add7ac6228259adf91eeb335cc9c27d98484f7ac",
@@ -14,7 +33,7 @@
     "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
     "sourceUrl": "https://gdz.bkg.bund.de/index.php/default/quasigeoid-der-bundesrepublik-deutschland-quasigeoid.html",
     "documentationUrl": "https://sgx.geodatenzentrum.de/web_public/gdz/dokumentation/deu/quasigeoid.pdf",
-    "adaptation": "source Float32 samples unchanged; spatially subset and repackaged as independently loadable CARMA TypeScript payload modules",
+    "adaptation": "spatially subset to the tiles the bundled elevation coverage reaches and repackaged as independently loadable CARMA TypeScript payload modules; sample values are stored as indices on a 0.25 mm lattice, delta-coded per raster row",
     "horizontalCrs": "EPSG:10283 (ETRS89/DREF91/2016)"
   },
   "sourceGrid": {
@@ -24,9 +43,9 @@
     "firstLatitude": 55.979166667,
     "stepLongitude": 0.0125,
     "stepLatitude": -0.008333333333967649,
-    "sampleEncoding": "source Float32, unchanged"
+    "sampleEncoding": "source Float32"
   },
-  "runtimeMethod": "BKG-compatible natural bicubic spline over a local five-by-five source stencil",
+  "runtimeMethod": "BKG-compatible natural bicubic spline over a local five-by-five stencil of the stored lattice samples",
   "referenceMethod": "same spline evaluated directly against the complete source GeoTIFF array",
   "officialReferenceValidation": {
     "date": "2026-07-16",
@@ -37,7 +56,10 @@
     "linuxExecutableSha256": "77b73e922cd06d4b212514b5cd50e121de237b7f27b9510a85fe8432591f05c6",
     "binaryGridSha256": "f76662e147c4fcc381390a7b3a49f75fe7459cefb011a9d5c80a4e2b31a73c99",
     "mesh2024Region": [
-      7.011041137873773, 51.16418982648588, 7.31648523301344, 51.319169007294846
+      7.011041137873773,
+      51.16418982648588,
+      7.31648523301344,
+      51.319169007294846
     ],
     "pointCount": 321201,
     "officialOutputResolutionMeters": 0.001,
@@ -45,7 +67,10 @@
   },
   "bilinearComparison": {
     "region": [
-      7.011041137873773, 51.16418982648588, 7.31648523301344, 51.319169007294846
+      7.011041137873773,
+      51.16418982648588,
+      7.31648523301344,
+      51.319169007294846
     ],
     "pointCount": 2883601,
     "maximumAbsoluteDifferenceMeters": 0.0009526398344519293,
@@ -56,40 +81,23 @@
   "verificationSeed": 4064,
   "verificationRandomPointsPerTile": 100000,
   "verificationEdgePointsPerTile": 16384,
-  "totalSupportedVerificationPointCount": 383384,
-  "maximumVerifiedDifferenceMeters": 0.0,
+  "totalSupportedVerificationPointCount": 91654,
+  "maximumVerifiedDifferenceMeters": 0.00016821054506976907,
+  "elevationCoverageVerification": {
+    "pointCount": 116384,
+    "supportedPointCount": 116384,
+    "pointsTheBundledTilesCannotServe": 0,
+    "maximumAbsoluteErrorMeters": 0.0001612059620299533
+  },
   "verification": [
     {
       "tileId": "N50E006",
       "candidatePointCount": 116384,
-      "supportedPointCount": 100292,
-      "maximumAbsoluteErrorMeters": 0.0,
-      "p999AbsoluteErrorMeters": 0.0,
-      "rmseMeters": 0.0
-    },
-    {
-      "tileId": "N50E008",
-      "candidatePointCount": 116384,
-      "supportedPointCount": 105413,
-      "maximumAbsoluteErrorMeters": 0.0,
-      "p999AbsoluteErrorMeters": 0.0,
-      "rmseMeters": 0.0
-    },
-    {
-      "tileId": "N52E006",
-      "candidatePointCount": 116384,
-      "supportedPointCount": 71840,
-      "maximumAbsoluteErrorMeters": 0.0,
-      "p999AbsoluteErrorMeters": 0.0,
-      "rmseMeters": 0.0
-    },
-    {
-      "tileId": "N52E008",
-      "candidatePointCount": 116384,
-      "supportedPointCount": 105839,
-      "maximumAbsoluteErrorMeters": 0.0,
-      "p999AbsoluteErrorMeters": 0.0,
-      "rmseMeters": 0.0
+      "supportedPointCount": 91654,
+      "pointsResolvedOnlyByFullGrid": 15304,
+      "maximumAbsoluteErrorMeters": 0.00016821054506976907,
+      "p999AbsoluteErrorMeters": 0.00013857839928510136,
+      "rmseMeters": 5.966284134927772e-05
     }
   ]
 }

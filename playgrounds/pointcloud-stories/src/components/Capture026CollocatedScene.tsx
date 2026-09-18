@@ -42,7 +42,7 @@ import {
   dhhn2016ToEllipsoidalHeight,
   GRS80_ELLIPSOID,
   getFromUTM32ToWGS84,
-  getGcg2016UndulationFromUtm,
+  getGcg2016HeightAnomalyFromUtm,
   utmToEllipsoidSurface,
 } from "@carma-geo/proj";
 import { degToRadNumeric } from "@carma-units";
@@ -3699,12 +3699,12 @@ const initializeScene = async (
   const origin = manifest.georeference.originUtm;
   const originLngLat = getFromUTM32ToWGS84(origin) as [number, number];
   const anchorHeightDhhN = manifest.georeference.anchorHeightDhhN;
-  const anchorUndulation = await getGcg2016UndulationFromUtm({
+  const anchorHeightAnomaly = await getGcg2016HeightAnomalyFromUtm({
     east: origin[0] as Coordinates.ETRS89UTMEastingMeters,
     north: origin[1] as Coordinates.ETRS89UTMNorthingMeters,
     zone: 32,
   });
-  const anchorHeight = anchorHeightDhhN + anchorUndulation;
+  const anchorHeight = anchorHeightDhhN + anchorHeightAnomaly;
   const ecefToScene = createEcefToSceneMatrix(
     THREE.MathUtils.degToRad(originLngLat[0]),
     THREE.MathUtils.degToRad(originLngLat[1]),
@@ -3850,7 +3850,7 @@ const initializeScene = async (
         id: "surface",
         label: "Oberfläche",
         entries: splitStatusEntries(
-          `Ellipsoid-Frame · GCG2016 N=${anchorUndulation.toFixed(3)} m`,
+          `Ellipsoid-Frame · GCG2016 ζ=${anchorHeightAnomaly.toFixed(3)} m`,
           elevationStatus,
           nivPointStatus
         ),
@@ -4050,9 +4050,9 @@ const initializeScene = async (
     originLngLat,
     // The tileset carries true ellipsoidal heights, but Mesh 2024 — and with
     // it the whole scene level — sits on DHHN-as-ellipsoidal heights, one
-    // geoid undulation lower. Raising the anchor by the undulation lowers the
+    // height anomaly lower. Raising the anchor by the anomaly lowers the
     // cloud onto the mesh datum so both deliveries visually coincide.
-    anchorHeightEllipsoidal: anchorHeight + anchorUndulation,
+    anchorHeightEllipsoidal: anchorHeight + anchorHeightAnomaly,
     url: OELBERG_POINT_TILESET_URL,
     enabled: settings.showOelbergPointTileset ?? false,
     pointSize: settings.oelbergPointTilesetPointSize ?? 2,
@@ -4091,8 +4091,8 @@ const initializeScene = async (
           },
           origin,
           // Like the point tileset: the poses carry true ellipsoidal heights,
-          // the scene level is DHHN-as-ellipsoidal — one undulation lower.
-          anchorHeight + anchorUndulation,
+          // the scene level is DHHN-as-ellipsoidal — one height anomaly lower.
+          anchorHeight + anchorHeightAnomaly,
           accent,
           imageTextures,
           imagery.id,
@@ -4153,7 +4153,7 @@ const initializeScene = async (
           groups.panoramas,
           pose,
           origin,
-          anchorHeight + anchorUndulation,
+          anchorHeight + anchorHeightAnomaly,
           panoramaOutsideGeometry,
           panoramaInsideGeometry,
           panoramaDisplayFilter

@@ -1,8 +1,9 @@
 # GCG2016 tiles
 
-Status: July 16, 2026. For browser-side transformations between DHHN2016
-normal heights and ellipsoidal heights, the helper in `@carma-geo/proj`
-provides a spatially limited subset of GCG2016. This is a derived
+Status: September 17, 2026. For browser-side transformations between
+DHHN2016 normal heights and ellipsoidal heights, the helper in
+`@carma-geo/proj` interpolates the spatially limited subset of GCG2016 that
+this package, `@carma-geo/gcg2016`, carries. This is a derived
 representation of the official grid, not a separate height model.
 
 ## Source and derivation
@@ -25,20 +26,53 @@ licensed under
 "(c) Bundesamt für Kartographie und Geodäsie - BKG - Deutschland". The
 [BKG product page](https://gdz.bkg.bund.de/index.php/default/quasigeoid-der-bundesrepublik-deutschland-quasigeoid.html)
 is identified as the original source. The CARMA tiles are a technically
-repacked and spatially limited adaptation: raster values and Float32 encoding
-remain unchanged, while file partitioning and the runtime loader are
-CARMA-specific. The generated payloads are TypeScript modules so their dynamic
+repacked, spatially limited and requantised adaptation: the sample values are
+stored as indices on a 0.25 mm lattice, while file partitioning and the runtime
+loader are CARMA-specific. The generated payloads are TypeScript modules so their dynamic
 imports work in consumers that do not enable TypeScript JSON-module resolution.
 
-The derivation copies the binary Float32 values unchanged into four 2° tiles
-for `[6°, 10°) east × [50°, 54°) north`. Each raster value belongs to exactly
-one tile according to its pixel center; no halo rows or columns are duplicated.
-When a spline's 5×5 support window crosses a tile boundary, only the required
-neighboring tile is imported as well. Together, the four payloads occupy
-820,586 bytes before HTTP compression. The `N50E006` tile containing the
-current area of interest is 205,146 bytes before HTTP compression, 119,596
-bytes with Gzip, and 92,870 bytes with Brotli. Vite bundles the dynamically
-imported payload modules as separate chunks.
+The derivation copies the binary Float32 values unchanged into 2° tiles. Each
+raster value belongs to exactly one tile according to its pixel center; no halo
+rows or columns are duplicated. When a spline's 5×5 support window crosses a
+tile boundary, only the required neighboring tile is imported as well.
+
+Which tiles are bundled follows the elevation data the application actually
+ships against: the generator reads `bounds` from
+`NRW_DGM1_DHHN2016_TERRARIUM_TERRAIN` in `@carma-commons/resources` and snaps
+that coverage outward onto the 2° tile grid. For the current coverage
+`[6.48883, 50.831527, 7.764078, 51.597321]` that yields the single tile
+`N50E006`, so the bundled region is `[6°, 8°) east × [50°, 52°) north`. A
+coverage that later grows past those bounds adds the neighboring tiles without
+any code change.
+
+Samples are stored as indices on a 0.25 mm lattice, delta-coded along each
+raster row and written as little-endian `uint16`. The decoder needs only
+`atob`, a running sum per row and one multiply-add, stays synchronous, and adds
+no dependency; an explicit compression step in the payload would save roughly a
+kilobyte on the wire and would require `DecompressionStream`, which predates
+neither Safari 16.4 nor Firefox 113.
+
+The step size is a deliberate choice, not the source's own precision. The
+reference program `gintbs` reports on a whole millimetre, and the agreement
+with it recorded below is 0.502 mm, so a quarter-millimetre lattice keeps the
+combined bound at 0.752 mm — still under the resolution the authority itself
+reports at. For scale, the elevation tiles this grid corrects encode in steps of
+1/256 m and carry a stated accuracy of 0.15 to 0.30 m. The measured deviations
+are smaller than the bound: 0.104 mm per sample and 0.171 mm per interpolated
+query, taken across every two-degree tile of the complete source grid.
+
+The step also fixes the code width. At 0.25 mm the widest two-degree tile in the
+source grid, `N52E012` spanning 7.1159 m, needs 28,464 of the 65,534 usable
+`uint16` codes, so one width covers the whole grid and the decoder needs no
+per-tile branch. A 0.1 mm lattice would have overflowed `uint16` on that tile.
+
+`GCG2016_SOFTWARE_BOUND_METERS` exposes the 0.752 mm bound as a single figure
+for display. It describes this software only and says nothing about how well
+GCG2016 models the real quasigeoid; `physicalModelAccuracyMeters` stays `null`.
+
+The `N50E006` payload is 102,933 bytes before HTTP compression, 39,369 bytes
+with Gzip, and 32,832 bytes with Brotli. Vite bundles the dynamically imported
+payload modules as separate chunks.
 
 At runtime, the implementation uses the method reconstructed from the official
 BKG `gintbs` program: five support values per axis, with natural cubic splines
@@ -56,7 +90,8 @@ H_DHHN2016    = h_ellipsoidal - N_GCG2016
 
 The spline interpolates only the unchanged official grid values. It does not
 apply a global polynomial, spherical-harmonic, or coefficient approximation,
-and it introduces no additional quantization. An LOD pyramid is not useful for
+and it introduces no approximation beyond the lattice the samples are stored
+on. An LOD pyramid is not useful for
 this small scalar correction grid. The loader imports the requested 2° tile and
 only those neighboring tiles intersected by the concrete 5×5 support window.
 An explicit `prefetchGcg2016Tiles` call can preload additional tiles.
@@ -83,9 +118,9 @@ also contains NoData areas, primarily along its western and northern edges.
 Every query therefore validates all 25 interpolation values. The helper rejects
 its promise with a typed error:
 
-- `UnsupportedVerticalOffsetRegionError`: coordinate outside
-  `[6, 10) × [50, 54)`, incomplete 5×5 window at the outer boundary, or source
-  NoData;
+- `UnsupportedVerticalOffsetRegionError`: coordinate outside the bundled
+  region, currently `[6, 8) × [50, 52)`, incomplete 5×5 window at the outer
+  boundary, or source NoData;
 - `VerticalOffsetTileLoadError`: dynamic import or tile file unavailable;
 - `InvalidVerticalOffsetTileError`: invalid format, encoding, or sample count
   in a loaded tile.
@@ -99,25 +134,29 @@ catch and display them.
 
 ```bash
 python3 \
-  libraries/commons/resources/src/lib/de/gcg2016/derive-gcg2016-tiles.py \
-  --source-grid /path/to/de_bkg_gcg2016.tif \
-  --output-directory \
-    libraries/commons/resources/src/lib/de/gcg2016 \
-  --region 6 50 10 54 \
-  --tile-size-degrees 2 \
-  --verification-random-per-tile 100000
+  libraries/geo/gcg2016/src/lib/gcg2016/derive-gcg2016-tiles.py \
+  --source-grid /path/to/de_bkg_gcg2016.tif
 
 ./.dev-local/scripts/dev-build.mjs prettier --write \
-  libraries/commons/resources/src/lib/de/gcg2016.ts \
-  libraries/commons/resources/src/lib/de/gcg2016/validation.json
+  libraries/geo/gcg2016/src/lib/gcg2016.ts \
+  libraries/geo/gcg2016/src/lib/gcg2016/validation.json
 ```
+
+The output directory, the 2° tile size and the region all default to the
+values above, so a regeneration needs no further arguments. `--bounds`
+overrides the coverage read from the terrain resource and is only for
+experiments: passing a wider box regenerates the correspondingly larger tile
+set and defeats the clamp.
 
 The generator requires GDAL with its Python bindings and NumPy. It validates
 the Float32 values decoded from the generated tiles against the same 5×5
 interpolation on the complete source GeoTIFF. With seed 4064, it generates
-100,000 random points per tile plus 16,384 boundary and seam points. Actual
-source NoData positions and points without a complete outer support window are
-treated as unsupported. Individual values, point counts, and maximum numerical
+100,000 random points per tile plus 16,384 boundary points. Actual source
+NoData positions and points without a complete outer support window are treated
+as unsupported. A second, separate check then proves the promise the region
+derivation makes: it samples the elevation coverage itself and fails the run if
+the bundled tiles cannot serve a point the full grid resolves. Its result is
+recorded as `elevationCoverageVerification`. Individual values, point counts, and maximum numerical
 differences are recorded in `validation.json`.
 
 The spline selection was independently verified against the official BKG
@@ -125,7 +164,7 @@ The spline selection was independently verified against the official BKG
 `spline_`/`splint_` symbols, uses five support positions, and applies natural
 boundary derivatives. Across 321,201 points in the complete geodetic footprint
 of Mesh 2024, the reconstructed calculation differed by at most
-`0.000501833693043352 m` from the millimeter-rounded `gintbs` text output.
+`0.502 mm` from the millimeter-rounded `gintbs` text output.
 Package, program, and raster hashes and the verification region are recorded in
 `GCG2016_PROVENANCE.officialReferenceValidation`. For comparison, the
 previous bilinear calculation differed from the spline by at most approximately
@@ -133,15 +172,15 @@ previous bilinear calculation differed from the spline by at most approximately
 
 ## API and validity limits
 
-- `queryGcg2016Undulation(longitude, latitude)` returns the value together
+- `queryGcg2016HeightAnomaly(longitude, latitude)` returns the value together
   with the resource tiles actually used, the interpolation method, and separate
   validation metrics;
-- `queryGcg2016Undulations(coordinates)` and
-  `getGcg2016Undulations(coordinates)` process points concurrently, preserve
+- `queryGcg2016HeightAnomalies(coordinates)` and
+  `getGcg2016HeightAnomalies(coordinates)` process points concurrently, preserve
   input order, and share in-flight tile imports;
-- `getGcg2016Undulation(longitude, latitude)` accepts geographic
+- `getGcg2016HeightAnomaly(longitude, latitude)` accepts geographic
   ETRS89/DREF91/2016 angles as branded degrees;
-- `getGcg2016UndulationFromUtm(coordinate)` accepts a branded
+- `getGcg2016HeightAnomalyFromUtm(coordinate)` accepts a branded
   `Coordinates.ETRS89UTM` position in zone 31, 32, or 33;
 - `dhhn2016ToEllipsoidalHeight(coordinate, height)` and
   `ellipsoidalToDhhn2016Height(coordinate, height)` keep DHHN2016 and
@@ -179,8 +218,8 @@ accuracy matters. The combination of an `EPSG:4326` position and a DHHN2016
 height is not an official compound CRS, so `compoundCrs` is also `null`.
 
 The query metrics document observed agreement with the millimeter-rounded
-official program output and lossless repackaging of the verified raster
-values. The bilinear difference is only a method comparison.
+official program output and the deviation the lattice encoding adds against the
+verified raster values. The bilinear difference is only a method comparison.
 `physicalModelAccuracyMeters` deliberately remains `null`: these software
 checks do not establish a local physical accuracy bound for GCG2016.
 

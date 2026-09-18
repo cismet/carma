@@ -5,13 +5,13 @@ export interface GeographicBounds {
   north: number;
 }
 
-const FLOAT32_VERTICAL_OFFSET_TILE_FORMAT =
-  "carma-gcg2016-float32-tile-v2" as const;
-const FLOAT32_VERTICAL_OFFSET_TILE_ENCODING =
-  "base64-float32-little-endian" as const;
+const VERTICAL_OFFSET_TILE_FORMAT =
+  "carma-gcg2016-uint16-tile-v4" as const;
+const VERTICAL_OFFSET_TILE_ENCODING =
+  "base64-uint16-rowdelta" as const;
 
-export interface Float32VerticalOffsetTile {
-  format: typeof FLOAT32_VERTICAL_OFFSET_TILE_FORMAT;
+export interface VerticalOffsetTile {
+  format: typeof VERTICAL_OFFSET_TILE_FORMAT;
   id: string;
   bounds: [number, number, number, number];
   grid: {
@@ -26,12 +26,15 @@ export interface Float32VerticalOffsetTile {
     noDataValue: number | null;
   };
   values: {
-    encoding: typeof FLOAT32_VERTICAL_OFFSET_TILE_ENCODING;
+    encoding: typeof VERTICAL_OFFSET_TILE_ENCODING;
+    offsetMeters: number;
+    quantumMeters: number;
+    noDataCode: number;
     data: string;
   };
 }
 
-export type Float32VerticalOffsetTileLoader = () => Promise<unknown>;
+export type VerticalOffsetTileLoader = () => Promise<unknown>;
 
 export interface TiledVerticalOffsetModel {
   getOffset(longitude: number, latitude: number): Promise<number>;
@@ -90,47 +93,67 @@ export class UnsupportedVerticalOffsetRegionError extends RangeError {
 }
 
 interface DecodedTile {
-  source: Float32VerticalOffsetTile;
+  source: VerticalOffsetTile;
   values: Float32Array;
 }
 
 interface TiledVerticalOffsetModelOptions {
   supportedRegion: GeographicBounds;
   rootTileSizeDegrees: number;
-  tileLoaders: Readonly<Record<string, Float32VerticalOffsetTileLoader>>;
+  tileLoaders: Readonly<Record<string, VerticalOffsetTileLoader>>;
 }
 
 const SPLINE_STENCIL_RADIUS_BEFORE = 1;
 const SPLINE_STENCIL_SIZE = 5;
 
-const isLittleEndian = (() => {
-  const bytes = new Uint8Array(2);
-  new Uint16Array(bytes.buffer)[0] = 1;
-  return bytes[0] === 1;
-})();
-
-const decodeBase64Float32 = (encoded: string) => {
+const decodeBase64 = (encoded: string) => {
   const binary = globalThis.atob(encoded);
   const bytes = new Uint8Array(binary.length);
   for (let index = 0; index < binary.length; index += 1) {
     bytes[index] = binary.charCodeAt(index);
   }
-  if (bytes.byteLength % Float32Array.BYTES_PER_ELEMENT !== 0) {
+  return bytes;
+};
+
+/**
+ * Undo the payload encoding written by derive-gcg2016-tiles.py: little-endian
+ * uint16 row deltas over indices on a half-millimetre lattice. Running the sum
+ * per row and scaling by the tile's own step and offset rebuilds the samples.
+ */
+const decodeRowDeltaUint16 = (
+  bytes: Uint8Array,
+  width: number,
+  height: number,
+  offsetMeters: number,
+  quantumMeters: number,
+  noDataCode: number,
+  noDataValue: number | null
+) => {
+  const count = width * height;
+  if (bytes.byteLength !== count * Uint16Array.BYTES_PER_ELEMENT) {
     throw new RangeError(
-      `decoded byte length ${bytes.byteLength} is not divisible by four`
+      `decoded byte length ${bytes.byteLength} does not match ${count} samples`
     );
   }
-  if (isLittleEndian) return new Float32Array(bytes.buffer);
-
-  const view = new DataView(bytes.buffer);
-  const values = new Float32Array(
-    bytes.byteLength / Float32Array.BYTES_PER_ELEMENT
+  const view = new DataView(
+    bytes.buffer,
+    bytes.byteOffset,
+    bytes.byteLength
   );
-  for (let index = 0; index < values.length; index += 1) {
-    values[index] = view.getFloat32(
-      index * Float32Array.BYTES_PER_ELEMENT,
-      true
-    );
+  const values = new Float32Array(count);
+  for (let row = 0; row < height; row += 1) {
+    let code = 0;
+    for (let column = 0; column < width; column += 1) {
+      const index = row * width + column;
+      code =
+        (code +
+          view.getUint16(index * Uint16Array.BYTES_PER_ELEMENT, true)) &
+        0xffff;
+      values[index] =
+        code === noDataCode && noDataValue !== null
+          ? noDataValue
+          : offsetMeters + code * quantumMeters;
+    }
   }
   return values;
 };
@@ -169,7 +192,7 @@ const unwrapTileModule = (loaded: unknown) =>
 const parseTile = (
   source: unknown,
   expectedId: string
-): Float32VerticalOffsetTile => {
+): VerticalOffsetTile => {
   if (!isRecord(source)) {
     throw new InvalidVerticalOffsetTileError(
       expectedId,
@@ -182,7 +205,7 @@ const parseTile = (
       `loader returned tile ${String(source.id)}`
     );
   }
-  if (source.format !== FLOAT32_VERTICAL_OFFSET_TILE_FORMAT) {
+  if (source.format !== VERTICAL_OFFSET_TILE_FORMAT) {
     throw new InvalidVerticalOffsetTileError(
       expectedId,
       `unsupported format ${String(source.format)}`
@@ -227,8 +250,12 @@ const parseTile = (
   }
   if (
     !isRecord(source.values) ||
-    source.values.encoding !== FLOAT32_VERTICAL_OFFSET_TILE_ENCODING ||
-    typeof source.values.data !== "string"
+    source.values.encoding !== VERTICAL_OFFSET_TILE_ENCODING ||
+    typeof source.values.data !== "string" ||
+    !Number.isFinite(source.values.offsetMeters) ||
+    !Number.isFinite(source.values.quantumMeters) ||
+    Number(source.values.quantumMeters) <= 0 ||
+    !Number.isInteger(source.values.noDataCode)
   ) {
     throw new InvalidVerticalOffsetTileError(
       expectedId,
@@ -236,27 +263,29 @@ const parseTile = (
     );
   }
 
-  return source as unknown as Float32VerticalOffsetTile;
+  return source as unknown as VerticalOffsetTile;
 };
 
 const decodeTile = (rawSource: unknown, expectedId: string): DecodedTile => {
   const source = parseTile(rawSource, expectedId);
+  const expectedLength = source.grid.width * source.grid.height;
   let values: Float32Array;
   try {
-    values = decodeBase64Float32(source.values.data);
+    values = decodeRowDeltaUint16(
+      decodeBase64(source.values.data),
+      source.grid.width,
+      source.grid.height,
+      source.values.offsetMeters,
+      source.values.quantumMeters,
+      source.values.noDataCode,
+      source.grid.noDataValue
+    );
   } catch (cause) {
     throw new InvalidVerticalOffsetTileError(
       source.id,
       `cannot decode Float32 values: ${
         cause instanceof Error ? cause.message : String(cause)
       }`
-    );
-  }
-  const expectedLength = source.grid.width * source.grid.height;
-  if (values.length !== expectedLength) {
-    throw new InvalidVerticalOffsetTileError(
-      source.id,
-      `contains ${values.length} samples; expected ${expectedLength}`
     );
   }
   return { source, values };

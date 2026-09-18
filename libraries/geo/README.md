@@ -27,7 +27,7 @@ Projection transformations using proj4js with strongly typed converters.
 - Asynchronous DHHN2016 ↔ ellipsoidal-height transforms using the verified
   BKG GCG2016 5×5 spline. Geographic, ETRS89 UTM zones 31–33, batched, and
   ECEF adapters use branded CARMA coordinate and height types; the tiled grid
-  payload and provenance live in `@carma-commons/resources`.
+  payload and provenance live in `@carma-geo/gcg2016`.
 
 ### `@carma-geo/utils`
 Higher-level geographic utilities and domain-specific calculations.

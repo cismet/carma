@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
 
+// Absolute height anomalies are asserted to 5e-4 m. The payload stores samples on a
+// 0.25 mm lattice, so a value can sit up to one lattice step from an evaluation
+// of the unquantised source grid; the tolerance is that bound with headroom,
+// not a figure fitted to the current output. Round-trip identities below stay
+// tight because the same anomaly is added and subtracted.
+
 import type {
   Altitude,
   Coordinates,
@@ -15,7 +21,7 @@ import {
   ellipsoidalToDhhn2016Height,
   ellipsoidalToDhhn2016Heights,
   getGcg2016EcefTransformer,
-  getGcg2016UndulationFromUtm,
+  getGcg2016HeightAnomalyFromUtm,
   getGcg2016UtmVerticalTransformer,
   getGcg2016Wgs84VerticalTransformer,
   type Gcg2016UtmZone,
@@ -40,24 +46,24 @@ describe("GCG2016 coordinate transformers", () => {
   const dhhn2016Height = 161.002 as Altitude.DHHN2016Meters;
 
   it("accepts every ETRS89 UTM zone covered by the GCG2016 source grid", async () => {
-    const undulations = await Promise.all(
-      Object.values(coordinatesByZone).map(getGcg2016UndulationFromUtm)
+    const heightAnomalies = await Promise.all(
+      Object.values(coordinatesByZone).map(getGcg2016HeightAnomalyFromUtm)
     );
 
-    for (const undulation of undulations) {
-      expect(undulation).toBeCloseTo(46.59667038816, 8);
+    for (const heightAnomaly of heightAnomalies) {
+      expect(heightAnomaly).toBeCloseTo(46.59667038816, 3);
     }
   });
 
   it("matches the BKG spline at the Mesh 2024 anchor", async () => {
     const coordinate = coordinatesByZone[32];
-    await expect(getGcg2016UndulationFromUtm(coordinate)).resolves.toBeCloseTo(
+    await expect(getGcg2016HeightAnomalyFromUtm(coordinate)).resolves.toBeCloseTo(
       46.59667038816,
-      8
+      3
     );
     await expect(
       dhhn2016ToEllipsoidalHeight(coordinate, dhhn2016Height)
-    ).resolves.toBeCloseTo(207.59867038816, 8);
+    ).resolves.toBeCloseTo(207.59867038816, 3);
   });
 
   it("round-trips single and batched branded UTM heights", async () => {
@@ -98,7 +104,7 @@ describe("GCG2016 coordinate transformers", () => {
     const forward = await transformer.forward(coordinate, dhhn2016Height);
     const inverse = await transformer.inverse(coordinate, forward);
 
-    expect(forward).toBeCloseTo(207.59867038816, 8);
+    expect(forward).toBeCloseTo(207.59867038816, 3);
     expect(inverse).toBeCloseTo(dhhn2016Height, 12);
   });
 
@@ -115,7 +121,7 @@ describe("GCG2016 coordinate transformers", () => {
       horizontalCrs: "EPSG:4326",
       epochTransformation: null,
     });
-    expect(forward).toBeCloseTo(207.59867038816, 6);
+    expect(forward).toBeCloseTo(207.59867038816, 3);
     expect(inverse).toBeCloseTo(dhhn2016Height, 12);
   });
 
@@ -139,7 +145,7 @@ describe("GCG2016 coordinate transformers", () => {
       north: 5_700_000 as Coordinates.ETRS89UTMNorthingMeters,
       zone: 30,
     } satisfies Coordinates.ETRS89UTM;
-    expect(() => getGcg2016UndulationFromUtm(unsupportedZone)).toThrow(
+    expect(() => getGcg2016HeightAnomalyFromUtm(unsupportedZone)).toThrow(
       RangeError
     );
 
@@ -149,7 +155,7 @@ describe("GCG2016 coordinate transformers", () => {
       33
     );
     await expect(
-      getGcg2016UndulationFromUtm(outsideBundledExtent)
+      getGcg2016HeightAnomalyFromUtm(outsideBundledExtent)
     ).rejects.toBeInstanceOf(UnsupportedVerticalOffsetRegionError);
   });
 });

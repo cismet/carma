@@ -70,7 +70,7 @@ const meta = {
     },
     // No sourceHeightDatum control: each dataset preset declares its datum
     // (a persisted stale override here is exactly how clouds end up floating
-    // one geoid undulation, about 46 m, above the mesh).
+    // one height anomaly, about 46 m, above the mesh).
     heightOffset: {
       name: "height offset",
       control: { type: "range", min: -70, max: 70, step: 0.5 },

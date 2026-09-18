@@ -1,0 +1,18 @@
+{
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "name": "geo-gcg2016",
+  "sourceRoot": "libraries/geo/gcg2016/src",
+  "projectType": "library",
+  "tags": ["scope:geo", "type:data-structures"],
+  "targets": {
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "options": {
+        "lintFilePatterns": [
+          "libraries/geo/gcg2016/src/**/*.ts",
+          "libraries/geo/gcg2016/src/**/*.d.ts"
+        ]
+      }
+    }
+  }
+}

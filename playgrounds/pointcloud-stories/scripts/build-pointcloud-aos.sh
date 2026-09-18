@@ -19,7 +19,7 @@ RAY_COUNT="${POINTCLOUD_AO_RAY_COUNT:-256}"
 SELF_BIAS="${POINTCLOUD_AO_SELF_BIAS_METERS:-1}"
 FOOTPRINT_CELL_SIZE="${POINTCLOUD_AO_FOOTPRINT_CELL_METERS:-25}"
 KEEP_CACHE="${POINTCLOUD_AO_KEEP_CACHE:-false}"
-GCG2016_TILE="$REPO_ROOT/libraries/commons/resources/src/lib/de/gcg2016/N50E006.ts"
+GCG2016_TILE="$REPO_ROOT/libraries/geo/gcg2016/src/lib/gcg2016/N50E006.ts"
 ACTIVE_LOCK=""
 cleanup_lock() {
   if [[ -n "$ACTIVE_LOCK" ]]; then
@@ -167,7 +167,7 @@ process_asset() {
     "$PDAL_IMAGE" scripts/bake-pointcloud-ao.py inspect \
     --source "/input/$source_name" \
     --profile "$asset" \
-    --gcg2016-tile /workspace/libraries/commons/resources/src/lib/de/gcg2016/N50E006.ts \
+    --gcg2016-tile /workspace/libraries/geo/gcg2016/src/lib/gcg2016/N50E006.ts \
     --footprint-cell-size "$FOOTPRINT_CELL_SIZE" \
     --output /ao/inspection.json.next \
     > "$ao_root/inspection.log"
@@ -196,7 +196,7 @@ process_asset() {
     "$PDAL_IMAGE" scripts/bake-pointcloud-ao.py bake \
     --source "/input/$source_name" \
     --profile "$asset" \
-    --gcg2016-tile /workspace/libraries/commons/resources/src/lib/de/gcg2016/N50E006.ts \
+    --gcg2016-tile /workspace/libraries/geo/gcg2016/src/lib/gcg2016/N50E006.ts \
     --inspection /ao/inspection.json \
     --triangles /ao/triangles-utm32-relative.f32 \
     --triangles-metadata /ao/triangles.json \
