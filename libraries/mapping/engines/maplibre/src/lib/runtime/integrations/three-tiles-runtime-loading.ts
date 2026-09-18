@@ -79,6 +79,7 @@ export function createThreeTilesLoading(
     | "disposed"
     | "runtimeVisible"
     | "shadowView"
+    | "meshInitialBasePassDone"
     | "shadowSelectionEnabled"
     | "shadowSelectionNeedsTraversal"
     | "tileRetries"
@@ -134,6 +135,7 @@ export function createThreeTilesLoading(
     ThreeTilesRuntimeServices,
     | "requestShadowSelectionRefresh"
     | "setShadowSelectionEnabled"
+    | "applyPendingShadowView"
     | "isTileInMainView"
     | "getTileCameraDemand"
     | "getTileRequestPriority"
@@ -570,6 +572,18 @@ export function createThreeTilesLoading(
           !runtimeState.shadowView &&
           hasReserve &&
           !runtimeState.meshInitialReserveSettled;
+        if (
+          !runtimeState.meshInitialBasePassDone &&
+          initialReady &&
+          !reserveBeforeIdle
+        ) {
+          // Decision: TILES_COVERAGE.md#shadow-add-on-follows-the-base-pass-staging-2026-09-18
+          // The initial base pass is complete: the view at the initial target,
+          // seams and the whole-extent reserve. Only now does the shadow
+          // add-on's view join; the idle refinement follows either way.
+          runtimeState.meshInitialBasePassDone = true;
+          dependencies.applyPendingShadowView();
+        }
         const currentTarget = Math.max(
           minimumTarget,
           Math.min(initialTarget, runtimeState.effectiveErrorTarget)

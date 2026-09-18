@@ -135,6 +135,10 @@ export interface ThreeTilesRuntimeState {
   outlineOpacity: ReturnType<typeof clamp>;
   shadowSimulationStyle: SharedThreeSceneShadowStyle | null;
   shadowView: SharedThreeSceneShadowView | null;
+  /** The add-on's view while a terrain-providing runtime's initial base pass runs. */
+  pendingShadowView: SharedThreeSceneShadowView | null;
+  /** The initial view cut and the whole-extent reserve were complete once. */
+  meshInitialBasePassDone: boolean;
   shadowViewSignature: string;
   shadowSelectionEnabled: boolean;
   shadowSelectionNeedsTraversal: boolean;
@@ -460,6 +464,8 @@ export interface ThreeTilesRuntimeServices {
     }> | null
   ) => void;
   setProjector: (projector: ImageProjector | null) => void;
+  /** Apply the view kept back by setShadowView during the initial base pass. */
+  applyPendingShadowView: () => void;
   setShadowView: (
     view: Readonly<{
       camera: THREE.Camera;

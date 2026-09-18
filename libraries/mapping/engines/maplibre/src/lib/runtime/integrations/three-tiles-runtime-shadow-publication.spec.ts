@@ -219,3 +219,59 @@ describe("mesh caster publication", () => {
     expect(state.committedMeshCasterFrontier.has(chimney)).toBe(true);
   });
 });
+
+describe("shadow view deferral", () => {
+  const build = (providesTerrain: boolean) => {
+    const state = createThreeTilesRuntimeState(
+      "mesh",
+      "mesh.json",
+      [7.2, 51.2],
+      { providesTerrain }
+    );
+    const api = createThreeTilesShadows(state, {
+      isTileInMainView: () => true,
+      isChildUnloadable: () => false,
+      updateRootWorldBounds: vi.fn(() => false),
+      updateFrameFromTiles: () => new THREE.Matrix4(),
+      getTileScreenError: (tile) => tile.traversal?.error ?? 0,
+      getStableTileId: (tile) => tile.content?.uri ?? "",
+      getTileCenterness: () => 1,
+      getTileDebugId: (tile) => tile.content?.uri ?? "",
+      requestRender: vi.fn(),
+      isPipelineIdle: () => false,
+      applyRequestConcurrency: vi.fn(),
+      notifyRequestStateChange: vi.fn(),
+    });
+    const view = {
+      camera: new THREE.OrthographicCamera(),
+      shadowMapSize: { width: 1024, height: 1024 },
+    };
+    return { state, api, view };
+  };
+
+  it("keeps the add-on's view pending until a mesh finished its initial base pass", () => {
+    const { state, api, view } = build(true);
+    api.setShadowView(view);
+    expect(state.shadowView).toBeNull();
+    expect(state.pendingShadowView).toBe(view);
+    // Clearing never waits, and it drops the pending view too.
+    api.setShadowView(null);
+    expect(state.pendingShadowView).toBeNull();
+    api.setShadowView(view);
+    state.meshInitialBasePassDone = true;
+    api.applyPendingShadowView();
+    expect(state.shadowView).toBe(view);
+    // Once the base pass is done, later views apply at once.
+    const next = { ...view, camera: new THREE.OrthographicCamera() };
+    api.setShadowView(next);
+    expect(state.shadowView).toBe(next);
+    api.setShadowView(null);
+    expect(state.shadowView).toBeNull();
+  });
+
+  it("applies a shadow view at once on a runtime without a base pass", () => {
+    const { state, api, view } = build(false);
+    api.setShadowView(view);
+    expect(state.shadowView).toBe(view);
+  });
+});

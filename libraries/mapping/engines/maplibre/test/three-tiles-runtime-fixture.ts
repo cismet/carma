@@ -4,6 +4,7 @@ import type { Map as MaplibreMap } from "maplibre-gl";
 import * as THREE from "three";
 import { vi } from "vitest";
 import { buildThreeTilesRuntime } from "../src/lib/runtime/integrations/three-tiles-runtime";
+import type { ThreeTilesRuntimeState } from "../src/lib/runtime/integrations/three-tiles-runtime-context";
 
 /** Metadata/decoded-payload fixture; no network or GPU. Spatial roles are explicit
  * and native/local transforms remain coherent. Loading state matches scene data.
@@ -46,7 +47,7 @@ export const createMeshCorridorFixture = (
     "corridor",
     "https://example.test/mesh/tileset.json",
     [7.2, 51.2],
-    { providesTerrain }
+    { providesTerrain, diagnostics: true }
   );
   const camera = new THREE.PerspectiveCamera();
   const frame = {
@@ -67,6 +68,15 @@ export const createMeshCorridorFixture = (
     },
   };
   runtime.scene.onAdd?.(map);
+  // The corridor design starts after the initial base pass (view at the
+  // initial target, seams, whole-extent reserve); these fixtures model that
+  // phase, so the shadow view must not wait for it.
+  const runtimeState = [
+    ...(window as unknown as { __carmaTiles3d: Set<ThreeTilesRuntimeState> })
+      .__carmaTiles3d,
+  ].find((candidate) => candidate.layerId === "corridor");
+  if (!runtimeState) throw new Error("corridor runtime not registered");
+  runtimeState.meshInitialBasePassDone = true;
   runtime.loading.setErrorTarget(1);
   runtime.scene.update(frame);
   renderer.group.rotation.z = rotation;
