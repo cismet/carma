@@ -154,13 +154,6 @@ wizardQueries.lockForSchluessel = `query LockForSchluessel($schluesselId: Int!) 
   }
 }`;
 
-wizardQueries.classIdForTable = `query ClassIdForTable($tableName: String!) {
-  cs_class(where: {table_name: {_eq: $tableName}}) {
-    id
-    table_name
-  }
-}`;
-
 wizardQueries.rebeByGeo = `query RebeByGeo($geo: geometry) {
   rebe(where: {extended_geom: {geo_field: {_st_intersects: $geo}}}) {
     id
