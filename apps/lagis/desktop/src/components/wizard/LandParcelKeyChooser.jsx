@@ -17,13 +17,6 @@ import {
 import { FLURSTUECK_ART } from "../../core/wizard/constants";
 import useStammdaten from "../../core/wizard/useStammdaten";
 
-/**
- * The Flurstück picker of the wizard. The input is the LandParcelSearch of the
- * header, so a parcel is found the same way everywhere; what stays here is the
- * wizard's part: which parcels a step may pick, whether a typed key is still
- * free, and the full Schlüssel behind a choice. Modes: see parcelSearchAdapter.
- */
-
 const INCOMPLETE = "Bitte vervollständigen Sie alle Flurstücke";
 
 const LandParcelKeyChooser = ({
@@ -57,10 +50,9 @@ const LandParcelKeyChooser = ({
   const pickedRef = useRef(text);
   const checkRef = useRef(0);
 
+  // an empty chooser has to say so, otherwise the step looks complete
   useEffect(() => {
-    if (value) {
-      onValidity(status);
-    }
+    onValidity(status);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
