@@ -385,3 +385,9 @@ export type {
   RuntimeTile as DiagnosticRuntimeTile,
   TilesRuntimeDebugState,
 } from "./lib/runtime/diagnostics/tile-diagnostic-state";
+export {
+  getTiles3dRuntimeHandles,
+  registerTiles3dRuntimeHandle,
+  subscribeTiles3dRuntimeHandles,
+  unregisterTiles3dRuntimeHandle,
+} from "./lib/runtime/integrations/tiles3d-runtime-handles";

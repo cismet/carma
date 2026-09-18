@@ -1405,7 +1405,6 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
         <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
           Mesh fill
           <Slider
-            ariaLabelForHandle="Mesh fill opacity"
             style={{ flex: 1 }}
             min={0}
             max={1}
@@ -2577,7 +2576,7 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
                 </div>
               </section>
               <Popout
-                open={visible && external}
+                open={visible === true && external === true}
                 title={`Tile coverage ${panel.label}`}
                 width={externalSizes.current[panel.id]?.width ?? panel.width}
                 height={externalSizes.current[panel.id]?.height ?? panel.height}

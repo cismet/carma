@@ -21,13 +21,13 @@ import {
   TileLoadingDebug,
   type TileLoadingDebugOptions,
   type TileLoadingDebugLoadingOptions,
-} from "./TileLoadingDebug";
+  ViewportPaddingPanels,
+} from "@carma-mapping/tile-diagnostics-ui";
 
 import "maplibre-gl/dist/maplibre-gl.css";
-import { ViewportPaddingPanels } from "./ViewportPaddingPanels";
 import { MeshCoverageCameraWindows } from "./MeshCoverageCameraWindows";
 
-export { DEBUG_COLOR_MODES } from "./TileLoadingDebug";
+export { DEBUG_COLOR_MODES } from "@carma-mapping/tile-diagnostics-ui";
 
 export const CAMERA_PRESETS = {
   "parity zoom 18": { zoom: 18, pitch: 0, bearing: 0 },
