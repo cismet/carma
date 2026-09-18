@@ -1,24 +1,10 @@
 import {
+  LAGIS_CLASSES_ENDPOINT,
   LAGIS_DELETE_ENDPOINT,
   LAGIS_SAVE_ENDPOINT,
 } from "../../constants/lagis";
 import { finishCall, startCall } from "./gqlLog";
 import { CidsActionError } from "./errors";
-
-/**
- * Writes through the generic cids actions LAGIS.SaveObject and
- * LAGIS.DeleteObject.
- *
- * The /graphql/LAGIS/execute proxy accepts queries only, so reads and writes
- * take different routes: reads stay GraphQL, writes go here. This is the same
- * mechanism BelIS desktop uses (helper/apiMethods.ts) and the WUNDA portals
- * use for their Discover items, so the request shape below is copied from a
- * path that is already in production.
- *
- * Everything persists through cids rather than straight into the database,
- * which is what keeps the server's permissions, triggers and bean rules in
- * play — the same route the Swing client's bean.persist() took.
- */
 
 const buildTaskParams = (parameters) => {
   const formData = new FormData();
@@ -108,13 +94,6 @@ export const unwrapCidsResult = (payload) => {
   return value;
 };
 
-/**
- * Creates or updates one object.
- *
- * Leaving `id` out of `data` creates; including it merges onto the existing
- * object, exactly as BelIS does when it saves a partial bean such as
- * `{ id, dokumenteArray }`.
- */
 export const saveObject = (className, data, jwt) =>
   post(LAGIS_SAVE_ENDPOINT, { className, data: JSON.stringify(data) }, jwt, {
     kind: "SaveObject",
@@ -129,12 +108,6 @@ export const deleteObject = (className, data, jwt) =>
 
 /**
  * Digs the id of a newly created object out of the response.
- *
- * By this point the { contentType, res } envelope is already peeled off, but
- * the id could sit at a couple of depths, so several shapes are tried and
- * anything unrecognised fails loudly with the payload attached — far better
- * than silently carrying an undefined id into the next write, which would
- * attach a Flurstück to nothing.
  */
 export const idFromSaveResult = (result, className) => {
   const candidates = [
@@ -159,3 +132,63 @@ export const idFromSaveResult = (result, className) => {
 
 export const saveAndGetId = async (className, data, jwt) =>
   idFromSaveResult(await saveObject(className, data, jwt), className);
+
+let classIdCache;
+
+/**
+ * The cids class id a `cs_locks` row needs in `class_id`.
+ */
+export const fetchClassId = async (tableName, jwt) => {
+  if (!classIdCache) {
+    const callId = startCall(`GET ${LAGIS_CLASSES_ENDPOINT}`, undefined, {
+      kind: "REST",
+      operation: "classes",
+    });
+    const startedAt = Date.now();
+    const fail = (message, detail) => {
+      finishCall(callId, {
+        status: "error",
+        ms: Date.now() - startedAt,
+        message,
+        response: detail,
+      });
+      return new CidsActionError(message, detail);
+    };
+
+    let response;
+    try {
+      response = await fetch(LAGIS_CLASSES_ENDPOINT, {
+        headers: { Authorization: `Bearer ${jwt}` },
+      });
+    } catch (e) {
+      throw fail("Die Verbindung zum Server ist fehlgeschlagen.", String(e));
+    }
+    if (!response.ok) {
+      throw fail(
+        `Die Klassenliste konnte nicht geladen werden (Status ${response.status}).`
+      );
+    }
+    const payload = await response.json();
+    const classes = payload?.$collection ?? [];
+    classIdCache = {};
+    for (const entry of classes) {
+      const { NAME, LEGACY_ID } = entry.configuration ?? {};
+      if (NAME && LEGACY_ID !== undefined) {
+        classIdCache[NAME] = LEGACY_ID;
+      }
+    }
+    finishCall(callId, {
+      status: "ok",
+      ms: Date.now() - startedAt,
+      response: classIdCache,
+    });
+  }
+
+  const classId = classIdCache[tableName];
+  if (classId === undefined) {
+    throw new CidsActionError(
+      `Die Klasse ${tableName} konnte auf dem Server nicht gefunden werden.`
+    );
+  }
+  return classId;
+};

@@ -31,6 +31,14 @@ export const LAGIS_SAVE_ENDPOINT =
   LAGIS_DOMAIN +
   ".SaveObject/tasks?resultingInstanceType=result";
 
+// cs_class is not exposed through the GraphQL proxy, so cids class ids come
+// from the REST class listing instead.
+export const LAGIS_CLASSES_ENDPOINT =
+  REST_SERVICE_LAGIS +
+  "/classes?domain=" +
+  LAGIS_DOMAIN +
+  "&limit=1000&offset=0&role=all";
+
 export const LAGIS_DELETE_ENDPOINT =
   REST_SERVICE_LAGIS +
   "/actions/" +
