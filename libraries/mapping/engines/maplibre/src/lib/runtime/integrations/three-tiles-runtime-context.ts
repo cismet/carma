@@ -1,4 +1,5 @@
 import { type Tile } from "3d-tiles-renderer/core";
+import type { CacheCeilingMemory } from "./three-tiles-cache-ceiling-memory";
 import type { Map as MaplibreMap } from "maplibre-gl";
 import { MercatorCoordinate } from "maplibre-gl";
 import * as THREE from "three";
@@ -77,6 +78,11 @@ export interface ThreeTilesRuntimeState {
   usedBytesMain: number;
   lastMainViewConverged: boolean;
   deviceProfile: ReturnType<typeof readTilesDeviceProfile>;
+  /** Learned resident ceiling and the session probe, persisted by the host. */
+  cacheCeilingStorage: Storage | null;
+  cacheCeilingMemory: CacheCeilingMemory | null;
+  learnedCeilingBytes: number | null;
+  cacheCeilingPeakWrittenAt: number;
   styleCacheBudgetBytes: number | undefined;
   styleCacheOverflowBytes: number | undefined;
   ceilingBytes: ReturnType<typeof resolveTilesCacheCeiling>;
@@ -429,6 +435,10 @@ export interface ThreeTilesRuntimeServices {
   reapplyCacheBoundsIfDrifted: () => void;
   sampleMemoryPressure: () => void;
   handleContextLost: () => void;
+  /** Learn a lower resident ceiling from a failure and apply it at once. */
+  recordCacheCeilingFailure: (reason: "allocation" | "context-lost") => void;
+  /** Mark the session clean (page hide or dispose); lets a lesson recover. */
+  endCacheCeilingSession: () => void;
   handleContextRestored: () => void;
   applyRequestConcurrency: () => void;
   applyTilesetMinResolution: () => void;

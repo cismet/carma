@@ -20,6 +20,13 @@ import type {
 import type { createThreeTilesDebugOverlay } from "./three-tiles-debug-overlay";
 import type { EffectiveErrorTargetState } from "./three-tiles-load-policy";
 import {
+  getCacheCeilingStorage,
+  readCacheCeilingMemory,
+  settleCrashedCacheCeilingSession,
+  startCacheCeilingSession,
+  writeCacheCeilingMemory,
+} from "./three-tiles-cache-ceiling-memory";
+import {
   createEffectiveErrorTargetState,
   createTileBytesPredictor,
   initialMeshLoadError,
@@ -92,10 +99,28 @@ export function createThreeTilesRuntimeState(
   const deviceProfile = readTilesDeviceProfile();
   const styleCacheBudgetBytes = options.cacheBudgetBytes;
   const styleCacheOverflowBytes = options.cacheOverflowBytes;
-  const ceilingBytes = resolveTilesCacheCeiling(deviceProfile, {
-    cacheBudgetBytes: styleCacheBudgetBytes,
-    cacheOverflowBytes: styleCacheOverflowBytes,
-  });
+  // A session that never ended cleanly lowers the ceiling before it applies.
+  const cacheCeilingStorage = options.persistCacheCeiling
+    ? getCacheCeilingStorage()
+    : null;
+  const settledMemory = settleCrashedCacheCeilingSession(
+    readCacheCeilingMemory(cacheCeilingStorage)
+  );
+  const learnedCeilingBytes = settledMemory.learnedBytes;
+  const ceilingBytes = resolveTilesCacheCeiling(
+    deviceProfile,
+    {
+      cacheBudgetBytes: styleCacheBudgetBytes,
+      cacheOverflowBytes: styleCacheOverflowBytes,
+    },
+    learnedCeilingBytes
+  );
+  const cacheCeilingMemory = cacheCeilingStorage
+    ? startCacheCeilingSession(settledMemory, ceilingBytes, Date.now())
+    : null;
+  if (cacheCeilingMemory)
+    writeCacheCeilingMemory(cacheCeilingStorage, cacheCeilingMemory);
+  const cacheCeilingPeakWrittenAt = 0;
   const bytesPredictor = createTileBytesPredictor();
   /** Displayable siblings outside the view and its prefetch margin (D1). */
   const deferred = new Set<Tile>();
@@ -331,6 +356,10 @@ export function createThreeTilesRuntimeState(
     styleCacheBudgetBytes,
     styleCacheOverflowBytes,
     ceilingBytes,
+    cacheCeilingStorage,
+    cacheCeilingMemory,
+    learnedCeilingBytes,
+    cacheCeilingPeakWrittenAt,
     bytesPredictor,
     deferred,
     queuedThisTraversal,

@@ -141,6 +141,8 @@ export function createThreeTilesLifecycle(
     | "invalidateShadowRegionRevisions"
     | "reapplyCacheBoundsIfDrifted"
     | "applyRequestConcurrency"
+    | "recordCacheCeilingFailure"
+    | "endCacheCeilingSession"
     | "applyTilesetMinResolution"
     | "notifyRequestStateChange"
     | "requestRender"
@@ -401,6 +403,7 @@ export function createThreeTilesLifecycle(
       });
       if (TILE_MEMORY_ALLOCATION_ERROR.test(String(event.error))) {
         runtimeState.allocationFailed = true;
+        dependencies.recordCacheCeilingFailure("allocation");
         dependencies.applyRequestConcurrency();
       }
       const failedTile = event.tile ?? null;
@@ -570,6 +573,7 @@ export function createThreeTilesLifecycle(
     };
 
   const attachment = createThreeTilesRuntimeAttachment(runtimeState, {
+    endCacheCeilingSession: () => dependencies.endCacheCeilingSession(),
     ...dependencies,
     clearTelemetry: () => telemetryTiles.clear(),
     getRetainedMeshAncestors: () => retainedMeshAncestors,
@@ -1190,6 +1194,7 @@ export function createThreeTilesLifecycle(
     } catch (error) {
       if (TILE_MEMORY_ALLOCATION_ERROR.test(String(error))) {
         runtimeState.allocationFailed = true;
+        dependencies.recordCacheCeilingFailure("allocation");
         dependencies.applyRequestConcurrency();
       }
       console.error("[tiles3d] update failed:", error);
