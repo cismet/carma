@@ -124,6 +124,8 @@ export interface Tiles3dConfig {
   basemap?: "labels" | "none";
   /** Root and residency hints for a paged hierarchy, see `TilesetEntryHint`. */
   entry?: TilesetEntryHint;
+  /** Worker-backed static hierarchy cache; false loads tileset JSON natively. */
+  hierarchyCache?: boolean;
 }
 
 export interface Tiles3dLayerManagerProps {
@@ -252,6 +254,7 @@ export function Tiles3dLayerManager({
           baseErrorTargetPixels: initialConfig.baseErrorTarget,
           diagnostics: initialConfig.diagnostics,
           entry: initialConfig.entry,
+          hierarchyCache: initialConfig.hierarchyCache,
           colorCorrection: initialConfig.colorCorrection,
           shadowBuildingStyle: initialConfig.shadowBuildingStyle,
           onContentChanged: (changedBounds, changedRoots) =>

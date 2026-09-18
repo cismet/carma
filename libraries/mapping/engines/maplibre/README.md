@@ -25,6 +25,7 @@ the way a fully declared one does:
 | `errorTarget` | 4 px, 6 px for terrain-providing tilesets | Idle refinement target; the shadow simulation may override it per view (`setErrorTargetOverride`). |
 | `baseErrorTarget` | 16 px, terrain-providing only | First-pass target and the mesh loading strategy; other tilesets refine straight to the error target. |
 | `tilesetMinResolutionPx` | 1024 px, terrain-providing only | Whole-extent residual resolution. An explicit `0` defers to the `entry` hint instead. |
+| `hierarchyCache` | true | Worker-built static hierarchy index instead of native tileset JSON paging. `false` loads pages natively; kept after measurement, see TILES_COVERAGE.md, tileset hierarchy cache kept. |
 | `basemap` | `labels` | Drape the map labels and keep MapLibre terrain; `none` shows the tileset alone. |
 | `outline` | on | `CESIUM_primitive_outline` edges. |
 | `diagnostics` | off | Never ship it on; the stories switch it on themselves. |

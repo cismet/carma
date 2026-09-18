@@ -69,6 +69,20 @@ describe("advanced shadow render settings", () => {
     ).toBe(details);
   });
 
+  it("hides the tiled buffer and shows the single buffer unless the host enables it", () => {
+    const state = {
+      ...createInitialShadowSimulationState(undefined),
+      shadowBufferLayout: SHADOW_BUFFER_LAYOUT.TILED,
+    };
+    const { getByLabelText } = render(
+      <ShadowSimulationRenderSettings state={state} setState={vi.fn()} />
+    );
+    const layout = getByLabelText("Schattenpuffer", {
+      selector: "input",
+    }) as HTMLInputElement;
+    expect(selectedText(layout)).toBe("Einzelpuffer");
+  });
+
   it("switches buffer layout independently from the quality preset and samples", async () => {
     const state = {
       ...createInitialShadowSimulationState(undefined),
@@ -77,7 +91,11 @@ describe("advanced shadow render settings", () => {
     };
     const setState = vi.fn();
     const { getByLabelText, getByRole, queryByRole, rerender } = render(
-      <ShadowSimulationRenderSettings state={state} setState={setState} />
+      <ShadowSimulationRenderSettings
+        state={state}
+        setState={setState}
+        tiledShadows
+      />
     );
     const layout = getByLabelText("Schattenpuffer", {
       selector: "input",
@@ -91,7 +109,11 @@ describe("advanced shadow render settings", () => {
     };
     expect(setState).toHaveBeenLastCalledWith(tiledState);
     rerender(
-      <ShadowSimulationRenderSettings state={tiledState} setState={setState} />
+      <ShadowSimulationRenderSettings
+        state={tiledState}
+        setState={setState}
+        tiledShadows
+      />
     );
     expect(selectedText(layout)).toBe("Gekachelt (experimentell)");
     expect(queryByRole("status")).toBeNull();

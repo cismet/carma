@@ -109,6 +109,23 @@ export function createThreeTilesSpatial(
     errorRatio: 0,
     priority: Number.NEGATIVE_INFINITY,
   };
+  type CachedCameraDemand = Readonly<{
+    required: boolean;
+    receiver: boolean;
+    errorRatio: number;
+    priority: number;
+  }>;
+  // A tile's demand only changes with the compiled tile cameras (a new
+  // object per camera signature), yet priority, attachment and shadow
+  // selection ask for the same tile several times per frame. Decision: memo
+  // per tile for the lifetime of the compiled demand object; the 2026-09-18
+  // cold-start profile put the evaluation family at 1.5-2 s of a 15 s shadow
+  // load, see TILES_COVERAGE.md#main-thread-gltf-parse-share-2026-09-18.
+  let cameraDemandCache = new WeakMap<
+    RuntimeTile,
+    [CachedCameraDemand | null, CachedCameraDemand | null]
+  >();
+  let cameraDemandCacheOwner: unknown = null;
   const getTileCameraDemand: ThreeTilesRuntimeServices["getTileCameraDemand"] =
     (tile, includeObserver = false) => {
       const bounds = tile.engineData?.boundingVolume;
@@ -121,6 +138,21 @@ export function createThreeTilesSpatial(
           ))
       )
         return noCameraDemand;
+      if (cameraDemandCacheOwner !== runtimeState.tileCameraDemand) {
+        cameraDemandCacheOwner = runtimeState.tileCameraDemand;
+        cameraDemandCache = new WeakMap();
+      }
+      const slot = includeObserver ? 1 : 0;
+      const cached = cameraDemandCache.get(tile);
+      const hit = cached?.[slot];
+      if (hit) {
+        if (includeObserver && hit.required)
+          cameraErrors.set(
+            tile,
+            hit.errorRatio * runtimeState.effectiveErrorTarget
+          );
+        return hit;
+      }
       readOrientedTileBounds(bounds, cameraBounds, cameraBoundsTransform);
       cameraBoundsTransform.premultiply(runtimeState.tiles.group.matrixWorld);
       cameraBounds.applyMatrix4(cameraBoundsTransform);
@@ -132,12 +164,22 @@ export function createThreeTilesSpatial(
         // must not bypass the independent shadow publication gate.
         includeObserver ? undefined : TILE_MAIN_OBSERVER_ID
       );
+      // The evaluation result is scratch storage; keep a copy.
+      const result: CachedCameraDemand = {
+        required: demand.required,
+        receiver: demand.receiver,
+        errorRatio: demand.errorRatio,
+        priority: demand.priority,
+      };
+      const entry = cached ?? [null, null];
+      entry[slot] = result;
+      if (!cached) cameraDemandCache.set(tile, entry);
       if (includeObserver && demand.required)
         cameraErrors.set(
           tile,
           demand.errorRatio * runtimeState.effectiveErrorTarget
         );
-      return demand;
+      return result;
     };
   const getTileRequestPriority: ThreeTilesRuntimeServices["getTileRequestPriority"] =
     (tile) => {

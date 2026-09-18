@@ -73,6 +73,11 @@ export type ShadowSimulationConfig = {
   terrainSources?: readonly ShadowTerrainSourceOption[];
   controlPosition?: Positions;
   controlOrder?: number;
+  /**
+   * Offer the tiled shadow buffer (story-only while it matures). Off, the
+   * layout is always the single buffer, whatever a persisted state says.
+   */
+  experimentalTiledShadows?: boolean;
 };
 
 export type ShadowSimulationState = ShadowRenderQualityOptions & {

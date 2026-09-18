@@ -45,6 +45,7 @@ import {
 import { SHADOW_QUALITY_LEVELS } from "./shadow-control-utils";
 
 export const ShadowSimulationDisplaySettingsPanel = ({
+  tiledShadows = false,
   state,
   setState,
   terrainSources,
@@ -54,6 +55,7 @@ export const ShadowSimulationDisplaySettingsPanel = ({
   setState: (state: ShadowSimulationState) => void;
   terrainSources?: readonly ShadowTerrainSourceOption[];
   map?: MaplibreMap | null;
+  tiledShadows?: boolean;
 }) => {
   const { token } = theme.useToken();
   const meshLoaded = useShadowMeshPresence(map);
@@ -232,6 +234,7 @@ export const ShadowSimulationDisplaySettingsPanel = ({
                       <ShadowSimulationRenderSettings
                         state={state}
                         setState={setState}
+                        tiledShadows={tiledShadows}
                       />
                     </Space>
                   ),
