@@ -67,6 +67,12 @@ describe("three tiles runtime styling", () => {
         lodCamera: camera,
         lookTarget: new THREE.Vector3(),
         viewport: new THREE.Vector2(800, 600),
+        localFrame: {
+          lngLat: [7.15, 51.25] as const,
+          revision: 1,
+          sceneFromLocal: new THREE.Matrix4(),
+          sceneFromLocalRotation: new THREE.Matrix4(),
+        },
       });
       const old = Array.from({ length: MESH_EVICTION_BATCH_SIZE + 2 }, request);
       handlers.get(MAPLIBRE_EVENT.MOVE_START)?.();
@@ -189,6 +195,12 @@ describe("three tiles runtime styling", () => {
       lodCamera: camera,
       lookTarget: new THREE.Vector3(),
       viewport: new THREE.Vector2(800, 600),
+      localFrame: {
+        lngLat: [7.15, 51.25] as const,
+        revision: 1,
+        sceneFromLocal: new THREE.Matrix4(),
+        sceneFromLocalRotation: new THREE.Matrix4(),
+      },
     });
     try {
       const count = vi.mocked(map.triggerRepaint).mock.calls.length;
@@ -254,6 +266,12 @@ describe("three tiles runtime styling", () => {
       lodCamera: camera,
       lookTarget: new THREE.Vector3(),
       viewport: new THREE.Vector2(800, 600),
+      localFrame: {
+        lngLat: [7.15, 51.25] as const,
+        revision: 1,
+        sceneFromLocal: new THREE.Matrix4(),
+        sceneFromLocalRotation: new THREE.Matrix4(),
+      },
     };
     const createTile = (parent: Tile | null, error: number) =>
       ({
@@ -323,6 +341,12 @@ describe("three tiles runtime styling", () => {
       lodCamera: camera,
       lookTarget: new THREE.Vector3(),
       viewport: new THREE.Vector2(800, 600),
+      localFrame: {
+        lngLat: [7.15, 51.25] as const,
+        revision: 1,
+        sceneFromLocal: new THREE.Matrix4(),
+        sceneFromLocalRotation: new THREE.Matrix4(),
+      },
     };
     const first = buildThreeTilesRuntime("first", "first.json", [7.15, 51.25]);
     const second = buildThreeTilesRuntime(
@@ -399,6 +423,12 @@ describe("three tiles runtime styling", () => {
       lodCamera: camera,
       lookTarget: new THREE.Vector3(),
       viewport: new THREE.Vector2(800, 600),
+      localFrame: {
+        lngLat: [7.15, 51.25] as const,
+        revision: 1,
+        sceneFromLocal: new THREE.Matrix4(),
+        sceneFromLocalRotation: new THREE.Matrix4(),
+      },
     });
     for (let attempt = 0; attempt < 5; attempt += 1) {
       failedTile.internal.loadingState = -1;
@@ -424,6 +454,12 @@ describe("three tiles runtime styling", () => {
         lodCamera: camera,
         lookTarget: new THREE.Vector3(),
         viewport: new THREE.Vector2(800, 600),
+        localFrame: {
+          lngLat: [7.15, 51.25] as const,
+          revision: 1,
+          sceneFromLocal: new THREE.Matrix4(),
+          sceneFromLocalRotation: new THREE.Matrix4(),
+        },
       });
       renderer!.queueTileForDownload(failedTile);
       expect(queueSpy).toHaveBeenCalledTimes(attempt + 1);
@@ -503,6 +539,12 @@ describe("three tiles runtime styling", () => {
       lodCamera: camera,
       lookTarget: new THREE.Vector3(),
       viewport: new THREE.Vector2(800, 600),
+      localFrame: {
+        lngLat: [7.15, 51.25] as const,
+        revision: 1,
+        sceneFromLocal: new THREE.Matrix4(),
+        sceneFromLocalRotation: new THREE.Matrix4(),
+      },
     });
 
     const expectBounds = () => {
@@ -630,6 +672,12 @@ describe("three tiles runtime styling", () => {
       lodCamera: camera,
       lookTarget: new THREE.Vector3(),
       viewport: new THREE.Vector2(800, 600),
+      localFrame: {
+        lngLat: [7.15, 51.25] as const,
+        revision: 1,
+        sceneFromLocal: new THREE.Matrix4(),
+        sceneFromLocalRotation: new THREE.Matrix4(),
+      },
     });
 
     expect(renderer?.downloadQueue.maxJobsPerOrigin).toBeGreaterThan(0);
@@ -675,6 +723,12 @@ describe("three tiles runtime styling", () => {
       lodCamera: camera,
       lookTarget: new THREE.Vector3(),
       viewport: new THREE.Vector2(800, 600),
+      localFrame: {
+        lngLat: [7.15, 51.25] as const,
+        revision: 1,
+        sceneFromLocal: new THREE.Matrix4(),
+        sceneFromLocalRotation: new THREE.Matrix4(),
+      },
     });
 
     expect(renderer?.downloadQueue.maxJobsPerOrigin).toBe(8);
@@ -711,6 +765,12 @@ describe("three tiles runtime styling", () => {
       lodCamera: camera,
       lookTarget: new THREE.Vector3(),
       viewport: new THREE.Vector2(800, 600),
+      localFrame: {
+        lngLat: [7.15, 51.25] as const,
+        revision: 1,
+        sceneFromLocal: new THREE.Matrix4(),
+        sceneFromLocalRotation: new THREE.Matrix4(),
+      },
     });
     renderer!.activeTiles.add({
       content: { uri: "building.b3dm" },
@@ -777,6 +837,12 @@ describe("three tiles runtime styling", () => {
       lodCamera: camera,
       lookTarget: new THREE.Vector3(),
       viewport: new THREE.Vector2(800, 600),
+      localFrame: {
+        lngLat: [7.15, 51.25] as const,
+        revision: 1,
+        sceneFromLocal: new THREE.Matrix4(),
+        sceneFromLocalRotation: new THREE.Matrix4(),
+      },
     });
     const dispatchSpy = vi.spyOn(renderer!, "dispatchEvent");
 
@@ -825,6 +891,12 @@ describe("three tiles runtime styling", () => {
       lodCamera: viewCamera,
       lookTarget: new THREE.Vector3(),
       viewport: new THREE.Vector2(800, 600),
+      localFrame: {
+        lngLat: [7.15, 51.25] as const,
+        revision: 1,
+        sceneFromLocal: new THREE.Matrix4(),
+        sceneFromLocalRotation: new THREE.Matrix4(),
+      },
     };
 
     layer.loading.setErrorTarget(0.25);
@@ -927,6 +999,12 @@ describe("three tiles runtime styling", () => {
       lodCamera: camera,
       lookTarget: new THREE.Vector3(),
       viewport: new THREE.Vector2(800, 800),
+      localFrame: {
+        lngLat: [7.15, 51.25] as const,
+        revision: 1,
+        sceneFromLocal: new THREE.Matrix4(),
+        sceneFromLocalRotation: new THREE.Matrix4(),
+      },
     });
 
     type QueuedTile = {
@@ -1008,6 +1086,12 @@ describe("three tiles runtime styling", () => {
       lodCamera: camera,
       lookTarget: new THREE.Vector3(),
       viewport: new THREE.Vector2(800, 800),
+      localFrame: {
+        lngLat: [7.15, 51.25] as const,
+        revision: 1,
+        sceneFromLocal: new THREE.Matrix4(),
+        sceneFromLocalRotation: new THREE.Matrix4(),
+      },
     });
 
     // A shallower ancestor no longer outranks a nearer visible request.
@@ -1026,6 +1110,12 @@ describe("three tiles runtime styling", () => {
       lodCamera: camera,
       lookTarget: new THREE.Vector3(),
       viewport: new THREE.Vector2(800, 800),
+      localFrame: {
+        lngLat: [7.15, 51.25] as const,
+        revision: 1,
+        sceneFromLocal: new THREE.Matrix4(),
+        sceneFromLocalRotation: new THREE.Matrix4(),
+      },
     });
     queue.sort();
     expect(queue.items.at(-1)).toBe(outerVisibleTile);
@@ -1110,6 +1200,12 @@ describe("three tiles runtime styling", () => {
       lodCamera: camera,
       viewport: new THREE.Vector2(800, 600),
       lookTarget: new THREE.Vector3(),
+      localFrame: {
+        lngLat: [7.15, 51.25] as const,
+        revision: 1,
+        sceneFromLocal: new THREE.Matrix4(),
+        sceneFromLocalRotation: new THREE.Matrix4(),
+      },
     });
     const range = layer.scene.getViewElevationRange(camera);
 

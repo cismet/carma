@@ -2,22 +2,6 @@ import type { Tile } from "3d-tiles-renderer/core";
 import * as THREE from "three";
 import { getCameraLocalMercatorFit } from "@carma-geo/utils";
 
-/** Metres per degree of arc on the mean sphere; a threshold, not a datum. */
-const DEGREES_TO_METERS = (6_371_000 * Math.PI) / 180;
-/**
- * How far the map centre may leave the mount before the tileset is refitted.
- *
- * The fit is a tangent-plane affine at the mount, so three errors grow with the
- * distance d to it: the Mercator scale drifts by tan(lat) * d / R across the
- * viewport, the surface sags by d^2 / 2R, and the up vector tilts by d / R.
- * At 500 m in Wuppertal the drift stays under a quarter pixel on a 1920 px
- * viewport at any zoom, the sag under a quarter pixel up to zoom 19, and the
- * tilt is 0.0045 degrees, a sixtieth of the sun disc, so shadows cannot show
- * it. Refitting on every centre change instead invalidated picking, demand and
- * shadow state on each pan frame for sub-millimetre gains.
- */
-const MOUNT_REFIT_DISTANCE_METERS = 500;
-
 import { isLocalhostHostname } from "@carma-commons/utils";
 
 import type { SharedThreeSceneFrame } from "../../core/shared-three-scene-types";
@@ -473,21 +457,8 @@ export function createThreeTilesLifecycle(
   const cameraMount = new THREE.Group();
   cameraMount.matrixAutoUpdate = false;
   const mountAxisFlip = new THREE.Matrix4().makeRotationY(Math.PI);
-  let mountLongitude = NaN,
-    mountLatitude = NaN;
-  /**
-   * Metres from the current mount to a point, on the mean sphere. The fit is
-   * exact at the mount and only drifts with this distance, so it decides when
-   * the mount needs refitting.
-   */
-  const mountDistanceMeters = (longitude: number, latitude: number) => {
-    const east =
-      (longitude - mountLongitude) *
-      Math.cos((latitude * Math.PI) / 180) *
-      DEGREES_TO_METERS;
-    const north = (latitude - mountLatitude) * DEGREES_TO_METERS;
-    return Math.hypot(east, north);
-  };
+  /** Revision of the shared local frame the tileset is mounted on; 0 = never. */
+  let mountedFrameRevision = 0;
   const update: ThreeTilesRuntimeServices["update"] = (
     frame: SharedThreeSceneFrame
   ) => {
@@ -498,17 +469,16 @@ export function createThreeTilesLifecycle(
     )
       return;
     if (runtimeState.options.cameraLocalMount) {
-      const center = runtimeState.map.getCenter();
-      if (
-        Number.isNaN(mountLongitude) ||
-        mountDistanceMeters(center.lng, center.lat) >
-          MOUNT_REFIT_DISTANCE_METERS
-      ) {
+      // The shared scene owns the local frame and decides when it moves; the
+      // tileset only follows its revision. Nothing here runs per frame beyond
+      // this comparison.
+      const { localFrame } = frame;
+      if (localFrame && localFrame.revision !== mountedFrameRevision) {
         cameraMount.matrix
           .copy(
             getCameraLocalMercatorFit(
               [runtimeState.originLngLat[0], runtimeState.originLngLat[1]],
-              [center.lng, center.lat],
+              [localFrame.lngLat[0], localFrame.lngLat[1]],
               { correctEllipsoidMetric: true }
             )
           )
@@ -519,15 +489,14 @@ export function createThreeTilesLifecycle(
           cameraMount.add(runtimeState.tiles.group);
         }
         runtimeState.orientationGroup.updateMatrixWorld(true);
-        mountLongitude = center.lng;
-        mountLatitude = center.lat;
+        mountedFrameRevision = localFrame.revision;
         runtimeState.mainViewIntersectionCache = new WeakMap();
         runtimeState.meshDemandSweepPending = true;
-        dependencies.requestShadowSelectionRefresh();
-        // The refit moves the mount, not the published geometry. An empty
-        // delta asks the shadow scene for a repaint only; leaving the bounds
-        // out would flag a full content invalidation and rebuild every shadow
-        // integral on each pan.
+        // The sun moves with the same frame, so caster membership is unchanged
+        // and no shadow selection refresh is requested. The refit moves the
+        // mount, not the published geometry: an empty delta asks the shadow
+        // scene for a repaint only, where missing bounds would flag a full
+        // content invalidation and rebuild every shadow integral.
         runtimeState.options.onContentChanged?.([]);
       }
     }

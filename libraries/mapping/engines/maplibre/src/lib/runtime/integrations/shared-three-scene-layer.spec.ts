@@ -628,3 +628,36 @@ describe("progressive strategy host", () => {
     host.layer.dispose();
   });
 });
+
+describe("shared scene local frame", () => {
+  it("moves the frame only once keeping it would show half a pixel of error", () => {
+    const { layer, map, render } = createProgressiveHost();
+    const initial = layer.getLocalFrame();
+    expect(initial?.revision).toBe(1);
+    expect(initial?.lngLat).toEqual([7.15, 51.25]);
+
+    // About 130 m away: far inside the budget at the default zoom.
+    map.getCenter = () => ({ lng: 7.151, lat: 51.251 });
+    render();
+    expect(layer.getLocalFrame()).toBe(initial);
+
+    // About 5.6 km north: the Mercator scale drift alone exceeds the budget.
+    map.getCenter = () => ({ lng: 7.15, lat: 51.3 });
+    render();
+    const moved = layer.getLocalFrame()!;
+    expect(moved.revision).toBe(2);
+    expect(moved.lngLat).toEqual([7.15, 51.3]);
+    expectMatrixToBeCloseTo(
+      moved.sceneFromLocalRotation,
+      new THREE.Matrix4().extractRotation(moved.sceneFromLocal)
+    );
+    expect(moved.sceneFromLocalRotation.determinant()).toBeCloseTo(1, 10);
+    expect(
+      moved.sceneFromLocalRotation.equals(initial!.sceneFromLocalRotation)
+    ).toBe(false);
+
+    // Staying put keeps the moved frame.
+    render();
+    expect(layer.getLocalFrame()).toBe(moved);
+  });
+});

@@ -2,16 +2,48 @@ import type * as THREE from "three";
 import type { CustomLayerInterface, Map as MaplibreMap } from "maplibre-gl";
 import type { SceneAccumulationOptions } from "@carma-mapping/engines/three/primitives/rendering";
 
+/**
+ * The local east/up/south frame at the view anchor, on the ellipsoid.
+ *
+ * The shared scene is a single Mercator tangent plane at its origin, so
+ * anything that must stay true to the ellipsoid far from that origin mounts at
+ * this frame instead: ECEF tilesets, and the sun and sky that light them. It is
+ * the same anchor the view-state model keeps as its orbit reference, derived
+ * here because the engine layer cannot depend on that model. The frame moves
+ * only once the current view would show more than half a pixel of error from
+ * keeping it (`localFrameErrorPixels` in the layer), and `revision` changes
+ * with every move.
+ */
+export type SharedThreeSceneLocalFrame = Readonly<{
+  /** [longitude, latitude] in degrees, at ellipsoidal height 0. */
+  lngLat: readonly [number, number];
+  revision: number;
+  /**
+   * Root-scale affine from the tangent plane at `lngLat` into the scene
+   * (`getCameraLocalMercatorFit` from the scene origin). Pure rotation for
+   * directions lives in `sceneFromLocalRotation`.
+   */
+  sceneFromLocal: THREE.Matrix4;
+  sceneFromLocalRotation: THREE.Matrix4;
+}>;
+
 export interface SharedThreeSceneFrame {
   map: MaplibreMap;
   renderCamera: THREE.Camera;
   lodCamera: THREE.PerspectiveCamera;
   lookTarget: THREE.Vector3;
   viewport: THREE.Vector2;
+  localFrame: SharedThreeSceneLocalFrame;
 }
 
 export type SharedThreeSceneShadowView = Readonly<{
   camera: THREE.Camera;
+  /**
+   * Unit direction to the sun in ECEF. Caster membership depends on this and
+   * not on how the light camera sits in the scene, so runtimes key their
+   * selection on it and a local-frame refit leaves their proofs untouched.
+   */
+  directionToSunECEF?: readonly [number, number, number];
   /** Scene-space ground receivers supplied to building-only caster runtimes. */
   terrainReceivers?: readonly SharedThreeSceneTileVolume[];
   casterAngularRadiusRadians?: number;
@@ -183,6 +215,8 @@ export interface SharedThreeSceneLayer extends CustomLayerInterface {
   getScene: () => THREE.Scene;
   /** Runtimes currently attached to the shared scene, including local terrain. */
   getRuntimes: () => readonly SharedThreeSceneRuntime[];
+  /** The current local frame; null until the layer is on a map. */
+  getLocalFrame: () => SharedThreeSceneLocalFrame | null;
   /** Renderer owned by the mounted MapLibre custom layer, if it is active. */
   getRenderer: () => THREE.WebGLRenderer | null;
   /** Optional synchronous GPU work outside a map frame; false means unsupported. */

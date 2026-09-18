@@ -390,6 +390,8 @@ export interface ThreeTilesRuntimeServices {
   setShadowView: (
     view: Readonly<{
       camera: THREE.Camera;
+      /** Unit direction to the sun in ECEF; keys caster selection when present. */
+      directionToSunECEF?: readonly [number, number, number];
       casterAngularRadiusRadians?: number;
       shadowMapSize: Readonly<{ width: number; height: number }>;
     }> | null

@@ -422,10 +422,14 @@ export function createThreeTilesShadows(
             tile as RuntimeTile
           ),
         }));
+      // The tiles-to-light matrix is not part of the identity: with the light
+      // mounted on the same local frame as the tileset, a frame refit changes
+      // both by the same rotation and their product only by the fit's
+      // sub-arcminute ellipsoid correction, well inside the caster disc. The
+      // sun direction is already in shadowViewSignature.
       const signature = JSON.stringify([
         runtimeState.shadowViewSignature,
         runtimeState.requestedErrorTarget,
-        runtimeState.tilesToShadowView.elements,
         runtimeState.shadowView?.terrainReceivers,
         receivers
           .map(({ tile, screenErrorPixels }) => [
@@ -755,11 +759,17 @@ export function createThreeTilesShadows(
     // camera. Keep the existing union and its regional proofs across pans.
     // Exact direction changes still invalidate and rebuild it.
     view?.camera.updateMatrixWorld(true);
+    // The ECEF direction is the sun itself. The scene direction also turns
+    // with the local frame the light is mounted on, so it would invalidate the
+    // union on every refit although no caster changed.
     const nextSignature = view
-      ? view.camera
-          .getWorldDirection(runtimeState.shadowSignatureDirection)
-          .normalize()
-          .toArray()
+      ? (view.directionToSunECEF
+          ? [...view.directionToSunECEF]
+          : view.camera
+              .getWorldDirection(runtimeState.shadowSignatureDirection)
+              .normalize()
+              .toArray()
+        )
           .map((component) => component.toFixed(7))
           .concat(String(view.casterAngularRadiusRadians ?? 0))
           .join(",")

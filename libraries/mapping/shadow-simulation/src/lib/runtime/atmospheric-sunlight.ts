@@ -55,6 +55,14 @@ export type AtmosphericSkyFrame = Readonly<{
 export type AtmosphericSkyReference = Readonly<{
   observer: AtmosphericObserver;
   scenePosition: THREE.Vector3;
+  /**
+   * Rotation from the observer's east/up/south frame into the scene. The
+   * shared scene is a tangent plane at its own origin; an observer elsewhere
+   * sits on a tangent plane that is tilted against it by the local-frame fit.
+   * Without it the observer frame is taken as the scene frame, which is exact
+   * only at the scene origin.
+   */
+  sceneFromLocal?: THREE.Matrix4;
 }>;
 
 export type AtmosphericSkyTextures = Readonly<{
@@ -257,6 +265,9 @@ const buildAtmosphericSkyFrame = (
     ? getObserverFrame(skyReference.observer)
     : observerFrame;
   const ecefToSceneMatrix = getEcefToSceneMatrix(skyReferenceFrame);
+  if (skyReference?.sceneFromLocal) {
+    ecefToSceneMatrix.premultiply(skyReference.sceneFromLocal);
+  }
   const sceneToEcefMatrix = ecefToSceneMatrix.clone().invert();
   const ellipsoidCenterECEF = (
     skyReference?.scenePosition ?? new THREE.Vector3()
@@ -359,6 +370,9 @@ export const evaluateAtmosphericSunlight = (
     observerFrame,
     new THREE.Vector3()
   );
+  if (skyReference?.sceneFromLocal) {
+    directionToSun.transformDirection(skyReference.sceneFromLocal);
+  }
   const skyFrame = buildAtmosphericSkyFrame(
     sunDirectionECEF,
     observerFrame,

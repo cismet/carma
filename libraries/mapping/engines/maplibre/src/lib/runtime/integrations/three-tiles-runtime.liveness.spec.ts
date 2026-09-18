@@ -88,6 +88,12 @@ const mountRuntime = (providesTerrain = false, cameraLocalMount = false) => {
     lodCamera: camera,
     lookTarget: new THREE.Vector3(),
     viewport: new THREE.Vector2(800, 600),
+    localFrame: {
+      lngLat: [7.15, 51.25] as const,
+      revision: 1,
+      sceneFromLocal: new THREE.Matrix4(),
+      sceneFromLocalRotation: new THREE.Matrix4(),
+    },
   };
   layer.scene.onAdd?.(map);
   layer.scene.update(frame);
@@ -108,7 +114,7 @@ describe("three tiles runtime liveness", () => {
     vi.useRealTimers();
   });
 
-  it("refits a retained mount only when the geographic camera target changes", () => {
+  it("refits a retained mount only when the shared local frame moves", () => {
     const { layer, renderer, map, frame } = mountRuntime(false, true);
     try {
       const group = renderer.group;
@@ -116,11 +122,18 @@ describe("three tiles runtime liveness", () => {
       const initial = fit.matrix.clone();
       const copy = vi.spyOn(fit.matrix, "copy");
       layer.scene.update(frame);
-      expect(copy).not.toHaveBeenCalled();
+      // The map centre alone moves nothing: the shared scene owns the frame.
       vi.mocked(map.getCenter).mockReturnValue({
         lng: 7.3,
         lat: 51.3,
       } as ReturnType<MaplibreMap["getCenter"]>);
+      layer.scene.update(frame);
+      expect(copy).not.toHaveBeenCalled();
+      frame.localFrame = {
+        ...frame.localFrame,
+        lngLat: [7.3, 51.3] as const,
+        revision: frame.localFrame.revision + 1,
+      };
       layer.scene.update(frame);
       expect(group.parent).toBe(fit);
       expect(fit.matrix.equals(initial)).toBe(false);

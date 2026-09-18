@@ -85,6 +85,7 @@ import {
   subscribeSharedThreeTerrainLoading,
   suppressMapLibreRegularStyleLayers,
   type SharedThreeSceneLayer,
+  type SharedThreeSceneFrame,
 } from "@carma-mapping/engines/maplibre";
 
 import {
@@ -525,19 +526,31 @@ describe("shadow scene lighting integration", () => {
     vi.restoreAllMocks();
   });
 
+  const localFrameAt = (
+    revision: number,
+    rotation = new THREE.Matrix4()
+  ): SharedThreeSceneFrame["localFrame"] => ({
+    lngLat: [7.15, 51.256] as const,
+    revision,
+    sceneFromLocal: rotation.clone(),
+    sceneFromLocalRotation: rotation.clone(),
+  });
+
   const updateShadows = (
     map: unknown,
     camera: THREE.PerspectiveCamera,
-    lookTarget = new THREE.Vector3()
+    lookTarget = new THREE.Vector3(),
+    localFrame = localFrameAt(1)
   ) => {
     const runtime = sharedRuntimes.get("shadow-simulation-controller");
     expect(runtime?.update).toBeTypeOf("function");
     runtime?.update?.({
-      map,
+      map: map as never,
       renderCamera: camera,
       lodCamera: camera,
       lookTarget,
       viewport: new THREE.Vector2(800, 600),
+      localFrame,
     });
   };
 
@@ -1155,7 +1168,9 @@ describe("shadow scene lighting integration", () => {
       styleEpoch: 3,
       active: true,
     };
-    expect(accumulation.renderProgressive?.(camera, nativeFrame)).toBeUndefined();
+    expect(
+      accumulation.renderProgressive?.(camera, nativeFrame)
+    ).toBeUndefined();
     controller.updateRenderQuality({
       shadowBufferLayout: SHADOW_BUFFER_LAYOUT.TILED,
     });
@@ -1310,6 +1325,12 @@ describe("shadow scene lighting integration", () => {
         lodCamera: camera,
         lookTarget: new THREE.Vector3(),
         viewport,
+        localFrame: {
+          lngLat: [7.15, 51.25] as const,
+          revision: 1,
+          sceneFromLocal: new THREE.Matrix4(),
+          sceneFromLocalRotation: new THREE.Matrix4(),
+        },
       };
       const runtime = sharedRuntimes.get("shadow-simulation-controller")!;
       const accumulation = accumulationController!;
@@ -1327,7 +1348,9 @@ describe("shadow scene lighting integration", () => {
         expect(acknowledgeShadowStage).toHaveBeenLastCalledWith([
           "mesh-2024/root/tile-1",
         ]);
-        expect(updateTiled).toHaveBeenCalledTimes(updateCount + (refit ? 1 : 0));
+        expect(updateTiled).toHaveBeenCalledTimes(
+          updateCount + (refit ? 1 : 0)
+        );
         expect(updatePresentation).toHaveBeenCalledTimes(
           presentationCount + (refit ? 0 : 1)
         );
@@ -1678,6 +1701,62 @@ describe("shadow scene lighting integration", () => {
     expect(accumulation.rounds).toBe(256);
     controller.updateRenderQuality({});
     expect(accumulation.rounds).toBe(64);
+    controller.dispose();
+  });
+
+  it("re-aims the sun in the shared local frame only past the tilt tolerance", () => {
+    sharedLayer.projectLngLatToScene = ([lng, lat], altitude = 0) =>
+      new THREE.Vector3(lng * 1_000, altitude, lat * 1_000);
+    const map = {
+      getCenter: vi.fn(() => ({ lng: 7.15, lat: 51.256 })),
+      getCanvas: vi.fn(() => ({ clientWidth: 800, clientHeight: 600 })),
+      unproject: vi.fn(([x, y]: [number, number]) => ({
+        lng: 7.15 + (x / 800 - 0.5) * 0.02,
+        lat: 51.256 + (0.5 - y / 600) * 0.02,
+      })),
+      getLight: vi.fn(() => ({ anchor: "viewport" })),
+      isStyleLoaded: vi.fn(() => true),
+      setLight: vi.fn(),
+      on: vi.fn(),
+      off: vi.fn(),
+      triggerRepaint: vi.fn(),
+    };
+    const controller = buildShadowSimulationScene(map as never);
+    controller.updateRenderQuality({
+      shadowBufferLayout: SHADOW_BUFFER_LAYOUT.MONO,
+    });
+    controller.updateSolarPosition({
+      instant: new Date("2026-06-21T10:00:00Z"),
+      azimuthDegrees: 135,
+      elevationDegrees: 45,
+    });
+    const camera = new THREE.PerspectiveCamera(60, 4 / 3, 1, 20_000);
+    camera.position.set(7_150, 4_000, 51_256);
+    camera.lookAt(7_150, 0, 51_256);
+    camera.updateProjectionMatrix();
+    camera.updateMatrixWorld(true);
+    const sun = scene.getObjectByName(
+      "shadow-simulation-sun"
+    ) as THREE.DirectionalLight;
+    const direction = () =>
+      sun.position.clone().sub(sun.target.position).normalize();
+    const tilt = (degrees: number) =>
+      new THREE.Matrix4().makeRotationZ(THREE.MathUtils.degToRad(degrees));
+    updateShadows(map, camera, undefined, localFrameAt(1));
+    const aimed = direction();
+    sun.shadow.needsUpdate = false;
+
+    // A refit below the tolerance keeps the light and its shadow map.
+    updateShadows(map, camera, undefined, localFrameAt(2, tilt(0.01)));
+    expect(direction().angleTo(aimed)).toBe(0);
+    expect(sun.shadow.needsUpdate).toBe(false);
+
+    // Past it the light turns with the frame, still without a forced pass.
+    updateShadows(map, camera, undefined, localFrameAt(3, tilt(0.05)));
+    expect(
+      direction().angleTo(aimed.clone().applyMatrix4(tilt(0.05)))
+    ).toBeCloseTo(0, 6);
+    expect(sun.shadow.needsUpdate).toBe(false);
     controller.dispose();
   });
 
@@ -2956,6 +3035,12 @@ describe("shadow scene lighting integration", () => {
       lodCamera: camera,
       lookTarget: new THREE.Vector3(7_150, 150, 51_256),
       viewport: new THREE.Vector2(800, 600),
+      localFrame: {
+        lngLat: [7.15, 51.25] as const,
+        revision: 1,
+        sceneFromLocal: new THREE.Matrix4(),
+        sceneFromLocalRotation: new THREE.Matrix4(),
+      },
     });
     expect(accumulationController?.active()).toBe(false);
 
