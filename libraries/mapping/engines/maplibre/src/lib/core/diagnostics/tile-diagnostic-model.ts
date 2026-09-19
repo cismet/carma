@@ -100,6 +100,7 @@ export type OverlayVolume = {
 export type DiagnosticViewportBasis = {
   bounds: number[];
   worldToOverview: number[];
+  /** [scale, offsetX, offsetY] and optionally a separate vertical scale. */
   screen: number[];
   width: number;
   height: number;

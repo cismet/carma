@@ -5,10 +5,7 @@ import {
   reduceRasterMesh,
   resolveRasterMeshErrorMeters,
 } from "./raster-mesh-error";
-import {
-  buildErrorBoundedGridTile,
-  buildGridTile,
-} from "./raster-dem-tile";
+import { buildErrorBoundedGridTile, buildGridTile } from "./raster-dem-tile";
 import { createProjectedTerrainTileGeometry } from "@carma-mapping/engines/three/primitives/core";
 import { createTerrainTileHeightSampler } from "./terrain-tile-height-sampler";
 

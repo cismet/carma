@@ -181,4 +181,55 @@ describe("live overview viewport", () => {
         counts.set(point, (counts.get(point) ?? 0) + 1);
     expect([...counts.values()].every((count) => count >= 2)).toBe(true);
   });
+
+  it("closes the cut on the box faces the eye looks along", () => {
+    // A pitched camera over a thin terrain tile: neither the near nor the far
+    // plane touches the box, so the cut ends on the box's own faces. Those
+    // ends belong to the outline as much as the frustum's own sides do.
+    const camera = new THREE.PerspectiveCamera(45, 1.3, 5, 4000);
+    camera.position.set(0, 300, 900);
+    camera.lookAt(0, 120, 0);
+    const snapshot = snapshotTileCameraViews([
+      {
+        id: "pitched",
+        camera,
+        viewport: [1000, 800],
+        errorTargetPixels: 1,
+        role: "receiver",
+      },
+    ])[0];
+    const { edges } = projectTileDiagnosticViewport(
+      {
+        bounds: [-500, 100, -500, 500, 160, 500],
+        worldToOverview: new THREE.Matrix4().toArray(),
+        screen: [0.3, 200, 200],
+        width: 400,
+        height: 400,
+      },
+      snapshot
+    );
+    const segments = Array.from({ length: edges.length / 4 }, (_, i) =>
+      Array.from(edges.subarray(i * 4, i * 4 + 4))
+    );
+    // No segment collapses to a point, and none is drawn twice.
+    const keys = segments.map(([x0, y0, x1, y1]) =>
+      [x0, y0, x1, y1].map((value) => value.toFixed(2)).join(":")
+    );
+    expect(new Set(keys).size).toBe(keys.length);
+    expect(
+      segments.every(([x0, y0, x1, y1]) => Math.hypot(x1 - x0, y1 - y0) >= 0.5)
+    ).toBe(true);
+    // Both ends of the cut carry a crossing segment, so the outline closes.
+    const span = (y: number) =>
+      segments.some(
+        ([x0, y0, x1, y1]) =>
+          Math.abs(y0 - y) < 1 && Math.abs(y1 - y) < 1 && Math.abs(x1 - x0) > 50
+      );
+    expect(
+      span(Math.min(...segments.flatMap(([, y0, , y1]) => [y0, y1])))
+    ).toBe(true);
+    expect(
+      span(Math.max(...segments.flatMap(([, y0, , y1]) => [y0, y1])))
+    ).toBe(true);
+  });
 });

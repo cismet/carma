@@ -136,7 +136,10 @@ const createPipelineCache = (producerEpoch: string) => {
   });
   return {
     manager,
-    heightMetadata: manager.register("terrain-height-metadata", TERRAIN_HEIGHT_METADATA_VERSION),
+    heightMetadata: manager.register(
+      "terrain-height-metadata",
+      TERRAIN_HEIGHT_METADATA_VERSION
+    ),
     records: manager.register(
       TERRAIN_CACHE_NAMESPACE,
       PROJECTED_TERRAIN_GEOMETRY_CACHE_REVISION

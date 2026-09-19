@@ -95,7 +95,7 @@ const registration = () => {
     state,
     get: vi.fn(async (key: string, _options?: { touch?: boolean }) => {
       state.onGet(key);
-      const row = state.rows.find(candidate => candidate.key === key);
+      const row = state.rows.find((candidate) => candidate.key === key);
       if (row && _options?.touch !== false) row.hits = (row.hits ?? 0) + 1;
       return values.has(key) ? { value: values.get(key) } : null;
     }),
@@ -103,18 +103,24 @@ const registration = () => {
       state.onPut(key, value);
       if (!state.admit) return false;
       values.set(key, value);
-      state.rows = [...state.rows.filter(row => row.key !== key), {key, ..._costs}];
+      state.rows = [
+        ...state.rows.filter((row) => row.key !== key),
+        { key, ..._costs },
+      ];
       state.peakEntries = Math.max(state.peakEntries, values.size);
       return true;
     }),
     remove: vi.fn(async (key: string) => values.delete(key)),
-    updateCosts: vi.fn(async (key: string, costs: {restoreMs: number}) => {
-      const row = state.rows.find(candidate => candidate.key === key);
+    updateCosts: vi.fn(async (key: string, costs: { restoreMs: number }) => {
+      const row = state.rows.find((candidate) => candidate.key === key);
       if (!row) return false;
       row.restoreMs = costs.restoreMs;
-      if (row.recomputeMs !== undefined && costs.restoreMs > row.recomputeMs * 0.95) {
+      if (
+        row.recomputeMs !== undefined &&
+        costs.restoreMs > row.recomputeMs * 0.95
+      ) {
         values.delete(key);
-        state.rows = state.rows.filter(candidate => candidate.key !== key);
+        state.rows = state.rows.filter((candidate) => candidate.key !== key);
         return false;
       }
       return true;
@@ -134,7 +140,10 @@ const cache = () => {
     if (namespace === "terrain-cache-probes") return probes;
     throw new Error(`Unexpected cache namespace: ${namespace}`);
   });
-  const manager = { register, stats: vi.fn(async () => ({minimumSavingRatio: 0.05})) } as unknown as DerivedBufferCache;
+  const manager = {
+    register,
+    stats: vi.fn(async () => ({ minimumSavingRatio: 0.05 })),
+  } as unknown as DerivedBufferCache;
   const strategy = createProjectedTerrainCacheStrategy(
     manager,
     "terrain-projected",
@@ -170,7 +179,12 @@ const formatOf = (payload: unknown): Format =>
   (payload as { format?: Format }).format ?? "native";
 const timing = (
   context: ReturnType<typeof cache>,
-  options: { binary?: number[]; meshopt?: number[]; prepare?: number; seedReadMs?: number } = {}
+  options: {
+    binary?: number[];
+    meshopt?: number[];
+    prepare?: number;
+    seedReadMs?: number;
+  } = {}
 ) => {
   let now = 0;
   const reads = { native: 0, binary: 0, meshopt: 0 };
@@ -183,7 +197,9 @@ const timing = (
   context.probes.state.onPut = () => {
     now += options.prepare ?? 1;
   };
-  context.records.state.onGet = () => { now += options.seedReadMs ?? 0; };
+  context.records.state.onGet = () => {
+    now += options.seedReadMs ?? 0;
+  };
   context.probes.state.onGet = (key) => {
     const format = formatOf(context.probes.values.get(key));
     now += samples[format][reads[format]++];
@@ -230,14 +246,15 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-
 describe("projected terrain cache strategy routing", () => {
   it("defaults to measured binary Blob, preserves native decoding and never loads Meshopt", async () => {
     expect(meshopt.imports).toBe(0);
     const context = cache();
     const entry = source();
     expect((await context.strategy.encode(entry, 256))?.payload).toMatchObject({
-      kind: "terrain-component-v1", format: "binary", payload: expect.any(Blob),
+      kind: "terrain-component-v1",
+      format: "binary",
+      payload: expect.any(Blob),
     });
     expect(await context.strategy.decode(entry)).toBe(entry);
     vi.stubGlobal("navigator", undefined);
@@ -304,7 +321,9 @@ describe("projected terrain cache strategy routing", () => {
     const context = cache();
     const entry = source();
     context.profiles.values.set(profileKey(), { ...profile(), ...change });
-    expect((await context.strategy.encode(entry, 256))?.payload).toMatchObject({format: "binary"});
+    expect((await context.strategy.encode(entry, 256))?.payload).toMatchObject({
+      format: "binary",
+    });
     expect(meshopt.encode).not.toHaveBeenCalled();
   });
 
@@ -320,7 +339,7 @@ describe("projected terrain cache strategy routing", () => {
     ).not.toBe(entry);
     expect(
       (await context.strategy.encode(entry, 4 * 1024 ** 2 + 1))?.payload
-    ).toMatchObject({format: "binary"});
+    ).toMatchObject({ format: "binary" });
     expect(context.profiles.get).toHaveBeenLastCalledWith(profileKey("full"));
     expect(context.register.mock.calls).toEqual([
       ["terrain-projected", VERSION],
@@ -333,12 +352,16 @@ describe("projected terrain cache strategy routing", () => {
       "new-projection",
       validate
     );
-    expect((await next.encode(entry, 256))?.payload).toMatchObject({format: "binary"});
+    expect((await next.encode(entry, 256))?.payload).toMatchObject({
+      format: "binary",
+    });
     vi.stubGlobal("navigator", {
       userAgent: "changed",
       hardwareConcurrency: 16,
     });
-    expect((await context.strategy.encode(entry, 256))?.payload).toMatchObject({format: "binary"});
+    expect((await context.strategy.encode(entry, 256))?.payload).toMatchObject({
+      format: "binary",
+    });
   });
 
   it("skips persistence on failed profile reads or unavailable codecs", async () => {
@@ -354,10 +377,12 @@ describe("projected terrain cache strategy routing", () => {
   });
 
   it.each(["no-blob", "no-storage", "disposed"] as const)(
-    "does no encoding or profile read for %s", async (mode) => {
+    "does no encoding or profile read for %s",
+    async (mode) => {
       const context = cache();
       if (mode === "no-blob") vi.stubGlobal("Blob", undefined);
-      else if (mode === "no-storage") vi.mocked(context.manager.stats).mockResolvedValueOnce(null);
+      else if (mode === "no-storage")
+        vi.mocked(context.manager.stats).mockResolvedValueOnce(null);
       else context.strategy.dispose();
       expect(await context.strategy.encode(source(), 256)).toBeNull();
       expect(context.profiles.get).not.toHaveBeenCalled();
@@ -605,19 +630,30 @@ describe("rejected native-hit calibration bootstrap", () => {
     context.records.state.rows[0].recomputeMs = 9;
     timing(context);
 
-    expect(await context.strategy.updateCosts("real-terrain-hit", 10)).toBe(false);
+    expect(await context.strategy.updateCosts("real-terrain-hit", 10)).toBe(
+      false
+    );
     expect(context.records.values.size).toBe(0);
-    expect(context.records.get).toHaveBeenCalledWith("real-terrain-hit", {touch: false});
-    expect((await context.strategy.inspectProfiles()).pendingSeed?.observedReuseCount).toBe(1);
+    expect(context.records.get).toHaveBeenCalledWith("real-terrain-hit", {
+      touch: false,
+    });
+    expect(
+      (await context.strategy.inspectProfiles()).pendingSeed?.observedReuseCount
+    ).toBe(1);
     expect(await context.strategy.calibrate()).toBe(true);
     expect(context.records.get).toHaveBeenCalledOnce();
     expect(vi.mocked(calibrateDerivedCacheStrategies).mock.calls[0][2]).toBe(1);
     expect((await context.strategy.inspectProfiles()).pendingSeed).toBeNull();
-    expect(context.profiles.values.get(profileKey())).toMatchObject({format: "binary"});
+    expect(context.profiles.values.get(profileKey())).toMatchObject({
+      format: "binary",
+    });
 
     const encoded = await context.strategy.encode(entry, 256);
     expect(formatOf(encoded?.payload)).toBe("binary");
-    await context.records.put("fresh", encoded!.payload, {bytes: encoded!.bytes, recomputeMs: 9});
+    await context.records.put("fresh", encoded!.payload, {
+      bytes: encoded!.bytes,
+      recomputeMs: 9,
+    });
     await context.records.get("fresh"); // The next real foreground hit, not a trial.
     expect(await context.strategy.updateCosts("fresh", 8)).toBe(true);
     expect(context.records.values.has("fresh")).toBe(true);
@@ -629,28 +665,37 @@ describe("rejected native-hit calibration bootstrap", () => {
     const context = cache();
     seed(context, 1);
     context.records.state.rows[0].recomputeMs = 9;
-    timing(context, {seedReadMs: 3});
+    timing(context, { seedReadMs: 3 });
     await context.strategy.updateCosts("real-terrain-hit", 10);
     expect(await context.strategy.calibrate()).toBe(true);
     expect(context.profiles.values.get(profileKey())).toMatchObject({
       format: "native",
-      audit: {candidates: [{prepareMs: 4, admittedReason: "preparation-not-amortized"},
-        {prepareMs: 4, admittedReason: "preparation-not-amortized"}]},
+      audit: {
+        candidates: [
+          { prepareMs: 4, admittedReason: "preparation-not-amortized" },
+          { prepareMs: 4, admittedReason: "preparation-not-amortized" },
+        ],
+      },
     });
     expect(context.records.values.size).toBe(0);
   });
 
   it.each(["no-hit", "unknown-source", "oversized", "beneficial"] as const)(
-    "does not clone a seed for %s", async (mode) => {
+    "does not clone a seed for %s",
+    async (mode) => {
       const context = cache();
       seed(context, mode === "no-hit" ? 0 : 1);
       const row = context.records.state.rows[0];
-      row.recomputeMs = mode === "unknown-source" ? undefined : mode === "beneficial" ? 100 : 9;
+      row.recomputeMs =
+        mode === "unknown-source" ? undefined : mode === "beneficial" ? 100 : 9;
       if (mode === "oversized") row.bytes = 32 * 1024 ** 2 + 1;
       await context.strategy.updateCosts("real-terrain-hit", 10);
       expect(context.records.get).not.toHaveBeenCalled();
       expect((await context.strategy.inspectProfiles()).pendingSeed).toBeNull();
-      expect(context.records.updateCosts).toHaveBeenCalledWith("real-terrain-hit", {restoreMs: 10});
+      expect(context.records.updateCosts).toHaveBeenCalledWith(
+        "real-terrain-hit",
+        { restoreMs: 10 }
+      );
     }
   );
 
@@ -659,30 +704,37 @@ describe("rejected native-hit calibration bootstrap", () => {
     const entry = seed(context);
     context.records.state.rows[0].recomputeMs = 9;
     context.records.values.set("real-terrain-hit", {
-      ...entry, reliefVertexMask: new Uint8Array(32 * 1024 ** 2 + 1),
+      ...entry,
+      reliefVertexMask: new Uint8Array(32 * 1024 ** 2 + 1),
     });
     await context.strategy.updateCosts("real-terrain-hit", 10);
     expect((await context.strategy.inspectProfiles()).pendingSeed).toBeNull();
     expect(context.records.values.size).toBe(0);
   });
 
-  it.each(["expired", "disposed"] as const)("releases a %s seed", async (mode) => {
-    const context = cache();
-    seed(context);
-    context.records.state.rows[0].recomputeMs = 9;
-    await context.strategy.updateCosts("real-terrain-hit", 10);
-    if (mode === "expired") vi.spyOn(Date, "now").mockReturnValue(NOW + 60_001);
-    else context.strategy.dispose();
-    expect(await context.strategy.calibrate()).toBe(false);
-    expect((await context.strategy.inspectProfiles()).pendingSeed).toBeNull();
-    expect(context.probes.put).not.toHaveBeenCalled();
-  });
+  it.each(["expired", "disposed"] as const)(
+    "releases a %s seed",
+    async (mode) => {
+      const context = cache();
+      seed(context);
+      context.records.state.rows[0].recomputeMs = 9;
+      await context.strategy.updateCosts("real-terrain-hit", 10);
+      if (mode === "expired")
+        vi.spyOn(Date, "now").mockReturnValue(NOW + 60_001);
+      else context.strategy.dispose();
+      expect(await context.strategy.calibrate()).toBe(false);
+      expect((await context.strategy.inspectProfiles()).pendingSeed).toBeNull();
+      expect(context.probes.put).not.toHaveBeenCalled();
+    }
+  );
 
   it("keeps at most one pending seed across producer strategies", async () => {
     const first = cache();
     const second = cache();
-    seed(first); seed(second);
-    first.records.state.rows[0].recomputeMs = second.records.state.rows[0].recomputeMs = 9;
+    seed(first);
+    seed(second);
+    first.records.state.rows[0].recomputeMs =
+      second.records.state.rows[0].recomputeMs = 9;
     await first.strategy.updateCosts("real-terrain-hit", 10);
     await second.strategy.updateCosts("real-terrain-hit", 10);
     expect(second.records.get).not.toHaveBeenCalled();
@@ -696,7 +748,9 @@ describe("rejected native-hit calibration bootstrap", () => {
     seed(context);
     context.records.state.rows[0].recomputeMs = 9;
     context.records.get.mockRejectedValueOnce(new Error("read failed"));
-    expect(await context.strategy.updateCosts("real-terrain-hit", 10)).toBe(false);
+    expect(await context.strategy.updateCosts("real-terrain-hit", 10)).toBe(
+      false
+    );
     expect(context.records.values.size).toBe(0);
     expect((await context.strategy.inspectProfiles()).pendingSeed).toBeNull();
   });
@@ -705,9 +759,14 @@ describe("rejected native-hit calibration bootstrap", () => {
     const context = cache();
     context.profiles.values.set(profileKey(), profile());
     const report = await context.strategy.inspectProfiles();
-    expect(report).toMatchObject({backend: "indexeddb", scope: "worker-storage-restore", profiles: {coarse: profile(), full: null}});
+    expect(report).toMatchObject({
+      backend: "indexeddb",
+      scope: "worker-storage-restore",
+      profiles: { coarse: profile(), full: null },
+    });
     expect(context.profiles.get.mock.calls).toEqual([
-      [profileKey(), {touch: false}], [profileKey("full"), {touch: false}],
+      [profileKey(), { touch: false }],
+      [profileKey("full"), { touch: false }],
     ]);
     expect(context.records.get).not.toHaveBeenCalled();
     expect(context.probes.get).not.toHaveBeenCalled();
@@ -721,44 +780,59 @@ describe("session-local proven-slow key circuit breaker", () => {
     const entry = seed(context);
     context.records.state.rows[0].recomputeMs = 10;
     context.records.values.set("real-terrain-hit", {
-      kind: "terrain-component-v1", format: "binary", payload: encodeTypedBinaryRecord(entry),
+      kind: "terrain-component-v1",
+      format: "binary",
+      payload: encodeTypedBinaryRecord(entry),
     });
     expect(context.strategy.canWrite("real-terrain-hit")).toBe(true);
-    expect(await context.strategy.updateCosts("real-terrain-hit", 25)).toBe(false);
+    expect(await context.strategy.updateCosts("real-terrain-hit", 25)).toBe(
+      false
+    );
     expect(context.records.values.size).toBe(0);
     expect(context.strategy.canWrite("real-terrain-hit")).toBe(false);
     expect(context.strategy.canWrite("different-terrain-key")).toBe(true);
-    expect((await context.strategy.inspectProfiles()).suppressedKeyCount).toBe(1);
+    expect((await context.strategy.inspectProfiles()).suppressedKeyCount).toBe(
+      1
+    );
   });
 
   it.each([
-    {sourceMs: 100, restoreMs: 95, hits: 1, allowed: true},
-    {sourceMs: 100, restoreMs: 96, hits: 1, allowed: false},
-    {sourceMs: undefined, restoreMs: 25, hits: 1, allowed: true},
-    {sourceMs: 10, restoreMs: 25, hits: 0, allowed: true},
-    {sourceMs: 10, restoreMs: NaN, hits: 1, allowed: true},
-  ])("requires actual insufficient feedback: %j", async ({sourceMs, restoreMs, hits, allowed}) => {
-    const context = cache();
-    seed(context, hits);
-    context.records.state.rows[0].recomputeMs = sourceMs;
-    await context.strategy.updateCosts("real-terrain-hit", restoreMs);
-    expect(context.strategy.canWrite("real-terrain-hit")).toBe(allowed);
-  });
+    { sourceMs: 100, restoreMs: 95, hits: 1, allowed: true },
+    { sourceMs: 100, restoreMs: 96, hits: 1, allowed: false },
+    { sourceMs: undefined, restoreMs: 25, hits: 1, allowed: true },
+    { sourceMs: 10, restoreMs: 25, hits: 0, allowed: true },
+    { sourceMs: 10, restoreMs: NaN, hits: 1, allowed: true },
+  ])(
+    "requires actual insufficient feedback: %j",
+    async ({ sourceMs, restoreMs, hits, allowed }) => {
+      const context = cache();
+      seed(context, hits);
+      context.records.state.rows[0].recomputeMs = sourceMs;
+      await context.strategy.updateCosts("real-terrain-hit", restoreMs);
+      expect(context.strategy.canWrite("real-terrain-hit")).toBe(allowed);
+    }
+  );
 
   it("keeps at most 256 exact keys and resets on strategy disposal/new session", async () => {
     const context = cache();
     vi.stubGlobal("navigator", {}); // No calibration clones are needed here.
     for (let index = 0; index < 257; index++) {
       const key = `slow-${index}`;
-      context.records.state.rows = [{...reusableRow(1), key, recomputeMs: 10}];
+      context.records.state.rows = [
+        { ...reusableRow(1), key, recomputeMs: 10 },
+      ];
       context.records.values.set(key, source());
       await context.strategy.updateCosts(key, 25);
     }
-    expect((await context.strategy.inspectProfiles()).suppressedKeyCount).toBe(256);
+    expect((await context.strategy.inspectProfiles()).suppressedKeyCount).toBe(
+      256
+    );
     expect(context.strategy.canWrite("slow-0")).toBe(true);
     expect(context.strategy.canWrite("slow-256")).toBe(false);
     context.strategy.dispose();
-    expect((await context.strategy.inspectProfiles()).suppressedKeyCount).toBe(0);
+    expect((await context.strategy.inspectProfiles()).suppressedKeyCount).toBe(
+      0
+    );
     expect(context.strategy.canWrite("new-key")).toBe(false);
     expect(cache().strategy.canWrite("slow-256")).toBe(true);
   });

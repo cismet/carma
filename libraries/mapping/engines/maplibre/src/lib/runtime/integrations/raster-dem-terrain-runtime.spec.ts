@@ -3452,20 +3452,25 @@ describe("buildRasterDemTerrainRuntime", () => {
     runtime.dispose();
   });
 
-  it("holds the configured target back until the view settles", async () => {
+  it("holds the configured target back while the map moves", async () => {
     // A fine target spends the tile budget on levels the next camera change
-    // discards. With a motion target the cut stays coarse while the view moves
+    // discards. With a motion target the cut stays coarse while the map moves
     // and one more cut runs at the configured target once it holds still.
+    // The gesture drives it, not the camera signature: a repaint that nudges a
+    // matrix would otherwise coarsen a published cut and flip its tiles.
     const f = createIdlePrefetchFixture("motion-settle", 10, {
       errorTargetPixels: 0.5,
       motionErrorTargetPixels: 8,
     });
     await f.start();
     const selections = () => f.source.getTileGridIdsForBounds.mock.calls.length;
+    f.listeners.get("movestart")?.();
+    f.runtime.update(f.frame);
     const afterMove = selections();
-    // An unchanged view selects nothing new while the settle window runs.
+    // An unchanged view selects nothing new while the gesture runs.
     f.runtime.update(f.frame);
     expect(selections()).toBe(afterMove);
+    f.listeners.get("moveend")?.();
     await new Promise((resolve) => setTimeout(resolve, MOTION_SETTLE_WAIT_MS));
     f.runtime.update(f.frame);
     expect(selections()).toBeGreaterThan(afterMove);
@@ -3479,6 +3484,7 @@ describe("buildRasterDemTerrainRuntime", () => {
     await f.start();
     const selections = () => f.source.getTileGridIdsForBounds.mock.calls.length;
     const afterMove = selections();
+    f.listeners.get("moveend")?.();
     await new Promise((resolve) => setTimeout(resolve, MOTION_SETTLE_WAIT_MS));
     f.runtime.update(f.frame);
     expect(selections()).toBe(afterMove);

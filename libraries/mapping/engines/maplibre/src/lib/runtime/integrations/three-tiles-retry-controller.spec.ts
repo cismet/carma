@@ -200,10 +200,14 @@ describe("createThreeTilesRetryController", () => {
       retries.handleFailure(tile, url, new Error("status 503"));
       vi.runOnlyPendingTimers();
     }
-    expect(retries.handleFailure(tile, url, new Error("status 503"))).toBe("exhausted");
+    expect(retries.handleFailure(tile, url, new Error("status 503"))).toBe(
+      "exhausted"
+    );
     vi.advanceTimersByTime(EXHAUSTED_RETRY_TTL_MS);
     expect(retries.isBlocked(tile, url)).toBe(false);
-    expect(retries.handleFailure(tile, url, new Error("status 503"))).toBe("scheduled");
+    expect(retries.handleFailure(tile, url, new Error("status 503"))).toBe(
+      "scheduled"
+    );
   });
 
   it("cancels a pending retry after a successful load", () => {
