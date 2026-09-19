@@ -1190,6 +1190,7 @@ export const buildShadowSimulationScene = (
     const mapCenter = map.getCenter();
     const {
       errorTargetPixels,
+      motionErrorTargetPixels,
       shadowLevelOffset,
       minimumLevel,
       maximumLevel,
@@ -1210,6 +1211,7 @@ export const buildShadowSimulationScene = (
       {
         errorTargetPixels:
           errorTargetPixels ?? DEFAULT_TERRAIN_ERROR_TARGET_PIXELS,
+        motionErrorTargetPixels,
         shadowLevelOffset,
         minimumLevel,
         maximumLevel,
