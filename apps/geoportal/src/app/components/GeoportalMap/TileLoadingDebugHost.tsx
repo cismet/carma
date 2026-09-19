@@ -1,6 +1,7 @@
 import { lazy, Suspense, useCallback, useSyncExternalStore } from "react";
 import type { Map as MaplibreMap } from "maplibre-gl";
 import { useDevelopmentUiEnabled } from "@carma-appframeworks/portals";
+import { useAddonState } from "@carma-mapping/addons";
 import {
   getTiles3dRuntimeHandles,
   subscribeTiles3dRuntimeHandles,
@@ -20,7 +21,12 @@ const NO_HANDLES: ReturnType<typeof getTiles3dRuntimeHandles> = [];
  * without the development UI or without a runtime.
  */
 export const TileLoadingDebugHost = ({ map }: { map: MaplibreMap | null }) => {
-  const enabled = useDevelopmentUiEnabled();
+  const developmentUi = useDevelopmentUiEnabled();
+  const [shadowState, setShadowState] = useAddonState("shadowSimulation");
+  // The shadow panel offers the diagnostics directly, so its switch opens them
+  // even where the development UI is not on.
+  const requested = shadowState?.showTileDiagnostics === true;
+  const enabled = developmentUi || requested;
   const subscribe = useCallback(
     (listener: () => void) =>
       map ? subscribeTiles3dRuntimeHandles(map, listener) : () => undefined,
@@ -38,7 +44,15 @@ export const TileLoadingDebugHost = ({ map }: { map: MaplibreMap | null }) => {
   if (!enabled || !map || !runtime) return null;
   return (
     <Suspense fallback={null}>
-      <LazyTileLoadingDebug map={map} runtimeHandle={runtime} />
+      <LazyTileLoadingDebug
+        map={map}
+        runtimeHandle={runtime}
+        open={requested ? true : undefined}
+        onOpenChange={(open) => {
+          if (!shadowState || open === requested) return;
+          setShadowState({ ...shadowState, showTileDiagnostics: open });
+        }}
+      />
     </Suspense>
   );
 };

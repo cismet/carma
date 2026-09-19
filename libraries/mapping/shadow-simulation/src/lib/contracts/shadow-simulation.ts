@@ -92,6 +92,8 @@ export type ShadowSimulationState = ShadowRenderQualityOptions & {
   buildingColor: string;
   shadowQuality: ShadowQualityMultiplier;
   meshErrorTarget?: MeshErrorTargetPixels;
+  /** Show the host's tile loading manager diagnostics, when it offers them. */
+  showTileDiagnostics?: boolean;
   /**
    * Replace the host's raster base maps with the vector base that can be
    * draped on terrain and 3D models. Off by default: the simulation drapes

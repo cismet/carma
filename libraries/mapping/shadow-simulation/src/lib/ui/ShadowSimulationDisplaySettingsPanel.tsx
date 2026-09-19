@@ -5,6 +5,7 @@ import {
   faBug,
   faCircleInfo,
   faChartLine,
+  faLayerGroup,
   faXmark,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -481,6 +482,20 @@ export const ShadowSimulationDisplaySettingsPanel = ({
                 data-test-id="shadow-simulation-projection-debug"
               >
                 Debug
+              </Button>
+              <Button
+                type="default"
+                icon={<FontAwesomeIcon icon={faLayerGroup} />}
+                aria-pressed={state.showTileDiagnostics ?? false}
+                onClick={() =>
+                  setState({
+                    ...state,
+                    showTileDiagnostics: !state.showTileDiagnostics,
+                  })
+                }
+                data-test-id="shadow-simulation-tile-diagnostics"
+              >
+                Kacheln
               </Button>
               <Button
                 icon={<FontAwesomeIcon icon={faChartLine} />}
