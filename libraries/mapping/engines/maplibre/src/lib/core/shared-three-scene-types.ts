@@ -145,6 +145,12 @@ export interface SharedThreeSceneRuntime {
     style: SharedThreeSceneShadowStyle | null
   ) => void;
   setShadowView?: (view: SharedThreeSceneShadowView | null) => void;
+  /**
+   * The latest fitted light, even while the map moves. Tile runtimes keep the
+   * committed view during a gesture, because refitting the light restarts
+   * their traversal; a view that only draws the light wants the live one.
+   */
+  setLiveShadowView?: (view: SharedThreeSceneShadowView | null) => void;
   /** Tiled presentation opts in before rendering; mono/shadow-off disables it. */
   setShadowStagePresentationGate?: (enabled: boolean) => void;
   /** Current receiver IDs fully drawn with hard or soft shadows, not merely loaded. */

@@ -293,8 +293,13 @@ describe("instanced tile diagnostics", () => {
     const state = snapshot();
     // Two edges of a light's cut: one near the light, one further away.
     state.edges = new Float32Array([0, 20, 40, 20, 0, 100, 40, 100]);
-    // The light sits before the near edge, so the far one is the second.
-    const lightView = { ...state, origin: [20, 0] as const };
+    // The light shines downwards in the overview, so the lower edge is the one
+    // the shadows leave through.
+    const lightView = {
+      ...state,
+      origin: [20, 0] as const,
+      forward: [0, 1] as const,
+    };
     const plain = primitivesOf(
       buildDiagnosticViewport(lightView, "#fff", false)
     );

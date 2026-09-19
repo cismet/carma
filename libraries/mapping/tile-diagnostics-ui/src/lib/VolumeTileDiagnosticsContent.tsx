@@ -196,6 +196,12 @@ export const createVolumeTileDiagnostics = (diagnostics: TileDiagnostics) => {
           rebuiltAt = 0;
           schedule();
         },
+        // The committed corridor stops while the map moves; this one does not,
+        // and the overview draws the light where it actually is.
+        setLiveShadowView(view) {
+          corridor = snapshotShadowCorridorCameras(view);
+          schedule();
+        },
         dispose() {
           modelListeners.current.clear();
           cameraListeners.current.clear();

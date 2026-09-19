@@ -401,6 +401,7 @@ const FRUSTUM_FAR_WIDTH = 1.6;
 export const buildDiagnosticViewport = (
   snapshot: Pick<DiagnosticSnapshot, "edges" | "center"> & {
     origin?: readonly [number, number] | null;
+    forward?: readonly [number, number] | null;
   },
   color: string = OVERVIEW_COLORS.frustum,
   /** A light: its cut carries an arrow along the direction it casts. */
@@ -472,46 +473,60 @@ export const buildDiagnosticViewport = (
     add([x, y - 6, x, y + 6], 3, 1, 0, 0, color);
   }
   // Where the light leaves its buffer, pointing the way the shadows fall: the
-  // middle of the edge furthest from it, an arrow along that direction.
-  if (light && origin && snapshot.edges.length >= 4) {
-    let furthest: [number, number] | null = null;
-    let distance = 0;
-    for (let i = 0; i < snapshot.edges.length; i += 4) {
-      const middle: [number, number] = [
+  // middle of the edge furthest along its own direction, not furthest from it,
+  // so the arrow sits on the buffer and turns with the sun.
+  const forward = snapshot.forward ?? null;
+  if (light && forward && snapshot.edges.length >= 4) {
+    const middles: Array<[number, number]> = [];
+    for (let i = 0; i < snapshot.edges.length; i += 4)
+      middles.push([
         (snapshot.edges[i] + snapshot.edges[i + 2]) / 2,
         (snapshot.edges[i + 1] + snapshot.edges[i + 3]) / 2,
-      ];
-      const reach = distanceTo(middle[0], middle[1]);
-      if (reach > distance) {
-        distance = reach;
-        furthest = middle;
+      ]);
+    const centre = middles.reduce(
+      (sum, [x, y]) => [
+        sum[0] + x / middles.length,
+        sum[1] + y / middles.length,
+      ],
+      [0, 0]
+    );
+    let anchor = middles[0];
+    let reach = -Infinity;
+    let span = 0;
+    for (const middle of middles) {
+      const along =
+        (middle[0] - centre[0]) * forward[0] +
+        (middle[1] - centre[1]) * forward[1];
+      span = Math.max(
+        span,
+        Math.hypot(middle[0] - centre[0], middle[1] - centre[1])
+      );
+      if (along > reach) {
+        reach = along;
+        anchor = middle;
       }
     }
-    if (furthest && distance > 1e-6) {
-      const dx = (furthest[0] - origin[0]) / distance;
-      const dy = (furthest[1] - origin[1]) / distance;
-      const length = Math.max(12, Math.min(48, distance * 0.18));
-      const tip: [number, number] = [
-        furthest[0] + dx * length,
-        furthest[1] + dy * length,
-      ];
-      add([...furthest, ...tip], 3, 2.4, 0, 0, color);
-      for (const turn of [2.6, -2.6]) {
-        const cos = Math.cos(turn);
-        const sin = Math.sin(turn);
-        add(
-          [
-            ...tip,
-            tip[0] + (dx * cos - dy * sin) * length * 0.45,
-            tip[1] + (dx * sin + dy * cos) * length * 0.45,
-          ],
-          3,
-          2.4,
-          0,
-          0,
-          color
-        );
-      }
+    const length = Math.max(10, Math.min(40, span * 0.5));
+    const tip: [number, number] = [
+      anchor[0] + forward[0] * length,
+      anchor[1] + forward[1] * length,
+    ];
+    add([...anchor, ...tip], 3, 2.4, 0, 0, color);
+    for (const turn of [2.6, -2.6]) {
+      const cos = Math.cos(turn);
+      const sin = Math.sin(turn);
+      add(
+        [
+          ...tip,
+          tip[0] + (forward[0] * cos - forward[1] * sin) * length * 0.45,
+          tip[1] + (forward[0] * sin + forward[1] * cos) * length * 0.45,
+        ],
+        3,
+        2.4,
+        0,
+        0,
+        color
+      );
     }
   }
   return new Float32Array(values);

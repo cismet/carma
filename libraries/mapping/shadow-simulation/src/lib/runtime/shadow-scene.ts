@@ -1729,6 +1729,12 @@ export const buildShadowSimulationScene = (
   };
   const setRuntimeShadowView = (view: SharedThreeSceneShadowView | null) => {
     latestShadowView = view;
+    // Whoever only draws the light gets it as it is fitted, gesture or not.
+    for (const runtime of new Set([
+      ...getSharedThreeSceneRuntimes(map),
+      ...(terrainRuntime ? [terrainRuntime] : []),
+    ]))
+      runtime.setLiveShadowView?.(view);
     if (!mapInMotion) applyRuntimeShadowView(view);
   };
 
