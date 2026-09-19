@@ -290,10 +290,11 @@ const buildSource = (
       }
       if (!response)
         throw new Error("Terrain request did not produce a response");
+      const payload = await response.blob();
       const result = await runTerrainWorkerTask(
         {
           kind: "decode",
-          blob: await response.blob(),
+          blob: payload,
           id,
           segments: meshSegments,
           error: getLevelMaximumGeometricError(id.level),
@@ -304,7 +305,10 @@ const buildSource = (
       if (result.kind !== "decode")
         throw new Error("Unexpected terrain decoding result");
       loadSignal.throwIfAborted();
-      const { tile, raster } = result;
+      const { raster } = result;
+      // The decoded arrays are a fixed size for a given grid; only the fetched
+      // payload says how much this tile actually cost to bring in.
+      const tile = { ...result.tile, payloadByteLength: payload.size };
       cache.set(key, { tile, raster, lastUsed: ++useClock });
       cachedBytes += tile.byteLength + raster.pixels.byteLength;
       trimCache();

@@ -177,17 +177,28 @@ export const executeTerrainWorkerTask = async (
       ...executeTerrainBoundaryStitch(task.inputs, task),
     };
   if (task.kind === "decode" || task.kind === "remesh") {
+    // Decoding the image and meshing its raster are separate costs; the
+    // diagnostics draw them as their own steps.
+    const decodeStart = performance.now();
     const raster =
       task.kind === "decode" ? await decodeImage(task.blob) : task.raster;
+    const meshStart = performance.now();
+    const tile = buildErrorBoundedGridTile(
+      task.id,
+      raster,
+      task.error,
+      task.maximumMeshErrorMeters
+    );
     return {
       kind: task.kind,
       raster,
-      tile: buildErrorBoundedGridTile(
-        task.id,
-        raster,
-        task.error,
-        task.maximumMeshErrorMeters
-      ),
+      tile: {
+        ...tile,
+        timings: {
+          decodeMs: meshStart - decodeStart,
+          meshMs: performance.now() - meshStart,
+        },
+      },
     };
   }
   const geometry = createProjectedTerrainTileGeometry({
