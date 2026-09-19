@@ -149,10 +149,42 @@ export const projectTileDiagnosticViewport = (
     view = { x: centerHit[0] - w / 2, y: centerHit[1] - h / 2, w, h };
   }
   // The eye itself, so an edge can be drawn wider where it is near the camera.
-  const eye = new THREE.Vector3()
-    .setFromMatrixPosition(new THREE.Matrix4().fromArray(camera.matrixWorld))
+  const cameraMatrix = new THREE.Matrix4().fromArray(camera.matrixWorld);
+  const eyeWorld = new THREE.Vector3().setFromMatrixPosition(cameraMatrix);
+  const eye = eyeWorld.clone().applyMatrix4(worldToOverview);
+  // Where this camera looks, in the same screen frame as the cut: a light's
+  // arrow follows this, not the offset of an edge from the eye.
+  const aheadWorld = eyeWorld
+    .clone()
+    .add(
+      new THREE.Vector3(
+        -camera.matrixWorld[8],
+        -camera.matrixWorld[9],
+        -camera.matrixWorld[10]
+      )
+        .normalize()
+        .multiplyScalar(
+          Math.max(
+            1,
+            extent.getSize(new THREE.Vector3()).length() * 0.25
+          )
+        )
+    )
     .applyMatrix4(worldToOverview);
+  const eyeScreen = toScreen(eye.x, eye.z);
+  const aheadScreen = toScreen(aheadWorld.x, aheadWorld.z);
+  const forwardLength = Math.hypot(
+    aheadScreen[0] - eyeScreen[0],
+    aheadScreen[1] - eyeScreen[1]
+  );
   return {
+    forward:
+      forwardLength > 1e-6
+        ? ([
+            (aheadScreen[0] - eyeScreen[0]) / forwardLength,
+            (aheadScreen[1] - eyeScreen[1]) / forwardLength,
+          ] as [number, number])
+        : null,
     edges: new Float32Array(intersectionEdges?.flat() ?? []),
     center: centerHit,
     origin: Number.isFinite(eye.x + eye.z)
