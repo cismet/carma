@@ -21,17 +21,14 @@ type GeoportalBackgroundLibreOptions = {
   standaloneMeshOnly?: boolean;
 };
 
-// Raster bases bake place names into their ground pixels. Shaded terrain uses
-// the existing vector basemap instead so its ground can be projected while
-// point-based place names remain a separate symbol pass above Three.
-const TERRAIN_MESH_OVERLAY_LAYERS = "basemap_relief@100";
-const TERRAIN_MESH_REPLACED_LAYER_NAMES = new Set([
-  "amtlich",
-  "amtlichBasiskarte",
-  "rvrGrundriss",
-  "rvrSchriftNT",
-  "basemap_relief",
-]);
+// Shaded terrain and the shadow simulation drape whatever background is
+// active; they never substitute a basemap of their own. Swapping in the
+// vector relief style cost a full style reload, 567 layers against 6 and the
+// first ground tile only after about five seconds, and it took the chosen
+// Karte or Luftbild away from the user. A vector background is adjusted in
+// place for the drape instead, see prepareTerrainDrapeStyle, and a raster one
+// is draped as authored. Place names baked into raster ground pixels remain
+// on the surface until the billboard label pass exists.
 
 const isTransparent = (value: unknown): boolean => {
   if (typeof value === "boolean") return value;
@@ -56,22 +53,11 @@ export const geoportalBackgroundToLibreLayers = (
     ...extraNamedLayers,
   };
   const layerOpacity = backgroundLayer.opacity ?? 1;
-  const separateLocationLabels =
-    options.terrainMeshActive === true || options.shadowTerrainActive === true;
   // All named layers of a background spec belong to the single background
   // button, so they share one id and their loading states aggregate.
   const carmaLayerId = backgroundLayer.id;
 
-  const originalLayerSpecs = backgroundLayer.layers
-    .split("|")
-    .filter(
-      (spec) =>
-        !separateLocationLabels ||
-        !TERRAIN_MESH_REPLACED_LAYER_NAMES.has(spec.split("@")[0])
-    );
-  const layerSpecs = separateLocationLabels
-    ? [...originalLayerSpecs, ...TERRAIN_MESH_OVERLAY_LAYERS.split("|")]
-    : originalLayerSpecs;
+  const layerSpecs = backgroundLayer.layers.split("|");
 
   for (const spec of layerSpecs) {
     const [name, opacityStr] = spec.split("@");
