@@ -43,16 +43,30 @@ export const TileLoadingDebugHost = ({ map }: { map: MaplibreMap | null }) => {
     null;
   if (!enabled || !map || !runtime) return null;
   return (
-    <Suspense fallback={null}>
-      <LazyTileLoadingDebug
-        map={map}
-        runtimeHandle={runtime}
-        open={requested ? true : undefined}
-        onOpenChange={(open) => {
-          if (!shadowState || open === requested) return;
-          setShadowState({ ...shadowState, showTileDiagnostics: open });
-        }}
-      />
-    </Suspense>
+    // The toolbar positions itself absolutely; this anchor puts it beside the
+    // map's own control column instead of behind it, and keeps it above the
+    // map without covering it.
+    <div
+      style={{
+        position: "fixed",
+        left: 64,
+        top: 96,
+        width: 0,
+        height: 0,
+        zIndex: 6000,
+      }}
+    >
+      <Suspense fallback={null}>
+        <LazyTileLoadingDebug
+          map={map}
+          runtimeHandle={runtime}
+          open={requested ? true : undefined}
+          onOpenChange={(open) => {
+            if (!shadowState || open === requested) return;
+            setShadowState({ ...shadowState, showTileDiagnostics: open });
+          }}
+        />
+      </Suspense>
+    </div>
   );
 };
