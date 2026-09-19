@@ -245,6 +245,21 @@ export const ShadowSimulationDisplaySettingsPanel = ({
                   children: (
                     <div className="grid grid-cols-2 items-center gap-x-2 gap-y-1">
                       <Checkbox
+                        className="col-span-2"
+                        checked={state.overrideBaseMapWithVectorStyle === true}
+                        onChange={(event) =>
+                          setState({
+                            ...state,
+                            overrideBaseMapWithVectorStyle:
+                              event.target.checked,
+                          })
+                        }
+                        data-test-id="shadow-simulation-vector-base-override"
+                        aria-label="Rasterbasiskarten durch die Vektor-Basiskarte ersetzen"
+                      >
+                        Vektor-Basiskarte statt Rasterkarte
+                      </Checkbox>
+                      <Checkbox
                         checked={state.showMapStyleContent ?? true}
                         onChange={(event) =>
                           setState({

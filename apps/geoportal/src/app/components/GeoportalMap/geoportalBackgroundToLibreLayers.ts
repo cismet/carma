@@ -19,10 +19,17 @@ type GeoportalBackgroundLibreOptions = {
   shadowTerrainActive?: boolean;
   /** Every visible layer is a standalone tileset: no basemap at all. */
   standaloneMeshOnly?: boolean;
+  /**
+   * Replace the authored raster bases with the vector base map, on the user's
+   * explicit request from the shadow settings. Off by default.
+   */
+  vectorBaseOverride?: boolean;
 };
 
+const VECTOR_BASE_OVERRIDE_LAYERS = "basemap_relief@100";
+
 // Shaded terrain and the shadow simulation drape whatever background is
-// active; they never substitute a basemap of their own. Swapping in the
+// active; they never substitute a basemap of their own unless asked to. Swapping in the
 // vector relief style cost a full style reload, 567 layers against 6 and the
 // first ground tile only after about five seconds, and it took the chosen
 // Karte or Luftbild away from the user. A vector background is adjusted in
@@ -57,7 +64,11 @@ export const geoportalBackgroundToLibreLayers = (
   // button, so they share one id and their loading states aggregate.
   const carmaLayerId = backgroundLayer.id;
 
-  const layerSpecs = backgroundLayer.layers.split("|");
+  // The vector base is only substituted when the user asks for it; the
+  // raster bases of the chosen background are otherwise draped as authored.
+  const layerSpecs = options.vectorBaseOverride
+    ? VECTOR_BASE_OVERRIDE_LAYERS.split("|")
+    : backgroundLayer.layers.split("|");
 
   for (const spec of layerSpecs) {
     const [name, opacityStr] = spec.split("@");
@@ -122,7 +133,7 @@ export const geoportalBackgroundToLibreLayers = (
           carmaLayerId,
           style: cfg.style,
           opacity,
-          ...(options.shadowTerrainActive
+          ...(options.shadowTerrainActive || options.vectorBaseOverride
             ? {
                 userStyleTransform: prepareTerrainDrapeStyle,
                 userStyleTransformKey: "terrain-albedo-v1",

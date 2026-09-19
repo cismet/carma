@@ -51,6 +51,51 @@ describe("Geoportal shaded terrain background composition", () => {
     ).toBe(false);
   });
 
+  it("substitutes the vector base only when the override asks for it", () => {
+    const named = {
+      amtlich: {
+        type: "tiles" as const,
+        url: "https://example.test/city-map/{z}/{x}/{y}.png",
+      },
+      rvrGrundriss: {
+        type: "wmts" as const,
+        url: "https://example.test/opaque-ground-plan",
+        layers: "ground-plan",
+      },
+      rvrSchriftNT: {
+        type: "wmts-nt" as const,
+        url: "https://example.test/labels",
+        layers: "labels",
+        transparent: true,
+      },
+      basemap_relief: {
+        type: "vector" as const,
+        style: "https://example.test/vector-basemap.json",
+      },
+    };
+    const overridden = geoportalBackgroundToLibreLayers(background, named, {
+      shadowTerrainActive: true,
+      vectorBaseOverride: true,
+    });
+    expect(overridden).toEqual([
+      expect.objectContaining({
+        type: "vector",
+        name: "bg-basemap_relief",
+        userStyleTransformKey: "terrain-albedo-v1",
+      }),
+    ]);
+    // Without the override the authored raster bases stay.
+    const authored = geoportalBackgroundToLibreLayers(background, named, {
+      shadowTerrainActive: true,
+    });
+    expect(authored).toHaveLength(3);
+    expect(
+      authored.some(
+        (layer) => "name" in layer && layer.name === "bg-basemap_relief"
+      )
+    ).toBe(false);
+  });
+
   it("adjusts a vector background in place while shaded terrain is active", () => {
     const vectorBackground = {
       ...background,
