@@ -288,4 +288,23 @@ describe("instanced tile diagnostics", () => {
     expect(rects[3][11]).toBe(1);
     expect(rects[3].slice(8, 11)).not.toEqual(rects[0].slice(8, 11));
   });
+
+  it("points an arrow away from a light at the far edge of its buffer", () => {
+    const state = snapshot();
+    // Two edges of a light's cut: one near the light, one further away.
+    state.edges = new Float32Array([0, 20, 40, 20, 0, 100, 40, 100]);
+    // The light sits before the near edge, so the far one is the second.
+    const lightView = { ...state, origin: [20, 0] as const };
+    const plain = primitivesOf(
+      buildDiagnosticViewport(lightView, "#fff", false)
+    );
+    const lit = primitivesOf(buildDiagnosticViewport(lightView, "#fff", true));
+    // A shaft and two barbs on top of the cut itself.
+    expect(lit.length - plain.length).toBe(3);
+    const [shaft] = lit.slice(plain.length);
+    // The shaft starts at the middle of the far edge and runs on outwards.
+    expect([shaft[0], shaft[1]]).toEqual([20, 100]);
+    expect(shaft[3]).toBeGreaterThan(shaft[1]);
+    expect(Math.abs(shaft[2] - shaft[0])).toBeLessThan(1);
+  });
 });

@@ -103,7 +103,12 @@ const draw = async () => {
         ? []
         : viewport
         ? viewport.views.map((view, i) =>
-            buildDiagnosticViewport(view, colors[i % colors.length])
+            buildDiagnosticViewport(
+              view,
+              colors[i % colors.length],
+              // The main camera receives; a light only contributes geometry.
+              (i === 0 ? camera : cameras[i - 1])?.role === "geometry"
+            )
           )
         : [buildDiagnosticViewport(snapshot)];
     const dynamic = new Float32Array(

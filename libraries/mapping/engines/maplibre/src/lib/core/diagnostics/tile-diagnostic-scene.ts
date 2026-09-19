@@ -402,7 +402,9 @@ export const buildDiagnosticViewport = (
   snapshot: Pick<DiagnosticSnapshot, "edges" | "center"> & {
     origin?: readonly [number, number] | null;
   },
-  color: string = OVERVIEW_COLORS.frustum
+  color: string = OVERVIEW_COLORS.frustum,
+  /** A light: its cut carries an arrow along the direction it casts. */
+  light = false
 ): Float32Array => {
   const values: number[] = [];
   const add = (
@@ -468,6 +470,49 @@ export const buildDiagnosticViewport = (
     const [x, y] = snapshot.center;
     add([x - 6, y, x + 6, y], 3, 1, 0, 0, color);
     add([x, y - 6, x, y + 6], 3, 1, 0, 0, color);
+  }
+  // Where the light leaves its buffer, pointing the way the shadows fall: the
+  // middle of the edge furthest from it, an arrow along that direction.
+  if (light && origin && snapshot.edges.length >= 4) {
+    let furthest: [number, number] | null = null;
+    let distance = 0;
+    for (let i = 0; i < snapshot.edges.length; i += 4) {
+      const middle: [number, number] = [
+        (snapshot.edges[i] + snapshot.edges[i + 2]) / 2,
+        (snapshot.edges[i + 1] + snapshot.edges[i + 3]) / 2,
+      ];
+      const reach = distanceTo(middle[0], middle[1]);
+      if (reach > distance) {
+        distance = reach;
+        furthest = middle;
+      }
+    }
+    if (furthest && distance > 1e-6) {
+      const dx = (furthest[0] - origin[0]) / distance;
+      const dy = (furthest[1] - origin[1]) / distance;
+      const length = Math.max(12, Math.min(48, distance * 0.18));
+      const tip: [number, number] = [
+        furthest[0] + dx * length,
+        furthest[1] + dy * length,
+      ];
+      add([...furthest, ...tip], 3, 2.4, 0, 0, color);
+      for (const turn of [2.6, -2.6]) {
+        const cos = Math.cos(turn);
+        const sin = Math.sin(turn);
+        add(
+          [
+            ...tip,
+            tip[0] + (dx * cos - dy * sin) * length * 0.45,
+            tip[1] + (dx * sin + dy * cos) * length * 0.45,
+          ],
+          3,
+          2.4,
+          0,
+          0,
+          color
+        );
+      }
+    }
   }
   return new Float32Array(values);
 };
