@@ -491,22 +491,20 @@ export const buildDiagnosticViewport = (
       [0, 0]
     );
     let anchor = middles[0];
-    let reach = -Infinity;
+    let reach = Infinity;
     let span = 0;
     for (const middle of middles) {
       const along =
         (middle[0] - centre[0]) * forward[0] +
         (middle[1] - centre[1]) * forward[1];
-      span = Math.max(
-        span,
-        Math.hypot(middle[0] - centre[0], middle[1] - centre[1])
-      );
-      if (along > reach) {
+      span = Math.max(span, Math.abs(along));
+      if (along < reach) {
         reach = along;
         anchor = middle;
       }
     }
-    const length = Math.max(10, Math.min(40, span * 0.5));
+    // Half the way from that edge towards the middle of the buffer.
+    const length = Math.max(10, Math.min(60, span * 0.5));
     const tip: [number, number] = [
       anchor[0] + forward[0] * length,
       anchor[1] + forward[1] * length,
