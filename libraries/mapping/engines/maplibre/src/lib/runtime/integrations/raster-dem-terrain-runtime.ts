@@ -1502,12 +1502,16 @@ export const buildRasterDemTerrainRuntime = (
     // siblings cover it too, and the generations above the published cut.
     // Membership follows the observer, not the current selection, so a tile
     // does not blink out of the overlay while a new cut is being planned.
-    for (const [key, record] of meshes) {
-      if (activeMeshKeys.has(key) || volumes.length >= MAXIMUM_REPORTED_TILES)
-        continue;
+    // Everything held, not only what the observer can see: a tile the corridor
+    // keeps or a parent waiting for its children says as much about coverage
+    // as one in front of the camera, and hiding them made the overview look
+    // like the terrain simply stopped.
+    const residents = [...meshes]
+      .filter(([key]) => !activeMeshKeys.has(key))
+      .sort(([, a], [, b]) => b.lastUsed - a.lastUsed)
+      .slice(0, Math.max(0, MAXIMUM_REPORTED_TILES - volumes.length));
+    for (const [key, record] of residents) {
       getTerrainMeshWorldBounds(record, bounds);
-      if (observerFrustumReady && !observerFrustum.intersectsBox(bounds))
-        continue;
       volumes.push({
         id: `${runtimeId}:${key}`,
         kind: "terrain-tile",
