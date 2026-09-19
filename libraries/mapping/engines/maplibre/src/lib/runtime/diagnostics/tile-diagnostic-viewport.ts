@@ -39,87 +39,46 @@ export const projectTileDiagnosticViewport = (
   let footprintBounds: OverlayModel["footprintBounds"] = null;
   const vertices = demand.intersectionVertices(extent);
   if (vertices.length >= 4) {
-    // This is a clipped 3D volume, not rays projected onto guessed ground planes.
-    const segments: Array<[number, number, number, number]> = [];
+    // The outline of the clipped volume as it reads in this projection: the
+    // hull of its projected corners. Recovering the 3D wireframe from pairs of
+    // supporting planes drew edges that collapse, coincide or leave the frame,
+    // which is what the loose strokes were; a hull is closed by construction.
     const projected = vertices.map((point) => {
       const p = point.clone().applyMatrix4(worldToOverview);
       return toScreen(p.x, p.z);
     });
-    // Recover edges from their two supporting planes in double precision.
-    // Float32 hull geometry loses centimetres at ECEF magnitudes and makes
-    // valid side cuts fail the subsequent plane-membership test.
-    const tolerance = Math.max(
-      1e-7,
-      extent.getSize(new THREE.Vector3()).length() * 1e-8,
-      ...basis.bounds.map((v) => Math.abs(v) * Number.EPSILON * 128)
-    );
-    // A degenerate plane (an infinite far plane, for instance) carries no
-    // normal to intersect; every other one, the far plane included, bounds a
-    // face of the clipped volume and owns edges worth drawing.
-    const planes = frustum.planes.filter(
-      (plane) => plane.normal.lengthSq() > 1e-12
-    );
-    for (let axis = 0; axis < 3; axis++) {
-      const normal = new THREE.Vector3().setComponent(axis, 1);
-      planes.push(new THREE.Plane(normal, -extent.min.getComponent(axis)));
-      planes.push(
-        new THREE.Plane(normal.clone(), -extent.max.getComponent(axis))
-      );
-    }
-    const emitted = new Set<string>();
-    // Every pair, the box's own faces included. Where the frustum reaches past
-    // the box, as a near plane at the eye and a far plane beyond the horizon
-    // do, the cut ends on a face of the box: leaving those pairs out left the
-    // outline open at exactly the ends the eye looks along.
-    for (let i = 0; i < planes.length; i++) {
-      for (let j = i + 1; j < planes.length; j++) {
-        if (
-          new THREE.Vector3()
-            .crossVectors(planes[i].normal, planes[j].normal)
-            .lengthSq() < 1e-16
+    const ordered = [...projected].sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+    const turnsRight = (
+      o: readonly [number, number],
+      a: readonly [number, number],
+      b: readonly [number, number]
+    ) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]) <= 1e-9;
+    const half = (points: Array<[number, number]>) => {
+      const chain: Array<[number, number]> = [];
+      for (const point of points) {
+        while (
+          chain.length >= 2 &&
+          turnsRight(chain[chain.length - 2], chain[chain.length - 1], point)
         )
-          continue;
-        const candidates = vertices.flatMap((p, index) =>
-          Math.abs(planes[i].distanceToPoint(p)) <= tolerance &&
-          Math.abs(planes[j].distanceToPoint(p)) <= tolerance
-            ? [index]
-            : []
-        );
-        let pair: number[] = [],
-          distance = tolerance * tolerance;
-        for (const a of candidates)
-          for (const b of candidates) {
-            const squared = vertices[a].distanceToSquared(vertices[b]);
-            if (squared > distance) {
-              distance = squared;
-              pair = [a, b];
-            }
-          }
-        if (!pair.length) continue;
-        const [a, b] = pair.sort((a, b) => a - b);
-        const key = `${a}:${b}`;
-        if (emitted.has(key)) continue;
-        emitted.add(key);
-        segments.push([...projected[a], ...projected[b]]);
+          chain.pop();
+        chain.push(point);
       }
-    }
-    // The overview is a plan view: an edge along the vertical axis collapses to
-    // a point, and the top and bottom faces of a box project onto each other.
-    // Drop the first and keep one of the second, so the outline is drawn once.
-    const seen = new Set<string>();
-    intersectionEdges = segments.filter(([x0, y0, x1, y1]) => {
-      // Only an edge along the discarded axis collapses to a point. A short
-      // one is the connector between two long rails, and dropping it by length
-      // is what left the outline as loose horizontal strokes.
-      if (Math.hypot(x1 - x0, y1 - y0) < 1e-6) return false;
-      const key = [x0, y0, x1, y1].map((value) => value.toFixed(2)).join(":");
-      const reverse = [x1, y1, x0, y0]
-        .map((value) => value.toFixed(2))
-        .join(":");
-      if (seen.has(key) || seen.has(reverse)) return false;
-      seen.add(key);
-      return true;
-    });
+      chain.pop();
+      return chain;
+    };
+    const hull = [...half(ordered), ...half([...ordered].reverse())];
+    intersectionEdges =
+      hull.length >= 3
+        ? hull.map((point, index) => {
+            const next = hull[(index + 1) % hull.length];
+            return [point[0], point[1], next[0], next[1]] as [
+              number,
+              number,
+              number,
+              number
+            ];
+          })
+        : null;
     footprintBounds = {
       minX: Math.min(...projected.map((p) => p[0])),
       maxX: Math.max(...projected.map((p) => p[0])),
@@ -164,10 +123,7 @@ export const projectTileDiagnosticViewport = (
       )
         .normalize()
         .multiplyScalar(
-          Math.max(
-            1,
-            extent.getSize(new THREE.Vector3()).length() * 0.25
-          )
+          Math.max(1, extent.getSize(new THREE.Vector3()).length() * 0.25)
         )
     )
     .applyMatrix4(worldToOverview);
