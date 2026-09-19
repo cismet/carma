@@ -73,8 +73,6 @@ export const createVolumeTileDiagnostics = (diagnostics: TileDiagnostics) => {
       loading: 0,
       backlog: 0,
     });
-    /** Where the corridor looks, in overview coordinates: the sun's heading. */
-    const [sunHeading, setSunHeading] = useState<number | null>(null);
     const [labels, setLabels] = useState<(typeof LABEL_MODES)[number]>("none");
     const [followFrustums, setFollowFrustums] = useState(true);
     /** Where the overview is drawn: in its panel, over the map, or popped out. */
@@ -179,12 +177,6 @@ export const createVolumeTileDiagnostics = (diagnostics: TileDiagnostics) => {
               0
             ),
         });
-        // The corridor camera looks along the sun; its heading in the plan view
-        // is the direction the shadows fall.
-        const light = corridor[0]?.matrixWorld;
-        setSunHeading(
-          light ? (Math.atan2(-light[10], -light[8]) * 180) / Math.PI : null
-        );
         latestModel.current = model;
         for (const listener of modelListeners.current) listener(model);
       };
@@ -285,43 +277,6 @@ export const createVolumeTileDiagnostics = (diagnostics: TileDiagnostics) => {
           cameraFocus="all"
           followPaddingPercent={180}
         />
-        {sunHeading === null ? null : (
-          <div
-            data-test-id="volume-tile-diagnostics-sun"
-            title="Richtung des Korridors, also des Sonnenstands"
-            style={{
-              position: "absolute",
-              left: 8,
-              bottom: 8,
-              width: 44,
-              height: 44,
-              pointerEvents: "none",
-              color: "#ffc46b",
-            }}
-          >
-            <svg viewBox="0 0 44 44" width="44" height="44">
-              <circle
-                cx="22"
-                cy="22"
-                r="20"
-                fill="none"
-                stroke="currentColor"
-                strokeOpacity="0.35"
-              />
-              <g transform={`rotate(${sunHeading} 22 22)`}>
-                <line
-                  x1="22"
-                  y1="22"
-                  x2="40"
-                  y2="22"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                />
-                <polygon points="40,22 33,18 33,26" fill="currentColor" />
-              </g>
-            </svg>
-          </div>
-        )}
         {tileCount === 0 ? (
           <div
             data-test-id="volume-tile-diagnostics-empty"
