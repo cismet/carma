@@ -426,9 +426,16 @@ export const buildRasterDemTerrainRuntime = (
       ? null
       : Math.max(0.1, options.motionErrorTargetPixels);
   let motionSettleTimer: ReturnType<typeof setTimeout> | null = null;
-  /** Coarse while the view is still moving, configured once it holds still. */
+  /** True between the map's movestart and the settle after its moveend. */
+  let mapMoving = false;
+  /**
+   * Coarse while the map is actually moving, configured once it holds still.
+   * Keying this on the camera signature instead would coarsen the cut again on
+   * any repaint that nudges a matrix, and the published tiles would flip
+   * between a parent and its children.
+   */
   const effectiveErrorTargetPixels = () =>
-    motionErrorTargetPixels !== null && motionSettleTimer !== null
+    motionErrorTargetPixels !== null && mapMoving
       ? Math.max(errorTargetPixels, motionErrorTargetPixels)
       : errorTargetPixels;
   const minimumLevel = clampInteger(
@@ -641,6 +648,23 @@ export const buildRasterDemTerrainRuntime = (
     invalidateIdlePrefetch();
     // Reconfirm even when a gesture ends at the same camera/cut.
     selectionInputSignature = "";
+    if (motionErrorTargetPixels === null) return;
+    mapMoving = true;
+    if (motionSettleTimer !== null) clearTimeout(motionSettleTimer);
+    motionSettleTimer = null;
+  };
+
+  /** The gesture ended: settle, then cut once at the configured target. */
+  const handleMovementEnd = () => {
+    if (motionErrorTargetPixels === null) return;
+    if (motionSettleTimer !== null) clearTimeout(motionSettleTimer);
+    motionSettleTimer = setTimeout(() => {
+      motionSettleTimer = null;
+      if (disposed) return;
+      mapMoving = false;
+      selectionInputSignature = "";
+      map?.triggerRepaint();
+    }, MOTION_SETTLE_MS);
   };
   // Keep the latest fitted shadow view separate from the view used by an
   // in-flight selection. Otherwise every progressive terrain stage refits the
@@ -2837,6 +2861,7 @@ export const buildRasterDemTerrainRuntime = (
     onAdd(mapInstance) {
       map = mapInstance;
       map.on?.(MAPLIBRE_EVENT.MOVE_START, handleIdlePrefetchMovement);
+      map.on?.(MAPLIBRE_EVENT.MOVE_END, handleMovementEnd);
       setSharedThreeTerrainLoading(mapInstance, runtimeId, terrainLoading);
       if (source && !unregisterSampler) {
         unregisterSampler = registerSharedThreeTerrainSampler(
@@ -2936,17 +2961,7 @@ export const buildRasterDemTerrainRuntime = (
       if (inputSignature === selectionInputSignature) return;
       invalidateIdlePrefetch();
       selectionInputSignature = inputSignature;
-      if (motionErrorTargetPixels !== null) {
-        // The view changed: select coarse now and, once it stops changing,
-        // run one more cut at the configured target.
-        if (motionSettleTimer !== null) clearTimeout(motionSettleTimer);
-        motionSettleTimer = setTimeout(() => {
-          motionSettleTimer = null;
-          if (disposed) return;
-          selectionInputSignature = "";
-          map?.triggerRepaint();
-        }, MOTION_SETTLE_MS);
-      }
+
       if (typeof Worker === "undefined") {
         const selection = buildSelection(source, frame);
         const prefetchView = {
@@ -3036,6 +3051,7 @@ export const buildRasterDemTerrainRuntime = (
       heightMetadata.dispose();
       invalidateIdlePrefetch();
       map?.off?.(MAPLIBRE_EVENT.MOVE_START, handleIdlePrefetchMovement);
+      map?.off?.(MAPLIBRE_EVENT.MOVE_END, handleMovementEnd);
       takePresentations.delete(root);
       conversionAbort.abort();
       source?.release();

@@ -19,10 +19,12 @@ export const projectTileDiagnosticViewport = (
     new THREE.Vector3().fromArray(basis.bounds, 3)
   );
   const worldToOverview = new THREE.Matrix4().fromArray(basis.worldToOverview);
-  const [scale, offsetX, offsetY] = basis.screen;
+  // A fourth entry carries a vertical scale of its own, which the camera
+  // projection needs: its two axes differ and its vertical one is flipped.
+  const [scale, offsetX, offsetY, scaleY = scale] = basis.screen;
   const toScreen = (x: number, z: number): [number, number] => [
     offsetX + x * scale,
-    offsetY + z * scale,
+    offsetY + z * scaleY,
   ];
   const demand = createTileCameraDemand([camera]);
   const frustum = new THREE.Frustum().setFromProjectionMatrix(
@@ -65,10 +67,11 @@ export const projectTileDiagnosticViewport = (
       );
     }
     const emitted = new Set<string>();
-    // Pairs that include a frustum plane: an edge where two faces of the box
-    // meet is an edge of the box, not of the cut through it.
-    const frustumPlanes = planes.length - 6;
-    for (let i = 0; i < frustumPlanes; i++) {
+    // Every pair, the box's own faces included. Where the frustum reaches past
+    // the box, as a near plane at the eye and a far plane beyond the horizon
+    // do, the cut ends on a face of the box: leaving those pairs out left the
+    // outline open at exactly the ends the eye looks along.
+    for (let i = 0; i < planes.length; i++) {
       for (let j = i + 1; j < planes.length; j++) {
         if (
           new THREE.Vector3()
@@ -100,7 +103,20 @@ export const projectTileDiagnosticViewport = (
         segments.push([...projected[a], ...projected[b]]);
       }
     }
-    intersectionEdges = segments;
+    // The overview is a plan view: an edge along the vertical axis collapses to
+    // a point, and the top and bottom faces of a box project onto each other.
+    // Drop the first and keep one of the second, so the outline is drawn once.
+    const seen = new Set<string>();
+    intersectionEdges = segments.filter(([x0, y0, x1, y1]) => {
+      if (Math.hypot(x1 - x0, y1 - y0) < 0.5) return false;
+      const key = [x0, y0, x1, y1].map((value) => value.toFixed(2)).join(":");
+      const reverse = [x1, y1, x0, y0]
+        .map((value) => value.toFixed(2))
+        .join(":");
+      if (seen.has(key) || seen.has(reverse)) return false;
+      seen.add(key);
+      return true;
+    });
     footprintBounds = {
       minX: Math.min(...projected.map((p) => p[0])),
       maxX: Math.max(...projected.map((p) => p[0])),

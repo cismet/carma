@@ -29,13 +29,16 @@ const mocks = vi.hoisted(() => ({
     updateCosts: vi.fn(async () => true),
     dispose: vi.fn(),
     decode: vi.fn(async (value: unknown) => value ?? null),
-    encode: vi.fn(async (entry: unknown, bytes: number) => ({ payload: entry, bytes })),
+    encode: vi.fn(async (entry: unknown, bytes: number) => ({
+      payload: entry,
+      bytes,
+    })),
     calibrate: vi.fn(async () => true),
   })),
 }));
 
 vi.mock("@carma-commons/utils", async (importOriginal) => ({
-  ...await importOriginal<typeof import("@carma-commons/utils")>(),
+  ...(await importOriginal<typeof import("@carma-commons/utils")>()),
   createDerivedBufferCache: mocks.manager,
 }));
 vi.mock("./projected-terrain-cache-strategy", () => ({
@@ -43,7 +46,8 @@ vi.mock("./projected-terrain-cache-strategy", () => ({
 }));
 
 const WORKER_URL = "https://terrain.test/assets/terrain.worker-w1234567.js";
-const mainUrl = (name = "a") => `https://terrain.test/assets/runtime-${name}1234567.js`;
+const mainUrl = (name = "a") =>
+  `https://terrain.test/assets/runtime-${name}1234567.js`;
 const entry: CachedProjectedTerrainTile = {
   tile: {
     id: { level: 10, x: 532, y: 218 },
@@ -84,42 +88,85 @@ describe("projected terrain combined producer epoch", () => {
     "/assets/runtime-a1234567.js",
     "https://terrain.test/src/runtime.ts",
     "https://terrain.test/assets/runtime-a1234567.js?t=1",
-  ])("does no storage or codec work for an invalid main producer: %s", async (producer) => {
-    const cache = await import("./projected-terrain-cache-record");
-    expect(await cache.readProjectedTerrainCacheRecord("tile", producer)).toBeNull();
-    expect(await cache.writeProjectedTerrainCacheRecord("tile", entry, 60, 10, producer)).toBe(false);
-    expect(await cache.updateProjectedTerrainReadCost("tile", 2, producer)).toBe(false);
-    expect(await cache.calibrateProjectedTerrainCache(producer)).toBe(false);
-    expect(mocks.manager).not.toHaveBeenCalled();
-    expect(mocks.strategy).not.toHaveBeenCalled();
-  });
+  ])(
+    "does no storage or codec work for an invalid main producer: %s",
+    async (producer) => {
+      const cache = await import("./projected-terrain-cache-record");
+      expect(
+        await cache.readProjectedTerrainCacheRecord("tile", producer)
+      ).toBeNull();
+      expect(
+        await cache.writeProjectedTerrainCacheRecord(
+          "tile",
+          entry,
+          60,
+          10,
+          producer
+        )
+      ).toBe(false);
+      expect(
+        await cache.updateProjectedTerrainReadCost("tile", 2, producer)
+      ).toBe(false);
+      expect(await cache.calibrateProjectedTerrainCache(producer)).toBe(false);
+      expect(mocks.manager).not.toHaveBeenCalled();
+      expect(mocks.strategy).not.toHaveBeenCalled();
+    }
+  );
 
   it("fails closed for an unbundled worker even with a valid main producer", async () => {
-    vi.stubGlobal("location", { href: "https://terrain.test/src/terrain.worker.ts" });
+    vi.stubGlobal("location", {
+      href: "https://terrain.test/src/terrain.worker.ts",
+    });
     const cache = await import("./projected-terrain-cache-record");
-    expect(await cache.readProjectedTerrainCacheRecord("tile", mainUrl())).toBeNull();
-    expect(await cache.writeProjectedTerrainCacheRecord("tile", entry, 60, 10, mainUrl())).toBe(false);
+    expect(
+      await cache.readProjectedTerrainCacheRecord("tile", mainUrl())
+    ).toBeNull();
+    expect(
+      await cache.writeProjectedTerrainCacheRecord(
+        "tile",
+        entry,
+        60,
+        10,
+        mainUrl()
+      )
+    ).toBe(false);
     expect(mocks.manager).not.toHaveBeenCalled();
   });
 
   it("fails closed in development and on the main thread", async () => {
     vi.stubEnv("PROD", false);
     let cache = await import("./projected-terrain-cache-record");
-    expect(await cache.readProjectedTerrainCacheRecord("tile", mainUrl())).toBeNull();
+    expect(
+      await cache.readProjectedTerrainCacheRecord("tile", mainUrl())
+    ).toBeNull();
     vi.stubEnv("PROD", true);
     vi.stubGlobal("document", {});
     vi.resetModules();
     cache = await import("./projected-terrain-cache-record");
-    expect(await cache.readProjectedTerrainCacheRecord("tile", mainUrl())).toBeNull();
+    expect(
+      await cache.readProjectedTerrainCacheRecord("tile", mainUrl())
+    ).toBeNull();
     expect(mocks.manager).not.toHaveBeenCalled();
   });
 
   it("uses the combined epoch for records, strategy profiles and cleanup", async () => {
     const cache = await import("./projected-terrain-cache-record");
     expect(mocks.manager).not.toHaveBeenCalled();
-    expect(await cache.writeProjectedTerrainCacheRecord("tile", entry, 60, 10, mainUrl())).toBe(true);
-    expect(await cache.readProjectedTerrainCacheRecord("tile", mainUrl())).toBe(entry);
-    expect(await cache.updateProjectedTerrainReadCost("tile", 2, mainUrl())).toBe(true);
+    expect(
+      await cache.writeProjectedTerrainCacheRecord(
+        "tile",
+        entry,
+        60,
+        10,
+        mainUrl()
+      )
+    ).toBe(true);
+    expect(await cache.readProjectedTerrainCacheRecord("tile", mainUrl())).toBe(
+      entry
+    );
+    expect(
+      await cache.updateProjectedTerrainReadCost("tile", 2, mainUrl())
+    ).toBe(true);
     expect(await cache.calibrateProjectedTerrainCache(mainUrl())).toBe(true);
     expect(mocks.manager).toHaveBeenCalledTimes(1);
     expect(mocks.manager).toHaveBeenCalledWith({
@@ -127,10 +174,20 @@ describe("projected terrain combined producer epoch", () => {
       producerEpoch: JSON.stringify([mainUrl(), WORKER_URL]),
     });
     const manager = mocks.manager.mock.results[0].value;
-    expect(manager.register).toHaveBeenCalledWith("terrain-projected", cache.PROJECTED_TERRAIN_GEOMETRY_CACHE_REVISION);
-    expect(mocks.strategy).toHaveBeenCalledWith(manager, "terrain-projected", cache.PROJECTED_TERRAIN_GEOMETRY_CACHE_REVISION, cache.isCachedProjectedTerrainTile);
+    expect(manager.register).toHaveBeenCalledWith(
+      "terrain-projected",
+      cache.PROJECTED_TERRAIN_GEOMETRY_CACHE_REVISION
+    );
+    expect(mocks.strategy).toHaveBeenCalledWith(
+      manager,
+      "terrain-projected",
+      cache.PROJECTED_TERRAIN_GEOMETRY_CACHE_REVISION,
+      cache.isCachedProjectedTerrainTile
+    );
     expect(manager.cleanupObsoleteEpochs).toHaveBeenCalledTimes(1);
-    expect(await cache.readProjectedTerrainCacheRecord("tile", mainUrl("b"))).toBeNull();
+    expect(
+      await cache.readProjectedTerrainCacheRecord("tile", mainUrl("b"))
+    ).toBeNull();
     expect(mocks.manager).toHaveBeenCalledTimes(2);
   });
 
@@ -144,36 +201,73 @@ describe("projected terrain combined producer epoch", () => {
   });
 
   it("merges native height observations under a source lock and isolates sources and producers", async () => {
-    const request = vi.fn(async (_name: string, callback: () => Promise<unknown>) => callback());
+    const request = vi.fn(
+      async (_name: string, callback: () => Promise<unknown>) => callback()
+    );
     vi.stubGlobal("navigator", { locks: { request } });
     const cache = await import("./projected-terrain-cache-record");
     const source = "dem-terrarium/revision-1";
-    expect(await cache.writeTerrainHeightMetadata(source, new Float64Array([10, 532, 218, 100, 120]), mainUrl())).toBe(true);
-    expect(await cache.writeTerrainHeightMetadata(source, new Float64Array([10, 532, 218, 90, 115]), mainUrl())).toBe(true);
-    expect(decodeTerrainHeightMetadata(await cache.readTerrainHeightMetadata(source, mainUrl())).get("10/532/218")).toEqual([90, 120]);
+    expect(
+      await cache.writeTerrainHeightMetadata(
+        source,
+        new Float64Array([10, 532, 218, 100, 120]),
+        mainUrl()
+      )
+    ).toBe(true);
+    expect(
+      await cache.writeTerrainHeightMetadata(
+        source,
+        new Float64Array([10, 532, 218, 90, 115]),
+        mainUrl()
+      )
+    ).toBe(true);
+    expect(
+      decodeTerrainHeightMetadata(
+        await cache.readTerrainHeightMetadata(source, mainUrl())
+      ).get("10/532/218")
+    ).toEqual([90, 120]);
     expect(request).toHaveBeenCalledTimes(2);
     expect(request.mock.calls[0][0]).toContain(source);
-    expect(await cache.readTerrainHeightMetadata("dem-terrarium/revision-2", mainUrl())).toBeNull();
-    expect(await cache.readTerrainHeightMetadata(source, mainUrl("b"))).toBeNull();
-    expect(mocks.strategy.mock.results.every(({ value }) => value.encode.mock.calls.length === 0)).toBe(true);
+    expect(
+      await cache.readTerrainHeightMetadata(
+        "dem-terrarium/revision-2",
+        mainUrl()
+      )
+    ).toBeNull();
+    expect(
+      await cache.readTerrainHeightMetadata(source, mainUrl("b"))
+    ).toBeNull();
+    expect(
+      mocks.strategy.mock.results.every(
+        ({ value }) => value.encode.mock.calls.length === 0
+      )
+    ).toBe(true);
   });
 
   it("does not write height metadata without cross-worker locking or a valid producer", async () => {
     vi.stubGlobal("navigator", {});
     const cache = await import("./projected-terrain-cache-record");
     const ranges = new Float64Array([10, 532, 218, 100, 120]);
-    expect(await cache.writeTerrainHeightMetadata("source", ranges, mainUrl())).toBe(false);
-    expect(await cache.readTerrainHeightMetadata("source", mainUrl())).toBeNull();
-    expect(await cache.writeTerrainHeightMetadata("source", ranges)).toBe(false);
+    expect(
+      await cache.writeTerrainHeightMetadata("source", ranges, mainUrl())
+    ).toBe(false);
+    expect(
+      await cache.readTerrainHeightMetadata("source", mainUrl())
+    ).toBeNull();
+    expect(await cache.writeTerrainHeightMetadata("source", ranges)).toBe(
+      false
+    );
     expect(await cache.readTerrainHeightMetadata("source")).toBeNull();
   });
 
   it("does not evict an in-flight pipeline to admit a fifth concurrent identity", async () => {
     const cache = await import("./projected-terrain-cache-record");
-    const active = ["a", "b", "c", "d"].map(name =>
+    const active = ["a", "b", "c", "d"].map((name) =>
       cache.readProjectedTerrainCacheRecord("tile", mainUrl(name))
     );
-    expect(await cache.readProjectedTerrainCacheRecord("tile", mainUrl("e"))).toBeNull();
+    expect(
+      await cache.readProjectedTerrainCacheRecord("tile", mainUrl("e"))
+    ).toBeNull();
     expect(mocks.manager).toHaveBeenCalledTimes(4);
     for (const result of mocks.manager.mock.results)
       expect(result.value.close).not.toHaveBeenCalled();

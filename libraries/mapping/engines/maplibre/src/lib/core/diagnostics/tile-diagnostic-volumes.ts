@@ -99,6 +99,12 @@ export type VolumeOverlayModelInput = {
   width: number;
   height: number;
   target?: number;
+  /**
+   * `plan` looks straight down on the scene, padded to the tiles in view.
+   * `camera` puts every box where the camera itself draws it, so the overview
+   * lies over the map one to one.
+   */
+  projection?: "plan" | "camera";
 };
 
 /**
@@ -113,6 +119,7 @@ export const buildVolumeOverlayModel = ({
   width,
   height,
   target = 1,
+  projection = "plan",
 }: VolumeOverlayModelInput): OverlayModel | null => {
   if (width <= 48 || height <= 48) return null;
   const mainFrustum = frustumFromSnapshot(camera);
@@ -140,26 +147,58 @@ export const buildVolumeOverlayModel = ({
   const margin = 24;
   const spanX = Math.max(extent.max.x - extent.min.x, 1e-6);
   const spanZ = Math.max(extent.max.z - extent.min.z, 1e-6);
-  const scale = Math.min(
+  const planScale = Math.min(
     (width - 2 * margin) / spanX,
     (height - 2 * margin) / spanZ
   );
-  const offsetX = (width - spanX * scale) / 2;
-  const offsetY = (height - spanZ * scale) / 2;
+  const cameraProjection = projection === "camera" && camera !== null;
+  // The camera path reads normalised device coordinates: the projection matrix
+  // divides by w in applyMatrix4, the row swap puts the vertical axis where the
+  // overview reads its second coordinate, and the screen scales flip it.
+  const worldToOverview = cameraProjection
+    ? new THREE.Matrix4()
+        .set(1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1)
+        .multiply(
+          new THREE.Matrix4()
+            .fromArray(camera.projectionMatrix)
+            .multiply(
+              new THREE.Matrix4().fromArray(camera.matrixWorld).invert()
+            )
+        )
+    : new THREE.Matrix4();
+  const scale = cameraProjection ? width / 2 : planScale;
+  const scaleY = cameraProjection ? -height / 2 : planScale;
+  const offsetX = cameraProjection
+    ? width / 2
+    : (width - spanX * planScale) / 2 - extent.min.x * planScale;
+  const offsetY = cameraProjection
+    ? height / 2
+    : (height - spanZ * planScale) / 2 - extent.min.z * planScale;
   const toScreen = (x: number, z: number): [number, number] => [
-    offsetX + (x - extent.min.x) * scale,
-    offsetY + (z - extent.min.z) * scale,
+    offsetX + x * scale,
+    offsetY + z * scaleY,
   ];
-  const worldToOverview = new THREE.Matrix4();
   const projected = projectDiagnosticVolumes(
-    volumes,
+    // A box behind the eye projects through the divide onto nonsense, so the
+    // one to one overview draws what the camera can see.
+    cameraProjection
+      ? volumes.filter((volume) => {
+          box.min.fromArray(volume.minimum);
+          box.max.fromArray(volume.maximum);
+          return !mainFrustum || mainFrustum.intersectsBox(box);
+        })
+      : volumes,
     worldToOverview,
     toScreen,
     mainFrustum,
     shadowFrustum
   );
-  const [ex0, ey0] = toScreen(extent.min.x, extent.min.z);
-  const [ex1, ey1] = toScreen(extent.max.x, extent.max.z);
+  const [ex0, ey0] = cameraProjection
+    ? [0, 0]
+    : toScreen(extent.min.x, extent.min.z);
+  const [ex1, ey1] = cameraProjection
+    ? [width, height]
+    : toScreen(extent.max.x, extent.max.z);
   return {
     width,
     height,
@@ -172,11 +211,7 @@ export const buildVolumeOverlayModel = ({
     viewportBasis: {
       bounds: [...extent.min.toArray(), ...extent.max.toArray()],
       worldToOverview: worldToOverview.toArray(),
-      screen: [
-        scale,
-        offsetX - extent.min.x * scale,
-        offsetY - extent.min.z * scale,
-      ],
+      screen: [scale, offsetX, offsetY, scaleY],
       width,
       height,
     },
