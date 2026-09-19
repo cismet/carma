@@ -8,12 +8,16 @@ import type { TileCameraSnapshot } from "../tile-camera-demand";
 import type { DiagnosticViewportBasis } from "./tile-diagnostic-model";
 
 export type DiagnosticView = { x: number; y: number; w: number; h: number };
-/** x, y, w, h, kind, flags, qMin, qMax, phase, error, bytes, then 4 step ms. */
-export const TILE_RECORD_FLOATS = 15;
+/** x, y, w, h, kind, flags, qMin, qMax, phase, error, bytes, 4 step ms, level. */
+export const TILE_RECORD_FLOATS = 16;
 /** Processing steps a tile record can carry; further ones fold into the last. */
 export const TILE_STEP_SLOTS = 4;
 /** Payload size reads as filled cells of a square grid, one unit per cell. */
 export const SIZE_GRID = 10;
+/** Each generation above the published cut keeps a third less opacity. */
+export const ANCESTOR_OPACITY_STEP = 2 / 3;
+/** The size grid is a background mark, not a reading of its own. */
+export const SIZE_GRID_OPACITY = 0.2;
 export const PRIMITIVE_FLOATS = 16;
 export const TILE_KINDS = Object.keys(FILL) as Kind[];
 export const TILE_PHASES = ["", "○", "◐", "●", "×", "Ⅱ"] as const;
@@ -143,6 +147,12 @@ export const buildDiagnosticPrimitives = (
   snapshot: DiagnosticSnapshot
 ): Float32Array => {
   const values: number[] = [];
+  const faded = (color: readonly number[], alpha: number) => [
+    color[0],
+    color[1],
+    color[2],
+    color[3] * alpha,
+  ];
   const add = (
     position: readonly number[],
     kind: number,
@@ -150,7 +160,8 @@ export const buildDiagnosticPrimitives = (
     count: number,
     progress: number,
     color: string,
-    fill = "rgba(0,0,0,0)"
+    fill = "rgba(0,0,0,0)",
+    alpha = 1
   ) => {
     if (!position.every(Number.isFinite)) return;
     values.push(
@@ -159,8 +170,8 @@ export const buildDiagnosticPrimitives = (
       stroke,
       count,
       progress,
-      ...rgba(color),
-      ...rgba(fill)
+      ...faded(rgba(color), alpha),
+      ...faded(rgba(fill), alpha)
     );
   };
   const rect = (
@@ -170,35 +181,24 @@ export const buildDiagnosticPrimitives = (
     h: number,
     stroke: number,
     color: string,
-    fill?: string
-  ) => add([x + w / 2, y + h / 2, w / 2, h / 2], 0, stroke, 0, 0, color, fill);
+    fill?: string,
+    alpha = 1
+  ) =>
+    add(
+      [x + w / 2, y + h / 2, w / 2, h / 2],
+      0,
+      stroke,
+      0,
+      0,
+      color,
+      fill,
+      alpha
+    );
   if (snapshot.extent) {
     const { x, y, w, h } = snapshot.extent;
     rect(x, y, w, h, 1, OVERVIEW_COLORS.grid);
   }
   const data = snapshot.tiles;
-  for (let i = 0; i < data.length; i += TILE_RECORD_FLOATS) {
-    const [x, y, w, h, kind, flags] = data.subarray(i, i + 6);
-    const color =
-      flags & 4
-        ? OVERVIEW_COLORS.baseline
-        : flags & 1
-        ? OVERVIEW_COLORS.reserve
-        : flags & 2
-        ? OVERVIEW_COLORS.ring
-        : kind < 0
-        ? OVERVIEW_COLORS.parent
-        : OVERVIEW_COLORS.grid;
-    rect(
-      x,
-      y,
-      w,
-      h,
-      flags & 3 ? 1 : kind < 0 ? 0.5 : 0.6,
-      color,
-      kind < 0 ? undefined : FILL[TILE_KINDS[kind]]
-    );
-  }
   // Optimistic progress needs a yardstick: the median cost of the tiles that
   // finished, so a tile still loading can show how far along it probably is.
   const totals: number[] = [];
@@ -213,11 +213,61 @@ export const buildDiagnosticPrimitives = (
   }
   totals.sort((a, b) => a - b);
   const medianTotal = totals.length ? totals[totals.length >> 1] : 0;
+  // The finest generation carries full opacity; every one above it a third
+  // less, so a retained parent stays readable without competing with its
+  // children.
+  let finestLevel = 0;
+  for (let i = 0; i < data.length; i += TILE_RECORD_FLOATS)
+    finestLevel = Math.max(finestLevel, data[i + 15]);
+  const opacityOf = (level: number) =>
+    level > 0 && finestLevel > level
+      ? Math.max(0.15, ANCESTOR_OPACITY_STEP ** (finestLevel - level))
+      : 1;
+  // An outlier is a tile whose cost stands out from the cut. The yardstick is
+  // the median and the median absolute deviation rather than mean and sigma:
+  // a handful of very slow tiles would inflate both and hide themselves.
+  const deviations = totals
+    .map((ms) => Math.abs(ms - medianTotal))
+    .sort((a, b) => a - b);
+  const medianDeviation = deviations.length
+    ? deviations[deviations.length >> 1]
+    : 0;
+  const outlierThreshold =
+    totals.length > 2
+      ? Math.max(medianTotal * 3, medianTotal + 3 * 1.4826 * medianDeviation)
+      : Infinity;
+  const isOutlier = (offset: number) =>
+    stepsOf(offset).reduce((sum, ms) => sum + ms, 0) > outlierThreshold;
   // Every tile reads against the same yardstick: one cell of a ten by ten
   // grid is a round number of kilobytes, stepped by ten until the largest
   // tile of the cut fits into the hundred cells.
   let byteUnit = 1024;
   while (maximumBytes / byteUnit > SIZE_GRID * SIZE_GRID) byteUnit *= 10;
+  for (let i = 0; i < data.length; i += TILE_RECORD_FLOATS) {
+    const [x, y, w, h, kind, flags] = data.subarray(i, i + 6);
+    const outlier = isOutlier(i);
+    const color = outlier
+      ? OVERVIEW_COLORS.failed
+      : flags & 4
+      ? OVERVIEW_COLORS.baseline
+      : flags & 1
+      ? OVERVIEW_COLORS.reserve
+      : flags & 2
+      ? OVERVIEW_COLORS.ring
+      : kind < 0
+      ? OVERVIEW_COLORS.parent
+      : OVERVIEW_COLORS.grid;
+    rect(
+      x,
+      y,
+      w,
+      h,
+      outlier ? 1.6 : flags & 3 ? 1 : kind < 0 ? 0.5 : 0.6,
+      color,
+      kind < 0 ? undefined : FILL[TILE_KINDS[kind]],
+      outlier ? 1 : opacityOf(data[i + 15])
+    );
+  }
   for (let i = 0; i < data.length; i += TILE_RECORD_FLOATS) {
     const [x, y, w, h, kind, , , , , , bytes] = data.subarray(
       i,
@@ -232,6 +282,8 @@ export const buildDiagnosticPrimitives = (
     const gap = pitch * 0.12;
     const size = pitch - gap;
     const inset = pitch;
+    const gridAlpha =
+      SIZE_GRID_OPACITY * (isOutlier(i) ? 1 : opacityOf(data[i + 15]));
     for (let cell = 0; cell < cells; cell++)
       rect(
         x + inset + (cell % SIZE_GRID) * pitch,
@@ -240,7 +292,8 @@ export const buildDiagnosticPrimitives = (
         size,
         0.6,
         OVERVIEW_COLORS.baseline,
-        OVERVIEW_COLORS.baseline
+        OVERVIEW_COLORS.baseline,
+        gridAlpha
       );
   }
   // One instance evaluates every concentric contour; no per-step geometry or cap.
@@ -266,6 +319,7 @@ export const buildDiagnosticPrimitives = (
         cumulative += (stepTimes[slot] ?? 0) / stepTotal;
         return Math.min(1, cumulative);
       });
+      const pieAlpha = isOutlier(i) ? 1 : opacityOf(data[i + 15]);
       values.push(
         x + w / 2,
         y + h / 2,
@@ -275,9 +329,18 @@ export const buildDiagnosticPrimitives = (
         1.2,
         sweep,
         0,
-        ...rgba(loaded ? OVERVIEW_COLORS.quality : OVERVIEW_COLORS.processing),
+        ...faded(
+          rgba(
+            isOutlier(i)
+              ? OVERVIEW_COLORS.failed
+              : loaded
+              ? OVERVIEW_COLORS.quality
+              : OVERVIEW_COLORS.processing
+          ),
+          pieAlpha
+        ),
         ...boundaries,
-        1
+        pieAlpha
       );
       continue;
     }
@@ -310,8 +373,8 @@ export const buildDiagnosticPrimitives = (
 
 /** Small dynamic tail; resident tile primitives stay untouched during camera motion. */
 /** Widths of a frustum edge at the eye and at the far end, in CSS pixels. */
-const FRUSTUM_NEAR_WIDTH = 2.8;
-const FRUSTUM_FAR_WIDTH = 0.7;
+const FRUSTUM_NEAR_WIDTH = 2.6;
+const FRUSTUM_FAR_WIDTH = 1.4;
 
 export const buildDiagnosticViewport = (
   snapshot: Pick<DiagnosticSnapshot, "edges" | "center"> & {

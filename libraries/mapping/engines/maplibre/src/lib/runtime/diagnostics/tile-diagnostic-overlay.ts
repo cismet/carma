@@ -119,6 +119,7 @@ export const createTileDiagnosticOverlay = (
               0,
               0,
               0,
+              0,
             ],
             i * TILE_RECORD_FLOATS
           );
@@ -164,6 +165,7 @@ export const createTileDiagnosticOverlay = (
                   )
                   .reduce((total, step) => total + step.ms, 0)
               ),
+              volume.level ?? 0,
             ],
             (model.rects.length + i) * TILE_RECORD_FLOATS
           );

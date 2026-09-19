@@ -212,6 +212,7 @@ describe("instanced tile diagnostics", () => {
       20,
       0,
       ...steps,
+      12,
     ];
     const state = snapshot();
     state.tiles = new Float32Array([
@@ -242,5 +243,43 @@ describe("instanced tile diagnostics", () => {
     // Near end wide, far end narrow, and both ends drawn.
     expect(tapered[6]).toBeGreaterThan(tapered[7]);
     expect(tapered[7]).toBeGreaterThan(0);
+  });
+
+  it("fades the generations above the cut and marks the outliers", () => {
+    const tile = (level: number, steps: number[], x = 10) => [
+      x,
+      20,
+      100,
+      80,
+      TILE_KINDS.indexOf("displayed"),
+      0,
+      5,
+      5,
+      3,
+      20,
+      0,
+      ...steps,
+      level,
+    ];
+    const state = snapshot();
+    state.tiles = new Float32Array([
+      ...tile(12, [10, 0, 0, 0], 10),
+      ...tile(12, [10, 0, 0, 0], 120),
+      ...tile(11, [10, 0, 0, 0], 230),
+      ...tile(12, [400, 0, 0, 0], 340),
+    ]);
+    state.ids = ["a", "b", "parent", "slow"];
+    const data = buildDiagnosticPrimitives(state);
+    const rects = Array.from(
+      { length: data.length / PRIMITIVE_FLOATS },
+      (_, i) =>
+        Array.from(data.slice(i * PRIMITIVE_FLOATS, (i + 1) * PRIMITIVE_FLOATS))
+    ).filter((primitive) => primitive[4] === 0 && primitive[2] === 50);
+    expect(rects).toHaveLength(4);
+    // One generation above the finest level keeps two thirds of the opacity.
+    expect(rects[2][11]).toBeCloseTo(rects[0][11] * (2 / 3), 5);
+    // The expensive tile is drawn in the failure colour at full opacity.
+    expect(rects[3][11]).toBe(1);
+    expect(rects[3].slice(8, 11)).not.toEqual(rects[0].slice(8, 11));
   });
 });

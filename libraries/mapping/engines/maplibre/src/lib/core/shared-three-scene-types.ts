@@ -78,9 +78,18 @@ export type SharedThreeSceneTileVolume = Readonly<{
   errorPixels?: number;
   loadReason?: "viewport" | "shadow";
   /** Loading state for diagnostics; omitted means the payload is loaded. */
-  state?: "queued" | "loading" | "parsing" | "failed" | "loaded";
+  state?:
+    | "queued"
+    | "loading"
+    | "parsing"
+    | "failed"
+    | "loaded"
+    /** Loaded and held, but not published: a child waiting for its siblings. */
+    | "resident";
   /** Payload size for diagnostics. */
   bytes?: number;
+  /** Tile level, so the diagnostics can fade the generations above the cut. */
+  level?: number;
   /** What the tile cost, step by step; the last one may still be running. */
   steps?: readonly Readonly<{
     label: string;
