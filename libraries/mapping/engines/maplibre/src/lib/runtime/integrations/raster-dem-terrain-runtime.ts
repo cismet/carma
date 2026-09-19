@@ -722,12 +722,44 @@ export const buildRasterDemTerrainRuntime = (
     return geometry;
   };
 
+  /**
+   * Per-tile load telemetry for the diagnostics overlay: what a tile cost and
+   * where the time went. Bounded, and only kept for tiles the runtime still
+   * holds or is still loading.
+   */
+  type TileLoadStats = {
+    bytes: number;
+    steps: { label: string; ms: number }[];
+    stage: { label: string; startedAt: number } | null;
+  };
+  const tileStats = new Map<string, TileLoadStats>();
+  const TILE_STATS_LIMIT = 1_024;
+  const markTileStage = (key: string, label: string | null) => {
+    const stats = tileStats.get(key) ?? { bytes: 0, steps: [], stage: null };
+    const now = performance.now();
+    if (stats.stage)
+      stats.steps.push({
+        label: stats.stage.label,
+        ms: now - stats.stage.startedAt,
+      });
+    stats.stage = label === null ? null : { label, startedAt: now };
+    tileStats.set(key, stats);
+    if (tileStats.size <= TILE_STATS_LIMIT) return;
+    for (const stale of tileStats.keys()) {
+      if (tileStats.size <= TILE_STATS_LIMIT) break;
+      if (!meshes.has(stale) && !pendingMeshes.has(stale))
+        tileStats.delete(stale);
+    }
+  };
+
   const loadTerrainEntry = async (
     terrainSource: RasterDemTerrainTileSource,
     entry: TerrainSelectionEntry,
     signal = conversionAbort.signal
   ) => {
     signal.throwIfAborted();
+    const statsKey = terrainSelectionKey(entry);
+    markTileStage(statsKey, "Cache");
     const cached = await projectedGeometryCache.get(
       entry.id,
       maximumMeshErrorMeters
@@ -737,6 +769,9 @@ export const buildRasterDemTerrainRuntime = (
       signal.throwIfAborted();
     }
     if (cached) {
+      markTileStage(statsKey, null);
+      const cachedStats = tileStats.get(statsKey);
+      if (cachedStats) cachedStats.bytes = cached.tile.byteLength;
       heightMetadata.record(cached.tile);
       return {
         tile: cached.tile,
@@ -745,6 +780,7 @@ export const buildRasterDemTerrainRuntime = (
       };
     }
     let tile: TerrainTile;
+    markTileStage(statsKey, "Laden");
     try {
       const sourceSignal =
         signal === conversionAbort.signal ? undefined : signal;
@@ -759,6 +795,8 @@ export const buildRasterDemTerrainRuntime = (
               maximumMeshErrorMeters
             );
       payloadAwareConcurrency.observePayload(tile.byteLength);
+      const stats = tileStats.get(statsKey);
+      if (stats) stats.bytes = tile.byteLength;
     } catch (error) {
       // A zoomend/disposal abort is not evidence of saturated download capacity.
       if (!signal.aborted) payloadAwareConcurrency.observeFailure(error);
@@ -769,12 +807,15 @@ export const buildRasterDemTerrainRuntime = (
     // Exclude download and source-cache lookup: persistent derived geometry
     // must compete with the locally available source, not a slow network.
     const computeStart = performance.now();
+    markTileStage(statsKey, "Gitter");
     const projectedGeometry = await createProjectedGeometry(tile, signal);
+    markTileStage(statsKey, "Relief");
     const prepared = await prepareReliefGeometry(
       tile,
       projectedGeometry,
       signal
     );
+    markTileStage(statsKey, null);
     if (signal.aborted) {
       prepared.projectedGeometry?.dispose();
       signal.throwIfAborted();
@@ -1339,6 +1380,23 @@ export const buildRasterDemTerrainRuntime = (
       : null;
   };
 
+  /** Finished steps plus the running one, so a loading tile shows its cost. */
+  const readTileStats = (key: string) => {
+    const stats = tileStats.get(key);
+    if (!stats) return {};
+    const steps = stats.stage
+      ? [
+          ...stats.steps,
+          {
+            label: stats.stage.label,
+            ms: performance.now() - stats.stage.startedAt,
+            pending: true,
+          },
+        ]
+      : stats.steps;
+    return { bytes: stats.bytes || undefined, steps };
+  };
+
   const parseMeshKeyTileId = (key: string): TerrainTileId | null => {
     const [level, x, y] = (key.split(":")[1] ?? "").split("/").map(Number);
     return [level, x, y].every(Number.isInteger) ? { level, x, y } : null;
@@ -1360,6 +1418,7 @@ export const buildRasterDemTerrainRuntime = (
         loadReason: record.reliefMesh?.receiveShadow ? "viewport" : "shadow",
         minimum: [bounds.min.x, bounds.min.y, bounds.min.z],
         maximum: [bounds.max.x, bounds.max.y, bounds.max.z],
+        ...readTileStats(key),
       });
     }
     // A tile still being built has no geometry, but it has the box selection
@@ -1384,6 +1443,7 @@ export const buildRasterDemTerrainRuntime = (
           state: "loading",
           minimum: [box.min.x, box.min.y, box.min.z],
           maximum: [box.max.x, box.max.y, box.max.z],
+          ...readTileStats(key),
         });
       }
     }

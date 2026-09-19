@@ -79,6 +79,14 @@ export type SharedThreeSceneTileVolume = Readonly<{
   loadReason?: "viewport" | "shadow";
   /** Loading state for diagnostics; omitted means the payload is loaded. */
   state?: "queued" | "loading" | "parsing" | "failed" | "loaded";
+  /** Payload size for diagnostics. */
+  bytes?: number;
+  /** What the tile cost, step by step; the last one may still be running. */
+  steps?: readonly Readonly<{
+    label: string;
+    ms: number;
+    pending?: boolean;
+  }>[];
   /** Ephemeral Three payload identity, never part of a persistent cache key. */
   receiverObjectId?: number;
   minimum: readonly [number, number, number];

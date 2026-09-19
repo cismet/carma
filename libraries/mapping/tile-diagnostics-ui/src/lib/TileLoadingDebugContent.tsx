@@ -1644,7 +1644,9 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
             onChange={(
               overlayLabels: TileLoadingDebugOptions["overlayLabels"]
             ) => onOptionsChange({ overlayLabels })}
-            choices={(["none", "id", "id and error"] as const).map((value) => ({
+            choices={(
+              ["none", "id", "id and error", "id and stats"] as const
+            ).map((value) => ({
               value,
               label: value,
             }))}

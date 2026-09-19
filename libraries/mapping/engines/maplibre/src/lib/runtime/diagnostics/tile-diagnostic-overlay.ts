@@ -6,6 +6,7 @@ import {
   TILE_KINDS,
   TILE_PHASES,
   TILE_RECORD_FLOATS,
+  TILE_STEP_SLOTS,
   type DiagnosticFrame,
   type DiagnosticSnapshot,
   type DiagnosticView,
@@ -113,6 +114,11 @@ export const createTileDiagnosticOverlay = (
               rect.quality?.maximum ?? NaN,
               TILE_PHASES.indexOf(rect.phase as (typeof TILE_PHASES)[number]),
               rect.error,
+              0,
+              0,
+              0,
+              0,
+              0,
             ],
             i * TILE_RECORD_FLOATS
           );
@@ -147,6 +153,17 @@ export const createTileDiagnosticOverlay = (
               NaN,
               TILE_PHASES.indexOf(volume.phase as (typeof TILE_PHASES)[number]),
               volume.error,
+              volume.bytes ?? 0,
+              // Steps past the last slot fold into it, so the pie stays whole.
+              ...Array.from({ length: TILE_STEP_SLOTS }, (_, slot) =>
+                (volume.steps ?? [])
+                  .filter((_step, index) =>
+                    slot === TILE_STEP_SLOTS - 1
+                      ? index >= slot
+                      : index === slot
+                  )
+                  .reduce((total, step) => total + step.ms, 0)
+              ),
             ],
             (model.rects.length + i) * TILE_RECORD_FLOATS
           );

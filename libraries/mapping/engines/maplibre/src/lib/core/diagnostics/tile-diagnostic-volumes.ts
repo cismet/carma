@@ -71,6 +71,8 @@ export const projectDiagnosticVolumes = (
       inView,
       inShadow,
       error: volume.errorPixels ?? NaN,
+      bytes: volume.bytes,
+      steps: volume.steps,
     });
   }
   return out;
@@ -111,7 +113,13 @@ export const buildVolumeOverlayModel = ({
   target = 1,
 }: VolumeOverlayModelInput): OverlayModel | null => {
   if (width <= 48 || height <= 48) return null;
+  const mainFrustum = frustumFromSnapshot(camera);
+  const shadowFrustum = frustumFromSnapshot(shadowCamera);
+  // The overview frames the tiles the camera actually sees. Framing the whole
+  // source instead leaves every per-tile mark smaller than a pixel, and
+  // framing the camera footprint alone leaves the tiles far outside it.
   const extent = new THREE.Box3();
+  const everything = new THREE.Box3();
   const box = new THREE.Box3();
   for (const volume of volumes) {
     box.min.fromArray(volume.minimum);
@@ -122,8 +130,10 @@ export const buildVolumeOverlayModel = ({
       box.isEmpty()
     )
       continue;
-    extent.union(box);
+    everything.union(box);
+    if (!mainFrustum || mainFrustum.intersectsBox(box)) extent.union(box);
   }
+  if (extent.isEmpty()) extent.copy(everything);
   if (extent.isEmpty()) return null;
   const margin = 24;
   const spanX = Math.max(extent.max.x - extent.min.x, 1e-6);
@@ -143,8 +153,8 @@ export const buildVolumeOverlayModel = ({
     volumes,
     worldToOverview,
     toScreen,
-    frustumFromSnapshot(camera),
-    frustumFromSnapshot(shadowCamera)
+    mainFrustum,
+    shadowFrustum
   );
   const [ex0, ey0] = toScreen(extent.min.x, extent.min.z);
   const [ex1, ey1] = toScreen(extent.max.x, extent.max.z);

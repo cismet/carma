@@ -8,7 +8,10 @@ import type { TileCameraSnapshot } from "../tile-camera-demand";
 import type { DiagnosticViewportBasis } from "./tile-diagnostic-model";
 
 export type DiagnosticView = { x: number; y: number; w: number; h: number };
-export const TILE_RECORD_FLOATS = 10;
+/** x, y, w, h, kind, flags, qMin, qMax, phase, error, bytes, then 4 step ms. */
+export const TILE_RECORD_FLOATS = 15;
+/** Processing steps a tile record can carry; further ones fold into the last. */
+export const TILE_STEP_SLOTS = 4;
 export const PRIMITIVE_FLOATS = 16;
 export const TILE_KINDS = Object.keys(FILL) as Kind[];
 export const TILE_PHASES = ["", "○", "◐", "●", "×", "Ⅱ"] as const;
@@ -38,7 +41,7 @@ export type DiagnosticFrame = {
   pixelRatio: number;
   opacity: number;
   popout: boolean;
-  labels: "none" | "id" | "id and error";
+  labels: "none" | "id" | "id and error" | "id and stats";
   selection: ReadonlyArray<readonly [number, number]>;
 };
 export type DiagnosticWorkerMessage =
@@ -194,12 +197,89 @@ export const buildDiagnosticPrimitives = (
       kind < 0 ? undefined : FILL[TILE_KINDS[kind]]
     );
   }
+  // Optimistic progress needs a yardstick: the median cost of the tiles that
+  // finished, so a tile still loading can show how far along it probably is.
+  const totals: number[] = [];
+  let maximumBytes = 0;
+  const stepsOf = (offset: number) =>
+    Array.from(data.subarray(offset + 11, offset + 11 + TILE_STEP_SLOTS));
+  const LOADED_PHASE = TILE_PHASES.indexOf("\u25cf");
+  for (let i = 0; i < data.length; i += TILE_RECORD_FLOATS) {
+    const total = stepsOf(i).reduce((sum, ms) => sum + ms, 0);
+    if (total > 0 && data[i + 8] === LOADED_PHASE) totals.push(total);
+    maximumBytes = Math.max(maximumBytes, data[i + 10]);
+  }
+  totals.sort((a, b) => a - b);
+  const medianTotal = totals.length ? totals[totals.length >> 1] : 0;
+  // One box is a round number of kilobytes, chosen so the largest tile in the
+  // cut stays readable as a short diagonal run rather than a filled square.
+  const byteUnit =
+    maximumBytes > 512 * 1024
+      ? 100 * 1024
+      : maximumBytes > 64 * 1024
+      ? 10 * 1024
+      : 1024;
+  for (let i = 0; i < data.length; i += TILE_RECORD_FLOATS) {
+    const [x, y, w, h, kind, , , , , , bytes] = data.subarray(
+      i,
+      i + TILE_RECORD_FLOATS
+    );
+    if (kind < 0 || !(bytes > 0)) continue;
+    const boxes = Math.max(1, Math.min(24, Math.round(bytes / byteUnit)));
+    const size = Math.max(2, Math.min(w, h) / 22);
+    const inset = size;
+    const spanX = Math.max(0, w - 2 * inset - size);
+    const spanY = Math.max(0, h - 2 * inset - size);
+    const steps = Math.max(1, boxes - 1);
+    for (let box = 0; box < boxes; box++)
+      rect(
+        x + inset + (spanX * box) / steps,
+        y + inset + (spanY * box) / steps,
+        size,
+        size,
+        0.8,
+        OVERVIEW_COLORS.baseline,
+        OVERVIEW_COLORS.baseline
+      );
+  }
   // One instance evaluates every concentric contour; no per-step geometry or cap.
   for (let i = 0; i < data.length; i += TILE_RECORD_FLOATS) {
     const [x, y, w, h, kind, flags, minimum, maximum, phase] = data.subarray(
       i,
       i + 9
     );
+    const stepTimes = stepsOf(i);
+    const stepTotal = stepTimes.reduce((sum, ms) => sum + ms, 0);
+    // A tile that reports its processing steps shows them as a pie instead of
+    // the phase fill: one wedge per step, the sweep its progress.
+    if (kind >= 0 && stepTotal > 0) {
+      const loaded = phase === LOADED_PHASE;
+      const sweep = loaded
+        ? 1
+        : medianTotal > 0
+        ? Math.min(0.95, Math.max(0.03, stepTotal / medianTotal))
+        : 0.25;
+      let cumulative = 0;
+      // Exactly three boundaries: a missing step collapses to a full turn.
+      const boundaries = [0, 1, 2].map((slot) => {
+        cumulative += (stepTimes[slot] ?? 0) / stepTotal;
+        return Math.min(1, cumulative);
+      });
+      values.push(
+        x + w / 2,
+        y + h / 2,
+        Math.min(w, h) / 3,
+        Math.min(w, h) / 3,
+        6,
+        1.2,
+        sweep,
+        0,
+        ...rgba(loaded ? OVERVIEW_COLORS.quality : OVERVIEW_COLORS.processing),
+        ...boundaries,
+        1
+      );
+      continue;
+    }
     if (kind < 0 || (flags & 4 && !phase)) continue;
     // A terminal tile cannot refine further: a fixed-size centroid dot replaces
     // hypothetical remaining LOD circles.
@@ -228,8 +308,14 @@ export const buildDiagnosticPrimitives = (
 };
 
 /** Small dynamic tail; resident tile primitives stay untouched during camera motion. */
+/** Widths of a frustum edge at the eye and at the far end, in CSS pixels. */
+const FRUSTUM_NEAR_WIDTH = 2.8;
+const FRUSTUM_FAR_WIDTH = 0.7;
+
 export const buildDiagnosticViewport = (
-  snapshot: Pick<DiagnosticSnapshot, "edges" | "center">,
+  snapshot: Pick<DiagnosticSnapshot, "edges" | "center"> & {
+    origin?: readonly [number, number] | null;
+  },
   color: string = OVERVIEW_COLORS.frustum
 ): Float32Array => {
   const values: number[] = [];
@@ -253,8 +339,45 @@ export const buildDiagnosticViewport = (
       0,
       0
     );
-  for (let i = 0; i < snapshot.edges.length; i += 4)
-    add(Array.from(snapshot.edges.subarray(i, i + 4)), 3, 2, 0, 0, color);
+  const origin = snapshot.origin ?? null;
+  // Distance from the eye taken over every endpoint of this cut, so one edge
+  // cannot set the scale for the rest of the outline.
+  const distanceTo = (x: number, y: number) =>
+    origin ? Math.hypot(x - origin[0], y - origin[1]) : 0;
+  let farthest = 0;
+  if (origin)
+    for (let i = 0; i < snapshot.edges.length; i += 2)
+      farthest = Math.max(
+        farthest,
+        distanceTo(snapshot.edges[i], snapshot.edges[i + 1])
+      );
+  const widthAt = (x: number, y: number) =>
+    farthest > 0
+      ? FRUSTUM_NEAR_WIDTH +
+        (FRUSTUM_FAR_WIDTH - FRUSTUM_NEAR_WIDTH) *
+          Math.min(1, distanceTo(x, y) / farthest)
+      : FRUSTUM_NEAR_WIDTH;
+  for (let i = 0; i < snapshot.edges.length; i += 4) {
+    const segment = Array.from(snapshot.edges.subarray(i, i + 4));
+    if (!origin) {
+      add(segment, 3, 2, 0, 0, color);
+      continue;
+    }
+    // A tapered quad: the renderer interpolates the width along the segment,
+    // which a constant-width line primitive cannot express.
+    values.push(
+      ...segment,
+      5,
+      2,
+      widthAt(segment[0], segment[1]),
+      widthAt(segment[2], segment[3]),
+      ...rgba(color),
+      0,
+      0,
+      0,
+      0
+    );
+  }
   if (snapshot.center) {
     const [x, y] = snapshot.center;
     add([x - 6, y, x + 6, y], 3, 1, 0, 0, color);
@@ -322,9 +445,28 @@ export const drawDiagnosticText = (
     context.fillText(value, x, y);
   };
   const data = snapshot.tiles;
+  const totalOf = (offset: number) =>
+    Array.from(
+      data.subarray(offset + 11, offset + 11 + TILE_STEP_SLOTS)
+    ).reduce((sum, ms) => sum + ms, 0);
+  // The percentile is the tile's rank among the costs in this cut, so "p90"
+  // means only a tenth of the drawn tiles were more expensive.
+  const ranked =
+    frame.labels === "id and stats"
+      ? Array.from(
+          { length: Math.floor(data.length / TILE_RECORD_FLOATS) },
+          (_, index) => totalOf(index * TILE_RECORD_FLOATS)
+        )
+          .filter((total) => total > 0)
+          .sort((a, b) => a - b)
+      : [];
+  const compactBytes = (bytes: number) =>
+    bytes >= 1024 * 1024
+      ? `${(bytes / (1024 * 1024)).toFixed(1)}M`
+      : `${Math.round(bytes / 1024)}k`;
   for (let i = 0; i < data.length; i += TILE_RECORD_FLOATS) {
-    const [x, y, w, h, kind, flags, minimum, maximum, phase, error] =
-      data.subarray(i, i + 10);
+    const [x, y, w, h, kind, flags, minimum, maximum, phase, error, bytes] =
+      data.subarray(i, i + 11);
     if (kind < 0) continue;
     const cx = (x + w / 2) * scale + offsetX,
       cy = (y + h / 2) * scale + offsetY;
@@ -354,6 +496,20 @@ export const drawDiagnosticText = (
     const label =
       flags & 4
         ? `${id} · outside views`
+        : frame.labels === "id and stats"
+        ? [
+            id,
+            bytes > 0 ? compactBytes(bytes) : null,
+            totalOf(i) > 0 ? `${Math.round(totalOf(i))}ms` : null,
+            ranked.length > 1 && totalOf(i) > 0
+              ? `p${Math.round(
+                  (100 * ranked.filter((total) => total <= totalOf(i)).length) /
+                    ranked.length
+                )}`
+              : null,
+          ]
+            .filter(Boolean)
+            .join(" · ")
         : frame.labels === "id and error"
         ? `${id} ${Number.isFinite(error) ? error.toFixed(1) : "–"}px ${
             Number.isFinite(minimum)

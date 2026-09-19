@@ -38,12 +38,14 @@ struct Vertex {
   let item = instances[instance];
   let kind = item.parameters.x;
   let scale = max(u.display.x, .000001);
-  let padding = 3.0 / scale;
+  var padding = 3.0 / scale;
+  // A tapered line is as wide as its widest end, so its quad has to hold it.
+  if (kind == 5.0) { padding = (3.0 + max(item.parameters.z, item.parameters.w)) / scale; }
   var center = item.position.xy;
   var halfSize = item.position.zw;
   var axis = vec2f(1,0);
   if (kind == 4.0) { halfSize = halfSize / scale; }
-  if (kind == 3.0) {
+  if (kind == 3.0 || kind == 5.0) {
     let delta = item.position.zw - item.position.xy;
     let length = length(delta);
     axis = delta / max(length, .000001);
@@ -82,7 +84,7 @@ struct Vertex {
     let nearest = clamp(round(radial / step),1.0,count) * step;
     distance = abs(radial - nearest);
   }
-  if (kind == 3.0) {
+  if (kind == 3.0 || kind == 5.0) {
     distance = length(vec2f(max(abs(p.x) - input.halfSize.x,0.0),p.y));
   }
   if (kind == 4.0) {
@@ -92,7 +94,13 @@ struct Vertex {
   let worldPixel = max(length(vec2f(dpdx(p.x),dpdy(p.y))), .000001) / 1.41421356237;
   let cssPixel = worldPixel * u.display.y;
   let contrast = u.display.z > .5;
-  let width = select(input.parameters.y, 2.5, contrast);
+  var width = select(input.parameters.y, 2.5, contrast);
+  // Perspective cue: the near end of a frustum edge is drawn wider than the
+  // far one, interpolated along the segment instead of per sub-segment.
+  if (kind == 5.0 && !contrast) {
+    let along = clamp(p.x / max(input.halfSize.x, .000001) * .5 + .5, 0.0, 1.0);
+    width = mix(input.parameters.z, input.parameters.w, along);
+  }
   let strokeCoverage = clamp((width * cssPixel * .5 - distance) / worldPixel + .5,0.0,1.0);
   var stroke = input.stroke;
   var fillAlpha = 0.0;
@@ -102,6 +110,30 @@ struct Vertex {
     let edge = (input.parameters.w * 2.0 - 1.0) * input.halfSize.x;
     fillAlpha = inside * clamp(.5 + (edge - p.x) / worldPixel,0.0,1.0) * .3;
     if (input.stroke.a == 0.0) { fillAlpha = 0.0; }
+  }
+  // A tile's processing steps as a pie: one wedge per step, swept clockwise
+  // from twelve o'clock, the remainder left open while the tile still loads.
+  if (kind == 6.0) {
+    let radius = max(input.halfSize.x, .000001);
+    let radial = length(p);
+    let coverage = clamp((radius - radial) / worldPixel, 0.0, 1.0);
+    let angle = fract(atan2(p.x, -p.y) / 6.28318530718 + 1.0);
+    let sweep = clamp(input.parameters.z, 0.0, 1.0);
+    var index = 0;
+    if (angle > input.fill.x) { index = 1; }
+    if (angle > input.fill.y) { index = 2; }
+    if (angle > input.fill.z) { index = 3; }
+    var palette = array<vec3f,4>(
+      vec3f(0.48,0.80,1.00),
+      vec3f(0.55,0.95,0.72),
+      vec3f(0.82,0.69,1.00),
+      vec3f(1.00,0.75,0.44)
+    );
+    let ring = clamp((width * cssPixel * .5 - abs(radial - radius)) / worldPixel + .5, 0.0, 1.0);
+    let wedge = select(0.0, coverage, angle <= sweep) * .75;
+    let alphaPie = max(wedge, ring * input.stroke.a);
+    let rgbPie = mix(input.stroke.rgb, palette[index], wedge / max(alphaPie, .000001));
+    return vec4f(rgbPie * alphaPie, alphaPie) * u.display.w;
   }
   if (contrast) { stroke = vec4f(vec3f(64.0 / 255.0),input.stroke.a); fillAlpha = 0.0; }
   let strokeAlpha = strokeCoverage * stroke.a;
