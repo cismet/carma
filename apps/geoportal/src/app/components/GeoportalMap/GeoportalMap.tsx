@@ -779,7 +779,6 @@ const LeafletGeoportalMap = ({ height, width, allow3d }: MapProps) => {
           <Measurements snappingLayers={maplibreMaps} />
         </TopicMapComponent>
         <AdhocSelectionSync maplibreMapsRef={maplibreMapsRef} />
-        <TileLoadingDebugHost map={maplibreMaps[0] ?? null} />
       </div>
       <GeoportalCesiumHost
         allow3d={allow3d}
@@ -1002,6 +1001,7 @@ const LibreGeoportalMap = ({ allow3d }: MapProps) => {
             />
           ))}
         {!isCesium && <LibrePrintPreview />}
+        <TileLoadingDebugHost map={libreMap} />
       </div>
       <GeoportalCesiumHost
         allow3d={allow3d}
