@@ -404,8 +404,8 @@ export const buildDiagnosticViewport = (
     forward?: readonly [number, number] | null;
   },
   color: string = OVERVIEW_COLORS.frustum,
-  /** A light: its cut carries an arrow along the direction it casts. */
-  light = false
+  /** A light: an arrow through the middle of the view along its direction. */
+  light: false | { x: number; y: number } = false
 ): Float32Array => {
   const values: number[] = [];
   const add = (
@@ -472,39 +472,15 @@ export const buildDiagnosticViewport = (
     add([x - 6, y, x + 6, y], 3, 1, 0, 0, color);
     add([x, y - 6, x, y + 6], 3, 1, 0, 0, color);
   }
-  // Where the light leaves its buffer, pointing the way the shadows fall: the
-  // middle of the edge furthest along its own direction, not furthest from it,
-  // so the arrow sits on the buffer and turns with the sun.
+  // Where the shadows fall, read in the middle of what is drawn: an edge of a
+  // buffer can sit outside the crop, the middle of the view never does.
   const forward = snapshot.forward ?? null;
-  if (light && forward && snapshot.edges.length >= 4) {
-    const middles: Array<[number, number]> = [];
-    for (let i = 0; i < snapshot.edges.length; i += 4)
-      middles.push([
-        (snapshot.edges[i] + snapshot.edges[i + 2]) / 2,
-        (snapshot.edges[i + 1] + snapshot.edges[i + 3]) / 2,
-      ]);
-    const centre = middles.reduce(
-      (sum, [x, y]) => [
-        sum[0] + x / middles.length,
-        sum[1] + y / middles.length,
-      ],
-      [0, 0]
-    );
-    let anchor = middles[0];
-    let reach = Infinity;
-    let span = 0;
-    for (const middle of middles) {
-      const along =
-        (middle[0] - centre[0]) * forward[0] +
-        (middle[1] - centre[1]) * forward[1];
-      span = Math.max(span, Math.abs(along));
-      if (along < reach) {
-        reach = along;
-        anchor = middle;
-      }
-    }
-    // Half the way from that edge towards the middle of the buffer.
-    const length = Math.max(10, Math.min(60, span * 0.5));
+  if (light && forward) {
+    const length = 46;
+    const anchor: [number, number] = [
+      light.x - (forward[0] * length) / 2,
+      light.y - (forward[1] * length) / 2,
+    ];
     const tip: [number, number] = [
       anchor[0] + forward[0] * length,
       anchor[1] + forward[1] * length,
@@ -516,8 +492,8 @@ export const buildDiagnosticViewport = (
       add(
         [
           ...tip,
-          tip[0] + (forward[0] * cos - forward[1] * sin) * length * 0.45,
-          tip[1] + (forward[0] * sin + forward[1] * cos) * length * 0.45,
+          tip[0] + (forward[0] * cos - forward[1] * sin) * length * 0.32,
+          tip[1] + (forward[0] * sin + forward[1] * cos) * length * 0.32,
         ],
         3,
         2.4,
@@ -636,7 +612,9 @@ export const drawDiagnosticText = (
         text("≈", cx, cy + radius * 0.78, radius * 0.22);
     }
     if (frame.labels === "none" || w * scale < 26 || h * scale < 12) continue;
-    const id = snapshot.ids[i / TILE_RECORD_FLOATS];
+    // Only the tile key, z/x/y: the runtime and source prefix says nothing the
+    // overview does not show already, and it never fits inside a tile.
+    const id = (snapshot.ids[i / TILE_RECORD_FLOATS] ?? "").split(":").pop();
     const label =
       flags & 4
         ? `${id} · outside views`
@@ -661,6 +639,13 @@ export const drawDiagnosticText = (
               : ""
           }`
         : id;
-    text(label, cx, cy, 10 * scale);
+    // Screen pixels, fitted to the tile as it is drawn: scaling the font with
+    // the crop turned a tight view into overlapping giants.
+    text(
+      label,
+      cx,
+      cy,
+      Math.max(6, Math.min(13, (w * scale) / Math.max(4, label.length * 0.62)))
+    );
   }
 };

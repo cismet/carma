@@ -200,6 +200,9 @@ export const createVolumeTileDiagnostics = (diagnostics: TileDiagnostics) => {
         // and the overview draws the light where it actually is.
         setLiveShadowView(view) {
           corridor = snapshotShadowCorridorCameras(view);
+          // The cut of every tile changes with the light, so rebuild the model
+          // too rather than only redrawing the corridor's own outline.
+          rebuiltAt = 0;
           schedule();
         },
         dispose() {

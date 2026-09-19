@@ -106,8 +106,12 @@ const draw = async () => {
             buildDiagnosticViewport(
               view,
               colors[i % colors.length],
-              // The main camera receives; a light only contributes geometry.
-              (i === 0 ? camera : cameras[i - 1])?.role === "geometry"
+              // The main camera receives; a light only contributes geometry,
+              // and its arrow is read in the middle of the drawn view.
+              (i === 0 ? camera : cameras[i - 1])?.role === "geometry" && {
+                x: frame.view.x + frame.view.w / 2,
+                y: frame.view.y + frame.view.h / 2,
+              }
             )
           )
         : [buildDiagnosticViewport(snapshot)];
