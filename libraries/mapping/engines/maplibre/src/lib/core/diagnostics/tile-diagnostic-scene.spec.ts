@@ -169,14 +169,33 @@ describe("instanced tile diagnostics", () => {
     expect(pie[12]).toBeCloseTo(0.5, 5);
     expect(pie[13]).toBeCloseTo(0.75, 5);
     expect(pie[14]).toBeCloseTo(1, 5);
-    // One box per kilobyte while the largest tile in the cut is small.
-    const boxes = primitives.filter(
+    // One cell per kilobyte while the largest tile in the cut is small, laid
+    // out in reading order across a ten by ten grid.
+    const cells = primitives.filter(
       (primitive) => primitive[4] === 0 && primitive[2] < 10
     );
-    expect(boxes).toHaveLength(20);
-    // The boxes run from the top left corner towards the bottom right one.
-    expect(boxes[0][0]).toBeLessThan(boxes[boxes.length - 1][0]);
-    expect(boxes[0][1]).toBeLessThan(boxes[boxes.length - 1][1]);
+    expect(cells).toHaveLength(20);
+    expect(new Set(cells.map((cell) => cell[0].toFixed(4))).size).toBe(10);
+    expect(new Set(cells.map((cell) => cell[1].toFixed(4))).size).toBe(2);
+    // The eleventh cell starts the second row under the first one.
+    expect(cells[10][0]).toBeCloseTo(cells[0][0], 5);
+    expect(cells[10][1]).toBeGreaterThan(cells[0][1]);
+    // Hairline gaps: cells do not touch.
+    const pitch = cells[1][0] - cells[0][0];
+    expect(cells[0][2] * 2).toBeLessThan(pitch);
+    expect(cells[0][2] * 2).toBeGreaterThan(pitch * 0.8);
+  });
+
+  it("steps the size unit by ten until the largest tile fits the grid", () => {
+    // Two megabytes needs a hundred kilobyte cell to stay inside a hundred.
+    const state = snapshot([, , , , , , , , 3, , 2 * 1024 * 1024, 10, 0, 0, 0]);
+    const data = buildDiagnosticPrimitives(state);
+    const cells = Array.from(
+      { length: data.length / PRIMITIVE_FLOATS },
+      (_, i) =>
+        Array.from(data.slice(i * PRIMITIVE_FLOATS, (i + 1) * PRIMITIVE_FLOATS))
+    ).filter((primitive) => primitive[4] === 0 && primitive[2] < 10);
+    expect(cells).toHaveLength(21);
   });
 
   it("sweeps a loading tile against the median of the finished ones", () => {
