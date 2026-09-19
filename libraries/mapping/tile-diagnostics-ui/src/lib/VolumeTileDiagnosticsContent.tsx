@@ -69,6 +69,9 @@ export const createVolumeTileDiagnostics = (diagnostics: TileDiagnostics) => {
     const [tileCount, setTileCount] = useState<number | null>(null);
     /** What each camera asks for: tiles cut by the view and by the corridor. */
     /** What the pies and the size grid stand for, read off the drawn cut. */
+    const [draws, setDraws] = useState({ size: true, stats: true });
+    const drawsRef = useRef(draws);
+    drawsRef.current = draws;
     const [legendAt, setLegendAt] = useState({ left: 6, top: 6 });
     const legendDrag = useRef<{
       x: number;
@@ -102,6 +105,8 @@ export const createVolumeTileDiagnostics = (diagnostics: TileDiagnostics) => {
       "camera"
     );
     const hostRef = useRef<HTMLDivElement | null>(null);
+    /** Set by the scene effect: forces the next model rebuild immediately. */
+    const rebuildRef = useRef<(() => void) | null>(null);
     const size = useRef({ width: WIDTH, height: HEIGHT });
     const projectionRef = useRef<"camera" | "plan">("camera");
     projectionRef.current = mode === "map" ? mapProjection : "plan";
@@ -163,6 +168,8 @@ export const createVolumeTileDiagnostics = (diagnostics: TileDiagnostics) => {
         setTileCount(volumes.length);
         const model = diagnostics.buildVolumeOverlayModel({
           projection: projectionRef.current,
+          showSize: drawsRef.current.size,
+          showStats: drawsRef.current.stats,
           volumes,
           camera: {
             id: "overview-live",
@@ -253,6 +260,10 @@ export const createVolumeTileDiagnostics = (diagnostics: TileDiagnostics) => {
       const schedule = () => {
         if (!work) work = diagnostics.scheduleTileDiagnosticTask(publish, true);
       };
+      rebuildRef.current = () => {
+        rebuiltAt = 0;
+        schedule();
+      };
       const runtime: SharedThreeSceneRuntime = {
         id: RUNTIME_ID,
         originLngLat: [map.getCenter().lng, map.getCenter().lat],
@@ -308,6 +319,15 @@ export const createVolumeTileDiagnostics = (diagnostics: TileDiagnostics) => {
       };
     }, [map, mode]);
 
+    const controlStyle = (pressed: boolean) => ({
+      background: pressed ? "rgb(244 251 255 / 22%)" : "rgb(12 18 32 / 70%)",
+      border: "1px solid rgb(244 251 255 / 35%)",
+      borderRadius: 3,
+      color: "#f4fbff",
+      cursor: "pointer",
+      font: "11px/1.4 system-ui, sans-serif",
+      padding: "1px 5px",
+    });
     const overview = (
       <div
         ref={hostRef}
@@ -356,6 +376,55 @@ export const createVolumeTileDiagnostics = (diagnostics: TileDiagnostics) => {
           cameraFocus="all"
           followPaddingPercent={180}
         />
+        <div
+          data-test-id="volume-tile-diagnostics-controls"
+          style={{
+            position: "absolute",
+            right: 6,
+            top: 6,
+            display: "flex",
+            gap: 4,
+            pointerEvents: "auto",
+          }}
+        >
+          {(
+            [
+              ["size", "kB", "Grosse der Kacheln"],
+              ["stats", "ms", "Ladezeiten als Scheibe"],
+            ] as const
+          ).map(([key, text, title]) => (
+            <button
+              key={key}
+              type="button"
+              data-test-id={`volume-tile-diagnostics-draw-${key}`}
+              aria-pressed={draws[key]}
+              title={title}
+              onClick={() => {
+                setDraws((current) => ({ ...current, [key]: !current[key] }));
+                rebuildRef.current?.();
+              }}
+              style={controlStyle(draws[key])}
+            >
+              {text}
+            </button>
+          ))}
+          <button
+            type="button"
+            data-test-id="volume-tile-diagnostics-draw-labels"
+            aria-pressed={labels !== "none"}
+            title={LABEL_TITLES[labels]}
+            onClick={() =>
+              setLabels(
+                LABEL_MODES[
+                  (LABEL_MODES.indexOf(labels) + 1) % LABEL_MODES.length
+                ]
+              )
+            }
+            style={controlStyle(labels !== "none")}
+          >
+            {labels === "id and stats" ? "ID+" : "ID"}
+          </button>
+        </div>
         {legend && mode !== "map" ? (
           <details
             data-test-id="volume-tile-diagnostics-legend"
@@ -499,26 +568,6 @@ export const createVolumeTileDiagnostics = (diagnostics: TileDiagnostics) => {
                 "Auf die Vereinigung aller Kamerastumpfe zoomen",
                 followFrustums,
                 () => setFollowFrustums((current) => !current)
-              )}
-              {toggle(
-                "volume-tile-diagnostics-labels",
-                faTableCells,
-                LABEL_TITLES[labels],
-                labels !== "none",
-                () =>
-                  setLabels(
-                    LABEL_MODES[
-                      (LABEL_MODES.indexOf(labels) + 1) % LABEL_MODES.length
-                    ]
-                  )
-              )}
-              {toggle(
-                "volume-tile-diagnostics-map",
-                faLayerGroup,
-                "Uber die ganze Karte zeichnen",
-                mode === "map",
-                () =>
-                  setMode((current) => (current === "map" ? "panel" : "map"))
               )}
               {mode === "map"
                 ? toggle(

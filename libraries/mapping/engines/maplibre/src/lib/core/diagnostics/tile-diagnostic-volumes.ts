@@ -99,6 +99,9 @@ export type VolumeOverlayModelInput = {
   width: number;
   height: number;
   target?: number;
+  /** What the overview draws: the size grid and the processing pies. */
+  showSize?: boolean;
+  showStats?: boolean;
   /**
    * `plan` looks straight down on the scene, padded to the tiles in view.
    * `camera` puts every box where the camera itself draws it, so the overview
@@ -120,6 +123,8 @@ export const buildVolumeOverlayModel = ({
   height,
   target = 1,
   projection = "plan",
+  showSize = true,
+  showStats = true,
 }: VolumeOverlayModelInput): OverlayModel | null => {
   if (width <= 48 || height <= 48) return null;
   const mainFrustum = frustumFromSnapshot(camera);
@@ -208,6 +213,8 @@ export const buildVolumeOverlayModel = ({
     footprintBounds: null,
     rects: [],
     volumes: projected,
+    showSize,
+    showStats,
     viewportBasis: {
       bounds: [...extent.min.toArray(), ...extent.max.toArray()],
       worldToOverview: worldToOverview.toArray(),

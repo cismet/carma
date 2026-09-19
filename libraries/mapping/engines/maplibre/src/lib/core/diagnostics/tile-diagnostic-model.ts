@@ -126,5 +126,9 @@ export type OverlayModel = {
   rects: OverlayRect[];
   /** Tiles of sources without their own tile tree, drawn beside the rects. */
   volumes?: OverlayVolume[];
+  /** Draw the payload size grid inside each tile. */
+  showSize?: boolean;
+  /** Draw the processing pie and its reference ring. */
+  showStats?: boolean;
   target: number;
 };

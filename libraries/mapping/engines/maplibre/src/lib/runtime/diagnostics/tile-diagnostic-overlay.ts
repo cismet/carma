@@ -179,6 +179,8 @@ export const createTileDiagnosticOverlay = (
         }
         if (disposed) return;
         snapshot = {
+          showSize: model.showSize,
+          showStats: model.showStats,
           tileBounds: new Float64Array(tileBounds),
           tiles,
           ids,
