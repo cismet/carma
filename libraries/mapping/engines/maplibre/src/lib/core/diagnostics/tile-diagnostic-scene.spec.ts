@@ -289,12 +289,12 @@ describe("instanced tile diagnostics", () => {
     expect(rects[3].slice(8, 11)).not.toEqual(rects[0].slice(8, 11));
   });
 
-  it("points an arrow away from a light at the far edge of its buffer", () => {
+  it("points an arrow across the buffer from the edge the light enters", () => {
     const state = snapshot();
     // Two edges of a light's cut: one near the light, one further away.
     state.edges = new Float32Array([0, 20, 40, 20, 0, 100, 40, 100]);
-    // The light shines downwards in the overview, so the lower edge is the one
-    // the shadows leave through.
+    // The light shines downwards in the overview, so it enters at the upper
+    // edge and the arrow lies on the buffer pointing down across it.
     const lightView = {
       ...state,
       origin: [20, 0] as const,
@@ -307,8 +307,8 @@ describe("instanced tile diagnostics", () => {
     // A shaft and two barbs on top of the cut itself.
     expect(lit.length - plain.length).toBe(3);
     const [shaft] = lit.slice(plain.length);
-    // The shaft starts at the middle of the far edge and runs on outwards.
-    expect([shaft[0], shaft[1]]).toEqual([20, 100]);
+    // The shaft starts at the middle of the edge the light crosses first.
+    expect([shaft[0], shaft[1]]).toEqual([20, 20]);
     expect(shaft[3]).toBeGreaterThan(shaft[1]);
     expect(Math.abs(shaft[2] - shaft[0])).toBeLessThan(1);
   });
