@@ -738,6 +738,12 @@ export const buildRasterDemTerrainRuntime = (
   /** Upper bound on the tiles one diagnostic snapshot reports. */
   const MAXIMUM_REPORTED_TILES = 256;
   const TILE_STATS_LIMIT = 1_024;
+  const addTileStep = (key: string, label: string, ms: number) => {
+    if (!(ms > 0)) return;
+    const stats = tileStats.get(key) ?? { bytes: 0, steps: [], stage: null };
+    stats.steps.push({ label, ms });
+    tileStats.set(key, stats);
+  };
   const markTileStage = (key: string, label: string | null) => {
     const stats = tileStats.get(key) ?? { bytes: 0, steps: [], stage: null };
     const now = performance.now();
@@ -775,7 +781,9 @@ export const buildRasterDemTerrainRuntime = (
     if (cached) {
       markTileStage(statsKey, null);
       const cachedStats = tileStats.get(statsKey);
-      if (cachedStats) cachedStats.bytes = cached.tile.byteLength;
+      if (cachedStats)
+        cachedStats.bytes =
+          cached.tile.payloadByteLength ?? cached.tile.byteLength;
       heightMetadata.record(cached.tile);
       return {
         tile: cached.tile,
@@ -784,7 +792,8 @@ export const buildRasterDemTerrainRuntime = (
       };
     }
     let tile: TerrainTile;
-    markTileStage(statsKey, "Laden");
+    markTileStage(statsKey, null);
+    const requestStart = performance.now();
     try {
       const sourceSignal =
         signal === conversionAbort.signal ? undefined : signal;
@@ -800,7 +809,18 @@ export const buildRasterDemTerrainRuntime = (
             );
       payloadAwareConcurrency.observePayload(tile.byteLength);
       const stats = tileStats.get(statsKey);
-      if (stats) stats.bytes = tile.byteLength;
+      if (stats) stats.bytes = tile.payloadByteLength ?? tile.byteLength;
+      // The request covers fetching, decoding and meshing; the worker reports
+      // the last two, so what remains is the time on the wire and in the queue.
+      const decodeMs = tile.timings?.decodeMs ?? 0;
+      const meshMs = tile.timings?.meshMs ?? 0;
+      addTileStep(
+        statsKey,
+        "Laden",
+        performance.now() - requestStart - decodeMs - meshMs
+      );
+      addTileStep(statsKey, "Dekodieren", decodeMs);
+      addTileStep(statsKey, "Vermaschen", meshMs);
     } catch (error) {
       // A zoomend/disposal abort is not evidence of saturated download capacity.
       if (!signal.aborted) payloadAwareConcurrency.observeFailure(error);
@@ -811,7 +831,7 @@ export const buildRasterDemTerrainRuntime = (
     // Exclude download and source-cache lookup: persistent derived geometry
     // must compete with the locally available source, not a slow network.
     const computeStart = performance.now();
-    markTileStage(statsKey, "Gitter");
+    markTileStage(statsKey, "Projizieren");
     const projectedGeometry = await createProjectedGeometry(tile, signal);
     markTileStage(statsKey, "Relief");
     const prepared = await prepareReliefGeometry(
@@ -973,8 +993,10 @@ export const buildRasterDemTerrainRuntime = (
     reliefVertexMask: Uint8Array
   ) => {
     const key = terrainSelectionKey(entry);
-    // The tile is built; what remains is the wait until a cut publishes it.
-    if (tileStats.has(key)) markTileStage(key, "Anzeige");
+    // Building the Three objects is its own cost; what remains after it is the
+    // wait until a cut publishes the tile.
+    const buildStart = performance.now();
+    if (tileStats.has(key)) markTileStage(key, null);
     const cached = meshes.get(key);
     if (cached) {
       projectedGeometry?.dispose();
@@ -1063,6 +1085,13 @@ export const buildRasterDemTerrainRuntime = (
       minimumHeightMeters,
       maximumHeightMeters,
     });
+    if (tileStats.has(key)) {
+      // Close the build and start waiting for the cut that shows the tile.
+      addTileStep(key, "Aufbau", performance.now() - buildStart);
+      const stats = tileStats.get(key);
+      if (stats)
+        stats.stage = { label: "Anzeige", startedAt: performance.now() };
+    }
     return node;
   };
 

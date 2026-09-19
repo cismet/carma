@@ -31,6 +31,23 @@ export const OVERVIEW_COLORS = {
   frustum: "#ffffff",
 } as const;
 
+/**
+ * The steps a tile can report, in the order they happen. The slot is the step's
+ * identity, so its colour is stable across tiles, and steps of the same kind
+ * share a hue: blue for fetching, green for raster and mesh work, violet for
+ * the geometry handed to the renderer, amber for waiting on a cut.
+ */
+export const TILE_STEPS = [
+  { label: "Cache", color: "#a9dcff" },
+  { label: "Laden", color: "#5aabf2" },
+  { label: "Dekodieren", color: "#9ef0c0" },
+  { label: "Vermaschen", color: "#63d79a" },
+  { label: "Projizieren", color: "#2fae7a" },
+  { label: "Relief", color: "#c9a6ff" },
+  { label: "Aufbau", color: "#a87dff" },
+  { label: "Anzeige", color: "#ffc46b" },
+] as const;
+
 export type OverlayRect = {
   tile: Tile;
   id: string;

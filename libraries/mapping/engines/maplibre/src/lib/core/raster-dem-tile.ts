@@ -34,6 +34,10 @@ export type TerrainTile = Readonly<{
   northIndices: Uint32Array;
   geometricErrorMeters: number;
   byteLength: number;
+  /** Size of the fetched payload, which the decoded arrays do not reflect. */
+  payloadByteLength?: number;
+  /** What decoding and meshing this tile cost, for the diagnostics. */
+  timings?: Readonly<{ decodeMs: number; meshMs: number }>;
   /** Certified against the native raster triangle surface, before projection. */
   reconstructionErrorMeters?: number;
   maximumMeshErrorMeters?: number;

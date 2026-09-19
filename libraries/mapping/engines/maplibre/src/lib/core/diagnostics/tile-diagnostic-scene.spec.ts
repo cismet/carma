@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  TILE_STEP_SLOTS,
   buildDiagnosticPrimitives,
   buildDiagnosticViewport,
   buildDiagnosticSelection,
@@ -40,6 +41,39 @@ const snapshot = (overrides: number[] = []): DiagnosticSnapshot => {
     target: 2,
   };
 };
+
+/** A record of the current layout: fields, then the step slots, then level. */
+const tileRecord = ({
+  x = 10,
+  y = 20,
+  w = 100,
+  h = 80,
+  kind = TILE_KINDS.indexOf("displayed"),
+  flags = 0,
+  phase = 3,
+  bytes = 0,
+  steps = [] as number[],
+  level = 0,
+}) => [
+  x,
+  y,
+  w,
+  h,
+  kind,
+  flags,
+  5,
+  5,
+  phase,
+  20,
+  bytes,
+  ...Array.from({ length: TILE_STEP_SLOTS }, (_, slot) => steps[slot] ?? 0),
+  level,
+];
+const primitivesOf = (data: Float32Array) =>
+  Array.from({ length: data.length / PRIMITIVE_FLOATS }, (_, i) =>
+    Array.from(data.slice(i * PRIMITIVE_FLOATS, (i + 1) * PRIMITIVE_FLOATS))
+  );
+
 describe("instanced tile diagnostics", () => {
   it("draws a fixed three-pixel-radius centroid dot for terminal tiles", () => {
     const data = buildDiagnosticPrimitives(snapshot([, , , , , 16]));
@@ -153,22 +187,26 @@ describe("instanced tile diagnostics", () => {
     expect((50 - p.offsetX) / p.scale).toBe(10);
   });
 
-  it("draws processing steps as a pie and the payload size as boxes", () => {
-    // A loaded tile of 20 kB whose three steps cost 100, 50 and 50 ms.
-    const state = snapshot([, , , , , , , , 3, , 20 * 1024, 100, 50, 50, 0]);
-    const data = buildDiagnosticPrimitives(state);
-    const primitives = Array.from(
-      { length: data.length / PRIMITIVE_FLOATS },
-      (_, i) =>
-        Array.from(data.slice(i * PRIMITIVE_FLOATS, (i + 1) * PRIMITIVE_FLOATS))
+  it("draws every processing step as its own wedge and the size as boxes", () => {
+    // A loaded tile of 20 kB whose first three steps cost 100, 50 and 50 ms.
+    const state = snapshot();
+    state.tiles = new Float32Array(
+      tileRecord({ bytes: 20 * 1024, steps: [100, 50, 50], level: 12 })
     );
-    const pie = primitives.find((primitive) => primitive[4] === 6);
-    if (!pie) throw new Error("expected a pie primitive");
-    // A finished tile sweeps the full circle, split by each step's share.
-    expect(pie[6]).toBe(1);
-    expect(pie[12]).toBeCloseTo(0.5, 5);
-    expect(pie[13]).toBeCloseTo(0.75, 5);
-    expect(pie[14]).toBeCloseTo(1, 5);
+    const primitives = primitivesOf(buildDiagnosticPrimitives(state));
+    const wedges = primitives.filter((primitive) => primitive[4] === 6);
+    expect(wedges).toHaveLength(3);
+    // The wedges follow one another around the circle, sized by their share.
+    expect(wedges.map((wedge) => Number(wedge[6].toFixed(4)))).toEqual([
+      0, 0.5, 0.75,
+    ]);
+    expect(wedges.map((wedge) => Number(wedge[7].toFixed(4)))).toEqual([
+      0.5, 0.75, 1,
+    ]);
+    // Each wedge carries the colour of its own step, not of its position.
+    expect(new Set(wedges.map((wedge) => wedge.slice(8, 11).join())).size).toBe(
+      3
+    );
     // One cell per kilobyte while the largest tile in the cut is small, laid
     // out in reading order across a ten by ten grid.
     const cells = primitives.filter(
@@ -177,10 +215,8 @@ describe("instanced tile diagnostics", () => {
     expect(cells).toHaveLength(20);
     expect(new Set(cells.map((cell) => cell[0].toFixed(4))).size).toBe(10);
     expect(new Set(cells.map((cell) => cell[1].toFixed(4))).size).toBe(2);
-    // The eleventh cell starts the second row under the first one.
     expect(cells[10][0]).toBeCloseTo(cells[0][0], 5);
     expect(cells[10][1]).toBeGreaterThan(cells[0][1]);
-    // Hairline gaps: cells do not touch.
     const pitch = cells[1][0] - cells[0][0];
     expect(cells[0][2] * 2).toBeLessThan(pitch);
     expect(cells[0][2] * 2).toBeGreaterThan(pitch * 0.8);
@@ -188,48 +224,31 @@ describe("instanced tile diagnostics", () => {
 
   it("steps the size unit by ten until the largest tile fits the grid", () => {
     // Two megabytes needs a hundred kilobyte cell to stay inside a hundred.
-    const state = snapshot([, , , , , , , , 3, , 2 * 1024 * 1024, 10, 0, 0, 0]);
-    const data = buildDiagnosticPrimitives(state);
-    const cells = Array.from(
-      { length: data.length / PRIMITIVE_FLOATS },
-      (_, i) =>
-        Array.from(data.slice(i * PRIMITIVE_FLOATS, (i + 1) * PRIMITIVE_FLOATS))
-    ).filter((primitive) => primitive[4] === 0 && primitive[2] < 10);
+    const state = snapshot();
+    state.tiles = new Float32Array(
+      tileRecord({ bytes: 2 * 1024 * 1024, steps: [10] })
+    );
+    const cells = primitivesOf(buildDiagnosticPrimitives(state)).filter(
+      (primitive) => primitive[4] === 0 && primitive[2] < 10
+    );
     expect(cells).toHaveLength(21);
   });
 
   it("sweeps a loading tile against the median of the finished ones", () => {
-    const record = (phase: number, steps: number[]) => [
-      10,
-      20,
-      100,
-      80,
-      TILE_KINDS.indexOf("displayed"),
-      0,
-      5,
-      5,
-      phase,
-      20,
-      0,
-      ...steps,
-      12,
-    ];
     const state = snapshot();
     state.tiles = new Float32Array([
-      ...record(3, [100, 100, 0, 0]),
-      ...record(2, [50, 0, 0, 0]),
+      ...tileRecord({ phase: 3, steps: [100, 100], level: 12 }),
+      ...tileRecord({ phase: 2, steps: [50], level: 12, x: 200 }),
     ]);
     state.ids = ["done", "loading"];
-    const data = buildDiagnosticPrimitives(state);
-    const pies = Array.from(
-      { length: data.length / PRIMITIVE_FLOATS },
-      (_, i) =>
-        Array.from(data.slice(i * PRIMITIVE_FLOATS, (i + 1) * PRIMITIVE_FLOATS))
-    ).filter((primitive) => primitive[4] === 6);
-    expect(pies).toHaveLength(2);
-    expect(pies[0][6]).toBe(1);
+    const wedges = primitivesOf(buildDiagnosticPrimitives(state)).filter(
+      (primitive) => primitive[4] === 6
+    );
+    // Two wedges for the finished tile, one for the tile still loading.
+    expect(wedges).toHaveLength(3);
+    expect(wedges[1][7]).toBe(1);
     // 50 ms against a 200 ms median reads as a quarter of the way in.
-    expect(pies[1][6]).toBeCloseTo(0.25, 5);
+    expect(wedges[2][7]).toBeCloseTo(0.25, 5);
   });
 
   it("tapers a frustum edge from the eye outwards", () => {
@@ -246,21 +265,8 @@ describe("instanced tile diagnostics", () => {
   });
 
   it("fades the generations above the cut and marks the outliers", () => {
-    const tile = (level: number, steps: number[], x = 10) => [
-      x,
-      20,
-      100,
-      80,
-      TILE_KINDS.indexOf("displayed"),
-      0,
-      5,
-      5,
-      3,
-      20,
-      0,
-      ...steps,
-      level,
-    ];
+    const tile = (level: number, steps: number[], x = 10) =>
+      tileRecord({ level, steps, x });
     const state = snapshot();
     state.tiles = new Float32Array([
       ...tile(12, [10, 0, 0, 0], 10),
