@@ -24,7 +24,10 @@ import type {
   Kind,
   OverlayModel,
   OverlayRect,
+  OverlayVolume,
 } from "../../core/diagnostics/tile-diagnostic-model";
+import type { SharedThreeSceneTileVolume } from "../../core/shared-three-scene-types";
+import type { TileCameraSnapshot } from "../../core/tile-camera-demand";
 import { yieldTileDiagnosticTask } from "./tile-diagnostic-scheduler";
 
 export type TileDiagnosticCaptureOptions = {
@@ -37,6 +40,79 @@ export type TileDiagnosticCaptureOptions = {
   showFrustum: boolean;
   showResident: boolean;
   sceneLabels: boolean;
+  /** Tiles of sources without their own tile tree, in scene world metres. */
+  volumes?: readonly SharedThreeSceneTileVolume[];
+  /** Corridor camera the volumes are tested against, display only. */
+  shadowCamera?: TileCameraSnapshot | null;
+};
+
+const frustumOf = (
+  projectionMatrix: THREE.Matrix4,
+  matrixWorld: THREE.Matrix4,
+  coordinateSystem: THREE.Camera["coordinateSystem"],
+  reversedDepth: boolean
+) =>
+  new THREE.Frustum().setFromProjectionMatrix(
+    projectionMatrix.clone().multiply(matrixWorld.clone().invert()),
+    coordinateSystem,
+    reversedDepth
+  );
+
+const VOLUME_KINDS: Record<string, Kind> = {
+  queued: "queued",
+  loading: "loading",
+  parsing: "parsing",
+  failed: "failed",
+};
+
+/** A 2.5D tile is a box: its footprint over the elevation range it covers. */
+export const projectDiagnosticVolumes = (
+  volumes: readonly SharedThreeSceneTileVolume[],
+  worldToOverview: THREE.Matrix4,
+  toScreen: (x: number, z: number) => [number, number],
+  mainFrustum: THREE.Frustum | null,
+  shadowFrustum: THREE.Frustum | null
+): OverlayVolume[] => {
+  const world = new THREE.Box3();
+  const overview = new THREE.Box3();
+  const out: OverlayVolume[] = [];
+  for (const volume of volumes) {
+    world.min.fromArray(volume.minimum);
+    world.max.fromArray(volume.maximum);
+    if (
+      !Number.isFinite(world.min.x + world.min.y + world.min.z) ||
+      !Number.isFinite(world.max.x + world.max.y + world.max.z) ||
+      world.isEmpty()
+    )
+      continue;
+    const inView = mainFrustum ? mainFrustum.intersectsBox(world) : true;
+    const inShadow = shadowFrustum ? shadowFrustum.intersectsBox(world) : false;
+    overview.copy(world).applyMatrix4(worldToOverview);
+    const [x0, y0] = toScreen(overview.min.x, overview.min.z);
+    const [x1, y1] = toScreen(overview.max.x, overview.max.z);
+    const state = volume.state ?? "loaded";
+    out.push({
+      id: volume.id,
+      world: world.clone(),
+      x: Math.min(x0, x1),
+      y: Math.min(y0, y1),
+      w: Math.abs(x1 - x0),
+      h: Math.abs(y1 - y0),
+      kind:
+        VOLUME_KINDS[state] ??
+        (volume.loadReason === "shadow" ? "resident" : "displayed"),
+      phase:
+        state === "loaded"
+          ? "\u25cf"
+          : state === "queued"
+          ? "\u25cb"
+          : "\u25d0",
+      inView,
+      inShadow,
+      error: volume.errorPixels ?? NaN,
+    });
+  }
+  return out;
 };
 
 /** Read live scene objects only on the owner thread; yield between bounded batches.
@@ -267,6 +343,32 @@ export const captureTileDiagnostics = async (
     centerHit = viewport.center;
     footprintBounds = viewport.footprintBounds;
   }
+  const overlayVolumes =
+    showOverlay && options.volumes?.length
+      ? projectDiagnosticVolumes(
+          options.volumes,
+          worldToOverview,
+          toScreen,
+          renderCamera
+            ? frustumOf(
+                renderCamera.projectionMatrix,
+                renderCamera.matrixWorld,
+                renderCamera.coordinateSystem,
+                renderCamera.reversedDepth
+              )
+            : null,
+          options.shadowCamera
+            ? frustumOf(
+                new THREE.Matrix4().fromArray(
+                  options.shadowCamera.projectionMatrix
+                ),
+                new THREE.Matrix4().fromArray(options.shadowCamera.matrixWorld),
+                options.shadowCamera.coordinateSystem,
+                options.shadowCamera.reversedDepth
+              )
+            : null
+        )
+      : [];
   let model: OverlayModel = {
     width,
     height,
@@ -288,6 +390,7 @@ export const captureTileDiagnostics = async (
       centerHit,
       footprintBounds,
       rects,
+      volumes: overlayVolumes,
       viewportBasis,
       target: targetPixels,
     };

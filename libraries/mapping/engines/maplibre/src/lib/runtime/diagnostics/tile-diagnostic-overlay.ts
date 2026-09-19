@@ -75,7 +75,10 @@ export const createTileDiagnosticOverlay = (
       let snapshot: DiagnosticSnapshot | undefined;
       let pendingTileIndices = tileIndices;
       if (model !== uploadedModel) {
-        const tiles = new Float32Array(model.rects.length * TILE_RECORD_FLOATS);
+        const volumes = model.volumes ?? [];
+        const tiles = new Float32Array(
+          (model.rects.length + volumes.length) * TILE_RECORD_FLOATS
+        );
         const ids: string[] = [];
         const tileBounds: number[] = [];
         const indices = new Map<Tile, number>();
@@ -115,6 +118,39 @@ export const createTileDiagnosticOverlay = (
           );
           ids.push(rect.id);
           indices.set(rect.tile, i);
+          if ((i & 127) === 127 && performance.now() - started >= 2) {
+            await yieldTileDiagnosticTask();
+            started = performance.now();
+          }
+        }
+        // Volume sources own no Tile, so they stay out of the hover index and
+        // carry the same record layout: a leaf, ringed when the corridor holds
+        // it, dimmed when no camera demands it.
+        for (let i = 0; i < volumes.length; i++) {
+          if (disposed) return;
+          const volume = volumes[i];
+          tileBounds.push(
+            ...volume.world.min.toArray(),
+            ...volume.world.max.toArray()
+          );
+          tiles.set(
+            [
+              volume.x,
+              volume.y,
+              volume.w,
+              volume.h,
+              TILE_KINDS.indexOf(volume.kind),
+              (Number(volume.inShadow) << 1) |
+                (Number(!volume.inView) << 2) |
+                (1 << 4),
+              NaN,
+              NaN,
+              TILE_PHASES.indexOf(volume.phase as (typeof TILE_PHASES)[number]),
+              volume.error,
+            ],
+            (model.rects.length + i) * TILE_RECORD_FLOATS
+          );
+          ids.push(volume.id);
           if ((i & 127) === 127 && performance.now() - started >= 2) {
             await yieldTileDiagnosticTask();
             started = performance.now();

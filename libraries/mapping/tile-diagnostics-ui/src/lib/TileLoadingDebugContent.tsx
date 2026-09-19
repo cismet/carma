@@ -11,6 +11,10 @@ import {
 import { createPortal } from "react-dom";
 import panelCss from "./TileLoadingDebugPanels.css?inline";
 import { createTileDiagnosticOverlayComponent } from "./TileDiagnosticOverlay";
+import {
+  SHADOW_CORRIDOR_CAMERA_ID,
+  snapshotShadowCorridorCameras,
+} from "./shadow-corridor-camera";
 import type {
   TileDiagnosticQueueRow as QueueRow,
   TileDiagnosticSummary as CoverageSummary,
@@ -719,11 +723,18 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
       let labelSize = { width: 0, height: 0 };
       let cameraWork: (() => void) | null = null;
       let pendingCameraViews: readonly TileCameraSnapshot[] = [];
+      // Display only: the corridor arrives through the shared-scene shadow
+      // contract every runtime already receives, so no demand source, no
+      // camera registration and no cost outside an open debugger.
+      let pendingShadowCameras: readonly TileCameraSnapshot[] = [];
       const publishCamera = () => {
         cameraWork = null;
         if (disposed || !renderCamera) return;
         liveCamera.current = renderCamera;
-        liveSecondaryCameras.current = [...pendingCameraViews].sort((a, b) =>
+        liveSecondaryCameras.current = [
+          ...pendingCameraViews,
+          ...pendingShadowCameras,
+        ].sort((a, b) =>
           a.id.localeCompare(b.id, undefined, { numeric: true })
         );
         const ids = liveSecondaryCameras.current.map((camera) => camera.id);
@@ -748,6 +759,14 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
         id: `${runtimeHandle.scene.id}-tile-loading-debug-labels`,
         originLngLat: runtimeHandle.scene.originLngLat,
         root: new THREE.Group(),
+        setShadowView(view) {
+          pendingShadowCameras = snapshotShadowCorridorCameras(view);
+          if (renderCamera && !cameraWork)
+            cameraWork = diagnostics.scheduleTileDiagnosticTask(
+              publishCamera,
+              true
+            );
+        },
         update(frame: SharedThreeSceneFrame) {
           renderCamera = frame.renderCamera;
           pendingCameraViews = frame.tileCameraViews ?? [];
@@ -891,6 +910,21 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
               Number((tile as RuntimeTile).idleRing === true) * 8
           );
         }
+        // Sources without a tile tree of their own, terrain above all: their
+        // runtime owns the boxes, the capture cuts them with the same main and
+        // corridor frustums as the mesh tiles.
+        const volumes = lease.layer
+          .getRuntimes()
+          .filter(
+            (runtime) =>
+              runtime.id !== runtimeHandle.scene.id &&
+              runtime.getActiveTileVolumes
+          )
+          .flatMap((runtime) => runtime.getActiveTileVolumes?.() ?? []);
+        const shadowCamera =
+          liveSecondaryCameras.current.find(
+            (view) => view.id === SHADOW_CORRIDOR_CAMERA_ID
+          ) ?? null;
         const key = [
           width,
           height,
@@ -904,6 +938,9 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
           ...(renderCamera?.projectionMatrix.elements ?? []),
           JSON.stringify(currentOptions),
           hoverRef.current?.tile && tileId(hoverRef.current.tile),
+          volumes.map((volume) => `${volume.id}${volume.state ?? ""}`).join(),
+          ...(shadowCamera?.matrixWorld ?? []),
+          ...(shadowCamera?.projectionMatrix ?? []),
         ].join("|");
         // Sampling metrics is not a scene change. Compare exact pool membership
         // and phases before doing geometry, hierarchy/SSE audits or React updates.
@@ -935,6 +972,8 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
             ...currentOptions,
             width,
             height,
+            volumes,
+            shadowCamera,
           },
           () => disposed
         );

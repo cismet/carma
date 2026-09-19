@@ -37,6 +37,13 @@ describe("TileLoadingDebugHost", () => {
     registry.handles = [];
     rerender(<TileLoadingDebugHost map={map} />);
     expect(container.innerHTML).toBe("");
+    // Requested without a tileset: the reason is shown instead of nothing.
+    shadow.state = { showTileDiagnostics: true };
+    rerender(<TileLoadingDebugHost map={map} />);
+    expect(
+      container.querySelector('[data-test-id="tile-diagnostics-unavailable"]')
+    ).not.toBeNull();
+    shadow.state = {};
   });
 
   it("opens on the shadow panel's request without the development UI", async () => {

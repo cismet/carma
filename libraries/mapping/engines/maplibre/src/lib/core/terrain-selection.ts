@@ -194,6 +194,36 @@ const projectToLocalWorld = (
   );
 };
 
+/**
+ * A 2.5D tile as a 3D box: its footprint over the elevation range it covers.
+ * Selection culls with this box and the diagnostics draw the same one, so a
+ * terrain tile is tested exactly like a 3D Tiles bounding volume.
+ */
+export const buildTerrainTileLocalBox = (
+  bounds: TerrainTileBounds,
+  heightRange: readonly [number, number],
+  origin: readonly [number, number, number],
+  meterScale: number,
+  target: Box3 = new Box3()
+): Box3 => {
+  target.makeEmpty();
+  const point = new Vector3();
+  for (const longitude of [bounds.west, bounds.east])
+    for (const latitude of [bounds.south, bounds.north])
+      for (const height of heightRange)
+        target.expandByPoint(
+          projectToLocalWorld(
+            longitude,
+            latitude,
+            height,
+            origin,
+            meterScale,
+            point
+          )
+        );
+  return target;
+};
+
 const snapshotCamera = (snapshot: TerrainSelectionCameraSnapshot) => {
   const camera = {
     projectionMatrix: new Matrix4().fromArray([...snapshot.projectionMatrix]),
@@ -296,30 +326,12 @@ export const buildTerrainSelection = (
     const known =
       input.knownHeightRanges[terrainTileKey(entry.id)] ??
       input.unknownHeightRange;
-    const localBoundingBox = new Box3();
-    for (const longitude of [bounds.west, bounds.east])
-      for (const latitude of [bounds.south, bounds.north]) {
-        localBoundingBox.expandByPoint(
-          projectToLocalWorld(
-            longitude,
-            latitude,
-            known[0],
-            input.origin,
-            input.meterScale,
-            new Vector3()
-          )
-        );
-        localBoundingBox.expandByPoint(
-          projectToLocalWorld(
-            longitude,
-            latitude,
-            known[1],
-            input.origin,
-            input.meterScale,
-            new Vector3()
-          )
-        );
-      }
+    const localBoundingBox = buildTerrainTileLocalBox(
+      bounds,
+      known,
+      input.origin,
+      input.meterScale
+    );
     const worldBoundingBox = localBoundingBox
       .clone()
       .expandByVector(boundsPadding)

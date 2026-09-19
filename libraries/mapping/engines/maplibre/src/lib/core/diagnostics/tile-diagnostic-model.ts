@@ -51,6 +51,28 @@ export type OverlayRect = {
   phase: string;
 };
 
+/**
+ * A tile from a source that has no 3D Tiles tree of its own. Terrain is such a
+ * source: 2.5D tiles whose box is the footprint plus the elevation range they
+ * cover, tested against the same main and corridor frustums as mesh tiles.
+ */
+export type OverlayVolume = {
+  id: string;
+  /** World-space box, scene metres. */
+  world: THREE.Box3;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  kind: Kind;
+  phase: string;
+  /** Intersects the main camera frustum. */
+  inView: boolean;
+  /** Intersects the shadow corridor frustum. */
+  inShadow: boolean;
+  error: number;
+};
+
 /** Fixed coordinate frame of a tile snapshot; live cameras project into this frame. */
 export type DiagnosticViewportBasis = {
   bounds: number[];
@@ -77,5 +99,7 @@ export type OverlayModel = {
     maxY: number;
   } | null;
   rects: OverlayRect[];
+  /** Tiles of sources without their own tile tree, drawn beside the rects. */
+  volumes?: OverlayVolume[];
   target: number;
 };

@@ -41,7 +41,30 @@ export const TileLoadingDebugHost = ({ map }: { map: MaplibreMap | null }) => {
     handles.find((handle) => handle.scene.providesTerrain) ??
     handles[0] ??
     null;
-  if (!enabled || !map || !runtime) return null;
+  if (!enabled || !map) return null;
+  // Asked for, but nothing to inspect: say so where the toolbar would sit,
+  // instead of leaving the button looking broken. The terrain runtime is not
+  // a 3D Tiles runtime yet, so terrain alone has no diagnostics.
+  if (!runtime)
+    return requested ? (
+      <div
+        data-test-id="tile-diagnostics-unavailable"
+        style={{
+          position: "fixed",
+          left: 64,
+          top: 96,
+          zIndex: 6000,
+          padding: "4px 8px",
+          borderRadius: 4,
+          background: "rgba(0,0,0,0.72)",
+          color: "#fff",
+          font: "12px/1.4 system-ui, sans-serif",
+          pointerEvents: "none",
+        }}
+      >
+        Kachel-Diagnose: kein 3D-Tileset geladen
+      </div>
+    ) : null;
   return (
     // The toolbar positions itself absolutely; this anchor puts it beside the
     // map's own control column instead of behind it, and keeps it above the

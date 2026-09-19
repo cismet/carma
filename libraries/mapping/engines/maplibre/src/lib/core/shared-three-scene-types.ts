@@ -77,6 +77,8 @@ export type SharedThreeSceneTileVolume = Readonly<{
   /** Current physical-pixel error, not the configured final target. */
   errorPixels?: number;
   loadReason?: "viewport" | "shadow";
+  /** Loading state for diagnostics; omitted means the payload is loaded. */
+  state?: "queued" | "loading" | "parsing" | "failed" | "loaded";
   /** Ephemeral Three payload identity, never part of a persistent cache key. */
   receiverObjectId?: number;
   minimum: readonly [number, number, number];
