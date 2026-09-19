@@ -127,9 +127,16 @@ export const projectTileDiagnosticViewport = (
     const h = aspect >= 1 ? size : size / aspect;
     view = { x: centerHit[0] - w / 2, y: centerHit[1] - h / 2, w, h };
   }
+  // The eye itself, so an edge can be drawn wider where it is near the camera.
+  const eye = new THREE.Vector3()
+    .setFromMatrixPosition(new THREE.Matrix4().fromArray(camera.matrixWorld))
+    .applyMatrix4(worldToOverview);
   return {
     edges: new Float32Array(intersectionEdges?.flat() ?? []),
     center: centerHit,
+    origin: Number.isFinite(eye.x + eye.z)
+      ? (toScreen(eye.x, eye.z) as [number, number])
+      : null,
     footprintBounds,
     view,
   };
