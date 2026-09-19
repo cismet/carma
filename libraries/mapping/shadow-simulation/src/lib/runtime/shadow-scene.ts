@@ -1659,7 +1659,6 @@ export const buildShadowSimulationScene = (
     ].join(";");
   };
   const applyRuntimeShadowView = (view: SharedThreeSceneShadowView | null) => {
-    appliedRuntimeShadowView = view;
     if (timeAnimating) {
       // Every animation tick moves the sun and with it the shadow camera. The
       // terrain and mesh runtimes re-select their caster coverage per view,
@@ -1675,6 +1674,10 @@ export const buildShadowSimulationScene = (
       }
       lastAnimatedRuntimeShadowViewMs = now;
     }
+    // Only a view that was handed out counts as applied: recording a deferred
+    // one made the catch-up at the end of a gesture or an animation compare
+    // equal and skip the view it had just thrown away.
+    appliedRuntimeShadowView = view;
     runtimeShadowViewDeferredByAnimation = false;
     const selectionSignature = getTerrainSelectionSignature(view);
     const receiverCamera = latestFrame?.renderCamera;
@@ -2036,11 +2039,11 @@ export const buildShadowSimulationScene = (
         coverageNeedsCameraReevaluation ||
         nextRenderCameraSignature !== renderCameraSignature
       ) {
-        // Dragging only changes the observer. Corridor geometry, sun direction
-        // and tile-owned shadow textures remain valid, so defer every expensive
-        // fit/query/update to moveend and let the presentation path reproject
-        // the retained pages meanwhile.
-        if (mapInMotion) return;
+        // Dragging only changes the observer, so the expensive queries wait for
+        // moveend: the elevation range keeps its cached value below. The fit
+        // itself follows the camera, otherwise the corridor covers where the
+        // view was when the gesture started. Runtimes still receive their
+        // committed view only at moveend; the live one goes out every frame.
         const nowMs = performance.now();
         lastMotionShadowUpdateMs = nowMs;
         renderCameraSignature = nextRenderCameraSignature;

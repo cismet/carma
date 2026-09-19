@@ -67,8 +67,17 @@ export const projectTileDiagnosticViewport = (
       return chain;
     };
     const hull = [...half(ordered), ...half([...ordered].reverse())];
+    // A cut can be a sliver: the hull of nearly collinear corners is a line
+    // traced out and back, which draws as a loose stroke. Twice the area of
+    // the polygon says whether there is a shape to draw at all.
+    const twiceArea = Math.abs(
+      hull.reduce((sum, point, index) => {
+        const next = hull[(index + 1) % hull.length];
+        return sum + point[0] * next[1] - next[0] * point[1];
+      }, 0)
+    );
     intersectionEdges =
-      hull.length >= 3
+      hull.length >= 3 && twiceArea >= 4
         ? hull.map((point, index) => {
             const next = hull[(index + 1) % hull.length];
             return [point[0], point[1], next[0], next[1]] as [

@@ -289,12 +289,11 @@ describe("instanced tile diagnostics", () => {
     expect(rects[3].slice(8, 11)).not.toEqual(rects[0].slice(8, 11));
   });
 
-  it("points an arrow across the buffer from the edge the light enters", () => {
+  it("draws the light's direction through the middle of the view", () => {
     const state = snapshot();
-    // Two edges of a light's cut: one near the light, one further away.
     state.edges = new Float32Array([0, 20, 40, 20, 0, 100, 40, 100]);
-    // The light shines downwards in the overview, so it enters at the upper
-    // edge and the arrow lies on the buffer pointing down across it.
+    // The light shines downwards in the overview; the arrow reads in the
+    // middle of what is drawn, not on an edge that may sit outside the crop.
     const lightView = {
       ...state,
       origin: [20, 0] as const,
@@ -303,13 +302,14 @@ describe("instanced tile diagnostics", () => {
     const plain = primitivesOf(
       buildDiagnosticViewport(lightView, "#fff", false)
     );
-    const lit = primitivesOf(buildDiagnosticViewport(lightView, "#fff", true));
+    const lit = primitivesOf(
+      buildDiagnosticViewport(lightView, "#fff", { x: 100, y: 100 })
+    );
     // A shaft and two barbs on top of the cut itself.
     expect(lit.length - plain.length).toBe(3);
     const [shaft] = lit.slice(plain.length);
-    // The shaft starts at the middle of the edge the light crosses first.
-    expect([shaft[0], shaft[1]]).toEqual([20, 20]);
-    expect(shaft[3]).toBeGreaterThan(shaft[1]);
-    expect(Math.abs(shaft[2] - shaft[0])).toBeLessThan(1);
+    // Centred on the view and pointing the way the light casts.
+    expect([shaft[0], shaft[1]]).toEqual([100, 77]);
+    expect([shaft[2], shaft[3]]).toEqual([100, 123]);
   });
 });
