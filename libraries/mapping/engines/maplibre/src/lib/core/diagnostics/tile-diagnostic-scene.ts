@@ -12,6 +12,8 @@ export type DiagnosticView = { x: number; y: number; w: number; h: number };
 export const TILE_RECORD_FLOATS = 15;
 /** Processing steps a tile record can carry; further ones fold into the last. */
 export const TILE_STEP_SLOTS = 4;
+/** Payload size reads as filled cells of a square grid, one unit per cell. */
+export const SIZE_GRID = 10;
 export const PRIMITIVE_FLOATS = 16;
 export const TILE_KINDS = Object.keys(FILL) as Kind[];
 export const TILE_PHASES = ["", "○", "◐", "●", "×", "Ⅱ"] as const;
@@ -211,33 +213,32 @@ export const buildDiagnosticPrimitives = (
   }
   totals.sort((a, b) => a - b);
   const medianTotal = totals.length ? totals[totals.length >> 1] : 0;
-  // One box is a round number of kilobytes, chosen so the largest tile in the
-  // cut stays readable as a short diagonal run rather than a filled square.
-  const byteUnit =
-    maximumBytes > 512 * 1024
-      ? 100 * 1024
-      : maximumBytes > 64 * 1024
-      ? 10 * 1024
-      : 1024;
+  // Every tile reads against the same yardstick: one cell of a ten by ten
+  // grid is a round number of kilobytes, stepped by ten until the largest
+  // tile of the cut fits into the hundred cells.
+  let byteUnit = 1024;
+  while (maximumBytes / byteUnit > SIZE_GRID * SIZE_GRID) byteUnit *= 10;
   for (let i = 0; i < data.length; i += TILE_RECORD_FLOATS) {
     const [x, y, w, h, kind, , , , , , bytes] = data.subarray(
       i,
       i + TILE_RECORD_FLOATS
     );
     if (kind < 0 || !(bytes > 0)) continue;
-    const boxes = Math.max(1, Math.min(24, Math.round(bytes / byteUnit)));
-    const size = Math.max(2, Math.min(w, h) / 22);
-    const inset = size;
-    const spanX = Math.max(0, w - 2 * inset - size);
-    const spanY = Math.max(0, h - 2 * inset - size);
-    const steps = Math.max(1, boxes - 1);
-    for (let box = 0; box < boxes; box++)
+    const cells = Math.max(
+      1,
+      Math.min(SIZE_GRID * SIZE_GRID, Math.ceil(bytes / byteUnit))
+    );
+    const pitch = Math.min(w, h) / (SIZE_GRID + 2);
+    const gap = pitch * 0.12;
+    const size = pitch - gap;
+    const inset = pitch;
+    for (let cell = 0; cell < cells; cell++)
       rect(
-        x + inset + (spanX * box) / steps,
-        y + inset + (spanY * box) / steps,
+        x + inset + (cell % SIZE_GRID) * pitch,
+        y + inset + Math.floor(cell / SIZE_GRID) * pitch,
         size,
         size,
-        0.8,
+        0.6,
         OVERVIEW_COLORS.baseline,
         OVERVIEW_COLORS.baseline
       );
