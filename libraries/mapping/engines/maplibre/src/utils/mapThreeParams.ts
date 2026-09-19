@@ -48,7 +48,8 @@ const isSameParams = (
   }
   const keys = Object.keys(a);
   return (
-    keys.length === Object.keys(b).length && keys.every((key) => a[key] === b[key])
+    keys.length === Object.keys(b).length &&
+    keys.every((key) => a[key] === b[key])
   );
 };
 
@@ -80,7 +81,8 @@ export const publishMapThreeRuntimeParams = (
 /** `undefined` when the map draws no three.js geometry at all. */
 export const getMapThreeRuntimeParams = (
   map: MaplibreMap | null
-): ThreeRuntimeParams | undefined => (map ? entries.get(map)?.params : undefined);
+): ThreeRuntimeParams | undefined =>
+  map ? entries.get(map)?.params : undefined;
 
 export const subscribeMapThreeRuntimeParams = (
   map: MaplibreMap,

@@ -312,4 +312,24 @@ describe("instanced tile diagnostics", () => {
     expect([shaft[0], shaft[1]]).toEqual([100, 77]);
     expect([shaft[2], shaft[3]]).toEqual([100, 123]);
   });
+
+  it("sizes a pie by its cost against the median and rings that median", () => {
+    const state = snapshot();
+    state.tiles = new Float32Array([
+      ...tileRecord({ steps: [100], level: 12, x: 10 }),
+      ...tileRecord({ steps: [100], level: 12, x: 120 }),
+      ...tileRecord({ steps: [400], level: 12, x: 230 }),
+    ]);
+    state.ids = ["a", "b", "slow"];
+    const primitives = primitivesOf(buildDiagnosticPrimitives(state));
+    const wedges = primitives.filter((primitive) => primitive[4] === 6);
+    const rings = primitives.filter((primitive) => primitive[4] === 1);
+    expect(wedges).toHaveLength(3);
+    expect(rings).toHaveLength(3);
+    // Four times the median cost is twice the radius: area carries the ratio.
+    expect(wedges[2][2]).toBeCloseTo(wedges[0][2] * 2, 5);
+    // The reference ring is the same for every tile of the cut.
+    expect(rings[2][2]).toBeCloseTo(rings[0][2], 5);
+    expect(wedges[0][2]).toBeCloseTo(rings[0][2], 5);
+  });
 });

@@ -374,6 +374,7 @@ export type {
   QueueRow as TileDiagnosticQueueRow,
   CoverageSummary as TileDiagnosticSummary,
 } from "./lib/runtime/diagnostics/tile-diagnostic-metrics";
+export { TILE_STEPS as TILE_DIAGNOSTIC_STEPS } from "./lib/core/diagnostics/tile-diagnostic-model";
 export type {
   Kind as TileDiagnosticKind,
   OverlayRect as TileDiagnosticRect,
