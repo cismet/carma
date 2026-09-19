@@ -58,6 +58,7 @@ import { runTerrainWorkerTask } from "./terrain-worker-client";
 import type { TerrainWorkerResult } from "./terrain-worker-task";
 import {
   buildTerrainSelection,
+  buildTerrainTileLocalBox,
   type TerrainSelection,
   type TerrainSelectionEntry,
   type TerrainSelectionInput,
@@ -1319,8 +1320,13 @@ export const buildRasterDemTerrainRuntime = (
       : null;
   };
 
+  const parseMeshKeyTileId = (key: string): TerrainTileId | null => {
+    const [level, x, y] = (key.split(":")[1] ?? "").split("/").map(Number);
+    return [level, x, y].every(Number.isInteger) ? { level, x, y } : null;
+  };
+
   const getActiveTileVolumes = (): readonly SharedThreeSceneTileVolume[] => {
-    if (activeMeshKeys.size === 0) return [];
+    if (activeMeshKeys.size === 0 && pendingMeshes.size === 0) return [];
     root.updateMatrixWorld(true);
     const bounds = new Box3();
     const volumes: SharedThreeSceneTileVolume[] = [];
@@ -1331,10 +1337,36 @@ export const buildRasterDemTerrainRuntime = (
       volumes.push({
         id: `${runtimeId}:${key}`,
         kind: "terrain-tile",
+        state: "loaded",
         loadReason: record.reliefMesh?.receiveShadow ? "viewport" : "shadow",
         minimum: [bounds.min.x, bounds.min.y, bounds.min.z],
         maximum: [bounds.max.x, bounds.max.y, bounds.max.z],
       });
+    }
+    // A tile still being built has no geometry, but it has the box selection
+    // culled it with: its footprint over the height range known for it. The
+    // 2.5D tree is drawn like a 3D Tiles one, loading tiles included.
+    if (pendingMeshes.size) {
+      const knownHeightRanges = heightMetadata.snapshot();
+      for (const key of pendingMeshes.keys()) {
+        if (meshes.has(key)) continue;
+        const id = parseMeshKeyTileId(key);
+        if (!id) continue;
+        const box = buildTerrainTileLocalBox(
+          source?.getTileBounds(id) ?? getTileBounds(id),
+          knownHeightRanges[terrainTileKey(id)] ?? unknownTerrainHeightRange,
+          [origin.x, origin.y, origin.z],
+          meterScale,
+          bounds
+        ).applyMatrix4(root.matrixWorld);
+        volumes.push({
+          id: `${runtimeId}:${key}`,
+          kind: "terrain-tile",
+          state: "loading",
+          minimum: [box.min.x, box.min.y, box.min.z],
+          maximum: [box.max.x, box.max.y, box.max.z],
+        });
+      }
     }
     return volumes;
   };

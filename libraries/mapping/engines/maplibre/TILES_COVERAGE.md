@@ -1586,3 +1586,47 @@ parse of 30.1 MiB disappears. On a phone, where the round trip is 100 to
 **Revisit when:** the dataset is regenerated, which is the moment to choose
 implicit tiling, or when a measurement of the zoom-into-new-region case shows
 the hierarchy is no longer the structural blocker.
+
+## Terrain and the corridor in the tile overlay
+
+**TILES-DIAG-VOLUMES-20260919 / 2026-09-19 / accepted**
+
+**Context and constraints:** the tile overlay knew one source, the 3D Tiles
+tree it is attached to. Terrain tiles were invisible in it, although selection
+already treats them as boxes, and the shadow corridor had no frustum of its
+own beside the main camera. The add-on rule stands: nothing here may change
+loading, and the no-shadow path may not pay for it.
+
+**Decision:**
+- A terrain tile is a 2.5D tile, a footprint over its elevation range.
+  `buildTerrainTileLocalBox` in `core/terrain-selection.ts` is now the single
+  box builder, used by selection culling and by the runtime's diagnostic
+  volumes, so the drawn box is the culled box.
+- `getActiveTileVolumes` reports loading tiles too, with the height range
+  known for them (`unknownHeightRange` where none is), so a terrain tile is
+  drawn where its payload will land, not only once it exists.
+- The capture cuts those boxes with the main and the corridor frustum
+  (`projectDiagnosticVolumes`) and packs them as ordinary overlay records:
+  ringed when the corridor holds them, dimmed when no camera demands them.
+- The corridor camera reaches the debugger through `setShadowView`, which
+  every shared-scene runtime already receives, and is published as a display
+  camera only (`snapshotShadowCorridorCameras`). It is drawn like any other
+  frustum, orthographic included, because that path is matrix-based.
+
+**Alternatives and disposition:**
+- Register the corridor as a `TileCameraView`: *deferred*. It would make the
+  corridor a demand source for every runtime that reads `tileCameraViews`,
+  which is block Z4, not a diagnostics change.
+- Carry the per-entry boxes out of `buildTerrainSelection`: *deferred*. It
+  widens the worker payload for every frame, including with diagnostics off.
+- Terrain as an `OverlayRect`: *incompatible by inspection*. Rects carry a
+  `Tile` for hover, labels and selection; volumes have none.
+
+**Evidence:** `tile-diagnostic-volumes.spec.ts` (frustum cuts, footprint
+projection, unusable boxes dropped), `shadow-corridor-camera.spec.ts`,
+`raster-dem-terrain-*` specs, all green; the two failures in
+`tile-diagnostic-overlay.spec.ts` and `terrain-selection-dispatch.spec.ts`
+reproduce on the same files at HEAD.
+
+**Revisit when:** the corridor becomes a first-party camera member (Z4), or a
+terrain-only session needs the overlay without a 3D Tiles tree to attach to.
