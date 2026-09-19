@@ -1988,7 +1988,49 @@ export const buildRasterDemTerrainRuntime = (
     };
     const scheduledKeys = new Set<string>();
     const finalKeys = new Set(requested.map(({ key }) => key));
-    const sourceStages = [...selection.viewportStages, selection.entries];
+    // A published parent is only replaced once its children cover it whole. The
+    // cut is clipped to the view and the corridor, so a parent on the edge of
+    // the view has quadrants nobody asks for, and the children that did load
+    // can never take its place: they sit built and unpublished for as long as
+    // the camera stays. Completing that parent's footprint is coverage, not
+    // excess, so the missing siblings are requested behind everything else.
+    const completion: TerrainSelectionEntry[] = [];
+    if (source) {
+      const wanted = new Set(requested.map(({ key }) => key));
+      const published = [...activeMeshKeys].flatMap((key) => {
+        const record = meshes.get(key);
+        return record ? [record.id] : [];
+      });
+      for (const entry of selection.entries) {
+        const parent = published.find(
+          (id) =>
+            id.level === entry.id.level - 1 && terrainTileContains(id, entry.id)
+        );
+        if (!parent) continue;
+        for (const x of [parent.x * 2, parent.x * 2 + 1])
+          for (const y of [parent.y * 2, parent.y * 2 + 1]) {
+            const child = { level: parent.level + 1, x, y };
+            const key = terrainSelectionKey({ id: child, kind: "source" });
+            if (
+              wanted.has(key) ||
+              meshes.has(key) ||
+              unavailableTileKeys.has(terrainTileKey(child))
+            )
+              continue;
+            wanted.add(key);
+            completion.push({
+              id: child,
+              kind: "source",
+              priority: TILE_CAMERA_PRIORITY.SECONDARY,
+            });
+          }
+      }
+    }
+    const sourceStages = [
+      ...selection.viewportStages,
+      selection.entries,
+      ...(completion.length ? [completion] : []),
+    ];
     const priorities = [
       ...new Set(
         sourceStages.flatMap((stage) =>

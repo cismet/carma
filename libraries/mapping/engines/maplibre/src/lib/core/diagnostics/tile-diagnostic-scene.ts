@@ -30,6 +30,9 @@ export const tilePhaseFill = (phase: string): number =>
 
 /** Transfer-only diagnostic API. Never send Tile, Map, geometry or material objects. */
 export type DiagnosticSnapshot = {
+  /** What the overview draws beside the tiles themselves. */
+  showSize?: boolean;
+  showStats?: boolean;
   tileBounds?: Float64Array;
   viewportBasis?: DiagnosticViewportBasis;
   tiles: Float32Array;
@@ -282,7 +285,7 @@ export const buildDiagnosticPrimitives = (
       i,
       i + TILE_RECORD_FLOATS
     );
-    if (kind < 0 || !(bytes > 0)) continue;
+    if (kind < 0 || !(bytes > 0) || snapshot.showSize === false) continue;
     const cells = Math.max(
       1,
       Math.min(SIZE_GRID * SIZE_GRID, Math.ceil(bytes / byteUnit))
@@ -316,7 +319,7 @@ export const buildDiagnosticPrimitives = (
     const stepTotal = stepTimes.reduce((sum, ms) => sum + ms, 0);
     // A tile that reports its processing steps shows them as a pie instead of
     // the phase fill: one wedge per step, the sweep its progress.
-    if (kind >= 0 && stepTotal > 0) {
+    if (kind >= 0 && stepTotal > 0 && snapshot.showStats !== false) {
       const loaded = phase === LOADED_PHASE;
       const sweep = loaded
         ? 1
