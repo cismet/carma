@@ -74,7 +74,8 @@ const datasetIdentityArgs = (identity: PointCloudAssetIdentity) => ({
 });
 
 const meta = {
-  title: "Pointcloud Investigation/Point Clouds",
+  title: "Applications/Point Clouds",
+  id: "pointcloud-investigation-point-clouds",
   component: StandalonePointCloudViewer,
   parameters: {
     docs: {

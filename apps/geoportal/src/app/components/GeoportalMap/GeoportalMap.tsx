@@ -58,6 +58,7 @@ import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
 import { useAuth } from "@carma-providers/auth";
 import { useLibreMapEnabled } from "../../hooks/useLibreMapEnabled";
+import { TileLoadingDebugHost } from "./TileLoadingDebugHost";
 import {
   defaultLayerConf,
   getLayers as getBackgroundLayers,
@@ -128,7 +129,7 @@ import { getLibreDrawMode } from "../../store/slices/measurements.ts";
 
 import LoginForm from "../LoginForm.tsx";
 
-import { LEAFLET_CONFIG } from "../../config/app.config";
+import { LEAFLET_CONFIG, MAP_BACKGROUND_COLOR } from "../../config/app.config";
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import "../leaflet.css";
@@ -876,8 +877,12 @@ const LibreGeoportalMap = ({ allow3d }: MapProps) => {
   useLibreTriggerSelectionSync(libreMap);
 
   const { isCesium, isTransitioning } = useMapFrameworkSwitcherContext();
-  const { initialViewApplied, getScene, getSurfaceProvider, getTerrainProvider } =
-    useCesiumContext();
+  const {
+    initialViewApplied,
+    getScene,
+    getSurfaceProvider,
+    getTerrainProvider,
+  } = useCesiumContext();
 
   const maplibreBridge = useMaplibreRuntimeBridge({
     id: "geoportal-maplibre",
@@ -896,7 +901,9 @@ const LibreGeoportalMap = ({ allow3d }: MapProps) => {
 
   // The effective restriction (addon override on top of the app base), so print
   // mode — which forces it — keeps the animated top-down handover.
-  const isTwoDCameraFree = !(useCameraRestriction(libreMap)?.restricted ?? true);
+  const isTwoDCameraFree = !(
+    useCameraRestriction(libreMap)?.restricted ?? true
+  );
 
   // Both engines subscribe to the same view state and both adapters carry
   // bearing/pitch, so when the 2D map may rotate the switch is a read plus an
@@ -941,7 +948,11 @@ const LibreGeoportalMap = ({ allow3d }: MapProps) => {
           // Do not turn MapLibre's default 4096px ceiling into blurry HiDPI
           // output. Its drawing-buffer/GL-limit fallback remains authoritative.
           maxCanvasSize={[Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY]}
+          // The persisted layer stack is known on the first render; the map
+          // loads its final style once instead of a background it replaces.
+          deferInitialStyle
           backgroundLayers={null}
+          backgroundColor={MAP_BACKGROUND_COLOR}
           zoomControls={false}
           fullScreenControl={false}
           terrainControl={false}
@@ -990,6 +1001,7 @@ const LibreGeoportalMap = ({ allow3d }: MapProps) => {
             />
           ))}
         {!isCesium && <LibrePrintPreview />}
+        <TileLoadingDebugHost map={libreMap} />
       </div>
       <GeoportalCesiumHost
         allow3d={allow3d}

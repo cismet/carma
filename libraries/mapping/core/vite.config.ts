@@ -17,6 +17,9 @@ export default defineConfig({
   ],
 
   worker: {
+    // This project bundles the maplibre engine source, whose module workers
+    // code-split; the default iife worker output cannot express that.
+    format: "es",
     plugins: () => [nxViteTsPaths()],
   },
 

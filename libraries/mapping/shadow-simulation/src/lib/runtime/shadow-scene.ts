@@ -18,6 +18,7 @@ import {
   isTerrainShadingStyleLayer,
   isSharedThreeTerrainLoading,
   subscribeSharedThreeTerrainLoading,
+  TILES_MESH_ERROR_TARGET_DEFAULT_PIXELS,
 } from "@carma-mapping/engines/maplibre";
 import { buildRasterDemTerrainRuntime } from "@carma-mapping/engines/maplibre/terrain";
 import type {
@@ -45,7 +46,6 @@ import {
 } from "../core/shadow-receiver-grid";
 import type { ShadowReceiverCell } from "../core/shadow-page-plan";
 import {
-  DEFAULT_MESH_ERROR_TARGET_PIXELS,
   DEFAULT_TERRAIN_ERROR_TARGET_PIXELS,
   DEFAULT_SHADOW_QUALITY,
   DEFAULT_SHADOW_SURFACE_COLOR,
@@ -188,7 +188,7 @@ export type ShadowSimulationScene = {
   updateTerrain: (terrain: ShadowTerrainOptions | undefined) => void;
   updateSolarPosition: (position: SolarPosition) => void;
   updateTerrainColor: (color: string) => void;
-  updateMeshErrorTarget: (errorTarget: MeshErrorTargetPixels) => void;
+  updateMeshErrorTarget: (errorTarget: MeshErrorTargetPixels | null) => void;
   updateMeshCacheBudget: (bytes?: number) => void;
   updateBuildingAppearance: (appearance: ShadowBuildingAppearance) => void;
   updateShadowQuality: (quality: ShadowQualityMultiplier) => void;
@@ -1052,7 +1052,17 @@ export const buildShadowSimulationScene = (
     textureColorCorrection: true,
   };
   let latestShadowIntensity = 1;
-  let latestMeshErrorTarget = DEFAULT_MESH_ERROR_TARGET_PIXELS;
+  // null (Auto) leaves every tileset on its own target; the UI override sits
+  // on top of it through setErrorTargetOverride.
+  let latestMeshErrorTarget: MeshErrorTargetPixels | null = null;
+  // The target the mesh is actually refining towards: the override, else the
+  // mesh tileset's own (host) target.
+  const meshErrorTargetPixels = () =>
+    latestMeshErrorTarget ??
+    getSharedThreeSceneRuntimes(map)
+      .find((runtime) => runtime.providesTerrain === true)
+      ?.getErrorTarget?.() ??
+    TILES_MESH_ERROR_TARGET_DEFAULT_PIXELS;
   let latestMeshCacheBudget: number | undefined;
   const meshCacheBudgets = new WeakMap<object, number | undefined>();
   let latestAtmosphericSunlight: AtmosphericSunlightSample | null = null;
@@ -1180,6 +1190,7 @@ export const buildShadowSimulationScene = (
     const mapCenter = map.getCenter();
     const {
       errorTargetPixels,
+      motionErrorTargetPixels,
       shadowLevelOffset,
       minimumLevel,
       maximumLevel,
@@ -1200,6 +1211,7 @@ export const buildShadowSimulationScene = (
       {
         errorTargetPixels:
           errorTargetPixels ?? DEFAULT_TERRAIN_ERROR_TARGET_PIXELS,
+        motionErrorTargetPixels,
         shadowLevelOffset,
         minimumLevel,
         maximumLevel,
@@ -1558,10 +1570,11 @@ export const buildShadowSimulationScene = (
   ) => {
     if (!sharedSceneProvidesTerrain()) return undefined;
     const volumes = getActiveTileVolumes();
+    const targetErrorPixels = meshErrorTargetPixels();
     const stageError = bounds
-      ? shadowReceiverStageError(bounds, volumes, latestMeshErrorTarget)
+      ? shadowReceiverStageError(bounds, volumes, targetErrorPixels)
       : Math.max(
-          latestMeshErrorTarget,
+          targetErrorPixels,
           ...volumes
             .filter(({ loadReason }) => loadReason !== "shadow")
             .map(({ errorPixels }) => errorPixels)
@@ -1574,7 +1587,7 @@ export const buildShadowSimulationScene = (
     // only the temporary coarse representation may use up to 25 cm.
     return meshReceiverBiasLimitMeters({
       stageErrorPixels: stageError,
-      targetErrorPixels: latestMeshErrorTarget,
+      targetErrorPixels,
       groundTexelTargetMeters,
       finalBiasMeters: MESH_FINAL_SHADOW_BIAS_METERS,
       maximumCoarseBiasMeters: MESH_COARSE_SHADOW_BIAS_LIMIT_METERS,
@@ -1697,9 +1710,13 @@ export const buildShadowSimulationScene = (
       // while per-tile stages are diagnosed in the scene overlay.
       runtime.setShadowStagePresentationGate?.(false);
       if (!runtime.providesTerrain) {
-        runtime.setErrorTarget?.(
-          terrain?.errorTargetPixels ?? DEFAULT_TERRAIN_ERROR_TARGET_PIXELS
-        );
+        // The shadow terrain follows the terrain LOD; a building tileset keeps
+        // its own target unless the tileset LOD override says otherwise.
+        if (runtime === terrainRuntime)
+          runtime.setErrorTarget?.(
+            terrain?.errorTargetPixels ?? DEFAULT_TERRAIN_ERROR_TARGET_PIXELS
+          );
+        else runtime.setErrorTargetOverride?.(latestMeshErrorTarget);
         runtime.setShadowView?.(view ? { ...view, terrainReceivers } : null);
         continue;
       }
@@ -1712,6 +1729,12 @@ export const buildShadowSimulationScene = (
   };
   const setRuntimeShadowView = (view: SharedThreeSceneShadowView | null) => {
     latestShadowView = view;
+    // Whoever only draws the light gets it as it is fitted, gesture or not.
+    for (const runtime of new Set([
+      ...getSharedThreeSceneRuntimes(map),
+      ...(terrainRuntime ? [terrainRuntime] : []),
+    ]))
+      runtime.setLiveShadowView?.(view);
     if (!mapInMotion) applyRuntimeShadowView(view);
   };
 
@@ -2273,7 +2296,7 @@ export const buildShadowSimulationScene = (
             bounds,
             getActiveTileVolumes(),
             sharedSceneProvidesTerrain()
-              ? latestMeshErrorTarget
+              ? meshErrorTargetPixels()
               : terrain?.errorTargetPixels ??
                   DEFAULT_TERRAIN_ERROR_TARGET_PIXELS
           );
@@ -2677,7 +2700,7 @@ export const buildShadowSimulationScene = (
     releaseMapLibreTerrain.refresh();
     for (const runtime of getSharedThreeSceneRuntimes(map)) {
       if (runtime.providesTerrain) {
-        runtime.setErrorTarget?.(latestMeshErrorTarget);
+        runtime.setErrorTargetOverride?.(latestMeshErrorTarget);
         if (
           !meshCacheBudgets.has(runtime) ||
           meshCacheBudgets.get(runtime) !== latestMeshCacheBudget
@@ -2886,7 +2909,7 @@ export const buildShadowSimulationScene = (
       if (latestMeshErrorTarget === errorTarget) return;
       latestMeshErrorTarget = errorTarget;
       for (const runtime of getSharedThreeSceneRuntimes(map)) {
-        if (runtime.providesTerrain) runtime.setErrorTarget?.(errorTarget);
+        runtime.setErrorTargetOverride?.(errorTarget);
       }
       map.triggerRepaint();
     },
@@ -3119,6 +3142,7 @@ export const buildShadowSimulationScene = (
       applyRuntimeShadowView(null);
       for (const runtime of getSharedThreeSceneRuntimes(map)) {
         runtime.setShadowSimulationStyle?.(null);
+        runtime.setErrorTargetOverride?.(null);
       }
       for (const bridge of genericBridges.values()) {
         if (sceneLease.layer.hasRuntime(bridge.runtime.id)) {

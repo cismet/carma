@@ -73,6 +73,11 @@ export type ShadowSimulationConfig = {
   terrainSources?: readonly ShadowTerrainSourceOption[];
   controlPosition?: Positions;
   controlOrder?: number;
+  /**
+   * Offer the tiled shadow buffer (story-only while it matures). Off, the
+   * layout is always the single buffer, whatever a persisted state says.
+   */
+  experimentalTiledShadows?: boolean;
 };
 
 export type ShadowSimulationState = ShadowRenderQualityOptions & {
@@ -87,6 +92,14 @@ export type ShadowSimulationState = ShadowRenderQualityOptions & {
   buildingColor: string;
   shadowQuality: ShadowQualityMultiplier;
   meshErrorTarget?: MeshErrorTargetPixels;
+  /** Show the host's tile loading manager diagnostics, when it offers them. */
+  showTileDiagnostics?: boolean;
+  /**
+   * Replace the host's raster base maps with the vector base that can be
+   * draped on terrain and 3D models. Off by default: the simulation drapes
+   * whatever background is selected. Layers added on top are unaffected.
+   */
+  overrideBaseMapWithVectorStyle?: boolean;
   terrainErrorTarget?: MeshErrorTargetPixels;
   /** Optional explicit resident budget; absent uses the device default. */
   meshCacheBudgetBytes?: number;

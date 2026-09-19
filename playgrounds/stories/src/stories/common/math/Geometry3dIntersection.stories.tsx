@@ -548,7 +548,8 @@ const PerspectiveClipPlanesPreview = (args: PerspectiveClipPlanesStoryArgs) => {
 };
 
 const meta = {
-  title: "Common/Math",
+  title: "Map Navigation/Camera and Scale",
+  id: "common-math",
   component: PerspectiveClipPlanesPreview,
   parameters: {
     layout: "fullscreen",

@@ -5,7 +5,8 @@ import {
 } from "./DomLabelLayoutEngine.story-helpers";
 
 const meta = {
-  title: "Overlay/Layout",
+  title: "Annotations/Labels",
+  id: "overlay-layout",
   parameters: {
     layout: "fullscreen",
     controls: {

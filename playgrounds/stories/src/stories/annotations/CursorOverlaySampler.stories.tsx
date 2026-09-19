@@ -1313,7 +1313,8 @@ const CursorOverlaySamplerSandbox = ({
 };
 
 const meta: Meta<CursorOverlaySamplerStoryProps> = {
-  title: "Annotations/Cursor Overlay",
+  title: "Annotations/Cursors",
+  id: "annotations-cursor-overlay",
   component: CursorOverlaySamplerSandbox,
   parameters: {
     layout: "fullscreen",

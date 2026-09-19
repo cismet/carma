@@ -84,7 +84,8 @@ const INFO_BOX_PARITY_GEO_BACKDROP_PRESET_OPTIONS = [
 ] as const;
 
 const meta = {
-  title: "Geoportal/InfoBox Parity",
+  title: "Annotations/Measurements",
+  id: "geoportal-infobox-parity",
   parameters: {
     layout: "fullscreen",
     controls: {

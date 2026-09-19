@@ -705,7 +705,8 @@ const StressPreview = ({
 };
 
 const meta = {
-  title: "Mapping Components/Cesium",
+  title: "UI/Gizmos/Primitives",
+  id: "mapping-components-cesium",
   parameters: {
     layout: "fullscreen",
   },

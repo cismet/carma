@@ -20,10 +20,19 @@ import type {
 import type { createThreeTilesDebugOverlay } from "./three-tiles-debug-overlay";
 import type { EffectiveErrorTargetState } from "./three-tiles-load-policy";
 import {
+  getCacheCeilingStorage,
+  readCacheCeilingMemory,
+  settleCrashedCacheCeilingSession,
+  startCacheCeilingSession,
+  writeCacheCeilingMemory,
+} from "./three-tiles-cache-ceiling-memory";
+import {
   createEffectiveErrorTargetState,
   createTileBytesPredictor,
   initialMeshLoadError,
   resolveTilesCacheCeiling,
+  TILES_LOAD_POLICY,
+  resolveExtentGeometricError,
 } from "./three-tiles-load-policy";
 import {
   createThreeTilesRetryController,
@@ -48,6 +57,7 @@ import {
   readTilesDeviceProfile,
 } from "./three-tiles-runtime-vendor";
 import type { TilesCameraSet } from "./tiles-camera-set";
+import { createTileCameraDemand } from "../../core/tile-camera-demand";
 
 export function createThreeTilesRuntimeState(
   layerId: string,
@@ -71,8 +81,12 @@ export function createThreeTilesRuntimeState(
   const lastTraversalFrameCount = -1;
   const unsubscribeTerrainLoading: (() => void) | null = null;
   const requestedErrorTarget = TILES_ERROR_TARGET_DEFAULT_PIXELS;
+  // The host's target and a consumer override (shadow simulation) on top of
+  // it; requestedErrorTarget is whichever of the two currently applies.
+  const configuredErrorTarget = requestedErrorTarget;
+  const errorTargetOverride: number | null = null;
   const effectiveErrorTarget = options.providesTerrain
-    ? initialMeshLoadError(requestedErrorTarget)
+    ? initialMeshLoadError(requestedErrorTarget, options.baseErrorTargetPixels)
     : requestedErrorTarget;
   const errorTargetState: EffectiveErrorTargetState = {
     ...createEffectiveErrorTargetState(requestedErrorTarget, Date.now()),
@@ -85,10 +99,28 @@ export function createThreeTilesRuntimeState(
   const deviceProfile = readTilesDeviceProfile();
   const styleCacheBudgetBytes = options.cacheBudgetBytes;
   const styleCacheOverflowBytes = options.cacheOverflowBytes;
-  const ceilingBytes = resolveTilesCacheCeiling(deviceProfile, {
-    cacheBudgetBytes: styleCacheBudgetBytes,
-    cacheOverflowBytes: styleCacheOverflowBytes,
-  });
+  // A session that never ended cleanly lowers the ceiling before it applies.
+  const cacheCeilingStorage = options.persistCacheCeiling
+    ? getCacheCeilingStorage()
+    : null;
+  const settledMemory = settleCrashedCacheCeilingSession(
+    readCacheCeilingMemory(cacheCeilingStorage)
+  );
+  const learnedCeilingBytes = settledMemory.learnedBytes;
+  const ceilingBytes = resolveTilesCacheCeiling(
+    deviceProfile,
+    {
+      cacheBudgetBytes: styleCacheBudgetBytes,
+      cacheOverflowBytes: styleCacheOverflowBytes,
+    },
+    learnedCeilingBytes
+  );
+  const cacheCeilingMemory = cacheCeilingStorage
+    ? startCacheCeilingSession(settledMemory, ceilingBytes, Date.now())
+    : null;
+  if (cacheCeilingMemory)
+    writeCacheCeilingMemory(cacheCeilingStorage, cacheCeilingMemory);
+  const cacheCeilingPeakWrittenAt = 0;
   const bytesPredictor = createTileBytesPredictor();
   /** Displayable siblings outside the view and its prefetch margin (D1). */
   const deferred = new Set<Tile>();
@@ -101,6 +133,15 @@ export function createThreeTilesRuntimeState(
   );
   const payloadAwareConcurrency = createPayloadAwareRequestConcurrency();
   const memoryAdmissionPaused = false;
+  const loadingPaused = false;
+  const hostHandle: unknown = null;
+  const memoryErrorTarget = requestedErrorTarget;
+  const memoryErrorTargetChangedAt = 0;
+  const foveationWeight = 0;
+  const tilesetMinResolutionPx: number | null = null;
+  const appliedTilesetMinResolutionPx: number | null = null;
+  const appliedTilesetMinCeilingBytes = Number.NaN;
+  const rootLongestAxisMeters = Number.NaN;
   const allocationFailed = false;
   const contextLost = false;
   const meshAuditTimer: ReturnType<typeof setTimeout> | null = null;
@@ -117,6 +158,8 @@ export function createThreeTilesRuntimeState(
   const orientationGroup = new THREE.Group();
   orientationGroup.rotation.y = Math.PI;
   const offsetGroup = new THREE.Group();
+  if (Number.isFinite(options.groundReferenceMeters))
+    offsetGroup.position.y = -(options.groundReferenceMeters as number);
   orientationGroup.add(offsetGroup);
   const whiteShading = false;
   const clayColor = new THREE.Color(CLAY_COLOR);
@@ -131,6 +174,8 @@ export function createThreeTilesRuntimeState(
   const shadowSimulationStyle: SharedThreeSceneShadowStyle | null = null;
   const shadowView: SharedThreeSceneShadowView | null = null;
   const shadowViewSignature = "";
+  const pendingShadowView: SharedThreeSceneShadowView | null = null;
+  const meshInitialBasePassDone = false;
   const shadowSelectionEnabled = false;
   const shadowSelectionNeedsTraversal = false;
   const shadowSelectionRefreshPending = false;
@@ -141,6 +186,7 @@ export function createThreeTilesRuntimeState(
   const committedMeshReceiverFrontier = new Set<Tile>();
   const committedMeshCasterFrontier = new Set<Tile>();
   const displayedMeshFrontier = new Set<Tile>();
+  const meshUnderlayFrontier = new Set<Tile>();
   const meshContentRevision = 0;
   const mainViewSourceTiles = new Set<Tile>();
   const viewQualityAuditPasses = 0;
@@ -161,6 +207,23 @@ export function createThreeTilesRuntimeState(
   const marginCamera = new THREE.PerspectiveCamera();
   const marginProjection = new THREE.Matrix4();
   const marginFrustum = new TilesViewFrustum();
+  const ringFrustums = TILES_LOAD_POLICY.idleRingTanMultipliers.map(
+    () => new TilesViewFrustum()
+  );
+  const ringRefinePasses = 0;
+  const extentGeometricError = options.entry
+    ? resolveExtentGeometricError(options.entry.levels, ceilingBytes)
+    : Number.POSITIVE_INFINITY;
+  // Establish replacement coverage before fine payloads can fill the cache.
+  // Metadata defines reserve resolution, not permission to fill it before
+  // current-view quality. The lifecycle arms it after viewport convergence.
+  const extentFloorArmed = false;
+  const extentFloorAuditPending = extentFloorArmed;
+  const extentFloorPending = 0;
+  const extentFloorInView = new Set<Tile>();
+  const residentAncestors = new Set<Tile>();
+  const lastRingRefineAt = 0;
+  const lastTraversalMs = 0;
   const viewFrustumsReady = false;
   const tileBoundingSphere = new THREE.Sphere();
   const tileBoundingBox = new THREE.Box3();
@@ -234,6 +297,7 @@ export function createThreeTilesRuntimeState(
   const originalRenderSides = new Map<THREE.Material, THREE.Side>();
   const separatedSurfaceRenderSides = new WeakMap<THREE.Material, THREE.Side>();
   const mapStyleProjectionVersion = 0;
+  const materialRevision = 0;
   const normalizedSeparatedSurfaceGeometries =
     new WeakSet<THREE.BufferGeometry>();
   const tileRetries = createThreeTilesRetryController(
@@ -270,6 +334,9 @@ export function createThreeTilesRuntimeState(
     dracoLoader,
     tileDebugOverlay,
     cameraSet,
+    tileCameraDemand: createTileCameraDemand([]),
+    tileCameraSignature: "[]",
+    meshRefinementSupport: new Set(),
     kickstartTimer,
     requestBackoffTimer,
     hiddenWipeTimer,
@@ -277,6 +344,8 @@ export function createThreeTilesRuntimeState(
     lastTraversalFrameCount,
     unsubscribeTerrainLoading,
     requestedErrorTarget,
+    configuredErrorTarget,
+    errorTargetOverride,
     effectiveErrorTarget,
     errorTargetState,
     errorTargetTimer,
@@ -287,18 +356,32 @@ export function createThreeTilesRuntimeState(
     styleCacheBudgetBytes,
     styleCacheOverflowBytes,
     ceilingBytes,
+    cacheCeilingStorage,
+    cacheCeilingMemory,
+    learnedCeilingBytes,
+    cacheCeilingPeakWrittenAt,
     bytesPredictor,
     deferred,
     queuedThisTraversal,
     requestConcurrency,
     payloadAwareConcurrency,
     memoryAdmissionPaused,
+    loadingPaused,
+    hostHandle,
+    memoryErrorTarget,
+    memoryErrorTargetChangedAt,
+    foveationWeight,
+    tilesetMinResolutionPx,
+    appliedTilesetMinResolutionPx,
+    appliedTilesetMinCeilingBytes,
+    rootLongestAxisMeters,
     allocationFailed,
     contextLost,
     meshAuditTimer,
     motionCoverageTimer,
     motionCoverageDue,
     meshBaseCoverageReady,
+    meshInitialReserveSettled: false,
     meshDemandSweepPending,
     lastMemoryCheck,
     normalParseConcurrency,
@@ -316,6 +399,8 @@ export function createThreeTilesRuntimeState(
     shadowSimulationStyle,
     shadowView,
     shadowViewSignature,
+    pendingShadowView,
+    meshInitialBasePassDone,
     shadowSelectionEnabled,
     shadowSelectionNeedsTraversal,
     shadowSelectionRefreshPending,
@@ -326,6 +411,7 @@ export function createThreeTilesRuntimeState(
     committedMeshReceiverFrontier,
     committedMeshCasterFrontier,
     displayedMeshFrontier,
+    meshUnderlayFrontier,
     meshContentRevision,
     mainViewSourceTiles,
     viewQualityAuditPasses,
@@ -346,6 +432,16 @@ export function createThreeTilesRuntimeState(
     marginCamera,
     marginProjection,
     marginFrustum,
+    ringFrustums,
+    ringRefinePasses,
+    extentGeometricError,
+    extentFloorArmed,
+    extentFloorAuditPending,
+    extentFloorPending,
+    extentFloorInView,
+    residentAncestors,
+    lastRingRefineAt,
+    lastTraversalMs,
     viewFrustumsReady,
     tileBoundingSphere,
     tileBoundingBox,
@@ -377,6 +473,7 @@ export function createThreeTilesRuntimeState(
     originalRenderSides,
     separatedSurfaceRenderSides,
     mapStyleProjectionVersion,
+    materialRevision,
     normalizedSeparatedSurfaceGeometries,
     tileRetries,
     lastNotifiedRequestDemand,

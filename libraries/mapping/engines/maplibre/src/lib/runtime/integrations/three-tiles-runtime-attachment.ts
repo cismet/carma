@@ -23,11 +23,14 @@ import { subscribeSharedThreeTerrainLoading } from "./shared-three-terrain-regis
 import { readOrientedTileBounds } from "./three-tiles-bounds";
 import {
   TILES_LOAD_POLICY,
+  idleRingAllowedError,
   initialMeshLoadError,
+  isExtentFloorTile,
 } from "./three-tiles-load-policy";
 import {
   isMeshCoveredByLoadedChildren,
   shouldDeferMeshRefinement,
+  isNextPublishedMeshLevel,
 } from "./three-tiles-mesh-frontier";
 import type {
   ThreeTilesRuntimeServices,
@@ -43,6 +46,7 @@ import type {
   RuntimePriorityQueue,
   RuntimeTile,
   RuntimeTilesRenderer,
+  RuntimeLruCache,
 } from "./three-tiles-runtime-types";
 import {
   buildPrimitiveOutlinePlugin,
@@ -50,10 +54,13 @@ import {
   tilesCacheUnloadPriorityCallback,
   tilesNodeQueuePriorityCallback,
   tilesQueuePriorityCallback,
+  LOADED_LOADING_STATE,
   UNLOADED_LOADING_STATE,
 } from "./three-tiles-runtime-vendor";
 import { TilesetDeferredMaterialsPlugin } from "./tileset-deferred-materials-plugin";
 import { TilesetHierarchyPlugin } from "./tileset-hierarchy-plugin";
+import { TilesetMercatorProjectionPlugin } from "./tileset-mercator-projection-plugin";
+import { debugTilesRuntimes } from "./three-tiles-runtime-debug";
 
 type ThreeTilesRuntimeAttachmentState = Pick<
   ThreeTilesRuntimeState,
@@ -69,8 +76,20 @@ type ThreeTilesRuntimeAttachmentState = Pick<
   | "mainViewSourceTiles"
   | "map"
   | "memoryAdmissionPaused"
+  | "memoryErrorTarget"
+  | "loadingPaused"
   | "meshAuditTimer"
   | "meshBaseCoverageReady"
+  | "displayedMeshFrontier"
+  | "lastMainViewConverged"
+  | "meshRefinementSupport"
+  | "extentGeometricError"
+  | "extentFloorArmed"
+  | "extentFloorAuditPending"
+  | "extentFloorPending"
+  | "extentFloorInView"
+  | "residentAncestors"
+  | "ringRefinePasses"
   | "motionCoverageTimer"
   | "normalParseConcurrency"
   | "offsetGroup"
@@ -84,6 +103,8 @@ type ThreeTilesRuntimeAttachmentState = Pick<
   | "requestedErrorTarget"
   | "runtimeVisible"
   | "shadowReceiverMask"
+  | "shadowView"
+  | "tileCameraDemand"
   | "shadowReceiverMatch"
   | "shadowSelectionEnabled"
   | "tileBoundingBox"
@@ -110,20 +131,25 @@ type ThreeTilesRuntimeAttachmentDependencies = Pick<
   | "disposeLitTextureState"
   | "getTileDebugProgress"
   | "getTileScreenError"
+  | "getTileCameraDemand"
+  | "getTileRequestPriority"
   | "handleContextLost"
   | "handleContextRestored"
   | "handleLoadError"
   | "handleModelDispose"
   | "handleModelLoad"
+  | "handleTileVisibilityChange"
   | "handleTilesetLoad"
   | "handleTilesLoadEnd"
   | "handleUpdateAfter"
   | "handleViewEnd"
   | "handleViewStart"
   | "handleVisibilityChange"
+  | "endCacheCeilingSession"
   | "handleWireBytes"
   | "initialEffectiveErrorTarget"
   | "isTileInMainView"
+  | "getTileRingIndex"
   | "recordTileIteration"
   | "refreshRenderedMaterials"
   | "requestRender"
@@ -138,6 +164,7 @@ type ThreeTilesRuntimeAttachmentDependencies = Pick<
   handleDownloadStart: (event: { tile: Tile }) => void;
   localTelemetry: boolean;
   noteTileActivity: (tile: Tile) => void;
+  isTileRequestNeeded: (tile: Tile) => boolean;
 };
 
 export function createThreeTilesRuntimeAttachment(
@@ -145,7 +172,17 @@ export function createThreeTilesRuntimeAttachment(
   dependencies: ThreeTilesRuntimeAttachmentDependencies
 ) {
   const deferredMaterials = new TilesetDeferredMaterialsPlugin({
-    inView: dependencies.isTileInMainView,
+    // The idle ring is prefetched to be drawable the moment it scrolls in,
+    // so its materials are promoted like the main view's.
+    inView: (tile) =>
+      dependencies.isTileInMainView(tile as RuntimeTile) ||
+      dependencies.getTileCameraDemand(tile as RuntimeTile).receiver ||
+      runtimeState.meshRefinementSupport.has(tile) ||
+      (runtimeState.extentFloorArmed &&
+        runtimeState.extentGeometricError > 0 &&
+        isExtentFloorTile(tile, runtimeState.extentGeometricError)) ||
+      (tile as RuntimeTile).motionPrefetch === true ||
+      (tile as RuntimeTile).idleRing === true,
     onPromoted: (tile, scene) => {
       dependencies.refreshRenderedMaterials(scene);
       runtimeState.mainViewProjectionChanged = true;
@@ -181,25 +218,110 @@ export function createThreeTilesRuntimeAttachment(
     const queue = nativeQueue as RuntimePriorityQueue;
     const run = queue.tryRunJobs.bind(queue);
     queue.tryRunJobs = () => {
+      if (runtimeState.disposed || !runtimeState.tiles) return;
       if (!runtimeState.options.providesTerrain) return run();
-      if (runtimeState.map?.isMoving?.()) return;
-      if (runtimeState.meshBaseCoverageReady) return run();
+      const moving = runtimeState.map?.isMoving?.() === true;
+      // Both strategies admit bounded initial-quality work while moving;
+      // foreground rank orders jobs without a cross-stage parsing barrier.
       // Native PriorityQueue has no eligibility predicate. Partition only its
       // scheduling list synchronously; promises, callbacks and native abort
       // ownership stay registered. Restore parked entries before yielding.
-      // Decision: MOTION-PAUSE-20260909 in shadow-simulation/three/TILED_SHADOW_PAGES.md.
+      // Decision: DRAG-RESIDENT-SIBLINGS-20260916 in TILES_COVERAGE.md.
       const parked: Tile[] = [];
       const ready: Tile[] = [];
       const retainedMeshAncestors = dependencies.getRetainedMeshAncestors();
-      for (const tile of queue.items) {
-        const required =
-          dependencies.isTileInMainView(tile as RuntimeTile) &&
-          !shouldDeferMeshRefinement(
-            tile,
-            initialMeshLoadError(runtimeState.requestedErrorTarget),
-            (parent) => dependencies.getTileScreenError(parent as RuntimeTile),
-            retainedMeshAncestors
+      // Decision: VIEWPORT-WORK-FIRST-20260914 in TILES_COVERAGE.md.
+      // Floor residency is not permission to occupy foreground slots.
+      // Immediate family support is foreground coverage, not idle refinement.
+      // Keep pending payloads (including downloaded buffers) on their original
+      // promises, but start them only after current-camera work drains at rest.
+      const currentDemand = new Map<Tile, number>();
+      const requestPriority = (tile: Tile) => {
+        if (!currentDemand.has(tile)) {
+          const candidate = tile as RuntimeTile;
+          candidate.cameraPriority =
+            dependencies.getTileRequestPriority(candidate);
+          currentDemand.set(tile, candidate.cameraPriority);
+        }
+        return currentDemand.get(tile)!;
+      };
+      const isForeground = (tile: Tile) =>
+        Number.isFinite(requestPriority(tile));
+      const foregroundEligibility = new Map<Tile, boolean>();
+      const canStartForeground = (tile: Tile) => {
+        if (foregroundEligibility.has(tile))
+          return foregroundEligibility.get(tile)!;
+        if (!isForeground(tile) || !dependencies.isTileRequestNeeded(tile)) {
+          foregroundEligibility.set(tile, false);
+          return false;
+        }
+        const runtimeTile = tile as RuntimeTile;
+        if (runtimeTile.motionPrefetch && requestPriority(tile) < 0) {
+          const eligible = runtimeState.meshBaseCoverageReady;
+          foregroundEligibility.set(tile, eligible);
+          return eligible;
+        }
+        const floorTile =
+          runtimeState.extentFloorArmed &&
+          isExtentFloorTile(tile, runtimeState.extentGeometricError);
+        const refinementDeferred = shouldDeferMeshRefinement(
+          tile,
+          moving
+            ? initialMeshLoadError(
+                Math.max(
+                  runtimeState.requestedErrorTarget,
+                  runtimeState.memoryErrorTarget
+                ),
+                runtimeState.options.baseErrorTargetPixels
+              )
+            : Math.max(
+                runtimeState.shadowView
+                  ? runtimeState.requestedErrorTarget
+                  : runtimeState.effectiveErrorTarget,
+                runtimeState.memoryErrorTarget
+              ),
+          (parent) => dependencies.getTileScreenError(parent as RuntimeTile),
+          retainedMeshAncestors,
+          runtimeState.options.baseErrorTargetPixels,
+          runtimeState.tiles.loadAncestors
+        );
+        const eligible =
+          isForeground(tile) &&
+          (floorTile ||
+            runtimeState.meshRefinementSupport.has(tile) ||
+            runtimeTile.zoomPrefetch === true ||
+            !refinementDeferred);
+        foregroundEligibility.set(tile, eligible);
+        return eligible;
+      };
+      let highestPendingPriority = Number.NEGATIVE_INFINITY;
+      for (const tile of new Set([
+        ...runtimeState.tiles.loadingTiles,
+        ...queue.items,
+      ])) {
+        if (canStartForeground(tile))
+          highestPendingPriority = Math.max(
+            highestPendingPriority,
+            requestPriority(tile)
           );
+      }
+      const backgroundReady =
+        !moving && !Number.isFinite(highestPendingPriority);
+      // Removal mutates the native scheduling list, so audit its snapshot.
+      for (const tile of [...queue.items]) {
+        if (!dependencies.isTileRequestNeeded(tile)) {
+          runtimeState.tiles.lruCache.remove(tile);
+          continue;
+        }
+        // Priority orders ready jobs; it must not be a cross-stage barrier.
+        // A high-rank download waiting on the network cannot park ready lower-
+        // rank foreground parses while CPU slots sit empty (and vice versa).
+        const required =
+          (canStartForeground(tile) &&
+            (!(tile as RuntimeTile).motionPrefetch ||
+              requestPriority(tile) >= 0 ||
+              highestPendingPriority < 0)) ||
+          (!isForeground(tile) && backgroundReady);
         (required ? ready : parked).push(tile);
       }
       queue.items = ready;
@@ -224,6 +346,8 @@ export function createThreeTilesRuntimeAttachment(
     runtimeState.tiles = new TilesRenderer(
       runtimeState.tilesetUrl
     ) as RuntimeTilesRenderer;
+    if (runtimeState.options.diagnostics)
+      debugTilesRuntimes()?.add(runtimeState);
     const tileCache = new LRUCache();
     tileCache.unloadPriorityCallback = (
       runtimeState.options.providesTerrain
@@ -296,6 +420,30 @@ export function createThreeTilesRuntimeAttachment(
         // so queue admission itself does not run parsing inside a paint callback.
         await new Promise<void>((resolve) => setTimeout(resolve, 0));
         if (runtimeState.disposed) return;
+        // Decision: VIEWPORT-PREPARSE-PREEMPTION-20260916 in TILES_COVERAGE.md.
+        // A new foreground buffer can arrive across the yield. Relinquish the
+        // slot before entering non-interruptible GLTF work, even if this tile
+        // remains useful to a lower-priority camera or the reserve floor.
+        const priority = dependencies.getTileRequestPriority(
+          item as RuntimeTile
+        );
+        const preempted =
+          runtimeState.options.providesTerrain &&
+          !item.internal.hasUnrenderableContent &&
+          (parseQueue as RuntimePriorityQueue).items.some(
+            (candidate: RuntimeTile) =>
+              dependencies.getTileRequestPriority(candidate) > priority &&
+              dependencies.isTileRequestNeeded(candidate)
+          );
+        if (preempted || !dependencies.isTileRequestNeeded(item)) {
+          runtimeState.tiles?.lruCache.remove(item);
+          throw new DOMException(
+            preempted
+              ? "Tile preempted by foreground work"
+              : "Obsolete tile request",
+            "AbortError"
+          );
+        }
         if (progress && runtimeState.tileBoundsVisible)
           progress.parseStartedAt = performance.now();
         try {
@@ -336,6 +484,16 @@ export function createThreeTilesRuntimeAttachment(
       if (runtimeState.tileBoundsVisible)
         dependencies.recordTileIteration(tile);
       calculateTileViewErrorWithPlugin(tile, target);
+      if (
+        target.inView &&
+        (tile as RuntimeTile).engineData?.boundingVolume?.getAABB &&
+        runtimeState.tileCameraDemand.views.length > 0
+      ) {
+        // Decision: UNIFIED-VISIBLE-SSE-20260916 in TILES_COVERAGE.md.
+        // Use the same clipped camera-depth error as publication/retention.
+        // Taking max(native, clipped) would keep the invisible near-box bias.
+        target.error = dependencies.getTileScreenError(tile as RuntimeTile);
+      }
       const retainedMeshAncestors = dependencies.getRetainedMeshAncestors();
       if (target.inView && retainedMeshAncestors.has(tile)) {
         // Native REPLACE traversal must reach the retained mixed-LOD cut and
@@ -347,6 +505,14 @@ export function createThreeTilesRuntimeAttachment(
         );
       }
       const runtimeTile = tile as RuntimeTile;
+      if (runtimeState.meshRefinementSupport.has(tile)) {
+        runtimeState.tiles?.markTileUsed(tile);
+        if (!target.inView) {
+          target.inView = true;
+          target.error = 0;
+        }
+      }
+      if (runtimeTile.zoomPrefetch) runtimeState.tiles?.markTileUsed(tile);
       runtimeTile.shadowReceiverCenterness = undefined;
       runtimeTile.shadowLightFacing = undefined;
       runtimeTile.shadowReceiverCurrent = undefined;
@@ -392,6 +558,160 @@ export function createThreeTilesRuntimeAttachment(
           }
         }
       }
+      const cameraDemand = dependencies.getTileCameraDemand(
+        tile as RuntimeTile
+      );
+      if (cameraDemand.required) {
+        target.error = Math.max(
+          target.inView ? target.error : 0,
+          cameraDemand.errorRatio * runtimeState.effectiveErrorTarget
+        );
+        target.inView = true;
+      }
+      // Idle rings (skip strategy): with the viewport converged and the map
+      // at rest, a tile inside ring k is reported as in view so the renderer
+      // requests it, and once its error is within base × 2^(k-1) it is
+      // reported as satisfying the target so the renderer stops there. The
+      // rings fill from the inside out, coarser with every ring, until the
+      // outermost covers the model; publication keeps them hidden until they
+      // scroll into the main view. Runs after the corridor mask: a caster the
+      // shadow corridor claims keeps its corridor error.
+      // Membership is a persistent, memory-bounded model of the extent:
+      // refreshed at rest, kept through moves so a loaded ring tile stays
+      // used and never becomes the LRU's eviction candidate; new tiles enter
+      // only within the ring budget; the cascade refines one level per pass
+      // while memory and frame time allow (ringRefinePasses).
+      const skipStrategy =
+        runtimeState.options.providesTerrain &&
+        runtimeState.tiles?.loadAncestors === false;
+      // Decision: MESH-COVERAGE-20260912 in engines/maplibre/TILES_COVERAGE.md (R3).
+      // The extent floor, in view or not: once the first base coverage
+      // exists, ancestors of the floor report an error above any target so
+      // the traversal reaches the floor tiles every frame (a visited tile is
+      // used, and a used tile is never the LRU's eviction candidate), and a
+      // floor tile that is not loaded is the used-set leaf, requested before
+      // anything finer below it. The view is a local densification of the
+      // resident extent, never a cut above it.
+      const extentError = runtimeState.extentGeometricError;
+      const floorLevel =
+        skipStrategy &&
+        runtimeState.extentFloorArmed &&
+        isExtentFloorTile(tile, extentError);
+      const floorLeaf =
+        floorLevel &&
+        tile.internal.hasRenderableContent &&
+        (tile.children ?? []).every(
+          (child) =>
+            child.geometricError < extentError ||
+            child.internal?.hasRenderableContent === false
+        );
+      const floorLoaded = tile.internal.loadingState === LOADED_LOADING_STATE;
+      // The renderer marks only active leaves used in the LRU; a loaded floor
+      // tile the traversal passes through would be an eviction candidate.
+      if (floorLevel) runtimeState.tiles!.markTileUsed(tile);
+      if (floorLevel && target.inView) {
+        runtimeTile.idleRing = false;
+        if (floorLeaf && runtimeState.options.diagnostics)
+          runtimeState.extentFloorInView.add(tile);
+        if (!floorLeaf)
+          target.error = Math.max(
+            target.error,
+            runtimeState.effectiveErrorTarget *
+              TILES_LOAD_POLICY.extentFloorAncestorErrorFactor
+          );
+        else if (!floorLoaded) {
+          // Do not spend the cache on children before their replacement
+          // coverage arrives. Otherwise an all-used cache cannot admit its
+          // missing floor without first punching a hole in the visible cut.
+          runtimeState.extentFloorPending += 1;
+          dependencies.applyTileDeferral(tile, true);
+          runtimeState.tiles!.queueTileForDownload(tile);
+          // A reserve parent must not replace already complete finer coverage.
+          if (
+            tile.internal.hasRenderableContent &&
+            !isMeshCoveredByLoadedChildren(
+              tile,
+              runtimeState.displayedMeshFrontier
+            )
+          )
+            target.error = 0;
+        }
+      } else if (skipStrategy && !target.inView) {
+        const atRest =
+          runtimeState.meshBaseCoverageReady &&
+          runtimeState.extentFloorArmed &&
+          (!runtimeState.shadowView ||
+            (runtimeState.lastMainViewConverged &&
+              runtimeState.effectiveErrorTarget ===
+                runtimeState.requestedErrorTarget)) &&
+          runtimeState.map?.isMoving?.() !== true;
+        if (atRest) {
+          const ring = dependencies.getTileRingIndex(runtimeTile);
+          runtimeTile.idleRingIndex = ring > 0 ? ring : undefined;
+        }
+        const ring = runtimeTile.idleRingIndex ?? 0;
+        const cache = runtimeState.tiles!.lruCache as RuntimeLruCache;
+        const budgetOpen =
+          cache.cachedBytes <
+          cache.minBytesSize * TILES_LOAD_POLICY.idleRingBudgetFraction;
+        const loaded = floorLoaded;
+        // Keep loaded reserve coverage, but admit missing offscreen payloads
+        // only after visible demand converges. Ancestors still lead traversal
+        // to already resident floor leaves while the view changes.
+        const wholeModelRing =
+          ring > TILES_LOAD_POLICY.idleRingTanMultipliers.length;
+        // The budget bounds how far the reserve refines below its coarse floor.
+        const admitted =
+          (floorLevel && (!floorLeaf || loaded || atRest)) ||
+          (ring > 0 && !wholeModelRing && (loaded || atRest));
+        runtimeTile.idleRing = admitted;
+        if (floorLeaf && !loaded) runtimeState.extentFloorPending += 1;
+        if (admitted) {
+          target.inView = true;
+          if (floorLevel && !floorLeaf) {
+            target.error = Math.max(
+              target.error,
+              runtimeState.effectiveErrorTarget *
+                TILES_LOAD_POLICY.extentFloorAncestorErrorFactor
+            );
+          } else {
+            const inRing = ring > 0 && !wholeModelRing;
+            const allowed = inRing
+              ? idleRingAllowedError(
+                  initialMeshLoadError(
+                    runtimeState.requestedErrorTarget,
+                    runtimeState.options.baseErrorTargetPixels
+                  ),
+                  ring,
+                  budgetOpen ? runtimeState.ringRefinePasses : 0
+                )
+              : 0;
+            const satisfied = floorLeaf
+              ? !inRing || target.error <= allowed || !atRest || !loaded
+              : !atRest || target.error <= allowed;
+            if (satisfied)
+              target.error = Math.min(
+                target.error,
+                runtimeState.effectiveErrorTarget
+              );
+          }
+        }
+      } else {
+        runtimeTile.idleRing = false;
+        if (target.inView) runtimeTile.idleRingIndex = undefined;
+        if (skipStrategy && runtimeState.residentAncestors.has(tile)) {
+          // Resident ancestor band: kept used while a descendant is displayed,
+          // requested at rest once the base coverage exists, never a leaf.
+          runtimeState.tiles!.markTileUsed(tile);
+          if (
+            tile.internal.loadingState === UNLOADED_LOADING_STATE &&
+            runtimeState.meshBaseCoverageReady &&
+            runtimeState.lastMainViewConverged &&
+            runtimeState.map?.isMoving?.() !== true
+          )
+            runtimeState.tiles!.queueTileForDownload(tile);
+        }
+      }
       if (
         !runtimeState.options.providesTerrain &&
         target.inView &&
@@ -426,6 +746,19 @@ export function createThreeTilesRuntimeAttachment(
             parent.geometricError
         );
       }
+      if (
+        runtimeState.options.providesTerrain &&
+        !runtimeState.shadowView &&
+        target.inView &&
+        tile.internal.hasRenderableContent &&
+        (runtimeState.displayedMeshFrontier.size === 0
+          ? target.error <= TILES_LOAD_POLICY.firstImageMaxErrorPixels
+          : isNextPublishedMeshLevel(tile, runtimeState.displayedMeshFrontier))
+      )
+        target.error = Math.min(
+          target.error,
+          runtimeState.effectiveErrorTarget
+        );
       dependencies.applyTileDeferral(tile, target.inView);
     };
     const queueTileForDownload = runtimeState.tiles.queueTileForDownload.bind(
@@ -434,18 +767,29 @@ export function createThreeTilesRuntimeAttachment(
     runtimeState.tiles.queueTileForDownload = (tile) => {
       const tiles = runtimeState.tiles;
       if (!tiles) return;
-      if (runtimeState.memoryAdmissionPaused) return;
+      if (runtimeState.memoryAdmissionPaused || runtimeState.loadingPaused)
+        return;
       if (
         tile.internal.loadingState !== UNLOADED_LOADING_STATE ||
         runtimeState.queuedThisTraversal.has(tile)
       )
         return;
       const runtimeTile = tile as RuntimeTile;
+      if (!dependencies.isTileRequestNeeded(tile)) return;
       // A payload freed after proven child replacement must not immediately
       // re-enter loadAncestors' queue. Its hierarchy/metadata remains intact.
       const retainedMeshAncestors = dependencies.getRetainedMeshAncestors();
+      // A floor tile is the extent's resident coverage: loaded even where
+      // its children are drawn, and never held back as a freed parent.
+      const floorTile =
+        (runtimeState.extentFloorArmed &&
+          isExtentFloorTile(tile, runtimeState.extentGeometricError)) ||
+        runtimeState.residentAncestors.has(tile);
+      const supportTile = runtimeState.meshRefinementSupport.has(tile);
       if (
         runtimeState.options.providesTerrain &&
+        !floorTile &&
+        !supportTile &&
         (isMeshCoveredByLoadedChildren(tile, tiles.visibleTiles) ||
           (retainedMeshAncestors.has(tile) &&
             tile.internal.hasRenderableContent &&
@@ -454,14 +798,26 @@ export function createThreeTilesRuntimeAttachment(
         return;
       if (
         runtimeState.options.providesTerrain &&
+        !floorTile &&
+        !supportTile &&
         dependencies.isTileInMainView(runtimeTile) &&
         shouldDeferMeshRefinement(
           tile,
-          runtimeState.map?.isMoving?.() || !runtimeState.meshBaseCoverageReady
-            ? initialMeshLoadError(runtimeState.requestedErrorTarget)
-            : runtimeState.requestedErrorTarget,
+          runtimeState.map?.isMoving?.()
+            ? initialMeshLoadError(
+                runtimeState.requestedErrorTarget,
+                runtimeState.options.baseErrorTargetPixels
+              )
+            : Math.max(
+                runtimeState.shadowView
+                  ? runtimeState.requestedErrorTarget
+                  : runtimeState.effectiveErrorTarget,
+                runtimeState.memoryErrorTarget
+              ),
           (parent) => dependencies.getTileScreenError(parent as RuntimeTile),
-          retainedMeshAncestors
+          retainedMeshAncestors,
+          runtimeState.options.baseErrorTargetPixels,
+          runtimeState.tiles.loadAncestors
         )
       )
         return;
@@ -471,30 +827,65 @@ export function createThreeTilesRuntimeAttachment(
       // D7: REPLACE content that refines unconditionally is never displayed.
       if (
         tile.refine === "REPLACE" &&
+        !floorTile &&
         (tile as RuntimeTile).traversal?.unconditionallyRefine === true &&
         tile.internal.hasRenderableContent
       ) {
         return;
+      }
+      // A refinement request belongs to its entire immediate REPLACE family.
+      // Use the existing queue/material/cancellation path for every sibling;
+      // support requests do not fan out recursively into another LOD.
+      const family =
+        runtimeState.options.providesTerrain &&
+        !runtimeState.shadowView &&
+        !supportTile &&
+        !floorTile &&
+        tile.internal.hasRenderableContent &&
+        tile.parent?.refine === "REPLACE"
+          ? tile.parent.children ?? []
+          : [];
+      if (family.length) {
+        tiles.ensureChildrenArePreprocessed(tile.parent!);
+        for (const sibling of family)
+          runtimeState.meshRefinementSupport.add(sibling);
       }
       dependencies.assignTilePriority(runtimeTile);
       runtimeState.queuedThisTraversal.add(tile);
       if (runtimeState.tileBoundsVisible)
         dependencies.getTileDebugProgress(tile).queuedAt ??= performance.now();
       dependencies.noteTileActivity(tile);
+      runtimeTile.firstPublicationRequestedAt = performance.now();
       queueTileForDownload(tile);
+      for (const sibling of family) {
+        if (sibling === tile) continue;
+        dependencies.applyTileDeferral(sibling, true);
+        dependencies.assignTilePriority(sibling as RuntimeTile);
+        tiles.queueTileForDownload(sibling);
+      }
     };
     // 3D Tiles 1.1 implicit tiling (template URIs) is plugin-based
     runtimeState.tiles.registerPlugin(new ImplicitTilingPlugin());
     runtimeState.tiles.registerPlugin(new UpdateOnChangePlugin());
+    if (runtimeState.options.mercatorProjection) {
+      runtimeState.tiles.registerPlugin(
+        new TilesetMercatorProjectionPlugin(
+          runtimeState.options.mercatorProjection
+        )
+      );
+    }
     if (runtimeState.options.providesTerrain)
       runtimeState.tiles.registerPlugin(deferredMaterials);
     if (
       runtimeState.options.hierarchyCache !== false &&
       typeof Worker !== "undefined"
     ) {
-      runtimeState.tiles.registerPlugin(
-        new TilesetHierarchyPlugin(runtimeState.tilesetUrl)
-      );
+      const hierarchy = new TilesetHierarchyPlugin(runtimeState.tilesetUrl, {
+        entry: runtimeState.options.entry,
+      });
+      runtimeState.tiles.registerPlugin(hierarchy);
+      if (runtimeState.options.entry?.prefetch?.length)
+        hierarchy.prefetch(runtimeState.options.entry.prefetch);
     }
     // Mesh 2020 ships glTF 1.0 b3dm — upgrade payloads on the fly. The raw
     // response feeds the wire-size sampling of the request concurrency.
@@ -532,6 +923,8 @@ export function createThreeTilesRuntimeAttachment(
     );
 
     runtimeState.tiles.loadSiblings = false;
+    // Bootstrap with drawable ancestors. The lifecycle disables this once a
+    // complete first cut exists; initial quality must not mean blank startup.
     runtimeState.tiles.loadAncestors = true;
     runtimeState.tiles.displayActiveTiles = true;
     runtimeState.tiles.parseQueue.maxJobs = MESH_PARSE_CONCURRENCY;
@@ -582,6 +975,10 @@ export function createThreeTilesRuntimeAttachment(
     runtimeState.tiles.addEventListener(
       "load-model",
       dependencies.handleModelLoad
+    );
+    runtimeState.tiles.addEventListener(
+      "tile-visibility-change",
+      dependencies.handleTileVisibilityChange
     );
     runtimeState.tiles.addEventListener(
       "tile-download-start",
@@ -635,6 +1032,8 @@ export function createThreeTilesRuntimeAttachment(
       "visibilitychange",
       dependencies.handleVisibilityChange
     );
+    // A tab killed for memory never gets here; a clean end does.
+    window.addEventListener("pagehide", dependencies.endCacheCeilingSession);
   };
 
   const dispose = () => {
@@ -681,6 +1080,8 @@ export function createThreeTilesRuntimeAttachment(
       "visibilitychange",
       dependencies.handleVisibilityChange
     );
+    window.removeEventListener("pagehide", dependencies.endCacheCeilingSession);
+    dependencies.endCacheCeilingSession();
     runtimeState.unsubscribeTerrainLoading?.();
     runtimeState.unsubscribeTerrainLoading = null;
     runtimeState.tiles?.removeEventListener(
@@ -698,6 +1099,10 @@ export function createThreeTilesRuntimeAttachment(
     runtimeState.tiles?.removeEventListener(
       "load-model",
       dependencies.handleModelLoad
+    );
+    runtimeState.tiles?.removeEventListener(
+      "tile-visibility-change",
+      dependencies.handleTileVisibilityChange
     );
     runtimeState.tiles?.removeEventListener(
       "tile-download-start",
@@ -729,8 +1134,12 @@ export function createThreeTilesRuntimeAttachment(
     dependencies.restoreShadowSides();
     runtimeState.tileDebugOverlay?.dispose();
     runtimeState.tileDebugOverlay = null;
+    debugTilesRuntimes()?.delete(runtimeState);
     runtimeState.tiles?.dispose();
     runtimeState.tiles = null;
+    runtimeState.meshRefinementSupport.clear();
+    runtimeState.extentFloorArmed = false;
+    runtimeState.extentFloorAuditPending = false;
     runtimeState.dracoLoader?.dispose();
     runtimeState.dracoLoader = null;
     runtimeState.orientationGroup.clear();
@@ -746,5 +1155,29 @@ export function createThreeTilesRuntimeAttachment(
     isDeferredMaterialReady: (tile: Tile) => deferredMaterials.isReady(tile),
     onAdd,
     updateDeferredMaterials: () => deferredMaterials.update(),
+    updateMeshRefinementSupport: (support: Set<Tile>) => {
+      const previous = runtimeState.meshRefinementSupport;
+      runtimeState.meshRefinementSupport = support;
+      const tiles = runtimeState.tiles;
+      if (!tiles) return;
+      // Decision: CURRENT-VIEW-DEMAND-20260913 in TILES_COVERAGE.md.
+      // Publication prerequisites use the same queues and material pipeline.
+      for (const tile of support) {
+        if (!tile.internal && tile.parent)
+          tiles.ensureChildrenArePreprocessed(tile.parent);
+        // This schedules preprocessing; it does not synchronously initialize
+        // every child. Keep the support demand, but do not abort publication
+        // by passing raw hierarchy entries to the payload queues.
+        if (!tile.internal || !tile.traversal) continue;
+        tiles.markTileUsed(tile);
+        dependencies.applyTileDeferral(tile, true);
+        tiles.queueTileForDownload(tile);
+      }
+      if ([...support].some((tile) => !previous.has(tile))) {
+        deferredMaterials.update();
+        tiles.dispatchEvent({ type: "needs-update" });
+        dependencies.requestRender();
+      }
+    },
   };
 }

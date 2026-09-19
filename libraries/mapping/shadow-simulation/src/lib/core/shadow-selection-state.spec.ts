@@ -52,6 +52,31 @@ describe("shadow selection state", () => {
     ).toBeGreaterThan(0);
   });
 
+  it("carries the tile diagnostics of a shared link", () => {
+    const state = { enabled: false } as ShadowSimulationState;
+    const dateState: ShadowDateState = {
+      year: 2026,
+      dayOfYear: 172,
+      minutes: 720,
+      timeZone: "Europe/Berlin",
+    };
+    expect(
+      applyShadowHashSelection(state, dateState, {
+        dayOfYear: 173,
+        minutes: 800,
+        tileDiagnostics: true,
+      }).shadowState.showTileDiagnostics
+    ).toBe(true);
+    // A link without a selection leaves the current toggle alone.
+    expect(
+      applyShadowHashSelection(
+        { ...state, showTileDiagnostics: true } as ShadowSimulationState,
+        dateState,
+        null
+      ).shadowState.showTileDiagnostics
+    ).toBe(true);
+  });
+
   it("restores only the hash-owned state fields", () => {
     const state = {
       enabled: false,
@@ -70,7 +95,7 @@ describe("shadow selection state", () => {
         minutes: 800,
       })
     ).toEqual({
-      shadowState: { ...state, enabled: true },
+      shadowState: { ...state, enabled: true, showTileDiagnostics: false },
       dateState: {
         year: 2026,
         dayOfYear: 173,

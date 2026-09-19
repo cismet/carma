@@ -546,7 +546,8 @@ const ConnectorRibbonDemo = (args: ConnectorRibbonStoryArgs) => {
 };
 
 const meta = {
-  title: "Common/UI",
+  title: "UI",
+  id: "common-ui",
   component: ConnectorRibbonDemo,
   parameters: {
     layout: "fullscreen",

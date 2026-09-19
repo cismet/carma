@@ -326,7 +326,11 @@ export class Gltf1UpgradePlugin {
   }
 
   async fetchData(url: string | URL, options: RequestInit): Promise<Response> {
-    const response = await fetchTileResponse(url, options, this.requestTimeoutMs);
+    const response = await fetchTileResponse(
+      url,
+      options,
+      this.requestTimeoutMs
+    );
     this.onResponse?.(String(url), response);
     if (!/\.b3dm(\?|$)/.test(String(url)) || !response.ok) return response;
 

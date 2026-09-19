@@ -789,7 +789,10 @@ export const vectorStylesToMapLibreStyle = async ({
               metadata: {
                 ...withTerrainProviderMetadata(
                   styleLayerMetadata,
-                  providesTerrain
+                  providesTerrain,
+                  additionalStyle.metadata as
+                    | Record<string, unknown>
+                    | undefined
                 ),
                 "z-index": index,
                 "layer-id": layerId,

@@ -5,7 +5,12 @@ const REACT_ERROR_BOUNDARY_ESM_ID =
   "react-error-boundary/dist/react-error-boundary.esm.js";
 
 const config: StorybookConfig = {
-  stories: ["../src/**/*.stories.@(ts|tsx)", "../src/**/*.@(mdx)"],
+  stories: [
+    "../src/**/*.stories.@(ts|tsx)",
+    "../src/**/*.@(mdx)",
+    "../../pointcloud-stories/src/**/*.stories.@(ts|tsx)",
+    "../../pointcloud-stories/src/**/*.mdx",
+  ],
   addons: ["@storybook/addon-essentials", "@storybook/addon-interactions"],
   framework: {
     name: "@storybook/react-vite",
@@ -48,6 +53,12 @@ const config: StorybookConfig = {
             changeOrigin: true,
             secure: true,
             rewrite: (path) => path.replace(/^\/__wupp_3d__/, ""),
+          },
+          "/__wupp_festpunkte__": {
+            target: "https://wupp-3d-data.cismet.de",
+            changeOrigin: true,
+            secure: true,
+            rewrite: (path) => path.replace(/^\/__wupp_festpunkte__/, ""),
           },
         },
       },

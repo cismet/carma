@@ -59,7 +59,18 @@ vi.mock("./shared-three-terrain-registry", () => ({
 import { buildRasterDemTerrainRuntime } from "./raster-dem-terrain-runtime";
 import { createSharedThreeMapStyleProjection } from "./shared-three-map-style-projection";
 import type { TerrainTile, TerrainTileId } from "../../core/raster-dem-tile";
+import { getTileBounds } from "../../core/raster-dem-tile";
 import { TERRAIN_IDLE_SHADOW_REASON } from "../../core/terrain-idle-prefetch";
+import { buildTerrainSelection } from "../../core/terrain-selection";
+import type { TerrainSelectionEntry } from "../../core/terrain-selection";
+import * as terrainWorkers from "./terrain-worker-client";
+import { executeTerrainWorkerTask } from "./terrain-worker-task";
+import * as requestConcurrency from "./payload-aware-request-concurrency";
+import {
+  snapshotTileCameraViews,
+  TILE_CAMERA_ROLE,
+  TILE_CAMERA_PRIORITY,
+} from "../../core/tile-camera-demand";
 
 const terrainConfig = (url: string) => ({
   id: "test-terrain",
@@ -70,6 +81,9 @@ const terrainConfig = (url: string) => ({
   encoding: "terrarium" as const,
   bounds: [-180, -85, 180, 85] as const,
 });
+
+/** The runtime settles after 250 ms; wait past it without coupling to timers. */
+const MOTION_SETTLE_WAIT_MS = 400;
 
 describe("buildRasterDemTerrainRuntime", () => {
   let fineBoundaryNormalBeforeSmoothing: Vector3 | null;
@@ -132,7 +146,27 @@ describe("buildRasterDemTerrainRuntime", () => {
     });
   });
 
-  const createIdlePrefetchFixture = (name: string) => {
+  it.each([
+    [Number.NaN, 0, 0],
+    [-1, 0, 0],
+    [0, Number.POSITIVE_INFINITY, 0],
+  ] as const)("rejects invalid bounds padding %j", (x, y, z) => {
+    const boundsPaddingMeters = [x, y, z] as const;
+    expect(() =>
+      buildRasterDemTerrainRuntime(
+        "invalid-padding",
+        terrainConfig("https://example.test/terrain"),
+        [7.15, 51.256],
+        { boundsPaddingMeters }
+      )
+    ).toThrow("Terrain bounds padding must be finite and non-negative");
+  });
+
+  const createIdlePrefetchFixture = (
+    name: string,
+    maximumLevel = 10,
+    extraOptions: Record<string, unknown> = {}
+  ) => {
     const tileId = { level: 10, x: 532, y: 218 };
     const bounds = { west: 7, south: 51, east: 7.2, north: 51.3 };
     const makeTile = (id: TerrainTileId): TerrainTile => ({
@@ -152,7 +186,9 @@ describe("buildRasterDemTerrainRuntime", () => {
       byteLength: 256,
     });
     const source = {
-      requestTile: vi.fn(async (id: TerrainTileId) => makeTile(id)),
+      requestTile: vi.fn(async (id: TerrainTileId, _signal?: AbortSignal) =>
+        makeTile(id)
+      ),
       getTileGridIdsForBounds: vi.fn(() => [tileId]),
       getTileBounds: vi.fn(() => bounds),
       getLevelMaximumGeometricError: vi.fn(() => 0.01),
@@ -168,7 +204,14 @@ describe("buildRasterDemTerrainRuntime", () => {
       name,
       terrainConfig(`https://example.test/idle/${name}`),
       [7.15, 51.256],
-      { minimumLevel: 10, maximumLevel: 10, onContentChanged, onError }
+      {
+        minimumLevel: 10,
+        maximumLevel,
+        errorTargetPixels: maximumLevel > 10 ? 1_000_000 : undefined,
+        onContentChanged,
+        onError,
+        ...extraOptions,
+      }
     );
     const listeners = new Map<string, () => void>();
     const map = {
@@ -222,6 +265,699 @@ describe("buildRasterDemTerrainRuntime", () => {
       onError,
     };
   };
+
+  it("accepts a live pixel target without replacing the runtime or accepting invalid values", async () => {
+    const f = createIdlePrefetchFixture("live-error-target", 12);
+    await f.start();
+    const root = f.runtime.root;
+    f.map.triggerRepaint.mockClear();
+    f.runtime.setErrorTarget?.(4);
+    expect(f.map.triggerRepaint).toHaveBeenCalledTimes(1);
+    f.runtime.setErrorTarget?.(4);
+    expect(f.map.triggerRepaint).toHaveBeenCalledTimes(1);
+    expect(() => f.runtime.setErrorTarget?.(0)).toThrow(RangeError);
+    expect(() => f.runtime.setErrorTarget?.(NaN)).toThrow(RangeError);
+    expect(f.runtime.root).toBe(root);
+    f.runtime.dispose();
+  });
+
+  it("warms two focus LODs without publishing partial coverage or loading twice", async () => {
+    const f = createIdlePrefetchFixture("zoom-two-levels", 12);
+    const [camera] = snapshotTileCameraViews([
+      {
+        id: "focus",
+        camera: new PerspectiveCamera(),
+        viewport: [128, 128],
+        errorTargetPixels: 2,
+        role: TILE_CAMERA_ROLE.GEOMETRY,
+      },
+    ]);
+    const focusBounds = getTileBounds({ level: 10, x: 532, y: 218 });
+    const request = {
+      camera,
+      lngLat: [
+        (focusBounds.west + focusBounds.east) / 2,
+        (focusBounds.south + focusBounds.north) / 2,
+      ] as const,
+      levels: 2 as const,
+    };
+    try {
+      await f.start();
+      await vi.waitFor(() => expect(f.source.trimCache).toHaveBeenCalled());
+      const visible = f.runtime.root.children.filter((node) => node.visible);
+      await f.runtime.prefetchZoom!(request, new AbortController().signal);
+      const requested = f.source.requestTile.mock.calls.map(([id]) => id.level);
+      expect(requested).toEqual([10, 11, 12]);
+      expect(f.runtime.root.children.filter((node) => node.visible)).toEqual(
+        visible
+      );
+      await f.runtime.prefetchZoom!(request, new AbortController().signal);
+      expect(f.source.requestTile).toHaveBeenCalledTimes(3);
+    } finally {
+      f.runtime.dispose();
+    }
+  });
+
+  it("does not start focus warming after zoomend", async () => {
+    const f = createIdlePrefetchFixture("zoom-cancelled", 12);
+    try {
+      await f.start();
+      await vi.waitFor(() => expect(f.source.trimCache).toHaveBeenCalled());
+      const [camera] = snapshotTileCameraViews([
+        {
+          id: "focus",
+          camera: new Camera(),
+          viewport: [128, 128],
+          errorTargetPixels: 2,
+          role: TILE_CAMERA_ROLE.GEOMETRY,
+        },
+      ]);
+      const abort = new AbortController();
+      abort.abort();
+      await f.runtime.prefetchZoom!(
+        { camera, lngLat: [7.15, 51.256], levels: 2 },
+        abort.signal
+      );
+      expect(f.source.requestTile).toHaveBeenCalledTimes(1);
+    } finally {
+      f.runtime.dispose();
+    }
+  });
+
+  it("retries a failed publication at the unchanged view while retaining the previous cut", async () => {
+    const f = createIdlePrefetchFixture("publication-retry");
+    const run = terrainWorkers.runTerrainWorkerTask;
+    let failStitch = false;
+    const failure = new Error("Terrain worker timed out during stitching");
+    const worker = vi
+      .spyOn(terrainWorkers, "runTerrainWorkerTask")
+      .mockImplementation((task, signal) => {
+        if (task.kind === "stitch" && failStitch) {
+          failStitch = false;
+          return Promise.reject(failure);
+        }
+        return run(task, signal);
+      });
+    try {
+      await f.start();
+      await vi.waitFor(() => expect(f.source.trimCache).toHaveBeenCalledOnce());
+      const retained = f.runtime.root.children.filter((node) => node.visible);
+      expect(retained.length).toBeGreaterThan(0);
+      vi.useFakeTimers();
+      failStitch = true;
+      f.source.getTileGridIdsForBounds.mockReturnValue([
+        { level: 10, x: 533, y: 218 },
+      ]);
+      f.frame.lodCamera.position.x += 10;
+      f.runtime.update(f.frame);
+      await vi.waitFor(() => expect(f.onError).toHaveBeenCalledWith(failure));
+      expect(f.runtime.root.children.filter((node) => node.visible)).toEqual(
+        retained
+      );
+      const downloads = f.source.requestTile.mock.calls.length;
+      f.map.triggerRepaint.mockClear();
+      await vi.advanceTimersByTimeAsync(1600);
+      expect(f.map.triggerRepaint).toHaveBeenCalled();
+      // The retry wake-up redraws the exact same camera; no input event helps it.
+      f.runtime.update(f.frame);
+      await vi.waitFor(() =>
+        expect(f.source.trimCache).toHaveBeenCalledTimes(2)
+      );
+      expect(
+        f.runtime.root.children.filter((node) => node.visible).length
+      ).toBeGreaterThan(retained.length);
+      expect(f.source.requestTile).toHaveBeenCalledTimes(downloads);
+    } finally {
+      f.runtime.dispose();
+      worker.mockRestore();
+      vi.useRealTimers();
+    }
+  });
+
+  it("wakes the host when an unchanged worker selection drains the request queue", async () => {
+    const f = createIdlePrefetchFixture("selection-idle-wakeup");
+    let finishSelection: (() => void) | undefined;
+    let worker: { mockRestore: () => void } | undefined;
+    try {
+      await f.start();
+      await vi.waitFor(() => expect(f.source.trimCache).toHaveBeenCalledOnce());
+      vi.stubGlobal("Worker", class {});
+      worker = vi
+        .spyOn(terrainWorkers, "runTerrainWorkerTask")
+        .mockImplementation((task, signal) => {
+          if (task.kind !== "select")
+            return executeTerrainWorkerTask(structuredClone(task), signal);
+          const selection = buildTerrainSelection(task.input, {
+            getTileGridIdsForBounds: f.source.getTileGridIdsForBounds,
+            getTileBounds: f.source.getTileBounds,
+            getTileGeometricError: f.source.getLevelMaximumGeometricError,
+            getTileDataAvailable: f.source.getTileDataAvailable,
+          });
+          return new Promise((resolve) => {
+            finishSelection = () => resolve({ kind: "select", selection });
+          });
+        });
+      f.frame.lodCamera.position.x += 10;
+      f.runtime.update(f.frame);
+      expect(f.runtime.getRequestDemand?.()).toBe(1);
+      expect(finishSelection).toBeDefined();
+      f.map.triggerRepaint.mockClear();
+      finishSelection!();
+      await vi.waitFor(() => expect(f.runtime.getRequestDemand?.()).toBe(0));
+      expect(f.map.triggerRepaint).toHaveBeenCalledOnce();
+      expect(f.source.trimCache).toHaveBeenCalledOnce();
+      expect(f.source.requestTile).toHaveBeenCalledOnce();
+    } finally {
+      f.runtime.dispose();
+      worker?.mockRestore();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("does not count an intentional focus-request abort as capacity failure", async () => {
+    const createConcurrency =
+      requestConcurrency.createPayloadAwareRequestConcurrency;
+    const observeFailure = vi.fn();
+    const concurrency = vi
+      .spyOn(requestConcurrency, "createPayloadAwareRequestConcurrency")
+      .mockImplementation((...args) => {
+        const policy = createConcurrency(...args);
+        return {
+          ...policy,
+          observeFailure: (error) => {
+            observeFailure(error);
+            return policy.observeFailure(error);
+          },
+        };
+      });
+    const f = createIdlePrefetchFixture("zoom-abort-capacity", 12);
+    try {
+      await f.start();
+      await vi.waitFor(() => expect(f.source.trimCache).toHaveBeenCalledOnce());
+      const [camera] = snapshotTileCameraViews([
+        {
+          id: "focus",
+          camera: new PerspectiveCamera(),
+          viewport: [128, 128],
+          errorTargetPixels: 2,
+          role: TILE_CAMERA_ROLE.GEOMETRY,
+        },
+      ]);
+      const bounds = getTileBounds({ level: 10, x: 532, y: 218 });
+      const request = {
+        camera,
+        levels: 2 as const,
+        lngLat: [
+          (bounds.west + bounds.east) / 2,
+          (bounds.south + bounds.north) / 2,
+        ] as const,
+      };
+      let activeSignal: AbortSignal | undefined;
+      f.source.requestTile.mockImplementationOnce(
+        (_id, signal) =>
+          new Promise((_resolve, reject) => {
+            activeSignal = signal;
+            signal!.addEventListener("abort", () => reject(signal!.reason), {
+              once: true,
+            });
+          })
+      );
+      const controller = new AbortController();
+      const result = f.runtime.prefetchZoom!(request, controller.signal).catch(
+        (error) => error
+      );
+      await vi.waitFor(() => expect(activeSignal).toBeDefined());
+      controller.abort();
+      expect(await result).toMatchObject({ name: "AbortError" });
+      expect(observeFailure).not.toHaveBeenCalled();
+      // Genuine network failures must still feed the existing adaptive policy.
+      const networkError = new TypeError("Failed to fetch");
+      f.source.requestTile.mockRejectedValueOnce(networkError);
+      await expect(
+        f.runtime.prefetchZoom!(request, new AbortController().signal)
+      ).rejects.toBe(networkError);
+      expect(observeFailure).toHaveBeenCalledOnce();
+      expect(observeFailure).toHaveBeenCalledWith(networkError);
+    } finally {
+      f.runtime.dispose();
+      concurrency.mockRestore();
+    }
+  });
+
+  it("reconciles matrix-only camera changes without cancelling overlapping work or published coverage", async () => {
+    const f = createIdlePrefetchFixture("latest-matrix-demand");
+    const requests = new Map<string, AbortSignal>();
+    const key = ({ level, x, y }: TerrainTileId) => `${level}/${x}/${y}`;
+    // Public MapLibre state remains unchanged: the independent camera moves.
+    Object.assign(f.map, { getCenter: () => ({ lng: 7.15, lat: 51.256 }) });
+    try {
+      await f.start();
+      await vi.waitFor(() => expect(f.source.trimCache).toHaveBeenCalledOnce());
+      const visible = f.runtime.root.children.filter((node) => node.visible);
+      f.source.requestTile.mockImplementation(
+        (id, signal) =>
+          new Promise((_resolve, reject) => {
+            requests.set(key(id), signal!);
+            signal!.addEventListener("abort", () => reject(signal!.reason), {
+              once: true,
+            });
+          })
+      );
+      const first = { level: 10, x: 533, y: 218 };
+      const shared = { level: 10, x: 534, y: 218 };
+      const next = { level: 10, x: 535, y: 218 };
+      f.source.getTileGridIdsForBounds.mockReturnValue([first, shared]);
+      f.frame.renderCamera.position.x += 0.01;
+      f.runtime.update(f.frame);
+      await vi.waitFor(() => expect(requests.has(key(shared))).toBe(true));
+      const obsoleteSignal = requests.get(key(first))!;
+      const sharedSignal = requests.get(key(shared))!;
+      // Arbitrarily small matrix jitter resolves to the same demand cut.
+      for (let index = 0; index < 5; index++) {
+        f.frame.renderCamera.position.x += 1e-9;
+        f.runtime.update(f.frame);
+      }
+      expect(obsoleteSignal.aborted).toBe(false);
+      expect(sharedSignal.aborted).toBe(false);
+      expect(
+        f.source.requestTile.mock.calls.filter(
+          ([id]) => key(id) === key(shared)
+        )
+      ).toHaveLength(1);
+      f.source.getTileGridIdsForBounds.mockReturnValue([shared, next]);
+      f.frame.renderCamera.position.x += 0.01;
+      f.runtime.update(f.frame);
+      await vi.waitFor(() => expect(requests.has(key(next))).toBe(true));
+      expect(obsoleteSignal.aborted).toBe(true);
+      expect(sharedSignal.aborted).toBe(false);
+      expect(
+        f.source.requestTile.mock.calls.filter(
+          ([id]) => key(id) === key(shared)
+        )
+      ).toHaveLength(1);
+      for (const node of visible) expect(node.visible).toBe(true);
+      expect(f.onError).not.toHaveBeenCalled();
+      // Cancellation is not an unavailable-tile mark: returning can fetch it.
+      f.source.getTileGridIdsForBounds.mockReturnValue([first, shared]);
+      f.frame.renderCamera.position.x += 0.01;
+      f.runtime.update(f.frame);
+      await vi.waitFor(() =>
+        expect(
+          f.source.requestTile.mock.calls.filter(
+            ([id]) => key(id) === key(first)
+          )
+        ).toHaveLength(2)
+      );
+      expect(sharedSignal.aborted).toBe(false);
+    } finally {
+      f.runtime.dispose();
+    }
+  });
+
+  it("keeps the latest same-cut view eligible for idle work when its shared request completes", async () => {
+    const f = createIdlePrefetchFixture("same-cut-jitter-completion");
+    let complete!: () => void;
+    let signal: AbortSignal | undefined;
+    f.source.requestTile.mockImplementationOnce(
+      (id, requestSignal) =>
+        new Promise((resolve) => {
+          signal = requestSignal;
+          complete = () => resolve(f.makeTile(id));
+        })
+    );
+    try {
+      await f.start();
+      await vi.waitFor(() => expect(signal).toBeDefined());
+      f.frame.renderCamera.position.x += 1e-9;
+      f.runtime.update(f.frame);
+      expect(signal!.aborted).toBe(false);
+      expect(f.source.requestTile).toHaveBeenCalledOnce();
+      complete();
+      await vi.waitFor(() =>
+        expect(f.runtime.getIdlePrefetchAvailability().ready).toBe(true)
+      );
+      expect(f.source.requestTile).toHaveBeenCalledOnce();
+    } finally {
+      f.runtime.dispose();
+    }
+  });
+
+  it("cancels finer pending terrain when zooming out and keeps the loaded coarse floor", async () => {
+    const f = createIdlePrefetchFixture("coarser-demand-cancel", 12);
+    const fineRequests: AbortSignal[] = [];
+    try {
+      await f.start();
+      await vi.waitFor(() => expect(f.source.trimCache).toHaveBeenCalledOnce());
+      const floor = f.runtime.root.children.filter((node) => node.visible);
+      f.source.getLevelMaximumGeometricError.mockReturnValue(1e9);
+      f.source.requestTile.mockImplementation(
+        (_id, signal) =>
+          new Promise((_resolve, reject) => {
+            fineRequests.push(signal!);
+            signal!.addEventListener("abort", () => reject(signal!.reason), {
+              once: true,
+            });
+          })
+      );
+      f.frame.lodCamera.position.y = 1001;
+      f.runtime.update(f.frame);
+      await vi.waitFor(() => expect(fineRequests.length).toBeGreaterThan(0));
+      expect(
+        f.source.requestTile.mock.calls.slice(1).every(([id]) => id.level > 10)
+      ).toBe(true);
+      f.frame.lodCamera.position.y = 1e12;
+      f.runtime.update(f.frame);
+      expect(fineRequests.every((signal) => signal.aborted)).toBe(true);
+      await vi.waitFor(() => expect(f.runtime.getRequestDemand?.()).toBe(0));
+      for (const node of floor) expect(node.visible).toBe(true);
+      expect(f.onError).not.toHaveBeenCalled();
+      expect(
+        f.source.requestTile.mock.calls.filter(([id]) => id.level === 10)
+      ).toHaveLength(1);
+    } finally {
+      f.runtime.dispose();
+    }
+  });
+
+  it("reprioritizes existing raster demand on camera selection and resumes lower-ranked work without replacing loaded coverage", async () => {
+    const f = createIdlePrefetchFixture("camera-priority");
+    let worker: { mockRestore: () => void } | undefined;
+    try {
+      await f.start();
+      await vi.waitFor(() => expect(f.source.trimCache).toHaveBeenCalledOnce());
+      const retained = f.runtime.root.children.filter((node) => node.visible);
+      let entries: TerrainSelectionEntry[] = [
+        {
+          id: { level: 10, x: 533, y: 218 },
+          kind: "source",
+          priority: TILE_CAMERA_PRIORITY.PRIMARY,
+        },
+        {
+          id: { level: 10, x: 534, y: 218 },
+          kind: "source",
+          priority: TILE_CAMERA_PRIORITY.SECONDARY,
+        },
+      ];
+      const completions = new Map<number, () => void>();
+      const signals: AbortSignal[] = [];
+      f.source.requestTile.mockClear();
+      f.source.requestTile.mockImplementation(
+        (id, signal) =>
+          new Promise((resolve, reject) => {
+            signals.push(signal!);
+            signal!.addEventListener("abort", () => reject(signal!.reason), {
+              once: true,
+            });
+            completions.set(id.x, () => resolve(f.makeTile(id)));
+          })
+      );
+      vi.stubGlobal("Worker", class {});
+      worker = vi
+        .spyOn(terrainWorkers, "runTerrainWorkerTask")
+        .mockImplementation((task, signal) => {
+          if (task.kind !== "select")
+            return executeTerrainWorkerTask(structuredClone(task), signal);
+          return Promise.resolve({
+            kind: "select",
+            selection: {
+              entries,
+              viewportStages: [entries],
+              loadEntries: entries,
+              signature: entries
+                .map((entry) => `${entry.id.x}:${entry.priority}`)
+                .join("|"),
+              viewportElevationSignature: "camera-priority",
+            },
+          });
+        });
+      f.frame.renderCamera.position.x += 0.01;
+      f.runtime.update(f.frame);
+      await vi.waitFor(() =>
+        expect(f.source.requestTile.mock.calls.map(([id]) => id.x)).toEqual([
+          533,
+        ])
+      );
+      expect(f.runtime.root.children.filter((node) => node.visible)).toEqual(
+        retained
+      );
+      entries = entries.map((entry) => ({
+        ...entry,
+        priority:
+          entry.id.x === 534
+            ? TILE_CAMERA_PRIORITY.FOCUS
+            : TILE_CAMERA_PRIORITY.PRIMARY,
+      }));
+      f.frame.renderCamera.position.x += 0.01;
+      f.runtime.update(f.frame);
+      await vi.waitFor(() =>
+        expect(f.source.requestTile.mock.calls.map(([id]) => id.x)).toEqual([
+          533, 534,
+        ])
+      );
+      expect(signals[0].aborted).toBe(true);
+      expect(signals[1].aborted).toBe(false);
+      expect(f.runtime.root.children.filter((node) => node.visible)).toEqual(
+        retained
+      );
+      completions.get(534)!();
+      await vi.waitFor(() =>
+        expect(f.source.requestTile.mock.calls.map(([id]) => id.x)).toEqual([
+          533, 534, 533,
+        ])
+      );
+      completions.get(533)!();
+      await vi.waitFor(() =>
+        expect(f.source.trimCache).toHaveBeenCalledTimes(2)
+      );
+      expect(f.onError).not.toHaveBeenCalled();
+      expect(
+        f.source.requestTile.mock.calls.filter(([id]) => id.x === 534)
+      ).toHaveLength(1);
+      expect(
+        f.runtime.root.children.some((node) => node.name.endsWith("534/218"))
+      ).toBe(true);
+    } finally {
+      f.runtime.dispose();
+      worker?.mockRestore();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("discards a superseded worker selection before admitting its obsolete tiles", async () => {
+    const f = createIdlePrefetchFixture("latest-worker-selection");
+    const queued: { complete: () => void }[] = [];
+    let worker: { mockRestore: () => void } | undefined;
+    try {
+      await f.start();
+      await vi.waitFor(() => expect(f.source.trimCache).toHaveBeenCalledOnce());
+      vi.stubGlobal("Worker", class {});
+      worker = vi
+        .spyOn(terrainWorkers, "runTerrainWorkerTask")
+        .mockImplementation((task, signal) => {
+          if (task.kind !== "select")
+            return executeTerrainWorkerTask(structuredClone(task), signal);
+          const selection = buildTerrainSelection(task.input, {
+            getTileGridIdsForBounds: f.source.getTileGridIdsForBounds,
+            getTileBounds: f.source.getTileBounds,
+            getTileGeometricError: f.source.getLevelMaximumGeometricError,
+            getTileDataAvailable: f.source.getTileDataAvailable,
+          });
+          return new Promise((resolve) => {
+            queued.push({
+              complete: () => resolve({ kind: "select", selection }),
+            });
+          });
+        });
+      f.source.getTileGridIdsForBounds.mockReturnValue([
+        { level: 10, x: 533, y: 218 },
+      ]);
+      f.frame.renderCamera.position.x += 0.01;
+      f.runtime.update(f.frame);
+      f.source.getTileGridIdsForBounds.mockReturnValue([
+        { level: 10, x: 534, y: 218 },
+      ]);
+      f.frame.renderCamera.position.x += 0.01;
+      f.runtime.update(f.frame);
+      expect(queued).toHaveLength(1);
+      queued[0].complete();
+      await vi.waitFor(() => expect(queued).toHaveLength(2));
+      expect(f.source.requestTile.mock.calls.some(([id]) => id.x === 533)).toBe(
+        false
+      );
+      queued[1].complete();
+      await vi.waitFor(() =>
+        expect(
+          f.source.requestTile.mock.calls.some(([id]) => id.x === 534)
+        ).toBe(true)
+      );
+      expect(f.source.requestTile.mock.calls.some(([id]) => id.x === 533)).toBe(
+        false
+      );
+    } finally {
+      f.runtime.dispose();
+      worker?.mockRestore();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it.each(["none", "camera", "sun", "geographic-edge"] as const)(
+    "cancels offscreen requests during continuous motion before selection replies (protection=%s)",
+    async (protection) => {
+      const f = createIdlePrefetchFixture(`continuous-motion-${protection}`);
+      let signal: AbortSignal | undefined;
+      let worker: { mockRestore: () => void } | undefined;
+      const extra = new OrthographicCamera(
+        -50_000,
+        50_000,
+        50_000,
+        -50_000,
+        1,
+        100_000
+      );
+      extra.position.set(0, 20_000, 0);
+      extra.lookAt(0, 0, 0);
+      extra.updateMatrixWorld(true);
+      const frame = {
+        ...f.frame,
+        tileCameraViews: snapshotTileCameraViews([]),
+      };
+      try {
+        await f.start();
+        await vi.waitFor(() =>
+          expect(f.source.trimCache).toHaveBeenCalledOnce()
+        );
+        const floor = [...f.runtime.root.children];
+        f.source.requestTile.mockImplementation(
+          (_id, requestSignal) =>
+            new Promise((_resolve, reject) => {
+              signal = requestSignal;
+              signal!.addEventListener("abort", () => reject(signal!.reason), {
+                once: true,
+              });
+            })
+        );
+        f.source.getTileGridIdsForBounds.mockReturnValue([
+          { level: 10, x: 533, y: 218 },
+        ]);
+        frame.renderCamera.position.x += 0.01;
+        f.runtime.update(frame);
+        await vi.waitFor(() => expect(signal).toBeDefined());
+        vi.stubGlobal("Worker", class {});
+        worker = vi
+          .spyOn(terrainWorkers, "runTerrainWorkerTask")
+          .mockImplementation((task, workerSignal) =>
+            task.kind === "select"
+              ? new Promise(() => {})
+              : executeTerrainWorkerTask(structuredClone(task), workerSignal)
+          );
+        const observer = new PerspectiveCamera(60, 1, 1, 100);
+        observer.position.set(10_000_000, 0, 0);
+        frame.renderCamera = observer;
+        f.map.getBounds.mockReturnValue({
+          getWest: () => (protection === "geographic-edge" ? 7.2 : 10),
+          getEast: () => (protection === "geographic-edge" ? 7.3 : 10.1),
+          getSouth: () => 51,
+          getNorth: () => 51.3,
+        });
+        if (protection === "camera")
+          frame.tileCameraViews = snapshotTileCameraViews([
+            {
+              id: "retain-caster",
+              camera: extra,
+              viewport: [800, 600],
+              errorTargetPixels: 2,
+              role: TILE_CAMERA_ROLE.GEOMETRY,
+            },
+          ]);
+        if (protection === "sun")
+          f.runtime.setShadowView({
+            camera: extra,
+            shadowMapSize: { width: 1024, height: 1024 },
+          });
+        for (let index = 0; index < 6; index++) {
+          observer.position.x += 1;
+          f.runtime.update(frame);
+          expect(signal!.aborted).toBe(protection === "none");
+        }
+        // No selection has replied; further changes still reject stale work
+        // immediately once its last extra camera/caster consumer is removed.
+        frame.tileCameraViews = [];
+        f.runtime.setShadowView(null);
+        f.map.getBounds.mockReturnValue({
+          getWest: () => 10,
+          getEast: () => 10.1,
+          getSouth: () => 51,
+          getNorth: () => 51.3,
+        });
+        observer.position.x += 1;
+        f.runtime.update(frame);
+        expect(signal!.aborted).toBe(true);
+        for (const node of floor) expect(node.parent).toBe(f.runtime.root);
+        expect(f.onError).not.toHaveBeenCalled();
+        expect(
+          vi
+            .mocked(terrainWorkers.runTerrainWorkerTask)
+            .mock.calls.filter(([task]) => task.kind === "select")
+        ).toHaveLength(1);
+      } finally {
+        f.runtime.dispose();
+        worker?.mockRestore();
+        vi.unstubAllGlobals();
+      }
+    }
+  );
+
+  it("shares terrain payloads across cameras and promotes geometry without requesting again", async () => {
+    const f = createIdlePrefetchFixture("shared-camera-pool");
+    const observer = new PerspectiveCamera(60, 1, 1, 100);
+    observer.position.set(10_000_000, 0, 0);
+    observer.updateMatrixWorld(true);
+    f.frame.renderCamera = observer;
+    const extra = new OrthographicCamera(
+      -1_000_000,
+      1_000_000,
+      1_000_000,
+      -1_000_000,
+      1,
+      3_000_000
+    );
+    extra.position.set(0, 1_000_000, 0);
+    extra.lookAt(0, 0, 0);
+    const views = ["rays-a", "rays-b"].map((id) => ({
+      id,
+      camera: extra,
+      viewport: [800, 600] as const,
+      errorTargetPixels: 2,
+      role: TILE_CAMERA_ROLE.GEOMETRY,
+    }));
+    const frame = {
+      ...f.frame,
+      tileCameraViews: snapshotTileCameraViews(views),
+    };
+    try {
+      await f.start();
+      f.runtime.update(frame);
+      await vi.waitFor(() => expect(f.source.trimCache).toHaveBeenCalled());
+      const meshes: Mesh[] = [];
+      f.runtime.root.traverse((object) => {
+        if (object instanceof Mesh) meshes.push(object);
+      });
+      expect(meshes.length).toBeGreaterThan(0);
+      const payload = meshes[0];
+      expect(payload.receiveShadow).toBe(false);
+      expect(f.source.requestTile).toHaveBeenCalledTimes(1);
+      frame.tileCameraViews = snapshotTileCameraViews([
+        { ...views[0], role: TILE_CAMERA_ROLE.RECEIVER },
+      ]);
+      f.runtime.update(frame);
+      expect(payload.receiveShadow).toBe(true);
+      expect(payload.visible).toBe(true);
+      expect(f.source.requestTile).toHaveBeenCalledTimes(1);
+      expect(acquireRasterDemTerrainTileSource).toHaveBeenCalledTimes(1);
+    } finally {
+      f.runtime.dispose();
+    }
+  });
 
   it.each([false, true])(
     "releases its raster source exactly once (acquired=%s)",
@@ -391,7 +1127,7 @@ describe("buildRasterDemTerrainRuntime", () => {
   });
 
   it.each(["signal", "movement", "view", "shadow", "dispose"] as const)(
-    "stops remaining idle work on %s without aborting the shared source request",
+    "cancels its idle source waiter on %s and ignores late replies",
     async (reason) => {
       const { runtime, source, makeTile, start, frame, listeners } =
         createIdlePrefetchFixture(`abort-${reason}`);
@@ -427,7 +1163,8 @@ describe("buildRasterDemTerrainRuntime", () => {
         aborted: true,
       });
       expect(source.requestTile).toHaveBeenCalledTimes(2);
-      expect(source.requestTile.mock.calls[1]).toHaveLength(1);
+      expect(source.requestTile.mock.calls[1][1]).toBeInstanceOf(AbortSignal);
+      expect(source.requestTile.mock.calls[1][1]?.aborted).toBe(true);
       runtime.dispose();
     }
   );
@@ -565,7 +1302,11 @@ describe("buildRasterDemTerrainRuntime", () => {
     source.getTileGridIdsForBounds.mockReturnValue([
       { level: 10, x: 532, y: 218 },
     ]);
-    expect(source.requestTile).toHaveBeenCalledWith({ level, x, y });
+    expect(source.requestTile.mock.calls.map(([id]) => id)).toContainEqual({
+      level,
+      x,
+      y,
+    });
     runtime.update({ ...revisitFrame, viewport: new Vector2(800, 800) });
     await vi.waitFor(() =>
       expect(runtime.getIdlePrefetchAvailability().ready).toBe(true)
@@ -579,7 +1320,7 @@ describe("buildRasterDemTerrainRuntime", () => {
   });
 
   it.each(["signal", "movement", "view", "shadow", "dispose"] as const)(
-    "cancels a shadow lease on %s and keeps the in-flight source request isolated",
+    "cancels a shadow lease source waiter on %s and ignores late replies",
     async (reason) => {
       const { runtime, source, makeTile, start, listeners, frame } =
         createIdlePrefetchFixture(`shadow-lease-abort-${reason}`);
@@ -621,7 +1362,8 @@ describe("buildRasterDemTerrainRuntime", () => {
       expect(lease.covered).toBe(false);
       expect(lease.group).toBeNull();
       expect(lease.reason).toBe(TERRAIN_IDLE_SHADOW_REASON.aborted);
-      expect(source.requestTile.mock.calls[1]).toHaveLength(1);
+      expect(source.requestTile.mock.calls[1][1]).toBeInstanceOf(AbortSignal);
+      expect(source.requestTile.mock.calls[1][1]?.aborted).toBe(true);
       runtime.dispose();
     }
   );
@@ -976,26 +1718,103 @@ describe("buildRasterDemTerrainRuntime", () => {
 
   it("interpolates coarse neighbor normals", async () => {
     const coarseId = { level: 10, x: 532, y: 218 };
-    const fineId = { level: 11, x: 533, y: 218 };
+    const fineParentId = { level: 10, x: 533, y: 218 };
+    const fineId = { level: 11, x: 1066, y: 436 };
+    const isFineTile = (id: TerrainTileId) =>
+      id.level === fineId.level && id.x === fineId.x && id.y === fineId.y;
+    createProjectedTerrainTileGeometry.mockImplementation(({ tile }) => {
+      const id = tile.id as TerrainTileId;
+      const fine = isFineTile(id);
+      const width = id.level === 10 ? 1 : 0.5;
+      const west = id.level === 10 ? id.x - 532 : 1 + (id.x - 1066) * width;
+      const north = id.level === 10 ? 0 : -(id.y - 436);
+      const geometry = new BufferGeometry();
+      geometry.setAttribute(
+        "position",
+        new Float32BufferAttribute(
+          fine
+            ? [
+                west,
+                2,
+                north,
+                west,
+                2,
+                north - 0.5,
+                west,
+                2,
+                north - 1,
+                west + width,
+                1,
+                north,
+                west + width,
+                1,
+                north - 0.5,
+                west + width,
+                1,
+                north - 1,
+              ]
+            : [
+                west,
+                0,
+                north,
+                west,
+                0,
+                north - (id.level === 10 ? 2 : 1),
+                west + width,
+                0,
+                north,
+                west + width,
+                0,
+                north - (id.level === 10 ? 2 : 1),
+              ],
+          3
+        )
+      );
+      geometry.setIndex(
+        fine ? [0, 3, 1, 1, 3, 4, 1, 4, 2, 2, 4, 5] : [0, 2, 1, 1, 2, 3]
+      );
+      geometry.computeVertexNormals();
+      if (fine) {
+        const normal = geometry.getAttribute("normal");
+        fineBoundaryNormalBeforeSmoothing = new Vector3(
+          normal.getX(1),
+          normal.getY(1),
+          normal.getZ(1)
+        );
+      }
+      return geometry;
+    });
     const source = {
       requestTile: vi.fn(async (id) => ({
         id,
-        heightMeters:
-          id === fineId ? new Float32Array([456]) : new Float32Array([100]),
-        westIndices:
-          id === fineId ? new Uint32Array([0, 1, 2]) : new Uint32Array(),
+        heightMeters: isFineTile(id)
+          ? new Float32Array([456])
+          : new Float32Array([100]),
+        westIndices: isFineTile(id)
+          ? new Uint32Array([0, 1, 2])
+          : new Uint32Array(),
         southIndices: new Uint32Array(),
         eastIndices:
-          id === coarseId ? new Uint32Array([2, 3]) : new Uint32Array(),
+          id.level === coarseId.level && id.x === coarseId.x
+            ? new Uint32Array([2, 3])
+            : new Uint32Array(),
         northIndices: new Uint32Array(),
       })),
-      getTileGridIdsForBounds: vi.fn(() => [coarseId, fineId]),
-      getTileBounds: vi.fn((id) =>
-        id === fineId
-          ? { west: 7.2, south: 51, east: 7.4, north: 51.3 }
-          : { west: 7, south: 51, east: 7.2, north: 51.3 }
+      getTileGridIdsForBounds: vi.fn(() => [coarseId, fineParentId]),
+      getTileBounds: vi.fn((id: TerrainTileId) => {
+        const scale = 2 ** (id.level - 10);
+        const west = 7 + (id.x / scale - 532) * 0.2;
+        const north = 51.3 - (id.y / scale - 218) * 0.3;
+        return {
+          west,
+          east: west + 0.2 / scale,
+          south: north - 0.3 / scale,
+          north,
+        };
+      }),
+      getLevelMaximumGeometricError: vi.fn((level) =>
+        level === 10 ? 0.01 : 0.00001
       ),
-      getLevelMaximumGeometricError: vi.fn(() => 0.00001),
       getTileDataAvailable: vi.fn(() => true),
       sampleHeight: vi.fn(() => 150),
       trimCache: vi.fn(),
@@ -1005,7 +1824,7 @@ describe("buildRasterDemTerrainRuntime", () => {
     const runtime = buildRasterDemTerrainRuntime(
       "mixed-lod-terrain",
       terrainConfig("https://example.test/mixed-lod-terrain"),
-      [7.15, 51.256],
+      [7.3, 51.25],
       { minimumLevel: 10, maximumLevel: 11 }
     );
     const map = {
@@ -1044,12 +1863,14 @@ describe("buildRasterDemTerrainRuntime", () => {
     await expect(runtime.ready).resolves.toBe(true);
     await vi.waitFor(() =>
       expect(
-        runtime.root.children.some((child) => child.name.endsWith("11/533/218"))
+        runtime.root.children.some((child) =>
+          child.name.endsWith("11/1066/436")
+        )
       ).toBe(true)
     );
     const fineMesh = (
       runtime.root.children.find((child) =>
-        child.name.endsWith("11/533/218")
+        child.name.endsWith("11/1066/436")
       ) as Group
     ).children[0] as Mesh;
     // ready means first visible terrain, not completion of the asynchronous
@@ -1068,6 +1889,16 @@ describe("buildRasterDemTerrainRuntime", () => {
       fineBoundaryNormalBeforeSmoothing!.y + 0.1
     );
     expect(fineMesh.parent!.visible).toBe(true);
+    const visible = runtime.root.children.filter((child) => child.visible);
+    expect(visible).toHaveLength(5);
+    expect(visible.some((child) => child.name.endsWith("10/532/218"))).toBe(
+      true
+    );
+    for (const x of [1066, 1067])
+      for (const y of [436, 437])
+        expect(
+          visible.some((child) => child.name.endsWith(`11/${x}/${y}`))
+        ).toBe(true);
 
     runtime.dispose();
   });
@@ -1112,6 +1943,7 @@ describe("buildRasterDemTerrainRuntime", () => {
         shadowLevelOffset: 0,
         onContentChanged,
         receivesMapStyleTexture: true,
+        boundsPaddingMeters: [5_000, 0, 0],
       }
     );
     const map = {
@@ -1174,7 +2006,9 @@ describe("buildRasterDemTerrainRuntime", () => {
     // normal bias, not in a per-mesh depth material.
     expect(mesh.customDepthMaterial).toBeUndefined();
     expect(mesh.geometry.getAttribute("position").count).toBe(4);
-    expect(source.requestTile).toHaveBeenCalledWith(tileId);
+    expect(source.requestTile.mock.calls.map(([id]) => id)).toContainEqual(
+      tileId
+    );
     expect(registerSharedThreeTerrainSampler).toHaveBeenCalled();
     await vi.waitFor(() =>
       expect(notifySharedThreeTerrainChanged).toHaveBeenCalledWith(map)
@@ -1236,6 +2070,13 @@ describe("buildRasterDemTerrainRuntime", () => {
     expect(runtime.getActiveTileVolumes()[0].loadReason).toBe("viewport");
 
     const offscreenCamera = receiverCamera.clone();
+    offscreenCamera.position.x += 4_000;
+    offscreenCamera.updateMatrixWorld(true);
+    runtime.update({ ...frame, renderCamera: offscreenCamera });
+    expect(mesh.receiveShadow).toBe(true);
+    expect(mesh.material).toBe(receiverMaterial);
+    expect(runtime.getActiveTileVolumes()[0].loadReason).toBe("viewport");
+
     offscreenCamera.position.x += 200_000;
     offscreenCamera.updateMatrixWorld(true);
     runtime.update({ ...frame, renderCamera: offscreenCamera });
@@ -1347,7 +2188,9 @@ describe("buildRasterDemTerrainRuntime", () => {
       },
     });
     await vi.waitFor(() => {
-      expect(source.requestTile).toHaveBeenCalledWith(sunTileId);
+      expect(source.requestTile.mock.calls.map(([id]) => id)).toContainEqual(
+        sunTileId
+      );
       expect(runtime.root.children).toHaveLength(2);
     });
     runtime.update(frame);
@@ -1447,7 +2290,9 @@ describe("buildRasterDemTerrainRuntime", () => {
     });
 
     await expect(runtime.ready).resolves.toBe(true);
-    expect(source.requestTile).toHaveBeenCalledWith(tileId);
+    expect(source.requestTile.mock.calls.map(([id]) => id)).toContainEqual(
+      tileId
+    );
     await vi.waitFor(() =>
       expect(setSharedThreeTerrainLoading).toHaveBeenLastCalledWith(
         map,
@@ -1560,7 +2405,9 @@ describe("buildRasterDemTerrainRuntime", () => {
     expect(source.requestTile.mock.calls.some(([id]) => id.level === 11)).toBe(
       true
     );
-    expect(source.requestTile).not.toHaveBeenCalledWith(parentId);
+    expect(source.requestTile.mock.calls.map(([id]) => id)).not.toContainEqual(
+      parentId
+    );
     runtime.dispose();
   });
 
@@ -1574,18 +2421,49 @@ describe("buildRasterDemTerrainRuntime", () => {
     { sourceMaxzoom: 15, maximumLevel: undefined, finalLevel: 15 },
     { sourceMaxzoom: 16, maximumLevel: 20, finalLevel: 16 },
   ])(
-    "publishes <=16px coverage before each refinement up to $finalLevel (source $sourceMaxzoom, limit $maximumLevel)",
+    "publishes complete coarse coverage before each refinement up to $finalLevel (source $sourceMaxzoom, limit $maximumLevel)",
     async ({ sourceMaxzoom, maximumLevel, finalLevel }) => {
+      const visibleIds = () =>
+        runtime.root.children
+          .filter((child) => child.visible)
+          .map((child) => child.name.match(/source:(\d+)\/(\d+)\/(\d+)$/)!)
+          .map((match) => ({
+            level: Number(match[1]),
+            x: Number(match[2]),
+            y: Number(match[3]),
+          }));
+      const expectCompleteCut = () => {
+        const ids = visibleIds();
+        // A disjoint dyadic cut has exactly one root's area, at every stage.
+        expect(ids.reduce((area, id) => area + 4 ** (10 - id.level), 0)).toBe(
+          1
+        );
+        for (const id of ids)
+          expect(
+            ids.some(
+              (other) =>
+                other !== id &&
+                other.level <= id.level &&
+                Math.floor(id.x / 2 ** (id.level - other.level)) === other.x &&
+                Math.floor(id.y / 2 ** (id.level - other.level)) === other.y
+            )
+          ).toBe(false);
+      };
       const source = {
-        requestTile: vi.fn(async (id) => {
-          if (id.level > 13)
+        requestTile: vi.fn(async (id: TerrainTileId) => {
+          if (id.level > 11) {
+            expectCompleteCut();
             expect(
-              runtime.root.children.some(
-                (child) =>
-                  child.visible &&
-                  child.name.includes(`source:${id.level - 1}/`)
+              visibleIds().some(
+                (ancestor) =>
+                  ancestor.level < id.level &&
+                  Math.floor(id.x / 2 ** (id.level - ancestor.level)) ===
+                    ancestor.x &&
+                  Math.floor(id.y / 2 ** (id.level - ancestor.level)) ===
+                    ancestor.y
               )
             ).toBe(true);
+          }
           return {
             id,
             heightMeters: new Float32Array([100]),
@@ -1596,11 +2474,12 @@ describe("buildRasterDemTerrainRuntime", () => {
           };
         }),
         getTileGridIdsForBounds: vi.fn(() => [{ level: 10, x: 0, y: 0 }]),
-        getTileBounds: vi.fn((id) =>
-          id.x === 0 && id.y === 0
-            ? { west: 7.1, south: 51.24, east: 7.2, north: 51.27 }
-            : { west: 40, south: 60, east: 40.1, north: 60.1 }
-        ),
+        getTileBounds: vi.fn((id: TerrainTileId) => {
+          const width = 0.2 / 2 ** (id.level - 10);
+          const west = 7.1 + id.x * width;
+          const north = 51.35 - id.y * width;
+          return { west, east: west + width, south: north - width, north };
+        }),
         getLevelMaximumGeometricError: vi.fn(
           (level) => 0.1 / 2 ** (level - 10)
         ),
@@ -1616,15 +2495,15 @@ describe("buildRasterDemTerrainRuntime", () => {
           ...terrainConfig("https://example.test/skip-ancestors"),
           maxzoom: sourceMaxzoom,
         },
-        [7.15, 51.256],
+        [7.101, 51.349],
         { minimumLevel: 10, maximumLevel, errorTargetPixels: 0.5 }
       );
       const map = {
         getBounds: () => ({
-          getWest: () => 7.1,
-          getSouth: () => 51.24,
-          getEast: () => 7.2,
-          getNorth: () => 51.27,
+          getWest: () => 7.1005,
+          getSouth: () => 51.3485,
+          getEast: () => 7.1015,
+          getNorth: () => 51.3495,
         }),
         triggerRepaint: vi.fn(),
       };
@@ -1652,11 +2531,32 @@ describe("buildRasterDemTerrainRuntime", () => {
         },
       });
       await runtime.ready;
-      await vi.waitFor(() =>
-        expect(source.requestTile).toHaveBeenCalledTimes(finalLevel - 12)
+      await vi.waitFor(() => expect(source.trimCache).toHaveBeenCalled());
+      const requestedIds = source.requestTile.mock.calls.map(([id]) => id);
+      // The bounded first-coverage stage may start with at most four tiles;
+      // once published, every deeper stage must retain full root coverage.
+      expect(Math.min(...requestedIds.map(({ level }) => level))).toBe(11);
+      expectCompleteCut();
+      const expectedFinalCut = [{ level: finalLevel, x: 0, y: 0 }];
+      for (let level = 11; level <= finalLevel; level += 1) {
+        // Only the focus branch refines. Its three support siblings remain at
+        // each level, even when a useful preview skips the branch's parent LOD.
+        expectedFinalCut.push(
+          { level, x: 1, y: 0 },
+          { level, x: 0, y: 1 },
+          { level, x: 1, y: 1 }
+        );
+      }
+      const idKey = ({ level, x, y }: TerrainTileId) => `${level}/${x}/${y}`;
+      expect(visibleIds().map(idKey).sort()).toEqual(
+        expectedFinalCut.map(idKey).sort()
       );
-      expect(source.requestTile.mock.calls.map(([id]) => id.level)).toEqual(
-        Array.from({ length: finalLevel - 12 }, (_, index) => index + 13)
+      expect(new Set(requestedIds.map(idKey)).size).toBe(requestedIds.length);
+      expect(Math.max(...requestedIds.map(({ level }) => level))).toBe(
+        finalLevel
+      );
+      expect(Math.max(...visibleIds().map(({ level }) => level))).toBe(
+        finalLevel
       );
       runtime.dispose();
     }
@@ -1758,7 +2658,10 @@ describe("buildRasterDemTerrainRuntime", () => {
         child.name.includes("source:10/532/218")
       );
       if (withinInitialTarget) expect(parentNode?.visible).toBe(true);
-      else expect(source.requestTile).not.toHaveBeenCalledWith(parentId);
+      else
+        expect(
+          source.requestTile.mock.calls.map(([id]) => id)
+        ).not.toContainEqual(parentId);
 
       resolveChildren();
       await expect(runtime.ready).resolves.toBe(true);
@@ -2005,8 +2908,12 @@ describe("buildRasterDemTerrainRuntime", () => {
 
     await expect(runtime.ready).resolves.toBe(true);
     expect(source.requestTile).toHaveBeenCalledTimes(2);
-    expect(source.requestTile).toHaveBeenCalledWith(zeroSourceId);
-    expect(source.requestTile).toHaveBeenCalledWith(sourceId);
+    expect(source.requestTile.mock.calls.map(([id]) => id)).toContainEqual(
+      zeroSourceId
+    );
+    expect(source.requestTile.mock.calls.map(([id]) => id)).toContainEqual(
+      sourceId
+    );
     expect(runtime.root.children).toHaveLength(2);
     expect(
       runtime.root.children.some((child) => child.name.includes("flat:"))
@@ -2132,7 +3039,9 @@ describe("buildRasterDemTerrainRuntime", () => {
     // the shadow. The parent stays whole; refinement ends at the
     // availability boundary.
     expect(source.requestTile).toHaveBeenCalledTimes(1);
-    expect(source.requestTile).toHaveBeenCalledWith(parentId);
+    expect(source.requestTile.mock.calls.map(([id]) => id)).toContainEqual(
+      parentId
+    );
     expect(
       runtime.root.children.some((child) => child.name.includes("source:10/"))
     ).toBe(true);
@@ -2273,7 +3182,9 @@ describe("buildRasterDemTerrainRuntime", () => {
     ).toBe(true);
     await vi.waitFor(() => {
       for (const westId of westIds)
-        expect(source.requestTile).toHaveBeenCalledWith(westId);
+        expect(source.requestTile.mock.calls.map(([id]) => id)).toContainEqual(
+          westId
+        );
     });
     const requestedIds = source.requestTile.mock.calls.map(([id]) => id);
     // The viewport root split into its level-11 children ...
@@ -2388,8 +3299,12 @@ describe("buildRasterDemTerrainRuntime", () => {
     // planar map bounds, but its height volume is visible in the real frustum.
     renderAt(20_000);
     await expect(runtime.ready).resolves.toBe(true);
-    expect(source.requestTile).toHaveBeenCalledWith(centerId);
-    expect(source.requestTile).toHaveBeenCalledWith(foregroundId);
+    expect(source.requestTile.mock.calls.map(([id]) => id)).toContainEqual(
+      centerId
+    );
+    expect(source.requestTile.mock.calls.map(([id]) => id)).toContainEqual(
+      foregroundId
+    );
 
     source.requestTile.mockClear();
     renderAt(5_000);
@@ -2535,5 +3450,44 @@ describe("buildRasterDemTerrainRuntime", () => {
       allIds.length
     );
     runtime.dispose();
+  });
+
+  it("holds the configured target back while the map moves", async () => {
+    // A fine target spends the tile budget on levels the next camera change
+    // discards. With a motion target the cut stays coarse while the map moves
+    // and one more cut runs at the configured target once it holds still.
+    // The gesture drives it, not the camera signature: a repaint that nudges a
+    // matrix would otherwise coarsen a published cut and flip its tiles.
+    const f = createIdlePrefetchFixture("motion-settle", 10, {
+      errorTargetPixels: 0.5,
+      motionErrorTargetPixels: 8,
+    });
+    await f.start();
+    const selections = () => f.source.getTileGridIdsForBounds.mock.calls.length;
+    f.listeners.get("movestart")?.();
+    f.runtime.update(f.frame);
+    const afterMove = selections();
+    // An unchanged view selects nothing new while the gesture runs.
+    f.runtime.update(f.frame);
+    expect(selections()).toBe(afterMove);
+    f.listeners.get("moveend")?.();
+    await new Promise((resolve) => setTimeout(resolve, MOTION_SETTLE_WAIT_MS));
+    f.runtime.update(f.frame);
+    expect(selections()).toBeGreaterThan(afterMove);
+    f.runtime.dispose();
+  });
+
+  it("keeps one target when no motion target is configured", async () => {
+    const f = createIdlePrefetchFixture("motion-off", 10, {
+      errorTargetPixels: 0.5,
+    });
+    await f.start();
+    const selections = () => f.source.getTileGridIdsForBounds.mock.calls.length;
+    const afterMove = selections();
+    f.listeners.get("moveend")?.();
+    await new Promise((resolve) => setTimeout(resolve, MOTION_SETTLE_WAIT_MS));
+    f.runtime.update(f.frame);
+    expect(selections()).toBe(afterMove);
+    f.runtime.dispose();
   });
 });

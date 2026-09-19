@@ -1,4 +1,5 @@
 import { type Tile } from "3d-tiles-renderer/core";
+import type { TilesRuntimeDebugState } from "../diagnostics/tile-diagnostic-state";
 import * as THREE from "three";
 
 import {
@@ -21,10 +22,18 @@ import type {
 } from "./three-tiles-runtime-types";
 import { resolveTileContentUrl } from "./three-tiles-runtime-vendor";
 
+/** Console/probe registry only; registering a runtime does not sample it. */
+export const debugTilesRuntimes = (): Set<unknown> | null => {
+  if (typeof window === "undefined") return null;
+  const host = window as unknown as { __carmaTiles3d?: Set<unknown> };
+  return (host.__carmaTiles3d ??= new Set());
+};
+
 /** debug responsibility of the shared 3D Tiles runtime. */
 export function createThreeTilesDebug(
   runtimeState: Pick<
     ThreeTilesRuntimeState,
+    | keyof TilesRuntimeDebugState
     | "tileDebugIds"
     | "nextTileDebugId"
     | "layerId"
@@ -42,6 +51,7 @@ export function createThreeTilesDebug(
     | "sourceWorldBoundsTransform"
     | "sourceWorldBoundingBox"
     | "map"
+    | "options"
   >,
   dependencies: Pick<
     ThreeTilesRuntimeServices,
@@ -122,17 +132,22 @@ export function createThreeTilesDebug(
       if (!createOverlay) {
         if (!loadingOverlay) {
           loadingOverlay = true;
-          void import("./three-tiles-debug-overlay").then((module) => {
-            createOverlay = module.createThreeTilesDebugOverlay;
-            loadingOverlay = false;
-            if (runtimeState.tileBoundsVisible && runtimeState.tiles === tiles) {
-              syncTileDebugOverlay();
-              runtimeState.map?.triggerRepaint();
-            }
-          }).catch((error: unknown) => {
-            loadingOverlay = false;
-            console.error("Unable to load mesh diagnostics", error);
-          });
+          void import("./three-tiles-debug-overlay")
+            .then((module) => {
+              createOverlay = module.createThreeTilesDebugOverlay;
+              loadingOverlay = false;
+              if (
+                runtimeState.tileBoundsVisible &&
+                runtimeState.tiles === tiles
+              ) {
+                syncTileDebugOverlay();
+                runtimeState.map?.triggerRepaint();
+              }
+            })
+            .catch((error: unknown) => {
+              loadingOverlay = false;
+              console.error("Unable to load mesh diagnostics", error);
+            });
         }
         return;
       }
@@ -142,9 +157,7 @@ export function createThreeTilesDebug(
       // reads an existing corridor proof.
       if (now - runtimeState.tileDebugOverlayUpdatedAt < 1_000) return;
       runtimeState.tileDebugOverlayUpdatedAt = now;
-      runtimeState.tileDebugOverlay ??= createOverlay(
-        tiles.group
-      );
+      runtimeState.tileDebugOverlay ??= createOverlay(tiles.group);
       const receiverTiles = [...tiles.visibleTiles].filter((tile) =>
         dependencies.isTileInMainView(tile as RuntimeTile)
       );
@@ -302,6 +315,8 @@ export function createThreeTilesDebug(
       runtimeState.map?.triggerRepaint();
     };
   return {
+    readState: (): Readonly<TilesRuntimeDebugState> | undefined =>
+      runtimeState.options.diagnostics ? runtimeState : undefined,
     getTileDebugId,
     getTileDebugProgress,
     recordTileIteration,
@@ -309,5 +324,11 @@ export function createThreeTilesDebug(
     getStableTileId,
     syncTileDebugOverlay,
     setTileBoundsVisible,
+    setDiagnosticsEnabled(enabled: boolean) {
+      runtimeState.options.diagnostics = enabled;
+      if (enabled && runtimeState.tiles)
+        debugTilesRuntimes()?.add(runtimeState);
+      else debugTilesRuntimes()?.delete(runtimeState);
+    },
   };
 }

@@ -295,7 +295,8 @@ const translationControl = {
 };
 
 const meta: Meta<SvgReprojectionProps> = {
-  title: "Mapping Components/Gizmo",
+  title: "UI/Gizmos",
+  id: "mapping-components-gizmo",
   component: SvgReprojectionStory,
   parameters: {
     layout: "fullscreen",

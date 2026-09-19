@@ -26,6 +26,8 @@ export default defineConfig({
   plugins: [react(), nxViteTsPaths()],
   base: base,
   worker: {
+    // Worker chunks code-split through the MapLibre engine; iife workers cannot.
+    format: "es" as const,
     plugins: () => [nxViteTsPaths()],
   },
   optimizeDeps: {

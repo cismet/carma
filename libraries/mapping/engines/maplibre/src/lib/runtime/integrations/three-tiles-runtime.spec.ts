@@ -11,6 +11,7 @@ import { setSharedThreeTerrainLoading } from "./shared-three-terrain-registry";
 import { TILES_LOAD_POLICY } from "./three-tiles-load-policy";
 import { MAPLIBRE_EVENT } from "../../../constants/mapEvents";
 import { buildThreeTilesRuntime } from "./three-tiles-runtime";
+import { debugTilesRuntimes } from "./three-tiles-runtime-debug";
 import {
   HIDDEN_TAB_WIPE_DELAY_MS,
   MESH_EVICTION_BATCH_SIZE,
@@ -30,6 +31,410 @@ vi.hoisted(() => {
 });
 
 describe("three tiles runtime styling", () => {
+  it("toggles diagnostics without replacing the runtime or its loaded tiles", () => {
+    const runtime = buildThreeTilesRuntime(
+      "telemetry-toggle",
+      "mesh.json",
+      [7.2, 51.2]
+    );
+    const map = {
+      on: vi.fn(),
+      off: vi.fn(),
+      triggerRepaint: vi.fn(),
+    } as unknown as MaplibreMap;
+    runtime.scene.onAdd?.(map);
+    try {
+      runtime.debug.setDiagnosticsEnabled(true);
+      const state = [...(debugTilesRuntimes() ?? [])].find(
+        (entry) => (entry as { layerId: string }).layerId === "telemetry-toggle"
+      ) as { tiles: TilesRenderer; options: { diagnostics: boolean } };
+      expect(state).toBeDefined();
+      const tiles = state.tiles;
+      runtime.debug.setDiagnosticsEnabled(false);
+      expect(debugTilesRuntimes()?.has(state)).toBe(false);
+      expect(state.options.diagnostics).toBe(false);
+      runtime.debug.setDiagnosticsEnabled(true);
+      expect(debugTilesRuntimes()?.has(state)).toBe(true);
+      expect(state.tiles).toBe(tiles);
+    } finally {
+      runtime.scene.dispose?.();
+    }
+  });
+  it("admits offscreen refinement support through the real queue while preserving pause gates", () => {
+    type QueueRenderer = TilesRenderer & {
+      queueTileForDownload: (tile: Tile) => void;
+    };
+    const nativeQueue = vi
+      .spyOn(TilesRenderer.prototype as QueueRenderer, "queueTileForDownload")
+      .mockImplementation(() => undefined);
+    let renderer!: QueueRenderer;
+    const update = vi
+      .spyOn(TilesRenderer.prototype, "update")
+      .mockImplementation(function () {
+        renderer = this as QueueRenderer;
+      });
+    const map = {
+      on: vi.fn(),
+      off: vi.fn(),
+      triggerRepaint: vi.fn(),
+      isMoving: () => false,
+    } as unknown as MaplibreMap;
+    const runtime = buildThreeTilesRuntime(
+      "support-admission",
+      "mesh.json",
+      [7.2, 51.2],
+      { providesTerrain: true, diagnostics: true }
+    );
+    const camera = new THREE.PerspectiveCamera();
+    const frame = {
+      map,
+      renderCamera: camera,
+      lodCamera: camera,
+      lookTarget: new THREE.Vector3(),
+      viewport: new THREE.Vector2(800, 600),
+    };
+    const parent = {
+      parent: null,
+      children: [],
+      geometricError: 40,
+      refine: "REPLACE",
+      internal: { hasRenderableContent: true, loadingState: 4 },
+      traversal: { error: 1, inFrustum: false },
+    } as unknown as Tile;
+    const support = {
+      content: { uri: "support.b3dm" },
+      parent,
+      children: [],
+      geometricError: 10,
+      refine: "REPLACE",
+      internal: {
+        basePath: "https://example.test/tiles",
+        hasContent: true,
+        hasRenderableContent: true,
+        loadingState: 0,
+      },
+      traversal: { error: 0, inFrustum: false },
+    } as unknown as Tile;
+    try {
+      runtime.scene.onAdd?.(map);
+      runtime.scene.update(frame);
+      const states = (
+        window as unknown as {
+          __carmaTiles3d: Set<{
+            layerId: string;
+            meshRefinementSupport: Set<Tile>;
+            meshBaseCoverageReady: boolean;
+            memoryAdmissionPaused: boolean;
+            loadingPaused: boolean;
+            queuedThisTraversal: Set<Tile>;
+          }>;
+        }
+      ).__carmaTiles3d;
+      const state = [...states].find(
+        (candidate) => candidate.layerId === "support-admission"
+      )!;
+      state.meshBaseCoverageReady = false;
+      const obsolete = {
+        ...support,
+        content: { uri: "obsolete.b3dm" },
+        internal: { ...support.internal, loadingState: 2 },
+      } as Tile;
+      const remove = vi
+        .spyOn(renderer.lruCache, "remove")
+        .mockImplementation((tile) => {
+          if (tile === obsolete) obsolete.internal.loadingState = 0;
+          return true;
+        });
+      renderer.loadingTiles.add(obsolete);
+      runtime.scene.update(frame);
+      expect(remove).toHaveBeenCalledWith(obsolete);
+      renderer.queueTileForDownload(obsolete);
+      expect(nativeQueue).not.toHaveBeenCalled();
+      state.meshRefinementSupport.add(obsolete);
+      renderer.queueTileForDownload(obsolete);
+      expect(nativeQueue).toHaveBeenCalledOnce();
+      state.meshRefinementSupport.delete(obsolete);
+      state.queuedThisTraversal.delete(obsolete);
+      nativeQueue.mockClear();
+
+      state.meshRefinementSupport.add(support);
+
+      renderer.queueTileForDownload(support);
+      expect(nativeQueue).toHaveBeenCalledOnce();
+
+      state.queuedThisTraversal.delete(support);
+      state.loadingPaused = true;
+      renderer.queueTileForDownload(support);
+      expect(nativeQueue).toHaveBeenCalledOnce();
+
+      state.loadingPaused = false;
+      state.memoryAdmissionPaused = true;
+      renderer.queueTileForDownload(support);
+      expect(nativeQueue).toHaveBeenCalledOnce();
+
+      state.memoryAdmissionPaused = false;
+      support.internal.loadingState = -1;
+      renderer.stats.failed = 1;
+      renderer.dispatchEvent({
+        type: "load-error",
+        tile: support,
+        error: new Error("status 404"),
+        url: "https://example.test/tiles/support.b3dm",
+      });
+      state.queuedThisTraversal.delete(support);
+      renderer.queueTileForDownload(support);
+      expect(nativeQueue).toHaveBeenCalledOnce();
+    } finally {
+      runtime.scene.dispose();
+      update.mockRestore();
+      nativeQueue.mockRestore();
+    }
+  });
+
+  it("rechecks parked payload jobs after camera demand changes", async () => {
+    let renderer!: TilesRenderer;
+    const update = vi
+      .spyOn(TilesRenderer.prototype, "update")
+      .mockImplementation(function () {
+        renderer = this;
+      });
+    const map = {
+      on: vi.fn(),
+      off: vi.fn(),
+      triggerRepaint: vi.fn(),
+      isMoving: () => false,
+    } as unknown as MaplibreMap;
+    const runtime = buildThreeTilesRuntime(
+      "payload-demand",
+      "mesh.json",
+      [7.2, 51.2],
+      {
+        providesTerrain: true,
+      }
+    );
+    const camera = new THREE.PerspectiveCamera();
+    const frame = {
+      map,
+      renderCamera: camera,
+      lodCamera: camera,
+      lookTarget: new THREE.Vector3(),
+      viewport: new THREE.Vector2(800, 600),
+    };
+    const tile = {
+      parent: null,
+      children: [],
+      geometricError: 1,
+      refine: "REPLACE",
+      internal: { hasRenderableContent: true, loadingState: 2 },
+      traversal: { error: 1, inFrustum: false },
+    } as unknown as Tile;
+    const run = vi.fn(async () => undefined);
+    try {
+      runtime.scene.onAdd?.(map);
+      runtime.scene.update(frame);
+      renderer.parseQueue.maxJobs = 0;
+      renderer.parseQueue.add(tile, run);
+      renderer.parseQueue.maxJobs = 1;
+      renderer.parseQueue.tryRunJobs();
+      expect(run).not.toHaveBeenCalled();
+
+      tile.traversal.inFrustum = true;
+      camera.position.z = 1;
+      camera.updateMatrixWorld(true);
+      runtime.scene.update(frame);
+      renderer.parseQueue.tryRunJobs();
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+      expect(run).toHaveBeenCalledOnce();
+    } finally {
+      runtime.scene.dispose();
+      update.mockRestore();
+    }
+  });
+
+  it("runs an offscreen extent-floor payload after base coverage arms the audit", async () => {
+    let renderer!: TilesRenderer;
+    const update = vi
+      .spyOn(TilesRenderer.prototype, "update")
+      .mockImplementation(function () {
+        renderer = this;
+        this.frameCount += 1;
+      });
+    const map = {
+      on: vi.fn(),
+      off: vi.fn(),
+      triggerRepaint: vi.fn(),
+      isMoving: () => false,
+    } as unknown as MaplibreMap;
+    const runtime = buildThreeTilesRuntime(
+      "floor-payload",
+      "mesh.json",
+      [7.2, 51.2],
+      {
+        providesTerrain: true,
+      }
+    );
+    const camera = new THREE.PerspectiveCamera();
+    const frame = {
+      map,
+      renderCamera: camera,
+      lodCamera: camera,
+      lookTarget: new THREE.Vector3(),
+      viewport: new THREE.Vector2(800, 600),
+    };
+    const root = {
+      parent: null,
+      children: [],
+      geometricError: 1,
+      refine: "REPLACE",
+      internal: { hasRenderableContent: true, loadingState: 4 },
+      traversal: { error: 1, inFrustum: true },
+    } as unknown as Tile;
+    const floor = {
+      parent: root,
+      children: [],
+      geometricError: Number.MAX_SAFE_INTEGER,
+      refine: "REPLACE",
+      internal: { hasRenderableContent: true, loadingState: 2 },
+      traversal: { error: 100, inFrustum: false },
+    } as unknown as Tile;
+    const run = vi.fn(async () => undefined);
+    try {
+      runtime.scene.onAdd?.(map);
+      runtime.scene.update(frame);
+      renderer.rootTileset = { root } as typeof renderer.rootTileset;
+      renderer.visibleTiles.add(root);
+      renderer.activeTiles.add(root);
+      runtime.scene.update(frame);
+
+      renderer.parseQueue.maxJobs = 0;
+      renderer.parseQueue.add(floor, run);
+      renderer.parseQueue.maxJobs = 1;
+      renderer.parseQueue.tryRunJobs();
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+      expect(run).toHaveBeenCalledOnce();
+    } finally {
+      runtime.scene.dispose();
+      update.mockRestore();
+    }
+  });
+
+  it("guards published offscreen coverage in the native LRU until fallback is resident", () => {
+    let renderer!: TilesRenderer;
+    const update = vi
+      .spyOn(TilesRenderer.prototype, "update")
+      .mockImplementation(function () {
+        renderer = this;
+      });
+    const map = {
+      on: vi.fn(),
+      off: vi.fn(),
+      triggerRepaint: vi.fn(),
+      isMoving: () => false,
+    } as unknown as MaplibreMap;
+    const runtime = buildThreeTilesRuntime(
+      "coverage-lru",
+      "mesh.json",
+      [7.2, 51.2],
+      {
+        providesTerrain: true,
+      }
+    );
+    const parent = {
+      parent: null,
+      children: [],
+      refine: "REPLACE",
+      internal: { hasRenderableContent: true, loadingState: 0 },
+    } as unknown as Tile;
+    const child = {
+      parent,
+      children: [],
+      refine: "REPLACE",
+      internal: { hasRenderableContent: true, loadingState: 4 },
+    } as unknown as Tile;
+    parent.children = [child];
+    const disposeChild = vi.fn();
+    const disposeParent = vi.fn();
+    try {
+      runtime.scene.onAdd?.(map);
+      const camera = new THREE.PerspectiveCamera();
+      runtime.scene.update({
+        map,
+        renderCamera: camera,
+        lodCamera: camera,
+        lookTarget: new THREE.Vector3(),
+        viewport: new THREE.Vector2(800, 600),
+      });
+      renderer.lruCache.add(child, disposeChild);
+      renderer.visibleTiles.add(child);
+      expect(renderer.lruCache.remove(child)).toBe(false);
+      expect(disposeChild).not.toHaveBeenCalled();
+
+      renderer.visibleTiles.delete(child);
+      parent.internal.loadingState = 4;
+      renderer.lruCache.add(parent, disposeParent);
+      expect(renderer.lruCache.remove(child)).toBe(false);
+      renderer.visibleTiles.add(parent);
+      expect(renderer.lruCache.remove(child)).toBe(true);
+      expect(disposeChild).toHaveBeenCalledOnce();
+    } finally {
+      runtime.scene.dispose();
+      update.mockRestore();
+    }
+  });
+
+  it("admits one zoom prefetch job but keeps ancestor-strategy pans paused", () => {
+    let renderer!: TilesRenderer;
+    let moving = false;
+    let zooming = true;
+    const update = vi
+      .spyOn(TilesRenderer.prototype, "update")
+      .mockImplementation(function () {
+        renderer = this;
+      });
+    const map = {
+      on: vi.fn(),
+      off: vi.fn(),
+      triggerRepaint: vi.fn(),
+      isMoving: () => moving,
+      isZooming: () => zooming,
+    } as unknown as MaplibreMap;
+    const runtime = buildThreeTilesRuntime(
+      "zoom-prefetch",
+      "mesh.json",
+      [7.2, 51.2],
+      {
+        providesTerrain: true,
+      }
+    );
+    const camera = new THREE.PerspectiveCamera();
+    const frame = {
+      map,
+      renderCamera: camera,
+      lodCamera: camera,
+      lookTarget: new THREE.Vector3(),
+      viewport: new THREE.Vector2(800, 600),
+    };
+    try {
+      runtime.scene.onAdd?.(map);
+      runtime.scene.update(frame);
+      moving = true;
+      runtime.scene.update(frame);
+      runtime.loading.setRequestConcurrency(64);
+      expect(renderer.loadAncestors).toBe(true);
+      expect(renderer.parseQueue.maxJobs).toBe(1);
+      expect(renderer.downloadQueue.maxJobsPerOrigin).toBe(1);
+
+      zooming = false;
+      runtime.scene.update(frame);
+      runtime.loading.setRequestConcurrency(64);
+      expect(renderer.parseQueue.maxJobs).toBe(0);
+      expect(renderer.downloadQueue.maxJobsPerOrigin).toBe(0);
+    } finally {
+      runtime.scene.dispose();
+      update.mockRestore();
+    }
+  });
+
   it("pauses motion without discarding pending, newly requested, or completed tiles", async () => {
     vi.useFakeTimers();
     let renderer!: TilesRenderer & { loadingTiles: Set<Tile> };
@@ -926,7 +1331,12 @@ describe("three tiles runtime styling", () => {
       "mesh",
       "tileset.json",
       [7.15, 51.25],
-      { providesTerrain: false }
+      // Pin the ceiling this test fills; the desktop default is 6 GiB.
+      {
+        providesTerrain: false,
+        cacheBudgetBytes: 1024 ** 3,
+        cacheOverflowBytes: 0,
+      }
     );
     const viewCamera = new THREE.PerspectiveCamera();
     const frame = {
@@ -1427,7 +1837,8 @@ describe("three tiles runtime styling", () => {
     expect(sourceMaterial.transparent).toBe(false);
     expect(sourceMaterial.depthWrite).toBe(true);
     expect(sourceMaterial.shadowSide).toBe(THREE.DoubleSide);
-    expect(outline.visible).toBe(false);
+    // Outlines follow the style's `outline` alone, shadow mode does not hide them.
+    expect(outline.visible).toBe(true);
 
     const shader = {
       uniforms: {},

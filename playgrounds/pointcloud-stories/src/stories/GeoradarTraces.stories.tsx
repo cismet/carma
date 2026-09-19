@@ -13,7 +13,7 @@ import {
 
 const meta = {
   id: "georadar-trassenansicht",
-  title: "Georadar/Trassen und Schnittvolumen",
+  title: "Applications/Georadar",
   component: Capture026CollocatedScene,
   parameters: {
     controls: {

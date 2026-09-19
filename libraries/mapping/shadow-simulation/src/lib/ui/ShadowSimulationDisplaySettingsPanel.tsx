@@ -5,6 +5,7 @@ import {
   faBug,
   faCircleInfo,
   faChartLine,
+  faLayerGroup,
   faXmark,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -16,6 +17,7 @@ import {
   Divider,
   Select,
   Space,
+  Switch,
   theme,
   Tooltip,
   Typography,
@@ -38,10 +40,14 @@ import {
 } from "../core/shadow-types";
 import { ShadowSimulationRenderSettings } from "./ShadowSimulationRenderSettings";
 import { ShadowSimulationSurfaceSettings } from "./ShadowSimulationSurfaceSettings";
-import { useShadowMeshPresence } from "./use-shadow-mesh-presence";
+import {
+  useShadowMeshPresence,
+  useShadowTilesetErrorTarget,
+} from "./use-shadow-mesh-presence";
 import { SHADOW_QUALITY_LEVELS } from "./shadow-control-utils";
 
 export const ShadowSimulationDisplaySettingsPanel = ({
+  tiledShadows = false,
   state,
   setState,
   terrainSources,
@@ -51,9 +57,11 @@ export const ShadowSimulationDisplaySettingsPanel = ({
   setState: (state: ShadowSimulationState) => void;
   terrainSources?: readonly ShadowTerrainSourceOption[];
   map?: MaplibreMap | null;
+  tiledShadows?: boolean;
 }) => {
   const { token } = theme.useToken();
   const meshLoaded = useShadowMeshPresence(map);
+  const tilesetErrorTarget = useShadowTilesetErrorTarget(map);
   const [expandedGroups, setExpandedGroups] = useState<string[]>(["quality"]);
   const quality = resolveShadowQuality(state.shadowQuality);
   const isUltraQuality = quality === SHADOW_QUALITY.ULTRA;
@@ -83,7 +91,7 @@ export const ShadowSimulationDisplaySettingsPanel = ({
         draggable
         dragGripPlacement="auto"
         dragHandleTitle="Schattendarstellung verschieben"
-        width={440}
+        width={320}
         heading={
           <div
             className="flex w-full items-center justify-between"
@@ -228,17 +236,52 @@ export const ShadowSimulationDisplaySettingsPanel = ({
                       <ShadowSimulationRenderSettings
                         state={state}
                         setState={setState}
+                        tiledShadows={tiledShadows}
                       />
                     </Space>
                   ),
                 },
                 {
                   key: "map-style",
-                  label: "Kartenstil",
+                  label: (
+                    // The group only has meaning with the vector base map: a
+                    // raster background has no separable content to switch.
+                    <div className="flex min-w-0 items-center justify-between gap-2">
+                      <span>Kartenstil</span>
+                      <span
+                        className="flex items-center gap-2"
+                        onClick={(event) => event.stopPropagation()}
+                      >
+                        <Typography.Text type="secondary">
+                          Vektor-Basiskarte
+                        </Typography.Text>
+                        <Switch
+                          size="small"
+                          checked={
+                            state.overrideBaseMapWithVectorStyle === true
+                          }
+                          onChange={(checked) =>
+                            setState({
+                              ...state,
+                              overrideBaseMapWithVectorStyle: checked,
+                            })
+                          }
+                          data-test-id="shadow-simulation-vector-base-override"
+                          aria-label="Vektor-Basiskarte statt Rasterkarte verwenden"
+                        />
+                      </span>
+                    </div>
+                  ),
                   children: (
-                    <div className="grid grid-cols-2 items-center gap-x-2 gap-y-1">
+                    <div className="flex flex-col gap-1">
                       <Checkbox
-                        checked={state.showMapStyleContent ?? true}
+                        disabled={
+                          !(state.overrideBaseMapWithVectorStyle === true)
+                        }
+                        checked={
+                          state.overrideBaseMapWithVectorStyle === true &&
+                          (state.showMapStyleContent ?? true)
+                        }
                         onChange={(event) =>
                           setState({
                             ...state,
@@ -252,10 +295,14 @@ export const ShadowSimulationDisplaySettingsPanel = ({
                       </Checkbox>
                       <Checkbox
                         checked={
+                          state.overrideBaseMapWithVectorStyle === true &&
                           (state.showMapStyleContent ?? true) &&
                           (state.showMapStyleLabels ?? true)
                         }
-                        disabled={!(state.showMapStyleContent ?? true)}
+                        disabled={
+                          !(state.overrideBaseMapWithVectorStyle === true) ||
+                          !(state.showMapStyleContent ?? true)
+                        }
                         onChange={(event) =>
                           setState({
                             ...state,
@@ -269,10 +316,14 @@ export const ShadowSimulationDisplaySettingsPanel = ({
                       </Checkbox>
                       <Checkbox
                         checked={
+                          state.overrideBaseMapWithVectorStyle === true &&
                           (state.showMapStyleContent ?? true) &&
                           (state.showMapStyleElevationLines ?? false)
                         }
-                        disabled={!(state.showMapStyleContent ?? true)}
+                        disabled={
+                          !(state.overrideBaseMapWithVectorStyle === true) ||
+                          !(state.showMapStyleContent ?? true)
+                        }
                         onChange={(event) =>
                           setState({
                             ...state,
@@ -285,10 +336,14 @@ export const ShadowSimulationDisplaySettingsPanel = ({
                       </Checkbox>
                       <Checkbox
                         checked={
+                          state.overrideBaseMapWithVectorStyle === true &&
                           (state.showMapStyleContent ?? true) &&
                           (state.showMapStyleElevationLabels ?? false)
                         }
-                        disabled={!(state.showMapStyleContent ?? true)}
+                        disabled={
+                          !(state.overrideBaseMapWithVectorStyle === true) ||
+                          !(state.showMapStyleContent ?? true)
+                        }
                         onChange={(event) =>
                           setState({
                             ...state,
@@ -311,6 +366,7 @@ export const ShadowSimulationDisplaySettingsPanel = ({
                       state={state}
                       setState={setState}
                       meshLoaded
+                      tilesetErrorTarget={tilesetErrorTarget}
                     />
                   ) : null,
                 },
@@ -426,6 +482,20 @@ export const ShadowSimulationDisplaySettingsPanel = ({
                 data-test-id="shadow-simulation-projection-debug"
               >
                 Debug
+              </Button>
+              <Button
+                type="default"
+                icon={<FontAwesomeIcon icon={faLayerGroup} />}
+                aria-pressed={state.showTileDiagnostics ?? false}
+                onClick={() =>
+                  setState({
+                    ...state,
+                    showTileDiagnostics: !state.showTileDiagnostics,
+                  })
+                }
+                data-test-id="shadow-simulation-tile-diagnostics"
+              >
+                Kacheln
               </Button>
               <Button
                 icon={<FontAwesomeIcon icon={faChartLine} />}

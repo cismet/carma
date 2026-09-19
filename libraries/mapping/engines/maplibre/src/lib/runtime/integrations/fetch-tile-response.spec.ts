@@ -10,10 +10,14 @@ describe("tile transport deadlines", () => {
     const queue = new DownloadPriorityQueue();
     queue.maxJobsPerOrigin = 2;
     let release!: (response: Response) => void;
-    const slow = new Promise<Response>((resolve) => { release = resolve; });
-    const fetch = vi.spyOn(globalThis, "fetch").mockImplementation(async (url) =>
-      String(url).endsWith("slow.b3dm") ? slow : new Response("ready")
-    );
+    const slow = new Promise<Response>((resolve) => {
+      release = resolve;
+    });
+    const fetch = vi
+      .spyOn(globalThis, "fetch")
+      .mockImplementation(async (url) =>
+        String(url).endsWith("slow.b3dm") ? slow : new Response("ready")
+      );
     const first = queue.add("https://tiles.test/slow.b3dm", {}, () =>
       fetchTileResponse("https://tiles.test/slow.b3dm", {})
     );

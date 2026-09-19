@@ -3,6 +3,11 @@ import { createThreeTilesDebug } from "./three-tiles-runtime-debug";
 import { createThreeTilesLifecycle } from "./three-tiles-runtime-lifecycle";
 import { createThreeTilesLoading } from "./three-tiles-runtime-loading";
 import { createThreeTilesProjection } from "./three-tiles-runtime-projection";
+import {
+  collectTilesetFloorRoots,
+  createThreeTilesRuntimeCoverageDiagnostics,
+  getTilesetFloorContentRevision,
+} from "./three-tiles-runtime-coverage";
 import { createThreeTilesShadows } from "./three-tiles-runtime-shadows";
 import { createThreeTilesSpatial } from "./three-tiles-runtime-spatial";
 import { createThreeTilesRuntimeState } from "./three-tiles-runtime-state";
@@ -30,9 +35,75 @@ export function buildThreeTilesRuntime(
     originLngLat,
     options
   );
+  const coverageDiagnostics = createThreeTilesRuntimeCoverageDiagnostics();
+  let coverageSampledAt = Number.NEGATIVE_INFINITY;
+  let floorCacheFrame = Number.NaN;
+  let floorCacheError = Number.NaN;
+  let floorCacheContentRevision = "";
+  let floorCacheRevision = 0;
+  let floorRoots: ReturnType<typeof collectTilesetFloorRoots> = [];
+  const getCoverageStatus = () => {
+    const now = performance.now();
+    if (now - coverageSampledAt < 500)
+      return coverageDiagnostics.getCoverageStatus();
+    coverageSampledAt = now;
+    const tiles = state.tiles;
+    const root = tiles?.root;
+    const frame = tiles?.frameCount ?? -1;
+    const contentRevision = getTilesetFloorContentRevision(floorRoots);
+    if (
+      root &&
+      (frame !== floorCacheFrame ||
+        state.extentGeometricError !== floorCacheError ||
+        contentRevision !== floorCacheContentRevision)
+    ) {
+      floorRoots = collectTilesetFloorRoots(root, state.extentGeometricError);
+      floorCacheFrame = frame;
+      floorCacheError = state.extentGeometricError;
+      floorCacheContentRevision = getTilesetFloorContentRevision(floorRoots);
+      floorCacheRevision += 1;
+    } else if (!root && floorRoots.length > 0) {
+      floorRoots = [];
+      floorCacheFrame = frame;
+      floorCacheError = state.extentGeometricError;
+      floorCacheContentRevision = "";
+      floorCacheRevision += 1;
+    }
+    const enabled =
+      state.runtimeVisible && state.options.providesTerrain === true;
+    const sourcePendingMetadata =
+      enabled &&
+      (!root?.internal || !Number.isFinite(state.extentGeometricError));
+    const cache = tiles?.lruCache as { cachedBytes?: number } | undefined;
+    const stats = tiles?.stats;
+    return coverageDiagnostics.update({
+      traversalRevision: floorCacheRevision,
+      enabled,
+      sourcePendingMetadata,
+      floorArmed: state.extentFloorArmed,
+      visibleBaseReady: state.meshBaseCoverageReady,
+      floorRoots,
+      displayed: state.displayedMeshFrontier,
+      underlay: state.meshUnderlayFrontier,
+      pending: state.extentFloorPending,
+      queued: stats?.queued ?? 0,
+      downloading: stats?.downloading ?? 0,
+      parsing: stats?.parsing ?? 0,
+      requestedErrorTarget: state.requestedErrorTarget,
+      effectiveErrorTarget: state.effectiveErrorTarget,
+      paused: state.loadingPaused || state.memoryAdmissionPaused,
+      cacheBytes: cache?.cachedBytes ?? 0,
+      ceilingBytes: state.ceilingBytes,
+    });
+  };
   // Callbacks may reference later owners, but factories only construct closures.
   // Engine subscriptions and traversal start in onAdd, after all owners exist.
   const loading = createThreeTilesLoading(state, {
+    applyPendingShadowView: (...args) =>
+      shadows.applyPendingShadowView(...args),
+    getTileRequestPriority: (...args) =>
+      spatial.getTileRequestPriority(...args),
+    getTileCameraDemand: (...args) => spatial.getTileCameraDemand(...args),
     requestShadowSelectionRefresh: (...args) =>
       shadows.requestShadowSelectionRefresh(...args),
     setShadowSelectionEnabled: (...args) =>
@@ -43,6 +114,7 @@ export function buildThreeTilesRuntime(
     isTileInPrefetchMargin: (...args) =>
       spatial.isTileInPrefetchMargin(...args),
     getTileCenterness: (...args) => spatial.getTileCenterness(...args),
+    getTileScreenError: (...args) => spatial.getTileScreenError(...args),
   });
   const appearance = createThreeTilesAppearance(state, {
     resolveRenderSide: (...args) => surfaces.resolveRenderSide(...args),
@@ -85,6 +157,14 @@ export function buildThreeTilesRuntime(
       shadows.peekShadowRegionRevision(...args),
   });
   const lifecycle = createThreeTilesLifecycle(state, {
+    isTileInPrefetchMargin: (...args) =>
+      spatial.isTileInPrefetchMargin(...args),
+    recordCacheCeilingFailure: (...args) =>
+      loading.recordCacheCeilingFailure(...args),
+    endCacheCeilingSession: () => loading.endCacheCeilingSession(),
+    getTileRequestPriority: (...args) =>
+      spatial.getTileRequestPriority(...args),
+    getTileCameraDemand: (...args) => spatial.getTileCameraDemand(...args),
     getTileDebugProgress: (...args) => debug.getTileDebugProgress(...args),
     refreshRenderedMaterials: (...args) =>
       appearance.refreshRenderedMaterials(...args),
@@ -97,6 +177,7 @@ export function buildThreeTilesRuntime(
       loading.reapplyCacheBoundsIfDrifted(...args),
     applyRequestConcurrency: (...args) =>
       loading.applyRequestConcurrency(...args),
+    applyTilesetMinResolution: () => loading.applyTilesetMinResolution(),
     notifyRequestStateChange: (...args) =>
       loading.notifyRequestStateChange(...args),
     requestRender: (...args) => loading.requestRender(...args),
@@ -120,6 +201,8 @@ export function buildThreeTilesRuntime(
     applyCacheBudget: (...args) => loading.applyCacheBudget(...args),
     initialEffectiveErrorTarget: (...args) =>
       loading.initialEffectiveErrorTarget(...args),
+    applyEffectiveErrorTarget: (...args) =>
+      loading.applyEffectiveErrorTarget(...args),
     runDownloadQueues: (...args) => loading.runDownloadQueues(...args),
     handleContextLost: (...args) => loading.handleContextLost(...args),
     handleContextRestored: (...args) => loading.handleContextRestored(...args),
@@ -128,6 +211,7 @@ export function buildThreeTilesRuntime(
     syncProjector: (...args) => projection.syncProjector(...args),
     prepareViewFrustums: (...args) => spatial.prepareViewFrustums(...args),
     getTileScreenError: (...args) => spatial.getTileScreenError(...args),
+    getTileRingIndex: (...args) => spatial.getTileRingIndex(...args),
     advanceMeshShadowCorridors: (...args) =>
       shadows.advanceMeshShadowCorridors(...args),
     maybeFinalizeShadowSelection: (...args) =>
@@ -150,7 +234,7 @@ export function buildThreeTilesRuntime(
       appearance.disposeLitTextureState(...args),
     restoreShadowSides: (...args) => appearance.restoreShadowSides(...args),
   });
-  return {
+  const runtime: ThreeTilesRuntime = {
     scene: {
       id: state.layerId,
       originLngLat: state.originLngLat,
@@ -158,19 +242,28 @@ export function buildThreeTilesRuntime(
       mountsOnLocalFrame: state.options.cameraLocalMount === true,
       providesTerrain: state.options.providesTerrain === true,
       receivesMapStyleTexture:
-        state.options.providesTerrain === true
+        state.options.providesTerrain === true &&
+        state.options.mapStyleDrape !== "none"
           ? (material) => !surfaces.isRenderedBuildingSurface(material)
           : false,
       mapStyleProjectionBlend:
-        state.options.providesTerrain === true ? "overlay" : undefined,
+        state.options.providesTerrain === true &&
+        state.options.mapStyleDrape !== "none"
+          ? "overlay"
+          : undefined,
       mapStyleProjectionVersion: appearance.mapStyleProjectionVersion,
       onAdd: lifecycle.onAdd,
       update: lifecycle.update,
       dispose: lifecycle.dispose,
       hasRenderableContent: lifecycle.hasRenderableContent,
       setErrorTarget: loading.setErrorTarget,
+      setErrorTargetOverride: loading.setErrorTargetOverride,
+      getErrorTarget: loading.getErrorTarget,
       setCacheBudget: loading.setCacheBudget,
       getRequestDemand: loading.getRequestDemand,
+      prefetchZoom: lifecycle.prefetchZoom,
+      setPrefetchCameraView: lifecycle.setPrefetchCameraView,
+      getMotionPrefetchStats: lifecycle.getMotionPrefetchStats,
       setShadowSimulationStyle: appearance.setShadowSimulationStyle,
       setShadowView: shadows.setShadowView,
       isShadowRegionReady: shadows.isShadowRegionReady,
@@ -195,9 +288,31 @@ export function buildThreeTilesRuntime(
     },
     loading: {
       setErrorTarget: loading.setErrorTarget,
+      setErrorTargetOverride: loading.setErrorTargetOverride,
+      getErrorTarget: loading.getErrorTarget,
       setCacheBudget: loading.setCacheBudget,
       setRequestConcurrency: loading.setRequestConcurrency,
       getRequestDemand: loading.getRequestDemand,
+      setPaused: (paused) => {
+        state.loadingPaused = paused;
+        loading.applyRequestConcurrency();
+        state.tiles?.dispatchEvent({ type: "needs-update" });
+      },
+      setFoveation: (weight) => {
+        state.foveationWeight = Math.max(0, weight);
+        state.tiles?.dispatchEvent({ type: "needs-update" });
+      },
+      setTilesetMinResolution: (px) => {
+        state.tilesetMinResolutionPx = px;
+        loading.applyTilesetMinResolution();
+      },
+      setParseConcurrency: (jobs) => {
+        state.normalParseConcurrency = Math.max(1, Math.floor(jobs));
+        loading.applyRequestConcurrency();
+      },
+      getMemoryErrorTarget: () => state.memoryErrorTarget,
+      getCoverageStatus,
+      getDrawStatus: lifecycle.getDrawStatus,
     },
     placement: {
       originMerc: state.originMerc,
@@ -205,7 +320,11 @@ export function buildThreeTilesRuntime(
       setHeightOffset: lifecycle.setHeightOffset,
     },
     debug: {
+      readState: debug.readState,
+      setDiagnosticsEnabled: debug.setDiagnosticsEnabled,
       setTileBoundsVisible: debug.setTileBoundsVisible,
     },
   };
+  state.hostHandle = runtime;
+  return runtime;
 }

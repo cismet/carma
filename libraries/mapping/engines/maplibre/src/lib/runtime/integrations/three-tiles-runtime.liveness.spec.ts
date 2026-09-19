@@ -67,7 +67,11 @@ const buildMap = () =>
 const dispatchedTypes = (spy: { mock: { calls: unknown[][] } }) =>
   spy.mock.calls.map(([event]) => (event as { type: string }).type);
 
-const mountRuntime = (providesTerrain = false, cameraLocalMount = false) => {
+const mountRuntime = (
+  providesTerrain = false,
+  cameraLocalMount = false,
+  diagnostics = false
+) => {
   let renderer: LivenessRenderer | undefined;
   vi.spyOn(TilesRenderer.prototype, "update").mockImplementation(function (
     this: TilesRenderer
@@ -79,6 +83,7 @@ const mountRuntime = (providesTerrain = false, cameraLocalMount = false) => {
   const layer = buildThreeTilesRuntime("mesh", "tileset.json", [7.15, 51.25], {
     providesTerrain,
     cameraLocalMount,
+    diagnostics,
   });
   if (providesTerrain) layer.loading.setErrorTarget(1);
   const camera = new THREE.PerspectiveCamera();
@@ -259,17 +264,19 @@ describe("three tiles runtime liveness", () => {
     emit(MAPLIBRE_EVENT.MOVE_START);
     emit(MAPLIBRE_EVENT.MOVE);
     layer.scene.update(frame);
-    expect(update).not.toHaveBeenCalled();
+    // MOVE_START owns one immediate latest-camera coverage audit. Subsequent
+    // motion frames remain throttled until the bounded timer fires.
+    expect(update).toHaveBeenCalledTimes(1);
     vi.advanceTimersByTime(MESH_MOTION_COVERAGE_INTERVAL_MS - 1);
     layer.scene.update(frame);
-    expect(update).not.toHaveBeenCalled();
+    expect(update).toHaveBeenCalledTimes(1);
     vi.advanceTimersByTime(1);
     layer.scene.update(frame);
-    expect(update).toHaveBeenCalledTimes(1);
+    expect(update).toHaveBeenCalledTimes(2);
     moving = false;
     emit(MAPLIBRE_EVENT.MOVE_END);
     layer.scene.update(frame);
-    expect(update).toHaveBeenCalledTimes(2);
+    expect(update).toHaveBeenCalledTimes(3);
     layer.scene.dispose();
   });
 
@@ -459,6 +466,48 @@ describe("three tiles runtime liveness", () => {
     repaint.mockClear();
     layer.scene.update(frame);
     expect(repaint).toHaveBeenCalled();
+    layer.scene.dispose();
+  });
+
+  it("wakes one coverage audit when the final request leaves deferred base gaps", () => {
+    const { layer, repaint, renderer } = mountRuntime(true, false, true);
+    const tile = buildTile("parked.b3dm");
+    tile.internal.loadingState = -1;
+    const states = (
+      window as unknown as {
+        __carmaTiles3d: Set<{
+          layerId: string;
+          deferred: Set<typeof tile>;
+          meshBaseCoverageReady: boolean;
+          meshDemandSweepPending: boolean;
+          viewQualityAuditPasses: number;
+        }>;
+      }
+    ).__carmaTiles3d;
+    const state = [...states].find(
+      (candidate) => candidate.layerId === "mesh"
+    )!;
+    state.meshBaseCoverageReady = false;
+    state.meshDemandSweepPending = false;
+    state.viewQualityAuditPasses = 0;
+    state.deferred.add(tile);
+    const dispatch = vi.spyOn(renderer, "dispatchEvent");
+    repaint.mockClear();
+
+    renderer.dispatchEvent({ type: "tiles-load-end" });
+
+    expect(tile.internal.loadingState).toBe(0);
+    expect(state.deferred.size).toBe(0);
+    expect(state.meshDemandSweepPending).toBe(true);
+    expect(state.viewQualityAuditPasses).toBe(1);
+    expect(dispatchedTypes(dispatch)).toContain("needs-update");
+    expect(repaint).toHaveBeenCalled();
+
+    dispatch.mockClear();
+    repaint.mockClear();
+    renderer.dispatchEvent({ type: "tiles-load-end" });
+    expect(dispatchedTypes(dispatch)).not.toContain("needs-update");
+    expect(repaint).not.toHaveBeenCalled();
     layer.scene.dispose();
   });
 
