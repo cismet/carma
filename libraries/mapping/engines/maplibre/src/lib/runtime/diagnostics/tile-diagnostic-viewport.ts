@@ -65,6 +65,8 @@ export const projectTileDiagnosticViewport = (
       );
     }
     const emitted = new Set<string>();
+    // Pairs that include a frustum plane: an edge where two faces of the box
+    // meet is an edge of the box, not of the cut through it.
     const frustumPlanes = planes.length - 6;
     for (let i = 0; i < frustumPlanes; i++) {
       for (let j = i + 1; j < planes.length; j++) {

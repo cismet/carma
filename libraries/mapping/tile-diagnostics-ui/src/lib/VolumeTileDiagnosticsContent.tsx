@@ -10,7 +10,9 @@ import {
   type TileDiagnosticModel as OverlayModel,
   type TileDiagnostics,
 } from "@carma-mapping/engines/maplibre";
+import { Button } from "antd";
 import { createTileDiagnosticOverlayComponent } from "./TileDiagnosticOverlay";
+import { DiagnosticPanel } from "./DiagnosticPanel";
 import { snapshotShadowCorridorCameras } from "./shadow-corridor-camera";
 
 const RUNTIME_ID = "volume-tile-diagnostics";
@@ -54,6 +56,7 @@ export const createVolumeTileDiagnostics = (diagnostics: TileDiagnostics) => {
     const liveCameras = useRef<readonly TileCameraSnapshot[]>([]);
     const [tileCount, setTileCount] = useState<number | null>(null);
     const [labels, setLabels] = useState<(typeof LABEL_MODES)[number]>("none");
+    const [followFrustums, setFollowFrustums] = useState(true);
 
     const subscribeModel = useCallback(
       (listener: (model: OverlayModel) => void) => {
@@ -162,75 +165,62 @@ export const createVolumeTileDiagnostics = (diagnostics: TileDiagnostics) => {
     }, [map]);
 
     return (
-      <div
-        data-test-id="volume-tile-diagnostics"
-        style={{
-          // Placed by the host's overlay anchor inside the map container.
-          position: "absolute",
-          left: 0,
-          top: 0,
-          background: "rgba(12, 18, 32, 0.86)",
-          color: "#f4fbff",
-          borderRadius: 4,
-          font: "12px/1.4 system-ui, sans-serif",
-          boxShadow: "0 2px 12px rgba(0,0,0,0.4)",
-        }}
+      <DiagnosticPanel
+        testId="volume-tile-diagnostics"
+        title={`Kacheln ohne Tileset${
+          tileCount === null ? "" : ` (${tileCount})`
+        }`}
+        actions={
+          <>
+            <Button
+              size="small"
+              type="text"
+              className="tile-debug-header-toggle"
+              data-test-id="volume-tile-diagnostics-follow"
+              aria-pressed={followFrustums}
+              title="Auf die Vereinigung aller Kamerastumpfe zoomen"
+              onClick={() => setFollowFrustums((current) => !current)}
+            >
+              Sicht
+            </Button>
+            <Button
+              size="small"
+              type="text"
+              className="tile-debug-header-toggle"
+              data-test-id="volume-tile-diagnostics-labels"
+              aria-pressed={labels !== "none"}
+              title={LABEL_TITLES[labels]}
+              onClick={() =>
+                setLabels(
+                  LABEL_MODES[
+                    (LABEL_MODES.indexOf(labels) + 1) % LABEL_MODES.length
+                  ]
+                )
+              }
+            >
+              {labels === "none" ? "ID aus" : labels === "id" ? "ID" : "ID+"}
+            </Button>
+            {onClose ? (
+              <Button
+                size="small"
+                type="text"
+                aria-label="Schliessen"
+                onClick={onClose}
+              >
+                &times;
+              </Button>
+            ) : null}
+          </>
+        }
       >
         <div
           style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            padding: "4px 8px",
+            position: "relative",
+            width: WIDTH,
+            height: HEIGHT,
+            background: "rgb(12 18 32 / 86%)",
           }}
         >
-          <span>
-            Kacheln ohne Tileset
-            {tileCount === null ? "" : ` (${tileCount})`}
-          </span>
-          <button
-            type="button"
-            data-test-id="volume-tile-diagnostics-labels"
-            title={LABEL_TITLES[labels]}
-            onClick={() =>
-              setLabels(
-                LABEL_MODES[
-                  (LABEL_MODES.indexOf(labels) + 1) % LABEL_MODES.length
-                ]
-              )
-            }
-            style={{
-              background: "none",
-              border: "1px solid rgba(255,255,255,0.35)",
-              borderRadius: 3,
-              color: "inherit",
-              cursor: "pointer",
-              font: "inherit",
-              marginLeft: "auto",
-              marginRight: 8,
-              padding: "0 6px",
-            }}
-          >
-            {labels === "none" ? "ID aus" : labels === "id" ? "ID" : "ID+"}
-          </button>
-          {onClose ? (
-            <button
-              type="button"
-              onClick={onClose}
-              aria-label="Schliessen"
-              style={{
-                background: "none",
-                border: "none",
-                color: "inherit",
-                cursor: "pointer",
-                font: "inherit",
-              }}
-            >
-              &times;
-            </button>
-          ) : null}
-        </div>
-        <div style={{ position: "relative", width: WIDTH, height: HEIGHT }}>
           <Overlay
             subscribeModel={subscribeModel}
             subscribeCamera={subscribeCamera}
@@ -245,20 +235,23 @@ export const createVolumeTileDiagnostics = (diagnostics: TileDiagnostics) => {
             hover={null}
             showFrustum={true}
             updateOnRender={true}
-            // The model already frames the tiles the camera sees; cropping to
-            // the camera footprint on top of that would leave the tiles out.
-            followCamera={false}
+            // On, the crop follows the union of every frustum, the main one and
+            // the shadow corridor, as the story's overview does. Off, the model
+            // frames the tiles the camera sees.
+            followCamera={followFrustums}
+            cameraFocus="all"
+            followPaddingPercent={180}
           />
           {tileCount === 0 ? (
             <div
               data-test-id="volume-tile-diagnostics-empty"
-              style={{ padding: "8px" }}
+              style={{ padding: "8px", color: "#f4fbff" }}
             >
               keine Kacheln geladen
             </div>
           ) : null}
         </div>
-      </div>
+      </DiagnosticPanel>
     );
   };
   return VolumeTileDiagnostics;

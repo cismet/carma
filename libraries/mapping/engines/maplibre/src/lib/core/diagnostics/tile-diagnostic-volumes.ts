@@ -24,6 +24,7 @@ const VOLUME_KINDS: Record<string, Kind> = {
   loading: "loading",
   parsing: "parsing",
   failed: "failed",
+  resident: "resident",
 };
 
 /** A 2.5D tile is a box: its footprint over the elevation range it covers. */
@@ -72,6 +73,7 @@ export const projectDiagnosticVolumes = (
       inShadow,
       error: volume.errorPixels ?? NaN,
       bytes: volume.bytes,
+      level: volume.level,
       steps: volume.steps,
     });
   }

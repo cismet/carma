@@ -733,6 +733,10 @@ export const buildRasterDemTerrainRuntime = (
     stage: { label: string; startedAt: number } | null;
   };
   const tileStats = new Map<string, TileLoadStats>();
+  /** Keys of the cut being loaded, for the diagnostics of the LOD pyramid. */
+  let requestedSelectionKeys: ReadonlySet<string> = new Set<string>();
+  /** Upper bound on the tiles one diagnostic snapshot reports. */
+  const MAXIMUM_REPORTED_TILES = 256;
   const TILE_STATS_LIMIT = 1_024;
   const markTileStage = (key: string, label: string | null) => {
     const stats = tileStats.get(key) ?? { bytes: 0, steps: [], stage: null };
@@ -950,6 +954,18 @@ export const buildRasterDemTerrainRuntime = (
     return work;
   };
 
+  /** Published keys whose display stage was already closed. */
+  const displayedTileKeys = new Set<string>();
+  const closeDisplayStages = (keys: ReadonlySet<string>) => {
+    for (const key of keys) {
+      if (displayedTileKeys.has(key)) continue;
+      displayedTileKeys.add(key);
+      if (tileStats.has(key)) markTileStage(key, null);
+    }
+    for (const key of displayedTileKeys)
+      if (!keys.has(key) && !meshes.has(key)) displayedTileKeys.delete(key);
+  };
+
   const ensureMesh = (
     tile: TerrainTile,
     entry: TerrainSelectionEntry,
@@ -957,6 +973,8 @@ export const buildRasterDemTerrainRuntime = (
     reliefVertexMask: Uint8Array
   ) => {
     const key = terrainSelectionKey(entry);
+    // The tile is built; what remains is the wait until a cut publishes it.
+    if (tileStats.has(key)) markTileStage(key, "Anzeige");
     const cached = meshes.get(key);
     if (cached) {
       projectedGeometry?.dispose();
@@ -1403,7 +1421,12 @@ export const buildRasterDemTerrainRuntime = (
   };
 
   const getActiveTileVolumes = (): readonly SharedThreeSceneTileVolume[] => {
-    if (activeMeshKeys.size === 0 && pendingMeshes.size === 0) return [];
+    if (
+      activeMeshKeys.size === 0 &&
+      pendingMeshes.size === 0 &&
+      requestedSelectionKeys.size === 0
+    )
+      return [];
     root.updateMatrixWorld(true);
     const bounds = new Box3();
     const volumes: SharedThreeSceneTileVolume[] = [];
@@ -1415,7 +1438,28 @@ export const buildRasterDemTerrainRuntime = (
         id: `${runtimeId}:${key}`,
         kind: "terrain-tile",
         state: "loaded",
+        level: record.id.level,
         loadReason: record.reliefMesh?.receiveShadow ? "viewport" : "shadow",
+        minimum: [bounds.min.x, bounds.min.y, bounds.min.z],
+        maximum: [bounds.max.x, bounds.max.y, bounds.max.z],
+        ...readTileStats(key),
+      });
+    }
+    // Loaded and held back: a child that cannot replace its parent until its
+    // siblings cover it too, and the generations above the published cut.
+    // Membership follows the observer, not the current selection, so a tile
+    // does not blink out of the overlay while a new cut is being planned.
+    for (const [key, record] of meshes) {
+      if (activeMeshKeys.has(key) || volumes.length >= MAXIMUM_REPORTED_TILES)
+        continue;
+      getTerrainMeshWorldBounds(record, bounds);
+      if (observerFrustumReady && !observerFrustum.intersectsBox(bounds))
+        continue;
+      volumes.push({
+        id: `${runtimeId}:${key}`,
+        kind: "terrain-tile",
+        state: "resident",
+        level: record.id.level,
         minimum: [bounds.min.x, bounds.min.y, bounds.min.z],
         maximum: [bounds.max.x, bounds.max.y, bounds.max.z],
         ...readTileStats(key),
@@ -1441,6 +1485,7 @@ export const buildRasterDemTerrainRuntime = (
           id: `${runtimeId}:${key}`,
           kind: "terrain-tile",
           state: "loading",
+          level: id.level,
           minimum: [box.min.x, box.min.y, box.min.z],
           maximum: [box.max.x, box.max.y, box.max.z],
           ...readTileStats(key),
@@ -1718,6 +1763,7 @@ export const buildRasterDemTerrainRuntime = (
         id: entry.id,
       }));
     const requested = toFrontier(selection.entries);
+    requestedSelectionKeys = new Set(requested.map(({ key }) => key));
     zoomSelectionEntries = selection.entries;
     // Historical offscreen surfaces stay published until a ready coarse tile
     // covers them. Prepare this reserve after the foreground stages, not ahead
@@ -1823,6 +1869,7 @@ export const buildRasterDemTerrainRuntime = (
         return;
       }
       activeMeshKeys = activeKeys;
+      closeDisplayStages(activeKeys);
       applyMeshVisibility();
       if (activeKeys.size > 0) settleReady(true);
       // Transferred geometry is temporary coverage, not a second source cache.
@@ -2751,6 +2798,7 @@ export const buildRasterDemTerrainRuntime = (
         keys.add(key);
       }
       activeMeshKeys = keys;
+      closeDisplayStages(keys);
       mapStyleProjectionVersion += 1;
       contentChangedSinceFrame = true;
       applyMeshVisibility();

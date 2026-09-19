@@ -73,6 +73,8 @@ export type OverlayVolume = {
   error: number;
   /** Payload size, for the size marks drawn inside the tile. */
   bytes?: number;
+  /** Tile level; generations above the finest one are drawn fainter. */
+  level?: number;
   /** What the tile cost, step by step; the last one may still be running. */
   steps?: readonly Readonly<{ label: string; ms: number; pending?: boolean }>[];
 };

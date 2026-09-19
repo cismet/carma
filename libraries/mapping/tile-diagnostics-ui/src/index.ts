@@ -19,5 +19,9 @@ export {
   DiagnosticSection,
   DiagnosticWindowActions,
 } from "./lib/DiagnosticControls";
+export {
+  DiagnosticPanel,
+  type DiagnosticPanelProps,
+} from "./lib/DiagnosticPanel";
 export { createTileDiagnosticOverlayComponent } from "./lib/TileDiagnosticOverlay";
 export { TILE_LOADING_DEBUG_PANEL_CSS } from "./lib/panel-css";
