@@ -47,7 +47,12 @@ const terrainSources = [
 
 describe("shadow terrain settings", () => {
   it("keeps map style controls in an independent full-width section", () => {
-    const state = createInitialShadowSimulationState(undefined);
+    // The group's controls belong to the vector base map, so the override in
+    // its header governs them.
+    const state = {
+      ...createInitialShadowSimulationState(undefined),
+      overrideBaseMapWithVectorStyle: true,
+    };
     const setState = vi.fn();
     const { getByText, getByRole, queryByRole } = render(
       <ShadowSimulationDisplaySettingsPanel state={state} setState={setState} />
@@ -279,8 +284,34 @@ describe("adaptive shadow quality", () => {
 });
 
 describe("elevation map details", () => {
-  it("defaults both options off and changes them independently", () => {
+  it("gates the map style group on the vector base map override", () => {
     const state = createInitialShadowSimulationState(undefined);
+    const setState = vi.fn();
+    const { getByText, getByLabelText, getByRole } = render(
+      <ShadowSimulationDisplaySettingsPanel state={state} setState={setState} />
+    );
+    fireEvent.click(getByText("Kartenstil", { exact: true }));
+    // Off by default, so the raster background is draped as authored and the
+    // group's own controls are inert.
+    expect((getByLabelText("Höhenlinien") as HTMLInputElement).disabled).toBe(
+      true
+    );
+    fireEvent.click(
+      getByRole("switch", {
+        name: "Vektor-Basiskarte statt Rasterkarte verwenden",
+      })
+    );
+    expect(setState).toHaveBeenLastCalledWith({
+      ...state,
+      overrideBaseMapWithVectorStyle: true,
+    });
+  });
+
+  it("defaults both options off and changes them independently", () => {
+    const state = {
+      ...createInitialShadowSimulationState(undefined),
+      overrideBaseMapWithVectorStyle: true,
+    };
     const setState = vi.fn();
     const { getByLabelText, getByText } = render(
       <ShadowSimulationDisplaySettingsPanel state={state} setState={setState} />
