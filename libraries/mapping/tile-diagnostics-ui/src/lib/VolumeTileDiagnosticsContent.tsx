@@ -14,6 +14,13 @@ import { createTileDiagnosticOverlayComponent } from "./TileDiagnosticOverlay";
 import { snapshotShadowCorridorCameras } from "./shadow-corridor-camera";
 
 const RUNTIME_ID = "volume-tile-diagnostics";
+/** Volumes carry no LOD error, so the error label has nothing to show. */
+const LABEL_MODES = ["none", "id", "id and stats"] as const;
+const LABEL_TITLES = {
+  none: "ohne Beschriftung",
+  id: "Kachel-ID",
+  "id and stats": "ID, Grosse, Zeit, Perzentil",
+} as const;
 const WIDTH = 360;
 const HEIGHT = 300;
 /** The model is geometry work; the camera is a matrix copy and stays live. */
@@ -46,6 +53,7 @@ export const createVolumeTileDiagnostics = (diagnostics: TileDiagnostics) => {
     const liveCamera = useRef<THREE.Camera | null>(null);
     const liveCameras = useRef<readonly TileCameraSnapshot[]>([]);
     const [tileCount, setTileCount] = useState<number | null>(null);
+    const [labels, setLabels] = useState<(typeof LABEL_MODES)[number]>("none");
 
     const subscribeModel = useCallback(
       (listener: (model: OverlayModel) => void) => {
@@ -180,6 +188,31 @@ export const createVolumeTileDiagnostics = (diagnostics: TileDiagnostics) => {
             Kacheln ohne Tileset
             {tileCount === null ? "" : ` (${tileCount})`}
           </span>
+          <button
+            type="button"
+            data-test-id="volume-tile-diagnostics-labels"
+            title={LABEL_TITLES[labels]}
+            onClick={() =>
+              setLabels(
+                LABEL_MODES[
+                  (LABEL_MODES.indexOf(labels) + 1) % LABEL_MODES.length
+                ]
+              )
+            }
+            style={{
+              background: "none",
+              border: "1px solid rgba(255,255,255,0.35)",
+              borderRadius: 3,
+              color: "inherit",
+              cursor: "pointer",
+              font: "inherit",
+              marginLeft: "auto",
+              marginRight: 8,
+              padding: "0 6px",
+            }}
+          >
+            {labels === "none" ? "ID aus" : labels === "id" ? "ID" : "ID+"}
+          </button>
           {onClose ? (
             <button
               type="button"
@@ -208,14 +241,13 @@ export const createVolumeTileDiagnostics = (diagnostics: TileDiagnostics) => {
             onHover={() => undefined}
             opacity={1}
             popout={true}
-            labels="none"
+            labels={labels}
             hover={null}
             showFrustum={true}
             updateOnRender={true}
-            // The tile extent is the whole source; without following the
-            // camera its frustum is a few pixels wide in the overview.
-            followCamera={true}
-            followPaddingPercent={260}
+            // The model already frames the tiles the camera sees; cropping to
+            // the camera footprint on top of that would leave the tiles out.
+            followCamera={false}
           />
           {tileCount === 0 ? (
             <div

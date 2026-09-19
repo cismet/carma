@@ -32,7 +32,7 @@ export type TileLoadingDebugOptions = {
   showFrustum: boolean;
   showResident: boolean;
   /** Text on the overview rectangles. */
-  overlayLabels: "none" | "id" | "id and error";
+  overlayLabels: "none" | "id" | "id and error" | "id and stats";
   /** Tile ids as DOM billboards at the top-plane centre of displayed tiles. */
   sceneLabels: boolean;
   showQueue: boolean;

@@ -71,6 +71,10 @@ export type OverlayVolume = {
   /** Intersects the shadow corridor frustum. */
   inShadow: boolean;
   error: number;
+  /** Payload size, for the size marks drawn inside the tile. */
+  bytes?: number;
+  /** What the tile cost, step by step; the last one may still be running. */
+  steps?: readonly Readonly<{ label: string; ms: number; pending?: boolean }>[];
 };
 
 /** Fixed coordinate frame of a tile snapshot; live cameras project into this frame. */
