@@ -1002,12 +1002,17 @@ export function createThreeTilesLifecycle(
           const visible = displayed.has(tile) || isUnderlay;
           const model = (tile as RuntimeTile).engineData?.scene;
           if (model) {
+            // Decision: base coverage owns the surface, the add-on only adds
+            // casters. Everything drawn in the view receives shadows, whether
+            // or not the corridor has committed it yet, so a published tile is
+            // never left unlit while its family is still being proven. Casters
+            // are the drawn set plus the corridor's own offscreen members.
             setTileShadowRole(model, {
-              receiver: runtimeState.shadowView
-                ? runtimeState.committedMeshReceiverFrontier.has(tile)
-                : visible && dependencies.isTileInMainView(tile as RuntimeTile),
+              receiver:
+                visible && dependencies.isTileInMainView(tile as RuntimeTile),
               caster: runtimeState.shadowView
-                ? runtimeState.committedMeshCasterFrontier.has(tile) ||
+                ? displayed.has(tile) ||
+                  runtimeState.committedMeshCasterFrontier.has(tile) ||
                   dependencies.getTileCameraDemand(tile as RuntimeTile).required
                 : displayed.has(tile),
             });

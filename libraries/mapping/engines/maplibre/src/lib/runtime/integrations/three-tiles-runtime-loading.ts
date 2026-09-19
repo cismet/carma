@@ -585,15 +585,21 @@ export function createThreeTilesLoading(
           !runtimeState.shadowView &&
           hasReserve &&
           !runtimeState.meshInitialReserveSettled;
+        // Decision: TILES_COVERAGE.md#shadow-add-on-follows-the-base-pass-staging-2026-09-18
+        // The base pass is done when the view cut sits at the initial target
+        // and the whole-extent reserve settled. Published base coverage
+        // Two failsafes keep a stalled base pass from suppressing the add-on
+        // for good: published base coverage is the guarantee the staging
+        // exists for, and an idle pipeline over a published cut means nothing
+        // further is coming. Without them a view whose initial cut cannot be
+        // proven shows no shadows at all, which is worse than shadows over a
+        // coarse surface.
         if (
           !runtimeState.meshInitialBasePassDone &&
-          initialReady &&
-          !reserveBeforeIdle
+          ((initialReady && !reserveBeforeIdle) ||
+            runtimeState.meshBaseCoverageReady ||
+            (isPipelineIdle() && runtimeState.displayedMeshFrontier.size > 0))
         ) {
-          // Decision: TILES_COVERAGE.md#shadow-add-on-follows-the-base-pass-staging-2026-09-18
-          // The initial base pass is complete: the view at the initial target,
-          // seams and the whole-extent reserve. Only now does the shadow
-          // add-on's view join; the idle refinement follows either way.
           runtimeState.meshInitialBasePassDone = true;
           dependencies.applyPendingShadowView();
         }
