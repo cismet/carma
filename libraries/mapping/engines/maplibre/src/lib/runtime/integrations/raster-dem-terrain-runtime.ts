@@ -1000,11 +1000,31 @@ export const buildRasterDemTerrainRuntime = (
 
   /** Published keys whose display stage was already closed. */
   const displayedTileKeys = new Set<string>();
-  const closeDisplayStages = (keys: ReadonlySet<string>) => {
+  const closeDisplayStages = (
+    keys: ReadonlySet<string>,
+    publishStartedAt = performance.now()
+  ) => {
     for (const key of keys) {
       if (displayedTileKeys.has(key)) continue;
       displayedTileKeys.add(key);
-      if (tileStats.has(key)) markTileStage(key, null);
+      const stats = tileStats.get(key);
+      if (!stats) continue;
+      // The wait splits in two: how long the built tile sat until a cut took
+      // it, and how long that cut took to go on screen.
+      if (stats.stage?.label === "Anzeige") {
+        const now = performance.now();
+        stats.steps.push({
+          label: "Anzeige",
+          ms: Math.max(0, publishStartedAt - stats.stage.startedAt),
+        });
+        stats.steps.push({
+          label: "Einfugen",
+          ms: Math.max(0, now - publishStartedAt),
+        });
+        stats.stage = null;
+        continue;
+      }
+      markTileStage(key, null);
     }
     for (const key of displayedTileKeys)
       if (!keys.has(key) && !meshes.has(key)) displayedTileKeys.delete(key);
@@ -1874,6 +1894,7 @@ export const buildRasterDemTerrainRuntime = (
     const hasReadySurface = (key: string) =>
       Boolean(meshes.get(key)?.reliefMesh);
     const publish = async () => {
+      const publishStartedAt = performance.now();
       let frontier = [...activeMeshKeys].flatMap((key) => {
         const record = meshes.get(key);
         return record ? [{ key, id: record.id }] : [];
@@ -1926,7 +1947,7 @@ export const buildRasterDemTerrainRuntime = (
         return;
       }
       activeMeshKeys = activeKeys;
-      closeDisplayStages(activeKeys);
+      closeDisplayStages(activeKeys, publishStartedAt);
       applyMeshVisibility();
       if (activeKeys.size > 0) settleReady(true);
       // Transferred geometry is temporary coverage, not a second source cache.

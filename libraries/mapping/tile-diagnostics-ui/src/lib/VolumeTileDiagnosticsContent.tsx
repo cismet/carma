@@ -69,6 +69,13 @@ export const createVolumeTileDiagnostics = (diagnostics: TileDiagnostics) => {
     const [tileCount, setTileCount] = useState<number | null>(null);
     /** What each camera asks for: tiles cut by the view and by the corridor. */
     /** What the pies and the size grid stand for, read off the drawn cut. */
+    const [legendAt, setLegendAt] = useState({ left: 6, top: 6 });
+    const legendDrag = useRef<{
+      x: number;
+      y: number;
+      left: number;
+      top: number;
+    } | null>(null);
     const [legend, setLegend] = useState<{
       medianMs: number;
       steps: {
@@ -354,18 +361,53 @@ export const createVolumeTileDiagnostics = (diagnostics: TileDiagnostics) => {
             data-test-id="volume-tile-diagnostics-legend"
             style={{
               position: "absolute",
-              left: 0,
-              right: 0,
-              bottom: 0,
-              maxHeight: "60%",
+              left: legendAt.left,
+              top: legendAt.top,
+              width: 252,
+              maxHeight: "70%",
               overflow: "auto",
               background: "rgb(12 18 32 / 92%)",
               color: "#f4fbff",
               font: "11px/1.5 system-ui, sans-serif",
               padding: "2px 6px",
+              borderRadius: 3,
+              boxShadow: "0 1px 6px rgb(0 0 0 / 45%)",
             }}
           >
-            <summary style={{ cursor: "pointer", opacity: 0.85 }}>
+            <summary
+              // Drag it out of the way: the panel is small and the cut is the
+              // thing being read.
+              style={{ cursor: "grab", opacity: 0.85, touchAction: "none" }}
+              onPointerDown={(event) => {
+                if (event.button !== 0) return;
+                const box = event.currentTarget
+                  .parentElement as HTMLElement | null;
+                if (!box) return;
+                legendDrag.current = {
+                  x: event.clientX,
+                  y: event.clientY,
+                  left: box.offsetLeft,
+                  top: box.offsetTop,
+                };
+                event.currentTarget.setPointerCapture(event.pointerId);
+              }}
+              onPointerMove={(event) => {
+                const drag = legendDrag.current;
+                if (!drag) return;
+                event.preventDefault();
+                setLegendAt({
+                  left: Math.max(0, drag.left + event.clientX - drag.x),
+                  top: Math.max(0, drag.top + event.clientY - drag.y),
+                });
+              }}
+              onLostPointerCapture={() => {
+                legendDrag.current = null;
+              }}
+              onPointerUp={(event) => {
+                if (event.currentTarget.hasPointerCapture(event.pointerId))
+                  event.currentTarget.releasePointerCapture(event.pointerId);
+              }}
+            >
               Legende
             </summary>
             <div style={{ opacity: 0.85, marginBottom: 2 }}>
