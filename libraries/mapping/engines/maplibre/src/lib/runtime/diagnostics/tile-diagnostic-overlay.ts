@@ -1,7 +1,10 @@
 import type { Camera } from "three";
 import type { TileCameraSnapshot } from "../../core/tile-camera-demand";
 import type { Tile } from "3d-tiles-renderer/core";
-import type { OverlayModel } from "../../core/diagnostics/tile-diagnostic-model";
+import {
+  TILE_STEPS,
+  type OverlayModel,
+} from "../../core/diagnostics/tile-diagnostic-model";
 import {
   TILE_KINDS,
   TILE_PHASES,
@@ -115,10 +118,7 @@ export const createTileDiagnosticOverlay = (
               TILE_PHASES.indexOf(rect.phase as (typeof TILE_PHASES)[number]),
               rect.error,
               0,
-              0,
-              0,
-              0,
-              0,
+              ...Array.from({ length: TILE_STEP_SLOTS }, () => 0),
               0,
             ],
             i * TILE_RECORD_FLOATS
@@ -155,15 +155,17 @@ export const createTileDiagnosticOverlay = (
               TILE_PHASES.indexOf(volume.phase as (typeof TILE_PHASES)[number]),
               volume.error,
               volume.bytes ?? 0,
-              // Steps past the last slot fold into it, so the pie stays whole.
-              ...Array.from({ length: TILE_STEP_SLOTS }, (_, slot) =>
-                (volume.steps ?? [])
-                  .filter((_step, index) =>
-                    slot === TILE_STEP_SLOTS - 1
-                      ? index >= slot
-                      : index === slot
-                  )
-                  .reduce((total, step) => total + step.ms, 0)
+              // A step lands in the slot of its name, so its colour is stable
+              // across tiles; an unknown name folds into the last slot.
+              ...(volume.steps ?? []).reduce(
+                (slots, step) => {
+                  const named = TILE_STEPS.findIndex(
+                    ({ label }) => label === step.label
+                  );
+                  slots[named < 0 ? TILE_STEP_SLOTS - 1 : named] += step.ms;
+                  return slots;
+                },
+                Array.from({ length: TILE_STEP_SLOTS }, () => 0)
               ),
               volume.level ?? 0,
             ],

@@ -1,6 +1,7 @@
 import {
   FILL,
   OVERVIEW_COLORS,
+  TILE_STEPS,
   type Kind,
   type OverlayModel,
 } from "./tile-diagnostic-model";
@@ -8,10 +9,13 @@ import type { TileCameraSnapshot } from "../tile-camera-demand";
 import type { DiagnosticViewportBasis } from "./tile-diagnostic-model";
 
 export type DiagnosticView = { x: number; y: number; w: number; h: number };
-/** x, y, w, h, kind, flags, qMin, qMax, phase, error, bytes, 4 step ms, level. */
-export const TILE_RECORD_FLOATS = 16;
-/** Processing steps a tile record can carry; further ones fold into the last. */
-export const TILE_STEP_SLOTS = 4;
+/** x, y, w, h, kind, flags, qMin, qMax, phase, error, bytes, steps…, level. */
+export const TILE_RECORD_FLOATS = 12 + TILE_STEPS.length;
+/** One slot per step of TILE_STEPS, so a slot's colour is the step's colour. */
+export const TILE_STEP_SLOTS = TILE_STEPS.length;
+/** Where the step milliseconds start in a record, and where its level sits. */
+export const TILE_STEP_OFFSET = 11;
+export const TILE_LEVEL_OFFSET = 12 + TILE_STEPS.length - 1;
 /** Payload size reads as filled cells of a square grid, one unit per cell. */
 export const SIZE_GRID = 10;
 /** Each generation above the published cut keeps a third less opacity. */
@@ -204,7 +208,12 @@ export const buildDiagnosticPrimitives = (
   const totals: number[] = [];
   let maximumBytes = 0;
   const stepsOf = (offset: number) =>
-    Array.from(data.subarray(offset + 11, offset + 11 + TILE_STEP_SLOTS));
+    Array.from(
+      data.subarray(
+        offset + TILE_STEP_OFFSET,
+        offset + TILE_STEP_OFFSET + TILE_STEP_SLOTS
+      )
+    );
   const LOADED_PHASE = TILE_PHASES.indexOf("\u25cf");
   for (let i = 0; i < data.length; i += TILE_RECORD_FLOATS) {
     const total = stepsOf(i).reduce((sum, ms) => sum + ms, 0);
@@ -218,7 +227,7 @@ export const buildDiagnosticPrimitives = (
   // children.
   let finestLevel = 0;
   for (let i = 0; i < data.length; i += TILE_RECORD_FLOATS)
-    finestLevel = Math.max(finestLevel, data[i + 15]);
+    finestLevel = Math.max(finestLevel, data[i + TILE_LEVEL_OFFSET]);
   const opacityOf = (level: number) =>
     level > 0 && finestLevel > level
       ? Math.max(0.15, ANCESTOR_OPACITY_STEP ** (finestLevel - level))
@@ -265,7 +274,7 @@ export const buildDiagnosticPrimitives = (
       outlier ? 1.6 : flags & 3 ? 1 : kind < 0 ? 0.5 : 0.6,
       color,
       kind < 0 ? undefined : FILL[TILE_KINDS[kind]],
-      outlier ? 1 : opacityOf(data[i + 15])
+      outlier ? 1 : opacityOf(data[i + TILE_LEVEL_OFFSET])
     );
   }
   for (let i = 0; i < data.length; i += TILE_RECORD_FLOATS) {
@@ -283,7 +292,8 @@ export const buildDiagnosticPrimitives = (
     const size = pitch - gap;
     const inset = pitch;
     const gridAlpha =
-      SIZE_GRID_OPACITY * (isOutlier(i) ? 1 : opacityOf(data[i + 15]));
+      SIZE_GRID_OPACITY *
+      (isOutlier(i) ? 1 : opacityOf(data[i + TILE_LEVEL_OFFSET]));
     for (let cell = 0; cell < cells; cell++)
       rect(
         x + inset + (cell % SIZE_GRID) * pitch,
@@ -313,33 +323,45 @@ export const buildDiagnosticPrimitives = (
         : medianTotal > 0
         ? Math.min(0.95, Math.max(0.03, stepTotal / medianTotal))
         : 0.25;
-      let cumulative = 0;
-      // Exactly three boundaries: a missing step collapses to a full turn.
-      const boundaries = [0, 1, 2].map((slot) => {
-        cumulative += (stepTimes[slot] ?? 0) / stepTotal;
-        return Math.min(1, cumulative);
+      const pieAlpha = isOutlier(i)
+        ? 1
+        : opacityOf(data[i + TILE_LEVEL_OFFSET]);
+      const radius = Math.min(w, h) / 3;
+      // One wedge per step, in the step's own colour: steps of a kind share a
+      // hue, so the pie reads as fetch, raster work, geometry and waiting.
+      let start = 0;
+      stepTimes.forEach((ms, slot) => {
+        if (!(ms > 0)) return;
+        const end = start + (ms / stepTotal) * sweep;
+        values.push(
+          x + w / 2,
+          y + h / 2,
+          radius,
+          radius,
+          6,
+          1,
+          start,
+          end,
+          ...faded(rgba(TILE_STEPS[slot].color), pieAlpha * 0.85),
+          0,
+          0,
+          0,
+          0
+        );
+        start = end;
       });
-      const pieAlpha = isOutlier(i) ? 1 : opacityOf(data[i + 15]);
-      values.push(
-        x + w / 2,
-        y + h / 2,
-        Math.min(w, h) / 3,
-        Math.min(w, h) / 3,
-        6,
+      add(
+        [x + w / 2, y + h / 2, radius, radius],
+        1,
         1.2,
-        sweep,
+        1,
         0,
-        ...faded(
-          rgba(
-            isOutlier(i)
-              ? OVERVIEW_COLORS.failed
-              : loaded
-              ? OVERVIEW_COLORS.quality
-              : OVERVIEW_COLORS.processing
-          ),
-          pieAlpha
-        ),
-        ...boundaries,
+        isOutlier(i)
+          ? OVERVIEW_COLORS.failed
+          : loaded
+          ? OVERVIEW_COLORS.quality
+          : OVERVIEW_COLORS.processing,
+        undefined,
         pieAlpha
       );
       continue;
@@ -373,8 +395,8 @@ export const buildDiagnosticPrimitives = (
 
 /** Small dynamic tail; resident tile primitives stay untouched during camera motion. */
 /** Widths of a frustum edge at the eye and at the far end, in CSS pixels. */
-const FRUSTUM_NEAR_WIDTH = 2.6;
-const FRUSTUM_FAR_WIDTH = 1.4;
+const FRUSTUM_NEAR_WIDTH = 2.4;
+const FRUSTUM_FAR_WIDTH = 1.6;
 
 export const buildDiagnosticViewport = (
   snapshot: Pick<DiagnosticSnapshot, "edges" | "center"> & {

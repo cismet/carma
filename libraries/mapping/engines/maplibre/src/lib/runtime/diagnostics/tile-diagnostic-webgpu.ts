@@ -45,6 +45,9 @@ struct Vertex {
   var halfSize = item.position.zw;
   var axis = vec2f(1,0);
   if (kind == 4.0) { halfSize = halfSize / scale; }
+  // A pie reads at a glance, not by its area: cap it in screen pixels so it
+  // never swallows the tile it belongs to.
+  if (kind == 6.0) { halfSize = min(halfSize, vec2f(34.0 / scale)); }
   if (kind == 3.0 || kind == 5.0) {
     let delta = item.position.zw - item.position.xy;
     let length = length(delta);
@@ -111,29 +114,16 @@ struct Vertex {
     fillAlpha = inside * clamp(.5 + (edge - p.x) / worldPixel,0.0,1.0) * .3;
     if (input.stroke.a == 0.0) { fillAlpha = 0.0; }
   }
-  // A tile's processing steps as a pie: one wedge per step, swept clockwise
-  // from twelve o'clock, the remainder left open while the tile still loads.
+  // One wedge of a tile's processing pie: the slice between two angles,
+  // swept clockwise from twelve o'clock, in the step's own colour.
   if (kind == 6.0) {
     let radius = max(input.halfSize.x, .000001);
     let radial = length(p);
-    let coverage = clamp((radius - radial) / worldPixel, 0.0, 1.0);
     let angle = fract(atan2(p.x, -p.y) / 6.28318530718 + 1.0);
-    let sweep = clamp(input.parameters.z, 0.0, 1.0);
-    var index = 0;
-    if (angle > input.fill.x) { index = 1; }
-    if (angle > input.fill.y) { index = 2; }
-    if (angle > input.fill.z) { index = 3; }
-    var palette = array<vec3f,4>(
-      vec3f(0.48,0.80,1.00),
-      vec3f(0.55,0.95,0.72),
-      vec3f(0.82,0.69,1.00),
-      vec3f(1.00,0.75,0.44)
-    );
-    let ring = clamp((width * cssPixel * .5 - abs(radial - radius)) / worldPixel + .5, 0.0, 1.0);
-    let wedge = select(0.0, coverage, angle <= sweep) * .75;
-    let alphaPie = max(wedge, ring * input.stroke.a);
-    let rgbPie = mix(input.stroke.rgb, palette[index], wedge / max(alphaPie, .000001));
-    return vec4f(rgbPie * alphaPie, alphaPie) * u.display.w;
+    let inside = clamp((radius - radial) / worldPixel, 0.0, 1.0);
+    let within = select(0.0, 1.0, angle >= input.parameters.z && angle < input.parameters.w);
+    let wedgeAlpha = inside * within * input.stroke.a;
+    return vec4f(input.stroke.rgb * wedgeAlpha, wedgeAlpha) * u.display.w;
   }
   if (contrast) { stroke = vec4f(vec3f(64.0 / 255.0),input.stroke.a); fillAlpha = 0.0; }
   let strokeAlpha = strokeCoverage * stroke.a;

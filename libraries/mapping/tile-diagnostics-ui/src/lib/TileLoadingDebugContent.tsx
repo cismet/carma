@@ -11,6 +11,8 @@ import {
 import { createPortal } from "react-dom";
 import panelCss from "./TileLoadingDebugPanels.css?inline";
 import { createTileDiagnosticOverlayComponent } from "./TileDiagnosticOverlay";
+// The popup window belongs to the library, so the overview can pop out too.
+import { DiagnosticWindow as Popout } from "./DiagnosticWindow";
 import {
   SHADOW_CORRIDOR_CAMERA_ID,
   snapshotShadowCorridorCameras,
@@ -365,72 +367,6 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
     };
     if (host.cancelIdleCallback) host.cancelIdleCallback(handle);
     else window.clearTimeout(handle);
-  };
-
-  /** Renders its children into a separate browser window that stays in sync through React. */
-  const Popout = ({
-    open,
-    title,
-    width,
-    height,
-    onClose,
-    children,
-  }: {
-    open: boolean;
-    title: string;
-    width: number;
-    height: number;
-    onClose: () => void;
-    children: ReactNode;
-  }) => {
-    const [container, setContainer] = useState<HTMLElement | null>(null);
-    useEffect(() => {
-      if (!open) {
-        setContainer(null);
-        return;
-      }
-      const popup = window.open(
-        "",
-        title.replace(/\W+/g, "-"),
-        `popup,width=${width},height=${height}`
-      );
-      if (!popup) {
-        onClose();
-        return;
-      }
-      popup.document.title = title;
-      Object.assign(popup.document.body.style, {
-        margin: "0",
-        padding: "0",
-        font: "12px monospace",
-        background: "#fff",
-        overflow: "hidden",
-      });
-      const root = popup.document.createElement("div");
-      root.style.height = "100vh";
-      root.style.position = "relative";
-      popup.document.body.appendChild(root);
-      setContainer(root);
-      const poll = window.setInterval(() => {
-        if (popup.closed) onClose();
-      }, 500);
-      return () => {
-        window.clearInterval(poll);
-        setContainer(null);
-        if (!popup.closed) popup.close();
-      };
-      // The window is opened once per `open`; the title is a constant per panel.
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [open]);
-    return container
-      ? createPortal(
-          <StyleProvider container={container.ownerDocument.head}>
-            <style>{panelCss}</style>
-            {children}
-          </StyleProvider>,
-          container
-        )
-      : null;
   };
 
   /** Overlay, metrics, queue and log for one map; owns every update so the map's props stay stable. */

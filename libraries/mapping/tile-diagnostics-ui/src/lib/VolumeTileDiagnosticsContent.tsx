@@ -10,9 +10,18 @@ import {
   type TileDiagnosticModel as OverlayModel,
   type TileDiagnostics,
 } from "@carma-mapping/engines/maplibre";
+import { createPortal } from "react-dom";
 import { Button } from "antd";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {
+  faCrosshairs,
+  faLayerGroup,
+  faTableCells,
+  faUpRightFromSquare,
+} from "@fortawesome/free-solid-svg-icons";
 import { createTileDiagnosticOverlayComponent } from "./TileDiagnosticOverlay";
 import { DiagnosticPanel } from "./DiagnosticPanel";
+import { DiagnosticWindow } from "./DiagnosticWindow";
 import { snapshotShadowCorridorCameras } from "./shadow-corridor-camera";
 
 const RUNTIME_ID = "volume-tile-diagnostics";
@@ -55,8 +64,12 @@ export const createVolumeTileDiagnostics = (diagnostics: TileDiagnostics) => {
     const liveCamera = useRef<THREE.Camera | null>(null);
     const liveCameras = useRef<readonly TileCameraSnapshot[]>([]);
     const [tileCount, setTileCount] = useState<number | null>(null);
+    /** What each camera asks for: tiles cut by the view and by the corridor. */
+    const [demand, setDemand] = useState({ view: 0, corridor: 0 });
     const [labels, setLabels] = useState<(typeof LABEL_MODES)[number]>("none");
     const [followFrustums, setFollowFrustums] = useState(true);
+    /** Where the overview is drawn: in its panel, over the map, or popped out. */
+    const [mode, setMode] = useState<"panel" | "map" | "window">("panel");
 
     const subscribeModel = useCallback(
       (listener: (model: OverlayModel) => void) => {
@@ -130,6 +143,11 @@ export const createVolumeTileDiagnostics = (diagnostics: TileDiagnostics) => {
           height: HEIGHT,
         });
         if (!model) return;
+        setDemand({
+          view: (model.volumes ?? []).filter((volume) => volume.inView).length,
+          corridor: (model.volumes ?? []).filter((volume) => volume.inShadow)
+            .length,
+        });
         latestModel.current = model;
         for (const listener of modelListeners.current) listener(model);
       };
@@ -164,94 +182,180 @@ export const createVolumeTileDiagnostics = (diagnostics: TileDiagnostics) => {
       };
     }, [map]);
 
-    return (
-      <DiagnosticPanel
-        testId="volume-tile-diagnostics"
-        title={`Kacheln ohne Tileset${
-          tileCount === null ? "" : ` (${tileCount})`
-        }`}
-        actions={
-          <>
-            <Button
-              size="small"
-              type="text"
-              className="tile-debug-header-toggle"
-              data-test-id="volume-tile-diagnostics-follow"
-              aria-pressed={followFrustums}
-              title="Auf die Vereinigung aller Kamerastumpfe zoomen"
-              onClick={() => setFollowFrustums((current) => !current)}
-            >
-              Sicht
-            </Button>
-            <Button
-              size="small"
-              type="text"
-              className="tile-debug-header-toggle"
-              data-test-id="volume-tile-diagnostics-labels"
-              aria-pressed={labels !== "none"}
-              title={LABEL_TITLES[labels]}
-              onClick={() =>
-                setLabels(
-                  LABEL_MODES[
-                    (LABEL_MODES.indexOf(labels) + 1) % LABEL_MODES.length
-                  ]
-                )
+    const overview = (
+      <div
+        style={
+          mode === "panel"
+            ? {
+                position: "relative",
+                width: WIDTH,
+                height: HEIGHT,
+                minWidth: 200,
+                minHeight: 160,
+                // Native grip: the overlay follows through its resize observer.
+                resize: "both",
+                overflow: "hidden",
+                background: "rgb(12 18 32 / 86%)",
               }
-            >
-              {labels === "none" ? "ID aus" : labels === "id" ? "ID" : "ID+"}
-            </Button>
-            {onClose ? (
-              <Button
-                size="small"
-                type="text"
-                aria-label="Schliessen"
-                onClick={onClose}
-              >
-                &times;
-              </Button>
-            ) : null}
-          </>
+            : {
+                position: mode === "map" ? "absolute" : "relative",
+                inset: mode === "map" ? 0 : undefined,
+                width: mode === "map" ? undefined : "100%",
+                height: mode === "map" ? undefined : "100%",
+                background:
+                  mode === "map" ? "transparent" : "rgb(12 18 32 / 86%)",
+              }
         }
       >
-        <div
-          style={{
-            position: "relative",
-            width: WIDTH,
-            height: HEIGHT,
-            background: "rgb(12 18 32 / 86%)",
-          }}
+        <Overlay
+          subscribeModel={subscribeModel}
+          subscribeCamera={subscribeCamera}
+          freeView={null}
+          up="tileset"
+          interactive={false}
+          onViewChange={() => undefined}
+          onHover={() => undefined}
+          opacity={1}
+          // Over the map the marks stay unfilled, as the debugger's map mode.
+          popout={mode !== "map"}
+          labels={labels}
+          hover={null}
+          showFrustum={true}
+          updateOnRender={true}
+          // On, the crop follows the union of every frustum, the main one and
+          // the shadow corridor, as the story's overview does. Off, the model
+          // frames the tiles the camera sees.
+          followCamera={followFrustums}
+          cameraFocus="all"
+          followPaddingPercent={180}
+        />
+        {tileCount === 0 ? (
+          <div
+            data-test-id="volume-tile-diagnostics-empty"
+            style={{ padding: "8px", color: "#f4fbff" }}
+          >
+            keine Kacheln geladen
+          </div>
+        ) : null}
+      </div>
+    );
+    const toggle = (
+      testId: string,
+      icon: typeof faCrosshairs,
+      title: string,
+      pressed: boolean,
+      onClick: () => void
+    ) => (
+      <Button
+        size="small"
+        type="text"
+        data-test-id={testId}
+        aria-label={title}
+        aria-pressed={pressed}
+        title={title}
+        icon={<FontAwesomeIcon icon={icon} />}
+        onClick={onClick}
+      />
+    );
+    return (
+      <>
+        <DiagnosticPanel
+          testId="volume-tile-diagnostics"
+          title={
+            <span>
+              {`Kacheln${tileCount === null ? "" : ` ${tileCount}`}`}
+              <span
+                data-test-id="volume-tile-diagnostics-demand"
+                style={{ fontWeight: 400, opacity: 0.75, marginLeft: 6 }}
+              >
+                {`Sicht ${demand.view} \u00b7 Korridor ${demand.corridor}`}
+              </span>
+            </span>
+          }
+          actions={
+            <>
+              {toggle(
+                "volume-tile-diagnostics-follow",
+                faCrosshairs,
+                "Auf die Vereinigung aller Kamerastumpfe zoomen",
+                followFrustums,
+                () => setFollowFrustums((current) => !current)
+              )}
+              {toggle(
+                "volume-tile-diagnostics-labels",
+                faTableCells,
+                LABEL_TITLES[labels],
+                labels !== "none",
+                () =>
+                  setLabels(
+                    LABEL_MODES[
+                      (LABEL_MODES.indexOf(labels) + 1) % LABEL_MODES.length
+                    ]
+                  )
+              )}
+              {toggle(
+                "volume-tile-diagnostics-map",
+                faLayerGroup,
+                "Uber die ganze Karte zeichnen",
+                mode === "map",
+                () =>
+                  setMode((current) => (current === "map" ? "panel" : "map"))
+              )}
+              {toggle(
+                "volume-tile-diagnostics-window",
+                faUpRightFromSquare,
+                "In eigenem Fenster offnen",
+                mode === "window",
+                () =>
+                  setMode((current) =>
+                    current === "window" ? "panel" : "window"
+                  )
+              )}
+              {onClose ? (
+                <Button
+                  size="small"
+                  type="text"
+                  aria-label="Schliessen"
+                  onClick={onClose}
+                >
+                  &times;
+                </Button>
+              ) : null}
+            </>
+          }
         >
-          <Overlay
-            subscribeModel={subscribeModel}
-            subscribeCamera={subscribeCamera}
-            freeView={null}
-            up="tileset"
-            interactive={false}
-            onViewChange={() => undefined}
-            onHover={() => undefined}
-            opacity={1}
-            popout={true}
-            labels={labels}
-            hover={null}
-            showFrustum={true}
-            updateOnRender={true}
-            // On, the crop follows the union of every frustum, the main one and
-            // the shadow corridor, as the story's overview does. Off, the model
-            // frames the tiles the camera sees.
-            followCamera={followFrustums}
-            cameraFocus="all"
-            followPaddingPercent={180}
-          />
-          {tileCount === 0 ? (
-            <div
-              data-test-id="volume-tile-diagnostics-empty"
-              style={{ padding: "8px", color: "#f4fbff" }}
-            >
-              keine Kacheln geladen
+          {mode === "panel" ? (
+            overview
+          ) : (
+            <div style={{ padding: 8, width: 240 }}>
+              {mode === "map" ? "Ansicht auf der Karte" : "Ansicht im Fenster"}
             </div>
-          ) : null}
-        </div>
-      </DiagnosticPanel>
+          )}
+        </DiagnosticPanel>
+        {mode === "map"
+          ? createPortal(
+              <div
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  pointerEvents: "none",
+                }}
+              >
+                {overview}
+              </div>,
+              map.getContainer()
+            )
+          : null}
+        <DiagnosticWindow
+          open={mode === "window"}
+          title="Kacheln ohne Tileset"
+          width={560}
+          height={560}
+          onClose={() => setMode("panel")}
+        >
+          {overview}
+        </DiagnosticWindow>
+      </>
     );
   };
   return VolumeTileDiagnostics;
