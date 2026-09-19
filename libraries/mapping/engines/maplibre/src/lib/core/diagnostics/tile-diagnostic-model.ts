@@ -46,6 +46,7 @@ export const TILE_STEPS = [
   { label: "Relief", color: "#c9a6ff" },
   { label: "Aufbau", color: "#a87dff" },
   { label: "Anzeige", color: "#ffc46b" },
+  { label: "Einfugen", color: "#ff9a4d" },
 ] as const;
 
 export type OverlayRect = {
