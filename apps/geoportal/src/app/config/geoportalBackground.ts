@@ -130,6 +130,18 @@ export const geoportalLayerMap: LayerMap = {
               <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>`,
     eignung: `Mit diesem Kartenhintergrund wird durch eine Geländeschummerung und Höhenlinien ein plastischer Geländeeindruck erzeugt. Er eignet sich damit in beliebigen Maßstäben für Karten, bei denen die Geländeform wichtig ist, z. B. zu Radwegen oder zum Regenwasserabfluss. "Gelände" basiert auf Vektor-Kacheln und ist dadurch die Hintergrundkarte mit der kürzesten Ladezeit. Der Gebäudebestand wird jährlich aktualisiert, hat also keine Spitzenaktualität.`,
   },
+  vektorkarte3d: {
+    title: "Vektorkarte (3D)",
+    layers: "basemap_relief@100",
+    description: `Vektorkarte für 3D (basemap.de Web Vektor, Relief) © GeoBasis-DE / BKG (2024)`,
+    inhalt: `<span>Mapbox-konformer Vector-Tiles-Kartendienst</span>
+              <a href="https://basemap.de/web-vektor/">basemap.de Web Vektor</a>
+              <span>des Bundesamtes für Kartographie und Geodäsie (BKG), Kartenstil "Relief". © GeoBasis-DE /</span>
+              <a href="https://www.bkg.bund.de/">BKG</a>
+              <span>(2024)</span>
+              <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>`,
+    eignung: `Diese Karte ersetzt die Rasterhintergründe durch einen Vektorstil, dessen Grundfläche sich auf das Gelände und auf 3D-Modelle projizieren lässt. Beschriftungen bleiben dabei ein eigener Symbol-Pass und werden nicht in die Bodenpixel eingebrannt, weshalb sie sich für die Schattensimulation und für Geländedarstellungen eignet. Hinzugeladene Fachdaten bleiben unverändert sichtbar.`,
+  },
   amtlich: {
     title: "Amtliche Basiskarte",
     layers: "amtlichBasiskarte@90",
@@ -182,7 +194,9 @@ export const geoportalBackgroundConfig: BackgroundConfig = {
         eignung: `Ein 3D-Gebäudemodell in der Ausbaustufe "Level of Detail 2 (LoD2)" umfasst einfache Gebäudeformen mit standardisierten Dachformen. Ein solches Modell strebt eine abstrahierte, also nicht realistisch wirkende Darstellung der Gebäudesituation an. Es eignet sich dann als Grundlage, wenn die Gebäude aufgrund ihrer Eigenschaften thematisch dargestellt werden sollen (z. B. unterschiedliche Einfärbung von öffentlichen und privaten Gebäuden). Als Datenquelle für die die Gebäudehöhen dienen die Ergebnisdaten von Laserscanner-Befliegungen, die das Land NRW regelmäßig für Teilbereiche der Landesfläche durchführt, für Wuppertal zuletzt im Jahr 2020.`,
       },
       cesiumSceneStyle: MapStyleKeys.TOPO,
-      entries: ["stadtplan", "osm", "gelaende", "amtlich"],
+      // The vector base for 3D stays an explicit choice, never automatic:
+      // shaded terrain and the shadow simulation drape whatever is selected.
+      entries: ["stadtplan", "osm", "gelaende", "amtlich", "vektorkarte3d"],
     },
     {
       id: MapStyleKeys.AERIAL,
@@ -193,7 +207,7 @@ export const geoportalBackgroundConfig: BackgroundConfig = {
         eignung: `Ein 3D-Mesh wird automatisiert aus Senkrecht- und Schrägluftbildern erzeugt, die bei derselben Befliegung erstellt wurden. Dabei wird aus den Bilddaten ein digitales Oberflächenmodell in Form eines Dreiecksnetzes berechnet, auf das die Bilder projiziert werden. Solche Modelle können Fehler und Lücken enthalten, vor allem dort, wo verschiedene Ebenen übereinander liegen, wie zum Beispiel bei den Schwebebahnhöfen. Ein 3D-Mesh strebt eine fotorealistische Darstellung der Situation an. Es eignet sich daher immer dann, wenn Anschaulichkeit, einfache Orientierung und schnelles Wiedererkennen der Örtlichkeit benötigt werden. Das 3D-Mesh 03/2024 basiert auf einer von der Stadt Wuppertal beauftragten Befliegung vor dem Einsetzen der Belaubung (Winterbefliegung). Die Straßenbereiche sind daher vollständig sichtbar, während die Grünbereiche nicht gut zu interpretieren sind. Aktualität: Wuppertal lässt in einem Turnus von 2 Jahren Bildflüge durchführen. Die dargestellte Situation, z. B. bezüglich des Gebäudebestandes, kann daher bis zu 2,5 Jahre alt sein.`,
       },
       cesiumSceneStyle: MapStyleKeys.AERIAL,
-      entries: ["luftbild", "luftbild21"],
+      entries: ["luftbild", "luftbild21", "vektorkarte3d"],
     },
   ],
 };
