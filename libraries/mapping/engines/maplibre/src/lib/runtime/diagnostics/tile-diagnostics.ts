@@ -9,6 +9,10 @@ export {
 } from "../../core/diagnostics/tile-diagnostic-scene";
 export { captureTileDiagnostics } from "./tile-diagnostic-capture";
 export {
+  buildVolumeOverlayModel,
+  projectDiagnosticVolumes,
+} from "../../core/diagnostics/tile-diagnostic-volumes";
+export {
   summarizeTileDiagnostics,
   updateTileDiagnosticQueue,
 } from "./tile-diagnostic-metrics";

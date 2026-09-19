@@ -1,5 +1,9 @@
 export { TileLoadingDebug } from "./lib/TileLoadingDebug";
 export {
+  VolumeTileDiagnostics,
+  type VolumeTileDiagnosticsProps,
+} from "./lib/VolumeTileDiagnostics";
+export {
   DEBUG_COLOR_MODES,
   DEFAULT_TILE_LOADING_DEBUG_OPTIONS,
   type DebugColorModeName,

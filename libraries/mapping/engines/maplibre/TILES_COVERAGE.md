@@ -1628,5 +1628,13 @@ projection, unusable boxes dropped), `shadow-corridor-camera.spec.ts`,
 `tile-diagnostic-overlay.spec.ts` and `terrain-selection-dispatch.spec.ts`
 reproduce on the same files at HEAD.
 
-**Revisit when:** the corridor becomes a first-party camera member (Z4), or a
-terrain-only session needs the overlay without a 3D Tiles tree to attach to.
+**Without a tile tree:** a session can carry terrain and no tileset, and the
+overview is framed from the 3D Tiles extent. `buildVolumeOverlayModel` frames
+it from the union of the reported boxes instead, on the scene's own x/z plane,
+and emits the same model with no rects. The host mounts that overview when the
+switch is on and no runtime is registered, so the shadow panel's switch always
+opens onto something.
+
+**Revisit when:** the corridor becomes a first-party camera member (Z4), or the
+volume overview needs the panels of the full debugger (queue, summary, LOD
+controls), which all read a `TilesRenderer` today.

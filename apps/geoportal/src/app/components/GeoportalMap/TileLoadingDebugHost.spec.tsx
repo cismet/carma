@@ -37,11 +37,14 @@ describe("TileLoadingDebugHost", () => {
     registry.handles = [];
     rerender(<TileLoadingDebugHost map={map} />);
     expect(container.innerHTML).toBe("");
-    // Requested without a tileset: the reason is shown instead of nothing.
+    // Requested without a tileset: the overview stands on the tile boxes the
+    // runtimes report instead of rendering nothing.
     shadow.state = { showTileDiagnostics: true };
     rerender(<TileLoadingDebugHost map={map} />);
     expect(
-      container.querySelector('[data-test-id="tile-diagnostics-unavailable"]')
+      container.querySelector(
+        '[data-test-id="tile-diagnostics-without-tileset"]'
+      )
     ).not.toBeNull();
     shadow.state = {};
   });
