@@ -108,7 +108,10 @@ export const projectTileDiagnosticViewport = (
     // Drop the first and keep one of the second, so the outline is drawn once.
     const seen = new Set<string>();
     intersectionEdges = segments.filter(([x0, y0, x1, y1]) => {
-      if (Math.hypot(x1 - x0, y1 - y0) < 0.5) return false;
+      // Only an edge along the discarded axis collapses to a point. A short
+      // one is the connector between two long rails, and dropping it by length
+      // is what left the outline as loose horizontal strokes.
+      if (Math.hypot(x1 - x0, y1 - y0) < 1e-6) return false;
       const key = [x0, y0, x1, y1].map((value) => value.toFixed(2)).join(":");
       const reverse = [x1, y1, x0, y0]
         .map((value) => value.toFixed(2))
