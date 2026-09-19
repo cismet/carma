@@ -10,6 +10,10 @@ const registry = vi.hoisted(() => ({
 vi.mock("@carma-appframeworks/portals", () => ({
   useDevelopmentUiEnabled: () => developmentUi.enabled,
 }));
+const shadow = vi.hoisted(() => ({ state: {} as Record<string, unknown> }));
+vi.mock("@carma-mapping/addons", () => ({
+  useAddonState: () => [shadow.state, vi.fn()],
+}));
 vi.mock("@carma-mapping/engines/maplibre", () => ({
   getTiles3dRuntimeHandles: () => registry.handles,
   subscribeTiles3dRuntimeHandles: () => () => undefined,
@@ -33,6 +37,18 @@ describe("TileLoadingDebugHost", () => {
     registry.handles = [];
     rerender(<TileLoadingDebugHost map={map} />);
     expect(container.innerHTML).toBe("");
+  });
+
+  it("opens on the shadow panel's request without the development UI", async () => {
+    const map = {} as MaplibreMap;
+    developmentUi.enabled = false;
+    shadow.state = { showTileDiagnostics: true };
+    registry.handles = [{ scene: { id: "mesh", providesTerrain: true } }];
+    render(<TileLoadingDebugHost map={map} />);
+    expect((await screen.findByTestId("tile-debugger")).textContent).toBe(
+      "mesh"
+    );
+    shadow.state = {};
   });
 
   it("prefers the terrain-providing mesh runtime", async () => {
