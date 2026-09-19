@@ -162,6 +162,17 @@ export const createVolumeTileDiagnostics = (diagnostics: TileDiagnostics) => {
             .length,
           loading: volumes.filter((volume) => volume.state === "loading")
             .length,
+          // What the runtimes still owe before this view converges: a queue
+          // that never drains points at the bottleneck, one that sits at zero
+          // while tiles are missing points somewhere else.
+          backlog: lease.layer
+            .getRuntimes()
+            .reduce(
+              (total, other) =>
+                total +
+                (other.id === RUNTIME_ID ? 0 : other.getRequestDemand?.() ?? 0),
+              0
+            ),
         });
         // The corridor camera looks along the sun; its heading in the plan view
         // is the direction the shadows fall.
