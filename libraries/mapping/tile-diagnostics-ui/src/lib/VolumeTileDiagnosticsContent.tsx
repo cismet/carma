@@ -3,6 +3,7 @@ import * as THREE from "three";
 import type { Map as MapLibreMap } from "maplibre-gl";
 import {
   acquireSharedThreeScene,
+  registerSharedThreeSceneRuntime,
   type SharedThreeSceneFrame,
   type SharedThreeSceneRuntime,
   type SharedThreeSceneTileVolume,
@@ -66,7 +67,9 @@ export const createVolumeTileDiagnostics = (diagnostics: TileDiagnostics) => {
     const liveCameras = useRef<readonly TileCameraSnapshot[]>([]);
     const [tileCount, setTileCount] = useState<number | null>(null);
     /** What each camera asks for: tiles cut by the view and by the corridor. */
-    const [demand, setDemand] = useState({ view: 0, corridor: 0 });
+    const [demand, setDemand] = useState({ view: 0, corridor: 0, loading: 0 });
+    /** Where the corridor looks, in overview coordinates: the sun's heading. */
+    const [sunHeading, setSunHeading] = useState<number | null>(null);
     const [labels, setLabels] = useState<(typeof LABEL_MODES)[number]>("none");
     const [followFrustums, setFollowFrustums] = useState(true);
     /** Where the overview is drawn: in its panel, over the map, or popped out. */
@@ -157,7 +160,15 @@ export const createVolumeTileDiagnostics = (diagnostics: TileDiagnostics) => {
           view: (model.volumes ?? []).filter((volume) => volume.inView).length,
           corridor: (model.volumes ?? []).filter((volume) => volume.inShadow)
             .length,
+          loading: volumes.filter((volume) => volume.state === "loading")
+            .length,
         });
+        // The corridor camera looks along the sun; its heading in the plan view
+        // is the direction the shadows fall.
+        const light = corridor[0]?.matrixWorld;
+        setSunHeading(
+          light ? (Math.atan2(-light[10], -light[8]) * 180) / Math.PI : null
+        );
         latestModel.current = model;
         for (const listener of modelListeners.current) listener(model);
       };
@@ -183,6 +194,9 @@ export const createVolumeTileDiagnostics = (diagnostics: TileDiagnostics) => {
         },
       };
       lease.layer.addRuntime(runtime);
+      // The layer draws a runtime; the scene registry is what the shadow
+      // simulation walks to hand out its corridor, so join both.
+      const unregister = registerSharedThreeSceneRuntime(map, runtime);
       // The model is built for the size it is drawn at, so a resized panel or
       // the whole map both get a cut that fills them.
       const observer = new ResizeObserver((entries) => {
@@ -201,6 +215,7 @@ export const createVolumeTileDiagnostics = (diagnostics: TileDiagnostics) => {
         disposed = true;
         work = null;
         observer.disconnect();
+        unregister();
         lease.layer.removeRuntime(RUNTIME_ID);
         lease.release();
       };
@@ -254,6 +269,43 @@ export const createVolumeTileDiagnostics = (diagnostics: TileDiagnostics) => {
           cameraFocus="all"
           followPaddingPercent={180}
         />
+        {sunHeading === null ? null : (
+          <div
+            data-test-id="volume-tile-diagnostics-sun"
+            title="Richtung des Korridors, also des Sonnenstands"
+            style={{
+              position: "absolute",
+              left: 8,
+              bottom: 8,
+              width: 44,
+              height: 44,
+              pointerEvents: "none",
+              color: "#ffc46b",
+            }}
+          >
+            <svg viewBox="0 0 44 44" width="44" height="44">
+              <circle
+                cx="22"
+                cy="22"
+                r="20"
+                fill="none"
+                stroke="currentColor"
+                strokeOpacity="0.35"
+              />
+              <g transform={`rotate(${sunHeading} 22 22)`}>
+                <line
+                  x1="22"
+                  y1="22"
+                  x2="40"
+                  y2="22"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                />
+                <polygon points="40,22 33,18 33,26" fill="currentColor" />
+              </g>
+            </svg>
+          </div>
+        )}
         {tileCount === 0 ? (
           <div
             data-test-id="volume-tile-diagnostics-empty"
@@ -293,7 +345,7 @@ export const createVolumeTileDiagnostics = (diagnostics: TileDiagnostics) => {
                 data-test-id="volume-tile-diagnostics-demand"
                 style={{ fontWeight: 400, opacity: 0.75, marginLeft: 6 }}
               >
-                {`Sicht ${demand.view} \u00b7 Korridor ${demand.corridor}`}
+                {`Sicht ${demand.view} \u00b7 Korridor ${demand.corridor} \u00b7 Laden ${demand.loading}`}
               </span>
             </span>
           }

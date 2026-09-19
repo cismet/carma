@@ -76,6 +76,7 @@ import {
 } from "@carma-commons/ui/components";
 import {
   acquireSharedThreeScene,
+  registerSharedThreeSceneRuntime,
   type SharedThreeSceneFrame,
   type SharedThreeSceneRuntime,
   type ThreeTilesRuntime,
@@ -720,6 +721,12 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
         },
       };
       lease.layer.addRuntime(labelRuntime);
+      // Also in the scene registry, which is where the shadow simulation hands
+      // its corridor to the runtimes; the layer list alone never sees it.
+      const unregisterLabelRuntime = registerSharedThreeSceneRuntime(
+        map,
+        labelRuntime
+      );
 
       const syncLabels = (
         wanted: Array<{ tile: Tile; id: string; kind: Kind }>,
@@ -1214,6 +1221,7 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
         setHover(null);
         setModel(EMPTY_MODEL);
         setSummary(null);
+        unregisterLabelRuntime();
         lease.layer.removeRuntime(labelRuntime.id);
         for (const label of labels.values()) label.element.remove();
         labels.clear();
