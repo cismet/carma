@@ -140,4 +140,45 @@ describe("live overview viewport", () => {
       expect(outside.center).toBeNull();
     }
   );
+
+  it("closes the footprint, far cut included", () => {
+    // A camera whose far plane cuts inside the extent: the far edge is a face
+    // of the clipped volume like any other, so the outline must close instead
+    // of showing two open side rails.
+    const camera = new THREE.PerspectiveCamera(50, 1, 1, 60);
+    camera.position.set(0, 40, 0);
+    camera.lookAt(0, 0, -30);
+    const snapshot = snapshotTileCameraViews([
+      {
+        id: "near-far",
+        camera,
+        viewport: [500, 500],
+        errorTargetPixels: 4,
+        role: "receiver",
+      },
+    ])[0];
+    const { edges } = projectTileDiagnosticViewport(
+      {
+        bounds: [-200, -5, -200, 200, 5, 200],
+        worldToOverview: new THREE.Matrix4().toArray(),
+        screen: [1, 0, 0],
+        width: 400,
+        height: 400,
+      },
+      snapshot
+    );
+    const segments = Array.from({ length: edges.length / 4 }, (_, i) =>
+      Array.from(edges.subarray(i * 4, i * 4 + 4))
+    );
+    expect(segments.length).toBeGreaterThan(3);
+    // Every endpoint is shared with another segment: a closed outline.
+    const counts = new Map<string, number>();
+    for (const [x0, y0, x1, y1] of segments)
+      for (const point of [
+        `${x0.toFixed(3)}:${y0.toFixed(3)}`,
+        `${x1.toFixed(3)}:${y1.toFixed(3)}`,
+      ])
+        counts.set(point, (counts.get(point) ?? 0) + 1);
+    expect([...counts.values()].every((count) => count >= 2)).toBe(true);
+  });
 });

@@ -51,7 +51,12 @@ export const projectTileDiagnosticViewport = (
       extent.getSize(new THREE.Vector3()).length() * 1e-8,
       ...basis.bounds.map((v) => Math.abs(v) * Number.EPSILON * 128)
     );
-    const planes = [...frustum.planes];
+    // A degenerate plane (an infinite far plane, for instance) carries no
+    // normal to intersect; every other one, the far plane included, bounds a
+    // face of the clipped volume and owns edges worth drawing.
+    const planes = frustum.planes.filter(
+      (plane) => plane.normal.lengthSq() > 1e-12
+    );
     for (let axis = 0; axis < 3; axis++) {
       const normal = new THREE.Vector3().setComponent(axis, 1);
       planes.push(new THREE.Plane(normal, -extent.min.getComponent(axis)));
@@ -60,10 +65,9 @@ export const projectTileDiagnosticViewport = (
       );
     }
     const emitted = new Set<string>();
-    for (let i = 0; i < 6; i++) {
-      if (i === 4) continue;
+    const frustumPlanes = planes.length - 6;
+    for (let i = 0; i < frustumPlanes; i++) {
       for (let j = i + 1; j < planes.length; j++) {
-        if (j === 4) continue;
         if (
           new THREE.Vector3()
             .crossVectors(planes[i].normal, planes[j].normal)
