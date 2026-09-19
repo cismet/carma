@@ -1,4 +1,11 @@
-import { lazy, Suspense, useCallback, useSyncExternalStore } from "react";
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useSyncExternalStore,
+  type CSSProperties,
+} from "react";
+import { createPortal } from "react-dom";
 import type { Map as MaplibreMap } from "maplibre-gl";
 import { useDevelopmentUiEnabled } from "@carma-appframeworks/portals";
 import { useAddonState } from "@carma-mapping/addons";
@@ -20,6 +27,27 @@ const LazyVolumeTileDiagnostics = lazy(() =>
 );
 
 const NO_HANDLES: ReturnType<typeof getTiles3dRuntimeHandles> = [];
+
+/**
+ * One overlay root inside the map container, the level the annotation runtime
+ * mounts its own overlays on: the diagnostics scroll, resize and clip with the
+ * map, and nothing of them can reach the app's layout.
+ */
+const OVERLAY_ROOT_STYLE: CSSProperties = {
+  position: "absolute",
+  inset: 0,
+  pointerEvents: "none",
+  isolation: "isolate",
+  zIndex: 120,
+};
+
+/** Clear of the map's own control column, where the toolbar used to sit. */
+const OVERLAY_ANCHOR_STYLE: CSSProperties = {
+  position: "absolute",
+  left: 56,
+  top: 88,
+  pointerEvents: "auto",
+};
 
 /**
  * Development UI only: the tile manager debugger of the mapping stories for
@@ -47,49 +75,47 @@ export const TileLoadingDebugHost = ({ map }: { map: MaplibreMap | null }) => {
     handles.find((handle) => handle.scene.providesTerrain) ??
     handles[0] ??
     null;
-  if (!enabled || !map) return null;
-  // No 3D Tiles tree to attach to, terrain-only sessions above all: the
-  // overview then stands on the tile boxes the runtimes report, so the switch
-  // never opens onto nothing.
-  if (!runtime)
-    return requested ? (
-      <div data-test-id="tile-diagnostics-without-tileset">
-        <Suspense fallback={null}>
-          <LazyVolumeTileDiagnostics
-            map={map}
-            onClose={() => {
-              if (shadowState)
-                setShadowState({ ...shadowState, showTileDiagnostics: false });
-            }}
-          />
-        </Suspense>
-      </div>
-    ) : null;
-  return (
-    // The toolbar positions itself absolutely; this anchor puts it beside the
-    // map's own control column instead of behind it, and keeps it above the
-    // map without covering it.
-    <div
-      style={{
-        position: "fixed",
-        left: 64,
-        top: 96,
-        width: 0,
-        height: 0,
-        zIndex: 6000,
+  const container = map?.getContainer?.() ?? null;
+  if (!enabled || !map || !container) return null;
+  const content = runtime ? (
+    <LazyTileLoadingDebug
+      map={map}
+      runtimeHandle={runtime}
+      open={requested ? true : undefined}
+      onOpenChange={(open) => {
+        if (!shadowState || open === requested) return;
+        setShadowState({ ...shadowState, showTileDiagnostics: open });
       }}
+    />
+  ) : requested ? (
+    // No 3D Tiles tree to attach to, terrain-only sessions above all: the
+    // overview then stands on the tile boxes the runtimes report, so the
+    // switch never opens onto nothing.
+    <LazyVolumeTileDiagnostics
+      map={map}
+      onClose={() => {
+        if (shadowState)
+          setShadowState({ ...shadowState, showTileDiagnostics: false });
+      }}
+    />
+  ) : null;
+  if (!content) return null;
+  return createPortal(
+    <div
+      data-test-id="tile-diagnostics-overlay-root"
+      style={OVERLAY_ROOT_STYLE}
     >
-      <Suspense fallback={null}>
-        <LazyTileLoadingDebug
-          map={map}
-          runtimeHandle={runtime}
-          open={requested ? true : undefined}
-          onOpenChange={(open) => {
-            if (!shadowState || open === requested) return;
-            setShadowState({ ...shadowState, showTileDiagnostics: open });
-          }}
-        />
-      </Suspense>
-    </div>
+      <div
+        data-test-id={
+          runtime
+            ? "tile-diagnostics-anchor"
+            : "tile-diagnostics-without-tileset"
+        }
+        style={OVERLAY_ANCHOR_STYLE}
+      >
+        <Suspense fallback={null}>{content}</Suspense>
+      </div>
+    </div>,
+    container
   );
 };

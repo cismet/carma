@@ -18,6 +18,7 @@ import { getCollabedHelpComponentConfig as getCollabedHelpElementsConfig } from 
 import { useOverlayHelper } from "@carma-commons/ui/helper-overlay";
 import { carmaWindow } from "@carma-commons/utils";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
+import { APP_BASE_PATH } from "../../config/app.config";
 import {
   appendSavedLayerConfig,
   changeBackgroundOpacity,
@@ -61,8 +62,6 @@ const ActionButtons = () => {
   const paleOpacityValue = useSelector(getPaleOpacityValue);
   const selectedFeature = useSelector(getSelectedFeature);
 
-  const baseUrl = window.location.origin + window.location.pathname;
-
   const menuTourRef = useOverlayHelper(
     getCollabedHelpElementsConfig("MENULEISTE", geoElements)
   );
@@ -103,7 +102,7 @@ const ActionButtons = () => {
           data-test-id="kartenebenen-hinzufügen-btn"
         >
           <img
-            src={baseUrl + "icons/add-layers.png"}
+            src={`${APP_BASE_PATH}icons/add-layers.png`}
             alt="Kartenebenen hinzufügen"
             className={`h-5 min-w-fit mb-0.5 cursor-pointer`}
           />
@@ -129,11 +128,10 @@ const ActionButtons = () => {
           data-test-id="hintergrundkarte-btn"
         >
           <img
-            src={
-              baseUrl +
-              `${focusMode ? "icons/focus-on.png" : "icons/focus-off.png"}`
-            }
-            alt="Kartenebenen hinzufügen"
+            src={`${APP_BASE_PATH}icons/focus-${focusMode ? "on" : "off"}.png`}
+            alt={`Hintergrundkarte ${
+              focusMode ? "zurücksetzen" : "abschwächen"
+            }`}
             className={`h-5 min-w-fit mb-0.5 cursor-pointer ${
               isLeaflet ? "" : disabledImageOpacity
             }`}

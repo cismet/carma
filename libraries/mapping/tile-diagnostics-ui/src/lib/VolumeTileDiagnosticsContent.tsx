@@ -157,10 +157,10 @@ export const createVolumeTileDiagnostics = (diagnostics: TileDiagnostics) => {
       <div
         data-test-id="volume-tile-diagnostics"
         style={{
-          position: "fixed",
-          left: 64,
-          top: 96,
-          zIndex: 6000,
+          // Placed by the host's overlay anchor inside the map container.
+          position: "absolute",
+          left: 0,
+          top: 0,
           background: "rgba(12, 18, 32, 0.86)",
           color: "#f4fbff",
           borderRadius: 4,

@@ -26,31 +26,47 @@ vi.mock("@carma-mapping/tile-diagnostics-ui", () => ({
   }) => <div data-testid="tile-debugger">{runtimeHandle.scene.id}</div>,
 }));
 
+/** The host mounts on the map's own overlay level, so it needs a container. */
+const createMap = () => {
+  const mapContainer = document.createElement("div");
+  document.body.appendChild(mapContainer);
+  return {
+    map: { getContainer: () => mapContainer } as unknown as MaplibreMap,
+    mapContainer,
+  };
+};
+
 describe("TileLoadingDebugHost", () => {
   it("mounts nothing without the development UI or without a runtime", () => {
-    const map = {} as MaplibreMap;
+    const { map, mapContainer } = createMap();
     registry.handles = [{ scene: { id: "lod2", providesTerrain: false } }];
     developmentUi.enabled = false;
-    const { container, rerender } = render(<TileLoadingDebugHost map={map} />);
-    expect(container.innerHTML).toBe("");
+    const { rerender } = render(<TileLoadingDebugHost map={map} />);
+    expect(mapContainer.innerHTML).toBe("");
     developmentUi.enabled = true;
     registry.handles = [];
     rerender(<TileLoadingDebugHost map={map} />);
-    expect(container.innerHTML).toBe("");
+    expect(mapContainer.innerHTML).toBe("");
     // Requested without a tileset: the overview stands on the tile boxes the
     // runtimes report instead of rendering nothing.
     shadow.state = { showTileDiagnostics: true };
     rerender(<TileLoadingDebugHost map={map} />);
     expect(
-      container.querySelector(
+      mapContainer.querySelector(
         '[data-test-id="tile-diagnostics-without-tileset"]'
+      )
+    ).not.toBeNull();
+    // Everything sits in one overlay root on the map, never in the app tree.
+    expect(
+      mapContainer.querySelector(
+        '[data-test-id="tile-diagnostics-overlay-root"]'
       )
     ).not.toBeNull();
     shadow.state = {};
   });
 
   it("opens on the shadow panel's request without the development UI", async () => {
-    const map = {} as MaplibreMap;
+    const { map } = createMap();
     developmentUi.enabled = false;
     shadow.state = { showTileDiagnostics: true };
     registry.handles = [{ scene: { id: "mesh", providesTerrain: true } }];
@@ -62,7 +78,7 @@ describe("TileLoadingDebugHost", () => {
   });
 
   it("prefers the terrain-providing mesh runtime", async () => {
-    const map = {} as MaplibreMap;
+    const { map } = createMap();
     developmentUi.enabled = true;
     registry.handles = [
       { scene: { id: "lod2", providesTerrain: false } },
