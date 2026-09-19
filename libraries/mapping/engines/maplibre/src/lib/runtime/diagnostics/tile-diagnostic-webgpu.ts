@@ -45,9 +45,7 @@ struct Vertex {
   var halfSize = item.position.zw;
   var axis = vec2f(1,0);
   if (kind == 4.0) { halfSize = halfSize / scale; }
-  // A pie reads at a glance, not by its area: cap it in screen pixels so it
-  // never swallows the tile it belongs to.
-  if (kind == 6.0) { halfSize = min(halfSize, vec2f(34.0 / scale)); }
+
   if (kind == 3.0 || kind == 5.0) {
     let delta = item.position.zw - item.position.xy;
     let length = length(delta);

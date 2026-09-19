@@ -250,7 +250,6 @@ export const LibreMapSelectionContent = ({ map }: SelectionContentProps) => {
             },
           });
         }
-
       } catch (error) {
         console.error("Error creating mask:", error);
       }

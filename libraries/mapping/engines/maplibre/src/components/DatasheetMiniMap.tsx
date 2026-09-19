@@ -117,10 +117,9 @@ export const DatasheetMiniMap = ({
       // Apply new selection
       if (selectedFeatureId) {
         try {
-          m.setFeatureState(
-            buildFeatureStateTarget(m, selectedFeatureId),
-            { selected: true }
-          );
+          m.setFeatureState(buildFeatureStateTarget(m, selectedFeatureId), {
+            selected: true,
+          });
         } catch {
           // Source may not exist yet
         }

@@ -326,7 +326,17 @@ export const buildDiagnosticPrimitives = (
       const pieAlpha = isOutlier(i)
         ? 1
         : opacityOf(data[i + TILE_LEVEL_OFFSET]);
-      const radius = Math.min(w, h) / 3;
+      // The ring is the median cost of this cut; the pie's area is the tile's
+      // own cost against it, so a disc that fills its ring took the usual time
+      // and a larger one took longer.
+      const reference = Math.min(w, h) / 3;
+      const radius =
+        reference *
+        Math.sqrt(
+          medianTotal > 0
+            ? Math.min(4, Math.max(0.1, stepTotal / medianTotal))
+            : 1
+        );
       // One wedge per step, in the step's own colour: steps of a kind share a
       // hue, so the pie reads as fetch, raster work, geometry and waiting.
       let start = 0;
@@ -351,7 +361,7 @@ export const buildDiagnosticPrimitives = (
         start = end;
       });
       add(
-        [x + w / 2, y + h / 2, radius, radius],
+        [x + w / 2, y + h / 2, reference, reference],
         1,
         1.2,
         1,

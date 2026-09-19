@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import type { Map as MapLibreMap } from "maplibre-gl";
 import {
+  TILE_DIAGNOSTIC_STEPS,
   acquireSharedThreeScene,
   registerSharedThreeSceneRuntime,
   type SharedThreeSceneFrame,
@@ -67,6 +68,18 @@ export const createVolumeTileDiagnostics = (diagnostics: TileDiagnostics) => {
     const liveCameras = useRef<readonly TileCameraSnapshot[]>([]);
     const [tileCount, setTileCount] = useState<number | null>(null);
     /** What each camera asks for: tiles cut by the view and by the corridor. */
+    /** What the pies and the size grid stand for, read off the drawn cut. */
+    const [legend, setLegend] = useState<{
+      medianMs: number;
+      steps: {
+        label: string;
+        color: string;
+        avg: number;
+        min: number;
+        max: number;
+      }[];
+      bytes: { unit: number; min: number; max: number } | null;
+    } | null>(null);
     const [demand, setDemand] = useState({
       view: 0,
       corridor: 0,
@@ -159,6 +172,56 @@ export const createVolumeTileDiagnostics = (diagnostics: TileDiagnostics) => {
           height: size.current.height,
         });
         if (!model) return;
+        // What the marks stand for, measured on the cut that is drawn.
+        const perStep = new Map<
+          string,
+          { sum: number; count: number; min: number; max: number }
+        >();
+        const totals: number[] = [];
+        const sizes: number[] = [];
+        for (const volume of volumes) {
+          const steps = volume.steps ?? [];
+          const total = steps.reduce((sum, step) => sum + step.ms, 0);
+          if (total > 0) totals.push(total);
+          if (volume.bytes) sizes.push(volume.bytes);
+          for (const step of steps) {
+            const entry = perStep.get(step.label) ?? {
+              sum: 0,
+              count: 0,
+              min: Infinity,
+              max: 0,
+            };
+            entry.sum += step.ms;
+            entry.count += 1;
+            entry.min = Math.min(entry.min, step.ms);
+            entry.max = Math.max(entry.max, step.ms);
+            perStep.set(step.label, entry);
+          }
+        }
+        totals.sort((a, b) => a - b);
+        let unit = 1024;
+        const largest = sizes.length ? Math.max(...sizes) : 0;
+        while (largest / unit > 100) unit *= 10;
+        setLegend({
+          medianMs: totals.length ? totals[totals.length >> 1] : 0,
+          steps: TILE_DIAGNOSTIC_STEPS.flatMap((step) => {
+            const entry = perStep.get(step.label);
+            return entry
+              ? [
+                  {
+                    label: step.label,
+                    color: step.color,
+                    avg: entry.sum / entry.count,
+                    min: entry.min,
+                    max: entry.max,
+                  },
+                ]
+              : [];
+          }),
+          bytes: sizes.length
+            ? { unit, min: Math.min(...sizes), max: largest }
+            : null,
+        });
         setDemand({
           view: (model.volumes ?? []).filter((volume) => volume.inView).length,
           corridor: (model.volumes ?? []).filter((volume) => volume.inShadow)
@@ -286,6 +349,63 @@ export const createVolumeTileDiagnostics = (diagnostics: TileDiagnostics) => {
           cameraFocus="all"
           followPaddingPercent={180}
         />
+        {legend && mode !== "map" ? (
+          <details
+            data-test-id="volume-tile-diagnostics-legend"
+            style={{
+              position: "absolute",
+              left: 0,
+              right: 0,
+              bottom: 0,
+              maxHeight: "60%",
+              overflow: "auto",
+              background: "rgb(12 18 32 / 92%)",
+              color: "#f4fbff",
+              font: "11px/1.5 system-ui, sans-serif",
+              padding: "2px 6px",
+            }}
+          >
+            <summary style={{ cursor: "pointer", opacity: 0.85 }}>
+              Legende
+            </summary>
+            <div style={{ opacity: 0.85, marginBottom: 2 }}>
+              {`Ring = Median ${Math.round(
+                legend.medianMs
+              )} ms \u00b7 Flache der Scheibe = Ladezeit dagegen`}
+            </div>
+            {legend.steps.map((step) => (
+              <div
+                key={step.label}
+                style={{ display: "flex", alignItems: "center", gap: 4 }}
+              >
+                <span
+                  style={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: 2,
+                    background: step.color,
+                    flex: "0 0 auto",
+                  }}
+                />
+                <span style={{ flex: "1 1 auto" }}>{step.label}</span>
+                <span style={{ opacity: 0.85 }}>
+                  {`\u00f8 ${Math.round(step.avg)} ms (${Math.round(
+                    step.min
+                  )}\u2013${Math.round(step.max)})`}
+                </span>
+              </div>
+            ))}
+            {legend.bytes ? (
+              <div style={{ opacity: 0.85, marginTop: 2 }}>
+                {`1 Kastchen = ${Math.round(
+                  legend.bytes.unit / 1024
+                )} kB \u00b7 Kacheln ${Math.round(
+                  legend.bytes.min / 1024
+                )}\u2013${Math.round(legend.bytes.max / 1024)} kB`}
+              </div>
+            ) : null}
+          </details>
+        ) : null}
         {tileCount === 0 ? (
           <div
             data-test-id="volume-tile-diagnostics-empty"
