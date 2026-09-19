@@ -87,7 +87,13 @@ export const resolveShadowTerrainQuality = (
 export const DEFAULT_SHADOW_QUALITY: ShadowQualityMultiplier = 64;
 export const DEFAULT_TERRAIN_ERROR_TARGET_PIXELS: MeshErrorTargetPixels = 2;
 /** Explicit mesh-only ceiling; browser memory-pressure admission still applies. */
-export const DEFAULT_MESH_CACHE_BUDGET_BYTES = 24 * 1024 ** 3;
+/**
+ * The add-on asks for a large resident mesh pool but must not quadruple the
+ * device ceiling on its own: the engine's own desktop ceiling is 6 GiB and a
+ * phone caps far below that. Decision:
+ * engines/maplibre/TILES_COVERAGE.md#resident-cache-ceiling-policy-2026-09-18
+ */
+export const DEFAULT_MESH_CACHE_BUDGET_BYTES = 6 * 1024 ** 3;
 export const DEFAULT_SHADOW_SURFACE_COLOR = "#d3d3d3";
 export const DEFAULT_SHADOW_BUILDING_COLOR_MIX = 0;
 export const DEFAULT_SHADOW_BUILDING_TEXTURE_SATURATION = 1;

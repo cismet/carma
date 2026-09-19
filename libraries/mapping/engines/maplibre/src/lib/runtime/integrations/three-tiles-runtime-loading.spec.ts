@@ -245,9 +245,10 @@ describe("local refinement progress", () => {
     state.tiles!.loadingTiles.add(transition);
     loading.applyErrorTargetPolicy();
     expect(state.meshInitialReserveSettled).toBe(false);
-    // The shadow add-on's view stays pending until the reserve settled.
-    expect(state.meshInitialBasePassDone).toBe(false);
-    expect(applyPendingShadowView).not.toHaveBeenCalled();
+    // An idle pipeline over a published cut releases the add-on even before
+    // the reserve settles: shadows must never be suppressed indefinitely.
+    expect(state.meshInitialBasePassDone).toBe(true);
+    expect(applyPendingShadowView).toHaveBeenCalledOnce();
     state.tiles!.loadingTiles.clear();
     loading.applyErrorTargetPolicy();
     expect(state.meshInitialReserveSettled).toBe(true);
@@ -386,6 +387,23 @@ describe("local refinement progress", () => {
     expect(cache.itemSet.has(stale)).toBe(false);
     state.tiles!.loadingTiles.clear();
     state.tiles!.dispose();
+  });
+
+  it("releases a pending shadow view once base coverage exists, even if the initial cut never settles", () => {
+    const { state, loading, applyPendingShadowView } = fixture();
+    state.tiles = new TilesRenderer("mesh.json") as RuntimeTilesRenderer;
+    state.tiles.lruCache = new LRUCache();
+    // No root, so the view cut can never be proven ready: the add-on would
+    // wait for ever without the failsafe.
+    state.meshBaseCoverageReady = false;
+    loading.applyErrorTargetPolicy();
+    expect(state.meshInitialBasePassDone).toBe(false);
+    expect(applyPendingShadowView).not.toHaveBeenCalled();
+    state.meshBaseCoverageReady = true;
+    loading.applyErrorTargetPolicy();
+    expect(state.meshInitialBasePassDone).toBe(true);
+    expect(applyPendingShadowView).toHaveBeenCalledOnce();
+    state.tiles.dispose();
   });
 
   it.each([
