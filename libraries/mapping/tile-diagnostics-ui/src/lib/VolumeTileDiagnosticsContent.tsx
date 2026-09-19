@@ -18,6 +18,7 @@ import {
   faLayerGroup,
   faTableCells,
   faUpRightFromSquare,
+  faVectorSquare,
 } from "@fortawesome/free-solid-svg-icons";
 import { createTileDiagnosticOverlayComponent } from "./TileDiagnosticOverlay";
 import { DiagnosticPanel } from "./DiagnosticPanel";
@@ -70,6 +71,14 @@ export const createVolumeTileDiagnostics = (diagnostics: TileDiagnostics) => {
     const [followFrustums, setFollowFrustums] = useState(true);
     /** Where the overview is drawn: in its panel, over the map, or popped out. */
     const [mode, setMode] = useState<"panel" | "map" | "window">("panel");
+    /** Over the map: the camera's own projection, or a padded plan view. */
+    const [mapProjection, setMapProjection] = useState<"camera" | "plan">(
+      "camera"
+    );
+    const hostRef = useRef<HTMLDivElement | null>(null);
+    const size = useRef({ width: WIDTH, height: HEIGHT });
+    const projectionRef = useRef<"camera" | "plan">("camera");
+    projectionRef.current = mode === "map" ? mapProjection : "plan";
 
     const subscribeModel = useCallback(
       (listener: (model: OverlayModel) => void) => {
@@ -127,6 +136,7 @@ export const createVolumeTileDiagnostics = (diagnostics: TileDiagnostics) => {
         const volumes = collect();
         setTileCount(volumes.length);
         const model = diagnostics.buildVolumeOverlayModel({
+          projection: projectionRef.current,
           volumes,
           camera: {
             id: "overview-live",
@@ -134,13 +144,13 @@ export const createVolumeTileDiagnostics = (diagnostics: TileDiagnostics) => {
             matrixWorld: renderCamera.matrixWorld.toArray(),
             coordinateSystem: renderCamera.coordinateSystem,
             reversedDepth: renderCamera.reversedDepth,
-            viewport: [WIDTH, HEIGHT],
+            viewport: [size.current.width, size.current.height],
             errorTargetPixels: 1,
             role: "receiver",
           },
           shadowCamera: corridor[0] ?? null,
-          width: WIDTH,
-          height: HEIGHT,
+          width: size.current.width,
+          height: size.current.height,
         });
         if (!model) return;
         setDemand({
@@ -173,17 +183,32 @@ export const createVolumeTileDiagnostics = (diagnostics: TileDiagnostics) => {
         },
       };
       lease.layer.addRuntime(runtime);
+      // The model is built for the size it is drawn at, so a resized panel or
+      // the whole map both get a cut that fills them.
+      const observer = new ResizeObserver((entries) => {
+        const rect = entries[0]?.contentRect;
+        if (!rect || rect.width < 8 || rect.height < 8) return;
+        size.current = {
+          width: Math.round(rect.width),
+          height: Math.round(rect.height),
+        };
+        rebuiltAt = 0;
+        schedule();
+      });
+      if (hostRef.current) observer.observe(hostRef.current);
       map.triggerRepaint();
       return () => {
         disposed = true;
         work = null;
+        observer.disconnect();
         lease.layer.removeRuntime(RUNTIME_ID);
         lease.release();
       };
-    }, [map]);
+    }, [map, mode]);
 
     const overview = (
       <div
+        ref={hostRef}
         style={
           mode === "panel"
             ? {
@@ -301,6 +326,20 @@ export const createVolumeTileDiagnostics = (diagnostics: TileDiagnostics) => {
                 () =>
                   setMode((current) => (current === "map" ? "panel" : "map"))
               )}
+              {mode === "map"
+                ? toggle(
+                    "volume-tile-diagnostics-projection",
+                    faVectorSquare,
+                    mapProjection === "camera"
+                      ? "Eins zu eins uber der Karte"
+                      : "Aufsicht mit Rand",
+                    mapProjection === "camera",
+                    () =>
+                      setMapProjection((current) =>
+                        current === "camera" ? "plan" : "camera"
+                      )
+                  )
+                : null}
               {toggle(
                 "volume-tile-diagnostics-window",
                 faUpRightFromSquare,
