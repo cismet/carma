@@ -175,9 +175,24 @@ export const projectTileDiagnosticViewports = (
   // Keep the global intersection for framing, but draw actual per-tile cuts
   // instead of the distant faces of the tileset-wide bounding volume.
   if (tileBounds) {
+    // A retained ancestor spans far past the framed area: its cut crosses the
+    // whole overview as a line whose ends lie outside it, which reads as a
+    // stray horizontal. Its children carry the detail, so skip it.
+    const framedSpan =
+      Math.max(
+        basis.bounds[3] - basis.bounds[0],
+        basis.bounds[5] - basis.bounds[2]
+      ) * 1.5;
     views.forEach((view, cameraIndex) => {
       const segments: number[] = [];
       for (let i = 0; i < tileBounds.length; i += 6) {
+        if (
+          Math.max(
+            tileBounds[i + 3] - tileBounds[i],
+            tileBounds[i + 5] - tileBounds[i + 2]
+          ) > framedSpan
+        )
+          continue;
         const cut = projectTileDiagnosticViewport(
           { ...basis, bounds: Array.from(tileBounds.subarray(i, i + 6)) },
           cameras[cameraIndex],
