@@ -90,7 +90,7 @@ export const ShadowSimulationDisplaySettingsPanel = ({
         draggable
         dragGripPlacement="auto"
         dragHandleTitle="Schattendarstellung verschieben"
-        width={360}
+        width={320}
         heading={
           <div
             className="flex w-full items-center justify-between"
