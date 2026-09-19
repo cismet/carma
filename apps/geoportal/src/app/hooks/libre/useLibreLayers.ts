@@ -32,11 +32,20 @@ export const useLibreLayers = (): LibreLayer[] => {
       ...geoportalBackgroundToLibreLayers(backgroundLayer, namedLayers, {
         terrainMeshActive,
         shadowTerrainActive: shadowState?.enabled === true,
+        vectorBaseOverride:
+          shadowState?.enabled === true &&
+          shadowState?.overrideBaseMapWithVectorStyle === true,
         standaloneMeshOnly,
       }),
       ...geoportalLayersToLibreLayers(geoportalLayers),
     ];
-  }, [backgroundLayer, namedLayers, geoportalLayers, shadowState?.enabled]);
+  }, [
+    backgroundLayer,
+    namedLayers,
+    geoportalLayers,
+    shadowState?.enabled,
+    shadowState?.overrideBaseMapWithVectorStyle,
+  ]);
 
   const libreLayersRef = useRef(computedLibreLayers);
   return useMemo(() => {
