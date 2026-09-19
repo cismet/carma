@@ -92,6 +92,12 @@ export type ShadowSimulationState = ShadowRenderQualityOptions & {
   buildingColor: string;
   shadowQuality: ShadowQualityMultiplier;
   meshErrorTarget?: MeshErrorTargetPixels;
+  /**
+   * Replace the host's raster base maps with the vector base that can be
+   * draped on terrain and 3D models. Off by default: the simulation drapes
+   * whatever background is selected. Layers added on top are unaffected.
+   */
+  overrideBaseMapWithVectorStyle?: boolean;
   terrainErrorTarget?: MeshErrorTargetPixels;
   /** Optional explicit resident budget; absent uses the device default. */
   meshCacheBudgetBytes?: number;
