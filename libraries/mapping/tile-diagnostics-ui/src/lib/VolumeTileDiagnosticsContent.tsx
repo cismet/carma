@@ -212,7 +212,10 @@ export const createVolumeTileDiagnostics = (diagnostics: TileDiagnostics) => {
             hover={null}
             showFrustum={true}
             updateOnRender={true}
-            followCamera={false}
+            // The tile extent is the whole source; without following the
+            // camera its frustum is a few pixels wide in the overview.
+            followCamera={true}
+            followPaddingPercent={260}
           />
           {tileCount === 0 ? (
             <div

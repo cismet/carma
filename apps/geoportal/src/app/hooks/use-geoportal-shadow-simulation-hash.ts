@@ -143,7 +143,10 @@ export const useGeoportalShadowSimulationHash = ({
     if (
       shadowStateMatchesHashSelection(
         shadowState.enabled,
-        shadowDate,
+        {
+          ...shadowDate,
+          tileDiagnostics: shadowState.showTileDiagnostics === true,
+        },
         hashSelection
       )
     ) {
@@ -170,6 +173,7 @@ export const useGeoportalShadowSimulationHash = ({
   ]);
 
   const shadowEnabled = shadowState?.enabled;
+  const shadowTileDiagnostics = shadowState?.showTileDiagnostics === true;
   const shadowAnimating = shadowState?.isAnimating === true;
   const shadowMinutes = shadowDate?.minutes;
   const shadowDayOfYear = shadowDate?.dayOfYear;
@@ -189,7 +193,11 @@ export const useGeoportalShadowSimulationHash = ({
       if (
         !shadowStateMatchesHashSelection(
           shadowEnabled,
-          { minutes: shadowMinutes, dayOfYear: shadowDayOfYear },
+          {
+            minutes: shadowMinutes,
+            dayOfYear: shadowDayOfYear,
+            tileDiagnostics: shadowTileDiagnostics,
+          },
           hashSelection
         )
       ) {
@@ -207,6 +215,7 @@ export const useGeoportalShadowSimulationHash = ({
           minutes: shadowMinutes,
           dayOfYear: shadowDayOfYear,
         },
+        tileDiagnostics: shadowTileDiagnostics,
       })
     );
   }, [
@@ -217,5 +226,6 @@ export const useGeoportalShadowSimulationHash = ({
     shadowDayOfYear,
     shadowEnabled,
     shadowMinutes,
+    shadowTileDiagnostics,
   ]);
 };

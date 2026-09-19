@@ -9,6 +9,8 @@ import { clampShadowSimulationSelectionToDaylight } from "./solar-position";
 type ShadowSelection = Readonly<{
   minutes: number;
   dayOfYear: number;
+  /** Whether the shared link also opens the tile diagnostics. */
+  tileDiagnostics?: boolean;
 }>;
 
 export const shadowStateMatchesHashSelection = (
@@ -20,7 +22,9 @@ export const shadowStateMatchesHashSelection = (
     ? !enabled
     : enabled &&
       selection.minutes === hashSelection.minutes &&
-      selection.dayOfYear === hashSelection.dayOfYear;
+      selection.dayOfYear === hashSelection.dayOfYear &&
+      (selection.tileDiagnostics ?? false) ===
+        (hashSelection.tileDiagnostics ?? false);
 
 export const resolveShadowHashSelection = (
   selection: ShadowSelection | null,
@@ -41,6 +45,7 @@ export const resolveShadowHashSelection = (
     ? {
         minutes: daylightSelection.minutes,
         dayOfYear: daylightSelection.dayOfYear,
+        tileDiagnostics: selection.tileDiagnostics ?? false,
       }
     : null;
 };
@@ -50,6 +55,21 @@ export const applyShadowHashSelection = (
   dateState: ShadowDateState,
   selection: ShadowSelection | null
 ): { shadowState: ShadowSimulationState; dateState: ShadowDateState } => ({
-  shadowState: { ...shadowState, enabled: selection !== null },
-  dateState: selection ? { ...dateState, ...selection } : dateState,
+  shadowState: {
+    ...shadowState,
+    enabled: selection !== null,
+    // The link owns the overlay only while it carries a selection; without
+    // one there is nothing to restore and the current toggle stands.
+    ...(selection
+      ? { showTileDiagnostics: selection.tileDiagnostics === true }
+      : {}),
+  },
+  // Only the date fields of the selection belong to the date state.
+  dateState: selection
+    ? {
+        ...dateState,
+        minutes: selection.minutes,
+        dayOfYear: selection.dayOfYear,
+      }
+    : dateState,
 });
