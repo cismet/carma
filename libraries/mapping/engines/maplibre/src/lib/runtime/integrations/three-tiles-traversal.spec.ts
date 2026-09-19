@@ -20,6 +20,7 @@ import * as THREE from "three";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { buildThreeTilesRuntime } from "./three-tiles-runtime";
+import type { ThreeTilesRuntimeState } from "./three-tiles-runtime-context";
 
 vi.hoisted(() => {
   Object.defineProperty(URL, "createObjectURL", {
@@ -173,7 +174,8 @@ type Harness = {
 const createHarness = (
   buildTilesets: (
     tiles: HarnessRenderer
-  ) => Record<string, TilesetJson | (() => TilesetJson)>
+  ) => Record<string, TilesetJson | (() => TilesetJson)>,
+  runtimeOptions: Record<string, unknown> = {}
 ): Harness => {
   const frameCallbacks = new Map<number, FrameRequestCallback>();
   let nextHandle = 1;
@@ -219,7 +221,12 @@ const createHarness = (
     getZoom: () => 17,
     getPitch: () => 45,
   } as unknown as MaplibreMap;
-  const layer = buildThreeTilesRuntime("mesh", TILESET_URL, ORIGIN);
+  const layer = buildThreeTilesRuntime(
+    "mesh",
+    TILESET_URL,
+    ORIGIN,
+    runtimeOptions
+  );
   layer.scene.onAdd?.(map);
   expect(captured).toBeDefined();
   const tiles = captured!;
@@ -492,6 +499,91 @@ describe("three tiles traversal (D1 deferral)", () => {
     // The subtree structure satisfied the parent gate: the visible child shows.
     expect(tiles.root!.traversal.allChildrenLoaded).toBe(true);
     expect(names(tiles.visibleTiles)).toEqual(["near-west"]);
+  });
+
+  /**
+   * Zoom-in regression: from a coarse view the loader must refine to the next
+   * level once its family is loaded. The stall this covers kept the coarse
+   * parent published although every in-view child was loaded, so the staged
+   * target never advanced and the view stayed at the initial quality.
+   */
+  it("refines a coarse published parent once its loaded children cover the view", async () => {
+    const stubs: Record<string, TilesetJson> = {};
+    const childLayout: Array<[string, number, number]> = [
+      ["c-nw", -100, 100],
+      ["c-ne", 100, 100],
+      ["c-sw", -100, -100],
+      ["c-se", 100, -100],
+    ];
+    const children = childLayout.map(([name, cx, cz]) => {
+      // Each child refines through external tileset stubs, as the real mesh
+      // does: their documents stay unfetched while the child is displayable.
+      const grandchildren = [0, 1, 2, 3].map((index) => {
+        const uri = `${name}-${index}/tileset.json`;
+        stubs[`${BASE_URL}/${uri}`] = {
+          asset: { version: "1.0" },
+          geometricError: 4,
+          root: {
+            boundingVolume: sceneBox(cx, 0, cz, 100, 50, 100),
+            geometricError: 4,
+            refine: "REPLACE",
+            content: { uri: `${name}-${index}.b3dm` },
+          },
+        };
+        return {
+          boundingVolume: sceneBox(cx, 0, cz, 100, 50, 100),
+          geometricError: 8,
+          refine: "REPLACE" as const,
+          content: { uri },
+        };
+      });
+      return {
+        boundingVolume: sceneBox(cx, 0, cz, 100, 50, 100),
+        geometricError: 40,
+        refine: "REPLACE" as const,
+        content: { uri: `${name}.b3dm` },
+        children: grandchildren,
+      };
+    });
+    harness = createHarness(
+      (tiles) => ({
+        [TILESET_URL]: withOriginTransform(tiles, {
+          asset: { version: "1.0" },
+          geometricError: 400,
+          root: {
+            boundingVolume: sceneBox(0, 0, 0, 200, 50, 200),
+            geometricError: 400,
+            refine: "REPLACE",
+            content: { uri: "root.b3dm" },
+            children,
+          },
+        }),
+        ...stubs,
+      }),
+      { providesTerrain: true, baseErrorTargetPixels: 16, diagnostics: true }
+    );
+    const { tiles, layer } = harness;
+    layer.loading.setErrorTarget(6, 16);
+    await harness.runUntilSettled(createViewCamera(2_000));
+    const state = [
+      ...((
+        window as unknown as { __carmaTiles3d?: Set<ThreeTilesRuntimeState> }
+      ).__carmaTiles3d ?? []),
+    ].find((candidate) => candidate.layerId === "mesh")!;
+    expect(state).toBeDefined();
+    const displayed = () => names(state.displayedMeshFrontier);
+    // The coarse parent alone may hold the first cut.
+    expect(tiles.root).toBeTruthy();
+    // Refine: every child is loaded and in view, so the published cut must
+    // move down a level and the staged target must reach the requested one.
+    await harness.runUntilSettled(createViewCamera(2_000));
+    const cut = displayed();
+    // The coarse root no longer holds the surface and every published tile
+    // belongs to a refined family below it.
+    expect(cut).not.toContain("root");
+    expect(cut.length).toBeGreaterThanOrEqual(4);
+    expect(state.effectiveErrorTarget).toBeLessThanOrEqual(16);
+    expect(state.meshRefinementSupport.size).toBe(0);
   });
 
   it("requests margin siblings at low priority without deferring them", async () => {
