@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import * as THREE from "three";
-import { projectDiagnosticVolumes } from "./tile-diagnostic-capture";
-import type { SharedThreeSceneTileVolume } from "../../core/shared-three-scene-types";
+import {
+  buildVolumeOverlayModel,
+  projectDiagnosticVolumes,
+} from "./tile-diagnostic-volumes";
+import type { SharedThreeSceneTileVolume } from "../shared-three-scene-types";
 
 const frustumOf = (camera: THREE.Camera) => {
   camera.updateMatrixWorld(true);
@@ -79,5 +82,58 @@ describe("projectDiagnosticVolumes", () => {
     expect(rect.inView).toBe(true);
     expect(rect.inShadow).toBe(false);
     expect(rect.kind).toBe("resident");
+  });
+});
+
+describe("buildVolumeOverlayModel", () => {
+  const tiles = [
+    volume("west", [0, 0, 0], [100, 20, 100]),
+    volume("east", [100, 0, 0], [200, 30, 100], { state: "loading" }),
+  ];
+
+  it("frames a source that has no tile tree", () => {
+    const model = buildVolumeOverlayModel({
+      volumes: tiles,
+      camera: null,
+      shadowCamera: null,
+      width: 400,
+      height: 300,
+    });
+    if (!model) throw new Error("expected a model");
+    expect(model.rects).toEqual([]);
+    expect(model.volumes?.map((entry) => entry.id)).toEqual(["west", "east"]);
+    expect(model.volumes?.[1].kind).toBe("loading");
+    // The extent is the union of the boxes and stays inside the canvas.
+    expect(model.viewportBasis?.bounds).toEqual([0, 0, 0, 200, 30, 100]);
+    const extent = model.extent;
+    if (!extent) throw new Error("expected an extent");
+    expect(extent.x).toBeGreaterThanOrEqual(0);
+    expect(extent.x + extent.w).toBeLessThanOrEqual(400);
+    expect(extent.y + extent.h).toBeLessThanOrEqual(300);
+    // Live cameras project through the same screen basis as the boxes.
+    const [scale, screenX, screenY] = model.viewportBasis?.screen ?? [];
+    expect(scale * 200 + screenX).toBeCloseTo(extent.x + extent.w, 6);
+    expect(scale * 100 + screenY).toBeCloseTo(extent.y + extent.h, 6);
+  });
+
+  it("returns nothing without usable boxes or space to draw them", () => {
+    expect(
+      buildVolumeOverlayModel({
+        volumes: [],
+        camera: null,
+        shadowCamera: null,
+        width: 400,
+        height: 300,
+      })
+    ).toBeNull();
+    expect(
+      buildVolumeOverlayModel({
+        volumes: tiles,
+        camera: null,
+        shadowCamera: null,
+        width: 40,
+        height: 300,
+      })
+    ).toBeNull();
   });
 });
