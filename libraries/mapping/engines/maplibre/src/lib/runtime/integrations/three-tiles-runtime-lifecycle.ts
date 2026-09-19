@@ -1002,17 +1002,21 @@ export function createThreeTilesLifecycle(
           const visible = displayed.has(tile) || isUnderlay;
           const model = (tile as RuntimeTile).engineData?.scene;
           if (model) {
-            // Decision: base coverage owns the surface, the add-on only adds
-            // casters. Everything drawn in the view receives shadows, whether
-            // or not the corridor has committed it yet, so a published tile is
-            // never left unlit while its family is still being proven. Casters
-            // are the drawn set plus the corridor's own offscreen members.
+            // The receiver flag also gates colour and depth writes, so a mesh
+            // tile outside the corridor's committed cut would draw its plain
+            // surface over the corridor's shadowed pass. A terrain-providing
+            // runtime therefore keeps the corridor's own receiver and caster
+            // sets while a shadow view is active; every other runtime, LoD2
+            // among them, simply shows and receives what the view draws.
+            const corridorOwned =
+              runtimeState.shadowView !== null &&
+              runtimeState.options.providesTerrain;
             setTileShadowRole(model, {
-              receiver:
-                visible && dependencies.isTileInMainView(tile as RuntimeTile),
-              caster: runtimeState.shadowView
-                ? displayed.has(tile) ||
-                  runtimeState.committedMeshCasterFrontier.has(tile) ||
+              receiver: corridorOwned
+                ? runtimeState.committedMeshReceiverFrontier.has(tile)
+                : visible && dependencies.isTileInMainView(tile as RuntimeTile),
+              caster: corridorOwned
+                ? runtimeState.committedMeshCasterFrontier.has(tile) ||
                   dependencies.getTileCameraDemand(tile as RuntimeTile).required
                 : displayed.has(tile),
             });
