@@ -112,6 +112,8 @@ const DEFAULT_ERROR_TARGET_PIXELS = 2.5;
 // vertical DEM error bound. Refine the coverage-first cut to 16 px before
 // final-detail work; the very first coverage cut may intentionally be coarser.
 const INITIAL_ERROR_TARGET_PIXELS = 16;
+/** How long the view has to hold still before the configured target is used. */
+const MOTION_SETTLE_MS = 250;
 const DEFAULT_SHADOW_LEVEL_OFFSET = 2;
 const DEFAULT_MINIMUM_LEVEL = 8;
 const DEFAULT_MAX_SELECTION_TILES = 192;
@@ -153,6 +155,13 @@ export type RasterDemTerrainRuntimeOptions = Readonly<{
   /** Unlit per-tile observer SSE / target coloring; no additional geometry. */
   debugScreenError?: boolean;
   errorTargetPixels?: number;
+  /**
+   * Target to select with while the view keeps changing; the configured
+   * `errorTargetPixels` is reached once it settles. A fine target spends the
+   * whole tile budget on levels the next camera change discards, so the coarse
+   * ladder converges slower than it could. Omitted keeps one target always.
+   */
+  motionErrorTargetPixels?: number;
   shadowLevelOffset?: number;
   minimumLevel?: number;
   maximumLevel?: number;
@@ -412,6 +421,16 @@ export const buildRasterDemTerrainRuntime = (
     0.1,
     options.errorTargetPixels ?? DEFAULT_ERROR_TARGET_PIXELS
   );
+  const motionErrorTargetPixels =
+    options.motionErrorTargetPixels === undefined
+      ? null
+      : Math.max(0.1, options.motionErrorTargetPixels);
+  let motionSettleTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Coarse while the view is still moving, configured once it holds still. */
+  const effectiveErrorTargetPixels = () =>
+    motionErrorTargetPixels !== null && motionSettleTimer !== null
+      ? Math.max(errorTargetPixels, motionErrorTargetPixels)
+      : errorTargetPixels;
   const minimumLevel = clampInteger(
     options.minimumLevel,
     Math.max(DEFAULT_MINIMUM_LEVEL, terrainSourceConfig.minzoom),
@@ -1611,7 +1630,7 @@ export const buildRasterDemTerrainRuntime = (
       },
       knownHeightRanges,
       unknownHeightRange: unknownTerrainHeightRange,
-      errorTargetPixels,
+      errorTargetPixels: effectiveErrorTargetPixels(),
       shadowLevelOffset,
       minimumLevel,
       maximumLevel,
@@ -2780,6 +2799,17 @@ export const buildRasterDemTerrainRuntime = (
       if (inputSignature === selectionInputSignature) return;
       invalidateIdlePrefetch();
       selectionInputSignature = inputSignature;
+      if (motionErrorTargetPixels !== null) {
+        // The view changed: select coarse now and, once it stops changing,
+        // run one more cut at the configured target.
+        if (motionSettleTimer !== null) clearTimeout(motionSettleTimer);
+        motionSettleTimer = setTimeout(() => {
+          motionSettleTimer = null;
+          if (disposed) return;
+          selectionInputSignature = "";
+          map?.triggerRepaint();
+        }, MOTION_SETTLE_MS);
+      }
       if (typeof Worker === "undefined") {
         const selection = buildSelection(source, frame);
         const prefetchView = {
@@ -2864,6 +2894,8 @@ export const buildRasterDemTerrainRuntime = (
     dispose() {
       if (disposed) return;
       disposed = true;
+      if (motionSettleTimer !== null) clearTimeout(motionSettleTimer);
+      motionSettleTimer = null;
       heightMetadata.dispose();
       invalidateIdlePrefetch();
       map?.off?.(MAPLIBRE_EVENT.MOVE_START, handleIdlePrefetchMovement);

@@ -1638,3 +1638,39 @@ opens onto something.
 **Revisit when:** the corridor becomes a first-party camera member (Z4), or the
 volume overview needs the panels of the full debugger (queue, summary, LOD
 controls), which all read a `TilesRenderer` today.
+
+## Terrain target while the view moves
+
+**TERRAIN-MOTION-TARGET-20260919 / 2026-09-19 / accepted, not yet measured**
+
+**Context and constraints:** the shadow simulation configures the terrain at
+`errorTargetPixels: 0.5`, five times finer than the runtime default of 2.5 and
+finer than the mesh idle target, and that one target applies at every moment.
+Each new camera signature replans the whole ladder to 0.5 px, so tiles at the
+finest levels are requested, built (512-segment grids) and then discarded by
+the next camera change. The measured bottleneck in this path was geometry
+building, not the network, which is exactly the work a discarded fine tile
+wastes. Only the first cut of each selection is staged, at
+`INITIAL_ERROR_TARGET_PIXELS` (16 px).
+
+**Decision:** `motionErrorTargetPixels` (opt-in, unset keeps one target) is
+used while the view keeps changing; 250 ms after the last change the runtime
+clears its input signature and runs one more cut at the configured target. The
+geoportal sets 4 px for the shadow terrain, so the coarse ladder converges on
+the whole view during a move and the fine pass runs once, when it survives.
+
+**Alternatives and disposition:**
+- Raise the configured target from 0.5 px: *not evaluated*, and worth it — the
+  DEM's own resolution bounds the settled quality long before 0.5 px.
+- Relax by camera speed instead of a settle timer: *deferred*, a timer needs no
+  velocity model and the existing idle prefetch already keys on the same
+  "nothing changed" condition.
+- Reuse the mesh's motion prefetch: *incompatible by inspection*, it predicts a
+  future frustum for one tile pool and does not change any error target.
+
+**Evidence:** none yet beyond the two runtime specs that pin the mechanism
+(settle pass runs, and nothing extra happens when the option is unset). No
+end-to-end timing has been taken, so no speedup is claimed.
+
+**Revisit when:** a headless run measures time to a given terrain error with
+and without the motion target, or the configured 0.5 px target is revisited.

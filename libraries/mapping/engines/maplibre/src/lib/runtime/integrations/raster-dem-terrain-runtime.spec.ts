@@ -82,6 +82,9 @@ const terrainConfig = (url: string) => ({
   bounds: [-180, -85, 180, 85] as const,
 });
 
+/** The runtime settles after 250 ms; wait past it without coupling to timers. */
+const MOTION_SETTLE_WAIT_MS = 400;
+
 describe("buildRasterDemTerrainRuntime", () => {
   let fineBoundaryNormalBeforeSmoothing: Vector3 | null;
 
@@ -159,7 +162,11 @@ describe("buildRasterDemTerrainRuntime", () => {
     ).toThrow("Terrain bounds padding must be finite and non-negative");
   });
 
-  const createIdlePrefetchFixture = (name: string, maximumLevel = 10) => {
+  const createIdlePrefetchFixture = (
+    name: string,
+    maximumLevel = 10,
+    extraOptions: Record<string, unknown> = {}
+  ) => {
     const tileId = { level: 10, x: 532, y: 218 };
     const bounds = { west: 7, south: 51, east: 7.2, north: 51.3 };
     const makeTile = (id: TerrainTileId): TerrainTile => ({
@@ -203,6 +210,7 @@ describe("buildRasterDemTerrainRuntime", () => {
         errorTargetPixels: maximumLevel > 10 ? 1_000_000 : undefined,
         onContentChanged,
         onError,
+        ...extraOptions,
       }
     );
     const listeners = new Map<string, () => void>();
@@ -3442,5 +3450,38 @@ describe("buildRasterDemTerrainRuntime", () => {
       allIds.length
     );
     runtime.dispose();
+  });
+
+  it("holds the configured target back until the view settles", async () => {
+    // A fine target spends the tile budget on levels the next camera change
+    // discards. With a motion target the cut stays coarse while the view moves
+    // and one more cut runs at the configured target once it holds still.
+    const f = createIdlePrefetchFixture("motion-settle", 10, {
+      errorTargetPixels: 0.5,
+      motionErrorTargetPixels: 8,
+    });
+    await f.start();
+    const selections = () => f.source.getTileGridIdsForBounds.mock.calls.length;
+    const afterMove = selections();
+    // An unchanged view selects nothing new while the settle window runs.
+    f.runtime.update(f.frame);
+    expect(selections()).toBe(afterMove);
+    await new Promise((resolve) => setTimeout(resolve, MOTION_SETTLE_WAIT_MS));
+    f.runtime.update(f.frame);
+    expect(selections()).toBeGreaterThan(afterMove);
+    f.runtime.dispose();
+  });
+
+  it("keeps one target when no motion target is configured", async () => {
+    const f = createIdlePrefetchFixture("motion-off", 10, {
+      errorTargetPixels: 0.5,
+    });
+    await f.start();
+    const selections = () => f.source.getTileGridIdsForBounds.mock.calls.length;
+    const afterMove = selections();
+    await new Promise((resolve) => setTimeout(resolve, MOTION_SETTLE_WAIT_MS));
+    f.runtime.update(f.frame);
+    expect(selections()).toBe(afterMove);
+    f.runtime.dispose();
   });
 });
