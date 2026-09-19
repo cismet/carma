@@ -216,8 +216,10 @@ describe("live overview viewport", () => {
       [x0, y0, x1, y1].map((value) => value.toFixed(2)).join(":")
     );
     expect(new Set(keys).size).toBe(keys.length);
+    // Nothing collapses to a point, and short connectors survive: dropping
+    // them by length is what left the outline as loose strokes.
     expect(
-      segments.every(([x0, y0, x1, y1]) => Math.hypot(x1 - x0, y1 - y0) >= 0.5)
+      segments.every(([x0, y0, x1, y1]) => Math.hypot(x1 - x0, y1 - y0) > 0)
     ).toBe(true);
     // Both ends of the cut carry a crossing segment, so the outline closes.
     const span = (y: number) =>
