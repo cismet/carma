@@ -47,7 +47,7 @@ describe("initial shadow states", () => {
     expect(state.enabled).toBe(false);
     expect(state.buildingColorMix).toBe(0);
     expect(state.meshTextureColorCorrection).toBe(true);
-    expect(state.meshCacheBudgetBytes).toBe(24 * 1024 ** 3);
+    expect(state.meshCacheBudgetBytes).toBe(6 * 1024 ** 3);
     // Auto: the mesh tileset keeps its own target until overridden.
     expect(state.meshErrorTarget).toBeUndefined();
     expect(state.showDisplaySettings).toBe(false);

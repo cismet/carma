@@ -2,14 +2,25 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ShadowCorridorWatchdog } from "./shadow-corridor-watchdog";
 
 const page = {
-  id: "receiver-a", samples: 1, totalSamples: 64,
-  published: false, ready: true, width: 128, height: 256,
+  id: "receiver-a",
+  samples: 1,
+  totalSamples: 64,
+  published: false,
+  ready: true,
+  width: 128,
+  height: 256,
 };
 
-afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+afterEach(() => {
+  vi.useRealTimers();
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 describe("corridor stall reporting", () => {
-  it.each(["geoportal.wuppertal.de", "localhost.example.com", "192.168.1.2", undefined])(
+  // A private network address is a developer machine serving a phone on the
+  // same Wi-Fi, so it collects like localhost; only public hosts stay silent.
+  it.each(["geoportal.wuppertal.de", "localhost.example.com", undefined])(
     "does not collect or schedule performance reports on %s",
     (hostname) => {
       vi.useFakeTimers();
@@ -23,16 +34,21 @@ describe("corridor stall reporting", () => {
     }
   );
 
-  it.each(["localhost", "127.0.0.1", "[::1]"])("reports on loopback host %s", (hostname) => {
-    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "performance"] });
-    vi.stubGlobal("location", { hostname });
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const watchdog = new ShadowCorridorWatchdog();
-    watchdog.observe([page], {});
-    vi.advanceTimersByTime(20_000);
-    expect(warn).toHaveBeenCalledOnce();
-    watchdog.pause();
-  });
+  it.each(["localhost", "127.0.0.1", "[::1]"])(
+    "reports on loopback host %s",
+    (hostname) => {
+      vi.useFakeTimers({
+        toFake: ["setTimeout", "clearTimeout", "performance"],
+      });
+      vi.stubGlobal("location", { hostname });
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const watchdog = new ShadowCorridorWatchdog();
+      watchdog.observe([page], {});
+      vi.advanceTimersByTime(20_000);
+      expect(warn).toHaveBeenCalledOnce();
+      watchdog.pause();
+    }
+  );
   it("reports without another repaint, once per stalled progress stage", () => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "performance"] });
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
@@ -41,9 +57,16 @@ describe("corridor stall reporting", () => {
     vi.advanceTimersByTime(19_999);
     expect(warn).not.toHaveBeenCalled();
     vi.advanceTimersByTime(1);
-    expect(JSON.parse(warn.mock.calls[0][1])).toEqual(expect.objectContaining({
-      corridors: [expect.objectContaining({ id: expect.stringMatching(/^C\d+\.\d+$/), stalledMilliseconds: 20_000 })],
-    }));
+    expect(JSON.parse(warn.mock.calls[0][1])).toEqual(
+      expect.objectContaining({
+        corridors: [
+          expect.objectContaining({
+            id: expect.stringMatching(/^C\d+\.\d+$/),
+            stalledMilliseconds: 20_000,
+          }),
+        ],
+      })
+    );
     vi.advanceTimersByTime(40_000);
     expect(warn).toHaveBeenCalledOnce();
     watchdog.pause();
@@ -62,7 +85,9 @@ describe("corridor stall reporting", () => {
     const report = JSON.parse(warn.mock.calls[0][1]);
     expect(report.corridors[0].file).toBe("mesh_424760.b3dm");
     expect(report.scheduler.activeId).toBe(report.corridors[0].id);
-    expect(report.scheduler.publicationRetries[0].id).toBe(report.corridors[0].id);
+    expect(report.scheduler.publicationRetries[0].id).toBe(
+      report.corridors[0].id
+    );
     expect(warn.mock.calls[0][1]).not.toContain("https:");
     watchdog.pause();
   });
