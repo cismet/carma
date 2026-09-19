@@ -67,7 +67,12 @@ export const createVolumeTileDiagnostics = (diagnostics: TileDiagnostics) => {
     const liveCameras = useRef<readonly TileCameraSnapshot[]>([]);
     const [tileCount, setTileCount] = useState<number | null>(null);
     /** What each camera asks for: tiles cut by the view and by the corridor. */
-    const [demand, setDemand] = useState({ view: 0, corridor: 0, loading: 0 });
+    const [demand, setDemand] = useState({
+      view: 0,
+      corridor: 0,
+      loading: 0,
+      backlog: 0,
+    });
     /** Where the corridor looks, in overview coordinates: the sun's heading. */
     const [sunHeading, setSunHeading] = useState<number | null>(null);
     const [labels, setLabels] = useState<(typeof LABEL_MODES)[number]>("none");
@@ -356,7 +361,7 @@ export const createVolumeTileDiagnostics = (diagnostics: TileDiagnostics) => {
                 data-test-id="volume-tile-diagnostics-demand"
                 style={{ fontWeight: 400, opacity: 0.75, marginLeft: 6 }}
               >
-                {`Sicht ${demand.view} \u00b7 Korridor ${demand.corridor} \u00b7 Laden ${demand.loading}`}
+                {`Sicht ${demand.view} \u00b7 Korridor ${demand.corridor} \u00b7 Laden ${demand.loading} \u00b7 Ruckstand ${demand.backlog}`}
               </span>
             </span>
           }
