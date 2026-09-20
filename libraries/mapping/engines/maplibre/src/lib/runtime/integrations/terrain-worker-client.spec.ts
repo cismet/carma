@@ -133,7 +133,7 @@ describe("terrain worker queue", () => {
   });
 
   it.each(optionalCacheTasks)(
-    "releases an aborted $kind worker immediately for queued terrain",
+    "releases an aborted $kind worker before subsequent terrain",
     async (cacheTask) => {
       vi.spyOn(performance, "now").mockReturnValue(0);
       const { runTerrainWorkerTask, disposeTerrainWorkerPool } = await import(
@@ -145,14 +145,14 @@ describe("terrain worker queue", () => {
       const rejected = expect(optional).rejects.toMatchObject({
         name: "TimeoutError",
       });
-      const foreground = runTerrainWorkerTask(task());
-      const settled = vi.fn();
-      void foreground.then(settled);
       expect(TestWorker.instances).toHaveLength(2);
       const cacheWorker = TestWorker.instances[1];
       const lateReply = cacheWorker.onmessage!;
       controller.abort(new DOMException("Cache deadline", "TimeoutError"));
       await rejected;
+      const foreground = runTerrainWorkerTask(task());
+      const settled = vi.fn();
+      void foreground.then(settled);
 
       expect(cacheWorker.terminate).toHaveBeenCalledOnce();
       expect(TestWorker.instances[0].terminate).not.toHaveBeenCalled();
@@ -280,24 +280,24 @@ describe("terrain worker queue", () => {
     }
   );
 
-  it("never preempts terrain while the other slot performs optional cache I/O", async () => {
+  it("reclaims a cache slot without interrupting the other terrain worker", async () => {
     vi.spyOn(performance, "now").mockReturnValue(0);
     const { runTerrainWorkerTask, disposeTerrainWorkerPool } = await import(
       "./terrain-worker-client"
     );
     const busy = runTerrainWorkerTask(task());
     const optional = runTerrainWorkerTask(optionalCacheTasks[2]);
+    const rejected = expect(optional).rejects.toMatchObject({
+      name: "AbortError",
+    });
     const next = runTerrainWorkerTask(task());
-    expect(TestWorker.instances).toHaveLength(2);
-    expect(
-      TestWorker.instances.every(
-        (worker) => worker.terminate.mock.calls.length === 0
-      )
-    ).toBe(true);
+    expect(TestWorker.instances).toHaveLength(3);
+    expect(TestWorker.instances[0].terminate).not.toHaveBeenCalled();
+    expect(TestWorker.instances[1].terminate).toHaveBeenCalledOnce();
+    expect(TestWorker.instances[2].postMessage).toHaveBeenCalledWith(task());
     TestWorker.instances[0].respond();
-    TestWorker.instances[0].respond();
-    TestWorker.instances[1].respond();
-    await Promise.all([busy, optional, next]);
+    TestWorker.instances[2].respond();
+    await Promise.all([busy, rejected, next]);
     disposeTerrainWorkerPool();
   });
 

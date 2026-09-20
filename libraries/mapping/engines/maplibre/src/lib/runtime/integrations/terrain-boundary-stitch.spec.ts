@@ -355,7 +355,7 @@ describe("byte-bounded terrain boundary stitching", () => {
         { maximumInputBytes }
       );
       expect(
-        calls.filter(({ options }) => options.outputKeys?.length).length
+        calls.filter(({ options }) => options.applyBoundaryStates).length
       ).toBeGreaterThan(1);
       expect(calls.every(({ bytes }) => bytes <= maximumInputBytes)).toBe(true);
       expect(result.updates).toEqual(
@@ -412,6 +412,82 @@ describe("byte-bounded terrain boundary stitching", () => {
     expect(inputs[0].positions.buffer.byteLength).toBe(131_072);
   });
 
+  it("runs two independent batches concurrently and publishes the same complete cut", async () => {
+    const inputs = [grid(0, 0), grid(1, 0), grid(0, 1)];
+    let running = 0;
+    let peak = 0;
+    const result = await runBatchedTerrainBoundaryStitch(
+      inputs,
+      new Map(),
+      async (batch, options) => {
+        running += 1;
+        peak = Math.max(peak, running);
+        await Promise.resolve();
+        try {
+          return await execute(batch, options);
+        } finally {
+          running -= 1;
+        }
+      },
+      { maximumInputBytes: 1 }
+    );
+    expect(peak).toBe(2);
+    expect(result.updates).toEqual(
+      stitchTerrainBoundaries(structuredClone(inputs))
+    );
+  });
+
+  it.each([1, 4, 8])(
+    "allows %i independent batches without a two-worker gate",
+    async (concurrency) => {
+      const inputs = Array.from({ length: 12 }, (_, i) => grid(i, 0));
+      let running = 0,
+        peak = 0;
+      await runBatchedTerrainBoundaryStitch(
+        inputs,
+        new Map(),
+        async (batch, options) => {
+          peak = Math.max(peak, ++running);
+          await Promise.resolve();
+          try {
+            return await execute(batch, options);
+          } finally {
+            running--;
+          }
+        },
+        { maximumInputBytes: 1, concurrency }
+      );
+      expect(peak).toBe(concurrency);
+    }
+  );
+
+  it("applies solved boundaries only to selected transition tiles", async () => {
+    const inputs = [
+      grid(0, 0, 2, 1, 32),
+      grid(1, 0, 3, 0.5, 16),
+      grid(4, 4, 2, 1, 32),
+    ];
+    const targetKeys = new Set(inputs.slice(0, 2).map((input) => input.key));
+    const result = await runBatchedTerrainBoundaryStitch(
+      inputs,
+      new Map(),
+      async (batch, options) => {
+        if (options.applyBoundaryStates)
+          expect(batch.every((input) => targetKeys.has(input.key))).toBe(true);
+        return execute(batch, options);
+      },
+      { maximumInputBytes: 1, targetKeys }
+    );
+    expect(result.updates).toEqual(
+      stitchTerrainBoundaries(structuredClone(inputs)).filter((update) =>
+        targetKeys.has(update.key)
+      )
+    );
+    expect([...result.state.keys()].every((key) => targetKeys.has(key))).toBe(
+      true
+    );
+  });
+
   it("rejects stale work after a batch without returning a partial publication", async () => {
     const inputs = [grid(0, 0), grid(1, 0), grid(0, 1)];
     const original = structuredClone(inputs);
@@ -423,7 +499,7 @@ describe("byte-bounded terrain boundary stitching", () => {
       previous,
       async (batch, options) => {
         const result = await execute(batch, options);
-        if (options.outputKeys?.length) {
+        if (options.applyBoundaryStates) {
           outputBatches += 1;
           controller.abort(new DOMException("Stale terrain cut", "AbortError"));
         }
@@ -432,7 +508,7 @@ describe("byte-bounded terrain boundary stitching", () => {
       { maximumInputBytes: 1, signal: controller.signal }
     );
     await expect(pending).rejects.toThrow("Stale terrain cut");
-    expect(outputBatches).toBe(1);
+    expect(outputBatches).toBe(2);
     expect(previous.size).toBe(0);
     expect(inputs).toEqual(original);
   });

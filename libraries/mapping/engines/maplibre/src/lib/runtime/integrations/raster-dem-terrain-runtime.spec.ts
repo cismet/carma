@@ -190,7 +190,7 @@ describe("buildRasterDemTerrainRuntime", () => {
         makeTile(id)
       ),
       getTileGridIdsForBounds: vi.fn(() => [tileId]),
-      getTileBounds: vi.fn(() => bounds),
+      getTileBounds: vi.fn((_id: TerrainTileId) => bounds),
       getLevelMaximumGeometricError: vi.fn(() => 0.01),
       getTileDataAvailable: vi.fn(() => true),
       sampleHeight: vi.fn(() => 100),
@@ -318,6 +318,82 @@ describe("buildRasterDemTerrainRuntime", () => {
     }
   });
 
+  it("keeps published coverage but stops optional warming when the byte budget is full", async () => {
+    const f = createIdlePrefetchFixture("byte-budget", 12, {
+      maxCachedMeshBytes: 1,
+    });
+    try {
+      await f.start();
+      await vi.waitFor(() => expect(f.source.trimCache).toHaveBeenCalled());
+      const visible = f.runtime.root.children.filter((node) => node.visible);
+      expect(visible.length).toBeGreaterThan(0);
+      const [camera] = snapshotTileCameraViews([
+        {
+          id: "focus",
+          camera: new Camera(),
+          viewport: [128, 128],
+          errorTargetPixels: 2,
+          role: TILE_CAMERA_ROLE.GEOMETRY,
+        },
+      ]);
+      const bounds = getTileBounds({ level: 10, x: 532, y: 218 });
+      await f.runtime.prefetchZoom!(
+        {
+          camera,
+          lngLat: [
+            (bounds.west + bounds.east) / 2,
+            (bounds.south + bounds.north) / 2,
+          ],
+          levels: 2,
+        },
+        new AbortController().signal
+      );
+      expect(f.source.requestTile).toHaveBeenCalledTimes(1);
+      expect(f.runtime.root.children.filter((node) => node.visible)).toEqual(
+        visible
+      );
+    } finally {
+      f.runtime.dispose();
+    }
+  });
+
+  it("evicts optional geometry that exceeds the byte budget without disturbing coverage", async () => {
+    const f = createIdlePrefetchFixture("byte-eviction", 12, {
+      maxCachedMeshBytes: 600,
+    });
+    try {
+      await f.start();
+      await vi.waitFor(() => expect(f.source.trimCache).toHaveBeenCalledOnce());
+      const previous = [...f.runtime.root.children];
+      const [camera] = snapshotTileCameraViews([
+        {
+          id: "focus",
+          camera: new Camera(),
+          viewport: [128, 128],
+          errorTargetPixels: 2,
+          role: TILE_CAMERA_ROLE.GEOMETRY,
+        },
+      ]);
+      const bounds = getTileBounds({ level: 10, x: 532, y: 218 });
+      await f.runtime.prefetchZoom!(
+        {
+          camera,
+          lngLat: [
+            (bounds.west + bounds.east) / 2,
+            (bounds.south + bounds.north) / 2,
+          ],
+          levels: 1,
+        },
+        new AbortController().signal
+      );
+      expect(f.source.requestTile).toHaveBeenCalledTimes(2);
+      expect(f.runtime.root.children).toEqual(previous);
+      expect(previous.some((node) => node.visible)).toBe(true);
+    } finally {
+      f.runtime.dispose();
+    }
+  });
+
   it("does not start focus warming after zoomend", async () => {
     const f = createIdlePrefetchFixture("zoom-cancelled", 12);
     try {
@@ -344,49 +420,19 @@ describe("buildRasterDemTerrainRuntime", () => {
     }
   });
 
-  it("retries a failed publication at the unchanged view while retaining the previous cut", async () => {
-    const f = createIdlePrefetchFixture("publication-retry");
-    const run = terrainWorkers.runTerrainWorkerTask;
-    let failStitch = false;
-    const failure = new Error("Terrain worker timed out during stitching");
-    const worker = vi
-      .spyOn(terrainWorkers, "runTerrainWorkerTask")
-      .mockImplementation((task, signal) => {
-        if (task.kind === "stitch" && failStitch) {
-          failStitch = false;
-          return Promise.reject(failure);
-        }
-        return run(task, signal);
-      });
+  it("publishes same-level terrain without scheduling optional stitching", async () => {
+    const f = createIdlePrefetchFixture("same-level-no-stitch");
+    const worker = vi.spyOn(terrainWorkers, "runTerrainWorkerTask");
     try {
       await f.start();
       await vi.waitFor(() => expect(f.source.trimCache).toHaveBeenCalledOnce());
-      const retained = f.runtime.root.children.filter((node) => node.visible);
-      expect(retained.length).toBeGreaterThan(0);
+      expect(f.runtime.root.children.some((node) => node.visible)).toBe(true);
+      expect(f.runtime.getRequestDemand?.()).toBe(0);
       vi.useFakeTimers();
-      failStitch = true;
-      f.source.getTileGridIdsForBounds.mockReturnValue([
-        { level: 10, x: 533, y: 218 },
-      ]);
-      f.frame.lodCamera.position.x += 10;
-      f.runtime.update(f.frame);
-      await vi.waitFor(() => expect(f.onError).toHaveBeenCalledWith(failure));
-      expect(f.runtime.root.children.filter((node) => node.visible)).toEqual(
-        retained
+      await vi.advanceTimersByTimeAsync(1000);
+      expect(worker.mock.calls.some(([task]) => task.kind === "stitch")).toBe(
+        false
       );
-      const downloads = f.source.requestTile.mock.calls.length;
-      f.map.triggerRepaint.mockClear();
-      await vi.advanceTimersByTimeAsync(1600);
-      expect(f.map.triggerRepaint).toHaveBeenCalled();
-      // The retry wake-up redraws the exact same camera; no input event helps it.
-      f.runtime.update(f.frame);
-      await vi.waitFor(() =>
-        expect(f.source.trimCache).toHaveBeenCalledTimes(2)
-      );
-      expect(
-        f.runtime.root.children.filter((node) => node.visible).length
-      ).toBeGreaterThan(retained.length);
-      expect(f.source.requestTile).toHaveBeenCalledTimes(downloads);
     } finally {
       f.runtime.dispose();
       worker.mockRestore();
@@ -1717,6 +1763,26 @@ describe("buildRasterDemTerrainRuntime", () => {
   });
 
   it("interpolates coarse neighbor normals", async () => {
+    const run = terrainWorkers.runTerrainWorkerTask;
+    let releaseStitch: (() => void) | undefined;
+    const stitchGate = new Promise<void>((resolve) => {
+      releaseStitch = resolve;
+    });
+    let stitchStarted = false;
+    const worker = vi
+      .spyOn(terrainWorkers, "runTerrainWorkerTask")
+      .mockImplementation(async (task, signal) => {
+        if (
+          task.kind === "stitch" &&
+          !task.sameLevelOnly &&
+          !task.prepareEqualLevelShells
+        ) {
+          stitchStarted = true;
+          await stitchGate;
+        }
+        return run(task, signal);
+      });
+
     const coarseId = { level: 10, x: 532, y: 218 };
     const fineParentId = { level: 10, x: 533, y: 218 };
     const fineId = { level: 11, x: 1066, y: 436 };
@@ -1873,8 +1939,14 @@ describe("buildRasterDemTerrainRuntime", () => {
         child.name.endsWith("11/1066/436")
       ) as Group
     ).children[0] as Mesh;
-    // ready means first visible terrain, not completion of the asynchronous
-    // worker seam pass. Wait for the final geometry to be published.
+    await vi.waitFor(() => expect(source.trimCache).toHaveBeenCalled());
+    await vi.waitFor(() => expect(stitchStarted).toBe(true));
+    expect(runtime.getRequestDemand?.()).toBe(0);
+    expect(fineMesh.parent!.visible).toBe(true);
+    // Even an indefinitely delayed stitch cannot gate detail or readiness.
+    releaseStitch!();
+    worker.mockRestore();
+    // Wait only here for the optional correction, not for terrain publication.
     await vi.waitFor(() =>
       expect(fineMesh.geometry.getAttribute("position").getY(0)).toBe(0)
     );
@@ -2214,8 +2286,11 @@ describe("buildRasterDemTerrainRuntime", () => {
         ) as Group
       ).children[0] as Mesh
     ).geometry.getAttribute("normal");
-    expect(viewportNormal.getX(2)).toBeCloseTo(occluderNormal.getX(0));
-    expect(viewportNormal.getY(2)).toBeCloseTo(occluderNormal.getY(0));
+    // The shared vertex includes two flat faces and one sloped face.
+    expect(viewportNormal.getX(2)).toBeCloseTo(-1 / Math.sqrt(10));
+    expect(viewportNormal.getY(2)).toBeCloseTo(3 / Math.sqrt(10));
+    expect(occluderNormal.getX(0)).toBe(viewportNormal.getX(2));
+    expect(occluderNormal.getY(0)).toBe(viewportNormal.getY(2));
 
     runtime.dispose();
     expect(runtime.root.children).toHaveLength(0);

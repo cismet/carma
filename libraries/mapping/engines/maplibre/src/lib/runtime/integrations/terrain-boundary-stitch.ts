@@ -1,3 +1,7 @@
+import {
+  prepareEqualLevelTerrainShell,
+  stitchEqualLevelTerrainBoundaries,
+} from "./terrain-equal-level-boundaries";
 import { BufferAttribute, BufferGeometry, Vector3 } from "three";
 import { clamp } from "@carma-commons/math";
 import { computeMeshVertexNormals } from "@carma-mapping/engines/three/primitives/core";
@@ -133,6 +137,8 @@ const interpolateTerrainBoundaryHeight = (
 };
 
 export type TerrainStitchInput = {
+  sourceIndices?: Uint32Array;
+  normalTargets?: Uint32Array;
   key: string;
   id: TerrainTileId;
   positions: Float32Array;
@@ -143,11 +149,15 @@ export type TerrainStitchInput = {
 };
 
 export type TerrainBoundaryStitchOptions = {
+  sameLevelOnly?: boolean;
+  prepareEqualLevelShells?: boolean;
   outputKeys?: string[];
   captureBoundaryState?: boolean;
   prepareShellKeys?: string[];
   probeOnly?: boolean;
   prepareOnly?: boolean;
+  /** Reuse the solved shell boundary state; do not solve the whole cut per output. */
+  applyBoundaryStates?: Record<string, Float32Array>;
 };
 
 export const stitchTerrainBoundaries = (
@@ -823,6 +833,88 @@ export const executeTerrainBoundaryStitch = (
   inputs: TerrainStitchInput[],
   options: TerrainBoundaryStitchOptions = {}
 ) => {
+  if (options.prepareEqualLevelShells)
+    return { updates: [], shells: inputs.map(prepareEqualLevelTerrainShell) };
+  if (options.sameLevelOnly)
+    return {
+      updates: stitchEqualLevelTerrainBoundaries(
+        inputs,
+        options.outputKeys ? new Set(options.outputKeys) : undefined
+      ),
+    };
+  if (options.applyBoundaryStates) {
+    const states = options.applyBoundaryStates;
+    const updates: TerrainStitchUpdate[] = inputs.map((input) => {
+      const state = states[input.key];
+      if (!state) throw new Error("Missing solved terrain boundary state");
+      const boundary = [
+        ...new Set(
+          Object.values(input.boundaryEdges).flatMap((edge) => [...edge])
+        ),
+      ].sort((a, b) => a - b);
+      const geometry = new BufferGeometry();
+      geometry.setAttribute(
+        "position",
+        new BufferAttribute(input.positions, 3)
+      );
+      geometry.setAttribute("normal", new BufferAttribute(input.normals, 3));
+      geometry.setIndex(new BufferAttribute(input.indices, 1));
+      const position = geometry.getAttribute("position");
+      // Interior normals depend on heights before the final coarse-edge snap.
+      // The existing boundary-state format records that exact intermediate step.
+      boundary.forEach((index, ordinal) =>
+        position.setY(index, state[ordinal])
+      );
+      computeMeshVertexNormals(geometry);
+      const normal = geometry.getAttribute("normal");
+      let cursor = boundary.length;
+      for (const index of boundary) {
+        position.setXYZ(
+          index,
+          state[cursor++],
+          state[cursor++],
+          state[cursor++]
+        );
+        normal.setXYZ(index, state[cursor++], state[cursor++], state[cursor++]);
+      }
+      const subdivisions: TerrainEdgeSubdivision[] = [];
+      const count = state[cursor++];
+      for (let i = 0; i < count; i++) {
+        const a = boundary[state[cursor++]],
+          b = boundary[state[cursor++]];
+        const vertexCount = state[cursor++];
+        const vertices: TerrainEdgeSubdivision["vertices"] = [];
+        for (let j = 0; j < vertexCount; j++) {
+          vertices.push({
+            position: Array.from(state.subarray(cursor, cursor + 3)),
+            normal: Array.from(state.subarray(cursor + 3, cursor + 6)),
+          });
+          cursor += 6;
+        }
+        subdivisions.push({ a, b, vertices });
+      }
+      refineTerrainBoundaryTriangles(geometry, subdivisions);
+      geometry.computeBoundingBox();
+      geometry.computeBoundingSphere();
+      const result = {
+        key: input.key,
+        positions: geometry.getAttribute("position").array as Float32Array,
+        normals: geometry.getAttribute("normal").array as Float32Array,
+        indices: geometry.index!.array as Uint16Array | Uint32Array,
+        box: {
+          min: geometry.boundingBox!.min.toArray(),
+          max: geometry.boundingBox!.max.toArray(),
+        },
+        sphere: {
+          center: geometry.boundingSphere!.center.toArray(),
+          radius: geometry.boundingSphere!.radius,
+        },
+      };
+      geometry.dispose();
+      return result;
+    });
+    return { updates };
+  }
   const prepare = new Set(options.prepareShellKeys);
   const shells = inputs
     .filter((input) => prepare.has(input.key))
@@ -926,9 +1018,15 @@ export const runBatchedTerrainBoundaryStitch = async (
   {
     signal,
     maximumInputBytes = 16 * 1024 * 1024,
+    concurrency = 2,
+    targetKeys,
+    forceOutput = false,
   }: {
     signal?: AbortSignal;
     maximumInputBytes?: number;
+    concurrency?: number;
+    targetKeys?: ReadonlySet<string>;
+    forceOutput?: boolean;
   } = {}
 ) => {
   const run = async (
@@ -965,8 +1063,10 @@ export const runBatchedTerrainBoundaryStitch = async (
   // Preserve the one-pass cold-start path for small cuts; no need to send each
   // full geometry twice when the complete immutable input already fits.
   if (
+    !targetKeys &&
+    !forceOutput &&
     inputs.reduce((sum, input) => sum + stitchInputBytes(input), 0) <=
-    maximumInputBytes
+      maximumInputBytes
   ) {
     const probe = await run(plan.probeInputs, {
       captureBoundaryState: true,
@@ -982,16 +1082,41 @@ export const runBatchedTerrainBoundaryStitch = async (
     return { updates: result.updates, state: work.state };
   }
 
+  // Keep enough independent work queued for the adaptive worker pool to probe
+  // throughput. Divide the clone budget across its maximum useful width.
+  concurrency = Math.max(1, Math.min(8, Math.floor(concurrency) || 1));
+  maximumInputBytes = Math.max(1, Math.floor(maximumInputBytes / concurrency));
+  const parallelBatches = async <T, R>(
+    items: T[],
+    executeBatch: (item: T) => Promise<R>
+  ) => {
+    const results: R[] = new Array(items.length);
+    let next = 0;
+    await Promise.all(
+      Array.from({ length: Math.min(concurrency, items.length) }, async () => {
+        while (next < items.length) {
+          signal?.throwIfAborted();
+          const index = next++;
+          results[index] = await executeBatch(items[index]);
+        }
+      })
+    );
+    return results;
+  };
   const newKeys = new Set(plan.prepareShellKeys);
   const shells = new Map<string, TerrainStitchInput>();
-  for (const batch of batches(
-    inputs.filter((input) => newKeys.has(input.key)),
-    stitchInputBytes
-  )) {
-    const prepared = await run(batch, {
-      prepareShellKeys: batch.map((input) => input.key),
-      prepareOnly: true,
-    });
+  const preparedBatches = await parallelBatches(
+    batches(
+      inputs.filter((input) => newKeys.has(input.key)),
+      stitchInputBytes
+    ),
+    (batch) =>
+      run(batch, {
+        prepareShellKeys: batch.map((input) => input.key),
+        prepareOnly: true,
+      })
+  );
+  for (const prepared of preparedBatches) {
     for (const shell of prepared.shells ?? []) shells.set(shell.key, shell);
   }
   const context = plan.probeInputs.map(
@@ -999,29 +1124,31 @@ export const runBatchedTerrainBoundaryStitch = async (
   );
   const probe = await run(context, { captureBoundaryState: true });
   const work = plan.resolve(probe.updates, [...shells.values()]);
-  const contextByKey = new Map(context.map((input) => [input.key, input]));
-  const outputKeys = new Set(work.outputKeys);
-  const updates: TerrainStitchUpdate[] = [];
-  const contextBytes = context.reduce(
-    (sum, input) => sum + stitchInputBytes(input),
-    0
+  const outputKeys = new Set(
+    forceOutput ? inputs.map((input) => input.key) : work.outputKeys
   );
-  const outputs = work.inputs.filter((input) => outputKeys.has(input.key));
-  for (const batch of batches(
-    outputs,
+  const updates: TerrainStitchUpdate[] = [];
+  const outputs = (forceOutput ? inputs : work.inputs).filter(
     (input) =>
-      Math.max(
-        0,
-        stitchInputBytes(input) - stitchInputBytes(contextByKey.get(input.key)!)
-      ),
-    contextBytes
-  )) {
-    const fullByKey = new Map(batch.map((input) => [input.key, input]));
-    const result = await run(
-      context.map((input) => fullByKey.get(input.key) ?? input),
-      { outputKeys: batch.map((input) => input.key) }
-    );
-    updates.push(...result.updates);
-  }
-  return { updates, state: work.state };
+      outputKeys.has(input.key) && (!targetKeys || targetKeys.has(input.key))
+  );
+  // Solve shared boundary relationships once, then apply independently per tile.
+  // No full-cut context is cloned or recalculated for each output batch.
+  const states = new Map(
+    probe.updates.map((update) => [update.key, update.boundaryState!])
+  );
+  const outputBatches = await parallelBatches(
+    batches(outputs, stitchInputBytes),
+    (batch) =>
+      run(batch, {
+        applyBoundaryStates: Object.fromEntries(
+          batch.map((input) => [input.key, states.get(input.key)!])
+        ),
+      })
+  );
+  for (const result of outputBatches) updates.push(...result.updates);
+  const state = targetKeys
+    ? new Map([...work.state].filter(([key]) => targetKeys.has(key)))
+    : work.state;
+  return { updates, state };
 };

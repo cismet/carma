@@ -1,3 +1,4 @@
+import { prepareCachedEqualLevelTerrainShell } from "./terrain-edge-topology-cache";
 import { MercatorCoordinate } from "maplibre-gl";
 import { BufferAttribute, BufferGeometry } from "three";
 import { partitionNoDataTerrainGeometry } from "./terrain-no-data";
@@ -65,6 +66,9 @@ export type TerrainWorkerTask =
     }
   | {
       kind: "stitch";
+      sameLevelOnly?: boolean;
+      prepareEqualLevelShells?: boolean;
+      applyBoundaryStates?: Record<string, Float32Array>;
       inputs: TerrainStitchInput[];
       outputKeys?: string[];
       captureBoundaryState?: boolean;
@@ -171,6 +175,14 @@ export const executeTerrainWorkerTask = async (
       reliefVertexMask: partition.reliefVertexMask,
     };
   }
+  if (task.kind === "stitch" && task.prepareEqualLevelShells)
+    return {
+      kind: "stitch" as const,
+      updates: [] as ReturnType<typeof executeTerrainBoundaryStitch>["updates"],
+      shells: await Promise.all(
+        task.inputs.map(prepareCachedEqualLevelTerrainShell)
+      ),
+    };
   if (task.kind === "stitch")
     return {
       kind: "stitch" as const,
@@ -287,6 +299,8 @@ export const terrainResultTransfers = (
           ]),
           ...(result.shells ?? []).flatMap((shell) =>
             [
+              ...(shell.sourceIndices ? [shell.sourceIndices] : []),
+              ...(shell.normalTargets ? [shell.normalTargets] : []),
               shell.positions,
               shell.normals,
               shell.indices,

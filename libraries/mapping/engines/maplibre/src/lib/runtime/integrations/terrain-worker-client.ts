@@ -115,21 +115,23 @@ const pump = () => {
         );
         // A cache miss may precede a slow download. When that source finally
         // needs conversion, no further read deadline exists to free hung IDB
-        // workers. Sacrifice at most one optional cache offer per pump, and only
-        // if every busy worker is cache I/O. Calibration is optional too: a
+        // workers. Sacrifice at most one optional cache offer per pump, even
+        // when another worker is computing terrain. Calibration is optional: a
         // cooperative abort alone cannot release a hung native storage call.
         // Worker termination aborts uncommitted IDB transactions/releases locks;
         // ordinary terrain work is never killed by this scheduling decision.
         if (
           preemptedCacheWorker ||
           foregroundIndex === -1 ||
-          !running.every((slot) => isOptionalCacheTask(slot.job!.task))
+          !running.some((slot) => isOptionalCacheTask(slot.job!.task))
         )
           return;
-        const victim = [...running].sort(
-          (a, b) =>
-            TASK_PRIORITY[b.job!.task.kind] - TASK_PRIORITY[a.job!.task.kind]
-        )[0];
+        const victim = running
+          .filter((slot) => isOptionalCacheTask(slot.job!.task))
+          .sort(
+            (a, b) =>
+              TASK_PRIORITY[b.job!.task.kind] - TASK_PRIORITY[a.job!.task.kind]
+          )[0];
         preemptedCacheWorker = true;
         victim.job!.reject(
           new DOMException("Cache yielded to visible terrain", "AbortError")
