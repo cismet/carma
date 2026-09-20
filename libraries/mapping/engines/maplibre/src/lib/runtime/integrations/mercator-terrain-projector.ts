@@ -14,6 +14,9 @@ export const createMercatorTerrainProjector = (origin: MercatorCoordinate) => {
     number,
     Readonly<{ northing: number; heightScale: number }>
   >();
+  // Native rasters arrive row-major; avoid hashing the same latitude per vertex.
+  let lastLatitude: number | undefined;
+  let lastRow: Readonly<{ northing: number; heightScale: number }> | undefined;
   return (
     longitude: number,
     latitude: number,
@@ -27,7 +30,7 @@ export const createMercatorTerrainProjector = (origin: MercatorCoordinate) => {
         meterScale;
       columns.set(longitude, easting);
     }
-    let row = rows.get(latitude);
+    let row = latitude === lastLatitude ? lastRow : rows.get(latitude);
     if (!row) {
       const coordinate = MercatorCoordinate.fromLngLat([0, latitude], 1);
       row = {
@@ -36,6 +39,8 @@ export const createMercatorTerrainProjector = (origin: MercatorCoordinate) => {
       };
       rows.set(latitude, row);
     }
+    lastLatitude = latitude;
+    lastRow = row;
     return target.set(
       easting,
       height * row.heightScale - originHeight,

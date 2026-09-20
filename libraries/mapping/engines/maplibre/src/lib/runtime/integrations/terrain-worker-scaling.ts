@@ -24,6 +24,7 @@ export const getTerrainTaskWork = (task: TerrainWorkerTask): number => {
     case "partition":
       return task.heights.length;
     case "stitch":
+      if (task.prepareEqualLevelShells) return 0;
       return task.inputs.reduce(
         (sum, input) => sum + input.positions.length / 3,
         0

@@ -1,3 +1,4 @@
+import { getWorkerProbeLimit } from "@carma-commons/worker-scaling";
 import { MercatorCoordinate } from "maplibre-gl";
 import type { Map as MaplibreMap } from "maplibre-gl";
 import {
@@ -41,7 +42,6 @@ import {
   registerSharedThreeTerrainSampler,
   setSharedThreeTerrainLoading,
 } from "./shared-three-terrain-registry";
-import { createProjectedTerrainGeometryCache } from "./projected-terrain-geometry-cache";
 import { createTerrainHeightMetadataIndex } from "./terrain-height-metadata-index";
 import { MAPLIBRE_EVENT } from "../../../constants/mapEvents";
 import {
@@ -53,6 +53,7 @@ import {
 import {
   runBatchedTerrainBoundaryStitch,
   type TerrainBoundaryStitchState,
+  type TerrainStitchInput,
 } from "./terrain-boundary-stitch";
 import { runTerrainWorkerTask } from "./terrain-worker-client";
 import type { TerrainWorkerResult } from "./terrain-worker-task";
@@ -169,6 +170,8 @@ export type RasterDemTerrainRuntimeOptions = Readonly<{
   requestConcurrency?: number;
   maxCacheBytes?: number;
   maxCachedMeshes?: number;
+  /** Prepared CPU/GPU cache budget; published and requested coverage stays pinned. */
+  maxCachedMeshBytes?: number;
   /** Number of height-grid segments per tile used by the Three.js terrain. */
   meshSegments?: number;
   /** Additional reconstruction residual; source-LOD pixel spacing is separate. */
@@ -229,6 +232,8 @@ export interface RasterDemTerrainRuntime extends SharedThreeSceneRuntime {
 }
 
 type TerrainMeshRecord = {
+  equalLevelShell?: TerrainStitchInput;
+  equalLevelSignature?: string;
   debugMaterial?: MeshLambertMaterial;
   node: Group;
   reliefMesh: Mesh | null;
@@ -240,6 +245,7 @@ type TerrainMeshRecord = {
   } | null;
   boundaryEdges: TerrainBoundaryEdges;
   boundaryBaseHeights: Record<TerrainBoundarySide, Float32Array>;
+  sourceByteLength: number;
   lastUsed: number;
   id: TerrainTileId;
   heightBounds: TerrainTileBounds | null;
@@ -469,6 +475,11 @@ export const buildRasterDemTerrainRuntime = (
     DEFAULT_MAX_CACHED_MESHES,
     1
   );
+  const maxCachedMeshBytes = clampInteger(
+    options.maxCachedMeshBytes,
+    256 * 1024 * 1024,
+    1
+  );
   if (
     options.noDataHeightMeters !== undefined &&
     !Number.isFinite(options.noDataHeightMeters)
@@ -502,12 +513,6 @@ export const buildRasterDemTerrainRuntime = (
   const meterScale = origin.meterInMercatorCoordinateUnits();
   const maximumMeshErrorMeters = resolveRasterMeshErrorMeters(
     options.maximumMeshErrorMeters
-  );
-  const projectedGeometryCache = createProjectedTerrainGeometryCache(
-    JSON.stringify([terrainSourceConfig, maximumMeshErrorMeters]),
-    originLngLat,
-    noDataHeightMeters,
-    producerAssetUrl
   );
   const heightMetadata = createTerrainHeightMetadataIndex(
     JSON.stringify([terrainSourceConfig, noDataHeightMeters]),
@@ -645,6 +650,7 @@ export const buildRasterDemTerrainRuntime = (
     idlePrefetchSelection = null;
   };
   const handleIdlePrefetchMovement = () => {
+    cancelIdleStitch();
     invalidateIdlePrefetch();
     // Reconfirm even when a gesture ends at the same camera/cut.
     selectionInputSignature = "";
@@ -656,6 +662,7 @@ export const buildRasterDemTerrainRuntime = (
 
   /** The gesture ended: settle, then cut once at the configured target. */
   const handleMovementEnd = () => {
+    scheduleIdleStitch();
     if (motionErrorTargetPixels === null) return;
     if (motionSettleTimer !== null) clearTimeout(motionSettleTimer);
     motionSettleTimer = setTimeout(() => {
@@ -682,6 +689,22 @@ export const buildRasterDemTerrainRuntime = (
     resolveReady = resolve;
   });
 
+  // Explicitly request durable browser retention after the first usable cut;
+  // storage permission and persistence never gate terrain or shadow readiness.
+  void ready.then(async (loaded) => {
+    if (!loaded || disposed || typeof navigator === "undefined") return;
+    try {
+      const storage = navigator.storage;
+      if (
+        typeof storage?.persisted === "function" &&
+        typeof storage.persist === "function" &&
+        !(await storage.persisted())
+      )
+        await storage.persist();
+    } catch {
+      /* Browser storage remains an optional acceleration. */
+    }
+  });
   const settleReady = (loaded: boolean) => {
     if (readySettled) return;
     readySettled = true;
@@ -791,30 +814,11 @@ export const buildRasterDemTerrainRuntime = (
     entry: TerrainSelectionEntry,
     signal = conversionAbort.signal
   ) => {
+    // Preserve the asynchronous dispatch boundary previously supplied by the
+    // disk lookup: readiness consumers and cancellation run before caster work.
+    await Promise.resolve();
     signal.throwIfAborted();
     const statsKey = terrainSelectionKey(entry);
-    markTileStage(statsKey, "Cache");
-    const cached = await projectedGeometryCache.get(
-      entry.id,
-      maximumMeshErrorMeters
-    );
-    if (signal.aborted) {
-      cached?.geometry?.dispose();
-      signal.throwIfAborted();
-    }
-    if (cached) {
-      markTileStage(statsKey, null);
-      const cachedStats = tileStats.get(statsKey);
-      if (cachedStats)
-        cachedStats.bytes =
-          cached.tile.payloadByteLength ?? cached.tile.byteLength;
-      heightMetadata.record(cached.tile);
-      return {
-        tile: cached.tile,
-        projectedGeometry: cached.geometry,
-        reliefVertexMask: cached.reliefVertexMask,
-      };
-    }
     let tile: TerrainTile;
     markTileStage(statsKey, null);
     const requestStart = performance.now();
@@ -852,9 +856,6 @@ export const buildRasterDemTerrainRuntime = (
     }
     signal.throwIfAborted();
     heightMetadata.record(tile);
-    // Exclude download and source-cache lookup: persistent derived geometry
-    // must compete with the locally available source, not a slow network.
-    const computeStart = performance.now();
     markTileStage(statsKey, "Projizieren");
     const projectedGeometry = await createProjectedGeometry(tile, signal);
     markTileStage(statsKey, "Relief");
@@ -868,12 +869,6 @@ export const buildRasterDemTerrainRuntime = (
       prepared.projectedGeometry?.dispose();
       signal.throwIfAborted();
     }
-    projectedGeometryCache.set(
-      tile,
-      prepared.projectedGeometry,
-      prepared.reliefVertexMask,
-      performance.now() - computeStart
-    );
     return prepared;
   };
 
@@ -944,6 +939,7 @@ export const buildRasterDemTerrainRuntime = (
         terrainSelectionKey
       )
     );
+    trimMeshCache(activeMeshKeys);
     for (const [key, job] of meshJobs) {
       if (requiredPreparationKeys.has(key)) {
         job.adopted = true;
@@ -988,7 +984,10 @@ export const buildRasterDemTerrainRuntime = (
     )
       .then(({ tile, projectedGeometry, reliefVertexMask }) => {
         if (disposed || controller.signal.aborted) projectedGeometry?.dispose();
-        else ensureMesh(tile, entry, projectedGeometry, reliefVertexMask);
+        else {
+          ensureMesh(tile, entry, projectedGeometry, reliefVertexMask);
+          trimMeshCache(activeMeshKeys);
+        }
       })
       .finally(() => {
         if (pendingMeshes.get(key) === work) pendingMeshes.delete(key);
@@ -1120,6 +1119,7 @@ export const buildRasterDemTerrainRuntime = (
         : null,
       boundaryEdges,
       boundaryBaseHeights,
+      sourceByteLength: tile.byteLength,
       lastUsed: ++meshUseClock,
       id: entry.id,
       heightBounds: tile.bounds ? { ...tile.bounds } : null,
@@ -1172,6 +1172,160 @@ export const buildRasterDemTerrainRuntime = (
     }
     // A finer no-data tile must not reveal a coarser surface below its hole.
     return finest?.sampleHeight?.(longitude, latitude);
+  };
+
+  const prepareEqualLevelBoundaries = async (
+    keys: ReadonlySet<string>,
+    current: () => boolean
+  ) => {
+    const records = [...keys].flatMap((key) => {
+      const record = meshes.get(key);
+      return record?.stitchBase && record.reliefMesh ? [{ key, record }] : [];
+    });
+    const byId = new Set(
+      records.map(({ record }) => terrainTileKey(record.id))
+    );
+    const adjacent = records.filter(({ record: { id } }) =>
+      [-1, 0, 1].some((dx) =>
+        [-1, 0, 1].some(
+          (dy) =>
+            (dx || dy) &&
+            byId.has(terrainTileKey({ ...id, x: id.x + dx, y: id.y + dy }))
+        )
+      )
+    );
+    if (!adjacent.length) return;
+    // Bound full-payload preparation in flight. Shells live with the evictable
+    // mesh record and are reused by subsequent small boundary-only jobs.
+    let next = 0;
+    await Promise.all(
+      Array.from({ length: Math.min(4, adjacent.length) }, async () => {
+        while (next < adjacent.length && current()) {
+          const { key, record } = adjacent[next++];
+          if (record.equalLevelShell) continue;
+          const result = await runTerrainWorkerTask(
+            {
+              kind: "stitch",
+              prepareEqualLevelShells: true,
+              inputs: [
+                {
+                  key,
+                  id: record.id,
+                  ...record.stitchBase!,
+                  boundaryEdges: record.boundaryEdges,
+                  boundaryBaseHeights: record.boundaryBaseHeights,
+                },
+              ],
+            },
+            conversionAbort.signal
+          );
+          if (result.kind !== "stitch")
+            throw new Error("Unexpected terrain shell result");
+          record.equalLevelShell = result.shells?.[0];
+        }
+      })
+    );
+    if (!current()) return;
+    const signatures = new Map(
+      adjacent.map(({ key, record }) => [
+        key,
+        records
+          .filter(
+            (other) =>
+              other.record.id.level === record.id.level &&
+              Math.abs(other.record.id.x - record.id.x) <= 1 &&
+              Math.abs(other.record.id.y - record.id.y) <= 1
+          )
+          .map((other) => other.key)
+          .sort()
+          .join(";"),
+      ])
+    );
+    const dirty = adjacent.filter(
+      ({ key, record }) => record.equalLevelSignature !== signatures.get(key)
+    );
+    if (!dirty.length) return;
+    // Two tile rings contain every incident face contribution at target corners.
+    // Neighbour tiles are read-only context; only changed neighbourhoods publish.
+    const inputs = adjacent
+      .filter(({ record }) =>
+        dirty.some(
+          (target) =>
+            target.record.id.level === record.id.level &&
+            Math.abs(target.record.id.x - record.id.x) <= 2 &&
+            Math.abs(target.record.id.y - record.id.y) <= 2
+        )
+      )
+      .flatMap(({ record }) =>
+        record.equalLevelShell ? [record.equalLevelShell] : []
+      );
+    const result = await runTerrainWorkerTask(
+      {
+        kind: "stitch",
+        sameLevelOnly: true,
+        inputs,
+        outputKeys: dirty.map((t) => t.key),
+      },
+      conversionAbort.signal
+    );
+    if (!current()) return;
+    if (result.kind !== "stitch")
+      throw new Error("Unexpected equal-level terrain result");
+    for (const update of result.updates) {
+      const record = meshes.get(update.key);
+      const shell = record?.equalLevelShell,
+        geometry = record?.reliefMesh?.geometry;
+      if (!shell?.sourceIndices || !shell.normalTargets || !geometry) continue;
+      const position = geometry.getAttribute("position") as BufferAttribute;
+      const normal = geometry.getAttribute("normal") as BufferAttribute;
+      // Preserve the immutable native arrays used by later cuts and mixed LOD.
+      if (position.array === record.stitchBase?.positions)
+        position.array = position.array.slice();
+      if (normal.array === record.stitchBase?.normals)
+        normal.array = normal.array.slice();
+      const patch = (
+        attribute: BufferAttribute,
+        values: Float32Array,
+        targets: Iterable<number>
+      ) => {
+        const sorted = [...new Set(targets)].sort(
+          (a, b) => shell.sourceIndices![a] - shell.sourceIndices![b]
+        );
+        let start = -1,
+          end = -1;
+        for (const i of sorted) {
+          const dst = shell.sourceIndices![i] * 3;
+          attribute.array[dst] = values[i * 3];
+          attribute.array[dst + 1] = values[i * 3 + 1];
+          attribute.array[dst + 2] = values[i * 3 + 2];
+          if (dst !== end) {
+            if (start >= 0) attribute.addUpdateRange(start, end - start);
+            start = dst;
+          }
+          end = dst + 3;
+        }
+        if (start >= 0) attribute.addUpdateRange(start, end - start);
+        attribute.needsUpdate = true;
+      };
+      patch(
+        position,
+        update.positions,
+        Object.values(shell.boundaryEdges).flatMap((edge) => [...edge])
+      );
+      patch(normal, update.normals, shell.normalTargets);
+      geometry.boundingBox?.union(
+        new Box3(
+          new Vector3().fromArray(update.box.min),
+          new Vector3().fromArray(update.box.max)
+        )
+      );
+      if (geometry.boundingBox)
+        geometry.boundingSphere = geometry.boundingBox.getBoundingSphere(
+          new Sphere()
+        );
+    }
+    for (const { key, record } of dirty)
+      record.equalLevelSignature = signatures.get(key);
   };
 
   let stitchedActiveSignature = "";
@@ -1242,7 +1396,18 @@ export const buildRasterDemTerrainRuntime = (
                 throw new Error("Unexpected terrain stitching result");
               return result;
             },
-            { signal: controller.signal }
+            {
+              signal: controller.signal,
+              concurrency: getWorkerProbeLimit(
+                typeof navigator === "undefined"
+                  ? 4
+                  : navigator.hardwareConcurrency
+              ),
+              // The general mixed-LOD solver also changes equal-level junction
+              // normals. Publish its whole cut atomically; a subset would undo
+              // equality on one side of a neighbouring same-level seam.
+              forceOutput: true,
+            }
           );
           return {
             result: { kind: "stitch" as const, updates: stitched.updates },
@@ -1268,11 +1433,14 @@ export const buildRasterDemTerrainRuntime = (
       throw new Error("Unexpected terrain stitching result");
     if (
       disposed ||
+      job.controller.signal.aborted ||
       generation !== selectionGeneration ||
       !isCurrentPublication()
     )
       return;
     for (const update of result.updates) {
+      const record = meshes.get(update.key);
+      if (record) record.equalLevelSignature = undefined;
       const geometry = meshes.get(update.key)?.reliefMesh?.geometry;
       if (!geometry) continue;
       const position = geometry.getAttribute("position") as BufferAttribute;
@@ -1289,6 +1457,9 @@ export const buildRasterDemTerrainRuntime = (
         position.array = update.positions;
         normal.array = update.normals;
         index.array = update.indices;
+        position.clearUpdateRanges();
+        normal.clearUpdateRanges();
+        index.clearUpdateRanges();
         position.needsUpdate = normal.needsUpdate = index.needsUpdate = true;
       } else {
         // setAttribute alone drops the old handles without deleting their GL
@@ -1310,8 +1481,56 @@ export const buildRasterDemTerrainRuntime = (
         update.sphere.radius
       );
     }
+
     stitchedBoundaryState = completion.state;
     stitchedActiveSignature = signature;
+  };
+
+  let idleStitchTimer: ReturnType<typeof setTimeout> | null = null;
+  const cancelIdleStitch = () => {
+    if (idleStitchTimer !== null) clearTimeout(idleStitchTimer);
+    idleStitchTimer = null;
+    pendingStitch?.controller.abort();
+    pendingStitch = null;
+  };
+  const scheduleIdleStitch = () => {
+    cancelIdleStitch();
+    if (disposed) return;
+    idleStitchTimer = setTimeout(() => {
+      idleStitchTimer = null;
+      if (disposed) return;
+      if (
+        terrainLoading ||
+        selectionRequestPending ||
+        pendingMeshes.size ||
+        map?.isMoving?.()
+      ) {
+        scheduleIdleStitch();
+        return;
+      }
+      const keys = activeMeshKeys;
+      // Same-LOD terrain keeps its native edges; only mixed-LOD transitions
+      // justify optional geometry work. Detail loading always has priority.
+      const levels = new Set([...keys].map((key) => meshes.get(key)?.id.level));
+      if (levels.size < 2) return;
+      const generation = selectionGeneration;
+      const current = () =>
+        !disposed &&
+        generation === selectionGeneration &&
+        keys === activeMeshKeys;
+      void smoothActiveBoundaryNormals(keys, generation, current)
+        .then(() => {
+          if (!current()) return;
+          contentChangedSinceFrame = true;
+          mapStyleProjectionVersion += 1;
+          map?.triggerRepaint();
+        })
+        .catch((error) => {
+          // Optional seam refinement must never revoke published coverage or
+          // restart foreground downloads. A later settled cut can try again.
+          if (current()) options.onError?.(error);
+        });
+    }, 500);
   };
 
   let activeMeshKeys: ReadonlySet<string> = new Set();
@@ -1653,19 +1872,56 @@ export const buildRasterDemTerrainRuntime = (
     );
   };
 
+  const meshBytes = (record: TerrainMeshRecord) => {
+    const geometry = record.reliefMesh?.geometry;
+    const arrays = new Set<ArrayBufferLike>();
+    let gpuBytes = 0;
+    for (const attribute of [
+      ...Object.values(geometry?.attributes ?? {}),
+      geometry?.index,
+    ]) {
+      if (!attribute || !("array" in attribute)) continue;
+      arrays.add(attribute.array.buffer);
+      gpuBytes += attribute.array.byteLength;
+    }
+    for (const array of Object.values(record.stitchBase ?? {}))
+      arrays.add(array.buffer);
+    if (record.equalLevelShell) {
+      const shell = record.equalLevelShell;
+      for (const array of [
+        shell.positions,
+        shell.normals,
+        shell.indices,
+        shell.sourceIndices,
+        shell.normalTargets,
+        ...Object.values(shell.boundaryEdges),
+        ...Object.values(shell.boundaryBaseHeights),
+      ])
+        if (array) arrays.add(array.buffer);
+    }
+    return (
+      record.sourceByteLength +
+      gpuBytes +
+      [...arrays].reduce((sum, buffer) => sum + buffer.byteLength, 0)
+    );
+  };
+  const cachedMeshBytes = () =>
+    [...meshes.values()].reduce((sum, record) => sum + meshBytes(record), 0);
   const trimMeshCache = (activeKeys: ReadonlySet<string>) => {
-    let excess = meshes.size - maxCachedMeshes;
-    if (excess <= 0) return;
+    let bytes = cachedMeshBytes();
+    if (meshes.size <= maxCachedMeshes && bytes <= maxCachedMeshBytes) return;
     const candidates = [...meshes.entries()]
-      .filter(([key]) => !activeKeys.has(key))
+      .filter(
+        ([key]) => !activeKeys.has(key) && !requiredPreparationKeys.has(key)
+      )
       .sort(([, left], [, right]) => left.lastUsed - right.lastUsed);
     for (const [key, record] of candidates) {
-      if (excess <= 0) break;
+      if (meshes.size <= maxCachedMeshes && bytes <= maxCachedMeshBytes) break;
+      bytes -= meshBytes(record);
       root.remove(record.node);
       record.reliefMesh?.geometry.dispose();
       record.debugMaterial?.dispose();
       meshes.delete(key);
-      excess -= 1;
     }
   };
 
@@ -1827,6 +2083,7 @@ export const buildRasterDemTerrainRuntime = (
     prefetchView: PrefetchSelectionView
   ) => {
     latestResolvedSelectionView = prefetchView;
+    cancelIdleStitch();
     invalidateIdlePrefetch();
     setTerrainLoading(true);
     const generation = ++selectionGeneration;
@@ -1925,28 +2182,41 @@ export const buildRasterDemTerrainRuntime = (
       );
       const activeKeys = new Set(frontier.map(({ key }) => key));
       const signature = [...activeKeys].sort().join(";");
-      if (signature === stitchedActiveSignature) return;
-      await smoothActiveBoundaryNormals(activeKeys, generation, current);
+      if (signature === [...activeMeshKeys].sort().join(";")) return;
       if (!current()) return;
       // The camera can move during worker stitching. Replan before publishing
       // if a formerly offscreen tile has become visible without any replacement.
-      const newlyUncovered = [...getRequiredMeshKeys()].some((key) => {
-        if (activeKeys.has(key)) return false;
-        const previous = meshes.get(key);
-        return (
-          previous &&
-          !frontier.some(
-            ({ id }) =>
-              terrainTileContains(id, previous.id) ||
-              terrainTileContains(previous.id, id)
-          )
-        );
-      });
-      if (newlyUncovered) {
+      const newlyUncovered = () =>
+        [...getRequiredMeshKeys()].some((key) => {
+          if (activeKeys.has(key)) return false;
+          const previous = meshes.get(key);
+          return (
+            previous &&
+            !frontier.some(
+              ({ id }) =>
+                terrainTileContains(id, previous.id) ||
+                terrainTileContains(previous.id, id)
+            )
+          );
+        });
+      if (newlyUncovered()) {
+        publicationRequested = true;
+        return;
+      }
+      cancelIdleStitch();
+      // Keep the complete previous cut while the new border bands are prepared.
+      // Commit shared vertices and normals in one turn before retiring parents.
+      await prepareEqualLevelBoundaries(
+        activeKeys,
+        () => current() && !newlyUncovered()
+      );
+      if (!current()) return;
+      if (newlyUncovered()) {
         publicationRequested = true;
         return;
       }
       activeMeshKeys = activeKeys;
+      trimMeshCache(activeMeshKeys);
       closeDisplayStages(activeKeys, publishStartedAt);
       applyMeshVisibility();
       if (activeKeys.size > 0) settleReady(true);
@@ -1962,12 +2232,13 @@ export const buildRasterDemTerrainRuntime = (
       mapStyleProjectionVersion += 1;
       contentChangedSinceFrame = true;
       map?.triggerRepaint();
+      scheduleIdleStitch();
     };
     const requestPublication = (): Promise<void> => {
       publicationRequested = true;
       if (publicationJob) return publicationJob;
-      // One in-flight stitch, with arrivals coalesced into the next cut. Do not
-      // cancel and clone the whole visible geometry again for every loaded tile.
+      // Coalesce arrivals into complete coverage cuts. Seam refinement runs
+      // separately after foreground loading and interaction have settled.
       publicationJob = (async () => {
         while (publicationRequested && current()) {
           await new Promise<void>((resolve) =>
@@ -2124,9 +2395,8 @@ export const buildRasterDemTerrainRuntime = (
               !(error instanceof Error && error.name === "AbortError")
           )
         );
-        // Do not let detailed or offscreen-caster work overtake first coverage
-        // while its geometry is still being stitched. This also yields to input
-        // and painting between stages, including memory-cache-only loads.
+        // Publish first coverage before finer work, yielding to input/painting.
+        // This waits only for the cut, never for optional seam refinement.
         if (current()) await requestPublication();
       }
       return { failures };
@@ -2160,6 +2430,7 @@ export const buildRasterDemTerrainRuntime = (
         );
         trimMeshCache(activeMeshKeys);
         setTerrainLoading(false);
+        scheduleIdleStitch();
         syncSelectionShadowView();
         if (failures.length === 0)
           recordIdlePrefetchSelection(
@@ -2454,14 +2725,6 @@ export const buildRasterDemTerrainRuntime = (
           break;
         }
       }
-      // Last priority, after the visible shadow and bounded neighbour terrain
-      // have settled. One client-local format profile at most, no render work.
-      if (!controller.signal.aborted && isIdlePrefetchCurrent(snapshot)) {
-        await runTerrainWorkerTask(
-          { kind: "calibrate-cache", producerAssetUrl },
-          controller.signal
-        ).catch(() => {});
-      }
     } finally {
       signal?.removeEventListener("abort", abort);
       if (idlePrefetchController === controller) idlePrefetchController = null;
@@ -2501,6 +2764,7 @@ export const buildRasterDemTerrainRuntime = (
       !queuedSelectionInput &&
       !pendingMeshes.size &&
       meshes.size < maxCachedMeshes &&
+      cachedMeshBytes() < maxCachedMeshBytes &&
       payloadAwareConcurrency.getCooldownRemainingMs() === 0;
     for (let offset = 1; offset <= request.levels; offset++) {
       if (!canPrefetch()) break;
@@ -2542,13 +2806,15 @@ export const buildRasterDemTerrainRuntime = (
       ).then((result) => {
         if (disposed || controller.signal.aborted)
           result.projectedGeometry?.dispose();
-        else
+        else {
           ensureMesh(
             result.tile,
             entry,
             result.projectedGeometry,
             result.reliefVertexMask
           );
+          trimMeshCache(activeMeshKeys);
+        }
       });
       pendingMeshes.set(key, work);
       try {
@@ -2930,6 +3196,7 @@ export const buildRasterDemTerrainRuntime = (
       map.on?.(MAPLIBRE_EVENT.MOVE_START, handleIdlePrefetchMovement);
       map.on?.(MAPLIBRE_EVENT.MOVE_END, handleMovementEnd);
       setSharedThreeTerrainLoading(mapInstance, runtimeId, terrainLoading);
+
       if (source && !unregisterSampler) {
         unregisterSampler = registerSharedThreeTerrainSampler(
           mapInstance,
@@ -3113,6 +3380,7 @@ export const buildRasterDemTerrainRuntime = (
     dispose() {
       if (disposed) return;
       disposed = true;
+      cancelIdleStitch();
       if (motionSettleTimer !== null) clearTimeout(motionSettleTimer);
       motionSettleTimer = null;
       heightMetadata.dispose();
