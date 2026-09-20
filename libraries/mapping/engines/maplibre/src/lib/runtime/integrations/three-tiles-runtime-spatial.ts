@@ -1,3 +1,4 @@
+import { getThreeTileDiagnosticSteps } from "./three-tiles-diagnostic-steps";
 import { type Tile } from "3d-tiles-renderer/core";
 import * as THREE from "three";
 
@@ -63,6 +64,7 @@ export function createThreeTilesSpatial(
     | "marginProjection"
     | "marginFrustum"
     | "ringFrustums"
+    | "tileDebugProgress"
     | "requestedErrorTarget"
   >,
   dependencies: Pick<
@@ -337,6 +339,13 @@ export function createThreeTilesSpatial(
             ? "terrain-tile"
             : "3d-tile",
           sourceId: runtimeState.tilesetUrl,
+          steps: runtimeState.tileDebugProgress.has(tile)
+            ? getThreeTileDiagnosticSteps(
+                runtimeState.tileDebugProgress.get(tile)!,
+                runtimeState.shadowView !== null,
+                performance.now()
+              )
+            : undefined,
           geometricError: tile.geometricError,
           errorPixels: getTileScreenError(tile as RuntimeTile),
           loadReason: dependencies.getTileLoadReason(activeTile as RuntimeTile),

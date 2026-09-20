@@ -118,7 +118,7 @@ authored geometry and licences. No Wikimedia bitmap or photo texture is bundled.
   selection, ECEF sightlines, source displacement and solar presets.
 - In the shared visible Playwright session, the sunset foreground is continuous
   after the padding fix. Sunrise, datum, horizon, optical-depth and surface/point
-  views were visually inspected. Local screenshots are in `output/playwright/`.
+  views were visually inspected. Local screenshots are in *unpublished validation artifact*.
 - Presets use 2026-02-21 07:40 and 2026-08-23 20:27, Europe/Berlin. The shared solar
   calculation gives approximately +0.24° and +0.25° geometrical elevation; it does
   not include atmospheric refraction. Optical depth is dimensionless, not height.

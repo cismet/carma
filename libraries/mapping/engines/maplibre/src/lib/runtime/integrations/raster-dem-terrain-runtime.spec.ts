@@ -1005,6 +1005,26 @@ describe("buildRasterDemTerrainRuntime", () => {
     }
   });
 
+  it.each([
+    [{ meshSegments: 128 }, 512],
+    [{ maximumMeshSegments: 128 }, 128],
+    [{ maximumMeshSegments: 2048 }, 512],
+  ])(
+    "only reduces the source grid for an explicit baseline ceiling %j",
+    async (options, expected) => {
+      const f = createIdlePrefetchFixture("resolution-ceiling", 10, options);
+      try {
+        await f.start();
+        expect(acquireRasterDemTerrainTileSource).toHaveBeenLastCalledWith(
+          expect.objectContaining({ tileSize: 512 }),
+          expect.objectContaining({ meshSegments: expected })
+        );
+      } finally {
+        f.runtime.dispose();
+      }
+    }
+  );
+
   it.each([false, true])(
     "releases its raster source exactly once (acquired=%s)",
     async (acquired) => {

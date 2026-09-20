@@ -307,7 +307,7 @@ live-view limitations: [corridor performance report](../../shadow-simulation/thr
   bounded startup, late restore/disposal and worker preemption: 146 engine
   tests and 45 shadow-scene tests passed. Existing
   Playwright MeshX view retains mesh and caster shadows at 2400 × 2398 physical
-  pixels with no new page errors; capture: `output/playwright/terrain-volume-smoke.png`.
+  pixels with no new page errors.
   Production persistence is covered by focused tests, not a new production
   build or device storage benchmark; no measured end-to-end speedup is claimed.
 - **Revisit:** A server-published, versioned min/max hierarchy with certified
@@ -324,14 +324,14 @@ live-view limitations: [corridor performance report](../../shadow-simulation/thr
 
 - **Decision:** Full-opacity shadow styling normalizes authored material opacity only. Apply the layer/modal opacity afterward as the final multiplier; enable transparency and disable depth writes below full layer opacity. Restoring full layer opacity restores the appropriate opaque/source render flags. No terrain visibility changes.
 - **Cause / rejected alternative:** The previous full-opacity branch forced material opacity to 1 and ignored the correctly forwarded layer slider. Disabling shadow styling or recreating the runtime was unnecessary; the existing opacity setter refreshes materials and projection caches in place.
-- **Evidence:** 34 focused runtime/manager tests pass, covering opacity during shader changes and restoration. Existing Playwright MeshX session: modal values 0.1/0.5/1 reach material opacity directly, retain the sampled material UUID, and restore transparency=false/depthWrite=true at 1. Screenshot: `output/playwright/mesh-layer-opacity-half.png`.
+- **Evidence:** 34 focused runtime/manager tests pass, covering opacity during shader changes and restoration. Existing Playwright MeshX session: modal values 0.1/0.5/1 reach material opacity directly, retain the sampled material UUID, and restore transparency=false/depthWrite=true at 1.
 
 ## Dataset texture correction — MESH-ALBEDO-20260908
 
 - **Decision:** Store gamma, black/white point and saturation on the Mesh 2024 resource's `colorCorrection` metadata, including its explicit MeshX delivery URL. Catalog-authored profiles override this resource fallback; unrelated URLs get no calibration. `Tiles3dConfig` passes the profile into generic Three runtime uniforms. Cesium's existing `UNLIT_ENHANCED_2024` reads the same resource values. The shadow UI enables the stage by default, retains a toggle and all existing controls, and defaults color replacement to 0%.
 - **Lighting:** `core/mesh-surface-shader.ts` corrects texture/vertex RGB, applies saturation, then mixes the chosen albedo after `color_fragment`, before physical lighting. Three's real-normal diffuse response, sky lighting and occlusion shade the color contribution exactly once. The toggle updates shared uniforms without replacing loaded mesh materials.
 - **Alternatives:** Mixing after lighting would overwrite directional shading and shadows. An extra cosine multiplication would double-darken grazing faces. Dividing baked photography by the current solar cosine cannot recover capture-time illumination or occlusion and amplifies noise. This profile is a display correction, not genuine de-lighting; no claim of recovered physical albedo.
-- **Evidence:** 82 focused runtime/metadata/state/scene/UI tests pass. Playwright confirms the active MeshX profile reaches the shader (gamma 1.25/1.25/1.23), correction on, mix 0; on/off/on preserves the sampled material UUID. Paired screenshots under `output/playwright/mesh-color-correction-{off,on}.png`. Existing Matomo/style metadata/AntD diagnostics remain outside this change.
+- **Evidence:** 82 focused runtime/metadata/state/scene/UI tests pass. Playwright confirms the active MeshX profile reaches the shader (gamma 1.25/1.25/1.23), correction on, mix 0; on/off/on preserves the sampled material UUID. Existing Matomo/style metadata/AntD diagnostics remain outside this change.
 - **Revisit:** Calibrate against neutral reference surfaces/capture illumination before claiming photometric accuracy; publish `colorCorrection` in the remote tiles3d style metadata to remove the local-resource fallback.
 
 ## Adjusted basemap policies — MAP-STYLE-POLICY-20260908
@@ -577,7 +577,7 @@ terrain-mesh runtime to the shared scene.
   retry publishes8/8 at1431ms and only then reports100%. All eight captured
   scalar buffers contained fractional coverage (not empty/hard-only buffers).
   This is not a per-pixel proof of correct reprojection for every mesh surface.
-  Evidence: `output/playwright/corridor-completion-20260908/`.
+
 - **Open:** Spatial mesh readiness/invalidation and atomic same-LOD mesh/hard
   shadow publication remain separate work, as listed above. No broad build/lint.
 
@@ -611,7 +611,7 @@ terrain-mesh runtime to the shared scene.
   1.0ms. Initial fetch7.1ms (not a proven cold download); writes/open8.9ms.
   Baseline raw ms:[1.5,1.5,1,1.1,1.2,0.9,1.2,1.5,1.2]; restore:
   [0.8,0.5,0.6,0.5,0.5,0.4,1,0.6,0.9]. About15 batch reuses amortize preparation.
-  Artifact:`output/playwright/tileset-cache-benchmark.html`; temporary isolated
+  Artifact:*unpublished validation artifact*; temporary isolated
   database deleted after the run. This is not full-tree hydration, worker-transfer,
   production freshness validation, storage overhead or end-to-end load timing.
 - **Alternatives/disposition:** Whole parsed-tree persistence: deferred, not
@@ -658,8 +658,8 @@ terrain-mesh runtime to the shared scene.
   descriptor roundtrip and native OBB/transform parity; 210,606 existing corridor
   queries, 317 hits, zero mismatches (synthetic light rotations, not current-view
   shadow validation). Reproduce with the running Vite server's `/@fs/` URL for
-  `output/playwright/tileset-index-benchmark.html?limit=128`; worker implementation
-  alongside it; raw timings in `output/playwright/tileset-index-benchmark-results.json`.
+  *unpublished validation artifact*; worker implementation
+  alongside it; raw timings in *unpublished validation artifact*.
 - **Alternatives/disposition:** Dense numeric columns plus per-node metadata:
   measured rejection (larger storage and no full-path win). Sparse/deduplicated
   columns: promising measured median gain, not yet a production admission result.
@@ -887,8 +887,7 @@ terrain-mesh runtime to the shared scene.
   outstanding demand. Full soft-shadow/reprojection correctness remains separate.
   Focused validation: 76 tests pass. Five older atomic-corridor integration
   assertions fail identically on the changed code and the read-only source
-  baseline at `9508cb9fc` (`corridor-membership-final-tests.log`,
-  `corridor-baseline-tests.log`); no full integration-suite pass is
+  baseline at `9508cb9fc` (*unpublished validation artifact*); no full integration-suite pass is
   claimed. Their staged publication/admission behavior remains open.
 - **Alternatives:** Worker dispatch per small query batch and Cache Storage
   answers: measured rejection for this workload. IndexedDB/OPFS: not evaluated.
@@ -1355,7 +1354,7 @@ Continuation of **MULTICAM-STRESS-20260913**, status: diagnostic, review require
   tests pass, including pitched seam rays and angular endpoints. The loader
   still reports missing/unknown floor cuts. These are
   visual samples, not a speed benchmark or acceptance of every possible Control
-  combination. Captures: `output/playwright/multicam-*.png` in the worktree.
+  combination.
 - **Alternatives:** Repositioning the measured/reference cameras just to remove
   all foreground walls is deferred; nearby parapets/mouths can be physically
   plausible. General inverse-surface unwrapping and panoramic reprojection are
@@ -1410,8 +1409,7 @@ Continuation of **MULTICAM-STRESS-20260913**, status: diagnostic, review require
   pass (17 total). Static narrow-entry
   Storybook preview on 4300, shared user-visible Chrome/Playwright session:
   400 baked lamps, five vehicles, three signals, all five routes have DGM data.
-  Screenshots `output/playwright/night-barmen-first.png` and
-  `night-barmen-motion.png` show fixed lighting retained while vehicle positions
+  Screenshots *unpublished browser capture* show fixed lighting retained while vehicle positions
   and signal colours change. One warmed four-second rAF sample at 1280×900
   yielded 575 callbacks, median 6.9 ms, p95 8.3 ms. This is **callback cadence,
   not GPU-rendered FPS**; no cold-load, GPU timing, sustained throughput or

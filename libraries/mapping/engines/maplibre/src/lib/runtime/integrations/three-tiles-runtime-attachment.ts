@@ -407,9 +407,7 @@ export function createThreeTilesRuntimeAttachment(
     const hasParseJob = parseQueue.has.bind(parseQueue);
     parseQueue.has = (tile) => metadataParsing.has(tile) || hasParseJob(tile);
     parseQueue.add = (tile: Tile, callback) => {
-      const progress = runtimeState.tileBoundsVisible
-        ? dependencies.getTileDebugProgress(tile)
-        : null;
+      const progress = dependencies.getTileDebugProgress(tile);
       if (progress) progress.downloadFinishedAt = performance.now();
       dependencies.noteTileActivity(tile);
       const add = tile.internal.hasUnrenderableContent
@@ -444,17 +442,14 @@ export function createThreeTilesRuntimeAttachment(
             "AbortError"
           );
         }
-        if (progress && runtimeState.tileBoundsVisible)
-          progress.parseStartedAt = performance.now();
+        if (progress) progress.parseStartedAt = performance.now();
         try {
           return await callback(item);
         } catch (error) {
-          if (progress && runtimeState.tileBoundsVisible)
-            progress.lastError = String(error).slice(0, 240);
+          if (progress) progress.lastError = String(error).slice(0, 240);
           throw error;
         } finally {
-          if (progress && runtimeState.tileBoundsVisible)
-            progress.parseFinishedAt = performance.now();
+          if (progress) progress.parseFinishedAt = performance.now();
           dependencies.noteTileActivity(tile);
         }
       });
@@ -852,8 +847,7 @@ export function createThreeTilesRuntimeAttachment(
       }
       dependencies.assignTilePriority(runtimeTile);
       runtimeState.queuedThisTraversal.add(tile);
-      if (runtimeState.tileBoundsVisible)
-        dependencies.getTileDebugProgress(tile).queuedAt ??= performance.now();
+      dependencies.getTileDebugProgress(tile).queuedAt ??= performance.now();
       dependencies.noteTileActivity(tile);
       runtimeTile.firstPublicationRequestedAt = performance.now();
       queueTileForDownload(tile);

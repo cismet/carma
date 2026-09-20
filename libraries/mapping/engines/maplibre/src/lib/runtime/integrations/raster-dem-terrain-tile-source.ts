@@ -32,6 +32,7 @@ const TILE_RETRY_MAX_ATTEMPTS = 8;
 export type RasterDemTerrainTileSourceOptions = Readonly<{
   maxCacheBytes?: number;
   meshSegments?: number;
+  maximumMeshSegments?: number;
 }>;
 
 export interface RasterDemTerrainTileSource {
@@ -240,6 +241,7 @@ const buildSource = (
             id,
             error: getLevelMaximumGeometricError(id.level),
             maximumMeshErrorMeters,
+            maximumMeshSegments: options.maximumMeshSegments,
           },
           loadSignal
         );
@@ -299,6 +301,7 @@ const buildSource = (
           segments: meshSegments,
           error: getLevelMaximumGeometricError(id.level),
           maximumMeshErrorMeters,
+          maximumMeshSegments: options.maximumMeshSegments,
         },
         loadSignal
       );

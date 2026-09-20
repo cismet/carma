@@ -592,6 +592,7 @@ describe("shadow scene lighting integration", () => {
     vi.stubGlobal("scheduler", { postTask });
     const raster = {
       id: "idle-shadow-terrain",
+      setLiveShadowView: vi.fn(),
       originLngLat: [7.15, 51.256] as [number, number],
       root: new THREE.Group(),
       ready: initialReady
@@ -644,7 +645,12 @@ describe("shadow scene lighting integration", () => {
     vi.mocked(buildRasterDemTerrainRuntime).mockReturnValue(raster);
     sharedLayer.projectLngLatToScene = ([lng, lat], altitude = 0) =>
       new THREE.Vector3(lng * 1_000, altitude, lat * 1_000);
+    let pixelRatio = 3;
     const map = {
+      getPixelRatio: () => pixelRatio,
+      setPixelRatio: vi.fn((ratio: number) => {
+        pixelRatio = ratio;
+      }),
       getCenter: () => ({ lng: 7.15, lat: 51.256 }),
       getCanvas: () => ({ clientWidth: 800, clientHeight: 600 }),
       unproject: ([x, y]: [number, number]) => ({
@@ -679,6 +685,58 @@ describe("shadow scene lighting integration", () => {
     };
     return { controller, raster, map, camera, fire, postTask, tasks };
   };
+
+  it("enforces mobile baseline at startup and after quality updates", async () => {
+    vi.stubGlobal("navigator", {
+      userAgent: "iPhone",
+      platform: "iPhone",
+      maxTouchPoints: 5,
+    });
+    const f = await createIdleTerrainHost();
+    try {
+      expect(f.map.getPixelRatio()).toBe(1.5);
+      expect(
+        vi.mocked(buildRasterDemTerrainRuntime).mock.lastCall?.[3]
+      ).toMatchObject({
+        meshSegments: 128,
+        maximumMeshSegments: 128,
+        maxSelectionTiles: 48,
+        requestConcurrency: 2,
+        maxCachedMeshBytes: 32 * 1024 ** 2,
+        maxCacheBytes: 16 * 1024 ** 2,
+      });
+      expect(accumulationController!.active()).toBe(false);
+      f.controller.updateSoftSunShadows(true);
+      f.controller.updateShadowQuality(SHADOW_QUALITY.ULTRA);
+      f.controller.updateRenderQuality({
+        shadowBufferLayout: "tiled",
+        shadowBufferFormat: "rgba32f",
+        shadowMsaaSamples: "max",
+      });
+      expect(accumulationController!.active()).toBe(false);
+      expect(accumulationController!.options).toMatchObject({
+        format: "rgba8",
+        msaaSamples: 0,
+      });
+      f.controller.updateTerrain({
+        ...TEST_TERRAIN_SOURCE,
+        meshSegments: 512,
+        maxCachedMeshBytes: 1024 ** 3,
+      });
+      expect(
+        vi.mocked(buildRasterDemTerrainRuntime).mock.lastCall?.[3]
+      ).toMatchObject({
+        meshSegments: 128,
+        maximumMeshSegments: 128,
+        maxCachedMeshBytes: 32 * 1024 ** 2,
+      });
+      expect(f.postTask).not.toHaveBeenCalled();
+    } finally {
+      f.controller.dispose();
+      expect(f.map.getPixelRatio()).toBe(3);
+      vi.unstubAllGlobals();
+    }
+  });
 
   it("defaults to direct hard then sun-disc draws without full-tile capture planning", async () => {
     const f = await createIdleTerrainHost();
@@ -779,7 +837,9 @@ describe("shadow scene lighting integration", () => {
     // The stop applies the deferred final view instead of waiting for a move.
     f.controller.updateTimeAnimating(false);
     expect(f.raster.setShadowView).toHaveBeenCalledTimes(3);
-    expect(f.raster.setShadowView.mock.lastCall?.[0]?.camera).toBeDefined();
+    expect(f.raster.setShadowView.mock.lastCall?.[0]).toMatchObject(
+      f.raster.setLiveShadowView.mock.lastCall![0]
+    );
     clock.mockRestore();
     f.controller.dispose();
   });
@@ -1204,7 +1264,7 @@ describe("shadow scene lighting integration", () => {
     expect(renderProgressive).toHaveBeenLastCalledWith(camera, {
       ...nativeFrame,
       samples: 64,
-      maxRenderTargetPixels: Infinity,
+      maxRenderTargetPixels: Math.floor((256 * 1024 * 1024) / 72),
       options: { format: "rgba16f-32f", msaaSamples: 0 },
     });
     expect(renderTiled).toHaveBeenCalledTimes(directPasses);

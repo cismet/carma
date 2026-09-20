@@ -38,6 +38,8 @@ export const OVERVIEW_COLORS = {
  * the geometry handed to the renderer, amber for waiting on a cut.
  */
 export const TILE_STEPS = [
+  { label: "Warten", color: "#8c9daf" },
+  { label: "Schatten", color: "#ffdb87" },
   { label: "Cache", color: "#a9dcff" },
   { label: "Laden", color: "#5aabf2" },
   { label: "Dekodieren", color: "#9ef0c0" },
@@ -99,6 +101,8 @@ export type OverlayVolume = {
 
 /** Fixed coordinate frame of a tile snapshot; live cameras project into this frame. */
 export type DiagnosticViewportBasis = {
+  /** Packed world-space min/max boxes of every reported tile, six numbers each. */
+  tileBounds?: number[];
   bounds: number[];
   worldToOverview: number[];
   /** [scale, offsetX, offsetY] and optionally a separate vertical scale. */

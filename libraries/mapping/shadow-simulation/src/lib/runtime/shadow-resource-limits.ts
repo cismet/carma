@@ -1,3 +1,13 @@
+import {
+  readShadowDeviceEnvironment,
+  resolveShadowDeviceClass,
+  type ShadowDeviceEnvironment,
+} from "../core/shadow-device-profile";
+import {
+  resolveSceneAccumulationFormat,
+  DEFAULT_SCENE_ACCUMULATION_OPTIONS,
+  type SceneAccumulationOptions,
+} from "@carma-mapping/engines/three/primitives/rendering";
 import type { WebGLRenderer } from "three";
 import {
   DEFAULT_SHADOW_QUALITY,
@@ -8,51 +18,33 @@ import {
   type ShadowRenderQualityOptions,
 } from "../core/shadow-types";
 
-const PHONE_MAX_SHADOW_MAP_SIZE = 2_048;
-const TABLET_MAX_SHADOW_MAP_SIZE = 4_096;
+const PHONE_MAX_SHADOW_MAP_SIZE = 1_024;
+const TABLET_MAX_SHADOW_MAP_SIZE = 2_048;
 const DESKTOP_MAX_SHADOW_MAP_SIZE = 4_096;
 const PHONE_MAX_ACCUMULATION_PIXELS = 1_000_000;
 const TABLET_MAX_ACCUMULATION_PIXELS = 2_000_000;
 
-export type ShadowResourceEnvironment = Readonly<{
-  userAgent: string;
-  platform: string;
-  maxTouchPoints: number;
-}>;
+export type ShadowResourceEnvironment = ShadowDeviceEnvironment;
 
 export type ShadowResourceLimits = Readonly<{
   maxShadowMapSize: number;
   maxAccumulationPixels: number;
 }>;
 
-const readEnvironment = (): ShadowResourceEnvironment => {
-  if (typeof navigator === "undefined") {
-    return { userAgent: "", platform: "", maxTouchPoints: 0 };
-  }
-  return {
-    userAgent: navigator.userAgent,
-    platform: navigator.platform,
-    maxTouchPoints: navigator.maxTouchPoints,
-  };
-};
-
 export const resolveShadowResourceLimits = (
   reportedMaxTextureSize: number,
-  environment = readEnvironment()
+  environment = readShadowDeviceEnvironment()
 ): ShadowResourceLimits => {
   const maxTextureSize = Math.max(256, Math.floor(reportedMaxTextureSize));
-  const phone = /iPhone|iPod|Android.+Mobile/i.test(environment.userAgent);
-  const tablet =
-    /iPad|Android(?!.*Mobile)/i.test(environment.userAgent) ||
-    (environment.platform === "MacIntel" && environment.maxTouchPoints > 1);
+  const deviceClass = resolveShadowDeviceClass(environment);
 
-  if (phone) {
+  if (deviceClass === "phone") {
     return {
       maxShadowMapSize: Math.min(maxTextureSize, PHONE_MAX_SHADOW_MAP_SIZE),
       maxAccumulationPixels: PHONE_MAX_ACCUMULATION_PIXELS,
     };
   }
-  if (tablet) {
+  if (deviceClass === "tablet") {
     return {
       maxShadowMapSize: Math.min(maxTextureSize, TABLET_MAX_SHADOW_MAP_SIZE),
       maxAccumulationPixels: TABLET_MAX_ACCUMULATION_PIXELS,
@@ -60,8 +52,28 @@ export const resolveShadowResourceLimits = (
   }
   return {
     maxShadowMapSize: Math.min(maxTextureSize, DESKTOP_MAX_SHADOW_MAP_SIZE),
-    maxAccumulationPixels: Number.POSITIVE_INFINITY,
+    maxAccumulationPixels: 4_000_000,
   };
+};
+
+/** Two scene/depth targets (including MSAA) and three ping-pong/settled colors.
+ * Keep this working set below 256 MiB; terrain, map capture and depth pages
+ * have separate ownership. This is an allocation ceiling, not free-VRAM detection.
+ */
+export const resolveShadowAccumulationPixelBudget = (
+  devicePixels: number,
+  options: SceneAccumulationOptions
+) => {
+  const format = resolveSceneAccumulationFormat(options.format);
+  const samples =
+    options.msaaSamples ?? DEFAULT_SCENE_ACCUMULATION_OPTIONS.msaaSamples;
+  const bytesPerPixel =
+    2 * (format.bytesPerPixel + 4) * (1 + Math.max(0, samples)) +
+    3 * format.accumulationBytesPerPixel;
+  return Math.min(
+    devicePixels,
+    Math.floor((256 * 1024 * 1024) / bytesPerPixel)
+  );
 };
 
 /** Depth-only budget; existing device memory ceilings remain authoritative. */

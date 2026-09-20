@@ -235,6 +235,10 @@ export const captureTileDiagnostics = async (
   }
 
   const viewportBasis = {
+    tileBounds: rects.flatMap((rect) => [
+      ...rect.world.min.toArray(),
+      ...rect.world.max.toArray(),
+    ]),
     bounds: [...extent.min.toArray(), ...extent.max.toArray()],
     worldToOverview: worldToOverview.toArray(),
     screen: [

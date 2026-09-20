@@ -138,8 +138,7 @@ unknown children are not treated as proven non-renderable floor leaves.
 
 ### TILE-DIAGNOSTIC-CADENCE-20260916
 
-**Date/status:** 2026-09-16; retain both cadence options. User requested an A/B
-benchmark before deleting the 10 Hz path. Per-render display and camera delivery
+**Date/status:** 2026-09-16; retain both cadence options. An A/B benchmark is required before deleting the 10 Hz path. Per-render display and camera delivery
 must not be confused with completion of per-tile quality snapshots.
 
 **Method:** actual Mesh Coverage story on local macOS Chrome 152; 982 × 1061 CSS
@@ -220,3 +219,66 @@ the development UI (localhost or the developer-mode flag), through
 `TileLoadingDebugHost`; the debugger switches runtime diagnostics on itself
 (`runtime.debug.setDiagnosticsEnabled`) when it opens, so a style does not
 need `diagnostics: true` for it.
+
+## Frustum markers
+
+**ID / date / status:** FRUSTUM-MARKERS-20260920 / 2026-09-20 / implemented.
+
+**Context and constraints:** At high zoom, an extra centre cross grew with the
+inverse footprint size into a long horizontal stroke. Separately, vertical
+frustum edges disappeared because the shader used only `dpdx(p.x)` and
+`dpdy(p.y)` in the rotated segment frame: both vanish at 90 degrees.
+
+**Decision:** Draw the intersections of frustum planes with every reported tile
+bounding box, without bridging gaps between tiles or adding a centre cross.
+Keep the convex extent outline separately for framing and chevron clipping.
+Place the chevron at the sunward end, opposite projected light travel; its full
+opening angle equals the sun direction angle to nadir. Clip both arms to the
+frustum footprint. Derive the pixel footprint from the lengths of both full
+local coordinate gradients, preserving stroke width under segment rotation.
+
+**Alternatives and disposition:** More hull-area/sliver filtering is incompatible
+by inspection with these causes: neither originates in the intersection hull.
+Keeping a screen-sized centre cross is not evaluated; it adds an unnecessary
+mark alongside the light chevron.
+
+**Evidence:** Chrome WebGPU, a 100 x 100 offscreen canvas, a square cut from
+(20,20) to (80,80), DPR 1. Summed alpha over the middle 50 pixels of each edge:
+before, top/bottom 20400 each and left/right 0; after, all four 20400.
+The focused scene regression checks that a small footprint emits only its
+boundary segments, and an empty cut emits no centre marks. Live high-zoom
+Geoportal validation uses the existing localhost:4200 server.
+
+**Revisit when:** Adding another marker or a nonuniform/sheared diagnostic
+projection; retain rotation-independent stroke-width coverage.
+
+
+### Readable IDs and native mesh presentation phases (2026-09-20)
+
+Labels extract the content identity from stable `tilesetUrl#tree:contentUrl`
+keys and display compact z/x/y or filename IDs. The ID components occupy three centred rows at 10 CSS px with a 10 px line
+height and no extra row spacing. Type-only labels are omitted. Canvas text is fixed-size;
+labels that exceed their tile, or overlap another label, are omitted rather than
+shrunk or drawn across neighbours. Offscreen status remains a visual property
+and no longer inflates every ID with repeated prose.
+
+Native 3D tiles now provide the same step-array contract as raster terrain:
+queue waiting, transfer, parsing, scene setup, waiting for the first observed
+primary-camera draw, and additional waiting for shadow presentation. Download
+and parse timestamps are captured independently of the old bounds-debug toggle.
+`onPresented` acknowledges settled mono/progressive shadows or the direct path
+when no shadow work is pending. It freezes the initial tile presentation timing;
+it is not a per-sun-change benchmark. Queue waits before transfer and parsing
+share the Warten wedge; Schatten has its own colour. Actual draw time is never
+inferred merely from membership in a visibility set. Retry resets timestamps.
+
+### Reported tile membership and plane cuts (2026-09-20)
+
+The overview is not a list of only currently displayed tiles, nor a complete
+memory inventory. Terrain reports visible published meshes, a bounded selection
+of resident hidden meshes, and pending mesh bounds. Native 3D tiles report the
+runtime active set, including shadow demand; membership alone does not establish
+a primary-camera draw. Plane cuts use all reported tile boxes in the worker
+snapshot, including hidden or pending entries, rather than rendered triangles.
+Focused regressions cover gaps between tile boxes, chevron clipping, sunward
+placement and nadir-dependent opening angle.

@@ -217,8 +217,7 @@ export function createThreeTilesDebug(
         );
         const progress = getTileDebugProgress(tile);
         progress.loadedAt ??= runtimeTile.engineData?.scene ? now : undefined;
-        progress.visibleAt ??= now;
-        const visibleAt = progress.visibleAt;
+        const visibleAt = progress.visibleAt ?? now;
         let corridorDistance = 0;
         let corridorReady = false;
         if (sourceCamera && !runtimeState.rootWorldBoundingBox.isEmpty()) {

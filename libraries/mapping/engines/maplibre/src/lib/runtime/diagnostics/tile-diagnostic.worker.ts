@@ -106,7 +106,7 @@ const draw = async () => {
               view,
               colors[i % colors.length],
               // The main camera receives; a light only contributes geometry,
-              // and its arrow is read in the middle of the drawn view.
+              // and its chevron sits at the sunward side of its own cut.
               (i === 0 ? camera : cameras[i - 1])?.role === "geometry" && {
                 x: frame.view.x + frame.view.w / 2,
                 y: frame.view.y + frame.view.h / 2,

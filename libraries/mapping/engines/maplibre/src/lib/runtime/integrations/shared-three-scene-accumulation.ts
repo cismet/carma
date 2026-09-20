@@ -149,7 +149,10 @@ export const createSharedThreeSceneAccumulation = (layerId: string) => {
           layerId,
           progressive.progress
         );
-        if (progressive.settled) accumulation?.onSettled?.();
+        if (progressive.settled) {
+          accumulation?.onPresented?.();
+          accumulation?.onSettled?.();
+        }
       } else if (
         !accumulation?.renderProgressive &&
         accumulation?.active() &&
@@ -225,12 +228,24 @@ export const createSharedThreeSceneAccumulation = (layerId: string) => {
             ? 1
             : accumulator.nextRound / Math.max(1, accumulation.rounds)
         );
-        if (becameSettled && composited) accumulation.onSettled?.();
+        if (becameSettled && composited) {
+          accumulation.onPresented?.();
+          accumulation.onSettled?.();
+        }
       } else {
         const retainSettled =
           accumulation?.retainSettledFrame() === true &&
           accumulator?.hasSettledFrame === true &&
           settledAccumulatorVisualKey === visualKey;
+        // A changed sun/camera or an over-budget viewport cannot reuse these
+        // targets. Release them during direct rendering instead of retaining
+        // an obsolete multi-target working set through prolonged interaction.
+        if (accumulator && !retainSettled && !accumulator.broken) {
+          accumulator.dispose();
+          accumulator = null;
+          accumulatorConfigurationKey = "";
+          settledAccumulatorVisualKey = "";
+        }
         let composited = false;
         depthRangeBridge?.render(savedDepthRange, () => {
           if (retainSettled && renderer) {
@@ -242,6 +257,7 @@ export const createSharedThreeSceneAccumulation = (layerId: string) => {
             renderScene(null);
           });
         }
+        if (!accumulation?.pending?.()) accumulation?.onPresented?.();
         publishMapLoadingProgress(
           map,
           MAP_LOADING_PHASE.SHADOW,

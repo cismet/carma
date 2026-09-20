@@ -197,6 +197,7 @@ export function createThreeTilesLifecycle(
   const reportedIncompleteFamilies = new WeakSet<Tile>();
   let publishedContentRevision = -1;
   const drawObserver = createTileDrawObserver((tile) => {
+    dependencies.getTileDebugProgress(tile).visibleAt ??= performance.now();
     const requestedAt = tile.firstPublicationRequestedAt;
     if (requestedAt !== undefined) {
       motionPrefetch.observeLatency(performance.now() - requestedAt);
@@ -225,12 +226,16 @@ export function createThreeTilesLifecycle(
     telemetryTiles.add(tile);
   };
   const handleDownloadStart = ({ tile }: { tile: Tile }) => {
-    if (!runtimeState.tileBoundsVisible) return;
     const progress = dependencies.getTileDebugProgress(tile);
     progress.downloadStartedAt = performance.now();
     progress.downloadFinishedAt = undefined;
     progress.parseStartedAt = undefined;
     progress.parseFinishedAt = undefined;
+    progress.publicationStartedAt = undefined;
+    progress.publicationFinishedAt = undefined;
+    progress.loadedAt = undefined;
+    progress.visibleAt = undefined;
+    progress.shadowPresentedAt = undefined;
     progress.lastError = undefined;
     noteTileActivity(tile);
   };
@@ -279,7 +284,7 @@ export function createThreeTilesLifecycle(
   let hasBootstrapPayload = false;
   const handleModelLoad: ThreeTilesRuntimeServices["handleModelLoad"] =
     (event: { scene?: THREE.Object3D; tile?: Tile; url?: string }) => {
-      if (event.tile && runtimeState.tileBoundsVisible) {
+      if (event.tile) {
         dependencies.getTileDebugProgress(event.tile).publicationStartedAt =
           performance.now();
         dependencies.getTileDebugProgress(event.tile).loadedAt ??=
@@ -341,7 +346,7 @@ export function createThreeTilesLifecycle(
         drawObserver.attach(event.tile as RuntimeTile, event.scene);
       dependencies.notifyRequestStateChange();
       dependencies.requestRender();
-      if (event.tile && runtimeState.tileBoundsVisible)
+      if (event.tile)
         dependencies.getTileDebugProgress(event.tile).publicationFinishedAt =
           performance.now();
     };

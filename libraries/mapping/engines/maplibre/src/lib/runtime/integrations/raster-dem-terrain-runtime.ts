@@ -174,6 +174,8 @@ export type RasterDemTerrainRuntimeOptions = Readonly<{
   maxCachedMeshBytes?: number;
   /** Number of height-grid segments per tile used by the Three.js terrain. */
   meshSegments?: number;
+  /** Explicit lossy mobile baseline ceiling; omitted preserves native residual accuracy. */
+  maximumMeshSegments?: number;
   /** Additional reconstruction residual; source-LOD pixel spacing is separate. */
   maximumMeshErrorMeters?: number;
   /** Source-specific height that denotes missing terrain coverage. */
@@ -423,6 +425,10 @@ export const buildRasterDemTerrainRuntime = (
   originLngLat: [number, number],
   options: RasterDemTerrainRuntimeOptions = {}
 ): RasterDemTerrainRuntime => {
+  const meshSegments = Math.min(
+    terrainSourceConfig.tileSize,
+    clampInteger(options.maximumMeshSegments, terrainSourceConfig.tileSize, 16)
+  );
   let errorTargetPixels = Math.max(
     0.1,
     options.errorTargetPixels ?? DEFAULT_ERROR_TARGET_PIXELS
@@ -552,7 +558,9 @@ export const buildRasterDemTerrainRuntime = (
     // Profile segment caps are not a residual guarantee. The worker now chooses
     // native/half/quarter from the same full-resolution source and a measured
     // error bound; progressive source-LOD stages still fill the screen first.
-    meshSegments: terrainSourceConfig.tileSize,
+    // Only the explicit mobile ceiling opts into a coarser source grid.
+    meshSegments,
+    maximumMeshSegments: options.maximumMeshSegments,
   });
   const meshes = new Map<string, TerrainMeshRecord>();
   const debugCameraPosition = new Vector3();
@@ -2064,7 +2072,7 @@ export const buildRasterDemTerrainRuntime = (
         },
         minzoom: terrainSourceConfig.minzoom,
         maxzoom: terrainSourceConfig.maxzoom,
-        meshSegments: terrainSourceConfig.tileSize,
+        meshSegments,
       },
       knownHeightRanges,
       unknownHeightRange: unknownTerrainHeightRange,

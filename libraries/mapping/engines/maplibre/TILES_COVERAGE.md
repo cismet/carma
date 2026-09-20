@@ -159,7 +159,7 @@ Up to three explicit future views per runtime; lead 0–5000 ms, validity 1–20
 
 132 focused engine checks and five camera-window tests pass: coherent-motion gating, reversals, latency/spatial bounds, non-mutating path samples, API routing without receiver demand, whole-family admission, memory limit, expiry, live adoption and preemption backoff. No production build or server restart.
 
-Chrome 152 / M4 Max, 1200×1143 CSS pixels/DPR2, debug enabled, warm evolving caches, same existing Storybook: a 2 km / 60 s native MapLibre pan activated prediction in 210/232 samples but admitted no speculative requests before current initial quality was ready (and the first memory gate used the too-low eviction watermark). Raw local artifact: `output/prediction-pan-no-admission-20260916.json`; script: `benchmarks/slow-pan-browser.js`. A subsequent 20 s / 1300 px pan with the corrected budget admitted 114 requests but only three completed as speculation; preemption retries motivated the final 2 s backoff. It retained the runtime and disarmed after stopping. These are **not** balanced A/B results: different views, evolving residency, no cold-network reset, and the final backoff/deferral release has not been browser-accepted because the test tab became unavailable. No measured speedup or GPU-gapless guarantee.
+Chrome 152 / M4 Max, 1200×1143 CSS pixels/DPR2, debug enabled, warm evolving caches, same existing Storybook: a 2 km / 60 s native MapLibre pan activated prediction in 210/232 samples but admitted no speculative requests before current initial quality was ready (and the first memory gate used the too-low eviction watermark). Raw local artifact: *unpublished validation artifact*; script: `benchmarks/slow-pan-browser.js`. A subsequent 20 s / 1300 px pan with the corrected budget admitted 114 requests but only three completed as speculation; preemption retries motivated the final 2 s backoff. It retained the runtime and disarmed after stopping. These are **not** balanced A/B results: different views, evolving residency, no cold-network reset, and the final backoff/deferral release has not been browser-accepted because the test tab became unavailable. No measured speedup or GPU-gapless guarantee.
 
 Alternatives: unconditional directional prefetch rejected by design (wasted work after erratic input); predictive visible cameras rejected (would weaken publication/retention invariants); unlimited latency feedback rejected (overload amplification). Revisit with paired, equally warmed motion runs measuring entry quality, unused bytes and foreground delay; keep speculation bounded if it does not help.
 
@@ -233,7 +233,7 @@ reserve pass and residual-resolution derivation.
 
 77 focused loading, cascade and view-refresh tests pass, including initial-before-
 reserve ordering, transitions still in flight, no repeated startup on pan,
-memory-parked work and live target changes (`mesh-startup-stages-final.log`).
+memory-parked work and live target changes (*unpublished validation artifact*).
 The existing browser initially still showed the old controls and subsequently
 crashed during visual verification; current control visibility/load timing is
 not accepted. Existing Storybook 4400 was not restarted. No production build.
@@ -301,7 +301,7 @@ offscreen retention could jump immediately to the highest loaded ancestor.
 ### Acceptance boundary for this change
 
 129 focused tests pass across frontier, loading, view refresh and camera demand
-(`2026-09-16 16:43` local; `mesh-reserve-final.log`). Browser
+(`2026-09-16 16:43` local; *unpublished validation artifact*). Browser
 before-fix inspection included wheel zoom out/in; the final zoomed-out screenshot
 showed a continuous mesh inside its irregular source boundary. On reloading the
 updated code the internal browser tab crashed; recovery failed and a fresh test
@@ -345,8 +345,7 @@ unloaded extent before it filled, so no universal no-hole guarantee is claimed.
 Two corridor assertions (drag cancellation timing and a caster request) also fail
 with the pre-wave scheduling/retention policy reconstructed in an isolated Vite
 test transform; live sources were not rolled back for that comparison.
-Logs: `mesh-wave-final.log`, `mesh-wave-check.log`,
-`mesh-corridor-baseline.log`. No production build or server restart.
+ No production build or server restart.
 
 Audit scope below (before this fix): Mesh Coverage configuration (12 px base, 6 px final), shared
 mesh runtime and raster frontier. This section distinguishes executable policy
@@ -655,23 +654,20 @@ browser evidence.
   and coverage retention. Seven strip tests cover identity-preserving priority,
   whole-rig elevation/clipping translation and stale readbacks. Seventeen UI
   tests cover bounded/wrapped navigation, source reuse, frame coalescing and
-  cleanup. Logs: `camera-priority-final-tests.log`,
-  `camera-strip-final-tests.log`,
-  `camera-interactions-final-tests.log`. No broad build or full-suite
+  cleanup.  No broad build or full-suite
   green claim; prior source-floor/corridor blockers are not closed by this work.
 - **Browser verification:** The existing user-visible Chrome session on 4400
   confirms twelve SECONDARY panorama cameras in one pool, promotion of segment
   five without changing pool or camera IDs, 0-to-0.916 wrap navigation, wheel
   zoom, and the same +3.142 m elevation delta for all twelve cameras without
   moving the map. Closing diagnostics removes its registration; one presentation
-  canvas remains. `output/playwright/camera-array-priority-browser.log`,
-  `camera-array-interaction-browser.log` and `camera-panorama-wrap.png` record
+  canvas remains. *unpublished validation artifact* and *unpublished browser capture* record
   the local probe. The closed facade keeps 16 cameras in one pool and wraps
   0-to-0.966; the open Wupper-bank strip keeps 29 cameras, stops at 0 and 1,
   and also starts with diagnostics off. Local evidence:
-  `camera-closed-facade-browser.log`, `camera-closed-facade-wrap.png`,
-  `camera-open-spine-browser.log`, `camera-open-spine.png` in that same folder.
-  `camera-debug-extraction-regression.log` confirms the original Coverage story
+  *unpublished validation artifact*, *unpublished browser capture*,
+  *unpublished validation artifact*, *unpublished browser capture* in that same folder.
+  *unpublished validation artifact* confirms the original Coverage story
   still opens its overview and diagnostics by default on one runtime.
   This is functional interaction acceptance, not a cold-load,
   throughput, memory-pressure or every-camera no-holes certification; the demo
@@ -685,7 +681,7 @@ browser evidence.
 - **Decision:** Retain useful queued floor/support buffers and original promises but park them during movement and while eligible current-camera payloads are pending. Rank offscreen floor below visible detail. Refresh eligibility at native download/parse dispatch and after the pre-parse yield; reawaken parked parsing on camera changes. Cancel obsolete coarse REPLACE requests when a complete drawn child cut already covers them. In main-view-only scenes, preempt active offscreen fetches for waiting visible payloads, but do not repeatedly restart already running decoders. A covered viewport may tighten its target before the independent floor audit/downloads complete. Loaded coverage, cache ceiling and atomic publication rules are unchanged.
 - **Alternatives and disposition:** Dropping loaded historical coverage is incompatible with R4. Aborting every useful downloaded buffer would waste completed transfers, so pending buffers are retained. Keeping a high-priority floor and merely increasing concurrency is rejected by the observed foreground priority inversion, not by a throughput sweep. Interrupting native GLTF work already executing is not implemented; it remains bounded by parse concurrency.
 - **Evidence:** 178 focused tests across load policy, cascade cancellation, current-view refresh and frontier retention passed. They cover parked native promises, foreground precedence for both queues, camera-entry wakeup, cancellation across the pre-parse yield, coarse-child replacement and other-camera protection. The wider corridor-demand check still reports its three previously recorded failing cases; this is not a green full-suite gate.
-- **Browser measurement:** Shared user-visible Chrome 152 on the reference Mac16,5 / M4 Max / 36 GiB, 1728×998 CSS pixels, development Storybook. One six-second run before and one after: fixed centre `[7.12701818627022, 51.23829136862301]`, zoom 13.66→18 over 650 ms, one-second preparation, 500 ms queue sampling. Both reached the 4 px target/converged flag at the 3.5 s sample. Frame p50/p95/max were 7.0/7.6/69.4 ms before and 8.3/9.3/58.3 ms after. Afterward the 0.5 s snapshot had visible work active and offscreen support queued; at 1.0 s visible payloads had drained and support fetched. Resident pools differ (431 versus 587 at the first sample), and HTTP/cache/thermal state was not controlled: no comparative latency or throughput gain is claimed. No CPU/GPU profile, byte-cost comparison, cold-load, memory-pressure or no-holes certification follows from this queue observation. Reproducer and raw results: `output/playwright/profile-fast-zoom.js`, `fast-zoom-before.log`, `fast-zoom-after.log` (local artifacts, not committed).
+- **Browser measurement:** Shared user-visible Chrome 152 on the reference Mac16,5 / M4 Max / 36 GiB, 1728×998 CSS pixels, development Storybook. One six-second run before and one after: fixed centre `[7.12701818627022, 51.23829136862301]`, zoom 13.66→18 over 650 ms, one-second preparation, 500 ms queue sampling. Both reached the 4 px target/converged flag at the 3.5 s sample. Frame p50/p95/max were 7.0/7.6/69.4 ms before and 8.3/9.3/58.3 ms after. Afterward the 0.5 s snapshot had visible work active and offscreen support queued; at 1.0 s visible payloads had drained and support fetched. Resident pools differ (431 versus 587 at the first sample), and HTTP/cache/thermal state was not controlled: no comparative latency or throughput gain is claimed. No CPU/GPU profile, byte-cost comparison, cold-load, memory-pressure or no-holes certification follows from this queue observation. Reproducer and raw results: *unpublished validation artifact* (local artifacts, not committed).
 - **Remaining limit / revisit when:** Atomic REPLACE publication still waits for offscreen siblings needed to replace an already published ancestor. Foreground payloads finishing early does not mean they can all be published early. Revisit that separate coverage/publication dependency with frame-by-frame no-holes and overlap tests; do not treat the queue correction as its solution.
 
 ## Current-view demand and completion liveness — 2026-09-13
@@ -746,14 +742,14 @@ browser evidence.
   Cancellation without matching admission was also a **measured rejection**:
   one 1.5-second zoom-out produced 4,514 queued-request cancellations because
   native traversal immediately re-created the rejected work. Raw local probe:
-  `carma-cancel-demand-probe.log`.
+  *unpublished validation artifact*.
   A subsequent cold-session run exposed another cycle: 6.44 GB accounted against
   a 6.51 GB admission ceiling, memory target 20 px but effective target 4 px,
   incomplete base, and 553 queued/3 downloading/4 parsing unchanged. The code
   incorrectly required base readiness before **coarsening**; its collector also
   continued requesting 4 px replacement support. This supersedes any inference
   that camera freshness and shared admission alone close all liveness gaps.
-  Raw snapshot: `carma-reconciled-demand-settled.log`.
+  Raw snapshot: *unpublished validation artifact*.
 - **Evidence:** Existing user-visible Chromium 152.0.7977.83 session, static
   Storybook preview on port 4300; no new browser/context/renderer pool. Workload:
   first visible mesh → underlying MapLibre zoom 14 over 600 ms → zoom 17.32 after
@@ -765,8 +761,8 @@ browser evidence.
   2.59–2.61 GB, JS heap 0.96–0.97 GB. A cache-disabled 80 ms/4 MiB/s run had not
   converged at 15 s: 37 queued/16 downloading, coarse coverage present, no idle
   queue stall. This is a network-throttled run, not a disk-cold benchmark.
-  Probe: `output/playwright/current-demand-acceptance.js`; raw local results:
-  `carma-current-demand-acceptance.log`. The warm screenshots were
+  Probe: *unpublished validation artifact*; raw local results:
+  *unpublished validation artifact*. The warm screenshots were
   inspected; the source-floor diagnostic still reports two unresolved roots.
   These measurements predate the follow-up aggressive cancellation change and
   do not certify global no-holes, cold completion, GPU throughput or p95 latency.
@@ -780,10 +776,8 @@ browser evidence.
   threshold. This reopened headed session used 1200x1199 CSS pixels, DPR 2
   (2400x2398 screenshot), Chromium 152.0.7977.83, and 14 reported logical CPUs;
   hardware/GPU model was not recorded. It is not a timing comparison against the
-  earlier smaller-window runs. Raw evidence: `carma-memory-demand-probe.log`,
-  `carma-memory-demand-idle.log`, and
-  `carma-demand-browser-environment.log`; inspected screenshot:
-  `output/playwright/cancel-demand-final.png`. Raster continuous-motion
+  earlier smaller-window runs. Raw evidence: *unpublished validation artifact*; inspected screenshot:
+  *unpublished browser capture*. Raster continuous-motion
   cancellation is covered by held-worker tests, not by this mesh screenshot.
 - **Cancellation boundary:** Queued native parsing can be removed immediately;
   already-running non-cooperative GLTF/browser decoding may finish its current
@@ -893,9 +887,9 @@ The newer shared mesh/raster manager is integrated into this host's engine packa
 
 - **Status:** implemented diagnostic, not coverage certification.
 - **Combined glyph:** pipeline state occupies the innermost circle (empty queue, half-filled download, filled processing); LOD contours surround it. Both circle centres and triangle centroids coincide with the overview tile centroid. The outer radius fits the shorter tile dimension with 8% padding (minimum half a display pixel), without a fixed-radius cap. Pipeline drawing follows the outer contours so the active stage stays on top. These are categorical phases, not byte-progress indicators.
-- **Active-level subdivision:** the overview draws actual authored child bounds, not an aggregate at the extent floor. Metadata nodes and parents with finer shown resident/requested descendants are structural frames only; each terminal active cell has its own boundary, state and quality glyph. Unrefined siblings stay coarse. Ancestor closure uses only already-known candidates and does not request content or alter the rendered tile cut. Quality estimation runs only on terminal cells. The former 18-unit symbol cutoff hid detail even when magnified; visibility now follows the overview scale (4 display pixels), with borders retained below that. Live checks observed active hierarchy depths 9–17, no borderless child cells and no zero-radius circles. These depths include authored routing levels and are not the quality glyph's renderable-LOD step count. Evidence: `output/playwright/overview-active-levels.png`, `overview-level-diagnostics.log`; loader tests were not rerun for this diagnostic-only change.
+- **Active-level subdivision:** the overview draws actual authored child bounds, not an aggregate at the extent floor. Metadata nodes and parents with finer shown resident/requested descendants are structural frames only; each terminal active cell has its own boundary, state and quality glyph. Unrefined siblings stay coarse. Ancestor closure uses only already-known candidates and does not request content or alter the rendered tile cut. Quality estimation runs only on terminal cells. The former 18-unit symbol cutoff hid detail even when magnified; visibility now follows the overview scale (4 display pixels), with borders retained below that. Live checks observed active hierarchy depths 9–17, no borderless child cells and no zero-radius circles. These depths include authored routing levels and are not the quality glyph's renderable-LOD step count. Evidence: *unpublished browser capture*, *unpublished validation artifact*; loader tests were not rerun for this diagnostic-only change.
 - **Decision:** drawn/not-drawn fills, independent floor/ring borders and pipeline symbols. Concentric circles indicate required refinement, triangles indicate coarsening available through known REPLACE ancestors. A suitable selected LOD has no quality symbol. Hover retains the fallback/underlay role. Deferred is not a failed request.
-- **Photo-mesh contrast (2026-09-14):** map and popout have distinct presentations of the same cells. On-map tile, frustum and pipeline shapes have no fills and no area backdrop. A narrow neutral-grey (`#404040`, 2.5 px) stroke pass uses 25% opacity and `mix-blend-mode: darken`, beneath bright cyan grids, yellow quality contours, magenta reserve outlines and light-violet pipeline strokes. Only stroke pixels can darken the photo; the pass ignores pointer events. This follows the existing layered annotation-cursor approach without filters. Empty, bisected and double inner circles distinguish map queue/download/parse states; the popout retains empty/half/full discs and cyan drawn/dark-neutral not-drawn fills on an opaque background. User review rejected both heavy double casings and a map-wide grey backdrop. Active-level subdivision and loader policy are unchanged. No universal contrast or performance certification is claimed. Earlier superseded reviews: `output/playwright/overview-photo-contrast.png`, `output/playwright/overview-bright-darken.png`. Current map/popout evidence: `output/playwright/overview-strokes-map.png`, `output/playwright/overview-strokes-popout.png`.
+- **Photo-mesh contrast (2026-09-14):** map and popout have distinct presentations of the same cells. On-map tile, frustum and pipeline shapes have no fills and no area backdrop. A narrow neutral-grey (`#404040`, 2.5 px) stroke pass uses 25% opacity and `mix-blend-mode: darken`, beneath bright cyan grids, yellow quality contours, magenta reserve outlines and light-violet pipeline strokes. Only stroke pixels can darken the photo; the pass ignores pointer events. This follows the existing layered annotation-cursor approach without filters. Empty, bisected and double inner circles distinguish map queue/download/parse states; the popout retains empty/half/full discs and cyan drawn/dark-neutral not-drawn fills on an opaque background. Heavy double casings and a map-wide grey backdrop obscure the photo mesh. Active-level subdivision and loader policy are unchanged. No universal contrast or performance certification is claimed. Earlier superseded reviews: *unpublished browser capture*. Current map/popout evidence: *unpublished browser capture*.
 - **Prediction boundary:** use the renderer's camera-projected errors over the available tile hierarchy, skipping metadata and unconditional routing nodes. Return a min/max LOD range; cap each audit at 128 nodes. Missing hierarchy or the cap produces an error-halving estimate marked `≈`, using solid contours rather than visually noisy dashes. These are not downloads, frame iterations, time predictions or a completeness guarantee. The effective target includes the runtime's memory adaptation; 10% tolerance avoids threshold noise. Display one contour per LOD step without truncation, scaling the complete concentric stack inside the tile's padded extent and reserving the innermost position for active processing.
 - **Alternatives:** twelve exclusive colours mix independent properties (inspection); unconditional error-halving remains only an explicitly estimated fallback. New metadata downloads for diagnostics are deliberately excluded.
 - **Evidence:** focused coverage tests exercise nonuniform branches, metadata routing, unknown hierarchy, audit limits, target tolerance and replaceable ancestors. Static preview visually checked circles/triangles and legend. No loader-performance or full-coverage acceptance is inferred.
@@ -905,13 +899,13 @@ The newer shared mesh/raster manager is integrated into this host's engine packa
 ## Diagnostic windows and spatial projection
 
 - **ID / date / status:** `COVERAGE-DIAGNOSTIC-WINDOWS-20260914` / 2026-09-14 / implemented diagnostic, not loader acceptance.
-- **Context and constraints:** the user requested functional Ant Design/Font Awesome story chrome, independent movable/collapsible windows, quieter contours and a diagnostic-only up switch. Existing loaded tiles and the main camera must remain untouched. This explicit UI request supersedes the default minimal story-framing guidance for this story.
+- **Context and constraints:** the diagnostic requires functional Ant Design/Font Awesome story chrome, independent movable/collapsible windows, quieter contours and a diagnostic-only up switch. Existing loaded tiles and the main camera must remain untouched.
 - **Decision:** enable `debug` by default in Coverage. A compact icon toolbar opens legend, overview, queue, statistics, charts and a separate event log. Windows can move, resize, collapse into the toolbar or open externally. Hide-all preserves recording; telemetry can be stopped independently. Advanced display settings are initially closed in a popover. Camera, Loading and Memory remain grouped Storybook controls; other new story modules group their larger control sets by scope.
 - **Solid symbology:** use solid contours and `≈` estimates. Offscreen floor/ring tiles have quiet blue-grey baseline frames without LOD divergence; their active processing/failure symbols remain visible. Classification uses the runtime's main-view intersection result/native bounding volume where available, with a world-box fallback. On-map no-fill and stroke-only 25% darken composition are preserved; the separate overview retains state fills.
 - **Spatial model:** replace the two arbitrary height-plane footprints with vertices of the actual camera frustum clipped to the tileset's world bounds, then project its edges. The clipper is an extension of shared `createTileCameraDemand`, rebased near the box center for ECEF precision. It returns independent vertices, not an ordered polygon; a convex hull is appropriate for this single-camera convex intersection, not for the union of multiple cameras. This is the intersection with conservative tile bounds, not a terrain raycast or the exact ground silhouette.
 - **Diagnostic up:** either native tileset Z or geodetic tangent-up at the camera. Only the SVG projection changes; no map-camera, mesh-mount or datum changes. Loaded wireframes reuse source geometry and instance buffers in the existing scene; disabling the overlay or disposing source geometry removes the diagnostic proxies.
-- **Alternatives and disposition:** two height planes and dashed outlines are superseded by user review; CARMA info-box framing was rejected for this developer-only UI. A new Three/WebGL context or cloned tile payloads are unnecessary by inspection. Storybook 8.5.3's stock control-category rows do not expose supported initially-collapsed state; no DOM patch or conditional hiding of preset args was introduced.
-- **Evidence:** 18 focused camera-demand tests pass, including clipping, disjoint/enclosing volumes, perspective, multiple cameras, immutability and ECEF/tiny extents. Live 4400 reload confirms default debug, the rendered mesh, legend and eight grouped Controls. Shared visible Playwright checks confirm drag-position retention through collapse/restore, native resizing, styled external-window docking and independent statistics/log windows. Up switching leaves the camera and mesh matrix unchanged. Wireframe toggling created 453 proxies sharing source geometry and removed all proxies on disable. Hide-all restores correctly; telemetry off removes diagnostic registry entries and re-enabling retains the same tile-pool UUID. The separate overview retains state fills. Screenshot: `output/playwright/coverage-diagnostic-windows.png`; scoped checks: `coverage-ui-{drag,window,up,geometry,visibility}-check.log`. This is not a full loader, no-holes or performance certification; existing tile-fetch failures and previously recorded acceptance blockers remain separate.
+- **Alternatives and disposition:** two height planes and dashed outlines are superseded by volume intersections and solid contours; CARMA info-box framing was rejected for this developer-only UI. A new Three/WebGL context or cloned tile payloads are unnecessary by inspection. Storybook 8.5.3's stock control-category rows do not expose supported initially-collapsed state; no DOM patch or conditional hiding of preset args was introduced.
+- **Evidence:** 18 focused camera-demand tests pass, including clipping, disjoint/enclosing volumes, perspective, multiple cameras, immutability and ECEF/tiny extents. Live 4400 reload confirms default debug, the rendered mesh, legend and eight grouped Controls. Shared visible Playwright checks confirm drag-position retention through collapse/restore, native resizing, styled external-window docking and independent statistics/log windows. Up switching leaves the camera and mesh matrix unchanged. Wireframe toggling created 453 proxies sharing source geometry and removed all proxies on disable. Hide-all restores correctly; telemetry off removes diagnostic registry entries and re-enabling retains the same tile-pool UUID. The separate overview retains state fills. Screenshot: *unpublished browser capture*; scoped checks: *unpublished validation artifact*. This is not a full loader, no-holes or performance certification; existing tile-fetch failures and previously recorded acceptance blockers remain separate.
 - **Revisit when:** native tile bounds replace the current conservative world extent, diagnostic clipping becomes a measured bottleneck, or a newer Storybook exposes category expansion defaults.
 
 ## Scoped overview ownership and render-thread work
@@ -933,7 +927,7 @@ The newer shared mesh/raster manager is integrated into this host's engine packa
 
 - **Evidence boundary:** one initial quiet and one rotating baseline; two post-change rotating observations (p95 13.9 and 13.3 ms), plus the final quiet observation. One interim post-change trace overlapped source reload/texture uploads and is excluded from the warm comparison; it still contained long tasks. Rotation admitted some fringe content (663 before versus 664 final resident entries), so this is a representative local comparison, not deterministic throughput certification. Final rotation still had four active tile requests. The initial post-change profile overlapped a subsequently stopped test runner; the final verified run did not. CPU samples use 1 ms sampling; absence from sampled stacks is not a proof of zero execution. Heap/GPU peaks and cold-load performance were not measured. Existing floor 73/75 and two uncovered fallback roots remain acceptance issues, not fixed by this change.
 - **Validation:** 79 focused mesh-frontier tests pass. A new 128-family test checks identity-level output parity and bounds parent/visibility reads, then changes view demand to catch stale cross-frame indexing. Visible UI checks confirm default Overlay, zero map grids in Window mode, one window grid with its nested legend, no grids in Off mode, and restoration to Overlay. No full build or merge-ready claim.
-- **Artifacts:** `output/playwright/coverage-debug-{idle-before,moving-before,idle-after,moving-after}.log`, `coverage-nested-overview.png`, and `profile-coverage-ui{,-moving}.js`. Run the scripts through the existing visible Playwright CLI session's `run-code`; they select the Coverage iframe tab, settle bearing 0 for two seconds, then sample five seconds. Do not overlap source edits or unrelated interactions when repeating.
+- **Artifacts:** *unpublished validation artifact*, *unpublished browser capture*, and `profile-coverage-ui{,-moving}.js`. Run the scripts through the existing visible Playwright CLI session's `run-code`; they select the Coverage iframe tab, settle bearing 0 for two seconds, then sample five seconds. Do not overlap source edits or unrelated interactions when repeating.
 - **Revisit when:** larger resident frontiers expose another nonlinear step, dependency versions change, or full cold-load/drag acceptance is requested. Scope additional work to measured bottlenecks; keep coverage proofs intact.
 
 # TILE-CONSOLIDATION-20260914
@@ -971,7 +965,7 @@ Historical test/performance statements are not current acceptance results.
 - Full `stories:storybook` runs on **4400 from `tile-loading-manager`**, not the old worktree or a narrow preview. Both collaboration submodules were initialized at dev's recorded revisions; no gitlink/manifests changed.
 - Browser index: **18 entries**, comprising Coverage, six camera views, four light/night entries and seven reference presets. Coverage was visually inspected; facade, Barmen night traffic and mesh/terrain comparison each rendered with no page errors or Vite overlay in startup probes. The whole-town entry remains explicitly disabled; facade presets retain review labels.
 - Coverage still reports **73/75** loaded floor tiles with two unresolved fallback cuts. Startup canvas checks are not proof of cold-load, animation, offscreen-shadow or sustained no-holes correctness.
-- Raw local logs: `consolidated-manager-suite.log`, `consolidated-reference-tests.log`, `consolidated-metadata-tests.log`, `consolidated-browser-inventory2.log`, `consolidated-browser-smoke.log`. Screenshot: `output/playwright/consolidated-coverage.png`. Existing root-barrel violations remain; no new violation was introduced in the touched engine barrels.
+- Raw local logs: *unpublished validation artifact*.  Existing root-barrel violations remain; no new violation was introduced in the touched engine barrels.
 
 # Motion throughput follow-up (2026-09-16)
 
@@ -1138,7 +1132,7 @@ report released compute capacity. Do not restart such work merely for utilizatio
 **Evidence:** Nine focused priority/parking/yield tests pass. The new case verifies
 that still-needed background content never enters its decoder when foreground
 work arrives across the yield, foreground completes, and background can be
-requested again afterward. Log: `carma-preparse-preemption.log`.
+requested again afterward. Log: *unpublished validation artifact*.
 No new end-to-end speedup or no-holes claim. Revisit if the decoder gains genuine
 task cancellation or resumable processing.
 
@@ -1181,8 +1175,8 @@ in either order, and changed shadow demand despite a cached camera result. The
 contentless-routing fixture now derives its expected SSE from actual projection,
 depth and geometric error instead of a mocked vendor pixel value. The wider run
 still has the previously recorded three corridor failures and one memory-relaxation
-failure; see `carma-unified-sse-third.log`. Camera-order follow-up:
-`carma-unified-sse-camera-final.log`. No production build or commit.
+failure; see *unpublished validation artifact*. Camera-order follow-up:
+*unpublished validation artifact*. No production build or commit.
 
 **Revisit when:** Real-mesh measurements show world-AABB inflation is material, or
 when a shared memory-pressure policy is explicitly designed for all requested views.

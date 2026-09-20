@@ -1,10 +1,8 @@
 # Reference-story review — 2026-09-14
 
-Local, uncommitted review evidence; not a production or geodetic certification.
-The visible, shared Playwright session `tile-camera-stress` uses the existing
-Storybook on port 4400. No second server, renderer context per A/B view, or public
-issue was created. Screenshots are local artifacts in `output/playwright/`, not
-tracked photo/model assets.
+Browser review summary; not a production or geodetic certification.
+The checks used an existing Storybook on port 4400. Browser captures and raw
+logs are not included in this repository.
 
 ## Stories and navigation
 
@@ -20,7 +18,7 @@ The ordering applies to the complete stories project, not only this branch:
 Terrain and Atmosphere → Shadows → Tile Loading Manager → Map Navigation →
 Annotations → Gizmos → UI Components → Appendix. References lead their scope;
 isolated tests, benchmarks and proofs of concept are collected at the end.
-Evidence: `storybook-reorganization-final.log`.
+
 
 The subsequent dev-parity audit supersedes that local-only navigation check:
 60 CSF files, 117 stories, all 88 IDs from fetched `origin/dev` preserved and
@@ -48,8 +46,8 @@ The 0.1° perspective FOV is not true orthography. Beyenburg is approximately
 global farthest-content location is **not established**. A deeper metadata crawl
 was stopped after slow responses. North/south remain built-up comparison sites,
 not certified coverage extrema. Do not use these screenshots as global maxima.
-Evidence: `output/playwright/mesh-mount-grid.png` and
-`mesh-grid-final-status.log` (local, not committed artifacts).
+Evidence: *unpublished browser capture* and
+*unpublished validation artifact* (local, not committed artifacts).
 
 Five browser states covered default/opposite/reset padding and a narrow canvas.
 All retained the same Map, runtime, pool and camera objects. The screen guide
@@ -65,20 +63,18 @@ navigation.
 | 480 × 998 | right 120, bottom 100 | 180, 449 |
 | 1728 × 998 | reset | 864, 499 |
 
-Images: `viewport-padding-default.png`, `viewport-padding-narrow.png`,
-`viewport-padding-opposite.png`, `viewport-padding-reset.png`.
-Raw browser evidence: `padding-browser-scenarios.log`.
+
+
 137 focused test executions passed; logs:
-`tile-padding-lod-tests.log` and
-`tile-padding-runtime-tests.log`.
+*unpublished validation artifact*.
 
 ## Terrain A/B and memory boundary
 
 The clean Nordhelle reload after the stitching batch change rendered 192 terrain
 children, base coverage ready, with no recorded worker clone failure. Switching
 Curved → Planar retained the exact same Map, terrain runtime and camera pose.
-Inspected images: `terrain-horizon-curved.png`, `terrain-horizon-planar.png`.
-One earlier screenshot, `terrain-horizon-first.png`, records a failed two-panel
+Inspected images: *unpublished browser capture*.
+One earlier screenshot, *unpublished browser capture*, records a failed two-panel
 experiment and must not be presented as a successful result.
 
 This is **not a throughput benchmark**: no cold/warm repetitions, medians, tails,
@@ -89,15 +85,13 @@ against a 4.396 GB limit; one request remained pending in the later sample.
 The workload is still memory-heavy. Actual pre-fix failing task kind was not
 captured, so the batch path is not claimed as the uniquely proven OOM cause.
 
-Evidence: `horizon-batched-probe.log`,
-`horizon-batched-switch.log`,
-`terrain-worker-result-later.log`.
+
 106 focused terrain/stitch/worker tests passed:
-`terrain-clone-regression-tests.log`.
+*unpublished validation artifact*.
 These overlap other suites; do not add counts as unique tests.
 
 The three reference suites passed 21 tests:
-`reference-final-tests.log`. This covers projection math, landmarks
+*unpublished validation artifact*. This covers projection math, landmarks
 and preset geometry, not survey accuracy. No broad production build was run.
 
 ## Source and interpretation limits
@@ -122,14 +116,8 @@ warns explicitly about both solar-anchor and planar-coverage issues. Its source
 and shader/selection alignment need follow-up; missing pixels must not be
 interpreted as real negative terrain or proof of a valid viewshed.
 
-Logs: `horizon-langenberg-final.log`,
-`horizon-langenberg-switch.log`,
-`horizon-sunset-final.log`,
-`horizon-sunset-switch.log`,
-`horizon-sunset-settled.log`.
-Images: `terrain-horizon-langenberg-curved.png`,
-`terrain-horizon-langenberg-planar.png`, `terrain-horizon-sunset-curved.png`,
-`terrain-horizon-sunset-planar.png`. The expensive scene was unloaded by returning
+
+ The expensive scene was unloaded by returning
 the shared session to the root-mount story; no server was stopped or restarted.
 
 The final image presets use source-covered built-up locations instead of the
@@ -137,8 +125,7 @@ empty OBB probes: Dönberg (6.443 km horizontally from the root) and Cronenberg
 (4.651 km). Both fixed-root captures reported requests idle. Cronenberg's local
 anchor comparison has visibly fewer double edges, but was still refining; no
 pixel residual or uniquely identified cause is claimed. Images:
-`mesh-mount-root-origin.png`, `mesh-mount-doenberg.png`,
-`mesh-mount-cronenberg.png`, `mesh-mount-cronenberg-local-view.png`.
+*unpublished browser capture*.
 The updated mount suite passed nine tests, superseding its earlier eight-test
 run within the 21-test aggregate above.
 

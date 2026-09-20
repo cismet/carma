@@ -70,6 +70,7 @@ export type MeshTileDebugProgress = {
   lastError?: string;
   loadedAt?: number;
   visibleAt?: number;
+  shadowPresentedAt?: number;
   corridorReadyAt?: number;
   stableAt?: number;
   iterations: number;

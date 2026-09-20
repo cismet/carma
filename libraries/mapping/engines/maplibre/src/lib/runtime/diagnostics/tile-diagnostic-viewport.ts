@@ -8,7 +8,7 @@ import type {
   OverlayModel,
 } from "../../core/diagnostics/tile-diagnostic-model";
 
-/** Worker-side, constant-size camera update. Never walks or reclassifies tiles. */
+/** Worker-side projection against the snapshot boxes; never touches live tiles. */
 export const projectTileDiagnosticViewport = (
   basis: DiagnosticViewportBasis,
   camera: TileCameraSnapshot,
@@ -108,6 +108,78 @@ export const projectTileDiagnosticViewport = (
     ];
   }
 
+  const outline = new Float32Array(intersectionEdges?.flat() ?? []);
+  if (basis.tileBounds) {
+    const segments = new Map<string, [number, number, number, number]>();
+    const box = new THREE.Box3();
+    const centre = new THREE.Vector3();
+    const halfSize = new THREE.Vector3();
+    for (let offset = 0; offset + 5 < basis.tileBounds.length; offset += 6) {
+      box.min.fromArray(basis.tileBounds, offset);
+      box.max.fromArray(basis.tileBounds, offset + 3);
+      if (box.isEmpty() || !frustum.intersectsBox(box)) continue;
+      box.getCenter(centre);
+      box.getSize(halfSize).multiplyScalar(0.5);
+      const epsilon = Math.max(1e-7, halfSize.length() * 1e-9);
+      const cuttingPlanes = frustum.planes.filter(
+        (plane) =>
+          Math.abs(plane.distanceToPoint(centre)) <=
+          Math.abs(plane.normal.x) * halfSize.x +
+            Math.abs(plane.normal.y) * halfSize.y +
+            Math.abs(plane.normal.z) * halfSize.z +
+            epsilon
+      );
+      if (!cuttingPlanes.length) continue;
+      const clipped = demand.intersectionVertices(box);
+      for (const plane of cuttingPlanes) {
+        const face = clipped.filter(
+          (point) => Math.abs(plane.distanceToPoint(point)) <= epsilon
+        );
+        if (face.length < 2) continue;
+        const midpoint = face
+          .reduce((sum, point) => sum.add(point), new THREE.Vector3())
+          .multiplyScalar(1 / face.length);
+        const axis = new THREE.Vector3(
+          Math.abs(plane.normal.x) < 0.9 ? 1 : 0,
+          Math.abs(plane.normal.x) < 0.9 ? 0 : 1,
+          0
+        )
+          .cross(plane.normal)
+          .normalize();
+        const second = plane.normal.clone().cross(axis);
+        const angle = (point: THREE.Vector3) =>
+          Math.atan2(
+            point.clone().sub(midpoint).dot(second),
+            point.clone().sub(midpoint).dot(axis)
+          );
+        face.sort((a, b) => angle(a) - angle(b));
+        for (
+          let index = 0;
+          index < (face.length === 2 ? 1 : face.length);
+          index++
+        ) {
+          const a = face[index].clone().applyMatrix4(worldToOverview);
+          const b = face[(index + 1) % face.length]
+            .clone()
+            .applyMatrix4(worldToOverview);
+          const first = toScreen(a.x, a.z),
+            last = toScreen(b.x, b.z);
+          if (
+            !first.concat(last).every(Number.isFinite) ||
+            Math.hypot(first[0] - last[0], first[1] - last[1]) < 1e-7
+          )
+            continue;
+          const key = [first, last]
+            .map((point) => point.map((value) => value.toFixed(6)).join(","))
+            .sort()
+            .join(";");
+          segments.set(key, [...first, ...last]);
+        }
+      }
+    }
+    intersectionEdges = [...segments.values()];
+  }
+
   const fullView = { x: 0, y: 0, w: basis.width, h: basis.height };
   let view = fullView;
   if (footprintBounds && centerHit) {
@@ -168,6 +240,7 @@ export const projectTileDiagnosticViewport = (
           ] as [number, number])
         : null,
     edges: new Float32Array(intersectionEdges?.flat() ?? []),
+    outline,
     center: centerHit,
     origin: Number.isFinite(eye.x + eye.z)
       ? (toScreen(eye.x, eye.z) as [number, number])
@@ -188,9 +261,6 @@ export const projectTileDiagnosticViewports = (
     id: camera.id,
     ...projectTileDiagnosticViewport(basis, camera, paddingPercent),
   }));
-  // Only the outline of the whole cut. Cutting every tile box separately draws
-  // a sliver wherever the frustum grazes a flat tile, and a sliver reads as a
-  // stray horizontal stroke however it is filtered.
   const selected =
     focus === "all" ? views : views.filter((view) => view.id === focus);
   const bounds = selected.flatMap((view) =>
