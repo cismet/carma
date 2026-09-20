@@ -1422,3 +1422,31 @@ Continuation of **MULTICAM-STRESS-20260913**, status: diagnostic, review require
 - **Revisit when:** Light/mesh occlusion baking, complete lamp coverage, measured
   bridge/rail elevations and sustained GPU/memory acceptance are available.
   Until then the Whole Town story is explicitly disabled, not partially drawn.
+
+## Shadow activation and declared mesh appearance
+
+**ID / date / status:** MESH-SHADOW-ACTIVATION / 2026-09-20 / implemented.
+
+**Context:** `shadowBuildingStyle` opts a tileset into the shadow controls'
+colour and opacity overrides. The early return introduced in `76bfd967d` also
+prevented unlit terrain textures from receiving the lit material adapter.
+Mesh2024 could load while remaining unable to receive simulated shadows.
+
+**Decision:** always track shadow activation and install/restore the textured
+lighting adapter. Gate uniform colour, saturation and opacity overrides on
+`shadowBuildingStyle`. Opted-out styles retain their source texture, opacity and
+dataset colour correction; outlines follow their declared visibility, including
+when new models arrive. The source material is restored when shadows stop.
+
+**Alternatives:** enabling appearance overrides for every style is incompatible
+with the explicit opt-out. Removing the unlit material adapter cannot provide
+shadow reception. Neither alternative was adopted.
+
+**Evidence:** the added regression test checks an opted-out unlit mesh, declared
+texture/opacity/colour correction, outline visibility and adapter disposal. Live
+Mesh2024 shows shadows at 10:01 and 15:00. The selected loading tests have the
+same nine failing cases before and after this fix (71 versus 72 passing); these
+existing failures remain unresolved and are not treated as obsolete.
+
+**Revisit when:** another material extension needs a shadow-capable adapter;
+keep lighting participation independent of optional appearance overrides.

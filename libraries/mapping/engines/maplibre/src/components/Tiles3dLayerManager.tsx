@@ -79,7 +79,8 @@ export interface Tiles3dConfig {
    * Let the shadow simulation restyle this tileset like a building layer
    * while shadows are on: uniform colour, texture desaturation, colour
    * grading from the shadow controls. Off by default, so the appearance stays
-   * what this block declares. Outlines always follow `outline`.
+   * what this block declares. Shadow reception still activates for unlit meshes.
+   * Outlines always follow `outline`.
    */
   shadowBuildingStyle?: boolean;
   /** 0 to 1. */
