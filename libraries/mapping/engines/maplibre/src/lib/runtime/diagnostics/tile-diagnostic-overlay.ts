@@ -84,17 +84,11 @@ export const createTileDiagnosticOverlay = (
           (model.rects.length + volumes.length) * TILE_RECORD_FLOATS
         );
         const ids: string[] = [];
-        const tileBounds: number[] = [];
         const indices = new Map<Tile, number>();
         let started = performance.now();
         for (let i = 0; i < model.rects.length; i++) {
           if (disposed) return;
           const rect = model.rects[i];
-          if (rect.kind !== "ancestor")
-            tileBounds.push(
-              ...rect.world.min.toArray(),
-              ...rect.world.max.toArray()
-            );
           const flags =
             Number(rect.floor) |
             (Number(rect.ring) << 1) |
@@ -136,10 +130,6 @@ export const createTileDiagnosticOverlay = (
         for (let i = 0; i < volumes.length; i++) {
           if (disposed) return;
           const volume = volumes[i];
-          tileBounds.push(
-            ...volume.world.min.toArray(),
-            ...volume.world.max.toArray()
-          );
           tiles.set(
             [
               volume.x,
@@ -181,7 +171,6 @@ export const createTileDiagnosticOverlay = (
         snapshot = {
           showSize: model.showSize,
           showStats: model.showStats,
-          tileBounds: new Float64Array(tileBounds),
           tiles,
           ids,
           viewportBasis: model.viewportBasis,

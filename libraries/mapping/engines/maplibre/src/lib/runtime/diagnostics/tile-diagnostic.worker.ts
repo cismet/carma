@@ -78,8 +78,7 @@ const draw = async () => {
               snapshot.viewportBasis,
               [camera, ...cameras],
               target.cameraFocus,
-              target.followPaddingPercent,
-              snapshot.tileBounds
+              target.followPaddingPercent
             )
           : null;
       cameraDirty = false;

@@ -107,11 +107,6 @@ struct Vertex {
   var fillAlpha = 0.0;
   let inside = clamp(.5 - outer / worldPixel,0.0,1.0);
   if (kind == 0.0 && u.viewport.z > .5) { fillAlpha = inside * input.fill.a; }
-  if ((kind == 1.0 || kind == 2.0) && input.parameters.w > 0.0) {
-    let edge = (input.parameters.w * 2.0 - 1.0) * input.halfSize.x;
-    fillAlpha = inside * clamp(.5 + (edge - p.x) / worldPixel,0.0,1.0) * .3;
-    if (input.stroke.a == 0.0) { fillAlpha = 0.0; }
-  }
   // One wedge of a tile's processing pie: the slice between two angles,
   // swept clockwise from twelve o'clock, in the step's own colour.
   if (kind == 6.0) {

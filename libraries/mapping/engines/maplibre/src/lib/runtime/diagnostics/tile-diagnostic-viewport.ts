@@ -182,44 +182,15 @@ export const projectTileDiagnosticViewports = (
   basis: DiagnosticViewportBasis,
   cameras: readonly TileCameraSnapshot[],
   focus = "overview-live",
-  paddingPercent = 200,
-  tileBounds?: Float64Array
+  paddingPercent = 200
 ) => {
   const views = cameras.map((camera) => ({
     id: camera.id,
     ...projectTileDiagnosticViewport(basis, camera, paddingPercent),
   }));
-  // Keep the global intersection for framing, but draw actual per-tile cuts
-  // instead of the distant faces of the tileset-wide bounding volume.
-  if (tileBounds) {
-    // A retained ancestor spans far past the framed area: its cut crosses the
-    // whole overview as a line whose ends lie outside it, which reads as a
-    // stray horizontal. Its children carry the detail, so skip it.
-    const framedSpan =
-      Math.max(
-        basis.bounds[3] - basis.bounds[0],
-        basis.bounds[5] - basis.bounds[2]
-      ) * 1.5;
-    views.forEach((view, cameraIndex) => {
-      const segments: number[] = [];
-      for (let i = 0; i < tileBounds.length; i += 6) {
-        if (
-          Math.max(
-            tileBounds[i + 3] - tileBounds[i],
-            tileBounds[i + 5] - tileBounds[i + 2]
-          ) > framedSpan
-        )
-          continue;
-        const cut = projectTileDiagnosticViewport(
-          { ...basis, bounds: Array.from(tileBounds.subarray(i, i + 6)) },
-          cameras[cameraIndex],
-          paddingPercent
-        );
-        for (const coordinate of cut.edges) segments.push(coordinate);
-      }
-      view.edges = new Float32Array(segments);
-    });
-  }
+  // Only the outline of the whole cut. Cutting every tile box separately draws
+  // a sliver wherever the frustum grazes a flat tile, and a sliver reads as a
+  // stray horizontal stroke however it is filtered.
   const selected =
     focus === "all" ? views : views.filter((view) => view.id === focus);
   const bounds = selected.flatMap((view) =>
