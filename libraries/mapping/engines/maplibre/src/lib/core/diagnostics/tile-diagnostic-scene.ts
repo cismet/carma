@@ -415,6 +415,7 @@ export const buildDiagnosticViewport = (
   snapshot: Pick<DiagnosticSnapshot, "edges" | "center"> & {
     origin?: readonly [number, number] | null;
     forward?: readonly [number, number] | null;
+    nadirRadians?: number;
   },
   color: string = OVERVIEW_COLORS.frustum,
   /** A light: an arrow through the middle of the view along its direction. */
@@ -485,29 +486,39 @@ export const buildDiagnosticViewport = (
     add([x - 6, y, x + 6, y], 3, 1, 0, 0, color);
     add([x, y - 6, x, y + 6], 3, 1, 0, 0, color);
   }
-  // Where the shadows fall, read in the middle of what is drawn: an edge of a
-  // buffer can sit outside the crop, the middle of the view never does.
+  // Where the shadows fall: one chevron inside the light's own cut, opened by
+  // how far the light stands from straight down. A sun overhead closes it to a
+  // line along its direction; a low sun opens it towards a right angle.
   const forward = snapshot.forward ?? null;
-  if (light && forward) {
-    const length = 46;
-    const anchor: [number, number] = [
-      light.x - (forward[0] * length) / 2,
-      light.y - (forward[1] * length) / 2,
-    ];
+  if (light && forward && snapshot.edges.length >= 4) {
+    let sumX = 0;
+    let sumY = 0;
+    let count = 0;
+    for (let i = 0; i < snapshot.edges.length; i += 2) {
+      sumX += snapshot.edges[i];
+      sumY += snapshot.edges[i + 1];
+      count += 1;
+    }
+    const centre: [number, number] = [sumX / count, sumY / count];
+    const size = 30;
     const tip: [number, number] = [
-      anchor[0] + forward[0] * length,
-      anchor[1] + forward[1] * length,
+      centre[0] + (forward[0] * size) / 2,
+      centre[1] + (forward[1] * size) / 2,
     ];
-    add([...anchor, ...tip], 3, 2.4, 0, 0, color);
-    for (const turn of [2.6, -2.6]) {
+    const spread = Math.min(
+      Math.PI / 2,
+      Math.max(0, snapshot.nadirRadians ?? Math.PI / 4)
+    );
+    for (const turn of [spread, -spread]) {
       const cos = Math.cos(turn);
       const sin = Math.sin(turn);
+      // Both arms sweep back from the tip, so the opening is twice the angle.
+      const arm: [number, number] = [
+        -forward[0] * cos + forward[1] * sin,
+        -forward[0] * sin - forward[1] * cos,
+      ];
       add(
-        [
-          ...tip,
-          tip[0] + (forward[0] * cos - forward[1] * sin) * length * 0.32,
-          tip[1] + (forward[0] * sin + forward[1] * cos) * length * 0.32,
-        ],
+        [...tip, tip[0] + arm[0] * size, tip[1] + arm[1] * size],
         3,
         2.4,
         0,

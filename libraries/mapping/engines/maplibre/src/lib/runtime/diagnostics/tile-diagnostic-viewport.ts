@@ -76,8 +76,16 @@ export const projectTileDiagnosticViewport = (
         return sum + point[0] * next[1] - next[0] * point[1];
       }, 0)
     );
+    // Area alone still passes a long thin sliver: two hundred pixels of length
+    // at a fiftieth of a pixel of width is the loose stroke again. Divide by
+    // the longest side to get the mean width and ask for a pixel of it.
+    const hullSpan = Math.max(
+      1,
+      Math.max(...hull.map(([x]) => x)) - Math.min(...hull.map(([x]) => x)),
+      Math.max(...hull.map(([, y]) => y)) - Math.min(...hull.map(([, y]) => y))
+    );
     intersectionEdges =
-      hull.length >= 3 && twiceArea >= 4
+      hull.length >= 3 && twiceArea / hullSpan >= 2
         ? hull.map((point, index) => {
             const next = hull[(index + 1) % hull.length];
             return [point[0], point[1], next[0], next[1]] as [
@@ -142,7 +150,16 @@ export const projectTileDiagnosticViewport = (
     aheadScreen[0] - eyeScreen[0],
     aheadScreen[1] - eyeScreen[1]
   );
+  const forwardWorld = new THREE.Vector3(
+    -camera.matrixWorld[8],
+    -camera.matrixWorld[9],
+    -camera.matrixWorld[10]
+  ).normalize();
   return {
+    /** Angle between where this camera looks and straight down. */
+    nadirRadians: Math.acos(
+      Math.min(1, Math.max(-1, forwardWorld.dot(new THREE.Vector3(0, -1, 0))))
+    ),
     forward:
       forwardLength > 1e-6
         ? ([

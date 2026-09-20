@@ -289,11 +289,9 @@ describe("instanced tile diagnostics", () => {
     expect(rects[3].slice(8, 11)).not.toEqual(rects[0].slice(8, 11));
   });
 
-  it("draws the light's direction through the middle of the view", () => {
+  it("draws the light as one chevron opened by its angle from nadir", () => {
     const state = snapshot();
     state.edges = new Float32Array([0, 20, 40, 20, 0, 100, 40, 100]);
-    // The light shines downwards in the overview; the arrow reads in the
-    // middle of what is drawn, not on an edge that may sit outside the crop.
     const lightView = {
       ...state,
       origin: [20, 0] as const,
@@ -302,15 +300,30 @@ describe("instanced tile diagnostics", () => {
     const plain = primitivesOf(
       buildDiagnosticViewport(lightView, "#fff", false)
     );
-    const lit = primitivesOf(
-      buildDiagnosticViewport(lightView, "#fff", { x: 100, y: 100 })
-    );
-    // A shaft and two barbs on top of the cut itself.
-    expect(lit.length - plain.length).toBe(3);
-    const [shaft] = lit.slice(plain.length);
-    // Centred on the view and pointing the way the light casts.
-    expect([shaft[0], shaft[1]]).toEqual([100, 77]);
-    expect([shaft[2], shaft[3]]).toEqual([100, 123]);
+    // A light on the horizon stands a right angle from straight down, so the
+    // chevron opens to a right angle on each side of its direction.
+    const flat = primitivesOf(
+      buildDiagnosticViewport(
+        { ...lightView, nadirRadians: Math.PI / 2 },
+        "#fff",
+        { x: 0, y: 0 }
+      )
+    ).slice(plain.length);
+    expect(flat).toHaveLength(2);
+    // Both arms start at the same tip, ahead of the middle of the cut.
+    expect([flat[0][0], flat[0][1]]).toEqual([20, 75]);
+    expect([flat[1][0], flat[1][1]]).toEqual([20, 75]);
+    expect(flat[0][2]).toBeCloseTo(50, 5);
+    expect(flat[1][2]).toBeCloseTo(-10, 5);
+    // A light straight overhead closes the chevron onto its own direction.
+    const overhead = primitivesOf(
+      buildDiagnosticViewport({ ...lightView, nadirRadians: 0 }, "#fff", {
+        x: 0,
+        y: 0,
+      })
+    ).slice(plain.length);
+    expect(overhead[0].slice(0, 4)).toEqual(overhead[1].slice(0, 4));
+    expect(overhead[0][3]).toBeCloseTo(45, 5);
   });
 
   it("sizes a pie by its cost against the median and rings that median", () => {
