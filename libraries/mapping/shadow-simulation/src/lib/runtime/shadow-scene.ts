@@ -2701,6 +2701,7 @@ export const buildShadowSimulationScene = (
     idleTerrainPrefetch.cancel();
     syncTerrainRuntime();
     releaseMapLibreTerrain.refresh();
+    syncMeshLabelStyle();
     for (const runtime of getSharedThreeSceneRuntimes(map)) {
       if (runtime.providesTerrain) {
         runtime.setErrorTargetOverride?.(latestMeshErrorTarget);
@@ -2745,6 +2746,22 @@ export const buildShadowSimulationScene = (
   ) => {
     if (disposed) return;
     const changedBounds = change?.bounds;
+    if (change === undefined) {
+      const providers = getSharedThreeSceneRuntimes(map).filter(
+        (runtime) => runtime.providesTerrain
+      );
+      if (
+        providers.length !== surfaceProviders.length ||
+        providers.some((runtime) => !surfaceProviders.includes(runtime))
+      ) {
+        // Runtime membership changes surface ownership immediately. Keeping the
+        // startup drape override until reload paints the basemap over a late mesh.
+        // Geometry arrivals still use the bounded content-refresh cadence below.
+        syncTerrainRuntime();
+        releaseMapLibreTerrain.refresh();
+        syncMeshLabelStyle();
+      }
+    }
     // Native runtimes already know the exact published GLTF subtree. Apply
     // receiver-plane PCF there synchronously so its first shaded frame does not
     // use the acne-prone stock comparison. This replaces the old full-scene

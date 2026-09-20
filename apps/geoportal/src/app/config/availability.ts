@@ -23,7 +23,11 @@ import {
  * url hash are honoured because `resolveFeatureFlags` reads the hash at load;
  * a flag toggled later needs a reload, the same as for routes today.
  */
-export const currentDeployment = resolveDeployment();
+// Explicit preview builds expose the same addons as the local dev server.
+export const currentDeployment =
+  import.meta.env.DEV || import.meta.env.MODE === "preview"
+    ? "localDev"
+    : resolveDeployment();
 
 const baseFeatureFlagConfig = getFeatureFlagConfig(currentDeployment);
 

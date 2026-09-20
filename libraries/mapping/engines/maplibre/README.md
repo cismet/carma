@@ -1450,3 +1450,24 @@ existing failures remain unresolved and are not treated as obsolete.
 
 **Revisit when:** another material extension needs a shadow-capable adapter;
 keep lighting participation independent of optional appearance overrides.
+
+## Terrain ownership after runtime registration
+
+**ID / date / status:** MESH-RUNTIME-DRAPE / 2026-09-20 / implemented.
+
+**Context:** shadow-scene startup sets an explicit mesh-label drape override.
+Adding an overlay terrain provider later previously left that override at its
+initial value, so adding a mesh and reloading with that mesh could produce
+different ground rendering.
+
+**Decision:** on terrain-provider membership changes, synchronously reconcile
+raster terrain ownership, the MapLibre ground pass and the mesh-label override.
+Removing the last provider restores raster ground and its base-map projection.
+Keep MapLibre DEM elevation available for labels. Ordinary tile arrivals retain
+the bounded content-refresh cadence; they do not repeat the immediate ownership
+transition.
+
+**Evidence:** the regression adds and removes a terrain provider without timers
+or style/idle events and checks that unchanged membership does not repeat the
+immediate transition. All 54 shadow-scene tests pass. Live Mesh2024 removal and
+URL-drop addition restore/suppress the base-map ground without reloading.
