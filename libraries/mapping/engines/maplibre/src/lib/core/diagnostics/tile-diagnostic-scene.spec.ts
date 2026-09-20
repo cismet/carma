@@ -9,7 +9,7 @@ import {
   TILE_KINDS,
   TILE_RECORD_FLOATS,
   PRIMITIVE_FLOATS,
-  tilePhaseFill,
+  PHASE_SWEEP,
   drawDiagnosticText,
   type DiagnosticSnapshot,
 } from "./tile-diagnostic-scene";
@@ -109,36 +109,38 @@ describe("instanced tile diagnostics", () => {
     expect(Array.from(data.slice(16, 20))).toEqual([60, 60, 40, 40]);
     expect(data[20]).toBe(2);
   });
-  it("uses loading milestones for the shader's clipped left-to-right fill", () => {
-    expect(["", "○", "◐", "●", "×", "Ⅱ"].map(tilePhaseFill)).toEqual([
-      0,
-      0,
-      1 / 3,
-      2 / 3,
-      0,
-      0,
-    ]);
-    expect(
-      buildDiagnosticPrimitives(snapshot([, , , , , , , , 2]))[23]
-    ).toBeCloseTo(1 / 3);
-    expect(
-      buildDiagnosticPrimitives(snapshot([, , , , , , , , 3]))[23]
-    ).toBeCloseTo(2 / 3);
+  it("sweeps a pie by phase when a tile reports no timings", () => {
+    // Loading is more than a quarter and less than the whole turn; loaded is
+    // the whole turn. No sideways fill anywhere.
+    expect([
+      PHASE_SWEEP["\u25cb"],
+      PHASE_SWEEP["\u25d0"],
+      PHASE_SWEEP["\u25cf"],
+    ]).toEqual([0.25, 0.6, 1]);
+    const loading = primitivesOf(
+      buildDiagnosticPrimitives(snapshot([, , , , , , , , 2]))
+    ).filter((primitive) => primitive[4] === 6);
+    expect(loading).toHaveLength(1);
+    expect(loading[0][6]).toBe(0);
+    expect(loading[0][7]).toBeCloseTo(0.6, 5);
   });
   it("omits idle baseline glyphs and metadata ancestors", () => {
     expect(buildDiagnosticPrimitives(snapshot([, , , , , 4])).length).toBe(16);
     expect(buildDiagnosticPrimitives(snapshot([, , , , -1])).length).toBe(16);
+    // Work in progress draws its contour, its phase pie and the pie's ring.
     expect(
       buildDiagnosticPrimitives(snapshot([, , , , , 4, , , 2])).length
-    ).toBe(32);
+    ).toBe(64);
   });
   it("omits target-matched glyphs, but shows ongoing work", () => {
     expect(buildDiagnosticPrimitives(snapshot([, , , , , , 0, 0])).length).toBe(
       16
     );
+    // At the target there is no contour left, but the phase still reads as a
+    // pie inside its ring.
     expect(
       buildDiagnosticPrimitives(snapshot([, , , , , , 0, 0, 1])).length
-    ).toBe(32);
+    ).toBe(48);
   });
   it("labels offscreen retained tiles without inventing an unknown LOD state", () => {
     const fillText = vi.fn();

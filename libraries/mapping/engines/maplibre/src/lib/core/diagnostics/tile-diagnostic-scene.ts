@@ -25,15 +25,18 @@ export const SIZE_GRID_OPACITY = 0.2;
 export const PRIMITIVE_FLOATS = 16;
 export const TILE_KINDS = Object.keys(FILL) as Kind[];
 export const TILE_PHASES = ["", "○", "◐", "●", "×", "Ⅱ"] as const;
-export const tilePhaseFill = (phase: string): number =>
-  phase === "◐" ? 1 / 3 : phase === "●" ? 2 / 3 : 0;
+/** How much of a tile's pie a phase alone fills, with no timings to divide. */
+export const PHASE_SWEEP: Readonly<Record<string, number>> = {
+  "\u25cb": 0.25,
+  "\u25d0": 0.6,
+  "\u25cf": 1,
+};
 
 /** Transfer-only diagnostic API. Never send Tile, Map, geometry or material objects. */
 export type DiagnosticSnapshot = {
   /** What the overview draws beside the tiles themselves. */
   showSize?: boolean;
   showStats?: boolean;
-  tileBounds?: Float64Array;
   viewportBasis?: DiagnosticViewportBasis;
   tiles: Float32Array;
   ids: string[];
@@ -310,7 +313,13 @@ export const buildDiagnosticPrimitives = (
       );
   }
   // One instance evaluates every concentric contour; no per-step geometry or cap.
-  for (let i = 0; i < data.length; i += TILE_RECORD_FLOATS) {
+  // Every circular mark answers to one switch: off means no pie, no ring and
+  // no contour.
+  for (
+    let i = 0;
+    snapshot.showStats !== false && i < data.length;
+    i += TILE_RECORD_FLOATS
+  ) {
     const [x, y, w, h, kind, flags, minimum, maximum, phase] = data.subarray(
       i,
       i + 9
@@ -319,7 +328,7 @@ export const buildDiagnosticPrimitives = (
     const stepTotal = stepTimes.reduce((sum, ms) => sum + ms, 0);
     // A tile that reports its processing steps shows them as a pie instead of
     // the phase fill: one wedge per step, the sweep its progress.
-    if (kind >= 0 && stepTotal > 0 && snapshot.showStats !== false) {
+    if (kind >= 0 && stepTotal > 0) {
       const loaded = phase === LOADED_PHASE;
       const sweep = loaded
         ? 1
@@ -393,13 +402,41 @@ export const buildDiagnosticPrimitives = (
       : 0;
     if (!count && !phase) continue;
     const radius = Math.min(w, h) / 2;
+    if (count)
+      add(
+        [x + w / 2, y + h / 2, radius, radius],
+        minimum < 0 ? 2 : 1,
+        1.2,
+        count,
+        0,
+        OVERVIEW_COLORS.quality
+      );
+    // A tile that reports no timings still reads as a pie: one wedge swept by
+    // how far its phase has come, the same shape as everywhere else.
+    const progress = PHASE_SWEEP[TILE_PHASES[phase]] ?? 0;
+    if (progress <= 0) continue;
+    const pieRadius = Math.min(w, h) / 3;
+    values.push(
+      x + w / 2,
+      y + h / 2,
+      pieRadius,
+      pieRadius,
+      6,
+      1,
+      0,
+      progress,
+      ...faded(rgba(OVERVIEW_COLORS.processing), 0.75),
+      0,
+      0,
+      0,
+      0
+    );
     add(
-      [x + w / 2, y + h / 2, radius, radius],
-      minimum < 0 ? 2 : 1,
-      count ? 1.2 : 1.5,
-      Math.max(count, 1),
-      tilePhaseFill(TILE_PHASES[phase]),
-      count ? OVERVIEW_COLORS.quality : OVERVIEW_COLORS.processing,
+      [x + w / 2, y + h / 2, pieRadius, pieRadius],
+      1,
+      1.2,
+      1,
+      0,
       OVERVIEW_COLORS.processing
     );
   }
