@@ -74,7 +74,7 @@ and GPU upload are excluded. “Off” means no conversion, not a decoder benchm
 Maximum actual uploaded-geometry differences versus direct projection:
 1 cm **0.006059 m**, 10 cm **0.036838 m**, 1 m **0.493625 m**.
 
-Raw local artifact: `output/mesh-projection-targets-20260915.json`.
+
 The harness keeps each raw repetition, not just this summary.
 
 ## Loaded-frame CPU check
@@ -103,7 +103,7 @@ to follow each geometry mode; this is a same-view app check, not an identical
 GPU draw-list microbenchmark. Frame interval medians were 6.4–7.0 ms and are
 scheduler/display observations, not a demonstrated maximum frame rate.
 
-Raw local artifact: `output/mesh-projection-target-frames-20260915.json`.
+
 A separate 43-second unthrottled DevTools trace covered a synthetic pan and
 switch to 1 cm. Its summary supplied no isolated converter/GPU timing; it is not
 used as additional speedup evidence. Quantitative runs were untraced.

@@ -216,6 +216,10 @@ export const buildVolumeOverlayModel = ({
     showSize,
     showStats,
     viewportBasis: {
+      tileBounds: volumes.flatMap((volume) => [
+        ...volume.minimum,
+        ...volume.maximum,
+      ]),
       bounds: [...extent.min.toArray(), ...extent.max.toArray()],
       worldToOverview: worldToOverview.toArray(),
       screen: [scale, offsetX, offsetY, scaleY],

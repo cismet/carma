@@ -7,6 +7,48 @@ import {
 } from "./tile-diagnostic-viewport";
 
 describe("live overview viewport", () => {
+  it("draws plane intersections of each tile without bridging empty space between tiles", () => {
+    const camera = new THREE.OrthographicCamera(-2, 2, 2, -2, 1, 20);
+    camera.position.set(5, 10, 5);
+    camera.up.set(0, 0, -1);
+    camera.lookAt(5, 0, 5);
+    const view = projectTileDiagnosticViewport(
+      {
+        bounds: [0, -1, 0, 10, 1, 10],
+        tileBounds: [0, -1, 0, 4, 1, 10, 6, -1, 0, 10, 1, 10],
+        worldToOverview: new THREE.Matrix4().toArray(),
+        screen: [1, 0, 0],
+        width: 20,
+        height: 20,
+      },
+      snapshotTileCameraViews([
+        {
+          id: "sun",
+          camera,
+          viewport: [20, 20],
+          errorTargetPixels: 1,
+          role: "geometry",
+        },
+      ])[0]
+    );
+    expect(view.outline.length).toBeGreaterThan(0);
+    expect(view.edges.length).toBeGreaterThan(view.outline.length);
+    const endpoints: number[] = [];
+    for (let i = 0; i < view.edges.length; i += 4) {
+      const [x1, z1, x2, z2] = view.edges.slice(i, i + 4);
+      endpoints.push(x1, x2);
+      for (const coordinate of [x1, z1, x2, z2]) {
+        expect(coordinate).toBeGreaterThanOrEqual(3 - 1e-5);
+        expect(coordinate).toBeLessThanOrEqual(7 + 1e-5);
+      }
+      const midpoint = (x1 + x2) / 2;
+      expect(midpoint <= 4 + 1e-5 || midpoint >= 6 - 1e-5).toBe(true);
+    }
+    expect(endpoints.some((x) => Math.abs(x - 4) < 1e-5)).toBe(true);
+    expect(endpoints.some((x) => Math.abs(x - 6) < 1e-5)).toBe(true);
+    expect(view.nadirRadians).toBeCloseTo(0);
+  });
+
   it("preserves adjacent box cuts at ECEF magnitudes without Float32 gaps", () => {
     const project = (offset: number) => {
       const camera = new THREE.PerspectiveCamera(55, 1, 1, 100);

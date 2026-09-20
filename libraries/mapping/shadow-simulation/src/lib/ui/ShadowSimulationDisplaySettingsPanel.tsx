@@ -1,3 +1,4 @@
+import { usesMobileShadowBaseline } from "../core/shadow-device-profile";
 import { useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -59,6 +60,7 @@ export const ShadowSimulationDisplaySettingsPanel = ({
   map?: MaplibreMap | null;
   tiledShadows?: boolean;
 }) => {
+  const mobileBaseline = usesMobileShadowBaseline();
   const { token } = theme.useToken();
   const meshLoaded = useShadowMeshPresence(map);
   const tilesetErrorTarget = useShadowTilesetErrorTarget(map);
@@ -154,7 +156,13 @@ export const ShadowSimulationDisplaySettingsPanel = ({
                 {
                   key: "quality",
                   label: "Schattenqualität",
-                  children: (
+                  children: mobileBaseline ? (
+                    <Typography.Text>
+                      Mobiler Basismodus: direkte Schatten, begrenzte
+                      Geländedetails und reduzierte Auflösung zum Sparen von
+                      Speicher.
+                    </Typography.Text>
+                  ) : (
                     <Space
                       direction="vertical"
                       size={6}

@@ -1,32 +1,28 @@
-import { render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { Map as MaplibreMap } from "maplibre-gl";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TileLoadingDebugHost } from "./TileLoadingDebugHost";
 
-const developmentUi = vi.hoisted(() => ({ enabled: false }));
-const registry = vi.hoisted(() => ({
-  handles: [] as Array<{ scene: { id: string; providesTerrain: boolean } }>,
+const shadow = vi.hoisted(() => ({
+  state: {} as Record<string, unknown>,
+  setState: vi.fn(),
 }));
-vi.mock("@carma-appframeworks/portals", () => ({
-  useDevelopmentUiEnabled: () => developmentUi.enabled,
-}));
-const shadow = vi.hoisted(() => ({ state: {} as Record<string, unknown> }));
 vi.mock("@carma-mapping/addons", () => ({
-  useAddonState: () => [shadow.state, vi.fn()],
+  useAddonState: () => [shadow.state, shadow.setState],
 }));
-vi.mock("@carma-mapping/engines/maplibre", () => ({
-  getTiles3dRuntimeHandles: () => registry.handles,
-  subscribeTiles3dRuntimeHandles: () => () => undefined,
+// Local/development mode must not expose a separate debugger entrypoint.
+vi.mock("@carma-appframeworks/portals", () => ({
+  useDevelopmentUiEnabled: () => true,
 }));
 vi.mock("@carma-mapping/tile-diagnostics-ui", () => ({
-  TileLoadingDebug: ({
-    runtimeHandle,
-  }: {
-    runtimeHandle: { scene: { id: string } };
-  }) => <div data-testid="tile-debugger">{runtimeHandle.scene.id}</div>,
+  VolumeTileDiagnostics: ({ onClose }: { onClose: () => void }) => (
+    <button onClick={onClose}>Close tile overlay</button>
+  ),
+  TileLoadingDebug: () => {
+    throw new Error("The standalone debugger must not mount in Geoportal");
+  },
 }));
 
-/** The host mounts on the map's own overlay level, so it needs a container. */
 const createMap = () => {
   const mapContainer = document.createElement("div");
   document.body.appendChild(mapContainer);
@@ -36,57 +32,56 @@ const createMap = () => {
   };
 };
 
+beforeEach(() => {
+  shadow.state = {};
+  shadow.setState.mockClear();
+});
+afterEach(() => {
+  cleanup();
+  document.body.replaceChildren();
+});
+
 describe("TileLoadingDebugHost", () => {
-  it("mounts nothing without the development UI or without a runtime", () => {
+  it("mounts nothing by default, including in development mode", () => {
     const { map, mapContainer } = createMap();
-    registry.handles = [{ scene: { id: "lod2", providesTerrain: false } }];
-    developmentUi.enabled = false;
-    const { rerender } = render(<TileLoadingDebugHost map={map} />);
+    render(<TileLoadingDebugHost map={map} />);
     expect(mapContainer.innerHTML).toBe("");
-    developmentUi.enabled = true;
-    registry.handles = [];
-    rerender(<TileLoadingDebugHost map={map} />);
-    expect(mapContainer.innerHTML).toBe("");
-    // Requested without a tileset: the overview stands on the tile boxes the
-    // runtimes report instead of rendering nothing.
+  });
+
+  it("opens from shadow option or decoded URL state and unmounts when disabled", async () => {
+    const { map, mapContainer } = createMap();
     shadow.state = { showTileDiagnostics: true };
-    rerender(<TileLoadingDebugHost map={map} />);
-    expect(
-      mapContainer.querySelector(
-        '[data-test-id="tile-diagnostics-without-tileset"]'
-      )
-    ).not.toBeNull();
-    // Everything sits in one overlay root on the map, never in the app tree.
+    const { rerender } = render(<TileLoadingDebugHost map={map} />);
+    const close = await screen.findByRole("button", {
+      name: "Close tile overlay",
+    });
+    expect(mapContainer.contains(close)).toBe(true);
     expect(
       mapContainer.querySelector(
         '[data-test-id="tile-diagnostics-overlay-root"]'
       )
     ).not.toBeNull();
-    shadow.state = {};
+    shadow.state = { showTileDiagnostics: false };
+    rerender(<TileLoadingDebugHost map={map} />);
+    expect(mapContainer.innerHTML).toBe("");
   });
 
-  it("opens on the shadow panel's request without the development UI", async () => {
+  it("closing the overlay clears the shared option and preserves other shadow state", async () => {
     const { map } = createMap();
-    developmentUi.enabled = false;
+    shadow.state = { showTileDiagnostics: true, enabled: true };
+    render(<TileLoadingDebugHost map={map} />);
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Close tile overlay" })
+    );
+    expect(shadow.setState).toHaveBeenCalledWith({
+      showTileDiagnostics: false,
+      enabled: true,
+    });
+  });
+
+  it("waits for a map container even when requested", () => {
     shadow.state = { showTileDiagnostics: true };
-    registry.handles = [{ scene: { id: "mesh", providesTerrain: true } }];
-    render(<TileLoadingDebugHost map={map} />);
-    expect((await screen.findByTestId("tile-debugger")).textContent).toBe(
-      "mesh"
-    );
-    shadow.state = {};
-  });
-
-  it("prefers the terrain-providing mesh runtime", async () => {
-    const { map } = createMap();
-    developmentUi.enabled = true;
-    registry.handles = [
-      { scene: { id: "lod2", providesTerrain: false } },
-      { scene: { id: "mesh", providesTerrain: true } },
-    ];
-    render(<TileLoadingDebugHost map={map} />);
-    expect((await screen.findByTestId("tile-debugger")).textContent).toBe(
-      "mesh"
-    );
+    const { container } = render(<TileLoadingDebugHost map={null} />);
+    expect(container.innerHTML).toBe("");
   });
 });

@@ -170,6 +170,8 @@ export interface SharedThreeSceneRuntime {
     camera: THREE.Camera
   ) => readonly [minimum: number, maximum: number] | null;
   /** World-space bounds of active tiles used for coverage and diagnostics. */
+  /** A current shadow result has reached the visible framebuffer. */
+  onShadowPresented?: (time: number) => void;
   getActiveTileVolumes?: () => readonly SharedThreeSceneTileVolume[];
   /** Show runtime-owned tile bounds and identifiers for diagnostics. */
   setTileBoundsVisible?: (visible: boolean) => void;
@@ -278,6 +280,7 @@ export type SharedSceneAccumulationController = {
   /** One transition after a complete current-camera result, for cancellable
    * background work. Must schedule work, never synchronously compute here. */
   onSettled?: () => void;
+  onPresented?: () => void;
   /** Optional scene strategy, inside the existing drape/HDR/depth-range chain.
    * null selects the centre-sun preview used during motion or point lighting.
    * Return false to use the ordinary single-pass scene renderer.

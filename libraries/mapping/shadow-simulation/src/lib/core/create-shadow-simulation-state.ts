@@ -1,4 +1,8 @@
 import {
+  usesMobileShadowBaseline,
+  MOBILE_MESH_CACHE_BYTES,
+} from "./shadow-device-profile";
+import {
   SHADOW_ANIMATION_MODE,
   SHADOW_CONTROL_STYLE,
   SHADOW_TERRAIN_QUALITY,
@@ -19,6 +23,7 @@ import {
   DEFAULT_SHADOW_BUILDING_COLOR_MIX,
   DEFAULT_SHADOW_BUILDING_TEXTURE_SATURATION,
   DEFAULT_SHADOW_QUALITY,
+  SHADOW_QUALITY,
   resolveShadowSurfaceColor,
   SHADOW_QUALITY_PROFILES,
   type ShadowQualityMultiplier,
@@ -39,27 +44,34 @@ export const selectShadowQualityPreset = (
 export const createInitialShadowSimulationState = (
   config: ShadowSimulationConfig | undefined
 ): ShadowSimulationState => {
+  const mobileBaseline = usesMobileShadowBaseline();
   const initialTerrain =
     config?.terrainSources?.[0]?.terrain ?? config?.terrain;
   return {
     enabled: false,
     terrainColor: resolveShadowSurfaceColor(initialTerrain?.material?.color),
     terrainSourceId: initialTerrain?.id,
-    terrainQuality: SHADOW_TERRAIN_QUALITY.MAX,
+    terrainQuality: mobileBaseline
+      ? SHADOW_TERRAIN_QUALITY.STANDARD
+      : SHADOW_TERRAIN_QUALITY.MAX,
     buildingsFullOpacity: true,
     buildingColorMix: DEFAULT_SHADOW_BUILDING_COLOR_MIX,
     meshTextureSaturation: DEFAULT_SHADOW_BUILDING_TEXTURE_SATURATION,
     meshTextureColorCorrection: true,
     buildingColor: DEFAULT_SHADOW_BUILDING_COLOR,
-    shadowQuality: DEFAULT_SHADOW_QUALITY,
+    shadowQuality: mobileBaseline
+      ? SHADOW_QUALITY.FPS_120
+      : DEFAULT_SHADOW_QUALITY,
     shadowAdaptiveQuality: true,
     terrainErrorTarget: DEFAULT_TERRAIN_ERROR_TARGET_PIXELS,
-    meshCacheBudgetBytes: DEFAULT_MESH_CACHE_BUDGET_BYTES,
+    meshCacheBudgetBytes: mobileBaseline
+      ? MOBILE_MESH_CACHE_BYTES
+      : DEFAULT_MESH_CACHE_BUDGET_BYTES,
     showSunDebugVector: true,
     showTileBounds: true,
     showProjectionDebugView: false,
     showDisplaySettings: false,
-    softSunShadows: true,
+    softSunShadows: !mobileBaseline,
     showMapStyleContent: true,
     showMapStyleLabels: true,
     showMapStyleElevationLines: false,

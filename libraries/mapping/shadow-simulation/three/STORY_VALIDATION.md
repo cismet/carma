@@ -68,10 +68,8 @@ context for the change, **not** a controlled engine speedup comparison: renderer
 defaults and viewport changed. Lower settings alone would not establish addon
 parity, hence the host migration.
 
-Reproducible local browser artifacts: `output/playwright/shadow-stories-check.js`,
-`shadow-defaults-three-runs.log`, and `shadows-*.png` in that directory. Browser
-control checks are recorded separately in `shadow-sun-controls.log` and
-`shadow-corridor-controls.log`. These local output files are not shipped runtime.
+Browser captures and control-check logs are not included in this repository;
+the observations below are a validation summary, not a reproducible artifact bundle.
 
 Focused validation: 105 tests across controller, adapter, fixtures and benchmark
 lifecycle. This is not a full-app performance or arbitrary-hardware guarantee.

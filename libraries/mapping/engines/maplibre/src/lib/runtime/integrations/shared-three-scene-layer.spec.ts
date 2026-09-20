@@ -91,6 +91,7 @@ const createProgressiveHost = () => {
     prepareRound: vi.fn(),
     finishRound: vi.fn(),
     onSettled: vi.fn(),
+    onPresented: vi.fn(),
     rounds: 8,
   };
   layer.setAccumulationController(controller);
@@ -1167,6 +1168,42 @@ describe("progressive strategy host", () => {
     expect(vi.mocked(synthesizeLodCamera)).toHaveBeenCalled();
     const frame = vi.mocked(synthesizeLodCamera).mock.calls.at(-1)?.[2];
     expect(frame?.centerElevationMeters).toBe(200);
+    host.layer.dispose();
+  });
+
+  it("acknowledges completed shadow presentation, never a pending progressive frame", () => {
+    const host = createProgressiveHost();
+    host.controller.renderProgressive = () => ({
+      progress: 0.5,
+      settled: false,
+      needsRepaint: true,
+    });
+    host.render();
+    expect(host.controller.onPresented).not.toHaveBeenCalled();
+    host.controller.renderProgressive = () => ({
+      progress: 1,
+      settled: true,
+      needsRepaint: false,
+    });
+    host.render();
+    expect(host.controller.onPresented).toHaveBeenCalledOnce();
+    host.layer.dispose();
+  });
+
+  it("releases obsolete mono buffers while time changes and recreates them only after settling", () => {
+    const host = createProgressiveHost();
+    host.render();
+    vi.clearAllMocks();
+    host.controller.active = () => false;
+    host.controller.visualEpoch = () => 1;
+    host.render();
+    host.render();
+    expect(mono.dispose).toHaveBeenCalledOnce();
+    expect(buildSharedSceneAccumulator).not.toHaveBeenCalled();
+    expect(mono.composite).not.toHaveBeenCalled();
+    host.controller.active = () => true;
+    host.render();
+    expect(buildSharedSceneAccumulator).toHaveBeenCalledOnce();
     host.layer.dispose();
   });
 

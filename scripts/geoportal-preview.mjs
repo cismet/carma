@@ -16,11 +16,9 @@ import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const output = join(root, "dist/preview/geoportal");
-// Repo-relative so the script works in any checkout. The wrapper lives in the
-// gitignored .dev-local; override it, or fall back to the local nx binary.
-const wrapper =
-  process.env.CARMA_BUILD_WRAPPER ?? join(root, ".dev-local/scripts/dev-build.mjs");
-const useWrapper = existsSync(wrapper);
+// An explicitly configured wrapper is optional; default to the checkout Nx binary.
+const wrapper = process.env.CARMA_BUILD_WRAPPER;
+const useWrapper = Boolean(wrapper && existsSync(wrapper));
 if (process.env.CARMA_BUILD_WRAPPER && !useWrapper) {
   throw new Error("CARMA_BUILD_WRAPPER does not point to an existing file");
 }

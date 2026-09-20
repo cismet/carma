@@ -7,7 +7,7 @@ import {
   UnsignedByteType,
   type Mesh,
   type ShaderMaterial,
-  type WebGLRenderTarget,
+  WebGLRenderTarget,
   type WebGLRenderer,
 } from "three";
 import { describe, expect, it, vi } from "vitest";
@@ -372,17 +372,23 @@ describe("buildSharedSceneAccumulator", () => {
     const error = vi
       .spyOn(console, "error")
       .mockImplementation(() => undefined);
+    const disposeTargets = vi.spyOn(WebGLRenderTarget.prototype, "dispose");
     const accumulator = buildSharedSceneAccumulator(2);
     const renderer = buildRenderer(true);
 
     accumulator.renderRound(renderer, 4, 4, () => undefined);
 
     expect(accumulator.broken).toBe(true);
+    expect(disposeTargets).toHaveBeenCalledTimes(5);
+    vi.mocked(renderer.setRenderTarget).mockClear();
+    accumulator.renderRound(renderer, 8, 8, () => undefined);
+    expect(renderer.setRenderTarget).not.toHaveBeenCalled();
     expect(
       accumulator.composite(renderer, false, undefined, { allowPartial: true })
     ).toBe(false);
     expect(error).toHaveBeenCalledOnce();
     accumulator.dispose();
+    disposeTargets.mockRestore();
     error.mockRestore();
   });
 

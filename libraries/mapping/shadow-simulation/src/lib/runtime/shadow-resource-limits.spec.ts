@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   resolveShadowResourceLimits,
+  resolveShadowAccumulationPixelBudget,
   resolveShadowDepthTexelBudget,
   resolveSupportedShadowMsaa,
   getShadowRenderCapabilities,
@@ -11,6 +12,26 @@ import { vi } from "vitest";
 import type { WebGLRenderer } from "three";
 
 describe("resolveShadowResourceLimits", () => {
+  it("budgets all five accumulation targets including MSAA and respects device ceilings", () => {
+    expect(
+      resolveShadowAccumulationPixelBudget(Infinity, {
+        format: "rgba16f-32f",
+        msaaSamples: 4,
+      })
+    ).toBe(Math.floor((256 * 1024 * 1024) / 168));
+    expect(
+      resolveShadowAccumulationPixelBudget(1_000_000, {
+        format: "rgba8",
+        msaaSamples: 0,
+      })
+    ).toBe(1_000_000);
+    expect(
+      resolveShadowAccumulationPixelBudget(Infinity, {
+        format: "rgba32f",
+        msaaSamples: 0,
+      })
+    ).toBe(Math.floor((256 * 1024 * 1024) / 88));
+  });
   it.each([
     [4, 2048],
     [16, 3072],
@@ -73,7 +94,7 @@ describe("resolveShadowResourceLimits", () => {
         maxTouchPoints: 5,
       })
     ).toEqual({
-      maxShadowMapSize: 2_048,
+      maxShadowMapSize: 1_024,
       maxAccumulationPixels: 1_000_000,
     });
   });
@@ -87,7 +108,7 @@ describe("resolveShadowResourceLimits", () => {
         maxTouchPoints: 5,
       })
     ).toEqual({
-      maxShadowMapSize: 4_096,
+      maxShadowMapSize: 2_048,
       maxAccumulationPixels: 2_000_000,
     });
   });
@@ -101,7 +122,7 @@ describe("resolveShadowResourceLimits", () => {
       })
     ).toEqual({
       maxShadowMapSize: 4_096,
-      maxAccumulationPixels: Number.POSITIVE_INFINITY,
+      maxAccumulationPixels: 4_000_000,
     });
   });
 

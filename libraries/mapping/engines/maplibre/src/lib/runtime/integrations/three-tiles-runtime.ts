@@ -273,6 +273,13 @@ export function buildThreeTilesRuntime(
       isBaseViewReady: () => state.meshBaseCoverageReady,
       getViewElevationRange: spatial.getViewElevationRange,
       getActiveTileVolumes: spatial.getActiveTileVolumes,
+      onShadowPresented: (time) => {
+        for (const tile of state.tiles?.visibleTiles ?? []) {
+          const progress = state.tileDebugProgress.get(tile);
+          if (progress?.visibleAt !== undefined)
+            progress.shadowPresentedAt ??= time;
+        }
+      },
       setTileBoundsVisible: debug.setTileBoundsVisible,
     },
     appearance: {

@@ -11,6 +11,7 @@ import {
   PRIMITIVE_FLOATS,
   PHASE_SWEEP,
   drawDiagnosticText,
+  compactDiagnosticTileId,
   type DiagnosticSnapshot,
 } from "./tile-diagnostic-scene";
 
@@ -149,6 +150,7 @@ describe("instanced tile diagnostics", () => {
       clearRect: vi.fn(),
       strokeText: vi.fn(),
       fillText,
+      measureText: (value: string) => ({ width: value.length * 6.6 }),
     } as unknown as CanvasRenderingContext2D;
     drawDiagnosticText(context, snapshot([, , , , , 4, NaN, NaN, 0, NaN]), {
       width: 200,
@@ -156,11 +158,54 @@ describe("instanced tile diagnostics", () => {
       pixelRatio: 1,
       opacity: 1,
       view: { x: 0, y: 0, w: 200, h: 200 },
-      labels: "id and error",
+      labels: "id",
     } as Parameters<typeof drawDiagnosticText>[2]);
-    expect(fillText.mock.calls.map(([text]) => text)).toEqual([
-      "tile · outside views",
+    expect(fillText).not.toHaveBeenCalled();
+  });
+  it("compacts terrain and stable content URLs without using the tileset prefix", () => {
+    expect(compactDiagnosticTileId("dem:source:14/4260/2733")).toBe(
+      "14/4260/2733"
+    );
+    expect(
+      compactDiagnosticTileId(
+        "https://example/tileset.json#0/2:https://example/content/5_23_29.glb"
+      )
+    ).toBe("5/23/29");
+  });
+  it("omits IDs that do not fit and suppresses overlapping labels", () => {
+    const fillText = vi.fn();
+    const context = {
+      setTransform: vi.fn(),
+      clearRect: vi.fn(),
+      strokeText: vi.fn(),
+      fillText,
+      measureText: (value: string) => ({ width: value.length * 6.6 }),
+    } as unknown as CanvasRenderingContext2D;
+    const data = snapshot([, , 26]);
+    data.ids = ["14/4260/2733"];
+    const frame = {
+      width: 200,
+      height: 200,
+      pixelRatio: 1,
+      opacity: 1,
+      view: { x: 0, y: 0, w: 200, h: 200 },
+      labels: "id",
+    } as Parameters<typeof drawDiagnosticText>[2];
+    drawDiagnosticText(context, data, frame);
+    expect(fillText).not.toHaveBeenCalled();
+    data.tiles = snapshot().tiles;
+    drawDiagnosticText(context, data, frame);
+    expect(fillText.mock.calls.map(([label]) => label)).toEqual([
+      "14",
+      "4260",
+      "2733",
     ]);
+    expect(fillText.mock.calls.map(([, , y]) => y)).toEqual([50, 60, 70]);
+    fillText.mockClear();
+    data.tiles = new Float32Array([...snapshot().tiles, ...snapshot().tiles]);
+    data.ids = ["one", "two"];
+    drawDiagnosticText(context, data, frame);
+    expect(fillText.mock.calls.map(([label]) => label)).toEqual(["one"]);
   });
   it("packs frustum segments and ignores stale hover indices", () => {
     const state = snapshot();
@@ -253,6 +298,21 @@ describe("instanced tile diagnostics", () => {
     expect(wedges[2][7]).toBeCloseTo(0.25, 5);
   });
 
+  it("draws only the cut outline even when its centre is available", () => {
+    const state = snapshot();
+    state.edges = new Float32Array([
+      0, 0, 0.1, 0, 0.1, 0, 0.1, 0.1, 0.1, 0.1, 0, 0.1, 0, 0.1, 0, 0,
+    ]);
+    state.center = [0.05, 0.05];
+    const primitives = primitivesOf(buildDiagnosticViewport(state));
+    expect(primitives).toHaveLength(4);
+    expect(primitives.flatMap((primitive) => primitive.slice(0, 4))).toEqual(
+      Array.from(state.edges)
+    );
+    state.edges = new Float32Array();
+    expect(buildDiagnosticViewport(state)).toHaveLength(0);
+  });
+
   it("tapers a frustum edge from the eye outwards", () => {
     const state = snapshot();
     // One edge running away from an eye at the origin of the overview.
@@ -291,41 +351,62 @@ describe("instanced tile diagnostics", () => {
     expect(rects[3].slice(8, 11)).not.toEqual(rects[0].slice(8, 11));
   });
 
-  it("draws the light as one chevron opened by its angle from nadir", () => {
-    const state = snapshot();
-    state.edges = new Float32Array([0, 20, 40, 20, 0, 100, 40, 100]);
+  it("keeps a nadir-dependent chevron inside the sunward side of the light cut", () => {
     const lightView = {
-      ...state,
+      ...snapshot(),
+      edges: new Float32Array([
+        0, 20, 40, 20, 40, 20, 40, 100, 40, 100, 0, 100, 0, 100, 0, 20,
+      ]),
       origin: [20, 0] as const,
       forward: [0, 1] as const,
     };
-    const plain = primitivesOf(
-      buildDiagnosticViewport(lightView, "#fff", false)
+    const plain = primitivesOf(buildDiagnosticViewport(lightView));
+    const chevron = (angle: number) =>
+      primitivesOf(
+        buildDiagnosticViewport({ ...lightView, nadirRadians: angle }, "#fff", {
+          x: 0,
+          y: 0,
+        })
+      ).slice(plain.length);
+    const lowSun = chevron(Math.PI / 2);
+    expect(lowSun).toHaveLength(2);
+    expect(lowSun[0].slice(0, 2)).toEqual(lowSun[1].slice(0, 2));
+    // The sun is above the cut (negative forward). The tip stays in that half.
+    expect(lowSun[0][1]).toBeLessThan(60);
+    for (const segment of lowSun) {
+      for (const x of [segment[0], segment[2]]) {
+        expect(x).toBeGreaterThanOrEqual(0);
+        expect(x).toBeLessThanOrEqual(40);
+      }
+      for (const y of [segment[1], segment[3]]) {
+        expect(y).toBeGreaterThanOrEqual(20);
+        expect(y).toBeLessThanOrEqual(100);
+      }
+      expect(Math.abs(segment[2] - segment[0])).toBeCloseTo(
+        Math.abs(segment[3] - segment[1]),
+        5
+      );
+    }
+    const highSun = chevron(Math.PI / 6);
+    expect(Math.abs(highSun[0][2] - highSun[0][0])).toBeLessThan(
+      Math.abs(lowSun[0][2] - lowSun[0][0])
     );
-    // A light on the horizon stands a right angle from straight down, so the
-    // chevron opens to a right angle on each side of its direction.
-    const flat = primitivesOf(
-      buildDiagnosticViewport(
-        { ...lightView, nadirRadians: Math.PI / 2 },
-        "#fff",
-        { x: 0, y: 0 }
-      )
-    ).slice(plain.length);
-    expect(flat).toHaveLength(2);
-    // Both arms start at the same tip, ahead of the middle of the cut.
-    expect([flat[0][0], flat[0][1]]).toEqual([20, 75]);
-    expect([flat[1][0], flat[1][1]]).toEqual([20, 75]);
-    expect(flat[0][2]).toBeCloseTo(50, 5);
-    expect(flat[1][2]).toBeCloseTo(-10, 5);
-    // A light straight overhead closes the chevron onto its own direction.
-    const overhead = primitivesOf(
-      buildDiagnosticViewport({ ...lightView, nadirRadians: 0 }, "#fff", {
-        x: 0,
-        y: 0,
-      })
-    ).slice(plain.length);
+    const overhead = chevron(0);
     expect(overhead[0].slice(0, 4)).toEqual(overhead[1].slice(0, 4));
-    expect(overhead[0][3]).toBeCloseTo(45, 5);
+    // Even a narrow cut clips both arms at its side planes.
+    const narrow = {
+      ...lightView,
+      edges: new Float32Array([
+        18, 20, 22, 20, 22, 20, 22, 100, 22, 100, 18, 100, 18, 100, 18, 20,
+      ]),
+      nadirRadians: Math.PI / 2,
+    };
+    for (const segment of primitivesOf(
+      buildDiagnosticViewport(narrow, "#fff", { x: 0, y: 0 })
+    ).slice(plain.length)) {
+      expect(segment[2]).toBeGreaterThanOrEqual(18);
+      expect(segment[2]).toBeLessThanOrEqual(22);
+    }
   });
 
   it("sizes a pie by its cost against the median and rings that median", () => {

@@ -29,11 +29,10 @@ import { snapshotShadowCorridorCameras } from "./shadow-corridor-camera";
 
 const RUNTIME_ID = "volume-tile-diagnostics";
 /** Volumes carry no LOD error, so the error label has nothing to show. */
-const LABEL_MODES = ["none", "id", "id and stats"] as const;
+const LABEL_MODES = ["none", "id"] as const;
 const LABEL_TITLES = {
   none: "ohne Beschriftung",
   id: "Kachel-ID",
-  "id and stats": "ID, Grosse, Zeit, Perzentil",
 } as const;
 const WIDTH = 360;
 const HEIGHT = 300;
@@ -422,7 +421,7 @@ export const createVolumeTileDiagnostics = (diagnostics: TileDiagnostics) => {
             }
             style={controlStyle(labels !== "none")}
           >
-            {labels === "id and stats" ? "ID+" : "ID"}
+            ID
           </button>
         </div>
         {legend && mode !== "map" ? (

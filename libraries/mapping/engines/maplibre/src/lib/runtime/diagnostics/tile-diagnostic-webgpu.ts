@@ -92,7 +92,9 @@ struct Vertex {
     distance = length(p) - input.halfSize.x;
   }
   // Derivatives stay outside non-uniform control flow. Widths are CSS pixels.
-  let worldPixel = max(length(vec2f(dpdx(p.x),dpdy(p.y))), .000001) / 1.41421356237;
+  // Decision: full gradients keep vertical edges visible; selecting only the
+  // diagonal derivatives collapses at 90 degrees. See TILE_DIAGNOSTICS.md#frustum-markers.
+  let worldPixel = max(max(length(dpdx(p)), length(dpdy(p))), .000001);
   let cssPixel = worldPixel * u.display.y;
   let contrast = u.display.z > .5;
   var width = select(input.parameters.y, 2.5, contrast);

@@ -8,6 +8,7 @@ import {
 } from "@carma-mapping/engines/three/primitives/core";
 import {
   buildErrorBoundedGridTile,
+  buildGridTile,
   type DecodedRaster,
   type TerrainTile,
   type TerrainTileId,
@@ -83,6 +84,7 @@ export type TerrainWorkerTask =
       segments: number;
       error: number;
       maximumMeshErrorMeters?: number;
+      maximumMeshSegments?: number;
     }
   | {
       kind: "remesh";
@@ -90,6 +92,7 @@ export type TerrainWorkerTask =
       id: TerrainTileId;
       error: number;
       maximumMeshErrorMeters?: number;
+      maximumMeshSegments?: number;
     }
   | {
       kind: "project";
@@ -195,12 +198,26 @@ export const executeTerrainWorkerTask = async (
     const raster =
       task.kind === "decode" ? await decodeImage(task.blob) : task.raster;
     const meshStart = performance.now();
-    const tile = buildErrorBoundedGridTile(
-      task.id,
-      raster,
-      task.error,
-      task.maximumMeshErrorMeters
-    );
+    const maximumSegments = task.maximumMeshSegments;
+    // Explicit mobile baseline: allocate the smaller attribute grid as well as
+    // fewer indices. Error-bounded desktop reduction retains native attributes.
+    const tile =
+      maximumSegments !== undefined &&
+      Number.isFinite(maximumSegments) &&
+      maximumSegments >= 2 &&
+      maximumSegments < Math.max(raster.width, raster.height)
+        ? buildGridTile(
+            task.id,
+            raster,
+            Math.floor(maximumSegments),
+            task.error
+          )
+        : buildErrorBoundedGridTile(
+            task.id,
+            raster,
+            task.error,
+            task.maximumMeshErrorMeters
+          );
     return {
       kind: task.kind,
       raster,
