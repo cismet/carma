@@ -2380,6 +2380,47 @@ describe("shadow scene lighting integration", () => {
     ).toBeUndefined();
   });
 
+  it("updates mesh drape immediately when a provider is added or removed", () => {
+    vi.stubGlobal("window", { setTimeout, clearTimeout });
+    const map = {
+      getCenter: vi.fn(() => ({ lng: 7.15, lat: 51.256 })),
+      getLight: vi.fn(() => ({ anchor: "viewport" })),
+      isStyleLoaded: vi.fn(() => true),
+      setLight: vi.fn(),
+      on: vi.fn(),
+      off: vi.fn(),
+      triggerRepaint: vi.fn(),
+    };
+    const controller = buildShadowSimulationScene(map as never);
+    const lease = vi.mocked(acquireSharedThreeScene).mock.results[0].value;
+    const changed = vi
+      .mocked(subscribeSharedThreeSceneContent)
+      .mock.calls.at(-1)![1];
+    expect(lease.setMeshLabelStyle).toHaveBeenLastCalledWith(false);
+    const mesh = {
+      id: "late-mesh",
+      providesTerrain: true,
+      mapStyleProjectionBlend: "overlay",
+    };
+    try {
+      // Do not advance timers or emit style/idle events: registration owns the
+      // policy transition, even while streamed geometry is still pending.
+      vi.mocked(getSharedThreeSceneRuntimes).mockReturnValue([mesh as never]);
+      changed();
+      expect(lease.setMeshLabelStyle).toHaveBeenLastCalledWith(true);
+      const calls = lease.setMeshLabelStyle.mock.calls.length;
+      changed({ bounds: [] });
+      changed();
+      expect(lease.setMeshLabelStyle).toHaveBeenCalledTimes(calls);
+      vi.mocked(getSharedThreeSceneRuntimes).mockReturnValue([]);
+      changed();
+      expect(lease.setMeshLabelStyle).toHaveBeenLastCalledWith(false);
+    } finally {
+      controller.dispose();
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("restyles registered building tiles only while shadow mode is active", () => {
     const setShadowSimulationStyle = vi.fn();
     const setErrorTarget = vi.fn();
