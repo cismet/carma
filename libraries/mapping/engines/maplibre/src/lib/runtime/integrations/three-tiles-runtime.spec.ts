@@ -2080,6 +2080,69 @@ describe("three tiles runtime styling", () => {
     layer.scene.dispose();
   });
 
+  it("lights an opted-out unlit mesh while preserving its declared appearance", () => {
+    const layer = buildThreeTilesRuntime(
+      "mesh",
+      "tileset.json",
+      [7.15, 51.25],
+      {
+        providesTerrain: true,
+        shadowBuildingStyle: false,
+        outline: true,
+        colorCorrection: {
+          gamma: [1, 1, 1],
+          blackPoint: [0, 0, 0],
+          whitePoint: [1, 1, 1],
+          saturation: 0.7,
+        },
+      }
+    );
+    const source = new THREE.MeshBasicMaterial({
+      map: new THREE.Texture(),
+      color: "#847466",
+      opacity: 0.4,
+      transparent: true,
+    });
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(), source);
+    const outline = new THREE.LineSegments();
+    outline.userData[TILE_OUTLINE_FLAG] = true;
+    layer.scene.root.add(mesh, outline);
+    layer.scene.setShadowSimulationStyle?.({
+      fullOpacity: true,
+      uniformColor: "#ffffff",
+      uniformColorMix: 1,
+      textureSaturation: 0,
+      textureColorCorrection: false,
+    });
+    expect(mesh.material).toBeInstanceOf(THREE.MeshStandardMaterial);
+    const lit = mesh.material as unknown as THREE.MeshStandardMaterial;
+    expect(lit.map).toBe(source.map);
+    expect(lit.color.getHexString()).toBe("847466");
+    expect(lit.opacity).toBe(0.4);
+    expect(lit.transparent).toBe(true);
+    expect(mesh.receiveShadow).toBe(true);
+    expect(mesh.castShadow).toBe(true);
+    expect(outline.visible).toBe(true);
+    const shader = {
+      uniforms: {},
+      vertexShader: "#include <common>\n#include <worldpos_vertex>",
+      fragmentShader: THREE.ShaderLib.physical.fragmentShader,
+    } as Parameters<typeof lit.onBeforeCompile>[0];
+    lit.onBeforeCompile(
+      shader,
+      {} as Parameters<typeof lit.onBeforeCompile>[1]
+    );
+    const uniforms = shader.uniforms as Record<string, { value: unknown }>;
+    expect(uniforms.uShadowUniformColorMix.value).toBe(0);
+    expect(uniforms.uShadowTextureSaturation.value).toBe(0.7);
+    expect(uniforms.uShadowTextureColorCorrection.value).toBe(true);
+    const dispose = vi.spyOn(lit, "dispose");
+    layer.scene.setShadowSimulationStyle?.(null);
+    expect(mesh.material).toBe(source);
+    expect(dispose).toHaveBeenCalledOnce();
+    layer.scene.dispose();
+  });
+
   it("uses the regular lit tile material for unlit terrain textures", () => {
     const layer = buildThreeTilesRuntime(
       "mesh",

@@ -74,9 +74,11 @@ export function createThreeTilesAppearance(
     source: THREE.Material
   ) => {
     const material = new THREE.MeshStandardMaterial({
-      color: runtimeState.shadowSimulationStyle?.uniformColor
-        ? runtimeState.shadowClayColor
-        : runtimeState.clayColor,
+      color:
+        runtimeState.options.shadowBuildingStyle &&
+        runtimeState.shadowSimulationStyle?.uniformColor
+          ? runtimeState.shadowClayColor
+          : runtimeState.clayColor,
       roughness: runtimeState.clayRoughness,
       metalness: runtimeState.clayMetalness,
       // Keep the visible shell outside-facing. The shadow pass uses the side
@@ -252,23 +254,26 @@ export function createThreeTilesAppearance(
   ) => {
     dependencies.normalizeSeparatedBuildingSurfaces(root);
     root.userData.materialRevision = runtimeState.materialRevision;
+    // The style opt-in controls colour/opacity overrides, never participation
+    // in lighting. Unlit source textures still need a shadow-capable material.
+    const appearance = runtimeState.options.shadowBuildingStyle
+      ? runtimeState.shadowSimulationStyle
+      : null;
     const useClayShading = runtimeState.whiteShading;
     const effectiveClayColor = runtimeState.clayColor;
     runtimeState.shadowAppearanceUniforms.uShadowUniformColorMix.value =
-      runtimeState.shadowSimulationStyle?.uniformColor
-        ? clamp(runtimeState.shadowSimulationStyle.uniformColorMix ?? 1, 0, 1)
+      appearance?.uniformColor
+        ? clamp(appearance.uniformColorMix ?? 1, 0, 1)
         : 0;
     // Dataset colour correction is part of how the tileset is meant to look,
     // in the plain view as much as under the shadow simulation, which keeps
     // its own switch for it.
     const correctionEnabled =
       runtimeState.options.colorCorrection !== undefined &&
-      (runtimeState.shadowSimulationStyle
-        ? runtimeState.shadowSimulationStyle.textureColorCorrection === true
-        : true);
+      (appearance ? appearance.textureColorCorrection === true : true);
     runtimeState.shadowAppearanceUniforms.uShadowTextureSaturation.value =
       clamp(
-        (runtimeState.shadowSimulationStyle?.textureSaturation ?? 1) *
+        (appearance?.textureSaturation ?? 1) *
           (correctionEnabled
             ? runtimeState.options.colorCorrection?.saturation ?? 1
             : 1),
@@ -277,16 +282,13 @@ export function createThreeTilesAppearance(
       );
     runtimeState.shadowAppearanceUniforms.uShadowTextureColorCorrection.value =
       correctionEnabled;
-    const forceOpaque =
-      runtimeState.shadowSimulationStyle?.fullOpacity === true;
+    const forceOpaque = appearance?.fullOpacity === true;
     root.traverse((object) => {
       // One publication walk owns all per-object render flags. Separate
       // frustum and outline walks multiplied the GLTF commit cost per tile.
       object.frustumCulled = false;
       if (object.userData[TILE_OUTLINE_FLAG]) {
-        object.visible = runtimeState.shadowSimulationStyle
-          ? false
-          : runtimeState.outlineVisible;
+        object.visible = runtimeState.outlineVisible;
       }
       const mesh = object as THREE.Mesh;
       if (!mesh.isMesh) return;
@@ -451,14 +453,15 @@ export function createThreeTilesAppearance(
 
   const setShadowSimulationStyle: ThreeTilesRuntimeServices["setShadowSimulationStyle"] =
     (style) => {
-      if (!runtimeState.options.shadowBuildingStyle) return;
+      // Keep shadow activation independent of optional appearance overrides.
+      // See ../../../../README.md#shadow-activation-and-declared-mesh-appearance.
       if (shadowStylesEqual(runtimeState.shadowSimulationStyle, style)) return;
       runtimeState.shadowSimulationStyle = style;
       // Reapply one bounded cache policy when shadow mode changes. The shadow
       // camera may add off-screen casters, but it must not create a separate
       // download-admission ceiling or bypass the memory limit.
       dependencies.applyCacheBudget();
-      if (style?.uniformColor)
+      if (runtimeState.options.shadowBuildingStyle && style?.uniformColor)
         runtimeState.shadowClayColor.set(style.uniformColor);
       refreshRenderedMaterials(runtimeState.orientationGroup);
       applyOutlineVisibility(runtimeState.orientationGroup);

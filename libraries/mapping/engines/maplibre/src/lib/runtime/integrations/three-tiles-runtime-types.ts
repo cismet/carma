@@ -282,8 +282,9 @@ export interface ThreeTilesRuntimeOptions {
   diagnostics?: boolean;
   /**
    * Restyle this tileset like a building layer while shadow mode is active.
-   * Off, the shadow simulation leaves materials and outlines as the style
-   * declared them.
+   * Off, colour and opacity stay as declared by the style, while unlit
+   * materials still receive the lighting adapter needed for shadows.
+   * Outlines always follow their declared visibility.
    */
   shadowBuildingStyle?: boolean;
 }
