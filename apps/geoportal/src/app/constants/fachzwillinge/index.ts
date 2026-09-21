@@ -86,6 +86,14 @@ type FachzwillingRouteBase = {
    */
   configHashKey?: string;
   /**
+   * Keep every shared configuration this route loads by id on the device, and
+   * take it from there the next time instead of asking the config service.
+   * Needs no expiry: a stored configuration never changes, the service can
+   * only store and read under a random key. For a window that has to keep
+   * switching when the network at the venue does not.
+   */
+  cacheConfigsById?: boolean;
+  /**
    * Storage namespace for the persisted mapping and ui state, overriding the
    * route's path. Every Fachzwilling is already namespaced by its path, so this
    * is only for a route that wants a name unhooked from its url: one that

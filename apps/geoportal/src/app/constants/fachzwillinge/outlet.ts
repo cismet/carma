@@ -26,6 +26,9 @@ export const outletFachzwilling: FachzwillingRoute = {
   // the app-wide "config" key is stripped after loading and dropped from share
   // links, so the source window carries its own key that nothing else touches
   configHashKey: "usedConfig",
+  // a config switched to once, at the latest in the rehearsal, is there again
+  // at the venue without a call to the config service
+  cacheConfigsById: true,
   availability: {
     deployments: ["localDev", "dev", "pr"],
   },

@@ -19,6 +19,7 @@ import {
 } from "../config";
 import { toBackgroundLayer } from "../config/backgroundConfig";
 import { findFachzwillingByPathname } from "../constants/fachzwillinge";
+import { readCachedConfig, writeCachedConfig } from "../helper/config-cache";
 
 import {
   setBackgroundLayer,
@@ -45,6 +46,12 @@ type Config = {
 };
 
 const DEFAULT_CONFIG_KEY = "config";
+
+/** enough of a configuration to apply; what a fetch or the cache returns is checked against it */
+const isUsableConfig = (value: unknown): value is Config =>
+  typeof value === "object" &&
+  value !== null &&
+  Array.isArray((value as { layers?: unknown }).layers);
 
 const onLoadedConfig = (
   config: Config,
@@ -157,17 +164,20 @@ export const useAppConfig = (
   /** Read through a ref so applyConfigById can stay identity-stable: it is
    * registered as an adapter, and re-registering on every render of a hook this
    * central would be churn for nothing. */
+  const cacheConfigsById = fachzwilling?.cacheConfigsById ?? false;
   const depsRef = useRef({
     configBaseUrl,
     layerMap,
     dispatch,
     setSelectedFeatureById,
+    cacheConfigsById,
   });
   depsRef.current = {
     configBaseUrl,
     layerMap,
     dispatch,
     setSelectedFeatureById,
+    cacheConfigsById,
   };
 
   /**
@@ -247,10 +257,42 @@ export const useAppConfig = (
       setIsLoadingConfig(true);
     }
 
-    const { configBaseUrl: baseUrl, ...rest } = depsRef.current;
+    const {
+      configBaseUrl: baseUrl,
+      cacheConfigsById: useCache,
+      ...rest
+    } = depsRef.current;
+    const url = baseUrl + id;
     try {
-      const response = await fetch(baseUrl + id, { signal: controller.signal });
-      const newConfig = (await response.json()) as Config;
+      const cached = useCache ? await readCachedConfig(url) : undefined;
+      if (controller.signal.aborted) {
+        // a newer load took over while the cache was being read
+        return false;
+      }
+      let newConfig: Config;
+      if (isUsableConfig(cached)) {
+        newConfig = cached;
+        console.debug(`[CONFIG] ${id} taken from the device cache`);
+      } else {
+        const response = await fetch(url, { signal: controller.signal });
+        const body: unknown = await response.json();
+        if (!response.ok || !isUsableConfig(body)) {
+          // The config service answers an unknown id with 404 and an error
+          // body. That body has no layers, and applying it would empty the
+          // layer stack instead of leaving it as it was.
+          console.error(
+            `[CONFIG] config ${id} could not be loaded (HTTP ${response.status}), keeping the current layers.`,
+            body
+          );
+          initialLoadDoneRef.current = true;
+          setIsLoadingConfig(false);
+          return false;
+        }
+        newConfig = body;
+        if (useCache) {
+          void writeCachedConfig(url, body);
+        }
+      }
       onLoadedConfig(
         newConfig,
         rest.layerMap,
