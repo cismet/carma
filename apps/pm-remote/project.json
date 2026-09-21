@@ -1,0 +1,69 @@
+{
+  "name": "pm-remote",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/pm-remote/src",
+  "projectType": "application",
+  "tags": [],
+  "targets": {
+    "build": {
+      "executor": "@nx/vite:build",
+      "outputs": ["{options.outputPath}"],
+      "defaultConfiguration": "production",
+      "options": {
+        "outputPath": "dist/apps/pm-remote"
+      },
+      "configurations": {
+        "development": {
+          "mode": "development"
+        },
+        "production": {
+          "mode": "production"
+        }
+      }
+    },
+    "serve": {
+      "executor": "@nx/vite:dev-server",
+      "defaultConfiguration": "development",
+      "options": {
+        "buildTarget": "pm-remote:build"
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "pm-remote:build:development",
+          "hmr": true
+        },
+        "production": {
+          "buildTarget": "pm-remote:build:production",
+          "hmr": false
+        }
+      }
+    },
+    "preview": {
+      "executor": "@nx/vite:preview-server",
+      "defaultConfiguration": "development",
+      "options": {
+        "buildTarget": "pm-remote:build"
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "pm-remote:build:development"
+        },
+        "production": {
+          "buildTarget": "pm-remote:build:production"
+        }
+      },
+      "dependsOn": ["build"]
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    },
+    "test": {
+      "executor": "@nx/vite:test",
+      "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+      "options": {
+        "config": "apps/pm-remote/vite.config.mts",
+        "passWithNoTests": false
+      }
+    }
+  }
+}
