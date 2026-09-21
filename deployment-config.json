@@ -403,6 +403,33 @@
       },
       "projectPath": "./dist/apps/geoportal"
     },
+    "pm-remote": {
+      "deployment": {
+        "manual": {
+          "dev": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "pm-remote",
+              "envs": [
+                "VITE_RELAY_BASE_URL=https://relay-wupp-digitaltwin.cismet.de"
+              ]
+            }
+          }
+        },
+        "auto": {
+          "dev": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "pm-remote",
+              "envs": [
+                "VITE_RELAY_BASE_URL=https://relay-wupp-digitaltwin.cismet.de"
+              ]
+            }
+          }
+        }
+      },
+      "projectPath": "./dist/apps/pm-remote"
+    },
     "geoportal-playground": {
       "deployment": {
         "manual": {
