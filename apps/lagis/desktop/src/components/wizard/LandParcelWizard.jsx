@@ -24,6 +24,8 @@ import { ACTION_TITLES, WIZARD_ACTIONS } from "../../core/wizard/constants";
 import { findLock } from "../../core/wizard/locks";
 import { explain } from "../../core/wizard/errors";
 import { findRebeAndMipa } from "../../core/wizard/areaCheck";
+import { fetchFlurstueckBySchluesselId } from "../../core/wizard/api";
+import { formatKey } from "../../core/wizard/keys";
 import { runWizardAction } from "../../core/wizard/operations";
 import useStammdaten from "../../core/wizard/useStammdaten";
 import { setLoggingEnabled } from "../../core/wizard/gqlLog";
@@ -220,6 +222,19 @@ const LandParcelWizard = ({
     ) {
       setBusy(true);
       try {
+        // LagisBroker loads the Flurstück before it opens the dialog, so a key
+        // without a Flurstück row fails right away instead of first asking for
+        // dates that could never be written.
+        const flurstueck = await fetchFlurstueckBySchluesselId(
+          data.historicKey.id,
+          jwt
+        );
+        if (!flurstueck) {
+          setError(
+            `Zu "${formatKey(data.historicKey)}" existiert kein Flurstück.`
+          );
+          return;
+        }
         const found = await findRebeAndMipa(data.historicKey, jwt);
         if (found.rebe.length || found.mipa.length) {
           setRebeMipaPrompt(found);
