@@ -14,7 +14,7 @@ import type { WebGLRenderer } from "three";
 describe("resolveShadowResourceLimits", () => {
   it("budgets all five accumulation targets including MSAA and respects device ceilings", () => {
     expect(
-      resolveShadowAccumulationPixelBudget(Infinity, {
+      resolveShadowAccumulationPixelBudget(4_000_000, {
         format: "rgba16f-32f",
         msaaSamples: 4,
       })
@@ -26,7 +26,7 @@ describe("resolveShadowResourceLimits", () => {
       })
     ).toBe(1_000_000);
     expect(
-      resolveShadowAccumulationPixelBudget(Infinity, {
+      resolveShadowAccumulationPixelBudget(4_000_000, {
         format: "rgba32f",
         msaaSamples: 0,
       })
@@ -122,8 +122,28 @@ describe("resolveShadowResourceLimits", () => {
       })
     ).toEqual({
       maxShadowMapSize: 4_096,
-      maxAccumulationPixels: 4_000_000,
+      maxAccumulationPixels: Number.POSITIVE_INFINITY,
     });
+  });
+
+  it("preserves native desktop soft-shadow accumulation above the mobile memory budget", () => {
+    const limits = resolveShadowResourceLimits(16_384, {
+      userAgent: "Mozilla/5.0 (X11; Linux x86_64)",
+      platform: "Linux x86_64",
+      maxTouchPoints: 0,
+    });
+    expect(
+      resolveShadowAccumulationPixelBudget(limits.maxAccumulationPixels, {
+        format: "rgba16f-32f",
+        msaaSamples: 4,
+      })
+    ).toBeGreaterThanOrEqual(3840 * 2160);
+    expect(
+      resolveShadowAccumulationPixelBudget(limits.maxAccumulationPixels, {
+        format: "rgba32f",
+        msaaSamples: 0,
+      })
+    ).toBeGreaterThanOrEqual(5120 * 2880);
   });
 
   it("keeps a smaller renderer limit on desktop", () => {

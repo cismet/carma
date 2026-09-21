@@ -378,6 +378,106 @@ describe("three tiles current-view refresh", () => {
     }
   );
 
+  it.each(
+    [false, true].flatMap((shadows) =>
+      [2, -1].map((loadingState) => ({ shadows, loadingState }))
+    )
+  )(
+    "keeps complete colour coverage on pan with shadows=$shadows and sibling state=$loadingState",
+    ({ shadows, loadingState }) => {
+      const mounted = mount();
+      try {
+        const state = [
+          ...(
+            window as unknown as {
+              __carmaTiles3d: Set<ThreeTilesRuntimeState>;
+            }
+          ).__carmaTiles3d,
+        ].find((candidate) => candidate.layerId === mounted.layerId)!;
+        const parent = buildTile(80);
+        const children = Array.from({ length: 4 }, () => buildTile(2));
+        parent.children = children;
+        for (const child of children) child.parent = parent;
+        for (const tile of [parent, ...children]) {
+          tile.internal.loadingState = 4;
+          const scene = new THREE.Group();
+          scene.add(
+            new THREE.Mesh(
+              new THREE.BufferGeometry(),
+              new THREE.MeshBasicMaterial()
+            )
+          );
+          tile.engineData!.scene = scene;
+          tile.engineData!.boundingVolume!.intersectsFrustum = () => true;
+          delete (tile.engineData!.boundingVolume as { getAABB?: unknown })
+            .getAABB;
+        }
+        children[3].internal.loadingState = loadingState;
+        // This fixture uses the explicit camera-error adapter, without root bounds.
+        vi.spyOn(mounted.renderer, "getBoundingBox").mockReturnValue(false);
+        Object.assign(mounted.renderer, { rootTileset: { root: parent } });
+        vi.spyOn(mounted.renderer, "calculateTileViewError").mockImplementation(
+          (tile, target) =>
+            Object.assign(target, {
+              inView: true,
+              error: tile.geometricError,
+              distanceFromCamera: 1,
+            })
+        );
+        state.requestedErrorTarget = 4;
+        state.effectiveErrorTarget = 4;
+        state.memoryErrorTarget = 4;
+        state.displayedMeshFrontier = new Set(children.slice(0, 3));
+        if (shadows) {
+          state.shadowView = {
+            camera: new THREE.OrthographicCamera(),
+            shadowMapSize: { width: 1024, height: 1024 },
+          };
+          state.committedMeshReceiverFrontier = new Set(children.slice(0, 3));
+          state.committedMeshCasterFrontier = new Set(children.slice(0, 3));
+        }
+        for (const tile of children.slice(0, 3)) {
+          mounted.renderer.setTileActive(tile, true);
+          mounted.renderer.setTileVisible(tile, true);
+        }
+        mounted.setMoving(true);
+        mounted.camera.position.x += 1;
+        mounted.camera.updateMatrixWorld(true);
+        mounted.runtime.scene.update(mounted.frame);
+        expect(state.displayedMeshFrontier).toEqual(new Set([parent]));
+        if (shadows)
+          expect(state.committedMeshReceiverFrontier).toEqual(
+            new Set([parent])
+          );
+        const colourCut = () =>
+          new Set(
+            [...mounted.renderer.visibleTiles].filter((tile) => {
+              const scene = tile.engineData!.scene!;
+              return (
+                scene.parent === mounted.renderer.group &&
+                mounted.renderer.group.children.includes(scene) &&
+                (
+                  scene.children[0] as THREE.Mesh<
+                    THREE.BufferGeometry,
+                    THREE.MeshBasicMaterial
+                  >
+                ).material.colorWrite
+              );
+            })
+          );
+        expect(colourCut()).toEqual(new Set([parent]));
+        // The complete replacement can publish after the last payload arrives.
+        children[3].internal.loadingState = 4;
+        state.meshContentRevision++;
+        mounted.runtime.scene.update(mounted.frame);
+        expect(state.displayedMeshFrontier).toEqual(new Set(children));
+        expect(colourCut()).toEqual(new Set(children));
+      } finally {
+        mounted.runtime.scene.dispose();
+      }
+    }
+  );
+
   it.each([false, true])(
     "reattaches a selected payload on a same-error pan (active-only parent=%s)",
     (activeOnly) => {

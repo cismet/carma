@@ -1,5 +1,48 @@
 # Shared tile coverage policy
 
+## Shadow receiver fallback during camera motion
+
+**ID / date / status:** SHADOW-RECEIVER-COVERAGE-20260921 / 2026-09-21 / implemented; focused and browser verified.
+
+**Context and constraints:** A pan or zoom-out can expose unloaded siblings of
+previously published fine receivers. The shadow path excluded retained ancestors
+from fallback admission, leaving colour holes even with their parent resident.
+Preserve complete visible coverage before retaining detail; material readiness,
+cache limits and independent caster refinement still apply.
+
+**Decision:** Once a mesh cut has been published, shadow receivers use the same
+atomic family admission as ordinary mesh display. Promote a ready parent when
+newly visible siblings are missing, failed or unprepared; replace it only with a
+complete ready child family. Keep the existing cold shadow admission policy and
+separate sun-caster cut. No overlapping parent underlay or additional cache is
+introduced.
+
+**Alternatives:** Keeping the non-atomic retained-detail rule is rejected by the
+reproduced gaps. Enforcing a complete initial demand cut for cold shadows is
+incompatible with independent first-region admission; the atomic rule starts
+when a published cut exists. Drawing overlapping underlays is not evaluated.
+
+**Evidence:** Against checkpoint `c7510fc1b`, two new runtime cases fail with
+shadows enabled (loading and failed siblings), while their non-shadow controls
+pass. All four pass with the fix, including mounted colour writes and the
+subsequent full-family promotion. Four focused suites: 149 passed, one unchanged
+failure in `three-tiles-runtime.corridors.spec.ts` (expected staged error 16,
+actual 1), reproduced independently against the checkpoint.
+
+Browser: Chrome/Metal on the development Mac, 1200 x 862 CSS pixels, DPR 2,
+Mesh2024 plus shadows (19 September, 10:01), warm evolving caches; one exploratory
+run per version, no cold-load timing or total-memory comparison. Native zoom
+sequence 17.165/14.383/18/13.8/17/14.383 found structural colour gaps under resident
+parents in 91/91 baseline frames, then 0/351 fixed frames. Four subsequent native
+600/400-pixel pans observed 0/57 such frames. The original Geoportal view was
+also visually inspected without the reported blank patches. Camera positions
+and residency evolve during terrain-aware movement, so these are regression
+observations, not a controlled speed comparison or universal pixel guarantee.
+`benchmarks/shadow-receiver-coverage-browser.js` reproduces the zoom audit.
+
+**Revisit when:** Source geometry itself has holes, no loaded fallback exists,
+or GPU/context failure prevents an otherwise complete cut from drawing.
+
 ## Post-startup zoom refinement — 2026-09-16
 
 Once a parent is published, its immediate drawable children are the next

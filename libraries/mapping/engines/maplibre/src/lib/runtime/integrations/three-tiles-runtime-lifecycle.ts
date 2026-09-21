@@ -899,7 +899,12 @@ export function createThreeTilesLifecycle(
           {
             published: runtimeState.displayedMeshFrontier,
             support,
-            atomic: !runtimeState.shadowView,
+            // Decision: SHADOW-RECEIVER-COVERAGE-20260921 in TILES_COVERAGE.md.
+            // Shadows may refine their caster cut separately, but colour must
+            // keep a ready parent until its whole replacement family can draw.
+            atomic:
+              !runtimeState.shadowView ||
+              runtimeState.displayedMeshFrontier.size > 0,
             onIncompletePublishedFamily: (parent) => {
               if (
                 !runtimeState.options.diagnostics ||

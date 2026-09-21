@@ -52,18 +52,21 @@ export const resolveShadowResourceLimits = (
   }
   return {
     maxShadowMapSize: Math.min(maxTextureSize, DESKTOP_MAX_SHADOW_MAP_SIZE),
-    maxAccumulationPixels: 4_000_000,
+    maxAccumulationPixels: Number.POSITIVE_INFINITY,
   };
 };
 
 /** Two scene/depth targets (including MSAA) and three ping-pong/settled colors.
- * Keep this working set below 256 MiB; terrain, map capture and depth pages
- * have separate ownership. This is an allocation ceiling, not free-VRAM detection.
+ * Mobile devices keep this working set below 256 MiB. An unbounded desktop
+ * pixel budget preserves native-resolution HQ accumulation; it must not silently
+ * fall back to hard shadows. Hardware limits and allocation failure still apply.
+ * Decision: ../../../three/README.md#desktop-quality-isolation
  */
 export const resolveShadowAccumulationPixelBudget = (
   devicePixels: number,
   options: SceneAccumulationOptions
 ) => {
+  if (devicePixels === Number.POSITIVE_INFINITY) return devicePixels;
   const format = resolveSceneAccumulationFormat(options.format);
   const samples =
     options.msaaSamples ?? DEFAULT_SCENE_ACCUMULATION_OPTIONS.msaaSamples;

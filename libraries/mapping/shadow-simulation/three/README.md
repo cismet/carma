@@ -169,3 +169,37 @@ alternate production samplers. No edge-only classifier is inferred from this.
 **Evidence:** the final static build observed approximately 186 MB JS heap and 26 MB live geometry buffers in a fresh context with the same emulated view; texture/renderbuffer allocations remained substantial (about 461 MB at the first sample). Toggle and 09:00/15:00 changes showed no context loss. These are diagnostic observations, not a controlled repeated performance benchmark. The real worker test verifies 16,641 versus 264,196 height attributes while preserving the default native path. 191 focused tests passed. Focused tests cover phone/tablet/touch-desktop classification, constrained startup and terrain replacement, restoration of pixel ratio, persisted expensive render preferences, and existing desktop rendering. Static preview and emulated visual/memory checks are recorded in the local benchmark evidence. A simulator cannot establish the real phone's process-kill threshold; no physical-device crash-free claim is made.
 
 **Revisit when:** on-device traces identify another allocation owner, or a measured safe working set supports better mobile quality. Keep per-allocation limits separate from true device-memory measurements.
+
+
+## Desktop quality isolation
+
+**ID / date / status:** DESKTOP-SHADOW-HQ / 2026-09-21 / implemented; focused runtime regression verified.
+
+**Context and constraints:** The mobile work included a global 4-million-pixel
+accumulation ceiling and a 256 MiB format/MSAA-aware budget. With HDR and 4x MSAA,
+that admitted only 1,597,830 pixels, silently disabling soft accumulation on
+ordinary HiDPI desktop viewports. Desktop quality must preserve the pre-mobile
+rendering contract; mobile admission must remain bounded.
+
+**Decision:** Restore the desktop accumulation pixel budget to unbounded and
+skip the mobile byte ceiling for that budget. Keep the existing 4096 desktop
+shadow-depth cap, actual hardware limits and allocation-failure handling. Desktop
+DPR, native terrain geometry, 64-sample default soft sun and explicit HDR/MSAA/
+sample choices remain unchanged. Phone/tablet limits and forced direct shadows
+remain in place. The device classifier does not use window width; Windows touch
+laptops remain desktops, while iPadOS desktop-style UA is recognized separately.
+
+**Alternatives:** A global byte budget with a direct-shadow fallback fails the
+desktop HQ contract. Downsampling the entire scene would also soften map labels
+and is not introduced. This change restores the previous desktop allocation
+policy; it does not detect free VRAM or establish a universal memory guarantee.
+
+**Evidence:** New 4K/HDR controller and resource-budget regressions fail before
+the correction. Afterwards all 84 tests in device-profile, initial-state,
+resource-limits and shadow-scene suites pass. They exercise desktop startup and
+quality/terrain updates, native pixel ratio, narrow Mac/Windows/Linux clients,
+and unchanged mobile limits. These are policy/runtime-fixture checks, not a
+physical 4K GPU benchmark.
+
+**Revisit when:** A device-specific desktop capability or explicit quality policy
+can reduce allocations without silently replacing requested soft shadows.
