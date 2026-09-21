@@ -33,3 +33,383 @@ body {
   border-radius: 6px;
 }
 
+/* ---------- design tokens (Claude Design mockup "Leerstand Screens") ---------- */
+
+/* The mockup is set in Archivo and IBM Plex Mono; the app stays on the system
+   fonts, so both stacks start at the platform default. */
+:root {
+  --ls-navy: #123b5e;
+  --ls-navy-soft: #e8eff5;
+  --ls-navy-tint: #f2f6fa;
+  --ls-navy-off: #c3ccd4;
+  --ls-red: #c8102e;
+  --ls-red-dark: #8f1220;
+  --ls-red-soft: #fdecec;
+  --ls-red-tint: #fdf3f4;
+  --ls-red-line: #e0c9cd;
+  --ls-green: #1f6f4a;
+  --ls-green-soft: #eaf5ef;
+  --ls-green-line: #bfd3c8;
+  --ls-amber: #8a4708;
+  --ls-amber-soft: #fdf1e3;
+  --ls-ink: #14181d;
+  --ls-ink-2: #3b4650;
+  --ls-ink-3: #4a5158;
+  --ls-muted: #6b7279;
+  --ls-faint: #8b9198;
+  --ls-line: #d7dade;
+  --ls-line-soft: #e4e6e9;
+  --ls-hair: #eef0f2;
+  --ls-surface: #f4f5f6;
+  --ls-font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --ls-mono: ui-monospace, Menlo, Consolas, monospace;
+
+  --bs-body-font-family: var(--ls-font);
+  --bs-font-sans-serif: var(--ls-font);
+}
+
+html,
+body {
+  font-family: var(--ls-font);
+}
+
+/* ---------- shared form pieces ---------- */
+
+.ls-lbl {
+  display: block;
+  font: 600 12px/1.2 var(--ls-font);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ls-muted);
+  margin: 0 0 8px;
+}
+.ls-lbl-gap {
+  margin-top: 24px;
+}
+.ls-req {
+  color: var(--ls-red);
+}
+.ls-inp {
+  width: 100%;
+  height: 56px;
+  box-sizing: border-box;
+  border: 1.5px solid var(--ls-line);
+  border-radius: 12px;
+  padding: 0 16px;
+  font: 400 17px var(--ls-font);
+  color: var(--ls-ink);
+  background: #fff;
+  outline: none;
+  appearance: none;
+}
+textarea.ls-inp {
+  height: auto;
+  padding: 12px 14px;
+  font-size: 16px;
+  line-height: 1.4;
+  resize: none;
+}
+.ls-inp:focus {
+  border-color: var(--ls-navy);
+  box-shadow: 0 0 0 3px rgba(18, 59, 94, 0.14);
+}
+.ls-inp::placeholder {
+  color: var(--ls-faint);
+}
+.ls-help {
+  margin-top: 8px;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--ls-ink-3);
+}
+
+.ls-btn {
+  height: 56px;
+  box-sizing: border-box;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font: 600 17px var(--ls-font);
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.ls-btn:disabled {
+  cursor: default;
+}
+.ls-pri {
+  border: none;
+  background: var(--ls-navy);
+  color: #fff;
+}
+.ls-pri:disabled,
+.ls-pri.ls-off {
+  background: var(--ls-navy-off);
+}
+.ls-sec {
+  border: 1.5px solid var(--ls-line);
+  background: #fff;
+  color: var(--ls-ink-2);
+}
+.ls-sec:disabled {
+  opacity: 0.5;
+}
+.ls-act {
+  width: 56px;
+  flex: none;
+  border: 1.5px solid var(--ls-line);
+  background: #fff;
+  color: var(--ls-ink-2);
+  font-size: 22px;
+  font-weight: 400;
+}
+
+.ls-chips {
+  display: flex;
+  gap: 6px;
+}
+.ls-chip {
+  flex: 1;
+  min-height: 52px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  border-radius: 10px;
+  border: 1.5px solid var(--ls-line);
+  background: #fff;
+  color: var(--ls-ink-2);
+  font: 600 15px/1.2 var(--ls-font);
+  padding: 8px 10px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.ls-chip[aria-pressed="true"] {
+  background: var(--ls-navy);
+  border-color: var(--ls-navy);
+  color: #fff;
+}
+.ls-opts {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.ls-opt {
+  min-height: 52px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  text-align: left;
+  border-radius: 10px;
+  border: 1.5px solid var(--ls-line);
+  background: #fff;
+  color: var(--ls-ink);
+  font: 400 16px/1.3 var(--ls-font);
+  padding: 10px 14px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.ls-opt[aria-pressed="true"] {
+  background: var(--ls-navy-soft);
+  border-color: var(--ls-navy);
+  color: var(--ls-navy);
+  font-weight: 600;
+}
+.ls-cond {
+  margin-top: 14px;
+  border-left: 3px solid var(--ls-navy);
+  background: var(--ls-navy-tint);
+  border-radius: 0 12px 12px 0;
+  padding: 14px 16px;
+}
+.ls-cond-title {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.ls-cond-note {
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--ls-ink-2);
+  margin-bottom: 12px;
+}
+.ls-cond .ls-chips + .ls-cond-title {
+  margin-top: 12px;
+}
+
+.ls-note {
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-size: 14px;
+  line-height: 1.45;
+}
+.ls-note-plain {
+  background: var(--ls-surface);
+  color: var(--ls-ink-3);
+}
+.ls-note-info {
+  background: var(--ls-navy-soft);
+  color: var(--ls-navy);
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.ls-note-ok {
+  background: var(--ls-green-soft);
+  color: var(--ls-green);
+  font-size: 15px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.ls-note-bad {
+  background: var(--ls-red-soft);
+  color: var(--ls-red-dark);
+}
+
+.ls-rows {
+  border: 1px solid var(--ls-line-soft);
+  border-radius: 14px;
+  overflow: hidden;
+}
+.ls-row {
+  display: flex;
+  gap: 12px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--ls-hair);
+}
+.ls-row:last-child {
+  border-bottom: none;
+}
+.ls-row-k {
+  width: 118px;
+  flex: none;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ls-muted);
+}
+.ls-row-v {
+  flex: 1;
+  min-width: 0;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+.ls-row-v.ls-miss {
+  color: var(--ls-red-dark);
+}
+
+/* ---------- login overlay ---------- */
+
+.ls-login {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  background: var(--ls-navy);
+  color: #fff;
+  font-family: var(--ls-font);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+.ls-login-col {
+  position: relative;
+  width: 100%;
+  max-width: 434px;
+  min-height: 100%;
+  box-sizing: border-box;
+  margin: 0 auto;
+  padding: 120px 22px max(34px, env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+/* phone: linework fills the top of the screen behind the headline */
+.ls-login-art {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 390px;
+  height: 340px;
+  transform: translateX(-50%);
+  overflow: hidden;
+  opacity: 0.22;
+  pointer-events: none;
+}
+.ls-login-art i {
+  position: absolute;
+  display: block;
+}
+/* keep headline and card above the linework */
+.ls-login-col > :not(.ls-login-art) {
+  position: relative;
+}
+.ls-login-kicker {
+  font: 600 11px/1 var(--ls-font);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+.ls-login-title {
+  margin: 12px 0 0;
+  font: 700 34px/1.08 var(--ls-font);
+  letter-spacing: -0.03em;
+  color: #fff;
+}
+.ls-login-sub {
+  margin: 10px 0 26px;
+  font-size: 15px;
+  line-height: 1.45;
+  opacity: 0.85;
+  max-width: 300px;
+}
+.ls-login-card {
+  background: #fff;
+  color: var(--ls-ink);
+  border-radius: 16px;
+  padding: 18px;
+}
+.ls-login-card .ls-inp {
+  font-size: 18px;
+}
+.ls-login-card .ls-pri {
+  width: 100%;
+  height: 58px;
+  margin-top: 20px;
+  font-size: 18px;
+}
+.ls-login-msg {
+  margin-top: 14px;
+  border-left: 4px solid var(--ls-line);
+  background: var(--ls-surface);
+  border-radius: 0 10px 10px 0;
+  padding: 10px 12px;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+.ls-login-foot {
+  margin-top: 14px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--ls-faint);
+  text-align: center;
+}
+/* desktop: one centred column, linework above the headline */
+@media (min-width: 640px) and (min-height: 820px) {
+  .ls-login-col {
+    min-height: 0;
+    margin: auto;
+    padding-top: 324px;
+    padding-bottom: 34px;
+  }
+  .ls-login-art {
+    height: 300px;
+  }
+}

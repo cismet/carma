@@ -1,5 +1,9 @@
 import { useEffect, useState } from "react";
 import localforage from "localforage";
+import { ConfigProvider } from "antd";
+import deDE from "antd/locale/de_DE";
+import dayjs from "dayjs";
+import "dayjs/locale/de";
 import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
 import { defaultLayerConf } from "react-cismap/tools/layerFactory";
 import { backgroundConfWithFastOrtho2024 } from "@carma-appframeworks/portals";
@@ -20,6 +24,17 @@ import { GraphQLRequestError, gql } from "./helper/graphql";
 if (typeof (globalThis as { global?: unknown }).global === "undefined") {
   (window as unknown as { global: Window }).global = window;
 }
+
+// German month names in the month picker
+dayjs.locale("de");
+
+// antd pieces (month picker, messages, search) in the font stack and navy of the design
+const antdTheme = {
+  token: {
+    fontFamily: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
+    colorPrimary: "#123B5E",
+  },
+};
 
 const backgroundModes = [
   { title: "Stadtplan (Tag)", mode: "default", layerKey: "stadtplan" },
@@ -91,7 +106,8 @@ const App = () => {
   const logout = () => setAuth({ checked: true });
 
   return (
-    <TopicMapContextProvider
+    <ConfigProvider theme={antdTheme} locale={deDE}>
+      <TopicMapContextProvider
         appKey={APP_CONFIG.appKey}
         backgroundConfigurations={backgroundConfWithFastOrtho2024}
         backgroundModes={backgroundModes}
@@ -117,7 +133,8 @@ const App = () => {
             onConnectionError={setConnectionError}
           />
         </LibreContextProvider>
-    </TopicMapContextProvider>
+      </TopicMapContextProvider>
+    </ConfigProvider>
   );
 };
 

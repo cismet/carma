@@ -43,7 +43,7 @@ export const TitleControl = ({
           whiteSpace: "nowrap",
         }}
       >
-        <b>{narrow ? "Leerstand" : "Leerstandsmanagement"}</b>
+        <b>Leerstandsmanagement</b>
         {connectionError && (
           <span style={{ color: "#c62828" }} title="Keine Verbindung zum Server">
             <DisconnectOutlined /> offline

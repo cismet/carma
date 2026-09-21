@@ -1,8 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import type { FormEvent } from "react";
 import localforage from "localforage";
-import { Button, Form, Input, Modal } from "antd";
-import type { InputRef } from "antd";
-import { UserOutlined } from "@ant-design/icons";
 import { APP_CONFIG } from "../../config/appConfig";
 
 export interface LoginInfo {
@@ -20,7 +18,7 @@ export const LoginForm = ({ onJwt, loginInfo, setLoginInfo }: LoginFormProps) =>
   const [user, setUserState] = useState("");
   const [pw, setPw] = useState("");
   const [busy, setBusy] = useState(false);
-  const pwRef = useRef<InputRef>(null);
+  const pwRef = useRef<HTMLInputElement>(null);
 
   const setUser = (value: string) => {
     localforage.setItem(APP_CONFIG.userStorageKey, value);
@@ -84,57 +82,76 @@ export const LoginForm = ({ onJwt, loginInfo, setLoginInfo }: LoginFormProps) =>
     }
   };
 
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    if (!busy) login();
+  };
+
   return (
-    <Modal
-      open
-      closable={false}
-      maskClosable={false}
-      keyboard={false}
-      footer={null}
-      zIndex={3000000000}
-      title={
-        <span>
-          <UserOutlined /> Anmeldung Leerstandsmanagement
-        </span>
-      }
-    >
-      <Form layout="vertical" onFinish={login}>
-        <Form.Item label="WuNDa Benutzername">
-          <Input
+    <div className="ls-login" role="dialog" aria-modal="true" aria-label="Anmeldung">
+      <div className="ls-login-col">
+        {/* abstract map linework from the mockup: two streets, three buildings, one Leerstand */}
+        <div className="ls-login-art" aria-hidden="true">
+          <i style={{ left: -40, top: 120, width: 520, height: 16, background: "#fff", transform: "rotate(-6deg)" }} />
+          <i style={{ left: 120, top: 0, width: 14, height: 400, background: "#fff" }} />
+          <i style={{ left: 24, top: 170, width: 70, height: 90, outline: "1.5px solid #fff" }} />
+          <i style={{ left: 170, top: 160, width: 120, height: 100, outline: "1.5px solid #fff" }} />
+          <i style={{ left: 310, top: 190, width: 60, height: 120, outline: "1.5px solid #fff" }} />
+          <i style={{ left: 196, top: 196, width: 28, height: 28, borderRadius: "50%", background: "#C8102E" }} />
+        </div>
+
+        <div className="ls-login-kicker">Stadt Wuppertal · DigiTal Zwilling</div>
+        <h1 className="ls-login-title">Leerstands&shy;management</h1>
+        <p className="ls-login-sub">Erfassung leerstehender Ladenlokale vor Ort.</p>
+
+        <form className="ls-login-card" onSubmit={submit}>
+          <label className="ls-lbl" htmlFor="ls-login-user">
+            WuNDa Benutzername
+          </label>
+          <input
+            id="ls-login-user"
+            className="ls-inp"
             value={user}
             autoFocus
             autoCapitalize="none"
             autoCorrect="off"
+            autoComplete="username"
+            spellCheck={false}
+            enterKeyHint="next"
             onChange={(e) => setUser(e.target.value)}
-            onPressEnter={() => pwRef.current?.focus()}
-            placeholder="Login"
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                pwRef.current?.focus();
+              }
+            }}
           />
-        </Form.Item>
-        <Form.Item label="Passwort">
-          <Input.Password
+          <label className="ls-lbl" htmlFor="ls-login-pw" style={{ marginTop: 16 }}>
+            Passwort
+          </label>
+          <input
+            id="ls-login-pw"
             ref={pwRef}
+            className="ls-inp"
+            type="password"
             value={pw}
+            autoComplete="current-password"
+            enterKeyHint="go"
             onChange={(e) => setPw(e.target.value)}
-            onPressEnter={login}
-            placeholder="Passwort"
           />
-        </Form.Item>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 12,
-          }}
-        >
-          <div style={{ color: loginInfo?.color ?? "inherit", fontWeight: 600 }}>
-            {loginInfo?.text}
+          {loginInfo && (
+            <div className="ls-login-msg" style={{ borderLeftColor: loginInfo.color }}>
+              {loginInfo.text}
+            </div>
+          )}
+          <button className="ls-btn ls-pri" type="submit" disabled={busy}>
+            {busy ? "Anmeldung läuft …" : "Anmelden"}
+          </button>
+          <div className="ls-login-foot">
+            Anmeldung bleibt auf diesem Gerät bestehen
           </div>
-          <Button type="primary" htmlType="submit" loading={busy}>
-            Anmelden
-          </Button>
-        </div>
-      </Form>
-    </Modal>
+        </form>
+      </div>
+    </div>
   );
 };
