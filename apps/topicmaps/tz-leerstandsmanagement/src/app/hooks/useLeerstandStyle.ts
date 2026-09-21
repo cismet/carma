@@ -6,6 +6,8 @@ import type { LeerstandFeatureCollection } from "../helper/leerstandApi";
 export const ALKIS_SOURCE = "alkis_data";
 /** GeoJSON source that receives the Leerstand points via `setData` */
 export const LEERSTAND_SOURCE = "leerstaende";
+/** the building footprints are drawn from this zoom on; below it a tap cannot tell a building from open ground */
+export const BUILDING_MINZOOM = 15;
 
 const EMPTY_FEATURE_COLLECTION: LeerstandFeatureCollection = {
   type: "FeatureCollection",
@@ -72,7 +74,7 @@ export const useLeerstandStyle = (
           type: "fill",
           source: ALKIS_SOURCE,
           "source-layer": "building",
-          minzoom: 15,
+          minzoom: BUILDING_MINZOOM,
           paint: {
             "fill-color": "#1565c0",
             "fill-opacity": 0.1,
@@ -83,7 +85,7 @@ export const useLeerstandStyle = (
           type: "line",
           source: ALKIS_SOURCE,
           "source-layer": "building",
-          minzoom: 15,
+          minzoom: BUILDING_MINZOOM,
           paint: {
             "line-color": "#000000",
             "line-width": ["interpolate", ["linear"], ["zoom"], 13, 0.05, 21, 2],

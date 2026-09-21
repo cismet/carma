@@ -1,6 +1,14 @@
-import { useCallback, useEffect, useContext, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useContext,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { message } from "antd";
 import type maplibregl from "maplibre-gl";
+import type { Geometry } from "geojson";
 import { TopicMapStylingContext } from "react-cismap/contexts/TopicMapStylingContextProvider";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 import { FeatureInfobox } from "@carma-appframeworks/portals";
@@ -17,14 +25,22 @@ import { APP_CONFIG } from "../config/appConfig";
 import { Menu } from "./Menu";
 import SecondaryInfoModal from "./Modal";
 import { LeerstandForm, type PlacedPoint } from "./LeerstandForm";
-import { LEERSTAND_SOURCE, useLeerstandStyle } from "./hooks/useLeerstandStyle";
+import {
+  BUILDING_MINZOOM,
+  LEERSTAND_SOURCE,
+  useLeerstandStyle,
+} from "./hooks/useLeerstandStyle";
+import { useTapMarker } from "./hooks/useTapMarker";
 import {
   buildingInfoFromProperties,
   createBuildingInfoBoxControlObject,
+  createFreePointInfoBoxControlObject,
   createLeerstandInfoBoxControlObject,
   parseLeerstandProperties,
+  type NearestAddress,
 } from "./helper/leerstandHelper";
 import { lngLatToUtm, type LngLat } from "./helper/geo";
+import { fetchLocationInfo } from "./helper/locationInfo";
 import { GraphQLRequestError } from "./helper/graphql";
 import { loadLookups, type Lookups } from "./helper/lookups";
 import {
@@ -62,14 +78,26 @@ const GLYPHS_URL = "https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf";
 
 // What LibreMap hands to onSelectionChanged: the filtered click hits (top
 // first) and the click position. Fires on empty ground too, with hit undefined.
+// A gazetteer selection comes through the same callback; only that one carries
+// the semanticIdentifier key (possibly undefined), a tap never does.
 interface SelectionEvent {
   hits: maplibregl.MapGeoJSONFeature[];
   hit: maplibregl.MapGeoJSONFeature | undefined;
   latlng: maplibregl.LngLat;
+  semanticIdentifier?: string;
 }
 
-/** the hit as the info box wants it: control object under properties.info */
-type InfoboxFeature = maplibregl.MapGeoJSONFeature & { text?: string };
+/**
+ * What the info box reads: the control object under properties.info and a
+ * geometry for the zoom link. A map hit fits, and so does the point built
+ * for a tap on open ground.
+ */
+interface InfoboxFeature {
+  type: "Feature";
+  geometry: Geometry;
+  properties: Record<string, unknown>;
+  text?: string;
+}
 
 export const Map = ({ jwt, user, onAuthError, onConnectionError }: MapProps) => {
   const { markerSymbolSize } = useContext(TopicMapStylingContext) as {
@@ -85,8 +113,14 @@ export const Map = ({ jwt, user, onAuthError, onConnectionError }: MapProps) => 
   const [selectedFeature, setSelectedFeature] = useState<InfoboxFeature>();
   const [libreMap, setLibreMap] = useState<maplibregl.Map | null>(null);
   const [dialogPoint, setDialogPoint] = useState<PlacedPoint>();
+  // position a capture would take its geometry from, drawn as the tap marker
+  const [tapPoint, setTapPoint] = useState<LngLat>();
+  // counts selections, so the address lookup of an earlier tap cannot
+  // overwrite the info box of a later one
+  const selectionSeq = useRef(0);
 
   const style = useLeerstandStyle(markerSymbolSize, featureCollection);
+  useTapMarker(libreMap, tapPoint);
 
   const handleError = useCallback(
     (e: unknown) => {
@@ -115,6 +149,7 @@ export const Map = ({ jwt, user, onAuthError, onConnectionError }: MapProps) => 
       setLookups(undefined);
       setFeatureCollection(undefined);
       setSelectedFeature(undefined);
+      setTapPoint(undefined);
       return;
     }
     let cancelled = false;
@@ -155,28 +190,58 @@ export const Map = ({ jwt, user, onAuthError, onConnectionError }: MapProps) => 
     return layers;
   }, [jwt, style]);
 
+  /** info box for a tap on open ground; the nearest address arrives later */
+  const selectFreePoint = (lngLat: LngLat, currentJwt: string) => {
+    const seq = selectionSeq.current;
+    const utm = lngLatToUtm(lngLat);
+    const show = (nearest: NearestAddress) => {
+      const info = createFreePointInfoBoxControlObject(nearest, () => {
+        setDialogPoint({ lngLat, utm });
+      });
+      setSelectedFeature({
+        type: "Feature",
+        geometry: { type: "Point", coordinates: lngLat },
+        properties: { info },
+        text: info.puretitle,
+      });
+    };
+    show("loading");
+    setTapPoint(lngLat);
+    fetchLocationInfo(currentJwt, utm)
+      .then((result): NearestAddress => result.address ?? "none")
+      .catch((err): NearestAddress => {
+        console.warn("[LEERSTAND] location info failed", err);
+        return "failed";
+      })
+      .then((nearest) => {
+        if (selectionSeq.current === seq) show(nearest);
+      });
+  };
+
   const onSelectionChanged = (e: SelectionEvent) => {
-    const feature = e.hit as InfoboxFeature | undefined;
-    if (!feature) {
-      setSelectedFeature(undefined);
-      return;
-    }
+    selectionSeq.current += 1;
+    const feature = e.hit as
+      | (maplibregl.MapGeoJSONFeature & InfoboxFeature)
+      | undefined;
+    const lngLat: LngLat = [e.latlng.lng, e.latlng.lat];
     // the merged style namespaces the source id as "<layer name>::<source>"
-    if (feature.source.endsWith(`::${LEERSTAND_SOURCE}`)) {
+    if (feature?.source.endsWith(`::${LEERSTAND_SOURCE}`)) {
       const properties = parseLeerstandProperties(feature.properties);
       const info = createLeerstandInfoBoxControlObject(properties);
       feature.properties.info = info;
       feature.text = info.puretitle;
       setSelectedFeature(feature);
+      // a stored point is looked at, nothing can be captured on it
+      setTapPoint(undefined);
       return;
     }
-    if (feature.sourceLayer === "building") {
+    if (feature?.sourceLayer === "building") {
       const building = buildingInfoFromProperties(feature.properties);
       if (!building) {
         setSelectedFeature(undefined);
+        setTapPoint(undefined);
         return;
       }
-      const lngLat: LngLat = [e.latlng.lng, e.latlng.lat];
       const info = createBuildingInfoBoxControlObject(building, () => {
         setDialogPoint({ lngLat, utm: lngLatToUtm(lngLat), building });
       });
@@ -186,9 +251,19 @@ export const Map = ({ jwt, user, onAuthError, onConnectionError }: MapProps) => 
       // building even where the tile clips its polygon
       feature.properties.sourceProps = { bounds: feature.properties.bounds };
       setSelectedFeature(feature);
+      setTapPoint(lngLat);
+      return;
+    }
+    // Open ground. Only a tap places a free point, a gazetteer hit on a street
+    // or a Stadtteil does not; and only where the buildings are drawn, because
+    // below that zoom "no building here" cannot be told.
+    const isTap = !("semanticIdentifier" in e);
+    if (jwt && isTap && libreMap && libreMap.getZoom() >= BUILDING_MINZOOM) {
+      selectFreePoint(lngLat, jwt);
       return;
     }
     setSelectedFeature(undefined);
+    setTapPoint(undefined);
   };
 
   return (
@@ -243,6 +318,8 @@ export const Map = ({ jwt, user, onAuthError, onConnectionError }: MapProps) => 
           onSaved={(id) => {
             setDialogPoint(undefined);
             setSelectedFeature(undefined);
+            // the reload draws the red point where the tap marker was
+            setTapPoint(undefined);
             message.success(`Leerstand ${id} gespeichert.`);
             reload();
           }}

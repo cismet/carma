@@ -744,3 +744,54 @@ textarea.ls-inp {
   justify-content: center;
   cursor: pointer;
 }
+
+/* ---------- tap marker ---------- */
+
+/* MapLibre positions the marker through `transform` on this element, so the
+   pulse runs on a pseudo-element. Taps go through to the map. */
+.ls-tap-marker {
+  width: 26px;
+  height: 26px;
+  box-sizing: border-box;
+  border-radius: 50%;
+  border: 3px solid var(--ls-navy);
+  background: rgba(18, 59, 94, 0.18);
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.85);
+  pointer-events: none;
+}
+/* the exact position the geometry is taken from */
+.ls-tap-marker::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 4px;
+  height: 4px;
+  margin: -2px 0 0 -2px;
+  border-radius: 50%;
+  background: var(--ls-navy);
+}
+.ls-tap-marker::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  border: 2px solid var(--ls-navy);
+  opacity: 0;
+  animation: ls-tap-pulse 0.6s ease-out;
+}
+@keyframes ls-tap-pulse {
+  from {
+    transform: scale(0.6);
+    opacity: 0.7;
+  }
+  to {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ls-tap-marker::after {
+    animation: none;
+  }
+}

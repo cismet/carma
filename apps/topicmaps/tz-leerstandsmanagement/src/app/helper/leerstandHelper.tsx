@@ -1,4 +1,5 @@
 import type { LeerstandPhoto, LeerstandProperties } from "./leerstandApi";
+import type { NearbyAddress } from "./locationInfo";
 
 /** attributes of an ALKIS building as delivered by the vector tiles */
 export interface BuildingInfo {
@@ -137,6 +138,44 @@ export const createBuildingInfoBoxControlObject = (
       {
         action: onErfassen,
         tooltip: "Leerstand in diesem Gebäude erfassen",
+        iconname: "plus-square",
+      },
+    ],
+  };
+};
+
+/** nearest address of a free point: still loading, none in the search window, lookup failed, or found */
+export type NearestAddress = NearbyAddress | "loading" | "none" | "failed";
+
+const nearestAddressLine = (nearest: NearestAddress) => {
+  if (nearest === "loading") return "Nächste Adresse wird ermittelt …";
+  if (nearest === "none") return "Keine Adresse in der Nähe gefunden";
+  if (nearest === "failed") return "Nächste Adresse konnte nicht ermittelt werden";
+  return `Nächste Adresse: ${`${nearest.street} ${nearest.number}`.trim()}, ${Math.round(
+    nearest.distance
+  )} m entfernt`;
+};
+
+/**
+ * info box control object for a tap on open ground. No datasheet behind it,
+ * so no `modal`; the plus link opens the capture dialog without a building.
+ */
+export const createFreePointInfoBoxControlObject = (
+  nearest: NearestAddress,
+  onErfassen: () => void
+) => {
+  const puretitle = "Kein ALKIS-Gebäude an dieser Stelle";
+
+  return {
+    headerColor: "#8a4708",
+    header: "Freier Punkt",
+    puretitle,
+    title: "<html><h3>" + puretitle + "</h3></html>",
+    subtitle: nearestAddressLine(nearest),
+    genericLinks: [
+      {
+        action: onErfassen,
+        tooltip: "Leerstand an diesem Punkt erfassen",
         iconname: "plus-square",
       },
     ],
