@@ -12,7 +12,6 @@ import type {
   SourceSpecification,
 } from "maplibre-gl";
 import { validateStyleMin } from "@maplibre/maplibre-gl-style-spec";
-import slugify from "slugify";
 import WMSCapabilities from "wms-capabilities";
 import { extractCarmaConfig, md5FetchJSON } from "@carma-commons/utils";
 import { WUPPERTAL_DEFAULT_STYLE } from "../constants/wuppertalDefaultStyle";
@@ -25,6 +24,13 @@ import {
   styleProvidesTerrain,
   withTerrainProviderMetadata,
 } from "./terrainProviderMetadata";
+import {
+  prefixSpriteImages,
+  resolveSpriteNamespace,
+  SPRITE_IMAGE_LAYOUT_PROPERTIES,
+  SPRITE_IMAGE_PAINT_PROPERTIES,
+  type SpriteRegistration,
+} from "./spriteNamespace";
 
 // Inlined from @carma-mapping/layers to avoid circular dependency through portals
 interface WMSLayerLike {
@@ -446,55 +452,6 @@ export const transformedPois = (
   } as GeoJSON.FeatureCollection;
 };
 
-/**
- * Prefix image names inside a fill-pattern expression with the sprite namespace.
- *
- * Two strategies depending on expression type:
- * - step/interpolate (zoom-dependent): MapLibre requires these as the top-level
- *   expression, so we walk the structure in JS and prefix each string image name.
- * - Everything else (case, match, feature-property-driven, plain string): we use
- *   ["concat", "spriteId:", expr] and let MapLibre resolve it at runtime, because
- *   feature properties (["get", ...]) can't be resolved at build time.
- */
-export const prefixPatternExpression = (
-  spriteId: string,
-  expr: unknown
-): unknown => {
-  if (typeof expr === "string") {
-    return `${spriteId}:${expr}`;
-  }
-  if (!Array.isArray(expr)) return expr;
-
-  const [op, ...rest] = expr;
-  if (op === "step") {
-    // ["step", input, defaultValue, stop1, value1, stop2, value2, ...]
-    return [
-      "step",
-      rest[0],
-      ...rest
-        .slice(1)
-        .map((v, i) =>
-          i % 2 === 0 ? prefixPatternExpression(spriteId, v) : v
-        ),
-    ];
-  }
-  if (op === "interpolate") {
-    // ["interpolate", interpolation, input, stop1, value1, stop2, value2, ...]
-    return [
-      "interpolate",
-      rest[0],
-      rest[1],
-      ...rest
-        .slice(2)
-        .map((v, i) =>
-          i % 2 === 1 ? prefixPatternExpression(spriteId, v) : v
-        ),
-    ];
-  }
-  // For all other expressions (case, match, etc.): let MapLibre resolve at runtime
-  return ["concat", `${spriteId}:`, expr];
-};
-
 export interface VectorStylesToMapLibreStyleOptions {
   layers?: LibreLayer[];
   backgroundStyle?: StyleSpecification;
@@ -744,21 +701,16 @@ export const vectorStylesToMapLibreStyle = async ({
           namespacedSources[namespacedId] = srcDef;
         }
 
-        let spriteId = layerId.replace(":", "_");
-        if (additionalStyle.sprite) {
-          spriteId = slugify(additionalStyle.sprite, {
-            remove: /[^a-zA-Z0-9]/g,
-            lower: true,
-          });
-
-          const spriteExists = (
-            customSprites as Array<{ id: string; url: string }>
-          ).some((sprite) => sprite.id === spriteId);
-          if (!spriteExists) {
-            (customSprites as Array<{ id: string; url: string }>).push({
-              id: spriteId,
-              url: additionalStyle.sprite,
-            });
+        // Register the style's sprite(s) once per URL; a sprite array
+        // (MapLibre >= 3) contributes one registration per entry.
+        const spriteNamespace = resolveSpriteNamespace(
+          additionalStyle.sprite,
+          layerId.replace(":", "_")
+        );
+        const registeredSprites = customSprites as SpriteRegistration[];
+        for (const sprite of spriteNamespace.sprites) {
+          if (!registeredSprites.some((s) => s.id === sprite.id)) {
+            registeredSprites.push(sprite);
           }
         }
         const userFilter = (layer as { userFilter?: unknown[] | null })
@@ -844,18 +796,11 @@ export const vectorStylesToMapLibreStyle = async ({
                   }
                   return result;
                 })(),
-                ...((styleLayer.paint as Record<string, unknown>)?.[
-                  "fill-pattern"
-                ] !== undefined
-                  ? {
-                      "fill-pattern": prefixPatternExpression(
-                        spriteId,
-                        (styleLayer.paint as Record<string, unknown>)[
-                          "fill-pattern"
-                        ]
-                      ),
-                    }
-                  : {}),
+                ...prefixSpriteImages(
+                  spriteNamespace,
+                  styleLayer.paint as Record<string, unknown> | undefined,
+                  SPRITE_IMAGE_PAINT_PROPERTIES
+                ),
               },
               layout: {
                 ...(
@@ -863,23 +808,15 @@ export const vectorStylesToMapLibreStyle = async ({
                     layout?: Record<string, unknown>;
                   }
                 ).layout,
-                ...((
-                  styleLayer as LayerSpecification & {
-                    layout?: Record<string, unknown>;
-                  }
-                ).layout?.["icon-image"] !== undefined
-                  ? {
-                      "icon-image": [
-                        "concat",
-                        `${spriteId}:`,
-                        (
-                          styleLayer as LayerSpecification & {
-                            layout?: Record<string, unknown>;
-                          }
-                        ).layout?.["icon-image"],
-                      ],
+                ...prefixSpriteImages(
+                  spriteNamespace,
+                  (
+                    styleLayer as LayerSpecification & {
+                      layout?: Record<string, unknown>;
                     }
-                  : {}),
+                  ).layout,
+                  SPRITE_IMAGE_LAYOUT_PROPERTIES
+                ),
               },
             };
           }

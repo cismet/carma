@@ -123,11 +123,16 @@ export {
   styleManipulation,
   getVectorMapping,
   getPaintProperty,
-  prefixPatternExpression,
   type GeoJsonStyleMetadata,
   type VectorStylesToMapLibreStyleOptions,
   type VectorStylesToMapLibreStyleResult,
 } from "./utils/styleBuilder";
+export {
+  resolveSpriteNamespace,
+  prefixImageExpression,
+  type SpriteNamespace,
+  type SpriteRegistration,
+} from "./utils/spriteNamespace";
 
 // Imperative style composition
 export {

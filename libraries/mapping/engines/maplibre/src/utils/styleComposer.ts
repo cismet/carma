@@ -20,12 +20,17 @@ import {
 } from "@carma-mapping/utils";
 import {
   getPaintProperty,
-  prefixPatternExpression,
   extractGeoJson,
   transformedPois,
   isStopsObject,
   scaleStopsObject,
 } from "./styleBuilder";
+import {
+  prefixSpriteImages,
+  resolveSpriteNamespace,
+  SPRITE_IMAGE_LAYOUT_PROPERTIES,
+  SPRITE_IMAGE_PAINT_PROPERTIES,
+} from "./spriteNamespace";
 import type {
   LibreLayer,
   OpacityTransition,
@@ -56,7 +61,8 @@ export function slugifyUrl(url: string): string {
 interface ManagedSubStyle {
   sourceIds: string[];
   layerIds: string[];
-  spriteId: string | null;
+  /** Sprites registered for this sub-style (refcounted in `spriteRefs`). */
+  spriteIds: string[];
   firstId: string;
   lastId: string;
   carmaLayerId?: string;
@@ -275,13 +281,7 @@ export class StyleComposer {
       }
       throw err;
     }
-    let spriteId = layerId;
-    if (styleJson.sprite) {
-      spriteId = slugify(styleJson.sprite, {
-        remove: /[^a-zA-Z0-9]/g,
-        lower: true,
-      });
-    }
+    const spriteNamespace = resolveSpriteNamespace(styleJson.sprite, layerId);
 
     const firstId = `---${layerId}:first---`;
     const lastId = `---${layerId}:last---`;
@@ -306,10 +306,12 @@ export class StyleComposer {
       lastId
     );
 
-    // 2. Add sprite (MapLibre handles namespace prefixing natively)
-    if (styleJson.sprite) {
+    // 2. Add sprites (MapLibre handles namespace prefixing natively); a
+    //    sprite array in the style yields one registration per entry.
+    const spriteIds: string[] = [];
+    for (const { id: spriteId, url } of spriteNamespace.sprites) {
       try {
-        this.map.addSprite(spriteId, styleJson.sprite);
+        this.map.addSprite(spriteId, url);
       } catch (err) {
         // Sprite may already exist from a previous add
         console.debug(`[StyleComposer] addSprite(${spriteId}) skipped:`, err);
@@ -317,6 +319,7 @@ export class StyleComposer {
       // Refcount so removeSubStyle keeps the sprite alive while another
       // managed sub-style still references the same spriteId.
       this.spriteRefs.set(spriteId, (this.spriteRefs.get(spriteId) ?? 0) + 1);
+      spriteIds.push(spriteId);
     }
 
     // 3. Add sources (namespaced to prevent collisions)
@@ -417,21 +420,26 @@ export class StyleComposer {
         layer.paint = paint;
       }
 
-      // Prefix fill-pattern with sprite namespace
-      if (layer.paint?.["fill-pattern"] !== undefined) {
-        layer.paint["fill-pattern"] = prefixPatternExpression(
-          spriteId,
-          layer.paint["fill-pattern"]
+      // Prefix fill-pattern / line-pattern / icon-image with the sprite namespace
+      if (layer.paint) {
+        Object.assign(
+          layer.paint,
+          prefixSpriteImages(
+            spriteNamespace,
+            layer.paint,
+            SPRITE_IMAGE_PAINT_PROPERTIES
+          )
         );
       }
-
-      // Prefix icon-image with sprite namespace
-      if (layer.layout?.["icon-image"] !== undefined) {
-        layer.layout["icon-image"] = [
-          "concat",
-          `${spriteId}:`,
-          layer.layout["icon-image"],
-        ];
+      if (layer.layout) {
+        Object.assign(
+          layer.layout,
+          prefixSpriteImages(
+            spriteNamespace,
+            layer.layout,
+            SPRITE_IMAGE_LAYOUT_PROPERTIES
+          )
+        );
       }
 
       // Apply marker symbol size scaling
@@ -445,7 +453,7 @@ export class StyleComposer {
     this.managed.set(layerId, {
       sourceIds,
       layerIds,
-      spriteId,
+      spriteIds,
       firstId,
       lastId,
       baseOpacities,
@@ -643,7 +651,7 @@ export class StyleComposer {
     this.managed.set(id, {
       sourceIds,
       layerIds,
-      spriteId: null,
+      spriteIds: [],
       firstId,
       lastId,
       carmaLayerId: opts.carmaLayerId,
@@ -724,7 +732,7 @@ export class StyleComposer {
       this.managed.set(id, {
         sourceIds: [sourceId],
         layerIds: [nonTiledLayerId],
-        spriteId: null,
+        spriteIds: [],
         firstId,
         lastId,
         carmaLayerId: layer.carmaLayerId,
@@ -776,7 +784,7 @@ export class StyleComposer {
     this.managed.set(id, {
       sourceIds: [sourceId],
       layerIds: [layerId],
-      spriteId: null,
+      spriteIds: [],
       firstId,
       lastId,
       carmaLayerId: layer.carmaLayerId,
@@ -844,7 +852,7 @@ export class StyleComposer {
     this.managed.set(id, {
       sourceIds: [sourceId],
       layerIds: [layerId],
-      spriteId: null,
+      spriteIds: [],
       firstId,
       lastId,
       carmaLayerId: layer.carmaLayerId,
@@ -911,7 +919,7 @@ export class StyleComposer {
     this.managed.set(id, {
       sourceIds: [sourceId],
       layerIds: [layerId],
-      spriteId: null,
+      spriteIds: [],
       firstId,
       lastId,
       carmaLayerId: layer.carmaLayerId,
@@ -1073,18 +1081,18 @@ export class StyleComposer {
       }
     }
 
-    // Remove sprite (only when no other sub-style still references it)
-    if (entry.spriteId) {
-      const remaining = (this.spriteRefs.get(entry.spriteId) ?? 1) - 1;
+    // Remove sprites (only when no other sub-style still references them)
+    for (const spriteId of entry.spriteIds) {
+      const remaining = (this.spriteRefs.get(spriteId) ?? 1) - 1;
       if (remaining <= 0) {
-        this.spriteRefs.delete(entry.spriteId);
+        this.spriteRefs.delete(spriteId);
         try {
-          this.map.removeSprite(entry.spriteId);
+          this.map.removeSprite(spriteId);
         } catch {
           // Already gone
         }
       } else {
-        this.spriteRefs.set(entry.spriteId, remaining);
+        this.spriteRefs.set(spriteId, remaining);
       }
     }
 
