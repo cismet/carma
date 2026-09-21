@@ -65,6 +65,7 @@ export interface ConfigAdapter {
   applyById?: (id: string) => Promise<boolean>;
   setMappingConfig?: (config: MappingConfig) => Promise<boolean>;
   getAppliedId?: () => string | null;
+  getMappingConfig?: () => MappingConfig | null;
 }
 
 /** Public shape seen by callers of `carma.config`. */
@@ -92,6 +93,12 @@ export interface ConfigFacade {
    * is on screen is then the caller's own to keep track of.
    */
   getAppliedId: () => string | null;
+  /**
+   * What the map shows now, as the document `setMappingConfig` takes: the same
+   * layers and base map a share link would store. Null while no app is there
+   * to ask. Handing it back to `setMappingConfig` later restores the view.
+   */
+  getMappingConfig: () => MappingConfig | null;
 }
 
 export const { facade: config, register: registerConfig } = createNamespace<
@@ -102,4 +109,5 @@ export const { facade: config, register: registerConfig } = createNamespace<
   setMappingConfig: (mappingConfig) =>
     get()?.setMappingConfig?.(mappingConfig) ?? Promise.resolve(false),
   getAppliedId: () => get()?.getAppliedId?.() ?? null,
+  getMappingConfig: () => get()?.getMappingConfig?.() ?? null,
 }));

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useDispatch } from "react-redux";
+import { useDispatch, useStore } from "react-redux";
 import { useLocation } from "react-router-dom";
 
 import { registerConfig, type MappingConfig } from "@carma-api";
@@ -22,13 +22,14 @@ import { findFachzwillingByPathname } from "../constants/fachzwillinge";
 import { readCachedConfig, writeCachedConfig } from "../helper/config-cache";
 
 import {
+  getLayerState,
   setBackgroundLayer,
   setConfigSelection,
   setLayers,
   setSelectedByCategory,
 } from "../store/slices/mapping";
 
-import { AppDispatch } from "../store";
+import { AppDispatch, type RootState } from "../store";
 
 type View = {
   center: string[];
@@ -319,16 +320,36 @@ export const useAppConfig = (
     }
   }, []);
 
+  /**
+   * What the map shows now, in the shape a share stores and `applyMappingConfig`
+   * takes: the pm-show scenes are made of it. Read from the store at call time,
+   * so it needs no subscription.
+   */
+  const store = useStore<RootState>();
+  const getMappingConfig = useCallback((): MappingConfig => {
+    const { layers, backgroundLayer, selectedByCategory } = getLayerState(
+      store.getState()
+    );
+    const selectedLayerId = selectedByCategory[backgroundLayer.id]?.id;
+    return {
+      layers: layers as unknown as MappingConfig["layers"],
+      ...(selectedLayerId
+        ? { backgroundLayer: { ...backgroundLayer, selectedLayerId } }
+        : {}),
+    };
+  }, [store]);
+
   useEffect(() => {
     registerConfig({
       applyById: applyConfigById,
       setMappingConfig: applyMappingConfig,
       getAppliedId: () => appliedConfigRef.current ?? null,
+      getMappingConfig,
     });
     return () => {
       registerConfig(null);
     };
-  }, [applyConfigById, applyMappingConfig]);
+  }, [applyConfigById, applyMappingConfig, getMappingConfig]);
 
   useEffect(
     () => () => {
