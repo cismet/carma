@@ -2,6 +2,7 @@ import { run } from "./api";
 import wizardQueries from "./queries";
 import { SMALL_AREA_THRESHOLD_SQM } from "./constants";
 import { formatKey } from "./keys";
+import { getBuffer25832 } from "../tools/mappingTools";
 import {
   fetchGeometries,
   fetchGeometryForKey,
@@ -47,15 +48,31 @@ export const checkAreas = async ({ targetKeys, resultKeys }, jwt) => {
   };
 };
 
+/** LagisBroker.rebeBuffer */
+const REBE_MIPA_BUFFER_M = -1;
+
 /** Rights and leases on a parcel; HistoricNoSucessorDialog needs them. */
 export const findRebeAndMipa = async (key, jwt) => {
   const found = await fetchGeometryForKey(key, jwt);
   if (!found) {
     return { rebe: [], mipa: [], geometryMissing: true };
   }
+  // The parcel is made a metre smaller before the search, as the Swing client
+  // does it. Without that, a right on the parcel next door would count too,
+  // because the two share their boundary line. A parcel narrower than two
+  // metres has nothing left after shrinking, and getBuffer25832 then returns
+  // undefined — in that case the full outline is the best we have.
+  const buffered = getBuffer25832(found.geometry, REBE_MIPA_BUFFER_M);
+  if (!buffered) {
+    console.warn(
+      "Puffer für die Rebe/Mipa-Suche konnte nicht gebildet werden, " +
+        "es wird mit der ungepufferten Geometrie gesucht."
+    );
+  }
+  const geo = buffered ?? found.geometry;
   const [rebeData, mipaData] = await Promise.all([
-    run(wizardQueries.rebeByGeo, { geo: found.geometry }, jwt),
-    run(wizardQueries.mipaByGeo, { geo: found.geometry }, jwt),
+    run(wizardQueries.rebeByGeo, { geo }, jwt),
+    run(wizardQueries.mipaByGeo, { geo }, jwt),
   ]);
   return {
     rebe: rebeData.rebe ?? [],

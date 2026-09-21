@@ -155,14 +155,14 @@ wizardQueries.lockForSchluessel = `query LockForSchluessel($schluesselId: Int!) 
 }`;
 
 wizardQueries.rebeByGeo = `query RebeByGeo($geo: geometry) {
-  rebe(where: {extended_geom: {geo_field: {_st_intersects: $geo}}}) {
+  rebe(where: {geom: {geo_field: {_st_intersects: $geo}}}) {
     id
     datum_loeschung
   }
 }`;
 
 wizardQueries.mipaByGeo = `query MipaByGeo($geo: geometry) {
-  mipa(where: {extended_geom: {geo_field: {_st_intersects: $geo}}}) {
+  mipa(where: {geom: {geo_field: {_st_intersects: $geo}}}) {
     id
     vertragsende
   }
