@@ -178,12 +178,14 @@ export const collectLoadedMeshReceiverCandidates = (
   options?: Readonly<{
     published: ReadonlySet<Tile>;
     support: Set<Tile>;
+    unpreparedParents?: Set<Tile>;
     /** Publish the first view together; subsequently promote resident reserves. */
     atomic?: boolean;
     onIncompletePublishedFamily?: (parent: Tile) => void;
   }>
 ): Set<Tile> => {
   options?.support.clear();
+  options?.unpreparedParents?.clear();
   // Initial quality is a request goal. First publication additionally requires
   // a useful complete image (<=64px); later movement keeps resident coverage.
   // This is separate
@@ -286,6 +288,11 @@ export const collectLoadedMeshReceiverCandidates = (
     const selected: Tile[] = [];
     let complete = children.length > 0;
     for (const child of children) {
+      // Decision: ../../../TILES_COVERAGE.md#raw-replacement-topology-liveness
+      // Raw hierarchy children have no parent pointer until native preprocessing.
+      // Keep the known parent so publication can schedule that prerequisite.
+      if (!child.internal || !child.traversal)
+        options?.unpreparedParents?.add(tile);
       const result = visit(
         child,
         completeFamily ||

@@ -421,6 +421,7 @@ export function createThreeTilesFrameUpdate(
           completingShadowTraversal)
       ) {
         const support = new Set<Tile>();
+        const unpreparedParents = new Set<Tile>();
         // Multi-camera screen errors are demand ratios normalized to the
         // effective target. Comparing them to the raw requested target would
         // refine again by the staging factor and churn the resident cut.
@@ -458,6 +459,7 @@ export function createThreeTilesFrameUpdate(
           {
             published: runtimeState.displayedMeshFrontier,
             support,
+            unpreparedParents,
             // Decision: SHADOW-RECEIVER-COVERAGE-20260921 in TILES_COVERAGE.md.
             // Shadows may refine their caster cut separately, but colour must
             // keep a ready parent until its whole replacement family can draw.
@@ -480,7 +482,7 @@ export function createThreeTilesFrameUpdate(
             },
           }
         );
-        attachment.updateMeshRefinementSupport(support);
+        attachment.updateMeshRefinementSupport(support, unpreparedParents);
         abortStaleDownloads();
         runtimeState.lastLoadedViewportCutSize = loadedViewportCut.size;
         runtimeState.displayedMeshFrontier = retainMeshDetailFrontier({

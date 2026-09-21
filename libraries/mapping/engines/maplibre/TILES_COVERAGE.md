@@ -1,5 +1,40 @@
 # Shared tile coverage policy
 
+## Raw replacement topology liveness
+
+**ID / date / status:** RAW-REPLACEMENT-TOPOLOGY-20260921 / 2026-09-21 / implemented; focused regression verified.
+
+**Context and constraints:** Atomic publication can discover raw children before
+native traversal preprocesses them. Those entries do not yet have a parent
+pointer, so queuing preparation through `child.parent` silently skips them.
+Keep the ready parent visible and retain bounded native topology processing.
+
+**Decision:** Candidate selection collects the known processed parents of raw
+children separately from payload support. The runtime schedules those parents
+through the native asynchronous preprocessing queue. Its completion event wakes
+traversal; the same child objects then enter normal payload admission and complete
+family publication. No cache, quality or request-concurrency limit changes.
+
+**Alternatives:** Relying on a raw child's parent pointer is rejected by the
+regression. Synchronous recursive preprocessing would bypass the native work
+budget and is not used. Dropping family completeness would reintroduce coverage
+holes and is incompatible with the coverage policy.
+
+**Evidence:** The runtime regression fails on `f7b79708f` with zero preprocessing
+calls. With the fix it preserves the parent, schedules its raw child and promotes
+the ready child; 139 frontier and view-refresh tests pass. A local Chrome probe
+of the reported Mesh 2024/shadow URL at 902 x 801 CSS pixels, DPR 1, reaches 6 px,
+366 visible tiles and zero queued/downloading/parsing jobs. This is an exploratory
+functional check, not a load-time benchmark. A diagnostic registry was enabled
+only in the test browser's served module; request interception disables its HTTP
+cache. Earlier cold loads and zoom/pan paths on the baseline also eventually
+converged, so the user's indefinite stall has not been conclusively attributed
+to this missing-preprocessing path.
+
+**Revisit when:** A captured stalled runtime still fails to converge with all
+required topology prepared; distinguish idle admission from active network work
+and memory-adaptive quality before changing further gates.
+
 ## Shadow receiver fallback during camera motion
 
 **ID / date / status:** SHADOW-RECEIVER-COVERAGE-20260921 / 2026-09-21 / implemented; focused and browser verified.
