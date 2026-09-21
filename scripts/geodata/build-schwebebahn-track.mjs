@@ -12,7 +12,14 @@
  *   2. throws away the zero-length ones (the struts),
  *   3. stitches the rest end-to-start into chains,
  *   4. keeps the longest chain, which is the closed out-and-back ring of the
- *      trasse (~9 km: roughly 4.5 km on each of the two rails).
+ *      trasse (~9 km: roughly 4.5 km on each of the two rails),
+ *   5. turns the ring round when it runs clockwise.
+ *
+ * The addon drives the cars along the point order, and the Schwebebahn runs on
+ * the right: each car's rail has the other one on its left, so the ring has to
+ * run counter-clockwise. Where the stitching starts is down to the order of the
+ * segments in the source, which leaves the ring's direction to chance without
+ * step 5.
  *
  * Usage:
  *   node scripts/geodata/build-schwebebahn-track.mjs <source.json> <target.json>
@@ -118,6 +125,31 @@ const [longest] = chains;
 if (!longest) {
   console.error("no line geometry in", sourcePath);
   process.exit(1);
+}
+
+/** the ring's signed area in square metres, positive when it runs counter-clockwise */
+const signedArea = (ring) => {
+  const [originLon, originLat] = ring[0];
+  const scale = metersPerDegree(originLat);
+  const local = ring.map(([lon, lat]) => [
+    (lon - originLon) * scale.lon,
+    (lat - originLat) * scale.lat,
+  ]);
+  let sum = 0;
+  local.forEach(([x, y], i) => {
+    const [nextX, nextY] = local[(i + 1) % local.length];
+    sum += x * nextY - nextX * y;
+  });
+  return sum / 2;
+};
+
+if (pointKey(longest.chain[0]) !== pointKey(longest.chain.at(-1))) {
+  console.warn(
+    "the longest chain is not closed, so it has no direction of travel to check; kept as stitched"
+  );
+} else if (signedArea(longest.chain) < 0) {
+  longest.chain.reverse();
+  console.log("ring ran clockwise, turned round for right-hand running");
 }
 
 // ~1 cm horizontally, 10 cm vertically; anything finer is noise from the model
