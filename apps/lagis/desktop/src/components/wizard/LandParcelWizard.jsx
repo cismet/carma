@@ -100,8 +100,11 @@ const LandParcelWizard = ({
 
   /** Changing the action throws away everything the old branch collected. */
   const handleActionChange = ({ action }) => {
-    setData({ action });
+    if (action !== data.action) {
+      setData({ action });
+    }
     setProblem(null);
+    setStepIndex(1);
   };
 
   const handleClose = () => {
