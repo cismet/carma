@@ -73,7 +73,7 @@ export const projectionMappingFachzwilling: FachzwillingRoute = {
     {
       Title: "Bäume",
       layers: [
-        "https://tiles.cismet.de/pm_trees/style.json",
+        "https://tiles.cismet.de/pm_trees/modell.style.json",
         "https://tiles.cismet.de/pm_trees/mask.style.json",
       ],
     },
