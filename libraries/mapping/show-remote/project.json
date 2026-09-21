@@ -1,0 +1,20 @@
+{
+  "name": "show-remote",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libraries/mapping/show-remote/src",
+  "projectType": "library",
+  "tags": [],
+  "targets": {
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    },
+    "test": {
+      "executor": "@nx/vite:test",
+      "outputs": ["{workspaceRoot}/dist/.vite/show-remote"],
+      "options": {
+        "config": "libraries/mapping/show-remote/vite.config.ts",
+        "passWithNoTests": false
+      }
+    }
+  }
+}
