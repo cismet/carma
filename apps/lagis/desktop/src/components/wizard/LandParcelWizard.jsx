@@ -212,8 +212,12 @@ const LandParcelWizard = ({
   };
 
   const handleFinish = async () => {
-    // Setting a parcel historic asks about its rights and leases first.
-    if (data.action === WIZARD_ACTIONS.HISTORIC) {
+    // Setting a parcel historic asks about its rights and leases first — but
+    // only for a parcel that was city owned, as LagisBroker does.
+    if (
+      data.action === WIZARD_ACTIONS.HISTORIC &&
+      data.historicKey?.warStaedtisch
+    ) {
       setBusy(true);
       try {
         const found = await findRebeAndMipa(data.historicKey, jwt);
