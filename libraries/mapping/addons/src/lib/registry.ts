@@ -56,6 +56,7 @@ import {
   type OriginSearchConfig,
 } from "../addons/OriginSearch";
 import { OutletAddon, type OutletConfig } from "../addons/outlet/Outlet";
+import { ShowScenes, type ShowScenesConfig } from "../addons/ShowScenes";
 import {
   VectorHighlight,
   VectorHighlightControl,
@@ -162,6 +163,11 @@ export type AddonConfigMap = {
   shadowSimulation: ShadowSimulationConfig;
   infoBoxZoomImage: InfoBoxZoomImageConfig;
   outlet: OutletConfig;
+  /**
+   * Saves the map as scenes of a projection mapping show and publishes the
+   * list for the remote on the phone; see `apps/pm-remote`.
+   */
+  showScenes: ShowScenesConfig;
   visibleFeatureStatsSource: VisibleFeatureStatsSourceConfig;
   visibleFeatureStatsPanel: VisibleFeatureStatsPanelConfig;
   /** WMS time-series transport; the interpolation behind it is caged */
@@ -451,6 +457,7 @@ export const addonRegistry: {
   },
   gazetteerSource: { Component: GazetteerSource },
   outlet: { Component: OutletAddon },
+  showScenes: { Component: ShowScenes },
   gazetteerMode: { Component: GazetteerMode },
   homeOverride: { Component: HomeOverride },
   nearestFeature: {

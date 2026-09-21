@@ -7,6 +7,16 @@ const PROJECTION_MAPPING_STYLES =
   "https://tiles.cismet.de/projection_mapping";
 
 /**
+ * The remote the published show opens on the phone (`apps/pm-remote`). The
+ * local dev server has its own port; a deployment may name another host.
+ */
+const PM_REMOTE_URL =
+  import.meta.env.VITE_PM_REMOTE_URL ||
+  (import.meta.env.DEV
+    ? "http://localhost:4210/"
+    : "https://carma-dev-deployments.github.io/pm-remote/");
+
+/**
  * The collection point for the projection mapping show: the layers that are
  * meant to end up on the printed Wuppertal model are picked and kept here,
  * separate from the plain geoportal.
@@ -30,8 +40,12 @@ export const projectionMappingFachzwilling: FachzwillingRoute = {
   availability: {
     deployments: ["localDev", "dev", "pr"],
   },
-  // the engine the Schwebebahn cards launch into; idle until one is clicked
-  addons: ["vehicleAnimation"],
+  addons: [
+    // the engine the Schwebebahn cards launch into; idle until one is clicked
+    "vehicleAnimation",
+    // "save as scene" and "publish" for the remote on the phone
+    { addon: "showScenes", config: { remoteUrl: PM_REMOTE_URL } },
+  ],
   /**
    * The layers of the show, grouped as it walks through them. Most are built
    * for the printed model and are not in the catalog the services deliver; the

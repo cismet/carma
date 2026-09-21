@@ -312,6 +312,7 @@ export {
   type ShadowSimulationState,
 } from "./addons/ShadowSimulation";
 export { OutletAddon, type OutletConfig } from "./addons/outlet/Outlet";
+export { ShowScenes, type ShowScenesConfig } from "./addons/ShowScenes";
 export {
   CompareSwipe,
   type CompareSwipeConfig,

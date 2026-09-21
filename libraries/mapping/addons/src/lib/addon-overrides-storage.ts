@@ -53,7 +53,7 @@ export const ADDON_OVERRIDES_STORAGE_KEY = "carma::addonOverrides";
  * the pathname, plus the hash's path part for a hash router, so `/#/addons?x=1`
  * and `/addons` both come out as `/addons`.
  */
-const routeScopeFromLocation = (): string => {
+export const routeScopeFromLocation = (): string => {
   if (typeof window === "undefined") {
     return "/";
   }
