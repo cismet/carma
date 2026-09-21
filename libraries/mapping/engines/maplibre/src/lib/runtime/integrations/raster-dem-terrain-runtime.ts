@@ -1,4 +1,3 @@
-import { getWorkerProbeLimit } from "@carma-commons/worker-scaling";
 import { MercatorCoordinate } from "maplibre-gl";
 import type { Map as MaplibreMap } from "maplibre-gl";
 import {
@@ -6,6 +5,7 @@ import {
   BufferAttribute,
   BufferGeometry,
   Camera,
+  type ColorRepresentation,
   FrontSide,
   Frustum,
   Group,
@@ -16,34 +16,31 @@ import {
   Sphere,
   Vector3,
   WebGLCoordinateSystem,
-  type ColorRepresentation,
 } from "three";
 
 import { quantize } from "@carma-commons/math";
-import {
-  getTerrainScreenErrorRatio,
-  getTerrainScreenErrorColor,
-} from "../../core/terrain-screen-error";
-import { geographicBoundsIntersect } from "@carma-geo/helpers";
-import { resolveDerivedCacheAssetEpoch } from "@carma-commons/utils";
 import type { RasterDemTerrainResource } from "@carma-commons/resources";
-import {
-  acquireRasterDemTerrainTileSource,
-  isConfirmedTerrainServerError,
-  terrainTileKey,
-  type RasterDemTerrainTileSource,
-  type TerrainTile,
-  type TerrainTileBounds,
-  type TerrainTileId,
-} from "./raster-dem-terrain-tile-source";
+import { resolveDerivedCacheAssetEpoch } from "@carma-commons/utils";
+import { getWorkerProbeLimit } from "@carma-commons/worker-scaling";
+import { geographicBoundsIntersect } from "@carma-geo/helpers";
 
-import {
-  notifySharedThreeTerrainChanged,
-  registerSharedThreeTerrainSampler,
-  setSharedThreeTerrainLoading,
-} from "./shared-three-terrain-registry";
-import { createTerrainHeightMetadataIndex } from "./terrain-height-metadata-index";
 import { MAPLIBRE_EVENT } from "../../../constants/mapEvents";
+import {
+  getTileBounds,
+  latitudeToTileY,
+  longitudeToTileX,
+} from "../../core/raster-dem-tile";
+import {
+  MAXIMUM_RASTER_MESH_ERROR_METERS,
+  resolveRasterMeshErrorMeters,
+} from "../../core/raster-mesh-error";
+import type {
+  SharedThreeSceneFrame,
+  SharedThreeSceneRuntime,
+  SharedThreeSceneShadowView,
+  SharedThreeSceneTileVolume,
+} from "../../core/shared-three-scene-types";
+import { getSharedThreeShadowViewSignature } from "../../core/shared-three-shadow-view";
 import {
   planTerrainIdlePrefetch,
   planTerrainIdleShadowRegion,
@@ -51,12 +48,13 @@ import {
   type TerrainIdleShadowReason,
 } from "../../core/terrain-idle-prefetch";
 import {
-  runBatchedTerrainBoundaryStitch,
-  type TerrainBoundaryStitchState,
-  type TerrainStitchInput,
-} from "./terrain-boundary-stitch";
-import { runTerrainWorkerTask } from "./terrain-worker-client";
-import type { TerrainWorkerResult } from "./terrain-worker-task";
+  NO_DATA_EPSILON_METERS,
+  terrainHeightRangeExcludesNoData,
+} from "../../core/terrain-no-data";
+import {
+  getTerrainScreenErrorColor,
+  getTerrainScreenErrorRatio,
+} from "../../core/terrain-screen-error";
 import {
   buildTerrainSelection,
   buildTerrainTileLocalBox,
@@ -64,41 +62,44 @@ import {
   type TerrainSelectionEntry,
   type TerrainSelectionInput,
 } from "../../core/terrain-selection";
-import {
-  NO_DATA_EPSILON_METERS,
-  terrainHeightRangeExcludesNoData,
-} from "../../core/terrain-no-data";
-import {
-  getTileBounds,
-  longitudeToTileX,
-  latitudeToTileY,
-} from "../../core/raster-dem-tile";
-import {
-  MAXIMUM_RASTER_MESH_ERROR_METERS,
-  resolveRasterMeshErrorMeters,
-} from "../../core/raster-mesh-error";
 import { createTerrainTileHeightSampler } from "../../core/terrain-tile-height-sampler";
 import {
-  advanceTerrainTileFrontier,
-  terrainTileContains,
-} from "./terrain-tile-frontier";
+  createTileCameraDemand,
+  TILE_CAMERA_PRIORITY,
+  type TileCameraSnapshot,
+  tileCameraViewsSignature,
+} from "../../core/tile-camera-demand";
+import { planTileLoadStages } from "../../core/tile-load-plan";
 import {
   createPayloadAwareRequestConcurrency,
   DEFAULT_MAXIMUM_REQUEST_CONCURRENCY,
 } from "./payload-aware-request-concurrency";
-import type {
-  SharedThreeSceneFrame,
-  SharedThreeSceneTileVolume,
-  SharedThreeSceneRuntime,
-  SharedThreeSceneShadowView,
-} from "../../core/shared-three-scene-types";
-import { getSharedThreeShadowViewSignature } from "../../core/shared-three-shadow-view";
 import {
-  createTileCameraDemand,
-  TILE_CAMERA_PRIORITY,
-  tileCameraViewsSignature,
-  type TileCameraSnapshot,
-} from "../../core/tile-camera-demand";
+  acquireRasterDemTerrainTileSource,
+  isConfirmedTerrainServerError,
+  type RasterDemTerrainTileSource,
+  type TerrainTile,
+  type TerrainTileBounds,
+  type TerrainTileId,
+  terrainTileKey,
+} from "./raster-dem-terrain-tile-source";
+import {
+  notifySharedThreeTerrainChanged,
+  registerSharedThreeTerrainSampler,
+  setSharedThreeTerrainLoading,
+} from "./shared-three-terrain-registry";
+import {
+  runBatchedTerrainBoundaryStitch,
+  type TerrainBoundaryStitchState,
+  type TerrainStitchInput,
+} from "./terrain-boundary-stitch";
+import { createTerrainHeightMetadataIndex } from "./terrain-height-metadata-index";
+import {
+  advanceTerrainTileFrontier,
+  terrainTileContains,
+} from "./terrain-tile-frontier";
+import { runTerrainWorkerTask } from "./terrain-worker-client";
+import type { TerrainWorkerResult } from "./terrain-worker-task";
 
 // The runtime chunk owns preparation orchestration outside the worker graph.
 const producerAssetUrl =
@@ -2265,7 +2266,6 @@ export const buildRasterDemTerrainRuntime = (
         if (current()) options.onError?.(error);
       });
     };
-    const scheduledKeys = new Set<string>();
     const finalKeys = new Set(requested.map(({ key }) => key));
     // A published parent is only replaced once its children cover it whole. The
     // cut is clipped to the view and the corridor, so a parent on the edge of
@@ -2310,29 +2310,21 @@ export const buildRasterDemTerrainRuntime = (
       selection.entries,
       ...(completion.length ? [completion] : []),
     ];
-    const priorities = [
-      ...new Set(
-        sourceStages.flatMap((stage) =>
-          stage.map((entry) => entry.priority ?? TILE_CAMERA_PRIORITY.PRIMARY)
-        )
-      ),
-    ].sort((a, b) => b - a);
-    const loadStages = priorities.flatMap((priority) =>
-      sourceStages.map((stage) =>
-        stage.filter((entry) => {
-          if ((entry.priority ?? TILE_CAMERA_PRIORITY.PRIMARY) !== priority)
-            return false;
-          const key = terrainSelectionKey(entry);
+    const { stages: loadStages, scheduledKeys } = planTileLoadStages(
+      sourceStages,
+      {
+        key: terrainSelectionKey,
+        priority: (entry) => entry.priority ?? TILE_CAMERA_PRIORITY.PRIMARY,
+        eligible: (entry, key) => {
           if (
-            scheduledKeys.has(key) ||
             meshes.has(key) ||
             unavailableTileKeys.has(terrainTileKey(entry.id))
           )
             return false;
-          if (
-            !finalKeys.has(key) &&
-            !coarseReserve.has(terrainTileKey(entry.id)) &&
-            [...activeMeshKeys].some((activeKey) => {
+          return (
+            finalKeys.has(key) ||
+            coarseReserve.has(terrainTileKey(entry.id)) ||
+            ![...activeMeshKeys].some((activeKey) => {
               const active = meshes.get(activeKey);
               return (
                 active &&
@@ -2340,12 +2332,9 @@ export const buildRasterDemTerrainRuntime = (
                 terrainTileContains(entry.id, active.id)
               );
             })
-          )
-            return false;
-          scheduledKeys.add(key);
-          return true;
-        })
-      )
+          );
+        },
+      }
     );
     const highestPendingPriority = loadStages
       .flat()
