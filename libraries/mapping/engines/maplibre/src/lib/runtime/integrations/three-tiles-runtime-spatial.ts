@@ -1,4 +1,3 @@
-import { getThreeTileDiagnosticSteps } from "./three-tiles-diagnostic-steps";
 import { type Tile } from "3d-tiles-renderer/core";
 import * as THREE from "three";
 
@@ -8,7 +7,9 @@ import {
   TILE_CAMERA_PRIORITY,
   TILE_MAIN_OBSERVER_ID,
 } from "../../core/tile-camera-demand";
+import { resolveTileRequestPriority } from "../../core/tile-scheduling-policy";
 import { readOrientedTileBounds } from "./three-tiles-bounds";
+import { getThreeTileDiagnosticSteps } from "./three-tiles-diagnostic-steps";
 import { TILES_LOAD_POLICY } from "./three-tiles-load-policy";
 import {
   getReadyMeshRegionCut,
@@ -195,20 +196,19 @@ export function createThreeTilesSpatial(
         runtimeState.viewFrustumsReady && bounds?.intersectsFrustum
           ? bounds.intersectsFrustum(runtimeState.tileViewFrustum)
           : tile.traversal?.inFrustum ?? false;
-      return Math.max(
-        getTileCameraDemand(tile).priority,
-        tile.motionPrefetch
-          ? TILE_CAMERA_PRIORITY.PREFETCH
-          : Number.NEGATIVE_INFINITY,
-        inObserver ||
-          (runtimeState.shadowSelectionEnabled &&
-            tile.shadowReceiverCurrent === true) ||
-          (runtimeState.shadowView &&
-            (!runtimeState.shadowSelectionEnabled ||
-              !runtimeState.shadowReceiverMask))
-          ? TILE_CAMERA_PRIORITY.PRIMARY
-          : Number.NEGATIVE_INFINITY
-      );
+      return resolveTileRequestPriority({
+        replacementSupport: false,
+        cameraPriority: getTileCameraDemand(tile).priority,
+        motionPrefetch: !!tile.motionPrefetch,
+        observerVisible: inObserver,
+        selectedShadowReceiver:
+          runtimeState.shadowSelectionEnabled &&
+          tile.shadowReceiverCurrent === true,
+        shadowWithoutSelection:
+          !!runtimeState.shadowView &&
+          (!runtimeState.shadowSelectionEnabled ||
+            !runtimeState.shadowReceiverMask),
+      });
     };
   const readModelFrameBounds: ThreeTilesRuntimeServices["readModelFrameBounds"] =
     (model: THREE.Object3D, target: THREE.Box3): THREE.Box3 => {

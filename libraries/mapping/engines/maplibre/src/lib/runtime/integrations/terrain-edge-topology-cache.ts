@@ -1,6 +1,7 @@
 import { createDerivedBufferCache } from "@carma-commons/utils";
-import { prepareEqualLevelTerrainShell } from "./terrain-equal-level-boundaries";
+
 import type { TerrainStitchInput } from "./terrain-boundary-stitch";
+import { prepareEqualLevelTerrainShell } from "./terrain-equal-level-boundaries";
 
 type Topology = Pick<TerrainStitchInput, "indices" | "boundaryEdges"> & {
   sourceIndices: Uint32Array;
@@ -169,7 +170,7 @@ export const prepareCachedEqualLevelTerrainShell = async (
   try {
     const read = (async () => {
       const cache = await store();
-      const record = await cache?.get<unknown>(key);
+      const record = await cache?.get(key);
       return record?.value;
     })();
     const cached = await Promise.race([

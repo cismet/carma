@@ -1711,3 +1711,66 @@ end-to-end timing has been taken, so no speedup is claimed.
 
 **Revisit when:** a headless run measures time to a given terrain error with
 and without the motion target, or the configured 0.5 px target is revisited.
+
+
+<a id="functional-decision-pipelines"></a>
+## Functional decision pipelines
+
+**ID / date / status:** TILE-DECISION-PIPELINES-20260921 / 2026-09-21 / implemented.
+
+**Context and constraints.** Coverage, camera priority, shadow publication,
+cache admission and motion interact. Mixing their decisions with vendor queue
+mutations made precedence hard to inspect. Preserve the existing thresholds,
+read timing, native promise ownership and complete-family publication rules.
+
+**Decision.** Keep a functional core and explicit runtime effect owners. Pure
+policies accept readonly facts, return values and do not touch tiles, clocks,
+queues or the renderer. Local accumulators are allowed inside pure planners;
+input collections and payload identity stay unchanged. Spatial reads remain
+lazy where an earlier decision makes them unnecessary. Do not replace bounded
+loops with allocation-heavy chains merely for functional notation.
+
+| Pipeline | Decision owner | Effect owner |
+| --- | --- | --- |
+| Camera demand and priority | `core/tile-camera-demand.ts`, `core/tile-scheduling-policy.ts`, `three-tiles-load-policy.ts` | `three-tiles-runtime-spatial.ts` |
+| Download and parse admission | `core/tile-scheduling-policy.ts`, `three-tiles-load-policy.ts` | `three-tiles-runtime-loading.ts`, `three-tiles-runtime-payload-queues.ts` |
+| Cancellation and preemption | current spatial demand plus `decideTileRequestAction` | `three-tiles-runtime-cascade.ts`; native LRU owns abort/disposal |
+| Quality stages and memory adaptation | `resolveMeshStageTarget`, `nextEffectiveErrorTarget`, `nextMemoryErrorTarget` | `three-tiles-runtime-quality.ts` |
+| Cache retention and fallback safety | existing `three-tiles-mesh-frontier.ts` coverage queries | `three-tiles-runtime-cache.ts` |
+| Receiver/caster publication | existing frontier and shadow-region cut functions | `three-tiles-runtime-frame.ts`, `three-tiles-runtime-shadows.ts` |
+| Raster stage ordering and deduplication | `core/tile-load-plan.ts` | `raster-dem-terrain-runtime.ts` |
+| Registration, events and teardown | event-specific handlers | `three-tiles-runtime-lifecycle.ts`, `three-tiles-runtime-attachment.ts` |
+
+The quality/cache/queue/frame modules replace those responsibility blocks in
+the loading, attachment and lifecycle modules. They are internal modules, not
+new public entrypoints or a second loader. Geometric selection and coverage
+algorithms that were already pure are retained.
+
+Precedence remains explicit: replacement-family support has camera rank 3;
+observer and selected receivers supply rank 1; other cameras retain their own
+rank; speculative motion work starts only when higher-ranked work permits it.
+A ready foreground parse does not wait for a higher-ranked network request.
+Cancellation distinguishes obsolete work from preemption: only the latter
+consumes a waiting foreground slot. Metadata is not preempted by payload work.
+Raster plans rank cameras before preserving stage order and schedule each key
+once. Publication, stitching and request execution remain separate effects.
+
+**Alternatives and disposition.** A new scheduler or changed family-admission
+policy is deferred: either would change behavior and invalidate a refactor-only
+comparison. Blanket immutable copies of vendor tiles/queues are incompatible
+by inspection with native identity and abort ownership. Existing native queues,
+spatial memoization and coverage functions remain in use.
+
+**Evidence.** Comparison baseline: `48fd729d1`. The same complete
+`engines-maplibre:test --watch=false` target had 21 failures / 1,193 passes before,
+and 18 failures / 1,211 passes after extraction. The three resolved failures
+are the existing 1,000-line module budgets; the other failure names are unchanged.
+No existing tests were deleted or weakened. Added frozen-input and semantic
+invariants cover priority lanes, foreground/background admission, backpressure,
+preemption, lazy stage readiness and stable raster planning. This establishes
+test parity, not correctness of the 18 outstanding baseline failures or a
+performance improvement. Those failures remain merge blockers.
+
+**Revisit when.** A separate change deliberately alters admission, quality or
+publication semantics; update the appropriate pure policy and its invariant
+checks, then compare real rendering and coverage as well as test outcomes.

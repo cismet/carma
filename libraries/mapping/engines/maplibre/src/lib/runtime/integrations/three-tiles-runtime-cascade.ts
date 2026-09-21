@@ -1,26 +1,30 @@
 import type { Tile } from "3d-tiles-renderer/core";
 import { Box3, Matrix4 } from "three";
+
+import type { ShadowReceiverMatch } from "../../core/shadow-receiver-mask";
 import type { SharedThreeSceneRuntime } from "../../core/shared-three-scene-types";
 import { createTileCameraDemand } from "../../core/tile-camera-demand";
-import type { ShadowReceiverMatch } from "../../core/shadow-receiver-mask";
+import {
+  decideTileRequestAction,
+  TILE_REQUEST_ACTION,
+} from "../../core/tile-scheduling-policy";
 import { readOrientedTileBounds } from "./three-tiles-bounds";
+import {
+  isExtentFloorTile,
+  TILES_LOAD_POLICY,
+} from "./three-tiles-load-policy";
 import { isMeshCoveredByLoadedChildren } from "./three-tiles-mesh-frontier";
 import { createThreeTilesMotionPrefetch } from "./three-tiles-motion-prefetch";
-import {
-  TILES_LOAD_POLICY,
-  initialMeshLoadError,
-  isExtentFloorTile,
-} from "./three-tiles-load-policy";
 import type {
   ThreeTilesRuntimeServices,
   ThreeTilesRuntimeState,
 } from "./three-tiles-runtime-context";
 import type { RuntimeLruCache, RuntimeTile } from "./three-tiles-runtime-types";
 import {
-  LOADING_LOADING_STATE,
-  QUEUED_LOADING_STATE,
-  PARSING_LOADING_STATE,
   LOADED_LOADING_STATE,
+  LOADING_LOADING_STATE,
+  PARSING_LOADING_STATE,
+  QUEUED_LOADING_STATE,
   UNLOADED_LOADING_STATE,
 } from "./three-tiles-runtime-vendor";
 
@@ -199,17 +203,25 @@ export function createThreeTilesCascade(
         tile.internal.loadingState !== PARSING_LOADING_STATE
       )
         continue;
-      if (!isTileRequestNeeded(tile)) {
-        tiles.lruCache.remove(tile);
-      } else if (
-        foregroundWaiting.length > 0 &&
-        tile.internal.loadingState === LOADING_LOADING_STATE &&
-        !tile.internal.hasUnrenderableContent &&
-        dependencies.getTileRequestPriority(tile) < foregroundWaiting[0]
-      ) {
-        tiles.lruCache.remove(tile);
-        foregroundWaiting.shift();
-      }
+      const needed = isTileRequestNeeded(tile);
+      const downloading = tile.internal.loadingState === LOADING_LOADING_STATE;
+      const metadata = tile.internal.hasUnrenderableContent;
+      const highestWaitingPriority = foregroundWaiting[0];
+      const action = decideTileRequestAction({
+        needed,
+        downloading,
+        metadata,
+        highestWaitingPriority,
+        priority:
+          needed &&
+          downloading &&
+          !metadata &&
+          highestWaitingPriority !== undefined
+            ? dependencies.getTileRequestPriority(tile)
+            : Number.NEGATIVE_INFINITY,
+      });
+      if (action !== TILE_REQUEST_ACTION.KEEP) tiles.lruCache.remove(tile);
+      if (action === TILE_REQUEST_ACTION.PREEMPT) foregroundWaiting.shift();
     }
   };
 
