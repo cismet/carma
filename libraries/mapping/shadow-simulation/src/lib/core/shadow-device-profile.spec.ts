@@ -81,6 +81,47 @@ describe("mobile shadow admission", () => {
       shadowMsaaSamples: 0,
     });
   });
+  it.each([
+    desktop,
+    {
+      userAgent: "Mozilla/5.0 (Windows NT 10.0)",
+      platform: "Win32",
+      maxTouchPoints: 10,
+    },
+    {
+      userAgent: "Mozilla/5.0 (X11; Linux x86_64)",
+      platform: "Linux x86_64",
+      maxTouchPoints: 0,
+    },
+  ])(
+    "preserves desktop defaults and explicit quality in a narrow window: %j",
+    (environment) => {
+      vi.stubGlobal("navigator", environment);
+      vi.stubGlobal("innerWidth", 375);
+      try {
+        expect(createInitialShadowSimulationState(undefined)).toMatchObject({
+          terrainQuality: "max",
+          shadowQuality: 64,
+          softSunShadows: true,
+        });
+        const terrain = {
+          tileSize: 512,
+          meshSegments: 512,
+          requestConcurrency: 8,
+        } as ShadowTerrainOptions;
+        expect(constrainMobileShadowTerrain(terrain)).toBe(terrain);
+        const quality = {
+          shadowBufferFormat: "rgba32f",
+          shadowMsaaSamples: "max",
+          shadowSunDiscSamples: 128,
+        } as const;
+        expect(constrainMobileShadowRendering(quality)).toBe(quality);
+      } finally {
+        vi.unstubAllGlobals();
+      }
+    }
+  );
+
   it("initializes controls with direct mobile shadows", () => {
     vi.stubGlobal("navigator", { ...desktop, userAgent: "iPhone" });
     try {

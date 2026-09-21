@@ -738,6 +738,61 @@ describe("shadow scene lighting integration", () => {
     }
   });
 
+  it("retains native desktop terrain and soft HDR shadows at 4K after quality changes", async () => {
+    vi.stubGlobal("navigator", {
+      userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+      platform: "MacIntel",
+      maxTouchPoints: 0,
+    });
+    const f = await createIdleTerrainHost();
+    try {
+      expect(f.map.getPixelRatio()).toBe(3);
+      expect(f.map.setPixelRatio).not.toHaveBeenCalled();
+      const terrainOptions = vi.mocked(buildRasterDemTerrainRuntime).mock
+        .lastCall?.[3];
+      expect(terrainOptions?.meshSegments).toBe(512);
+      expect(terrainOptions?.maximumMeshSegments).toBeUndefined();
+      const update4K = () =>
+        sharedRuntimes.get("shadow-simulation-controller")!.update!({
+          map: f.map,
+          renderCamera: f.camera,
+          lodCamera: f.camera,
+          lookTarget: new THREE.Vector3(),
+          viewport: new THREE.Vector2(3840, 2160),
+          localFrame: localFrameAt(1),
+        });
+      update4K();
+      expect(accumulationController!.active()).toBe(true);
+      expect(accumulationController!.rounds).toBe(64);
+      expect(accumulationController!.options?.msaaSamples).toBe(4);
+      f.controller.updateShadowQuality(SHADOW_QUALITY.ULTRA);
+      f.controller.updateRenderQuality({
+        shadowBufferFormat: "rgba32f",
+        shadowSunDiscSamples: 128,
+      });
+      update4K();
+      expect(accumulationController!.active()).toBe(true);
+      expect(accumulationController!.rounds).toBe(128);
+      expect(accumulationController!.options?.format).toBe("rgba32f");
+      f.controller.updateTerrain({
+        ...TEST_TERRAIN_SOURCE,
+        meshSegments: 512,
+        maxCachedMeshBytes: 1024 ** 3,
+      });
+      expect(
+        vi.mocked(buildRasterDemTerrainRuntime).mock.lastCall?.[3]
+      ).toMatchObject({
+        meshSegments: 512,
+        maximumMeshSegments: undefined,
+        maxCachedMeshBytes: 1024 ** 3,
+      });
+    } finally {
+      f.controller.dispose();
+      expect(f.map.setPixelRatio).not.toHaveBeenCalled();
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("defaults to direct hard then sun-disc draws without full-tile capture planning", async () => {
     const f = await createIdleTerrainHost();
     const rendererLookup = vi.fn(() => null);
@@ -1264,7 +1319,7 @@ describe("shadow scene lighting integration", () => {
     expect(renderProgressive).toHaveBeenLastCalledWith(camera, {
       ...nativeFrame,
       samples: 64,
-      maxRenderTargetPixels: Math.floor((256 * 1024 * 1024) / 72),
+      maxRenderTargetPixels: Number.POSITIVE_INFINITY,
       options: { format: "rgba16f-32f", msaaSamples: 0 },
     });
     expect(renderTiled).toHaveBeenCalledTimes(directPasses);
