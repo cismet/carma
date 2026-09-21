@@ -413,3 +413,334 @@ textarea.ls-inp {
     height: 300px;
   }
 }
+
+/* ---------- capture wizard ---------- */
+
+.ls-wiz-backdrop {
+  position: fixed;
+  inset: 0;
+  /* above the title pill (1000), below antd popups (1050) and messages */
+  z-index: 1001;
+  background: rgba(20, 24, 29, 0.45);
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  font-family: var(--ls-font);
+  color: var(--ls-ink);
+}
+.ls-wiz {
+  position: relative;
+  width: 100%;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+/* Desktop (see useIsDesktop): the same steps inside a regular react-bootstrap
+   modal. z-index like the full screen shell: above the title pill (1000),
+   below the antd popups (1050), so the month picker opens above the modal. */
+.ls-wiz-modal {
+  z-index: 1002;
+  font-family: var(--ls-font);
+  color: var(--ls-ink);
+}
+.ls-wiz-modal-backdrop {
+  z-index: 1001;
+}
+.ls-wiz-modal .modal-header {
+  align-items: center;
+  gap: 16px;
+}
+.ls-wiz-step-modal {
+  margin-left: auto;
+}
+/* the step label takes the free space, the close button follows it */
+.ls-wiz-modal .modal-header .close,
+.ls-wiz-modal .modal-header .btn-close {
+  margin-left: 0;
+}
+.ls-wiz-modal .ls-wiz-bars {
+  margin-top: 0;
+}
+.ls-wiz-modal-content {
+  margin-top: 18px;
+}
+.ls-wiz-modal-foot {
+  justify-content: flex-end;
+  gap: 10px;
+}
+.ls-wiz-modal-foot .ls-wiz-status {
+  flex: 1 1 100%;
+  padding: 0;
+  margin: 0;
+}
+.ls-wiz-modal-foot .ls-btn {
+  min-width: 170px;
+  margin: 0;
+}
+.ls-wiz-hd {
+  padding: max(16px, env(safe-area-inset-top)) 16px 0;
+}
+.ls-wiz-hd-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.ls-wiz-x {
+  width: 40px;
+  height: 40px;
+  border: none;
+  background: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  color: var(--ls-ink-3);
+  cursor: pointer;
+}
+.ls-wiz-x:disabled {
+  opacity: 0.35;
+}
+.ls-wiz-step {
+  font: 600 13px/1 var(--ls-font);
+  letter-spacing: 0.04em;
+  color: var(--ls-muted);
+}
+.ls-wiz-bars {
+  display: flex;
+  gap: 5px;
+  margin-top: 6px;
+}
+.ls-wiz-bars i {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--ls-line-soft);
+}
+.ls-wiz-bars i.ls-on {
+  background: var(--ls-navy);
+}
+.ls-wiz-title {
+  margin: 14px 0 0;
+  font: 600 25px/1.15 var(--ls-font);
+  letter-spacing: -0.02em;
+  color: var(--ls-ink);
+}
+.ls-wiz-hint {
+  margin-top: 6px;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--ls-muted);
+}
+.ls-wiz-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 18px 16px 16px;
+}
+.ls-wiz-status {
+  padding: 0 16px 10px;
+}
+.ls-wiz-foot {
+  padding: 10px 16px max(20px, env(safe-area-inset-bottom));
+  border-top: 1px solid var(--ls-hair);
+  background: #fff;
+  display: flex;
+  gap: 10px;
+}
+.ls-wiz-foot .ls-sec {
+  flex: 1;
+}
+.ls-wiz-foot .ls-pri {
+  flex: 2;
+}
+.ls-stepper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.ls-stepper-val {
+  flex: 1;
+  min-width: 0;
+  height: 56px;
+  box-sizing: border-box;
+  border: 1.5px solid var(--ls-line);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--ls-ink);
+  text-align: center;
+  font: 600 20px var(--ls-font);
+  outline: none;
+  appearance: none;
+}
+.ls-stepper-val:focus {
+  border-color: var(--ls-navy);
+  box-shadow: 0 0 0 3px rgba(18, 59, 94, 0.14);
+}
+.ls-month.ant-picker {
+  width: 100%;
+  height: 56px;
+  border: 1.5px solid var(--ls-line);
+  border-radius: 12px;
+  padding: 0 16px;
+}
+.ls-month.ant-picker .ant-picker-input > input {
+  font: 400 17px var(--ls-font);
+}
+.ls-missing-title {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.ls-missing-item {
+  width: 100%;
+  border: none;
+  background: none;
+  padding: 4px 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font: 400 15px/1.3 var(--ls-font);
+  color: #5d1017;
+  text-align: left;
+  cursor: pointer;
+}
+.ls-missing-item span:last-child {
+  flex: none;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: underline;
+}
+.ls-wiz-confirm {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  background: rgba(20, 24, 29, 0.45);
+  display: flex;
+  align-items: flex-end;
+}
+.ls-wiz-confirm-sheet {
+  width: 100%;
+  background: #fff;
+  border-radius: 18px 18px 0 0;
+  padding: 20px 18px max(22px, env(safe-area-inset-bottom));
+  box-shadow: 0 -4px 28px rgba(20, 24, 29, 0.2);
+}
+.ls-wiz-confirm-title {
+  font: 600 22px/1.25 var(--ls-font);
+  letter-spacing: -0.02em;
+}
+.ls-wiz-confirm-text {
+  margin: 8px 0 14px;
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--ls-ink-3);
+}
+
+/* ---------- photo step ---------- */
+
+.ls-photo-group {
+  border: 1px solid var(--ls-line-soft);
+  border-radius: 14px;
+  padding: 14px;
+}
+.ls-photo-group + .ls-photo-group {
+  margin-top: 10px;
+}
+.ls-photo-group-hd {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.ls-photo-group-title {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+.ls-photo-group-hint {
+  margin-top: 3px;
+  font-size: 13px;
+  color: var(--ls-muted);
+}
+.ls-photo-count {
+  flex: none;
+  border-radius: 8px;
+  padding: 5px 8px;
+  font: 500 12px/1 var(--ls-mono);
+  border: 1.5px solid var(--ls-red-line);
+  background: var(--ls-red-tint);
+  color: var(--ls-red-dark);
+}
+.ls-photo-count.ls-optional {
+  border-color: var(--ls-line-soft);
+  background: var(--ls-surface);
+  color: var(--ls-muted);
+}
+.ls-photo-count.ls-done {
+  border-color: var(--ls-green-line);
+  background: var(--ls-green-soft);
+  color: var(--ls-green);
+}
+.ls-photo-tile {
+  width: 78px;
+  height: 78px;
+  box-sizing: border-box;
+  border: 1.5px dashed var(--ls-line);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--ls-ink-3);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 18px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.ls-photo-tile span {
+  font: 600 11px/1 var(--ls-font);
+}
+.ls-photo-tile-pri {
+  border-style: solid;
+  border-color: var(--ls-navy);
+  background: var(--ls-navy-soft);
+  color: var(--ls-navy);
+}
+.ls-thumbs {
+  margin-top: 12px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.ls-thumb {
+  position: relative;
+  width: 78px;
+  height: 78px;
+}
+.ls-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 10px;
+  display: block;
+}
+.ls-thumb button {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 50%;
+  background: var(--ls-ink);
+  color: #fff;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
