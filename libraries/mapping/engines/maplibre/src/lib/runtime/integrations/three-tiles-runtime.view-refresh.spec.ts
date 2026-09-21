@@ -203,6 +203,48 @@ describe("three tiles current-view refresh", () => {
     }
   });
 
+  it("schedules raw replacement siblings through their known hierarchy parent", () => {
+    const mounted = mount();
+    try {
+      const parent = buildTile(40);
+      parent.internal.loadingState = 4;
+      parent.engineData!.scene = new THREE.Group();
+      parent.engineData!.boundingVolume!.intersectsFrustum = () => true;
+      delete (parent.engineData!.boundingVolume as { getAABB?: unknown })
+        .getAABB;
+      // Native preprocessing is what establishes a child's parent pointer.
+      const child = { children: [], geometricError: 4 } as unknown as Tile;
+      parent.children = [child];
+      Object.assign(mounted.renderer, { rootTileset: { root: parent } });
+      const prepare = vi
+        .spyOn(mounted.renderer, "ensureChildrenArePreprocessed")
+        .mockImplementation(() => undefined);
+      vi.spyOn(mounted.renderer, "calculateTileViewError").mockImplementation(
+        (tile, target) =>
+          Object.assign(target, {
+            inView: true,
+            error: tile.geometricError,
+            distanceFromCamera: 1,
+          })
+      );
+      mounted.runtime.scene.update(mounted.frame);
+      expect(mounted.renderer.visibleTiles.has(parent)).toBe(true);
+      expect(prepare).toHaveBeenCalledWith(parent, false);
+      Object.assign(child, buildTile(4), { parent });
+      child.internal.loadingState = 4;
+      child.engineData!.scene = new THREE.Group();
+      child.engineData!.boundingVolume!.intersectsFrustum = () => true;
+      delete (child.engineData!.boundingVolume as { getAABB?: unknown })
+        .getAABB;
+      mounted.renderer.dispatchEvent({ type: "needs-update" });
+      mounted.runtime.scene.update(mounted.frame);
+      expect(mounted.renderer.visibleTiles.has(child)).toBe(true);
+      expect(mounted.renderer.visibleTiles.has(parent)).toBe(false);
+    } finally {
+      mounted.runtime.scene.dispose();
+    }
+  });
+
   it("loads startup ancestors without parking moving views, then returns to the skip strategy", () => {
     const ancestorPasses: boolean[] = [];
     const mounted = mount((renderer) =>

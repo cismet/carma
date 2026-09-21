@@ -907,11 +907,17 @@ export function createThreeTilesRuntimeAttachment(
     isDeferredMaterialReady: (tile: Tile) => deferredMaterials.isReady(tile),
     onAdd,
     updateDeferredMaterials: () => deferredMaterials.update(),
-    updateMeshRefinementSupport: (support: Set<Tile>) => {
+    updateMeshRefinementSupport: (
+      support: Set<Tile>,
+      unpreparedParents: ReadonlySet<Tile>
+    ) => {
       const previous = runtimeState.meshRefinementSupport;
       runtimeState.meshRefinementSupport = support;
       const tiles = runtimeState.tiles;
       if (!tiles) return;
+      // Use the bounded native queue; completion requests a fresh traversal.
+      for (const parent of unpreparedParents)
+        tiles.ensureChildrenArePreprocessed(parent, false);
       // Decision: CURRENT-VIEW-DEMAND-20260913 in TILES_COVERAGE.md.
       // Publication prerequisites use the same queues and material pipeline.
       for (const tile of support) {
