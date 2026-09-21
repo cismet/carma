@@ -2,8 +2,10 @@ import {
   ActionNotSuccessfulError,
   deleteFlurstueck,
   deleteSchluessel,
+  fetchFlurstueckArten,
   fetchFlurstueckBySchluesselId,
   fetchSuccessorEdges,
+  findArtByBezeichnung,
   findSchluesselByKey,
   insertFlurstueck,
   insertSchluessel,
@@ -106,17 +108,6 @@ export const createFlurstueckForKey = async (key, ctx) => {
 export const hasHistoryEntry = async (flurstueckId, jwt) =>
   (await fetchSuccessorEdges(flurstueckId, jwt)).length > 0;
 
-/**
- * Port of the three-argument LagisBroker.setFlurstueckHistoric.
- *
- * @param {Object} key       key incl. id, art, warStaedtisch, gueltigBis
- * @param {Date} date        the date the parcel becomes historic
- * @param {Object} [options]
- * @param {Object[]} [options.rebe]  ReBe rows to close, with rebeLoeschDatum
- * @param {Object[]} [options.mipa]  MiPa rows to close, with mipaVertragsendeDatum
- * @param {Date} [options.rebeLoeschDatum]
- * @param {Date} [options.mipaVertragsendeDatum]
- */
 export const setHistoricForKey = async (key, date, options, ctx) => {
   const { jwt, accountName, journal } = ctx;
   const keyString = formatKey(key);
@@ -133,7 +124,7 @@ export const setHistoricForKey = async (key, date, options, ctx) => {
     journal.record(`Historisch setzen von "${keyString}"`, () =>
       updateSchluessel(key.id, { gueltig_bis: previous }, jwt, accountName)
     );
-    return;
+    return toDateOnly(date);
   }
 
   const flurstueck = await fetchFlurstueckBySchluesselId(key.id, jwt);
@@ -145,10 +136,7 @@ export const setHistoricForKey = async (key, date, options, ctx) => {
 
   // Closing rights and leases is only asked for by the "historisch setzen"
   // action itself, not when rename/split/join set a parcel historic.
-  //
-  // Deviation from the Swing client: there both loops sat behind
-  // `if (rebeLoeschDatum != null)`, so ticking only the Vermietung/Verpachtung
-  // box silently wrote nothing. Each date now gates its own loop.
+
   if (options?.mipaVertragsendeDatum) {
     for (const mipa of options.mipa ?? []) {
       const previous = mipa.vertragsende ?? null;
@@ -169,13 +157,24 @@ export const setHistoricForKey = async (key, date, options, ctx) => {
   }
 
   if (key.gueltigBis) {
-    // already historic, nothing left to do
-    return;
+    // already historic — the Rechte/Mieten above are written, the picked date
+    // is ignored and the old end date stays, as in the Swing client
+    return key.gueltigBis;
   }
 
   const artName = key.art?.bezeichnung;
 
   if (artName !== FLURSTUECK_ART.STAEDTISCH) {
+    // LagisBroker looks "Abteilung IX" up in the Art catalogue before it
+    // decides anything, and gives up when the entry is missing. Without that
+    // check a broken catalogue would surface as the misleading "Art kann so
+    // nicht behandelt werden" message below.
+    const arten = await fetchFlurstueckArten(jwt);
+    if (!findArtByBezeichnung(arten, FLURSTUECK_ART.ABTEILUNG_IX)) {
+      throw new ActionNotSuccessfulError(
+        "Flurstücksart AbteilungIX konnte nicht gefunden werden."
+      );
+    }
     if (artName !== FLURSTUECK_ART.ABTEILUNG_IX) {
       throw new ActionNotSuccessfulError(
         `Die Flurstückart ${FLURSTUECK_ART.STAEDTISCH} ist nicht in der Datenbank.`
@@ -187,23 +186,30 @@ export const setHistoricForKey = async (key, date, options, ctx) => {
       );
     }
     // Abteilung IX: the parcel is closed on the day the city lost it
-    await closeParcel(
+    return await closeParcel(
       key,
       flurstueck,
       new Date(key.datumLetzterStadtbesitz),
       { setLastOwnership: false },
       ctx
     );
-    return;
   }
 
   // städtisch: closed on the date the user picked
-  await closeParcel(key, flurstueck, date, { setLastOwnership: true }, ctx);
+  return await closeParcel(
+    key,
+    flurstueck,
+    date,
+    { setLastOwnership: true },
+    ctx
+  );
 };
 
 /**
  * Writes gueltig_bis on the key and closes the Nutzungen plus their Buchungen,
  * the shared tail of both branches of setFlurstueckHistoric.
+ *
+ * @returns {Promise<string>} the gueltig_bis that was written
  */
 const closeParcel = async (
   key,
@@ -265,4 +271,6 @@ const closeParcel = async (
       );
     }
   }
+
+  return dateOnly;
 };
