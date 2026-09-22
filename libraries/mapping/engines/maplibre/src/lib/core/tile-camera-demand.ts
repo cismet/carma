@@ -1,4 +1,41 @@
-import { Box3, Camera, Frustum, Matrix4, Plane, Vector3 } from "three";
+import { getPolygonArea2d, type Point2 } from "@carma-commons/math";
+import { Box3, Camera, Frustum, Matrix4, Plane, Vector3, Vector4 } from "three";
+
+/** Project clipped vertices before forming the hull: box depth adds interior
+ * points, and summing projected faces would count their overlap twice.
+ */
+const projectedIntersectionArea = (
+  vertices: readonly Vector3[],
+  clipFromWorld: Matrix4
+): number => {
+  const points = vertices
+    .map((point) =>
+      new Vector4(point.x, point.y, point.z, 1).applyMatrix4(clipFromWorld)
+    )
+    .filter((point) => point.w > 0)
+    .map((point) => ({
+      x: Math.max(-1, Math.min(1, point.x / point.w)),
+      y: Math.max(-1, Math.min(1, point.y / point.w)),
+    }))
+    .filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y))
+    .sort((a, b) => a.x - b.x || a.y - b.y);
+  if (points.length < 3) return 0;
+  const cross = (a: Point2, b: Point2, c: Point2) =>
+    (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
+  const chain = (ordered: readonly Point2[]): Point2[] => {
+    const hull: Point2[] = [];
+    for (const point of ordered) {
+      while (
+        hull.length >= 2 &&
+        cross(hull[hull.length - 2], hull[hull.length - 1], point) <= 0
+      )
+        hull.pop();
+      hull.push(point);
+    }
+    return hull.slice(0, -1);
+  };
+  return getPolygonArea2d([...chain(points), ...chain([...points].reverse())]);
+};
 
 export const TILE_MAIN_OBSERVER_ID = "mesh-main-observer";
 
@@ -130,12 +167,20 @@ export const createTileCameraDemand = (
       minimumScale,
       worldToView: world.clone().invert(),
       clipToWorld: clipFromWorld.clone().invert(),
+      clipFromWorld,
     };
   });
-  const target = {
+  const target: {
+    required: boolean;
+    receiver: boolean;
+    errorRatio: number;
+    visibleAreaPixels?: number;
+    priority: number;
+  } = {
     required: false,
     receiver: false,
     errorRatio: 0,
+    visibleAreaPixels: 0,
     priority: Number.NEGATIVE_INFINITY,
   };
   return {
@@ -229,16 +274,38 @@ export const createTileCameraDemand = (
       }
       return vertices.map((vertex) => vertex.add(origin));
     },
-    /** Result is scratch storage; consume before the next evaluation. */
-    evaluate(bounds: Box3, geometricError: number, excludeCameraId?: string) {
+    /** Result is scratch storage; consume before the next evaluation.
+     * Optional area is the largest clipped bounds footprint among included
+     * views, in their viewport pixel units (CSS pixels for the main observer).
+     */
+    evaluate(
+      bounds: Box3,
+      geometricError: number,
+      excludeCameraId?: string,
+      includeVisibleArea = false
+    ) {
       target.required = false;
       target.receiver = false;
       target.errorRatio = 0;
+      target.visibleAreaPixels = 0;
       target.priority = Number.NEGATIVE_INFINITY;
       if (bounds.isEmpty()) return target;
       for (const view of compiled) {
         if (view.id === excludeCameraId) continue;
         if (!view.frustum.intersectsBox(bounds)) continue;
+        const clipped = includeVisibleArea
+          ? this.intersectionVertices(bounds, view.id)
+          : undefined;
+        if (clipped) {
+          if (clipped.length === 0) continue;
+          target.visibleAreaPixels = Math.max(
+            target.visibleAreaPixels,
+            (projectedIntersectionArea(clipped, view.clipFromWorld) *
+              view.viewport[0] *
+              view.viewport[1]) /
+              4
+          );
+        }
         let distance = view.minimumScale;
         if (!view.orthographic) {
           // Linear view depth reaches its box minimum at this corner. Most
@@ -250,9 +317,11 @@ export const createTileCameraDemand = (
             e[6] > 0 ? bounds.max.y : bounds.min.y,
             e[10] > 0 ? bounds.max.z : bounds.min.z
           );
-          const visible = view.frustum.containsPoint(nearest)
-            ? [nearest]
-            : this.intersectionVertices(bounds, view.id);
+          const visible =
+            clipped ??
+            (view.frustum.containsPoint(nearest)
+              ? [nearest]
+              : this.intersectionVertices(bounds, view.id));
           if (visible.length === 0) continue;
           let depth = Number.POSITIVE_INFINITY;
           for (const point of visible) {

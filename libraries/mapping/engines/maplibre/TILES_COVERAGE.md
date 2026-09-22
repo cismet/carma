@@ -228,15 +228,18 @@ separate receiver/caster cuts, and the configured final quality and memory limit
 
 **Decision:** Apply next-published-level admission to visible receiver families
 with shadows too. Offscreen caster requests keep their separate refinement depth.
-Visible next-family members join the same prerequisite priority as offscreen
-siblings, including through external metadata. Publication remains atomic per
+Visible next-family members and their required siblings share the visible
+family benefit, including through external metadata. The current ordering is
+defined by SCREEN-ERROR-AREA-BENEFIT-20260922 below. Publication remains atomic per
 replacement family; ready independent families proceed without a global barrier.
 
 **Visible-first ordering:** Once the retained overview provides complete coverage,
 visible LOD iteration precedes optional offscreen shadow refinement and prefetch.
 Pure offscreen shadow demand uses the secondary lane; main-view demand uses the
 primary lane. An offscreen sibling needed to publish a visible replacement is
-part of that visible family and retains repair priority. The non-evictable
+part of that visible family and inherits its benefit. It can precede a smaller
+visible improvement when needed to finish the more valuable group. Explicit
+higher camera demand still wins. The non-evictable
 residual surface and atomic family handover remain unchanged: a complete loaded
 parent stays drawable until the whole replacement family can take over, including
 after a pan or zoom reversal. No whole-viewport final-LOD barrier is introduced.
@@ -2283,3 +2286,152 @@ A focused capacity case checks admission before queue insertion without releasin
 ready coverage or buffers. No throughput improvement is claimed from these checks.
 **Revisit.** General refinement eligibility and preemption could share more facts
 if traces show a parked non-recovery candidate causing unnecessary cancellation.
+
+## Mesh removal and raster handover
+
+**ID / date / status:** MESH-REMOVAL-20260922 / 2026-09-22 / implemented.
+
+Removing a terrain-providing mesh unregisters its provider immediately, so the
+shadow addon can construct its raster terrain runtime without a debounce. The
+mesh is detached and fully disposed before the next frame. Native renderer
+disposal previously walked the whole tileset hierarchy and attempted an LRU
+removal for every node, even when almost none held resources.
+
+The existing vendor adapter now limits only native disposal's final traversal
+to a snapshot of this runtime's private LRU. Plugin cleanup may still traverse
+the full tree. Native removal retains ownership of request cancellation, model
+and GPU resource disposal, final renderer state reset and group detachment.
+Snapshotting before removal preserves cached descendants even when disposing
+an external tileset removes hierarchy links. Temporary method overrides are
+restored in `finally`. Normal traversal, cache budgets and terrain quality do
+not change.
+
+A measured warm removal with 178 loaded tiles and 1.55 GB estimated residency
+performed 67,067 LRU removal attempts and spent 223 ms in synchronous mesh cleanup.
+The same profiling harness after the change measured 24 ms for 181 cache entries
+with 180 loaded tiles. This targets cleanup, not new terrain network/meshing latency.
+Deferring all disposal would leave work and memory active during terrain startup;
+retaining another mesh cache would add memory without addressing this traversal.
+Both alternatives were rejected for this fix.
+
+Revisit this adapter when upgrading `3d-tiles-renderer`: native final disposal
+must remain a cache-removal traversal; regression coverage checks plugin traversal,
+resident descendants, cancellation/disposal and method restoration.
+
+
+## Standalone mesh shadow camera ownership
+
+**ID / date / status:** STANDALONE-SHADOW-CAMERA / 2026-09-22 / implemented.
+
+**Context.** A mesh with `basemap: "none"` already anchors its ground on the map
+plane and claims standalone terrain ownership. Native MapLibre terrain must stay
+off while that claim exists. The shadow addon previously reactivated native DEM
+and fought the ordinary terrain control, lifting the camera target a second time.
+
+**Decision.** Shadow terrain acquisition and release honor the existing standalone
+claim. A claim arriving after shadow activation disables native terrain; releasing
+the final claim resumes the normal DEM path for raster shadows. Subscribe to the
+existing terrain registry and react only when standalone ownership changes, so
+ordinary raster publication does not add drape or style work. Restore native
+terrain frame/quality patches before relinquishing native terrain.
+
+**Alternatives.** Corrective camera jumps or DPR changes are incompatible with
+the established ownership rule. A new registry is unnecessary; terrain controls
+and mesh hosts already publish this exact ownership. Label-draped meshes retain
+the normal native DEM path. Mesh selection, shadow quality and cache budgets are
+unchanged.
+
+**Evidence.** At the same camera, shadow activation on a standalone mesh changed
+the native camera elevation from 0 to 150.382311 m, with center, zoom, pitch,
+bearing and DPR unchanged. Three conflicting native terrain calls occurred within
+7 ms. The same interaction with the label-draped mesh retained its existing DEM
+and camera elevation. A focused ownership lifecycle regression reproduces the
+violation before the fix. After rebuilding, 373 enable frames and 374 disable
+frames retained one camera pose at elevation 0, with no native terrain setters
+or page errors. Removing the mesh while shadows stayed active restored native
+DEM and a base-ready Three raster terrain runtime. These are focused functional
+checks, not a cold-load performance comparison.
+
+**Revisit.** Preserve this rule if native terrain or the shared mesh ground
+reference changes. Ownership release must still restore raster shadows after
+removing the mesh; removing shadows must not restore DEM beneath a remaining
+standalone mesh.
+
+
+## Viewport pan progress and local family publication
+
+**ID / date / status:** VIEWPORT-PAN-PROGRESS-20260922 / 2026-09-22 / implemented, focused tests and browser comparison.
+
+**Decision.** Missing visible coverage has highest priority. The initial
+visible-support ordering is superseded by SCREEN-ERROR-AREA-BENEFIT-20260922:
+visible work and required family support now compete by visible improvement,
+without an artificial support-rank advantage. Explicit additional-camera
+priority still applies. Preemption must benefit work that can
+actually run in that queue; movement-parked detail cannot displace useful work.
+
+A ready child family may replace its own published parent independently of an
+incomplete higher family. Reuse the surrounding published cut only after proving
+that it still covers the current view and every retained member remains ready.
+Preserve its offscreen members. Newly exposed holes still use the ready coarse
+fallback; atomic immediate-family replacement and memory budgets are unchanged.
+
+**Evidence.** A fresh-profile reference-mesh pan started visible downloads within
+0.8–1.2 seconds, but required offscreen family payloads consumed34–40% of measured
+body bytes. Complete local children repeatedly became native-visible and were
+immediately hidden again by an unrelated incomplete higher family. This replaces
+the earlier equal-priority treatment of visible and offscreen family support.
+
+The repeated fresh-profile pan published the observed local family127ms after
+its last child arrived, versus27.6s before; another family took57ms. Sampling
+interval was250ms. Post-pan refinement now progressed at4.2/4.8s after drag
+start instead of remaining unchanged for22s / waiting about14s. Final6px
+quality and full extent coverage were not reached within the measured windows;
+this is evidence for local progress, not guaranteed overall convergence time.
+
+
+## Visible error reduction weighted by affected screen area
+
+**ID / date / status:** SCREEN-ERROR-AREA-BENEFIT-20260922 / 2026-09-22 / implemented, focused tests and exploratory browser comparison.
+
+**Decision.** After missing viewport coverage, respect explicit camera priority
+and order each admissible immediate replacement family by
+`max(currentObserverError - nextObserverError, 0) * visibleAreaPixels`. Errors
+are absolute CSS pixels, not target-normalized ratios. Area is the projected
+convex hull of the published parent's bounds clipped to the current observer
+frustum, in CSS pixels squared; DPR does not multiply it. The next error is the
+largest known visible immediate drawable-child error. Unresolved metadata uses
+a provisional target estimate without erasing a larger already-known error.
+This is a bounds-based benefit estimate, not measured unoccluded triangle area.
+
+The current published parent owns the score. Its required siblings, including
+offscreen prerequisites, share that score and observer lane. Routing metadata
+and raw-child preprocessing carry the same benefit. Deeper speculative children
+cannot borrow it; unrelated background work retains its own lower lane. This
+supersedes the old repair-rank bonus and distance-first visible refinement.
+Scores refresh with view, displayed cut and topology/content changes.
+
+Download, parse, metadata and node-preprocessing queues use the common order;
+existing vendor ties remain after equal benefit. Preemption requires a runnable
+beneficiary and, at equal camera rank, more than25% greater benefit in a different
+family. Queue sorting itself uses the exact score. Same-family requests never
+preempt each other. Cache ordering does not use benefit; budgets, admission and
+atomic publication remain unchanged. Optional request telemetry records the
+owner URL, current/next pixel errors, area, benefit and provisional status.
+
+**Evidence.** Focused geometry, spatial, scheduling, cascade and runtime checks
+pass, including metadata lower bounds, raw-child preprocessing ownership and
+comparator transitivity. A fresh-profile 1920x1080 CSS-pixel / DPR1 reference-mesh
+run without shadows repeated two normal mouse pans. At similar east-pan payload
+throughput (38.7 versus38.6Mbit/s), final maximum visible error fell from12.03 to
+8.48px. First local east refinement took2.60s after release, versus3.35s. North
+reached8.95px after9.40s versus21.17s, but inherited the improved east-pan cut;
+this is not an isolated equal-cache north-pan comparison. Initial handover was
+slower in this single run (17.04s versus15.20s). The6px target remained unfinished
+within the observation windows. No page errors or sampled memory pauses occurred.
+
+All292 captured scored starts match the formula. Nineteen eligible comparisons
+between different positive-score families in preceding same-frame/view snapshots
+show no priority inversion. Synchronous full-queue leader capture was unavailable,
+so this is sampled support rather than proof of every dispatch. Area is a bounds
+estimate, and one run per revision does not establish repeatable latency or
+shadow-performance acceptance.

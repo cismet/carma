@@ -50,6 +50,7 @@ import type {
 } from "./three-tiles-runtime-types";
 import {
   buildPrimitiveOutlinePlugin,
+  disposeTilesRenderer,
   LOADED_LOADING_STATE,
   resolveTileContentUrl,
   tilesCacheUnloadPriorityCallback,
@@ -204,11 +205,9 @@ export function createThreeTilesRuntimeAttachment(
     runtimeState,
     dependencies
   );
-
   const onAdd = (mapInstance: MaplibreMap) => {
     runtimeState.map = mapInstance;
     if (runtimeState.tiles) return;
-
     if (dependencies.localTelemetry && runtimeState.tileBoundsVisible)
       console.debug("[tiles3d-debug] runtime added", {
         tilesetUrl: runtimeState.tilesetUrl,
@@ -226,7 +225,7 @@ export function createThreeTilesRuntimeAttachment(
         ? // Upstream uses this comparator for admission too (ascending), then
           // negates it for eviction. Download/parse queues pop from the end.
           (first: Tile, second: Tile) =>
-            -tilesQueuePriorityCallback(first, second)
+            -tilesQueuePriorityCallback(first, second, false)
         : tilesCacheUnloadPriorityCallback
     ) as typeof tileCache.unloadPriorityCallback;
     runtimeState.tiles.lruCache = tileCache;
@@ -948,7 +947,7 @@ export function createThreeTilesRuntimeAttachment(
     runtimeState.tileDebugOverlay?.dispose();
     runtimeState.tileDebugOverlay = null;
     debugTilesRuntimes()?.delete(runtimeState);
-    runtimeState.tiles?.dispose();
+    if (runtimeState.tiles) disposeTilesRenderer(runtimeState.tiles);
     runtimeState.tiles = null;
     runtimeState.meshRefinementSupport.clear();
     runtimeState.extentFloorArmed = false;
@@ -962,6 +961,8 @@ export function createThreeTilesRuntimeAttachment(
   return {
     dispose,
     getQueueTelemetry: payloadQueues.getTelemetry,
+    getDownloadPreemptionEligibility:
+      payloadQueues.getDownloadPreemptionEligibility,
     isDeferredMaterialReady: (tile: Tile) => deferredMaterials.isReady(tile),
     onAdd,
     updateDeferredMaterials: () => deferredMaterials.update(),

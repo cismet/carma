@@ -16,6 +16,8 @@ import {
   getReadyMeshRegionCut,
   hasDisplayedAncestor,
   hasMeshRefinementContentInView,
+  isMeshTileUnconditionallyRefined,
+  isPublishedMeshRefinementLevel,
 } from "./three-tiles-mesh-frontier";
 import type {
   ThreeTilesRuntimeServices,
@@ -42,6 +44,8 @@ export function createThreeTilesSpatial(
     | "displayedMeshFrontier"
     | "meshRefinementSupport"
     | "meshCoverageRecovery"
+    | "meshContentRevision"
+    | "memoryErrorTarget"
     | "activeTileBoundingBox"
     | "tileBoundsTransform"
     | "tilesetUrl"
@@ -192,10 +196,10 @@ export function createThreeTilesSpatial(
   let observerErrorTarget = 1;
   let observerDemands = new WeakMap<
     RuntimeTile,
-    { intersects: boolean; errorPixels: number }
+    { intersects: boolean; errorPixels: number; visibleAreaPixels?: number }
   >();
   const getTileObserverDemand: ThreeTilesRuntimeServices["getTileObserverDemand"] =
-    (tile) => {
+    (tile, includeVisibleArea = false) => {
       const volume = tile.engineData?.boundingVolume;
       if (observerOwner !== runtimeState.tileCameraDemand) {
         observerOwner = runtimeState.tileCameraDemand;
@@ -207,7 +211,11 @@ export function createThreeTilesSpatial(
         observerDemands = new WeakMap();
       }
       const cached = observerDemands.get(tile);
-      if (cached) return cached;
+      if (
+        cached &&
+        (!includeVisibleArea || cached.visibleAreaPixels !== undefined)
+      )
+        return cached;
       const inFrustum =
         !volume ||
         !runtimeState.viewFrustumsReady ||
@@ -216,6 +224,7 @@ export function createThreeTilesSpatial(
       if (!observer || !volume?.getAABB || !runtimeState.tiles)
         return {
           intersects: inFrustum,
+          ...(includeVisibleArea ? { visibleAreaPixels: 0 } : {}),
           errorPixels: volume?.distanceToPoint
             ? getTileScreenError(tile, false)
             : tile.traversal?.error ?? Number.POSITIVE_INFINITY,
@@ -226,9 +235,14 @@ export function createThreeTilesSpatial(
       const demand = observer.evaluate(
         cameraBounds,
         tile.geometricError *
-          runtimeState.tiles.group.matrixWorld.getMaxScaleOnAxis()
+          runtimeState.tiles.group.matrixWorld.getMaxScaleOnAxis(),
+        undefined,
+        includeVisibleArea
       );
       const result = {
+        ...(includeVisibleArea
+          ? { visibleAreaPixels: inFrustum ? demand.visibleAreaPixels ?? 0 : 0 }
+          : {}),
         intersects: inFrustum && demand.required,
         errorPixels: demand.required
           ? demand.errorRatio * observerErrorTarget
@@ -257,19 +271,121 @@ export function createThreeTilesSpatial(
         ) === null
       );
     };
+  // Rank the next visible replacement, not the requested child's distance or
+  // its own already-small error. Each required sibling owns the same benefit.
+  let refinementView: unknown;
+  let refinementFrontier: unknown;
+  let refinementRevision = -1;
+  let refinementFrame = -1;
+  const refinementBenefits = new Map<Tile, RuntimeTile["meshRefinement"]>();
+  const getMeshRefinement = (
+    tile: RuntimeTile
+  ): RuntimeTile["meshRefinement"] => {
+    if (!runtimeState.options.providesTerrain) return undefined;
+    const published = runtimeState.displayedMeshFrontier;
+    // Native preprocessing queues the owner of still-raw children itself.
+    const ownsChildren = published.has(tile) && tile.children?.length > 0;
+    if (
+      !ownsChildren &&
+      tile.internal?.hasRenderableContent &&
+      !isPublishedMeshRefinementLevel(tile, published)
+    )
+      return undefined;
+    // Routing JSON does not count as a drawable level. A deeper speculative
+    // descendant must not borrow the value of an unrelated coarse ancestor.
+    let group = ownsChildren ? tile : tile.parent;
+    while (
+      group &&
+      (!group.internal?.hasRenderableContent ||
+        isMeshTileUnconditionallyRefined(group))
+    )
+      group = group.parent;
+    if (
+      !group ||
+      group.refine !== "REPLACE" ||
+      !published.has(group) ||
+      group.internal.loadingState !== 4 ||
+      (!getTileObserverDemand(tile).intersects &&
+        !runtimeState.meshRefinementSupport.has(tile))
+    )
+      return undefined;
+    if (
+      refinementView !== runtimeState.tileCameraDemand ||
+      refinementFrontier !== published ||
+      refinementRevision !== runtimeState.meshContentRevision ||
+      refinementFrame !== (runtimeState.tiles?.frameCount ?? -1)
+    ) {
+      refinementView = runtimeState.tileCameraDemand;
+      refinementFrontier = published;
+      refinementRevision = runtimeState.meshContentRevision;
+      refinementFrame = runtimeState.tiles?.frameCount ?? -1;
+      refinementBenefits.clear();
+    }
+    if (refinementBenefits.has(group)) return refinementBenefits.get(group);
+    const current = getTileObserverDemand(group as RuntimeTile, true);
+    if (!current.intersects || !Number.isFinite(current.errorPixels)) {
+      refinementBenefits.set(group, undefined);
+      return undefined;
+    }
+    let nextErrorPixels = 0;
+    let visibleChildren = 0;
+    let provisional = false;
+    const pending = [...(group.children ?? [])];
+    while (pending.length) {
+      const child = pending.pop()!;
+      if (
+        child.internal?.hasRenderableContent &&
+        !isMeshTileUnconditionallyRefined(child)
+      ) {
+        const demand = getTileObserverDemand(child as RuntimeTile);
+        if (demand.intersects) {
+          visibleChildren++;
+          if (Number.isFinite(demand.errorPixels))
+            nextErrorPixels = Math.max(nextErrorPixels, demand.errorPixels);
+          else provisional = true;
+        }
+      } else if (child.children?.length) pending.push(...child.children);
+      else if (child.internal?.hasContent !== false) provisional = true;
+    }
+    if (provisional)
+      nextErrorPixels = Math.max(
+        nextErrorPixels,
+        runtimeState.requestedErrorTarget,
+        runtimeState.memoryErrorTarget
+      );
+    else if (visibleChildren === 0) nextErrorPixels = current.errorPixels;
+    const visibleAreaPixels = current.visibleAreaPixels ?? 0;
+    const benefit =
+      visibleAreaPixels * Math.max(0, current.errorPixels - nextErrorPixels);
+    const result = {
+      group,
+      currentErrorPixels: current.errorPixels,
+      nextErrorPixels,
+      visibleAreaPixels,
+      benefit: Number.isFinite(benefit) ? benefit : 0,
+      provisional: provisional || visibleAreaPixels === 0,
+    };
+    refinementBenefits.set(group, result);
+    return result;
+  };
   const getTileRequestPriority: ThreeTilesRuntimeServices["getTileRequestPriority"] =
     (tile) => {
+      tile.meshRefinement = undefined;
       if (
         runtimeState.meshCoverageRecovery &&
         isTileNeededForMeshCoverage(tile)
       )
         return TILE_CAMERA_PRIORITY.VIEWPORT_FILL;
-      if (runtimeState.meshRefinementSupport.has(tile))
-        return TILE_CAMERA_PRIORITY.COVERAGE_REPAIR;
       const inObserver = getTileObserverDemand(tile).intersects;
+      tile.meshRefinement = getMeshRefinement(tile);
       return resolveTileRequestPriority({
-        replacementSupport: false,
-        cameraPriority: getTileCameraDemand(tile).priority,
+        replacementSupport: runtimeState.meshRefinementSupport.has(tile),
+        cameraPriority: Math.max(
+          getTileCameraDemand(tile).priority,
+          tile.meshRefinement
+            ? TILE_CAMERA_PRIORITY.PRIMARY
+            : Number.NEGATIVE_INFINITY
+        ),
         motionPrefetch: !!tile.motionPrefetch,
         observerVisible: inObserver,
         selectedShadowReceiver:

@@ -532,12 +532,24 @@ export function createThreeTilesLoading(
   const prioritizeQueuedTiles: ThreeTilesRuntimeServices["prioritizeQueuedTiles"] =
     () => {
       if (!runtimeState.tiles) return;
-      for (const queue of getDownloadQueues()) {
-        for (const tile of queue.items) assignTilePriority(tile as RuntimeTile);
+      // loadingTiles also owns requests routed through the private metadata
+      // queues. Refresh them and active requests with the same current view.
+      const pending = new Set<Tile>(runtimeState.tiles.loadingTiles);
+      for (const queue of getDownloadQueues())
+        for (const tile of queue.items) pending.add(tile);
+      for (const tile of (runtimeState.tiles.parseQueue as RuntimePriorityQueue)
+        .items)
+        pending.add(tile);
+      for (const tile of (
+        runtimeState.tiles.processNodeQueue as RuntimePriorityQueue
+      ).items) {
+        pending.add(tile);
+        if (tile.parent) pending.add(tile.parent);
       }
-      const parseQueue = runtimeState.tiles.parseQueue as RuntimePriorityQueue;
-      for (const tile of parseQueue.items)
-        assignTilePriority(tile as RuntimeTile);
+      for (const tile of [...pending])
+        if (tile.internal.hasUnrenderableContent && tile.parent)
+          pending.add(tile.parent);
+      for (const tile of pending) assignTilePriority(tile as RuntimeTile);
     };
 
   const setRequestConcurrency: ThreeTilesRuntimeServices["setRequestConcurrency"] =

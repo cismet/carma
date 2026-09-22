@@ -493,7 +493,11 @@ export function createThreeTilesLifecycle(
     refineRingCascade,
     scheduleCascadeTick,
     clearCascadeTick,
-  } = createThreeTilesCascade(runtimeState, dependencies);
+  } = createThreeTilesCascade(runtimeState, {
+    ...dependencies,
+    getDownloadPreemptionEligibility: () =>
+      attachment.getDownloadPreemptionEligibility(),
+  });
   const handleViewStart: ThreeTilesRuntimeServices["handleViewStart"] = () => {
     runtimeState.motionCoverageDue = true;
     returnToBaseStage();

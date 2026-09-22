@@ -1,7 +1,22 @@
-import { lazy, Suspense, type CSSProperties } from "react";
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useState,
+  useSyncExternalStore,
+  type CSSProperties,
+} from "react";
 import { createPortal } from "react-dom";
 import type { Map as MaplibreMap } from "maplibre-gl";
 import { useAddonState } from "@carma-mapping/addons";
+
+import { useFeatureFlags } from "@carma-providers/feature-flag";
+import {
+  getTiles3dRuntimeHandles,
+  subscribeTiles3dRuntimeHandles,
+} from "@carma-mapping/engines/maplibre";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faBug } from "@fortawesome/free-solid-svg-icons";
 
 const LazyVolumeTileDiagnostics = lazy(() =>
   import("@carma-mapping/tile-diagnostics-ui").then((module) => ({
@@ -30,25 +45,54 @@ const OVERLAY_ANCHOR_STYLE: CSSProperties = {
   pointerEvents: "auto",
 };
 
-/** The shadow options and their URL state are the only overlay entrypoints. */
+/** Shadow options or the explicit debug feature flag expose the same overlay. */
 export const TileLoadingDebugHost = ({ map }: { map: MaplibreMap | null }) => {
   const [shadowState, setShadowState] = useAddonState("shadowSimulation");
+  const { isDebugMode } = useFeatureFlags();
+  const [meshOpen, setMeshOpen] = useState(false);
+  const hasMesh = useSyncExternalStore(
+    useCallback(
+      (listener: () => void) =>
+        map ? subscribeTiles3dRuntimeHandles(map, listener) : () => {},
+      [map]
+    ),
+    useCallback(() => !!map && getTiles3dRuntimeHandles(map).length > 0, [map])
+  );
+  const meshControls = isDebugMode && hasMesh;
+  const open = !!shadowState?.showTileDiagnostics || (meshControls && meshOpen);
   const container = map?.getContainer?.() ?? null;
-  if (!shadowState?.showTileDiagnostics || !map || !container) return null;
+  if ((!open && !meshControls) || !map || !container) return null;
   return createPortal(
     <div
       data-test-id="tile-diagnostics-overlay-root"
       style={OVERLAY_ROOT_STYLE}
     >
       <div data-test-id="tile-diagnostics-anchor" style={OVERLAY_ANCHOR_STYLE}>
-        <Suspense fallback={null}>
-          <LazyVolumeTileDiagnostics
-            map={map}
-            onClose={() =>
-              setShadowState({ ...shadowState, showTileDiagnostics: false })
-            }
-          />
-        </Suspense>
+        {meshControls && !open && (
+          <button
+            type="button"
+            aria-label="Mesh-Diagnose"
+            title="Mesh-Diagnose öffnen"
+            onClick={() => setMeshOpen(true)}
+          >
+            <FontAwesomeIcon icon={faBug} />
+          </button>
+        )}
+        {open && (
+          <Suspense fallback={null}>
+            <LazyVolumeTileDiagnostics
+              map={map}
+              onClose={() => {
+                setMeshOpen(false);
+                if (shadowState?.showTileDiagnostics)
+                  setShadowState({
+                    ...shadowState,
+                    showTileDiagnostics: false,
+                  });
+              }}
+            />
+          </Suspense>
+        )}
       </div>
     </div>,
     container

@@ -35,7 +35,19 @@ vi.mock("@carma-mapping/engines/maplibre", async () => {
   >(
     "../../../../engines/maplibre/src/lib/runtime/integrations/three-tiles-load-policy"
   );
+  const {
+    claimStandaloneTerrain,
+    hasStandaloneTerrain,
+    subscribeSharedThreeTerrain,
+  } = await vi.importActual<
+    typeof import("../../../../engines/maplibre/src/lib/runtime/integrations/shared-three-terrain-registry")
+  >(
+    "../../../../engines/maplibre/src/lib/runtime/integrations/shared-three-terrain-registry"
+  );
   return {
+    claimStandaloneTerrain,
+    hasStandaloneTerrain,
+    subscribeSharedThreeTerrain,
     meshShadowStageError,
     isTerrainShadingStyleLayer,
     TERRAIN_MAP_STYLE,
@@ -77,6 +89,7 @@ vi.mock("@carma-mapping/engines/maplibre/terrain", () => ({
 import { buildRasterDemTerrainRuntime } from "@carma-mapping/engines/maplibre/terrain";
 import {
   acquireSharedThreeScene,
+  claimStandaloneTerrain,
   getGenericThreeLayers,
   getSharedThreeSceneRuntimes,
   MAPLIBRE_EVENT,
@@ -428,6 +441,104 @@ describe("shadow scene MapLibre terrain", () => {
     );
     expect(map.off).toHaveBeenCalledWith("styledata", expect.any(Function));
     expect(map.off).toHaveBeenCalledWith("terrain", expect.any(Function));
+  });
+
+  it("respects standalone mesh ownership through terrain acquisition, handover and disposal", () => {
+    const handlers = new Map<string, Set<() => void>>();
+    const emit = (event: string) => {
+      for (const handler of handlers.get(event) ?? []) handler();
+    };
+    let terrain: { source: string; exaggeration: number } | null = null;
+    let centerElevation = 0;
+    const layers = [
+      { id: "basemap", type: "raster", source: "basemap-source" },
+      { id: "hillshade", type: "hillshade", source: "terrain-source" },
+    ];
+    const paint = new Map<string, unknown>([["basemap:raster-opacity", 0.6]]);
+    const layout = new Map<string, unknown>([
+      ["hillshade:visibility", "visible"],
+    ]);
+    const map = {
+      getTerrain: () => terrain,
+      getSource: (id: string) => ({ id }),
+      setTerrain: vi.fn((next: typeof terrain) => {
+        terrain = next;
+        centerElevation = next ? 150 : 0;
+        emit("terrain");
+      }),
+      getStyle: vi.fn(() => ({ layers })),
+      getLayer: (id: string) => layers.find((layer) => layer.id === id),
+      addLayer: (layer: (typeof layers)[number]) => layers.unshift(layer),
+      removeLayer: (id: string) => {
+        const index = layers.findIndex((layer) => layer.id === id);
+        if (index >= 0) layers.splice(index, 1);
+      },
+      getPaintProperty: (id: string, property: string) =>
+        paint.get(`${id}:${property}`),
+      setPaintProperty: (id: string, property: string, value: unknown) =>
+        paint.set(`${id}:${property}`, value),
+      getLayoutProperty: (id: string, property: string) =>
+        layout.get(`${id}:${property}`),
+      setLayoutProperty: (id: string, property: string, value: unknown) =>
+        layout.set(`${id}:${property}`, value),
+      on: (event: string, handler: () => void) => {
+        const listeners = handlers.get(event) ?? new Set();
+        listeners.add(handler);
+        handlers.set(event, listeners);
+      },
+      off: (event: string, handler: () => void) =>
+        handlers.get(event)?.delete(handler),
+    };
+    const releaseInitialMesh = claimStandaloneTerrain(
+      map as never,
+      "initial-mesh"
+    );
+    const releaseShadow = acquireShadowMapLibreTerrain(
+      map as never,
+      TEST_TERRAIN_SOURCE
+    );
+    emit("styledata");
+    emit("terrain");
+    expect(map.setTerrain).not.toHaveBeenCalled();
+    expect(centerElevation).toBe(0);
+    expect(paint.get("basemap:raster-opacity")).toBe(0.6);
+
+    releaseInitialMesh();
+    expect(terrain).toEqual({ source: "terrain-source", exaggeration: 1 });
+    expect(paint.get("basemap:raster-opacity")).toBe(1);
+    expect(layout.get("hillshade:visibility")).toBe("none");
+    const releaseLateMesh = claimStandaloneTerrain(map as never, "late-mesh");
+    const styleReadCount = map.getStyle.mock.calls.length;
+    const releaseOtherMesh = claimStandaloneTerrain(map as never, "other-mesh");
+    expect(map.getStyle).toHaveBeenCalledTimes(styleReadCount);
+    expect(terrain).toBeNull();
+    expect(centerElevation).toBe(0);
+    expect(paint.get("basemap:raster-opacity")).toBe(0.6);
+    expect(layout.get("hillshade:visibility")).toBe("visible");
+    expect(map.getLayer("carma-shadow-map-style-base")).toBeUndefined();
+    releaseLateMesh();
+    expect(terrain).toBeNull();
+    releaseOtherMesh();
+    expect(terrain).toEqual({ source: "terrain-source", exaggeration: 1 });
+    releaseShadow();
+
+    // A shadow session started with DEM terrain must not restore that snapshot
+    // over a standalone mesh added later, nor reactivate after being disposed.
+    const previousTerrain = { source: "previous-terrain", exaggeration: 0.75 };
+    map.setTerrain(previousTerrain);
+    const releaseNextShadow = acquireShadowMapLibreTerrain(
+      map as never,
+      TEST_TERRAIN_SOURCE
+    );
+    const releaseFinalMesh = claimStandaloneTerrain(map as never, "final-mesh");
+    expect(terrain).toBeNull();
+    releaseNextShadow();
+    expect(terrain).toBeNull();
+    const updateCount = map.setTerrain.mock.calls.length;
+    releaseFinalMesh();
+    emit("styledata");
+    emit("terrain");
+    expect(map.setTerrain).toHaveBeenCalledTimes(updateCount);
   });
 });
 

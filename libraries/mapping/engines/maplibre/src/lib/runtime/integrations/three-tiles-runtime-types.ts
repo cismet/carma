@@ -29,6 +29,15 @@ export type TileViewErrorTarget = {
 export type RuntimeTile = Tile & {
   priority?: number;
   cameraPriority?: number;
+  /** Current camera's expected improvement of this atomic replacement family. */
+  meshRefinement?: Readonly<{
+    group: Tile;
+    currentErrorPixels: number;
+    nextErrorPixels: number;
+    visibleAreaPixels: number;
+    benefit: number;
+    provisional: boolean;
+  }>;
   shadowLightFacing?: number;
   shadowReceiverCenterness?: number;
   shadowReceiverCurrent?: boolean;
@@ -94,6 +103,9 @@ export type MeshTileDebugProgress = {
     since: number;
     observedAt: number;
     parent: string | null;
+    refinement?: Omit<NonNullable<RuntimeTile["meshRefinement"]>, "group"> & {
+      group: string | null;
+    };
   };
   /** Last 32 observed publication waits; roles have independent clocks. */
   waits?: MeshTileWait[];

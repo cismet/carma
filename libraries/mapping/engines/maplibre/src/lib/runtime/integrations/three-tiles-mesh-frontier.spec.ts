@@ -240,6 +240,59 @@ describe("local progressive mesh admission", () => {
     }
   );
 
+  it("publishes complete local grandchildren while an unrelated higher sibling remains missing", () => {
+    const { parent, children } = quartet(mesh(null, 64));
+    children.forEach((child) => (child.traversal.error = 16));
+    const { children: ready } = quartet(children[0]);
+    quartet(children[1]).children.forEach(
+      (child) => (child.internal.loadingState = 0)
+    );
+    children[2].traversal.inFrustum = children[3].traversal.inFrustum = false;
+    children[3].internal.loadingState = 0;
+    // The existing fringe member stays in the complete published branch too.
+    const published = new Set(children.slice(0, 3));
+    const support = new Set<Tile>();
+    const inView = (tile: Tile) => tile.traversal.inFrustum;
+    const error = (tile: Tile) => tile.traversal.error;
+    let materialReady = true;
+    const select = () =>
+      retainMeshDetailFrontier({
+        previous: published,
+        proposed: collectLoadedMeshReceiverCandidates(
+          parent,
+          4,
+          12,
+          inView,
+          error,
+          undefined,
+          undefined,
+          (tile) => materialReady || tile !== ready[3],
+          getRetainedMeshAncestors(published, 4, inView, error),
+          { published, support, atomic: true }
+        ),
+        requestedError: 4,
+        inView,
+        errorPixels: error,
+      });
+    ready[3].internal.loadingState = 0;
+    expect(select()).toEqual(published);
+    ready[3].internal.loadingState = 4;
+    materialReady = false;
+    expect(select()).toEqual(published);
+    materialReady = true;
+    const refined = select();
+    expect(refined).toEqual(new Set([...ready, children[1], children[2]]));
+    expect(support.has(children[3])).toBe(true);
+    expect(
+      [...refined].some(
+        (tile) => tile.parent && hasDisplayedAncestor(tile.parent, refined)
+      )
+    ).toBe(false);
+    // An actually uncovered visible branch still needs the ready coarse parent.
+    children[3].traversal.inFrustum = true;
+    expect(select()).toEqual(new Set([parent]));
+  });
+
   it("promotes an unpublished coarse reserve immediately when a pan exposes missing children", () => {
     const { parent, children } = quartet(mesh(null, 80));
     children[3].internal.loadingState = 2;

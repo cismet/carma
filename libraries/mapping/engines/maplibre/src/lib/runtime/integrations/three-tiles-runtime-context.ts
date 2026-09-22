@@ -354,9 +354,13 @@ export interface ThreeTilesRuntimeServices {
   requestShadowSelectionRefresh: () => void;
   isPipelineIdle: () => boolean;
   isTileInMainView: (tile: RuntimeTile) => boolean;
-  getTileObserverDemand: (tile: RuntimeTile) => {
+  getTileObserverDemand: (
+    tile: RuntimeTile,
+    includeVisibleArea?: boolean
+  ) => {
     intersects: boolean;
     errorPixels: number;
+    visibleAreaPixels?: number;
   };
   getTileCameraDemand: (
     tile: RuntimeTile,

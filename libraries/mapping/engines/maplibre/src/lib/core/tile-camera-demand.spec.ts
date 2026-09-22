@@ -5,7 +5,7 @@ import {
   PerspectiveCamera,
   Vector3,
 } from "three";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   TILE_CAMERA_ROLE,
   TILE_CAMERA_PRIORITY,
@@ -80,6 +80,61 @@ describe("tile camera demand", () => {
       }
     }
   );
+
+  it("only computes visible area on request, using the supplied CSS viewport", () => {
+    const view = orthographic("area");
+    // A rotated square has twice the bounding-rectangle area; use its hull.
+    view.camera.rotateZ(Math.PI / 4);
+    const demand = createTileCameraDemand(snapshotTileCameraViews([view]));
+    const intersections = vi.spyOn(demand, "intersectionVertices");
+    expect(demand.evaluate(box(0), 1).visibleAreaPixels).toBe(0);
+    expect(intersections).not.toHaveBeenCalled();
+    expect(demand.evaluate(box(0), 1, undefined, true).visibleAreaPixels).toBeCloseTo(
+      40_000,
+      6
+    );
+    expect(intersections).toHaveBeenCalledTimes(1);
+    const wider = createTileCameraDemand(
+      snapshotTileCameraViews([{ ...view, viewport: [2000, 1000] }])
+    );
+    expect(wider.evaluate(box(0), 1, undefined, true).visibleAreaPixels).toBeCloseTo(
+      80_000,
+      6
+    );
+    expect(demand.evaluate(box(0), 1).visibleAreaPixels).toBe(0);
+  });
+
+  it("clips visible area to viewport edges and clears it for missed or excluded views", () => {
+    const demand = createTileCameraDemand(
+      snapshotTileCameraViews([orthographic("area")])
+    );
+    const bounds = new Box3(new Vector3(3, -1, -1), new Vector3(6, 1, 1));
+    expect(demand.evaluate(bounds, 1, undefined, true).visibleAreaPixels).toBeCloseTo(
+      40_000,
+      6
+    );
+    expect(demand.evaluate(box(100), 1, undefined, true)).toMatchObject({
+      required: false,
+      visibleAreaPixels: 0,
+    });
+    expect(demand.evaluate(bounds, 1, "area", true).visibleAreaPixels).toBe(0);
+  });
+
+  it("clips near-plane crossings before projection, including a camera inside bounds", () => {
+    const demand = createTileCameraDemand(
+      snapshotTileCameraViews([perspective("area")])
+    );
+    const crossing = new Box3(
+      new Vector3(0.02, -0.01, 9.8),
+      new Vector3(0.04, 0.01, 10.1)
+    );
+    expect(
+      demand.evaluate(crossing, 1, undefined, true).visibleAreaPixels
+    ).toBeCloseTo(41_250, 5);
+    expect(
+      demand.evaluate(box(0, 0, 10), 1, undefined, true).visibleAreaPixels
+    ).toBeCloseTo(1_000_000, 5);
+  });
 
   it("ignores the invisible near portion of a frustum-edge tile", () => {
     const view = perspective("edge");

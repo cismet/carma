@@ -139,6 +139,106 @@ describe("current-camera screen error before native traversal", () => {
     };
   };
 
+  it("values absolute visible error reduction across complete published families", () => {
+    const { state, tiles, camera, receiver, spatial } = fixture();
+    try {
+      const bounds = new Box3(new Vector3(-1, -1, -1), new Vector3(1, 1, 1));
+      const member = (geometricError: number, box = bounds): RuntimeTile => ({
+        ...receiver,
+        geometricError,
+        refine: "REPLACE",
+        children: [],
+        engineData: {
+          boundingVolume: {
+            ...receiver.engineData!.boundingVolume!,
+            getAABB: (target) => target.copy(box),
+          },
+        },
+      });
+      const family = (error: number, box = bounds) => {
+        const parent = member(error, box);
+        const child = member(error / 2, box);
+        child.parent = parent;
+        parent.children = [child];
+        state.displayedMeshFrontier.add(parent);
+        return { parent, child };
+      };
+      const coarse = family(
+        16,
+        new Box3(new Vector3(-8, -1, -1), new Vector3(-1, 1, 1))
+      );
+      const fine = family(2);
+      const small = family(
+        16,
+        new Box3(new Vector3(-0.01, -0.01, -1), new Vector3(0.01, 0.01, 1))
+      );
+      const fringe = member(
+        8,
+        new Box3(new Vector3(-8, -1, -1), new Vector3(-7, 1, 1))
+      );
+      fringe.parent = coarse.parent;
+      coarse.parent.children.push(fringe);
+      state.meshRefinementSupport.add(fringe);
+      const setView = () => {
+        state.tileCameraDemand = createTileCameraDemand(
+          snapshotTileCameraViews([
+            {
+              id: TILE_MAIN_OBSERVER_ID,
+              camera,
+              viewport: [1000, 1000],
+              errorTargetPixels: 6,
+              role: "receiver",
+            },
+          ])
+        );
+      };
+      setView();
+      const candidates = [coarse.child, fine.child, small.child, fringe];
+      expect(candidates.map(spatial.getTileRequestPriority)).toEqual([
+        1, 1, 1, 1,
+      ]);
+      expect(coarse.child.meshRefinement!.benefit).toBeGreaterThan(
+        fine.child.meshRefinement!.benefit
+      );
+      expect(fine.child.meshRefinement!.benefit).toBeGreaterThan(
+        small.child.meshRefinement!.benefit
+      );
+      expect(fringe.meshRefinement).toBe(coarse.child.meshRefinement);
+      spatial.getTileRequestPriority(coarse.parent);
+      expect(coarse.parent.meshRefinement).toBe(coarse.child.meshRefinement);
+      const lookahead = member(4);
+      lookahead.parent = coarse.child;
+      spatial.getTileRequestPriority(lookahead);
+      expect(lookahead.meshRefinement).toBeUndefined();
+      const oldBenefit = coarse.child.meshRefinement!.benefit;
+      const knownNextError = coarse.child.meshRefinement!.nextErrorPixels;
+      const metadata = member(16);
+      metadata.internal = {
+        ...metadata.internal,
+        hasRenderableContent: false,
+        hasUnrenderableContent: true,
+      };
+      metadata.parent = coarse.parent;
+      coarse.parent.children.push(metadata);
+      state.meshContentRevision++;
+      spatial.getTileRequestPriority(metadata);
+      expect(metadata.meshRefinement!.provisional).toBe(true);
+      expect(metadata.meshRefinement!.nextErrorPixels).toBe(knownNextError);
+      expect(metadata.meshRefinement!.benefit).toBe(oldBenefit);
+      camera.position.z = 22;
+      camera.updateMatrixWorld(true);
+      setView();
+      spatial.getTileRequestPriority(coarse.child);
+      expect(coarse.child.meshRefinement!.benefit).toBeLessThan(oldBenefit);
+      state.displayedMeshFrontier.delete(coarse.parent);
+      state.displayedMeshFrontier.add(coarse.child);
+      spatial.getTileRequestPriority(coarse.child);
+      expect(coarse.child.meshRefinement).toBeUndefined();
+    } finally {
+      tiles.dispose();
+    }
+  });
+
   it("merges changing shadow demand with the cached camera error instead of returning early", () => {
     const { state, tiles, camera, receiver, spatial } = fixture();
     try {
