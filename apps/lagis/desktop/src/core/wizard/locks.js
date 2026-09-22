@@ -9,7 +9,11 @@ import { deleteObject, fetchClassId, saveAndGetId } from "./cidsActions";
  * SaveObject/DeleteObject like every other write.
  */
 
-/** Returns the existing Sperre, or undefined when the key is free. */
+/**
+ * Returns the existing Sperre, or undefined when the key is free. The row is
+ * normalised so callers do not have to know that the read and the write half
+ * name their columns differently.
+ */
 export const findLock = async (schluesselId, jwt) => {
   if (!schluesselId) {
     return undefined;
@@ -19,7 +23,15 @@ export const findLock = async (schluesselId, jwt) => {
     { schluesselId },
     jwt
   );
-  return (data.sperre ?? [])[0];
+  const row = (data.sperre ?? [])[0];
+  return row
+    ? {
+        id: row.id,
+        userString: row.benutzerkonto,
+        info: row.informationen,
+        since: row.zeitstempel_timestamp,
+      }
+    : undefined;
 };
 
 const formatInfo = (contextKeyString) => {
@@ -38,7 +50,7 @@ export const acquireLock = async (
   const existing = await findLock(schluesselId, jwt);
   if (existing) {
     throw new ActionNotSuccessfulError(
-      `Es existiert bereits eine Sperre für das Flurstück ${keyString} und wird von dem Benutzer ${existing.user_string} gehalten.`
+      `Es existiert bereits eine Sperre für das Flurstück ${keyString} und wird von dem Benutzer ${existing.userString} gehalten.`
     );
   }
   const classId = await fetchClassId(CLASS.SCHLUESSEL, jwt);
