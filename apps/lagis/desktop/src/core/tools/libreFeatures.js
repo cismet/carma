@@ -90,6 +90,79 @@ export const buildFeatureCollectionGeoJSON = (featureArray, styler) => {
   return { type: "FeatureCollection", features };
 };
 
+/**
+ * The render layers of the feature collection, per source. Shared by the on-map
+ * rendering and the print style, so both draw from the same definition.
+ */
+const featureCollectionLayerDefs = (sourceId) => [
+  {
+    id: FEATURE_COLLECTION_FILL_LAYER_ID,
+    type: "fill",
+    source: sourceId,
+    filter: [
+      "match",
+      ["geometry-type"],
+      ["Polygon", "MultiPolygon"],
+      true,
+      false,
+    ],
+    paint: {
+      "fill-color": ["get", "__fillColor"],
+      "fill-opacity": ["get", "__fillOpacity"],
+    },
+  },
+  {
+    id: FEATURE_COLLECTION_LINE_LAYER_ID,
+    type: "line",
+    source: sourceId,
+    layout: { "line-join": "round", "line-cap": "round" },
+    paint: {
+      "line-color": ["get", "__strokeColor"],
+      "line-width": ["get", "__strokeWidth"],
+      "line-opacity": ["get", "__strokeOpacity"],
+    },
+  },
+  {
+    id: FEATURE_COLLECTION_POINT_LAYER_ID,
+    type: "circle",
+    source: sourceId,
+    filter: ["match", ["geometry-type"], ["Point", "MultiPoint"], true, false],
+    paint: {
+      "circle-radius": 6,
+      "circle-color": ["get", "__fillColor"],
+      "circle-opacity": ["get", "__fillOpacity"],
+      "circle-stroke-color": ["get", "__strokeColor"],
+      "circle-stroke-width": ["get", "__strokeWidth"],
+      "circle-stroke-opacity": ["get", "__strokeOpacity"],
+    },
+  },
+];
+
+/** Source id of the generated print style. */
+const PRINT_SOURCE_ID = "lagis-print-feature-collection";
+
+/**
+ * Builds a self contained MapLibre style for the current feature collection,
+ * printed through the tgl-wms "inline" renderer. The data is embedded, so
+ * nothing is fetched at render time.
+ *
+ * @returns the style, or null when there is nothing to print
+ */
+export const buildFeatureCollectionPrintStyle = (geoJSON) => {
+  if (!geoJSON?.features?.length) {
+    return null;
+  }
+
+  return {
+    version: 8,
+    name: "lagis-feature-collection-print",
+    sources: {
+      [PRINT_SOURCE_ID]: { type: "geojson", data: geoJSON },
+    },
+    layers: featureCollectionLayerDefs(PRINT_SOURCE_ID),
+  };
+};
+
 /** terra-draw and the carma measurement host name their layers with these
  *  prefixes; both must render above the lagis geometry. */
 const MEASUREMENT_LAYER_PREFIXES = ["td-", "carma-measurements-"];
@@ -146,70 +219,11 @@ export const applyFeatureCollectionLayers = (map, data) => {
   // reload we are the ones re-adding, so we go in underneath explicitly.
   const beforeId = firstMeasurementLayerId(map);
 
-  if (!map.getLayer(FEATURE_COLLECTION_FILL_LAYER_ID)) {
-    map.addLayer(
-      {
-        id: FEATURE_COLLECTION_FILL_LAYER_ID,
-        type: "fill",
-        source: FEATURE_COLLECTION_SOURCE_ID,
-        filter: [
-          "match",
-          ["geometry-type"],
-          ["Polygon", "MultiPolygon"],
-          true,
-          false,
-        ],
-        paint: {
-          "fill-color": ["get", "__fillColor"],
-          "fill-opacity": ["get", "__fillOpacity"],
-        },
-      },
-      beforeId
-    );
-  }
-
-  if (!map.getLayer(FEATURE_COLLECTION_LINE_LAYER_ID)) {
-    map.addLayer(
-      {
-        id: FEATURE_COLLECTION_LINE_LAYER_ID,
-        type: "line",
-        source: FEATURE_COLLECTION_SOURCE_ID,
-        layout: { "line-join": "round", "line-cap": "round" },
-        paint: {
-          "line-color": ["get", "__strokeColor"],
-          "line-width": ["get", "__strokeWidth"],
-          "line-opacity": ["get", "__strokeOpacity"],
-        },
-      },
-      beforeId
-    );
-  }
-
-  if (!map.getLayer(FEATURE_COLLECTION_POINT_LAYER_ID)) {
-    map.addLayer(
-      {
-        id: FEATURE_COLLECTION_POINT_LAYER_ID,
-        type: "circle",
-        source: FEATURE_COLLECTION_SOURCE_ID,
-        filter: [
-          "match",
-          ["geometry-type"],
-          ["Point", "MultiPoint"],
-          true,
-          false,
-        ],
-        paint: {
-          "circle-radius": 6,
-          "circle-color": ["get", "__fillColor"],
-          "circle-opacity": ["get", "__fillOpacity"],
-          "circle-stroke-color": ["get", "__strokeColor"],
-          "circle-stroke-width": ["get", "__strokeWidth"],
-          "circle-stroke-opacity": ["get", "__strokeOpacity"],
-        },
-      },
-      beforeId
-    );
-  }
+  featureCollectionLayerDefs(FEATURE_COLLECTION_SOURCE_ID).forEach((layer) => {
+    if (!map.getLayer(layer.id)) {
+      map.addLayer(layer, beforeId);
+    }
+  });
 
   return true;
 };

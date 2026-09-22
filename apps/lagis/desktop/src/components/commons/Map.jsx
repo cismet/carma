@@ -72,6 +72,24 @@ import {
   FEATURE_INDEX_PROPERTY,
 } from "../../core/tools/libreFeatures";
 import { setLibreMapInstance } from "../../core/tools/libreMapRegistry";
+import { MapLibrePrintPreview } from "@carma-mapping/print-core/maplibre";
+import { buildLagisPrintLayers } from "../../core/tools/printLayers";
+import PrintControl from "./PrintControl";
+import {
+  getDPI,
+  getIfMapPrinted,
+  getIsLoading,
+  getOrientation,
+  getPrintActive,
+  getPrintName,
+  getRedrawPreview,
+  getScale,
+  setIfMapPrinted,
+  setIsLoading,
+  setPrintActive,
+  setPrintError,
+  setRedrawPreview,
+} from "../../store/slices/print";
 
 const mockExtractor = (input) => {
   return {
@@ -103,6 +121,16 @@ const Map = ({
   const showInspectMode = useSelector(getShowInspectMode);
   const jwt = useSelector(getJWT);
   const mode = useSelector(getShapeMode);
+
+  // Print preview state, see store/slices/print and PrintControl
+  const printActive = useSelector(getPrintActive);
+  const printOrientation = useSelector(getOrientation);
+  const printScale = useSelector(getScale);
+  const printDpi = useSelector(getDPI);
+  const printName = useSelector(getPrintName);
+  const printLoading = useSelector(getIsLoading);
+  const printRedraw = useSelector(getRedrawPreview);
+  const printIfMapPrinted = useSelector(getIfMapPrinted);
 
   const [libreMap, setLibreMap] = useState(null);
   // "none" keeps terra-draw in select mode: existing measurements stay
@@ -229,6 +257,19 @@ const Map = ({
   const drawModeRef = useRef(drawMode);
   drawModeRef.current = drawMode;
 
+  // While the print rectangle is up the clicks belong to the preview.
+  const printActiveRef = useRef(printActive);
+  printActiveRef.current = printActive;
+
+  // Measuring, the point search and the print rectangle claim the same
+  // gestures, so opening the preview leaves both modes.
+  useEffect(() => {
+    if (printActive) {
+      setDrawMode("none");
+      dispatch(storeShapeMode("default"));
+    }
+  }, [printActive, dispatch]);
+
   // ---------------------------------------------------------------------
   // Click / double click on the feature collection
   // ---------------------------------------------------------------------
@@ -239,7 +280,7 @@ const Map = ({
     }
 
     const handleClick = (e) => {
-      if (drawModeRef.current !== "none") {
+      if (drawModeRef.current !== "none" || printActiveRef.current) {
         return;
       }
       const currentData = dataRef.current;
@@ -305,7 +346,7 @@ const Map = ({
     };
 
     const handleDoubleClick = (e) => {
-      if (drawModeRef.current !== "none") {
+      if (drawModeRef.current !== "none" || printActiveRef.current) {
         return;
       }
       const currentData = dataRef.current;
@@ -466,6 +507,17 @@ const Map = ({
     }
   };
 
+  // ---------------------------------------------------------------------
+  // Print
+  // ---------------------------------------------------------------------
+
+  // Built from the layers the map currently renders, so the PDF mirrors the
+  // screen: the toggles and opacities are already applied to both inputs.
+  const resolvePrintLayers = useCallback(
+    () => buildLagisPrintLayers(libreLayers, featureCollectionGeoJSON),
+    [libreLayers, featureCollectionGeoJSON]
+  );
+
   const [mapWidth, setMapWidth] = useState(0);
   const [mapHeight, setMapHeight] = useState(window.innerHeight * 0.5); //uggly winning
 
@@ -565,6 +617,7 @@ const Map = ({
               onClick={handleShowCurrentFeatureCollection}
             />
           </div>
+          <PrintControl />
         </div>
       }
       style={{
@@ -638,6 +691,26 @@ const Map = ({
             <MeasurementHost mode={drawMode} snapping />
           </MeasurementsProvider>
         </LibreContextProvider>
+        <MapLibrePrintPreview
+          map={libreMap}
+          active={printActive}
+          orientation={printOrientation}
+          scale={printScale}
+          dpi={printDpi}
+          name={printName}
+          resolveLayers={resolvePrintLayers}
+          redrawTrigger={printRedraw}
+          keepRectangle={printIfMapPrinted}
+          loading={printLoading}
+          onClose={() => dispatch(setPrintActive(false))}
+          onLoadingChange={(loading) => dispatch(setIsLoading(loading))}
+          onError={(message) => dispatch(setPrintError(message))}
+          onPrintStart={() => dispatch(setIfMapPrinted(true))}
+          onRequestRedraw={() => {
+            dispatch(setIfMapPrinted(false));
+            dispatch(setRedrawPreview(!printRedraw));
+          }}
+        />
         {libreMap && <LibreMapSelectionContent map={libreMap} />}
         <LibrePointSearch
           map={libreMap}
