@@ -4,33 +4,24 @@ import { deleteObject, fetchClassId, saveAndGetId } from "./cidsActions";
 
 /**
  * Port of the Sperre handling in LagisBroker (isLocked / createLock /
- * releaseLock). Reads go against the `sperre` view, writes against `cs_locks` —
- * the same split the Swing client uses. The write half goes through
- * SaveObject/DeleteObject like every other write.
+ * releaseLock). Both halves work on `cs_locks`: reads over GraphQL, writes
+ * through SaveObject/DeleteObject like every other write.
  */
 
-/**
- * Returns the existing Sperre, or undefined when the key is free. The row is
- * normalised so callers do not have to know that the read and the write half
- * name their columns differently.
- */
+/** Returns the existing Sperre, or undefined when the key is free. */
 export const findLock = async (schluesselId, jwt) => {
   if (!schluesselId) {
     return undefined;
   }
+  const classId = await fetchClassId(CLASS.SCHLUESSEL, jwt);
   const data = await run(
     wizardQueries.lockForSchluessel,
-    { schluesselId },
+    { classId, objectId: schluesselId },
     jwt
   );
-  const row = (data.sperre ?? [])[0];
+  const row = (data.cs_locks ?? [])[0];
   return row
-    ? {
-        id: row.id,
-        userString: row.benutzerkonto,
-        info: row.informationen,
-        since: row.zeitstempel_timestamp,
-      }
+    ? { id: row.id, userString: row.user_string, info: row.additional_info }
     : undefined;
 };
 
