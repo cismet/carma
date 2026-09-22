@@ -7,10 +7,15 @@ import {
 
 import { STORAGE_PREFIX } from "./settings";
 
+/** a local test reads from a ceepr on the same machine */
+const SHOW_READ_URL =
+  import.meta.env.VITE_SHOW_READ_URL || DEFAULT_SHOW_READ_URL;
+
 /**
- * A stored show never changes (ceepr gives every publish a new key), so what
- * was read once under a key is kept: at the venue the remote needs no store,
- * only the relay. The last few shows stay, older ones make room.
+ * A copy of every show read, as the fallback for a venue where the store is
+ * out of reach: there the remote needs only the relay. It is only a fallback,
+ * since a republish replaces the show under the same key. The last few shows
+ * stay, older ones make room.
  */
 const SHOW_KEY_PREFIX = `${STORAGE_PREFIX}.show.`;
 const INDEX_KEY = `${STORAGE_PREFIX}.shows`;
@@ -63,13 +68,21 @@ const writeCachedShow = (key: string, show: Show): void => {
   }
 };
 
-/** the show under `key`, from the phone if it was read before, else from ceepr */
+/** the show under `key` from ceepr, or the copy on the phone when ceepr fails */
 export const loadShow = async (key: string): Promise<Show> => {
-  const cached = readCachedShow(key);
-  if (cached) {
+  try {
+    const show = await fetchShow(SHOW_READ_URL, key);
+    writeCachedShow(key, show);
+    return show;
+  } catch (error) {
+    const cached = readCachedShow(key);
+    if (!cached) {
+      throw error;
+    }
+    console.warn(
+      `${LOG_PREFIX} reading the show failed, using the copy on this device`,
+      error
+    );
     return cached;
   }
-  const show = await fetchShow(DEFAULT_SHOW_READ_URL, key);
-  writeCachedShow(key, show);
-  return show;
 };

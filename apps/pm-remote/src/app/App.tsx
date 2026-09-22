@@ -124,6 +124,37 @@ export const App = () => {
     };
   }, [showKey]);
 
+  // A republish replaces the show under the same key. Coming back to the
+  // remote is when the presenter expects to see it, so read it again then.
+  useEffect(() => {
+    if (!showKey) {
+      return;
+    }
+    let isCurrent = true;
+    const refresh = () => {
+      if (document.visibilityState !== "visible") {
+        return;
+      }
+      loadShow(showKey).then(
+        (show) => {
+          if (isCurrent) {
+            setShowLoad((current) =>
+              current.status === "loading" ? current : { status: "ready", show }
+            );
+          }
+        },
+        () => {
+          // keeps the show it has; the first load reports errors
+        }
+      );
+    };
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      isCurrent = false;
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, [showKey]);
+
   const scenes =
     showLoad.status === "ready" ? showLoad.show.scenes : NO_SCENES;
   const display = useDisplay(target, scenes, fadeMs);

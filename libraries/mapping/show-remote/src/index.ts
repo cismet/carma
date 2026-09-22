@@ -14,7 +14,9 @@ export {
   MAX_SHOW_BYTES,
   ShowStoreError,
   fetchShow,
+  newEditToken,
   publishShow,
+  republishShow,
   showByteSize,
   showReadUrl,
 } from "./lib/ceepr";

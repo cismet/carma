@@ -17,6 +17,13 @@ const PM_REMOTE_URL =
     : "https://carma-dev-deployments.github.io/pm-remote/");
 
 /**
+ * Where "Veröffentlichen" stores the show. Unset, the addon's default ceepr
+ * folder; a local test points it at a ceepr on this machine.
+ */
+const SHOW_STORE_URL: string | undefined =
+  import.meta.env.VITE_SHOW_STORE_URL || undefined;
+
+/**
  * The collection point for the projection mapping show: the layers that are
  * meant to end up on the printed Wuppertal model are picked and kept here,
  * separate from the plain geoportal.
@@ -44,7 +51,13 @@ export const projectionMappingFachzwilling: FachzwillingRoute = {
     // the engine the Schwebebahn cards launch into; idle until one is clicked
     "vehicleAnimation",
     // "save as scene" and "publish" for the remote on the phone
-    { addon: "showScenes", config: { remoteUrl: PM_REMOTE_URL } },
+    {
+      addon: "showScenes",
+      config: {
+        remoteUrl: PM_REMOTE_URL,
+        ...(SHOW_STORE_URL ? { storeUrl: SHOW_STORE_URL } : {}),
+      },
+    },
   ],
   /**
    * The layers of the show, grouped as it walks through them. Most are built

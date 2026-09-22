@@ -35,9 +35,12 @@ import {
   MAX_SHOW_BYTES,
   SHOW_FORMAT,
   SHOW_VERSION,
+  ShowStoreError,
   isBounds3857,
+  newEditToken,
   newSceneId,
   publishShow,
+  republishShow,
   showByteSize,
   type Bounds3857,
   type Show,
@@ -72,7 +75,8 @@ export type ShowScenesConfig = {
 };
 
 const DEFAULT_CONTROL_POSITION: Positions = "topleft";
-const DEFAULT_CONTROL_ORDER = 80;
+/** after the addon manager (90), see the order table in ADDON-UI.md */
+const DEFAULT_CONTROL_ORDER = 95;
 
 type Status = { kind: "busy" | "error" | "info"; text: string } | null;
 
@@ -266,6 +270,8 @@ export const ShowScenes = ({
     published.fingerprint === fingerprintOf(draft);
   const link =
     published && remoteUrl ? remoteLinkFor(remoteUrl, published.key) : null;
+  const canPublish =
+    draft.scenes.length > 0 && !isTooLarge && status?.kind !== "busy";
 
   const updateScene = (id: string, change: Partial<ShowScene>) =>
     updateDraft((current) => ({
@@ -354,13 +360,30 @@ export const ShowScenes = ({
     }
   };
 
-  const publish = async () => {
+  /**
+   * "reuse" replaces the show under the key the phone already has, so its link
+   * stays; that needs the edit token of an earlier publish from this browser,
+   * and without one it falls back to a new key. "new" always makes a new key.
+   */
+  const publish = async (mode: "reuse" | "new") => {
     const show = toShow(draft, new Date().toISOString());
     // taken now: an edit made while the request runs is not in this publish
     const fingerprint = fingerprintOf(draft);
+    const reuse =
+      mode === "reuse" && published?.editToken
+        ? { key: published.key, editToken: published.editToken }
+        : null;
     setStatus({ kind: "busy", text: "Wird veröffentlicht …" });
     try {
-      const key = await publishShow(storeUrl, show);
+      let key: string;
+      let editToken: string;
+      if (reuse) {
+        await republishShow(storeUrl, reuse.key, show, reuse.editToken);
+        ({ key, editToken } = reuse);
+      } else {
+        editToken = newEditToken();
+        key = await publishShow(storeUrl, show, editToken);
+      }
       updateDraft((current) => ({
         ...current,
         published: {
@@ -368,15 +391,22 @@ export const ShowScenes = ({
           at: show.publishedAt,
           sceneCount: show.scenes.length,
           fingerprint,
+          editToken,
         },
       }));
       setStatus(null);
     } catch (error) {
+      const cannotReplace =
+        reuse !== null &&
+        error instanceof ShowStoreError &&
+        (error.status === 403 || error.status === 404);
       setStatus({
         kind: "error",
-        text: `Veröffentlichen fehlgeschlagen (${
-          error instanceof Error ? error.message : String(error)
-        }).`,
+        text: cannotReplace
+          ? "Der bisherige Link lässt sich nicht aktualisieren. „Neuer Link“ veröffentlicht unter einem neuen."
+          : `Veröffentlichen fehlgeschlagen (${
+              error instanceof Error ? error.message : String(error)
+            }).`,
       });
     }
   };
@@ -483,13 +513,21 @@ export const ShowScenes = ({
               {formatKb(byteSize)} von {formatKb(MAX_SHOW_BYTES)}
             </span>
             <div className="flex-1" />
+            {published && (
+              <Popconfirm
+                title="Unter einem neuen Link veröffentlichen?"
+                description="Handys mit dem bisherigen Link bekommen danach keine Änderungen mehr."
+                okText="Neuer Link"
+                cancelText="Abbrechen"
+                onConfirm={() => void publish("new")}
+                disabled={!canPublish}
+              >
+                <Button disabled={!canPublish}>Neuer Link</Button>
+              </Popconfirm>
+            )}
             <Button
-              onClick={() => void publish()}
-              disabled={
-                draft.scenes.length === 0 ||
-                isTooLarge ||
-                status?.kind === "busy"
-              }
+              onClick={() => void publish("reuse")}
+              disabled={!canPublish}
               loading={status?.kind === "busy"}
             >
               Veröffentlichen
@@ -518,8 +556,9 @@ export const ShowScenes = ({
                 </span>
                 {!isPublishCurrent && (
                   <span className="text-amber-700">
-                    Die Liste wurde seitdem geändert. Das Handy sieht sie erst
-                    nach einem neuen Veröffentlichen, mit neuem Link.
+                    {published.editToken
+                      ? "Die Liste wurde seitdem geändert. Nach dem nächsten Veröffentlichen sieht das Handy sie unter demselben Link."
+                      : "Die Liste wurde seitdem geändert. Das nächste Veröffentlichen erzeugt einmalig einen neuen Link, danach bleibt er gleich."}
                   </span>
                 )}
                 <span className="text-xs text-gray-500">

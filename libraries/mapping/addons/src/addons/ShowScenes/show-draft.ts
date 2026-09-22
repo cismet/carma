@@ -10,13 +10,19 @@ import type { ShowScene } from "@carma-mapping/show-remote";
 export type ShowDraft = {
   title: string;
   scenes: ShowScene[];
-  /** the last publish, so its link stays at hand after a reload */
+  /**
+   * The last publish, so its link stays at hand after a reload, and the token
+   * that lets the next publish replace the show under the same key. Only this
+   * browser has the token; publishing from another one makes a new link.
+   */
   published?: {
     key: string;
     at: string;
     sceneCount: number;
     /** what was published, to tell when the list has changed since */
     fingerprint?: string;
+    /** absent on a publish from before shows could be replaced */
+    editToken?: string;
   };
 };
 
