@@ -18,6 +18,10 @@ export const TitleControl = ({
   };
   const narrow = (windowSize?.width ?? 800) < 560;
 
+  if (!user && !connectionError) return null;
+
+  // No app title: on a phone it pushed the pill over the zoom buttons and
+  // the menu button (wupp #4138).
   return (
     <div
       style={{
@@ -43,7 +47,6 @@ export const TitleControl = ({
           whiteSpace: "nowrap",
         }}
       >
-        <b>Leerstandsmanagement</b>
         {connectionError && (
           <span style={{ color: "#c62828" }} title="Keine Verbindung zum Server">
             <DisconnectOutlined /> offline
