@@ -1,10 +1,16 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import { isMobile } from "react-device-detect";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Tooltip } from "antd";
 
 import { Control } from "@carma-mapping/map-controls-layout";
-import { getModeIcon, getModeLabel } from "@carma-mapping/routing";
+import { ROUTE_BLUE, getModeIcon, getModeLabel } from "@carma-mapping/routing";
 
 import type { AddonComponentProps } from "../../lib/registry";
 import type { RouteMode } from "../Routing/routeMode";
@@ -45,6 +51,21 @@ const PILL_CLASS_NAME =
  */
 const BUTTON_CLASS_NAME =
   "flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-[6px] border-0 text-sm max-sm:h-[30px] sm:w-7";
+
+/**
+ * The picked mode is filled with the route's own blue and written in white,
+ * so it stands out at a glance on a phone in the sun; a grey tint was too
+ * little. The fill is an inline style rather than a class: Tailwind only
+ * generates the classes it finds spelled out, and the blue is `ROUTE_BLUE`
+ * of the routing lib, so the line, the picked hit and this button change
+ * colour together. The others stay bare until hovered.
+ */
+const ACTIVE_BUTTON_STYLE: CSSProperties = {
+  backgroundColor: ROUTE_BLUE,
+  color: "#ffffff",
+};
+const INACTIVE_BUTTON_CLASS_NAME =
+  "bg-transparent text-gray-500 hover:bg-black/5";
 
 /**
  * How tall the inputs beside the pill are, so the pill is exactly that tall.
@@ -188,10 +209,9 @@ export const RouteModePicker = ({
                 // the shadow is what says "button"; a focus ring is noise
                 onMouseDown={(event) => event.preventDefault()}
                 className={`${BUTTON_CLASS_NAME} ${
-                  active
-                    ? "bg-black/10 text-gray-800"
-                    : "bg-transparent text-gray-500 hover:bg-black/5"
+                  active ? "" : INACTIVE_BUTTON_CLASS_NAME
                 }`}
+                style={active ? ACTIVE_BUTTON_STYLE : undefined}
               >
                 <FontAwesomeIcon icon={getModeIcon(candidate)} />
                 {/* the word only where there is room for it and a finger
