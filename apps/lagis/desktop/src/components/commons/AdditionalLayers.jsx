@@ -178,14 +178,7 @@ export const configuration = {
   // },
 };
 
-/** Key of the ALKIS vector layer, whose MapLibre features carry the
- *  landparcel properties shown in the map header on hover. */
-export const ALKIS_LANDPARCELS_LAYER_KEY = "alkisLandparcels";
-
-/**
- * Builds the LibreLayers for the currently active additional layers, in the
- * stacking order their former Leaflet panes implied.
- */
+/** Active additional layers, in the order their Leaflet panes implied. */
 export const getAdditionalLibreLayers = (activeLayers = [], opacities = {}) =>
   sortLibreLayers(
     activeLayers.map((layerKey) => {
@@ -197,7 +190,7 @@ export const getAdditionalLibreLayers = (activeLayers = [], opacities = {}) =>
         layerKey,
         layerConf.conf,
         opacities[layerKey] ?? 1,
-        // additional layers sat above the background layers by default
+        // additional layers sat above the background by default
         250
       );
     })

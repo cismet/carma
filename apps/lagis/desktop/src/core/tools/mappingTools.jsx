@@ -68,7 +68,7 @@ export const getBoundsForFeatureCollection = (featureCollection) => {
     boundingBox25832[3],
   ]);
 
-  // Return MapLibre LngLatBounds (lng/lat order, unlike Leaflet's lat/lng)
+  // lng/lat order, unlike Leaflet's lat/lng
   return new maplibregl.LngLatBounds(
     [southWest4326[0], southWest4326[1]], // southwest corner
     [northEast4326[0], northEast4326[1]] // northeast corner
@@ -90,8 +90,7 @@ export function convertBBox2Bounds(bbox, refDef = proj4crs25832def) {
   ];
 }
 export const getCenterAndZoomForBounds = (map, bounds) => {
-  // MapLibre's cameraForBounds returns the camera that shows the bounds in
-  // their entirety - the equivalent of Leaflet's getBoundsZoom + getCenter.
+  // cameraForBounds == Leaflet's getBoundsZoom + getCenter
   const camera = map?.cameraForBounds(bounds);
   const center = camera?.center ?? bounds.getCenter();
   return { center, zoom: camera?.zoom };

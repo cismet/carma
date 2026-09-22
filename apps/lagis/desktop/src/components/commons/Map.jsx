@@ -62,6 +62,7 @@ import {
 import {
   DrawModeControls,
   MeasurementHost,
+  MeasurementInfoBox,
   MeasurementsProvider,
 } from "@carma-mapping/measurements";
 import {
@@ -99,7 +100,6 @@ const mockExtractor = (input) => {
   };
 };
 
-/** ms between two hover queries against the rendered ALKIS features */
 const HOVER_THROTTLE_MS = 100;
 
 const Map = ({
@@ -133,8 +133,7 @@ const Map = ({
   const printIfMapPrinted = useSelector(getIfMapPrinted);
 
   const [libreMap, setLibreMap] = useState(null);
-  // "none" keeps terra-draw in select mode: existing measurements stay
-  // clickable, but no new geometry is drawn.
+  // "none" = terra-draw select mode: existing measurements stay clickable.
   const [drawMode, setDrawMode] = useState("none");
 
   const data = extractor(dataIn);
@@ -180,8 +179,7 @@ const Map = ({
   const activeAdditionalLayers = useSelector(getActiveAdditionalLayers);
   const selectedTrueOrthoYear = useSelector(getSelectedTrueOrthoYear);
 
-  // Background and additional layers were both rendered inside the
-  // `showBackground` branch before, so hiding the background hides both.
+  // As before: hiding the background hides the additional layers too.
   const libreLayers = useMemo(() => {
     if (!showBackground) {
       return [];
@@ -206,17 +204,12 @@ const Map = ({
     additionalLayerOpacities,
   ]);
 
-  // ---------------------------------------------------------------------
-  // Feature collection
-  // ---------------------------------------------------------------------
+  // --- Feature collection ---
 
   const featureCollection = data?.featureCollection;
 
-  // The extractors rebuild their feature array (and their styler closure) on
-  // every render, so neither is usable as a memo dependency. The built GeoJSON
-  // is therefore cached behind its own serialization: identity only changes
-  // when the rendered result actually differs, which is what both the effect
-  // below and MapLibre's source update need.
+  // The extractors rebuild the array and the styler on every render, so
+  // neither works as a memo dependency; cache on the built result instead.
   const builtGeoJSON = buildFeatureCollectionGeoJSON(
     featureCollection,
     data?.styler
@@ -230,9 +223,7 @@ const Map = ({
     ? geoJSONCacheRef.current.data
     : EMPTY_FEATURE_COLLECTION;
 
-  // The source is added imperatively, so it has to be restored after every
-  // style reload - CarmaMap's merged layer mode replaces the whole style
-  // whenever the layer list changes.
+  // The source is imperative, so it needs restoring after every style reload.
   useEffect(() => {
     if (!libreMap) {
       return;
@@ -252,8 +243,7 @@ const Map = ({
   const dataRef = useRef(data);
   dataRef.current = data;
 
-  // Read inside the map handlers so switching draw mode does not re-register
-  // them. While a measurement is being drawn the clicks belong to terra-draw.
+  // Read in the handlers so a mode switch does not re-register them.
   const drawModeRef = useRef(drawMode);
   drawModeRef.current = drawMode;
 
@@ -270,9 +260,7 @@ const Map = ({
     }
   }, [printActive, dispatch]);
 
-  // ---------------------------------------------------------------------
-  // Click / double click on the feature collection
-  // ---------------------------------------------------------------------
+  // --- Click / double click on the feature collection ---
 
   useEffect(() => {
     if (!libreMap) {
@@ -370,9 +358,7 @@ const Map = ({
     };
   }, [libreMap, dispatch, onClickHandler, setUrlParams]);
 
-  // ---------------------------------------------------------------------
-  // Hover: show the ALKIS landparcel under the cursor in the card title
-  // ---------------------------------------------------------------------
+  // --- Hover: ALKIS landparcel under the cursor, shown in the card title ---
 
   useEffect(() => {
     if (!libreMap) {
@@ -388,8 +374,7 @@ const Map = ({
         throttleTimeout = null;
       }, HOVER_THROTTLE_MS);
 
-      // The ALKIS layer is only one of several vector layers in the merged
-      // style, so it is identified by the properties its features carry.
+      // One of several vector layers, so identified by its properties.
       const alkisFeature = libreMap
         .queryRenderedFeatures(e.point)
         .find((feature) => feature.properties?.gemarkungsnummer !== undefined);
@@ -421,9 +406,7 @@ const Map = ({
     };
   }, [libreMap, dispatch]);
 
-  // ---------------------------------------------------------------------
-  // Fit the map to the current feature collection
-  // ---------------------------------------------------------------------
+  // --- Fit the map to the current feature collection ---
 
   const oldBgRef = useRef(null);
   const oldAdditionalLayersLengthRef = useRef(null);
@@ -474,9 +457,7 @@ const Map = ({
     hasFittedBounds,
   ]);
 
-  // ---------------------------------------------------------------------
-  // Gazetteer
-  // ---------------------------------------------------------------------
+  // --- Gazetteer ---
 
   const { gazData } = useGazData();
   const { setSelection } = useSelection();
@@ -507,9 +488,7 @@ const Map = ({
     }
   };
 
-  // ---------------------------------------------------------------------
-  // Print
-  // ---------------------------------------------------------------------
+  // --- Print ---
 
   // Built from the layers the map currently renders, so the PDF mirrors the
   // screen: the toggles and opacities are already applied to both inputs.
@@ -639,55 +618,56 @@ const Map = ({
         }}
       >
         <LibreContextProvider>
-          <CarmaMap
-            mapEngine="maplibre"
-            appKey="lagis-desktop"
-            embedded
-            // lagis drives the background itself, everything goes into
-            // libreLayers
-            backgroundLayers=""
-            libreLayers={libreLayers}
-            setLibreMap={handleLibreMapReady}
-            minZoom={9}
-            maxZoom={25}
-            // the app owns the hash (react-router HashRouter), so the map only
-            // reads lat/lng/zoom from it and never writes back
-            hashWriteEnabled={false}
-            // selection, infoboxes and routing are handled by lagis itself,
-            // and while a draw mode is active the clicks belong to terra-draw
-            selectionEnabled={false}
-            gazetteerInfoOnClick={false}
-            terrainControl={false}
-            compassControl={false}
-            fullScreenControl={false}
-            locatorControl={false}
-            modalMenuControl={false}
-            extraControls={
-              <DrawModeControls
-                // lagis measures distances and areas, not single points
-                modes={["line", "polygon"]}
-                active={drawMode}
-                onSelect={(nextMode) =>
-                  setDrawMode((previous) =>
-                    previous === nextMode ? "none" : nextMode
-                  )
-                }
-              />
-            }
-            gazetteerSearchComponent={
-              <div style={{ marginTop: "4px" }}>
-                <LibFuzzySearch
-                  gazData={gazData}
-                  onSelection={onGazetteerSelection}
-                  pixelwidth={
-                    isBreakpointForControls ? "350px" : pixelWidth + "px"
-                  }
-                  placeholder="Geben Sie einen Suchbegriff ein"
-                />
-              </div>
-            }
-          />
+          {/* Wraps CarmaMap, not just the host: the info box renders a
+              <Control> and so must sit inside CarmaMap's ControlLayout. */}
           <MeasurementsProvider>
+            <CarmaMap
+              mapEngine="maplibre"
+              appKey="lagis-desktop"
+              embedded
+              // lagis drives the background itself, via libreLayers
+              backgroundLayers=""
+              libreLayers={libreLayers}
+              setLibreMap={handleLibreMapReady}
+              minZoom={9}
+              maxZoom={25}
+              // the app owns the hash (HashRouter): read lat/lng/zoom, never write
+              hashWriteEnabled={false}
+              // lagis handles selection, infoboxes and routing itself
+              selectionEnabled={false}
+              gazetteerInfoOnClick={false}
+              terrainControl={false}
+              compassControl={false}
+              fullScreenControl={false}
+              locatorControl={false}
+              modalMenuControl={false}
+              extraControls={
+                <>
+                  <DrawModeControls
+                    modes={["select", "line", "polygon"]}
+                    active={drawMode}
+                    onSelect={(nextMode) =>
+                      setDrawMode((previous) =>
+                        previous === nextMode ? "none" : nextMode
+                      )
+                    }
+                  />
+                  <MeasurementInfoBox />
+                </>
+              }
+              gazetteerSearchComponent={
+                <div style={{ marginTop: "4px" }}>
+                  <LibFuzzySearch
+                    gazData={gazData}
+                    onSelection={onGazetteerSelection}
+                    pixelwidth={
+                      isBreakpointForControls ? "350px" : pixelWidth + "px"
+                    }
+                    placeholder="Geben Sie einen Suchbegriff ein"
+                  />
+                </div>
+              }
+            />
             <MeasurementHost mode={drawMode} snapping />
           </MeasurementsProvider>
         </LibreContextProvider>
