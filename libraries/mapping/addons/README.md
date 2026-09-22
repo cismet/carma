@@ -100,12 +100,45 @@ on the map after a page refresh, on every route and for every kind, in the
 state it was left in. This is a rule of the library, not a per-workflow feature
 request: the layer bar row comes back through the host's own layer-list
 persistence, and the tool's channel state is mirrored into `localStorage` and
-seeded from there on the next load, the way the comparison
-(`addons/comparing/comparing-storage.ts`) and the addon manager
-(`lib/addon-overrides-storage.ts`) do it. A row that comes back without its
+seeded from there on the next load, the way the addon manager
+(`lib/addon-overrides-storage.ts`) does it. A row that comes back without its
 running addon is the bug, not a stale row to clean up. Session-only state is not
 an option for anything a workflow card can launch; a tool that has nothing else
 to restore still stores that it is on and what it was launched with.
+
+### Workflow layers
+
+The comparison takes a different road, which is where the other tools are
+headed: a **workflow layer**, one layer button that carries the tool's
+definition *and* the layers it acts on, and behaves like any layer from then
+on. The plan and the rules are in `docs/workflow-layer-plan.md`; the short
+version:
+
+- A workflow layer is a plain `LayerGroup`. Its `layers` are the members, its
+  `tools` hold one entry, the kind with the definition as its config
+  (`{ addon: "comparing", config: <CompareDefinition> }`). Hide, remove,
+  reorder, opacity, persistence, favorites and the additive share are the
+  group's. The kind registers no trigger: a saved workflow is a layer the
+  user cannot edit for now, and its button opens the info view, which is
+  why `capture` also hands over a `description`.
+- A kind opts in with `workflow` on its registry entry (`lib/workflow.ts`):
+  `capture` turns the running state into a definition plus member ids,
+  `seed` reads a definition back out of a tool config, `Engine` binds one
+  group to the kind's channel, `exclusive` says only one group of the kind
+  runs at a time.
+- `lib/WorkflowGroupHost.tsx`, mounted by `AddonHost` on every route, mounts
+  one `Engine` per workflow group in the host's stack and publishes what runs
+  and what is paused on the `workflowActivity` channel. A group is active
+  while it is visible; for an exclusive kind only the topmost visible one.
+- `lib/CaptureWorkflowButton.tsx` is the "Als Layer speichern" button a pane
+  renders; it asks for a title and hands the group to the host through
+  `carma.mapping2D.createWorkflowGroup`. Edits go back into the group with
+  `carma.mapping2D.updateStackEntry`.
+
+A comparison that is switched on but not saved is session state: it has its
+transient `__comparing__` row, which steps aside while a comparing group runs,
+and is neither persisted nor shared. The channel is no longer mirrored into
+`localStorage`; the group is the only thing that survives a reload.
 
 ## Where an addon's UI ends up
 

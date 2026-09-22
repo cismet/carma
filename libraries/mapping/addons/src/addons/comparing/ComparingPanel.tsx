@@ -19,8 +19,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 
-import type { Layer } from "@carma-mapping/layers";
-
+import { CaptureWorkflowButton } from "../../lib/CaptureWorkflowButton";
 import { useComparingActions } from "./comparing-actions";
 import {
   COMPARE_MODE,
@@ -175,7 +174,12 @@ const PanelTile = ({
 );
 
 export type ComparingPanelProps = {
-  layer: Layer;
+  /**
+   * The stack entry the pane was opened from: the transient `__comparing__`
+   * row, or a workflow group that already holds the comparison. Only the
+   * former offers to save the comparison as a layer.
+   */
+  layer: { id: string; type?: string };
   /**
    * Switches a layer on or off in the host's layer bar.
    *
@@ -194,7 +198,8 @@ export type ComparingPanelProps = {
 
 /**
  * The comparison's control pane, opened from the button on the `__comparing__`
- * layer row and rendered in the host's interaction slot.
+ * layer row or on a comparing workflow group, and rendered in the host's
+ * interaction slot.
  *
  * Left: the layers, each with the icon the layer bar shows and a number, since
  * layers of one kind share an icon and only the number tells them apart. Right:
@@ -205,9 +210,12 @@ export type ComparingPanelProps = {
  * moves, and the same block cannot land twice in one box.
  */
 export const ComparingPanel = ({
+  layer,
   onLayerVisibilityChange,
   onClose,
 }: ComparingPanelProps) => {
+  // a group already is the saved layer; saving it again would make a second
+  const canCapture = layer.type !== "group";
   const {
     panelCount,
     setPanelCount,
@@ -321,6 +329,7 @@ export const ComparingPanel = ({
           <FontAwesomeIcon icon={faRotateLeft} />
           Zurücksetzen
         </button>
+        {canCapture && <CaptureWorkflowButton kind="comparing" />}
       </div>
 
       {/* The list is capped at what a full layer title comes to, which is all

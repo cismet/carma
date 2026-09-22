@@ -72,7 +72,9 @@ export const isSwitchableKind = (kind: AddonKind): boolean =>
  * addon there, just one that renders nothing.
  */
 export const isHostMountedKind = (kind: AddonKind): boolean =>
-  !addonRegistry[kind].trigger && !addonRegistry[kind].perTarget;
+  !addonRegistry[kind].trigger &&
+  !addonRegistry[kind].perTarget &&
+  !addonRegistry[kind].workflow;
 
 /**
  * Whether this build actually carries the kind's implementation. False only for
@@ -82,7 +84,12 @@ export const isHostMountedKind = (kind: AddonKind): boolean =>
  */
 export const isImplementedKind = (kind: AddonKind): boolean => {
   const entry = addonRegistry[kind];
-  return !!entry.trigger || !!entry.Component || !!entry.perTarget;
+  return (
+    !!entry.trigger ||
+    !!entry.Component ||
+    !!entry.perTarget ||
+    !!entry.workflow
+  );
 };
 
 /** the route's entries as the host should mount them, overrides applied */

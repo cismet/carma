@@ -15,6 +15,7 @@ import {
 import { applyAddonOverrides } from "./addon-overrides";
 import { usePersistedAddonOverrides } from "./addon-overrides-storage";
 import { useRouteAddons } from "./AddonStateContext";
+import { WorkflowGroupHost } from "./WorkflowGroupHost";
 
 /**
  * Dev-time wiring check: every channel a configured addon `requires` must be
@@ -79,9 +80,6 @@ export const AddonHost = () => {
     () => applyAddonOverrides(resolveAddonEntries(addons), overrides),
     [addons, overrides]
   );
-  if (!entries.length) {
-    return null;
-  }
 
   /**
    * Keys are counted per kind, not by position in the list: switching one addon
@@ -93,6 +91,9 @@ export const AddonHost = () => {
 
   return (
     <>
+      {/* the workflow groups' engines, on every route: a group that arrives
+          from the persisted stack or a shared link finds its engine here */}
+      <WorkflowGroupHost store={store} />
       {entries.map((addon) => {
         const ordinal = seenPerKind.get(addon.kind) ?? 0;
         seenPerKind.set(addon.kind, ordinal + 1);

@@ -29,6 +29,11 @@ export {
   COMPARING_TOOLS_INTERACTION_ID,
   type UseComparingLayerRowOptions,
 } from "./comparing-layer-row";
+export {
+  comparingWorkflow,
+  seedCompareDefinition,
+  COMPARING_WORKFLOW_KIND,
+} from "./comparing-workflow";
 export { ComparingPanel } from "./ComparingPanel";
 export {
   useCompareLayerEntries,
