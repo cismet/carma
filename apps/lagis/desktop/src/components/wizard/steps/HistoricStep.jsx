@@ -28,9 +28,8 @@ const HistoricStep = ({ value, onChange, onProblem }) => {
           Flurstück, das historisch gesetzt wird
         </div>
         <LandParcelKeyChooser
-          // HistoricActionPanel builds a plain FlurstueckChooser, so its filter
-          // starts on "alle Flurstücke": an already historic parcel can be
-          // picked, and the action then only writes its Rechte/Mieten.
+          // HistoricActionPanel's chooser starts on "alle Flurstücke", so an
+          // already historic parcel can be picked
           mode="all"
           value={value.historicKey}
           onChange={(next) => onChange({ historicKey: next })}

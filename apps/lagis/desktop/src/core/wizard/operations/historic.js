@@ -21,8 +21,7 @@ export const setFlurstueckHistoric = async ({ key, date, rebeMipa }, ctx) => {
   });
 
   try {
-    // not the picked date for an Abteilung IX parcel, and unchanged for one
-    // that was already historic
+    // not the picked date for Abteilung IX, unchanged when already historic
     const gueltigBis = await setHistoricForKey(key, date, rebeMipa, ctx);
     return {
       message: `Flurstück "${keyString}" konnte erfolgreich historisch gesetzt werden.`,
