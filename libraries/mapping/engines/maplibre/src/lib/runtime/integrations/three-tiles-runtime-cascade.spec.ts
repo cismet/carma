@@ -97,6 +97,7 @@ const createPrefetchFixture = (root: RuntimeTile) => {
     requestedErrorTarget: 2,
     effectiveErrorTarget: 2,
     memoryErrorTarget: 2,
+    meshCoverageRecovery: false,
     meshRefinementSupport: new Set<RuntimeTile>(),
     residentAncestors: new Set<RuntimeTile>(),
     extentGeometricError: 40,
@@ -108,6 +109,7 @@ const createPrefetchFixture = (root: RuntimeTile) => {
   };
   const dependencies = {
     isTileInPrefetchMargin: () => false,
+    isTileNeededForMeshCoverage: vi.fn(() => false),
     applyTileDeferral: vi.fn(),
     applyEffectiveErrorTarget: vi.fn(),
     initialEffectiveErrorTarget: () => 2,
@@ -447,6 +449,11 @@ describe("3D Tiles spare-capacity zoom prefetch", () => {
       fixture.state as never,
       fixture.dependencies
     );
+    // Still-needed offscreen support cannot evict work while it is parked.
+    fixture.state.meshCoverageRecovery = true;
+    cascade.abortStaleDownloads();
+    expect(fixture.tiles.lruCache.remove).not.toHaveBeenCalled();
+    fixture.state.meshCoverageRecovery = false;
     cascade.abortStaleDownloads();
     expect(fixture.tiles.lruCache.remove).toHaveBeenCalledWith(active);
   });

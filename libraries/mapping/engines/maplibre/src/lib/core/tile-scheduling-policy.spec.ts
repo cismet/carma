@@ -1,13 +1,14 @@
 // @vitest-environment node
-// @vitest-environment node
-// @vitest-environment node
-// @vitest-environment node
 import { describe, expect, it, vi } from "vitest";
 
 import { TILE_CAMERA_PRIORITY } from "./tile-camera-demand";
 import {
   decideTileRequestAction,
-  isTileQueueEntryRunnable,
+  resolveTileQueueDecision,
+  resolveTileRequestAdmission,
+  TILE_QUEUE_ACTION,
+  TILE_QUEUE_REASON,
+  TILE_QUEUE_STAGE,
   resolveMeshStageTarget,
   resolveTileDownloadConcurrency,
   resolveTileParseConcurrency,
@@ -103,45 +104,87 @@ describe("tile scheduling decisions", () => {
   );
   it("runs a ready foreground parse even while a higher-rank download is pending", () => {
     expect(
-      isTileQueueEntryRunnable({
+      resolveTileQueueDecision({
+        admission: TILE_QUEUE_REASON.CURRENT_DEMAND,
         foregroundEligible: true,
         priority: 1,
         motionPrefetch: false,
         highestPendingPriority: 3,
         moving: true,
-      })
-    ).toBe(true);
+      }).action
+    ).toBe(TILE_QUEUE_ACTION.RUN);
     expect(
-      isTileQueueEntryRunnable({
+      resolveTileQueueDecision({
+        admission: TILE_QUEUE_REASON.CURRENT_DEMAND,
         foregroundEligible: true,
         priority: -1,
         motionPrefetch: true,
         highestPendingPriority: 3,
         moving: false,
-      })
-    ).toBe(false);
+      }).action
+    ).toBe(TILE_QUEUE_ACTION.PARK);
     expect(
-      isTileQueueEntryRunnable({
+      resolveTileQueueDecision({
+        admission: TILE_QUEUE_REASON.CURRENT_DEMAND,
         foregroundEligible: true,
         priority: -1,
         motionPrefetch: true,
         highestPendingPriority: -1,
         moving: true,
-      })
-    ).toBe(true);
+      }).action
+    ).toBe(TILE_QUEUE_ACTION.RUN);
   });
-  it("parks background work until both motion and foreground demand end", () => {
+  it("parks background work until motion, foreground demand and viewport recovery end", () => {
+    for (const stage of Object.values(TILE_QUEUE_STAGE))
+      for (const needed of [false, true])
+        for (const coverageFill of [false, true]) {
+          const admission = resolveTileRequestAdmission({
+            stage,
+            needed,
+            coverageFill,
+            coverageRecovery: true,
+          });
+          const decision = resolveTileQueueDecision({
+            admission,
+            foregroundEligible: false,
+            priority: -Infinity,
+            motionPrefetch: false,
+            highestPendingPriority: -Infinity,
+            moving: false,
+          });
+          expect(decision).toEqual(
+            !needed
+              ? {
+                  action: TILE_QUEUE_ACTION.DISCARD,
+                  reason: TILE_QUEUE_REASON.NO_CURRENT_DEMAND,
+                }
+              : stage === TILE_QUEUE_STAGE.DOWNLOAD && !coverageFill
+              ? {
+                  action: TILE_QUEUE_ACTION.PARK,
+                  reason: TILE_QUEUE_REASON.VIEWPORT_FILL_FIRST,
+                }
+              : {
+                  action: TILE_QUEUE_ACTION.RUN,
+                  reason: TILE_QUEUE_REASON.IDLE_RESERVE,
+                }
+          );
+        }
     for (const moving of [false, true])
       for (const highestPendingPriority of [-Infinity, 0, 3]) {
         expect(
-          isTileQueueEntryRunnable({
+          resolveTileQueueDecision({
+            admission: TILE_QUEUE_REASON.CURRENT_DEMAND,
             foregroundEligible: false,
             priority: -Infinity,
             motionPrefetch: false,
             highestPendingPriority,
             moving,
-          })
-        ).toBe(!moving && highestPendingPriority === -Infinity);
+          }).action
+        ).toBe(
+          !moving && highestPendingPriority === -Infinity
+            ? TILE_QUEUE_ACTION.RUN
+            : TILE_QUEUE_ACTION.PARK
+        );
       }
   });
   it("retains base coverage admission and prevents parked buffers starving foreground downloads", () => {

@@ -7,6 +7,10 @@ import type { TextureColorCorrection } from "@carma-commons/resources";
 import type { MeshMercatorLut } from "@carma-geo/utils";
 
 import type { SharedThreeSceneRuntime } from "../../core/shared-three-scene-types";
+import type {
+  TILE_QUEUE_ACTION,
+  TILE_QUEUE_STAGE,
+} from "../../core/tile-scheduling-policy";
 import type { ThreeTilesRuntimeCoverageStatus } from "./three-tiles-runtime-coverage";
 import type { TilesRuntimeDebugState } from "../diagnostics/tile-diagnostic-state";
 import type { TileDrawStatus } from "./three-tiles-draw-observer";
@@ -72,7 +76,25 @@ export type MeshTileWait = {
   blocker?: string;
 };
 
+export type MeshTileRequestDecision = Readonly<{
+  stage: (typeof TILE_QUEUE_STAGE)[keyof typeof TILE_QUEUE_STAGE];
+  action: (typeof TILE_QUEUE_ACTION)[keyof typeof TILE_QUEUE_ACTION];
+  reason: string;
+  priority: number;
+  needed: boolean;
+  inViewport: boolean;
+  coverageFill: boolean;
+}>;
+
 export type MeshTileDebugProgress = {
+  /** Latest queue observation, not an authoritative scheduler state. */
+  requestDecision?: MeshTileRequestDecision & {
+    frame: number;
+    viewSignature: string;
+    since: number;
+    observedAt: number;
+    parent: string | null;
+  };
   /** Last 32 observed publication waits; roles have independent clocks. */
   waits?: MeshTileWait[];
   discoveredAt: number;

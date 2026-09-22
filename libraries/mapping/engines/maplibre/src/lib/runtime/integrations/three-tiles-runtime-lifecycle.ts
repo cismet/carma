@@ -116,6 +116,7 @@ export function createThreeTilesLifecycle(
   dependencies: Pick<
     ThreeTilesRuntimeServices,
     | "getTileDebugProgress"
+    | "recordTileRequestDecision"
     | "recordTileWait"
     | "drainTileWaitEvents"
     | "beginTileWaitObservation"

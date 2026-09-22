@@ -2067,9 +2067,10 @@ the loading, attachment and lifecycle modules. They are internal modules, not
 new public entrypoints or a second loader. Geometric selection and coverage
 algorithms that were already pure are retained.
 
-Precedence remains explicit: replacement-family support has camera rank 3;
-observer and selected receivers supply rank 1; other cameras retain their own
-rank; speculative motion work starts only when higher-ranked work permits it.
+Precedence remains explicit: missing observer coverage has rank 4, replacement-family
+support rank 3, ordinary observer demand rank 1 and offscreen shadow demand rank 0.
+Other cameras retain their own rank; speculative motion work starts only when
+higher-ranked work permits it.
 A ready foreground parse does not wait for a higher-ranked network request.
 Cancellation distinguishes obsolete work from preemption: only the latter
 consumes a waiting foreground slot. Metadata is not preempted by payload work.
@@ -2242,3 +2243,43 @@ with the native volume frustum as a broad-phase check. Conservative raw hits
 that have no clipped intersection cannot block publication or handover. The
 observer-only proof is shared by recovery, cold family selection and startup
 quality; additional receiver/caster views retain their separate demand.
+
+
+## Queue admission and capacity recovery
+
+**ID / date / status:** TILE-QUEUE-ADMISSION-20260922 / 2026-09-22 / implemented.
+
+**Context.** Needed work may be temporarily parked. Treating those as the same
+state let idle reserve downloads bypass viewport recovery, and let parked
+requests preempt active downloads despite being unable to take their slots.
+
+**Decision.** `resolveTileRequestAdmission` owns the shared hard boundary for
+new requests, queued work and preemption candidates. Unneeded work is discarded;
+noncoverage downloads park during recovery; useful parse work retains its
+independent admission. `resolveTileQueueDecision` then applies foreground, motion
+and idle rules. The hard boundary always precedes the idle fallback. A scheduling
+pass derives each tile's current demand once; no demand snapshot survives the pass.
+
+A concrete missing-coverage request may also need space before native admission.
+At a full cache it may release optional queued payloads, then optional active
+downloads, only until admission has room. Metadata, current coverage, loaded
+content and downloaded parse buffers stay protected. Hard memory pauses and
+cache limits remain unchanged. The native tile runtime still owns each request
+and its abort/disposal; parent families express demand, not exclusive ownership.
+
+Optional telemetry records queue stage, action, reason, priority, observer
+membership, coverage need, parent, current frame/view and elapsed observation
+time. It reuses the bounded event drain and weak progress records. A runnable
+decision describes eligibility, not actual processing start; existing download
+and parse timestamps retain that meaning. Queue telemetry does not yet explain
+every rejection before queue insertion or enumerate simultaneous demand sources.
+
+**Alternatives.** A separate request manager would duplicate native cancellation
+and promise ownership; rejected. Releasing loaded coverage or increasing the
+cache ceiling to admit work would weaken coverage/memory guarantees; rejected.
+**Evidence.** Existing policy, queue and preemption cases cover recovery with no
+finite-rank queued work, parse progress, and resuming the same parked promise.
+A focused capacity case checks admission before queue insertion without releasing
+ready coverage or buffers. No throughput improvement is claimed from these checks.
+**Revisit.** General refinement eligibility and preemption could share more facts
+if traces show a parked non-recovery candidate causing unnecessary cancellation.

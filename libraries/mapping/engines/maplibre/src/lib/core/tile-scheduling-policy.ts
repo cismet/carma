@@ -31,27 +31,90 @@ export const resolveTileRequestPriority = (
   );
 };
 
-export const isTileQueueEntryRunnable = (
+export const TILE_QUEUE_STAGE = {
+  DOWNLOAD: "download",
+  PARSE: "parse",
+} as const;
+export const TILE_QUEUE_ACTION = {
+  RUN: "run",
+  PARK: "park",
+  DISCARD: "discard",
+} as const;
+export const TILE_QUEUE_REASON = {
+  CURRENT_DEMAND: "current-demand",
+  NO_CURRENT_DEMAND: "no-current-demand",
+  VIEWPORT_FILL_FIRST: "viewport-fill-first",
+  COVERAGE_CAPACITY: "coverage-capacity",
+  FOREGROUND: "foreground",
+  IDLE_RESERVE: "idle-reserve",
+  MOTION: "camera-motion",
+  HIGHER_PRIORITY: "higher-priority-work",
+  REFINEMENT: "refinement-deferred",
+} as const;
+
+/** Need is independent of admission: parked work retains its native promise. */
+export const resolveTileRequestAdmission = (
   input: Readonly<{
+    needed: boolean;
+    coverageRecovery: boolean;
+    coverageFill: boolean;
+    stage: (typeof TILE_QUEUE_STAGE)[keyof typeof TILE_QUEUE_STAGE];
+  }>
+) => {
+  if (!input.needed) return TILE_QUEUE_REASON.NO_CURRENT_DEMAND;
+  if (
+    input.coverageRecovery &&
+    !input.coverageFill &&
+    input.stage === TILE_QUEUE_STAGE.DOWNLOAD
+  )
+    return TILE_QUEUE_REASON.VIEWPORT_FILL_FIRST;
+  return TILE_QUEUE_REASON.CURRENT_DEMAND;
+};
+
+export const resolveTileQueueDecision = (
+  input: Readonly<{
+    admission: ReturnType<typeof resolveTileRequestAdmission>;
     foregroundEligible: boolean;
     priority: number;
     motionPrefetch: boolean;
     highestPendingPriority: number;
     moving: boolean;
   }>
-): boolean => {
+) => {
+  if (input.admission === TILE_QUEUE_REASON.NO_CURRENT_DEMAND)
+    return { action: TILE_QUEUE_ACTION.DISCARD, reason: input.admission };
+  // Hard admission rules precede the idle fallback, even if every finite-rank
+  // request is currently waiting on metadata, retry or an active download.
+  if (input.admission === TILE_QUEUE_REASON.VIEWPORT_FILL_FIRST)
+    return { action: TILE_QUEUE_ACTION.PARK, reason: input.admission };
   if (
     input.foregroundEligible &&
     (!input.motionPrefetch ||
       input.priority >= 0 ||
       input.highestPendingPriority < 0)
   )
-    return true;
-  return (
+    return {
+      action: TILE_QUEUE_ACTION.RUN,
+      reason: TILE_QUEUE_REASON.FOREGROUND,
+    };
+  if (
     !Number.isFinite(input.priority) &&
     !input.moving &&
     !Number.isFinite(input.highestPendingPriority)
-  );
+  )
+    return {
+      action: TILE_QUEUE_ACTION.RUN,
+      reason: TILE_QUEUE_REASON.IDLE_RESERVE,
+    };
+  return {
+    action: TILE_QUEUE_ACTION.PARK,
+    reason:
+      !Number.isFinite(input.priority) && input.moving
+        ? TILE_QUEUE_REASON.MOTION
+        : input.foregroundEligible || !Number.isFinite(input.priority)
+        ? TILE_QUEUE_REASON.HIGHER_PRIORITY
+        : TILE_QUEUE_REASON.REFINEMENT,
+  };
 };
 
 export const resolveTileParseConcurrency = (

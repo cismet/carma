@@ -131,7 +131,34 @@ const mount = (
   };
   runtime.scene.onAdd?.(host.map);
   runtime.scene.update(frame);
-  return { ...host, runtime, renderer, camera, frame, layerId };
+  const state = runtime.debug.readState() as ThreeTilesRuntimeState;
+  return { ...host, runtime, renderer, camera, frame, layerId, state };
+};
+
+const mockTileViews = (
+  renderer: TestRenderer,
+  tiles: readonly Tile[],
+  inView: (tile: Tile) => boolean = () => true
+) => {
+  for (const tile of tiles) {
+    delete (tile.engineData!.boundingVolume as { getAABB?: unknown }).getAABB;
+    tile.engineData!.boundingVolume!.intersectsFrustum = () => inView(tile);
+  }
+  vi.spyOn(renderer, "calculateTileViewError").mockImplementation(
+    (tile, target) =>
+      Object.assign(target, {
+        inView: inView(tile),
+        error: tile.geometricError,
+        distanceFromCamera: 1,
+      })
+  );
+};
+
+const finishMove = (mounted: ReturnType<typeof mount>) => {
+  mounted.setMoving(false);
+  mounted.handlers.get(MAPLIBRE_EVENT.MOVE_END)?.();
+  for (let frame = 0; frame < 3; frame++)
+    mounted.runtime.scene.update(mounted.frame);
 };
 
 describe("three tiles current-view refresh", () => {
@@ -150,7 +177,7 @@ describe("three tiles current-view refresh", () => {
           viewport: new THREE.Vector2(800 * dpr, 600 * dpr),
           cssViewport: new THREE.Vector2(800, 600),
         });
-        const state = mounted.runtime.debug.readState()!;
+        const state = mounted.state;
         const observer = state.tileCameraDemand.views.find(
           (view) => view.id === TILE_MAIN_OBSERVER_ID
         )!;
@@ -172,8 +199,7 @@ describe("three tiles current-view refresh", () => {
       prefetchPolicy.levels = levels;
       const mounted = mount();
       try {
-        const state =
-          mounted.runtime.debug.readState() as ThreeTilesRuntimeState;
+        const state = mounted.state;
         const chain = [1600, 800, 400, 200, 100].map((error) =>
           buildTile(error)
         );
@@ -230,8 +256,7 @@ describe("three tiles current-view refresh", () => {
       vi.useFakeTimers();
       const mounted = mount();
       try {
-        const state =
-          mounted.runtime.debug.readState() as ThreeTilesRuntimeState;
+        const state = mounted.state;
         state.effectiveErrorTarget = 6;
         state.requestedErrorTarget = 6;
         state.memoryErrorTarget = 6;
@@ -377,7 +402,7 @@ describe("three tiles current-view refresh", () => {
   it("schedules raw replacement siblings through their known hierarchy parent", () => {
     const mounted = mount();
     try {
-      const state = mounted.runtime.debug.readState() as ThreeTilesRuntimeState;
+      const state = mounted.state;
       state.meshInitialBasePassDone = true;
       mounted.runtime.loading.setErrorTargetOverride(4);
       const parent = buildTile(40);
@@ -434,13 +459,7 @@ describe("three tiles current-view refresh", () => {
       mounted.setMoving(true);
       mounted.runtime.scene.update(mounted.frame);
       expect(ancestorPasses).toEqual([false, false]);
-      const state = [
-        ...(
-          window as unknown as {
-            __carmaTiles3d: Set<ThreeTilesRuntimeState>;
-          }
-        ).__carmaTiles3d,
-      ].find((s) => s.layerId === mounted.layerId)!;
+      const state = mounted.state;
       state.meshInitialHandoverDone = true;
       state.displayedMeshFrontier.add(buildTile(20));
       mounted.runtime.scene.update(mounted.frame);
@@ -461,14 +480,14 @@ describe("three tiles current-view refresh", () => {
       vi.spyOn(
         TilesRenderer.prototype,
         "queueTileForDownload"
-      ).mockImplementation((tile) => {
+      ).mockImplementation(function (this: TilesRenderer, tile) {
+        if (this.lruCache.isFull()) return;
         admitted.push(tile);
         tile.internal.loadingState = 1;
       });
       const mounted = mount();
       try {
-        const state =
-          mounted.runtime.debug.readState() as ThreeTilesRuntimeState;
+        const state = mounted.state;
         const root = buildTile(200);
         Object.assign(root.internal, {
           hasContent: false,
@@ -486,19 +505,11 @@ describe("three tiles current-view refresh", () => {
         root.children = [covered, missing, outside];
         for (const tile of root.children) tile.parent = root;
         let expanded = false;
-        for (const tile of [
-          root,
-          covered,
-          refinement,
-          missing,
-          missingDetail,
-          outside,
-        ]) {
-          delete (tile.engineData!.boundingVolume as { getAABB?: unknown })
-            .getAABB;
-          tile.engineData!.boundingVolume!.intersectsFrustum = () =>
-            tile !== outside && (tile !== missing || expanded);
-        }
+        mockTileViews(
+          mounted.renderer,
+          [root, covered, refinement, missing, missingDetail, outside],
+          (tile) => tile !== outside && (tile !== missing || expanded)
+        );
         covered.internal.loadingState = 4;
         covered.engineData!.scene = new THREE.Group();
         Object.assign(mounted.renderer, { rootTileset: { root } });
@@ -512,14 +523,7 @@ describe("three tiles current-view refresh", () => {
           mounted.renderer,
           "ensureChildrenArePreprocessed"
         ).mockImplementation(() => undefined);
-        vi.spyOn(mounted.renderer, "calculateTileViewError").mockImplementation(
-          (tile, target) =>
-            Object.assign(target, {
-              inView: tile !== outside && (tile !== missing || expanded),
-              error: tile.geometricError,
-              distanceFromCamera: 1,
-            })
-        );
+
         state.requestedErrorTarget =
           state.effectiveErrorTarget =
           state.memoryErrorTarget =
@@ -545,8 +549,71 @@ describe("three tiles current-view refresh", () => {
         expect(state.meshCoverageRecovery).toBe(true);
         expect(state.meshInitialHandoverDone).toBe(true);
         expect(state.displayedMeshFrontier.has(covered)).toBe(true);
+        // Native admission rejects missing coverage before it becomes QUEUED.
+        // Pending background bytes must yield without evicting ready coverage.
+        const cache = mounted.renderer.lruCache;
+        const beforeBytes = cache.cachedBytes;
+        const queued = buildTile(8);
+        const downloading = buildTile(8);
+        const untouched = buildTile(8);
+        const parsing = buildTile(8);
+        const metadata = buildTile(8);
+        const committed = buildTile(8);
+        const visible = buildTile(8);
+        const loaded = buildTile(8);
+        const protectedTiles = [
+          parsing,
+          metadata,
+          committed,
+          visible,
+          loaded,
+          missingDetail,
+        ];
+        const fixtures = [downloading, queued, untouched, ...protectedTiles];
+        const removed: Tile[] = [];
+        for (const tile of fixtures) {
+          if (tile !== missingDetail) tile.parent = covered;
+          tile.internal.loadingState =
+            tile === queued || tile === missingDetail
+              ? 1
+              : tile === parsing
+              ? 3
+              : tile === loaded
+              ? 4
+              : 2;
+          if (tile === metadata) tile.internal.hasUnrenderableContent = true;
+          cache.add(tile, () => {
+            removed.push(tile);
+            mounted.renderer.loadingTiles.delete(tile);
+          });
+          cache.setMemoryUsage(
+            tile,
+            tile === queued
+              ? 20
+              : tile === downloading || tile === untouched
+              ? 40
+              : 5
+          );
+          if (tile !== loaded) mounted.renderer.loadingTiles.add(tile);
+        }
+        state.committedMeshCasterFrontier.add(committed);
+        mounted.renderer.visibleTiles.add(visible);
+        const full = vi
+          .spyOn(cache, "isFull")
+          .mockImplementation(() => cache.cachedBytes >= beforeBytes + 100);
+        expect(cache.isFull()).toBe(true);
         mounted.renderer.queueTileForDownload(refinement);
+        expect(removed).toEqual([]);
         mounted.renderer.queueTileForDownload(missing);
+        expect(removed).toEqual([queued, downloading]);
+        expect(cache.isFull()).toBe(false);
+        for (const tile of [...protectedTiles, untouched])
+          expect(cache.has(tile)).toBe(true);
+        full.mockRestore();
+        for (const tile of fixtures) cache.remove(tile);
+        state.committedMeshCasterFrontier.delete(committed);
+        mounted.renderer.visibleTiles.delete(visible);
+        missingDetail.internal.loadingState = 0;
         mounted.renderer.queueTileForDownload(outside);
         expect(admitted).toContain(missing);
         expect(admitted).not.toContain(refinement);
@@ -563,10 +630,7 @@ describe("three tiles current-view refresh", () => {
           new Set([covered, missing])
         );
         expect(state.meshCoverageRecovery).toBe(false);
-        mounted.setMoving(false);
-        mounted.handlers.get(MAPLIBRE_EVENT.MOVE_END)?.();
-        for (let frame = 0; frame < 3; frame++)
-          mounted.runtime.scene.update(mounted.frame);
+        finishMove(mounted);
         mounted.renderer.queueTileForDownload(refinement);
         expect(admitted).toContain(refinement);
         expect(state.effectiveErrorTarget).toBe(4);
@@ -611,8 +675,7 @@ describe("three tiles current-view refresh", () => {
       try {
         expect(passes).toEqual([false]);
         expect(mounted.renderer.loadSiblings).toBe(false);
-        const state =
-          mounted.runtime.debug.readState() as ThreeTilesRuntimeState;
+        const state = mounted.state;
         state.meshInitialHandoverDone = true;
         state.displayedMeshFrontier.add(buildTile(6));
         mounted.runtime.scene.update(mounted.frame);
@@ -637,7 +700,7 @@ describe("three tiles current-view refresh", () => {
       handoverErrorTargetPixels: 8,
     });
     try {
-      const state = mounted.runtime.debug.readState() as ThreeTilesRuntimeState;
+      const state = mounted.state;
       const parent = buildTile(40);
       parent.internal.loadingState = 4;
       const children = Array.from({ length: 4 }, () => buildTile(6));
@@ -687,11 +750,7 @@ describe("three tiles current-view refresh", () => {
     });
     const mounted = mount();
     try {
-      const state = [
-        ...(
-          window as unknown as { __carmaTiles3d: Set<ThreeTilesRuntimeState> }
-        ).__carmaTiles3d,
-      ].find((candidate) => candidate.layerId === mounted.layerId)!;
+      const state = mounted.state;
       // Normal coverage starts only after the first observer idle.
       state.meshInitialHandoverDone = true;
       const parent = buildTile(20);
@@ -776,11 +835,7 @@ describe("three tiles current-view refresh", () => {
     }) => {
       const mounted = mount();
       try {
-        const state = [
-          ...(
-            window as unknown as { __carmaTiles3d: Set<ThreeTilesRuntimeState> }
-          ).__carmaTiles3d,
-        ].find((candidate) => candidate.layerId === mounted.layerId)!;
+        const state = mounted.state;
         const parent = buildTile(parentError);
         const children = Array.from({ length: 4 }, () => buildTile(2));
         parent.children = children;
@@ -788,19 +843,9 @@ describe("three tiles current-view refresh", () => {
         for (const tile of [parent, ...children]) {
           tile.internal.loadingState = 4;
           tile.engineData!.scene = new THREE.Group();
-          tile.engineData!.boundingVolume!.intersectsFrustum = () => true;
-          delete (tile.engineData!.boundingVolume as { getAABB?: unknown })
-            .getAABB;
         }
         Object.assign(mounted.renderer, { rootTileset: { root: parent } });
-        vi.spyOn(mounted.renderer, "calculateTileViewError").mockImplementation(
-          (tile, target) =>
-            Object.assign(target, {
-              inView: true,
-              error: tile.geometricError,
-              distanceFromCamera: 1,
-            })
-        );
+        mockTileViews(mounted.renderer, [parent, ...children]);
         state.requestedErrorTarget = 4;
         state.effectiveErrorTarget = 12;
         state.memoryErrorTarget = memoryTarget;
@@ -829,10 +874,7 @@ describe("three tiles current-view refresh", () => {
         if (memoryTarget === 4) {
           state.meshInitialBasePassDone = true;
           state.meshInitialHandoverDone = true;
-          mounted.setMoving(false);
-          mounted.handlers.get(MAPLIBRE_EVENT.MOVE_END)?.();
-          for (let frame = 0; frame < 3; frame++)
-            mounted.runtime.scene.update(mounted.frame);
+          finishMove(mounted);
           expect(state.effectiveErrorTarget).toBe(4);
           expect(state.displayedMeshFrontier).toEqual(
             new Set(parentError <= 4 ? [parent] : children)
@@ -853,13 +895,7 @@ describe("three tiles current-view refresh", () => {
     ({ shadows, loadingState }) => {
       const mounted = mount();
       try {
-        const state = [
-          ...(
-            window as unknown as {
-              __carmaTiles3d: Set<ThreeTilesRuntimeState>;
-            }
-          ).__carmaTiles3d,
-        ].find((candidate) => candidate.layerId === mounted.layerId)!;
+        const state = mounted.state;
         const parent = buildTile(80);
         const children = Array.from({ length: 4 }, () => buildTile(2));
         parent.children = children;
@@ -999,13 +1035,7 @@ describe("three tiles current-view refresh", () => {
     (projection) => {
       const mounted = mount();
       try {
-        const state = [
-          ...(
-            window as unknown as {
-              __carmaTiles3d: Set<ThreeTilesRuntimeState>;
-            }
-          ).__carmaTiles3d,
-        ].find((s) => s.layerId === mounted.layerId)!;
+        const state = mounted.state;
         state.extentFloorArmed = false;
         // Test the geometric SSE independently of the first-image LOD cap.
         state.displayedMeshFrontier.add(buildTile(1));
@@ -1085,11 +1115,7 @@ describe("three tiles current-view refresh", () => {
         providesTerrain
       );
       try {
-        const state = [
-          ...(
-            window as unknown as { __carmaTiles3d: Set<ThreeTilesRuntimeState> }
-          ).__carmaTiles3d,
-        ].find((s) => s.layerId === mounted.layerId)!;
+        const state = mounted.state;
         state.requestedErrorTarget = 2;
         // This analytic tile fixture is already in the camera's local frame.
         state.orientationGroup.rotation.set(0, 0, 0);
@@ -1198,11 +1224,7 @@ describe("three tiles current-view refresh", () => {
       mounted.renderer.parseQueue.maxJobs = 1;
       mounted.renderer.downloadQueue.maxJobsPerOrigin = 1;
       try {
-        const state = [
-          ...(
-            window as unknown as { __carmaTiles3d: Set<ThreeTilesRuntimeState> }
-          ).__carmaTiles3d,
-        ].find((s) => s.layerId === mounted.layerId)!;
+        const state = mounted.state;
         state.meshBaseCoverageReady = true;
         state.extentFloorArmed = false;
         const extraCamera = new THREE.OrthographicCamera(
@@ -1278,10 +1300,7 @@ describe("three tiles current-view refresh", () => {
       vi.useFakeTimers();
       const mounted = mount();
       try {
-        const states = (
-          window as unknown as { __carmaTiles3d: Set<ThreeTilesRuntimeState> }
-        ).__carmaTiles3d;
-        const state = [...states].find((s) => s.layerId === mounted.layerId)!;
+        const state = mounted.state;
         state.meshBaseCoverageReady = true;
         state.extentFloorArmed = true;
         state.extentGeometricError = 40;
@@ -1321,9 +1340,19 @@ describe("three tiles current-view refresh", () => {
         expect((support as RuntimeTile).cameraPriority).toBe(
           TILE_CAMERA_PRIORITY.COVERAGE_REPAIR
         );
+        state.meshCoverageRecovery = true;
         mounted.renderer.loadingTiles.delete(visible);
         finish("visible");
         await expect(visiblePromise).resolves.toBe("visible");
+        await vi.advanceTimersByTimeAsync(50);
+        // Recovery cannot fall through to idle reserve downloads when no
+        // finite-rank payload is queued. Decoded buffers keep progressing.
+        expect(floorJob).toHaveBeenCalledTimes(phase === "parse" ? 1 : 0);
+        state.meshCoverageRecovery = false;
+        if (phase === "parse") mounted.renderer.parseQueue.tryRunJobs();
+        else
+          for (const queue of mounted.renderer.downloadQueue.originQueues.values())
+            queue.tryRunJobs();
         await vi.advanceTimersByTimeAsync(50);
         await expect(floorPromise).resolves.toBe("floor");
         await expect(supportPromise).resolves.toBe("support");
@@ -1337,11 +1366,7 @@ describe("three tiles current-view refresh", () => {
     vi.useFakeTimers();
     const mounted = mount();
     try {
-      const state = [
-        ...(
-          window as unknown as { __carmaTiles3d: Set<ThreeTilesRuntimeState> }
-        ).__carmaTiles3d,
-      ].find((candidate) => candidate.layerId === mounted.layerId)!;
+      const state = mounted.state;
       const downloading = buildTile(6);
       downloading.internal.loadingState = 2;
       state.meshRefinementSupport.add(downloading);
@@ -1364,11 +1389,7 @@ describe("three tiles current-view refresh", () => {
     vi.useFakeTimers();
     const mounted = mount();
     try {
-      const state = [
-        ...(
-          window as unknown as { __carmaTiles3d: Set<ThreeTilesRuntimeState> }
-        ).__carmaTiles3d,
-      ].find((s) => s.layerId === mounted.layerId)!;
+      const state = mounted.state;
       const support = buildTile(40);
       state.extentFloorArmed = true;
       state.extentGeometricError = 40;
@@ -1393,13 +1414,7 @@ describe("three tiles current-view refresh", () => {
     vi.useFakeTimers();
     const mounted = mount();
     try {
-      const state = [
-        ...(
-          window as unknown as {
-            __carmaTiles3d: Set<ThreeTilesRuntimeState>;
-          }
-        ).__carmaTiles3d,
-      ].find((s) => s.layerId === mounted.layerId)!;
+      const state = mounted.state;
       const background = buildTile(40);
       state.extentFloorArmed = true;
       state.extentGeometricError = 40;
@@ -1604,24 +1619,7 @@ describe("three tiles current-view refresh", () => {
         })
     );
     tile.internal.loadingState = -1;
-    const states = (
-      window as unknown as {
-        __carmaTiles3d: Set<{
-          layerId: string;
-          deferred: Set<Tile>;
-          requestedErrorTarget: number;
-          effectiveErrorTarget: number;
-          memoryErrorTarget: number;
-          meshBaseCoverageReady: boolean;
-          extentFloorArmed: boolean;
-          extentFloorAuditPending: boolean;
-          extentFloorPending: number;
-        }>;
-      }
-    ).__carmaTiles3d;
-    const state = [...states].find(
-      (candidate) => candidate.layerId === mounted.layerId
-    )!;
+    const state = mounted.state;
     state.deferred.add(tile);
     state.requestedErrorTarget = 1;
     state.effectiveErrorTarget = 16;
@@ -1642,7 +1640,7 @@ describe("three tiles current-view refresh", () => {
       () => undefined,
       () => false
     );
-    const state = mounted.runtime.debug.readState() as ThreeTilesRuntimeState;
+    const state = mounted.state;
     const parent = buildTile(8);
     parent.internal.loadingState = 4;
     Object.assign(parent.engineData, { scene: new THREE.Group() });
@@ -1674,24 +1672,7 @@ describe("three tiles current-view refresh", () => {
 
   it("applies required memory coarsening before base and floor coverage recover", () => {
     const mounted = mount();
-    const states = (
-      window as unknown as {
-        __carmaTiles3d: Set<{
-          layerId: string;
-          meshInitialBasePassDone: boolean;
-          requestedErrorTarget: number;
-          effectiveErrorTarget: number;
-          memoryErrorTarget: number;
-          meshBaseCoverageReady: boolean;
-          extentFloorAuditPending: boolean;
-          extentFloorPending: number;
-          ceilingBytes: number;
-        }>;
-      }
-    ).__carmaTiles3d;
-    const state = [...states].find(
-      (candidate) => candidate.layerId === mounted.layerId
-    )!;
+    const state = mounted.state;
     state.meshInitialBasePassDone = true;
     state.requestedErrorTarget = 4;
     state.effectiveErrorTarget = 4;
@@ -1716,25 +1697,7 @@ describe("three tiles current-view refresh", () => {
     vi.spyOn(performance, "now").mockImplementation(() => now);
     const mounted = mount();
     try {
-      const states = (
-        window as unknown as {
-          __carmaTiles3d: Set<{
-            layerId: string;
-            requestedErrorTarget: number;
-            effectiveErrorTarget: number;
-            memoryErrorTarget: number;
-            memoryErrorTargetChangedAt: number;
-            meshBaseCoverageReady: boolean;
-            extentFloorAuditPending: boolean;
-            extentFloorPending: number;
-            ceilingBytes: number;
-            errorTargetTimer: number;
-          }>;
-        }
-      ).__carmaTiles3d;
-      const state = [...states].find(
-        (candidate) => candidate.layerId === mounted.layerId
-      )!;
+      const state = mounted.state;
       state.requestedErrorTarget = 4;
       state.effectiveErrorTarget = 6;
       state.memoryErrorTarget = 6;
@@ -1774,20 +1737,7 @@ describe("three tiles current-view refresh", () => {
       () => traverses
     );
     const floor = buildTile(40);
-    const states = (
-      window as unknown as {
-        __carmaTiles3d: Set<{
-          layerId: string;
-          extentFloorArmed: boolean;
-          extentFloorAuditPending: boolean;
-          extentFloorPending: number;
-          extentFloorInView: Set<Tile>;
-        }>;
-      }
-    ).__carmaTiles3d;
-    const state = [...states].find(
-      (candidate) => candidate.layerId === mounted.layerId
-    )!;
+    const state = mounted.state;
     state.extentFloorArmed = true;
     state.extentFloorAuditPending = true;
     state.extentFloorPending = 3;

@@ -33,6 +33,7 @@ import type {
   ImageProjector,
   LitTextureMaterialState,
   MeshTileDebugProgress,
+  MeshTileRequestDecision,
   OutlineStyleOptions,
   RuntimeLruCache,
   RuntimePriorityQueue,
@@ -376,6 +377,10 @@ export interface ThreeTilesRuntimeServices {
   ) => number;
   getTileDebugId: (tile: Tile) => string;
   getTileDebugProgress: (tile: Tile) => MeshTileDebugProgress;
+  recordTileRequestDecision: (
+    tile: Tile,
+    decision: MeshTileRequestDecision
+  ) => void;
   recordTileWait: (
     tile: Tile,
     role: "receiver" | "shadow",
