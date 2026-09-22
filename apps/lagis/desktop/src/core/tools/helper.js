@@ -209,7 +209,9 @@ export function getGemarkunFlurFstckFromAlkisId(alkisId) {
 export const selectedFeatureFitBounds = (map, selectedFeature) => {
   if (map && selectedFeature) {
     const bb = getBoundsForFeatureArray([selectedFeature]);
-    map.fitBounds(bb);
+    if (bb) {
+      map.fitBounds(bb, { animate: false, padding: 20 });
+    }
   }
 };
 

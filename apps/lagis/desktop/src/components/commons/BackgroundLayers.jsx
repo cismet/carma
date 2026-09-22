@@ -1,8 +1,9 @@
-import CismapLayer from "react-cismap/CismapLayer";
-import StyledWMSTileLayer from "react-cismap/StyledWMSTileLayer";
-import MapLibreLayer from "react-cismap/vector/MapLibreLayer";
 import { drawerTextsHelper } from "@carma-collab/wuppertal/lagis-desktop";
 import { dynamicOrtho } from "./Settings";
+import {
+  cismapConfToLibreLayer,
+  sortLibreLayers,
+} from "../../core/tools/libreLayers";
 
 export const configuration = {
   liegenschaftskarteGrau: {
@@ -133,53 +134,44 @@ export const configuration = {
   },
 };
 
-export default function BackgroundLayers({
+/**
+ * Builds the LibreLayers for the currently selected background.
+ *
+ * Mirrors what the former BackgroundLayers component rendered as CismapLayers:
+ * a config can be a single conf, an array of confs, or a function of the
+ * selected true ortho year, and each conf may narrow the shared opacity
+ * through its own opacityFunction.
+ */
+export const getBackgroundLibreLayers = (
   activeBackgroundLayer,
   opacities = {},
-  selectedYear = 2024,
-}) {
-  //get the current configuration
+  selectedYear = 2024
+) => {
   const currentConf = configuration[activeBackgroundLayer];
+  if (!currentConf) {
+    return [];
+  }
 
-  // Get the actual configuration, handling function-based configs
   let actualConf = currentConf.conf;
   if (typeof actualConf === "function") {
     actualConf = actualConf(selectedYear);
   }
 
-  //   if it is an array of configurations, render them all
-  if (Array.isArray(actualConf)) {
-    return (
-      <>
-        {actualConf.map((conf, index) => {
-          let opacity = opacities[activeBackgroundLayer] || 1;
-          if (conf.opacityFunction) {
-            opacity = conf.opacityFunction(opacity);
-          }
-          return (
-            <CismapLayer
-              key={"CismapLayer." + activeBackgroundLayer + "." + index}
-              {...{
-                ...conf,
-                opacity,
-              }}
-            ></CismapLayer>
-          );
-        })}
-      </>
-    );
-  } else {
-    //otherwise render the single configuration
-    let opacity = opacities[activeBackgroundLayer] || 1;
-    return (
-      <CismapLayer
-        key={"CismapLayer." + activeBackgroundLayer + "." + opacity}
-        pane="backgroundLayers"
-        {...{
-          ...actualConf,
-          opacity,
-        }}
-      ></CismapLayer>
-    );
-  }
-}
+  const baseOpacity = opacities[activeBackgroundLayer] ?? 1;
+  const confs = Array.isArray(actualConf) ? actualConf : [actualConf];
+
+  return sortLibreLayers(
+    confs.map((conf, index) => {
+      const opacity = conf.opacityFunction
+        ? conf.opacityFunction(baseOpacity)
+        : baseOpacity;
+      return cismapConfToLibreLayer(
+        `${activeBackgroundLayer}.${index}`,
+        conf,
+        opacity,
+        // the single conf case had no pane and defaulted to backgroundLayers
+        100
+      );
+    })
+  );
+};
