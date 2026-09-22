@@ -54,7 +54,16 @@ import { proj4crs3857def } from "react-cismap/constants/gis";
 import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
 import { isAreaType } from "@carma-commons/resources";
 import { CarmaMap } from "@carma-mapping/core";
-import { zoom256as512, zoom512as256 } from "@carma-mapping/engines/maplibre";
+import {
+  LibreContextProvider,
+  zoom256as512,
+  zoom512as256,
+} from "@carma-mapping/engines/maplibre";
+import {
+  DrawModeControls,
+  MeasurementHost,
+  MeasurementsProvider,
+} from "@carma-mapping/measurements";
 import {
   applyFeatureCollectionLayers,
   buildFeatureCollectionGeoJSON,
@@ -96,6 +105,9 @@ const Map = ({
   const mode = useSelector(getShapeMode);
 
   const [libreMap, setLibreMap] = useState(null);
+  // "none" keeps terra-draw in select mode: existing measurements stay
+  // clickable, but no new geometry is drawn.
+  const [drawMode, setDrawMode] = useState("none");
 
   const data = extractor(dataIn);
   const padding = 5;
@@ -212,6 +224,11 @@ const Map = ({
   const dataRef = useRef(data);
   dataRef.current = data;
 
+  // Read inside the map handlers so switching draw mode does not re-register
+  // them. While a measurement is being drawn the clicks belong to terra-draw.
+  const drawModeRef = useRef(drawMode);
+  drawModeRef.current = drawMode;
+
   // ---------------------------------------------------------------------
   // Click / double click on the feature collection
   // ---------------------------------------------------------------------
@@ -222,6 +239,9 @@ const Map = ({
     }
 
     const handleClick = (e) => {
+      if (drawModeRef.current !== "none") {
+        return;
+      }
       const currentData = dataRef.current;
       const renderedLayerIds = FEATURE_COLLECTION_LAYER_IDS.filter((layerId) =>
         libreMap.getLayer(layerId)
@@ -285,6 +305,9 @@ const Map = ({
     };
 
     const handleDoubleClick = (e) => {
+      if (drawModeRef.current !== "none") {
+        return;
+      }
       const currentData = dataRef.current;
       if (!currentData?.ondblclick) {
         return;
@@ -562,40 +585,59 @@ const Map = ({
           cursor: isMapLoadingValue ? "wait" : undefined,
         }}
       >
-        <CarmaMap
-          mapEngine="maplibre"
-          appKey="lagis-desktop"
-          embedded
-          // lagis drives the background itself, everything goes into libreLayers
-          backgroundLayers=""
-          libreLayers={libreLayers}
-          setLibreMap={handleLibreMapReady}
-          minZoom={9}
-          maxZoom={25}
-          // the app owns the hash (react-router HashRouter), so the map only
-          // reads lat/lng/zoom from it and never writes back
-          hashWriteEnabled={false}
-          // selection, infoboxes and routing are handled by lagis itself
-          selectionEnabled={false}
-          gazetteerInfoOnClick={false}
-          terrainControl={false}
-          compassControl={false}
-          fullScreenControl={false}
-          locatorControl={false}
-          modalMenuControl={false}
-          gazetteerSearchComponent={
-            <div style={{ marginTop: "4px" }}>
-              <LibFuzzySearch
-                gazData={gazData}
-                onSelection={onGazetteerSelection}
-                pixelwidth={
-                  isBreakpointForControls ? "350px" : pixelWidth + "px"
+        <LibreContextProvider>
+          <CarmaMap
+            mapEngine="maplibre"
+            appKey="lagis-desktop"
+            embedded
+            // lagis drives the background itself, everything goes into
+            // libreLayers
+            backgroundLayers=""
+            libreLayers={libreLayers}
+            setLibreMap={handleLibreMapReady}
+            minZoom={9}
+            maxZoom={25}
+            // the app owns the hash (react-router HashRouter), so the map only
+            // reads lat/lng/zoom from it and never writes back
+            hashWriteEnabled={false}
+            // selection, infoboxes and routing are handled by lagis itself,
+            // and while a draw mode is active the clicks belong to terra-draw
+            selectionEnabled={false}
+            gazetteerInfoOnClick={false}
+            terrainControl={false}
+            compassControl={false}
+            fullScreenControl={false}
+            locatorControl={false}
+            modalMenuControl={false}
+            extraControls={
+              <DrawModeControls
+                // lagis measures distances and areas, not single points
+                modes={["line", "polygon"]}
+                active={drawMode}
+                onSelect={(nextMode) =>
+                  setDrawMode((previous) =>
+                    previous === nextMode ? "none" : nextMode
+                  )
                 }
-                placeholder="Geben Sie einen Suchbegriff ein"
               />
-            </div>
-          }
-        />
+            }
+            gazetteerSearchComponent={
+              <div style={{ marginTop: "4px" }}>
+                <LibFuzzySearch
+                  gazData={gazData}
+                  onSelection={onGazetteerSelection}
+                  pixelwidth={
+                    isBreakpointForControls ? "350px" : pixelWidth + "px"
+                  }
+                  placeholder="Geben Sie einen Suchbegriff ein"
+                />
+              </div>
+            }
+          />
+          <MeasurementsProvider>
+            <MeasurementHost mode={drawMode} snapping />
+          </MeasurementsProvider>
+        </LibreContextProvider>
         {libreMap && <LibreMapSelectionContent map={libreMap} />}
         <LibrePointSearch
           map={libreMap}

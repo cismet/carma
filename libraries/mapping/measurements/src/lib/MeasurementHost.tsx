@@ -1505,6 +1505,19 @@ export const MeasurementHost = forwardRef<
       // last data lingers and the layer keeps rendering it. terra-draw
       // cleans up its own `td-*` layers/sources inside stop() above,
       // so we only handle our own ids here.
+      // A host that unmounts the map itself (lagis re-creates it per route)
+      // has MapLibre torn down before this cleanup runs: `map.remove()` drops
+      // the style, after which every getLayer / getSource call throws on the
+      // missing `style`. There is nothing left to remove in that case.
+      let styleIsAlive: boolean;
+      try {
+        styleIsAlive = Boolean(map.getStyle());
+      } catch {
+        styleIsAlive = false;
+      }
+      if (!styleIsAlive) {
+        return;
+      }
       for (const layerId of [
         ...ALL_LABEL_LAYER_IDS,
         SNAP_PREVIEW_LAYER_ID,

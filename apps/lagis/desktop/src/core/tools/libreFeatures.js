@@ -90,6 +90,18 @@ export const buildFeatureCollectionGeoJSON = (featureArray, styler) => {
   return { type: "FeatureCollection", features };
 };
 
+/** terra-draw and the carma measurement host name their layers with these
+ *  prefixes; both must render above the lagis geometry. */
+const MEASUREMENT_LAYER_PREFIXES = ["td-", "carma-measurements-"];
+
+const firstMeasurementLayerId = (map) => {
+  const layers = map.getStyle()?.layers ?? [];
+  const hit = layers.find((layer) =>
+    MEASUREMENT_LAYER_PREFIXES.some((prefix) => layer.id.startsWith(prefix))
+  );
+  return hit?.id;
+};
+
 export const EMPTY_FEATURE_COLLECTION = {
   type: "FeatureCollection",
   features: [],
@@ -127,60 +139,76 @@ export const applyFeatureCollectionLayers = (map, data) => {
     lastAppliedData.set(map, data);
   }
 
+  // Measurements (terra-draw's `td-*` layers and the carma label / snap
+  // layers) have to stay on top of the landparcel geometry, otherwise a line
+  // drawn across a parcel disappears under its fill. terra-draw attaches
+  // after us on a fresh style and lands on top by itself, but on a style
+  // reload we are the ones re-adding, so we go in underneath explicitly.
+  const beforeId = firstMeasurementLayerId(map);
+
   if (!map.getLayer(FEATURE_COLLECTION_FILL_LAYER_ID)) {
-    map.addLayer({
-      id: FEATURE_COLLECTION_FILL_LAYER_ID,
-      type: "fill",
-      source: FEATURE_COLLECTION_SOURCE_ID,
-      filter: [
-        "match",
-        ["geometry-type"],
-        ["Polygon", "MultiPolygon"],
-        true,
-        false,
-      ],
-      paint: {
-        "fill-color": ["get", "__fillColor"],
-        "fill-opacity": ["get", "__fillOpacity"],
+    map.addLayer(
+      {
+        id: FEATURE_COLLECTION_FILL_LAYER_ID,
+        type: "fill",
+        source: FEATURE_COLLECTION_SOURCE_ID,
+        filter: [
+          "match",
+          ["geometry-type"],
+          ["Polygon", "MultiPolygon"],
+          true,
+          false,
+        ],
+        paint: {
+          "fill-color": ["get", "__fillColor"],
+          "fill-opacity": ["get", "__fillOpacity"],
+        },
       },
-    });
+      beforeId
+    );
   }
 
   if (!map.getLayer(FEATURE_COLLECTION_LINE_LAYER_ID)) {
-    map.addLayer({
-      id: FEATURE_COLLECTION_LINE_LAYER_ID,
-      type: "line",
-      source: FEATURE_COLLECTION_SOURCE_ID,
-      layout: { "line-join": "round", "line-cap": "round" },
-      paint: {
-        "line-color": ["get", "__strokeColor"],
-        "line-width": ["get", "__strokeWidth"],
-        "line-opacity": ["get", "__strokeOpacity"],
+    map.addLayer(
+      {
+        id: FEATURE_COLLECTION_LINE_LAYER_ID,
+        type: "line",
+        source: FEATURE_COLLECTION_SOURCE_ID,
+        layout: { "line-join": "round", "line-cap": "round" },
+        paint: {
+          "line-color": ["get", "__strokeColor"],
+          "line-width": ["get", "__strokeWidth"],
+          "line-opacity": ["get", "__strokeOpacity"],
+        },
       },
-    });
+      beforeId
+    );
   }
 
   if (!map.getLayer(FEATURE_COLLECTION_POINT_LAYER_ID)) {
-    map.addLayer({
-      id: FEATURE_COLLECTION_POINT_LAYER_ID,
-      type: "circle",
-      source: FEATURE_COLLECTION_SOURCE_ID,
-      filter: [
-        "match",
-        ["geometry-type"],
-        ["Point", "MultiPoint"],
-        true,
-        false,
-      ],
-      paint: {
-        "circle-radius": 6,
-        "circle-color": ["get", "__fillColor"],
-        "circle-opacity": ["get", "__fillOpacity"],
-        "circle-stroke-color": ["get", "__strokeColor"],
-        "circle-stroke-width": ["get", "__strokeWidth"],
-        "circle-stroke-opacity": ["get", "__strokeOpacity"],
+    map.addLayer(
+      {
+        id: FEATURE_COLLECTION_POINT_LAYER_ID,
+        type: "circle",
+        source: FEATURE_COLLECTION_SOURCE_ID,
+        filter: [
+          "match",
+          ["geometry-type"],
+          ["Point", "MultiPoint"],
+          true,
+          false,
+        ],
+        paint: {
+          "circle-radius": 6,
+          "circle-color": ["get", "__fillColor"],
+          "circle-opacity": ["get", "__fillOpacity"],
+          "circle-stroke-color": ["get", "__strokeColor"],
+          "circle-stroke-width": ["get", "__strokeWidth"],
+          "circle-stroke-opacity": ["get", "__strokeOpacity"],
+        },
       },
-    });
+      beforeId
+    );
   }
 
   return true;
