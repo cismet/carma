@@ -30,17 +30,21 @@ const ANCHOR_CLASS_NAME =
 /**
  * The pill. On a desktop a column beside the inputs, exactly as tall as the
  * two of them (measured, see `useInputsHeight`). On a phone a row spanning
- * the width, with buttons tall enough for a finger.
+ * the width, as tall as one of the inputs; each button is a third of the
+ * width, which is plenty for a finger.
  */
 const PILL_CLASS_NAME =
   "flex gap-0.5 rounded-[10px] bg-white p-1 button-shadow max-sm:w-full max-sm:flex-row sm:absolute sm:bottom-0 sm:left-1.5 sm:h-[var(--inputs-height)] sm:flex-col";
 
 /**
  * One mode. Flexes to a third of the pill either way: of its height on a
- * desktop, of its width on a phone.
+ * desktop, of its width on a phone. The phone's 30px plus the pill's 4px of
+ * padding on each side is 38px, the height of the inputs above it (1.5em +
+ * 0.75rem + 2px of border at their 16px font), so the row reads as one of
+ * them rather than as a taller thing.
  */
 const BUTTON_CLASS_NAME =
-  "flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-[6px] border-0 text-sm max-sm:h-9 sm:w-7";
+  "flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-[6px] border-0 text-sm max-sm:h-[30px] sm:w-7";
 
 /**
  * How tall the inputs beside the pill are, so the pill is exactly that tall.
