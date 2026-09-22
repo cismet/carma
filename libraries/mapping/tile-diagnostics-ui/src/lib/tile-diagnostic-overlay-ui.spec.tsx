@@ -60,6 +60,8 @@ describe("overlay UI isolation", () => {
           showFrustum={true}
           updateOnRender={true}
           onViewChange={() => {}}
+          onOrbitChange={() => {}}
+          onReset={() => {}}
           onHover={() => {}}
         />
       );

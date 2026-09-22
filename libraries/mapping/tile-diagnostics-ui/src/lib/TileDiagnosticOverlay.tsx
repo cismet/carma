@@ -19,6 +19,10 @@ type Props = Omit<TileDiagnosticOverlayInput, "model" | "view"> & {
   ) => () => void;
   interactive: boolean;
   onViewChange: (view: TileDiagnosticView | null) => void;
+  onOrbitChange?: (
+    orbit: NonNullable<TileDiagnosticOverlayInput["orbit"]>
+  ) => void;
+  onReset?: () => void;
   onHover: (tile: Tile | null) => void;
 };
 
@@ -29,6 +33,15 @@ export const createTileDiagnosticOverlayComponent = ({
   hitTestDiagnosticLabel,
 }: TileDiagnostics) => {
   const TileDiagnosticOverlay = (input: Props) => {
+    const [localOrbit, setLocalOrbit] = useState(
+      input.orbit ?? { yaw: 0, pitch: 0 }
+    );
+    const orbitRef = useRef(localOrbit);
+    useEffect(() => {
+      if (!input.orbit) return;
+      orbitRef.current = input.orbit;
+      setLocalOrbit(input.orbit);
+    }, [input.orbit]);
     const [model, setModel] = useState<TileDiagnosticOverlayInput["model"]>({
       width: 1,
       height: 1,
@@ -64,7 +77,7 @@ export const createTileDiagnosticOverlayComponent = ({
       const h = aspect >= 1 ? size : size / aspect;
       return { x: center[0] - w / 2, y: center[1] - h / 2, w, h };
     }, [model, input.followCamera, input.freeView, input.followPaddingPercent]);
-    const props = { ...input, model, view };
+    const props = { ...input, orbit: localOrbit, model, view };
     const host = useRef<HTMLDivElement>(null);
     const controller = useRef<ReturnType<
       typeof createTileDiagnosticOverlay
@@ -76,6 +89,8 @@ export const createTileDiagnosticOverlayComponent = ({
       y: number;
       scale: number;
       view: TileDiagnosticView;
+      orbit: NonNullable<TileDiagnosticOverlayInput["orbit"]>;
+      mode: "pan" | "orbit";
     } | null>(null);
     const [status, setStatus] = useState<{ ready: boolean; error?: string }>({
       ready: false,
@@ -110,6 +125,7 @@ export const createTileDiagnosticOverlayComponent = ({
       props.cameraFocus,
       props.followPaddingPercent,
       props.showFrustum,
+      props.orbit,
       props.updateOnRender,
     ]);
     useEffect(() => {
@@ -145,6 +161,19 @@ export const createTileDiagnosticOverlayComponent = ({
       };
     }, [props.labels]);
 
+    const finishDrag = () => {
+      if (drag.current?.mode === "orbit")
+        latest.current.onOrbitChange?.(orbitRef.current);
+      drag.current = null;
+    };
+    const activeView = (element: HTMLElement): TileDiagnosticView => {
+      if (!latest.current.followCamera) return latest.current.view;
+      const values = element.dataset.projectedView?.split(" ").map(Number);
+      return values?.length === 4 && values.every(Number.isFinite)
+        ? { x: values[0], y: values[1], w: values[2], h: values[3] }
+        : latest.current.view;
+    };
+
     return (
       <>
         <div
@@ -159,6 +188,7 @@ export const createTileDiagnosticOverlayComponent = ({
           }
           data-presentation={props.popout ? "popout" : "map"}
           data-up={props.up}
+          data-orbit={`${props.orbit?.yaw ?? 0} ${props.orbit?.pitch ?? 0}`}
           data-view={`${props.view.x} ${props.view.y} ${props.view.w} ${props.view.h}`}
           role="img"
           aria-label="Tile loading diagnostic overview"
@@ -170,12 +200,16 @@ export const createTileDiagnosticOverlayComponent = ({
             touchAction: "none",
             background: props.popout ? "#30363d" : undefined,
           }}
+          onContextMenu={(event) => {
+            if (props.interactive) event.preventDefault();
+          }}
           onWheel={(event) => {
             if (!props.interactive) return;
             event.preventDefault();
+            const view = activeView(event.currentTarget);
             const bounds = event.currentTarget.getBoundingClientRect();
             const { scale, offsetX, offsetY } = diagnosticProjection(
-              props.view,
+              view,
               bounds.width,
               bounds.height
             );
@@ -184,50 +218,69 @@ export const createTileDiagnosticOverlayComponent = ({
             const factor = Math.exp(
               Math.max(-2, Math.min(2, event.deltaY * 0.002))
             );
-            const w = Math.max(0.001, Math.min(1e12, props.view.w * factor)),
-              h = (w * props.view.h) / props.view.w;
-            const actual = w / props.view.w;
+            const w = Math.max(0.001, Math.min(1e12, view.w * factor)),
+              h = (w * view.h) / view.w;
+            const actual = w / view.w;
             props.onViewChange({
-              x: x - (x - props.view.x) * actual,
-              y: y - (y - props.view.y) * actual,
+              x: x - (x - view.x) * actual,
+              y: y - (y - view.y) * actual,
               w,
               h,
             });
           }}
           onPointerDown={(event) => {
-            if (!props.interactive) return;
+            if (
+              !props.interactive ||
+              (event.button !== 0 && event.button !== 2)
+            )
+              return;
+            event.preventDefault();
             event.currentTarget.setPointerCapture(event.pointerId);
             const bounds = event.currentTarget.getBoundingClientRect();
+            const view = activeView(event.currentTarget);
             drag.current = {
               x: event.clientX,
               y: event.clientY,
-              view: props.view,
-              scale: diagnosticProjection(
-                props.view,
-                bounds.width,
-                bounds.height
-              ).scale,
+              view,
+              orbit: orbitRef.current,
+              mode: event.button === 2 || event.ctrlKey ? "orbit" : "pan",
+              scale: diagnosticProjection(view, bounds.width, bounds.height)
+                .scale,
             };
           }}
           onPointerMove={(event) => {
             if (!drag.current || !props.interactive) return;
             const start = drag.current;
-            props.onViewChange({
-              ...start.view,
-              x: start.view.x - (event.clientX - start.x) / start.scale,
-              y: start.view.y - (event.clientY - start.y) / start.scale,
-            });
+            if (start.mode === "orbit") {
+              const next = {
+                yaw: start.orbit.yaw + (event.clientX - start.x) * 0.005,
+                pitch: Math.max(
+                  -1.55,
+                  Math.min(
+                    1.55,
+                    start.orbit.pitch + (event.clientY - start.y) * 0.005
+                  )
+                ),
+              };
+              orbitRef.current = next;
+              setLocalOrbit(next);
+            } else {
+              props.onViewChange({
+                ...start.view,
+                x: start.view.x - (event.clientX - start.x) / start.scale,
+                y: start.view.y - (event.clientY - start.y) / start.scale,
+              });
+            }
           }}
-          onPointerUp={() => {
-            drag.current = null;
+          onPointerUp={finishDrag}
+          onPointerCancel={finishDrag}
+          onLostPointerCapture={finishDrag}
+          onDoubleClick={() => {
+            const reset = { yaw: 0, pitch: 0 };
+            orbitRef.current = reset;
+            setLocalOrbit(reset);
+            props.onReset ? props.onReset() : props.onViewChange(null);
           }}
-          onPointerCancel={() => {
-            drag.current = null;
-          }}
-          onLostPointerCapture={() => {
-            drag.current = null;
-          }}
-          onDoubleClick={() => props.onViewChange(null)}
         />
         {status.error && (
           <output

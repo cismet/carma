@@ -110,6 +110,9 @@ export type DiagnosticViewportBasis = {
   tileBounds?: number[];
   /** Optional local-box to world matrices, sixteen numbers per tile. */
   tileTransforms?: number[];
+  /** Boxes and transforms aligned with the rendered tile records for orbit reprojection. */
+  rectBounds?: number[];
+  rectTransforms?: number[];
   bounds: number[];
   worldToOverview: number[];
   /** [scale, offsetX, offsetY] and optionally a separate vertical scale. */

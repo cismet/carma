@@ -20,8 +20,11 @@ need not run at 60 Hz. User interaction takes priority over diagnostic freshness
   Follow viewport is the default, with adjustable follow padding: 100% fits the
   projected viewport footprint, 200% doubles its extent (default). The former
   fixed 40-overview-unit floor is removed so high-zoom following does not stop.
-  Free overview pan/zoom is available only in a dedicated overview window
-  (floating or external). The map overlay never intercepts pan/zoom; returning
+  The focused overview window (floating or external) supports left-drag pan,
+  Ctrl+left-drag/right-drag orthographic orbit around the clipped content-bearing
+  frustum volume, wheel zoom, and double-click reset. Pan or zoom detaches the
+  crop into free view; orbit keeps the focused crop. The map overlay never
+  intercepts pan/zoom; returning
   from a free window view to the overlay selects Full extent.
 - `loadTileDiagnostics()` is the only value export at the library root for the
   new diagnostic implementation. The remaining public diagnostic exports are
@@ -318,7 +321,11 @@ non-rendered city-wide ancestor as an apparent ground footprint.
 
 Coverage colors distinguish viewport demand (cyan), offscreen sibling/ring
 support (amber), and extent base coverage (pink); retained cache remains muted.
-The overview supports top-down pan/zoom, not a 3D orbit camera.
+The overview starts top-down. Orbit rotates the worker's world-to-overview
+projection around the clipped frustum's bounding-box centre, then reprojects
+both oriented tile boxes and exact frustum-plane cuts from their 3D source.
+It changes diagnostic presentation only; loader camera demand and FOV are
+unchanged. Box glyphs remain projected 2D bounds in the orthographic view.
 
 Mesh triangle intersections are not calculated:
 these are the same tile bounding volumes used for selection.

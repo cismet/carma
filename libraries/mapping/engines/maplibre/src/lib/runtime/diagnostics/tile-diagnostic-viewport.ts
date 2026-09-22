@@ -56,6 +56,12 @@ export const projectTileDiagnosticViewport = (
       ...demand.intersectionVertices(fitBox, undefined, fitTransform)
     );
   }
+  const focusWorld = vertices.length
+    ? new THREE.Box3()
+        .setFromPoints(vertices)
+        .getCenter(new THREE.Vector3())
+        .toArray()
+    : null;
   if (vertices.length >= 4) {
     // The outline of the clipped volume as it reads in this projection: the
     // hull of its projected corners. Recovering the 3D wireframe from pairs of
@@ -225,6 +231,7 @@ export const projectTileDiagnosticViewport = (
     aheadScreen[1] - eyeScreen[1]
   );
   return {
+    focusWorld,
     nearCenter,
     forward:
       forwardLength > 1e-6
@@ -249,12 +256,58 @@ export const projectTileDiagnosticViewports = (
   basis: DiagnosticViewportBasis,
   cameras: readonly TileCameraSnapshot[],
   focus = "overview-live",
-  paddingPercent = 200
+  paddingPercent = 200,
+  orbit?: { yaw: number; pitch: number }
 ) => {
-  const views = cameras.map((camera) => ({
+  // The pivot comes from the actual clipped, content-bearing frustum volume.
+  // Rotating the world projection leaves the loader's camera tests untouched.
+  const baseViews = cameras.map((camera) => ({
     id: camera.id,
     ...projectTileDiagnosticViewport(basis, camera, paddingPercent),
   }));
+  const pivotViews =
+    focus === "all" ? baseViews : baseViews.filter((view) => view.id === focus);
+  const pivotPoints = pivotViews.flatMap((view) =>
+    view.focusWorld ? [new THREE.Vector3().fromArray(view.focusWorld)] : []
+  );
+  const pivot = pivotPoints.length
+    ? new THREE.Box3().setFromPoints(pivotPoints).getCenter(new THREE.Vector3())
+    : new THREE.Box3(
+        new THREE.Vector3().fromArray(basis.bounds),
+        new THREE.Vector3().fromArray(basis.bounds, 3)
+      ).getCenter(new THREE.Vector3());
+  const origin = new THREE.Matrix4().fromArray(basis.worldToOverview);
+  const pivotOverview = pivot.clone().applyMatrix4(origin);
+  const rotatedBasis =
+    orbit && (orbit.yaw !== 0 || orbit.pitch !== 0)
+      ? {
+          ...basis,
+          worldToOverview: new THREE.Matrix4()
+            .makeTranslation(pivotOverview.x, pivotOverview.y, pivotOverview.z)
+            .multiply(new THREE.Matrix4().makeRotationX(orbit.pitch))
+            .multiply(new THREE.Matrix4().makeRotationY(orbit.yaw))
+            .multiply(
+              new THREE.Matrix4().makeTranslation(
+                -pivotOverview.x,
+                -pivotOverview.y,
+                -pivotOverview.z
+              )
+            )
+            .multiply(origin)
+            .toArray(),
+        }
+      : basis;
+  const views =
+    rotatedBasis === basis
+      ? baseViews
+      : cameras.map((camera) => ({
+          id: camera.id,
+          ...projectTileDiagnosticViewport(
+            rotatedBasis,
+            camera,
+            paddingPercent
+          ),
+        }));
   const selected =
     focus === "all" ? views : views.filter((view) => view.id === focus);
   const bounds = selected.flatMap((view) =>
@@ -274,5 +327,5 @@ export const projectTileDiagnosticViewports = (
     const h = w / aspect;
     view = { x: (minX + maxX - w) / 2, y: (minY + maxY - h) / 2, w, h };
   }
-  return { views, view };
+  return { views, view, basis: rotatedBasis };
 };

@@ -3,12 +3,14 @@ import {
   buildDiagnosticSelection,
   drawDiagnosticText,
   buildDiagnosticViewport,
+  TILE_RECORD_FLOATS,
   type DiagnosticSnapshot,
   type DiagnosticWorkerMessage,
   type DiagnosticFrame,
 } from "../../core/diagnostics/tile-diagnostic-scene";
 import type { TileCameraSnapshot } from "../../core/tile-camera-demand";
 import { projectTileDiagnosticViewports } from "./tile-diagnostic-viewport";
+import * as THREE from "three";
 import { createTileDiagnosticRenderer } from "./tile-diagnostic-webgpu";
 
 const host = self as unknown as {
@@ -29,6 +31,9 @@ let camera: TileCameraSnapshot | null = null;
 let cameras: readonly TileCameraSnapshot[] = [];
 let cameraDirty = false;
 let viewport: ReturnType<typeof projectTileDiagnosticViewports> | null = null;
+let renderedSnapshot: DiagnosticSnapshot | null = null;
+let sourceSnapshot: DiagnosticSnapshot | null = null;
+let renderedOrbit = "";
 const fail = (error: unknown) => {
   renderer?.dispose();
   renderer = null;
@@ -61,11 +66,13 @@ const draw = async () => {
       if (update.snapshot) {
         snapshot = update.snapshot;
         cameraDirty = true;
-        renderer.setScene(buildDiagnosticPrimitives(snapshot));
+        renderedOrbit = "";
       }
       if (
         target?.followPaddingPercent !== update.frame.followPaddingPercent ||
-        target?.cameraFocus !== update.frame.cameraFocus
+        target?.cameraFocus !== update.frame.cameraFocus ||
+        target?.orbit?.yaw !== update.frame.orbit?.yaw ||
+        target?.orbit?.pitch !== update.frame.orbit?.pitch
       )
         cameraDirty = true;
       target = update.frame;
@@ -78,11 +85,63 @@ const draw = async () => {
               snapshot.viewportBasis,
               [camera, ...cameras],
               target.cameraFocus,
-              target.followPaddingPercent
+              target.followPaddingPercent,
+              target.orbit
             )
           : null;
       cameraDirty = false;
     }
+    const orbitKey = `${target.orbit?.yaw ?? 0},${target.orbit?.pitch ?? 0}:${
+      target.cameraFocus ?? ""
+    }:${
+      target.orbit?.yaw || target.orbit?.pitch
+        ? viewport?.basis.worldToOverview.join(",")
+        : ""
+    }`;
+    if (sourceSnapshot !== snapshot || renderedOrbit !== orbitKey) {
+      sourceSnapshot = snapshot;
+      renderedOrbit = orbitKey;
+      const basis = viewport?.basis;
+      const bounds = basis?.rectBounds;
+      const transforms = basis?.rectTransforms;
+      let scene = snapshot;
+      if (
+        basis &&
+        bounds &&
+        (target.orbit?.yaw || target.orbit?.pitch) &&
+        bounds.length >= (snapshot.tiles.length / TILE_RECORD_FLOATS) * 6
+      ) {
+        const tiles = snapshot.tiles.slice();
+        const worldToOverview = new THREE.Matrix4().fromArray(
+          basis.worldToOverview
+        );
+        const box = new THREE.Box3();
+        const transform = new THREE.Matrix4();
+        const [scale, offsetX, offsetY, scaleY = scale] = basis.screen;
+        for (let i = 0; i < tiles.length / TILE_RECORD_FLOATS; i++) {
+          box.min.fromArray(bounds, i * 6);
+          box.max.fromArray(bounds, i * 6 + 3);
+          if (transforms) transform.fromArray(transforms, i * 16);
+          else transform.identity();
+          const projected = box.applyMatrix4(
+            worldToOverview.clone().multiply(transform)
+          );
+          const x0 = offsetX + projected.min.x * scale;
+          const x1 = offsetX + projected.max.x * scale;
+          const y0 = offsetY + projected.min.z * scaleY;
+          const y1 = offsetY + projected.max.z * scaleY;
+          const offset = i * TILE_RECORD_FLOATS;
+          tiles[offset] = Math.min(x0, x1);
+          tiles[offset + 1] = Math.min(y0, y1);
+          tiles[offset + 2] = Math.abs(x1 - x0);
+          tiles[offset + 3] = Math.abs(y1 - y0);
+        }
+        scene = { ...snapshot, tiles, extent: null, edges: new Float32Array() };
+      }
+      renderedSnapshot = scene;
+      renderer.setScene(buildDiagnosticPrimitives(scene));
+    }
+    const scene = renderedSnapshot ?? snapshot;
     // Camera presentation is immediate, never interpolated or held behind tile capture.
     const frame = {
       ...target,
@@ -94,8 +153,8 @@ const draw = async () => {
       textCanvas.width = width;
       textCanvas.height = height;
     }
-    drawDiagnosticText(textContext, snapshot, frame);
-    const selected = buildDiagnosticSelection(snapshot, frame.selection);
+    drawDiagnosticText(textContext, scene, frame);
+    const selected = buildDiagnosticSelection(scene, frame.selection);
     const colors = ["#ffffff", "#ffbf69", "#7bffb2", "#c7a0ff"];
     const frustums =
       target.showFrustum === false
@@ -126,6 +185,7 @@ const draw = async () => {
         type: "frame",
         ...metrics,
         workerMs: performance.now() - started,
+        view: [frame.view.x, frame.view.y, frame.view.w, frame.view.h],
       });
   } catch (error) {
     fail(error);
