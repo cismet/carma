@@ -1506,9 +1506,8 @@ export const MeasurementHost = forwardRef<
       // cleans up its own `td-*` layers/sources inside stop() above,
       // so we only handle our own ids here.
       // A host that unmounts the map itself (lagis re-creates it per route)
-      // has MapLibre torn down before this cleanup runs: `map.remove()` drops
-      // the style, after which every getLayer / getSource call throws on the
-      // missing `style`. There is nothing left to remove in that case.
+      // has `map.remove()` run first, dropping the style: every getLayer /
+      // getSource call below would throw, and there is nothing left to remove.
       let styleIsAlive: boolean;
       try {
         styleIsAlive = Boolean(map.getStyle());
