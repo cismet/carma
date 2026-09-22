@@ -34,6 +34,7 @@ const LandParcelKeyChooser = ({
   preset,
   disabled = false,
   incompleteMessage = INCOMPLETE,
+  reject,
 }) => {
   const jwt = useSelector((state) => state.auth.jwt);
   const structure = useSelector(getLandparcelInternaDataStructure);
@@ -109,6 +110,12 @@ const LandParcelKeyChooser = ({
           valid: false,
           message: "Flurstück konnte nicht geladen werden.",
         });
+        return;
+      }
+      // the parcel exists but the step may still not accept it
+      const rejected = reject?.(resolved);
+      if (rejected) {
+        publish(undefined, { valid: false, message: rejected });
         return;
       }
       publish(resolved, {

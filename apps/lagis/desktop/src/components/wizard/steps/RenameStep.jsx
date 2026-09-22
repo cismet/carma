@@ -4,6 +4,7 @@ import LandParcelKeyChooser from "../LandParcelKeyChooser";
 const OLD_KEY_PROMPT =
   "Bitte wählen Sie das Flurstück aus, das umbenannt werden soll";
 const NEW_KEY_PROMPT = "Bitte geben Sie den neuen Flurstücksschlüssel ein";
+const HISTORIC_REJECTED = "Historisches Flurstück kann nicht umbenannt werden.";
 
 const RenameStep = ({ value, onChange, onProblem }) => {
   const oldStatus = useRef({ valid: false, message: OLD_KEY_PROMPT });
@@ -25,7 +26,10 @@ const RenameStep = ({ value, onChange, onProblem }) => {
       <div>
         <div className="mb-1 font-medium">Flurstück, das umbenannt wird</div>
         <LandParcelKeyChooser
-          mode="current"
+          // as in Java, every parcel is offered; a historic one is turned down
+          // on pick instead of being dropped from the list without a word
+          mode="all"
+          reject={(key) => (key.gueltigBis ? HISTORIC_REJECTED : null)}
           value={value.renameKey}
           onChange={(next) => onChange({ renameKey: next })}
           onValidity={(status) => {
