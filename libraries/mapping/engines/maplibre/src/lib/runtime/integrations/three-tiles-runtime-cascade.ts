@@ -5,6 +5,7 @@ import type { ShadowReceiverMatch } from "../../core/shadow-receiver-mask";
 import type { SharedThreeSceneRuntime } from "../../core/shared-three-scene-types";
 import { createTileCameraDemand } from "../../core/tile-camera-demand";
 import {
+  compareTileRequestOrder,
   decideTileRequestAction,
   resolveTileRequestAdmission,
   TILE_QUEUE_REASON,
@@ -78,7 +79,7 @@ export function createThreeTilesCascade(
     | "isTileNeededForMeshCoverage"
     | "isTileInPrefetchMargin"
     | "applyTileDeferral"
-  >
+  > & { getDownloadPreemptionEligibility: () => (tile: Tile) => boolean }
 ) {
   const motionPrefetch = createThreeTilesMotionPrefetch(
     runtimeState,
@@ -195,6 +196,9 @@ export function createThreeTilesCascade(
     const tiles = runtimeState.tiles;
     if (!tiles) return;
     const pending = [...tiles.loadingTiles] as RuntimeTile[];
+    const canStartDownload = runtimeState.options.providesTerrain
+      ? dependencies.getDownloadPreemptionEligibility()
+      : null;
     // Preempt only active background fetches for actual waiting view payloads.
     // Downloaded buffers stay parked in the parse queue; already running decode
     // jobs finish within the bounded parse concurrency, not repeated restarts.
@@ -203,6 +207,7 @@ export function createThreeTilesCascade(
           (tile) =>
             tile.internal.loadingState === QUEUED_LOADING_STATE &&
             tile.internal.hasRenderableContent &&
+            canStartDownload?.(tile) &&
             Number.isFinite(dependencies.getTileRequestPriority(tile)) &&
             resolveTileRequestAdmission({
               needed: isTileRequestNeeded(tile),
@@ -239,10 +244,13 @@ export function createThreeTilesCascade(
                 !selectedPreemptions.has(candidate) &&
                 queue.items.includes(candidate)
             )
-            .sort(
-              (left, right) =>
-                dependencies.getTileRequestPriority(right) -
-                dependencies.getTileRequestPriority(left)
+            .sort((left, right) =>
+              compareTileRequestOrder(
+                dependencies.getTileRequestPriority(right),
+                dependencies.getTileRequestPriority(left),
+                right.meshRefinement?.benefit,
+                left.meshRefinement?.benefit
+              )
             )
         : [];
       const saturated =
@@ -253,18 +261,24 @@ export function createThreeTilesCascade(
         saturated && waiting.length > 0
           ? dependencies.getTileRequestPriority(waiting[0])
           : undefined;
+      const priority =
+        needed &&
+        downloading &&
+        !metadata &&
+        highestWaitingPriority !== undefined
+          ? dependencies.getTileRequestPriority(tile)
+          : Number.NEGATIVE_INFINITY;
       const action = decideTileRequestAction({
         needed,
         downloading,
         metadata,
         highestWaitingPriority,
-        priority:
-          needed &&
-          downloading &&
-          !metadata &&
-          highestWaitingPriority !== undefined
-            ? dependencies.getTileRequestPriority(tile)
-            : Number.NEGATIVE_INFINITY,
+        priority,
+        benefit: tile.meshRefinement?.benefit,
+        highestWaitingBenefit: waiting[0]?.meshRefinement?.benefit,
+        sameRefinementGroup:
+          tile.meshRefinement !== undefined &&
+          tile.meshRefinement.group === waiting[0]?.meshRefinement?.group,
       });
       if (action !== TILE_REQUEST_ACTION.KEEP) tiles.lruCache.remove(tile);
       if (action === TILE_REQUEST_ACTION.PREEMPT) {

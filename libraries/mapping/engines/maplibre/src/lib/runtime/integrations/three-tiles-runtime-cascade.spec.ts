@@ -108,6 +108,9 @@ const createPrefetchFixture = (root: RuntimeTile) => {
     map: { triggerRepaint: vi.fn(), isZooming: vi.fn(() => false) },
   };
   const dependencies = {
+    getDownloadPreemptionEligibility: vi.fn(
+      () => (_entry: RuntimeTile) => true
+    ),
     isTileInPrefetchMargin: () => false,
     isTileNeededForMeshCoverage: vi.fn(() => false),
     applyTileDeferral: vi.fn(),
@@ -454,6 +457,32 @@ describe("3D Tiles spare-capacity zoom prefetch", () => {
     cascade.abortStaleDownloads();
     expect(fixture.tiles.lruCache.remove).not.toHaveBeenCalled();
     fixture.state.meshCoverageRecovery = false;
+    fixture.dependencies.getDownloadPreemptionEligibility.mockReturnValue(
+      () => false
+    );
+    cascade.abortStaleDownloads();
+    expect(fixture.tiles.lruCache.remove).not.toHaveBeenCalled();
+    fixture.dependencies.getDownloadPreemptionEligibility.mockReturnValue(
+      () => true
+    );
+    fixture.dependencies.getTileCameraDemand.mockImplementation(() => ({
+      required: true,
+      receiver: true,
+      errorRatio: 2,
+      priority: TILE_CAMERA_PRIORITY.PRIMARY,
+    }));
+    active.meshRefinement = {
+      group: active,
+      currentErrorPixels: 8,
+      nextErrorPixels: 4,
+      visibleAreaPixels: 25,
+      benefit: 100,
+      provisional: false,
+    };
+    waiting.meshRefinement = { ...active.meshRefinement, benefit: 1000 };
+    cascade.abortStaleDownloads();
+    expect(fixture.tiles.lruCache.remove).not.toHaveBeenCalled();
+    waiting.meshRefinement = { ...waiting.meshRefinement, group: waiting };
     cascade.abortStaleDownloads();
     expect(fixture.tiles.lruCache.remove).toHaveBeenCalledWith(active);
   });

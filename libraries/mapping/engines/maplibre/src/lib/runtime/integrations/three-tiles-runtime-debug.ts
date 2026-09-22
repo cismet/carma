@@ -338,15 +338,25 @@ export function createThreeTilesDebug(
         previous.action === decision.action &&
         previous.reason === decision.reason;
       const parent = tile.parent ? resolveTileContentUrl(tile.parent) : null;
+      const refinement = (tile as RuntimeTile).meshRefinement;
+      const refinementGroup = refinement
+        ? resolveTileContentUrl(refinement.group)
+        : null;
       const changed =
         !sameWait ||
         previous.priority !== decision.priority ||
         previous.needed !== decision.needed ||
         previous.inViewport !== decision.inViewport ||
         previous.coverageFill !== decision.coverageFill ||
-        previous.parent !== parent;
+        previous.parent !== parent ||
+        previous.refinement?.benefit !== refinement?.benefit ||
+        previous.refinement?.provisional !== refinement?.provisional ||
+        (previous.refinement?.group ?? null) !== refinementGroup;
       progress.requestDecision = {
         ...decision,
+        refinement: refinement
+          ? { ...refinement, group: refinementGroup }
+          : undefined,
         frame: runtimeState.tiles?.frameCount ?? -1,
         viewSignature: runtimeState.tileCameraSignature,
         since: sameWait ? previous.since : now,

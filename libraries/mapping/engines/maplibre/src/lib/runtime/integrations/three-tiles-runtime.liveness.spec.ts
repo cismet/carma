@@ -9,13 +9,20 @@
  */
 
 import { TilesRenderer } from "3d-tiles-renderer";
-import type { Tile } from "3d-tiles-renderer/core";
+import {
+  DownloadPriorityQueue,
+  LRUCache,
+  PriorityQueue,
+  type Tile,
+} from "3d-tiles-renderer/core";
 import type { Map as MaplibreMap } from "maplibre-gl";
 import * as THREE from "three";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { MAPLIBRE_EVENT } from "../../../constants/mapEvents";
 import { buildThreeTilesRuntime } from "./three-tiles-runtime";
+import { disposeTilesRenderer } from "./three-tiles-runtime-vendor";
+import type { RuntimeTilesRenderer } from "./three-tiles-runtime-types";
 import type { ThreeTilesRuntimeState } from "./three-tiles-runtime-context";
 import {
   HIDDEN_TAB_WIPE_DELAY_MS,
@@ -535,6 +542,90 @@ describe("three tiles runtime liveness", () => {
     expect(dispatchedTypes(dispatch)).not.toContain("needs-update");
     expect(repaint).not.toHaveBeenCalled();
     layer.scene.dispose();
+  });
+
+  it("disposes cached descendants and pending requests without revisiting uncached hierarchy", () => {
+    const renderer = new TilesRenderer() as RuntimeTilesRenderer;
+    renderer.lruCache = new LRUCache();
+    renderer.downloadQueue = new DownloadPriorityQueue();
+    renderer.parseQueue = new PriorityQueue();
+    const root = buildTile("root.json") as unknown as Tile;
+    const external = buildTile("external.json") as unknown as Tile;
+    const loaded = buildTile("loaded.b3dm") as unknown as Tile;
+    const pending = buildTile("pending.b3dm") as unknown as Tile;
+    const uncached = buildTile("uncached.b3dm") as unknown as Tile;
+    root.children = [uncached, external];
+    external.children = [loaded, pending];
+    external.parent = uncached.parent = root;
+    loaded.parent = pending.parent = external;
+    let hierarchyReads = 0;
+    Object.defineProperty(uncached, "children", {
+      get: () => {
+        hierarchyReads++;
+        return [];
+      },
+    });
+    Object.assign(renderer, { rootTileset: { root } });
+    const removed: Tile[] = [];
+    renderer.lruCache.add(external, () => {
+      removed.push(external);
+      external.children.length = 0;
+    });
+    const signals = new Map<string, AbortSignal>();
+    vi.stubGlobal("fetch", (url: string, options: RequestInit) => {
+      signals.set(url, options.signal as AbortSignal);
+      return new Promise(() => undefined);
+    });
+    void renderer.requestTileContents(loaded);
+    void renderer.requestTileContents(pending);
+    for (const queue of renderer.downloadQueue.originQueues.values())
+      queue.tryRunJobs();
+    const geometry = new THREE.BufferGeometry();
+    const material = new THREE.MeshBasicMaterial();
+    const geometryDisposed = vi.spyOn(geometry, "dispose");
+    const materialDisposed = vi.spyOn(material, "dispose");
+    Object.assign(loaded.engineData!, {
+      scene: new THREE.Mesh(geometry, material),
+      geometry: [geometry],
+      materials: [material],
+    });
+    loaded.internal.loadingState = 4;
+    renderer.lruCache.setLoaded(loaded, true);
+    const normalVisit = vi.fn(() => false);
+    renderer.traverse(normalVisit, null);
+    expect(normalVisit).toHaveBeenCalledTimes(5);
+    let readsAfterPlugin = 0;
+    const pluginVisit = vi.fn(() => false);
+    renderer.registerPlugin({
+      dispose() {
+        renderer.traverse(pluginVisit, null);
+        readsAfterPlugin = hierarchyReads;
+      },
+    });
+    const traverse = renderer.traverse;
+    const unregister = renderer.unregisterPlugin;
+    const remove = vi.spyOn(renderer.lruCache, "remove");
+    const host = new THREE.Group();
+    host.add(renderer.group);
+    disposeTilesRenderer(renderer);
+    expect(pluginVisit).toHaveBeenCalledTimes(5);
+    expect(hierarchyReads).toBe(readsAfterPlugin);
+    expect(remove.mock.calls.map(([tile]) => tile)).toEqual([
+      external,
+      loaded,
+      pending,
+    ]);
+    expect(removed).toEqual([external]);
+    expect(geometryDisposed).toHaveBeenCalledOnce();
+    expect(materialDisposed).toHaveBeenCalledOnce();
+    expect(
+      signals.get("https://example.test/tiles/pending.b3dm")?.aborted
+    ).toBe(true);
+    expect(renderer.loadingTiles.size).toBe(0);
+    expect(renderer.lruCache.has(loaded)).toBe(false);
+    expect(renderer.group.parent).toBe(null);
+    expect(renderer.traverse).toBe(traverse);
+    expect(renderer.unregisterPlugin).toBe(unregister);
   });
 
   it("reports no request demand after dispose", () => {

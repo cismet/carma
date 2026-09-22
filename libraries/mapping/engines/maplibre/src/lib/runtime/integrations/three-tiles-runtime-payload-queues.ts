@@ -7,6 +7,7 @@ import {
 import {
   resolveTileQueueDecision,
   resolveTileRequestAdmission,
+  shouldPreemptTileRequest,
   TILE_QUEUE_ACTION,
   TILE_QUEUE_REASON,
   TILE_QUEUE_STAGE,
@@ -81,13 +82,140 @@ export function createThreeTilesPayloadQueues(
   metadataDownloads.priorityCallback = tilesQueuePriorityCallback;
   const metadataParsing = new PriorityQueue();
   metadataParsing.maxJobs = TILE_METADATA_PARSE_CONCURRENCY;
-  metadataParsing.priorityCallback = tilesNodeQueuePriorityCallback;
+  metadataParsing.priorityCallback = tilesQueuePriorityCallback;
   metadataParsing.scheduleJobRun = () => {
     if (metadataWakeTimer !== null || runtimeState.disposed) return;
     metadataWakeTimer = setTimeout(() => {
       metadataWakeTimer = null;
       if (!runtimeState.disposed) metadataParsing.tryRunJobs();
     }, 0);
+  };
+
+  // Queue admission and preemption must agree: parked detail cannot take a
+  // slot from useful family work merely because its eventual rank is higher.
+  const createQueueEvaluation = (
+    stage: (typeof TILE_QUEUE_STAGE)[keyof typeof TILE_QUEUE_STAGE],
+    pending: Iterable<Tile>
+  ) => {
+    const moving = runtimeState.map?.isMoving?.() === true;
+    const retainedMeshAncestors = dependencies.getRetainedMeshAncestors();
+    // One demand snapshot per scheduling pass; it never outlives this view.
+    const currentDemand = new Map<
+      Tile,
+      {
+        priority: number;
+        needed: boolean;
+        coverageFill: boolean;
+        admission: ReturnType<typeof resolveTileRequestAdmission>;
+      }
+    >();
+    const demandFor = (tile: Tile) => {
+      let demand = currentDemand.get(tile);
+      if (!demand) {
+        const priority = dependencies.getTileRequestPriority(
+          tile as RuntimeTile
+        );
+        (tile as RuntimeTile).cameraPriority = priority;
+        const needed = dependencies.isTileRequestNeeded(tile);
+        const coverageFill =
+          runtimeState.meshCoverageRecovery &&
+          dependencies.isTileNeededForMeshCoverage(tile);
+        demand = {
+          priority,
+          needed,
+          coverageFill,
+          admission: resolveTileRequestAdmission({
+            needed,
+            coverageFill,
+            coverageRecovery: runtimeState.meshCoverageRecovery,
+            stage,
+          }),
+        };
+        currentDemand.set(tile, demand);
+      }
+      return demand;
+    };
+    const requestPriority = (tile: Tile) => demandFor(tile).priority;
+    const foregroundEligibility = new Map<Tile, boolean>();
+    const evaluateForeground = (tile: Tile) => {
+      const demand = demandFor(tile);
+      if (
+        demand.admission !== TILE_QUEUE_REASON.CURRENT_DEMAND ||
+        !Number.isFinite(demand.priority)
+      )
+        return false;
+      if (demand.coverageFill) return true;
+      const runtimeTile = tile as RuntimeTile;
+      if (runtimeTile.motionPrefetch && requestPriority(tile) < 0) {
+        return runtimeState.meshBaseCoverageReady;
+      }
+      const floorTile =
+        runtimeState.extentFloorArmed &&
+        isExtentFloorTile(tile, runtimeState.extentGeometricError);
+      const refinementLookahead =
+        !runtimeState.shadowView &&
+        !moving &&
+        isPublishedMeshRefinementLevel(
+          tile,
+          runtimeState.displayedMeshFrontier,
+          2,
+          1 + MESH_REFINEMENT_PREFETCH_LEVELS
+        );
+      const refinementDeferred = shouldDeferMeshRefinement(
+        tile,
+        moving
+          ? initialMeshLoadError(
+              Math.max(
+                runtimeState.requestedErrorTarget,
+                runtimeState.memoryErrorTarget
+              ),
+              runtimeState.options.baseErrorTargetPixels
+            )
+          : Math.max(
+              runtimeState.shadowView
+                ? runtimeState.requestedErrorTarget
+                : runtimeState.effectiveErrorTarget,
+              runtimeState.memoryErrorTarget
+            ),
+        (parent) => dependencies.getTileScreenError(parent as RuntimeTile),
+        retainedMeshAncestors,
+        runtimeState.options.baseErrorTargetPixels,
+        !!runtimeState.tiles?.loadAncestors && !refinementLookahead
+      );
+      return (
+        floorTile ||
+        runtimeState.meshRefinementSupport.has(tile) ||
+        runtimeTile.zoomPrefetch === true ||
+        !refinementDeferred
+      );
+    };
+    const canStartForeground = (tile: Tile) => {
+      if (!foregroundEligibility.has(tile))
+        foregroundEligibility.set(tile, evaluateForeground(tile));
+      return foregroundEligibility.get(tile)!;
+    };
+    let highestPendingPriority = Number.NEGATIVE_INFINITY;
+    for (const tile of pending) {
+      if (canStartForeground(tile))
+        highestPendingPriority = Math.max(
+          highestPendingPriority,
+          requestPriority(tile)
+        );
+    }
+    return {
+      demandFor,
+      decisionFor: (tile: Tile) => {
+        const demand = demandFor(tile);
+        return resolveTileQueueDecision({
+          admission: demand.admission,
+          foregroundEligible: canStartForeground(tile),
+          priority: demand.priority,
+          motionPrefetch: !!(tile as RuntimeTile).motionPrefetch,
+          highestPendingPriority,
+          moving,
+        });
+      },
+    };
   };
 
   const guardPayloadQueue = (nativeQueue: PriorityQueue) => {
@@ -98,7 +226,6 @@ export function createThreeTilesPayloadQueues(
     queue.tryRunJobs = () => {
       if (runtimeState.disposed || !runtimeState.tiles) return;
       if (!runtimeState.options.providesTerrain) return run();
-      const moving = runtimeState.map?.isMoving?.() === true;
       // Both strategies admit bounded initial-quality work while moving;
       // foreground rank orders jobs without a cross-stage parsing barrier.
       // Native PriorityQueue has no eligibility predicate. Partition only its
@@ -107,7 +234,6 @@ export function createThreeTilesPayloadQueues(
       // Decision: DRAG-RESIDENT-SIBLINGS-20260916 in TILES_COVERAGE.md.
       const parked: Tile[] = [];
       const ready: Tile[] = [];
-      const retainedMeshAncestors = dependencies.getRetainedMeshAncestors();
       // Decision: VIEWPORT-WORK-FIRST-20260914 in TILES_COVERAGE.md.
       // Floor residency is not permission to occupy foreground slots.
       // Immediate family support is foreground coverage, not idle refinement.
@@ -117,123 +243,14 @@ export function createThreeTilesPayloadQueues(
         nativeQueue === runtimeState.tiles.parseQueue
           ? TILE_QUEUE_STAGE.PARSE
           : TILE_QUEUE_STAGE.DOWNLOAD;
-      // One demand snapshot per scheduling pass; it never outlives this view.
-      const currentDemand = new Map<
-        Tile,
-        {
-          priority: number;
-          needed: boolean;
-          coverageFill: boolean;
-          admission: ReturnType<typeof resolveTileRequestAdmission>;
-        }
-      >();
-      const demandFor = (tile: Tile) => {
-        let demand = currentDemand.get(tile);
-        if (!demand) {
-          const priority = dependencies.getTileRequestPriority(
-            tile as RuntimeTile
-          );
-          (tile as RuntimeTile).cameraPriority = priority;
-          const needed = dependencies.isTileRequestNeeded(tile);
-          const coverageFill =
-            runtimeState.meshCoverageRecovery &&
-            dependencies.isTileNeededForMeshCoverage(tile);
-          demand = {
-            priority,
-            needed,
-            coverageFill,
-            admission: resolveTileRequestAdmission({
-              needed,
-              coverageFill,
-              coverageRecovery: runtimeState.meshCoverageRecovery,
-              stage,
-            }),
-          };
-          currentDemand.set(tile, demand);
-        }
-        return demand;
-      };
-      const requestPriority = (tile: Tile) => demandFor(tile).priority;
-      const foregroundEligibility = new Map<Tile, boolean>();
-      const evaluateForeground = (tile: Tile) => {
-        const demand = demandFor(tile);
-        if (
-          demand.admission !== TILE_QUEUE_REASON.CURRENT_DEMAND ||
-          !Number.isFinite(demand.priority)
-        )
-          return false;
-        if (demand.coverageFill) return true;
-        const runtimeTile = tile as RuntimeTile;
-        if (runtimeTile.motionPrefetch && requestPriority(tile) < 0) {
-          return runtimeState.meshBaseCoverageReady;
-        }
-        const floorTile =
-          runtimeState.extentFloorArmed &&
-          isExtentFloorTile(tile, runtimeState.extentGeometricError);
-        const refinementLookahead =
-          !runtimeState.shadowView &&
-          !moving &&
-          isPublishedMeshRefinementLevel(
-            tile,
-            runtimeState.displayedMeshFrontier,
-            2,
-            1 + MESH_REFINEMENT_PREFETCH_LEVELS
-          );
-        const refinementDeferred = shouldDeferMeshRefinement(
-          tile,
-          moving
-            ? initialMeshLoadError(
-                Math.max(
-                  runtimeState.requestedErrorTarget,
-                  runtimeState.memoryErrorTarget
-                ),
-                runtimeState.options.baseErrorTargetPixels
-              )
-            : Math.max(
-                runtimeState.shadowView
-                  ? runtimeState.requestedErrorTarget
-                  : runtimeState.effectiveErrorTarget,
-                runtimeState.memoryErrorTarget
-              ),
-          (parent) => dependencies.getTileScreenError(parent as RuntimeTile),
-          retainedMeshAncestors,
-          runtimeState.options.baseErrorTargetPixels,
-          runtimeState.tiles.loadAncestors && !refinementLookahead
-        );
-        return (
-          floorTile ||
-          runtimeState.meshRefinementSupport.has(tile) ||
-          runtimeTile.zoomPrefetch === true ||
-          !refinementDeferred
-        );
-      };
-      const canStartForeground = (tile: Tile) => {
-        if (!foregroundEligibility.has(tile))
-          foregroundEligibility.set(tile, evaluateForeground(tile));
-        return foregroundEligibility.get(tile)!;
-      };
-      let highestPendingPriority = Number.NEGATIVE_INFINITY;
-      for (const tile of new Set([
-        ...runtimeState.tiles.loadingTiles,
-        ...queue.items,
-      ])) {
-        if (canStartForeground(tile))
-          highestPendingPriority = Math.max(
-            highestPendingPriority,
-            requestPriority(tile)
-          );
-      }
+      const evaluation = createQueueEvaluation(
+        stage,
+        new Set([...runtimeState.tiles.loadingTiles, ...queue.items])
+      );
       // Removal mutates the native scheduling list, so audit its snapshot.
       for (const tile of [...queue.items]) {
-        const demand = demandFor(tile);
-        const decision = resolveTileQueueDecision({
-          admission: demand.admission,
-          foregroundEligible: canStartForeground(tile),
-          priority: demand.priority,
-          motionPrefetch: !!(tile as RuntimeTile).motionPrefetch,
-          highestPendingPriority,
-          moving,
-        });
+        const demand = evaluation.demandFor(tile);
+        const decision = evaluation.decisionFor(tile);
         if (
           runtimeState.options.diagnostics &&
           runtimeState.options.tileTelemetry !== false
@@ -331,13 +348,33 @@ export function createThreeTilesPayloadQueues(
         const priority = dependencies.getTileRequestPriority(
           item as RuntimeTile
         );
-        const preempted =
+        const evaluation =
           runtimeState.options.providesTerrain &&
-          !item.internal.hasUnrenderableContent &&
+          !item.internal.hasUnrenderableContent
+            ? createQueueEvaluation(
+                TILE_QUEUE_STAGE.PARSE,
+                new Set([
+                  ...(runtimeState.tiles?.loadingTiles ?? []),
+                  ...(parseQueue as RuntimePriorityQueue).items,
+                ])
+              )
+            : null;
+        const preempted =
+          evaluation !== null &&
           (parseQueue as RuntimePriorityQueue).items.some(
             (candidate: RuntimeTile) =>
-              dependencies.getTileRequestPriority(candidate) > priority &&
-              dependencies.isTileRequestNeeded(candidate)
+              evaluation.decisionFor(candidate).action ===
+                TILE_QUEUE_ACTION.RUN &&
+              shouldPreemptTileRequest({
+                priority,
+                waitingPriority: evaluation.demandFor(candidate).priority,
+                benefit: (item as RuntimeTile).meshRefinement?.benefit,
+                waitingBenefit: candidate.meshRefinement?.benefit,
+                sameRefinementGroup:
+                  candidate.meshRefinement !== undefined &&
+                  candidate.meshRefinement.group ===
+                    (item as RuntimeTile).meshRefinement?.group,
+              })
           );
         if (preempted || !dependencies.isTileRequestNeeded(item)) {
           runtimeState.tiles?.lruCache.remove(item);
@@ -414,6 +451,14 @@ export function createThreeTilesPayloadQueues(
   return {
     install,
     makeRoomForCoverage,
+    getDownloadPreemptionEligibility: () => {
+      const evaluation = createQueueEvaluation(
+        TILE_QUEUE_STAGE.DOWNLOAD,
+        runtimeState.tiles?.loadingTiles ?? []
+      );
+      return (tile: Tile) =>
+        evaluation.decisionFor(tile).action === TILE_QUEUE_ACTION.RUN;
+    },
     dispose: () => {
       if (parseWakeTimer !== null) clearTimeout(parseWakeTimer);
       parseWakeTimer = null;

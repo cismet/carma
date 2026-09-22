@@ -18,7 +18,10 @@ import type {
   RuntimeTile,
   ThreeTilesRuntimeOptions,
 } from "./three-tiles-runtime-types";
-import { tilesQueuePriorityCallback } from "./three-tiles-runtime-vendor";
+import {
+  tilesNodeQueuePriorityCallback,
+  tilesQueuePriorityCallback,
+} from "./three-tiles-runtime-vendor";
 import { buildThreeTilesRuntime } from "./three-tiles-runtime";
 import type { ThreeTilesRuntimeState } from "./three-tiles-runtime-context";
 
@@ -755,6 +758,7 @@ describe("three tiles current-view refresh", () => {
       state.meshInitialHandoverDone = true;
       const parent = buildTile(20);
       parent.internal.loadingState = 4;
+      parent.engineData!.boundingVolume!.intersectsFrustum = () => true;
       const children = Array.from({ length: 4 }, () => buildTile(6));
       parent.children = children;
       for (const child of children) child.parent = parent;
@@ -784,12 +788,8 @@ describe("three tiles current-view refresh", () => {
       expect(admitted).toHaveLength(4);
       expect(state.meshRefinementSupport).toEqual(new Set(children));
       expect(
-        children.every(
-          (tile) =>
-            (tile as RuntimeTile).cameraPriority ===
-            TILE_CAMERA_PRIORITY.COVERAGE_REPAIR
-        )
-      ).toBe(true);
+        children.map((tile) => (tile as RuntimeTile).cameraPriority)
+      ).toEqual(children.map(() => TILE_CAMERA_PRIORITY.PRIMARY));
       mounted.renderer.queueTileForDownload(children[0]);
       expect(admitted).toHaveLength(4);
     } finally {
@@ -1199,7 +1199,7 @@ describe("three tiles current-view refresh", () => {
     vi.useRealTimers();
   });
 
-  it("orders camera demand before distance/SSE while retaining native order within a rank", () => {
+  it("orders camera demand and visible benefit before native ties without changing cache ordering", () => {
     const low = buildTile() as RuntimeTile;
     const high = buildTile() as RuntimeTile;
     low.priority = 1000;
@@ -1209,6 +1209,42 @@ describe("three tiles current-view refresh", () => {
     expect(tilesQueuePriorityCallback(high, low)).toBeGreaterThan(0);
     high.cameraPriority = TILE_CAMERA_PRIORITY.SECONDARY;
     expect(tilesQueuePriorityCallback(low, high)).toBeGreaterThan(0);
+    high.meshRefinement = {
+      group: high,
+      currentErrorPixels: 96,
+      nextErrorPixels: 24,
+      visibleAreaPixels: 1000,
+      benefit: 72000,
+      provisional: false,
+    };
+    low.meshRefinement = { ...high.meshRefinement, group: low, benefit: 4000 };
+    expect(tilesQueuePriorityCallback(high, low)).toBeGreaterThan(0);
+    // Native node jobs are the owners of uninitialized children, not the raw
+    // children. Their own family gain must survive even with the same parent.
+    expect(tilesNodeQueuePriorityCallback(high, low)).toBeGreaterThan(0);
+    expect(tilesQueuePriorityCallback(low, high, false)).toBeGreaterThan(0);
+    low.meshRefinement = high.meshRefinement;
+    expect(tilesQueuePriorityCallback(low, high)).toBeGreaterThan(0);
+    // Mixed scored/unscored jobs must not choose an opponent-dependent key:
+    // A owns rank1, B inherits rank4 despite own rank1, C inherits rank2.
+    const [a, b, c, bParent, cParent] = Array.from(
+      { length: 5 },
+      () => buildTile() as RuntimeTile
+    );
+    a.cameraPriority = b.cameraPriority = TILE_CAMERA_PRIORITY.PRIMARY;
+    c.cameraPriority = cParent.cameraPriority = TILE_CAMERA_PRIORITY.FOCUS;
+    bParent.cameraPriority = TILE_CAMERA_PRIORITY.VIEWPORT_FILL;
+    a.meshRefinement = { ...high.meshRefinement, group: a };
+    b.parent = bParent;
+    c.parent = cParent;
+    for (const [before, after] of [
+      [a, c],
+      [c, b],
+      [a, b],
+    ]) {
+      expect(tilesNodeQueuePriorityCallback(before, after)).toBeLessThan(0);
+      expect(tilesNodeQueuePriorityCallback(after, before)).toBeGreaterThan(0);
+    }
   });
 
   it.each([
@@ -1295,13 +1331,16 @@ describe("three tiles current-view refresh", () => {
   );
 
   it.each(["download", "parse"] as const)(
-    "prioritizes %s family repair over viewport refinement while parking the baseline",
+    "prioritizes %s viewport work before offscreen support without waiting for base readiness",
     async (phase) => {
       vi.useFakeTimers();
       const mounted = mount();
       try {
         const state = mounted.state;
-        state.meshBaseCoverageReady = true;
+        state.meshBaseCoverageReady = false;
+        mounted.setMoving(true);
+        mounted.renderer.parseQueue.maxJobs = 1;
+        mounted.renderer.downloadQueue.maxJobsPerOrigin = 1;
         state.extentFloorArmed = true;
         state.extentGeometricError = 40;
         const visible = buildTile(1);
@@ -1313,7 +1352,9 @@ describe("three tiles current-view refresh", () => {
           tile.internal.renderer = mounted.renderer;
         state.meshRefinementSupport.add(support);
         mounted.renderer.loadingTiles.add(visible);
+        mounted.renderer.loadingTiles.add(support);
         let finish!: (result: string) => void;
+        let finishSupport!: (result: string) => void;
         const visibleJob = vi.fn(
           () =>
             new Promise<string>((resolve) => {
@@ -1321,7 +1362,12 @@ describe("three tiles current-view refresh", () => {
             })
         );
         const floorJob = vi.fn().mockResolvedValue("floor");
-        const supportJob = vi.fn().mockResolvedValue("support");
+        const supportJob = vi.fn(
+          () =>
+            new Promise<string>((resolve) => {
+              finishSupport = resolve;
+            })
+        );
         const add = (tile: Tile, callback: () => Promise<string>) =>
           phase === "parse"
             ? mounted.renderer.parseQueue.add(tile, callback)
@@ -1336,14 +1382,22 @@ describe("three tiles current-view refresh", () => {
         await vi.advanceTimersByTimeAsync(50);
         expect(visibleJob).toHaveBeenCalledOnce();
         expect(floorJob).not.toHaveBeenCalled();
-        expect(supportJob).toHaveBeenCalledOnce();
+        expect(supportJob).not.toHaveBeenCalled();
         expect((support as RuntimeTile).cameraPriority).toBe(
-          TILE_CAMERA_PRIORITY.COVERAGE_REPAIR
+          TILE_CAMERA_PRIORITY.SECONDARY
         );
-        state.meshCoverageRecovery = true;
         mounted.renderer.loadingTiles.delete(visible);
         finish("visible");
         await expect(visiblePromise).resolves.toBe("visible");
+        await vi.advanceTimersByTimeAsync(50);
+        expect(supportJob).toHaveBeenCalledOnce();
+        expect(state.meshBaseCoverageReady).toBe(false);
+        expect(floorJob).not.toHaveBeenCalled();
+        mounted.setMoving(false);
+        state.meshCoverageRecovery = true;
+        mounted.renderer.loadingTiles.delete(support);
+        finishSupport("support");
+        await expect(supportPromise).resolves.toBe("support");
         await vi.advanceTimersByTimeAsync(50);
         // Recovery cannot fall through to idle reserve downloads when no
         // finite-rank payload is queued. Decoded buffers keep progressing.
@@ -1410,53 +1464,79 @@ describe("three tiles current-view refresh", () => {
     }
   });
 
-  it("preempts still-needed background parsing when viewport work arrives across the yield", async () => {
-    vi.useFakeTimers();
-    const mounted = mount();
-    try {
-      const state = mounted.state;
-      const background = buildTile(40);
-      state.extentFloorArmed = true;
-      state.extentGeometricError = 40;
-      const foreground = buildTile(1);
-      foreground.engineData!.boundingVolume!.intersectsFrustum = () => true;
-      const backgroundCallback = vi.fn().mockResolvedValue("background");
-      const foregroundCallback = vi.fn().mockResolvedValue("foreground");
-      const disposed = vi.fn();
-      mounted.renderer.lruCache.add(background, disposed);
-      mounted.renderer.parseQueue.maxJobs = 1;
-      const result = mounted.renderer.parseQueue.add(
-        background,
-        backgroundCallback
-      );
-      const rejected = expect(result).rejects.toMatchObject({
-        name: "AbortError",
-      });
-      mounted.renderer.parseQueue.tryRunJobs();
-      const next = mounted.renderer.parseQueue.add(
-        foreground,
-        foregroundCallback
-      );
-      await vi.advanceTimersByTimeAsync(50);
-      await rejected;
-      await expect(next).resolves.toBe("foreground");
-      expect(backgroundCallback).not.toHaveBeenCalled();
-      expect(disposed).toHaveBeenCalledOnce();
-      expect(foregroundCallback).toHaveBeenCalledOnce();
-      // The tile stays eligible for a later request, not permanently disabled.
-      expect(state.extentFloorArmed).toBe(true);
-      expect(background.geometricError).toBe(state.extentGeometricError);
-      const retried = mounted.renderer.parseQueue.add(
-        background,
-        backgroundCallback
-      );
-      await vi.advanceTimersByTimeAsync(50);
-      await expect(retried).resolves.toBe("background");
-      expect(backgroundCallback).toHaveBeenCalledOnce();
-    } finally {
-      mounted.runtime.scene.dispose();
+  it.each([false, true])(
+    "preempts background parsing only for runnable viewport work across the yield: %s",
+    async (runnable) => {
+      vi.useFakeTimers();
+      const mounted = mount();
+      try {
+        const state = mounted.state;
+        const background = buildTile(40);
+        state.extentFloorArmed = true;
+        state.extentGeometricError = 40;
+        state.meshRefinementSupport.add(background);
+        const foreground = buildTile(1);
+        foreground.engineData!.boundingVolume!.intersectsFrustum = () => true;
+        if (!runnable) {
+          state.requestedErrorTarget = 6;
+          state.effectiveErrorTarget = 6;
+          state.memoryErrorTarget = 6;
+          const parent = buildTile(8);
+          parent.internal.loadingState = 4;
+          parent.children = [foreground];
+          foreground.parent = parent;
+          mockTileViews(mounted.renderer, [parent, foreground]);
+          mounted.setMoving(true);
+        }
+        const backgroundCallback = vi.fn().mockResolvedValue("background");
+        const foregroundCallback = vi.fn().mockResolvedValue("foreground");
+        const disposed = vi.fn();
+        mounted.renderer.lruCache.add(background, disposed);
+        mounted.renderer.parseQueue.maxJobs = 1;
+        const result = mounted.renderer.parseQueue.add(
+          background,
+          backgroundCallback
+        );
+        const outcome = runnable
+          ? expect(result).rejects.toMatchObject({ name: "AbortError" })
+          : expect(result).resolves.toBe("background");
+        mounted.renderer.parseQueue.tryRunJobs();
+        const next = mounted.renderer.parseQueue.add(
+          foreground,
+          foregroundCallback
+        );
+        await vi.advanceTimersByTimeAsync(50);
+        await outcome;
+        if (!runnable) {
+          expect(backgroundCallback).toHaveBeenCalledOnce();
+          expect(disposed).not.toHaveBeenCalled();
+          expect(foregroundCallback).not.toHaveBeenCalled();
+          mounted.setMoving(false);
+          mounted.renderer.parseQueue.tryRunJobs();
+          await vi.advanceTimersByTimeAsync(50);
+          await expect(next).resolves.toBe("foreground");
+          expect(foregroundCallback).toHaveBeenCalledOnce();
+          return;
+        }
+        await expect(next).resolves.toBe("foreground");
+        expect(backgroundCallback).not.toHaveBeenCalled();
+        expect(disposed).toHaveBeenCalledOnce();
+        expect(foregroundCallback).toHaveBeenCalledOnce();
+        // The tile stays eligible for a later request, not permanently disabled.
+        expect(state.extentFloorArmed).toBe(true);
+        expect(background.geometricError).toBe(state.extentGeometricError);
+        const retried = mounted.renderer.parseQueue.add(
+          background,
+          backgroundCallback
+        );
+        await vi.advanceTimersByTimeAsync(50);
+        await expect(retried).resolves.toBe("background");
+        expect(backgroundCallback).toHaveBeenCalledOnce();
+      } finally {
+        mounted.runtime.scene.dispose();
+      }
     }
-  });
+  );
 
   it("rejects obsolete work after the pre-parse yield instead of decoding the old view", async () => {
     vi.useFakeTimers();

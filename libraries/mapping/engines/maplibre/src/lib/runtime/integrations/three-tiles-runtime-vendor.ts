@@ -5,8 +5,13 @@ import * as THREE from "three";
 
 import { GLTFPrimitiveOutlineExtension } from "@carma-mapping/engines/threejs";
 
+import { compareTileRequestOrder } from "../../core/tile-scheduling-policy";
 import type { TilesDeviceProfile } from "./three-tiles-load-policy";
-import type { RuntimeTile } from "./three-tiles-runtime-types";
+import type {
+  RuntimeLruCache,
+  RuntimeTile,
+  RuntimeTilesRenderer,
+} from "./three-tiles-runtime-types";
 
 // tile.internal.loadingState values (3d-tiles-renderer core constants.js; the
 // core typings do not export them).
@@ -18,6 +23,43 @@ export const QUEUED_LOADING_STATE = 1;
 export const LOADING_LOADING_STATE = 2;
 export const PARSING_LOADING_STATE = 3;
 export const LOADED_LOADING_STATE = 4;
+
+/** Native disposal only releases LRU-owned content. Avoid visiting the much
+ * larger uncached hierarchy while preserving plugin traversal and abort hooks.
+ * Decision: ../../../../TILES_COVERAGE.md#mesh-removal-and-raster-handover
+ */
+export const disposeTilesRenderer = (tiles: RuntimeTilesRenderer): void => {
+  const traverse = tiles.traverse as (
+    ...args: [...Parameters<RuntimeTilesRenderer["traverse"]>, boolean?]
+  ) => void;
+  const unregisterPlugin = tiles.unregisterPlugin;
+  let unregistering = false;
+  tiles.unregisterPlugin = (plugin) => {
+    const previous = unregistering;
+    unregistering = true;
+    try {
+      return unregisterPlugin.call(tiles, plugin);
+    } finally {
+      unregistering = previous;
+    }
+  };
+  tiles.traverse = (before, after, ensureFullyProcessed = true) => {
+    if (unregistering || ensureFullyProcessed !== false || after) {
+      traverse.call(tiles, before, after, ensureFullyProcessed);
+      return;
+    }
+    // External JSON removal clears its children. Snapshot all resident entries
+    // before native dispose starts removing any of them.
+    for (const tile of [...(tiles.lruCache as RuntimeLruCache).itemList])
+      if (before?.(tile, tile.parent!, tile.internal?.depth ?? 0)) break;
+  };
+  try {
+    tiles.dispose();
+  } finally {
+    tiles.traverse = traverse;
+    tiles.unregisterPlugin = unregisterPlugin;
+  }
+};
 
 export const TILE_OUTLINE_FLAG = "isTileOutline";
 
@@ -33,31 +75,43 @@ export const tilesCacheUnloadPriorityCallback =
 
 export const tilesQueuePriorityCallback = (
   first: Tile,
-  second: Tile
+  second: Tile,
+  includeRefinementBenefit = true
 ): number => {
   const firstPriority =
     (first as RuntimeTile).cameraPriority ?? Number.NEGATIVE_INFINITY;
   const secondPriority =
     (second as RuntimeTile).cameraPriority ?? Number.NEGATIVE_INFINITY;
-  return firstPriority === secondPriority
-    ? tilesRendererCoreRuntime.unifiedPriorityCallback(first, second)
-    : firstPriority > secondPriority
-    ? 1
-    : -1;
+  const order = compareTileRequestOrder(
+    firstPriority,
+    secondPriority,
+    includeRefinementBenefit
+      ? (first as RuntimeTile).meshRefinement?.benefit
+      : 0,
+    includeRefinementBenefit
+      ? (second as RuntimeTile).meshRefinement?.benefit
+      : 0
+  );
+  return (
+    order || tilesRendererCoreRuntime.unifiedPriorityCallback(first, second)
+  );
 };
 
-// Mirrors upstream DEFAULT_NODE_QUEUE.priorityCallback (not exported from the
-// bundled build): children are processed in the load order of their parents.
+// Native node jobs own the children being initialized. Prefer that family's
+// visible benefit, retaining upstream parent ordering when no metric exists.
 export const tilesNodeQueuePriorityCallback = (
   first: Tile,
   second: Tile
 ): number => {
-  const firstParent = first.parent;
-  const secondParent = second.parent;
-  if (firstParent === secondParent) return 0;
-  if (!firstParent) return 1;
-  if (!secondParent) return -1;
-  return tilesQueuePriorityCallback(firstParent, secondParent);
+  // Each operand's key is independent of its opponent, preserving transitivity.
+  const firstKey = (first as RuntimeTile).meshRefinement ? first : first.parent;
+  const secondKey = (second as RuntimeTile).meshRefinement
+    ? second
+    : second.parent;
+  if (firstKey === secondKey) return 0;
+  if (!firstKey) return 1;
+  if (!secondKey) return -1;
+  return tilesQueuePriorityCallback(firstKey, secondKey);
 };
 
 export const frustumCornerPlanes = [

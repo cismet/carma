@@ -23,6 +23,8 @@ import {
   TERRAIN_MAP_STYLE,
   isTerrainShadingStyleLayer,
   isSharedThreeTerrainLoading,
+  hasStandaloneTerrain,
+  subscribeSharedThreeTerrain,
   subscribeSharedThreeTerrainLoading,
   TILES_MESH_ERROR_TARGET_DEFAULT_PIXELS,
 } from "@carma-mapping/engines/maplibre";
@@ -444,6 +446,20 @@ export const acquireShadowMapLibreTerrain = (
     if (disposed || applying) return;
     applying = true;
     try {
+      // A standalone mesh already places its ground on the map plane. Enabling
+      // DEM terrain would raise the camera target above that same ground.
+      // Decision: ../../../../engines/maplibre/TILES_COVERAGE.md#standalone-mesh-shadow-camera-ownership.
+      if (hasStandaloneTerrain(map)) {
+        restoreTerrainFrame();
+        restoreTerrainQuality();
+        restoreTerrainQuality = () => undefined;
+        qualityPatchedTerrain = null;
+        restoreOpaqueDrape();
+        restoreSavedVisibilities(savedTerrainShadingVisibilities);
+        if (terrainMap.getTerrain()) terrainMap.setTerrain(null);
+        lastApplyErrorMessage = null;
+        return;
+      }
       if (!terrainMap.getSource(sourceId) && map.isStyleLoaded()) {
         map.addSource(sourceId, {
           type: "raster-dem",
@@ -495,11 +511,20 @@ export const acquireShadowMapLibreTerrain = (
 
   map.on(MAPLIBRE_EVENT.STYLE_DATA, apply);
   map.on(MAPLIBRE_EVENT.TERRAIN, handleTerrainChange);
+  let standaloneTerrain = hasStandaloneTerrain(map);
+  const unsubscribeTerrainOwnership = subscribeSharedThreeTerrain(map, () => {
+    const nextStandaloneTerrain = hasStandaloneTerrain(map);
+    // This registry also publishes ordinary raster frontier changes.
+    if (nextStandaloneTerrain === standaloneTerrain) return;
+    standaloneTerrain = nextStandaloneTerrain;
+    apply();
+  });
   apply();
 
   const release = () => {
     if (disposed) return;
     disposed = true;
+    unsubscribeTerrainOwnership();
     map.off(MAPLIBRE_EVENT.STYLE_DATA, apply);
     map.off(MAPLIBRE_EVENT.TERRAIN, handleTerrainChange);
     restoreTerrainFrame();
@@ -509,11 +534,12 @@ export const acquireShadowMapLibreTerrain = (
     restoreSavedVisibilities(savedTerrainShadingVisibilities);
     try {
       if (
+        !hasStandaloneTerrain(map) &&
         previousTerrain &&
         terrainMap.getSource(previousTerrain.source) !== undefined
       ) {
         terrainMap.setTerrain(previousTerrain);
-      } else {
+      } else if (terrainMap.getTerrain()) {
         terrainMap.setTerrain(null);
       }
     } catch {

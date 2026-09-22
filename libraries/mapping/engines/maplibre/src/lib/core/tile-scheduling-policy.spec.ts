@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { TILE_CAMERA_PRIORITY } from "./tile-camera-demand";
 import {
+  compareTileRequestOrder,
   decideTileRequestAction,
   resolveTileQueueDecision,
   resolveTileRequestAdmission,
@@ -35,7 +36,7 @@ const downloads = Object.freeze({
 });
 
 describe("tile scheduling decisions", () => {
-  it("keeps repair ahead of every ordinary camera lane", () => {
+  it("keeps visible family support in its owner camera lane", () => {
     for (const priority of [-Infinity, -1, 0, 1, 2]) {
       expect(
         resolveTileRequestPriority(
@@ -48,7 +49,7 @@ describe("tile scheduling decisions", () => {
             shadowWithoutSelection: true,
           })
         )
-      ).toBe(TILE_CAMERA_PRIORITY.COVERAGE_REPAIR);
+      ).toBe(Math.max(priority, TILE_CAMERA_PRIORITY.PRIMARY));
     }
   });
   it("does not promote an extra receiver to the observer lane", () => {
@@ -75,7 +76,7 @@ describe("tile scheduling decisions", () => {
     ).toBe(TILE_CAMERA_PRIORITY.FOCUS);
   });
   it.each(["selectedShadowReceiver", "shadowWithoutSelection"] as const)(
-    "keeps visible iterations ahead of offscreen shadows (%s) without demoting replacement siblings",
+    "keeps visible iterations ahead of offscreen shadows and replacement siblings (%s)",
     (shadowRole) => {
       const shadow = {
         replacementSupport: false,
@@ -97,8 +98,15 @@ describe("tile scheduling decisions", () => {
       });
       expect(shadowPriority).toBe(TILE_CAMERA_PRIORITY.SECONDARY);
       expect(visiblePriority).toBe(TILE_CAMERA_PRIORITY.PRIMARY);
-      expect(familyPriority).toBe(TILE_CAMERA_PRIORITY.COVERAGE_REPAIR);
-      expect(familyPriority).toBeGreaterThan(visiblePriority);
+      expect(familyPriority).toBe(TILE_CAMERA_PRIORITY.SECONDARY);
+      expect(visiblePriority).toBeGreaterThan(familyPriority);
+      expect(
+        resolveTileRequestPriority({
+          ...shadow,
+          replacementSupport: true,
+          cameraPriority: TILE_CAMERA_PRIORITY.FOCUS,
+        })
+      ).toBe(TILE_CAMERA_PRIORITY.FOCUS);
       expect(visiblePriority).toBeGreaterThan(shadowPriority);
     }
   );
@@ -268,6 +276,44 @@ describe("tile scheduling decisions", () => {
       })
     ).toBe(0);
   });
+  it("orders visible benefit within a camera lane but only preempts for substantial independent gains", () => {
+    const rank = TILE_CAMERA_PRIORITY.PRIMARY;
+    expect(
+      compareTileRequestOrder(rank, rank, 72 * 100000, 4 * 100000)
+    ).toBeGreaterThan(0);
+    expect(
+      compareTileRequestOrder(rank, rank, 4 * 100000, 12 * 10000)
+    ).toBeGreaterThan(0);
+    expect(
+      compareTileRequestOrder(rank, TILE_CAMERA_PRIORITY.FOCUS, 1e9, 1)
+    ).toBeLessThan(0);
+    expect(
+      compareTileRequestOrder(TILE_CAMERA_PRIORITY.VIEWPORT_FILL, rank, 0, 1e9)
+    ).toBeGreaterThan(0);
+    const input = {
+      needed: true,
+      downloading: true,
+      metadata: false,
+      priority: rank,
+      highestWaitingPriority: rank,
+      benefit: 100,
+      highestWaitingBenefit: 125,
+    };
+    expect(decideTileRequestAction(input)).toBe(TILE_REQUEST_ACTION.KEEP);
+    expect(
+      decideTileRequestAction({ ...input, highestWaitingBenefit: 126 })
+    ).toBe(TILE_REQUEST_ACTION.PREEMPT);
+    expect(
+      decideTileRequestAction({
+        ...input,
+        highestWaitingBenefit: 10000,
+        sameRefinementGroup: true,
+      })
+    ).toBe(TILE_REQUEST_ACTION.KEEP);
+    expect(
+      decideTileRequestAction({ ...input, highestWaitingBenefit: Number.NaN })
+    ).toBe(TILE_REQUEST_ACTION.KEEP);
+  });
   it("cancels obsolete work without consuming a preemption slot, and never preempts metadata or parsing", () => {
     const input = Object.freeze({
       needed: true,
@@ -285,6 +331,7 @@ describe("tile scheduling decisions", () => {
       { downloading: false },
       { priority: 3 },
       { highestWaitingPriority: undefined },
+      { sameRefinementGroup: true },
     ])
       expect(decideTileRequestAction({ ...input, ...patch })).toBe(
         TILE_REQUEST_ACTION.KEEP

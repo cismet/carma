@@ -13,21 +13,62 @@ export const resolveTileRequestPriority = (
     shadowWithoutSelection: boolean;
   }>
 ): number => {
-  if (input.replacementSupport) return TILE_CAMERA_PRIORITY.COVERAGE_REPAIR;
   return Math.max(
     input.cameraPriority,
     input.motionPrefetch
       ? TILE_CAMERA_PRIORITY.PREFETCH
       : Number.NEGATIVE_INFINITY,
     // Decision: ../../../TILES_COVERAGE.md#progressive-shadow-families-and-wait-telemetry
-    // Visible refinement owns the foreground lane. Offscreen siblings needed
-    // for its atomic replacement already inherit replacementSupport above.
+    // Family dependencies inherit their current visible owner's camera lane.
+    // Within a lane the expected visible improvement decides request order.
     input.observerVisible
       ? TILE_CAMERA_PRIORITY.PRIMARY
       : Number.NEGATIVE_INFINITY,
-    input.selectedShadowReceiver || input.shadowWithoutSelection
+    input.replacementSupport ||
+      input.selectedShadowReceiver ||
+      input.shadowWithoutSelection
       ? TILE_CAMERA_PRIORITY.SECONDARY
       : Number.NEGATIVE_INFINITY
+  );
+};
+
+const finiteBenefit = (benefit: number | undefined): number =>
+  typeof benefit === "number" && Number.isFinite(benefit)
+    ? Math.max(0, benefit)
+    : 0;
+
+/** Higher rank/benefit starts first; native deterministic ties remain separate. */
+export const compareTileRequestOrder = (
+  firstPriority: number,
+  secondPriority: number,
+  firstBenefit?: number,
+  secondBenefit?: number
+): number => {
+  if (firstPriority !== secondPriority)
+    return firstPriority > secondPriority ? 1 : -1;
+  const first = finiteBenefit(firstBenefit);
+  const second = finiteBenefit(secondBenefit);
+  return first === second ? 0 : first > second ? 1 : -1;
+};
+
+/** Queue order is exact; aborting useful work needs a stable, larger gain.
+ * A 25% advantage avoids cancellation for small view-dependent score changes.
+ * Members of the same atomic family finish together, never evict each other.
+ */
+export const shouldPreemptTileRequest = (
+  input: Readonly<{
+    priority: number;
+    waitingPriority: number;
+    benefit?: number;
+    waitingBenefit?: number;
+    sameRefinementGroup?: boolean;
+  }>
+): boolean => {
+  if (input.sameRefinementGroup) return false;
+  if (input.waitingPriority !== input.priority)
+    return input.waitingPriority > input.priority;
+  return (
+    finiteBenefit(input.waitingBenefit) > finiteBenefit(input.benefit) * 1.25
   );
 };
 
@@ -208,6 +249,9 @@ export const decideTileRequestAction = (
     metadata: boolean;
     priority: number;
     highestWaitingPriority: number | undefined;
+    benefit?: number;
+    highestWaitingBenefit?: number;
+    sameRefinementGroup?: boolean;
   }>
 ): (typeof TILE_REQUEST_ACTION)[keyof typeof TILE_REQUEST_ACTION] => {
   if (!input.needed) return TILE_REQUEST_ACTION.OBSOLETE;
@@ -215,7 +259,13 @@ export const decideTileRequestAction = (
     input.downloading &&
     !input.metadata &&
     input.highestWaitingPriority !== undefined &&
-    input.priority < input.highestWaitingPriority
+    shouldPreemptTileRequest({
+      priority: input.priority,
+      waitingPriority: input.highestWaitingPriority,
+      benefit: input.benefit,
+      waitingBenefit: input.highestWaitingBenefit,
+      sameRefinementGroup: input.sameRefinementGroup,
+    })
   )
     return TILE_REQUEST_ACTION.PREEMPT;
   return TILE_REQUEST_ACTION.KEEP;

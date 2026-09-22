@@ -1,7 +1,29 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
 import type { Map as MaplibreMap } from "maplibre-gl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TileLoadingDebugHost } from "./TileLoadingDebugHost";
+
+const debug = vi.hoisted(() => ({
+  enabled: false,
+  loaded: false,
+  listener: () => {},
+}));
+vi.mock("@carma-providers/feature-flag", () => ({
+  useFeatureFlags: () => ({ isDebugMode: debug.enabled }),
+}));
+vi.mock("@carma-mapping/engines/maplibre", () => ({
+  getTiles3dRuntimeHandles: () => (debug.loaded ? [{}] : []),
+  subscribeTiles3dRuntimeHandles: (_map: unknown, listener: () => void) => {
+    debug.listener = listener;
+    return () => {};
+  },
+}));
 
 const shadow = vi.hoisted(() => ({
   state: {} as Record<string, unknown>,
@@ -33,6 +55,8 @@ const createMap = () => {
 };
 
 beforeEach(() => {
+  debug.enabled = false;
+  debug.loaded = false;
   shadow.state = {};
   shadow.setState.mockClear();
 });
@@ -42,7 +66,32 @@ afterEach(() => {
 });
 
 describe("TileLoadingDebugHost", () => {
+  it("exposes the existing overlay only for an explicitly flagged mounted mesh, without shadow writes", async () => {
+    debug.enabled = true;
+    const { map } = createMap();
+    render(<TileLoadingDebugHost map={map} />);
+    expect(screen.queryByRole("button", { name: "Mesh-Diagnose" })).toBeNull();
+    act(() => {
+      debug.loaded = true;
+      debug.listener();
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Mesh-Diagnose" }));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Close tile overlay" })
+    );
+    expect(shadow.setState).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole("button", { name: "Mesh-Diagnose" })
+    ).not.toBeNull();
+    act(() => {
+      debug.loaded = false;
+      debug.listener();
+    });
+    expect(screen.queryByRole("button", { name: "Mesh-Diagnose" })).toBeNull();
+  });
+
   it("mounts nothing by default, including in development mode", () => {
+    debug.loaded = true;
     const { map, mapContainer } = createMap();
     render(<TileLoadingDebugHost map={map} />);
     expect(mapContainer.innerHTML).toBe("");

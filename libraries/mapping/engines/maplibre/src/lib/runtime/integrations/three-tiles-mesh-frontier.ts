@@ -201,6 +201,9 @@ export const collectLoadedMeshReceiverCandidates = (
   // This is separate
   // from shadow receiver/caster publication, which owns its own atomic gate.
   const residentFallback = Boolean(options?.atomic && options.published.size);
+  const publishedRefinements = new Map<Tile, readonly Tile[]>();
+  const publishedCoverage = new Map<Tile, readonly Tile[] | null>();
+  let publishedBranches: Map<Tile, Tile[]> | undefined;
   const refinedAncestors = new Set<Tile>();
   for (const tile of committed ?? []) {
     for (let parent = tile.parent; parent; parent = parent.parent)
@@ -330,7 +333,58 @@ export const collectLoadedMeshReceiverCandidates = (
       if (!result.complete) blocker ??= result.blocker ?? child;
       complete &&= result.complete;
     }
+    if (
+      complete &&
+      selected.length > 0 &&
+      tile.refine === "REPLACE" &&
+      options?.published.has(tile)
+    )
+      publishedRefinements.set(tile, selected);
     if (fallback && (!complete || tile.refine === "ADD")) {
+      // A published branch can replace its own complete child family without
+      // waiting for an unrelated branch higher in the hierarchy. Only reuse
+      // the old cut when it still covers this view; exposed holes need fallback.
+      if (
+        !complete &&
+        tile.refine === "REPLACE" &&
+        options?.atomic &&
+        retainedAncestors.has(tile) &&
+        publishedRefinements.size > 0
+      ) {
+        if (!publishedBranches) {
+          publishedBranches = new Map();
+          for (const member of options.published)
+            for (
+              let parent: Tile | null = member;
+              parent;
+              parent = parent.parent
+            ) {
+              const branch = publishedBranches.get(parent) ?? [];
+              branch.push(member);
+              publishedBranches.set(parent, branch);
+            }
+        }
+        const branch = publishedBranches.get(tile) ?? [];
+        if (
+          branch.some((member) => publishedRefinements.has(member)) &&
+          branch.every(
+            (member) => isLoadedMesh(member) && receiverReady(member, true)
+          ) &&
+          getReadyMeshRegionCut(
+            tile,
+            options.published,
+            Number.MAX_VALUE,
+            (member) => ({ intersects: inView(member), errorPixels: 0 }),
+            publishedCoverage
+          ) !== null
+        )
+          return {
+            cut: branch.flatMap(
+              (member) => publishedRefinements.get(member) ?? [member]
+            ),
+            complete: true,
+          };
+      }
       if (!complete && tile.refine === "REPLACE")
         for (const child of selected)
           options?.onWait?.(child, "replacement-family", blocker);
