@@ -17,7 +17,7 @@ import type { AddonComponentProps } from "../../lib/registry";
 import { CompareStage } from "./stage/CompareStage";
 import { groupLayers, rolesFromAssignments } from "./stage/roles";
 import { useComparingActions } from "./comparing-actions";
-import { COMPARE_MODE } from "./compare-modes";
+import { clampSpyglassRadius, COMPARE_MODE } from "./compare-modes";
 import { panelLabelsFor } from "./panel-labels";
 
 export type CompareSpyglassConfig = {
@@ -67,7 +67,7 @@ export const CompareSpyglass = ({
   libreMap,
 }: AddonComponentProps<"compareSpyglass">) => {
   const {
-    hasState,
+    seedDefaults,
     isOn,
     mode,
     orientation,
@@ -90,19 +90,14 @@ export const CompareSpyglass = ({
   const groupCount = useMemo(() => groupLayers(layers).length, [layers]);
 
   // the route's config decides how wide the lens starts, and only while there
-  // is nothing to start from: a stored radius is a size the user already
-  // wheeled to, and seeding over it would undo that on every reload. The same
-  // rule the swipe applies to its orientation.
-  const seededRadius = useRef(hasState);
+  // is nothing to start from: a radius a row launched is a size the user
+  // already wheeled to, and seeding over it would undo that. The same rule
+  // the swipe applies to its orientation.
   useEffect(() => {
-    if (seededRadius.current) {
-      return;
-    }
-    seededRadius.current = true;
     if (config?.radius !== undefined) {
-      setSpyglassRadius(config.radius);
+      seedDefaults({ spyglassRadius: clampSpyglassRadius(config.radius) });
     }
-  }, [config?.radius, setSpyglassRadius]);
+  }, [config?.radius, seedDefaults]);
 
   // the box the panels are drawn in, measured rather than taken from the map:
   // the ring's position is in that box's coordinates and the clip-path is read

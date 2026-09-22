@@ -129,6 +129,7 @@ export const usePublishCompareLayers = (
     suggestPanelCount,
     assignments,
     assignmentsPanelCount,
+    assignmentsClosed,
     setAssignments,
   } = useComparingActions();
 
@@ -202,13 +203,21 @@ export const usePublishCompareLayers = (
     // that are not the ones on screen any more
     const previous =
       assignmentsPanelCount === panelCount ? assignments : undefined;
-    const next = reconcileAssignments(entries, previous, panelCount);
-    if (next !== assignments) {
+    const next = reconcileAssignments(
+      entries,
+      previous,
+      panelCount,
+      assignmentsClosed
+    );
+    // a closed assignment is written even when nothing moved, since the write
+    // is what opens it again for the blocks added from here on
+    if (next !== assignments || assignmentsClosed) {
       setAssignments(next, panelCount);
     }
   }, [
     active,
     assignments,
+    assignmentsClosed,
     assignmentsPanelCount,
     entries,
     mapHasCaughtUp,
@@ -245,6 +254,12 @@ const implicitPanelsFor = (
  * object unchanged when nothing moved, so it can run on every entry change
  * without looping.
  *
+ * `closed` (see `CompareState.assignmentsClosed`): the assignment came from a
+ * definition and is complete, so a block it does not name was never part of
+ * the comparison and goes in no panel. The base map is the exception: its key
+ * is the receiver's own and rarely the sender's, and a comparison over a blank
+ * map is not what anyone shared.
+ *
  * A key the list does not mention is left where it is rather than dropped. The
  * list is built from the layers the map has, and a layer can be missing from it
  * for a moment without being gone: while a route settles, while a style is
@@ -257,7 +272,8 @@ const implicitPanelsFor = (
 const reconcileAssignments = (
   entries: CompareLayerEntry[],
   previous: CompareAssignments | undefined,
-  panelCount: number
+  panelCount: number,
+  closed: boolean
 ): CompareAssignments => {
   const everyPanel = Array.from({ length: panelCount }, (_, panel) => panel);
   const next: CompareAssignments = {};
@@ -279,7 +295,7 @@ const reconcileAssignments = (
       return;
     }
     if (!(entry.key in previous)) {
-      next[entry.key] = everyPanel;
+      next[entry.key] = closed && !entry.isBackground ? [] : everyPanel;
     }
   });
 

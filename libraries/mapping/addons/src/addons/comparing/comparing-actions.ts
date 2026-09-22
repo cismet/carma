@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from "react";
 
-import { useAddonState, useRouteAddons } from "../../lib/AddonStateContext";
+import { useAddonState } from "../../lib/AddonStateContext";
 import {
   clampPanelCount,
   clampSpyglassRadius,
@@ -9,11 +9,6 @@ import {
   type CompareMode,
   type CompareOrientation,
 } from "./compare-modes";
-import {
-  compareStateStorageKey,
-  loadCompareState,
-  saveCompareState,
-} from "./comparing-storage";
 
 /**
  * Whether the comparison is running, shared between the button that switches it
@@ -52,6 +47,15 @@ export type CompareState = {
    */
   assignmentsPanelCount?: number;
   /**
+   * Whether the assignment names every block that belongs in a panel. Set
+   * when a definition is launched (a shared or restored comparison): a block
+   * on this map that the definition does not name was not part of the
+   * comparison, so the next reconcile leaves it out of every panel instead of
+   * putting it in all of them the way a block added while comparing is. That
+   * reconcile clears it.
+   */
+  assignmentsClosed?: boolean;
+  /**
    * Whether the user has taken the layout into their own hands, by picking a
    * panel count or ticking a cell. Until then the panel count follows the
    * number of layers on the map; afterwards it stays where it was put.
@@ -75,35 +79,97 @@ export const COMPARE_STATE_DEFAULT: CompareState = {
 };
 
 /**
+ * What describes a comparison apart from the layers it compares: the part of
+ * the state a link or a persisted row can carry. The layer-bar row embeds it
+ * in its `tools`, the way a time-series row embeds its series, and
+ * `startComparison` launches it again. Runtime readouts (`panelLabels`,
+ * `isOn`) are not part of it, they come back as soon as a mode mounts.
+ */
+export type CompareDefinition = {
+  mode: CompareMode;
+  orientation: CompareOrientation;
+  panelCount: number;
+  /** keyed by layer id; left out, the implicit rule seeds it from the layers */
+  assignments?: CompareAssignments;
+  spyglassRadius?: number;
+};
+
+/** the definition a state currently holds */
+export const toCompareDefinition = (state: CompareState): CompareDefinition => ({
+  mode: state.mode,
+  orientation: state.orientation,
+  panelCount: state.panelCount,
+  ...(state.assignments ? { assignments: state.assignments } : {}),
+  ...(state.spyglassRadius !== undefined
+    ? { spyglassRadius: state.spyglassRadius }
+    : {}),
+});
+
+const sameAssignments = (
+  a: CompareAssignments | undefined,
+  b: CompareAssignments | undefined
+): boolean => {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  const keys = Object.keys(a);
+  return (
+    keys.length === Object.keys(b).length &&
+    keys.every((key) => {
+      const other = b[key];
+      return (
+        other !== undefined &&
+        other.length === a[key].length &&
+        a[key].every((panel, i) => panel === other[i])
+      );
+    })
+  );
+};
+
+const holdsDefinition = (
+  state: CompareState,
+  def: CompareDefinition
+): boolean =>
+  state.mode === def.mode &&
+  state.orientation === def.orientation &&
+  state.panelCount === def.panelCount &&
+  (def.assignments === undefined ||
+    sameAssignments(state.assignments, def.assignments)) &&
+  (def.spyglassRadius === undefined ||
+    state.spyglassRadius === def.spyglassRadius);
+
+/**
  * One entry point for both writers, so the button and the modes cannot drift.
  *
- * The channel itself is session-only, so the stored state stands in front of it
- * until something is written in this session, and every write goes to
- * `localStorage` as well. Reading the store synchronously rather than hydrating
- * it in an effect matters here: an effect would let the comparison start from
- * its defaults for one render, which is long enough to build the panels twice.
+ * The channel is session-only. What survives a reload is the layer-bar row,
+ * which carries the definition in its `tools` and launches it again through
+ * `startComparison` (see `getComparingRowSeed`).
  */
 export const useComparingActions = () => {
-  const [sessionState, setSessionState] = useAddonState("compareState");
-  const addons = useRouteAddons();
-
-  const storageKey = useMemo(() => compareStateStorageKey(addons), [addons]);
-  const storedState = useMemo(() => loadCompareState(storageKey), [storageKey]);
-  const state = sessionState ?? storedState;
+  const [state, setSessionState] = useAddonState("compareState");
 
   const setState = useCallback(
     (updater: (previous: CompareState) => CompareState) =>
-      setSessionState((previous) => {
-        const next = updater(
-          previous ?? loadCompareState(storageKey) ?? COMPARE_STATE_DEFAULT
-        );
-        saveCompareState(storageKey, next);
-        return next;
-      }),
-    [setSessionState, storageKey]
+      setSessionState((previous) => updater(previous ?? COMPARE_STATE_DEFAULT)),
+    [setSessionState]
   );
 
   const isOn = state?.isOn ?? false;
+
+  /**
+   * A mode addon's config for the channel, applied only while nothing is
+   * known yet. Anything already there was chosen in this session or launched
+   * from a row, and neither is a mode addon's to overwrite on mount. A
+   * functional update, so it stays a no-op even when a row's launch is
+   * queued in the same commit ahead of it.
+   */
+  const seedDefaults = useCallback(
+    (defaults: Partial<Pick<CompareState, "mode" | "orientation" | "spyglassRadius">>) => {
+      setSessionState((previous) =>
+        previous ?? { ...COMPARE_STATE_DEFAULT, ...defaults }
+      );
+    },
+    [setSessionState]
+  );
 
   const setOn = useCallback(
     (next: boolean) => {
@@ -181,12 +247,14 @@ export const useComparingActions = () => {
     [setState]
   );
 
+  /** the reconciled assignment, which covers every block on the map by now */
   const setAssignments = useCallback(
     (next: CompareAssignments, forPanelCount: number) => {
       setState((previous) => ({
         ...previous,
         assignments: next,
         assignmentsPanelCount: forPanelCount,
+        assignmentsClosed: false,
       }));
     },
     [setState]
@@ -264,6 +332,43 @@ export const useComparingActions = () => {
     }));
   }, [setState]);
 
+  /**
+   * Launches a definition: what a row restored from the persisted stack or
+   * brought in by a shared link carries. The layout counts as the user's
+   * (`layoutTouched`), so the heuristic does not move the panel count away
+   * from what was shared. A channel that already holds the definition is left
+   * alone, so launching the running comparison again changes nothing.
+   */
+  const startComparison = useCallback(
+    (def: CompareDefinition) => {
+      setState((previous) => {
+        if (previous.isOn && holdsDefinition(previous, def)) {
+          return previous;
+        }
+        const panelCount = clampPanelCount(def.mode, def.panelCount);
+        return {
+          ...previous,
+          isOn: true,
+          mode: def.mode,
+          orientation: def.orientation,
+          panelCount,
+          layoutTouched: true,
+          ...(def.assignments
+            ? {
+                assignments: def.assignments,
+                assignmentsPanelCount: panelCount,
+                assignmentsClosed: true,
+              }
+            : {}),
+          ...(def.spyglassRadius !== undefined
+            ? { spyglassRadius: clampSpyglassRadius(def.spyglassRadius) }
+            : {}),
+        };
+      });
+    },
+    [setState]
+  );
+
   /** the same block in or out of every panel at once, for the background */
   const setAssignedEverywhere = useCallback(
     (key: string, assigned: boolean) => {
@@ -282,17 +387,28 @@ export const useComparingActions = () => {
     [setState]
   );
 
+  // one object per state, so a row memoised on it does not go stale every render
+  const definition = useMemo(
+    () => (state ? toCompareDefinition(state) : undefined),
+    [state]
+  );
+
+  /** whether this definition is the comparison the channel currently runs */
+  const isComparisonRunning = useCallback(
+    (def: CompareDefinition): boolean =>
+      state !== undefined && state.isOn && holdsDefinition(state, def),
+    [state]
+  );
+
   return {
-    /**
-     * Whether anything is known about the comparison yet, from this session or
-     * from storage. What it answers is whether a mode may still seed a default:
-     * once there is a state, its mode was either chosen or restored, and either
-     * way it is not a mode addon's to overwrite on mount.
-     */
-    hasState: state !== undefined,
+    /** the definition the channel holds now, for the row to carry */
+    definition,
+    seedDefaults,
     isOn,
     setOn,
     toggle,
+    startComparison,
+    isComparisonRunning,
     panelCount,
     setPanelCount,
     suggestPanelCount,
@@ -306,6 +422,7 @@ export const useComparingActions = () => {
     setLayout,
     assignments,
     assignmentsPanelCount: state?.assignmentsPanelCount,
+    assignmentsClosed: state?.assignmentsClosed ?? false,
     setAssignments,
     setAssigned,
     setAssignedEverywhere,
