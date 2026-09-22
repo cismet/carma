@@ -26,6 +26,7 @@ import {
   useAddonState,
 } from "@carma-mapping/addons";
 import { iconMap } from "@carma-mapping/components";
+import { buildLayerFavoriteItem } from "./layer-favorite-utils";
 
 import {
   changeBackgroundVisibility,
@@ -165,7 +166,9 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
   const canFavorite =
     !isBaseLayer &&
     !secondaryViewAddon &&
-    (entry.type === "layer" || entry.type === "object");
+    (entry.type === "layer" ||
+      entry.type === "object" ||
+      workflowGroup !== undefined);
   const isFavorite =
     canFavorite &&
     favorites.some(
@@ -173,7 +176,42 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
         favorite.id === `fav_${entry.id}` || favorite.id === entry.id
     );
 
+  /**
+   * A workflow layer as a favorite is the catalog's workflow kind, with its
+   * members and its definition on board: adding it back goes through the
+   * workflow-card path (`applyWorkflowLayerGroup`), which builds the same
+   * group again from `workflowLayerItems` and `tools`.
+   */
+  const buildGroupFavoriteItem = (target: LayerGroup): Item => {
+    // the members' legends, as the catalog card reads them (`props.Style`)
+    // and as the restored group shows them (`groupInfo.legend`)
+    const legendEntries = target.layers.flatMap(resolveLayerLegend);
+    return {
+      type: "workflow",
+      id: target.id,
+      title: target.title,
+      description: target.description ?? "",
+      serviceName: "workflow",
+      icon: target.icon,
+      tools: target.tools,
+      workflowLayers: target.layers.map((member) => member.id),
+      workflowLayerItems: target.layers.map(buildLayerFavoriteItem),
+      ...(legendEntries.length > 0
+        ? {
+            props: { Style: [{ LegendURL: legendEntries }] },
+            groupInfo: {
+              ...target.groupInfo,
+              legend: legendEntries.map((entry) => entry.OnlineResource),
+            },
+          }
+        : {}),
+    } as Item;
+  };
+
   const buildFavoriteItem = (): Item => {
+    if (group) {
+      return buildGroupFavoriteItem(group);
+    }
     const other = layer.other ?? {};
     const layerInfo = layer.layerInfo ?? {};
     return {
