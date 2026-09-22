@@ -122,7 +122,7 @@ const LandParcelWizard = ({
       const lock = await findLock(key.id, jwt);
       if (lock) {
         setProblem(
-          `Ausgewähltes Flurstück ist gesperrt von Benutzer: ${lock.user_string}`
+          `Ausgewähltes Flurstück ist gesperrt von Benutzer: ${lock.userString}`
         );
         return false;
       }

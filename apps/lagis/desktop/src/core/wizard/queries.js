@@ -146,11 +146,15 @@ wizardQueries.successorEdges = `query SuccessorEdges($flurstueckId: Int!) {
   }
 }`;
 
+// Reads go against the `sperre` view, writes against `cs_locks`, and the two
+// name the same columns differently: benutzerkonto/informationen here,
+// user_string/additional_info there.
 wizardQueries.lockForSchluessel = `query LockForSchluessel($schluesselId: Int!) {
   sperre(where: {fk_flurstueck_schluessel: {_eq: $schluesselId}}) {
     id
-    user_string
-    additional_info
+    benutzerkonto
+    informationen
+    zeitstempel_timestamp
   }
 }`;
 
