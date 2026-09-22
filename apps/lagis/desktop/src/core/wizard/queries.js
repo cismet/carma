@@ -146,15 +146,13 @@ wizardQueries.successorEdges = `query SuccessorEdges($flurstueckId: Int!) {
   }
 }`;
 
-// Reads go against the `sperre` view, writes against `cs_locks`, and the two
-// name the same columns differently: benutzerkonto/informationen here,
-// user_string/additional_info there.
-wizardQueries.lockForSchluessel = `query LockForSchluessel($schluesselId: Int!) {
-  sperre(where: {fk_flurstueck_schluessel: {_eq: $schluesselId}}) {
+// The `sperre` view stays empty even while cs_locks holds rows, so locks are
+// read from cs_locks directly, keyed the way cids stores them.
+wizardQueries.lockForSchluessel = `query LockForSchluessel($classId: Int!, $objectId: Int!) {
+  cs_locks(where: {class_id: {_eq: $classId}, object_id: {_eq: $objectId}}) {
     id
-    benutzerkonto
-    informationen
-    zeitstempel_timestamp
+    user_string
+    additional_info
   }
 }`;
 

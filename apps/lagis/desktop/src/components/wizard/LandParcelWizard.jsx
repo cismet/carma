@@ -222,9 +222,8 @@ const LandParcelWizard = ({
     ) {
       setBusy(true);
       try {
-        // LagisBroker loads the Flurstück before it opens the dialog, so a key
-        // without a Flurstück row fails right away instead of first asking for
-        // dates that could never be written.
+        // LagisBroker loads the Flurstück before the dialog, so a key without
+        // one fails before any date is asked for
         const flurstueck = await fetchFlurstueckBySchluesselId(
           data.historicKey.id,
           jwt
