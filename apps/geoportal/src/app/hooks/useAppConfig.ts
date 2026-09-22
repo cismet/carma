@@ -1,16 +1,23 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { message } from "antd";
 import { useDispatch, useStore } from "react-redux";
 import { useLocation } from "react-router-dom";
 
 import { registerConfig, type MappingConfig } from "@carma-api";
 import {
   type SelectedObject,
+  type ShareConfigMode,
   useAdhocFeatureDisplay,
   type LayerMap,
   type SelectionItem,
   type Settings,
 } from "@carma-appframeworks/portals";
-import type { BackgroundLayer, Layer } from "@carma-mapping/layers";
+import {
+  isLayerGroup,
+  type BackgroundLayer,
+  type Layer,
+  type LayerStackEntry,
+} from "@carma-mapping/layers";
 import { updateHashHistoryState, getHashParams } from "@carma-commons/utils";
 
 import {
@@ -20,16 +27,20 @@ import {
 import { toBackgroundLayer } from "../config/backgroundConfig";
 import { findFachzwillingByPathname } from "../constants/fachzwillinge";
 import { readCachedConfig, writeCachedConfig } from "../helper/config-cache";
+import { stripInteractionButtons } from "../store/persisted-layer-stack";
 
 import {
+  appendLayer,
+  getLayerStack,
   getLayerState,
+  removeLayer,
   setBackgroundLayer,
   setConfigSelection,
   setLayers,
   setSelectedByCategory,
 } from "../store/slices/mapping";
 
-import { AppDispatch, type RootState } from "../store";
+import type { AppDispatch, RootState } from "../store";
 
 type View = {
   center: string[];
@@ -37,7 +48,9 @@ type View = {
 };
 
 type Config = {
-  layers: Layer[];
+  /** absent means `replace`, see ShareConfigMode */
+  mode?: ShareConfigMode;
+  layers: LayerStackEntry[];
   /** optional: a display that wants layers over nothing sends no base map */
   backgroundLayer?: BackgroundLayer & { selectedLayerId: string };
   settings?: Settings;
@@ -54,6 +67,56 @@ const isUsableConfig = (value: unknown): value is Config =>
   value !== null &&
   Array.isArray((value as { layers?: unknown }).layers);
 
+/**
+ * Append the configuration's entries to the stack the visitor already has.
+ * Nothing else in the configuration is read: no base map, no view, no
+ * selection. A layer whose id is already on the map is left alone, so opening
+ * the same link twice does not stack it twice. A workflow row (a `__` id, see
+ * `persisted-layer-stack.ts`) replaces the one already there instead: its
+ * engine holds one workflow at a time, and the link's is the one asked for.
+ * A group brings its members with it: a member already on the map on its own
+ * is taken off, so the map shows it once, inside the group; the link is an
+ * intentional act and the group's copy is the one asked for.
+ */
+const applyAdditiveConfig = (
+  config: Config,
+  currentStack: LayerStackEntry[],
+  dispatch: AppDispatch
+) => {
+  const presentIds = new Set(currentStack.map((entry) => entry.id));
+  const added: string[] = [];
+  const skipped: string[] = [];
+  console.info("[CONFIG] additive entries", { layers: config.layers });
+  // a link is JSON, so any `interactionButtons` in it are dead React elements
+  // (see `stripInteractionButtons`); the row's mode rebuilds them once it runs
+  for (const entry of stripInteractionButtons(config.layers)) {
+    if (presentIds.has(entry.id)) {
+      if (!entry.id.startsWith("__") && !isLayerGroup(entry)) {
+        skipped.push(entry.title);
+        continue;
+      }
+      dispatch(removeLayer(entry.id));
+    }
+    if (isLayerGroup(entry)) {
+      for (const member of entry.layers) {
+        if (presentIds.has(member.id)) {
+          dispatch(removeLayer(member.id));
+          presentIds.delete(member.id);
+        }
+      }
+    }
+    dispatch(appendLayer(entry));
+    presentIds.add(entry.id);
+    added.push(entry.title);
+  }
+  if (added.length > 0) {
+    message.success(`${added.join(", ")} wurde hinzugefügt.`);
+  }
+  if (skipped.length > 0) {
+    message.info(`${skipped.join(", ")} ist bereits auf der Karte.`);
+  }
+};
+
 const onLoadedConfig = (
   config: Config,
   layerMap: LayerMap,
@@ -62,8 +125,15 @@ const onLoadedConfig = (
     id: string,
     collectionId: string,
     layerId: string
-  ) => void
-) => {
+  ) => void,
+  getCurrentStack: () => LayerStackEntry[]
+): { replacedMap: boolean } => {
+  if (config.mode === "additive") {
+    applyAdditiveConfig(config, getCurrentStack(), dispatch);
+    // what is on screen is still the visitor's own map, plus a few rows
+    return { replacedMap: false };
+  }
+
   dispatch(setLayers(config.layers));
 
   // A configuration may leave the base map out entirely, and then the current
@@ -134,6 +204,7 @@ const onLoadedConfig = (
       );
     }
   }
+  return { replacedMap: true };
 };
 
 export const useAppConfig = (
@@ -142,8 +213,14 @@ export const useAppConfig = (
   configKey = DEFAULT_CONFIG_KEY
 ) => {
   const dispatch = useDispatch();
+  const store = useStore<RootState>();
   const { pathname } = useLocation();
   const { setSelectedFeatureById } = useAdhocFeatureDisplay();
+  // read at apply time, an additive config lands on whatever is there by then
+  const getCurrentStack = useCallback(
+    () => getLayerStack(store.getState()),
+    [store]
+  );
   const fachzwilling = findFachzwillingByPathname(pathname);
   // a route may hold its config under a key of its own, see configHashKey
   const effectiveConfigKey = fachzwilling?.configHashKey ?? configKey;
@@ -172,6 +249,7 @@ export const useAppConfig = (
     dispatch,
     setSelectedFeatureById,
     cacheConfigsById,
+    getCurrentStack,
   });
   depsRef.current = {
     configBaseUrl,
@@ -179,6 +257,7 @@ export const useAppConfig = (
     dispatch,
     setSelectedFeatureById,
     cacheConfigsById,
+    getCurrentStack,
   };
 
   /**
@@ -208,13 +287,15 @@ export const useAppConfig = (
         layerMap: map,
         dispatch: d,
         setSelectedFeatureById,
+        getCurrentStack: getStack,
       } = depsRef.current;
       try {
         onLoadedConfig(
           incoming as unknown as Config,
           map,
           d,
-          setSelectedFeatureById
+          setSelectedFeatureById,
+          getStack
         );
       } catch (error) {
         console.error("[CONFIG] applying a configuration failed:", error);
@@ -294,13 +375,17 @@ export const useAppConfig = (
           void writeCachedConfig(url, body);
         }
       }
-      onLoadedConfig(
+      const { replacedMap } = onLoadedConfig(
         newConfig,
         rest.layerMap,
         rest.dispatch,
-        rest.setSelectedFeatureById
+        rest.setSelectedFeatureById,
+        rest.getCurrentStack
       );
-      appliedConfigRef.current = id;
+      // An additive config does not describe what is on screen, so it is not
+      // the applied one; the key is stripped from the hash either way, so it
+      // is not re-applied on the next hash write.
+      appliedConfigRef.current = replacedMap ? id : undefined;
       initialLoadDoneRef.current = true;
       setIsLoadingConfig(false);
       return true;
@@ -325,7 +410,6 @@ export const useAppConfig = (
    * takes: the pm-show scenes are made of it. Read from the store at call time,
    * so it needs no subscription.
    */
-  const store = useStore<RootState>();
   const getMappingConfig = useCallback((): MappingConfig => {
     const { layers, backgroundLayer, selectedByCategory } = getLayerState(
       store.getState()

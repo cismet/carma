@@ -7,6 +7,7 @@ import {
   faChevronUp,
   faFilter,
   faLayerGroup,
+  faShareNodes,
   faStar,
 } from "@fortawesome/free-solid-svg-icons";
 import { faStar as regularFaStar } from "@fortawesome/free-regular-svg-icons";
@@ -15,7 +16,7 @@ import { Badge } from "antd";
 import { forwardRef, useContext, useEffect, useRef } from "react";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { useDispatch, useSelector } from "react-redux";
-import { SELECTED_LAYER_INDEX } from "@carma-appframeworks/portals";
+import { SELECTED_LAYER_INDEX, useShareUrl } from "@carma-appframeworks/portals";
 import { cn } from "@carma-commons/utils";
 import {
   resolveSecondaryViewTargetAddon,
@@ -71,6 +72,10 @@ import { hasLayerFilterControl } from "./LayerFilterControl";
 import { InteractionContent } from "./InteractionView";
 import { DEFAULT_LAYER_VISIBILITY_TOGGLE_LABELS } from "./layer-visibility-toggle-props";
 import { SHADOW_SIMULATION_LAYER_ID } from "../../hooks/useShadowSimulationLayerButton";
+import {
+  collectShareEntries,
+  isShareableEntry,
+} from "../../helper/share-entries";
 
 type Ref = HTMLDivElement;
 
@@ -206,6 +211,12 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
       addFavorite(item);
     }
   };
+
+  // A link that adds just this entry to the receiver's map: a layer, a group,
+  // or a workflow row with its definition (and the layers it acts on).
+  const { copyAdditiveShareUrl, contextHolder: shareContextHolder } =
+    useShareUrl();
+  const canShare = isShareableEntry(entry, isBaseLayer);
 
   const { isLeaflet, isCesium } = useMapFrameworkSwitcherContext();
 
@@ -356,6 +367,7 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
 
   return (
     <div className="pt-3 w-full pointer-events-none">
+      {shareContextHolder}
       <div className="flex items-center justify-center w-full">
         <div
           ref={infoRef}
@@ -492,6 +504,21 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
                     className={isInteractionActive ? "!text-[#1677ff]" : ""}
                   />
                 </Badge>
+              </button>
+            )}
+            {canShare && (
+              <button
+                className="hover:text-gray-500 text-gray-600 flex items-center justify-center"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  void copyAdditiveShareUrl({
+                    entries: collectShareEntries(entry as LayerStackEntry),
+                  });
+                }}
+                title="Link zu diesem Karteninhalt kopieren"
+                data-test-id="share-layer-secondary-view"
+              >
+                <FontAwesomeIcon icon={faShareNodes} />
               </button>
             )}
             {canFavorite && (

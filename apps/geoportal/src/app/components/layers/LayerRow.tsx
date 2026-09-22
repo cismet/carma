@@ -10,6 +10,7 @@ import {
   faChevronUp,
   faGripVertical,
   faLayerGroup,
+  faShareNodes,
   faTrash,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -33,8 +34,15 @@ import {
 import OpacitySlider from "./OpacitySlider";
 import VisibilityToggle from "./VisibilityToggle";
 import DynamicStylingLayerIcon from "./DynamicStylingLayerIcon";
-import { useAdhocFeatureDisplay } from "@carma-appframeworks/portals";
+import {
+  useAdhocFeatureDisplay,
+  useShareUrl,
+} from "@carma-appframeworks/portals";
 import { isAdhocVectorLayer } from "../../helper/adhoc-feature-utils";
+import {
+  collectShareEntries,
+  isShareableEntry,
+} from "../../helper/share-entries";
 import {
   selectedFeatureBelongsToLayer,
   type LayerVisibilityToggleProps,
@@ -79,11 +87,14 @@ const LayerRow = ({
   const selectedFeature = useSelector(getSelectedFeature);
   const layers = useSelector(getLayerStack);
   const { clearFeatureCollections } = useAdhocFeatureDisplay();
+  const { copyAdditiveShareUrl, contextHolder: shareContextHolder } =
+    useShareUrl();
   const isGroup = isLayerGroup(layer);
   const icon = getLayerRowFallbackIcon(layer);
   const isPinned = isPinnedLayer(layer);
   const isPermanent = isPermanentLayer(layer);
   const skipSelection = !isGroup && !!(layer as Layer).skipSelection;
+  const canShare = isShareableEntry(layer, Boolean(isBackgroundLayer));
   // Whether clicking the title has anywhere to go. `entryHasInfoView` is the
   // same predicate the store selects by, so a row can only offer a click the
   // store will honour: asked for a selection it refuses, it resets to
@@ -172,6 +183,7 @@ const LayerRow = ({
 
   return (
     <div ref={setNodeRef} style={style} className="w-full flex flex-col px-1">
+      {shareContextHolder}
       <div className="w-full flex items-center gap-2">
         <button
           {...listeners}
@@ -252,9 +264,25 @@ const LayerRow = ({
                   </button>
                 </>
               )}
-              {!isPermanent && (
+              {canShare && (
                 <button
                   className="ml-auto flex items-center gap-1.5 rounded-full border border-gray-300 bg-white px-3 py-1 text-sm hover:bg-gray-50"
+                  title="Link zu diesem Karteninhalt kopieren"
+                  onClick={() => {
+                    void copyAdditiveShareUrl({
+                      entries: collectShareEntries(layer as LayerStackEntry),
+                    });
+                  }}
+                >
+                  <FontAwesomeIcon icon={faShareNodes} />
+                  Teilen
+                </button>
+              )}
+              {!isPermanent && (
+                <button
+                  className={`${
+                    canShare ? "" : "ml-auto "
+                  }flex items-center gap-1.5 rounded-full border border-gray-300 bg-white px-3 py-1 text-sm hover:bg-gray-50`}
                   onClick={handleRemoveLayer}
                 >
                   <FontAwesomeIcon icon={faTrash} />
