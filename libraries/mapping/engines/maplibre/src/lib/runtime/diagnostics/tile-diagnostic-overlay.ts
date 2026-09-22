@@ -26,6 +26,7 @@ export type TileDiagnosticOverlayInput = {
   cameraFocus?: string;
   followPaddingPercent?: number;
   showFrustum?: boolean;
+  orbit?: DiagnosticFrame["orbit"];
   model: OverlayModel;
   view: DiagnosticView;
   opacity: number;
@@ -218,6 +219,7 @@ export const createTileDiagnosticOverlay = (
         cameraFocus: input.cameraFocus,
         followPaddingPercent: input.followPaddingPercent,
         showFrustum: input.showFrustum,
+        orbit: input.orbit,
         width,
         height,
         pixelRatio: host.ownerDocument.defaultView?.devicePixelRatio ?? 1,
@@ -307,6 +309,7 @@ export const createTileDiagnosticOverlay = (
         host.dataset.bufferBytes = String(data.bufferBytes);
         host.dataset.uploads = String(data.uploads);
         host.dataset.workerMs = String(data.workerMs);
+        if (data.view) host.dataset.projectedView = data.view.join(" ");
       }
       if (dirty || data.type === "ready") schedule();
     };

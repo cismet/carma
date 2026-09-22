@@ -212,6 +212,53 @@ describe("live overview viewport", () => {
       projectTileDiagnosticViewports(basis, snapshots, "removed", 100).view
     ).toEqual(all.views[0].view);
   });
+  it("orbits the real clipped tile volume without moving its pivot", () => {
+    const camera = new THREE.OrthographicCamera(-4, 4, 4, -4, 1, 30);
+    camera.position.set(5, 15, 5);
+    camera.up.set(0, 0, -1);
+    camera.lookAt(5, 0, 5);
+    camera.updateMatrixWorld();
+    const basis = {
+      bounds: [0, -5, 0, 10, 5, 10],
+      tileBounds: [0, -5, 0, 10, 5, 10],
+      worldToOverview: new THREE.Matrix4().toArray(),
+      screen: [1, 0, 0],
+      width: 100,
+      height: 100,
+    };
+    const snapshots = snapshotTileCameraViews([
+      {
+        id: "overview-live",
+        camera,
+        viewport: [100, 100],
+        errorTargetPixels: 1,
+        role: "receiver",
+      },
+    ]);
+    const plan = projectTileDiagnosticViewports(
+      basis,
+      snapshots,
+      "overview-live",
+      100
+    );
+    const orbit = projectTileDiagnosticViewports(
+      basis,
+      snapshots,
+      "overview-live",
+      100,
+      { yaw: 0.4, pitch: 0.6 }
+    );
+    const pivot = new THREE.Vector3().fromArray(plan.views[0].focusWorld!);
+    const projected = pivot
+      .clone()
+      .applyMatrix4(new THREE.Matrix4().fromArray(orbit.basis.worldToOverview));
+    expect(projected.distanceTo(pivot)).toBeLessThan(1e-6);
+    expect(orbit.views[0].edges.length).toBeGreaterThan(0);
+    expect(Array.from(orbit.views[0].edges)).not.toEqual(
+      Array.from(plan.views[0].edges)
+    );
+    expect(basis.worldToOverview).toEqual(new THREE.Matrix4().toArray());
+  });
   it.each(["perspective", "orthographic"])(
     "moves independently of tile capture for %s cameras",
     (kind) => {

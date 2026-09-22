@@ -51,6 +51,7 @@ export type DiagnosticFrame = {
   cameraFocus?: string;
   followPaddingPercent?: number;
   showFrustum?: boolean;
+  orbit?: { yaw: number; pitch: number };
   view: DiagnosticView;
   width: number;
   height: number;

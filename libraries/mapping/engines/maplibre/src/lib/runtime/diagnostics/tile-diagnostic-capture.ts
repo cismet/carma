@@ -25,6 +25,7 @@ import type {
   Kind,
   OverlayModel,
   OverlayRect,
+  DiagnosticViewportBasis,
 } from "../../core/diagnostics/tile-diagnostic-model";
 import {
   frustumOf,
@@ -286,7 +287,7 @@ export const captureTileDiagnostics = async (
     const kind = kindOf(tile, state, floor);
     return kind === "displayed" || kind === "underlay";
   });
-  const viewportBasis = {
+  const viewportBasis: DiagnosticViewportBasis = {
     tileBounds: cutRects.flatMap((rect) => {
       const bounds = tileBoxes.get(rect.tile)!.bounds;
       return [...bounds.min.toArray(), ...bounds.max.toArray()];
@@ -354,6 +355,20 @@ export const captureTileDiagnostics = async (
           frustumFromSnapshot(options.shadowCamera)
         )
       : [];
+  viewportBasis.rectBounds = [
+    ...rects.flatMap((rect) => {
+      const bounds = tileBoxes.get(rect.tile)!.bounds;
+      return [...bounds.min.toArray(), ...bounds.max.toArray()];
+    }),
+    ...overlayVolumes.flatMap((volume) => [
+      ...volume.world.min.toArray(),
+      ...volume.world.max.toArray(),
+    ]),
+  ];
+  viewportBasis.rectTransforms = [
+    ...rects.flatMap((rect) => tileBoxes.get(rect.tile)!.transform.toArray()),
+    ...overlayVolumes.flatMap(() => new THREE.Matrix4().toArray()),
+  ];
   let model: OverlayModel = {
     width,
     height,

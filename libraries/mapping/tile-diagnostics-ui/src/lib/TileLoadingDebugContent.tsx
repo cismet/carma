@@ -502,6 +502,7 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
       w: number;
       h: number;
     } | null>(null);
+    const [overviewOrbit, setOverviewOrbit] = useState({ yaw: 0, pitch: 0 });
     const [hover, setHoverState] = useState<Hover>(null);
     const hoverRef = useRef<Hover>(null);
     const chartRef = useRef<StripChart | null>(null);
@@ -1265,13 +1266,28 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
         cameraFocus={options.overviewCameraFocus ?? "overview-live"}
         followPaddingPercent={options.overviewPaddingPercent ?? 200}
         showFrustum={options.showFrustum}
+        orbit={overviewOrbit}
         freeView={popout && options.overviewView === "free" ? freeView : null}
         popout={popout}
         opacity={options.overlayOpacity}
         labels={options.overlayLabels}
         up={options.overviewUp}
-        interactive={popout && options.overviewView === "free"}
-        onViewChange={setFreeView}
+        interactive={
+          popout &&
+          (options.overviewView === "free" ||
+            options.overviewView === "frustum")
+        }
+        onViewChange={(view) => {
+          setFreeView(view);
+          if (view && options.overviewView === "frustum")
+            onOptionsChange({ overviewView: "free" });
+        }}
+        onOrbitChange={setOverviewOrbit}
+        onReset={() => {
+          setOverviewOrbit({ yaw: 0, pitch: 0 });
+          setFreeView(null);
+          onOptionsChange({ overviewView: "frustum" });
+        }}
         hover={hover}
         onHover={setHover}
       />
@@ -2320,7 +2336,7 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
                     aria-pressed={options.overviewView === "frustum"}
                     title={
                       options.overviewView === "frustum"
-                        ? "Following viewport · click for full extent"
+                        ? "Following viewport · drag to pan, Ctrl/right-drag to orbit, wheel to zoom"
                         : "Follow viewport"
                     }
                     onClick={() =>
