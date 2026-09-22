@@ -22,7 +22,12 @@ async function loadFilesTarget(jwt: string): Promise<FilesTarget> {
   }
   const json = await response.json();
   const raw = json[APP_CONFIG.filesConfigAttribute];
-  if (!raw) throw new Error("Upload-Ziel ist nicht konfiguriert");
+  // the server answers null for a valid login without the attribute
+  if (!raw) {
+    throw new Error(
+      `Keine Berechtigung für den Foto-Upload (Konfigurationsattribut ${APP_CONFIG.filesConfigAttribute} fehlt)`
+    );
+  }
   const parsed = JSON.parse(raw) as FilesTarget;
   if (!parsed.url) throw new Error("Upload-Ziel ohne URL");
   cachedTarget = parsed;
