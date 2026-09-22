@@ -1,5 +1,7 @@
 import type { MappingConfig } from "@carma-api";
 
+import { isBounds3857, type Bounds3857 } from "./bounds";
+
 /**
  * A show: the scenes a presenter steps through, prepared on the desktop in the
  * pm-show route and stepped through from a phone. Every scene carries its whole
@@ -17,6 +19,11 @@ export type ShowScene = {
   title: string;
   /** the map part of a share configuration: layers and base map */
   config: MappingConfig;
+  /**
+   * Where the display flies for this scene. Optional: a scene without one
+   * leaves the display where the previous scene put it.
+   */
+  bounds?: Bounds3857;
 };
 
 export type Show = {
@@ -38,7 +45,8 @@ const isShowScene = (value: unknown): value is ShowScene =>
   isRecord(value) &&
   typeof value["id"] === "string" &&
   typeof value["title"] === "string" &&
-  isMappingConfig(value["config"]);
+  isMappingConfig(value["config"]) &&
+  (value["bounds"] === undefined || isBounds3857(value["bounds"]));
 
 export const isShow = (value: unknown): value is Show =>
   isRecord(value) &&

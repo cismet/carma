@@ -7,11 +7,13 @@ import {
   blackoutOf,
   composeDisplayConfig,
   helloRelay,
+  isBounds3857,
   isMappingConfig,
   planSceneChange,
   readRelayState,
   withLayerOpacity,
   writeRelayState,
+  type Bounds3857,
   type RelayTarget,
   type ShowScene,
 } from "@carma-mapping/show-remote";
@@ -60,6 +62,12 @@ export const useDisplay = (
 
   const liveRef = useRef<MappingConfig | null>(null);
   const blackoutRef = useRef(false);
+  /**
+   * The position the display was last sent. Every write repeats it, since the
+   * state document is the whole desired state: a scene without a position
+   * keeps the display where it is instead of dropping it back to its default.
+   */
+  const boundsRef = useRef<Bounds3857 | null>(null);
   // bumped by every scene tap; a run whose number is outdated stops
   const runRef = useRef(0);
   const scenesRef = useRef(scenes);
@@ -103,6 +111,7 @@ export const useDisplay = (
             on: blackoutRef.current,
             fadeMs: BLACKOUT_FADE_MS,
           }),
+          ...(boundsRef.current ? { bounds: boundsRef.current } : {}),
         })
       );
     },
@@ -114,6 +123,7 @@ export const useDisplay = (
     runRef.current += 1;
     liveRef.current = null;
     blackoutRef.current = false;
+    boundsRef.current = null;
     setLive(null);
     setIsBlackout(false);
     setActiveSceneId(null);
@@ -133,10 +143,15 @@ export const useDisplay = (
       if (!isCurrent) {
         return;
       }
-      const config =
-        typeof state === "object" && state !== null && "config" in state
-          ? state.config
-          : undefined;
+      const document =
+        typeof state === "object" && state !== null
+          ? (state as Record<string, unknown>)
+          : {};
+      const config = document["config"];
+      const bounds = document["bounds"];
+      if (isBounds3857(bounds)) {
+        boundsRef.current = bounds;
+      }
       if (isMappingConfig(config)) {
         const base = baseOf(config);
         liveRef.current = base;
@@ -171,6 +186,10 @@ export const useDisplay = (
       const run = ++runRef.current;
       setActiveSceneId(scene.id);
       setIsChanging(true);
+      // the first write of the change carries it, so the flight starts with the fade
+      if (scene.bounds) {
+        boundsRef.current = scene.bounds;
+      }
       const steps = planSceneChange(liveRef.current, scene.config, {
         fadeMs,
         prepareMs: DEFAULT_PREPARE_MS,

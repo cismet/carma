@@ -1,6 +1,14 @@
 import { useMemo, useState } from "react";
 
-import { Button, Input, Modal, Popconfirm, QRCode, Tooltip } from "antd";
+import {
+  Button,
+  Checkbox,
+  Input,
+  Modal,
+  Popconfirm,
+  QRCode,
+  Tooltip,
+} from "antd";
 import {
   faArrowDown,
   faArrowUp,
@@ -8,10 +16,15 @@ import {
   faCopy,
   faEye,
   faFloppyDisk,
+  faLocationCrosshairs,
   faTrash,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
+import {
+  getFromWGS84ToWebMercator,
+  getFromWebMercatorToWGS84,
+} from "@carma-geo/proj";
 import {
   Control,
   ControlButtonStyler,
@@ -22,9 +35,11 @@ import {
   MAX_SHOW_BYTES,
   SHOW_FORMAT,
   SHOW_VERSION,
+  isBounds3857,
   newSceneId,
   publishShow,
   showByteSize,
+  type Bounds3857,
   type Show,
   type ShowScene,
 } from "@carma-mapping/show-remote";
@@ -95,6 +110,30 @@ const remoteLinkFor = (remoteUrl: string, key: string): string => {
 const formatKb = (bytes: number): string =>
   `${(bytes / 1024).toFixed(bytes < 10 * 1024 ? 1 : 0)} kB`;
 
+type Wgs84Pair = Parameters<typeof getFromWGS84ToWebMercator>[0];
+
+/** what either engine's `getBounds()` answers */
+type ViewBounds = {
+  getWest: () => number;
+  getSouth: () => number;
+  getEast: () => number;
+  getNorth: () => number;
+};
+
+/** the visible map as an EPSG:3857 rectangle, the form the outlet flies to */
+const toBounds3857 = (view: ViewBounds): Bounds3857 | null => {
+  const [minX, minY] = getFromWGS84ToWebMercator([
+    view.getWest(),
+    view.getSouth(),
+  ] as unknown as Wgs84Pair);
+  const [maxX, maxY] = getFromWGS84ToWebMercator([
+    view.getEast(),
+    view.getNorth(),
+  ] as unknown as Wgs84Pair);
+  const bounds = [minX, minY, maxX, maxY];
+  return isBounds3857(bounds) ? bounds : null;
+};
+
 const IconButton = ({
   title,
   icon,
@@ -154,6 +193,13 @@ const SceneRow = ({
       {scene.config.layers.length}{" "}
       {scene.config.layers.length === 1 ? "Ebene" : "Ebenen"}
     </span>
+    <span className="w-4 text-center text-gray-500">
+      {scene.bounds && (
+        <Tooltip title="Mit Position: die Anzeige fliegt zu diesem Ausschnitt">
+          <FontAwesomeIcon icon={faLocationCrosshairs} />
+        </Tooltip>
+      )}
+    </span>
     <IconButton title="Auf der Karte anzeigen" icon={faEye} onClick={onShow} />
     <Popconfirm
       title="Szene durch die aktuelle Karte ersetzen?"
@@ -190,6 +236,8 @@ const SceneRow = ({
 export const ShowScenes = ({
   config = {},
   carma,
+  libreMap,
+  leafletMap,
 }: AddonComponentProps<"showScenes">) => {
   const {
     storeUrl = DEFAULT_SHOW_STORE_URL,
@@ -204,6 +252,8 @@ export const ShowScenes = ({
   const [isOpen, setIsOpen] = useState(false);
   const [draft, updateDraft] = useShowDraft(storageKey);
   const [status, setStatus] = useState<Status>(null);
+  /** off by default: most scenes only change layers and leave the display where it is */
+  const [withPosition, setWithPosition] = useState(false);
 
   const byteSize = useMemo(
     () => showByteSize(toShow(draft, new Date(0).toISOString())),
@@ -236,9 +286,33 @@ export const ShowScenes = ({
     return mapConfig;
   };
 
-  const saveCurrentMap = () => {
+  /**
+   * What a save stores: the map, and its visible rectangle when the tick is
+   * set. Null when the tick is set but the map has no rectangle to give.
+   */
+  const currentScene = (): Pick<ShowScene, "config" | "bounds"> | null => {
     const mapConfig = currentMapConfig();
     if (!mapConfig) {
+      return null;
+    }
+    if (!withPosition) {
+      return { config: mapConfig, bounds: undefined };
+    }
+    const view = libreMap?.getBounds() ?? leafletMap?.getBounds();
+    const bounds = view ? toBounds3857(view) : null;
+    if (!bounds) {
+      setStatus({
+        kind: "error",
+        text: "Die Karte liefert gerade keinen Ausschnitt.",
+      });
+      return null;
+    }
+    return { config: mapConfig, bounds };
+  };
+
+  const saveCurrentMap = () => {
+    const scene = currentScene();
+    if (!scene) {
       return;
     }
     setStatus(null);
@@ -249,17 +323,17 @@ export const ShowScenes = ({
         {
           id: newSceneId(),
           title: `Szene ${current.scenes.length + 1}`,
-          config: mapConfig,
+          ...scene,
         },
       ],
     }));
   };
 
   const overwriteScene = (id: string) => {
-    const mapConfig = currentMapConfig();
-    if (mapConfig) {
+    const scene = currentScene();
+    if (scene) {
       setStatus(null);
-      updateScene(id, { config: mapConfig });
+      updateScene(id, scene);
     }
   };
 
@@ -272,6 +346,12 @@ export const ShowScenes = ({
         });
       }
     });
+    if (scene.bounds) {
+      const [minX, minY, maxX, maxY] = scene.bounds;
+      const [minLng, minLat] = getFromWebMercatorToWGS84([minX, minY]);
+      const [maxLng, maxLat] = getFromWebMercatorToWGS84([maxX, maxY]);
+      carma.mapping2D.fitBounds(minLng, minLat, maxLng, maxLat, 0);
+    }
   };
 
   const publish = async () => {
@@ -346,9 +426,19 @@ export const ShowScenes = ({
             />
           </div>
 
-          <Button type="primary" onClick={saveCurrentMap}>
-            Aktuelle Karte als Szene speichern
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button type="primary" onClick={saveCurrentMap} className="flex-1">
+              Aktuelle Karte als Szene speichern
+            </Button>
+            <Tooltip title="Speichert den aktuellen Kartenausschnitt mit, die Anzeige fliegt bei dieser Szene dorthin. Gilt auch fürs Überschreiben.">
+              <Checkbox
+                checked={withPosition}
+                onChange={(event) => setWithPosition(event.target.checked)}
+              >
+                Position mitspeichern
+              </Checkbox>
+            </Tooltip>
+          </div>
 
           {draft.scenes.length === 0 ? (
             <p className="m-0 text-gray-500">

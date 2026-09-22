@@ -5,6 +5,11 @@ import { getHashParams } from "@carma-commons/utils";
 import { getFromWebMercatorToWGS84 } from "@carma-geo/proj";
 
 import type { MappingConfig } from "@carma-api";
+import {
+  boundsKey,
+  isBounds3857,
+  type Bounds3857,
+} from "@carma-mapping/show-remote";
 
 import type { AddonComponentProps } from "../../lib/registry";
 import { subscribe, type RelaySubscription } from "./relay";
@@ -31,12 +36,15 @@ const BOUNDS_PARAM = "bounds";
 const RELAY_PARAM = "relay";
 const LOG_LIMIT = 200;
 
-// EPSG:3857 validity, used only to reject nonsense before it reaches the map
-const MAX_WEB_MERCATOR_X = 20037508.343;
-const MAX_WEB_MERCATOR_Y = 20048966.105;
-
 /** aspect mismatch beyond this shows visibly on the model, see the plan's table */
 const DEFAULT_ASPECT_TOLERANCE = 1e-3;
+
+const DEFAULT_FLY_DURATION_MS = 2000;
+/**
+ * A flight rides the render loop, which stalls while the window is occluded.
+ * If it has not landed this long after its planned end, jump instead.
+ */
+const FLIGHT_GRACE_MS = 1500;
 
 /**
  * Sub-pixel drift is invisible in the capture and not worth a re-fit. Comparing
@@ -65,18 +73,24 @@ export type OutletConfig = {
   showBounds?: boolean;
   /** map-relay base url; the session code comes from ?relay= */
   relayBaseUrl?: string;
+  /** how long the flight to a position the remote sends takes (default 2000); 0 jumps */
+  flyDurationMs?: number;
 };
 
 /**
  * What the remote may ask the source window to show, as a desired state rather
  * than as commands: the whole document is applied on every change, so a reload
  * or a reconnect lands in the right place with nothing to replay.
- *
- * `bounds` is deliberately absent. It is the georeference of the printed model,
- * so letting a remote move it would break projector registration, which is the
- * one thing the source contract demands. It stays in the url.
  */
 export type OutletRemoteState = {
+  /**
+   * Where to fly, the same rectangle `?bounds=` takes. A `?bounds=` in the url
+   * wins: there it is the georeference of a printed model, and a remote moving
+   * it would break projector registration, so a projection setup pins it and
+   * the remote cannot. Without one, the remote's position replaces the addon's
+   * default rectangle.
+   */
+  bounds?: Bounds3857;
   /**
    * What to show: either the id of a shared configuration, the same value
    * `?usedConfig=` takes, or the configuration itself. The second form needs
@@ -93,14 +107,13 @@ const configIdentity = (value: string | MappingConfig): string =>
   typeof value === "string" ? `id:${value}` : `doc:${JSON.stringify(value)}`;
 
 const REMOTE_STATE_KEYS: readonly (keyof OutletRemoteState)[] = [
+  "bounds",
   "config",
   "backgroundLayer",
 ];
 
 /** where the requested rectangle sits on screen, in css pixels */
 type BoundsBox = { left: number; top: number; width: number; height: number };
-
-type Bounds3857 = readonly [number, number, number, number];
 
 type BoundsWgs84 = {
   minLng: number;
@@ -112,7 +125,7 @@ type BoundsWgs84 = {
 type ResolvedBounds = {
   bounds3857: Bounds3857;
   wgs84: BoundsWgs84;
-  source: "query" | "config";
+  source: "query" | "remote" | "config";
 };
 
 type VerifyReport = {
@@ -134,30 +147,13 @@ type VerifyReport = {
   box: BoundsBox;
 };
 
-const isFiniteNumber = (value: number): boolean => Number.isFinite(value);
-
-const isValidBounds = (bounds: readonly number[]): bounds is Bounds3857 => {
-  if (bounds.length !== 4 || !bounds.every(isFiniteNumber)) {
-    return false;
-  }
-  const [minX, minY, maxX, maxY] = bounds;
-  return (
-    minX < maxX &&
-    minY < maxY &&
-    Math.abs(minX) <= MAX_WEB_MERCATOR_X &&
-    Math.abs(maxX) <= MAX_WEB_MERCATOR_X &&
-    Math.abs(minY) <= MAX_WEB_MERCATOR_Y &&
-    Math.abs(maxY) <= MAX_WEB_MERCATOR_Y
-  );
-};
-
 /** `minX,minY,maxX,maxY` in EPSG:3857, or null when the value is unusable */
 const parseBoundsParam = (raw: string | undefined): Bounds3857 | null => {
   if (!raw) {
     return null;
   }
   const parts = raw.split(",").map((part) => Number(part.trim()));
-  if (!isValidBounds(parts)) {
+  if (!isBounds3857(parts)) {
     console.error(
       `${LOG_PREFIX} ignoring invalid ?${BOUNDS_PARAM}=, expected four EPSG:3857 numbers minX,minY,maxX,maxY`,
       { raw }
@@ -174,8 +170,14 @@ const toWgs84 = (bounds: Bounds3857): BoundsWgs84 => {
   return { minLng, minLat, maxLng, maxLat };
 };
 
-/** the query param wins over the config default; neither one valid means do nothing */
-const resolveBounds = (config?: OutletConfig): ResolvedBounds | null => {
+/**
+ * The query param wins over the remote's position, which wins over the config
+ * default; none of them valid means do nothing.
+ */
+const resolveBounds = (
+  config: OutletConfig | undefined,
+  remoteBounds: Bounds3857 | null
+): ResolvedBounds | null => {
   const fromQuery = parseBoundsParam(getHashParams()[BOUNDS_PARAM]);
   if (fromQuery) {
     return {
@@ -184,8 +186,15 @@ const resolveBounds = (config?: OutletConfig): ResolvedBounds | null => {
       source: "query",
     };
   }
+  if (remoteBounds) {
+    return {
+      bounds3857: remoteBounds,
+      wgs84: toWgs84(remoteBounds),
+      source: "remote",
+    };
+  }
   const fromConfig = config?.bounds3857;
-  if (fromConfig && isValidBounds(fromConfig)) {
+  if (fromConfig && isBounds3857(fromConfig)) {
     return {
       bounds3857: fromConfig,
       wgs84: toWgs84(fromConfig),
@@ -283,12 +292,23 @@ export const OutletAddon = ({
 }: AddonComponentProps<"outlet">) => {
   const applyingRef = useRef(false);
   const appliedBoxRef = useRef<BoundsBox | null>(null);
-  const resolved = useMemo(() => resolveBounds(config), [config]);
+  /** the map and rectangle of the last fit, so only a changed rectangle on the same map flies */
+  const fittedRef = useRef<{ map: LibreMap; key: string } | null>(null);
+  const [remoteBounds, setRemoteBounds] = useState<Bounds3857 | null>(null);
+  const resolved = useMemo(
+    () => resolveBounds(config, remoteBounds),
+    [config, remoteBounds]
+  );
   const lockView = config?.lockView ?? true;
   const aspectTolerance = config?.aspectTolerance ?? DEFAULT_ASPECT_TOLERANCE;
   const showBounds = config?.showBounds ?? true;
-  const boundsKey = resolved?.bounds3857.join(",") ?? "";
+  const flyDurationMs = config?.flyDurationMs ?? DEFAULT_FLY_DURATION_MS;
+  const resolvedKey = resolved ? boundsKey(resolved.bounds3857) : "";
   const [box, setBox] = useState<BoundsBox | null>(null);
+  /** a `?bounds=` in the url pins the position against the remote */
+  const isPositionPinnedRef = useRef(false);
+  isPositionPinnedRef.current = resolved?.source === "query";
+  const ignoredBoundsKeyRef = useRef<string | null>(null);
 
   /** what the remote last asked for and got, so an unchanged field is not re-applied */
   const appliedRemoteRef = useRef<OutletRemoteState>({});
@@ -355,22 +375,65 @@ export const OutletAddon = ({
       }
     };
 
-    // Own fits are synchronous because animate is false, so the guard reliably
-    // keeps the moveend they emit from re-entering here.
-    const applyFit = (reason: string) => {
+    const { minLng, minLat, maxLng, maxLat } = resolved.wgs84;
+    const target: [[number, number], [number, number]] = [
+      [minLng, minLat],
+      [maxLng, maxLat],
+    ];
+    const fitOptions = { padding: 0, bearing: 0, pitch: 0 };
+
+    /** the flight in progress; the guard stays up until it lands */
+    let flight: { land: () => void; timer: number } | null = null;
+
+    const endFlight = () => {
+      if (flight) {
+        libreMap.off("moveend", flight.land);
+        window.clearTimeout(flight.timer);
+        flight = null;
+      }
+    };
+
+    // Jumps are synchronous because animate is false, so the guard reliably
+    // keeps the moveend they emit from re-entering here. A flight keeps the
+    // guard up until its own moveend.
+    const applyFit = (reason: string, durationMs = 0) => {
       if (applyingRef.current) {
         return;
       }
       applyingRef.current = true;
+      if (durationMs > 0) {
+        try {
+          libreMap.fitBounds(target, {
+            ...fitOptions,
+            duration: durationMs,
+            // a reduced-motion setting on the display machine must not turn it into a jump
+            essential: true,
+          });
+        } catch (error) {
+          console.error(`${LOG_PREFIX} flight failed (${reason})`, error);
+          applyingRef.current = false;
+          return;
+        }
+        // Registered after starting: a new flight stops a running animation,
+        // and the moveend that one fires is not this flight landing.
+        const land = () => {
+          endFlight();
+          applyingRef.current = false;
+          record(reason, verify(libreMap, resolved, aspectTolerance));
+        };
+        const timer = window.setTimeout(() => {
+          endFlight();
+          // still guarded, so the moveend stop() fires is ignored
+          libreMap.stop();
+          applyingRef.current = false;
+          applyFit(`${reason}, flight did not land`);
+        }, durationMs + FLIGHT_GRACE_MS);
+        flight = { land, timer };
+        libreMap.on("moveend", land);
+        return;
+      }
       try {
-        const { minLng, minLat, maxLng, maxLat } = resolved.wgs84;
-        libreMap.fitBounds(
-          [
-            [minLng, minLat],
-            [maxLng, maxLat],
-          ],
-          { padding: 0, animate: false, bearing: 0, pitch: 0 }
-        );
+        libreMap.fitBounds(target, { ...fitOptions, animate: false });
         record(reason, verify(libreMap, resolved, aspectTolerance));
       } catch (error) {
         console.error(`${LOG_PREFIX} fit failed (${reason})`, error);
@@ -388,8 +451,19 @@ export const OutletAddon = ({
 
     // Explicit, not observer-driven: observer deliveries ride the rendering
     // pipeline and never arrive while the window is occluded or backgrounded,
-    // which is exactly what the source window is during app boot.
-    applyFit("initial");
+    // which is exactly what the source window is during app boot. So the
+    // first fit jumps; only a changed rectangle on a map already fitted flies.
+    const previous = fittedRef.current;
+    const isMove =
+      previous !== null &&
+      previous.map === libreMap &&
+      previous.key !== resolvedKey;
+    fittedRef.current = { map: libreMap, key: resolvedKey };
+    if (isMove) {
+      applyFit(`moved to the ${resolved.source} position`, flyDurationMs);
+    } else {
+      applyFit("initial");
+    }
 
     // The app applies its own views after load (hash routing, selections,
     // persisted state) and whoever writes last wins, so treat every externally
@@ -410,13 +484,27 @@ export const OutletAddon = ({
     libreMap.on("resize", handleViewChange);
 
     return () => {
+      // a flight still under way is taken over by the next fit, which stops it
+      if (flight) {
+        endFlight();
+        applyingRef.current = false;
+      }
       libreMap.off("moveend", handleViewChange);
       libreMap.off("resize", handleViewChange);
       delete (window as unknown as Record<string, unknown>)[DIAGNOSTICS_KEY];
     };
-    // resolved is memoized on config; boundsKey keeps the identity check honest
+    // resolved is memoized on config and the remote position; resolvedKey
+    // keeps the identity check honest
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [libreMap, leafletMap, boundsKey, lockView, aspectTolerance, carma]);
+  }, [
+    libreMap,
+    leafletMap,
+    resolvedKey,
+    lockView,
+    aspectTolerance,
+    flyDurationMs,
+    carma,
+  ]);
 
   /**
    * Remote control. Nobody is sitting at the machine that renders the source
@@ -455,6 +543,34 @@ export const OutletAddon = ({
 
       // Each field is compared against what was last applied successfully, so
       // re-delivering the same document (a reconnect, a late join) does nothing.
+      if (next.bounds !== undefined) {
+        if (!isBounds3857(next.bounds)) {
+          console.warn(
+            `${LOG_PREFIX} ignoring remote bounds that are not four EPSG:3857 numbers minX,minY,maxX,maxY`,
+            next.bounds
+          );
+        } else if (isPositionPinnedRef.current) {
+          const key = boundsKey(next.bounds);
+          if (key !== ignoredBoundsKeyRef.current) {
+            ignoredBoundsKeyRef.current = key;
+            console.info(
+              `${LOG_PREFIX} ?${BOUNDS_PARAM}= in the url pins the position; ignoring the remote's`,
+              next.bounds
+            );
+          }
+        } else {
+          const applied = appliedRemoteRef.current.bounds;
+          if (!applied || boundsKey(applied) !== boundsKey(next.bounds)) {
+            appliedRemoteRef.current = {
+              ...appliedRemoteRef.current,
+              bounds: next.bounds,
+            };
+            setRemoteBounds(next.bounds);
+            console.debug(`${LOG_PREFIX} remote position`, next.bounds);
+          }
+        }
+      }
+
       const wantsConfig =
         typeof next.config === "string" ||
         (typeof next.config === "object" && next.config !== null);

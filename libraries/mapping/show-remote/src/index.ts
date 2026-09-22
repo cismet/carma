@@ -7,6 +7,7 @@ export {
   type Show,
   type ShowScene,
 } from "./lib/show";
+export { boundsKey, isBounds3857, type Bounds3857 } from "./lib/bounds";
 export {
   DEFAULT_SHOW_READ_URL,
   DEFAULT_SHOW_STORE_URL,
