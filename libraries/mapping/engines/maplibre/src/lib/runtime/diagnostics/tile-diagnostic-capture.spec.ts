@@ -47,6 +47,7 @@ const fixture = () => {
       root,
       group: new THREE.Group(),
       lruCache: {
+        getMemoryUsage: () => 24 * 1024,
         itemSet: new Map([
           [root, true],
           [child, true],
@@ -77,6 +78,52 @@ const options = {
   sceneLabels: false,
 };
 describe("library-owned diagnostic capture", () => {
+  it("omits contentless routing boxes even when they are cached or selected", async () => {
+    const { state } = fixture();
+    const root = state.tiles!.root!;
+    root.internal.hasRenderableContent = false;
+    root.internal.hasUnrenderableContent = true;
+    const result = await captureTileDiagnostics(state, null, options);
+    expect(result!.model.rects.map(({ tile }) => tile)).toEqual(root.children);
+    expect(result!.displayed).toBe(1);
+  });
+
+  it("includes resident sizes and observed step timings for the shared overlay", async () => {
+    const { state } = fixture();
+    const tile = state.tiles!.root!;
+    // Cache ancestors retain size marks, but only the presented child cuts
+    // the diagnostic frustum; the root is not a rendered surface.
+    state.displayedMeshFrontier = new Set(tile.children);
+    state.tileDebugProgress = new WeakMap([
+      [
+        tile,
+        {
+          discoveredAt: 1,
+          queuedAt: 1,
+          downloadStartedAt: 3,
+          downloadFinishedAt: 8,
+          iterations: 0,
+          lastIterationFrame: 0,
+        },
+      ],
+    ]);
+    const result = await captureTileDiagnostics(state, null, {
+      ...options,
+      showSize: true,
+      showStats: false,
+    });
+    const rect = result!.model.rects.find((rect) => rect.tile === tile)!;
+    expect(result!.model.showSize).toBe(true);
+    expect(result!.model.showStats).toBe(false);
+    expect(rect.bytes).toBe(24 * 1024);
+    expect(result!.model.viewportBasis!.tileBounds).toHaveLength(6);
+    expect(result!.model.viewportBasis!.tileTransforms).toHaveLength(16);
+    expect(rect.steps).toEqual([
+      { label: "Warten", ms: 2 },
+      { label: "Laden", ms: 5 },
+      expect.objectContaining({ label: "Warten", pending: true }),
+    ]);
+  });
   it("keeps idle quality symbology unchanged when motion admission relaxes the main camera", async () => {
     const { state } = fixture();
     const camera = new THREE.PerspectiveCamera(60, 1, 1, 1000);

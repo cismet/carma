@@ -306,6 +306,36 @@ describe("local progressive mesh admission", () => {
     expect(atomicCut(parent, [parent])).toEqual(new Set(children));
   });
 
+  it("keeps a loose visible parent when its entire replacement family is outside", () => {
+    const { parent, children } = quartet(mesh(null, 40));
+    const support = new Set<Tile>();
+    const select = () =>
+      collectLoadedMeshReceiverCandidates(
+        parent,
+        6,
+        12,
+        (tile) => tile.traversal.inFrustum,
+        (tile) => tile.traversal.error,
+        undefined,
+        undefined,
+        () => true,
+        new Set(),
+        { published: new Set([parent]), support, atomic: true }
+      );
+    children.forEach((child) => {
+      child.traversal.inFrustum = false;
+      child.internal.loadingState = 0;
+    });
+    expect(select()).toEqual(new Set([parent]));
+    expect(support.size).toBe(0);
+    children.forEach((child) => (child.internal.loadingState = 4));
+    expect(select()).toEqual(new Set([parent]));
+    // A real visible child restores the complete-family coverage policy.
+    children[0].traversal.inFrustum = true;
+    expect(select()).toEqual(new Set(children));
+    expect(support).toEqual(new Set(children));
+  });
+
   it("finishes immediate offscreen siblings before publishing a finer family on repeated drags", () => {
     const { parent, children } = quartet(mesh(null, 10));
     children.forEach((child) => (child.traversal.error = 3));

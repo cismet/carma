@@ -380,6 +380,7 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
     paused,
     onPausedChange,
     toolbarHost,
+    initialOverviewPosition,
   }: {
     map: MapLibreMap;
     recorder: MetricRecorder;
@@ -389,6 +390,7 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
     paused: boolean | null;
     onPausedChange: (paused: boolean) => void;
     toolbarHost: HTMLElement;
+    initialOverviewPosition?: { left: number; top: number };
   }) => {
     const optionsRef = useRef(options);
     optionsRef.current = options;
@@ -476,7 +478,9 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
     >({});
     const [panelPositions, setPanelPositions] = useState<
       Record<string, { left: number; top: number }>
-    >({});
+    >(() =>
+      initialOverviewPosition ? { overview: initialOverviewPosition } : {}
+    );
     const [frontPanel, setFrontPanel] = useState("legend");
     const [legendExpanded, setLegendExpanded] = useState(false);
     const panelDrag = useRef<{
@@ -536,10 +540,16 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
     useEffect(() => {
       const handle = handleOf();
       if (!handle || paused === null) return;
+      const previouslyPaused = readRuntime(handle)?.loadingPaused ?? false;
       handle.loading.setPaused(paused);
       map.triggerRepaint();
       if (optionsRef.current.telemetryEnabled)
         recorder.log(paused ? "loading paused" : "loading resumed");
+      // The diagnostic pause must not survive closing or changing this runtime.
+      return () => {
+        handle.loading.setPaused(previouslyPaused);
+        map.triggerRepaint();
+      };
     }, [map, paused, recorder, runtimeHandle, runtimeReady]);
     useEffect(() => {
       const handle = handleOf();
@@ -692,20 +702,26 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
         }
         labelRenderer.render(labelScene, renderCamera);
       };
+      const setShadowView: NonNullable<
+        SharedThreeSceneRuntime["setShadowView"]
+      > = (view) => {
+        pendingShadowCameras = snapshotShadowCorridorCameras(view);
+        if (renderCamera && !cameraWork)
+          cameraWork = diagnostics.scheduleTileDiagnosticTask(
+            publishCamera,
+            true
+          );
+      };
       const labelRuntime: SharedThreeSceneRuntime = {
         id: `${runtimeHandle.scene.id}-tile-loading-debug-labels`,
         originLngLat: runtimeHandle.scene.originLngLat,
         root: new THREE.Group(),
-        setShadowView(view) {
-          pendingShadowCameras = snapshotShadowCorridorCameras(view);
-          if (renderCamera && !cameraWork)
-            cameraWork = diagnostics.scheduleTileDiagnosticTask(
-              publishCamera,
-              true
-            );
-        },
+        setShadowView,
+        // Diagnostics follow the live fit while tile demand holds its committed view.
+        setLiveShadowView: setShadowView,
         update(frame: SharedThreeSceneFrame) {
-          renderCamera = frame.renderCamera;
+          // Match the camera used by the tile loader, including near/far planes.
+          renderCamera = frame.lodCamera;
           pendingCameraViews = frame.tileCameraViews ?? [];
           // Latest-wins mailbox: no DOM layout, React state or worker dispatch
           // in the Three scene callback, and no queue of obsolete camera frames.
@@ -913,6 +929,8 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
           renderCamera,
           {
             ...currentOptions,
+            showSize: currentOptions.overviewSize,
+            showStats: currentOptions.overviewSteps,
             width,
             height,
             volumes,
@@ -1172,7 +1190,8 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
                 statusRef.current.dataset.status = JSON.stringify(next);
               if (
                 (optionsRef.current.showStats ||
-                  optionsRef.current.showQueue) &&
+                  optionsRef.current.showQueue ||
+                  optionsRef.current.showOverviewPanel) &&
                 !optionsRef.current.hideAllDebugPanels
               )
                 startTransition(() => setSummary(next));
@@ -1592,7 +1611,10 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
               ["none", "id", "id and error", "id and stats"] as const
             ).map((value) => ({
               value,
-              label: value,
+              label:
+                value === "id and stats"
+                  ? "ID + resident kB (10 kB steps)"
+                  : value,
             }))}
           />
           <Slider
@@ -1741,9 +1763,12 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
             Coverage · tile frame
           </div>
           {[
-            [OVERVIEW_COLORS.grid, "Active child grid; parents remain frames"],
-            [OVERVIEW_COLORS.reserve, "Extent floor"],
-            [OVERVIEW_COLORS.ring, "Idle reserve ring"],
+            [OVERVIEW_COLORS.grid, "Viewport · camera demand"],
+            [
+              OVERVIEW_COLORS.seam,
+              "Seam · sibling support and outward LOD rings",
+            ],
+            [OVERVIEW_COLORS.reserve, "Base resolution · extent coverage"],
             [OVERVIEW_COLORS.baseline, "Outside all views · no LOD target"],
           ].map(([color, label]) => (
             <div
@@ -1775,7 +1800,7 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
                 display: "inline-block",
               }}
             />
-            Camera frustum clipped to the tileset's 3D bounds
+            Four camera side planes cut through presented tile bounds
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <span
@@ -2155,11 +2180,7 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
                     }
                   />
                   {panels
-                    .filter(
-                      (panel) =>
-                        panel.id === "mesh-style" ||
-                        panel.id === "diagnostic-tools"
-                    )
+                    .filter((panel) => panel.id !== "overview-options")
                     .map((panel) => (
                       <Tooltip key={panel.id} title={panel.label}>
                         <Button
@@ -2330,16 +2351,51 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
               )}
               {panel.id === "overview" && (
                 <Button
+                  className="tile-debug-header-toggle"
+                  type="text"
+                  aria-label="Tile sizes in 10 kB steps"
+                  aria-pressed={options.overviewSize !== false}
+                  title="Square resident-size grid and labels in 10 kB steps"
+                  onClick={() =>
+                    onOptionsChange({
+                      overviewSize: options.overviewSize === false,
+                      overlayLabels:
+                        options.overviewSize === false ? "id and stats" : "id",
+                    })
+                  }
+                >
+                  kB
+                </Button>
+              )}
+              {panel.id === "overview" && (
+                <Button
+                  className="tile-debug-header-toggle"
+                  type="text"
+                  aria-label="Tile processing steps"
+                  aria-pressed={options.overviewSteps !== false}
+                  title="Processing time pies"
+                  onClick={() =>
+                    onOptionsChange({
+                      overviewSteps: options.overviewSteps === false,
+                    })
+                  }
+                >
+                  ms
+                </Button>
+              )}
+              {panel.id === "overview" && (
+                <Button
                   type="text"
                   icon={<FontAwesomeIcon icon={faSliders} />}
                   aria-label="Overview options"
                   aria-pressed={options.showOverviewOptions}
                   title="Overview options"
-                  onClick={() =>
+                  onClick={() => {
+                    setFrontPanel("overview-options");
                     onOptionsChange({
                       showOverviewOptions: !options.showOverviewOptions,
-                    })
-                  }
+                    });
+                  }}
                 />
               )}
               {(panel.id === "overview-options" || panel.id === "overview") && (
@@ -2517,7 +2573,23 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
                   />
                   <FontAwesomeIcon icon={panel.icon} />
                   <span style={{ flex: 1 }}>
-                    {panel.id === "overview-options" ? "Overview" : panel.label}
+                    {panel.id === "overview-options"
+                      ? "Overview"
+                      : panel.id === "overview"
+                      ? "Kacheln"
+                      : panel.label}
+                    {panel.id === "overview" && summary && (
+                      <span
+                        style={{
+                          fontWeight: 400,
+                          color: "#64748b",
+                          marginLeft: 6,
+                        }}
+                      >
+                        Aktiv {summary.displayed} · Laden {summary.pending} ·
+                        Cache {summary.resident}
+                      </span>
+                    )}
                   </span>
                   {windowControls}
                 </header>
@@ -2634,6 +2706,7 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
     onOptionsChange,
     recorder,
     toolbarHost,
+    initialOverviewPosition,
   }: TileLoadingDebugProps & { toolbarHost: HTMLElement }) => {
     const [paused, setPaused] = useState<boolean | null>(null);
     const [localOptions, setLocalOptions] = useState<
@@ -2671,6 +2744,7 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
           paused={paused}
           onPausedChange={setPaused}
           toolbarHost={toolbarHost}
+          initialOverviewPosition={initialOverviewPosition}
         />
       );
     }

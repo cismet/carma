@@ -256,13 +256,19 @@ export const buildDiagnosticPrimitives = (
   // Every tile reads against the same yardstick: one cell of a ten by ten
   // grid is a round number of kilobytes, stepped by ten until the largest
   // tile of the cut fits into the hundred cells.
-  let byteUnit = 1024;
+  let byteUnit = 10 * 1024;
   while (maximumBytes / byteUnit > SIZE_GRID * SIZE_GRID) byteUnit *= 10;
   for (let i = 0; i < data.length; i += TILE_RECORD_FLOATS) {
     const [x, y, w, h, kind, flags] = data.subarray(i, i + 6);
     const outlier = isOutlier(i);
     const color = outlier
       ? OVERVIEW_COLORS.failed
+      : flags & 32
+      ? OVERVIEW_COLORS.grid
+      : flags & 64
+      ? OVERVIEW_COLORS.seam
+      : flags & 128
+      ? OVERVIEW_COLORS.reserve
       : flags & 4
       ? OVERVIEW_COLORS.baseline
       : flags & 1
@@ -279,7 +285,15 @@ export const buildDiagnosticPrimitives = (
       h,
       outlier ? 1.6 : flags & 3 ? 1 : kind < 0 ? 0.5 : 0.6,
       color,
-      kind < 0 ? undefined : FILL[TILE_KINDS[kind]],
+      kind < 0
+        ? undefined
+        : flags & 32
+        ? "rgba(0,224,255,0.30)"
+        : flags & 64
+        ? "rgba(255,196,107,0.22)"
+        : flags & 128
+        ? "rgba(255,156,240,0.18)"
+        : FILL[TILE_KINDS[kind]],
       outlier ? 1 : opacityOf(data[i + TILE_LEVEL_OFFSET])
     );
   }
@@ -452,13 +466,11 @@ export const buildDiagnosticViewport = (
   snapshot: Pick<DiagnosticSnapshot, "edges" | "center"> & {
     origin?: readonly [number, number] | null;
     forward?: readonly [number, number] | null;
-    nadirRadians?: number;
-    /** Closed projected hull, independent of the per-tile plane intersections. */
-    outline?: Float32Array;
+    nearCenter?: readonly [number, number];
   },
   color: string = OVERVIEW_COLORS.frustum,
-  /** A light: a clipped chevron at the sunward side of its projected cut. */
-  light: false | { x: number; y: number } = false
+  /** Orthographic light volume with a fixed-size direction marker. */
+  light = false
 ): Float32Array => {
   const values: number[] = [];
   const add = (
@@ -481,26 +493,24 @@ export const buildDiagnosticViewport = (
       0,
       0
     );
-  const origin = snapshot.origin ?? null;
+  const origin = light ? null : snapshot.origin ?? null;
+  const edges = snapshot.edges;
   // Distance from the eye taken over every endpoint of this cut, so one edge
   // cannot set the scale for the rest of the outline.
   const distanceTo = (x: number, y: number) =>
     origin ? Math.hypot(x - origin[0], y - origin[1]) : 0;
   let farthest = 0;
   if (origin)
-    for (let i = 0; i < snapshot.edges.length; i += 2)
-      farthest = Math.max(
-        farthest,
-        distanceTo(snapshot.edges[i], snapshot.edges[i + 1])
-      );
+    for (let i = 0; i < edges.length; i += 2)
+      farthest = Math.max(farthest, distanceTo(edges[i], edges[i + 1]));
   const widthAt = (x: number, y: number) =>
     farthest > 0
       ? FRUSTUM_NEAR_WIDTH +
         (FRUSTUM_FAR_WIDTH - FRUSTUM_NEAR_WIDTH) *
           Math.min(1, distanceTo(x, y) / farthest)
       : FRUSTUM_NEAR_WIDTH;
-  for (let i = 0; i < snapshot.edges.length; i += 4) {
-    const segment = Array.from(snapshot.edges.subarray(i, i + 4));
+  for (let i = 0; i < edges.length; i += 4) {
+    const segment = Array.from(edges.subarray(i, i + 4));
     if (!origin) {
       add(segment, 3, 2, 0, 0, color);
       continue;
@@ -520,98 +530,14 @@ export const buildDiagnosticViewport = (
       0
     );
   }
-  // Decision: no centre cross; overview-space arms grow into stray strokes
-  // when following a small footprint. See TILE_DIAGNOSTICS.md#frustum-markers.
-  // The full opening angle is the light's angle from nadir. Its bisector
-  // points away from the sun; both arms stay in the light's own clipped hull.
-  const forward = snapshot.forward ?? null;
-  const outline = snapshot.outline ?? snapshot.edges;
-  if (light && forward && outline.length >= 12) {
-    const polygon: Array<[number, number]> = [];
-    for (let i = 0; i < outline.length; i += 4)
-      polygon.push([outline[i], outline[i + 1]]);
-    const orientation = Math.sign(
-      polygon.reduce((sum, point, index) => {
-        const next = polygon[(index + 1) % polygon.length];
-        return sum + point[0] * next[1] - next[0] * point[1];
-      }, 0)
-    );
-    const clip = (
-      a: [number, number],
-      b: [number, number]
-    ): number[] | null => {
-      if (!orientation) return null;
-      let enter = 0,
-        leave = 1;
-      for (let i = 0; i < polygon.length; i++) {
-        const p = polygon[i],
-          q = polygon[(i + 1) % polygon.length];
-        const side = (v: [number, number]) =>
-          orientation *
-          ((q[0] - p[0]) * (v[1] - p[1]) - (q[1] - p[1]) * (v[0] - p[0]));
-        const start = side(a),
-          change = side(b) - start;
-        if (Math.abs(change) < 1e-12) {
-          if (start < -1e-9) return null;
-          continue;
-        }
-        if (change > 0) enter = Math.max(enter, -start / change);
-        else leave = Math.min(leave, -start / change);
-        if (enter > leave) return null;
-      }
-      return [
-        a[0] + (b[0] - a[0]) * enter,
-        a[1] + (b[1] - a[1]) * enter,
-        a[0] + (b[0] - a[0]) * leave,
-        a[1] + (b[1] - a[1]) * leave,
-      ];
-    };
-    const length = Math.hypot(...forward);
-    if (length > 1e-9) {
-      const direction = [forward[0] / length, forward[1] / length];
-      const centre: [number, number] = [
-        polygon.reduce((sum, p) => sum + p[0], 0) / polygon.length,
-        polygon.reduce((sum, p) => sum + p[1], 0) / polygon.length,
-      ];
-      const span =
-        Math.max(
-          ...polygon.map((p) => Math.hypot(p[0] - centre[0], p[1] - centre[1]))
-        ) * 2;
-      const approach = clip(
-        [
-          centre[0] - direction[0] * (span + 1),
-          centre[1] - direction[1] * (span + 1),
-        ],
-        centre
-      );
-      if (approach) {
-        const depth = Math.hypot(
-          centre[0] - approach[0],
-          centre[1] - approach[1]
-        );
-        const size = Math.min(30, depth * 0.45);
-        const spread =
-          Math.min(
-            Math.PI / 2,
-            Math.max(0, snapshot.nadirRadians ?? Math.PI / 4)
-          ) / 2;
-        const inset = size * Math.cos(spread) * 1.05;
-        const tip: [number, number] = [
-          approach[0] + direction[0] * inset,
-          approach[1] + direction[1] * inset,
-        ];
-        for (const turn of [spread, -spread]) {
-          const cos = Math.cos(turn),
-            sin = Math.sin(turn);
-          const end: [number, number] = [
-            tip[0] + (-direction[0] * cos + direction[1] * sin) * size,
-            tip[1] + (-direction[0] * sin - direction[1] * cos) * size,
-          ];
-          const segment = clip(tip, end);
-          if (segment && size > 1e-7) add(segment, 3, 2.4, 0, 0, color);
-        }
-      }
-    }
+  // No centre cross or footprint-spanning arrow. The triangle has a fixed CSS
+  // size and follows the actual light camera's projected ray direction.
+  if (light && snapshot.nearCenter && snapshot.forward) {
+    const [x, y] = snapshot.nearCenter;
+    const [dx, dy] = snapshot.forward;
+    const length = Math.hypot(dx, dy);
+    if (Number.isFinite(x + y + length) && length > 1e-9)
+      add([x, y, 8, 8], 7, 0, dx / length, dy / length, color);
   }
   return new Float32Array(values);
 };
@@ -660,7 +586,8 @@ export const compactDiagnosticTileId = (value: string): string => {
     key
       .split(/[/:]/)
       .pop()
-      ?.replace(/\.(?:glb|gltf|b3dm|json)$/i, "") ?? "";
+      ?.replace(/\.(?:glb|gltf|b3dm|json)$/i, "")
+      .replace(/^_?mesh_/i, "") ?? "";
   if (/^(?:tile|tileset|metadata|terrain|3d-tile)$/i.test(name)) return "";
   return name.length > 24 ? `${name.slice(0, 11)}…${name.slice(-10)}` : name;
 };
@@ -737,6 +664,11 @@ export const drawDiagnosticText = (
       snapshot.ids[i / TILE_RECORD_FLOATS] ?? ""
     );
     const lines = id.split("/");
+    const bytes = data[i + 10];
+    if (frame.labels === "id and stats" && Number.isFinite(bytes) && bytes > 0)
+      lines.push(`≈${Math.max(1, Math.round(bytes / (10 * 1024))) * 10} kB`);
+    if (frame.labels === "id and error" && Number.isFinite(data[i + 9]))
+      lines.push(`${data[i + 9].toFixed(1)} px`);
     const fontSize = 10;
     const lineHeight = fontSize;
     const labelHeight = lines.length * lineHeight;

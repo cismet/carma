@@ -165,14 +165,15 @@ export function createThreeTilesSpatial(
       }
       readOrientedTileBounds(bounds, cameraBounds, cameraBoundsTransform);
       cameraBoundsTransform.premultiply(runtimeState.tiles.group.matrixWorld);
-      cameraBounds.applyMatrix4(cameraBoundsTransform);
       const demand = runtimeState.tileCameraDemand.evaluate(
         cameraBounds,
         tile.geometricError *
           runtimeState.tiles.group.matrixWorld.getMaxScaleOnAxis(),
         // This API describes additional camera roles. The primary observer
         // must not bypass the independent shadow publication gate.
-        includeObserver ? undefined : TILE_MAIN_OBSERVER_ID
+        includeObserver ? undefined : TILE_MAIN_OBSERVER_ID,
+        false,
+        cameraBoundsTransform
       );
       // The evaluation result is scratch storage; keep a copy.
       const result: CachedCameraDemand = {
@@ -231,13 +232,13 @@ export function createThreeTilesSpatial(
         };
       readOrientedTileBounds(volume, cameraBounds, cameraBoundsTransform);
       cameraBoundsTransform.premultiply(runtimeState.tiles.group.matrixWorld);
-      cameraBounds.applyMatrix4(cameraBoundsTransform);
       const demand = observer.evaluate(
         cameraBounds,
         tile.geometricError *
           runtimeState.tiles.group.matrixWorld.getMaxScaleOnAxis(),
         undefined,
-        includeVisibleArea
+        includeVisibleArea,
+        cameraBoundsTransform
       );
       const result = {
         ...(includeVisibleArea

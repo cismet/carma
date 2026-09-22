@@ -611,7 +611,8 @@ export function createThreeTilesFrameUpdate(
                       runtimeState.options.baseErrorTargetPixels
                     ),
                     band,
-                    runtimeState.ringRefinePasses
+                    runtimeState.ringRefinePasses,
+                    runtimeState.requestedErrorTarget
                   )
                 );
               },

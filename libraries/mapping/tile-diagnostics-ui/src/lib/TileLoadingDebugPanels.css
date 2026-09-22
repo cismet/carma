@@ -1,4 +1,6 @@
 .tile-debug-panel {
+  pointer-events: auto;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
   color: #334155;
   background: rgb(248 250 252 / 94%);
   font: 12px/1.5 system-ui, sans-serif;
@@ -84,4 +86,12 @@
 .tile-debug-panel th {
   font-weight: 600;
   border-bottom: 1px solid rgb(100 116 139 / 20%);
+}
+
+.tile-debug-legend {
+  width: max-content;
+}
+
+.tile-debug-legend[open] {
+  width: 252px;
 }

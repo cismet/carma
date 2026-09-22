@@ -124,6 +124,8 @@ describe("diagnostic worker mailbox", () => {
     const rect = {
       tile: {},
       id: "a",
+      bytes: 24 * 1024,
+      steps: [{ label: "Laden", ms: 5 }],
       x: 0,
       y: 0,
       w: 20,
@@ -141,6 +143,8 @@ describe("diagnostic worker mailbox", () => {
     overlay.update(input(a));
     worker.emit({ type: "ready" });
     await tick();
+    expect(frames(worker)[0].snapshot.tiles[10]).toBe(24 * 1024);
+    expect(frames(worker)[0].snapshot.tiles[14]).toBe(5);
     worker.emit({ type: "frame" });
     const b = model();
     b.rects = Array.from(

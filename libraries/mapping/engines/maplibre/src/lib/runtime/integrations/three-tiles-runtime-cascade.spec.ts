@@ -98,6 +98,7 @@ const createPrefetchFixture = (root: RuntimeTile) => {
     effectiveErrorTarget: 2,
     memoryErrorTarget: 2,
     meshCoverageRecovery: false,
+    lastMainViewConverged: true,
     meshRefinementSupport: new Set<RuntimeTile>(),
     residentAncestors: new Set<RuntimeTile>(),
     extentGeometricError: 40,
@@ -256,6 +257,38 @@ describe("bounded future-view requests", () => {
     }
   });
 
+  it("waits for visible convergence before refining or polling reserve rings", () => {
+    vi.useFakeTimers();
+    const f = createPrefetchFixture(tile());
+    const dispatchEvent = vi.fn();
+    Object.assign(f.tiles, { dispatchEvent, loadAncestors: false });
+    const state = {
+      ...f.state,
+      meshBaseCoverageReady: true,
+      lastMainViewConverged: false,
+      extentFloorPending: 0,
+      ringRefinePasses: 0,
+      lastRingRefineAt: -Infinity,
+      lastTraversalMs: 0,
+    };
+    const cascade = createThreeTilesCascade(state as never, f.dependencies);
+    try {
+      cascade.refineRingCascade();
+      cascade.scheduleCascadeTick();
+      vi.advanceTimersByTime(10000);
+      expect(state.ringRefinePasses).toBe(0);
+      expect(dispatchEvent).not.toHaveBeenCalled();
+      state.lastMainViewConverged = true;
+      cascade.refineRingCascade();
+      expect(state.ringRefinePasses).toBe(1);
+      expect(dispatchEvent).toHaveBeenCalled();
+    } finally {
+      cascade.clearCascadeTick();
+      cascade.motionPrefetch.dispose();
+      vi.useRealTimers();
+    }
+  });
+
   it("does not poll ring refinement when memory leaves no room for another ring", () => {
     vi.useFakeTimers();
     const f = createPrefetchFixture(tile());
@@ -266,6 +299,7 @@ describe("bounded future-view requests", () => {
       {
         ...f.state,
         meshBaseCoverageReady: true,
+        lastMainViewConverged: true,
         extentFloorPending: 0,
         ringRefinePasses: 0,
       } as never,
@@ -865,7 +899,7 @@ describe("3D Tiles spare-capacity zoom prefetch", () => {
   });
 
   it.each(["idle-ring", "resident-ancestor"] as const)(
-    "keeps %s background work only at rest after base coverage",
+    "keeps %s background work only after visible refinement converges",
     (kind) => {
       const background = tile();
       background.internal.loadingState = LOADING_LOADING_STATE;
@@ -886,7 +920,7 @@ describe("3D Tiles spare-capacity zoom prefetch", () => {
       cascade.abortStaleDownloads();
       expect(fixture.tiles.lruCache.remove).not.toHaveBeenCalled();
 
-      Object.assign(fixture.state.map, { isMoving: () => true });
+      fixture.state.lastMainViewConverged = false;
       cascade.abortStaleDownloads();
       expect(fixture.tiles.lruCache.remove).toHaveBeenCalledWith(background);
     }

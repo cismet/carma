@@ -37,7 +37,9 @@ export const TileLoadingDebug = (props: TileLoadingDebugProps) => {
     top: number;
   } | null>(null);
   const [toolbarHost, setToolbarHost] = useState<HTMLDivElement | null>(null);
-  const [position, setPosition] = useState({ left: 8, top: 8 });
+  const [position, setPosition] = useState(
+    props.initialToolbarPosition ?? { left: 8, top: 8 }
+  );
   const [localOpen, setLocalOpen] = useState(props.defaultOpen ?? false);
   const [localOptions, setLocalOptions] = useState<
     Partial<ResolvedDebugOptions>

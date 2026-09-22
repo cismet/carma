@@ -14,6 +14,7 @@ export type TilesRuntimeDebugState = {
   tiles: TilesRenderer | null;
   displayedMeshFrontier: ReadonlySet<Tile>;
   meshUnderlayFrontier: ReadonlySet<Tile>;
+  meshRefinementSupport?: ReadonlySet<Tile>;
   extentGeometricError: number;
   extentFloorPending: number;
   effectiveErrorTarget: number;

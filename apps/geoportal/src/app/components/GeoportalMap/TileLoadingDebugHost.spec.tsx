@@ -12,13 +12,14 @@ import { TileLoadingDebugHost } from "./TileLoadingDebugHost";
 const debug = vi.hoisted(() => ({
   enabled: false,
   loaded: false,
+  runtime: {},
   listener: () => {},
 }));
 vi.mock("@carma-providers/feature-flag", () => ({
   useFeatureFlags: () => ({ isDebugMode: debug.enabled }),
 }));
 vi.mock("@carma-mapping/engines/maplibre", () => ({
-  getTiles3dRuntimeHandles: () => (debug.loaded ? [{}] : []),
+  getTiles3dRuntimeHandles: () => (debug.loaded ? [debug.runtime] : []),
   subscribeTiles3dRuntimeHandles: (_map: unknown, listener: () => void) => {
     debug.listener = listener;
     return () => {};
@@ -40,9 +41,19 @@ vi.mock("@carma-mapping/tile-diagnostics-ui", () => ({
   VolumeTileDiagnostics: ({ onClose }: { onClose: () => void }) => (
     <button onClick={onClose}>Close tile overlay</button>
   ),
-  TileLoadingDebug: () => {
-    throw new Error("The standalone debugger must not mount in Geoportal");
-  },
+  TileLoadingDebug: ({
+    onOpenChange,
+    open,
+  }: {
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+  }) => (
+    <div role="toolbar" aria-label="Tile manager diagnostics">
+      <button onClick={() => onOpenChange(!open)}>
+        {open ? "Close mesh debugger" : "Open mesh debugger"}
+      </button>
+    </div>
+  ),
 }));
 
 const createMap = () => {
@@ -66,28 +77,37 @@ afterEach(() => {
 });
 
 describe("TileLoadingDebugHost", () => {
-  it("exposes the existing overlay only for an explicitly flagged mounted mesh, without shadow writes", async () => {
+  it("keeps the same draggable debugger mounted across shadow toggles and closing", async () => {
     debug.enabled = true;
     const { map } = createMap();
-    render(<TileLoadingDebugHost map={map} />);
-    expect(screen.queryByRole("button", { name: "Mesh-Diagnose" })).toBeNull();
+    const { rerender } = render(<TileLoadingDebugHost map={map} />);
+    expect(screen.queryByRole("toolbar")).toBeNull();
     act(() => {
       debug.loaded = true;
       debug.listener();
     });
-    fireEvent.click(screen.getByRole("button", { name: "Mesh-Diagnose" }));
-    fireEvent.click(
-      await screen.findByRole("button", { name: "Close tile overlay" })
-    );
-    expect(shadow.setState).not.toHaveBeenCalled();
+    const close = await screen.findByRole("button", {
+      name: "Close mesh debugger",
+    });
+    const toolbar = screen.getByRole("toolbar");
+    shadow.state = { enabled: true };
+    rerender(<TileLoadingDebugHost map={map} />);
+    expect(screen.getByRole("toolbar")).toBe(toolbar);
+    shadow.state = { enabled: false };
+    rerender(<TileLoadingDebugHost map={map} />);
+    expect(screen.getByRole("toolbar")).toBe(toolbar);
+    fireEvent.click(close);
+    expect(screen.getByRole("toolbar")).toBe(toolbar);
+    fireEvent.click(screen.getByRole("button", { name: "Open mesh debugger" }));
     expect(
-      screen.getByRole("button", { name: "Mesh-Diagnose" })
+      screen.getByRole("button", { name: "Close mesh debugger" })
     ).not.toBeNull();
+    expect(shadow.setState).not.toHaveBeenCalled();
     act(() => {
       debug.loaded = false;
       debug.listener();
     });
-    expect(screen.queryByRole("button", { name: "Mesh-Diagnose" })).toBeNull();
+    expect(screen.queryByRole("toolbar")).toBeNull();
   });
 
   it("mounts nothing by default, including in development mode", () => {
