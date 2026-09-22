@@ -35,6 +35,9 @@ export type LayerLaunchedAddon = {
  * The engine holds one animation at a time, so the topmost such layer wins.
  * The engine's own row is skipped: it carries the running service in its tools
  * to survive a reload, and reading it back here would make it its own launcher.
+ * `includeEngineRow` reads it anyway, for a host that never writes the row, e.g.
+ * a display that only renders the stacks a remote hands it: there the row is
+ * the only thing that says the service is on.
  *
  * `permanent`: the layer is the face of the service. A host shows the engine's
  * controls on the layer's own button rather than in a row of their own, so no
@@ -42,12 +45,13 @@ export type LayerLaunchedAddon = {
  * the engine claims the channel back when a workflow card borrowed it.
  */
 export const getLayerLaunchedAddons = (
-  layers: readonly LaunchingLayer[]
+  layers: readonly LaunchingLayer[],
+  { includeEngineRow = false }: { includeEngineRow?: boolean } = {}
 ): LayerLaunchedAddon[] => {
   let vehicle: LayerLaunchedAddon | undefined;
   for (const layer of layers) {
     if (
-      layer.id === VEHICLE_ANIMATION_LAYER_ID ||
+      (layer.id === VEHICLE_ANIMATION_LAYER_ID && !includeEngineRow) ||
       !Array.isArray(layer.tools)
     ) {
       continue;

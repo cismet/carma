@@ -9,14 +9,26 @@ import {
 } from "@carma-mapping/addons";
 
 import { getLayers } from "../store/slices/mapping";
+import { getUIVisibleControls } from "../store/slices/ui";
 
 /**
  * The engines the layer stack launches, as a string. The stack changes on every
  * opacity nudge; the string only changes when a launched config does, so the
  * app neither re-renders nor relaunches a fleet for anything else.
+ *
+ * The engine rows are hosted by the layer buttons (`LayerWrapper`), which also
+ * write them. A route without the buttons, like the outlet, never writes one:
+ * a row it has came with a stack handed over from elsewhere (a pm-show scene),
+ * so there the row is what launches the service.
  */
-const getLaunchedAddonsKey = createSelector([getLayers], (layers) =>
-  JSON.stringify(getLayerLaunchedAddons(layers).map(({ entry }) => entry))
+const getLaunchedAddonsKey = createSelector(
+  [getLayers, getUIVisibleControls],
+  (layers, visibleControls) =>
+    JSON.stringify(
+      getLayerLaunchedAddons(layers, {
+        includeEngineRow: !visibleControls.layerButtons,
+      }).map(({ entry }) => entry)
+    )
 );
 
 /**
