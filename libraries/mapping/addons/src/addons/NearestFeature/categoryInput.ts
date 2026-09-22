@@ -8,18 +8,18 @@ import type { NearestFeatureCategory } from "./categoryChannel";
  */
 
 /**
- * What the input carries once a category is picked: "Apotheken: ". Matching it
+ * What the input carries once a category is picked: "Apotheken ". Matching it
  * back ignores the space, because the input field does not always keep a
  * trailing one, and a category that no longer matches its own prefix would put
  * the first stage back on screen forever.
  */
-export const CATEGORY_SEPARATOR = ": ";
+export const CATEGORY_SEPARATOR = " ";
 
 /** the heading over the first stage's rows */
 const CATEGORY_GROUP_TITLE = "Kategorien";
 
 export const categoryPrefix = (category: NearestFeatureCategory) =>
-  `${category.label}:`;
+  category.label;
 
 /** the value a first-stage row carries, which is the second stage's empty input */
 export const categoryInputValue = (category: NearestFeatureCategory) =>
