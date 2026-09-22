@@ -220,6 +220,12 @@ the development UI (localhost or the developer-mode flag), through
 (`runtime.debug.setDiagnosticsEnabled`) when it opens, so a style does not
 need `diagnostics: true` for it.
 
+The expanded shared toolbar exposes each diagnostic panel directly in both
+hosts. The overview `kB` button toggles the square resident-size grid and
+rounded size labels; `ms` independently toggles processing-time pies. Size
+marks are enabled by default, time pies are opt-in. Both mesh and terrain
+records use the same worker renderer and square-grid primitives.
+
 ## Frustum markers
 
 **ID / date / status:** FRUSTUM-MARKERS-20260920 / 2026-09-20 / implemented.
@@ -231,16 +237,16 @@ frustum edges disappeared because the shader used only `dpdx(p.x)` and
 
 **Decision:** Draw the intersections of frustum planes with every reported tile
 bounding box, without bridging gaps between tiles or adding a centre cross.
-Keep the convex extent outline separately for framing and chevron clipping.
-Place the chevron at the sunward end, opposite projected light travel; its full
-opening angle equals the sun direction angle to nadir. Clip both arms to the
-frustum footprint. Derive the pixel footprint from the lengths of both full
+Keep the convex extent outline separately for framing. The light uses all12
+edges unprojected from the actual addon orthographic camera matrices, drawn in
+faint lemon. A fixed-size filled triangle at the near-plane centre points along
+the projected light rays. This replaces the footprint-clipped chevron (2026-09-22). Derive the pixel footprint from the lengths of both full
 local coordinate gradients, preserving stroke width under segment rotation.
 
 **Alternatives and disposition:** More hull-area/sliver filtering is incompatible
 by inspection with these causes: neither originates in the intersection hull.
 Keeping a screen-sized centre cross is not evaluated; it adds an unnecessary
-mark alongside the light chevron.
+mark alongside the light triangle.
 
 **Evidence:** Chrome WebGPU, a 100 x 100 offscreen canvas, a square cut from
 (20,20) to (80,80), DPR 1. Summed alpha over the middle 50 pixels of each edge:
@@ -278,7 +284,49 @@ The overview is not a list of only currently displayed tiles, nor a complete
 memory inventory. Terrain reports visible published meshes, a bounded selection
 of resident hidden meshes, and pending mesh bounds. Native 3D tiles report the
 runtime active set, including shadow demand; membership alone does not establish
-a primary-camera draw. Plane cuts use all reported tile boxes in the worker
-snapshot, including hidden or pending entries, rather than rendered triangles.
-Focused regressions cover gaps between tile boxes, chevron clipping, sunward
-placement and nadir-dependent opening angle.
+a primary-camera draw. Mesh cuts now use only presented content boxes (see Surface cuts below);
+terrain volumes retain their independent reporting contract.
+Focused regressions cover gaps between tile boxes, the actual asymmetric
+orthographic near plane (WebGL/WebGPU, including reversed depth), parallel
+frustum edges, and the fixed-size light-direction triangle.
+
+## Surface cuts share the loader's camera and bounds
+
+**ID / date / status:** TILE-SURFACE-CUTS-20260922 / 2026-09-22 / implemented.
+
+**Context and constraints:** The overview used the render camera while tile
+selection uses the LOD camera. Outlining the clipped solid also drew edges
+between frustum planes inside a tile. Rotating tile OBBs into enclosing world
+AABBs inflated both diagnostic cuts and additional-camera demand.
+
+**Decision:** Publish the loader's LOD camera to diagnostics. Preserve each
+tile's native box and local-to-world matrix for demand and diagnostic capture.
+Intersect the four side frustum planes with tile faces in 3D, then clip each resulting
+line segment against the other frustum planes before projecting. Never close
+clipped polygons or draw free-standing frustum edges. A contained tile has
+demand but no cut lines; an outside tile has neither. Near/far planes constrain
+visibility and clip the segments but never generate lines. Orthographic demand also checks exact convex intersections for partial
+boxes; fully contained boxes retain a cheap six-plane acceptance path.
+
+**Alternatives and disposition:** Outlining cap polygons, projecting enclosing
+AABBs, and using the render camera are rejected by the geometric counterexamples.
+This supersedes the complete light-box outline in Frustum markers above; the
+light direction marker remains. Contentless routing nodes are omitted entirely;
+cached ancestors retain inspection marks but only presented content and underlay
+boxes produce white cuts. This avoids projecting the deep underside of a
+non-rendered city-wide ancestor as an apparent ground footprint.
+
+Coverage colors distinguish viewport demand (cyan), offscreen sibling/ring
+support (amber), and extent base coverage (pink); retained cache remains muted.
+The overview supports top-down pan/zoom, not a 3D orbit camera.
+
+Mesh triangle intersections are not calculated:
+these are the same tile bounding volumes used for selection.
+
+**Evidence:** Tests cover contained/outside/behind/far/enclosing tiles, surface
+and plane membership of every segment, and a rotated thin box whose AABB hits
+the frustum while the actual box misses. Existing multi-camera, spatial, capture
+and viewport regressions exercise the shared contracts.
+
+**Revisit when:** Sources supply tighter content bounds or actual surface cuts
+are requested instead of tile-volume cuts.

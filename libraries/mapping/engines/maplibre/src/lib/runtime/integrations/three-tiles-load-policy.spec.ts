@@ -715,16 +715,18 @@ describe("resolveRequestConcurrency", () => {
 });
 
 describe("idleRingAllowedError", () => {
-  it("steps one level per ring from the base error target", () => {
-    expect(idleRingAllowedError(20, 1, 0)).toBe(20);
-    expect(idleRingAllowedError(20, 2, 0)).toBe(40);
-    expect(idleRingAllowedError(20, 4, 0)).toBe(160);
+  it("keeps each outward band one level coarser than the visible target", () => {
+    expect(idleRingAllowedError(20, 1, 0, 6)).toBe(40);
+    expect(idleRingAllowedError(20, 2, 0, 6)).toBe(80);
+    expect(idleRingAllowedError(20, 4, 0, 6)).toBe(320);
   });
 
-  it("refines the cascade by the refined levels, never below the anchor", () => {
-    expect(idleRingAllowedError(20, 3, 1)).toBe(40);
-    expect(idleRingAllowedError(20, 3, 2)).toBe(20);
-    expect(idleRingAllowedError(20, 3, 5)).toBe(20);
+  it("refines the anchor without collapsing the ring gradient", () => {
+    expect(idleRingAllowedError(20, 3, 1, 6)).toBe(80);
+    expect(idleRingAllowedError(20, 3, 2, 6)).toBe(48);
+    expect(idleRingAllowedError(20, 3, 5, 6)).toBe(48);
+    expect(idleRingAllowedError(20, 1, 5, 6)).toBe(12);
+    expect(idleRingAllowedError(20, 2, 5, 6)).toBe(24);
   });
 });
 

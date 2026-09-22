@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { intersectTileFrustumPlanes } from "../../core/diagnostics/tile-frustum-cuts";
 import {
   createTileCameraDemand,
   type TileCameraSnapshot,
@@ -37,7 +38,24 @@ export const projectTileDiagnosticViewport = (
   let intersectionEdges: OverlayModel["intersectionEdges"] = null;
   let centerHit: [number, number] | null = null;
   let footprintBounds: OverlayModel["footprintBounds"] = null;
-  const vertices = demand.intersectionVertices(extent);
+  const tileBounds = basis.tileBounds ?? basis.bounds;
+  const vertices: THREE.Vector3[] = [];
+  const fitBox = new THREE.Box3();
+  const fitTransform = new THREE.Matrix4();
+  // Crop to the same presented volumes that produce the cuts, not the
+  // city-wide ancestor's deep underside. This also handles contained tiles.
+  for (let offset = 0; offset + 5 < tileBounds.length; offset += 6) {
+    fitBox.min.fromArray(tileBounds, offset);
+    fitBox.max.fromArray(tileBounds, offset + 3);
+    if (basis.tileTransforms)
+      fitTransform.fromArray(basis.tileTransforms, (offset / 6) * 16);
+    else fitTransform.identity();
+    if (!frustum.intersectsBox(fitBox.clone().applyMatrix4(fitTransform)))
+      continue;
+    vertices.push(
+      ...demand.intersectionVertices(fitBox, undefined, fitTransform)
+    );
+  }
   if (vertices.length >= 4) {
     // The outline of the clipped volume as it reads in this projection: the
     // hull of its projected corners. Recovering the 3D wireframe from pairs of
@@ -109,72 +127,31 @@ export const projectTileDiagnosticViewport = (
   }
 
   const outline = new Float32Array(intersectionEdges?.flat() ?? []);
-  if (basis.tileBounds) {
+  {
     const segments = new Map<string, [number, number, number, number]>();
     const box = new THREE.Box3();
-    const centre = new THREE.Vector3();
-    const halfSize = new THREE.Vector3();
-    for (let offset = 0; offset + 5 < basis.tileBounds.length; offset += 6) {
-      box.min.fromArray(basis.tileBounds, offset);
-      box.max.fromArray(basis.tileBounds, offset + 3);
-      if (box.isEmpty() || !frustum.intersectsBox(box)) continue;
-      box.getCenter(centre);
-      box.getSize(halfSize).multiplyScalar(0.5);
-      const epsilon = Math.max(1e-7, halfSize.length() * 1e-9);
-      const cuttingPlanes = frustum.planes.filter(
-        (plane) =>
-          Math.abs(plane.distanceToPoint(centre)) <=
-          Math.abs(plane.normal.x) * halfSize.x +
-            Math.abs(plane.normal.y) * halfSize.y +
-            Math.abs(plane.normal.z) * halfSize.z +
-            epsilon
-      );
-      if (!cuttingPlanes.length) continue;
-      const clipped = demand.intersectionVertices(box);
-      for (const plane of cuttingPlanes) {
-        const face = clipped.filter(
-          (point) => Math.abs(plane.distanceToPoint(point)) <= epsilon
-        );
-        if (face.length < 2) continue;
-        const midpoint = face
-          .reduce((sum, point) => sum.add(point), new THREE.Vector3())
-          .multiplyScalar(1 / face.length);
-        const axis = new THREE.Vector3(
-          Math.abs(plane.normal.x) < 0.9 ? 1 : 0,
-          Math.abs(plane.normal.x) < 0.9 ? 0 : 1,
-          0
+    const transform = new THREE.Matrix4();
+    for (let offset = 0; offset + 5 < tileBounds.length; offset += 6) {
+      box.min.fromArray(tileBounds, offset);
+      box.max.fromArray(tileBounds, offset + 3);
+      if (basis.tileTransforms)
+        transform.fromArray(basis.tileTransforms, (offset / 6) * 16);
+      else transform.identity();
+      for (const edge of intersectTileFrustumPlanes(box, frustum, transform)) {
+        const a = edge.start.applyMatrix4(worldToOverview);
+        const b = edge.end.applyMatrix4(worldToOverview);
+        const first = toScreen(a.x, a.z),
+          last = toScreen(b.x, b.z);
+        if (
+          !first.concat(last).every(Number.isFinite) ||
+          Math.hypot(first[0] - last[0], first[1] - last[1]) < 1e-7
         )
-          .cross(plane.normal)
-          .normalize();
-        const second = plane.normal.clone().cross(axis);
-        const angle = (point: THREE.Vector3) =>
-          Math.atan2(
-            point.clone().sub(midpoint).dot(second),
-            point.clone().sub(midpoint).dot(axis)
-          );
-        face.sort((a, b) => angle(a) - angle(b));
-        for (
-          let index = 0;
-          index < (face.length === 2 ? 1 : face.length);
-          index++
-        ) {
-          const a = face[index].clone().applyMatrix4(worldToOverview);
-          const b = face[(index + 1) % face.length]
-            .clone()
-            .applyMatrix4(worldToOverview);
-          const first = toScreen(a.x, a.z),
-            last = toScreen(b.x, b.z);
-          if (
-            !first.concat(last).every(Number.isFinite) ||
-            Math.hypot(first[0] - last[0], first[1] - last[1]) < 1e-7
-          )
-            continue;
-          const key = [first, last]
-            .map((point) => point.map((value) => value.toFixed(6)).join(","))
-            .sort()
-            .join(";");
-          segments.set(key, [...first, ...last]);
-        }
+          continue;
+        const key = [first, last]
+          .map((point) => point.map((value) => value.toFixed(6)).join(","))
+          .sort()
+          .join(";");
+        segments.set(key, [...first, ...last]);
       }
     }
     intersectionEdges = [...segments.values()];
@@ -198,6 +175,31 @@ export const projectTileDiagnosticViewport = (
   }
   // The eye itself, so an edge can be drawn wider where it is near the camera.
   const cameraMatrix = new THREE.Matrix4().fromArray(camera.matrixWorld);
+  const overviewMatrix = worldToOverview.elements;
+  const affineOverview =
+    overviewMatrix[3] === 0 &&
+    overviewMatrix[7] === 0 &&
+    overviewMatrix[11] === 0 &&
+    overviewMatrix[15] !== 0;
+  let nearCenter: [number, number] | undefined;
+  // Only the light direction marker needs a separately projected near centre.
+  if (affineOverview) {
+    // Preserve asymmetric bounds and the camera depth convention.
+    const clipToWorld = cameraMatrix
+      .clone()
+      .multiply(
+        new THREE.Matrix4().fromArray(camera.projectionMatrix).invert()
+      );
+    const nearZ = camera.reversedDepth
+      ? 1
+      : camera.coordinateSystem === THREE.WebGPUCoordinateSystem
+      ? 0
+      : -1;
+    const nearPoint = new THREE.Vector3(0, 0, nearZ)
+      .applyMatrix4(clipToWorld)
+      .applyMatrix4(worldToOverview);
+    nearCenter = toScreen(nearPoint.x, nearPoint.z);
+  }
   const eyeWorld = new THREE.Vector3().setFromMatrixPosition(cameraMatrix);
   const eye = eyeWorld.clone().applyMatrix4(worldToOverview);
   // Where this camera looks, in the same screen frame as the cut: a light's
@@ -222,16 +224,8 @@ export const projectTileDiagnosticViewport = (
     aheadScreen[0] - eyeScreen[0],
     aheadScreen[1] - eyeScreen[1]
   );
-  const forwardWorld = new THREE.Vector3(
-    -camera.matrixWorld[8],
-    -camera.matrixWorld[9],
-    -camera.matrixWorld[10]
-  ).normalize();
   return {
-    /** Angle between where this camera looks and straight down. */
-    nadirRadians: Math.acos(
-      Math.min(1, Math.max(-1, forwardWorld.dot(new THREE.Vector3(0, -1, 0))))
-    ),
+    nearCenter,
     forward:
       forwardLength > 1e-6
         ? ([

@@ -44,7 +44,7 @@ struct Vertex {
   var center = item.position.xy;
   var halfSize = item.position.zw;
   var axis = vec2f(1,0);
-  if (kind == 4.0) { halfSize = halfSize / scale; }
+  if (kind == 4.0 || kind == 7.0) { halfSize = halfSize / scale; }
 
   if (kind == 3.0 || kind == 5.0) {
     let delta = item.position.zw - item.position.xy;
@@ -111,6 +111,15 @@ struct Vertex {
   if (kind == 0.0 && u.viewport.z > .5) { fillAlpha = inside * input.fill.a; }
   // One wedge of a tile's processing pie: the slice between two angles,
   // swept clockwise from twelve o'clock, in the step's own colour.
+  if (kind == 7.0) {
+    let direction = input.parameters.zw;
+    let along = dot(p, direction);
+    let across = abs(dot(p, vec2f(-direction.y, direction.x)));
+    let radius = input.halfSize.x;
+    let edge = max(-radius * .5 - along, (along + 2.0 * across - radius) / sqrt(5.0));
+    let alpha = clamp(.5 - edge / worldPixel, 0.0, 1.0) * input.stroke.a;
+    return vec4f(input.stroke.rgb * alpha, alpha) * u.display.w;
+  }
   if (kind == 6.0) {
     let radius = max(input.halfSize.x, .000001);
     let radial = length(p);

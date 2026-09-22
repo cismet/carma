@@ -15,8 +15,12 @@ import {
   getTiles3dRuntimeHandles,
   subscribeTiles3dRuntimeHandles,
 } from "@carma-mapping/engines/maplibre";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faBug } from "@fortawesome/free-solid-svg-icons";
+
+const LazyTileLoadingDebug = lazy(() =>
+  import("@carma-mapping/tile-diagnostics-ui").then((module) => ({
+    default: module.TileLoadingDebug,
+  }))
+);
 
 const LazyVolumeTileDiagnostics = lazy(() =>
   import("@carma-mapping/tile-diagnostics-ui").then((module) => ({
@@ -49,51 +53,60 @@ const OVERLAY_ANCHOR_STYLE: CSSProperties = {
 export const TileLoadingDebugHost = ({ map }: { map: MaplibreMap | null }) => {
   const [shadowState, setShadowState] = useAddonState("shadowSimulation");
   const { isDebugMode } = useFeatureFlags();
-  const [meshOpen, setMeshOpen] = useState(false);
-  const hasMesh = useSyncExternalStore(
+  const [meshOpen, setMeshOpen] = useState(true);
+  const runtimeHandle = useSyncExternalStore(
     useCallback(
       (listener: () => void) =>
         map ? subscribeTiles3dRuntimeHandles(map, listener) : () => {},
       [map]
     ),
-    useCallback(() => !!map && getTiles3dRuntimeHandles(map).length > 0, [map])
+    useCallback(
+      () => (map ? getTiles3dRuntimeHandles(map)[0] ?? null : null),
+      [map]
+    )
   );
-  const meshControls = isDebugMode && hasMesh;
+  const meshControls = isDebugMode && !!runtimeHandle;
   const open = !!shadowState?.showTileDiagnostics || (meshControls && meshOpen);
   const container = map?.getContainer?.() ?? null;
   if ((!open && !meshControls) || !map || !container) return null;
+  const close = () => {
+    setMeshOpen(false);
+    if (shadowState?.showTileDiagnostics)
+      setShadowState({ ...shadowState, showTileDiagnostics: false });
+  };
   return createPortal(
     <div
       data-test-id="tile-diagnostics-overlay-root"
       style={OVERLAY_ROOT_STYLE}
     >
       <div data-test-id="tile-diagnostics-anchor" style={OVERLAY_ANCHOR_STYLE}>
-        {meshControls && !open && (
-          <button
-            type="button"
-            aria-label="Mesh-Diagnose"
-            title="Mesh-Diagnose öffnen"
-            onClick={() => setMeshOpen(true)}
-          >
-            <FontAwesomeIcon icon={faBug} />
-          </button>
-        )}
-        {open && (
+        {open && !runtimeHandle && (
           <Suspense fallback={null}>
-            <LazyVolumeTileDiagnostics
-              map={map}
-              onClose={() => {
-                setMeshOpen(false);
-                if (shadowState?.showTileDiagnostics)
-                  setShadowState({
-                    ...shadowState,
-                    showTileDiagnostics: false,
-                  });
-              }}
-            />
+            <LazyVolumeTileDiagnostics map={map} onClose={close} />
           </Suspense>
         )}
       </div>
+      {runtimeHandle && (meshControls || open) && (
+        <Suspense fallback={null}>
+          <LazyTileLoadingDebug
+            map={map}
+            runtimeHandle={runtimeHandle}
+            open={open}
+            onOpenChange={(value) => {
+              if (value) setMeshOpen(true);
+              else close();
+            }}
+            initialToolbarPosition={{ left: 56, top: 88 }}
+            initialOverviewPosition={{ left: 56, top: 144 }}
+            options={{
+              showOverviewPanel: true,
+              showOverlay: false,
+              showLegend: false,
+              overlayLabels: "id and stats",
+            }}
+          />
+        </Suspense>
+      )}
     </div>,
     container
   );

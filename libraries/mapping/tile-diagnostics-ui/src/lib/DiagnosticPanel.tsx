@@ -46,7 +46,7 @@ export const DiagnosticPanel = ({
         position: "absolute",
         left: position.left,
         top: position.top,
-        boxShadow: "0 2px 12px rgb(15 23 42 / 35%)",
+        boxShadow: "0 2px 4px rgba(0, 0, 0, 0.2)",
         overflow: "hidden",
       }}
     >

@@ -23,6 +23,7 @@ export const OVERVIEW_COLORS = {
   grid: "#8aeeff",
   parent: "rgba(138,238,255,0.55)",
   reserve: "#ff9cf0",
+  seam: "#ffc46b",
   ring: "#b7b5ff",
   baseline: "#8ba7b8",
   processing: "#d1afff",
@@ -52,6 +53,9 @@ export const TILE_STEPS = [
 ] as const;
 
 export type OverlayRect = {
+  /** Resident tile size reported by the renderer cache. */
+  bytes?: number;
+  steps?: OverlayVolume["steps"];
   tile: Tile;
   id: string;
   /** World-space box, scene metres. */
@@ -62,6 +66,7 @@ export type OverlayRect = {
   h: number;
   kind: Kind | "ancestor";
   floor: boolean;
+  coverage?: "viewport" | "seam" | "base";
   error: number;
   levels: number;
   quality: ReturnType<typeof estimateTileTargetSteps>;
@@ -101,8 +106,10 @@ export type OverlayVolume = {
 
 /** Fixed coordinate frame of a tile snapshot; live cameras project into this frame. */
 export type DiagnosticViewportBasis = {
-  /** Packed world-space min/max boxes of every reported tile, six numbers each. */
+  /** Packed min/max boxes, six numbers each; local when tileTransforms is present. */
   tileBounds?: number[];
+  /** Optional local-box to world matrices, sixteen numbers per tile. */
+  tileTransforms?: number[];
   bounds: number[];
   worldToOverview: number[];
   /** [scale, offsetX, offsetY] and optionally a separate vertical scale. */

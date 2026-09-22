@@ -191,7 +191,11 @@ export const createTileCameraDemand = (
      * This diagnostic clips the actual 3D volume; it assumes no ground plane.
      * Decision: TILES_COVERAGE.md, COVERAGE-DIAGNOSTIC-WINDOWS-20260914.
      */
-    intersectionVertices(bounds: Box3, cameraId?: string): Vector3[] {
+    intersectionVertices(
+      bounds: Box3,
+      cameraId?: string,
+      boundsToWorld?: Matrix4
+    ): Vector3[] {
       if (
         bounds.isEmpty() ||
         ![...bounds.min.toArray(), ...bounds.max.toArray()].every(
@@ -221,6 +225,7 @@ export const createTileCameraDemand = (
         new Plane(new Vector3(0, 0, 1), halfSize.z),
         new Plane(new Vector3(0, 0, -1), halfSize.z),
       ];
+      const worldToBounds = boundsToWorld?.clone().invert();
       const vertices: Vector3[] = [];
       const bc = new Vector3();
       const ca = new Vector3();
@@ -230,13 +235,12 @@ export const createTileCameraDemand = (
         if (cameraId !== undefined && view.id !== cameraId) continue;
         const planes = [
           ...boxPlanes,
-          ...view.frustum.planes.map(
-            (plane) =>
-              new Plane(
-                plane.normal.clone(),
-                plane.constant + plane.normal.dot(origin)
-              )
-          ),
+          ...view.frustum.planes.map((worldPlane) => {
+            const plane = worldPlane.clone();
+            if (worldToBounds) plane.applyMatrix4(worldToBounds);
+            plane.constant += plane.normal.dot(origin);
+            return plane;
+          }),
         ];
         // Each vertex of a bounded convex intersection lies on >=3 planes.
         for (let i = 0; i < planes.length - 2; i++) {
@@ -272,7 +276,10 @@ export const createTileCameraDemand = (
           }
         }
       }
-      return vertices.map((vertex) => vertex.add(origin));
+      return vertices.map((vertex) => {
+        vertex.add(origin);
+        return boundsToWorld ? vertex.applyMatrix4(boundsToWorld) : vertex;
+      });
     },
     /** Result is scratch storage; consume before the next evaluation.
      * Optional area is the largest clipped bounds footprint among included
@@ -282,7 +289,8 @@ export const createTileCameraDemand = (
       bounds: Box3,
       geometricError: number,
       excludeCameraId?: string,
-      includeVisibleArea = false
+      includeVisibleArea = false,
+      boundsToWorld?: Matrix4
     ) {
       target.required = false;
       target.receiver = false;
@@ -290,38 +298,59 @@ export const createTileCameraDemand = (
       target.visibleAreaPixels = 0;
       target.priority = Number.NEGATIVE_INFINITY;
       if (bounds.isEmpty()) return target;
+      const worldBounds = boundsToWorld
+        ? bounds.clone().applyMatrix4(boundsToWorld)
+        : bounds;
       for (const view of compiled) {
         if (view.id === excludeCameraId) continue;
-        if (!view.frustum.intersectsBox(bounds)) continue;
-        const clipped = includeVisibleArea
-          ? this.intersectionVertices(bounds, view.id)
-          : undefined;
+        if (!view.frustum.intersectsBox(worldBounds)) continue;
+        const fullyInside =
+          view.orthographic &&
+          view.frustum.planes.every(
+            ({ normal, constant }) =>
+              normal.x *
+                (normal.x < 0 ? worldBounds.max.x : worldBounds.min.x) +
+                normal.y *
+                  (normal.y < 0 ? worldBounds.max.y : worldBounds.min.y) +
+                normal.z *
+                  (normal.z < 0 ? worldBounds.max.z : worldBounds.min.z) +
+                constant >=
+              0
+          );
+        const clipped =
+          includeVisibleArea || (view.orthographic && !fullyInside)
+            ? this.intersectionVertices(bounds, view.id, boundsToWorld)
+            : undefined;
         if (clipped) {
           if (clipped.length === 0) continue;
-          target.visibleAreaPixels = Math.max(
-            target.visibleAreaPixels,
-            (projectedIntersectionArea(clipped, view.clipFromWorld) *
-              view.viewport[0] *
-              view.viewport[1]) /
-              4
-          );
+          if (includeVisibleArea)
+            target.visibleAreaPixels = Math.max(
+              target.visibleAreaPixels,
+              (projectedIntersectionArea(clipped, view.clipFromWorld) *
+                view.viewport[0] *
+                view.viewport[1]) /
+                4
+            );
         }
         let distance = view.minimumScale;
         if (!view.orthographic) {
           // Linear view depth reaches its box minimum at this corner. Most
           // interior tiles take this allocation-light path; only clipped
           // corners require the existing convex intersection calculation.
-          const e = view.worldToView.elements;
+          const e = boundsToWorld
+            ? view.worldToView.clone().multiply(boundsToWorld).elements
+            : view.worldToView.elements;
           const nearest = new Vector3(
             e[2] > 0 ? bounds.max.x : bounds.min.x,
             e[6] > 0 ? bounds.max.y : bounds.min.y,
             e[10] > 0 ? bounds.max.z : bounds.min.z
           );
+          if (boundsToWorld) nearest.applyMatrix4(boundsToWorld);
           const visible =
             clipped ??
             (view.frustum.containsPoint(nearest)
               ? [nearest]
-              : this.intersectionVertices(bounds, view.id));
+              : this.intersectionVertices(bounds, view.id, boundsToWorld));
           if (visible.length === 0) continue;
           let depth = Number.POSITIVE_INFINITY;
           for (const point of visible) {

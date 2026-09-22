@@ -5,6 +5,8 @@ import type { ThreeTilesRuntime } from "@carma-mapping/engines/maplibre";
 export type TileLoadingDebugOptions = {
   showOverviewPanel: boolean;
   showOverviewOptions?: boolean;
+  overviewSize?: boolean;
+  overviewSteps?: boolean;
   showDiagnosticTools?: boolean;
   overviewUp: "tileset" | "camera-tangent";
   showTileGeometry: boolean;
@@ -75,6 +77,8 @@ export type DebugColorModeName = (typeof DEBUG_COLOR_MODES)[number];
 
 export const DEFAULT_TILE_LOADING_DEBUG_OPTIONS: TileLoadingDebugOptions = {
   showOverviewPanel: false,
+  overviewSize: true,
+  overviewSteps: false,
   overviewUp: "camera-tangent",
   showTileGeometry: false,
   showOverlay: true,
@@ -105,6 +109,8 @@ export type ResolvedDebugOptions = TileLoadingDebugOptions &
   Partial<TileLoadingDebugLoadingOptions>;
 
 export type TileLoadingDebugProps = {
+  initialToolbarPosition?: { left: number; top: number };
+  initialOverviewPosition?: { left: number; top: number };
   map: MapLibreMap;
   runtimeHandle: ThreeTilesRuntime | null;
   options?: Partial<ResolvedDebugOptions>;

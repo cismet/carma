@@ -212,7 +212,7 @@ export const createVolumeTileDiagnostics = (diagnostics: TileDiagnostics) => {
           }
         }
         totals.sort((a, b) => a - b);
-        let unit = 1024;
+        let unit = 10 * 1024;
         const largest = sizes.length ? Math.max(...sizes) : 0;
         while (largest / unit > 100) unit *= 10;
         setLegend({
@@ -426,12 +426,12 @@ export const createVolumeTileDiagnostics = (diagnostics: TileDiagnostics) => {
         </div>
         {legend && mode !== "map" ? (
           <details
+            className="tile-debug-legend"
             data-test-id="volume-tile-diagnostics-legend"
             style={{
               position: "absolute",
               left: legendAt.left,
               top: legendAt.top,
-              width: 252,
               maxHeight: "70%",
               overflow: "auto",
               background: "rgb(12 18 32 / 92%)",
@@ -439,7 +439,7 @@ export const createVolumeTileDiagnostics = (diagnostics: TileDiagnostics) => {
               font: "11px/1.5 system-ui, sans-serif",
               padding: "2px 6px",
               borderRadius: 3,
-              boxShadow: "0 1px 6px rgb(0 0 0 / 45%)",
+              boxShadow: "0 2px 4px rgba(0, 0, 0, 0.2)",
             }}
           >
             <summary

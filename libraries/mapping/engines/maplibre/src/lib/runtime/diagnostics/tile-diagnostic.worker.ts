@@ -101,18 +101,15 @@ const draw = async () => {
       target.showFrustum === false
         ? []
         : viewport
-        ? viewport.views.map((view, i) =>
-            buildDiagnosticViewport(
+        ? viewport.views.map((view, i) => {
+            const light =
+              (i === 0 ? camera : cameras[i - 1])?.role === "geometry";
+            return buildDiagnosticViewport(
               view,
-              colors[i % colors.length],
-              // The main camera receives; a light only contributes geometry,
-              // and its chevron sits at the sunward side of its own cut.
-              (i === 0 ? camera : cameras[i - 1])?.role === "geometry" && {
-                x: frame.view.x + frame.view.w / 2,
-                y: frame.view.y + frame.view.h / 2,
-              }
-            )
-          )
+              light ? "rgba(246, 250, 164, 0.6)" : colors[i % colors.length],
+              light
+            );
+          })
         : [buildDiagnosticViewport(snapshot)];
     const dynamic = new Float32Array(
       selected.length + frustums.reduce((n, f) => n + f.length, 0)

@@ -1,4 +1,6 @@
 import * as THREE from "three";
+import { readOrientedTileBounds } from "../integrations/three-tiles-bounds";
+import type { RuntimeTile } from "../integrations/three-tiles-runtime-types";
 import type { Tile } from "3d-tiles-renderer/core";
 import { projectTileDiagnosticViewport } from "./tile-diagnostic-viewport";
 import { readEnuToLocalYUpSceneRotationMatrix } from "@carma-commons/camera/model";
@@ -17,7 +19,6 @@ import {
   tileId,
   levelsToTarget,
   kindOf,
-  type RuntimeTile,
   type TilesRuntimeDebugState,
 } from "./tile-diagnostic-state";
 import type {
@@ -32,6 +33,7 @@ import {
 } from "../../core/diagnostics/tile-diagnostic-volumes";
 import type { SharedThreeSceneTileVolume } from "../../core/shared-three-scene-types";
 import type { TileCameraSnapshot } from "../../core/tile-camera-demand";
+import { getThreeTileDiagnosticSteps } from "../integrations/three-tiles-diagnostic-steps";
 import { yieldTileDiagnosticTask } from "./tile-diagnostic-scheduler";
 
 export type TileDiagnosticCaptureOptions = {
@@ -43,6 +45,8 @@ export type TileDiagnosticCaptureOptions = {
   showOverviewPanel: boolean;
   showFrustum: boolean;
   showResident: boolean;
+  showSize?: boolean;
+  showStats?: boolean;
   sceneLabels: boolean;
   /** Tiles of sources without their own tile tree, in scene world metres. */
   volumes?: readonly SharedThreeSceneTileVolume[];
@@ -130,6 +134,31 @@ export const captureTileDiagnostics = async (
   const floorLeaves = collectFloorLeaves(root, state.extentGeometricError);
   const floor = new Set(floorLeaves);
   const projectedErrors = new Map<Tile, number | null>();
+  const tileBoxes = new Map<
+    Tile,
+    { bounds: THREE.Box3; transform: THREE.Matrix4 }
+  >();
+  const evaluateTile = (tile: Tile, worldBounds: THREE.Box3) => {
+    let oriented = tileBoxes.get(tile);
+    if (!oriented) {
+      const bounds = new THREE.Box3();
+      const transform = new THREE.Matrix4();
+      const volume = (tile as RuntimeTile).engineData?.boundingVolume;
+      if (volume?.getAABB) {
+        readOrientedTileBounds(volume, bounds, transform);
+        transform.premultiply(group.matrixWorld);
+      } else bounds.copy(worldBounds);
+      oriented = { bounds, transform };
+      tileBoxes.set(tile, oriented);
+    }
+    return cameraDemand.evaluate(
+      oriented.bounds,
+      tile.geometricError * worldScale,
+      undefined,
+      false,
+      oriented.transform
+    );
+  };
   const candidates = new Set<Tile>([
     ...floorLeaves,
     ...cache.itemSet.keys(),
@@ -155,6 +184,7 @@ export const captureTileDiagnostics = async (
     const kind = kindOf(tile, state, floor);
     if (!kind) continue;
     const ancestor = tile.internal?.hasRenderableContent !== true;
+    if (ancestor) continue;
     if (kind === "displayed") displayed += 1;
     if (kind === "underlay") underlay += 1;
     if (
@@ -169,10 +199,19 @@ export const captureTileDiagnostics = async (
     const projectedBox = box.clone().applyMatrix4(worldToOverview);
     const [x0, y0] = toScreen(projectedBox.min.x, projectedBox.min.z);
     const [x1, y1] = toScreen(projectedBox.max.x, projectedBox.max.z);
-    const demand = cameraDemand.evaluate(box, tile.geometricError * worldScale);
+    const demand = evaluateTile(tile, box);
     const error = demand.required ? demand.errorRatio * targetPixels : NaN;
     projectedErrors.set(tile, demand.required ? error : null);
+    const progress = state.tileDebugProgress?.get(tile);
     rects.push({
+      bytes: tiles.lruCache.getMemoryUsage?.(tile) ?? 0,
+      steps: progress
+        ? getThreeTileDiagnosticSteps(
+            progress,
+            !!options.shadowCamera,
+            performance.now()
+          )
+        : undefined,
       tile,
       id: tileId(tile),
       world: box.clone(),
@@ -182,6 +221,16 @@ export const captureTileDiagnostics = async (
       h: y1 - y0,
       kind: ancestor ? "ancestor" : kind,
       floor: floor.has(tile),
+      coverage: demand.required
+        ? "viewport"
+        : floor.has(tile)
+        ? "base"
+        : state.meshRefinementSupport?.has(tile) ||
+          kind === "displayed" ||
+          kind === "underlay" ||
+          kind === "ring"
+        ? "seam"
+        : undefined,
       error,
       levels: levelsToTarget(error, targetPixels),
       quality: null,
@@ -224,21 +273,27 @@ export const captureTileDiagnostics = async (
       if (!tileWorldBox(node, group, box)) return null;
       // Read the same compiled camera union without invoking the vendor's
       // traversal callback: that callback also changes request/floor state.
-      const result = cameraDemand.evaluate(
-        box,
-        node.geometricError * worldScale
-      );
+      const result = evaluateTile(node, box);
       const error = result.required ? result.errorRatio * targetPixels : null;
       projectedErrors.set(node, error);
       return error;
     });
   }
 
+  // Hierarchy/cache boxes remain inspectable, but their often very deep
+  // undersides are not surfaces currently presented by the scene.
+  const cutRects = rects.filter(({ tile }) => {
+    const kind = kindOf(tile, state, floor);
+    return kind === "displayed" || kind === "underlay";
+  });
   const viewportBasis = {
-    tileBounds: rects.flatMap((rect) => [
-      ...rect.world.min.toArray(),
-      ...rect.world.max.toArray(),
-    ]),
+    tileBounds: cutRects.flatMap((rect) => {
+      const bounds = tileBoxes.get(rect.tile)!.bounds;
+      return [...bounds.min.toArray(), ...bounds.max.toArray()];
+    }),
+    tileTransforms: cutRects.flatMap((rect) =>
+      tileBoxes.get(rect.tile)!.transform.toArray()
+    ),
     bounds: [...extent.min.toArray(), ...extent.max.toArray()],
     worldToOverview: worldToOverview.toArray(),
     screen: [
@@ -321,6 +376,8 @@ export const captureTileDiagnostics = async (
       footprintBounds,
       rects,
       volumes: overlayVolumes,
+      showSize: options.showSize,
+      showStats: options.showStats,
       viewportBasis,
       target: targetPixels,
     };

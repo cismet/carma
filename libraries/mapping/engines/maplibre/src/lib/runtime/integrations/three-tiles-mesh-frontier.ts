@@ -307,7 +307,18 @@ export const collectLoadedMeshReceiverCandidates = (
     if (
       fallback &&
       ((error <= stageError(tile) && !retainedAncestors.has(tile)) ||
-        children.length === 0)
+        children.length === 0 ||
+        // A loose parent box may hit the camera while every drawable child
+        // misses. Completing that family cannot improve visible geometry.
+        // Unknown topology still needs preprocessing; it is never a miss.
+        children.every(
+          (child) =>
+            !hasMeshRefinementContentInView(
+              child,
+              (candidate) =>
+                !candidate.internal || !candidate.traversal || inView(candidate)
+            )
+        ))
     )
       return { cut: [tile], complete: true };
     const selected: Tile[] = [];

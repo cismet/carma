@@ -52,6 +52,7 @@ export function createThreeTilesCascade(
     | "tiles"
     | "map"
     | "meshBaseCoverageReady"
+    | "lastMainViewConverged"
     | "meshCoverageRecovery"
     | "meshRefinementSupport"
     | "residentAncestors"
@@ -127,9 +128,8 @@ export function createThreeTilesCascade(
     if (
       runtimeState.map?.isMoving?.() !== true &&
       runtimeState.meshBaseCoverageReady &&
-      (!runtimeState.shadowView ||
-        runtimeState.effectiveErrorTarget ===
-          runtimeState.requestedErrorTarget) &&
+      runtimeState.lastMainViewConverged &&
+      runtimeState.effectiveErrorTarget === runtimeState.requestedErrorTarget &&
       (runtimeTile.idleRing || runtimeState.residentAncestors.has(tile))
     )
       return true;
@@ -416,6 +416,7 @@ export function createThreeTilesCascade(
       !tiles ||
       tiles.loadAncestors ||
       !runtimeState.meshBaseCoverageReady ||
+      !runtimeState.lastMainViewConverged ||
       runtimeState.extentFloorPending > 0 ||
       runtimeState.effectiveErrorTarget !== runtimeState.requestedErrorTarget ||
       runtimeState.map?.isMoving?.() ||
@@ -456,6 +457,7 @@ export function createThreeTilesCascade(
       tiles.loadAncestors ||
       runtimeState.map?.isMoving?.() ||
       !runtimeState.meshBaseCoverageReady ||
+      !runtimeState.lastMainViewConverged ||
       runtimeState.extentFloorPending > 0 ||
       (tiles.lruCache as RuntimeLruCache).cachedBytes >=
         tiles.lruCache.minBytesSize *

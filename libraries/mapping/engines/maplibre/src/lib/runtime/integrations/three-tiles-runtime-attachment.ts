@@ -403,10 +403,9 @@ export function createThreeTilesRuntimeAttachment(
         const atRest =
           runtimeState.meshBaseCoverageReady &&
           runtimeState.extentFloorArmed &&
-          (!runtimeState.shadowView ||
-            (runtimeState.lastMainViewConverged &&
-              runtimeState.effectiveErrorTarget ===
-                runtimeState.requestedErrorTarget)) &&
+          runtimeState.lastMainViewConverged &&
+          runtimeState.effectiveErrorTarget ===
+            runtimeState.requestedErrorTarget &&
           runtimeState.map?.isMoving?.() !== true;
         if (atRest) {
           const ring = dependencies.getTileRingIndex(runtimeTile);
@@ -446,7 +445,8 @@ export function createThreeTilesRuntimeAttachment(
                     runtimeState.options.baseErrorTargetPixels
                   ),
                   ring,
-                  budgetOpen ? runtimeState.ringRefinePasses : 0
+                  budgetOpen ? runtimeState.ringRefinePasses : 0,
+                  runtimeState.requestedErrorTarget
                 )
               : 0;
             const satisfied = floorLeaf

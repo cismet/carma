@@ -98,7 +98,10 @@ export const createTileDiagnosticOverlay = (
               rect.tile.internal?.hasRenderableContent === true &&
                 !rect.tile.children?.length
             ) <<
-              4);
+              4) |
+            (Number(rect.coverage === "viewport") << 5) |
+            (Number(rect.coverage === "seam") << 6) |
+            (Number(rect.coverage === "base") << 7);
           tiles.set(
             [
               rect.x,
@@ -111,9 +114,18 @@ export const createTileDiagnosticOverlay = (
               rect.quality?.maximum ?? NaN,
               TILE_PHASES.indexOf(rect.phase as (typeof TILE_PHASES)[number]),
               rect.error,
-              0,
-              ...Array.from({ length: TILE_STEP_SLOTS }, () => 0),
-              0,
+              rect.bytes ?? 0,
+              ...(rect.steps ?? []).reduce(
+                (slots, step) => {
+                  const named = TILE_STEPS.findIndex(
+                    ({ label }) => label === step.label
+                  );
+                  slots[named < 0 ? TILE_STEP_SLOTS - 1 : named] += step.ms;
+                  return slots;
+                },
+                Array.from({ length: TILE_STEP_SLOTS }, () => 0)
+              ),
+              rect.tile.internal?.depth ?? 0,
             ],
             i * TILE_RECORD_FLOATS
           );

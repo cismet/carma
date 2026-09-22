@@ -2435,3 +2435,47 @@ show no priority inversion. Synchronous full-queue leader capture was unavailabl
 so this is sampled support rather than proof of every dispatch. Area is a bounds
 estimate, and one run per revision does not establish repeatable latency or
 shadow-performance acceptance.
+
+## Persistent offscreen LOD gradient
+
+**ID / date / status:** OFFSCREEN-LOD-GRADIENT-20260922 / 2026-09-22 / implemented.
+
+**Context and constraints:** Reserve admission without shadows only required base
+coverage, while ring refinement subtracted its level from the ring index. This
+could load reserve detail before visible convergence and ultimately flatten all
+rings to the same error target. Keep hole-free replacement and floor coverage.
+
+**Decision:** New optional reserve payloads and ring refinement wait for visible
+convergence at the requested target, with or without shadows. Ring k retains an
+error allowance of anchor times 2^k: idle refinement lowers the anchor towards
+the visible target without changing the spacing between rings. Loading and
+offscreen fallback publication use the same allowance. Ready detail remains
+until a loaded accepted ancestor can replace it; cached detail is not a request.
+Floor and immediate visible replacement-family dependencies keep their existing
+priority exceptions.
+
+**Alternatives and disposition:** Flattening the rings is incompatible with the
+requested outward coarsening. Evicting all offscreen detail immediately is
+incompatible with retained coverage and fast reverse pans.
+
+**Evidence:** Focused ring policy and reserve-admission/convergence regressions.
+This change does not claim a measured transfer or load-time improvement.
+
+**Revisit when:** Rings still consume visible admission slots in actual request
+telemetry, or a different dataset does not roughly double error per tree level.
+
+
+## No visible replacement beneath a loose parent
+
+**ID / date / status:** EMPTY-VISIBLE-FAMILY-20260922 / 2026-09-22 / implemented.
+
+A parent bounding volume may intersect the observer while every prepared
+drawable child misses it. Keep the ready parent rather than requesting or
+publishing an entirely offscreen finer family. Unknown/raw topology is still
+potential coverage and must be prepared. If any child intersects, the existing
+complete immediate-family policy applies, preserving adjacent coverage. This
+uses the same content-aware visibility predicate as convergence.
+
+Evidence: the Zoom-22 inspection (MapLibre clamped to 21) found mesh_1503231
+requesting three finer children with zero visible children. Focused regression
+checks missing/loaded outside children and re-entry of one visible child.

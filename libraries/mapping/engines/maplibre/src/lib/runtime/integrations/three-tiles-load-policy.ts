@@ -44,7 +44,7 @@ export const TILES_LOAD_POLICY = {
   /**
    * Idle rings around the view, as multipliers of tan(fov / 2): ring k spans
    * that many times the view's half extent and may hold tiles up to
-   * base error × 2^(k-1). Once the view converged, the skip strategy fills
+   * anchor error × 2^k. Once the view converged, the skip strategy fills
    * the rings from the inside out until the outermost covers the model, so
    * a pan or a zoom-out step finds coarse coverage instead of blank ground.
    * The largest ring keeps a perspective frustum: 43 × tan(18.4°) is 172°;
@@ -53,7 +53,7 @@ export const TILES_LOAD_POLICY = {
   idleRingTanMultipliers: [2.25, 4.3, 8.2, 17, 43],
   /**
    * The cascade in levels: ring k may hold tiles up to
-   * anchor × 2^(step × (k-1)), one level coarser per ring by default. The
+   * anchor × 2^(step × k), one level coarser per ring by default. The
    * anchor is the base error target (the level the view itself falls back
    * to while it moves) unless idleRingAnchorPixels sets another.
    */
@@ -772,16 +772,23 @@ export const isExtentFloorTile = (
 
 /**
  * Screen-space error a tile in ring k (1 = innermost) may stop at, with the
- * cascade refined by `refinedLevels` levels below its coarse start.
+ * anchor refined towards the visible target, preserving the ring spacing.
  */
 export const idleRingAllowedError = (
   baseErrorTarget: number,
   ring: number,
-  refinedLevels: number
+  refinedLevels: number,
+  visibleErrorTarget: number
 ): number => {
-  const anchor = TILES_LOAD_POLICY.idleRingAnchorPixels ?? baseErrorTarget;
-  const levels =
-    Math.max(0, ring - 1 - refinedLevels) * TILES_LOAD_POLICY.idleRingLevelStep;
+  // Preserve one coarser level per band even after idle refinement settles.
+  // Decision: TILES_COVERAGE.md#persistent-offscreen-lod-gradient
+  const initialAnchor =
+    TILES_LOAD_POLICY.idleRingAnchorPixels ?? baseErrorTarget;
+  const anchor = Math.max(
+    visibleErrorTarget,
+    initialAnchor / 2 ** Math.max(0, refinedLevels)
+  );
+  const levels = Math.max(1, ring) * TILES_LOAD_POLICY.idleRingLevelStep;
   return anchor * 2 ** levels;
 };
 

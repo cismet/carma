@@ -46,8 +46,87 @@ describe("live overview viewport", () => {
     }
     expect(endpoints.some((x) => Math.abs(x - 4) < 1e-5)).toBe(true);
     expect(endpoints.some((x) => Math.abs(x - 6) < 1e-5)).toBe(true);
-    expect(view.nadirRadians).toBeCloseTo(0);
+    expect(view.forward).toBeNull();
   });
+
+  it("keeps only tile-plane cuts in a perspective map-aligned overview", () => {
+    const light = new THREE.OrthographicCamera(-2, 2, 2, -2, 1, 20);
+    light.position.set(5, 10, 5);
+    light.up.set(0, 0, -1);
+    light.lookAt(5, 0, 5);
+    const observer = new THREE.PerspectiveCamera(60, 1, 1, 100);
+    observer.position.set(5, 15, 20);
+    observer.lookAt(5, 0, 5);
+    observer.updateMatrixWorld();
+    const worldToOverview = new THREE.Matrix4()
+      .set(1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1)
+      .multiply(observer.projectionMatrix)
+      .multiply(observer.matrixWorldInverse);
+    const view = projectTileDiagnosticViewport(
+      {
+        bounds: [0, -1, 0, 10, 1, 10],
+        tileBounds: [0, -1, 0, 4, 1, 10, 6, -1, 0, 10, 1, 10],
+        worldToOverview: worldToOverview.toArray(),
+        screen: [100, 100, 100, -100],
+        width: 200,
+        height: 200,
+      },
+      snapshotTileCameraViews([
+        {
+          id: "sun",
+          camera: light,
+          viewport: [200, 200],
+          errorTargetPixels: 1,
+          role: "geometry",
+        },
+      ])[0]
+    );
+    expect(view.nearCenter).toBeUndefined();
+    expect(view.edges.length).toBeGreaterThan(0);
+    expect(Array.from(view.edges).every(Number.isFinite)).toBe(true);
+  });
+
+  it.each([THREE.WebGLCoordinateSystem, THREE.WebGPUCoordinateSystem])(
+    "projects the asymmetric light near centre without drawing an empty tile set (%s)",
+    (coordinateSystem) => {
+      for (const reversedDepth of [false, true]) {
+        const camera = new THREE.OrthographicCamera(-2, 4, 3, -1, 2, 12);
+        camera.coordinateSystem = coordinateSystem;
+        Object.defineProperty(camera, "reversedDepth", {
+          value: reversedDepth,
+        });
+        camera.position.set(10, 20, 30);
+        camera.lookAt(10, 10, 20);
+        camera.updateProjectionMatrix();
+        camera.updateMatrixWorld();
+        const view = projectTileDiagnosticViewport(
+          {
+            bounds: [-100, -100, -100, 100, 100, 100],
+            tileBounds: [],
+            worldToOverview: new THREE.Matrix4().toArray(),
+            screen: [1, 0, 0],
+            width: 200,
+            height: 200,
+          },
+          snapshotTileCameraViews([
+            {
+              id: "sun",
+              camera,
+              viewport: [200, 200],
+              errorTargetPixels: 1,
+              role: "geometry",
+            },
+          ])[0]
+        );
+        const expected = new THREE.Vector3(1, 1, -2).applyMatrix4(
+          camera.matrixWorld
+        );
+        expect(view.nearCenter![0]).toBeCloseTo(expected.x);
+        expect(view.nearCenter![1]).toBeCloseTo(expected.z);
+        expect(view.edges).toHaveLength(0);
+      }
+    }
+  );
 
   it("preserves adjacent box cuts at ECEF magnitudes without Float32 gaps", () => {
     const project = (offset: number) => {
@@ -183,10 +262,41 @@ describe("live overview viewport", () => {
     }
   );
 
-  it("closes the footprint, far cut included", () => {
-    // A camera whose far plane cuts inside the extent: the far edge is a face
-    // of the clipped volume like any other, so the outline must close instead
-    // of showing two open side rails.
+  it("fits presented content instead of a deep unused ancestor extent", () => {
+    const camera = new THREE.PerspectiveCamera(60, 1, 1, 1000);
+    camera.updateMatrixWorld();
+    const snapshot = snapshotTileCameraViews([
+      {
+        id: "observer",
+        camera,
+        viewport: [400, 400],
+        errorTargetPixels: 6,
+        role: "receiver",
+      },
+    ])[0];
+    const view = projectTileDiagnosticViewport(
+      {
+        bounds: [-1000, -1000, -1000, 1000, 1000, 1000],
+        tileBounds: [-1, -1, -5, 1, 1, -3],
+        worldToOverview: new THREE.Matrix4().toArray(),
+        screen: [1, 0, 0],
+        width: 400,
+        height: 400,
+      },
+      snapshot
+    );
+    expect(view.footprintBounds).toEqual({
+      minX: -1,
+      maxX: 1,
+      minY: -5,
+      maxY: -3,
+    });
+    expect(view.view.w).toBe(4);
+    expect(view.edges).toHaveLength(0);
+  });
+
+  it("clips side cuts at the far plane without drawing a far-plane closure", () => {
+    // Only the four side planes produce lines; far depth bounds their length.
     const camera = new THREE.PerspectiveCamera(50, 1, 1, 60);
     camera.position.set(0, 40, 0);
     camera.lookAt(0, 0, -30);
@@ -213,7 +323,7 @@ describe("live overview viewport", () => {
       Array.from(edges.subarray(i * 4, i * 4 + 4))
     );
     expect(segments.length).toBeGreaterThan(3);
-    // Every endpoint is shared with another segment: a closed outline.
+    // Far-clipped side cuts have open ends rather than an invented cap.
     const counts = new Map<string, number>();
     for (const [x0, y0, x1, y1] of segments)
       for (const point of [
@@ -221,13 +331,13 @@ describe("live overview viewport", () => {
         `${x1.toFixed(3)}:${y1.toFixed(3)}`,
       ])
         counts.set(point, (counts.get(point) ?? 0) + 1);
-    expect([...counts.values()].every((count) => count >= 2)).toBe(true);
+    expect([...counts.values()].some((count) => count === 1)).toBe(true);
   });
 
-  it("closes the cut on the box faces the eye looks along", () => {
+  it("does not close surface cuts along box faces untouched by a frustum plane", () => {
     // A pitched camera over a thin terrain tile: neither the near nor the far
-    // plane touches the box, so the cut ends on the box's own faces. Those
-    // ends belong to the outline as much as the frustum's own sides do.
+    // plane touches the box. The side cuts must stay open at the tile rim;
+    // a horizontal connector there would only outline the clipped solid.
     const camera = new THREE.PerspectiveCamera(45, 1.3, 5, 4000);
     camera.position.set(0, 300, 900);
     camera.lookAt(0, 120, 0);
@@ -263,7 +373,7 @@ describe("live overview viewport", () => {
     expect(
       segments.every(([x0, y0, x1, y1]) => Math.hypot(x1 - x0, y1 - y0) > 0)
     ).toBe(true);
-    // Both ends of the cut carry a crossing segment, so the outline closes.
+    // No artificial front/back closing edge: neither is a frustum-plane cut.
     const span = (y: number) =>
       segments.some(
         ([x0, y0, x1, y1]) =>
@@ -271,9 +381,9 @@ describe("live overview viewport", () => {
       );
     expect(
       span(Math.min(...segments.flatMap(([, y0, , y1]) => [y0, y1])))
-    ).toBe(true);
+    ).toBe(false);
     expect(
       span(Math.max(...segments.flatMap(([, y0, , y1]) => [y0, y1])))
-    ).toBe(true);
+    ).toBe(false);
   });
 });

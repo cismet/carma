@@ -76,6 +76,16 @@ const primitivesOf = (data: Float32Array) =>
   );
 
 describe("instanced tile diagnostics", () => {
+  it("keeps viewport, seam and base colors distinct even outside the camera", () => {
+    const colors = [32, 64, 128].map((role) => {
+      const data = snapshot([, , , , , role | 4]);
+      return Array.from(buildDiagnosticPrimitives(data).slice(8, 11));
+    });
+    expect(colors[0][0]).toBeCloseTo(138 / 255);
+    expect(colors[1][1]).toBeCloseTo(196 / 255);
+    expect(colors[2][1]).toBeCloseTo(156 / 255);
+    expect(new Set(colors.map((color) => JSON.stringify(color))).size).toBe(3);
+  });
   it("draws a fixed three-pixel-radius centroid dot for terminal tiles", () => {
     const data = buildDiagnosticPrimitives(snapshot([, , , , , 16]));
     expect(data.length).toBe(PRIMITIVE_FLOATS * 2);
@@ -171,6 +181,12 @@ describe("instanced tile diagnostics", () => {
         "https://example/tileset.json#0/2:https://example/content/5_23_29.glb"
       )
     ).toBe("5/23/29");
+    expect(compactDiagnosticTileId("https://example/mesh_1168775.glb")).toBe(
+      "1168775"
+    );
+    expect(compactDiagnosticTileId("https://example/_mesh_1168775.glb")).toBe(
+      "1168775"
+    );
   });
   it("omits IDs that do not fit and suppresses overlapping labels", () => {
     const fillText = vi.fn();
@@ -201,6 +217,15 @@ describe("instanced tile diagnostics", () => {
       "2733",
     ]);
     expect(fillText.mock.calls.map(([, , y]) => y)).toEqual([50, 60, 70]);
+    fillText.mockClear();
+    data.tiles[10] = 24 * 1024;
+    drawDiagnosticText(context, data, { ...frame, labels: "id and stats" });
+    expect(fillText.mock.calls.map(([label]) => label)).toEqual([
+      "14",
+      "4260",
+      "2733",
+      "≈20 kB",
+    ]);
     fillText.mockClear();
     data.tiles = new Float32Array([...snapshot().tiles, ...snapshot().tiles]);
     data.ids = ["one", "two"];
@@ -238,7 +263,7 @@ describe("instanced tile diagnostics", () => {
     // A loaded tile of 20 kB whose first three steps cost 100, 50 and 50 ms.
     const state = snapshot();
     state.tiles = new Float32Array(
-      tileRecord({ bytes: 20 * 1024, steps: [100, 50, 50], level: 12 })
+      tileRecord({ bytes: 200 * 1024, steps: [100, 50, 50], level: 12 })
     );
     const primitives = primitivesOf(buildDiagnosticPrimitives(state));
     const wedges = primitives.filter((primitive) => primitive[4] === 6);
@@ -351,62 +376,27 @@ describe("instanced tile diagnostics", () => {
     expect(rects[3].slice(8, 11)).not.toEqual(rects[0].slice(8, 11));
   });
 
-  it("keeps a nadir-dependent chevron inside the sunward side of the light cut", () => {
-    const lightView = {
+  it("draws light tile cuts without the free-standing light box", () => {
+    const view = {
       ...snapshot(),
-      edges: new Float32Array([
-        0, 20, 40, 20, 40, 20, 40, 100, 40, 100, 0, 100, 0, 100, 0, 20,
-      ]),
-      origin: [20, 0] as const,
+      edges: new Float32Array([100, 100, 200, 200]),
+      frustumEdges: new Float32Array([0, 20, 40, 20]),
+      nearCenter: [20, 20] as const,
       forward: [0, 1] as const,
+      origin: [20, 0] as const,
     };
-    const plain = primitivesOf(buildDiagnosticViewport(lightView));
-    const chevron = (angle: number) =>
-      primitivesOf(
-        buildDiagnosticViewport({ ...lightView, nadirRadians: angle }, "#fff", {
-          x: 0,
-          y: 0,
-        })
-      ).slice(plain.length);
-    const lowSun = chevron(Math.PI / 2);
-    expect(lowSun).toHaveLength(2);
-    expect(lowSun[0].slice(0, 2)).toEqual(lowSun[1].slice(0, 2));
-    // The sun is above the cut (negative forward). The tip stays in that half.
-    expect(lowSun[0][1]).toBeLessThan(60);
-    for (const segment of lowSun) {
-      for (const x of [segment[0], segment[2]]) {
-        expect(x).toBeGreaterThanOrEqual(0);
-        expect(x).toBeLessThanOrEqual(40);
-      }
-      for (const y of [segment[1], segment[3]]) {
-        expect(y).toBeGreaterThanOrEqual(20);
-        expect(y).toBeLessThanOrEqual(100);
-      }
-      expect(Math.abs(segment[2] - segment[0])).toBeCloseTo(
-        Math.abs(segment[3] - segment[1]),
-        5
-      );
-    }
-    const highSun = chevron(Math.PI / 6);
-    expect(Math.abs(highSun[0][2] - highSun[0][0])).toBeLessThan(
-      Math.abs(lowSun[0][2] - lowSun[0][0])
+    const data = primitivesOf(
+      buildDiagnosticViewport(view, "rgba(246, 250, 164, 0.6)", true)
     );
-    const overhead = chevron(0);
-    expect(overhead[0].slice(0, 4)).toEqual(overhead[1].slice(0, 4));
-    // Even a narrow cut clips both arms at its side planes.
-    const narrow = {
-      ...lightView,
-      edges: new Float32Array([
-        18, 20, 22, 20, 22, 20, 22, 100, 22, 100, 18, 100, 18, 100, 18, 20,
-      ]),
-      nadirRadians: Math.PI / 2,
-    };
-    for (const segment of primitivesOf(
-      buildDiagnosticViewport(narrow, "#fff", { x: 0, y: 0 })
-    ).slice(plain.length)) {
-      expect(segment[2]).toBeGreaterThanOrEqual(18);
-      expect(segment[2]).toBeLessThanOrEqual(22);
-    }
+    expect(data).toHaveLength(2);
+    expect(data[0].slice(0, 5)).toEqual([100, 100, 200, 200, 3]);
+    expect(data[1].slice(0, 8)).toEqual([20, 20, 8, 8, 7, 0, 0, 1]);
+    expect(data[1][11]).toBeCloseTo(0.6);
+    expect(
+      primitivesOf(
+        buildDiagnosticViewport({ ...view, forward: null }, "#ffffff", true)
+      )
+    ).toHaveLength(1);
   });
 
   it("sizes a pie by its cost against the median and rings that median", () => {
