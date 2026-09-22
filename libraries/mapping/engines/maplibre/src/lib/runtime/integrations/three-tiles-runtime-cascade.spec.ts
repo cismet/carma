@@ -61,7 +61,7 @@ const createPrefetchFixture = (root: RuntimeTile) => {
         work.get(entry)?.();
       }),
     },
-    downloadQueue: { maxJobsPerOrigin: 4 },
+    downloadQueue: { maxJobsPerOrigin: 4, originQueues: new Map() },
     parseQueue: { maxJobs: 2 },
     ensureChildrenArePreprocessed: vi.fn(),
     markTileUsed: vi.fn(),
@@ -77,6 +77,20 @@ const createPrefetchFixture = (root: RuntimeTile) => {
       });
     }),
   };
+  const originQueue = {
+    get items() {
+      return [...tiles.loadingTiles].filter(
+        (entry) => entry.internal.loadingState === QUEUED_LOADING_STATE
+      );
+    },
+    get currJobs() {
+      return [...tiles.loadingTiles].filter(
+        (entry) => entry.internal.loadingState === LOADING_LOADING_STATE
+      ).length;
+    },
+    has: (entry: RuntimeTile) => tiles.loadingTiles.has(entry),
+  };
+  tiles.downloadQueue.originQueues = new Map([["test", originQueue]]);
   const state = {
     options: {},
     tiles,
@@ -383,8 +397,134 @@ describe("bounded future-view requests", () => {
 });
 
 describe("3D Tiles spare-capacity zoom prefetch", () => {
+  it("does not preempt a lower-priority download while its origin has a free slot", () => {
+    const fixture = createPrefetchFixture(tile());
+    fixture.state.options = { providesTerrain: true };
+    const active = tile();
+    active.internal.loadingState = LOADING_LOADING_STATE;
+    const waiting = tile();
+    waiting.internal.loadingState = QUEUED_LOADING_STATE;
+    fixture.tiles.loadingTiles.add(active);
+    fixture.tiles.loadingTiles.add(waiting);
+    fixture.tiles.downloadQueue.maxJobsPerOrigin = 2;
+    fixture.dependencies.getTileCameraDemand.mockImplementation((entry) => ({
+      required: true,
+      receiver: true,
+      errorRatio: 2,
+      priority:
+        entry === waiting
+          ? TILE_CAMERA_PRIORITY.FOCUS
+          : TILE_CAMERA_PRIORITY.SECONDARY,
+    }));
+    const cascade = createThreeTilesCascade(
+      fixture.state as never,
+      fixture.dependencies
+    );
+    cascade.abortStaleDownloads();
+    expect(fixture.tiles.lruCache.remove).not.toHaveBeenCalled();
+  });
+
+  it("preempts one same-origin lower-priority job when the origin is full", () => {
+    const fixture = createPrefetchFixture(tile());
+    fixture.state.options = { providesTerrain: true };
+    const active = tile();
+    active.internal.loadingState = LOADING_LOADING_STATE;
+    const waiting = tile();
+    waiting.internal.loadingState = QUEUED_LOADING_STATE;
+    fixture.tiles.loadingTiles.add(active);
+    fixture.tiles.loadingTiles.add(waiting);
+    fixture.tiles.downloadQueue.maxJobsPerOrigin = 1;
+    fixture.dependencies.getTileCameraDemand.mockImplementation((entry) => ({
+      required: true,
+      receiver: true,
+      errorRatio: 2,
+      priority:
+        entry === waiting
+          ? TILE_CAMERA_PRIORITY.FOCUS
+          : TILE_CAMERA_PRIORITY.SECONDARY,
+    }));
+    const cascade = createThreeTilesCascade(
+      fixture.state as never,
+      fixture.dependencies
+    );
+    cascade.abortStaleDownloads();
+    expect(fixture.tiles.lruCache.remove).toHaveBeenCalledWith(active);
+  });
+
+  it("does not preempt for a higher-priority request on another origin", () => {
+    const fixture = createPrefetchFixture(tile());
+    fixture.state.options = { providesTerrain: true };
+    const active = tile();
+    active.internal.loadingState = LOADING_LOADING_STATE;
+    const waiting = tile();
+    waiting.internal.loadingState = QUEUED_LOADING_STATE;
+    fixture.tiles.loadingTiles.add(active);
+    fixture.tiles.loadingTiles.add(waiting);
+    fixture.tiles.downloadQueue.maxJobsPerOrigin = 1;
+    const first = {
+      items: [active],
+      currJobs: 1,
+      has: (entry: RuntimeTile) => entry === active,
+    };
+    const second = {
+      items: [waiting],
+      currJobs: 0,
+      has: (entry: RuntimeTile) => entry === waiting,
+    };
+    fixture.tiles.downloadQueue.originQueues = new Map([
+      ["first", first],
+      ["second", second],
+    ]);
+    fixture.dependencies.getTileCameraDemand.mockImplementation((entry) => ({
+      required: true,
+      receiver: true,
+      errorRatio: 2,
+      priority:
+        entry === waiting
+          ? TILE_CAMERA_PRIORITY.FOCUS
+          : TILE_CAMERA_PRIORITY.SECONDARY,
+    }));
+    const cascade = createThreeTilesCascade(
+      fixture.state as never,
+      fixture.dependencies
+    );
+    cascade.abortStaleDownloads();
+    expect(fixture.tiles.lruCache.remove).not.toHaveBeenCalled();
+  });
+
+  it("uses one queued request to preempt only one of two saturated lower-priority jobs", () => {
+    const fixture = createPrefetchFixture(tile());
+    fixture.state.options = { providesTerrain: true };
+    const active = tile();
+    active.internal.loadingState = LOADING_LOADING_STATE;
+    const secondActive = tile();
+    secondActive.internal.loadingState = LOADING_LOADING_STATE;
+    const waiting = tile();
+    waiting.internal.loadingState = QUEUED_LOADING_STATE;
+    [active, secondActive, waiting].forEach((entry) =>
+      fixture.tiles.loadingTiles.add(entry)
+    );
+    fixture.tiles.downloadQueue.maxJobsPerOrigin = 2;
+    fixture.dependencies.getTileCameraDemand.mockImplementation((entry) => ({
+      required: true,
+      receiver: true,
+      errorRatio: 2,
+      priority:
+        entry === waiting
+          ? TILE_CAMERA_PRIORITY.FOCUS
+          : TILE_CAMERA_PRIORITY.SECONDARY,
+    }));
+    const cascade = createThreeTilesCascade(
+      fixture.state as never,
+      fixture.dependencies
+    );
+    cascade.abortStaleDownloads();
+    expect(fixture.tiles.lruCache.remove).toHaveBeenCalledTimes(1);
+  });
+
   it("preempts active offscreen support downloads for waiting viewport work but retains parsed buffers", () => {
     const fixture = createPrefetchFixture(tile());
+    fixture.tiles.downloadQueue.maxJobsPerOrigin = 1;
     fixture.state.options = { providesTerrain: true };
     const visible = tile();
     visible.internal.loadingState = QUEUED_LOADING_STATE;
@@ -467,6 +607,7 @@ describe("3D Tiles spare-capacity zoom prefetch", () => {
     (activePriority, waitingPriority, preempted) => {
       const fixture = createPrefetchFixture(tile());
       fixture.state.options = { providesTerrain: true };
+      fixture.tiles.downloadQueue.maxJobsPerOrigin = 1;
       fixture.dependencies.isTileInMainView.mockReturnValue(false);
       const active = tile();
       active.internal.loadingState = LOADING_LOADING_STATE;

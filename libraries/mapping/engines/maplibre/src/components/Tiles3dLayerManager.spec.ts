@@ -216,6 +216,27 @@ describe("Tiles3dLayerManager", () => {
     );
   });
 
+  it("forwards independent cold image and handover targets from configuration", () => {
+    render(
+      renderManager({
+        ...baseConfig,
+        providesTerrain: true,
+        firstImageErrorTarget: 96,
+        baseErrorTarget: 24,
+        handoverErrorTarget: 8,
+        errorTarget: 4,
+      })
+    );
+    expect(mocks.buildRuntime.mock.calls[0]?.[3]).toMatchObject({
+      firstImageErrorTargetPixels: 96,
+      baseErrorTargetPixels: 24,
+      handoverErrorTargetPixels: 8,
+    });
+    const runtime = mocks.buildRuntime.mock.results[0]?.value as ReturnType<
+      typeof buildFakeRuntime
+    >;
+    expect(runtime.loading.setErrorTarget).toHaveBeenLastCalledWith(4, 24);
+  });
   it("updates initial and residual targets without replacing the tile pool", () => {
     const { rerender } = render(renderManager(baseConfig));
     const runtime = mocks.buildRuntime.mock.results[0]?.value as ReturnType<

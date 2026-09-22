@@ -440,6 +440,53 @@ describe("buildRasterDemTerrainRuntime", () => {
     }
   });
 
+  it("does not reselect terrain on DPR-only changes and sends CSS dimensions to workers", async () => {
+    const f = createIdlePrefetchFixture("css-terrain-demand");
+    let worker: { mockRestore: () => void } | undefined;
+    try {
+      await f.start();
+      await vi.waitFor(() => expect(f.source.trimCache).toHaveBeenCalledOnce());
+      vi.stubGlobal("Worker", class {});
+      const inputs: Array<readonly number[]> = [];
+      worker = vi
+        .spyOn(terrainWorkers, "runTerrainWorkerTask")
+        .mockImplementation((task, signal) => {
+          if (task.kind !== "select")
+            return executeTerrainWorkerTask(structuredClone(task), signal);
+          inputs.push(task.input.viewport);
+          return Promise.resolve({
+            kind: "select",
+            selection: buildTerrainSelection(task.input, {
+              getTileGridIdsForBounds: f.source.getTileGridIdsForBounds,
+              getTileBounds: f.source.getTileBounds,
+              getTileGeometricError: f.source.getLevelMaximumGeometricError,
+              getTileDataAvailable: f.source.getTileDataAvailable,
+            }),
+          });
+        });
+      f.source.requestTile.mockClear();
+      for (const dpr of [1.25, 2, 3]) {
+        f.runtime.update({
+          ...f.frame,
+          viewport: new Vector2(1000 * dpr, 1000 * dpr),
+          cssViewport: new Vector2(1000, 1000),
+        });
+      }
+      expect(inputs).toHaveLength(0);
+      expect(f.source.requestTile).not.toHaveBeenCalled();
+      f.runtime.update({
+        ...f.frame,
+        viewport: new Vector2(1800, 1800),
+        cssViewport: new Vector2(900, 900),
+      });
+      await vi.waitFor(() => expect(inputs).toEqual([[900, 900]]));
+    } finally {
+      f.runtime.dispose();
+      worker?.mockRestore();
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("wakes the host when an unchanged worker selection drains the request queue", async () => {
     const f = createIdlePrefetchFixture("selection-idle-wakeup");
     let finishSelection: (() => void) | undefined;

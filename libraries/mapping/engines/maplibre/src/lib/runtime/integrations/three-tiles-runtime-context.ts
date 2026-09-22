@@ -145,6 +145,8 @@ export interface ThreeTilesRuntimeState {
   pendingShadowView: SharedThreeSceneShadowView | null;
   /** The initial view cut and the whole-extent reserve were complete once. */
   meshInitialBasePassDone: boolean;
+  /** Observer handover reached at rest; enables normal offscreen family completion. */
+  meshInitialHandoverDone: boolean;
   shadowViewSignature: string;
   shadowSelectionEnabled: boolean;
   shadowSelectionNeedsTraversal: boolean;
@@ -367,10 +369,21 @@ export interface ThreeTilesRuntimeServices {
   ) => number;
   getTileDebugId: (tile: Tile) => string;
   getTileDebugProgress: (tile: Tile) => MeshTileDebugProgress;
+  recordTileWait: (
+    tile: Tile,
+    role: "receiver" | "shadow",
+    reason:
+      | NonNullable<MeshTileDebugProgress["waits"]>[number]["reason"]
+      | null,
+    blocker?: Tile
+  ) => void;
+  drainTileWaitEvents: () => readonly unknown[];
+  beginTileWaitObservation: () => void;
+  endTileWaitObservation: () => void;
   recordTileIteration: (tile: Tile) => void;
   formatDebugDuration: (milliseconds: number | undefined) => string;
   getStableTileId: (tile: Tile) => string;
-  getTileScreenError: (tile: RuntimeTile) => number;
+  getTileScreenError: (tile: RuntimeTile, includeShadow?: boolean) => number;
   updateRootWorldBounds: () => boolean;
   shadowRegionKey: (
     bounds: THREE.Box3,

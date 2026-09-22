@@ -14,7 +14,10 @@ import {
   TILE_CAMERA_ROLE,
   TILE_MAIN_OBSERVER_ID,
 } from "../../core/tile-camera-demand";
-import type { RuntimeTile } from "./three-tiles-runtime-types";
+import type {
+  RuntimeTile,
+  ThreeTilesRuntimeOptions,
+} from "./three-tiles-runtime-types";
 import { tilesQueuePriorityCallback } from "./three-tiles-runtime-vendor";
 import { buildThreeTilesRuntime } from "./three-tiles-runtime";
 import type { ThreeTilesRuntimeState } from "./three-tiles-runtime-context";
@@ -89,7 +92,8 @@ let runtimeIndex = 0;
 const mount = (
   update: (renderer: TestRenderer) => void = () => undefined,
   shouldTraverse: () => boolean = () => true,
-  providesTerrain = true
+  providesTerrain = true,
+  options: Partial<ThreeTilesRuntimeOptions> = {}
 ) => {
   let renderer!: TestRenderer;
   vi.spyOn(TilesRenderer.prototype, "update").mockImplementation(function () {
@@ -106,6 +110,7 @@ const mount = (
     entry: {
       levels: [{ level: 0, geometricError: 40, bytes: 1 }],
     },
+    ...options,
   });
   const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
   camera.updateMatrixWorld(true);
@@ -122,6 +127,37 @@ const mount = (
 };
 
 describe("three tiles current-view refresh", () => {
+  it("keeps mesh selection error and native traversal resolution invariant across DPR", () => {
+    const mounted = mount();
+    const resolution = vi.spyOn(mounted.renderer, "setResolution");
+    const bounds = new THREE.Box3(
+      new THREE.Vector3(-1, -1, -11),
+      new THREE.Vector3(1, 1, -9)
+    );
+    try {
+      const errors: number[] = [];
+      for (const dpr of [1, 1.25, 2, 3]) {
+        mounted.runtime.scene.update({
+          ...mounted.frame,
+          viewport: new THREE.Vector2(800 * dpr, 600 * dpr),
+          cssViewport: new THREE.Vector2(800, 600),
+        });
+        const state = mounted.runtime.debug.readState()!;
+        const observer = state.tileCameraDemand.views.find(
+          (view) => view.id === TILE_MAIN_OBSERVER_ID
+        )!;
+        const demand = createTileCameraDemand([observer]).evaluate(bounds, 1);
+        expect(demand.required).toBe(true);
+        errors.push(demand.errorRatio * observer.errorTargetPixels);
+        expect(resolution).toHaveBeenLastCalledWith(mounted.camera, 800, 600);
+      }
+      expect(errors[0]).toBeGreaterThan(0);
+      for (const error of errors) expect(error).toBeCloseTo(errors[0], 10);
+    } finally {
+      mounted.runtime.scene.dispose();
+    }
+  });
+
   it("requests the immediate LOD after zoom-out, pan and zoom-in even above the startup error ceiling", () => {
     const mounted = mount();
     try {
@@ -206,6 +242,9 @@ describe("three tiles current-view refresh", () => {
   it("schedules raw replacement siblings through their known hierarchy parent", () => {
     const mounted = mount();
     try {
+      const state = mounted.runtime.debug.readState() as ThreeTilesRuntimeState;
+      state.meshInitialBasePassDone = true;
+      mounted.runtime.loading.setErrorTargetOverride(4);
       const parent = buildTile(40);
       parent.internal.loadingState = 4;
       parent.engineData!.scene = new THREE.Group();
@@ -229,6 +268,11 @@ describe("three tiles current-view refresh", () => {
       );
       mounted.runtime.scene.update(mounted.frame);
       expect(mounted.renderer.visibleTiles.has(parent)).toBe(true);
+      // First publish the admissible 40px surface; the next refinement pass
+      // must initialize its raw replacement topology without losing coverage.
+      mounted.renderer.dispatchEvent({ type: "needs-update" });
+      mounted.runtime.scene.update(mounted.frame);
+      expect(mounted.renderer.visibleTiles.has(parent)).toBe(true);
       expect(prepare).toHaveBeenCalledWith(parent, false);
       Object.assign(child, buildTile(4), { parent });
       child.internal.loadingState = 4;
@@ -245,16 +289,16 @@ describe("three tiles current-view refresh", () => {
     }
   });
 
-  it("loads startup ancestors without parking moving views, then returns to the skip strategy", () => {
+  it("keeps unconfigured cold startup in skip mode through motion and handover", () => {
     const ancestorPasses: boolean[] = [];
     const mounted = mount((renderer) =>
       ancestorPasses.push(renderer.loadAncestors)
     );
     try {
-      expect(ancestorPasses).toEqual([true]);
+      expect(ancestorPasses).toEqual([false]);
       mounted.setMoving(true);
       mounted.runtime.scene.update(mounted.frame);
-      expect(ancestorPasses).toEqual([true, true]);
+      expect(ancestorPasses).toEqual([false, false]);
       const state = [
         ...(
           window as unknown as {
@@ -262,9 +306,10 @@ describe("three tiles current-view refresh", () => {
           }
         ).__carmaTiles3d,
       ].find((s) => s.layerId === mounted.layerId)!;
+      state.meshInitialHandoverDone = true;
       state.displayedMeshFrontier.add(buildTile(20));
       mounted.runtime.scene.update(mounted.frame);
-      expect(ancestorPasses).toEqual([true, true, false]);
+      expect(ancestorPasses).toEqual([false, false, false]);
     } finally {
       mounted.runtime.scene.dispose();
     }
@@ -292,6 +337,84 @@ describe("three tiles current-view refresh", () => {
     }
   });
 
+  it.each([16, undefined])(
+    "disables native ancestor sibling expansion during configured cold fill (base %s)",
+    (baseErrorTargetPixels) => {
+      const passes: boolean[] = [];
+      const mounted = mount(
+        (renderer) => passes.push(renderer.loadAncestors),
+        () => true,
+        true,
+        { baseErrorTargetPixels, handoverErrorTargetPixels: 8 }
+      );
+      try {
+        expect(passes).toEqual([false]);
+        expect(mounted.renderer.loadSiblings).toBe(false);
+        const state =
+          mounted.runtime.debug.readState() as ThreeTilesRuntimeState;
+        state.meshInitialHandoverDone = true;
+        state.displayedMeshFrontier.add(buildTile(6));
+        mounted.runtime.scene.update(mounted.frame);
+        expect(passes).toEqual([false, baseErrorTargetPixels === undefined]);
+        expect(mounted.renderer.loadSiblings).toBe(false);
+      } finally {
+        mounted.runtime.scene.dispose();
+      }
+    }
+  );
+
+  it("requests visible and unknown cold siblings, without adding proven offscreen support", () => {
+    const admitted: Tile[] = [];
+    vi.spyOn(
+      TilesRenderer.prototype,
+      "queueTileForDownload"
+    ).mockImplementation((tile) => {
+      admitted.push(tile);
+      tile.internal.loadingState = 1;
+    });
+    const mounted = mount(undefined, undefined, true, {
+      handoverErrorTargetPixels: 8,
+    });
+    try {
+      const state = mounted.runtime.debug.readState() as ThreeTilesRuntimeState;
+      const parent = buildTile(40);
+      parent.internal.loadingState = 4;
+      const children = Array.from({ length: 4 }, () => buildTile(6));
+      parent.children = children;
+      for (const child of children) child.parent = parent;
+      children[0].engineData!.boundingVolume!.intersectsFrustum = () => true;
+      children[1].engineData!.boundingVolume!.intersectsFrustum = () => true;
+      delete (children[2] as RuntimeTile).engineData!.boundingVolume;
+      for (const tile of [parent, children[0], children[1], children[3]])
+        delete (tile.engineData!.boundingVolume as { getAABB?: unknown })
+          .getAABB;
+      vi.spyOn(
+        mounted.renderer,
+        "ensureChildrenArePreprocessed"
+      ).mockImplementation(() => undefined);
+      vi.spyOn(mounted.renderer, "calculateTileViewError").mockImplementation(
+        (tile, target) =>
+          Object.assign(target, {
+            inView: tile !== children[3],
+            error: tile.geometricError,
+            distanceFromCamera: 1,
+          })
+      );
+      state.displayedMeshFrontier = new Set([parent]);
+      state.requestedErrorTarget = 4;
+      state.effectiveErrorTarget = 8;
+      state.memoryErrorTarget = 4;
+      mounted.renderer.queueTileForDownload(children[0]);
+      expect(new Set(admitted)).toEqual(new Set(children.slice(0, 3)));
+      expect(state.meshRefinementSupport).toEqual(
+        new Set(children.slice(0, 3))
+      );
+      expect(children[3].internal.loadingState).toBe(0);
+    } finally {
+      mounted.runtime.scene.dispose();
+    }
+  });
+
   it("requests all immediate siblings once when admitting an in-view refinement", () => {
     const admitted: Tile[] = [];
     vi.spyOn(
@@ -308,6 +431,8 @@ describe("three tiles current-view refresh", () => {
           window as unknown as { __carmaTiles3d: Set<ThreeTilesRuntimeState> }
         ).__carmaTiles3d,
       ].find((candidate) => candidate.layerId === mounted.layerId)!;
+      // Normal coverage starts only after the first observer idle.
+      state.meshInitialHandoverDone = true;
       const parent = buildTile(20);
       parent.internal.loadingState = 4;
       const children = Array.from({ length: 4 }, () => buildTile(6));
@@ -1072,8 +1197,9 @@ describe("three tiles current-view refresh", () => {
     mounted.camera.position.x = 1;
     mounted.camera.updateMatrixWorld(true);
     mounted.runtime.scene.update(mounted.frame);
-    // Reserve is now armed by convergence, not eagerly from the metadata hint.
-    // Its diagnostic audit is published on the following traversal.
+    // First observer idle releases the reserve; its next traversal arms it,
+    // and the following audit can release final in-view quality.
+    mounted.runtime.scene.update(mounted.frame);
     mounted.runtime.scene.update(mounted.frame);
     expect(mounted.runtime.loading.getCoverageStatus()).toMatchObject({
       floorArmed: true,
@@ -1126,8 +1252,18 @@ describe("three tiles current-view refresh", () => {
       mounted.camera.updateMatrixWorld(true);
       mounted.runtime.scene.update(mounted.frame);
       expect(mounted.runtime.loading.getCoverageStatus()).toMatchObject({
+        floorArmed: false,
+        effectiveErrorTarget: 64,
+      });
+      mounted.runtime.scene.update(mounted.frame);
+      // The completed visible cut releases normal mode; the requested next
+      // traversal admits the reserve instead of delaying that visible cut.
+      mounted.runtime.scene.update(mounted.frame);
+      // Coverage diagnostics sample at most twice a second.
+      const afterTransition = performance.now() + 501;
+      vi.spyOn(performance, "now").mockReturnValue(afterTransition);
+      expect(mounted.runtime.loading.getCoverageStatus()).toMatchObject({
         floorArmed,
-        effectiveErrorTarget: 16,
       });
       mounted.runtime.scene.dispose();
     }
@@ -1194,6 +1330,7 @@ describe("three tiles current-view refresh", () => {
       window as unknown as {
         __carmaTiles3d: Set<{
           layerId: string;
+          meshInitialBasePassDone: boolean;
           requestedErrorTarget: number;
           effectiveErrorTarget: number;
           memoryErrorTarget: number;
@@ -1207,6 +1344,7 @@ describe("three tiles current-view refresh", () => {
     const state = [...states].find(
       (candidate) => candidate.layerId === mounted.layerId
     )!;
+    state.meshInitialBasePassDone = true;
     state.requestedErrorTarget = 4;
     state.effectiveErrorTarget = 4;
     state.memoryErrorTarget = 20;
@@ -1273,7 +1411,7 @@ describe("three tiles current-view refresh", () => {
       expect(state.memoryErrorTarget).toBe(4);
       // This fixture has no root/cut: relaxed memory pressure must not bypass
       // bootstrap. The memory timer itself must still wake exactly once.
-      expect(state.effectiveErrorTarget).toBe(16);
+      expect(state.effectiveErrorTarget).toBe(64);
       expect(state.errorTargetTimer).toBe(0);
     } finally {
       mounted.runtime.scene.dispose();

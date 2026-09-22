@@ -1,3 +1,199 @@
+## Configurable cold quality cascades
+
+The optional style fields `firstImageErrorTarget` and `handoverErrorTarget`
+separate startup requests from the motion (`baseErrorTarget`) and idle
+(`errorTarget`) goals of terrain-providing meshes. They are read at runtime
+creation; absent fields retain legacy staging. No production quality defaults
+change. Hard shadows may display a complete coarser fallback while the initial
+request target is still outstanding.
+
+Cold handover requires a nonempty complete published observer cut whose actual
+observer SSE meets the configured target. Unknown bounds cannot certify it;
+a terminal hierarchy node above the threshold cannot certify it either.
+Caster demand, queue emptiness and whole-extent reserve readiness are separate.
+After handover, reserve admission resumes while independent complete families
+continue toward idle quality. Parent coverage, memory limits and motion limits
+remain active throughout.
+
+Performance budgets run from manager registration to observer handover.
+Navigation and addon activation costs are reported separately per run; metadata,
+payload transfer, processing and publication waits after manager start stay in
+the budget. Idle geometry and final shadow presentation are separate milestones.
+Changing viewport or DPR changes SSE demand and invalidates timing comparisons.
+
+Validation: 122 focused policy, style-forwarding and current-view tests passed.
+Full-HD shadow-enabled diagnostic capture reached the SQ 8px observer threshold
+only after47.01s, missing its10s budget. This is not accepted device calibration:
+CPU/GPU usage was not captured throughout that run, and the post-run system GPU
+counters reported99% utilization with the benchmark context already closed.
+Further profile runs await visual review and a measured resource baseline.
+
+## Viewport-only cold replacement families
+
+**ID / date / status:** viewport-cold-families /2026-09-22 /implemented;
+focused frontier and view-refresh regressions passed; performance comparison pending.
+
+**Context:** Before the first observer idle, offscreen siblings consume
+transfer slots and hold back an otherwise complete visible replacement group.
+The same policy exists in native ancestor traversal, explicit sibling requests
+and receiver publication; changing only one leaves the other gates active.
+
+**Decision:** Until the visible `handoverErrorTarget` (or the base target when
+unconfigured) is satisfied with the camera at rest, disable native ancestor
+expansion (which implicitly loads siblings), and use the bounded first-image
+pass for the initial fallback. Explicit support and atomic colour publication
+require only observer/receiver-intersecting branches. Unknown bounds/topology
+remain required. Independent shadow-caster requests retain their own demand.
+At that first observer idle, whole immediate replacement families are requested
+again. The transition explicitly wakes traversal even if memory keeps the same
+pixel target; it does not wait for shadow or background queues to empty. This
+is a one-way startup transition, not a mode reset on each later camera movement.
+Existing whole-region removal safety retains coarse resident parents; a pan
+into an unfinished branch can draw that parent. Current-view fine detail is
+retained while offscreen residency catches up. Pixel-stage values remain configurable.
+
+**Alternatives:** Disabling atomic publication entirely is incompatible with
+visible coverage. Changing eviction to current-view completeness would discard
+needed pan fallbacks and is rejected by inspection. Increasing global request
+concurrency is deferred until a resource-isolated origin comparison.
+
+**Evidence:** Inspection found explicit whole-family support plus atomic
+publication, with native `loadAncestors` also implying sibling loading despite
+`loadSiblings=false`. New tests exercise a missing offscreen child, a missing
+visible child, unknown metadata, pan fallback, and restoration of whole-family
+support. The focused tests also cover observer movement, a missing visible cut,
+an unloaded offscreen sibling and a target-preserving transition with background
+work still pending. End-to-end timing remains unverified. Earlier static GPU utilization readings were not a valid interval
+measurement. A later process-accounted baseline still exceeded the configured
+20% background GPU limit. Prior cold timings must be recomputed; no speedup is
+claimed.
+
+**Revisit when:** Valid cold captures show the configured observer handover,
+without boundary holes, under both stationary and moving/shadow workloads.
+
+## Cold mesh publication and request admission — 2026-09-21
+
+**ID / status:** cold-mesh-gates; focused regressions and cold probe verified.
+
+**Context:** A stationary cold mesh load can download many fine tiles before
+publishing its first complete surface. The publication contract already accepts
+64px first-image coverage, while admission previously started at the configured
+16px motion/base target. Mono finite-sun accumulation additionally waited for
+final main-view SSE, even after a complete coarse surface had been published.
+
+**Decision:** Request the existing 64px first-image ceiling until the initial
+base pass completes. Keep the configured motion/base target and requested final
+quality afterward. Atomic family publication and the first-image ceiling remain
+unchanged. Mono accumulation may use a committed renderable mesh surface;
+existing content epochs invalidate it when replacement geometry arrives. A
+legacy provider without a renderable-content predicate retains its main-view gate.
+Preempt useful downloads only for queued higher-priority work in the same
+saturated origin queue. A paused queue and spare slots are not preemption reasons.
+
+**Alternatives:** Lowering final quality or dropping family coverage is
+incompatible with the coverage contract. Increasing request fan-out was not
+evaluated; the captured runs had little parse backlog but ongoing transfer.
+
+**Evidence:** Focused policy, cascade, frontier, current-view and shadow-scene
+regressions cover first-image admission, unchanged final targets, same-origin
+capacity, raw topology progress and mono accumulation on coarse coverage.
+A Chromium 1280x900/DPR1 cold runtime-addition probe at lat51.2490623,
+lng7.1226617, zoom15.992, bearing38.29, pitch57.02 and shadow872;334 found
+155 loaded tiles but zero published after66s before the change. An initial
+changed run published19 tiles by26s; that run was interrupted by HMR later and
+is not evidence of final convergence. A subsequent uninterrupted local run
+published19 tiles by26s and activated shadows by34s while mesh refinement
+continued. Final6px main-view readiness was confirmed between163s and220s,
+with no queued/downloading/parsing/failed jobs and stable coverage through245s.
+The163s request window transferred582MB of completed mesh payloads; URLs were
+requested at most twice and no abort occurred after33s. UI progress100% at34s
+is not final mesh quality.267 focused engine tests and56 shadow-scene tests
+pass. Single runs are provisional, not portable throughput guarantees. No GPU
+memory reduction or transfer-size reduction is claimed.
+
+**Hard-shadow follow-up:** When shadows are requested, first publication may
+use any complete coarse LOD; the64px first-image quality threshold remains for
+ordinary mesh startup only. Hard shadows already use the direct centre-sun
+render path, independent of finite-sun accumulation and pending corridor
+selection. Atomic complete coverage remains mandatory. A fresh22s cold probe
+showed4published coarse tiles and3main-view draw submissions by18s with an
+allocated directional-light shadow depth target; the screenshot confirms the
+coarse shaded surface while the refined shadow view is still pending.140
+frontier/current-view tests pass. The earlier34s UI progress measurement was
+not a timestamp for the first hard shadow. Final convergence was not repeated
+for this publication-only follow-up.
+
+**Revisit when:** A stable cold/warm run still starves a ready family or repeated
+mesh content epochs prevent mono accumulation from reaching final quality.
+
+## Progressive shadow families and wait telemetry
+
+**ID / date / status:** PROGRESSIVE-SHADOW-FAMILIES / 2026-09-21 / implemented, exploratory browser verification; uncommitted.
+
+**Context and constraints:** With shadows active, native skip traversal bypassed
+intermediate visible payloads while atomic receiver publication still required a
+complete replacement. Hundreds of offscreen support members could then outrank
+the visible members needed to finish the same family. Keep complete coverage,
+separate receiver/caster cuts, and the configured final quality and memory limits.
+
+**Decision:** Apply next-published-level admission to visible receiver families
+with shadows too. Offscreen caster requests keep their separate refinement depth.
+Visible next-family members join the same prerequisite priority as offscreen
+siblings, including through external metadata. Publication remains atomic per
+replacement family; ready independent families proceed without a global barrier.
+
+**Visible-first ordering:** Once the retained overview provides complete coverage,
+visible LOD iteration precedes optional offscreen shadow refinement and prefetch.
+Pure offscreen shadow demand uses the secondary lane; main-view demand uses the
+primary lane. An offscreen sibling needed to publish a visible replacement is
+part of that visible family and retains repair priority. The non-evictable
+residual surface and atomic family handover remain unchanged: a complete loaded
+parent stays drawable until the whole replacement family can take over, including
+after a pan or zoom reversal. No whole-viewport final-LOD barrier is introduced.
+The ordering, preemption and retained-family checks pass204focused tests; the
+ordering-only adjustment has not had another full cold or motion browser run.
+
+**Alternatives:** Skipping intermediate receiver payloads was a measured cause of
+long publication plateaus. Dropping sibling completeness is incompatible with
+gap-free coverage. Higher global concurrency and weaker quality targets were not
+needed for this fix and were not evaluated here.
+
+**Evidence:** One cold Chromium153 run per variant on macOS,1280x900,DPR1,
+Mesh2024 at51.2722316/7.2112946,zoom18.239,bearing289.28,pitch9.86,
+shadow900;264. Baseline cut stayed at25tiles from26s to83s while loaded entries
+increased51->289. Progressive admission reached67tiles by54s; equal sibling
+priority then allowed continued family publication:99at95s,170at128s,188at144s.
+Follow-up snapshots208–243s were stable at6px with no queued/downloading/parsing
+or failed jobs:410published/retained tiles,316mounted,224main-view draw submissions.
+Screenshot inspection found no coverage holes in that view. Final convergence
+occurred between144s and208s, not at an exactly measured208s boundary. Cache
+estimate3.81GB includes runtime residency costs, not GPU-only memory. Payloads
+still dominate long cold loads:417.5MB completed by144s. Single runs do not
+establish statistical speedups, hardware portability, or lower memory use.
+
+**Diagnostics:** `runtime.debug.setTelemetryEnabled(true)` enables the existing
+console stream without displaying debug boxes; `false` stops collection and
+reporting. `tileWaitEvents` records observed per-role transitions, elapsed time,
+and the actual missing descendant URL. Receiver and shadow waits have separate
+clocks. Reasons cover material, replacement family, shadow family, render
+submission, shadow-depth submission, and shadow accumulation. New selections end
+waits for released roles. A depth callback proves submission, not pixel visibility
+or GPU completion. Offscreen caster pies use that callback instead of waiting
+forever for a primary colour draw. `tileEvents.steps` retains queue, download,
+decode and publication timing. Limits:32spans/tile,32buffered transition events,
+1024actively tracked tiles; exceeding these limits drops diagnostic history,
+never runtime work. A33.6s browser smoke captured31log samples/399wait events and
+22depth timestamps with boxes disabled and no pageerrors. The full convergence
+run preceded the final observation-only changes.
+
+**Validation and limits:** Focused frontier, corridor, camera-refresh, draw and
+diagnostic tests pass. Five broader runtime-test failures reproduce with the previous admission and
+priority policy or are present in the earlier baseline. No production-build/CI or merge-readiness claim.
+
+**Revisit when:** Another camera/tileset shows a loaded-family publication plateau,
+telemetry affects frame cost, or transfer size remains the dominant user-visible
+wait after local family publication is unblocked.
+
 # Shared tile coverage policy
 
 ## Raw replacement topology liveness
@@ -1809,3 +2005,79 @@ performance improvement. Those failures remain merge blockers.
 **Revisit when.** A separate change deliberately alters admission, quality or
 publication semantics; update the appropriate pure policy and its invariant
 checks, then compare real rendering and coverage as well as test outcomes.
+
+
+## CSS-pixel error targets
+
+**Decision (2026-09-22).** Observer screen-space error targets use CSS pixels.
+The shared scene carries CSS layout dimensions separately from physical
+framebuffer dimensions. Mesh demand, native tile traversal, raster selection
+workers and terrain error coloring use the CSS viewport. Resizing the layout
+updates selection even when the backing buffer dimensions stay unchanged;
+changing only DPR does not tighten the observer geometry target. Offscreen
+callers without a CSS viewport retain their explicitly supplied viewport units.
+
+Shadow caster geometry demand uses a separate fit with a CSS-sized texel budget.
+Its sampling density is expressed through the actual shadow projection, so
+native texture rounding, hardware caps and stabilized allocation cannot multiply
+caster detail demand with DPR. Receiver coverage and replacement-family rules
+remain unchanged. Native render targets, depth textures, HDR, MSAA and desktop
+pixel ratio retain their existing quality policy.
+
+**Alternatives.** Capping the renderer pixel ratio would reduce desktop image
+quality. Scaling the allocated shadow texture by a DPR ratio would carry its
+quantization and hardware limits into geometry demand. Both are avoided by
+keeping geometry selection and render allocation separate.
+
+**Evidence and limits.** Regression cases cover fractional DPR, DPR 2 and 3,
+layout-only changes, mesh demand, raster worker dispatch and native shadow
+allocation. Their current execution status is recorded with the task validation;
+adding a regression does not establish a performance improvement. Removing a
+DPR-driven detail increase does not guarantee a fixed byte saving: payload sizes,
+source LODs, view coverage and cache state still determine transfer volume.
+Recompute cold-load calibration after this change. Historical DPR 1 targets keep
+their units; historical backing-pixel results at higher DPR are not directly
+comparable to the CSS-pixel policy.
+
+
+## Caster LOD follows displayed receivers
+
+**ID / date / status:** linked-caster-demand / 2026-09-22 / implemented;
+focused regression validation, live timing still pending.
+
+**Context and constraints.** A diagnostic capture contained two settled
+`shadow-family` waits whose blocking sibling URLs had no corresponding download
+request. This identifies a scheduling/publication mismatch to investigate, not
+slow responses from the tile server. Native caster traversal accepted a rounded,
+coarser receiver stage while caster publication required the displayed receiver's
+replacement family. Receiver source density also included the previous shadow
+mask's demand, allowing that demand to feed into the next mask.
+
+**Decision.** Build mesh receiver sources from camera error alone. Match caster
+admission to the displayed receiver's geometric error, so a receiver which is
+already finer than the requested pixel target does not leave its required caster
+siblings unrequested behind a coarser admission limit. Reuse the existing mask,
+queue and native payloads. Keep visible work ahead of optional offscreen detail,
+and retain coarse shadow parents until each corridor-relevant family is ready.
+Independent complete families publish immediately. This couples detail to the
+surface already on screen without making visible publication wait for all shadows.
+
+**Alternatives and disposition.** A global receiver/shadow readiness barrier is
+incompatible with progressive display. Removing atomic shadow replacement is
+incompatible with continuous depth coverage. Increasing concurrency is deferred;
+empty queues cannot fetch a tile which the LOD policy never admits. A separate
+shadow geometry cache is not needed and was not evaluated.
+
+**Evidence.** Regression cases compare receiver source density with and without
+an exaggerated prior caster demand, and verify that admission retains the actual
+displayed geometric error even when that receiver beats the requested SSE. The
+existing publication case retains a parent through a missing/failed sibling and
+publishes the complete family without waiting for the global pipeline to idle.
+Exact validation results are recorded with the change. The captured waits alone
+do not prove that both observed live groups are resolved; a new isolated capture
+is required before claiming a load-time gain or live convergence.
+
+**Revisit when.** Fresh telemetry still shows a required sibling with no request,
+or caster geometry significantly exceeds the displayed receiver's useful detail.
+Inspect admission, parent fallback and publication separately before changing
+network limits or the pixel targets.

@@ -12,6 +12,7 @@ import { TILES_LOAD_POLICY } from "./three-tiles-load-policy";
 import { MAPLIBRE_EVENT } from "../../../constants/mapEvents";
 import { buildThreeTilesRuntime } from "./three-tiles-runtime";
 import { debugTilesRuntimes } from "./three-tiles-runtime-debug";
+import type { ThreeTilesRuntimeState } from "./three-tiles-runtime-context";
 import {
   HIDDEN_TAB_WIPE_DELAY_MS,
   MESH_EVICTION_BATCH_SIZE,
@@ -53,9 +54,17 @@ describe("three tiles runtime styling", () => {
       runtime.debug.setDiagnosticsEnabled(false);
       expect(debugTilesRuntimes()?.has(state)).toBe(false);
       expect(state.options.diagnostics).toBe(false);
-      runtime.debug.setDiagnosticsEnabled(true);
+      runtime.debug.setTelemetryEnabled(true);
       expect(debugTilesRuntimes()?.has(state)).toBe(true);
       expect(state.tiles).toBe(tiles);
+      const telemetry = state as typeof state & {
+        tileBoundsVisible: boolean;
+        options: { tileTelemetry: boolean };
+      };
+      expect(telemetry.options.tileTelemetry).toBe(true);
+      expect(telemetry.tileBoundsVisible).toBe(false);
+      runtime.debug.setTelemetryEnabled(false);
+      expect(telemetry.options.tileTelemetry).toBe(false);
     } finally {
       runtime.scene.dispose?.();
     }
@@ -404,6 +413,7 @@ describe("three tiles runtime styling", () => {
       [7.2, 51.2],
       {
         providesTerrain: true,
+        diagnostics: true,
       }
     );
     const camera = new THREE.PerspectiveCamera();
@@ -417,6 +427,10 @@ describe("three tiles runtime styling", () => {
     try {
       runtime.scene.onAdd?.(map);
       runtime.scene.update(frame);
+      // Exercise normal ancestor-mode scheduling after the cold viewport pass.
+      (
+        runtime.debug.readState() as ThreeTilesRuntimeState
+      ).meshInitialHandoverDone = true;
       moving = true;
       runtime.scene.update(frame);
       runtime.loading.setRequestConcurrency(64);
@@ -705,6 +719,7 @@ describe("three tiles runtime styling", () => {
     try {
       proposed = children;
       runtime.scene.update(frame);
+      expect(renderer!.visibleTiles).toEqual(new Set(children));
       handlers.get(MAPLIBRE_EVENT.MOVE_START)?.();
       proposed = [parent];
       for (let pass = 0; pass < 3; pass++) {

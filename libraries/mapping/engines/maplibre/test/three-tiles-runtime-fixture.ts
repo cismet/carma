@@ -77,6 +77,7 @@ export const createMeshCorridorFixture = (
   ].find((candidate) => candidate.layerId === "corridor");
   if (!runtimeState) throw new Error("corridor runtime not registered");
   runtimeState.meshInitialBasePassDone = true;
+  runtimeState.meshInitialHandoverDone = true;
   runtime.loading.setErrorTarget(1);
   runtime.scene.update(frame);
   renderer.group.rotation.z = rotation;

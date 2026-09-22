@@ -469,7 +469,8 @@ export function createThreeTilesSpatial(
   };
 
   const getTileScreenError: ThreeTilesRuntimeServices["getTileScreenError"] = (
-    tile: RuntimeTile
+    tile: RuntimeTile,
+    includeShadow = true
   ): number => {
     if (!runtimeState.tiles) return Number.POSITIVE_INFINITY;
     let cameraError = cameraErrors.get(tile);
@@ -506,7 +507,7 @@ export function createThreeTilesSpatial(
       }
     }
     const bounds = tile.engineData?.boundingVolume;
-    if (bounds?.getAABB && runtimeState.shadowReceiverMask) {
+    if (includeShadow && bounds?.getAABB && runtimeState.shadowReceiverMask) {
       readOrientedTileBounds(
         bounds,
         runtimeState.tileBoundingBox,

@@ -20,6 +20,7 @@ import type {
   MeshTileDebugProgress,
   RuntimeTile,
 } from "./three-tiles-runtime-types";
+import { recordThreeTileWait } from "./three-tiles-diagnostic-steps";
 import { resolveTileContentUrl } from "./three-tiles-runtime-vendor";
 
 /** Console/probe registry only; registering a runtime does not sample it. */
@@ -64,6 +65,14 @@ export function createThreeTilesDebug(
 ) {
   let createOverlay: typeof createThreeTilesDebugOverlay | undefined;
   let loadingOverlay = false;
+  // Decision: ../../../../TILES_COVERAGE.md#progressive-shadow-families-and-wait-telemetry
+  // Bounded transition records, independent of debug geometry and scheduling.
+  const waitEvents: unknown[] = [];
+  let waitObservation = 0;
+  const activeWaits = new Map<
+    Tile,
+    Partial<Record<"receiver" | "shadow", number>>
+  >();
   const getTileDebugId: ThreeTilesRuntimeServices["getTileDebugId"] = (
     tile: Tile
   ) => {
@@ -313,7 +322,88 @@ export function createThreeTilesDebug(
       runtimeState.tiles?.dispatchEvent({ type: "needs-update" });
       runtimeState.map?.triggerRepaint();
     };
+  const recordTileWait: ThreeTilesRuntimeServices["recordTileWait"] = (
+    tile,
+    role,
+    reason,
+    blocker
+  ) => {
+    if (
+      !runtimeState.options.diagnostics ||
+      runtimeState.options.tileTelemetry === false
+    )
+      return;
+    const progress = getTileDebugProgress(tile);
+    const now = performance.now();
+    let roles = activeWaits.get(tile);
+    if (reason !== null) {
+      if (!roles) activeWaits.set(tile, (roles = {}));
+      roles[role] = waitObservation;
+    } else if (roles) {
+      delete roles[role];
+      if (Object.keys(roles).length === 0) activeWaits.delete(tile);
+    }
+    // No diagnostic reference may retain an unbounded evicted tile history.
+    if (activeWaits.size > 1024) {
+      const oldest = activeWaits.keys().next().value!;
+      const previous = runtimeState.tileDebugProgress.get(oldest);
+      if (previous)
+        for (const role of ["receiver", "shadow"] as const)
+          recordThreeTileWait(previous, role, null, now);
+      activeWaits.delete(oldest);
+    }
+    if (
+      !recordThreeTileWait(
+        progress,
+        role,
+        reason,
+        now,
+        blocker ? resolveTileContentUrl(blocker) : undefined
+      )
+    )
+      return;
+    if (waitEvents.length < 32)
+      waitEvents.push({
+        url: resolveTileContentUrl(tile),
+        role,
+        reason,
+        waits: progress.waits?.map((wait) => ({
+          ...wait,
+          ms: (wait.until ?? now) - wait.since,
+        })),
+      });
+  };
   return {
+    recordTileWait,
+    beginTileWaitObservation: () => {
+      waitObservation++;
+    },
+    endTileWaitObservation: () => {
+      // Once a new cut no longer demands this role, it is not still waiting.
+      for (const [tile, roles] of activeWaits)
+        for (const role of ["receiver", "shadow"] as const)
+          if (roles[role] !== undefined && roles[role] !== waitObservation)
+            recordTileWait(tile, role, null);
+    },
+    setTelemetryEnabled(enabled: boolean) {
+      runtimeState.options.tileTelemetry = enabled;
+      if (enabled) {
+        runtimeState.options.diagnostics = true;
+        if (runtimeState.tiles) debugTilesRuntimes()?.add(runtimeState);
+        runtimeState.map?.triggerRepaint();
+      } else {
+        const now = performance.now();
+        for (const tile of activeWaits.keys()) {
+          const progress = runtimeState.tileDebugProgress.get(tile);
+          if (progress)
+            for (const role of ["receiver", "shadow"] as const)
+              recordThreeTileWait(progress, role, null, now);
+        }
+        activeWaits.clear();
+        waitEvents.length = 0;
+      }
+    },
+    drainTileWaitEvents: () => waitEvents.splice(0),
     readState: (): Readonly<TilesRuntimeDebugState> | undefined =>
       runtimeState.options.diagnostics ? runtimeState : undefined,
     getTileDebugId,

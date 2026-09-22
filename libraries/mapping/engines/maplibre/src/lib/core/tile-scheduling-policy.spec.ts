@@ -73,6 +73,34 @@ describe("tile scheduling decisions", () => {
       })
     ).toBe(TILE_CAMERA_PRIORITY.FOCUS);
   });
+  it.each(["selectedShadowReceiver", "shadowWithoutSelection"] as const)(
+    "keeps visible iterations ahead of offscreen shadows (%s) without demoting replacement siblings",
+    (shadowRole) => {
+      const shadow = {
+        replacementSupport: false,
+        cameraPriority: Number.NEGATIVE_INFINITY,
+        motionPrefetch: false,
+        observerVisible: false,
+        selectedShadowReceiver: false,
+        shadowWithoutSelection: false,
+        [shadowRole]: true,
+      };
+      const shadowPriority = resolveTileRequestPriority(shadow);
+      const visiblePriority = resolveTileRequestPriority({
+        ...shadow,
+        observerVisible: true,
+      });
+      const familyPriority = resolveTileRequestPriority({
+        ...shadow,
+        replacementSupport: true,
+      });
+      expect(shadowPriority).toBe(TILE_CAMERA_PRIORITY.SECONDARY);
+      expect(visiblePriority).toBe(TILE_CAMERA_PRIORITY.PRIMARY);
+      expect(familyPriority).toBe(TILE_CAMERA_PRIORITY.COVERAGE_REPAIR);
+      expect(familyPriority).toBeGreaterThan(visiblePriority);
+      expect(visiblePriority).toBeGreaterThan(shadowPriority);
+    }
+  );
   it("runs a ready foreground parse even while a higher-rank download is pending", () => {
     expect(
       isTileQueueEntryRunnable({
@@ -219,6 +247,44 @@ describe("tile scheduling decisions", () => {
         TILE_REQUEST_ACTION.KEEP
       );
   });
+  it.each([false, true])(
+    "hands an explicit cold cascade to idle after observer readiness (shadows=%s)",
+    (shadowView) => {
+      const ready = vi.fn(() => true);
+      const input = {
+        shadowView,
+        minimumTarget: 4,
+        initialTarget: 96,
+        initialReady: false,
+        reserveBeforeIdle: false,
+        currentTarget: 96,
+        handoverTarget: 8,
+        handoverReady: false,
+        firstImageReady: false,
+      };
+      expect(resolveMeshStageTarget(input, ready)).toBe(96);
+      expect(
+        resolveMeshStageTarget({ ...input, firstImageReady: true }, ready)
+      ).toBe(8);
+      expect(
+        resolveMeshStageTarget(
+          {
+            ...input,
+            firstImageReady: true,
+            handoverReady: true,
+            initialReady: true,
+          },
+          ready
+        )
+      ).toBe(4);
+      expect(
+        resolveMeshStageTarget(
+          { ...input, firstImageReady: true, minimumTarget: 12 },
+          ready
+        )
+      ).toBe(12);
+    }
+  );
   it("keeps stage readiness lazy and never adds a second shadow publication gate", () => {
     const ready = vi.fn(() => false);
     const input = Object.freeze({

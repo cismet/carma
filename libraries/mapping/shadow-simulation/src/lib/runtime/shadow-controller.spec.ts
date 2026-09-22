@@ -30,6 +30,39 @@ const buildUpdate = (overrides: Partial<ShadowUpdate> = {}): ShadowUpdate => ({
 });
 
 describe("ShadowController", () => {
+  it.each([false, true])(
+    "keeps caster density independent of depth DPR, caps and stabilization (ground fit %s)",
+    (groundTexelFit) => {
+      const controller = new ShadowController(new THREE.Scene());
+      controller.setMaxShadowMapSize(2048);
+      try {
+        const update = buildUpdate({
+          groundTexelFit,
+          casterMapTexelBudget: 800 * 600,
+          mapTexelBudget: 800 * 600,
+        });
+        const baseline = controller.update(update)!;
+        for (const dpr of [1.25, 2, 3]) {
+          const snapshot = controller.update({
+            ...update,
+            mapTexelBudget: 800 * 600 * dpr ** 2,
+            stabilizeMapSize: true,
+          })!;
+          expect(snapshot.casterMetersPerTexel).toEqual(
+            baseline.casterMetersPerTexel
+          );
+          expect(snapshot.totalShadowTexels).toBeGreaterThan(
+            baseline.totalShadowTexels
+          );
+          expect(snapshot.camera.shadowMapWidth).toBeLessThanOrEqual(2048);
+          expect(snapshot.camera.shadowMapHeight).toBeLessThanOrEqual(2048);
+        }
+      } finally {
+        controller.dispose();
+      }
+    }
+  );
+
   it("caps mesh receiver offsets at one millimetre even with coarse depth maps", () => {
     const controller = new ShadowController(new THREE.Scene());
     controller.setMaxShadowMapSize(512);

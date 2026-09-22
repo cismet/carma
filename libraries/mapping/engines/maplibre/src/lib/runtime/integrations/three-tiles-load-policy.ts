@@ -401,10 +401,13 @@ export const DEFAULT_MESH_BASE_ERROR_PIXELS = 16;
  * coverage before refinement to the requested target. Cesium's equivalent is
  * its progressive-resolution pass, maximum error / progressiveResolutionHeightFraction.
  */
+// Decision: ../../../TILES_COVERAGE.md#cold-mesh-publication-and-request-admission--2026-09-21
 export const initialMeshLoadError = (
   requested: number,
-  base: number = DEFAULT_MESH_BASE_ERROR_PIXELS
-): number => Math.max(base, requested);
+  base: number = DEFAULT_MESH_BASE_ERROR_PIXELS,
+  firstImage = false,
+  firstImageTarget: number = TILES_LOAD_POLICY.firstImageMaxErrorPixels
+): number => Math.max(base, requested, firstImage ? firstImageTarget : 0);
 
 /** Shared hard-shadow stages; final target readiness is tested separately. */
 export const meshShadowStageError = (

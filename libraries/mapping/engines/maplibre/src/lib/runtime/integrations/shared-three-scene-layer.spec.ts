@@ -578,6 +578,37 @@ describe("shared Three.js scene layer", () => {
     expect(canvas.width).toBe(4400);
   });
 
+  it("keeps CSS LOD dimensions independent of native DPR and updates layout-only resizes", () => {
+    const renderer = { setViewport: vi.fn() };
+    const canvas = {
+      width: 800,
+      height: 600,
+      clientWidth: 800,
+      clientHeight: 600,
+    };
+    const physical = new THREE.Vector2();
+    const css = new THREE.Vector2();
+    for (const dpr of [1, 1.25, 2, 3]) {
+      canvas.width = 800 * dpr;
+      canvas.height = 600 * dpr;
+      syncSharedCanvasViewport(renderer, canvas, physical, css);
+      expect(css.toArray()).toEqual([800, 600]);
+      expect(physical.toArray()).toEqual([800 * dpr, 600 * dpr]);
+      expect(renderer.setViewport).toHaveBeenLastCalledWith(
+        0,
+        0,
+        800 * dpr,
+        600 * dpr
+      );
+    }
+    renderer.setViewport.mockClear();
+    canvas.clientWidth = 1200;
+    canvas.clientHeight = 900;
+    syncSharedCanvasViewport(renderer, canvas, physical, css);
+    expect(css.toArray()).toEqual([1200, 900]);
+    expect(renderer.setViewport).not.toHaveBeenCalled();
+  });
+
   it("uses canonical depth for offscreen targets and MapLibre depth on main", () => {
     const events: string[] = [];
     const hostFramebuffer = {} as WebGLFramebuffer;

@@ -20,7 +20,9 @@ describe("mesh receiver and sunward caster publication", () => {
       f.update();
       expect(f.renderer.visibleTiles.has(f.receiver)).toBe(true);
       expect(f.runtime.scene.isMainViewReady()).toBe(false);
-      expect(f.renderer.errorTarget).toBe(16);
+      // Final-quality requests proceed independently of this incomplete view.
+      // Readiness above must still reject the missing branch.
+      expect(f.renderer.errorTarget).toBe(1);
       f.load(missing);
       f.update();
       expect(f.renderer.visibleTiles.has(missing)).toBe(true);
@@ -116,6 +118,52 @@ describe("mesh receiver and sunward caster publication", () => {
       }
     }
   );
+
+  it("requests the next receiver family with shadows while offscreen casters can refine deeper", () => {
+    const f = createMeshCorridorFixture();
+    try {
+      f.update();
+      const left = f.tile("left8", -10, 0, -100, 8, true, f.receiver);
+      const right = f.tile("right8", 0, 10, -100, 8, true, f.receiver);
+      f.receiver.children = [left, right];
+      const grandchild = f.tile("grandchild", -10, -5, -100, 1, true, left);
+      left.children = [grandchild];
+      const fineCaster = f.tile(
+        "fine-caster",
+        -10,
+        10,
+        -50,
+        64,
+        false,
+        f.caster
+      );
+      f.caster.children = [fineCaster];
+      f.caster.geometricError = 128;
+      f.setTileError(f.caster, 128);
+      f.update();
+      const target = {
+        inView: false,
+        error: Infinity,
+        distanceFromCamera: 100,
+      };
+      f.renderer.calculateTileViewErrorWithPlugin(left, target);
+      expect(target.error).toBeLessThanOrEqual(f.renderer.errorTarget);
+      f.renderer.calculateTileViewErrorWithPlugin(fineCaster, target);
+      expect(target.error).toBeGreaterThan(f.renderer.errorTarget);
+      expect(f.queued).toHaveBeenCalledWith(left);
+      expect(f.queued).toHaveBeenCalledWith(right);
+      f.load(left);
+      f.update();
+      expect(f.visibleIds()).toContain("receiver16");
+      f.load(right);
+      f.update();
+      expect(f.visibleIds()).toContain("left8");
+      expect(f.visibleIds()).toContain("right8");
+      expect(f.visibleIds()).not.toContain("receiver16");
+    } finally {
+      f.dispose();
+    }
+  });
 
   it("replaces a receiver parent only with its complete loaded family, without waiting for another corridor", () => {
     const f = createMeshCorridorFixture();

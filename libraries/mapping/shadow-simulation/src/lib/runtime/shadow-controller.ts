@@ -69,6 +69,8 @@ export type ShadowSnapshot = Readonly<{
   totalShadowTexels: number;
   mapTexelBudget?: number;
   casterReachMeters: number;
+  /** Caster LOD spacing, independent of the allocated depth texture. */
+  casterMetersPerTexel: readonly [number, number];
   camera: ShadowCameraSnapshot;
 }>;
 
@@ -94,6 +96,8 @@ export type ShadowUpdate = Readonly<{
    * 64² texels (the allocation/guard minimum) and at most the hardware limit².
    */
   mapTexelBudget?: number;
+  /** CSS-sized budget for geometry demand; leaves depth allocation unchanged. */
+  casterMapTexelBudget?: number;
 }>;
 
 const LIGHT_UP = new THREE.Vector3(0, 1, 0);
@@ -287,6 +291,7 @@ export class ShadowController {
     groundTexelFit = true,
     stabilizeMapSize = false,
     mapTexelBudget,
+    casterMapTexelBudget,
     groundTexelTargetMeters,
     maxReceiverBiasMeters,
   }: ShadowUpdate): ShadowSnapshot | null {
@@ -362,14 +367,17 @@ export class ShadowController {
           receiverSunDiscGuard.planarMeters
         )
       : 0;
-    const shadowFit = fitShadowMap(receiverBounds, {
-      mapSize,
-      mapTexelBudget: resolvedMapTexelBudget,
+    const fitOptions = {
       maxMapSize: this.maxShadowMapSize,
       elevationSine: normalizedDirectionToSun.y,
       sunDiscGuardMeters,
       groundTexelFit,
       groundTexelTargetMeters,
+    };
+    const shadowFit = fitShadowMap(receiverBounds, {
+      ...fitOptions,
+      mapSize,
+      mapTexelBudget: resolvedMapTexelBudget,
       mapDimensions:
         stabilizeMapSize &&
         this.mapAllocation?.texelBudget === resolvedMapTexelBudget &&
@@ -378,6 +386,21 @@ export class ShadowController {
           ? this.mapAllocation
           : undefined,
     });
+    // Fit geometry demand separately: scaling the allocated texture by DPR
+    // would inherit its quantization, caps and motion-stabilized dimensions.
+    const casterTexelBudget = resolveShadowMapTexelBudget(
+      casterMapTexelBudget,
+      resolvedMapTexelBudget,
+      this.maxShadowMapSize
+    );
+    const casterFit =
+      casterMapTexelBudget === undefined
+        ? shadowFit
+        : fitShadowMap(receiverBounds, {
+            ...fitOptions,
+            mapSize: Math.floor(Math.sqrt(casterTexelBudget)),
+            mapTexelBudget: casterTexelBudget,
+          });
     this.mapAllocation = {
       width: shadowFit.mapWidth,
       height: shadowFit.mapHeight,
@@ -509,6 +532,10 @@ export class ShadowController {
           ? resolvedMapTexelBudget
           : undefined,
       casterReachMeters,
+      casterMetersPerTexel: [
+        casterFit.metersPerTexelX,
+        casterFit.metersPerTexelY,
+      ],
       camera: {
         receiverPointCount: receiverWorldPoints.length,
         receiverLeftMeters: receiverBounds.left,

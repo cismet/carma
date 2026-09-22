@@ -1264,10 +1264,15 @@ export const buildShadowSimulationScene = (
     getSharedThreeSceneRuntimes(map).some(
       (runtime) => runtime.providesTerrain === true
     );
-  const meshViewReady = () =>
+  const meshSurfaceReady = () =>
     getSharedThreeSceneRuntimes(map).every(
       (runtime) =>
-        !runtime.providesTerrain || (runtime.isMainViewReady?.() ?? true)
+        !runtime.providesTerrain ||
+        // A committed mesh surface can accumulate while finer families load.
+        // Content epochs invalidate those samples when the surface changes.
+        (runtime.hasRenderableContent?.() ??
+          runtime.isMainViewReady?.() ??
+          true)
     );
   let surfaceProviders = getSharedThreeSceneRuntimes(map).filter(
     (runtime) => runtime.providesTerrain
@@ -1878,6 +1883,7 @@ export const buildShadowSimulationScene = (
       quantizeViewValue(map.getBearing?.() ?? 0, 0.001),
       quantizeViewValue(map.getPitch?.() ?? 0, 0.001),
       `${frame.viewport.x}x${frame.viewport.y}`,
+      frame.cssViewport?.toArray().join("x"),
     ].join(";");
   };
 
@@ -2162,6 +2168,21 @@ export const buildShadowSimulationScene = (
           sharedBinding.receiverWorldPoints = [...fullPagePoints];
         }
       }
+      const depthTexelBudget = resolveShadowDepthTexelBudget(
+        resourceLimits.maxShadowMapSize,
+        sharedBinding.shadowQuality,
+        frame.viewport.x * frame.viewport.y,
+        mapInMotion ? shadowFrameBudget.depthScale : 1
+      );
+      const lodViewport = frame.cssViewport ?? frame.viewport;
+      // Decision: engines/maplibre/TILES_COVERAGE.md#css-pixel-error-targets.
+      // Render at native resolution; caster downloads use the CSS-sized budget.
+      const casterMapTexelBudget = resolveShadowDepthTexelBudget(
+        resourceLimits.maxShadowMapSize,
+        sharedBinding.shadowQuality,
+        lodViewport.x * lodViewport.y,
+        mapInMotion ? shadowFrameBudget.depthScale : 1
+      );
       const snapshot = sharedBinding.controller.update({
         maxReceiverBiasMeters: resolveMeshReceiverBiasLimit(),
         receiverWorldPoints: sharedBinding.receiverWorldPoints,
@@ -2173,12 +2194,8 @@ export const buildShadowSimulationScene = (
         intensity: sharedBinding.sunIntensity,
         shadowIntensity: sharedBinding.shadowIntensity,
         quality: sharedBinding.shadowQuality,
-        mapTexelBudget: resolveShadowDepthTexelBudget(
-          resourceLimits.maxShadowMapSize,
-          sharedBinding.shadowQuality,
-          frame.viewport.x * frame.viewport.y,
-          mapInMotion ? shadowFrameBudget.depthScale : 1
-        ),
+        mapTexelBudget: depthTexelBudget,
+        casterMapTexelBudget,
         groundTexelFit: effectiveRenderQuality.shadowGroundTexelFit,
         stabilizeMapSize: mapInMotion,
       });
@@ -2202,8 +2219,12 @@ export const buildShadowSimulationScene = (
           ? SUN_ANGULAR_RADIUS_RAD
           : 0,
         shadowMapSize: {
-          width: primary.shadowMapWidth,
-          height: primary.shadowMapHeight,
+          width:
+            (primary.rightMeters - primary.leftMeters) /
+            snapshot.casterMetersPerTexel[0],
+          height:
+            (primary.topMeters - primary.bottomMeters) /
+            snapshot.casterMetersPerTexel[1],
         },
       });
       // The common hard draw also runs in tiled mode. Keep its depth target
@@ -2480,7 +2501,7 @@ export const buildShadowSimulationScene = (
       !timeAnimating &&
       (!initialTerrainStageReady ||
         shouldUseBootstrapPreview() ||
-        (!isTiledBufferEnabled() && !meshViewReady()) ||
+        (!isTiledBufferEnabled() && !meshSurfaceReady()) ||
         (!isTiledBufferEnabled() && isSharedThreeTerrainLoading(map)) ||
         mapInMotion ||
         (!isTiledBufferEnabled() && contentChangeTimer !== 0)),
@@ -2489,7 +2510,7 @@ export const buildShadowSimulationScene = (
       softSunShadowsEnabled &&
       initialTerrainStageReady &&
       !shouldUseBootstrapPreview() &&
-      (isTiledBufferEnabled() || meshViewReady()) &&
+      (isTiledBufferEnabled() || meshSurfaceReady()) &&
       (isTiledBufferEnabled() || !isSharedThreeTerrainLoading(map)) &&
       !mapInMotion &&
       !timeAnimating &&

@@ -112,11 +112,16 @@ export const configureSharedRenderCamera = (
  */
 export const syncSharedCanvasViewport = (
   renderer: SharedCanvasViewportRenderer,
-  canvas: Pick<HTMLCanvasElement, "width" | "height">,
-  viewport: THREE.Vector2
+  canvas: Pick<HTMLCanvasElement, "width" | "height"> &
+    Partial<Pick<HTMLCanvasElement, "clientWidth" | "clientHeight">>,
+  viewport: THREE.Vector2,
+  cssViewport?: THREE.Vector2
 ): void => {
   const width = Math.max(1, canvas.width);
   const height = Math.max(1, canvas.height);
+  // Decision: TILES_COVERAGE.md#css-pixel-error-targets. Layout can change
+  // without resizing the backing buffer (for example, a DPR transition).
+  cssViewport?.set(canvas.clientWidth || width, canvas.clientHeight || height);
   if (viewport.x === width && viewport.y === height) return;
   viewport.set(width, height);
   renderer.setViewport(0, 0, width, height);

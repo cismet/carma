@@ -328,6 +328,16 @@ describe("deriveTilePriority", () => {
     expect(initialMeshLoadError(0.25)).toBe(16);
     expect(initialMeshLoadError(32)).toBe(32);
   });
+  it("admits the first complete image at the existing publication ceiling without changing later targets", () => {
+    expect(initialMeshLoadError(6, 16, true)).toBe(64);
+    expect(initialMeshLoadError(6, 16, false)).toBe(16);
+    expect(initialMeshLoadError(96, 16, true)).toBe(96);
+  });
+  it("keeps configurable cold image errors separate from motion and idle", () => {
+    expect(initialMeshLoadError(4, 24, true, 96)).toBe(96);
+    expect(initialMeshLoadError(4, 24, false, 96)).toBe(24);
+    expect(initialMeshLoadError(2, 12, true, 48)).toBe(48);
+  });
   it("orders the main view first, then hierarchy, external tilesets and centre", () => {
     const shallow = deriveTilePriority({
       depth: 3,

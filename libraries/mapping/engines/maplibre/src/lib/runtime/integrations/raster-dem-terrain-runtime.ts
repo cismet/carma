@@ -1950,6 +1950,7 @@ export const buildRasterDemTerrainRuntime = (
     frame: SharedThreeSceneFrame
   ): string => {
     const center = map?.getCenter?.();
+    const lodViewport = frame.cssViewport ?? frame.viewport;
     // Evaluate changed matrices, including free cameras and terrain-aware
     // near/far changes. Equal resolved tile cuts keep their load generation and
     // overlapping requests; matrix jitter must not restart their preparation.
@@ -1977,7 +1978,7 @@ export const buildRasterDemTerrainRuntime = (
       ...frame.renderCamera.matrixWorld.elements,
       ...frame.lodCamera.projectionMatrix.elements,
       ...frame.lodCamera.position.toArray(),
-      `${frame.viewport.x}x${frame.viewport.y}`,
+      `${lodViewport.x}x${lodViewport.y}`,
       selectionShadowViewSignature,
       tileCameraSignature,
     ].join(";");
@@ -1987,6 +1988,7 @@ export const buildRasterDemTerrainRuntime = (
     terrainSource: RasterDemTerrainTileSource,
     frame: SharedThreeSceneFrame
   ): TerrainSelectionInput => {
+    const lodViewport = frame.cssViewport ?? frame.viewport;
     frame.renderCamera.updateMatrixWorld(true);
     root.updateWorldMatrix(true, false);
     shadowView?.camera.updateMatrixWorld(true);
@@ -2024,7 +2026,7 @@ export const buildRasterDemTerrainRuntime = (
     }
     return {
       viewportBounds: bounds,
-      viewport: [frame.viewport.x, frame.viewport.y],
+      viewport: [lodViewport.x, lodViewport.y],
       viewportFocusNdc: [
         -frame.lodCamera.projectionMatrix.elements[8],
         -frame.lodCamera.projectionMatrix.elements[9],
@@ -3207,7 +3209,7 @@ export const buildRasterDemTerrainRuntime = (
       latestRenderCamera = frame.renderCamera;
       if (options.debugScreenError) {
         debugCameraPosition.copy(frame.lodCamera.position);
-        debugViewportHeight = frame.viewport.y;
+        debugViewportHeight = (frame.cssViewport ?? frame.viewport).y;
         debugFovDegrees = frame.lodCamera.fov;
       }
       if (disposed || !root.visible) return;

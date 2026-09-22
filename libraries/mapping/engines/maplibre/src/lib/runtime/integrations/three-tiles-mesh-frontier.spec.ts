@@ -65,7 +65,11 @@ describe("local progressive mesh admission", () => {
     expect(isNextPublishedMeshLevel(child, displayed)).toBe(false);
   });
 
-  const atomicCut = (root: Tile, published: Tile[] = []) =>
+  const atomicCut = (
+    root: Tile,
+    published: Tile[] = [],
+    allowCoarseBootstrap = false
+  ) =>
     collectLoadedMeshReceiverCandidates(
       root,
       6,
@@ -76,7 +80,12 @@ describe("local progressive mesh admission", () => {
       undefined,
       () => true,
       new Set(),
-      { published: new Set(published), support: new Set(), atomic: true }
+      {
+        published: new Set(published),
+        support: new Set(),
+        atomic: true,
+        allowCoarseBootstrap,
+      }
     );
 
   it("publishes the first acceptable viewport cut together, never detail islands", () => {
@@ -119,6 +128,22 @@ describe("local progressive mesh admission", () => {
       child.internal.loadingState = 2;
     });
     expect(atomicCut(parent, [parent])).toEqual(new Set([parent]));
+  });
+
+  it("publishes complete coarse hard-shadow coverage before finer LODs arrive", () => {
+    const { parent, children } = quartet(mesh(null, 500));
+    children.forEach((child) => {
+      child.internal.loadingState = 2;
+    });
+    expect(atomicCut(parent, [], true)).toEqual(new Set([parent]));
+    parent.internal.loadingState = 2;
+    children[0].internal.loadingState = 4;
+    // No partial islands while the first full surface is still missing.
+    expect(atomicCut(parent, [], true)).toEqual(new Set());
+    children.forEach((child) => {
+      child.internal.loadingState = 4;
+    });
+    expect(atomicCut(parent, [], true)).toEqual(new Set(children));
   });
 
   it("does not open the non-atomic shadow admission gate for coarse startup tiles", () => {
@@ -210,7 +235,8 @@ describe("local progressive mesh admission", () => {
         { published, support, atomic: true }
       );
     expect(select(new Set([parent]), 4)).toEqual(new Set([parent]));
-    expect(support).toEqual(new Set([children[3]]));
+    // Visible prerequisites must compete equally with their offscreen sibling.
+    expect(support).toEqual(new Set(children));
     // Sibling support must stop at its first payload, not request offscreen
     // grandchildren or wait for their ideal detail.
     children[3].internal.loadingState = 4;
@@ -232,6 +258,76 @@ describe("local progressive mesh admission", () => {
         false
       );
     }
+  });
+
+  it("fills only intersecting cold branches, then completes offscreen residency without coarsening the view", () => {
+    const { parent, children } = quartet(mesh(null, 40));
+    children.forEach((child) => (child.traversal.error = 6));
+    children[3].traversal.inFrustum = false;
+    children[3].internal.loadingState = 0;
+    const support = new Set<Tile>();
+    const published = new Set([parent]);
+    const select = (completeOffscreenFamilies: boolean) =>
+      collectLoadedMeshReceiverCandidates(
+        parent,
+        8,
+        96,
+        (tile) => tile.traversal.inFrustum,
+        (tile) => tile.traversal.error,
+        undefined,
+        undefined,
+        () => true,
+        new Set(),
+        { published, support, atomic: true, completeOffscreenFamilies }
+      );
+    const visible = new Set(children.slice(0, 3));
+    expect(select(false)).toEqual(visible);
+    expect(support).toEqual(visible);
+    // The unused region still needs its resident parent for a subsequent pan.
+    expect(isMeshCoverageRemovalSafe(parent, visible)).toBe(false);
+    children[2].internal.loadingState = 0;
+    expect(select(false)).toEqual(new Set([parent]));
+    children[2].internal.loadingState = 4;
+    // Handover restores whole-family support without discarding visible detail.
+    const proposed = select(true);
+    expect(proposed).toEqual(new Set([parent]));
+    expect(support).toEqual(new Set(children));
+    expect(retain([...visible], [...proposed], 8)).toEqual(visible);
+    // Moving across the previously unseen boundary reuses the complete parent.
+    children[3].traversal.inFrustum = true;
+    expect(retain([...visible], [...select(false)], 8)).toEqual(
+      new Set([parent])
+    );
+    children[3].internal.loadingState = 4;
+    expect(select(true)).toEqual(new Set(children));
+  });
+
+  it("does not treat raw topology as offscreen during cold first fill", () => {
+    const { parent, children } = quartet(mesh(null, 100));
+    parent.internal.loadingState = 0;
+    const unknown = { children: [] } as unknown as Tile;
+    parent.children = [...children.slice(0, 3), unknown];
+    const unpreparedParents = new Set<Tile>();
+    const selected = collectLoadedMeshReceiverCandidates(
+      parent,
+      8,
+      96,
+      (tile) => tile !== unknown,
+      (tile) => tile.traversal.error,
+      undefined,
+      undefined,
+      () => true,
+      new Set(),
+      {
+        published: new Set(),
+        support: new Set(),
+        unpreparedParents,
+        atomic: true,
+        completeOffscreenFamilies: false,
+      }
+    );
+    expect(selected.size).toBe(0);
+    expect(unpreparedParents).toEqual(new Set([parent]));
   });
 
   it("does not withhold resident newly exposed branches behind a distant unloaded branch", () => {
@@ -891,6 +987,50 @@ describe("progressive loaded mesh display", () => {
     expect([
       ...refineLoadedMeshFrontier(proposed, 1, () => true, currentError),
     ]).toEqual([parent]);
+  });
+
+  it("reports the missing sibling without changing receiver or caster publication", () => {
+    const { parent, children } = quartet(mesh(null, 16));
+    children[3].internal.loadingState = 2;
+    const receiverWaits: Tile[] = [];
+    const support = new Set<Tile>();
+    const receiverCut = collectLoadedMeshReceiverCandidates(
+      parent,
+      1,
+      Infinity,
+      () => true,
+      (tile) => tile.traversal.error,
+      undefined,
+      undefined,
+      () => true,
+      new Set(),
+      {
+        published: new Set([parent]),
+        support,
+        atomic: true,
+        onWait: (tile, reason, blocker) => {
+          expect(reason).toBe("replacement-family");
+          expect(blocker).toBe(children[3]);
+          receiverWaits.push(tile);
+        },
+      }
+    );
+    expect(receiverCut).toEqual(new Set([parent]));
+    expect(receiverWaits).toEqual(children.slice(0, 3));
+    const casterWaits: Tile[] = [];
+    const casterCut = refineLoadedMeshFrontier(
+      new Set([parent, ...children]),
+      1,
+      () => true,
+      (tile) => tile.traversal.error,
+      new Set(),
+      (tile, blocker) => {
+        expect(blocker).toBe(children[3]);
+        casterWaits.push(tile);
+      }
+    );
+    expect(casterCut).toEqual(receiverCut);
+    expect(casterWaits).toEqual(receiverWaits);
   });
 
   it("never publishes a partial child set over a retained parent", () => {

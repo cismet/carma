@@ -71,6 +71,10 @@ export interface Tiles3dConfig {
    * Existing coverage remains until a complete replacement is ready.
    */
   baseErrorTarget?: number;
+  /** Cold first-image request target; absent retains the runtime default. */
+  firstImageErrorTarget?: number;
+  /** Initial viewport target before regular extent/idle scheduling starts. */
+  handoverErrorTarget?: number;
   /** Residual whole-extent resolution; absent or zero uses the entry hint. */
   tilesetMinResolutionPx?: number;
   /** Register the runtime for the diagnostics story (window.__carmaTiles3d). */
@@ -257,6 +261,8 @@ export function Tiles3dLayerManager({
           groundReferenceMeters: groundReferenceMeters ?? undefined,
           selfGroundReference: standalone && groundReferenceMeters === null,
           baseErrorTargetPixels: initialConfig.baseErrorTarget,
+          firstImageErrorTargetPixels: initialConfig.firstImageErrorTarget,
+          handoverErrorTargetPixels: initialConfig.handoverErrorTarget,
           diagnostics: initialConfig.diagnostics,
           entry: initialConfig.entry,
           hierarchyCache: initialConfig.hierarchyCache,

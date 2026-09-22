@@ -56,6 +56,8 @@ export function createThreeTilesLoading(
     | "runtimeVisible"
     | "shadowView"
     | "meshInitialBasePassDone"
+    | "meshInitialHandoverDone"
+    | "tileCameraDemand"
     | "shadowSelectionEnabled"
     | "shadowSelectionNeedsTraversal"
     | "tileRetries"
@@ -67,6 +69,7 @@ export function createThreeTilesLoading(
     | "errorTargetState"
     | "lastMainViewConverged"
     | "meshBaseCoverageReady"
+    | "meshInitialBasePassDone"
     | "meshInitialReserveSettled"
     | "extentFloorArmed"
     | "extentGeometricError"
@@ -157,7 +160,9 @@ export function createThreeTilesLoading(
       runtimeState.options.providesTerrain
         ? initialMeshLoadError(
             runtimeState.requestedErrorTarget,
-            runtimeState.options.baseErrorTargetPixels
+            runtimeState.options.baseErrorTargetPixels,
+            !runtimeState.meshInitialBasePassDone,
+            runtimeState.options.firstImageErrorTargetPixels
           )
         : runtimeState.requestedErrorTarget;
 

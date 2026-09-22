@@ -117,8 +117,8 @@ export function synthesizeLodCamera(
   camera.aspect = width / Math.max(1, height);
   camera.near = 2;
   camera.far = 1_000_000;
-  // MapLibre padding moves the principal point in CSS pixels, while selection
-  // resolution remains the complete drawing buffer. A full-size Three view
+  // MapLibre padding moves the principal point in CSS pixels. Selection uses
+  // the full CSS viewport, independent of rendering DPR. A full-size Three view
   // offset retains those asymmetric edge rays without cropping coverage.
   // Decision: TILE-VIEWPORT-PADDING-20260914 in engines/maplibre/TILES_COVERAGE.md.
   const offset = transform.centerOffset;
