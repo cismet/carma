@@ -21,11 +21,11 @@ export type RouteModePickerConfig = {
    */
   controlOrder?: number;
   /**
-   * Which modes are offered, in this order. Default: car, bike, walk. A route
+   * Which modes are offered, in this order. Default: walk, bike, car. A route
    * for a pedestrian zone or a cycling map offers the ones that apply.
    */
   modes?: RouteMode[];
-  /** what the channel starts at. Default: "car" */
+  /** what the channel starts at. Default: "walk" */
   defaultMode?: RouteMode;
   /**
    * Render the picker even when nothing asked for a mode. Default: false,
@@ -39,5 +39,5 @@ export const DEFAULT_CONTROL_POSITION: Positions = "bottomleft";
 /** the column runs top-down by order, so this is its end */
 export const DEFAULT_CONTROL_ORDER = 30;
 /** the modes the routing lib can compute as one line; `transit` is not one */
-export const DEFAULT_MODES: RouteMode[] = ["car", "bike", "walk"];
+export const DEFAULT_MODES: RouteMode[] = ["walk", "bike", "car"];
 export const DEFAULT_MODE: RouteMode = DEFAULT_ROUTE_MODE;

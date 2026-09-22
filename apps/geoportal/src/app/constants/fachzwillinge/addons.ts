@@ -145,7 +145,7 @@ export const addonsFachzwilling: FachzwillingRoute = {
     // the "von wo?" input: appears once a category has been ranked, and any
     // address picked in it becomes the point "In der Nähe" measures from
     "originSearch",
-    // the "womit?" pill beside the two inputs: car, bike or on foot, which
+    // the "womit?" pill beside the two inputs: on foot, bike or car, which
     // "In der Nähe" ranks by and the navigation follows
     "routeModePicker",
     // the route button in the info box of a picked hit: the camera goes to

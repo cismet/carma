@@ -34,6 +34,7 @@ import {
 import { InstructionCard } from "./InstructionCard";
 import { RecenterControl } from "./RecenterControl";
 import { ROUTING_LAYER_ID } from "./routing-layer-row";
+import { DEFAULT_ROUTE_MODE } from "./routeModeChannel";
 import {
   clearRouteLine,
   drawRouteLine,
@@ -553,7 +554,7 @@ export const Routing = ({
     return carma.ui.addInfoBoxNote({
       key: "routing",
       text: noteText,
-      icon: getModeIcon(routeMode ?? "car"),
+      icon: getModeIcon(routeMode ?? DEFAULT_ROUTE_MODE),
     });
   }, [carma, noteText, routeMode]);
 

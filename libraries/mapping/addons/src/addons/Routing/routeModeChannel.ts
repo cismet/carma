@@ -21,7 +21,7 @@ import type { RouteMode } from "./routeMode";
  * the picker reads the same mode it always used.
  */
 
-export const DEFAULT_ROUTE_MODE: RouteMode = "car";
+export const DEFAULT_ROUTE_MODE: RouteMode = "walk";
 
 export type RouteModeState = {
   /** how the user travels */

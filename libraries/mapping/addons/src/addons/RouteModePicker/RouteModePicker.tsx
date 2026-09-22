@@ -97,7 +97,7 @@ const MODE_TOOLTIPS: Record<RouteMode, string> = {
 };
 
 /**
- * The "womit?" picker: one pill of icon buttons, car, bike, on foot, beside
+ * The "womit?" picker: one pill of icon buttons, on foot, bike, car, beside
  * the inputs that say where from and where to. What it produces goes on the
  * `routeMode` channel and nowhere else: "In der Nähe" ranks by it today, a
  * routing UI will compute its route by it, and neither knows about this
