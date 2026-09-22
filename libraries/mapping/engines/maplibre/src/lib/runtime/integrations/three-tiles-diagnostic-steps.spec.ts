@@ -1,4 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { type Tile } from "3d-tiles-renderer/core";
+import { describe, expect, it, vi } from "vitest";
+import {
+  TILE_QUEUE_ACTION,
+  TILE_QUEUE_STAGE,
+} from "../../core/tile-scheduling-policy";
+import { createThreeTilesDebug } from "./three-tiles-runtime-debug";
 import type { MeshTileDebugProgress } from "./three-tiles-runtime-types";
 import {
   recordThreeTileWait,
@@ -118,5 +124,88 @@ describe("publication wait telemetry", () => {
       since: 0,
     });
     expect(recordThreeTileWait(p, "receiver", null, 300)).toBe(false);
+  });
+  it("records bounded queue transitions only when enabled and keeps waiting time across frame updates", () => {
+    const tile = {
+      content: { uri: "child.glb" },
+      internal: { basePath: "https://example.org/tiles" },
+      parent: {
+        content: { uri: "parent.glb" },
+        internal: { basePath: "https://example.org/tiles" },
+      },
+    } as Tile;
+    const state = {
+      options: { diagnostics: false, tileTelemetry: true },
+      tileDebugProgress: new WeakMap<Tile, MeshTileDebugProgress>(),
+      tiles: { frameCount: 1 },
+      tileCameraSignature: "camera-a",
+    } as Parameters<typeof createThreeTilesDebug>[0];
+    const debug = createThreeTilesDebug(
+      state,
+      {} as Parameters<typeof createThreeTilesDebug>[1]
+    );
+    const decision = {
+      stage: TILE_QUEUE_STAGE.DOWNLOAD,
+      action: TILE_QUEUE_ACTION.PARK,
+      reason: "viewport-fill-first",
+      priority: 0,
+      needed: true,
+      inViewport: false,
+      coverageFill: false,
+    };
+    debug.recordTileRequestDecision(tile, decision);
+    state.options.diagnostics = true;
+    state.options.tileTelemetry = false;
+    debug.recordTileRequestDecision(tile, decision);
+    expect(state.tileDebugProgress.has(tile)).toBe(false);
+    expect(debug.drainTileWaitEvents()).toEqual([]);
+
+    state.options.tileTelemetry = true;
+    const clock = vi.spyOn(performance, "now").mockReturnValue(10);
+    try {
+      debug.recordTileRequestDecision(tile, decision);
+      expect(debug.drainTileWaitEvents()).toEqual([
+        expect.objectContaining({
+          ...decision,
+          frame: 1,
+          viewSignature: "camera-a",
+          since: 10,
+          observedAt: 10,
+          parent: "https://example.org/tiles/parent.glb",
+        }),
+      ]);
+      clock.mockReturnValue(20);
+      state.tiles!.frameCount = 2;
+      state.tileCameraSignature = "camera-b";
+      debug.recordTileRequestDecision(tile, decision);
+      expect(debug.drainTileWaitEvents()).toEqual([]);
+      expect(state.tileDebugProgress.get(tile)?.requestDecision).toMatchObject({
+        since: 10,
+        observedAt: 20,
+        frame: 2,
+        viewSignature: "camera-b",
+      });
+      clock.mockReturnValue(30);
+      debug.recordTileRequestDecision(tile, {
+        ...decision,
+        stage: TILE_QUEUE_STAGE.PARSE,
+        action: TILE_QUEUE_ACTION.RUN,
+        reason: "ready",
+      });
+      expect(debug.drainTileWaitEvents()).toEqual([
+        expect.objectContaining({ stage: "parse", action: "run", since: 30 }),
+      ]);
+      for (let index = 0; index < 40; index++)
+        debug.recordTileRequestDecision(tile, {
+          ...decision,
+          reason: `blocker-${index}`,
+        });
+      expect(debug.drainTileWaitEvents()).toHaveLength(32);
+      expect(state.tileDebugProgress.get(tile)?.requestDecision?.reason).toBe(
+        "blocker-39"
+      );
+    } finally {
+      clock.mockRestore();
+    }
   });
 });

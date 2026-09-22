@@ -35,6 +35,7 @@ export function createThreeTilesDebug(
   runtimeState: Pick<
     ThreeTilesRuntimeState,
     | keyof TilesRuntimeDebugState
+    | "tileCameraSignature"
     | "tileDebugIds"
     | "nextTileDebugId"
     | "layerId"
@@ -322,6 +323,42 @@ export function createThreeTilesDebug(
       runtimeState.tiles?.dispatchEvent({ type: "needs-update" });
       runtimeState.map?.triggerRepaint();
     };
+  const recordTileRequestDecision: ThreeTilesRuntimeServices["recordTileRequestDecision"] =
+    (tile, decision) => {
+      if (
+        !runtimeState.options.diagnostics ||
+        runtimeState.options.tileTelemetry === false
+      )
+        return;
+      const progress = getTileDebugProgress(tile);
+      const previous = progress.requestDecision;
+      const now = performance.now();
+      const sameWait =
+        previous?.stage === decision.stage &&
+        previous.action === decision.action &&
+        previous.reason === decision.reason;
+      const parent = tile.parent ? resolveTileContentUrl(tile.parent) : null;
+      const changed =
+        !sameWait ||
+        previous.priority !== decision.priority ||
+        previous.needed !== decision.needed ||
+        previous.inViewport !== decision.inViewport ||
+        previous.coverageFill !== decision.coverageFill ||
+        previous.parent !== parent;
+      progress.requestDecision = {
+        ...decision,
+        frame: runtimeState.tiles?.frameCount ?? -1,
+        viewSignature: runtimeState.tileCameraSignature,
+        since: sameWait ? previous.since : now,
+        observedAt: now,
+        parent,
+      };
+      if (changed && waitEvents.length < 32)
+        waitEvents.push({
+          url: resolveTileContentUrl(tile),
+          ...progress.requestDecision,
+        });
+    };
   const recordTileWait: ThreeTilesRuntimeServices["recordTileWait"] = (
     tile,
     role,
@@ -374,6 +411,7 @@ export function createThreeTilesDebug(
       });
   };
   return {
+    recordTileRequestDecision,
     recordTileWait,
     beginTileWaitObservation: () => {
       waitObservation++;

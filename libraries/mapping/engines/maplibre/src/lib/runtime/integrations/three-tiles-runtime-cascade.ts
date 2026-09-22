@@ -6,6 +6,9 @@ import type { SharedThreeSceneRuntime } from "../../core/shared-three-scene-type
 import { createTileCameraDemand } from "../../core/tile-camera-demand";
 import {
   decideTileRequestAction,
+  resolveTileRequestAdmission,
+  TILE_QUEUE_REASON,
+  TILE_QUEUE_STAGE,
   TILE_REQUEST_ACTION,
 } from "../../core/tile-scheduling-policy";
 import { readOrientedTileBounds } from "./three-tiles-bounds";
@@ -201,7 +204,14 @@ export function createThreeTilesCascade(
             tile.internal.loadingState === QUEUED_LOADING_STATE &&
             tile.internal.hasRenderableContent &&
             Number.isFinite(dependencies.getTileRequestPriority(tile)) &&
-            isTileRequestNeeded(tile)
+            resolveTileRequestAdmission({
+              needed: isTileRequestNeeded(tile),
+              coverageRecovery: runtimeState.meshCoverageRecovery,
+              coverageFill:
+                runtimeState.meshCoverageRecovery &&
+                dependencies.isTileNeededForMeshCoverage(tile),
+              stage: TILE_QUEUE_STAGE.DOWNLOAD,
+            }) === TILE_QUEUE_REASON.CURRENT_DEMAND
         )
       : [];
     const selectedPreemptions = new Set<RuntimeTile>();

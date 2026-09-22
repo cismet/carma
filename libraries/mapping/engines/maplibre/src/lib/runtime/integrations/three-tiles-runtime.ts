@@ -171,6 +171,8 @@ export function buildThreeTilesRuntime(
       spatial.getTileRequestPriority(...args),
     getTileCameraDemand: (...args) => spatial.getTileCameraDemand(...args),
     getTileDebugProgress: (...args) => debug.getTileDebugProgress(...args),
+    recordTileRequestDecision: (...args) =>
+      debug.recordTileRequestDecision(...args),
     recordTileWait: (...args) => debug.recordTileWait(...args),
     drainTileWaitEvents: () => debug.drainTileWaitEvents(),
     beginTileWaitObservation: () => debug.beginTileWaitObservation(),

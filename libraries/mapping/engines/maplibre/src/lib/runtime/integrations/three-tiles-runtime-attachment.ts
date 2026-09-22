@@ -13,6 +13,11 @@ import { degToRadNumeric } from "@carma-units";
 
 import { MAPLIBRE_EVENT } from "../../../constants/mapEvents";
 import { applyShadowReceiverMask } from "../../core/shadow-receiver-mask";
+import {
+  resolveTileRequestAdmission,
+  TILE_QUEUE_REASON,
+  TILE_QUEUE_STAGE,
+} from "../../core/tile-scheduling-policy";
 import { Gltf1UpgradePlugin } from "./gltf1-upgrade-plugin";
 import { subscribeSharedThreeTerrainLoading } from "./shared-three-terrain-registry";
 import { readOrientedTileBounds } from "./three-tiles-bounds";
@@ -60,6 +65,8 @@ type ThreeTilesRuntimeAttachmentState = Pick<
   | "bytesPredictor"
   | "cameraSet"
   | "clayMaterialStates"
+  | "committedMeshCasterFrontier"
+  | "committedMeshReceiverFrontier"
   | "disposed"
   | "dracoLoader"
   | "effectiveErrorTarget"
@@ -125,6 +132,7 @@ type ThreeTilesRuntimeAttachmentDependencies = Pick<
   | "disposeClayState"
   | "disposeLitTextureState"
   | "getTileDebugProgress"
+  | "recordTileRequestDecision"
   | "getTileScreenError"
   | "getTileCameraDemand"
   | "getTileRequestPriority"
@@ -564,25 +572,24 @@ export function createThreeTilesRuntimeAttachment(
       )
         return;
       const runtimeTile = tile as RuntimeTile;
-      if (!dependencies.isTileRequestNeeded(tile)) return;
-      if (
+      const coverageFill =
         runtimeState.meshCoverageRecovery &&
-        !dependencies.isTileNeededForMeshCoverage(tile)
+        dependencies.isTileNeededForMeshCoverage(tile);
+      if (
+        resolveTileRequestAdmission({
+          needed: dependencies.isTileRequestNeeded(tile),
+          coverageRecovery: runtimeState.meshCoverageRecovery,
+          coverageFill,
+          stage: TILE_QUEUE_STAGE.DOWNLOAD,
+        }) !== TILE_QUEUE_REASON.CURRENT_DEMAND
       )
         return;
-      // A payload freed after proven child replacement must not immediately
-      // re-enter loadAncestors' queue. Its hierarchy/metadata remains intact.
       const retainedMeshAncestors = dependencies.getRetainedMeshAncestors();
-      // A floor tile is the extent's resident coverage: loaded even where
-      // its children are drawn, and never held back as a freed parent.
       const floorTile =
         (runtimeState.extentFloorArmed &&
           isExtentFloorTile(tile, runtimeState.extentGeometricError)) ||
         runtimeState.residentAncestors.has(tile);
       const supportTile = runtimeState.meshRefinementSupport.has(tile);
-      const coverageFill =
-        runtimeState.meshCoverageRecovery &&
-        dependencies.isTileNeededForMeshCoverage(tile);
       const refinementLookahead =
         !runtimeState.shadowView &&
         !runtimeState.map?.isMoving?.() &&
@@ -630,7 +637,6 @@ export function createThreeTilesRuntimeAttachment(
         )
       )
         return;
-      // D8: pending/exhausted retries keep the parent fallback.
       if (runtimeState.tileRetries.isBlocked(tile)) return;
       // D7: REPLACE content that refines unconditionally is never displayed.
       if (
@@ -642,7 +648,6 @@ export function createThreeTilesRuntimeAttachment(
         return;
       }
       // Decision: ../../../../TILES_COVERAGE.md#viewport-only-cold-replacement-families
-      // Recovery reuses cold sibling selection; unknown bounds stay required.
       let family =
         runtimeState.options.providesTerrain &&
         (!runtimeState.shadowView ||
@@ -673,6 +678,7 @@ export function createThreeTilesRuntimeAttachment(
       dependencies.getTileDebugProgress(tile).queuedAt ??= performance.now();
       dependencies.noteTileActivity(tile);
       runtimeTile.firstPublicationRequestedAt = performance.now();
+      if (coverageFill) payloadQueues.makeRoomForCoverage(tile);
       queueTileForDownload(tile);
       for (const sibling of family) {
         if (sibling === tile) continue;
@@ -681,7 +687,6 @@ export function createThreeTilesRuntimeAttachment(
         tiles.queueTileForDownload(sibling);
       }
     };
-    // 3D Tiles 1.1 implicit tiling (template URIs) is plugin-based
     runtimeState.tiles.registerPlugin(new ImplicitTilingPlugin());
     runtimeState.tiles.registerPlugin(new UpdateOnChangePlugin());
     if (runtimeState.options.mercatorProjection) {
@@ -747,15 +752,9 @@ export function createThreeTilesRuntimeAttachment(
     runtimeState.tiles.parseQueue.maxJobs = MESH_PARSE_CONCURRENCY;
     runtimeState.normalParseConcurrency = MESH_PARSE_CONCURRENCY;
     dependencies.applyRequestConcurrency();
-    // processNodeQueue expands tileset metadata on the browser thread. A
-    // large value stalls input and delays the first publish even though it
-    // looks like parallelism; network downloads retain their independent,
-    // dynamically tuned concurrency above.
+    // Bound main-thread metadata expansion independently of network concurrency.
     runtimeState.tiles.processNodeQueue.maxJobs = 4;
-    // Keep synchronous hierarchy expansion bounded per frame. The upstream
-    // default is 250; processing 1,000 nodes here delayed both input and the
-    // first coarse viewport publication. Sixty-four is enough to advance a
-    // broad cut while yielding regularly to MapLibre presentation.
+    // 1,000 nodes delayed input/publication; 64 advances the cut between frames.
     runtimeState.tiles.maxTilesProcessed = 64;
     dependencies.applyCacheBudget();
     runtimeState.effectiveErrorTarget =
