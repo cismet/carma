@@ -4,6 +4,7 @@ import * as THREE from "three";
 import { receiverMatchedTileError } from "../../core/shadow-receiver-mask";
 import type { SharedThreeSceneTileVolume } from "../../core/shared-three-scene-types";
 import {
+  createTileCameraDemand,
   TILE_CAMERA_PRIORITY,
   TILE_MAIN_OBSERVER_ID,
 } from "../../core/tile-camera-demand";
@@ -13,6 +14,7 @@ import { getThreeTileDiagnosticSteps } from "./three-tiles-diagnostic-steps";
 import { TILES_LOAD_POLICY } from "./three-tiles-load-policy";
 import {
   getReadyMeshRegionCut,
+  hasDisplayedAncestor,
   hasMeshRefinementContentInView,
 } from "./three-tiles-mesh-frontier";
 import type {
@@ -39,6 +41,7 @@ export function createThreeTilesSpatial(
     | "committedMeshCasterFrontier"
     | "displayedMeshFrontier"
     | "meshRefinementSupport"
+    | "meshCoverageRecovery"
     | "activeTileBoundingBox"
     | "tileBoundsTransform"
     | "tilesetUrl"
@@ -184,18 +187,86 @@ export function createThreeTilesSpatial(
         );
       return result;
     };
+  let observerOwner: unknown;
+  let observer: ReturnType<typeof createTileCameraDemand> | null = null;
+  let observerErrorTarget = 1;
+  let observerDemands = new WeakMap<
+    RuntimeTile,
+    { intersects: boolean; errorPixels: number }
+  >();
+  const getTileObserverDemand: ThreeTilesRuntimeServices["getTileObserverDemand"] =
+    (tile) => {
+      const volume = tile.engineData?.boundingVolume;
+      if (observerOwner !== runtimeState.tileCameraDemand) {
+        observerOwner = runtimeState.tileCameraDemand;
+        const views = runtimeState.tileCameraDemand.views.filter(
+          (view) => view.id === TILE_MAIN_OBSERVER_ID
+        );
+        observer = views.length ? createTileCameraDemand(views) : null;
+        observerErrorTarget = views[0]?.errorTargetPixels ?? 1;
+        observerDemands = new WeakMap();
+      }
+      const cached = observerDemands.get(tile);
+      if (cached) return cached;
+      const inFrustum =
+        !volume ||
+        !runtimeState.viewFrustumsReady ||
+        !volume.intersectsFrustum ||
+        volume.intersectsFrustum(runtimeState.tileViewFrustum);
+      if (!observer || !volume?.getAABB || !runtimeState.tiles)
+        return {
+          intersects: inFrustum,
+          errorPixels: volume?.distanceToPoint
+            ? getTileScreenError(tile, false)
+            : tile.traversal?.error ?? Number.POSITIVE_INFINITY,
+        };
+      readOrientedTileBounds(volume, cameraBounds, cameraBoundsTransform);
+      cameraBoundsTransform.premultiply(runtimeState.tiles.group.matrixWorld);
+      cameraBounds.applyMatrix4(cameraBoundsTransform);
+      const demand = observer.evaluate(
+        cameraBounds,
+        tile.geometricError *
+          runtimeState.tiles.group.matrixWorld.getMaxScaleOnAxis()
+      );
+      const result = {
+        intersects: inFrustum && demand.required,
+        errorPixels: demand.required
+          ? demand.errorRatio * observerErrorTarget
+          : Number.POSITIVE_INFINITY,
+      };
+      observerDemands.set(tile, result);
+      return result;
+    };
+  let coverageFrontier = runtimeState.displayedMeshFrontier;
+  const coverageCuts = new Map<Tile, readonly Tile[] | null>();
+  const isTileNeededForMeshCoverage: ThreeTilesRuntimeServices["isTileNeededForMeshCoverage"] =
+    (tile) => {
+      if (!runtimeState.options.providesTerrain) return false;
+      if (coverageFrontier !== runtimeState.displayedMeshFrontier) {
+        coverageFrontier = runtimeState.displayedMeshFrontier;
+        coverageCuts.clear();
+      }
+      if (hasDisplayedAncestor(tile, coverageFrontier)) return false;
+      return (
+        getReadyMeshRegionCut(
+          tile,
+          coverageFrontier,
+          Number.MAX_VALUE,
+          (candidate) => getTileObserverDemand(candidate as RuntimeTile),
+          coverageCuts
+        ) === null
+      );
+    };
   const getTileRequestPriority: ThreeTilesRuntimeServices["getTileRequestPriority"] =
     (tile) => {
+      if (
+        runtimeState.meshCoverageRecovery &&
+        isTileNeededForMeshCoverage(tile)
+      )
+        return TILE_CAMERA_PRIORITY.VIEWPORT_FILL;
       if (runtimeState.meshRefinementSupport.has(tile))
         return TILE_CAMERA_PRIORITY.COVERAGE_REPAIR;
-      const bounds = tile.engineData?.boundingVolume;
-      // isTileInMainView includes extra receivers for coverage/material roles.
-      // Priority needs the actual observer frustum, or every receiver would be
-      // promoted back to PRIMARY regardless of its explicitly chosen rank.
-      const inObserver =
-        runtimeState.viewFrustumsReady && bounds?.intersectsFrustum
-          ? bounds.intersectsFrustum(runtimeState.tileViewFrustum)
-          : tile.traversal?.inFrustum ?? false;
+      const inObserver = getTileObserverDemand(tile).intersects;
       return resolveTileRequestPriority({
         replacementSupport: false,
         cameraPriority: getTileCameraDemand(tile).priority,
@@ -371,7 +442,7 @@ export function createThreeTilesSpatial(
       return tile.traversal?.inFrustum ?? false;
     }
     const inView =
-      bounds.intersectsFrustum(runtimeState.tileViewFrustum) ||
+      getTileObserverDemand(tile).intersects ||
       getTileCameraDemand(tile).receiver;
     runtimeState.mainViewIntersectionCache.set(tile, inView);
     return inView;
@@ -571,6 +642,8 @@ export function createThreeTilesSpatial(
       if (!runtimeState.tiles) return;
       // Scope native camera-error memoization to this audit, never a prior drag.
       cameraErrors = new WeakMap();
+      coverageCuts.clear();
+      observerDemands = new WeakMap();
       // Refresh the parents directly, then let TilesGroup recompute its own
       // world matrix so its cached inverse (used by the traversal) stays in sync.
       runtimeState.offsetGroup.updateWorldMatrix(true, false);
@@ -693,8 +766,10 @@ export function createThreeTilesSpatial(
     getViewElevationRange,
     getActiveTileVolumes,
     isTileInMainView,
+    getTileObserverDemand,
     getTileCameraDemand,
     getTileRequestPriority,
+    isTileNeededForMeshCoverage,
     isChildUnloadable,
     mainViewWithinErrorFactor,
     mainViewConverged,

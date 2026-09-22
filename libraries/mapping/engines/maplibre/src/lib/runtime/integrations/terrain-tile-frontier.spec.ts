@@ -67,6 +67,29 @@ describe("advanceTerrainTileFrontier", () => {
     ).toEqual([other, ...children]);
   });
 
+  it("retains protected detail while admitting new coarse regions and refining other families", () => {
+    const other = tile("other", 10, 533, 218);
+    const protectedKeys = new Set(children.map(({ key }) => key));
+    const moving = advanceTerrainTileFrontier(
+      children,
+      [parent, other],
+      () => true,
+      (key) => !protectedKeys.has(key)
+    );
+    expect(moving).toEqual([...children, other]);
+    expect(
+      advanceTerrainTileFrontier(moving, [parent, other], () => true)
+    ).toEqual([parent, other]);
+    expect(
+      advanceTerrainTileFrontier(
+        [parent],
+        children,
+        () => true,
+        () => false
+      )
+    ).toEqual(children);
+  });
+
   it("replaces fine tiles with a ready parent atomically", () => {
     expect(advanceTerrainTileFrontier(children, [parent], () => true)).toEqual([
       parent,

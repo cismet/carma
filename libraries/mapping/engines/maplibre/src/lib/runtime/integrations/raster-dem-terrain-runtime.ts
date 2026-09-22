@@ -442,7 +442,8 @@ export const buildRasterDemTerrainRuntime = (
   /** True between the map's movestart and the settle after its moveend. */
   let mapMoving = false;
   /**
-   * Coarse while the map is actually moving, configured once it holds still.
+   * Coarser demand for new tiles while moving; published visible detail stays.
+   * Resume the configured selection once the map holds still.
    * Keying this on the camera signature instead would coarsen the cut again on
    * any repaint that nudges a matrix, and the published tiles would flip
    * between a parent and its children.
@@ -663,7 +664,6 @@ export const buildRasterDemTerrainRuntime = (
     invalidateIdlePrefetch();
     // Reconfirm even when a gesture ends at the same camera/cut.
     selectionInputSignature = "";
-    if (motionErrorTargetPixels === null) return;
     mapMoving = true;
     if (motionSettleTimer !== null) clearTimeout(motionSettleTimer);
     motionSettleTimer = null;
@@ -672,13 +672,16 @@ export const buildRasterDemTerrainRuntime = (
   /** The gesture ended: settle, then cut once at the configured target. */
   const handleMovementEnd = () => {
     scheduleIdleStitch();
-    if (motionErrorTargetPixels === null) return;
+    if (!mapMoving) return;
     if (motionSettleTimer !== null) clearTimeout(motionSettleTimer);
     motionSettleTimer = setTimeout(() => {
       motionSettleTimer = null;
       if (disposed) return;
       mapMoving = false;
       selectionInputSignature = "";
+      // The requested cut may already be loaded but held behind visible detail.
+      // Re-publish it now even if selection resolves to the same tile IDs.
+      requestedSignature = "";
       map?.triggerRepaint();
     }, MOTION_SETTLE_MS);
   };
@@ -2186,31 +2189,40 @@ export const buildRasterDemTerrainRuntime = (
           );
         }
       }
+      // Decision: TILES_COVERAGE.md#motion-preserves-visible-detail
+      const retainedDetailKeys = mapMoving ? getRequiredMeshKeys() : null;
       frontier = advanceTerrainTileFrontier(
         frontier,
         [...requested, ...toFrontier(reserveEntries)],
-        hasReadySurface
+        hasReadySurface,
+        (key) => !retainedDetailKeys?.has(key)
       );
       const activeKeys = new Set(frontier.map(({ key }) => key));
       const signature = [...activeKeys].sort().join(";");
       if (signature === [...activeMeshKeys].sort().join(";")) return;
       if (!current()) return;
-      // The camera can move during worker stitching. Replan before publishing
-      // if a formerly offscreen tile has become visible without any replacement.
-      const newlyUncovered = () =>
+      // Worker boundary preparation may outlive a camera move. Replan if its
+      // proposal would now remove or coarsen a visible tile during motion.
+      const needsCoverageReplan = () =>
         [...getRequiredMeshKeys()].some((key) => {
           if (activeKeys.has(key)) return false;
           const previous = meshes.get(key);
           return (
             previous &&
-            !frontier.some(
+            (!frontier.some(
               ({ id }) =>
                 terrainTileContains(id, previous.id) ||
                 terrainTileContains(previous.id, id)
-            )
+            ) ||
+              (mapMoving &&
+                frontier.some(
+                  ({ id }) =>
+                    id.level < previous.id.level &&
+                    terrainTileContains(id, previous.id)
+                )))
           );
         });
-      if (newlyUncovered()) {
+      if (needsCoverageReplan()) {
         publicationRequested = true;
         return;
       }
@@ -2219,10 +2231,10 @@ export const buildRasterDemTerrainRuntime = (
       // Commit shared vertices and normals in one turn before retiring parents.
       await prepareEqualLevelBoundaries(
         activeKeys,
-        () => current() && !newlyUncovered()
+        () => current() && !needsCoverageReplan()
       );
       if (!current()) return;
-      if (newlyUncovered()) {
+      if (needsCoverageReplan()) {
         publicationRequested = true;
         return;
       }

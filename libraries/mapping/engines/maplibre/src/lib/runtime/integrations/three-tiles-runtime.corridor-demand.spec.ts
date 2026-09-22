@@ -5,6 +5,10 @@ import { PriorityQueue } from "3d-tiles-renderer/core";
 import { Mesh } from "three";
 import { createMeshCorridorFixture } from "../../../../test/three-tiles-runtime-fixture";
 import { MAPLIBRE_EVENT } from "../../../constants/mapEvents";
+import {
+  MESH_MOTION_DOWNLOAD_CONCURRENCY,
+  MESH_MOTION_PARSE_CONCURRENCY,
+} from "./three-tiles-runtime-config";
 
 vi.hoisted(() => {
   Object.defineProperty(URL, "createObjectURL", {
@@ -244,9 +248,16 @@ describe("current mesh corridor request admission", () => {
       }
       moving = true;
       emit(MAPLIBRE_EVENT.MOVE_START);
-      expect(f.renderer.downloadQueue.maxJobsPerOrigin).toBe(0);
-      expect(f.renderer.parseQueue.maxJobs).toBe(0);
+      expect(f.renderer.downloadQueue.maxJobsPerOrigin).toBeGreaterThan(0);
+      expect(f.renderer.downloadQueue.maxJobsPerOrigin).toBeLessThanOrEqual(
+        MESH_MOTION_DOWNLOAD_CONCURRENCY
+      );
+      expect(f.renderer.parseQueue.maxJobs).toBeGreaterThan(0);
+      expect(f.renderer.parseQueue.maxJobs).toBeLessThanOrEqual(
+        MESH_MOTION_PARSE_CONCURRENCY
+      );
       expect(f.visibleIds()).toEqual(before);
+      expect(removed).toEqual([]); // Pointer-down has not prepared the new view.
       for (let index = 0; index < 8; index++) {
         emit(MAPLIBRE_EVENT.MOVE);
         await vi.advanceTimersByTimeAsync(60);
@@ -254,7 +265,8 @@ describe("current mesh corridor request admission", () => {
         expect(f.visibleIds()).toEqual(before);
         expect(f.receiver.internal.loadingState).toBe(4);
         expect(f.caster.internal.loadingState).toBe(4);
-        expect(removed).toEqual([]);
+        // Current-camera audits cancel obsolete fetches during the drag.
+        expect(removed).toEqual(["stale.b3dm"]);
       }
       moving = false;
       emit(MAPLIBRE_EVENT.MOVE_END);
@@ -545,7 +557,7 @@ describe("current mesh corridor request admission", () => {
     }
   });
 
-  it("admits missing receiver children and caster detail without a removed publication acknowledgement", () => {
+  it("admits missing receiver children before their finer caster demand without publication acknowledgement", () => {
     const f = createMeshCorridorFixture();
     try {
       const left = f.tile("left1", -10, 0, -100, 1, true, f.receiver);
@@ -558,17 +570,19 @@ describe("current mesh corridor request admission", () => {
       f.queued.mockClear();
       f.renderer.queueTileForDownload(right);
       f.renderer.queueTileForDownload(caster);
-      expect(f.queued.mock.calls.map(([tile]) => tile)).toEqual([
-        right,
-        caster,
-      ]);
+      expect(f.queued.mock.calls.map(([tile]) => tile)).toEqual([right]);
+      expect(f.visibleIds()).toEqual(["caster16", "receiver16"]);
       // Even when the native mock does not update loadingState, same-traversal
-      // admission is idempotent. A real pending or loaded payload is never added.
+      // admission is idempotent. Loaded payloads are never queued again.
       f.renderer.queueTileForDownload(right);
       f.renderer.queueTileForDownload(caster);
       f.renderer.queueTileForDownload(left);
-      expect(f.queued).toHaveBeenCalledTimes(2);
+      expect(f.queued).toHaveBeenCalledOnce();
       f.load(right);
+      f.update();
+      f.queued.mockClear();
+      f.renderer.queueTileForDownload(caster);
+      expect(f.queued.mock.calls.map(([tile]) => tile)).toEqual([caster]);
       f.load(caster);
       f.update();
       expect(f.visibleIds()).toEqual(["caster-final", "left1", "right1"]);

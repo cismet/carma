@@ -114,28 +114,20 @@ export const resolveMeshStageTarget = (
     shadowView: boolean;
     minimumTarget: number;
     initialTarget: number;
-    initialReady: boolean;
-    reserveBeforeIdle: boolean;
-    currentTarget: number;
     handoverTarget?: number;
-    handoverReady?: boolean;
-    firstImageReady?: boolean;
-  }>,
-  readyAt: (error: number) => boolean
+    handoverReady: boolean;
+    firstImageReady: boolean;
+  }>
 ): number => {
-  // Explicit cold cascades share the normal family publisher. A complete
-  // viewport hands over independently of offscreen reserve/shadow completion.
-  if (input.handoverTarget !== undefined && !input.handoverReady)
+  // Decision: ../../../TILES_COVERAGE.md#independent-refinement-after-observer-handover
+  // Handover releases local replacement families, not a global reserve or
+  // intermediate pixel-error wave. Their ready parents remain the fallback.
+  if (input.handoverReady) return input.minimumTarget;
+  if (input.handoverTarget !== undefined)
     return input.firstImageReady
       ? Math.max(input.minimumTarget, input.handoverTarget)
       : input.initialTarget;
-  if (input.shadowView) return input.minimumTarget;
-  if (!input.initialReady || input.reserveBeforeIdle)
-    return input.initialTarget;
-  if (readyAt(input.minimumTarget)) return input.minimumTarget;
-  if (readyAt(input.currentTarget))
-    return Math.max(input.minimumTarget, input.currentTarget / 2);
-  return input.currentTarget;
+  return input.shadowView ? input.minimumTarget : input.initialTarget;
 };
 
 /** Ordered preemption consumes one waiting slot only when it aborts a useful

@@ -1,10 +1,4 @@
-import { Box3, Matrix4 } from "three";
-
 import { clamp } from "@carma-commons/math";
-import {
-  createTileCameraDemand,
-  TILE_MAIN_OBSERVER_ID,
-} from "../../core/tile-camera-demand";
 import { resolveMeshStageTarget } from "../../core/tile-scheduling-policy";
 import {
   createEffectiveErrorTargetState,
@@ -12,7 +6,6 @@ import {
   nextEffectiveErrorTarget,
   nextMemoryErrorTarget,
 } from "./three-tiles-load-policy";
-import { readOrientedTileBounds } from "./three-tiles-bounds";
 import { getReadyMeshRegionCut } from "./three-tiles-mesh-frontier";
 import {
   TILES_ERROR_TARGET_MAX_PIXELS,
@@ -70,6 +63,7 @@ export function createThreeTilesQuality(
     | "initialEffectiveErrorTarget"
     | "isPipelineIdle"
     | "isTileInMainView"
+    | "getTileObserverDemand"
     | "requestRender"
     | "requestShadowSelectionRefresh"
     | "resetDeferredTiles"
@@ -182,56 +176,7 @@ export function createThreeTilesQuality(
         const handoverTarget = runtimeState.options.handoverErrorTargetPixels;
         // Decision: ../../../../TILES_COVERAGE.md#configurable-cold-quality-cascades
         // Cold handover is observer coverage, independent of caster detail.
-        const observerViews =
-          handoverTarget === undefined
-            ? []
-            : runtimeState.tileCameraDemand.views.filter(
-                (view) => view.id === TILE_MAIN_OBSERVER_ID
-              );
-        const observer = observerViews.length
-          ? createTileCameraDemand(observerViews)
-          : null;
-        const bounds = observer ? new Box3() : null;
-        const transform = observer ? new Matrix4() : null;
-        const demands = new Map<
-          RuntimeTile,
-          { intersects: boolean; errorPixels: number }
-        >();
-        const demand = (tile: RuntimeTile) => {
-          const cached = demands.get(tile);
-          if (cached) return cached;
-          let result;
-          if (handoverTarget !== undefined) {
-            const volume = tile.engineData?.boundingVolume;
-            if (!observer || !bounds || !transform || !volume?.getAABB)
-              result = {
-                intersects: true,
-                errorPixels: Number.POSITIVE_INFINITY,
-              };
-            else {
-              readOrientedTileBounds(volume, bounds, transform);
-              transform.premultiply(runtimeState.tiles!.group.matrixWorld);
-              bounds.applyMatrix4(transform);
-              const evaluation = observer.evaluate(
-                bounds,
-                tile.geometricError *
-                  runtimeState.tiles!.group.matrixWorld.getMaxScaleOnAxis()
-              );
-              result = {
-                intersects: evaluation.required,
-                errorPixels:
-                  evaluation.errorRatio * observerViews[0].errorTargetPixels,
-              };
-            }
-          } else
-            result = {
-              intersects:
-                !tile.traversal || dependencies.isTileInMainView(tile),
-              errorPixels: dependencies.getTileScreenError(tile, false),
-            };
-          demands.set(tile, result);
-          return result;
-        };
+        const demand = dependencies.getTileObserverDemand;
         const readyAt = (error: number) => {
           if (!root) return false;
           const cut = getReadyMeshRegionCut(
@@ -296,23 +241,11 @@ export function createThreeTilesQuality(
             reserveLimited)
         )
           runtimeState.meshInitialReserveSettled = true;
-        const reserveBeforeIdle =
-          handoverTarget === undefined &&
-          !runtimeState.shadowView &&
-          hasReserve &&
-          !runtimeState.meshInitialReserveSettled;
-        // Decision: TILES_COVERAGE.md#shadow-add-on-follows-the-base-pass-staging-2026-09-18
-        // The base pass is done when the view cut sits at the initial target
-        // and the whole-extent reserve settled. Published base coverage
-        // Two failsafes keep a stalled base pass from suppressing the add-on
-        // for good: published base coverage is the guarantee the staging
-        // exists for, and an idle pipeline over a published cut means nothing
-        // further is coming. Without them a view whose initial cut cannot be
-        // proven shows no shadows at all, which is worse than shadows over a
-        // coarse surface.
+        // First-image coverage releases the base pass. Extent reserve
+        // completion is background progress, never a visible quality gate.
         if (
           !runtimeState.meshInitialBasePassDone &&
-          ((initialReady && !reserveBeforeIdle) ||
+          (initialReady ||
             runtimeState.meshBaseCoverageReady ||
             (dependencies.isPipelineIdle() &&
               runtimeState.displayedMeshFrontier.size > 0))
@@ -320,26 +253,14 @@ export function createThreeTilesQuality(
           runtimeState.meshInitialBasePassDone = true;
           dependencies.applyPendingShadowView();
         }
-        const currentTarget = Math.max(
+        const stageTarget = resolveMeshStageTarget({
+          shadowView: !!runtimeState.shadowView,
           minimumTarget,
-          Math.min(initialTarget, runtimeState.effectiveErrorTarget)
-        );
-        // Shadow receivers already have a joint receiver/caster publication
-        // gate; don't put a second bootstrap dependency in front of its jobs.
-        const stageTarget = resolveMeshStageTarget(
-          {
-            shadowView: !!runtimeState.shadowView,
-            minimumTarget,
-            initialTarget,
-            initialReady,
-            reserveBeforeIdle,
-            currentTarget,
-            handoverTarget,
-            handoverReady: runtimeState.meshInitialHandoverDone,
-            firstImageReady: runtimeState.meshInitialBasePassDone,
-          },
-          readyAt
-        );
+          initialTarget,
+          handoverTarget,
+          handoverReady: runtimeState.meshInitialHandoverDone,
+          firstImageReady: runtimeState.meshInitialBasePassDone,
+        });
         if (
           runtimeState.effectiveErrorTarget !== stageTarget &&
           !movingSkipStrategy

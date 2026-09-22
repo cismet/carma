@@ -386,6 +386,7 @@ export function createThreeTilesRuntimeState(
     motionCoverageTimer,
     motionCoverageDue,
     meshBaseCoverageReady,
+    meshCoverageRecovery: false,
     meshInitialReserveSettled: false,
     meshDemandSweepPending,
     lastMemoryCheck,
