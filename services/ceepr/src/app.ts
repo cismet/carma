@@ -97,6 +97,33 @@ export function setupApp(configDir?: string): express.Express {
     }
   });
 
+  // Edit tokens. A configuration stored with one can later be replaced under
+  // the same key by whoever holds the token, so a link handed out once keeps
+  // working after the content changes (a pm-show show and its phone link).
+  // Only the token's sha256 is kept, in a sidecar next to the configuration
+  // that the read routes never serve. Configurations stored without a token,
+  // which is every share link, stay immutable.
+  const EDIT_TOKEN_HEADER = "x-ceepr-edit-token";
+  const EDIT_TOKEN_PATTERN = /^[A-Za-z0-9_-]{16,256}$/;
+  const INVALID_TOKEN_MESSAGE = `Invalid ${EDIT_TOKEN_HEADER}: 16 to 256 characters of A-Z, a-z, 0-9, _ and -`;
+
+  const hashEditToken = (token: string): Buffer =>
+    crypto.createHash("sha256").update(token).digest();
+
+  /** undefined when the header is absent, null when it is unusable */
+  const editTokenOf = (req: Request): string | null | undefined => {
+    const raw = req.get(EDIT_TOKEN_HEADER);
+    if (raw === undefined) {
+      return undefined;
+    }
+    return EDIT_TOKEN_PATTERN.test(raw) ? raw : null;
+  };
+
+  const isNonEmptyObject = (value: unknown): boolean =>
+    Boolean(value) &&
+    typeof value === "object" &&
+    Object.keys(value as object).length > 0;
+
   // Store configuration endpoint with optional structure path
   app.post("/store/*?", (req: Request, res: Response) => {
     try {
@@ -105,14 +132,15 @@ export function setupApp(configDir?: string): express.Express {
       // Validate the request body
       const config = req.body;
 
-      if (
-        !config ||
-        typeof config !== "object" ||
-        Object.keys(config).length === 0
-      ) {
+      if (!isNonEmptyObject(config)) {
         return res.status(400).send({
           error: "Invalid configuration: must be a non-empty JSON object",
         });
+      }
+
+      const editToken = editTokenOf(req);
+      if (editToken === null) {
+        return res.status(400).send({ error: INVALID_TOKEN_MESSAGE });
       }
 
       // Generate a random key (16 characters)
@@ -133,6 +161,13 @@ export function setupApp(configDir?: string): express.Express {
       // Write the configuration to a file
       fs.writeFileSync(filePath, JSON.stringify(config, null, 2));
 
+      if (editToken) {
+        fs.writeFileSync(
+          path.join(fullDirPath, `${randomKey}.edit`),
+          hashEditToken(editToken).toString("hex")
+        );
+      }
+
       // Return the random key and structure path
       res.status(201).send({
         key: randomKey,
@@ -141,6 +176,67 @@ export function setupApp(configDir?: string): express.Express {
     } catch (error) {
       console.error("Error storing configuration:", error);
       res.status(500).send({ error: "Failed to store configuration" });
+    }
+  });
+
+  // Replace a configuration that was stored with an edit token
+  app.put("/store/*/:key", (req: Request, res: Response) => {
+    try {
+      const { key } = req.params;
+      if (!/^[0-9a-f]+$/.test(key)) {
+        return res.status(400).send({ error: "Invalid key format" });
+      }
+
+      const editToken = editTokenOf(req);
+      if (!editToken) {
+        return res.status(401).send({ error: INVALID_TOKEN_MESSAGE });
+      }
+
+      const config = req.body;
+      if (!isNonEmptyObject(config)) {
+        return res.status(400).send({
+          error: "Invalid configuration: must be a non-empty JSON object",
+        });
+      }
+
+      // everything between "store" and the key
+      const pathParts = req.path.split("/").slice(2, -1);
+      const structurePath = pathParts.join("/");
+      const storageRoot = path.resolve(STORAGE_DIR);
+      const dirPath = path.resolve(storageRoot, structurePath);
+      if (dirPath !== storageRoot && !dirPath.startsWith(storageRoot + path.sep)) {
+        return res.status(400).send({ error: "Invalid path" });
+      }
+
+      const filePath = path.join(dirPath, `${key}.json`);
+      const tokenPath = path.join(dirPath, `${key}.edit`);
+      if (!fs.existsSync(filePath)) {
+        return res.status(404).send({ error: "Configuration not found" });
+      }
+      if (!fs.existsSync(tokenPath)) {
+        return res
+          .status(403)
+          .send({ error: "This configuration cannot be changed" });
+      }
+
+      const stored = Buffer.from(
+        fs.readFileSync(tokenPath, "utf-8").trim(),
+        "hex"
+      );
+      const given = hashEditToken(editToken);
+      if (stored.length !== given.length || !crypto.timingSafeEqual(stored, given)) {
+        return res.status(403).send({ error: "Wrong edit token" });
+      }
+
+      // written aside and renamed, so a read never sees half a file
+      const tempPath = `${filePath}.${crypto.randomBytes(4).toString("hex")}.tmp`;
+      fs.writeFileSync(tempPath, JSON.stringify(config, null, 2));
+      fs.renameSync(tempPath, filePath);
+
+      res.status(200).send({ key, path: structurePath || "/" });
+    } catch (error) {
+      console.error("Error replacing configuration:", error);
+      res.status(500).send({ error: "Failed to replace configuration" });
     }
   });
 

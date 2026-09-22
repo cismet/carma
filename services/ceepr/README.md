@@ -67,6 +67,26 @@ curl -X POST http://localhost:3000/store/wuppertal/geoportal \
 }
 ```
 
+**Optional header `X-Ceepr-Edit-Token`:** 16 to 256 characters of `A-Z a-z 0-9 _ -`, chosen by the client. A configuration stored with one can later be replaced under the same key (see PUT below), so a link handed out once keeps working after the content changes. Only the token's sha256 is kept, in a `<key>.edit` file next to the configuration; the read routes never serve it. Without the header a configuration can never change, which is what every share link relies on.
+
+### PUT /store/structure/path/:key
+
+Replaces a configuration that was stored with an edit token. Needs the same token in `X-Ceepr-Edit-Token`.
+
+```bash
+curl -X PUT http://localhost:3000/store/wuppertal/_dev_geoportal_pmshows/a1b2c3d4e5f6a7b8 \
+  -H "Content-Type: application/json" \
+  -H "X-Ceepr-Edit-Token: <the token used on store>" \
+  -d '{"title": "changed"}'
+```
+
+| Status | Meaning                                                  |
+| ------ | -------------------------------------------------------- |
+| 200    | replaced, body `{ "key": ..., "path": ... }`              |
+| 401    | no usable token in the header                             |
+| 403    | wrong token, or the configuration was stored without one |
+| 404    | no configuration under this key                           |
+
 ### GET /config/:key
 
 Retrieves a configuration by its key from the root storage directory.
