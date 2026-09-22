@@ -239,7 +239,10 @@ export const collectLoadedMeshReceiverCandidates = (
     }
     // Visible siblings are publication prerequisites too. Otherwise offscreen
     // support requests outrank the last visible members of the same family.
-    if (options?.atomic && isNextPublishedMeshLevel(tile, options.published))
+    if (
+      options?.atomic &&
+      isPublishedMeshRefinementLevel(tile, options.published)
+    )
       options.support.add(tile);
     // Complete only the immediate replacement family, not another offscreen
     // refinement tree. Publishing a viewport-only subset forces a downgrade
@@ -355,14 +358,22 @@ export const collectLoadedMeshReceiverCandidates = (
  * global queue idleness. A published coarse REPLACE tile is sufficient at its
  * explicit stage error; otherwise every intersecting branch must have a real
  * published replacement. FAILED and unknown metadata are never coverage.
+ * An optional cache belongs to one immutable camera/frontier/error snapshot.
  */
 export const getReadyMeshRegionCut = (
   root: Tile,
   published: ReadonlySet<Tile>,
   errorPixels: number,
-  demand: (tile: Tile) => { intersects: boolean; errorPixels: number }
+  demand: (tile: Tile) => { intersects: boolean; errorPixels: number },
+  cache?: Map<Tile, readonly Tile[] | null>
 ): readonly Tile[] | null => {
-  const visit = (tile: Tile): Tile[] | null => {
+  const visit = (tile: Tile): readonly Tile[] | null => {
+    if (cache?.has(tile)) return cache.get(tile)!;
+    const result = read(tile);
+    cache?.set(tile, result);
+    return result;
+  };
+  const read = (tile: Tile): readonly Tile[] | null => {
     const internal = tile.internal;
     if (!internal) return null;
     const target = demand(tile);
@@ -541,30 +552,36 @@ export const shouldDeferMeshRefinement = (
   return false;
 };
 
-/** A published surface always refines through its next drawable family.
- * Zooming changes pixel error, not this tree relationship. Only branches with
- * no published parent can bootstrap directly to initial quality.
+/** Locate a drawable level below a published replacement surface. Routing
+ * JSON and unconditional nodes do not count as LODs. Publication uses the
+ * immediate level; request discovery may look further ahead without moving
+ * that publication boundary.
  */
-export const isNextPublishedMeshLevel = (
+export const isPublishedMeshRefinementLevel = (
   tile: Tile,
-  published: ReadonlySet<Tile>
+  published: ReadonlySet<Tile>,
+  minimumLevel = 1,
+  maximumLevel = minimumLevel
 ): boolean => {
   if (
     !tile.internal?.hasRenderableContent ||
     isMeshTileUnconditionallyRefined(tile)
   )
     return false;
+  let level = 0;
   for (let parent = tile.parent; parent; parent = parent.parent) {
     if (
       !parent.internal?.hasRenderableContent ||
       isMeshTileUnconditionallyRefined(parent)
     )
       continue;
-    return (
-      parent.refine === "REPLACE" &&
-      isLoadedMesh(parent) &&
-      published.has(parent)
-    );
+    if (parent.refine !== "REPLACE") return false;
+    level++;
+    if (published.has(parent))
+      return (
+        level >= minimumLevel && level <= maximumLevel && isLoadedMesh(parent)
+      );
+    if (level >= maximumLevel) return false;
   }
   return false;
 };
@@ -770,7 +787,8 @@ export const getRetainedMeshAncestors = (
   previous: ReadonlySet<Tile>,
   requestedError: number,
   inView: (tile: Tile) => boolean,
-  errorPixels: (tile: Tile) => number
+  errorPixels: (tile: Tile) => number,
+  allowInViewCoarsening = true
 ): Set<Tile> => {
   const retained = new Set<Tile>();
   const coarsenable = new Map<Tile, boolean>();
@@ -780,7 +798,8 @@ export const getRetainedMeshAncestors = (
       if (!coarsenable.has(parent))
         coarsenable.set(
           parent,
-          canCoarsenMeshCut(parent, previous, requestedError, errorPixels)
+          allowInViewCoarsening &&
+            canCoarsenMeshCut(parent, previous, requestedError, errorPixels)
         );
       if (parent.refine === "REPLACE" && !coarsenable.get(parent))
         retained.add(parent);
@@ -805,6 +824,7 @@ export const retainMeshDetailFrontier = ({
   inView,
   errorPixels = (tile) => tile.traversal.error,
   acceptsOffscreenFallback = () => true,
+  allowInViewCoarsening = true,
 }: {
   previous: ReadonlySet<Tile>;
   proposed: ReadonlySet<Tile>;
@@ -813,6 +833,8 @@ export const retainMeshDetailFrontier = ({
   errorPixels?: (tile: Tile) => number;
   /** Distance-dependent reserve demand; do not collapse the fringe to the root. */
   acceptsOffscreenFallback?: (tile: Tile) => boolean;
+  /** Motion admission may fill new regions without downgrading visible detail. */
+  allowInViewCoarsening?: boolean;
 }): Set<Tile> => {
   const result = new Set(proposed);
   const rejected = new Set<Tile>();
@@ -873,7 +895,8 @@ export const retainMeshDetailFrontier = ({
       if (proposed.has(parent) && !coarsenable.has(parent))
         coarsenable.set(
           parent,
-          canCoarsenMeshCut(parent, previous, requestedError, errorPixels)
+          allowInViewCoarsening &&
+            canCoarsenMeshCut(parent, previous, requestedError, errorPixels)
         );
       if (
         parent.refine === "REPLACE" &&

@@ -46,7 +46,8 @@ const coversWholeTile = (
 export const advanceTerrainTileFrontier = (
   current: readonly FrontierTile[],
   requested: readonly FrontierTile[],
-  isReady: (key: string) => boolean
+  isReady: (key: string) => boolean,
+  canCoarsen: (key: string) => boolean = () => true
 ): FrontierTile[] => {
   let frontier = [...current];
   const ready = requested.filter((tile) => isReady(tile.key));
@@ -60,6 +61,12 @@ export const advanceTerrainTileFrontier = (
   );
   for (const candidate of readyCut) {
     const covered = frontier.filter((tile) => overlaps(tile, candidate));
+    if (
+      covered.some(
+        (tile) => tile.id.level > candidate.id.level && !canCoarsen(tile.key)
+      )
+    )
+      continue;
     const ancestor = covered.find((tile) => tile.id.level < candidate.id.level);
     const replacements = ancestor
       ? readyCut.filter((tile) => terrainTileContains(ancestor.id, tile.id))

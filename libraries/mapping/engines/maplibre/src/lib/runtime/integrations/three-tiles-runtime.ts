@@ -109,6 +109,7 @@ export function buildThreeTilesRuntime(
     setShadowSelectionEnabled: (...args) =>
       shadows.setShadowSelectionEnabled(...args),
     isTileInMainView: (...args) => spatial.isTileInMainView(...args),
+    getTileObserverDemand: (...args) => spatial.getTileObserverDemand(...args),
     maybeEnableShadowSelection: (...args) =>
       shadows.maybeEnableShadowSelection(...args),
     isTileInPrefetchMargin: (...args) =>
@@ -158,6 +159,9 @@ export function buildThreeTilesRuntime(
       shadows.peekShadowRegionRevision(...args),
   });
   const lifecycle = createThreeTilesLifecycle(state, {
+    isTileNeededForMeshCoverage: (...args) =>
+      spatial.isTileNeededForMeshCoverage(...args),
+
     isTileInPrefetchMargin: (...args) =>
       spatial.isTileInPrefetchMargin(...args),
     recordCacheCeilingFailure: (...args) =>
@@ -200,6 +204,7 @@ export function buildThreeTilesRuntime(
     recordTileIteration: (...args) => debug.recordTileIteration(...args),
     applyTileDeferral: (...args) => loading.applyTileDeferral(...args),
     isTileInMainView: (...args) => spatial.isTileInMainView(...args),
+    getTileObserverDemand: (...args) => spatial.getTileObserverDemand(...args),
     assignTilePriority: (...args) => loading.assignTilePriority(...args),
     handleWireBytes: (...args) => loading.handleWireBytes(...args),
     syncTileDebugOverlay: (...args) => debug.syncTileDebugOverlay(...args),

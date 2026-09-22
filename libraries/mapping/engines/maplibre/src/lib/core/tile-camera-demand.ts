@@ -16,6 +16,7 @@ export const TILE_CAMERA_PRIORITY = {
   PRIMARY: 1,
   FOCUS: 2,
   COVERAGE_REPAIR: 3,
+  VIEWPORT_FILL: 4,
 } as const;
 
 /** A demand source in the shared scene's world coordinates, not a new scene. */

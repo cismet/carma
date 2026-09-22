@@ -36,6 +36,9 @@ export const MESH_PARSE_CONCURRENCY = 2;
 
 export const MESH_DOWNLOAD_CONCURRENCY = 16;
 
+/** Extra drawable levels beyond the immediate replacement family; zero disables prefetch. */
+export const MESH_REFINEMENT_PREFETCH_LEVELS = 0;
+
 /**
  * Skip strategy while the camera moves: downloads and scene commits continue
  * at a bounded rate so newly exposed ground fills during a drag or a zoom

@@ -373,6 +373,16 @@ export function useMapHashRouting({
     const handlePopState = (e: HashStateChangeEvent) => {
       if (e.source !== "popstate") return;
       if (!getIsLeaflet()) return;
+      // Addon-only history changes must not interrupt a moving camera by
+      // replaying its older URL position (for example when toggling shadows).
+      const cameraKeys = ["lat", "lng", "zoom", "bearing", "pitch"];
+      if (
+        ![...e.changedStateKeys, ...e.removedStateKeys].some((key) =>
+          cameraKeys.includes(key)
+        )
+      ) {
+        return;
+      }
       const lat = e.stateValues.lat as number | undefined;
       const lng = e.stateValues.lng as number | undefined;
       const zoomFromHash = e.stateValues.zoom as number | undefined;

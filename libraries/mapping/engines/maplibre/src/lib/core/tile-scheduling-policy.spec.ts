@@ -248,80 +248,62 @@ describe("tile scheduling decisions", () => {
       );
   });
   it.each([false, true])(
-    "hands an explicit cold cascade to idle after observer readiness (shadows=%s)",
+    "hands an explicit cold cascade to independent idle families (shadows=%s)",
     (shadowView) => {
-      const ready = vi.fn(() => true);
       const input = {
         shadowView,
         minimumTarget: 4,
         initialTarget: 96,
-        initialReady: false,
-        reserveBeforeIdle: false,
-        currentTarget: 96,
         handoverTarget: 8,
         handoverReady: false,
         firstImageReady: false,
       };
-      expect(resolveMeshStageTarget(input, ready)).toBe(96);
+      expect(resolveMeshStageTarget(input)).toBe(96);
+      expect(resolveMeshStageTarget({ ...input, firstImageReady: true })).toBe(
+        8
+      );
+      expect(resolveMeshStageTarget({ ...input, handoverReady: true })).toBe(4);
       expect(
-        resolveMeshStageTarget({ ...input, firstImageReady: true }, ready)
-      ).toBe(8);
-      expect(
-        resolveMeshStageTarget(
-          {
-            ...input,
-            firstImageReady: true,
-            handoverReady: true,
-            initialReady: true,
-          },
-          ready
-        )
-      ).toBe(4);
-      expect(
-        resolveMeshStageTarget(
-          { ...input, firstImageReady: true, minimumTarget: 12 },
-          ready
-        )
+        resolveMeshStageTarget({
+          ...input,
+          firstImageReady: true,
+          minimumTarget: 12,
+        })
       ).toBe(12);
     }
   );
-  it("keeps stage readiness lazy and never adds a second shadow publication gate", () => {
-    const ready = vi.fn(() => false);
+
+  it("keeps legacy first-fill staging and releases the final target after first observer idle", () => {
     const input = Object.freeze({
-      shadowView: true,
-      minimumTarget: 1,
-      initialTarget: 16,
-      initialReady: false,
-      reserveBeforeIdle: true,
-      currentTarget: 8,
+      shadowView: false,
+      minimumTarget: 6,
+      initialTarget: 64,
+      handoverReady: false,
+      firstImageReady: false,
     });
-    expect(resolveMeshStageTarget(input, ready)).toBe(1);
-    expect(ready).not.toHaveBeenCalled();
-    expect(resolveMeshStageTarget({ ...input, shadowView: false }, ready)).toBe(
-      16
-    );
-    expect(ready).not.toHaveBeenCalled();
+    expect(resolveMeshStageTarget(input)).toBe(64);
     expect(
-      resolveMeshStageTarget(
-        {
-          ...input,
-          shadowView: false,
-          initialReady: true,
-          reserveBeforeIdle: false,
-        },
-        (error) => error === 8
-      )
-    ).toBe(4);
+      resolveMeshStageTarget({
+        ...input,
+        initialTarget: 16,
+        firstImageReady: true,
+      })
+    ).toBe(16);
     expect(
-      resolveMeshStageTarget(
-        {
-          ...input,
-          shadowView: false,
-          initialReady: true,
-          reserveBeforeIdle: false,
-        },
-        ready
-      )
-    ).toBe(8);
+      resolveMeshStageTarget({
+        ...input,
+        initialTarget: 16,
+        firstImageReady: true,
+        handoverReady: true,
+      })
+    ).toBe(6);
+    expect(
+      resolveMeshStageTarget({
+        ...input,
+        handoverReady: true,
+        minimumTarget: 20,
+      })
+    ).toBe(20);
+    expect(resolveMeshStageTarget({ ...input, shadowView: true })).toBe(6);
   });
 });

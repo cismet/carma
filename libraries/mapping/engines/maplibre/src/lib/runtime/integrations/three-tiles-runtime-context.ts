@@ -124,6 +124,8 @@ export interface ThreeTilesRuntimeState {
   /** Sibling payloads/materials needed to replace the published cut without gaps. */
   meshRefinementSupport: Set<Tile>;
   meshBaseCoverageReady: boolean;
+  /** Current observer has uncovered branches beside an already published cut. */
+  meshCoverageRecovery: boolean;
   /** Startup reserve pass completed or yielded to a capacity/source limit. */
   meshInitialReserveSettled: boolean;
   lastMemoryCheck: number;
@@ -351,11 +353,16 @@ export interface ThreeTilesRuntimeServices {
   requestShadowSelectionRefresh: () => void;
   isPipelineIdle: () => boolean;
   isTileInMainView: (tile: RuntimeTile) => boolean;
+  getTileObserverDemand: (tile: RuntimeTile) => {
+    intersects: boolean;
+    errorPixels: number;
+  };
   getTileCameraDemand: (
     tile: RuntimeTile,
     includeObserver?: boolean
   ) => ReturnType<ReturnType<typeof createTileCameraDemand>["evaluate"]>;
   getTileRequestPriority: (tile: RuntimeTile) => number;
+  isTileNeededForMeshCoverage: (tile: Tile) => boolean;
   isChildUnloadable: (child: RuntimeTile) => boolean;
   mainViewWithinErrorFactor: (
     factor: number,

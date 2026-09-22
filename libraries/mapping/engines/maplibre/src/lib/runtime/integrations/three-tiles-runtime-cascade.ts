@@ -48,6 +48,7 @@ export function createThreeTilesCascade(
     | "tiles"
     | "map"
     | "meshBaseCoverageReady"
+    | "meshCoverageRecovery"
     | "meshRefinementSupport"
     | "residentAncestors"
     | "effectiveErrorTarget"
@@ -71,6 +72,7 @@ export function createThreeTilesCascade(
     | "getTileScreenError"
     | "getTileCameraDemand"
     | "getTileRequestPriority"
+    | "isTileNeededForMeshCoverage"
     | "isTileInPrefetchMargin"
     | "applyTileDeferral"
   >
@@ -91,6 +93,11 @@ export function createThreeTilesCascade(
     lightFacing: 0,
   };
   const isTileRequestNeeded = (tile: Tile) => {
+    if (
+      runtimeState.meshCoverageRecovery &&
+      dependencies.isTileNeededForMeshCoverage(tile)
+    )
+      return true;
     if (
       runtimeState.extentFloorArmed &&
       isExtentFloorTile(tile, runtimeState.extentGeometricError)

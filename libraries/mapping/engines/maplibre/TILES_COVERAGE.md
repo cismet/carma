@@ -1,3 +1,93 @@
+## Bounded mesh request lookahead
+
+**ID / date / status:** mesh-request-lookahead / 2026-09-22 / implemented;
+optional depth comparison completed; extra payload levels disabled by default.
+
+**Context:** Stopping native discovery at the immediate drawable child can
+also delay deeper metadata and payload discovery. However, additional requests
+only improve throughput when the delivery path has spare capacity. Response
+latency alone does not establish that capacity.
+
+**Decision:** `MESH_REFINEMENT_PREFETCH_LEVELS` counts extra drawable levels
+beyond the immediate replacement family: zero keeps ordinary traversal; one
+also discovers grandchildren; two also discovers great-grandchildren.
+Metadata-only and unconditional routing nodes do not consume this depth budget.
+Optional lookahead applies to stationary meshes without shadows, within the
+current screen-space error target. Intermediate prefetched payloads are queued
+too, so skip traversal does not omit a pending replacement level. Speculative
+siblings do not enter the coverage-repair lane; immediate family support retains
+higher priority. Required metadata does not wait for its parent's payload.
+Native queues, memory admission, cancellation and atomic publication remain.
+Motion/shadow discovery and cold first-image selection remain unchanged.
+
+The default remains 16 parallel payload downloads and zero extra payload levels.
+The one/two-level settings remain available for controlled comparisons; they
+must not be enabled merely because CPU parsing capacity is spare.
+
+**Evidence and limits:** Focused policy, frontier, current-view, liveness and
+cancellation regressions cover depths zero/one/two, routed pending parents,
+actual native download/parse starts, lower speculative priority, retained parent
+coverage, movement bounds, and memory/loading pauses. A Full-HD DPR1 cold
+Mesh2024 pilot without shadows reached the same observed 5.81 CSS-pixel maximum
+at 73.0s/84.9s in two zero-extra-level runs, 82.8s with one and 80.5s with
+two, measured from manager initialization. At 24 parallel downloads the zero/one-level variants
+took 81.3s/87.6s. These pilot cases do not establish portable quality targets or
+statistically significant differences. They do not justify raising either
+prefetch depth or concurrency: steady refinement occupied nearly all request
+slots, while parse backlog was zero or one and memory admission stayed open.
+Browser HTTP/2 dispatch was sub-millisecond; response/body delivery dominated.
+Origin capacity versus the access path remains unisolated.
+
+**Revisit when:** Required request slots remain idle despite known URLs, or
+request ordering demonstrably delays a visible replacement prerequisite.
+Validate equal quality, transferred bytes, completion latency, memory and
+cancellation waste together before increasing speculation or parallelism.
+
+## Independent refinement after observer handover
+
+**ID / date / status:** observer-handover-refinement / 2026-09-22 /
+implemented; focused regressions pass; cold plain-mesh pilot converges.
+
+**Context and constraints:** The legacy non-shadow path held the effective
+16px target until the whole extent reserve settled, then advanced through
+view-wide intermediate error targets. This contradicted independent local
+replacement after the first observer idle. A cold diagnostic at
+51.2490623/7.1226617, zoom15.992, bearing38.29, pitch57.02, Full-HD DPR1,
+Mesh2024 without shadows confirmed observer handover while reserve pending
+kept the16px target for about14s. Parse queues were empty, memory admission was
+open, and no mesh request failed. The server/path also contributed median
+1.94s response waits; the diagnostic does not isolate origin processing from
+network congestion or establish portable bandwidth.
+
+**Decision:** First-image and observer-handover targets remain startup gates.
+Once observer handover occurs, request the final memory-bounded target and
+publish independent complete replacement families. The entire reserve and
+intermediate view-wide pixel stages are not prerequisites. Reserve admission,
+priority, retained parents, atomic family publication and memory limits are
+unchanged. This supersedes the reserve-before-idle and view-wide refinement
+wave clauses in the historical policy inventories below.
+
+**Alternatives and disposition:** Raising request concurrency is deferred:
+the confirmed delay was an explicit quality gate. Removing parent fallback
+or family completeness is incompatible with the no-hole contract. Removing
+the reserve itself was not evaluated and is unnecessary.
+
+**Evidence:** A runtime regression holds reserve auditing and three pending
+reserve entries open while verifying handover releases6px and retains the
+ready parent. It fails on d124d0ca8 and passes with this change. Focused policy,
+current-view and frontier checks pass. Three previous liveness failures were
+classified against the current contract: normal ancestor tests must finish
+cold handover first, and queue admission resumes through native wakeups rather
+than continuous render polling. The revised cases preserve the parent-first
+assertion, explicitly cover cold and normal motion, and start a real paused
+download after admission resumes without polling renders. All14 liveness
+cases pass; the combined focused result is175 passing cases. Browser diagnostics
+are single runs, not repeated performance acceptance; app/bootstrap cost and
+GPU isolation limitations remain separate from controllable loader latency.
+
+**Revisit when:** A missing local replacement prerequisite is not admitted,
+a ready family remains unpublished, or memory pressure prevents convergence.
+
 ## Configurable cold quality cascades
 
 The optional style fields `firstImageErrorTarget` and `handoverErrorTarget`
@@ -2081,3 +2171,74 @@ is required before claiming a load-time gain or live convergence.
 or caster geometry significantly exceeds the displayed receiver's useful detail.
 Inspect admission, parent fallback and publication separately before changing
 network limits or the pixel targets.
+
+
+## Motion preserves visible detail
+
+**ID / date / status:** MOTION-VISIBLE-DETAIL / 2026-09-22 / implemented.
+
+**Context:** the motion error target admits newly exposed coverage cheaply. It
+is not permission to replace an already displayed in-view tile with a coarser
+ancestor, even if zooming out makes that ancestor satisfy the normal idle error.
+
+**Decision:** disable in-view mesh coarsening during movement in both retained
+ancestor traversal and final publication, with or without shadows. Three-terrain
+publication likewise retains required visible geometry and rechecks that rule
+after asynchronous boundary preparation. Ready finer replacements and new
+coarse coverage may publish; fully offscreen families can still coarsen. Retain
+atomic replacement and coverage fallback if an earlier family is incomplete.
+
+After moveend, resume the existing normal target/cascade. Terrain republishes
+an already-loaded selection after settling even when its requested IDs have not
+changed, so preserving detail during movement cannot leave that selection stuck.
+This uses cached payloads, without re-downloading tiles just to settle. DPR and
+quality values are unchanged.
+
+**Alternatives:** merely comparing against the idle error still downgraded
+visible tiles during zoom-out (incompatible with the requested interaction).
+Freezing the entire displayed cut would prevent new coverage and ready family
+refinement (incompatible). Preserving offscreen detail unconditionally would
+undermine cache recovery (not adopted).
+
+**Evidence:** focused frontier/runtime regressions reproduce movement
+coarsening before the guard; they check retained children, new regions,
+offscreen replacement, plain/shadow paths and return to normal selection.
+Terrain runtime cases cover configured and absent motion error targets and
+settling without extra tile requests. These are functional regressions, not
+new cold-load timing or memory-throughput measurements.
+
+**Revisit when:** motion residency exceeds the existing memory admission budget;
+any revised policy must preserve visible coverage and explicitly resolve the
+tradeoff instead of reusing the motion request target as a display downgrade.
+
+## Viewport coverage recovery
+
+Decision: `VIEWPORT-RECOVERY-20260922`.
+
+Once any cut is published, a newly uncovered observer branch immediately re-enters
+viewport-first filling, including camera changes before startup handover. This is a current-camera geometric coverage proof over
+the published cut, independent of screen-space error and the one-way startup
+milestones. A covered but coarse surface does not re-enter recovery.
+
+Missing visible coverage ranks above replacement support for covered regions.
+Recovery discovers and publishes the first-image LOD without waiting for
+proven offscreen siblings, and parks new detail/background downloads. Pending
+buffers keep their native promises; useful parses can run while downloads wait.
+Existing saturation preemption can release download slots for actual queued
+coverage work. Metadata discovery remains on its existing separate queues.
+
+Published visible detail stays retained during recovery, including after motion
+stops. Each arriving complete visible replacement family may publish immediately.
+Once observer coverage is proved, normal family completion, quality demand and
+parked queues resume without waiting for idle or shadow convergence. The camera,
+DPR, requested quality, and initial handover milestone are unchanged.
+
+Regression coverage: `three-tiles-runtime.view-refresh.spec.ts` exercises warm
+covered view → newly visible holes → coarse fill → normal refinement, stationary
+and moving, with and without shadows.
+
+Observer inclusion uses the same clipped camera demand as screen-space error,
+with the native volume frustum as a broad-phase check. Conservative raw hits
+that have no clipped intersection cannot block publication or handover. The
+observer-only proof is shared by recovery, cold family selection and startup
+quality; additional receiver/caster views retain their separate demand.

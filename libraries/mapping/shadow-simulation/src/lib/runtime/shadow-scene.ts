@@ -2,7 +2,6 @@ import {
   usesMobileShadowBaseline,
   constrainMobileShadowTerrain,
   constrainMobileShadowRendering,
-  MOBILE_SHADOW_PIXEL_RATIO,
   MOBILE_MESH_CACHE_BYTES,
 } from "../core/shadow-device-profile";
 import { MercatorCoordinate, type Map as MaplibreMap } from "maplibre-gl";
@@ -1024,11 +1023,6 @@ export const buildShadowSimulationScene = (
     terrainQuality = SHADOW_TERRAIN_QUALITY.MAX,
   } = options;
   const mobileBaseline = usesMobileShadowBaseline();
-  const previousPixelRatio = mobileBaseline ? map.getPixelRatio?.() : undefined;
-  const limitPixelRatio =
-    previousPixelRatio !== undefined &&
-    previousPixelRatio > MOBILE_SHADOW_PIXEL_RATIO;
-  if (limitPixelRatio) map.setPixelRatio(MOBILE_SHADOW_PIXEL_RATIO);
   let terrain = initialTerrain;
   const initialShadowAreaMeters =
     configuredShadowAreaMeters ?? FALLBACK_SHADOW_AREA_METERS;
@@ -3264,11 +3258,6 @@ export const buildShadowSimulationScene = (
       try {
         if (map.isStyleLoaded()) {
           map.setLight(previousLight);
-          if (
-            limitPixelRatio &&
-            map.getPixelRatio() === MOBILE_SHADOW_PIXEL_RATIO
-          )
-            map.setPixelRatio(previousPixelRatio);
         }
       } catch {
         // Nothing remains to restore after map teardown.

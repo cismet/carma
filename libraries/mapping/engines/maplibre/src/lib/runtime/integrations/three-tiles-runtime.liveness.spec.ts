@@ -9,12 +9,14 @@
  */
 
 import { TilesRenderer } from "3d-tiles-renderer";
+import type { Tile } from "3d-tiles-renderer/core";
 import type { Map as MaplibreMap } from "maplibre-gl";
 import * as THREE from "three";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { MAPLIBRE_EVENT } from "../../../constants/mapEvents";
 import { buildThreeTilesRuntime } from "./three-tiles-runtime";
+import type { ThreeTilesRuntimeState } from "./three-tiles-runtime-context";
 import {
   HIDDEN_TAB_WIPE_DELAY_MS,
   MESH_MOTION_COVERAGE_INTERVAL_MS,
@@ -217,7 +219,7 @@ describe("three tiles runtime liveness", () => {
   });
 
   it("admits a ready mesh branch directly after base coverage without an intermediate view-wide stage", () => {
-    const { layer, renderer, frame } = mountRuntime(true);
+    const { layer, renderer, frame } = mountRuntime(true, false, true);
     const parent = {
       ...buildTile("coarse.b3dm", new THREE.Group()),
       refine: "REPLACE",
@@ -237,48 +239,62 @@ describe("three tiles runtime liveness", () => {
     frame.renderCamera.position.x = 1;
     frame.renderCamera.updateMatrixWorld(true);
     layer.scene.update(frame);
+    const state = layer.debug.readState() as ThreeTilesRuntimeState;
+    expect(state.meshInitialHandoverDone).toBe(true);
+    // Handover wakes the next traversal, which installs normal ancestor loading.
+    layer.scene.update(frame);
+    expect(renderer.loadAncestors).toBe(true);
     renderer.queueTileForDownload(child);
     renderer.queueTileForDownload(child);
     expect(renderer.queuedTiles).toEqual([child]);
     renderer.queueTileForDownload(grandchild);
+    // The default keeps speculative payload levels disabled. Completion of
+    // this local parent releases its child without waiting for other families.
     expect(renderer.queuedTiles).toEqual([child]);
+    expect(state.displayedMeshFrontier.has(parent as unknown as Tile)).toBe(
+      true
+    );
     child.internal.loadingState = 4;
     renderer.queueTileForDownload(grandchild);
     expect(renderer.queuedTiles).toEqual([child, grandchild]);
     layer.scene.dispose();
   });
 
-  it("throttles mesh coverage during input and traverses immediately after movement", () => {
-    const { layer, map, frame, renderer } = mountRuntime(true);
-    let moving = true;
-    Object.assign(map, { isMoving: () => moving });
-    const emit = (event: string) => {
-      const calls = vi.mocked(map.on).mock.calls as unknown as [
-        string,
-        () => void
-      ][];
-      for (const [type, handler] of calls) if (type === event) handler();
-    };
-    const update = vi.mocked(renderer.update);
-    update.mockClear();
-    emit(MAPLIBRE_EVENT.MOVE_START);
-    emit(MAPLIBRE_EVENT.MOVE);
-    layer.scene.update(frame);
-    // MOVE_START owns one immediate latest-camera coverage audit. Subsequent
-    // motion frames remain throttled until the bounded timer fires.
-    expect(update).toHaveBeenCalledTimes(1);
-    vi.advanceTimersByTime(MESH_MOTION_COVERAGE_INTERVAL_MS - 1);
-    layer.scene.update(frame);
-    expect(update).toHaveBeenCalledTimes(1);
-    vi.advanceTimersByTime(1);
-    layer.scene.update(frame);
-    expect(update).toHaveBeenCalledTimes(2);
-    moving = false;
-    emit(MAPLIBRE_EVENT.MOVE_END);
-    layer.scene.update(frame);
-    expect(update).toHaveBeenCalledTimes(3);
-    layer.scene.dispose();
-  });
+  it.each([false, true])(
+    "coalesces normal ancestor motion while cold viewport fill stays live (handover=%s)",
+    (handover) => {
+      const { layer, map, frame, renderer } = mountRuntime(true, false, true);
+      const state = layer.debug.readState() as ThreeTilesRuntimeState;
+      state.meshInitialHandoverDone = handover;
+      let moving = true;
+      Object.assign(map, { isMoving: () => moving });
+      const emit = (event: string) => {
+        const calls = vi.mocked(map.on).mock.calls as unknown as [
+          string,
+          () => void
+        ][];
+        for (const [type, handler] of calls) if (type === event) handler();
+      };
+      const update = vi.mocked(renderer.update);
+      update.mockClear();
+      emit(MAPLIBRE_EVENT.MOVE_START);
+      emit(MAPLIBRE_EVENT.MOVE);
+      layer.scene.update(frame);
+      expect(update).toHaveBeenCalledTimes(1);
+      expect(renderer.loadAncestors).toBe(handover);
+      vi.advanceTimersByTime(MESH_MOTION_COVERAGE_INTERVAL_MS - 1);
+      layer.scene.update(frame);
+      expect(update).toHaveBeenCalledTimes(handover ? 1 : 2);
+      vi.advanceTimersByTime(1);
+      layer.scene.update(frame);
+      expect(update).toHaveBeenCalledTimes(handover ? 2 : 3);
+      moving = false;
+      emit(MAPLIBRE_EVENT.MOVE_END);
+      layer.scene.update(frame);
+      expect(update).toHaveBeenCalledTimes(handover ? 3 : 4);
+      layer.scene.dispose();
+    }
+  );
 
   it("removes a failed tile from the cache and requests it again after the backoff", () => {
     const { layer, renderer } = mountRuntime();
@@ -453,19 +469,29 @@ describe("three tiles runtime liveness", () => {
     layer.scene.dispose();
   });
 
-  it("keeps rendering for queued downloads only while downloads may run", () => {
+  it("wakes queued downloads when admission resumes without render polling", async () => {
     const { layer, repaint, frame, renderer } = mountRuntime();
+    layer.loading.setRequestConcurrency(0);
+    const tile = buildTile("queued.b3dm") as unknown as Tile;
+    const run = vi.fn(async () => undefined);
+    const pending = renderer.downloadQueue.add(
+      "https://example.test/queued.b3dm",
+      tile,
+      run
+    );
     renderer.stats.queued = 1;
 
-    layer.loading.setRequestConcurrency(0);
     repaint.mockClear();
     layer.scene.update(frame);
+    expect(run).not.toHaveBeenCalled();
     expect(repaint).not.toHaveBeenCalled();
 
     layer.loading.setRequestConcurrency(8);
     repaint.mockClear();
     layer.scene.update(frame);
-    expect(repaint).toHaveBeenCalled();
+    await pending;
+    expect(run).toHaveBeenCalledOnce();
+    expect(repaint).not.toHaveBeenCalled();
     layer.scene.dispose();
   });
 

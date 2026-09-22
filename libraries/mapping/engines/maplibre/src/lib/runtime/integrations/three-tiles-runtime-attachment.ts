@@ -24,12 +24,13 @@ import {
 } from "./three-tiles-load-policy";
 import {
   isMeshCoveredByLoadedChildren,
-  isNextPublishedMeshLevel,
+  isPublishedMeshRefinementLevel,
   shouldDeferMeshRefinement,
 } from "./three-tiles-mesh-frontier";
 import {
   KICKSTART_INTERVAL_MS,
   MESH_PARSE_CONCURRENCY,
+  MESH_REFINEMENT_PREFETCH_LEVELS,
 } from "./three-tiles-runtime-config";
 import type {
   ThreeTilesRuntimeServices,
@@ -73,6 +74,7 @@ type ThreeTilesRuntimeAttachmentState = Pick<
   | "meshAuditTimer"
   | "meshBaseCoverageReady"
   | "meshInitialHandoverDone"
+  | "meshCoverageRecovery"
   | "displayedMeshFrontier"
   | "lastMainViewConverged"
   | "meshRefinementSupport"
@@ -126,6 +128,7 @@ type ThreeTilesRuntimeAttachmentDependencies = Pick<
   | "getTileScreenError"
   | "getTileCameraDemand"
   | "getTileRequestPriority"
+  | "isTileNeededForMeshCoverage"
   | "handleContextLost"
   | "handleContextRestored"
   | "handleLoadError"
@@ -142,6 +145,7 @@ type ThreeTilesRuntimeAttachmentDependencies = Pick<
   | "handleWireBytes"
   | "initialEffectiveErrorTarget"
   | "isTileInMainView"
+  | "getTileObserverDemand"
   | "getTileRingIndex"
   | "recordTileIteration"
   | "refreshRenderedMaterials"
@@ -245,6 +249,13 @@ export function createThreeTilesRuntimeAttachment(
         dependencies.recordTileIteration(tile);
       calculateTileViewErrorWithPlugin(tile, target);
       if (
+        runtimeState.options.providesTerrain &&
+        (tile as RuntimeTile).engineData?.boundingVolume?.getAABB
+      )
+        target.inView &&= dependencies.getTileObserverDemand(
+          tile as RuntimeTile
+        ).intersects;
+      if (
         target.inView &&
         (tile as RuntimeTile).engineData?.boundingVolume?.getAABB &&
         runtimeState.tileCameraDemand.views.length > 0
@@ -328,30 +339,15 @@ export function createThreeTilesRuntimeAttachment(
         );
         target.inView = true;
       }
-      // Idle rings (skip strategy): with the viewport converged and the map
-      // at rest, a tile inside ring k is reported as in view so the renderer
-      // requests it, and once its error is within base × 2^(k-1) it is
-      // reported as satisfying the target so the renderer stops there. The
-      // rings fill from the inside out, coarser with every ring, until the
-      // outermost covers the model; publication keeps them hidden until they
-      // scroll into the main view. Runs after the corridor mask: a caster the
-      // shadow corridor claims keeps its corridor error.
-      // Membership is a persistent, memory-bounded model of the extent:
-      // refreshed at rest, kept through moves so a loaded ring tile stays
-      // used and never becomes the LRU's eviction candidate; new tiles enter
-      // only within the ring budget; the cascade refines one level per pass
-      // while memory and frame time allow (ringRefinePasses).
+      // Idle rings retain bounded coarse coverage around a complete viewport.
+      // Current shadow demand keeps its own error; new reserve work starts at
+      // rest, while loaded reserve tiles stay pinned through camera movement.
       const skipStrategy =
         runtimeState.options.providesTerrain &&
         runtimeState.tiles?.loadAncestors === false;
-      // Decision: MESH-COVERAGE-20260912 in engines/maplibre/TILES_COVERAGE.md (R3).
-      // The extent floor, in view or not: once the first base coverage
-      // exists, ancestors of the floor report an error above any target so
-      // the traversal reaches the floor tiles every frame (a visited tile is
-      // used, and a used tile is never the LRU's eviction candidate), and a
-      // floor tile that is not loaded is the used-set leaf, requested before
-      // anything finer below it. The view is a local densification of the
-      // resident extent, never a cut above it.
+      // Decision: MESH-COVERAGE-20260912 (R3), TILES_COVERAGE.md.
+      // Pin the resident extent floor; reach missing floor payloads before
+      // refining their children so fallback coverage always has admission room.
       const extentError = runtimeState.extentGeometricError;
       const floorLevel =
         skipStrategy &&
@@ -506,26 +502,53 @@ export function createThreeTilesRuntimeAttachment(
             parent.geometricError
         );
       }
-      // Decision: ../../../../TILES_COVERAGE.md#progressive-shadow-families-and-wait-telemetry
-      // Visible families need drawable intermediate LODs even with shadows;
-      // offscreen caster requests keep their independent refinement depth.
+      // Decision: ../../../../TILES_COVERAGE.md#bounded-mesh-request-lookahead
+      // Publication still advances complete families. At rest, plain meshes
+      // discover one further LOD while the immediate family is downloading;
+      // JSON routing and payload discovery need not await its presentation.
       if (
         runtimeState.options.providesTerrain &&
         target.inView &&
         (!runtimeState.shadowView ||
           dependencies.isTileInMainView(runtimeTile)) &&
         tile.internal.hasRenderableContent &&
-        (runtimeState.displayedMeshFrontier.size === 0
+        (runtimeState.displayedMeshFrontier.size === 0 ||
+        (runtimeState.meshCoverageRecovery &&
+          dependencies.isTileNeededForMeshCoverage(tile))
           ? target.error <=
             (runtimeState.options.firstImageErrorTargetPixels ??
               TILES_LOAD_POLICY.firstImageMaxErrorPixels)
-          : isNextPublishedMeshLevel(tile, runtimeState.displayedMeshFrontier))
+          : isPublishedMeshRefinementLevel(
+              tile,
+              runtimeState.displayedMeshFrontier,
+              !runtimeState.shadowView && !runtimeState.map?.isMoving?.()
+                ? 1 + MESH_REFINEMENT_PREFETCH_LEVELS
+                : 1
+            ))
       )
         target.error = Math.min(
           target.error,
           runtimeState.effectiveErrorTarget
         );
       dependencies.applyTileDeferral(tile, target.inView);
+      // Skip traversal normally requests only its terminal payload. Keep the
+      // intervening prefetched LODs available too when looking two levels ahead.
+      if (
+        runtimeState.options.providesTerrain &&
+        !runtimeState.shadowView &&
+        !runtimeState.map?.isMoving?.() &&
+        target.inView &&
+        dependencies.isTileInMainView(runtimeTile) &&
+        isPublishedMeshRefinementLevel(
+          tile,
+          runtimeState.displayedMeshFrontier,
+          2,
+          MESH_REFINEMENT_PREFETCH_LEVELS
+        )
+      ) {
+        runtimeState.tiles!.markTileUsed(tile);
+        runtimeState.tiles!.queueTileForDownload(tile);
+      }
     };
     const queueTileForDownload = runtimeState.tiles.queueTileForDownload.bind(
       runtimeState.tiles
@@ -542,6 +565,11 @@ export function createThreeTilesRuntimeAttachment(
         return;
       const runtimeTile = tile as RuntimeTile;
       if (!dependencies.isTileRequestNeeded(tile)) return;
+      if (
+        runtimeState.meshCoverageRecovery &&
+        !dependencies.isTileNeededForMeshCoverage(tile)
+      )
+        return;
       // A payload freed after proven child replacement must not immediately
       // re-enter loadAncestors' queue. Its hierarchy/metadata remains intact.
       const retainedMeshAncestors = dependencies.getRetainedMeshAncestors();
@@ -552,10 +580,23 @@ export function createThreeTilesRuntimeAttachment(
           isExtentFloorTile(tile, runtimeState.extentGeometricError)) ||
         runtimeState.residentAncestors.has(tile);
       const supportTile = runtimeState.meshRefinementSupport.has(tile);
+      const coverageFill =
+        runtimeState.meshCoverageRecovery &&
+        dependencies.isTileNeededForMeshCoverage(tile);
+      const refinementLookahead =
+        !runtimeState.shadowView &&
+        !runtimeState.map?.isMoving?.() &&
+        isPublishedMeshRefinementLevel(
+          tile,
+          runtimeState.displayedMeshFrontier,
+          2,
+          1 + MESH_REFINEMENT_PREFETCH_LEVELS
+        );
       if (
         runtimeState.options.providesTerrain &&
         !floorTile &&
         !supportTile &&
+        !coverageFill &&
         (isMeshCoveredByLoadedChildren(tile, tiles.visibleTiles) ||
           (retainedMeshAncestors.has(tile) &&
             tile.internal.hasRenderableContent &&
@@ -566,6 +607,8 @@ export function createThreeTilesRuntimeAttachment(
         runtimeState.options.providesTerrain &&
         !floorTile &&
         !supportTile &&
+        !coverageFill &&
+        !tile.internal.hasUnrenderableContent &&
         dependencies.isTileInMainView(runtimeTile) &&
         shouldDeferMeshRefinement(
           tile,
@@ -583,12 +626,11 @@ export function createThreeTilesRuntimeAttachment(
           (parent) => dependencies.getTileScreenError(parent as RuntimeTile),
           retainedMeshAncestors,
           runtimeState.options.baseErrorTargetPixels,
-          runtimeState.tiles.loadAncestors
+          runtimeState.tiles.loadAncestors && !refinementLookahead
         )
       )
         return;
-      // D8: a pending retry or an exhausted budget keeps the parent as the
-      // fallback instead of re-requesting the tile every frame.
+      // D8: pending/exhausted retries keep the parent fallback.
       if (runtimeState.tileRetries.isBlocked(tile)) return;
       // D7: REPLACE content that refines unconditionally is never displayed.
       if (
@@ -600,27 +642,28 @@ export function createThreeTilesRuntimeAttachment(
         return;
       }
       // Decision: ../../../../TILES_COVERAGE.md#viewport-only-cold-replacement-families
-      // Cold fill excludes proven offscreen siblings; unknown bounds still
-      // require preparation. After handover every sibling is required again.
+      // Recovery reuses cold sibling selection; unknown bounds stay required.
       let family =
         runtimeState.options.providesTerrain &&
         (!runtimeState.shadowView ||
           dependencies.isTileInMainView(runtimeTile)) &&
         !supportTile &&
         !floorTile &&
+        !refinementLookahead &&
         tile.internal.hasRenderableContent &&
         tile.parent?.refine === "REPLACE"
           ? tile.parent.children ?? []
           : [];
       if (family.length) {
         tiles.ensureChildrenArePreprocessed(tile.parent!);
-        if (!runtimeState.meshInitialHandoverDone)
+        if (
+          !runtimeState.meshInitialHandoverDone ||
+          runtimeState.meshCoverageRecovery
+        )
           family = family.filter(
             (sibling) =>
-              !sibling.internal ||
-              !sibling.traversal ||
-              !(sibling as RuntimeTile).engineData?.boundingVolume ||
-              dependencies.isTileInMainView(sibling as RuntimeTile)
+              dependencies.getTileObserverDemand(sibling as RuntimeTile)
+                .intersects
           );
         for (const sibling of family)
           runtimeState.meshRefinementSupport.add(sibling);

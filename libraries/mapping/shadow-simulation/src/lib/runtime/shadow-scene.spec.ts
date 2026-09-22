@@ -686,7 +686,7 @@ describe("shadow scene lighting integration", () => {
     return { controller, raster, map, camera, fire, postTask, tasks };
   };
 
-  it("enforces mobile baseline at startup and after quality updates", async () => {
+  it("preserves native pixel ratio with mobile resource limits through startup and disposal", async () => {
     vi.stubGlobal("navigator", {
       userAgent: "iPhone",
       platform: "iPhone",
@@ -694,7 +694,8 @@ describe("shadow scene lighting integration", () => {
     });
     const f = await createIdleTerrainHost();
     try {
-      expect(f.map.getPixelRatio()).toBe(1.5);
+      expect(f.map.getPixelRatio()).toBe(3);
+      expect(f.map.setPixelRatio).not.toHaveBeenCalled();
       expect(
         vi.mocked(buildRasterDemTerrainRuntime).mock.lastCall?.[3]
       ).toMatchObject({
@@ -734,6 +735,7 @@ describe("shadow scene lighting integration", () => {
     } finally {
       f.controller.dispose();
       expect(f.map.getPixelRatio()).toBe(3);
+      expect(f.map.setPixelRatio).not.toHaveBeenCalled();
       vi.unstubAllGlobals();
     }
   });

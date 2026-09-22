@@ -7,7 +7,7 @@ import {
   canCoarsenMeshCut,
   retainMeshDetailFrontier,
   shouldDeferMeshRefinement,
-  isNextPublishedMeshLevel,
+  isPublishedMeshRefinementLevel,
   refineLoadedMeshFrontier,
   getReadyMeshRegionCut,
   advanceMeshCorridorFrontier,
@@ -51,18 +51,60 @@ describe("local progressive mesh admission", () => {
     const child = mesh(route, 5);
     const grandchild = mesh(child, 2.5);
     const displayed = new Set([parent]);
-    expect(isNextPublishedMeshLevel(child, displayed)).toBe(true);
-    expect(isNextPublishedMeshLevel(grandchild, displayed)).toBe(false);
+    expect(isPublishedMeshRefinementLevel(child, displayed)).toBe(true);
+    expect(isPublishedMeshRefinementLevel(grandchild, displayed)).toBe(false);
     displayed.clear();
     displayed.add(child);
-    expect(isNextPublishedMeshLevel(grandchild, displayed)).toBe(true);
+    expect(isPublishedMeshRefinementLevel(grandchild, displayed)).toBe(true);
     parent.traversal.error = 500; // Zoom-in after a zoom-out and pan.
     displayed.clear();
     displayed.add(parent);
-    expect(isNextPublishedMeshLevel(child, displayed)).toBe(true);
-    expect(isNextPublishedMeshLevel(grandchild, displayed)).toBe(false);
+    expect(isPublishedMeshRefinementLevel(child, displayed)).toBe(true);
+    expect(isPublishedMeshRefinementLevel(grandchild, displayed)).toBe(false);
     displayed.clear();
-    expect(isNextPublishedMeshLevel(child, displayed)).toBe(false);
+    expect(isPublishedMeshRefinementLevel(child, displayed)).toBe(false);
+  });
+
+  it("bounds request discovery to two payload levels across pending parents and JSON routes", () => {
+    const parent = mesh(null, 40);
+    const child = mesh(parent, 20);
+    child.internal.loadingState = 2;
+    const route = mesh(child);
+    route.internal.hasRenderableContent = false;
+    const grandchild = mesh(route, 10);
+    const deeper = mesh(grandchild, 5);
+    const displayed = new Set([parent]);
+    expect(isPublishedMeshRefinementLevel(child, displayed)).toBe(true);
+    expect(isPublishedMeshRefinementLevel(child, displayed, 2)).toBe(false);
+    expect(isPublishedMeshRefinementLevel(grandchild, displayed, 2)).toBe(true);
+    expect(isPublishedMeshRefinementLevel(deeper, displayed, 2)).toBe(false);
+    child.refine = "ADD";
+    expect(isPublishedMeshRefinementLevel(grandchild, displayed, 2)).toBe(
+      false
+    );
+    child.refine = "REPLACE";
+    parent.internal.loadingState = 0;
+    expect(isPublishedMeshRefinementLevel(grandchild, displayed, 2)).toBe(
+      false
+    );
+  });
+
+  it("includes both prefetch levels but excludes immediate support and deeper descendants", () => {
+    const root = mesh(null, 64);
+    const immediate = mesh(root, 32);
+    const first = mesh(immediate, 16);
+    const route = mesh(first);
+    route.internal.hasRenderableContent = false;
+    const second = mesh(route, 8);
+    const third = mesh(second, 4);
+    immediate.internal.loadingState = first.internal.loadingState = 2;
+    const published = new Set([root]);
+    for (const count of [0, 1, 2]) {
+      const selected = [immediate, first, second, third].filter((tile) =>
+        isPublishedMeshRefinementLevel(tile, published, 2, 1 + count)
+      );
+      expect(selected).toEqual([first, second].slice(0, count));
+    }
   });
 
   const atomicCut = (
@@ -1222,6 +1264,49 @@ describe("mesh detail frontier", () => {
     children[0].internal.loadingState = -1;
     expect(isMeshCoveredByLoadedChildren(parent, visible)).toBe(false);
   });
+  it("keeps visible detail while moving, admits new coverage and resumes normal selection at rest", () => {
+    const { parent, children } = quartet(mesh(null, 1));
+    const newRegion = mesh(null, 16);
+    const previous = new Set(children);
+    const inView = () => true;
+    const error = (tile: Tile) => tile.traversal.error;
+    expect(getRetainedMeshAncestors(previous, 4, inView, error, false)).toEqual(
+      new Set([parent])
+    );
+    expect(getRetainedMeshAncestors(previous, 4, inView, error)).toEqual(
+      new Set()
+    );
+    const moving = retainMeshDetailFrontier({
+      previous,
+      proposed: new Set([parent, newRegion]),
+      requestedError: 4,
+      inView,
+      allowInViewCoarsening: false,
+    });
+    expect(moving).toEqual(new Set([...children, newRegion]));
+    expect(
+      retainMeshDetailFrontier({
+        previous: moving,
+        proposed: new Set([parent, newRegion]),
+        requestedError: 4,
+        inView,
+      })
+    ).toEqual(new Set([parent, newRegion]));
+  });
+
+  it("still releases complete offscreen families during motion", () => {
+    const { parent, children } = quartet(mesh(null, 1));
+    expect(
+      retainMeshDetailFrontier({
+        previous: new Set(children),
+        proposed: new Set([parent]),
+        requestedError: 4,
+        inView: () => false,
+        allowInViewCoarsening: false,
+      })
+    ).toEqual(new Set([parent]));
+  });
+
   it("allows one complete loaded quartet to coarsen at the requested error", () => {
     const { parent, children } = quartet();
     parent.traversal.error = 1;

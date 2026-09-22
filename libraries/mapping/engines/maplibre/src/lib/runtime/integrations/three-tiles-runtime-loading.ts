@@ -120,6 +120,7 @@ export function createThreeTilesLoading(
     | "setShadowSelectionEnabled"
     | "applyPendingShadowView"
     | "isTileInMainView"
+    | "getTileObserverDemand"
     | "getTileCameraDemand"
     | "getTileRequestPriority"
     | "maybeEnableShadowSelection"

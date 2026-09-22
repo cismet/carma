@@ -53,6 +53,10 @@ const fixture = (moving = false) => {
     setShadowSelectionEnabled: vi.fn(),
     applyPendingShadowView,
     isTileInMainView: (tile) => tile.traversal?.inFrustum ?? true,
+    getTileObserverDemand: (tile) => ({
+      intersects: tile.traversal?.inFrustum ?? true,
+      errorPixels: tile.traversal?.error ?? 100,
+    }),
     getTileCameraDemand: vi.fn(() => ({
       required: false,
       receiver: false,
@@ -226,47 +230,61 @@ describe("local refinement progress", () => {
     state.tiles!.dispose();
   });
 
-  it("runs initial view, residual tree including queued transitions, then idle refinement", () => {
+  it("releases the requested target after observer handover while reserve work remains pending", () => {
     const { state, loading, applyPendingShadowView } = fixture();
+    loading.applyErrorTargetPolicy();
+    expect(state.effectiveErrorTarget).toBe(64);
+    expect(state.meshInitialBasePassDone).toBe(false);
     const root = {
       refine: "REPLACE",
-      children: [{}],
+      children: [
+        {
+          refine: "REPLACE",
+          children: [],
+          internal: { hasRenderableContent: true, loadingState: 0 },
+          traversal: { error: 10 },
+        },
+      ],
       internal: { hasRenderableContent: true, loadingState: 4 },
-      traversal: { error: 18 },
+      traversal: { error: 40 },
     } as unknown as RuntimeTile;
     Object.assign(state.tiles!, { rootTileset: { root } });
     state.displayedMeshFrontier.add(root);
     state.extentGeometricError = 40;
-    loading.applyErrorTargetPolicy();
-    expect(state.effectiveErrorTarget).toBe(64);
     state.extentFloorArmed = true;
     state.extentFloorAuditPending = true;
-    loading.applyErrorTargetPolicy();
-    expect(state.effectiveErrorTarget).toBe(20);
-    state.extentFloorAuditPending = false;
     state.extentFloorPending = 2;
+    state.tiles!.loadingTiles.add({} as RuntimeTile);
+    loading.applyErrorTargetPolicy();
+    expect(state.meshInitialBasePassDone).toBe(true);
+    expect(state.meshInitialHandoverDone).toBe(false);
+    expect(applyPendingShadowView).toHaveBeenCalledOnce();
     loading.applyErrorTargetPolicy();
     expect(state.effectiveErrorTarget).toBe(20);
+    // The published parent now covers the observer at the handover target.
+    // Pending reserve audits, payloads and local children do not gate detail.
+    root.traversal.error = 18;
+    loading.applyErrorTargetPolicy();
+    expect(state.meshInitialHandoverDone).toBe(true);
+    expect(state.meshInitialReserveSettled).toBe(false);
+    expect(state.effectiveErrorTarget).toBe(4);
+    expect(state.tiles!.errorTarget).toBe(4);
+    expect(state.displayedMeshFrontier.has(root)).toBe(true);
+    expect(state.meshDemandSweepPending).toBe(true);
+    expect(state.map!.triggerRepaint).toHaveBeenCalled();
+    state.extentFloorAuditPending = false;
     state.extentFloorPending = 0;
-    const transition = {} as RuntimeTile;
-    state.tiles!.loadingTiles.add(transition);
     loading.applyErrorTargetPolicy();
     expect(state.meshInitialReserveSettled).toBe(false);
-    // An idle pipeline over a published cut releases the add-on even before
-    // the reserve settles: shadows must never be suppressed indefinitely.
-    expect(state.meshInitialBasePassDone).toBe(true);
-    expect(applyPendingShadowView).toHaveBeenCalledOnce();
     state.tiles!.loadingTiles.clear();
     loading.applyErrorTargetPolicy();
     expect(state.meshInitialReserveSettled).toBe(true);
-    expect(state.meshInitialBasePassDone).toBe(true);
     expect(applyPendingShadowView).toHaveBeenCalledOnce();
-    expect(state.effectiveErrorTarget).toBe(10);
-    // A later pan does not restart the global startup reserve barrier.
+    // Later reserve work does not restart a global quality stage.
     state.extentFloorPending = 3;
     root.traversal.error = 9;
     loading.applyErrorTargetPolicy();
-    expect(state.effectiveErrorTarget).toBe(5);
+    expect(state.effectiveErrorTarget).toBe(4);
     Object.assign(state.tiles!, { rootTileset: null });
     state.tiles!.dispose();
   });
@@ -493,52 +511,6 @@ describe("local refinement progress", () => {
     expect(state.tiles!.parseQueue.maxJobs).toBe(0);
     state.tiles!.dispose();
   });
-  it("requests acceptable whole-view quality before the final target", () => {
-    const { state, loading } = fixture();
-    loading.applyErrorTargetPolicy();
-    expect(state.effectiveErrorTarget).toBe(64);
-    expect(state.meshBaseCoverageReady).toBe(false);
-    const child = {
-      refine: "REPLACE",
-      children: [],
-      internal: { hasRenderableContent: true, loadingState: 4 },
-      traversal: { error: 18 },
-    } as unknown as RuntimeTile;
-    child.children = [
-      {
-        ...child,
-        children: [],
-        internal: { ...child.internal, loadingState: 0 },
-      },
-    ];
-    Object.assign(state.tiles!, { rootTileset: { root: child } });
-    state.displayedMeshFrontier.add(child);
-    loading.applyErrorTargetPolicy();
-    // First-image coverage releases the bootstrap stage, then the configured
-    // base and idle targets continue using the existing current-view proof.
-    expect(state.effectiveErrorTarget).toBe(32);
-    expect(state.meshInitialBasePassDone).toBe(true);
-    loading.applyErrorTargetPolicy();
-    expect(state.effectiveErrorTarget).toBe(10);
-    expect(state.tiles!.errorTarget).toBe(10);
-    expect(state.meshDemandSweepPending).toBe(true);
-    expect(state.map!.triggerRepaint).toHaveBeenCalled();
-    // Use a non-leaf: terminal source resolution is a legitimate completion.
-    loading.applyErrorTargetPolicy();
-    expect(state.effectiveErrorTarget).toBe(10);
-    child.traversal.error = 9;
-    loading.applyErrorTargetPolicy();
-    expect(state.effectiveErrorTarget).toBe(5);
-    child.traversal.error = 4;
-    loading.applyErrorTargetPolicy();
-    expect(state.effectiveErrorTarget).toBe(4);
-    state.displayedMeshFrontier.clear();
-    loading.applyErrorTargetPolicy();
-    expect(state.effectiveErrorTarget).toBe(20);
-    Object.assign(state.tiles!, { rootTileset: null });
-    state.tiles!.dispose();
-  });
-
   it.each([8, undefined])(
     "releases offscreen families only at first observer idle with handover %s",
     (handoverTarget) => {

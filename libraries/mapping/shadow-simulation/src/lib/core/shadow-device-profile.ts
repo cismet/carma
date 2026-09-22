@@ -43,7 +43,6 @@ export const resolveShadowDeviceClass = (
 
 export const usesMobileShadowBaseline = () =>
   resolveShadowDeviceClass() !== "desktop";
-export const MOBILE_SHADOW_PIXEL_RATIO = 1.5;
 export const MOBILE_MESH_CACHE_BYTES = 96 * 1024 ** 2;
 
 // Decision: ../../../three/README.md#mobile-shadow-baseline

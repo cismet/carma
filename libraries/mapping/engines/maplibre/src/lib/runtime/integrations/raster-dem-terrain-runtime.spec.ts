@@ -3594,6 +3594,53 @@ describe("buildRasterDemTerrainRuntime", () => {
     runtime.dispose();
   });
 
+  it.each([undefined, 8])(
+    "retains visible raster detail during motion with target %s and resumes coarsening at rest",
+    async (motionErrorTargetPixels) => {
+      const f = createIdlePrefetchFixture("motion-visible-detail", 11, {
+        errorTargetPixels: 0.5,
+        motionErrorTargetPixels,
+      });
+      f.source.getLevelMaximumGeometricError.mockReturnValue(1_000_000);
+      f.frame.renderCamera = new OrthographicCamera(
+        -1e7,
+        1e7,
+        1e7,
+        -1e7,
+        -1e7,
+        1e7
+      );
+      const visible = () =>
+        f.runtime.root.children.filter((node) => node.visible);
+      try {
+        await f.start();
+        await vi.waitFor(() =>
+          expect(
+            visible().filter((node) => node.name.includes("source:11/"))
+          ).toHaveLength(4)
+        );
+        const detailed = new Set(visible());
+        f.listeners.get("movestart")?.();
+        f.runtime.setErrorTarget?.(1_000_000_000);
+        f.runtime.update(f.frame);
+        await vi.waitFor(() => expect(f.source.trimCache).toHaveBeenCalled());
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        expect(new Set(visible())).toEqual(detailed);
+        const requestsBeforeSettle = f.source.requestTile.mock.calls.length;
+        f.listeners.get("moveend")?.();
+        await new Promise((resolve) =>
+          setTimeout(resolve, MOTION_SETTLE_WAIT_MS)
+        );
+        f.runtime.update(f.frame);
+        await vi.waitFor(() => expect(visible()).toHaveLength(1));
+        expect(visible()[0].name).toContain("source:10/");
+        expect(f.source.requestTile).toHaveBeenCalledTimes(requestsBeforeSettle);
+      } finally {
+        f.runtime.dispose();
+      }
+    }
+  );
+
   it("holds the configured target back while the map moves", async () => {
     // A fine target spends the tile budget on levels the next camera change
     // discards. With a motion target the cut stays coarse while the map moves

@@ -9,8 +9,12 @@ import {
   initialMeshLoadError,
   isExtentFloorTile,
 } from "./three-tiles-load-policy";
-import { shouldDeferMeshRefinement } from "./three-tiles-mesh-frontier";
 import {
+  isPublishedMeshRefinementLevel,
+  shouldDeferMeshRefinement,
+} from "./three-tiles-mesh-frontier";
+import {
+  MESH_REFINEMENT_PREFETCH_LEVELS,
   TILE_METADATA_DOWNLOAD_CONCURRENCY,
   TILE_METADATA_PARSE_CONCURRENCY,
 } from "./three-tiles-runtime-config";
@@ -31,12 +35,14 @@ export function createThreeTilesPayloadQueues(
   runtimeState: Pick<
     ThreeTilesRuntimeState,
     | "disposed"
+    | "displayedMeshFrontier"
     | "effectiveErrorTarget"
     | "extentFloorArmed"
     | "extentGeometricError"
     | "map"
     | "memoryErrorTarget"
     | "meshBaseCoverageReady"
+    | "meshCoverageRecovery"
     | "meshRefinementSupport"
     | "options"
     | "requestedErrorTarget"
@@ -45,7 +51,10 @@ export function createThreeTilesPayloadQueues(
   >,
   dependencies: Pick<
     ThreeTilesRuntimeServices,
-    "getTileDebugProgress" | "getTileRequestPriority" | "getTileScreenError"
+    | "getTileDebugProgress"
+    | "getTileRequestPriority"
+    | "getTileScreenError"
+    | "isTileNeededForMeshCoverage"
   > & {
     getRetainedMeshAncestors: () => ReadonlySet<Tile>;
     isTileRequestNeeded: (tile: Tile) => boolean;
@@ -112,7 +121,24 @@ export function createThreeTilesPayloadQueues(
           foregroundEligibility.set(tile, false);
           return false;
         }
+        // Recovery parks only downloads: useful decoded work can finish while
+        // the network fills holes, without a cross-stage CPU barrier.
+        if (
+          runtimeState.meshCoverageRecovery &&
+          nativeQueue !== runtimeState.tiles.parseQueue &&
+          !dependencies.isTileNeededForMeshCoverage(tile)
+        ) {
+          foregroundEligibility.set(tile, false);
+          return false;
+        }
         const runtimeTile = tile as RuntimeTile;
+        if (
+          runtimeState.meshCoverageRecovery &&
+          dependencies.isTileNeededForMeshCoverage(tile)
+        ) {
+          foregroundEligibility.set(tile, true);
+          return true;
+        }
         if (runtimeTile.motionPrefetch && requestPriority(tile) < 0) {
           const eligible = runtimeState.meshBaseCoverageReady;
           foregroundEligibility.set(tile, eligible);
@@ -121,6 +147,15 @@ export function createThreeTilesPayloadQueues(
         const floorTile =
           runtimeState.extentFloorArmed &&
           isExtentFloorTile(tile, runtimeState.extentGeometricError);
+        const refinementLookahead =
+          !runtimeState.shadowView &&
+          !moving &&
+          isPublishedMeshRefinementLevel(
+            tile,
+            runtimeState.displayedMeshFrontier,
+            2,
+            1 + MESH_REFINEMENT_PREFETCH_LEVELS
+          );
         const refinementDeferred = shouldDeferMeshRefinement(
           tile,
           moving
@@ -140,7 +175,7 @@ export function createThreeTilesPayloadQueues(
           (parent) => dependencies.getTileScreenError(parent as RuntimeTile),
           retainedMeshAncestors,
           runtimeState.options.baseErrorTargetPixels,
-          runtimeState.tiles.loadAncestors
+          runtimeState.tiles.loadAncestors && !refinementLookahead
         );
         const eligible =
           isForeground(tile) &&
