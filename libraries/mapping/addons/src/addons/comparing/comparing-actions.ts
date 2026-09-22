@@ -337,13 +337,20 @@ export const useComparingActions = () => {
    * brought in by a shared link carries. The layout counts as the user's
    * (`layoutTouched`), so the heuristic does not move the panel count away
    * from what was shared. A channel that already holds the definition is left
-   * alone, so launching the running comparison again changes nothing.
+   * alone, so launching the running comparison again changes nothing, with
+   * one exception: the layout still becomes the definition's. A comparison
+   * just saved as a workflow layer is exactly this case (the group carries
+   * what the channel runs), and without the claim the heuristic would move
+   * the panel count and reseed the assignment the next time a layer is added,
+   * turning the saved two-panel comparison into a three-way one.
    */
   const startComparison = useCallback(
     (def: CompareDefinition) => {
       setState((previous) => {
         if (previous.isOn && holdsDefinition(previous, def)) {
-          return previous;
+          return previous.layoutTouched
+            ? previous
+            : { ...previous, layoutTouched: true };
         }
         const panelCount = clampPanelCount(def.mode, def.panelCount);
         return {
