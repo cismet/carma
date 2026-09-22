@@ -15,6 +15,9 @@ import type { NearestFeatureCategory } from "./categoryChannel";
  */
 export const CATEGORY_SEPARATOR = ": ";
 
+/** the heading over the first stage's rows */
+const CATEGORY_GROUP_TITLE = "Kategorien";
+
 export const categoryPrefix = (category: NearestFeatureCategory) =>
   `${category.label}:`;
 
@@ -51,7 +54,7 @@ export const categoryGroup = (
     // the mode is on the route but no category addon is; say so rather than
     // opening an empty dropdown
     return {
-      title: "Wonach in der Nähe?",
+      title: CATEGORY_GROUP_TITLE,
       options: [
         {
           value: "",
@@ -66,7 +69,7 @@ export const categoryGroup = (
     (candidate) => query === "" || candidate.label.toLowerCase().includes(query)
   );
   return {
-    title: "Wonach in der Nähe?",
+    title: CATEGORY_GROUP_TITLE,
     options: matches.map((candidate) => ({
       value: categoryInputValue(candidate),
       label: candidate.label,
