@@ -2,18 +2,42 @@ import React, { useState } from "react";
 import { Checkbox, DatePicker, Modal } from "antd";
 import dayjs from "dayjs";
 
+const amount = (count, singular, plural) =>
+  `${count} ${count === 1 ? singular : plural}`;
+
+const successorPart = (count) => {
+  if (!count) {
+    return "keinen Nachfolger";
+  }
+  return count === 1 ? "einen Nachfolger" : `${count} Nachfolger`;
+};
+
+const foundPart = (rebeCount, mipaCount) => {
+  const parts = [
+    rebeCount > 0 && amount(rebeCount, "Recht/Belastung", "Rechte/Belastungen"),
+    mipaCount > 0 &&
+      amount(mipaCount, "Vermietung/Verpachtung", "Vermietungen/Verpachtungen"),
+  ].filter(Boolean);
+  const verb = rebeCount + mipaCount === 1 ? "liegt" : "liegen";
+  return `Auf dem Flurstück ${verb} ${parts.join(" und ")}`;
+};
+
 /**
  * Port of HistoricNoSucessorDialog.
  *
  * Shown when a parcel that is being set historic still carries rights and
  * burdens or leases. Ticking a box prefills its date with the historic date,
  * exactly as the Swing checkbox listeners did.
+ *
+ * The Swing dialog always claimed "ohne Nachfolger" — its check is commented
+ * out (LagisBroker.java:2740). Here the count decides.
  */
 const HistoricRebeMipaDialog = ({
   open,
   historicDate,
   rebeCount,
   mipaCount,
+  successorCount = 0,
   onApply,
   onCancel,
 }) => {
@@ -22,25 +46,14 @@ const HistoricRebeMipaDialog = ({
   const [rebeDate, setRebeDate] = useState(historicDate);
   const [mipaDate, setMipaDate] = useState(historicDate);
 
-  const summary = [
-    rebeCount > 0 &&
-      `${rebeCount} ${
-        rebeCount === 1 ? "Recht/Belastung" : "Rechte/Belastungen"
-      }`,
-    mipaCount > 0 &&
-      `${mipaCount} ${
-        mipaCount === 1
-          ? "Vermietung/Verpachtung"
-          : "Vermietungen/Verpachtungen"
-      }`,
-  ]
-    .filter(Boolean)
-    .join(" und ");
-
   return (
     <Modal
       open={open}
-      title="Flurstück ohne Nachfolger"
+      title={
+        successorCount
+          ? "Flurstück mit Nachfolger"
+          : "Flurstück ohne Nachfolger"
+      }
       okText="Anwenden"
       cancelText="Abbrechen"
       onOk={() =>
@@ -53,7 +66,10 @@ const HistoricRebeMipaDialog = ({
     >
       <div className="flex flex-col gap-3 py-2">
         <div className="text-sm text-gray-600">
-          Auf dem Flurstück liegen {summary}.
+          {`Das Flurstück hat ${successorPart(successorCount)}. ${foundPart(
+            rebeCount,
+            mipaCount
+          )}.`}
         </div>
         {rebeCount > 0 && (
           <div className="flex flex-col gap-1">

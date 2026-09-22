@@ -24,7 +24,10 @@ import { ACTION_TITLES, WIZARD_ACTIONS } from "../../core/wizard/constants";
 import { findLock } from "../../core/wizard/locks";
 import { explain } from "../../core/wizard/errors";
 import { findRebeAndMipa } from "../../core/wizard/areaCheck";
-import { fetchFlurstueckBySchluesselId } from "../../core/wizard/api";
+import {
+  fetchFlurstueckBySchluesselId,
+  fetchSuccessorEdges,
+} from "../../core/wizard/api";
 import { formatKey } from "../../core/wizard/keys";
 import { runWizardAction } from "../../core/wizard/operations";
 import useStammdaten from "../../core/wizard/useStammdaten";
@@ -213,6 +216,16 @@ const LandParcelWizard = ({
     }
   };
 
+  /** Wording of the dialog only, so a failure must not stop the action. */
+  const countSuccessors = async (flurstueckId) => {
+    try {
+      return (await fetchSuccessorEdges(flurstueckId, jwt)).length;
+    } catch (e) {
+      console.error("Nachfolger konnten nicht geladen werden", e);
+      return 0;
+    }
+  };
+
   const handleFinish = async () => {
     // Setting a parcel historic asks about its rights and leases first — but
     // only for a parcel that was city owned, as LagisBroker does.
@@ -236,7 +249,10 @@ const LandParcelWizard = ({
         }
         const found = await findRebeAndMipa(data.historicKey, jwt);
         if (found.rebe.length || found.mipa.length) {
-          setRebeMipaPrompt(found);
+          setRebeMipaPrompt({
+            ...found,
+            successorCount: await countSuccessors(flurstueck.id),
+          });
           return;
         }
       } catch (e) {
@@ -364,6 +380,7 @@ const LandParcelWizard = ({
         historicDate={data.historicDate ?? new Date()}
         rebeCount={rebeMipaPrompt?.rebe.length ?? 0}
         mipaCount={rebeMipaPrompt?.mipa.length ?? 0}
+        successorCount={rebeMipaPrompt?.successorCount ?? 0}
         onCancel={() => {
           setRebeMipaPrompt(undefined);
           setBusy(false);
