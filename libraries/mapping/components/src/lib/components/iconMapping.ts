@@ -1,4 +1,6 @@
 import {
+  faBicycle,
+  faCar,
   faCircle,
   faClock,
   faGlobe,
@@ -11,6 +13,7 @@ import {
   faSquare,
   faSun,
   faTableColumns,
+  faWalking,
   faWater,
   faTrain,
 } from "@fortawesome/free-solid-svg-icons";
@@ -25,6 +28,10 @@ export const iconMap = {
   vehicleAnimation: faTrain,
   flood: faHouseFloodWater,
   routing: faRoute,
+  // how a route is travelled; the navigation row shows the one its route was computed with
+  car: faCar,
+  bike: faBicycle,
+  walk: faWalking,
   "shadow-simulation": faSun,
   background: faLayerGroup,
   ortho: faGlobe,
