@@ -5,7 +5,11 @@ import { faSliders } from "@fortawesome/free-solid-svg-icons";
 import type { InteractionButton, Layer } from "@carma-mapping/layers";
 
 import { useIsAdminMode } from "../../lib/admin-mode";
-import { useFlowFieldActions } from "./flowfield-actions";
+import { getToolEntryKind } from "../../lib/tool-entry";
+import {
+  useFlowFieldActions,
+  type FlowFieldDefinition,
+} from "./flowfield-actions";
 
 export const FLOW_FIELD_LAYER_ID = "__flowField__";
 
@@ -93,6 +97,34 @@ const buildInteractionButtons = (
     : []),
 ];
 
+/**
+ * The scenario a row carries in its `flowField` tool entry, if it is complete
+ * enough to launch. A route with the layer buttons never reads it back: there
+ * the animation comes back after a reload through its own store
+ * (`flowfield-storage.ts`). It is for a host that only renders the stacks it is
+ * handed, like the outlet showing a pm-show scene, where the row is all that
+ * arrives of the animation.
+ */
+export const getFlowFieldRowSeed = (
+  layer?: { tools?: unknown } | null
+): FlowFieldDefinition | undefined => {
+  const tools = Array.isArray(layer?.tools) ? (layer.tools as unknown[]) : [];
+  const entry = tools.find(
+    (tool): tool is { config?: Partial<FlowFieldDefinition> } =>
+      typeof tool === "object" &&
+      tool !== null &&
+      getToolEntryKind(tool) === "flowField"
+  );
+  const config = entry?.config;
+  if (!config?.service || !config.scenario) return undefined;
+  return {
+    ...config,
+    title: config.title ?? FLOW_FIELD_LAYER.title,
+    service: config.service,
+    scenario: config.scenario,
+  };
+};
+
 export type UseFlowFieldLayerRowOptions = {
   /** whether the host currently shows the row */
   hasRow: boolean;
@@ -119,8 +151,27 @@ export const useFlowFieldLayerRow = ({
   onRemove,
   onUpdate,
 }: UseFlowFieldLayerRowOptions) => {
-  const { isOn, setOn, title, isCaged, isActive, isLoading, fallback } =
-    useFlowFieldActions();
+  const {
+    isOn,
+    setOn,
+    title,
+    service,
+    scenario,
+    layerPostfix,
+    uvCorrection,
+    minZoom,
+    animateWhileMoving,
+    opacity,
+    viewportBuffer,
+    debounceMs,
+    occlusion,
+    params,
+    backdrop,
+    fallback,
+    isCaged,
+    isActive,
+    isLoading,
+  } = useFlowFieldActions();
   const isAdmin = useIsAdminMode();
 
   const label = statusLabel({
@@ -130,14 +181,61 @@ export const useFlowFieldLayerRow = ({
     hasFallback: Boolean(fallback),
   });
 
+  // The row's launch config, in the encoding a workflow card uses. Tuning in
+  // the panel lands here too, so a scene saved from this stack takes the tuned
+  // animation along.
+  const tools = useMemo(
+    () =>
+      service && scenario
+        ? [
+            {
+              kind: "flowField",
+              config: {
+                title,
+                service,
+                scenario,
+                layerPostfix,
+                uvCorrection,
+                minZoom,
+                animateWhileMoving,
+                opacity,
+                viewportBuffer,
+                debounceMs,
+                occlusion,
+                params,
+                backdrop: backdrop ?? undefined,
+                fallback: fallback ?? undefined,
+              } satisfies FlowFieldDefinition,
+            },
+          ]
+        : undefined,
+    [
+      title,
+      service,
+      scenario,
+      layerPostfix,
+      uvCorrection,
+      minZoom,
+      animateWhileMoving,
+      opacity,
+      viewportBuffer,
+      debounceMs,
+      occlusion,
+      params,
+      backdrop,
+      fallback,
+    ]
+  );
+
   const layer = useMemo(
     () => ({
       ...FLOW_FIELD_LAYER,
       title,
       iconColor: isActive && isCaged ? ICON_COLOR.running : ICON_COLOR.idle,
       interactionButtons: buildInteractionButtons(label, isAdmin),
+      tools,
     }),
-    [title, label, isActive, isCaged, isAdmin]
+    [title, label, isActive, isCaged, isAdmin, tools]
   );
 
   const layerRef = useRef(layer);

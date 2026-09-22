@@ -5,6 +5,13 @@ import {
   type ResolvedAddon,
 } from "./registry";
 import { VEHICLE_ANIMATION_LAYER_ID } from "../addons/VehicleAnimation/vehicle-layer-row";
+import {
+  FLOW_FIELD_LAYER_ID,
+  getFlowFieldRowSeed,
+} from "../addons/FlowField/flowfield-layer-row";
+
+/** where a flow field launched from a handed-over row keeps its state */
+const LAUNCHED_FLOW_FIELD_STORAGE_KEY = "carma::flowFieldState::launched";
 
 /** the part of a layer stack entry this reads */
 type LaunchingLayer = { id: string; visible?: boolean; tools?: unknown };
@@ -37,7 +44,9 @@ export type LayerLaunchedAddon = {
  * to survive a reload, and reading it back here would make it its own launcher.
  * `includeEngineRow` reads it anyway, for a host that never writes the row, e.g.
  * a display that only renders the stacks a remote hands it: there the row is
- * the only thing that says the service is on.
+ * the only thing that says the service is on. Such a host also launches the
+ * flow field from its row (`__flowField__`), which carries its scenario the
+ * same way; nothing else launches a flow field.
  *
  * `permanent`: the layer is the face of the service. A host shows the engine's
  * controls on the layer's own button rather than in a row of their own, so no
@@ -49,7 +58,28 @@ export const getLayerLaunchedAddons = (
   { includeEngineRow = false }: { includeEngineRow?: boolean } = {}
 ): LayerLaunchedAddon[] => {
   let vehicle: LayerLaunchedAddon | undefined;
+  let flowField: LayerLaunchedAddon | undefined;
   for (const layer of layers) {
+    if (layer.id === FLOW_FIELD_LAYER_ID) {
+      const seed = includeEngineRow ? getFlowFieldRowSeed(layer) : undefined;
+      if (seed) {
+        flowField = {
+          layerId: layer.id,
+          visible: layer.visible !== false,
+          entry: {
+            addon: "flowField",
+            config: {
+              ...seed,
+              startEnabled: true,
+              // the stack is what brings it back, so the visitor's own launch
+              // on another route of this origin must not be overwritten
+              storageKey: LAUNCHED_FLOW_FIELD_STORAGE_KEY,
+            },
+          },
+        };
+      }
+      continue;
+    }
     if (
       (layer.id === VEHICLE_ANIMATION_LAYER_ID && !includeEngineRow) ||
       !Array.isArray(layer.tools)
@@ -71,7 +101,9 @@ export const getLayerLaunchedAddons = (
       },
     };
   }
-  return vehicle ? [vehicle] : [];
+  return [vehicle, flowField].filter(
+    (launched): launched is LayerLaunchedAddon => launched !== undefined
+  );
 };
 
 /**

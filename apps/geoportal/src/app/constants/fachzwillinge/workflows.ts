@@ -1,9 +1,11 @@
-import type {
-  AddonEntry,
-  FloodDefinition,
-  FlowFieldDefinition,
-  TimeSeriesDefinition,
-  VehicleAnimationDefinition,
+import {
+  normalizeAddonEntries,
+  type AddonEntry,
+  type FloodDefinition,
+  type FlowFieldDefinition,
+  type ResolvedAddon,
+  type TimeSeriesDefinition,
+  type VehicleAnimationDefinition,
 } from "@carma-mapping/addons";
 
 import type { WorkflowDefinition } from "@carma-mapping/layers";
@@ -1218,3 +1220,34 @@ export const workflowsFachzwilling: FachzwillingRoute = {
     },
   ],
 };
+
+type FlowFieldTool = Extract<ResolvedAddon, { kind: "flowField" }>;
+
+/**
+ * The Starkregen cards above that run a flow field, with and without the water
+ * depths, gated at `minZoom` rather than at the zoom they declare. For the
+ * projection mapping show (projectionMapping.ts): the printed model is seen
+ * whole, a few kilometres across, which is below the gate these cards set for
+ * a screen.
+ */
+export const starkregenFlowWorkflows = (
+  minZoom: number
+): WorkflowDefinition<AddonEntry>[] =>
+  (
+    workflowsFachzwilling.perspectives?.find(({ id }) => id === "starkregen")
+      ?.workflows ?? []
+  ).flatMap((card) => {
+    const flow = normalizeAddonEntries(card.tools).find(
+      (tool): tool is FlowFieldTool => tool.kind === "flowField"
+    );
+    return flow?.config
+      ? [
+          {
+            ...card,
+            tools: [
+              { addon: "flowField", config: { ...flow.config, minZoom } },
+            ],
+          },
+        ]
+      : [];
+  });

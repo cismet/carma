@@ -1,10 +1,19 @@
-import { schwebebahn2dWorkflowsWithoutStations } from "./workflows";
+import {
+  schwebebahn2dWorkflowsWithoutStations,
+  starkregenFlowWorkflows,
+} from "./workflows";
 
 import type { FachzwillingRoute } from ".";
 
 /** where the pipeline publishes the styles built for the printed model */
-const PROJECTION_MAPPING_STYLES =
-  "https://tiles.cismet.de/projection_mapping";
+const PROJECTION_MAPPING_STYLES = "https://tiles.cismet.de/projection_mapping";
+
+/**
+ * Zoom gate of the flow field cards. The projection area is about 3.6 by 2 km,
+ * which a projector 1920 pixels wide shows at zoom 14.7; the cards' own gate of
+ * 16 would keep the animation still on the whole model.
+ */
+const MODEL_FLOW_MIN_ZOOM = 14;
 
 /**
  * The remote the published show opens on the phone (`apps/pm-remote`). The
@@ -50,6 +59,12 @@ export const projectionMappingFachzwilling: FachzwillingRoute = {
   addons: [
     // the engine the Schwebebahn cards launch into; idle until one is clicked
     "vehicleAnimation",
+    // the same for the Starkregen cards. Its own storage key, so tuning it for
+    // the model does not reach the flow field of the other routes.
+    {
+      addon: "flowField",
+      config: { storageKey: "carma::flowFieldState::pm-show" },
+    },
     // "save as scene" and "publish" for the remote on the phone
     {
       addon: "showScenes",
@@ -143,6 +158,12 @@ export const projectionMappingFachzwilling: FachzwillingRoute = {
       // has no mode for, and without the station markers, which would be
       // projected onto the model
       workflows: schwebebahn2dWorkflowsWithoutStations,
+    },
+    {
+      id: "starkregen",
+      title: "Starkregen",
+      // the workflows route's Fließwege cards, animated from the model's zoom
+      workflows: starkregenFlowWorkflows(MODEL_FLOW_MIN_ZOOM),
     },
   ],
 };
