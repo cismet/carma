@@ -169,6 +169,21 @@ describe("share links", () => {
     expect(await read.json()).toEqual(shareConfig);
   });
 
+  it("stores at the root when posted to a bare /store", async () => {
+    const response = await fetch(`${base}/store`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(shareConfig),
+    });
+    const body = (await response.json()) as { key: string; path: string };
+
+    expect(response.status).toBe(201);
+    expect(body.path).toBe("/");
+    expect(await (await fetch(`${base}/config/${body.key}`)).json()).toEqual(
+      shareConfig
+    );
+  });
+
   it("answers 404 for an unknown share key", async () => {
     const response = await fetch(
       `${base}/config/${SHARE_FOLDER}/0123456789abcdef`

@@ -124,8 +124,9 @@ export function setupApp(configDir?: string): express.Express {
     typeof value === "object" &&
     Object.keys(value as object).length > 0;
 
-  // Store configuration endpoint with optional structure path
-  app.post("/store/*?", (req: Request, res: Response) => {
+  // Store configuration endpoint with optional structure path. "/store/*?"
+  // alone never matched a bare /store, so the root gets its own entry.
+  app.post(["/store", "/store/*"], (req: Request, res: Response) => {
     try {
       // Get the structure path from the URL
       const structurePath = req.path.replace(/^\/store\/?/, "");
