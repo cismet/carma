@@ -24,6 +24,8 @@ the way a fully declared one does:
 | `providesTerrain` | derived | The host sets it from the `Mesh` tag or a `mesh*.style.json` URL before the block reaches the manager. |
 | `errorTarget` | 4 px, 6 px for terrain-providing tilesets | Idle refinement target; the shadow simulation may override it per view (`setErrorTargetOverride`). |
 | `baseErrorTarget` | 16 px, terrain-providing only | First-pass target and the mesh loading strategy; other tilesets refine straight to the error target. |
+| `firstImageErrorTarget` | 64 px for terrain providers | Optional initial request threshold, bounded below by base and idle targets. Hard shadows may present complete coarser fallback coverage. Read when the runtime is created. |
+| `handoverErrorTarget` | legacy staging | Optional cold observer handover before whole-extent reserve admission. A complete observer cut advances to the idle target independently of caster refinement. Read when the runtime is created. |
 | `tilesetMinResolutionPx` | 1024 px, terrain-providing only | Whole-extent residual resolution. An explicit `0` defers to the `entry` hint instead. |
 | `hierarchyCache` | true | Worker-built static hierarchy index instead of native tileset JSON paging. `false` loads pages natively; kept after measurement, see TILES_COVERAGE.md, tileset hierarchy cache kept. |
 | `basemap` | `labels` | Drape the map labels and keep MapLibre terrain; `none` shows the tileset alone. |
@@ -91,6 +93,11 @@ Decision, synthetic pixel-parity measurements, alternatives and remaining
 live-view limitations: [corridor performance report](../../shadow-simulation/three/CORRIDOR_PERFORMANCE_20260909.md#2026-09-10--mesh-shadow-frustum--native-mask-batch--scratch-reuse).
 
 ## Linked receiver/caster detail
+
+Caster admission now follows the displayed receiver geometry, and receiver
+pixel density excludes prior shadow demand; see the
+[admission and feedback correction](./TILES_COVERAGE.md#caster-lod-follows-displayed-receivers).
+
 
 - **Anchor / date / status:** `#linked-receivercaster-detail`, 2026-09-10;
   implemented, uncommitted; full live-view convergence remains unverified.

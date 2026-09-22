@@ -19,7 +19,11 @@ import type {
   ThreeTilesRuntimeServices,
   ThreeTilesRuntimeState,
 } from "./three-tiles-runtime-context";
-import type { RuntimeLruCache, RuntimeTile } from "./three-tiles-runtime-types";
+import type {
+  RuntimeLruCache,
+  RuntimePriorityQueue,
+  RuntimeTile,
+} from "./three-tiles-runtime-types";
 import {
   LOADED_LOADING_STATE,
   LOADING_LOADING_STATE,
@@ -185,17 +189,15 @@ export function createThreeTilesCascade(
     // Downloaded buffers stay parked in the parse queue; already running decode
     // jobs finish within the bounded parse concurrency, not repeated restarts.
     const foregroundWaiting = runtimeState.options.providesTerrain
-      ? pending
-          .filter(
-            (tile) =>
-              tile.internal.loadingState === QUEUED_LOADING_STATE &&
-              tile.internal.hasRenderableContent &&
-              Number.isFinite(dependencies.getTileRequestPriority(tile)) &&
-              isTileRequestNeeded(tile)
-          )
-          .map((tile) => dependencies.getTileRequestPriority(tile))
-          .sort((a, b) => b - a)
+      ? pending.filter(
+          (tile) =>
+            tile.internal.loadingState === QUEUED_LOADING_STATE &&
+            tile.internal.hasRenderableContent &&
+            Number.isFinite(dependencies.getTileRequestPriority(tile)) &&
+            isTileRequestNeeded(tile)
+        )
       : [];
+    const selectedPreemptions = new Set<RuntimeTile>();
     for (const tile of pending) {
       if (
         tile.internal.loadingState !== LOADING_LOADING_STATE &&
@@ -206,7 +208,34 @@ export function createThreeTilesCascade(
       const needed = isTileRequestNeeded(tile);
       const downloading = tile.internal.loadingState === LOADING_LOADING_STATE;
       const metadata = tile.internal.hasUnrenderableContent;
-      const highestWaitingPriority = foregroundWaiting[0];
+      const queue =
+        needed && downloading && !metadata
+          ? ([...tiles.downloadQueue.originQueues.values()].find((candidate) =>
+              candidate.has(tile)
+            ) as RuntimePriorityQueue | undefined)
+          : undefined;
+      const waiting = queue
+        ? foregroundWaiting
+            .filter(
+              (candidate) =>
+                candidate !== tile &&
+                !selectedPreemptions.has(candidate) &&
+                queue.items.includes(candidate)
+            )
+            .sort(
+              (left, right) =>
+                dependencies.getTileRequestPriority(right) -
+                dependencies.getTileRequestPriority(left)
+            )
+        : [];
+      const saturated =
+        queue !== undefined &&
+        tiles.downloadQueue.maxJobsPerOrigin > 0 &&
+        queue.currJobs >= tiles.downloadQueue.maxJobsPerOrigin;
+      const highestWaitingPriority =
+        saturated && waiting.length > 0
+          ? dependencies.getTileRequestPriority(waiting[0])
+          : undefined;
       const action = decideTileRequestAction({
         needed,
         downloading,
@@ -221,7 +250,9 @@ export function createThreeTilesCascade(
             : Number.NEGATIVE_INFINITY,
       });
       if (action !== TILE_REQUEST_ACTION.KEEP) tiles.lruCache.remove(tile);
-      if (action === TILE_REQUEST_ACTION.PREEMPT) foregroundWaiting.shift();
+      if (action === TILE_REQUEST_ACTION.PREEMPT) {
+        selectedPreemptions.add(waiting[0]);
+      }
     }
   };
 

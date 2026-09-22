@@ -117,6 +117,7 @@ export const buildSharedThreeSceneLayer = (
   const lodCamera = new THREE.PerspectiveCamera();
   const accumulationRuntime = createSharedThreeSceneAccumulation(layerId);
   const viewport = new THREE.Vector2(1, 1);
+  const cssViewport = new THREE.Vector2(1, 1);
   const lookTarget = new THREE.Vector3();
   const runtimes = new Map<string, SharedThreeSceneRuntime>();
   const mapStyleProjection = createSharedThreeMapStyleProjection(
@@ -480,7 +481,12 @@ export const buildSharedThreeSceneLayer = (
       }
       const sceneToClipMatrix = mainMatrix.multiply(localFromScene);
 
-      syncSharedCanvasViewport(renderer, map.getCanvas(), viewport);
+      syncSharedCanvasViewport(
+        renderer,
+        map.getCanvas(),
+        viewport,
+        cssViewport
+      );
       // Same pose the MapLibre 3D Tiles layer works out for itself, so it
       // lives in the engine rather than here, see synthesizeLodCamera.
       const centerLngLat = map.getCenter();
@@ -517,6 +523,7 @@ export const buildSharedThreeSceneLayer = (
         lodCamera,
         lookTarget,
         viewport,
+        cssViewport,
         localFrame: currentLocalFrame,
         tileCameraViews: snapshotTileCameraViews([...tileCameraViews.values()]),
       };

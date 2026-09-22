@@ -33,9 +33,12 @@ describe("tile WebGL draw acknowledgement", () => {
       getContext: () => ({ isContextLost: contextLost }),
     } as unknown as WebGLRenderer;
     const notify = vi.fn(),
-      observer = createTileDrawObserver(notify);
+      shadowNotify = vi.fn(),
+      observer = createTileDrawObserver(notify, shadowNotify);
     const before = mesh.onBeforeRender,
       after = mesh.onAfterRender;
+    const beforeShadow = mesh.onBeforeShadow,
+      afterShadow = mesh.onAfterShadow;
     observer.attach(tile, model);
     observer.beginFrame(primary);
     const read = () => observer.read([tile], group);
@@ -58,6 +61,34 @@ describe("tile WebGL draw acknowledgement", () => {
         group
       );
     };
+    const shadow = (submitted = true) => {
+      mesh.onBeforeShadow(
+        renderer,
+        mesh,
+        primary,
+        secondary,
+        mesh.geometry,
+        mesh.material,
+        null
+      );
+      if (submitted) renderer.info.render.calls++;
+      mesh.onAfterShadow(
+        renderer,
+        mesh,
+        primary,
+        secondary,
+        mesh.geometry,
+        mesh.material,
+        null
+      );
+    };
+    shadow(false);
+    expect(shadowNotify).not.toHaveBeenCalled();
+    shadow();
+    shadow();
+    expect(shadowNotify).toHaveBeenCalledOnce();
+    expect(shadowNotify).toHaveBeenCalledWith(tile);
+    expect(notify).not.toHaveBeenCalled();
     expect(read()).toMatchObject({
       published: 1,
       loaded: 1,
@@ -96,6 +127,8 @@ describe("tile WebGL draw acknowledgement", () => {
     observer.detach(model);
     expect(mesh.onBeforeRender).toBe(before);
     expect(mesh.onAfterRender).toBe(after);
+    expect(mesh.onBeforeShadow).toBe(beforeShadow);
+    expect(mesh.onAfterShadow).toBe(afterShadow);
     observer.dispose();
   });
 });

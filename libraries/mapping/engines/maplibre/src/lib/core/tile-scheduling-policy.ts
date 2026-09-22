@@ -19,10 +19,14 @@ export const resolveTileRequestPriority = (
     input.motionPrefetch
       ? TILE_CAMERA_PRIORITY.PREFETCH
       : Number.NEGATIVE_INFINITY,
-    input.observerVisible ||
-      input.selectedShadowReceiver ||
-      input.shadowWithoutSelection
+    // Decision: ../../../TILES_COVERAGE.md#progressive-shadow-families-and-wait-telemetry
+    // Visible refinement owns the foreground lane. Offscreen siblings needed
+    // for its atomic replacement already inherit replacementSupport above.
+    input.observerVisible
       ? TILE_CAMERA_PRIORITY.PRIMARY
+      : Number.NEGATIVE_INFINITY,
+    input.selectedShadowReceiver || input.shadowWithoutSelection
+      ? TILE_CAMERA_PRIORITY.SECONDARY
       : Number.NEGATIVE_INFINITY
   );
 };
@@ -113,9 +117,18 @@ export const resolveMeshStageTarget = (
     initialReady: boolean;
     reserveBeforeIdle: boolean;
     currentTarget: number;
+    handoverTarget?: number;
+    handoverReady?: boolean;
+    firstImageReady?: boolean;
   }>,
   readyAt: (error: number) => boolean
 ): number => {
+  // Explicit cold cascades share the normal family publisher. A complete
+  // viewport hands over independently of offscreen reserve/shadow completion.
+  if (input.handoverTarget !== undefined && !input.handoverReady)
+    return input.firstImageReady
+      ? Math.max(input.minimumTarget, input.handoverTarget)
+      : input.initialTarget;
   if (input.shadowView) return input.minimumTarget;
   if (!input.initialReady || input.reserveBeforeIdle)
     return input.initialTarget;

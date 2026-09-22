@@ -1,5 +1,10 @@
-import { clamp } from "@carma-commons/math";
+import { Box3, Matrix4 } from "three";
 
+import { clamp } from "@carma-commons/math";
+import {
+  createTileCameraDemand,
+  TILE_MAIN_OBSERVER_ID,
+} from "../../core/tile-camera-demand";
 import { resolveMeshStageTarget } from "../../core/tile-scheduling-policy";
 import {
   createEffectiveErrorTargetState,
@@ -7,6 +12,7 @@ import {
   nextEffectiveErrorTarget,
   nextMemoryErrorTarget,
 } from "./three-tiles-load-policy";
+import { readOrientedTileBounds } from "./three-tiles-bounds";
 import { getReadyMeshRegionCut } from "./three-tiles-mesh-frontier";
 import {
   TILES_ERROR_TARGET_MAX_PIXELS,
@@ -45,11 +51,13 @@ export function createThreeTilesQuality(
     | "meshBaseCoverageReady"
     | "meshDemandSweepPending"
     | "meshInitialBasePassDone"
+    | "meshInitialHandoverDone"
     | "meshInitialReserveSettled"
     | "options"
     | "requestedErrorTarget"
     | "shadowView"
     | "tiles"
+    | "tileCameraDemand"
     | "usedBytesMain"
     | "viewQualityAuditPasses"
   >,
@@ -117,7 +125,9 @@ export function createThreeTilesQuality(
         // with room to spare it steps back towards the requested target.
         const base = initialMeshLoadError(
           runtimeState.requestedErrorTarget,
-          runtimeState.options.baseErrorTargetPixels
+          runtimeState.options.baseErrorTargetPixels,
+          !runtimeState.meshInitialBasePassDone,
+          runtimeState.options.firstImageErrorTargetPixels
         );
         let usedBytes: number | undefined;
         if (
@@ -169,19 +179,99 @@ export function createThreeTilesQuality(
         // whole-extent reserve certificate or idle queues. Each wave remains
         // requestable while incomplete; failures retain the previous surface.
         const root = runtimeState.tiles.root;
-        const readyAt = (error: number) =>
-          !!root &&
-          getReadyMeshRegionCut(
+        const handoverTarget = runtimeState.options.handoverErrorTargetPixels;
+        // Decision: ../../../../TILES_COVERAGE.md#configurable-cold-quality-cascades
+        // Cold handover is observer coverage, independent of caster detail.
+        const observerViews =
+          handoverTarget === undefined
+            ? []
+            : runtimeState.tileCameraDemand.views.filter(
+                (view) => view.id === TILE_MAIN_OBSERVER_ID
+              );
+        const observer = observerViews.length
+          ? createTileCameraDemand(observerViews)
+          : null;
+        const bounds = observer ? new Box3() : null;
+        const transform = observer ? new Matrix4() : null;
+        const demands = new Map<
+          RuntimeTile,
+          { intersects: boolean; errorPixels: number }
+        >();
+        const demand = (tile: RuntimeTile) => {
+          const cached = demands.get(tile);
+          if (cached) return cached;
+          let result;
+          if (handoverTarget !== undefined) {
+            const volume = tile.engineData?.boundingVolume;
+            if (!observer || !bounds || !transform || !volume?.getAABB)
+              result = {
+                intersects: true,
+                errorPixels: Number.POSITIVE_INFINITY,
+              };
+            else {
+              readOrientedTileBounds(volume, bounds, transform);
+              transform.premultiply(runtimeState.tiles!.group.matrixWorld);
+              bounds.applyMatrix4(transform);
+              const evaluation = observer.evaluate(
+                bounds,
+                tile.geometricError *
+                  runtimeState.tiles!.group.matrixWorld.getMaxScaleOnAxis()
+              );
+              result = {
+                intersects: evaluation.required,
+                errorPixels:
+                  evaluation.errorRatio * observerViews[0].errorTargetPixels,
+              };
+            }
+          } else
+            result = {
+              intersects:
+                !tile.traversal || dependencies.isTileInMainView(tile),
+              errorPixels: dependencies.getTileScreenError(tile, false),
+            };
+          demands.set(tile, result);
+          return result;
+        };
+        const readyAt = (error: number) => {
+          if (!root) return false;
+          const cut = getReadyMeshRegionCut(
             root,
             runtimeState.displayedMeshFrontier,
             error,
-            (tile) => ({
-              intersects:
-                !tile.traversal ||
-                dependencies.isTileInMainView(tile as RuntimeTile),
-              errorPixels: dependencies.getTileScreenError(tile as RuntimeTile),
-            })
-          ) !== null;
+            (tile) => demand(tile as RuntimeTile)
+          );
+          return (
+            cut !== null &&
+            (handoverTarget === undefined ||
+              (cut.length > 0 &&
+                cut.every(
+                  (tile) => demand(tile as RuntimeTile).errorPixels <= error
+                )))
+          );
+        };
+        if (
+          !runtimeState.meshInitialHandoverDone &&
+          runtimeState.map?.isMoving?.() !== true &&
+          readyAt(
+            Math.max(
+              runtimeState.requestedErrorTarget,
+              handoverTarget ??
+                initialMeshLoadError(
+                  runtimeState.requestedErrorTarget,
+                  runtimeState.options.baseErrorTargetPixels
+                )
+            )
+          )
+        ) {
+          // Decision: ../../../../TILES_COVERAGE.md#viewport-only-cold-replacement-families
+          // First observer idle releases offscreen families, even when memory
+          // keeps the same target. Shadow/background queues need not be empty.
+          runtimeState.meshInitialHandoverDone = true;
+          runtimeState.meshDemandSweepPending = true;
+          dependencies.resetDeferredTiles();
+          runtimeState.tiles.dispatchEvent({ type: "needs-update" });
+          dependencies.requestRender();
+        }
         const initialTarget = Math.max(base, minimumTarget);
         const initialReady = readyAt(initialTarget);
         const hasReserve =
@@ -207,6 +297,7 @@ export function createThreeTilesQuality(
         )
           runtimeState.meshInitialReserveSettled = true;
         const reserveBeforeIdle =
+          handoverTarget === undefined &&
           !runtimeState.shadowView &&
           hasReserve &&
           !runtimeState.meshInitialReserveSettled;
@@ -243,6 +334,9 @@ export function createThreeTilesQuality(
             initialReady,
             reserveBeforeIdle,
             currentTarget,
+            handoverTarget,
+            handoverReady: runtimeState.meshInitialHandoverDone,
+            firstImageReady: runtimeState.meshInitialBasePassDone,
           },
           readyAt
         );

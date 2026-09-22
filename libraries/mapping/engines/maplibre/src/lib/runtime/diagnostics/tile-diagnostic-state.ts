@@ -1,3 +1,4 @@
+import type { MeshTileDebugProgress } from "../integrations/three-tiles-runtime-types";
 import type { Tile } from "3d-tiles-renderer/core";
 import type { TilesRenderer } from "3d-tiles-renderer";
 import * as THREE from "three";
@@ -8,6 +9,7 @@ export type RuntimeTile = Tile & { idleRing?: boolean };
 
 /** The slice of the runtime state the overlay reads, see three-tiles-runtime-context.ts. */
 export type TilesRuntimeDebugState = {
+  tileDebugProgress?: WeakMap<Tile, MeshTileDebugProgress>;
   tileCameraDemand: ReturnType<typeof createTileCameraDemand>;
   tiles: TilesRenderer | null;
   displayedMeshFrontier: ReadonlySet<Tile>;

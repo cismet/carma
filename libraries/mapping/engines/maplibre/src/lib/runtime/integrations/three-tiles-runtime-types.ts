@@ -58,7 +58,23 @@ export type RuntimeTile = Tile & {
   };
 };
 
+export type MeshTileWait = {
+  role: "receiver" | "shadow";
+  reason:
+    | "material"
+    | "replacement-family"
+    | "shadow-family"
+    | "render"
+    | "shadow-render"
+    | "shadow-accumulation";
+  since: number;
+  until?: number;
+  blocker?: string;
+};
+
 export type MeshTileDebugProgress = {
+  /** Last 32 observed publication waits; roles have independent clocks. */
+  waits?: MeshTileWait[];
   discoveredAt: number;
   queuedAt?: number;
   downloadStartedAt?: number;
@@ -70,6 +86,7 @@ export type MeshTileDebugProgress = {
   lastError?: string;
   loadedAt?: number;
   visibleAt?: number;
+  shadowDepthSubmittedAt?: number;
   shadowPresentedAt?: number;
   corridorReadyAt?: number;
   stableAt?: number;
@@ -158,6 +175,7 @@ export interface ThreeTilesRuntime {
     /** Read-only, live diagnostic view. Never serialize its Three.js objects to workers. */
     readState: () => Readonly<TilesRuntimeDebugState> | undefined;
     setDiagnosticsEnabled: (enabled: boolean) => void;
+    setTelemetryEnabled: (enabled: boolean) => void;
     setTileBoundsVisible: (enabled: boolean) => void;
   };
   readonly loading: {
@@ -275,6 +293,10 @@ export interface ThreeTilesRuntimeOptions {
    * ancestor fallback together with the default first pass.
    */
   baseErrorTargetPixels?: number;
+  /** Optional cold first-image request target in renderer pixels. */
+  firstImageErrorTargetPixels?: number;
+  /** Complete the initial viewport at this error before idle/reserve work. */
+  handoverErrorTargetPixels?: number;
   /**
    * Diagnostics: register the runtime state in `window.__carmaTiles3d` and keep
    * the per-traversal bookkeeping the diagnostics story reads. Off by default;

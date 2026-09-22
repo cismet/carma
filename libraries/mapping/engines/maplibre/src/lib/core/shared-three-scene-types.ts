@@ -46,7 +46,10 @@ export interface SharedThreeSceneFrame {
   renderCamera: THREE.Camera;
   lodCamera: THREE.PerspectiveCamera;
   lookTarget: THREE.Vector3;
+  /** Main framebuffer dimensions in physical pixels. */
   viewport: THREE.Vector2;
+  /** Observer LOD dimensions in CSS pixels; omitted by offscreen callers. */
+  cssViewport?: THREE.Vector2;
   localFrame: SharedThreeSceneLocalFrame;
   /** Additional world-space views share every runtime's existing tile pool. */
   tileCameraViews?: readonly TileCameraSnapshot[];
@@ -63,6 +66,7 @@ export type SharedThreeSceneShadowView = Readonly<{
   /** Scene-space ground receivers supplied to building-only caster runtimes. */
   terrainReceivers?: readonly SharedThreeSceneTileVolume[];
   casterAngularRadiusRadians?: number;
+  /** Sampling grid for caster LOD, independent of render-target DPR. */
   shadowMapSize: Readonly<{
     width: number;
     height: number;
@@ -74,7 +78,7 @@ export type SharedThreeSceneTileVolume = Readonly<{
   kind: string;
   sourceId?: string;
   geometricError?: number;
-  /** Current physical-pixel error, not the configured final target. */
+  /** Current observer CSS-pixel error, not the configured final target. */
   errorPixels?: number;
   loadReason?: "viewport" | "shadow";
   /** Loading state for diagnostics; omitted means the payload is loaded. */

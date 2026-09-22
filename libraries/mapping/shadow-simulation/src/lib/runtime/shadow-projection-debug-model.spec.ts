@@ -48,6 +48,7 @@ const buildSnapshot = () => {
     sampleCount: 8,
     totalShadowTexels: 8 * 4_096 ** 2,
     casterReachMeters: 875,
+    casterMetersPerTexel: [1, 1],
     camera: {
       receiverPointCount: 8,
       receiverLeftMeters: -70,

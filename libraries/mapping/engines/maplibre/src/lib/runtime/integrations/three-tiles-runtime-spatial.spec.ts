@@ -164,6 +164,11 @@ describe("current-camera screen error before native traversal", () => {
         },
       };
       expect(spatial.getTileScreenError(receiver)).toBe(600);
+      // Receiver sources must use observer demand, never feed caster demand
+      // into the next receiver mask and ratchet its detail upward.
+      expect(spatial.getTileScreenError(receiver, false)).toBeCloseTo(
+        cameraError
+      );
       pixelsPerMeter = 1;
       expect(spatial.getTileScreenError(receiver)).toBeCloseTo(cameraError);
     } finally {

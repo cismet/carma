@@ -76,12 +76,17 @@ describe("mesh caster publication", () => {
       group: new THREE.Group(),
       markTileUsed: vi.fn(),
     } as unknown as RuntimeTilesRenderer;
+    let shadowErrorMultiplier = 1;
+    const getTileScreenError = vi.fn(
+      (tile: Tile, includeShadow = true) =>
+        tile.traversal.error * (includeShadow ? shadowErrorMultiplier : 1)
+    );
     const api = createThreeTilesShadows(state, {
       isTileInMainView: (tile) => main.has(tile),
       isChildUnloadable: () => false,
       updateRootWorldBounds,
       updateFrameFromTiles: () => new THREE.Matrix4(),
-      getTileScreenError: (tile) => tile.traversal.error,
+      getTileScreenError,
       getStableTileId: (tile) => tile.content!.uri!,
       getTileCenterness: () => 1,
       getTileDebugId: (tile) => tile.content!.uri!,
@@ -189,6 +194,23 @@ describe("mesh caster publication", () => {
       new THREE.Vector3(-100, -100, -100),
       new THREE.Vector3(100, 100, 100)
     );
+    // A displayed tile can beat the requested SSE. Caster admission must
+    // still reach its actual LOD, including siblings needed by publication.
+    receiver.traversal.error = 0.25;
+    const finerReceiver = api.createReceiverSnapshot(new Set([receiver]))!;
+    const match = {
+      receiverGeometricError: Infinity,
+      receiverCenterness: 0,
+      lightFacing: 0,
+    };
+    expect(
+      finerReceiver.mask!.match(
+        new THREE.Box3(new THREE.Vector3(0, 0, 0), new THREE.Vector3(1, 1, 1)),
+        match
+      )
+    ).toBe(true);
+    expect(match.receiverGeometricError).toBe(receiver.geometricError);
+    receiver.traversal.error = 1;
     const frontier = new Set([receiver, otherChild]);
     const snapshot = api.createReceiverSnapshot(frontier)!;
     expect(snapshot).not.toBeNull();
@@ -198,6 +220,10 @@ describe("mesh caster publication", () => {
     expect(
       api.createReceiverSnapshot(new Set([otherChild, receiver]))?.mask
     ).toBe(snapshot.mask);
+    shadowErrorMultiplier = 100;
+    expect(api.createReceiverSnapshot(frontier)?.mask).toBe(snapshot.mask);
+    expect(getTileScreenError).toHaveBeenCalledWith(receiver, false);
+    shadowErrorMultiplier = 1;
     receiver.traversal.error = 2;
     expect(api.createReceiverSnapshot(frontier)?.mask).not.toBe(snapshot.mask);
     receiver.traversal.error = 1;

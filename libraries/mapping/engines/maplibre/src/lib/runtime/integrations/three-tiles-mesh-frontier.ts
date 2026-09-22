@@ -181,7 +181,17 @@ export const collectLoadedMeshReceiverCandidates = (
     unpreparedParents?: Set<Tile>;
     /** Publish the first view together; subsequently promote resident reserves. */
     atomic?: boolean;
+    /** Cold first fill can complete only the intersecting replacement branches. */
+    completeOffscreenFamilies?: boolean;
+    /** Hard shadows can iterate on a complete coarse surface immediately. */
+    allowCoarseBootstrap?: boolean;
+    firstImageErrorTargetPixels?: number;
     onIncompletePublishedFamily?: (parent: Tile) => void;
+    onWait?: (
+      tile: Tile,
+      reason: "material" | "replacement-family",
+      blocker?: Tile
+    ) => void;
   }>
 ): Set<Tile> => {
   options?.support.clear();
@@ -211,14 +221,14 @@ export const collectLoadedMeshReceiverCandidates = (
   const visit = (
     tile: Tile,
     completeFamily = false
-  ): { cut: Tile[]; complete: boolean } => {
+  ): { cut: Tile[]; complete: boolean; blocker?: Tile } => {
     // A raw hierarchy entry the renderer has not preprocessed yet has no
     // bounds, so it cannot answer the view test; it is unknown coverage, not
     // proof of being outside the view. Testing the view first let an
     // unloaded in-view subtree count as covered and stalled the first pass.
     if (!tile.internal || !tile.traversal) {
       if (completeFamily) options?.support.add(tile);
-      return { cut: [], complete: false };
+      return { cut: [], complete: false, blocker: tile };
     }
     const visible = inView(tile);
     if (!visible && !completeFamily) {
@@ -227,6 +237,10 @@ export const collectLoadedMeshReceiverCandidates = (
       // An offscreen sibling must not recursively create finer support jobs.
       return { cut: [], complete: true };
     }
+    // Visible siblings are publication prerequisites too. Otherwise offscreen
+    // support requests outrank the last visible members of the same family.
+    if (options?.atomic && isNextPublishedMeshLevel(tile, options.published))
+      options.support.add(tile);
     // Complete only the immediate replacement family, not another offscreen
     // refinement tree. Publishing a viewport-only subset forces a downgrade
     // on the next drag into an unloaded sibling. A ready sibling is retained
@@ -239,7 +253,7 @@ export const collectLoadedMeshReceiverCandidates = (
         options?.support.add(tile);
         return isLoadedMesh(tile) && receiverReady(tile, true)
           ? { cut: [tile], complete: true }
-          : { cut: [], complete: false };
+          : { cut: [], complete: false, blocker: tile };
       }
       if (
         tile.internal.hasUnrenderableContent &&
@@ -251,7 +265,7 @@ export const collectLoadedMeshReceiverCandidates = (
       tile.internal.hasUnrenderableContent &&
       tile.internal.loadingState !== LOADED
     )
-      return { cut: [], complete: false };
+      return { cut: [], complete: false, blocker: tile };
     if (
       tile.internal.hasContent === false &&
       !tile.internal.hasRenderableContent &&
@@ -260,14 +274,19 @@ export const collectLoadedMeshReceiverCandidates = (
     )
       return { cut: [], complete: true };
     const error = errorPixels(tile);
+    const loaded = isLoadedMesh(tile);
+    const materialReady = loaded && receiverReady(tile);
+    if (loaded && !materialReady) options?.onWait?.(tile, "material");
     const fallback =
-      isLoadedMesh(tile) &&
-      receiverReady(tile) &&
+      materialReady &&
       !isMeshTileUnconditionallyRefined(tile) &&
       Number.isFinite(error) &&
       (options?.atomic
         ? residentFallback ||
-          error <= TILES_LOAD_POLICY.firstImageMaxErrorPixels
+          options.allowCoarseBootstrap ||
+          error <=
+            (options.firstImageErrorTargetPixels ??
+              TILES_LOAD_POLICY.firstImageMaxErrorPixels)
         : error <= maximumInitialErrorPixels ||
           options?.published.has(tile) ||
           tile.children.length === 0) &&
@@ -287,6 +306,7 @@ export const collectLoadedMeshReceiverCandidates = (
       return { cut: [tile], complete: true };
     const selected: Tile[] = [];
     let complete = children.length > 0;
+    let blocker: Tile | undefined;
     for (const child of children) {
       // Decision: ../../../TILES_COVERAGE.md#raw-replacement-topology-liveness
       // Raw hierarchy children have no parent pointer until native preprocessing.
@@ -298,14 +318,19 @@ export const collectLoadedMeshReceiverCandidates = (
         completeFamily ||
           Boolean(
             options?.atomic &&
+              options.completeOffscreenFamilies !== false &&
               tile.refine === "REPLACE" &&
               tile.internal.hasRenderableContent
           )
       );
       selected.push(...result.cut);
+      if (!result.complete) blocker ??= result.blocker ?? child;
       complete &&= result.complete;
     }
     if (fallback && (!complete || tile.refine === "ADD")) {
+      if (!complete && tile.refine === "REPLACE")
+        for (const child of selected)
+          options?.onWait?.(child, "replacement-family", blocker);
       if (!complete && options?.atomic && retainedAncestors.has(tile))
         options.onIncompletePublishedFamily?.(tile);
       return {
@@ -313,7 +338,11 @@ export const collectLoadedMeshReceiverCandidates = (
         complete: true,
       };
     }
-    return { cut: selected, complete };
+    return {
+      cut: selected,
+      complete,
+      blocker: complete ? undefined : blocker ?? tile,
+    };
   };
   const result = visit(root);
   return new Set(
@@ -636,7 +665,8 @@ export const refineLoadedMeshFrontier = (
   requestedError: number,
   inView: (tile: Tile) => boolean,
   errorPixels: (tile: Tile) => number = (tile) => tile.traversal.error,
-  minimumFrontier: ReadonlySet<Tile> = new Set()
+  minimumFrontier: ReadonlySet<Tile> = new Set(),
+  onWait?: (tile: Tile, blocker: Tile) => void
 ): Set<Tile> => {
   // Decision: engines/maplibre/README.md#linked-receivercaster-detail.
   // A parent meeting caster SSE must not mask already displayed finer geometry.
@@ -680,10 +710,17 @@ export const refineLoadedMeshFrontier = (
     if (children.length === 0)
       return (tile.children?.length ?? 0) > 0 ? [] : fallback;
     const selected: Tile[] = [];
+    let blocker: Tile | undefined;
     for (const child of children) {
       const cut = select(child);
-      if (!cut) return fallback;
-      selected.push(...cut);
+      if (!cut) {
+        if (!onWait) return fallback;
+        blocker ??= child;
+      } else selected.push(...cut);
+    }
+    if (blocker) {
+      for (const child of selected) onWait?.(child, blocker);
+      return fallback;
     }
     return selected;
   };

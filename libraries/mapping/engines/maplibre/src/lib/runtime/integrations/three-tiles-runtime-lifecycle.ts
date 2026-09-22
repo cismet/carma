@@ -52,6 +52,8 @@ export function createThreeTilesLifecycle(
     | "deferred"
     | "motionCoverageDue"
     | "meshBaseCoverageReady"
+    | "meshInitialHandoverDone"
+    | "pendingShadowView"
     | "memoryErrorTarget"
     | "meshRefinementSupport"
     | "extentGeometricError"
@@ -113,6 +115,10 @@ export function createThreeTilesLifecycle(
   dependencies: Pick<
     ThreeTilesRuntimeServices,
     | "getTileDebugProgress"
+    | "recordTileWait"
+    | "drainTileWaitEvents"
+    | "beginTileWaitObservation"
+    | "endTileWaitObservation"
     | "refreshRenderedMaterials"
     | "applyMaterialFlags"
     | "readModelFrameBounds"
@@ -179,14 +185,28 @@ export function createThreeTilesLifecycle(
     telemetryTiles: new Set(),
     telemetryDropped: 0,
   };
-  const drawObserver = createTileDrawObserver((tile) => {
-    dependencies.getTileDebugProgress(tile).visibleAt ??= performance.now();
-    const requestedAt = tile.firstPublicationRequestedAt;
-    if (requestedAt !== undefined) {
-      motionPrefetch.observeLatency(performance.now() - requestedAt);
-      delete tile.firstPublicationRequestedAt;
+  const drawObserver = createTileDrawObserver(
+    (tile) => {
+      dependencies.getTileDebugProgress(tile).visibleAt ??= performance.now();
+      dependencies.recordTileWait(tile, "receiver", null);
+      const requestedAt = tile.firstPublicationRequestedAt;
+      if (requestedAt !== undefined) {
+        motionPrefetch.observeLatency(performance.now() - requestedAt);
+        delete tile.firstPublicationRequestedAt;
+      }
+    },
+    (tile) => {
+      if (
+        !runtimeState.options.diagnostics ||
+        runtimeState.options.tileTelemetry === false
+      )
+        return;
+      const progress = dependencies.getTileDebugProgress(tile);
+      progress.shadowDepthSubmittedAt ??= performance.now();
+      if (progress.shadowPresentedAt === undefined)
+        dependencies.recordTileWait(tile, "shadow", "shadow-accumulation");
     }
-  });
+  );
   const isTileInAnyView = (tile: RuntimeTile) =>
     dependencies.isTileInMainView(tile) ||
     dependencies.getTileCameraDemand(tile).required;
@@ -195,8 +215,10 @@ export function createThreeTilesLifecycle(
   const noteTileActivity = (tile: Tile) => {
     if (
       runtimeState.disposed ||
-      !localTelemetry ||
-      !runtimeState.tileBoundsVisible ||
+      !(
+        runtimeState.options.tileTelemetry === true ||
+        (localTelemetry && runtimeState.tileBoundsVisible)
+      ) ||
       runtimeState.options.tileTelemetry === false
     )
       return;
@@ -217,8 +239,10 @@ export function createThreeTilesLifecycle(
     progress.publicationFinishedAt = undefined;
     progress.loadedAt = undefined;
     progress.visibleAt = undefined;
+    progress.shadowDepthSubmittedAt = undefined;
     progress.shadowPresentedAt = undefined;
     progress.lastError = undefined;
+    progress.waits = undefined;
     noteTileActivity(tile);
   };
 

@@ -72,6 +72,7 @@ type ThreeTilesRuntimeAttachmentState = Pick<
   | "loadingPaused"
   | "meshAuditTimer"
   | "meshBaseCoverageReady"
+  | "meshInitialHandoverDone"
   | "displayedMeshFrontier"
   | "lastMainViewConverged"
   | "meshRefinementSupport"
@@ -505,13 +506,19 @@ export function createThreeTilesRuntimeAttachment(
             parent.geometricError
         );
       }
+      // Decision: ../../../../TILES_COVERAGE.md#progressive-shadow-families-and-wait-telemetry
+      // Visible families need drawable intermediate LODs even with shadows;
+      // offscreen caster requests keep their independent refinement depth.
       if (
         runtimeState.options.providesTerrain &&
-        !runtimeState.shadowView &&
         target.inView &&
+        (!runtimeState.shadowView ||
+          dependencies.isTileInMainView(runtimeTile)) &&
         tile.internal.hasRenderableContent &&
         (runtimeState.displayedMeshFrontier.size === 0
-          ? target.error <= TILES_LOAD_POLICY.firstImageMaxErrorPixels
+          ? target.error <=
+            (runtimeState.options.firstImageErrorTargetPixels ??
+              TILES_LOAD_POLICY.firstImageMaxErrorPixels)
           : isNextPublishedMeshLevel(tile, runtimeState.displayedMeshFrontier))
       )
         target.error = Math.min(
@@ -592,12 +599,13 @@ export function createThreeTilesRuntimeAttachment(
       ) {
         return;
       }
-      // A refinement request belongs to its entire immediate REPLACE family.
-      // Use the existing queue/material/cancellation path for every sibling;
-      // support requests do not fan out recursively into another LOD.
-      const family =
+      // Decision: ../../../../TILES_COVERAGE.md#viewport-only-cold-replacement-families
+      // Cold fill excludes proven offscreen siblings; unknown bounds still
+      // require preparation. After handover every sibling is required again.
+      let family =
         runtimeState.options.providesTerrain &&
-        !runtimeState.shadowView &&
+        (!runtimeState.shadowView ||
+          dependencies.isTileInMainView(runtimeTile)) &&
         !supportTile &&
         !floorTile &&
         tile.internal.hasRenderableContent &&
@@ -606,6 +614,14 @@ export function createThreeTilesRuntimeAttachment(
           : [];
       if (family.length) {
         tiles.ensureChildrenArePreprocessed(tile.parent!);
+        if (!runtimeState.meshInitialHandoverDone)
+          family = family.filter(
+            (sibling) =>
+              !sibling.internal ||
+              !sibling.traversal ||
+              !(sibling as RuntimeTile).engineData?.boundingVolume ||
+              dependencies.isTileInMainView(sibling as RuntimeTile)
+          );
         for (const sibling of family)
           runtimeState.meshRefinementSupport.add(sibling);
       }

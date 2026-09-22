@@ -86,7 +86,12 @@ export function createThreeTilesRuntimeState(
   const configuredErrorTarget = requestedErrorTarget;
   const errorTargetOverride: number | null = null;
   const effectiveErrorTarget = options.providesTerrain
-    ? initialMeshLoadError(requestedErrorTarget, options.baseErrorTargetPixels)
+    ? initialMeshLoadError(
+        requestedErrorTarget,
+        options.baseErrorTargetPixels,
+        true,
+        options.firstImageErrorTargetPixels
+      )
     : requestedErrorTarget;
   const errorTargetState: EffectiveErrorTargetState = {
     ...createEffectiveErrorTargetState(requestedErrorTarget, Date.now()),
@@ -401,6 +406,7 @@ export function createThreeTilesRuntimeState(
     shadowViewSignature,
     pendingShadowView,
     meshInitialBasePassDone,
+    meshInitialHandoverDone: options.providesTerrain !== true,
     shadowSelectionEnabled,
     shadowSelectionNeedsTraversal,
     shadowSelectionRefreshPending,

@@ -21,9 +21,11 @@ export type TileDrawStatus = {
  * No per-frame React updates, GPU readbacks, or extra rendering.
  */
 export function createTileDrawObserver(
-  onPrimaryDraw: (tile: RuntimeTile) => void
+  onPrimaryDraw: (tile: RuntimeTile) => void,
+  onShadowDraw?: (tile: RuntimeTile) => void
 ) {
   const records = new WeakMap<RuntimeTile, { any?: Draw; main?: Draw }>();
+  const shadowFrames = new WeakMap<RuntimeTile, number>();
   const epochs = new WeakMap<HTMLCanvasElement, object>();
   const contextCleanup = new Set<() => void>();
   const hooks = new Map<Object3D, () => void>();
@@ -80,6 +82,42 @@ export function createTileDrawObserver(
           }
           records.set(tile, record);
         };
+        if (onShadowDraw) {
+          const beforeShadow = object.onBeforeShadow;
+          const afterShadow = object.onAfterShadow;
+          let shadowCalls = 0;
+          const onBeforeShadow: typeof beforeShadow = function (
+            this: Object3D,
+            ...args
+          ) {
+            beforeShadow.apply(this, args);
+            shadowCalls = args[0].info.render.calls;
+          };
+          const onAfterShadow: typeof afterShadow = function (
+            this: Object3D,
+            ...args
+          ) {
+            const renderer = args[0];
+            const submitted = renderer.info.render.calls > shadowCalls;
+            afterShadow.apply(this, args);
+            if (
+              submitted &&
+              shadowFrames.get(tile) !== frame &&
+              !renderer.getContext().isContextLost()
+            ) {
+              shadowFrames.set(tile, frame);
+              onShadowDraw(tile);
+            }
+          };
+          object.onBeforeShadow = onBeforeShadow;
+          object.onAfterShadow = onAfterShadow;
+          restore.push(() => {
+            if (object.onBeforeShadow === onBeforeShadow)
+              object.onBeforeShadow = beforeShadow;
+            if (object.onAfterShadow === onAfterShadow)
+              object.onAfterShadow = afterShadow;
+          });
+        }
         object.onBeforeRender = onBefore;
         object.onAfterRender = onAfter;
         restore.push(() => {
@@ -91,6 +129,7 @@ export function createTileDrawObserver(
       hooks.set(scene, () => {
         restore.forEach((fn) => fn());
         records.delete(tile);
+        shadowFrames.delete(tile);
       });
     },
     detach(scene: Object3D) {

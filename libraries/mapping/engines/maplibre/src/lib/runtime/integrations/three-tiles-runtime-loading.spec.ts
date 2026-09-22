@@ -3,6 +3,13 @@ import { TilesRenderer } from "3d-tiles-renderer";
 import { LRUCache } from "3d-tiles-renderer/core";
 import type { Map as MaplibreMap } from "maplibre-gl";
 import { describe, expect, it, vi } from "vitest";
+import { Box3, OrthographicCamera, Vector3 } from "three";
+import {
+  createTileCameraDemand,
+  snapshotTileCameraViews,
+  TILE_CAMERA_ROLE,
+  TILE_MAIN_OBSERVER_ID,
+} from "../../core/tile-camera-demand";
 import { createThreeTilesLoading } from "./three-tiles-runtime-loading";
 import { createThreeTilesRuntimeState } from "./three-tiles-runtime-state";
 import type {
@@ -231,7 +238,7 @@ describe("local refinement progress", () => {
     state.displayedMeshFrontier.add(root);
     state.extentGeometricError = 40;
     loading.applyErrorTargetPolicy();
-    expect(state.effectiveErrorTarget).toBe(20);
+    expect(state.effectiveErrorTarget).toBe(64);
     state.extentFloorArmed = true;
     state.extentFloorAuditPending = true;
     loading.applyErrorTargetPolicy();
@@ -272,7 +279,7 @@ describe("local refinement progress", () => {
     expect(state.tiles).toBe(renderer);
     expect(state.options.baseErrorTargetPixels).toBe(12);
     expect(state.requestedErrorTarget).toBe(6);
-    expect(state.effectiveErrorTarget).toBe(12);
+    expect(state.effectiveErrorTarget).toBe(64);
     expect(state.meshInitialReserveSettled).toBe(false);
     expect(state.appliedTilesetMinResolutionPx).toBeNaN();
     state.meshInitialReserveSettled = true;
@@ -489,7 +496,7 @@ describe("local refinement progress", () => {
   it("requests acceptable whole-view quality before the final target", () => {
     const { state, loading } = fixture();
     loading.applyErrorTargetPolicy();
-    expect(state.effectiveErrorTarget).toBe(20);
+    expect(state.effectiveErrorTarget).toBe(64);
     expect(state.meshBaseCoverageReady).toBe(false);
     const child = {
       refine: "REPLACE",
@@ -507,7 +514,11 @@ describe("local refinement progress", () => {
     Object.assign(state.tiles!, { rootTileset: { root: child } });
     state.displayedMeshFrontier.add(child);
     loading.applyErrorTargetPolicy();
-    // Current-view proof advances despite the old global flag being false.
+    // First-image coverage releases the bootstrap stage, then the configured
+    // base and idle targets continue using the existing current-view proof.
+    expect(state.effectiveErrorTarget).toBe(32);
+    expect(state.meshInitialBasePassDone).toBe(true);
+    loading.applyErrorTargetPolicy();
     expect(state.effectiveErrorTarget).toBe(10);
     expect(state.tiles!.errorTarget).toBe(10);
     expect(state.meshDemandSweepPending).toBe(true);
@@ -528,6 +539,87 @@ describe("local refinement progress", () => {
     state.tiles!.dispose();
   });
 
+  it.each([8, undefined])(
+    "releases offscreen families only at first observer idle with handover %s",
+    (handoverTarget) => {
+      const { state, loading } = fixture(true);
+      state.options.handoverErrorTargetPixels = handoverTarget;
+      state.meshInitialHandoverDone = false;
+      state.meshInitialBasePassDone = true;
+      state.memoryErrorTarget = 8;
+      state.effectiveErrorTarget = 8;
+      // The idle guard must also work before native ancestor mode is disabled.
+      state.tiles!.loadAncestors = true;
+      const camera = new OrthographicCamera(-50, 50, 50, -50, 0.1, 100);
+      state.tileCameraDemand = createTileCameraDemand(
+        snapshotTileCameraViews([
+          {
+            id: TILE_MAIN_OBSERVER_ID,
+            camera,
+            viewport: [100, 100],
+            errorTargetPixels: 8,
+            role: TILE_CAMERA_ROLE.RECEIVER,
+          },
+        ])
+      );
+      const tile = (x: number, error: number, loaded: boolean): RuntimeTile =>
+        ({
+          refine: "REPLACE",
+          geometricError: error,
+          children: [],
+          internal: {
+            hasRenderableContent: true,
+            loadingState: loaded ? 4 : 0,
+          },
+          traversal: { inFrustum: x === 0, error },
+          engineData: {
+            boundingVolume: {
+              getAABB: (box: Box3) =>
+                box.set(new Vector3(x - 1, -1, -11), new Vector3(x + 1, 1, -9)),
+            },
+          },
+        } as unknown as RuntimeTile);
+      const parent = tile(0, 40, true);
+      const visible = tile(0, 8, true);
+      const offscreen = tile(200, 8, false);
+      parent.children = [visible, offscreen];
+      visible.parent = parent;
+      offscreen.parent = parent;
+      Object.assign(state.tiles!, { rootTileset: { root: parent } });
+      state.displayedMeshFrontier.add(visible);
+      const wake = vi.spyOn(state.tiles!, "dispatchEvent");
+      try {
+        loading.applyErrorTargetPolicy();
+        expect(state.meshInitialHandoverDone).toBe(false);
+        state.map!.isMoving = () => false;
+        state.displayedMeshFrontier.clear();
+        loading.applyErrorTargetPolicy();
+        expect(state.meshInitialHandoverDone).toBe(false);
+        state.displayedMeshFrontier.add(visible);
+        state.effectiveErrorTarget = 8;
+        state.meshDemandSweepPending = false;
+        state.tiles!.stats.downloading = 1;
+        wake.mockClear();
+        vi.mocked(state.map!.triggerRepaint).mockClear();
+        loading.applyErrorTargetPolicy();
+        expect(state.meshInitialHandoverDone).toBe(true);
+        expect(state.effectiveErrorTarget).toBe(8);
+        expect(offscreen.internal.loadingState).toBe(0);
+        expect(state.meshDemandSweepPending).toBe(true);
+        expect(wake).toHaveBeenCalledWith({ type: "needs-update" });
+        expect(state.map!.triggerRepaint).toHaveBeenCalled();
+        // Camera motion never returns the normal runtime to partial cold families.
+        state.map!.isMoving = () => true;
+        loading.applyErrorTargetPolicy();
+        expect(state.meshInitialHandoverDone).toBe(true);
+      } finally {
+        Object.assign(state.tiles!, { rootTileset: null });
+        loading.clearErrorTargetTimer();
+        state.tiles!.dispose();
+      }
+    }
+  );
+
   it("keeps the coarse motion policy while the map moves", () => {
     const { state, loading } = fixture(true);
     loading.applyErrorTargetPolicy();
@@ -538,6 +630,7 @@ describe("local refinement progress", () => {
 
   it("still respects the memory-adaptive target", () => {
     const { state, loading } = fixture();
+    state.meshInitialBasePassDone = true;
     state.memoryErrorTarget = 24;
     state.memoryErrorTargetChangedAt = performance.now();
     loading.applyErrorTargetPolicy();

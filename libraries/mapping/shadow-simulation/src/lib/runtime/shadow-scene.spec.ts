@@ -738,6 +738,48 @@ describe("shadow scene lighting integration", () => {
     }
   });
 
+  it("keeps caster LOD demand in CSS pixels while HiDPI depth buffers remain native", async () => {
+    const f = await createIdleTerrainHost();
+    try {
+      const capture = (dpr: number) => {
+        sharedRuntimes.get("shadow-simulation-controller")!.update!({
+          map: f.map,
+          renderCamera: f.camera,
+          lodCamera: f.camera,
+          lookTarget: new THREE.Vector3(),
+          viewport: new THREE.Vector2(800 * dpr, 600 * dpr),
+          cssViewport: new THREE.Vector2(800, 600),
+          localFrame: localFrameAt(1),
+        });
+        const view = f.raster.setShadowView.mock.lastCall?.[0];
+        expect(view).toBeTruthy();
+        const sizes: number[] = [];
+        scene.traverse((object) => {
+          if (object instanceof THREE.DirectionalLight)
+            sizes.push(object.shadow.mapSize.x * object.shadow.mapSize.y);
+        });
+        return {
+          pixelsPerMeterX:
+            view.shadowMapSize.width / (view.camera.right - view.camera.left),
+          pixelsPerMeterY:
+            view.shadowMapSize.height / (view.camera.top - view.camera.bottom),
+          depthPixels: Math.max(...sizes),
+        };
+      };
+      const baseline = capture(1);
+      for (const dpr of [1.25, 2, 3]) {
+        const hidpi = capture(dpr);
+        expect(hidpi.pixelsPerMeterX).toBeCloseTo(baseline.pixelsPerMeterX, 10);
+        expect(hidpi.pixelsPerMeterY).toBeCloseTo(baseline.pixelsPerMeterY, 10);
+        expect(hidpi.depthPixels).toBeGreaterThan(baseline.depthPixels);
+      }
+      expect(f.map.setPixelRatio).not.toHaveBeenCalled();
+    } finally {
+      f.controller.dispose();
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("retains native desktop terrain and soft HDR shadows at 4K after quality changes", async () => {
     vi.stubGlobal("navigator", {
       userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
@@ -2316,6 +2358,20 @@ describe("shadow scene lighting integration", () => {
     expect(accumulation.renderScene?.(camera, null)).toBe(false);
     hasRenderableContent.mockReturnValue(true);
     expect(accumulation.active()).toBe(true);
+    controller.updateRenderQuality({
+      shadowBufferLayout: SHADOW_BUFFER_LAYOUT.MONO,
+    });
+    // Published coarse coverage is sufficient; final mesh SSE must not hold
+    // finite-sun refinement behind unrelated outstanding mesh requests.
+    expect(isMainViewReady()).toBe(false);
+    expect(accumulation.active()).toBe(true);
+    expect(accumulation.pending?.()).toBe(false);
+    hasRenderableContent.mockReturnValue(false);
+    expect(accumulation.active()).toBe(false);
+    expect(accumulation.pending?.()).toBe(true);
+    controller.updateRenderQuality({
+      shadowBufferLayout: SHADOW_BUFFER_LAYOUT.TILED,
+    });
     // Later loading/refinement retains the tiled renderer, never preview.
     hasRenderableContent.mockReturnValue(false);
     isMainViewReady.mockReturnValue(false);

@@ -140,6 +140,7 @@ export function buildThreeTilesRuntime(
     getStableTileId: (...args) => debug.getStableTileId(...args),
     getTileCenterness: (...args) => spatial.getTileCenterness(...args),
     getTileDebugId: (...args) => debug.getTileDebugId(...args),
+    recordTileWait: (...args) => debug.recordTileWait(...args),
     requestRender: (...args) => loading.requestRender(...args),
     isPipelineIdle: (...args) => loading.isPipelineIdle(...args),
     applyRequestConcurrency: (...args) =>
@@ -166,6 +167,10 @@ export function buildThreeTilesRuntime(
       spatial.getTileRequestPriority(...args),
     getTileCameraDemand: (...args) => spatial.getTileCameraDemand(...args),
     getTileDebugProgress: (...args) => debug.getTileDebugProgress(...args),
+    recordTileWait: (...args) => debug.recordTileWait(...args),
+    drainTileWaitEvents: () => debug.drainTileWaitEvents(),
+    beginTileWaitObservation: () => debug.beginTileWaitObservation(),
+    endTileWaitObservation: () => debug.endTileWaitObservation(),
     refreshRenderedMaterials: (...args) =>
       appearance.refreshRenderedMaterials(...args),
     applyMaterialFlags: (...args) => appearance.applyMaterialFlags(...args),
@@ -276,8 +281,15 @@ export function buildThreeTilesRuntime(
       onShadowPresented: (time) => {
         for (const tile of state.tiles?.visibleTiles ?? []) {
           const progress = state.tileDebugProgress.get(tile);
-          if (progress?.visibleAt !== undefined)
+          if (
+            progress &&
+            (state.shadowView
+              ? state.committedMeshCasterFrontier.has(tile)
+              : progress.visibleAt !== undefined)
+          ) {
             progress.shadowPresentedAt ??= time;
+            debug.recordTileWait(tile, "shadow", null);
+          }
         }
       },
       setTileBoundsVisible: debug.setTileBoundsVisible,
@@ -329,6 +341,7 @@ export function buildThreeTilesRuntime(
     debug: {
       readState: debug.readState,
       setDiagnosticsEnabled: debug.setDiagnosticsEnabled,
+      setTelemetryEnabled: debug.setTelemetryEnabled,
       setTileBoundsVisible: debug.setTileBoundsVisible,
     },
   };

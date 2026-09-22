@@ -10,7 +10,6 @@ import {
 } from "../../core/shadow-receiver-mask";
 import type { SharedThreeSceneTileVolume } from "../../core/shared-three-scene-types";
 import { readOrientedTileBounds } from "./three-tiles-bounds";
-import { meshShadowStageError } from "./three-tiles-load-policy";
 import {
   getReadyMeshRegionCut,
   refineLoadedMeshFrontier,
@@ -77,6 +76,7 @@ export function createThreeTilesShadows(
     | "getStableTileId"
     | "getTileCenterness"
     | "getTileDebugId"
+    | "recordTileWait"
     | "requestRender"
     | "isPipelineIdle"
     | "applyRequestConcurrency"
@@ -245,7 +245,8 @@ export function createThreeTilesShadows(
             bounds: clippedBounds,
             geometricError: receiver.geometricError,
             screenErrorPixels: dependencies.getTileScreenError(
-              receiver as RuntimeTile
+              receiver as RuntimeTile,
+              false
             ),
             centerness: 1,
             maximumCasterDistance: maximumSweepDistanceWithinBox(
@@ -425,8 +426,11 @@ export function createThreeTilesShadows(
         .filter((tile) => dependencies.isTileInMainView(tile as RuntimeTile))
         .map((tile) => ({
           tile: tile as RuntimeTile,
+          // Decision: ../../../../TILES_COVERAGE.md#caster-lod-follows-displayed-receivers.
+          // Shadow demand must not feed back into its own receiver density.
           screenErrorPixels: dependencies.getTileScreenError(
-            tile as RuntimeTile
+            tile as RuntimeTile,
+            false
           ),
         }));
       // The tiles-to-light matrix is not part of the identity: with the light
@@ -509,15 +513,8 @@ export function createThreeTilesShadows(
               runtimeState.sunwardDirection
             ),
             geometricError: tile.geometricError,
-            casterGeometricError:
-              screenErrorPixels > 0 && Number.isFinite(screenErrorPixels)
-                ? (tile.geometricError *
-                    meshShadowStageError(
-                      screenErrorPixels,
-                      runtimeState.requestedErrorTarget
-                    )) /
-                  screenErrorPixels
-                : tile.geometricError,
+            // Match the displayed geometry. A looser rounded stage could stop
+            // traversal above siblings required by the caster-family publisher.
             screenErrorPixels,
             centerness: dependencies.getTileCenterness(bounds),
           });
@@ -716,7 +713,17 @@ export function createThreeTilesShadows(
           );
         },
         (tile) => dependencies.getTileScreenError(tile as RuntimeTile),
-        runtimeState.committedMeshReceiverFrontier
+        runtimeState.committedMeshReceiverFrontier,
+        runtimeState.options.diagnostics &&
+          runtimeState.options.tileTelemetry !== false
+          ? (tile, blocker) =>
+              dependencies.recordTileWait(
+                tile,
+                "shadow",
+                "shadow-family",
+                blocker
+              )
+          : undefined
       );
       // Receiver children can improve colour independently, but must not join
       // the depth cut until the complete corridor-relevant family replaces its
