@@ -83,6 +83,23 @@ export {
   withLayerLaunchedAddons,
   type LayerLaunchedAddon,
 } from "./lib/layer-launched-addons";
+export type {
+  AddonWorkflowSpec,
+  WorkflowActivityState,
+  WorkflowCapture,
+  WorkflowCaptureContext,
+  WorkflowEngineProps,
+} from "./lib/workflow";
+export {
+  getWorkflowSpec,
+  isWorkflowGroup,
+  resolveWorkflowGroup,
+  resolveWorkflowGroups,
+  workflowGroupId,
+  type ResolvedWorkflowGroup,
+} from "./lib/workflow-groups";
+export { WorkflowGroupHost } from "./lib/WorkflowGroupHost";
+export { CaptureWorkflowButton } from "./lib/CaptureWorkflowButton";
 export {
   runSwitchOn,
   resolveStyleLayerIds,
@@ -333,6 +350,7 @@ export {
 } from "./addons/comparing/ComparingControl";
 export {
   useComparingActions,
+  type CompareDefinition,
   type CompareState,
 } from "./addons/comparing/comparing-actions";
 export {
@@ -342,6 +360,11 @@ export {
   COMPARING_TOOLS_INTERACTION_ID,
   type UseComparingLayerRowOptions,
 } from "./addons/comparing/comparing-layer-row";
+export {
+  comparingWorkflow,
+  seedCompareDefinition,
+  COMPARING_WORKFLOW_KIND,
+} from "./addons/comparing/comparing-workflow";
 export { ComparingPanel } from "./addons/comparing/ComparingPanel";
 export {
   useCompareLayerEntries,

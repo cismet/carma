@@ -108,8 +108,10 @@ const InfoCard = ({
     displayDescription ?? description
   );
   const isVectorLayer = carmaConf?.vectorStyle;
+  // a workflow offers no favorite button, except a favorited workflow layer,
+  // which has to be removable from here as well as from its card
   const canFavoriteItem =
-    layer.type !== "workflow" &&
+    (layer.type !== "workflow" || isFavorite) &&
     (layer.type !== "collection" ||
       (layer.type === "collection" && layer.serviceName.includes("discover")));
   const isDiscoverItem = layer.serviceName.includes("discover");

@@ -1,10 +1,4 @@
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type CSSProperties,
-} from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 
 import { SwipeOverlay } from "@carma-mapping/core";
 import {
@@ -83,12 +77,10 @@ export const CompareSwipe = ({
   libreMap,
 }: AddonComponentProps<"compareSwipe">) => {
   const {
-    hasState,
+    seedDefaults,
     isOn,
     mode,
-    setMode,
     orientation,
-    setOrientation,
     panelCount,
     setLayout,
     assignments,
@@ -113,18 +105,15 @@ export const CompareSwipe = ({
 
   // the route's config decides which way the divider starts; from then on both
   // axes live in the shared state, where the control pane can reach them.
-  // Only when there is no state to start from: what a previous session left
-  // behind is a choice that was already made, and seeding over it would send
-  // every reload back to the swipe.
-  const seededMode = useRef(hasState);
+  // Only while there is no state to start from: a comparison a row launched
+  // is a choice that was already made, and seeding over it would send it
+  // back to the swipe.
   useEffect(() => {
-    if (seededMode.current) {
-      return;
-    }
-    seededMode.current = true;
-    setMode(COMPARE_MODE.swipe);
-    setOrientation(config?.orientation === "vertical" ? "vertical" : "horizontal");
-  }, [config?.orientation, setMode, setOrientation]);
+    seedDefaults({
+      mode: COMPARE_MODE.swipe,
+      orientation: config?.orientation === "vertical" ? "vertical" : "horizontal",
+    });
+  }, [config?.orientation, seedDefaults]);
 
   // a changed panel count means different dividers, and the old positions were
   // about a different number of them

@@ -5,8 +5,8 @@ import {
   faChevronUp,
   faCircleMinus,
   faCirclePlus,
-  faDiagramProject,
   faExternalLinkAlt,
+  faLayerGroup,
   faMinus,
   faPlus,
   faSquareUpRight,
@@ -51,6 +51,27 @@ interface ItemCardProps {
   /** whether this card's info card is open below it */
   isSelected: boolean;
 }
+
+/**
+ * The members of a layer-group workflow as catalog items, in the order the
+ * workflow names them. The catalog's item wins, it carries what parsing a
+ * layer needs (its provider, url and name); a member the catalog does not
+ * know (a saved measurement in a favorited workflow layer) comes from the
+ * items the workflow brought along, if it brought any.
+ */
+const resolveWorkflowMembers = (
+  ids: string[],
+  resolveFromCatalog: (ids: string[]) => Item[],
+  carried: Item[] | undefined
+): Item[] => {
+  const fromCatalog = new Map(
+    resolveFromCatalog(ids).map((item) => [item.id, item])
+  );
+  const fromWorkflow = new Map((carried ?? []).map((item) => [item.id, item]));
+  return ids
+    .map((id) => fromCatalog.get(id) ?? fromWorkflow.get(id))
+    .filter((item): item is Item => item !== undefined);
+};
 
 const ItemCard = memo(({ layer, isSelected }: ItemCardProps) => {
   const {
@@ -105,7 +126,9 @@ const ItemCard = memo(({ layer, isSelected }: ItemCardProps) => {
   const isActiveLayer =
     matchingActiveLayers.length > 0 ||
     (isLayerGroupWorkflow &&
-      activeLayers.some((activeLayer) => activeLayer.group?.id === layer.id)) ||
+      activeLayers.some(
+        (activeLayer) => activeLayer.group?.id === catalogLayerId
+      )) ||
     // a card that launches an addon instead of adding layers: the host owns
     // that state, the layer stack knows nothing about it
     (isWorkflow && !isLayerGroupWorkflow && !!isWorkflowActive?.(layer));
@@ -115,8 +138,11 @@ const ItemCard = memo(({ layer, isSelected }: ItemCardProps) => {
     (layer.type === "link" && layer.description) ||
     (layer.type === "collection" && layer.description) ||
     (isWorkflow && !!layer.description);
+  // a workflow card offers no star, with one exception: a favorited workflow
+  // layer (saved from the map, see the host's info view) shows its filled
+  // star in the favorites tab so it can be taken out again
   const canFavoriteItem =
-    !isWorkflow &&
+    (!isWorkflow || isFavorite) &&
     (layer.type !== "collection" ||
       (layer.type === "collection" && layer.serviceName.includes("discover")));
   const carmaConf = useMemo(
@@ -178,12 +204,17 @@ const ItemCard = memo(({ layer, isSelected }: ItemCardProps) => {
     // holding alt forces the WMS variant of a vector layer
     const forceWMS = e.altKey;
     const addLayer = () => {
+      // the members come from the catalog, which has everything a layer needs
+      // to be parsed; a workflow that brings its own member items along (a
+      // favorited workflow layer) fills in the ones the catalog does not know
       const itemToAdd =
         isLayerGroupWorkflow && resolveWorkflowLayers
           ? {
               ...layer,
-              workflowLayerItems: resolveWorkflowLayers(
-                layer.workflowLayers ?? []
+              workflowLayerItems: resolveWorkflowMembers(
+                layer.workflowLayers ?? [],
+                resolveWorkflowLayers,
+                layer.workflowLayerItems
               ),
             }
           : layer;
@@ -281,10 +312,20 @@ const ItemCard = memo(({ layer, isSelected }: ItemCardProps) => {
                 </span>
               </div>
             </div>
-          ) : (layer.type === "link" || isWorkflow) && !layer.thumbnail ? (
+          ) : isWorkflow && !layer.thumbnail ? (
+            // the generic workflow card: a stack of layers on a pale ground,
+            // light like the map thumbnails next to it, for every workflow
+            // without a picture of its own
+            <div className="h-full w-full bg-gradient-to-br from-sky-50 via-slate-100 to-slate-200 flex items-center justify-center">
+              <FontAwesomeIcon
+                icon={faLayerGroup}
+                className="text-5xl text-slate-400"
+              />
+            </div>
+          ) : layer.type === "link" && !layer.thumbnail ? (
             <div className="h-full w-full bg-gradient-to-br from-gray-100 to-gray-300 flex items-center justify-center">
               <FontAwesomeIcon
-                icon={isWorkflow ? faDiagramProject : faSquareUpRight}
+                icon={faSquareUpRight}
                 className="text-5xl text-gray-400"
               />
             </div>

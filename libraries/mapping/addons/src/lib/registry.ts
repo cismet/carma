@@ -133,14 +133,24 @@ import {
   ComparingControl,
   type ComparingControlConfig,
 } from "../addons/comparing/ComparingControl";
-import type { CompareState } from "../addons/comparing/comparing-actions";
+import type {
+  CompareDefinition,
+  CompareState,
+} from "../addons/comparing/comparing-actions";
 import type { CompareLayerEntry } from "../addons/comparing/comparing-layers";
+import { comparingWorkflow } from "../addons/comparing/comparing-workflow";
+import type { AddonWorkflowSpec, WorkflowActivityState } from "./workflow";
 
 export type AddonConfigMap = {
   addonManager: AddonManagerConfig;
   cameraRestriction: CameraRestrictionConfig;
   freeCamera: FreeCameraConfig;
   comparingControl: ComparingControlConfig;
+  /**
+   * A comparison as a workflow layer: declared on a group, with the
+   * definition as its config. See `lib/workflow.ts`.
+   */
+  comparing: CompareDefinition;
   compareSwipe: CompareSwipeConfig;
   compareArena: CompareArenaConfig;
   compareSpyglass: CompareSpyglassConfig;
@@ -274,6 +284,12 @@ export type AddonStateMap = {
   shadowSimulation: ShadowSimulationState;
   /** selected civil date and time, separate for future shared-time sync */
   shadowDate: ShadowDateState;
+  /**
+   * which workflow groups run and which are paused, keyed by group id; see
+   * `WorkflowGroupHost`. Read by the layer buttons and by the mode rows,
+   * which step aside while a group of their kind runs.
+   */
+  workflowActivity: WorkflowActivityState;
 };
 
 export type AddonStateKey = keyof AddonStateMap;
@@ -423,6 +439,13 @@ export type AddonRegistryEntry<K extends AddonKind = AddonKind> = {
   perTarget?: boolean;
   /** Render this target-bound component inside the host's secondary view. */
   targetPlacement?: AddonTargetPlacement;
+  /**
+   * The kind can be captured into a workflow layer: a group carrying the
+   * kind's config as its definition, bound to the engine by
+   * `WorkflowGroupHost`. Like a trigger, it keeps the kind out of the
+   * route-wide addon switching. See `lib/workflow.ts`.
+   */
+  workflow?: AddonWorkflowSpec<AddonConfigMap[K], Partial<AddonStateMap>>;
   /** state channels this addon writes (headless producers declare these) */
   provides?: readonly AddonStateKey[];
   /**
@@ -444,6 +467,9 @@ export const addonRegistry: {
     Component: ComparingControl,
     provides: ["compareState", "compareLayers"],
   },
+  // no trigger and no panel: a saved comparison is a layer the user cannot
+  // edit for now, its button opens the info view like any layer's
+  comparing: { workflow: comparingWorkflow },
   compareSwipe: { Component: CompareSwipe, requires: ["compareState"] },
   compareArena: { Component: CompareArena, requires: ["compareState"] },
   compareSpyglass: { Component: CompareSpyglass, requires: ["compareState"] },

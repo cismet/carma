@@ -7,6 +7,7 @@ import {
   faChevronUp,
   faFilter,
   faLayerGroup,
+  faShareNodes,
   faStar,
 } from "@fortawesome/free-solid-svg-icons";
 import { faStar as regularFaStar } from "@fortawesome/free-regular-svg-icons";
@@ -15,14 +16,17 @@ import { Badge } from "antd";
 import { forwardRef, useContext, useEffect, useRef } from "react";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { useDispatch, useSelector } from "react-redux";
-import { SELECTED_LAYER_INDEX } from "@carma-appframeworks/portals";
+import { SELECTED_LAYER_INDEX, useShareUrl } from "@carma-appframeworks/portals";
 import { cn } from "@carma-commons/utils";
 import {
   resolveSecondaryViewTargetAddon,
+  resolveWorkflowGroup,
   ShadowSimulationHeaderControls,
   TargetAddonHost,
   useAddonState,
 } from "@carma-mapping/addons";
+import { iconMap } from "@carma-mapping/components";
+import { buildLayerFavoriteItem } from "./layer-favorite-utils";
 
 import {
   changeBackgroundVisibility,
@@ -69,6 +73,10 @@ import { hasLayerFilterControl } from "./LayerFilterControl";
 import { InteractionContent } from "./InteractionView";
 import { DEFAULT_LAYER_VISIBILITY_TOGGLE_LABELS } from "./layer-visibility-toggle-props";
 import { SHADOW_SIMULATION_LAYER_ID } from "../../hooks/useShadowSimulationLayerButton";
+import {
+  collectShareEntries,
+  isShareableEntry,
+} from "../../helper/share-entries";
 
 type Ref = HTMLDivElement;
 
@@ -97,6 +105,13 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
   // layer-only data (props, conf, favorites, filters) must not be read for a
   // group entry
   const layer = group ? undefined : (entry as Layer | BackgroundLayer);
+  // a workflow layer: a group carrying an addon's definition (see the addons
+  // library's `lib/workflow.ts`); it shows its addon's icon and name
+  const workflowGroup = group ? resolveWorkflowGroup(group) : undefined;
+  const groupIcon =
+    group?.icon && group.icon in iconMap
+      ? iconMap[group.icon as keyof typeof iconMap]
+      : faLayerGroup;
 
   const resolveLayerLegend = (target: Layer | BackgroundLayer) => {
     const vectorLegend =
@@ -151,7 +166,9 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
   const canFavorite =
     !isBaseLayer &&
     !secondaryViewAddon &&
-    (entry.type === "layer" || entry.type === "object");
+    (entry.type === "layer" ||
+      entry.type === "object" ||
+      workflowGroup !== undefined);
   const isFavorite =
     canFavorite &&
     favorites.some(
@@ -159,7 +176,42 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
         favorite.id === `fav_${entry.id}` || favorite.id === entry.id
     );
 
+  /**
+   * A workflow layer as a favorite is the catalog's workflow kind, with its
+   * members and its definition on board: adding it back goes through the
+   * workflow-card path (`applyWorkflowLayerGroup`), which builds the same
+   * group again from `workflowLayerItems` and `tools`.
+   */
+  const buildGroupFavoriteItem = (target: LayerGroup): Item => {
+    // the members' legends, as the catalog card reads them (`props.Style`)
+    // and as the restored group shows them (`groupInfo.legend`)
+    const legendEntries = target.layers.flatMap(resolveLayerLegend);
+    return {
+      type: "workflow",
+      id: target.id,
+      title: target.title,
+      description: target.description ?? "",
+      serviceName: "workflow",
+      icon: target.icon,
+      tools: target.tools,
+      workflowLayers: target.layers.map((member) => member.id),
+      workflowLayerItems: target.layers.map(buildLayerFavoriteItem),
+      ...(legendEntries.length > 0
+        ? {
+            props: { Style: [{ LegendURL: legendEntries }] },
+            groupInfo: {
+              ...target.groupInfo,
+              legend: legendEntries.map((entry) => entry.OnlineResource),
+            },
+          }
+        : {}),
+    } as Item;
+  };
+
   const buildFavoriteItem = (): Item => {
+    if (group) {
+      return buildGroupFavoriteItem(group);
+    }
     const other = layer.other ?? {};
     const layerInfo = layer.layerInfo ?? {};
     return {
@@ -197,6 +249,12 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
       addFavorite(item);
     }
   };
+
+  // A link that adds just this entry to the receiver's map: a layer, a group,
+  // or a workflow row with its definition (and the layers it acts on).
+  const { copyAdditiveShareUrl, contextHolder: shareContextHolder } =
+    useShareUrl();
+  const canShare = isShareableEntry(entry, isBaseLayer);
 
   const { isLeaflet, isCesium } = useMapFrameworkSwitcherContext();
 
@@ -347,6 +405,7 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
 
   return (
     <div className="pt-3 w-full pointer-events-none">
+      {shareContextHolder}
       <div className="flex items-center justify-center w-full">
         <div
           ref={infoRef}
@@ -408,7 +467,7 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
             >
               {group ? (
                 <FontAwesomeIcon
-                  icon={faLayerGroup}
+                  icon={groupIcon}
                   className="text-gray-700"
                   id={iconId}
                 />
@@ -483,6 +542,21 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
                     className={isInteractionActive ? "!text-[#1677ff]" : ""}
                   />
                 </Badge>
+              </button>
+            )}
+            {canShare && (
+              <button
+                className="hover:text-gray-500 text-gray-600 flex items-center justify-center"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  void copyAdditiveShareUrl({
+                    entries: collectShareEntries(entry as LayerStackEntry),
+                  });
+                }}
+                title="Link zu diesem Karteninhalt kopieren"
+                data-test-id="share-layer-secondary-view"
+              >
+                <FontAwesomeIcon icon={faShareNodes} />
               </button>
             )}
             {canFavorite && (
@@ -612,7 +686,9 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
                 legend={legend}
                 metaDataText={group.groupInfo?.metaDataText}
                 links={group.groupInfo?.links}
-                footerText={`Layer-Gruppe (${group.layers.length} Layer)`}
+                footerText={`${workflowGroup?.spec.label ?? "Layer-Gruppe"} (${
+                  group.layers.length
+                } Layer)`}
               />
             ) : (
               <LayerInfo

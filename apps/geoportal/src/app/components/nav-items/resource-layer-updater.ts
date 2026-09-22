@@ -273,8 +273,10 @@ const applyWorkflowLayerGroup = async ({
   dispatch: Dispatch;
   messageApi: MessageApiLike;
 }) => {
+  // a favorited workflow carries the `fav_` prefix, the group on the map does not
+  const groupId = toLayerId(item);
   const existingGroup = layerStack.find(
-    (entry) => isLayerGroup(entry) && entry.id === item.id
+    (entry) => isLayerGroup(entry) && entry.id === groupId
   ) as LayerGroup | undefined;
 
   if (existingGroup || deleteItem) {
@@ -304,7 +306,12 @@ const applyWorkflowLayerGroup = async ({
     }
     try {
       members.push(await parseToMapLayer(childItem, false, true));
-    } catch {
+    } catch (error) {
+      console.warn("[WORKFLOW] member of a workflow group could not be parsed", {
+        workflow: item.id,
+        member: childId,
+        error,
+      });
       continue;
     }
   }
@@ -320,7 +327,7 @@ const applyWorkflowLayerGroup = async ({
   dispatch(
     appendLayer({
       type: "group",
-      id: item.id,
+      id: groupId,
       title: item.title,
       description: item.description,
       ...(item.icon ? { icon: item.icon } : {}),

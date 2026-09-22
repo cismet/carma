@@ -44,6 +44,28 @@ export type BackgroundLayerInfo = {
 };
 
 /**
+ * A workflow layer to put on the map: a group carrying the layers it acts on
+ * and one tool entry with the addon's definition. `memberIds` name layers
+ * already on the map; the host moves them into the group.
+ */
+export type WorkflowGroupSpec = {
+  id: string;
+  title: string;
+  /** what the group's info view says; a group without one opens no info view */
+  description?: string;
+  icon?: string;
+  memberIds: string[];
+  tool: { addon: string; config: unknown };
+};
+
+/** what `updateStackEntry` may change on a layer or a group */
+export type StackEntryPatch = {
+  title?: string;
+  visible?: boolean;
+  tools?: unknown[];
+};
+
+/**
  * Raw injection point. The bridge (in the app layer) provides these closures.
  * Primitive-only on purpose — carma-api never imports leaflet, cesium, redux,
  * or any @carma-* package. Optional methods may be left unimplemented; the
@@ -75,6 +97,8 @@ export interface MapAdapter {
   getLayerIDs?: () => string[];
   setBackgroundLayer?: (id: string) => boolean;
   getBackgroundLayers?: () => BackgroundLayerInfo[];
+  createWorkflowGroup?: (spec: WorkflowGroupSpec) => boolean;
+  updateStackEntry?: (id: string, patch: StackEntryPatch) => boolean;
 
   // 3d (cesium) ------------------------------------------------------------
   getCameraPosition3D: () => CameraPosition3D | null;
@@ -116,6 +140,13 @@ export interface Mapping2DFacade {
    * `setBackgroundLayer`. Returns `[]` when no catalog is registered.
    */
   getBackgroundLayers: () => BackgroundLayerInfo[];
+  /**
+   * Put a workflow layer on the map: the named members leave the top level
+   * and become the group's layers. False when no host handles it.
+   */
+  createWorkflowGroup: (spec: WorkflowGroupSpec) => boolean;
+  /** Change a layer's or a group's title, visibility or tools in place. */
+  updateStackEntry: (id: string, patch: StackEntryPatch) => boolean;
 }
 
 /** Public shape seen by callers of `carma.mapping3D`. */
@@ -160,6 +191,10 @@ export const mapping2D: Mapping2DFacade = {
   getLayerIDs: () => getAdapter()?.getLayerIDs?.() ?? [],
   setBackgroundLayer: (id) => getAdapter()?.setBackgroundLayer?.(id) ?? false,
   getBackgroundLayers: () => getAdapter()?.getBackgroundLayers?.() ?? [],
+  createWorkflowGroup: (spec) =>
+    getAdapter()?.createWorkflowGroup?.(spec) ?? false,
+  updateStackEntry: (id, patch) =>
+    getAdapter()?.updateStackEntry?.(id, patch) ?? false,
 };
 
 export const mapping3D: Mapping3DFacade = {
