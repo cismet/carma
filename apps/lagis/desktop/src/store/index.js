@@ -9,6 +9,7 @@ import uiSlice from "./slices/ui";
 import searchSlice from "./slices/search";
 import searchModeSlice from "./slices/searchMode";
 import lpHistoryNav from "./slices/lpHistoryNav";
+import printSlice from "./slices/print";
 
 import {
   persistReducer,
@@ -118,6 +119,13 @@ const persisMappingConfig = {
   whitelist: ["showInspectMode"],
 };
 
+// Only the settings are persisted; the preview state starts fresh.
+const persistPrintConfig = {
+  key: "@lagis-desktop.1.app.print",
+  storage: localForage,
+  whitelist: ["orientation", "dpi", "scale"],
+};
+
 // const persis
 
 // const persistlagisLandparcelConfig = {
@@ -138,6 +146,7 @@ export default configureStore({
     search: searchSlice.reducer,
     searchMode: searchModeSlice.reducer,
     lpHistoryNav: lpHistoryNav.reducer,
+    print: persistReducer(persistPrintConfig, printSlice.reducer),
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({ immutableCheck: false }),
