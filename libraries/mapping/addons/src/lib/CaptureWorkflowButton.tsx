@@ -1,8 +1,8 @@
 import { useRef, useState, useSyncExternalStore } from "react";
 import { useStore } from "react-redux";
-import { Input, Modal, type InputRef } from "antd";
+import { Input, Modal, message, type InputRef } from "antd";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faFloppyDisk } from "@fortawesome/free-solid-svg-icons";
+import { faCopy, faFloppyDisk } from "@fortawesome/free-solid-svg-icons";
 
 import { carma } from "@carma-api";
 import type { LayerStackEntry } from "@carma-mapping/layers";
@@ -12,6 +12,17 @@ import type { AddonKind } from "./registry";
 import { getWorkflowSpec, workflowGroupId } from "./workflow-groups";
 
 type LayerStackState = { mapping?: { layers?: LayerStackEntry[] } };
+
+/** a workflow id out of its title: "Vergleich: Luftbild 2020 / 2024" -> "vergleich-luftbild-2020-2024" */
+const toWorkflowDefinitionId = (title: string): string =>
+  title
+    .toLowerCase()
+    .replace(/ä/g, "ae")
+    .replace(/ö/g, "oe")
+    .replace(/ü/g, "ue")
+    .replace(/ß/g, "ss")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
 
 /**
  * "Als Layer speichern": turns the running workflow of `kind` into a
@@ -56,6 +67,39 @@ export const CaptureWorkflowButton = ({
       tool: { addon: kind, config: capture.definition },
     });
     setOpen(false);
+  };
+
+  /**
+   * The same workflow as a Fachzwilling declares it: a `WorkflowDefinition`
+   * for a route's `perspectives[].workflows`, with the members as `layers`
+   * and the definition as the one tool. Pasted into a route config, every
+   * visitor of that route gets the card.
+   */
+  const copyDefinition = () => {
+    if (!capture) {
+      return;
+    }
+    const effectiveTitle = title.trim() || capture.suggestedTitle;
+    const definition = {
+      id: toWorkflowDefinitionId(effectiveTitle),
+      title: effectiveTitle,
+      ...(capture.description ? { description: capture.description } : {}),
+      layers: capture.memberIds,
+      tools: [{ addon: kind, config: capture.definition }],
+    };
+    const text = JSON.stringify(definition, null, 2);
+    const write = navigator.clipboard?.writeText(text);
+    if (!write) {
+      message.error("Die Zwischenablage ist hier nicht erreichbar.");
+      return;
+    }
+    void write.then(
+      () => message.success("Workflow-Definition kopiert."),
+      (error: unknown) => {
+        console.warn("[WORKFLOW] the definition could not be copied", error);
+        message.error("Die Zwischenablage ist hier nicht erreichbar.");
+      }
+    );
   };
 
   return (
@@ -116,6 +160,16 @@ export const CaptureWorkflowButton = ({
           placeholder="Titel"
           data-test-id={`capture-workflow-${kind}-title`}
         />
+        <button
+          type="button"
+          onClick={copyDefinition}
+          title="Als Workflow-Definition für eine Fachzwilling-Konfiguration kopieren"
+          data-test-id={`capture-workflow-${kind}-copy-definition`}
+          className="mt-3 flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 bg-transparent border-0 p-0 cursor-pointer"
+        >
+          <FontAwesomeIcon icon={faCopy} />
+          Workflow-Definition kopieren
+        </button>
       </Modal>
     </>
   );
