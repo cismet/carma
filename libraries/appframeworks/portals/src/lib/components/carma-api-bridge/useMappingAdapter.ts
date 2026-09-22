@@ -210,6 +210,19 @@ export const useMappingAdapter = (store?: Store<MappingPortalState>): void => {
           store.dispatch({ type: "mapping/appendLayer", payload: mapLayer });
           return true;
         },
+        // the reducers resolve the members and the entry themselves, so the
+        // bridge only carries the request over
+        createWorkflowGroup: (spec): boolean => {
+          store.dispatch({ type: "mapping/createWorkflowGroup", payload: spec });
+          return true;
+        },
+        updateStackEntry: (id, patch): boolean => {
+          store.dispatch({
+            type: "mapping/updateStackEntry",
+            payload: { id, patch },
+          });
+          return true;
+        },
         getBackgroundLayers: () =>
           (store.getState().mapping?.backgroundLayers ?? []).map(
             ({ id, title, group }) => ({ id, title, group })

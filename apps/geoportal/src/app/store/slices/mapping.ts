@@ -8,6 +8,7 @@ import type {
   LayerGroup,
   LayerStackEntry,
   SavedLayerConfig,
+  ToolEntry,
 } from "@carma-mapping/layers";
 import {
   entryHasInfoView,
@@ -237,6 +238,80 @@ const slice = createSlice({
         // layer its tools after it is already on the map
         state.layers = applyPinning(state.layers);
       }
+    },
+    /**
+     * A few fields of a layer or a group, patched in place. What the carma
+     * api's `updateStackEntry` lands on: a workflow group's engine writes an
+     * edited definition into the group's tools this way.
+     */
+    updateStackEntry(
+      state,
+      action: PayloadAction<{
+        id: string;
+        patch: { title?: string; visible?: boolean; tools?: unknown[] };
+      }>
+    ) {
+      const target = resolveStackTarget(state, action.payload.id);
+      if (target) {
+        Object.assign(target, action.payload.patch);
+      }
+    },
+    /**
+     * A workflow layer out of layers already on the map: the named members
+     * leave the top level (or the group they sit in) and become the new
+     * group's layers, in stack order, and the group takes the place of the
+     * last unpinned entry. One reducer, so the map never draws a member twice.
+     */
+    createWorkflowGroup(
+      state,
+      action: PayloadAction<{
+        id: string;
+        title: string;
+        description?: string;
+        icon?: string;
+        memberIds: string[];
+        tool: ToolEntry;
+      }>
+    ) {
+      const { id, title, description, icon, memberIds, tool } = action.payload;
+      const wanted = new Set(memberIds);
+      const members: Layer[] = [];
+      const remaining: LayerStackEntry[] = [];
+      for (const entry of state.layers) {
+        if (isLayerGroup(entry)) {
+          const taken = entry.layers.filter((member) => wanted.has(member.id));
+          if (taken.length === 0) {
+            remaining.push(entry);
+            continue;
+          }
+          members.push(...taken);
+          const left = entry.layers.filter((member) => !wanted.has(member.id));
+          if (left.length > 0) {
+            remaining.push({ ...entry, layers: left });
+          }
+          continue;
+        }
+        if (wanted.has(entry.id)) {
+          members.push(entry);
+          continue;
+        }
+        remaining.push(entry);
+      }
+      if (members.length === 0) {
+        return;
+      }
+      const group: LayerGroup = {
+        type: "group",
+        id,
+        title,
+        ...(description ? { description } : {}),
+        ...(icon ? { icon } : {}),
+        visible: true,
+        opacity: 1,
+        tools: [tool],
+        layers: members,
+      };
+      state.layers = applyPinning([...remaining, group]);
     },
     /**
      * `force` is the owner's way out: an addon whose engine is no longer
@@ -575,6 +650,8 @@ export const {
   setLayers,
   appendLayer,
   updateLayer,
+  updateStackEntry,
+  createWorkflowGroup,
   removeLayer,
   removeLastLayer,
   setPermanentLayerHidden,

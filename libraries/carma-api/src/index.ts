@@ -35,6 +35,8 @@ export type {
   Position2D,
   CameraPosition3D,
   BackgroundLayerInfo,
+  StackEntryPatch,
+  WorkflowGroupSpec,
 } from "./lib/mapping";
 
 export { registerNuke } from "./lib/nuke";
