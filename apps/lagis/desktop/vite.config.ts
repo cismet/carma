@@ -22,14 +22,36 @@ export default defineConfig({
 
   plugins: [react(), nxViteTsPaths()],
 
-  // Uncomment this if you are using workers.
-  // worker: {
-  //  plugins: [ nxViteTsPaths() ],
-  // },
+  // @carma-mapping/engines/maplibre ships module workers that import through
+  // the workspace path aliases, so the worker build needs the same resolver.
+  worker: {
+    // Module workers need ES output for their dynamically imported chunks.
+    format: 'es',
+    plugins: () => [nxViteTsPaths()],
+  },
+
+  optimizeDeps: {
+    include: ['maplibre-gl'],
+    esbuildOptions: {
+      target: 'es2022',
+      supported: {
+        'class-field': true,
+        'class-static-field': true,
+      },
+    },
+  },
+
+  esbuild: {
+    supported: {
+      'class-field': true,
+      'class-static-field': true,
+    },
+  },
 
   build: {
     outDir: '../../../dist/apps/lagis/desktop',
     reportCompressedSize: true,
+    target: 'es2022',
     commonjsOptions: {
       transformMixedEsModules: true,
     },

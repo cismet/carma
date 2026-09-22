@@ -1,16 +1,12 @@
 import { createSlice } from "@reduxjs/toolkit";
-import {
-  fitFeatureArray,
-  getBoundsForFeatureArray,
-  getCenterAndZoomForBounds,
-} from "../../core/tools/mappingTools";
+import { getBoundsForFeatureArray } from "../../core/tools/mappingTools";
+import { getLibreMapInstance } from "../../core/tools/libreMapRegistry";
 
 const initialState = {
   flaechenCollection: undefined,
   frontenCollection: undefined,
   generalGeometryCollection: undefined,
   befreiungErlaubnisCollection: undefined,
-  leafletElement: undefined,
   featureCollection: undefined,
   showCurrentFeatureCollection: true,
   showBackground: true,
@@ -45,7 +41,9 @@ const slice = createSlice({
       if (selectedObject.selected) {
         // clicked on an already selected feature and set map to optimally display that feature
         const bb = getBoundsForFeatureArray([selectedObject]);
-        state.leafletElement?.fitBounds(bb);
+        if (bb) {
+          getLibreMapInstance()?.fitBounds(bb, { animate: false, padding: 20 });
+        }
       } else {
         state.generalGeometryCollection.forEach((item) => {
           item.selected = false;
@@ -67,7 +65,9 @@ const slice = createSlice({
       if (selectedObject.selected) {
         // clicked on an already selected feature and set map to optimally display that feature
         const bb = getBoundsForFeatureArray([selectedObject]);
-        state.leafletElement?.fitBounds(bb);
+        if (bb) {
+          getLibreMapInstance()?.fitBounds(bb, { animate: false, padding: 20 });
+        }
       } else {
         state.flaechenCollection.forEach((item) => {
           item.selected = false;
@@ -98,7 +98,9 @@ const slice = createSlice({
       if (selectedObject.selected) {
         // clicked on an already selected feature and set map to optimally display that feature
         const bb = getBoundsForFeatureArray([selectedObject]);
-        state.leafletElement?.fitBounds(bb);
+        if (bb) {
+          getLibreMapInstance()?.fitBounds(bb, { animate: false, padding: 20 });
+        }
       } else {
         state.frontenCollection.forEach((item) => {
           item.selected = false;
@@ -113,10 +115,6 @@ const slice = createSlice({
     },
     setBefreiungErlaubnisCollection(state, action) {
       state.befreiungErlaubnisCollection = action.payload;
-      return state;
-    },
-    setLeafletElement(state, action) {
-      state.leafletElement = action.payload;
       return state;
     },
     setFeatureCollection(state, action) {
@@ -167,7 +165,6 @@ export const {
   setFeatureHovered,
   setFrontenSelected,
   setBefreiungErlaubnisCollection,
-  setLeafletElement,
   setFeatureCollection,
   setShowCurrentFeatureCollection,
   setShowBackground,
