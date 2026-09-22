@@ -1,20 +1,31 @@
 import type { BackgroundLayer, LayerStackEntry } from "@carma-mapping/layers";
+import { isWorkflowGroup } from "@carma-mapping/addons";
+import { Deployment } from "@carma-commons/utils";
 
+import { currentDeployment } from "../config/availability";
 import {
   isRestorableRow,
   stripInteractionButtons,
 } from "../store/persisted-layer-stack";
 
 /**
- * Whether the entry can go into an additive share link: the same question as
- * whether it survives the persisted stack, since a link carries a stack. Rules
- * out the base map (a link never carries one), the app's permanent rows and
- * the rows of generic modes, which have no definition to carry.
+ * Whether the entry gets a share button: only a workflow layer (a group whose
+ * tools carry a workflow definition) is passed around as an additive link.
+ * Plain layers are not; they are one click away in the catalog. And nothing
+ * is shared this way on the live geoportal, where a comparing group has no
+ * engine to launch into yet, see `DEFAULT_ADDONS` in `app.config`.
+ *
+ * The row must also survive the persisted stack (`isRestorableRow`), since a
+ * link carries a stack: that rules out the app's permanent rows.
  */
 export const isShareableEntry = (
   entry: LayerStackEntry | BackgroundLayer,
   isBackgroundLayer: boolean
-): boolean => !isBackgroundLayer && isRestorableRow(entry);
+): boolean =>
+  currentDeployment !== Deployment.LIVE &&
+  !isBackgroundLayer &&
+  isRestorableRow(entry) &&
+  isWorkflowGroup(entry as LayerStackEntry);
 
 /**
  * The entries a share of this one carries: the entry itself. A workflow
