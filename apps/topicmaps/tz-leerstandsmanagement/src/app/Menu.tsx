@@ -1,6 +1,7 @@
 import CustomizationContextProvider from "react-cismap/contexts/CustomizationContextProvider";
 import DefaultSettingsPanel from "react-cismap/topicmaps/menu/DefaultSettingsPanel";
 import ModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMenu";
+import { Form } from "react-bootstrap";
 import { getApplicationVersion } from "@carma-commons/utils";
 import { PreviewLibreMap } from "@carma-mapping/engines/maplibre";
 import versionData from "../version.json";
@@ -14,7 +15,15 @@ const previewSVG = (size: number) => {
   );
 };
 
-export const Menu = () => {
+interface MenuProps {
+  showBaudenkmale: boolean;
+  onShowBaudenkmaleChange: (show: boolean) => void;
+}
+
+export const Menu = ({
+  showBaudenkmale,
+  onShowBaudenkmaleChange,
+}: MenuProps) => {
   return (
     <CustomizationContextProvider customizations={{}}>
       <ModalApplicationMenu
@@ -41,6 +50,28 @@ export const Menu = () => {
             skipClusteringSettings={true}
             getSymbolSVG={previewSVG}
             overridingMapPreview={<PreviewLibreMap />}
+            sparseSettingsSectionsExtensions={[
+              <Form key="display-options">
+                <label
+                  style={{
+                    display: "inline-block",
+                    maxWidth: "100%",
+                    marginBottom: "5px",
+                    fontWeight: 700,
+                  }}
+                >
+                  Hilfsebenen
+                </label>
+                <br />
+                <Form.Check
+                  type="checkbox"
+                  id="checkbox_baudenkmale"
+                  checked={showBaudenkmale}
+                  onChange={() => onShowBaudenkmaleChange(!showBaudenkmale)}
+                  label="Baudenkmäler einblenden"
+                />
+              </Form>,
+            ]}
           />,
         ]}
       />

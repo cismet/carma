@@ -7,12 +7,14 @@ import {
   useState,
 } from "react";
 import { message } from "antd";
+import { legacy_createStore } from "redux";
 import type maplibregl from "maplibre-gl";
 import type { Geometry } from "geojson";
 import { TopicMapStylingContext } from "react-cismap/contexts/TopicMapStylingContextProvider";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 import { FeatureInfobox } from "@carma-appframeworks/portals";
 import { CarmaMap } from "@carma-mapping/core";
+import { CarmaMapAPIProvider } from "@carma-mapping/carma-map-api";
 import type { LibreLayer } from "@carma-mapping/engines/maplibre";
 import {
   defaultTypeInference,
@@ -76,6 +78,20 @@ const LEERSTAND_LAYER_NAME = "leerstand";
 
 const GLYPHS_URL = "https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf";
 
+/** id the ALKIS datasheet asks for with addLayerById ("Kartenebene laden") */
+const BAUDENKMALE_LAYER_ID = "wuppPlanung:baudenkmale";
+
+/** source layer of the Baudenkmäler points in their vector tiles */
+const BAUDENKMALE_SOURCE_LAYER = "baudenkmale";
+
+/** Baudenkmäler as vector layer, the style the geoportal uses for this entry */
+const BAUDENKMALE_LAYER: LibreLayer = {
+  type: "vector",
+  name: "baudenkmale",
+  style: "https://tiles.cismet.de/baudenkmale/style.json",
+  carmaLayerId: BAUDENKMALE_LAYER_ID,
+};
+
 // What LibreMap hands to onSelectionChanged: the filtered click hits (top
 // first) and the click position. Fires on empty ground too, with hit undefined.
 // A gazetteer selection comes through the same callback; only that one carries
@@ -115,6 +131,7 @@ export const Map = ({ jwt, user, onAuthError, onConnectionError }: MapProps) => 
   const [dialogPoint, setDialogPoint] = useState<PlacedPoint>();
   // position a capture would take its geometry from, drawn as the tap marker
   const [tapPoint, setTapPoint] = useState<LngLat>();
+  const [showBaudenkmale, setShowBaudenkmale] = useState(false);
   // counts selections, so the address lookup of an earlier tap cannot
   // overwrite the info box of a later one
   const selectionSeq = useRef(0);
@@ -176,7 +193,8 @@ export const Map = ({ jwt, user, onAuthError, onConnectionError }: MapProps) => 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jwt]);
 
-  // The ALKIS buildings and the Leerstand points as one inline vector style.
+  // The ALKIS buildings and the Leerstand points as one inline vector style,
+  // the Baudenkmäler (optional) on top so the building fill does not hide them.
   const libreLayers = useMemo<LibreLayer[]>(() => {
     const layers: LibreLayer[] = [];
     if (jwt) {
@@ -187,8 +205,32 @@ export const Map = ({ jwt, user, onAuthError, onConnectionError }: MapProps) => 
         carmaLayerId: LEERSTAND_LAYER_NAME,
       });
     }
+    if (showBaudenkmale) {
+      layers.push(BAUDENKMALE_LAYER);
+    }
     return layers;
-  }, [jwt, style]);
+  }, [jwt, style, showBaudenkmale]);
+
+  // The ALKIS datasheet loads its layer through addLayerById and asks whether
+  // it is on the map through a Redux-shaped store (state.mapping.layers).
+  // This app has no Redux; the store only mirrors the Baudenkmäler flag.
+  const addLayerById = useCallback(async (id: string) => {
+    if (id === BAUDENKMALE_LAYER_ID) {
+      setShowBaudenkmale(true);
+    } else {
+      console.warn("[LEERSTAND] addLayerById: layer not available here", id);
+    }
+    return undefined;
+  }, []);
+  const layerStateStore = useMemo(
+    () =>
+      legacy_createStore(() => ({
+        mapping: {
+          layers: showBaudenkmale ? [{ id: BAUDENKMALE_LAYER_ID }] : [],
+        },
+      })),
+    [showBaudenkmale]
+  );
 
   /** info box for a tap on open ground; the nearest address arrives later */
   const selectFreePoint = (lngLat: LngLat, currentJwt: string) => {
@@ -220,7 +262,13 @@ export const Map = ({ jwt, user, onAuthError, onConnectionError }: MapProps) => 
 
   const onSelectionChanged = (e: SelectionEvent) => {
     selectionSeq.current += 1;
-    const feature = e.hit as
+    // Baudenkmäler points lie above the buildings; a tap on one means the
+    // building (or ground) below it
+    const hit =
+      e.hit?.sourceLayer === BAUDENKMALE_SOURCE_LAYER
+        ? e.hits?.find((h) => h.sourceLayer !== BAUDENKMALE_SOURCE_LAYER)
+        : e.hit;
+    const feature = hit as
       | (maplibregl.MapGeoJSONFeature & InfoboxFeature)
       | undefined;
     const lngLat: LngLat = [e.latlng.lng, e.latlng.lat];
@@ -268,45 +316,52 @@ export const Map = ({ jwt, user, onAuthError, onConnectionError }: MapProps) => 
 
   return (
     <>
-      <SandboxedEvalProvider>
-        <CarmaMap
-          appKey={APP_CONFIG.appKey}
-          mapEngine="maplibre"
-          overrideGlyphs={GLYPHS_URL}
-          libreLayers={libreLayers}
-          setLibreMap={setLibreMap}
-          modalMenu={<Menu />}
-          applicationMenuTooltipString="Einstellungen"
-          gazetteerSearchComponent={
-            <div style={{ marginTop: "4px" }}>
-              <LibFuzzySearch
-                pixelwidth={
-                  responsiveState === "normal" ? "300px" : windowSize.width - gap
-                }
-                placeholder="Adresse | Stadtteil | POI"
-                priorityTypes={["adressen", "streets", "pois", "bezirke", "quartiere"]}
-                typeInference={defaultTypeInference}
+      <CarmaMapAPIProvider addLayerById={addLayerById} store={layerStateStore}>
+        <SandboxedEvalProvider>
+          <CarmaMap
+            appKey={APP_CONFIG.appKey}
+            mapEngine="maplibre"
+            overrideGlyphs={GLYPHS_URL}
+            libreLayers={libreLayers}
+            setLibreMap={setLibreMap}
+            modalMenu={
+              <Menu
+                showBaudenkmale={showBaudenkmale}
+                onShowBaudenkmaleChange={setShowBaudenkmale}
               />
-            </div>
-          }
-          terrainControl={false}
-          contactButtonEnabled={false}
-          selectionEnabled={true}
-          disableInternalSelection={true}
-          gazetteerInfoOnClick={false}
-          onSelectionChanged={onSelectionChanged}
-          extraControls={
-            <FeatureInfobox
-              collapsible={responsiveState !== "small"}
-              selectedFeature={selectedFeature}
-              versionData={versionData}
-              bigMobileIconsInsteadOfCollapsing={true}
-              Modal={InfoModal}
-              libreMap={libreMap ?? undefined}
-            />
-          }
-        />
-      </SandboxedEvalProvider>
+            }
+            applicationMenuTooltipString="Einstellungen"
+            gazetteerSearchComponent={
+              <div style={{ marginTop: "4px" }}>
+                <LibFuzzySearch
+                  pixelwidth={
+                    responsiveState === "normal" ? "300px" : windowSize.width - gap
+                  }
+                  placeholder="Adresse | Stadtteil | POI"
+                  priorityTypes={["adressen", "streets", "pois", "bezirke", "quartiere"]}
+                  typeInference={defaultTypeInference}
+                />
+              </div>
+            }
+            terrainControl={false}
+            contactButtonEnabled={false}
+            selectionEnabled={true}
+            disableInternalSelection={true}
+            gazetteerInfoOnClick={false}
+            onSelectionChanged={onSelectionChanged}
+            extraControls={
+              <FeatureInfobox
+                collapsible={responsiveState !== "small"}
+                selectedFeature={selectedFeature}
+                versionData={versionData}
+                bigMobileIconsInsteadOfCollapsing={true}
+                Modal={InfoModal}
+                libreMap={libreMap ?? undefined}
+              />
+            }
+          />
+        </SandboxedEvalProvider>
+      </CarmaMapAPIProvider>
 
       {jwt && user && dialogPoint && lookups && (
         <LeerstandForm
