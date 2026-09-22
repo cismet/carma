@@ -1,6 +1,6 @@
-import { useState, useSyncExternalStore } from "react";
+import { useRef, useState, useSyncExternalStore } from "react";
 import { useStore } from "react-redux";
-import { Input, Modal } from "antd";
+import { Input, Modal, type InputRef } from "antd";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faFloppyDisk } from "@fortawesome/free-solid-svg-icons";
 
@@ -35,6 +35,7 @@ export const CaptureWorkflowButton = ({
   );
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
+  const titleRef = useRef<InputRef>(null);
 
   const spec = getWorkflowSpec(kind);
   if (!spec) {
@@ -91,12 +92,27 @@ export const CaptureWorkflowButton = ({
         okText="Speichern"
         cancelText="Abbrechen"
         destroyOnClose
+        // `autoFocus` on the field fires while the modal is still animating
+        // in and gets lost; focus once it is open, caret at the end of the
+        // suggested title, as if the field had been clicked
+        afterOpenChange={(opened) => {
+          if (opened) {
+            titleRef.current?.focus({ cursor: "end" });
+          }
+        }}
       >
-        <Input
-          autoFocus
+        <Input.TextArea
+          ref={titleRef}
           value={title}
           onChange={(event) => setTitle(event.target.value)}
-          onPressEnter={confirm}
+          // Enter confirms, it does not add a line to the title
+          onPressEnter={(event) => {
+            event.preventDefault();
+            confirm();
+          }}
+          // a suggested title names every compared layer, so it can be long;
+          // the field grows with it instead of cutting it off
+          autoSize={{ minRows: 1, maxRows: 4 }}
           placeholder="Titel"
           data-test-id={`capture-workflow-${kind}-title`}
         />
