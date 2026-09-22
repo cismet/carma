@@ -5,7 +5,8 @@ import { formatDistance, formatRouteSummary } from "@carma-mapping/routing";
 
 import { useLocationSimulation } from "../LocationSimulator/simulationChannel";
 import { REMAINING_PREFIX } from "./config";
-import { useRouteNavigation } from "./routeChannel";
+import { useActiveRoute, useRouteNavigation } from "./routeChannel";
+import { travelModeOf, type RouteMode } from "./routeMode";
 
 export const ROUTING_LAYER_ID = "__routing__";
 
@@ -14,6 +15,16 @@ export const ROUTING_TOOLS_INTERACTION_ID = "routing-tools";
 
 /** blue while the ribbon is open, black while it is not */
 export const ROUTING_ICON_COLOR = { open: "#1677ff", closed: "#000000" };
+
+/** the generic route icon, for a route that was only measured and has no mode */
+const ROUTE_ICON = "routing";
+
+/**
+ * The row's icon: the means of travel the route was computed with (the keys
+ * of the components' icon map), and the generic route without a mode.
+ */
+const routingLayerIcon = (mode: RouteMode | undefined): string =>
+  mode ? travelModeOf(mode) : ROUTE_ICON;
 
 /** pulls the readout away from the title and towards the buttons */
 const READOUT_STYLE: CSSProperties = {
@@ -36,7 +47,7 @@ export const ROUTING_LAYER: Layer = {
   id: ROUTING_LAYER_ID,
   title: "Navigation",
   type: "object",
-  icon: "routing",
+  icon: ROUTE_ICON,
   iconColor: ROUTING_ICON_COLOR.closed,
   visible: true,
   pinned: "last",
@@ -102,6 +113,9 @@ export const useRoutingLayerRow = ({
   onUpdate,
 }: UseRoutingLayerRowOptions) => {
   const navigation = useRouteNavigation();
+  // the route being navigated; its mode is the row's icon
+  const [route] = useActiveRoute();
+  const routeMode = route?.mode;
   const isOn = navigation?.navigating ?? false;
   const progress = navigation?.progress ?? null;
   const stop = navigation?.stop;
@@ -125,6 +139,7 @@ export const useRoutingLayerRow = ({
   const layer = useMemo(
     () => ({
       ...ROUTING_LAYER,
+      icon: routingLayerIcon(routeMode),
       iconColor: panelOpen
         ? ROUTING_ICON_COLOR.open
         : ROUTING_ICON_COLOR.closed,
@@ -133,7 +148,7 @@ export const useRoutingLayerRow = ({
         : {}),
       interactionButtons: buildInteractionButtons(label, hasRibbon),
     }),
-    [label, panelOpen, hasRibbon]
+    [label, panelOpen, hasRibbon, routeMode]
   );
 
   const layerRef = useRef(layer);
