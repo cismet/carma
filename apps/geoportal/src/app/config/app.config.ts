@@ -6,6 +6,7 @@ import {
   WUPP_TERRAIN_PROVIDER_DSM_MESH_2024_1M,
 } from "@carma-commons/resources";
 import { REFERENCE_OBJECT_SCALING_MODES } from "@carma-commons/math";
+import type { Availability } from "@carma-commons/utils";
 
 import type { CesiumConfig } from "@carma-mapping/engines/cesium/react/runtime";
 import type { CesiumModelConfig } from "@carma-mapping/engines/cesium/core";
@@ -60,7 +61,21 @@ export const DEFAULT_CAMERA_FOV_DEG = 60;
  * again the moment the camera locks. There is no button to it; the app
  * switches CarmaMap's own terrain button off as well (`terrainControl={false}`),
  * so relief is never a choice the user has to make.
+ *
+ * The comparison (its state owner plus the three modes) is mounted bare on
+ * every route: idle, and with no control of its own, so nothing shows. The
+ * button that starts it lives on `/addons`. What the engine is here for is a
+ * comparing workflow layer arriving on any route, from the persisted stack or
+ * from a shared link: the group carries its definition and the addons
+ * library's `WorkflowGroupHost` launches it into the engine. A route that
+ * declares the same kind takes it over with its own config. Not on the live
+ * geoportal yet: a comparing group has nothing to launch into there, so a
+ * shared or persisted one shows as a plain group until this is opened up.
  */
+const NOT_ON_LIVE: Availability = {
+  deployments: ["localDev", "dev", "pr"],
+};
+
 export const DEFAULT_ADDONS: AddonEntry[] = [
   {
     addon: "cameraRestriction",
@@ -70,6 +85,14 @@ export const DEFAULT_ADDONS: AddonEntry[] = [
     addon: "libreTerrain",
     config: { appKey: "geoportal", mode: "whileCameraFree" },
   },
+  {
+    addon: "comparingControl",
+    config: { showControl: false },
+    availability: NOT_ON_LIVE,
+  },
+  { addon: "compareSwipe", config: {}, availability: NOT_ON_LIVE },
+  { addon: "compareArena", config: {}, availability: NOT_ON_LIVE },
+  { addon: "compareSpyglass", config: {}, availability: NOT_ON_LIVE },
 ];
 
 /**

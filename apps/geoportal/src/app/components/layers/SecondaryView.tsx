@@ -19,10 +19,12 @@ import { SELECTED_LAYER_INDEX } from "@carma-appframeworks/portals";
 import { cn } from "@carma-commons/utils";
 import {
   resolveSecondaryViewTargetAddon,
+  resolveWorkflowGroup,
   ShadowSimulationHeaderControls,
   TargetAddonHost,
   useAddonState,
 } from "@carma-mapping/addons";
+import { iconMap } from "@carma-mapping/components";
 
 import {
   changeBackgroundVisibility,
@@ -97,6 +99,13 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
   // layer-only data (props, conf, favorites, filters) must not be read for a
   // group entry
   const layer = group ? undefined : (entry as Layer | BackgroundLayer);
+  // a workflow layer: a group carrying an addon's definition (see the addons
+  // library's `lib/workflow.ts`); it shows its addon's icon and name
+  const workflowGroup = group ? resolveWorkflowGroup(group) : undefined;
+  const groupIcon =
+    group?.icon && group.icon in iconMap
+      ? iconMap[group.icon as keyof typeof iconMap]
+      : faLayerGroup;
 
   const resolveLayerLegend = (target: Layer | BackgroundLayer) => {
     const vectorLegend =
@@ -408,7 +417,7 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
             >
               {group ? (
                 <FontAwesomeIcon
-                  icon={faLayerGroup}
+                  icon={groupIcon}
                   className="text-gray-700"
                   id={iconId}
                 />
@@ -612,7 +621,9 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
                 legend={legend}
                 metaDataText={group.groupInfo?.metaDataText}
                 links={group.groupInfo?.links}
-                footerText={`Layer-Gruppe (${group.layers.length} Layer)`}
+                footerText={`${workflowGroup?.spec.label ?? "Layer-Gruppe"} (${
+                  group.layers.length
+                } Layer)`}
               />
             ) : (
               <LayerInfo

@@ -78,9 +78,14 @@ const GeoportalAnnotationsToolbar: FC<{ layer: Layer }> = () => {
 /**
  * The comparison's control pane with the things it cannot do itself: dragging a
  * layer into a window switches it on when it was off, and Escape closes the
- * pane. Both are dispatches into this app's state.
+ * pane. Both reach into this app's state. Opened from the transient
+ * `__comparing__` row; a saved comparison has no pane.
  */
-const ComparingInteractionPanel: FC<{ layer: Layer }> = ({ layer }) => {
+const ComparingInteractionPanel = ({
+  layer,
+}: {
+  layer: { id: string; type?: string };
+}) => {
   const dispatch = useDispatch();
   return (
     <ComparingPanel

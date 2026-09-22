@@ -4,11 +4,13 @@ import { useDispatch, useSelector } from "react-redux";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
-import { faLayerGroup } from "@fortawesome/free-solid-svg-icons";
+import { faLayerGroup, faPause } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { Tooltip } from "antd";
 import type { LayerGroup } from "@carma-mapping/layers";
 import { layerGroupHasInfoView } from "@carma-mapping/layers";
-import { LayerButton } from "@carma-mapping/components";
+import { LayerButton, iconMap } from "@carma-mapping/components";
+import { useAddonState } from "@carma-mapping/addons";
 import { cn } from "@carma-commons/utils";
 
 import type { AppDispatch } from "../../store";
@@ -68,6 +70,16 @@ const GeoportalGroupedLayerButton = ({
   });
 
   const groupVisible = group.visible !== false;
+
+  // a workflow group carries its addon's icon, and says when another group of
+  // the same kind has taken the engine over (see WorkflowGroupHost)
+  const [workflowActivity] = useAddonState("workflowActivity");
+  const groupIcon =
+    group.icon && group.icon in iconMap
+      ? iconMap[group.icon as keyof typeof iconMap]
+      : faLayerGroup;
+  const isPaused =
+    groupVisible && workflowActivity?.[group.id]?.status === "paused";
 
   const handleEndButtonClick = useCallback(
     (event: ReactMouseEvent<HTMLButtonElement>) => {
@@ -134,8 +146,17 @@ const GeoportalGroupedLayerButton = ({
           "pl-3 pr-2",
         ]}
       >
-        <FontAwesomeIcon icon={faLayerGroup} className="text-gray-700" />
+        <FontAwesomeIcon icon={groupIcon} className="text-gray-700" />
         <span className="text-base ml-1">{group.title}</span>
+        {isPaused && (
+          <Tooltip title="Pausiert: ein anderer Karteninhalt dieser Art läuft gerade">
+            <FontAwesomeIcon
+              icon={faPause}
+              className="text-xs text-gray-400 ml-1.5"
+              data-test-id={`workflow-paused-${group.id}`}
+            />
+          </Tooltip>
+        )}
         <LayerAddonTriggerButtons target={group} />
         <button
           type="button"
