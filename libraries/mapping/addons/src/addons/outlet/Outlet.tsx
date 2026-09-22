@@ -6,7 +6,9 @@ import { getFromWebMercatorToWGS84 } from "@carma-geo/proj";
 
 import type { MappingConfig } from "@carma-api";
 import {
+  baseOf,
   boundsKey,
+  isBlackoutLayer,
   isBounds3857,
   type Bounds3857,
 } from "@carma-mapping/show-remote";
@@ -100,6 +102,31 @@ export type OutletRemoteState = {
   config?: string | MappingConfig;
   /** id of a background layer, as `carma.mapping2D.getBackgroundLayers()` reports it */
   backgroundLayer?: string;
+};
+
+/** the black cover over the whole window, and how long a change of it fades */
+type Blackout = { opacity: number; fadeMs: number; delayMs: number };
+
+/**
+ * The blackout a configuration carries as its black layer, or null without
+ * one. Not drawn as that layer: the Schwebebahn puts its layers back on top
+ * after every style change and the flow field particles are a canvas over the
+ * whole map, so a map layer can never cover them. This window draws it over
+ * everything instead.
+ */
+const blackoutOfConfig = (config: MappingConfig): Blackout | null => {
+  const layer = Array.isArray(config.layers)
+    ? config.layers.find(isBlackoutLayer)
+    : undefined;
+  if (!layer) {
+    return null;
+  }
+  const transition = layer.opacityTransition ?? 0;
+  return {
+    opacity: layer.visible === false ? 0 : layer.opacity ?? 1,
+    fadeMs: typeof transition === "number" ? transition : transition.duration,
+    delayMs: typeof transition === "number" ? 0 : transition.delay ?? 0,
+  };
 };
 
 /** what a config field was applied as, so re-delivering it changes nothing */
@@ -305,6 +332,7 @@ export const OutletAddon = ({
   const flyDurationMs = config?.flyDurationMs ?? DEFAULT_FLY_DURATION_MS;
   const resolvedKey = resolved ? boundsKey(resolved.bounds3857) : "";
   const [box, setBox] = useState<BoundsBox | null>(null);
+  const [blackout, setBlackout] = useState<Blackout | null>(null);
   /** a `?bounds=` in the url pins the position against the remote */
   const isPositionPinnedRef = useRef(false);
   isPositionPinnedRef.current = resolved?.source === "query";
@@ -575,7 +603,17 @@ export const OutletAddon = ({
         typeof next.config === "string" ||
         (typeof next.config === "object" && next.config !== null);
       if (wantsConfig) {
-        const wanted = next.config as string | MappingConfig;
+        const requested = next.config as string | MappingConfig;
+        // The blackout goes on the cover rather than into the map, so
+        // switching it leaves the map as it is.
+        let wanted = requested;
+        if (typeof requested === "object") {
+          const nextBlackout = blackoutOfConfig(requested);
+          setBlackout(nextBlackout);
+          if (nextBlackout) {
+            wanted = baseOf(requested);
+          }
+        }
         const identity = configIdentity(wanted);
         if (identity !== appliedConfigIdentityRef.current) {
           const applied =
@@ -649,25 +687,41 @@ export const OutletAddon = ({
     };
   }, [relayCode, relayBaseUrl, carma]);
 
-  if (!showBounds || !box) {
-    return null;
-  }
-
-  // A box on the requested bounds. When the window has the projection aspect
-  // it sits exactly on the window edges; on any other window it shows where
-  // the projected area actually is.
   return (
-    <div
-      style={{
-        position: "fixed",
-        left: box.left,
-        top: box.top,
-        width: box.width,
-        height: box.height,
-        border: "1px solid #ff00ff",
-        pointerEvents: "none",
-        zIndex: 9999,
-      }}
-    />
+    <>
+      {showBounds && box ? (
+        // A box on the requested bounds. When the window has the projection
+        // aspect it sits exactly on the window edges; on any other window it
+        // shows where the projected area actually is.
+        <div
+          style={{
+            position: "fixed",
+            left: box.left,
+            top: box.top,
+            width: box.width,
+            height: box.height,
+            border: "1px solid #ff00ff",
+            pointerEvents: "none",
+            zIndex: 9999,
+          }}
+        />
+      ) : null}
+      {blackout ? (
+        // Over everything, the bounds box included. Mounted with the first
+        // state that names a blackout, so a reload during a blackout starts
+        // black instead of fading into it.
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "#000",
+            opacity: blackout.opacity,
+            transition: `opacity ${blackout.fadeMs}ms ease ${blackout.delayMs}ms`,
+            pointerEvents: "none",
+            zIndex: 10000,
+          }}
+        />
+      ) : null}
+    </>
   );
 };
