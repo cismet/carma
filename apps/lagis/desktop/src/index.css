@@ -123,23 +123,16 @@ button:focus-visible {
 }
 
 /*
- * The lagis map lives inside an antd Card, not in a full page layout.
- * @carma-mapping/engines/maplibre sizes its wrapper to 100vh, which would
- * push the canvas out of the card, so it is constrained to the card body here.
+ * The maplibre engine sizes its wrapper to 100vh and lets it overflow the
+ * height-less control layout - fine full screen, not inside a card. Pinning
+ * the map to CarmaMap's embedded root (position:relative, card height) also
+ * anchors the controls, which share that root, to the card's corners.
  */
 .lagis-libre-map {
   position: relative;
   overflow: hidden;
 }
 
-/*
- * @carma-mapping/engines/maplibre sizes its wrapper to 100vh and simply lets
- * it overflow the (height-less) control layout, which works for full screen
- * apps but not inside a card. CarmaMap's embedded root is position:relative
- * and does have the card's height, so the map is pinned to that instead - and
- * the absolutely positioned controls, which share that root, then anchor to
- * the card's corners as well.
- */
 .lagis-libre-map > div > .map-wrap {
   position: absolute;
   inset: 0;

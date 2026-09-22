@@ -5,7 +5,7 @@ import { convertLatLngToXY } from "../utils/mappingTools";
 
 const MARKER_SOURCE_ID = "alkis-point-search-marker";
 const MARKER_LAYER_ID = "alkis-point-search-marker-circle";
-/** How long the click marker stays on the map, as in the Leaflet variant. */
+/** As in the Leaflet variant. */
 const MARKER_LIFETIME_MS = 1500;
 
 interface LibrePointSearchProps {
@@ -25,8 +25,8 @@ const removeMarker = (map: maplibregl.Map) => {
 };
 
 /**
- * MapLibre counterpart of PointSearch: clicking the map looks up the ALKIS
- * landparcel under the click and opens its datasheet in a new tab.
+ * MapLibre counterpart of PointSearch: a click looks up the ALKIS landparcel
+ * under it and opens its datasheet in a new tab.
  */
 export const LibrePointSearch = ({
   map,

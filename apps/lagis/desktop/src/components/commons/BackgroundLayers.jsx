@@ -135,12 +135,9 @@ export const configuration = {
 };
 
 /**
- * Builds the LibreLayers for the currently selected background.
- *
- * Mirrors what the former BackgroundLayers component rendered as CismapLayers:
- * a config can be a single conf, an array of confs, or a function of the
- * selected true ortho year, and each conf may narrow the shared opacity
- * through its own opacityFunction.
+ * LibreLayers for the selected background. A config is a single conf, an array
+ * of confs, or a function of the true ortho year; each conf may narrow the
+ * shared opacity through its own opacityFunction.
  */
 export const getBackgroundLibreLayers = (
   activeBackgroundLayer,
@@ -169,7 +166,7 @@ export const getBackgroundLibreLayers = (
         `${activeBackgroundLayer}.${index}`,
         conf,
         opacity,
-        // the single conf case had no pane and defaulted to backgroundLayers
+        // a conf without a pane defaulted to backgroundLayers
         100
       );
     })
