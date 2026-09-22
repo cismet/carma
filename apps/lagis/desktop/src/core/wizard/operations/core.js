@@ -157,18 +157,15 @@ export const setHistoricForKey = async (key, date, options, ctx) => {
   }
 
   if (key.gueltigBis) {
-    // already historic — the Rechte/Mieten above are written, the picked date
-    // is ignored and the old end date stays, as in the Swing client
+    // already historic: the picked date is ignored, the old end date stays
     return key.gueltigBis;
   }
 
   const artName = key.art?.bezeichnung;
 
   if (artName !== FLURSTUECK_ART.STAEDTISCH) {
-    // LagisBroker looks "Abteilung IX" up in the Art catalogue before it
-    // decides anything, and gives up when the entry is missing. Without that
-    // check a broken catalogue would surface as the misleading "Art kann so
-    // nicht behandelt werden" message below.
+    // LagisBroker checks the catalogue first, so a missing entry does not
+    // surface as the misleading message below.
     const arten = await fetchFlurstueckArten(jwt);
     if (!findArtByBezeichnung(arten, FLURSTUECK_ART.ABTEILUNG_IX)) {
       throw new ActionNotSuccessfulError(
