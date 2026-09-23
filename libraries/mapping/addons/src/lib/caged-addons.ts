@@ -227,6 +227,11 @@ export type FlowLayerOptions = {
     coverage: number;
   }) => void;
   onError?: (error: unknown) => void;
+  /**
+   * How the u/v rasters are loaded; a plain `fetch` per request when left
+   * out. A cage from before this option ignores it and fetches as before.
+   */
+  fetchBuffer?: (url: string, signal?: AbortSignal) => Promise<ArrayBuffer>;
 };
 
 /** What the caged particle layer hands back. */

@@ -19,6 +19,7 @@ import {
 import {
   COLORS_HEX,
   TAILWIND_CLASSNAMES_FULLSCREEN_FIXED,
+  isHttpCacheForced,
   useDeployment,
 } from "@carma-commons/utils";
 import {
@@ -67,6 +68,7 @@ import { useManageLayers } from "./hooks/useManageLayers";
 import { useSyncToken } from "./hooks/useSyncToken";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useLayerLaunchedAddons } from "./hooks/useLayerLaunchedAddons";
+import { withFlowFieldRasterCache } from "./helper/flow-field-raster-cache";
 import { useMeasurementLayerButton } from "./hooks/useMeasurementLayerButton";
 import { useShadowSimulationLayerButton } from "./hooks/useShadowSimulationLayerButton";
 import { useGeoportalAppSearchParams } from "./hooks/use-geoportal-app-search-params";
@@ -241,10 +243,12 @@ function App({
   // a layer in the stack may launch an engine of its own, which then takes the
   // route's and the defaults' place for that kind
   const routeAddons = useLayerLaunchedAddons(addons);
-  const mergedAddons = useMemo(
-    () => withDefaultAddons(routeAddons),
-    [routeAddons]
-  );
+  // `cache=forced`, read once like the map reads it when it is created
+  const cacheFlowFieldRasters = useMemo(() => isHttpCacheForced(), []);
+  const mergedAddons = useMemo(() => {
+    const all = withDefaultAddons(routeAddons);
+    return cacheFlowFieldRasters ? withFlowFieldRasterCache(all) : all;
+  }, [routeAddons, cacheFlowFieldRasters]);
 
   const { initialMapFramework } = geoportalInitialHashState;
 

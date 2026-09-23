@@ -24,6 +24,7 @@ import {
   createFlowSlotLayer,
   type FlowSlotLayerHandle,
 } from "./flow-slot-layer";
+import { getSharedRasterCache } from "./raster-cache";
 import {
   useFlowFieldActions,
   useFlowFieldLauncher,
@@ -72,6 +73,14 @@ export type FlowFieldConfig = Partial<FlowFieldDefinition> & {
    * the map after a reload. Default: one key shared by every route.
    */
   storageKey?: string;
+  /**
+   * Take the u/v rasters from the browser's http cache whatever their age
+   * (`raster-cache.ts`), so a view shown before is not loaded again. A setting
+   * of the host, not of the scenario: it is not stored with the launch and
+   * does not travel with a scene; the geoportal sets it for a map opened with
+   * `cache=forced`. Default: false.
+   */
+  cacheRasters?: boolean;
 };
 
 /** geoportal's topleft column: highlighting 70, comparison 75, terrain 80, time series 85 */
@@ -130,6 +139,7 @@ export const FlowField = ({
     controlPosition = DEFAULT_CONTROL_POSITION,
     controlOrder = DEFAULT_CONTROL_ORDER,
     beforeId,
+    cacheRasters = false,
   } = config;
 
   const {
@@ -311,6 +321,7 @@ export const FlowField = ({
       occlusion,
       params: paramsRef.current,
       id: PARTICLES_CANVAS_CLASS,
+      fetchBuffer: cacheRasters ? getSharedRasterCache() : undefined,
       onActiveChange: (active) => {
         if (!disposed) setActive(active);
       },
@@ -354,6 +365,7 @@ export const FlowField = ({
     viewportBuffer,
     debounceMs,
     occlusion,
+    cacheRasters,
     setActive,
     setLoading,
   ]);
