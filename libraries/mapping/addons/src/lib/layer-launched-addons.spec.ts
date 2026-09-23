@@ -55,3 +55,76 @@ describe("getLayerLaunchedAddons, flow field row", () => {
     ).toEqual([]);
   });
 });
+
+/** a style in the stack, its `carmaConf.tools` already on the layer */
+const styleLayer = (id: string, tools: unknown[], visible = true) => ({
+  id,
+  visible,
+  tools,
+});
+
+const TRACK = {
+  title: "Schwebebahn",
+  trackUrl: "https://tiles.cismet.de/schwebebahn/assets/schwebebahn-trasse.json",
+};
+
+describe("getLayerLaunchedAddons, flow field style", () => {
+  it("launches the style's scenario as the style's own", () => {
+    expect(
+      getLayerLaunchedAddons([
+        styleLayer("custom:t100", [{ addon: "flowField", config: T100 }], false),
+      ])
+    ).toEqual([
+      {
+        layerId: "custom:t100",
+        visible: false,
+        entry: {
+          addon: "flowField",
+          config: {
+            ...T100,
+            startEnabled: true,
+            permanent: true,
+            anchorLayerId: "custom:t100",
+            storageKey: "carma::flowFieldState::launched",
+          },
+        },
+      },
+    ]);
+  });
+
+  it("lets the topmost style win", () => {
+    const [launched] = getLayerLaunchedAddons([
+      styleLayer("custom:t100", [{ addon: "flowField", config: T100 }]),
+      styleLayer("custom:t50", [
+        { kind: "flowField", config: { ...T100, scenario: "T50/" } },
+      ]),
+    ]);
+    expect(launched?.layerId).toBe("custom:t50");
+  });
+
+  it("launches nothing from a style without a scenario", () => {
+    expect(
+      getLayerLaunchedAddons([
+        styleLayer("custom:x", [
+          { addon: "flowField", config: { service: T100.service } },
+        ]),
+      ])
+    ).toEqual([]);
+  });
+
+  it("leaves the fleet of a style that launches both as it was", () => {
+    const launched = getLayerLaunchedAddons([
+      styleLayer("custom:both", [
+        { addon: "vehicleAnimation", config: TRACK },
+        { addon: "flowField", config: T100 },
+      ]),
+    ]);
+    expect(launched.map(({ entry }) => entry)).toEqual([
+      {
+        addon: "vehicleAnimation",
+        config: { ...TRACK, startEnabled: true, permanent: true },
+      },
+      expect.objectContaining({ addon: "flowField" }),
+    ]);
+  });
+});

@@ -133,6 +133,13 @@ export type UseFlowFieldLayerRowOptions = {
    * outlived its route has nothing behind it and is dropped.
    */
   hasEngine: boolean;
+  /**
+   * Whether the host has the animation hidden. The host owns the choice, e.g.
+   * as the eye of the layer that launched it; this mirrors it into the
+   * channel, where the engine reads it, and reports it back as the row's
+   * `visible`.
+   */
+  hidden?: boolean;
   onAdd: (layer: Layer) => void;
   onRemove: (id: string) => void;
   /** the host keeps a snapshot, so a changed row has to be handed over again */
@@ -147,6 +154,7 @@ export type UseFlowFieldLayerRowOptions = {
 export const useFlowFieldLayerRow = ({
   hasRow,
   hasEngine,
+  hidden,
   onAdd,
   onRemove,
   onUpdate,
@@ -165,14 +173,26 @@ export const useFlowFieldLayerRow = ({
     viewportBuffer,
     debounceMs,
     occlusion,
+    maxFps,
     params,
     backdrop,
     fallback,
+    permanent,
+    isHidden,
+    setHidden,
     isCaged,
     isActive,
     isLoading,
   } = useFlowFieldActions();
   const isAdmin = useIsAdminMode();
+
+  // the host's choice reaches the engine through the channel, the same way
+  // everything else about the animation does
+  useEffect(() => {
+    if (hidden !== undefined && hidden !== isHidden) {
+      setHidden(hidden);
+    }
+  }, [hidden, isHidden, setHidden]);
 
   const label = statusLabel({
     isCaged,
@@ -202,6 +222,7 @@ export const useFlowFieldLayerRow = ({
                 viewportBuffer,
                 debounceMs,
                 occlusion,
+                maxFps,
                 params,
                 backdrop: backdrop ?? undefined,
                 fallback: fallback ?? undefined,
@@ -221,6 +242,7 @@ export const useFlowFieldLayerRow = ({
       viewportBuffer,
       debounceMs,
       occlusion,
+      maxFps,
       params,
       backdrop,
       fallback,
@@ -231,11 +253,22 @@ export const useFlowFieldLayerRow = ({
     () => ({
       ...FLOW_FIELD_LAYER,
       title,
-      iconColor: isActive && isCaged ? ICON_COLOR.running : ICON_COLOR.idle,
+      // A launched animation belongs to its layer: the host puts these
+      // controls on that layer's button and shows no row of its own.
+      permanent,
+      pinned: permanent ? ("first" as const) : FLOW_FIELD_LAYER.pinned,
+      visible: !isHidden,
+      // the blue says "switched on and running"; the layer that launched a
+      // permanent one is simply there, so its icon reports no state
+      iconColor: permanent
+        ? undefined
+        : isActive && isCaged
+        ? ICON_COLOR.running
+        : ICON_COLOR.idle,
       interactionButtons: buildInteractionButtons(label, isAdmin),
       tools,
     }),
-    [title, label, isActive, isCaged, isAdmin, tools]
+    [title, permanent, isHidden, label, isActive, isCaged, isAdmin, tools]
   );
 
   const layerRef = useRef(layer);

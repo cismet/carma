@@ -32,7 +32,8 @@ export type BackdropLayerHandle = {
   destroy: () => void;
 };
 
-const DEFAULT_ID = "flow-field-backdrop";
+/** the backdrop's layer id unless the caller names another */
+export const BACKDROP_LAYER_ID = "flow-field-backdrop";
 const DEFAULT_OPACITY = 0.85;
 
 const tileUrl = (
@@ -73,7 +74,7 @@ export const createBackdropLayer = (
     version = "1.1.1",
     transparent = true,
     beforeId,
-    id = DEFAULT_ID,
+    id = BACKDROP_LAYER_ID,
   } = options;
 
   const sourceId = `${id}-source`;

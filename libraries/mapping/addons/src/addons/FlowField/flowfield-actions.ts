@@ -86,6 +86,14 @@ export type FlowFieldDefinition = {
    * true; needs WebGL2, without which it is off whatever this says.
    */
   occlusion?: boolean;
+  /**
+   * Ceiling on how often the map is redrawn for the particles. They are drawn
+   * as a layer of the map, so every particle frame redraws the whole map; on a
+   * machine that cannot keep up this trades smoothness for load. The motion
+   * itself is frame-rate independent, so speed and trail length stay the
+   * same. Left out, the particles run at the display's rate.
+   */
+  maxFps?: number;
   params?: FlowFieldParams;
   backdrop?: FlowFieldBackdrop;
   /**
@@ -94,6 +102,18 @@ export type FlowFieldDefinition = {
    * only then; with cage present it is never mounted.
    */
   fallback?: FlowFieldBackdrop;
+  /**
+   * The animation belongs to a layer of the stack, typically a style that
+   * declares it in its `metadata.carmaConf.tools`: the host shows its controls
+   * on that layer's button rather than in a row of their own, and the layer's
+   * eye and ✕ are the animation's. Set by `getLayerLaunchedAddons`.
+   */
+  permanent?: boolean;
+  /**
+   * The stack layer that launched the animation. Its style's `flowField`
+   * placeholder is where the particles go, and no other style's.
+   */
+  anchorLayerId?: string;
 };
 
 export type FlowFieldState = {
@@ -110,9 +130,18 @@ export type FlowFieldState = {
   viewportBuffer: number;
   debounceMs: number;
   occlusion: boolean;
+  maxFps?: number;
   params: FlowFieldParams;
   backdrop: FlowFieldBackdrop | null;
   fallback: FlowFieldBackdrop | null;
+  /** see `permanent` on the definition */
+  permanent: boolean;
+  anchorLayerId?: string;
+  /**
+   * Whether the host has the animation hidden, i.e. the eye of the layer that
+   * launched it is off. The animation stays launched and only stops drawing.
+   */
+  isHidden: boolean;
   /**
    * Whether the map is at or above the zoom gate. Written by the addon from
    * the caged layer, read by the row so it can say why nothing is moving.
@@ -161,6 +190,8 @@ export const FLOW_FIELD_STATE_DEFAULT: FlowFieldState = {
   params: {},
   backdrop: null,
   fallback: null,
+  permanent: false,
+  isHidden: false,
   isActive: false,
   isLoading: false,
   isCaged: false,
@@ -261,6 +292,14 @@ export const useFlowFieldActions = () => {
     [setState]
   );
 
+  const setHidden = useCallback(
+    (next: boolean) =>
+      setState((previous) =>
+        previous.isHidden === next ? previous : { ...previous, isHidden: next }
+      ),
+    [setState]
+  );
+
   const setLoading = useCallback(
     (next: boolean) =>
       setState((previous) =>
@@ -278,6 +317,7 @@ export const useFlowFieldActions = () => {
     setOpacity,
     setTuning,
     setActive,
+    setHidden,
     setLoading,
   };
 };
@@ -308,9 +348,12 @@ export const useFlowFieldLauncher = () => {
             def.viewportBuffer ?? FLOW_FIELD_STATE_DEFAULT.viewportBuffer,
           debounceMs: def.debounceMs ?? FLOW_FIELD_STATE_DEFAULT.debounceMs,
           occlusion: def.occlusion ?? FLOW_FIELD_STATE_DEFAULT.occlusion,
+          maxFps: def.maxFps,
           params: def.params ?? {},
           backdrop: def.backdrop ?? null,
           fallback: def.fallback ?? null,
+          permanent: def.permanent ?? false,
+          anchorLayerId: def.anchorLayerId,
           isCaged,
           isOn: true,
         };
@@ -329,9 +372,14 @@ export const useFlowFieldLauncher = () => {
           def.viewportBuffer ?? FLOW_FIELD_STATE_DEFAULT.viewportBuffer,
         debounceMs: def.debounceMs ?? FLOW_FIELD_STATE_DEFAULT.debounceMs,
         occlusion: def.occlusion ?? FLOW_FIELD_STATE_DEFAULT.occlusion,
+        maxFps: def.maxFps,
         params: def.params ?? {},
         backdrop: def.backdrop ?? null,
         fallback: def.fallback ?? null,
+        permanent: def.permanent ?? false,
+        anchorLayerId: def.anchorLayerId,
+        // the host's eye, which a new scenario from the same layer keeps
+        isHidden: previous.isHidden,
         isCaged,
         isOn: true,
       };

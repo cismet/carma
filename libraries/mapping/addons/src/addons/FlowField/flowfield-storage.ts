@@ -125,9 +125,17 @@ export const loadFlowFieldState = (
         ? parsed.debounceMs
         : FLOW_FIELD_STATE_DEFAULT.debounceMs,
       occlusion: parsed.occlusion !== false,
+      maxFps:
+        finiteNumber(parsed.maxFps) && parsed.maxFps > 0
+          ? parsed.maxFps
+          : undefined,
       params: isRecord(parsed.params) ? (parsed.params as FlowFieldParams) : {},
       backdrop: readBackdrop(parsed.backdrop),
       fallback: readBackdrop(parsed.fallback),
+      permanent: parsed.permanent === true,
+      anchorLayerId: nonEmptyString(parsed.anchorLayerId)
+        ? parsed.anchorLayerId
+        : undefined,
       isCaged,
     };
   } catch (error) {
@@ -141,8 +149,12 @@ export const saveFlowFieldState = (
   state: FlowFieldState
 ): void => {
   try {
-    // the runtime readouts are the engine's to publish, not the store's
-    const { isActive: _active, isLoading: _loading, ...launch } = state;
+    // the runtime readouts are the engine's to publish, not the store's, and
+    // the eye is the host's, which persists it with its layer stack
+    const launch: Partial<FlowFieldState> = { ...state };
+    delete launch.isActive;
+    delete launch.isLoading;
+    delete launch.isHidden;
     window.localStorage.setItem(storageKey, JSON.stringify(launch));
   } catch (error) {
     console.warn("[ADDON STATE] the flow field could not be stored", error);

@@ -25,6 +25,11 @@ const isVehicleAnimationEntry = (
   entry: ResolvedAddon
 ): entry is VehicleAnimationEntry => entry.kind === "vehicleAnimation";
 
+type FlowFieldEntry = Extract<ResolvedAddon, { kind: "flowField" }>;
+
+const isFlowFieldEntry = (entry: ResolvedAddon): entry is FlowFieldEntry =>
+  entry.kind === "flowField";
+
 /** An engine a layer in the stack launches, and the layer that launches it. */
 export type LayerLaunchedAddon = {
   layerId: string;
@@ -46,7 +51,13 @@ export type LayerLaunchedAddon = {
  * a display that only renders the stacks a remote hands it: there the row is
  * the only thing that says the service is on. Such a host also launches the
  * flow field from its row (`__flowField__`), which carries its scenario the
- * same way; nothing else launches a flow field.
+ * same way.
+ *
+ * The flow field is launched the same way as the fleet: by a layer whose tools
+ * carry a `flowField` with its `service` and `scenario`, the topmost such layer
+ * winning. It also learns which layer that is (`anchorLayerId`), since the
+ * layer's style says where in the layer order the particles are drawn, see
+ * `style-slot.ts`.
  *
  * `permanent`: the layer is the face of the service. A host shows the engine's
  * controls on the layer's own button rather than in a row of their own, so no
@@ -86,9 +97,25 @@ export const getLayerLaunchedAddons = (
     ) {
       continue;
     }
-    const tool = resolveAddonEntries(layer.tools as AddonEntry[]).find(
-      isVehicleAnimationEntry
-    );
+    const tools = resolveAddonEntries(layer.tools as AddonEntry[]);
+    const flowTool = tools.find(isFlowFieldEntry);
+    if (flowTool?.config?.service && flowTool.config.scenario) {
+      flowField = {
+        layerId: layer.id,
+        visible: layer.visible !== false,
+        entry: {
+          addon: "flowField",
+          config: {
+            ...flowTool.config,
+            startEnabled: true,
+            permanent: true,
+            anchorLayerId: layer.id,
+            storageKey: LAUNCHED_FLOW_FIELD_STORAGE_KEY,
+          },
+        },
+      };
+    }
+    const tool = tools.find(isVehicleAnimationEntry);
     if (!tool?.config?.trackUrl) {
       continue;
     }

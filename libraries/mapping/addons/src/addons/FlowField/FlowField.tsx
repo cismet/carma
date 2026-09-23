@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faWater } from "@fortawesome/free-solid-svg-icons";
 import { Tooltip } from "antd";
@@ -14,10 +14,16 @@ import {
   type FlowLayerHandle,
 } from "../../lib/caged-addons";
 import type { AddonComponentProps } from "../../lib/registry";
+import { placeAtSlot, useStyleSlot } from "../../lib/style-slot";
 import {
+  BACKDROP_LAYER_ID,
   createBackdropLayer,
   type BackdropLayerHandle,
 } from "./backdrop-layer";
+import {
+  createFlowSlotLayer,
+  type FlowSlotLayerHandle,
+} from "./flow-slot-layer";
 import {
   useFlowFieldActions,
   useFlowFieldLauncher,
@@ -57,8 +63,8 @@ export type FlowFieldConfig = Partial<FlowFieldDefinition> & {
   controlOrder?: number;
   /**
    * MapLibre layer the backdrop raster is inserted before, e.g. to sit under
-   * labels. The particles are a canvas over the whole map and always on top,
-   * as they were on the Leaflet overlay pane, so this does not reach them.
+   * labels. It does not reach the particles; what places them is a style's
+   * `flowField` slot (`style-slot.ts`), and without one they are on top.
    */
   beforeId?: string;
   /**
@@ -74,6 +80,25 @@ const DEFAULT_CONTROL_ORDER = 84;
 
 /** the layer id of the stand-in WMS drawn while cage is absent */
 const FALLBACK_LAYER_ID = "flow-field-fallback";
+
+/** the class name carma gives cage's particle canvas, to find it by */
+const PARTICLES_CANVAS_CLASS = "flow-field-particles";
+
+/** the custom layer the particle canvas is drawn through */
+const PARTICLES_LAYER_ID = "flow-field-particles-layer";
+
+/**
+ * What a style's slot holds, bottom to top: the scenario's raster, the arrows
+ * standing in for cage, the particles.
+ */
+const SLOT_LAYER_IDS = [
+  BACKDROP_LAYER_ID,
+  FALLBACK_LAYER_ID,
+  PARTICLES_LAYER_ID,
+];
+
+/** the name of the placeholder a style marks the particles' place with */
+const FLOW_FIELD_SLOT = "flowField";
 
 const ON_COLOR = "#1677ff";
 const OFF_COLOR = "#000000";
@@ -94,9 +119,12 @@ export const FlowField = ({
     viewportBuffer: configViewportBuffer,
     debounceMs: configDebounceMs,
     occlusion: configOcclusion,
+    maxFps: configMaxFps,
     params: configParams,
     backdrop: configBackdrop,
     fallback: configFallback,
+    permanent: configPermanent,
+    anchorLayerId: configAnchorLayerId,
     startEnabled = true,
     showControl = false,
     controlPosition = DEFAULT_CONTROL_POSITION,
@@ -117,9 +145,12 @@ export const FlowField = ({
     viewportBuffer,
     debounceMs,
     occlusion,
+    maxFps,
     params,
     backdrop,
     fallback,
+    anchorLayerId,
+    isHidden,
     setOn,
     setActive,
     setLoading,
@@ -132,6 +163,9 @@ export const FlowField = ({
   const createFlowLayer = useCreateFlowLayer();
 
   const layerRef = useRef<FlowLayerHandle | null>(null);
+  // the same handle as state, for the effect that wraps its canvas
+  const [particles, setParticles] = useState<FlowLayerHandle | null>(null);
+  const slotLayerRef = useRef<FlowSlotLayerHandle | null>(null);
   const backdropRef = useRef<BackdropLayerHandle | null>(null);
   const fallbackRef = useRef<BackdropLayerHandle | null>(null);
 
@@ -139,6 +173,18 @@ export const FlowField = ({
   // would tear the layer down and rebuild it on every slider nudge
   const opacityRef = useRef(opacity);
   opacityRef.current = opacity;
+
+  // Where a style wants the particles. The style's own opacity slider reaches
+  // its layers through their paint; the particles, backdrop and arrows are not
+  // its layers, so it reaches them through the placeholder.
+  const slot = useStyleSlot(libreMap, FLOW_FIELD_SLOT, anchorLayerId);
+  const isHiddenRef = useRef(isHidden);
+  isHiddenRef.current = isHidden;
+  const slotOpacity = slot?.opacity ?? 1;
+  const slotOpacityRef = useRef(slotOpacity);
+  slotOpacityRef.current = slotOpacity;
+  const maxFpsRef = useRef(maxFps);
+  maxFpsRef.current = maxFps;
 
   // The same for the drawing parameters. The caged layer takes them through
   // `setParams` without refetching anything, so a tuning slider must not reach
@@ -170,9 +216,12 @@ export const FlowField = ({
       viewportBuffer: configViewportBuffer,
       debounceMs: configDebounceMs,
       occlusion: configOcclusion,
+      maxFps: configMaxFps,
       params: configParams,
       backdrop: configBackdrop,
       fallback: configFallback,
+      permanent: configPermanent,
+      anchorLayerId: configAnchorLayerId,
     });
     return () => setOn(false);
   }, [
@@ -188,9 +237,12 @@ export const FlowField = ({
     configViewportBuffer,
     configDebounceMs,
     configOcclusion,
+    configMaxFps,
     configParams,
     configBackdrop,
     configFallback,
+    configPermanent,
+    configAnchorLayerId,
     startField,
     setOn,
   ]);
@@ -198,7 +250,7 @@ export const FlowField = ({
   // The backdrop is independent of cage, so it mounts on its own. Added first
   // so the particles, added after, paint over it.
   useEffect(() => {
-    if (!libreMap || !isOn || !backdrop) {
+    if (!libreMap || !isOn || isHidden || !backdrop) {
       return undefined;
     }
     backdropRef.current = createBackdropLayer({
@@ -213,13 +265,13 @@ export const FlowField = ({
       backdropRef.current?.destroy();
       backdropRef.current = null;
     };
-  }, [libreMap, isOn, backdrop, beforeId]);
+  }, [libreMap, isOn, isHidden, backdrop, beforeId]);
 
   // Without cage nothing animates. A route or card that declares a `fallback`
   // gets that WMS instead, the scenario's direction arrows in the rain hazard
   // map's case; with cage present this effect never mounts anything.
   useEffect(() => {
-    if (!libreMap || !isOn || createFlowLayer || !fallback) {
+    if (!libreMap || !isOn || isHidden || createFlowLayer || !fallback) {
       return undefined;
     }
     fallbackRef.current = createBackdropLayer({
@@ -235,7 +287,7 @@ export const FlowField = ({
       fallbackRef.current?.destroy();
       fallbackRef.current = null;
     };
-  }, [libreMap, isOn, createFlowLayer, fallback, beforeId]);
+  }, [libreMap, isOn, isHidden, createFlowLayer, fallback, beforeId]);
 
   // Mount the caged particle layer. Without cage `createFlowLayer` is
   // undefined and this whole effect is a no-op, which is the intended
@@ -258,6 +310,7 @@ export const FlowField = ({
       debounceMs,
       occlusion,
       params: paramsRef.current,
+      id: PARTICLES_CANVAS_CLASS,
       onActiveChange: (active) => {
         if (!disposed) setActive(active);
       },
@@ -268,13 +321,22 @@ export const FlowField = ({
         console.error("[FLOW FIELD] velocity field request failed", error);
       },
     });
-    handle.setOpacity(opacityRef.current);
     layerRef.current = handle;
+    setParticles(handle);
+
+    // cage's canvas, an overlay on top of everything until a slot wraps it
+    handle.setOpacity(opacityRef.current * slotOpacityRef.current);
+    if (isHiddenRef.current) {
+      handle.setVisible(false);
+    }
 
     return () => {
       disposed = true;
+      slotLayerRef.current?.destroy();
+      slotLayerRef.current = null;
       handle.destroy();
       layerRef.current = null;
+      setParticles(null);
       // the gate state belongs to a layer that no longer exists
       setActive(false);
       setLoading(false);
@@ -306,16 +368,86 @@ export const FlowField = ({
     layerRef.current?.setParams(params);
   }, [params]);
 
+  useEffect(() => {
+    slotLayerRef.current?.setMaxFps(maxFps);
+  }, [maxFps]);
+
+  // The eye of the launching layer: the particles stop and go off the map,
+  // and stay launched, so they are back the moment the eye is.
+  useEffect(() => {
+    layerRef.current?.setVisible(!isHidden);
+    slotLayerRef.current?.setVisible(!isHidden);
+  }, [isHidden]);
+
   // Push opacity down separately, so changing it never rebuilds the layer.
   useEffect(() => {
-    layerRef.current?.setOpacity(opacity);
-    backdropRef.current?.setOpacity(
-      (backdrop?.opacity ?? 0.85) * opacity
-    );
-    fallbackRef.current?.setOpacity(
-      (fallback?.opacity ?? 0.85) * opacity
-    );
-  }, [opacity, backdrop, fallback]);
+    const total = opacity * slotOpacity;
+    if (slotLayerRef.current) {
+      slotLayerRef.current.setOpacity(total);
+    } else {
+      layerRef.current?.setOpacity(total);
+    }
+    backdropRef.current?.setOpacity((backdrop?.opacity ?? 0.85) * total);
+    fallbackRef.current?.setOpacity((fallback?.opacity ?? 0.85) * total);
+  }, [opacity, slotOpacity, backdrop, fallback]);
+
+  // Keep the particles, and whatever raster came with them, at the style's
+  // slot. Each of them puts itself back on the map after a style swap, on top;
+  // the swap and every reorder fire `styledata`, which moves them back under
+  // the placeholder. Without a slot they stay where they were added.
+  const placeholderId = slot?.placeholderId;
+  useEffect(() => {
+    if (!libreMap || !isOn || !placeholderId) {
+      return undefined;
+    }
+    const place = () => placeAtSlot(libreMap, SLOT_LAYER_IDS, placeholderId);
+    place();
+    libreMap.on("styledata", place);
+    return () => {
+      libreMap.off("styledata", place);
+    };
+  }, [libreMap, isOn, placeholderId, createFlowLayer, backdrop, fallback]);
+
+  // With a slot, draw cage's canvas as a layer of the map, so it has a place
+  // in the layer order. Without one it stays the overlay it always was: a
+  // layer placed nowhere would sit wherever it was added, under every layer
+  // added after it. If cage ever stops putting the canvas where it is looked
+  // for, the particles stay the overlay as well.
+  const hasSlot = placeholderId !== undefined;
+  useEffect(() => {
+    if (!libreMap || !particles || !hasSlot) {
+      return undefined;
+    }
+    const canvas = libreMap
+      .getCanvasContainer()
+      .querySelector<HTMLCanvasElement>(`canvas.${PARTICLES_CANVAS_CLASS}`);
+    if (!canvas) {
+      console.warn(
+        "[FLOW FIELD] cage's particle canvas was not found; the particles " +
+          "are drawn over the map instead of at their place in the layer order"
+      );
+      return undefined;
+    }
+    const slotLayer = createFlowSlotLayer({
+      map: libreMap,
+      canvas,
+      id: PARTICLES_LAYER_ID,
+      maxFps: maxFpsRef.current,
+      isActive: () => particles.isActive(),
+    });
+    // the canvas is only the layer's source now; the layer does the fading
+    particles.setOpacity(1);
+    slotLayer.setOpacity(opacityRef.current * slotOpacityRef.current);
+    slotLayer.setVisible(!isHiddenRef.current);
+    slotLayerRef.current = slotLayer;
+    return () => {
+      // the mount effect's teardown may have been first, with the handle
+      if (slotLayerRef.current !== slotLayer) return;
+      slotLayer.destroy();
+      slotLayerRef.current = null;
+      particles.setOpacity(opacityRef.current * slotOpacityRef.current);
+    };
+  }, [libreMap, particles, hasSlot]);
 
   if (!libreMap || !showControl) {
     return null;
