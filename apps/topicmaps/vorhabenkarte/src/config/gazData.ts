@@ -1,11 +1,11 @@
 import { createConfig, ENDPOINT } from "@carma-commons/resources";
 
-const prefix = "GazDataForHochwasserkarteByCismet";
+const prefix = "GazDataForVorhabenkarteByCismet";
 
 const endpoints = [ENDPOINT.ADRESSEN, ENDPOINT.POIS, ENDPOINT.VORHABEN];
 
 const host = import.meta.env.VITE_WUPP_ASSET_BASEURL;
-const crs = "25832";
+const crs = "3857";
 
 const sources = endpoints.map((endpoint) => {
   return createConfig(endpoint, { crs, host });

@@ -180,7 +180,25 @@ export { buildFeatureStateTarget } from "./utils/featureStateTarget";
 export type { FeatureStateRef } from "./utils/featureStateTarget";
 
 // Stamp feature.sourceLayer from properties._sourceLayer (geojson FCs)
-export { stampSourceLayerFromProperty } from "@carma-mapping/utils";
+export {
+  stampSourceLayerFromProperty,
+  SOURCE_LAYER_PROPERTY,
+} from "@carma-mapping/utils";
+
+// Swap a vector source of a style for an inline geojson source
+export { rebindStyleSourceToGeoJson } from "./utils/geojsonSourceRebind";
+export { useGeoJsonStyleLayer } from "./hooks/useGeoJsonStyleLayer";
+export type { GeoJsonStyleLayerOptions } from "./hooks/useGeoJsonStyleLayer";
+export {
+  useSelectFeatureById,
+  useUrlFeatureSelectionById,
+} from "./hooks/useSelectFeatureById";
+export type {
+  SelectByIdCallOptions,
+  SelectFeatureByIdOptions,
+  UrlFeatureSelectionByIdOptions,
+} from "./hooks/useSelectFeatureById";
+export type { RebindStyleSourceToGeoJsonOptions } from "./utils/geojsonSourceRebind";
 
 // Lasso drawing
 export { LassoDrawingManager } from "./lib/LassoDrawingManager";
