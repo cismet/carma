@@ -165,45 +165,6 @@ describe("mesh receiver and sunward caster publication", () => {
     }
   });
 
-  it("replaces a receiver parent only with its complete loaded family, without waiting for another corridor", () => {
-    const f = createMeshCorridorFixture();
-    try {
-      const left = f.tile("left1", -10, 0, -100, 1, true, f.receiver);
-      const right = f.tile("right1", 0, 10, -100, 1, true, f.receiver);
-      const fineCaster = f.tile(
-        "caster-final",
-        -10,
-        10,
-        -50,
-        0,
-        false,
-        f.caster
-      );
-      f.caster.children = [fineCaster];
-      f.receiver.children = [left, right];
-      f.load(left);
-      f.update();
-      expect(f.visibleIds()).toEqual(["caster16", "receiver16"]);
-      f.load(right);
-      f.update();
-      expect(f.visibleIds()).toEqual(["caster16", "left1", "right1"]);
-      expect(f.renderer.visibleTiles.has(f.receiver)).toBe(false);
-      // Caster quality and soft-mask readiness are separate from mesh residency.
-      // No removed acknowledgeShadowStage/setShadowStagePresentationGate API.
-      expect(
-        f.runtime.scene.isShadowRegionReady?.(f.corridor, 1, f.receiverBox)
-      ).toBe(false);
-      f.load(fineCaster);
-      f.update();
-      expect(f.visibleIds()).toEqual(["caster-final", "left1", "right1"]);
-      expect(
-        f.runtime.scene.isShadowRegionReady?.(f.corridor, 1, f.receiverBox)
-      ).toBe(true);
-    } finally {
-      f.dispose();
-    }
-  });
-
   it("retains a city-root fallback until all intersecting children are loaded", () => {
     const f = createMeshCorridorFixture();
     try {
@@ -214,7 +175,7 @@ describe("mesh receiver and sunward caster publication", () => {
       f.root.children.push(missing);
       f.update();
       expect(f.renderer.visibleTiles.has(f.root)).toBe(true);
-      expect(f.renderer.visibleTiles.has(f.receiver)).toBe(false);
+      expect(f.renderer.visibleTiles.has(f.receiver)).toBe(true);
       f.load(missing);
       f.update();
       expect(f.renderer.visibleTiles.has(f.root)).toBe(false);

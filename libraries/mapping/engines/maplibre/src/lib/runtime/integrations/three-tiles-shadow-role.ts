@@ -53,8 +53,7 @@ export const setTileShadowRole = (
     roles.set(mesh, role);
     mesh.receiveShadow = role.receiver;
     mesh.castShadow = role.caster;
-    // Existing shared shadow-scene contract: later material setup must not
-    // reactivate partial child casters while their parent still owns depth.
+    // Later material setup must preserve the committed caster role.
     mesh.userData.disableShadowCasting = !role.caster;
     for (const material of Array.isArray(mesh.material)
       ? mesh.material
@@ -93,7 +92,12 @@ export const setTileDepthUnderlay = (
           underlayDepthWrite.set(material, material.depthWrite);
         material.depthWrite = false;
       } else {
-        material.depthWrite = underlayDepthWrite.get(material) ?? true;
+        const restored = underlayDepthWrite.get(material) ?? true;
+        const hiddenWrites = materialWrites.get(material);
+        // A former underlay can remain a caster-only parent. Restore its
+        // receiver state without re-enabling depth writes while it is hidden.
+        if (hiddenWrites) hiddenWrites.depthWrite = restored;
+        else material.depthWrite = restored;
         underlayDepthWrite.delete(material);
       }
     }

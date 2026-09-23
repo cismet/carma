@@ -10,7 +10,7 @@ import {
   startCacheCeilingSession,
   writeCacheCeilingMemory,
 } from "./three-tiles-cache-ceiling-memory";
-import { TILES_CACHE_CEILING_BYTES } from "./three-tiles-load-policy";
+import { TILES_CACHE_CEILING_BYTES } from "../../core/tile-cache-policy";
 
 const MIB = 1024 ** 2;
 const GIB = 1024 ** 3;

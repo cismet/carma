@@ -44,11 +44,17 @@ vi.mock("@carma-mapping/tile-diagnostics-ui", () => ({
   TileLoadingDebug: ({
     onOpenChange,
     open,
+    options,
   }: {
     open: boolean;
+    options: { showCharts: boolean };
     onOpenChange: (open: boolean) => void;
   }) => (
-    <div role="toolbar" aria-label="Tile manager diagnostics">
+    <div
+      role="toolbar"
+      aria-label="Tile manager diagnostics"
+      data-charts={options.showCharts}
+    >
       <button onClick={() => onOpenChange(!open)}>
         {open ? "Close mesh debugger" : "Open mesh debugger"}
       </button>
@@ -90,6 +96,7 @@ describe("TileLoadingDebugHost", () => {
       name: "Close mesh debugger",
     });
     const toolbar = screen.getByRole("toolbar");
+    expect(toolbar.getAttribute("data-charts")).toBe("true");
     shadow.state = { enabled: true };
     rerender(<TileLoadingDebugHost map={map} />);
     expect(screen.getByRole("toolbar")).toBe(toolbar);

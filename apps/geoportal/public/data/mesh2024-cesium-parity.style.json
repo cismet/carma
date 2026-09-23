@@ -3,7 +3,7 @@
   "metadata": {
     "carmaConf": {
       "layerInfo": {
-        "title": "3D-MeshX 2024 (Cesium-Parität)",
+        "title": "3D-Mesh 2024 (Cesium-Parität)",
         "description": "Inhalt: Das texturierte 3D-Stadtmodell von Wuppertal, Stand 2024. Es ist derselbe Kachelsatz, den die 3D-Ansicht des Geoportals schon zeichnet. Gelände, Gebäude und Bewuchs stecken darin in einem Stück; einzelne Objekte lassen sich nicht anklicken oder abfragen. Die Ebene zeichnet nichts in der zweidimensionalen Karte und wird erst in der 3D-Ansicht sichtbar. Weil das Modell absolute Höhen trägt, schaltet die Ebene das Gelände ein. Datengrundlage: 3D-Mesh 2024, © Stadt Wuppertal.",
         "tags": [
           "Basis",
@@ -16,7 +16,7 @@
       },
       "3d": {
         "renderMode": "tiles3d",
-        "tilesetUrl": "https://wupp-3d-datax.cismet.de/mesh2024/tileset.json",
+        "tilesetUrl": "https://wupp-3d-data.cismet.de/mesh2024/tileset.json",
         "providesTerrain": true,
         "basemap": "none",
         "errorTarget": 6,

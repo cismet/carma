@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
+import { TILE_PIPELINE_CHART_ROWS as CHART_ROWS } from "./core/tile-pipeline-chart-rows";
 import panelCss from "./TileLoadingDebugPanels.css?inline";
 import { createTileDiagnosticOverlayComponent } from "./TileDiagnosticOverlay";
 // The popup window belongs to the library, so the overview can pop out too.
@@ -72,7 +73,6 @@ import {
   createMetricRecorder,
   type MetricRecorder,
   type StripChart,
-  type StripChartRow,
 } from "@carma-commons/ui/components";
 import {
   acquireSharedThreeScene,
@@ -105,6 +105,7 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
     captureTileDiagnostics,
     summarizeTileDiagnostics,
     updateTileDiagnosticQueue,
+    createTilePipelineTelemetry,
   } = diagnostics;
   const TileDiagnosticOverlay =
     createTileDiagnosticOverlayComponent(diagnostics);
@@ -124,157 +125,6 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
   const LEGEND: ReadonlyArray<[Kind, string]> = [
     ["displayed", "drawn (including fallback coverage)"],
     ["resident", "not drawn; see symbol for load state"],
-  ];
-
-  /** One column per animation frame; the labels refresh four times a second. */
-  const CHART_ROWS: readonly StripChartRow[] = [
-    {
-      id: "frameMs",
-      label: "frame",
-      unit: "ms",
-      color: "#2563eb",
-      min: 0,
-      max: 50,
-      format: (v) => v.toFixed(1),
-    },
-    {
-      id: "traversalMs",
-      label: "tile traversal",
-      unit: "ms",
-      color: "#7c3aed",
-      min: 0,
-      format: (v) => v.toFixed(1),
-    },
-    {
-      id: "overlayMs",
-      label: "overlay build",
-      unit: "ms",
-      color: "#0891b2",
-      min: 0,
-      format: (v) => v.toFixed(1),
-    },
-    {
-      id: "chartMs",
-      label: "chart push",
-      unit: "ms",
-      color: "#0891b2",
-      min: 0,
-      format: (v) => v.toFixed(2),
-    },
-    {
-      id: "triangles",
-      label: "triangles",
-      unit: "k",
-      color: "#16a34a",
-      min: 0,
-      format: (v) => v.toFixed(0),
-    },
-    {
-      id: "drawCalls",
-      label: "draw calls",
-      color: "#16a34a",
-      min: 0,
-      format: (v) => v.toFixed(0),
-    },
-    {
-      id: "queued",
-      label: "queued",
-      color: "#ca8a04",
-      min: 0,
-      format: (v) => v.toFixed(0),
-    },
-    {
-      id: "downloading",
-      label: "downloading",
-      color: "#ea580c",
-      min: 0,
-      format: (v) => v.toFixed(0),
-    },
-    {
-      id: "parsing",
-      label: "parsing",
-      color: "#dc2626",
-      min: 0,
-      format: (v) => v.toFixed(0),
-    },
-    {
-      id: "downloadsPerS",
-      label: "downloads / s",
-      color: "#ea580c",
-      min: 0,
-      format: (v) => v.toFixed(1),
-    },
-    {
-      id: "downloadMs",
-      label: "download, mean",
-      unit: "ms",
-      color: "#ea580c",
-      min: 0,
-      format: (v) => v.toFixed(0),
-    },
-    {
-      id: "preparedPerS",
-      label: "prepared / s",
-      color: "#dc2626",
-      min: 0,
-      format: (v) => v.toFixed(1),
-    },
-    {
-      id: "prepareMs",
-      label: "prepare, mean",
-      unit: "ms",
-      color: "#dc2626",
-      min: 0,
-      format: (v) => v.toFixed(0),
-    },
-    {
-      id: "displayed",
-      label: "displayed tiles",
-      color: "#16a34a",
-      min: 0,
-      format: (v) => v.toFixed(0),
-    },
-    {
-      id: "cacheMB",
-      label: "tile cache",
-      unit: "MB",
-      color: "#475569",
-      min: 0,
-      format: (v) => v.toFixed(0),
-    },
-    {
-      id: "pressure",
-      label: "cache / ceiling",
-      unit: "%",
-      color: "#475569",
-      min: 0,
-      max: 100,
-      format: (v) => v.toFixed(0),
-    },
-    {
-      id: "heapMB",
-      label: "JS heap",
-      unit: "MB",
-      color: "#475569",
-      min: 0,
-      format: (v) => v.toFixed(0),
-    },
-    {
-      id: "textures",
-      label: "GPU textures",
-      color: "#475569",
-      min: 0,
-      format: (v) => v.toFixed(0),
-    },
-    {
-      id: "target",
-      label: "error target",
-      unit: "px",
-      color: "#0f172a",
-      min: 0,
-      max: 24,
-      format: (v) => v.toFixed(0),
-    },
   ];
 
   type Hover = { tile: Tile; parent: Tile | null; siblings: Tile[] } | null;
@@ -478,8 +328,9 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
     >({});
     const [panelPositions, setPanelPositions] = useState<
       Record<string, { left: number; top: number }>
-    >(() =>
-      initialOverviewPosition ? { overview: initialOverviewPosition } : {}
+    >(
+      (): Record<string, { left: number; top: number }> =>
+        initialOverviewPosition ? { overview: initialOverviewPosition } : {}
     );
     const [frontPanel, setFrontPanel] = useState("legend");
     const [legendExpanded, setLegendExpanded] = useState(false);
@@ -605,46 +456,22 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
       let previous: CoverageSummary | null = null;
       let frameHandle = 0;
       let renderCamera: THREE.Camera | null = null;
-      // Pipeline telemetry: resource timing of tile downloads, and the time from
-      // a download's end to the model's arrival (parse queue wait + parse).
-      const responseEnd = new Map<string, number>();
-      let downloads = 0;
-      let downloadBytes = 0;
-      let downloadMs = 0;
-      let prepared = 0;
-      let prepareMs = 0;
-      let resourceObserver: PerformanceObserver | null = null;
-      try {
-        resourceObserver = new PerformanceObserver((list) => {
-          for (const entry of list.getEntries() as PerformanceResourceTiming[]) {
-            if (!/\.(b3dm|glb|gltf)(?:[?#]|$)/i.test(entry.name)) continue;
-            downloads += 1;
-            downloadBytes += entry.transferSize || entry.encodedBodySize || 0;
-            downloadMs += entry.duration;
-            responseEnd.set(entry.name, entry.responseEnd);
-            if (responseEnd.size > 4000)
-              responseEnd.delete(responseEnd.keys().next().value as string);
-          }
-        });
-        resourceObserver.observe({ type: "resource", buffered: false });
-      } catch {
-        resourceObserver = null;
-      }
-      const onModel = (event: { url?: string }) => {
-        prepared += 1;
-        const end = event.url ? responseEnd.get(event.url) : undefined;
-        if (end !== undefined) prepareMs += performance.now() - end;
+      const pipeline = createTilePipelineTelemetry(() =>
+        readRuntime(runtimeHandle)
+      );
+      // Pipeline sampling must not wait for an overview worker capture to finish.
+      const samplePipeline = () => {
+        if (disposed) return;
+        const values = pipeline.sample();
+        latest.current = { ...latest.current, ...values };
+        recorder.sample(values);
       };
-      // The tiles runtime attaches after the style loads: subscribe once it exists.
-      let modelSource: TilesRenderer | null = null;
-      const subscribeModels = () => {
-        const tiles = readRuntime(runtimeHandle)?.tiles ?? null;
-        if (!tiles || tiles === modelSource) return;
-        modelSource?.removeEventListener("load-model", onModel as never);
-        modelSource = tiles;
-        tiles.addEventListener("load-model", onModel as never);
-      };
+      const pipelineInterval = window.setInterval(
+        samplePipeline,
+        SAMPLE_INTERVAL_MS
+      );
       let lastCachedBytes = 0;
+      let lastPipelineSampleAt = performance.now();
 
       // Scene labels: CSS2D billboards at the top-plane centre of each displayed
       // tile, projected with the shared scene's render camera by a runtime
@@ -1063,6 +890,7 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
             ...latest.current,
             frameMs,
             traversalMs: state?.lastTraversalMs ?? 0,
+            displayed: state?.displayedMeshFrontier.size ?? 0,
             triangles: triangles / 1000,
             drawCalls,
             queued: stats?.queued ?? 0,
@@ -1108,7 +936,6 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
             const fps = (frames * 1000) / Math.max(1, now - lastSampleAt);
             frames = 0;
             lastSampleAt = now;
-            subscribeModels();
             if (runtimeHandle) setRuntimeReady(true);
             await pendingCapture;
             if (disposed) return;
@@ -1131,20 +958,22 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
             const heap = (
               performance as unknown as { memory?: { usedJSHeapSize: number } }
             ).memory?.usedJSHeapSize;
-            const seconds = Math.max(0.001, SAMPLE_INTERVAL_MS / 1000);
+            const sampledAt = performance.now();
+            const seconds = Math.max(
+              0.001,
+              (sampledAt - lastPipelineSampleAt) / 1000
+            );
+            lastPipelineSampleAt = sampledAt;
             latest.current = {
+              ...latest.current,
               overlayMs,
-              downloadsPerS: downloads / seconds,
-              downloadMs: downloads > 0 ? downloadMs / downloads : 0,
-              preparedPerS: prepared / seconds,
-              prepareMs: prepared > 0 ? prepareMs / prepared : 0,
               displayed: next?.displayed ?? 0,
               cacheMB: next?.cachedMB ?? 0,
               pressure:
                 next && next.ceilingMB > 0
                   ? (100 * next.cachedMB) / next.ceilingMB
                   : 0,
-              heapMB: heap !== undefined ? heap / 1e6 : 0,
+              heapMB: heap !== undefined ? heap / 1e6 : Number.NaN,
               textures,
             };
             recorder.sample({
@@ -1153,13 +982,7 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
               longTasks,
               downloading: next?.downloading ?? 0,
               parsing: next?.parsing ?? 0,
-              downloadsPerS: downloads / seconds,
-              downloadMBs:
-                downloadBytes > 0 ? downloadBytes / 1e6 / seconds : Number.NaN,
               residentMBs: residentDelta / 1e6 / seconds,
-              downloadMs: downloads > 0 ? downloadMs / downloads : 0,
-              preparedPerS: prepared / seconds,
-              prepareMs: prepared > 0 ? prepareMs / prepared : 0,
               traversalMs: next?.traversalMs ?? 0,
               overlayMs,
               triangles: triangles / 1000,
@@ -1178,11 +1001,6 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
             });
             frameMaxMs = 0;
             longTasks = 0;
-            downloads = 0;
-            downloadBytes = 0;
-            downloadMs = 0;
-            prepared = 0;
-            prepareMs = 0;
             if (next) {
               for (const line of describeChanges(previous, next))
                 recorder.log(line);
@@ -1234,8 +1052,8 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
         if (idleHandle !== 0) cancelIdle(idleHandle);
         cancelAnimationFrame(frameHandle);
         longTaskObserver?.disconnect();
-        resourceObserver?.disconnect();
-        modelSource?.removeEventListener("load-model", onModel as never);
+        window.clearInterval(pipelineInterval);
+        pipeline.dispose();
         queueHistory.current.clear();
         setQueue([]);
         setHover(null);
@@ -1263,7 +1081,7 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
         subscribeCamera={subscribeCamera}
         updateOnRender={options.updateOnRender}
         followCamera={options.overviewView === "frustum"}
-        cameraFocus={options.overviewCameraFocus ?? "overview-live"}
+        cameraFocus={options.overviewCameraFocus ?? "all"}
         followPaddingPercent={options.overviewPaddingPercent ?? 200}
         showFrustum={options.showFrustum}
         orbit={overviewOrbit}
@@ -1551,7 +1369,7 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
         {options.overviewView === "frustum" && (
           <DiagnosticChoice
             label="Frustum crop"
-            value={options.overviewCameraFocus ?? "overview-live"}
+            value={options.overviewCameraFocus ?? "all"}
             onChange={(overviewCameraFocus: string) =>
               onOptionsChange({ overviewCameraFocus })
             }
@@ -1561,12 +1379,18 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
               ...cameraIds.map((id, i) => ({
                 value: id,
                 label: `${
-                  id.startsWith("coverage-window-")
+                  id === SHADOW_CORRIDOR_CAMERA_ID
+                    ? "Sun corridor"
+                    : id.startsWith("coverage-window-")
                     ? `Camera ${
                         Number(id.slice("coverage-window-".length)) + 1
                       }`
                     : id
-                } · ${["orange", "green", "violet"][i % 3]}`,
+                } · ${
+                  id === SHADOW_CORRIDOR_CAMERA_ID
+                    ? "lemon"
+                    : ["orange", "green", "violet"][i % 3]
+                }`,
               })),
             ]}
           />
@@ -1628,9 +1452,7 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
             ).map((value) => ({
               value,
               label:
-                value === "id and stats"
-                  ? "ID + resident kB (10 kB steps)"
-                  : value,
+                value === "id and stats" ? "ID + resident cache size" : value,
             }))}
           />
           <Slider
@@ -1908,7 +1730,7 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
                 [
                   ["showQueue", "Queue", faBars],
                   ["showStats", "Statistics", faTableCells],
-                  ["showCharts", "Charts", faChartLine],
+                  ["showCharts", "Stats timeline", faChartLine],
                   ["showEventLog", "Event log", faTerminal],
                 ] as const
               ).map(([flag, label, icon]) => (
@@ -2013,22 +1835,33 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
       },
       {
         id: "charts",
-        label: "Charts",
+        label: "Stats timeline",
         icon: faChartLine,
         flag: "showCharts",
         width: 620,
-        height: 235,
-        left: 36,
+        height: 625,
+        left: 580,
         top: 420,
         resize: "both",
         content: () => (
-          <StripChartPanel
-            rows={CHART_ROWS}
-            rowHeight={14}
-            onChart={(chart) => {
-              chartRef.current = chart;
-            }}
-          />
+          <>
+            <p style={{ margin: "4px 8px", fontSize: 11 }}>
+              Rates use actual elapsed time and completed tile responses. Wire
+              bytes include headers; encoded file sizes include cache hits and
+              use Content-Length when timing is hidden. Decoded B3DM is measured
+              before parsing; it is not wire bandwidth. – means unavailable.
+              Metadata readiness includes the worker/cache. Slots are limits,
+              not CPU/GPU utilization.
+            </p>
+            <StripChartPanel
+              dataTestId="tile-pipeline-timeline"
+              rows={CHART_ROWS}
+              rowHeight={14}
+              onChart={(chart) => {
+                chartRef.current = chart;
+              }}
+            />
+          </>
         ),
       },
       {
@@ -2369,9 +2202,9 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
                 <Button
                   className="tile-debug-header-toggle"
                   type="text"
-                  aria-label="Tile sizes in 10 kB steps"
+                  aria-label="Resident tile size grid"
                   aria-pressed={options.overviewSize !== false}
-                  title="Square resident-size grid and labels in 10 kB steps"
+                  title="Square resident cache-size grid and labels"
                   onClick={() =>
                     onOptionsChange({
                       overviewSize: options.overviewSize === false,
@@ -2380,7 +2213,7 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
                     })
                   }
                 >
-                  kB
+                  B
                 </Button>
               )}
               {panel.id === "overview" && (

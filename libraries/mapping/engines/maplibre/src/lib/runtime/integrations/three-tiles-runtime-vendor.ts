@@ -6,7 +6,7 @@ import * as THREE from "three";
 import { GLTFPrimitiveOutlineExtension } from "@carma-mapping/engines/threejs";
 
 import { compareTileRequestOrder } from "../../core/tile-scheduling-policy";
-import type { TilesDeviceProfile } from "./three-tiles-load-policy";
+import type { TilesDeviceProfile } from "../../core/tile-cache-policy";
 import type {
   RuntimeLruCache,
   RuntimeTile,

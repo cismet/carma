@@ -89,6 +89,7 @@ export const DEFAULT_TILE_LOADING_DEBUG_OPTIONS: TileLoadingDebugOptions = {
   showCharts: false,
   showEventLog: false,
   overviewView: "frustum",
+  overviewCameraFocus: "all",
   overviewPaddingPercent: 200,
   overlayOpacity: 0.85,
   showFrustum: true,

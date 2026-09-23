@@ -1,4 +1,8 @@
 import {
+  TILE_REQUEST_NEED,
+  type resolveTileRequestNeed,
+} from "../../core/tile-request-need";
+import {
   DownloadPriorityQueue,
   PriorityQueue,
   type Tile,
@@ -15,11 +19,11 @@ import {
 import {
   initialMeshLoadError,
   isExtentFloorTile,
-} from "./three-tiles-load-policy";
+} from "../../core/mesh-error-policy";
 import {
   isPublishedMeshRefinementLevel,
   shouldDeferMeshRefinement,
-} from "./three-tiles-mesh-frontier";
+} from "../../core/mesh-tile-refinement";
 import {
   MESH_REFINEMENT_PREFETCH_LEVELS,
   TILE_METADATA_DOWNLOAD_CONCURRENCY,
@@ -71,6 +75,9 @@ export function createThreeTilesPayloadQueues(
   > & {
     getRetainedMeshAncestors: () => ReadonlySet<Tile>;
     isTileRequestNeeded: (tile: Tile) => boolean;
+    getTileRequestNeed: (
+      tile: Tile
+    ) => ReturnType<typeof resolveTileRequestNeed>;
     noteTileActivity: (tile: Tile) => void;
   }
 ) {
@@ -105,6 +112,7 @@ export function createThreeTilesPayloadQueues(
       {
         priority: number;
         needed: boolean;
+        reason: ReturnType<typeof resolveTileRequestNeed>;
         coverageFill: boolean;
         admission: ReturnType<typeof resolveTileRequestAdmission>;
       }
@@ -116,13 +124,15 @@ export function createThreeTilesPayloadQueues(
           tile as RuntimeTile
         );
         (tile as RuntimeTile).cameraPriority = priority;
-        const needed = dependencies.isTileRequestNeeded(tile);
+        const reason = dependencies.getTileRequestNeed(tile);
+        const needed = reason !== null;
         const coverageFill =
           runtimeState.meshCoverageRecovery &&
           dependencies.isTileNeededForMeshCoverage(tile);
         demand = {
           priority,
           needed,
+          reason,
           coverageFill,
           admission: resolveTileRequestAdmission({
             needed,
@@ -161,27 +171,39 @@ export function createThreeTilesPayloadQueues(
           2,
           1 + MESH_REFINEMENT_PREFETCH_LEVELS
         );
-      const refinementDeferred = shouldDeferMeshRefinement(
-        tile,
-        moving
-          ? initialMeshLoadError(
-              Math.max(
-                runtimeState.requestedErrorTarget,
+      // A tile may be both in the observer and a required caster. Use the
+      // owning request reason rather than inferring ownership from location.
+      if (
+        demand.reason === TILE_REQUEST_NEED.SHADOW ||
+        demand.reason === TILE_REQUEST_NEED.CAMERA
+      )
+        return true;
+      // The current-demand policy already decides caster/secondary-camera LOD.
+      // An observer-only stop must not park those independent requests forever.
+      // Decision: TILES_COVERAGE.md#visible-receiver-corridors.
+      const refinementDeferred =
+        dependencies.getTileObserverDemand(runtimeTile).intersects &&
+        shouldDeferMeshRefinement(
+          tile,
+          moving
+            ? initialMeshLoadError(
+                Math.max(
+                  runtimeState.requestedErrorTarget,
+                  runtimeState.memoryErrorTarget
+                ),
+                runtimeState.options.baseErrorTargetPixels
+              )
+            : Math.max(
+                runtimeState.shadowView
+                  ? runtimeState.requestedErrorTarget
+                  : runtimeState.effectiveErrorTarget,
                 runtimeState.memoryErrorTarget
               ),
-              runtimeState.options.baseErrorTargetPixels
-            )
-          : Math.max(
-              runtimeState.shadowView
-                ? runtimeState.requestedErrorTarget
-                : runtimeState.effectiveErrorTarget,
-              runtimeState.memoryErrorTarget
-            ),
-        (parent) => dependencies.getTileScreenError(parent as RuntimeTile),
-        retainedMeshAncestors,
-        runtimeState.options.baseErrorTargetPixels,
-        !!runtimeState.tiles?.loadAncestors && !refinementLookahead
-      );
+          (parent) => dependencies.getTileScreenError(parent as RuntimeTile),
+          retainedMeshAncestors,
+          runtimeState.options.baseErrorTargetPixels,
+          !!runtimeState.tiles?.loadAncestors && !refinementLookahead
+        );
       return (
         floorTile ||
         runtimeState.meshRefinementSupport.has(tile) ||

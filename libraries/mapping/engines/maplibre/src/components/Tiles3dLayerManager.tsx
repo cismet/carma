@@ -28,7 +28,7 @@ import {
   TILES3D_STYLE_VERSION,
   TILESET_MIN_RESOLUTION_DEFAULT_PX,
 } from "../lib/runtime/integrations/three-tiles-runtime-config";
-import { DEFAULT_MESH_BASE_ERROR_PIXELS } from "../lib/runtime/integrations/three-tiles-load-policy";
+import { DEFAULT_MESH_BASE_ERROR_PIXELS } from "../lib/core/mesh-error-policy";
 import type {
   ThreeTilesRuntime,
   TilesetEntryHint,

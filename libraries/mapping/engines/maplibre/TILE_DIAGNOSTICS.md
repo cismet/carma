@@ -337,3 +337,46 @@ and viewport regressions exercise the shared contracts.
 
 **Revisit when:** Sources supply tighter content bounds or actual surface cuts
 are requested instead of tile-volume cuts.
+
+
+## Pipeline timeline
+
+**ID / date / status:** pipeline-timeline / 2026-09-23 / implemented.
+
+**Context and constraints:** App and stories need comparable tile pipeline data
+without diagnostics changing loading, retaining an unbounded history or treating
+resident GPU bytes as network traffic.
+
+**Decision:** The engine's lazy diagnostics entry owns the resource/event observer
+and window counters; `tile-diagnostics-ui` owns chart rows and presentation. Only
+requests identified by this runtime's native download events (plus already-active
+requests on attachment) are counted. No fetch wrapping or global performance-buffer
+changes. Observers detach on close. Rates use elapsed time, including delayed idle
+sampling. Wire transfer (including headers), encoded file bytes, metadata responses,
+mesh responses, preparation and first presentation are separate quantities. Byte
+rates account for completed responses, not streaming progress of open bodies.
+The existing raw-response hook provides Content-Length for file bytes even without
+Timing-Allow-Origin; it reads no body and causes no additional fetch. Unavailable
+wire sizes stay unknown, never replaced with Content-Length or resident bytes.
+Zero wire bytes with a known Resource Timing body indicates a cache hit. Metadata
+readiness also counts native load-tileset events from the worker and cache; its
+response sizes are not included in window-only payload Resource Timing. The
+existing B3DM body read also reports its byteLength before glTF upgrade: this is
+a separately labelled decoded-payload rate, with no clone or extra body read.
+It remains available for gzip responses without Content-Length/Timing-Allow-Origin
+and is never presented as compressed network bandwidth. Slots denote
+configured limits, not device utilization. Current waits and held receivers expose
+backpressure alongside throughput.
+
+**Alternatives and disposition:** Window-wide extension-only resource filtering
+and fixed 500 ms divisors are incompatible by inspection: they mix runtimes and
+inflate rates when delayed. A network-stream wrapper is deferred because it adds
+work to the loading path. Physical CPU/GPU utilization is not measured by this panel.
+
+**Evidence:** Colocated pipeline sample/subscription tests and Geoportal debug-host
+tests. A single-browser Geoportal check verified default opening, live metrics,
+independent close/reopen and diagnostic shutdown. No loading-speed improvement
+is claimed.
+
+**Revisit when:** Live byte-progress or process-level CPU/GPU data becomes available
+without changing the fetch path, or multiple runtimes share one request identity.

@@ -1,4 +1,4 @@
-import { TILES_CACHE_CEILING_BYTES } from "./three-tiles-load-policy";
+import { TILES_CACHE_CEILING_BYTES } from "../../core/tile-cache-policy";
 
 /**
  * The resident cache ceiling a client really supports, learned from failures

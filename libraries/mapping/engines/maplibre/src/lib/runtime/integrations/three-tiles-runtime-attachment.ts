@@ -1,3 +1,5 @@
+import { notifyTileResponse } from "./tile-response-observers";
+import type { resolveTileRequestNeed } from "../../core/tile-request-need";
 import { TilesRenderer } from "3d-tiles-renderer";
 import { LRUCache, type Tile } from "3d-tiles-renderer/core";
 import {
@@ -12,30 +14,12 @@ import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
 import { degToRadNumeric } from "@carma-units";
 
 import { MAPLIBRE_EVENT } from "../../../constants/mapEvents";
-import { applyShadowReceiverMask } from "../../core/shadow-receiver-mask";
-import {
-  resolveTileRequestAdmission,
-  TILE_QUEUE_REASON,
-  TILE_QUEUE_STAGE,
-} from "../../core/tile-scheduling-policy";
 import { Gltf1UpgradePlugin } from "./gltf1-upgrade-plugin";
 import { subscribeSharedThreeTerrainLoading } from "./shared-three-terrain-registry";
-import { readOrientedTileBounds } from "./three-tiles-bounds";
-import {
-  idleRingAllowedError,
-  initialMeshLoadError,
-  isExtentFloorTile,
-  TILES_LOAD_POLICY,
-} from "./three-tiles-load-policy";
-import {
-  isMeshCoveredByLoadedChildren,
-  isPublishedMeshRefinementLevel,
-  shouldDeferMeshRefinement,
-} from "./three-tiles-mesh-frontier";
+import { isExtentFloorTile } from "../../core/mesh-error-policy";
 import {
   KICKSTART_INTERVAL_MS,
   MESH_PARSE_CONCURRENCY,
-  MESH_REFINEMENT_PREFETCH_LEVELS,
 } from "./three-tiles-runtime-config";
 import type {
   ThreeTilesRuntimeServices,
@@ -43,25 +27,22 @@ import type {
 } from "./three-tiles-runtime-context";
 import { debugTilesRuntimes } from "./three-tiles-runtime-debug";
 import { createThreeTilesPayloadQueues } from "./three-tiles-runtime-payload-queues";
+import { disposeThreeTilesAttachment } from "./three-tiles-runtime-attachment-disposal";
+import { installThreeTilesTraversalHooks } from "./three-tiles-runtime-traversal-hooks";
 import type {
-  RuntimeLruCache,
   RuntimeTile,
   RuntimeTilesRenderer,
 } from "./three-tiles-runtime-types";
 import {
   buildPrimitiveOutlinePlugin,
-  disposeTilesRenderer,
-  LOADED_LOADING_STATE,
-  resolveTileContentUrl,
   tilesCacheUnloadPriorityCallback,
   tilesQueuePriorityCallback,
-  UNLOADED_LOADING_STATE,
 } from "./three-tiles-runtime-vendor";
 import { TilesetDeferredMaterialsPlugin } from "./tileset-deferred-materials-plugin";
 import { TilesetHierarchyPlugin } from "./tileset-hierarchy-plugin";
 import { TilesetMercatorProjectionPlugin } from "./tileset-mercator-projection-plugin";
 
-type ThreeTilesRuntimeAttachmentState = Pick<
+export type ThreeTilesRuntimeAttachmentState = Pick<
   ThreeTilesRuntimeState,
   | "bytesPredictor"
   | "cameraSet"
@@ -120,7 +101,7 @@ type ThreeTilesRuntimeAttachmentState = Pick<
   | "unsubscribeTerrainLoading"
 >;
 
-type ThreeTilesRuntimeAttachmentDependencies = Pick<
+export type ThreeTilesRuntimeAttachmentDependencies = Pick<
   ThreeTilesRuntimeServices,
   | "applyCacheBudget"
   | "applyMaterialFlags"
@@ -171,6 +152,7 @@ type ThreeTilesRuntimeAttachmentDependencies = Pick<
   localTelemetry: boolean;
   noteTileActivity: (tile: Tile) => void;
   isTileRequestNeeded: (tile: Tile) => boolean;
+  getTileRequestNeed: (tile: Tile) => ReturnType<typeof resolveTileRequestNeed>;
 };
 
 export function createThreeTilesRuntimeAttachment(
@@ -232,460 +214,7 @@ export function createThreeTilesRuntimeAttachment(
     payloadQueues.install();
     // D2: admission registers a predicted size so the cache fills before
     // downloads finish; measured content carries the resident overhead.
-    const calculateBytesUsed = runtimeState.tiles.calculateBytesUsed.bind(
-      runtimeState.tiles
-    );
-    runtimeState.tiles.calculateBytesUsed = (tile, scene) => {
-      const measured = calculateBytesUsed(tile, scene);
-      if (measured !== null && measured > 0) {
-        return Math.round(measured * TILES_LOAD_POLICY.residentOverhead);
-      }
-      return runtimeState.bytesPredictor.predict({
-        url: resolveTileContentUrl(tile),
-        geometricError: tile.geometricError,
-        isExternalTileset: tile.internal.hasUnrenderableContent,
-      });
-    };
-    // D1: the deferral decision rides on upstream's per-frame view error.
-    const calculateTileViewErrorWithPlugin =
-      runtimeState.tiles.calculateTileViewErrorWithPlugin.bind(
-        runtimeState.tiles
-      );
-    runtimeState.tiles.calculateTileViewErrorWithPlugin = (tile, target) => {
-      if (runtimeState.tileBoundsVisible)
-        dependencies.recordTileIteration(tile);
-      calculateTileViewErrorWithPlugin(tile, target);
-      if (
-        runtimeState.options.providesTerrain &&
-        (tile as RuntimeTile).engineData?.boundingVolume?.getAABB
-      )
-        target.inView &&= dependencies.getTileObserverDemand(
-          tile as RuntimeTile
-        ).intersects;
-      if (
-        target.inView &&
-        (tile as RuntimeTile).engineData?.boundingVolume?.getAABB &&
-        runtimeState.tileCameraDemand.views.length > 0
-      ) {
-        // Decision: UNIFIED-VISIBLE-SSE-20260916 in TILES_COVERAGE.md.
-        // Use the same clipped camera-depth error as publication/retention.
-        // Taking max(native, clipped) would keep the invisible near-box bias.
-        target.error = dependencies.getTileScreenError(tile as RuntimeTile);
-      }
-      const retainedMeshAncestors = dependencies.getRetainedMeshAncestors();
-      if (target.inView && retainedMeshAncestors.has(tile)) {
-        // Native REPLACE traversal must reach the retained mixed-LOD cut and
-        // discover missing sibling coverage. This affects admission only;
-        // publication/coarsening uses getTileScreenError for the real camera.
-        target.error = Math.max(
-          target.error,
-          runtimeState.effectiveErrorTarget + 1
-        );
-      }
-      const runtimeTile = tile as RuntimeTile;
-      if (runtimeState.meshRefinementSupport.has(tile)) {
-        runtimeState.tiles?.markTileUsed(tile);
-        if (!target.inView) {
-          target.inView = true;
-          target.error = 0;
-        }
-      }
-      if (runtimeTile.zoomPrefetch) runtimeState.tiles?.markTileUsed(tile);
-      runtimeTile.shadowReceiverCenterness = undefined;
-      runtimeTile.shadowLightFacing = undefined;
-      runtimeTile.shadowReceiverCurrent = undefined;
-      if (
-        runtimeState.shadowSelectionEnabled &&
-        runtimeState.shadowReceiverMask &&
-        (!runtimeState.options.providesTerrain ||
-          (!runtimeState.mainViewSourceTiles.has(tile) && !target.inView))
-      ) {
-        const bounds = runtimeTile.engineData?.boundingVolume;
-        if (bounds?.getAABB) {
-          readOrientedTileBounds(
-            bounds,
-            runtimeState.tileBoundingBox,
-            runtimeState.tileBoundsTransform
-          );
-          const observerInView = target.inView;
-          const observerError = target.error;
-          const matchedCurrent = applyShadowReceiverMask(
-            runtimeState.shadowReceiverMask,
-            runtimeState.tileBoundingBox,
-            target,
-            runtimeState.shadowReceiverMatch,
-            tile.geometricError,
-            runtimeState.effectiveErrorTarget,
-            runtimeState.tileBoundsTransform,
-            { key: tile, parent: tile.parent ?? undefined }
-          );
-          // A visible LOD2 ancestor can also lead to an offscreen caster.
-          // Native camera coverage must not suppress that corridor's demand.
-          if (observerInView) {
-            target.inView = true;
-            target.error = matchedCurrent
-              ? Math.max(observerError, target.error)
-              : observerError;
-          }
-          if (matchedCurrent) {
-            runtimeTile.shadowReceiverCenterness =
-              runtimeState.shadowReceiverMatch.receiverCenterness;
-            runtimeTile.shadowLightFacing =
-              runtimeState.shadowReceiverMatch.lightFacing;
-            runtimeTile.shadowReceiverCurrent = true;
-          }
-        }
-      }
-      const cameraDemand = dependencies.getTileCameraDemand(
-        tile as RuntimeTile
-      );
-      if (cameraDemand.required) {
-        target.error = Math.max(
-          target.inView ? target.error : 0,
-          cameraDemand.errorRatio * runtimeState.effectiveErrorTarget
-        );
-        target.inView = true;
-      }
-      // Idle rings retain bounded coarse coverage around a complete viewport.
-      // Current shadow demand keeps its own error; new reserve work starts at
-      // rest, while loaded reserve tiles stay pinned through camera movement.
-      const skipStrategy =
-        runtimeState.options.providesTerrain &&
-        runtimeState.tiles?.loadAncestors === false;
-      // Decision: MESH-COVERAGE-20260912 (R3), TILES_COVERAGE.md.
-      // Pin the resident extent floor; reach missing floor payloads before
-      // refining their children so fallback coverage always has admission room.
-      const extentError = runtimeState.extentGeometricError;
-      const floorLevel =
-        skipStrategy &&
-        runtimeState.extentFloorArmed &&
-        isExtentFloorTile(tile, extentError);
-      const floorLeaf =
-        floorLevel &&
-        tile.internal.hasRenderableContent &&
-        (tile.children ?? []).every(
-          (child) =>
-            child.geometricError < extentError ||
-            child.internal?.hasRenderableContent === false
-        );
-      const floorLoaded = tile.internal.loadingState === LOADED_LOADING_STATE;
-      // The renderer marks only active leaves used in the LRU; a loaded floor
-      // tile the traversal passes through would be an eviction candidate.
-      if (floorLevel) runtimeState.tiles!.markTileUsed(tile);
-      if (floorLevel && target.inView) {
-        runtimeTile.idleRing = false;
-        if (floorLeaf && runtimeState.options.diagnostics)
-          runtimeState.extentFloorInView.add(tile);
-        if (!floorLeaf)
-          target.error = Math.max(
-            target.error,
-            runtimeState.effectiveErrorTarget *
-              TILES_LOAD_POLICY.extentFloorAncestorErrorFactor
-          );
-        else if (!floorLoaded) {
-          // Do not spend the cache on children before their replacement
-          // coverage arrives. Otherwise an all-used cache cannot admit its
-          // missing floor without first punching a hole in the visible cut.
-          runtimeState.extentFloorPending += 1;
-          dependencies.applyTileDeferral(tile, true);
-          runtimeState.tiles!.queueTileForDownload(tile);
-          // A reserve parent must not replace already complete finer coverage.
-          if (
-            tile.internal.hasRenderableContent &&
-            !isMeshCoveredByLoadedChildren(
-              tile,
-              runtimeState.displayedMeshFrontier
-            )
-          )
-            target.error = 0;
-        }
-      } else if (skipStrategy && !target.inView) {
-        const atRest =
-          runtimeState.meshBaseCoverageReady &&
-          runtimeState.extentFloorArmed &&
-          runtimeState.lastMainViewConverged &&
-          runtimeState.effectiveErrorTarget ===
-            runtimeState.requestedErrorTarget &&
-          runtimeState.map?.isMoving?.() !== true;
-        if (atRest) {
-          const ring = dependencies.getTileRingIndex(runtimeTile);
-          runtimeTile.idleRingIndex = ring > 0 ? ring : undefined;
-        }
-        const ring = runtimeTile.idleRingIndex ?? 0;
-        const cache = runtimeState.tiles!.lruCache as RuntimeLruCache;
-        const budgetOpen =
-          cache.cachedBytes <
-          cache.minBytesSize * TILES_LOAD_POLICY.idleRingBudgetFraction;
-        const loaded = floorLoaded;
-        // Keep loaded reserve coverage, but admit missing offscreen payloads
-        // only after visible demand converges. Ancestors still lead traversal
-        // to already resident floor leaves while the view changes.
-        const wholeModelRing =
-          ring > TILES_LOAD_POLICY.idleRingTanMultipliers.length;
-        // The budget bounds how far the reserve refines below its coarse floor.
-        const admitted =
-          (floorLevel && (!floorLeaf || loaded || atRest)) ||
-          (ring > 0 && !wholeModelRing && (loaded || atRest));
-        runtimeTile.idleRing = admitted;
-        if (floorLeaf && !loaded) runtimeState.extentFloorPending += 1;
-        if (admitted) {
-          target.inView = true;
-          if (floorLevel && !floorLeaf) {
-            target.error = Math.max(
-              target.error,
-              runtimeState.effectiveErrorTarget *
-                TILES_LOAD_POLICY.extentFloorAncestorErrorFactor
-            );
-          } else {
-            const inRing = ring > 0 && !wholeModelRing;
-            const allowed = inRing
-              ? idleRingAllowedError(
-                  initialMeshLoadError(
-                    runtimeState.requestedErrorTarget,
-                    runtimeState.options.baseErrorTargetPixels
-                  ),
-                  ring,
-                  budgetOpen ? runtimeState.ringRefinePasses : 0,
-                  runtimeState.requestedErrorTarget
-                )
-              : 0;
-            const satisfied = floorLeaf
-              ? !inRing || target.error <= allowed || !atRest || !loaded
-              : !atRest || target.error <= allowed;
-            if (satisfied)
-              target.error = Math.min(
-                target.error,
-                runtimeState.effectiveErrorTarget
-              );
-          }
-        }
-      } else {
-        runtimeTile.idleRing = false;
-        if (target.inView) runtimeTile.idleRingIndex = undefined;
-        if (skipStrategy && runtimeState.residentAncestors.has(tile)) {
-          // Resident ancestor band: kept used while a descendant is displayed,
-          // requested at rest once the base coverage exists, never a leaf.
-          runtimeState.tiles!.markTileUsed(tile);
-          if (
-            tile.internal.loadingState === UNLOADED_LOADING_STATE &&
-            runtimeState.meshBaseCoverageReady &&
-            runtimeState.lastMainViewConverged &&
-            runtimeState.map?.isMoving?.() !== true
-          )
-            runtimeState.tiles!.queueTileForDownload(tile);
-        }
-      }
-      if (
-        !runtimeState.options.providesTerrain &&
-        target.inView &&
-        !tile.internal.hasRenderableContent &&
-        tile.children.length > 0
-      ) {
-        // Decision: OFFSCREEN-CASTERS-20260910 in
-        // libraries/mapping/shadow-simulation/three/TILED_SHADOW_PAGES.md.
-        // An implicit-tileset routing node is not an empty coarse surface.
-        // Reach actual content before accepting its SSE; otherwise a loaded
-        // offscreen leaf never enters the depth cut and its corridor stalls.
-        target.error = Math.max(
-          target.error,
-          runtimeState.effectiveErrorTarget + 1
-        );
-      }
-      const parent = tile.parent;
-      if (
-        !runtimeState.options.providesTerrain &&
-        target.inView &&
-        parent?.refine === "ADD" &&
-        !parent.internal.hasRenderableContent &&
-        parent.geometricError > 0 &&
-        tile.geometricError > 0
-      ) {
-        // Upstream's ADD shortcut scales the child's SSE to its parent and
-        // skips the child even when that parent has no content to draw.
-        // Cross that shortcut without forcing the child itself to finer LOD.
-        target.error = Math.max(
-          target.error,
-          ((runtimeState.effectiveErrorTarget + 1) * tile.geometricError) /
-            parent.geometricError
-        );
-      }
-      // Decision: ../../../../TILES_COVERAGE.md#bounded-mesh-request-lookahead
-      // Publication still advances complete families. At rest, plain meshes
-      // discover one further LOD while the immediate family is downloading;
-      // JSON routing and payload discovery need not await its presentation.
-      if (
-        runtimeState.options.providesTerrain &&
-        target.inView &&
-        (!runtimeState.shadowView ||
-          dependencies.isTileInMainView(runtimeTile)) &&
-        tile.internal.hasRenderableContent &&
-        (runtimeState.displayedMeshFrontier.size === 0 ||
-        (runtimeState.meshCoverageRecovery &&
-          dependencies.isTileNeededForMeshCoverage(tile))
-          ? target.error <=
-            (runtimeState.options.firstImageErrorTargetPixels ??
-              TILES_LOAD_POLICY.firstImageMaxErrorPixels)
-          : isPublishedMeshRefinementLevel(
-              tile,
-              runtimeState.displayedMeshFrontier,
-              !runtimeState.shadowView && !runtimeState.map?.isMoving?.()
-                ? 1 + MESH_REFINEMENT_PREFETCH_LEVELS
-                : 1
-            ))
-      )
-        target.error = Math.min(
-          target.error,
-          runtimeState.effectiveErrorTarget
-        );
-      dependencies.applyTileDeferral(tile, target.inView);
-      // Skip traversal normally requests only its terminal payload. Keep the
-      // intervening prefetched LODs available too when looking two levels ahead.
-      if (
-        runtimeState.options.providesTerrain &&
-        !runtimeState.shadowView &&
-        !runtimeState.map?.isMoving?.() &&
-        target.inView &&
-        dependencies.isTileInMainView(runtimeTile) &&
-        isPublishedMeshRefinementLevel(
-          tile,
-          runtimeState.displayedMeshFrontier,
-          2,
-          MESH_REFINEMENT_PREFETCH_LEVELS
-        )
-      ) {
-        runtimeState.tiles!.markTileUsed(tile);
-        runtimeState.tiles!.queueTileForDownload(tile);
-      }
-    };
-    const queueTileForDownload = runtimeState.tiles.queueTileForDownload.bind(
-      runtimeState.tiles
-    );
-    runtimeState.tiles.queueTileForDownload = (tile) => {
-      const tiles = runtimeState.tiles;
-      if (!tiles) return;
-      if (runtimeState.memoryAdmissionPaused || runtimeState.loadingPaused)
-        return;
-      if (
-        tile.internal.loadingState !== UNLOADED_LOADING_STATE ||
-        runtimeState.queuedThisTraversal.has(tile)
-      )
-        return;
-      const runtimeTile = tile as RuntimeTile;
-      const coverageFill =
-        runtimeState.meshCoverageRecovery &&
-        dependencies.isTileNeededForMeshCoverage(tile);
-      if (
-        resolveTileRequestAdmission({
-          needed: dependencies.isTileRequestNeeded(tile),
-          coverageRecovery: runtimeState.meshCoverageRecovery,
-          coverageFill,
-          stage: TILE_QUEUE_STAGE.DOWNLOAD,
-        }) !== TILE_QUEUE_REASON.CURRENT_DEMAND
-      )
-        return;
-      const retainedMeshAncestors = dependencies.getRetainedMeshAncestors();
-      const floorTile =
-        (runtimeState.extentFloorArmed &&
-          isExtentFloorTile(tile, runtimeState.extentGeometricError)) ||
-        runtimeState.residentAncestors.has(tile);
-      const supportTile = runtimeState.meshRefinementSupport.has(tile);
-      const refinementLookahead =
-        !runtimeState.shadowView &&
-        !runtimeState.map?.isMoving?.() &&
-        isPublishedMeshRefinementLevel(
-          tile,
-          runtimeState.displayedMeshFrontier,
-          2,
-          1 + MESH_REFINEMENT_PREFETCH_LEVELS
-        );
-      if (
-        runtimeState.options.providesTerrain &&
-        !floorTile &&
-        !supportTile &&
-        !coverageFill &&
-        (isMeshCoveredByLoadedChildren(tile, tiles.visibleTiles) ||
-          (retainedMeshAncestors.has(tile) &&
-            tile.internal.hasRenderableContent &&
-            !tile.internal.hasUnrenderableContent))
-      )
-        return;
-      if (
-        runtimeState.options.providesTerrain &&
-        !floorTile &&
-        !supportTile &&
-        !coverageFill &&
-        !tile.internal.hasUnrenderableContent &&
-        dependencies.isTileInMainView(runtimeTile) &&
-        shouldDeferMeshRefinement(
-          tile,
-          runtimeState.map?.isMoving?.()
-            ? initialMeshLoadError(
-                runtimeState.requestedErrorTarget,
-                runtimeState.options.baseErrorTargetPixels
-              )
-            : Math.max(
-                runtimeState.shadowView
-                  ? runtimeState.requestedErrorTarget
-                  : runtimeState.effectiveErrorTarget,
-                runtimeState.memoryErrorTarget
-              ),
-          (parent) => dependencies.getTileScreenError(parent as RuntimeTile),
-          retainedMeshAncestors,
-          runtimeState.options.baseErrorTargetPixels,
-          runtimeState.tiles.loadAncestors && !refinementLookahead
-        )
-      )
-        return;
-      if (runtimeState.tileRetries.isBlocked(tile)) return;
-      // D7: REPLACE content that refines unconditionally is never displayed.
-      if (
-        tile.refine === "REPLACE" &&
-        !floorTile &&
-        (tile as RuntimeTile).traversal?.unconditionallyRefine === true &&
-        tile.internal.hasRenderableContent
-      ) {
-        return;
-      }
-      // Decision: ../../../../TILES_COVERAGE.md#viewport-only-cold-replacement-families
-      let family =
-        runtimeState.options.providesTerrain &&
-        (!runtimeState.shadowView ||
-          dependencies.isTileInMainView(runtimeTile)) &&
-        !supportTile &&
-        !floorTile &&
-        !refinementLookahead &&
-        tile.internal.hasRenderableContent &&
-        tile.parent?.refine === "REPLACE"
-          ? tile.parent.children ?? []
-          : [];
-      if (family.length) {
-        tiles.ensureChildrenArePreprocessed(tile.parent!);
-        if (
-          !runtimeState.meshInitialHandoverDone ||
-          runtimeState.meshCoverageRecovery
-        )
-          family = family.filter(
-            (sibling) =>
-              dependencies.getTileObserverDemand(sibling as RuntimeTile)
-                .intersects
-          );
-        for (const sibling of family)
-          runtimeState.meshRefinementSupport.add(sibling);
-      }
-      dependencies.assignTilePriority(runtimeTile);
-      runtimeState.queuedThisTraversal.add(tile);
-      dependencies.getTileDebugProgress(tile).queuedAt ??= performance.now();
-      dependencies.noteTileActivity(tile);
-      runtimeTile.firstPublicationRequestedAt = performance.now();
-      if (coverageFill) payloadQueues.makeRoomForCoverage(tile);
-      queueTileForDownload(tile);
-      for (const sibling of family) {
-        if (sibling === tile) continue;
-        dependencies.applyTileDeferral(sibling, true);
-        dependencies.assignTilePriority(sibling as RuntimeTile);
-        tiles.queueTileForDownload(sibling);
-      }
-    };
+    installThreeTilesTraversalHooks(runtimeState, dependencies, payloadQueues);
     runtimeState.tiles.registerPlugin(new ImplicitTilingPlugin());
     runtimeState.tiles.registerPlugin(new UpdateOnChangePlugin());
     if (runtimeState.options.mercatorProjection) {
@@ -711,7 +240,13 @@ export function createThreeTilesRuntimeAttachment(
     // Mesh 2020 ships glTF 1.0 b3dm — upgrade payloads on the fly. The raw
     // response feeds the wire-size sampling of the request concurrency.
     runtimeState.tiles.registerPlugin(
-      new Gltf1UpgradePlugin({ onResponse: dependencies.handleWireBytes })
+      new Gltf1UpgradePlugin({
+        onResponse: dependencies.handleWireBytes,
+        onBody: (url, decodedBytes) => {
+          if (runtimeState.options.diagnostics && runtimeState.tiles)
+            notifyTileResponse(runtimeState.tiles, { url, decodedBytes });
+        },
+      })
     );
     // Draco-compressed glTF payloads need an explicit decoder
     runtimeState.dracoLoader = new DRACOLoader();
@@ -744,9 +279,8 @@ export function createThreeTilesRuntimeAttachment(
     );
 
     runtimeState.tiles.loadSiblings = false;
-    // Bootstrap with drawable ancestors. The lifecycle disables this once a
-    // complete first cut exists; initial quality must not mean blank startup.
-    runtimeState.tiles.loadAncestors = true;
+    // The mesh first-image pass loads its own fallback without sibling demand.
+    runtimeState.tiles.loadAncestors = !runtimeState.options.providesTerrain;
     runtimeState.tiles.displayActiveTiles = true;
     runtimeState.tiles.parseQueue.maxJobs = MESH_PARSE_CONCURRENCY;
     runtimeState.normalParseConcurrency = MESH_PARSE_CONCURRENCY;
@@ -851,112 +385,13 @@ export function createThreeTilesRuntimeAttachment(
     window.addEventListener("pagehide", dependencies.endCacheCeilingSession);
   };
 
-  const dispose = () => {
-    runtimeState.disposed = true;
-    deferredMaterials.dispose();
-    payloadQueues.dispose();
-    dependencies.clearTelemetry();
-    if (runtimeState.meshAuditTimer !== null)
-      clearTimeout(runtimeState.meshAuditTimer);
-    runtimeState.meshAuditTimer = null;
-    if (runtimeState.motionCoverageTimer !== null)
-      clearTimeout(runtimeState.motionCoverageTimer);
-    runtimeState.motionCoverageTimer = null;
-    dependencies.clearErrorTargetTimer();
-    dependencies.clearHiddenWipeTimer();
-    dependencies.clearKickstartTimer();
-    dependencies.resetDeferredTiles();
-    if (runtimeState.requestBackoffTimer) {
-      window.clearTimeout(runtimeState.requestBackoffTimer);
-      runtimeState.requestBackoffTimer = 0;
-    }
-    runtimeState.map?.off(
-      MAPLIBRE_EVENT.MOVE_START,
-      dependencies.handleViewStart
+  const dispose = () =>
+    disposeThreeTilesAttachment(
+      runtimeState,
+      dependencies,
+      deferredMaterials,
+      payloadQueues
     );
-    runtimeState.map?.off(
-      MAPLIBRE_EVENT.MOVE,
-      dependencies.scheduleMotionCoverage
-    );
-    runtimeState.map?.off(MAPLIBRE_EVENT.MOVE_END, dependencies.handleViewEnd);
-    runtimeState.map?.off(MAPLIBRE_EVENT.RESIZE, dependencies.handleViewEnd);
-    runtimeState.map?.off(
-      MAPLIBRE_EVENT.WEBGL_CONTEXT_LOST,
-      dependencies.handleContextLost
-    );
-    runtimeState.map?.off(
-      MAPLIBRE_EVENT.WEBGL_CONTEXT_RESTORED,
-      dependencies.handleContextRestored
-    );
-    document.removeEventListener(
-      "visibilitychange",
-      dependencies.handleVisibilityChange
-    );
-    window.removeEventListener("pagehide", dependencies.endCacheCeilingSession);
-    dependencies.endCacheCeilingSession();
-    runtimeState.unsubscribeTerrainLoading?.();
-    runtimeState.unsubscribeTerrainLoading = null;
-    runtimeState.tiles?.removeEventListener(
-      "needs-update",
-      dependencies.requestRender
-    );
-    runtimeState.tiles?.removeEventListener(
-      "load-tileset",
-      dependencies.handleTilesetLoad
-    );
-    runtimeState.tiles?.removeEventListener(
-      "update-after",
-      dependencies.handleUpdateAfter
-    );
-    runtimeState.tiles?.removeEventListener(
-      "load-model",
-      dependencies.handleModelLoad
-    );
-    runtimeState.tiles?.removeEventListener(
-      "tile-visibility-change",
-      dependencies.handleTileVisibilityChange
-    );
-    runtimeState.tiles?.removeEventListener(
-      "tile-download-start",
-      dependencies.handleDownloadStart
-    );
-    runtimeState.tiles?.removeEventListener(
-      "dispose-model",
-      dependencies.handleModelDispose
-    );
-    runtimeState.tiles?.removeEventListener(
-      "load-error",
-      dependencies.handleLoadError
-    );
-    runtimeState.tiles?.removeEventListener(
-      "tiles-load-end",
-      dependencies.handleTilesLoadEnd
-    );
-    runtimeState.cameraSet?.dispose();
-    runtimeState.cameraSet = null;
-    runtimeState.tileRetries.dispose();
-    // The material states are keyed by mesh, so release them directly
-    // instead of searching the scene graph for their meshes.
-    for (const [mesh, state] of runtimeState.clayMaterialStates) {
-      dependencies.disposeClayState(mesh, state);
-    }
-    for (const [mesh, state] of runtimeState.litTextureMaterialStates) {
-      dependencies.disposeLitTextureState(mesh, state);
-    }
-    dependencies.restoreShadowSides();
-    runtimeState.tileDebugOverlay?.dispose();
-    runtimeState.tileDebugOverlay = null;
-    debugTilesRuntimes()?.delete(runtimeState);
-    if (runtimeState.tiles) disposeTilesRenderer(runtimeState.tiles);
-    runtimeState.tiles = null;
-    runtimeState.meshRefinementSupport.clear();
-    runtimeState.extentFloorArmed = false;
-    runtimeState.extentFloorAuditPending = false;
-    runtimeState.dracoLoader?.dispose();
-    runtimeState.dracoLoader = null;
-    runtimeState.orientationGroup.clear();
-    runtimeState.map = null;
-  };
 
   return {
     dispose,

@@ -2,11 +2,11 @@ import { clamp } from "@carma-commons/math";
 import { resolveMeshStageTarget } from "../../core/tile-scheduling-policy";
 import {
   createEffectiveErrorTargetState,
-  initialMeshLoadError,
   nextEffectiveErrorTarget,
-  nextMemoryErrorTarget,
-} from "./three-tiles-load-policy";
-import { getReadyMeshRegionCut } from "./three-tiles-mesh-frontier";
+} from "../../core/effective-error-target";
+import { initialMeshLoadError } from "../../core/mesh-error-policy";
+import { nextMemoryErrorTarget } from "../../core/memory-error-target";
+import { getReadyMeshRegionCut } from "../../core/mesh-tile-coverage";
 import {
   TILES_ERROR_TARGET_MAX_PIXELS,
   TILES_ERROR_TARGET_MIN_PIXELS,
