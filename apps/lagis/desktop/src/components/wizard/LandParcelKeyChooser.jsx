@@ -8,6 +8,7 @@ import {
 } from "../../core/wizard/api";
 import {
   CREATE_STAGE,
+  hiddenParcelMessage,
   keyToSearchText,
   makeTransformOptions,
   presetToSearchText,
@@ -215,7 +216,17 @@ const LandParcelKeyChooser = ({
       return;
     }
     checkRef.current += 1;
-    if (!next?.trim() || status.valid || value) {
+    const hidden = hiddenParcelMessage(next, mode, structure);
+    if (hidden) {
+      publish(undefined, { valid: false, message: hidden });
+      return;
+    }
+    if (
+      !next?.trim() ||
+      status.valid ||
+      value ||
+      status.message === hiddenParcelMessage(text, mode, structure)
+    ) {
       publish(undefined, { valid: false, message: incompleteMessage });
     }
   };

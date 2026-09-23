@@ -63,6 +63,41 @@ const keepParcel = (mode, parcel) => {
   return true;
 };
 
+const HIDDEN_PARCEL_MESSAGES = {
+  current: "Das Flurstück ist historisch und kann nicht ausgewählt werden.",
+  historic:
+    "Das Flurstück ist nicht historisch und kann nicht ausgewählt werden.",
+};
+
+/** Message for a typed key that exists but is filtered out by the mode. */
+export const hiddenParcelMessage = (text, mode, structure) => {
+  if (!HIDDEN_PARCEL_MESSAGES[mode] || !structure) {
+    return undefined;
+  }
+  const segments = (text ?? "").split("-");
+  if (segments.length !== 3) {
+    return undefined;
+  }
+  const [gemarkungText, flurText, flurstueckText] = segments.map((segment) =>
+    segment.trim()
+  );
+  const gemarkung = Object.values(structure).find(
+    (entry) => entry.gemarkung?.toLowerCase() === gemarkungText.toLowerCase()
+  );
+  const flur = Object.values(gemarkung?.flure ?? {}).find(
+    (entry) => Number(entry.flur) === Number(flurText)
+  );
+  const parsed = parseFlurstueckInput(flurstueckText);
+  if (!flur || parsed.error) {
+    return undefined;
+  }
+  const parcel =
+    flur.flurstuecke?.[landparcelLabel(parsed.zaehler, parsed.nenner)];
+  return parcel && !keepParcel(mode, parcel)
+    ? HIDDEN_PARCEL_MESSAGES[mode]
+    : undefined;
+};
+
 const filterGroups = (groups, mode) =>
   groups
     .map((group) => ({
