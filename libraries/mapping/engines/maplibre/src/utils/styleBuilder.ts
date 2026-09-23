@@ -430,14 +430,26 @@ function convertTo4326(x: number, y: number): [number, number] {
 }
 
 /**
- * Transform POI features from Web Mercator to WGS84
+ * Transform POI features from Web Mercator to WGS84.
+ * Features without Point coordinates (e.g. `geometry: null`) are dropped:
+ * a single broken feature must not take the whole layer down.
  */
 export const transformedPois = (
   pois: GeoJSON.FeatureCollection
 ): GeoJSON.FeatureCollection => {
+  const features = pois.features.filter((feature) => {
+    const coordinates = (feature.geometry as GeoJSON.Point | null)
+      ?.coordinates;
+    return Array.isArray(coordinates) && coordinates.length >= 2;
+  });
+  if (features.length < pois.features.length) {
+    console.warn("[styleBuilder] skipping POI features without coordinates", {
+      skipped: pois.features.length - features.length,
+    });
+  }
   return {
     ...pois,
-    features: pois.features.map((feature) => ({
+    features: features.map((feature) => ({
       ...feature,
       geometry: {
         ...feature.geometry,
