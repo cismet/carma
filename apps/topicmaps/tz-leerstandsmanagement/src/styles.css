@@ -1,0 +1,797 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body {
+  overscroll-behavior: contain;
+}
+
+.leaflet-control * img {
+  display: initial;
+}
+
+.ant-tooltip-arrow {
+  display: none !important;
+}
+
+/* Tailwind's `collapse` utility (visibility: collapse) hits Bootstrap's
+   .collapse panels in the datasheet modal; keep opened panels visible. */
+.collapse.show {
+  visibility: visible;
+}
+
+.ls-photo-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.ls-photo-grid img {
+  width: 96px;
+  height: 96px;
+  object-fit: cover;
+  border-radius: 6px;
+}
+
+/* ---------- design tokens (Claude Design mockup "Leerstand Screens") ---------- */
+
+/* The mockup is set in Archivo and IBM Plex Mono; the app stays on the system
+   fonts, so both stacks start at the platform default. */
+:root {
+  --ls-navy: #123b5e;
+  --ls-navy-soft: #e8eff5;
+  --ls-navy-tint: #f2f6fa;
+  --ls-navy-off: #c3ccd4;
+  --ls-red: #c8102e;
+  --ls-red-dark: #8f1220;
+  --ls-red-soft: #fdecec;
+  --ls-red-tint: #fdf3f4;
+  --ls-red-line: #e0c9cd;
+  --ls-green: #1f6f4a;
+  --ls-green-soft: #eaf5ef;
+  --ls-green-line: #bfd3c8;
+  --ls-amber: #8a4708;
+  --ls-amber-soft: #fdf1e3;
+  --ls-ink: #14181d;
+  --ls-ink-2: #3b4650;
+  --ls-ink-3: #4a5158;
+  --ls-muted: #6b7279;
+  --ls-faint: #8b9198;
+  --ls-line: #d7dade;
+  --ls-line-soft: #e4e6e9;
+  --ls-hair: #eef0f2;
+  --ls-surface: #f4f5f6;
+  --ls-font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --ls-mono: ui-monospace, Menlo, Consolas, monospace;
+
+  --bs-body-font-family: var(--ls-font);
+  --bs-font-sans-serif: var(--ls-font);
+}
+
+html,
+body {
+  font-family: var(--ls-font);
+}
+
+/* ---------- shared form pieces ---------- */
+
+.ls-lbl {
+  display: block;
+  font: 600 12px/1.2 var(--ls-font);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ls-muted);
+  margin: 0 0 8px;
+}
+.ls-lbl-gap {
+  margin-top: 24px;
+}
+.ls-req {
+  color: var(--ls-red);
+}
+.ls-inp {
+  width: 100%;
+  height: 56px;
+  box-sizing: border-box;
+  border: 1.5px solid var(--ls-line);
+  border-radius: 12px;
+  padding: 0 16px;
+  font: 400 17px var(--ls-font);
+  color: var(--ls-ink);
+  background: #fff;
+  outline: none;
+  appearance: none;
+}
+textarea.ls-inp {
+  height: auto;
+  padding: 12px 14px;
+  font-size: 16px;
+  line-height: 1.4;
+  resize: none;
+}
+.ls-inp:focus {
+  border-color: var(--ls-navy);
+  box-shadow: 0 0 0 3px rgba(18, 59, 94, 0.14);
+}
+.ls-inp::placeholder {
+  color: var(--ls-faint);
+}
+.ls-help {
+  margin-top: 8px;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--ls-ink-3);
+}
+
+.ls-btn {
+  height: 56px;
+  box-sizing: border-box;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font: 600 17px var(--ls-font);
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.ls-btn:disabled {
+  cursor: default;
+}
+.ls-pri {
+  border: none;
+  background: var(--ls-navy);
+  color: #fff;
+}
+.ls-pri:disabled,
+.ls-pri.ls-off {
+  background: var(--ls-navy-off);
+}
+.ls-sec {
+  border: 1.5px solid var(--ls-line);
+  background: #fff;
+  color: var(--ls-ink-2);
+}
+.ls-sec:disabled {
+  opacity: 0.5;
+}
+.ls-act {
+  width: 56px;
+  flex: none;
+  border: 1.5px solid var(--ls-line);
+  background: #fff;
+  color: var(--ls-ink-2);
+  font-size: 22px;
+  font-weight: 400;
+}
+
+.ls-chips {
+  display: flex;
+  gap: 6px;
+}
+.ls-chip {
+  flex: 1;
+  min-height: 52px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  border-radius: 10px;
+  border: 1.5px solid var(--ls-line);
+  background: #fff;
+  color: var(--ls-ink-2);
+  font: 600 15px/1.2 var(--ls-font);
+  padding: 8px 10px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.ls-chip[aria-pressed="true"] {
+  background: var(--ls-navy);
+  border-color: var(--ls-navy);
+  color: #fff;
+}
+.ls-opts {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.ls-opt {
+  min-height: 52px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  text-align: left;
+  border-radius: 10px;
+  border: 1.5px solid var(--ls-line);
+  background: #fff;
+  color: var(--ls-ink);
+  font: 400 16px/1.3 var(--ls-font);
+  padding: 10px 14px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.ls-opt[aria-pressed="true"] {
+  background: var(--ls-navy-soft);
+  border-color: var(--ls-navy);
+  color: var(--ls-navy);
+  font-weight: 600;
+}
+.ls-cond {
+  margin-top: 14px;
+  border-left: 3px solid var(--ls-navy);
+  background: var(--ls-navy-tint);
+  border-radius: 0 12px 12px 0;
+  padding: 14px 16px;
+}
+.ls-cond-title {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.ls-cond-note {
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--ls-ink-2);
+  margin-bottom: 12px;
+}
+.ls-cond .ls-chips + .ls-cond-title {
+  margin-top: 12px;
+}
+
+.ls-note {
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-size: 14px;
+  line-height: 1.45;
+}
+.ls-note-plain {
+  background: var(--ls-surface);
+  color: var(--ls-ink-3);
+}
+.ls-note-info {
+  background: var(--ls-navy-soft);
+  color: var(--ls-navy);
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.ls-note-ok {
+  background: var(--ls-green-soft);
+  color: var(--ls-green);
+  font-size: 15px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.ls-note-bad {
+  background: var(--ls-red-soft);
+  color: var(--ls-red-dark);
+}
+
+.ls-rows {
+  border: 1px solid var(--ls-line-soft);
+  border-radius: 14px;
+  overflow: hidden;
+}
+.ls-row {
+  display: flex;
+  gap: 12px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--ls-hair);
+}
+.ls-row:last-child {
+  border-bottom: none;
+}
+.ls-row-k {
+  width: 118px;
+  flex: none;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ls-muted);
+}
+.ls-row-v {
+  flex: 1;
+  min-width: 0;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+.ls-row-v.ls-miss {
+  color: var(--ls-red-dark);
+}
+
+/* ---------- login overlay ---------- */
+
+.ls-login {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  background: var(--ls-navy);
+  color: #fff;
+  font-family: var(--ls-font);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+.ls-login-col {
+  position: relative;
+  width: 100%;
+  max-width: 434px;
+  min-height: 100%;
+  box-sizing: border-box;
+  margin: 0 auto;
+  padding: 120px 22px max(34px, env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+/* phone: linework fills the top of the screen behind the headline */
+.ls-login-art {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 390px;
+  height: 340px;
+  transform: translateX(-50%);
+  overflow: hidden;
+  opacity: 0.22;
+  pointer-events: none;
+}
+.ls-login-art i {
+  position: absolute;
+  display: block;
+}
+/* keep headline and card above the linework */
+.ls-login-col > :not(.ls-login-art) {
+  position: relative;
+}
+.ls-login-kicker {
+  font: 600 11px/1 var(--ls-font);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+.ls-login-title {
+  margin: 12px 0 0;
+  font: 700 34px/1.08 var(--ls-font);
+  letter-spacing: -0.03em;
+  color: #fff;
+}
+.ls-login-sub {
+  margin: 10px 0 26px;
+  font-size: 15px;
+  line-height: 1.45;
+  opacity: 0.85;
+  max-width: 300px;
+}
+.ls-login-card {
+  background: #fff;
+  color: var(--ls-ink);
+  border-radius: 16px;
+  padding: 18px;
+}
+.ls-login-card .ls-inp {
+  font-size: 18px;
+}
+.ls-login-card .ls-pri {
+  width: 100%;
+  height: 58px;
+  margin-top: 20px;
+  font-size: 18px;
+}
+.ls-login-msg {
+  margin-top: 14px;
+  border-left: 4px solid var(--ls-line);
+  background: var(--ls-surface);
+  border-radius: 0 10px 10px 0;
+  padding: 10px 12px;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+.ls-login-foot {
+  margin-top: 14px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--ls-faint);
+  text-align: center;
+}
+/* desktop: one centred column, linework above the headline */
+@media (min-width: 640px) and (min-height: 820px) {
+  .ls-login-col {
+    min-height: 0;
+    margin: auto;
+    padding-top: 324px;
+    padding-bottom: 34px;
+  }
+  .ls-login-art {
+    height: 300px;
+  }
+}
+
+/* ---------- capture wizard ---------- */
+
+.ls-wiz-backdrop {
+  position: fixed;
+  inset: 0;
+  /* above the title pill (1000), below antd popups (1050) and messages */
+  z-index: 1001;
+  background: rgba(20, 24, 29, 0.45);
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  font-family: var(--ls-font);
+  color: var(--ls-ink);
+}
+.ls-wiz {
+  position: relative;
+  width: 100%;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+/* Desktop (see useIsDesktop): the same steps inside a regular react-bootstrap
+   modal. z-index like the full screen shell: above the title pill (1000),
+   below the antd popups (1050), so the month picker opens above the modal. */
+.ls-wiz-modal {
+  z-index: 1002;
+  font-family: var(--ls-font);
+  color: var(--ls-ink);
+}
+.ls-wiz-modal-backdrop {
+  z-index: 1001;
+}
+.ls-wiz-modal .modal-header {
+  align-items: center;
+  gap: 16px;
+}
+.ls-wiz-step-modal {
+  margin-left: auto;
+}
+/* the step label takes the free space, the close button follows it */
+.ls-wiz-modal .modal-header .close,
+.ls-wiz-modal .modal-header .btn-close {
+  margin-left: 0;
+}
+.ls-wiz-modal .ls-wiz-bars {
+  margin-top: 0;
+}
+.ls-wiz-modal-content {
+  margin-top: 18px;
+}
+.ls-wiz-modal-foot {
+  justify-content: flex-end;
+  gap: 10px;
+}
+.ls-wiz-modal-foot .ls-wiz-status {
+  flex: 1 1 100%;
+  padding: 0;
+  margin: 0;
+}
+.ls-wiz-modal-foot .ls-btn {
+  min-width: 170px;
+  margin: 0;
+}
+.ls-wiz-hd {
+  padding: max(16px, env(safe-area-inset-top)) 16px 0;
+}
+.ls-wiz-hd-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.ls-wiz-x {
+  width: 40px;
+  height: 40px;
+  border: none;
+  background: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  color: var(--ls-ink-3);
+  cursor: pointer;
+}
+.ls-wiz-x:disabled {
+  opacity: 0.35;
+}
+.ls-wiz-step {
+  font: 600 13px/1 var(--ls-font);
+  letter-spacing: 0.04em;
+  color: var(--ls-muted);
+}
+.ls-wiz-bars {
+  display: flex;
+  gap: 5px;
+  margin-top: 6px;
+}
+.ls-wiz-bars i {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--ls-line-soft);
+}
+.ls-wiz-bars i.ls-on {
+  background: var(--ls-navy);
+}
+.ls-wiz-title {
+  margin: 14px 0 0;
+  font: 600 25px/1.15 var(--ls-font);
+  letter-spacing: -0.02em;
+  color: var(--ls-ink);
+}
+.ls-wiz-hint {
+  margin-top: 6px;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--ls-muted);
+}
+.ls-wiz-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 18px 16px 16px;
+}
+.ls-wiz-status {
+  padding: 0 16px 10px;
+}
+.ls-wiz-foot {
+  padding: 10px 16px max(20px, env(safe-area-inset-bottom));
+  border-top: 1px solid var(--ls-hair);
+  background: #fff;
+  display: flex;
+  gap: 10px;
+}
+.ls-wiz-foot .ls-sec {
+  flex: 1;
+}
+.ls-wiz-foot .ls-pri {
+  flex: 2;
+}
+.ls-stepper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.ls-stepper-val {
+  flex: 1;
+  min-width: 0;
+  height: 56px;
+  box-sizing: border-box;
+  border: 1.5px solid var(--ls-line);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--ls-ink);
+  text-align: center;
+  font: 600 20px var(--ls-font);
+  outline: none;
+  appearance: none;
+}
+.ls-stepper-val:focus {
+  border-color: var(--ls-navy);
+  box-shadow: 0 0 0 3px rgba(18, 59, 94, 0.14);
+}
+.ls-month.ant-picker {
+  width: 100%;
+  height: 56px;
+  border: 1.5px solid var(--ls-line);
+  border-radius: 12px;
+  padding: 0 16px;
+}
+.ls-month.ant-picker .ant-picker-input > input {
+  font: 400 17px var(--ls-font);
+}
+.ls-missing-title {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.ls-missing-item {
+  width: 100%;
+  border: none;
+  background: none;
+  padding: 4px 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font: 400 15px/1.3 var(--ls-font);
+  color: #5d1017;
+  text-align: left;
+  cursor: pointer;
+}
+.ls-missing-item span:last-child {
+  flex: none;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: underline;
+}
+.ls-wiz-confirm {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  background: rgba(20, 24, 29, 0.45);
+  display: flex;
+  align-items: flex-end;
+}
+.ls-wiz-confirm-sheet {
+  width: 100%;
+  background: #fff;
+  border-radius: 18px 18px 0 0;
+  padding: 20px 18px max(22px, env(safe-area-inset-bottom));
+  box-shadow: 0 -4px 28px rgba(20, 24, 29, 0.2);
+}
+.ls-wiz-confirm-title {
+  font: 600 22px/1.25 var(--ls-font);
+  letter-spacing: -0.02em;
+}
+.ls-wiz-confirm-text {
+  margin: 8px 0 14px;
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--ls-ink-3);
+}
+
+/* ---------- photo step ---------- */
+
+.ls-photo-group {
+  border: 1px solid var(--ls-line-soft);
+  border-radius: 14px;
+  padding: 14px;
+}
+.ls-photo-group + .ls-photo-group {
+  margin-top: 10px;
+}
+.ls-photo-group-hd {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.ls-photo-group-title {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+.ls-photo-group-hint {
+  margin-top: 3px;
+  font-size: 13px;
+  color: var(--ls-muted);
+}
+.ls-photo-count {
+  flex: none;
+  border-radius: 8px;
+  padding: 5px 8px;
+  font: 500 12px/1 var(--ls-mono);
+  border: 1.5px solid var(--ls-red-line);
+  background: var(--ls-red-tint);
+  color: var(--ls-red-dark);
+}
+.ls-photo-count.ls-optional {
+  border-color: var(--ls-line-soft);
+  background: var(--ls-surface);
+  color: var(--ls-muted);
+}
+.ls-photo-count.ls-done {
+  border-color: var(--ls-green-line);
+  background: var(--ls-green-soft);
+  color: var(--ls-green);
+}
+.ls-photo-tile {
+  width: 78px;
+  height: 78px;
+  box-sizing: border-box;
+  border: 1.5px dashed var(--ls-line);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--ls-ink-3);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 18px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.ls-photo-tile span {
+  font: 600 11px/1 var(--ls-font);
+}
+.ls-photo-tile-pri {
+  border-style: solid;
+  border-color: var(--ls-navy);
+  background: var(--ls-navy-soft);
+  color: var(--ls-navy);
+}
+.ls-thumbs {
+  margin-top: 12px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.ls-thumb {
+  position: relative;
+  width: 78px;
+  height: 78px;
+}
+.ls-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 10px;
+  display: block;
+}
+.ls-thumb button {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 50%;
+  background: var(--ls-ink);
+  color: #fff;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+/* ---------- tap marker ---------- */
+
+/* MapLibre positions the marker through `transform` on this element, so the
+   pulse runs on a pseudo-element. Taps go through to the map. */
+.ls-tap-marker {
+  width: 26px;
+  height: 26px;
+  box-sizing: border-box;
+  border-radius: 50%;
+  border: 3px solid var(--ls-navy);
+  background: rgba(18, 59, 94, 0.18);
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.85);
+  pointer-events: none;
+}
+/* the exact position the geometry is taken from */
+.ls-tap-marker::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 4px;
+  height: 4px;
+  margin: -2px 0 0 -2px;
+  border-radius: 50%;
+  background: var(--ls-navy);
+}
+.ls-tap-marker::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  border: 2px solid var(--ls-navy);
+  opacity: 0;
+  animation: ls-tap-pulse 0.6s ease-out;
+}
+@keyframes ls-tap-pulse {
+  from {
+    transform: scale(0.6);
+    opacity: 0.7;
+  }
+  to {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ls-tap-marker::after {
+    animation: none;
+  }
+}

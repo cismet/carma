@@ -1,0 +1,63 @@
+{
+  "name": "tz-leerstandsmanagement",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/topicmaps/tz-leerstandsmanagement/src",
+  "projectType": "application",
+  "tags": [],
+  "targets": {
+    "build": {
+      "executor": "@nx/vite:build",
+      "outputs": ["{options.outputPath}"],
+      "defaultConfiguration": "production",
+      "options": {
+        "outputPath": "dist/apps/topicmaps/tz-leerstandsmanagement"
+      },
+      "configurations": {
+        "development": {
+          "mode": "development"
+        },
+        "production": {
+          "mode": "production"
+        }
+      }
+    },
+    "serve": {
+      "executor": "@nx/vite:dev-server",
+      "defaultConfiguration": "development",
+      "options": {
+        "buildTarget": "tz-leerstandsmanagement:build"
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "tz-leerstandsmanagement:build:development",
+          "hmr": true,
+          "host": "0.0.0.0"
+        },
+        "production": {
+          "buildTarget": "tz-leerstandsmanagement:build:production",
+          "hmr": false,
+          "host": "0.0.0.0"
+        }
+      }
+    },
+    "preview": {
+      "executor": "@nx/vite:preview-server",
+      "defaultConfiguration": "development",
+      "options": {
+        "buildTarget": "tz-leerstandsmanagement:build"
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "tz-leerstandsmanagement:build:development"
+        },
+        "production": {
+          "buildTarget": "tz-leerstandsmanagement:build:production"
+        }
+      },
+      "dependsOn": ["build"]
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    }
+  }
+}
