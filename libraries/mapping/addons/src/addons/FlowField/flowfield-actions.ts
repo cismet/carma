@@ -43,6 +43,9 @@ export type FlowFieldBackdrop = {
  * What a route or a workflow declares to run an animation: the data and
  * nothing derived.
  */
+/** the two prepared GeoTIFFs of a preloaded scenario, see `preload` */
+export type FlowFieldPreload = { u: string; v: string };
+
 export type FlowFieldDefinition = {
   /** what the layer-bar row calls the animation */
   title: string;
@@ -103,6 +106,14 @@ export type FlowFieldDefinition = {
    */
   fallback?: FlowFieldBackdrop;
   /**
+   * A fixed u/v pair for the scenario's area, loaded once instead of a request
+   * per view: two EPSG:4326 GeoTIFFs as rasterfari's `gdalProcessor` returns
+   * them, prepared for the whole area and served statically. Views inside
+   * their extent need no further request; outside it the animation fetches
+   * per view from `service` as without it. Ignored by a cage without preload.
+   */
+  preload?: FlowFieldPreload;
+  /**
    * The animation belongs to a layer of the stack, typically a style that
    * declares it in its `metadata.carmaConf.tools`: the host shows its controls
    * on that layer's button rather than in a row of their own, and the layer's
@@ -134,6 +145,8 @@ export type FlowFieldState = {
   params: FlowFieldParams;
   backdrop: FlowFieldBackdrop | null;
   fallback: FlowFieldBackdrop | null;
+  /** see `preload` on the definition */
+  preload: FlowFieldPreload | null;
   /** see `permanent` on the definition */
   permanent: boolean;
   anchorLayerId?: string;
@@ -190,6 +203,7 @@ export const FLOW_FIELD_STATE_DEFAULT: FlowFieldState = {
   params: {},
   backdrop: null,
   fallback: null,
+  preload: null,
   permanent: false,
   isHidden: false,
   isActive: false,
@@ -352,6 +366,7 @@ export const useFlowFieldLauncher = () => {
           params: def.params ?? {},
           backdrop: def.backdrop ?? null,
           fallback: def.fallback ?? null,
+          preload: def.preload ?? null,
           permanent: def.permanent ?? false,
           anchorLayerId: def.anchorLayerId,
           isCaged,
@@ -376,6 +391,7 @@ export const useFlowFieldLauncher = () => {
         params: def.params ?? {},
         backdrop: def.backdrop ?? null,
         fallback: def.fallback ?? null,
+        preload: def.preload ?? null,
         permanent: def.permanent ?? false,
         anchorLayerId: def.anchorLayerId,
         // the host's eye, which a new scenario from the same layer keeps

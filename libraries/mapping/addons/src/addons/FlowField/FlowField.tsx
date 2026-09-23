@@ -132,6 +132,7 @@ export const FlowField = ({
     params: configParams,
     backdrop: configBackdrop,
     fallback: configFallback,
+    preload: configPreload,
     permanent: configPermanent,
     anchorLayerId: configAnchorLayerId,
     startEnabled = true,
@@ -159,6 +160,7 @@ export const FlowField = ({
     params,
     backdrop,
     fallback,
+    preload,
     anchorLayerId,
     isHidden,
     setOn,
@@ -167,6 +169,11 @@ export const FlowField = ({
   } = useFlowFieldActions();
 
   const { startField } = useFlowFieldLauncher();
+
+  // the preload's urls rather than its object, so a restored state with the
+  // same files does not count as a change and rebuild the layer
+  const preloadU = preload?.u;
+  const preloadV = preload?.v;
 
   // the flag-aware factory, so `?ff=nocage` exercises the absent case without
   // unlinking the cage submodule
@@ -230,6 +237,7 @@ export const FlowField = ({
       params: configParams,
       backdrop: configBackdrop,
       fallback: configFallback,
+      preload: configPreload,
       permanent: configPermanent,
       anchorLayerId: configAnchorLayerId,
     });
@@ -251,6 +259,7 @@ export const FlowField = ({
     configParams,
     configBackdrop,
     configFallback,
+    configPreload,
     configPermanent,
     configAnchorLayerId,
     startField,
@@ -322,6 +331,7 @@ export const FlowField = ({
       params: paramsRef.current,
       id: PARTICLES_CANVAS_CLASS,
       fetchBuffer: cacheRasters ? getSharedRasterCache() : undefined,
+      preload: preloadU && preloadV ? { u: preloadU, v: preloadV } : undefined,
       onActiveChange: (active) => {
         if (!disposed) setActive(active);
       },
@@ -366,6 +376,8 @@ export const FlowField = ({
     debounceMs,
     occlusion,
     cacheRasters,
+    preloadU,
+    preloadV,
     setActive,
     setLoading,
   ]);

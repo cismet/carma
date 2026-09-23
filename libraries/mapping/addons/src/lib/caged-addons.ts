@@ -232,6 +232,11 @@ export type FlowLayerOptions = {
    * out. A cage from before this option ignores it and fetches as before.
    */
   fetchBuffer?: (url: string, signal?: AbortSignal) => Promise<ArrayBuffer>;
+  /**
+   * A fixed u/v pair for an area, loaded once instead of per view. A cage from
+   * before this option ignores it and fetches per view.
+   */
+  preload?: { u: string; v: string };
 };
 
 /** What the caged particle layer hands back. */
