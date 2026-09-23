@@ -173,14 +173,8 @@ export const EMPTY_FEATURE_COLLECTION = {
  *  changes, so unchanged collections are not re-parsed. */
 const lastAppliedData = new WeakMap();
 
-/**
- * Adds or updates the source and its render layers. Must run again after every
- * style reload, because setStyle() drops imperatively added sources.
- *
- * @returns false when the style was not ready and nothing was applied
- */
 export const applyFeatureCollectionLayers = (map, data) => {
-  if (!map || !map.isStyleLoaded()) {
+  if (!map?.style?._loaded) {
     return false;
   }
 
