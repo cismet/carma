@@ -1,6 +1,10 @@
 import { useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faPause, faPlay } from "@fortawesome/free-solid-svg-icons";
+import {
+  faDiamondTurnRight,
+  faPause,
+  faPlay,
+} from "@fortawesome/free-solid-svg-icons";
 import { Slider, Tooltip } from "antd";
 
 import { useLocationSimulation } from "../LocationSimulator/simulationChannel";
@@ -16,7 +20,7 @@ const SPEED_FACTORS = [0.5, 1, 2, 4];
  * The ribbon under the layer bar while a navigation runs.
  *
  * What it holds today is a test harness: a slider over the route, a pause
- * button and a speed selector, which move the pretend device of the
+ * button, a speed selector and "Abweichen", which move the pretend device of the
  * `locationSimulator` addon. The slider's knob sits where the routing says
  * the user is (its `progress`), so it goes along on its own while the drive
  * runs, and dragging it puts the device there at once: the camera, the
@@ -42,59 +46,86 @@ export const RoutingPanel = () => {
       data-test-id="routing-tools"
     >
       {simulation?.driving ? (
-        <div className="flex items-center gap-3 text-sm text-gray-700">
-          <Tooltip
-            title={simulation.paused ? "Weiterfahren" : "Anhalten"}
-            placement="top"
-          >
-            <button
-              type="button"
-              aria-label={simulation.paused ? "Weiterfahren" : "Anhalten"}
-              onClick={() => simulation.setPaused(!simulation.paused)}
-              className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent text-gray-600 hover:bg-black/5"
+        <>
+          <div className="flex items-center gap-3 text-sm text-gray-700">
+            <Tooltip
+              title={simulation.paused ? "Weiterfahren" : "Anhalten"}
+              placement="top"
             >
-              <FontAwesomeIcon icon={simulation.paused ? faPlay : faPause} />
-            </button>
-          </Tooltip>
-          <div className="flex shrink-0 items-center gap-0.5" role="group" aria-label="Geschwindigkeit">
-            {SPEED_FACTORS.map((factor) => {
-              const active = factor === simulation.speedFactor;
-              return (
-                <button
-                  key={factor}
-                  type="button"
-                  aria-pressed={active}
-                  onClick={() => simulation.setSpeedFactor(factor)}
-                  className={`h-7 cursor-pointer rounded-full border-0 px-2 text-xs tabular-nums ${
-                    active
-                      ? "bg-black/10 font-semibold text-gray-800"
-                      : "bg-transparent text-gray-500 hover:bg-black/5"
-                  }`}
-                >
-                  {factor}×
-                </button>
-              );
-            })}
+              <button
+                type="button"
+                aria-label={simulation.paused ? "Weiterfahren" : "Anhalten"}
+                onClick={() => simulation.setPaused(!simulation.paused)}
+                className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent text-gray-600 hover:bg-black/5"
+              >
+                <FontAwesomeIcon icon={simulation.paused ? faPlay : faPause} />
+              </button>
+            </Tooltip>
+            <div
+              className="flex shrink-0 items-center gap-0.5"
+              role="group"
+              aria-label="Geschwindigkeit"
+            >
+              {SPEED_FACTORS.map((factor) => {
+                const active = factor === simulation.speedFactor;
+                return (
+                  <button
+                    key={factor}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => simulation.setSpeedFactor(factor)}
+                    className={`h-7 cursor-pointer rounded-full border-0 px-2 text-xs tabular-nums ${
+                      active
+                        ? "bg-black/10 font-semibold text-gray-800"
+                        : "bg-transparent text-gray-500 hover:bg-black/5"
+                    }`}
+                  >
+                    {factor}×
+                  </button>
+                );
+              })}
+            </div>
+            <Tooltip
+              title="Rechts abbiegen und die Route verlassen, um die Neuberechnung zu testen"
+              placement="top"
+            >
+              <button
+                type="button"
+                aria-label="Abweichen"
+                onClick={simulation.detour}
+                className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent text-gray-600 hover:bg-black/5"
+                data-test-id="routing-detour"
+              >
+                <FontAwesomeIcon icon={faDiamondTurnRight} />
+              </button>
+            </Tooltip>
+            <span className="shrink-0 whitespace-nowrap">
+              Position auf der Route
+            </span>
+            <Slider
+              className="grow"
+              min={0}
+              max={1}
+              step={SEEK_STEP}
+              value={draft ?? fraction}
+              onChange={(value) => {
+                setDraft(value);
+                simulation.seek(value);
+              }}
+              onChangeComplete={() => setDraft(null)}
+              tooltip={{
+                formatter: (value) => `${Math.round((value ?? 0) * 100)} %`,
+              }}
+              style={{ margin: 0 }}
+            />
+            <span className="w-10 shrink-0 text-right tabular-nums">
+              {Math.round((draft ?? fraction) * 100)} %
+            </span>
           </div>
-          <span className="shrink-0 whitespace-nowrap">Position auf der Route</span>
-          <Slider
-            className="grow"
-            min={0}
-            max={1}
-            step={SEEK_STEP}
-            value={draft ?? fraction}
-            onChange={(value) => {
-              setDraft(value);
-              simulation.seek(value);
-            }}
-            onChangeComplete={() => setDraft(null)}
-            tooltip={{ formatter: (value) => `${Math.round((value ?? 0) * 100)} %` }}
-            style={{ margin: 0 }}
-          />
-          <span className="w-10 shrink-0 text-right tabular-nums">
-            {Math.round((draft ?? fraction) * 100)} %
-          </span>
-        </div>
+          <p className="m-0 text-xs text-gray-500">
+            Alt + Klick in die Karte: Position setzen
+          </p>
+        </>
       ) : (
         <p className="m-0 text-sm text-gray-500">
           Die Position kommt vom Gerät und lässt sich hier nicht verschieben.

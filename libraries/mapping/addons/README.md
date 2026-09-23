@@ -1332,7 +1332,8 @@ camera keep reading `currentPosition` and cannot tell.
 While no navigation runs the pretend user stands at `position` (default the
 Wuppertal main station), so "In der Nähe" ranks from there and a route starts
 there. When `routeNavigation` says `navigating`, the receiver drives along
-the route in focus at `speedMetersPerSecond` (8, about 30 km/h), one fix per
+the driven route (`routeNavigation.route`, so a reroute is driven from its
+start too) at `speedMetersPerSecond` (8, about 30 km/h), one fix per
 `intervalMs` (1000), each scattered by up to `jitterMeters` (2) the way a real
 receiver's are; the routing addon sees its own route's fixes come in and ends
 the navigation on arrival, after which the user is back home for the next
@@ -1344,7 +1345,19 @@ Dev only: the component does nothing outside a dev build, so the entry on the
 it off to test against the real device; the location mode has to be switched
 off and on for the context to ask the device again.
 
-The navigation's row follows it: its ribbon holds the simulator's slider and
+To test rerouting the pretend user can leave the route:
+
+- **"Abweichen"** in the ribbon (`detour`) turns 90° right and goes straight
+  on at the same pace, off every road. Pressed again, it turns again. After the
+  mode's `afterFixes` past its `meters` the navigation reroutes, and the
+  receiver drives the new route. The slider puts the user back on the route.
+- **Alt + click** on the map puts the pretend user there. Between drives they
+  stay there, so the next "In der Nähe" search starts from that spot; during a
+  drive they stand there and the navigation reroutes from it. The click is
+  caught on the map container while it goes down, so it does not also pick a
+  feature.
+
+The navigation's row follows it: its ribbon holds the simulator's controls and
 nothing else, so while no simulation is published (`useLocationSimulation()`
 is null, i.e. outside a dev build) the row carries the countdown as a plain
 readout and opens no ribbon.
@@ -1352,7 +1365,7 @@ readout and opens no ribbon.
 | File                                    | |
 | --------------------------------------- | --- |
 | `LocationSimulator/LocationSimulator.tsx` | the addon: owns the slot, stands or drives on the navigation channel |
-| `LocationSimulator/fakeDevice.ts`       | the pretend receiver: `stand`, `drive`, and the three `Geolocation` calls |
+| `LocationSimulator/fakeDevice.ts`       | the pretend receiver: `stand`, `drive`, `detour`, and the three `Geolocation` calls |
 | `LocationSimulator/config.ts`           | `LocationSimulatorConfig` and its defaults |
 
 ## Guidelines

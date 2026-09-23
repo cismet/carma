@@ -534,8 +534,8 @@ export const addonRegistry: {
     requires: ["activeRoute"],
     provides: ["routeNavigation"],
   },
-  // reads `activeRoute` and `routeNavigation` when they are there, to drive
-  // along the route; without them it only stands at its position
+  // reads `routeNavigation` when it is there, to drive along the route being
+  // driven (a reroute included); without it it only stands at its position
   locationSimulator: {
     Component: LocationSimulator,
     provides: ["locationSimulation"],
