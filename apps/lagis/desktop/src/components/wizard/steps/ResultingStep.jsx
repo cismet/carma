@@ -1,15 +1,19 @@
-import React, { useEffect, useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import { useSelector } from "react-redux";
 import LandParcelKeyChooser from "../LandParcelKeyChooser";
 import { hasDuplicateKeys } from "../../../core/wizard/keys";
 import { WIZARD_ACTIONS } from "../../../core/wizard/constants";
+import { areaCheckKeys, checkAreas } from "../../../core/wizard/areaCheck";
+
+const INCOMPLETE = "Bitte vervollständigen Sie alle Flurstücke";
 
 /**
- * Port of ResultingPanel: one creation chooser per parcel that will come out of
- * the action — as many as the split count, or exactly one when merging.
- * Gemarkung and Flur are preset from the parcel the action starts from, which
- * is what the panel's COPY_CONTENT_MODE did.
+ * Port of ResultingPanel: one creation chooser per resulting parcel, preset
+ * with Gemarkung and Flur of the source parcel. The choosers are filled in
+ * order; each key must have an ALKIS geometry before the next one unlocks.
  */
 const ResultingStep = ({ value, onChange, onProblem }) => {
+  const jwt = useSelector((state) => state.auth.jwt);
   const isJoin = value.action === WIZARD_ACTIONS.JOIN;
   const count = isJoin ? 1 : value.splitCount ?? 2;
 
@@ -37,18 +41,70 @@ const ResultingStep = ({ value, onChange, onProblem }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [count, resultKeys.length]);
 
+  // leading slots whose key and geometry are confirmed; later ones stay locked
+  const [confirmed, setConfirmed] = useState(0);
+  // a key the chooser rejected, e.g. one that already exists
+  const [chooserProblem, setChooserProblem] = useState();
+
+  const handleValidity = (index, status) => {
+    if (!status.valid && status.message !== INCOMPLETE) {
+      setChooserProblem({ index, message: status.message });
+    } else {
+      setChooserProblem((previous) =>
+        previous?.index === index ? undefined : previous
+      );
+    }
+  };
+
   useEffect(() => {
-    if (resultKeys.length !== count || resultKeys.some((key) => !key)) {
-      onProblem("Bitte vervollständigen Sie alle Flurstücke");
+    onChange({ areaCheck: undefined });
+    const firstEmpty = resultKeys.findIndex((key) => !key);
+    const filled = resultKeys.slice(
+      0,
+      firstEmpty === -1 ? resultKeys.length : firstEmpty
+    );
+    setConfirmed(Math.max(0, filled.length - 1));
+
+    if (chooserProblem) {
+      setConfirmed(Math.min(chooserProblem.index, filled.length));
+      onProblem(chooserProblem.message);
       return;
     }
-    if (hasDuplicateKeys(resultKeys)) {
+    if (hasDuplicateKeys(filled)) {
       onProblem("Es darf kein Flurstück doppelt ausgewählt werden.");
       return;
     }
-    onProblem(null);
+
+    let cancelled = false;
+    onProblem("Prüfe Flurstücke...");
+    checkAreas(areaCheckKeys({ ...value, resultKeys: filled }), jwt)
+      .then((areaCheck) => {
+        if (cancelled) {
+          return;
+        }
+        if (areaCheck.problem) {
+          onProblem(areaCheck.problem);
+          return;
+        }
+        setConfirmed(filled.length);
+        if (filled.length < count) {
+          onProblem(INCOMPLETE);
+          return;
+        }
+        onChange({ areaCheck });
+        onProblem(null);
+      })
+      .catch((e) => {
+        if (!cancelled) {
+          console.error("Geometrien konnten nicht geprüft werden", e);
+          onProblem("Fehler beim Prüfen der Geometrien");
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [resultKeys, count]);
+  }, [resultKeys, count, chooserProblem]);
 
   const setKeyAt = (index, key) => {
     const next = [...resultKeys];
@@ -70,7 +126,9 @@ const ResultingStep = ({ value, onChange, onProblem }) => {
           mode="creation"
           value={resultKeys[index]}
           preset={preset}
+          disabled={index > confirmed}
           onChange={(next) => setKeyAt(index, next)}
+          onValidity={(status) => handleValidity(index, status)}
         />
       ))}
     </div>
