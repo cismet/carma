@@ -11,7 +11,7 @@ import type { createThreeTilesDebugOverlay } from "./three-tiles-debug-overlay";
 import {
   getMeshLoadStage,
   meshShadowStageError,
-} from "./three-tiles-load-policy";
+} from "../../core/mesh-error-policy";
 import type {
   ThreeTilesRuntimeServices,
   ThreeTilesRuntimeState,

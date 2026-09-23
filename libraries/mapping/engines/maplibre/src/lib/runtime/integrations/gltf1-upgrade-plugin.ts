@@ -313,15 +313,19 @@ export interface Gltf1UpgradePluginOptions {
   requestTimeoutMs?: number;
   /** Observes every raw response before its body is consumed. */
   onResponse?: (url: string, response: Response) => void;
+  /** Raw B3DM bytes after HTTP decompression, before any glTF upgrade. No copy. */
+  onBody?: (url: string, decodedBytes: number) => void;
 }
 
 export class Gltf1UpgradePlugin {
   name = "GLTF1_UPGRADE_PLUGIN";
+  private readonly onBody: Gltf1UpgradePluginOptions["onBody"];
   private readonly onResponse: Gltf1UpgradePluginOptions["onResponse"];
   private readonly requestTimeoutMs: number;
 
   constructor(options: Gltf1UpgradePluginOptions = {}) {
     this.onResponse = options.onResponse;
+    this.onBody = options.onBody;
     this.requestTimeoutMs = options.requestTimeoutMs ?? 30_000;
   }
 
@@ -335,6 +339,7 @@ export class Gltf1UpgradePlugin {
     if (!/\.b3dm(\?|$)/.test(String(url)) || !response.ok) return response;
 
     const buffer = await response.arrayBuffer();
+    this.onBody?.(String(url), buffer.byteLength);
     const upgraded = upgradeB3dmGltf1(buffer);
     return new Response(upgraded ?? buffer, { status: 200 });
   }

@@ -4,9 +4,10 @@ import * as THREE from "three";
 import { isLocalhostHostname } from "@carma-commons/utils";
 
 import { createTileDrawObserver } from "./three-tiles-draw-observer";
-import { TILE_MEMORY_ALLOCATION_ERROR } from "./three-tiles-load-policy";
-import { getRetainedMeshAncestors } from "./three-tiles-mesh-frontier";
+import { getRetainedMeshAncestors } from "../../core/mesh-tile-retention";
 import { createThreeTilesRuntimeAttachment } from "./three-tiles-runtime-attachment";
+import { createThreeTilesLoadEvents } from "./three-tiles-runtime-load-events";
+import { createThreeTilesGroundReferenceProbe } from "./three-tiles-runtime-ground-reference";
 import { createThreeTilesCascade } from "./three-tiles-runtime-cascade";
 import {
   MESH_MOTION_COVERAGE_INTERVAL_MS,
@@ -21,12 +22,6 @@ import {
   type ThreeTilesFrameState,
 } from "./three-tiles-runtime-frame";
 import type { RuntimeLruCache, RuntimeTile } from "./three-tiles-runtime-types";
-import {
-  FAILED_LOADING_STATE,
-  resolveTileContentUrl,
-  UNLOADED_LOADING_STATE,
-} from "./three-tiles-runtime-vendor";
-import { setTileShadowRole } from "./three-tiles-shadow-role";
 
 /** lifecycle responsibility of the shared 3D Tiles runtime. */
 export function createThreeTilesLifecycle(
@@ -50,7 +45,6 @@ export function createThreeTilesLifecycle(
     | "shadowRegionRevisions"
     | "allocationFailed"
     | "deferred"
-    | "motionCoverageDue"
     | "meshBaseCoverageReady"
     | "meshInitialHandoverDone"
     | "meshCoverageRecovery"
@@ -183,9 +177,7 @@ export function createThreeTilesLifecycle(
   // TILE-PIPELINE-TELEMETRY-20260909 in engines/maplibre/README.md.
   const frameState: ThreeTilesFrameState = {
     retainedMeshAncestors: new Set(),
-    reportedIncompleteFamilies: new WeakSet(),
     publishedContentRevision: -1,
-    hasBootstrapPayload: false,
     telemetryTiles: new Set(),
     telemetryDropped: 0,
   };
@@ -250,239 +242,24 @@ export function createThreeTilesLifecycle(
     noteTileActivity(tile);
   };
 
-  // A standalone tileset carries absolute heights but the map has no terrain
-  // to lift its centre. Probe the tileset under the layer origin and lower the
-  // whole set by that height, so its ground meets the map plane. Refined while
-  // finer tiles arrive; settled once the hit comes from a fine tile.
-  const groundProbe = new THREE.Raycaster();
-  let groundReferenceSettled = false;
-  const GROUND_REFERENCE_FINE_ERROR_METERS = 2;
-  const probeGroundReference = (tile?: Tile) => {
-    if (
-      !runtimeState.options.selfGroundReference ||
-      groundReferenceSettled ||
-      !runtimeState.tiles
-    )
-      return;
-    runtimeState.orientationGroup.updateMatrixWorld(true);
-    const origin = runtimeState.orientationGroup.localToWorld(
-      new THREE.Vector3(0, 10_000, 0)
-    );
-    const down = new THREE.Vector3(0, -1, 0).transformDirection(
-      runtimeState.orientationGroup.matrixWorld
-    );
-    groundProbe.set(origin, down);
-    groundProbe.far = 20_000;
-    const hit = groundProbe
-      .intersectObject(runtimeState.tiles.group, true)
-      .find(({ object }) => (object as THREE.Mesh).isMesh && object.visible);
-    if (!hit) return;
-    // Local to the offset group: the tileset's own height, offset excluded.
-    const groundMeters = runtimeState.offsetGroup.worldToLocal(
-      hit.point.clone()
-    ).y;
-    if (!Number.isFinite(groundMeters)) return;
-    if (Math.abs(runtimeState.offsetGroup.position.y + groundMeters) > 0.25) {
-      runtimeState.offsetGroup.position.y = -groundMeters;
-      runtimeState.map?.triggerRepaint();
-    }
-    if (
-      (tile?.geometricError ?? Infinity) <= GROUND_REFERENCE_FINE_ERROR_METERS
-    )
-      groundReferenceSettled = true;
-  };
-  const handleModelLoad: ThreeTilesRuntimeServices["handleModelLoad"] =
-    (event: { scene?: THREE.Object3D; tile?: Tile; url?: string }) => {
-      if (event.tile) {
-        dependencies.getTileDebugProgress(event.tile).publicationStartedAt =
-          performance.now();
-        dependencies.getTileDebugProgress(event.tile).loadedAt ??=
-          performance.now();
-        noteTileActivity(event.tile);
-      }
-      runtimeState.meshContentRevision += 1;
-      if (event.tile) {
-        runtimeState.shadowRegionWorldBounds.delete(event.tile);
-        runtimeState.mainViewIntersectionCache.delete(event.tile);
-      }
-      if (event.tile?.internal?.hasRenderableContent)
-        frameState.hasBootstrapPayload = true;
-      if (event.tile)
-        runtimeState.tileRetries.handleSuccess(event.tile, event.url);
-      const changedBounds: THREE.Box3[] = [];
-      if (event.scene) {
-        if (!event.tile || attachment.isDeferredMaterialReady(event.tile))
-          dependencies.refreshRenderedMaterials(event.scene);
-        else dependencies.applyMaterialFlags(event.scene);
-        const bounds = dependencies.readModelFrameBounds(
-          event.scene,
-          new THREE.Box3()
-        );
-        if (!bounds.isEmpty()) changedBounds.push(bounds.clone());
-      }
-      probeGroundReference(event.tile);
-      dependencies.invalidateShadowRegionRevisions(changedBounds);
-      // Register partial caster materials; only atomic handover invalidates pages.
-      const unpublishedMesh =
-        runtimeState.options.providesTerrain &&
-        runtimeState.shadowView &&
-        event.tile &&
-        !runtimeState.committedMeshCasterFrontier.has(event.tile) &&
-        !runtimeState.committedMeshReceiverFrontier.has(event.tile);
-      if (unpublishedMesh && event.scene)
-        setTileShadowRole(event.scene, { receiver: false, caster: false });
-      runtimeState.options.onContentChanged?.(
-        unpublishedMesh ? [] : changedBounds,
-        event.scene ? [event.scene] : undefined
-      );
-      runtimeState.lastProgressAt = Date.now();
-      if (event.tile && runtimeState.tiles) {
-        const registeredBytes = runtimeState.tiles.lruCache.getMemoryUsage(
-          event.tile
-        );
-        runtimeState.bytesPredictor.observe(
-          {
-            url: event.url ?? resolveTileContentUrl(event.tile),
-            geometricError: event.tile.geometricError,
-          },
-          registeredBytes
-        );
-        dependencies.reapplyCacheBoundsIfDrifted();
-      }
-      runtimeState.payloadAwareConcurrency.observeSuccess();
-      dependencies.applyRequestConcurrency();
-      if (event.tile && event.scene)
-        drawObserver.attach(event.tile as RuntimeTile, event.scene);
-      dependencies.notifyRequestStateChange();
-      dependencies.requestRender();
-      if (event.tile)
-        dependencies.getTileDebugProgress(event.tile).publicationFinishedAt =
-          performance.now();
-    };
+  const probeGroundReference =
+    createThreeTilesGroundReferenceProbe(runtimeState);
 
-  const handleModelDispose: ThreeTilesRuntimeServices["handleModelDispose"] =
-    (event: { scene?: THREE.Object3D; tile?: Tile }) => {
-      if (event.scene) drawObserver.detach(event.scene);
-      runtimeState.meshContentRevision += 1;
-      const changedBounds: THREE.Box3[] = [];
-      if (event.scene) {
-        const bounds = dependencies.readModelFrameBounds(
-          event.scene,
-          new THREE.Box3()
-        );
-        if (!bounds.isEmpty()) changedBounds.push(bounds);
-        runtimeState.modelLocalBounds.delete(event.scene);
-      }
-      if (event.tile) {
-        runtimeState.shadowRegionWorldBounds.delete(event.tile);
-        runtimeState.mainViewIntersectionCache.delete(event.tile);
-      }
-      dependencies.invalidateShadowRegionRevisions(changedBounds);
-      if (event.scene) {
-        dependencies.restoreClayMaterials(event.scene);
-        dependencies.restoreLitTextureMaterials(event.scene);
-      }
-      runtimeState.options.onContentChanged?.(changedBounds);
-      // Freed space admits waiting tiles only through a new traversal, which
-      // the change-gated update would otherwise wait for the camera to trigger.
-      if (runtimeState.tiles && !runtimeState.tiles.lruCache.isFull()) {
-        runtimeState.tiles.dispatchEvent({ type: "needs-update" });
-        dependencies.requestRender();
-      }
-    };
-
-  const handleTilesetLoad: ThreeTilesRuntimeServices["handleTilesetLoad"] =
-    (event: { url?: string }) => {
-      if (localTelemetry && runtimeState.tileBoundsVisible)
-        console.debug(
-          "[tiles3d-debug] tileset loaded",
-          event.url ?? runtimeState.tilesetUrl
-        );
-      runtimeState.meshContentRevision += 1;
-      runtimeState.shadowRegionRevisions.clear();
-      runtimeState.mainViewIntersectionCache = new WeakMap();
-      dependencies.clearKickstartTimer();
-      runtimeState.tileRetries.handleSuccess(null, event.url);
-      runtimeState.payloadAwareConcurrency.observeSuccess();
-      dependencies.applyTilesetMinResolution();
-      dependencies.applyRequestConcurrency();
-      dependencies.requestRender();
-    };
-
-  // D8: retry admission keeps failed tiles UNLOADED, retaining the parent cut.
-  const handleLoadError: ThreeTilesRuntimeServices["handleLoadError"] =
-    (event: { tile?: Tile | null; url?: string | URL; error?: unknown }) => {
-      console.warn("[tiles3d-debug] load error", {
-        url: String(event.url ?? runtimeState.tilesetUrl),
-        error: String(event.error),
-      });
-      if (TILE_MEMORY_ALLOCATION_ERROR.test(String(event.error))) {
-        runtimeState.allocationFailed = true;
-        dependencies.recordCacheCeilingFailure("allocation");
-        dependencies.applyRequestConcurrency();
-      }
-      const failedTile = event.tile ?? null;
-      if (failedTile && runtimeState.tileBoundsVisible) {
-        dependencies.getTileDebugProgress(failedTile).lastError = String(
-          event.error
-        ).slice(0, 240);
-        noteTileActivity(failedTile);
-      }
-      if (failedTile && runtimeState.deferred.has(failedTile)) return;
-      const retryState = runtimeState.tileRetries.handleFailure(
-        failedTile,
-        event.url,
-        event.error
-      );
-      if (failedTile && runtimeState.tiles && retryState !== "ignored") {
-        const wasFailed =
-          failedTile.internal.loadingState === FAILED_LOADING_STATE;
-        const removed = runtimeState.tiles.lruCache.remove(failedTile);
-        if (!removed && wasFailed) {
-          failedTile.internal.loadingState = UNLOADED_LOADING_STATE;
-        }
-        if (wasFailed) {
-          runtimeState.tiles.stats.failed = Math.max(
-            0,
-            runtimeState.tiles.stats.failed - 1
-          );
-        }
-        if (retryState === "exhausted") {
-          runtimeState.tiles.dispatchEvent({ type: "needs-update" });
-          dependencies.requestRender();
-        }
-      }
-      runtimeState.payloadAwareConcurrency.observeFailure(event.error);
-      dependencies.applyRequestConcurrency();
-      dependencies.scheduleRequestBackoffRecovery();
-      // A failed root is retried by the controller; tile errors keep the
-      // kickstart running until the root tileset arrives.
-      if (!failedTile) dependencies.clearKickstartTimer();
-      dependencies.maybeEnableShadowSelection();
-      dependencies.notifyRequestStateChange();
-    };
-
-  const handleTilesLoadEnd: ThreeTilesRuntimeServices["handleTilesLoadEnd"] =
-    () => {
-      // Completion wakes one audit for unresolved coverage; deferred tiles
-      // alone must not sustain an endless render loop.
-      if (
-        runtimeState.options.providesTerrain &&
-        (!runtimeState.meshBaseCoverageReady ||
-          runtimeState.extentFloorAuditPending ||
-          runtimeState.deferred.size > 0) &&
-        !runtimeState.meshDemandSweepPending &&
-        runtimeState.viewQualityAuditPasses === 0
-      ) {
-        runtimeState.meshDemandSweepPending = true;
-        dependencies.resetDeferredTiles();
-        runtimeState.viewQualityAuditPasses = 1;
-        runtimeState.tiles?.dispatchEvent({ type: "needs-update" });
-        dependencies.requestRender();
-      }
-      dependencies.notifyRequestStateChange();
-      dependencies.maybeEnableShadowSelection();
-    };
+  const {
+    handleModelLoad,
+    handleModelDispose,
+    handleTilesetLoad,
+    handleLoadError,
+    handleTilesLoadEnd,
+  } = createThreeTilesLoadEvents(
+    runtimeState,
+    dependencies,
+    drawObserver,
+    noteTileActivity,
+    probeGroundReference,
+    (tile) => attachment.isDeferredMaterialReady(tile),
+    localTelemetry
+  );
 
   const {
     motionPrefetch,
@@ -490,6 +267,7 @@ export function createThreeTilesLifecycle(
     returnToBaseStage,
     abortStaleDownloads,
     isTileRequestNeeded,
+    getTileRequestNeed,
     refineRingCascade,
     scheduleCascadeTick,
     clearCascadeTick,
@@ -499,7 +277,6 @@ export function createThreeTilesLifecycle(
       attachment.getDownloadPreemptionEligibility(),
   });
   const handleViewStart: ThreeTilesRuntimeServices["handleViewStart"] = () => {
-    runtimeState.motionCoverageDue = true;
     returnToBaseStage();
     dependencies.resetDeferredTiles();
     runtimeState.tiles?.dispatchEvent({ type: "needs-update" });
@@ -527,7 +304,6 @@ export function createThreeTilesLifecycle(
       // or tree traversal in the input handler.
       runtimeState.motionCoverageTimer = setTimeout(() => {
         runtimeState.motionCoverageTimer = null;
-        runtimeState.motionCoverageDue = true;
         dependencies.resetDeferredTiles();
         dependencies.requestShadowSelectionRefresh();
         runtimeState.tiles?.dispatchEvent({ type: "needs-update" });
@@ -541,7 +317,6 @@ export function createThreeTilesLifecycle(
     if (runtimeState.motionCoverageTimer !== null)
       clearTimeout(runtimeState.motionCoverageTimer);
     runtimeState.motionCoverageTimer = null;
-    runtimeState.motionCoverageDue = true;
     dependencies.applyRequestConcurrency();
     if (!runtimeState.tiles) return;
     if (runtimeState.options.providesTerrain) {
@@ -609,6 +384,7 @@ export function createThreeTilesLifecycle(
     localTelemetry,
     noteTileActivity,
     isTileRequestNeeded,
+    getTileRequestNeed,
     scheduleMotionCoverage,
   });
   // Live mount: an extra parent between the offset group and the tileset,

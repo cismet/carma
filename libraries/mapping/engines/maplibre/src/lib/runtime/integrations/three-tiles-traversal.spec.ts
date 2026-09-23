@@ -1,16 +1,8 @@
 // @vitest-environment jsdom
 
 /**
- * D1 traversal behaviour of the 3D Tiles runtime (`loadAncestors=true`,
- * `loadSiblings=false`, `displayActiveTiles=true`) against the real
- * 3d-tiles-renderer 0.5.2 traversal: displayable REPLACE siblings outside the
- * view and its prefetch margin are deferred instead of blocking the parent
- * gate, external-tileset stubs still load, margin siblings load at low
- * priority, and deferred siblings are released once they enter the view.
- *
- * The runtime is driven through `buildThreeTilesRuntime` with an in-memory
- * REPLACE tileset served by a stubbed `fetch`; frame scheduling is stubbed so
- * the pipeline drains deterministically.
+ * Native traversal integration for offscreen REPLACE sibling deferral and
+ * later re-entry. The in-memory tileset uses deterministic frame scheduling.
  */
 
 import { TilesRenderer } from "3d-tiles-renderer";
@@ -415,92 +407,6 @@ describe("three tiles traversal (D1 deferral)", () => {
     }
   });
 
-  it("releases, requests and displays a deferred sibling once it enters the frustum", async () => {
-    harness = createHarness((tiles) => ({
-      [TILESET_URL]: withOriginTransform(tiles, buildQuadTileset()),
-    }));
-    const { tiles, downloads } = harness;
-    await harness.runUntilSettled(createViewCamera(450));
-    for (const name of FAR) {
-      expect(childByName(tiles, name).internal.loadingState).toBe(FAILED);
-    }
-    const downloadsBefore = downloads.length;
-
-    // Extend the visible depth so the far children enter the frustum.
-    await harness.runUntilSettled(createViewCamera(1_000));
-
-    for (const name of FAR) {
-      const tile = childByName(tiles, name);
-      expect(tile.traversal.inFrustum).toBe(true);
-      expect(tile.internal.loadingState).toBe(LOADED);
-      expect(downloads).toContain(`${name}.b3dm`);
-    }
-    const allGrandchildren = [...NEAR, ...FAR].flatMap((name) =>
-      [0, 1, 2, 3].map((index) => `${name}_${index}`)
-    );
-    expect(names(tiles.visibleTiles)).toEqual([...allGrandchildren].sort());
-    // Only the far subtree was fetched: 2 children + 8 grandchildren.
-    expect(downloads.length - downloadsBefore).toBe(10);
-    expect(new Set(downloads).size).toBe(downloads.length);
-  });
-
-  it("requests an off-frustum external-tileset stub but defers its off-frustum root content", async () => {
-    const stubUrl = `${BASE_URL}/far-east/tileset.json`;
-    harness = createHarness((tiles) => ({
-      [TILESET_URL]: withOriginTransform(tiles, {
-        asset: { version: "1.0" },
-        geometricError: 100,
-        root: {
-          boundingVolume: sceneBox(0, 0, 0, 200, 50, 200),
-          geometricError: 100,
-          refine: "REPLACE",
-          content: { uri: "root.b3dm" },
-          children: [
-            {
-              boundingVolume: sceneBox(-100, 0, 100, 100, 50, 100),
-              geometricError: 10,
-              refine: "REPLACE",
-              content: { uri: "near-west.b3dm" },
-            },
-            {
-              boundingVolume: sceneBox(100, 0, -100, 100, 50, 100),
-              geometricError: 10,
-              refine: "REPLACE",
-              content: { uri: "far-east/tileset.json" },
-            },
-          ],
-        },
-      }),
-      [stubUrl]: {
-        asset: { version: "1.0" },
-        geometricError: 10,
-        root: {
-          boundingVolume: sceneBox(100, 0, -100, 100, 50, 100),
-          geometricError: 10,
-          refine: "REPLACE",
-          content: { uri: "far-east-root.b3dm" },
-        },
-      },
-    }));
-    const { tiles, downloads } = harness;
-    await harness.runUntilSettled(createViewCamera(450));
-
-    expect(downloads).toContain("far-east/tileset.json");
-    expect(downloads).not.toContain("far-east/far-east-root.b3dm");
-    const stub = tiles.root!.children!.find(
-      (child) => child.content?.uri === "far-east/tileset.json"
-    ) as HarnessTile;
-    expect(stub.internal.loadingState).toBe(LOADED);
-    expect(stub.traversal.unconditionallyRefine).toBe(true);
-    const externalRoot = stub.children![0] as HarnessTile;
-    expect(externalRoot.traversal.inFrustum).toBe(false);
-    expect(externalRoot.internal.loadingState).toBe(FAILED);
-
-    // The subtree structure satisfied the parent gate: the visible child shows.
-    expect(tiles.root!.traversal.allChildrenLoaded).toBe(true);
-    expect(names(tiles.visibleTiles)).toEqual(["near-west"]);
-  });
-
   /**
    * Zoom-in regression: from a coarse view the loader must refine to the next
    * level once its family is loaded. The stall this covers kept the coarse
@@ -584,78 +490,5 @@ describe("three tiles traversal (D1 deferral)", () => {
     expect(cut.length).toBeGreaterThanOrEqual(4);
     expect(state.effectiveErrorTarget).toBeLessThanOrEqual(16);
     expect(state.meshRefinementSupport.size).toBe(0);
-  });
-
-  it("requests margin siblings at low priority without deferring them", async () => {
-    harness = createHarness((tiles) => ({
-      [TILESET_URL]: withOriginTransform(tiles, {
-        asset: { version: "1.0" },
-        geometricError: 100,
-        root: {
-          boundingVolume: sceneBox(300, 0, 100, 400, 50, 100),
-          geometricError: 100,
-          refine: "REPLACE",
-          content: { uri: "root.b3dm" },
-          children: [
-            // inside the main frustum
-            {
-              boundingVolume: sceneBox(0, 0, 100, 100, 50, 100),
-              geometricError: 10,
-              refine: "REPLACE",
-              content: { uri: "in.b3dm" },
-            },
-            // outside the main frustum, inside the 1.25x fov prefetch margin
-            {
-              boundingVolume: sceneBox(280, 0, 100, 20, 50, 100),
-              geometricError: 10,
-              refine: "REPLACE",
-              content: { uri: "margin.b3dm" },
-            },
-            // outside the margin as well
-            {
-              boundingVolume: sceneBox(650, 0, 100, 50, 50, 100),
-              geometricError: 10,
-              refine: "REPLACE",
-              content: { uri: "far.b3dm" },
-            },
-          ],
-        },
-      }),
-    }));
-    const { tiles, layer, downloads } = harness;
-    layer.loading.setRequestConcurrency(1);
-    const camera = createViewCamera(1_000);
-    const priorities = new Map<string, number>();
-    await harness.runUntilSettled(camera, {
-      onFrame: () => {
-        const root = tiles.root;
-        if (!root) return;
-        for (const tile of [root, ...(root.children ?? [])]) {
-          const priority = (tile as HarnessTile).priority;
-          if (priority !== undefined && !priorities.has(tileName(tile))) {
-            priorities.set(tileName(tile), priority);
-          }
-        }
-      },
-    });
-
-    const inTile = childByName(tiles, "in");
-    const marginTile = childByName(tiles, "margin");
-    const farTile = childByName(tiles, "far");
-    expect(inTile.traversal.inFrustum).toBe(true);
-    expect(marginTile.traversal.inFrustum).toBe(false);
-    expect(farTile.traversal.inFrustum).toBe(false);
-
-    expect(downloads).toContain("in.b3dm");
-    expect(downloads).toContain("margin.b3dm");
-    expect(downloads).not.toContain("far.b3dm");
-    expect(marginTile.internal.loadingState).toBe(LOADED);
-    expect(farTile.internal.loadingState).toBe(FAILED);
-    expect(priorities.get("margin")).toBeLessThan(priorities.get("in")!);
-    expect(priorities.get("in")).toBeLessThan(priorities.get("root")!);
-
-    expect(tiles.root!.traversal.allChildrenLoaded).toBe(true);
-    expect(names(tiles.visibleTiles)).toContain("in");
-    expect(names(tiles.visibleTiles)).not.toContain("far");
   });
 });

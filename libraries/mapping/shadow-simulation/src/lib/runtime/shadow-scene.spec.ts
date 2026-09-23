@@ -31,10 +31,8 @@ vi.mock("@carma-mapping/engines/maplibre", async () => {
       typeof import("../../../../engines/maplibre/src/lib/core/terrain-map-style")
     >("../../../../engines/maplibre/src/lib/core/terrain-map-style");
   const { meshShadowStageError } = await vi.importActual<
-    typeof import("../../../../engines/maplibre/src/lib/runtime/integrations/three-tiles-load-policy")
-  >(
-    "../../../../engines/maplibre/src/lib/runtime/integrations/three-tiles-load-policy"
-  );
+    typeof import("../../../../engines/maplibre/src/lib/core/mesh-error-policy")
+  >("../../../../engines/maplibre/src/lib/core/mesh-error-policy");
   const {
     claimStandaloneTerrain,
     hasStandaloneTerrain,

@@ -1,4 +1,10 @@
 // @vitest-environment jsdom
+import {
+  createTileCameraDemand,
+  snapshotTileCameraViews,
+  tileCameraViewsSignature,
+  TILE_CAMERA_ROLE,
+} from "../../core/tile-camera-demand";
 import type { Tile } from "3d-tiles-renderer/core";
 import * as THREE from "three";
 import { describe, expect, it, vi } from "vitest";
@@ -21,7 +27,7 @@ vi.hoisted(() => {
 describe("mesh caster publication", () => {
   it("retries negative proofs on publication and retains unaffected corridor proofs", () => {
     const onContentChanged = vi.fn();
-    const updateRootWorldBounds = vi.fn(() => false);
+    const updateRootWorldBounds = vi.fn(() => true);
     const state = createThreeTilesRuntimeState(
       "mesh",
       "mesh.json",
@@ -76,6 +82,42 @@ describe("mesh caster publication", () => {
       group: new THREE.Group(),
       markTileUsed: vi.fn(),
     } as unknown as RuntimeTilesRenderer;
+    const root = makeTile("root", -1, Infinity, true);
+    root.internal.hasRenderableContent = false;
+    root.internal.hasContent = false;
+    root.engineData.boundingVolume.getAABB = (target: THREE.Box3) =>
+      target.copy(
+        new THREE.Box3(
+          new THREE.Vector3(-1, -1, -1),
+          new THREE.Vector3(12, 2, 2)
+        )
+      );
+    root.children = [parent, otherParent];
+    parent.parent = otherParent.parent = root;
+    state.tiles.rootTileset = { root } as RuntimeTilesRenderer["rootTileset"];
+    state.committedMeshReceiverFrontier = new Set([parent, otherParent]);
+    state.committedMeshCasterFrontier = new Set([parent, otherParent]);
+    state.viewFrustumsReady = true;
+    const observer = new THREE.OrthographicCamera(-20, 20, 20, -20, 0.1, 100);
+    observer.position.z = 10;
+    const refreshObserver = () => {
+      const views = snapshotTileCameraViews([
+        {
+          id: "observer",
+          camera: observer,
+          viewport: [100, 100],
+          role: TILE_CAMERA_ROLE.RECEIVER,
+          errorTargetPixels: 1,
+        },
+      ]);
+      state.tileCameraDemand = createTileCameraDemand(views);
+      state.tileCameraSignature = tileCameraViewsSignature(views);
+    };
+    refreshObserver();
+    state.rootWorldBoundingBox.set(
+      new THREE.Vector3(-100, -100, -100),
+      new THREE.Vector3(100, 100, 100)
+    );
     let shadowErrorMultiplier = 1;
     const getTileScreenError = vi.fn(
       (tile: Tile, includeShadow = true) =>
@@ -95,6 +137,7 @@ describe("mesh caster publication", () => {
       applyRequestConcurrency: vi.fn(),
       notifyRequestStateChange: vi.fn(),
     });
+    api.captureShadowReceiverSources();
     api.advanceMeshShadowCorridors(
       new Set([parent, otherParent]),
       new Set([parent, otherParent])
@@ -112,10 +155,10 @@ describe("mesh caster publication", () => {
       new Set([receiver, otherChild])
     );
     expect(state.committedMeshCasterFrontier).toEqual(
-      new Set([parent, otherChild])
+      new Set([parent, receiver, otherChild])
     );
-    // A pending/failed child and repeated traversal must neither replace the
-    // parent in depth nor trigger another hard-shadow invalidation.
+    // Pending/failed children retain the conservative parent plus ready casters.
+    // An unchanged cut must not trigger another hard-shadow invalidation.
     onContentChanged.mockClear();
     for (const loadingState of [2, 3, -1]) {
       chimney.internal.loadingState = loadingState;
@@ -124,7 +167,7 @@ describe("mesh caster publication", () => {
         new Set([receiver, otherChild])
       );
       expect(state.committedMeshCasterFrontier).toEqual(
-        new Set([parent, otherChild])
+        new Set([parent, receiver, otherChild])
       );
       expect(onContentChanged).not.toHaveBeenCalled();
     }
@@ -189,11 +232,6 @@ describe("mesh caster publication", () => {
     // Sampling unchanged lighting must reuse the receiver spatial index;
     // changing observer pixel density or the requested SSE must not reuse it.
     updateRootWorldBounds.mockReturnValue(true);
-    state.viewFrustumsReady = true;
-    state.rootWorldBoundingBox.set(
-      new THREE.Vector3(-100, -100, -100),
-      new THREE.Vector3(100, 100, 100)
-    );
     // A displayed tile can beat the requested SSE. Caster admission must
     // still reach its actual LOD, including siblings needed by publication.
     receiver.traversal.error = 0.25;
@@ -220,6 +258,11 @@ describe("mesh caster publication", () => {
     expect(
       api.createReceiverSnapshot(new Set([otherChild, receiver]))?.mask
     ).toBe(snapshot.mask);
+    observer.position.x = 0.1;
+    refreshObserver();
+    expect(api.createReceiverSnapshot(frontier)?.mask).not.toBe(snapshot.mask);
+    observer.position.x = 0;
+    refreshObserver();
     shadowErrorMultiplier = 100;
     expect(api.createReceiverSnapshot(frontier)?.mask).toBe(snapshot.mask);
     expect(getTileScreenError).toHaveBeenCalledWith(receiver, false);
@@ -229,6 +272,17 @@ describe("mesh caster publication", () => {
     receiver.traversal.error = 1;
     state.requestedErrorTarget = 0.25;
     expect(api.createReceiverSnapshot(frontier)?.mask).not.toBe(snapshot.mask);
+
+    // A valid empty view clears the former corridor instead of retaining it.
+    state.committedMeshReceiverFrontier = new Set(frontier);
+    observer.position.x = 1000;
+    refreshObserver();
+    expect(api.captureShadowReceiverSources()).toBe("updated");
+    expect(state.shadowReceiverMask).toBeNull();
+    observer.position.x = 0;
+    refreshObserver();
+    expect(api.captureShadowReceiverSources()).toBe("updated");
+    expect(state.shadowReceiverMask).not.toBeNull();
 
     // Membership follows metadata intersection, not a previous traversal flag.
     const outside = makeTile("outside-corridor", 1000, 1, false);
@@ -246,7 +300,7 @@ describe("mesh caster publication", () => {
   });
 });
 
-describe("shadow view deferral", () => {
+describe("shadow view activation", () => {
   const build = (providesTerrain: boolean) => {
     const state = createThreeTilesRuntimeState(
       "mesh",
@@ -275,10 +329,11 @@ describe("shadow view deferral", () => {
     return { state, api, view };
   };
 
-  it("keeps the add-on's view pending until a mesh finished its initial base pass", () => {
+  it("activates caster demand before initial mesh coverage to avoid a receiver/caster wait cycle", () => {
     const { state, api, view } = build(true);
     api.setShadowView(view);
-    expect(state.shadowView).toBeNull();
+    expect(state.meshInitialBasePassDone).toBe(false);
+    expect(state.shadowView).toBe(view);
     expect(state.pendingShadowView).toBe(view);
     // Clearing never waits, and it drops the pending view too.
     api.setShadowView(null);

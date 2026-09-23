@@ -12,6 +12,7 @@ import {
   PHASE_SWEEP,
   drawDiagnosticText,
   compactDiagnosticTileId,
+  formatTileResidentBytes,
   type DiagnosticSnapshot,
 } from "./tile-diagnostic-scene";
 
@@ -188,6 +189,17 @@ describe("instanced tile diagnostics", () => {
       "1168775"
     );
   });
+  it.each([
+    [0, "0 B"],
+    [1023, "1023 B"],
+    [1024, "1 KiB"],
+    [1536, "1.5 KiB"],
+    [1024 ** 2, "1 MiB"],
+    [1024 ** 3, "1 GiB"],
+  ])("formats %d resident bytes as %s", (bytes, expected) => {
+    expect(formatTileResidentBytes(bytes)).toBe(expected);
+  });
+
   it("omits IDs that do not fit and suppresses overlapping labels", () => {
     const fillText = vi.fn();
     const context = {
@@ -224,7 +236,7 @@ describe("instanced tile diagnostics", () => {
       "14",
       "4260",
       "2733",
-      "≈20 kB",
+      "24 KiB",
     ]);
     fillText.mockClear();
     data.tiles = new Float32Array([...snapshot().tiles, ...snapshot().tiles]);
@@ -260,7 +272,7 @@ describe("instanced tile diagnostics", () => {
   });
 
   it("draws every processing step as its own wedge and the size as boxes", () => {
-    // A loaded tile of 20 kB whose first three steps cost 100, 50 and 50 ms.
+    // A loaded tile of 200 KiB whose first three steps cost 100, 50 and 50 ms.
     const state = snapshot();
     state.tiles = new Float32Array(
       tileRecord({ bytes: 200 * 1024, steps: [100, 50, 50], level: 12 })

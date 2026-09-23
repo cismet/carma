@@ -1,4 +1,10 @@
-import type { Tile } from "3d-tiles-renderer/core";
+import type {
+  ThreeTilesFrameRuntimeState,
+  ThreeTilesFrameDependencies,
+  ThreeTilesFrameHooks,
+} from "./three-tiles-runtime-frame-types";
+import { createThreeTilesFramePublication } from "./three-tiles-runtime-frame-publication";
+
 import * as THREE from "three";
 
 import { getCameraLocalMercatorFit } from "@carma-geo/proj";
@@ -11,152 +17,28 @@ import {
   TILE_MAIN_OBSERVER_ID,
   tileCameraViewsSignature,
 } from "../../core/tile-camera-demand";
-import type { createTileDrawObserver } from "./three-tiles-draw-observer";
-import {
-  idleRingAllowedError,
-  initialMeshLoadError,
-  TILE_MEMORY_ALLOCATION_ERROR,
-  TILES_LOAD_POLICY,
-} from "./three-tiles-load-policy";
-import {
-  collectLoadedMeshReceiverCandidates,
-  collectResidentAncestors,
-  getRetainedMeshAncestors,
-  retainMeshDetailFrontier,
-} from "./three-tiles-mesh-frontier";
-import type { createThreeTilesRuntimeAttachment } from "./three-tiles-runtime-attachment";
-import type { createThreeTilesCascade } from "./three-tiles-runtime-cascade";
-import type {
-  ThreeTilesRuntimeServices,
-  ThreeTilesRuntimeState,
-} from "./three-tiles-runtime-context";
+
+import { initialMeshLoadError } from "../../core/mesh-error-policy";
+import { TILE_MEMORY_ALLOCATION_ERROR } from "../../core/tile-cache-policy";
+
+import { getRetainedMeshAncestors } from "../../core/mesh-tile-retention";
+
+import type { ThreeTilesRuntimeServices } from "./three-tiles-runtime-context";
 import type { RuntimeLruCache, RuntimeTile } from "./three-tiles-runtime-types";
 import { getThreeTileDiagnosticSteps } from "./three-tiles-diagnostic-steps";
 import { resolveTileContentUrl } from "./three-tiles-runtime-vendor";
-import {
-  setTileDepthUnderlay,
-  setTileShadowRole,
-} from "./three-tiles-shadow-role";
+
 import {
   createTilesCameraSet,
   resolveTilesViewCamera,
 } from "./tiles-camera-set";
 
-export type ThreeTilesFrameState = {
-  retainedMeshAncestors: Set<Tile>;
-  reportedIncompleteFamilies: WeakSet<Tile>;
-  publishedContentRevision: number;
-  hasBootstrapPayload: boolean;
-  telemetryTiles: Set<Tile>;
-  telemetryDropped: number;
-};
+export type { ThreeTilesFrameState } from "./three-tiles-runtime-frame-types";
 
 export function createThreeTilesFrameUpdate(
-  runtimeState: Pick<
-    ThreeTilesRuntimeState,
-    | "allocationFailed"
-    | "cameraSet"
-    | "committedMeshCasterFrontier"
-    | "committedMeshReceiverFrontier"
-    | "currentToReference"
-    | "displayedMeshFrontier"
-    | "effectiveErrorTarget"
-    | "extentFloorArmed"
-    | "extentFloorAuditPending"
-    | "extentFloorInView"
-    | "extentFloorPending"
-    | "extentGeometricError"
-    | "lastLoadedViewportCutSize"
-    | "lastMainViewConverged"
-    | "lastRuntimeDebugAt"
-    | "lastTraversalMs"
-    | "loadingPaused"
-    | "mainViewIntersectionCache"
-    | "mainViewProjectionChanged"
-    | "map"
-    | "memoryAdmissionPaused"
-    | "memoryErrorTarget"
-    | "meshBaseCoverageReady"
-    | "meshInitialHandoverDone"
-    | "meshCoverageRecovery"
-    | "meshContentRevision"
-    | "meshDemandSweepPending"
-    | "meshUnderlayFrontier"
-    | "motionCoverageDue"
-    | "offsetGroup"
-    | "options"
-    | "orientationGroup"
-    | "originLngLat"
-    | "pendingShadowView"
-    | "queuedThisTraversal"
-    | "referenceToCurrent"
-    | "requestedErrorTarget"
-    | "residentAncestors"
-    | "ringRefinePasses"
-    | "runtimeVisible"
-    | "shadowReceiverMask"
-    | "shadowSelectionEnabled"
-    | "shadowSelectionNeedsTraversal"
-    | "shadowView"
-    | "tileBoundsVisible"
-    | "tileCameraDemand"
-    | "tileCameraSignature"
-    | "tileViewProjection"
-    | "tiles"
-    | "viewQualityAuditPasses"
-  >,
-  dependencies: Pick<
-    ThreeTilesRuntimeServices,
-    | "advanceMeshShadowCorridors"
-    | "applyEffectiveErrorTarget"
-    | "applyErrorTargetPolicy"
-    | "applyRequestConcurrency"
-    | "applyTilesetMinResolution"
-    | "assignTilePriority"
-    | "getTileCameraDemand"
-    | "isTileNeededForMeshCoverage"
-    | "getTileDebugProgress"
-    | "recordTileWait"
-    | "drainTileWaitEvents"
-    | "beginTileWaitObservation"
-    | "endTileWaitObservation"
-    | "getTileRingIndex"
-    | "getTileScreenError"
-    | "invalidateShadowRegionRevisions"
-    | "isTileInMainView"
-    | "getTileObserverDemand"
-    | "mainViewConverged"
-    | "mainViewWithinErrorFactor"
-    | "maybeEnableShadowSelection"
-    | "maybeFinalizeShadowSelection"
-    | "measureUsedBytesMain"
-    | "notifyRequestStateChange"
-    | "prepareViewFrustums"
-    | "prioritizeQueuedTiles"
-    | "readModelFrameBounds"
-    | "recordCacheCeilingFailure"
-    | "resetDeferredTiles"
-    | "runDownloadQueues"
-    | "scheduleSettledMeshAudit"
-    | "sweepSettledMeshDemand"
-    | "syncProjector"
-    | "syncTileDebugOverlay"
-  >,
-  hooks: {
-    frameState: ThreeTilesFrameState;
-    attachment: ReturnType<typeof createThreeTilesRuntimeAttachment>;
-    drawObserver: ReturnType<typeof createTileDrawObserver>;
-    motionPrefetch: ReturnType<
-      typeof createThreeTilesCascade
-    >["motionPrefetch"];
-    abortStaleDownloads: () => void;
-    refineRingCascade: () => void;
-    scheduleCascadeTick: () => void;
-    isTileInAnyView: (tile: RuntimeTile) => boolean;
-    localTelemetry: boolean;
-    telemetryCenter: THREE.Vector3;
-    telemetrySphere: THREE.Sphere;
-  }
+  runtimeState: ThreeTilesFrameRuntimeState,
+  dependencies: ThreeTilesFrameDependencies,
+  hooks: ThreeTilesFrameHooks
 ) {
   const {
     frameState,
@@ -171,7 +53,11 @@ export function createThreeTilesFrameUpdate(
     telemetryCenter,
     telemetrySphere,
   } = hooks;
-  let publishedNativeFrontier = new Set<Tile>();
+  const publishFrame = createThreeTilesFramePublication(
+    runtimeState,
+    dependencies,
+    hooks
+  );
   const cameraMount = new THREE.Group();
   cameraMount.matrixAutoUpdate = false;
   const mountAxisFlip = new THREE.Matrix4().makeRotationY(Math.PI);
@@ -277,7 +163,8 @@ export function createThreeTilesFrameUpdate(
         ? runtimeState.effectiveErrorTarget
         : runtimeState.requestedErrorTarget;
       // Decision: TILES_COVERAGE.md#motion-preserves-visible-detail
-      let allowInViewCoarsening = runtimeState.map.isMoving?.() !== true;
+      // A relaxed motion or memory target controls new admissions only.
+      const allowInViewCoarsening = false;
       const tileCamerasChanged =
         cameraSignature !== runtimeState.tileCameraSignature;
       if (tileCamerasChanged) {
@@ -296,7 +183,6 @@ export function createThreeTilesFrameUpdate(
         runtimeState.displayedMeshFrontier.size > 0 &&
         !!root &&
         dependencies.isTileNeededForMeshCoverage(root);
-      allowInViewCoarsening &&= !runtimeState.meshCoverageRecovery;
       const viewportBootstrap =
         runtimeState.options.providesTerrain === true &&
         (!runtimeState.meshInitialHandoverDone ||
@@ -312,28 +198,10 @@ export function createThreeTilesFrameUpdate(
         runtimeState.tiles.parseQueue.scheduleJobRun();
         dependencies.runDownloadQueues();
       }
+      // Native ancestor loading implicitly requests off-frustum siblings.
+      // Our bounded first-image selection owns fallback coverage instead.
       if (runtimeState.options.providesTerrain)
-        // Decision: ../../../../TILES_COVERAGE.md#viewport-only-cold-replacement-families
-        // Native ancestor loading implicitly enables offscreen sibling requests.
-        // During cold fill the bounded first-image pass supplies the fallback.
-        runtimeState.tiles.loadAncestors =
-          !viewportBootstrap &&
-          (!Number.isFinite(runtimeState.options.baseErrorTargetPixels) ||
-            (!runtimeState.shadowView &&
-              !frameState.hasBootstrapPayload &&
-              !runtimeState.extentFloorArmed &&
-              runtimeState.displayedMeshFrontier.size === 0));
-      // Ancestor motion admits bounded coverage audits; skip strategy publishes
-      // arriving tiles during motion. Both keep the last complete displayed cut.
-      if (
-        runtimeState.options.providesTerrain &&
-        runtimeState.map.isMoving?.() &&
-        runtimeState.tiles.loadAncestors &&
-        !Number.isFinite(runtimeState.options.baseErrorTargetPixels)
-      ) {
-        if (!runtimeState.motionCoverageDue) return;
-        runtimeState.motionCoverageDue = false;
-      }
+        runtimeState.tiles.loadAncestors = false;
       const cameraWorld = viewCamera.matrixWorld.elements;
       const distanceToViewCenter = Math.hypot(
         cameraWorld[12] - frame.lookTarget.x,
@@ -409,331 +277,13 @@ export function createThreeTilesFrameUpdate(
         runtimeState.tiles.stats.downloading === 0
       )
         dependencies.runDownloadQueues();
-      // Snapshot the native cut before adding retained/offscreen coverage.
-      const traversalFrontier = new Set(runtimeState.tiles.visibleTiles);
-      if (
-        runtimeState.options.providesTerrain &&
-        runtimeState.displayedMeshFrontier.size === 0
-      ) {
-        // Bootstrap is a request ceiling, not permission to discard a finer
-        // complete cut that native traversal already has ready for first draw.
-        frameState.retainedMeshAncestors = getRetainedMeshAncestors(
-          traversalFrontier,
-          retainedDetailErrorTarget,
-          isTileInAnyView,
-          dependencies.getTileScreenError,
-          allowInViewCoarsening
-        );
-      }
-      // View changes do not invalidate sun corridors; content changes invalidate
-      // intersecting regions, while placement/sun changes invalidate all.
-      if (runtimeState.tiles.frameCount !== previousTraversal)
-        runtimeState.mainViewIntersectionCache = new WeakMap();
-      if (!runtimeState.options.providesTerrain) {
-        const changedBounds: THREE.Box3[] = [];
-        let unknownBounds = false;
-        for (const tile of new Set([
-          ...publishedNativeFrontier,
-          ...traversalFrontier,
-        ])) {
-          if (publishedNativeFrontier.has(tile) === traversalFrontier.has(tile))
-            continue;
-          const model = (tile as RuntimeTile).engineData?.scene;
-          const bounds =
-            model && dependencies.readModelFrameBounds(model, new THREE.Box3());
-          if (bounds && !bounds.isEmpty()) changedBounds.push(bounds);
-          else unknownBounds = true;
-        }
-        if (unknownBounds || changedBounds.length) {
-          // Loaded payloads can become visible without another load-model event.
-          // Recheck only changed corridors when the native published cut changes.
-          dependencies.invalidateShadowRegionRevisions(
-            unknownBounds ? undefined : changedBounds
-          );
-          runtimeState.options.onContentChanged?.(
-            unknownBounds ? undefined : changedBounds
-          );
-        }
-        publishedNativeFrontier = traversalFrontier;
-        // LOD2 receiver/caster roles follow the observer, not the sun camera.
-        for (const tile of traversalFrontier) {
-          const model = (tile as RuntimeTile).engineData?.scene;
-          if (model)
-            setTileShadowRole(model, {
-              receiver: dependencies.isTileInMainView(tile as RuntimeTile),
-              caster: true,
-            });
-        }
-      }
-      if (
-        runtimeState.options.providesTerrain &&
-        runtimeState.tiles.rootTileset?.root &&
-        (runtimeState.meshContentRevision !==
-          frameState.publishedContentRevision ||
-          runtimeState.tiles.frameCount !== previousTraversal ||
-          runtimeState.mainViewProjectionChanged ||
-          completingShadowTraversal)
-      ) {
-        dependencies.beginTileWaitObservation();
-        const support = new Set<Tile>();
-        const unpreparedParents = new Set<Tile>();
-        // Multi-camera screen errors are demand ratios normalized to the
-        // effective target. Comparing them to the raw requested target would
-        // refine again by the staging factor and churn the resident cut.
-        const receiverErrorTarget =
-          runtimeState.options.handoverErrorTargetPixels === undefined &&
-          runtimeState.shadowView &&
-          runtimeState.tileCameraDemand.views.length <= 1
-            ? Math.max(
-                runtimeState.requestedErrorTarget,
-                runtimeState.memoryErrorTarget
-              )
-            : runtimeState.effectiveErrorTarget;
-        const loadedViewportCut = collectLoadedMeshReceiverCandidates(
-          runtimeState.tiles.rootTileset.root,
-          runtimeState.meshCoverageRecovery
-            ? Math.max(
-                receiverErrorTarget,
-                runtimeState.options.firstImageErrorTargetPixels ??
-                  TILES_LOAD_POLICY.firstImageMaxErrorPixels
-              )
-            : receiverErrorTarget,
-          runtimeState.shadowView
-            ? Number.POSITIVE_INFINITY
-            : Math.max(
-                initialMeshLoadError(
-                  runtimeState.requestedErrorTarget,
-                  runtimeState.options.baseErrorTargetPixels
-                ),
-                runtimeState.memoryErrorTarget
-              ),
-          inReceiverView,
-          dependencies.getTileScreenError,
-          undefined,
-          undefined,
-          (tile, support) =>
-            (!support &&
-              !dependencies.isTileInMainView(tile as RuntimeTile) &&
-              !dependencies.getTileCameraDemand(tile as RuntimeTile)
-                .receiver) ||
-            attachment.isDeferredMaterialReady(tile),
-          frameState.retainedMeshAncestors,
-          {
-            published: runtimeState.displayedMeshFrontier,
-            // Hard shadows use the currently committed LOD. Only coverage,
-            // not first-image pixel error, is a prerequisite for that draw.
-            allowCoarseBootstrap: runtimeState.pendingShadowView !== null,
-            firstImageErrorTargetPixels:
-              runtimeState.options.firstImageErrorTargetPixels,
-            completeOffscreenFamilies: !viewportBootstrap,
-            support,
-            unpreparedParents,
-            onWait:
-              runtimeState.options.diagnostics &&
-              runtimeState.options.tileTelemetry !== false
-                ? (tile, reason, blocker) =>
-                    dependencies.recordTileWait(
-                      tile,
-                      "receiver",
-                      reason,
-                      blocker
-                    )
-                : undefined,
-            // Decision: SHADOW-RECEIVER-COVERAGE-20260921 in TILES_COVERAGE.md.
-            // Shadows may refine their caster cut separately, but colour must
-            // keep a ready parent until all required replacement branches draw.
-            atomic:
-              viewportBootstrap ||
-              !runtimeState.shadowView ||
-              runtimeState.displayedMeshFrontier.size > 0,
-            onIncompletePublishedFamily: (parent) => {
-              if (
-                !runtimeState.options.diagnostics ||
-                frameState.reportedIncompleteFamilies.has(parent)
-              )
-                return;
-              frameState.reportedIncompleteFamilies.add(parent);
-              // The missing siblings join the refinement support below and
-              // are re-requested at repair priority; nothing is lost.
-              console.warn(
-                "[tiles3d] Published REPLACE family incomplete; re-requesting siblings",
-                parent.content?.uri
-              );
-            },
-          }
-        );
-        attachment.updateMeshRefinementSupport(support, unpreparedParents);
-        abortStaleDownloads();
-        runtimeState.lastLoadedViewportCutSize = loadedViewportCut.size;
-        runtimeState.displayedMeshFrontier = retainMeshDetailFrontier({
-          previous: runtimeState.displayedMeshFrontier,
-          proposed: loadedViewportCut,
-          requestedError: runtimeState.shadowView
-            ? receiverErrorTarget
-            : retainedDetailErrorTarget,
-          inView: inReceiverView,
-          allowInViewCoarsening,
-          errorPixels: dependencies.getTileScreenError,
-          acceptsOffscreenFallback: runtimeState.shadowView
-            ? undefined
-            : (tile) => {
-                if (!attachment.isDeferredMaterialReady(tile)) return false;
-                // Reuse reserve demand for coarsening as well as loading. A
-                // nearby offscreen branch must not jump straight to the root.
-                // These bands select tree levels, not independent ring meshes.
-                if (
-                  runtimeState.extentGeometricError > 0 &&
-                  tile.children.some(
-                    (child) =>
-                      child.geometricError >= runtimeState.extentGeometricError
-                  )
-                )
-                  return false;
-                const band = dependencies.getTileRingIndex(tile as RuntimeTile);
-                if (
-                  band <= 0 ||
-                  !(tile as RuntimeTile).engineData?.boundingVolume
-                )
-                  return false;
-                const projected = {
-                  inView: false,
-                  error: Infinity,
-                  distanceFromCamera: Infinity,
-                };
-                // Outside demand frustums the clipped error is undefined. The
-                // vendor's camera metric is used ONLY for this background cut.
-                runtimeState.tiles!.calculateTileViewError(tile, projected);
-                return (
-                  projected.error <=
-                  idleRingAllowedError(
-                    initialMeshLoadError(
-                      runtimeState.requestedErrorTarget,
-                      runtimeState.options.baseErrorTargetPixels
-                    ),
-                    band,
-                    runtimeState.ringRefinePasses,
-                    runtimeState.requestedErrorTarget
-                  )
-                );
-              },
-        });
-        collectResidentAncestors(
-          runtimeState.displayedMeshFrontier,
-          runtimeState.extentGeometricError,
-          runtimeState.residentAncestors
-        );
-        if (runtimeState.shadowView) {
-          dependencies.advanceMeshShadowCorridors(
-            runtimeState.displayedMeshFrontier,
-            traversalFrontier
-          );
-        }
-        const displayed = runtimeState.shadowView
-          ? new Set([
-              ...runtimeState.committedMeshReceiverFrontier,
-              ...runtimeState.committedMeshCasterFrontier,
-              ...[...runtimeState.displayedMeshFrontier].filter(
-                (tile) =>
-                  dependencies.getTileCameraDemand(tile as RuntimeTile).required
-              ),
-            ])
-          : new Set(runtimeState.displayedMeshFrontier);
-        // A complete replacement cut owns publication. Never draw a parent
-        // underneath partial children: keep that parent as the surface instead.
-        const previousUnderlay = runtimeState.meshUnderlayFrontier;
-        runtimeState.meshUnderlayFrontier = new Set();
-        const underlay = runtimeState.meshUnderlayFrontier;
-        const mountedModels = new Set(runtimeState.tiles.group.children);
-        for (const tile of new Set([
-          ...traversalFrontier,
-          ...displayed,
-          ...underlay,
-          ...previousUnderlay,
-        ])) {
-          // Atomic publication, without fades; preserve the layer opacity.
-          const isUnderlay = underlay.has(tile);
-          const visible = displayed.has(tile) || isUnderlay;
-          const model = (tile as RuntimeTile).engineData?.scene;
-          if (
-            visible &&
-            runtimeState.options.diagnostics &&
-            runtimeState.options.tileTelemetry !== false
-          ) {
-            const progress = dependencies.getTileDebugProgress(tile);
-            const receiver = !runtimeState.shadowView
-              ? dependencies.isTileInMainView(tile as RuntimeTile)
-              : runtimeState.committedMeshReceiverFrontier.has(tile);
-            if (receiver)
-              dependencies.recordTileWait(
-                tile,
-                "receiver",
-                progress.visibleAt === undefined ? "render" : null
-              );
-            if (
-              runtimeState.shadowView &&
-              runtimeState.committedMeshCasterFrontier.has(tile)
-            )
-              dependencies.recordTileWait(
-                tile,
-                "shadow",
-                progress.shadowPresentedAt !== undefined
-                  ? null
-                  : progress.shadowDepthSubmittedAt === undefined
-                  ? "shadow-render"
-                  : "shadow-accumulation"
-              );
-          }
-          if (model) {
-            // The receiver flag also gates colour and depth writes, so a mesh
-            // tile outside the corridor's committed cut would draw its plain
-            // surface over the corridor's shadowed pass. A terrain-providing
-            // runtime therefore keeps the corridor's own receiver and caster
-            // sets while a shadow view is active; every other runtime, LoD2
-            // among them, simply shows and receives what the view draws.
-            const corridorOwned =
-              runtimeState.shadowView !== null &&
-              runtimeState.options.providesTerrain;
-            setTileShadowRole(model, {
-              receiver: corridorOwned
-                ? runtimeState.committedMeshReceiverFrontier.has(tile)
-                : visible && dependencies.isTileInMainView(tile as RuntimeTile),
-              caster: corridorOwned
-                ? runtimeState.committedMeshCasterFrontier.has(tile) ||
-                  dependencies.getTileCameraDemand(tile as RuntimeTile).required
-                : displayed.has(tile),
-            });
-            setTileDepthUnderlay(
-              model,
-              isUnderlay,
-              runtimeState.extentFloorInView.has(tile) ? -2 : -1
-            );
-          }
-          // Decision: MESH-PUBLICATION-REPAIR-20260916 in TILES_COVERAGE.md.
-          // Active-only models may have group as parent WITHOUT being children.
-          // A visibility-set entry alone must not suppress reattachment on pan.
-          if (visible) {
-            runtimeState.tiles.markTileUsed(tile);
-          }
-          const mounted =
-            !!model &&
-            model.parent === runtimeState.tiles.group &&
-            mountedModels.has(model);
-          if (
-            visible === runtimeState.tiles.visibleTiles.has(tile) &&
-            (!visible || (mounted && runtimeState.tiles.activeTiles.has(tile)))
-          )
-            continue;
-          runtimeState.tiles.setTileActive(tile, visible);
-          runtimeState.tiles.setTileVisible(tile, visible);
-          const traversal = (tile as RuntimeTile).traversal;
-          traversal.active = visible;
-          traversal.visible = visible;
-          traversal.wasSetActive = visible;
-          traversal.wasSetVisible = visible;
-        }
-        dependencies.endTileWaitObservation();
-        frameState.publishedContentRevision = runtimeState.meshContentRevision;
-      }
+      publishFrame({
+        previousTraversal,
+        retainedDetailErrorTarget,
+        allowInViewCoarsening,
+        completingShadowTraversal,
+        inReceiverView,
+      });
       if (
         runtimeState.meshCoverageRecovery &&
         root &&

@@ -328,7 +328,7 @@ export {
   unregisterGenericThreeLayer,
 } from "./lib/runtime/integrations/generic-three-layer-registry";
 export type { ThreeTilesLayer } from "./lib/runtime/integrations/three-tiles-layer";
-export { meshShadowStageError } from "./lib/runtime/integrations/three-tiles-load-policy";
+export { meshShadowStageError } from "./lib/core/mesh-error-policy";
 export {
   THREE_TILES_LAYER_TYPE,
   THREE_TILES_SHADER_KIND,
@@ -380,6 +380,7 @@ export type {
   OverlayRect as TileDiagnosticRect,
   OverlayModel as TileDiagnosticModel,
 } from "./lib/core/diagnostics/tile-diagnostic-model";
+export { formatTileResidentBytes } from "./lib/core/diagnostics/tile-diagnostic-scene";
 export type { DiagnosticView as TileDiagnosticView } from "./lib/core/diagnostics/tile-diagnostic-scene";
 export type { TileDiagnosticOverlayInput } from "./lib/runtime/diagnostics/tile-diagnostic-overlay";
 export type {

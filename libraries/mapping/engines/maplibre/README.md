@@ -38,7 +38,10 @@ the way a fully declared one does:
 The bundled `mesh2024-cesium-parity.style.json` copies in the geoportal and the
 stories are the reference for the 2024 mesh. They declare only what differs
 from the defaults or carries data: the tuned base target of 12 px, the
-standalone basemap, the colour grading and the entry hint.
+standalone basemap, the colour grading and the entry hint. Both copies use the
+primary `WUPP_MESH_2024` endpoint on `wupp-3d-data.cismet.de`, matching
+Cesium and its gzip delivery of B3DM responses. The alternate MeshX host
+serves the sampled payloads without HTTP compression.
 
 ## Shared-canvas camera views — SHARED-CANVAS-VIEWS-20260916
 
@@ -94,47 +97,22 @@ live-view limitations: [corridor performance report](../../shadow-simulation/thr
 
 ## Linked receiver/caster detail
 
-Caster admission now follows the displayed receiver geometry, and receiver
-pixel density excludes prior shadow demand; see the
-[admission and feedback correction](./TILES_COVERAGE.md#caster-lod-follows-displayed-receivers).
+Observer receivers and shadow-corridor casters now use the same progressive
+selection. Ready children are published immediately over a retained coarse
+fallback, independently in each demand domain. Out-of-frustum siblings are not
+required. Parent display draws first without depth writes; a parent remains a
+conservative shadow caster until the required light-frustum branches cover it.
 
+The displayed receiver cut still supplies a minimum-detail ancestor closure
+for caster refinement. Both roles reference the same native tile resources.
+Changed caster geometry invalidates affected hard/soft captures; unchanged
+geometry and sun placement retain reusable masks. Admission follows displayed
+receiver geometry and excludes prior shadow demand from its pixel density.
 
-- **Anchor / date / status:** `#linked-receivercaster-detail`, 2026-09-10;
-  implemented, uncommitted; full live-view convergence remains unverified.
-- **Context and constraints:** Fine visible mesh tiles could receive shadows
-  from a coarser retained parent despite all required children being resident.
-  The caster selector stopped at a parent meeting its own SSE, independent of
-  the published receiver cut. Completed in-memory solar masks also ignored a
-  changed caster geometry revision at unchanged sun/receiver/buffer dimensions.
-- **Decision:** The receiver cut now supplies a minimum-detail ancestor closure
-  to the existing caster-family selector. Meeting caster SSE cannot terminate
-  above displayed descendants. Missing corridor-intersecting children still
-  retain the parent atomically; complete families replace it using the same
-  native Tile/Object3D/BufferGeometry resources as display. Sets describe roles,
-  not separate loaded assets; no new loader, scene clone or geometry cache.
-  Captures retain a dedicated committed-caster revision, separate from observer
-  allocation. Changed geometry schedules a fresh hard capture and then soft
-  integration; the prior mask remains drawable only until that replacement.
-  Same-geometry camera movement and smaller buffer demand remain reusable.
-- **Alternatives and disposition:** Always casting parent plus partial children
-  is **incompatible by inspection** with the no-hybrids/consistent depth rule.
-  Removing a parent before its required offscreen siblings load is **incompatible
-  by inspection** with chimney continuity. Reloading/cloning visible geometry
-  into a second caster pool is **not needed**: both roles reference native tile
-  instances already. A separate GPU-worker copy is **deferred**, as described in
-  `CORRIDOR_WORKERS_REVIEW.md`; this change does not claim zero-copy GPU contexts.
-- **Evidence:** 64 focused frontier/publication/role tests and 98 presentation/
-  tiled-renderer tests pass. Regression fixture: parent SSE0.5px, target1px,
-  already-displayed children and a pending offscreen chimney; retain parent
-  while pending, replace with identical resident child objects when complete,
-  issue only the affected publication invalidation. Mask fixture verifies
-  camera reuse, geometry-change invalidation, old-mask continuity, hard
-  replacement and subsequent new soft completion. Internal browser retains
-  Mesh2024 and the shadow addon; only pre-existing Matomo console errors observed.
-  No timed before/after or memory benchmark; no end-to-end speedup claimed.
-- **Revisit when:** A complete family still keeps a coarse caster or an old
-  soft mask; inspect the committed tile cut and geometry fingerprint separately
-  from buffer resolution. Atomic fallback rationale remains in the next record.
+The current contract, test inventory and superseded family rules are recorded
+in [Progressive receiver overlays](./TILES_COVERAGE.md#progressive-receiver-overlays).
+The following investigations retain historical evidence, not the former
+requirement to wait for whole families before displaying ready children.
 
 ## Caster replacement investigation — CASTER-FAMILY-HANDOVER-20260909
 

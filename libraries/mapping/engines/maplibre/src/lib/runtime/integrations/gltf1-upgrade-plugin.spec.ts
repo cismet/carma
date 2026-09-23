@@ -169,7 +169,8 @@ describe("glTF 1 b3dm upgrade", () => {
       .spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(new Response(source, { status: 200 }))
       .mockResolvedValueOnce(new Response("plain", { status: 200 }));
-    const plugin = new Gltf1UpgradePlugin();
+    const onBody = vi.fn();
+    const plugin = new Gltf1UpgradePlugin({ onBody });
 
     const upgraded = await plugin.fetchData("tile.b3dm", {});
     const plain = await plugin.fetchData("tile.json", {});
@@ -179,5 +180,10 @@ describe("glTF 1 b3dm upgrade", () => {
     ).toBe(2);
     expect(await plain.text()).toBe("plain");
     expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(onBody).toHaveBeenCalledTimes(1);
+    expect(onBody).toHaveBeenCalledWith(
+      "tile.b3dm",
+      source.byteLength
+    );
   });
 });

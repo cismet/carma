@@ -18,7 +18,7 @@ import type {
   SharedThreeShadowRegionDiagnostics,
 } from "../../core/shared-three-scene-types";
 import type { createThreeTilesDebugOverlay } from "./three-tiles-debug-overlay";
-import type { EffectiveErrorTargetState } from "./three-tiles-load-policy";
+import type { EffectiveErrorTargetState } from "../../core/effective-error-target";
 import {
   getCacheCeilingStorage,
   readCacheCeilingMemory,
@@ -26,14 +26,14 @@ import {
   startCacheCeilingSession,
   writeCacheCeilingMemory,
 } from "./three-tiles-cache-ceiling-memory";
+import { createEffectiveErrorTargetState } from "../../core/effective-error-target";
+import { createTileBytesPredictor } from "./three-tiles-byte-prediction";
 import {
-  createEffectiveErrorTargetState,
-  createTileBytesPredictor,
   initialMeshLoadError,
-  resolveTilesCacheCeiling,
-  TILES_LOAD_POLICY,
   resolveExtentGeometricError,
-} from "./three-tiles-load-policy";
+} from "../../core/mesh-error-policy";
+import { resolveTilesCacheCeiling } from "../../core/tile-cache-policy";
+import { TILES_LOAD_POLICY } from "../../core/tile-load-config";
 import {
   createThreeTilesRetryController,
   type RetryableTilesRenderer,
@@ -151,7 +151,6 @@ export function createThreeTilesRuntimeState(
   const contextLost = false;
   const meshAuditTimer: ReturnType<typeof setTimeout> | null = null;
   const motionCoverageTimer: ReturnType<typeof setTimeout> | null = null;
-  const motionCoverageDue = false;
   const meshBaseCoverageReady = false;
   const meshDemandSweepPending = options.providesTerrain === true;
   const lastMemoryCheck = Number.NEGATIVE_INFINITY;
@@ -384,7 +383,6 @@ export function createThreeTilesRuntimeState(
     contextLost,
     meshAuditTimer,
     motionCoverageTimer,
-    motionCoverageDue,
     meshBaseCoverageReady,
     meshCoverageRecovery: false,
     meshInitialReserveSettled: false,

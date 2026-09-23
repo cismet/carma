@@ -1,35 +1,25 @@
-import { TilesRenderer } from "3d-tiles-renderer";
+import { notifyTileResponse } from "./tile-response-observers";
 import { type Tile } from "3d-tiles-renderer/core";
 
 import {
-  resolveTileDownloadConcurrency,
-  resolveTileParseConcurrency,
-} from "../../core/tile-scheduling-policy";
-import { isSharedThreeTerrainLoading } from "./shared-three-terrain-registry";
-import {
   DEFERRED_TILE_LOADING_STATE,
   deriveTilePriority,
+  shouldDeferTile,
+} from "../../core/tile-request-policy";
+import {
   initialMeshLoadError,
   isExtentFloorTile,
-  resolveRequestConcurrency,
-  shouldDeferTile,
-} from "./three-tiles-load-policy";
-import { hasDisplayedAncestor } from "./three-tiles-mesh-frontier";
+} from "../../core/mesh-error-policy";
+import { hasDisplayedAncestor } from "../../core/mesh-tile-coverage";
 import { createThreeTilesCache } from "./three-tiles-runtime-cache";
-import {
-  MESH_DOWNLOAD_CONCURRENCY,
-  MESH_MOTION_DOWNLOAD_CONCURRENCY,
-  MESH_MOTION_PARSE_CONCURRENCY,
-  MESH_PARSE_BACKLOG_HARD_LIMIT,
-  MESH_PARSE_BACKLOG_SOFT_LIMIT,
-  TERRAIN_LOADING_CONTENT_BOOTSTRAP_CONCURRENCY,
-} from "./three-tiles-runtime-config";
 import type {
   ThreeTilesRuntimeServices,
   ThreeTilesRuntimeState,
 } from "./three-tiles-runtime-context";
 import { createTilesetMinResolutionService } from "./three-tiles-runtime-floor";
 import { createThreeTilesQuality } from "./three-tiles-runtime-quality";
+import { createThreeTilesRequestActivity } from "./three-tiles-runtime-request-activity";
+import { createThreeTilesRequestConcurrency } from "./three-tiles-runtime-request-concurrency";
 import type {
   RuntimePriorityQueue,
   RuntimeTile,
@@ -76,6 +66,7 @@ export function createThreeTilesLoading(
     | "extentFloorPending"
     | "extentFloorAuditPending"
     | "displayedMeshFrontier"
+    | "committedMeshCasterFrontier"
     | "meshRefinementSupport"
     | "ceilingBytes"
     | "cacheCeilingStorage"
@@ -167,110 +158,18 @@ export function createThreeTilesLoading(
           )
         : runtimeState.requestedErrorTarget;
 
-  const requestRender: ThreeTilesRuntimeServices["requestRender"] = () =>
-    runtimeState.map?.triggerRepaint();
-
-  const getDownloadQueues: ThreeTilesRuntimeServices["getDownloadQueues"] =
-    (): RuntimePriorityQueue[] =>
-      runtimeState.tiles
-        ? [...runtimeState.tiles.downloadQueue.originQueues.values()].map(
-            (queue) => queue as RuntimePriorityQueue
-          )
-        : [];
-
-  const runDownloadQueues: ThreeTilesRuntimeServices["runDownloadQueues"] =
-    () => {
-      for (const queue of getDownloadQueues()) queue.tryRunJobs();
-    };
-
-  const clearErrorTargetTimer: ThreeTilesRuntimeServices["clearErrorTargetTimer"] =
-    () => {
-      if (runtimeState.errorTargetTimer) {
-        window.clearTimeout(runtimeState.errorTargetTimer);
-        runtimeState.errorTargetTimer = 0;
-      }
-    };
-
-  const clearKickstartTimer: ThreeTilesRuntimeServices["clearKickstartTimer"] =
-    () => {
-      if (runtimeState.kickstartTimer) {
-        window.clearInterval(runtimeState.kickstartTimer);
-        runtimeState.kickstartTimer = 0;
-      }
-    };
-
-  const clearHiddenWipeTimer: ThreeTilesRuntimeServices["clearHiddenWipeTimer"] =
-    () => {
-      if (runtimeState.hiddenWipeTimer) {
-        window.clearTimeout(runtimeState.hiddenWipeTimer);
-        runtimeState.hiddenWipeTimer = 0;
-      }
-    };
-
-  const getRequestDemand: ThreeTilesRuntimeServices["getRequestDemand"] =
-    () => {
-      if (runtimeState.disposed || !runtimeState.runtimeVisible) return 0;
-      if (!runtimeState.tiles) return 1;
-      const downloadDemand = getDownloadQueues().reduce(
-        (total, queue) => total + queue.items.length + queue.currJobs,
-        0
-      );
-      const processNodeQueue = runtimeState.tiles
-        .processNodeQueue as typeof runtimeState.tiles.processNodeQueue & {
-        items: unknown[];
-        currJobs: number;
-      };
-      const stats = (
-        runtimeState.tiles as TilesRenderer & {
-          stats?: { queued?: number; downloading?: number; parsing?: number };
-        }
-      ).stats;
-      return (
-        downloadDemand +
-        processNodeQueue.items.length +
-        processNodeQueue.currJobs +
-        (stats?.queued ?? 0) +
-        (stats?.downloading ?? 0) +
-        (stats?.parsing ?? 0) +
-        (runtimeState.shadowView && !runtimeState.shadowSelectionEnabled
-          ? 1
-          : 0) +
-        (runtimeState.shadowSelectionNeedsTraversal ? 1 : 0) +
-        (runtimeState.tileRetries.hasPendingRetries() ? 1 : 0) +
-        runtimeState.viewQualityAuditPasses +
-        (runtimeState.tiles.group.children.length === 0 &&
-        !runtimeState.tileRetries.hasExhaustedRetries()
-          ? 1
-          : 0)
-      );
-    };
-
-  const notifyRequestStateChange: ThreeTilesRuntimeServices["notifyRequestStateChange"] =
-    () => {
-      const requestDemand = getRequestDemand();
-      if (requestDemand === runtimeState.lastNotifiedRequestDemand) return;
-      runtimeState.lastNotifiedRequestDemand = requestDemand;
-      runtimeState.options.onRequestStateChange?.();
-    };
-
-  const isPipelineIdle: ThreeTilesRuntimeServices["isPipelineIdle"] = () =>
-    runtimeState.tiles !== null &&
-    !runtimeState.tiles.downloadQueue.running &&
-    !runtimeState.tiles.parseQueue.running &&
-    !runtimeState.tiles.processNodeQueue.running &&
-    runtimeState.tiles.loadingTiles.size === 0 &&
-    !runtimeState.tileRetries.hasPendingRetries() &&
-    runtimeState.payloadAwareConcurrency.getCooldownRemainingMs() <= 0;
-
-  const measureUsedBytesMain: ThreeTilesRuntimeServices["measureUsedBytesMain"] =
-    () => {
-      if (!runtimeState.tiles) return;
-      let bytes = 0;
-      for (const tile of runtimeState.tiles.usedSet) {
-        bytes += runtimeState.tiles.lruCache.getMemoryUsage(tile);
-      }
-      runtimeState.usedBytesMain = bytes;
-    };
+  const {
+    requestRender,
+    getDownloadQueues,
+    runDownloadQueues,
+    clearErrorTargetTimer,
+    clearKickstartTimer,
+    clearHiddenWipeTimer,
+    getRequestDemand,
+    notifyRequestStateChange,
+    isPipelineIdle,
+    measureUsedBytesMain,
+  } = createThreeTilesRequestActivity(runtimeState);
 
   const {
     applyEffectiveErrorTarget,
@@ -304,114 +203,23 @@ export function createThreeTilesLoading(
     requestRender
   );
 
-  const applyRequestConcurrency: ThreeTilesRuntimeServices["applyRequestConcurrency"] =
-    () => {
-      const cache = getRuntimeCache();
-      if (!runtimeState.tiles || !cache) return;
-      sampleMemoryPressure();
-      runtimeState.normalParseConcurrency ??=
-        runtimeState.tiles.parseQueue.maxJobs;
-      const previousParseConcurrency = runtimeState.tiles.parseQueue.maxJobs;
-      // GLTF scene/material creation touches the renderer thread. Bound motion
-      // admission without pausing current-view coverage until pointer-up.
-      const moving = runtimeState.map?.isMoving?.() === true;
-      const zooming = runtimeState.map?.isZooming?.() === true;
-      const paused =
-        runtimeState.memoryAdmissionPaused || runtimeState.loadingPaused;
-      runtimeState.tiles.parseQueue.maxJobs = resolveTileParseConcurrency({
-        paused,
-        moving,
-        zooming,
-        providesTerrain: !!runtimeState.options.providesTerrain,
-        normal: runtimeState.normalParseConcurrency,
-        motionLimit: MESH_MOTION_PARSE_CONCURRENCY,
-      });
-      if (runtimeState.tiles.parseQueue.maxJobs > previousParseConcurrency) {
-        // Changing the upstream concurrency limit does not wake a paused queue.
-        // Defer the restart instead of parsing synchronously in an input event.
-        runtimeState.tiles.parseQueue.scheduleJobRun();
-      }
-      const activeConcurrency = resolveRequestConcurrency({
-        memoryPressure: paused,
-        configured: runtimeState.payloadAwareConcurrency.getConcurrency(
-          runtimeState.requestConcurrency
-        ),
-        ceilingBytes: runtimeState.ceilingBytes,
-        cachedBytes: cache.cachedBytes,
-        estimateBytes: runtimeState.bytesPredictor.globalEstimate(),
-      });
-      const parseItems = (runtimeState.tiles.parseQueue as RuntimePriorityQueue)
-        .items;
-      const parseBacklog = parseItems.length;
-      let foregroundBacklog = parseBacklog;
-      if (
-        runtimeState.options.providesTerrain &&
-        runtimeState.meshBaseCoverageReady &&
-        parseBacklog >= MESH_PARSE_BACKLOG_HARD_LIMIT
-      ) {
-        // Decision: VIEWPORT-BACKPRESSURE-20260916 in TILES_COVERAGE.md.
-        // Parked lower-priority buffers must not stop the downloads needed to
-        // drain the foreground that parks them. Recheck ranks after each move.
-        const priorities = new Map<Tile, number>();
-        let highestPriority = Number.NEGATIVE_INFINITY;
-        for (const tile of new Set([
-          ...runtimeState.tiles.loadingTiles,
-          ...parseItems,
-        ])) {
-          const priority = dependencies.getTileRequestPriority(
-            tile as RuntimeTile
-          );
-          priorities.set(tile, priority);
-          highestPriority = Math.max(highestPriority, priority);
-        }
-        if (Number.isFinite(highestPriority))
-          foregroundBacklog = parseItems.filter(
-            (tile) => priorities.get(tile)! >= highestPriority
-          ).length;
-      }
-      const downloadConcurrency = resolveTileDownloadConcurrency(
-        {
-          active: activeConcurrency,
-          providesTerrain: !!runtimeState.options.providesTerrain,
-          moving,
-          baseCoverageReady: runtimeState.meshBaseCoverageReady,
-          parseBacklog,
-          foregroundBacklog,
-          sharedTerrainLoading:
-            !runtimeState.options.providesTerrain &&
-            !!runtimeState.map &&
-            isSharedThreeTerrainLoading(runtimeState.map),
-        },
-        {
-          mesh: MESH_DOWNLOAD_CONCURRENCY,
-          motion: MESH_MOTION_DOWNLOAD_CONCURRENCY,
-          backlogHard: MESH_PARSE_BACKLOG_HARD_LIMIT,
-          backlogSoft: MESH_PARSE_BACKLOG_SOFT_LIMIT,
-          backgroundBacklog: 4,
-          terrainBootstrap: TERRAIN_LOADING_CONTENT_BOOTSTRAP_CONCURRENCY,
-        }
-      );
-      // Network throughput is useful only while the downstream GLTF queue can
-      // consume it. The former 42-64 request fan-out accumulated 225 parse jobs
-      // and starved rendering. A bounded backlog gate keeps decoder and
-      // browser-thread scene commits fed without building an unbounded blob wall.
-      const previousDownloadConcurrency =
-        runtimeState.tiles.downloadQueue.maxJobsPerOrigin;
-      runtimeState.tiles.downloadQueue.maxJobsPerOrigin = downloadConcurrency;
-      if (downloadConcurrency > previousDownloadConcurrency) {
-        // Decision: CORRIDOR-REQUEST-CONCURRENCY-20260909 in engines/maplibre/README.md.
-        // Updating the native limit does not wake an idle origin queue. Resume
-        // asynchronously on capacity recovery, independent of the next traversal
-        // or a different corridor completing its downloads/shadow work.
-        for (const queue of getDownloadQueues()) queue.scheduleJobRun();
-      }
-    };
+  const { applyRequestConcurrency } = createThreeTilesRequestConcurrency(
+    runtimeState,
+    {
+      ...dependencies,
+      getRuntimeCache,
+      sampleMemoryPressure,
+      getDownloadQueues,
+    }
+  );
 
   const handleWireBytes: ThreeTilesRuntimeServices["handleWireBytes"] = (
-    _url: string,
+    url: string,
     response: Response
   ) => {
     const contentLength = Number(response.headers.get("content-length"));
+    if (runtimeState.options.diagnostics && runtimeState.tiles)
+      notifyTileResponse(runtimeState.tiles, { url, contentLength });
     if (!Number.isFinite(contentLength) || contentLength <= 0) return;
     runtimeState.payloadAwareConcurrency.observePayload(contentLength);
     applyRequestConcurrency();

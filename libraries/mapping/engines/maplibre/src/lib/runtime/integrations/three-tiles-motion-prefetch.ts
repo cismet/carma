@@ -9,7 +9,7 @@ import { readOrientedTileBounds } from "./three-tiles-bounds";
 import {
   initialMeshLoadError,
   isExtentFloorTile,
-} from "./three-tiles-load-policy";
+} from "../../core/mesh-error-policy";
 import type {
   ThreeTilesRuntimeState,
   ThreeTilesRuntimeServices,

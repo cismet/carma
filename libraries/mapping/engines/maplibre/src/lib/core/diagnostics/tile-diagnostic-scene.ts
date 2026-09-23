@@ -18,6 +18,19 @@ export const TILE_STEP_OFFSET = 11;
 export const TILE_LEVEL_OFFSET = 12 + TILE_STEPS.length - 1;
 /** Payload size reads as filled cells of a square grid, one unit per cell. */
 export const SIZE_GRID = 10;
+/** The runtime cache's resident byte charge, shown without implying transfer size. */
+export const formatTileResidentBytes = (bytes: number): string => {
+  const units = ["B", "KiB", "MiB", "GiB"] as const;
+  let value = Math.max(0, bytes);
+  let unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit += 1;
+  }
+  return `${unit === 0 ? Math.round(value) : Number(value.toFixed(1))} ${
+    units[unit]
+  }`;
+};
 /** Each generation above the published cut keeps a third less opacity. */
 export const ANCESTOR_OPACITY_STEP = 2 / 3;
 /** The size grid is a background mark, not a reading of its own. */
@@ -667,7 +680,7 @@ export const drawDiagnosticText = (
     const lines = id.split("/");
     const bytes = data[i + 10];
     if (frame.labels === "id and stats" && Number.isFinite(bytes) && bytes > 0)
-      lines.push(`≈${Math.max(1, Math.round(bytes / (10 * 1024))) * 10} kB`);
+      lines.push(formatTileResidentBytes(bytes));
     if (frame.labels === "id and error" && Number.isFinite(data[i + 9]))
       lines.push(`${data[i + 9].toFixed(1)} px`);
     const fontSize = 10;

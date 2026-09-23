@@ -5,7 +5,7 @@ import {
   initialMeshLoadError,
   resolveExtentGeometricError,
   tilesetMinResolutionGeometricError,
-} from "./three-tiles-load-policy";
+} from "../../core/mesh-error-policy";
 import type {
   ThreeTilesRuntimeServices,
   ThreeTilesRuntimeState,

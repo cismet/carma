@@ -13,11 +13,9 @@ import {
   TILE_REQUEST_ACTION,
 } from "../../core/tile-scheduling-policy";
 import { readOrientedTileBounds } from "./three-tiles-bounds";
-import {
-  isExtentFloorTile,
-  TILES_LOAD_POLICY,
-} from "./three-tiles-load-policy";
-import { isMeshCoveredByLoadedChildren } from "./three-tiles-mesh-frontier";
+
+import { TILES_LOAD_POLICY } from "../../core/tile-load-config";
+import { resolveTileRequestNeed } from "../../core/tile-request-need";
 import { createThreeTilesMotionPrefetch } from "./three-tiles-motion-prefetch";
 import type {
   ThreeTilesRuntimeServices,
@@ -97,101 +95,51 @@ export function createThreeTilesCascade(
     receiverCenterness: 0,
     lightFacing: 0,
   };
-  const isTileRequestNeeded = (tile: Tile) => {
-    if (
-      runtimeState.meshCoverageRecovery &&
-      dependencies.isTileNeededForMeshCoverage(tile)
+  const getShadowReceiverError = (tile: Tile): number | null => {
+    const bounds = (tile as RuntimeTile).engineData?.boundingVolume;
+    if (!bounds?.getAABB || !runtimeState.shadowReceiverMask) return null;
+    readOrientedTileBounds(bounds, casterBounds, casterTransform);
+    return runtimeState.shadowReceiverMask.match(
+      casterBounds,
+      casterMatch,
+      casterTransform,
+      { key: tile, parent: tile.parent ?? undefined }
     )
-      return true;
-    if (
-      runtimeState.extentFloorArmed &&
-      isExtentFloorTile(tile, runtimeState.extentGeometricError)
-    )
-      return true;
-    const runtimeTile = tile as RuntimeTile;
-    if (runtimeTile.motionPrefetch && motionPrefetch.needed(runtimeTile))
-      return true;
-    const inMainView = dependencies.isTileInMainView(runtimeTile);
-    if (
-      runtimeTile.zoomPrefetch &&
-      runtimeState.map?.isZooming?.() &&
-      inMainView
-    )
-      return true;
-    if (runtimeState.meshRefinementSupport.has(tile)) return true;
-    if (
-      runtimeState.options.providesTerrain &&
-      runtimeState.tiles &&
-      isMeshCoveredByLoadedChildren(tile, runtimeState.tiles.visibleTiles)
-    )
-      return false;
-    if (
-      runtimeState.map?.isMoving?.() !== true &&
-      runtimeState.meshBaseCoverageReady &&
-      runtimeState.lastMainViewConverged &&
-      runtimeState.effectiveErrorTarget === runtimeState.requestedErrorTarget &&
-      (runtimeTile.idleRing || runtimeState.residentAncestors.has(tile))
-    )
-      return true;
-    let parent = tile.parent as RuntimeTile | null;
-    while (
-      parent &&
-      (!parent.internal?.hasRenderableContent ||
-        parent.traversal?.unconditionallyRefine === true)
-    )
-      parent = parent.parent as RuntimeTile | null;
-    const parentCanCover = parent !== null;
-    const replacementParentCanCover =
-      parentCanCover && parent?.refine === "REPLACE";
-    if (
-      dependencies.getTileCameraDemand(runtimeTile).required &&
-      (!replacementParentCanCover ||
-        (parent !== null &&
-          dependencies.getTileCameraDemand(parent).errorRatio > 1))
-    )
-      return true;
-    if (
-      runtimeState.shadowSelectionEnabled &&
-      runtimeState.shadowReceiverMask
-    ) {
-      const bounds = runtimeTile.engineData?.boundingVolume;
-      if (bounds?.getAABB) {
-        readOrientedTileBounds(bounds, casterBounds, casterTransform);
-        if (
-          runtimeState.shadowReceiverMask.match(
-            casterBounds,
-            casterMatch,
-            casterTransform,
-            { key: tile, parent: tile.parent ?? undefined }
-          ) &&
-          (!replacementParentCanCover ||
-            (parent !== null &&
-              parent.geometricError > casterMatch.receiverGeometricError))
-        )
-          return true;
-      }
-    } else if (runtimeState.shadowView) {
-      return true;
-    }
-    // External tileset metadata carries no payload and gates the traversal:
-    // without it the native pass cannot reach the subtree at all, so a used
-    // stub is always requestable, in view or not.
-    if (runtimeTile.internal.hasUnrenderableContent) return true;
-    // The prefetch margin is bounded and deliberately not deferred; it must
-    // pass this gate too, or its tiles stay unloaded until they enter the view.
-    const requestableRegion =
-      inMainView || dependencies.isTileInPrefetchMargin(runtimeTile);
-    return (
-      requestableRegion &&
-      (!replacementParentCanCover ||
-        (parent !== null &&
-          dependencies.getTileScreenError(parent) >
-            Math.max(
-              runtimeState.requestedErrorTarget,
-              runtimeState.memoryErrorTarget
-            )))
-    );
+      ? casterMatch.receiverGeometricError
+      : null;
   };
+  const getTileRequestNeed = (tile: Tile) => {
+    const runtimeTile = tile as RuntimeTile;
+    return resolveTileRequestNeed(tile, {
+      coverageRecovery: runtimeState.meshCoverageRecovery,
+      extentFloorArmed: runtimeState.extentFloorArmed,
+      extentGeometricError: runtimeState.extentGeometricError,
+      motionPrefetch: runtimeTile.motionPrefetch === true,
+      zoomPrefetch: runtimeTile.zoomPrefetch === true,
+      zooming: runtimeState.map?.isZooming?.() === true,
+      moving: runtimeState.map?.isMoving?.() === true,
+      providesTerrain: runtimeState.options.providesTerrain === true,
+      baseCoverageReady: runtimeState.meshBaseCoverageReady,
+      mainViewConverged: runtimeState.lastMainViewConverged,
+      effectiveErrorTarget: runtimeState.effectiveErrorTarget,
+      requestedErrorTarget: runtimeState.requestedErrorTarget,
+      memoryErrorTarget: runtimeState.memoryErrorTarget,
+      idleRing: runtimeTile.idleRing === true,
+      shadowSelection: runtimeState.shadowSelectionEnabled,
+      shadowView: !!runtimeState.shadowView,
+      refinementSupport: runtimeState.meshRefinementSupport,
+      residentAncestors: runtimeState.residentAncestors,
+      visibleTiles: runtimeState.tiles?.visibleTiles ?? new Set(),
+      coverageNeeded: dependencies.isTileNeededForMeshCoverage,
+      motionNeeded: motionPrefetch.needed,
+      inMainView: dependencies.isTileInMainView,
+      inPrefetchMargin: dependencies.isTileInPrefetchMargin,
+      screenError: dependencies.getTileScreenError,
+      cameraDemand: dependencies.getTileCameraDemand,
+      shadowReceiverError: getShadowReceiverError,
+    });
+  };
+  const isTileRequestNeeded = (tile: Tile) => getTileRequestNeed(tile) !== null;
   const abortStaleDownloads = () => {
     const tiles = runtimeState.tiles;
     if (!tiles) return;
@@ -482,6 +430,7 @@ export function createThreeTilesCascade(
     returnToBaseStage,
     abortStaleDownloads,
     isTileRequestNeeded,
+    getTileRequestNeed,
     refineRingCascade,
     scheduleCascadeTick,
     clearCascadeTick,

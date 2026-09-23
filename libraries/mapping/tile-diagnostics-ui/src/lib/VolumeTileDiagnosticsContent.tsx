@@ -3,6 +3,7 @@ import * as THREE from "three";
 import type { Map as MapLibreMap } from "maplibre-gl";
 import {
   TILE_DIAGNOSTIC_STEPS,
+  formatTileResidentBytes,
   acquireSharedThreeScene,
   registerSharedThreeSceneRuntime,
   type SharedThreeSceneFrame,
@@ -388,7 +389,7 @@ export const createVolumeTileDiagnostics = (diagnostics: TileDiagnostics) => {
         >
           {(
             [
-              ["size", "kB", "Grosse der Kacheln"],
+              ["size", "B", "Residente Cache-Groesse der Kacheln"],
               ["stats", "ms", "Ladezeiten als Scheibe"],
             ] as const
           ).map(([key, text, title]) => (
@@ -507,11 +508,11 @@ export const createVolumeTileDiagnostics = (diagnostics: TileDiagnostics) => {
             ))}
             {legend.bytes ? (
               <div style={{ opacity: 0.85, marginTop: 2 }}>
-                {`1 Kastchen = ${Math.round(
-                  legend.bytes.unit / 1024
-                )} kB \u00b7 Kacheln ${Math.round(
-                  legend.bytes.min / 1024
-                )}\u2013${Math.round(legend.bytes.max / 1024)} kB`}
+                {`1 Kastchen = ${formatTileResidentBytes(
+                  legend.bytes.unit
+                )} \u00b7 residente Cache-Groesse der Kacheln ${formatTileResidentBytes(
+                  legend.bytes.min
+                )}\u2013${formatTileResidentBytes(legend.bytes.max)}`}
               </div>
             ) : null}
           </details>

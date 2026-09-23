@@ -139,7 +139,7 @@ describe("current-camera screen error before native traversal", () => {
     };
   };
 
-  it("values absolute visible error reduction across complete published families", () => {
+  it("values each independent child by absolute visible error reduction and its area", () => {
     const { state, tiles, camera, receiver, spatial } = fixture();
     try {
       const bounds = new Box3(new Vector3(-1, -1, -1), new Vector3(1, 1, 1));
@@ -195,7 +195,10 @@ describe("current-camera screen error before native traversal", () => {
       setView();
       const candidates = [coarse.child, fine.child, small.child, fringe];
       expect(candidates.map(spatial.getTileRequestPriority)).toEqual([
-        1, 1, 1, 1,
+        1,
+        1,
+        1,
+        Number.NEGATIVE_INFINITY,
       ]);
       expect(coarse.child.meshRefinement!.benefit).toBeGreaterThan(
         fine.child.meshRefinement!.benefit
@@ -203,15 +206,16 @@ describe("current-camera screen error before native traversal", () => {
       expect(fine.child.meshRefinement!.benefit).toBeGreaterThan(
         small.child.meshRefinement!.benefit
       );
-      expect(fringe.meshRefinement).toBe(coarse.child.meshRefinement);
+      // An old support marker cannot give an off-frustum sibling the
+      // visible parent's refinement priority or screen-space benefit.
+      expect(fringe.meshRefinement).toBeUndefined();
       spatial.getTileRequestPriority(coarse.parent);
-      expect(coarse.parent.meshRefinement).toBe(coarse.child.meshRefinement);
+      expect(coarse.parent.meshRefinement!.group).toBe(coarse.parent);
       const lookahead = member(4);
       lookahead.parent = coarse.child;
       spatial.getTileRequestPriority(lookahead);
       expect(lookahead.meshRefinement).toBeUndefined();
       const oldBenefit = coarse.child.meshRefinement!.benefit;
-      const knownNextError = coarse.child.meshRefinement!.nextErrorPixels;
       const metadata = member(16);
       metadata.internal = {
         ...metadata.internal,
@@ -223,8 +227,11 @@ describe("current-camera screen error before native traversal", () => {
       state.meshContentRevision++;
       spatial.getTileRequestPriority(metadata);
       expect(metadata.meshRefinement!.provisional).toBe(true);
-      expect(metadata.meshRefinement!.nextErrorPixels).toBe(knownNextError);
-      expect(metadata.meshRefinement!.benefit).toBe(oldBenefit);
+      expect(metadata.meshRefinement!.nextErrorPixels).toBe(
+        state.requestedErrorTarget
+      );
+      expect(metadata.meshRefinement!.benefit).toBeGreaterThanOrEqual(0);
+      expect(metadata.meshRefinement!.group).toBe(coarse.parent);
       camera.position.z = 22;
       camera.updateMatrixWorld(true);
       setView();
@@ -239,7 +246,7 @@ describe("current-camera screen error before native traversal", () => {
     }
   });
 
-  it("merges changing shadow demand with the cached camera error instead of returning early", () => {
+  it("keeps viewport LOD independent while shadow-only tiles follow receiver demand", () => {
     const { state, tiles, camera, receiver, spatial } = fixture();
     try {
       state.tileCameraDemand = createTileCameraDemand(
@@ -263,7 +270,19 @@ describe("current-camera screen error before native traversal", () => {
           return true;
         },
       };
-      expect(spatial.getTileScreenError(receiver)).toBe(600);
+      expect(spatial.getTileScreenError(receiver)).toBeCloseTo(cameraError);
+      const caster = {
+        ...receiver,
+        engineData: {
+          ...receiver.engineData,
+          boundingVolume: {
+            ...receiver.engineData!.boundingVolume,
+            getAABB: (box: Box3) =>
+              box.set(new Vector3(100, 0, 0), new Vector3(101, 1, 1)),
+          },
+        },
+      } as RuntimeTile;
+      expect(spatial.getTileScreenError(caster)).toBe(600);
       // Receiver sources must use observer demand, never feed caster demand
       // into the next receiver mask and ratchet its detail upward.
       expect(spatial.getTileScreenError(receiver, false)).toBeCloseTo(
@@ -271,6 +290,7 @@ describe("current-camera screen error before native traversal", () => {
       );
       pixelsPerMeter = 1;
       expect(spatial.getTileScreenError(receiver)).toBeCloseTo(cameraError);
+      expect(spatial.getTileScreenError(caster)).toBe(2);
     } finally {
       tiles.dispose();
     }

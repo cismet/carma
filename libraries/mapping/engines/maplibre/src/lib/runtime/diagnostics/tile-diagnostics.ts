@@ -36,3 +36,5 @@ export {
   scheduleTileDiagnosticTask,
   yieldTileDiagnosticTask,
 } from "./tile-diagnostic-scheduler";
+
+export { createTilePipelineTelemetry } from "./tile-pipeline-telemetry";

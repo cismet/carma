@@ -1,3 +1,158 @@
+## Progressive receiver overlays
+
+**ID / date / status:** progressive-receiver-overlays / 2026-09-23 /
+implemented; supersedes whole-family publication and forced sibling admission
+in the historical records below.
+
+**Context and constraints:** A ready in-view child previously waited for all
+siblings, including branches outside demand. Native `loadAncestors` could also
+request those siblings despite `loadSiblings = false`. The observer and the
+shadow corridor must refine independently, retain coverage, respect memory
+admission, and stop obsolete requests after camera changes.
+
+**Decision:**
+
+- A material-ready child is displayed immediately once its publication
+  prerequisites below are ready. A loaded REPLACE parent
+  remains beneath ready children while any required branch lacks drawable
+  coverage. Parent colour draws first without depth writes; nested fallbacks
+  draw from coarse to fine. Once all required branches are covered, the parent
+  leaves the displayed cut. Unknown metadata and failed/loading payloads are
+  never proof of coverage.
+- Required branches are relative to the current demand frustum, not every
+  sibling in the hierarchy. Meshes use native skip traversal throughout;
+  neither native ancestor loading nor an explicit whole-family queue expands
+  requests to unrelated siblings. Existing first-image, motion, memory,
+  background reserve and optional lookahead targets remain separate policies.
+- Viewport geometry has one LOD owner. Its exact published Tile objects are
+  reused for shadow depth; shadow demand never raises their observer error or
+  independently requests their visible descendants. Receiver quality proofs
+  accept this existing viewport geometry directly. The shadow selector owns
+  additional caster-only content and retained caster fallbacks.
+- Observer receivers and light-frustum casters share one progressive selector.
+  Caster refinement cannot stop above displayed receiver detail. Ready child
+  casters join immediately; a coarser parent remains a conservative caster
+  until required light-frustum branches cover it. This can temporarily retain
+  coarse occlusion while finer siblings are missing. New shadow receivers wait
+  for drawable caster coverage at any LOD; matching final caster quality is not
+  a publication gate. Off-corridor siblings are never prerequisites.
+  Zero-error receivers request continued caster refinement without invalidating
+  drawable coarse coverage while their required children are pending.
+- Current visible receiver and caster detail only improves. Relaxed motion or
+  memory targets affect new requests; they never coarsen the current cut. A
+  relevant caster parent retires only after descendants cover its contribution
+  in receiver space. Published casters are pinned against direct and batch
+  cache removal; off-corridor history remains eligible for normal reclamation.
+- A prerequisite flag is not visibility: old support cannot resurrect an
+  obsolete request. Missing coarse casters for a withheld receiver share its
+  viewport-fill priority so receiver and caster admission cannot wait on each
+  other. Finer caster improvements retain normal corridor priority. Queue
+  admission still respects current camera/corridor demand, pauses, retries and
+  memory limits.
+  Viewport refinement benefit is evaluated per requested child using its
+  visible area and absolute error reduction, rather than assigning each
+  sibling the entire parent's benefit.
+- Full-extent base coverage still fills at observer idle. Its admission uses
+  the same demand-relative sibling policy; it cannot block visible refinement.
+- Publication is distinct from eviction. Retiring a parent from the current
+  view does not prove full-extent replacement; the existing coverage-safe
+  cache policy keeps resident fallback for later pans and zoom-outs.
+
+**Consolidation inventory:**
+
+| Responsibility | Kept | Removed or consolidated |
+| --- | --- | --- |
+| Ready geometry selection | One progressive selector for receiver and caster domains | Separate atomic receiver selector, duplicate caster-family walk, unused corridor-advance helper |
+| Request admission | Current demand, bounded queues, cancellation, pause/retry/memory guards | Forced sibling fan-out, native ancestor sibling expansion, stale support visibility bypass |
+| Publication state | Receiver/caster roles, conservative parent fallback, geometry revision invalidation | Atomic/partial option switches, whole-family warning bookkeeping, unused motion-throttle flag |
+| Geometry tests | Shared child-arrival matrix across receiver/caster selection; material, metadata, ADD and empty-node cases | Duplicate family permutations and tests of removed helpers |
+| Integration tests | Movement/coverage recovery, separate shadow admission, capture invalidation, cache safety and actual queue wakeups | Whole-family blocking assertions and duplicate cold/steady sibling admission cases |
+
+**Alternatives and disposition:** Whole-family publication is superseded by
+explicit progressive overlays. Hiding a parent before missing branches have
+coverage is incompatible with coverage retention. Stencil clipping of parent
+caster geometry is deferred; this change reuses native scenes/materials and
+does not add duplicate geometry, shaders, payload caches or a new loader.
+
+**Evidence and limits:** Focused selector, runtime, queue, shadow-role and
+corridor regressions exercise this contract. Transport-only measurements of
+the primary Mesh2024 host establish compression/byte differences, not a
+rendering speedup from these policy changes. Browser validation and measured
+results are recorded with the change; no portable throughput or zero-artifact
+performance guarantee is implied by unit tests.
+
+**Revisit when:** Progressive overlap causes unacceptable temporary shadow
+occlusion, or current-demand requests still wait behind unrelated work. Compare
+publication latency, coverage, final pixels, transferred bytes and cancellation
+waste before adding another gating policy.
+
+## Visible receiver corridors
+
+**ID / date / status:** visible-receiver-corridors / 2026-09-23 / implemented.
+
+**Context and constraints:** A tile touching a camera boundary previously
+contributed its entire bounding volume as a shadow receiver. Panning within
+the same coarse tile could also reuse that oversized mask. This requested
+casters whose only possible receivers were outside the camera.
+
+**Decision:** Clip each actual receiver volume against the same six 3D planes
+used by camera demand, then project the clipped convex vertices into light
+space. Fully contained boxes use the existing fast path. Receiver cameras
+remain separate; a geometry-only camera adds no receivers. Both mesh and DEM
+receiver sources use this path. Camera identity and tile placement invalidate
+the cached mask even when receiver tile IDs and SSE stay unchanged. A valid
+empty receiver cut clears the previous mask rather than retaining stale demand.
+
+The existing directional cone rejects boxes wholly downstream of the last
+receiver or beyond the available caster range. Preserve finite sun-disc support
+and conservative bounds: partial overlap remains possible shadow contribution.
+This is conservative bounding-volume pruning, not triangle-level occlusion.
+
+Queue admission consumes the central request-need reason, not only its boolean
+result. A tile can overlap the observer and still be requested for a finer
+receiver's shadow. Explicit shadow and additional-camera demand bypass the
+observer-only refinement stop in both download and parse queues. Re-inferring
+ownership from location stranded an already downloaded caster in PARSING with
+`refinement-deferred`. Resource and foreground priority limits remain independent.
+
+Receiver demand includes staged candidates before publication. A pure
+`selectShadowReadyReceivers` plan proves each new receiver against the drawable
+caster cut at any LOD and retains existing receivers while that proof waits.
+All receiver corridors share one caster cut, keyed by native Tile identity.
+Overlapping receiver demands use their finest required geometric error. A
+weaker later corridor does not coarsen the retained cut. Additional caster
+selection uses that receiver-matched ratio; viewport-owned tiles bypass this
+selection and enter depth directly, not via a second LOD decision. It reuses the progressive selector and the previous
+caster cut as the minimum retained detail. Native traversal omitting a tile is
+not replacement evidence. Shadow demand starts before the initial base pass;
+otherwise the initial receiver gate and delayed sun demand form a wait cycle.
+
+**Alternatives and disposition:** Full receiver boxes are superseded. Testing
+only tile centres is incompatible with conservative caster coverage. Exact
+triangle ray tests are deferred because the loader must decide before content
+is downloaded. Reuse the existing camera intersection solver instead of adding
+a second frustum geometry implementation.
+
+**Evidence:** Focused tests cover clipped edge receivers, separated cameras,
+geometry-only views, transformed tile frames, downstream/range rejection,
+finite-disc boundary casters and camera-dependent snapshot invalidation.
+A live queue audit found 13 required requests parked as refinement-deferred
+while download/parse slots were empty. A direct queue regression fails for
+both download and parse before the observer-scope correction and passes after.
+No transfer reduction or end-to-end speedup is claimed without a comparable
+network run.
+
+**Revisit when:** Conservative bounds still produce material wasted transfers,
+or actual screenshots reveal clipped shadow contributors.
+
+## Historical decisions and measurements
+
+The following records preserve earlier evidence. Their whole-family/atomic
+publication and offscreen-sibling requirements are superseded by
+[Progressive receiver overlays](#progressive-receiver-overlays); they are not
+additional requirements on the current implementation. Other independent
+coverage, geometry, cache and resource constraints remain applicable.
+
 ## Bounded mesh request lookahead
 
 **ID / date / status:** mesh-request-lookahead / 2026-09-22 / implemented;
@@ -2040,66 +2195,56 @@ and without the motion target, or the configured 0.5 px target is revisited.
 <a id="functional-decision-pipelines"></a>
 ## Functional decision pipelines
 
-**ID / date / status:** TILE-DECISION-PIPELINES-20260921 / 2026-09-21 / implemented.
+**ID / date / status:** TILE-DECISION-PIPELINES-20260921 / updated 2026-09-23 / implemented.
 
-**Context and constraints.** Coverage, camera priority, shadow publication,
-cache admission and motion interact. Mixing their decisions with vendor queue
-mutations made precedence hard to inspect. Preserve the existing thresholds,
-read timing, native promise ownership and complete-family publication rules.
+**Context and constraints.** Camera demand, shadow publication, cache admission
+and motion need explicit precedence. Preserve native tile identity, thresholds,
+queue ownership and the progressive publication contract above.
 
-**Decision.** Keep a functional core and explicit runtime effect owners. Pure
-policies accept readonly facts, return values and do not touch tiles, clocks,
-queues or the renderer. Local accumulators are allowed inside pure planners;
-input collections and payload identity stay unchanged. Spatial reads remain
-lazy where an earlier decision makes them unnecessary. Do not replace bounded
-loops with allocation-heavy chains merely for functional notation.
+**Decision.** Pure policies accept readonly native Tile graphs and facts, return
+plans, and do not mutate their inputs, clocks, queues or renderer. A receiver
+plan returns displayed tiles, support, unprepared parents and material waits;
+the runtime applies those effects explicitly. Spatial reads stay lazy. Memoized
+coverage queries belong to one immutable demand snapshot, not caller-owned
+mutable scratch maps. Local accumulators avoid unnecessary tile graph copies.
 
-| Pipeline | Decision owner | Effect owner |
+| Pipeline | Pure decision owner in core | Runtime effect owner |
 | --- | --- | --- |
-| Camera demand and priority | `core/tile-camera-demand.ts`, `core/tile-scheduling-policy.ts`, `three-tiles-load-policy.ts` | `three-tiles-runtime-spatial.ts` |
-| Download and parse admission | `core/tile-scheduling-policy.ts`, `three-tiles-load-policy.ts` | `three-tiles-runtime-loading.ts`, `three-tiles-runtime-payload-queues.ts` |
-| Cancellation and preemption | current spatial demand plus `decideTileRequestAction` | `three-tiles-runtime-cascade.ts`; native LRU owns abort/disposal |
-| Quality stages and memory adaptation | `resolveMeshStageTarget`, `nextEffectiveErrorTarget`, `nextMemoryErrorTarget` | `three-tiles-runtime-quality.ts` |
-| Cache retention and fallback safety | existing `three-tiles-mesh-frontier.ts` coverage queries | `three-tiles-runtime-cache.ts` |
-| Receiver/caster publication | existing frontier and shadow-region cut functions | `three-tiles-runtime-frame.ts`, `three-tiles-runtime-shadows.ts` |
-| Raster stage ordering and deduplication | `core/tile-load-plan.ts` | `raster-dem-terrain-runtime.ts` |
-| Registration, events and teardown | event-specific handlers | `three-tiles-runtime-lifecycle.ts`, `three-tiles-runtime-attachment.ts` |
+| Camera demand and priority | tile-camera-demand, tile-scheduling-policy | spatial-demand, view-frustums |
+| Request need and admission | tile-request-need, tile-request-policy | cascade, request-concurrency, payload-queues |
+| Quality and memory | mesh-error-policy, effective-error-target, memory-error-target | quality |
+| Byte prediction | tile-bytes-predictor | byte-prediction (bounded memo and observations) |
+| Coverage and retention | mesh-tile-coverage, mesh-tile-retention | cache, cache-budget, settled-demand |
+| Receiver/caster selection | mesh-tile-selection, mesh-shadow-publication, mesh-tile-refinement, mesh-tile-underlay | frame-publication, shadow-publication |
+| Visible shadow receivers | shadow-receiver-sources, shadow-receiver-mask | shadow-publication |
+| Raster stage ordering | tile-load-plan | raster-dem-terrain-runtime |
+| Registration and teardown | event-specific handlers | lifecycle, load-events, attachment-disposal |
 
-The quality/cache/queue/frame modules replace those responsibility blocks in
-the loading, attachment and lifecycle modules. They are internal modules, not
-new public entrypoints or a second loader. Geometric selection and coverage
-algorithms that were already pure are retained.
+The old integration-layer mesh-frontier and load-policy monoliths are replaced
+by these colocated core modules. Runtime files retain only the required
+coordination and effects. Source and spec modules target less than 500 lines;
+this is a review constraint, not a brittle file-length unit test.
 
-Precedence remains explicit: missing observer coverage has rank 4, replacement-family
-support rank 3, ordinary observer demand rank 1 and offscreen shadow demand rank 0.
-Other cameras retain their own rank; speculative motion work starts only when
-higher-ranked work permits it.
-A ready foreground parse does not wait for a higher-ranked network request.
-Cancellation distinguishes obsolete work from preemption: only the latter
-consumes a waiting foreground slot. Metadata is not preempted by payload work.
-Raster plans rank cameras before preserving stage order and schedule each key
-once. Publication, stitching and request execution remain separate effects.
+Missing observer coverage has rank 4, visible refinement support rank 3,
+ordinary observer demand rank 1 and offscreen shadow demand rank 0. Additional
+cameras retain their own rank. Ready foreground parsing does not wait for a
+higher-ranked network request. Preemption needs a waiting foreground slot;
+cancellation of obsolete work does not. Metadata is not preempted by payloads.
 
-**Alternatives and disposition.** A new scheduler or changed family-admission
-policy is deferred: either would change behavior and invalidate a refactor-only
-comparison. Blanket immutable copies of vendor tiles/queues are incompatible
-by inspection with native identity and abort ownership. Existing native queues,
-spatial memoization and coverage functions remain in use.
+**Alternatives and disposition.** A replacement scheduler is deferred. Copying
+vendor tiles or retesting native queue implementation is incompatible with
+native identity/ownership and the requested test scope. Keep own-contract
+regressions for selection, cancellation, resource budgets and publication.
 
-**Evidence.** Comparison baseline: `48fd729d1`. The same complete
-`engines-maplibre:test --watch=false` target had 21 failures / 1,193 passes before,
-and 18 failures / 1,211 passes after extraction. The three resolved failures
-are the existing 1,000-line module budgets; the other failure names are unchanged.
-No existing tests were deleted or weakened. Added frozen-input and semantic
-invariants cover priority lanes, foreground/background admission, backpressure,
-preemption, lazy stage readiness and stable raster planning. This establishes
-test parity, not correctness of the 18 outstanding baseline failures or a
-performance improvement. Those failures remain merge blockers.
+**Evidence.** Tests are colocated by pure policy and runtime effect, with shared
+native-shaped fixtures. Parameter tables cover distinct behavior rather than
+repeating whole families. Frozen-input checks verify plan isolation. Historical
+2026-09-21 counts below do not describe this reorganized suite. Current focused
+results and baseline failure classifications are recorded in the implementation
+review; passing unit checks alone do not establish load-time or visual parity.
 
-**Revisit when.** A separate change deliberately alters admission, quality or
-publication semantics; update the appropriate pure policy and its invariant
-checks, then compare real rendering and coverage as well as test outcomes.
-
+**Revisit when.** A policy needs runtime mutations to decide, or repeated tests
+assert vendor internals instead of an observable manager contract.
 
 ## CSS-pixel error targets
 

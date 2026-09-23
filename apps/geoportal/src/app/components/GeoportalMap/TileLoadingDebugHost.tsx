@@ -100,6 +100,7 @@ export const TileLoadingDebugHost = ({ map }: { map: MaplibreMap | null }) => {
             initialOverviewPosition={{ left: 56, top: 144 }}
             options={{
               showOverviewPanel: true,
+              showCharts: isDebugMode,
               showOverlay: false,
               showLegend: false,
               overlayLabels: "id and stats",
