@@ -1,4 +1,11 @@
-import { along, bearing as turfBearing, length, lineString } from "@turf/turf";
+import {
+  along,
+  bearing as turfBearing,
+  destination,
+  length,
+  lineString,
+  point,
+} from "@turf/turf";
 
 import type { GeolocationSource } from "@carma-mapping/contexts";
 
@@ -19,10 +26,17 @@ export type FakeDevice = GeolocationSource & {
   drive: (coordinates: [number, number][], speed: number) => void;
   /**
    * Put the drive at this fraction of the line, 0 its start and 1 its end,
-   * and tell every watcher at once rather than on the next tick. Does nothing
-   * while standing.
+   * and tell every watcher at once rather than on the next tick. Off on a
+   * detour, it goes back onto the line it left. Does nothing while standing.
    */
   seek: (fraction: number) => void;
+  /**
+   * Leave the line: turn by `turnDegrees` (positive is right) from where the
+   * device is heading and go straight on at the same pace, off every road,
+   * which is what makes a navigation reroute. Called again on a detour, it
+   * turns again. Does nothing while standing still.
+   */
+  detour: (turnDegrees: number) => void;
   /** hold the drive where it is; the fixes keep coming, from the same spot */
   setPaused: (paused: boolean) => void;
   /** change the pace of the drive in flight, meters per second; nothing while standing */
@@ -37,16 +51,28 @@ export type FakeDeviceOptions = {
   accuracyMeters: number;
 };
 
+type Drive = {
+  kind: "drive";
+  line: ReturnType<typeof lineString>;
+  total: number;
+  along: number;
+  speed: number;
+  lastTick: number;
+  heading: number;
+};
+
 type Motion =
   | { kind: "stand"; at: [number, number] }
+  | Drive
   | {
-      kind: "drive";
-      line: ReturnType<typeof lineString>;
-      total: number;
-      along: number;
+      /** straight on along a bearing, off the line */
+      kind: "heading";
+      at: [number, number];
+      bearing: number;
       speed: number;
       lastTick: number;
-      heading: number;
+      /** the drive it left, for `seek` to go back onto */
+      resume: Drive;
     };
 
 const METERS = { units: "meters" } as const;
@@ -125,6 +151,25 @@ export const createFakeDevice = ({
         0
       );
     }
+    if (motion.kind === "heading") {
+      const now = Date.now();
+      const elapsed = paused ? 0 : (now - motion.lastTick) / 1000;
+      motion.lastTick = now;
+      if (elapsed > 0) {
+        motion.at = destination(
+          point(motion.at),
+          motion.speed * elapsed,
+          motion.bearing,
+          METERS
+        ).geometry.coordinates as [number, number];
+      }
+      return makePosition(
+        scatter(motion.at, jitterMeters),
+        accuracyMeters,
+        motion.bearing,
+        motion.speed
+      );
+    }
     const now = Date.now();
     // a paused drive lets the clock run without going anywhere, so resuming
     // continues from the spot rather than jumping by the time held
@@ -169,6 +214,9 @@ export const createFakeDevice = ({
       };
     },
     seek: (fraction) => {
+      if (motion.kind === "heading") {
+        motion = motion.resume;
+      }
       if (motion.kind !== "drive" || disposed) {
         return;
       }
@@ -192,11 +240,27 @@ export const createFakeDevice = ({
         success(position);
       }
     },
+    detour: (turnDegrees) => {
+      if (motion.kind === "stand" || disposed) {
+        return;
+      }
+      // book the stretch up to now, so the turn happens where the device is
+      const { longitude, latitude, heading } = fix().coords;
+      const resume = motion.kind === "drive" ? motion : motion.resume;
+      motion = {
+        kind: "heading",
+        at: [longitude, latitude],
+        bearing: ((heading ?? 0) + turnDegrees + 360) % 360,
+        speed: motion.speed,
+        lastTick: Date.now(),
+        resume,
+      };
+    },
     setPaused: (next) => {
       paused = next;
     },
     setSpeed: (speed) => {
-      if (motion.kind !== "drive") {
+      if (motion.kind === "stand") {
         return;
       }
       // the stretch since the last tick was driven at the old pace: book it

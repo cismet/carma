@@ -20,6 +20,12 @@ export type LocationSimulation = {
    * destination; the routing sees the fix at once, not on the next tick
    */
   seek: (fraction: number) => void;
+  /**
+   * leave the route: turn right and go straight on, off every road, so the
+   * navigation reroutes; again to turn again. The slider puts the pretend
+   * user back on the route
+   */
+  detour: () => void;
   /** how much faster than the configured speed the drive goes; 1 is as configured */
   speedFactor: number;
   setSpeedFactor: (factor: number) => void;
