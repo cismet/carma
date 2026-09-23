@@ -140,6 +140,14 @@ export type RouteNavigation = {
    * navigation runs, and until the first fix of one
    */
   progress: RouteProgress | null;
+  /**
+   * The route being driven: the route in focus when the navigation started,
+   * or the latest reroute of it once the user left it. Not written back to
+   * `activeRoute`, which stays its producer's; null while no navigation runs.
+   */
+  route: ActiveRoute | null;
+  /** a new route is on its way because the user left the one being driven */
+  rerouting: boolean;
   /** ease the camera onto the route in focus; does nothing without one */
   start: () => void;
   stop: () => void;

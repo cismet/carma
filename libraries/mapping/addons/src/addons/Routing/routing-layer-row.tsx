@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useRef, type CSSProperties } from "react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faArrowsRotate } from "@fortawesome/free-solid-svg-icons";
 
 import type { InteractionButton, Layer } from "@carma-mapping/layers";
 import { formatDistance, formatRouteSummary } from "@carma-mapping/routing";
 
 import { useLocationSimulation } from "../LocationSimulator/simulationChannel";
-import { REMAINING_PREFIX } from "./config";
+import { REMAINING_PREFIX, REROUTING_LABEL } from "./config";
 import { useActiveRoute, useRouteNavigation } from "./routeChannel";
 import { travelModeOf, type RouteMode } from "./routeMode";
 
@@ -63,12 +65,16 @@ export const ROUTING_LAYER: Layer = {
  */
 const buildInteractionButtons = (
   label: string,
-  hasRibbon: boolean
+  hasRibbon: boolean,
+  rerouting: boolean
 ): InteractionButton[] => [
   {
     id: ROUTING_TOOLS_INTERACTION_ID,
     icon: (
       <span className="tabular-nums" style={READOUT_STYLE}>
+        {rerouting && (
+          <FontAwesomeIcon icon={faArrowsRotate} spin className="mr-1.5" />
+        )}
         {label}
       </span>
     ),
@@ -118,14 +124,19 @@ export const useRoutingLayerRow = ({
   const routeMode = route?.mode;
   const isOn = navigation?.navigating ?? false;
   const progress = navigation?.progress ?? null;
+  const rerouting = navigation?.rerouting ?? false;
   const stop = navigation?.stop;
   // the ribbon only holds the simulator's controls; a real device cannot be
   // moved, so without the simulator the row opens nothing
   const hasRibbon = useLocationSimulation() !== null;
 
   // the same words the info box note says, so the two never disagree; a
-  // route that was only measured carries no minutes and gets the meters alone
-  const label = progress
+  // route that was only measured carries no minutes and gets the meters alone.
+  // While a new route is on its way the old one's numbers are no answer, and
+  // the row says what is happening instead
+  const label = rerouting
+    ? REROUTING_LABEL
+    : progress
     ? `${REMAINING_PREFIX} ${
         progress.remainingSeconds !== undefined
           ? formatRouteSummary(
@@ -146,9 +157,9 @@ export const useRoutingLayerRow = ({
       ...(hasRibbon
         ? { rowClickInteractionId: ROUTING_TOOLS_INTERACTION_ID }
         : {}),
-      interactionButtons: buildInteractionButtons(label, hasRibbon),
+      interactionButtons: buildInteractionButtons(label, hasRibbon, rerouting),
     }),
-    [label, panelOpen, hasRibbon, routeMode]
+    [label, panelOpen, hasRibbon, routeMode, rerouting]
   );
 
   const layerRef = useRef(layer);

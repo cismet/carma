@@ -1204,6 +1204,37 @@ left the route, and pulling them back onto it would lie. Once fewer than
 `arrivalMeters` (15 m) of route are left the navigation ends on its own,
 with the same eased leave as the button.
 
+Left for good, the route is asked for again. A fix counts as off when it is
+further from the route than the mode's `meters`, than `snapToleranceMeters`
+and than its own accuracy. After `afterFixes` of those in a row (one fix on
+the route starts the count over), `fetchRoute` asks the routing service for
+the way from the fix to the route's last vertex by the route's mode. Only one
+request at a time, and none within `cooldownMs` of the last. The defaults
+differ per mode (`DEFAULT_REROUTE`):
+
+| Mode      | `meters` | `afterFixes` | `cooldownMs` |
+| --------- | -------- | ------------ | ------------ |
+| `walk`    | 30       | 4            | 15000        |
+| `bike`    | 40       | 3            | 10000        |
+| `car`     | 50       | 2            | 8000         |
+| `transit` | 50       | 2            | 8000         |
+
+`reroute: false` switches it off, and `reroute: { walk: { meters: 25 } }`
+overrides single values. A route without a mode (a measured line) is never
+rerouted.
+
+The answer becomes the **driven route**: the navigation's own copy of the
+route, the focused one at `start`, replaced per reroute, published as
+`routeNavigation.route`. `activeRoute` stays its producer's and is never
+written by this addon, so "In der Nähe" knows nothing of a reroute and picking
+another hit still ends the navigation. The line, the countdown, the card and
+arrival all read the driven route. While the request is out,
+`routeNavigation.rerouting` is true: the old line comes off the map and the
+card at the bottom shows a spinner and "Route wird neu berechnet…", for at
+least `MIN_REROUTING_MS` (1.5 s) so a quick answer does not just flash it. An
+answer is dropped (and the old line comes back) when the navigation it
+belongs to is over, or when the latest fix is back on the old route.
+
 The user's hand wins. Any move with an `originalEvent` (a drag, a wheel, a
 rotate) pauses the following: `navigating` stays true, the camera stays where
 they put it, the fixes keep coming in unseen. A button "Zentrieren" appears at
