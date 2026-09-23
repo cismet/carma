@@ -1,6 +1,8 @@
 import type { Positions } from "@carma-mapping/map-controls-layout";
 import { ROUTE_BLUE, ROUTE_GRAY } from "@carma-mapping/routing";
 
+import type { RouteMode } from "./routeMode";
+
 export type RoutingConfig = {
   /**
    * where the recenter button sits while the follow is paused; default
@@ -66,9 +68,60 @@ export type RoutingConfig = {
    * user agent; "always"; "never".
    */
   mapOnly?: MapOnlyMode;
+  /**
+   * Asking for a new route once the user has clearly left the one being
+   * driven, from where they are to the same destination by the same mode.
+   * `false` switches it off; an object overrides the defaults per mode
+   * (`DEFAULT_REROUTE`), value by value.
+   */
+  reroute?: false | Partial<Record<RouteMode, RerouteSettings>>;
 };
 
 export type MapOnlyMode = "mobile" | "always" | "never";
+
+/** when a navigation asks for a new route, for one mode */
+export type RerouteSettings = {
+  /**
+   * how far off the route a fix has to be to count as "left", in meters;
+   * never below `snapToleranceMeters`, nor below the fix's own accuracy
+   */
+  meters?: number;
+  /**
+   * how many such fixes in a row before a request goes out; one fix back on
+   * the route starts the count over, so the scatter at a corner is no detour
+   */
+  afterFixes?: number;
+  /** the least time between the start of two requests, in ms */
+  cooldownMs?: number;
+};
+
+/**
+ * Per mode, because the modes leave a route differently. On foot the fixes
+ * scatter most (house fronts, narrow streets) and 30 m take half a minute,
+ * so the addon waits longer before it believes a detour; a car is 50 m off in
+ * three seconds and the driver wants the new way before the next junction.
+ * `transit` is routed as a car trip today (`travelModeOf`) and goes with it.
+ */
+export const DEFAULT_REROUTE: Record<RouteMode, Required<RerouteSettings>> = {
+  walk: { meters: 30, afterFixes: 4, cooldownMs: 15000 },
+  bike: { meters: 40, afterFixes: 3, cooldownMs: 10000 },
+  car: { meters: 50, afterFixes: 2, cooldownMs: 8000 },
+  transit: { meters: 50, afterFixes: 2, cooldownMs: 8000 },
+};
+
+/**
+ * What the card says while the new route is on its way, in place of a turn
+ * that belongs to the route the user just left.
+ */
+export const REROUTING_LABEL = "Route wird neu berechnet…";
+
+/**
+ * How long the rerouting card stays up at least, in ms. The service mostly
+ * answers within a few hundred milliseconds, and a card that flashes for one
+ * frame reads as a glitch rather than as "the route changed": the old line
+ * goes, the card says why, and then the new line comes.
+ */
+export const MIN_REROUTING_MS = 1500;
 
 /**
  * What the info box note says in front of the numbers while a navigation runs

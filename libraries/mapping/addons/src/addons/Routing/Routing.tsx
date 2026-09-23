@@ -4,6 +4,7 @@ import { faRoute } from "@fortawesome/free-solid-svg-icons";
 
 import { useLocate } from "@carma-mapping/contexts";
 import {
+  fetchRoute,
   formatRouteSummary,
   getModeIcon,
   type RouteStep,
@@ -24,12 +25,17 @@ import {
   DEFAULT_RECENTER_LABEL,
   DEFAULT_RECENTER_ORDER,
   DEFAULT_RECENTER_POSITION,
+  DEFAULT_REROUTE,
   DEFAULT_SNAP_TOLERANCE_METERS,
   DEFAULT_THEN_ANNOUNCE_METERS,
   DEFAULT_THEN_WITHIN_METERS,
   DEFAULT_TRAVELLED_COLOR,
   DEFAULT_ZOOM,
+  MIN_REROUTING_MS,
   REMAINING_PREFIX,
+  REROUTING_LABEL,
+  type RerouteSettings,
+  type RoutingConfig,
 } from "./config";
 import { InstructionCard } from "./InstructionCard";
 import { RecenterControl } from "./RecenterControl";
@@ -42,7 +48,12 @@ import {
   setRouteLineProgress,
 } from "./routeLine";
 import { routeCameraTarget, type RouteCameraTarget } from "./routeCamera";
-import { useActiveRoute, type RouteProgress } from "./routeChannel";
+import {
+  useActiveRoute,
+  type ActiveRoute,
+  type RouteProgress,
+} from "./routeChannel";
+import { travelModeOf, type RouteMode } from "./routeMode";
 import { stepAt } from "./routeSteps";
 
 /**
@@ -85,6 +96,16 @@ import { stepAt } from "./routeSteps";
  * off the route is followed as it is, with the last bearing kept: the user
  * has left the route, and pulling them back onto it would lie. Close enough
  * to the end, the navigation ends on its own.
+ *
+ * Left for good, the route is asked for again (`reroute` in the config): a
+ * few fixes in a row clearly off it, how many and how far depending on the
+ * mode, and the routing service is asked for the way from the user's place to
+ * the same destination by the same mode. The answer becomes the route being
+ * driven, the navigation goes on along it. The route in focus on
+ * `activeRoute` stays its producer's and is not touched: the navigation
+ * carries its own copy, the driven route, published on `routeNavigation` for
+ * the simulator to drive along. An answer that comes when the user is back on
+ * the old route, or after the navigation ended, is dropped.
  *
  * The user's own hand wins: a drag, a wheel, a rotate pauses the following,
  * the camera stays where they put it and the fixes keep coming in unseen. A
@@ -149,11 +170,29 @@ export const Routing = ({
     aheadColor = DEFAULT_AHEAD_COLOR,
     travelledColor = DEFAULT_TRAVELLED_COLOR,
     mapOnly = DEFAULT_MAP_ONLY,
+    reroute,
   } = config ?? {};
+  // read when a fix comes in, not a reason to rebuild the step per fix
+  const rerouteRef = useRef(reroute);
+  rerouteRef.current = reroute;
 
-  const [route] = useActiveRoute();
+  const [focused] = useActiveRoute();
   // a producer keeps the coordinates stable per route, so their identity is
   // what says "another route" without comparing every vertex
+  const focusedCoordinates = focused?.coordinates ?? null;
+  const focusedRef = useRef(focused);
+  focusedRef.current = focused;
+
+  /**
+   * The route being driven: the focused one from `start` on, replaced by each
+   * reroute, null again when the navigation ends. Everything that goes along
+   * the route reads this one; before a start it is the focused route that the
+   * note summarises.
+   */
+  const [drivenRoute, setDrivenRoute] = useState<ActiveRoute | null>(null);
+  const drivenRef = useRef(drivenRoute);
+  drivenRef.current = drivenRoute;
+  const route = drivenRoute ?? focused;
   const coordinates = route?.coordinates ?? null;
 
   // what the route costs as a whole: the note before the start, and what the
@@ -227,6 +266,45 @@ export const Routing = ({
   const bearingRef = useRef(0);
 
   /**
+   * Counts the navigations, so the answer to a reroute asked during one is
+   * dropped when it comes back during the next, or after the last.
+   */
+  const navigationIdRef = useRef(0);
+  /** clearly-off fixes in a row; one on the route starts it over */
+  const offFixesRef = useRef(0);
+  /** the fix counted last, so an effect re-run for another reason does not count it twice */
+  const countedFixRef = useRef<GeolocationPosition | null>(null);
+  /** one request at a time, and not again before the mode's cooldown */
+  const requestRef = useRef({ inFlight: false, startedAt: -Infinity });
+  const [rerouting, setRerouting] = useState(false);
+
+  /**
+   * Makes `next` the route being driven. The refs follow at once, not on the
+   * next render: `start` flies onto the route in the same call, and a reroute
+   * reads its place on the new line right away.
+   */
+  const drive = useCallback((next: ActiveRoute | null) => {
+    drivenRef.current = next;
+    if (next) {
+      coordinatesRef.current = next.coordinates;
+      summaryRef.current = {
+        durationInSeconds: next.durationInSeconds,
+        distanceInMeters: next.distanceInMeters,
+        steps: next.steps,
+      };
+    }
+    setDrivenRoute(next);
+  }, []);
+
+  /** forgets everything about rerouting, for a navigation that starts or ends */
+  const resetReroute = useCallback(() => {
+    navigationIdRef.current++;
+    offFixesRef.current = 0;
+    requestRef.current = { inFlight: false, startedAt: -Infinity };
+    setRerouting(false);
+  }, []);
+
+  /**
    * Takes the camera off the route: back to north-up and flat, which is the
    * view the restriction locks to, and then ends the navigation. The order
    * matters: `navigating` stays true until the camera is flat, because the
@@ -246,37 +324,45 @@ export const Routing = ({
       const flight = ++flightRef.current;
       setFollowing(false);
       setProgress(null);
+      resetReroute();
       // the user is a dot again, not an arrow going somewhere
       setTravelHeading(null);
+      // the driven line goes with the navigation, not before: it stays drawn
+      // while the camera flattens, rather than swapping back to the focused one
+      const finish = () => {
+        setNavigating(false);
+        drive(null);
+      };
       if (!map || !animate) {
         map?.jumpTo({ pitch: 0, bearing: 0 });
-        setNavigating(false);
+        finish();
         return;
       }
       if (map.getPitch() === 0 && map.getBearing() === 0) {
-        setNavigating(false);
+        finish();
         return;
       }
       map.once("moveend", () => {
         if (flightRef.current === flight) {
-          setNavigating(false);
+          finish();
         }
       });
       map.easeTo({ pitch: 0, bearing: 0, duration });
     },
-    [duration, setTravelHeading]
+    [duration, setTravelHeading, resetReroute, drive]
   );
 
   // an addon taken off the map mid-navigation must not leave the arrow behind
   useEffect(() => () => setTravelHeading(null), [setTravelHeading]);
 
   // the route this navigation was started on is not the one in focus any
-  // more, or there is none: the navigation goes with it
+  // more, or there is none: the navigation goes with it. The focused route,
+  // not the driven one: a reroute is the same navigation going on
   useEffect(() => {
     if (navigatingRef.current) {
       leave(false);
     }
-  }, [coordinates, leave]);
+  }, [focusedCoordinates, leave]);
 
   /**
    * Eases the camera onto the user's place on the route, or onto its start
@@ -329,12 +415,14 @@ export const Routing = ({
     // the fixes are what the camera goes along with; without the map moving
     // to them on its own, which is our job from here on
     activate({ fly: false });
+    resetReroute();
+    drive(focusedRef.current);
     // the restriction reads `navigating` and unlocks the camera on it; that
     // write lands before the ease starts moving, so the bearing sticks
     setNavigating(true);
     setFollowing(true);
     flyOntoRoute();
-  }, [activate, flyOntoRoute]);
+  }, [activate, flyOntoRoute, resetReroute, drive]);
 
   const stop = useCallback(() => {
     leave(true);
@@ -347,6 +435,105 @@ export const Routing = ({
     setFollowing(true);
     flyOntoRoute();
   }, [flyOntoRoute]);
+
+  /**
+   * Asks for the way from `from` to the driven route's destination, by its
+   * mode, and drives the answer. Once at a time and not within the mode's
+   * cooldown of the last ask, so a user standing in a field off every road is
+   * not asked for a route per fix.
+   *
+   * The answer is dropped when the navigation it was asked for is over, and
+   * when the latest fix is back on the old route: the user took the turn after
+   * all. Without an answer the old route stays; the next ask waits for the
+   * cooldown. Taken, the new route's place is read at once, so the line's
+   * split, the countdown and the card do not show the old route's numbers on
+   * the new line until the next fix.
+   */
+  const requestReroute = useCallback(
+    (from: [number, number]) => {
+      const driven = drivenRef.current;
+      const settings = rerouteSettingsOf(rerouteRef.current, driven?.mode);
+      const destination = driven?.coordinates[driven.coordinates.length - 1];
+      const request = requestRef.current;
+      const now = Date.now();
+      if (
+        !driven?.mode ||
+        !settings ||
+        !destination ||
+        request.inFlight ||
+        now - request.startedAt < settings.cooldownMs
+      ) {
+        return;
+      }
+      request.inFlight = true;
+      request.startedAt = now;
+      const navigation = navigationIdRef.current;
+      setRerouting(true);
+      void Promise.all([
+        fetchRoute({
+          from: { lng: from[0], lat: from[1] },
+          to: { lng: destination[0], lat: destination[1] },
+          mode: travelModeOf(driven.mode),
+        }),
+        new Promise((resolve) => setTimeout(resolve, MIN_REROUTING_MS)),
+      ]).then(([summary]) => {
+        if (navigationIdRef.current !== navigation) {
+          return;
+        }
+        request.inFlight = false;
+        setRerouting(false);
+        const old = drivenRef.current;
+        const position = positionRef.current;
+        if (!old || !summary || summary.coordinates.length < 2) {
+          console.warn("[ROUTING] reroute found no route", {
+            mode: driven.mode,
+            from,
+          });
+          return;
+        }
+        if (position) {
+          const back = routeCameraTarget(
+            old.coordinates,
+            lookAheadMeters,
+            position
+          );
+          if (back && back.offRoute <= snapToleranceMeters) {
+            return;
+          }
+        }
+        const next: ActiveRoute = {
+          ...old,
+          source: "routing",
+          coordinates: summary.coordinates,
+          steps: summary.steps,
+          durationInSeconds: summary.durationInSeconds,
+          distanceInMeters: summary.distanceInMeters,
+        };
+        offFixesRef.current = 0;
+        drive(next);
+        const target = position
+          ? routeCameraTarget(next.coordinates, lookAheadMeters, position)
+          : null;
+        if (target && target.offRoute <= snapToleranceMeters) {
+          bearingRef.current = target.bearing;
+          setTravelHeading(target.bearing);
+          trackProgress(target);
+        } else {
+          // the service starts the line on the nearest road, which may be
+          // further than the tolerance; nothing honest to show until a fix
+          // is on it
+          setProgress(null);
+        }
+      });
+    },
+    [
+      lookAheadMeters,
+      snapToleranceMeters,
+      drive,
+      setTravelHeading,
+      trackProgress,
+    ]
+  );
 
   useEffect(() => {
     if (!libreMap || !navigating) {
@@ -399,6 +586,30 @@ export const Routing = ({
       // the arrow turns with the road whether or not the camera follows
       setTravelHeading(target.bearing);
     }
+    // left for good? Each fix counts once; a fix further off than it is
+    // accurate, and further than the mode tolerates, counts as off
+    if (currentPosition !== countedFixRef.current) {
+      countedFixRef.current = currentPosition;
+      const settings = rerouteSettingsOf(
+        rerouteRef.current,
+        drivenRef.current?.mode
+      );
+      if (settings) {
+        const threshold = Math.max(
+          settings.meters,
+          snapToleranceMeters,
+          currentPosition.coords.accuracy
+        );
+        if (onRoute) {
+          offFixesRef.current = 0;
+        } else if (target.offRoute > threshold) {
+          offFixesRef.current++;
+          if (offFixesRef.current >= settings.afterFixes) {
+            requestReroute(position);
+          }
+        }
+      }
+    }
     if (!following || currentPosition === handledFixRef.current) {
       return;
     }
@@ -429,6 +640,7 @@ export const Routing = ({
     leave,
     trackProgress,
     setTravelHeading,
+    requestReroute,
   ]);
 
   /**
@@ -471,9 +683,13 @@ export const Routing = ({
    * Redrawn on `styledata`: a basemap change rebuilds the style and drops
    * every source and layer with it, the same reason the ranking redraws its
    * routes there.
+   *
+   * Off the map while a reroute is on its way: the user has left that line,
+   * and the card says a new one is coming. The new one is drawn when it
+   * arrives; the old one comes back when the answer is dropped.
    */
   useEffect(() => {
-    if (!libreMap || !navigating || !coordinates) {
+    if (!libreMap || !navigating || !coordinates || rerouting) {
       return;
     }
     drawRouteLine(libreMap, coordinates, splitRef.current, colors);
@@ -487,7 +703,7 @@ export const Routing = ({
       libreMap.off("styledata", onStyleData);
       clearRouteLine(libreMap);
     };
-  }, [libreMap, navigating, coordinates, colors]);
+  }, [libreMap, navigating, coordinates, colors, rerouting]);
 
   /** the split follows the user, one paint property per fix that moved it */
   useEffect(() => {
@@ -506,7 +722,7 @@ export const Routing = ({
    * out when the route goes, so a feature without a route in focus shows no
    * button.
    */
-  const navigable = route?.fromOwnPosition === true;
+  const navigable = focused?.fromOwnPosition === true;
   useEffect(() => {
     if (!navigable) {
       return;
@@ -537,7 +753,8 @@ export const Routing = ({
           progress.remainingMeters
         )}`
       : null;
-  const noteText = countdown ?? summary;
+  // the old route's numbers are no answer while a new route is on its way
+  const noteText = rerouting ? REROUTING_LABEL : countdown ?? summary;
 
   /**
    * The note, for as long as there is one to show. Its own effect, keyed on
@@ -581,13 +798,24 @@ export const Routing = ({
   const [, publishNavigation] = useAddonState("routeNavigation");
   useEffect(() => {
     publishNavigation({
-      navigation: { navigating, following, progress, start, stop, recenter },
+      navigation: {
+        navigating,
+        following,
+        progress,
+        route: drivenRoute,
+        rerouting,
+        start,
+        stop,
+        recenter,
+      },
     });
   }, [
     publishNavigation,
     navigating,
     following,
     progress,
+    drivenRoute,
+    rerouting,
     start,
     stop,
     recenter,
@@ -604,10 +832,12 @@ export const Routing = ({
   const instruction = progress?.instruction;
   return (
     <>
-      {/* the next turn, for as long as the route has instructions to give */}
-      {instruction && (
+      {/* the next turn, for as long as the route has instructions to give,
+          and the word that a new route is coming while it is */}
+      {(instruction || rerouting) && (
         <InstructionCard
           instruction={instruction}
+          rerouting={rerouting}
           position={instructionPosition}
           order={instructionOrder}
           thenWithinMeters={thenWithinMeters}
@@ -625,6 +855,28 @@ export const Routing = ({
       )}
     </>
   );
+};
+
+/**
+ * When to reroute on a route of this mode: the mode's defaults, each value
+ * overridden by the config's where it gives one. Null when rerouting is off,
+ * and for a route without a mode, which was measured rather than routed and
+ * has no mode to ask the service with.
+ */
+const rerouteSettingsOf = (
+  reroute: RoutingConfig["reroute"],
+  mode: RouteMode | undefined
+): Required<RerouteSettings> | null => {
+  if (reroute === false || !mode) {
+    return null;
+  }
+  const defaults = DEFAULT_REROUTE[mode];
+  const override = reroute?.[mode];
+  return {
+    meters: override?.meters ?? defaults.meters,
+    afterFixes: override?.afterFixes ?? defaults.afterFixes,
+    cooldownMs: override?.cooldownMs ?? defaults.cooldownMs,
+  };
 };
 
 /**
