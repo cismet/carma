@@ -34,8 +34,8 @@ const BRANCHES = {
     { id: STEP.CHANGE_KIND, title: "Flurstück auswählen" },
   ],
   [WIZARD_ACTIONS.SPLIT]: [
-    { id: STEP.SPLIT_CHOOSE, title: "Teilung" },
-    { id: STEP.RESULTING, title: "Ergebnis Flurstücke" },
+    { id: STEP.SPLIT_CHOOSE, title: "Auswahl des Flurstücks" },
+    { id: STEP.RESULTING, title: "Flurstücke anlegen" },
     { id: STEP.SUMMARY, title: "Zusammenfassung" },
   ],
   [WIZARD_ACTIONS.JOIN]: [
