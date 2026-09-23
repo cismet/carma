@@ -26,6 +26,13 @@ import {
   toLocalMercatorVector,
 } from "./sample-gltf-asset";
 import {
+  DZ_B_PRM_POSITION,
+  addDzbPrmStlAssetsToScene,
+  getDzbPrmStlAnchor,
+  type DzbPrmStlQuality,
+  type DzbPrmStlVisibility,
+} from "./sample-stl-asset";
+import {
   SURFACE_TILE_LABELS,
   SURFACE_TILE_OPTIONS,
   WUPPERTAL_TERRAIN_SOURCE_ID,
@@ -67,6 +74,7 @@ const THREE_LAYER_ID = "carma-story-maplibre-render-capability-lines";
 const CONTROL_CATEGORY_MAP = "Map settings";
 const CONTROL_CATEGORY_LINE = "Line";
 const CONTROL_CATEGORY_EXTRUSION = "Extrusion";
+const CONTROL_CATEGORY_STL = "DZ_B_PRM STL";
 const MODEL_AXES_LENGTH_METERS = 40;
 const POINT_EXTRUSION_SOURCE_ID = "carma-story-maplibre-point-extrusion-source";
 const POINT_EXTRUSION_LAYER_ID = "carma-story-maplibre-point-extrusion-layer";
@@ -108,6 +116,13 @@ type DomMarker = {
 
 type StraightLineRenderCapabilityStoryArgs = {
   showBugaBridge: boolean;
+  showDzbPrmStl: boolean;
+  dzbPrmStlQuality: DzbPrmStlQuality;
+  showDzbPrmEnvironment: boolean;
+  showDzbPrmZoo: boolean;
+  showDzbPrmBridge: boolean;
+  showDzbPrmBridgeExisting: boolean;
+  showDzbPrmStation: boolean;
   showModelAxes: boolean;
   surfaceTiles: SurfaceTileMode;
   showLod2Buildings: boolean;
@@ -145,8 +160,14 @@ type ThreeProjectionState = {
 
 type LineLayerOptions = Pick<
   StraightLineRenderCapabilityStoryArgs,
-  "showBugaBridge" | "showModelAxes" | "screenPixelLineWidth" | "lineOpacity"
+  | "showBugaBridge"
+  | "showDzbPrmStl"
+  | "dzbPrmStlQuality"
+  | "showModelAxes"
+  | "screenPixelLineWidth"
+  | "lineOpacity"
 > & {
+  dzbPrmStlVisibility: DzbPrmStlVisibility;
   showTerrainRelativePointExtrusion: boolean;
   showFixedFloorPointExtrusion: boolean;
   terrainRelativePointExtrusionFeature:
@@ -463,17 +484,22 @@ class RenderCapabilityLineLayer implements CustomLayerInterface {
   private map: MapLibreMap | null = null;
   private renderer: THREE.WebGLRenderer | null = null;
   private scene: THREE.Scene | null = null;
-  private readonly origin = maplibregl.MercatorCoordinate.fromLngLat(
-    [BUGA_BRIDGE_POSITION.longitude, BUGA_BRIDGE_POSITION.latitude],
-    BUGA_BRIDGE_POSITION.altitude
-  );
+  private readonly origin: maplibregl.MercatorCoordinate;
   private readonly screenLineMaterials: LineMaterial[] = [];
   private bridgeLoadCancelled = false;
+  private stlLoadCancelled = false;
 
   constructor(
     private readonly variants: readonly LineVariant[],
     private readonly options: LineLayerOptions
-  ) {}
+  ) {
+    this.origin = options.showDzbPrmStl
+      ? getDzbPrmStlAnchor()
+      : maplibregl.MercatorCoordinate.fromLngLat(
+          [BUGA_BRIDGE_POSITION.longitude, BUGA_BRIDGE_POSITION.latitude],
+          BUGA_BRIDGE_POSITION.altitude
+        );
+  }
 
   onAdd(map: MapLibreMap, gl: WebGLRenderingContext | WebGL2RenderingContext) {
     this.map = map;
@@ -492,6 +518,10 @@ class RenderCapabilityLineLayer implements CustomLayerInterface {
 
     if (this.options.showBugaBridge) {
       this.addBugaBridgeAsset();
+    }
+
+    if (this.options.showDzbPrmStl) {
+      this.addDzbPrmStlAssets();
     }
 
     if (
@@ -546,6 +576,7 @@ class RenderCapabilityLineLayer implements CustomLayerInterface {
 
   onRemove() {
     this.bridgeLoadCancelled = true;
+    this.stlLoadCancelled = true;
     if (this.scene) {
       disposeObject(this.scene);
     }
@@ -656,6 +687,43 @@ class RenderCapabilityLineLayer implements CustomLayerInterface {
         this.map?.triggerRepaint();
       },
     });
+  }
+
+  private addDzbPrmStlAssets() {
+    if (!this.scene) return;
+
+    const stlAnchor = getDzbPrmStlAnchor();
+    addDzbPrmStlAssetsToScene({
+      scene: this.scene,
+      origin: this.origin,
+      metersToMercatorUnits: stlAnchor.meterInMercatorCoordinateUnits(),
+      quality: this.options.dzbPrmStlQuality,
+      visibility: this.options.dzbPrmStlVisibility,
+      isCancelled: () => this.stlLoadCancelled || !this.scene || !this.map,
+    })
+      .then((root) => {
+        if (root && this.scene && this.options.showModelAxes) {
+          addModelAxesToScene({
+            scene: this.scene,
+            name: root.name,
+            length: MODEL_AXES_LENGTH_METERS,
+            matrix: root.matrix,
+          });
+        }
+        this.map?.triggerRepaint();
+      })
+      .catch((error: unknown) => {
+        if (!this.stlLoadCancelled) {
+          console.warn(
+            "[MapLibre render-capability story] DZ_B_PRM STL failed",
+            {
+              quality: this.options.dzbPrmStlQuality,
+              error,
+            }
+          );
+          this.map?.triggerRepaint();
+        }
+      });
   }
 
   private addPointExtrusion(
@@ -924,6 +992,11 @@ const syncNativePointExtrusionLayer = (
   map.triggerRepaint();
 };
 
+const getStoryCenter = (showDzbPrmStl: boolean): [number, number] =>
+  showDzbPrmStl
+    ? [DZ_B_PRM_POSITION.longitude, DZ_B_PRM_POSITION.latitude]
+    : SAMPLE_MEASUREMENTS_STORY_CENTER;
+
 const RenderCapabilityScene = (args: StraightLineRenderCapabilityStoryArgs) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const initialCameraRef = useRef({
@@ -942,6 +1015,14 @@ const RenderCapabilityScene = (args: StraightLineRenderCapabilityStoryArgs) => {
   const variants = useMemo(
     () => buildLineVariants(SAMPLE_MEASUREMENT_LINES),
     []
+  );
+  const visibleVariants = useMemo(
+    () => (args.showDzbPrmStl === true ? [] : variants),
+    [args.showDzbPrmStl, variants]
+  );
+  const visibleMeasurementPoints = useMemo(
+    () => (args.showDzbPrmStl === true ? [] : SAMPLE_MEASUREMENT_POINTS),
+    [args.showDzbPrmStl]
   );
   const pointExtrusionData = useMemo(
     () =>
@@ -963,12 +1044,21 @@ const RenderCapabilityScene = (args: StraightLineRenderCapabilityStoryArgs) => {
   );
   const domMarkers = useDomMarkers(
     threeProjectionState,
-    variants,
-    SAMPLE_MEASUREMENT_POINTS
+    visibleVariants,
+    visibleMeasurementPoints
   );
   const lineLayerOptions = useMemo<LineLayerOptions>(
     () => ({
       showBugaBridge: args.showBugaBridge === true,
+      showDzbPrmStl: args.showDzbPrmStl === true,
+      dzbPrmStlQuality: args.dzbPrmStlQuality,
+      dzbPrmStlVisibility: {
+        environment: args.showDzbPrmEnvironment === true,
+        zoo: args.showDzbPrmZoo === true,
+        bridge: args.showDzbPrmBridge === true,
+        bridgeExisting: args.showDzbPrmBridgeExisting === true,
+        station: args.showDzbPrmStation === true,
+      },
       showModelAxes: args.showModelAxes === true,
       showTerrainRelativePointExtrusion:
         args.showTerrainRelativePointExtrusion === true,
@@ -993,6 +1083,13 @@ const RenderCapabilityScene = (args: StraightLineRenderCapabilityStoryArgs) => {
       args.showTerrainRelativePointExtrusion,
       args.showFixedFloorPointExtrusion,
       args.showBugaBridge,
+      args.showDzbPrmStl,
+      args.dzbPrmStlQuality,
+      args.showDzbPrmEnvironment,
+      args.showDzbPrmZoo,
+      args.showDzbPrmBridge,
+      args.showDzbPrmBridgeExisting,
+      args.showDzbPrmStation,
       args.showModelAxes,
     ]
   );
@@ -1051,12 +1148,12 @@ const RenderCapabilityScene = (args: StraightLineRenderCapabilityStoryArgs) => {
     if (!mapInstance) return;
 
     mapInstance.jumpTo({
-      center: SAMPLE_MEASUREMENTS_STORY_CENTER,
+      center: getStoryCenter(args.showDzbPrmStl === true),
       zoom: clampNumber(args.zoom, 16.4, 13, 18),
       pitch: clampNumber(args.pitch, 70, 0, 85),
       bearing: clampNumber(args.bearing, -96, -180, 180),
     });
-  }, [args.bearing, args.pitch, args.zoom, mapInstance]);
+  }, [args.bearing, args.pitch, args.showDzbPrmStl, args.zoom, mapInstance]);
 
   useEffect(() => {
     if (!mapInstance || !styleReady) return;
@@ -1101,7 +1198,7 @@ const RenderCapabilityScene = (args: StraightLineRenderCapabilityStoryArgs) => {
 
     const sync = () => {
       if (!mapInstance.isStyleLoaded()) return;
-      syncLineLayer(mapInstance, variants, lineLayerOptions);
+      syncLineLayer(mapInstance, visibleVariants, lineLayerOptions);
     };
 
     sync();
@@ -1111,7 +1208,7 @@ const RenderCapabilityScene = (args: StraightLineRenderCapabilityStoryArgs) => {
       mapInstance.off("style.load", sync);
       removeLayerIfPresent(mapInstance, THREE_LAYER_ID);
     };
-  }, [lineLayerOptions, mapInstance, styleReady, variants]);
+  }, [lineLayerOptions, mapInstance, styleReady, visibleVariants]);
 
   useEffect(() => {
     if (!mapInstance || !styleReady) return;
@@ -1169,6 +1266,13 @@ const meta: Meta<StraightLineRenderCapabilityStoryArgs> = {
   render: (args) => <RenderCapabilityScene {...args} />,
   args: {
     showBugaBridge: true,
+    showDzbPrmStl: false,
+    dzbPrmStlQuality: "5m",
+    showDzbPrmEnvironment: true,
+    showDzbPrmZoo: true,
+    showDzbPrmBridge: true,
+    showDzbPrmBridgeExisting: false,
+    showDzbPrmStation: true,
     showModelAxes: false,
     surfaceTiles: "stadtplan",
     showLod2Buildings: false,
@@ -1192,6 +1296,52 @@ const meta: Meta<StraightLineRenderCapabilityStoryArgs> = {
       name: "show 3D bridge asset",
       control: { type: "boolean" },
       table: { category: CONTROL_CATEGORY_MAP },
+    },
+    showDzbPrmStl: {
+      name: "show DZ_B_PRM STL scene",
+      control: { type: "boolean" },
+      description:
+        "Load the georeferenced STL scene from adhocdata.cismet.de/DZ_B_PRM.",
+      table: { category: CONTROL_CATEGORY_STL },
+    },
+    dzbPrmStlQuality: {
+      name: "STL generalization",
+      options: ["2m", "5m", "original"],
+      control: { type: "inline-radio" },
+      description:
+        "The source-provided variants are kept unchanged. 5m is the default exploratory balance; original is about 1.5 GB for the environment alone.",
+      table: { category: CONTROL_CATEGORY_STL },
+    },
+    showDzbPrmEnvironment: {
+      name: "STL environment",
+      control: { type: "boolean" },
+      description: "Toggle the source environment STL independently.",
+      table: { category: CONTROL_CATEGORY_STL },
+    },
+    showDzbPrmZoo: {
+      name: "STL zoo inset",
+      control: { type: "boolean" },
+      description: "Toggle the source zoo STL independently.",
+      table: { category: CONTROL_CATEGORY_STL },
+    },
+    showDzbPrmBridge: {
+      name: "STL bridge inset",
+      control: { type: "boolean" },
+      description: "Toggle the source bridge STL independently.",
+      table: { category: CONTROL_CATEGORY_STL },
+    },
+    showDzbPrmBridgeExisting: {
+      name: "STL existing-bridge swap",
+      control: { type: "boolean" },
+      description:
+        "Toggle the source bruecke-bestand.stl independently. It occupies the same inset as the proposed bridge and is intended as a swap option; enable only one bridge insert for a clean view.",
+      table: { category: CONTROL_CATEGORY_STL },
+    },
+    showDzbPrmStation: {
+      name: "STL mountain-station inset",
+      control: { type: "boolean" },
+      description: "Toggle the source mountain-station STL independently.",
+      table: { category: CONTROL_CATEGORY_STL },
     },
     showModelAxes: {
       name: "show model axes",
@@ -1285,6 +1435,13 @@ const meta: Meta<StraightLineRenderCapabilityStoryArgs> = {
         "bearing",
         "zoom",
         "show 3D bridge asset",
+        "show DZ_B_PRM STL scene",
+        "STL generalization",
+        "STL environment",
+        "STL zoo inset",
+        "STL bridge inset",
+        "STL existing-bridge swap",
+        "STL mountain-station inset",
         "show model axes",
         "screenPixelLineWidth",
         "lineOpacity",
@@ -1305,4 +1462,36 @@ type Story = StoryObj<typeof meta>;
 
 export const Straight3DLinePrimitives: Story = {
   name: "Straight 3D Line Primitives",
+};
+
+export const DzbPrmStlExploration: Story = {
+  name: "DZ_B_PRM STL exploration",
+  args: {
+    showBugaBridge: false,
+    showDzbPrmStl: true,
+    dzbPrmStlQuality: "5m",
+    showDzbPrmEnvironment: true,
+    showDzbPrmZoo: true,
+    showDzbPrmBridge: true,
+    showDzbPrmBridgeExisting: false,
+    showDzbPrmStation: true,
+    showLod2Buildings: false,
+    terrainEnabled: false,
+    showNativeFillExtrusion: false,
+    showTerrainRelativePointExtrusion: false,
+    showFixedFloorPointExtrusion: false,
+  },
+  parameters: {
+    controls: {
+      include: [
+        "show DZ_B_PRM STL scene",
+        "STL generalization",
+        "STL environment",
+        "STL zoo inset",
+        "STL bridge inset",
+        "STL existing-bridge swap",
+        "STL mountain-station inset",
+      ],
+    },
+  },
 };
