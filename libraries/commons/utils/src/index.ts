@@ -138,6 +138,7 @@ export {
   isTruthyHashValue,
   updateHashHistoryState,
   getHashParams,
+  isHttpCacheForced,
   diffHashParams,
 } from "./lib/routing.ts";
 export type { HashLaunchMode, HashLaunchModeConfig } from "./lib/routing.ts";

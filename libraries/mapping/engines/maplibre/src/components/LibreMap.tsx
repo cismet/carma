@@ -19,7 +19,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { getHashParams } from "@carma-commons/utils";
+import { getHashParams, isHttpCacheForced } from "@carma-commons/utils";
 import type {
   Carma3dConfig,
   ThreePerfData,
@@ -948,6 +948,16 @@ export const LibreMap = ({
         canvasContextAttributes: preserveDrawingBuffer
           ? { preserveDrawingBuffer: true }
           : undefined,
+        // `cache=forced`: tiles and styles from the http cache whatever their
+        // age, for a show that cycles through the same views
+        ...(isHttpCacheForced()
+          ? {
+              transformRequest: (url: string) => ({
+                url,
+                cache: "force-cache" as const,
+              }),
+            }
+          : {}),
       });
       map.current = mapInstance;
 

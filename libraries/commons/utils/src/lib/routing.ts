@@ -231,6 +231,16 @@ export const getHashParams = (hash?: string): Record<string, string> => {
 };
 
 /**
+ * `#/...?cache=forced`: every request of the map (tiles, styles, the flow
+ * field's rasters) takes a response the browser has kept, whatever its age,
+ * and only goes to the network for what it has never seen. For a projection
+ * show that cycles through the same views; nothing refreshes while it is on.
+ * Read once when the map is created.
+ */
+export const isHttpCacheForced = (hash?: string): boolean =>
+  getHashParams(hash)["cache"] === "forced";
+
+/**
  * Computes which keys changed and which were removed when going from `before` to `after`.
  * Keys refer to the literal hash parameter names (aliasing not considered here).
  */
