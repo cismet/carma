@@ -11,6 +11,11 @@ import type {
   GeoJSONSourceSpecification,
   SourceSpecification,
 } from "maplibre-gl";
+import {
+  setForcedCachePrefixes,
+  sourceUrlPrefixes,
+  styleForcesCache,
+} from "./forcedCache";
 import { validateStyleMin } from "@maplibre/maplibre-gl-style-spec";
 import WMSCapabilities from "wms-capabilities";
 import { extractCarmaConfig, md5FetchJSON } from "@carma-commons/utils";
@@ -580,6 +585,8 @@ export const vectorStylesToMapLibreStyle = async ({
   const geoJsonMetadata: GeoJsonStyleMetadata[] = [];
   const layerSources: LayerSourceRegistration[] = [];
   const failedLayerIds: string[] = [];
+  // url prefixes of the sources of styles marked `carmaConf.cache: "forced"`
+  const forcedCachePrefixes: string[] = [];
 
   // Build stable, position-independent source/layer ids. Deriving ids from the
   // layer's content (WMS layers / name) instead of its array index means a
@@ -711,6 +718,9 @@ export const vectorStylesToMapLibreStyle = async ({
           const namespacedId = `${layerId}::${srcId}`;
           sourceRename[srcId] = namespacedId;
           namespacedSources[namespacedId] = srcDef;
+          if (styleForcesCache(additionalStyle)) {
+            forcedCachePrefixes.push(...sourceUrlPrefixes(srcDef));
+          }
         }
 
         // Register the style's sprite(s) once per URL; a sprite array
@@ -1143,5 +1153,6 @@ export const vectorStylesToMapLibreStyle = async ({
 
   failedLayerIds.push(...dropInvalidLayers(style, layerSources));
 
+  setForcedCachePrefixes(forcedCachePrefixes);
   return { style, geoJsonMetadata, layerSources, failedLayerIds };
 };

@@ -20,6 +20,7 @@ import {
   useState,
 } from "react";
 import { getHashParams, isHttpCacheForced } from "@carma-commons/utils";
+import { isForcedCacheUrl } from "../utils/forcedCache";
 import type {
   Carma3dConfig,
   ThreePerfData,
@@ -931,6 +932,7 @@ export const LibreMap = ({
       const bearing = readHashAngle("b", "bearing");
       const pitch = readHashAngle("p", "pitch");
 
+      const forceAllRequests = isHttpCacheForced();
       const mapInstance = new maplibregl.Map({
         container: mapContainer.current,
         style: backgroundStyle,
@@ -948,16 +950,14 @@ export const LibreMap = ({
         canvasContextAttributes: preserveDrawingBuffer
           ? { preserveDrawingBuffer: true }
           : undefined,
-        // `cache=forced`: tiles and styles from the http cache whatever their
-        // age, for a show that cycles through the same views
-        ...(isHttpCacheForced()
-          ? {
-              transformRequest: (url: string) => ({
-                url,
-                cache: "force-cache" as const,
-              }),
-            }
-          : {}),
+        // `cache=forced` in the url: every request from the http cache
+        // whatever its age, for a show that cycles through the same views; a
+        // style marked `carmaConf.cache: "forced"` asks the same for its own
+        // sources (`forcedCache.ts`)
+        transformRequest: (url: string) =>
+          forceAllRequests || isForcedCacheUrl(url)
+            ? { url, cache: "force-cache" as const }
+            : { url },
       });
       map.current = mapInstance;
 
