@@ -177,6 +177,7 @@ export const useFlowFieldLayerRow = ({
     params,
     backdrop,
     fallback,
+    preload,
     permanent,
     isHidden,
     setHidden,
@@ -226,6 +227,7 @@ export const useFlowFieldLayerRow = ({
                 params,
                 backdrop: backdrop ?? undefined,
                 fallback: fallback ?? undefined,
+                preload: preload ?? undefined,
               } satisfies FlowFieldDefinition,
             },
           ]
@@ -246,6 +248,7 @@ export const useFlowFieldLayerRow = ({
       params,
       backdrop,
       fallback,
+      preload,
     ]
   );
 

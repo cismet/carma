@@ -7,6 +7,7 @@ import type { FlowFieldParams, UvCorrection } from "../../lib/caged-addons";
 import {
   FLOW_FIELD_STATE_DEFAULT,
   type FlowFieldBackdrop,
+  type FlowFieldPreload,
   type FlowFieldState,
 } from "./flowfield-actions";
 
@@ -82,6 +83,11 @@ const readBackdrop = (value: unknown): FlowFieldBackdrop | null => {
   };
 };
 
+const readPreload = (value: unknown): FlowFieldPreload | null =>
+  isRecord(value) && nonEmptyString(value.u) && nonEmptyString(value.v)
+    ? { u: value.u, v: value.v }
+    : null;
+
 /**
  * The stored launch, or undefined when there is none or it names no
  * scenario. `isCaged` is the build's answer, not the store's: the animation
@@ -132,6 +138,7 @@ export const loadFlowFieldState = (
       params: isRecord(parsed.params) ? (parsed.params as FlowFieldParams) : {},
       backdrop: readBackdrop(parsed.backdrop),
       fallback: readBackdrop(parsed.fallback),
+      preload: readPreload(parsed.preload),
       permanent: parsed.permanent === true,
       anchorLayerId: nonEmptyString(parsed.anchorLayerId)
         ? parsed.anchorLayerId
