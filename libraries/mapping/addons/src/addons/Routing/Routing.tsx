@@ -551,6 +551,40 @@ export const Routing = ({
   }, [libreMap, navigating]);
 
   /**
+   * Keeps the camera's ground on the ground while it follows. With terrain,
+   * MapLibre eases a copy of the camera whose elevation (the height of the
+   * ground under the centre) is taken once, when the copy is made, and written
+   * back over the real one on every frame. The eases per fix chain into each
+   * other without a render in between, so that height never gets corrected:
+   * the first flight keeps the height of wherever the map was before the
+   * start, and at a navigation's zoom and pitch a lower one puts the camera
+   * underground. Each frame of ours therefore gets the height of the ground
+   * under its own centre, the value MapLibre itself sets when nothing moves.
+   *
+   * Only while following: the user's own moves are MapLibre's to handle.
+   */
+  useEffect(() => {
+    if (!libreMap || !navigating) {
+      return;
+    }
+    libreMap.transformCameraUpdate = (next) => {
+      const terrain = libreMap.terrain;
+      if (!terrain || !followingRef.current) {
+        return {};
+      }
+      return {
+        elevation: terrain.getElevationForLngLatZoom(
+          next.center,
+          libreMap.transform.tileZoom
+        ),
+      };
+    };
+    return () => {
+      libreMap.transformCameraUpdate = null;
+    };
+  }, [libreMap, navigating]);
+
+  /**
    * The step per fix: where the user is on the route, and what that means for
    * the camera and for what is left.
    *
