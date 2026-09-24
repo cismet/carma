@@ -9,8 +9,11 @@ import {
 
 import {
   createShadowSimulationLayer,
+  createShadowTextureLayer,
   resolveShadowSimulationAddon,
+  resolveShadowTextureAddon,
   SHADOW_SIMULATION_LAYER_ID,
+  SHADOW_TEXTURE_LAYER_ID,
 } from "../helper/shadow-simulation-layer";
 import {
   appendLayer,
@@ -20,7 +23,10 @@ import {
   updateLayer,
 } from "../store/slices/mapping";
 
-export { SHADOW_SIMULATION_LAYER_ID } from "../helper/shadow-simulation-layer";
+export {
+  SHADOW_SIMULATION_LAYER_ID,
+  SHADOW_TEXTURE_LAYER_ID,
+} from "../helper/shadow-simulation-layer";
 
 export const useShadowSimulationLayerButton = () => {
   const dispatch = useDispatch();
@@ -35,28 +41,42 @@ export const useShadowSimulationLayerButton = () => {
     () => resolveShadowSimulationAddon(routeAddons, addonOverrides),
     [addonOverrides, routeAddons]
   );
+  const textureAddon = useMemo(
+    () => resolveShadowTextureAddon(routeAddons, addonOverrides),
+    [addonOverrides, routeAddons]
+  );
   const shadowLayer = useMemo(
-    () => createShadowSimulationLayer(shadowAddon, shadowEnabled),
-    [shadowAddon, shadowEnabled]
+    () =>
+      createShadowTextureLayer(textureAddon, shadowEnabled) ??
+      createShadowSimulationLayer(shadowAddon, shadowEnabled),
+    [shadowAddon, shadowEnabled, textureAddon]
   );
 
   useEffect(() => {
-    const layerIndex = layerStack.findIndex(
-      (entry) => entry.id === SHADOW_SIMULATION_LAYER_ID
-    );
+    const layerId = shadowLayer?.id;
+    const layerIndex = layerStack.findIndex((entry) => entry.id === layerId);
     const currentLayer = layerIndex >= 0 ? layerStack[layerIndex] : undefined;
     const justEnabled = shadowEnabled && !wasEnabled.current;
     wasEnabled.current = shadowEnabled;
 
-    if (!shadowAddon || !shadowLayer) {
+    for (const staleId of [
+      SHADOW_SIMULATION_LAYER_ID,
+      SHADOW_TEXTURE_LAYER_ID,
+    ]) {
+      if (
+        staleId !== layerId &&
+        layerStack.some((entry) => entry.id === staleId)
+      ) {
+        dispatch(removeLayer(staleId));
+      }
+    }
+
+    if (!shadowLayer) {
       if (shadowEnabled) {
         setShadowState((previous) => {
           if (!previous || !previous.enabled) return previous!;
           return { ...previous, enabled: false };
         });
-      }
-      if (currentLayer) {
-        dispatch(removeLayer(SHADOW_SIMULATION_LAYER_ID));
       }
       return;
     }

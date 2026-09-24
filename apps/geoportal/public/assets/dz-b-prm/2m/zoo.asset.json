@@ -1,0 +1,1104 @@
+{
+  "format": "glTF 2.0 GLB",
+  "source": {
+    "url": "https://adhocdata.cismet.de/DZ_B_PRM/2m/zoo.stl",
+    "sha256": "1545c3d3dc47dd9aaa01477cca5ab5dc63187efa824d135f213d900098e276e1",
+    "bytes": 5895684,
+    "binary_stl_triangles": 117912
+  },
+  "conversion": {
+    "blender_version": "5.2.2 LTS",
+    "weld_mm": 1e-05,
+    "max_fit_error_m": 0.005,
+    "max_instance_faces": 256,
+    "min_instances": 3,
+    "compression": "meshopt",
+    "meshopt_exponential_bits": 20,
+    "cleanup": {
+      "before_vertices": 62955,
+      "before_triangles": 117817,
+      "after_vertices": 62952,
+      "after_triangles": 117819,
+      "nonmanifold_edges": 606
+    },
+    "connected_components": 2101,
+    "candidate_components": 2093,
+    "gpu_instance_families": [
+      {
+        "instances": 13,
+        "shared_triangles_per_instance": 36,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.6058244281481643
+      },
+      {
+        "instances": 3,
+        "shared_triangles_per_instance": 36,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.30256909016198547
+      },
+      {
+        "instances": 3,
+        "shared_triangles_per_instance": 36,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.05389941661651052
+      },
+      {
+        "instances": 3,
+        "shared_triangles_per_instance": 36,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.21157607184870283
+      },
+      {
+        "instances": 4,
+        "shared_triangles_per_instance": 30,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.25426177096870994
+      },
+      {
+        "instances": 7,
+        "shared_triangles_per_instance": 28,
+        "unique_contact_triangles_per_instance": 6,
+        "max_unshared_vertex_error_m": 0.1123355306742436
+      },
+      {
+        "instances": 4,
+        "shared_triangles_per_instance": 28,
+        "unique_contact_triangles_per_instance": 6,
+        "max_unshared_vertex_error_m": 0.06126765345925075
+      },
+      {
+        "instances": 3,
+        "shared_triangles_per_instance": 63,
+        "unique_contact_triangles_per_instance": 13,
+        "max_unshared_vertex_error_m": 0.08878001283220734
+      },
+      {
+        "instances": 3,
+        "shared_triangles_per_instance": 63,
+        "unique_contact_triangles_per_instance": 13,
+        "max_unshared_vertex_error_m": 0.14080313005620076
+      },
+      {
+        "instances": 4,
+        "shared_triangles_per_instance": 27,
+        "unique_contact_triangles_per_instance": 7,
+        "max_unshared_vertex_error_m": 0.2043880509730898
+      },
+      {
+        "instances": 4,
+        "shared_triangles_per_instance": 27,
+        "unique_contact_triangles_per_instance": 7,
+        "max_unshared_vertex_error_m": 0.21501280166247194
+      },
+      {
+        "instances": 14,
+        "shared_triangles_per_instance": 44,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.2624992447819727
+      },
+      {
+        "instances": 12,
+        "shared_triangles_per_instance": 44,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.3843826513685005
+      },
+      {
+        "instances": 4,
+        "shared_triangles_per_instance": 44,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.3416529719607976
+      },
+      {
+        "instances": 3,
+        "shared_triangles_per_instance": 44,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.16758592117244317
+      },
+      {
+        "instances": 14,
+        "shared_triangles_per_instance": 44,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.4440142286639674
+      },
+      {
+        "instances": 6,
+        "shared_triangles_per_instance": 44,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.2710357501305378
+      },
+      {
+        "instances": 4,
+        "shared_triangles_per_instance": 44,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.2688128911774173
+      },
+      {
+        "instances": 4,
+        "shared_triangles_per_instance": 38,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.34626812861965783
+      },
+      {
+        "instances": 5,
+        "shared_triangles_per_instance": 38,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.16890722605114927
+      },
+      {
+        "instances": 5,
+        "shared_triangles_per_instance": 38,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.06915748410343518
+      },
+      {
+        "instances": 13,
+        "shared_triangles_per_instance": 38,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.4568460763780926
+      },
+      {
+        "instances": 3,
+        "shared_triangles_per_instance": 38,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.23724402787568113
+      },
+      {
+        "instances": 4,
+        "shared_triangles_per_instance": 38,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.3386565599320115
+      },
+      {
+        "instances": 3,
+        "shared_triangles_per_instance": 38,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.470624308424181
+      },
+      {
+        "instances": 10,
+        "shared_triangles_per_instance": 41,
+        "unique_contact_triangles_per_instance": 11,
+        "max_unshared_vertex_error_m": 0.34098141398081816
+      },
+      {
+        "instances": 14,
+        "shared_triangles_per_instance": 41,
+        "unique_contact_triangles_per_instance": 11,
+        "max_unshared_vertex_error_m": 0.3792020020901336
+      },
+      {
+        "instances": 8,
+        "shared_triangles_per_instance": 41,
+        "unique_contact_triangles_per_instance": 11,
+        "max_unshared_vertex_error_m": 0.25714570454100893
+      },
+      {
+        "instances": 33,
+        "shared_triangles_per_instance": 41,
+        "unique_contact_triangles_per_instance": 11,
+        "max_unshared_vertex_error_m": 0.9124537032464236
+      },
+      {
+        "instances": 3,
+        "shared_triangles_per_instance": 41,
+        "unique_contact_triangles_per_instance": 11,
+        "max_unshared_vertex_error_m": 0.15936597669342442
+      },
+      {
+        "instances": 3,
+        "shared_triangles_per_instance": 42,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.3208028114950692
+      },
+      {
+        "instances": 3,
+        "shared_triangles_per_instance": 42,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.09882201857507683
+      },
+      {
+        "instances": 3,
+        "shared_triangles_per_instance": 37,
+        "unique_contact_triangles_per_instance": 9,
+        "max_unshared_vertex_error_m": 0.08482357238877032
+      },
+      {
+        "instances": 6,
+        "shared_triangles_per_instance": 37,
+        "unique_contact_triangles_per_instance": 9,
+        "max_unshared_vertex_error_m": 0.1542020076543792
+      },
+      {
+        "instances": 4,
+        "shared_triangles_per_instance": 37,
+        "unique_contact_triangles_per_instance": 9,
+        "max_unshared_vertex_error_m": 0.19297300276102503
+      },
+      {
+        "instances": 3,
+        "shared_triangles_per_instance": 37,
+        "unique_contact_triangles_per_instance": 9,
+        "max_unshared_vertex_error_m": 0.17576297406905372
+      },
+      {
+        "instances": 8,
+        "shared_triangles_per_instance": 56,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.3773120888116747
+      },
+      {
+        "instances": 3,
+        "shared_triangles_per_instance": 56,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.32045681630641554
+      },
+      {
+        "instances": 4,
+        "shared_triangles_per_instance": 56,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.20911980603587857
+      },
+      {
+        "instances": 3,
+        "shared_triangles_per_instance": 56,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.16462484177052822
+      },
+      {
+        "instances": 3,
+        "shared_triangles_per_instance": 56,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.20792862065722986
+      },
+      {
+        "instances": 3,
+        "shared_triangles_per_instance": 56,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.07310949604462
+      },
+      {
+        "instances": 4,
+        "shared_triangles_per_instance": 22,
+        "unique_contact_triangles_per_instance": 6,
+        "max_unshared_vertex_error_m": 0.15600269213623758
+      },
+      {
+        "instances": 3,
+        "shared_triangles_per_instance": 28,
+        "unique_contact_triangles_per_instance": 8,
+        "max_unshared_vertex_error_m": 0.16692744040614096
+      },
+      {
+        "instances": 6,
+        "shared_triangles_per_instance": 28,
+        "unique_contact_triangles_per_instance": 8,
+        "max_unshared_vertex_error_m": 0.30452763046152964
+      },
+      {
+        "instances": 5,
+        "shared_triangles_per_instance": 28,
+        "unique_contact_triangles_per_instance": 8,
+        "max_unshared_vertex_error_m": 0.40145479727481365
+      },
+      {
+        "instances": 4,
+        "shared_triangles_per_instance": 28,
+        "unique_contact_triangles_per_instance": 8,
+        "max_unshared_vertex_error_m": 0.4667196662524816
+      },
+      {
+        "instances": 4,
+        "shared_triangles_per_instance": 28,
+        "unique_contact_triangles_per_instance": 8,
+        "max_unshared_vertex_error_m": 0.03200297150475027
+      },
+      {
+        "instances": 4,
+        "shared_triangles_per_instance": 34,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.17654986606600184
+      },
+      {
+        "instances": 4,
+        "shared_triangles_per_instance": 34,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.3642326332653414
+      },
+      {
+        "instances": 3,
+        "shared_triangles_per_instance": 34,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.529900830372314
+      },
+      {
+        "instances": 3,
+        "shared_triangles_per_instance": 34,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.3011704216539507
+      },
+      {
+        "instances": 3,
+        "shared_triangles_per_instance": 34,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.16744106181132706
+      },
+      {
+        "instances": 3,
+        "shared_triangles_per_instance": 34,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.2568148391391301
+      },
+      {
+        "instances": 3,
+        "shared_triangles_per_instance": 34,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.2751170036262029
+      },
+      {
+        "instances": 17,
+        "shared_triangles_per_instance": 52,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.2529180724685773
+      },
+      {
+        "instances": 9,
+        "shared_triangles_per_instance": 52,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.2555019887492247
+      },
+      {
+        "instances": 14,
+        "shared_triangles_per_instance": 52,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.4362712567869692
+      },
+      {
+        "instances": 5,
+        "shared_triangles_per_instance": 52,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.3606004591564785
+      },
+      {
+        "instances": 4,
+        "shared_triangles_per_instance": 52,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.4737621604528179
+      },
+      {
+        "instances": 5,
+        "shared_triangles_per_instance": 27,
+        "unique_contact_triangles_per_instance": 7,
+        "max_unshared_vertex_error_m": 0.18394907150386783
+      },
+      {
+        "instances": 3,
+        "shared_triangles_per_instance": 53,
+        "unique_contact_triangles_per_instance": 9,
+        "max_unshared_vertex_error_m": 0.41363975098803335
+      },
+      {
+        "instances": 3,
+        "shared_triangles_per_instance": 54,
+        "unique_contact_triangles_per_instance": 12,
+        "max_unshared_vertex_error_m": 0.19234099802626578
+      },
+      {
+        "instances": 4,
+        "shared_triangles_per_instance": 54,
+        "unique_contact_triangles_per_instance": 12,
+        "max_unshared_vertex_error_m": 0.12203001047486887
+      },
+      {
+        "instances": 5,
+        "shared_triangles_per_instance": 43,
+        "unique_contact_triangles_per_instance": 9,
+        "max_unshared_vertex_error_m": 0.422686101815046
+      },
+      {
+        "instances": 4,
+        "shared_triangles_per_instance": 43,
+        "unique_contact_triangles_per_instance": 9,
+        "max_unshared_vertex_error_m": 0.30872542103107053
+      },
+      {
+        "instances": 4,
+        "shared_triangles_per_instance": 43,
+        "unique_contact_triangles_per_instance": 9,
+        "max_unshared_vertex_error_m": 0.3127104289553617
+      },
+      {
+        "instances": 3,
+        "shared_triangles_per_instance": 43,
+        "unique_contact_triangles_per_instance": 9,
+        "max_unshared_vertex_error_m": 0.13130196963183066
+      },
+      {
+        "instances": 6,
+        "shared_triangles_per_instance": 43,
+        "unique_contact_triangles_per_instance": 9,
+        "max_unshared_vertex_error_m": 0.5160644865395504
+      },
+      {
+        "instances": 3,
+        "shared_triangles_per_instance": 43,
+        "unique_contact_triangles_per_instance": 9,
+        "max_unshared_vertex_error_m": 0.14685015074514193
+      },
+      {
+        "instances": 3,
+        "shared_triangles_per_instance": 61,
+        "unique_contact_triangles_per_instance": 13,
+        "max_unshared_vertex_error_m": 0.15276290230835243
+      },
+      {
+        "instances": 3,
+        "shared_triangles_per_instance": 61,
+        "unique_contact_triangles_per_instance": 13,
+        "max_unshared_vertex_error_m": 0.1268714208709305
+      },
+      {
+        "instances": 4,
+        "shared_triangles_per_instance": 61,
+        "unique_contact_triangles_per_instance": 13,
+        "max_unshared_vertex_error_m": 0.19201490743477878
+      },
+      {
+        "instances": 10,
+        "shared_triangles_per_instance": 61,
+        "unique_contact_triangles_per_instance": 13,
+        "max_unshared_vertex_error_m": 0.37463973296520986
+      },
+      {
+        "instances": 4,
+        "shared_triangles_per_instance": 61,
+        "unique_contact_triangles_per_instance": 13,
+        "max_unshared_vertex_error_m": 0.12386034100215527
+      },
+      {
+        "instances": 9,
+        "shared_triangles_per_instance": 50,
+        "unique_contact_triangles_per_instance": 12,
+        "max_unshared_vertex_error_m": 0.19629684087690738
+      },
+      {
+        "instances": 8,
+        "shared_triangles_per_instance": 50,
+        "unique_contact_triangles_per_instance": 12,
+        "max_unshared_vertex_error_m": 0.1732279101224571
+      },
+      {
+        "instances": 11,
+        "shared_triangles_per_instance": 50,
+        "unique_contact_triangles_per_instance": 12,
+        "max_unshared_vertex_error_m": 0.1974616568580165
+      },
+      {
+        "instances": 8,
+        "shared_triangles_per_instance": 50,
+        "unique_contact_triangles_per_instance": 12,
+        "max_unshared_vertex_error_m": 0.11195098796409463
+      },
+      {
+        "instances": 7,
+        "shared_triangles_per_instance": 50,
+        "unique_contact_triangles_per_instance": 12,
+        "max_unshared_vertex_error_m": 0.23084602170302965
+      },
+      {
+        "instances": 11,
+        "shared_triangles_per_instance": 44,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.203986666457058
+      },
+      {
+        "instances": 3,
+        "shared_triangles_per_instance": 44,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.2755676499915754
+      },
+      {
+        "instances": 6,
+        "shared_triangles_per_instance": 59,
+        "unique_contact_triangles_per_instance": 9,
+        "max_unshared_vertex_error_m": 0.41171155276297244
+      },
+      {
+        "instances": 3,
+        "shared_triangles_per_instance": 59,
+        "unique_contact_triangles_per_instance": 9,
+        "max_unshared_vertex_error_m": 0.14520377206871954
+      },
+      {
+        "instances": 5,
+        "shared_triangles_per_instance": 56,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.37149152675833425
+      },
+      {
+        "instances": 4,
+        "shared_triangles_per_instance": 56,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.40797241140003554
+      },
+      {
+        "instances": 4,
+        "shared_triangles_per_instance": 56,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.14393541839241059
+      },
+      {
+        "instances": 5,
+        "shared_triangles_per_instance": 56,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.37640791569235393
+      },
+      {
+        "instances": 14,
+        "shared_triangles_per_instance": 56,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.48364446396698774
+      },
+      {
+        "instances": 7,
+        "shared_triangles_per_instance": 56,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.23330264142215498
+      },
+      {
+        "instances": 6,
+        "shared_triangles_per_instance": 30,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.14501568575383658
+      },
+      {
+        "instances": 7,
+        "shared_triangles_per_instance": 30,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.16199168196698904
+      },
+      {
+        "instances": 8,
+        "shared_triangles_per_instance": 30,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.2606815935622498
+      },
+      {
+        "instances": 5,
+        "shared_triangles_per_instance": 30,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.18236546952877958
+      },
+      {
+        "instances": 3,
+        "shared_triangles_per_instance": 36,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.32014473232646773
+      },
+      {
+        "instances": 5,
+        "shared_triangles_per_instance": 36,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.6133749451996267
+      },
+      {
+        "instances": 5,
+        "shared_triangles_per_instance": 36,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.17364389196915145
+      },
+      {
+        "instances": 5,
+        "shared_triangles_per_instance": 36,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.13989395375405772
+      },
+      {
+        "instances": 5,
+        "shared_triangles_per_instance": 36,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.093387977769269
+      },
+      {
+        "instances": 3,
+        "shared_triangles_per_instance": 36,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.21261790760801677
+      },
+      {
+        "instances": 4,
+        "shared_triangles_per_instance": 36,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.3233154729325878
+      },
+      {
+        "instances": 4,
+        "shared_triangles_per_instance": 36,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.14801850723042526
+      },
+      {
+        "instances": 4,
+        "shared_triangles_per_instance": 36,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.1636145771590951
+      },
+      {
+        "instances": 3,
+        "shared_triangles_per_instance": 36,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.20196988136551888
+      },
+      {
+        "instances": 4,
+        "shared_triangles_per_instance": 60,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.24831285576937168
+      },
+      {
+        "instances": 3,
+        "shared_triangles_per_instance": 54,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.103230078110126
+      },
+      {
+        "instances": 3,
+        "shared_triangles_per_instance": 24,
+        "unique_contact_triangles_per_instance": 6,
+        "max_unshared_vertex_error_m": 0.042763963582531865
+      },
+      {
+        "instances": 4,
+        "shared_triangles_per_instance": 24,
+        "unique_contact_triangles_per_instance": 6,
+        "max_unshared_vertex_error_m": 0.13483379644805304
+      },
+      {
+        "instances": 4,
+        "shared_triangles_per_instance": 24,
+        "unique_contact_triangles_per_instance": 6,
+        "max_unshared_vertex_error_m": 0.16435963040550358
+      },
+      {
+        "instances": 6,
+        "shared_triangles_per_instance": 24,
+        "unique_contact_triangles_per_instance": 6,
+        "max_unshared_vertex_error_m": 0.15145809495567095
+      },
+      {
+        "instances": 4,
+        "shared_triangles_per_instance": 24,
+        "unique_contact_triangles_per_instance": 6,
+        "max_unshared_vertex_error_m": 0.06660419032694316
+      },
+      {
+        "instances": 3,
+        "shared_triangles_per_instance": 24,
+        "unique_contact_triangles_per_instance": 6,
+        "max_unshared_vertex_error_m": 0.06245304742706176
+      },
+      {
+        "instances": 7,
+        "shared_triangles_per_instance": 44,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.2944710461246146
+      },
+      {
+        "instances": 5,
+        "shared_triangles_per_instance": 44,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.4664153328478435
+      },
+      {
+        "instances": 3,
+        "shared_triangles_per_instance": 51,
+        "unique_contact_triangles_per_instance": 9,
+        "max_unshared_vertex_error_m": 0.08879950307559777
+      },
+      {
+        "instances": 3,
+        "shared_triangles_per_instance": 51,
+        "unique_contact_triangles_per_instance": 9,
+        "max_unshared_vertex_error_m": 0.4828696543486345
+      },
+      {
+        "instances": 4,
+        "shared_triangles_per_instance": 27,
+        "unique_contact_triangles_per_instance": 7,
+        "max_unshared_vertex_error_m": 0.1311602329046683
+      },
+      {
+        "instances": 3,
+        "shared_triangles_per_instance": 27,
+        "unique_contact_triangles_per_instance": 7,
+        "max_unshared_vertex_error_m": 0.2282028843706094
+      },
+      {
+        "instances": 3,
+        "shared_triangles_per_instance": 27,
+        "unique_contact_triangles_per_instance": 7,
+        "max_unshared_vertex_error_m": 0.1355625441512571
+      },
+      {
+        "instances": 5,
+        "shared_triangles_per_instance": 27,
+        "unique_contact_triangles_per_instance": 7,
+        "max_unshared_vertex_error_m": 0.18305250276995436
+      },
+      {
+        "instances": 7,
+        "shared_triangles_per_instance": 27,
+        "unique_contact_triangles_per_instance": 7,
+        "max_unshared_vertex_error_m": 0.045409392098327346
+      },
+      {
+        "instances": 3,
+        "shared_triangles_per_instance": 27,
+        "unique_contact_triangles_per_instance": 7,
+        "max_unshared_vertex_error_m": 0.21486632574789327
+      },
+      {
+        "instances": 4,
+        "shared_triangles_per_instance": 71,
+        "unique_contact_triangles_per_instance": 11,
+        "max_unshared_vertex_error_m": 0.2120033029430288
+      },
+      {
+        "instances": 8,
+        "shared_triangles_per_instance": 71,
+        "unique_contact_triangles_per_instance": 11,
+        "max_unshared_vertex_error_m": 0.15878696461556596
+      },
+      {
+        "instances": 5,
+        "shared_triangles_per_instance": 60,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.5091705680260415
+      },
+      {
+        "instances": 28,
+        "shared_triangles_per_instance": 50,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.5367968155118658
+      },
+      {
+        "instances": 19,
+        "shared_triangles_per_instance": 50,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.547833642971859
+      },
+      {
+        "instances": 3,
+        "shared_triangles_per_instance": 31,
+        "unique_contact_triangles_per_instance": 9,
+        "max_unshared_vertex_error_m": 0.04255857457093694
+      },
+      {
+        "instances": 3,
+        "shared_triangles_per_instance": 52,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.6209658257074224
+      },
+      {
+        "instances": 4,
+        "shared_triangles_per_instance": 52,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.49133460507158394
+      },
+      {
+        "instances": 4,
+        "shared_triangles_per_instance": 52,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.10469870954826452
+      },
+      {
+        "instances": 14,
+        "shared_triangles_per_instance": 58,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.33452207225441183
+      },
+      {
+        "instances": 13,
+        "shared_triangles_per_instance": 58,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.8806540420783159
+      },
+      {
+        "instances": 3,
+        "shared_triangles_per_instance": 45,
+        "unique_contact_triangles_per_instance": 9,
+        "max_unshared_vertex_error_m": 0.1810530180490556
+      },
+      {
+        "instances": 5,
+        "shared_triangles_per_instance": 45,
+        "unique_contact_triangles_per_instance": 9,
+        "max_unshared_vertex_error_m": 0.15681714055450569
+      },
+      {
+        "instances": 4,
+        "shared_triangles_per_instance": 45,
+        "unique_contact_triangles_per_instance": 9,
+        "max_unshared_vertex_error_m": 0.0961310561424919
+      },
+      {
+        "instances": 15,
+        "shared_triangles_per_instance": 53,
+        "unique_contact_triangles_per_instance": 13,
+        "max_unshared_vertex_error_m": 0.1699971491117606
+      },
+      {
+        "instances": 3,
+        "shared_triangles_per_instance": 53,
+        "unique_contact_triangles_per_instance": 13,
+        "max_unshared_vertex_error_m": 0.09986939414309642
+      },
+      {
+        "instances": 3,
+        "shared_triangles_per_instance": 53,
+        "unique_contact_triangles_per_instance": 13,
+        "max_unshared_vertex_error_m": 0.06050565950171567
+      },
+      {
+        "instances": 5,
+        "shared_triangles_per_instance": 53,
+        "unique_contact_triangles_per_instance": 13,
+        "max_unshared_vertex_error_m": 0.16961102312356313
+      },
+      {
+        "instances": 3,
+        "shared_triangles_per_instance": 44,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.06262122777911008
+      },
+      {
+        "instances": 4,
+        "shared_triangles_per_instance": 44,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.3458105165023706
+      },
+      {
+        "instances": 6,
+        "shared_triangles_per_instance": 44,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.44669491044009607
+      },
+      {
+        "instances": 8,
+        "shared_triangles_per_instance": 60,
+        "unique_contact_triangles_per_instance": 12,
+        "max_unshared_vertex_error_m": 0.7360899067132716
+      },
+      {
+        "instances": 5,
+        "shared_triangles_per_instance": 60,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.36830076925402894
+      },
+      {
+        "instances": 5,
+        "shared_triangles_per_instance": 48,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.2200933491750916
+      },
+      {
+        "instances": 3,
+        "shared_triangles_per_instance": 48,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.1815995598028144
+      },
+      {
+        "instances": 4,
+        "shared_triangles_per_instance": 71,
+        "unique_contact_triangles_per_instance": 11,
+        "max_unshared_vertex_error_m": 0.26625564954223974
+      },
+      {
+        "instances": 3,
+        "shared_triangles_per_instance": 71,
+        "unique_contact_triangles_per_instance": 11,
+        "max_unshared_vertex_error_m": 0.18050308441831409
+      },
+      {
+        "instances": 4,
+        "shared_triangles_per_instance": 59,
+        "unique_contact_triangles_per_instance": 11,
+        "max_unshared_vertex_error_m": 0.12774857055676606
+      },
+      {
+        "instances": 3,
+        "shared_triangles_per_instance": 50,
+        "unique_contact_triangles_per_instance": 12,
+        "max_unshared_vertex_error_m": 0.0341805498404307
+      },
+      {
+        "instances": 5,
+        "shared_triangles_per_instance": 52,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.29611652677583683
+      },
+      {
+        "instances": 4,
+        "shared_triangles_per_instance": 38,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.08656230120894831
+      },
+      {
+        "instances": 5,
+        "shared_triangles_per_instance": 60,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.15414304888222197
+      },
+      {
+        "instances": 3,
+        "shared_triangles_per_instance": 68,
+        "unique_contact_triangles_per_instance": 12,
+        "max_unshared_vertex_error_m": 0.006153927318224916
+      },
+      {
+        "instances": 4,
+        "shared_triangles_per_instance": 71,
+        "unique_contact_triangles_per_instance": 11,
+        "max_unshared_vertex_error_m": 0.05731279034846484
+      },
+      {
+        "instances": 7,
+        "shared_triangles_per_instance": 59,
+        "unique_contact_triangles_per_instance": 9,
+        "max_unshared_vertex_error_m": 0.5801149763626102
+      },
+      {
+        "instances": 3,
+        "shared_triangles_per_instance": 59,
+        "unique_contact_triangles_per_instance": 9,
+        "max_unshared_vertex_error_m": 0.14042255866970824
+      },
+      {
+        "instances": 4,
+        "shared_triangles_per_instance": 48,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.1922918853625586
+      },
+      {
+        "instances": 3,
+        "shared_triangles_per_instance": 48,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.23783317187660422
+      },
+      {
+        "instances": 3,
+        "shared_triangles_per_instance": 48,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.15347499414389953
+      },
+      {
+        "instances": 4,
+        "shared_triangles_per_instance": 60,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.16730881504577208
+      },
+      {
+        "instances": 5,
+        "shared_triangles_per_instance": 60,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.10476758704678786
+      },
+      {
+        "instances": 4,
+        "shared_triangles_per_instance": 60,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.19980415210382904
+      },
+      {
+        "instances": 3,
+        "shared_triangles_per_instance": 21,
+        "unique_contact_triangles_per_instance": 5,
+        "max_unshared_vertex_error_m": 0.07400665573735427
+      },
+      {
+        "instances": 3,
+        "shared_triangles_per_instance": 76,
+        "unique_contact_triangles_per_instance": 0,
+        "max_unshared_vertex_error_m": 0.002211019392745218
+      },
+      {
+        "instances": 3,
+        "shared_triangles_per_instance": 84,
+        "unique_contact_triangles_per_instance": 30,
+        "max_unshared_vertex_error_m": 0.030799067159450907
+      },
+      {
+        "instances": 3,
+        "shared_triangles_per_instance": 71,
+        "unique_contact_triangles_per_instance": 11,
+        "max_unshared_vertex_error_m": 0.4648379364616816
+      },
+      {
+        "instances": 3,
+        "shared_triangles_per_instance": 66,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.3091089330424332
+      }
+    ],
+    "triangles_replaced_by_instances": 42447,
+    "rejected_fits": {
+      "shear_or_mirror": 1656,
+      "shape": 2842,
+      "rank": 10,
+      "decomposition": 4281
+    }
+  },
+  "georeference": {
+    "horizontal_crs": "EPSG:3857",
+    "anchor_xy_m": [
+      791706.051,
+      6664825.628
+    ],
+    "vertical_datum": "DHHN2016",
+    "stl_xyz_to_local_meters": [
+      3.19203,
+      3.19241,
+      2.0
+    ],
+    "gltf_axes": "X=east, Y=up (absolute DHHN2016 metres), Z=south",
+    "raw_stl_bounds": [
+      [
+        -234.42701721191406,
+        -478.4925231933594,
+        69.97705078125
+      ],
+      [
+        148.1295928955078,
+        -189.2432098388672,
+        127.75372314453125
+      ]
+    ],
+    "mercator_bounds_xy_m": [
+      [
+        790957.7529282491,
+        6663298.083684032
+      ],
+      [
+        792178.8851044102,
+        6664221.486084478
+      ]
+    ]
+  },
+  "glb": {
+    "meshes": 170,
+    "nodes": 171,
+    "extensions_used": [
+      "EXT_meshopt_compression",
+      "EXT_mesh_gpu_instancing"
+    ],
+    "gpu_instance_nodes": 169,
+    "missing_normal_primitives": 0,
+    "sha256": "b84681bdec772cbad98b4176ba0f93fd7849724a6c37d8cb11a286d51f145eb7",
+    "bytes": 3456848
+  },
+  "limitations": [
+    "Only exact-enough TRS copies with matching oriented triangle topology are GPU-instanced; sheared/mirrored and ambiguous components remain ordinary geometry.",
+    "Repeated upper geometry may be instanced while varying terrain-contact faces remain unique; no inferred trunk geometry is fabricated.",
+    "Duplicate/degenerate triangles are removed, but arbitrary coplanar overlaps or conflicting alternative insets need separate inspection.",
+    "Bare STL contains no semantic tree/building labels; repeated families are not semantically classified."
+  ]
+}

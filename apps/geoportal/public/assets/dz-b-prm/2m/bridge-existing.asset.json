@@ -1,0 +1,142 @@
+{
+  "format": "glTF 2.0 GLB",
+  "source": {
+    "url": "https://adhocdata.cismet.de/DZ_B_PRM/2m/bruecke-bestand.stl",
+    "sha256": "4c774837c97a59cecf439a7d781e0a786c9f5849b7b18dcfdd0b2d0e62223dbb",
+    "bytes": 961684,
+    "binary_stl_triangles": 19232
+  },
+  "conversion": {
+    "blender_version": "5.2.2 LTS",
+    "weld_mm": 1e-05,
+    "max_fit_error_m": 0.005,
+    "max_instance_faces": 256,
+    "min_instances": 3,
+    "compression": "meshopt",
+    "meshopt_exponential_bits": 20,
+    "cleanup": {
+      "before_vertices": 10285,
+      "before_triangles": 19232,
+      "after_vertices": 10285,
+      "after_triangles": 19232,
+      "nonmanifold_edges": 0
+    },
+    "connected_components": 335,
+    "candidate_components": 334,
+    "gpu_instance_families": [
+      {
+        "instances": 3,
+        "shared_triangles_per_instance": 44,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.24013190518915264
+      },
+      {
+        "instances": 3,
+        "shared_triangles_per_instance": 38,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.099545221067242
+      },
+      {
+        "instances": 3,
+        "shared_triangles_per_instance": 52,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.030563257693693106
+      },
+      {
+        "instances": 3,
+        "shared_triangles_per_instance": 52,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.1211292851380468
+      },
+      {
+        "instances": 3,
+        "shared_triangles_per_instance": 61,
+        "unique_contact_triangles_per_instance": 13,
+        "max_unshared_vertex_error_m": 0.18297379707674
+      },
+      {
+        "instances": 3,
+        "shared_triangles_per_instance": 30,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.10514292559162829
+      },
+      {
+        "instances": 4,
+        "shared_triangles_per_instance": 28,
+        "unique_contact_triangles_per_instance": 8,
+        "max_unshared_vertex_error_m": 0.10476374008923679
+      },
+      {
+        "instances": 5,
+        "shared_triangles_per_instance": 50,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.5521116270516273
+      },
+      {
+        "instances": 7,
+        "shared_triangles_per_instance": 50,
+        "unique_contact_triangles_per_instance": 10,
+        "max_unshared_vertex_error_m": 0.37003358792577623
+      }
+    ],
+    "triangles_replaced_by_instances": 1543,
+    "rejected_fits": {
+      "decomposition": 276,
+      "shape": 165
+    }
+  },
+  "georeference": {
+    "horizontal_crs": "EPSG:3857",
+    "anchor_xy_m": [
+      791706.051,
+      6664825.628
+    ],
+    "vertical_datum": "DHHN2016",
+    "stl_xyz_to_local_meters": [
+      3.19203,
+      3.19241,
+      2.0
+    ],
+    "gltf_axes": "X=east, Y=up (absolute DHHN2016 metres), Z=south",
+    "raw_stl_bounds": [
+      [
+        229.7404327392578,
+        -38.851036071777344,
+        112.31861877441406
+      ],
+      [
+        375.0445861816406,
+        397.6135559082031,
+        145.84022521972656
+      ]
+    ],
+    "mercator_bounds_xy_m": [
+      [
+        792439.3893535166,
+        6664701.599563934
+      ],
+      [
+        792903.2045704294,
+        6666094.973492016
+      ]
+    ]
+  },
+  "glb": {
+    "meshes": 10,
+    "nodes": 11,
+    "extensions_used": [
+      "EXT_meshopt_compression",
+      "EXT_mesh_gpu_instancing"
+    ],
+    "gpu_instance_nodes": 9,
+    "missing_normal_primitives": 0,
+    "sha256": "e6e6af62092f8e207076477a8089f3a18c8859d65fcac87cb811f073cddfec3d",
+    "bytes": 702548
+  },
+  "limitations": [
+    "Only exact-enough TRS copies with matching oriented triangle topology are GPU-instanced; sheared/mirrored and ambiguous components remain ordinary geometry.",
+    "Repeated upper geometry may be instanced while varying terrain-contact faces remain unique; no inferred trunk geometry is fabricated.",
+    "Duplicate/degenerate triangles are removed, but arbitrary coplanar overlaps or conflicting alternative insets need separate inspection.",
+    "Bare STL contains no semantic tree/building labels; repeated families are not semantically classified."
+  ]
+}

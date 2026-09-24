@@ -1,4 +1,5 @@
 export { AddonHost } from "./lib/AddonHost";
+export { ShadowTextureHeaderControls } from "./addons/ShadowTexture";
 export { TargetAddonHost } from "./lib/TargetAddonHost";
 export {
   getTargetAddonsWithTrigger,

@@ -71,6 +71,7 @@ import { useLayerLaunchedAddons } from "./hooks/useLayerLaunchedAddons";
 import { withFlowFieldRasterCache } from "./helper/flow-field-raster-cache";
 import { useMeasurementLayerButton } from "./hooks/useMeasurementLayerButton";
 import { useShadowSimulationLayerButton } from "./hooks/useShadowSimulationLayerButton";
+import { useModelCollectionLayerButton } from "./hooks/useModelCollectionLayerButton";
 import { useGeoportalAppSearchParams } from "./hooks/use-geoportal-app-search-params";
 import { useAdhocFeatureRehydrate } from "./hooks/use-adhoc-feature-rehydrate";
 
@@ -182,6 +183,7 @@ function MeasurementLayerSyncInner() {
 
 function ShadowSimulationLayerSyncInner() {
   useShadowSimulationLayerButton();
+  useModelCollectionLayerButton();
   return null;
 }
 

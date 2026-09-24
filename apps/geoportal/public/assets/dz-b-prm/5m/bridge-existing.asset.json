@@ -1,0 +1,172 @@
+{
+  "format": "glTF 2.0 GLB",
+  "source": {
+    "url": "https://adhocdata.cismet.de/DZ_B_PRM/5m/bruecke-bestand.stl",
+    "sha256": "980875da7b49a8cbeb18568951abb5c5fa6ffc4b7b17a73a325850b48f9270a4",
+    "bytes": 2404084,
+    "binary_stl_triangles": 48080
+  },
+  "conversion": {
+    "blender_version": "5.2.2 LTS",
+    "weld_mm": 1e-05,
+    "max_fit_error_m": 0.005,
+    "max_instance_faces": 256,
+    "min_instances": 3,
+    "compression": "meshopt",
+    "meshopt_exponential_bits": 20,
+    "cleanup": {
+      "before_vertices": 24709,
+      "before_triangles": 48080,
+      "after_vertices": 24709,
+      "after_triangles": 48080,
+      "nonmanifold_edges": 0
+    },
+    "connected_components": 335,
+    "candidate_components": 333,
+    "gpu_instance_families": [
+      {
+        "instances": 3,
+        "shared_triangles_per_instance": 110,
+        "unique_contact_triangles_per_instance": 18,
+        "max_unshared_vertex_error_m": 0.2395714035785452
+      },
+      {
+        "instances": 5,
+        "shared_triangles_per_instance": 96,
+        "unique_contact_triangles_per_instance": 18,
+        "max_unshared_vertex_error_m": 0.10143104800303923
+      },
+      {
+        "instances": 5,
+        "shared_triangles_per_instance": 118,
+        "unique_contact_triangles_per_instance": 20,
+        "max_unshared_vertex_error_m": 0.1620443938940479
+      },
+      {
+        "instances": 3,
+        "shared_triangles_per_instance": 142,
+        "unique_contact_triangles_per_instance": 20,
+        "max_unshared_vertex_error_m": 0.37157452529919394
+      },
+      {
+        "instances": 4,
+        "shared_triangles_per_instance": 98,
+        "unique_contact_triangles_per_instance": 20,
+        "max_unshared_vertex_error_m": 0.08073533978745541
+      },
+      {
+        "instances": 4,
+        "shared_triangles_per_instance": 150,
+        "unique_contact_triangles_per_instance": 20,
+        "max_unshared_vertex_error_m": 0.279676859515524
+      },
+      {
+        "instances": 3,
+        "shared_triangles_per_instance": 98,
+        "unique_contact_triangles_per_instance": 18,
+        "max_unshared_vertex_error_m": 0.09845793599573907
+      },
+      {
+        "instances": 10,
+        "shared_triangles_per_instance": 126,
+        "unique_contact_triangles_per_instance": 18,
+        "max_unshared_vertex_error_m": 0.5516512840106317
+      },
+      {
+        "instances": 3,
+        "shared_triangles_per_instance": 83,
+        "unique_contact_triangles_per_instance": 15,
+        "max_unshared_vertex_error_m": 0.04523506503373704
+      },
+      {
+        "instances": 3,
+        "shared_triangles_per_instance": 138,
+        "unique_contact_triangles_per_instance": 18,
+        "max_unshared_vertex_error_m": 0.09840575825756946
+      },
+      {
+        "instances": 3,
+        "shared_triangles_per_instance": 132,
+        "unique_contact_triangles_per_instance": 18,
+        "max_unshared_vertex_error_m": 0.28923182091061367
+      },
+      {
+        "instances": 4,
+        "shared_triangles_per_instance": 136,
+        "unique_contact_triangles_per_instance": 20,
+        "max_unshared_vertex_error_m": 0.12748719347956974
+      },
+      {
+        "instances": 3,
+        "shared_triangles_per_instance": 136,
+        "unique_contact_triangles_per_instance": 20,
+        "max_unshared_vertex_error_m": 0.09123898005070177
+      },
+      {
+        "instances": 4,
+        "shared_triangles_per_instance": 114,
+        "unique_contact_triangles_per_instance": 20,
+        "max_unshared_vertex_error_m": 0.08513181615279339
+      }
+    ],
+    "triangles_replaced_by_instances": 6839,
+    "rejected_fits": {
+      "shape": 217,
+      "decomposition": 132
+    }
+  },
+  "georeference": {
+    "horizontal_crs": "EPSG:3857",
+    "anchor_xy_m": [
+      791706.051,
+      6664825.628
+    ],
+    "vertical_datum": "DHHN2016",
+    "stl_xyz_to_local_meters": [
+      3.19203,
+      3.19241,
+      2.0
+    ],
+    "gltf_axes": "X=east, Y=up (absolute DHHN2016 metres), Z=south",
+    "raw_stl_bounds": [
+      [
+        229.65525817871094,
+        -38.851036071777344,
+        112.31861877441406
+      ],
+      [
+        375.0445861816406,
+        397.60113525390625,
+        145.93154907226562
+      ]
+    ],
+    "mercator_bounds_xy_m": [
+      [
+        792439.1174737641,
+        6664701.599563934
+      ],
+      [
+        792903.2045704294,
+        6666094.933840196
+      ]
+    ]
+  },
+  "glb": {
+    "meshes": 15,
+    "nodes": 16,
+    "extensions_used": [
+      "EXT_meshopt_compression",
+      "EXT_mesh_gpu_instancing"
+    ],
+    "gpu_instance_nodes": 14,
+    "missing_normal_primitives": 0,
+    "sha256": "c26fb532bd260f65febd5be8b2ee4a8b6d1780cd063c2b134a62995b2631c7b0",
+    "bytes": 1614156
+  },
+  "limitations": [
+    "Only exact-enough TRS copies with matching oriented triangle topology are GPU-instanced; sheared/mirrored and ambiguous components remain ordinary geometry.",
+    "Repeated upper geometry may be instanced while varying terrain-contact faces remain unique; no inferred trunk geometry is fabricated.",
+    "Duplicate/degenerate triangles are removed, but arbitrary coplanar overlaps or conflicting alternative insets need separate inspection.",
+    "Bare STL contains no semantic tree/building labels; repeated families are not semantically classified."
+  ]
+}

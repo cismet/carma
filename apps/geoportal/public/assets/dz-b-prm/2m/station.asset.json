@@ -1,0 +1,86 @@
+{
+  "format": "glTF 2.0 GLB",
+  "source": {
+    "url": "https://adhocdata.cismet.de/DZ_B_PRM/2m/bergstation.stl",
+    "sha256": "08de9da0dbf7c4b5d74deb8c5d0afa13b0db1d8baabcd2eea74cc306e75f45df",
+    "bytes": 193084,
+    "binary_stl_triangles": 3860
+  },
+  "conversion": {
+    "blender_version": "5.2.2 LTS",
+    "weld_mm": 1e-05,
+    "max_fit_error_m": 0.005,
+    "max_instance_faces": 256,
+    "min_instances": 3,
+    "compression": "meshopt",
+    "meshopt_exponential_bits": 20,
+    "cleanup": {
+      "before_vertices": 2037,
+      "before_triangles": 3781,
+      "after_vertices": 2037,
+      "after_triangles": 3781,
+      "nonmanifold_edges": 46
+    },
+    "connected_components": 69,
+    "candidate_components": 69,
+    "gpu_instance_families": [],
+    "triangles_replaced_by_instances": 0,
+    "rejected_fits": {
+      "shape": 17,
+      "decomposition": 19
+    }
+  },
+  "georeference": {
+    "horizontal_crs": "EPSG:3857",
+    "anchor_xy_m": [
+      791706.051,
+      6664825.628
+    ],
+    "vertical_datum": "DHHN2016",
+    "stl_xyz_to_local_meters": [
+      3.19203,
+      3.19241,
+      2.0
+    ],
+    "gltf_axes": "X=east, Y=up (absolute DHHN2016 metres), Z=south",
+    "raw_stl_bounds": [
+      [
+        246.22537231445312,
+        -334.54876708984375,
+        135.6015625
+      ],
+      [
+        290.8019714355469,
+        -296.8428649902344,
+        147.88491821289062
+      ]
+    ],
+    "mercator_bounds_xy_m": [
+      [
+        792492.0097751889,
+        6663757.611170454
+      ],
+      [
+        792634.2996168814,
+        6663877.983869376
+      ]
+    ]
+  },
+  "glb": {
+    "meshes": 1,
+    "nodes": 2,
+    "extensions_used": [
+      "EXT_meshopt_compression"
+    ],
+    "gpu_instance_nodes": 0,
+    "missing_normal_primitives": 0,
+    "sha256": "cd0574225f63698f51cd3bd65f19de79792b4f55554d9157f05903d9ad20651e",
+    "bytes": 141428
+  },
+  "limitations": [
+    "Only exact-enough TRS copies with matching oriented triangle topology are GPU-instanced; sheared/mirrored and ambiguous components remain ordinary geometry.",
+    "Repeated upper geometry may be instanced while varying terrain-contact faces remain unique; no inferred trunk geometry is fabricated.",
+    "Duplicate/degenerate triangles are removed, but arbitrary coplanar overlaps or conflicting alternative insets need separate inspection.",
+    "Bare STL contains no semantic tree/building labels; repeated families are not semantically classified."
+  ]
+}

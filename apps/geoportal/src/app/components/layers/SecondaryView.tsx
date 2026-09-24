@@ -20,6 +20,7 @@ import { cn } from "@carma-commons/utils";
 import {
   resolveSecondaryViewTargetAddon,
   ShadowSimulationHeaderControls,
+  ShadowTextureHeaderControls,
   TargetAddonHost,
   useAddonState,
 } from "@carma-mapping/addons";
@@ -68,7 +69,11 @@ import DynamicStylingLayerIcon from "./DynamicStylingLayerIcon";
 import { hasLayerFilterControl } from "./LayerFilterControl";
 import { InteractionContent } from "./InteractionView";
 import { DEFAULT_LAYER_VISIBILITY_TOGGLE_LABELS } from "./layer-visibility-toggle-props";
-import { SHADOW_SIMULATION_LAYER_ID } from "../../hooks/useShadowSimulationLayerButton";
+import {
+  SHADOW_SIMULATION_LAYER_ID,
+  SHADOW_TEXTURE_LAYER_ID,
+} from "../../hooks/useShadowSimulationLayerButton";
+import { MODEL_COLLECTION_LAYER_ID } from "../../hooks/useModelCollectionLayerButton";
 
 type Ref = HTMLDivElement;
 
@@ -87,6 +92,7 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
   const backgroundLayer = useSelector(getBackgroundLayer);
   const { favorites, addFavorite, removeFavorite } = useLayerCatalog();
   const [shadowState, setShadowState] = useAddonState("shadowSimulation");
+  const [modelState, setModelState] = useAddonState("modelCollection");
   const activeInteractionLayerID = useSelector(getActiveInteractionLayerID);
   const entry =
     (selectedLayerIndex >= 0 ? selectedEntry : backgroundLayer) ??
@@ -129,6 +135,10 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
   const isShadowSimulationLayer =
     entry.id === SHADOW_SIMULATION_LAYER_ID &&
     secondaryViewAddon?.kind === "shadowSimulation";
+  const isShadowTextureLayer =
+    entry.id === SHADOW_TEXTURE_LAYER_ID &&
+    secondaryViewAddon?.kind === "shadowTexture";
+  const isShadowLayer = isShadowSimulationLayer || isShadowTextureLayer;
 
   // An addon row draws through its addon, not through the layer stack, so the
   // eye here would toggle a flag nothing reads. Its opacity does travel back
@@ -352,14 +362,14 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
           ref={infoRef}
           className={cn(
             "pointer-events-auto",
-            isShadowSimulationLayer && "shadow-simulation-secondary-container",
+            isShadowLayer && "shadow-simulation-secondary-container",
             "min-w-[280px] sm:max-w-[560px] md:max-w-[720px] lg:w-full w-[100vw] sm:w-3/4 sm:mx-0 shrink-0",
             "h-fit bg-white button-shadow rounded-[10px] flex flex-col relative secondary-view gap-2 py-2 transition-all duration-300",
             showInfo
               ? secondaryViewAddon
                 ? "max-h-[min(600px,80vh)]"
                 : "sm:max-h-[600px] sm:h-[70vh] h-[80vh]"
-              : isBaseLayer || isShadowSimulationLayer
+              : isBaseLayer || isShadowLayer
               ? "h-fit"
               : "h-fit sm:h-12"
           )}
@@ -389,17 +399,17 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
           <div
             className={cn(
               "flex items-center w-full shrink-0 gap-2 px-6 sm:px-0",
-              isShadowSimulationLayer ? "flex-nowrap min-h-8" : "h-8",
+              isShadowLayer ? "flex-nowrap min-h-8" : "h-8",
               secondaryViewAddon ? "sm:gap-3" : "sm:gap-6"
             )}
           >
             <div
               className={cn(
                 "min-w-0 flex items-center gap-2",
-                isShadowSimulationLayer
+                isShadowLayer
                   ? "shadow-simulation-layer-title"
                   : "flex-1 sm:flex-none",
-                isShadowSimulationLayer
+                isShadowLayer
                   ? ""
                   : secondaryViewAddon
                   ? "sm:w-auto sm:shrink-0"
@@ -447,11 +457,15 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
                 </div>
               </div>
             )}
-            {isShadowSimulationLayer && (
+            {isShadowLayer && (
               <div className="shadow-simulation-header-slot">
-                <ShadowSimulationHeaderControls
-                  config={secondaryViewAddon?.config}
-                />
+                {isShadowSimulationLayer ? (
+                  <ShadowSimulationHeaderControls
+                    config={secondaryViewAddon?.config}
+                  />
+                ) : (
+                  <ShadowTextureHeaderControls />
+                )}
               </div>
             )}
             {canFilter && (
@@ -510,8 +524,11 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
               disabled={isCesium || ownsOwnVisibility}
               labels={DEFAULT_LAYER_VISIBILITY_TOGGLE_LABELS}
               onToggleVisibility={(nextVisible) => {
-                if (isShadowSimulationLayer && shadowState) {
+                if (isShadowLayer && shadowState) {
                   setShadowState({ ...shadowState, enabled: nextVisible });
+                }
+                if (entry.id === MODEL_COLLECTION_LAYER_ID && modelState) {
+                  setModelState({ ...modelState, visible: nextVisible });
                 }
                 dispatch(
                   isBaseLayer

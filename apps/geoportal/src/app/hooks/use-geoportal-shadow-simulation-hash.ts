@@ -18,6 +18,7 @@ import {
 
 type UseGeoportalShadowSimulationHashOptions = {
   customHashState: AppSearchParamsCustomStateSnapshot<GeoportalCustomHashState> | null;
+  defaultEnabledWhenNoHash?: boolean;
 };
 
 type ShadowHashUpdate = ReturnType<
@@ -28,6 +29,7 @@ const SHADOW_HASH_WRITE_INTERVAL_MS = 500;
 
 export const useGeoportalShadowSimulationHash = ({
   customHashState,
+  defaultEnabledWhenNoHash = false,
 }: UseGeoportalShadowSimulationHashOptions) => {
   const [shadowState, setShadowState] = useAddonState("shadowSimulation");
   const [shadowDate, setShadowDate] = useAddonState("shadowDate");
@@ -140,6 +142,19 @@ export const useGeoportalShadowSimulationHash = ({
     handledHashStateVersionRef.current = hashStateVersion;
     cancelPendingHashUpdate();
 
+    // The pm-show route starts with shadows on. A missing hash value on its
+    // initial load means "use route default", not an explicit off command.
+    // Later UI changes still synchronize through the normal hash path.
+    if (
+      defaultEnabledWhenNoHash &&
+      customHashState?.source === "initial" &&
+      decodedHashSelection === null &&
+      shadowState.enabled
+    ) {
+      pendingHashStateVersionRef.current = null;
+      return;
+    }
+
     if (
       shadowStateMatchesHashSelection(
         shadowState.enabled,
@@ -161,6 +176,9 @@ export const useGeoportalShadowSimulationHash = ({
     setShadowDate(next.dateState);
   }, [
     cancelPendingHashUpdate,
+    customHashState?.source,
+    decodedHashSelection,
+    defaultEnabledWhenNoHash,
     hashSelection,
     hashStateVersion,
     setShadowState,

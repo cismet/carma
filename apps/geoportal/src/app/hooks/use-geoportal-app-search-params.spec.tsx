@@ -3,6 +3,7 @@ import type { PropsWithChildren } from "react";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { configureStore } from "@reduxjs/toolkit";
 import { Provider } from "react-redux";
+import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const hashStateMock = vi.hoisted(() => ({
@@ -10,6 +11,20 @@ const hashStateMock = vi.hoisted(() => ({
 }));
 const useAppSearchParamsMock = vi.hoisted(() => vi.fn());
 const useMapFrameworkSwitcherContextMock = vi.hoisted(() => vi.fn());
+const shadowHashMock = vi.hoisted(() => vi.fn());
+
+vi.mock("@carma-mapping/addons", () => ({
+  normalizeAddonEntries: (entries: unknown[]) => entries,
+  resolveAddonEntries: (entries: unknown[]) => entries,
+  applyAddonOverrides: (entries: unknown[]) => entries,
+  filterAddonsByAvailability: (entries: unknown[]) => entries,
+  isAlwaysOnTop: () => false,
+}));
+
+vi.mock("./use-geoportal-shadow-simulation-hash", () => ({
+  useGeoportalShadowSimulationHash: (options: unknown) =>
+    shadowHashMock(options),
+}));
 
 vi.mock("@carma-appframeworks/portals", async (importOriginal) => {
   const actual =
@@ -67,9 +82,11 @@ const createTestStore = (mode = UIMode.DEFAULT) =>
   });
 
 const createWrapper =
-  (store: TestStore) =>
+  (store: TestStore, pathname = "/") =>
   ({ children }: PropsWithChildren) =>
-    <Provider store={store}>{children}</Provider>;
+    <Provider store={store}>
+      <MemoryRouter initialEntries={[pathname]}>{children}</MemoryRouter>
+    </Provider>;
 
 const renderGeoportalAppSearchParamsHook = (store: TestStore) =>
   renderHook(() => useGeoportalAppSearchParams(), {
@@ -81,6 +98,7 @@ describe("useGeoportalAppSearchParams", () => {
     hashStateMock.updateHashState.mockReset();
     useAppSearchParamsMock.mockReset();
     useMapFrameworkSwitcherContextMock.mockReset();
+    shadowHashMock.mockReset();
     useAppSearchParamsMock.mockReturnValue({ customHashState: null });
     useMapFrameworkSwitcherContextMock.mockReturnValue({ isCesium: true });
   });
@@ -92,6 +110,22 @@ describe("useGeoportalAppSearchParams", () => {
 
     expect(useAppSearchParamsMock).toHaveBeenCalledWith(
       geoportalAppSearchParamsOptions
+    );
+  });
+
+  it("enables the missing-hash default only for pm-show", () => {
+    const store = createTestStore();
+    renderHook(() => useGeoportalAppSearchParams(), {
+      wrapper: createWrapper(store, "/pm-show"),
+    });
+    expect(shadowHashMock).toHaveBeenCalledWith(
+      expect.objectContaining({ defaultEnabledWhenNoHash: true })
+    );
+
+    shadowHashMock.mockClear();
+    renderGeoportalAppSearchParamsHook(store);
+    expect(shadowHashMock).toHaveBeenCalledWith(
+      expect.objectContaining({ defaultEnabledWhenNoHash: false })
     );
   });
 

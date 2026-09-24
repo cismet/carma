@@ -57,6 +57,24 @@ export const projectionMappingFachzwilling: FachzwillingRoute = {
     deployments: ["localDev", "dev", "pr"],
   },
   addons: [
+    {
+      addon: "modelCollection",
+      config: {
+        manifestUrl: `${import.meta.env.BASE_URL}assets/dz-b-prm/collection.json`,
+        assetBaseUrl:
+          import.meta.env.VITE_DZ_B_PRM_GLB_BASE_URL ||
+          `${import.meta.env.BASE_URL}assets/dz-b-prm`,
+      },
+    },
+    {
+      addon: "shadowTexture",
+      config: {
+        enabledByDefault: true,
+        assetBaseUrl:
+          import.meta.env.VITE_DZ_B_PRM_GLB_BASE_URL ||
+          `${import.meta.env.BASE_URL}assets/dz-b-prm`,
+      },
+    },
     // the engine the Schwebebahn cards launch into; idle until one is clicked
     "vehicleAnimation",
     // the same for the Starkregen cards. Its own storage key, so tuning it for

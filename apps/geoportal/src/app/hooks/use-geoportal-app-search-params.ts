@@ -21,16 +21,20 @@ export const useGeoportalAppSearchParams = () => {
   const { pathname } = useLocation();
   // resolved from the route rather than from the store: the default-view write
   // below runs on mount, before the store flag is dispatched from RoutedApp
-  const disableHashWrite = useMemo(
-    () => findFachzwillingByPathname(pathname)?.disableHashWrite ?? false,
+  const fachzwilling = useMemo(
+    () => findFachzwillingByPathname(pathname),
     [pathname]
   );
+  const disableHashWrite = fachzwilling?.disableHashWrite ?? false;
   const { customHashState } = useAppSearchParams(
     disableHashWrite
       ? geoportalAppSearchParamsOptionsWithoutDefaultView
       : geoportalAppSearchParamsOptions
   );
-  useGeoportalShadowSimulationHash({ customHashState });
+  useGeoportalShadowSimulationHash({
+    customHashState,
+    defaultEnabledWhenNoHash: fachzwilling?.path === "pm-show",
+  });
   const { isCesium } = useMapFrameworkSwitcherContext();
 
   useEffect(() => {
