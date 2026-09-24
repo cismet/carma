@@ -39,8 +39,8 @@ const BRANCHES = {
     { id: STEP.SUMMARY, title: "Zusammenfassung" },
   ],
   [WIZARD_ACTIONS.JOIN]: [
-    { id: STEP.JOIN_CHOOSE, title: "Zusammenlegen" },
-    { id: STEP.RESULTING, title: "Ergebnis Flurstücke" },
+    { id: STEP.JOIN_CHOOSE, title: "Auswahl der Flurstücke" },
+    { id: STEP.RESULTING, title: "Flurstück anlegen" },
     { id: STEP.SUMMARY, title: "Zusammenfassung" },
   ],
   [WIZARD_ACTIONS.SPLIT_JOIN]: [
