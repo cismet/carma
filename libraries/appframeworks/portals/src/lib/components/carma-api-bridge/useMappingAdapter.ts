@@ -8,7 +8,7 @@ import { Cartesian3 } from "@carma-cesium";
 import { parseToMapLayer } from "@carma-mapping/utils";
 import {
   useCatalogDataOptional,
-  type CatalogServiceCategory,
+  type CatalogDataContextValue,
   type Item,
 } from "@carma-mapping/layers";
 import { setHomeViewOverride } from "@carma-mapping/engines-interop/view-state";
@@ -44,14 +44,25 @@ export const selectLayerVisibility = (
 export const selectLayerIDs = (state: MappingPortalState): string[] =>
   state.mapping?.layers?.map((layer) => layer.id) ?? [];
 
-/** Look a layer up in the catalog's service categories by id, or `undefined`. */
+/**
+ * Look a layer up in the catalog by id, or `undefined`. The assembled catalog
+ * comes first: only it knows the layers the additional config adds on their
+ * own. The service structure covers the time before a catalog was derived.
+ */
 export const findCatalogItemById = (
-  categories: CatalogServiceCategory[],
-  id: string
+  id: string,
+  catalogItems: CatalogDataContextValue["catalogItems"] | undefined,
+  serviceCategories: CatalogDataContextValue["serviceCategories"] | undefined
 ): Item | undefined => {
-  for (const category of categories) {
+  const item = catalogItems?.get(id);
+  if (item) {
+    return item;
+  }
+  for (const category of serviceCategories ?? []) {
     const found = category.layers.find((layer) => layer.id === id);
-    if (found) return found;
+    if (found) {
+      return found;
+    }
   }
   return undefined;
 };
@@ -70,7 +81,9 @@ export const useMappingAdapter = (store?: Store<MappingPortalState>): void => {
   const topicMap = useContext<typeof TopicMapContext>(TopicMapContext);
   const { withCamera } = useCesiumContext();
   const { setCurrentStyle } = useMapStyle();
-  const serviceCategories = useCatalogDataOptional()?.serviceCategories;
+  const catalogData = useCatalogDataOptional();
+  const catalogItems = catalogData?.catalogItems;
+  const serviceCategories = catalogData?.serviceCategories;
   const {
     activeFramework,
     requestTransitionToCesium,
@@ -202,7 +215,11 @@ export const useMappingAdapter = (store?: Store<MappingPortalState>): void => {
           if (hasLayerById(store.getState(), id)) {
             return false; // already on the map
           }
-          const item = findCatalogItemById(serviceCategories ?? [], id);
+          const item = findCatalogItemById(
+            id,
+            catalogItems,
+            serviceCategories
+          );
           if (!item) {
             return false; // unknown id, or no LayerCatalogProvider mounted
           }
@@ -247,6 +264,7 @@ export const useMappingAdapter = (store?: Store<MappingPortalState>): void => {
     requestTransitionToLeaflet,
     setCurrentStyle,
     store,
+    catalogItems,
     serviceCategories,
     libreMap,
   ]);

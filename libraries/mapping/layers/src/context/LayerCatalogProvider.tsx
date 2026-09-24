@@ -36,6 +36,11 @@ interface CatalogState {
   /** ids of services whose capabilities are still on their initial fetch */
   loadingServiceIds: string[];
   replaceLayers: ExtendedItem[];
+  /**
+   * every item of the assembled catalog by id, including what only the built
+   * tree carries (additional config fragments, configured and dropped layers)
+   */
+  catalogItems: ReadonlyMap<string, Item>;
   selectedItem: Item | null;
   discoverRefetchRequested: boolean;
   /** stored with a `fav_` id prefix, matching the persisted shape */
@@ -49,6 +54,7 @@ const initialState: CatalogState = {
   loadingCapabilities: true,
   loadingServiceIds: [],
   replaceLayers: [],
+  catalogItems: new Map(),
   selectedItem: null,
   discoverRefetchRequested: false,
   favorites: [],
@@ -66,6 +72,7 @@ type CatalogAction =
       loadingCapabilities: boolean;
     }
   | { type: "replaceLayerUpserted"; layer: ExtendedItem }
+  | { type: "catalogItemsDerived"; items: ReadonlyMap<string, Item> }
   | { type: "itemSelected"; item: Item | null }
   | { type: "discoverRefetchRequested" }
   | { type: "discoverRefetchHandled" }
@@ -154,6 +161,11 @@ const catalogReducer = (
       replaceLayers[existingIndex] = action.layer;
       return { ...state, replaceLayers };
     }
+    case "catalogItemsDerived":
+      // the index is a memoized derivation, so its identity tracks its content
+      return state.catalogItems === action.items
+        ? state
+        : { ...state, catalogItems: action.items };
     case "itemSelected":
       return state.selectedItem === action.item
         ? state
@@ -226,6 +238,7 @@ interface CatalogDataActions {
     loadingCapabilities: boolean
   ) => void;
   upsertReplaceLayer: (layer: ExtendedItem) => void;
+  setCatalogItems: (items: ReadonlyMap<string, Item>) => void;
 }
 
 export interface CatalogDataContextValue extends CatalogDataActions {
@@ -233,6 +246,12 @@ export interface CatalogDataContextValue extends CatalogDataActions {
   loadingCapabilities: boolean;
   loadingServiceIds: string[];
   replaceLayers: ExtendedItem[];
+  /**
+   * every item of the assembled catalog by id. Resolve ids here rather than in
+   * serviceCategories, which lacks the layers the additional config adds on
+   * its own. Empty until a LayerCatalog has derived the catalog.
+   */
+  catalogItems: ReadonlyMap<string, Item>;
 }
 
 export interface CatalogSelectionActions {
@@ -385,6 +404,8 @@ const CatalogStateProvider = ({
         }),
       upsertReplaceLayer: (layer) =>
         dispatch({ type: "replaceLayerUpserted", layer }),
+      setCatalogItems: (items) =>
+        dispatch({ type: "catalogItemsDerived", items }),
     }),
     []
   );
@@ -449,6 +470,7 @@ const CatalogStateProvider = ({
       loadingCapabilities: state.loadingCapabilities,
       loadingServiceIds: state.loadingServiceIds,
       replaceLayers: state.replaceLayers,
+      catalogItems: state.catalogItems,
       ...dataActions,
     }),
     [
@@ -456,6 +478,7 @@ const CatalogStateProvider = ({
       state.loadingCapabilities,
       state.loadingServiceIds,
       state.replaceLayers,
+      state.catalogItems,
       dataActions,
     ]
   );

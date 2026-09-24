@@ -132,7 +132,8 @@ const LayerCatalogView = ({
   const categoryDefinitions = useCategoryDefinitions();
   const { isCesium } = useMapFrameworkSwitcherContext();
   const [preview, setPreview] = useState(false);
-  const { serviceCategories, loadingCapabilities } = useCatalogData();
+  const { serviceCategories, loadingCapabilities, setCatalogItems } =
+    useCatalogData();
   const { selectItem } = useCatalogSelectionActions();
   const { discoverRefetchRequested, markDiscoverRefetchHandled } =
     useDiscoverRefetch();
@@ -350,6 +351,13 @@ const LayerCatalogView = ({
     });
     return index;
   }, [itemsById, customCategoryItemIds]);
+
+  // Resolving an id outside the catalog (a collection re-adding its layers, the
+  // carma api) needs the assembled catalog, not just the service structure:
+  // layers the additional config adds on their own only exist in this tree.
+  useEffect(() => {
+    setCatalogItems(catalogItemsById);
+  }, [catalogItemsById, setCatalogItems]);
 
   // waiting for the capabilities keeps a layer whose service is still loading
   // out of the "not in the catalog" branch of the sync

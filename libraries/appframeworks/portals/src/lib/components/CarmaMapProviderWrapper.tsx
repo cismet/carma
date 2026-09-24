@@ -111,7 +111,9 @@ const CarmaMapAPIWithRedux = ({
   children: React.ReactNode;
   store: Store<PortalRootState>;
 }) => {
-  const serviceCategories = useCatalogDataOptional()?.serviceCategories;
+  const catalogData = useCatalogDataOptional();
+  const catalogItems = catalogData?.catalogItems;
+  const serviceCategories = catalogData?.serviceCategories;
 
   // addLayerById resolves the id in the LayerCatalogProvider catalog and
   // appends the parsed layer to the redux active-layer state
@@ -122,7 +124,7 @@ const CarmaMapAPIWithRedux = ({
     ): Promise<Layer | undefined> => {
       const { forceWMS = false, visible = true } = options ?? {};
 
-      const item = findCatalogItemById(serviceCategories ?? [], id);
+      const item = findCatalogItemById(id, catalogItems, serviceCategories);
       if (!item) {
         console.warn(`Layer with id "${id}" not found`);
         return undefined;
@@ -142,7 +144,7 @@ const CarmaMapAPIWithRedux = ({
 
       return mapLayer;
     },
-    [store, serviceCategories]
+    [store, catalogItems, serviceCategories]
   );
 
   // Create stable useHasLayerById hook using the factory
