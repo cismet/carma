@@ -8,10 +8,18 @@ import { buildLagisPrintLayers } from "./printLayers";
 
 const wmtsLayer = {
   type: "wmts",
-  carmaLayerId: "liegenschaftskarteGrau",
-  url: "http://s10221.wuppertal-intra.de:7098/alkis/services",
-  layers: "alkomgw",
+  carmaLayerId: "lbk.0",
+  url: "https://geodaten.metropoleruhr.de/spw2/service",
+  layers: "spw2_light_grundriss",
   opacity: 0.7,
+};
+
+const intranetLayer = {
+  type: "wmts",
+  carmaLayerId: "liegenschaftskarteGrau",
+  url: "https://sl0548-wuppertal-intra.map-hosting.de/forwardingTo/s10221/7098/alkis/services",
+  layers: "alkomgw",
+  opacity: 1,
 };
 
 const vectorLayer = {
@@ -42,9 +50,49 @@ describe("buildLagisPrintLayers", () => {
       visible: true,
       layerType: "wmts",
       url: wmtsLayer.url,
-      layers: "alkomgw",
+      layers: "spw2_light_grundriss",
       opacity: 0.7,
     });
+  });
+
+  it("leaves out intranet layers", () => {
+    expect(buildLagisPrintLayers([intranetLayer], undefined)).toEqual([]);
+  });
+
+  it("prints vector layers with their live style from the map", () => {
+    const source = { type: "vector", url: "https://example.com/tiles.json" };
+    const map = {
+      getStyle: () => ({
+        sprite: "https://example.com/sprite",
+        glyphs: "https://example.com/{fontstack}/{range}.pbf",
+        sources: { "stadtplan::src": source, "other::src": {} },
+        layers: [
+          {
+            id: "stadtplan::roads",
+            type: "line",
+            source: "stadtplan::src",
+            paint: { "line-opacity": 0.5 },
+            metadata: { "carma-layer-id": "stadtplan" },
+          },
+          {
+            id: "other::fill",
+            type: "fill",
+            source: "other::src",
+            metadata: { "carma-layer-id": "other" },
+          },
+        ],
+      }),
+    };
+
+    const [layer] = buildLagisPrintLayers([vectorLayer], undefined, map);
+
+    expect(layer.layerType).toBe("inline");
+    expect(layer.opacity).toBe(1);
+    expect(layer.inlineStyle.sources).toEqual({ "stadtplan::src": source });
+    expect(layer.inlineStyle.layers.map((l) => l.id)).toEqual([
+      "stadtplan::roads",
+    ]);
+    expect(layer.inlineStyle.sprite).toBe("https://example.com/sprite");
   });
 
   it("maps hosted vector styles, which the core keys its print style from", () => {

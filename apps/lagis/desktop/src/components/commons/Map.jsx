@@ -493,7 +493,7 @@ const Map = ({
   // Built from the layers the map currently renders, so the PDF mirrors the
   // screen: the toggles and opacities are already applied to both inputs.
   const resolvePrintLayers = useCallback(
-    () => buildLagisPrintLayers(libreLayers, featureCollectionGeoJSON),
+    (map) => buildLagisPrintLayers(libreLayers, featureCollectionGeoJSON, map),
     [libreLayers, featureCollectionGeoJSON]
   );
 

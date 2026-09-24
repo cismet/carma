@@ -10,7 +10,7 @@ export const configuration = {
     title: drawerTextsHelper.liegenschaftskarteGrauOpt,
     conf: {
       type: "wmts",
-      url: "http://s10221.wuppertal-intra.de:7098/alkis/services",
+      url: "https://sl0548-wuppertal-intra.map-hosting.de/forwardingTo/s10221/7098/alkis/services",
       layers: "alkomgw",
       styles: "default",
       version: "1.1.1",
@@ -25,7 +25,7 @@ export const configuration = {
     title: drawerTextsHelper.liegenschaftskarteBuntOpt,
     conf: {
       type: "wmts",
-      url: "http://s10221.wuppertal-intra.de:7098/alkis/services",
+      url: "https://sl0548-wuppertal-intra.map-hosting.de/forwardingTo/s10221/7098/alkis/services",
       layers: "alkomf",
       styles: "default",
       version: "1.1.1",
@@ -120,7 +120,7 @@ export const configuration = {
       },
       {
         type: "wmts",
-        url: "http://s10221.wuppertal-intra.de:7098/alkis/services",
+        url: "https://sl0548-wuppertal-intra.map-hosting.de/forwardingTo/s10221/7098/alkis/services",
         layers: "alkomgw",
         styles: "default",
         version: "1.1.1",
