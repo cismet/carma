@@ -14,6 +14,24 @@ export default defineConfig({
     fs: {
       allow: ["../.."],
     },
+    // The deployed relay only answers the Pages origin. Relay base `/relay`
+    // reaches it through this server, so a dev remote (desk or phone) can
+    // drive the real display without a local relay.
+    proxy: {
+      "/relay": {
+        target: "https://relay-wupp-digitaltwin.cismet.de",
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/relay/, ""),
+      },
+      // The relay `npx nx run map-relay:serve` starts, for a phone that
+      // reaches this server over the network (e.g. https via flexo) and
+      // cannot see the desk's localhost.
+      "/local-relay": {
+        target: "http://localhost:8099",
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/local-relay/, ""),
+      },
+    },
   },
 
   preview: {

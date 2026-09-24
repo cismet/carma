@@ -7,9 +7,19 @@ export const STORAGE_PREFIX = "@pm-remote.1";
 
 const SETTINGS_KEY = `${STORAGE_PREFIX}.settings`;
 
-/** the local relay `npx nx run map-relay:serve` starts, when a build names none */
+/**
+ * The local relay `npx nx run map-relay:serve` starts, when a build names
+ * none. A phone reaching the dev server over the network cannot see the
+ * desk's localhost, so there the dev server's `/local-relay` proxy stands in.
+ */
+const localRelayBaseUrl = (): string =>
+  typeof window === "undefined" ||
+  ["localhost", "127.0.0.1"].includes(window.location.hostname)
+    ? "http://localhost:8099"
+    : "/local-relay";
+
 export const DEFAULT_RELAY_BASE_URL =
-  import.meta.env.VITE_RELAY_BASE_URL || "http://localhost:8099";
+  import.meta.env.VITE_RELAY_BASE_URL || localRelayBaseUrl();
 
 /** the fade choices offered, in milliseconds; 0 cuts */
 export const FADE_CHOICES = [0, 1000, 2000, 4000] as const;

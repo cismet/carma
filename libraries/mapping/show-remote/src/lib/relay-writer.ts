@@ -44,15 +44,30 @@ const describeStatus = (status: number): string => {
   return `the relay answered HTTP ${status}`;
 };
 
-const request = async (url: string, init: RequestInit): Promise<unknown> => {
+/**
+ * None of these requests waits on the relay's side, so an answer that takes
+ * longer is lost on the way. Without a limit such a request stays open, and a
+ * writer that sends one request at a time never sends again.
+ */
+const DEFAULT_TIMEOUT_MS = 10_000;
+
+const request = async (
+  url: string,
+  init: RequestInit,
+  timeoutMs: number = DEFAULT_TIMEOUT_MS
+): Promise<unknown> => {
   let response: Response;
   try {
     response = await fetch(url, {
       ...init,
       cache: "no-store",
       credentials: "omit",
+      signal: AbortSignal.timeout(timeoutMs),
     });
   } catch (error) {
+    if (error instanceof DOMException && error.name === "TimeoutError") {
+      throw new RelayError(`the relay did not answer within ${timeoutMs} ms`);
+    }
     throw new RelayError(
       `the relay is not reachable (${
         error instanceof Error ? error.message : String(error)
@@ -68,13 +83,18 @@ const request = async (url: string, init: RequestInit): Promise<unknown> => {
 /** Replace the session's state; displays apply it on their next poll. */
 export const writeRelayState = async (
   target: RelayTarget,
-  state: unknown
+  state: unknown,
+  timeoutMs?: number
 ): Promise<RelayWriteResult> =>
-  (await request(sessionUrl(target), {
-    method: "POST",
-    headers: { "Content-Type": "text/plain" },
-    body: JSON.stringify({ state }),
-  })) as RelayWriteResult;
+  (await request(
+    sessionUrl(target),
+    {
+      method: "POST",
+      headers: { "Content-Type": "text/plain" },
+      body: JSON.stringify({ state }),
+    },
+    timeoutMs
+  )) as RelayWriteResult;
 
 /** The session's current state, without waiting for a change. */
 export const readRelayState = async (

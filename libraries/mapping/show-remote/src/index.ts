@@ -50,3 +50,18 @@ export {
   type SceneChangeOptions,
   type TransitionStep,
 } from "./lib/transition";
+export {
+  DEFAULT_POINTER_DIM,
+  DEFAULT_POINTER_RADIUS,
+  POINTER_MODES,
+  POINTER_REACH,
+  isPointerChannel,
+  isPointerSample,
+  pointerSessionCode,
+  pointerTarget,
+  pointerToPixels,
+  type PointerBox,
+  type PointerChannel,
+  type PointerMode,
+  type PointerSample,
+} from "./lib/pointer";

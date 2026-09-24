@@ -10,10 +10,13 @@ import {
   boundsKey,
   isBlackoutLayer,
   isBounds3857,
+  isPointerChannel,
   type Bounds3857,
+  type PointerChannel,
 } from "@carma-mapping/show-remote";
 
 import type { AddonComponentProps } from "../../lib/registry";
+import { PointerSpotlight } from "./PointerSpotlight";
 import { subscribe, type RelaySubscription } from "./relay";
 
 /**
@@ -102,6 +105,11 @@ export type OutletRemoteState = {
   config?: string | MappingConfig;
   /** id of a background layer, as `carma.mapping2D.getBackgroundLayers()` reports it */
   backgroundLayer?: string;
+  /**
+   * The relay session the remote's pointer writes to. Its samples move too
+   * often to go through this document; absent means no pointer.
+   */
+  pointer?: PointerChannel;
 };
 
 /** the black cover over the whole window, and how long a change of it fades */
@@ -137,6 +145,7 @@ const REMOTE_STATE_KEYS: readonly (keyof OutletRemoteState)[] = [
   "bounds",
   "config",
   "backgroundLayer",
+  "pointer",
 ];
 
 /** where the requested rectangle sits on screen, in css pixels */
@@ -333,6 +342,9 @@ export const OutletAddon = ({
   const resolvedKey = resolved ? boundsKey(resolved.bounds3857) : "";
   const [box, setBox] = useState<BoundsBox | null>(null);
   const [blackout, setBlackout] = useState<Blackout | null>(null);
+  const [pointerChannel, setPointerChannel] = useState<PointerChannel | null>(
+    null
+  );
   /** a `?bounds=` in the url pins the position against the remote */
   const isPositionPinnedRef = useRef(false);
   isPositionPinnedRef.current = resolved?.source === "query";
@@ -645,6 +657,18 @@ export const OutletAddon = ({
         );
       }
 
+      // the whole document is the desired state: no pointer entry, no pointer
+      if (next.pointer !== undefined && !isPointerChannel(next.pointer)) {
+        console.warn(`${LOG_PREFIX} ignoring a malformed pointer`, next.pointer);
+      }
+      const nextPointer = isPointerChannel(next.pointer) ? next.pointer : null;
+      setPointerChannel((current) =>
+        current?.session === nextPointer?.session &&
+        current?.epoch === nextPointer?.epoch
+          ? current
+          : nextPointer
+      );
+
       if (
         typeof next.backgroundLayer === "string" &&
         next.backgroundLayer !== appliedRemoteRef.current.backgroundLayer
@@ -684,6 +708,7 @@ export const OutletAddon = ({
     return () => {
       subscription.stop();
       relayRef.current = null;
+      setPointerChannel(null);
     };
   }, [relayCode, relayBaseUrl, carma]);
 
@@ -704,6 +729,13 @@ export const OutletAddon = ({
             pointerEvents: "none",
             zIndex: 9999,
           }}
+        />
+      ) : null}
+      {pointerChannel && relayBaseUrl ? (
+        <PointerSpotlight
+          base={relayBaseUrl}
+          channel={pointerChannel}
+          box={box}
         />
       ) : null}
       {blackout ? (

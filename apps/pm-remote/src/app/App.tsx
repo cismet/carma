@@ -10,6 +10,7 @@ import {
 } from "@carma-mapping/show-remote";
 
 import { showErrorText } from "./messages";
+import { PointerPanel } from "./PointerPanel";
 import { SettingsPanel } from "./SettingsPanel";
 import {
   FADE_CHOICES,
@@ -19,6 +20,7 @@ import {
 } from "./settings";
 import { loadShow } from "./show-cache";
 import { useDisplay, type Connection } from "./useDisplay";
+import { usePointer } from "./usePointer";
 import { useWakeLock } from "./useWakeLock";
 
 type ShowLoad =
@@ -167,6 +169,7 @@ export const App = () => {
     isChanging,
   } = display;
   useWakeLock(display.connection === "connected");
+  const pointer = usePointer(target, display.setPointerChannel);
 
   const updateSettings = useCallback((next: RemoteSettings) => {
     saveSettings(next);
@@ -272,20 +275,36 @@ export const App = () => {
           {display.error}
         </p>
       )}
+      {pointer.status === "closed" && pointer.error && (
+        <p className="m-0 mx-4 mb-2 rounded-lg bg-red-950 px-3 py-2 text-sm text-red-200">
+          Zeiger: {pointer.error}
+        </p>
+      )}
 
       <main className="flex flex-1 flex-col gap-5 px-4 pb-4">
-        <button
-          type="button"
-          disabled={!live}
-          onClick={() => setBlackout(!isBlackout)}
-          className={`min-h-[64px] rounded-2xl text-lg font-semibold disabled:opacity-40 ${
-            isBlackout
-              ? "bg-red-600 text-white active:bg-red-500"
-              : "border border-neutral-700 bg-neutral-900 text-neutral-100 active:bg-neutral-800"
-          }`}
-        >
-          {isBlackout ? "Blackout aus" : "Blackout"}
-        </button>
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            type="button"
+            disabled={!live}
+            onClick={() => setBlackout(!isBlackout)}
+            className={`min-h-[64px] rounded-2xl text-lg font-semibold disabled:opacity-40 ${
+              isBlackout
+                ? "bg-red-600 text-white active:bg-red-500"
+                : "border border-neutral-700 bg-neutral-900 text-neutral-100 active:bg-neutral-800"
+            }`}
+          >
+            {isBlackout ? "Blackout aus" : "Blackout"}
+          </button>
+          {/* the tap itself has to ask for motion access, iOS allows it only here */}
+          <button
+            type="button"
+            disabled={!target || display.connection !== "connected"}
+            onClick={pointer.open}
+            className="min-h-[64px] rounded-2xl border border-neutral-700 bg-neutral-900 text-lg font-semibold text-neutral-100 active:bg-neutral-800 disabled:opacity-40"
+          >
+            Zeiger
+          </button>
+        </div>
 
         <section className="flex flex-col gap-2">
           <h2 className="m-0 text-sm font-medium uppercase tracking-wide text-neutral-500">
@@ -391,6 +410,8 @@ export const App = () => {
           Weiter ›
         </button>
       </nav>
+
+      {pointer.status !== "closed" && <PointerPanel pointer={pointer} />}
     </div>
   );
 };

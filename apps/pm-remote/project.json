@@ -35,6 +35,11 @@
         "production": {
           "buildTarget": "pm-remote:build:production",
           "hmr": false
+        },
+        "flexo": {
+          "buildTarget": "pm-remote:build:development",
+          "hmr": true,
+          "port": 4201
         }
       }
     },

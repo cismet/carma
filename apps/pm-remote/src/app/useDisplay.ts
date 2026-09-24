@@ -14,6 +14,7 @@ import {
   withLayerOpacity,
   writeRelayState,
   type Bounds3857,
+  type PointerChannel,
   type RelayTarget,
   type ShowScene,
 } from "@carma-mapping/show-remote";
@@ -68,6 +69,8 @@ export const useDisplay = (
    * keeps the display where it is instead of dropping it back to its default.
    */
   const boundsRef = useRef<Bounds3857 | null>(null);
+  /** the open pointer session, repeated in every write like the position */
+  const pointerRef = useRef<PointerChannel | null>(null);
   // bumped by every scene tap; a run whose number is outdated stops
   const runRef = useRef(0);
   const scenesRef = useRef(scenes);
@@ -98,24 +101,40 @@ export const useDisplay = (
     return promise;
   }, []);
 
-  const send = useCallback(
-    (base: MappingConfig): Promise<void> => {
-      liveRef.current = base;
-      setLive(base);
+  /**
+   * The whole state document. Without a known configuration it leaves the
+   * config out, which the display reads as "keep what you show".
+   */
+  const write = useCallback(
+    (base: MappingConfig | null): Promise<void> => {
       if (!writer) {
         return Promise.reject(new Error("Kein Sitzungscode gesetzt."));
       }
       return reportWrite(
         writer.write({
-          config: composeDisplayConfig(base, {
-            on: blackoutRef.current,
-            fadeMs: BLACKOUT_FADE_MS,
-          }),
+          ...(base
+            ? {
+                config: composeDisplayConfig(base, {
+                  on: blackoutRef.current,
+                  fadeMs: BLACKOUT_FADE_MS,
+                }),
+              }
+            : {}),
           ...(boundsRef.current ? { bounds: boundsRef.current } : {}),
+          ...(pointerRef.current ? { pointer: pointerRef.current } : {}),
         })
       );
     },
     [writer, reportWrite]
+  );
+
+  const send = useCallback(
+    (base: MappingConfig): Promise<void> => {
+      liveRef.current = base;
+      setLive(base);
+      return write(base);
+    },
+    [write]
   );
 
   // connect: open the session, then take over what the display was last sent
@@ -124,6 +143,7 @@ export const useDisplay = (
     liveRef.current = null;
     blackoutRef.current = false;
     boundsRef.current = null;
+    pointerRef.current = null;
     setLive(null);
     setIsBlackout(false);
     setActiveSceneId(null);
@@ -243,6 +263,15 @@ export const useDisplay = (
     [send]
   );
 
+  /** tells the display to follow the pointer session, or to stop following it */
+  const setPointerChannel = useCallback(
+    (channel: PointerChannel | null): Promise<void> => {
+      pointerRef.current = channel;
+      return write(liveRef.current);
+    },
+    [write]
+  );
+
   return {
     connection,
     error,
@@ -253,5 +282,6 @@ export const useDisplay = (
     goToScene,
     setLayerOpacity,
     setBlackout,
+    setPointerChannel,
   };
 };

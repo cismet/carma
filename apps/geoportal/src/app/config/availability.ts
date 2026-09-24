@@ -1,4 +1,5 @@
 import {
+  Deployment,
   resolveDeployment,
   type Availability,
   type AvailabilityContext,
@@ -23,7 +24,11 @@ import {
  * url hash are honoured because `resolveFeatureFlags` reads the hash at load;
  * a flag toggled later needs a reload, the same as for routes today.
  */
-export const currentDeployment = resolveDeployment();
+export const currentDeployment =
+  resolveDeployment() ??
+  // the dev server reached through another name (a flexo https route for a
+  // second machine) is still local development
+  (import.meta.env.DEV ? Deployment.LOCAL_DEV : null);
 
 const baseFeatureFlagConfig = getFeatureFlagConfig(currentDeployment);
 
