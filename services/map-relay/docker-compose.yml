@@ -14,8 +14,11 @@ services:
       # geoportal is served from, not the relay's own hostname. Exactly one
       # value; the server echoes it verbatim.
       ALLOW_ORIGIN: "https://cismet.github.io"
-      # AUTO_CREATE stays off here. With it on, any well-formed code an
-      # attacker invents becomes a live session.
+      # On, as on the live relay: pm-remote opens the pointer session
+      # `<code>-P` itself, and displays are started with codes picked by hand
+      # (`#/outlet?relay=...`). Neither exists without it. The price: any
+      # well-formed code becomes a live session, bounded by MAX_SESSIONS.
+      AUTO_CREATE: "1"
       FAST_POLL_MS: "250"
       SLOW_POLL_MS: "2000"
       MAX_WAIT_MS: "25000"

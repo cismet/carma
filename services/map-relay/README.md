@@ -34,7 +34,7 @@ npx nx run map-relay:test      # 15 checks against a real server on an ephemeral
 |---|---|---|
 | `PORT` | `8080` | The nx `serve` target uses `8099`. |
 | `ALLOW_ORIGIN` | `*` | Set this in production to the exact display origin: scheme and host, no trailing slash, no path. |
-| `AUTO_CREATE` | off | Lets a writer open the session it names instead of taking a code from `/new`. On for development, off in production. |
+| `AUTO_CREATE` | off | Lets a writer open the session it names instead of taking a code from `/new`. On in development and on the live relay: pm-remote's pointer session (`<code>-P`) and hand-picked display codes need it. |
 | `MAX_SESSIONS` | `1000` | Refuses new sessions beyond this, which is what keeps `AUTO_CREATE` bounded. |
 | `FAST_POLL_MS` | `250` | Poll hint sent while a session is active. |
 | `SLOW_POLL_MS` | `2000` | Poll hint sent once idle. |
@@ -61,7 +61,7 @@ Add `INPUT_PUSH=false` to build without pushing. The Dockerfile expects the work
 scp services/map-relay/docker-compose.yml you@server:/opt/map-relay/
 ssh you@server
 cd /opt/map-relay
-# set ALLOW_ORIGIN to the display origin first, and leave AUTO_CREATE off
+# set ALLOW_ORIGIN to the display origin first; AUTO_CREATE stays on (see Configuration)
 docker compose pull && docker compose up -d
 curl localhost:8099/healthz
 ```
@@ -71,5 +71,5 @@ Then take `nginx-relay.conf`: variant A is a `location /relay/` for an existing 
 ## Limits worth knowing
 
 - **State is in memory.** A container restart drops every session and displays get a `404`, at which point they stop rather than reconnect. Fine for ad-hoc use; add Redis if sessions need to survive a deploy.
-- **The code is the only credential.** Eight characters from a 32-character alphabet is about 1.1e12 combinations, with guessing throttled to 30 misses per minute per IP. Proportionate for "someone could change which layers a screen shows", not for anything confidential. With `AUTO_CREATE` on it is not a credential at all, since any well-formed code an attacker invents becomes a live session; that is why it defaults to off.
+- **The code is the only credential.** Eight characters from a 32-character alphabet is about 1.1e12 combinations, with guessing throttled to 30 misses per minute per IP. Proportionate for "someone could change which layers a screen shows", not for anything confidential. With `AUTO_CREATE` on it is not a credential at all, since any well-formed code an attacker invents becomes a live session. The live relay runs with it on anyway, because the pm-remote pointer opens its own session; a hand-picked code like `ZEIGER1` is then as good as public, so pick one nobody would guess when it matters.
 - **Single process.** The waiter set is per-process, so two replicas behind a load balancer would need shared pub/sub between them.
