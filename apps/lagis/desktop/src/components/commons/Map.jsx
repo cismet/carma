@@ -1,4 +1,4 @@
-import { Card, Tooltip, Tag } from "antd";
+import { Card, Tooltip, Tag, message } from "antd";
 
 import PropTypes from "prop-types";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -24,8 +24,14 @@ import {
 } from "../../store/slices/mapping";
 import { useDispatch, useSelector } from "react-redux";
 import { FileImageOutlined, FileImageFilled } from "@ant-design/icons";
-import { getBackgroundLibreLayers } from "./BackgroundLayers";
-import { getAdditionalLibreLayers } from "./AdditionalLayers";
+import {
+  configuration as backgroundConfiguration,
+  getBackgroundLibreLayers,
+} from "./BackgroundLayers";
+import {
+  configuration as additionalConfiguration,
+  getAdditionalLibreLayers,
+} from "./AdditionalLayers";
 import {
   getActiveAdditionalLayers,
   getActiveBackgroundLayer,
@@ -74,7 +80,10 @@ import {
 } from "../../core/tools/libreFeatures";
 import { setLibreMapInstance } from "../../core/tools/libreMapRegistry";
 import { MapLibrePrintPreview } from "@carma-mapping/print-core/maplibre";
-import { buildLagisPrintLayers } from "../../core/tools/printLayers";
+import {
+  buildLagisPrintLayers,
+  findIntranetLayers,
+} from "../../core/tools/printLayers";
 import PrintControl from "./PrintControl";
 import {
   getDPI,
@@ -101,6 +110,31 @@ const mockExtractor = (input) => {
 };
 
 const HOVER_THROTTLE_MS = 100;
+
+/** Background ids carry a conf index ("lsg.1"), additional ids do not. */
+const layerTitle = (carmaLayerId = "") => {
+  const key = carmaLayerId.split(".")[0];
+  return (
+    backgroundConfiguration[key]?.title ??
+    additionalConfiguration[key]?.title ??
+    key
+  );
+};
+
+const showIntranetPrintMessage = (intranetLayers) => {
+  const titles = [
+    ...new Set(intranetLayers.map((layer) => layer.carmaLayerId)),
+  ].map(layerTitle);
+  const unique = [...new Set(titles)];
+  const names = unique.map((title) => `„${title}“`).join(", ");
+  message.warning({
+    key: "lagis-print-intranet",
+    duration: 6,
+    content: `Drucken nicht möglich: ${names} ${
+      unique.length > 1 ? "sind" : "ist"
+    } nur im Intranet verfügbar. Bitte ausblenden.`,
+  });
+};
 
 const Map = ({
   dataIn,
@@ -493,7 +527,14 @@ const Map = ({
   // Built from the layers the map currently renders, so the PDF mirrors the
   // screen: the toggles and opacities are already applied to both inputs.
   const resolvePrintLayers = useCallback(
-    (map) => buildLagisPrintLayers(libreLayers, featureCollectionGeoJSON, map),
+    (map) => {
+      const intranetLayers = findIntranetLayers(libreLayers);
+      if (intranetLayers.length > 0) {
+        showIntranetPrintMessage(intranetLayers);
+        return null;
+      }
+      return buildLagisPrintLayers(libreLayers, featureCollectionGeoJSON, map);
+    },
     [libreLayers, featureCollectionGeoJSON]
   );
 

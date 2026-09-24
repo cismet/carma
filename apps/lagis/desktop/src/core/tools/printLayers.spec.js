@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 // load under jsdom and nothing here needs it.
 vi.mock("maplibre-gl", () => ({ default: {} }));
 
-import { buildLagisPrintLayers } from "./printLayers";
+import { buildLagisPrintLayers, findIntranetLayers } from "./printLayers";
 
 const wmtsLayer = {
   type: "wmts",
@@ -55,8 +55,10 @@ describe("buildLagisPrintLayers", () => {
     });
   });
 
-  it("leaves out intranet layers", () => {
-    expect(buildLagisPrintLayers([intranetLayer], undefined)).toEqual([]);
+  it("finds the intranet layers, which the print servers cannot reach", () => {
+    expect(findIntranetLayers([wmtsLayer, intranetLayer, vectorLayer])).toEqual(
+      [intranetLayer]
+    );
   });
 
   it("prints vector layers with their live style from the map", () => {
