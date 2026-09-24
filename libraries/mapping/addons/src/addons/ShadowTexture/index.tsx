@@ -26,7 +26,9 @@ export type ShadowTextureConfig = {
 
 export type ShadowTextureState = {
   quality: "4k" | "8k";
+  mode: "hard" | "sun-disc";
   status: string;
+  shadowOnly: boolean;
 };
 
 const ShadowTextureRuntime = lazy(() =>
@@ -70,7 +72,12 @@ export const ShadowTexture = ({
   }, [dateState, initialDateState, setDateState]);
   useEffect(() => {
     if (!textureState) {
-      setTextureState({ quality: "4k", status: "idle" });
+      setTextureState({
+        quality: "4k",
+        mode: "sun-disc",
+        status: "idle",
+        shadowOnly: false,
+      });
     }
   }, [setTextureState, textureState]);
 
@@ -91,6 +98,37 @@ export const ShadowTexture = ({
             {quality.toUpperCase()}
           </label>
         ))}
+        <span>Schatten</span>
+        {(["hard", "sun-disc"] as const).map((mode) => (
+          <label key={mode} className="flex items-center gap-1">
+            <input
+              type="radio"
+              name="shadow-texture-mode"
+              checked={(textureState?.mode ?? "sun-disc") === mode}
+              disabled={shadowState?.isAnimating}
+              onChange={() =>
+                setTextureState((previous) => ({ ...previous!, mode }))
+              }
+            />
+            {mode === "hard" ? "Hart" : "Sonnenscheibe"}
+          </label>
+        ))}
+        {shadowState?.isAnimating && (
+          <span className="text-neutral-500">Animation: immer hart</span>
+        )}
+        <label className="flex items-center gap-1">
+          <input
+            type="checkbox"
+            checked={textureState?.shadowOnly ?? false}
+            onChange={(event) =>
+              setTextureState((previous) => ({
+                ...previous!,
+                shadowOnly: event.target.checked,
+              }))
+            }
+          />
+          Nur Schatten anzeigen
+        </label>
         <span role="status" className="text-neutral-500">
           {textureState?.status}
         </span>
@@ -122,20 +160,24 @@ export const ShadowTexture = ({
           </Tooltip>
         </Control>
       )}
-      {libreMap && textureState && dateState && modelState && config?.assetBaseUrl && (
-        <Suspense fallback={null}>
-          <ShadowTextureRuntime
-            assetBaseUrl={config.assetBaseUrl}
-            map={libreMap}
-            shadowState={shadowState}
-            dateState={dateState}
-          textureState={textureState}
-          modelState={modelState as ModelCollectionState}
-            setTextureState={setTextureState}
-            setDateState={setDateState}
-          />
-        </Suspense>
-      )}
+      {libreMap &&
+        textureState &&
+        dateState &&
+        modelState &&
+        config?.assetBaseUrl && (
+          <Suspense fallback={null}>
+            <ShadowTextureRuntime
+              assetBaseUrl={config.assetBaseUrl}
+              map={libreMap}
+              shadowState={shadowState}
+              dateState={dateState}
+              textureState={textureState}
+              modelState={modelState as ModelCollectionState}
+              setTextureState={setTextureState}
+              setDateState={setDateState}
+            />
+          </Suspense>
+        )}
     </>
   );
 };

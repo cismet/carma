@@ -119,7 +119,9 @@ describe("useGeoportalShadowSimulationHash", () => {
     libreContextMock.getCenter.mockReturnValue({ lat: 51.256, lng: 7.15 });
   });
 
-  afterEach(() => vi.useRealTimers());
+  afterEach(() => {
+    vi.useRealTimers();
+  });
 
   it("keeps the pm-show shadow default on when the initial URL has no shadow parameter", async () => {
     const customHashState = createCustomHashState({ selection: null });

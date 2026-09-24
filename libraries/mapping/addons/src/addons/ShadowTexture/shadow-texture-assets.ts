@@ -7,6 +7,7 @@ import { getFromWGS84ToWebMercator } from "@carma-geo/proj";
 import { degToRadNumeric } from "@carma-units";
 
 import { DZ_B_PRM_EPSG3857_CENTER } from "./shadow-texture-georef";
+import type { ModelCollectionState } from "../ModelCollection";
 
 export const DZ_B_PRM_GLB_PARTS = [
   { id: "environment", label: "Umgebung", filename: "environment.glb" },
@@ -23,6 +24,18 @@ export const DZ_B_PRM_GLB_PARTS = [
 
 export type DzbPrmGlbPartId = (typeof DZ_B_PRM_GLB_PARTS)[number]["id"];
 export type DzbPrmGlbVisibility = Record<DzbPrmGlbPartId, boolean>;
+export const getDzbPrmShadowVisibility = (
+  state: ModelCollectionState,
+  catalogLayerVisible: boolean
+): DzbPrmGlbVisibility => ({
+  environment: state.visible,
+  zoo: state.visible,
+  station: state.visible,
+  bridge: state.visible && state.bridge === "planning",
+  bridgeExisting: state.visible && state.bridge === "existing",
+  catalogBridge:
+    state.visible && (state.bridge === "catalog" || catalogLayerVisible),
+});
 export type DzbPrmGlbLoadProgress = {
   loaded: number;
   total: number;
@@ -43,10 +56,7 @@ const loader = new GLTFLoader()
   .setMeshoptDecoder(MeshoptDecoder)
   .setDRACOLoader(dracoLoader);
 const templateCache = new Map<string, Promise<THREE.Group>>();
-const partLoads = new WeakMap<
-  THREE.Group,
-  Map<string, Promise<void>>
->();
+const partLoads = new WeakMap<THREE.Group, Map<string, Promise<void>>>();
 
 const partName = (label: string) => `DZ_B_PRM ${label}`;
 
@@ -77,9 +87,10 @@ const getTemplate = (
           // Static servers may advertise Content-Encoding and let fetch
           // transparently decode this file before the body reaches us.
           const bytes = response.body.pipeThrough(progress);
-          const decoded = response.headers.get("content-encoding") === "gzip"
-            ? bytes
-            : bytes.pipeThrough(new DecompressionStream("gzip"));
+          const decoded =
+            response.headers.get("content-encoding") === "gzip"
+              ? bytes
+              : bytes.pipeThrough(new DecompressionStream("gzip"));
           return new Response(decoded).arrayBuffer();
         })
         .then((buffer) =>
@@ -171,9 +182,10 @@ export const loadDzbPrmGlbPartsIntoRoot = async ({
         assetBaseUrl.endsWith("/5m") && part.id === "environment"
           ? `${part.filename}.gz`
           : part.filename;
-      const url = part.id === "catalogBridge"
-        ? BRUECKENENTWURF_GLB.model.uri
-        : `${assetBaseUrl.replace(/\/$/, "")}/${filename}`;
+      const url =
+        part.id === "catalogBridge"
+          ? BRUECKENENTWURF_GLB.model.uri
+          : `${assetBaseUrl.replace(/\/$/, "")}/${filename}`;
       const priorLoad = inFlight.get(url);
       if (priorLoad) return priorLoad;
       const wasCached = templateCache.has(url);
@@ -198,11 +210,11 @@ export const loadDzbPrmGlbPartsIntoRoot = async ({
               DZ_B_PRM_EPSG3857_CENTER.y - northing
             );
             clone.rotation.y = degToRadNumeric(
-              BRUECKENENTWURF_GLB.orientation.heading
+              90 - BRUECKENENTWURF_GLB.orientation.heading
             );
-            const projectedMetersPerLocalMeter = 1 / Math.cos(
-              degToRadNumeric(BRUECKENENTWURF_GLB.position.latitude)
-            );
+            const projectedMetersPerLocalMeter =
+              1 /
+              Math.cos(degToRadNumeric(BRUECKENENTWURF_GLB.position.latitude));
             clone.scale.set(
               projectedMetersPerLocalMeter,
               1,

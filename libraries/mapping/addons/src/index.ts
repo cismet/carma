@@ -1,5 +1,6 @@
 export { AddonHost } from "./lib/AddonHost";
 export { ShadowTextureHeaderControls } from "./addons/ShadowTexture";
+export { loadDzbPrmCollection } from "./addons/ModelCollection/dzb-prm-collection";
 export { TargetAddonHost } from "./lib/TargetAddonHost";
 export {
   getTargetAddonsWithTrigger,

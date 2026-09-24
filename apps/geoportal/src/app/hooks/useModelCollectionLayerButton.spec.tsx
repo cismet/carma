@@ -9,7 +9,10 @@ const addonMock = vi.hoisted(() => ({
   visible: true,
   setState: vi.fn(),
   addons: [
-    { kind: "modelCollection", config: { manifestUrl: "/assets/dz-b-prm/collection.json" } },
+    {
+      kind: "modelCollection",
+      config: { manifestUrl: "/assets/dz-b-prm/collection.json" },
+    },
   ],
 }));
 
@@ -63,15 +66,17 @@ describe("useModelCollectionLayerButton", () => {
     renderHook(() => useModelCollectionLayerButton(), { wrapper });
 
     await waitFor(() => {
-      const layer = store.getState().mapping.layers.find(
-        (entry) => entry.id === MODEL_COLLECTION_LAYER_ID
-      );
+      const layer = store
+        .getState()
+        .mapping.layers.find((entry) => entry.id === MODEL_COLLECTION_LAYER_ID);
       expect(layer?.title).toBe("BuGa");
-      expect(layer?.tools?.[0]?.kind).toBe("modelCollection");
+      expect(layer?.tools?.[0]).toMatchObject({ kind: "modelCollection" });
     });
     expect(globalThis.fetch).toHaveBeenCalledTimes(1);
     store.dispatch(removeLayer(MODEL_COLLECTION_LAYER_ID));
-    await waitFor(() => expect(addonMock.setState).toHaveBeenCalledWith({ visible: false }));
+    await waitFor(() =>
+      expect(addonMock.setState).toHaveBeenCalledWith({ visible: false })
+    );
     expect(globalThis.fetch).toHaveBeenCalledTimes(1);
   });
 });

@@ -19,6 +19,7 @@ import {
   type DzbPrmGlbVisibility,
 } from "../ShadowTexture/shadow-texture-assets";
 import type { ModelCollectionState } from ".";
+import { useAddonState } from "../../lib/AddonStateContext";
 import type { DzbPrmModelCollection } from "./dzb-prm-collection";
 
 const partVisibility = (state: ModelCollectionState): DzbPrmGlbVisibility => ({
@@ -76,6 +77,11 @@ export const ModelCollectionRuntime = ({
   state: ModelCollectionState;
 }) => {
   const rootRef = useRef<THREE.Group | null>(null);
+  const [textureState] = useAddonState("shadowTexture");
+  const [shadowState] = useAddonState("shadowSimulation");
+  const hideForShadowOnly = Boolean(
+    shadowState?.enabled && textureState?.shadowOnly
+  );
   const opacityRef = useRef(state.opacity);
   opacityRef.current = state.opacity;
 
@@ -125,6 +131,11 @@ export const ModelCollectionRuntime = ({
       lease.release();
     };
   }, [collection, map]);
+
+  useEffect(() => {
+    if (rootRef.current) rootRef.current.visible = !hideForShadowOnly;
+    map.triggerRepaint();
+  }, [hideForShadowOnly, map]);
 
   useEffect(() => {
     const root = rootRef.current;

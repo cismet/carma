@@ -1,7 +1,18 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import maplibregl, { type Map as MaplibreMap } from "maplibre-gl";
 
 import { EARTH_CIRCUMFERENCE } from "@carma-geo/proj";
+import {
+  getSharedThreeSceneRuntimes,
+  subscribeSharedThreeSceneContent,
+} from "@carma-mapping/engines/maplibre";
 import {
   advanceShadowAnimationFrame,
   getSolarPosition,
@@ -11,11 +22,12 @@ import {
 
 import type { ShadowTextureState } from ".";
 import type { ModelCollectionState } from "../ModelCollection";
-import type { DzbPrmGlbVisibility } from "./shadow-texture-assets";
+import { getDzbPrmShadowVisibility } from "./shadow-texture-assets";
 import { DZ_B_PRM_POSITION } from "./shadow-texture-georef";
 import {
   createDzbPrmShadowCapture,
   createDzbPrmShadowFrameCache,
+  DZB_SHADOW_SUN_DISC_SAMPLES,
   type DzbPrmShadowImage,
   type DzbPrmShadowViewBounds,
 } from "./shadow-texture-capture";
@@ -109,6 +121,22 @@ export const ShadowTextureRuntime = ({
   const cache = useRef(createDzbPrmShadowFrameCache());
   const renderQueue = useRef<Promise<void>>(Promise.resolve());
   const lastImage = useRef<DzbPrmShadowImage | null>(null);
+  const subscribeToScene = useCallback(
+    (listener: () => void) => subscribeSharedThreeSceneContent(map, listener),
+    [map]
+  );
+  const getCatalogBridgeVisible = useCallback(
+    () =>
+      getSharedThreeSceneRuntimes(map).some(
+        (runtime) => runtime.id === "geoportal-catalog-bridge"
+      ),
+    [map]
+  );
+  const catalogBridgeVisible = useSyncExternalStore(
+    subscribeToScene,
+    getCatalogBridgeVisible,
+    () => false
+  );
 
   useEffect(() => {
     const updateView = () => {
@@ -162,26 +190,26 @@ export const ShadowTextureRuntime = ({
     [map]
   );
 
-  const visibility = useMemo<DzbPrmGlbVisibility>(
-    () => ({
-      environment: modelState.visible,
-      zoo: modelState.visible,
-      station: modelState.visible,
-      bridge: modelState.visible && modelState.bridge === "planning",
-      bridgeExisting: modelState.visible && modelState.bridge === "existing",
-      catalogBridge: modelState.visible && modelState.bridge === "catalog",
-    }),
-    [modelState.bridge, modelState.visible]
+  const visibility = useMemo(
+    () => getDzbPrmShadowVisibility(modelState, catalogBridgeVisible),
+    [catalogBridgeVisible, modelState]
   );
 
   const contextKey = JSON.stringify([
     assetBaseUrl,
+    catalogBridgeVisible,
     modelState.bridge,
     modelState.quality,
     modelState.visible,
     textureState.quality,
     view,
   ]);
+  // Interactive playback stays responsive even when the still-image mode
+  // requests a full sampled sun disc. Video export is a separate path.
+  const sunDiscSamples =
+    shadowState.isAnimating || textureState.mode === "hard"
+      ? 1
+      : DZB_SHADOW_SUN_DISC_SAMPLES;
 
   useEffect(() => {
     if (!shadowState.enabled) {
@@ -208,6 +236,7 @@ export const ShadowTextureRuntime = ({
       contextKey,
       solar.azimuthDegrees,
       solar.elevationDegrees,
+      sunDiscSamples,
     ]);
     const render = async () => {
       const cached = await cache.current.get(frameKey);
@@ -225,6 +254,7 @@ export const ShadowTextureRuntime = ({
           sunElevationDegrees: solar.elevationDegrees,
           pixelsPerMeter: view.pixelsPerMeter,
           maxImageDimension: textureState.quality === "8k" ? 8192 : 4096,
+          sunDiscSamples,
           viewBounds: view.bounds,
           isCancelled: () => cancelled,
           onProgress: (progress) => {
@@ -304,6 +334,7 @@ export const ShadowTextureRuntime = ({
     shadowState,
     styleReady,
     textureState.quality,
+    sunDiscSamples,
     view,
     visibility,
   ]);

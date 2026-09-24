@@ -44,6 +44,11 @@ collection manifest records its Cesium anchor, altitude, heading and SHA-256.
 The runtime uses the same transform in the visible MapLibre model and shadow
 capture. Its Draco decoder is copied from the installed Three.js package into
 `public/assets/draco/` for self-contained deployment.
+On `pm-show`, the visible catalog bridge subtracts the collection manifest's
+`boardBottomHeightMeters`, matching the visible BuGa collection. Offscreen
+capture keeps both bridges in the common unshifted height frame. Selecting
+the collection's catalog bridge also suppresses the independent layer's
+duplicate visible GLB without disabling its shadow-source registration.
 Pass the matching source file explicitly; `--quality` is a provenance label,
 not a source-URL selector. The outputs are Meshopt-compressed glTF 2.0 GLBs
 with `EXT_mesh_gpu_instancing`. Their X/Z positions are *projected* metres
