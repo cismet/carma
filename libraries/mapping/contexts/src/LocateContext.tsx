@@ -25,6 +25,8 @@ import type { ReactNode } from "react";
 import type { Map as MapLibreMap, Marker } from "maplibre-gl";
 
 import { subscribeCompassHeading } from "./locate/compass-heading";
+import { getGeolocationSource } from "./locate/geolocation-source";
+import type { GeolocationSource } from "./locate/geolocation-source";
 import {
   createAccuracyCircleGeoJSON,
   createLocateMarkerElement,
@@ -65,6 +67,14 @@ export interface LocateContextType {
   activate: (options?: { fly?: boolean }) => void;
   deactivate: () => void;
   toggle: () => void;
+  /**
+   * Show the user as an arrow pointing to `heading` (degrees from north)
+   * instead of the dot, for as long as something knows where they are going:
+   * a navigation sets it per fix from the route and clears it with null when
+   * it ends. Survives the marker being rebuilt, so it can be set before the
+   * first fix lands.
+   */
+  setTravelHeading: (heading: number | null) => void;
 }
 
 const INERT: LocateContextType = {
@@ -76,6 +86,7 @@ const INERT: LocateContextType = {
   activate: () => {},
   deactivate: () => {},
   toggle: () => {},
+  setTravelHeading: () => {},
 };
 
 export const LocateContext = createContext<LocateContextType>(INERT);
@@ -98,6 +109,12 @@ export const LocateProvider = ({ map, children }: LocateProviderProps) => {
   const markerRef = useRef<Marker | null>(null);
   const accuracyCircleRef = useRef<string | null>(null);
   const watchIdRef = useRef<number | null>(null);
+  /**
+   * The source the running watch was started on. The slot may change while
+   * the watch runs (a simulator mounting or going), and a watch id only means
+   * something to the source that handed it out.
+   */
+  const watchSourceRef = useRef<GeolocationSource | null>(null);
   /** whether this activation moves the map; see `activate` */
   const flyRef = useRef(true);
   /**
@@ -128,9 +145,18 @@ export const LocateProvider = ({ map, children }: LocateProviderProps) => {
    */
   const headingRef = useRef<number | null>(null);
   const unsubscribeHeadingRef = useRef<(() => void) | null>(null);
+  /** where the user is going, set by a navigation; null shows the dot */
+  const travelHeadingRef = useRef<number | null>(null);
 
   const applyHeading = useCallback(() => {
-    markerElementRef.current?.setHeading(headingRef.current, markerRef.current);
+    const element = markerElementRef.current;
+    element?.setHeading(headingRef.current, markerRef.current);
+    element?.setTravelHeading(travelHeadingRef.current, markerRef.current);
+  }, []);
+
+  const setTravelHeading = useCallback((heading: number | null) => {
+    travelHeadingRef.current = heading;
+    markerElementRef.current?.setTravelHeading(heading, markerRef.current);
   }, []);
 
   const stopHeading = useCallback(() => {
@@ -236,7 +262,8 @@ export const LocateProvider = ({ map, children }: LocateProviderProps) => {
 
   const startLocating = useCallback(() => {
     isActiveRef.current = true;
-    if (!navigator.geolocation) {
+    const geolocation = getGeolocationSource();
+    if (!geolocation) {
       console.error("Geolocation is not supported by this browser.");
       setProblem("unsupported");
       setIsLoading(false);
@@ -249,7 +276,7 @@ export const LocateProvider = ({ map, children }: LocateProviderProps) => {
     followRef.current = flyRef.current;
     startHeading();
 
-    navigator.geolocation.getCurrentPosition(
+    geolocation.getCurrentPosition(
       (position) => {
         setCurrentPosition(position);
         setIsLoading(false);
@@ -281,7 +308,8 @@ export const LocateProvider = ({ map, children }: LocateProviderProps) => {
       }
     );
 
-    watchIdRef.current = navigator.geolocation.watchPosition(
+    watchSourceRef.current = geolocation;
+    watchIdRef.current = geolocation.watchPosition(
       (position) => {
         setCurrentPosition(position);
         updateLocationMarker(position);
@@ -306,18 +334,23 @@ export const LocateProvider = ({ map, children }: LocateProviderProps) => {
     );
   }, [map, updateLocationMarker, startHeading]);
 
+  const clearWatch = useCallback(() => {
+    if (watchIdRef.current !== null) {
+      watchSourceRef.current?.clearWatch(watchIdRef.current);
+      watchIdRef.current = null;
+      watchSourceRef.current = null;
+    }
+  }, []);
+
   const stopLocating = useCallback(() => {
     isActiveRef.current = false;
-    if (watchIdRef.current !== null) {
-      navigator.geolocation.clearWatch(watchIdRef.current);
-      watchIdRef.current = null;
-    }
+    clearWatch();
     stopHeading();
     clearLocationMarker();
     followRef.current = false;
     setCurrentPosition(null);
     setHasMapMoved(false);
-  }, [clearLocationMarker, stopHeading]);
+  }, [clearWatch, clearLocationMarker, stopHeading]);
 
   useEffect(() => {
     if (!map || !isLocationActive) return;
@@ -351,18 +384,22 @@ export const LocateProvider = ({ map, children }: LocateProviderProps) => {
   useEffect(() => {
     return () => {
       isActiveRef.current = false;
-      if (watchIdRef.current !== null) {
-        navigator.geolocation.clearWatch(watchIdRef.current);
-      }
+      clearWatch();
       stopHeading();
       clearLocationMarker();
     };
-  }, [clearLocationMarker, stopHeading]);
+  }, [clearWatch, clearLocationMarker, stopHeading]);
 
   const activate = useCallback((options?: { fly?: boolean }) => {
     // the flag belongs to the activation, not to the mode: whoever switches it
     // on says whether the map goes there, and the button still does
     flyRef.current = options?.fly ?? true;
+    // a caller that asks for the coordinates only, while the button already
+    // has the mode following, takes the following off: it is about to move
+    // the map itself (the routing camera), and two hands on the camera fight
+    if (options?.fly === false) {
+      followRef.current = false;
+    }
     setIsLocationActive(true);
   }, []);
 
@@ -386,6 +423,7 @@ export const LocateProvider = ({ map, children }: LocateProviderProps) => {
         activate,
         deactivate,
         toggle,
+        setTravelHeading,
       }}
     >
       {children}

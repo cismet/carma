@@ -8,7 +8,7 @@ import type { OriginLocation } from "./originChannel";
  * here: it lives on the `originLocation` channel, see `originChannel.ts`.
  */
 export type OriginSearchConfig = {
-  /** where the input sits. Default: above the app's own search, bottom left */
+  /** where the input sits. Default: under the app's own search, bottom left */
   controlPosition?: Positions;
   controlOrder?: number;
   /**
@@ -28,7 +28,7 @@ export type OriginSearchConfig = {
   alwaysVisible?: boolean;
 };
 
-/** the geoportal's own search is `bottomleft` order 10, so this sits above it */
+/** the geoportal's own search is `bottomleft` order 10; the column runs top-down, so this sits under it */
 export const DEFAULT_CONTROL_POSITION: Positions = "bottomleft";
 export const DEFAULT_CONTROL_ORDER = 20;
 /** empty by default: the input already says "Von:", the placeholder need not */

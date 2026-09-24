@@ -28,6 +28,7 @@ import GenericModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplic
 import {
   SelectionItem,
   TopicMapSelectionContent,
+  useControlsHidden,
   useGazData,
   useMapHashRouting,
   useSelectionTopicMap,
@@ -233,6 +234,10 @@ const LeafletGeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const mapInteractionEnabled = useSelector(getUIMapInteractionEnabled);
   const hashWriteEnabled = useSelector(getUIHashWriteEnabled);
   const visibleControls = useSelector(getUIVisibleControls);
+  // the info box goes with the rest of the chrome during a contributor's
+  // "map only" moment (`carma.ui.hideControls`)
+  const { hidden: controlsHidden } = useControlsHidden();
+  const showInfoBox = visibleControls.infoBox && !controlsHidden;
 
   useEffect(() => {
     const maps = layers
@@ -497,7 +502,7 @@ const LeafletGeoportalMap = ({ height, width, allow3d }: MapProps) => {
   }, [getLeafletMap]);
 
   const renderInfoBox = useCallback(() => {
-    if (!visibleControls.infoBox) {
+    if (!showInfoBox) {
       return <div></div>;
     }
 
@@ -528,7 +533,7 @@ const LeafletGeoportalMap = ({ height, width, allow3d }: MapProps) => {
     loadingFeatureInfo,
     pos,
     handleZoomToFeature,
-    visibleControls.infoBox,
+    showInfoBox,
   ]);
 
   useEffect(() => {
@@ -847,6 +852,10 @@ const LibreGeoportalMap = ({ allow3d }: MapProps) => {
 
   const showHamburgerMenu = useSelector(getShowHamburgerMenu);
   const visibleControls = useSelector(getUIVisibleControls);
+  // the info box goes with the rest of the chrome during a contributor's
+  // "map only" moment (`carma.ui.hideControls`)
+  const { hidden: controlsHidden } = useControlsHidden();
+  const showInfoBox = visibleControls.infoBox && !controlsHidden;
   const mapInteractionEnabled = useSelector(getUIMapInteractionEnabled);
   const hashWriteEnabled = useSelector(getUIHashWriteEnabled);
   const { pathname } = useLocation();
@@ -979,7 +988,7 @@ const LibreGeoportalMap = ({ allow3d }: MapProps) => {
         {isModeMeasurement && !isCesium && (
           <MeasurementHost mode={libreDrawMode} snapping styleVariant="carma" />
         )}
-        {visibleControls.infoBox &&
+        {showInfoBox &&
           (isCesium ? (
             cesiumInfoBox
           ) : isModeMeasurement || selectedMeasurement ? (

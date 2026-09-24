@@ -592,6 +592,25 @@ export function LibFuzzySearch({
     }
   }, [options]);
 
+  /**
+   * The value of the last leaf row picked in a dynamic mode. While the input
+   * still holds exactly that value, the mode's prefix is left out of what is
+   * drawn over it: "Apotheken: " in front of a pharmacy's name is what the
+   * dropdown was filtered by, not what was picked, and the field is short of
+   * that width. The value itself keeps the prefix, since that is how the mode
+   * tells which stage it is in.
+   */
+  const [pickedDynamicValue, setPickedDynamicValue] = useState<string | null>(
+    null
+  );
+  /**
+   * Whether the input has the focus. The overlay is drawn in place of the
+   * input's own text, which is transparent, and the caret is the input's own,
+   * so while the user is in the field what is drawn has to be the whole value
+   * or the caret sits in the wrong place.
+   */
+  const [inputFocused, setInputFocused] = useState(false);
+
   const handleOnSelect = (option, skipMapMovement = false) => {
     const dynamicOption: DynamicSearchOption | undefined = option.dynamicOption;
     if (dynamicOption) {
@@ -604,6 +623,7 @@ export function LibFuzzySearch({
         void runDynamicSearch(dynamicOption.value, { openWhenDone: true });
         return;
       }
+      setPickedDynamicValue(dynamicOption.value);
       setCleanBtnDisable(false);
       dynamicOption.onPick?.();
       if (dynamicOption.item) {
@@ -868,6 +888,10 @@ export function LibFuzzySearch({
   const modeInputPrefix = activeMode?.inputPrefixOf?.(value) ?? null;
   const showModeInputPrefix =
     modeInputPrefix !== null && value.startsWith(modeInputPrefix);
+  // a picked hit is shown by its name alone, until the user is back in the
+  // field or has changed what is in it (see `pickedDynamicValue`)
+  const hideModeInputPrefixLead =
+    showModeInputPrefix && !inputFocused && value === pickedDynamicValue;
 
   return (
     <div
@@ -1015,7 +1039,7 @@ export function LibFuzzySearch({
           if (showModeInputPrefix && modeInputPrefix !== null) {
             return (
               <InputValueOverlay
-                lead={modeInputPrefix}
+                lead={hideModeInputPrefixLead ? "" : modeInputPrefix}
                 value={value.slice(modeInputPrefix.length)}
               />
             );
@@ -1070,6 +1094,8 @@ export function LibFuzzySearch({
           )}
           value={value}
           open={autoCompleteOpen}
+          onFocus={() => setInputFocused(true)}
+          onBlur={() => setInputFocused(false)}
           onDropdownVisibleChange={(visible) => {
             setAutoCompleteOpen(visible);
             if (visible && isDynamicMode && searchResult.length === 0) {

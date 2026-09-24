@@ -58,6 +58,17 @@ import {
 import { OutletAddon, type OutletConfig } from "../addons/outlet/Outlet";
 import { ShowScenes, type ShowScenesConfig } from "../addons/ShowScenes";
 import {
+  RouteModePicker,
+  type RouteModePickerConfig,
+} from "../addons/RouteModePicker";
+import {
+  Routing,
+  type ActiveRouteState,
+  type RouteModeState,
+  type RouteNavigationState,
+  type RoutingConfig,
+} from "../addons/Routing";
+import {
   VectorHighlight,
   VectorHighlightControl,
   VectorHighlightDebugPanel,
@@ -73,6 +84,11 @@ import {
   type ShadowSimulationConfig,
   type ShadowSimulationState,
 } from "../addons/ShadowSimulation";
+import {
+  LocationSimulator,
+  type LocationSimulationState,
+  type LocationSimulatorConfig,
+} from "../addons/LocationSimulator";
 import {
   LayerVisibility,
   layerVisibilityTrigger,
@@ -154,6 +170,10 @@ export type AddonConfigMap = {
   nearestFeatureBahnhoefe: NearestFeatureBahnhoefeConfig;
   nearestFeatureKrankenhaeuser: NearestFeatureKrankenhaeuserConfig;
   originSearch: OriginSearchConfig;
+  routeModePicker: RouteModePickerConfig;
+  routing: RoutingConfig;
+  /** dev only; never declare it on a shipped route (and it no-ops outside a dev build) */
+  locationSimulator: LocationSimulatorConfig;
   vectorHighlight: VectorHighlightConfig;
   vectorHighlightControl: VectorHighlightControlConfig;
   /** dev only; never declare it on a shipped route */
@@ -226,6 +246,33 @@ export type AddonStateMap = {
    * one starting point rather than each keeping their own.
    */
   originLocation: OriginLocationState;
+  /**
+   * how the user travels, and who currently wants the picker on screen; see
+   * `Routing/routeModeChannel.ts`. The "womit?" next to the origin's "von
+   * wo?": "In der Nähe" ranks by it, a routing UI will route by it, and the
+   * `routeModePicker` addon is what writes it.
+   */
+  routeMode: RouteModeState;
+  /**
+   * the route the user is looking at; see `Routing/routeChannel.ts`. "In der
+   * Nähe" publishes the route of the picked hit; anything that produces a
+   * route later writes this same channel. Nothing moves the camera on it.
+   */
+  activeRoute: ActiveRouteState;
+  /**
+   * the offer to go along that route, and whether the camera is on it; see
+   * `Routing`. Read by the host app's info box, which renders the button, and
+   * by `cameraRestriction`, which lets the map turn while navigating.
+   */
+  routeNavigation: RouteNavigationState;
+  /**
+   * the pretend device, while `locationSimulator` stands in for the real one:
+   * whether it is going along the route, and the calls that put it somewhere
+   * on the route or hold it there; see `LocationSimulator/simulationChannel.ts`.
+   * Read by the routing's ribbon, which offers the slider only while this is
+   * there.
+   */
+  locationSimulation: LocationSimulationState;
   /** whether the highlighting mode is running; see `VectorHighlight` */
   highlightMode: HighlightModeState;
   /** whether the sketch layer owns the pointer; see `AnnotationOverlay` */
@@ -461,11 +508,13 @@ export const addonRegistry: {
   gazetteerMode: { Component: GazetteerMode },
   homeOverride: { Component: HomeOverride },
   nearestFeature: {
-    // it writes `originLocation` (its request for the input) and reads the
-    // origin from it, but does not require it: without `originSearch` the
-    // channel stays empty and the configured origin is used
+    // it writes `originLocation` and `routeMode` (its requests for the input
+    // and the picker) and reads both, but does not require them: without
+    // `originSearch` the channel stays empty and the configured origin is
+    // used, without `routeModePicker` everything is by car
     Component: NearestFeature,
     requires: ["nearestFeatureCategories"],
+    provides: ["activeRoute"],
   },
   nearestFeatureApotheken: {
     Component: NearestFeatureApotheken,
@@ -482,6 +531,21 @@ export const addonRegistry: {
   originSearch: {
     Component: OriginSearch,
     provides: ["originLocation"],
+  },
+  routeModePicker: {
+    Component: RouteModePicker,
+    provides: ["routeMode"],
+  },
+  routing: {
+    Component: Routing,
+    requires: ["activeRoute"],
+    provides: ["routeNavigation"],
+  },
+  // reads `routeNavigation` when it is there, to drive along the route being
+  // driven (a reroute included); without it it only stands at its position
+  locationSimulator: {
+    Component: LocationSimulator,
+    provides: ["locationSimulation"],
   },
   vectorHighlight: {
     Component: VectorHighlight,

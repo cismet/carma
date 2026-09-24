@@ -39,6 +39,25 @@ carma.mapping3D.zoomOut();
 
 carma.ui.openMenu();
 carma.ui.openHelperOverlay();
+const removeAction = carma.ui.addInfoBoxAction({
+  key: "routing",
+  tooltip: "Route anzeigen",
+  icon: faRoute,                             // or iconname: "car"
+  active: false,
+  onClick: () => {},
+});                                          // a button in the selected feature's info box
+removeAction();
+const removeNote = carma.ui.addInfoBoxNote({
+  key: "routing",
+  text: "12 Min · 4,3 km",
+  icon: faCar,
+});                                          // a line of text above the info box's links
+removeNote();
+const showControls = carma.ui.hideControls({
+  key: "routing",
+  keepLayerRows: ["__routing__"],            // layer bar rows that stay
+});                                          // map only: navbar, buttons, search, info box go
+showControls();
 
 // gazetteer search
 const removeMode = carma.gazetteer.addMode({

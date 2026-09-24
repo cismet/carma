@@ -22,6 +22,10 @@ import {
   AnnotationInteractionPanel,
   ANNOTATION_TOOLS_INTERACTION_ID,
 } from "../addons/Annotation";
+import {
+  RoutingInteractionPanel,
+  ROUTING_TOOLS_INTERACTION_ID,
+} from "../addons/Routing";
 
 /**
  * Panels addons contribute to the host's interaction view, keyed by the id of
@@ -38,4 +42,5 @@ export const ADDON_INTERACTION_COMPONENTS: Record<
   // the row only offers the button that opens this under `?ff=admin`
   [FLOW_FIELD_TUNING_INTERACTION_ID]: FlowFieldTuningInteractionPanel,
   [ANNOTATION_TOOLS_INTERACTION_ID]: AnnotationInteractionPanel,
+  [ROUTING_TOOLS_INTERACTION_ID]: RoutingInteractionPanel,
 };

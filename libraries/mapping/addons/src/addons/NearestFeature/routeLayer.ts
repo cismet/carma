@@ -4,13 +4,21 @@ import maplibregl, {
   type Map as MaplibreMap,
 } from "maplibre-gl";
 
+import {
+  ROUTE_BLUE,
+  ROUTE_CASING,
+  ROUTE_GRAY,
+  type RouteStep,
+  type TravelMode,
+} from "@carma-mapping/routing";
+
 import type { PickableHit } from "./pickHit";
 
 /**
  * The routes of one ranking, drawn on the map.
  *
- * The ranking already drove to every hit to put them in order (see
- * `carRanking.ts`), so the lines are there and cost nothing more to show. They
+ * The ranking already routed to every hit to put them in order (see
+ * `routeRanking.ts`), so the lines are there and cost nothing more to show. They
  * are what makes the list readable: "twelve minutes" says little, the way
  * around the valley says it all.
  *
@@ -30,8 +38,15 @@ export type NearestFeatureRoute = {
   key: string;
   /** the hit the route leads to; a click on the line picks it */
   hit: PickableHit;
-  /** the driven line, `[lng, lat]` in WGS84 */
+  /** the travelled line, `[lng, lat]` in WGS84 */
   coordinates: [number, number][];
+  /** what the routing service said it takes; shown once the hit is picked */
+  durationInSeconds: number;
+  distanceInMeters: number;
+  /** how the line was travelled; the mode the ranking was asked for */
+  mode: TravelMode;
+  /** the service's instructions along the line; empty when it sent none */
+  steps: RouteStep[];
 };
 
 const SOURCE_ID = "carma-nearest-feature-routes";
@@ -44,9 +59,9 @@ const LAYER_IDS = [CASING_LAYER_ID, LINE_LAYER_ID, SELECTED_LAYER_ID];
 /** the property a line carries, and what a click reads off it */
 const KEY_PROPERTY = "routeKey";
 
-const UNSELECTED_COLOR = "#6b7280";
-const SELECTED_COLOR = "#3b82f6";
-const CASING_COLOR = "#ffffff";
+const UNSELECTED_COLOR = ROUTE_GRAY;
+const SELECTED_COLOR = ROUTE_BLUE;
+const CASING_COLOR = ROUTE_CASING;
 
 /**
  * Matches the picked route, and nothing at all while none is picked: no hit's
@@ -79,11 +94,18 @@ const NON_SELECTABLE = { carmaConf: { nonSelectable: true } };
  * Draw the routes, or update the lines that are already drawn. Safe to call
  * again with the same routes, which is what a style rebuild needs: it drops the
  * source and the layers, and this puts them back.
+ *
+ * `hidden` is the whole set taken off the map without being taken apart: while
+ * one of these routes is being driven, the `routing` addon draws that one and
+ * the candidates around it are noise. Applied here rather than once, when the
+ * navigation starts, because a style rebuild re-runs this and would otherwise
+ * bring them back mid-drive.
  */
 export const drawRoutes = (
   map: MaplibreMap,
   routes: NearestFeatureRoute[],
-  selectedKey: string | null
+  selectedKey: string | null,
+  hidden = false
 ) => {
   const data = featureCollection(routes);
   const source = map.getSource<GeoJSONSource>(SOURCE_ID);
@@ -136,6 +158,20 @@ export const drawRoutes = (
     });
   }
   highlightRoute(map, selectedKey);
+  setRoutesHidden(map, hidden);
+};
+
+/**
+ * Show or hide the whole set. The lines stay as they are underneath, so the
+ * navigation ending is one property per layer and not a redraw; hidden layers
+ * are not rendered, so a click cannot find them either.
+ */
+export const setRoutesHidden = (map: MaplibreMap, hidden: boolean) => {
+  for (const layerId of LAYER_IDS) {
+    if (map.getLayer(layerId)) {
+      map.setLayoutProperty(layerId, "visibility", hidden ? "none" : "visible");
+    }
+  }
 };
 
 /** Paint one route as the picked one, or none of them. */
