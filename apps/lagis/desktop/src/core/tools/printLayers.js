@@ -11,6 +11,10 @@ import { buildFeatureCollectionPrintStyle } from "./libreFeatures";
 const isIntranetUrl = (url) =>
   typeof url === "string" && url.includes("wuppertal-intra");
 
+/** @returns the rendered layers whose data only the intranet serves */
+export const findIntranetLayers = (libreLayers = []) =>
+  libreLayers.filter((libreLayer) => isIntranetUrl(libreLayer?.url));
+
 /**
  * The layer's style as the map renders it right now (opacity baked into the
  * paint), limited to its own style layers and sources. The tiles stay remote,
@@ -59,11 +63,7 @@ const toInputLayer = (libreLayer, map) => {
   switch (libreLayer.type) {
     case "wms":
     case "wmts":
-      if (
-        !libreLayer.url ||
-        !libreLayer.layers ||
-        isIntranetUrl(libreLayer.url)
-      ) {
+      if (!libreLayer.url || !libreLayer.layers) {
         return null;
       }
       return {
@@ -105,7 +105,6 @@ const toInputLayer = (libreLayer, map) => {
  * Builds the printable layer stack in draw order (bottom to top): the rendered
  * background and additional layers, then the feature collection as an inline
  * geojson layer. getPrintLayers reverses it, so the foreground ends up on top.
- * Intranet layers are left out.
  *
  * @param {object[]} libreLayers layers currently rendered on the map
  * @param {object} featureCollectionGeoJSON the foreground geometry

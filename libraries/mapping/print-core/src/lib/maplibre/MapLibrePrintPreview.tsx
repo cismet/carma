@@ -67,13 +67,14 @@ export interface MapLibrePrintPreviewProps {
    * map (e.g. query the currently-visible features into an inline geojson
    * style). When provided its result is used instead of `layers`, so the print
    * always reflects the map state at the moment the user prints. Return the
-   * static `layers` yourself for anything that isn't dynamic.
+   * static `layers` yourself for anything that isn't dynamic. Return null to
+   * cancel the print, e.g. after telling the user why it cannot run.
    */
   resolveLayers?: (
     map: MapLibreMap,
     /** Print rectangle bbox [west, south, east, north] in WGS84. */
     bbox: [number, number, number, number]
-  ) => PrintInputLayer[];
+  ) => PrintInputLayer[] | null;
 
   /**
    * Change this value to (re)seed the rectangle at the current map center —
@@ -145,7 +146,6 @@ export const MapLibrePrintPreview = ({
   const startPrint = useCallback(() => {
     const bounds = boundsRef.current;
     if (!map || !bounds) return;
-    onPrintStart?.();
     const bbox: [number, number, number, number] = [
       bounds.minLng,
       bounds.minLat,
@@ -153,6 +153,8 @@ export const MapLibrePrintPreview = ({
       bounds.maxLat,
     ];
     const inputLayers = resolveLayers ? resolveLayers(map, bbox) : layers ?? [];
+    if (!inputLayers) return;
+    onPrintStart?.();
     const job = {
       center: getRectCenter3857(bounds),
       scale: Number(scale),
