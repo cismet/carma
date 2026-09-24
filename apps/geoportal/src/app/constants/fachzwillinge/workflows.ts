@@ -112,6 +112,12 @@ const STARKREGEN_T50_FLOW: FlowFieldDefinition = {
     layers: "starkregen:L_T50_direction3857",
     styles: "starkregen:direction",
   },
+  // u/v for the projection model's area plus about 200 m; outside it the
+  // animation fetches per view from `service` as before
+  preload: {
+    u: "https://assets.cismet.de/cache/t50_u.tif",
+    v: "https://assets.cismet.de/cache/t50_v.tif",
+  },
 };
 
 /** The same animation over the scenario's maximum water depths. */
