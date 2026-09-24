@@ -7,6 +7,8 @@ const boxAxes = ["x", "y", "z"] as const;
 
 export interface ShadowReceiverSource {
   readonly bounds: THREE.Box3;
+  /** Optional clipped convex receiver vertices in the bounds coordinate frame. */
+  readonly vertices?: readonly THREE.Vector3[];
   /** Optional local-box to tile-space transform; compose before enclosing the
    * box in light space to avoid inflating an OBB through an intermediate AABB. */
   readonly boundsTransform?: THREE.Matrix4;
@@ -253,7 +255,13 @@ export const createShadowReceiverMask = (
     const sourceProjection = source.boundsTransform
       ? projection.clone().multiply(source.boundsTransform)
       : projection;
-    const sourceBounds = source.bounds.clone().applyMatrix4(sourceProjection);
+    const sourceBounds = source.vertices
+      ? new THREE.Box3().setFromPoints(
+          source.vertices.map((point) =>
+            point.clone().applyMatrix4(sourceProjection)
+          )
+        )
+      : source.bounds.clone().applyMatrix4(sourceProjection);
     const bounds = sourceBounds.clone();
     if (!isFiniteBox(bounds)) continue;
     const maximumCasterDistance = Math.max(0, source.maximumCasterDistance);

@@ -10,6 +10,12 @@ import type { Degrees } from "@carma-units";
 // touches MapLibre, DOM, WebGL, network state, or mesh ownership.
 import { Box3, Camera, Frustum, Matrix4, Vector3 } from "three";
 import { geographicBoundsIntersect } from "@carma-geo/helpers";
+import { getTerrainScreenErrorRatio } from "./terrain-screen-error";
+import {
+  createTileCameraDemand,
+  TILE_CAMERA_PRIORITY,
+  type TileCameraSnapshot,
+} from "./tile-camera-demand";
 import {
   createShadowReceiverMask,
   maximumSweepDistanceWithinBox,
@@ -28,6 +34,8 @@ import {
 export type TerrainSelectionEntry = Readonly<{
   id: TerrainTileId;
   kind: "source";
+  /** Shared demand rank, including coverage prerequisites for this cut. */
+  priority?: number;
 }>;
 
 export type TerrainSelection = Readonly<{
@@ -59,11 +67,15 @@ export type TerrainSelectionCameraSnapshot = Readonly<{
 export type TerrainSelectionInput = Readonly<{
   viewportBounds: TerrainTileBounds;
   viewport: readonly [width: number, height: number];
+  /** Padded observer focus in full-viewport NDC; affects order, not coverage. */
+  viewportFocusNdc?: readonly [x: number, y: number];
   renderCamera: TerrainSelectionCameraSnapshot;
   lodCameraPosition: readonly [number, number, number];
   rootMatrixWorld: readonly number[];
   origin: readonly [x: number, y: number, z: number];
   meterScale: number;
+  boundsPaddingMeters?: readonly [x: number, y: number, z: number];
+  cameraViews?: readonly (TileCameraSnapshot & { bounds: TerrainTileBounds })[];
   shadow?: Readonly<{
     camera: TerrainSelectionCameraSnapshot;
     shadowMapSize: readonly [width: number, height: number];
@@ -182,6 +194,36 @@ const projectToLocalWorld = (
   );
 };
 
+/**
+ * A 2.5D tile as a 3D box: its footprint over the elevation range it covers.
+ * Selection culls with this box and the diagnostics draw the same one, so a
+ * terrain tile is tested exactly like a 3D Tiles bounding volume.
+ */
+export const buildTerrainTileLocalBox = (
+  bounds: TerrainTileBounds,
+  heightRange: readonly [number, number],
+  origin: readonly [number, number, number],
+  meterScale: number,
+  target: Box3 = new Box3()
+): Box3 => {
+  target.makeEmpty();
+  const point = new Vector3();
+  for (const longitude of [bounds.west, bounds.east])
+    for (const latitude of [bounds.south, bounds.north])
+      for (const height of heightRange)
+        target.expandByPoint(
+          projectToLocalWorld(
+            longitude,
+            latitude,
+            height,
+            origin,
+            meterScale,
+            point
+          )
+        );
+  return target;
+};
+
 const snapshotCamera = (snapshot: TerrainSelectionCameraSnapshot) => {
   const camera = {
     projectionMatrix: new Matrix4().fromArray([...snapshot.projectionMatrix]),
@@ -203,6 +245,8 @@ export const buildTerrainSelection = (
   adapter: TerrainSelectionAdapter = createDefaultAdapter(input.source)
 ): TerrainSelection => {
   const { source } = input;
+  const [focusX, focusY] = input.viewportFocusNdc ?? [0, 0];
+  const cameraDemand = createTileCameraDemand(input.cameraViews ?? []);
   const renderCamera = snapshotCamera(input.renderCamera);
   const viewportFrustum = new Frustum().setFromProjectionMatrix(
     new Matrix4().multiplyMatrices(
@@ -224,6 +268,9 @@ export const buildTerrainSelection = (
       )
     : null;
   const rootMatrixWorld = new Matrix4().fromArray([...input.rootMatrixWorld]);
+  const boundsPadding = new Vector3(
+    ...(input.boundsPaddingMeters ?? [0, 0, 0])
+  );
   const localFromWorld = rootMatrixWorld.clone().invert();
   const localCameraPosition = new Vector3(
     ...input.lodCameraPosition
@@ -261,6 +308,12 @@ export const buildTerrainSelection = (
       intersectsShadow: boolean;
       localBoundingBox: Box3;
       distance: number;
+      cameraRequired: boolean;
+      cameraReceiver: boolean;
+      cameraErrorRatio: number;
+      intersectsObserver: boolean;
+      intersectsSun: boolean;
+      priority: number;
     }
   >();
   const getMetrics = (entry: TerrainSelectionEntry) => {
@@ -273,32 +326,15 @@ export const buildTerrainSelection = (
     const known =
       input.knownHeightRanges[terrainTileKey(entry.id)] ??
       input.unknownHeightRange;
-    const localBoundingBox = new Box3();
-    for (const longitude of [bounds.west, bounds.east])
-      for (const latitude of [bounds.south, bounds.north]) {
-        localBoundingBox.expandByPoint(
-          projectToLocalWorld(
-            longitude,
-            latitude,
-            known[0],
-            input.origin,
-            input.meterScale,
-            new Vector3()
-          )
-        );
-        localBoundingBox.expandByPoint(
-          projectToLocalWorld(
-            longitude,
-            latitude,
-            known[1],
-            input.origin,
-            input.meterScale,
-            new Vector3()
-          )
-        );
-      }
+    const localBoundingBox = buildTerrainTileLocalBox(
+      bounds,
+      known,
+      input.origin,
+      input.meterScale
+    );
     const worldBoundingBox = localBoundingBox
       .clone()
+      .expandByVector(boundsPadding)
       .applyMatrix4(rootMatrixWorld);
     const traversalBounds = localBoundingBox.clone();
     if (entry.id.level < input.maximumLevel) {
@@ -318,6 +354,7 @@ export const buildTerrainSelection = (
               )
             );
     }
+    traversalBounds.expandByVector(boundsPadding);
     traversalBounds.applyMatrix4(rootMatrixWorld);
     const projectedCenter = worldBoundingBox
       .getCenter(new Vector3())
@@ -329,8 +366,33 @@ export const buildTerrainSelection = (
         viewportFrustum.intersectsBox(worldBoundingBox),
       intersectsShadow: shadowFrustum?.intersectsBox(traversalBounds) ?? false,
       localBoundingBox,
-      distance: projectedCenter.x ** 2 + projectedCenter.y ** 2,
+      distance:
+        (projectedCenter.x - focusX) ** 2 + (projectedCenter.y - focusY) ** 2,
+      cameraRequired: false,
+      cameraReceiver: false,
+      cameraErrorRatio: 0,
+      intersectsObserver: false,
+      intersectsSun: false,
+      priority: Number.NEGATIVE_INFINITY,
     };
+    value.intersectsObserver = value.intersectsViewport;
+    value.intersectsSun = value.intersectsShadow;
+    const extra = cameraDemand.evaluate(
+      traversalBounds,
+      geometricError(adapter, entry.id.level) *
+        rootMatrixWorld.getMaxScaleOnAxis()
+    );
+    value.cameraRequired = extra.required;
+    value.cameraReceiver = extra.receiver;
+    value.cameraErrorRatio = extra.errorRatio;
+    value.priority = Math.max(
+      extra.priority,
+      value.intersectsObserver || value.intersectsSun
+        ? TILE_CAMERA_PRIORITY.PRIMARY
+        : Number.NEGATIVE_INFINITY
+    );
+    value.intersectsViewport ||= extra.receiver;
+    value.intersectsShadow ||= extra.required;
     metrics.set(key, value);
     return value;
   };
@@ -362,9 +424,15 @@ export const buildTerrainSelection = (
       east: Math.max(coverageBounds.east, viewportAndNeighbors.east),
       north: Math.max(coverageBounds.north, viewportAndNeighbors.north),
     };
-    return adapter
-      .getTileGridIdsForBounds(rootBounds, level)
-      .filter((id) => tileIsAvailable(adapter, id));
+    // Disjoint cameras must not enumerate the entire rectangle between them.
+    const ids = new Map<string, TerrainTileId>();
+    for (const bounds of [
+      rootBounds,
+      ...(input.cameraViews ?? []).map((view) => view.bounds),
+    ])
+      for (const id of adapter.getTileGridIdsForBounds(bounds, level))
+        ids.set(terrainTileKey(id), id);
+    return [...ids.values()].filter((id) => tileIsAvailable(adapter, id));
   };
   let rootLevel = input.minimumLevel;
   let rootEntries = rootIds(rootLevel).flatMap((id) => {
@@ -389,6 +457,7 @@ export const buildTerrainSelection = (
     shadowErrorRatio: number;
     intersectsViewport: boolean;
     viewportCenterDistanceSquared: number;
+    priority: number;
   };
   const toCandidate = (entry: TerrainSelectionEntry): Candidate => {
     const view = getMetrics(entry);
@@ -396,28 +465,40 @@ export const buildTerrainSelection = (
       1,
       view.localBoundingBox.distanceToPoint(localCameraPosition)
     );
-    const focal =
-      input.viewport[1] /
-      (2 * Math.tan((input.renderCamera.fov * Math.PI) / 360));
-    const viewport = view.intersectsViewport
-      ? (geometricError(adapter, entry.id.level) * focal) /
-        distance /
-        input.errorTargetPixels
+    const observerError = view.intersectsObserver
+      ? getTerrainScreenErrorRatio(
+          geometricError(adapter, entry.id.level),
+          input.viewport[1],
+          input.renderCamera.fov,
+          distance,
+          input.errorTargetPixels
+        )
       : 0;
-    const shadow = view.intersectsShadow
+    const viewport = view.cameraReceiver
+      ? Math.max(observerError, view.cameraErrorRatio)
+      : observerError;
+    const shadow = view.intersectsSun
       ? (geometricError(adapter, entry.id.level) * shadowPixelsPerMeter) /
         (input.errorTargetPixels * 2 ** input.shadowLevelOffset)
       : 0;
     return {
       entry,
       viewportErrorRatio: viewport,
-      shadowErrorRatio: shadow,
+      shadowErrorRatio: Math.max(shadow, view.cameraErrorRatio),
       intersectsViewport: view.intersectsViewport,
       viewportCenterDistanceSquared: view.distance,
+      priority: view.priority,
     };
   };
   const makeHeap = (ratioOf: (candidate: Candidate) => number) => {
     const heap: Candidate[] = [];
+    const compare = (a: Candidate, b: Candidate) => {
+      if (a.priority !== b.priority) return a.priority > b.priority ? 1 : -1;
+      return (
+        Number(a.intersectsViewport) - Number(b.intersectsViewport) ||
+        ratioOf(a) - ratioOf(b)
+      );
+    };
     const swap = (a: number, b: number) => {
       const held = heap[a];
       heap[a] = heap[b];
@@ -429,12 +510,9 @@ export const buildTerrainSelection = (
         const left = 2 * index + 1;
         const right = left + 1;
         let largest = index;
-        if (left < heap.length && ratioOf(heap[left]) > ratioOf(heap[largest]))
+        if (left < heap.length && compare(heap[left], heap[largest]) > 0)
           largest = left;
-        if (
-          right < heap.length &&
-          ratioOf(heap[right]) > ratioOf(heap[largest])
-        )
+        if (right < heap.length && compare(heap[right], heap[largest]) > 0)
           largest = right;
         if (largest === index) break;
         swap(largest, index);
@@ -450,7 +528,7 @@ export const buildTerrainSelection = (
         let index = heap.length - 1;
         while (index > 0) {
           const parent = (index - 1) >> 1;
-          if (ratioOf(heap[parent]) >= ratioOf(heap[index])) break;
+          if (compare(heap[parent], heap[index]) >= 0) break;
           swap(parent, index);
           index = parent;
         }
@@ -466,12 +544,14 @@ export const buildTerrainSelection = (
       },
     };
   };
-  const viewportHeap = makeHeap((candidate) => candidate.viewportErrorRatio);
-  const shadowHeap = makeHeap((candidate) => candidate.shadowErrorRatio);
+  const errorRatio = (candidate: Candidate) =>
+    candidate.intersectsViewport
+      ? candidate.viewportErrorRatio
+      : candidate.shadowErrorRatio;
+  const demandHeap = makeHeap(errorRatio);
   for (const entry of rootEntries) {
     const candidate = toCandidate(entry);
-    if (candidate.intersectsViewport) viewportHeap.push(candidate);
-    else shadowHeap.push(candidate);
+    demandHeap.push(candidate);
   }
   const refine = (
     heap: ReturnType<typeof makeHeap>,
@@ -479,7 +559,7 @@ export const buildTerrainSelection = (
   ) => {
     while (heap.size > 0) {
       const candidate = heap.pop();
-      if (ratioOf(candidate) <= 1) break;
+      if (ratioOf(candidate) <= 1) continue;
       if (candidate.entry.id.level >= input.maximumLevel) continue;
       const children: TerrainSelectionEntry[] = [];
       let unavailableChild = false;
@@ -491,10 +571,10 @@ export const buildTerrainSelection = (
             y: candidate.entry.id.y * 2 + y,
           };
           const entry = { id, kind: "source" } as const;
-          if (intersectsViewport(entry) || intersectsShadow(entry)) {
-            if (!tileIsAvailable(adapter, id)) unavailableChild = true;
-            else children.push(entry);
-          }
+          // Refinement replaces the full parent footprint. Offscreen siblings
+          // provide coverage but their zero demand prevents further refinement.
+          if (!tileIsAvailable(adapter, id)) unavailableChild = true;
+          else children.push(entry);
         }
       if (
         unavailableChild ||
@@ -506,14 +586,27 @@ export const buildTerrainSelection = (
       for (const child of children) {
         selected.set(selectionKey(child), child);
         const childCandidate = toCandidate(child);
-        if (childCandidate.intersectsViewport)
-          viewportHeap.push(childCandidate);
-        else shadowHeap.push(childCandidate);
+        heap.push(childCandidate);
       }
     }
   };
-  refine(viewportHeap, (candidate) => candidate.viewportErrorRatio);
-  refine(shadowHeap, (candidate) => candidate.shadowErrorRatio);
+  refine(demandHeap, errorRatio);
+  const ancestor = (
+    entry: TerrainSelectionEntry,
+    level: number
+  ): TerrainSelectionEntry =>
+    level >= entry.id.level
+      ? entry
+      : {
+          kind: "source",
+          id: {
+            level,
+            x: entry.id.x >> (entry.id.level - level),
+            y: entry.id.y >> (entry.id.level - level),
+          },
+        };
+  const rootKey = (entry: TerrainSelectionEntry) =>
+    selectionKey(ancestor(entry, rootLevel));
   // Use the same light-space receiver BVH as native 3D tiles. Refine the
   // conservative frustum first: source-LOD extrema describe this payload,
   // not all descendants (unlike a 3D tileset's subtree bounding volume).
@@ -556,35 +649,59 @@ export const buildTerrainSelection = (
       receiverCenterness: 0,
       lightFacing: 0,
     };
-    if (mask)
+    if (mask) {
+      const demandedRoots = new Set(
+        [...selected.values()]
+          .filter(
+            (entry) =>
+              intersectsViewport(entry) ||
+              getMetrics(entry).cameraRequired ||
+              mask.match(getMetrics(entry).localBoundingBox, match)
+          )
+          .map(rootKey)
+      );
       for (const [key, entry] of selected) {
-        if (
-          !intersectsViewport(entry) &&
-          !mask.match(getMetrics(entry).localBoundingBox, match)
-        )
-          selected.delete(key);
+        // Culling an entire unrelated root is safe. Culling one sibling from a
+        // demanded root would leave an incomplete cut that cannot retire it.
+        if (!demandedRoots.has(rootKey(entry))) selected.delete(key);
       }
+    }
   }
-  const entries = [...selected.values()].sort((a, b) => {
+  const withPriority = (
+    entry: TerrainSelectionEntry
+  ): TerrainSelectionEntry => ({
+    ...entry,
+    // A sibling needed for atomic parent replacement inherits that parent's
+    // rank. Prioritization must not leave a focused cut waiting on its support.
+    priority: Math.max(
+      getMetrics(entry).priority,
+      entry.id.level > rootLevel
+        ? getMetrics(ancestor(entry, entry.id.level - 1)).priority
+        : Number.NEGATIVE_INFINITY
+    ),
+  });
+  const comparePriority = (
+    a: TerrainSelectionEntry,
+    b: TerrainSelectionEntry
+  ) => {
+    const ap = a.priority ?? TILE_CAMERA_PRIORITY.PRIMARY;
+    const bp = b.priority ?? TILE_CAMERA_PRIORITY.PRIMARY;
+    if (ap !== bp) return ap > bp ? -1 : 1;
     const av = intersectsViewport(a) ? 0 : 1;
     const bv = intersectsViewport(b) ? 0 : 1;
     return av - bv || getMetrics(a).distance - getMetrics(b).distance;
-  });
-  const viewportEntries = entries.filter(intersectsViewport);
-  const ancestor = (
-    entry: TerrainSelectionEntry,
-    level: number
-  ): TerrainSelectionEntry =>
-    level >= entry.id.level
-      ? entry
-      : {
-          kind: "source",
-          id: {
-            level,
-            x: entry.id.x >> (entry.id.level - level),
-            y: entry.id.y >> (entry.id.level - level),
-          },
-        };
+  };
+  const entries = [...selected.values()]
+    .map(withPriority)
+    .sort(comparePriority);
+  const viewportRoots = new Set(
+    entries.filter(intersectsViewport).map(rootKey)
+  );
+  // Include coarse support siblings in progressive publication, not only the
+  // visible leaves: otherwise each stage waits forever behind its full parent.
+  const viewportEntries = entries.filter((entry) =>
+    viewportRoots.has(rootKey(entry))
+  );
   // A near tile must not force the entire distant viewport to its resolution.
   // Find each receiver's first useful ancestor, then refine the cut one level
   // at a time. The loader publishes each cut before spending work on the next.
@@ -626,9 +743,7 @@ export const buildTerrainSelection = (
       )
     ) {
       viewportStages.push(
-        [...coverage.values()].sort(
-          (a, b) => getMetrics(a).distance - getMetrics(b).distance
-        )
+        [...coverage.values()].map(withPriority).sort(comparePriority)
       );
       break;
     }
@@ -652,7 +767,8 @@ export const buildTerrainSelection = (
                 selectionKey(other)
           )
       )
-      .sort((a, b) => getMetrics(a).distance - getMetrics(b).distance);
+      .map(withPriority)
+      .sort(comparePriority);
     viewportStages.push(stage);
   }
   const load = new Map<string, TerrainSelectionEntry>();
@@ -663,7 +779,12 @@ export const buildTerrainSelection = (
     entries,
     viewportStages,
     loadEntries: [...load.values()],
-    signature: entries.map(selectionKey).sort().join("|"),
+    signature:
+      entries
+        .map((entry) => `${selectionKey(entry)}@${entry.priority}`)
+        .sort()
+        .join("|") +
+      (focusX !== 0 || focusY !== 0 ? `|focus:${focusX},${focusY}` : ""),
     viewportElevationSignature: entries
       .filter(intersectsViewport)
       .map(selectionKey)

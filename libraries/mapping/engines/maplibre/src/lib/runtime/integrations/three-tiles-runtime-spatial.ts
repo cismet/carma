@@ -2,13 +2,14 @@ import { type Tile } from "3d-tiles-renderer/core";
 import * as THREE from "three";
 
 import { receiverMatchedTileError } from "../../core/shadow-receiver-mask";
+import { createThreeTilesSpatialDemand } from "./three-tiles-runtime-spatial-demand";
+import { createThreeTilesModelFrame } from "./three-tiles-runtime-model-frame";
+import { createThreeTilesViewFrustums } from "./three-tiles-runtime-view-frustums";
 import type { SharedThreeSceneTileVolume } from "../../core/shared-three-scene-types";
 import { readOrientedTileBounds } from "./three-tiles-bounds";
-import { TILES_LOAD_POLICY } from "./three-tiles-load-policy";
-import {
-  getReadyMeshRegionCut,
-  hasMeshRefinementContentInView,
-} from "./three-tiles-mesh-frontier";
+import { getThreeTileDiagnosticSteps } from "./three-tiles-diagnostic-steps";
+import { getReadyMeshRegionCut } from "../../core/mesh-tile-coverage";
+import { hasMeshRefinementContentInView } from "../../core/mesh-tile-refinement";
 import type {
   ThreeTilesRuntimeServices,
   ThreeTilesRuntimeState,
@@ -24,13 +25,20 @@ export function createThreeTilesSpatial(
     | "referenceToCurrent"
     | "orientationGroup"
     | "tiles"
+    | "tileCameraDemand"
     | "runtimeVisible"
     | "tileViewElevationProjection"
     | "tileViewElevationFrustum"
     | "options"
     | "tileBoundingBox"
     | "committedMeshCasterFrontier"
+    | "committedMeshCasterFrontier"
+    | "pendingMeshReceiverFrontier"
     | "displayedMeshFrontier"
+    | "meshRefinementSupport"
+    | "meshCoverageRecovery"
+    | "meshContentRevision"
+    | "memoryErrorTarget"
     | "activeTileBoundingBox"
     | "tileBoundsTransform"
     | "tilesetUrl"
@@ -44,6 +52,8 @@ export function createThreeTilesSpatial(
     | "tileProjectedCenter"
     | "tileViewProjection"
     | "shadowReceiverMask"
+    | "shadowSelectionEnabled"
+    | "shadowView"
     | "shadowReceiverMatch"
     | "rootBoundsTransform"
     | "rootTileBoundingBox"
@@ -54,6 +64,8 @@ export function createThreeTilesSpatial(
     | "marginCamera"
     | "marginProjection"
     | "marginFrustum"
+    | "ringFrustums"
+    | "tileDebugProgress"
     | "requestedErrorTarget"
   >,
   dependencies: Pick<
@@ -61,72 +73,21 @@ export function createThreeTilesSpatial(
     "getStableTileId" | "getTileLoadReason"
   >
 ) {
-  let cameraErrors = new WeakMap<RuntimeTile, number>();
-  /** Product of the local matrices from `node` up to, excluding, `stop`. */
-  const localChain = (
-    node: THREE.Object3D,
-    stop: THREE.Object3D | null,
-    target: THREE.Matrix4
-  ): THREE.Matrix4 => {
-    target.identity();
-    for (
-      let current: THREE.Object3D | null = node;
-      current && current !== stop;
-      current = current.parent
-    ) {
-      if (current.matrixAutoUpdate) current.updateMatrix();
-      target.premultiply(current.matrix);
-    }
-    return target;
-  };
-  const updateFrameFromTiles: ThreeTilesRuntimeServices["updateFrameFromTiles"] =
-    () => {
-      if (!runtimeState.tiles) return runtimeState.frameFromTiles.identity();
-      // Up to and including the runtime root; its parent is the frame host,
-      // the layer's local-frame group or the scene.
-      return localChain(
-        runtimeState.tiles.group,
-        runtimeState.orientationGroup.parent,
-        runtimeState.frameFromTiles
-      );
-    };
-  const modelChain = new THREE.Matrix4();
-  const readModelFrameBounds: ThreeTilesRuntimeServices["readModelFrameBounds"] =
-    (model: THREE.Object3D, target: THREE.Box3): THREE.Box3 => {
-      // Tile payloads are immutable after GLTF publication, so the bounds in
-      // the model's own space are walked once per model (walking every
-      // vertex-bearing descendant per corridor query cost 15.6 s in one
-      // startup trace). Per read only the local chain from the model up to
-      // the runtime root is applied: a moved model is reflected, and a
-      // local-frame refit moves the frame group, never this result, so keys
-      // derived from it survive the refit.
-      let bounds = runtimeState.modelLocalBounds.get(model);
-      if (!bounds) {
-        const localBounds = new THREE.Box3();
-        const box = new THREE.Box3();
-        const matrix = new THREE.Matrix4();
-        model.traverse((object) => {
-          const geometry = (object as THREE.Mesh).geometry as
-            | THREE.BufferGeometry
-            | undefined;
-          if (!geometry) return;
-          if (geometry.boundingBox === null) geometry.computeBoundingBox();
-          if (!geometry.boundingBox || geometry.boundingBox.isEmpty()) return;
-          box
-            .copy(geometry.boundingBox)
-            .applyMatrix4(localChain(object, model, matrix));
-          localBounds.union(box);
-        });
-        bounds = localBounds;
-        runtimeState.modelLocalBounds.set(model, bounds);
-      }
-      const frameFromModel = localChain(
-        model,
-        runtimeState.tiles?.group ?? null,
-        modelChain
-      ).premultiply(updateFrameFromTiles());
-      return target.copy(bounds).applyMatrix4(frameFromModel);
-    };
+  const cameraErrors = { values: new WeakMap<RuntimeTile, number>() };
+  const { updateFrameFromTiles, readModelFrameBounds } =
+    createThreeTilesModelFrame(runtimeState);
+  const viewportFocusNdc = new THREE.Vector3();
+  const {
+    getTileCameraDemand,
+    getTileObserverDemand,
+    getTileRequestPriority,
+    isTileNeededForMeshCoverage,
+    resetDemandCaches,
+  } = createThreeTilesSpatialDemand(
+    runtimeState,
+    cameraErrors,
+    (tile, includeShadow) => getTileScreenError(tile, includeShadow)
+  );
 
   const getViewElevationRange: ThreeTilesRuntimeServices["getViewElevationRange"] =
     (camera: THREE.Camera): readonly [number, number] | null => {
@@ -173,8 +134,8 @@ export function createThreeTilesSpatial(
       updateFrameFromTiles();
       const volumes: SharedThreeSceneTileVolume[] = [];
       for (const tile of runtimeState.tiles.activeTiles) {
-        // Native traversal may keep active metadata/ancestors while the atomic
-        // corridor cut is staged. Only the published surface supplies receivers.
+        // Native traversal may retain active metadata/ancestors. Only the
+        // published surface supplies receivers.
         if (
           runtimeState.options.providesTerrain &&
           !runtimeState.tiles.visibleTiles.has(tile)
@@ -220,6 +181,13 @@ export function createThreeTilesSpatial(
             ? "terrain-tile"
             : "3d-tile",
           sourceId: runtimeState.tilesetUrl,
+          steps: runtimeState.tileDebugProgress.has(tile)
+            ? getThreeTileDiagnosticSteps(
+                runtimeState.tileDebugProgress.get(tile)!,
+                runtimeState.shadowView !== null,
+                performance.now()
+              )
+            : undefined,
           geometricError: tile.geometricError,
           errorPixels: getTileScreenError(tile as RuntimeTile),
           loadReason: dependencies.getTileLoadReason(activeTile as RuntimeTile),
@@ -244,7 +212,9 @@ export function createThreeTilesSpatial(
     ) {
       return tile.traversal?.inFrustum ?? false;
     }
-    const inView = bounds.intersectsFrustum(runtimeState.tileViewFrustum);
+    const inView =
+      getTileObserverDemand(tile).intersects ||
+      getTileCameraDemand(tile).receiver;
     runtimeState.mainViewIntersectionCache.set(tile, inView);
     return inView;
   };
@@ -333,37 +303,58 @@ export function createThreeTilesSpatial(
     const centerDistance = Math.min(
       Math.SQRT2,
       Math.hypot(
-        runtimeState.tileProjectedCenter.x,
-        runtimeState.tileProjectedCenter.y
+        runtimeState.tileProjectedCenter.x - viewportFocusNdc.x,
+        runtimeState.tileProjectedCenter.y - viewportFocusNdc.y
       )
     );
     return 1 - centerDistance / Math.SQRT2;
   };
 
   const getTileScreenError: ThreeTilesRuntimeServices["getTileScreenError"] = (
-    tile: RuntimeTile
+    tile: RuntimeTile,
+    includeShadow = true
   ): number => {
     if (!runtimeState.tiles) return Number.POSITIVE_INFINITY;
-    const cached = cameraErrors.get(tile);
-    if (cached !== undefined) return cached;
-    const target = {
-      inView: false,
-      error: Number.POSITIVE_INFINITY,
-      distanceFromCamera: Number.POSITIVE_INFINITY,
-    };
-    if (tile.engineData?.boundingVolume?.distanceToPoint) {
-      runtimeState.tiles.calculateTileViewError(tile, target);
-    } else if (isTileInMainView(tile)) {
-      target.inView = true;
-      target.error = tile.traversal?.error ?? Number.POSITIVE_INFINITY;
-    }
-    if (target.inView) {
-      if (tile.engineData?.boundingVolume?.distanceToPoint)
-        cameraErrors.set(tile, target.error);
-      return target.error;
+    let cameraError = cameraErrors.values.get(tile);
+    // The compiled union now includes the main observer. Do not max it with
+    // the vendor's uncut-box SSE, which would reintroduce edge overrefinement.
+    const volume = tile.engineData?.boundingVolume;
+    if (
+      cameraError === undefined &&
+      volume?.getAABB &&
+      runtimeState.tileCameraDemand.views.length > 0
+    ) {
+      const union = getTileCameraDemand(tile, true);
+      if (union.required) {
+        cameraError = union.errorRatio * runtimeState.effectiveErrorTarget;
+        cameraErrors.values.set(tile, cameraError);
+      }
+    } else if (cameraError === undefined) {
+      // Bootstrap/legacy fallback only when no compiled bound evaluation is
+      // available. Never restore uncut-box SSE after a compiled frustum miss.
+      const target = {
+        inView: false,
+        error: Number.POSITIVE_INFINITY,
+        distanceFromCamera: Number.POSITIVE_INFINITY,
+      };
+      if (volume?.distanceToPoint) {
+        runtimeState.tiles.calculateTileViewError(tile, target);
+      } else if (isTileInMainView(tile)) {
+        target.inView = true;
+        target.error = tile.traversal?.error ?? Number.POSITIVE_INFINITY;
+      }
+      if (target.inView) {
+        cameraError = target.error;
+        if (volume?.distanceToPoint) cameraErrors.values.set(tile, cameraError);
+      }
     }
     const bounds = tile.engineData?.boundingVolume;
-    if (bounds?.getAABB) {
+    if (
+      includeShadow &&
+      cameraError === undefined &&
+      bounds?.getAABB &&
+      runtimeState.shadowReceiverMask
+    ) {
       readOrientedTileBounds(
         bounds,
         runtimeState.tileBoundingBox,
@@ -380,15 +371,18 @@ export function createThreeTilesSpatial(
           { key: tile, parent: tile.parent ?? undefined }
         )
       ) {
-        return receiverMatchedTileError(
-          tile.geometricError,
-          runtimeState.shadowReceiverMatch.receiverGeometricError,
-          runtimeState.effectiveErrorTarget,
-          runtimeState.shadowReceiverMatch.receiverPixelsPerMeter
+        return Math.max(
+          cameraError ?? 0,
+          receiverMatchedTileError(
+            tile.geometricError,
+            runtimeState.shadowReceiverMatch.receiverGeometricError,
+            runtimeState.effectiveErrorTarget,
+            runtimeState.shadowReceiverMatch.receiverPixelsPerMeter
+          )
         );
       }
     }
-    return Number.POSITIVE_INFINITY;
+    return cameraError ?? Number.POSITIVE_INFINITY;
   };
 
   const updateRootWorldBounds: ThreeTilesRuntimeServices["updateRootWorldBounds"] =
@@ -418,68 +412,11 @@ export function createThreeTilesSpatial(
       return !runtimeState.rootWorldBoundingBox.isEmpty();
     };
 
-  /** Main-view and prefetch-margin frustums in the tiles group frame. */
-  const prepareViewFrustums: ThreeTilesRuntimeServices["prepareViewFrustums"] =
-    (viewCamera: THREE.Camera) => {
-      if (!runtimeState.tiles) return;
-      // Scope native camera-error memoization to this audit, never a prior drag.
-      cameraErrors = new WeakMap();
-      // Refresh the parents directly, then let TilesGroup recompute its own
-      // world matrix so its cached inverse (used by the traversal) stays in sync.
-      runtimeState.offsetGroup.updateWorldMatrix(true, false);
-      runtimeState.tiles.group.updateMatrixWorld(true);
-      runtimeState.tileViewProjection
-        .multiplyMatrices(
-          viewCamera.projectionMatrix,
-          viewCamera.matrixWorldInverse
-        )
-        .multiply(runtimeState.tiles.group.matrixWorld);
-      runtimeState.mainViewProjectionChanged =
-        !runtimeState.lastMainViewProjection.equals(
-          runtimeState.tileViewProjection
-        );
-      if (runtimeState.mainViewProjectionChanged) {
-        runtimeState.mainViewIntersectionCache = new WeakMap();
-        runtimeState.lastMainViewProjection.copy(
-          runtimeState.tileViewProjection
-        );
-      }
-      runtimeState.tileViewFrustum.setFromProjectionMatrix(
-        runtimeState.tileViewProjection,
-        viewCamera.coordinateSystem,
-        viewCamera.reversedDepth
-      );
-      if (viewCamera instanceof THREE.PerspectiveCamera) {
-        runtimeState.marginCamera.fov =
-          viewCamera.fov * TILES_LOAD_POLICY.prefetchMarginFovFactor;
-        runtimeState.marginCamera.aspect = viewCamera.aspect;
-        runtimeState.marginCamera.near = viewCamera.near;
-        runtimeState.marginCamera.far = viewCamera.far;
-        runtimeState.marginCamera.zoom = viewCamera.zoom;
-        runtimeState.marginCamera.updateProjectionMatrix();
-        runtimeState.marginProjection
-          .multiplyMatrices(
-            runtimeState.marginCamera.projectionMatrix,
-            viewCamera.matrixWorldInverse
-          )
-          .multiply(runtimeState.tiles.group.matrixWorld);
-        runtimeState.marginFrustum.setFromProjectionMatrix(
-          runtimeState.marginProjection,
-          viewCamera.coordinateSystem,
-          viewCamera.reversedDepth
-        );
-      } else {
-        runtimeState.marginFrustum.copy(runtimeState.tileViewFrustum);
-      }
-      runtimeState.viewFrustumsReady = true;
-    };
-
-  const isTileInPrefetchMargin: ThreeTilesRuntimeServices["isTileInPrefetchMargin"] =
-    (tile: RuntimeTile): boolean => {
-      const bounds = tile.engineData?.boundingVolume;
-      if (!bounds || !runtimeState.viewFrustumsReady) return false;
-      return bounds.intersectsFrustum(runtimeState.marginFrustum);
-    };
+  const { prepareViewFrustums, isTileInPrefetchMargin, getTileRingIndex } =
+    createThreeTilesViewFrustums(runtimeState, viewportFocusNdc, () => {
+      cameraErrors.values = new WeakMap();
+      resetDemandCaches();
+    });
 
   const isMainViewReady: ThreeTilesRuntimeServices["isMainViewReady"] = () =>
     mainViewWithinErrorFactor(
@@ -492,6 +429,10 @@ export function createThreeTilesSpatial(
     getViewElevationRange,
     getActiveTileVolumes,
     isTileInMainView,
+    getTileObserverDemand,
+    getTileCameraDemand,
+    getTileRequestPriority,
+    isTileNeededForMeshCoverage,
     isChildUnloadable,
     mainViewWithinErrorFactor,
     mainViewConverged,
@@ -500,6 +441,7 @@ export function createThreeTilesSpatial(
     updateRootWorldBounds,
     prepareViewFrustums,
     isTileInPrefetchMargin,
+    getTileRingIndex,
     isMainViewReady,
   };
 }

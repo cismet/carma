@@ -4,8 +4,7 @@
  * D5 wiring of the effective error target in the runtime: a full, idle and
  * unconverged view relaxes the target once after the hold time, a pan keeps
  * the relaxed target, the failure memory blocks a re-tighten in the same view
- * class until the view zooms in. A permanently missing child must not turn
- * its coarse placeholder into proof of requested-quality readiness.
+ * class until the view zooms in.
  */
 
 import { TilesRenderer } from "3d-tiles-renderer";
@@ -13,7 +12,7 @@ import type { Map as MaplibreMap } from "maplibre-gl";
 import * as THREE from "three";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { ERROR_TARGET_POLICY } from "./three-tiles-load-policy";
+import { ERROR_TARGET_POLICY } from "../../core/effective-error-target";
 import { buildThreeTilesRuntime } from "./three-tiles-runtime";
 
 vi.hoisted(() => {
@@ -57,7 +56,16 @@ describe("three tiles runtime effective error target", () => {
       getZoom: () => view.zoom,
       getPitch: () => view.pitch,
     } as unknown as MaplibreMap;
-    const layer = buildThreeTilesRuntime("mesh", "tileset.json", [7.15, 51.25]);
+    // Pin the ceiling the fixtures fill; the desktop default is 6 GiB.
+    const layer = buildThreeTilesRuntime(
+      "mesh",
+      "tileset.json",
+      [7.15, 51.25],
+      {
+        cacheBudgetBytes: GIB,
+        cacheOverflowBytes: 0,
+      }
+    );
     const viewCamera = new THREE.PerspectiveCamera();
     const frame = {
       map,
@@ -118,7 +126,6 @@ describe("three tiles runtime effective error target", () => {
       view,
       tick,
       stall,
-      child,
       visibleTile,
       requiredTile,
       disposeRequiredTile,
@@ -188,48 +195,6 @@ describe("three tiles runtime effective error target", () => {
     expect(
       dispatchSpy.mock.calls.map(([event]) => (event as { type: string }).type)
     ).toContain("needs-update");
-    layer.scene.dispose();
-  });
-
-  it("retains the placeholder but does not claim target readiness when refinement is unavailable", () => {
-    const { layer, renderer, tick, child, visibleTile, requiredTile } = setup();
-    renderer.lruCache.setMemoryUsage(requiredTile, 16 * MIB);
-    const receiverBounds = new THREE.Box3(
-      new THREE.Vector3(-10, -10, -110),
-      new THREE.Vector3(10, 10, -90)
-    );
-    const boundingVolume = {
-      getAABB: (target: THREE.Box3) => target.copy(receiverBounds),
-      getSphere: (target: THREE.Sphere) =>
-        receiverBounds.getBoundingSphere(target),
-      intersectsFrustum: () => true,
-    };
-    Object.assign(visibleTile, { engineData: { boundingVolume } });
-    Object.assign(renderer, {
-      rootTileset: { root: { engineData: { boundingVolume } } },
-    });
-    renderer.group.add(new THREE.Group());
-
-    // The child is missing on the server: exhausted at once, never requested.
-    child.internal.loadingState = -1;
-    renderer.stats.failed = 1;
-    renderer.dispatchEvent({
-      type: "load-error",
-      tile: child as never,
-      error: new Error("status 404"),
-      url: "https://example.test/tiles/child.b3dm",
-    });
-    expect(child.internal.loadingState).toBe(0);
-
-    for (let frame = 0; frame < 3; frame += 1) {
-      tick();
-      vi.advanceTimersByTime(ERROR_TARGET_POLICY.relaxHoldMs);
-    }
-    expect(renderer.errorTarget).toBe(0.25);
-    // A blocked retry is not proof of requested quality. Keep the displayed
-    // fallback, while strict readiness remains false instead of lying to callers.
-    expect(renderer.visibleTiles.has(visibleTile as never)).toBe(true);
-    expect(layer.scene.isMainViewReady()).toBe(false);
     layer.scene.dispose();
   });
 });

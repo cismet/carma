@@ -44,10 +44,7 @@ export const setTileShadowRole = (
   role: TileShadowRole
 ): void => {
   const previous = roles.get(root);
-  if (
-    previous?.receiver === role.receiver &&
-    previous.caster === role.caster
-  )
+  if (previous?.receiver === role.receiver && previous.caster === role.caster)
     return;
   roles.set(root, role);
   root.traverse((object) => {
@@ -56,12 +53,53 @@ export const setTileShadowRole = (
     roles.set(mesh, role);
     mesh.receiveShadow = role.receiver;
     mesh.castShadow = role.caster;
-    // Existing shared shadow-scene contract: later material setup must not
-    // reactivate partial child casters while their parent still owns depth.
+    // Later material setup must preserve the committed caster role.
     mesh.userData.disableShadowCasting = !role.caster;
     for (const material of Array.isArray(mesh.material)
       ? mesh.material
       : [mesh.material])
       setTileShadowMaterialReceiver(material, role.receiver);
+  });
+};
+
+const underlays = new WeakSet<Object3D>();
+const underlayDepthWrite = new WeakMap<Material, boolean>();
+
+/**
+ * Draw a fallback parent before everything else and without depth writes:
+ * the finer tiles drawn afterwards cover it wherever they exist, so no bump
+ * of the coarse surface can poke through, and only the missing quadrants
+ * show the parent.
+ */
+export const setTileDepthUnderlay = (
+  root: Object3D,
+  underlay: boolean,
+  renderOrder = -1
+): void => {
+  // Re-applied while an underlay: a restyle in between resets depth writes.
+  if (!underlay && !underlays.has(root)) return;
+  if (underlay) underlays.add(root);
+  else underlays.delete(root);
+  root.traverse((object) => {
+    const mesh = object as Mesh;
+    if (!mesh.isMesh) return;
+    mesh.renderOrder = underlay ? renderOrder : 0;
+    for (const material of Array.isArray(mesh.material)
+      ? mesh.material
+      : [mesh.material]) {
+      if (underlay) {
+        if (!underlayDepthWrite.has(material))
+          underlayDepthWrite.set(material, material.depthWrite);
+        material.depthWrite = false;
+      } else {
+        const restored = underlayDepthWrite.get(material) ?? true;
+        const hiddenWrites = materialWrites.get(material);
+        // A former underlay can remain a caster-only parent. Restore its
+        // receiver state without re-enabling depth writes while it is hidden.
+        if (hiddenWrites) hiddenWrites.depthWrite = restored;
+        else material.depthWrite = restored;
+        underlayDepthWrite.delete(material);
+      }
+    }
   });
 };

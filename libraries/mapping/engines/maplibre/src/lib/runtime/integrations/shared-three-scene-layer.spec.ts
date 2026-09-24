@@ -1,9 +1,12 @@
 import * as THREE from "three";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { degToRadNumeric } from "@carma-units";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { buildSharedSceneAccumulator } from "@carma-mapping/engines/three/primitives/rendering";
+import { synthesizeLodCamera } from "@carma-mapping/engines/threejs";
 import { getMapLoadingProgress } from "./map-loading-progress";
 
 import { buildSharedThreeSceneLayer } from "./shared-three-scene-layer";
+import { TILE_CAMERA_ROLE } from "../../core/tile-camera-demand";
 import {
   clearDepthForMapStyleOverlays,
   clearMapStyleGroundBeforeThreeTerrain,
@@ -12,7 +15,10 @@ import {
   syncSharedCanvasViewport,
 } from "./shared-three-scene-render-context";
 import { configureMapStyleProjectedMaterial } from "./shared-three-map-style-material";
-import { type SharedSceneAccumulationController } from "../../core/shared-three-scene-types";
+import {
+  type SharedSceneAccumulationController,
+  type SharedThreeSceneRuntime,
+} from "../../core/shared-three-scene-types";
 
 vi.mock("@carma-mapping/engines/threejs", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@carma-mapping/engines/threejs")>()),
@@ -47,11 +53,15 @@ const createProgressiveHost = () => {
     height: 1800,
     clientWidth: 2200,
     clientHeight: 900,
+    getBoundingClientRect: () => ({ left: 30, top: 50 }),
   };
   const map = {
     getCanvas: () => canvas,
     getCenter: () => ({ lng: 7.15, lat: 51.25 }),
+    project: vi.fn(() => ({ x: 1100, y: 450 })),
     getTerrain: () => null,
+    isZooming: vi.fn(() => false),
+    unproject: vi.fn(() => ({ lng: 7.15, lat: 51.25 })),
     on: vi.fn(),
     off: vi.fn(),
     triggerRepaint: vi.fn(),
@@ -81,6 +91,7 @@ const createProgressiveHost = () => {
     prepareRound: vi.fn(),
     finishRound: vi.fn(),
     onSettled: vi.fn(),
+    onPresented: vi.fn(),
     rounds: 8,
   };
   layer.setAccumulationController(controller);
@@ -104,6 +115,249 @@ const expectMatrixToBeCloseTo = (
 };
 
 describe("shared Three.js scene layer", () => {
+  it.each([false, true, undefined])(
+    "preserves DEM under building-only style receivers (%s)",
+    (providesTerrain) => {
+      const host = createProgressiveHost();
+      const clearColor = vi.fn();
+      Object.assign(host.gl, {
+        COLOR_BUFFER_BIT: 0x4000,
+        COLOR_CLEAR_VALUE: 0x0c22,
+        clearColor,
+      });
+      host.gl.getParameter.mockImplementation((parameter) =>
+        parameter === 0x0b70
+          ? [0, 0.985]
+          : parameter === 0x0c22
+          ? [0, 0, 0, 0]
+          : host.hostFramebuffer
+      );
+      host.layer.setAccumulationController(null);
+      // Isolate ground ownership; capture/material rendering has separate tests.
+      host.layer.setMapStyleProjectionVisible(false);
+      host.layer.addRuntime({
+        id: "style-ground",
+        originLngLat: [7.15, 51.25],
+        root: new THREE.Group(),
+        providesTerrain,
+        receivesMapStyleTexture: true,
+        update: vi.fn(),
+        dispose: vi.fn(),
+      });
+      try {
+        host.render();
+        expect(clearColor).toHaveBeenCalledTimes(
+          providesTerrain === false ? 0 : 2
+        );
+      } finally {
+        host.layer.onRemove!(host.map as never, host.gl as never);
+      }
+    }
+  );
+  it("pauses drawing and updates without dropping resident runtimes", () => {
+    const host = createProgressiveHost();
+    host.layer.setAccumulationController(null);
+    const update = vi.fn();
+    const dispose = vi.fn();
+    const root = new THREE.Group();
+    host.layer.addRuntime({
+      id: "pause-probe",
+      originLngLat: [7.15, 51.25],
+      root,
+      update,
+      dispose,
+    });
+    try {
+      host.render();
+      const count = update.mock.calls.length;
+      const renderer = host.layer.getRenderer()!;
+      const draws = vi.mocked(renderer.render).mock.calls.length;
+      host.layer.setRenderingPaused(true);
+      host.render();
+      expect(host.layer.isRenderingPaused()).toBe(true);
+      expect(update).toHaveBeenCalledTimes(count);
+      expect(renderer.render).toHaveBeenCalledTimes(draws);
+      expect(root.parent).not.toBeNull();
+      expect(dispose).not.toHaveBeenCalled();
+      host.layer.setRenderingPaused(false);
+      host.render();
+      expect(update).toHaveBeenCalledTimes(count + 1);
+    } finally {
+      host.layer.onRemove!(host.map as never, host.gl as never);
+    }
+  });
+  it("mounts the same local scene on the globe without replacing its root", () => {
+    const host = createProgressiveHost();
+    host.layer.setAccumulationController(null);
+    const root = new THREE.Group();
+    const geometry = new THREE.BoxGeometry(10, 20, 30);
+    const texture = new THREE.DataTexture(
+      new Uint8Array([255, 255, 255, 255]),
+      1,
+      1
+    );
+    const material = new THREE.MeshBasicMaterial({ map: texture });
+    const mesh = new THREE.Mesh(geometry, material);
+    root.add(mesh);
+    const positions = geometry.getAttribute("position");
+    const originalPositions = Array.from(positions.array);
+    const originalUvs = Array.from(geometry.getAttribute("uv").array);
+    const textureVersion = texture.version;
+    const update = vi.fn();
+    host.layer.addRuntime({
+      id: "globe-probe",
+      originLngLat: [7.15, 51.25],
+      root,
+      update,
+      dispose: vi.fn(),
+    });
+    try {
+      host.layer.render(
+        host.gl as never,
+        {
+          defaultProjectionData: {
+            mainMatrix: new THREE.Matrix4().elements,
+            projectionTransition: 1,
+          },
+        } as never
+      );
+      const camera = update.mock.calls.at(-1)![0].renderCamera;
+      const actual = camera.projectionMatrix
+        .clone()
+        .multiply(camera.matrixWorldInverse);
+      const expected = new THREE.Matrix4()
+        .makeRotationY(degToRadNumeric(7.15))
+        .multiply(new THREE.Matrix4().makeRotationX(degToRadNumeric(-51.25)))
+        .multiply(new THREE.Matrix4().makeTranslation(0, 0, 1))
+        .multiply(new THREE.Matrix4().makeRotationX(Math.PI / 2))
+        .scale(new THREE.Vector3().setScalar(1 / 6371008.8));
+      expectMatrixToBeCloseTo(actual, expected);
+      expect(actual.elements.every(Number.isFinite)).toBe(true);
+      const parent = root.parent;
+      const rootMatrix = root.matrix.clone();
+      host.render();
+      host.layer.render(
+        host.gl as never,
+        {
+          defaultProjectionData: {
+            mainMatrix: new THREE.Matrix4().makeTranslation(0.1, -0.2, 0)
+              .elements,
+            projectionTransition: 1,
+          },
+        } as never
+      );
+      expect(root.parent).toBe(parent);
+      expect(root.scale.toArray()).toEqual([1, 1, 1]);
+      expect(root.matrix.equals(rootMatrix)).toBe(true);
+      expect(host.layer.getRuntimes()).toHaveLength(1);
+      expect(mesh.geometry).toBe(geometry);
+      expect(geometry.getAttribute("position")).toBe(positions);
+      expect(Array.from(positions.array)).toEqual(originalPositions);
+      expect(Array.from(geometry.getAttribute("uv").array)).toEqual(
+        originalUvs
+      );
+      expect(mesh.material).toBe(material);
+      expect(material.map).toBe(texture);
+      expect(texture.version).toBe(textureVersion);
+    } finally {
+      host.layer.onRemove!(host.map as never, host.gl as never);
+      geometry.dispose();
+      material.dispose();
+      texture.dispose();
+    }
+  });
+  it("routes future frustums without changing visible demand or the live camera", () => {
+    const host = createProgressiveHost();
+    host.layer.setAccumulationController(null);
+    const update = vi.fn(),
+      setPrefetchCameraView = vi.fn();
+    host.layer.addRuntime({
+      id: "predicted",
+      originLngLat: [7.15, 51.25],
+      root: new THREE.Group(),
+      update,
+      dispose: vi.fn(),
+      setPrefetchCameraView,
+    });
+    const camera = new THREE.OrthographicCamera(-10, 10, 10, -10, 1, 100);
+    const sample = vi.fn((aheadMs: number) => {
+      const future = camera.clone();
+      future.position.x = aheadMs / 100;
+      return {
+        id: "flight",
+        camera: future,
+        viewport: [400, 400] as const,
+        errorTargetPixels: 4,
+        role: TILE_CAMERA_ROLE.RECEIVER,
+      };
+    });
+    try {
+      expect(host.layer.requestTileCameraAhead(sample, 500)).toBe("flight");
+      expect(sample).toHaveBeenCalledWith(500);
+      expect(setPrefetchCameraView.mock.calls[0][0].matrixWorld[12]).toBe(5);
+      expect(camera.position.x).toBe(0);
+      host.render();
+      expect(update.mock.calls.at(-1)![0].tileCameraViews).toHaveLength(0);
+      host.layer.removePrefetchCameraView("flight");
+      expect(setPrefetchCameraView).toHaveBeenLastCalledWith(null, "flight");
+      expect(() => host.layer.requestTileCameraAhead(sample, -1)).toThrow();
+    } finally {
+      host.layer.dispose();
+    }
+  });
+
+  it("shares one camera snapshot and renderer across runtimes without replacing their roots", () => {
+    const host = createProgressiveHost();
+    host.layer.setAccumulationController(null);
+    const updates = [vi.fn(), vi.fn()];
+    const roots = [new THREE.Group(), new THREE.Group()];
+    roots.forEach((root, index) =>
+      host.layer.addRuntime({
+        id: `source-${index}`,
+        originLngLat: [7.15, 51.25],
+        root,
+        update: updates[index],
+        dispose: vi.fn(),
+      })
+    );
+    const renderer = host.layer.getRenderer();
+    const camera = new THREE.PerspectiveCamera(60, 1, 1, 100);
+    const ortho = new THREE.OrthographicCamera(-10, 10, 10, -10, 1, 100);
+    const view = {
+      id: "inspection",
+      camera,
+      viewport: [400, 400] as const,
+      errorTargetPixels: 2,
+      role: TILE_CAMERA_ROLE.RECEIVER,
+    };
+    try {
+      host.layer.setTileCameraView(view);
+      host.layer.setTileCameraView({
+        ...view,
+        id: "rays",
+        camera: ortho,
+        role: TILE_CAMERA_ROLE.GEOMETRY,
+      });
+      host.render();
+      const firstFrame = updates[0].mock.calls.at(-1)![0];
+      expect(updates[1].mock.calls.at(-1)![0].tileCameraViews).toBe(
+        firstFrame.tileCameraViews
+      );
+      expect(firstFrame.tileCameraViews).toHaveLength(2);
+      camera.position.x = 20;
+      host.layer.removeTileCameraView("rays");
+      host.render();
+      const nextFrame = updates[0].mock.calls.at(-1)![0];
+      expect(nextFrame.tileCameraViews).toHaveLength(1);
+      expect(nextFrame.tileCameraViews[0].matrixWorld[12]).toBe(20);
+      expect(firstFrame.tileCameraViews[0].matrixWorld[12]).toBe(0);
+      expect(host.layer.getRenderer()).toBe(renderer);
+      roots.forEach((root) => expect(root.parent).toBe(host.layer.getScene()));
+    } finally {
+      host.layer.dispose();
+    }
+  });
+
   it("projects the captured MapLibre ground pass before terrain lighting", () => {
     const material = new THREE.MeshLambertMaterial();
     const texture = new THREE.Texture();
@@ -324,6 +578,37 @@ describe("shared Three.js scene layer", () => {
     expect(canvas.width).toBe(4400);
   });
 
+  it("keeps CSS LOD dimensions independent of native DPR and updates layout-only resizes", () => {
+    const renderer = { setViewport: vi.fn() };
+    const canvas = {
+      width: 800,
+      height: 600,
+      clientWidth: 800,
+      clientHeight: 600,
+    };
+    const physical = new THREE.Vector2();
+    const css = new THREE.Vector2();
+    for (const dpr of [1, 1.25, 2, 3]) {
+      canvas.width = 800 * dpr;
+      canvas.height = 600 * dpr;
+      syncSharedCanvasViewport(renderer, canvas, physical, css);
+      expect(css.toArray()).toEqual([800, 600]);
+      expect(physical.toArray()).toEqual([800 * dpr, 600 * dpr]);
+      expect(renderer.setViewport).toHaveBeenLastCalledWith(
+        0,
+        0,
+        800 * dpr,
+        600 * dpr
+      );
+    }
+    renderer.setViewport.mockClear();
+    canvas.clientWidth = 1200;
+    canvas.clientHeight = 900;
+    syncSharedCanvasViewport(renderer, canvas, physical, css);
+    expect(css.toArray()).toEqual([1200, 900]);
+    expect(renderer.setViewport).not.toHaveBeenCalled();
+  });
+
   it("uses canonical depth for offscreen targets and MapLibre depth on main", () => {
     const events: string[] = [];
     const hostFramebuffer = {} as WebGLFramebuffer;
@@ -473,6 +758,306 @@ describe("shared Three.js scene layer", () => {
   });
 });
 
+describe("zoom focus prefetch host", () => {
+  let host: ReturnType<typeof createProgressiveHost>;
+  const emit = (event: string, detail = {}) => {
+    const listener = host.map.on.mock.calls.find(
+      ([name]) => name === event
+    )?.[1];
+    expect(listener).toBeTypeOf("function");
+    listener(detail);
+  };
+  const addRuntime = (
+    id: string,
+    overrides: Partial<SharedThreeSceneRuntime> = {}
+  ) => {
+    const runtime = {
+      id,
+      originLngLat: [7.15, 51.25] as const,
+      root: new THREE.Group(),
+      update: vi.fn<Parameters<SharedThreeSceneRuntime["update"]>, void>(),
+      dispose: vi.fn(),
+      getRequestDemand: vi.fn(() => 0),
+      isBaseViewReady: vi.fn(() => true),
+      prefetchZoom: vi.fn<
+        Parameters<NonNullable<SharedThreeSceneRuntime["prefetchZoom"]>>,
+        Promise<void>
+      >(async () => {}),
+      ...overrides,
+    };
+    host.layer.addRuntime(runtime);
+    return runtime;
+  };
+  beforeEach(() => {
+    vi.useFakeTimers();
+    host = createProgressiveHost();
+    host.layer.setAccumulationController(null);
+    host.map.isZooming.mockReturnValue(true);
+  });
+  afterEach(() => {
+    host.layer.dispose();
+    vi.useRealTimers();
+  });
+
+  it("waits for every runtime's foreground and coarse coverage, then yields outside the draw callback", async () => {
+    const mesh = addRuntime("mesh");
+    const terrain = addRuntime("terrain", {
+      getRequestDemand: vi.fn(() => 1),
+      isBaseViewReady: vi.fn(() => false),
+    });
+    emit("zoomstart");
+    host.render();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(mesh.prefetchZoom).not.toHaveBeenCalled();
+    vi.mocked(terrain.getRequestDemand).mockReturnValue(0);
+    host.render();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(mesh.prefetchZoom).not.toHaveBeenCalled();
+    vi.mocked(terrain.isBaseViewReady).mockReturnValue(true);
+    host.render();
+    expect(mesh.prefetchZoom).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(mesh.prefetchZoom).toHaveBeenCalledOnce();
+    expect(terrain.prefetchZoom).toHaveBeenCalledOnce();
+    host.render();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(mesh.prefetchZoom).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    { input: {}, focus: [1100, 450], paddedCenter: [1100, 450] },
+    { input: {}, focus: [1260, 490], paddedCenter: [1260, 490] },
+    {
+      input: { originalEvent: { clientX: 470, clientY: 320 } },
+      focus: [440, 270],
+      paddedCenter: [1260, 490],
+    },
+  ])(
+    "crops an immutable camera snapshot around $focus in CSS pixels",
+    async ({ input, focus, paddedCenter }) => {
+      host.map.project.mockReturnValue({
+        x: paddedCenter[0],
+        y: paddedCenter[1],
+      });
+      const runtime = addRuntime("mesh");
+      emit("zoomstart", input);
+      host.render();
+      const frame = vi.mocked(runtime.update).mock.calls.at(-1)![0];
+      const originalProjection = frame.renderCamera.projectionMatrix.clone();
+      const originalWorld = frame.renderCamera.matrixWorld.toArray();
+      const [x, y] = focus;
+      const sx = host.canvas.clientWidth / 128;
+      const sy = host.canvas.clientHeight / 128;
+      const expected = originalProjection
+        .clone()
+        .premultiply(
+          new THREE.Matrix4().set(
+            sx,
+            0,
+            0,
+            -sx * ((2 * x) / host.canvas.clientWidth - 1),
+            0,
+            sy,
+            0,
+            -sy * (1 - (2 * y) / host.canvas.clientHeight),
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1
+          )
+        );
+      await vi.advanceTimersByTimeAsync(0);
+      expect(host.map.unproject).toHaveBeenCalledWith(focus);
+      const [request] = vi.mocked(runtime.prefetchZoom).mock.calls[0];
+      expect(request).toMatchObject({
+        levels: 2,
+        lngLat: [7.15, 51.25],
+        camera: {
+          viewport: [128, 128],
+          role: TILE_CAMERA_ROLE.GEOMETRY,
+          matrixWorld: originalWorld,
+        },
+      });
+      expectMatrixToBeCloseTo(
+        new THREE.Matrix4().fromArray(request.camera.projectionMatrix),
+        expected
+      );
+      expectMatrixToBeCloseTo(
+        frame.renderCamera.projectionMatrix,
+        originalProjection
+      );
+      frame.renderCamera.projectionMatrix.identity();
+      expectMatrixToBeCloseTo(
+        new THREE.Matrix4().fromArray(request.camera.projectionMatrix),
+        expected
+      );
+    }
+  );
+
+  it("resumes after foreground demand without repeating already-fulfilled adapters", async () => {
+    let finish!: () => void;
+    const first = addRuntime("mesh", {
+      prefetchZoom: vi.fn(
+        () =>
+          new Promise<void>((resolve) => {
+            finish = resolve;
+          })
+      ),
+    });
+    const second = addRuntime("terrain");
+    emit("zoomstart");
+    host.render();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(first.prefetchZoom).toHaveBeenCalledOnce();
+    expect(second.prefetchZoom).not.toHaveBeenCalled();
+    vi.mocked(second.getRequestDemand).mockReturnValue(1);
+    finish();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(second.prefetchZoom).not.toHaveBeenCalled();
+    host.map.triggerRepaint.mockClear();
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(vi.getTimerCount()).toBe(0);
+    expect(host.map.triggerRepaint).not.toHaveBeenCalled();
+    vi.mocked(second.getRequestDemand).mockReturnValue(0);
+    // A normal foreground-completion repaint supplies the next frame.
+    host.render();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(first.prefetchZoom).toHaveBeenCalledOnce();
+    expect(second.prefetchZoom).toHaveBeenCalledOnce();
+    host.render();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(second.prefetchZoom).toHaveBeenCalledOnce();
+  });
+
+  it("aborts the active adapter on zoomend and never starts another adapter", async () => {
+    let finish!: () => void;
+    const first = addRuntime("mesh", {
+      prefetchZoom: vi.fn(
+        () =>
+          new Promise<void>((resolve) => {
+            finish = resolve;
+          })
+      ),
+    });
+    const second = addRuntime("terrain");
+    emit("zoomstart");
+    host.render();
+    await vi.advanceTimersByTimeAsync(0);
+    const signal = vi.mocked(first.prefetchZoom).mock.calls[0][1];
+    expect(signal.aborted).toBe(false);
+    emit("zoomend");
+    expect(signal.aborted).toBe(true);
+    finish();
+    host.render();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(second.prefetchZoom).not.toHaveBeenCalled();
+    expect(first.prefetchZoom).toHaveBeenCalledOnce();
+  });
+
+  it("rearms after coarse coverage changes during the initial yield, without polling", async () => {
+    const mesh = addRuntime("mesh");
+    const terrain = addRuntime("terrain");
+    emit("zoomstart");
+    host.render();
+    vi.mocked(terrain.isBaseViewReady).mockReturnValue(false);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(mesh.prefetchZoom).not.toHaveBeenCalled();
+    expect(terrain.prefetchZoom).not.toHaveBeenCalled();
+    host.map.triggerRepaint.mockClear();
+    host.render();
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(vi.getTimerCount()).toBe(0);
+    expect(host.map.triggerRepaint).not.toHaveBeenCalled();
+    vi.mocked(terrain.isBaseViewReady).mockReturnValue(true);
+    host.render();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(mesh.prefetchZoom).toHaveBeenCalledOnce();
+    expect(terrain.prefetchZoom).toHaveBeenCalledOnce();
+  });
+
+  it("does not resume a pressure-deferred gesture after zoomend", async () => {
+    const runtime = addRuntime("terrain");
+    emit("zoomstart");
+    host.render();
+    vi.mocked(runtime.getRequestDemand).mockReturnValue(1);
+    await vi.advanceTimersByTimeAsync(0);
+    emit("zoomend");
+    vi.mocked(runtime.getRequestDemand).mockReturnValue(0);
+    host.render();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(runtime.prefetchZoom).not.toHaveBeenCalled();
+  });
+
+  it("does not let a cancelled adapter completion consume work from the next gesture", async () => {
+    let finishOld!: () => void;
+    const prefetch = vi.fn<
+      Parameters<NonNullable<SharedThreeSceneRuntime["prefetchZoom"]>>,
+      Promise<void>
+    >(async () => {});
+    prefetch.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          finishOld = resolve;
+        })
+    );
+    const first = addRuntime("mesh", { prefetchZoom: prefetch });
+    const second = addRuntime("terrain");
+    emit("zoomstart");
+    host.render();
+    await vi.advanceTimersByTimeAsync(0);
+    const oldSignal = prefetch.mock.calls[0][1];
+    emit("zoomend");
+    emit("zoomstart");
+    host.render();
+    vi.mocked(second.getRequestDemand).mockReturnValue(1);
+    await vi.advanceTimersByTimeAsync(0);
+    finishOld();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(oldSignal.aborted).toBe(true);
+    expect(first.prefetchZoom).toHaveBeenCalledOnce();
+    vi.mocked(second.getRequestDemand).mockReturnValue(0);
+    host.render();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(first.prefetchZoom).toHaveBeenCalledTimes(2);
+    expect(second.prefetchZoom).toHaveBeenCalledOnce();
+  });
+
+  it.each(["before-ready", "before-next-task"])(
+    "does not begin after zoomend (%s)",
+    async (phase) => {
+      const runtime = addRuntime("mesh");
+      if (phase === "before-ready")
+        vi.mocked(runtime.getRequestDemand).mockReturnValue(1);
+      emit("zoomstart");
+      host.render();
+      emit("zoomend");
+      vi.mocked(runtime.getRequestDemand).mockReturnValue(0);
+      host.render();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(runtime.prefetchZoom).not.toHaveBeenCalled();
+    }
+  );
+
+  it("removes the exact zoom listeners and cancels scheduled work on disposal", async () => {
+    const runtime = addRuntime("mesh");
+    emit("zoomstart");
+    host.render();
+    host.layer.dispose();
+    for (const event of ["zoomstart", "zoomend"]) {
+      const listener = host.map.on.mock.calls.find(
+        ([name]) => name === event
+      )![1];
+      expect(host.map.off).toHaveBeenCalledWith(event, listener);
+    }
+    await vi.advanceTimersByTimeAsync(0);
+    expect(runtime.prefetchZoom).not.toHaveBeenCalled();
+  });
+});
+
 describe("progressive strategy host", () => {
   it("keeps failed corridor publication pending and retries without a frame-rate loop", () => {
     vi.useFakeTimers();
@@ -602,6 +1187,54 @@ describe("progressive strategy host", () => {
     expect(mono.composite).not.toHaveBeenCalled();
     expect(host.controller.finishRound).not.toHaveBeenCalled();
     expect(host.map.triggerRepaint).not.toHaveBeenCalled();
+    host.layer.dispose();
+  });
+
+  it("passes the explicit MapLibre center elevation to the LOD camera", () => {
+    const host = createProgressiveHost();
+    Object.assign(host.map, { getCenterElevation: () => 200 });
+
+    host.render();
+
+    expect(vi.mocked(synthesizeLodCamera)).toHaveBeenCalled();
+    const frame = vi.mocked(synthesizeLodCamera).mock.calls.at(-1)?.[2];
+    expect(frame?.centerElevationMeters).toBe(200);
+    host.layer.dispose();
+  });
+
+  it("acknowledges completed shadow presentation, never a pending progressive frame", () => {
+    const host = createProgressiveHost();
+    host.controller.renderProgressive = () => ({
+      progress: 0.5,
+      settled: false,
+      needsRepaint: true,
+    });
+    host.render();
+    expect(host.controller.onPresented).not.toHaveBeenCalled();
+    host.controller.renderProgressive = () => ({
+      progress: 1,
+      settled: true,
+      needsRepaint: false,
+    });
+    host.render();
+    expect(host.controller.onPresented).toHaveBeenCalledOnce();
+    host.layer.dispose();
+  });
+
+  it("releases obsolete mono buffers while time changes and recreates them only after settling", () => {
+    const host = createProgressiveHost();
+    host.render();
+    vi.clearAllMocks();
+    host.controller.active = () => false;
+    host.controller.visualEpoch = () => 1;
+    host.render();
+    host.render();
+    expect(mono.dispose).toHaveBeenCalledOnce();
+    expect(buildSharedSceneAccumulator).not.toHaveBeenCalled();
+    expect(mono.composite).not.toHaveBeenCalled();
+    host.controller.active = () => true;
+    host.render();
+    expect(buildSharedSceneAccumulator).toHaveBeenCalledOnce();
     host.layer.dispose();
   });
 

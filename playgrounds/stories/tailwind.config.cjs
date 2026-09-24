@@ -7,5 +7,9 @@ const depsGlobs = createGlobPatternsForDependencies(__dirname);
 
 module.exports = {
   presets: [preset],
-  content: [join(__dirname, "src/**/*.{js,jsx,ts,tsx,mdx}"), ...depsGlobs],
+  content: [
+    join(__dirname, "src/**/*.{js,jsx,ts,tsx,mdx}"),
+    join(__dirname, "../pointcloud-stories/src/**/*.{js,jsx,ts,tsx,mdx}"),
+    ...depsGlobs,
+  ],
 };

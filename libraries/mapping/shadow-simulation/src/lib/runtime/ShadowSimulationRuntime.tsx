@@ -18,7 +18,6 @@ import type {
 } from "../contracts/shadow-simulation";
 import { getSolarPosition, type SolarLocation } from "../core/solar-position";
 import {
-  DEFAULT_MESH_ERROR_TARGET_PIXELS,
   DEFAULT_SHADOW_BUILDING_COLOR,
   DEFAULT_SHADOW_BUILDING_COLOR_MIX,
   DEFAULT_SHADOW_BUILDING_TEXTURE_SATURATION,
@@ -33,6 +32,7 @@ import {
 import { useShadowAnimation } from "./hooks/use-shadow-animation";
 
 export const ShadowSimulationRuntime = ({
+  tiledShadows = false,
   libreMap,
   shadowAreaMeters,
   terrain,
@@ -44,6 +44,8 @@ export const ShadowSimulationRuntime = ({
   setDateState,
 }: {
   libreMap: MaplibreMap | null;
+  /** Without it the buffer layout stays the single buffer. */
+  tiledShadows?: boolean;
   shadowAreaMeters?: number;
   terrain?: ShadowTerrainOptions;
   mapLibreTerrain?: RasterDemTerrainResource;
@@ -63,7 +65,9 @@ export const ShadowSimulationRuntime = ({
     shadowState: state,
     onFrame: (next) => {
       if (!state.enabled) return;
-      shadowScene.current?.updateSolarPosition(getSolarPosition(next, location));
+      shadowScene.current?.updateSolarPosition(
+        getSolarPosition(next, location)
+      );
     },
   });
   const effectiveTerrain = useMemo(
@@ -157,7 +161,7 @@ export const ShadowSimulationRuntime = ({
     if (!state.enabled) return;
     shadowScene.current?.updateRenderQuality({
       shadowAdaptiveQuality: state.shadowAdaptiveQuality,
-      shadowBufferLayout: state.shadowBufferLayout,
+      shadowBufferLayout: tiledShadows ? state.shadowBufferLayout : undefined,
       shadowBufferFormat: state.shadowBufferFormat,
       shadowSunDiscSamples: state.shadowSunDiscSamples,
       shadowMsaaSamples: state.shadowMsaaSamples,
@@ -165,6 +169,7 @@ export const ShadowSimulationRuntime = ({
     });
   }, [
     state.enabled,
+    tiledShadows,
     state.shadowAdaptiveQuality,
     state.shadowBufferLayout,
     state.shadowBufferFormat,
@@ -176,9 +181,7 @@ export const ShadowSimulationRuntime = ({
 
   useEffect(() => {
     if (!state.enabled) return;
-    shadowScene.current?.updateMeshErrorTarget(
-      state.meshErrorTarget ?? DEFAULT_MESH_ERROR_TARGET_PIXELS
-    );
+    shadowScene.current?.updateMeshErrorTarget(state.meshErrorTarget ?? null);
   }, [state.enabled, state.meshErrorTarget, sceneRevision]);
 
   useEffect(() => {

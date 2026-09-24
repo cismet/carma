@@ -1,5 +1,92 @@
 # engines/maplibre
 
+## Consumers must build workers as ES modules
+
+The engine lazy-loads its terrain worker client, so any app or playground that
+bundles it gets a code-split worker chunk. Vite refuses to emit that with the
+default `iife` worker format. Every Vite config that depends on this package
+needs `worker: { format: "es" as const, ... }`; the geoportal, belis desktop,
+the Storybook playgrounds, the ng-topicmap and measurements playgrounds all set
+it. A new consumer without it fails its production build with
+`Invalid value "iife" for option "output.format"`.
+
+## Style contract for `metadata.carmaConf["3d"]`
+
+A tileset is declared by a style's `3d` block. The legacy shape, still served
+by `tiles.cismet.de` and still valid, names only `renderMode: "tiles3d"`, the
+`tilesetUrl` and `terrainMandatory`. `resolveTiles3dConfig` in the layer
+manager completes every block with the same defaults, so a legacy style loads
+the way a fully declared one does:
+
+| Field | Absent means | Note |
+| --- | --- | --- |
+| `version` | `1` | Optional contract version, `TILES3D_STYLE_VERSION`. Never required, so served styles need no lockstep edits. |
+| `providesTerrain` | derived | The host sets it from the `Mesh` tag or a `mesh*.style.json` URL before the block reaches the manager. |
+| `errorTarget` | 4 px, 6 px for terrain-providing tilesets | Idle refinement target; the shadow simulation may override it per view (`setErrorTargetOverride`). |
+| `baseErrorTarget` | 16 px, terrain-providing only | First-pass target and the mesh loading strategy; other tilesets refine straight to the error target. |
+| `firstImageErrorTarget` | 64 px for terrain providers | Optional initial request threshold, bounded below by base and idle targets. Hard shadows may present complete coarser fallback coverage. Read when the runtime is created. |
+| `handoverErrorTarget` | legacy staging | Optional cold observer handover before whole-extent reserve admission. A complete observer cut advances to the idle target independently of caster refinement. Read when the runtime is created. |
+| `tilesetMinResolutionPx` | 1024 px, terrain-providing only | Whole-extent residual resolution. An explicit `0` defers to the `entry` hint instead. |
+| `hierarchyCache` | true | Worker-built static hierarchy index instead of native tileset JSON paging. `false` loads pages natively; kept after measurement, see TILES_COVERAGE.md, tileset hierarchy cache kept. |
+| `basemap` | `labels` | Drape the map labels and keep MapLibre terrain; `none` shows the tileset alone. |
+| `outline` | on | `CESIUM_primitive_outline` edges. |
+| `diagnostics` | off | Never ship it on; the stories switch it on themselves. |
+| `shadowBuildingStyle` | off | Let the shadow simulation restyle the tileset as a building layer while shadows are on. Off keeps the declared appearance; outlines always follow `outline`. |
+| `entry` | none | Per-level `geometricError` and `bytes` size the resident extent within the memory share; `prefetch` names hierarchy files to warm. |
+| `colorCorrection`, cache budgets | none | Colour grading and memory stay as the runtime decides. |
+
+The bundled `mesh2024-cesium-parity.style.json` copies in the geoportal and the
+stories are the reference for the 2024 mesh. They declare only what differs
+from the defaults or carries data: the tuned base target of 12 px, the
+standalone basemap, the colour grading and the entry hint. Both copies use the
+primary `WUPP_MESH_2024` endpoint on `wupp-3d-data.cismet.de`, matching
+Cesium and its gzip delivery of B3DM responses. The alternate MeshX host
+serves the sampled payloads without HTTP compression.
+
+## Shared-canvas camera views — SHARED-CANVAS-VIEWS-20260916
+
+- **ID / date / status:** SHARED-CANVAS-VIEWS-20260916, 2026-09-16;
+  implemented, uncommitted. Embedded camera windows and panorama observed in
+  the internal browser; no comparative performance benchmark.
+- **Context:** Embedded camera windows/strips copied rendered images from GPU
+  to CPU and back into separate canvases despite sharing one scene and renderer.
+- **Decision:** The shared scene layer owns post-MapLibre screen passes.
+  `createSharedThreeSceneCameraPreview` clips CSS regions onto the existing
+  drawing buffer using viewport/scissor, preserving DPR, full camera projection,
+  clipping planes, framebuffer and host render state. `present` chooses that path
+  for embedded windows and async image transport for an adopted popup canvas.
+  Embedded strip regions must lie inside the map canvas; the stories now dock
+  the interactive strip there. The shared UI strip accepts an alternate presenter,
+  retaining pan/zoom, wrap and keyboard interaction without a 2D context.
+  The library renders only visible strip segments, shares repeated meridian
+  demand, and updates requested resolution with strip display scale. Optional
+  image-plane textures stay on the GPU; explicit pixel export remains supported.
+- **Replaces:** Per-window and embedded panorama pixel readback/Canvas2D
+  presentation. Existing readback APIs remain only for detached documents and
+  pixel-export consumers, not a second tile loader or scene.
+- **Alternatives:** Separate WebGL contexts rejected by inspection because they
+  duplicate GPU tile resources. Cross-document direct scissoring is impossible;
+  popups retain the bounded asynchronous transport. A shared texture atlas and
+  GPU copy for repeated seam images are deferred; repeated segments currently
+  cost another draw, but neither another tile load nor another readback.
+- **Evidence:** Focused tests cover clipped regions/DPR/state restoration,
+  exception cleanup, screen-pass removal, detached presentation lifetime,
+  wrapped segments, GPU-only plane captures and alternate UI strip navigation.
+- **Revisit:** This is not proof of 60 fps under loading. GPU fill/draw work
+  remains per camera; optional image planes retain one render target per segment.
+  Loader coverage gaps and scene lighting correctness are separate concerns.
+
+## Consolidated tile manager
+
+`buildThreeTilesRuntime` owns mesh loading, selection and residency;
+`buildRasterDemTerrainRuntime` adapts raster elevation geometry to the same
+shared scene/camera-demand contract. Stories do not own another tile manager.
+`Tiles3dLayerManager` and `SharedThreeTilesLayerManager` are host adapters to the
+same runtime, not independent loading engines. The unused older
+`engines/threejs/src/tiles3d/Tiles3dLayer.ts` implementation has been removed.
+See [TILE-CONSOLIDATION-20260914](TILES_COVERAGE.md#tile-consolidation-20260914)
+for the single-branch boundary, retained mesh metadata, history and validation.
+
 ## Native shadow frustums — MESH-SHADOW-FRUSTUM-20260910
 
 Mesh payloads that provide terrain now retain Three's native observer/light
@@ -10,42 +97,22 @@ live-view limitations: [corridor performance report](../../shadow-simulation/thr
 
 ## Linked receiver/caster detail
 
-- **Anchor / date / status:** `#linked-receivercaster-detail`, 2026-09-10;
-  implemented, uncommitted; full live-view convergence remains unverified.
-- **Context and constraints:** Fine visible mesh tiles could receive shadows
-  from a coarser retained parent despite all required children being resident.
-  The caster selector stopped at a parent meeting its own SSE, independent of
-  the published receiver cut. Completed in-memory solar masks also ignored a
-  changed caster geometry revision at unchanged sun/receiver/buffer dimensions.
-- **Decision:** The receiver cut now supplies a minimum-detail ancestor closure
-  to the existing caster-family selector. Meeting caster SSE cannot terminate
-  above displayed descendants. Missing corridor-intersecting children still
-  retain the parent atomically; complete families replace it using the same
-  native Tile/Object3D/BufferGeometry resources as display. Sets describe roles,
-  not separate loaded assets; no new loader, scene clone or geometry cache.
-  Captures retain a dedicated committed-caster revision, separate from observer
-  allocation. Changed geometry schedules a fresh hard capture and then soft
-  integration; the prior mask remains drawable only until that replacement.
-  Same-geometry camera movement and smaller buffer demand remain reusable.
-- **Alternatives and disposition:** Always casting parent plus partial children
-  is **incompatible by inspection** with the no-hybrids/consistent depth rule.
-  Removing a parent before its required offscreen siblings load is **incompatible
-  by inspection** with chimney continuity. Reloading/cloning visible geometry
-  into a second caster pool is **not needed**: both roles reference native tile
-  instances already. A separate GPU-worker copy is **deferred**, as described in
-  `CORRIDOR_WORKERS_REVIEW.md`; this change does not claim zero-copy GPU contexts.
-- **Evidence:** 64 focused frontier/publication/role tests and 98 presentation/
-  tiled-renderer tests pass. Regression fixture: parent SSE0.5px, target1px,
-  already-displayed children and a pending offscreen chimney; retain parent
-  while pending, replace with identical resident child objects when complete,
-  issue only the affected publication invalidation. Mask fixture verifies
-  camera reuse, geometry-change invalidation, old-mask continuity, hard
-  replacement and subsequent new soft completion. Internal browser retains
-  Mesh2024 and the shadow addon; only pre-existing Matomo console errors observed.
-  No timed before/after or memory benchmark; no end-to-end speedup claimed.
-- **Revisit when:** A complete family still keeps a coarse caster or an old
-  soft mask; inspect the committed tile cut and geometry fingerprint separately
-  from buffer resolution. Atomic fallback rationale remains in the next record.
+Observer receivers and shadow-corridor casters now use the same progressive
+selection. Ready children are published immediately over a retained coarse
+fallback, independently in each demand domain. Out-of-frustum siblings are not
+required. Parent display draws first without depth writes; a parent remains a
+conservative shadow caster until the required light-frustum branches cover it.
+
+The displayed receiver cut still supplies a minimum-detail ancestor closure
+for caster refinement. Both roles reference the same native tile resources.
+Changed caster geometry invalidates affected hard/soft captures; unchanged
+geometry and sun placement retain reusable masks. Admission follows displayed
+receiver geometry and excludes prior shadow demand from its pixel density.
+
+The current contract, test inventory and superseded family rules are recorded
+in [Progressive receiver overlays](./TILES_COVERAGE.md#progressive-receiver-overlays).
+The following investigations retain historical evidence, not the former
+requirement to wait for whole families before displaying ready children.
 
 ## Caster replacement investigation — CASTER-FAMILY-HANDOVER-20260909
 
@@ -225,7 +292,7 @@ live-view limitations: [corridor performance report](../../shadow-simulation/thr
   bounded startup, late restore/disposal and worker preemption: 146 engine
   tests and 45 shadow-scene tests passed. Existing
   Playwright MeshX view retains mesh and caster shadows at 2400 × 2398 physical
-  pixels with no new page errors; capture: `output/playwright/terrain-volume-smoke.png`.
+  pixels with no new page errors.
   Production persistence is covered by focused tests, not a new production
   build or device storage benchmark; no measured end-to-end speedup is claimed.
 - **Revisit:** A server-published, versioned min/max hierarchy with certified
@@ -242,14 +309,14 @@ live-view limitations: [corridor performance report](../../shadow-simulation/thr
 
 - **Decision:** Full-opacity shadow styling normalizes authored material opacity only. Apply the layer/modal opacity afterward as the final multiplier; enable transparency and disable depth writes below full layer opacity. Restoring full layer opacity restores the appropriate opaque/source render flags. No terrain visibility changes.
 - **Cause / rejected alternative:** The previous full-opacity branch forced material opacity to 1 and ignored the correctly forwarded layer slider. Disabling shadow styling or recreating the runtime was unnecessary; the existing opacity setter refreshes materials and projection caches in place.
-- **Evidence:** 34 focused runtime/manager tests pass, covering opacity during shader changes and restoration. Existing Playwright MeshX session: modal values 0.1/0.5/1 reach material opacity directly, retain the sampled material UUID, and restore transparency=false/depthWrite=true at 1. Screenshot: `output/playwright/mesh-layer-opacity-half.png`.
+- **Evidence:** 34 focused runtime/manager tests pass, covering opacity during shader changes and restoration. Existing Playwright MeshX session: modal values 0.1/0.5/1 reach material opacity directly, retain the sampled material UUID, and restore transparency=false/depthWrite=true at 1.
 
 ## Dataset texture correction — MESH-ALBEDO-20260908
 
 - **Decision:** Store gamma, black/white point and saturation on the Mesh 2024 resource's `colorCorrection` metadata, including its explicit MeshX delivery URL. Catalog-authored profiles override this resource fallback; unrelated URLs get no calibration. `Tiles3dConfig` passes the profile into generic Three runtime uniforms. Cesium's existing `UNLIT_ENHANCED_2024` reads the same resource values. The shadow UI enables the stage by default, retains a toggle and all existing controls, and defaults color replacement to 0%.
 - **Lighting:** `core/mesh-surface-shader.ts` corrects texture/vertex RGB, applies saturation, then mixes the chosen albedo after `color_fragment`, before physical lighting. Three's real-normal diffuse response, sky lighting and occlusion shade the color contribution exactly once. The toggle updates shared uniforms without replacing loaded mesh materials.
 - **Alternatives:** Mixing after lighting would overwrite directional shading and shadows. An extra cosine multiplication would double-darken grazing faces. Dividing baked photography by the current solar cosine cannot recover capture-time illumination or occlusion and amplifies noise. This profile is a display correction, not genuine de-lighting; no claim of recovered physical albedo.
-- **Evidence:** 82 focused runtime/metadata/state/scene/UI tests pass. Playwright confirms the active MeshX profile reaches the shader (gamma 1.25/1.25/1.23), correction on, mix 0; on/off/on preserves the sampled material UUID. Paired screenshots under `output/playwright/mesh-color-correction-{off,on}.png`. Existing Matomo/style metadata/AntD diagnostics remain outside this change.
+- **Evidence:** 82 focused runtime/metadata/state/scene/UI tests pass. Playwright confirms the active MeshX profile reaches the shader (gamma 1.25/1.25/1.23), correction on, mix 0; on/off/on preserves the sampled material UUID. Existing Matomo/style metadata/AntD diagnostics remain outside this change.
 - **Revisit:** Calibrate against neutral reference surfaces/capture illumination before claiming photometric accuracy; publish `colorCorrection` in the remote tiles3d style metadata to remove the local-resource fallback.
 
 ## Adjusted basemap policies — MAP-STYLE-POLICY-20260908
@@ -495,7 +562,7 @@ terrain-mesh runtime to the shared scene.
   retry publishes8/8 at1431ms and only then reports100%. All eight captured
   scalar buffers contained fractional coverage (not empty/hard-only buffers).
   This is not a per-pixel proof of correct reprojection for every mesh surface.
-  Evidence: `output/playwright/corridor-completion-20260908/`.
+
 - **Open:** Spatial mesh readiness/invalidation and atomic same-LOD mesh/hard
   shadow publication remain separate work, as listed above. No broad build/lint.
 
@@ -517,7 +584,7 @@ terrain-mesh runtime to the shared scene.
   mesh work until all metadata is known.
 - **Evidence:** Focused queue tests admit/parse metadata with mesh download and
   parse limits both zero and verify metadata cancellation through the native
-  facade. Internal Codex browser logs contain four reports with metadata active
+  facade. Dev browser logs contain four reports with metadata active
   while mesh admission is zero. Some JSON jobs still waited610-1411ms before
   sub-timer-resolution preprocessing: task scheduling remains a bottleneck.
 - **Persistence experiment:** Reused `createDerivedBufferCache` in a separate
@@ -529,7 +596,7 @@ terrain-mesh runtime to the shared scene.
   1.0ms. Initial fetch7.1ms (not a proven cold download); writes/open8.9ms.
   Baseline raw ms:[1.5,1.5,1,1.1,1.2,0.9,1.2,1.5,1.2]; restore:
   [0.8,0.5,0.6,0.5,0.5,0.4,1,0.6,0.9]. About15 batch reuses amortize preparation.
-  Artifact:`output/playwright/tileset-cache-benchmark.html`; temporary isolated
+  Artifact:*unpublished validation artifact*; temporary isolated
   database deleted after the run. This is not full-tree hydration, worker-transfer,
   production freshness validation, storage overhead or end-to-end load timing.
 - **Alternatives/disposition:** Whole parsed-tree persistence: deferred, not
@@ -576,8 +643,8 @@ terrain-mesh runtime to the shared scene.
   descriptor roundtrip and native OBB/transform parity; 210,606 existing corridor
   queries, 317 hits, zero mismatches (synthetic light rotations, not current-view
   shadow validation). Reproduce with the running Vite server's `/@fs/` URL for
-  `output/playwright/tileset-index-benchmark.html?limit=128`; worker implementation
-  alongside it; raw timings in `output/playwright/tileset-index-benchmark-results.json`.
+  *unpublished validation artifact*; worker implementation
+  alongside it; raw timings in *unpublished validation artifact*.
 - **Alternatives/disposition:** Dense numeric columns plus per-node metadata:
   measured rejection (larger storage and no full-path win). Sparse/deduplicated
   columns: promising measured median gain, not yet a production admission result.
@@ -725,7 +792,7 @@ terrain-mesh runtime to the shared scene.
   Disposal cancels wakeups and prevents yielded work from starting. Native
   cancellation checks in the original callback remain intact. This replaces
   rAF-coupled parsing admission, not Three's parser or its Draco worker pool.
-- **Evidence:** Internal Codex browser, existing Mesh2024 session: four observed
+- **Evidence:** Dev browser, existing Mesh2024 session: four observed
   payloads spent483-506ms waiting before6-27ms parse calls. This is a small live
   sample, not controlled A/B evidence. Nine focused corridor/scheduling tests
   verify results, independent admission, no-render-frame progress and disposal.
@@ -763,7 +830,7 @@ terrain-mesh runtime to the shared scene.
   verifies asynchronous wakeup on capacity recovery without a new traversal,
   no repeated wakeup at unchanged capacity, parallel admission and deduplication.
   These are deterministic behavior tests, not a throughput benchmark. Internal
-  Codex browser spot checks still show four concurrent downloads and a 25-27 tile
+  Dev browser spot checks still show four concurrent downloads and a 25-27 tile
   parsing backlog; no end-to-end speedup or settled-scene claim is made.
 - **Revisit when:** Parsing throughput, CPU traversal time, or request inventory
   shows the next limiting stage. Raising downloads alone does not clear parsing
@@ -805,8 +872,7 @@ terrain-mesh runtime to the shared scene.
   outstanding demand. Full soft-shadow/reprojection correctness remains separate.
   Focused validation: 76 tests pass. Five older atomic-corridor integration
   assertions fail identically on the changed code and the read-only source
-  baseline at `9508cb9fc` (`/private/tmp/corridor-membership-final-tests.log`,
-  `/private/tmp/corridor-baseline-tests.log`); no full integration-suite pass is
+  baseline at `9508cb9fc` (*unpublished validation artifact*); no full integration-suite pass is
   claimed. Their staged publication/admission behavior remains open.
 - **Alternatives:** Worker dispatch per small query batch and Cache Storage
   answers: measured rejection for this workload. IndexedDB/OPFS: not evaluated.
@@ -1017,3 +1083,374 @@ terrain-mesh runtime to the shared scene.
   before a refit, Mercator-placed receivers (raster terrain under LOD2, which
   cannot move with the group) show the bounded light offset, or the view-state
   anchor becomes available to the engine layer.
+### SHARED-TILE-CAMERA-DEMAND-20260913
+
+- **ID / date / status:** SHARED-TILE-CAMERA-DEMAND-20260913 / 2026-09-13 /
+  implemented demand foundation; full coverage-manager acceptance pending.
+- **Context and constraints:** A second camera must not instantiate another
+  tileset, raster decoder, scene, or WebGL context. Cameras are in the existing
+  shared scene's world frame. Perspective, orthographic, off-axis and parented
+  Three cameras supply their own physical viewport and pixel error target.
+- **Decision:** `SharedThreeSceneLayer.setTileCameraView(view)` upserts demand by
+  ID; `removeTileCameraView(id)` removes only that source. The host snapshots all
+  live camera matrices once per frame and gives the same snapshot to every
+  runtime. `core/tile-camera-demand.ts` compiles frusta only when the camera set
+  changes. Mesh and raster selection union demand before one traversal/loading
+  generation; overlapping tiles use the maximum normalized error, not the sum.
+  Geometry-only demand does not promote color materials. Receiver promotion
+  reuses the existing payload. Disjoint raster views enumerate separate regions,
+  not the potentially enormous rectangle between their cameras. Loaded terrain
+  and mesh frontiers remain owned by their existing publication adapters.
+- **Reuse:** This extends `tiles-camera-set.ts`, `terrain-selection.ts` and the
+  existing frontier machinery; it does not replace the native observer camera
+  with a MapLibre composite projection. The existing finite-sun receiver-prism
+  path remains responsible for solar corridor precision. It is not replaced by
+  a broad camera frustum. Use `createSharedThreeSceneCameraPreview` to draw a
+  diagnostic view through the same renderer; do not create one renderer per view.
+- **Alternatives and disposition:** Separate loaders/contexts per camera are
+  incompatible with shared GPU residency. Independent per-camera raster
+  selection runs are incompatible with the runtime's single generation owner.
+  A shared scene-wide floor/admission budget and fully unified sun-demand
+  scheduling are deferred to the next manager slice, not claimed here.
+- **Evidence:** Colocated camera-demand tests cover projection types, world
+  transforms, overlap, role changes, immutable snapshots and removal. Mesh and
+  raster runtime fixtures verify reuse/publication, and host tests verify the
+  same renderer and snapshots across runtimes. These are deterministic
+  selection/payload fixtures, not end-to-end GPU throughput or no-holes evidence.
+  Reproduce with `vitest run --config libraries/mapping/engines/maplibre/vite.config.ts`
+  and the `tile-camera-demand`, `terrain-selection`, `three-tiles-runtime.camera-demand`,
+  `raster-dem-terrain-runtime` and `shared-three-scene-layer` spec paths.
+- **Revisit when:** Camera-specific readiness proofs, aggregate byte admission,
+  source fallback coverage, offscreen drape readiness, or persistent storage are
+  integrated. A geometry query must not interpret an incomplete loaded cut as
+  proof of no intersection. Rendering a newly demanded view also requires its
+  imagery/color resources; additional camera demand alone cannot synthesize
+  basemap textures outside the current MapLibre capture.
+
+## Multi-camera and point-light stress stories
+
+**MULTICAM-STRESS-20260913 / 2026-09-13 / diagnostic implementation; acceptance open**
+
+### Joined orthographic reference walls
+
+**ORTHOGRAPHIC-REFERENCE-SEAMS-20260916 / 2026-09-16 / implemented, visual acceptance partial**
+
+- **Context:** Independent orthographic rectangles overlap on one side of a bend
+  and leave wedges on the other. Different parallel-ray directions cannot make
+  a seamless unroll at all scene depths simultaneously. This is separate from
+  missing tiles and foreground clipping.
+- **Decision:** `createSpineCameraRig.referenceSurfaceOffset` offsets the reference
+  supporting lines and intersects adjacent lines to obtain shared mitre joints.
+  Camera centres, widths, image-plane depth, strip layout and navigation follow
+  the same geometry. Scalar metres apply globally; an array configures retained
+  segments before subdivision. Zero keeps the spine as the reference. Positive
+  values move into the scene. Foreground clipping stays independent. Camera
+  matrices remain genuinely orthographic and are also used by tile demand.
+  Open caps, closed wrap seams, either side and downward-unfolded views use this
+  shared path. No extra render pass, texture copy or per-frame fitting is added.
+  All wall panels use one `baselineElevation` (default: first spine vertex), or
+  one explicit `verticalRange`. Input vertex heights never stagger the cameras.
+  Corridor stories no longer sample terrain heights to recenter each panel;
+  vertical navigation moves the entire rig, including the paired street row.
+- **Cylinder correction:** Inward object-cover reference panels now lie on an
+  inner tangent polygon, not mutually crossing at the cylinder centre. Their
+  width uses `radius - referenceDepth`. Depth defaults to half the radius and
+  is configurable; perspective panoramas retain their common-eye projection.
+- **Safety:** Reject nonfinite/per-segment count mismatches, incompatible parallel
+  offsets, reversed panels, reference planes outside near/far and mitres longer
+  than four times their requested offset (minimum scale 1 m). Do not clamp joins
+  independently and silently reopen cracks. Nonadjacent self-intersections of
+  long/concave routes remain a review limitation, not certified volume coverage.
+- **Alternatives:** Bisector clipping alone is incompatible with gapless images:
+  it removes duplicate geometry but leaves blank screen wedges. Full depth-
+  dependent reprojection/blending is deferred; it changes the orthographic
+  measurement semantics and requires depth buffers/occlusion policy. Independent
+  rectangle translation is rejected by geometry: endpoints no longer coincide.
+- **Evidence:** Focused tests check projected reference endpoints, both sides,
+  segment-specific depths, subdivision, the closed wrap and cylinder seams,
+  invalid offsets and the full sourced route at its zero-offset default. These
+  are geometry invariants, not image-quality or frame-time acceptance.
+- **Revisit:** Depth-independent seamless imagery requires an explicit nonlinear
+  unwrapping mode; arbitrary offset self-intersections require a topology policy.
+
+### Stress-story context
+
+- **Context:** Exercise the camera-demand foundation with real mesh/Terrarium
+  sources before claiming a production, hole-free scene manager. Stories live at
+  `playgrounds/stories/src/stories/mapping/tile-loading-manager/TileCameraStress.stories.tsx`
+  under **MapLibre Playground / Tile Loading Manager / Camera Views**. Lights
+  live in `TileLightStress.stories.tsx` under **Lights**; the existing diagnostic
+  `MeshCoverage.stories.tsx` is ported under **Coverage**, with a direct MapLibre
+  host rather than the Geoportal provider stack. All use this shared engine and
+  the same Mesh 2024 metadata entry. See [coverage policy](./TILES_COVERAGE.md).
+- **Decision:** Panorama, closed facade, open Wupper north-bank spine, four orbiting
+  HKW lights, and public BELIS streetlights at Rathaus Barmen. Additional virtual
+  panorama eyes at the chimney top and Rathaus roof carry explicit height evidence.
+  All camera views share one scene, renderer/context and loader per data source.
+  Panorama cameras share the optical centre; their tangent image planes form the
+  cylinder. Object-cover mode looks inward. Spine strips split at retained corners,
+  allocate at least one camera per segment and expose the achieved camera count.
+  One-dimensional navigation scrolls the strip, not the anchored rig. Per-view
+  clipping never changes the primary MapLibre view. Strip widths preserve facade
+  proportions, within a 16,384-pixel backing-width ceiling.
+- **Vertical framing:** Nominal, zero-shift panorama vertical FOV is independent of camera count.
+  A vertical lens shift preserves matching side rays between upright image planes.
+  At nonzero shift the angular top/bottom span is not the nominal symmetric FOV;
+  endpoint-ray regression tests document this rather than changing seam-safe projection.
+  The ALKIS-derived approximate Rathaus perimeter uses a 154–225 m ground-to-tower
+  window plus padding. Riverbank strips use a conservative 145–225 m display
+  window plus padding; the bank source is 2D, not surveyed facade-height data.
+  These are editable visual envelopes, not surveyed building-height guarantees.
+- **Bank replacement / 2026-09-13:** The former Schwebebahn centreline fixture is
+  replaced by the actual northern boundary of the Barmen Wupper water surface.
+  The 64-vertex fixture retains source boundary edges from basemap.de/BKG
+  `Gewaesserflaeche`, `name=Wupper`, `kennung=2736000000000000000`. Unioning tiled
+  fragments includes under-bridge water; it does not interpolate a railway offset.
+  Captured water polygon, source attribution, derivation script and two
+  reproducibility/boundary tests live in the common story's `data/` directory.
+  The shared rig merges only headings spanning at most 3 degrees (configurable),
+  then gives every remaining segment a camera even above the requested minimum
+  count. Cumulative gentle turns and sharp corners therefore remain represented.
+  Rail-centreline and constant-offset alternatives are incompatible with the
+  requested shoreline view. Revisit with a higher-resolution surveyed bank or
+  measured facade elevations; the current fixture is cartographic source data.
+- **Coverage reuse:** Port the existing floor, cascade, ring and fallback logic
+  into this runtime, then retain demand from all cameras during stale-download
+  cancellation. `loading.getCoverageStatus()` replaces the fixed coverage-warning
+  text with actual floor/missing-root and queue evidence in both diagnostic UIs.
+  An unknown or failed root cannot certify coverage. Raster reuses camera demand,
+  but scene-wide mesh/raster budget unification remains open.
+- **Scheduling:** One asynchronous GPU readback in flight; the shared framebuffer,
+  depth range and clipping state are restored before waiting. Completed segment
+  pixels stay visible while another segment updates. Camera count changes rebuild
+  views, not loaders. Shadowed point lights register six geometry-only frusta each and keep
+  their shadow maps between updates. Static unchanged poses do not dirty shadows;
+  streamed content revisions do. Light-centric image previews optionally promote
+  their selected six faces to color receivers. These are live image observations,
+  **not an analytical or certified viewshed**.
+- **Point-light budget:** Twelve simultaneously shadowed lights exceeded this
+  Chrome client's 16 fragment texture samplers. All requested lights illuminate,
+  but a configurable subset casts shadows (default four, also capped by sampler
+  headroom). HKW's four moving lights therefore all cast shadows; the default
+  twelve BELIS lights use 24 shadow-camera faces, not 72. The HKW normal bias is
+  1 m to reduce coarse-LOD self-shadowing; it is editable and not a universal
+  acne-free or contact-shadow guarantee.
+- **Sources and height evidence:** Mesh URL is the 2024 reference tileset. HKW
+  positions use the existing chimney measurement fixture. The Toelleturm virtual
+  eye is 3 m above the preserved 358.3477 m reference-surface point to clear the
+  mesh parapet; this is not a surveyed camera pose. Open-spine plan coordinates
+  now come from the water boundary described above. The closed Rathaus envelope is explicitly
+  approximate/editable. Public `https://tiles.cismet.de/leuchten/style.json`
+  identifies the `leuchten` MVT source layer, confirmed in a visible Chrome session
+  on 2026-09-13. Its locations are retained for the observation lease when MVTs
+  unload. Night lights wait for DGM heights; mast height (default 8 m) and photometry
+  remain assumptions. Heights use the runtime's existing scene mount. ECEF does
+  not establish the authored vertical datum: an initially added GCG2016 offset
+  visibly lifted the lights by another 46.55 m and was removed. Sampled local
+  mesh bounds start around 152 m while DGM at the centre is 154.88 m; this is
+  placement evidence, not proof of exact datum alignment. Exact curved-ECEF/planar
+  mount correction is a separate task.
+- **Alternatives and disposition:** Separate renderers/loaders are incompatible
+  with shared residency. Synchronous per-camera readback is rejected by inspection
+  as an unnecessary main-thread wait. GPU-only atlas presentation is deferred:
+  these diagnostics intentionally expose image strips for inspection/export.
+  Synthetic streetlight placement is not a substitute for missing BELIS data.
+- **Evidence / limits:** Colocated tests cover 64-camera demand, six-face lights,
+  corner splitting, clipping, strip layout, asynchronous lifetime/state restoration
+  and source lease cleanup. The combined extraction validation passes 347 tests
+  in 24 files, including vertical windows and panorama seam rays. Static-preview checks with
+  the dedicated visible Playwright browser rendered the mesh facade, open-spine
+  strip (including midpoint navigation), raster panorama, four-light HKW scene,
+  optional light views and twelve public BELIS lights. Async readback exposed a
+  shared-context PIXEL_PACK_BUFFER leak; immediate restoration and a pending-read
+  regression test fix it. These observations do not prove no holes, sustained
+  throughput, all configurations or exact datum alignment. Full Storybook encounters the existing unresolved
+  `@carma-collab/wuppertal/geoportal` barrel dependency; a temporary narrow-entry
+  preview does not certify that full build. Raster workers require ES-module
+  output, now configured in the stories Vite config.
+- **Revisit when:** Camera-specific coverage proofs and scene-wide admission/floor
+  accounting land. Missing geometry must remain unknown, never become an implicit
+  clear ray or a false "ready" state. Measure complete panorama refresh separately
+  from the displayed per-segment readback time and point-light update cadence.
+
+### Multicam visual review — 2026-09-13
+
+Zoom focus prefetch and persistent offscreen handoff now extend the same shared
+manager; see **ZOOM-PREFETCH-20260913** in [TILES_COVERAGE.md](./TILES_COVERAGE.md)
+for admission, cancellation ownership, complete-quartet publication, validation
+boundaries and memory-pressure limitations. This supersedes view-only history
+pruning, not the existing shared-pool/camera architecture.
+
+Continuation of **MULTICAM-STRESS-20260913**, status: diagnostic, review required.
+
+- **Decision:** Keep plausible virtual viewpoints, but visibly distinguish them
+  from surveyed camera poses and certified coverage. Every camera/light demo
+  carries a scenario-specific review notice. Rathaus roof, perimeter, riverbank
+  and inward object cover are also marked `review` in the sidebar. Custom spines,
+  clipped views and DGM-only facade variants carry explicit limitations.
+- **Presentation fixes:** Short strips now fill the available width without
+  changing aspect ratio; the previous unused dark rectangle was not a missing
+  camera. A station slider appears only when there is horizontal overflow.
+  Segment labels show camera bearings or cumulative projected spine metres.
+  Diagnostic image planes are translucent rather than opaque-looking walls.
+  Inward object-cover planes are hidden by default: their intersections at the
+  object centre obscure the very object being inspected.
+  Invalid camera settings clear the old image instead of presenting stale output.
+  Irrelevant controls are scoped away; the story render restores valid inactive
+  defaults because Storybook removes conditionally hidden args from rendering.
+  Object cover has a separate chimney preset
+  centred between fixture foot/top heights with a 220 m vertical window.
+- **Checked geometry:** Panorama cameras share an eye and their side rays match;
+  cylindrical images remain faceted perspective images, not an equirectangular
+  reprojection. Rathaus cameras sit outside and look inward. The west-to-east
+  north-bank cameras sit over the river and look north. Fitted orthographic
+  windows include the configured padding. Existing seam/demand/clipping tests
+  remain the foundation, including pitched angular endpoints.
+- **Closed-footprint correction:** `createSpineCameraRig.closedFootprint` moves
+  every supporting edge of a convex footprint outward in metric scene space
+  (3 m default in the Rathaus story, minimum 2 m). This is a mitred parallel
+  offset, not a centroid scale. Source winding is normalized so adjacent inward
+  image strips meet left-to-right; duplicate endpoints and collinear edges are
+  supported, concave/degenerate envelopes rejected, and hull edges never merged.
+  The front clipping plane is on that expanded outline. Each orthographic far
+  plane ends 3 m beyond the original hull portion inside its horizontal strip,
+  including edge intersections, instead of the previous uniform 300 m depth.
+  Margin-only strips are bounded near the front. Tile demand and rendering use
+  the same shortened camera. `perimeterClearance` and `backStreetMargin` are
+  story controls. The buffer is relative to the ALKIS hull, not a surveyed mesh
+  roof boundary; a street gap free of all neighbouring geometry is not inferred
+  from the building footprint alone. Open spines retain their existing policy.
+  Twenty-seven focused rig tests cover winding, clearance, seams, clipped-edge
+  depth, duplicate/collinear vertices, empty margins and invalid envelopes.
+- **Review still required:** The Rathaus convex hull omits recesses and courts,
+  and does not isolate neighbours. The 2D bank has only an approximate height
+  envelope. Object-cover views overlap and are not a metric surface flattening.
+  A closed merged ring can acquire a start-dependent extra seam. Clipping removes
+  real occluders by design. Virtual eye heights are not accessible-site claims.
+  Per-camera geometry completeness is not certified, including when the primary
+  map says its visible base is ready. Sequential light frames are not synchronous
+  viewsheds. DGM contains no building facades or vegetation.
+- **Evidence boundary:** Dedicated user-visible Chrome/Playwright session against
+  the static 4300 preview. Final checks of all six presets (Toelleturm,
+  chimney-top, Rathaus-roof, closed facade, Wupper bank and inward chimney cover)
+  show rendered image strips with plausible orientation and height framing.
+  At a 1280 × 900 viewport the bank's station slider reaches its end exactly
+  (station 1, scrollLeft 573 = scrollWidth − clientWidth). The 20 focused rig
+  tests pass, including pitched seam rays and angular endpoints. The loader
+  still reports missing/unknown floor cuts. These are
+  visual samples, not a speed benchmark or acceptance of every possible Control
+  combination.
+- **Alternatives:** Repositioning the measured/reference cameras just to remove
+  all foreground walls is deferred; nearby parapets/mouths can be physically
+  plausible. General inverse-surface unwrapping and panoramic reprojection are
+  not evaluated here. Review real per-camera coverage before accepting these
+  diagnostics for measurement or product-facing export.
+
+### Barmen night demonstrator — NIGHT-BARMEN-20260913
+
+- **ID / date / status:** NIGHT-BARMEN-20260913 / 2026-09-13 / bounded visual
+  prototype, review required. Story: `TileNightTraffic.stories.tsx`, alongside
+  the shared manager's Lights stories. Keep this optional diagnostic slice
+  separate from production coverage-manager acceptance.
+- **Context:** Hundreds of fixed street lamps must not become hundreds of live
+  Three point lights or shadow cubes. Reuse the same 3D Tiles/raster runtime,
+  Three scene and tile pool as the camera/coverage demos. Do not enable a
+  city-wide scene without complete source coverage and a measured budget.
+- **Decision:** The existing BELIS observer supplies up to 400 loaded lamp
+  positions within 900 m of Rathaus by default. Unknown DGM heights withhold a
+  lamp/route rather than placing it at zero. A worker generates a bounded
+  1024-square RGBA8 projected irradiance atlas (4 MiB retained GPU input; roughly
+  44 MiB temporary worker arrays). RGB is additive smooth illumination; alpha
+  is weighted ground elevation for vertical attenuation. This is a 2.5D light
+  field, **not** a mesh-occlusion or shadow bake. Height and photometry are
+  explicitly assumed. Material hooks preserve existing shaders; only content
+  revisions reconcile materials. One worker job and the latest pending request
+  are retained; a completed prior atlas stays visible until replacement. Each
+  result swaps a new DataTexture atomically; resizing the already uploaded 1×1
+  placeholder caused a real `glTexSubImage2D` immutable-storage error on reload.
+- **Moving sources:** Three cars by default (bounded to eight in the runtime),
+  one Schwebebahn and one train. Cars have two actual white SpotLights and two
+  visible red tail bulbs plus a red environment light. Rail vehicles have white
+  front/red rear lights and warm windows. All use the same renderer; no extra
+  shadow maps. Synthetic 30-second signal phases illuminate surroundings; cars
+  stop before non-green signals with spaced stop slots. Vehicles fade over the
+  first/last 8 m of open data fragments instead of reversing instantly. This is
+  not a traffic-flow, car-following, railway timetable or safety simulator.
+- **Geometry:** Real OSM road fragments, signal nodes and subsampled railway
+  lines; provenance/query in the story's `data/night-traffic-source.md`. Cars
+  and national rail use DGM-relative heights; suspension track is assumed 13 m
+  above DGM with the vehicle roof 3 m below it. Bridges, rail curvature, overhead
+  geometry and exact mounting require review. This local demonstrator does not
+  alter the surveyed/timetabled VehicleAnimation addon or certify its geometry.
+- **Alternatives:** Full city coverage and geometry-aware light baking are
+  deferred, not measured rejections. One real-time shadow cube per lamp is
+  incompatible with the bounded sampler/work budget by inspection. Reusing the
+  existing public vehicle addon directly would introduce an engine-to-addon
+  dependency cycle; this runtime consumes projected paths and compiled segment
+  distances instead. A genuine shared vehicle-motion core may replace this
+  bounded diagnostic once extracted below the addon/engine boundary.
+- **Evidence:** Six atlas math tests, six mocked worker/material lifecycle
+  tests (including texture-storage replacement) and five traffic/cleanup tests
+  pass (17 total). Static narrow-entry
+  Storybook preview on 4300, shared user-visible Chrome/Playwright session:
+  400 baked lamps, five vehicles, three signals, all five routes have DGM data.
+  Screenshots *unpublished browser capture* show fixed lighting retained while vehicle positions
+  and signal colours change. One warmed four-second rAF sample at 1280×900
+  yielded 575 callbacks, median 6.9 ms, p95 8.3 ms. This is **callback cadence,
+  not GPU-rendered FPS**; no cold-load, GPU timing, sustained throughput or
+  whole-town benchmark was performed. The reference loader still reports one
+  missing/unknown fallback cut. The full root-barrel build is not certified by
+  this narrow preview; repository-wide barrel-policy violations remain outside
+  this slice.
+- **Revisit when:** Light/mesh occlusion baking, complete lamp coverage, measured
+  bridge/rail elevations and sustained GPU/memory acceptance are available.
+  Until then the Whole Town story is explicitly disabled, not partially drawn.
+
+## Shadow activation and declared mesh appearance
+
+**ID / date / status:** MESH-SHADOW-ACTIVATION / 2026-09-20 / implemented.
+
+**Context:** `shadowBuildingStyle` opts a tileset into the shadow controls'
+colour and opacity overrides. The early return introduced in `76bfd967d` also
+prevented unlit terrain textures from receiving the lit material adapter.
+Mesh2024 could load while remaining unable to receive simulated shadows.
+
+**Decision:** always track shadow activation and install/restore the textured
+lighting adapter. Gate uniform colour, saturation and opacity overrides on
+`shadowBuildingStyle`. Opted-out styles retain their source texture, opacity and
+dataset colour correction; outlines follow their declared visibility, including
+when new models arrive. The source material is restored when shadows stop.
+
+**Alternatives:** enabling appearance overrides for every style is incompatible
+with the explicit opt-out. Removing the unlit material adapter cannot provide
+shadow reception. Neither alternative was adopted.
+
+**Evidence:** the added regression test checks an opted-out unlit mesh, declared
+texture/opacity/colour correction, outline visibility and adapter disposal. Live
+Mesh2024 shows shadows at 10:01 and 15:00. The selected loading tests have the
+same nine failing cases before and after this fix (71 versus 72 passing); these
+existing failures remain unresolved and are not treated as obsolete.
+
+**Revisit when:** another material extension needs a shadow-capable adapter;
+keep lighting participation independent of optional appearance overrides.
+
+## Terrain ownership after runtime registration
+
+**ID / date / status:** MESH-RUNTIME-DRAPE / 2026-09-20 / implemented.
+
+**Context:** shadow-scene startup sets an explicit mesh-label drape override.
+Adding an overlay terrain provider later previously left that override at its
+initial value, so adding a mesh and reloading with that mesh could produce
+different ground rendering.
+
+**Decision:** on terrain-provider membership changes, synchronously reconcile
+raster terrain ownership, the MapLibre ground pass and the mesh-label override.
+Removing the last provider restores raster ground and its base-map projection.
+Keep MapLibre DEM elevation available for labels. Ordinary tile arrivals retain
+the bounded content-refresh cadence; they do not repeat the immediate ownership
+transition.
+
+**Evidence:** the regression adds and removes a terrain provider without timers
+or style/idle events and checks that unchanged membership does not repeat the
+immediate transition. All 54 shadow-scene tests pass. Live Mesh2024 removal and
+URL-drop addition restore/suppress the base-map ground without reloading.

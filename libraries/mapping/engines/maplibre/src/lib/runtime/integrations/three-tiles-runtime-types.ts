@@ -4,8 +4,16 @@ import { MercatorCoordinate } from "maplibre-gl";
 import * as THREE from "three";
 
 import type { TextureColorCorrection } from "@carma-commons/resources";
+import type { MeshMercatorLut } from "@carma-geo/utils";
 
 import type { SharedThreeSceneRuntime } from "../../core/shared-three-scene-types";
+import type {
+  TILE_QUEUE_ACTION,
+  TILE_QUEUE_STAGE,
+} from "../../core/tile-scheduling-policy";
+import type { ThreeTilesRuntimeCoverageStatus } from "./three-tiles-runtime-coverage";
+import type { TilesRuntimeDebugState } from "../diagnostics/tile-diagnostic-state";
+import type { TileDrawStatus } from "./three-tiles-draw-observer";
 
 export type RuntimePriorityQueue = PriorityQueue & {
   items: Tile[];
@@ -20,9 +28,29 @@ export type TileViewErrorTarget = {
 
 export type RuntimeTile = Tile & {
   priority?: number;
+  cameraPriority?: number;
+  /** Current camera's expected improvement of this atomic replacement family. */
+  meshRefinement?: Readonly<{
+    group: Tile;
+    currentErrorPixels: number;
+    nextErrorPixels: number;
+    visibleAreaPixels: number;
+    benefit: number;
+    provisional: boolean;
+  }>;
   shadowLightFacing?: number;
   shadowReceiverCenterness?: number;
   shadowReceiverCurrent?: boolean;
+  /** Admitted by the idle ring prefetch, outside the main view. */
+  idleRing?: boolean;
+  /** Single cancellable, spare-capacity zoom request; never a receiver demand. */
+  zoomPrefetch?: boolean;
+  /** Bounded future-view work, never part of the visible demand union. */
+  motionPrefetch?: boolean;
+  /** Request start; cleared by the first primary draw, not scene publication. */
+  firstPublicationRequestedAt?: number;
+  /** Ring the tile belongs to (1 = innermost), kept across moves until refreshed at rest. */
+  idleRingIndex?: number;
   traversal: Tile["traversal"] & {
     unconditionallyRefine?: boolean;
     active?: boolean;
@@ -43,7 +71,44 @@ export type RuntimeTile = Tile & {
   };
 };
 
+export type MeshTileWait = {
+  role: "receiver" | "shadow";
+  reason:
+    | "material"
+    | "replacement-family"
+    | "shadow-family"
+    | "render"
+    | "shadow-render"
+    | "shadow-accumulation";
+  since: number;
+  until?: number;
+  blocker?: string;
+};
+
+export type MeshTileRequestDecision = Readonly<{
+  stage: (typeof TILE_QUEUE_STAGE)[keyof typeof TILE_QUEUE_STAGE];
+  action: (typeof TILE_QUEUE_ACTION)[keyof typeof TILE_QUEUE_ACTION];
+  reason: string;
+  priority: number;
+  needed: boolean;
+  inViewport: boolean;
+  coverageFill: boolean;
+}>;
+
 export type MeshTileDebugProgress = {
+  /** Latest queue observation, not an authoritative scheduler state. */
+  requestDecision?: MeshTileRequestDecision & {
+    frame: number;
+    viewSignature: string;
+    since: number;
+    observedAt: number;
+    parent: string | null;
+    refinement?: Omit<NonNullable<RuntimeTile["meshRefinement"]>, "group"> & {
+      group: string | null;
+    };
+  };
+  /** Last 32 observed publication waits; roles have independent clocks. */
+  waits?: MeshTileWait[];
   discoveredAt: number;
   queuedAt?: number;
   downloadStartedAt?: number;
@@ -55,6 +120,8 @@ export type MeshTileDebugProgress = {
   lastError?: string;
   loadedAt?: number;
   visibleAt?: number;
+  shadowDepthSubmittedAt?: number;
+  shadowPresentedAt?: number;
   corridorReadyAt?: number;
   stableAt?: number;
   iterations: number;
@@ -67,6 +134,7 @@ export type RuntimeTilesRenderer = TilesRenderer & {
   setTileActive: (tile: Tile, active: boolean) => void;
   setTileVisible: (tile: Tile, visible: boolean) => void;
   markTileUsed: (tile: Tile) => void;
+  prepareForTraversal: () => void;
   calculateTileViewError: (tile: Tile, target: TileViewErrorTarget) => void;
   calculateBytesUsed: (
     tile: Tile,
@@ -87,6 +155,8 @@ export type RuntimeTilesRenderer = TilesRenderer & {
     parsing: number;
   };
   queueTileForDownload: (tile: Tile) => void;
+  requestTileContents: (tile: Tile) => Promise<unknown> | undefined;
+  ensureChildrenArePreprocessed: (tile: Tile, forceImmediate?: boolean) => void;
 };
 
 export type RuntimeLruCache = TilesRenderer["lruCache"] & {
@@ -136,10 +206,22 @@ export interface ThreeTilesRuntime {
     setProjector: (projector: ImageProjector | null) => void;
   };
   readonly debug: {
+    /** Read-only, live diagnostic view. Never serialize its Three.js objects to workers. */
+    readState: () => Readonly<TilesRuntimeDebugState> | undefined;
+    setDiagnosticsEnabled: (enabled: boolean) => void;
+    setTelemetryEnabled: (enabled: boolean) => void;
     setTileBoundsVisible: (enabled: boolean) => void;
   };
   readonly loading: {
-    setErrorTarget: (errorTarget: number) => void;
+    /** Final/idle target, with an optional coarser initial view target. */
+    setErrorTarget: (errorTarget: number, initialErrorTarget?: number) => void;
+    /**
+     * A consumer's target on top of the host's, the shadow simulation's
+     * tileset LOD for instance; null returns to the host's target.
+     */
+    setErrorTargetOverride: (errorTarget: number | null) => void;
+    /** The host's target without any override. */
+    getErrorTarget: () => number;
     /**
      * Explicit resident cache budget (up to 24 GiB). No budget restores the
      * conservative device default; it is not an available-VRAM measurement.
@@ -147,6 +229,23 @@ export interface ThreeTilesRuntime {
     setCacheBudget: (bytes?: number, options?: CacheBudgetOptions) => void;
     setRequestConcurrency: (jobs: number) => void;
     getRequestDemand: () => number;
+    /** Hold downloads and parsing without aborting anything (diagnostics). */
+    setPaused: (paused: boolean) => void;
+    /** Foveated request order: 0 nearest first, higher favours the view centre. */
+    setFoveation: (weight: number) => void;
+    /** Residual quality as pixels across the extent; null restores the hinted floor. */
+    setTilesetMinResolution: (px: number | null) => void;
+    /** Parse jobs at rest (GLTF scene creation on the renderer thread). */
+    setParseConcurrency: (jobs: number) => void;
+    /** The memory-adaptive error target currently in force (see TILES_COVERAGE.md). */
+    getMemoryErrorTarget: () => number;
+    /**
+     * Observed source-floor diagnostics. This does not certify complete
+     * renderable coverage for every registered camera.
+     */
+    getCoverageStatus: () => ThreeTilesRuntimeCoverageStatus;
+    /** Actual WebGL draw submissions; does not prove unoccluded screen pixels. */
+    getDrawStatus: () => TileDrawStatus;
   };
   readonly placement: {
     setHeightOffset: (offsetMeters: number) => void;
@@ -172,8 +271,13 @@ export interface CacheBudgetOptions {
 }
 
 export interface ThreeTilesRuntimeOptions {
+  /** Opt-in local ECEF reprojection during native parse, including tile bounds.
+   * Not global support; source geometry must fall inside the LUT domain. */
+  mercatorProjection?: MeshMercatorLut;
   /** Optional worker-backed static hierarchy cache; false uses native JSON loading. */
   hierarchyCache?: boolean;
+  /** Persist the learned resident cache ceiling in localStorage (hosts, not tests). */
+  persistCacheCeiling?: boolean;
   /** Bounded pipeline console samples; false disables collection/reporting. */
   tileTelemetry?: boolean;
   /** Dataset metadata; absent means identity, never a dataset-specific fallback. */
@@ -197,7 +301,48 @@ export interface ThreeTilesRuntimeOptions {
    * moves, instead of keeping the fixed mount the tileset was built at.
    */
   cameraLocalMount?: boolean;
-  /** Restyle this tileset like a building layer while shadow mode is active. */
+  /**
+   * How the map style meets a terrain-providing tileset: `labels` overlays the
+   * point labels (default), `none` leaves the tileset untouched.
+   */
+  mapStyleDrape?: "labels" | "none";
+  /**
+   * Known ground height at the layer origin, in metres: the tileset is
+   * lowered by it from the first traversal on. Preferred over the probe,
+   * which can only run once the first tiles under the origin have arrived.
+   */
+  selfGroundReference?: boolean;
+  groundReferenceMeters?: number;
+  /**
+   * Residency and warm-up hints published with the style, see
+   * `TilesetEntryHint`: the whole extent stays resident down to at least the
+   * hinted level, and the listed hierarchy files are warmed on init.
+   */
+  entry?: TilesetEntryHint;
+  /**
+   * First-pass error target in pixels for a terrain-providing tileset. When
+   * the style declares it, that coarse pass is the fallback while the target
+   * level loads and the renderer skips the intermediate ancestors, the way
+   * Cesium's skipLevelOfDetail does; undeclared keeps the renderer's
+   * ancestor fallback together with the default first pass.
+   */
+  baseErrorTargetPixels?: number;
+  /** Optional cold first-image request target in renderer pixels. */
+  firstImageErrorTargetPixels?: number;
+  /** Complete the initial viewport at this error before idle/reserve work. */
+  handoverErrorTargetPixels?: number;
+  /**
+   * Diagnostics: register the runtime state in `window.__carmaTiles3d` and keep
+   * the per-traversal bookkeeping the diagnostics story reads. Off by default;
+   * the story reports its own overhead against this.
+   */
+  diagnostics?: boolean;
+  /**
+   * Restyle this tileset like a building layer while shadow mode is active.
+   * Off, colour and opacity stay as declared by the style, while unlit
+   * materials still receive the lighting adapter needed for shadows.
+   * Outlines always follow their declared visibility.
+   */
   shadowBuildingStyle?: boolean;
 }
 
@@ -210,4 +355,20 @@ export type LitTextureMaterialState = {
   original: THREE.Material | THREE.Material[];
   lit: THREE.Material | THREE.Material[];
   generated: THREE.Material[];
+};
+
+/**
+ * Hints published with the style for a tileset whose hierarchy is a chain of
+ * external files: the geometric error and payload bytes per level, which size
+ * how deep the whole extent may stay resident within the memory share, and
+ * the hierarchy files to warm on init so the traversal finds them in the
+ * hierarchy cache instead of walking the chain.
+ */
+export type TilesetEntryHint = {
+  levels: Array<{
+    level: number;
+    geometricError: number;
+    bytes: number;
+  }>;
+  prefetch?: string[];
 };

@@ -13,7 +13,8 @@ const LazyViewSyncStory = lazy(async () => {
 });
 
 const meta: Meta<ViewSyncStoryProps> = {
-  title: "Mapping/ViewSync",
+  title: "Map Navigation",
+  id: "mapping-viewsync",
   parameters: {
     layout: "fullscreen",
   },

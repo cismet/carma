@@ -7,6 +7,26 @@ import {
   type SunShadowDemoStatus,
 } from "@carma-mapping/shadow-simulation/three";
 
+export const SUN_SHADOW_STORY_DEFAULTS = {
+  distanceMeters: 15,
+  elevationDegrees: 45,
+  object: "plate" as const,
+  view: "overview" as const,
+  pointSun: false,
+  samples: 64 as const,
+  shadowMapSize: 2048,
+  exposure: 1,
+  sunIntensity: 3,
+  bufferFormat: "rgba16f-32f" as const,
+  msaaSamples: 0 as const,
+  renderScale: 0.5,
+  groundTexelFit: true,
+  benchmark: false,
+  cachedLighting: false,
+  measureBanding: false,
+  rasterJitter: true,
+};
+
 /** Thin Storybook host; lighting, sampling and accumulation live in libraries. */
 export const SunShadowDemo = (options: SunShadowDemoOptions) => {
   const container = useRef<HTMLDivElement>(null);
@@ -45,6 +65,7 @@ export const SunShadowDemo = (options: SunShadowDemoOptions) => {
       <div ref={container} style={{ flex: 1, minHeight: 280 }} />
       <output
         data-test-id="sun-shadow-status"
+        data-status={status && JSON.stringify(status)}
         data-benchmark={status?.benchmark && JSON.stringify(status.benchmark)}
         data-image-difference={
           status?.imageDifference && JSON.stringify(status.imageDifference)
@@ -70,7 +91,13 @@ export const SunShadowDemo = (options: SunShadowDemoOptions) => {
               status.shadowCamera?.shadowMapHeight ?? status.shadowMapSize
             } · ${status.samples} samples · ${status.bufferFormat} · MSAA ${
               status.msaaSamples
-            }\n${status.phase}`)}
+            }\n${status.phase}${
+              status.settledAfterMilliseconds === undefined
+                ? ""
+                : ` · ${(status.settledAfterMilliseconds / 1000).toFixed(
+                    2
+                  )} s from reset`
+            }`)}
         {status?.shadowCamera &&
           `\nGround texels: ${(
             (status.shadowCamera.groundTexelWidthMeters ?? 0) * 100

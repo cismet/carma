@@ -16,6 +16,14 @@ const CONTENT_EVENTS = [
   MAPLIBRE_EVENT.WEBGL_CONTEXT_RESTORED,
 ] as const;
 
+/**
+ * Versionless sprite pixels are compared byte by byte; doing that on every
+ * frame cost about 0.3 ms per frame with the mesh drape (2026-09-18 pan
+ * profile, 432 ms in a 30 s window). An eventless updateImage is rare, so an
+ * in-place write is detected within this window instead of within a frame.
+ */
+export const VERSIONLESS_IMAGE_CHECK_INTERVAL_MS = 200;
+
 const STYLE_EVENTS = [
   MAPLIBRE_EVENT.STYLE_DATA,
   MAPLIBRE_EVENT.STYLE_DATA_LOADING,
@@ -46,6 +54,7 @@ export const createMapStyleFramebufferCache = (
   let imageVersions: Array<
     readonly [id: string, revision: MapStyleImageRevision]
   > = [];
+  let versionlessCheckedAt = Number.NEGATIVE_INFINITY;
 
   const cancelRetry = () => {
     if (retryTimer !== undefined) clearTimeout(retryTimer);
@@ -103,11 +112,17 @@ export const createMapStyleFramebufferCache = (
     // updateImage also emits no content event; getImage is a public API.
     // Versionless sprites need exact snapshots because updateImage writes into
     // their existing pixel buffer without producing a usable numeric version.
+    if (!idle || staticStyle !== true) return;
+    const now = Date.now();
+    const compareBytes =
+      now - versionlessCheckedAt >= VERSIONLESS_IMAGE_CHECK_INTERVAL_MS;
+    if (compareBytes) versionlessCheckedAt = now;
     if (
-      idle &&
-      staticStyle === true &&
       imageVersions.some(
         ([id, revision]) =>
+          // Versioned images compare in constant time on every call; the
+          // byte comparison of versionless sprites runs once per interval.
+          (compareBytes || revision.bytes === undefined) &&
           !matchesMapStyleImageRevision(map.getImage(id), revision)
       )
     )

@@ -55,11 +55,21 @@ export function synthesizeLodCamera(
         _fov?: number;
         cameraToCenterDistance?: number;
         worldSize?: number;
+        width?: number;
+        height?: number;
+        centerOffset?: { x: number; y: number };
       };
     }
   ).transform;
 
-  const fovRad = transform._fov ?? DEFAULT_FOV_RAD;
+  const publicFovDegrees = (
+    map as unknown as { getVerticalFieldOfView?: () => number }
+  ).getVerticalFieldOfView?.();
+  const publicFovRad = THREE.MathUtils.degToRad(publicFovDegrees ?? NaN);
+  const fovRad =
+    Number.isFinite(publicFovRad) && publicFovRad > 0
+      ? publicFovRad
+      : transform._fov ?? DEFAULT_FOV_RAD;
   const distancePx = transform.cameraToCenterDistance ?? 0;
   const worldSize = transform.worldSize ?? 1;
   if (!distancePx || !worldSize || meterScale <= 0) {
@@ -68,9 +78,13 @@ export function synthesizeLodCamera(
   const distanceMeters = distancePx / worldSize / meterScale;
 
   const centerLngLat = map.getCenter();
+  const centerElevation = map.getCenterElevation?.();
   const centerMerc = MercatorCoordinate.fromLngLat(
     centerLngLat,
-    frame.centerElevationMeters ?? map.queryTerrainElevation(centerLngLat) ?? 0
+    frame.centerElevationMeters ??
+      (typeof centerElevation === "number" && Number.isFinite(centerElevation)
+        ? centerElevation
+        : map.queryTerrainElevation(centerLngLat) ?? 0)
   );
   lookTarget.set(
     (centerMerc.x - originMerc.x) / meterScale,
@@ -97,10 +111,22 @@ export function synthesizeLodCamera(
   camera.lookAt(lookTarget);
 
   camera.fov = THREE.MathUtils.radToDeg(fovRad);
-  camera.aspect = viewport.x / Math.max(1, viewport.y);
+  const canvas = map.getCanvas?.();
+  const width = transform.width || canvas?.clientWidth || viewport.x;
+  const height = transform.height || canvas?.clientHeight || viewport.y;
+  camera.aspect = width / Math.max(1, height);
   camera.near = 2;
   camera.far = 1_000_000;
-  camera.updateProjectionMatrix();
+  // MapLibre padding moves the principal point in CSS pixels. Selection uses
+  // the full CSS viewport, independent of rendering DPR. A full-size Three view
+  // offset retains those asymmetric edge rays without cropping coverage.
+  // Decision: TILE-VIEWPORT-PADDING-20260914 in engines/maplibre/TILES_COVERAGE.md.
+  const offset = transform.centerOffset;
+  if (offset && (offset.x !== 0 || offset.y !== 0)) {
+    camera.setViewOffset(width, height, -offset.x, -offset.y, width, height);
+  } else {
+    camera.clearViewOffset();
+  }
   camera.updateMatrixWorld(true);
   return true;
 }

@@ -35,7 +35,8 @@ type StatesStoryArgs = {
 };
 
 const meta = {
-  title: "Annotations/Measurement InfoBox States",
+  title: "Annotations/Measurements",
+  id: "annotations-measurement-infobox-states",
   parameters: {
     layout: "fullscreen",
     controls: { expanded: false },

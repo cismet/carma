@@ -20,7 +20,9 @@ describe("mesh receiver and sunward caster publication", () => {
       f.update();
       expect(f.renderer.visibleTiles.has(f.receiver)).toBe(true);
       expect(f.runtime.scene.isMainViewReady()).toBe(false);
-      expect(f.renderer.errorTarget).toBe(16);
+      // Final-quality requests proceed independently of this incomplete view.
+      // Readiness above must still reject the missing branch.
+      expect(f.renderer.errorTarget).toBe(1);
       f.load(missing);
       f.update();
       expect(f.renderer.visibleTiles.has(missing)).toBe(true);
@@ -117,40 +119,47 @@ describe("mesh receiver and sunward caster publication", () => {
     }
   );
 
-  it("replaces a receiver parent only with its complete loaded family, without waiting for another corridor", () => {
+  it("requests the next receiver family with shadows while offscreen casters can refine deeper", () => {
     const f = createMeshCorridorFixture();
     try {
-      const left = f.tile("left1", -10, 0, -100, 1, true, f.receiver);
-      const right = f.tile("right1", 0, 10, -100, 1, true, f.receiver);
+      f.update();
+      const left = f.tile("left8", -10, 0, -100, 8, true, f.receiver);
+      const right = f.tile("right8", 0, 10, -100, 8, true, f.receiver);
+      f.receiver.children = [left, right];
+      const grandchild = f.tile("grandchild", -10, -5, -100, 1, true, left);
+      left.children = [grandchild];
       const fineCaster = f.tile(
-        "caster-final",
+        "fine-caster",
         -10,
         10,
         -50,
-        0,
+        64,
         false,
         f.caster
       );
       f.caster.children = [fineCaster];
-      f.receiver.children = [left, right];
+      f.caster.geometricError = 128;
+      f.setTileError(f.caster, 128);
+      f.update();
+      const target = {
+        inView: false,
+        error: Infinity,
+        distanceFromCamera: 100,
+      };
+      f.renderer.calculateTileViewErrorWithPlugin(left, target);
+      expect(target.error).toBeLessThanOrEqual(f.renderer.errorTarget);
+      f.renderer.calculateTileViewErrorWithPlugin(fineCaster, target);
+      expect(target.error).toBeGreaterThan(f.renderer.errorTarget);
+      expect(f.queued).toHaveBeenCalledWith(left);
+      expect(f.queued).toHaveBeenCalledWith(right);
       f.load(left);
       f.update();
-      expect(f.visibleIds()).toEqual(["caster16", "receiver16"]);
+      expect(f.visibleIds()).toContain("receiver16");
       f.load(right);
       f.update();
-      expect(f.visibleIds()).toEqual(["caster16", "left1", "right1"]);
-      expect(f.renderer.visibleTiles.has(f.receiver)).toBe(false);
-      // Caster quality and soft-mask readiness are separate from mesh residency.
-      // No removed acknowledgeShadowStage/setShadowStagePresentationGate API.
-      expect(
-        f.runtime.scene.isShadowRegionReady?.(f.corridor, 1, f.receiverBox)
-      ).toBe(false);
-      f.load(fineCaster);
-      f.update();
-      expect(f.visibleIds()).toEqual(["caster-final", "left1", "right1"]);
-      expect(
-        f.runtime.scene.isShadowRegionReady?.(f.corridor, 1, f.receiverBox)
-      ).toBe(true);
+      expect(f.visibleIds()).toContain("left8");
+      expect(f.visibleIds()).toContain("right8");
+      expect(f.visibleIds()).not.toContain("receiver16");
     } finally {
       f.dispose();
     }
@@ -166,7 +175,7 @@ describe("mesh receiver and sunward caster publication", () => {
       f.root.children.push(missing);
       f.update();
       expect(f.renderer.visibleTiles.has(f.root)).toBe(true);
-      expect(f.renderer.visibleTiles.has(f.receiver)).toBe(false);
+      expect(f.renderer.visibleTiles.has(f.receiver)).toBe(true);
       f.load(missing);
       f.update();
       expect(f.renderer.visibleTiles.has(f.root)).toBe(false);

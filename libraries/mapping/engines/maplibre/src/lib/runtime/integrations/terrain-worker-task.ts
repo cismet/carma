@@ -1,3 +1,4 @@
+import { prepareCachedEqualLevelTerrainShell } from "./terrain-edge-topology-cache";
 import { MercatorCoordinate } from "maplibre-gl";
 import { BufferAttribute, BufferGeometry } from "three";
 import { partitionNoDataTerrainGeometry } from "./terrain-no-data";
@@ -7,6 +8,7 @@ import {
 } from "@carma-mapping/engines/three/primitives/core";
 import {
   buildErrorBoundedGridTile,
+  buildGridTile,
   type DecodedRaster,
   type TerrainTile,
   type TerrainTileId,
@@ -65,11 +67,15 @@ export type TerrainWorkerTask =
     }
   | {
       kind: "stitch";
+      sameLevelOnly?: boolean;
+      prepareEqualLevelShells?: boolean;
+      applyBoundaryStates?: Record<string, Float32Array>;
       inputs: TerrainStitchInput[];
       outputKeys?: string[];
       captureBoundaryState?: boolean;
       prepareShellKeys?: string[];
       probeOnly?: boolean;
+      prepareOnly?: boolean;
     }
   | {
       kind: "decode";
@@ -78,6 +84,7 @@ export type TerrainWorkerTask =
       segments: number;
       error: number;
       maximumMeshErrorMeters?: number;
+      maximumMeshSegments?: number;
     }
   | {
       kind: "remesh";
@@ -85,6 +92,7 @@ export type TerrainWorkerTask =
       id: TerrainTileId;
       error: number;
       maximumMeshErrorMeters?: number;
+      maximumMeshSegments?: number;
     }
   | {
       kind: "project";
@@ -170,23 +178,56 @@ export const executeTerrainWorkerTask = async (
       reliefVertexMask: partition.reliefVertexMask,
     };
   }
+  if (task.kind === "stitch" && task.prepareEqualLevelShells)
+    return {
+      kind: "stitch" as const,
+      updates: [] as ReturnType<typeof executeTerrainBoundaryStitch>["updates"],
+      shells: await Promise.all(
+        task.inputs.map(prepareCachedEqualLevelTerrainShell)
+      ),
+    };
   if (task.kind === "stitch")
     return {
       kind: "stitch" as const,
       ...executeTerrainBoundaryStitch(task.inputs, task),
     };
   if (task.kind === "decode" || task.kind === "remesh") {
+    // Decoding the image and meshing its raster are separate costs; the
+    // diagnostics draw them as their own steps.
+    const decodeStart = performance.now();
     const raster =
       task.kind === "decode" ? await decodeImage(task.blob) : task.raster;
+    const meshStart = performance.now();
+    const maximumSegments = task.maximumMeshSegments;
+    // Explicit mobile baseline: allocate the smaller attribute grid as well as
+    // fewer indices. Error-bounded desktop reduction retains native attributes.
+    const tile =
+      maximumSegments !== undefined &&
+      Number.isFinite(maximumSegments) &&
+      maximumSegments >= 2 &&
+      maximumSegments < Math.max(raster.width, raster.height)
+        ? buildGridTile(
+            task.id,
+            raster,
+            Math.floor(maximumSegments),
+            task.error
+          )
+        : buildErrorBoundedGridTile(
+            task.id,
+            raster,
+            task.error,
+            task.maximumMeshErrorMeters
+          );
     return {
       kind: task.kind,
       raster,
-      tile: buildErrorBoundedGridTile(
-        task.id,
-        raster,
-        task.error,
-        task.maximumMeshErrorMeters
-      ),
+      tile: {
+        ...tile,
+        timings: {
+          decodeMs: meshStart - decodeStart,
+          meshMs: performance.now() - meshStart,
+        },
+      },
     };
   }
   const geometry = createProjectedTerrainTileGeometry({
@@ -275,6 +316,8 @@ export const terrainResultTransfers = (
           ]),
           ...(result.shells ?? []).flatMap((shell) =>
             [
+              ...(shell.sourceIndices ? [shell.sourceIndices] : []),
+              ...(shell.normalTargets ? [shell.normalTargets] : []),
               shell.positions,
               shell.normals,
               shell.indices,

@@ -1,3 +1,4 @@
+import type { TilesetEntryHint } from "./three-tiles-runtime-types";
 import {
   createTilesetHierarchyPageReader,
   type TilesetDescriptor,
@@ -33,7 +34,10 @@ export class TilesetHierarchyPlugin {
     return { ...this.stats };
   }
 
-  constructor(private readonly rootUrl: string) {}
+  constructor(
+    private readonly rootUrl: string,
+    readonly options: { entry?: TilesetEntryHint } = {}
+  ) {}
 
   private stop(reason: unknown) {
     this.disabled = true;
@@ -131,6 +135,19 @@ export class TilesetHierarchyPlugin {
     if (this.disposed)
       return Promise.reject(new DOMException("Disposed", "AbortError"));
     return this.load(url, options);
+  }
+
+  /**
+   * Warm the hierarchy cache with the files a style names, so the traversal
+   * finds them cached instead of walking the chain one file at a time. The
+   * worker de-duplicates a file that the traversal asks for meanwhile.
+   */
+  prefetch(urls: readonly string[]) {
+    for (const url of urls) {
+      const absolute = new URL(url, this.rootUrl).href;
+      if (absolute === this.rootUrl) continue;
+      void this.request(absolute, {}).catch(() => {});
+    }
   }
 
   private async load(

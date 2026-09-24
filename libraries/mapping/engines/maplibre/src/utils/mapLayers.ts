@@ -68,9 +68,8 @@ export const publishMapLayers = (
   }
 };
 
-export const getMapLayers = (
-  map: MaplibreMap | null
-): readonly LibreLayer[] => (map && entries.get(map)?.layers) ?? EMPTY;
+export const getMapLayers = (map: MaplibreMap | null): readonly LibreLayer[] =>
+  (map && entries.get(map)?.layers) ?? EMPTY;
 
 export const subscribeMapLayers = (map: MaplibreMap, listener: () => void) => {
   const entry = entryOf(map);

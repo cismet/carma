@@ -1,6 +1,6 @@
 import { faCircleInfo } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { Button, Checkbox, Select, theme, Tooltip } from "antd";
+import { Button, Checkbox, Select, theme, Tooltip, Typography } from "antd";
 
 import type { ShadowSimulationState } from "../contracts/shadow-simulation";
 import {
@@ -15,11 +15,14 @@ import {
 import { SHADOW_BUFFER_FORMAT_OPTIONS } from "./shadow-control-utils";
 
 export const ShadowSimulationRenderSettings = ({
+  tiledShadows = false,
   state,
   setState,
 }: {
   state: ShadowSimulationState;
   setState: (state: ShadowSimulationState) => void;
+  /** Offer the tiled buffer; stories only while it matures. */
+  tiledShadows?: boolean;
 }) => {
   const { token } = theme.useToken();
   const quality = resolveShadowRenderQuality(
@@ -46,22 +49,29 @@ export const ShadowSimulationRenderSettings = ({
             />
           </Tooltip>
         </span>
-        <Select
-          aria-label="Schattenpuffer"
-          style={{ width: "100%", minWidth: 0 }}
-          virtual={false}
-          value={quality.shadowBufferLayout}
-          options={[
-            { value: SHADOW_BUFFER_LAYOUT.MONO, label: "Einzelpuffer" },
-            {
-              value: SHADOW_BUFFER_LAYOUT.TILED,
-              label: "Gekachelt (experimentell)",
-            },
-          ]}
-          onChange={(shadowBufferLayout) =>
-            setState({ ...state, shadowBufferLayout })
-          }
-        />
+        {tiledShadows ? (
+          <Select
+            aria-label="Schattenpuffer"
+            style={{ width: "100%", minWidth: 0 }}
+            virtual={false}
+            value={quality.shadowBufferLayout}
+            options={[
+              { value: SHADOW_BUFFER_LAYOUT.MONO, label: "Einzelpuffer" },
+              {
+                value: SHADOW_BUFFER_LAYOUT.TILED,
+                label: "Gekachelt (experimentell)",
+              },
+            ]}
+            onChange={(shadowBufferLayout) =>
+              setState({ ...state, shadowBufferLayout })
+            }
+          />
+        ) : (
+          // One method, so the choice is not a control: name the method in use.
+          <Typography.Text type="secondary" data-test-id="shadow-buffer-method">
+            Einzelpuffer
+          </Typography.Text>
+        )}
       </div>
       <details className="min-w-0" style={{ marginTop: token.marginXS }}>
         <summary

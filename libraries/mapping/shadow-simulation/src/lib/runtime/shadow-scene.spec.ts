@@ -31,11 +31,21 @@ vi.mock("@carma-mapping/engines/maplibre", async () => {
       typeof import("../../../../engines/maplibre/src/lib/core/terrain-map-style")
     >("../../../../engines/maplibre/src/lib/core/terrain-map-style");
   const { meshShadowStageError } = await vi.importActual<
-    typeof import("../../../../engines/maplibre/src/lib/runtime/integrations/three-tiles-load-policy")
+    typeof import("../../../../engines/maplibre/src/lib/core/mesh-error-policy")
+  >("../../../../engines/maplibre/src/lib/core/mesh-error-policy");
+  const {
+    claimStandaloneTerrain,
+    hasStandaloneTerrain,
+    subscribeSharedThreeTerrain,
+  } = await vi.importActual<
+    typeof import("../../../../engines/maplibre/src/lib/runtime/integrations/shared-three-terrain-registry")
   >(
-    "../../../../engines/maplibre/src/lib/runtime/integrations/three-tiles-load-policy"
+    "../../../../engines/maplibre/src/lib/runtime/integrations/shared-three-terrain-registry"
   );
   return {
+    claimStandaloneTerrain,
+    hasStandaloneTerrain,
+    subscribeSharedThreeTerrain,
     meshShadowStageError,
     isTerrainShadingStyleLayer,
     TERRAIN_MAP_STYLE,
@@ -52,6 +62,7 @@ vi.mock("@carma-mapping/engines/maplibre", async () => {
       ].join(",")
     ),
     getSharedThreeSceneRuntimes: vi.fn(() => []),
+    TILES_MESH_ERROR_TARGET_DEFAULT_PIXELS: 6,
     subscribeGenericThreeLayers: vi.fn(() => vi.fn()),
     subscribeSharedThreeSceneContent: vi.fn(() => vi.fn()),
     isSharedThreeTerrainLoading: vi.fn(() => false),
@@ -76,6 +87,7 @@ vi.mock("@carma-mapping/engines/maplibre/terrain", () => ({
 import { buildRasterDemTerrainRuntime } from "@carma-mapping/engines/maplibre/terrain";
 import {
   acquireSharedThreeScene,
+  claimStandaloneTerrain,
   getGenericThreeLayers,
   getSharedThreeSceneRuntimes,
   MAPLIBRE_EVENT,
@@ -104,11 +116,7 @@ import {
   subscribeShadowProjectionDebugSnapshot,
 } from "./shadow-projection-debug-store";
 import { getDaylightWindow, getSolarPosition } from "../core/solar-position";
-import {
-  DEFAULT_MESH_ERROR_TARGET_PIXELS,
-  SHADOW_BUFFER_LAYOUT,
-  SHADOW_QUALITY,
-} from "../core/shadow-types";
+import { SHADOW_BUFFER_LAYOUT, SHADOW_QUALITY } from "../core/shadow-types";
 import { ShadowTiledScene } from "./shadow-tiled-scene";
 
 describe("shadow scene sun direction", () => {
@@ -432,6 +440,104 @@ describe("shadow scene MapLibre terrain", () => {
     expect(map.off).toHaveBeenCalledWith("styledata", expect.any(Function));
     expect(map.off).toHaveBeenCalledWith("terrain", expect.any(Function));
   });
+
+  it("respects standalone mesh ownership through terrain acquisition, handover and disposal", () => {
+    const handlers = new Map<string, Set<() => void>>();
+    const emit = (event: string) => {
+      for (const handler of handlers.get(event) ?? []) handler();
+    };
+    let terrain: { source: string; exaggeration: number } | null = null;
+    let centerElevation = 0;
+    const layers = [
+      { id: "basemap", type: "raster", source: "basemap-source" },
+      { id: "hillshade", type: "hillshade", source: "terrain-source" },
+    ];
+    const paint = new Map<string, unknown>([["basemap:raster-opacity", 0.6]]);
+    const layout = new Map<string, unknown>([
+      ["hillshade:visibility", "visible"],
+    ]);
+    const map = {
+      getTerrain: () => terrain,
+      getSource: (id: string) => ({ id }),
+      setTerrain: vi.fn((next: typeof terrain) => {
+        terrain = next;
+        centerElevation = next ? 150 : 0;
+        emit("terrain");
+      }),
+      getStyle: vi.fn(() => ({ layers })),
+      getLayer: (id: string) => layers.find((layer) => layer.id === id),
+      addLayer: (layer: (typeof layers)[number]) => layers.unshift(layer),
+      removeLayer: (id: string) => {
+        const index = layers.findIndex((layer) => layer.id === id);
+        if (index >= 0) layers.splice(index, 1);
+      },
+      getPaintProperty: (id: string, property: string) =>
+        paint.get(`${id}:${property}`),
+      setPaintProperty: (id: string, property: string, value: unknown) =>
+        paint.set(`${id}:${property}`, value),
+      getLayoutProperty: (id: string, property: string) =>
+        layout.get(`${id}:${property}`),
+      setLayoutProperty: (id: string, property: string, value: unknown) =>
+        layout.set(`${id}:${property}`, value),
+      on: (event: string, handler: () => void) => {
+        const listeners = handlers.get(event) ?? new Set();
+        listeners.add(handler);
+        handlers.set(event, listeners);
+      },
+      off: (event: string, handler: () => void) =>
+        handlers.get(event)?.delete(handler),
+    };
+    const releaseInitialMesh = claimStandaloneTerrain(
+      map as never,
+      "initial-mesh"
+    );
+    const releaseShadow = acquireShadowMapLibreTerrain(
+      map as never,
+      TEST_TERRAIN_SOURCE
+    );
+    emit("styledata");
+    emit("terrain");
+    expect(map.setTerrain).not.toHaveBeenCalled();
+    expect(centerElevation).toBe(0);
+    expect(paint.get("basemap:raster-opacity")).toBe(0.6);
+
+    releaseInitialMesh();
+    expect(terrain).toEqual({ source: "terrain-source", exaggeration: 1 });
+    expect(paint.get("basemap:raster-opacity")).toBe(1);
+    expect(layout.get("hillshade:visibility")).toBe("none");
+    const releaseLateMesh = claimStandaloneTerrain(map as never, "late-mesh");
+    const styleReadCount = map.getStyle.mock.calls.length;
+    const releaseOtherMesh = claimStandaloneTerrain(map as never, "other-mesh");
+    expect(map.getStyle).toHaveBeenCalledTimes(styleReadCount);
+    expect(terrain).toBeNull();
+    expect(centerElevation).toBe(0);
+    expect(paint.get("basemap:raster-opacity")).toBe(0.6);
+    expect(layout.get("hillshade:visibility")).toBe("visible");
+    expect(map.getLayer("carma-shadow-map-style-base")).toBeUndefined();
+    releaseLateMesh();
+    expect(terrain).toBeNull();
+    releaseOtherMesh();
+    expect(terrain).toEqual({ source: "terrain-source", exaggeration: 1 });
+    releaseShadow();
+
+    // A shadow session started with DEM terrain must not restore that snapshot
+    // over a standalone mesh added later, nor reactivate after being disposed.
+    const previousTerrain = { source: "previous-terrain", exaggeration: 0.75 };
+    map.setTerrain(previousTerrain);
+    const releaseNextShadow = acquireShadowMapLibreTerrain(
+      map as never,
+      TEST_TERRAIN_SOURCE
+    );
+    const releaseFinalMesh = claimStandaloneTerrain(map as never, "final-mesh");
+    expect(terrain).toBeNull();
+    releaseNextShadow();
+    expect(terrain).toBeNull();
+    const updateCount = map.setTerrain.mock.calls.length;
+    releaseFinalMesh();
+    emit("styledata");
+    emit("terrain");
+    expect(map.setTerrain).toHaveBeenCalledTimes(updateCount);
+  });
 });
 
 describe("shadow scene lighting integration", () => {
@@ -595,6 +701,7 @@ describe("shadow scene lighting integration", () => {
     vi.stubGlobal("scheduler", { postTask });
     const raster = {
       id: "idle-shadow-terrain",
+      setLiveShadowView: vi.fn(),
       originLngLat: [7.15, 51.256] as [number, number],
       root: new THREE.Group(),
       ready: initialReady
@@ -647,7 +754,12 @@ describe("shadow scene lighting integration", () => {
     vi.mocked(buildRasterDemTerrainRuntime).mockReturnValue(raster);
     sharedLayer.projectLngLatToScene = ([lng, lat], altitude = 0) =>
       new THREE.Vector3(lng * 1_000, altitude, lat * 1_000);
+    let pixelRatio = 3;
     const map = {
+      getPixelRatio: () => pixelRatio,
+      setPixelRatio: vi.fn((ratio: number) => {
+        pixelRatio = ratio;
+      }),
       getCenter: () => ({ lng: 7.15, lat: 51.256 }),
       getCanvas: () => ({ clientWidth: 800, clientHeight: 600 }),
       unproject: ([x, y]: [number, number]) => ({
@@ -682,6 +794,157 @@ describe("shadow scene lighting integration", () => {
     };
     return { controller, raster, map, camera, fire, postTask, tasks };
   };
+
+  it("preserves native pixel ratio with mobile resource limits through startup and disposal", async () => {
+    vi.stubGlobal("navigator", {
+      userAgent: "iPhone",
+      platform: "iPhone",
+      maxTouchPoints: 5,
+    });
+    const f = await createIdleTerrainHost();
+    try {
+      expect(f.map.getPixelRatio()).toBe(3);
+      expect(f.map.setPixelRatio).not.toHaveBeenCalled();
+      expect(
+        vi.mocked(buildRasterDemTerrainRuntime).mock.lastCall?.[3]
+      ).toMatchObject({
+        meshSegments: 128,
+        maximumMeshSegments: 128,
+        maxSelectionTiles: 48,
+        requestConcurrency: 2,
+        maxCachedMeshBytes: 32 * 1024 ** 2,
+        maxCacheBytes: 16 * 1024 ** 2,
+      });
+      expect(accumulationController!.active()).toBe(false);
+      f.controller.updateSoftSunShadows(true);
+      f.controller.updateShadowQuality(SHADOW_QUALITY.ULTRA);
+      f.controller.updateRenderQuality({
+        shadowBufferLayout: "tiled",
+        shadowBufferFormat: "rgba32f",
+        shadowMsaaSamples: "max",
+      });
+      expect(accumulationController!.active()).toBe(false);
+      expect(accumulationController!.options).toMatchObject({
+        format: "rgba8",
+        msaaSamples: 0,
+      });
+      f.controller.updateTerrain({
+        ...TEST_TERRAIN_SOURCE,
+        meshSegments: 512,
+        maxCachedMeshBytes: 1024 ** 3,
+      });
+      expect(
+        vi.mocked(buildRasterDemTerrainRuntime).mock.lastCall?.[3]
+      ).toMatchObject({
+        meshSegments: 128,
+        maximumMeshSegments: 128,
+        maxCachedMeshBytes: 32 * 1024 ** 2,
+      });
+      expect(f.postTask).not.toHaveBeenCalled();
+    } finally {
+      f.controller.dispose();
+      expect(f.map.getPixelRatio()).toBe(3);
+      expect(f.map.setPixelRatio).not.toHaveBeenCalled();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("keeps caster LOD demand in CSS pixels while HiDPI depth buffers remain native", async () => {
+    const f = await createIdleTerrainHost();
+    try {
+      const capture = (dpr: number) => {
+        sharedRuntimes.get("shadow-simulation-controller")!.update!({
+          map: f.map,
+          renderCamera: f.camera,
+          lodCamera: f.camera,
+          lookTarget: new THREE.Vector3(),
+          viewport: new THREE.Vector2(800 * dpr, 600 * dpr),
+          cssViewport: new THREE.Vector2(800, 600),
+          localFrame: localFrameAt(1),
+        });
+        const view = f.raster.setShadowView.mock.lastCall?.[0];
+        expect(view).toBeTruthy();
+        const sizes: number[] = [];
+        scene.traverse((object) => {
+          if (object instanceof THREE.DirectionalLight)
+            sizes.push(object.shadow.mapSize.x * object.shadow.mapSize.y);
+        });
+        return {
+          pixelsPerMeterX:
+            view.shadowMapSize.width / (view.camera.right - view.camera.left),
+          pixelsPerMeterY:
+            view.shadowMapSize.height / (view.camera.top - view.camera.bottom),
+          depthPixels: Math.max(...sizes),
+        };
+      };
+      const baseline = capture(1);
+      for (const dpr of [1.25, 2, 3]) {
+        const hidpi = capture(dpr);
+        expect(hidpi.pixelsPerMeterX).toBeCloseTo(baseline.pixelsPerMeterX, 10);
+        expect(hidpi.pixelsPerMeterY).toBeCloseTo(baseline.pixelsPerMeterY, 10);
+        expect(hidpi.depthPixels).toBeGreaterThan(baseline.depthPixels);
+      }
+      expect(f.map.setPixelRatio).not.toHaveBeenCalled();
+    } finally {
+      f.controller.dispose();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("retains native desktop terrain and soft HDR shadows at 4K after quality changes", async () => {
+    vi.stubGlobal("navigator", {
+      userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+      platform: "MacIntel",
+      maxTouchPoints: 0,
+    });
+    const f = await createIdleTerrainHost();
+    try {
+      expect(f.map.getPixelRatio()).toBe(3);
+      expect(f.map.setPixelRatio).not.toHaveBeenCalled();
+      const terrainOptions = vi.mocked(buildRasterDemTerrainRuntime).mock
+        .lastCall?.[3];
+      expect(terrainOptions?.meshSegments).toBe(512);
+      expect(terrainOptions?.maximumMeshSegments).toBeUndefined();
+      const update4K = () =>
+        sharedRuntimes.get("shadow-simulation-controller")!.update!({
+          map: f.map,
+          renderCamera: f.camera,
+          lodCamera: f.camera,
+          lookTarget: new THREE.Vector3(),
+          viewport: new THREE.Vector2(3840, 2160),
+          localFrame: localFrameAt(1),
+        });
+      update4K();
+      expect(accumulationController!.active()).toBe(true);
+      expect(accumulationController!.rounds).toBe(64);
+      expect(accumulationController!.options?.msaaSamples).toBe(4);
+      f.controller.updateShadowQuality(SHADOW_QUALITY.ULTRA);
+      f.controller.updateRenderQuality({
+        shadowBufferFormat: "rgba32f",
+        shadowSunDiscSamples: 128,
+      });
+      update4K();
+      expect(accumulationController!.active()).toBe(true);
+      expect(accumulationController!.rounds).toBe(128);
+      expect(accumulationController!.options?.format).toBe("rgba32f");
+      f.controller.updateTerrain({
+        ...TEST_TERRAIN_SOURCE,
+        meshSegments: 512,
+        maxCachedMeshBytes: 1024 ** 3,
+      });
+      expect(
+        vi.mocked(buildRasterDemTerrainRuntime).mock.lastCall?.[3]
+      ).toMatchObject({
+        meshSegments: 512,
+        maximumMeshSegments: undefined,
+        maxCachedMeshBytes: 1024 ** 3,
+      });
+    } finally {
+      f.controller.dispose();
+      expect(f.map.setPixelRatio).not.toHaveBeenCalled();
+      vi.unstubAllGlobals();
+    }
+  });
 
   it("defaults to direct hard then sun-disc draws without full-tile capture planning", async () => {
     const f = await createIdleTerrainHost();
@@ -782,7 +1045,9 @@ describe("shadow scene lighting integration", () => {
     // The stop applies the deferred final view instead of waiting for a move.
     f.controller.updateTimeAnimating(false);
     expect(f.raster.setShadowView).toHaveBeenCalledTimes(3);
-    expect(f.raster.setShadowView.mock.lastCall?.[0]?.camera).toBeDefined();
+    expect(f.raster.setShadowView.mock.lastCall?.[0]).toMatchObject(
+      f.raster.setLiveShadowView.mock.lastCall![0]
+    );
     clock.mockRestore();
     f.controller.dispose();
   });
@@ -1207,7 +1472,7 @@ describe("shadow scene lighting integration", () => {
     expect(renderProgressive).toHaveBeenLastCalledWith(camera, {
       ...nativeFrame,
       samples: 64,
-      maxRenderTargetPixels: Infinity,
+      maxRenderTargetPixels: Number.POSITIVE_INFINITY,
       options: { format: "rgba16f-32f", msaaSamples: 0 },
     });
     expect(renderTiled).toHaveBeenCalledTimes(directPasses);
@@ -2204,6 +2469,20 @@ describe("shadow scene lighting integration", () => {
     expect(accumulation.renderScene?.(camera, null)).toBe(false);
     hasRenderableContent.mockReturnValue(true);
     expect(accumulation.active()).toBe(true);
+    controller.updateRenderQuality({
+      shadowBufferLayout: SHADOW_BUFFER_LAYOUT.MONO,
+    });
+    // Published coarse coverage is sufficient; final mesh SSE must not hold
+    // finite-sun refinement behind unrelated outstanding mesh requests.
+    expect(isMainViewReady()).toBe(false);
+    expect(accumulation.active()).toBe(true);
+    expect(accumulation.pending?.()).toBe(false);
+    hasRenderableContent.mockReturnValue(false);
+    expect(accumulation.active()).toBe(false);
+    expect(accumulation.pending?.()).toBe(true);
+    controller.updateRenderQuality({
+      shadowBufferLayout: SHADOW_BUFFER_LAYOUT.TILED,
+    });
     // Later loading/refinement retains the tiled renderer, never preview.
     hasRenderableContent.mockReturnValue(false);
     isMainViewReady.mockReturnValue(false);
@@ -2383,14 +2662,57 @@ describe("shadow scene lighting integration", () => {
     ).toBeUndefined();
   });
 
+  it("updates mesh drape immediately when a provider is added or removed", () => {
+    vi.stubGlobal("window", { setTimeout, clearTimeout });
+    const map = {
+      getCenter: vi.fn(() => ({ lng: 7.15, lat: 51.256 })),
+      getLight: vi.fn(() => ({ anchor: "viewport" })),
+      isStyleLoaded: vi.fn(() => true),
+      setLight: vi.fn(),
+      on: vi.fn(),
+      off: vi.fn(),
+      triggerRepaint: vi.fn(),
+    };
+    const controller = buildShadowSimulationScene(map as never);
+    const lease = vi.mocked(acquireSharedThreeScene).mock.results[0].value;
+    const changed = vi
+      .mocked(subscribeSharedThreeSceneContent)
+      .mock.calls.at(-1)![1];
+    expect(lease.setMeshLabelStyle).toHaveBeenLastCalledWith(false);
+    const mesh = {
+      id: "late-mesh",
+      providesTerrain: true,
+      mapStyleProjectionBlend: "overlay",
+    };
+    try {
+      // Do not advance timers or emit style/idle events: registration owns the
+      // policy transition, even while streamed geometry is still pending.
+      vi.mocked(getSharedThreeSceneRuntimes).mockReturnValue([mesh as never]);
+      changed();
+      expect(lease.setMeshLabelStyle).toHaveBeenLastCalledWith(true);
+      const calls = lease.setMeshLabelStyle.mock.calls.length;
+      changed({ bounds: [] });
+      changed();
+      expect(lease.setMeshLabelStyle).toHaveBeenCalledTimes(calls);
+      vi.mocked(getSharedThreeSceneRuntimes).mockReturnValue([]);
+      changed();
+      expect(lease.setMeshLabelStyle).toHaveBeenLastCalledWith(false);
+    } finally {
+      controller.dispose();
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("restyles registered building tiles only while shadow mode is active", () => {
     const setShadowSimulationStyle = vi.fn();
     const setErrorTarget = vi.fn();
+    const setErrorTargetOverride = vi.fn();
     const setCacheBudget = vi.fn();
     vi.mocked(getSharedThreeSceneRuntimes).mockReturnValue([
       {
         providesTerrain: true,
         setErrorTarget,
+        setErrorTargetOverride,
         setCacheBudget,
         setShadowSimulationStyle,
       } as never,
@@ -2413,12 +2735,12 @@ describe("shadow scene lighting integration", () => {
       textureSaturation: 1,
       textureColorCorrection: true,
     });
-    expect(setErrorTarget).toHaveBeenLastCalledWith(
-      DEFAULT_MESH_ERROR_TARGET_PIXELS
-    );
+    // Auto leaves the tileset on its own target: no override at build time.
+    expect(setErrorTarget).not.toHaveBeenCalled();
+    expect(setErrorTargetOverride).toHaveBeenLastCalledWith(null);
 
     controller.updateMeshErrorTarget(0.25);
-    expect(setErrorTarget).toHaveBeenLastCalledWith(0.25);
+    expect(setErrorTargetOverride).toHaveBeenLastCalledWith(0.25);
     controller.updateMeshCacheBudget(24 * 1024 ** 3);
     expect(setCacheBudget).toHaveBeenLastCalledWith(24 * 1024 ** 3);
     const calls = setCacheBudget.mock.calls.length;

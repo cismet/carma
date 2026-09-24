@@ -1,3 +1,9 @@
+import {
+  usesMobileShadowBaseline,
+  constrainMobileShadowTerrain,
+  constrainMobileShadowRendering,
+  MOBILE_MESH_CACHE_BYTES,
+} from "../core/shadow-device-profile";
 import { MercatorCoordinate, type Map as MaplibreMap } from "maplibre-gl";
 import * as THREE from "three";
 
@@ -17,7 +23,10 @@ import {
   TERRAIN_MAP_STYLE,
   isTerrainShadingStyleLayer,
   isSharedThreeTerrainLoading,
+  hasStandaloneTerrain,
+  subscribeSharedThreeTerrain,
   subscribeSharedThreeTerrainLoading,
+  TILES_MESH_ERROR_TARGET_DEFAULT_PIXELS,
 } from "@carma-mapping/engines/maplibre";
 import { buildRasterDemTerrainRuntime } from "@carma-mapping/engines/maplibre/terrain";
 import type {
@@ -45,9 +54,9 @@ import {
 } from "../core/shadow-receiver-grid";
 import type { ShadowReceiverCell } from "../core/shadow-page-plan";
 import {
-  DEFAULT_MESH_ERROR_TARGET_PIXELS,
   DEFAULT_TERRAIN_ERROR_TARGET_PIXELS,
   DEFAULT_SHADOW_QUALITY,
+  SHADOW_QUALITY,
   DEFAULT_SHADOW_SURFACE_COLOR,
   resolveShadowRenderQuality,
   SHADOW_BUFFER_FORMAT,
@@ -93,6 +102,7 @@ import {
 } from "./maplibre-terrain-quality";
 import {
   resolveShadowResourceLimits,
+  resolveShadowAccumulationPixelBudget,
   resolveShadowDepthTexelBudget,
   getShadowRenderCapabilities,
   resolveSupportedShadowMsaa,
@@ -188,7 +198,7 @@ export type ShadowSimulationScene = {
   updateTerrain: (terrain: ShadowTerrainOptions | undefined) => void;
   updateSolarPosition: (position: SolarPosition) => void;
   updateTerrainColor: (color: string) => void;
-  updateMeshErrorTarget: (errorTarget: MeshErrorTargetPixels) => void;
+  updateMeshErrorTarget: (errorTarget: MeshErrorTargetPixels | null) => void;
   updateMeshCacheBudget: (bytes?: number) => void;
   updateBuildingAppearance: (appearance: ShadowBuildingAppearance) => void;
   updateShadowQuality: (quality: ShadowQualityMultiplier) => void;
@@ -436,6 +446,20 @@ export const acquireShadowMapLibreTerrain = (
     if (disposed || applying) return;
     applying = true;
     try {
+      // A standalone mesh already places its ground on the map plane. Enabling
+      // DEM terrain would raise the camera target above that same ground.
+      // Decision: ../../../../engines/maplibre/TILES_COVERAGE.md#standalone-mesh-shadow-camera-ownership.
+      if (hasStandaloneTerrain(map)) {
+        restoreTerrainFrame();
+        restoreTerrainQuality();
+        restoreTerrainQuality = () => undefined;
+        qualityPatchedTerrain = null;
+        restoreOpaqueDrape();
+        restoreSavedVisibilities(savedTerrainShadingVisibilities);
+        if (terrainMap.getTerrain()) terrainMap.setTerrain(null);
+        lastApplyErrorMessage = null;
+        return;
+      }
       if (!terrainMap.getSource(sourceId) && map.isStyleLoaded()) {
         map.addSource(sourceId, {
           type: "raster-dem",
@@ -487,11 +511,20 @@ export const acquireShadowMapLibreTerrain = (
 
   map.on(MAPLIBRE_EVENT.STYLE_DATA, apply);
   map.on(MAPLIBRE_EVENT.TERRAIN, handleTerrainChange);
+  let standaloneTerrain = hasStandaloneTerrain(map);
+  const unsubscribeTerrainOwnership = subscribeSharedThreeTerrain(map, () => {
+    const nextStandaloneTerrain = hasStandaloneTerrain(map);
+    // This registry also publishes ordinary raster frontier changes.
+    if (nextStandaloneTerrain === standaloneTerrain) return;
+    standaloneTerrain = nextStandaloneTerrain;
+    apply();
+  });
   apply();
 
   const release = () => {
     if (disposed) return;
     disposed = true;
+    unsubscribeTerrainOwnership();
     map.off(MAPLIBRE_EVENT.STYLE_DATA, apply);
     map.off(MAPLIBRE_EVENT.TERRAIN, handleTerrainChange);
     restoreTerrainFrame();
@@ -501,11 +534,12 @@ export const acquireShadowMapLibreTerrain = (
     restoreSavedVisibilities(savedTerrainShadingVisibilities);
     try {
       if (
+        !hasStandaloneTerrain(map) &&
         previousTerrain &&
         terrainMap.getSource(previousTerrain.source) !== undefined
       ) {
         terrainMap.setTerrain(previousTerrain);
-      } else {
+      } else if (terrainMap.getTerrain()) {
         terrainMap.setTerrain(null);
       }
     } catch {
@@ -1014,6 +1048,7 @@ export const buildShadowSimulationScene = (
     mapLibreTerrain,
     terrainQuality = SHADOW_TERRAIN_QUALITY.MAX,
   } = options;
+  const mobileBaseline = usesMobileShadowBaseline();
   let terrain = initialTerrain;
   const initialShadowAreaMeters =
     configuredShadowAreaMeters ?? FALLBACK_SHADOW_AREA_METERS;
@@ -1038,7 +1073,7 @@ export const buildShadowSimulationScene = (
     mapLibreTerrain ?? NRW_DGM1_DHHN2016_TERRARIUM_TERRAIN,
     () => mapStyleContentVisible,
     getMapStyleDrapeMode,
-    terrainQuality
+    mobileBaseline ? SHADOW_TERRAIN_QUALITY.STANDARD : terrainQuality
   );
   const syncMeshLabelStyle = () => {
     sceneLease.setMeshLabelStyle(getMapStyleDrapeMode() === "labels");
@@ -1052,8 +1087,20 @@ export const buildShadowSimulationScene = (
     textureColorCorrection: true,
   };
   let latestShadowIntensity = 1;
-  let latestMeshErrorTarget = DEFAULT_MESH_ERROR_TARGET_PIXELS;
-  let latestMeshCacheBudget: number | undefined;
+  // null (Auto) leaves every tileset on its own target; the UI override sits
+  // on top of it through setErrorTargetOverride.
+  let latestMeshErrorTarget: MeshErrorTargetPixels | null = null;
+  // The target the mesh is actually refining towards: the override, else the
+  // mesh tileset's own (host) target.
+  const meshErrorTargetPixels = () =>
+    latestMeshErrorTarget ??
+    getSharedThreeSceneRuntimes(map)
+      .find((runtime) => runtime.providesTerrain === true)
+      ?.getErrorTarget?.() ??
+    TILES_MESH_ERROR_TARGET_DEFAULT_PIXELS;
+  let latestMeshCacheBudget: number | undefined = mobileBaseline
+    ? MOBILE_MESH_CACHE_BYTES
+    : undefined;
   const meshCacheBudgets = new WeakMap<object, number | undefined>();
   let latestAtmosphericSunlight: AtmosphericSunlightSample | null = null;
   let atmosphericSunlightOptions: AtmosphericSunlightOptions = {
@@ -1180,6 +1227,7 @@ export const buildShadowSimulationScene = (
     const mapCenter = map.getCenter();
     const {
       errorTargetPixels,
+      motionErrorTargetPixels,
       shadowLevelOffset,
       minimumLevel,
       maximumLevel,
@@ -1187,12 +1235,14 @@ export const buildShadowSimulationScene = (
       requestConcurrency,
       maxCacheBytes,
       maxCachedMeshes,
+      maxCachedMeshBytes,
       meshSegments,
+      maximumMeshSegments,
       noDataHeightMeters,
       heightRangeMeters,
       material,
       ...terrainSourceConfig
-    } = terrain;
+    } = constrainMobileShadowTerrain(terrain, mobileBaseline)!;
     return buildRasterDemTerrainRuntime(
       `${SHADOW_SIMULATION_TERRAIN_RUNTIME_ID}-${++terrainRevision}`,
       terrainSourceConfig,
@@ -1200,6 +1250,7 @@ export const buildShadowSimulationScene = (
       {
         errorTargetPixels:
           errorTargetPixels ?? DEFAULT_TERRAIN_ERROR_TARGET_PIXELS,
+        motionErrorTargetPixels,
         shadowLevelOffset,
         minimumLevel,
         maximumLevel,
@@ -1207,7 +1258,9 @@ export const buildShadowSimulationScene = (
         requestConcurrency,
         maxCacheBytes,
         maxCachedMeshes,
+        maxCachedMeshBytes,
         meshSegments: meshSegments ?? terrainSourceConfig.tileSize,
+        maximumMeshSegments,
         noDataHeightMeters,
         heightRangeMeters,
         material,
@@ -1231,10 +1284,15 @@ export const buildShadowSimulationScene = (
     getSharedThreeSceneRuntimes(map).some(
       (runtime) => runtime.providesTerrain === true
     );
-  const meshViewReady = () =>
+  const meshSurfaceReady = () =>
     getSharedThreeSceneRuntimes(map).every(
       (runtime) =>
-        !runtime.providesTerrain || (runtime.isMainViewReady?.() ?? true)
+        !runtime.providesTerrain ||
+        // A committed mesh surface can accumulate while finer families load.
+        // Content epochs invalidate those samples when the surface changes.
+        (runtime.hasRenderableContent?.() ??
+          runtime.isMainViewReady?.() ??
+          true)
     );
   let surfaceProviders = getSharedThreeSceneRuntimes(map).filter(
     (runtime) => runtime.providesTerrain
@@ -1558,10 +1616,11 @@ export const buildShadowSimulationScene = (
   ) => {
     if (!sharedSceneProvidesTerrain()) return undefined;
     const volumes = getActiveTileVolumes();
+    const targetErrorPixels = meshErrorTargetPixels();
     const stageError = bounds
-      ? shadowReceiverStageError(bounds, volumes, latestMeshErrorTarget)
+      ? shadowReceiverStageError(bounds, volumes, targetErrorPixels)
       : Math.max(
-          latestMeshErrorTarget,
+          targetErrorPixels,
           ...volumes
             .filter(({ loadReason }) => loadReason !== "shadow")
             .map(({ errorPixels }) => errorPixels)
@@ -1574,7 +1633,7 @@ export const buildShadowSimulationScene = (
     // only the temporary coarse representation may use up to 25 cm.
     return meshReceiverBiasLimitMeters({
       stageErrorPixels: stageError,
-      targetErrorPixels: latestMeshErrorTarget,
+      targetErrorPixels,
       groundTexelTargetMeters,
       finalBiasMeters: MESH_FINAL_SHADOW_BIAS_METERS,
       maximumCoarseBiasMeters: MESH_COARSE_SHADOW_BIAS_LIMIT_METERS,
@@ -1646,7 +1705,6 @@ export const buildShadowSimulationScene = (
     ].join(";");
   };
   const applyRuntimeShadowView = (view: SharedThreeSceneShadowView | null) => {
-    appliedRuntimeShadowView = view;
     if (timeAnimating) {
       // Every animation tick moves the sun and with it the shadow camera. The
       // terrain and mesh runtimes re-select their caster coverage per view,
@@ -1662,6 +1720,10 @@ export const buildShadowSimulationScene = (
       }
       lastAnimatedRuntimeShadowViewMs = now;
     }
+    // Only a view that was handed out counts as applied: recording a deferred
+    // one made the catch-up at the end of a gesture or an animation compare
+    // equal and skip the view it had just thrown away.
+    appliedRuntimeShadowView = view;
     runtimeShadowViewDeferredByAnimation = false;
     const selectionSignature = getTerrainSelectionSignature(view);
     const receiverCamera = latestFrame?.renderCamera;
@@ -1697,9 +1759,13 @@ export const buildShadowSimulationScene = (
       // while per-tile stages are diagnosed in the scene overlay.
       runtime.setShadowStagePresentationGate?.(false);
       if (!runtime.providesTerrain) {
-        runtime.setErrorTarget?.(
-          terrain?.errorTargetPixels ?? DEFAULT_TERRAIN_ERROR_TARGET_PIXELS
-        );
+        // The shadow terrain follows the terrain LOD; a building tileset keeps
+        // its own target unless the tileset LOD override says otherwise.
+        if (runtime === terrainRuntime)
+          runtime.setErrorTarget?.(
+            terrain?.errorTargetPixels ?? DEFAULT_TERRAIN_ERROR_TARGET_PIXELS
+          );
+        else runtime.setErrorTargetOverride?.(latestMeshErrorTarget);
         runtime.setShadowView?.(view ? { ...view, terrainReceivers } : null);
         continue;
       }
@@ -1712,6 +1778,12 @@ export const buildShadowSimulationScene = (
   };
   const setRuntimeShadowView = (view: SharedThreeSceneShadowView | null) => {
     latestShadowView = view;
+    // Whoever only draws the light gets it as it is fitted, gesture or not.
+    for (const runtime of new Set([
+      ...getSharedThreeSceneRuntimes(map),
+      ...(terrainRuntime ? [terrainRuntime] : []),
+    ]))
+      runtime.setLiveShadowView?.(view);
     if (!mapInMotion) applyRuntimeShadowView(view);
   };
 
@@ -1721,9 +1793,13 @@ export const buildShadowSimulationScene = (
     null;
   let publishedProjectionDebugBase: ShadowProjectionDebugSnapshot | null = null;
   let publishedDebugRenderingKey = "";
-  let softSunShadowsEnabled = true;
+  let softSunShadowsEnabled = !mobileBaseline;
+  if (mobileBaseline) sharedBinding.shadowQuality = SHADOW_QUALITY.FPS_120;
   let renderQuality: ShadowRenderQualityOptions = {};
-  let effectiveRenderQuality = resolveShadowRenderQuality(renderQuality);
+  let effectiveRenderQuality = resolveShadowRenderQuality(
+    constrainMobileShadowRendering(renderQuality, mobileBaseline),
+    sharedBinding.shadowQuality
+  );
   let renderCapabilities: ReturnType<
     typeof getShadowRenderCapabilities
   > | null = null;
@@ -1752,10 +1828,11 @@ export const buildShadowSimulationScene = (
   let fallbackReceiverWorldPoints: THREE.Vector3[] = [];
   let renderCameraSignature = "";
   let lastMotionShadowUpdateMs = Number.NEGATIVE_INFINITY;
-  let shadowFrameBudget = createShadowFrameBudget();
+  let shadowFrameBudget = createShadowFrameBudget(sharedBinding.shadowQuality);
   let maxAccumulationPixels = Number.POSITIVE_INFINITY;
   let nativeAccumulationFits = true;
   let resourceLimits = resolveShadowResourceLimits(4096);
+  sharedBinding.controller.setMaxShadowMapSize(resourceLimits.maxShadowMapSize);
   let latestFrame: SharedThreeSceneFrame | null = null;
   let tiledScene: ShadowTiledScene | null = null;
   let tiledRenderer: THREE.WebGLRenderer | null = null;
@@ -1826,6 +1903,7 @@ export const buildShadowSimulationScene = (
       quantizeViewValue(map.getBearing?.() ?? 0, 0.001),
       quantizeViewValue(map.getPitch?.() ?? 0, 0.001),
       `${frame.viewport.x}x${frame.viewport.y}`,
+      frame.cssViewport?.toArray().join("x"),
     ].join(";");
   };
 
@@ -1952,8 +2030,11 @@ export const buildShadowSimulationScene = (
         sharedBinding.controller.setMaxShadowMapSize(
           resourceLimits.maxShadowMapSize
         );
-        maxAccumulationPixels = resourceLimits.maxAccumulationPixels;
       }
+      maxAccumulationPixels = resolveShadowAccumulationPixelBudget(
+        resourceLimits.maxAccumulationPixels,
+        accumulationOptions
+      );
       // Above the device's existing memory cap, retain direct full-resolution
       // shading instead of blurring the captured map/labels by downsampling.
       nativeAccumulationFits =
@@ -2013,11 +2094,11 @@ export const buildShadowSimulationScene = (
         coverageNeedsCameraReevaluation ||
         nextRenderCameraSignature !== renderCameraSignature
       ) {
-        // Dragging only changes the observer. Corridor geometry, sun direction
-        // and tile-owned shadow textures remain valid, so defer every expensive
-        // fit/query/update to moveend and let the presentation path reproject
-        // the retained pages meanwhile.
-        if (mapInMotion) return;
+        // Dragging only changes the observer, so the expensive queries wait for
+        // moveend: the elevation range keeps its cached value below. The fit
+        // itself follows the camera, otherwise the corridor covers where the
+        // view was when the gesture started. Runtimes still receive their
+        // committed view only at moveend; the live one goes out every frame.
         const nowMs = performance.now();
         lastMotionShadowUpdateMs = nowMs;
         renderCameraSignature = nextRenderCameraSignature;
@@ -2107,6 +2188,21 @@ export const buildShadowSimulationScene = (
           sharedBinding.receiverWorldPoints = [...fullPagePoints];
         }
       }
+      const depthTexelBudget = resolveShadowDepthTexelBudget(
+        resourceLimits.maxShadowMapSize,
+        sharedBinding.shadowQuality,
+        frame.viewport.x * frame.viewport.y,
+        mapInMotion ? shadowFrameBudget.depthScale : 1
+      );
+      const lodViewport = frame.cssViewport ?? frame.viewport;
+      // Decision: engines/maplibre/TILES_COVERAGE.md#css-pixel-error-targets.
+      // Render at native resolution; caster downloads use the CSS-sized budget.
+      const casterMapTexelBudget = resolveShadowDepthTexelBudget(
+        resourceLimits.maxShadowMapSize,
+        sharedBinding.shadowQuality,
+        lodViewport.x * lodViewport.y,
+        mapInMotion ? shadowFrameBudget.depthScale : 1
+      );
       const snapshot = sharedBinding.controller.update({
         maxReceiverBiasMeters: resolveMeshReceiverBiasLimit(),
         receiverWorldPoints: sharedBinding.receiverWorldPoints,
@@ -2118,12 +2214,8 @@ export const buildShadowSimulationScene = (
         intensity: sharedBinding.sunIntensity,
         shadowIntensity: sharedBinding.shadowIntensity,
         quality: sharedBinding.shadowQuality,
-        mapTexelBudget: resolveShadowDepthTexelBudget(
-          resourceLimits.maxShadowMapSize,
-          sharedBinding.shadowQuality,
-          frame.viewport.x * frame.viewport.y,
-          mapInMotion ? shadowFrameBudget.depthScale : 1
-        ),
+        mapTexelBudget: depthTexelBudget,
+        casterMapTexelBudget,
         groundTexelFit: effectiveRenderQuality.shadowGroundTexelFit,
         stabilizeMapSize: mapInMotion,
       });
@@ -2147,8 +2239,12 @@ export const buildShadowSimulationScene = (
           ? SUN_ANGULAR_RADIUS_RAD
           : 0,
         shadowMapSize: {
-          width: primary.shadowMapWidth,
-          height: primary.shadowMapHeight,
+          width:
+            (primary.rightMeters - primary.leftMeters) /
+            snapshot.casterMetersPerTexel[0],
+          height:
+            (primary.topMeters - primary.bottomMeters) /
+            snapshot.casterMetersPerTexel[1],
         },
       });
       // The common hard draw also runs in tiled mode. Keep its depth target
@@ -2273,7 +2369,7 @@ export const buildShadowSimulationScene = (
             bounds,
             getActiveTileVolumes(),
             sharedSceneProvidesTerrain()
-              ? latestMeshErrorTarget
+              ? meshErrorTargetPixels()
               : terrain?.errorTargetPixels ??
                   DEFAULT_TERRAIN_ERROR_TARGET_PIXELS
           );
@@ -2403,6 +2499,11 @@ export const buildShadowSimulationScene = (
     // Mono and tiled soft-sun paths share this post-composition hook. Point
     // lighting has no convergence event and deliberately schedules no prefetch.
     onSettled: idleTerrainPrefetch.onSettled,
+    onPresented: () => {
+      const now = performance.now();
+      for (const runtime of getSharedThreeSceneRuntimes(map))
+        runtime.onShadowPresented?.(now);
+    },
     get options() {
       return accumulationOptions;
     },
@@ -2420,7 +2521,7 @@ export const buildShadowSimulationScene = (
       !timeAnimating &&
       (!initialTerrainStageReady ||
         shouldUseBootstrapPreview() ||
-        (!isTiledBufferEnabled() && !meshViewReady()) ||
+        (!isTiledBufferEnabled() && !meshSurfaceReady()) ||
         (!isTiledBufferEnabled() && isSharedThreeTerrainLoading(map)) ||
         mapInMotion ||
         (!isTiledBufferEnabled() && contentChangeTimer !== 0)),
@@ -2429,7 +2530,7 @@ export const buildShadowSimulationScene = (
       softSunShadowsEnabled &&
       initialTerrainStageReady &&
       !shouldUseBootstrapPreview() &&
-      (isTiledBufferEnabled() || meshViewReady()) &&
+      (isTiledBufferEnabled() || meshSurfaceReady()) &&
       (isTiledBufferEnabled() || !isSharedThreeTerrainLoading(map)) &&
       !mapInMotion &&
       !timeAnimating &&
@@ -2675,9 +2776,10 @@ export const buildShadowSimulationScene = (
     idleTerrainPrefetch.cancel();
     syncTerrainRuntime();
     releaseMapLibreTerrain.refresh();
+    syncMeshLabelStyle();
     for (const runtime of getSharedThreeSceneRuntimes(map)) {
       if (runtime.providesTerrain) {
-        runtime.setErrorTarget?.(latestMeshErrorTarget);
+        runtime.setErrorTargetOverride?.(latestMeshErrorTarget);
         if (
           !meshCacheBudgets.has(runtime) ||
           meshCacheBudgets.get(runtime) !== latestMeshCacheBudget
@@ -2719,6 +2821,22 @@ export const buildShadowSimulationScene = (
   ) => {
     if (disposed) return;
     const changedBounds = change?.bounds;
+    if (change === undefined) {
+      const providers = getSharedThreeSceneRuntimes(map).filter(
+        (runtime) => runtime.providesTerrain
+      );
+      if (
+        providers.length !== surfaceProviders.length ||
+        providers.some((runtime) => !surfaceProviders.includes(runtime))
+      ) {
+        // Runtime membership changes surface ownership immediately. Keeping the
+        // startup drape override until reload paints the basemap over a late mesh.
+        // Geometry arrivals still use the bounded content-refresh cadence below.
+        syncTerrainRuntime();
+        releaseMapLibreTerrain.refresh();
+        syncMeshLabelStyle();
+      }
+    }
     // Native runtimes already know the exact published GLTF subtree. Apply
     // receiver-plane PCF there synchronously so its first shaded frame does not
     // use the acne-prone stock comparison. This replaces the old full-scene
@@ -2838,11 +2956,26 @@ export const buildShadowSimulationScene = (
   return {
     updateSolarPosition,
     updateMeshCacheBudget(bytes) {
+      if (mobileBaseline)
+        bytes = Math.min(
+          bytes ?? MOBILE_MESH_CACHE_BYTES,
+          MOBILE_MESH_CACHE_BYTES
+        );
       const next =
         bytes !== undefined && Number.isFinite(bytes) && bytes > 0
           ? bytes
           : undefined;
-      if (latestMeshCacheBudget === next) return;
+      if (
+        latestMeshCacheBudget === next &&
+        getSharedThreeSceneRuntimes(map)
+          .filter((runtime) => runtime.providesTerrain)
+          .every(
+            (runtime) =>
+              meshCacheBudgets.has(runtime) &&
+              meshCacheBudgets.get(runtime) === next
+          )
+      )
+        return;
       latestMeshCacheBudget = next;
       for (const runtime of getSharedThreeSceneRuntimes(map)) {
         if (!runtime.providesTerrain) continue;
@@ -2886,7 +3019,7 @@ export const buildShadowSimulationScene = (
       if (latestMeshErrorTarget === errorTarget) return;
       latestMeshErrorTarget = errorTarget;
       for (const runtime of getSharedThreeSceneRuntimes(map)) {
-        if (runtime.providesTerrain) runtime.setErrorTarget?.(errorTarget);
+        runtime.setErrorTargetOverride?.(errorTarget);
       }
       map.triggerRepaint();
     },
@@ -2921,11 +3054,12 @@ export const buildShadowSimulationScene = (
       map.triggerRepaint();
     },
     updateShadowQuality(quality) {
+      if (mobileBaseline) quality = SHADOW_QUALITY.FPS_120;
       if (sharedBinding.shadowQuality === quality) return;
       invalidateShadowPresentation();
       sharedBinding.shadowQuality = quality;
       effectiveRenderQuality = resolveShadowRenderQuality(
-        renderQuality,
+        constrainMobileShadowRendering(renderQuality, mobileBaseline),
         quality
       );
       accumulationOptions = getAccumulationOptions();
@@ -2935,6 +3069,7 @@ export const buildShadowSimulationScene = (
       sharedBinding.controller.invalidate();
     },
     updateRenderQuality(options) {
+      options = constrainMobileShadowRendering(options, mobileBaseline);
       const previous = effectiveRenderQuality;
       const next = resolveShadowRenderQuality(
         options,
@@ -2980,6 +3115,7 @@ export const buildShadowSimulationScene = (
       map.triggerRepaint();
     },
     updateSoftSunShadows(enabled) {
+      enabled = enabled && !mobileBaseline;
       if (softSunShadowsEnabled === enabled) return;
       invalidateShadowPresentation();
       softSunShadowsEnabled = enabled;
@@ -2998,7 +3134,7 @@ export const buildShadowSimulationScene = (
         flushMapLibreLightSample();
         lastAnimatedRuntimeShadowViewMs = Number.NEGATIVE_INFINITY;
         if (runtimeShadowViewDeferredByAnimation && !mapInMotion) {
-          applyRuntimeShadowView(appliedRuntimeShadowView);
+          applyRuntimeShadowView(latestShadowView);
         }
         sharedBinding.dirty = true;
       }
@@ -3119,6 +3255,7 @@ export const buildShadowSimulationScene = (
       applyRuntimeShadowView(null);
       for (const runtime of getSharedThreeSceneRuntimes(map)) {
         runtime.setShadowSimulationStyle?.(null);
+        runtime.setErrorTargetOverride?.(null);
       }
       for (const bridge of genericBridges.values()) {
         if (sceneLease.layer.hasRuntime(bridge.runtime.id)) {
@@ -3145,7 +3282,9 @@ export const buildShadowSimulationScene = (
       sceneLease.layer.setAccumulationController?.(null);
       sceneLease.release();
       try {
-        if (map.isStyleLoaded()) map.setLight(previousLight);
+        if (map.isStyleLoaded()) {
+          map.setLight(previousLight);
+        }
       } catch {
         // Nothing remains to restore after map teardown.
       }

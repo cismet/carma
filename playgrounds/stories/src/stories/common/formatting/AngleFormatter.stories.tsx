@@ -237,7 +237,8 @@ const FormatterPreview = ({
 };
 
 const meta: Meta<AngleFormatterStoryProps> = {
-  title: "Common/Formatter",
+  title: "UI/Formatting",
+  id: "common-formatter",
   component: FormatterPreview,
   parameters: {
     layout: "fullscreen",

@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   getTileShadowRole,
   setTileShadowRole,
+  setTileDepthUnderlay,
   setTileShadowMaterialReceiver,
 } from "./three-tiles-shadow-role";
 
@@ -68,5 +69,18 @@ describe("mesh shadow roles", () => {
     setTileShadowRole(mesh, { receiver: true, caster: true });
     expect(mesh.material.colorWrite).toBe(true);
     expect(mesh.material.depthWrite).toBe(false);
+  });
+  it("restores a former underlay without making a caster-only parent write display depth", () => {
+    const mesh = new Mesh();
+    setTileShadowRole(mesh, { receiver: true, caster: true });
+    setTileDepthUnderlay(mesh, true);
+    expect(mesh.material.depthWrite).toBe(false);
+    setTileShadowRole(mesh, { receiver: false, caster: true });
+    setTileDepthUnderlay(mesh, false);
+    expect(mesh.material.depthWrite).toBe(false);
+    expect(mesh.material.colorWrite).toBe(false);
+    setTileShadowRole(mesh, { receiver: true, caster: true });
+    expect(mesh.material.depthWrite).toBe(true);
+    expect(mesh.material.colorWrite).toBe(true);
   });
 });

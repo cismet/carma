@@ -26,7 +26,7 @@ import {
 
 const meta = {
   id: "multimodale-strasseninspektion",
-  title: "Multimodale Straßeninspektion (WIP)",
+  title: "Applications/Multimodale Straßeninspektion",
   component: Capture026CollocatedScene,
   parameters: {
     controls: { sort: "none" },
@@ -402,5 +402,5 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const GeoradarUndOrientierteBilder: Story = {
-  name: "Georadar, Mesh und orientierte Bilder",
+  name: "Multimodale Straßeninspektion · WIP",
 };

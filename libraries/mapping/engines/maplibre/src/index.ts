@@ -251,6 +251,45 @@ export {
 export type { ThreeLayerManagerProps } from "./components/ThreeLayerManager";
 
 export { buildSharedThreeSceneLayer } from "./lib/runtime/integrations/shared-three-scene-layer";
+export {
+  createCameraFlightPlayer,
+  createCameraLensClip,
+  type CameraFlightPath,
+} from "./lib/core/camera-flight-path";
+export { sampleCameraPathGroundHeights } from "./lib/runtime/integrations/camera-flight-terrain";
+export {
+  createCylinderCameraRig,
+  createSpineCameraRig,
+  sampleSpine,
+  type CameraRigView,
+} from "./lib/core/multi-camera-rig";
+export { createSharedSceneCameraStrip } from "./lib/runtime/integrations/shared-scene-camera-strip";
+export {
+  createSharedScenePointLights,
+  sampleOrbitLightPosition,
+} from "./lib/runtime/integrations/shared-scene-point-lights";
+export {
+  observeMapVectorPoints,
+  type MapVectorPoint,
+} from "./lib/runtime/integrations/map-vector-point-source";
+export { createSharedSceneNightLightAtlas } from "./lib/runtime/integrations/shared-scene-night-light-atlas";
+export { createSharedSceneNightTraffic } from "./lib/runtime/integrations/shared-scene-night-traffic";
+export {
+  NIGHT_TRAFFIC_KIND,
+  type NightTrafficRoute,
+} from "./lib/core/night-traffic";
+export type { NightLightAtlasInput } from "./lib/core/night-light-atlas";
+export { buildRasterDemTerrainRuntime } from "./lib/runtime/integrations/raster-dem-terrain-runtime";
+export {
+  TILE_CAMERA_ROLE,
+  TILE_CAMERA_PRIORITY,
+  createTileCameraDemand,
+  snapshotTileCameraViews,
+} from "./lib/core/tile-camera-demand";
+export type {
+  TileCameraView,
+  TileCameraSnapshot,
+} from "./lib/core/tile-camera-demand";
 export { getSharedThreeShadowViewSignature } from "./lib/core/shared-three-shadow-view";
 export type {
   SharedThreeSceneFrame,
@@ -265,6 +304,7 @@ export {
   type SharedThreeSceneCameraPreview,
 } from "./lib/runtime/integrations/shared-three-scene-camera-preview";
 export { acquireSharedThreeScene } from "./lib/runtime/integrations/shared-three-scene-registry";
+export { createMapViewSyncGroup } from "./lib/runtime/integrations/map-view-sync";
 export {
   TERRAIN_MAP_STYLE,
   isTerrainShadingStyleLayer,
@@ -288,7 +328,7 @@ export {
   unregisterGenericThreeLayer,
 } from "./lib/runtime/integrations/generic-three-layer-registry";
 export type { ThreeTilesLayer } from "./lib/runtime/integrations/three-tiles-layer";
-export { meshShadowStageError } from "./lib/runtime/integrations/three-tiles-load-policy";
+export { meshShadowStageError } from "./lib/core/mesh-error-policy";
 export {
   THREE_TILES_LAYER_TYPE,
   THREE_TILES_SHADER_KIND,
@@ -296,8 +336,11 @@ export {
 export { buildThreeTilesRuntime } from "./lib/runtime/integrations/three-tiles-runtime";
 export {
   TILES_ERROR_TARGET_DEFAULT_PIXELS,
+  TILES_MESH_ERROR_TARGET_DEFAULT_PIXELS,
   TILES_ERROR_TARGET_MAX_PIXELS,
   TILES_ERROR_TARGET_MIN_PIXELS,
+  TILES3D_STYLE_VERSION,
+  TILESET_MIN_RESOLUTION_DEFAULT_PX,
 } from "./lib/runtime/integrations/three-tiles-runtime-config";
 export type {
   ImageProjector,
@@ -306,6 +349,9 @@ export type {
 export {
   isSharedThreeTerrainLoading,
   subscribeSharedThreeTerrainLoading,
+  claimStandaloneTerrain,
+  hasStandaloneTerrain,
+  subscribeSharedThreeTerrain,
 } from "./lib/runtime/integrations/shared-three-terrain-registry";
 export {
   acquireMapLibreTerrainMeshComposition,
@@ -319,3 +365,31 @@ export {
 
 // Clicks an addon answers before the engine does
 export { claimClick, isClickClaimed } from "./utils/clickClaims";
+export { estimateTileTargetSteps } from "./lib/runtime/integrations/three-tiles-runtime-coverage";
+export {
+  loadTileDiagnostics,
+  type TileDiagnostics,
+} from "./lib/runtime/diagnostics/load-tile-diagnostics";
+export type {
+  QueueRow as TileDiagnosticQueueRow,
+  CoverageSummary as TileDiagnosticSummary,
+} from "./lib/runtime/diagnostics/tile-diagnostic-metrics";
+export { TILE_STEPS as TILE_DIAGNOSTIC_STEPS } from "./lib/core/diagnostics/tile-diagnostic-model";
+export type {
+  Kind as TileDiagnosticKind,
+  OverlayRect as TileDiagnosticRect,
+  OverlayModel as TileDiagnosticModel,
+} from "./lib/core/diagnostics/tile-diagnostic-model";
+export { formatTileResidentBytes } from "./lib/core/diagnostics/tile-diagnostic-scene";
+export type { DiagnosticView as TileDiagnosticView } from "./lib/core/diagnostics/tile-diagnostic-scene";
+export type { TileDiagnosticOverlayInput } from "./lib/runtime/diagnostics/tile-diagnostic-overlay";
+export type {
+  RuntimeTile as DiagnosticRuntimeTile,
+  TilesRuntimeDebugState,
+} from "./lib/runtime/diagnostics/tile-diagnostic-state";
+export {
+  getTiles3dRuntimeHandles,
+  registerTiles3dRuntimeHandle,
+  subscribeTiles3dRuntimeHandles,
+  unregisterTiles3dRuntimeHandle,
+} from "./lib/runtime/integrations/tiles3d-runtime-handles";

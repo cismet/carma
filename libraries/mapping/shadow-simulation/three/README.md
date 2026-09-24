@@ -1,10 +1,13 @@
 # Standalone Three.js shadow reference
 
-Story: **Mapping / Shadows / Sun Disc** in `playgrounds/stories`.
+Stories: top-level **Shadows / Sun Disc** and **Shadows / Corridors** in
+`playgrounds/stories`. Entry: `?path=/story/shadows-sun-disc--reference`.
 
-The additional **Tiled Corridors** story exercises the shared world-fixed page
-renderer, with extruded LOD digits, optional columns and a camera tour. See
-[implementation, measurements and rollout limits](./TILED_SHADOW_PAGES.md).
+**Corridors** mounts the addon's `ShadowTiledScene` directly, with resident fixture
+geometry, extruded LOD digits, optional columns and an opt-in camera tour.
+It no longer bypasses receiver publication through the old observer atlas.
+See [current story validation and defaults](./STORY_VALIDATION.md) and
+[historical tiled implementation/rollout limits](./TILED_SHADOW_PAGES.md).
 
 The renderer-only entry exports the production `ShadowController` and a small
 DOM host for reference fixtures. The host uses the same `buildSharedSceneAccumulator`
@@ -24,9 +27,9 @@ must remain a separate light contribution.
 The default keeps scene samples in linear FP16 and their progressive average in
 FP32. Repeated FP16 or 8-bit averages can accumulate rounding error as sample
 count grows. AgX, output encoding and static dithering happen only at display.
-The three automatic sun-sampling qualities use 128 / 256 / 512 directions;
+The current addon profiles use `DEFAULT_SHADOW_SUN_DISC_SAMPLES` (64 directions);
 increasing depth-map resolution alone cannot remove angular-sampling bands.
-Geoportal additionally offers an 8192-sample Ultra preset; see
+Higher counts up to 8192 remain explicit reference options; see
 [whole-scene quality policy and measurements](../QUALITY_PROFILES.md).
 
 ## Controls
@@ -43,10 +46,13 @@ target within the same texel budget; the status reports actual dimensions,
 ground texels and residual anisotropy when hardware or fidelity limits prevent
 isotropy. The conservative offscreen-caster guard is retained.
 
-Single-channel R8 / R16F / R32F and hybrid R16F→R32F in the story render **solar
+Retained library experiments with R8 / R16F / R32F and hybrid R16F→R32F render **solar
 visibility**, using Three's own shadow query chunks. They are not a monochrome
 replacement for Geoportal's RGB/material/atmosphere compositor. Their reference
 comparison measures visibility, while RGB comparisons measure linear radiance.
+They are deliberately absent from these addon-parity stories, together with
+cached RGB and scalar-only banding controls. The Float32 precision story replaces
+the previous Cached Lighting story; the experimental implementation is preserved.
 
 ## Benchmark interpretation
 
@@ -73,7 +79,8 @@ based only on `navigator.gpu` presence.
 
 ## Cached RGB plus scalar visibility experiment
 
-Story **Cached Lighting** opts into an R buffer with `cachedLighting`. Two
+The retained (not currently exposed as a story) experiment opts into an R buffer
+with `cachedLighting`. Two
 central-sun RGB targets store the unshadowed and indirect-only scene. The shared
 accumulator then combines their linear colors as
 `indirect + meanVisibility * (unshadowed - indirect)` before tone mapping.
@@ -83,7 +90,7 @@ lighting changes, not once per sun sample. Point-sun previews use full RGB.
 Its benchmark interleaves this real method with full RGB sun integration and
 includes the two cache captures plus final composition in each measurement.
 Image error is measured against the full RGB integral, not merely an R32F mask.
-This is currently **story-only, opaque-scene and approximate**: normal/light
+This is currently **experimental, opaque-scene and approximate**: normal/light
 angle, specular response, normal maps and transmitted light need not be static
 across solar directions. A zero mask-buffer error would not validate this model.
 
@@ -140,10 +147,59 @@ The 4096-sample cached RGB result also retains a measured speed advantage:
 2.879 vs 6.173 seconds summed GPU work, median of five interleaved runs,
 including cache capture and final composition. Queries bracket 16-round
 batches for high-count tests, four for <=512. These are not frame times.
-Detail stories default to 4096; Geoportal offers 1024–8192 as explicit slow
-reference options without increasing its automatic 128/256/512 defaults.
+Those historical precision measurements are not current preview defaults.
+Detail stories now use 128 directions and the ordinary reference uses 64;
+1024–8192 remain explicit slow reference options, not automatic preview quality.
 
 Hammersley/concentric and stratified/concentric disc alternatives did not beat
 the existing Vogel sequence over 32 edge orientations at 512/2048 samples.
-They remain reproducible diagnostic scripts in the worktree's `output/`, not
+They remain reproducible diagnostic scripts in the worktree's *unpublished validation artifact*, not
 alternate production samplers. No edge-only classifier is inferred from this.
+
+## Mobile shadow baseline
+
+**ID / date / status:** MOBILE-SHADOW-BASELINE / 2026-09-20, amended 2026-09-22 / implemented; physical-device acceptance pending.
+
+**Context and constraints:** a reported iPhone 16e crash exposed that device-specific shadow texture limits did not bound terrain geometry, in-flight requests or full-resolution map captures. A Chromium iPhone-class emulation (390×844 CSS pixels, DPR 3, iPhone UA, 4× CPU throttle) with raster terrain and shadows, without Mesh2024, reached approximately 2.37 GB reported JS heap and 661 MB live buffer allocations. Instrumented texture/renderbuffer allocations were approximately 510 MB. These are one diagnostic run, not iOS memory limits or total process/GPU residency; the instrumentation excludes driver overhead, mipmaps, WebGL1 and implicit multisample attachments.
+
+**Decision:** classify phones from iPhone/iPod/Android-Mobile UA or UA-CH mobile, and tablets from iPad/Android or touch-capable MacIntel (iPad desktop UA). Never infer a phone from a narrow desktop window. Mobile shadow scenes use direct shadows, mono SDR with no MSAA/soft-sun accumulation, a 1024-pixel phone / 2048-pixel tablet depth-map ceiling, and the native map pixel ratio. Shadow startup, quality changes and disposal must not change MapLibre DPR; the former 1.5 cap and restoration were removed on 2026-09-22 at the user's request. Limit terrain to 128 segments, 48 selected tiles, 64 cached meshes, 32 MiB cached geometry, 16 MiB decoded raster cache and two requests. Retain the existing quadtree/parent coverage and Terrarium source; lower terrain detail is intentional in this baseline. The source's stricter configured ceilings remain respected. Mesh residency requests are capped at 96 MiB. Visible/pinned tiles and external engine allocations mean these cache ceilings are not a guarantee on total memory.
+
+**Alternatives:** checking only maximum texture size was insufficient; identifying an exact iPhone model or probing free VRAM is not reliable browser capability detection. Disabling all shadows would remove the requested feature. Preserve desktop settings and prevent persisted mobile HDR/tiled/soft-sun preferences from bypassing admission.
+
+**Evidence:** the original 2026-09-20 static build, including the former 1.5 DPR cap, observed approximately 186 MB JS heap and 26 MB live geometry buffers in a fresh context with the same emulated view; texture/renderbuffer allocations remained substantial (about 461 MB at the first sample). Toggle and 09:00/15:00 changes showed no context loss. These are diagnostic observations, not a controlled repeated performance benchmark. The real worker test verifies 16,641 versus 264,196 height attributes while preserving the default native path. 191 focused tests passed. Focused tests cover phone/tablet/touch-desktop classification, constrained startup and terrain replacement, preservation of native pixel ratio through startup and disposal, persisted expensive render preferences, and existing desktop rendering. Static preview and emulated visual/memory checks are recorded in the local benchmark evidence. A simulator cannot establish the real phone's process-kill threshold; no physical-device crash-free claim is made. The older memory measurements do not validate the native-DPR amendment; mobile memory/stability acceptance needs a fresh run. The amended shadow lifecycle suite passes 57 tests, including unchanged desktop HQ and native mobile DPR.
+
+**Revisit when:** on-device traces identify another allocation owner, or a measured safe working set supports better mobile quality. Keep per-allocation limits separate from true device-memory measurements.
+
+
+## Desktop quality isolation
+
+**ID / date / status:** DESKTOP-SHADOW-HQ / 2026-09-21 / implemented; focused runtime regression verified.
+
+**Context and constraints:** The mobile work included a global 4-million-pixel
+accumulation ceiling and a 256 MiB format/MSAA-aware budget. With HDR and 4x MSAA,
+that admitted only 1,597,830 pixels, silently disabling soft accumulation on
+ordinary HiDPI desktop viewports. Desktop quality must preserve the pre-mobile
+rendering contract; mobile admission must remain bounded.
+
+**Decision:** Restore the desktop accumulation pixel budget to unbounded and
+skip the mobile byte ceiling for that budget. Keep the existing 4096 desktop
+shadow-depth cap, actual hardware limits and allocation-failure handling. Desktop
+DPR, native terrain geometry, 64-sample default soft sun and explicit HDR/MSAA/
+sample choices remain unchanged. Phone/tablet limits and forced direct shadows
+remain in place. The device classifier does not use window width; Windows touch
+laptops remain desktops, while iPadOS desktop-style UA is recognized separately.
+
+**Alternatives:** A global byte budget with a direct-shadow fallback fails the
+desktop HQ contract. Downsampling the entire scene would also soften map labels
+and is not introduced. This change restores the previous desktop allocation
+policy; it does not detect free VRAM or establish a universal memory guarantee.
+
+**Evidence:** New 4K/HDR controller and resource-budget regressions fail before
+the correction. Afterwards all 84 tests in device-profile, initial-state,
+resource-limits and shadow-scene suites pass. They exercise desktop startup and
+quality/terrain updates, native pixel ratio, narrow Mac/Windows/Linux clients,
+and unchanged mobile limits. These are policy/runtime-fixture checks, not a
+physical 4K GPU benchmark.
+
+**Revisit when:** A device-specific desktop capability or explicit quality policy
+can reduce allocations without silently replacing requested soft shadows.

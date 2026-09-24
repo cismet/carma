@@ -48,8 +48,11 @@ export const TiledShadowDemo = (options: TiledShadowDemoOptions) => {
         {error ??
           (status &&
             `${status.phase} · ${status.width}×${status.height} physical pixels\n` +
-              `${status.stats.pages} receiver pages · ${status.completedSamples}/${options.samples} samples · ` +
-              `${status.stats.limitedPages} hardware-limited pages\n` +
+              `${status.completedPages}/${status.totalPages} published receiver pages · ${status.completedSamples}/${options.samples} minimum samples · ` +
+              `${status.stats.limitedPages} resolution-capped pages\n` +
+              `Soft ready: ${status.ready ? "yes" : "no"} · ${(
+                status.elapsedMilliseconds / 1000
+              ).toFixed(2)} s from current scene revision\n` +
               `Depth renders ${status.stats.depthRenders} · cache hits ${status.stats.hits} · misses ${status.stats.misses}\n` +
               `Retained ${(status.stats.cacheBytes / 1024 ** 2).toFixed(
                 1
@@ -60,14 +63,6 @@ export const TiledShadowDemo = (options: TiledShadowDemoOptions) => {
               `Page buffers: ${[...new Set(status.stats.dimensions)].join(
                 ", "
               )} · LOD ${status.levels.join(", ")} (0 = maximum axis size)`)}
-        {status?.benchmark
-          ?.map(
-            (entry) =>
-              `\n${entry.case}: ${entry.medianMilliseconds.toFixed(1)} ms (${
-                entry.timing
-              }, median of 5)`
-          )
-          .join("")}
       </output>
     </div>
   );

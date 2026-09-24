@@ -1,0 +1,97 @@
+.tile-debug-panel {
+  pointer-events: auto;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  color: #334155;
+  background: rgb(248 250 252 / 94%);
+  font: 12px/1.5 system-ui, sans-serif;
+  border-radius: 4px;
+}
+
+.tile-debug-panel header {
+  border-radius: 4px 4px 0 0;
+}
+
+.tile-debug-window-controls button {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  color: #64748b;
+  border: 0;
+  box-shadow: none;
+}
+
+.tile-debug-window-controls svg {
+  width: 12px;
+  height: 12px;
+}
+
+.tile-debug-window-controls .tile-debug-header-toggle {
+  width: auto;
+  padding-inline: 8px;
+  margin-inline-end: 6px;
+  font-size: 12px;
+}
+
+.tile-debug-window-controls button[aria-pressed="true"] {
+  color: #1c6095;
+  background: #dcecf9;
+}
+
+.tile-debug-form {
+  display: grid;
+  gap: 14px;
+  width: 304px;
+  max-width: 100%;
+  padding: 12px;
+  box-sizing: border-box;
+}
+
+.tile-debug-panel .ant-radio-wrapper {
+  margin-inline-end: 12px;
+  color: inherit;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.tile-debug-panel .ant-slider {
+  margin-block: 8px;
+}
+
+.tile-debug-panel details {
+  border-top: 1px solid rgb(100 116 139 / 18%);
+  padding-top: 8px;
+}
+
+.tile-debug-panel summary {
+  color: #475569;
+  line-height: 24px;
+}
+
+.tile-debug-panel details > div {
+  display: grid;
+  gap: 12px;
+  padding-top: 8px;
+}
+
+.tile-debug-panel table {
+  font-variant-numeric: tabular-nums;
+}
+
+.tile-debug-panel th,
+.tile-debug-panel td {
+  padding: 3px 6px;
+  white-space: nowrap;
+}
+
+.tile-debug-panel th {
+  font-weight: 600;
+  border-bottom: 1px solid rgb(100 116 139 / 20%);
+}
+
+.tile-debug-legend {
+  width: max-content;
+}
+
+.tile-debug-legend[open] {
+  width: 252px;
+}
