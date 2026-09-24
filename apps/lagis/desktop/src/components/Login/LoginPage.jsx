@@ -103,8 +103,8 @@ const LoginPage = () => {
                   cismet GmbH
                 </a>{" "}
                 auf Basis von{" "}
-                <a href="http://leafletjs.com/" target="_cismet">
-                  Leaflet
+                <a href="https://maplibre.org/" target="_cismet">
+                  MapLibre
                 </a>{" "}
                 und{" "}
                 <a href="https://github.com/cismet/carma" target="_cismet">

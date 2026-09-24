@@ -1,6 +1,6 @@
 import bbox from "@turf/bbox";
 import proj4 from "proj4";
-import L from "leaflet";
+import maplibregl from "maplibre-gl";
 import ColorHash from "color-hash";
 import getArea from "@turf/area";
 import { reproject } from "reproject";
@@ -26,12 +26,15 @@ export const projectionData = {
   },
 };
 
-export const fitFeatureArray = (featureArray, mapRef) => {
+export const fitFeatureArray = (featureArray, map) => {
   const bounds = getBoundsForFeatureArray(featureArray);
+  if (!bounds) {
+    return;
+  }
 
   //ugly winning to avoid some race condition
   setTimeout(() => {
-    mapRef.current.leafletMap.leafletElement.fitBounds(bounds);
+    map?.fitBounds(bounds, { animate: false });
   }, 1000);
 };
 
@@ -45,23 +48,30 @@ export const getBoundsForFeatureArray = (featureArray) => {
 };
 
 export const getBoundsForFeatureCollection = (featureCollection) => {
-  // Get bbox in EPSG:3857 from Turf.js
-  const boundingBox3857 = bbox(featureCollection);
+  if (!featureCollection?.features?.length) {
+    return undefined;
+  }
 
-  // Convert the bounding box from EPSG:3857 to EPSG:4326
+  // Get bbox in EPSG:25832 from Turf.js
+  const boundingBox25832 = bbox(featureCollection);
+  if (!boundingBox25832.every((value) => Number.isFinite(value))) {
+    return undefined;
+  }
+
+  // Convert the bounding box from EPSG:25832 to EPSG:4326
   const southWest4326 = proj4("EPSG:25832", "EPSG:4326", [
-    boundingBox3857[0],
-    boundingBox3857[1],
+    boundingBox25832[0],
+    boundingBox25832[1],
   ]);
   const northEast4326 = proj4("EPSG:25832", "EPSG:4326", [
-    boundingBox3857[2],
-    boundingBox3857[3],
+    boundingBox25832[2],
+    boundingBox25832[3],
   ]);
 
-  // Return Leaflet LatLngBounds
-  return L.latLngBounds(
-    L.latLng(southWest4326[1], southWest4326[0]), // southwest corner
-    L.latLng(northEast4326[1], northEast4326[0]) // northeast corner
+  // lng/lat order, unlike Leaflet's lat/lng
+  return new maplibregl.LngLatBounds(
+    [southWest4326[0], southWest4326[1]], // southwest corner
+    [northEast4326[0], northEast4326[1]] // northeast corner
   );
 };
 
@@ -80,9 +90,10 @@ export function convertBBox2Bounds(bbox, refDef = proj4crs25832def) {
   ];
 }
 export const getCenterAndZoomForBounds = (map, bounds) => {
-  const center = bounds.getCenter();
-  const zoom = map.getBoundsZoom(bounds); // Returns the maximum zoom level on which the given bounds fit to the map view in its entirety. If inside is set to true, it instead returns the minimum zoom level on which the map view fits into the given bounds in its entirety.
-  return { center, zoom };
+  // cameraForBounds == Leaflet's getBoundsZoom + getCenter
+  const camera = map?.cameraForBounds(bounds);
+  const center = camera?.center ?? bounds.getCenter();
+  return { center, zoom: camera?.zoom };
 };
 
 export const getWGS84GeoJSON = (geoJSON) => {

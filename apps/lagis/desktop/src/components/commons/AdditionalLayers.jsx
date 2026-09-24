@@ -1,5 +1,3 @@
-import { MappingConstants } from "react-cismap";
-import CismapLayer from "react-cismap/CismapLayer";
 import { REST_SERVICE_WUNDA } from "../../constants/lagis";
 import { concat, flatten } from "lodash";
 import { reproject } from "reproject";
@@ -7,6 +5,10 @@ import { projectionData } from "react-cismap/constants/gis";
 import proj4 from "proj4";
 import getArea from "@turf/area";
 import { drawerTextsHelper } from "@carma-collab/wuppertal/lagis-desktop";
+import {
+  cismapConfToLibreLayer,
+  sortLibreLayers,
+} from "../../core/tools/libreLayers";
 
 const getWGS84GeoJSON = (geoJSON) => {
   try {
@@ -76,7 +78,7 @@ export const configuration = {
     title: drawerTextsHelper.abtOpt,
     conf: {
       type: "wmts",
-      url: "http://s10221.wuppertal-intra.de:8099/abt9_flst/services",
+      url: "https://sl0548-wuppertal-intra.map-hosting.de/forwardingTo/s10221/8099/abt9_flst/services",
       layers: "abt9",
       version: "1.1.1",
       tileSize: 256,
@@ -90,7 +92,7 @@ export const configuration = {
     title: drawerTextsHelper.baulastnachweisOpt,
     conf: {
       type: "wmts",
-      url: "http://s10221.wuppertal-intra.de:8056/baulasten/services",
+      url: "https://sl0548-wuppertal-intra.map-hosting.de/forwardingTo/s10221/8056/baulasten/services",
       layers: "baul",
       version: "1.1.1",
       tileSize: 256,
@@ -104,7 +106,7 @@ export const configuration = {
     title: drawerTextsHelper.stadtFstckOpt,
     conf: {
       type: "wmts",
-      url: "http://s10221.wuppertal-intra.de:7098/stadt-flurstuecke/services",
+      url: "https://sl0548-wuppertal-intra.map-hosting.de/forwardingTo/s10221/7098/stadt-flurstuecke/services",
       layers: "stadt_flurst",
       version: "1.1.1",
       tileSize: 256,
@@ -176,52 +178,20 @@ export const configuration = {
   // },
 };
 
-export default function AdditionalLayers({
-  activeLayers = [],
-  opacities = {},
-  mapRef,
-  jwt,
-  onHoverUpdate,
-  onGraphqlLayerStatus = (status) => {},
-  onAlkisMapReady,
-}) {
-  return (
-    <>
-      {activeLayers.map((layerKey, index) => {
-        const layerConf = configuration[layerKey];
-
-        if (layerConf) {
-          let moreProps = {};
-          // if (layerConf.conf.type === "graphql") {
-          //   moreProps.jwt = jwt;
-          //   moreProps.mapRef = mapRef;
-          //   moreProps.onMouseOut = () => {
-          //     onHoverUpdate({});
-          //   };
-          //   moreProps.onMouseOver = (feature) => {
-          //     onHoverUpdate(feature.properties);
-          //   };
-          //   moreProps.onStatus = onGraphqlLayerStatus;
-          // }
-
-          // Add callback for ALKIS layer
-          if (layerKey === "alkisLandparcels" && onAlkisMapReady) {
-            moreProps.onMapLibreCoreMapReady = onAlkisMapReady;
-          }
-
-          return (
-            <CismapLayer
-              key={"Cismapayer." + index}
-              //   if a key is set in the config it will overwrite the simple key above
-              {...{
-                ...layerConf.conf,
-                opacity: opacities[layerKey] || 1,
-                ...moreProps,
-              }}
-            ></CismapLayer>
-          );
-        }
-      })}
-    </>
+/** Active additional layers, in the order their Leaflet panes implied. */
+export const getAdditionalLibreLayers = (activeLayers = [], opacities = {}) =>
+  sortLibreLayers(
+    activeLayers.map((layerKey) => {
+      const layerConf = configuration[layerKey];
+      if (!layerConf) {
+        return undefined;
+      }
+      return cismapConfToLibreLayer(
+        layerKey,
+        layerConf.conf,
+        opacities[layerKey] ?? 1,
+        // additional layers sat above the background by default
+        250
+      );
+    })
   );
-}

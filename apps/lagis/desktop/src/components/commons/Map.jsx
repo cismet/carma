@@ -1,18 +1,9 @@
-import "react-cismap/topicMaps.css";
-import "leaflet/dist/leaflet.css";
-import { Card, Tooltip, Tag } from "antd";
+import { Card, Tooltip, Tag, message } from "antd";
 
 import PropTypes from "prop-types";
-import { useContext, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { GEMARKUNGEN } from "../ui/generalConstant";
-import {
-  FeatureCollectionDisplay,
-  MappingConstants,
-  RoutedMap,
-  TransitiveReactLeaflet,
-} from "react-cismap";
-import { TopicMapStylingContext } from "react-cismap/contexts/TopicMapStylingContextProvider";
-import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import {
   getBoundsForFeatureArray,
   getCenterAndZoomForBounds,
@@ -26,7 +17,6 @@ import {
   setFlaechenSelected,
   setFrontenSelected,
   setGeneralGeometrySelected,
-  setGraphqlLayerStatus,
   setHasFittedBounds,
   setShowBackground,
   setShowCurrentFeatureCollection,
@@ -34,8 +24,14 @@ import {
 } from "../../store/slices/mapping";
 import { useDispatch, useSelector } from "react-redux";
 import { FileImageOutlined, FileImageFilled } from "@ant-design/icons";
-import BackgroundLayers from "./BackgroundLayers";
-import AdditionalLayers from "./AdditionalLayers";
+import {
+  configuration as backgroundConfiguration,
+  getBackgroundLibreLayers,
+} from "./BackgroundLayers";
+import {
+  configuration as additionalConfiguration,
+  getAdditionalLibreLayers,
+} from "./AdditionalLayers";
 import {
   getActiveAdditionalLayers,
   getActiveBackgroundLayer,
@@ -45,33 +41,65 @@ import {
   setHoveredLandparcel,
   getSelectedTrueOrthoYear,
 } from "../../store/slices/ui";
-import proj4 from "proj4";
-import { proj4crs3857def } from "react-cismap/constants/gis";
 import { getJWT } from "../../store/slices/auth";
 import HoveredLandparcelInfo from "./HoveredLandparcelInfo";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faBinoculars } from "@fortawesome/free-solid-svg-icons";
-import { PointSearchButton, PointSearch } from "@carma-appframeworks/alkis";
+import {
+  PointSearchButton,
+  LibrePointSearch,
+} from "@carma-appframeworks/alkis";
 import { getShapeMode, storeShapeMode } from "../../store/slices/searchMode";
 import {
-  TopicMapSelectionContent,
+  LibreMapSelectionContent,
   useGazData,
   useSelection,
 } from "@carma-appframeworks/portals";
+import proj4 from "proj4";
+import { proj4crs3857def } from "react-cismap/constants/gis";
 import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
 import { isAreaType } from "@carma-commons/resources";
-import { Control, ControlLayout } from "@carma-mapping/map-controls-layout";
-import { ZoomControl } from "@carma-mapping/components";
-import { TopicMapDispatchContext } from "react-cismap/contexts/TopicMapContextProvider";
+import { CarmaMap } from "@carma-mapping/core";
 import {
-  MeasurementControl,
-  InfoBoxMeasurement,
-  useMapMeasurementsContext,
-  MEASUREMENT_MODE,
-  Measurements,
-} from "@carma-commons/measurements";
-
-const { ScaleControl } = TransitiveReactLeaflet;
+  LibreContextProvider,
+  zoom256as512,
+  zoom512as256,
+} from "@carma-mapping/engines/maplibre";
+import {
+  DrawModeControls,
+  MeasurementHost,
+  MeasurementInfoBox,
+  MeasurementsProvider,
+} from "@carma-mapping/measurements";
+import {
+  applyFeatureCollectionLayers,
+  buildFeatureCollectionGeoJSON,
+  EMPTY_FEATURE_COLLECTION,
+  FEATURE_COLLECTION_LAYER_IDS,
+  FEATURE_INDEX_PROPERTY,
+} from "../../core/tools/libreFeatures";
+import { setLibreMapInstance } from "../../core/tools/libreMapRegistry";
+import { MapLibrePrintPreview } from "@carma-mapping/print-core/maplibre";
+import {
+  buildLagisPrintLayers,
+  findIntranetLayers,
+} from "../../core/tools/printLayers";
+import PrintControl from "./PrintControl";
+import {
+  getDPI,
+  getIfMapPrinted,
+  getIsLoading,
+  getOrientation,
+  getPrintActive,
+  getPrintName,
+  getRedrawPreview,
+  getScale,
+  setIfMapPrinted,
+  setIsLoading,
+  setPrintActive,
+  setPrintError,
+  setRedrawPreview,
+} from "../../store/slices/print";
 
 const mockExtractor = (input) => {
   return {
@@ -81,20 +109,32 @@ const mockExtractor = (input) => {
   };
 };
 
-function landparcelToString(props) {
-  const { gemarkung, flur, fstck_zaehler, fstck_nenner } = props;
-  if (!gemarkung || !flur || !fstck_zaehler) {
-    return;
-  }
-  // Remove leading zeros from flur and fstck_zaehler
-  const formattedFlur = parseInt(flur, 10);
-  const formattedZaehler = parseInt(fstck_zaehler, 10);
+const HOVER_THROTTLE_MS = 100;
 
-  // Format fstck_nenner, if it exists and is not null
-  const formattedNenner = fstck_nenner ? `/${parseInt(fstck_nenner, 10)}` : "";
+/** Background ids carry a conf index ("lsg.1"), additional ids do not. */
+const layerTitle = (carmaLayerId = "") => {
+  const key = carmaLayerId.split(".")[0];
+  return (
+    backgroundConfiguration[key]?.title ??
+    additionalConfiguration[key]?.title ??
+    key
+  );
+};
 
-  return `${gemarkung} ${formattedFlur} ${formattedZaehler}${formattedNenner}`;
-}
+const showIntranetPrintMessage = (intranetLayers) => {
+  const titles = [
+    ...new Set(intranetLayers.map((layer) => layer.carmaLayerId)),
+  ].map(layerTitle);
+  const unique = [...new Set(titles)];
+  const names = unique.map((title) => `„${title}“`).join(", ");
+  message.warning({
+    key: "lagis-print-intranet",
+    duration: 6,
+    content: `Drucken nicht möglich: ${names} ${
+      unique.length > 1 ? "sind" : "ist"
+    } nur im Intranet verfügbar. Bitte ausblenden.`,
+  });
+};
 
 const Map = ({
   dataIn,
@@ -106,9 +146,8 @@ const Map = ({
   onClickHandler = () => {},
   page,
 }) => {
-  const navigate = useNavigate();
   const dispatch = useDispatch();
-  const [urlParams, setUrlParams] = useSearchParams();
+  const [, setUrlParams] = useSearchParams();
   const showCurrentFeatureCollection = useSelector(
     getShowCurrentFeatureCollection
   );
@@ -117,53 +156,28 @@ const Map = ({
   const jwt = useSelector(getJWT);
   const mode = useSelector(getShapeMode);
 
-  const [overlayFeature, setOverlayFeature] = useState(null);
-  const [alkisMap, setAlkisMap] = useState(null);
+  // Print preview state, see store/slices/print and PrintControl
+  const printActive = useSelector(getPrintActive);
+  const printOrientation = useSelector(getOrientation);
+  const printScale = useSelector(getScale);
+  const printDpi = useSelector(getDPI);
+  const printName = useSelector(getPrintName);
+  const printLoading = useSelector(getIsLoading);
+  const printRedraw = useSelector(getRedrawPreview);
+  const printIfMapPrinted = useSelector(getIfMapPrinted);
+
+  const [libreMap, setLibreMap] = useState(null);
+  // "none" = terra-draw select mode: existing measurements stay clickable.
+  const [drawMode, setDrawMode] = useState("none");
 
   const data = extractor(dataIn);
   const padding = 5;
   const headHeight = 37;
   const cardRef = useRef(null);
-  const [mapWidth, setMapWidth] = useState(0);
-  const [mapHeight, setMapHeight] = useState(window.innerHeight * 0.5); //uggly winning
-
-  const {
-    backgroundModes,
-    selectedBackground,
-    baseLayerConf,
-    backgroundConfigurations,
-    activeAdditionalLayerKeys,
-  } = useContext(TopicMapStylingContext);
-
-  const { setRoutedMapRef } = useContext(TopicMapDispatchContext);
 
   const isMapLoadingValue = useSelector(isMapLoading);
-  let backgroundsFromMode;
-  const browserlocation = useLocation();
-  function paramsToObject(entries) {
-    const result = {};
-    for (const [key, value] of entries) {
-      // each 'entry' is a [key, value] tupple
-      result[key] = value;
-    }
-    return result;
-  }
 
   const hasFittedBounds = useSelector(getHasFittedBounds);
-
-  const urlSearchParams = new URLSearchParams(browserlocation.search);
-  const urlSearchParamsObject = paramsToObject(urlParams);
-
-  const mapFallbacks = {
-    position: {
-      lat: urlSearchParamsObject?.lat ?? 51.272570027476256,
-      lng: urlSearchParamsObject?.lng ?? 7.19963690266013,
-    },
-    zoom: urlSearchParamsObject?.zoom ?? 16,
-  };
-  try {
-    backgroundsFromMode = backgroundConfigurations[selectedBackground].layerkey;
-  } catch (e) {}
 
   const lastPointSearchTimeRef = useRef(0);
 
@@ -180,132 +194,253 @@ const Map = ({
   const handleSetDonutWithDelay = (mode = "point") => {
     lastPointSearchTimeRef.current = Date.now();
     dispatch(storeShapeMode(mode));
-    if (mode === "point") {
-      setMeasurementMode("default");
-    }
   };
 
-  useEffect(() => {
-    const resizeObserver = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        setMapWidth(cardRef?.current?.offsetWidth);
-        setMapHeight(cardRef?.current?.offsetHeight);
-      }
-    });
-
-    resizeObserver.observe(cardRef.current);
-    return () => {
-      resizeObserver.disconnect();
-    };
+  const handleLibreMapReady = useCallback((map) => {
+    setLibreMap(map);
+    setLibreMapInstance(map);
   }, []);
 
   useEffect(() => {
-    // const params = paramsToObject(urlParams);
-    // if (params.lat && params.lng && params.zoom) {
-    //   console.log("xxx won't change map view");
-    // } else {
-    //   console.log("xxx data changed", data?.featureCollection);
-    //   if (data?.featureCollection && refRoutedMap?.current) {
-    //     fitFeatureArray(data?.featureCollection, refRoutedMap);
-    //   }
-    // }
-  }, [data?.featureCollection, urlParams]);
-
-  let refRoutedMap = useRef(null);
-  const statusBarHeight = 20;
-  const mapStyle = {
-    width: mapWidth - 2 * padding,
-    height: mapHeight - 2 * padding - headHeight,
-    cursor: isMapLoadingValue ? "wait" : "pointer",
-    clear: "both",
-  };
-
-  const defaults = {
-    maxWidth: 200,
-    metric: true,
-    imperial: false,
-    updateWhenIdle: false,
-    position: "topright",
-  };
-
-  // Register hover listener on Leaflet map to query MapLibre features
-  useEffect(() => {
-    if (!alkisMap || !refRoutedMap.current) {
-      return;
-    }
-
-    const leafletMap = refRoutedMap.current.leafletMap.leafletElement;
-
-    let throttleTimeout = null;
-    let lastLandparcelString = null;
-
-    const handleMouseMove = (e) => {
-      // Throttle: skip if already processing
-      if (throttleTimeout) return;
-
-      throttleTimeout = setTimeout(() => {
-        throttleTimeout = null;
-      }, 100); // 100ms throttle
-
-      // Get point relative to MapLibre canvas
-      const canvas = alkisMap.getCanvas();
-      const rect = canvas.getBoundingClientRect();
-      const point = [
-        e.originalEvent.clientX - rect.left,
-        e.originalEvent.clientY - rect.top,
-      ];
-
-      const features = alkisMap.queryRenderedFeatures(point);
-
-      if (features && features.length > 0) {
-        const feature = features[0];
-        const props = feature.properties;
-
-        // Format: "Gemarkung Flur Zähler/Nenner"
-        const gemarkungName =
-          GEMARKUNGEN[props.gemarkungsnummer] || props.gemarkungsnummer;
-        const flur = parseInt(props.flurnummer, 10);
-        const zaehler = parseInt(props.zaehler, 10);
-        const nenner = props.nenner ? `/${parseInt(props.nenner, 10)}` : "";
-
-        const landparcelString = `${gemarkungName} ${flur} ${zaehler}${nenner}`;
-
-        // Only dispatch if value changed
-        if (landparcelString !== lastLandparcelString) {
-          dispatch(setHoveredLandparcel(landparcelString));
-          lastLandparcelString = landparcelString;
-        }
-      } else {
-        // Clear when no feature under cursor
-        if (lastLandparcelString !== undefined) {
-          dispatch(setHoveredLandparcel(undefined));
-          lastLandparcelString = undefined;
-        }
-      }
-    };
-
-    leafletMap.on("mousemove", handleMouseMove);
-
     return () => {
-      if (throttleTimeout) {
-        clearTimeout(throttleTimeout);
-      }
-      leafletMap.off("mousemove", handleMouseMove);
+      setLibreMapInstance(null);
     };
-  }, [alkisMap]);
-
-  useEffect(() => {
-    if (refRoutedMap?.current) {
-      const map = refRoutedMap.current.leafletMap.leafletElement;
-      map.invalidateSize();
-    }
-  }, [mapWidth, mapHeight]);
+  }, []);
 
   const backgroundLayerOpacities = useSelector(getBackgroundLayerOpacities);
   const additionalLayerOpacities = useSelector(getAdditionalLayerOpacities);
   const activeBackgroundLayer = useSelector(getActiveBackgroundLayer);
   const activeAdditionalLayers = useSelector(getActiveAdditionalLayers);
   const selectedTrueOrthoYear = useSelector(getSelectedTrueOrthoYear);
+
+  // As before: hiding the background hides the additional layers too.
+  const libreLayers = useMemo(() => {
+    if (!showBackground) {
+      return [];
+    }
+    return [
+      ...getBackgroundLibreLayers(
+        activeBackgroundLayer,
+        backgroundLayerOpacities,
+        selectedTrueOrthoYear
+      ),
+      ...getAdditionalLibreLayers(
+        activeAdditionalLayers,
+        additionalLayerOpacities
+      ),
+    ];
+  }, [
+    showBackground,
+    activeBackgroundLayer,
+    backgroundLayerOpacities,
+    selectedTrueOrthoYear,
+    activeAdditionalLayers,
+    additionalLayerOpacities,
+  ]);
+
+  // --- Feature collection ---
+
+  const featureCollection = data?.featureCollection;
+
+  // The extractors rebuild the array and the styler on every render, so
+  // neither works as a memo dependency; cache on the built result instead.
+  const builtGeoJSON = buildFeatureCollectionGeoJSON(
+    featureCollection,
+    data?.styler
+  );
+  const builtSignature = JSON.stringify(builtGeoJSON);
+  const geoJSONCacheRef = useRef({ signature: undefined, data: undefined });
+  if (geoJSONCacheRef.current.signature !== builtSignature) {
+    geoJSONCacheRef.current = { signature: builtSignature, data: builtGeoJSON };
+  }
+  const featureCollectionGeoJSON = showCurrentFeatureCollection
+    ? geoJSONCacheRef.current.data
+    : EMPTY_FEATURE_COLLECTION;
+
+  // The source is imperative, so it needs restoring after every style reload.
+  useEffect(() => {
+    if (!libreMap) {
+      return;
+    }
+
+    const apply = () =>
+      applyFeatureCollectionLayers(libreMap, featureCollectionGeoJSON);
+
+    apply();
+    libreMap.on("styledata", apply);
+
+    return () => {
+      libreMap.off("styledata", apply);
+    };
+  }, [libreMap, featureCollectionGeoJSON]);
+
+  const dataRef = useRef(data);
+  dataRef.current = data;
+
+  // Read in the handlers so a mode switch does not re-register them.
+  const drawModeRef = useRef(drawMode);
+  drawModeRef.current = drawMode;
+
+  // While the print rectangle is up the clicks belong to the preview.
+  const printActiveRef = useRef(printActive);
+  printActiveRef.current = printActive;
+
+  // Measuring, the point search and the print rectangle claim the same
+  // gestures, so opening the preview leaves both modes.
+  useEffect(() => {
+    if (printActive) {
+      setDrawMode("none");
+      dispatch(storeShapeMode("default"));
+    }
+  }, [printActive, dispatch]);
+
+  // --- Click / double click on the feature collection ---
+
+  useEffect(() => {
+    if (!libreMap) {
+      return;
+    }
+
+    const handleClick = (e) => {
+      if (drawModeRef.current !== "none" || printActiveRef.current) {
+        return;
+      }
+      const currentData = dataRef.current;
+      const renderedLayerIds = FEATURE_COLLECTION_LAYER_IDS.filter((layerId) =>
+        libreMap.getLayer(layerId)
+      );
+      if (renderedLayerIds.length === 0) {
+        return;
+      }
+      const hits = libreMap.queryRenderedFeatures(e.point, {
+        layers: renderedLayerIds,
+      });
+      if (hits.length === 0) {
+        return;
+      }
+
+      const featureIndex = hits[0].properties?.[FEATURE_INDEX_PROPERTY];
+      const feature = currentData?.featureCollection?.[featureIndex];
+      if (!feature) {
+        return;
+      }
+
+      if (currentData.featureClickHandler) {
+        currentData.featureClickHandler({ target: { feature } });
+        return;
+      }
+
+      if (feature.selected) {
+        const bb = getBoundsForFeatureArray([feature]);
+        if (!bb) {
+          return;
+        }
+        const { center, zoom } = getCenterAndZoomForBounds(libreMap, bb);
+        setUrlParams((prev) => {
+          if (zoom !== undefined) {
+            // the hash params store Leaflet style (256px tile) zoom levels
+            prev.set("zoom", zoom512as256(zoom));
+          }
+          prev.set("lat", center.lat);
+          prev.set("lng", center.lng);
+          return prev;
+        });
+        return;
+      }
+
+      switch (feature.featureType) {
+        case "flaeche": {
+          dispatch(setFlaechenSelected({ id: feature.id }));
+          break;
+        }
+        case "front": {
+          dispatch(setFrontenSelected({ id: feature.properties.id }));
+          break;
+        }
+        case "general": {
+          dispatch(setGeneralGeometrySelected({ id: feature.properties.id }));
+          break;
+        }
+        default: {
+          onClickHandler(feature);
+        }
+      }
+    };
+
+    const handleDoubleClick = (e) => {
+      if (drawModeRef.current !== "none" || printActiveRef.current) {
+        return;
+      }
+      const currentData = dataRef.current;
+      if (!currentData?.ondblclick) {
+        return;
+      }
+      // the page handlers only read `latlng`, which LngLat already satisfies
+      currentData.ondblclick(
+        { ...e, latlng: e.lngLat },
+        libreMap,
+        currentData.featureCollection
+      );
+    };
+
+    libreMap.on("click", handleClick);
+    libreMap.on("dblclick", handleDoubleClick);
+
+    return () => {
+      libreMap.off("click", handleClick);
+      libreMap.off("dblclick", handleDoubleClick);
+    };
+  }, [libreMap, dispatch, onClickHandler, setUrlParams]);
+
+  // --- Hover: ALKIS landparcel under the cursor, shown in the card title ---
+
+  useEffect(() => {
+    if (!libreMap) {
+      return;
+    }
+
+    let throttleTimeout = null;
+    let lastLandparcelString;
+
+    const handleMouseMove = (e) => {
+      if (throttleTimeout) return;
+      throttleTimeout = setTimeout(() => {
+        throttleTimeout = null;
+      }, HOVER_THROTTLE_MS);
+
+      // One of several vector layers, so identified by its properties.
+      const alkisFeature = libreMap
+        .queryRenderedFeatures(e.point)
+        .find((feature) => feature.properties?.gemarkungsnummer !== undefined);
+
+      let landparcelString;
+      if (alkisFeature) {
+        const props = alkisFeature.properties;
+        const gemarkungName =
+          GEMARKUNGEN[props.gemarkungsnummer] || props.gemarkungsnummer;
+        const flur = parseInt(props.flurnummer, 10);
+        const zaehler = parseInt(props.zaehler, 10);
+        const nenner = props.nenner ? `/${parseInt(props.nenner, 10)}` : "";
+        landparcelString = `${gemarkungName} ${flur} ${zaehler}${nenner}`;
+      }
+
+      if (landparcelString !== lastLandparcelString) {
+        dispatch(setHoveredLandparcel(landparcelString));
+        lastLandparcelString = landparcelString;
+      }
+    };
+
+    libreMap.on("mousemove", handleMouseMove);
+
+    return () => {
+      if (throttleTimeout) {
+        clearTimeout(throttleTimeout);
+      }
+      libreMap.off("mousemove", handleMouseMove);
+    };
+  }, [libreMap, dispatch]);
+
+  // --- Fit the map to the current feature collection ---
 
   const oldBgRef = useRef(null);
   const oldAdditionalLayersLengthRef = useRef(null);
@@ -317,23 +452,22 @@ const Map = ({
       return;
     }
 
-    if (data?.featureCollection) {
-      dispatch(setFeatureCollection(data?.featureCollection));
+    if (featureCollection) {
+      dispatch(setFeatureCollection(featureCollection));
     }
 
     if (
       isMapLoadingValue === false &&
-      data?.featureCollection &&
-      data?.featureCollection.length !== 0 &&
-      refRoutedMap?.current &&
+      featureCollection &&
+      featureCollection.length !== 0 &&
+      libreMap &&
       activeBackgroundLayer === oldBgRef.current &&
       oldAdditionalLayersLengthRef.current === activeAdditionalLayers.length &&
       !hasFittedBounds
     ) {
-      const map = refRoutedMap.current.leafletMap.leafletElement;
-      const bb = getBoundsForFeatureArray(data?.featureCollection);
-      if (map && bb) {
-        map.fitBounds(bb);
+      const bb = getBoundsForFeatureArray(featureCollection);
+      if (bb) {
+        libreMap.fitBounds(bb, { animate: false, padding: 20 });
         dispatch(setHasFittedBounds(true));
       }
     }
@@ -348,8 +482,8 @@ const Map = ({
       oldAdditionalLayersLengthRef.current = activeAdditionalLayers.length;
     }
   }, [
-    data?.featureCollection,
-    refRoutedMap.current,
+    featureCollection,
+    libreMap,
     isMapLoadingValue,
     activeBackgroundLayer,
     activeAdditionalLayers,
@@ -357,10 +491,10 @@ const Map = ({
     hasFittedBounds,
   ]);
 
+  // --- Gazetteer ---
+
   const { gazData } = useGazData();
   const { setSelection } = useSelection();
-  const { mode: measurementMode, setMode: setMeasurementMode } =
-    useMapMeasurementsContext();
 
   const onGazetteerSelection = (selection) => {
     if (!selection) {
@@ -374,32 +508,54 @@ const Map = ({
     };
     setSelection(Object.assign({}, selection, selectionMetaData));
 
-    setTimeout(() => {
-      const pos = proj4(proj4crs3857def, proj4.defs("EPSG:4326"), [
-        selection.x,
-        selection.y,
-      ]);
-      const map = refRoutedMap.current.leafletMap.leafletElement;
-      map.panTo([pos[1], pos[0]], {
-        animate: false,
-      });
-
-      let hitObject = { ...selection };
-
-      //Change the Zoomlevel of the map
-      if (hitObject.more.zl) {
-        map.setZoom(hitObject.more.zl, {
-          animate: false,
-        });
-      }
-    }, 0);
+    if (!libreMap) {
+      return;
+    }
+    const pos = proj4(proj4crs3857def, proj4.defs("EPSG:4326"), [
+      selection.x,
+      selection.y,
+    ]);
+    libreMap.panTo([pos[0], pos[1]], { animate: false });
+    if (selection.more?.zl) {
+      // the gazetteer hits carry Leaflet style (256px tile) zoom levels
+      libreMap.setZoom(zoom256as512(selection.more.zl));
+    }
   };
 
+  // --- Print ---
+
+  // Built from the layers the map currently renders, so the PDF mirrors the
+  // screen: the toggles and opacities are already applied to both inputs.
+  const resolvePrintLayers = useCallback(
+    (map) => {
+      const intranetLayers = findIntranetLayers(libreLayers);
+      if (intranetLayers.length > 0) {
+        showIntranetPrintMessage(intranetLayers);
+        return null;
+      }
+      return buildLagisPrintLayers(libreLayers, featureCollectionGeoJSON, map);
+    },
+    [libreLayers, featureCollectionGeoJSON]
+  );
+
+  const [mapWidth, setMapWidth] = useState(0);
+  const [mapHeight, setMapHeight] = useState(window.innerHeight * 0.5); //uggly winning
+
   useEffect(() => {
-    if (refRoutedMap.current !== null) {
-      setRoutedMapRef(refRoutedMap.current);
+    if (!cardRef.current) {
+      return;
     }
-  }, [refRoutedMap]);
+    const resizeObserver = new ResizeObserver(() => {
+      setMapWidth(cardRef?.current?.offsetWidth ?? 0);
+      setMapHeight(cardRef?.current?.offsetHeight ?? 0);
+      libreMap?.resize();
+    });
+
+    resizeObserver.observe(cardRef.current);
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [libreMap]);
 
   const isBreakpointForControls = 738 < mapWidth;
   const pixelWidth = isBreakpointForControls ? 350 : mapWidth - 30;
@@ -481,6 +637,7 @@ const Map = ({
               onClick={handleShowCurrentFeatureCollection}
             />
           </div>
+          <PrintControl />
         </div>
       }
       style={{
@@ -490,214 +647,99 @@ const Map = ({
       bodyStyle={{ padding }}
       headStyle={{ backgroundColor: "white" }}
       type="inner"
-      className={`overflow-hidden shadow-md ${
-        measurementMode === MEASUREMENT_MODE.MEASUREMENT ? "lagis-map-card" : ""
-      }`}
+      className="overflow-hidden shadow-md"
       ref={cardRef}
     >
-      <>
-        <div
-          style={{
-            position: "absolute",
-            top: "40px",
-            left: "3px",
-            right: "3px",
-            bottom: "0px",
-            width: "calc(100% - 6px)",
-            zIndex: 600,
-            pointerEvents: "none",
-          }}
-        >
-          <ControlLayout ifStorybook={false}>
-            <Control position="topleft" order={10}>
-              <ZoomControl />
-            </Control>
-            <MeasurementControl
-              showInfoBox={false}
-              tooltip={
-                measurementMode === MEASUREMENT_MODE.MEASUREMENT
-                  ? "Messungsmodus ausschalten"
-                  : "Messungsmodus einschalten"
+      <div
+        className="lagis-libre-map"
+        style={{
+          width: mapWidth - 2 * padding,
+          height: mapHeight - 2 * padding - headHeight,
+          cursor: isMapLoadingValue ? "wait" : undefined,
+        }}
+      >
+        <LibreContextProvider>
+          {/* Wraps CarmaMap, not just the host: the info box renders a
+              <Control> and so must sit inside CarmaMap's ControlLayout. */}
+          <MeasurementsProvider>
+            <CarmaMap
+              mapEngine="maplibre"
+              appKey="lagis-desktop"
+              embedded
+              // lagis drives the background itself, via libreLayers
+              backgroundLayers=""
+              libreLayers={libreLayers}
+              setLibreMap={handleLibreMapReady}
+              minZoom={9}
+              maxZoom={25}
+              // the app owns the hash (HashRouter): read lat/lng/zoom, never write
+              hashWriteEnabled={false}
+              // lagis handles selection, infoboxes and routing itself
+              selectionEnabled={false}
+              gazetteerInfoOnClick={false}
+              terrainControl={false}
+              compassControl={false}
+              fullScreenControl={false}
+              locatorControl={false}
+              modalMenuControl={false}
+              extraControls={
+                <>
+                  <DrawModeControls
+                    modes={["select", "line", "polygon"]}
+                    active={drawMode}
+                    onSelect={(nextMode) =>
+                      setDrawMode((previous) =>
+                        previous === nextMode ? "none" : nextMode
+                      )
+                    }
+                  />
+                  <MeasurementInfoBox />
+                </>
+              }
+              gazetteerSearchComponent={
+                <div style={{ marginTop: "4px" }}>
+                  <LibFuzzySearch
+                    gazData={gazData}
+                    onSelection={onGazetteerSelection}
+                    pixelwidth={
+                      isBreakpointForControls ? "350px" : pixelWidth + "px"
+                    }
+                    placeholder="Geben Sie einen Suchbegriff ein"
+                  />
+                </div>
               }
             />
-            {measurementMode === MEASUREMENT_MODE.MEASUREMENT && (
-              <InfoBoxMeasurement pixelWidth={pixelWidth} />
-            )}
-            <Control position="bottomleft" order={10}>
-              <div style={{ marginTop: "4px" }}>
-                <LibFuzzySearch
-                  gazData={gazData}
-                  onSelection={onGazetteerSelection}
-                  pixelwidth={
-                    isBreakpointForControls ? "350px" : pixelWidth + "px"
-                  }
-                  placeholder="Geben Sie einen Suchbegriff ein"
-                />
-              </div>
-            </Control>
-          </ControlLayout>
-        </div>
-
-        <RoutedMap
-          // editable={true}
-          leafletMapProps={{ editable: true }}
-          style={mapStyle}
-          key={"leafletRoutedMap"}
-          zoomControlEnabled={false}
-          // backgroundlayers={showBackground ? _backgroundLayers : null}
-          backgroundlayers={null}
-          urlSearchParams={urlSearchParams}
-          layers=""
-          referenceSystem={MappingConstants.crs3857}
-          referenceSystemDefinition={MappingConstants.proj4crs3857def}
-          ref={refRoutedMap}
-          minZoom={9}
-          maxZoom={25}
-          zoomSnap={0.5}
-          zoomDelta={0.5}
-          fallbackPosition={mapFallbacks.fallbackPosition}
-          fallbackZoom={urlSearchParamsObject?.zoom ?? mapFallbacks.zoom ?? 17}
-          locationChangedHandler={(location) => {
-            const newParams = { ...paramsToObject(urlParams), ...location };
-            // setUrlParams(newParams);
+            <MeasurementHost mode={drawMode} snapping />
+          </MeasurementsProvider>
+        </LibreContextProvider>
+        <MapLibrePrintPreview
+          map={libreMap}
+          active={printActive}
+          orientation={printOrientation}
+          scale={printScale}
+          dpi={printDpi}
+          name={printName}
+          resolveLayers={resolvePrintLayers}
+          redrawTrigger={printRedraw}
+          keepRectangle={printIfMapPrinted}
+          loading={printLoading}
+          onClose={() => dispatch(setPrintActive(false))}
+          onLoadingChange={(loading) => dispatch(setIsLoading(loading))}
+          onError={(message) => dispatch(setPrintError(message))}
+          onPrintStart={() => dispatch(setIfMapPrinted(true))}
+          onRequestRedraw={() => {
+            dispatch(setIfMapPrinted(false));
+            dispatch(setRedrawPreview(!printRedraw));
           }}
-          boundingBoxChangedHandler={(boundingBox) => {
-            // console.log("xxx boundingBox Changed", boundingBox);
-          }}
-          ondblclick={(event) => {
-            // Don't switch landparcel when in measurement mode
-            if (measurementMode === MEASUREMENT_MODE.MEASUREMENT) {
-              return;
-            }
-            //if data contains a ondblclick handler, call it
-            if (data.ondblclick) {
-              data.ondblclick(
-                event,
-                refRoutedMap.current.leafletMap.leafletElement,
-                data.featureCollection
-              );
-            }
-          }}
-        >
-          <TopicMapSelectionContent />
-
-          <ScaleControl {...defaults} position="topright" />
-          {overlayFeature && (
-            <ProjSingleGeoJson
-              key={JSON.stringify(overlayFeature)}
-              geoJson={overlayFeature}
-              masked={true}
-              maskingPolygon={maskingPolygon}
-              mapRef={leafletRoutedMapRef}
-            />
-          )}
-          {data.featureCollection &&
-            data.featureCollection.length > 0 &&
-            showCurrentFeatureCollection && (
-              <FeatureCollectionDisplay
-                featureCollection={data.featureCollection}
-                style={data.styler}
-                markerStyle={data.markerStyle}
-                showMarkerCollection={data.showMarkerCollection || false}
-                featureClickHandler={
-                  data.featureClickHandler ||
-                  ((e) => {
-                    const feature = e.target.feature;
-                    if (feature.selected) {
-                      const map =
-                        refRoutedMap.current.leafletMap.leafletElement;
-                      const bb = getBoundsForFeatureArray([feature]);
-                      const { center, zoom } = getCenterAndZoomForBounds(
-                        map,
-                        bb
-                      );
-                      setUrlParams((prev) => {
-                        prev.set("zoom", zoom);
-                        prev.set("lat", center.lat);
-                        prev.set("lng", center.lng);
-                        return prev;
-                      });
-                    } else {
-                      switch (feature.featureType) {
-                        case "flaeche": {
-                          dispatch(storeFlaechenId(feature.id));
-                          dispatch(setFlaechenSelected({ id: feature.id }));
-
-                          break;
-                        }
-                        case "front": {
-                          dispatch(storeFrontenId(feature.properties.id));
-                          dispatch(
-                            setFrontenSelected({ id: feature.properties.id })
-                          );
-                          break;
-                        }
-                        case "general": {
-                          dispatch(
-                            setGeneralGeometrySelected({
-                              id: feature.properties.id,
-                            })
-                          );
-                          break;
-                        }
-                        default: {
-                          console.log(
-                            "no featureClickHandler set",
-                            e.target.feature
-                          );
-                          onClickHandler(e.target.feature);
-                        }
-                      }
-                    }
-                  })
-                }
-              />
-            )}
-          {/* {children} */}
-
-          {showBackground && (
-            <>
-              <BackgroundLayers
-                activeBackgroundLayer={activeBackgroundLayer}
-                opacities={backgroundLayerOpacities}
-                selectedYear={selectedTrueOrthoYear}
-              />
-              <AdditionalLayers
-                jwt={jwt}
-                mapRef={refRoutedMap}
-                activeLayers={activeAdditionalLayers}
-                opacities={additionalLayerOpacities}
-                onGraphqlLayerStatus={(status) => {
-                  dispatch(setGraphqlLayerStatus(status));
-                  if (status === "NOT_ALLOWED") {
-                    dispatch(setHoveredLandparcel(""));
-                  }
-                }}
-                onHoverUpdate={(feature) => {
-                  dispatch(setHoveredLandparcel(landparcelToString(feature)));
-                }}
-                onAlkisMapReady={setAlkisMap}
-              />
-            </>
-          )}
-          <PointSearch
-            map={refRoutedMap?.current?.leafletMap?.leafletElement}
-            setMode={handleSetDonutWithDelay}
-            jwt={jwt}
-            mode={mode}
-          />
-          <Measurements snappingLayers={alkisMap ? [alkisMap] : []} />
-        </RoutedMap>
-
-        {/* <div className="custom-left-control">
-          <LibFuzzySearch
-            gazData={gazData}
-            onSelection={onGazetteerSelection}
-            pixelwidth="400px"
-            placeholder="Geben Sie einen Suchbegriff ein"
-          />
-        </div> */}
-      </>
+        />
+        {libreMap && <LibreMapSelectionContent map={libreMap} />}
+        <LibrePointSearch
+          map={libreMap}
+          setMode={handleSetDonutWithDelay}
+          jwt={jwt}
+          mode={mode}
+        />
+      </div>
     </Card>
   );
 };

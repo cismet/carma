@@ -5,6 +5,8 @@ import {
 import { Tooltip } from "antd";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
+  faArrowPointer,
+  faDrawPolygon,
   faLocationDot,
   faMagnet,
   faSlash,
@@ -15,14 +17,12 @@ import {
 // is being drawn (this is what belis ships).
 //
 // `"select"` is functionally equivalent to "none" inside terra-draw — both
-// map to terra-draw's select mode — but exists as a distinct public value
-// for hosts that want to surface "user explicitly chose select" as its own
-// UI state (e.g. the measurements-playground's four-button mode bar).
+// map to terra-draw's select mode — but exists as a distinct public value so
+// hosts can surface "user explicitly chose select" as its own UI state. It
+// has a button here, and is not in the default set.
 //
-// `"polygon"` is registered on the terra-draw instance unconditionally, but
-// no built-in UI button drives it from this component yet (belis ships only
-// point + line); hosts that want the polygon button can wire their own
-// alongside DrawModeControls until/unless we add an opt-in flag here.
+// `"polygon"` is registered on terra-draw unconditionally and has a button
+// here, but is not in the default set — hosts opt in through `modes`.
 export type DrawMode = "none" | "select" | "point" | "line" | "polygon";
 
 const ACTIVE_BUTTON_TEXT_COLOR = "text-[#1677ff]";
@@ -33,10 +33,16 @@ interface ButtonDescriptor {
   icon: typeof faLocationDot;
 }
 
-const BUTTONS: ButtonDescriptor[] = [
-  { mode: "point", label: "Punkt zeichnen", icon: faLocationDot },
-  { mode: "line", label: "Linie zeichnen", icon: faSlash },
-];
+type ButtonMode = "select" | "point" | "line" | "polygon";
+
+const BUTTONS: Record<ButtonMode, ButtonDescriptor> = {
+  select: { mode: "select", label: "Messung auswählen", icon: faArrowPointer },
+  point: { mode: "point", label: "Punkt zeichnen", icon: faLocationDot },
+  line: { mode: "line", label: "Linie zeichnen", icon: faSlash },
+  polygon: { mode: "polygon", label: "Fläche zeichnen", icon: faDrawPolygon },
+};
+
+const DEFAULT_MODES: ButtonMode[] = ["point", "line"];
 
 // Tailwind class fragments that fuse the buttons into one visually-connected
 // stack — same trick the carma topleft control column uses for compass+3D
@@ -52,6 +58,9 @@ function fuseClassFor(index: number, total: number): string {
 export interface DrawModeControlsProps {
   active: DrawMode;
   onSelect: (mode: Exclude<DrawMode, "none">) => void;
+  /** Buttons to render, in order. Defaults to `["point", "line"]`; pass a
+   * list to drop unused tools or to opt into `"select"` / `"polygon"`. */
+  modes?: ButtonMode[];
   /** Position in the host CarmaMap's ControlLayout. Defaults to topleft 70 — the
    * slot the carma topleft column reserves for app-specific tool clusters
    * below the built-ins (10 zoom, 20 compass, 30 terrain, 50 fullscreen,
@@ -80,15 +89,18 @@ export function DrawModeControls({
   onSelect,
   order = 70,
   snapping,
+  modes = DEFAULT_MODES,
 }: DrawModeControlsProps) {
-  const items: RenderedItem[] = BUTTONS.map((button) => ({
-    key: `mode-${button.mode}`,
-    tooltip: button.label,
-    testId: `carma-measurement-${button.mode}-control`,
-    icon: button.icon,
-    isActive: active === button.mode,
-    onClick: () => onSelect(button.mode),
-  }));
+  const items: RenderedItem[] = modes
+    .map((mode) => BUTTONS[mode])
+    .map((button) => ({
+      key: `mode-${button.mode}`,
+      tooltip: button.label,
+      testId: `carma-measurement-${button.mode}-control`,
+      icon: button.icon,
+      isActive: active === button.mode,
+      onClick: () => onSelect(button.mode),
+    }));
 
   if (snapping) {
     items.push({
