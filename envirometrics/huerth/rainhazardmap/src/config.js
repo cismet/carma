@@ -56,6 +56,7 @@ const overridingBaseLayerConf = {
       maxZoom: 22,
       opacity: 0.6,
       version: "1.1.1",
+      pane: "backgroundLayers",
     },
   },
   namedLayers: {
