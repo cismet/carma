@@ -5,24 +5,9 @@ import {
 } from "react";
 
 import { SOURCE_LABEL } from "./orientation";
-import { PRESENTER_SIDES, type PresenterSide } from "./pointer-math";
-import type { PointerMode, usePointer } from "./usePointer";
+import type { usePointer } from "./usePointer";
 
 type Pointer = ReturnType<typeof usePointer>;
-
-const SIDE_LABEL: Record<PresenterSide, string> = {
-  bottom: "unten",
-  left: "links",
-  top: "oben",
-  right: "rechts",
-};
-
-const MODE_LABEL: Record<PointerMode, string> = {
-  wrist: "Handgelenk",
-  laser: "Laser auf Tisch",
-};
-
-const POINTER_MODES: readonly PointerMode[] = ["wrist", "laser"];
 
 /** the printed Wuppertal model is close to 16:9; only the mini map uses it */
 const MINI_MAP_ASPECT = 16 / 9;
@@ -67,8 +52,8 @@ const Slider = ({
 );
 
 /**
- * The pointer, full screen: a large area to hold while pointing, the two
- * calibration taps, and the spot's settings.
+ * The pointer, full screen: a large area to hold while pointing, the tap
+ * that brings the spot back to the middle, and the spot's settings.
  */
 export const PointerPanel = ({ pointer }: { pointer: Pointer }) => {
   const {
@@ -77,20 +62,16 @@ export const PointerPanel = ({ pointer }: { pointer: Pointer }) => {
     error,
     notice,
     settings,
-    calibrated,
     readout,
     close,
     press,
     release,
     touchMove,
     center,
-    edge,
     updateSettings,
   } = pointer;
   const lastTouchRef = useRef<{ x: number; y: number } | null>(null);
   const isMotion = status === "motion";
-  const isWrist = settings.mode === "wrist";
-  const isLaser = isMotion && !isWrist;
 
   const onDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -117,16 +98,10 @@ export const PointerPanel = ({ pointer }: { pointer: Pointer }) => {
     event.key === " " || event.key === "Enter";
 
   const [dx, dy] = readout.position;
-  const calibrationText =
+  const steeringText =
     status === "touch"
       ? "Fingersteuerung"
-      : isWrist
-      ? "Drehen und Kippen bewegt den Punkt"
-      : calibrated === "edge"
-      ? "Mitte und Rand gesetzt"
-      : calibrated === "center"
-      ? "Mitte gesetzt"
-      : "Nicht eingemessen: der erste Druck setzt die Mitte";
+      : "Drehen und Kippen bewegt den Punkt";
 
   return (
     <div
@@ -221,64 +196,24 @@ export const PointerPanel = ({ pointer }: { pointer: Pointer }) => {
               : "Halten zum Zeigen"}
           </span>
           <span className="text-center text-xs text-neutral-400">
-            {calibrationText}
+            {steeringText}
           </span>
         </div>
 
+        <button
+          type="button"
+          onClick={center}
+          disabled={status === "starting"}
+          className="min-h-[56px] rounded-xl border border-neutral-700 bg-neutral-900 text-sm font-semibold active:bg-neutral-800 disabled:opacity-40"
+        >
+          Mitte setzen
+        </button>
         {isMotion && (
-          <div className="grid grid-cols-2 gap-2">
-            {POINTER_MODES.map((mode) => (
-              <button
-                key={mode}
-                type="button"
-                aria-pressed={settings.mode === mode}
-                onClick={() => updateSettings({ mode })}
-                className={`min-h-[44px] rounded-lg text-sm ${
-                  settings.mode === mode
-                    ? "border border-amber-400 bg-amber-950 font-semibold text-neutral-100"
-                    : "border border-neutral-700 bg-neutral-950 text-neutral-300 active:bg-neutral-800"
-                }`}
-              >
-                {MODE_LABEL[mode]}
-              </button>
-            ))}
-          </div>
-        )}
-
-        <div className={`grid gap-3 ${isLaser ? "grid-cols-2" : "grid-cols-1"}`}>
-          <button
-            type="button"
-            onClick={center}
-            disabled={status === "starting"}
-            className="min-h-[56px] rounded-xl border border-neutral-700 bg-neutral-900 text-sm font-semibold active:bg-neutral-800 disabled:opacity-40"
-          >
-            Mitte setzen
-          </button>
-          {isLaser && (
-            <button
-              type="button"
-              onClick={edge}
-              disabled={calibrated === "none"}
-              className="min-h-[56px] rounded-xl border border-neutral-700 bg-neutral-900 text-sm font-semibold active:bg-neutral-800 disabled:opacity-40"
-            >
-              Rechten Rand setzen
-            </button>
-          )}
-        </div>
-        {isMotion && isWrist && (
           <p className="m-0 text-xs leading-relaxed text-neutral-400">
             Halten und das Handgelenk drehen: nach rechts und links bewegt den
             Punkt seitwärts, nach oben und unten kippen bewegt ihn hoch und
             runter. Loslassen und neu greifen setzt fort, wo der Punkt stand.
             „Mitte setzen“ holt ihn in die Bildmitte.
-          </p>
-        )}
-        {isLaser && (
-          <p className="m-0 text-xs leading-relaxed text-neutral-400">
-            Mit der Oberkante des Telefons auf die Mitte des Modells zielen und
-            „Mitte setzen“ tippen. Für genaues Zeigen danach auf die Mitte des
-            rechten Bildrands zielen und „Rechten Rand setzen“ tippen. Wandert
-            der Punkt mit der Zeit weg, einfach wieder die Mitte setzen.
           </p>
         )}
 
@@ -303,7 +238,7 @@ export const PointerPanel = ({ pointer }: { pointer: Pointer }) => {
             display={`${Math.round(settings.dim * 100)} %`}
             onChange={(dim) => updateSettings({ dim })}
           />
-          {isMotion && isWrist && (
+          {isMotion && (
             <Slider
               id="pm-pointer-wrist-gain"
               label="Drehweg für die ganze Bildbreite"
@@ -314,47 +249,6 @@ export const PointerPanel = ({ pointer }: { pointer: Pointer }) => {
               display={`${Math.round(1 / settings.wristGain)}°`}
               onChange={(degrees) => updateSettings({ wristGain: 1 / degrees })}
             />
-          )}
-          {isLaser && (
-            <>
-              <Slider
-                id="pm-pointer-scale"
-                label="Empfindlichkeit"
-                value={settings.scale}
-                min={0.1}
-                max={1.5}
-                step={0.01}
-                display={settings.scale.toFixed(2)}
-                onChange={(scale) => updateSettings({ scale })}
-              />
-              <div className="flex flex-col gap-2">
-                <span className="text-sm text-neutral-300">
-                  Ich stehe am Bildrand
-                  {settings.turn !== null ? " (vom Rand eingemessen)" : ""}
-                </span>
-                <div className="grid grid-cols-4 gap-2">
-                  {PRESENTER_SIDES.map((side) => {
-                    const isChosen =
-                      settings.turn === null && settings.side === side;
-                    return (
-                      <button
-                        key={side}
-                        type="button"
-                        aria-pressed={isChosen}
-                        onClick={() => updateSettings({ side })}
-                        className={`min-h-[44px] rounded-lg text-sm ${
-                          isChosen
-                            ? "border border-amber-400 bg-amber-950 text-neutral-100"
-                            : "border border-neutral-700 bg-neutral-950 text-neutral-300 active:bg-neutral-800"
-                        }`}
-                      >
-                        {SIDE_LABEL[side]}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </>
           )}
         </section>
       </div>

@@ -24,15 +24,8 @@ import {
 } from "./orientation";
 import {
   OneEuro2,
-  SIDE_TURN,
   WristPointer,
-  calibrateCenter,
-  calibrateEdge,
-  recalibrate,
-  toModel,
-  type Calibration,
   type DeviceAxes,
-  type PresenterSide,
   type Vec2,
 } from "./pointer-math";
 import { STORAGE_PREFIX } from "./settings";
@@ -60,35 +53,19 @@ const SAMPLE_TIMEOUT_MS = 1500;
  */
 const SEND_INTERVAL_MS = 40;
 
-/** wrist: the phone as an air mouse. laser: the top edge's ray on the table */
-export type PointerMode = "wrist" | "laser";
-
 export type PointerSettings = {
-  mode: PointerMode;
-  /** wrist mode: model widths per degree of turn */
+  /** model widths per degree the wrist turns */
   wristGain: number;
   radius: number;
   dim: number;
-  side: PresenterSide;
-  /** model widths per table unit, see `pointer-math` */
-  scale: number;
-  /** measured by the edge calibration; null takes the side's */
-  turn: number | null;
 };
 
 export const DEFAULT_POINTER_SETTINGS: PointerSettings = {
-  mode: "wrist",
   // a turn of 35 degrees crosses the whole image
   wristGain: 1 / 35,
   radius: DEFAULT_POINTER_RADIUS,
   dim: DEFAULT_POINTER_DIM,
-  side: "bottom",
-  scale: 0.35,
-  turn: null,
 };
-
-const isSide = (value: unknown): value is PresenterSide =>
-  typeof value === "string" && value in SIDE_TURN;
 
 const numberOr = (value: unknown, fallback: number): number =>
   typeof value === "number" && Number.isFinite(value) ? value : fallback;
@@ -104,16 +81,9 @@ const loadPointerSettings = (): PointerSettings => {
         : {};
     const d = DEFAULT_POINTER_SETTINGS;
     return {
-      mode: record["mode"] === "laser" ? "laser" : d.mode,
       wristGain: numberOr(record["wristGain"], d.wristGain),
       radius: numberOr(record["radius"], d.radius),
       dim: numberOr(record["dim"], d.dim),
-      side: isSide(record["side"]) ? record["side"] : d.side,
-      scale: numberOr(record["scale"], d.scale),
-      turn:
-        typeof record["turn"] === "number" && Number.isFinite(record["turn"])
-          ? record["turn"]
-          : null,
     };
   } catch (error) {
     console.warn(`${LOG_PREFIX} stored pointer settings unreadable`, error);
@@ -129,16 +99,11 @@ const savePointerSettings = (settings: PointerSettings): void => {
   }
 };
 
-const turnOf = (settings: PointerSettings): number =>
-  settings.turn ?? SIDE_TURN[settings.side];
-
 /**
  * closed: the display shows no pointer. motion: the phone's attitude steers
  * the spot. touch: no attitude to be had, a finger on the hold area steers it.
  */
 export type PointerStatus = "closed" | "starting" | "motion" | "touch";
-
-export type Calibrated = "none" | "center" | "edge";
 
 export type PointerReadout = {
   position: Vec2;
@@ -175,14 +140,12 @@ export const usePointer = (
   const [settings, setSettings] = useState<PointerSettings>(() =>
     loadPointerSettings()
   );
-  const [calibrated, setCalibrated] = useState<Calibrated>("none");
   const [readout, setReadout] = useState<PointerReadout>(NO_READOUT);
 
   const settingsRef = useRef(settings);
   settingsRef.current = settings;
   const streamRef = useRef<OrientationStream | null>(null);
   const axesRef = useRef<DeviceAxes | null>(null);
-  const calibrationRef = useRef<Calibration | null>(null);
   const filterRef = useRef(new OneEuro2());
   const wristRef = useRef(new WristPointer());
   const positionRef = useRef<Vec2>([0, 0]);
@@ -254,16 +217,7 @@ export const usePointer = (
       if (!holdingRef.current) {
         return;
       }
-      const { mode, wristGain } = settingsRef.current;
-      const calibration = calibrationRef.current;
-      let raw: Vec2;
-      if (mode === "wrist") {
-        raw = wristRef.current.update(axes, wristGain);
-      } else if (calibration) {
-        raw = toModel(calibration, axes);
-      } else {
-        return;
-      }
+      const raw = wristRef.current.update(axes, settingsRef.current.wristGain);
       const { value, velocity } = filterRef.current.filter(raw, timeMs);
       positionRef.current = value;
       velocityRef.current = velocity;
@@ -338,8 +292,6 @@ export const usePointer = (
     holdingRef.current = false;
     clearPreview();
     stopStream();
-    calibrationRef.current = null;
-    setCalibrated("none");
     if (statusRef.current !== "closed") {
       sendSample(false);
       setPointerChannel(null).catch(() => {
@@ -352,86 +304,27 @@ export const usePointer = (
   }, [sendSample, setPointerChannel]);
 
   const center = useCallback(() => {
-    const axes = axesRef.current;
-    if (settingsRef.current.mode === "wrist") {
-      wristRef.current.center(axes);
-      filterRef.current.reset();
-      positionRef.current = [0, 0];
-      setNotice(null);
-      if (isShowing()) {
-        sendSample(true);
-      }
-      return;
-    }
-    if (!axes) {
-      positionRef.current = [0, 0];
-      return;
-    }
-    const { scale } = settingsRef.current;
-    calibrationRef.current = calibrateCenter(
-      axes,
-      turnOf(settingsRef.current),
-      scale
-    );
+    wristRef.current.center(axesRef.current);
     filterRef.current.reset();
     positionRef.current = [0, 0];
-    setCalibrated((current) => (current === "edge" ? "edge" : "center"));
     setNotice(null);
     if (isShowing()) {
       sendSample(true);
     }
   }, [sendSample]);
 
-  const edge = useCallback(() => {
-    const axes = axesRef.current;
-    const calibration = calibrationRef.current;
-    if (!axes || !calibration) {
-      return;
-    }
-    const result = calibrateEdge(calibration, axes);
-    if (!result) {
-      setNotice(
-        "Rand und Mitte liegen zu dicht beieinander. Auf die Mitte des rechten Bildrands zielen."
-      );
-      return;
-    }
-    calibrationRef.current = result.calibration;
-    const next = {
-      ...settingsRef.current,
-      scale: result.calibration.scale,
-      turn: result.turn,
-    };
-    savePointerSettings(next);
-    setSettings(next);
-    setCalibrated("edge");
-    setNotice(null);
-  }, []);
-
   const press = useCallback(() => {
     clearPreview();
     holdingRef.current = true;
     filterRef.current.reset();
-    if (statusRef.current === "motion" && settingsRef.current.mode === "wrist") {
+    if (statusRef.current === "motion") {
       // the spot goes on from where it was, like a mouse picked up and put down
       wristRef.current.anchor(axesRef.current);
       positionRef.current = wristRef.current.position;
-      velocityRef.current = [0, 0];
-      sendSample(true);
-      return;
     }
-    if (statusRef.current === "motion" && !calibrationRef.current) {
-      // the first hold starts in the middle, like the TV remote's pointer
-      center();
-      return;
-    }
-    const axes = axesRef.current;
-    const calibration = calibrationRef.current;
-    if (axes && calibration) {
-      positionRef.current = toModel(calibration, axes);
-      velocityRef.current = [0, 0];
-    }
+    velocityRef.current = [0, 0];
     sendSample(true);
-  }, [center, sendSample]);
+  }, [sendSample]);
 
   const release = useCallback(() => {
     if (!holdingRef.current) {
@@ -461,23 +354,9 @@ export const usePointer = (
   const updateSettings = useCallback(
     (patch: Partial<PointerSettings>) => {
       const next = { ...settingsRef.current, ...patch };
-      // a side chosen by hand replaces what the edge calibration measured
-      if (patch.side !== undefined) {
-        next.turn = null;
-      }
       savePointerSettings(next);
       settingsRef.current = next;
       setSettings(next);
-      if (calibrationRef.current) {
-        calibrationRef.current = recalibrate(
-          calibrationRef.current,
-          turnOf(next),
-          next.scale
-        );
-        if (patch.side !== undefined || patch.scale !== undefined) {
-          setCalibrated((current) => (current === "edge" ? "center" : current));
-        }
-      }
       if (statusRef.current === "closed") {
         return;
       }
@@ -509,8 +388,7 @@ export const usePointer = (
       }
     };
     document.addEventListener("visibilitychange", onVisibility);
-    return () =>
-      document.removeEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
   }, [release]);
 
   // another session code means another display
@@ -519,8 +397,6 @@ export const usePointer = (
       holdingRef.current = false;
       clearPreview();
       stopStream();
-      calibrationRef.current = null;
-      setCalibrated("none");
       setStatus("closed");
     },
     [sessionTarget]
@@ -575,7 +451,6 @@ export const usePointer = (
     error,
     notice,
     settings,
-    calibrated,
     readout,
     open,
     close,
@@ -583,7 +458,6 @@ export const usePointer = (
     release,
     touchMove,
     center,
-    edge,
     updateSettings,
   };
 };

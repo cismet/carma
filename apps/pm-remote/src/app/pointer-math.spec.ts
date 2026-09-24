@@ -1,15 +1,10 @@
 import {
   OneEuro2,
-  SIDE_TURN,
   WRIST_LIMIT,
   WristPointer,
   axesFromEuler,
   axesFromQuaternion,
-  calibrateCenter,
-  calibrateEdge,
   forwardOf,
-  hitOnTable,
-  toModel,
   type DeviceAxes,
   type Vec3,
 } from "./pointer-math";
@@ -38,7 +33,10 @@ const about = (axis: 0 | 1 | 2, degrees: number): Quaternion => {
 const quaternionFromEuler = (a: number, b: number, g: number): Quaternion =>
   multiply(multiply(about(2, a), about(0, b)), about(1, g));
 
-const expectVec = (actual: Vec3 | readonly number[], expected: readonly number[]) =>
+const expectVec = (
+  actual: Vec3 | readonly number[],
+  expected: readonly number[]
+) =>
   expected.forEach((value, index) =>
     expect(actual[index]).toBeCloseTo(value, 6)
   );
@@ -82,80 +80,6 @@ describe("forwardOf", () => {
   it("still faces ahead when the phone points straight down", () => {
     expectVec(forwardOf(aim(0, 90)), [0, 1]);
     expectVec(forwardOf(aim(90, 90)), [-1, 0]);
-  });
-});
-
-describe("hitOnTable", () => {
-  it("cuts the ray with the table one unit below", () => {
-    expectVec(hitOnTable(aim(0, 45)), [0, 1]);
-    expectVec(hitOnTable(aim(0, 90)), [0, 0]);
-  });
-
-  it("stays finite above the horizon", () => {
-    const [x, y] = hitOnTable(aim(0, -30));
-    expect(Number.isFinite(x) && Number.isFinite(y)).toBe(true);
-  });
-});
-
-describe("toModel", () => {
-  const scale = 0.5;
-
-  it("puts the calibration aim on the middle", () => {
-    const calibration = calibrateCenter(aim(0, 45), SIDE_TURN.bottom, scale);
-    expectVec(toModel(calibration, aim(0, 45)), [0, 0]);
-  });
-
-  it("moves right and away like the hand, standing at the bottom edge", () => {
-    const calibration = calibrateCenter(aim(0, 45), SIDE_TURN.bottom, scale);
-    const [rightX, rightY] = toModel(calibration, aim(-10, 45));
-    expect(rightX).toBeGreaterThan(0);
-    expect(Math.abs(rightY)).toBeLessThan(Math.abs(rightX));
-    // raising the aim reaches further across the table, which is north
-    const [, awayY] = toModel(calibration, aim(0, 35));
-    expect(awayY).toBeLessThan(0);
-  });
-
-  it("turns the model with the side the presenter stands at", () => {
-    // at the left edge, facing east: away is east, the hand's right is south
-    const calibration = calibrateCenter(aim(0, 45), SIDE_TURN.left, scale);
-    const [awayX] = toModel(calibration, aim(0, 35));
-    expect(awayX).toBeGreaterThan(0);
-    const [, rightY] = toModel(calibration, aim(-10, 45));
-    expect(rightY).toBeGreaterThan(0);
-  });
-
-  it("does not depend on the arbitrary world heading", () => {
-    const a = calibrateCenter(aim(0, 45), SIDE_TURN.bottom, scale);
-    const b = calibrateCenter(aim(137, 45), SIDE_TURN.bottom, scale);
-    expectVec(toModel(b, aim(137 - 12, 38)), toModel(a, aim(-12, 38)));
-  });
-});
-
-describe("calibrateEdge", () => {
-  it("makes the edge aim land on the middle of the right edge", () => {
-    const center = calibrateCenter(aim(0, 45), SIDE_TURN.left, 0.1);
-    const edge = aim(-20, 42);
-    const result = calibrateEdge(center, edge);
-    expect(result).not.toBeNull();
-    if (result) {
-      expectVec(toModel(result.calibration, edge), [0.5, 0]);
-      expectVec(toModel(result.calibration, aim(0, 45)), [0, 0]);
-    }
-  });
-
-  it("gives the turn a later centring can reuse", () => {
-    const center = calibrateCenter(aim(0, 45), SIDE_TURN.bottom, 0.1);
-    const result = calibrateEdge(center, aim(-20, 45));
-    expect(result).not.toBeNull();
-    if (result) {
-      const again = calibrateCenter(aim(0, 45), result.turn, result.calibration.scale);
-      expectVec(again.east, result.calibration.east);
-    }
-  });
-
-  it("refuses two aims at the same point", () => {
-    const center = calibrateCenter(aim(0, 45), SIDE_TURN.bottom, 0.1);
-    expect(calibrateEdge(center, aim(0, 45))).toBeNull();
   });
 });
 
