@@ -7,6 +7,7 @@ import { useState } from "react";
 import { serviceOptions as defaultServiceOptions } from "@carma-commons/resources";
 import { FileUploader, uploadImage } from "@carma-commons/ui/components";
 import type { ServiceOption } from "@carma-mapping/utils";
+import { CustomLayersWarning } from "@carma-mapping/layers";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
 
 import type { LayerState, SelectedObject } from "../types";
@@ -166,6 +167,7 @@ export const Share = ({
         <FontAwesomeIcon icon={faShareNodes} className="text-xl" />
         <h4 className="mb-0">Karte teilen</h4>
       </div>
+      {extendedSharing && <CustomLayersWarning layers={layers} />}
       {extendedSharing ? (
         <div
           style={{

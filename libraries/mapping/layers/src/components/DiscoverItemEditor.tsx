@@ -33,6 +33,7 @@ import {
 } from "../context/LayerCatalogProvider";
 import { useCatalogInteraction } from "../context/CatalogInteractionContext";
 import { useLayerCatalogConfig } from "../config/LayerCatalogConfigContext";
+import { CustomLayersWarning } from "./CustomLayersWarning";
 
 /** Inhalt / Verwendungszweck, title and thumbnail must be set to publish */
 export const checkForRequiredDiscoverFields = (config: Item): string => {
@@ -360,6 +361,16 @@ const DiscoverItemEditor = ({ layer, onCancel }: DiscoverItemEditorProps) => {
                       activeLayers.map(renderLayerButton)
                     ))}
                 </div>
+                <CustomLayersWarning
+                  layers={
+                    useNewLayers
+                      ? activeLayers.slice(1)
+                      : layer.type === "collection"
+                      ? layer.layers
+                      : []
+                  }
+                  className="mt-2 w-fit"
+                />
               </div>
             </div>
             <br />
