@@ -108,6 +108,10 @@ export type PointerStatus = "closed" | "starting" | "motion" | "touch";
 export type PointerReadout = {
   position: Vec2;
   isHolding: boolean;
+  /** armed: the next spot stays where the finger lets go, see `toggleLock` */
+  isLocked: boolean;
+  /** a spot let go while armed, standing without a finger */
+  isLatched: boolean;
   readingsPerSecond: number;
   writesPerSecond: number;
   rttMs: number | null;
@@ -116,6 +120,8 @@ export type PointerReadout = {
 const NO_READOUT: PointerReadout = {
   position: [0, 0],
   isHolding: false,
+  isLocked: false,
+  isLatched: false,
   readingsPerSecond: 0,
   writesPerSecond: 0,
   rttMs: null,
@@ -127,7 +133,9 @@ const clampReach = (value: number): number =>
 /**
  * The phone as a pointer. Opening it starts the attitude source, opens the
  * pointer session and tells the display to follow it; holding the pointer
- * button shows the spot there, releasing it hides the spot again.
+ * button shows the spot there, releasing it hides the spot again, unless the
+ * lock is armed: then it stays where it was let go until the lock is
+ * switched off.
  */
 export const usePointer = (
   target: RelayTarget | null,
@@ -151,6 +159,8 @@ export const usePointer = (
   const positionRef = useRef<Vec2>([0, 0]);
   const velocityRef = useRef<Vec2>([0, 0]);
   const holdingRef = useRef(false);
+  const lockedRef = useRef(false);
+  const latchedRef = useRef(false);
   const previewTimerRef = useRef<number | null>(null);
   const seqRef = useRef(0);
   const readingsRef = useRef(0);
@@ -208,7 +218,9 @@ export const usePointer = (
   );
 
   const isShowing = () =>
-    holdingRef.current || previewTimerRef.current !== null;
+    holdingRef.current ||
+    latchedRef.current ||
+    previewTimerRef.current !== null;
 
   const handleAxes = useCallback(
     (axes: DeviceAxes, timeMs: number) => {
@@ -290,6 +302,8 @@ export const usePointer = (
 
   const close = useCallback(() => {
     holdingRef.current = false;
+    lockedRef.current = false;
+    latchedRef.current = false;
     clearPreview();
     stopStream();
     if (statusRef.current !== "closed") {
@@ -332,7 +346,28 @@ export const usePointer = (
     }
     holdingRef.current = false;
     velocityRef.current = [0, 0];
-    sendSample(false);
+    // armed, the spot stays, and stands still rather than being led on
+    latchedRef.current = lockedRef.current;
+    sendSample(latchedRef.current);
+  }, [sendSample]);
+
+  /**
+   * Arms the lock: the picture stays as it is until the hold area is next
+   * held, and the spot that brings then stays where it is let go, to talk
+   * about the place it points at. Holding again moves it and it stays at the
+   * new place. Disarmed, a standing spot goes.
+   */
+  const toggleLock = useCallback(() => {
+    if (statusRef.current === "closed" || statusRef.current === "starting") {
+      return;
+    }
+    lockedRef.current = !lockedRef.current;
+    if (!lockedRef.current && latchedRef.current) {
+      latchedRef.current = false;
+      if (!holdingRef.current) {
+        sendSample(false);
+      }
+    }
   }, [sendSample]);
 
   /** the finger's travel as a fraction of the hold area, for phones without attitude */
@@ -363,12 +398,13 @@ export const usePointer = (
       // a size or dimming change shows the spot for a moment
       if (
         !holdingRef.current &&
+        !latchedRef.current &&
         (patch.radius !== undefined || patch.dim !== undefined)
       ) {
         clearPreview();
         previewTimerRef.current = window.setTimeout(() => {
           previewTimerRef.current = null;
-          if (!holdingRef.current) {
+          if (!holdingRef.current && !latchedRef.current) {
             sendSample(false);
           }
         }, PREVIEW_MS);
@@ -395,6 +431,8 @@ export const usePointer = (
   useEffect(
     () => () => {
       holdingRef.current = false;
+      lockedRef.current = false;
+      latchedRef.current = false;
       clearPreview();
       stopStream();
       setStatus("closed");
@@ -414,6 +452,8 @@ export const usePointer = (
       setReadout({
         position: positionRef.current,
         isHolding: holdingRef.current,
+        isLocked: lockedRef.current,
+        isLatched: latchedRef.current,
         readingsPerSecond: Math.round(readingsRef.current / seconds),
         writesPerSecond: Math.round(writesRef.current / seconds),
         rttMs: rttRef.current,
@@ -423,19 +463,23 @@ export const usePointer = (
     }, READOUT_MS * 10);
     const fast = window.setInterval(() => {
       if (
-        holdingRef.current &&
+        (holdingRef.current || latchedRef.current) &&
         performance.now() - lastSentAtRef.current > HEARTBEAT_MS
       ) {
         sendSample(true);
       }
       setReadout((current) =>
         current.position === positionRef.current &&
-        current.isHolding === holdingRef.current
+        current.isHolding === holdingRef.current &&
+        current.isLocked === lockedRef.current &&
+        current.isLatched === latchedRef.current
           ? current
           : {
               ...current,
               position: positionRef.current,
               isHolding: holdingRef.current,
+              isLocked: lockedRef.current,
+              isLatched: latchedRef.current,
             }
       );
     }, READOUT_MS);
@@ -456,6 +500,7 @@ export const usePointer = (
     close,
     press,
     release,
+    toggleLock,
     touchMove,
     center,
     updateSettings,

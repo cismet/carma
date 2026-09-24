@@ -52,8 +52,9 @@ const Slider = ({
 );
 
 /**
- * The pointer, full screen: a large area to hold while pointing, the tap
- * that brings the spot back to the middle, and the spot's settings.
+ * The pointer, full screen: a large area to hold while pointing, the lock
+ * that, armed, keeps the next spot after letting go, the tap that brings the spot back to
+ * the middle, and the spot's settings.
  */
 export const PointerPanel = ({ pointer }: { pointer: Pointer }) => {
   const {
@@ -66,6 +67,7 @@ export const PointerPanel = ({ pointer }: { pointer: Pointer }) => {
     close,
     press,
     release,
+    toggleLock,
     touchMove,
     center,
     updateSettings,
@@ -98,6 +100,7 @@ export const PointerPanel = ({ pointer }: { pointer: Pointer }) => {
     event.key === " " || event.key === "Enter";
 
   const [dx, dy] = readout.position;
+  const isShowing = readout.isHolding || readout.isLatched;
   const steeringText =
     status === "touch"
       ? "Fingersteuerung"
@@ -171,6 +174,8 @@ export const PointerPanel = ({ pointer }: { pointer: Pointer }) => {
           className={`flex min-h-[38vh] flex-1 touch-none select-none flex-col items-center justify-center gap-4 rounded-3xl border-2 p-4 [-webkit-touch-callout:none] ${
             readout.isHolding
               ? "border-amber-400 bg-amber-950"
+              : readout.isLatched
+              ? "border-amber-400 bg-neutral-900"
               : "border-neutral-700 bg-neutral-900"
           }`}
         >
@@ -180,7 +185,7 @@ export const PointerPanel = ({ pointer }: { pointer: Pointer }) => {
           >
             <span
               className={`absolute block h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full ${
-                readout.isHolding ? "bg-amber-300" : "bg-neutral-500"
+                isShowing ? "bg-amber-300" : "bg-neutral-500"
               }`}
               style={{
                 left: `${(0.5 + dx) * 100}%`,
@@ -193,6 +198,8 @@ export const PointerPanel = ({ pointer }: { pointer: Pointer }) => {
               ? "Sensoren starten …"
               : readout.isHolding
               ? "Zeigt"
+              : readout.isLatched
+              ? "Punkt steht"
               : "Halten zum Zeigen"}
           </span>
           <span className="text-center text-xs text-neutral-400">
@@ -200,20 +207,36 @@ export const PointerPanel = ({ pointer }: { pointer: Pointer }) => {
           </span>
         </div>
 
-        <button
-          type="button"
-          onClick={center}
-          disabled={status === "starting"}
-          className="min-h-[56px] rounded-xl border border-neutral-700 bg-neutral-900 text-sm font-semibold active:bg-neutral-800 disabled:opacity-40"
-        >
-          Mitte setzen
-        </button>
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            type="button"
+            onClick={toggleLock}
+            disabled={status === "starting"}
+            aria-pressed={readout.isLocked}
+            className={`min-h-[56px] rounded-xl border text-sm font-semibold disabled:opacity-40 ${
+              readout.isLocked
+                ? "border-amber-400 bg-amber-400 text-neutral-950 active:bg-amber-300"
+                : "border-neutral-700 bg-neutral-900 active:bg-neutral-800"
+            }`}
+          >
+            {readout.isLocked ? "Festhalten: an" : "Festhalten"}
+          </button>
+          <button
+            type="button"
+            onClick={center}
+            disabled={status === "starting"}
+            className="min-h-[56px] rounded-xl border border-neutral-700 bg-neutral-900 text-sm font-semibold active:bg-neutral-800 disabled:opacity-40"
+          >
+            Mitte setzen
+          </button>
+        </div>
         {isMotion && (
           <p className="m-0 text-xs leading-relaxed text-neutral-400">
             Halten und das Handgelenk drehen: nach rechts und links bewegt den
             Punkt seitwärts, nach oben und unten kippen bewegt ihn hoch und
             runter. Loslassen und neu greifen setzt fort, wo der Punkt stand.
-            „Mitte setzen“ holt ihn in die Bildmitte.
+            Mit „Festhalten: an“ bleibt der Punkt nach dem Loslassen stehen,
+            erneut Tippen schaltet aus und nimmt ihn weg. „Mitte setzen“ holt ihn in die Bildmitte.
           </p>
         )}
 
