@@ -30,6 +30,8 @@ import { truncateString } from "./featureInfoHelper";
 
 import "../infoBox.css";
 import LoadingInfoBox from "./LoadingInfoBox";
+import { useHighlightedFoto } from "./useHighlightedFoto";
+import HighlightFotoOverlayPreview from "./HighlightFotoOverlayPreview";
 
 import versionData from "../../../version.json";
 import {
@@ -86,6 +88,19 @@ const FeatureInfoBox = ({
   const { map: libreMap } = useLibreContext();
   // zoom-dependent replacement image, published by the infoBoxZoomImage addon
   const [infoBoxImage] = useAddonState("infoBoxImage");
+  // the InfoBox mapping can mark a box on the photo (fotoHighlight, pixel
+  // coordinates), e.g. the clicked crack on the crack detection photo. The
+  // preview lays it over the photo as SVG (instant); the lightbox gets a
+  // canvas-rendered copy that is prepared in the background meanwhile.
+  const fotoHighlight = selectedFeature?.properties?.fotoHighlight;
+  const fotoHighlightColor =
+    selectedFeature?.properties?.fotoHighlightColor ??
+    selectedFeature?.properties?.headerColor;
+  const highlightedFotoUrl = useHighlightedFoto(
+    updateUrl(selectedFeature?.properties?.foto),
+    fotoHighlight,
+    fotoHighlightColor
+  );
 
   if (secondaryInfoBoxElements.length > 4) {
     dispatch(setSecondaryInfoBoxElements([]));
@@ -315,12 +330,24 @@ const FeatureInfoBox = ({
       ? [
           ...additionalSecondaryInfoBoxElements,
           ...featureHeaders,
-          <InfoBoxFotoPreview
-            currentFeature={selectedFeature}
-            lightBoxDispatchContext={lightBoxDispatchContext}
-            urlManipulation={updateUrl}
-            {...(zoomImageUrl ? { getPhotoUrl: () => zoomImageUrl } : {})}
-          />,
+          fotoHighlight && selectedFeature.properties.foto && !zoomImageUrl ? (
+            <HighlightFotoOverlayPreview
+              key={selectedFeature.properties.foto}
+              currentFeature={selectedFeature}
+              lightBoxDispatchContext={lightBoxDispatchContext}
+              urlManipulation={updateUrl}
+              highlight={fotoHighlight}
+              color={fotoHighlightColor}
+              lightboxPhotoUrl={highlightedFotoUrl}
+            />
+          ) : (
+            <InfoBoxFotoPreview
+              currentFeature={selectedFeature}
+              lightBoxDispatchContext={lightBoxDispatchContext}
+              urlManipulation={updateUrl}
+              {...(zoomImageUrl ? { getPhotoUrl: () => zoomImageUrl } : {})}
+            />
+          ),
         ]
       : [...additionalSecondaryInfoBoxElements, ...featureHeaders];
 
