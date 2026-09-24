@@ -46,7 +46,7 @@ const BRANCHES = {
   [WIZARD_ACTIONS.SPLIT_JOIN]: [
     { id: STEP.JOIN_CHOOSE, title: "Zusammenlegen" },
     { id: STEP.SPLIT_CHOOSE, title: "Teilen" },
-    { id: STEP.RESULTING, title: "Ergebnis Flurstücke" },
+    { id: STEP.RESULTING, title: "Anlegen" },
     { id: STEP.SUMMARY, title: "Zusammenfassung" },
   ],
 };
