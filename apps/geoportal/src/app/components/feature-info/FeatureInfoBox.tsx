@@ -63,7 +63,7 @@ import {
   PanoramaPreview,
   type PanoramaHotspot,
 } from "@carma-appframeworks/portals";
-import { createFeature } from "../GeoportalMap/libremap.utils";
+import { createVectorFeature } from "../GeoportalMap/topicmap.utils";
 import { parseColor } from "../../helper/color";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
 import { addCustomFeatureFlags } from "../../store/slices/layers";
@@ -544,20 +544,25 @@ const FeatureInfoBox = ({
         return;
       }
       if (!raw) return;
-      const neighborFeature = await createFeature(raw, layer);
+      const geom = raw.geometry;
+      if (geom?.type !== "Point") return;
+      const [lng, lat] = geom.coordinates as number[];
+      if (!Number.isFinite(lng) || !Number.isFinite(lat)) return;
+      const neighborFeature = await createVectorFeature(
+        layer,
+        raw,
+        selectedLayerMap,
+        { lat, lng }
+      );
       if (!neighborFeature) return;
       // Recenter the (Leaflet) base map on the pano we jump to, so that when the
       // fullscreen viewer is closed the just-visited point sits in the map
       // centre. Navigation hotspots only exist in the fullscreen viewer, so this
       // path only runs for in-viewer tour hops. Keep the current zoom; no
       // animation since the map is hidden behind the lightbox.
-      const geom = neighborFeature.geometry;
       const leaflet = routedMapRef?.leafletMap?.leafletElement;
-      if (leaflet && geom?.type === "Point" && Array.isArray(geom.coordinates)) {
-        const [lng, lat] = geom.coordinates as number[];
-        if (Number.isFinite(lng) && Number.isFinite(lat)) {
-          leaflet.setView([lat, lng], leaflet.getZoom(), { animate: false });
-        }
+      if (leaflet) {
+        leaflet.setView([lat, lng], leaflet.getZoom(), { animate: false });
       }
       // The map highlight (selection-arrow feature-state) is kept in sync with
       // the redux selection by the effect below, so just select the neighbour.
@@ -574,6 +579,28 @@ const FeatureInfoBox = ({
   }>(() => {
     const empty = { hotspots: [], neighbourFileNames: [] };
     const props = selectedFeature?.properties?.sourceProps;
+    // [PANORAMA] dev: diagnose missing hotspots after the dev rebase. Strip
+    // before merge.
+    if (selectedFeature?.properties?.panorama) {
+      const style = selectedLayerMap?.getStyle?.();
+      console.log("[PANORAMA] hotspot inputs", {
+        selectedFeatureId: selectedFeature?.id,
+        maplibreMapIds: maplibreMaps?.map((entry) => entry.id),
+        hasSelectedLayerMap: !!selectedLayerMap,
+        sourcePropsKeys: props ? Object.keys(props) : null,
+        heading: props?.heading,
+        hasNb: !!props?.nb,
+        styleSources: style
+          ? Object.fromEntries(
+              Object.entries(style.sources ?? {}).map(([id, s]) => [
+                id,
+                (s as { type?: string }).type,
+              ])
+            )
+          : null,
+        panoSource: resolvePanoSource(selectedLayerMap),
+      });
+    }
     if (
       !selectedLayerMap ||
       !props ||
