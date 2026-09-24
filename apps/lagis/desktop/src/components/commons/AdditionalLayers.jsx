@@ -78,7 +78,7 @@ export const configuration = {
     title: drawerTextsHelper.abtOpt,
     conf: {
       type: "wmts",
-      url: "http://s10221.wuppertal-intra.de:8099/abt9_flst/services",
+      url: "https://sl0548-wuppertal-intra.map-hosting.de/forwardingTo/s10221/8099/abt9_flst/services",
       layers: "abt9",
       version: "1.1.1",
       tileSize: 256,
@@ -92,7 +92,7 @@ export const configuration = {
     title: drawerTextsHelper.baulastnachweisOpt,
     conf: {
       type: "wmts",
-      url: "http://s10221.wuppertal-intra.de:8056/baulasten/services",
+      url: "https://sl0548-wuppertal-intra.map-hosting.de/forwardingTo/s10221/8056/baulasten/services",
       layers: "baul",
       version: "1.1.1",
       tileSize: 256,
@@ -106,7 +106,7 @@ export const configuration = {
     title: drawerTextsHelper.stadtFstckOpt,
     conf: {
       type: "wmts",
-      url: "http://s10221.wuppertal-intra.de:7098/stadt-flurstuecke/services",
+      url: "https://sl0548-wuppertal-intra.map-hosting.de/forwardingTo/s10221/7098/stadt-flurstuecke/services",
       layers: "stadt_flurst",
       version: "1.1.1",
       tileSize: 256,
