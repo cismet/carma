@@ -10,6 +10,22 @@ const EMPTY_INFO_TEXT = "";
 const NOTHING_FOUND_INFO_TEXT =
   "Auf die Karte klicken um die Sachdatenabfrage zu starten.";
 
+/**
+ * The layer an info box element came from. A vector hit keeps the style layer
+ * it was picked on, which knows its layer; the placeholder shown for a layer
+ * without data has an id of its own, so the id is only the fallback.
+ */
+const getOwnerLayerId = (feature: FeatureInfo): string | undefined => {
+  const { sourceFeature, id } = feature as FeatureInfo & {
+    sourceFeature?: { layer?: { metadata?: Record<string, unknown> } };
+  };
+  const layerId = sourceFeature?.layer?.metadata?.["layer-id"];
+  if (typeof layerId === "string") {
+    return layerId;
+  }
+  return typeof id === "string" ? id : undefined;
+};
+
 const initialState: FeatureInfoState = {
   features: [],
   infoText: EMPTY_INFO_TEXT,
@@ -72,6 +88,28 @@ const slice = createSlice({
         state.secondaryInfoBoxElements = state.secondaryInfoBoxElements.filter(
           (f) => f.id !== id
         );
+      }
+    },
+    /**
+     * Drops what the info box shows of layers that left the map, whichever way
+     * they left: the next remaining element moves up into the selection.
+     */
+    dropInfoElementsOfLayers(state, action: PayloadAction<string[]>) {
+      const removedIds = new Set(action.payload);
+      const isOfRemovedLayer = (feature: FeatureInfo) => {
+        const ownerId = getOwnerLayerId(feature);
+        return ownerId !== undefined && removedIds.has(ownerId);
+      };
+      const remaining = state.secondaryInfoBoxElements.filter(
+        (feature) => !isOfRemovedLayer(feature)
+      );
+      if (state.selectedFeature && isOfRemovedLayer(state.selectedFeature)) {
+        state.selectedFeature = remaining[0] ?? null;
+        state.secondaryInfoBoxElements = remaining.slice(1);
+        return;
+      }
+      if (remaining.length !== state.secondaryInfoBoxElements.length) {
+        state.secondaryInfoBoxElements = remaining;
       }
     },
     clearSelectedFeature(state) {
@@ -175,6 +213,7 @@ export const {
 
   setSelectedFeature,
   updateInfoElementsAfterRemovingFeature,
+  dropInfoElementsOfLayers,
   clearSelectedFeature,
 
   addNothingFoundID,

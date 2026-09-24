@@ -80,6 +80,7 @@ import { addCssToOverlayHelperItem } from "../../helper/overlayHelper.ts";
 
 import useLeafletZoomControls from "../../hooks/leaflet/useLeafletZoomControls.ts";
 import { useDispatchSachdatenInfoText } from "../../hooks/useDispatchSachdatenInfoText.ts";
+import { useRemovedLayerInfoBoxReset } from "../../hooks/useRemovedLayerInfoBoxReset.ts";
 import { useFeatureInfoModeCursorStyle } from "../../hooks/useFeatureInfoModeCursorStyle.ts";
 import { useGeoportalInitialValues } from "../../hooks/useGeoportalInitialValues.ts";
 import useLibreLayers from "../../hooks/libre/useLibreLayers.ts";
@@ -1002,6 +1003,8 @@ const LibreGeoportalMap = ({ allow3d }: MapProps) => {
 
 export const GeoportalMap = (props: MapProps) => {
   const useLibreMap = useLibreMapEnabled();
+  // a layer leaving the map takes its info box along, however the stack changed
+  useRemovedLayerInfoBoxReset();
 
   return useLibreMap ? (
     <LibreGeoportalMap {...props} />
