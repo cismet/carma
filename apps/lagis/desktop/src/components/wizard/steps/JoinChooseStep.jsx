@@ -1,10 +1,15 @@
-import React, { useEffect, useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Button } from "antd";
 import { DeleteOutlined, PlusOutlined } from "@ant-design/icons";
+import { useSelector } from "react-redux";
 import LandParcelKeyChooser from "../LandParcelKeyChooser";
-import { hasDuplicateKeys } from "../../../core/wizard/keys";
+import { formatKey, hasDuplicateKeys } from "../../../core/wizard/keys";
+import { fetchGeometries, geometryForKey } from "../../../core/wizard/geometry";
+
+const INCOMPLETE = "Bitte vervollständigen Sie alle Flurstücke";
 
 const JoinChooseStep = ({ value, onChange, onProblem }) => {
+  const jwt = useSelector((state) => state.auth.jwt);
   // memoised: a fresh default array on every render would re-run the effect
   const slots = useMemo(
     () => value.joinSlots ?? [{ id: 1, key: undefined }],
@@ -20,13 +25,33 @@ const JoinChooseStep = ({ value, onChange, onProblem }) => {
 
   const keys = slots.map((slot) => slot.key).filter(Boolean);
 
+  // a parcel the chooser rejected, e.g. a historic one
+  const [chooserProblem, setChooserProblem] = useState();
+
+  const handleValidity = (slotId, status) => {
+    if (!status.valid && status.message !== INCOMPLETE) {
+      setChooserProblem({ slotId, message: status.message });
+    } else {
+      setChooserProblem((previous) =>
+        previous?.slotId === slotId ? undefined : previous
+      );
+    }
+  };
+
+  // true once every picked parcel is known to have an ALKIS geometry
+  const [geometryOk, setGeometryOk] = useState(false);
+
   useEffect(() => {
-    if (keys.length !== slots.length) {
-      onProblem("Bitte vervollständigen Sie alle Flurstücke");
+    setGeometryOk(false);
+    if (
+      chooserProblem &&
+      slots.some((slot) => slot.id === chooserProblem.slotId)
+    ) {
+      onProblem(chooserProblem.message);
       return;
     }
-    if (keys.length < 2) {
-      onProblem("Es müssen mindestens zwei Flurstücke ausgewählt werden");
+    if (keys.length !== slots.length) {
+      onProblem(INCOMPLETE);
       return;
     }
     if (hasDuplicateKeys(keys)) {
@@ -38,9 +63,39 @@ const JoinChooseStep = ({ value, onChange, onProblem }) => {
       onProblem("Alle Flurstücke müssen dieselbe Art haben.");
       return;
     }
-    onProblem(null);
+
+    let cancelled = false;
+    onProblem("Prüfe Flurstücke...");
+    fetchGeometries(keys, jwt)
+      .then((geometries) => {
+        if (cancelled) {
+          return;
+        }
+        const missing = keys.find((key) => !geometryForKey(key, geometries));
+        if (missing) {
+          onProblem(
+            `Konnte keine Geometrie zu Flurstück ${formatKey(missing)} finden.`
+          );
+          return;
+        }
+        setGeometryOk(true);
+        onProblem(
+          keys.length < 2
+            ? "Es müssen mindestens zwei Flurstücke ausgewählt werden"
+            : null
+        );
+      })
+      .catch((e) => {
+        if (!cancelled) {
+          console.error("Geometrien konnten nicht geprüft werden", e);
+          onProblem("Fehler beim Prüfen der Geometrien");
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [slots]);
+  }, [slots, chooserProblem]);
 
   return (
     <div className="flex flex-col gap-3">
@@ -57,6 +112,7 @@ const JoinChooseStep = ({ value, onChange, onProblem }) => {
                 )
               )
             }
+            onValidity={(status) => handleValidity(slot.id, status)}
           />
           <Button
             icon={<DeleteOutlined />}
@@ -69,6 +125,7 @@ const JoinChooseStep = ({ value, onChange, onProblem }) => {
           {index === slots.length - 1 && (
             <Button
               icon={<PlusOutlined />}
+              disabled={!geometryOk}
               onClick={() =>
                 setSlots([
                   ...slots,
