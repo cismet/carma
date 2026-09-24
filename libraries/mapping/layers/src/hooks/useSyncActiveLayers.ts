@@ -118,6 +118,28 @@ const mergeIntoActiveLayer = (
   } as Layer;
 };
 
+/**
+ * The part of a layer that comes from its definition. A copy restored from a
+ * saved collection or a share link carries the definition of the day it was
+ * saved, so this is what tells it apart from the layer the sync built.
+ */
+const definitionFingerprint = (layer: ActiveLayerEntry): string =>
+  JSON.stringify(
+    normalizeObject({
+      title: layer.title,
+      description: layer.description,
+      conf: layer.conf,
+      layerInfo: layer.layerInfo,
+    })
+  );
+
+type SyncRecord = {
+  /** the catalog item the layer was built from; null for its own style */
+  item: Item | null;
+  /** definitions already seen on the map or produced for this source */
+  fingerprints: Set<string>;
+};
+
 interface UseSyncActiveLayersProps {
   catalogItems: Map<string, Item>;
   activeLayers: ActiveLayers;
@@ -141,12 +163,12 @@ export const useSyncActiveLayers = ({
   updateActiveLayer,
   enabled,
 }: UseSyncActiveLayersProps) => {
-  // the catalog item each layer was last built from; an unchanged item needs no
-  // work, which keeps this effect cheap on unrelated active layer changes
-  const syncedItemsRef = useRef(new Map<string, Item>());
-  // layers refreshed from their own style; their source cannot signal a change,
-  // so this runs once per layer instead
-  const refreshedFromStyleRef = useRef(new Set<string>());
+  // per layer id: the source it was last built from and the definitions seen
+  // for it. An unchanged source with a known definition needs no work, which
+  // keeps this effect cheap on unrelated active layer changes. The definitions
+  // matter too: a layer replaced under the same id by an old copy (a saved
+  // collection, a share link) has an unchanged source but must be rebuilt.
+  const recordsRef = useRef(new Map<string, SyncRecord>());
   // a parse in flight must survive a re-run of the effect (the host callback is
   // rarely identity-stable), so only unmounting drops its result
   const mountedRef = useRef(true);
@@ -163,26 +185,42 @@ export const useSyncActiveLayers = ({
       return;
     }
 
-    const syncedItems = syncedItemsRef.current;
-    const refreshedFromStyle = refreshedFromStyleRef.current;
+    const records = recordsRef.current;
 
     // a layer that left the map forgets its record, so a re-add syncs again
     const activeIds = new Set(activeLayers.map((layer) => layer.id));
-    syncedItems.forEach((_, id) => {
+    records.forEach((_, id) => {
       if (!activeIds.has(id)) {
-        syncedItems.delete(id);
+        records.delete(id);
       }
     });
-    refreshedFromStyle.forEach((id) => {
-      if (!activeIds.has(id)) {
-        refreshedFromStyle.delete(id);
+
+    /**
+     * Whether the layer needs a rebuild from `item`, recording it as handled
+     * when it does. The definition on the map is recorded before the parse, so
+     * a re-run while it is in flight, or after a rebuild that changed nothing,
+     * does not start another one.
+     */
+    const claim = (activeLayer: ActiveLayerEntry, item: Item | null) => {
+      const fingerprint = definitionFingerprint(activeLayer);
+      const record = records.get(activeLayer.id);
+      const sameSource = !!record && isEqual(record.item, item);
+      if (sameSource && record.fingerprints.has(fingerprint)) {
+        return undefined;
       }
-    });
+      const next: SyncRecord = sameSource
+        ? record
+        : { item, fingerprints: new Set() };
+      next.fingerprints.add(fingerprint);
+      records.set(activeLayer.id, next);
+      return next;
+    };
 
     const applyParsedLayer = async (
       activeLayer: ActiveLayerEntry,
       item: Item,
-      merge: boolean
+      merge: boolean,
+      record: SyncRecord
     ) => {
       let parsedLayer: Layer;
       try {
@@ -196,10 +234,11 @@ export const useSyncActiveLayers = ({
         );
       } catch (error) {
         // let a later run try again with the same source
-        syncedItems.delete(activeLayer.id);
-        refreshedFromStyle.delete(activeLayer.id);
+        if (records.get(activeLayer.id) === record) {
+          records.delete(activeLayer.id);
+        }
         console.warn(
-          `[CATALOG SYNC] could not rebuild active layer ${item.id}`,
+          `[CATALOG SYNC] could not rebuild active layer ${activeLayer.id}`,
           error
         );
         return;
@@ -210,6 +249,8 @@ export const useSyncActiveLayers = ({
       const updatedLayer = merge
         ? mergeIntoActiveLayer(activeLayer, parsedLayer)
         : carryOverRuntimeState(activeLayer, parsedLayer);
+      // known before the update lands, so the re-run it causes is a no-op
+      record.fingerprints.add(definitionFingerprint(updatedLayer));
       if (
         isEqual(normalizeObject(activeLayer), normalizeObject(updatedLayer))
       ) {
@@ -225,26 +266,26 @@ export const useSyncActiveLayers = ({
 
       const item = catalogItems.get(activeLayer.id);
       if (isSyncableItem(item)) {
-        if (isEqual(syncedItems.get(activeLayer.id), item)) {
-          return;
+        const record = claim(activeLayer, item);
+        if (record) {
+          void applyParsedLayer(activeLayer, item, false, record);
         }
-        syncedItems.set(activeLayer.id, item);
-        void applyParsedLayer(activeLayer, item, false);
         return;
       }
 
-      // not in the catalog: the style URL is the only definition left
+      // not in the catalog: the style URL is the only definition left; it
+      // cannot signal a change, so only an unseen definition is refreshed
       const styleUrl = getProps(activeLayer).style;
-      if (
-        isRefreshableFromStyle(activeLayer) &&
-        isStyleUrl(styleUrl) &&
-        !refreshedFromStyle.has(activeLayer.id)
-      ) {
-        refreshedFromStyle.add(activeLayer.id);
+      if (!isRefreshableFromStyle(activeLayer) || !isStyleUrl(styleUrl)) {
+        return;
+      }
+      const record = claim(activeLayer, null);
+      if (record) {
         void applyParsedLayer(
           activeLayer,
           toCatalogItem(activeLayer as Layer, styleUrl),
-          true
+          true,
+          record
         );
       }
     });
