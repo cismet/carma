@@ -12,6 +12,12 @@ import type {
   VectorStyleProps,
 } from "../lib/contracts/carma-layers.d";
 import { normalizeObject } from "../helper/layerHelper";
+import { CUSTOM_CATEGORY } from "../helper/buildCatalog";
+import {
+  buildVectorStyleItem,
+  loadVectorStyle,
+  styleUrlTitle,
+} from "../helper/vectorStyleItem";
 
 type ActiveLayerEntry = Layer | BackgroundLayer;
 type ActiveLayerProps = Partial<LayerProps & VectorStyleProps>;
@@ -97,6 +103,35 @@ const toCatalogItem = (layer: Layer, styleUrl: string): Item => {
 };
 
 /**
+ * A layer that entered through a dropped style url. Its item was built from
+ * that style alone, so the style is its whole definition.
+ */
+const isDroppedStyleLayer = (layer: ActiveLayerEntry): boolean =>
+  layer.other?.serviceName === CUSTOM_CATEGORY.id;
+
+/**
+ * The item a drop of this url builds today. A dropped layer carries the style's
+ * layerInfo of the day it was dropped as its own keywords, and item keywords
+ * win over the style's in the parse, so feeding those back (toCatalogItem)
+ * would keep the old info box mapping, title and description forever.
+ */
+const rebuildDroppedItem = async (
+  layer: ActiveLayerEntry,
+  styleUrl: string,
+  vectorTileServerUrl: string
+): Promise<Item> => {
+  const style = await loadVectorStyle(styleUrl, vectorTileServerUrl);
+  return buildVectorStyleItem({
+    styleRef: styleUrl,
+    style,
+    id: layer.id,
+    fallbackTitle: styleUrlTitle(styleUrl),
+    ...(layer.other?.path ? { path: layer.other.path } : {}),
+    type: layer.type === "object" ? "object" : "layer",
+  }).item;
+};
+
+/**
  * Merge instead of replace: the item rebuilt from the layer itself is thinner
  * than a catalog item, so everything the parse did not produce keeps its
  * current value rather than being dropped.
@@ -146,6 +181,8 @@ interface UseSyncActiveLayersProps {
   updateActiveLayer?: (layer: Layer) => void;
   /** keeps the sync off while the catalog sources are still incomplete */
   enabled: boolean;
+  /** resolves the server placeholder when a dropped style is refetched */
+  vectorTileServerUrl: string;
 }
 
 /**
@@ -162,6 +199,7 @@ export const useSyncActiveLayers = ({
   activeLayers,
   updateActiveLayer,
   enabled,
+  vectorTileServerUrl,
 }: UseSyncActiveLayersProps) => {
   // per layer id: the source it was last built from and the definitions seen
   // for it. An unchanged source with a known definition needs no work, which
@@ -218,12 +256,13 @@ export const useSyncActiveLayers = ({
 
     const applyParsedLayer = async (
       activeLayer: ActiveLayerEntry,
-      item: Item,
+      resolveItem: () => Item | Promise<Item>,
       merge: boolean,
       record: SyncRecord
     ) => {
       let parsedLayer: Layer;
       try {
+        const item = await resolveItem();
         parsedLayer = await parseToMapLayer(
           item,
           // a layer added as WMS stays WMS, even when the item offers a vector
@@ -268,7 +307,7 @@ export const useSyncActiveLayers = ({
       if (isSyncableItem(item)) {
         const record = claim(activeLayer, item);
         if (record) {
-          void applyParsedLayer(activeLayer, item, false, record);
+          void applyParsedLayer(activeLayer, () => item, false, record);
         }
         return;
       }
@@ -280,14 +319,32 @@ export const useSyncActiveLayers = ({
         return;
       }
       const record = claim(activeLayer, null);
-      if (record) {
+      if (!record) {
+        return;
+      }
+      if (isDroppedStyleLayer(activeLayer)) {
+        // built like a new drop of the url, so it replaces what the layer
+        // froze of the style instead of merging over it
         void applyParsedLayer(
           activeLayer,
-          toCatalogItem(activeLayer as Layer, styleUrl),
-          true,
+          () => rebuildDroppedItem(activeLayer, styleUrl, vectorTileServerUrl),
+          false,
           record
         );
+        return;
       }
+      void applyParsedLayer(
+        activeLayer,
+        () => toCatalogItem(activeLayer as Layer, styleUrl),
+        true,
+        record
+      );
     });
-  }, [catalogItems, activeLayers, updateActiveLayer, enabled]);
+  }, [
+    catalogItems,
+    activeLayers,
+    updateActiveLayer,
+    enabled,
+    vectorTileServerUrl,
+  ]);
 };

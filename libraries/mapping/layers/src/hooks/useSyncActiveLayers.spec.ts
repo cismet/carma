@@ -48,6 +48,7 @@ const renderSync = (initial: Props) => {
         catalogItems,
         updateActiveLayer,
         enabled: true,
+        vectorTileServerUrl: "https://tiles.cismet.de",
       }),
     { initialProps: initial }
   );
@@ -112,5 +113,45 @@ describe("useSyncActiveLayers", () => {
     expect(updateActiveLayer.mock.calls[0][0].conf).toEqual({
       infoBoxMapping: "fresh",
     });
+  });
+
+  it("rebuilds a dropped style from the style, not from its frozen keywords", async () => {
+    const freshMapping = "carmaconf://infoBoxMapping:fresh";
+    const fetchMock = vi.fn(async () => ({
+      text: async () =>
+        JSON.stringify({
+          metadata: {
+            carmaConf: {
+              layerInfo: { title: "Neuer Titel", keywords: [freshMapping] },
+            },
+          },
+        }),
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const dropped = layerWith("stale", {
+      id: `custom:${STYLE_URL}`,
+      other: {
+        serviceName: "custom",
+        keywords: [
+          `carmaConf://vectorStyle:${STYLE_URL}`,
+          "carmaconf://infoBoxMapping:stale",
+        ],
+      },
+    } as Partial<Layer>);
+
+    renderSync({ activeLayers: [dropped], catalogItems: new Map() });
+
+    await waitFor(() => expect(parseToMapLayer).toHaveBeenCalledTimes(1));
+    const rebuiltItem = parseToMapLayer.mock.calls[0][0] as Item;
+    expect(fetchMock).toHaveBeenCalledWith(STYLE_URL);
+    expect(rebuiltItem.id).toBe(`custom:${STYLE_URL}`);
+    expect(rebuiltItem.title).toBe("Neuer Titel");
+    expect(rebuiltItem.keywords).toEqual([
+      `carmaConf://vectorStyle:${STYLE_URL}`,
+      freshMapping,
+    ]);
+
+    vi.unstubAllGlobals();
   });
 });

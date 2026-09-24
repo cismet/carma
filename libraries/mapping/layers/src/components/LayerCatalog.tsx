@@ -366,6 +366,7 @@ const LayerCatalogView = ({
     activeLayers,
     updateActiveLayer,
     enabled: !loadingAdditionalConfig && !loadingCapabilities,
+    vectorTileServerUrl: catalogConfig.vectorTileServerUrl,
   });
 
   const resolveWorkflowLayers = useCallback(
