@@ -521,26 +521,37 @@ export const App = () => {
           </>
         ) : (
           <>
-            {/* tap: the live story, long press: the layer sliders */}
-            <button
-              type="button"
-              {...titlePress}
-              className="flex select-none flex-col rounded-2xl border border-neutral-800 bg-neutral-900 p-5 text-left text-neutral-100 [-webkit-touch-callout:none] active:bg-neutral-800"
-            >
-              <span className="block text-xs font-semibold uppercase tracking-[0.2em] text-amber-400">
-                {activeScene ? "Auf dem Modell" : "Bereit"}
-              </span>
-              <span className="mt-3 block break-words text-4xl font-bold leading-tight tracking-tight">
-                {activeScene ? activeScene.title : showTitle}
-              </span>
-              {activeScene && liveGroup && (
-                <span className="mt-3 block text-xs uppercase tracking-[0.2em] text-neutral-400 tabular-nums">
-                  {`${liveGroup.story.title} · Szene ${activeIndex + 1} / ${
-                    walk.length
-                  }`}
+            <div className="flex flex-col gap-3">
+              {/* tap: the live story, long press: the layer sliders */}
+              <button
+                type="button"
+                {...titlePress}
+                className="flex select-none flex-col rounded-2xl border border-neutral-800 bg-neutral-900 p-5 text-left text-neutral-100 [-webkit-touch-callout:none] active:bg-neutral-800"
+              >
+                <span className="block text-xs font-semibold uppercase tracking-[0.2em] text-amber-400">
+                  {activeScene ? "Auf dem Modell" : "Bereit"}
                 </span>
+                <span className="mt-3 block break-words text-4xl font-bold leading-tight tracking-tight">
+                  {activeScene ? activeScene.title : showTitle}
+                </span>
+                {activeScene && liveGroup && (
+                  <span className="mt-3 block text-xs uppercase tracking-[0.2em] text-neutral-400 tabular-nums">
+                    {`${liveGroup.story.title} · Szene ${activeIndex + 1} / ${
+                      walk.length
+                    }`}
+                  </span>
+                )}
+              </button>
+              {display.series && display.seriesClock && (
+                <SeriesControl
+                  series={display.series}
+                  clock={display.seriesClock}
+                  disabled={!target}
+                  onPlay={display.setSeriesPlaying}
+                  onSeek={display.seekSeries}
+                />
               )}
-            </button>
+            </div>
 
             <ol className="m-0 grid list-none grid-cols-2 gap-3 p-0">
               {groups.map(({ story, scenes: storyScenes }, index) => {
