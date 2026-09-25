@@ -40,17 +40,11 @@ export const adminTargets = (value) => {
   }
 };
 
-/** Areas the earlier steps already worked out, by formatKey. */
-const knownAreas = (value) => {
-  const areas = {};
-  for (const row of value.areaCheck?.results ?? []) {
-    areas[row.label] = row.area;
-  }
-  if (value.createKey && value.createArea !== undefined) {
-    areas[formatKey(value.createKey)] = value.createArea;
-  }
-  return areas;
-};
+/** ALKIS outlines the earlier steps already loaded, by formatKey. */
+const knownOutlines = (value) =>
+  value.createKey && value.createOutline
+    ? { [formatKey(value.createKey)]: value.createOutline }
+    : {};
 
 const rowId = () => nanoid();
 
@@ -113,13 +107,13 @@ export const loadAdminData = async (value, jwt) => {
     return { stammdaten, parcels: {} };
   }
 
-  const areas = knownAreas(value);
+  const outlines = knownOutlines(value);
   const unknown = missing
     .map(({ key }) => key)
-    .filter((key) => areas[formatKey(key)] === undefined);
+    .filter((key) => !outlines[formatKey(key)]);
   const geometries = unknown.length ? await fetchGeometries(unknown, jwt) : {};
   for (const key of unknown) {
-    areas[formatKey(key)] = geometryForKey(key, geometries)?.area;
+    outlines[formatKey(key)] = geometryForKey(key, geometries);
   }
 
   const parcels = {};
@@ -129,7 +123,9 @@ export const loadAdminData = async (value, jwt) => {
       ? await fetchAdminData(source.id, jwt)
       : EMPTY_SOURCE;
     parcels[label] = {
-      ...toParcelData(data, round2(areas[label])),
+      ...toParcelData(data, round2(outlines[label]?.area)),
+      // EPSG:25832, undefined when ALKIS has no geometry
+      geometry: outlines[label]?.geometry,
       sperre: source?.istGesperrt ?? false,
     };
   }

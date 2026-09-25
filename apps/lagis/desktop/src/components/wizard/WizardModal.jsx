@@ -62,7 +62,9 @@ const StepList = ({ steps, stepIndex }) => {
   );
 };
 
-const PANE_STYLE = { height: "min(62vh, 520px)", minHeight: 380 };
+// same sizes as the BelIS "Erweiterte Suche" modal
+const PANE_STYLE = { height: "min(720px, calc(100vh - 160px))" };
+const SIDEBAR_WIDTH = "clamp(180px, 20vw, 240px)";
 
 const WizardModal = ({
   open,
@@ -78,12 +80,13 @@ const WizardModal = ({
   error,
   problem,
   problemTone = "info",
+  hideProblem = false,
   children,
 }) => (
   <Modal
     open={open}
     title={header}
-    width={880}
+    width={1200}
     centered
     onCancel={onCancel}
     maskClosable={false}
@@ -128,11 +131,11 @@ const WizardModal = ({
       >
         <div
           style={{
-            width: 244,
-            flex: "0 0 244px",
-            background: "#fafafa",
-            borderRight: "1px solid #f0f0f0",
-            padding: "20px 16px",
+            width: SIDEBAR_WIDTH,
+            flex: `0 0 ${SIDEBAR_WIDTH}`,
+            background: "#f8fafc",
+            borderRight: "1px solid #e5e7eb",
+            padding: "20px 12px 20px 16px",
             overflowY: "auto",
           }}
         >
@@ -150,7 +153,8 @@ const WizardModal = ({
             justifyContent: "space-between",
           }}
         >
-          <div>
+          {/* grows, so a step can hand the free height to its map */}
+          <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
             {stepTitle && (
               <div
                 style={{
@@ -170,7 +174,11 @@ const WizardModal = ({
                 description={<ResultDescription result={result} />}
               />
             ) : (
-              children
+              <div
+                style={{ flex: 1, display: "flex", flexDirection: "column" }}
+              >
+                {children}
+              </div>
             )}
             {error && (
               <Alert
@@ -184,7 +192,7 @@ const WizardModal = ({
               />
             )}
           </div>
-          {problem && (
+          {problem && !hideProblem && (
             <div
               style={{
                 display: "flex",

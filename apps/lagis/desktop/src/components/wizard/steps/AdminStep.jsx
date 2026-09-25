@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useSelector } from "react-redux";
 import { Alert, Checkbox, Input, InputNumber, Select, Spin } from "antd";
 import { verwaltung } from "@carma-collab/wuppertal/lagis-desktop";
+import DienststellenEditor from "../DienststellenEditor";
 import AdminAreaTable, {
   ColorMark,
   dienststelleLabel,
@@ -169,7 +170,7 @@ const NoteEditor = ({ title, parcel, onChange }) => (
 );
 
 /** One sub-step of Verwaltungsbereiche; every one of them may stay empty. */
-const AdminStep = ({ section, value, onChange, onProblem }) => {
+const AdminStep = ({ section, value, onChange, onProblem, onHideProblem }) => {
   const jwt = useSelector((state) => state.auth.jwt);
   const [stammdaten, setStammdaten] = useState();
   const [loadError, setLoadError] = useState();
@@ -213,6 +214,15 @@ const AdminStep = ({ section, value, onChange, onProblem }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stammdaten, section, value.admin, targets]);
 
+  // same condition as the map in DienststellenEditor
+  const showsMap =
+    section === ADMIN_SECTION.DIENSTSTELLEN &&
+    targets.some(({ key }) => admin[formatKey(key)]?.dienststellen.length >= 2);
+  useEffect(() => {
+    onHideProblem(showsMap);
+  }, [showsMap, onHideProblem]);
+  useEffect(() => () => onHideProblem(false), [onHideProblem]);
+
   if (loadError) {
     return null;
   }
@@ -240,7 +250,7 @@ const AdminStep = ({ section, value, onChange, onProblem }) => {
   const config = SECTIONS[section];
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-1 flex-col gap-4">
       {targets.map(({ key }) => {
         const label = formatKey(key);
         const parcel = admin[label];
@@ -256,6 +266,19 @@ const AdminStep = ({ section, value, onChange, onProblem }) => {
               title={title}
               parcel={parcel}
               onChange={(changes) => patchParcel(label, changes)}
+            />
+          );
+        }
+        if (section === ADMIN_SECTION.DIENSTSTELLEN) {
+          return (
+            <DienststellenEditor
+              key={label}
+              title={title}
+              parcel={parcel}
+              dienststellen={stammdaten.dienststellen}
+              columns={config.columns(stammdaten)}
+              newRow={() => config.newRow(parcel)}
+              onChange={(rows) => patchParcel(label, { dienststellen: rows })}
             />
           );
         }

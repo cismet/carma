@@ -23,8 +23,18 @@ export const ColorMark = ({ color }) => (
  * The tables of the Verwaltungsbereiche page, edited in place. `columns` get
  * `update(id, changes)` to write a cell back.
  */
-const AdminAreaTable = ({ title, rows, columns, newRow, onChange }) => {
-  const [activeId, setActiveId] = useState(rows[0]?.id);
+const AdminAreaTable = ({
+  title,
+  rows,
+  columns,
+  newRow,
+  onChange,
+  activeId: controlledActiveId,
+  onActiveChange,
+}) => {
+  const [ownActiveId, setOwnActiveId] = useState(rows[0]?.id);
+  const activeId = onActiveChange ? controlledActiveId : ownActiveId;
+  const setActiveId = onActiveChange ?? setOwnActiveId;
 
   const update = (id, changes) =>
     onChange(rows.map((row) => (row.id === id ? { ...row, ...changes } : row)));
