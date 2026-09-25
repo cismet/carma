@@ -1,7 +1,7 @@
 import {
   ActionNotSuccessfulError,
   fetchFlurstueckBySchluesselId,
-  toDateOnly,
+  toTimestamp,
   updateSchluessel,
 } from "../api";
 import { FLURSTUECK_ART } from "../constants";
@@ -51,8 +51,8 @@ export const activateFlurstueck = async ({ key }, ctx) => {
     const reactivationDates =
       key.art.bezeichnung === FLURSTUECK_ART.STAEDTISCH
         ? {
-            datum_entstehung: toDateOnly(new Date()),
-            datum_letzter_stadtbesitz: toDateOnly(new Date()),
+            datum_entstehung: toTimestamp(new Date()),
+            datum_letzter_stadtbesitz: toTimestamp(new Date()),
           }
         : {};
 
