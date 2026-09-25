@@ -50,6 +50,7 @@ const ActivateStep = ({ value, onChange, onProblem }) => {
       <div className="mb-1 font-medium">Flurstück, das aktiviert wird</div>
       <LandParcelKeyChooser
         mode="historic"
+        prefillCurrent
         value={value.activateKey}
         disabled={checking}
         onChange={handleChange}

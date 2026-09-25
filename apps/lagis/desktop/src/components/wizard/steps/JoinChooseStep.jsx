@@ -104,7 +104,9 @@ const JoinChooseStep = ({ value, onChange, onProblem }) => {
         <div key={slot.id} className="flex items-start gap-2">
           <LandParcelKeyChooser
             mode="current"
+            prefillCurrent={slot.id === 1}
             value={slot.key}
+            preset={slot.preset}
             onChange={(next) =>
               setSlots(
                 slots.map((entry) =>
@@ -132,6 +134,7 @@ const JoinChooseStep = ({ value, onChange, onProblem }) => {
                   {
                     id: Math.max(...slots.map((e) => e.id)) + 1,
                     key: undefined,
+                    preset: slot.key,
                   },
                 ])
               }

@@ -29,6 +29,7 @@ const RenameStep = ({ value, onChange, onProblem }) => {
           // as in Java, every parcel is offered; a historic one is turned down
           // on pick instead of being dropped from the list without a word
           mode="all"
+          prefillCurrent
           reject={(key) => (key.gueltigBis ? HISTORIC_REJECTED : null)}
           value={value.renameKey}
           onChange={(next) => onChange({ renameKey: next })}
