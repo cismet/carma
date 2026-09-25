@@ -24,6 +24,9 @@ export default defineConfig({
 
   plugins: [react(), nxViteTsPaths()],
   base: base,
+  worker: {
+    plugins: () => [nxViteTsPaths()],
+  },
 
   optimizeDeps: {
     include: ["maplibre-gl", "leaflet-snap"],
