@@ -58,6 +58,8 @@ export type LandParcelSearchProps = {
   onOptionSelect?: (option: Option) => void;
   /** Replaces the default "Kein Flurstück gefunden" toast. */
   onNotFound?: (input: string) => void;
+  /** Greys out the Gemarkung and Flur while typing; off for one plain text style. */
+  dimPrefix?: boolean;
 };
 
 const defaultIcon = (
@@ -83,6 +85,7 @@ export function LandParcelSearch({
   transformOptions,
   onOptionSelect,
   onNotFound,
+  dimPrefix = true,
 }: LandParcelSearchProps) {
   const [searchResult, setSearchResult] = useState<GroupedOptions[]>([]);
   const [options, setOptions] = useState<Option[]>([]);
@@ -268,6 +271,7 @@ export function LandParcelSearch({
       };
 
   const isLoading = !externalData && landParcelLoading;
+  const showOverlay = dimPrefix && Boolean(landParcelData) && cleanBtnDisable;
 
   // parsed again rather than remembered, so the transform sees the current text
   const displayedOptions = useMemo(() => {
@@ -318,7 +322,7 @@ export function LandParcelSearch({
       <div style={{ position: "relative", width: "calc(100% - 32px)" }}>
         {(() => {
           const sepIdx = value.lastIndexOf(LAND_PARCEL_SEPARATOR);
-          if (landParcelData && sepIdx > 0 && cleanBtnDisable) {
+          if (showOverlay && sepIdx > 0) {
             const prefix = value.substring(0, sepIdx + 1);
             const active = value.substring(sepIdx + 1);
             return (
@@ -367,9 +371,7 @@ export function LandParcelSearch({
           onSelect={(_value, option) => handleOnSelect(option)}
           defaultActiveFirstOption={true}
           className={
-            value.includes(LAND_PARCEL_SEPARATOR) &&
-            landParcelData &&
-            cleanBtnDisable
+            showOverlay && value.includes(LAND_PARCEL_SEPARATOR)
               ? "fuzzy-input-transparent"
               : ""
           }

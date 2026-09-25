@@ -1,7 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import { LandParcelSearch } from "@carma-mapping/fuzzy-search";
-import { getLandparcelInternaDataStructure } from "../../store/slices/lagis";
+import {
+  getLandparcelInternaDataStructure,
+  getSelectedFlur,
+  getSelectedFlurstueckLabel,
+} from "../../store/slices/lagis";
 import {
   fetchSchluesselById,
   findSchluesselByKey,
@@ -36,9 +40,13 @@ const LandParcelKeyChooser = ({
   disabled = false,
   incompleteMessage = INCOMPLETE,
   reject,
+  prefillCurrent = false,
 }) => {
   const jwt = useSelector((state) => state.auth.jwt);
   const structure = useSelector(getLandparcelInternaDataStructure);
+  const selectedFlur = useSelector(getSelectedFlur);
+  const selectedLabel = useSelector(getSelectedFlurstueckLabel);
+  const currentLfk = selectedFlur?.flurstuecke?.[selectedLabel]?.lfk;
   const { gemarkungen, error: stammdatenError } = useStammdaten();
 
   const [text, setText] = useState(
@@ -64,6 +72,18 @@ const LandParcelKeyChooser = ({
     onValidity(status);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const prefilledRef = useRef(false);
+  useEffect(() => {
+    if (!prefillCurrent || prefilledRef.current || value || !structure) {
+      return;
+    }
+    prefilledRef.current = true;
+    if (currentLfk) {
+      takeExisting({ lfk: currentLfk }, true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [structure]);
 
   const presetText = presetToSearchText(preset);
   const presetRef = useRef(presetText);
@@ -91,7 +111,7 @@ const LandParcelKeyChooser = ({
     [mode, structure]
   );
 
-  const takeExisting = async (parcel) => {
+  const takeExisting = async (parcel, showInInput = false) => {
     if (!parcel?.lfk) {
       publish(undefined, {
         valid: false,
@@ -105,6 +125,16 @@ const LandParcelKeyChooser = ({
       const resolved = await fetchSchluesselById(parcel.lfk, jwt);
       if (token !== checkRef.current) {
         return;
+      }
+      if (resolved && showInInput) {
+        const resolvedText = keyToSearchText(resolved);
+        pickedRef.current = resolvedText;
+        setText(resolvedText);
+        const hidden = hiddenParcelMessage(resolvedText, mode, structure);
+        if (hidden) {
+          publish(undefined, { valid: false, message: hidden });
+          return;
+        }
       }
       if (!resolved) {
         publish(undefined, {
@@ -264,6 +294,7 @@ const LandParcelKeyChooser = ({
               onNotFound={handleNotFound}
               showDropdownBelow={true}
               showButton={false}
+              dimPrefix={false}
             />
           </div>
         </div>

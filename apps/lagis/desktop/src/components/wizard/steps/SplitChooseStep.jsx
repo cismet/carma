@@ -43,6 +43,7 @@ const SplitChooseStep = ({ value, onChange, onProblem }) => {
           <div className="mb-1 font-medium">Flurstück, das geteilt wird</div>
           <LandParcelKeyChooser
             mode="current"
+            prefillCurrent
             incompleteMessage={CHOOSE_PROMPT}
             value={key}
             onChange={(next) => onChange({ splitKey: next })}

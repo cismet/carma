@@ -31,6 +31,7 @@ const HistoricStep = ({ value, onChange, onProblem }) => {
           // HistoricActionPanel's chooser starts on "alle Flurstücke", so an
           // already historic parcel can be picked
           mode="all"
+          prefillCurrent
           value={value.historicKey}
           onChange={(next) => onChange({ historicKey: next })}
           onValidity={(next) => {

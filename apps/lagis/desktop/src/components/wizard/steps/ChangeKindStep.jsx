@@ -63,6 +63,7 @@ const ChangeKindStep = ({ value, onChange, onProblem }) => {
         <div className="mb-1 font-medium">Flurstück</div>
         <LandParcelKeyChooser
           mode="current"
+          prefillCurrent
           value={key}
           onChange={(next) => onChange({ changeKey: next })}
           onValidity={(status) => {
