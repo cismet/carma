@@ -40,6 +40,8 @@ import {
   removeSecondaryInfoBoxElement,
   moveFeatureToFront,
   setPreferredVectorLayerId,
+  getOverlappingFeatures,
+  findOverlappingIndex,
 } from "../../store/slices/features";
 import { getLayers, getMaplibreMaps } from "../../store/slices/mapping";
 import { useLibreMapEnabled } from "../../hooks/useLibreMapEnabled";
@@ -49,6 +51,7 @@ import "../infoBox.css";
 import LoadingInfoBox from "./LoadingInfoBox";
 import { useHighlightedFoto } from "./useHighlightedFoto";
 import HighlightFotoOverlayPreview from "./HighlightFotoOverlayPreview";
+import OverlappingFeaturesNavigator from "./OverlappingFeaturesNavigator";
 
 import versionData from "../../../version.json";
 import {
@@ -232,10 +235,31 @@ const FeatureInfoBox = ({
   const fotoHighlightColor =
     selectedFeature?.properties?.fotoHighlightColor ??
     selectedFeature?.properties?.headerColor;
+
+  const originalFotoUrl = updateUrl(selectedFeature?.properties?.foto);
   const highlightedFotoUrl = useHighlightedFoto(
-    updateUrl(selectedFeature?.properties?.foto),
+    originalFotoUrl,
     fotoHighlight,
     fotoHighlightColor
+  );
+
+  // Overlapping features of one source under the click (e.g. stacked cracks):
+  // the photo preview steps through them.
+  const overlappingFeatures = useSelector(getOverlappingFeatures);
+  const overlappingIndex = findOverlappingIndex(
+    overlappingFeatures,
+    selectedFeature
+  );
+
+  const selectOverlapping = useCallback(
+    (index: number) => {
+      const count = overlappingFeatures.length;
+      if (count < 2) {
+        return;
+      }
+      dispatch(setSelectedFeature(overlappingFeatures[(index + count) % count]));
+    },
+    [overlappingFeatures, dispatch]
   );
 
   if (secondaryInfoBoxElements.length > 4) {
@@ -957,6 +981,51 @@ const FeatureInfoBox = ({
     });
   }, [lightBoxDispatchContext, selectedFeature, mediaSlides]);
 
+  // The highlight photo's lightbox holds the photo with the box drawn in and
+  // the original, paged with the lightbox arrows. Until the boxed copy is
+  // rendered (or when that fails) it holds only the original.
+  const highlightLightBoxRef = useRef(false);
+  const highlightPhotoUrls = (
+    highlightedFotoUrl ? [highlightedFotoUrl, originalFotoUrl] : [originalFotoUrl]
+  ).filter((url): url is string => !!url);
+  const highlightPhotoUrlsKey = highlightPhotoUrls.join("\n");
+  const lightBoxIndex = lightBoxState?.index ?? 0;
+  const featureTitle = selectedFeature?.properties?.title ?? "";
+  const highlightTitle = highlightedFotoUrl
+    ? `${featureTitle} (${
+        lightBoxIndex === 1 ? "Originalfoto" : "mit Markierung"
+      })`
+    : featureTitle;
+
+  const openHighlightLightBox = useCallback(() => {
+    highlightLightBoxRef.current = true;
+    lightBoxDispatchContext?.setAll({
+      title: highlightTitle,
+      photourls: highlightPhotoUrlsKey.split("\n"),
+      caption: defaultLightBoxCaptionFactory(),
+      index: 0,
+      visible: true,
+    });
+  }, [lightBoxDispatchContext, highlightTitle, highlightPhotoUrlsKey]);
+
+  // swap in the boxed copy once rendered, and name the version shown
+  useEffect(() => {
+    if (!lightboxVisible) {
+      highlightLightBoxRef.current = false;
+      return;
+    }
+    if (!highlightLightBoxRef.current) {
+      return;
+    }
+    lightBoxDispatchContext?.setPhotoUrls(highlightPhotoUrlsKey.split("\n"));
+    lightBoxDispatchContext?.setTitle(highlightTitle);
+  }, [
+    lightboxVisible,
+    highlightPhotoUrlsKey,
+    highlightTitle,
+    lightBoxDispatchContext,
+  ]);
+
   if (loadingFeatureInfo && shouldRenderLoadingInfobox)
     return <LoadingInfoBox />;
 
@@ -1029,6 +1098,31 @@ const FeatureInfoBox = ({
       ]
     : [];
 
+  const showsHighlightFoto =
+    !!fotoHighlight && !!selectedFeature.properties.foto && !zoomImageUrl;
+  const overlappingCycle =
+    overlappingIndex >= 0
+      ? {
+          index: overlappingIndex,
+          count: overlappingFeatures.length,
+          onPrevious: () => selectOverlapping(overlappingIndex - 1),
+          onNext: () => selectOverlapping(overlappingIndex + 1),
+        }
+      : undefined;
+  // the arrows normally sit on the highlight photo; a member without one
+  // (missing photo) gets a small bar, so stepping doesn't end there
+  const overlappingNavigatorElements =
+    overlappingCycle &&
+    !showsHighlightFoto &&
+    overlappingFeatures.some((f) => f.properties?.fotoHighlight)
+      ? [
+          <OverlappingFeaturesNavigator
+            key="overlapping-features-navigator"
+            {...overlappingCycle}
+          />,
+        ]
+      : [];
+
   const visibleSecondaryInfoBoxElements =
     selectedFeature.properties.foto ||
     selectedFeature.properties.fotos ||
@@ -1037,15 +1131,14 @@ const FeatureInfoBox = ({
           ...additionalSecondaryInfoBoxElements,
           ...featureHeaders,
           ...panoramaElements,
-          fotoHighlight && selectedFeature.properties.foto && !zoomImageUrl ? (
+          showsHighlightFoto ? (
             <HighlightFotoOverlayPreview
               key={selectedFeature.properties.foto}
-              currentFeature={selectedFeature}
-              lightBoxDispatchContext={lightBoxDispatchContext}
-              urlManipulation={updateUrl}
+              url={originalFotoUrl}
               highlight={fotoHighlight}
               color={fotoHighlightColor}
-              lightboxPhotoUrl={highlightedFotoUrl}
+              cycle={overlappingCycle}
+              onOpenLightBox={openHighlightLightBox}
             />
           ) : (
             <InfoBoxFotoPreview
@@ -1055,11 +1148,13 @@ const FeatureInfoBox = ({
               {...(zoomImageUrl ? { getPhotoUrl: () => zoomImageUrl } : {})}
             />
           ),
+          ...overlappingNavigatorElements,
         ]
       : [
           ...additionalSecondaryInfoBoxElements,
           ...featureHeaders,
           ...panoramaElements,
+          ...overlappingNavigatorElements,
         ];
 
   return (
