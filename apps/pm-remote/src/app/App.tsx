@@ -11,6 +11,7 @@ import {
 
 import { showErrorText } from "./messages";
 import { PointerPanel } from "./PointerPanel";
+import { SeriesControl } from "./SeriesControl";
 import { SettingsPanel } from "./SettingsPanel";
 import {
   FADE_CHOICES,
@@ -389,6 +390,16 @@ export const App = () => {
               ))}
             </ul>
           </section>
+        )}
+
+        {display.series && display.seriesClock && (
+          <SeriesControl
+            series={display.series}
+            clock={display.seriesClock}
+            disabled={!target}
+            onPlay={display.setSeriesPlaying}
+            onSeek={display.seekSeries}
+          />
         )}
       </main>
 

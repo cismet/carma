@@ -5,18 +5,25 @@ import {
   DEFAULT_PREPARE_MS,
   baseOf,
   blackoutOf,
+  clockStep,
   composeDisplayConfig,
+  findSceneSeries,
   helloRelay,
   isBounds3857,
   isMappingConfig,
+  isTimeSeriesControl,
   planSceneChange,
   readRelayState,
+  seriesControlOf,
   withLayerOpacity,
   writeRelayState,
   type Bounds3857,
   type PointerChannel,
   type RelayTarget,
+  type SceneSeries,
+  type SeriesClock,
   type ShowScene,
+  type TimeSeriesControl,
 } from "@carma-mapping/show-remote";
 
 import { createLatestWinsWriter, runSteps, sleep } from "./display-link";
@@ -32,6 +39,27 @@ const HELLO_INTERVAL_MS = 30_000;
 const LOG_PREFIX = "[PM REMOTE]";
 
 export type Connection = "idle" | "connecting" | "connected" | "error";
+
+/**
+ * The phone's clock of the time series the live scene runs. `touched` says the
+ * presenter used it; only then does it go into the state document, so a scene
+ * nobody steers leaves the series to its layer's own autoplay.
+ */
+type OwnSeries = { key: string; clock: SeriesClock; touched: boolean };
+
+/** the series' entry of a write, when the presenter steered the one it runs */
+const seriesEntry = (
+  own: OwnSeries | null,
+  base: MappingConfig | null
+): { timeSeries?: TimeSeriesControl } => {
+  if (!own?.touched) {
+    return {};
+  }
+  const series = findSceneSeries(base);
+  return series?.key === own.key
+    ? { timeSeries: seriesControlOf(own.clock, series, Date.now()) }
+    : {};
+};
 
 /** the scene the display shows, told apart by its layers */
 const sceneShowing = (
@@ -71,6 +99,9 @@ export const useDisplay = (
   const boundsRef = useRef<Bounds3857 | null>(null);
   /** the open pointer session, repeated in every write like the position */
   const pointerRef = useRef<PointerChannel | null>(null);
+  /** the series clock, repeated in every write like the position */
+  const seriesRef = useRef<OwnSeries | null>(null);
+  const [seriesClock, setSeriesClock] = useState<SeriesClock | null>(null);
   // bumped by every scene tap; a run whose number is outdated stops
   const runRef = useRef(0);
   const scenesRef = useRef(scenes);
@@ -122,19 +153,46 @@ export const useDisplay = (
             : {}),
           ...(boundsRef.current ? { bounds: boundsRef.current } : {}),
           ...(pointerRef.current ? { pointer: pointerRef.current } : {}),
+          ...seriesEntry(seriesRef.current, base),
         })
       );
     },
     [writer, reportWrite]
   );
 
+  /**
+   * Follows the series of what the display is sent. A scene running another
+   * series, or none, drops the clock; the display starts that one as its layer
+   * says. The same series in the next scene keeps it, since the display keeps
+   * running it too.
+   */
+  const trackSeries = useCallback((base: MappingConfig | null) => {
+    const series = findSceneSeries(base);
+    if (series?.key === seriesRef.current?.key) {
+      return;
+    }
+    seriesRef.current = series
+      ? {
+          key: series.key,
+          clock: {
+            step: series.initialStep,
+            playing: series.autoplay,
+            since: Date.now(),
+          },
+          touched: false,
+        }
+      : null;
+    setSeriesClock(seriesRef.current?.clock ?? null);
+  }, []);
+
   const send = useCallback(
     (base: MappingConfig): Promise<void> => {
       liveRef.current = base;
       setLive(base);
+      trackSeries(base);
       return write(base);
     },
-    [write]
+    [write, trackSeries]
   );
 
   // connect: open the session, then take over what the display was last sent
@@ -144,7 +202,9 @@ export const useDisplay = (
     blackoutRef.current = false;
     boundsRef.current = null;
     pointerRef.current = null;
+    seriesRef.current = null;
     setLive(null);
+    setSeriesClock(null);
     setIsBlackout(false);
     setActiveSceneId(null);
     setIsChanging(false);
@@ -179,6 +239,18 @@ export const useDisplay = (
         setLive(base);
         setIsBlackout(blackoutRef.current);
         setActiveSceneId(sceneShowing(base, scenesRef.current)?.id ?? null);
+        trackSeries(base);
+        // where the series was steered to before this phone (re)connected;
+        // counted on from now, the time in between is not known
+        const control = document["timeSeries"];
+        if (seriesRef.current && isTimeSeriesControl(control)) {
+          seriesRef.current = {
+            key: seriesRef.current.key,
+            clock: { ...control, since: Date.now() },
+            touched: true,
+          };
+          setSeriesClock(seriesRef.current.clock);
+        }
       }
       setConnection("connected");
     })().catch((connectError: unknown) => {
@@ -199,7 +271,7 @@ export const useDisplay = (
       isCurrent = false;
       window.clearInterval(hello);
     };
-  }, [target]);
+  }, [target, trackSeries]);
 
   const goToScene = useCallback(
     (scene: ShowScene) => {
@@ -272,10 +344,65 @@ export const useDisplay = (
     [write]
   );
 
+  /** a new clock for the live scene's series, sent to the display */
+  const steerSeries = useCallback(
+    (
+      change: (
+        clock: SeriesClock,
+        series: SceneSeries,
+        now: number
+      ) => SeriesClock
+    ) => {
+      const series = findSceneSeries(liveRef.current);
+      const own = seriesRef.current;
+      if (!series || own?.key !== series.key) {
+        return;
+      }
+      const clock = change(own.clock, series, Date.now());
+      seriesRef.current = { key: own.key, clock, touched: true };
+      setSeriesClock(clock);
+      write(liveRef.current).catch(() => {
+        // reported by `write`
+      });
+    },
+    [write]
+  );
+
+  /** play or pause; the display pauses where it is, not where the clock is */
+  const setSeriesPlaying = useCallback(
+    (playing: boolean) =>
+      steerSeries((clock, series, now) => ({
+        ...clock,
+        step: clockStep(clock, series, now),
+        playing,
+        since: now,
+      })),
+    [steerSeries]
+  );
+
+  /** puts the display on this step, playing on from there if it plays */
+  const seekSeries = useCallback(
+    (step: number) =>
+      steerSeries((clock, _series, now) => ({
+        ...clock,
+        step,
+        since: now,
+        // a new value for every move, so the display takes each one
+        seekAt: Math.max(now, (clock.seekAt ?? 0) + 1),
+      })),
+    [steerSeries]
+  );
+
+  const series = useMemo(() => findSceneSeries(live), [live]);
+
   return {
     connection,
     error,
     live,
+    series,
+    seriesClock,
+    setSeriesPlaying,
+    seekSeries,
     isBlackout,
     activeSceneId,
     isChanging,
