@@ -12,7 +12,7 @@ import SplitChooseStep from "./steps/SplitChooseStep";
 import JoinChooseStep from "./steps/JoinChooseStep";
 import ResultingStep from "./steps/ResultingStep";
 import SummaryStep from "./steps/SummaryStep";
-import AdminAreasStep from "./steps/AdminAreasStep";
+import AdminStep from "./steps/AdminStep";
 import UsageStep from "./steps/UsageStep";
 import HistoricRebeMipaDialog from "./HistoricRebeMipaDialog";
 import WizardModal from "./WizardModal";
@@ -22,6 +22,7 @@ import WizardFooter from "./WizardFooter";
 import { STEP, getSteps } from "../../core/wizard/flow";
 import { ACTION_TITLES, WIZARD_ACTIONS } from "../../core/wizard/constants";
 import { findLock } from "../../core/wizard/locks";
+import { ADMIN_SECTION } from "../../core/wizard/adminData";
 import { explain } from "../../core/wizard/errors";
 import { findRebeAndMipa } from "../../core/wizard/areaCheck";
 import {
@@ -307,8 +308,14 @@ const LandParcelWizard = ({
         return <ResultingStep {...props} />;
       case STEP.SUMMARY:
         return <SummaryStep {...props} />;
-      case STEP.ADMIN_AREAS:
-        return <AdminAreasStep {...props} />;
+      case STEP.ADMIN_DIENSTSTELLEN:
+        return <AdminStep section={ADMIN_SECTION.DIENSTSTELLEN} {...props} />;
+      case STEP.ADMIN_ROLLEN:
+        return <AdminStep section={ADMIN_SECTION.ROLLEN} {...props} />;
+      case STEP.ADMIN_STRASSENFRONTEN:
+        return <AdminStep section={ADMIN_SECTION.STRASSENFRONTEN} {...props} />;
+      case STEP.ADMIN_BEMERKUNGEN:
+        return <AdminStep section={ADMIN_SECTION.BEMERKUNGEN} {...props} />;
       case STEP.USAGE:
         return <UsageStep {...props} />;
       default:

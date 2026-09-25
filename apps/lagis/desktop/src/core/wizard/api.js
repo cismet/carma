@@ -310,3 +310,34 @@ export const fetchMipaByGeo = async (geo, jwt) => {
   const data = await run(wizardQueries.mipaByGeo, { geo }, jwt);
   return data.mipa ?? [];
 };
+
+/* Verwaltungsbereiche */
+
+export const fetchDienststellen = async (jwt) => {
+  const data = await run(wizardQueries.dienststellen, {}, jwt);
+  return data.verwaltende_dienststelle ?? [];
+};
+
+export const fetchZusatzRolleArten = async (jwt) => {
+  const data = await run(wizardQueries.zusatzRolleArten, {}, jwt);
+  return data.zusatz_rolle_art ?? [];
+};
+
+export const fetchAdminData = async (schluesselId, jwt) => {
+  const data = await run(
+    wizardQueries.adminDataBySchluesselId,
+    { schluesselId },
+    jwt
+  );
+  const row = data.flurstueck?.[0];
+  const eintraege = row?.verwaltungsbereiche_eintragArrayRelationShip ?? [];
+  return {
+    bemerkung: row?.bemerkung ?? "",
+    // the current Eintrag is the last one, as on the Verwaltungsbereiche page
+    bereiche:
+      eintraege[eintraege.length - 1]?.verwaltungsbereichArrayRelationShip ??
+      [],
+    rollen: row?.zusatz_rolleArrayRelationShip ?? [],
+    strassenfronten: row?.strassenfrontArrayRelationShip ?? [],
+  };
+};
