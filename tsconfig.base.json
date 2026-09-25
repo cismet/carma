@@ -41,6 +41,9 @@
       "@carma-appframeworks/*": ["libraries/appframeworks/*/src/index.ts"],
       "@carma-commons/*": ["libraries/commons/*/src/index.ts"],
       "@carma-commons/ui/shadcn": ["libraries/commons/ui/shadcn/src/index.ts"],
+      "@carma-commons/cismap/settings-panel": [
+        "libraries/commons/cismap/src/lib/DefaultSettingsPanel.jsx"
+      ],
       "@carma-units": ["libraries/units/src/index.ts"],
       "@carma-geo/*": ["libraries/geo/*/src/index.ts"],
       "@carma-mapping/annotations/builtin-tools/annotation-mode-text": [
