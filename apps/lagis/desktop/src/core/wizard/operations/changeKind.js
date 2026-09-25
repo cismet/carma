@@ -1,4 +1,8 @@
-import { ActionNotSuccessfulError, toDateOnly, updateSchluessel } from "../api";
+import {
+  ActionNotSuccessfulError,
+  toTimestamp,
+  updateSchluessel,
+} from "../api";
 import { FLURSTUECK_ART } from "../constants";
 import { formatKey } from "../keys";
 import { acquireLock, releaseLock } from "../locks";
@@ -38,7 +42,7 @@ export const changeFlurstueckArt = async ({ key, newArt }, ctx) => {
     const changes = wasStaedtisch
       ? {
           war_staedtisch: true,
-          datum_letzter_stadtbesitz: toDateOnly(new Date()),
+          datum_letzter_stadtbesitz: toTimestamp(new Date()),
         }
       : staedtischColumns({ ...key, art: newArt });
 
