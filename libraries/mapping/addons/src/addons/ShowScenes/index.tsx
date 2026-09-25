@@ -3,7 +3,6 @@ import { useMemo, useState, type ReactNode } from "react";
 import {
   Button,
   Checkbox,
-  Input,
   Modal,
   Popconfirm,
   QRCode,
@@ -61,6 +60,7 @@ import type { MappingConfig } from "@carma-api";
 import { useAddonScope } from "../../lib/AddonStateContext";
 import { routeScopeFromLocation } from "../../lib/addon-overrides-storage";
 import type { AddonComponentProps } from "../../lib/registry";
+import { DraftInput } from "./DraftInput";
 import { IconButton } from "./IconButton";
 import { OpenShowRow } from "./OpenShowRow";
 import { SceneDetails } from "./SceneDetails";
@@ -246,10 +246,10 @@ const SceneRow = ({
         <span className="w-6 text-right tabular-nums text-gray-500">
           {index + 1}
         </span>
-        <Input
+        <DraftInput
           size="small"
           value={scene.title}
-          onChange={(event) => onRename(event.target.value)}
+          onValue={onRename}
           className="flex-1"
         />
         <span className="w-20 whitespace-nowrap text-xs text-gray-500">
@@ -338,10 +338,10 @@ const StoryBlock = ({
 }) => (
   <li className="flex flex-col gap-1 rounded border border-solid border-gray-200 p-2">
     <div className="flex items-center gap-2">
-      <Input
+      <DraftInput
         size="small"
         value={story.title}
-        onChange={(event) => onRename(event.target.value)}
+        onValue={onRename}
         className="flex-1 font-semibold"
       />
       <span className="whitespace-nowrap text-xs text-gray-500">
@@ -705,13 +705,12 @@ export const ShowScenes = ({
               <label htmlFor="show-scenes-title" className="w-24 text-gray-600">
                 Titel der Show
               </label>
-              <Input
+              <DraftInput
                 id="show-scenes-title"
                 value={draft.title}
-                onChange={(event) => {
-                  const title = event.target.value;
-                  updateDraft((current) => ({ ...current, title }));
-                }}
+                onValue={(title) =>
+                  updateDraft((current) => ({ ...current, title }))
+                }
               />
             </div>
 

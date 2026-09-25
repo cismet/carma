@@ -1,4 +1,4 @@
-import { Button, Checkbox, Input, Popconfirm, Select } from "antd";
+import { Button, Checkbox, Popconfirm, Select } from "antd";
 
 import {
   layerTitle,
@@ -6,6 +6,7 @@ import {
   type ShowStory,
 } from "@carma-mapping/show-remote";
 
+import { DraftTextArea } from "./DraftInput";
 import { sceneLayers } from "./scene-edit";
 
 /**
@@ -59,9 +60,9 @@ export const SceneDetails = ({
         <span className="text-xs font-semibold text-gray-600">
           Text zur Szene
         </span>
-        <Input.TextArea
+        <DraftTextArea
           value={scene.text ?? ""}
-          onChange={(event) => onText(event.target.value)}
+          onValue={onText}
           autoSize={{ minRows: 2, maxRows: 8 }}
           placeholder="Was auf dem Handy zu dieser Szene steht"
         />
