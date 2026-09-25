@@ -189,3 +189,41 @@ wizardQueries.gemarkungen = `query Gemarkungen {
     bezeichnung
   }
 }`;
+
+wizardQueries.dienststellen = `query Dienststellen {
+  verwaltende_dienststelle {
+    id
+    abkuerzung_abteilung
+    bezeichnung_abteilung
+    ressort { abkuerzung }
+    farbeArrayRelationShip { rgb_farbwert }
+  }
+}`;
+
+wizardQueries.zusatzRolleArten = `query ZusatzRolleArten {
+  zusatz_rolle_art {
+    id
+    name
+  }
+}`;
+
+wizardQueries.adminDataBySchluesselId = `query AdminDataBySchluesselId($schluesselId: Int!) {
+  flurstueck(where: {fk_flurstueck_schluessel: {_eq: $schluesselId}}) {
+    bemerkung
+    verwaltungsbereiche_eintragArrayRelationShip {
+      id
+      verwaltungsbereichArrayRelationShip {
+        flaeche
+        verwaltende_dienststelle { id }
+      }
+    }
+    zusatz_rolleArrayRelationShip {
+      verwaltende_dienststelle { id }
+      zusatz_rolle_art { id }
+    }
+    strassenfrontArrayRelationShip {
+      strassenname
+      laenge
+    }
+  }
+}`;

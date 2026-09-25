@@ -8,6 +8,60 @@ import {
 import GraphQLPanel from "./GraphQLPanel";
 import ResultDescription from "./ResultDescription";
 
+/** Consecutive steps of one group become a single step with its own list. */
+const groupSteps = (steps) => {
+  const items = [];
+  steps.forEach((step, index) => {
+    const last = items[items.length - 1];
+    if (step.group && last?.group === step.group) {
+      last.children.push({ ...step, index });
+    } else if (step.group) {
+      items.push({ group: step.group, children: [{ ...step, index }] });
+    } else {
+      items.push({ ...step, index });
+    }
+  });
+  return items;
+};
+
+const firstIndex = (item) => item.children?.[0].index ?? item.index;
+
+const StepList = ({ steps, stepIndex }) => {
+  const items = groupSteps(steps);
+  const current = items.findLastIndex((item) => firstIndex(item) <= stepIndex);
+  return (
+    <Steps
+      direction="vertical"
+      size="small"
+      current={current}
+      items={items.map((item, itemIndex) => ({
+        title: <span style={{ fontSize: 13 }}>{item.group ?? item.title}</span>,
+        description: item.children && (
+          <Steps
+            className="mt-2"
+            // the dots stick out to the left and the outer step clips them
+            style={{ paddingInlineStart: 6 }}
+            direction="vertical"
+            size="small"
+            progressDot
+            // before the group nothing is done, after it everything is
+            current={
+              itemIndex < current
+                ? item.children.length
+                : itemIndex > current
+                ? -1
+                : stepIndex - firstIndex(item)
+            }
+            items={item.children.map((child) => ({
+              title: <span style={{ fontSize: 12 }}>{child.title}</span>,
+            }))}
+          />
+        ),
+      }))}
+    />
+  );
+};
+
 const PANE_STYLE = { height: "min(62vh, 520px)", minHeight: 380 };
 
 const WizardModal = ({
@@ -82,14 +136,7 @@ const WizardModal = ({
             overflowY: "auto",
           }}
         >
-          <Steps
-            direction="vertical"
-            size="small"
-            current={stepIndex}
-            items={steps.map((step) => ({
-              title: <span style={{ fontSize: 13 }}>{step.title}</span>,
-            }))}
-          />
+          <StepList steps={steps} stepIndex={stepIndex} />
         </div>
 
         <div

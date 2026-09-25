@@ -15,7 +15,10 @@ export const STEP = {
   JOIN_CHOOSE: "joinChoose",
   RESULTING: "resulting",
   SUMMARY: "summary",
-  ADMIN_AREAS: "adminAreas",
+  ADMIN_DIENSTSTELLEN: "adminDienststellen",
+  ADMIN_ROLLEN: "adminRollen",
+  ADMIN_STRASSENFRONTEN: "adminStrassenfronten",
+  ADMIN_BEMERKUNGEN: "adminBemerkungen",
   USAGE: "usage",
 };
 
@@ -52,13 +55,23 @@ const BRANCHES = {
 };
 
 /** Asked for every action, once the parcels are settled. */
-const COMMON_STEPS = [
-  { id: STEP.ADMIN_AREAS, title: "Verwaltungsbereiche" },
-  { id: STEP.USAGE, title: "Nutzung" },
+const ADMIN_GROUP = "Verwaltungsbereiche";
+
+const ADMIN_STEPS = [
+  { id: STEP.ADMIN_DIENSTSTELLEN, title: "Dienststellen", group: ADMIN_GROUP },
+  { id: STEP.ADMIN_ROLLEN, title: "Zusätzliche Rollen", group: ADMIN_GROUP },
+  {
+    id: STEP.ADMIN_STRASSENFRONTEN,
+    title: "Straßenfronten",
+    group: ADMIN_GROUP,
+  },
+  { id: STEP.ADMIN_BEMERKUNGEN, title: "Bemerkungen", group: ADMIN_GROUP },
 ];
 
+const COMMON_STEPS = [...ADMIN_STEPS, { id: STEP.USAGE, title: "Nutzung" }];
+
 const SKIPPED_COMMON_STEPS = {
-  [WIZARD_ACTIONS.HISTORIC]: [STEP.ADMIN_AREAS],
+  [WIZARD_ACTIONS.HISTORIC]: ADMIN_STEPS.map((step) => step.id),
 };
 
 const withCommonSteps = (branch, action) => [
