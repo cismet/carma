@@ -3,6 +3,7 @@ import { ProgressIndicator, useProgress } from "@carma-appframeworks/portals";
 import { CarmaMap, LibreLayer } from "@carma-mapping/core";
 import type { AdvancedFilterState } from "@carma-mapping/components";
 import type maplibregl from "maplibre-gl";
+import { getGeoJsonSourceId } from "@carma-mapping/engines/maplibre";
 import Menu from "./Menu";
 import TitleBox from "./TitleBox";
 import { POI_LAYER_CONFIG } from "./helper/constants";
@@ -42,10 +43,10 @@ export default function App() {
   // Capture original features and extract lebenslagen on first filterFunction call
   const handleFilter = useCallback(
     (map: maplibregl.Map, layers?: LibreLayer[]) => {
-      layers?.forEach((layer, index) => {
+      layers?.forEach((layer) => {
         if (layer.type !== "geojson") return;
 
-        const sourceId = `geojson-source-${index}`;
+        const sourceId = getGeoJsonSourceId(layer.name);
         const styleSource = map.getStyle().sources[sourceId] as
           | { data?: GeoJSON.FeatureCollection }
           | undefined;

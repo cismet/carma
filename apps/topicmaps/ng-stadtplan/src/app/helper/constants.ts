@@ -1,4 +1,4 @@
-export const POI_SOURCE_ID = "geojson-source-0";
+import { getGeoJsonSourceId } from "@carma-mapping/engines/maplibre";
 
 /** Predefined color mapping for lebenslage combinations */
 export const POI_COLORS: Record<string, string> = {
@@ -102,3 +102,5 @@ export const POI_LAYER_CONFIG = {
     "email:p.email",
   ],
 };
+
+export const POI_SOURCE_ID = getGeoJsonSourceId(POI_LAYER_CONFIG.name);

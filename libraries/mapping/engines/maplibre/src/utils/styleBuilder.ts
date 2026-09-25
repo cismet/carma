@@ -497,6 +497,13 @@ function convertTo4326(x: number, y: number): [number, number] {
 }
 
 /**
+ * Source id of a geojson LibreLayer. Name-based so it stays stable when the
+ * layer is reordered.
+ */
+export const getGeoJsonSourceId = (layerName: string): string =>
+  `geojson-source-${layerName.replace(/[^a-zA-Z0-9]/g, "-")}`;
+
+/**
  * Transform POI features from Web Mercator to WGS84.
  * Features without Point coordinates (e.g. `geometry: null`) are dropped:
  * a single broken feature must not take the whole layer down.
@@ -917,9 +924,7 @@ export const vectorStylesToMapLibreStyle = async ({
         }
       } else if (layer.type === "geojson") {
         const transformedData = fetched.data;
-        const sourceId = makeUniqueId(
-          `geojson-source-${layer.name.replace(/[^a-zA-Z0-9]/g, "-")}`
-        );
+        const sourceId = makeUniqueId(getGeoJsonSourceId(layer.name));
         const colorProperty = layer.colorProperty ?? "schrift";
 
         // Get unique colors from the geojson features
