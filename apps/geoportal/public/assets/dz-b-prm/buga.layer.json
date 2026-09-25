@@ -1,0 +1,29 @@
+{
+  "id": "dzb-prm-buga",
+  "title": "BuGa",
+  "description": "Georeferenziertes Zoo-Modell mit austauschbarem Brückeneinsatz.",
+  "type": "object",
+  "visible": true,
+  "hasInfoView": true,
+  "pinned": "last",
+  "layerInfo": {
+    "source": "adhoc-model-collection",
+    "mapMode": "2d",
+    "modelCollection": "collection.json",
+    "bounds3857": [
+      788836.855,
+      6663227.421,
+      794575.246,
+      6666423.835
+    ]
+  },
+  "other": {
+    "serviceName": "adhoc-model-collection",
+    "keywords": [
+      "BuGa",
+      "Zoo",
+      "Brücke",
+      "GLB"
+    ]
+  }
+}

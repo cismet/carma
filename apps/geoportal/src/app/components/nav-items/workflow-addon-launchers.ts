@@ -1,13 +1,18 @@
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
+import { useDispatch, useSelector } from "react-redux";
 
-import type { Item } from "@carma-mapping/layers";
+import type { Item, Layer } from "@carma-mapping/layers";
 import {
+  createInitialDzbPrmModelState,
   resolveAddonEntries,
+  useAddonState,
   useFloodLauncher,
   useFlowFieldLauncher,
+  useShadowTextureWorkflow,
   useTimeSeriesLauncher,
   useVehicleAnimationLauncher,
   type AddonEntry,
+  type AddonConfigMap,
   type FloodDefinition,
   type FloodSimulationConfig,
   type FlowFieldConfig,
@@ -17,6 +22,12 @@ import {
   type VehicleAnimationConfig,
   type VehicleAnimationDefinition,
 } from "@carma-mapping/addons";
+import {
+  getBackgroundLayer,
+  getLayers,
+  setBackgroundLayer,
+  updateLayer,
+} from "../../store/slices/mapping";
 
 import type { MessageApiLike } from "./resource-layer-updater";
 
@@ -113,11 +124,91 @@ const toFloodDefinition = (config: FloodSimulationConfig): FloodDefinition => ({
  * The launchers `resource-layer-updater` calls for a workflow card's tools,
  * plus the catalog's answer to whether such a card is on the map.
  */
-export const useWorkflowAddonLaunchers = (messageApi: MessageApiLike) => {
+const CATALOG_BRIDGE_ID = "wuppObjects_bridge";
+
+export const useWorkflowAddonLaunchers = (
+  messageApi: MessageApiLike,
+  addLayerById: (
+    id: string,
+    options?: { visible?: boolean }
+  ) => Promise<Layer | undefined>
+) => {
+  const dispatch = useDispatch();
+  const backgroundLayer = useSelector(getBackgroundLayer);
+  const activeLayers = useSelector(getLayers);
+  const [modelState, setModelState] = useAddonState("modelCollection");
+  const [shadowState] = useAddonState("shadowSimulation");
+  const catalogBridge = activeLayers.find(
+    (layer) => layer.id === CATALOG_BRIDGE_ID
+  );
+  const catalogLoad = useRef<Promise<Layer | undefined> | null>(null);
+  const ensureCatalogBridge = useCallback(async () => {
+    if (catalogBridge) return catalogBridge;
+    catalogLoad.current ??= addLayerById(CATALOG_BRIDGE_ID, { visible: false })
+      .then((layer) => {
+        if (layer)
+          dispatch(updateLayer({ ...layer, visible: false, pinned: "last" }));
+        return layer;
+      })
+      .finally(() => {
+        catalogLoad.current = null;
+      });
+    return catalogLoad.current;
+  }, [addLayerById, catalogBridge, dispatch]);
+  const setBackgroundVisible = useCallback(
+    (visible: boolean) => {
+      if (backgroundLayer) {
+        dispatch(setBackgroundLayer({ ...backgroundLayer, visible }));
+      }
+    },
+    [backgroundLayer, dispatch]
+  );
+  const shadowTextureWorkflow = useShadowTextureWorkflow(
+    backgroundLayer?.visible,
+    setBackgroundVisible
+  );
   const { toggleSeries, isSeriesRunning } = useTimeSeriesLauncher();
   const { toggleField, isFieldRunning } = useFlowFieldLauncher();
   const { toggleFlood, isFloodRunning } = useFloodLauncher();
   const { toggleVehicle, isVehicleRunning } = useVehicleAnimationLauncher();
+
+  const startShadowTexture = useCallback(
+    async (config: AddonConfigMap["shadowTexture"]) => {
+      if (config.workflowBridgeComparison) {
+        const layer = await ensureCatalogBridge();
+        if (!layer) {
+          messageApi.error(
+            "Das 3D-Brückenmodell ist im Katalog nicht verfügbar."
+          );
+          return;
+        }
+        const showCatalog = !(
+          catalogBridge?.visible && modelState?.bridge === "existing"
+        );
+        dispatch(
+          updateLayer({ ...layer, visible: showCatalog, pinned: "last" })
+        );
+        setModelState((previous) => ({
+          ...(previous ?? createInitialDzbPrmModelState()),
+          bridge: showCatalog ? "existing" : "planning",
+        }));
+        shadowTextureWorkflow.activate(true);
+        return;
+      }
+      if (!catalogBridge) void ensureCatalogBridge();
+      shadowTextureWorkflow.toggle(config.workflowBackgroundVisible);
+    },
+    [
+      catalogBridge,
+      dispatch,
+      ensureCatalogBridge,
+      messageApi,
+      modelState?.bridge,
+      setModelState,
+      shadowTextureWorkflow.activate,
+      shadowTextureWorkflow.toggle,
+    ]
+  );
 
   /** a workflow card's timeSlider tool: its config is the series to run */
   const startTimeSeries = useCallback(
@@ -142,7 +233,8 @@ export const useWorkflowAddonLaunchers = (messageApi: MessageApiLike) => {
       if (!definition) {
         messageApi.open({
           type: "error",
-          content: "Der Workflow enthält keine vollständige Fließwege-Animation.",
+          content:
+            "Der Workflow enthält keine vollständige Fließwege-Animation.",
         });
         return;
       }
@@ -203,13 +295,32 @@ export const useWorkflowAddonLaunchers = (messageApi: MessageApiLike) => {
             }
             case "floodSimulation":
               return isFloodRunning(toFloodDefinition(entry.config ?? {}));
+            case "shadowTexture":
+              return entry.config?.workflowBridgeComparison
+                  ? Boolean(
+                    shadowState?.enabled &&
+                      catalogBridge?.visible &&
+                      modelState?.bridge === "existing"
+                  )
+                : shadowTextureWorkflow.isActive(
+                    entry.config?.workflowBackgroundVisible
+                  );
             default:
               return false;
           }
         }
       );
     },
-    [isSeriesRunning, isFieldRunning, isVehicleRunning, isFloodRunning]
+    [
+      isSeriesRunning,
+      isFieldRunning,
+      isVehicleRunning,
+      isFloodRunning,
+      shadowTextureWorkflow.isActive,
+      catalogBridge?.visible,
+      modelState?.bridge,
+      shadowState?.enabled,
+    ]
   );
 
   return {
@@ -217,6 +328,7 @@ export const useWorkflowAddonLaunchers = (messageApi: MessageApiLike) => {
     startFlowField,
     startVehicleAnimation,
     startFlood,
+    startShadowTexture,
     isWorkflowActive,
   };
 };

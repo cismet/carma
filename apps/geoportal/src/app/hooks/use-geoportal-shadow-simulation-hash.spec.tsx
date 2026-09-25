@@ -38,10 +38,12 @@ const libreContextMock = vi.hoisted(() => ({
   getCenter: vi.fn(() => ({ lat: 51.256, lng: 7.15 })),
 }));
 
-vi.mock("@carma-mapping/addons", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@carma-mapping/addons")>();
+vi.mock("@carma-mapping/addons", () => {
   return {
-    ...actual,
+    normalizeAddonEntries: (entries: unknown[]) => entries,
+    resolveAddonEntries: (entries: unknown[]) => entries,
+    applyAddonOverrides: (entries: unknown[]) => entries,
+    isAlwaysOnTop: () => false,
     useAddonState: (key: string) =>
       key === "shadowDate"
         ? [addonStateMock.shadowDate, addonStateMock.setShadowDate]
@@ -117,7 +119,28 @@ describe("useGeoportalShadowSimulationHash", () => {
     libreContextMock.getCenter.mockReturnValue({ lat: 51.256, lng: 7.15 });
   });
 
-  afterEach(() => vi.useRealTimers());
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("keeps shadows off when the initial URL has no shadow parameter", async () => {
+    const customHashState = createCustomHashState({ selection: null });
+    addonStateMock.shadowState = createShadowState();
+    addonStateMock.shadowDate = createShadowDate({
+      minutes: 660,
+      dayOfYear: 140,
+    });
+
+    renderHook(() => useGeoportalShadowSimulationHash({ customHashState }));
+
+    expect(addonStateMock.setShadowState).not.toHaveBeenCalled();
+    await waitFor(() =>
+      expect(hashStateMock.updateHashState).toHaveBeenCalledWith(
+        { shadow: undefined },
+        { label: "geoportal:sync-shadow-simulation", replace: true }
+      )
+    );
+  });
 
   it("waits for both state channels before restoring and writing", async () => {
     const customHashState = createCustomHashState({

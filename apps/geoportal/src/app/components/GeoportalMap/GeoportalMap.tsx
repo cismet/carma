@@ -1,6 +1,7 @@
 import L from "leaflet";
 import { getFromWebMercatorToWGS84 } from "@carma-geo/proj";
 import {
+  Suspense,
   useCallback,
   useContext,
   useEffect,
@@ -122,9 +123,14 @@ import {
   getUIHashWriteEnabled,
   getUIVisibleControls,
 } from "../../store/slices/ui.ts";
-import { useHighlightOwnsMapClicks, useSwitchOn } from "@carma-mapping/addons";
+import {
+  CatalogBridgeModel,
+  useHighlightOwnsMapClicks,
+  useSwitchOn,
+} from "@carma-mapping/addons";
 
 import { findFachzwillingByPathname } from "../../constants/fachzwillinge";
+
 import { getLibreDrawMode } from "../../store/slices/measurements.ts";
 
 import LoginForm from "../LoginForm.tsx";
@@ -859,8 +865,12 @@ const LibreGeoportalMap = ({ allow3d }: MapProps) => {
   );
   const { map: libreMap } = useLibreContext();
   const libreLayers = useLibreLayers();
+  const geoportalLayers = useSelector(getLayers);
+  const catalogBridgeLayer = geoportalLayers.find(
+    (layer) => layer.id === "wuppObjects_bridge"
+  );
   // the "switchOn" tool of a layer, run when its style layers reach the map
-  useSwitchOn(libreMap, useSelector(getLayers));
+  useSwitchOn(libreMap, geoportalLayers);
   const uiMode = useSelector(getUIMode);
   const isModeMeasurement = uiMode === UIMode.MEASUREMENT;
   const isModePrint = uiMode === UIMode.PRINT;
@@ -877,8 +887,12 @@ const LibreGeoportalMap = ({ allow3d }: MapProps) => {
   useLibreTriggerSelectionSync(libreMap);
 
   const { isCesium, isTransitioning } = useMapFrameworkSwitcherContext();
-  const { initialViewApplied, getScene, getSurfaceProvider, getTerrainProvider } =
-    useCesiumContext();
+  const {
+    initialViewApplied,
+    getScene,
+    getSurfaceProvider,
+    getTerrainProvider,
+  } = useCesiumContext();
 
   const maplibreBridge = useMaplibreRuntimeBridge({
     id: "geoportal-maplibre",
@@ -897,7 +911,9 @@ const LibreGeoportalMap = ({ allow3d }: MapProps) => {
 
   // The effective restriction (addon override on top of the app base), so print
   // mode — which forces it — keeps the animated top-down handover.
-  const isTwoDCameraFree = !(useCameraRestriction(libreMap)?.restricted ?? true);
+  const isTwoDCameraFree = !(
+    useCameraRestriction(libreMap)?.restricted ?? true
+  );
 
   // Both engines subscribe to the same view state and both adapters carry
   // bearing/pitch, so when the 2D map may rotate the switch is a read plus an
@@ -974,6 +990,15 @@ const LibreGeoportalMap = ({ allow3d }: MapProps) => {
           selectFromHits={handleLibreSelectFromHits}
           modalMenu={<GeoportalModalMenu />}
         />
+        {libreMap && catalogBridgeLayer?.visible && !isCesium && (
+          <Suspense fallback={null}>
+            <CatalogBridgeModel
+              map={libreMap}
+              opacity={catalogBridgeLayer.opacity ?? 1}
+              visible={catalogBridgeLayer.visible}
+            />
+          </Suspense>
+        )}
         {/* the 2D draw host and its info box stay out of the way in 3D, where
             the cesium annotation runtime owns measurements */}
         {isModeMeasurement && !isCesium && (

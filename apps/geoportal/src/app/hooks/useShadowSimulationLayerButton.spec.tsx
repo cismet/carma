@@ -11,9 +11,7 @@ const addonStateMock = vi.hoisted(() => ({
     | { suspended: string[]; enabled: string[] }
     | undefined,
   setShadowState: vi.fn(),
-  shadowState: undefined as
-    | { enabled: boolean }
-    | undefined,
+  shadowState: undefined as { enabled: boolean } | undefined,
 }));
 
 vi.mock("@carma-mapping/addons", () => ({
@@ -22,6 +20,31 @@ vi.mock("@carma-mapping/addons", () => ({
     overrides?: { suspended: string[] }
   ) => entries.filter((entry) => !overrides?.suspended.includes(entry.kind)),
   resolveAddonEntries: (entries?: unknown[]) => entries ?? [],
+  normalizeAddonEntries: (entries?: unknown[]) => entries ?? [],
+  isAlwaysOnTop: () => false,
+  SHADOW_TEXTURE_LAYER_ID: "__shadow_texture__",
+  resolveShadowTextureAddon: (
+    entries?: Array<{ kind: string; config?: unknown }>,
+    overrides?: { suspended: string[] }
+  ) =>
+    entries?.find(
+      (entry) =>
+        entry.kind === "shadowTexture" &&
+        !overrides?.suspended.includes(entry.kind)
+    ) ?? null,
+  createShadowTextureLayer: (
+    addon: { kind: string; config?: unknown } | null,
+    visible: boolean
+  ) =>
+    addon
+      ? {
+          id: "__shadow_texture__",
+          title: "Schatten-Textur",
+          type: "object",
+          visible,
+          tools: [addon],
+        }
+      : null,
   useAddonState: (key: string) =>
     key === "shadowSimulation"
       ? [addonStateMock.shadowState, addonStateMock.setShadowState]
@@ -35,6 +58,7 @@ import uiReducer from "../store/slices/ui";
 import { formatShadowSelection } from "@carma-mapping/shadow-simulation";
 import {
   SHADOW_SIMULATION_LAYER_ID,
+  SHADOW_TEXTURE_LAYER_ID,
   useShadowSimulationLayerButton,
 } from "./useShadowSimulationLayerButton";
 
@@ -132,6 +156,34 @@ describe("useShadowSimulationLayerButton", () => {
       expect(selectedLayerIndex).toBe(
         layers.findIndex((layer) => layer.id === SHADOW_SIMULATION_LAYER_ID)
       );
+    });
+  });
+
+  it("uses a separate shadow-texture row for the projection mapping route", async () => {
+    addonStateMock.routeAddons = [
+      {
+        kind: "shadowTexture",
+        config: { assetBaseUrl: "/assets/dz-b-prm/5m" },
+      },
+    ];
+    addonStateMock.shadowState = { enabled: true };
+    const store = createTestStore();
+    renderHook(() => useShadowSimulationLayerButton(), {
+      wrapper: createWrapper(store),
+    });
+
+    await waitFor(() => {
+      const layers = store.getState().mapping.layers;
+      expect(
+        layers.find((layer) => layer.id === SHADOW_TEXTURE_LAYER_ID)
+      ).toEqual(
+        expect.objectContaining({
+          title: "Schatten-Textur",
+          visible: true,
+          tools: [expect.objectContaining({ kind: "shadowTexture" })],
+        })
+      );
+      expect(findShadowLayer(store)).toBeUndefined();
     });
   });
 

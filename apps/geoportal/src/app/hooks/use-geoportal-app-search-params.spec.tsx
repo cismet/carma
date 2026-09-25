@@ -3,6 +3,7 @@ import type { PropsWithChildren } from "react";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { configureStore } from "@reduxjs/toolkit";
 import { Provider } from "react-redux";
+import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const hashStateMock = vi.hoisted(() => ({
@@ -10,10 +11,25 @@ const hashStateMock = vi.hoisted(() => ({
 }));
 const useAppSearchParamsMock = vi.hoisted(() => vi.fn());
 const useMapFrameworkSwitcherContextMock = vi.hoisted(() => vi.fn());
+const shadowHashMock = vi.hoisted(() => vi.fn());
+
+vi.mock("@carma-mapping/addons", () => ({
+  normalizeAddonEntries: (entries: unknown[]) => entries,
+  resolveAddonEntries: (entries: unknown[]) => entries,
+  applyAddonOverrides: (entries: unknown[]) => entries,
+  filterAddonsByAvailability: (entries: unknown[]) => entries,
+  isAlwaysOnTop: () => false,
+}));
+
+vi.mock("./use-geoportal-shadow-simulation-hash", () => ({
+  useGeoportalShadowSimulationHash: (options: unknown) =>
+    shadowHashMock(options),
+}));
 
 vi.mock("@carma-appframeworks/portals", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@carma-appframeworks/portals")>();
+  const actual = await importOriginal<
+    typeof import("@carma-appframeworks/portals")
+  >();
 
   return {
     ...actual,
@@ -22,8 +38,9 @@ vi.mock("@carma-appframeworks/portals", async (importOriginal) => {
 });
 
 vi.mock("@carma-mapping/components", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@carma-mapping/components")>();
+  const actual = await importOriginal<
+    typeof import("@carma-mapping/components")
+  >();
 
   return {
     ...actual,
@@ -32,8 +49,9 @@ vi.mock("@carma-mapping/components", async (importOriginal) => {
 });
 
 vi.mock("@carma-providers/hash-state", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@carma-providers/hash-state")>();
+  const actual = await importOriginal<
+    typeof import("@carma-providers/hash-state")
+  >();
 
   return {
     ...actual,
@@ -67,9 +85,13 @@ const createTestStore = (mode = UIMode.DEFAULT) =>
   });
 
 const createWrapper =
-  (store: TestStore) =>
+  (store: TestStore, pathname = "/") =>
   ({ children }: PropsWithChildren) =>
-    <Provider store={store}>{children}</Provider>;
+    (
+      <Provider store={store}>
+        <MemoryRouter initialEntries={[pathname]}>{children}</MemoryRouter>
+      </Provider>
+    );
 
 const renderGeoportalAppSearchParamsHook = (store: TestStore) =>
   renderHook(() => useGeoportalAppSearchParams(), {
@@ -81,6 +103,7 @@ describe("useGeoportalAppSearchParams", () => {
     hashStateMock.updateHashState.mockReset();
     useAppSearchParamsMock.mockReset();
     useMapFrameworkSwitcherContextMock.mockReset();
+    shadowHashMock.mockReset();
     useAppSearchParamsMock.mockReturnValue({ customHashState: null });
     useMapFrameworkSwitcherContextMock.mockReturnValue({ isCesium: true });
   });
@@ -93,6 +116,18 @@ describe("useGeoportalAppSearchParams", () => {
     expect(useAppSearchParamsMock).toHaveBeenCalledWith(
       geoportalAppSearchParamsOptions
     );
+  });
+
+  it("does not enable shadows just by entering pm-show", () => {
+    const store = createTestStore();
+    renderHook(() => useGeoportalAppSearchParams(), {
+      wrapper: createWrapper(store, "/pm-show"),
+    });
+    expect(shadowHashMock).toHaveBeenCalledWith({ customHashState: null });
+
+    shadowHashMock.mockClear();
+    renderGeoportalAppSearchParamsHook(store);
+    expect(shadowHashMock).toHaveBeenCalledWith({ customHashState: null });
   });
 
   it("writes the current measurement mode into the hash in cesium", async () => {

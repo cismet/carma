@@ -93,8 +93,9 @@ const ResourceModal = () => {
     startFlowField,
     startVehicleAnimation,
     startFlood,
+    startShadowTexture,
     isWorkflowActive,
-  } = useWorkflowAddonLaunchers(messageApi);
+  } = useWorkflowAddonLaunchers(messageApi, addLayerById);
 
   const updateLayers = withSavedMeasurementCarrierImport(
     createResourceLayerUpdater({
@@ -116,6 +117,7 @@ const ResourceModal = () => {
       startFlowField,
       startVehicleAnimation,
       startFlood,
+      startShadowTexture,
     }),
     { measurements }
   );

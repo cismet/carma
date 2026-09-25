@@ -161,6 +161,8 @@ export const useGeoportalShadowSimulationHash = ({
     setShadowDate(next.dateState);
   }, [
     cancelPendingHashUpdate,
+    customHashState?.source,
+    decodedHashSelection,
     hashSelection,
     hashStateVersion,
     setShadowState,

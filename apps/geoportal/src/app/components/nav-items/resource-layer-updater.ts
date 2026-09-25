@@ -40,6 +40,7 @@ import { isAdhocVectorLayer } from "../../helper/adhoc-feature-utils";
 import { AddLayerOptions } from "@carma-mapping/carma-map-api";
 import {
   resolveAddonEntries,
+  type AddonConfigMap,
   type AddonEntry,
   type FlowFieldConfig,
   type FloodSimulationConfig,
@@ -125,6 +126,10 @@ type ResourceLayerUpdaterDeps = {
    * `floodSimulation` tool. Supplied by ResourceModal from `useFloodLauncher`.
    */
   startFlood?: (config: FloodSimulationConfig) => void;
+  /** Activates the shadow-texture preset with or without the basemap. */
+  startShadowTexture?: (
+    config: AddonConfigMap["shadowTexture"]
+  ) => void | Promise<void>;
 };
 
 const DEFAULT_MAX_LAYERS = 12;
@@ -562,6 +567,7 @@ export const createResourceLayerUpdater = ({
   startFlowField,
   startVehicleAnimation,
   startFlood,
+  startShadowTexture,
 }: ResourceLayerUpdaterDeps) => {
   return async (
     layer: Item,
@@ -576,7 +582,17 @@ export const createResourceLayerUpdater = ({
     if (layer.type === "workflow") {
       // `Item.tools` is the layer catalog's wider ToolEntry shape;
       // resolveAddonEntries drops every kind the addon registry does not know
-      const tools = resolveAddonEntries(layer.tools as AddonEntry[] | undefined);
+      const tools = resolveAddonEntries(
+        layer.tools as AddonEntry[] | undefined
+      );
+
+      const shadowTextureTool = tools.find(
+        (entry) => entry.kind === "shadowTexture"
+      );
+      if (shadowTextureTool && startShadowTexture) {
+        await startShadowTexture(shadowTextureTool.config);
+        return;
+      }
 
       const timeSeriesTool = tools.find(
         (entry): entry is { kind: "timeSlider"; config?: TimeSliderConfig } =>
@@ -612,8 +628,10 @@ export const createResourceLayerUpdater = ({
       const floodTool = tools.find(
         (
           entry
-        ): entry is { kind: "floodSimulation"; config?: FloodSimulationConfig } =>
-          entry.kind === "floodSimulation"
+        ): entry is {
+          kind: "floodSimulation";
+          config?: FloodSimulationConfig;
+        } => entry.kind === "floodSimulation"
       );
       if (floodTool && startFlood) {
         startFlood(floodTool.config ?? {});

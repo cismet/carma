@@ -1,0 +1,91 @@
+{
+  "format": "glTF 2.0 GLB",
+  "source": {
+    "url": "https://adhocdata.cismet.de/DZ_B_PRM/2m/bruecke.stl",
+    "sha256": "df3e9463bc27d4e3a8163b36b65be8fcbb038c4fea57675bb71d22ffbda7ca84",
+    "bytes": 2733834,
+    "binary_stl_triangles": 54675
+  },
+  "conversion": {
+    "blender_version": "5.2.2 LTS",
+    "weld_mm": 0.00001,
+    "max_fit_error_m": 0.005,
+    "max_instance_faces": 256,
+    "min_instances": 3,
+    "compression": "meshopt",
+    "meshopt_exponential_bits": 20,
+    "cleanup": {
+      "before_vertices": 27061,
+      "before_triangles": 54625,
+      "after_vertices": 27057,
+      "after_triangles": 54588,
+      "nonmanifold_edges": 272
+    },
+    "connected_components": 260,
+    "candidate_components": 258,
+    "gpu_instance_families": {
+      "count": 2,
+      "instances": 7,
+      "max_unshared_vertex_error_m": 0.09072983404570885
+    },
+    "triangles_replaced_by_instances": 302,
+    "rejected_fits": {
+      "shape": 111,
+      "decomposition": 217
+    }
+  },
+  "georeference": {
+    "horizontal_crs": "EPSG:3857",
+    "anchor_xy_m": [
+      791706.051,
+      6664825.628
+    ],
+    "vertical_datum": "DHHN2016",
+    "stl_xyz_to_local_meters": [
+      3.19203,
+      3.19241,
+      2.0
+    ],
+    "gltf_axes": "X=east, Y=up (absolute DHHN2016 metres), Z=south",
+    "raw_stl_bounds": [
+      [
+        229.7404327392578,
+        -38.59696960449219,
+        112.31861877441406
+      ],
+      [
+        375.0445861816406,
+        397.4609375,
+        156.6354522705078
+      ]
+    ],
+    "mercator_bounds_xy_m": [
+      [
+        792439.3893535166,
+        6664702.410648265
+      ],
+      [
+        792903.2045704294,
+        6666094.486271484
+      ]
+    ]
+  },
+  "glb": {
+    "meshes": 3,
+    "nodes": 4,
+    "extensions_used": [
+      "EXT_meshopt_compression",
+      "EXT_mesh_gpu_instancing"
+    ],
+    "gpu_instance_nodes": 2,
+    "missing_normal_primitives": 0,
+    "sha256": "498d49edd8bdbcc18cd1199415e4548207d796e1d50c05482053598de8d27209",
+    "bytes": 1969336
+  },
+  "limitations": [
+    "Only exact-enough TRS copies with matching oriented triangle topology are GPU-instanced; sheared/mirrored and ambiguous components remain ordinary geometry.",
+    "Repeated upper geometry may be instanced while varying terrain-contact faces remain unique; no inferred trunk geometry is fabricated.",
+    "Duplicate/degenerate triangles are removed, but arbitrary coplanar overlaps or conflicting alternative insets need separate inspection.",
+    "Bare STL contains no semantic tree/building labels; repeated families are not semantically classified."
+  ]
+}
