@@ -273,6 +273,15 @@ export const useDisplay = (
     };
   }, [target, trackSeries]);
 
+  // the show often arrives after the display state; find the live scene then
+  useEffect(() => {
+    if (live) {
+      setActiveSceneId(
+        (current) => current ?? sceneShowing(live, scenes)?.id ?? null
+      );
+    }
+  }, [live, scenes]);
+
   const goToScene = useCallback(
     (scene: ShowScene) => {
       const run = ++runRef.current;
