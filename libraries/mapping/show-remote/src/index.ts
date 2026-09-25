@@ -65,3 +65,14 @@ export {
   type PointerMode,
   type PointerSample,
 } from "./lib/pointer";
+export {
+  clockStep,
+  findSceneSeries,
+  isTimeSeriesControl,
+  planSeriesApply,
+  seriesControlOf,
+  type AppliedSeriesControl,
+  type SceneSeries,
+  type SeriesClock,
+  type TimeSeriesControl,
+} from "./lib/time-series";

@@ -11,12 +11,15 @@ import {
   isBlackoutLayer,
   isBounds3857,
   isPointerChannel,
+  isTimeSeriesControl,
   type Bounds3857,
   type PointerChannel,
+  type TimeSeriesControl,
 } from "@carma-mapping/show-remote";
 
 import type { AddonComponentProps } from "../../lib/registry";
 import { PointerSpotlight } from "./PointerSpotlight";
+import { RemoteSeries } from "./RemoteSeries";
 import { subscribe, type RelaySubscription } from "./relay";
 
 /**
@@ -110,6 +113,11 @@ export type OutletRemoteState = {
    * often to go through this document; absent means no pointer.
    */
   pointer?: PointerChannel;
+  /**
+   * Play state and step of the time series the scene runs. Absent leaves the
+   * series as it is, playing by itself if its layer says so.
+   */
+  timeSeries?: TimeSeriesControl;
 };
 
 /** the black cover over the whole window, and how long a change of it fades */
@@ -146,6 +154,7 @@ const REMOTE_STATE_KEYS: readonly (keyof OutletRemoteState)[] = [
   "config",
   "backgroundLayer",
   "pointer",
+  "timeSeries",
 ];
 
 /** where the requested rectangle sits on screen, in css pixels */
@@ -343,6 +352,9 @@ export const OutletAddon = ({
   const [box, setBox] = useState<BoundsBox | null>(null);
   const [blackout, setBlackout] = useState<Blackout | null>(null);
   const [pointerChannel, setPointerChannel] = useState<PointerChannel | null>(
+    null
+  );
+  const [remoteSeries, setRemoteSeries] = useState<TimeSeriesControl | null>(
     null
   );
   /** a `?bounds=` in the url pins the position against the remote */
@@ -659,7 +671,10 @@ export const OutletAddon = ({
 
       // the whole document is the desired state: no pointer entry, no pointer
       if (next.pointer !== undefined && !isPointerChannel(next.pointer)) {
-        console.warn(`${LOG_PREFIX} ignoring a malformed pointer`, next.pointer);
+        console.warn(
+          `${LOG_PREFIX} ignoring a malformed pointer`,
+          next.pointer
+        );
       }
       const nextPointer = isPointerChannel(next.pointer) ? next.pointer : null;
       setPointerChannel((current) =>
@@ -667,6 +682,25 @@ export const OutletAddon = ({
         current?.epoch === nextPointer?.epoch
           ? current
           : nextPointer
+      );
+
+      // the same for the series: no entry leaves it to its own devices
+      if (
+        next.timeSeries !== undefined &&
+        !isTimeSeriesControl(next.timeSeries)
+      ) {
+        console.warn(
+          `${LOG_PREFIX} ignoring a malformed time series entry`,
+          next.timeSeries
+        );
+      }
+      const nextSeries = isTimeSeriesControl(next.timeSeries)
+        ? next.timeSeries
+        : null;
+      setRemoteSeries((current) =>
+        JSON.stringify(current) === JSON.stringify(nextSeries)
+          ? current
+          : nextSeries
       );
 
       if (
@@ -709,6 +743,7 @@ export const OutletAddon = ({
       subscription.stop();
       relayRef.current = null;
       setPointerChannel(null);
+      setRemoteSeries(null);
     };
   }, [relayCode, relayBaseUrl, carma]);
 
@@ -731,6 +766,7 @@ export const OutletAddon = ({
           }}
         />
       ) : null}
+      {relayCode ? <RemoteSeries wanted={remoteSeries} /> : null}
       {pointerChannel && relayBaseUrl ? (
         <PointerSpotlight
           base={relayBaseUrl}

@@ -14,6 +14,7 @@ import {
   type BlendLayerHandle,
 } from "../../lib/caged-addons";
 import type { AddonComponentProps } from "../../lib/registry";
+import { placeAtSlot, useStyleSlot } from "../../lib/style-slot";
 import { createSnapLayer, type SnapLayerHandle } from "./snap-layer";
 import {
   useTimeSeriesLauncher,
@@ -37,6 +38,10 @@ import {
  *
  * The component draws no panel and, by default, no control button: the series
  * announces itself with its row in the layer bar. See `ADDON-UI.md`.
+ *
+ * A series a style launched (`anchorLayerId`) is drawn where that style's
+ * `timeSlider` placeholder sits in the layer order (`style-slot.ts`), and takes
+ * the style's opacity; without a placeholder its layers are on top.
  */
 
 export type TimeSliderConfig = Partial<TimeSeriesDefinition> & {
@@ -72,6 +77,11 @@ const DEFAULT_CONTROL_POSITION: Positions = "topleft";
 const DEFAULT_CONTROL_ORDER = 85;
 const DEFAULT_PLAY_INTERVAL_MS = 60;
 
+/** the placeholder a style marks the series' place with */
+const TIME_SLIDER_SLOT = "timeSlider";
+
+const randomSuffix = () => Math.random().toString(36).slice(2, 10);
+
 /**
  * Blue while the ribbon is open, black while it is not. Deliberately not "blue
  * while the series runs": the series announces itself with its own row in the
@@ -93,6 +103,9 @@ export const TimeSlider = ({
     intermediateValuesCount: configIntermediateValuesCount,
     opacity: configOpacity,
     initialStep: configInitialStep,
+    autoplay: configAutoplay,
+    permanent: configPermanent,
+    anchorLayerId: configAnchorLayerId,
     playIntervalMs = DEFAULT_PLAY_INTERVAL_MS,
     snapPlayIntervalMs,
     startEnabled = true,
@@ -116,6 +129,8 @@ export const TimeSlider = ({
     stepsPerUnit,
     intermediateValuesCount,
     loaded,
+    isHidden,
+    anchorLayerId,
     setOn,
     setValue,
     setLoaded,
@@ -128,7 +143,13 @@ export const TimeSlider = ({
   const createBlendLayer = useCreateBlendLayer();
   const isBlending = Boolean(createBlendLayer);
 
+  const slot = useStyleSlot(libreMap, TIME_SLIDER_SLOT, anchorLayerId);
+  /** what the map layers are painted with: the series' and the style's */
+  const opacity = liveOpacity * (slot?.opacity ?? 1);
+
   const blendRef = useRef<BlendLayerHandle | null>(null);
+  /** the blend's map layer, named by cage from the id it is given */
+  const blendLayerIdRef = useRef<string | null>(null);
   const snapRef = useRef<SnapLayerHandle | null>(null);
   /** whether the blend canvas is the visible surface right now */
   const blendShownRef = useRef(false);
@@ -139,8 +160,8 @@ export const TimeSlider = ({
   // which would tear the layer down and rebuild it on every scrub
   const valueRef = useRef(value);
   valueRef.current = value;
-  const opacityRef = useRef(liveOpacity);
-  opacityRef.current = liveOpacity;
+  const opacityRef = useRef(opacity);
+  opacityRef.current = opacity;
 
   /**
    * A route that declares its series in full gets it on the map at mount; the
@@ -161,6 +182,9 @@ export const TimeSlider = ({
       intermediateValuesCount: configIntermediateValuesCount,
       opacity: configOpacity,
       initialStep: configInitialStep,
+      autoplay: configAutoplay,
+      permanent: configPermanent,
+      anchorLayerId: configAnchorLayerId,
     });
     return () => setOn(false);
   }, [
@@ -173,6 +197,9 @@ export const TimeSlider = ({
     configIntermediateValuesCount,
     configOpacity,
     configInitialStep,
+    configAutoplay,
+    configPermanent,
+    configAnchorLayerId,
     startSeries,
     setOn,
   ]);
@@ -188,15 +215,20 @@ export const TimeSlider = ({
   // The position and opacity are handed over at construction through refs: the
   // effects below have already seen their current values and will not run
   // again for them.
+  //
+  // Hidden, nothing is mounted: the eye of a launching style is off and its
+  // placeholder is gone from the map, so there is nowhere to draw either.
   useEffect(() => {
-    if (!libreMap || !isOn || !wmsUrl || layers.length === 0) {
+    if (!libreMap || !isOn || isHidden || !wmsUrl || layers.length === 0) {
       return undefined;
     }
 
     let disposed = false;
     const layerList = layers as string[];
+    const suffix = randomSuffix();
 
     snapRef.current = createSnapLayer({
+      id: `carma-wms-snap-${suffix}`,
       map: libreMap,
       wmsUrl,
       layers: layerList,
@@ -216,7 +248,11 @@ export const TimeSlider = ({
     });
 
     if (createBlendLayer) {
+      const blendId = `cage-wms-blend-${suffix}`;
+      // cage's `createBlendLayer` names its layer `${id}-layer`
+      blendLayerIdRef.current = `${blendId}-layer`;
       blendRef.current = createBlendLayer({
+        id: blendId,
         map: libreMap,
         wmsUrl,
         layers: layerList,
@@ -244,12 +280,14 @@ export const TimeSlider = ({
       pendingRestStepRef.current = null;
       blendRef.current?.destroy();
       blendRef.current = null;
+      blendLayerIdRef.current = null;
       snapRef.current?.destroy();
       snapRef.current = null;
     };
   }, [
     libreMap,
     isOn,
+    isHidden,
     wmsUrl,
     styles,
     stepsPerUnit,
@@ -272,9 +310,47 @@ export const TimeSlider = ({
   }, [value, stepsPerUnit]);
 
   useEffect(() => {
-    blendRef.current?.setOpacity(liveOpacity);
-    snapRef.current?.setOpacity(liveOpacity);
-  }, [liveOpacity]);
+    blendRef.current?.setOpacity(opacity);
+    snapRef.current?.setOpacity(opacity);
+  }, [opacity]);
+
+  // Keep the layers at the style's slot. Both put themselves back on the map on
+  // top: after a style swap, and the tiles with every step they load. Each of
+  // those fires `styledata`, as does every reorder of the stack, and that moves
+  // them back under the placeholder. Without a slot they stay where they were
+  // added.
+  const placeholderId = slot?.placeholderId;
+  useEffect(() => {
+    if (!libreMap || !isOn || isHidden || !placeholderId) {
+      return undefined;
+    }
+    const place = () =>
+      placeAtSlot(
+        libreMap,
+        [
+          ...(snapRef.current?.getLayerIds() ?? []),
+          ...(blendLayerIdRef.current ? [blendLayerIdRef.current] : []),
+        ],
+        placeholderId
+      );
+    place();
+    libreMap.on("styledata", place);
+    return () => {
+      libreMap.off("styledata", place);
+    };
+  }, [
+    libreMap,
+    isOn,
+    isHidden,
+    placeholderId,
+    // a rebuilt pair of layers, see the mount effect above
+    wmsUrl,
+    layers,
+    styles,
+    stepsPerUnit,
+    intermediateValuesCount,
+    createBlendLayer,
+  ]);
 
   /**
    * Which of the two layers owns the screen.
@@ -319,7 +395,7 @@ export const TimeSlider = ({
   }, [needsBlend, cacheComplete, value, stepsPerUnit]);
 
   useEffect(() => {
-    if (!isPlaying || !isOn || max <= 0) return undefined;
+    if (!isPlaying || !isOn || isHidden || max <= 0) return undefined;
     // sub-steps with cage, whole steps without: the interval grows by the same
     // factor as the unit
     const unitIntervalMs = isBlending
@@ -338,6 +414,7 @@ export const TimeSlider = ({
   }, [
     isPlaying,
     isOn,
+    isHidden,
     max,
     isBlending,
     playIntervalMs,

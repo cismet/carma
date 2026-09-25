@@ -64,6 +64,15 @@ export type TimeSliderState = {
    * by an older version of `derivedSeriesLegend` survives a code change.
    */
   legend?: readonly string[];
+  /** see `permanent` on the definition */
+  permanent: boolean;
+  anchorLayerId?: string;
+  /**
+   * Whether the host has the series hidden, i.e. the eye of the layer that
+   * launched it is off. The series stays launched and keeps its position; its
+   * map layers go and the clock stops until it is shown again.
+   */
+  isHidden: boolean;
 };
 
 export const TIME_SLIDER_STATE_DEFAULT: TimeSliderState = {
@@ -82,6 +91,8 @@ export const TIME_SLIDER_STATE_DEFAULT: TimeSliderState = {
   opacity: 1,
   isBlending: false,
   panelOpen: false,
+  permanent: false,
+  isHidden: false,
 };
 
 /**
@@ -107,6 +118,12 @@ export type TimeSeriesDefinition = {
   /** whole step the slider starts on. Default: 0 */
   initialStep?: number;
   /**
+   * Whether the series starts playing when it goes on the map. Default: false.
+   * A display nobody operates (the outlet) shows a moving series only this way
+   * or from its remote.
+   */
+  autoplay?: boolean;
+  /**
    * What the row's info view says about the series. A workflow card's own
    * texts are used where the series brings none, see the workflow branch in
    * the geoportal's `resource-layer-updater`.
@@ -119,6 +136,18 @@ export type TimeSeriesDefinition = {
    * `derivedSeriesLegend`.
    */
   legend?: readonly string[];
+  /**
+   * The series belongs to a layer of the stack, typically a style that
+   * declares it in its `metadata.carmaConf.tools`: the host shows its controls
+   * on that layer's button rather than in a row of their own, and the layer's
+   * eye and ✕ are the series'. Set by `getLayerLaunchedAddons`.
+   */
+  permanent?: boolean;
+  /**
+   * The stack layer that launched the series. Its style's `timeSlider`
+   * placeholder is where the series is drawn, and no other style's.
+   */
+  anchorLayerId?: string;
 };
 
 /**
@@ -302,6 +331,14 @@ export const useTimeSliderActions = () => {
     [setState]
   );
 
+  const setHidden = useCallback(
+    (next: boolean) =>
+      setState((previous) =>
+        previous.isHidden === next ? previous : { ...previous, isHidden: next }
+      ),
+    [setState]
+  );
+
   const setLoaded = useCallback(
     (next: number) =>
       setState((previous) =>
@@ -335,6 +372,7 @@ export const useTimeSliderActions = () => {
     setSpeed,
     setOpacity,
     setPanelOpen,
+    setHidden,
     setLoaded,
   };
 };
@@ -378,19 +416,32 @@ export const useTimeSeriesLauncher = () => {
         metaDataText: def.metaDataText,
         links: def.links,
         legend: def.legend,
+        // who owns the series: a style dropped in while a card runs the same
+        // series takes it over
+        permanent: def.permanent ?? false,
+        anchorLayerId: def.anchorLayerId,
       };
       if (
         sameSeriesDefinition(previous, def) &&
         previous.stepsPerUnit === stepsPerUnit
       ) {
-        // the series is already in the channel; keep its position and settings
+        // the series is already in the channel; keep its position and settings.
+        // Coming back on, it plays again if it plays by itself, since going
+        // off stopped it.
+        const isPlaying = previous.isOn
+          ? previous.isPlaying
+          : def.autoplay ?? false;
         const unchanged =
           previous.isOn &&
           previous.description === info.description &&
           previous.metaDataText === info.metaDataText &&
           previous.links === info.links &&
-          previous.legend === info.legend;
-        return unchanged ? previous : { ...previous, ...info, isOn: true };
+          previous.legend === info.legend &&
+          previous.permanent === info.permanent &&
+          previous.anchorLayerId === info.anchorLayerId;
+        return unchanged
+          ? previous
+          : { ...previous, ...info, isOn: true, isPlaying };
       }
       return {
         ...TIME_SLIDER_STATE_DEFAULT,
@@ -409,8 +460,11 @@ export const useTimeSeriesLauncher = () => {
           max
         ),
         isOn: true,
+        isPlaying: def.autoplay ?? false,
         // the ribbon's visibility is the host's fact, not the series'
         panelOpen: previous.panelOpen,
+        // so is the eye, which a new series from the same layer keeps
+        isHidden: previous.isHidden,
         ...info,
       };
     },

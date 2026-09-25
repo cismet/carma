@@ -59,6 +59,13 @@ export type SnapLayerHandle = {
   setVisible: (visible: boolean) => void;
   /** the step whose tiles are on screen, or -1 while nothing is */
   getShownStep: () => number;
+  /**
+   * The map layers this has on the map right now, bottom to top: the step on
+   * screen and the one loading behind it. Both change with every step, so a
+   * host that places them re-reads this on `styledata`, which every attach
+   * fires.
+   */
+  getLayerIds: () => string[];
   destroy: () => void;
 };
 
@@ -305,6 +312,10 @@ export const createSnapLayer = ({
     setOpacity,
     setVisible,
     getShownStep: () => shown?.step ?? -1,
+    getLayerIds: () =>
+      [shown, pending].flatMap((attachment) =>
+        attachment ? [attachment.layerId] : []
+      ),
     destroy: () => {
       if (destroyed) return;
       destroyed = true;

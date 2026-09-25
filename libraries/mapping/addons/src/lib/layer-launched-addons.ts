@@ -9,6 +9,7 @@ import {
   FLOW_FIELD_LAYER_ID,
   getFlowFieldRowSeed,
 } from "../addons/FlowField/flowfield-layer-row";
+import { TIME_SLIDER_LAYER_ID } from "../addons/TimeSlider/timeslider-layer-row";
 
 /** where a flow field launched from a handed-over row keeps its state */
 const LAUNCHED_FLOW_FIELD_STORAGE_KEY = "carma::flowFieldState::launched";
@@ -29,6 +30,11 @@ type FlowFieldEntry = Extract<ResolvedAddon, { kind: "flowField" }>;
 
 const isFlowFieldEntry = (entry: ResolvedAddon): entry is FlowFieldEntry =>
   entry.kind === "flowField";
+
+type TimeSliderEntry = Extract<ResolvedAddon, { kind: "timeSlider" }>;
+
+const isTimeSliderEntry = (entry: ResolvedAddon): entry is TimeSliderEntry =>
+  entry.kind === "timeSlider";
 
 /** An engine a layer in the stack launches, and the layer that launches it. */
 export type LayerLaunchedAddon = {
@@ -59,6 +65,9 @@ export type LayerLaunchedAddon = {
  * layer's style says where in the layer order the particles are drawn, see
  * `style-slot.ts`.
  *
+ * A time series likewise: a layer whose tools carry a `timeSlider` with its
+ * `wmsUrl` and `layers` runs that series, anchored to the layer the same way.
+ *
  * `permanent`: the layer is the face of the service. A host shows the engine's
  * controls on the layer's own button rather than in a row of their own, so no
  * second ✕ can switch the fleet off under a layer that stays on the map, and
@@ -70,6 +79,7 @@ export const getLayerLaunchedAddons = (
 ): LayerLaunchedAddon[] => {
   let vehicle: LayerLaunchedAddon | undefined;
   let flowField: LayerLaunchedAddon | undefined;
+  let timeSlider: LayerLaunchedAddon | undefined;
   for (const layer of layers) {
     if (layer.id === FLOW_FIELD_LAYER_ID) {
       const seed = includeEngineRow ? getFlowFieldRowSeed(layer) : undefined;
@@ -93,6 +103,9 @@ export const getLayerLaunchedAddons = (
     }
     if (
       (layer.id === VEHICLE_ANIMATION_LAYER_ID && !includeEngineRow) ||
+      // the series' own row carries it to survive a reload and is relaunched
+      // by its row hook, not from here
+      layer.id === TIME_SLIDER_LAYER_ID ||
       !Array.isArray(layer.tools)
     ) {
       continue;
@@ -115,6 +128,22 @@ export const getLayerLaunchedAddons = (
         },
       };
     }
+    const seriesTool = tools.find(isTimeSliderEntry);
+    if (seriesTool?.config?.wmsUrl && seriesTool.config.layers?.length) {
+      timeSlider = {
+        layerId: layer.id,
+        visible: layer.visible !== false,
+        entry: {
+          addon: "timeSlider",
+          config: {
+            ...seriesTool.config,
+            startEnabled: true,
+            permanent: true,
+            anchorLayerId: layer.id,
+          },
+        },
+      };
+    }
     const tool = tools.find(isVehicleAnimationEntry);
     if (!tool?.config?.trackUrl) {
       continue;
@@ -128,7 +157,7 @@ export const getLayerLaunchedAddons = (
       },
     };
   }
-  return [vehicle, flowField].filter(
+  return [vehicle, flowField, timeSlider].filter(
     (launched): launched is LayerLaunchedAddon => launched !== undefined
   );
 };

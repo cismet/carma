@@ -142,6 +142,12 @@ export type UseTimeSliderLayerRowOptions = {
    * and black while it is not, so the colour says "open", not "running".
    */
   panelOpen: boolean;
+  /**
+   * Whether the host has the series hidden. The host owns the choice, e.g. as
+   * the eye of the layer that launched it; this mirrors it into the channel,
+   * where the engine reads it, and reports it back as the row's `visible`.
+   */
+  hidden?: boolean;
   onAdd: (layer: Layer) => void;
   onRemove: (id: string) => void;
   /** the host keeps a snapshot, so a changed row has to be handed over again */
@@ -157,6 +163,7 @@ export const useTimeSliderLayerRow = ({
   hasRow,
   hasEngine,
   panelOpen,
+  hidden,
   restoredSeed,
   onAdd,
   onRemove,
@@ -181,6 +188,9 @@ export const useTimeSliderLayerRow = ({
     metaDataText,
     links,
     legend,
+    permanent,
+    isHidden,
+    setHidden,
   } = useTimeSliderActions();
   const { startSeries } = useTimeSeriesLauncher();
 
@@ -188,6 +198,14 @@ export const useTimeSliderLayerRow = ({
   useEffect(() => {
     setPanelOpen(panelOpen);
   }, [panelOpen, setPanelOpen]);
+
+  // the host's eye reaches the engine through the channel, the same way
+  // everything else about the series does
+  useEffect(() => {
+    if (hidden !== undefined && hidden !== isHidden) {
+      setHidden(hidden);
+    }
+  }, [hidden, isHidden, setHidden]);
 
   // Resolved here rather than in the channel: the channel is what the row
   // persists, and a derived url stored there would come back after a reload as
@@ -213,6 +231,11 @@ export const useTimeSliderLayerRow = ({
     () => ({
       ...TIME_SLIDER_LAYER,
       title,
+      // A launched series belongs to its layer: the host puts these controls
+      // on that layer's button and shows no row of its own.
+      permanent,
+      pinned: permanent ? ("first" as const) : TIME_SLIDER_LAYER.pinned,
+      visible: !isHidden,
       iconColor: panelOpen
         ? TIME_SLIDER_ICON_COLOR.open
         : TIME_SLIDER_ICON_COLOR.closed,
@@ -260,6 +283,8 @@ export const useTimeSliderLayerRow = ({
     }),
     [
       title,
+      permanent,
+      isHidden,
       label,
       panelOpen,
       isPlaying,

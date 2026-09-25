@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { FLOW_FIELD_LAYER_ID } from "../addons/FlowField/flowfield-layer-row";
+import { TIME_SLIDER_LAYER_ID } from "../addons/TimeSlider/timeslider-layer-row";
 import { getLayerLaunchedAddons } from "./layer-launched-addons";
 
 // the registry reaches the annotation addon, whose excalidraw wants a real
@@ -125,6 +126,76 @@ describe("getLayerLaunchedAddons, flow field style", () => {
         config: { ...TRACK, startEnabled: true, permanent: true },
       },
       expect.objectContaining({ addon: "flowField" }),
+    ]);
+  });
+});
+
+const SERIES = {
+  title: "Starkregen T50 (zeitlicher Verlauf)",
+  wmsUrl: "https://starkregenwms-wuppertal.cismet.de/geoserver/wms?SERVICE=WMS",
+  styles: "starkregen:depth",
+  layers: [
+    "starkregen:L_T50_steps_depth3857_00h_05m",
+    "starkregen:L_T50_steps_depth3857_00h_10m",
+  ],
+  labels: ["00h 05m", "00h 10m"],
+};
+
+describe("getLayerLaunchedAddons, time series style", () => {
+  it("launches the style's series as the style's own", () => {
+    expect(
+      getLayerLaunchedAddons([
+        styleLayer("custom:t50", [{ addon: "timeSlider", config: SERIES }]),
+      ])
+    ).toEqual([
+      {
+        layerId: "custom:t50",
+        visible: true,
+        entry: {
+          addon: "timeSlider",
+          config: {
+            ...SERIES,
+            startEnabled: true,
+            permanent: true,
+            anchorLayerId: "custom:t50",
+          },
+        },
+      },
+    ]);
+  });
+
+  it("launches nothing from a style without layers", () => {
+    expect(
+      getLayerLaunchedAddons([
+        styleLayer("custom:x", [
+          { addon: "timeSlider", config: { ...SERIES, layers: [] } },
+        ]),
+      ])
+    ).toEqual([]);
+  });
+
+  it("never launches from the series' own row", () => {
+    const row = {
+      id: TIME_SLIDER_LAYER_ID,
+      visible: true,
+      tools: [{ kind: "timeSlider", config: SERIES }],
+    };
+    expect(getLayerLaunchedAddons([row])).toEqual([]);
+    expect(getLayerLaunchedAddons([row], { includeEngineRow: true })).toEqual(
+      []
+    );
+  });
+
+  it("launches a flow field and a series from one style side by side", () => {
+    const launched = getLayerLaunchedAddons([
+      styleLayer("custom:both", [
+        { addon: "flowField", config: T100 },
+        { addon: "timeSlider", config: SERIES },
+      ]),
+    ]);
+    expect(launched.map(({ entry }) => entry.addon)).toEqual([
+      "flowField",
+      "timeSlider",
     ]);
   });
 });
