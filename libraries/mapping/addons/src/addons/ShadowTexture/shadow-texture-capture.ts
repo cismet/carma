@@ -445,21 +445,11 @@ export const createDzbPrmShadowCapture = () => {
       renderer.clear();
       // Capture depth, then only black shadow alpha. No GLB PBR material is
       // rendered into the draped canvas; lit pixels remain transparent.
-      // When the catalog bridge accompanies Bestand/Neu, keep it out of the
-      // nadir receiver depth but restore it for the light pass below. Its
-      // shadow then lands on the BuGa GLBs instead of its own deck pixels.
-      const catalogCaster =
-        visibility.catalogBridge &&
-        (visibility.bridge || visibility.bridgeExisting)
-          ? root.children.find(
-              (child) => child.userData.dzbPrmGlbPartId === "catalogBridge"
-            )
-          : undefined;
-      if (catalogCaster) catalogCaster.visible = false;
+      // Include the catalog bridge in receiver depth too: EqualDepth keeps
+      // its self-shadows and occludes the terrain underneath its visible deck.
       renderer.shadowMap.enabled = false;
       scene.overrideMaterial = depthMaterial;
       renderer.render(scene, camera);
-      if (catalogCaster) catalogCaster.visible = true;
       renderer.shadowMap.enabled = true;
       scene.overrideMaterial = shadowMaterial;
       const tangentA = new THREE.Vector3();

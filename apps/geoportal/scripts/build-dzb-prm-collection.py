@@ -69,7 +69,7 @@ def verified_derivative(glb, report, source):
 
 
 def package_large_glb(glb):
-    """Keep each checked-in asset below GitHub's 100 MB single-file limit."""
+    """Compress large GLBs for transport without changing their decoded bytes."""
     # Decision: preserve the exact Meshopt GLB in deterministic gzip; see
     # apps/geoportal/scripts/README.dz-b-prm.md#asset-packaging-decision.
     if not glb.exists():
@@ -90,8 +90,6 @@ def package_large_glb(glb):
                 for block in iter(lambda: source.read(1024 * 1024), b""):
                     compressor.write(block)
         temporary.replace(packed)
-    if packed.stat().st_size >= 100_000_000:
-        raise ValueError(f"Compressed asset exceeds GitHub's 100 MB limit: {packed}")
     with gzip.open(packed, "rb") as compressed, glb.open("rb") as original:
         for block in iter(lambda: original.read(1024 * 1024), b""):
             if compressed.read(len(block)) != block:

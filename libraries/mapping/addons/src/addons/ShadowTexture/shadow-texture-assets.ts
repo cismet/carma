@@ -174,7 +174,7 @@ export const loadDzbPrmGlbPartsIntoRoot = async ({
     visibleParts.map(async (part) => {
       if (root.getObjectByName(partName(part.label))) return;
       const filename =
-        assetBaseUrl.endsWith("/5m") && part.id === "environment"
+        /\/(5m|original)\/?$/.test(assetBaseUrl) && part.id === "environment"
           ? `${part.filename}.gz`
           : part.filename;
       const url =

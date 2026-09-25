@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { BoxGeometry, Mesh } from "three";
+import { BoxGeometry, EqualDepth, Group, Mesh } from "three";
 
 import { createDzbPrmShadowCapture } from "./shadow-texture-capture";
 
@@ -109,6 +109,43 @@ describe("shadow capture masks", () => {
     expect(result).toBeNull();
     expect(context.drawImage).toHaveBeenCalledTimes(1);
     expect(opacity).toEqual([1, 1]); // depth then full-strength shadow mask
+    capture.dispose();
+  });
+
+  it("keeps the catalog bridge in receiver depth and shadow passes alongside Bestand", async () => {
+    const context = { drawImage: vi.fn() };
+    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(
+      context as unknown as CanvasRenderingContext2D
+    );
+    const bridge = new Group();
+    bridge.userData.dzbPrmGlbPartId = "catalogBridge";
+    const deck = new Mesh(new BoxGeometry(60, 2, 5));
+    deck.position.y = 30;
+    bridge.add(deck);
+    mocks.load.mockImplementation(async ({ root }) => {
+      root.add(new Mesh(new BoxGeometry(100, 20, 100)), bridge);
+    });
+    const passes: boolean[] = [];
+    mocks.renderer.render.mockImplementation((scene) => {
+      passes.push(bridge.visible);
+      expect(deck.castShadow).toBe(true);
+      expect(deck.receiveShadow).toBe(true);
+      if (passes.length === 2) {
+        expect(scene.overrideMaterial.depthFunc).toBe(EqualDepth);
+      }
+    });
+    const capture = createDzbPrmShadowCapture();
+    await capture.render({
+      ...options,
+      visibility: {
+        ...options.visibility,
+        bridgeExisting: true,
+        catalogBridge: true,
+      },
+      sunDiscSamples: 1,
+    });
+    expect(passes).toEqual([true, true]);
+    expect(context.drawImage).toHaveBeenCalledTimes(1);
     capture.dispose();
   });
 });

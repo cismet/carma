@@ -16,6 +16,47 @@ const existing: ModelCollectionState = {
 };
 
 describe("BuGa shadow casters", () => {
+  it("loads the packaged original environment and ordinary original insets", async () => {
+    const root = new THREE.Group();
+    const fetched = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(new Uint8Array([1, 2, 3]), {
+        headers: { "content-encoding": "gzip" },
+      })
+    );
+    const parse = vi
+      .spyOn(GLTFLoader.prototype, "parse")
+      .mockImplementation((_buffer, _path, onLoad) => {
+        onLoad({ scene: new THREE.Group() } as GLTF);
+      });
+    const load = vi
+      .spyOn(GLTFLoader.prototype, "load")
+      .mockImplementation((_url, onLoad) => {
+        onLoad({ scene: new THREE.Group() } as GLTF);
+      });
+    try {
+      await loadDzbPrmGlbPartsIntoRoot({
+        root,
+        assetBaseUrl: "https://example.test/original/",
+        visibility: getDzbPrmShadowVisibility(existing, false),
+        isCancelled: () => false,
+      });
+      expect(fetched).toHaveBeenCalledWith(
+        "https://example.test/original/environment.glb.gz"
+      );
+      expect(parse).toHaveBeenCalledTimes(1);
+      expect(load.mock.calls.map(([url]) => url)).toEqual([
+        "https://example.test/original/zoo.glb",
+        "https://example.test/original/bridge-existing.glb",
+        "https://example.test/original/station.glb",
+      ]);
+      expect(root.children).toHaveLength(4);
+    } finally {
+      fetched.mockRestore();
+      parse.mockRestore();
+      load.mockRestore();
+    }
+  });
+
   it("adds a pending model after an earlier load for the same root was cancelled", async () => {
     let complete!: (gltf: GLTF) => void;
     const load = vi
