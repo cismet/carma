@@ -47,15 +47,21 @@ const removeImage = (map: MaplibreMap) => {
 
 const showImage = (map: MaplibreMap, image: DzbPrmShadowImage) => {
   if (!map.isStyleLoaded()) return;
-  const source = map.getSource(SOURCE_ID) as maplibregl.CanvasSource | undefined;
+  const source = map.getSource(SOURCE_ID) as
+    | maplibregl.CanvasSource
+    | undefined;
   if (source && map.getLayer(LAYER_ID)) {
     const canvas = source.getCanvas();
-    if (canvas.width !== image.canvas.width) canvas.width = image.canvas.width;
-    if (canvas.height !== image.canvas.height) canvas.height = image.canvas.height;
-    const context = canvas.getContext("2d");
-    if (!context) return;
-    context.clearRect(0, 0, canvas.width, canvas.height);
-    context.drawImage(image.canvas, 0, 0);
+    if (canvas !== image.canvas) {
+      if (canvas.width !== image.canvas.width)
+        canvas.width = image.canvas.width;
+      if (canvas.height !== image.canvas.height)
+        canvas.height = image.canvas.height;
+      const context = canvas.getContext("2d");
+      if (!context) return;
+      context.clearRect(0, 0, canvas.width, canvas.height);
+      context.drawImage(image.canvas, 0, 0);
+    }
     if (
       source.coordinates.some(
         (corner, index) =>
@@ -122,6 +128,7 @@ type PrintedBoard = Readonly<{
 
 export const ShadowTextureRuntime = ({
   assetBaseUrl,
+  manifestUrl,
   map,
   shadowState,
   dateState,
@@ -131,6 +138,7 @@ export const ShadowTextureRuntime = ({
   setDateState,
 }: {
   assetBaseUrl: string;
+  manifestUrl: string | undefined;
   map: MaplibreMap;
   shadowState: ShadowSimulationState;
   dateState: ShadowDateState;
@@ -149,6 +157,7 @@ export const ShadowTextureRuntime = ({
 }) => {
   const [view, setView] = useState<View | null>(null);
   const [printedBoard, setPrintedBoard] = useState<PrintedBoard | null>(null);
+  const [manifestError, setManifestError] = useState<string | null>(null);
   const timeSignature = JSON.stringify(dateState);
   const [settledTimeSignature, setSettledTimeSignature] =
     useState(timeSignature);
@@ -178,13 +187,21 @@ export const ShadowTextureRuntime = ({
 
   useEffect(() => {
     if (timeSignature === settledTimeSignature) return;
-    const timeout = setTimeout(() => setSettledTimeSignature(timeSignature), 1500);
+    const timeout = setTimeout(
+      () => setSettledTimeSignature(timeSignature),
+      1500
+    );
     return () => clearTimeout(timeout);
   }, [settledTimeSignature, timeSignature]);
 
   useEffect(() => {
     let cancelled = false;
-    const manifestUrl = `${assetBaseUrl.replace(/\/$/, "")}/collection.json`;
+    setPrintedBoard(null);
+    setManifestError(null);
+    if (!manifestUrl) {
+      setManifestError("Collection-Manifest fehlt");
+      return;
+    }
     void loadDzbPrmCollection(manifestUrl)
       .then((collection) => {
         if (cancelled) return;
@@ -199,21 +216,23 @@ export const ShadowTextureRuntime = ({
           bottomHeightMeters: collection.boardBottomHeightMeters,
         });
       })
-      .catch((error: unknown) =>
-        console.error("[shadowTexture] collection", error)
-      );
+      .catch((error: unknown) => {
+        if (!cancelled)
+          setManifestError(
+            error instanceof Error ? error.message : String(error)
+          );
+      });
     return () => {
       cancelled = true;
     };
-  }, [assetBaseUrl]);
+  }, [manifestUrl]);
 
   useEffect(() => {
     const updateView = () => {
       const zoom = Math.ceil(map.getZoom() * 4) / 4;
       const scale = Math.max(1, window.devicePixelRatio || 1);
       setView({
-        basePixelsPerMeter:
-          (512 * 2 ** zoom * scale) / EARTH_CIRCUMFERENCE,
+        basePixelsPerMeter: (512 * 2 ** zoom * scale) / EARTH_CIRCUMFERENCE,
         bounds: getViewBounds(map),
       });
     };
@@ -264,6 +283,7 @@ export const ShadowTextureRuntime = ({
 
   const contextKey = JSON.stringify([
     assetBaseUrl,
+    manifestUrl,
     catalogBridgePresent,
     modelState.bridge,
     modelState.quality,
@@ -289,8 +309,15 @@ export const ShadowTextureRuntime = ({
       return;
     }
     if (!view || !styleReady) return;
-    if (textureState.captureProjection === "perspective" && !printedBoard)
+    if (textureState.captureProjection === "perspective" && !printedBoard) {
+      setTextureState((previous) => ({
+        ...previous!,
+        status: manifestError
+          ? `Aufnahmefehler: ${manifestError}`
+          : "Lade Aufnahmebereich …",
+      }));
       return;
+    }
     const solar = getSolarPosition(dateState, DZ_B_PRM_POSITION);
     if (solar.elevationDegrees <= 0) {
       removeImage(map);
@@ -413,6 +440,7 @@ export const ShadowTextureRuntime = ({
     map,
     modelState.quality,
     printedBoard,
+    manifestError,
     setDateState,
     setTextureState,
     shadowState,

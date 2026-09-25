@@ -1,10 +1,10 @@
 # DZ_B_PRM shadow-texture assets
 
-The BuGa and catalog-bridge layer eyes hide only their visible 3D meshes.
-While a layer remains present, its selected models still cast into the
-offscreen shadow texture; hiding or removing the catalog bridge layer removes that
-additional caster. The BuGa secondary view has no separate "Modell anzeigen"
-switch.
+The BuGa layer eye hides its visible 3D meshes while keeping the selected parts
+active in shadow capture. The separate catalog bridge casts only while its layer
+is visible. "Nur Schatten" hides both sets of visible meshes without changing
+their participation in capture. The BuGa secondary view has no separate
+"Modell anzeigen" switch.
 
 The generated `*.asset.json` provenance reports retain source/GLB checksums,
 georeferencing, conversion parameters, and aggregate GPU-instancing results.
@@ -50,17 +50,17 @@ blender --background --factory-startup \
 ```
 
 The other part IDs are `zoo`, `bridge`, `bridge-existing`, and `station`.
-The third bridge choice uses the existing `BRUECKENENTWURF_GLB` catalog GLB,
-not a derived STL. Cache it separately with `--catalog-bridge-only`; the
+The Brückenvergleich workflow uses the existing `BRUECKENENTWURF_GLB` catalog GLB
+alongside BuGa Bestand, or BuGa Entwurf without that separate GLB.
+Cache it separately with `--catalog-bridge-only`; the
 collection manifest records its Cesium anchor, altitude, heading and SHA-256.
 The runtime uses the same transform in the visible MapLibre model and shadow
 capture. Its Draco decoder is copied from the installed Three.js package into
 `public/assets/draco/` for self-contained deployment.
 On `pm-show`, the visible catalog bridge subtracts the collection manifest's
 `boardBottomHeightMeters`, matching the visible BuGa collection. Offscreen
-capture keeps both bridges in the common unshifted height frame. Selecting
-the collection's catalog bridge also suppresses the independent layer's
-duplicate visible GLB. The catalog layer is added last and hidden by the
+capture keeps both bridges in the common unshifted height frame.
+The catalog layer is added last and hidden by the
 shadow workflows; its eye also controls whether it contributes a shadow.
 Pass the matching source file explicitly; `--quality` is a provenance label,
 not a source-URL selector. The outputs are Meshopt-compressed glTF 2.0 GLBs

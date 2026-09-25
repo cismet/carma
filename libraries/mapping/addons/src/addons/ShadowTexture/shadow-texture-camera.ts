@@ -58,14 +58,17 @@ export const createPrintedModelCaptureCamera = (
   const size = fitted.getSize(new THREE.Vector3());
   const center = fitted.getCenter(new THREE.Vector3());
   const worldHeight = cameraHeightMeters * PRINTED_HEIGHT_SCALE;
+  const cameraY = boardBottomHeightMeters + worldHeight;
+  // Keep depth precision at the receiver, even kilometres from the lens.
+  const depthMargin = 10;
   const camera = new THREE.PerspectiveCamera(
     radToDegNumeric(2 * Math.atan(size.z / (2 * worldHeight))),
     PROJECTOR_ASPECT_RATIO,
-    0.1,
-    worldHeight + Math.max(size.y, 100) + 100
+    Math.max(0.1, cameraY - bounds.max.y - depthMargin),
+    Math.max(worldHeight, cameraY - bounds.min.y) + depthMargin
   );
   camera.up.set(0, 0, -1);
-  camera.position.set(center.x, boardBottomHeightMeters + worldHeight, center.z);
+  camera.position.set(center.x, cameraY, center.z);
   camera.lookAt(center.x, boardBottomHeightMeters, center.z);
   camera.updateMatrixWorld(true);
   return camera;

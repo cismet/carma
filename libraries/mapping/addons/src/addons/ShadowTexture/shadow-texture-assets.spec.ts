@@ -1,7 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import * as THREE from "three";
+import { GLTFLoader, type GLTF } from "three/addons/loaders/GLTFLoader.js";
 
 import type { ModelCollectionState } from "../ModelCollection";
-import { getDzbPrmShadowVisibility } from "./shadow-texture-assets";
+import {
+  getDzbPrmShadowVisibility,
+  loadDzbPrmGlbPartsIntoRoot,
+} from "./shadow-texture-assets";
 
 const existing: ModelCollectionState = {
   visible: true,
@@ -11,6 +16,47 @@ const existing: ModelCollectionState = {
 };
 
 describe("BuGa shadow casters", () => {
+  it("adds a pending model after an earlier load for the same root was cancelled", async () => {
+    let complete!: (gltf: GLTF) => void;
+    const load = vi
+      .spyOn(GLTFLoader.prototype, "load")
+      .mockImplementation((_url, onLoad) => {
+        complete = onLoad;
+      });
+    try {
+      const root = new THREE.Group();
+      let cancelled = false;
+      const options = {
+        root,
+        assetBaseUrl: "/cancelled-load-test/5m",
+        visibility: {
+          environment: false,
+          zoo: false,
+          station: false,
+          bridge: true,
+          bridgeExisting: false,
+          catalogBridge: false,
+        },
+      };
+      const previous = loadDzbPrmGlbPartsIntoRoot({
+        ...options,
+        isCancelled: () => cancelled,
+      });
+      cancelled = true;
+      const current = loadDzbPrmGlbPartsIntoRoot({
+        ...options,
+        isCancelled: () => false,
+      });
+      complete({ scene: new THREE.Group() } as GLTF);
+      await Promise.all([previous, current]);
+      expect(load).toHaveBeenCalledTimes(1);
+      expect(root.children).toHaveLength(1);
+      expect(root.children[0].userData.dzbPrmGlbPartId).toBe("bridge");
+    } finally {
+      load.mockRestore();
+    }
+  });
+
   it("keeps Bestand as a receiver and adds the separate catalog bridge as a caster", () => {
     expect(getDzbPrmShadowVisibility(existing, true)).toMatchObject({
       environment: true,

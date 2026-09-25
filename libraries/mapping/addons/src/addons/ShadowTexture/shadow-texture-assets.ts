@@ -57,7 +57,6 @@ const loader = new GLTFLoader()
   .setMeshoptDecoder(MeshoptDecoder)
   .setDRACOLoader(dracoLoader);
 const templateCache = new Map<string, Promise<THREE.Group>>();
-const partLoads = new WeakMap<THREE.Group, Map<string, Promise<void>>>();
 
 const partName = (label: string) => `DZ_B_PRM ${label}`;
 
@@ -149,11 +148,6 @@ export const loadDzbPrmGlbPartsIntoRoot = async ({
   isCancelled: () => boolean;
   onProgress?: (progress: DzbPrmGlbLoadProgress) => void;
 }) => {
-  let inFlight = partLoads.get(root);
-  if (!inFlight) {
-    inFlight = new Map();
-    partLoads.set(root, inFlight);
-  }
   const visibleParts = DZ_B_PRM_GLB_PARTS.filter(({ id }) => visibility[id]);
   let loaded = visibleParts.filter(({ label }) =>
     Boolean(root.getObjectByName(partName(label)))
@@ -187,49 +181,42 @@ export const loadDzbPrmGlbPartsIntoRoot = async ({
         part.id === "catalogBridge"
           ? BRUECKENENTWURF_GLB.model.uri
           : `${assetBaseUrl.replace(/\/$/, "")}/${filename}`;
-      const priorLoad = inFlight.get(url);
-      if (priorLoad) return priorLoad;
       const wasCached = templateCache.has(url);
       report("loading", part.label);
-      const load = getTemplate(url, (received, total) =>
+      return getTemplate(url, (received, total) =>
         report("loading", part.label, received, total)
-      )
-        .then((template) => {
-          if (isCancelled() || root.getObjectByName(partName(part.label)))
-            return;
-          const clone = template.clone(true);
-          clone.name = partName(part.label);
-          clone.userData.dzbPrmGlbPartId = part.id;
-          if (part.id === "catalogBridge") {
-            const [easting, northing] = getFromWGS84ToWebMercator([
-              BRUECKENENTWURF_GLB.position.longitude,
-              BRUECKENENTWURF_GLB.position.latitude,
-            ] as unknown as Parameters<typeof getFromWGS84ToWebMercator>[0]);
-            clone.position.set(
-              easting - DZ_B_PRM_EPSG3857_CENTER.x,
-              BRUECKENENTWURF_GLB.position.altitude,
-              DZ_B_PRM_EPSG3857_CENTER.y - northing
-            );
-            clone.rotation.y = degToRadNumeric(
-              90 - BRUECKENENTWURF_GLB.orientation.heading
-            );
-            const projectedMetersPerLocalMeter =
-              1 /
-              Math.cos(degToRadNumeric(BRUECKENENTWURF_GLB.position.latitude));
-            clone.scale.set(
-              projectedMetersPerLocalMeter,
-              1,
-              projectedMetersPerLocalMeter
-            );
-          }
-          root.add(clone);
-          loaded += 1;
-          if (wasCached) cached += 1;
-          report("loading");
-        })
-        .finally(() => inFlight.delete(url));
-      inFlight.set(url, load);
-      return load;
+      ).then((template) => {
+        if (isCancelled() || root.getObjectByName(partName(part.label))) return;
+        const clone = template.clone(true);
+        clone.name = partName(part.label);
+        clone.userData.dzbPrmGlbPartId = part.id;
+        if (part.id === "catalogBridge") {
+          const [easting, northing] = getFromWGS84ToWebMercator([
+            BRUECKENENTWURF_GLB.position.longitude,
+            BRUECKENENTWURF_GLB.position.latitude,
+          ] as unknown as Parameters<typeof getFromWGS84ToWebMercator>[0]);
+          clone.position.set(
+            easting - DZ_B_PRM_EPSG3857_CENTER.x,
+            BRUECKENENTWURF_GLB.position.altitude,
+            DZ_B_PRM_EPSG3857_CENTER.y - northing
+          );
+          clone.rotation.y = degToRadNumeric(
+            90 - BRUECKENENTWURF_GLB.orientation.heading
+          );
+          const projectedMetersPerLocalMeter =
+            1 /
+            Math.cos(degToRadNumeric(BRUECKENENTWURF_GLB.position.latitude));
+          clone.scale.set(
+            projectedMetersPerLocalMeter,
+            1,
+            projectedMetersPerLocalMeter
+          );
+        }
+        root.add(clone);
+        loaded += 1;
+        if (wasCached) cached += 1;
+        report("loading");
+      });
     })
   );
   if (!isCancelled()) {
