@@ -113,6 +113,16 @@ export const projectionMappingFachzwilling: FachzwillingRoute = {
       ],
     },
     {
+      Title: "Starkregen",
+      // each style launches its time series itself, see its carmaConf.tools
+      layers: [
+        `${PROJECTION_MAPPING_STYLES}/starkregen_t50_zeitreihe.style.json`,
+        `${PROJECTION_MAPPING_STYLES}/starkregen_t100_zeitreihe.style.json`,
+        `${PROJECTION_MAPPING_STYLES}/starkregen_90mm_zeitreihe.style.json`,
+        `${PROJECTION_MAPPING_STYLES}/starkregen_extrem2018_zeitreihe.style.json`,
+      ],
+    },
+    {
       Title: "Bäume",
       layers: [
         "https://tiles.cismet.de/pm_trees/modell.style.json",

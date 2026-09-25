@@ -95,13 +95,16 @@ export function useLauncherCarriedControls({
     }
   };
 
-  /** put the engine's controls where the visitor finds them */
-  const show = (layer: Layer) => {
+  /**
+   * Put the engine's controls where the visitor finds them. Returns the id of
+   * the layer they went to, e.g. for opening a panel on it.
+   */
+  const show = (layer: Layer): string => {
     const target = layer.permanent ? launcher : undefined;
     stripCarriers(target?.id);
     if (!target) {
       dispatch(rowLayer ? updateLayer(layer) : appendLayer(layer));
-      return;
+      return layer.id;
     }
     if (rowLayer) {
       dispatch(removeLayer({ id: rowId, force: true }));
@@ -118,6 +121,7 @@ export function useLauncherCarriedControls({
         hasInfoView: true,
       })
     );
+    return target.id;
   };
 
   /** take the controls off every layer and the row off the bar */
@@ -130,6 +134,8 @@ export function useLauncherCarriedControls({
 
   return {
     rowLayer,
+    /** the layer that launched the engine, if one did */
+    launcherId: launcher?.id,
     /** whether the controls currently sit on the layer that launched the engine */
     onLauncher,
     /** the launching layer's eye is off; the engine hides with it */
