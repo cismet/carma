@@ -9,7 +9,7 @@ import {
   findSchluesselByKey,
   insertFlurstueck,
   insertSchluessel,
-  toDateOnly,
+  toTimestamp,
   updateNutzung,
   updateNutzungBuchung,
   updateRebe,
@@ -37,16 +37,16 @@ export const staedtischColumns = (key, useDate) => {
     return useDate
       ? {
           war_staedtisch: true,
-          datum_letzter_stadtbesitz: toDateOnly(useDate),
+          datum_letzter_stadtbesitz: toTimestamp(useDate),
         }
       : {
           war_staedtisch: true,
-          datum_letzter_stadtbesitz: toDateOnly(now),
-          datum_entstehung: toDateOnly(now),
+          datum_letzter_stadtbesitz: toTimestamp(now),
+          datum_entstehung: toTimestamp(now),
         };
   }
   // was and still is owned by the city — only refresh the date
-  return { datum_letzter_stadtbesitz: toDateOnly(useDate ?? now) };
+  return { datum_letzter_stadtbesitz: toTimestamp(useDate ?? now) };
 };
 
 /**
@@ -80,10 +80,11 @@ export const createFlurstueckForKey = async (key, ctx) => {
         flurstueck_nenner: key.nenner ?? null,
         fk_flurstueck_art: key.art?.id ?? null,
         ist_gesperrt: false,
-        datum_entstehung: toDateOnly(created),
-        war_staedtisch: key.warStaedtisch ?? false,
+        datum_entstehung: toTimestamp(created),
+        // left empty unless staedtischColumns sets it, as in LagisBroker
+        war_staedtisch: key.warStaedtisch ?? null,
         letzter_bearbeiter: accountName,
-        letzte_bearbeitung: new Date().toISOString(),
+        letzte_bearbeitung: toTimestamp(created),
         ...staedtischColumns(key, created),
       },
       jwt
@@ -117,14 +118,14 @@ export const setHistoricForKey = async (key, date, options, ctx) => {
     const previous = key.gueltigBis ?? null;
     await updateSchluessel(
       key.id,
-      { gueltig_bis: toDateOnly(date) },
+      { gueltig_bis: toTimestamp(date) },
       jwt,
       accountName
     );
     journal.record(`Historisch setzen von "${keyString}"`, () =>
       updateSchluessel(key.id, { gueltig_bis: previous }, jwt, accountName)
     );
-    return toDateOnly(date);
+    return toTimestamp(date);
   }
 
   const flurstueck = await fetchFlurstueckBySchluesselId(key.id, jwt);
@@ -140,7 +141,11 @@ export const setHistoricForKey = async (key, date, options, ctx) => {
   if (options?.mipaVertragsendeDatum) {
     for (const mipa of options.mipa ?? []) {
       const previous = mipa.vertragsende ?? null;
-      await updateMipa(mipa.id, toDateOnly(options.mipaVertragsendeDatum), jwt);
+      await updateMipa(
+        mipa.id,
+        toTimestamp(options.mipaVertragsendeDatum),
+        jwt
+      );
       journal.record(`Vertragsende der Vermietung/Verpachtung ${mipa.id}`, () =>
         updateMipa(mipa.id, previous, jwt)
       );
@@ -149,7 +154,7 @@ export const setHistoricForKey = async (key, date, options, ctx) => {
   if (options?.rebeLoeschDatum) {
     for (const rebe of options.rebe ?? []) {
       const previous = rebe.datum_loeschung ?? null;
-      await updateRebe(rebe.id, toDateOnly(options.rebeLoeschDatum), jwt);
+      await updateRebe(rebe.id, toTimestamp(options.rebeLoeschDatum), jwt);
       journal.record(`Löschdatum des Rechts/der Belastung ${rebe.id}`, () =>
         updateRebe(rebe.id, previous, jwt)
       );
@@ -217,7 +222,7 @@ const closeParcel = async (
 ) => {
   const { jwt, accountName, journal } = ctx;
   const keyString = formatKey(key);
-  const dateOnly = toDateOnly(date);
+  const stamp = toTimestamp(date);
 
   const previousGueltigBis = key.gueltigBis ?? null;
   const previousStadtbesitz = key.datumLetzterStadtbesitz ?? null;
@@ -225,8 +230,8 @@ const closeParcel = async (
   await updateSchluessel(
     key.id,
     {
-      gueltig_bis: dateOnly,
-      ...(setLastOwnership ? { datum_letzter_stadtbesitz: dateOnly } : {}),
+      gueltig_bis: stamp,
+      ...(setLastOwnership ? { datum_letzter_stadtbesitz: stamp } : {}),
     },
     jwt,
     accountName
@@ -262,12 +267,12 @@ const closeParcel = async (
       if (!needsClosing) {
         continue;
       }
-      await updateNutzungBuchung(buchung.id, { gueltig_bis: dateOnly }, jwt);
+      await updateNutzungBuchung(buchung.id, { gueltig_bis: stamp }, jwt);
       journal.record(`Gültigkeit der Nutzungsbuchung ${buchung.id}`, () =>
         updateNutzungBuchung(buchung.id, { gueltig_bis: current ?? null }, jwt)
       );
     }
   }
 
-  return dateOnly;
+  return stamp;
 };

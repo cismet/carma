@@ -272,6 +272,21 @@ const LandParcelKeyChooser = ({
     });
   };
 
+  const selectPresetFlurstueck = (event) => {
+    const input = event.target;
+    if (
+      value ||
+      !presetText ||
+      text !== presetText ||
+      !input.setSelectionRange
+    ) {
+      return;
+    }
+    const start = presetText.lastIndexOf("-") + 1;
+    // after antd has placed the caret itself
+    setTimeout(() => input.setSelectionRange(start, presetText.length));
+  };
+
   if (!structure) {
     return <div className="text-gray-500">Flurstücke werden geladen...</div>;
   }
@@ -283,7 +298,10 @@ const LandParcelKeyChooser = ({
           className={disabled ? DISABLED_FIELD_CLASSES : undefined}
           style={{ cursor: disabled ? "not-allowed" : undefined }}
         >
-          <div style={{ pointerEvents: disabled ? "none" : undefined }}>
+          <div
+            style={{ pointerEvents: disabled ? "none" : undefined }}
+            onFocus={selectPresetFlurstueck}
+          >
             <LandParcelSearch
               pixelwidth={320}
               landParcelData={structure}

@@ -45,11 +45,21 @@ export const keyToSearchText = (key) =>
       )}`
     : "";
 
-/** Gemarkung and Flur of another parcel, Flurstück left open. */
-export const presetToSearchText = (preset) =>
-  preset?.gemarkung?.bezeichnung !== undefined && preset?.flur !== undefined
-    ? `${preset.gemarkung.bezeichnung}-${preset.flur}-`
-    : "";
+/**
+ * The whole key of another parcel, as the Swing COPY_CONTENT_MODE copied it;
+ * only Gemarkung and Flur when there is no Flurstück to copy.
+ */
+export const presetToSearchText = (preset) => {
+  if (
+    preset?.gemarkung?.bezeichnung === undefined ||
+    preset?.flur === undefined
+  ) {
+    return "";
+  }
+  return preset.zaehler !== undefined && preset.zaehler !== null
+    ? keyToSearchText(preset)
+    : `${preset.gemarkung.bezeichnung}-${preset.flur}-`;
+};
 
 const isHistoric = (parcel) => parcel?.hist !== false;
 
@@ -67,9 +77,13 @@ const HIDDEN_PARCEL_MESSAGES = {
   current: "Das Flurstück ist historisch und kann nicht ausgewählt werden.",
   historic:
     "Das Flurstück ist nicht historisch und kann nicht ausgewählt werden.",
+  creation: "Flurstück ist bereits vorhanden",
 };
 
-/** Message for a typed key that exists but is filtered out by the mode. */
+/**
+ * Message for a typed key that exists but is filtered out by the mode, or
+ * that exists at all when a new one is wanted.
+ */
 export const hiddenParcelMessage = (text, mode, structure) => {
   if (!HIDDEN_PARCEL_MESSAGES[mode] || !structure) {
     return undefined;
@@ -93,7 +107,7 @@ export const hiddenParcelMessage = (text, mode, structure) => {
   }
   const parcel =
     flur.flurstuecke?.[landparcelLabel(parsed.zaehler, parsed.nenner)];
-  return parcel && !keepParcel(mode, parcel)
+  return parcel && (mode === "creation" || !keepParcel(mode, parcel))
     ? HIDDEN_PARCEL_MESSAGES[mode]
     : undefined;
 };

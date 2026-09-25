@@ -98,10 +98,10 @@ const formatCidsDate = (date, withTime) => {
   return `${day}T${time}`;
 };
 
-const nowIso = () => formatCidsDate(new Date(), true);
+/** LagisBroker writes java.util.Date, so the clock time is part of the value. */
+export const toTimestamp = (date) => (date ? formatCidsDate(date, true) : null);
 
-/** A date column: midnight, because only the day carries meaning. */
-export const toDateOnly = (date) => (date ? formatCidsDate(date, false) : null);
+const nowIso = () => toTimestamp(new Date());
 
 /* ------------------------------------------------------------ Stammdaten */
 

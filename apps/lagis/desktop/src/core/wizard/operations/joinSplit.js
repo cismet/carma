@@ -3,6 +3,7 @@ import {
   fetchFlurstueckArten,
   insertSchluessel,
   requireArt,
+  toTimestamp,
 } from "../api";
 import { FLURSTUECK_ART } from "../constants";
 import { joinFlurstuecke } from "./join";
@@ -23,13 +24,14 @@ export const joinSplitFlurstuecke = async ({ memberKeys, resultKeys }, ctx) => {
   const arten = ctx.arten ?? (await fetchFlurstueckArten(jwt));
   const pseudoArt = requireArt(arten, FLURSTUECK_ART.PSEUDO);
 
+  const created = new Date();
   const pseudoId = await insertSchluessel(
     {
       fk_flurstueck_art: pseudoArt.id,
       ist_gesperrt: false,
-      war_staedtisch: false,
+      datum_entstehung: toTimestamp(created),
       letzter_bearbeiter: accountName,
-      letzte_bearbeitung: new Date().toISOString(),
+      letzte_bearbeitung: toTimestamp(created),
     },
     jwt
   );
@@ -44,7 +46,7 @@ export const joinSplitFlurstuecke = async ({ memberKeys, resultKeys }, ctx) => {
     flur: undefined,
     zaehler: undefined,
     nenner: undefined,
-    warStaedtisch: false,
+    warStaedtisch: null,
     gueltigBis: null,
   };
 
