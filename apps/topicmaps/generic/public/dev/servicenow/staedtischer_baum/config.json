@@ -1,6 +1,7 @@
 {
   "tm": {
     "windowtitle": "Städtischer Baum Wuppertal",
+    "restrict": ["live"],
     "noFeatureCollection": true,
     "previewMapPosition": "lat=51.2752662&lng=7.1802909&zoom=14.63",
     "vectorLayers": [

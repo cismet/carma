@@ -104,6 +104,20 @@ Ein Layer kann auch ganz ohne `layer`-Verweis auf einen WMS auskommen, wenn er n
 Ohne den angegebenen `style` wird der Style aus dem `carmaConf` Parametern des WMS gesetzt. Das Ffunktioniert auch, dauert aber etwas länger, da zuerst die Capabilities geladen und geparst werden müssen. Wir empfehlen deshalb den Style zusätzlich (wie oben angegeben) zu setzen.
 
 
+#### Konfiguration auf bestimmten Deployments sperren (`restrict`)
+
+Mit `tm.restrict` wird eine Konfiguration auf den angegebenen Deployments ausgeblendet (gleiche Semantik wie `restrict` bei den Layern im Geoportal). Mögliche Werte: `localDev`, `dev`, `pr`, `live` (als Array oder kommagetrennter String). Auf einem gesperrten Deployment verhält sich die Karte so, als gäbe es keine Konfiguration.
+
+```json
+{
+  "tm": {
+    "restrict": ["live"]
+  }
+}
+```
+
+So ist z.B. `servicenow/schulen` nur lokal, auf dev und in PR-Deployments erreichbar, nicht aber auf live.
+
 ### 2.3. Layer und weitere Einstellungen
 
 Layer-Definitionen und weitere Einstellungen können nach Bedarf angepasst werden. Für Inspiration können die bestehenden Beispiele in `trinkbrunnenkarte_wuppertal` und `wohnlagenkarte_wuppertal` herangezogen werden.

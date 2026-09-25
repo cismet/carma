@@ -33,11 +33,15 @@ import WMSCapabilities from "wms-capabilities";
 
 import merge from "lodash/merge";
 import defaultConfig from "../assets/gtmDefaulConfig.json";
-import { getAllLeafLayers } from "@carma-mapping/layers";
+import {
+  getAllLeafLayers,
+  getRestrictedDeployments,
+} from "@carma-mapping/layers";
 import {
   extractCarmaConfig,
   extractInformation,
   getHashParams,
+  resolveDeployment,
 } from "@carma-commons/utils";
 import { isEndpoint } from "@carma-commons/resources";
 import md5 from "md5";
@@ -286,6 +290,19 @@ function App({ name }) {
       if (!projectConfig) {
         found = false;
         projectConfig = errorConfig;
+      } else if (projectConfig.tm?.restrict) {
+        // same semantics as the geoportal `restrict`: hidden on the listed deployments
+        const deployment = resolveDeployment();
+        const restricted = getRestrictedDeployments({
+          restrict: projectConfig.tm.restrict,
+        });
+        if (deployment && restricted.includes(deployment)) {
+          log(
+            `... config ${slugName} is restricted on deployment "${deployment}"`
+          );
+          found = false;
+          projectConfig = errorConfig;
+        }
       }
       setProjectConfigFound(found);
 
