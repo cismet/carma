@@ -14,11 +14,11 @@ import {
   subscribeSharedThreeSceneContent,
 } from "@carma-mapping/engines/maplibre";
 import {
-  advanceShadowAnimationFrame,
   getSolarPosition,
   type ShadowDateState,
   type ShadowSimulationState,
 } from "@carma-mapping/shadow-simulation/core";
+import { useShadowAnimation } from "@carma-mapping/shadow-simulation";
 
 import type { ShadowTextureState } from ".";
 import type { ModelCollectionState } from "../ModelCollection";
@@ -190,6 +190,20 @@ export const ShadowTextureRuntime = ({
   const intensity =
     textureState.intensity ?? DEFAULT_SHADOW_TEXTURE_APPEARANCE.intensity;
   const appearance = useRef({ color, intensity });
+  const requestCapture = useRef<((date: ShadowDateState) => void) | null>(null);
+  const onAnimationFrame = useCallback((date: ShadowDateState) => {
+    requestCapture.current?.(date);
+  }, []);
+  const animatedDate = useShadowAnimation({
+    dateState,
+    setDateState,
+    location: DZ_B_PRM_POSITION,
+    shadowState,
+    onFrame: onAnimationFrame,
+    realtime: true,
+  });
+  const selectedDate = useRef(dateState);
+  selectedDate.current = dateState;
   const subscribeToScene = useCallback(
     (listener: () => void) => subscribeSharedThreeSceneContent(map, listener),
     [map]
@@ -345,22 +359,31 @@ export const ShadowTextureRuntime = ({
       }));
       return;
     }
-    const solar = getSolarPosition(dateState, DZ_B_PRM_POSITION);
     let cancelled = false;
-    let animationTimer: ReturnType<typeof setTimeout> | undefined;
-    const frameKey = JSON.stringify([
-      contextKey,
-      solar.azimuthDegrees,
-      solar.elevationDegrees,
-      sunDiscSamples,
-    ]);
-    const render = async () => {
+    let pending: ShadowDateState | null = null;
+    let running = false;
+    const setStatus = (status: string) => {
+      setTextureState((previous) =>
+        previous?.status === status ? previous : { ...previous!, status }
+      );
+    };
+    const render = async (date: ShadowDateState) => {
       if (cancelled) return;
-      const cached = await cache.current.get(frameKey);
+      const solar = getSolarPosition(date, DZ_B_PRM_POSITION);
+      const frameKey = JSON.stringify([
+        contextKey,
+        solar.azimuthDegrees,
+        solar.elevationDegrees,
+        sunDiscSamples,
+      ]);
+      const cached = shadowState.isAnimating
+        ? null
+        : await cache.current.get(frameKey);
       if (cancelled) return;
       let image = cached;
       if (!image) {
-        setTextureState((previous) => ({ ...previous!, status: "Lade GLB …" }));
+        if (!shadowState.isAnimating || !lastImage.current)
+          setStatus("Lade GLB …");
         capture.current ??= createDzbPrmShadowCapture();
         image = await capture.current.render({
           assetBaseUrl: `${assetBaseUrl.replace(/\/$/, "")}/${
@@ -392,7 +415,7 @@ export const ShadowTextureRuntime = ({
               : undefined,
           isCancelled: () => cancelled,
           onProgress: (progress) => {
-            if (!cancelled) {
+            if (!cancelled && !shadowState.isAnimating) {
               setTextureState((previous) => ({
                 ...previous!,
                 status:
@@ -409,7 +432,7 @@ export const ShadowTextureRuntime = ({
             }
           },
           onSampleProgress: (sample, total) => {
-            if (!cancelled) {
+            if (!cancelled && !shadowState.isAnimating) {
               setTextureState((previous) => ({
                 ...previous!,
                 status: `Berechne Schatten ${sample}/${total} …`,
@@ -421,53 +444,58 @@ export const ShadowTextureRuntime = ({
       if (cancelled || !image) return;
       lastImage.current = image;
       showImage(map, image, appearance.current);
-      setTextureState((previous) => ({
-        ...previous!,
-        status:
-          solar.elevationDegrees <= 0
-            ? "night"
-            : `${image.canvas.width}×${image.canvas.height}${
-                cached ? " Cache" : ""
-              }`,
-      }));
-      if (!cached) void cache.current.put(frameKey, image);
-      if (shadowState.isAnimating) {
-        animationTimer = setTimeout(() => {
-          const next = advanceShadowAnimationFrame(
-            shadowState,
-            dateState,
-            dateState,
-            DZ_B_PRM_POSITION,
-            0
-          );
-          setDateState(next.dateState);
-        }, 250);
-      }
+      setStatus(
+        solar.elevationDegrees <= 0
+          ? "night"
+          : `${image.canvas.width}×${image.canvas.height}${
+              cached ? " Cache" : ""
+            }`
+      );
+      if (!cached && !shadowState.isAnimating)
+        void cache.current.put(frameKey, image);
     };
-    renderQueue.current = renderQueue.current
-      .then(render)
-      .catch((error: unknown) => {
-        if (!cancelled) {
-          console.error("[shadowTexture]", error);
-          setTextureState((previous) => ({
-            ...previous!,
-            status: error instanceof Error ? error.message : "Schattenfehler",
-          }));
-        }
-      });
+    // Decision: latest-only frames, independent wall-clock time; see
+    // apps/geoportal/scripts/README.dz-b-prm.md#animation-clock.
+    const enqueue = (date: ShadowDateState) => {
+      pending = date;
+      if (running || cancelled) return;
+      running = true;
+      renderQueue.current = renderQueue.current
+        .then(async () => {
+          while (pending && !cancelled) {
+            const next = pending;
+            pending = null;
+            await render(next);
+          }
+        })
+        .catch((error: unknown) => {
+          pending = null;
+          if (!cancelled) {
+            console.error("[shadowTexture]", error);
+            setStatus(
+              error instanceof Error ? error.message : "Schattenfehler"
+            );
+          }
+        })
+        .finally(() => {
+          running = false;
+          if (pending && !cancelled) enqueue(pending);
+        });
+    };
+    requestCapture.current = enqueue;
+    enqueue(animatedDate.current ?? selectedDate.current);
     return () => {
       cancelled = true;
-      if (animationTimer) clearTimeout(animationTimer);
+      pending = null;
+      if (requestCapture.current === enqueue) requestCapture.current = null;
     };
   }, [
     assetBaseUrl,
     contextKey,
-    dateState,
     map,
     modelState.quality,
     printedBoard,
     manifestError,
-    setDateState,
     setTextureState,
     shadowState,
     styleReady,
@@ -478,7 +506,13 @@ export const ShadowTextureRuntime = ({
     sunDiscSamples,
     view,
     visibility,
+    animatedDate,
   ]);
+
+  useEffect(() => {
+    if (!shadowState.isAnimating)
+      requestCapture.current?.(animatedDate.current ?? dateState);
+  }, [animatedDate, dateState, shadowState.isAnimating]);
 
   return null;
 };

@@ -3,11 +3,20 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, render, waitFor } from "@testing-library/react";
 import type { Map as MaplibreMap } from "maplibre-gl";
 
-import { createInitialShadowSimulationState } from "@carma-mapping/shadow-simulation/core";
+import {
+  createInitialShadowSimulationState,
+  getSolarPosition,
+} from "@carma-mapping/shadow-simulation/core";
+import { DZ_B_PRM_POSITION } from "./shadow-texture-georef";
 
 import { ShadowTextureRuntime } from "./ShadowTextureRuntime";
 
-const mocks = vi.hoisted(() => ({ load: vi.fn(), capture: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  load: vi.fn(),
+  capture: vi.fn(),
+  cacheGet: vi.fn(async () => null),
+  cachePut: vi.fn(),
+}));
 
 vi.mock("../ModelCollection/dzb-prm-collection", () => ({
   loadDzbPrmCollection: mocks.load,
@@ -23,8 +32,8 @@ vi.mock("./shadow-texture-capture", () => ({
     dispose: vi.fn(),
   }),
   createDzbPrmShadowFrameCache: () => ({
-    get: async () => null,
-    put: vi.fn(),
+    get: mocks.cacheGet,
+    put: mocks.cachePut,
     clear: vi.fn(),
   }),
 }));
@@ -108,6 +117,26 @@ const makeProps = (): ComponentProps<typeof ShadowTextureRuntime> => {
   };
 };
 
+const installFrameClock = () => {
+  const callbacks = new Map<number, FrameRequestCallback>();
+  let id = 0;
+  let now = 0;
+  vi.spyOn(performance, "now").mockImplementation(() => now);
+  vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+    callbacks.set(++id, callback);
+    return id;
+  });
+  vi.stubGlobal("cancelAnimationFrame", (key: number) => callbacks.delete(key));
+  return async (timestamp: number) => {
+    now = timestamp;
+    await act(async () => {
+      const pending = [...callbacks.values()];
+      callbacks.clear();
+      pending.forEach((callback) => callback(timestamp));
+    });
+  };
+};
+
 describe("shadow capture updates", () => {
   beforeEach(() => {
     mocks.load.mockResolvedValue({
@@ -137,6 +166,87 @@ describe("shadow capture updates", () => {
     vi.restoreAllMocks();
     vi.clearAllMocks();
     vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  it("delivers every available refresh tick without a 250ms frame delay or WebP work", async () => {
+    const tick = installFrameClock();
+    const props = makeProps();
+    props.shadowState = {
+      ...props.shadowState,
+      isAnimating: true,
+      animationSpeed: 1,
+    };
+    props.textureState.mode = "sun-disc";
+    render(<ShadowTextureRuntime {...props} />);
+    await act(async () => {});
+    const initialCaptures = mocks.capture.mock.calls.length;
+    for (let frame = 1; frame <= 60; frame += 1)
+      await tick((frame * 1000) / 60);
+    expect(mocks.capture.mock.calls.length - initialCaptures).toBe(60);
+    expect(
+      mocks.capture.mock.calls.every(
+        ([options]) => options.sunDiscSamples === 1
+      )
+    ).toBe(true);
+    expect(mocks.cacheGet).not.toHaveBeenCalled();
+    expect(mocks.cachePut).not.toHaveBeenCalled();
+    const finalSun = getSolarPosition(
+      { ...props.dateState, minutes: props.dateState.minutes + 60 },
+      DZ_B_PRM_POSITION
+    );
+    expect(mocks.capture.mock.lastCall![0].sunAzimuthDegrees).toBeCloseTo(
+      finalSun.azimuthDegrees,
+      8
+    );
+    expect(
+      vi.mocked(props.setDateState).mock.calls.length
+    ).toBeGreaterThanOrEqual(3);
+    expect(vi.mocked(props.setDateState).mock.calls.length).toBeLessThanOrEqual(
+      4
+    );
+  });
+
+  it("keeps one capture in flight and replaces waiting timestamps with the newest", async () => {
+    const tick = installFrameClock();
+    const props = makeProps();
+    props.shadowState = {
+      ...props.shadowState,
+      isAnimating: true,
+      animationSpeed: 1,
+    };
+    const image = {
+      canvas: document.createElement("canvas"),
+      coordinates: [
+        [7.1, 51.26],
+        [7.14, 51.26],
+        [7.14, 51.23],
+        [7.1, 51.23],
+      ],
+    };
+    let complete!: (image: unknown) => void;
+    mocks.capture.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          complete = resolve;
+        })
+    );
+    render(<ShadowTextureRuntime {...props} />);
+    await act(async () => {});
+    for (let frame = 1; frame <= 6; frame += 1) await tick((frame * 1000) / 60);
+    expect(mocks.capture).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      complete(image);
+    });
+    expect(mocks.capture).toHaveBeenCalledTimes(2);
+    const expected = getSolarPosition(
+      { ...props.dateState, minutes: props.dateState.minutes + 6 },
+      DZ_B_PRM_POSITION
+    );
+    expect(mocks.capture.mock.lastCall![0].sunAzimuthDegrees).toBeCloseTo(
+      expected.azimuthDegrees,
+      8
+    );
   });
 
   it("uses the configured manifest when GLBs move to another host and redraws time and height changes", async () => {

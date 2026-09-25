@@ -113,3 +113,23 @@ capture; the deployed addon computes its canvas in the browser.
   200/206, matching sizes, GLB/gzip magic and the requesting origin's CORS header.
   Conversion and transport verification do not establish interactive frame rate
   for the roughly 31-million-triangle tier.
+
+## Animation clock
+
+- ID / date / status: `dzb-prm-animation-clock`, 2026-09-25, adopted.
+- Context: Waiting 250 ms after every capture capped animation below 4 fps and
+  tied simulated time to capture cost.
+- Decision: Reuse the shared animation hook with an opt-in elapsed-time clock.
+  At 1×, one real second advances one simulated hour; 4×/12× multiply that rate.
+  Request captures on display-refresh ticks, with one capture in flight and only
+  the latest timestamp waiting. Publish React/UI time every 250 ms and at pause.
+  Render hard shadows during playback without per-frame WebP cache work; retain
+  paused-frame caching and the 1500 ms idle debounce before sun-disc refinement.
+- Alternatives: Fixed time steps or waiting after capture (rejected: speed depends
+  on GPU cost); parallel captures or mesh simplification (deferred). The normal
+  shadow addon retains its existing per-tick timing unless realtime is requested.
+- Evidence: Thirteen focused tests cover elapsed-time steps, daylight wrapping,
+  available 60 Hz ticks, hard-only playback, cache bypass, and latest-only capture.
+  Addons TypeScript passes; localhost shows time and shadow changes. These are
+  scheduling checks, not a measured 60 fps GPU benchmark.
+- Revisit when: Capture or canvas-upload profiling justifies further optimization.

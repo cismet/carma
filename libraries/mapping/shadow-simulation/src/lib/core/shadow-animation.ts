@@ -1,4 +1,5 @@
 import { offsetYearDay } from "@carma-commons/utils";
+import type { Milliseconds } from "@carma-units";
 
 import {
   SHADOW_ANIMATION_MODE,
@@ -50,7 +51,8 @@ const advanceYearSelection = (
 const advanceDaySelection = (
   dateState: ShadowDateState,
   animationSpeed: number,
-  location: SolarLocation
+  location: SolarLocation,
+  preserveRemainder: boolean
 ): ShadowAnimationFrame => {
   const daylight = getDaylightWindow(dateState, location);
   const firstDaylightMinute = Math.ceil(daylight.sunriseMinutes);
@@ -61,7 +63,13 @@ const advanceDaySelection = (
     dateState: {
       ...dateState,
       minutes:
-        nextMinute > lastDaylightMinute ? firstDaylightMinute : nextMinute,
+        nextMinute > lastDaylightMinute
+          ? firstDaylightMinute +
+            (preserveRemainder
+              ? (nextMinute - firstDaylightMinute) %
+                Math.max(1, lastDaylightMinute - firstDaylightMinute)
+              : 0)
+          : nextMinute,
     },
     yearDayProgress: 0,
   };
@@ -72,14 +80,21 @@ export const advanceShadowAnimationFrame = (
   dateState: ShadowDateState | null | undefined,
   initialDateState: ShadowDateState,
   location: SolarLocation,
-  yearDayProgress: number
+  yearDayProgress: number,
+  options: Readonly<{ elapsedMs?: Milliseconds }> = {}
 ): ShadowAnimationFrame => {
   const currentDateState = dateState ?? initialDateState;
   if (!shadowState?.enabled || !shadowState.isAnimating) {
     return { dateState: currentDateState, yearDayProgress };
   }
 
-  const animationSpeed = shadowState.animationSpeed ?? 4;
+  // Realtime 1× advances one simulated hour per wall-clock second. Omitted
+  // elapsed time retains the normal addon's existing per-tick contract.
+  const animationSpeed =
+    (shadowState.animationSpeed ?? 4) *
+    (options.elapsedMs === undefined
+      ? 1
+      : (Math.max(0, options.elapsedMs) * 60) / 1000);
   return (shadowState.animationMode ?? SHADOW_ANIMATION_MODE.DAY) ===
     SHADOW_ANIMATION_MODE.YEAR
     ? advanceYearSelection(
@@ -88,5 +103,10 @@ export const advanceShadowAnimationFrame = (
         location,
         yearDayProgress
       )
-    : advanceDaySelection(currentDateState, animationSpeed, location);
+    : advanceDaySelection(
+        currentDateState,
+        animationSpeed,
+        location,
+        options.elapsedMs !== undefined
+      );
 };

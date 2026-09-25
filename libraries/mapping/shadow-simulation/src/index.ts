@@ -5,6 +5,7 @@ export {
 export { formatShadowSelection } from "./lib/ui/format-shadow-selection";
 export { ShadowSimulationHeaderControlsView } from "./lib/ui/ShadowSimulationHeaderControlsView";
 export { ShadowAnimationSpeedControl } from "./lib/ui/ShadowAnimationSpeedControl";
+export { useShadowAnimation } from "./lib/runtime/hooks/use-shadow-animation";
 export { ShadowSimulationView } from "./lib/ui/ShadowSimulationView";
 export { SHADOW_TERRAIN_QUALITY } from "./lib/contracts/shadow-simulation";
 export type {
