@@ -21,10 +21,6 @@ const mocks = vi.hoisted(() => ({
 vi.mock("../ModelCollection/dzb-prm-collection", () => ({
   loadDzbPrmCollection: mocks.load,
 }));
-vi.mock("@carma-mapping/engines/maplibre", () => ({
-  getSharedThreeSceneRuntimes: () => [],
-  subscribeSharedThreeSceneContent: () => () => undefined,
-}));
 vi.mock("./shadow-texture-capture", () => ({
   DZB_SHADOW_SUN_DISC_SAMPLES: 64,
   createDzbPrmShadowCapture: () => ({
@@ -167,6 +163,49 @@ describe("shadow capture updates", () => {
     vi.clearAllMocks();
     vi.useRealTimers();
     vi.unstubAllGlobals();
+  });
+
+  it("swaps the printable proposal for Bestand plus the realistic bridge and recaptures", async () => {
+    const props = makeProps();
+    props.modelState = {
+      ...props.modelState,
+      bridge: "planning",
+      visible: false,
+    };
+    props.textureState = {
+      ...props.textureState,
+      useCatalogBridgeCaster: true,
+    };
+    const view = render(<ShadowTextureRuntime {...props} />);
+    await waitFor(() => expect(mocks.capture).toHaveBeenCalledTimes(1));
+    expect(mocks.capture.mock.lastCall![0].visibility).toMatchObject({
+      bridge: false,
+      bridgeExisting: true,
+      catalogBridge: true,
+    });
+    props.textureState = {
+      ...props.textureState,
+      useCatalogBridgeCaster: false,
+    };
+    view.rerender(<ShadowTextureRuntime {...props} />);
+    await waitFor(() => expect(mocks.capture).toHaveBeenCalledTimes(2));
+    expect(mocks.capture.mock.lastCall![0].visibility).toMatchObject({
+      bridge: true,
+      bridgeExisting: false,
+      catalogBridge: false,
+    });
+    props.textureState = {
+      ...props.textureState,
+      useCatalogBridgeCaster: true,
+    };
+    props.modelState = { ...props.modelState, bridge: "existing" };
+    view.rerender(<ShadowTextureRuntime {...props} />);
+    await waitFor(() => expect(mocks.capture).toHaveBeenCalledTimes(3));
+    expect(mocks.capture.mock.lastCall![0].visibility).toMatchObject({
+      bridge: false,
+      bridgeExisting: true,
+      catalogBridge: false,
+    });
   });
 
   it("delivers every available refresh tick without a 250ms frame delay or WebP work", async () => {

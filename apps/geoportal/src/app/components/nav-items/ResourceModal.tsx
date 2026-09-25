@@ -95,7 +95,7 @@ const ResourceModal = () => {
     startFlood,
     startShadowTexture,
     isWorkflowActive,
-  } = useWorkflowAddonLaunchers(messageApi, addLayerById);
+  } = useWorkflowAddonLaunchers(messageApi);
 
   const updateLayers = withSavedMeasurementCarrierImport(
     createResourceLayerUpdater({

@@ -1,13 +1,20 @@
 # DZ_B_PRM shadow-texture assets
 
-The BuGa layer eye hides its visible 3D meshes while keeping the selected parts
-active in shadow capture. The separate catalog bridge casts only while its layer
-is visible. It also receives shadows in the same depth pass: visible deck and
-pylon surfaces can show self-shadows and occlude the terrain directly beneath
-them. Hidden undersides are not represented by the single top-down texture.
-"Nur Schatten" hides both sets of visible meshes without changing
-their participation in capture. The BuGa secondary view has no separate
-"Modell anzeigen" switch.
+The unified Schatten addon owns capture geometry and optional 3D display. Its
+first-level Bestand/BuGa-Entwurf choice selects the printable receiver. Advanced
+settings optionally use the catalog 3D bridge as the proposal's shadow caster:
+the STL bridge then only receives shadows, while the catalog bridge only casts.
+The existing shared receiver draw filter keeps the catalog GLB out of capture
+depth/color without excluding it from the light pass. Surroundings and trees
+still cast and receive. Without the override, the STL bridge does both. Bestand
+omits both proposed casters, retaining the override preference for later use.
+
+The two optional workflows, "Schatten mit Karte" and "Schatten ohne Karte",
+remain entry presets that enable the addon with the chosen background. The
+separate bridge-comparison workflow was removed: that choice belongs to the
+pane's advanced caster option. Neither preset adds separate geometry rows.
+GLB binaries are served from `https://wupp-3d-data.cismet.de/dz-b-prm/derived`;
+the repository contains manifests/provenance and conversion scripts, not the GLBs.
 
 The generated `*.asset.json` provenance reports retain source/GLB checksums,
 georeferencing, conversion parameters, and aggregate GPU-instancing results.
@@ -19,9 +26,9 @@ The source of truth is the [DZ_B_PRM STL collection](https://adhocdata.cismet.de
 directory, invokes Blender for each part and quality, and writes a versioned
 `collection.json` with the BuGa groups, bridge variants, georeference, source
 and output checksums, and both official footprint GeoJSON files. It also
-generates `buga.layer.json`, which the shadow workflow (or an explicit
-`shadow=` URL) adds to the normal `pm-show` layer stack; its `modelCollection`
-tool supplies the Secondary-Info controls.
+generates `buga.layer.json` for standalone ad-hoc loading with `modelCollection`
+Secondary-Info controls. The unified shadow workflow (or an explicit `shadow=`
+URL) instead enables the shadow addon, which owns the collection internally.
 Raw STLs
 are never modified. The adjacent `*.asset.json` files record Blender version,
 cleanup and instancing statistics as well as per-part bounds.
@@ -54,8 +61,9 @@ blender --background --factory-startup \
 ```
 
 The other part IDs are `zoo`, `bridge`, `bridge-existing`, and `station`.
-The Brückenvergleich workflow uses the existing `BRUECKENENTWURF_GLB` catalog GLB
-alongside BuGa Bestand, or BuGa Entwurf without that separate GLB.
+The advanced 3D-Entwurf option switches the proposal's caster between the existing
+`BRUECKENENTWURF_GLB` catalog GLB and the STL-derived GLB, keeping the printable
+BuGa proposal as receiver.
 Cache it separately with `--catalog-bridge-only`; the
 collection manifest records its Cesium anchor, altitude, heading and SHA-256.
 The runtime uses the same transform in the visible MapLibre model and shadow
@@ -133,3 +141,60 @@ capture; the deployed addon computes its canvas in the browser.
   Addons TypeScript passes; localhost shows time and shadow changes. These are
   scheduling checks, not a measured 60 fps GPU benchmark.
 - Revisit when: Capture or canvas-upload profiling justifies further optimization.
+
+## Unified shadow controls
+
+- ID / date / status: `dzb-prm-unified-shadow-controls`, 2026-09-25, adopted.
+- Context: Separate shadow, landscape and catalog-bridge rows duplicated controls
+  and made a single capture depend on independently configured layer visibility.
+- Decision: The route configures the shadow-texture addon with the existing
+  collection manifest and asset base URL. It owns geometry selection and optional
+  visible meshes; workflows create only the shadow row. The shared loader/cache
+  and georeference remain unchanged. Standalone ad-hoc model loading still works.
+  Bestand selects the existing inset; BuGa-Entwurf selects the printable proposed
+  inset. The advanced 3D-Entwurf option replaces the proposed inset with the
+  existing STL inset plus the catalog bridge. All STL parts still cast and
+  receive shadows; the catalog bridge is an additional caster. Bestand alone
+  excludes the catalog bridge while retaining the advanced preference. This replaces the earlier
+  three-way first-level selector and catalog-as-receiver behavior. Existing
+  `renderShadowReceiverObject` handles the pass separation; no second draw filter.
+  The optional 3D display and opacity do not alter shadow inputs. On activation,
+  a pre-existing catalog companion row is absorbed into the internal selection.
+- UI: Two equal-width sliders have full dates and clock values followed by exclusive
+  year/day play buttons on their left. No label column. The compact header keeps
+  both play controls, uses content-sized columns and omits year/timezone (kept
+  in the expanded pane, with the full date also in a tooltip). The pane's fold
+  arrow and visibility button stay at the right edge. Blank header space toggles
+  the pane without intercepting its controls; the arrow remains a native button.
+  Narrow collapsed panes wrap their time controls below the fixed title row.
+  Slider thumbs
+  render above ticks and sun markers. Settings start collapsed; status shares the settings
+  summary row instead of reserving a footer. Idle is hidden; truncated messages
+  retain their full text in a tooltip. Day length in hours/minutes sits below the
+  date; the clock shows the selected timezone's DST-aware abbreviation (MEZ/MESZ).
+  Realtime year playback loops within the selected year at 60 days per second
+  at the default 4× (15 at 1×, 180 at 12×) and holds clock time. Elapsed-time RAF
+  steps target one day per frame at 60 Hz without depending on capture throughput.
+  Daily playback holds the date and offers a full-day
+  or daylight loop. Both use the shared 1×/4×/12× speeds and hard-only interaction.
+  The URL stores whole minutes, including midnight; sub-minute rendering remains
+  internal. This prevents pausing from serializing an invalid shadow hash.
+  The time rail always spans 00–24 with hourly ticks, 6-hour labels and
+  sunrise/solar-noon/sunset markers (half-sun arrows for rise/set), with times
+  to the right of the icons. In narrow panels both rails span the full width
+  below their controls so labels remain separated;
+  manual range input is clamped to daylight, independently of the playback loop.
+  The year rail keeps all month ticks but labels only Jan/Apr/Jul/Oct. Both rails
+  distinguish civil (-6°), nautical (-12°) and astronomical (-18°) twilight from
+  full darkness using the existing event search with an optional elevation
+  threshold, included in the cache key. Memoized yearly windows include timezone
+  and DST; normal daylight limits are unchanged. Date changes and clock input
+  remain unrestricted. Event icons are centered over short ticks, with exact
+  times in tooltips; both sliders keep the same width.
+- Alternatives: Companion geometry rows (replaced at the user's request); new
+  loaders, shared global scene contracts or mesh optimization (not introduced).
+  Normal shadow-addon timing and daylight defaults are unchanged.
+- Evidence: Focused animation, shared-controls, geometry-selection, workflow and
+  hash tests pass. Live capture shows equal-width sliders, exclusive playback,
+  centered status and persistent midnight/paused shadows. This is not a GPU
+  throughput benchmark.

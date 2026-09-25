@@ -46,11 +46,7 @@ export const selectedDzbPrmParts = (
         "environment",
         "zoo",
         "station",
-        ...(state.bridge === "catalog"
-          ? []
-          : ([
-              state.bridge === "planning" ? "bridge" : "bridge-existing",
-            ] as const)),
+        state.bridge === "planning" ? "bridge" : "bridge-existing",
       ]
     : [];
 

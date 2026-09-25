@@ -354,6 +354,17 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
   }, [routedMapRef]);
 
   const iconId = `secview-icon-${entry.id}`;
+  const toggleInfo = () => {
+    dispatch(setUIShowInfo(!showInfo));
+    if (secondaryViewAddon) {
+      dispatch(setUIShowInfoText(false));
+      return;
+    }
+    setTimeout(
+      () => dispatch(setUIShowInfoText(!showInfoText)),
+      showInfoText || isBaseLayer ? 0 : 80
+    );
+  };
 
   return (
     <div className="pt-3 w-full pointer-events-none">
@@ -363,6 +374,7 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
           className={cn(
             "pointer-events-auto",
             isShadowLayer && "shadow-simulation-secondary-container",
+            isShadowTextureLayer && "shadow-texture-secondary-container",
             "min-w-[280px] sm:max-w-[560px] md:max-w-[720px] lg:w-full w-[100vw] sm:w-3/4 sm:mx-0 shrink-0",
             "h-fit bg-white button-shadow rounded-[10px] flex flex-col relative secondary-view gap-2 py-2 transition-all duration-300",
             showInfo
@@ -399,9 +411,18 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
           <div
             className={cn(
               "flex items-center w-full shrink-0 gap-2 px-6 sm:px-0",
-              isShadowLayer ? "flex-nowrap min-h-8" : "h-8",
+              isShadowTextureLayer && "shadow-texture-secondary-header",
+              isShadowLayer ? "min-h-8" : "h-8",
+              isShadowSimulationLayer && "flex-nowrap",
               secondaryViewAddon ? "sm:gap-3" : "sm:gap-6"
             )}
+            onClick={
+              isShadowTextureLayer
+                ? (event) => {
+                    if (event.target === event.currentTarget) toggleInfo();
+                  }
+                : undefined
+            }
           >
             <div
               className={cn(
@@ -457,14 +478,15 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
                 </div>
               </div>
             )}
-            {isShadowLayer && (
+            {(isShadowSimulationLayer ||
+              (isShadowTextureLayer && !showInfo)) && (
               <div className="shadow-simulation-header-slot">
                 {isShadowSimulationLayer ? (
                   <ShadowSimulationHeaderControls
                     config={secondaryViewAddon?.config}
                   />
                 ) : (
-                  <ShadowTextureHeaderControls />
+                  <ShadowTextureHeaderControls compact />
                 )}
               </div>
             )}
@@ -520,6 +542,11 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
               </button>
             )}
             <VisibilityToggle
+              className={
+                isShadowTextureLayer
+                  ? "shadow-texture-visibility-toggle"
+                  : undefined
+              }
               visible={entry.visible}
               disabled={isCesium || ownsOwnVisibility}
               labels={DEFAULT_LAYER_VISIBILITY_TOGGLE_LABELS}
@@ -538,18 +565,17 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
               }}
             />
             <button
-              onClick={() => {
-                dispatch(setUIShowInfo(!showInfo));
-                if (secondaryViewAddon) {
-                  dispatch(setUIShowInfoText(false));
-                  return;
-                }
-                setTimeout(
-                  () => dispatch(setUIShowInfoText(!showInfoText)),
-                  showInfoText || isBaseLayer ? 0 : 80
-                );
-              }}
-              className="relative fa-stack"
+              type="button"
+              aria-label={
+                showInfo ? "Details einklappen" : "Details ausklappen"
+              }
+              aria-expanded={showInfo}
+              onClick={toggleInfo}
+              className={
+                isShadowTextureLayer
+                  ? "flex flex-none self-stretch w-8 min-h-[36px] items-center justify-end rounded px-1 text-base hover:text-neutral-600"
+                  : "relative fa-stack"
+              }
             >
               {showInfo ? (
                 <FontAwesomeIcon
@@ -595,7 +621,12 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
           )}
 
           {showInfo && secondaryViewAddon && !group && (
-            <div className="w-full px-6 pb-2 overflow-y-auto">
+            <div
+              className={cn(
+                "w-full px-6 pb-2 overflow-y-auto",
+                isShadowTextureLayer && "shadow-texture-secondary-body"
+              )}
+            >
               <TargetAddonHost
                 addon={secondaryViewAddon}
                 target={layer as Layer}

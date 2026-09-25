@@ -522,7 +522,12 @@ export const addonRegistry: {
   shadowTexture: {
     Component: ShadowTexture,
     targetPlacement: ADDON_TARGET_PLACEMENT.SECONDARY_VIEW,
-    provides: ["shadowSimulation", "shadowDate", "shadowTexture"],
+    provides: [
+      "shadowSimulation",
+      "shadowDate",
+      "shadowTexture",
+      "modelCollection",
+    ],
   },
   modelCollection: {
     Component: ModelCollection,

@@ -38,7 +38,7 @@ export const useShadowAnimation = ({
   location: SolarLocation;
   shadowState: ShadowSimulationState;
   onFrame: (dateState: ShadowDateState) => void;
-  /** Display-refresh ticks, elapsed-time steps; 1× is one simulated hour/s. */
+  /** Display-refresh ticks; 1× = one hour/s, default 4× = 60 days/s in year mode. */
   realtime?: boolean;
 }): MutableRefObject<ShadowDateState | null> => {
   const animatedDateRef = useRef<ShadowDateState | null>(null);
@@ -50,7 +50,13 @@ export const useShadowAnimation = ({
   dateStateRef.current = dateState;
   setDateStateRef.current = setDateState;
   onFrameRef.current = onFrame;
-  const { animationMode, animationSpeed, enabled, isAnimating } = shadowState;
+  const {
+    animationMode,
+    animationSpeed,
+    animationDaylightOnly,
+    enabled,
+    isAnimating,
+  } = shadowState;
   const animating = enabled && (isAnimating ?? false);
 
   useEffect(() => {
@@ -72,6 +78,7 @@ export const useShadowAnimation = ({
     const animationState = {
       animationMode,
       animationSpeed,
+      animationDaylightOnly,
       enabled,
       isAnimating,
     };
@@ -125,6 +132,7 @@ export const useShadowAnimation = ({
     animating,
     animationMode,
     animationSpeed,
+    animationDaylightOnly,
     enabled,
     isAnimating,
     location,

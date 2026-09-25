@@ -64,17 +64,11 @@ export const projectionMappingFachzwilling: FachzwillingRoute = {
   },
   addons: [
     {
-      addon: "modelCollection",
+      addon: "shadowTexture",
       config: {
         manifestUrl: `${
           import.meta.env.BASE_URL
         }assets/dz-b-prm/collection.json`,
-        assetBaseUrl: DZ_B_PRM_ASSET_BASE_URL,
-      },
-    },
-    {
-      addon: "shadowTexture",
-      config: {
         assetBaseUrl: DZ_B_PRM_ASSET_BASE_URL,
       },
     },
@@ -226,21 +220,6 @@ export const projectionMappingFachzwilling: FachzwillingRoute = {
               config: {
                 assetBaseUrl: DZ_B_PRM_ASSET_BASE_URL,
                 workflowBackgroundVisible: true,
-              },
-            },
-          ],
-        },
-        {
-          id: "brueckenvergleich",
-          title: "Brückenvergleich",
-          description:
-            "BuGa-Bestand mit 3D-Brücke oder BuGa-Entwurf ohne 3D-Brücke.",
-          tools: [
-            {
-              addon: "shadowTexture",
-              config: {
-                assetBaseUrl: DZ_B_PRM_ASSET_BASE_URL,
-                workflowBridgeComparison: true,
               },
             },
           ],

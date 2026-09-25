@@ -1,11 +1,9 @@
-import { useCallback, useRef } from "react";
+import { useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
-import type { Item, Layer } from "@carma-mapping/layers";
+import type { Item } from "@carma-mapping/layers";
 import {
-  createInitialDzbPrmModelState,
   resolveAddonEntries,
-  useAddonState,
   useFloodLauncher,
   useFlowFieldLauncher,
   useShadowTextureWorkflow,
@@ -24,9 +22,7 @@ import {
 } from "@carma-mapping/addons";
 import {
   getBackgroundLayer,
-  getLayers,
   setBackgroundLayer,
-  updateLayer,
 } from "../../store/slices/mapping";
 
 import type { MessageApiLike } from "./resource-layer-updater";
@@ -124,37 +120,9 @@ const toFloodDefinition = (config: FloodSimulationConfig): FloodDefinition => ({
  * The launchers `resource-layer-updater` calls for a workflow card's tools,
  * plus the catalog's answer to whether such a card is on the map.
  */
-const CATALOG_BRIDGE_ID = "wuppObjects_bridge";
-
-export const useWorkflowAddonLaunchers = (
-  messageApi: MessageApiLike,
-  addLayerById: (
-    id: string,
-    options?: { visible?: boolean }
-  ) => Promise<Layer | undefined>
-) => {
+export const useWorkflowAddonLaunchers = (messageApi: MessageApiLike) => {
   const dispatch = useDispatch();
   const backgroundLayer = useSelector(getBackgroundLayer);
-  const activeLayers = useSelector(getLayers);
-  const [modelState, setModelState] = useAddonState("modelCollection");
-  const [shadowState] = useAddonState("shadowSimulation");
-  const catalogBridge = activeLayers.find(
-    (layer) => layer.id === CATALOG_BRIDGE_ID
-  );
-  const catalogLoad = useRef<Promise<Layer | undefined> | null>(null);
-  const ensureCatalogBridge = useCallback(async () => {
-    if (catalogBridge) return catalogBridge;
-    catalogLoad.current ??= addLayerById(CATALOG_BRIDGE_ID, { visible: false })
-      .then((layer) => {
-        if (layer)
-          dispatch(updateLayer({ ...layer, visible: false, pinned: "last" }));
-        return layer;
-      })
-      .finally(() => {
-        catalogLoad.current = null;
-      });
-    return catalogLoad.current;
-  }, [addLayerById, catalogBridge, dispatch]);
   const setBackgroundVisible = useCallback(
     (visible: boolean) => {
       if (backgroundLayer) {
@@ -173,41 +141,9 @@ export const useWorkflowAddonLaunchers = (
   const { toggleVehicle, isVehicleRunning } = useVehicleAnimationLauncher();
 
   const startShadowTexture = useCallback(
-    async (config: AddonConfigMap["shadowTexture"]) => {
-      if (config.workflowBridgeComparison) {
-        const layer = await ensureCatalogBridge();
-        if (!layer) {
-          messageApi.error(
-            "Das 3D-Brückenmodell ist im Katalog nicht verfügbar."
-          );
-          return;
-        }
-        const showCatalog = !(
-          catalogBridge?.visible && modelState?.bridge === "existing"
-        );
-        dispatch(
-          updateLayer({ ...layer, visible: showCatalog, pinned: "last" })
-        );
-        setModelState((previous) => ({
-          ...(previous ?? createInitialDzbPrmModelState()),
-          bridge: showCatalog ? "existing" : "planning",
-        }));
-        shadowTextureWorkflow.activate(true);
-        return;
-      }
-      if (!catalogBridge) void ensureCatalogBridge();
-      shadowTextureWorkflow.toggle(config.workflowBackgroundVisible);
-    },
-    [
-      catalogBridge,
-      dispatch,
-      ensureCatalogBridge,
-      messageApi,
-      modelState?.bridge,
-      setModelState,
-      shadowTextureWorkflow.activate,
-      shadowTextureWorkflow.toggle,
-    ]
+    (config: AddonConfigMap["shadowTexture"]) =>
+      shadowTextureWorkflow.toggle(config.workflowBackgroundVisible),
+    [shadowTextureWorkflow.toggle]
   );
 
   /** a workflow card's timeSlider tool: its config is the series to run */
@@ -296,15 +232,9 @@ export const useWorkflowAddonLaunchers = (
             case "floodSimulation":
               return isFloodRunning(toFloodDefinition(entry.config ?? {}));
             case "shadowTexture":
-              return entry.config?.workflowBridgeComparison
-                  ? Boolean(
-                    shadowState?.enabled &&
-                      catalogBridge?.visible &&
-                      modelState?.bridge === "existing"
-                  )
-                : shadowTextureWorkflow.isActive(
-                    entry.config?.workflowBackgroundVisible
-                  );
+              return shadowTextureWorkflow.isActive(
+                entry.config?.workflowBackgroundVisible
+              );
             default:
               return false;
           }
@@ -317,9 +247,6 @@ export const useWorkflowAddonLaunchers = (
       isVehicleRunning,
       isFloodRunning,
       shadowTextureWorkflow.isActive,
-      catalogBridge?.visible,
-      modelState?.bridge,
-      shadowState?.enabled,
     ]
   );
 

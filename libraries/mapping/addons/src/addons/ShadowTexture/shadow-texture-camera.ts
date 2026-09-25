@@ -10,6 +10,12 @@ export const DEFAULT_CAPTURE_HEIGHT_METERS = 2.3;
 export const PROJECTOR_ASPECT_RATIO = 16 / 9;
 export const PRINTED_BOARD_LONG_EDGE_METERS = 1.8;
 
+export const SHADOW_TEXTURE_RESOLUTIONS = {
+  "2k": { label: "Vorschau (2K)", maxDimension: 2048, scale: 2 },
+  "4k": { label: "Standard (4K)", maxDimension: 4096, scale: 4 },
+  "8k": { label: "Fein (8K)", maxDimension: 8192, scale: 8 },
+} as const;
+
 /** Physical lens angle; GLB Y/X use different coordinate scales. */
 export const getPrintedProjectorVerticalFov = (
   cameraHeightMeters: number

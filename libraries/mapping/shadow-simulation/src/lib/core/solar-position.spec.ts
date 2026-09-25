@@ -44,6 +44,44 @@ describe("solar position", () => {
     expect(selection?.minutes).toBe(Math.ceil(daylight.sunriseMinutes));
   });
 
+  it.each([-6, -12, -18])(
+    "finds the %s degree twilight boundaries on the local day",
+    (minimumElevationDegrees) => {
+      // Before and after the spring clock change, and in winter.
+      for (const dayOfYear of [1, 87, 89]) {
+        const selection = createSelection(dayOfYear, 720);
+        const twilight = getDaylightWindow(selection, WUPPERTAL, {
+          minimumElevationDegrees,
+        });
+        const daylight = getDaylightWindow(selection, WUPPERTAL);
+        expect(twilight.sunriseMinutes).toBeLessThan(daylight.sunriseMinutes);
+        expect(twilight.sunsetMinutes).toBeGreaterThan(daylight.sunsetMinutes);
+        expect(twilight.solarNoonMinutes).toBe(daylight.solarNoonMinutes);
+        for (const minutes of [
+          twilight.sunriseMinutes,
+          twilight.sunsetMinutes,
+        ]) {
+          expect(
+            getSolarPosition({ ...selection, minutes }, WUPPERTAL)
+              .elevationDegrees
+          ).toBeCloseTo(minimumElevationDegrees, 3);
+        }
+      }
+    }
+  );
+
+  it("distinguishes summer twilight from full darkness when the sun never reaches -18 degrees", () => {
+    const summer = createSelection(172, 720);
+    expect(
+      getDaylightWindow(summer, WUPPERTAL, { minimumElevationDegrees: -18 })
+        .polarDay
+    ).toBe(true);
+    expect(
+      getDaylightWindow(summer, WUPPERTAL, { minimumElevationDegrees: -12 })
+        .polarDay
+    ).toBe(false);
+  });
+
   it("limits selection to the lower solar limb touching the horizon", () => {
     const daylight = getDaylightWindow(createSelection(64, 720), WUPPERTAL);
     const sunrisePosition = getSolarPosition(
@@ -95,14 +133,10 @@ describe("solar position", () => {
       const earliestMinutes = Math.ceil(daylight.sunriseMinutes);
       const latestMinutes = Math.floor(daylight.sunsetMinutes);
       selectedEdgeElevations.push(
-        getSolarPosition(
-          createSelection(dayOfYear, earliestMinutes),
-          WUPPERTAL
-        ).elevationDegrees,
-        getSolarPosition(
-          createSelection(dayOfYear, latestMinutes),
-          WUPPERTAL
-        ).elevationDegrees
+        getSolarPosition(createSelection(dayOfYear, earliestMinutes), WUPPERTAL)
+          .elevationDegrees,
+        getSolarPosition(createSelection(dayOfYear, latestMinutes), WUPPERTAL)
+          .elevationDegrees
       );
       excludedEdgeElevations.push(
         getSolarPosition(

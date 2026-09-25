@@ -27,7 +27,7 @@ const partVisibility = (state: ModelCollectionState): DzbPrmGlbVisibility => ({
   zoo: state.visible,
   station: state.visible,
   bridge: state.visible && state.bridge === "planning",
-  bridgeExisting: state.visible && state.bridge === "existing",
+  bridgeExisting: state.visible && state.bridge !== "planning",
   catalogBridge: state.visible && state.bridge === "catalog",
 });
 

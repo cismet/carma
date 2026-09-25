@@ -37,7 +37,7 @@ describe("BuGa shadow casters", () => {
       await loadDzbPrmGlbPartsIntoRoot({
         root,
         assetBaseUrl: "https://example.test/original/",
-        visibility: getDzbPrmShadowVisibility(existing, false),
+        visibility: getDzbPrmShadowVisibility(existing),
         isCancelled: () => false,
       });
       expect(fetched).toHaveBeenCalledWith(
@@ -98,8 +98,13 @@ describe("BuGa shadow casters", () => {
     }
   });
 
-  it("keeps Bestand as a receiver and adds the separate catalog bridge as a caster", () => {
-    expect(getDzbPrmShadowVisibility(existing, true)).toMatchObject({
+  it("replaces the STL proposal with Bestand plus the catalog bridge", () => {
+    expect(
+      getDzbPrmShadowVisibility(
+        { ...existing, bridge: "planning" },
+        { useCatalogBridgeCaster: true }
+      )
+    ).toMatchObject({
       environment: true,
       zoo: true,
       station: true,
@@ -109,25 +114,33 @@ describe("BuGa shadow casters", () => {
     });
   });
 
-  it("removes only the catalog caster when its layer is removed", () => {
-    expect(getDzbPrmShadowVisibility(existing, false)).toMatchObject({
+  it("keeps Bestand alone when the proposed variant is not selected", () => {
+    expect(
+      getDzbPrmShadowVisibility(existing, { useCatalogBridgeCaster: true })
+    ).toMatchObject({
+      bridge: false,
       bridgeExisting: true,
       catalogBridge: false,
     });
   });
 
-  it("does not cast from a hidden catalog layer", () => {
+  it("uses only the BuGa proposal when that variant is selected", () => {
     expect(
-      getDzbPrmShadowVisibility({ ...existing, bridge: "catalog" }, false)
+      getDzbPrmShadowVisibility({ ...existing, bridge: "planning" })
     ).toMatchObject({
+      bridge: true,
       bridgeExisting: false,
       catalogBridge: false,
     });
   });
 
-  it("keeps both shadow sources when the main collection eye is off", () => {
+  it("keeps the selected shadow geometry independent of visual visibility", () => {
     expect(
-      getDzbPrmShadowVisibility({ ...existing, visible: false }, true)
+      getDzbPrmShadowVisibility({
+        ...existing,
+        visible: false,
+        bridge: "catalog",
+      })
     ).toMatchObject({
       environment: true,
       zoo: true,

@@ -26,16 +26,17 @@ export type DzbPrmGlbPartId = (typeof DZ_B_PRM_GLB_PARTS)[number]["id"];
 export type DzbPrmGlbVisibility = Record<DzbPrmGlbPartId, boolean>;
 export const getDzbPrmShadowVisibility = (
   state: ModelCollectionState,
-  catalogLayerPresent: boolean
+  {
+    useCatalogBridgeCaster = state.bridge === "catalog",
+  }: { useCatalogBridgeCaster?: boolean } = {}
 ): DzbPrmGlbVisibility => ({
-  // Layer eyes affect presentation only; offscreen casters remain active.
+  // The optional 3D display does not change the offscreen shadow geometry.
   environment: true,
   zoo: true,
   station: true,
-  bridge: state.bridge === "planning",
-  bridgeExisting: state.bridge === "existing",
-  // Unlike the BuGa collection, the separate catalog GLB obeys its own eye.
-  catalogBridge: catalogLayerPresent,
+  bridge: state.bridge !== "existing" && !useCatalogBridgeCaster,
+  bridgeExisting: state.bridge === "existing" || useCatalogBridgeCaster,
+  catalogBridge: state.bridge !== "existing" && useCatalogBridgeCaster,
 });
 export type DzbPrmGlbLoadProgress = {
   loaded: number;

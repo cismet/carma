@@ -31,6 +31,79 @@ const createState = (
 });
 
 describe("advanceShadowAnimationFrame", () => {
+  it("loops a full day at midnight without changing the selected date", () => {
+    const start = { ...initialDateState, minutes: 1439.5 };
+    const frame = advanceShadowAnimationFrame(
+      createState({ animationSpeed: 1, animationDaylightOnly: false }),
+      start,
+      start,
+      DEFAULT_SHADOW_SIMULATION_LOCATION,
+      0,
+      { elapsedMs: 100 as Milliseconds }
+    );
+    expect(frame.dateState).toEqual({ ...start, minutes: 5.5 });
+  });
+
+  it("loops the realtime year at 60 days/s by default and preserves night time", () => {
+    const start = {
+      ...initialDateState,
+      year: 2024,
+      dayOfYear: 366,
+      minutes: 30,
+    };
+    const state = createState({
+      animationMode: SHADOW_ANIMATION_MODE.YEAR,
+    });
+    const first = advanceShadowAnimationFrame(
+      state,
+      start,
+      start,
+      DEFAULT_SHADOW_SIMULATION_LOCATION,
+      0,
+      { elapsedMs: (1000 / 120) as Milliseconds }
+    );
+    expect(first.dateState).toEqual(start);
+    expect(first.yearDayProgress).toBeCloseTo(0.5, 8);
+    const second = advanceShadowAnimationFrame(
+      state,
+      first.dateState,
+      start,
+      DEFAULT_SHADOW_SIMULATION_LOCATION,
+      first.yearDayProgress,
+      { elapsedMs: (1000 / 120) as Milliseconds }
+    );
+    expect(second.dateState).toEqual({ ...start, dayOfYear: 1 });
+  });
+
+  it.each([1, 4, 12])(
+    "advances the realtime year at %s× independently of frame count",
+    (animationSpeed) => {
+      const state = createState({
+        animationMode: SHADOW_ANIMATION_MODE.YEAR,
+        animationSpeed,
+      });
+      const start = { ...initialDateState, dayOfYear: 1, minutes: 30 };
+      for (const steps of [1, 30, 60, 120]) {
+        let frame = { dateState: start, yearDayProgress: 0 };
+        for (let i = 0; i < steps; i += 1) {
+          frame = advanceShadowAnimationFrame(
+            state,
+            frame.dateState,
+            start,
+            DEFAULT_SHADOW_SIMULATION_LOCATION,
+            frame.yearDayProgress,
+            { elapsedMs: (1000 / steps) as Milliseconds }
+          );
+        }
+        expect(frame.dateState.dayOfYear + frame.yearDayProgress).toBeCloseTo(
+          1 + animationSpeed * 15,
+          8
+        );
+        expect(frame.dateState.minutes).toBe(30);
+      }
+    }
+  );
+
   it("advances one hour per second at 1× independently of frame count", () => {
     const state = createState({ animationSpeed: 1 });
     const start = { ...initialDateState, minutes: 600 };

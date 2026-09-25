@@ -1,6 +1,7 @@
 import * as THREE from "three";
 
 import { degToRadNumeric } from "@carma-units";
+import { renderShadowReceiverObject } from "@carma-mapping/shadow-simulation";
 import {
   fitShadowMap,
   getSunDiscSampleOffset,
@@ -25,6 +26,7 @@ import {
 
 export type DzbPrmShadowImage = Readonly<{
   canvas: HTMLCanvasElement;
+  resolutionLimited?: boolean;
   coordinates: [
     [number, number],
     [number, number],
@@ -44,6 +46,7 @@ type CachedShadowFrame = Readonly<{
   blob: Blob;
   width: number;
   height: number;
+  resolutionLimited?: boolean;
   coordinates: DzbPrmShadowImage["coordinates"];
 }>;
 
@@ -90,7 +93,11 @@ export const createDzbPrmShadowFrameCache = (maxBytes = 512 * 1024 ** 2) => {
         const context = canvas.getContext("2d");
         if (!context) return null;
         context.drawImage(bitmap, 0, 0);
-        return { canvas, coordinates: frame.coordinates };
+        return {
+          canvas,
+          coordinates: frame.coordinates,
+          resolutionLimited: frame.resolutionLimited,
+        };
       } finally {
         bitmap.close();
       }
@@ -110,6 +117,7 @@ export const createDzbPrmShadowFrameCache = (maxBytes = 512 * 1024 ** 2) => {
         blob,
         width: image.canvas.width,
         height: image.canvas.height,
+        resolutionLimited: image.resolutionLimited,
         coordinates: image.coordinates,
       });
       bytes += blob.size;
@@ -129,7 +137,7 @@ type CaptureOptions = Readonly<{
   sunAzimuthDegrees: number;
   sunElevationDegrees: number;
   pixelsPerMeter: number;
-  maxImageDimension: 4096 | 8192;
+  maxImageDimension: 2048 | 4096 | 8192;
   outputSize?: Readonly<{ width: number; height: number }>;
   strictOutputSize?: boolean;
   sunDiscSamples?: 1 | typeof DZB_SHADOW_SUN_DISC_SAMPLES;
@@ -219,15 +227,25 @@ export const createDzbPrmShadowCapture = () => {
         onProgress,
       });
       if (disposed || isCancelled()) return null;
-      root.traverse((object) => {
-        if (!(object instanceof THREE.Mesh)) return;
-        object.castShadow = true;
-        object.receiveShadow = true;
-      });
+      const receivers = new THREE.Group();
+      // Reuse the shadow runtime's receiver-only draw filter, keeping the
+      // catalog caster in the light pass but off the printable surface.
+      for (const part of [...root.children]) {
+        const id = part.userData.dzbPrmGlbPartId;
+        const casterOnly = id === "catalogBridge";
+        part.traverse((object) => {
+          if (!(object instanceof THREE.Mesh)) return;
+          object.castShadow = true;
+          object.receiveShadow = !casterOnly;
+        });
+        if (!casterOnly) receivers.add(part);
+      }
+      root.add(receivers);
       root.updateMatrixWorld(true);
       const bounds = new THREE.Box3().setFromObject(root);
       if (bounds.isEmpty()) return null;
-      const imageBounds = bounds.clone();
+      const imageBounds = new THREE.Box3().setFromObject(receivers);
+      if (imageBounds.isEmpty()) return null;
       if (perspective) {
         const footprint = fitPrintedCaptureBounds(
           new THREE.Box3(
@@ -291,14 +309,40 @@ export const createDzbPrmShadowCapture = () => {
         Math.max(1 / 16, requestedPixelsPerMeter),
         maxImageSize / Math.max(size.x, size.z)
       );
-      const width = Math.max(
+      let width = Math.max(
         1,
         Math.min(maxImageSize, Math.ceil(size.x * effectivePixelsPerMeter))
       );
-      const height = Math.max(
+      let height = Math.max(
         1,
         Math.min(maxImageSize, Math.ceil(size.z * effectivePixelsPerMeter))
       );
+      // Browsers can clamp drawing-buffer area below the advertised per-axis
+      // limits. A larger viewport would crop/shift the georeferenced capture.
+      renderer.setSize(width, height, false);
+      let resolutionLimited = false;
+      if (gl.drawingBufferWidth < width || gl.drawingBufferHeight < height) {
+        resolutionLimited = true;
+        if (strictOutputSize) {
+          throw new Error(
+            `Requested ${width}×${height} capture exceeds the available GPU drawing buffer`
+          );
+        }
+        const scale = Math.min(
+          gl.drawingBufferWidth / width,
+          gl.drawingBufferHeight / height
+        );
+        const requested = `${width}×${height}`;
+        width = Math.max(1, Math.floor(width * scale));
+        height = Math.max(1, Math.floor(height * scale));
+        renderer.setSize(width, height, false);
+        if (gl.drawingBufferWidth < width || gl.drawingBufferHeight < height) {
+          throw new Error("GPU drawing buffer cannot fit the shadow capture");
+        }
+        console.warn(
+          `[shadowTexture] GPU drawing-buffer limit: ${requested} → ${width}×${height}; capture extent unchanged`
+        );
+      }
       const canvas = document.createElement("canvas");
       canvas.width = width;
       canvas.height = height;
@@ -306,6 +350,7 @@ export const createDzbPrmShadowCapture = () => {
       if (!context) return null;
       const image: DzbPrmShadowImage = {
         canvas,
+        resolutionLimited,
         coordinates: [
           dzbPrmLocalToLonLat(imageBounds.min.x, imageBounds.min.z),
           dzbPrmLocalToLonLat(imageBounds.max.x, imageBounds.min.z),
@@ -441,15 +486,12 @@ export const createDzbPrmShadowCapture = () => {
         0.01
       );
       lightCamera.updateProjectionMatrix();
-      renderer.setSize(width, height, false);
       renderer.clear();
       // Capture depth, then only black shadow alpha. No GLB PBR material is
       // rendered into the draped canvas; lit pixels remain transparent.
-      // Include the catalog bridge in receiver depth too: EqualDepth keeps
-      // its self-shadows and occludes the terrain underneath its visible deck.
       renderer.shadowMap.enabled = false;
       scene.overrideMaterial = depthMaterial;
-      renderer.render(scene, camera);
+      renderShadowReceiverObject(scene, receivers.id, renderer, camera);
       renderer.shadowMap.enabled = true;
       scene.overrideMaterial = shadowMaterial;
       const tangentA = new THREE.Vector3();
@@ -514,7 +556,7 @@ export const createDzbPrmShadowCapture = () => {
         sun.shadow.updateMatrices(sun);
         sun.shadow.needsUpdate = true;
         renderer.clear(true, false, false);
-        renderer.render(scene, camera);
+        renderShadowReceiverObject(scene, receivers.id, renderer, camera);
         context.drawImage(renderer.domElement, 0, 0);
       }
       onSampleProgress?.(sunDiscSamples, sunDiscSamples);

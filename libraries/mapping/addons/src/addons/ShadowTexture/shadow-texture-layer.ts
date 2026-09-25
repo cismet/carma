@@ -29,7 +29,7 @@ export const createShadowTextureLayer = (
   addon
     ? {
         id: SHADOW_TEXTURE_LAYER_ID,
-        title: "Schatten-Textur",
+        title: "Schatten",
         description: "Aus GLB-Modellen berechnete Schatten auf der 2D-Karte.",
         type: "object",
         icon: "shadow-simulation",

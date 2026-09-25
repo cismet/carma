@@ -137,7 +137,8 @@ export const getSolarDirectionECEF = (
 
 const calculateDaylightWindow = (
   selection: Pick<SolarSelection, "year" | "dayOfYear" | "timeZone">,
-  location: SolarLocation
+  location: SolarLocation,
+  minimumElevationDegrees: number
 ): DaylightWindow => {
   const { year, dayOfYear } = selection;
   const safeDay = clamp(Math.round(dayOfYear), 1, getDaysInYear(year));
@@ -159,7 +160,7 @@ const calculateDaylightWindow = (
       1,
       dayStart,
       searchDays,
-      MEAN_SOLAR_ANGULAR_RADIUS_DEGREES
+      minimumElevationDegrees
     ),
     localDay
   );
@@ -170,7 +171,7 @@ const calculateDaylightWindow = (
       -1,
       dayStart,
       searchDays,
-      MEAN_SOLAR_ANGULAR_RADIUS_DEGREES
+      minimumElevationDegrees
     ),
     localDay
   );
@@ -179,7 +180,7 @@ const calculateDaylightWindow = (
     getLocalEventMinutes(solarNoonEvent.time, localDay) ?? MINUTES_PER_DAY / 2;
   const startsInDaylight =
     getSolarPosition({ ...localDay, minutes: 0 }, location).elevationDegrees >=
-    MEAN_SOLAR_ANGULAR_RADIUS_DEGREES;
+    minimumElevationDegrees;
   const polarDay =
     sunriseMinutes === null && sunsetMinutes === null && startsInDaylight;
   const polarNight =
@@ -197,15 +198,20 @@ const calculateDaylightWindow = (
 
 export const getYearDaylightWindows = (
   selection: Pick<SolarSelection, "year" | "timeZone">,
-  location: SolarLocation
+  location: SolarLocation,
+  options?: { minimumElevationDegrees?: number }
 ): readonly DaylightWindow[] =>
   Array.from({ length: getDaysInYear(selection.year) }, (_, index) =>
-    getDaylightWindow({ ...selection, dayOfYear: index + 1 }, location)
+    getDaylightWindow({ ...selection, dayOfYear: index + 1 }, location, options)
   );
 
 export const getDaylightWindow = (
   selection: Pick<SolarSelection, "year" | "dayOfYear" | "timeZone">,
-  location: SolarLocation
+  location: SolarLocation,
+  // Negative thresholds reuse the same local-day event search for twilight.
+  {
+    minimumElevationDegrees = MEAN_SOLAR_ANGULAR_RADIUS_DEGREES,
+  }: { minimumElevationDegrees?: number } = {}
 ): DaylightWindow => {
   // Day events do not depend on the selected minute. Share exact-input results
   // across animation and controls without retaining every visited map location.
@@ -215,6 +221,7 @@ export const getDaylightWindow = (
     selection.timeZone,
     location.latitude,
     location.longitude,
+    minimumElevationDegrees,
   ]);
   const cached = daylightWindowCache.get(key);
   if (cached) {
@@ -223,7 +230,9 @@ export const getDaylightWindow = (
     return cached;
   }
 
-  const daylight = Object.freeze(calculateDaylightWindow(selection, location));
+  const daylight = Object.freeze(
+    calculateDaylightWindow(selection, location, minimumElevationDegrees)
+  );
   daylightWindowCache.set(key, daylight);
   if (daylightWindowCache.size > DAYLIGHT_WINDOW_CACHE_CAPACITY) {
     const oldest = daylightWindowCache.keys().next().value;

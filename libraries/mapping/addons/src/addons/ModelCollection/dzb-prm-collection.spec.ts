@@ -45,6 +45,7 @@ describe("DZ_B_PRM collection", () => {
       "environment",
       "zoo",
       "station",
+      "bridge-existing",
     ]);
     expect(selectedDzbPrmParts({ ...state, visible: false })).toEqual([]);
   });

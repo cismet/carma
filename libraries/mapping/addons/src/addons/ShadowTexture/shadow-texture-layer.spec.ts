@@ -28,7 +28,7 @@ describe("shadow-texture layer", () => {
     expect(createShadowTextureLayer(addon, true)).toEqual(
       expect.objectContaining({
         id: SHADOW_TEXTURE_LAYER_ID,
-        title: "Schatten-Textur",
+        title: "Schatten",
         visible: true,
         tools: [addon],
       })

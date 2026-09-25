@@ -112,7 +112,8 @@ export const buildGeoportalShadowSimulationHashUpdate = (
   }
 
   const { minutes, dayOfYear } = state.dateState;
-  const serialized = `${minutes};${dayOfYear}`;
+  // Animation keeps sub-minute precision; the URL represents whole minutes.
+  const serialized = `${Math.floor(minutes)};${dayOfYear}`;
 
   return {
     [URL_PARAM_KEYS.shadowSimulation]:

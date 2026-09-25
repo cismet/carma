@@ -36,6 +36,7 @@ export const useShadowTextureWorkflow = (
       previousBackgroundVisible.current ??= backgroundVisible;
       setBackgroundVisible(requestedBackgroundVisible);
       setTextureState((previous) => ({
+        ...previous,
         quality: previous?.quality ?? "4k",
         mode: previous?.mode ?? "sun-disc",
         captureProjection: previous?.captureProjection ?? "orthographic",
@@ -43,10 +44,14 @@ export const useShadowTextureWorkflow = (
           previous?.cameraHeightMeters ?? DEFAULT_CAPTURE_HEIGHT_METERS,
         cameraHeightAdjusting: false,
         status: previous?.status ?? "idle",
+        // Workflow presentation changes must not reset color or capture settings.
         shadowOnly: true,
       }));
       setShadowState((previous) => ({
-        ...(previous ?? createInitialShadowSimulationState(undefined)),
+        ...(previous ?? {
+          ...createInitialShadowSimulationState(undefined),
+          animationDaylightOnly: false,
+        }),
         enabled: true,
       }));
     },

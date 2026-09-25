@@ -69,6 +69,201 @@
   }
 }
 
+.shadow-simulation-dual-time .shadow-simulation-header-layout {
+  grid-template-columns: 170px 28px minmax(0, 1fr);
+  grid-template-areas: "date year-play year-range" "time play range";
+  align-items: start;
+  gap: 10px 6px;
+}
+
+.shadow-simulation-dual-time .shadow-simulation-header-date {
+  display: flex;
+  justify-content: flex-start;
+}
+.shadow-simulation-dual-time .shadow-simulation-header-time,
+.shadow-simulation-dual-time .shadow-simulation-header-date button {
+  padding-inline: 0;
+}
+.shadow-simulation-dual-time .shadow-simulation-header-time > svg,
+.shadow-simulation-dual-time .shadow-simulation-header-date button > svg {
+  width: 12px;
+  flex: 0 0 12px;
+}
+.shadow-simulation-dual-time:not(.shadow-simulation-dual-time--compact)
+  .shadow-simulation-header-time,
+.shadow-simulation-dual-time:not(.shadow-simulation-dual-time--compact)
+  .shadow-simulation-header-date
+  button,
+.shadow-simulation-dual-time:not(.shadow-simulation-dual-time--compact)
+  .shadow-simulation-header-layout
+  > button {
+  height: 28px;
+}
+.shadow-simulation-dual-time:not(.shadow-simulation-dual-time--compact)
+  .shadow-simulation-header-layout
+  > button {
+  width: 28px;
+}
+
+.shadow-simulation-header-year-play {
+  grid-area: year-play;
+}
+.shadow-simulation-day-length {
+  display: block;
+  color: #737373;
+  font-size: 10px;
+  line-height: 14px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.shadow-simulation-header-year-range {
+  grid-area: year-range;
+}
+.shadow-simulation-dual-time .shadow-simulation-header-range,
+.shadow-simulation-header-year-range {
+  display: block;
+  width: 100%;
+  min-width: 0;
+}
+.shadow-simulation-dual-time [hidden] {
+  display: none;
+}
+
+.shadow-simulation-dual-time--compact {
+  container-type: normal;
+  width: max-content;
+  max-width: 100%;
+  flex: none;
+}
+
+.shadow-simulation-dual-time--compact .shadow-simulation-header-layout {
+  grid-template-columns: repeat(4, max-content);
+  grid-template-areas: "date year-play time play";
+  align-items: center;
+}
+
+@container shadow-header (max-width: 520px) {
+  .shadow-simulation-dual-time:not(.shadow-simulation-dual-time--compact)
+    .shadow-simulation-header-layout {
+    grid-template-areas:
+      "date year-play ."
+      "year-range year-range year-range"
+      "time play ."
+      "range range range";
+  }
+}
+
+.shadow-simulation-slider {
+  position: relative;
+  min-width: 0;
+}
+.shadow-simulation-slider > input {
+  display: block;
+  width: 100%;
+  margin: 0;
+}
+.shadow-simulation-dual-time .shadow-simulation-slider > input {
+  position: relative;
+  z-index: 1;
+  height: 28px;
+}
+.shadow-simulation-dual-time .shadow-simulation-slider::before {
+  content: "";
+  position: absolute;
+  top: 12px;
+  inset-inline: 9px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--shadow-range-background);
+  pointer-events: none;
+}
+.shadow-simulation-dual-time
+  .shadow-simulation-range::-webkit-slider-runnable-track {
+  background: transparent;
+}
+.shadow-simulation-dual-time .shadow-simulation-range::-moz-range-track {
+  background: transparent;
+}
+.shadow-simulation-slider-ticks {
+  position: relative;
+  height: 14px;
+  margin-inline: 9px;
+  color: #737373;
+  font-size: 9px;
+  line-height: 12px;
+}
+.shadow-simulation-slider-ticks > span,
+.shadow-simulation-sun-markers > span {
+  position: absolute;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+.shadow-simulation-slider-ticks > span::before {
+  content: "";
+  position: absolute;
+  top: -3px;
+  left: 50%;
+  height: 3px;
+  border-left: 1px solid #94a3b8;
+}
+.shadow-simulation-slider-ticks > span:first-child {
+  transform: none;
+}
+.shadow-simulation-slider-ticks > span:first-child::before {
+  left: 0;
+}
+.shadow-simulation-header-range
+  .shadow-simulation-slider-ticks
+  > span:last-child {
+  transform: translateX(-100%);
+}
+.shadow-simulation-header-range
+  .shadow-simulation-slider-ticks
+  > span:last-child::before {
+  left: 100%;
+}
+.shadow-simulation-sun-markers {
+  position: absolute;
+  top: -6px;
+  inset-inline: 9px;
+  color: #92400e;
+  font-size: 9px;
+  line-height: 12px;
+}
+.shadow-simulation-sun-markers > span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 13px;
+}
+.shadow-simulation-sun-time {
+  position: absolute;
+  left: 16px;
+  font-variant-numeric: tabular-nums;
+}
+.shadow-simulation-time-zone {
+  color: #737373;
+  font-size: 10px;
+}
+.shadow-simulation-sun-markers svg {
+  width: 13px;
+  height: 13px;
+}
+.shadow-simulation-sun-markers > span::after {
+  content: "";
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  height: 3px;
+  border-left: 1px solid #b45309;
+  pointer-events: none;
+}
+@container shadow-header (max-width: 390px) {
+  .shadow-simulation-slider-ticks {
+    font-size: 8px;
+  }
+}
+
 .shadow-simulation-range {
   --shadow-range-progress: 0%;
 

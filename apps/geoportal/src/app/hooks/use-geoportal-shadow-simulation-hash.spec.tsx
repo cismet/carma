@@ -30,6 +30,7 @@ const addonStateMock = vi.hoisted(() => ({
   shadowState: undefined as ShadowStateFixture | undefined,
   setShadowDate: vi.fn(),
   shadowDate: undefined as ShadowDateFixture | undefined,
+  textureState: undefined as object | undefined,
 }));
 
 const hashStateMock = vi.hoisted(() => ({ updateHashState: vi.fn() }));
@@ -45,7 +46,9 @@ vi.mock("@carma-mapping/addons", () => {
     applyAddonOverrides: (entries: unknown[]) => entries,
     isAlwaysOnTop: () => false,
     useAddonState: (key: string) =>
-      key === "shadowDate"
+      key === "shadowTexture"
+        ? [addonStateMock.textureState, vi.fn()]
+        : key === "shadowDate"
         ? [addonStateMock.shadowDate, addonStateMock.setShadowDate]
         : [addonStateMock.shadowState, addonStateMock.setShadowState],
   };
@@ -112,6 +115,7 @@ describe("useGeoportalShadowSimulationHash", () => {
   beforeEach(() => {
     addonStateMock.shadowState = undefined;
     addonStateMock.shadowDate = undefined;
+    addonStateMock.textureState = undefined;
     addonStateMock.setShadowState.mockReset();
     addonStateMock.setShadowDate.mockReset();
     hashStateMock.updateHashState.mockReset();
@@ -121,6 +125,23 @@ describe("useGeoportalShadowSimulationHash", () => {
 
   afterEach(() => {
     vi.useRealTimers();
+  });
+
+  it("restores midnight when the shadow texture owns the full-day clock", () => {
+    addonStateMock.shadowState = createShadowState();
+    addonStateMock.shadowDate = createShadowDate();
+    addonStateMock.textureState = {};
+    renderHook(() =>
+      useGeoportalShadowSimulationHash({
+        customHashState: createCustomHashState({
+          selection: { dayOfYear: 172, minutes: 0 },
+        }),
+      })
+    );
+    expect(addonStateMock.setShadowDate).toHaveBeenCalledWith({
+      ...createShadowDate(),
+      minutes: 0,
+    });
   });
 
   it("keeps shadows off when the initial URL has no shadow parameter", async () => {

@@ -1,18 +1,7 @@
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import maplibregl, { type Map as MaplibreMap } from "maplibre-gl";
 
 import { EARTH_CIRCUMFERENCE } from "@carma-geo/proj";
-import {
-  getSharedThreeSceneRuntimes,
-  subscribeSharedThreeSceneContent,
-} from "@carma-mapping/engines/maplibre";
 import {
   getSolarPosition,
   type ShadowDateState,
@@ -27,6 +16,7 @@ import { getDzbPrmShadowVisibility } from "./shadow-texture-assets";
 import {
   DEFAULT_CAPTURE_HEIGHT_METERS,
   getPrintedBoardBounds,
+  SHADOW_TEXTURE_RESOLUTIONS,
 } from "./shadow-texture-camera";
 import { DZ_B_PRM_POSITION } from "./shadow-texture-georef";
 import {
@@ -204,22 +194,6 @@ export const ShadowTextureRuntime = ({
   });
   const selectedDate = useRef(dateState);
   selectedDate.current = dateState;
-  const subscribeToScene = useCallback(
-    (listener: () => void) => subscribeSharedThreeSceneContent(map, listener),
-    [map]
-  );
-  const getCatalogBridgePresent = useCallback(
-    () =>
-      getSharedThreeSceneRuntimes(map).some(
-        (runtime) => runtime.id === "geoportal-catalog-bridge"
-      ),
-    [map]
-  );
-  const catalogBridgePresent = useSyncExternalStore(
-    subscribeToScene,
-    getCatalogBridgePresent,
-    () => false
-  );
 
   useEffect(() => {
     if (timeActive) {
@@ -318,15 +292,19 @@ export const ShadowTextureRuntime = ({
   );
 
   const visibility = useMemo(
-    () => getDzbPrmShadowVisibility(modelState, catalogBridgePresent),
-    [catalogBridgePresent, modelState.bridge]
+    () =>
+      getDzbPrmShadowVisibility(modelState, {
+        useCatalogBridgeCaster: textureState.useCatalogBridgeCaster,
+      }),
+    [modelState.bridge, textureState.useCatalogBridgeCaster]
   );
+  const resolution = SHADOW_TEXTURE_RESOLUTIONS[textureState.quality];
 
   const contextKey = JSON.stringify([
     assetBaseUrl,
     manifestUrl,
-    catalogBridgePresent,
     modelState.bridge,
+    visibility.catalogBridge,
     modelState.quality,
     textureState.quality,
     textureState.captureProjection ?? "orthographic",
@@ -392,14 +370,14 @@ export const ShadowTextureRuntime = ({
           visibility,
           sunAzimuthDegrees: solar.azimuthDegrees,
           sunElevationDegrees: solar.elevationDegrees,
-          pixelsPerMeter:
-            view.basePixelsPerMeter * (textureState.quality === "8k" ? 8 : 4),
-          maxImageDimension: textureState.quality === "8k" ? 8192 : 4096,
+          pixelsPerMeter: view.basePixelsPerMeter * resolution.scale,
+          maxImageDimension: resolution.maxDimension,
           outputSize:
             textureState.captureProjection === "perspective"
-              ? textureState.quality === "8k"
-                ? { width: 7680, height: 4320 }
-                : { width: 3840, height: 2160 }
+              ? {
+                  width: 960 * resolution.scale,
+                  height: 540 * resolution.scale,
+                }
               : undefined,
           sunDiscSamples: solar.elevationDegrees <= 0 ? 1 : sunDiscSamples,
           viewBounds: view.bounds,
@@ -448,8 +426,8 @@ export const ShadowTextureRuntime = ({
         solar.elevationDegrees <= 0
           ? "night"
           : `${image.canvas.width}×${image.canvas.height}${
-              cached ? " Cache" : ""
-            }`
+              image.resolutionLimited ? " · GPU-Limit" : ""
+            }${cached ? " Cache" : ""}`
       );
       if (!cached && !shadowState.isAnimating)
         void cache.current.put(frameKey, image);
@@ -501,6 +479,7 @@ export const ShadowTextureRuntime = ({
     styleReady,
     textureState.quality,
     textureState.captureProjection,
+    resolution,
     textureState.cameraHeightMeters,
     textureState.cameraHeightAdjusting,
     sunDiscSamples,

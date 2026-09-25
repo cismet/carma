@@ -1,14 +1,23 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { BoxGeometry, EqualDepth, Group, Mesh } from "three";
+import { BoxGeometry, Camera, EqualDepth, Group, Mesh } from "three";
 
 import { createDzbPrmShadowCapture } from "./shadow-texture-capture";
 
 const mocks = vi.hoisted(() => ({
+  bufferWidth: 8192,
+  bufferHeight: 8192,
+  bufferHeightLimit: 8192,
   renderer: {
     shadowMap: {},
     capabilities: { maxTextureSize: 8192 },
     domElement: {},
     getContext: () => ({
+      get drawingBufferWidth() {
+        return mocks.bufferWidth;
+      },
+      get drawingBufferHeight() {
+        return mocks.bufferHeight;
+      },
       MAX_VIEWPORT_DIMS: 1,
       MAX_RENDERBUFFER_SIZE: 2,
       getParameter: (key: number) =>
@@ -19,6 +28,7 @@ const mocks = vi.hoisted(() => ({
     setSize: vi.fn(),
     clear: vi.fn(),
     render: vi.fn(),
+    renderBufferDirect: vi.fn(),
     dispose: vi.fn(),
     forceContextLoss: vi.fn(),
   },
@@ -57,9 +67,59 @@ const options = {
 
 describe("shadow capture masks", () => {
   beforeEach(() => {
+    mocks.bufferHeightLimit = 8192;
+    mocks.renderer.setSize.mockImplementation(
+      (width: number, height: number) => {
+        mocks.bufferWidth = width;
+        mocks.bufferHeight = Math.min(height, mocks.bufferHeightLimit);
+      }
+    );
     mocks.load.mockImplementation(async ({ root }) => {
       root.add(new Mesh(new BoxGeometry(100, 50, 100)));
     });
+  });
+
+  it("keeps the same footprint and camera when the browser clamps an 8K buffer", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({
+      drawImage: vi.fn(),
+    } as unknown as CanvasRenderingContext2D);
+    const capture = createDzbPrmShadowCapture();
+    const standard = await capture.render({
+      ...options,
+      pixelsPerMeter: 100,
+      sunDiscSamples: 1,
+    });
+    const camera = mocks.renderer.render.mock.calls[0][1] as Camera;
+    mocks.bufferHeightLimit = 4320;
+    const fine = await capture.render({
+      ...options,
+      pixelsPerMeter: 100,
+      maxImageDimension: 8192,
+      sunDiscSamples: 1,
+    });
+    expect(fine!.canvas.width).toBe(4320);
+    expect(fine!.canvas.height).toBe(4320);
+    expect(fine!.resolutionLimited).toBe(true);
+    expect(fine!.coordinates).toEqual(standard!.coordinates);
+    const fineCamera = mocks.renderer.render.mock.lastCall![1] as Camera;
+    expect(fineCamera.projectionMatrix.elements).toEqual(
+      camera.projectionMatrix.elements
+    );
+    expect(fineCamera.matrixWorld.elements).toEqual(
+      camera.matrixWorld.elements
+    );
+    expect(mocks.renderer.setSize).toHaveBeenLastCalledWith(4320, 4320, false);
+    await expect(
+      capture.render({
+        ...options,
+        outputSize: { width: 8192, height: 8192 },
+        maxImageDimension: 8192,
+        sunDiscSamples: 1,
+        strictOutputSize: true,
+      })
+    ).rejects.toThrow("available GPU drawing buffer");
+    capture.dispose();
   });
   afterEach(() => {
     vi.restoreAllMocks();
@@ -112,40 +172,83 @@ describe("shadow capture masks", () => {
     capture.dispose();
   });
 
-  it("keeps the catalog bridge in receiver depth and shadow passes alongside Bestand", async () => {
-    const context = { drawImage: vi.fn() };
-    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(
-      context as unknown as CanvasRenderingContext2D
-    );
-    const bridge = new Group();
-    bridge.userData.dzbPrmGlbPartId = "catalogBridge";
-    const deck = new Mesh(new BoxGeometry(60, 2, 5));
-    deck.position.y = 30;
-    bridge.add(deck);
-    mocks.load.mockImplementation(async ({ root }) => {
-      root.add(new Mesh(new BoxGeometry(100, 20, 100)), bridge);
-    });
-    const passes: boolean[] = [];
-    mocks.renderer.render.mockImplementation((scene) => {
-      passes.push(bridge.visible);
-      expect(deck.castShadow).toBe(true);
-      expect(deck.receiveShadow).toBe(true);
-      if (passes.length === 2) {
-        expect(scene.overrideMaterial.depthFunc).toBe(EqualDepth);
-      }
-    });
-    const capture = createDzbPrmShadowCapture();
-    await capture.render({
-      ...options,
-      visibility: {
-        ...options.visibility,
-        bridgeExisting: true,
-        catalogBridge: true,
-      },
-      sunDiscSamples: 1,
-    });
-    expect(passes).toEqual([true, true]);
-    expect(context.drawImage).toHaveBeenCalledTimes(1);
-    capture.dispose();
-  });
+  it.each(["bridge", "bridgeExisting"])(
+    "adds the catalog caster while %s still casts and receives shadows",
+    async (partId) => {
+      const context = { drawImage: vi.fn() };
+      vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(
+        context as unknown as CanvasRenderingContext2D
+      );
+      const bridge = new Group();
+      bridge.userData.dzbPrmGlbPartId = "catalogBridge";
+      const deck = new Mesh(new BoxGeometry(60, 2, 5));
+      deck.position.y = 30;
+      bridge.add(deck);
+      const printableBridge = new Mesh(new BoxGeometry(60, 5, 6));
+      printableBridge.userData.dzbPrmGlbPartId = partId;
+      const environment = new Mesh(new BoxGeometry(100, 20, 100));
+      mocks.load.mockImplementation(async ({ root }) => {
+        root.add(environment, printableBridge, bridge);
+      });
+      const passes: boolean[] = [];
+      const lightCamera = new Camera();
+      mocks.renderer.render.mockImplementation((scene, camera) => {
+        passes.push(bridge.visible);
+        expect(deck.castShadow).toBe(true);
+        expect(deck.receiveShadow).toBe(false);
+        expect(printableBridge.castShadow).toBe(true);
+        expect(printableBridge.receiveShadow).toBe(true);
+        expect(environment.castShadow).toBe(true);
+        expect(environment.receiveShadow).toBe(true);
+        if (passes.length === 2) {
+          expect(scene.overrideMaterial.depthFunc).toBe(EqualDepth);
+        }
+        scene.traverse((object) => {
+          if (!(object instanceof Mesh)) return;
+          if (passes.length === 2 && object.castShadow)
+            mocks.renderer.renderBufferDirect(
+              lightCamera,
+              scene,
+              object.geometry,
+              object.material,
+              object,
+              null
+            );
+          mocks.renderer.renderBufferDirect(
+            camera,
+            scene,
+            object.geometry,
+            object.material,
+            object,
+            null
+          );
+        });
+      });
+      const capture = createDzbPrmShadowCapture();
+      await capture.render({
+        ...options,
+        visibility: {
+          ...options.visibility,
+          bridge: partId === "bridge",
+          bridgeExisting: partId === "bridgeExisting",
+          catalogBridge: true,
+        },
+        sunDiscSamples: 1,
+      });
+      expect(passes).toEqual([true, true]);
+      const draws = mocks.renderer.renderBufferDirect.mock.calls;
+      expect(
+        draws
+          .filter(([camera]) => camera === lightCamera)
+          .map((args) => args[4])
+      ).toEqual([deck, environment, printableBridge]);
+      expect(
+        draws
+          .filter(([camera]) => camera !== lightCamera)
+          .map((args) => args[4])
+      ).toEqual([environment, printableBridge, environment, printableBridge]);
+      expect(context.drawImage).toHaveBeenCalledTimes(1);
+      capture.dispose();
+    }
+  );
 });

@@ -57,7 +57,8 @@ export const CatalogBridgeModel = ({
   const manifestUrl = useMemo(
     () =>
       resolveAddonEntries(routeAddons).find(
-        (entry) => entry.kind === "modelCollection"
+        (entry) =>
+          entry.kind === "modelCollection" || entry.kind === "shadowTexture"
       )?.config.manifestUrl,
     [routeAddons]
   );

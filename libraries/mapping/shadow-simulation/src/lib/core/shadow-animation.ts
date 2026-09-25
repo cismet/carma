@@ -1,4 +1,4 @@
-import { offsetYearDay } from "@carma-commons/utils";
+import { getDaysInYear, offsetYearDay } from "@carma-commons/utils";
 import type { Milliseconds } from "@carma-units";
 
 import {
@@ -19,16 +19,21 @@ export type ShadowAnimationFrame = Readonly<{
 
 type ShadowAnimationState = Pick<
   ShadowSimulationState,
-  "animationMode" | "animationSpeed" | "enabled" | "isAnimating"
+  | "animationMode"
+  | "animationSpeed"
+  | "animationDaylightOnly"
+  | "enabled"
+  | "isAnimating"
 >;
 
 const advanceYearSelection = (
   dateState: ShadowDateState,
   animationSpeed: number,
   location: SolarLocation,
-  yearDayProgress: number
+  yearDayProgress: number,
+  realtime: boolean
 ): ShadowAnimationFrame => {
-  const accumulatedDays = yearDayProgress + animationSpeed / 2;
+  const accumulatedDays = yearDayProgress + animationSpeed / (realtime ? 4 : 2);
   const wholeDays = Math.floor(accumulatedDays);
   const remainingProgress = accumulatedDays - wholeDays;
 
@@ -36,11 +41,18 @@ const advanceYearSelection = (
     return { dateState, yearDayProgress: remainingProgress };
   }
 
-  const nextYearDay = offsetYearDay(dateState, wholeDays);
-  const nextDateState = clampSelectionToDaylight(
-    { ...dateState, ...nextYearDay },
-    location
-  );
+  const nextYearDay = realtime
+    ? {
+        year: dateState.year,
+        dayOfYear:
+          ((dateState.dayOfYear - 1 + wholeDays) %
+            getDaysInYear(dateState.year)) +
+          1,
+      }
+    : offsetYearDay(dateState, wholeDays);
+  const nextDateState = realtime
+    ? { ...dateState, ...nextYearDay }
+    : clampSelectionToDaylight({ ...dateState, ...nextYearDay }, location);
 
   return {
     dateState: nextDateState ?? dateState,
@@ -52,12 +64,28 @@ const advanceDaySelection = (
   dateState: ShadowDateState,
   animationSpeed: number,
   location: SolarLocation,
-  preserveRemainder: boolean
+  preserveRemainder: boolean,
+  daylightOnly: boolean
 ): ShadowAnimationFrame => {
+  if (!daylightOnly) {
+    return {
+      dateState: {
+        ...dateState,
+        minutes: (dateState.minutes + animationSpeed) % 1440,
+      },
+      yearDayProgress: 0,
+    };
+  }
   const daylight = getDaylightWindow(dateState, location);
   const firstDaylightMinute = Math.ceil(daylight.sunriseMinutes);
   const lastDaylightMinute = Math.floor(daylight.sunsetMinutes);
-  const nextMinute = dateState.minutes + animationSpeed;
+  const baseMinute =
+    preserveRemainder &&
+    (dateState.minutes < firstDaylightMinute ||
+      dateState.minutes > lastDaylightMinute)
+      ? firstDaylightMinute
+      : dateState.minutes;
+  const nextMinute = baseMinute + animationSpeed;
 
   return {
     dateState: {
@@ -88,8 +116,9 @@ export const advanceShadowAnimationFrame = (
     return { dateState: currentDateState, yearDayProgress };
   }
 
-  // Realtime 1× advances one simulated hour per wall-clock second. Omitted
-  // elapsed time retains the normal addon's existing per-tick contract.
+  // Realtime 1× advances one hour/s in day mode; the default 4× advances
+  // 60 days/s in year mode (one day/frame at 60 Hz). Without elapsed time,
+  // retain the normal addon's existing per-tick contract.
   const animationSpeed =
     (shadowState.animationSpeed ?? 4) *
     (options.elapsedMs === undefined
@@ -101,12 +130,14 @@ export const advanceShadowAnimationFrame = (
         currentDateState,
         animationSpeed,
         location,
-        yearDayProgress
+        yearDayProgress,
+        options.elapsedMs !== undefined
       )
     : advanceDaySelection(
         currentDateState,
         animationSpeed,
         location,
-        options.elapsedMs !== undefined
+        options.elapsedMs !== undefined,
+        shadowState.animationDaylightOnly !== false
       );
 };
