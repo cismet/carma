@@ -3,7 +3,8 @@ import { triggerLightBoxForFeature } from "react-cismap/tools/lightboxHelpers";
 
 import { parseFotoHighlight } from "./useHighlightedFoto";
 
-const PREVIEW_WIDTH = 150;
+// same width as the panorama preview, so both line up above the infobox
+const PREVIEW_WIDTH = 250;
 const DIM_COLOR = "rgba(0, 0, 0, 0.45)";
 
 interface HighlightFotoOverlayPreviewProps {
@@ -76,7 +77,11 @@ const HighlightFotoOverlayPreview = ({
                   alt="Bild"
                   src={url}
                   width={PREVIEW_WIDTH}
-                  style={{ display: "block" }}
+                  style={{
+                    display: "block",
+                    maxWidth: "calc(100vw - 16px)",
+                    height: "auto",
+                  }}
                   onLoad={(e) =>
                     setSize({
                       w: e.currentTarget.naturalWidth,
