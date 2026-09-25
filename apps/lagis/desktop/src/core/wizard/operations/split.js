@@ -65,9 +65,10 @@ export const splitFlurstuecke = async ({ key, resultKeys }, ctx) => {
       );
     }
 
-    const parts = created.map((part) => `• ${formatKey(part)}`).join("\n");
     return {
-      message: `Flurstück "${keyString}" konnte erfolgreich in die Flurstücke\n${parts}\naufgeteilt werden.`,
+      message: `Das Flurstück wurde erfolgreich in ${created.length} Flurstücke aufgeteilt.`,
+      from: [key],
+      to: created,
       keys: created,
     };
   } finally {
