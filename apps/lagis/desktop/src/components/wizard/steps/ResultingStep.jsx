@@ -7,12 +7,6 @@ import { areaCheckKeys, checkAreas } from "../../../core/wizard/areaCheck";
 
 const INCOMPLETE = "Bitte vervollständigen Sie alle Flurstücke";
 
-/**
- * Port of ResultingPanel: one creation chooser per resulting parcel. The first
- * copies the source parcel, each later one the key above it once it unlocks.
- * The choosers are filled in order; each key must have an ALKIS geometry
- * before the next one unlocks.
- */
 const ResultingStep = ({ value, onChange, onProblem }) => {
   const jwt = useSelector((state) => state.auth.jwt);
   const isJoin = value.action === WIZARD_ACTIONS.JOIN;
@@ -107,8 +101,6 @@ const ResultingStep = ({ value, onChange, onProblem }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resultKeys, count, chooserProblem]);
 
-  // A locked slot stays empty; once it unlocks it copies the key above it.
-  // Kept per slot, so changing an earlier key does not reset a later one.
   const slotPresets = useRef({});
   const presetAt = (index) => {
     if (index === 0) {

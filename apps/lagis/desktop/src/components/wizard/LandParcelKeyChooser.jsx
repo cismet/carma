@@ -13,6 +13,8 @@ import {
 import {
   CREATE_STAGE,
   hiddenParcelMessage,
+  resolveTypedKey,
+  typedKeyProblem,
   keyToSearchText,
   makeTransformOptions,
   presetToSearchText,
@@ -22,6 +24,8 @@ import useStammdaten from "../../core/wizard/useStammdaten";
 import { explain } from "../../core/wizard/errors";
 
 const INCOMPLETE = "Bitte vervollständigen Sie alle Flurstücke";
+
+const TYPED_KEY_DELAY_MS = 400;
 
 const DISABLED_FIELD_CLASSES = [
   "[&_.ant-select-selector]:bg-[#f5f5f5]",
@@ -67,6 +71,8 @@ const LandParcelKeyChooser = ({
   // the last picked option, to tell a selection apart from typing
   const pickedRef = useRef(text);
   const checkRef = useRef(0);
+  const typedTimerRef = useRef();
+  useEffect(() => () => clearTimeout(typedTimerRef.current), []);
 
   useEffect(() => {
     onValidity(status);
@@ -220,6 +226,7 @@ const LandParcelKeyChooser = ({
   };
 
   const handleOptionSelect = (option) => {
+    clearTimeout(typedTimerRef.current);
     if (option.parcelStage === CREATE_STAGE) {
       pickedRef.current = option.value;
       setText(option.value);
@@ -240,13 +247,41 @@ const LandParcelKeyChooser = ({
   };
 
   // typing on drops the choice, so no step keeps a key the input no longer shows
+  const takeTyped = (typedText) => {
+    const typed = resolveTypedKey(typedText, structure);
+    if (!typed) {
+      return;
+    }
+    const token = checkRef.current;
+    typedTimerRef.current = setTimeout(() => {
+      if (token !== checkRef.current) {
+        return;
+      }
+      pickedRef.current = typedText;
+      if (typed.parcel && mode === "creation") {
+        publish(undefined, {
+          valid: false,
+          message: "Flurstück ist bereits vorhanden",
+        });
+      } else if (typed.parcel) {
+        takeExisting(typed.parcel);
+      } else if (mode === "creation") {
+        takeNew(typed.newKey);
+      }
+    }, TYPED_KEY_DELAY_MS);
+  };
+
   const handleValueChange = (next) => {
     setText(next);
+    clearTimeout(typedTimerRef.current);
     if (next === pickedRef.current) {
       return;
     }
+    pickedRef.current = undefined;
     checkRef.current += 1;
-    const hidden = hiddenParcelMessage(next, mode, structure);
+    const hidden =
+      typedKeyProblem(next, structure) ??
+      hiddenParcelMessage(next, mode, structure);
     if (hidden) {
       publish(undefined, { valid: false, message: hidden });
       return;
@@ -255,10 +290,12 @@ const LandParcelKeyChooser = ({
       !next?.trim() ||
       status.valid ||
       value ||
-      status.message === hiddenParcelMessage(text, mode, structure)
+      status.message === hiddenParcelMessage(text, mode, structure) ||
+      status.message === typedKeyProblem(text, structure)
     ) {
       publish(undefined, { valid: false, message: incompleteMessage });
     }
+    takeTyped(next);
   };
 
   const handleNotFound = (input) => {
@@ -268,7 +305,9 @@ const LandParcelKeyChooser = ({
     }
     publish(undefined, {
       valid: false,
-      message: `Kein Flurstück gefunden: ${input}`,
+      message:
+        typedKeyProblem(input, structure) ??
+        `Kein Flurstück gefunden: ${input}`,
     });
   };
 
@@ -283,7 +322,6 @@ const LandParcelKeyChooser = ({
       return;
     }
     const start = presetText.lastIndexOf("-") + 1;
-    // after antd has placed the caret itself
     setTimeout(() => input.setSelectionRange(start, presetText.length));
   };
 

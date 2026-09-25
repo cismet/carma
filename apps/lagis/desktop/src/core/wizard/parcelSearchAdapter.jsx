@@ -1,5 +1,6 @@
 import React from "react";
 import { PlusOutlined } from "@ant-design/icons";
+import { parseLandParcelInput } from "@carma-mapping/fuzzy-search";
 import { landparcelLabel } from "./keys";
 
 /**
@@ -45,10 +46,6 @@ export const keyToSearchText = (key) =>
       )}`
     : "";
 
-/**
- * The whole key of another parcel, as the Swing COPY_CONTENT_MODE copied it;
- * only Gemarkung and Flur when there is no Flurstück to copy.
- */
 export const presetToSearchText = (preset) => {
   if (
     preset?.gemarkung?.bezeichnung === undefined ||
@@ -110,6 +107,56 @@ export const hiddenParcelMessage = (text, mode, structure) => {
   return parcel && (mode === "creation" || !keepParcel(mode, parcel))
     ? HIDDEN_PARCEL_MESSAGES[mode]
     : undefined;
+};
+
+export const typedKeyProblem = (text, structure) => {
+  const segments = (text ?? "").split("-");
+  const gemarkungText = segments[0].trim();
+  if (!structure || segments.length < 2 || !gemarkungText) {
+    return undefined;
+  }
+  const state = parseLandParcelInput(text, structure);
+  if (state.stage === "none") {
+    return `Gemarkung "${gemarkungText}" ist nicht bekannt.`;
+  }
+  const flurText = segments[1].trim();
+  if (segments.length >= 3 && state.stage !== "flur_matched" && flurText) {
+    return `Flur ${flurText} gibt es in der Gemarkung ${state.gemarkungName} nicht.`;
+  }
+  if (state.stage === "flur_matched" && state.fstckFilter) {
+    return parseFlurstueckInput(state.fstckFilter).error;
+  }
+  return undefined;
+};
+
+export const resolveTypedKey = (text, structure) => {
+  if (!structure || (text ?? "").split("-").length !== 3) {
+    return undefined;
+  }
+  const state = parseLandParcelInput(text, structure);
+  if (state.stage !== "flur_matched" || !state.fstckFilter) {
+    return undefined;
+  }
+  const parsed = parseFlurstueckInput(state.fstckFilter);
+  if (parsed.error) {
+    return undefined;
+  }
+  const parcel =
+    structure[state.gemarkungKey]?.flure?.[state.flurKey]?.flurstuecke?.[
+      landparcelLabel(parsed.zaehler, parsed.nenner)
+    ];
+  if (parcel) {
+    return { parcel };
+  }
+  return {
+    newKey: {
+      gemarkungKey: state.gemarkungKey,
+      gemarkungName: state.gemarkungName,
+      flur: Number(state.flurName),
+      zaehler: parsed.zaehler,
+      nenner: parsed.nenner,
+    },
+  };
 };
 
 const filterGroups = (groups, mode) =>
