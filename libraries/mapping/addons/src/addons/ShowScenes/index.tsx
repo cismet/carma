@@ -31,6 +31,7 @@ import {
   type Positions,
 } from "@carma-mapping/map-controls-layout";
 import {
+  DEFAULT_SHOW_READ_URL,
   DEFAULT_SHOW_STORE_URL,
   MAX_SHOW_BYTES,
   SHOW_FORMAT,
@@ -50,12 +51,14 @@ import {
 import { useAddonScope } from "../../lib/AddonStateContext";
 import { routeScopeFromLocation } from "../../lib/addon-overrides-storage";
 import type { AddonComponentProps } from "../../lib/registry";
+import { OpenShowRow } from "./OpenShowRow";
 import {
   SHOW_DRAFT_STORAGE_PREFIX,
   moveScene,
   useShowDraft,
   type ShowDraft,
 } from "./show-draft";
+import { useOpenShow } from "./useOpenShow";
 
 /**
  * Putting a show together on the desktop: every scene is the map as it stands
@@ -66,6 +69,8 @@ import {
 export type ShowScenesConfig = {
   /** where a publish stores the show; defaults to the pm-show folder in ceepr */
   storeUrl?: string;
+  /** where "Show öffnen" reads a published show; defaults to the same folder */
+  readUrl?: string;
   /** the remote app the published link opens; without it only the key is shown */
   remoteUrl?: string;
   /** overrides the draft's per-route key */
@@ -245,6 +250,7 @@ export const ShowScenes = ({
 }: AddonComponentProps<"showScenes">) => {
   const {
     storeUrl = DEFAULT_SHOW_STORE_URL,
+    readUrl = DEFAULT_SHOW_READ_URL,
     remoteUrl,
     controlPosition = DEFAULT_CONTROL_POSITION,
     controlOrder = DEFAULT_CONTROL_ORDER,
@@ -256,6 +262,13 @@ export const ShowScenes = ({
   const [isOpen, setIsOpen] = useState(false);
   const [draft, updateDraft] = useShowDraft(storageKey);
   const [status, setStatus] = useState<Status>(null);
+  const openShow = useOpenShow({
+    readUrl,
+    draft,
+    updateDraft,
+    fingerprintOf,
+    onOpened: () => setStatus(null),
+  });
   /** off by default: most scenes only change layers and leave the display where it is */
   const [withPosition, setWithPosition] = useState(false);
 
@@ -455,6 +468,8 @@ export const ShowScenes = ({
               }}
             />
           </div>
+
+          <OpenShowRow {...openShow} />
 
           <div className="flex items-center gap-3">
             <Button type="primary" onClick={saveCurrentMap} className="flex-1">

@@ -31,6 +31,9 @@ const PM_REMOTE_URL =
  */
 const SHOW_STORE_URL: string | undefined =
   import.meta.env.VITE_SHOW_STORE_URL || undefined;
+/** where "Show öffnen" reads a show; set it together with the store url */
+const SHOW_READ_URL: string | undefined =
+  import.meta.env.VITE_SHOW_READ_URL || undefined;
 
 /**
  * The collection point for the projection mapping show: the layers that are
@@ -71,6 +74,7 @@ export const projectionMappingFachzwilling: FachzwillingRoute = {
       config: {
         remoteUrl: PM_REMOTE_URL,
         ...(SHOW_STORE_URL ? { storeUrl: SHOW_STORE_URL } : {}),
+        ...(SHOW_READ_URL ? { readUrl: SHOW_READ_URL } : {}),
       },
     },
   ],
