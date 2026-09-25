@@ -16,6 +16,7 @@ export type {
 // export { EmptySearchComponent } from ''
 export { EmptySearchComponent } from "./lib/components/EmptySearchComponent";
 export { defaultTypeInference } from "./lib/utils/fuzzySearchHelper";
+export { parseLandParcelInput } from "./lib/utils/landParcelSearchHelper";
 export type { SearchResultItem } from "./lib/contracts/search-result-item.d";
 export {
   builtInGazetteerHitTrigger,

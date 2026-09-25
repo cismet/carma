@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { InputNumber } from "antd";
 import LandParcelKeyChooser from "../LandParcelKeyChooser";
 import {
@@ -22,10 +22,11 @@ const SplitChooseStep = ({ value, onChange, onProblem }) => {
   const joinMode = value.action === WIZARD_ACTIONS.SPLIT_JOIN;
   const count = value.splitCount ?? MIN_SPLIT_COUNT;
   const key = value.splitKey;
+  const [chooserMessage, setChooserMessage] = useState();
 
   useEffect(() => {
     if (!joinMode && !key) {
-      onProblem(CHOOSE_PROMPT);
+      onProblem(chooserMessage ?? CHOOSE_PROMPT);
       return;
     }
     if (!Number.isInteger(count) || count < MIN_SPLIT_COUNT) {
@@ -34,7 +35,7 @@ const SplitChooseStep = ({ value, onChange, onProblem }) => {
     }
     onProblem(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [joinMode, key, count]);
+  }, [joinMode, key, count, chooserMessage]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -47,11 +48,9 @@ const SplitChooseStep = ({ value, onChange, onProblem }) => {
             incompleteMessage={CHOOSE_PROMPT}
             value={key}
             onChange={(next) => onChange({ splitKey: next })}
-            onValidity={(status) => {
-              if (!status.valid) {
-                onProblem(status.message);
-              }
-            }}
+            onValidity={(status) =>
+              setChooserMessage(status.valid ? undefined : status.message)
+            }
           />
         </div>
       )}

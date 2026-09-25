@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { Radio, Space } from "antd";
 import { BankOutlined, BlockOutlined } from "@ant-design/icons";
 import LandParcelKeyChooser from "../LandParcelKeyChooser";
@@ -10,8 +10,11 @@ import useStammdaten from "../../../core/wizard/useStammdaten";
  * not currently have, and choosing the one it already has is rejected with the
  * message the Swing panel used.
  */
+const CHOOSE_PROMPT = "Bitte wählen Sie das Flurstück aus.";
+
 const ChangeKindStep = ({ value, onChange, onProblem }) => {
   const { arten } = useStammdaten();
+  const [chooserMessage, setChooserMessage] = useState();
   const key = value.changeKey;
   const target = value.newArtBezeichnung;
 
@@ -30,7 +33,7 @@ const ChangeKindStep = ({ value, onChange, onProblem }) => {
 
   useEffect(() => {
     if (!key) {
-      onProblem("Bitte wählen Sie das Flurstück aus.");
+      onProblem(chooserMessage ?? CHOOSE_PROMPT);
       return;
     }
     if (!key.art?.bezeichnung) {
@@ -55,7 +58,7 @@ const ChangeKindStep = ({ value, onChange, onProblem }) => {
     }
     onProblem(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, target, arten]);
+  }, [key, target, arten, chooserMessage]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -64,13 +67,12 @@ const ChangeKindStep = ({ value, onChange, onProblem }) => {
         <LandParcelKeyChooser
           mode="current"
           prefillCurrent
+          incompleteMessage={CHOOSE_PROMPT}
           value={key}
           onChange={(next) => onChange({ changeKey: next })}
-          onValidity={(status) => {
-            if (!status.valid) {
-              onProblem(status.message);
-            }
-          }}
+          onValidity={(status) =>
+            setChooserMessage(status.valid ? undefined : status.message)
+          }
         />
       </div>
       <div>

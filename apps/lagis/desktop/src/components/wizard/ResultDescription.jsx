@@ -1,7 +1,6 @@
 import React from "react";
 import KeyRow from "./KeyRow";
 
-/** Headline plus old and new parcels as tags, so no list breaks the text. */
 const ResultDescription = ({ result }) => (
   <div className="flex flex-col gap-2">
     <span style={{ whiteSpace: "pre-line" }}>{result.message}</span>

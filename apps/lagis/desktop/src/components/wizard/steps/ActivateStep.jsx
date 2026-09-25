@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { useSelector } from "react-redux";
 import LandParcelKeyChooser from "../LandParcelKeyChooser";
 import { explain } from "../../../core/wizard/errors";
@@ -7,19 +7,12 @@ import {
   hasSuccessors,
 } from "../../../core/wizard/api";
 
+const CHOOSE_PROMPT =
+  "Bitte wählen Sie das Flurstück aus, das aktiviert werden soll";
+
 const ActivateStep = ({ value, onChange, onProblem }) => {
   const jwt = useSelector((state) => state.auth.jwt);
   const [checking, setChecking] = useState(false);
-
-  // report on mount too, not only when the chooser changes
-  useEffect(() => {
-    if (!value.activateKey && !checking) {
-      onProblem(
-        "Bitte wählen Sie das Flurstück aus, das aktiviert werden soll"
-      );
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [value.activateKey]);
 
   const handleChange = async (key) => {
     onChange({ activateKey: undefined });
@@ -51,15 +44,13 @@ const ActivateStep = ({ value, onChange, onProblem }) => {
       <LandParcelKeyChooser
         mode="historic"
         prefillCurrent
+        incompleteMessage={CHOOSE_PROMPT}
         value={value.activateKey}
         disabled={checking}
         onChange={handleChange}
         onValidity={(status) => {
           if (!status.valid) {
-            onProblem(
-              status.message ??
-                "Bitte wählen Sie das Flurstück aus, das aktiviert werden soll"
-            );
+            onProblem(status.message ?? CHOOSE_PROMPT);
           }
         }}
       />
