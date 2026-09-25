@@ -25,10 +25,13 @@ const MODEL_FLOW_MIN_ZOOM = 14;
 /**
  * The remote the published show opens on the phone (`apps/pm-remote`). The
  * local dev server has its own port; a deployment may name another host.
+ * A geoportal opened on localhost links to the local remote even when its dev
+ * server runs with NODE_ENV=production, where `DEV` is false.
  */
 const PM_REMOTE_URL =
   import.meta.env.VITE_PM_REMOTE_URL ||
-  (import.meta.env.DEV
+  (import.meta.env.DEV ||
+  ["localhost", "127.0.0.1"].includes(window.location.hostname)
     ? "http://localhost:4210/"
     : "https://carma-dev-deployments.github.io/pm-remote/");
 
