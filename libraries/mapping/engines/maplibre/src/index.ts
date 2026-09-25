@@ -124,6 +124,7 @@ export {
   styleManipulation,
   getVectorMapping,
   getPaintProperty,
+  getGeoJsonSourceId,
   type GeoJsonStyleMetadata,
   type VectorStylesToMapLibreStyleOptions,
   type VectorStylesToMapLibreStyleResult,
