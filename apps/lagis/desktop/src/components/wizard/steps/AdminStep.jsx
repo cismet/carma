@@ -71,6 +71,12 @@ const numberColumn = (title, dataIndex, update) => ({
   ),
 });
 
+// "keine" first, as in the Java combo
+const strassenOptions = (names) => [
+  { value: "", label: <i>keine</i> },
+  ...names.map((name) => ({ value: name, label: name })),
+];
+
 const SECTIONS = {
   [ADMIN_SECTION.DIENSTSTELLEN]: {
     field: "dienststellen",
@@ -117,17 +123,21 @@ const SECTIONS = {
   [ADMIN_SECTION.STRASSENFRONTEN]: {
     field: "strassenfronten",
     newRow: newStrassenfrontRow,
-    columns: () => (update) =>
+    columns: (stammdaten) => (update) =>
       [
         {
           title: verwaltung.strassen.strasseCol,
           dataIndex: "strassenname",
           render: (strassenname, record) => (
-            <Input
+            <Select
               size="small"
-              value={strassenname}
-              onChange={(event) =>
-                update(record.id, { strassenname: event.target.value })
+              showSearch
+              className="w-full"
+              optionFilterProp="value"
+              options={strassenOptions(stammdaten.strassennamen)}
+              value={strassenname ?? ""}
+              onChange={(next) =>
+                update(record.id, { strassenname: next ?? "" })
               }
             />
           ),
