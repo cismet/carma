@@ -6,7 +6,15 @@ export {
   newSceneId,
   type Show,
   type ShowScene,
+  type ShowStory,
 } from "./lib/show";
+export {
+  FIRST_STORY_ID,
+  FIRST_STORY_TITLE,
+  storyGroups,
+  withStories,
+  type StoryGroup,
+} from "./lib/stories";
 export { boundsKey, isBounds3857, type Bounds3857 } from "./lib/bounds";
 export {
   DEFAULT_SHOW_READ_URL,

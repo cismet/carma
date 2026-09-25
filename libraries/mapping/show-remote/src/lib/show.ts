@@ -4,7 +4,9 @@ import { isBounds3857, type Bounds3857 } from "./bounds";
 
 /**
  * A show: the scenes a presenter steps through, prepared on the desktop in the
- * pm-show route and stepped through from a phone. Every scene carries its whole
+ * pm-show route and stepped through from a phone. The scenes are grouped into
+ * stories ("Geschichten"), folders the presenter walks one at a time; a scene
+ * names its story. Every scene carries its whole
  * map configuration, not the id of a stored one, so switching to it costs the
  * display no fetch: the remote hands over exactly what to draw.
  */
@@ -13,10 +15,18 @@ import { isBounds3857, type Bounds3857 } from "./bounds";
 export const SHOW_FORMAT = "carma-pm-show";
 export const SHOW_VERSION = 1;
 
+/** a folder of scenes; its scenes are the show's scenes that name it */
+export type ShowStory = {
+  id: string;
+  title: string;
+};
+
 export type ShowScene = {
   /** stable within the show, so the remote can tell which scene is live */
   id: string;
   title: string;
+  /** the story the scene belongs to; without one, or an unknown one, the first */
+  story?: string;
   /** the map part of a share configuration: layers and base map */
   config: MappingConfig;
   /**
@@ -24,6 +34,8 @@ export type ShowScene = {
    * leaves the display where the previous scene put it.
    */
   bounds?: Bounds3857;
+  /** what the presenter reads on the remote while the scene is live */
+  text?: string;
 };
 
 export type Show = {
@@ -32,6 +44,9 @@ export type Show = {
   title: string;
   /** ISO timestamp of the publish */
   publishedAt: string;
+  /** in the order the presenter goes through them; absent in older shows */
+  stories?: ShowStory[];
+  /** a story's scenes are in the order they have here */
   scenes: ShowScene[];
 };
 
@@ -41,18 +56,27 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 export const isMappingConfig = (value: unknown): value is MappingConfig =>
   isRecord(value) && Array.isArray(value["layers"]);
 
+const isShowStory = (value: unknown): value is ShowStory =>
+  isRecord(value) &&
+  typeof value["id"] === "string" &&
+  typeof value["title"] === "string";
+
 const isShowScene = (value: unknown): value is ShowScene =>
   isRecord(value) &&
   typeof value["id"] === "string" &&
   typeof value["title"] === "string" &&
+  (value["story"] === undefined || typeof value["story"] === "string") &&
   isMappingConfig(value["config"]) &&
-  (value["bounds"] === undefined || isBounds3857(value["bounds"]));
+  (value["bounds"] === undefined || isBounds3857(value["bounds"])) &&
+  (value["text"] === undefined || typeof value["text"] === "string");
 
 export const isShow = (value: unknown): value is Show =>
   isRecord(value) &&
   value["format"] === SHOW_FORMAT &&
   value["version"] === SHOW_VERSION &&
   typeof value["title"] === "string" &&
+  (value["stories"] === undefined ||
+    (Array.isArray(value["stories"]) && value["stories"].every(isShowStory))) &&
   Array.isArray(value["scenes"]) &&
   value["scenes"].every(isShowScene);
 
