@@ -80,6 +80,12 @@ export async function getMarkdown(slugName, configType, server, path) {
     const u = server + path + slugName + "/" + configType + ".md";
     console.debug("try to read markdown at ", u);
     const result = await fetch(u);
+    // dev servers (vite) answer missing files with index.html and status 200
+    const contentType = result.headers.get("content-type") || "";
+    if (!result.ok || contentType.includes("text/html")) {
+      console.debug("no markdown found at ", u, result.status, contentType);
+      return undefined;
+    }
     const resultObject = await result.text();
     console.debug(
       "config: loaded " + slugName + "/" + configType,
