@@ -8,6 +8,7 @@ import {
 import { SandboxedEvalProvider } from "@carma-commons/sandbox-eval";
 import { CarmaMap } from "@carma-mapping/core";
 import {
+  getGeoJsonSourceId,
   LibreContextProvider,
   type LibreLayer,
 } from "@carma-mapping/engines/maplibre";
@@ -21,12 +22,14 @@ import "react-bootstrap-typeahead/css/Typeahead.css";
 import "react-cismap/topicMaps.css";
 import "leaflet/dist/leaflet.css";
 
+const POI_LAYER_NAME = "POIs";
+
 // Module-level so the references stay stable across renders: new ones would
 // make LibreMap rebuild the whole style on every re-render.
 const LIBRE_LAYERS: LibreLayer[] = [
   {
     type: "geojson",
-    name: "POIs",
+    name: POI_LAYER_NAME,
     data: "https://tiles.cismet.de/poi/poi.json",
     infoboxMapping: [
       "foto: p.foto",
@@ -79,7 +82,7 @@ function getColorForCombination(combination: string): string {
   return POI_COLORS[combination] || hashColor(combination);
 }
 
-const POI_SOURCE_ID = "geojson-source-0";
+const POI_SOURCE_ID = getGeoJsonSourceId(POI_LAYER_NAME);
 
 /** Given all unique kombi values and the current filter state, return
  *  those kombi values whose features should be visible. */
@@ -175,10 +178,10 @@ export function Stadtplan() {
   // Capture original features and extract lebenslagen on first filterFunction call
   const handleFilter = useCallback(
     (map: any, layers: any) => {
-      layers?.forEach((layer: any, index: number) => {
+      layers?.forEach((layer: any) => {
         if (layer.type !== "geojson") return;
 
-        const sourceId = `geojson-source-${index}`;
+        const sourceId = getGeoJsonSourceId(layer.name);
         const styleSource = map.getStyle().sources[sourceId] as any;
         if (!styleSource?.data?.features) return;
 

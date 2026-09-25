@@ -31,6 +31,7 @@ import { TopicMapStylingContext } from "react-cismap/contexts/TopicMapStylingCon
 import "../styles/map.css";
 import {
   applySymbolScalingToMap,
+  getGeoJsonSourceId,
   getVectorMapping,
   styleManipulation,
   vectorStylesToMapLibreStyle,
@@ -1866,10 +1867,7 @@ export const LibreMap = ({
             if (layer.infoboxMapping && layer.infoboxMapping.length > 0) {
               // Mirror the name-based source id produced by styleBuilder so the
               // by-source-id mapping key stays in sync (position-independent).
-              const sourceId = `geojson-source-${layer.name.replace(
-                /[^a-zA-Z0-9]/g,
-                "-"
-              )}`;
+              const sourceId = getGeoJsonSourceId(layer.name);
               mapping[layer.name] = layer.infoboxMapping;
               // Also map by source ID for easier lookup
               mapping[sourceId] = layer.infoboxMapping;
