@@ -4,7 +4,6 @@ import { useContext, useEffect, useState } from "react";
 import "react-bootstrap-typeahead/css/Typeahead.css";
 import FeatureCollection from "react-cismap/FeatureCollection";
 import "react-cismap/topicMaps.css";
-import InfoBoxFotoPreview from "react-cismap/topicmaps/InfoBoxFotoPreview";
 import ModeSwitcher from "./ModeSwitcher";
 
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
@@ -28,7 +27,10 @@ import {
 } from "@carma-mapping/components";
 
 import { removeQueryPart } from "react-cismap/tools/routingHelper";
-import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextProvider";
+import {
+  InfoBoxFotoPreview,
+  LightBoxDispatchContext,
+} from "@carma-mapping/lightbox";
 import { appModes, getMode, getModeUrl } from "./helper/modeParser";
 import { getClusterIconCreatorFunction } from "react-cismap/tools/uiHelper";
 import { getColorConsideringSeondarySelection } from "./helper/styler";
@@ -298,6 +300,7 @@ function KlimaorteMap() {
             }}
           />
           <TopicMapComponent
+            photoLightBox={false}
             maxZoom={19}
             minZoom={8}
             applicationMenuTooltipString={<MenuTooltip appMode={appMode} />}

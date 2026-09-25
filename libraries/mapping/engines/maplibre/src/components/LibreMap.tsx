@@ -26,7 +26,6 @@ import type {
   ThreePerfData,
 } from "@carma-mapping/engines/threejs";
 import { FeatureCollectionContext } from "react-cismap/contexts/FeatureCollectionContextProvider";
-import PhotoLightBox from "react-cismap/topicmaps/PhotoLightbox";
 import { TopicMapStylingContext } from "react-cismap/contexts/TopicMapStylingContextProvider";
 import "../styles/map.css";
 import {
@@ -2261,7 +2260,6 @@ export const LibreMap = ({
               version: "0.1.0",
             }}
           />
-          <PhotoLightBox />
           <LibreMapSelectionContent map={map.current} />
         </>
       )}
