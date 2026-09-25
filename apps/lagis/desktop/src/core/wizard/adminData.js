@@ -2,6 +2,7 @@ import { nanoid } from "@reduxjs/toolkit";
 import {
   fetchAdminData,
   fetchDienststellen,
+  fetchStrassennamen,
   fetchZusatzRolleArten,
 } from "./api";
 import { WIZARD_ACTIONS } from "./constants";
@@ -89,11 +90,12 @@ let stammdatenCache;
 
 const loadStammdaten = async (jwt) => {
   if (!stammdatenCache) {
-    const [dienststellen, rolleArten] = await Promise.all([
+    const [dienststellen, rolleArten, strassennamen] = await Promise.all([
       fetchDienststellen(jwt),
       fetchZusatzRolleArten(jwt),
+      fetchStrassennamen(),
     ]);
-    stammdatenCache = { dienststellen, rolleArten };
+    stammdatenCache = { dienststellen, rolleArten, strassennamen };
   }
   return stammdatenCache;
 };

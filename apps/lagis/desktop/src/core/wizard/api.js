@@ -1,5 +1,7 @@
 import { fetchGraphQL, fetchGraphQLFromWuNDa } from "../graphql";
+import { ENDPOINT } from "@carma-commons/resources";
 import wizardQueries from "./queries";
+import { gazDataConfig } from "../../config/gazData";
 import { finishCall, startCall } from "./gqlLog";
 import { deleteObject, saveObject, saveAndGetId } from "./cidsActions";
 import { ActionNotSuccessfulError } from "./errors";
@@ -321,6 +323,26 @@ export const fetchDienststellen = async (jwt) => {
 export const fetchZusatzRolleArten = async (jwt) => {
   const data = await run(wizardQueries.zusatzRolleArten, {}, jwt);
   return data.zusatz_rolle_art ?? [];
+};
+
+/**
+ * Java fills the Straße combo from the city's street WFS, which is intranet
+ * only. The gazetteer's adressen.json holds the same street register.
+ */
+export const fetchStrassennamen = async () => {
+  const source = gazDataConfig.sources.find(
+    (s) => s.topic === ENDPOINT.ADRESSEN
+  );
+  const response = await fetch(source.url);
+  if (!response.ok) {
+    throw new ActionNotSuccessfulError(
+      "Die Straßenliste konnte nicht geladen werden."
+    );
+  }
+  const names = new Set((await response.json()).map((entry) => entry.s));
+  // the WFS sorts "Zur-Nieden-Weg" as "Zur Nieden Weg"
+  const collator = new Intl.Collator("de", { ignorePunctuation: true });
+  return [...names].filter(Boolean).sort(collator.compare);
 };
 
 export const fetchAdminData = async (schluesselId, jwt) => {
