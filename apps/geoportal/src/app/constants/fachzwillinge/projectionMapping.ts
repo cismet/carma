@@ -118,12 +118,27 @@ export const projectionMappingFachzwilling: FachzwillingRoute = {
     },
     {
       Title: "Starkregen",
-      // each style launches its time series itself, see its carmaConf.tools
+      // each style launches its time series itself, see its carmaConf.tools;
+      // the `_autostart` copy plays as soon as it is on the map, the plain one
+      // waits for the remote or the play button
       layers: [
         `${PROJECTION_MAPPING_STYLES}/starkregen_t50_zeitreihe.style.json`,
+        `${PROJECTION_MAPPING_STYLES}/starkregen_t50_zeitreihe_autostart.style.json`,
         `${PROJECTION_MAPPING_STYLES}/starkregen_t100_zeitreihe.style.json`,
+        `${PROJECTION_MAPPING_STYLES}/starkregen_t100_zeitreihe_autostart.style.json`,
         `${PROJECTION_MAPPING_STYLES}/starkregen_90mm_zeitreihe.style.json`,
+        `${PROJECTION_MAPPING_STYLES}/starkregen_90mm_zeitreihe_autostart.style.json`,
         `${PROJECTION_MAPPING_STYLES}/starkregen_extrem2018_zeitreihe.style.json`,
+        `${PROJECTION_MAPPING_STYLES}/starkregen_extrem2018_zeitreihe_autostart.style.json`,
+      ],
+    },
+    {
+      Title: "Hochwasser",
+      // one scenario of the Hochwassergefahrenkarte each; no time steps
+      layers: [
+        `${PROJECTION_MAPPING_STYLES}/hochwasser_hq_haeufig.style.json`,
+        `${PROJECTION_MAPPING_STYLES}/hochwasser_hq100.style.json`,
+        `${PROJECTION_MAPPING_STYLES}/hochwasser_hq_extrem.style.json`,
       ],
     },
     {
