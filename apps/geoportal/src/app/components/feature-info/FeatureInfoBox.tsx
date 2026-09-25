@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import type maplibregl from "maplibre-gl";
 
 import {
   InfoBoxFotoPreview,
@@ -41,6 +42,7 @@ import {
   setPreferredVectorLayerId,
 } from "../../store/slices/features";
 import { getLayers, getMaplibreMaps } from "../../store/slices/mapping";
+import { useLibreMapEnabled } from "../../hooks/useLibreMapEnabled";
 import { truncateString } from "./featureInfoHelper";
 
 import "../infoBox.css";
@@ -145,40 +147,41 @@ const parseBakedNeighbours = (nb: unknown): BakedNeighbour[] | null => {
   }
 };
 
-// The pano source of a panorama style (the oelberg_panorama style has exactly
-// one). Supports both a vector-tile source (needs a source-layer) and a
-// client-side geojson source (no source-layer). querySourceFeatures /
-// feature-state accept an undefined sourceLayer for geojson sources.
-const resolvePanoSource = (
-  map: { getStyle?: () => unknown } | undefined
-): { sourceId: string; sourceLayer?: string } | null => {
+// The style layer rendering the selected pano's arrow: the one on the pano
+// source whose id ends with PANORAMA_SELECTION_ARROW_LAYER. That covers the
+// plain oelberg_panorama style ("selection-arrow"), combined styles like
+// oelberg_kombi ("panorama-selection-arrow") and the libre map, which prefixes
+// every style layer id with the geoportal layer id.
+const findSelectionArrowLayer = (
+  map: maplibregl.Map,
+  sourceId: string
+): string | undefined => {
   try {
-    const style = map?.getStyle?.() as
-      | {
-          sources?: Record<string, { type?: string }>;
-          layers?: Array<{ source?: string; "source-layer"?: string }>;
-        }
-      | undefined;
-    const sources = style?.sources ?? {};
-    // Prefer a vector source with its source-layer.
-    const vectorId = Object.keys(sources).find(
-      (id) => sources[id]?.type === "vector"
-    );
-    if (vectorId) {
-      const sourceLayer = style?.layers?.find(
-        (l) => l.source === vectorId && l["source-layer"]
-      )?.["source-layer"];
-      if (sourceLayer) return { sourceId: vectorId, sourceLayer };
-    }
-    // Fall back to a geojson source (no source-layer).
-    const geojsonId = Object.keys(sources).find(
-      (id) => sources[id]?.type === "geojson"
-    );
-    if (geojsonId) return { sourceId: geojsonId };
-    return null;
+    return map
+      .getStyle()
+      ?.layers?.find(
+        (l) =>
+          "source" in l &&
+          l.source === sourceId &&
+          l.id.endsWith(PANORAMA_SELECTION_ARROW_LAYER)
+      )?.id;
   } catch {
-    return null;
+    return undefined;
   }
+};
+
+// Everything the panorama code needs from the map that renders the selected
+// pano: the map itself, the pano source, and the selection arrow layer (absent
+// when the style has none).
+type PanoTarget = {
+  map: maplibregl.Map;
+  sourceId: string;
+  sourceLayer?: string;
+  arrowLayerId?: string;
+  // true on the merged libre map: the selected feature-state is driven by the
+  // MapSelectionContext (synced from the redux selection), so the panorama code
+  // must not set or clear it itself.
+  selectionStateManaged: boolean;
 };
 
 interface InfoBoxProps {
@@ -218,6 +221,7 @@ const FeatureInfoBox = ({
 
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
   const { map: libreMap } = useLibreContext();
+  const isLibreMap = useLibreMapEnabled();
   // zoom-dependent replacement image, published by the infoBoxZoomImage addon
   const [infoBoxImage] = useAddonState("infoBoxImage");
   // the InfoBox mapping can mark a box on the photo (fotoHighlight, pixel
@@ -398,20 +402,43 @@ const FeatureInfoBox = ({
     updateHeaderAndColor();
   }, [selectedFeature]);
 
-  useEffect(() => {
-    console.log("[PANORAMA] selected feature", {
-      selectedFeature,
-      panorama: selectedFeature?.properties?.panorama,
-      sourceProps: selectedFeature?.properties?.sourceProps,
-    });
-  }, [selectedFeature]);
-
-  // The maplibre map for the currently selected layer (holds the panorama
-  // arrow layers); selectedFeature.id is the layer id.
-  const selectedLayerMap = useMemo(
-    () => maplibreMaps?.find((entry) => entry.id === selectedFeature?.id)?.map,
-    [maplibreMaps, selectedFeature?.id]
-  );
+  // The map rendering the currently selected pano (selectedFeature.id is the
+  // layer id): the one merged map on the libre path, the layer's own maplibre
+  // map from the redux registry on the leaflet path. The pano source is taken
+  // from the selected feature's own maplibre feature (click hit or tour hop),
+  // since a style may combine several vector sources (e.g. oelberg_kombi).
+  const panoSourceId = selectedFeature?.sourceFeature?.source as
+    | string
+    | undefined;
+  const panoSourceLayer = selectedFeature?.sourceFeature?.sourceLayer as
+    | string
+    | undefined;
+  const panoTarget = useMemo<PanoTarget | null>(() => {
+    const layerId = selectedFeature?.id;
+    if (!layerId || !panoSourceId) {
+      return null;
+    }
+    const map: maplibregl.Map | undefined = isLibreMap
+      ? libreMap ?? undefined
+      : maplibreMaps?.find((entry) => entry.id === layerId)?.map;
+    if (!map) {
+      return null;
+    }
+    return {
+      map,
+      sourceId: panoSourceId,
+      sourceLayer: panoSourceLayer,
+      arrowLayerId: findSelectionArrowLayer(map, panoSourceId),
+      selectionStateManaged: isLibreMap,
+    };
+  }, [
+    isLibreMap,
+    libreMap,
+    maplibreMaps,
+    selectedFeature?.id,
+    panoSourceId,
+    panoSourceLayer,
+  ]);
 
   // Latest panorama view yaw (deg), captured from the viewer yaw poll, so the
   // arrow-key navigation can pick the neighbour nearest the current view.
@@ -424,151 +451,159 @@ const FeatureInfoBox = ({
   const handlePanoramaYaw = useCallback(
     (yaw: number) => {
       panoramaYawRef.current = yaw;
+      const arrowLayerId = panoTarget?.arrowLayerId;
       if (
-        !selectedLayerMap ||
-        typeof selectedLayerMap.getLayer !== "function" ||
-        !selectedLayerMap.getLayer(PANORAMA_SELECTION_ARROW_LAYER)
+        !panoTarget ||
+        !arrowLayerId ||
+        !panoTarget.map.getLayer(arrowLayerId)
       ) {
         return;
       }
-      selectedLayerMap.setLayoutProperty(
-        PANORAMA_SELECTION_ARROW_LAYER,
-        "icon-rotate",
-        ["+", ["get", "heading"], yaw * PANORAMA_YAW_SIGN + PANORAMA_YAW_OFFSET]
-      );
+      panoTarget.map.setLayoutProperty(arrowLayerId, "icon-rotate", [
+        "+",
+        ["get", "heading"],
+        yaw * PANORAMA_YAW_SIGN + PANORAMA_YAW_OFFSET,
+      ]);
     },
-    [selectedLayerMap]
+    [panoTarget]
   );
 
   // Restore the data-driven heading and clear the highlight when the selection
   // leaves this layer (the map changes) or the box unmounts; we overrode
   // icon-rotate to a constant and drive feature-state programmatically.
   useEffect(() => {
-    if (!selectedLayerMap) return;
+    if (!panoTarget) {
+      return;
+    }
+    const { map, sourceId, sourceLayer, arrowLayerId, selectionStateManaged } =
+      panoTarget;
     return () => {
       // The map may already be torn down here (e.g. the user removed this
       // layer): getLayer/setLayoutProperty then throw because the map's style
       // is gone. A typeof check doesn't prevent that, so guard the call.
       try {
-        if (
-          typeof selectedLayerMap.getLayer === "function" &&
-          selectedLayerMap.getLayer(PANORAMA_SELECTION_ARROW_LAYER)
-        ) {
-          selectedLayerMap.setLayoutProperty(
-            PANORAMA_SELECTION_ARROW_LAYER,
-            "icon-rotate",
-            [
-              "+",
-              ["get", "heading"],
-              PANORAMA_INITIAL_YAW * PANORAMA_YAW_SIGN + PANORAMA_YAW_OFFSET,
-            ]
-          );
+        if (arrowLayerId && map.getLayer(arrowLayerId)) {
+          map.setLayoutProperty(arrowLayerId, "icon-rotate", [
+            "+",
+            ["get", "heading"],
+            PANORAMA_INITIAL_YAW * PANORAMA_YAW_SIGN + PANORAMA_YAW_OFFSET,
+          ]);
         }
       } catch {
         // map already removed — nothing to restore
       }
-      const src = resolvePanoSource(selectedLayerMap);
-      if (src) {
-        try {
-          selectedLayerMap.removeFeatureState({
-            source: src.sourceId,
-            sourceLayer: src.sourceLayer,
-          });
-        } catch {
-          // ignore feature-state errors
-        }
+      if (selectionStateManaged) {
+        return;
+      }
+      try {
+        map.removeFeatureState({ source: sourceId, sourceLayer });
+      } catch {
+        // ignore feature-state errors
       }
     };
-  }, [selectedLayerMap]);
+  }, [panoTarget]);
 
   // Keep the pano selection highlight in sync with the redux selection. The
   // click path sets feature-state itself, but programmatic tour hops do not, so
-  // we make the highlight a pure function of the current selection.
+  // we make the highlight a pure function of the current selection. On the
+  // libre map the MapSelectionContext already does that (it follows the redux
+  // selection's sourceFeature), so there only the arrow is snapped.
   useEffect(() => {
-    if (!selectedLayerMap) return;
+    if (!panoTarget) {
+      return;
+    }
+    const { map, sourceId, sourceLayer, arrowLayerId, selectionStateManaged } =
+      panoTarget;
     const fid = selectedFeature?.properties?.sourceProps?.fid;
-    const src = resolvePanoSource(selectedLayerMap);
-    if (
-      !src ||
-      fid == null ||
-      typeof selectedLayerMap.getLayer !== "function" ||
-      !selectedLayerMap.getLayer(PANORAMA_SELECTION_ARROW_LAYER)
-    ) {
+    if (fid == null || !arrowLayerId || !map.getLayer(arrowLayerId)) {
       return;
     }
     try {
-      // The pano feature's id is its `fid` natively: vector tiles bake it in,
-      // and the geojson dataset carries it as the GeoJSON feature `id` (so the
-      // style must NOT set generateId, which would override it).
-      selectedLayerMap.removeFeatureState({
-        source: src.sourceId,
-        sourceLayer: src.sourceLayer,
-      });
-      selectedLayerMap.setFeatureState(
-        { source: src.sourceId, sourceLayer: src.sourceLayer, id: fid },
-        { selected: true }
-      );
+      if (!selectionStateManaged) {
+        // The pano feature's id is its `fid` natively: vector tiles bake it in,
+        // and the geojson dataset carries it as the GeoJSON feature `id` (so the
+        // style must NOT set generateId, which would override it).
+        map.removeFeatureState({ source: sourceId, sourceLayer });
+        map.setFeatureState(
+          { source: sourceId, sourceLayer, id: fid },
+          { selected: true }
+        );
+      }
       // Snap the arrow to the new feature's initial (forward) orientation right
       // away. Data-driven on heading so it is correct the instant the selection
       // moves, before the new viewer's first yaw tick arrives.
-      selectedLayerMap.setLayoutProperty(
-        PANORAMA_SELECTION_ARROW_LAYER,
-        "icon-rotate",
-        [
-          "+",
-          ["get", "heading"],
-          PANORAMA_INITIAL_YAW * PANORAMA_YAW_SIGN + PANORAMA_YAW_OFFSET,
-        ]
-      );
+      map.setLayoutProperty(arrowLayerId, "icon-rotate", [
+        "+",
+        ["get", "heading"],
+        PANORAMA_INITIAL_YAW * PANORAMA_YAW_SIGN + PANORAMA_YAW_OFFSET,
+      ]);
     } catch {
       // ignore feature-state errors
     }
-  }, [selectedFeature, selectedLayerMap]);
+  }, [selectedFeature, panoTarget]);
 
   // Jump to a neighbouring panorama (tour hop): build its carma feature from the
   // raw vector feature via the layer's infoBoxMapping, move the map highlight,
   // and select it — the viewer, infobox and arrow all follow.
   const handlePanoramaNavigate = useCallback(
     async (targetFid: number) => {
-      if (!selectedLayerMap || !selectedFeature) return;
+      if (!panoTarget || !selectedFeature) {
+        return;
+      }
+      const { map, sourceId, sourceLayer } = panoTarget;
       const layer = layers.find((l) => l.id === selectedFeature.id);
-      const src = resolvePanoSource(selectedLayerMap);
-      if (!layer || !src) return;
-      let raw;
+      if (!layer) {
+        return;
+      }
+      let raw: maplibregl.MapGeoJSONFeature | undefined;
       try {
-        raw = selectedLayerMap.querySourceFeatures(src.sourceId, {
-          sourceLayer: src.sourceLayer,
+        raw = map.querySourceFeatures(sourceId, {
+          sourceLayer,
           filter: ["==", "fid", targetFid],
-        })?.[0];
+        })?.[0] as maplibregl.MapGeoJSONFeature | undefined;
       } catch {
         return;
       }
-      if (!raw) return;
+      if (!raw) {
+        return;
+      }
+      // querySourceFeatures results carry no source ids; the libre selection
+      // sync needs them on the selected feature's sourceFeature.
+      raw.source = sourceId;
+      raw.sourceLayer = sourceLayer;
       const geom = raw.geometry;
-      if (geom?.type !== "Point") return;
+      if (geom?.type !== "Point") {
+        return;
+      }
       const [lng, lat] = geom.coordinates as number[];
-      if (!Number.isFinite(lng) || !Number.isFinite(lat)) return;
-      const neighborFeature = await createVectorFeature(
-        layer,
-        raw,
-        selectedLayerMap,
-        { lat, lng }
-      );
-      if (!neighborFeature) return;
-      // Recenter the (Leaflet) base map on the pano we jump to, so that when the
+      if (!Number.isFinite(lng) || !Number.isFinite(lat)) {
+        return;
+      }
+      const neighborFeature = await createVectorFeature(layer, raw, map, {
+        lat,
+        lng,
+      });
+      if (!neighborFeature) {
+        return;
+      }
+      // Recenter the base map on the pano we jump to, so that when the
       // fullscreen viewer is closed the just-visited point sits in the map
       // centre. Navigation hotspots only exist in the fullscreen viewer, so this
       // path only runs for in-viewer tour hops. Keep the current zoom; no
       // animation since the map is hidden behind the lightbox.
-      const leaflet = routedMapRef?.leafletMap?.leafletElement;
-      if (leaflet) {
-        leaflet.setView([lat, lng], leaflet.getZoom(), { animate: false });
+      if (isLibreMap) {
+        map.jumpTo({ center: [lng, lat] });
+      } else {
+        const leaflet = routedMapRef?.leafletMap?.leafletElement;
+        if (leaflet) {
+          leaflet.setView([lat, lng], leaflet.getZoom(), { animate: false });
+        }
       }
       // The map highlight (selection-arrow feature-state) is kept in sync with
       // the redux selection by the effect below, so just select the neighbour.
       dispatch(setSelectedFeature(neighborFeature));
     },
-    [selectedLayerMap, selectedFeature, layers, dispatch, routedMapRef]
+    [panoTarget, selectedFeature, layers, dispatch, routedMapRef, isLibreMap]
   );
 
   // Build navigation hotspots from the panos surrounding the selected one, and
@@ -579,35 +614,10 @@ const FeatureInfoBox = ({
   }>(() => {
     const empty = { hotspots: [], neighbourFileNames: [] };
     const props = selectedFeature?.properties?.sourceProps;
-    // [PANORAMA] dev: diagnose missing hotspots after the dev rebase. Strip
-    // before merge.
-    if (selectedFeature?.properties?.panorama) {
-      const style = selectedLayerMap?.getStyle?.();
-      console.log("[PANORAMA] hotspot inputs", {
-        selectedFeatureId: selectedFeature?.id,
-        maplibreMapIds: maplibreMaps?.map((entry) => entry.id),
-        hasSelectedLayerMap: !!selectedLayerMap,
-        sourcePropsKeys: props ? Object.keys(props) : null,
-        heading: props?.heading,
-        hasNb: !!props?.nb,
-        styleSources: style
-          ? Object.fromEntries(
-              Object.entries(style.sources ?? {}).map(([id, s]) => [
-                id,
-                (s as { type?: string }).type,
-              ])
-            )
-          : null,
-        panoSource: resolvePanoSource(selectedLayerMap),
-      });
-    }
-    if (
-      !selectedLayerMap ||
-      !props ||
-      typeof selectedLayerMap.querySourceFeatures !== "function"
-    ) {
+    if (!panoTarget || !props) {
       return empty;
     }
+    const { map, sourceId, sourceLayer } = panoTarget;
     const cHeading = Number(props.heading);
     const cFid = props.fid;
     if (!Number.isFinite(cHeading)) return empty;
@@ -655,14 +665,12 @@ const FeatureInfoBox = ({
       const cy = Number(props.proj_y);
       const cz = Number(props.proj_z);
       if (Number.isNaN(cx) || Number.isNaN(cy)) return empty;
-      const src = resolvePanoSource(selectedLayerMap);
-      if (!src) return empty;
 
       let all: Array<{ properties?: Record<string, number> }> = [];
       try {
-        all = selectedLayerMap.querySourceFeatures(src.sourceId, {
-          sourceLayer: src.sourceLayer,
-        });
+        all = map.querySourceFeatures(sourceId, { sourceLayer }) as Array<{
+          properties?: Record<string, number>;
+        }>;
       } catch {
         return empty;
       }
@@ -734,28 +742,25 @@ const FeatureInfoBox = ({
     // neighbour is within 30 m, hence in a loaded tile). No-ops once the tiles
     // bake heading and on the fallback path (which already has it).
     if (kept.some((c) => c.headingDeg == null)) {
-      const src = resolvePanoSource(selectedLayerMap);
-      if (src && typeof selectedLayerMap.querySourceFeatures === "function") {
-        try {
-          const all = selectedLayerMap.querySourceFeatures(src.sourceId, {
-            sourceLayer: src.sourceLayer,
-          }) as Array<{ properties?: Record<string, number> }>;
-          const headingByFid = new Map<number, number>();
-          for (const f of all) {
-            const p = f?.properties;
-            if (!p || p.fid == null || headingByFid.has(p.fid)) continue;
-            const hd = Number(p.heading);
-            if (Number.isFinite(hd)) headingByFid.set(p.fid, hd);
-          }
-          for (const c of kept) {
-            if (c.headingDeg == null) {
-              const hd = headingByFid.get(c.fid);
-              if (hd != null) c.headingDeg = hd;
-            }
-          }
-        } catch {
-          // ignore — heading stays undefined; arrow falls back to the bearing
+      try {
+        const all = map.querySourceFeatures(sourceId, {
+          sourceLayer,
+        }) as Array<{ properties?: Record<string, number> }>;
+        const headingByFid = new Map<number, number>();
+        for (const f of all) {
+          const p = f?.properties;
+          if (!p || p.fid == null || headingByFid.has(p.fid)) continue;
+          const hd = Number(p.heading);
+          if (Number.isFinite(hd)) headingByFid.set(p.fid, hd);
         }
+        for (const c of kept) {
+          if (c.headingDeg == null) {
+            const hd = headingByFid.get(c.fid);
+            if (hd != null) c.headingDeg = hd;
+          }
+        }
+      } catch {
+        // ignore — heading stays undefined; arrow falls back to the bearing
       }
     }
 
@@ -771,7 +776,9 @@ const FeatureInfoBox = ({
         );
         const hyOpp = normalizeDeg(hy + 180);
         streetYaw =
-          angularDiffDeg(hy, c.yaw) <= angularDiffDeg(hyOpp, c.yaw) ? hy : hyOpp;
+          angularDiffDeg(hy, c.yaw) <= angularDiffDeg(hyOpp, c.yaw)
+            ? hy
+            : hyOpp;
       }
       return {
         id: `pano-nav-${c.fid}`,
@@ -788,25 +795,8 @@ const FeatureInfoBox = ({
       .map((c) => c.fileName)
       .filter((n): n is string => !!n);
 
-    // [PANORAMA] dev: prove which neighbour source is live, how many targets
-    // survive declutter, and whether each cross has a distinct street direction
-    // (streetYaw != yaw means the neighbour heading reached the arrow). Strip
-    // before merge.
-    console.log("[PANORAMA] neighbours", {
-      source: baked ? "baked-nb" : "fallback-querySourceFeatures",
-      found: candidates.length,
-      shown: kept.length,
-      cHeading: Math.round(cHeading),
-      crosses: hotspots.map((h) => ({
-        fid: h.id,
-        yaw: Math.round(h.yaw),
-        streetYaw: Math.round(h.streetYaw),
-        headingReached: Math.round(h.streetYaw) !== Math.round(h.yaw),
-      })),
-    });
-
     return { hotspots, neighbourFileNames };
-  }, [selectedFeature, selectedLayerMap, handlePanoramaNavigate]);
+  }, [selectedFeature, panoTarget, handlePanoramaNavigate]);
 
   // Preload the reachable neighbours' panorama images so a tour hop is
   // near-instant (fetch + decode happen while the user looks at the current
@@ -882,7 +872,9 @@ const FeatureInfoBox = ({
       return null;
     }
     const src = props.panorama as string;
-    const multiResConfigUrl = props.panoramaMultiResConfig as string | undefined;
+    const multiResConfigUrl = props.panoramaMultiResConfig as
+      | string
+      | undefined;
     return {
       type: "custom",
       key: "panorama",
