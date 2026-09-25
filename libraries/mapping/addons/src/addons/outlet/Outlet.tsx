@@ -760,7 +760,7 @@ export const OutletAddon = ({
             top: box.top,
             width: box.width,
             height: box.height,
-            border: "1px solid #ff00ff",
+            border: "1px solid #000",
             pointerEvents: "none",
             zIndex: 9999,
           }}
