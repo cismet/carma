@@ -1,7 +1,7 @@
 import { useContext } from "react";
 import CustomizationContextProvider from "react-cismap/contexts/CustomizationContextProvider";
 import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
-import { DefaultSettingsPanel } from "@carma-commons/cismap";
+import DefaultSettingsPanel from "@carma-commons/cismap/settings-panel";
 import ModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMenu";
 import Section from "react-cismap/topicmaps/menu/Section";
 import { GenericDigitalTwinReferenceSection } from "@carma-collab/wuppertal/commons";
