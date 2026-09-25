@@ -6,6 +6,7 @@ import {
 } from "@ant-design/icons";
 
 import GraphQLPanel from "./GraphQLPanel";
+import ResultDescription from "./ResultDescription";
 
 const PANE_STYLE = { height: "min(62vh, 520px)", minHeight: 380 };
 
@@ -119,11 +120,7 @@ const WizardModal = ({
                 type="success"
                 showIcon
                 message="Aktion erfolgreich"
-                description={
-                  <span style={{ whiteSpace: "pre-line" }}>
-                    {result.message}
-                  </span>
-                }
+                description={<ResultDescription result={result} />}
               />
             ) : (
               children

@@ -5,7 +5,6 @@ import {
   requireArt,
 } from "../api";
 import { FLURSTUECK_ART } from "../constants";
-import { formatKey } from "../keys";
 import { joinFlurstuecke } from "./join";
 import { splitFlurstuecke } from "./split";
 
@@ -65,10 +64,10 @@ export const joinSplitFlurstuecke = async ({ memberKeys, resultKeys }, ctx) => {
     ctx
   );
 
-  const joined = memberKeys.map((key) => `• ${formatKey(key)}`).join("\n");
-  const created = split.keys.map((key) => `• ${formatKey(key)}`).join("\n");
   return {
-    message: `Die Flurstücke\n${joined}\nkonnten erfolgreich zusammengelegt und in die Flurstücke\n${created}\naufgeteilt werden.`,
+    message: `${memberKeys.length} Flurstücke wurden erfolgreich zusammengelegt und in ${split.keys.length} Flurstücke aufgeteilt.`,
+    from: memberKeys,
+    to: split.keys,
     keys: split.keys,
   };
 };
