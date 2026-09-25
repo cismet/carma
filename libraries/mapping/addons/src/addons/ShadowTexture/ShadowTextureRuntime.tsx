@@ -36,6 +36,7 @@ import {
   type DzbPrmShadowImage,
   type DzbPrmShadowViewBounds,
 } from "./shadow-texture-capture";
+import { DEFAULT_SHADOW_TEXTURE_APPEARANCE } from "./shadow-texture-appearance";
 
 const SOURCE_ID = "__shadow_texture_canvas__";
 const LAYER_ID = "__shadow_texture_raster__";
@@ -45,23 +46,33 @@ const removeImage = (map: MaplibreMap) => {
   if (map.getSource(SOURCE_ID)) map.removeSource(SOURCE_ID);
 };
 
-const showImage = (map: MaplibreMap, image: DzbPrmShadowImage) => {
+const showImage = (
+  map: MaplibreMap,
+  image: DzbPrmShadowImage,
+  appearance: { color: string; intensity: number }
+) => {
   if (!map.isStyleLoaded()) return;
   const source = map.getSource(SOURCE_ID) as
     | maplibregl.CanvasSource
     | undefined;
-  if (source && map.getLayer(LAYER_ID)) {
-    const canvas = source.getCanvas();
-    if (canvas !== image.canvas) {
-      if (canvas.width !== image.canvas.width)
-        canvas.width = image.canvas.width;
-      if (canvas.height !== image.canvas.height)
-        canvas.height = image.canvas.height;
-      const context = canvas.getContext("2d");
-      if (!context) return;
-      context.clearRect(0, 0, canvas.width, canvas.height);
-      context.drawImage(image.canvas, 0, 0);
-    }
+  const existing = source && map.getLayer(LAYER_ID);
+  // Keep the untinted mask separate so appearance changes never rerender GLBs.
+  const canvas = existing
+    ? source.getCanvas()
+    : document.createElement("canvas");
+  if (canvas.width !== image.canvas.width) canvas.width = image.canvas.width;
+  if (canvas.height !== image.canvas.height)
+    canvas.height = image.canvas.height;
+  const context = canvas.getContext("2d");
+  if (!context) return;
+  context.clearRect(0, 0, canvas.width, canvas.height);
+  context.drawImage(image.canvas, 0, 0);
+  context.globalCompositeOperation = "source-in";
+  context.fillStyle = appearance.color;
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  context.globalCompositeOperation = "source-over";
+  if (existing) {
+    map.setPaintProperty(LAYER_ID, "raster-opacity", appearance.intensity);
     if (
       source.coordinates.some(
         (corner, index) =>
@@ -80,7 +91,7 @@ const showImage = (map: MaplibreMap, image: DzbPrmShadowImage) => {
   removeImage(map);
   map.addSource(SOURCE_ID, {
     type: "canvas",
-    canvas: image.canvas,
+    canvas,
     coordinates: image.coordinates,
     animate: false,
   });
@@ -88,7 +99,10 @@ const showImage = (map: MaplibreMap, image: DzbPrmShadowImage) => {
     id: LAYER_ID,
     type: "raster",
     source: SOURCE_ID,
-    paint: { "raster-fade-duration": 0 },
+    paint: {
+      "raster-fade-duration": 0,
+      "raster-opacity": appearance.intensity,
+    },
   });
 };
 
@@ -159,8 +173,12 @@ export const ShadowTextureRuntime = ({
   const [printedBoard, setPrintedBoard] = useState<PrintedBoard | null>(null);
   const [manifestError, setManifestError] = useState<string | null>(null);
   const timeSignature = JSON.stringify(dateState);
-  const [settledTimeSignature, setSettledTimeSignature] =
-    useState(timeSignature);
+  const timeActive = Boolean(
+    shadowState.isAnimating || textureState.timeAdjusting
+  );
+  const [settledTimeSignature, setSettledTimeSignature] = useState<
+    string | null
+  >(timeSignature);
   const [styleReady, setStyleReady] = useState(false);
   const capture = useRef<ReturnType<typeof createDzbPrmShadowCapture> | null>(
     null
@@ -168,6 +186,10 @@ export const ShadowTextureRuntime = ({
   const cache = useRef(createDzbPrmShadowFrameCache());
   const renderQueue = useRef<Promise<void>>(Promise.resolve());
   const lastImage = useRef<DzbPrmShadowImage | null>(null);
+  const color = textureState.color ?? DEFAULT_SHADOW_TEXTURE_APPEARANCE.color;
+  const intensity =
+    textureState.intensity ?? DEFAULT_SHADOW_TEXTURE_APPEARANCE.intensity;
+  const appearance = useRef({ color, intensity });
   const subscribeToScene = useCallback(
     (listener: () => void) => subscribeSharedThreeSceneContent(map, listener),
     [map]
@@ -186,13 +208,17 @@ export const ShadowTextureRuntime = ({
   );
 
   useEffect(() => {
+    if (timeActive) {
+      setSettledTimeSignature(null);
+      return;
+    }
     if (timeSignature === settledTimeSignature) return;
     const timeout = setTimeout(
       () => setSettledTimeSignature(timeSignature),
       1500
     );
     return () => clearTimeout(timeout);
-  }, [settledTimeSignature, timeSignature]);
+  }, [settledTimeSignature, timeSignature, timeActive]);
 
   useEffect(() => {
     let cancelled = false;
@@ -260,10 +286,11 @@ export const ShadowTextureRuntime = ({
   }, [map]);
 
   useEffect(() => {
+    appearance.current = { color, intensity };
     if (shadowState.enabled && styleReady && lastImage.current) {
-      showImage(map, lastImage.current);
+      showImage(map, lastImage.current, appearance.current);
     }
-  }, [map, shadowState.enabled, styleReady]);
+  }, [map, shadowState.enabled, styleReady, color, intensity]);
 
   useEffect(
     () => () => {
@@ -295,7 +322,7 @@ export const ShadowTextureRuntime = ({
   // Interactive playback stays responsive even when the still-image mode
   // requests a full sampled sun disc. Video export is a separate path.
   const sunDiscSamples =
-    shadowState.isAnimating ||
+    timeActive ||
     timeSignature !== settledTimeSignature ||
     textureState.mode === "hard" ||
     textureState.cameraHeightAdjusting
@@ -319,11 +346,6 @@ export const ShadowTextureRuntime = ({
       return;
     }
     const solar = getSolarPosition(dateState, DZ_B_PRM_POSITION);
-    if (solar.elevationDegrees <= 0) {
-      removeImage(map);
-      setTextureState((previous) => ({ ...previous!, status: "night" }));
-      return;
-    }
     let cancelled = false;
     let animationTimer: ReturnType<typeof setTimeout> | undefined;
     const frameKey = JSON.stringify([
@@ -333,6 +355,7 @@ export const ShadowTextureRuntime = ({
       sunDiscSamples,
     ]);
     const render = async () => {
+      if (cancelled) return;
       const cached = await cache.current.get(frameKey);
       if (cancelled) return;
       let image = cached;
@@ -355,7 +378,7 @@ export const ShadowTextureRuntime = ({
                 ? { width: 7680, height: 4320 }
                 : { width: 3840, height: 2160 }
               : undefined,
-          sunDiscSamples,
+          sunDiscSamples: solar.elevationDegrees <= 0 ? 1 : sunDiscSamples,
           viewBounds: view.bounds,
           perspective:
             textureState.captureProjection === "perspective" && printedBoard
@@ -397,12 +420,15 @@ export const ShadowTextureRuntime = ({
       }
       if (cancelled || !image) return;
       lastImage.current = image;
-      showImage(map, image);
+      showImage(map, image, appearance.current);
       setTextureState((previous) => ({
         ...previous!,
-        status: `${image.canvas.width}×${image.canvas.height}${
-          cached ? " Cache" : ""
-        }`,
+        status:
+          solar.elevationDegrees <= 0
+            ? "night"
+            : `${image.canvas.width}×${image.canvas.height}${
+                cached ? " Cache" : ""
+              }`,
       }));
       if (!cached) void cache.current.put(frameKey, image);
       if (shadowState.isAnimating) {

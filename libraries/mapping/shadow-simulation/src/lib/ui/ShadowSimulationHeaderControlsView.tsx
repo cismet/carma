@@ -46,6 +46,7 @@ export const ShadowSimulationHeaderControlsView = ({
   setState,
   dateState,
   setDateState,
+  onTimeInteractionChange,
 }: {
   config?: ShadowSimulationConfig;
   libreMap: MaplibreMap | null;
@@ -53,6 +54,7 @@ export const ShadowSimulationHeaderControlsView = ({
   setState: ShadowSimulationStateSetter;
   dateState: ShadowDateState | undefined;
   setDateState: ShadowDateStateSetter;
+  onTimeInteractionChange?: (active: boolean) => void;
 }) => {
   const {
     latitude = DEFAULT_SHADOW_SIMULATION_LOCATION.latitude,
@@ -201,6 +203,30 @@ export const ShadowSimulationHeaderControlsView = ({
           max={maximumMinutes}
           step={1}
           value={selection.minutes}
+          onPointerDown={(event) => {
+            event.currentTarget.setPointerCapture(event.pointerId);
+            onTimeInteractionChange?.(true);
+          }}
+          onPointerUp={() => onTimeInteractionChange?.(false)}
+          onPointerCancel={() => onTimeInteractionChange?.(false)}
+          onLostPointerCapture={() => onTimeInteractionChange?.(false)}
+          onKeyDown={(event) => {
+            if (
+              [
+                "ArrowLeft",
+                "ArrowRight",
+                "ArrowUp",
+                "ArrowDown",
+                "Home",
+                "End",
+                "PageUp",
+                "PageDown",
+              ].includes(event.key)
+            )
+              onTimeInteractionChange?.(true);
+          }}
+          onKeyUp={() => onTimeInteractionChange?.(false)}
+          onBlur={() => onTimeInteractionChange?.(false)}
           onChange={(event) =>
             publishSelection({
               ...selection,

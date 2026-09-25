@@ -1,7 +1,7 @@
-import { lazy, Suspense, useEffect, useMemo } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo } from "react";
 import { faSun } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { Checkbox, Popover, Radio, Tooltip } from "antd";
+import { Checkbox, ColorPicker, Popover, Radio, Tooltip } from "antd";
 
 import {
   Control,
@@ -20,6 +20,7 @@ import {
 import type { ModelCollectionState } from "../ModelCollection";
 import { DEFAULT_CAPTURE_HEIGHT_METERS } from "./shadow-texture-camera";
 import { DZ_B_PRM_POSITION } from "./shadow-texture-georef";
+import { DEFAULT_SHADOW_TEXTURE_APPEARANCE } from "./shadow-texture-appearance";
 
 export type ShadowTextureConfig = {
   /** Root directory of the independently addressable LOD subdirectories. */
@@ -38,6 +39,9 @@ export type ShadowTextureState = {
   captureProjection: "orthographic" | "perspective";
   cameraHeightMeters: number;
   cameraHeightAdjusting: boolean;
+  timeAdjusting?: boolean;
+  color?: string;
+  intensity?: number;
   status: string;
   shadowOnly: boolean;
 };
@@ -48,6 +52,17 @@ const ShadowTextureRuntime = lazy(() =>
   }))
 );
 
+const INITIAL_TEXTURE_STATE = {
+  quality: "4k",
+  mode: "sun-disc",
+  captureProjection: "orthographic",
+  cameraHeightMeters: DEFAULT_CAPTURE_HEIGHT_METERS,
+  cameraHeightAdjusting: false,
+  status: "idle",
+  shadowOnly: false,
+  ...DEFAULT_SHADOW_TEXTURE_APPEARANCE,
+} satisfies ShadowTextureState;
+
 const ShadowCaptureCameraVisualizer = lazy(() =>
   import("./ShadowCaptureCameraVisualizer").then((module) => ({
     default: module.ShadowCaptureCameraVisualizer,
@@ -57,6 +72,12 @@ const ShadowCaptureCameraVisualizer = lazy(() =>
 const ShadowHeader = lazy(() =>
   import("@carma-mapping/shadow-simulation").then((module) => ({
     default: module.ShadowSimulationHeaderControlsView,
+  }))
+);
+
+const ShadowAnimationSpeedControl = lazy(() =>
+  import("@carma-mapping/shadow-simulation").then((module) => ({
+    default: module.ShadowAnimationSpeedControl,
   }))
 );
 
@@ -97,15 +118,7 @@ export const ShadowTexture = ({
   }, [dateState, initialDateState, setDateState]);
   useEffect(() => {
     if (!textureState) {
-      setTextureState({
-        quality: "4k",
-        mode: "sun-disc",
-        captureProjection: "orthographic",
-        cameraHeightMeters: DEFAULT_CAPTURE_HEIGHT_METERS,
-        cameraHeightAdjusting: false,
-        status: "idle",
-        shadowOnly: false,
-      });
+      setTextureState(INITIAL_TEXTURE_STATE);
     }
   }, [setTextureState, textureState]);
 
@@ -153,7 +166,7 @@ export const ShadowTexture = ({
   if (target) {
     return (
       <div className="flex flex-col gap-3 py-2 text-sm">
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex min-w-0 items-center gap-2 overflow-x-auto whitespace-nowrap">
           <Radio.Group
             aria-label="Auflösung"
             size="small"
@@ -246,6 +259,37 @@ export const ShadowTexture = ({
           </Popover>
         )}
         <div className="flex items-center justify-between gap-3">
+          <ColorPicker
+            size="small"
+            placement="bottomLeft"
+            getPopupContainer={(trigger) => trigger.parentElement ?? trigger}
+            value={`${
+              textureState?.color ?? INITIAL_TEXTURE_STATE.color
+            }${Math.round(
+              (textureState?.intensity ?? INITIAL_TEXTURE_STATE.intensity) * 255
+            )
+              .toString(16)
+              .padStart(2, "0")}`}
+            showText={() => "Farbe / Stärke"}
+            onChange={(color) =>
+              setTextureState((previous) => ({
+                ...(previous ?? INITIAL_TEXTURE_STATE),
+                color: color.toHexString().slice(0, 7),
+                intensity: color.toRgb().a,
+              }))
+            }
+          />
+          <Suspense fallback={null}>
+            <ShadowAnimationSpeedControl
+              value={shadowState?.animationSpeed ?? 4}
+              onChange={(animationSpeed) =>
+                setShadowState((previous) => ({
+                  ...(previous ?? initialShadowState),
+                  animationSpeed,
+                }))
+              }
+            />
+          </Suspense>
           <Checkbox
             checked={textureState?.shadowOnly ?? false}
             onChange={(event) =>
@@ -298,6 +342,20 @@ export const ShadowTexture = ({
 export const ShadowTextureHeaderControls = () => {
   const [state, setState] = useAddonState("shadowSimulation");
   const [dateState, setDateState] = useAddonState("shadowDate");
+  const [, setTextureState] = useAddonState("shadowTexture");
+  const onTimeInteractionChange = useCallback(
+    (timeAdjusting: boolean) =>
+      setTextureState((previous) =>
+        previous?.timeAdjusting === timeAdjusting
+          ? previous
+          : { ...(previous ?? INITIAL_TEXTURE_STATE), timeAdjusting }
+      ),
+    [setTextureState]
+  );
+  useEffect(
+    () => () => onTimeInteractionChange(false),
+    [onTimeInteractionChange]
+  );
   return (
     <Suspense fallback={null}>
       <ShadowHeader
@@ -310,6 +368,7 @@ export const ShadowTextureHeaderControls = () => {
         setState={setState}
         dateState={dateState}
         setDateState={setDateState}
+        onTimeInteractionChange={onTimeInteractionChange}
       />
     </Suspense>
   );

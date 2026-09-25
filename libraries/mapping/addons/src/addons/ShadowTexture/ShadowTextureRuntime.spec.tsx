@@ -52,6 +52,7 @@ const makeProps = (): ComponentProps<typeof ShadowTextureRuntime> => {
       listeners.get(event)?.();
     }),
     triggerRepaint: vi.fn(),
+    setPaintProperty: vi.fn(),
     getSource: () => source,
     getLayer: () => layer,
     addSource: vi.fn((_id, spec) => {
@@ -118,6 +119,7 @@ describe("shadow capture updates", () => {
       (() => ({
         clearRect: vi.fn(),
         drawImage: vi.fn(),
+        fillRect: vi.fn(),
       })) as unknown as HTMLCanvasElement["getContext"]
     );
     mocks.capture.mockImplementation(async () => ({
@@ -134,6 +136,7 @@ describe("shadow capture updates", () => {
     cleanup();
     vi.restoreAllMocks();
     vi.clearAllMocks();
+    vi.useRealTimers();
   });
 
   it("uses the configured manifest when GLBs move to another host and redraws time and height changes", async () => {
@@ -216,8 +219,92 @@ describe("shadow capture updates", () => {
     act(() => {
       props.map.fire("idle");
     });
-    expect(HTMLCanvasElement.prototype.getContext).not.toHaveBeenCalled();
+    const source = props.map.getSource(
+      "__shadow_texture_canvas__"
+    ) as unknown as { getCanvas: () => HTMLCanvasElement };
+    expect(source.getCanvas()).not.toBe(
+      (await mocks.capture.mock.results[0].value).canvas
+    );
     await waitFor(() => expect(mocks.capture).toHaveBeenCalledTimes(2));
     expect(props.map.addSource).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps hard shadows while the slider is held and debounces soft refinement after release or animation stop", async () => {
+    vi.useFakeTimers();
+    const props = makeProps();
+    props.textureState.mode = "sun-disc";
+    const view = render(<ShadowTextureRuntime {...props} />);
+    const flush = (ms = 0) =>
+      act(async () => {
+        await vi.advanceTimersByTimeAsync(ms);
+      });
+    await flush();
+    expect(mocks.capture.mock.lastCall![0].sunDiscSamples).toBe(64);
+
+    props.textureState = { ...props.textureState, timeAdjusting: true };
+    view.rerender(<ShadowTextureRuntime {...props} />);
+    await flush(5000);
+    expect(mocks.capture.mock.lastCall![0].sunDiscSamples).toBe(1);
+    const heldCount = mocks.capture.mock.calls.length;
+    props.dateState = { ...props.dateState, minutes: 700 };
+    view.rerender(<ShadowTextureRuntime {...props} />);
+    await flush(5000);
+    expect(
+      mocks.capture.mock.calls
+        .slice(heldCount)
+        .every(([options]) => options.sunDiscSamples === 1)
+    ).toBe(true);
+
+    props.textureState = { ...props.textureState, timeAdjusting: false };
+    view.rerender(<ShadowTextureRuntime {...props} />);
+    await flush(1499);
+    expect(mocks.capture.mock.lastCall![0].sunDiscSamples).toBe(1);
+    await flush(1);
+    expect(mocks.capture.mock.lastCall![0].sunDiscSamples).toBe(64);
+
+    props.shadowState = { ...props.shadowState, isAnimating: true };
+    view.rerender(<ShadowTextureRuntime {...props} />);
+    await flush(5000);
+    expect(mocks.capture.mock.lastCall![0].sunDiscSamples).toBe(1);
+    props.shadowState = { ...props.shadowState, isAnimating: false };
+    view.rerender(<ShadowTextureRuntime {...props} />);
+    await flush(1499);
+    expect(mocks.capture.mock.lastCall![0].sunDiscSamples).toBe(1);
+    await flush(1);
+    expect(mocks.capture.mock.lastCall![0].sunDiscSamples).toBe(64);
+  });
+
+  it("updates overlay color and intensity without recapturing and keeps the same appearance at night", async () => {
+    const props = makeProps();
+    const view = render(<ShadowTextureRuntime {...props} />);
+    await waitFor(() => expect(mocks.capture).toHaveBeenCalledTimes(1));
+    props.textureState = {
+      ...props.textureState,
+      color: "#123456",
+      intensity: 0.45,
+    };
+    view.rerender(<ShadowTextureRuntime {...props} />);
+    expect(mocks.capture).toHaveBeenCalledTimes(1);
+    expect(props.map.setPaintProperty).toHaveBeenLastCalledWith(
+      "__shadow_texture_raster__",
+      "raster-opacity",
+      0.45
+    );
+    const contexts = vi.mocked(HTMLCanvasElement.prototype.getContext).mock
+      .results;
+    expect(contexts.at(-1)!.value.fillStyle).toBe("#123456");
+
+    props.dateState = { ...props.dateState, minutes: 0 };
+    view.rerender(<ShadowTextureRuntime {...props} />);
+    await waitFor(() => expect(mocks.capture).toHaveBeenCalledTimes(2));
+    expect(mocks.capture.mock.lastCall![0].sunElevationDegrees).toBeLessThan(0);
+    expect(mocks.capture.mock.lastCall![0].sunDiscSamples).toBe(1);
+    expect(props.map.addSource).toHaveBeenCalledTimes(1);
+    expect(props.map.setPaintProperty).toHaveBeenLastCalledWith(
+      "__shadow_texture_raster__",
+      "raster-opacity",
+      0.45
+    );
+    expect(contexts.at(-1)!.value.fillStyle).toBe("#123456");
   });
 });

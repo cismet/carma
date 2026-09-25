@@ -1,4 +1,5 @@
 import { getDayOfYear } from "@carma-commons/utils";
+import { ShadowAnimationSpeedControl } from "./ShadowAnimationSpeedControl";
 
 import {
   SHADOW_ANIMATION_MODE,
@@ -146,23 +147,12 @@ export const ShadowSimulationQuickSettings = ({
               </button>
             ))}
           </div>
-          <div className="flex shrink-0 overflow-hidden rounded-md border border-neutral-300">
-            {([1, 4, 12] as const).map((speed) => (
-              <button
-                key={speed}
-                type="button"
-                className={`${SEGMENT_BUTTON_CLASS_NAME} px-3 ${
-                  animationSpeed === speed
-                    ? "bg-amber-50 font-medium text-amber-700"
-                    : "bg-white"
-                }`}
-                aria-pressed={animationSpeed === speed}
-                onClick={() => setState({ ...state, animationSpeed: speed })}
-              >
-                {speed}×
-              </button>
-            ))}
-          </div>
+          <ShadowAnimationSpeedControl
+            value={animationSpeed}
+            onChange={(animationSpeed) =>
+              setState({ ...state, animationSpeed })
+            }
+          />
         </div>
       </section>
     </>

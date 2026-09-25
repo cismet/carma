@@ -180,7 +180,7 @@ export const createDzbPrmShadowCapture = () => {
   depthMaterial.colorWrite = false;
   const shadowMaterial = new THREE.ShadowMaterial({
     color: 0x000000,
-    opacity: 0.7,
+    opacity: 1,
     side: THREE.DoubleSide,
   });
   shadowMaterial.depthFunc = THREE.EqualDepth;
@@ -299,6 +299,25 @@ export const createDzbPrmShadowCapture = () => {
         1,
         Math.min(maxImageSize, Math.ceil(size.z * effectivePixelsPerMeter))
       );
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const context = canvas.getContext("2d");
+      if (!context) return null;
+      const image: DzbPrmShadowImage = {
+        canvas,
+        coordinates: [
+          dzbPrmLocalToLonLat(imageBounds.min.x, imageBounds.min.z),
+          dzbPrmLocalToLonLat(imageBounds.max.x, imageBounds.min.z),
+          dzbPrmLocalToLonLat(imageBounds.max.x, imageBounds.max.z),
+          dzbPrmLocalToLonLat(imageBounds.min.x, imageBounds.max.z),
+        ],
+      };
+      if (sunElevationDegrees <= 0) {
+        context.fillStyle = "#000000";
+        context.fillRect(0, 0, width, height);
+        return image;
+      }
       const camera = perspective
         ? createPrintedModelCaptureCamera(
             imageBounds,
@@ -443,13 +462,6 @@ export const createDzbPrmShadowCapture = () => {
       if (catalogCaster) catalogCaster.visible = true;
       renderer.shadowMap.enabled = true;
       scene.overrideMaterial = shadowMaterial;
-      // A new canvas keeps the previous MapLibre source stable until the new
-      // cropped extent and pixels are swapped in together.
-      const canvas = document.createElement("canvas");
-      canvas.width = width;
-      canvas.height = height;
-      const context = canvas.getContext("2d");
-      if (!context) return null;
       const tangentA = new THREE.Vector3();
       if (Math.abs(physicalDirectionToSun.y) > 0.99) tangentA.set(1, 0, 0);
       else
@@ -463,7 +475,7 @@ export const createDzbPrmShadowCapture = () => {
       context.globalCompositeOperation = "lighter";
       context.globalAlpha = 1 / sunDiscSamples;
       for (let sample = 0; sample < sunDiscSamples; sample += 1) {
-        if (sample > 0 && sample % 8 === 0) {
+        if (sample > 0) {
           onSampleProgress?.(sample, sunDiscSamples);
           await new Promise<void>((resolve) =>
             requestAnimationFrame(() => resolve())
@@ -518,15 +530,7 @@ export const createDzbPrmShadowCapture = () => {
       onSampleProgress?.(sunDiscSamples, sunDiscSamples);
       context.globalAlpha = 1;
       context.globalCompositeOperation = "source-over";
-      return {
-        canvas,
-        coordinates: [
-          dzbPrmLocalToLonLat(imageBounds.min.x, imageBounds.min.z),
-          dzbPrmLocalToLonLat(imageBounds.max.x, imageBounds.min.z),
-          dzbPrmLocalToLonLat(imageBounds.max.x, imageBounds.max.z),
-          dzbPrmLocalToLonLat(imageBounds.min.x, imageBounds.max.z),
-        ],
-      };
+      return image;
     } finally {
       renderer.shadowMap.enabled = true;
       scene.overrideMaterial = null;
