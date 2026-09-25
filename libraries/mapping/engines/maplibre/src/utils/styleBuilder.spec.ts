@@ -90,3 +90,40 @@ describe("vectorStylesToMapLibreStyle 3D terrain metadata", () => {
     ).toBeUndefined();
   });
 });
+
+describe("vectorStylesToMapLibreStyle layer opacity", () => {
+  it("fades a circle's stroke along with its fill", async () => {
+    const circleStyle = {
+      version: 8,
+      sources: {
+        points: {
+          type: "geojson",
+          data: { type: "FeatureCollection", features: [] },
+        },
+      },
+      layers: [
+        {
+          id: "wendehammer",
+          type: "circle",
+          source: "points",
+          paint: {
+            "circle-color": "#ffffff",
+            "circle-stroke-color": "#a1a1a1",
+            "circle-stroke-width": 1,
+          },
+        },
+      ],
+    } as StyleSpecification;
+
+    const { style } = await vectorStylesToMapLibreStyle({
+      layers: [
+        { type: "vector", name: "stadtplan", style: circleStyle, opacity: 0.2 },
+      ],
+      backgroundStyle: { version: 8, sources: {}, layers: [] },
+    });
+
+    const paint = style.layers?.[0]?.paint as Record<string, unknown>;
+    expect(paint["circle-opacity"]).toBeCloseTo(0.2);
+    expect(paint["circle-stroke-opacity"]).toBeCloseTo(0.2);
+  });
+});

@@ -784,10 +784,13 @@ export const vectorStylesToMapLibreStyle = async ({
                 ...(() => {
                   if (styleLayer.id.toLowerCase().includes("selection"))
                     return {};
-                  // Symbol layers need both text-opacity and icon-opacity
+                  // Symbol layers need both text-opacity and icon-opacity,
+                  // circle layers their stroke as well as their fill
                   const props =
                     styleLayer.type === "symbol"
                       ? ["text-opacity", "icon-opacity"]
+                      : styleLayer.type === "circle"
+                      ? ["circle-opacity", "circle-stroke-opacity"]
                       : ([getPaintProperty(styleLayer)].filter(
                           Boolean
                         ) as string[]);
