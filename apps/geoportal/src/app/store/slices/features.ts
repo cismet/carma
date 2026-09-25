@@ -26,7 +26,54 @@ const getOwnerLayerId = (feature: FeatureInfo): string | undefined => {
   return typeof id === "string" ? id : undefined;
 };
 
-const initialState: FeatureInfoState = {
+// A feature built from a vector hit (createVectorFeature); its properties come
+// from the layer's InfoBox mapping, so they are open-ended.
+export type VectorFeatureInfo = FeatureInfo & {
+  vectorId?: string | number;
+  properties: FeatureInfo["properties"] & Record<string, any>;
+};
+
+type GeoportalFeatureInfoState = FeatureInfoState & {
+  /**
+   * All features of one source under the clicked point (e.g. overlapping
+   * cracks), topmost first. The selected feature is one of them; the info box
+   * steps through them. Empty when the click hit a single feature.
+   */
+  overlappingFeatures: VectorFeatureInfo[];
+};
+
+const isSameFeature = (a: VectorFeatureInfo, b: VectorFeatureInfo) =>
+  a.id === b.id &&
+  a.vectorId === b.vectorId &&
+  a.sourceFeature?.source === b.sourceFeature?.source;
+
+export const findOverlappingIndex = (
+  overlappingFeatures: VectorFeatureInfo[],
+  feature: VectorFeatureInfo | null
+) =>
+  feature
+    ? overlappingFeatures.findIndex((f) => isSameFeature(f, feature))
+    : -1;
+
+// A selection from outside the group (other click, search, panorama hop,
+// layer removal) ends the stepping.
+const setSelection = (
+  state: GeoportalFeatureInfoState,
+  feature: FeatureInfo | null
+) => {
+  state.selectedFeature = feature;
+  if (
+    findOverlappingIndex(
+      state.overlappingFeatures,
+      feature as VectorFeatureInfo | null
+    ) < 0
+  ) {
+    state.overlappingFeatures = [];
+  }
+};
+
+const initialState: GeoportalFeatureInfoState = {
+  overlappingFeatures: [],
   features: [],
   infoText: EMPTY_INFO_TEXT,
   nothingFoundIDs: [],
@@ -66,7 +113,14 @@ const slice = createSlice({
     },
 
     setSelectedFeature(state, action: PayloadAction<FeatureInfo | null>) {
-      state.selectedFeature = action.payload;
+      setSelection(state, action.payload);
+    },
+    setOverlappingFeatures(
+      state,
+      action: PayloadAction<VectorFeatureInfo[]>
+    ) {
+      state.overlappingFeatures =
+        action.payload.length > 1 ? action.payload : [];
     },
     updateInfoElementsAfterRemovingFeature(
       state,
@@ -74,11 +128,11 @@ const slice = createSlice({
     ) {
       const id = action.payload;
       if (state.selectedFeature?.id === id) {
-        state.selectedFeature = null;
+        setSelection(state, null);
 
         if (state.secondaryInfoBoxElements.length > 0) {
           const selectedFeature = state.secondaryInfoBoxElements[0];
-          state.selectedFeature = selectedFeature;
+          setSelection(state, selectedFeature);
           state.secondaryInfoBoxElements =
             state.secondaryInfoBoxElements.filter(
               (f) => f.id !== selectedFeature.id
@@ -104,7 +158,7 @@ const slice = createSlice({
         (feature) => !isOfRemovedLayer(feature)
       );
       if (state.selectedFeature && isOfRemovedLayer(state.selectedFeature)) {
-        state.selectedFeature = remaining[0] ?? null;
+        setSelection(state, remaining[0] ?? null);
         state.secondaryInfoBoxElements = remaining.slice(1);
         return;
       }
@@ -113,7 +167,7 @@ const slice = createSlice({
       }
     },
     clearSelectedFeature(state) {
-      state.selectedFeature = null;
+      setSelection(state, null);
     },
 
     addNothingFoundID(state, action: PayloadAction<string>) {
@@ -212,6 +266,7 @@ export const {
   clearFeatures,
 
   setSelectedFeature,
+  setOverlappingFeatures,
   updateInfoElementsAfterRemovingFeature,
   dropInfoElementsOfLayers,
   clearSelectedFeature,
@@ -250,6 +305,8 @@ export const {
 export const getFeatures = (state: RootState) => state.features.features;
 export const getSelectedFeature = (state: RootState) =>
   state.features.selectedFeature;
+export const getOverlappingFeatures = (state: RootState) =>
+  state.features.overlappingFeatures;
 export const getInfoText = (state: RootState) => state.features.infoText;
 export const getNothingFoundIDs = (state: RootState) =>
   state.features.nothingFoundIDs;
