@@ -9,6 +9,13 @@ import type { FachzwillingRoute } from ".";
 const PROJECTION_MAPPING_STYLES = "https://tiles.cismet.de/projection_mapping";
 
 /**
+ * The outline of the projection area ("Projektionsbereich"). It darkens
+ * everything outside the area the projector covers, which helps while the
+ * show is put together and has nothing to do on the model itself.
+ */
+const PROJECTION_AREA_STYLE = `${PROJECTION_MAPPING_STYLES}/umriss.style.json`;
+
+/**
  * Zoom gate of the flow field cards. The projection area is about 3.6 by 2 km,
  * which a projector 1920 pixels wide shows at zoom 14.7; the cards' own gate of
  * 16 would keep the animation still on the whole model.
@@ -75,6 +82,8 @@ export const projectionMappingFachzwilling: FachzwillingRoute = {
         remoteUrl: PM_REMOTE_URL,
         ...(SHOW_STORE_URL ? { storeUrl: SHOW_STORE_URL } : {}),
         ...(SHOW_READ_URL ? { readUrl: SHOW_READ_URL } : {}),
+        // pre-ticked in the panel's "Nicht in der Show" list
+        excludeLayers: [PROJECTION_AREA_STYLE],
       },
     },
   ],
@@ -90,7 +99,7 @@ export const projectionMappingFachzwilling: FachzwillingRoute = {
       Title: "Projection Mapping",
       layers: [
         {
-          styleUrl: `${PROJECTION_MAPPING_STYLES}/umriss.style.json`,
+          styleUrl: PROJECTION_AREA_STYLE,
           // everything outside the projection area is darkened by this layer,
           // so it has to stay above whatever is added after it
           tools: ["alwaysOnTop"],
