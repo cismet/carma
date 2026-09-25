@@ -81,11 +81,10 @@ export const joinFlurstuecke = async ({ memberKeys, resultKey }, ctx) => {
       );
     }
 
-    const joined = memberKeys
-      .map((memberKey) => `• ${formatKey(memberKey)}`)
-      .join("\n");
     return {
-      message: `Die Flurstücke\n${joined}\nkonnten erfolgreich zu dem Flurstück "${newKeyString}" zusammengelegt werden.`,
+      message: `${memberKeys.length} Flurstücke wurden erfolgreich zusammengelegt.`,
+      from: memberKeys,
+      to: [created],
       keys: [created],
     };
   } finally {
