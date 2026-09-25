@@ -1,4 +1,4 @@
-import type { Show } from "@carma-mapping/show-remote";
+import { withStories, type Show } from "@carma-mapping/show-remote";
 
 import type { ShowDraft } from "./show-draft";
 
@@ -43,9 +43,12 @@ export const draftFromShow = (
 ): ShowDraft => {
   const editToken =
     current.published?.key === key ? current.published.editToken : undefined;
+  // a show from before stories gets one for all its scenes
+  const { stories, scenes } = withStories(show);
   return {
     title: show.title,
-    scenes: show.scenes,
+    stories,
+    scenes,
     published: {
       key,
       // older shows may come without it

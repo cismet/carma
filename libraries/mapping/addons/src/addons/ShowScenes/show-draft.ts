@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 
-import type { ShowScene } from "@carma-mapping/show-remote";
+import {
+  withStories,
+  type ShowScene,
+  type ShowStory,
+} from "@carma-mapping/show-remote";
 
 /**
  * The show being put together on the desktop: scenes collect here until they
@@ -9,7 +13,20 @@ import type { ShowScene } from "@carma-mapping/show-remote";
  */
 export type ShowDraft = {
   title: string;
+  /** the folders the scenes are in, see `withStories`; never empty once read */
+  stories?: ShowStory[];
   scenes: ShowScene[];
+  /**
+   * Layer ids a publish leaves out of every scene. Absent until the panel's
+   * list is first changed; until then the addon config's `excludeLayers`
+   * applies.
+   */
+  excludedLayerIds?: string[];
+  /**
+   * Per scene id, the layers a publish leaves out of that scene. A scene
+   * without an entry uses `excludedLayerIds`, or the addon config's list.
+   */
+  excludedLayerIdsByScene?: Record<string, string[]>;
   /**
    * The last publish, so its link stays at hand after a reload, and the token
    * that lets the next publish replace the show under the same key. Only this
@@ -28,7 +45,10 @@ export type ShowDraft = {
 
 export const SHOW_DRAFT_STORAGE_PREFIX = "carma::showScenes";
 
-const EMPTY_DRAFT: ShowDraft = { title: "Projection Mapping", scenes: [] };
+const EMPTY_DRAFT: ShowDraft = withStories({
+  title: "Projection Mapping",
+  scenes: [],
+});
 
 const LOG_PREFIX = "[SHOW SCENES]";
 
@@ -39,14 +59,30 @@ const readDraft = (key: string): ShowDraft => {
       return EMPTY_DRAFT;
     }
     const parsed = JSON.parse(raw) as Partial<ShowDraft>;
-    return {
+    // a draft from before stories gets one for all its scenes
+    return withStories({
       title:
         typeof parsed.title === "string" ? parsed.title : EMPTY_DRAFT.title,
+      ...(Array.isArray(parsed.stories) ? { stories: parsed.stories } : {}),
       scenes: Array.isArray(parsed.scenes) ? parsed.scenes : [],
+      ...(Array.isArray(parsed.excludedLayerIds)
+        ? {
+            excludedLayerIds: parsed.excludedLayerIds.filter(
+              (id): id is string => typeof id === "string"
+            ),
+          }
+        : {}),
+      ...(parsed.excludedLayerIdsByScene &&
+      typeof parsed.excludedLayerIdsByScene === "object"
+        ? { excludedLayerIdsByScene: parsed.excludedLayerIdsByScene }
+        : {}),
       ...(parsed.published ? { published: parsed.published } : {}),
-    };
+    });
   } catch (error) {
-    console.warn(`${LOG_PREFIX} stored draft unreadable, starting empty`, error);
+    console.warn(
+      `${LOG_PREFIX} stored draft unreadable, starting empty`,
+      error
+    );
     return EMPTY_DRAFT;
   }
 };
@@ -77,20 +113,4 @@ export const useShowDraft = (
   );
 
   return [draft, update];
-};
-
-/** move the scene at `from` by `delta` places, clamped to the list */
-export const moveScene = (
-  scenes: ShowScene[],
-  from: number,
-  delta: number
-): ShowScene[] => {
-  const to = Math.max(0, Math.min(scenes.length - 1, from + delta));
-  if (to === from) {
-    return scenes;
-  }
-  const next = [...scenes];
-  const [moved] = next.splice(from, 1);
-  next.splice(to, 0, moved);
-  return next;
 };

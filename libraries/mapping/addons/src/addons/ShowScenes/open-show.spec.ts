@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  FIRST_STORY_ID,
+  FIRST_STORY_TITLE,
   SHOW_FORMAT,
   SHOW_VERSION,
   type Show,
@@ -58,8 +60,24 @@ describe("draftFromShow", () => {
   it("takes the show's title and scenes and keeps nothing else of the draft", () => {
     const draft = draftFromShow(show, "other", current, NOW);
     expect(draft.title).toBe("Hochwasser");
-    expect(draft.scenes).toEqual(show.scenes);
-    expect(Object.keys(draft).sort()).toEqual(["published", "scenes", "title"]);
+    expect(draft.scenes.map(({ id }) => id)).toEqual(["s1", "s2"]);
+    expect(Object.keys(draft).sort()).toEqual([
+      "published",
+      "scenes",
+      "stories",
+      "title",
+    ]);
+  });
+
+  it("puts the scenes of a show from before stories into the first story", () => {
+    const draft = draftFromShow(show, "other", current, NOW);
+    expect(draft.stories).toEqual([
+      { id: FIRST_STORY_ID, title: FIRST_STORY_TITLE },
+    ]);
+    expect(draft.scenes.map(({ story }) => story)).toEqual([
+      FIRST_STORY_ID,
+      FIRST_STORY_ID,
+    ]);
   });
 
   it("keeps the edit token when this browser published the key", () => {
