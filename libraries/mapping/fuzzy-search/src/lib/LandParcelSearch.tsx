@@ -58,7 +58,6 @@ export type LandParcelSearchProps = {
   onOptionSelect?: (option: Option) => void;
   /** Replaces the default "Kein Flurstück gefunden" toast. */
   onNotFound?: (input: string) => void;
-  /** Greys out the Gemarkung and Flur while typing; off for one plain text style. */
   dimPrefix?: boolean;
 };
 
