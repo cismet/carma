@@ -1,9 +1,18 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent,
+  type ReactNode,
+} from "react";
 
 import type { MappingConfigLayer } from "@carma-api";
 import {
   layerOpacity,
   layerTitle,
+  storyGroups,
   type RelayTarget,
   type Show,
   type ShowScene,
@@ -13,12 +22,7 @@ import { showErrorText } from "./messages";
 import { PointerPanel } from "./PointerPanel";
 import { SeriesControl } from "./SeriesControl";
 import { SettingsPanel } from "./SettingsPanel";
-import {
-  FADE_CHOICES,
-  loadSettings,
-  saveSettings,
-  type RemoteSettings,
-} from "./settings";
+import { loadSettings, saveSettings, type RemoteSettings } from "./settings";
 import { loadShow } from "./show-cache";
 import { useDisplay, type Connection } from "./useDisplay";
 import { usePointer } from "./usePointer";
@@ -46,11 +50,89 @@ const CONNECTION_DOT: Record<Connection, string> = {
   error: "bg-red-500",
 };
 
-const fadeLabel = (ms: number): string =>
-  ms === 0 ? "Schnitt" : `${(ms / 1000).toLocaleString("de-DE")} s`;
-
 const isTyping = (target: EventTarget | null): boolean =>
   target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement;
+
+const LONG_PRESS_MS = 500;
+
+/**
+ * A tap and a long press on the same element. The long press swallows the
+ * click the browser sends when the finger lifts.
+ */
+const useTapOrLongPress = (onTap: () => void, onLongPress: () => void) => {
+  const timerRef = useRef<number | null>(null);
+  const firedRef = useRef(false);
+  const cancel = () => {
+    if (timerRef.current !== null) {
+      window.clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  };
+  useEffect(
+    () => () => {
+      if (timerRef.current !== null) {
+        window.clearTimeout(timerRef.current);
+      }
+    },
+    []
+  );
+  return {
+    onPointerDown: () => {
+      firedRef.current = false;
+      cancel();
+      timerRef.current = window.setTimeout(() => {
+        timerRef.current = null;
+        firedRef.current = true;
+        onLongPress();
+      }, LONG_PRESS_MS);
+    },
+    onPointerUp: cancel,
+    onPointerLeave: cancel,
+    onPointerCancel: cancel,
+    // the long press would otherwise open the phone's own menu
+    onContextMenu: (event: MouseEvent) => event.preventDefault(),
+    onClick: () => {
+      if (firedRef.current) {
+        firedRef.current = false;
+        return;
+      }
+      onTap();
+    },
+  };
+};
+
+const Sheet = ({
+  title,
+  onClose,
+  children,
+}: {
+  title: string;
+  onClose: () => void;
+  children: ReactNode;
+}) => (
+  <div
+    role="dialog"
+    aria-modal="true"
+    aria-label={title}
+    className="fixed inset-0 z-20 flex flex-col bg-neutral-950 pt-safe-top-xs"
+  >
+    <div className="mx-auto flex w-full max-w-3xl items-center gap-3 px-4 py-3">
+      <h2 className="m-0 min-w-0 flex-1 truncate text-lg font-semibold">
+        {title}
+      </h2>
+      <button
+        type="button"
+        onClick={onClose}
+        className="min-h-[44px] rounded-lg bg-neutral-800 px-4 text-sm active:bg-neutral-700"
+      >
+        Schließen
+      </button>
+    </div>
+    <div className="mx-auto w-full max-w-3xl flex-1 overflow-y-auto px-4 pb-safe-bottom-xs">
+      {children}
+    </div>
+  </div>
+);
 
 const LayerSlider = ({
   layer,
@@ -96,6 +178,9 @@ export const App = () => {
     () => settings.code === "" || settings.showKey === ""
   );
   const [showLoad, setShowLoad] = useState<ShowLoad>({ status: "none" });
+  const [sheet, setSheet] = useState<"layers" | null>(null);
+  // null is the overview of all stories
+  const [openStoryId, setOpenStoryId] = useState<string | null>(null);
 
   const { relayBaseUrl, code, showKey, fadeMs } = settings;
   const target = useMemo<RelayTarget | null>(
@@ -158,8 +243,7 @@ export const App = () => {
     };
   }, [showKey]);
 
-  const scenes =
-    showLoad.status === "ready" ? showLoad.show.scenes : NO_SCENES;
+  const scenes = showLoad.status === "ready" ? showLoad.show.scenes : NO_SCENES;
   const display = useDisplay(target, scenes, fadeMs);
   const {
     activeSceneId,
@@ -177,23 +261,49 @@ export const App = () => {
     setSettings(next);
   }, []);
 
-  const activeIndex = scenes.findIndex(({ id }) => id === activeSceneId);
+  const groups = useMemo(
+    () => (showLoad.status === "ready" ? storyGroups(showLoad.show) : []),
+    [showLoad]
+  );
+  const liveGroup = groups.find((group) =>
+    group.scenes.some(({ id }) => id === activeSceneId)
+  );
+  // a story that a republish removed falls back to the overview
+  const openGroup = groups.find(({ story }) => story.id === openStoryId);
+  /**
+   * Weiter and Zurück stay in the open story, or in the live one on the
+   * overview, where only a clicker's keys reach them. In a story that is not
+   * live, Weiter starts its first scene.
+   */
+  const walk =
+    openGroup?.scenes ?? liveGroup?.scenes ?? groups.at(0)?.scenes ?? NO_SCENES;
+  const activeIndex = walk.findIndex(({ id }) => id === activeSceneId);
+  const activeScene = activeIndex >= 0 ? walk[activeIndex] : undefined;
   const step = useCallback(
     (delta: number) => {
-      // with no scene on the display yet, either direction starts the show
       const nextIndex = activeIndex < 0 ? 0 : activeIndex + delta;
       if (
         nextIndex !== activeIndex &&
         nextIndex >= 0 &&
-        nextIndex < scenes.length
+        nextIndex < walk.length
       ) {
-        goToScene(scenes[nextIndex]);
+        goToScene(walk[nextIndex]);
       }
     },
-    [scenes, activeIndex, goToScene]
+    [walk, activeIndex, goToScene]
   );
   const canGoBack = activeIndex > 0;
-  const canGoOn = scenes.length > 0 && activeIndex < scenes.length - 1;
+  const canGoOn = walk.length > 0 && activeIndex < walk.length - 1;
+
+  // a tap on the live card opens the live story, a long press the sliders
+  const titlePress = useTapOrLongPress(
+    () => {
+      if (!openGroup && liveGroup) {
+        setOpenStoryId(liveGroup.story.id);
+      }
+    },
+    () => setSheet("layers")
+  );
 
   // a presenter clicker sends the arrow and page keys; "b" and "." black the
   // screen, as in the usual slide programs
@@ -242,32 +352,59 @@ export const App = () => {
     );
   }
 
-  const title =
+  const showTitle =
     showLoad.status === "ready" ? showLoad.show.title : "Fernbedienung";
+  // with no scene on the display yet, Weiter starts with the first
+  const nextTitle = walk.at(activeIndex + 1)?.title;
+
+  const statusText =
+    showLoad.status === "loading"
+      ? "Show wird geladen …"
+      : showLoad.status === "error"
+      ? showLoad.text
+      : showLoad.status === "none"
+      ? "Keine Show gewählt. Unter „Einstellungen“ den Schlüssel eintragen."
+      : scenes.length === 0
+      ? "Die Show hat keine Szenen."
+      : null;
 
   return (
     <div className="mx-auto flex min-h-full max-w-3xl flex-col pt-safe-top-xs">
-      <header className="flex items-center gap-3 px-4 py-3">
-        <div className="min-w-0 flex-1">
-          <h1 className="m-0 truncate text-lg font-semibold">{title}</h1>
-          <div className="flex items-center gap-2 text-xs text-neutral-400">
-            <span
-              className={`inline-block h-2 w-2 rounded-full ${
-                CONNECTION_DOT[display.connection]
-              }`}
-            />
-            <span>
-              {CONNECTION_LABEL[display.connection]}
-              {code ? ` · ${code}` : ""}
-            </span>
-          </div>
-        </div>
+      <header className="flex items-center gap-3 px-4 py-3 text-xs uppercase tracking-[0.2em] text-neutral-400">
+        {openGroup && (
+          <button
+            type="button"
+            onClick={() => setOpenStoryId(null)}
+            className="min-h-[44px] shrink-0 rounded-lg bg-neutral-800 px-3 text-sm normal-case tracking-normal text-neutral-200 active:bg-neutral-700"
+          >
+            ‹ Geschichten
+          </button>
+        )}
+        <span className="min-w-0 flex-1 truncate tabular-nums">
+          {openGroup
+            ? activeScene
+              ? `${openGroup.story.title} · Szene ${activeIndex + 1} / ${
+                  walk.length
+                }`
+              : openGroup.story.title
+            : showTitle}
+        </span>
+        <span className="flex items-center gap-2">
+          <span
+            className={`inline-block h-2 w-2 rounded-full ${
+              CONNECTION_DOT[display.connection]
+            }`}
+          />
+          {CONNECTION_LABEL[display.connection]}
+          {code ? ` · ${code}` : ""}
+        </span>
         <button
           type="button"
           onClick={() => setIsSettingsOpen(true)}
-          className="min-h-[44px] rounded-lg bg-neutral-800 px-4 text-sm active:bg-neutral-700"
+          aria-label="Einstellungen"
+          className="min-h-[44px] min-w-[44px] rounded-lg bg-neutral-800 px-3 text-base normal-case tracking-normal text-neutral-200 active:bg-neutral-700"
         >
-          Verbindung
+          ⋯
         </button>
       </header>
 
@@ -282,101 +419,198 @@ export const App = () => {
         </p>
       )}
 
-      <main className="flex flex-1 flex-col gap-5 px-4 pb-4">
-        <div className="grid grid-cols-2 gap-3">
-          <button
-            type="button"
-            disabled={!live}
-            onClick={() => setBlackout(!isBlackout)}
-            className={`min-h-[64px] rounded-2xl text-lg font-semibold disabled:opacity-40 ${
-              isBlackout
-                ? "bg-red-600 text-white active:bg-red-500"
-                : "border border-neutral-700 bg-neutral-900 text-neutral-100 active:bg-neutral-800"
+      <main className="flex flex-1 flex-col gap-8 px-4 pb-6 pt-4">
+        {statusText ? (
+          <p
+            className={`m-0 text-lg ${
+              showLoad.status === "error" ? "text-red-300" : "text-neutral-400"
             }`}
           >
-            {isBlackout ? "Blackout aus" : "Blackout"}
-          </button>
-          {/* the tap itself has to ask for motion access, iOS allows it only here */}
-          <button
-            type="button"
-            disabled={!target || display.connection !== "connected"}
-            onClick={pointer.open}
-            className="min-h-[64px] rounded-2xl border border-neutral-700 bg-neutral-900 text-lg font-semibold text-neutral-100 active:bg-neutral-800 disabled:opacity-40"
-          >
-            Zeiger
-          </button>
-        </div>
-
-        <section className="flex flex-col gap-2">
-          <h2 className="m-0 text-sm font-medium uppercase tracking-wide text-neutral-500">
-            Szenen
-          </h2>
-          {showLoad.status === "loading" && (
-            <p className="m-0 text-neutral-400">Show wird geladen …</p>
-          )}
-          {showLoad.status === "error" && (
-            <p className="m-0 text-red-300">{showLoad.text}</p>
-          )}
-          {showLoad.status === "none" && (
-            <p className="m-0 text-neutral-400">
-              Keine Show gewählt. Unter „Verbindung“ den Schlüssel eintragen.
-            </p>
-          )}
-          <ol className="m-0 grid list-none grid-cols-2 gap-3 p-0 sm:grid-cols-3">
-            {scenes.map((scene, index) => {
-              const isActive = scene.id === activeSceneId;
-              return (
-                <li key={scene.id}>
-                  <button
-                    type="button"
-                    disabled={!target}
-                    onClick={() => goToScene(scene)}
-                    className={`flex min-h-[88px] w-full flex-col items-start justify-between rounded-2xl p-3 text-left disabled:opacity-40 ${
-                      isActive
-                        ? "bg-amber-400 text-neutral-950"
-                        : "bg-neutral-800 text-neutral-100 active:bg-neutral-700"
-                    }`}
-                  >
-                    <span className="text-xs tabular-nums opacity-70">
-                      {index + 1}
-                    </span>
-                    <span className="text-base font-semibold leading-tight">
-                      {scene.title}
-                    </span>
-                  </button>
-                </li>
-              );
-            })}
-          </ol>
-        </section>
-
-        <section className="flex flex-col gap-2">
-          <h2 className="m-0 text-sm font-medium uppercase tracking-wide text-neutral-500">
-            Übergang
-          </h2>
-          <div className="grid grid-cols-4 gap-2">
-            {FADE_CHOICES.map((choice) => (
+            {statusText}
+          </p>
+        ) : openGroup ? (
+          <>
+            <div className="flex flex-col gap-3">
+              {/* long press: the layer sliders */}
               <button
-                key={choice}
                 type="button"
-                onClick={() => updateSettings({ ...settings, fadeMs: choice })}
-                className={`min-h-[48px] rounded-xl text-sm ${
-                  fadeMs === choice
-                    ? "bg-neutral-100 font-semibold text-neutral-950"
-                    : "bg-neutral-800 text-neutral-200 active:bg-neutral-700"
-                }`}
+                {...titlePress}
+                className="select-none bg-transparent p-0 text-left text-neutral-100 [-webkit-touch-callout:none]"
               >
-                {fadeLabel(choice)}
+                <span className="block text-xs font-semibold uppercase tracking-[0.2em] text-amber-400">
+                  {activeScene ? "Auf dem Modell" : "Bereit"}
+                </span>
+                <span className="mt-3 block break-words text-4xl font-bold leading-tight tracking-tight sm:text-5xl">
+                  {activeScene ? activeScene.title : openGroup.story.title}
+                </span>
               </button>
-            ))}
-          </div>
-        </section>
+              {activeScene?.text && (
+                <p className="m-0 whitespace-pre-line text-base leading-relaxed text-neutral-300">
+                  {activeScene.text}
+                </p>
+              )}
+            </div>
 
-        {live && live.layers.length > 0 && (
-          <section className="flex flex-col">
-            <h2 className="m-0 text-sm font-medium uppercase tracking-wide text-neutral-500">
-              Ebenen {isChanging ? "· Übergang läuft" : ""}
-            </h2>
+            <div className="flex flex-col gap-3">
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  disabled={!target || !canGoBack}
+                  onClick={() => step(-1)}
+                  aria-label="Zurück"
+                  className="min-h-[96px] rounded-2xl border border-neutral-700 bg-neutral-900 text-2xl active:bg-neutral-800 disabled:opacity-40"
+                >
+                  ‹
+                </button>
+                <button
+                  type="button"
+                  disabled={!target || !canGoOn}
+                  onClick={() => step(1)}
+                  aria-label="Weiter"
+                  className="min-h-[96px] rounded-2xl bg-neutral-100 text-2xl text-neutral-950 active:bg-neutral-300 disabled:opacity-40"
+                >
+                  ›
+                </button>
+              </div>
+              {nextTitle && (
+                <p className="m-0 truncate text-sm text-neutral-400">
+                  Als Nächstes: {nextTitle}
+                </p>
+              )}
+            </div>
+
+            {display.series && display.seriesClock && (
+              <SeriesControl
+                series={display.series}
+                clock={display.seriesClock}
+                disabled={!target}
+                onPlay={display.setSeriesPlaying}
+                onSeek={display.seekSeries}
+              />
+            )}
+            {walk.length === 0 ? (
+              <p className="m-0 text-sm text-neutral-500">Keine Szenen.</p>
+            ) : (
+              <ol className="m-0 flex list-none flex-col gap-2 p-0">
+                {walk.map((scene, index) => {
+                  const isActive = scene.id === activeSceneId;
+                  return (
+                    <li key={scene.id}>
+                      <button
+                        type="button"
+                        disabled={!target}
+                        onClick={() => goToScene(scene)}
+                        className={`flex min-h-[64px] w-full items-center gap-4 rounded-2xl px-4 text-left disabled:opacity-40 ${
+                          isActive
+                            ? "border border-amber-400 bg-amber-950 text-neutral-100"
+                            : "bg-neutral-900 text-neutral-200 active:bg-neutral-800"
+                        }`}
+                      >
+                        <span className="w-6 text-sm tabular-nums text-neutral-500">
+                          {String(index + 1).padStart(2, "0")}
+                        </span>
+                        <span className="text-lg font-semibold leading-tight">
+                          {scene.title}
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ol>
+            )}
+          </>
+        ) : (
+          <>
+            {/* tap: the live story, long press: the layer sliders */}
+            <button
+              type="button"
+              {...titlePress}
+              className="flex select-none flex-col rounded-2xl border border-neutral-800 bg-neutral-900 p-5 text-left text-neutral-100 [-webkit-touch-callout:none] active:bg-neutral-800"
+            >
+              <span className="block text-xs font-semibold uppercase tracking-[0.2em] text-amber-400">
+                {activeScene ? "Auf dem Modell" : "Bereit"}
+              </span>
+              <span className="mt-3 block break-words text-4xl font-bold leading-tight tracking-tight">
+                {activeScene ? activeScene.title : showTitle}
+              </span>
+              {activeScene && liveGroup && (
+                <span className="mt-3 block text-xs uppercase tracking-[0.2em] text-neutral-400 tabular-nums">
+                  {`${liveGroup.story.title} · Szene ${activeIndex + 1} / ${
+                    walk.length
+                  }`}
+                </span>
+              )}
+            </button>
+
+            <ol className="m-0 grid list-none grid-cols-2 gap-3 p-0">
+              {groups.map(({ story, scenes: storyScenes }, index) => {
+                const isLive = story.id === liveGroup?.story.id;
+                return (
+                  <li key={story.id}>
+                    <button
+                      type="button"
+                      onClick={() => setOpenStoryId(story.id)}
+                      className={`flex min-h-[128px] w-full flex-col justify-between gap-4 rounded-2xl border p-4 text-left ${
+                        isLive
+                          ? "border-amber-400 bg-amber-950 text-neutral-100"
+                          : "border-neutral-800 bg-neutral-900 text-neutral-200 active:bg-neutral-800"
+                      }`}
+                    >
+                      <span className="text-sm tabular-nums text-neutral-500">
+                        {String(index + 1).padStart(2, "0")}
+                      </span>
+                      <span>
+                        <span className="block break-words text-lg font-semibold leading-tight">
+                          {story.title}
+                        </span>
+                        <span className="mt-1 block text-sm text-neutral-400">
+                          {storyScenes.length === 1
+                            ? "1 Szene"
+                            : `${storyScenes.length} Szenen`}
+                        </span>
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ol>
+          </>
+        )}
+      </main>
+
+      {/* always in reach, whatever is open above it */}
+      <nav className="sticky bottom-0 z-30 grid grid-cols-2 gap-3 border-t border-neutral-800 bg-neutral-950 px-4 pb-safe-bottom-xs pt-3">
+        <button
+          type="button"
+          disabled={!live}
+          onClick={() => setBlackout(!isBlackout)}
+          className={`mb-3 min-h-[48px] w-full rounded-xl text-sm font-semibold uppercase tracking-widest disabled:opacity-40 ${
+            isBlackout
+              ? "bg-red-600 text-white active:bg-red-500"
+              : "border border-neutral-700 bg-neutral-900 text-neutral-300 active:bg-neutral-800"
+          }`}
+        >
+          {isBlackout ? "Blackout aus" : "Blackout"}
+        </button>
+        {/* the tap itself has to ask for motion access, iOS allows it only here */}
+        <button
+          type="button"
+          disabled={!target || display.connection !== "connected"}
+          onClick={pointer.open}
+          className="mb-3 min-h-[48px] w-full rounded-xl border border-neutral-700 bg-neutral-900 text-sm font-semibold uppercase tracking-widest text-neutral-300 active:bg-neutral-800 disabled:opacity-40"
+        >
+          Zeiger
+        </button>
+      </nav>
+
+      {pointer.status !== "closed" && <PointerPanel pointer={pointer} />}
+
+      {sheet === "layers" && (
+        <Sheet
+          title={isChanging ? "Ebenen · Übergang läuft" : "Ebenen"}
+          onClose={() => setSheet(null)}
+        >
+          {live && live.layers.length > 0 ? (
             <ul className="m-0 list-none divide-y divide-neutral-800 p-0">
               {live.layers.map((layer) => (
                 <LayerSlider
@@ -389,40 +623,13 @@ export const App = () => {
                 />
               ))}
             </ul>
-          </section>
-        )}
-
-        {display.series && display.seriesClock && (
-          <SeriesControl
-            series={display.series}
-            clock={display.seriesClock}
-            disabled={!target}
-            onPlay={display.setSeriesPlaying}
-            onSeek={display.seekSeries}
-          />
-        )}
-      </main>
-
-      <nav className="sticky bottom-0 grid grid-cols-2 gap-3 border-t border-neutral-800 bg-neutral-950 px-4 pb-safe-bottom-xs pt-3">
-        <button
-          type="button"
-          disabled={!target || !canGoBack}
-          onClick={() => step(-1)}
-          className="mb-3 min-h-[64px] rounded-2xl bg-neutral-800 text-lg font-semibold active:bg-neutral-700 disabled:opacity-40"
-        >
-          ‹ Zurück
-        </button>
-        <button
-          type="button"
-          disabled={!target || !canGoOn}
-          onClick={() => step(1)}
-          className="mb-3 min-h-[64px] rounded-2xl bg-neutral-100 text-lg font-semibold text-neutral-950 active:bg-neutral-300 disabled:opacity-40"
-        >
-          Weiter ›
-        </button>
-      </nav>
-
-      {pointer.status !== "closed" && <PointerPanel pointer={pointer} />}
+          ) : (
+            <p className="m-0 text-neutral-400">
+              Die Anzeige meldet noch keine Ebenen.
+            </p>
+          )}
+        </Sheet>
+      )}
     </div>
   );
 };

@@ -1,7 +1,14 @@
 import { useState, type FormEvent } from "react";
 
-import { normalizeShowKey, type RemoteSettings } from "./settings";
+import {
+  FADE_CHOICES,
+  normalizeShowKey,
+  type RemoteSettings,
+} from "./settings";
 import version from "../version.json";
+
+const fadeLabel = (ms: number): string =>
+  ms === 0 ? "Schnitt" : `${(ms / 1000).toLocaleString("de-DE")} s`;
 
 type Props = {
   settings: RemoteSettings;
@@ -52,20 +59,21 @@ export const SettingsPanel = ({ settings, onSave, onCancel }: Props) => {
   const [relayBaseUrl, setRelayBaseUrl] = useState(settings.relayBaseUrl);
   const [code, setCode] = useState(settings.code);
   const [showKey, setShowKey] = useState(settings.showKey);
+  const [fadeMs, setFadeMs] = useState(settings.fadeMs);
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
     onSave({
-      ...settings,
       relayBaseUrl: relayBaseUrl.trim(),
       code: code.trim().toUpperCase(),
       showKey: normalizeShowKey(showKey),
+      fadeMs,
     });
   };
 
   return (
     <form onSubmit={submit} className="flex flex-col gap-5 p-4">
-      <h1 className="m-0 text-xl font-semibold">Verbindung</h1>
+      <h1 className="m-0 text-xl font-semibold">Einstellungen</h1>
       <Field
         id="pm-remote-code"
         label="Sitzungscode"
@@ -91,6 +99,31 @@ export const SettingsPanel = ({ settings, onSave, onCancel }: Props) => {
         inputMode="url"
         placeholder="https://…"
       />
+      <fieldset className="m-0 flex flex-col gap-1 border-0 p-0">
+        <legend className="mb-1 p-0 text-sm font-medium text-neutral-300">
+          Übergang
+        </legend>
+        <div className="grid grid-cols-4 gap-2">
+          {FADE_CHOICES.map((choice) => (
+            <button
+              key={choice}
+              type="button"
+              aria-pressed={fadeMs === choice}
+              onClick={() => setFadeMs(choice)}
+              className={`min-h-[48px] rounded-xl text-sm ${
+                fadeMs === choice
+                  ? "bg-neutral-100 font-semibold text-neutral-950"
+                  : "bg-neutral-800 text-neutral-200 active:bg-neutral-700"
+              }`}
+            >
+              {fadeLabel(choice)}
+            </button>
+          ))}
+        </div>
+        <span className="text-xs text-neutral-500">
+          Wie lange der Wechsel zur nächsten Szene überblendet.
+        </span>
+      </fieldset>
       <div className="flex gap-3">
         <button
           type="submit"
