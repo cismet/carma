@@ -1,4 +1,10 @@
-import { useState, useEffect, useCallback, useRef, type ReactNode } from "react";
+import {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  type ReactNode,
+} from "react";
 import type { FormInstance } from "antd";
 import { message } from "antd";
 import { useSelector } from "react-redux";
@@ -12,6 +18,7 @@ import FeatureFormLayout from "./FeatureFormLayout";
 import { useCreateFeatureDraft } from "../useCreateFeatureDraft";
 import { extractListItem } from "../BelisSidebar";
 import SchaltstelleFormFields from "./SchaltstelleFormFields";
+import { normalizeSensorValues } from "./sensorFields";
 import { updateDataByClassName } from "../../../helper/apiMethods";
 import { uploadDraftFiles } from "../../../helper/uploadDraftFiles";
 
@@ -194,14 +201,16 @@ const SchaltstelleForm = ({
         finalDokumenteArray = [...kept, ...uploadedDocuments];
       }
 
-      const dataToSave = transformDatesForBackend({
-        id: schaltstelleId,
-        ...rest,
-        // Include updated documents array when changed
-        ...(finalDokumenteArray !== undefined
-          ? { dokumenteArray: finalDokumenteArray }
-          : {}),
-      });
+      const dataToSave = transformDatesForBackend(
+        normalizeSensorValues({
+          id: schaltstelleId,
+          ...rest,
+          // Include updated documents array when changed
+          ...(finalDokumenteArray !== undefined
+            ? { dokumenteArray: finalDokumenteArray }
+            : {}),
+        })
+      );
 
       await updateDataByClassName(jwt, "schaltstelle", dataToSave);
 

@@ -30,6 +30,14 @@ import {
 } from "../../config/mapLayerConfigs";
 import versionData from "../../version.json";
 import { getApplicationVersion } from "@carma-commons/utils";
+import { useLayerHealth } from "../../hooks/useLayerHealth";
+import type { LayerHealth } from "../../helper/layerHealth";
+
+/** Broken layers keep every control usable; the row just turns red. */
+const rowClass = (health?: LayerHealth) =>
+  health === "broken"
+    ? "flex items-center gap-2 hover:bg-zinc-100 py-1 belis-layer-row belis-layer-row-error"
+    : "flex items-center gap-2 hover:bg-zinc-100 py-1 belis-layer-row";
 
 interface VersionInfoProps {
   textColor?: string;
@@ -54,9 +62,16 @@ const BackgroundLayerRow = ({
   title,
   opacity = 1,
   opacityChanged = (layerkey: string, value: number) => {},
+  health,
+}: {
+  layerkey: string;
+  title: string;
+  opacity?: number;
+  opacityChanged?: (layerkey: string, value: number) => void;
+  health?: LayerHealth;
 }) => {
   return (
-    <div className="flex items-center gap-2 hover:bg-zinc-100 p-1">
+    <div className={rowClass(health)}>
       <Radio value={layerkey} className="min-w-[calc(52%-22px)]">
         {title}
       </Radio>
@@ -77,6 +92,7 @@ const AdditionalLayerRow = ({
   activeChanged,
   opacity = 1,
   opacityChanged,
+  health,
 }: {
   layerkey: string;
   title: string;
@@ -84,9 +100,10 @@ const AdditionalLayerRow = ({
   activeChanged: (layerkey: string) => void;
   opacity?: number;
   opacityChanged: (layerkey: string, value: number) => void;
+  health?: LayerHealth;
 }) => {
   return (
-    <div className="flex items-center gap-2 hover:bg-zinc-100 p-1">
+    <div className={rowClass(health)}>
       <Checkbox
         checked={active}
         onChange={() => activeChanged(layerkey)}
@@ -104,8 +121,9 @@ const AdditionalLayerRow = ({
   );
 };
 
-const Settings = () => {
+const Settings = ({ open = true }: { open?: boolean }) => {
   const dispatch = useDispatch();
+  const { health, offline } = useLayerHealth(open);
   const backgroundLayerOpacities = useSelector(getBackgroundLayerOpacities);
   const activeBackgroundLayer = useSelector(getActiveBackgroundLayer);
   const activeAdditionalLayers = useSelector(getActiveAdditionalLayers);
@@ -127,6 +145,13 @@ const Settings = () => {
           />
         </div>
 
+        {offline && (
+          <div className="rounded-md border border-[#f5c2c7] bg-[#fff5f5] px-3 py-2 text-[12px] text-[#cf222e]">
+            Keine Netzwerkverbindung — die Verfügbarkeit der Layer kann nicht
+            geprüft werden.
+          </div>
+        )}
+
         <div className="flex flex-col gap-2">
           <h4 className="text-lg font-medium">Optionale Layer</h4>
           <div className="flex flex-col gap-2 p-1">
@@ -147,6 +172,7 @@ const Settings = () => {
                     }
                     dispatch(setActiveAdditionalLayers(activeLayers));
                   }}
+                  health={health[layerConfKey]}
                   opacity={additionalLayerOpacities[layerConfKey]}
                   opacityChanged={(layerkey, opacity) => {
                     const opacities = { ...additionalLayerOpacities };
@@ -175,6 +201,7 @@ const Settings = () => {
                     key={layerConfKey}
                     layerkey={layerConfKey}
                     title={layerConf.title}
+                    health={health[layerConfKey]}
                     opacity={backgroundLayerOpacities[layerConfKey]}
                     opacityChanged={(layerkey, opacity) => {
                       const opacities = { ...backgroundLayerOpacities };

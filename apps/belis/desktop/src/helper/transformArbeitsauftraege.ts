@@ -4,6 +4,8 @@ import {
   convex,
   featureCollection,
   feature as turfFeature,
+  bboxPolygon,
+  booleanIntersects,
 } from "@turf/turf";
 import type { ArbeitsauftragTileFeature } from "../store/slices/arbeitsauftraege";
 
@@ -126,5 +128,23 @@ export function transformGqlToTileFeatures(
       pct_fehlmeldung: total > 0 ? counts.fehlmeldung / total : 0,
       geometry: computeConvexHull(aa),
     };
+  });
+}
+
+// Keeps only the Arbeitsaufträge whose convex hull touches the given map
+// bounds. Hull-less Arbeitsaufträge cannot be placed on the map at all, so
+// they are dropped rather than silently treated as "inside".
+export function filterFeaturesInBounds(
+  features: ArbeitsauftragTileFeature[],
+  bounds: [number, number, number, number]
+): ArbeitsauftragTileFeature[] {
+  const viewport = bboxPolygon(bounds);
+  return features.filter((f) => {
+    if (!f.geometry) return false;
+    try {
+      return booleanIntersects(viewport, turfFeature(f.geometry));
+    } catch {
+      return false;
+    }
   });
 }

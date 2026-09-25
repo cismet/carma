@@ -1,12 +1,15 @@
-import { useState, useRef, useCallback, useMemo } from "react";
-import { Modal, Button } from "antd";
+import { useState, useRef, useCallback, useMemo, useEffect } from "react";
+import { Modal, Button, Checkbox } from "antd";
 import { FontAwesomeIcon as Icon } from "@fortawesome/react-fontawesome";
 import { faFilter } from "@fortawesome/free-solid-svg-icons";
 import { useSelector, useDispatch } from "react-redux";
 import { ArbeitsauftragSearch } from "./featuresSearches";
 import { getJWT } from "../../store/slices/auth";
 import { ENDPOINT } from "../../constants/belis";
-import { transformGqlToTileFeatures } from "../../helper/transformArbeitsauftraege";
+import {
+  transformGqlToTileFeatures,
+  filterFeaturesInBounds,
+} from "../../helper/transformArbeitsauftraege";
 import {
   setFeatures,
   setSelectedTeamId,
@@ -17,6 +20,7 @@ import {
 import { buildArbeitsauftragWhereClause } from "../../helper/arbeitsauftragSearchUtils";
 import type { ArbeitsauftragSearchValues } from "../../helper/arbeitsauftragSearchUtils";
 import type { AppDispatch } from "../../store";
+import { useLibreContext } from "@carma-mapping/engines/maplibre";
 import RawDisplay from "./RawDisplay";
 
 // Full fields matching arbeitsauftraege_by_team query shape.
@@ -78,12 +82,14 @@ const AA_SEARCH_FIELDS = `id
       }
     }`;
 
+const AA_SEARCH_LIMIT = 5000;
+
 const generateQueryPreview = (values: ArbeitsauftragSearchValues): string => {
   const whereClause = buildArbeitsauftragWhereClause(values);
   return `query ArbeitsauftragSearch {
   arbeitsauftrag(${
     whereClause ? `${whereClause}, ` : ""
-  }order_by: {angelegt_am: desc}) {
+  }order_by: {angelegt_am: desc}, limit: ${AA_SEARCH_LIMIT}) {
     ${AA_SEARCH_FIELDS}
   }
 }`;
@@ -98,10 +104,12 @@ const ArbeitsauftragSearchModal = ({
 }: ArbeitsauftragSearchModalProps) => {
   const dispatch: AppDispatch = useDispatch();
   const jwt = useSelector(getJWT);
+  const { map } = useLibreContext();
 
   const [isOpen, setIsOpen] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [noResults, setNoResults] = useState(false);
+  const [onlyCurrentViewport, setOnlyCurrentViewport] = useState(false);
   const [queryPreview, setQueryPreview] = useState("");
 
   const showRaw = useMemo(() => {
@@ -113,11 +121,28 @@ const ArbeitsauftragSearchModal = ({
     return window.location.hostname === "localhost";
   }, []);
 
+  useEffect(() => {
+    if (noResults) {
+      const timer = setTimeout(() => setNoResults(false), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [noResults]);
+
   const searchValuesRef = useRef<ArbeitsauftragSearchValues>({});
+
+  // Without this the preview stays empty (and its box collapses) until the
+  // user edits a field for the first time.
+  useEffect(() => {
+    if (showRaw && isOpen) {
+      setQueryPreview(generateQueryPreview(searchValuesRef.current));
+    }
+  }, [showRaw, isOpen]);
 
   const handleValuesChange = useCallback(
     (values: ArbeitsauftragSearchValues) => {
       searchValuesRef.current = values;
+      // Editing the criteria clears the message, so the checkbox comes back.
+      setNoResults(false);
       if (showRaw) {
         setQueryPreview(generateQueryPreview(values));
       }
@@ -136,7 +161,7 @@ const ArbeitsauftragSearchModal = ({
     const query = `query ArbeitsauftragSearch {
       arbeitsauftrag(${
         whereClause ? `${whereClause}, ` : ""
-      }order_by: {angelegt_am: desc}) {
+      }order_by: {angelegt_am: desc}, limit: ${AA_SEARCH_LIMIT}) {
         ${AA_SEARCH_FIELDS}
       }
     }`;
@@ -167,14 +192,32 @@ const ArbeitsauftragSearchModal = ({
           return;
         }
 
-        const transformed = transformGqlToTileFeatures(results);
+        let transformed = transformGqlToTileFeatures(results);
+
+        if (onlyCurrentViewport && map) {
+          const b = map.getBounds();
+          transformed = filterFeaturesInBounds(transformed, [
+            b.getWest(),
+            b.getSouth(),
+            b.getEast(),
+            b.getNorth(),
+          ]);
+          if (transformed.length === 0) {
+            setNoResults(true);
+            setIsSearching(false);
+            return;
+          }
+        }
 
         // Set searchActive BEFORE clearing team to prevent tile extraction from overwriting
         dispatch(setSearchActive(true));
         dispatch(setSelectedTeamId(null));
         dispatch(clearSelection());
         dispatch(setFeatures(transformed));
-        dispatch(bumpSearchResultsVersion());
+
+        if (!onlyCurrentViewport) {
+          dispatch(bumpSearchResultsVersion());
+        }
 
         setIsSearching(false);
         setIsOpen(false);
@@ -183,7 +226,7 @@ const ArbeitsauftragSearchModal = ({
       .catch((err) => {
         setIsSearching(false);
       });
-  }, [jwt, dispatch, onSearchDone]);
+  }, [jwt, dispatch, onSearchDone, onlyCurrentViewport, map]);
 
   return (
     <>
@@ -200,18 +243,28 @@ const ArbeitsauftragSearchModal = ({
         onCancel={() => setIsOpen(false)}
         footer={
           <div className="flex justify-between items-center pt-2 border-t border-gray-100">
-            <div className="text-sm text-gray-500">
-              {noResults && "Keine Ergebnisse gefunden"}
+            <div className="flex items-center gap-3 text-sm text-gray-500">
+              {noResults && <span>Keine Ergebnisse gefunden</span>}
             </div>
-            <div className="flex gap-2">
-              <Button onClick={() => setIsOpen(false)}>Abbrechen</Button>
-              <Button
-                type="primary"
-                onClick={executeSearch}
-                loading={isSearching}
+            <div className="flex items-center gap-3">
+              <Checkbox
+                checked={onlyCurrentViewport}
+                onChange={(e) => setOnlyCurrentViewport(e.target.checked)}
               >
-                Suchen
-              </Button>
+                <span className="text-sm text-gray-500">
+                  Nur im aktuellen Kartenausschnitt
+                </span>
+              </Checkbox>
+              <div className="flex gap-2">
+                <Button onClick={() => setIsOpen(false)}>Abbrechen</Button>
+                <Button
+                  type="primary"
+                  onClick={executeSearch}
+                  loading={isSearching}
+                >
+                  Suchen
+                </Button>
+              </div>
             </div>
           </div>
         }
