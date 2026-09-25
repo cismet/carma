@@ -74,6 +74,16 @@ import {
   type ShadowSimulationState,
 } from "../addons/ShadowSimulation";
 import {
+  ShadowTexture,
+  type ShadowTextureConfig,
+  type ShadowTextureState,
+} from "../addons/ShadowTexture";
+import {
+  ModelCollection,
+  type ModelCollectionConfig,
+  type ModelCollectionState,
+} from "../addons/ModelCollection";
+import {
   LayerVisibility,
   layerVisibilityTrigger,
   type LayerVisibilityConfig,
@@ -161,6 +171,8 @@ export type AddonConfigMap = {
   layerVisibility: LayerVisibilityConfig;
   libreTerrain: LibreTerrainConfig;
   shadowSimulation: ShadowSimulationConfig;
+  shadowTexture: ShadowTextureConfig;
+  modelCollection: ModelCollectionConfig;
   infoBoxZoomImage: InfoBoxZoomImageConfig;
   outlet: OutletConfig;
   /**
@@ -274,6 +286,8 @@ export type AddonStateMap = {
   shadowSimulation: ShadowSimulationState;
   /** selected civil date and time, separate for future shared-time sync */
   shadowDate: ShadowDateState;
+  shadowTexture: ShadowTextureState;
+  modelCollection: ModelCollectionState;
 };
 
 export type AddonStateKey = keyof AddonStateMap;
@@ -504,6 +518,21 @@ export const addonRegistry: {
     Component: ShadowSimulation,
     targetPlacement: ADDON_TARGET_PLACEMENT.SECONDARY_VIEW,
     provides: ["shadowSimulation", "shadowDate"],
+  },
+  shadowTexture: {
+    Component: ShadowTexture,
+    targetPlacement: ADDON_TARGET_PLACEMENT.SECONDARY_VIEW,
+    provides: [
+      "shadowSimulation",
+      "shadowDate",
+      "shadowTexture",
+      "modelCollection",
+    ],
+  },
+  modelCollection: {
+    Component: ModelCollection,
+    targetPlacement: ADDON_TARGET_PLACEMENT.SECONDARY_VIEW,
+    provides: ["modelCollection"],
   },
   infoBoxZoomImage: {
     Component: InfoBoxZoomImage,

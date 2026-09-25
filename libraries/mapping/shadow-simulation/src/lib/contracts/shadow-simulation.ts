@@ -105,6 +105,8 @@ export type ShadowSimulationState = ShadowRenderQualityOptions & {
   controlStyle?: ShadowControlStyle;
   animationMode?: ShadowAnimationMode;
   animationSpeed?: ShadowAnimationSpeed;
+  /** Day playback skips night by default; false loops over all 24 hours. */
+  animationDaylightOnly?: boolean;
   isAnimating?: boolean;
   shadowIntensity?: number;
 };

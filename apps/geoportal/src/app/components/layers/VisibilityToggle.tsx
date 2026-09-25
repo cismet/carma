@@ -7,6 +7,7 @@ import type { LayerVisibilityToggleLabels } from "./layer-visibility-toggle-prop
 
 interface VisibilityToggleProps {
   visible: boolean;
+  className?: string;
   disabled?: boolean;
   labels: LayerVisibilityToggleLabels;
   onToggleVisibility: (visible: boolean) => void;
@@ -14,6 +15,7 @@ interface VisibilityToggleProps {
 
 const VisibilityToggle = ({
   visible,
+  className,
   disabled,
   labels,
   onToggleVisibility,
@@ -27,7 +29,8 @@ const VisibilityToggle = ({
     <button
       className={cn(
         "hover:text-gray-500 text-gray-600 flex items-center justify-center",
-        disabled && "opacity-40 cursor-not-allowed"
+        disabled && "opacity-40 cursor-not-allowed",
+        className
       )}
       disabled={disabled}
       title={disabled ? labels.disabled : label}

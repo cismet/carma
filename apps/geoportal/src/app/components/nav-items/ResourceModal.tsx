@@ -93,6 +93,7 @@ const ResourceModal = () => {
     startFlowField,
     startVehicleAnimation,
     startFlood,
+    startShadowTexture,
     isWorkflowActive,
   } = useWorkflowAddonLaunchers(messageApi);
 
@@ -116,6 +117,7 @@ const ResourceModal = () => {
       startFlowField,
       startVehicleAnimation,
       startFlood,
+      startShadowTexture,
     }),
     { measurements }
   );

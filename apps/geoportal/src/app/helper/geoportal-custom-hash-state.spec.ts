@@ -95,6 +95,19 @@ describe("geoportal-custom-hash-state", () => {
     expect(resolveGeoportalShadowSimulationHashSelection(value)).toBeNull();
   });
 
+  it("serializes sub-minute animation positions without clearing the enabled shadow hash", () => {
+    for (const minutes of [0, 803.625, 1439.999]) {
+      const update = buildGeoportalShadowSimulationHashUpdate({
+        enabled: true,
+        dateState: { minutes, dayOfYear: 267 },
+      });
+      expect(update).toEqual({ shadow: `${Math.floor(minutes)};267` });
+      expect(
+        resolveGeoportalShadowSimulationHashSelection(update.shadow)
+      ).toEqual({ minutes: Math.floor(minutes), dayOfYear: 267 });
+    }
+  });
+
   it("serializes enabled shadow state and removes disabled shadow state", () => {
     expect(
       buildGeoportalShadowSimulationHashUpdate({

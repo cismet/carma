@@ -166,6 +166,11 @@ export const geoportalLayersToLibreLayers = (layers: Layer[]): LibreLayer[] => {
     if (!layer.visible) {
       continue;
     }
+    // The catalog's bridge footprint is only a 2D proxy for its GLB. The
+    // MapLibre bridge runtime renders the model for this same layer instead.
+    if (layer.id === "wuppObjects_bridge") {
+      continue;
+    }
     const threeTilesLayer = parseThreeTilesLayer(layer);
     if (threeTilesLayer) {
       result.push(threeTilesLayer);

@@ -1,4 +1,22 @@
 export { AddonHost } from "./lib/AddonHost";
+export { ShadowTextureHeaderControls } from "./addons/ShadowTexture";
+export { useShadowTextureWorkflow } from "./addons/ShadowTexture/use-shadow-texture-workflow";
+export {
+  createShadowTextureLayer,
+  resolveShadowTextureAddon,
+  SHADOW_TEXTURE_LAYER_ID,
+} from "./addons/ShadowTexture/shadow-texture-layer";
+export {
+  createInitialDzbPrmModelState,
+  loadDzbPrmCollection,
+} from "./addons/ModelCollection/dzb-prm-collection";
+export {
+  loadDzbPrmLayer,
+  MODEL_COLLECTION_LAYER_ID,
+} from "./addons/ModelCollection/dzb-prm-layer";
+export { CatalogBridgeModel } from "./addons/ModelCollection";
+export { useModelCollectionLayerButton } from "./addons/ModelCollection/use-model-collection-layer-button";
+export type { ModelCollectionLayerBridge } from "./addons/ModelCollection/use-model-collection-layer-button";
 export { TargetAddonHost } from "./lib/TargetAddonHost";
 export {
   getTargetAddonsWithTrigger,

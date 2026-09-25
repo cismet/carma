@@ -20,6 +20,17 @@ const buildLayer = (threeTiles: unknown): Layer =>
   } as unknown as Layer);
 
 describe("Geoportal 3D Tiles layer conversion", () => {
+  it("omits the catalog bridge footprint in MapLibre", () => {
+    const bridge = {
+      id: "wuppObjects_bridge",
+      visible: true,
+      layerType: "vector",
+      props: { style: "https://example.test/model-footprint.json" },
+    } as Layer;
+
+    expect(geoportalLayersToLibreLayers([bridge])).toEqual([]);
+  });
+
   it("maps a declared clay shader into the shared Three.js layer contract", () => {
     const layer = buildLayer({
       url: "https://example.test/tileset.json",

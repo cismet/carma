@@ -1,0 +1,56 @@
+{
+  "type": "FeatureCollection",
+  "crs": {
+    "type": "name",
+    "properties": {
+      "name": "urn:ogc:def:crs:EPSG::3857"
+    }
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Zoo-Modell Wuppertal (Kubitur, 1:2000), Unterseite des Bretts",
+        "brett_mm": [
+          1797.725,
+          1001.253
+        ],
+        "bounds_3857": [
+          788836.855,
+          6663227.421,
+          794575.246,
+          6666423.835
+        ],
+        "mm_nach_3857": "x = 791706.051 + x_mm * 3.19203, y = 6664825.628 + y_mm * 3.19241",
+        "z": "z_mm = Höhe in m NHN * 0.5, Brettunterseite bei z = 62.175 mm"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              788836.855,
+              6663227.421
+            ],
+            [
+              794575.246,
+              6663227.421
+            ],
+            [
+              794575.246,
+              6666423.835
+            ],
+            [
+              788836.855,
+              6666423.835
+            ],
+            [
+              788836.855,
+              6663227.421
+            ]
+          ]
+        ]
+      }
+    }
+  ]
+}

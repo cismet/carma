@@ -12,6 +12,17 @@ import {
 } from "./shadow-selection-state";
 
 describe("shadow selection state", () => {
+  it("preserves night selections for the full-day texture capture", () => {
+    expect(
+      resolveShadowHashSelection(
+        { dayOfYear: 267, minutes: 0 },
+        2026,
+        { latitude: 51.25, longitude: 7.12 },
+        "Europe/Berlin",
+        { daylightOnly: false }
+      )
+    ).toEqual({ dayOfYear: 267, minutes: 0 });
+  });
   it("validates leap days and integer years with the shared calendar", () => {
     const selection = { dayOfYear: 366, minutes: 720 };
     expect(

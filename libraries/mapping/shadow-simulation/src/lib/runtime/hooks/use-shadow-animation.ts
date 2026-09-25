@@ -1,4 +1,5 @@
 import { useEffect, useRef, type MutableRefObject } from "react";
+import type { Milliseconds } from "@carma-units";
 
 import {
   type ShadowDateState,
@@ -30,12 +31,15 @@ export const useShadowAnimation = ({
   location,
   shadowState,
   onFrame,
+  realtime = false,
 }: {
   dateState: ShadowDateState;
   setDateState: ShadowDateStateSetter;
   location: SolarLocation;
   shadowState: ShadowSimulationState;
   onFrame: (dateState: ShadowDateState) => void;
+  /** Display-refresh ticks; 1× = one hour/s, default 4× = 60 days/s in year mode. */
+  realtime?: boolean;
 }): MutableRefObject<ShadowDateState | null> => {
   const animatedDateRef = useRef<ShadowDateState | null>(null);
   const lastPublishedRef = useRef<ShadowDateState | null>(null);
@@ -46,7 +50,13 @@ export const useShadowAnimation = ({
   dateStateRef.current = dateState;
   setDateStateRef.current = setDateState;
   onFrameRef.current = onFrame;
-  const { animationMode, animationSpeed, enabled, isAnimating } = shadowState;
+  const {
+    animationMode,
+    animationSpeed,
+    animationDaylightOnly,
+    enabled,
+    isAnimating,
+  } = shadowState;
   const animating = enabled && (isAnimating ?? false);
 
   useEffect(() => {
@@ -65,37 +75,69 @@ export const useShadowAnimation = ({
 
   useEffect(() => {
     if (!animating) return;
-    const animationState = { animationMode, animationSpeed, enabled, isAnimating };
+    const animationState = {
+      animationMode,
+      animationSpeed,
+      animationDaylightOnly,
+      enabled,
+      isAnimating,
+    };
     let yearDayProgress = 0;
     let lastPublishedAt = performance.now();
+    let lastFrameAt = lastPublishedAt;
     const publish = (next: ShadowDateState) => {
       lastPublishedRef.current = next;
       setDateStateRef.current(next);
     };
-    const interval = window.setInterval(() => {
+    const tick = (now: number) => {
       const base = animatedDateRef.current ?? dateStateRef.current;
       const frame = advanceShadowAnimationFrame(
         animationState,
         base,
         base,
         location,
-        yearDayProgress
+        yearDayProgress,
+        realtime
+          ? { elapsedMs: (now - lastFrameAt) as Milliseconds }
+          : undefined
       );
+      lastFrameAt = now;
       yearDayProgress = frame.yearDayProgress;
       animatedDateRef.current = frame.dateState;
       onFrameRef.current(frame.dateState);
-      const now = performance.now();
       if (now - lastPublishedAt >= SHADOW_ANIMATION_PUBLISH_INTERVAL_MS) {
         lastPublishedAt = now;
         publish(frame.dateState);
       }
-    }, SHADOW_ANIMATION_INTERVAL_MS);
+    };
+    let frameId = 0;
+    const onAnimationFrame = (now: number) => {
+      tick(now);
+      frameId = requestAnimationFrame(onAnimationFrame);
+    };
+    const interval = realtime
+      ? undefined
+      : window.setInterval(
+          () => tick(performance.now()),
+          SHADOW_ANIMATION_INTERVAL_MS
+        );
+    if (realtime) frameId = requestAnimationFrame(onAnimationFrame);
     return () => {
-      window.clearInterval(interval);
+      if (interval !== undefined) window.clearInterval(interval);
+      if (realtime) cancelAnimationFrame(frameId);
       const final = animatedDateRef.current;
       if (final && final !== lastPublishedRef.current) publish(final);
     };
-  }, [animating, animationMode, animationSpeed, enabled, isAnimating, location]);
+  }, [
+    animating,
+    animationMode,
+    animationSpeed,
+    animationDaylightOnly,
+    enabled,
+    isAnimating,
+    location,
+    realtime,
+  ]);
 
   return animatedDateRef;
 };

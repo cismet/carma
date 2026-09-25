@@ -26,12 +26,14 @@ export const resolveShadowHashSelection = (
   selection: ShadowSelection | null,
   year: number | undefined,
   position: { latitude?: number; longitude?: number },
-  timeZone: string
+  timeZone: string,
+  options: Readonly<{ daylightOnly?: boolean }> = {}
 ): ShadowSelection | null => {
   if (!selection || year === undefined) return selection;
   if (!Number.isInteger(year) || selection.dayOfYear > getDaysInYear(year)) {
     return null;
   }
+  if (options.daylightOnly === false) return selection;
 
   const daylightSelection = clampShadowSimulationSelectionToDaylight(
     { ...selection, year },

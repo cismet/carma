@@ -72,4 +72,20 @@ describe("daylight window cache", () => {
     expect(SearchAltitude).toHaveBeenCalledTimes(2);
     expect(SearchHourAngle).toHaveBeenCalledTimes(1);
   });
+
+  it("keeps twilight thresholds separate without replacing default daylight events", () => {
+    const date = { ...selection, year: 2060 };
+    const daylight = getDaylightWindow(date, location);
+    const twilight = getDaylightWindow(date, location, {
+      minimumElevationDegrees: -6,
+    });
+    expect(twilight).not.toBe(daylight);
+    expect(twilight.sunriseMinutes).toBeLessThan(daylight.sunriseMinutes);
+    vi.clearAllMocks();
+    expect(getDaylightWindow(date, location)).toBe(daylight);
+    expect(
+      getDaylightWindow(date, location, { minimumElevationDegrees: -6 })
+    ).toBe(twilight);
+    expect(SearchAltitude).not.toHaveBeenCalled();
+  });
 });

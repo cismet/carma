@@ -31,6 +31,8 @@ export const useGeoportalShadowSimulationHash = ({
 }: UseGeoportalShadowSimulationHashOptions) => {
   const [shadowState, setShadowState] = useAddonState("shadowSimulation");
   const [shadowDate, setShadowDate] = useAddonState("shadowDate");
+  const [textureState] = useAddonState("shadowTexture");
+  const textureAvailable = Boolean(textureState);
   const { map: libreMap } = useLibreContext();
   const { updateHashState } = useHashState();
   const handledHashStateVersionRef = useRef<number | null>(null);
@@ -101,7 +103,8 @@ export const useGeoportalShadowSimulationHash = ({
         decodedHashSelection,
         shadowYear,
         { latitude: mapCenter?.lat, longitude: mapCenter?.lng },
-        shadowTimeZone
+        shadowTimeZone,
+        { daylightOnly: !textureAvailable }
       ),
     [
       decodedHashSelection,
@@ -109,6 +112,7 @@ export const useGeoportalShadowSimulationHash = ({
       mapCenter?.lng,
       shadowTimeZone,
       shadowYear,
+      textureAvailable,
     ]
   );
 
@@ -161,6 +165,8 @@ export const useGeoportalShadowSimulationHash = ({
     setShadowDate(next.dateState);
   }, [
     cancelPendingHashUpdate,
+    customHashState?.source,
+    decodedHashSelection,
     hashSelection,
     hashStateVersion,
     setShadowState,

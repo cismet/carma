@@ -1,0 +1,392 @@
+{
+  "schemaVersion": 1,
+  "id": "dz-b-prm",
+  "title": "BuGa",
+  "source": "https://adhocdata.cismet.de/DZ_B_PRM",
+  "horizontalCrs": "EPSG:3857",
+  "verticalDatum": "DHHN2016",
+  "anchor3857": [
+    791706.051,
+    6664825.628
+  ],
+  "boardBounds3857": [
+    788836.855,
+    6663227.421,
+    794575.246,
+    6666423.835
+  ],
+  "boardBottomHeightMeters": 124.35,
+  "footprint": {
+    "wgs84": {
+      "uri": "zoo-modell-lage-wgs84.geojson",
+      "sha256": "5c25d0bac91e7284478f05019b17fc04aacc8d085427135a6c632d3cce775102"
+    },
+    "epsg3857": {
+      "uri": "zoo-modell-lage-3857.geojson",
+      "sha256": "09332769e03cfd3f5d03e80d8d2f5b6c8616fa061f6ed2dbb6957287e5930540"
+    }
+  },
+  "groups": [
+    {
+      "id": "bridge",
+      "label": "Brücke",
+      "variants": {
+        "planning": "bridge",
+        "existing": "bridge-existing",
+        "catalog": "catalog-bridge"
+      }
+    },
+    {
+      "id": "environment",
+      "label": "Umgebung",
+      "part": "environment"
+    },
+    {
+      "id": "zoo",
+      "label": "Zoo",
+      "part": "zoo"
+    },
+    {
+      "id": "station",
+      "label": "Bergstation",
+      "part": "station"
+    }
+  ],
+  "defaultQuality": "5m",
+  "externalModels": {
+    "catalog-bridge": {
+      "url": "https://wupp-3d-data.cismet.de/mesh2024/assets/bridge.glb",
+      "catalog": "BRUECKENENTWURF_GLB",
+      "positionWgs84": [
+        7.121277,
+        51.252545
+      ],
+      "altitudeMeters": 245.4,
+      "headingDegrees": 95.45,
+      "sourceSha256": "a8299112a053f2e2e54c8e19ff171ec774e9495315080dd01b0067d52ba2a522"
+    }
+  },
+  "qualities": {
+    "2m": {
+      "environment": {
+        "label": "Umgebung",
+        "variant": null,
+        "uri": "2m/environment.glb",
+        "provenance": "2m/environment.asset.json",
+        "sourceSha256": "e4ba5b7837df3f1554cb1e7257cf7dd4b9645398be5418659536a672772919c1",
+        "glbSha256": "f69f49698b8da9d5efab180f2cf10fa8f380cf57761ec4fac80865d4dd2fa2a1",
+        "bytes": 52949260,
+        "packageSha256": "f69f49698b8da9d5efab180f2cf10fa8f380cf57761ec4fac80865d4dd2fa2a1",
+        "packageBytes": 52949260,
+        "bounds3857": [
+          [
+            788825.8490547107,
+            6663216.990156916
+          ],
+          [
+            794583.7710562408,
+            6666432.530905422
+          ]
+        ]
+      },
+      "zoo": {
+        "label": "Zoo",
+        "variant": null,
+        "uri": "2m/zoo.glb",
+        "provenance": "2m/zoo.asset.json",
+        "sourceSha256": "1545c3d3dc47dd9aaa01477cca5ab5dc63187efa824d135f213d900098e276e1",
+        "glbSha256": "b84681bdec772cbad98b4176ba0f93fd7849724a6c37d8cb11a286d51f145eb7",
+        "bytes": 3456848,
+        "packageSha256": "b84681bdec772cbad98b4176ba0f93fd7849724a6c37d8cb11a286d51f145eb7",
+        "packageBytes": 3456848,
+        "bounds3857": [
+          [
+            790957.7529282491,
+            6663298.083684032
+          ],
+          [
+            792178.8851044102,
+            6664221.486084478
+          ]
+        ]
+      },
+      "bridge": {
+        "label": "Brücke",
+        "variant": "planning",
+        "uri": "2m/bridge.glb",
+        "provenance": "2m/bridge.asset.json",
+        "sourceSha256": "df3e9463bc27d4e3a8163b36b65be8fcbb038c4fea57675bb71d22ffbda7ca84",
+        "glbSha256": "498d49edd8bdbcc18cd1199415e4548207d796e1d50c05482053598de8d27209",
+        "bytes": 1969336,
+        "packageSha256": "498d49edd8bdbcc18cd1199415e4548207d796e1d50c05482053598de8d27209",
+        "packageBytes": 1969336,
+        "bounds3857": [
+          [
+            792439.3893535166,
+            6664702.410648265
+          ],
+          [
+            792903.2045704294,
+            6666094.486271484
+          ]
+        ]
+      },
+      "bridge-existing": {
+        "label": "Brücke",
+        "variant": "existing",
+        "uri": "2m/bridge-existing.glb",
+        "provenance": "2m/bridge-existing.asset.json",
+        "sourceSha256": "4c774837c97a59cecf439a7d781e0a786c9f5849b7b18dcfdd0b2d0e62223dbb",
+        "glbSha256": "e6e6af62092f8e207076477a8089f3a18c8859d65fcac87cb811f073cddfec3d",
+        "bytes": 702548,
+        "packageSha256": "e6e6af62092f8e207076477a8089f3a18c8859d65fcac87cb811f073cddfec3d",
+        "packageBytes": 702548,
+        "bounds3857": [
+          [
+            792439.3893535166,
+            6664701.599563934
+          ],
+          [
+            792903.2045704294,
+            6666094.973492016
+          ]
+        ]
+      },
+      "station": {
+        "label": "Bergstation",
+        "variant": null,
+        "uri": "2m/station.glb",
+        "provenance": "2m/station.asset.json",
+        "sourceSha256": "08de9da0dbf7c4b5d74deb8c5d0afa13b0db1d8baabcd2eea74cc306e75f45df",
+        "glbSha256": "cd0574225f63698f51cd3bd65f19de79792b4f55554d9157f05903d9ad20651e",
+        "bytes": 141428,
+        "packageSha256": "cd0574225f63698f51cd3bd65f19de79792b4f55554d9157f05903d9ad20651e",
+        "packageBytes": 141428,
+        "bounds3857": [
+          [
+            792492.0097751889,
+            6663757.611170454
+          ],
+          [
+            792634.2996168814,
+            6663877.983869376
+          ]
+        ]
+      }
+    },
+    "5m": {
+      "environment": {
+        "label": "Umgebung",
+        "variant": null,
+        "uri": "5m/environment.glb.gz",
+        "provenance": "5m/environment.asset.json",
+        "sourceSha256": "43fe05c77bb662551256397c55f3ea649d902cc97456f3528007b0c86aa30a70",
+        "glbSha256": "12b6024ece47e1468121d3d89d44cec73c1a370368ca873794e8f97ce71edb97",
+        "bytes": 130467188,
+        "packageSha256": "c368839c7735671ab6bde8462ebb55172d1c6b5c9e01545df8404c84cf12e68b",
+        "packageBytes": 96160001,
+        "bounds3857": [
+          [
+            788825.8490547107,
+            6663217.355304398
+          ],
+          [
+            794584.0091336737,
+            6666432.530905422
+          ]
+        ]
+      },
+      "zoo": {
+        "label": "Zoo",
+        "variant": null,
+        "uri": "5m/zoo.glb",
+        "provenance": "5m/zoo.asset.json",
+        "sourceSha256": "04fc67420859d9173805706cbe70a4ae7dbc7377e4edc89df8343f07e77152fa",
+        "glbSha256": "20983ece350297e30436fadab05f6e0f1abd7a8b30bb95f91fe803ea9821f5ed",
+        "bytes": 7627036,
+        "packageSha256": "20983ece350297e30436fadab05f6e0f1abd7a8b30bb95f91fe803ea9821f5ed",
+        "packageBytes": 7627036,
+        "bounds3857": [
+          [
+            790957.7529282491,
+            6663298.083099484
+          ],
+          [
+            792179.1270296576,
+            6664221.150066958
+          ]
+        ]
+      },
+      "bridge": {
+        "label": "Brücke",
+        "variant": "planning",
+        "uri": "5m/bridge.glb",
+        "provenance": "5m/bridge.asset.json",
+        "sourceSha256": "ca952406dc986908ba2cee899647bf020dcf2a7fdac8165959feb567403fb093",
+        "glbSha256": "2e3961b9ac1050addd6127515a4c6c113f6b706bff85cf5e682b8d981ec07398",
+        "bytes": 2690612,
+        "packageSha256": "2e3961b9ac1050addd6127515a4c6c113f6b706bff85cf5e682b8d981ec07398",
+        "packageBytes": 2690612,
+        "bounds3857": [
+          [
+            792439.279228092,
+            6664702.410648265
+          ],
+          [
+            792903.2045704294,
+            6666094.649847424
+          ]
+        ]
+      },
+      "bridge-existing": {
+        "label": "Brücke",
+        "variant": "existing",
+        "uri": "5m/bridge-existing.glb",
+        "provenance": "5m/bridge-existing.asset.json",
+        "sourceSha256": "980875da7b49a8cbeb18568951abb5c5fa6ffc4b7b17a73a325850b48f9270a4",
+        "glbSha256": "c26fb532bd260f65febd5be8b2ee4a8b6d1780cd063c2b134a62995b2631c7b0",
+        "bytes": 1614156,
+        "packageSha256": "c26fb532bd260f65febd5be8b2ee4a8b6d1780cd063c2b134a62995b2631c7b0",
+        "packageBytes": 1614156,
+        "bounds3857": [
+          [
+            792439.1174737641,
+            6664701.599563934
+          ],
+          [
+            792903.2045704294,
+            6666094.933840196
+          ]
+        ]
+      },
+      "station": {
+        "label": "Bergstation",
+        "variant": null,
+        "uri": "5m/station.glb",
+        "provenance": "5m/station.asset.json",
+        "sourceSha256": "86ba83a99c03623dd6316a3dec2436f3cf1cc8af4b2021b6b75b36efac1d3b8a",
+        "glbSha256": "9e2d78d2cfa1af2039e8a74b94a6d6dac320876b47b86fb9b24acf69a0f2dd40",
+        "bytes": 350224,
+        "packageSha256": "9e2d78d2cfa1af2039e8a74b94a6d6dac320876b47b86fb9b24acf69a0f2dd40",
+        "packageBytes": 350224,
+        "bounds3857": [
+          [
+            792492.0097751889,
+            6663757.611170454
+          ],
+          [
+            792634.2996168814,
+            6663877.983869376
+          ]
+        ]
+      }
+    },
+    "original": {
+      "environment": {
+        "label": "Umgebung",
+        "variant": null,
+        "uri": "original/environment.glb.gz",
+        "provenance": "original/environment.asset.json",
+        "sourceSha256": "fa0f3a97121004985c569483e870481064a6ad118cdcaa481167f068cbdbf1fc",
+        "glbSha256": "b28661d2106ff9c0ac1464d2750127480176721db1c05fb3fac986011c145c2e",
+        "bytes": 906414764,
+        "packageSha256": "977db992f809482f89dad6bc05520f5cc106c42906c3043c95689059711d1798",
+        "packageBytes": 735543241,
+        "bounds3857": [
+          [
+            788826.0286843285,
+            6663217.423306784
+          ],
+          [
+            794583.8526883557,
+            6666432.4771270305
+          ]
+        ]
+      },
+      "zoo": {
+        "label": "Zoo",
+        "variant": null,
+        "uri": "original/zoo.glb",
+        "provenance": "original/zoo.asset.json",
+        "sourceSha256": "8a473b9afd75ebae1ad056bc3b21dba3a14d760b1dc287352c5807b072967ce0",
+        "glbSha256": "5fa133c9fe57d19491bd2b6b5accc3247644afac5528b0bfcf1a3ee5565fc927",
+        "bytes": 57098804,
+        "packageSha256": "5fa133c9fe57d19491bd2b6b5accc3247644afac5528b0bfcf1a3ee5565fc927",
+        "packageBytes": 57098804,
+        "bounds3857": [
+          [
+            790957.7529282491,
+            6663298.083684032
+          ],
+          [
+            792179.1506036096,
+            6664228.051237453
+          ]
+        ]
+      },
+      "bridge": {
+        "label": "Brücke",
+        "variant": "planning",
+        "uri": "original/bridge.glb",
+        "provenance": "original/bridge.asset.json",
+        "sourceSha256": "2728ffb115dc61d49cf814cb654fc8384ae98f53a57a83d664b3044cfb0af8fb",
+        "glbSha256": "a2ae216f0de448b9290e2902439f8efad21175a92b7e64e49d2ff85031d5027f",
+        "bytes": 9796760,
+        "packageSha256": "a2ae216f0de448b9290e2902439f8efad21175a92b7e64e49d2ff85031d5027f",
+        "packageBytes": 9796760,
+        "bounds3857": [
+          [
+            792439.3258889309,
+            6664702.410648265
+          ],
+          [
+            792903.2045704294,
+            6666094.64828863
+          ]
+        ]
+      },
+      "bridge-existing": {
+        "label": "Brücke",
+        "variant": "existing",
+        "uri": "original/bridge-existing.glb",
+        "provenance": "original/bridge-existing.asset.json",
+        "sourceSha256": "cb1709a85c9feca9f877db0baf905fad0c33e2982e43f7d09221f78ee0190912",
+        "glbSha256": "d409c976dc249204a14429d6635f6b76d2e6f2d8739d14753bcd72b49ae300e7",
+        "bytes": 9512160,
+        "packageSha256": "d409c976dc249204a14429d6635f6b76d2e6f2d8739d14753bcd72b49ae300e7",
+        "packageBytes": 9512160,
+        "bounds3857": [
+          [
+            792439.3258889309,
+            6664701.599563934
+          ],
+          [
+            792903.2045704294,
+            6666094.930917457
+          ]
+        ]
+      },
+      "station": {
+        "label": "Bergstation",
+        "variant": null,
+        "uri": "original/station.glb",
+        "provenance": "original/station.asset.json",
+        "sourceSha256": "dbf9450ff11fdce892ba48a2b3730e901a790df63e574863f869652ed2faabfc",
+        "glbSha256": "7b91b90a643629a2e9512341da52cd44b3a20277076aabbdeacfe68777dbcce8",
+        "bytes": 1929844,
+        "packageSha256": "7b91b90a643629a2e9512341da52cd44b3a20277076aabbdeacfe68777dbcce8",
+        "packageBytes": 1929844,
+        "bounds3857": [
+          [
+            792492.0097751889,
+            6663757.611170454
+          ],
+          [
+            792634.2996168814,
+            6663877.983869376
+          ]
+        ]
+      }
+    }
+  }
+}

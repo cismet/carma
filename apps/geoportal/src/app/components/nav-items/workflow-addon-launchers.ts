@@ -1,13 +1,16 @@
 import { useCallback } from "react";
+import { useDispatch, useSelector } from "react-redux";
 
 import type { Item } from "@carma-mapping/layers";
 import {
   resolveAddonEntries,
   useFloodLauncher,
   useFlowFieldLauncher,
+  useShadowTextureWorkflow,
   useTimeSeriesLauncher,
   useVehicleAnimationLauncher,
   type AddonEntry,
+  type AddonConfigMap,
   type FloodDefinition,
   type FloodSimulationConfig,
   type FlowFieldConfig,
@@ -17,6 +20,10 @@ import {
   type VehicleAnimationConfig,
   type VehicleAnimationDefinition,
 } from "@carma-mapping/addons";
+import {
+  getBackgroundLayer,
+  setBackgroundLayer,
+} from "../../store/slices/mapping";
 
 import type { MessageApiLike } from "./resource-layer-updater";
 
@@ -114,10 +121,30 @@ const toFloodDefinition = (config: FloodSimulationConfig): FloodDefinition => ({
  * plus the catalog's answer to whether such a card is on the map.
  */
 export const useWorkflowAddonLaunchers = (messageApi: MessageApiLike) => {
+  const dispatch = useDispatch();
+  const backgroundLayer = useSelector(getBackgroundLayer);
+  const setBackgroundVisible = useCallback(
+    (visible: boolean) => {
+      if (backgroundLayer) {
+        dispatch(setBackgroundLayer({ ...backgroundLayer, visible }));
+      }
+    },
+    [backgroundLayer, dispatch]
+  );
+  const shadowTextureWorkflow = useShadowTextureWorkflow(
+    backgroundLayer?.visible,
+    setBackgroundVisible
+  );
   const { toggleSeries, isSeriesRunning } = useTimeSeriesLauncher();
   const { toggleField, isFieldRunning } = useFlowFieldLauncher();
   const { toggleFlood, isFloodRunning } = useFloodLauncher();
   const { toggleVehicle, isVehicleRunning } = useVehicleAnimationLauncher();
+
+  const startShadowTexture = useCallback(
+    (config: AddonConfigMap["shadowTexture"]) =>
+      shadowTextureWorkflow.toggle(config.workflowBackgroundVisible),
+    [shadowTextureWorkflow.toggle]
+  );
 
   /** a workflow card's timeSlider tool: its config is the series to run */
   const startTimeSeries = useCallback(
@@ -142,7 +169,8 @@ export const useWorkflowAddonLaunchers = (messageApi: MessageApiLike) => {
       if (!definition) {
         messageApi.open({
           type: "error",
-          content: "Der Workflow enthält keine vollständige Fließwege-Animation.",
+          content:
+            "Der Workflow enthält keine vollständige Fließwege-Animation.",
         });
         return;
       }
@@ -203,13 +231,23 @@ export const useWorkflowAddonLaunchers = (messageApi: MessageApiLike) => {
             }
             case "floodSimulation":
               return isFloodRunning(toFloodDefinition(entry.config ?? {}));
+            case "shadowTexture":
+              return shadowTextureWorkflow.isActive(
+                entry.config?.workflowBackgroundVisible
+              );
             default:
               return false;
           }
         }
       );
     },
-    [isSeriesRunning, isFieldRunning, isVehicleRunning, isFloodRunning]
+    [
+      isSeriesRunning,
+      isFieldRunning,
+      isVehicleRunning,
+      isFloodRunning,
+      shadowTextureWorkflow.isActive,
+    ]
   );
 
   return {
@@ -217,6 +255,7 @@ export const useWorkflowAddonLaunchers = (messageApi: MessageApiLike) => {
     startFlowField,
     startVehicleAnimation,
     startFlood,
+    startShadowTexture,
     isWorkflowActive,
   };
 };

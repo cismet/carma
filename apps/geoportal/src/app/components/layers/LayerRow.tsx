@@ -34,6 +34,8 @@ import OpacitySlider from "./OpacitySlider";
 import VisibilityToggle from "./VisibilityToggle";
 import DynamicStylingLayerIcon from "./DynamicStylingLayerIcon";
 import { useAdhocFeatureDisplay } from "@carma-appframeworks/portals";
+import { useAddonState } from "@carma-mapping/addons";
+import { MODEL_COLLECTION_LAYER_ID } from "../../hooks/useModelCollectionLayerButton";
 import { isAdhocVectorLayer } from "../../helper/adhoc-feature-utils";
 import {
   selectedFeatureBelongsToLayer,
@@ -76,6 +78,7 @@ const LayerRow = ({
 }: LayerRowProps) => {
   const [expanded, setExpanded] = useState(false);
   const dispatch = useDispatch();
+  const [modelState, setModelState] = useAddonState("modelCollection");
   const selectedFeature = useSelector(getSelectedFeature);
   const layers = useSelector(getLayerStack);
   const { clearFeatureCollections } = useAdhocFeatureDisplay();
@@ -114,7 +117,10 @@ const LayerRow = ({
   }, [dispatch, index, isSelectable]);
   const handleToggleVisibility = useCallback(
     (nextVisible: boolean) => {
-      if (isPermanent) {
+      if (id === MODEL_COLLECTION_LAYER_ID && modelState) {
+        setModelState({ ...modelState, visible: nextVisible });
+        dispatch(changeVisibility({ id, visible: nextVisible }));
+      } else if (isPermanent) {
         // the addon owns this row and hands it over again on every readout
         // change, so the choice is recorded next to the stack instead of on it
         dispatch(setPermanentLayerHidden({ id, hidden: !nextVisible }));
@@ -136,7 +142,9 @@ const LayerRow = ({
       id,
       isBackgroundLayer,
       isPermanent,
+      modelState,
       onToggleVisibility,
+      setModelState,
     ]
   );
   const handleRemoveLayer = useCallback(() => {

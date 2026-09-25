@@ -19,8 +19,7 @@ export const resolveShadowSimulationAddon = (
   overrides: AddonOverridesState | undefined
 ): ShadowSimulationAddon | null =>
   applyAddonOverrides(resolveAddonEntries(routeAddons), overrides).find(
-    (entry): entry is ShadowSimulationAddon =>
-      entry.kind === "shadowSimulation"
+    (entry): entry is ShadowSimulationAddon => entry.kind === "shadowSimulation"
   ) ?? null;
 
 export const createShadowSimulationLayer = (

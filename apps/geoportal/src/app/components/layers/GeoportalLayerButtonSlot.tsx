@@ -27,7 +27,10 @@ import {
   useAnnotationsRuntime,
 } from "@carma-mapping/annotations/runtime";
 import { useMeasurements } from "@carma-mapping/measurements";
-import { useAddonState } from "@carma-mapping/addons";
+import {
+  ShadowTextureHeaderControls,
+  useAddonState,
+} from "@carma-mapping/addons";
 import { useLibreMapEnabled } from "../../hooks/useLibreMapEnabled";
 
 import { geoportalAnnotationModeText } from "../../config/geoportalTextConfig";
@@ -48,7 +51,10 @@ import {
 } from "../annotations/cesium-annotations.constants";
 import { MeasurementDeleteConfirmationModal } from "../annotations/MeasurementDeleteConfirmationModal";
 import { MEASUREMENT_LAYER_ID } from "../../hooks/useMeasurementLayerButton";
-import { SHADOW_SIMULATION_LAYER_ID } from "../../hooks/useShadowSimulationLayerButton";
+import {
+  SHADOW_SIMULATION_LAYER_ID,
+  SHADOW_TEXTURE_LAYER_ID,
+} from "../../hooks/useShadowSimulationLayerButton";
 import { formatShadowSelection } from "@carma-mapping/shadow-simulation/core";
 import {
   AdhocModelFlyToLayerbarAction,
@@ -414,7 +420,7 @@ const ShadowSimulationLayerButton = (props: GeoportalLayerButtonProps) => {
       if (infoViewOpen) {
         dispatch(setSelectedLayerIndexNoSelection());
       }
-      dispatch(removeLayer(SHADOW_SIMULATION_LAYER_ID));
+      dispatch(removeLayer(props.id));
     },
     [dispatch, infoViewOpen, setShadowState, shadowState]
   );
@@ -424,7 +430,14 @@ const ShadowSimulationLayerButton = (props: GeoportalLayerButtonProps) => {
       {...props}
       title={props.title}
       actionSlot={
-        shadowState && shadowDate ? (
+        props.id === SHADOW_TEXTURE_LAYER_ID ? (
+          <div
+            className="shrink-0 px-1"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <ShadowTextureHeaderControls compact />
+          </div>
+        ) : shadowState && shadowDate ? (
           <div className="flex items-center">
             <span className="mx-1.5 h-5 w-px bg-neutral-200" />
             <span className="whitespace-nowrap px-1.5 text-sm tabular-nums text-neutral-600">
@@ -498,7 +511,10 @@ const GeoportalLayerButtonSlot = (props: GeoportalLayerButtonProps) => {
     return <MeasurementLayerButton {...props} />;
   }
 
-  if (props.id === SHADOW_SIMULATION_LAYER_ID) {
+  if (
+    props.id === SHADOW_SIMULATION_LAYER_ID ||
+    props.id === SHADOW_TEXTURE_LAYER_ID
+  ) {
     return <ShadowSimulationLayerButton {...props} />;
   }
 
