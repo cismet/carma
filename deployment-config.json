@@ -1160,7 +1160,11 @@
           "live": {
             "pages": {
               "org": "digital-twin-wuppertal-live",
-              "prj": "lagis-desktop"
+              "prj": "lagis-desktop",
+              "envs": [
+                "VITE_REST_SERVICE_LAGIS=https://lagis-api.cismet.de",
+                "VITE_REST_SERVICE_WUNDA=https://wunda-api.cismet.de"
+              ]
             }
           }
         },
