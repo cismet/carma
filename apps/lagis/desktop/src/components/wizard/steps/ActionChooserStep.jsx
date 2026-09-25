@@ -25,84 +25,47 @@ const ICONS = {
 /** Port of ChoiceActionPanel — the first screen of the Flurstück-Assistent. */
 const ActionChooserStep = ({ value, onChange }) => (
   <div
-    style={{
-      display: "grid",
-      gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-      gap: 10,
-    }}
+    role="radiogroup"
+    className="grid gap-3"
+    style={{ gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))" }}
   >
     {ACTION_CHOICES.map((choice) => {
       const selected = value?.action === choice.value;
       return (
-        <div
+        <button
           key={choice.value}
+          type="button"
           role="radio"
-          tabIndex={0}
           aria-checked={selected}
           onClick={() => onChange({ action: choice.value })}
-          onKeyDown={(event) => {
-            if (event.key === "Enter" || event.key === " ") {
-              event.preventDefault();
-              onChange({ action: choice.value });
-            }
-          }}
-          style={{
-            display: "flex",
-            alignItems: "flex-start",
-            gap: 10,
-            padding: "10px 12px",
-            borderRadius: 8,
-            cursor: "pointer",
-            userSelect: "none",
-            border: `1px solid ${selected ? "#1677ff" : "#e8e8e8"}`,
-            background: selected ? "#f0f7ff" : "#fff",
-            boxShadow: selected
-              ? "0 0 0 2px rgba(22,119,255,0.10)"
-              : "0 1px 2px rgba(0,0,0,0.03)",
-            transition: "border-color .15s, background .15s, box-shadow .15s",
-          }}
+          className={`group flex items-start gap-3 w-full text-left rounded-lg border px-4 py-3 cursor-pointer transition-colors ${
+            selected
+              ? "border-blue-500 bg-blue-50 shadow-[0_0_0_3px_rgba(22,119,255,0.12)]"
+              : "border-gray-200 bg-white shadow-sm hover:border-blue-400 hover:bg-blue-50"
+          }`}
         >
           <span
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              flex: "0 0 28px",
-              width: 28,
-              height: 28,
-              borderRadius: 6,
-              fontSize: 14,
-              background: selected ? "#1677ff" : "#f2f4f7",
-              color: selected ? "#fff" : "#6b7280",
-            }}
+            className={`flex flex-none items-center justify-center w-9 h-9 rounded-lg text-base transition-colors ${
+              selected
+                ? "bg-blue-600 text-white"
+                : "bg-slate-100 text-slate-500 group-hover:bg-white group-hover:text-blue-600"
+            }`}
           >
             {ICONS[choice.value]}
           </span>
-          <span style={{ minWidth: 0 }}>
+          <span className="min-w-0">
             <span
-              style={{
-                display: "block",
-                fontSize: 13,
-                fontWeight: 500,
-                lineHeight: "18px",
-                color: selected ? "#0958d9" : "#1f2937",
-              }}
+              className={`block text-sm font-medium leading-5 ${
+                selected ? "text-blue-700" : "text-gray-800"
+              }`}
             >
               {choice.label}
             </span>
-            <span
-              style={{
-                display: "block",
-                fontSize: 12,
-                lineHeight: "16px",
-                color: "#8c8c8c",
-                marginTop: 2,
-              }}
-            >
+            <span className="block text-xs leading-4 text-gray-500 mt-1">
               {choice.description}
             </span>
           </span>
-        </div>
+        </button>
       );
     })}
   </div>

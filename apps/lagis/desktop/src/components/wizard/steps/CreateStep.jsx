@@ -29,7 +29,7 @@ const CreateStep = ({ value, onChange, onProblem }) => {
   useEffect(() => {
     if (!alkisId) {
       setGeometry({ status: "idle" });
-      onChange({ createArea: undefined });
+      onChange({ createOutline: undefined });
       return undefined;
     }
     let cancelled = false;
@@ -38,8 +38,8 @@ const CreateStep = ({ value, onChange, onProblem }) => {
       try {
         const found = await fetchGeometryForKey(key, jwt);
         if (!cancelled) {
-          // the Dienststellen sub-step starts from this area
-          onChange({ createArea: found?.area });
+          // the Dienststellen sub-step reuses the area and the outline
+          onChange({ createOutline: found });
           setGeometry(
             found
               ? { status: "found", area: found.area }

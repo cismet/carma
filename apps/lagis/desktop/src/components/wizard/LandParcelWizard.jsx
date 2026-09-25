@@ -86,6 +86,8 @@ const LandParcelWizard = ({
   const [error, setError] = useState();
   const [rebeMipaPrompt, setRebeMipaPrompt] = useState();
   const [logsOpen, setLogsOpen] = useState(false);
+  // the map step shows only its own area summary
+  const [hideProblem, setHideProblem] = useState(false);
   useEffect(() => setLoggingEnabled(showLogs), [showLogs]);
 
   const steps = useMemo(() => getSteps(data.action), [data.action]);
@@ -286,7 +288,12 @@ const LandParcelWizard = ({
   };
 
   const renderStep = () => {
-    const props = { value: data, onChange: patch, onProblem: setProblem };
+    const props = {
+      value: data,
+      onChange: patch,
+      onProblem: setProblem,
+      onHideProblem: setHideProblem,
+    };
     switch (currentStep.id) {
       case STEP.CHOOSE_ACTION:
         return <ActionChooserStep value={data} onChange={handleActionChange} />;
@@ -378,6 +385,7 @@ const LandParcelWizard = ({
         error={error}
         problem={result || stepIndex === 0 ? null : problem}
         problemTone={isHint(problem) ? "info" : "error"}
+        hideProblem={hideProblem}
       >
         {renderStep()}
       </WizardModal>
