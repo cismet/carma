@@ -45,6 +45,22 @@ export type ShadowTextureConfig = {
   enabledByDefault?: boolean;
   /** Workflow-card preset; the route addon ignores this presentation choice. */
   workflowBackgroundVisible?: boolean;
+  /**
+   * Switch the shadows on at mount and off at teardown. Set for a layer that
+   * launches the addon (`getLayerLaunchedAddons`): the layer is the switch.
+   */
+  startEnabled?: boolean;
+  /** the layer is the face of the shadows; no sun button of their own */
+  permanent?: boolean;
+  /**
+   * The stack layer that launched the addon. Its style marks with a
+   * `shadowTexture` slot (`style-slot.ts`) where in the layer order the shadows
+   * are drawn; they show while that placeholder is on the map, so the layer's
+   * eye hides them and its slider fades them.
+   */
+  anchorLayerId?: string;
+  /** the bridge the shadows are cast by: today's or the BuGa design */
+  bridge?: "existing" | "planning";
 };
 
 export type ShadowTextureState = {
@@ -153,6 +169,52 @@ export const ShadowTexture = ({
   useEffect(() => {
     if (!modelState) setModelState(createInitialDzbPrmModelState());
   }, [modelState, setModelState]);
+
+  // A layer that launched the shadows is their switch: on while it is in the
+  // stack, off with it. Its bridge is the variant the layer stands for.
+  const startEnabled = !target && config?.startEnabled === true;
+  const bridge = config?.bridge;
+  useEffect(() => {
+    if (!startEnabled) return;
+    if (bridge) {
+      setModelState((previous) => ({
+        ...(previous ?? createInitialDzbPrmModelState()),
+        bridge,
+      }));
+    }
+    setShadowState((previous) => ({
+      ...(previous ?? initialShadowState),
+      enabled: true,
+    }));
+    return () =>
+      setShadowState((previous) => ({
+        ...(previous ?? initialShadowState),
+        enabled: false,
+        isAnimating: false,
+      }));
+  }, [bridge, initialShadowState, setModelState, setShadowState, startEnabled]);
+  // Only the shadows: the layer takes the base map off while it is in the
+  // stack, like the "Schatten ohne Karte" card, and puts it back as it was
+  // when it leaves. "Karte" in the panel still brings the map back meanwhile.
+  useEffect(() => {
+    if (!startEnabled) return;
+    const previousVisible =
+      (
+        store.getState() as {
+          mapping?: { backgroundLayer?: { visible?: boolean } };
+        }
+      ).mapping?.backgroundLayer?.visible ?? true;
+    store.dispatch({
+      type: "mapping/changeBackgroundVisibility",
+      payload: false,
+    });
+    return () => {
+      store.dispatch({
+        type: "mapping/changeBackgroundVisibility",
+        payload: previousVisible,
+      });
+    };
+  }, [startEnabled, store]);
   useEffect(() => {
     let cancelled = false;
     setCollection(null);
@@ -237,23 +299,26 @@ export const ShadowTexture = ({
         data-test-id="shadow-texture-panel"
       >
         <ShadowTextureHeaderControls />
-        <Radio.Group
-          aria-label="Brückenvariante"
-          size="small"
-          optionType="button"
-          buttonStyle="solid"
-          value={modelState?.bridge === "existing" ? "existing" : "planning"}
-          options={[
-            { label: "Bestand", value: "existing" },
-            { label: "BuGa-Entwurf", value: "planning" },
-          ]}
-          onChange={({ target: { value } }) =>
-            setModelState((previous) => ({
-              ...(previous ?? createInitialDzbPrmModelState()),
-              bridge: value,
-            }))
-          }
-        />
+        {/* a layer that stands for one bridge does not offer the other */}
+        {!config?.bridge && (
+          <Radio.Group
+            aria-label="Brückenvariante"
+            size="small"
+            optionType="button"
+            buttonStyle="solid"
+            value={modelState?.bridge === "existing" ? "existing" : "planning"}
+            options={[
+              { label: "Bestand", value: "existing" },
+              { label: "BuGa-Entwurf", value: "planning" },
+            ]}
+            onChange={({ target: { value } }) =>
+              setModelState((previous) => ({
+                ...(previous ?? createInitialDzbPrmModelState()),
+                bridge: value,
+              }))
+            }
+          />
+        )}
         <details className="shadow-texture-options">
           <summary>
             Einstellungen{" "}
@@ -569,7 +634,8 @@ export const ShadowTexture = ({
 
   return (
     <>
-      {libreMap && (
+      {/* shadows a layer launched are switched by that layer */}
+      {libreMap && !config?.permanent && (
         <Control position="topleft" order={71}>
           {controlContent}
         </Control>
@@ -584,6 +650,7 @@ export const ShadowTexture = ({
             <ShadowTextureRuntime
               assetBaseUrl={config.assetBaseUrl}
               manifestUrl={manifestUrl}
+              anchorLayerId={config.anchorLayerId}
               map={libreMap}
               shadowState={shadowState}
               dateState={dateState}

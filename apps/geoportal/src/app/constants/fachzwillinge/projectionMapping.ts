@@ -157,6 +157,15 @@ export const projectionMappingFachzwilling: FachzwillingRoute = {
       ],
     },
     {
+      Title: "Schatten",
+      // each style switches the BuGa model's shadows on for its bridge, see its
+      // carmaConf.tools; date, time and playback sit on the style's button
+      layers: [
+        `${PROJECTION_MAPPING_STYLES}/schatten_bestand.style.json`,
+        `${PROJECTION_MAPPING_STYLES}/schatten_buga_entwurf.style.json`,
+      ],
+    },
+    {
       Title: "Hochwasser",
       // one scenario of the Hochwassergefahrenkarte each; no time steps
       layers: [

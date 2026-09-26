@@ -52,6 +52,7 @@ import {
 import { MeasurementDeleteConfirmationModal } from "../annotations/MeasurementDeleteConfirmationModal";
 import { MEASUREMENT_LAYER_ID } from "../../hooks/useMeasurementLayerButton";
 import {
+  getShadowTextureLauncherId,
   SHADOW_SIMULATION_LAYER_ID,
   SHADOW_TEXTURE_LAYER_ID,
 } from "../../hooks/useShadowSimulationLayerButton";
@@ -430,7 +431,8 @@ const ShadowSimulationLayerButton = (props: GeoportalLayerButtonProps) => {
       {...props}
       title={props.title}
       actionSlot={
-        props.id === SHADOW_TEXTURE_LAYER_ID ? (
+        // the texture row, or a style that launched the texture
+        props.id !== SHADOW_SIMULATION_LAYER_ID ? (
           <div
             className="shrink-0 px-1"
             onClick={(event) => event.stopPropagation()}
@@ -503,6 +505,8 @@ const SavedCesiumMeasurementLayerButton = (
 };
 
 const GeoportalLayerButtonSlot = (props: GeoportalLayerButtonProps) => {
+  const shadowTextureLauncherId = useSelector(getShadowTextureLauncherId);
+
   if (props.id === CESIUM_ANNOTATION_LAYER_ID) {
     return <CesiumAnnotationLayerButton {...props} />;
   }
@@ -516,6 +520,17 @@ const GeoportalLayerButtonSlot = (props: GeoportalLayerButtonProps) => {
     props.id === SHADOW_TEXTURE_LAYER_ID
   ) {
     return <ShadowSimulationLayerButton {...props} />;
+  }
+
+  // a style that launched the shadows is their row: the same sun, date, time
+  // and playback as the shadow row
+  if (props.id === shadowTextureLauncherId) {
+    return (
+      <ShadowSimulationLayerButton
+        {...props}
+        layer={{ ...props.layer, icon: "shadow-simulation" }}
+      />
+    );
   }
 
   const isAdhocModelLayer =

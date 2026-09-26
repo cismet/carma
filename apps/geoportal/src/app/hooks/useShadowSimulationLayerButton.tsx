@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { createSelector } from "@reduxjs/toolkit";
 
 import {
   createShadowTextureLayer,
+  getAddonKind,
+  getLayerLaunchedAddons,
   resolveShadowTextureAddon,
   SHADOW_TEXTURE_LAYER_ID,
   useAddonState,
@@ -17,6 +20,7 @@ import {
 } from "../helper/shadow-simulation-layer";
 import {
   appendLayer,
+  getLayers,
   getLayerStack,
   removeLayer,
   setSelectedLayerIndex,
@@ -26,9 +30,23 @@ import {
 export { SHADOW_SIMULATION_LAYER_ID } from "../helper/shadow-simulation-layer";
 export { SHADOW_TEXTURE_LAYER_ID } from "@carma-mapping/addons";
 
+/**
+ * The layer whose style launched the shadow texture, if one did. That layer is
+ * the face of the shadows: its button carries their controls and no row of
+ * their own is added.
+ */
+export const getShadowTextureLauncherId = createSelector(
+  [getLayers],
+  (layers) =>
+    getLayerLaunchedAddons(layers).find(
+      ({ entry }) => getAddonKind(entry) === "shadowTexture"
+    )?.layerId
+);
+
 export const useShadowSimulationLayerButton = () => {
   const dispatch = useDispatch();
   const layerStack = useSelector(getLayerStack);
+  const launcherId = useSelector(getShadowTextureLauncherId);
   const routeAddons = useRouteAddons();
   const [addonOverrides] = usePersistedAddonOverrides();
   const [shadowState, setShadowState] = useAddonState("shadowSimulation");
@@ -51,6 +69,16 @@ export const useShadowSimulationLayerButton = () => {
   );
 
   useEffect(() => {
+    if (launcherId) {
+      // the launching layer's button is the shadows' row
+      wasEnabled.current = shadowEnabled;
+      for (const rowId of [SHADOW_SIMULATION_LAYER_ID, SHADOW_TEXTURE_LAYER_ID]) {
+        if (layerStack.some((entry) => entry.id === rowId)) {
+          dispatch(removeLayer(rowId));
+        }
+      }
+      return;
+    }
     const layerId = shadowLayer?.id;
     const layerIndex = layerStack.findIndex((entry) => entry.id === layerId);
     const currentLayer = layerIndex >= 0 ? layerStack[layerIndex] : undefined;
@@ -117,6 +145,7 @@ export const useShadowSimulationLayerButton = () => {
     }
   }, [
     dispatch,
+    launcherId,
     layerStack,
     setShadowState,
     shadowAddon,

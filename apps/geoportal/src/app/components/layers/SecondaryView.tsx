@@ -135,10 +135,13 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
   const isShadowSimulationLayer =
     entry.id === SHADOW_SIMULATION_LAYER_ID &&
     secondaryViewAddon?.kind === "shadowSimulation";
-  const isShadowTextureLayer =
-    entry.id === SHADOW_TEXTURE_LAYER_ID &&
-    secondaryViewAddon?.kind === "shadowTexture";
+  // the shadow row, or a style that launches the shadows (`getLayerLaunchedAddons`)
+  const isShadowTextureLayer = secondaryViewAddon?.kind === "shadowTexture";
   const isShadowLayer = isShadowSimulationLayer || isShadowTextureLayer;
+  // the rows switch the shadows with their eye; a launching style's eye hides
+  // the style, and its slot, which is what hides the shadows then
+  const isShadowRow =
+    isShadowSimulationLayer || entry.id === SHADOW_TEXTURE_LAYER_ID;
 
   // An addon row draws through its addon, not through the layer stack, so the
   // eye here would toggle a flag nothing reads. Its opacity does travel back
@@ -446,7 +449,11 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
               ) : (
                 <DynamicStylingLayerIcon
                   layer={layer}
-                  fallbackIcon={layer.icon ?? icon}
+                  fallbackIcon={
+                    isShadowTextureLayer
+                      ? "shadow-simulation"
+                      : layer.icon ?? icon
+                  }
                   isBackgroundLayer={isBaseLayer}
                   isBaseLayer={isBaseLayer}
                   iconId={iconId}
@@ -551,7 +558,7 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
               disabled={isCesium || ownsOwnVisibility}
               labels={DEFAULT_LAYER_VISIBILITY_TOGGLE_LABELS}
               onToggleVisibility={(nextVisible) => {
-                if (isShadowLayer && shadowState) {
+                if (isShadowRow && shadowState) {
                   setShadowState({ ...shadowState, enabled: nextVisible });
                 }
                 if (entry.id === MODEL_COLLECTION_LAYER_ID && modelState) {

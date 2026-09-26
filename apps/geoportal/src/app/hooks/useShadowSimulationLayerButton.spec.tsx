@@ -22,6 +22,26 @@ vi.mock("@carma-mapping/addons", () => ({
   resolveAddonEntries: (entries?: unknown[]) => entries ?? [],
   normalizeAddonEntries: (entries?: unknown[]) => entries ?? [],
   isAlwaysOnTop: () => false,
+  getAddonKind: (entry: { addon?: string; kind?: string }) =>
+    entry.addon ?? entry.kind,
+  // only what this hook asks: which style launches the shadows
+  getLayerLaunchedAddons: (
+    layers: Array<{ id: string; visible?: boolean; tools?: unknown }>
+  ) =>
+    layers.flatMap((layer) =>
+      Array.isArray(layer.tools) &&
+      (layer.tools as Array<{ addon?: string }>).some(
+        (tool) => tool.addon === "shadowTexture"
+      )
+        ? [
+            {
+              layerId: layer.id,
+              visible: layer.visible !== false,
+              entry: { addon: "shadowTexture" },
+            },
+          ]
+        : []
+    ),
   SHADOW_TEXTURE_LAYER_ID: "__shadow_texture__",
   resolveShadowTextureAddon: (
     entries?: Array<{ kind: string; config?: unknown }>,
@@ -53,7 +73,7 @@ vi.mock("@carma-mapping/addons", () => ({
   useRouteAddons: () => addonStateMock.routeAddons,
 }));
 
-import mappingReducer from "../store/slices/mapping";
+import mappingReducer, { appendLayer } from "../store/slices/mapping";
 import uiReducer from "../store/slices/ui";
 import { formatShadowSelection } from "@carma-mapping/shadow-simulation";
 import {
@@ -185,6 +205,44 @@ describe("useShadowSimulationLayerButton", () => {
       );
       expect(findShadowLayer(store)).toBeUndefined();
     });
+  });
+
+  it("adds no row while a style launches the shadows", async () => {
+    addonStateMock.routeAddons = [
+      {
+        kind: "shadowTexture",
+        config: { assetBaseUrl: "/assets/dz-b-prm/5m" },
+      },
+    ];
+    addonStateMock.shadowState = { enabled: true };
+    const store = createTestStore();
+    store.dispatch(
+      appendLayer({
+        id: "custom:schatten",
+        title: "Schatten BuGa-Entwurf",
+        type: "layer",
+        visible: true,
+        tools: [
+          {
+            addon: "shadowTexture",
+            config: { assetBaseUrl: "/assets/dz-b-prm/5m" },
+          },
+        ],
+      } as never)
+    );
+    const dispatch = vi.spyOn(store, "dispatch");
+    renderHook(() => useShadowSimulationLayerButton(), {
+      wrapper: createWrapper(store),
+    });
+
+    await waitFor(() => expect(store.getState().mapping.layers).toHaveLength(1));
+    expect(
+      store
+        .getState()
+        .mapping.layers.some((layer) => layer.id === SHADOW_TEXTURE_LAYER_ID)
+    ).toBe(false);
+    expect(dispatch).not.toHaveBeenCalled();
+    expect(addonStateMock.setShadowState).not.toHaveBeenCalled();
   });
 
   it("keeps the layer entry but hides it when the simulation is disabled", async () => {

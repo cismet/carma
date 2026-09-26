@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { FLOW_FIELD_LAYER_ID } from "../addons/FlowField/flowfield-layer-row";
 import { TIME_SLIDER_LAYER_ID } from "../addons/TimeSlider/timeslider-layer-row";
+import { SHADOW_TEXTURE_LAYER_ID } from "../addons/ShadowTexture/shadow-texture-layer";
 import { getLayerLaunchedAddons } from "./layer-launched-addons";
 
 // the registry reaches the annotation addon, whose excalidraw wants a real
@@ -197,5 +198,59 @@ describe("getLayerLaunchedAddons, time series style", () => {
       "flowField",
       "timeSlider",
     ]);
+  });
+});
+
+const SHADOWS = {
+  assetBaseUrl: "https://wupp-3d-data.cismet.de/dz-b-prm/derived",
+  manifestUrl: "assets/dz-b-prm/collection.json",
+  bridge: "planning",
+};
+
+describe("getLayerLaunchedAddons, shadow texture style", () => {
+  it("launches the style's shadows as the style's own", () => {
+    expect(
+      getLayerLaunchedAddons([
+        styleLayer("custom:schatten", [
+          { addon: "shadowTexture", config: SHADOWS },
+        ]),
+      ])
+    ).toEqual([
+      {
+        layerId: "custom:schatten",
+        visible: true,
+        entry: {
+          addon: "shadowTexture",
+          config: {
+            ...SHADOWS,
+            startEnabled: true,
+            permanent: true,
+            anchorLayerId: "custom:schatten",
+          },
+        },
+      },
+    ]);
+  });
+
+  it("launches nothing from a style without assets", () => {
+    expect(
+      getLayerLaunchedAddons([
+        styleLayer("custom:schatten", [
+          { addon: "shadowTexture", config: { bridge: "existing" } },
+        ]),
+      ])
+    ).toEqual([]);
+  });
+
+  it("never launches from the shadow row, which carries the route's addon", () => {
+    const row = {
+      id: SHADOW_TEXTURE_LAYER_ID,
+      visible: true,
+      tools: [{ kind: "shadowTexture", config: SHADOWS }],
+    };
+    expect(getLayerLaunchedAddons([row])).toEqual([]);
+    expect(getLayerLaunchedAddons([row], { includeEngineRow: true })).toEqual(
+      []
+    );
   });
 });

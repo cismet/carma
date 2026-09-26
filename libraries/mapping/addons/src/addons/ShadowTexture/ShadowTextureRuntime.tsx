@@ -27,9 +27,12 @@ import {
   type DzbPrmShadowViewBounds,
 } from "./shadow-texture-capture";
 import { DEFAULT_SHADOW_TEXTURE_APPEARANCE } from "./shadow-texture-appearance";
+import { placeAtSlot, useStyleSlot } from "../../lib/style-slot";
 
 const SOURCE_ID = "__shadow_texture_canvas__";
 const LAYER_ID = "__shadow_texture_raster__";
+/** the placeholder a launching style marks the shadows' place with */
+export const SHADOW_TEXTURE_SLOT = "shadowTexture";
 
 const removeImage = (map: MaplibreMap) => {
   if (map.getLayer(LAYER_ID)) map.removeLayer(LAYER_ID);
@@ -39,7 +42,8 @@ const removeImage = (map: MaplibreMap) => {
 const showImage = (
   map: MaplibreMap,
   image: DzbPrmShadowImage,
-  appearance: { color: string; intensity: number }
+  appearance: { color: string; intensity: number },
+  placeholderId: string | undefined
 ) => {
   if (!map.isStyleLoaded()) return;
   const source = map.getSource(SOURCE_ID) as
@@ -94,6 +98,7 @@ const showImage = (
       "raster-opacity": appearance.intensity,
     },
   });
+  placeAtSlot(map, [LAYER_ID], placeholderId);
 };
 
 const getViewBounds = (map: MaplibreMap): DzbPrmShadowViewBounds => {
@@ -133,8 +138,9 @@ type PrintedBoard = Readonly<{
 export const ShadowTextureRuntime = ({
   assetBaseUrl,
   manifestUrl,
+  anchorLayerId,
   map,
-  shadowState,
+  shadowState: switchedShadowState,
   dateState,
   textureState,
   modelState,
@@ -143,6 +149,8 @@ export const ShadowTextureRuntime = ({
 }: {
   assetBaseUrl: string;
   manifestUrl: string | undefined;
+  /** the launching layer, whose style's slot places and shows the shadows */
+  anchorLayerId?: string;
   map: MaplibreMap;
   shadowState: ShadowSimulationState;
   dateState: ShadowDateState;
@@ -159,6 +167,23 @@ export const ShadowTextureRuntime = ({
       | ((previous: ShadowDateState | undefined) => ShadowDateState)
   ) => void;
 }) => {
+  // Shadows a layer launched sit at its style's slot. The placeholder is gone
+  // while the style is hidden, so they are off then too, without the switch
+  // itself changing.
+  const slot = useStyleSlot(map, SHADOW_TEXTURE_SLOT, anchorLayerId);
+  const placeholderId = slot?.placeholderId;
+  const slotOpacity = slot?.opacity ?? 1;
+  const shown =
+    switchedShadowState.enabled && (!anchorLayerId || slot !== undefined);
+  const shadowState = useMemo(
+    () =>
+      shown === switchedShadowState.enabled
+        ? switchedShadowState
+        : { ...switchedShadowState, enabled: shown },
+    [shown, switchedShadowState]
+  );
+  const placeholderRef = useRef(placeholderId);
+  placeholderRef.current = placeholderId;
   const [view, setView] = useState<View | null>(null);
   const [printedBoard, setPrintedBoard] = useState<PrintedBoard | null>(null);
   const [manifestError, setManifestError] = useState<string | null>(null);
@@ -177,8 +202,10 @@ export const ShadowTextureRuntime = ({
   const renderQueue = useRef<Promise<void>>(Promise.resolve());
   const lastImage = useRef<DzbPrmShadowImage | null>(null);
   const color = textureState.color ?? DEFAULT_SHADOW_TEXTURE_APPEARANCE.color;
+  // the launching layer's slider fades the shadows like its own layers
   const intensity =
-    textureState.intensity ?? DEFAULT_SHADOW_TEXTURE_APPEARANCE.intensity;
+    (textureState.intensity ?? DEFAULT_SHADOW_TEXTURE_APPEARANCE.intensity) *
+    slotOpacity;
   const appearance = useRef({ color, intensity });
   const requestCapture = useRef<((date: ShadowDateState) => void) | null>(null);
   const onAnimationFrame = useCallback((date: ShadowDateState) => {
@@ -276,9 +303,26 @@ export const ShadowTextureRuntime = ({
   useEffect(() => {
     appearance.current = { color, intensity };
     if (shadowState.enabled && styleReady && lastImage.current) {
-      showImage(map, lastImage.current, appearance.current);
+      showImage(
+        map,
+        lastImage.current,
+        appearance.current,
+        placeholderRef.current
+      );
     }
   }, [map, shadowState.enabled, styleReady, color, intensity]);
+
+  // Every rebuild of the composed style and every reorder fires `styledata`;
+  // the raster goes back under the placeholder then, see `style-slot.ts`.
+  useEffect(() => {
+    if (!placeholderId) return;
+    const place = () => placeAtSlot(map, [LAYER_ID], placeholderId);
+    place();
+    map.on("styledata", place);
+    return () => {
+      map.off("styledata", place);
+    };
+  }, [map, placeholderId]);
 
   useEffect(
     () => () => {
@@ -421,7 +465,7 @@ export const ShadowTextureRuntime = ({
       }
       if (cancelled || !image) return;
       lastImage.current = image;
-      showImage(map, image, appearance.current);
+      showImage(map, image, appearance.current, placeholderRef.current);
       setStatus(
         solar.elevationDegrees <= 0
           ? "night"
