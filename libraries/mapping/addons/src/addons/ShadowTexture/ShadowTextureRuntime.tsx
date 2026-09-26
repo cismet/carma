@@ -463,7 +463,13 @@ export const ShadowTextureRuntime = ({
           },
         });
       }
-      if (cancelled || !image) return;
+      if (cancelled) return;
+      // An empty capture is a view the model does not reach (an outlet
+      // launched without its bounds, say); a progress status would hang on.
+      if (!image) {
+        setStatus("Kein Modell im Bild");
+        return;
+      }
       lastImage.current = image;
       showImage(map, image, appearance.current, placeholderRef.current);
       setStatus(

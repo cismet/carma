@@ -357,6 +357,22 @@ describe("shadow capture updates", () => {
     expect(mocks.capture).not.toHaveBeenCalled();
   });
 
+  it("says the model is out of view when the capture comes back empty instead of leaving a progress status", async () => {
+    mocks.capture.mockImplementation(async ({ onProgress }) => {
+      onProgress?.({ state: "ready", loaded: 1, total: 1, cached: 0 });
+      return null;
+    });
+    const props = makeProps();
+    render(<ShadowTextureRuntime {...props} />);
+    await waitFor(() => {
+      const update = vi.mocked(props.setTextureState).mock.lastCall?.[0];
+      expect(
+        typeof update === "function" && update(props.textureState).status
+      ).toBe("Kein Modell im Bild");
+    });
+    expect(props.map.addSource).not.toHaveBeenCalled();
+  });
+
   it("keeps the current canvas intact when a style reload restores the same image", async () => {
     const props = makeProps();
     render(<ShadowTextureRuntime {...props} />);
