@@ -9,7 +9,10 @@ export {
   DEFAULT_SHADOW_SIMULATION_TIME_ZONE,
 } from "../../src/lib/core/solar-position";
 export { formatShadowSelection } from "../../src/lib/ui/format-shadow-selection";
-export { getSolarPosition } from "../../src/lib/core/solar-position";
+export {
+  getDaylightWindow,
+  getSolarPosition,
+} from "../../src/lib/core/solar-position";
 export { advanceShadowAnimationFrame } from "../../src/lib/core/shadow-animation";
 export { fitShadowMap } from "../../src/lib/core/fit-shadow-map";
 export {

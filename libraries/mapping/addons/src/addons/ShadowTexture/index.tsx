@@ -22,9 +22,11 @@ import {
 import {
   createInitialShadowDateState,
   createInitialShadowSimulationState,
+  getDaylightWindow,
 } from "@carma-mapping/shadow-simulation/core";
 import {
   DEFAULT_SHADOW_CYCLE_SECONDS,
+  SHADOW_START_BEFORE_SUNRISE_MINUTES,
   formatShadowCycle,
   SHADOW_CYCLE_STEPS_SECONDS,
   shadowCycleStepIndex,
@@ -71,6 +73,19 @@ export type ShadowTextureConfig = {
   anchorLayerId?: string;
   /** the bridge the shadows are cast by: today's or the BuGa design */
   bridge?: "existing" | "planning";
+  /**
+   * The moment a launching layer starts the shadows at, and what it plays
+   * from there. Absent: today, an hour before sunrise. The remote reads the
+   * same fields to know where the display starts, see `shadow.ts` in
+   * `@carma-mapping/show-remote`.
+   */
+  initialDayOfYear?: number;
+  initialMinutes?: number;
+  autoplay?: "day" | "year";
+  /** seconds one pass of the playback takes; 60 when absent */
+  cycleSeconds?: number;
+  /** day playback walks from sunrise to sunset instead of all 24 hours */
+  daylightOnly?: boolean;
 };
 
 export type ShadowTextureState = {
@@ -204,6 +219,50 @@ export const ShadowTexture = ({
         isAnimating: false,
       }));
   }, [bridge, initialShadowState, setModelState, setShadowState, startEnabled]);
+  // It starts them at the moment it names and plays what it names, which is
+  // where the remote's phone counts from. A switch to a layer of the same
+  // moment (the other bridge) carries on where the shadows are.
+  const initialDayOfYear = config?.initialDayOfYear;
+  const initialMinutes = config?.initialMinutes;
+  const autoplay = config?.autoplay;
+  const cycleSeconds = config?.cycleSeconds;
+  const daylightOnly = config?.daylightOnly === true;
+  useEffect(() => {
+    if (!startEnabled) return;
+    // the day as the display picks it; the time is not moved into daylight,
+    // a start at night is meant
+    const day = createInitialShadowDateState(
+      { initialDayOfYear },
+      DZ_B_PRM_POSITION
+    );
+    const minutes =
+      initialMinutes ??
+      Math.round(
+        getDaylightWindow(day, DZ_B_PRM_POSITION).sunriseMinutes -
+          SHADOW_START_BEFORE_SUNRISE_MINUTES
+      );
+    setDateState({
+      ...day,
+      minutes: Math.max(0, Math.min(minutes, 24 * 60 - 1)),
+    });
+    setShadowState((previous) => ({
+      ...(previous ?? initialShadowState),
+      isAnimating: autoplay !== undefined,
+      ...(autoplay ? { animationMode: autoplay } : {}),
+      animationCycleSeconds: cycleSeconds ?? DEFAULT_SHADOW_CYCLE_SECONDS,
+      animationDaylightOnly: daylightOnly,
+    }));
+  }, [
+    autoplay,
+    cycleSeconds,
+    daylightOnly,
+    initialDayOfYear,
+    initialMinutes,
+    initialShadowState,
+    setDateState,
+    setShadowState,
+    startEnabled,
+  ]);
   // Only the shadows: the layer takes the base map off while it is in the
   // stack, like the "Schatten ohne Karte" card, and puts it back as it was
   // when it leaves. "Karte" in the panel still brings the map back meanwhile.

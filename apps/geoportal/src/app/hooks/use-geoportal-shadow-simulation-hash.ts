@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
 
 import type { AppSearchParamsCustomStateSnapshot } from "@carma-appframeworks/portals";
-import { useAddonState } from "@carma-mapping/addons";
+import {
+  resolveAddonEntries,
+  useAddonState,
+  useRouteAddons,
+} from "@carma-mapping/addons";
 import { useLibreContext } from "@carma-mapping/contexts";
 import {
   DEFAULT_SHADOW_SIMULATION_TIME_ZONE,
@@ -33,6 +37,16 @@ export const useGeoportalShadowSimulationHash = ({
   const [shadowDate, setShadowDate] = useAddonState("shadowDate");
   const [textureState] = useAddonState("shadowTexture");
   const textureAvailable = Boolean(textureState);
+  // a layer that launched the shadows is their switch, see `ShadowTexture`
+  const routeAddons = useRouteAddons();
+  const launchedByLayer = useMemo(
+    () =>
+      resolveAddonEntries(routeAddons).some(
+        (entry) =>
+          entry.kind === "shadowTexture" && entry.config?.startEnabled === true
+      ),
+    [routeAddons]
+  );
   const { map: libreMap } = useLibreContext();
   const { updateHashState } = useHashState();
   const handledHashStateVersionRef = useRef<number | null>(null);
@@ -149,7 +163,9 @@ export const useGeoportalShadowSimulationHash = ({
         shadowState.enabled,
         shadowDate,
         hashSelection
-      )
+      ) ||
+      // a URL without shadows leaves those a layer launched on
+      (hashSelection === null && launchedByLayer)
     ) {
       pendingHashStateVersionRef.current = null;
       return;
@@ -169,6 +185,7 @@ export const useGeoportalShadowSimulationHash = ({
     decodedHashSelection,
     hashSelection,
     hashStateVersion,
+    launchedByLayer,
     setShadowState,
     setShadowDate,
     shadowDate,

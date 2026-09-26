@@ -5,23 +5,34 @@ import {
   DEFAULT_PREPARE_MS,
   baseOf,
   blackoutOf,
+  clampDayOfYear,
+  clockShadowDate,
   clockStep,
   composeDisplayConfig,
   findSceneSeries,
+  findSceneShadow,
   helloRelay,
+  initialShadowClock,
   isBounds3857,
   isMappingConfig,
+  isShadowControl,
   isTimeSeriesControl,
   planSceneChange,
   readRelayState,
   seriesControlOf,
+  shadowControlOf,
   withLayerOpacity,
   writeRelayState,
   type Bounds3857,
   type PointerChannel,
   type RelayTarget,
   type SceneSeries,
+  type SceneShadow,
   type SeriesClock,
+  type ShadowClock,
+  type ShadowControl,
+  type ShadowMoment,
+  type ShadowPlay,
   type ShowScene,
   type TimeSeriesControl,
 } from "@carma-mapping/show-remote";
@@ -58,6 +69,23 @@ const seriesEntry = (
   const series = findSceneSeries(base);
   return series?.key === own.key
     ? { timeSeries: seriesControlOf(own.clock, series, Date.now()) }
+    : {};
+};
+
+/** The phone's clock of the shadows the live scene casts, like `OwnSeries`. */
+type OwnShadow = { key: string; clock: ShadowClock; touched: boolean };
+
+/** the shadows' entry of a write, when the presenter steered the ones it casts */
+const shadowEntry = (
+  own: OwnShadow | null,
+  base: MappingConfig | null
+): { shadow?: ShadowControl } => {
+  if (!own?.touched) {
+    return {};
+  }
+  const shadow = findSceneShadow(base);
+  return shadow?.key === own.key
+    ? { shadow: shadowControlOf(own.clock, shadow, Date.now()) }
     : {};
 };
 
@@ -102,6 +130,9 @@ export const useDisplay = (
   /** the series clock, repeated in every write like the position */
   const seriesRef = useRef<OwnSeries | null>(null);
   const [seriesClock, setSeriesClock] = useState<SeriesClock | null>(null);
+  /** the shadows' clock, repeated in every write like the series */
+  const shadowRef = useRef<OwnShadow | null>(null);
+  const [shadowClock, setShadowClock] = useState<ShadowClock | null>(null);
   // bumped by every scene tap; a run whose number is outdated stops
   const runRef = useRef(0);
   const scenesRef = useRef(scenes);
@@ -154,6 +185,7 @@ export const useDisplay = (
           ...(boundsRef.current ? { bounds: boundsRef.current } : {}),
           ...(pointerRef.current ? { pointer: pointerRef.current } : {}),
           ...seriesEntry(seriesRef.current, base),
+          ...shadowEntry(shadowRef.current, base),
         })
       );
     },
@@ -185,14 +217,35 @@ export const useDisplay = (
     setSeriesClock(seriesRef.current?.clock ?? null);
   }, []);
 
+  /**
+   * The same for the shadows. Other shadows, or the same ones from another
+   * start moment, start over as the display starts them; the other bridge of
+   * the same moment keeps the clock, as the display keeps casting them.
+   */
+  const trackShadow = useCallback((base: MappingConfig | null) => {
+    const shadow = findSceneShadow(base);
+    if (shadow?.key === shadowRef.current?.key) {
+      return;
+    }
+    shadowRef.current = shadow
+      ? {
+          key: shadow.key,
+          clock: initialShadowClock(shadow, Date.now()),
+          touched: false,
+        }
+      : null;
+    setShadowClock(shadowRef.current?.clock ?? null);
+  }, []);
+
   const send = useCallback(
     (base: MappingConfig): Promise<void> => {
       liveRef.current = base;
       setLive(base);
       trackSeries(base);
+      trackShadow(base);
       return write(base);
     },
-    [write, trackSeries]
+    [write, trackSeries, trackShadow]
   );
 
   // connect: open the session, then take over what the display was last sent
@@ -203,8 +256,10 @@ export const useDisplay = (
     boundsRef.current = null;
     pointerRef.current = null;
     seriesRef.current = null;
+    shadowRef.current = null;
     setLive(null);
     setSeriesClock(null);
+    setShadowClock(null);
     setIsBlackout(false);
     setActiveSceneId(null);
     setIsChanging(false);
@@ -251,6 +306,30 @@ export const useDisplay = (
           };
           setSeriesClock(seriesRef.current.clock);
         }
+        // the same for the shadows
+        trackShadow(base);
+        const shadowControl = document["shadow"];
+        if (shadowRef.current && isShadowControl(shadowControl)) {
+          const { year } = shadowRef.current.clock.date;
+          shadowRef.current = {
+            key: shadowRef.current.key,
+            clock: {
+              date: {
+                year,
+                dayOfYear: clampDayOfYear(year, shadowControl.dayOfYear),
+                minutes: shadowControl.minutes,
+              },
+              play: shadowControl.play,
+              cycleSeconds: shadowControl.cycleSeconds,
+              since: Date.now(),
+              ...(shadowControl.seekAt !== undefined
+                ? { seekAt: shadowControl.seekAt }
+                : {}),
+            },
+            touched: true,
+          };
+          setShadowClock(shadowRef.current.clock);
+        }
       }
       setConnection("connected");
     })().catch((connectError: unknown) => {
@@ -271,7 +350,7 @@ export const useDisplay = (
       isCurrent = false;
       window.clearInterval(hello);
     };
-  }, [target, trackSeries]);
+  }, [target, trackSeries, trackShadow]);
 
   // the show often arrives after the display state; find the live scene then
   useEffect(() => {
@@ -402,7 +481,69 @@ export const useDisplay = (
     [steerSeries]
   );
 
+  /** a new clock for the live scene's shadows, sent to the display */
+  const steerShadow = useCallback(
+    (
+      change: (
+        clock: ShadowClock,
+        shadow: SceneShadow,
+        now: number
+      ) => ShadowClock
+    ) => {
+      const shadow = findSceneShadow(liveRef.current);
+      const own = shadowRef.current;
+      if (!shadow || own?.key !== shadow.key) {
+        return;
+      }
+      const clock = change(own.clock, shadow, Date.now());
+      shadowRef.current = { key: own.key, clock, touched: true };
+      setShadowClock(clock);
+      write(liveRef.current).catch(() => {
+        // reported by `write`
+      });
+    },
+    [write]
+  );
+
+  /** play the day or the year, or stop; the display stops where it is */
+  const setShadowPlay = useCallback(
+    (play: ShadowPlay | null) =>
+      steerShadow((clock, shadow, now) => ({
+        ...clock,
+        date: clockShadowDate(clock, shadow, now),
+        play,
+        since: now,
+      })),
+    [steerShadow]
+  );
+
+  /** puts the display on this date or time, playing on from there if it plays */
+  const seekShadow = useCallback(
+    (moment: Partial<Pick<ShadowMoment, "dayOfYear" | "minutes">>) =>
+      steerShadow((clock, shadow, now) => ({
+        ...clock,
+        date: { ...clockShadowDate(clock, shadow, now), ...moment },
+        since: now,
+        // a new value for every move, so the display takes each one
+        seekAt: Math.max(now, (clock.seekAt ?? 0) + 1),
+      })),
+    [steerShadow]
+  );
+
+  /** how long one pass of the playback takes */
+  const setShadowCycle = useCallback(
+    (cycleSeconds: number) =>
+      steerShadow((clock, shadow, now) => ({
+        ...clock,
+        date: clockShadowDate(clock, shadow, now),
+        cycleSeconds,
+        since: now,
+      })),
+    [steerShadow]
+  );
+
   const series = useMemo(() => findSceneSeries(live), [live]);
+  const shadow = useMemo(() => findSceneShadow(live), [live]);
 
   return {
     connection,
@@ -412,6 +553,11 @@ export const useDisplay = (
     seriesClock,
     setSeriesPlaying,
     seekSeries,
+    shadow,
+    shadowClock,
+    setShadowPlay,
+    seekShadow,
+    setShadowCycle,
     isBlackout,
     activeSceneId,
     isChanging,

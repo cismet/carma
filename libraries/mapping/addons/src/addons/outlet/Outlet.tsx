@@ -11,15 +11,18 @@ import {
   isBlackoutLayer,
   isBounds3857,
   isPointerChannel,
+  isShadowControl,
   isTimeSeriesControl,
   type Bounds3857,
   type PointerChannel,
+  type ShadowControl,
   type TimeSeriesControl,
 } from "@carma-mapping/show-remote";
 
 import type { AddonComponentProps } from "../../lib/registry";
 import { PointerSpotlight } from "./PointerSpotlight";
 import { RemoteSeries } from "./RemoteSeries";
+import { RemoteShadow } from "./RemoteShadow";
 import { subscribe, type RelaySubscription } from "./relay";
 
 /**
@@ -118,6 +121,11 @@ export type OutletRemoteState = {
    * series as it is, playing by itself if its layer says so.
    */
   timeSeries?: TimeSeriesControl;
+  /**
+   * Date, time and playback of the shadows the scene casts. Absent leaves them
+   * as their layer started them.
+   */
+  shadow?: ShadowControl;
 };
 
 /** the black cover over the whole window, and how long a change of it fades */
@@ -155,6 +163,7 @@ const REMOTE_STATE_KEYS: readonly (keyof OutletRemoteState)[] = [
   "backgroundLayer",
   "pointer",
   "timeSeries",
+  "shadow",
 ];
 
 /** where the requested rectangle sits on screen, in css pixels */
@@ -355,6 +364,9 @@ export const OutletAddon = ({
     null
   );
   const [remoteSeries, setRemoteSeries] = useState<TimeSeriesControl | null>(
+    null
+  );
+  const [remoteShadow, setRemoteShadow] = useState<ShadowControl | null>(
     null
   );
   /** a `?bounds=` in the url pins the position against the remote */
@@ -703,6 +715,20 @@ export const OutletAddon = ({
           : nextSeries
       );
 
+      // and for the shadows
+      if (next.shadow !== undefined && !isShadowControl(next.shadow)) {
+        console.warn(
+          `${LOG_PREFIX} ignoring a malformed shadow entry`,
+          next.shadow
+        );
+      }
+      const nextShadow = isShadowControl(next.shadow) ? next.shadow : null;
+      setRemoteShadow((current) =>
+        JSON.stringify(current) === JSON.stringify(nextShadow)
+          ? current
+          : nextShadow
+      );
+
       if (
         typeof next.backgroundLayer === "string" &&
         next.backgroundLayer !== appliedRemoteRef.current.backgroundLayer
@@ -744,6 +770,7 @@ export const OutletAddon = ({
       relayRef.current = null;
       setPointerChannel(null);
       setRemoteSeries(null);
+      setRemoteShadow(null);
     };
   }, [relayCode, relayBaseUrl, carma]);
 
@@ -767,6 +794,7 @@ export const OutletAddon = ({
         />
       ) : null}
       {relayCode ? <RemoteSeries wanted={remoteSeries} /> : null}
+      {relayCode ? <RemoteShadow wanted={remoteShadow} /> : null}
       {pointerChannel && relayBaseUrl ? (
         <PointerSpotlight
           base={relayBaseUrl}

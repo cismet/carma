@@ -31,6 +31,7 @@ const addonStateMock = vi.hoisted(() => ({
   setShadowDate: vi.fn(),
   shadowDate: undefined as ShadowDateFixture | undefined,
   textureState: undefined as object | undefined,
+  routeAddons: undefined as unknown[] | undefined,
 }));
 
 const hashStateMock = vi.hoisted(() => ({ updateHashState: vi.fn() }));
@@ -42,7 +43,8 @@ const libreContextMock = vi.hoisted(() => ({
 vi.mock("@carma-mapping/addons", () => {
   return {
     normalizeAddonEntries: (entries: unknown[]) => entries,
-    resolveAddonEntries: (entries: unknown[]) => entries,
+    resolveAddonEntries: (entries?: unknown[]) => entries ?? [],
+    useRouteAddons: () => addonStateMock.routeAddons,
     applyAddonOverrides: (entries: unknown[]) => entries,
     isAlwaysOnTop: () => false,
     useAddonState: (key: string) =>
@@ -116,6 +118,7 @@ describe("useGeoportalShadowSimulationHash", () => {
     addonStateMock.shadowState = undefined;
     addonStateMock.shadowDate = undefined;
     addonStateMock.textureState = undefined;
+    addonStateMock.routeAddons = undefined;
     addonStateMock.setShadowState.mockReset();
     addonStateMock.setShadowDate.mockReset();
     hashStateMock.updateHashState.mockReset();
@@ -158,6 +161,26 @@ describe("useGeoportalShadowSimulationHash", () => {
     await waitFor(() =>
       expect(hashStateMock.updateHashState).toHaveBeenCalledWith(
         { shadow: undefined },
+        { label: "geoportal:sync-shadow-simulation", replace: true }
+      )
+    );
+  });
+
+  it("leaves shadows a layer launched on when the URL has no shadow parameter", async () => {
+    const customHashState = createCustomHashState({ selection: null });
+    addonStateMock.routeAddons = [
+      { kind: "shadowTexture", config: { startEnabled: true } },
+    ];
+    addonStateMock.shadowState = createShadowState({ enabled: true });
+    addonStateMock.shadowDate = createShadowDate({ minutes: 391, dayOfYear: 269 });
+    addonStateMock.textureState = {};
+
+    renderHook(() => useGeoportalShadowSimulationHash({ customHashState }));
+
+    expect(addonStateMock.setShadowState).not.toHaveBeenCalled();
+    await waitFor(() =>
+      expect(hashStateMock.updateHashState).toHaveBeenCalledWith(
+        { shadow: "391;269" },
         { label: "geoportal:sync-shadow-simulation", replace: true }
       )
     );

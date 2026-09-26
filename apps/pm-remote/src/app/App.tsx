@@ -21,6 +21,7 @@ import {
 import { showErrorText } from "./messages";
 import { PointerPanel } from "./PointerPanel";
 import { SeriesControl } from "./SeriesControl";
+import { ShadowCard } from "./ShadowCard";
 import { SettingsPanel } from "./SettingsPanel";
 import { loadSettings, saveSettings, type RemoteSettings } from "./settings";
 import { loadShow } from "./show-cache";
@@ -488,6 +489,16 @@ export const App = () => {
                 onSeek={display.seekSeries}
               />
             )}
+            {display.shadow && display.shadowClock && (
+              <ShadowCard
+                shadow={display.shadow}
+                clock={display.shadowClock}
+                disabled={!target}
+                onPlay={display.setShadowPlay}
+                onSeek={display.seekShadow}
+                onCycle={display.setShadowCycle}
+              />
+            )}
             {walk.length === 0 ? (
               <p className="m-0 text-sm text-neutral-500">Keine Szenen.</p>
             ) : (
@@ -549,6 +560,16 @@ export const App = () => {
                   disabled={!target}
                   onPlay={display.setSeriesPlaying}
                   onSeek={display.seekSeries}
+                />
+              )}
+              {display.shadow && display.shadowClock && (
+                <ShadowCard
+                  shadow={display.shadow}
+                  clock={display.shadowClock}
+                  disabled={!target}
+                  onPlay={display.setShadowPlay}
+                  onSeek={display.seekShadow}
+                  onCycle={display.setShadowCycle}
                 />
               )}
             </div>
