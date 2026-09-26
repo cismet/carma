@@ -553,25 +553,8 @@ export const App = () => {
                   </span>
                 )}
               </button>
-              {display.series && display.seriesClock && (
-                <SeriesControl
-                  series={display.series}
-                  clock={display.seriesClock}
-                  disabled={!target}
-                  onPlay={display.setSeriesPlaying}
-                  onSeek={display.seekSeries}
-                />
-              )}
-              {display.shadow && display.shadowClock && (
-                <ShadowCard
-                  shadow={display.shadow}
-                  clock={display.shadowClock}
-                  disabled={!target}
-                  onPlay={display.setShadowPlay}
-                  onSeek={display.seekShadow}
-                  onCycle={display.setShadowCycle}
-                />
-              )}
+              {/* the live scene's controls sit in its story, one tap away:
+                  here they would push the stories off the screen */}
             </div>
 
             <ol className="m-0 grid list-none grid-cols-2 gap-3 p-0">
