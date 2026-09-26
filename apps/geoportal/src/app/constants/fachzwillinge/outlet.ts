@@ -36,13 +36,11 @@ export const outletFachzwilling: FachzwillingRoute = {
     {
       addon: "outlet",
       config: {
-        // georef.bounds of the printed Wuppertal model, from carmaPM
-        // models/wupp/twin-wupp.json (surveyed 2026-07-25). Overridable per
-        // launch with ?bounds=minX,minY,maxX,maxY.
-        bounds3857: [
-          799889.651999282, 6669297.559285149, 802976.986756942,
-          6671027.711313527,
-        ],
+        // georef.bounds of the printed zoo model the projector plays on, from
+        // cage apps/pm-tools/zoo-kubitur/twin-zoo-kubitur-2m.json (the same as
+        // the board bounds in assets/dz-b-prm/collection.json). Overridable
+        // per launch with ?bounds=minX,minY,maxX,maxY.
+        bounds3857: [788836.855, 6663227.421, 794575.246, 6666423.835],
         // remote control is off until a session code is passed as ?relay=
         relayBaseUrl: RELAY_BASE_URL,
       },
