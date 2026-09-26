@@ -80,3 +80,16 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* the same columns as the date and time rows above it */
+.shadow-texture-cycle {
+  display: grid;
+  grid-template-columns: 170px 28px minmax(0, 1fr);
+  gap: 6px;
+  align-items: center;
+  min-height: 28px;
+}
+.shadow-texture-cycle-range {
+  width: 100%;
+  min-width: 0;
+  accent-color: #d97706;
+}

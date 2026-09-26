@@ -7,7 +7,11 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
-import { faArrowRotateLeft, faSun } from "@fortawesome/free-solid-svg-icons";
+import {
+  faArrowRotateLeft,
+  faGaugeHigh,
+  faSun,
+} from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Checkbox, ColorPicker, Popover, Radio, Tooltip } from "antd";
 
@@ -19,6 +23,12 @@ import {
   createInitialShadowDateState,
   createInitialShadowSimulationState,
 } from "@carma-mapping/shadow-simulation/core";
+import {
+  DEFAULT_SHADOW_CYCLE_SECONDS,
+  formatShadowCycle,
+  SHADOW_CYCLE_STEPS_SECONDS,
+  shadowCycleStepIndex,
+} from "@carma-mapping/show-remote";
 
 import { useAddonState } from "../../lib/AddonStateContext";
 import type { AddonComponentProps } from "../../lib/registry";
@@ -111,12 +121,6 @@ const ShadowHeader = lazy(() =>
   }))
 );
 
-const ShadowAnimationSpeedControl = lazy(() =>
-  import("@carma-mapping/shadow-simulation").then((module) => ({
-    default: module.ShadowAnimationSpeedControl,
-  }))
-);
-
 export const ShadowTexture = ({
   config,
   libreMap,
@@ -147,6 +151,7 @@ export const ShadowTexture = ({
       ...createInitialShadowSimulationState(undefined),
       enabled: config?.enabledByDefault ?? false,
       animationDaylightOnly: false,
+      animationCycleSeconds: DEFAULT_SHADOW_CYCLE_SECONDS,
     }),
     [config?.enabledByDefault]
   );
@@ -157,6 +162,12 @@ export const ShadowTexture = ({
 
   useEffect(() => {
     if (!shadowState) setShadowState(initialShadowState);
+    // a state another starter created (a workflow card) plays by cycle too
+    else if (shadowState.animationCycleSeconds === undefined)
+      setShadowState((previous) => ({
+        ...(previous ?? initialShadowState),
+        animationCycleSeconds: DEFAULT_SHADOW_CYCLE_SECONDS,
+      }));
   }, [initialShadowState, setShadowState, shadowState]);
   useEffect(() => {
     if (!dateState) setDateState(initialDateState);
@@ -299,6 +310,7 @@ export const ShadowTexture = ({
         data-test-id="shadow-texture-panel"
       >
         <ShadowTextureHeaderControls />
+        <ShadowTextureCycleControl />
         {/* a layer that stands for one bridge does not offer the other */}
         {!config?.bridge && (
           <Radio.Group
@@ -345,17 +357,6 @@ export const ShadowTexture = ({
               Animation
             </h4>
             <div className="shadow-texture-option-row">
-              <Suspense fallback={null}>
-                <ShadowAnimationSpeedControl
-                  value={shadowState?.animationSpeed ?? 4}
-                  onChange={(animationSpeed) =>
-                    setShadowState((previous) => ({
-                      ...(previous ?? initialShadowState),
-                      animationSpeed,
-                    }))
-                  }
-                />
-              </Suspense>
               <Radio.Group
                 aria-label="Zeitraum des Tageslaufs"
                 size="small"
@@ -616,7 +617,7 @@ export const ShadowTexture = ({
                 }));
                 setShadowState((previous) => ({
                   ...(previous ?? initialShadowState),
-                  animationSpeed: initialShadowState.animationSpeed,
+                  animationCycleSeconds: initialShadowState.animationCycleSeconds,
                   animationDaylightOnly:
                     initialShadowState.animationDaylightOnly,
                   isAnimating: false,
@@ -721,5 +722,49 @@ export const ShadowTextureHeaderControls = ({
         compact={compact}
       />
     </Suspense>
+  );
+};
+
+/**
+ * How long one pass of the playback takes, as a row under the date and time
+ * sliders: "1 Tag in 60 s", "1 Jahr in 2 min".
+ */
+export const ShadowTextureCycleControl = () => {
+  const [state, setState] = useAddonState("shadowSimulation");
+  const seconds = state?.animationCycleSeconds ?? DEFAULT_SHADOW_CYCLE_SECONDS;
+  const pass =
+    state?.animationMode === "year"
+      ? "1 Jahr"
+      : state?.animationDaylightOnly
+      ? "Tageslicht"
+      : "1 Tag";
+  return (
+    <label className="shadow-texture-cycle m-0 text-sm text-neutral-700">
+      <span className="flex items-center gap-1.5 whitespace-nowrap tabular-nums">
+        <FontAwesomeIcon
+          icon={faGaugeHigh}
+          className="w-3 shrink-0 text-neutral-500"
+        />
+        {pass} in {formatShadowCycle(seconds)}
+      </span>
+      <span aria-hidden="true" />
+      <input
+        type="range"
+        aria-label="Dauer eines Durchlaufs"
+        className="shadow-texture-cycle-range cursor-pointer"
+        min={0}
+        max={SHADOW_CYCLE_STEPS_SECONDS.length - 1}
+        step={1}
+        value={shadowCycleStepIndex(seconds)}
+        disabled={!state}
+        onChange={(event) =>
+          setState((previous) => ({
+            ...previous!,
+            animationCycleSeconds:
+              SHADOW_CYCLE_STEPS_SECONDS[Number(event.target.value)],
+          }))
+        }
+      />
+    </label>
   );
 };

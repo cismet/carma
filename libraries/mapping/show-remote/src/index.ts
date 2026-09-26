@@ -84,3 +84,9 @@ export {
   type SeriesClock,
   type TimeSeriesControl,
 } from "./lib/time-series";
+export {
+  DEFAULT_SHADOW_CYCLE_SECONDS,
+  SHADOW_CYCLE_STEPS_SECONDS,
+  formatShadowCycle,
+  shadowCycleStepIndex,
+} from "./lib/shadow-cycle";

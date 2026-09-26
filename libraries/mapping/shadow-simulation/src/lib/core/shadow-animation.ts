@@ -21,6 +21,7 @@ type ShadowAnimationState = Pick<
   ShadowSimulationState,
   | "animationMode"
   | "animationSpeed"
+  | "animationCycleSeconds"
   | "animationDaylightOnly"
   | "enabled"
   | "isAnimating"
@@ -28,12 +29,12 @@ type ShadowAnimationState = Pick<
 
 const advanceYearSelection = (
   dateState: ShadowDateState,
-  animationSpeed: number,
+  days: number,
   location: SolarLocation,
   yearDayProgress: number,
   realtime: boolean
 ): ShadowAnimationFrame => {
-  const accumulatedDays = yearDayProgress + animationSpeed / (realtime ? 4 : 2);
+  const accumulatedDays = yearDayProgress + days;
   const wholeDays = Math.floor(accumulatedDays);
   const remainingProgress = accumulatedDays - wholeDays;
 
@@ -116,28 +117,58 @@ export const advanceShadowAnimationFrame = (
     return { dateState: currentDateState, yearDayProgress };
   }
 
+  const realtime = options.elapsedMs !== undefined;
+  const yearMode =
+    (shadowState.animationMode ?? SHADOW_ANIMATION_MODE.DAY) ===
+    SHADOW_ANIMATION_MODE.YEAR;
+  const daylightOnly = shadowState.animationDaylightOnly !== false;
+  const cycleSeconds = shadowState.animationCycleSeconds;
+
+  // A cycle length: the share of one pass the elapsed time stands for, of a
+  // year, of the daylight window, or of all 24 hours.
+  if (realtime && cycleSeconds !== undefined && cycleSeconds > 0) {
+    const share = Math.max(0, options.elapsedMs ?? 0) / (cycleSeconds * 1000);
+    if (yearMode) {
+      return advanceYearSelection(
+        currentDateState,
+        share * getDaysInYear(currentDateState.year),
+        location,
+        yearDayProgress,
+        true
+      );
+    }
+    const daylight = getDaylightWindow(currentDateState, location);
+    const passMinutes = daylightOnly
+      ? Math.max(1, daylight.sunsetMinutes - daylight.sunriseMinutes)
+      : 1440;
+    return advanceDaySelection(
+      currentDateState,
+      share * passMinutes,
+      location,
+      true,
+      daylightOnly
+    );
+  }
+
   // Realtime 1× advances one hour/s in day mode; the default 4× advances
   // 60 days/s in year mode (one day/frame at 60 Hz). Without elapsed time,
   // retain the normal addon's existing per-tick contract.
   const animationSpeed =
     (shadowState.animationSpeed ?? 4) *
-    (options.elapsedMs === undefined
-      ? 1
-      : (Math.max(0, options.elapsedMs) * 60) / 1000);
-  return (shadowState.animationMode ?? SHADOW_ANIMATION_MODE.DAY) ===
-    SHADOW_ANIMATION_MODE.YEAR
+    (realtime ? (Math.max(0, options.elapsedMs ?? 0) * 60) / 1000 : 1);
+  return yearMode
     ? advanceYearSelection(
         currentDateState,
-        animationSpeed,
+        animationSpeed / (realtime ? 4 : 2),
         location,
         yearDayProgress,
-        options.elapsedMs !== undefined
+        realtime
       )
     : advanceDaySelection(
         currentDateState,
         animationSpeed,
         location,
-        options.elapsedMs !== undefined,
-        shadowState.animationDaylightOnly !== false
+        realtime,
+        daylightOnly
       );
 };

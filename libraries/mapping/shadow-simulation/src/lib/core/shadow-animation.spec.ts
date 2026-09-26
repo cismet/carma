@@ -242,4 +242,78 @@ describe("advanceShadowAnimationFrame", () => {
       yearDayProgress: 0.5,
     });
   });
+
+  it("runs all 24 hours in one cycle length, whatever the speed", () => {
+    const start = { ...initialDateState, minutes: 0 };
+    const frame = advanceShadowAnimationFrame(
+      createState({
+        animationSpeed: 12,
+        animationCycleSeconds: 60,
+        animationDaylightOnly: false,
+      }),
+      start,
+      start,
+      DEFAULT_SHADOW_SIMULATION_LOCATION,
+      0,
+      { elapsedMs: 15_000 as Milliseconds }
+    );
+    // a quarter of the cycle is a quarter of the day
+    expect(frame.dateState.minutes).toBeCloseTo(360);
+  });
+
+  it("runs the daylight window in one cycle length", () => {
+    const daylight = getDaylightWindow(
+      initialDateState,
+      DEFAULT_SHADOW_SIMULATION_LOCATION
+    );
+    const start = {
+      ...initialDateState,
+      minutes: Math.ceil(daylight.sunriseMinutes),
+    };
+    const frame = advanceShadowAnimationFrame(
+      createState({ animationCycleSeconds: 60 }),
+      start,
+      start,
+      DEFAULT_SHADOW_SIMULATION_LOCATION,
+      0,
+      { elapsedMs: 30_000 as Milliseconds }
+    );
+    expect(frame.dateState.minutes - start.minutes).toBeCloseTo(
+      (daylight.sunsetMinutes - daylight.sunriseMinutes) / 2
+    );
+  });
+
+  it("runs a year in one cycle length", () => {
+    const start = { ...initialDateState, year: 2026, dayOfYear: 1 };
+    const frame = advanceShadowAnimationFrame(
+      createState({
+        animationMode: SHADOW_ANIMATION_MODE.YEAR,
+        animationCycleSeconds: 73,
+      }),
+      start,
+      start,
+      DEFAULT_SHADOW_SIMULATION_LOCATION,
+      0,
+      { elapsedMs: 1_000 as Milliseconds }
+    );
+    // 365 days in 73 s are five days a second
+    expect(frame.dateState.dayOfYear).toBe(6);
+    expect(frame.yearDayProgress).toBeCloseTo(0);
+  });
+
+  it("ignores the cycle length without elapsed time", () => {
+    const start = { ...initialDateState, minutes: 600 };
+    const frame = advanceShadowAnimationFrame(
+      createState({
+        animationSpeed: 4,
+        animationCycleSeconds: 60,
+        animationDaylightOnly: false,
+      }),
+      start,
+      start,
+      DEFAULT_SHADOW_SIMULATION_LOCATION,
+      0
+    );
+    expect(frame.dateState.minutes).toBe(604);
+  });
 });

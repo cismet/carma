@@ -105,6 +105,12 @@ export type ShadowSimulationState = ShadowRenderQualityOptions & {
   controlStyle?: ShadowControlStyle;
   animationMode?: ShadowAnimationMode;
   animationSpeed?: ShadowAnimationSpeed;
+  /**
+   * Realtime playback only: the seconds one full pass takes (a day, its
+   * daylight window, or a year), whatever the frame rate. Replaces
+   * `animationSpeed` there when set.
+   */
+  animationCycleSeconds?: number;
   /** Day playback skips night by default; false loops over all 24 hours. */
   animationDaylightOnly?: boolean;
   isAnimating?: boolean;

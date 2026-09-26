@@ -53,6 +53,7 @@ export const useShadowAnimation = ({
   const {
     animationMode,
     animationSpeed,
+    animationCycleSeconds,
     animationDaylightOnly,
     enabled,
     isAnimating,
@@ -78,6 +79,7 @@ export const useShadowAnimation = ({
     const animationState = {
       animationMode,
       animationSpeed,
+      animationCycleSeconds,
       animationDaylightOnly,
       enabled,
       isAnimating,
@@ -132,6 +134,7 @@ export const useShadowAnimation = ({
     animating,
     animationMode,
     animationSpeed,
+    animationCycleSeconds,
     animationDaylightOnly,
     enabled,
     isAnimating,
