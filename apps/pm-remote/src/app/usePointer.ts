@@ -5,6 +5,7 @@ import {
   DEFAULT_POINTER_RADIUS,
   POINTER_REACH,
   helloRelay,
+  pointerLinkSessions,
   pointerSessionCode,
   pointerTarget,
   writeRelayState,
@@ -15,6 +16,11 @@ import {
 
 import { createLatestWinsWriter } from "./display-link";
 import { relayErrorText } from "./messages";
+import {
+  openPointerLink,
+  type PointerLink,
+  type PointerLinkState,
+} from "./pointer-link";
 import {
   OrientationError,
   requestMotionAccess,
@@ -50,6 +56,7 @@ const SAMPLE_TIMEOUT_MS = 1500;
 /**
  * The sensor reads at 60 Hz, a request per reading is more than the path to
  * the relay takes; the display leads the spot along its velocity in between.
+ * With the direct link open, every reading goes there as well.
  */
 const SEND_INTERVAL_MS = 40;
 
@@ -115,6 +122,8 @@ export type PointerReadout = {
   readingsPerSecond: number;
   writesPerSecond: number;
   rttMs: number | null;
+  link: PointerLinkState;
+  linkRttMs: number | null;
 };
 
 const NO_READOUT: PointerReadout = {
@@ -125,6 +134,8 @@ const NO_READOUT: PointerReadout = {
   readingsPerSecond: 0,
   writesPerSecond: 0,
   rttMs: null,
+  link: "off",
+  linkRttMs: null,
 };
 
 const clampReach = (value: number): number =>
@@ -167,6 +178,7 @@ export const usePointer = (
   const writesRef = useRef(0);
   const rttRef = useRef<number | null>(null);
   const lastSentAtRef = useRef(0);
+  const linkRef = useRef<PointerLink | null>(null);
   const statusRef = useRef<PointerStatus>("closed");
   statusRef.current = status;
 
@@ -188,8 +200,12 @@ export const usePointer = (
     [sessionTarget]
   );
 
+  /**
+   * The display takes the sample with the highest `seq` from either path, so
+   * one that only goes direct is fine; the relay gets its share at its rate.
+   */
   const sendSample = useCallback(
-    (on: boolean) => {
+    (on: boolean, toRelay = true) => {
       if (!writer) {
         return;
       }
@@ -197,7 +213,6 @@ export const usePointer = (
       const [dx, dy] = positionRef.current;
       const [vx, vy] = on ? velocityRef.current : [0, 0];
       seqRef.current += 1;
-      lastSentAtRef.current = performance.now();
       const sample: PointerSample = {
         on,
         mode: "spotlight",
@@ -209,6 +224,11 @@ export const usePointer = (
         dim,
         seq: seqRef.current,
       };
+      linkRef.current?.send(sample);
+      if (!toRelay) {
+        return;
+      }
+      lastSentAtRef.current = performance.now();
       writer.write(sample).catch((writeError: unknown) => {
         console.warn(`${LOG_PREFIX} sample write failed`, writeError);
         setError(relayErrorText(writeError));
@@ -233,8 +253,10 @@ export const usePointer = (
       const { value, velocity } = filterRef.current.filter(raw, timeMs);
       positionRef.current = value;
       velocityRef.current = velocity;
-      if (performance.now() - lastSentAtRef.current >= SEND_INTERVAL_MS) {
-        sendSample(true);
+      const isRelayDue =
+        performance.now() - lastSentAtRef.current >= SEND_INTERVAL_MS;
+      if (isRelayDue || linkRef.current?.state() === "open") {
+        sendSample(true, isRelayDue);
       }
     },
     [sendSample]
@@ -244,6 +266,11 @@ export const usePointer = (
     streamRef.current?.stop();
     streamRef.current = null;
     axesRef.current = null;
+  };
+
+  const closeLink = () => {
+    linkRef.current?.close();
+    linkRef.current = null;
   };
 
   const clearPreview = () => {
@@ -284,16 +311,25 @@ export const usePointer = (
         // the hello opens the session, the first sample gives the display
         // something to read before it follows
         await helloRelay(sessionTarget);
+        // the display follows the offer session as soon as the channel
+        // names it, so it has to exist before
+        const session = pointerSessionCode(target.code);
+        const direct = pointerLinkSessions(session);
+        const offer = { baseUrl: target.baseUrl, code: direct.offer };
+        await helloRelay(offer);
         positionRef.current = [0, 0];
         wristRef.current.center(null);
         sendSample(false);
-        await setPointerChannel({
-          session: pointerSessionCode(target.code),
-          epoch: Date.now(),
+        await setPointerChannel({ session, epoch: Date.now(), direct });
+        closeLink();
+        linkRef.current = openPointerLink({
+          offer,
+          answer: { baseUrl: target.baseUrl, code: direct.answer },
         });
         setStatus(next);
       } catch (relayError) {
         stopStream();
+        closeLink();
         setStatus("closed");
         setError(relayErrorText(relayError));
       }
@@ -306,6 +342,7 @@ export const usePointer = (
     latchedRef.current = false;
     clearPreview();
     stopStream();
+    closeLink();
     if (statusRef.current !== "closed") {
       sendSample(false);
       setPointerChannel(null).catch(() => {
@@ -416,11 +453,14 @@ export const usePointer = (
     [sendSample]
   );
 
-  // a phone locked or switched away mid-point would leave the spot standing
+  // a phone locked or switched away mid-point would leave the spot standing;
+  // back again, the direct link most likely needs a new handshake
   useEffect(() => {
     const onVisibility = () => {
       if (document.visibilityState !== "visible") {
         release();
+      } else {
+        linkRef.current?.wake();
       }
     };
     document.addEventListener("visibilitychange", onVisibility);
@@ -435,6 +475,7 @@ export const usePointer = (
       latchedRef.current = false;
       clearPreview();
       stopStream();
+      closeLink();
       setStatus("closed");
     },
     [sessionTarget]
@@ -457,6 +498,8 @@ export const usePointer = (
         readingsPerSecond: Math.round(readingsRef.current / seconds),
         writesPerSecond: Math.round(writesRef.current / seconds),
         rttMs: rttRef.current,
+        link: linkRef.current?.state() ?? "off",
+        linkRttMs: linkRef.current?.rttMs() ?? null,
       });
       readingsRef.current = 0;
       writesRef.current = 0;

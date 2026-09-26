@@ -5,9 +5,23 @@ import {
 } from "react";
 
 import { SOURCE_LABEL } from "./orientation";
+import type { PointerLinkState } from "./pointer-link";
 import type { usePointer } from "./usePointer";
 
 type Pointer = ReturnType<typeof usePointer>;
+
+const linkText = (link: PointerLinkState, rttMs: number | null): string => {
+  switch (link) {
+    case "open":
+      return rttMs !== null ? `direkt ${rttMs} ms` : "direkt";
+    case "connecting":
+      return "direkt: sucht";
+    case "unreachable":
+      return "direkt nicht erreichbar";
+    case "off":
+      return "";
+  }
+};
 
 /** the printed Wuppertal model is close to 16:9; only the mini map uses it */
 const MINI_MAP_ASPECT = 16 / 9;
@@ -121,10 +135,20 @@ export const PointerPanel = ({ pointer }: { pointer: Pointer }) => {
               ? "Startet …"
               : `${source ? SOURCE_LABEL[source] : "Finger"} · ${
                   readout.readingsPerSecond
-                }/s · gesendet ${readout.writesPerSecond}/s${
-                  readout.rttMs !== null ? ` · ${readout.rttMs} ms` : ""
-                }`}
+                }/s`}
           </p>
+          {status !== "starting" && (
+            <p className="m-0 truncate text-xs text-neutral-500">
+              {[
+                `Relay ${readout.writesPerSecond}/s${
+                  readout.rttMs !== null ? ` · ${readout.rttMs} ms` : ""
+                }`,
+                linkText(readout.link, readout.linkRttMs),
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+            </p>
+          )}
         </div>
         <button
           type="button"

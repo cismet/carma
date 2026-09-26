@@ -74,6 +74,22 @@ export {
   type PointerSample,
 } from "./lib/pointer";
 export {
+  POINTER_LINK_CHANNEL,
+  POINTER_LINK_LABEL,
+  POINTER_LINK_RTC,
+  gatheredDescription,
+  isPointerLinkDescription,
+  isPointerLinkPing,
+  isPointerLinkPong,
+  isPointerLinkSessions,
+  parseLinkMessage,
+  pointerLinkSessions,
+  type PointerLinkDescription,
+  type PointerLinkPing,
+  type PointerLinkPong,
+  type PointerLinkSessions,
+} from "./lib/pointer-link";
+export {
   clockStep,
   findSceneSeries,
   isTimeSeriesControl,

@@ -8,6 +8,7 @@ import {
   type PointerSample,
 } from "@carma-mapping/show-remote";
 
+import { answerPointerLink } from "./pointer-link";
 import { subscribe } from "./relay";
 
 const LOG_PREFIX = "[OUTLET POINTER]";
@@ -31,7 +32,9 @@ type Received = { sample: PointerSample; receivedAt: number; ageMs: number };
 /**
  * The pointer the remote steers: everything but a spot goes dark. Follows the
  * pointer session the state document names, which the phone opened itself,
- * and draws over the model rectangle.
+ * and draws over the model rectangle. When the channel names a direct link
+ * too, samples also come straight from the phone; the newest by `seq` wins,
+ * whichever way it came.
  */
 export const PointerSpotlight = ({
   base,
@@ -46,9 +49,19 @@ export const PointerSpotlight = ({
   const receivedRef = useRef<Received | null>(null);
   const boxRef = useRef(box);
   boxRef.current = box;
+  const offerSession = channel.direct?.offer;
+  const answerSession = channel.direct?.answer;
 
   useEffect(() => {
     receivedRef.current = null;
+    // the relay path brings the samples the direct one already brought, later
+    const accept = (sample: PointerSample, ageMs: number) => {
+      const current = receivedRef.current;
+      if (current && sample.seq <= current.sample.seq) {
+        return;
+      }
+      receivedRef.current = { sample, receivedAt: performance.now(), ageMs };
+    };
     const subscription = subscribe({
       base,
       code: channel.session,
@@ -57,19 +70,25 @@ export const PointerSpotlight = ({
           console.warn(`${LOG_PREFIX} ignoring a malformed sample`, state);
           return;
         }
-        receivedRef.current = {
-          sample: state,
-          receivedAt: performance.now(),
-          ageMs: meta.ageMs,
-        };
+        accept(state, meta.ageMs);
       },
     });
+    // a sample over the direct link is a few milliseconds old at most
+    const link =
+      offerSession && answerSession
+        ? answerPointerLink({
+            base,
+            sessions: { offer: offerSession, answer: answerSession },
+            onSample: (sample) => accept(sample, 0),
+          })
+        : null;
     console.info(`${LOG_PREFIX} following ${channel.session}`);
     return () => {
       subscription.stop();
+      link?.stop();
     };
     // a new epoch subscribes again even to the same session
-  }, [base, channel.session, channel.epoch]);
+  }, [base, channel.session, channel.epoch, offerSession, answerSession]);
 
   useEffect(() => {
     let frame = 0;

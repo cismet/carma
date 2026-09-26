@@ -4,7 +4,8 @@
  * The remote writes a whole desired-state document and this side applies it
  * idempotently, so a reload, a reconnect or a late-joining display all end up
  * correct without anything having to be replayed. There is deliberately no
- * publisher here: the source window only ever reads.
+ * publisher here: the source window only reads. The one exception is the
+ * answer to the pointer's direct link (`pointer-link.ts`).
  *
  * Transport starts as long polling (latency is roughly one round trip) and
  * silently falls back to short polling if the network mangles held requests.

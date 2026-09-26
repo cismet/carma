@@ -11,6 +11,10 @@
  * opened would count as guessing codes, and the relay throttles that.
  */
 
+import {
+  isPointerLinkSessions,
+  type PointerLinkSessions,
+} from "./pointer-link";
 import type { RelayTarget } from "./relay-writer";
 
 /** what the pointer does to the picture */
@@ -26,6 +30,8 @@ export const POINTER_MODES: readonly PointerMode[] = ["spotlight"];
 export type PointerChannel = {
   session: string;
   epoch: number;
+  /** the handshake sessions of the direct link, see `pointer-link.ts`; absent: relay only */
+  direct?: PointerLinkSessions;
 };
 
 /**
@@ -75,7 +81,8 @@ export const isPointerChannel = (value: unknown): value is PointerChannel =>
   isRecord(value) &&
   typeof value["session"] === "string" &&
   value["session"] !== "" &&
-  isFiniteNumber(value["epoch"]);
+  isFiniteNumber(value["epoch"]) &&
+  (value["direct"] === undefined || isPointerLinkSessions(value["direct"]));
 
 export const isPointerSample = (value: unknown): value is PointerSample =>
   isRecord(value) &&
