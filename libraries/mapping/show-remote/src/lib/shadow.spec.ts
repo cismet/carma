@@ -1,6 +1,9 @@
 import type { MappingConfig } from "@carma-api";
 // the display's solar maths, which the phone approximates
-import { getDaylightWindow } from "@carma-mapping/shadow-simulation/core";
+import {
+  getDaylightWindow,
+  getSolarPosition,
+} from "@carma-mapping/shadow-simulation/core";
 
 import {
   approximateDaylight,
@@ -14,6 +17,7 @@ import {
   SHADOW_START_BEFORE_SUNRISE_MINUTES,
   SHADOW_TEXTURE_LOCATION,
   shadowControlOf,
+  shadowSeasonDays,
   type ShadowClock,
 } from "./shadow";
 
@@ -108,6 +112,42 @@ describe("approximateDaylight", () => {
       expect(Math.abs(phone.sunriseMinutes - display.sunriseMinutes)).toBeLessThan(3);
       expect(Math.abs(phone.sunsetMinutes - display.sunsetMinutes)).toBeLessThan(3);
     }
+  });
+
+  it("puts the highest sun within a few minutes of the display's", () => {
+    for (const dayOfYear of [1, 80, 172, 266, 355]) {
+      const date = { year: 2026, dayOfYear, timeZone: "Europe/Berlin" };
+      const elevations = Array.from(
+        { length: 24 * 60 },
+        (_, minutes) =>
+          getSolarPosition({ ...date, minutes }, SHADOW_TEXTURE_LOCATION)
+            .elevationDegrees
+      );
+      const highest = elevations.indexOf(Math.max(...elevations));
+      const { noonMinutes } = approximateDaylight({ year: 2026, dayOfYear });
+      expect(Math.abs(noonMinutes - highest)).toBeLessThan(3);
+    }
+  });
+});
+
+describe("shadowSeasonDays", () => {
+  const dayOf = (year: number, month: number, day: number) =>
+    Math.round((Date.UTC(year, month - 1, day) - Date.UTC(year, 0, 1)) / 86_400_000) + 1;
+
+  it("names the equinoxes and solstices of 2026 on the shadows' clock", () => {
+    // 20.03. 14:46, 21.06. 08:24, 23.09. 00:05, 21.12. 20:50 UTC
+    expect(shadowSeasonDays(2026)).toEqual([
+      { id: "spring", label: "Frühlingsanfang", dayOfYear: dayOf(2026, 3, 20) },
+      { id: "longest", label: "Längster Tag", dayOfYear: dayOf(2026, 6, 21) },
+      { id: "autumn", label: "Herbstanfang", dayOfYear: dayOf(2026, 9, 23) },
+      { id: "shortest", label: "Kürzester Tag", dayOfYear: dayOf(2026, 12, 21) },
+    ]);
+  });
+
+  it("counts a solstice after local midnight to the next day", () => {
+    // 22.12.2027 02:43 UTC is 03:43 in Wuppertal; 20.06.2028 19:59 UTC is still the 20th
+    expect(shadowSeasonDays(2027)[3].dayOfYear).toBe(dayOf(2027, 12, 22));
+    expect(shadowSeasonDays(2028)[1].dayOfYear).toBe(dayOf(2028, 6, 20));
   });
 });
 

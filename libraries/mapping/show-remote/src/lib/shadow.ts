@@ -170,8 +170,8 @@ const zoneOffsetMinutes = (year: number, dayOfYear: number): number => {
 };
 
 /**
- * Sunrise and sunset in minutes on the shadows' clock, after the NOAA
- * approximation, for the sun's upper edge the display counts daylight
+ * Sunrise, highest sun and sunset in minutes on the shadows' clock, after the
+ * NOAA approximation, for the sun's upper edge the display counts daylight
  * from (0.2666° above the horizon, no refraction). Within a few minutes of
  * what the display computes, which is all counting along needs.
  */
@@ -180,6 +180,7 @@ export const approximateDaylight = ({
   dayOfYear,
 }: Pick<ShadowMoment, "year" | "dayOfYear">): {
   sunriseMinutes: number;
+  noonMinutes: number;
   sunsetMinutes: number;
 } => {
   const gamma = ((2 * Math.PI) / daysInYear(year)) * (dayOfYear - 1);
@@ -212,8 +213,68 @@ export const approximateDaylight = ({
     zoneOffsetMinutes(year, dayOfYear);
   return {
     sunriseMinutes: noon - 4 * hourAngle,
+    noonMinutes: noon,
     sunsetMinutes: noon + 4 * hourAngle,
   };
+};
+
+/** a day of the year worth jumping to, named for the presenter */
+export type ShadowSeasonDay = {
+  id: "spring" | "longest" | "autumn" | "shortest";
+  label: string;
+  dayOfYear: number;
+};
+
+/**
+ * Mean equinoxes and solstices after Meeus, Astronomical Algorithms, table
+ * 27.b (years 2000 to 3000), as Julian Ephemeris Days: within half an hour of
+ * the true moment, plenty for naming the day. The NOAA series above is a day
+ * late on all four in 2026.
+ */
+const SEASON_POLYNOMIALS: ReadonlyArray<{
+  id: ShadowSeasonDay["id"];
+  label: string;
+  terms: readonly [number, number, number, number, number];
+}> = [
+  {
+    id: "spring",
+    label: "Frühlingsanfang",
+    terms: [2451623.80984, 365242.37404, 0.05169, -0.00411, -0.00057],
+  },
+  {
+    id: "longest",
+    label: "Längster Tag",
+    terms: [2451716.56767, 365241.62603, 0.00325, 0.00888, -0.0003],
+  },
+  {
+    id: "autumn",
+    label: "Herbstanfang",
+    terms: [2451810.21715, 365242.01767, -0.11575, 0.00337, 0.00078],
+  },
+  {
+    id: "shortest",
+    label: "Kürzester Tag",
+    terms: [2451900.05952, 365242.74049, -0.06223, -0.00823, 0.00032],
+  },
+];
+
+/** Julian Day 0 is this many days before the Unix epoch */
+const UNIX_EPOCH_JULIAN_DAY = 2440587.5;
+
+/**
+ * The equinoxes and solstices of `year`, in date order, each on the day it
+ * falls on on the shadows' clock.
+ */
+export const shadowSeasonDays = (year: number): ShadowSeasonDay[] => {
+  const millennia = (year - 2000) / 1000;
+  return SEASON_POLYNOMIALS.map(({ id, label, terms }) => {
+    const julianDay = terms.reduce(
+      (sum, term, power) => sum + term * millennia ** power,
+      0
+    );
+    const instant = (julianDay - UNIX_EPOCH_JULIAN_DAY) * MS_PER_DAY;
+    return { id, label, dayOfYear: shadowDayOf(instant).dayOfYear };
+  });
 };
 
 /** the config of a `shadowTexture` entry, written as `{ addon }` or `{ kind }` */

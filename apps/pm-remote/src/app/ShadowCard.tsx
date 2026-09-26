@@ -2,10 +2,13 @@ import { useEffect, useState, type ReactNode } from "react";
 
 import {
   SHADOW_CYCLE_STEPS_SECONDS,
+  approximateDaylight,
   clockShadowDate,
   daysInYear,
   formatShadowCycle,
   shadowCycleStepIndex,
+  shadowDayOf,
+  shadowSeasonDays,
   type SceneShadow,
   type ShadowClock,
   type ShadowMoment,
@@ -88,10 +91,48 @@ const Row = ({
   </div>
 );
 
+type Jump = { key: string; label: string; detail: string; value: number };
+
+/** buttons under a slider that put it on a named value */
+const Jumps = ({
+  jumps,
+  current,
+  disabled,
+  onJump,
+}: {
+  jumps: Jump[];
+  current: number;
+  disabled: boolean;
+  onJump: (value: number) => void;
+}) => (
+  <div className="mt-1 flex flex-wrap gap-2">
+    {jumps.map(({ key, label, detail, value }) => (
+      <button
+        key={key}
+        type="button"
+        disabled={disabled}
+        onClick={() => onJump(value)}
+        className={`flex min-h-[44px] flex-col items-start justify-center rounded-lg border px-3 py-1 text-left disabled:opacity-40 ${
+          value === current
+            ? "border-amber-400 text-amber-300"
+            : "border-neutral-700 text-neutral-200 active:bg-neutral-800"
+        }`}
+      >
+        <span className="text-xs font-semibold">{label}</span>
+        <span className="text-[11px] tabular-nums text-neutral-400">
+          {detail}
+        </span>
+      </button>
+    ))}
+  </div>
+);
+
 /**
  * Date, time and playback of the shadows the live scene casts: ▶ at the date
  * plays the year, ▶ at the time plays the day, and the last row says how long
- * one pass takes.
+ * one pass takes. Under the date and the time sliders, buttons jump to today
+ * and the equinoxes and solstices, and to sunrise, highest sun and sunset of
+ * the day shown.
  *
  * The display never reports where it is, so while something plays the sliders
  * count along on the phone's clock. The "≈" in front of the value says so.
@@ -135,6 +176,33 @@ export const ShadowCard = ({
         : "1 Tag"
       : "Ein Durchlauf";
 
+  const dayJump = (key: string, label: string, dayOfYear: number): Jump => ({
+    key,
+    label,
+    detail: formatDay({ ...date, dayOfYear }),
+    value: dayOfYear,
+  });
+  const dayJumps = [
+    dayJump("today", "Heute", shadowDayOf(now).dayOfYear),
+    ...shadowSeasonDays(date.year).map(({ id, label, dayOfYear }) =>
+      dayJump(id, label, dayOfYear)
+    ),
+  ];
+  const { sunriseMinutes, noonMinutes, sunsetMinutes } =
+    approximateDaylight(date);
+  const timeJumps = (
+    [
+      ["sunrise", "Sonnenaufgang", sunriseMinutes],
+      ["noon", "Mittagssonne", noonMinutes],
+      ["sunset", "Sonnenuntergang", sunsetMinutes],
+    ] as const
+  ).map(([key, label, minutes]) => ({
+    key,
+    label,
+    detail: formatTime(minutes),
+    value: Math.round(minutes),
+  }));
+
   return (
     <section className="flex flex-col gap-4 rounded-2xl border border-neutral-800 bg-neutral-900 p-4">
       <span className="truncate text-xs font-semibold uppercase tracking-[0.2em] text-amber-400">
@@ -162,6 +230,12 @@ export const ShadowCard = ({
           }
           className="h-10 min-w-0 accent-amber-400 disabled:opacity-40"
         />
+        <Jumps
+          jumps={dayJumps}
+          current={date.dayOfYear}
+          disabled={disabled}
+          onJump={(dayOfYear) => onSeek({ dayOfYear })}
+        />
       </Row>
       <Row
         id="pm-remote-shadow-time"
@@ -184,6 +258,12 @@ export const ShadowCard = ({
           disabled={disabled}
           onChange={(event) => onSeek({ minutes: Number(event.target.value) })}
           className="h-10 min-w-0 accent-amber-400 disabled:opacity-40"
+        />
+        <Jumps
+          jumps={timeJumps}
+          current={Math.round(date.minutes)}
+          disabled={disabled}
+          onJump={(minutes) => onSeek({ minutes })}
         />
       </Row>
       <Row

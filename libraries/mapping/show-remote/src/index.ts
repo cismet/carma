@@ -106,10 +106,12 @@ export {
   shadowControlOf,
   shadowDayOf,
   shadowOfConfig,
+  shadowSeasonDays,
   type AppliedShadowControl,
   type SceneShadow,
   type ShadowClock,
   type ShadowControl,
   type ShadowMoment,
   type ShadowPlay,
+  type ShadowSeasonDay,
 } from "./lib/shadow";
