@@ -168,3 +168,21 @@ export {
   type ShadowPlay,
   type ShadowSeasonDay,
 } from "./lib/shadow";
+export {
+  TRAFFIC_DAY_HOUR,
+  TRAFFIC_MAX_OFFSET_MINUTES,
+  TRAFFIC_NIGHT_HOUR,
+  TRAFFIC_TWILIGHT_MINUTES,
+  clampTrafficOffset,
+  findSceneTraffic,
+  formatTrafficTime,
+  isTrafficControl,
+  trafficClockOf,
+  trafficDarkness,
+  trafficJumpOffset,
+  trafficOfConfig,
+  type SceneTraffic,
+  type TrafficClock,
+  type TrafficControl,
+  type TrafficJump,
+} from "./lib/traffic";

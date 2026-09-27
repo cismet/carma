@@ -16,7 +16,12 @@ import { SHADOW_TEXTURE_LAYER_ID } from "../addons/ShadowTexture/shadow-texture-
 const LAUNCHED_FLOW_FIELD_STORAGE_KEY = "carma::flowFieldState::launched";
 
 /** the part of a layer stack entry this reads */
-type LaunchingLayer = { id: string; visible?: boolean; tools?: unknown };
+type LaunchingLayer = {
+  id: string;
+  visible?: boolean;
+  opacity?: number;
+  tools?: unknown;
+};
 
 type VehicleAnimationEntry = Extract<
   ResolvedAddon,
@@ -36,6 +41,15 @@ type TimeSliderEntry = Extract<ResolvedAddon, { kind: "timeSlider" }>;
 
 const isTimeSliderEntry = (entry: ResolvedAddon): entry is TimeSliderEntry =>
   entry.kind === "timeSlider";
+
+type TrafficAnimationEntry = Extract<
+  ResolvedAddon,
+  { kind: "trafficAnimation" }
+>;
+
+const isTrafficAnimationEntry = (
+  entry: ResolvedAddon
+): entry is TrafficAnimationEntry => entry.kind === "trafficAnimation";
 
 type ShadowTextureEntry = Extract<ResolvedAddon, { kind: "shadowTexture" }>;
 
@@ -79,6 +93,12 @@ export type LayerLaunchedAddon = {
  * `assetBaseUrl` switches the shadows on, drawn at the layer's `shadowTexture`
  * slot.
  *
+ * And the traffic: a layer whose tools carry a `trafficAnimation` with its
+ * `networkUrl` runs it. It has no row and no controls on the layer button; the
+ * layer's eye and opacity go into its config instead, and so does whether it
+ * shows its panel, which a host without layer buttons (`includeEngineRow`) has
+ * no use for.
+ *
  * `permanent`: the layer is the face of the service. A host shows the engine's
  * controls on the layer's own button rather than in a row of their own, so no
  * second ✕ can switch the fleet off under a layer that stays on the map, and
@@ -92,6 +112,7 @@ export const getLayerLaunchedAddons = (
   let flowField: LayerLaunchedAddon | undefined;
   let timeSlider: LayerLaunchedAddon | undefined;
   let shadowTexture: LayerLaunchedAddon | undefined;
+  let traffic: LayerLaunchedAddon | undefined;
   for (const layer of layers) {
     if (layer.id === FLOW_FIELD_LAYER_ID) {
       const seed = includeEngineRow ? getFlowFieldRowSeed(layer) : undefined;
@@ -174,6 +195,23 @@ export const getLayerLaunchedAddons = (
         },
       };
     }
+    const trafficTool = tools.find(isTrafficAnimationEntry);
+    if (trafficTool?.config?.networkUrl) {
+      const visible = layer.visible !== false;
+      traffic = {
+        layerId: layer.id,
+        visible,
+        entry: {
+          addon: "trafficAnimation",
+          config: {
+            ...trafficTool.config,
+            hidden: !visible,
+            opacity: layer.opacity ?? 1,
+            showPanel: !includeEngineRow,
+          },
+        },
+      };
+    }
     const tool = tools.find(isVehicleAnimationEntry);
     if (!tool?.config?.trackUrl) {
       continue;
@@ -187,7 +225,7 @@ export const getLayerLaunchedAddons = (
       },
     };
   }
-  return [vehicle, flowField, timeSlider, shadowTexture].filter(
+  return [vehicle, flowField, timeSlider, shadowTexture, traffic].filter(
     (launched): launched is LayerLaunchedAddon => launched !== undefined
   );
 };

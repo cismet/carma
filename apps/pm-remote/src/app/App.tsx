@@ -25,6 +25,7 @@ import { PointerPanel } from "./PointerPanel";
 import { SeriesControl } from "./SeriesControl";
 import { ShadowCard } from "./ShadowCard";
 import { SettingsPanel } from "./SettingsPanel";
+import { TrafficCard } from "./TrafficCard";
 import { loadSettings, saveSettings, type RemoteSettings } from "./settings";
 import { loadShow } from "./show-cache";
 import { useDisplay, type Connection } from "./useDisplay";
@@ -526,6 +527,14 @@ export const App = () => {
                 onPlay={display.setShadowPlay}
                 onSeek={display.seekShadow}
                 onCycle={display.setShadowCycle}
+              />
+            )}
+            {display.traffic && display.trafficControl && (
+              <TrafficCard
+                traffic={display.traffic}
+                control={display.trafficControl}
+                disabled={!target}
+                onOffset={display.setTrafficOffset}
               />
             )}
             {walk.length === 0 ? (

@@ -211,6 +211,13 @@ export {
   type FloodTerrainSource,
   type UseFloodLayerRowOptions,
 } from "./addons/FloodSimulation";
+export {
+  TrafficAnimation,
+  useTrafficAnimationActions,
+  TRAFFIC_ANIMATION_STATE_DEFAULT,
+  type TrafficAnimationConfig,
+  type TrafficAnimationState,
+} from "./addons/TrafficAnimation";
 
 export { useHasAddonStateProducer } from "./lib/addon-channels";
 export {

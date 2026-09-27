@@ -254,3 +254,64 @@ describe("getLayerLaunchedAddons, shadow texture style", () => {
     );
   });
 });
+
+const NETWORK = {
+  title: "Verkehr",
+  networkUrl: "assets/dz-b-prm/traffic/verkehrsnetz_modell.json",
+};
+
+describe("getLayerLaunchedAddons, traffic style", () => {
+  it("launches the style's traffic with the layer's eye and opacity", () => {
+    expect(
+      getLayerLaunchedAddons([
+        {
+          ...styleLayer(
+            "custom:verkehr",
+            [{ addon: "trafficAnimation", config: NETWORK }],
+            false
+          ),
+          opacity: 0.6,
+        },
+      ])
+    ).toEqual([
+      {
+        layerId: "custom:verkehr",
+        visible: false,
+        entry: {
+          addon: "trafficAnimation",
+          config: {
+            ...NETWORK,
+            hidden: true,
+            opacity: 0.6,
+            showPanel: true,
+          },
+        },
+      },
+    ]);
+  });
+
+  it("shows no panel on a host that only renders the stack", () => {
+    const [launched] = getLayerLaunchedAddons(
+      [
+        styleLayer("custom:verkehr", [
+          { addon: "trafficAnimation", config: NETWORK },
+        ]),
+      ],
+      { includeEngineRow: true }
+    );
+    expect(launched?.entry).toEqual({
+      addon: "trafficAnimation",
+      config: { ...NETWORK, hidden: false, opacity: 1, showPanel: false },
+    });
+  });
+
+  it("launches nothing from a style without a network", () => {
+    expect(
+      getLayerLaunchedAddons([
+        styleLayer("custom:verkehr", [
+          { addon: "trafficAnimation", config: { title: "Verkehr" } },
+        ]),
+      ])
+    ).toEqual([]);
+  });
+});

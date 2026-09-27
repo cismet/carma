@@ -7,12 +7,14 @@ import {
   baseOf,
   blackoutOf,
   clampDayOfYear,
+  clampTrafficOffset,
   clockShadowDate,
   clockStep,
   composeDisplayConfig,
   displayInfoTarget,
   findSceneSeries,
   findSceneShadow,
+  findSceneTraffic,
   helloRelay,
   highlightSpotsOf,
   initialShadowClock,
@@ -22,6 +24,7 @@ import {
   isShadowControl,
   isSnapshot,
   isTimeSeriesControl,
+  isTrafficControl,
   planSceneChange,
   readRelayState,
   sceneHighlights,
@@ -47,6 +50,7 @@ import {
   type SnapshotRequest,
   type Surface,
   type TimeSeriesControl,
+  type TrafficControl,
 } from "@carma-mapping/show-remote";
 
 import { createLatestWinsWriter, runSteps, sleep } from "./display-link";
@@ -135,6 +139,22 @@ const highlightsEntry = (
   return spots.length > 0 ? { highlights: spots } : {};
 };
 
+/**
+ * The phone's wish for the traffic the live scene runs, like `OwnSeries`: how
+ * far back from now the display shows it. Only a touched one goes into the
+ * state document; untouched, the display runs the traffic live.
+ */
+type OwnTraffic = { key: string; control: TrafficControl; touched: boolean };
+
+/** the traffic's entry of a write, when the presenter steered the one it runs */
+const trafficEntry = (
+  own: OwnTraffic | null,
+  base: MappingConfig | null
+): { traffic?: TrafficControl } =>
+  own?.touched && findSceneTraffic(base)?.key === own.key
+    ? { traffic: own.control }
+    : {};
+
 /** the scene the display shows, told apart by its layers */
 const sceneShowing = (
   live: MappingConfig,
@@ -184,6 +204,11 @@ export const useDisplay = (
   /** the shadows' clock, repeated in every write like the series */
   const shadowRef = useRef<OwnShadow | null>(null);
   const [shadowClock, setShadowClock] = useState<ShadowClock | null>(null);
+  /** the traffic's offset, repeated in every write like the series */
+  const trafficRef = useRef<OwnTraffic | null>(null);
+  const [trafficControl, setTrafficControl] = useState<TrafficControl | null>(
+    null
+  );
   /** the lit highlights, repeated in every write like the position */
   const highlightsRef = useRef<LitHighlights | null>(null);
   const [litHighlights, setLitHighlights] = useState<LitHighlights | null>(
@@ -249,6 +274,7 @@ export const useDisplay = (
           ...seriesEntry(seriesRef.current, base),
           ...shadowEntry(shadowRef.current, base),
           ...highlightsEntry(highlightsRef.current, scenesRef.current),
+          ...trafficEntry(trafficRef.current, base),
         })
       );
     },
@@ -300,15 +326,36 @@ export const useDisplay = (
     setShadowClock(shadowRef.current?.clock ?? null);
   }, []);
 
+  /**
+   * The same for the traffic. The same network in the next scene keeps the
+   * offset, as the display keeps running it; another one starts live, or where
+   * its layer says.
+   */
+  const trackTraffic = useCallback((base: MappingConfig | null) => {
+    const traffic = findSceneTraffic(base);
+    if (traffic?.key === trafficRef.current?.key) {
+      return;
+    }
+    trafficRef.current = traffic
+      ? {
+          key: traffic.key,
+          control: { offsetMinutes: traffic.initialOffsetMinutes ?? 0 },
+          touched: false,
+        }
+      : null;
+    setTrafficControl(trafficRef.current?.control ?? null);
+  }, []);
+
   const send = useCallback(
     (base: MappingConfig): Promise<void> => {
       liveRef.current = base;
       setLive(base);
       trackSeries(base);
       trackShadow(base);
+      trackTraffic(base);
       return write(base);
     },
-    [write, trackSeries, trackShadow]
+    [write, trackSeries, trackShadow, trackTraffic]
   );
 
   /** ask the display again what it is; a late answer for another code is dropped */
@@ -340,6 +387,8 @@ export const useDisplay = (
     highlightsRef.current = null;
     pendingHighlightIdsRef.current = null;
     setLitHighlights(null);
+    trafficRef.current = null;
+    setTrafficControl(null);
     setLive(null);
     setSeriesClock(null);
     setShadowClock(null);
@@ -418,6 +467,17 @@ export const useDisplay = (
           };
           setShadowClock(shadowRef.current.clock);
         }
+        // and the traffic's offset
+        trackTraffic(base);
+        const trafficControl = document["traffic"];
+        if (trafficRef.current && isTrafficControl(trafficControl)) {
+          trafficRef.current = {
+            key: trafficRef.current.key,
+            control: trafficControl,
+            touched: true,
+          };
+          setTrafficControl(trafficControl);
+        }
       }
       setConnection("connected");
       refreshSurface();
@@ -441,7 +501,7 @@ export const useDisplay = (
       isCurrent = false;
       window.clearInterval(hello);
     };
-  }, [target, trackSeries, trackShadow, refreshSurface]);
+  }, [target, trackSeries, trackShadow, trackTraffic, refreshSurface]);
 
   // the show often arrives after the display state; find the live scene then
   useEffect(() => {
@@ -696,7 +756,31 @@ export const useDisplay = (
     [steerShadow]
   );
 
+  /** shows the live scene's traffic this many minutes back; 0 is live */
+  const setTrafficOffset = useCallback(
+    (minutes: number) => {
+      const traffic = findSceneTraffic(liveRef.current);
+      const own = trafficRef.current;
+      if (!traffic || own?.key !== traffic.key) {
+        return;
+      }
+      const now = Date.now();
+      const control: TrafficControl = {
+        offsetMinutes: clampTrafficOffset(minutes),
+        // a new value for every move, so the display takes each one
+        seekAt: Math.max(now, (own.control.seekAt ?? 0) + 1),
+      };
+      trafficRef.current = { key: own.key, control, touched: true };
+      setTrafficControl(control);
+      write(liveRef.current).catch(() => {
+        // reported by `write`
+      });
+    },
+    [write]
+  );
+
   const series = useMemo(() => findSceneSeries(live), [live]);
+  const traffic = useMemo(() => findSceneTraffic(live), [live]);
   const shadow = useMemo(() => findSceneShadow(live), [live]);
 
   return {
@@ -712,6 +796,9 @@ export const useDisplay = (
     setShadowPlay,
     seekShadow,
     setShadowCycle,
+    traffic,
+    trafficControl,
+    setTrafficOffset,
     isBlackout,
     activeSceneId,
     isChanging,

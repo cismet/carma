@@ -203,6 +203,9 @@ export const projectionMappingFachzwilling: FachzwillingRoute = {
       layers: [
         // every cab on the model in its own spot of light, the rest dimmed
         `${LOCAL_STYLES}/schwebebahn_fahrplan_kabinenlicht.style.json`,
+        // cars, buses and trucks on the roads, day and night; invented
+        // traffic values until the sensors are connected
+        `${LOCAL_STYLES}/verkehr.style.json`,
       ],
     },
     {

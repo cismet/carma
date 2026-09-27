@@ -18,6 +18,7 @@ import {
   isSnapshotRequest,
   isSurface,
   isTimeSeriesControl,
+  isTrafficControl,
   snapshotSessionCode,
   writeRelayState,
   type Bounds3857,
@@ -28,6 +29,7 @@ import {
   type Snapshot,
   type SnapshotRequest,
   type TimeSeriesControl,
+  type TrafficControl,
 } from "@carma-mapping/show-remote";
 
 import type { AddonComponentProps } from "../../lib/registry";
@@ -35,6 +37,7 @@ import { HighlightSpots } from "./HighlightSpots";
 import { PointerSpotlight } from "./PointerSpotlight";
 import { RemoteSeries } from "./RemoteSeries";
 import { RemoteShadow } from "./RemoteShadow";
+import { RemoteTraffic } from "./RemoteTraffic";
 import { subscribe, type RelaySubscription } from "./relay";
 import { captureMap } from "./snapshot";
 
@@ -149,6 +152,11 @@ export type OutletRemoteState = {
    */
   highlights?: HighlightSpot[];
   /**
+   * Which moment of the last 24 hours the scene's traffic shows, as an offset
+   * from now. Absent leaves it where its layer started it.
+   */
+  traffic?: TrafficControl;
+  /**
    * A picture of the model's rectangle wanted, answered once per id in the
    * session `snapshotSessionCode` names.
    */
@@ -192,6 +200,7 @@ const REMOTE_STATE_KEYS: readonly (keyof OutletRemoteState)[] = [
   "timeSeries",
   "shadow",
   "highlights",
+  "traffic",
   "snapshot",
 ];
 
@@ -396,6 +405,9 @@ export const OutletAddon = ({
     null
   );
   const [remoteShadow, setRemoteShadow] = useState<ShadowControl | null>(null);
+  const [remoteTraffic, setRemoteTraffic] = useState<TrafficControl | null>(
+    null
+  );
   const [remoteHighlights, setRemoteHighlights] = useState<
     HighlightSpot[] | null
   >(null);
@@ -814,6 +826,20 @@ export const OutletAddon = ({
           : nextShadow
       );
 
+      // and for the traffic
+      if (next.traffic !== undefined && !isTrafficControl(next.traffic)) {
+        console.warn(
+          `${LOG_PREFIX} ignoring a malformed traffic entry`,
+          next.traffic
+        );
+      }
+      const nextTraffic = isTrafficControl(next.traffic) ? next.traffic : null;
+      setRemoteTraffic((current) =>
+        JSON.stringify(current) === JSON.stringify(nextTraffic)
+          ? current
+          : nextTraffic
+      );
+
       // and for the highlights: no entry, none lit
       if (next.highlights !== undefined && !isHighlightSpots(next.highlights)) {
         console.warn(
@@ -888,6 +914,7 @@ export const OutletAddon = ({
       setPointerChannel(null);
       setRemoteSeries(null);
       setRemoteShadow(null);
+      setRemoteTraffic(null);
       setRemoteHighlights(null);
     };
   }, [relayCode, relayBaseUrl, carma]);
@@ -913,6 +940,7 @@ export const OutletAddon = ({
       ) : null}
       {relayCode ? <RemoteSeries wanted={remoteSeries} /> : null}
       {relayCode ? <RemoteShadow wanted={remoteShadow} /> : null}
+      {relayCode ? <RemoteTraffic wanted={remoteTraffic} /> : null}
       {relayCode ? (
         <HighlightSpots
           map={libreMap}

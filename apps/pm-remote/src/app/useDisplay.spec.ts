@@ -315,3 +315,80 @@ describe("useDisplay highlights", () => {
     });
   });
 });
+
+describe("useDisplay traffic", () => {
+  const trafficScene: MappingConfig = {
+    layers: [
+      {
+        id: "verkehr",
+        tools: [
+          {
+            addon: "trafficAnimation",
+            config: { networkUrl: "https://example.test/netz.json" },
+          },
+        ],
+      },
+    ],
+  };
+
+  beforeEach(() => {
+    relay.writes = [];
+  });
+
+  it("runs live and sends nothing until the presenter moves the slider", async () => {
+    const { result } = await connect({ config: trafficScene });
+    expect(result.current.traffic).not.toBeNull();
+    expect(result.current.trafficControl).toEqual({ offsetMinutes: 0 });
+
+    act(() => {
+      result.current.setBlackout(true);
+    });
+    await waitFor(() => {
+      expect(relay.writes).toHaveLength(1);
+    });
+    expect(lastWrite()).not.toHaveProperty("traffic");
+  });
+
+  it("sends the offset once set, clamped to the last 24 hours", async () => {
+    const { result } = await connect({ config: trafficScene });
+    act(() => {
+      result.current.setTrafficOffset(90);
+    });
+    await waitFor(() => {
+      expect(lastWrite()?.["traffic"]).toMatchObject({ offsetMinutes: 90 });
+    });
+    act(() => {
+      result.current.setTrafficOffset(5000);
+    });
+    await waitFor(() => {
+      expect(lastWrite()?.["traffic"]).toMatchObject({ offsetMinutes: 1440 });
+    });
+  });
+
+  it("takes over the offset the display was last sent when it reconnects", async () => {
+    const { result } = await connect({
+      config: trafficScene,
+      traffic: { offsetMinutes: 600, seekAt: 3 },
+    });
+    expect(result.current.trafficControl).toEqual({
+      offsetMinutes: 600,
+      seekAt: 3,
+    });
+  });
+
+  it("forgets it with a scene without traffic", async () => {
+    const { result } = await connect({ config: trafficScene });
+    act(() => {
+      result.current.setTrafficOffset(60);
+    });
+    act(() => {
+      result.current.goToScene(
+        scene("plain", { layers: [{ id: "stadtplan" }] })
+      );
+    });
+    await waitFor(() => {
+      expect(result.current.traffic).toBeNull();
+    });
+    expect(lastWrite()).not.toHaveProperty("traffic");
+  });
+});

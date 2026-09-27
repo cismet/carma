@@ -118,6 +118,11 @@ import {
   type FloodState,
 } from "../addons/FloodSimulation";
 import {
+  TrafficAnimation,
+  type TrafficAnimationConfig,
+  type TrafficAnimationState,
+} from "../addons/TrafficAnimation";
+import {
   zoomToExtentTrigger,
   type ZoomToExtentConfig,
 } from "../addons/ZoomToExtent";
@@ -199,6 +204,11 @@ export type AddonConfigMap = {
    * three.js. Open, no cage involved.
    */
   floodSimulation: FloodSimulationConfig;
+  /**
+   * Cars, buses and trucks on a road network, by day and by night, launched
+   * by a layer; see `TrafficAnimation`. The traffic values are invented.
+   */
+  trafficAnimation: TrafficAnimationConfig;
   zoomToExtent: ZoomToExtentConfig;
   /**
    * Declared on a layer to keep it above the others; the host does the
@@ -271,6 +281,12 @@ export type AddonStateMap = {
    * which sit in the host's tree rather than in the addon's.
    */
   floodSimulation: FloodState;
+  /**
+   * the running traffic: the moment it shows as an offset from now, how dark
+   * it is and how many vehicles are out; see `TrafficAnimation`. Written by
+   * the panel or, on the projection window, by the remote.
+   */
+  trafficAnimation: TrafficAnimationState;
   /**
    * image the info box shows instead of the feature photo at the current zoom;
    * see `InfoBoxZoomImage`. Consumed by the host app's info box, not by an addon.
@@ -555,6 +571,10 @@ export const addonRegistry: {
   floodSimulation: {
     Component: FloodSimulation,
     provides: ["floodSimulation"],
+  },
+  trafficAnimation: {
+    Component: TrafficAnimation,
+    provides: ["trafficAnimation"],
   },
   zoomToExtent: { trigger: zoomToExtentTrigger },
   alwaysOnTop: { perTarget: true },
