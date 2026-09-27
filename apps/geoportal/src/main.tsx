@@ -18,6 +18,7 @@ import { ImageList, ServiceList } from "@carma-mapping/layers";
 
 import { CESIUM_CONFIG } from "./app/config/app.config";
 import App from "./app/App";
+import { baseRouteFallback } from "./app/base-route-fallback";
 import store from "./app/store";
 import {
   STORE_APP_KEY,
@@ -183,6 +184,7 @@ root.render(
               path: "/about/services.md",
               element: <ServiceList discoverProps={discoverProps} markdown />,
             },
+            baseRouteFallback,
           ])}
         />
       </AdhocFeatureDisplayProvider>
