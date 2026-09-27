@@ -246,6 +246,14 @@ export const PositionPicker = ({
           </p>
           <button
             type="button"
+            onClick={() => onChange(0)}
+            disabled={sideDeg === 0}
+            className="min-h-[44px] rounded-lg bg-neutral-800 px-4 text-sm active:bg-neutral-700 disabled:opacity-40"
+          >
+            Grundstellung
+          </button>
+          <button
+            type="button"
             onClick={fetchPicture}
             disabled={picture.status === "loading"}
             className="min-h-[44px] rounded-lg bg-neutral-800 px-4 text-sm active:bg-neutral-700 disabled:opacity-40"
