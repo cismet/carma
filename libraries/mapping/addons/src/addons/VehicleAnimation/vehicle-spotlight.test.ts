@@ -1,8 +1,14 @@
+import type { CustomRenderMethodInput, Map as LibreMap } from "maplibre-gl";
 import { describe, expect, it } from "vitest";
 
+import {
+  coverSourcesOf,
+  setCoverTakeover,
+} from "../../lib/spot-cover";
 import { buildTrack, carStrips, CAR_SHAPE_GTW15, type Track } from "./track";
 import {
   carCentre,
+  createSpotlightLayer,
   MAX_SPOTS,
   projectToBuffer,
   resolveSpotlight,
@@ -260,5 +266,101 @@ describe("spotCapacity", () => {
   it("shrinks to what a small context holds, never below one", () => {
     expect(spotCapacity(16)).toBe(12);
     expect(spotCapacity(2)).toBe(1);
+  });
+});
+
+/**
+ * A WebGL context that accepts every call: uniform locations are their
+ * names, and the dim each draw was made with is written down.
+ */
+const fakeGl = () => {
+  const dims: number[] = [];
+  const gl = new Proxy(
+    {},
+    {
+      get: (_target, key) => {
+        if (key === "getParameter") return () => 256;
+        if (key === "getUniformLocation")
+          return (_program: unknown, name: string) => name;
+        if (key === "uniform1f")
+          return (location: unknown, value: number) => {
+            if (location === "uDim") dims.push(value);
+          };
+        if (key === "drawingBufferWidth" || key === "drawingBufferHeight")
+          return 100;
+        return () => ({});
+      },
+    }
+  ) as WebGL2RenderingContext;
+  return { gl, dims };
+};
+
+// prettier-ignore
+const IDENTITY = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
+const renderArgs = {
+  defaultProjectionData: { mainMatrix: IDENTITY },
+} as unknown as CustomRenderMethodInput;
+
+describe("createSpotlightLayer and the map's cover", () => {
+  const spotlight = { radiusMeters: 60, dim: 0.8, softness: 0.2 };
+  const cab = { lon: 7.15, lat: 51.25, altitude: 0 };
+
+  const added = () => {
+    const map = {} as LibreMap;
+    const { gl, dims } = fakeGl();
+    const spot = createSpotlightLayer({ id: "s", spotlight });
+    spot.layer.onAdd?.(map, gl);
+    return { map, gl, dims, spot };
+  };
+
+  it("tells the cover where its spots are once it is on a map", () => {
+    const { map, spot } = added();
+    spot.setSpots([cab]);
+    expect(coverSourcesOf(map)).toEqual([
+      { dim: 0.8, radiusMeters: 60, softness: 0.2, centres: [cab] },
+    ]);
+  });
+
+  it("fades the published dim with the fleet", () => {
+    const { map, spot } = added();
+    spot.setSpots([cab]);
+    spot.setOpacity(0.5);
+    expect(coverSourcesOf(map)[0]?.dim).toBeCloseTo(0.4);
+  });
+
+  it("takes its spots back when hidden, faded out, removed or disposed", () => {
+    const { map, spot } = added();
+    spot.setSpots([cab]);
+    spot.setVisible(false);
+    expect(coverSourcesOf(map)).toEqual([]);
+    spot.setVisible(true);
+    expect(coverSourcesOf(map)).toHaveLength(1);
+    spot.setOpacity(0);
+    expect(coverSourcesOf(map)).toEqual([]);
+    spot.setOpacity(1);
+    spot.layer.onRemove?.(map, {} as WebGL2RenderingContext);
+    expect(coverSourcesOf(map)).toEqual([]);
+
+    const again = added();
+    again.spot.setSpots([cab]);
+    again.spot.dispose();
+    expect(coverSourcesOf(again.map)).toEqual([]);
+  });
+
+  it("steps back as far as the cover has taken over", () => {
+    const { map, gl, dims, spot } = added();
+    spot.setSpots([cab]);
+    const render = spot.layer.render as (
+      gl: WebGL2RenderingContext,
+      args: CustomRenderMethodInput
+    ) => void;
+    render(gl, renderArgs);
+    setCoverTakeover(map, 0.25);
+    render(gl, renderArgs);
+    setCoverTakeover(map, 1);
+    render(gl, renderArgs);
+    expect(dims).toHaveLength(2);
+    expect(dims[0]).toBeCloseTo(0.8);
+    expect(dims[1]).toBeCloseTo(0.6);
   });
 });

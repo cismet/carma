@@ -4,6 +4,11 @@ import type {
   CustomRenderMethodInput,
 } from "maplibre-gl";
 
+import {
+  coverTakeoverOf,
+  publishCoverSource,
+  withdrawCoverSource,
+} from "../../lib/spot-cover";
 import type { Car } from "./fleet";
 import { poseAt, type Track } from "./track";
 
@@ -34,6 +39,11 @@ import { poseAt, type Track } from "./track";
  * nothing. It goes on top of the style, so the Gerüst, the labels and every
  * other layer are dimmed with the rest, and the vehicles show through their
  * holes.
+ *
+ * The spots and the dim also go to the map's cover (`lib/spot-cover.ts`):
+ * while the outlet's stored highlights are on, their canvas darkens the map
+ * for both and cuts these spots out too, and this layer steps back as far as
+ * that canvas has faded in, so the map is darkened once rather than twice.
  *
  * Raw WebGL on purpose: the shader is GLSL ES 1.00, which WebGL1 and WebGL2
  * both compile, and three.js would bring a renderer, a scene and a state
@@ -400,6 +410,11 @@ export type SpotlightLayer = {
    * dimmed around vehicles that are no longer there to see.
    */
   setOpacity: (opacity: number) => void;
+  /**
+   * Whether the fleet is shown. A layer hidden by its `visibility` is not
+   * rendered, so this is how the map's cover learns that the spots are gone.
+   */
+  setVisible: (visible: boolean) => void;
   dispose: () => void;
 };
 
@@ -410,32 +425,63 @@ export const createSpotlightLayer = ({
 }: SpotlightLayerOptions): SpotlightLayer => {
   let spots: readonly SpotCentre[] = [];
   let opacity = clamp(initialOpacity, 0, 1);
+  let visible = true;
   let resources: GlResources | null = null;
+  /** the map the layer is on, between `onAdd` and `onRemove` */
+  let onMap: object | null = null;
+  /** this layer's key in the map's cover */
+  const coverKey = {};
 
   const release = (): void => {
     if (resources) deleteResources(resources);
     resources = null;
   };
 
+  /** tells the map's cover where the spots are and how dark the rest is */
+  const publish = (): void => {
+    if (!onMap) return;
+    const dim = spotlight.dim * opacity;
+    if (!visible || dim <= 0) {
+      withdrawCoverSource(onMap, coverKey);
+      return;
+    }
+    publishCoverSource(onMap, coverKey, {
+      dim,
+      radiusMeters: spotlight.radiusMeters,
+      softness: spotlight.softness,
+      centres: spots,
+    });
+  };
+
+  const leaveMap = (): void => {
+    if (onMap) withdrawCoverSource(onMap, coverKey);
+    onMap = null;
+  };
+
   const layer: CustomLayerInterface = {
     id,
     type: "custom",
     renderingMode: "2d",
-    onAdd(_map, gl) {
+    onAdd(map, gl) {
       // a basemap swap removes the layer and adds it again, so the program
       // is built on every add and deleted on every remove
       if (resources?.gl !== gl) {
         release();
         resources = createResources(gl);
       }
+      onMap = map;
+      publish();
     },
     onRemove() {
+      leaveMap();
       release();
     },
     render(gl: Gl, args: CustomRenderMethodInput) {
       const own = resources;
       if (!own || own.gl !== gl) return;
-      const dim = spotlight.dim * opacity;
+      // what the highlights' canvas has taken over, it darkens for both
+      const takeover = onMap ? coverTakeoverOf(onMap) : 0;
+      const dim = spotlight.dim * opacity * (1 - takeover);
       if (dim <= 0) return;
 
       const width = gl.drawingBufferWidth;
@@ -499,12 +545,19 @@ export const createSpotlightLayer = ({
     layer,
     setSpots: (next) => {
       spots = next;
+      publish();
     },
     setOpacity: (next) => {
       opacity = clamp(next, 0, 1);
+      publish();
+    },
+    setVisible: (next) => {
+      visible = next;
+      publish();
     },
     dispose: () => {
       spots = [];
+      leaveMap();
       release();
     },
   };

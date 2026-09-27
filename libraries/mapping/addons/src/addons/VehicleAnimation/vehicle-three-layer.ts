@@ -827,6 +827,7 @@ export const createVehicleThreeLayer = (
     setVisible: (next) => {
       if (visible === next) return;
       visible = next;
+      spotlightLayer?.setVisible(visible);
       if (visible) {
         attach();
       } else {

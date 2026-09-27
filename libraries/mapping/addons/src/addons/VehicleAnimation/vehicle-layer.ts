@@ -569,6 +569,7 @@ export const createVehicleLayer = (
       if (visible === next) return;
       visible = next;
       applyVisibility();
+      spotlightLayer?.setVisible(visible);
       // nothing is drawn while hidden, so the frame loop rests as well
       if (visible) {
         start();
