@@ -2,8 +2,9 @@
  * From the phone's attitude to a spot on the model.
  *
  * The phone works as an air mouse: only the change of its aim counts, so the
- * sensors' arbitrary heading (iOS starts it wherever the phone faced), the
- * table and the presenter's position do not matter.
+ * sensors' arbitrary heading (iOS starts it wherever the phone faced) does
+ * not matter. Which way a change moves the spot depends on the side of the
+ * table the presenter stands at, see `toTable`.
  */
 
 export type Vec3 = readonly [number, number, number];
@@ -105,15 +106,30 @@ export const aimOf = (axes: DeviceAxes): Aim => {
   };
 };
 
-/** half the image in model widths; the model is close to 16:9 */
-export const WRIST_LIMIT: Vec2 = [0.5, 0.5 * (9 / 16)];
+/** width to height of the printed model */
+export const MODEL_ASPECT = 16 / 9;
+
+/** half the image in model widths */
+export const WRIST_LIMIT: Vec2 = [0.5, 0.5 / MODEL_ASPECT];
 
 /**
- * The phone as an air mouse: turning the wrist left or right moves the spot
- * left or right, tilting it up or down moves it up or down, by `gain` model
- * widths per degree. Only the change counts, so neither the table, the
- * presenter's side nor the sensors' heading matter. At the image's edge the
- * spot stops, and turning back moves it back at once, like a mouse.
+ * A step as the presenter sees it, `[to their right, towards them]`, turned
+ * into the image's `[right, down]`. `sideDeg` is where they stand around the
+ * table: 0 at the image's bottom edge, 90 at its right edge, 180 at the top,
+ * 270 at the left. From the bottom edge both are the same.
+ */
+export const toTable = ([right, towards]: Vec2, sideDeg: number): Vec2 => {
+  const s = Math.sin(sideDeg * RAD);
+  const c = Math.cos(sideDeg * RAD);
+  return [right * c + towards * s, towards * c - right * s];
+};
+
+/**
+ * The phone as an air mouse: turning the wrist right moves the spot to the
+ * presenter's right, tilting it up moves the spot away from them, by `gain`
+ * model widths per degree, turned onto the table by `toTable`. Only the
+ * change counts, so the sensors' heading does not matter. At the image's
+ * edge the spot stops, and turning back moves it back at once, like a mouse.
  */
 export class WristPointer {
   private last: Aim | null = null;
@@ -129,7 +145,7 @@ export class WristPointer {
     this.anchor(axes);
   }
 
-  update(axes: DeviceAxes, gain: number): Vec2 {
+  update(axes: DeviceAxes, gain: number, sideDeg = 0): Vec2 {
     const aim = aimOf(axes);
     const last = this.last;
     this.last = aim;
@@ -137,9 +153,16 @@ export class WristPointer {
       return this.position;
     }
     const [x, y] = this.position;
+    const [stepX, stepY] = toTable(
+      [
+        -wrapDegrees(aim.yaw - last.yaw) * gain,
+        -wrapDegrees(aim.pitch - last.pitch) * gain,
+      ],
+      sideDeg
+    );
     this.position = [
-      clamp(x - wrapDegrees(aim.yaw - last.yaw) * gain, WRIST_LIMIT[0]),
-      clamp(y - wrapDegrees(aim.pitch - last.pitch) * gain, WRIST_LIMIT[1]),
+      clamp(x + stepX, WRIST_LIMIT[0]),
+      clamp(y + stepY, WRIST_LIMIT[1]),
     ];
     return this.position;
   }

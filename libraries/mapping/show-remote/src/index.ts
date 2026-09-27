@@ -90,6 +90,25 @@ export {
   type PointerLinkSessions,
 } from "./lib/pointer-link";
 export {
+  isSnapshot,
+  isSnapshotRequest,
+  snapshotSessionCode,
+  snapshotTarget,
+  type Snapshot,
+  type SnapshotRequest,
+} from "./lib/snapshot";
+export {
+  DEFAULT_SURFACE,
+  SURFACES,
+  displayInfoSessionCode,
+  displayInfoTarget,
+  isDisplayInfo,
+  isSurface,
+  surfaceOf,
+  type DisplayInfo,
+  type Surface,
+} from "./lib/display-info";
+export {
   clockStep,
   findSceneSeries,
   isTimeSeriesControl,

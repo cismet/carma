@@ -12,6 +12,7 @@ import {
   type PointerChannel,
   type PointerSample,
   type RelayTarget,
+  type Surface,
 } from "@carma-mapping/show-remote";
 
 import { createLatestWinsWriter } from "./display-link";
@@ -31,6 +32,7 @@ import {
 import {
   OneEuro2,
   WristPointer,
+  toTable,
   type DeviceAxes,
   type Vec2,
 } from "./pointer-math";
@@ -38,6 +40,8 @@ import { STORAGE_PREFIX } from "./settings";
 
 const LOG_PREFIX = "[PM POINTER]";
 const SETTINGS_KEY = `${STORAGE_PREFIX}.pointer`;
+/** the presenter's side per display, see `toTable` */
+const SIDES_KEY = `${STORAGE_PREFIX}.pointer.sides`;
 
 /** how long a size or dimming change shows the spot when nobody holds it */
 const PREVIEW_MS = 1500;
@@ -106,6 +110,34 @@ const savePointerSettings = (settings: PointerSettings): void => {
   }
 };
 
+const loadSides = (): Record<string, unknown> => {
+  try {
+    const stored: unknown = JSON.parse(
+      window.localStorage.getItem(SIDES_KEY) ?? "{}"
+    );
+    return typeof stored === "object" && stored !== null
+      ? (stored as Record<string, unknown>)
+      : {};
+  } catch (error) {
+    console.warn(`${LOG_PREFIX} stored sides unreadable`, error);
+    return {};
+  }
+};
+
+const loadSide = (code: string | undefined): number =>
+  code ? numberOr(loadSides()[code], 0) : 0;
+
+const saveSide = (code: string, sideDeg: number): void => {
+  try {
+    window.localStorage.setItem(
+      SIDES_KEY,
+      JSON.stringify({ ...loadSides(), [code]: sideDeg })
+    );
+  } catch (error) {
+    console.warn(`${LOG_PREFIX} storing the side failed`, error);
+  }
+};
+
 /**
  * closed: the display shows no pointer. motion: the phone's attitude steers
  * the spot. touch: no attitude to be had, a finger on the hold area steers it.
@@ -146,11 +178,13 @@ const clampReach = (value: number): number =>
  * pointer session and tells the display to follow it; holding the pointer
  * button shows the spot there, releasing it hides the spot again, unless the
  * lock is armed: then it stays where it was let go until the lock is
- * switched off.
+ * switched off. On a screen the presenter always stands in front, so the
+ * stored side is left aside there.
  */
 export const usePointer = (
   target: RelayTarget | null,
-  setPointerChannel: (channel: PointerChannel | null) => Promise<void>
+  setPointerChannel: (channel: PointerChannel | null) => Promise<void>,
+  surface: Surface
 ) => {
   const [status, setStatus] = useState<PointerStatus>("closed");
   const [source, setSource] = useState<OrientationSource | null>(null);
@@ -160,9 +194,14 @@ export const usePointer = (
     loadPointerSettings()
   );
   const [readout, setReadout] = useState<PointerReadout>(NO_READOUT);
+  const code = target?.code;
+  const [storedSideDeg, setSideDeg] = useState(() => loadSide(code));
+  const sideDeg = surface === "screen" ? 0 : storedSideDeg;
 
   const settingsRef = useRef(settings);
   settingsRef.current = settings;
+  const sideRef = useRef(sideDeg);
+  sideRef.current = sideDeg;
   const streamRef = useRef<OrientationStream | null>(null);
   const axesRef = useRef<DeviceAxes | null>(null);
   const filterRef = useRef(new OneEuro2());
@@ -249,7 +288,11 @@ export const usePointer = (
       if (!holdingRef.current) {
         return;
       }
-      const raw = wristRef.current.update(axes, settingsRef.current.wristGain);
+      const raw = wristRef.current.update(
+        axes,
+        settingsRef.current.wristGain,
+        sideRef.current
+      );
       const { value, velocity } = filterRef.current.filter(raw, timeMs);
       positionRef.current = value;
       velocityRef.current = velocity;
@@ -414,14 +457,30 @@ export const usePointer = (
         return;
       }
       const [x, y] = positionRef.current;
-      positionRef.current = [
-        clampReach(x + fractionX),
-        clampReach(y + fractionY),
-      ];
+      const [stepX, stepY] = toTable([fractionX, fractionY], sideRef.current);
+      positionRef.current = [clampReach(x + stepX), clampReach(y + stepY)];
       sendSample(true);
     },
     [sendSample]
   );
+
+  /** where the presenter stands around the table, see `toTable` */
+  const setSide = useCallback(
+    (next: number) => {
+      const normalized = ((next % 360) + 360) % 360;
+      sideRef.current = normalized;
+      setSideDeg(normalized);
+      if (code) {
+        saveSide(code, normalized);
+      }
+    },
+    [code]
+  );
+
+  // another display stands somewhere else
+  useEffect(() => {
+    setSideDeg(loadSide(code));
+  }, [code]);
 
   const updateSettings = useCallback(
     (patch: Partial<PointerSettings>) => {
@@ -539,6 +598,8 @@ export const usePointer = (
     notice,
     settings,
     readout,
+    sideDeg,
+    setSide,
     open,
     close,
     press,

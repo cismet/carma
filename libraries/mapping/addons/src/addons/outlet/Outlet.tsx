@@ -6,16 +6,25 @@ import { getFromWebMercatorToWGS84 } from "@carma-geo/proj";
 
 import type { MappingConfig } from "@carma-api";
 import {
+  DEFAULT_SURFACE,
   baseOf,
   boundsKey,
+  displayInfoSessionCode,
   isBlackoutLayer,
   isBounds3857,
   isPointerChannel,
   isShadowControl,
+  isSnapshotRequest,
+  isSurface,
   isTimeSeriesControl,
+  snapshotSessionCode,
+  writeRelayState,
   type Bounds3857,
+  type DisplayInfo,
   type PointerChannel,
   type ShadowControl,
+  type Snapshot,
+  type SnapshotRequest,
   type TimeSeriesControl,
 } from "@carma-mapping/show-remote";
 
@@ -24,6 +33,7 @@ import { PointerSpotlight } from "./PointerSpotlight";
 import { RemoteSeries } from "./RemoteSeries";
 import { RemoteShadow } from "./RemoteShadow";
 import { subscribe, type RelaySubscription } from "./relay";
+import { captureMap } from "./snapshot";
 
 /**
  * Projection-mapping source window.
@@ -45,6 +55,10 @@ const LOG_PREFIX = "[OUTLET]";
 const DIAGNOSTICS_KEY = "__CARMA_OUTLET";
 const BOUNDS_PARAM = "bounds";
 const RELAY_PARAM = "relay";
+/** `table` (the default) or `screen`, told to the remote, see `DisplayInfo` */
+const SURFACE_PARAM = "surface";
+/** the relay forgets sessions on a restart, so the display says it again */
+const ANNOUNCE_INTERVAL_MS = 60_000;
 const LOG_LIMIT = 200;
 
 /** aspect mismatch beyond this shows visibly on the model, see the plan's table */
@@ -126,6 +140,11 @@ export type OutletRemoteState = {
    * as their layer started them.
    */
   shadow?: ShadowControl;
+  /**
+   * A picture of the model's rectangle wanted, answered once per id in the
+   * session `snapshotSessionCode` names.
+   */
+  snapshot?: SnapshotRequest;
 };
 
 /** the black cover over the whole window, and how long a change of it fades */
@@ -164,6 +183,7 @@ const REMOTE_STATE_KEYS: readonly (keyof OutletRemoteState)[] = [
   "pointer",
   "timeSeries",
   "shadow",
+  "snapshot",
 ];
 
 /** where the requested rectangle sits on screen, in css pixels */
@@ -366,9 +386,7 @@ export const OutletAddon = ({
   const [remoteSeries, setRemoteSeries] = useState<TimeSeriesControl | null>(
     null
   );
-  const [remoteShadow, setRemoteShadow] = useState<ShadowControl | null>(
-    null
-  );
+  const [remoteShadow, setRemoteShadow] = useState<ShadowControl | null>(null);
   /** a `?bounds=` in the url pins the position against the remote */
   const isPositionPinnedRef = useRef(false);
   isPositionPinnedRef.current = resolved?.source === "query";
@@ -381,6 +399,10 @@ export const OutletAddon = ({
   const relayRef = useRef<RelaySubscription | null>(null);
   const relayCode = getHashParams()[RELAY_PARAM];
   const relayBaseUrl = config?.relayBaseUrl;
+  /** for the remote's pictures, which the relay effect takes without the map */
+  const libreMapRef = useRef(libreMap);
+  libreMapRef.current = libreMap;
+  const answeredSnapshotRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!resolved) {
@@ -587,6 +609,55 @@ export const OutletAddon = ({
       );
       return;
     }
+    const snapshotTarget = {
+      baseUrl: relayBaseUrl,
+      code: snapshotSessionCode(relayCode),
+    };
+
+    const surfaceParam = getHashParams()[SURFACE_PARAM];
+    if (surfaceParam !== undefined && !isSurface(surfaceParam)) {
+      console.warn(
+        `${LOG_PREFIX} ?${SURFACE_PARAM}=${surfaceParam} is neither table nor screen; telling the remote ${DEFAULT_SURFACE}`
+      );
+    }
+    const displayInfo: DisplayInfo = {
+      surface: isSurface(surfaceParam) ? surfaceParam : DEFAULT_SURFACE,
+    };
+    const announce = () => {
+      writeRelayState(
+        { baseUrl: relayBaseUrl, code: displayInfoSessionCode(relayCode) },
+        displayInfo
+      ).catch((error: unknown) => {
+        console.warn(
+          `${LOG_PREFIX} telling the remote the surface failed`,
+          error
+        );
+      });
+    };
+    announce();
+    const announcer = window.setInterval(announce, ANNOUNCE_INTERVAL_MS);
+
+    const answerSnapshot = async (id: number) => {
+      let answer: Snapshot;
+      try {
+        const map = libreMapRef.current;
+        if (!map) {
+          throw new Error("the map is not up yet");
+        }
+        answer = { id, ...(await captureMap(map, appliedBoxRef.current)) };
+      } catch (error) {
+        console.warn(`${LOG_PREFIX} no picture for the remote`, error);
+        answer = {
+          id,
+          error: error instanceof Error ? error.message : String(error),
+        };
+      }
+      try {
+        await writeRelayState(snapshotTarget, answer);
+      } catch (error) {
+        console.warn(`${LOG_PREFIX} sending the picture failed`, error);
+      }
+    };
 
     const applyRemoteState = async (raw: unknown) => {
       if (typeof raw !== "object" || raw === null) {
@@ -729,6 +800,20 @@ export const OutletAddon = ({
           : nextShadow
       );
 
+      // every write repeats the last request; only a new id wants a picture
+      if (next.snapshot !== undefined && !isSnapshotRequest(next.snapshot)) {
+        console.warn(
+          `${LOG_PREFIX} ignoring a malformed snapshot request`,
+          next.snapshot
+        );
+      } else if (
+        next.snapshot &&
+        next.snapshot.id !== answeredSnapshotRef.current
+      ) {
+        answeredSnapshotRef.current = next.snapshot.id;
+        void answerSnapshot(next.snapshot.id);
+      }
+
       if (
         typeof next.backgroundLayer === "string" &&
         next.backgroundLayer !== appliedRemoteRef.current.backgroundLayer
@@ -762,10 +847,11 @@ export const OutletAddon = ({
     });
     relayRef.current = subscription;
     console.info(
-      `${LOG_PREFIX} remote controlled via ${relayBaseUrl}, session ${relayCode}`
+      `${LOG_PREFIX} remote controlled via ${relayBaseUrl}, session ${relayCode}, surface ${displayInfo.surface}`
     );
 
     return () => {
+      window.clearInterval(announcer);
       subscription.stop();
       relayRef.current = null;
       setPointerChannel(null);

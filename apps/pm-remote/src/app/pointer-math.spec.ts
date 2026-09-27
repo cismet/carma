@@ -5,6 +5,7 @@ import {
   axesFromEuler,
   axesFromQuaternion,
   forwardOf,
+  toTable,
   type DeviceAxes,
   type Vec3,
 } from "./pointer-math";
@@ -128,6 +129,41 @@ describe("WristPointer", () => {
     const wrist = new WristPointer();
     wrist.center(null);
     expect(wrist.update(aim(40, 20), gain)).toEqual([0, 0]);
+  });
+
+  it("moves to the presenter's right and away from them at the top edge", () => {
+    const turned = new WristPointer();
+    turned.anchor(aim(30, 45));
+    expectVec(turned.update(aim(20, 45), gain, 180), [-10 * gain, 0]);
+    const tipped = new WristPointer();
+    tipped.anchor(aim(0, 45));
+    expectVec(tipped.update(aim(0, 43), gain, 180), [0, 2 * gain]);
+  });
+});
+
+describe("toTable", () => {
+  // a step to the presenter's right, and one away from them
+  const right = [1, 0] as const;
+  const away = [0, -1] as const;
+
+  it("keeps the step at the bottom edge", () => {
+    expectVec(toTable(right, 0), [1, 0]);
+    expectVec(toTable(away, 0), [0, -1]);
+  });
+
+  it("turns it for the right edge, where away is the image's left", () => {
+    expectVec(toTable(right, 90), [0, -1]);
+    expectVec(toTable(away, 90), [-1, 0]);
+  });
+
+  it("mirrors it at the top edge", () => {
+    expectVec(toTable(right, 180), [-1, 0]);
+    expectVec(toTable(away, 180), [0, 1]);
+  });
+
+  it("turns it for the left edge, where away is the image's right", () => {
+    expectVec(toTable(right, 270), [0, 1]);
+    expectVec(toTable(away, 270), [1, 0]);
   });
 });
 

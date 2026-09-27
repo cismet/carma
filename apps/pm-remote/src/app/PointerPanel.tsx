@@ -1,11 +1,16 @@
 import {
   useRef,
+  useState,
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
 } from "react";
 
+import type { Snapshot, Surface } from "@carma-mapping/show-remote";
+
 import { SOURCE_LABEL } from "./orientation";
 import type { PointerLinkState } from "./pointer-link";
+import { MODEL_ASPECT } from "./pointer-math";
+import { PositionPicker } from "./PositionPicker";
 import type { usePointer } from "./usePointer";
 
 type Pointer = ReturnType<typeof usePointer>;
@@ -23,8 +28,53 @@ const linkText = (link: PointerLinkState, rttMs: number | null): string => {
   }
 };
 
-/** the printed Wuppertal model is close to 16:9; only the mini map uses it */
-const MINI_MAP_ASPECT = 16 / 9;
+const RAD = Math.PI / 180;
+
+/**
+ * The image as the presenter sees it from `sideDeg` (see `toTable`), with
+ * the spot on it: what is nearest to them is at the bottom.
+ */
+const MiniMap = ({
+  position: [dx, dy],
+  sideDeg,
+  isShowing,
+}: {
+  position: readonly [number, number];
+  sideDeg: number;
+  isShowing: boolean;
+}) => {
+  const halfWidth = 0.5;
+  const halfHeight = 0.5 / MODEL_ASPECT;
+  const s = Math.abs(Math.sin(sideDeg * RAD));
+  const c = Math.abs(Math.cos(sideDeg * RAD));
+  const spanX = halfWidth * c + halfHeight * s;
+  const spanY = halfWidth * s + halfHeight * c;
+  return (
+    <svg
+      viewBox={`${-spanX} ${-spanY} ${2 * spanX} ${2 * spanY}`}
+      className="max-h-[30vh] w-3/4 max-w-sm"
+      style={{ aspectRatio: String(spanX / spanY) }}
+    >
+      <g transform={`rotate(${sideDeg})`}>
+        <rect
+          x={-halfWidth}
+          y={-halfHeight}
+          width={2 * halfWidth}
+          height={2 * halfHeight}
+          rx={0.012}
+          strokeWidth={0.004}
+          className="fill-neutral-800 stroke-neutral-600"
+        />
+        <circle
+          cx={dx}
+          cy={dy}
+          r={0.03}
+          className={isShowing ? "fill-amber-300" : "fill-neutral-500"}
+        />
+      </g>
+    </svg>
+  );
+};
 
 const Slider = ({
   id,
@@ -70,7 +120,16 @@ const Slider = ({
  * that, armed, keeps the next spot after letting go, the tap that brings the spot back to
  * the middle, and the spot's settings.
  */
-export const PointerPanel = ({ pointer }: { pointer: Pointer }) => {
+export const PointerPanel = ({
+  pointer,
+  surface,
+  requestSnapshot,
+}: {
+  pointer: Pointer;
+  /** in front of a screen there is no side to pick */
+  surface: Surface;
+  requestSnapshot: () => Promise<Snapshot>;
+}) => {
   const {
     status,
     source,
@@ -78,6 +137,8 @@ export const PointerPanel = ({ pointer }: { pointer: Pointer }) => {
     notice,
     settings,
     readout,
+    sideDeg,
+    setSide,
     close,
     press,
     release,
@@ -87,7 +148,9 @@ export const PointerPanel = ({ pointer }: { pointer: Pointer }) => {
     updateSettings,
   } = pointer;
   const lastTouchRef = useRef<{ x: number; y: number } | null>(null);
+  const [isPicking, setIsPicking] = useState(false);
   const isMotion = status === "motion";
+  const isTable = surface === "table";
 
   const onDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -113,7 +176,6 @@ export const PointerPanel = ({ pointer }: { pointer: Pointer }) => {
   const isHoldKey = (event: ReactKeyboardEvent) =>
     event.key === " " || event.key === "Enter";
 
-  const [dx, dy] = readout.position;
   const isShowing = readout.isHolding || readout.isLatched;
   const steeringText =
     status === "touch"
@@ -150,6 +212,15 @@ export const PointerPanel = ({ pointer }: { pointer: Pointer }) => {
             </p>
           )}
         </div>
+        {isTable && (
+          <button
+            type="button"
+            onClick={() => setIsPicking(true)}
+            className="min-h-[44px] rounded-lg bg-neutral-800 px-4 text-sm active:bg-neutral-700"
+          >
+            Standort
+          </button>
+        )}
         <button
           type="button"
           onClick={close}
@@ -158,6 +229,14 @@ export const PointerPanel = ({ pointer }: { pointer: Pointer }) => {
           Beenden
         </button>
       </div>
+      {isPicking && isTable && (
+        <PositionPicker
+          sideDeg={sideDeg}
+          requestSnapshot={requestSnapshot}
+          onChange={setSide}
+          onClose={() => setIsPicking(false)}
+        />
+      )}
 
       <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-4 overflow-y-auto px-4 pb-safe-bottom-xs">
         {error && (
@@ -203,20 +282,11 @@ export const PointerPanel = ({ pointer }: { pointer: Pointer }) => {
               : "border-neutral-700 bg-neutral-900"
           }`}
         >
-          <div
-            className="relative w-3/4 max-w-sm overflow-hidden rounded-md border border-neutral-600 bg-neutral-800"
-            style={{ aspectRatio: String(MINI_MAP_ASPECT) }}
-          >
-            <span
-              className={`absolute block h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full ${
-                isShowing ? "bg-amber-300" : "bg-neutral-500"
-              }`}
-              style={{
-                left: `${(0.5 + dx) * 100}%`,
-                top: `${(0.5 + dy * MINI_MAP_ASPECT) * 100}%`,
-              }}
-            />
-          </div>
+          <MiniMap
+            position={readout.position}
+            sideDeg={sideDeg}
+            isShowing={isShowing}
+          />
           <span className="text-center text-lg font-semibold">
             {status === "starting"
               ? "Sensoren starten …"
@@ -260,7 +330,10 @@ export const PointerPanel = ({ pointer }: { pointer: Pointer }) => {
             Punkt seitwärts, nach oben und unten kippen bewegt ihn hoch und
             runter. Loslassen und neu greifen setzt fort, wo der Punkt stand.
             Mit „Festhalten: an“ bleibt der Punkt nach dem Loslassen stehen,
-            erneut Tippen schaltet aus und nimmt ihn weg. „Mitte setzen“ holt ihn in die Bildmitte.
+            erneut Tippen schaltet aus und nimmt ihn weg. „Mitte setzen“ holt
+            ihn in die Bildmitte.
+            {isTable &&
+              " Unter „Standort“ steht, von welcher Seite man auf den Tisch schaut."}
           </p>
         )}
 

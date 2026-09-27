@@ -255,7 +255,19 @@ export const App = () => {
     isChanging,
   } = display;
   useWakeLock(display.connection === "connected");
-  const pointer = usePointer(target, display.setPointerChannel);
+  const pointer = usePointer(
+    target,
+    display.setPointerChannel,
+    display.surface
+  );
+  // the display may have come up since the connect; the panel shows what it is
+  const isPointerOpen = pointer.status !== "closed";
+  const { refreshSurface } = display;
+  useEffect(() => {
+    if (isPointerOpen) {
+      refreshSurface();
+    }
+  }, [isPointerOpen, refreshSurface]);
 
   const updateSettings = useCallback((next: RemoteSettings) => {
     saveSettings(next);
@@ -621,7 +633,13 @@ export const App = () => {
         </button>
       </nav>
 
-      {pointer.status !== "closed" && <PointerPanel pointer={pointer} />}
+      {pointer.status !== "closed" && (
+        <PointerPanel
+          pointer={pointer}
+          surface={display.surface}
+          requestSnapshot={display.requestSnapshot}
+        />
+      )}
 
       {sheet === "layers" && (
         <Sheet

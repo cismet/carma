@@ -3,12 +3,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MappingConfig } from "@carma-api";
 import {
   DEFAULT_PREPARE_MS,
+  DEFAULT_SURFACE,
   baseOf,
   blackoutOf,
   clampDayOfYear,
   clockShadowDate,
   clockStep,
   composeDisplayConfig,
+  displayInfoTarget,
   findSceneSeries,
   findSceneShadow,
   helloRelay,
@@ -16,11 +18,14 @@ import {
   isBounds3857,
   isMappingConfig,
   isShadowControl,
+  isSnapshot,
   isTimeSeriesControl,
   planSceneChange,
   readRelayState,
   seriesControlOf,
   shadowControlOf,
+  snapshotTarget,
+  surfaceOf,
   withLayerOpacity,
   writeRelayState,
   type Bounds3857,
@@ -34,6 +39,9 @@ import {
   type ShadowMoment,
   type ShadowPlay,
   type ShowScene,
+  type Snapshot,
+  type SnapshotRequest,
+  type Surface,
   type TimeSeriesControl,
 } from "@carma-mapping/show-remote";
 
@@ -46,8 +54,22 @@ const BLACKOUT_FADE_MS = 1000;
 const SLIDER_TRANSITION_MS = 150;
 /** the relay keeps a session on the fast poll rate for 60 s after a hello */
 const HELLO_INTERVAL_MS = 30_000;
+/** a display that has not answered by then is not drawing, or not there */
+const SNAPSHOT_WAIT_MS = 8000;
+const SNAPSHOT_POLL_MS = 400;
 
 const LOG_PREFIX = "[PM REMOTE]";
+
+/**
+ * What the display says it is, a table unless it says otherwise. The hello
+ * opens the session first: reading one nobody opened counts as guessing.
+ */
+const readSurface = async (target: RelayTarget): Promise<Surface> => {
+  const info = displayInfoTarget(target);
+  await helloRelay(info);
+  const { state } = await readRelayState(info);
+  return surfaceOf(state);
+};
 
 export type Connection = "idle" | "connecting" | "connected" | "error";
 
@@ -116,6 +138,9 @@ export const useDisplay = (
   const [isBlackout, setIsBlackout] = useState(false);
   const [activeSceneId, setActiveSceneId] = useState<string | null>(null);
   const [isChanging, setIsChanging] = useState(false);
+  const [surface, setSurface] = useState<Surface>(DEFAULT_SURFACE);
+  const targetRef = useRef(target);
+  targetRef.current = target;
 
   const liveRef = useRef<MappingConfig | null>(null);
   const blackoutRef = useRef(false);
@@ -127,6 +152,8 @@ export const useDisplay = (
   const boundsRef = useRef<Bounds3857 | null>(null);
   /** the open pointer session, repeated in every write like the position */
   const pointerRef = useRef<PointerChannel | null>(null);
+  /** the last picture asked for, repeated like the position; the display takes each id once */
+  const snapshotRef = useRef<SnapshotRequest | null>(null);
   /** the series clock, repeated in every write like the position */
   const seriesRef = useRef<OwnSeries | null>(null);
   const [seriesClock, setSeriesClock] = useState<SeriesClock | null>(null);
@@ -184,6 +211,7 @@ export const useDisplay = (
             : {}),
           ...(boundsRef.current ? { bounds: boundsRef.current } : {}),
           ...(pointerRef.current ? { pointer: pointerRef.current } : {}),
+          ...(snapshotRef.current ? { snapshot: snapshotRef.current } : {}),
           ...seriesEntry(seriesRef.current, base),
           ...shadowEntry(shadowRef.current, base),
         })
@@ -248,6 +276,23 @@ export const useDisplay = (
     [write, trackSeries, trackShadow]
   );
 
+  /** ask the display again what it is; a late answer for another code is dropped */
+  const refreshSurface = useCallback(() => {
+    if (!target) {
+      return;
+    }
+    readSurface(target).then(
+      (next) => {
+        if (targetRef.current === target) {
+          setSurface(next);
+        }
+      },
+      (surfaceError: unknown) => {
+        console.warn(`${LOG_PREFIX} reading the surface failed`, surfaceError);
+      }
+    );
+  }, [target]);
+
   // connect: open the session, then take over what the display was last sent
   useEffect(() => {
     runRef.current += 1;
@@ -263,6 +308,7 @@ export const useDisplay = (
     setIsBlackout(false);
     setActiveSceneId(null);
     setIsChanging(false);
+    setSurface(DEFAULT_SURFACE);
     if (!target) {
       setConnection("idle");
       setError(null);
@@ -332,6 +378,7 @@ export const useDisplay = (
         }
       }
       setConnection("connected");
+      refreshSurface();
     })().catch((connectError: unknown) => {
       if (isCurrent) {
         setConnection("error");
@@ -344,13 +391,15 @@ export const useDisplay = (
         helloRelay(target).catch((helloError: unknown) => {
           console.warn(`${LOG_PREFIX} hello failed`, helloError);
         });
+        // a display started or restarted after the connect says so here
+        refreshSurface();
       }
     }, HELLO_INTERVAL_MS);
     return () => {
       isCurrent = false;
       window.clearInterval(hello);
     };
-  }, [target, trackSeries, trackShadow]);
+  }, [target, trackSeries, trackShadow, refreshSurface]);
 
   // the show often arrives after the display state; find the live scene then
   useEffect(() => {
@@ -431,6 +480,31 @@ export const useDisplay = (
     },
     [write]
   );
+
+  /**
+   * A picture of what the display shows now. The display answers in a
+   * session of its own, which the hello opens first: reading a session that
+   * does not exist counts as guessing at the relay.
+   */
+  const requestSnapshot = useCallback(async (): Promise<Snapshot> => {
+    if (!target) {
+      throw new Error("Kein Sitzungscode gesetzt.");
+    }
+    const answers = snapshotTarget(target);
+    await helloRelay(answers);
+    const id = Math.max(Date.now(), (snapshotRef.current?.id ?? 0) + 1);
+    snapshotRef.current = { id };
+    await write(liveRef.current);
+    const until = performance.now() + SNAPSHOT_WAIT_MS;
+    while (performance.now() < until) {
+      await sleep(SNAPSHOT_POLL_MS);
+      const { state } = await readRelayState(answers);
+      if (isSnapshot(state) && state.id === id) {
+        return state;
+      }
+    }
+    throw new Error("Der Projektor hat kein Bild geschickt.");
+  }, [target, write]);
 
   /** a new clock for the live scene's series, sent to the display */
   const steerSeries = useCallback(
@@ -565,5 +639,8 @@ export const useDisplay = (
     setLayerOpacity,
     setBlackout,
     setPointerChannel,
+    requestSnapshot,
+    surface,
+    refreshSurface,
   };
 };
