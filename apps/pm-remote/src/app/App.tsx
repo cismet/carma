@@ -12,12 +12,14 @@ import type { MappingConfigLayer } from "@carma-api";
 import {
   layerOpacity,
   layerTitle,
+  sceneHighlights,
   storyGroups,
   type RelayTarget,
   type Show,
   type ShowScene,
 } from "@carma-mapping/show-remote";
 
+import { HighlightCard } from "./HighlightCard";
 import { showErrorText } from "./messages";
 import { PointerPanel } from "./PointerPanel";
 import { SeriesControl } from "./SeriesControl";
@@ -495,6 +497,18 @@ export const App = () => {
               </div>
             )}
 
+            {activeScene && sceneHighlights(activeScene).length > 0 && (
+              <HighlightCard
+                highlights={sceneHighlights(activeScene)}
+                on={
+                  display.litHighlights?.sceneId === activeScene.id
+                    ? display.litHighlights.on
+                    : []
+                }
+                disabled={!target || isChanging}
+                onToggle={(id) => display.toggleHighlight(activeScene.id, id)}
+              />
+            )}
             {display.series && display.seriesClock && (
               <SeriesControl
                 series={display.series}

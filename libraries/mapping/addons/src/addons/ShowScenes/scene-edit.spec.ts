@@ -38,6 +38,27 @@ describe("publishedScene", () => {
     const stale = { ...scene, controls: [{ id: "c1" }] } as ShowScene;
     expect(publishedScene(stale, new Set())).not.toHaveProperty("controls");
   });
+
+  it("takes the highlights along, without broken ones and without an empty list", () => {
+    const highlight = {
+      id: "h1",
+      title: "Zoo",
+      center: [791700, 6664800] as const,
+      radiusMeters: 80,
+      dim: 0.75,
+    };
+    const published = publishedScene(
+      {
+        ...scene,
+        highlights: [highlight, { id: "h2" }] as ShowScene["highlights"],
+      },
+      new Set()
+    );
+    expect(published.highlights).toEqual([highlight]);
+    expect(
+      publishedScene({ ...scene, highlights: [] }, new Set())
+    ).not.toHaveProperty("highlights");
+  });
 });
 
 describe("applyExclusionToAll", () => {

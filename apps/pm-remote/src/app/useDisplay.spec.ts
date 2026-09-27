@@ -203,3 +203,115 @@ describe("useDisplay shadows", () => {
     expect(result.current.shadowClock).toBeNull();
   });
 });
+
+describe("useDisplay highlights", () => {
+  const spot = (id: string) => ({
+    id,
+    title: `Punkt ${id}`,
+    center: [791700, 6664800] as const,
+    radiusMeters: 80,
+    dim: 0.75,
+  });
+  const lit: ShowScene = {
+    id: "lit",
+    title: "lit",
+    config: { layers: [{ id: "stadtplan" }] },
+    highlights: [spot("a"), spot("b")],
+  };
+  const other: ShowScene = {
+    id: "other",
+    title: "other",
+    config: { layers: [{ id: "luftbild" }] },
+  };
+  const scenes = [lit, other];
+
+  const connectWith = async (state: Record<string, unknown>) => {
+    relay.state = state;
+    const hook = renderHook(() => useDisplay(TARGET, scenes, 0));
+    await waitFor(() => {
+      expect(hook.result.current.connection).toBe("connected");
+    });
+    return hook;
+  };
+
+  const lastIds = () =>
+    (lastWrite()?.["highlights"] as { id: string }[] | undefined)?.map(
+      ({ id }) => id
+    );
+
+  beforeEach(() => {
+    relay.writes = [];
+  });
+
+  it("sends the switched-on spots of the live scene, each on its own", async () => {
+    const { result } = await connectWith({ config: lit.config });
+    expect(result.current.activeSceneId).toBe("lit");
+
+    act(() => {
+      result.current.toggleHighlight("lit", "b");
+    });
+    await waitFor(() => {
+      expect(lastIds()).toEqual(["b"]);
+    });
+    act(() => {
+      result.current.toggleHighlight("lit", "a");
+    });
+    await waitFor(() => {
+      expect(lastIds()).toEqual(["a", "b"]);
+    });
+    expect(lastWrite()?.["highlights"]).toEqual([
+      { id: "a", center: [791700, 6664800], radiusMeters: 80, dim: 0.75 },
+      { id: "b", center: [791700, 6664800], radiusMeters: 80, dim: 0.75 },
+    ]);
+
+    act(() => {
+      result.current.toggleHighlight("lit", "a");
+    });
+    await waitFor(() => {
+      expect(lastIds()).toEqual(["b"]);
+    });
+  });
+
+  it("switches them all off with the next scene", async () => {
+    const { result } = await connectWith({ config: lit.config });
+    act(() => {
+      result.current.toggleHighlight("lit", "a");
+    });
+    await waitFor(() => {
+      expect(lastIds()).toEqual(["a"]);
+    });
+
+    act(() => {
+      result.current.goToScene(other);
+    });
+    await waitFor(() => {
+      expect(result.current.activeSceneId).toBe("other");
+    });
+    await waitFor(() => {
+      expect(lastWrite()).not.toHaveProperty("highlights");
+    });
+    expect(result.current.litHighlights).toBeNull();
+  });
+
+  it("takes over the spots the display had on when it reconnects", async () => {
+    const { result } = await connectWith({
+      config: lit.config,
+      highlights: [
+        { id: "a", center: [791700, 6664800], radiusMeters: 80, dim: 0.75 },
+      ],
+    });
+    await waitFor(() => {
+      expect(result.current.litHighlights).toEqual({
+        sceneId: "lit",
+        on: ["a"],
+      });
+    });
+
+    act(() => {
+      result.current.setBlackout(true);
+    });
+    await waitFor(() => {
+      expect(lastIds()).toEqual(["a"]);
+    });
+  });
+});

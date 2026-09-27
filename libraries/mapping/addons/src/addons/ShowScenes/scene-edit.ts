@@ -1,6 +1,7 @@
 import type { MappingConfigLayer } from "@carma-api";
 import {
   newSceneId,
+  sceneHighlights,
   type ShowScene,
   type ShowStory,
 } from "@carma-mapping/show-remote";
@@ -106,6 +107,7 @@ export const publishedScene = (
   excluded: ReadonlySet<string>
 ): ShowScene => {
   const { id, title, story, config, bounds, text } = scene;
+  const highlights = sceneHighlights(scene);
   return {
     id,
     title,
@@ -116,6 +118,7 @@ export const publishedScene = (
     },
     ...(bounds ? { bounds } : {}),
     ...(text?.trim() ? { text } : {}),
+    ...(highlights.length > 0 ? { highlights } : {}),
   };
 };
 

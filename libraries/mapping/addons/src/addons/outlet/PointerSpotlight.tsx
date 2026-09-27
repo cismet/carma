@@ -40,12 +40,17 @@ export const PointerSpotlight = ({
   base,
   channel,
   box,
+  onLitChange,
 }: {
   base: string;
   channel: PointerChannel;
   box: PointerBox | null;
+  /** told whenever the spot comes on or goes off, e.g. to hide other spots */
+  onLitChange?: (lit: boolean) => void;
 }) => {
   const elementRef = useRef<HTMLDivElement | null>(null);
+  const onLitChangeRef = useRef(onLitChange);
+  onLitChangeRef.current = onLitChange;
   const receivedRef = useRef<Received | null>(null);
   const boxRef = useRef(box);
   boxRef.current = box;
@@ -151,10 +156,17 @@ export const PointerSpotlight = ({
       if (visible !== lastVisible) {
         element.style.opacity = visible ? "1" : "0";
         lastVisible = visible;
+        onLitChangeRef.current?.(visible);
       }
     };
     frame = window.requestAnimationFrame(tick);
-    return () => window.cancelAnimationFrame(frame);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      // a closed pointer is not lit, whatever its last sample said
+      if (lastVisible) {
+        onLitChangeRef.current?.(false);
+      }
+    };
   }, []);
 
   return (

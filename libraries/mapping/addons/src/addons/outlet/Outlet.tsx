@@ -12,6 +12,7 @@ import {
   displayInfoSessionCode,
   isBlackoutLayer,
   isBounds3857,
+  isHighlightSpots,
   isPointerChannel,
   isShadowControl,
   isSnapshotRequest,
@@ -21,6 +22,7 @@ import {
   writeRelayState,
   type Bounds3857,
   type DisplayInfo,
+  type HighlightSpot,
   type PointerChannel,
   type ShadowControl,
   type Snapshot,
@@ -29,6 +31,7 @@ import {
 } from "@carma-mapping/show-remote";
 
 import type { AddonComponentProps } from "../../lib/registry";
+import { HighlightSpots } from "./HighlightSpots";
 import { PointerSpotlight } from "./PointerSpotlight";
 import { RemoteSeries } from "./RemoteSeries";
 import { RemoteShadow } from "./RemoteShadow";
@@ -141,6 +144,11 @@ export type OutletRemoteState = {
    */
   shadow?: ShadowControl;
   /**
+   * The scene's stored highlights the presenter switched on, drawn like the
+   * pointer's spot. Absent means none; the pointer hides them while it is lit.
+   */
+  highlights?: HighlightSpot[];
+  /**
    * A picture of the model's rectangle wanted, answered once per id in the
    * session `snapshotSessionCode` names.
    */
@@ -183,6 +191,7 @@ const REMOTE_STATE_KEYS: readonly (keyof OutletRemoteState)[] = [
   "pointer",
   "timeSeries",
   "shadow",
+  "highlights",
   "snapshot",
 ];
 
@@ -387,6 +396,11 @@ export const OutletAddon = ({
     null
   );
   const [remoteShadow, setRemoteShadow] = useState<ShadowControl | null>(null);
+  const [remoteHighlights, setRemoteHighlights] = useState<
+    HighlightSpot[] | null
+  >(null);
+  /** the pointer's spot is lit right now, which hides the highlights */
+  const [isPointerLit, setIsPointerLit] = useState(false);
   /** a `?bounds=` in the url pins the position against the remote */
   const isPositionPinnedRef = useRef(false);
   isPositionPinnedRef.current = resolved?.source === "query";
@@ -800,6 +814,23 @@ export const OutletAddon = ({
           : nextShadow
       );
 
+      // and for the highlights: no entry, none lit
+      if (next.highlights !== undefined && !isHighlightSpots(next.highlights)) {
+        console.warn(
+          `${LOG_PREFIX} ignoring malformed highlights`,
+          next.highlights
+        );
+      }
+      const nextHighlights =
+        isHighlightSpots(next.highlights) && next.highlights.length > 0
+          ? next.highlights
+          : null;
+      setRemoteHighlights((current) =>
+        JSON.stringify(current) === JSON.stringify(nextHighlights)
+          ? current
+          : nextHighlights
+      );
+
       // every write repeats the last request; only a new id wants a picture
       if (next.snapshot !== undefined && !isSnapshotRequest(next.snapshot)) {
         console.warn(
@@ -857,6 +888,7 @@ export const OutletAddon = ({
       setPointerChannel(null);
       setRemoteSeries(null);
       setRemoteShadow(null);
+      setRemoteHighlights(null);
     };
   }, [relayCode, relayBaseUrl, carma]);
 
@@ -881,11 +913,19 @@ export const OutletAddon = ({
       ) : null}
       {relayCode ? <RemoteSeries wanted={remoteSeries} /> : null}
       {relayCode ? <RemoteShadow wanted={remoteShadow} /> : null}
+      {relayCode ? (
+        <HighlightSpots
+          map={libreMap}
+          spots={remoteHighlights}
+          suppressed={Boolean(pointerChannel) && isPointerLit}
+        />
+      ) : null}
       {pointerChannel && relayBaseUrl ? (
         <PointerSpotlight
           base={relayBaseUrl}
           channel={pointerChannel}
           box={box}
+          onLitChange={setIsPointerLit}
         />
       ) : null}
       {blackout ? (

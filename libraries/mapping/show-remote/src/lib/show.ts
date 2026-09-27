@@ -1,6 +1,7 @@
 import type { MappingConfig } from "@carma-api";
 
 import { isBounds3857, type Bounds3857 } from "./bounds";
+import type { ShowHighlight } from "./highlights";
 
 /**
  * A show: the scenes a presenter steps through, prepared on the desktop in the
@@ -36,6 +37,11 @@ export type ShowScene = {
   bounds?: Bounds3857;
   /** what the presenter reads on the remote while the scene is live */
   text?: string;
+  /**
+   * Spots the presenter can light one by one, each with its own button on
+   * the remote (`highlights.ts`). Off whenever the scene starts.
+   */
+  highlights?: ShowHighlight[];
 };
 
 export type Show = {
@@ -68,7 +74,9 @@ const isShowScene = (value: unknown): value is ShowScene =>
   (value["story"] === undefined || typeof value["story"] === "string") &&
   isMappingConfig(value["config"]) &&
   (value["bounds"] === undefined || isBounds3857(value["bounds"])) &&
-  (value["text"] === undefined || typeof value["text"] === "string");
+  (value["text"] === undefined || typeof value["text"] === "string") &&
+  // single broken highlights are dropped where they are read (`sceneHighlights`)
+  (value["highlights"] === undefined || Array.isArray(value["highlights"]));
 
 export const isShow = (value: unknown): value is Show =>
   isRecord(value) &&

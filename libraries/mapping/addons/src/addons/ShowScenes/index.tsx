@@ -35,6 +35,8 @@ import {
   type Positions,
 } from "@carma-mapping/map-controls-layout";
 import {
+  DEFAULT_HIGHLIGHT_DIM,
+  DEFAULT_HIGHLIGHT_RADIUS_METERS,
   DEFAULT_SHOW_READ_URL,
   DEFAULT_SHOW_STORE_URL,
   MAX_SHOW_BYTES,
@@ -47,11 +49,13 @@ import {
   newSceneId,
   publishShow,
   republishShow,
+  sceneHighlights,
   showByteSize,
   storyGroups,
   withStories,
   type Bounds3857,
   type Show,
+  type ShowHighlight,
   type ShowScene,
   type ShowStory,
 } from "@carma-mapping/show-remote";
@@ -61,6 +65,7 @@ import { useAddonScope } from "../../lib/AddonStateContext";
 import { routeScopeFromLocation } from "../../lib/addon-overrides-storage";
 import type { AddonComponentProps } from "../../lib/registry";
 import { DraftInput } from "./DraftInput";
+import { useHighlightPlacement, useHighlightPreview } from "./highlight-editing";
 import { IconButton } from "./IconButton";
 import { OpenShowRow } from "./OpenShowRow";
 import { SceneDetails } from "./SceneDetails";
@@ -427,6 +432,8 @@ export const ShowScenes = ({
    */
   const [isQrOpen, setIsQrOpen] = useState(false);
   const [expandedSceneId, setExpandedSceneId] = useState<string | null>(null);
+  /** the scene whose next highlight the next map click places */
+  const [placingSceneId, setPlacingSceneId] = useState<string | null>(null);
   const [draft, updateDraft] = useShowDraft(storageKey);
   const [status, setStatus] = useState<Status>(null);
   const openShow = useOpenShow({
@@ -481,6 +488,55 @@ export const ShowScenes = ({
         scene.id === id ? { ...scene, ...change } : scene
       ),
     }));
+
+  /** a change to one scene's highlights, read from the newest draft */
+  const updateHighlights = (
+    sceneId: string,
+    change: (highlights: ShowHighlight[]) => ShowHighlight[]
+  ) =>
+    updateDraft((current) => ({
+      ...current,
+      scenes: current.scenes.map((scene) =>
+        scene.id === sceneId
+          ? { ...scene, highlights: change(sceneHighlights(scene)) }
+          : scene
+      ),
+    }));
+
+  const placeHighlight = (sceneId: string, center: [number, number]) => {
+    updateHighlights(sceneId, (highlights) => [
+      ...highlights,
+      {
+        id: newSceneId(),
+        title: `Punkt ${highlights.length + 1}`,
+        center,
+        radiusMeters: DEFAULT_HIGHLIGHT_RADIUS_METERS,
+        dim: DEFAULT_HIGHLIGHT_DIM,
+      },
+    ]);
+    setPlacingSceneId(null);
+  };
+
+  // the open scene's highlights are drawn on the map while the panel is open
+  const expandedScene = isOpen
+    ? draft.scenes.find(({ id }) => id === expandedSceneId)
+    : undefined;
+  useHighlightPreview(
+    libreMap,
+    expandedScene ? sceneHighlights(expandedScene) : null
+  );
+  const placingScene =
+    isOpen && placingSceneId === expandedSceneId ? placingSceneId : null;
+  useHighlightPlacement(
+    libreMap,
+    placingScene !== null,
+    (center) => {
+      if (placingScene) {
+        placeHighlight(placingScene, center);
+      }
+    },
+    () => setPlacingSceneId(null)
+  );
 
   const currentMapConfig = () => {
     const mapConfig = carma.config.getMappingConfig();
@@ -824,6 +880,30 @@ export const ShowScenes = ({
                                   current,
                                   scene.id,
                                   initialExcludedOf(current)
+                                )
+                              )
+                            }
+                            highlights={sceneHighlights(scene)}
+                            isPlacingHighlight={placingScene === scene.id}
+                            onStartPlacingHighlight={() =>
+                              setPlacingSceneId(scene.id)
+                            }
+                            onCancelPlacingHighlight={() =>
+                              setPlacingSceneId(null)
+                            }
+                            onHighlightChange={(id, change) =>
+                              updateHighlights(scene.id, (highlights) =>
+                                highlights.map((highlight) =>
+                                  highlight.id === id
+                                    ? { ...highlight, ...change }
+                                    : highlight
+                                )
+                              )
+                            }
+                            onHighlightRemove={(id) =>
+                              updateHighlights(scene.id, (highlights) =>
+                                highlights.filter(
+                                  (highlight) => highlight.id !== id
                                 )
                               )
                             }

@@ -17,6 +17,24 @@ export {
 } from "./lib/stories";
 export { boundsKey, isBounds3857, type Bounds3857 } from "./lib/bounds";
 export {
+  DEFAULT_HIGHLIGHT_DIM,
+  DEFAULT_HIGHLIGHT_RADIUS_METERS,
+  HIGHLIGHT_DIM_RANGE,
+  HIGHLIGHT_EDGE_SOFTNESS,
+  HIGHLIGHT_RADIUS_RANGE_METERS,
+  groundToMercator,
+  highlightRing,
+  highlightSpotsOf,
+  isHighlightSpot,
+  isHighlightSpots,
+  isShowHighlight,
+  lngLatToMercator,
+  mercatorToLngLat,
+  sceneHighlights,
+  type HighlightSpot,
+  type ShowHighlight,
+} from "./lib/highlights";
+export {
   DEFAULT_SHOW_READ_URL,
   DEFAULT_SHOW_STORE_URL,
   MAX_SHOW_BYTES,

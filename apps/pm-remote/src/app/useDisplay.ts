@@ -14,14 +14,17 @@ import {
   findSceneSeries,
   findSceneShadow,
   helloRelay,
+  highlightSpotsOf,
   initialShadowClock,
   isBounds3857,
+  isHighlightSpots,
   isMappingConfig,
   isShadowControl,
   isSnapshot,
   isTimeSeriesControl,
   planSceneChange,
   readRelayState,
+  sceneHighlights,
   seriesControlOf,
   shadowControlOf,
   snapshotTarget,
@@ -29,6 +32,7 @@ import {
   withLayerOpacity,
   writeRelayState,
   type Bounds3857,
+  type HighlightSpot,
   type PointerChannel,
   type RelayTarget,
   type SceneSeries,
@@ -111,6 +115,26 @@ const shadowEntry = (
     : {};
 };
 
+/**
+ * The stored highlights the presenter switched on, and the scene they belong
+ * to: the ids only mean something there. A scene change drops them, since
+ * every scene starts with its highlights off.
+ */
+export type LitHighlights = { sceneId: string; on: readonly string[] };
+
+/** the highlights' entry of a write: the lit spots of their scene */
+const highlightsEntry = (
+  lit: LitHighlights | null,
+  scenes: readonly ShowScene[]
+): { highlights?: HighlightSpot[] } => {
+  if (!lit || lit.on.length === 0) {
+    return {};
+  }
+  const scene = scenes.find(({ id }) => id === lit.sceneId);
+  const spots = scene ? highlightSpotsOf(sceneHighlights(scene), lit.on) : [];
+  return spots.length > 0 ? { highlights: spots } : {};
+};
+
 /** the scene the display shows, told apart by its layers */
 const sceneShowing = (
   live: MappingConfig,
@@ -160,6 +184,16 @@ export const useDisplay = (
   /** the shadows' clock, repeated in every write like the series */
   const shadowRef = useRef<OwnShadow | null>(null);
   const [shadowClock, setShadowClock] = useState<ShadowClock | null>(null);
+  /** the lit highlights, repeated in every write like the position */
+  const highlightsRef = useRef<LitHighlights | null>(null);
+  const [litHighlights, setLitHighlights] = useState<LitHighlights | null>(
+    null
+  );
+  /**
+   * Highlights the display had on when this phone connected, waiting for the
+   * show to say which scene is live: the ids only count there.
+   */
+  const pendingHighlightIdsRef = useRef<string[] | null>(null);
   // bumped by every scene tap; a run whose number is outdated stops
   const runRef = useRef(0);
   const scenesRef = useRef(scenes);
@@ -214,6 +248,7 @@ export const useDisplay = (
           ...(snapshotRef.current ? { snapshot: snapshotRef.current } : {}),
           ...seriesEntry(seriesRef.current, base),
           ...shadowEntry(shadowRef.current, base),
+          ...highlightsEntry(highlightsRef.current, scenesRef.current),
         })
       );
     },
@@ -302,6 +337,9 @@ export const useDisplay = (
     pointerRef.current = null;
     seriesRef.current = null;
     shadowRef.current = null;
+    highlightsRef.current = null;
+    pendingHighlightIdsRef.current = null;
+    setLitHighlights(null);
     setLive(null);
     setSeriesClock(null);
     setShadowClock(null);
@@ -330,6 +368,10 @@ export const useDisplay = (
           : {};
       const config = document["config"];
       const bounds = document["bounds"];
+      const highlights = document["highlights"];
+      if (isHighlightSpots(highlights) && highlights.length > 0) {
+        pendingHighlightIdsRef.current = highlights.map(({ id }) => id);
+      }
       if (isBounds3857(bounds)) {
         boundsRef.current = bounds;
       }
@@ -410,11 +452,29 @@ export const useDisplay = (
     }
   }, [live, scenes]);
 
+  // the highlights the display had on belong to the scene found above
+  useEffect(() => {
+    const pending = pendingHighlightIdsRef.current;
+    const scene = scenes.find(({ id }) => id === activeSceneId);
+    if (!pending || !scene) {
+      return;
+    }
+    pendingHighlightIdsRef.current = null;
+    const known = new Set(sceneHighlights(scene).map(({ id }) => id));
+    const on = pending.filter((id) => known.has(id));
+    highlightsRef.current = on.length > 0 ? { sceneId: scene.id, on } : null;
+    setLitHighlights(highlightsRef.current);
+  }, [activeSceneId, scenes]);
+
   const goToScene = useCallback(
     (scene: ShowScene) => {
       const run = ++runRef.current;
       setActiveSceneId(scene.id);
       setIsChanging(true);
+      // every scene starts with its highlights off; the first write says so
+      highlightsRef.current = null;
+      pendingHighlightIdsRef.current = null;
+      setLitHighlights(null);
       // the first write of the change carries it, so the flight starts with the fade
       if (scene.bounds) {
         boundsRef.current = scene.bounds;
@@ -470,6 +530,26 @@ export const useDisplay = (
       });
     },
     [send]
+  );
+
+  /**
+   * Switches one stored highlight of the live scene on or off; the others
+   * stay as they are.
+   */
+  const toggleHighlight = useCallback(
+    (sceneId: string, highlightId: string) => {
+      const current = highlightsRef.current;
+      const on = current?.sceneId === sceneId ? current.on : [];
+      const next = on.includes(highlightId)
+        ? on.filter((id) => id !== highlightId)
+        : [...on, highlightId];
+      highlightsRef.current = next.length > 0 ? { sceneId, on: next } : null;
+      setLitHighlights(highlightsRef.current);
+      write(liveRef.current).catch(() => {
+        // reported by `write`
+      });
+    },
+    [write]
   );
 
   /** tells the display to follow the pointer session, or to stop following it */
@@ -636,6 +716,8 @@ export const useDisplay = (
     activeSceneId,
     isChanging,
     goToScene,
+    litHighlights,
+    toggleHighlight,
     setLayerOpacity,
     setBlackout,
     setPointerChannel,
