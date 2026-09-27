@@ -4,6 +4,11 @@ import { useAddonState } from "../../lib/AddonStateContext";
 import type { SelectedCar } from "./fleet";
 import type { Station } from "./track";
 import type { VehicleMode } from "./vehicle-layer";
+import {
+  resolveSpotlight,
+  type VehicleSpotlight,
+  type VehicleSpotlightDefinition,
+} from "./vehicle-spotlight";
 
 /**
  * Everything about the running vehicle animation, in one channel.
@@ -126,6 +131,14 @@ export type VehicleAnimationDefinition = {
    * and counting itself would make it the reason the camera stays free.
    */
   claims3d?: boolean;
+  /**
+   * A flashlight on every vehicle: the whole map is dimmed and a soft round
+   * spot stays bright around each vehicle on the track, moving with it, the
+   * look of the remote's pointer on the projected model. An empty object
+   * takes the defaults (60 m, dim 0.75, softness 0.2); without one, nothing
+   * is dimmed. See `vehicle-spotlight.ts`.
+   */
+  spotlight?: VehicleSpotlightDefinition;
 };
 
 export type VehicleRenderer = "flat" | "three";
@@ -161,6 +174,8 @@ export type VehicleAnimationState = {
   claims3d: boolean;
   /** the row is the app's, see `permanent` on the definition */
   permanent: boolean;
+  /** the flashlight on the vehicles with its defaults filled in; null: none */
+  spotlight: VehicleSpotlight | null;
   /**
    * The fleet is off the map while its row stays. What the row's eye does, as
    * against `isOn`, which is whether there is an animation at all. The host
@@ -219,6 +234,7 @@ export const VEHICLE_ANIMATION_STATE_DEFAULT: VehicleAnimationState = {
   renderer: "flat",
   claims3d: true,
   permanent: false,
+  spotlight: null,
   isHidden: false,
   isPaused: false,
   isLoading: false,
@@ -441,6 +457,7 @@ export const useVehicleAnimationLauncher = () => {
         renderer: def.renderer ?? fallback.renderer,
         claims3d: def.claims3d ?? fallback.claims3d,
         permanent: def.permanent ?? fallback.permanent,
+        spotlight: resolveSpotlight(def.spotlight),
         // the host's choice, not the definition's: a hidden default workflow
         // that is relaunched (a route change, a config edit) stays hidden
         // rather than flashing onto the map before the host says so again

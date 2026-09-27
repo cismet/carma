@@ -239,6 +239,7 @@ export const useVehicleAnimationLayerRow = ({
     timetableUrl,
     renderer,
     permanent,
+    spotlight,
     isPaused,
     isLoading,
     error,
@@ -339,6 +340,9 @@ export const useVehicleAnimationLayerRow = ({
                 ...(structureUrl ? { structureUrl } : {}),
                 ...(timetableUrl ? { timetableUrl } : {}),
                 renderer,
+                // a display that only gets the stack (the outlet) relaunches
+                // from this row, and has to light the vehicles the same way
+                ...(spotlight ? { spotlight } : {}),
               } satisfies VehicleAnimationConfig,
             },
           ]
@@ -375,6 +379,7 @@ export const useVehicleAnimationLayerRow = ({
       structureUrl,
       timetableUrl,
       renderer,
+      spotlight,
     ]
   );
 

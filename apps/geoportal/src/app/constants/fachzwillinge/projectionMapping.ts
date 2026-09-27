@@ -17,6 +17,16 @@ const PROJECTION_MAPPING_STYLES = "https://tiles.cismet.de/projection_mapping";
 const PROJECTION_AREA_STYLE = `${PROJECTION_MAPPING_STYLES}/umriss.style.json`;
 
 /**
+ * Styles this app serves itself (`public/assets/dz-b-prm/styles`) until the
+ * pipeline publishes them next to the others. Absolute, because a style url
+ * is also the layer's id in a saved scene, and the display reads it back.
+ */
+const LOCAL_STYLES = new URL(
+  `${import.meta.env.BASE_URL}assets/dz-b-prm/styles`,
+  window.location.origin
+).href;
+
+/**
  * Zoom gate of the flow field cards. The projection area is about 3.6 by 2 km,
  * which a projector 1920 pixels wide shows at zoom 14.7; the cards' own gate of
  * 16 would keep the animation still on the whole model.
@@ -186,6 +196,13 @@ export const projectionMappingFachzwilling: FachzwillingRoute = {
         "https://tiles.cismet.de/pm_naturdenkmale/style.json",
         "https://tiles.cismet.de/pm_poi/style.json",
         "https://tiles.cismet.de/pm_belis_leuchten/style.json",
+      ],
+    },
+    {
+      Title: "Bewegung",
+      layers: [
+        // every cab on the model in its own spot of light, the rest dimmed
+        `${LOCAL_STYLES}/schwebebahn_fahrplan_kabinenlicht.style.json`,
       ],
     },
     {

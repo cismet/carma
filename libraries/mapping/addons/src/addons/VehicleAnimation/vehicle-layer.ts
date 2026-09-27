@@ -12,6 +12,12 @@ import { createFleetLoop } from "./fleet-loop";
 import { structurePlanFeatures, type StructureAsset } from "./geruest";
 import { carStrips, poseAt, type CarShape, type Track } from "./track";
 import { createFlatCarLayer, type FlatCar } from "./vehicle-flat-cars";
+import {
+  createSpotlightLayer,
+  spotCentres,
+  spotlightReach,
+  type VehicleSpotlight,
+} from "./vehicle-spotlight";
 
 export type { VehicleMode, VehicleSchedule } from "./fleet";
 
@@ -29,6 +35,10 @@ export type { VehicleMode, VehicleSchedule } from "./fleet";
  * The fleet runs on `fleet-loop.ts`, which asks the map for a frame only when
  * a vehicle has visibly moved. Nothing outside the handle reads the clock, so
  * a held fleet costs nothing and a destroyed one cannot leave a frame behind.
+ *
+ * With a `spotlight`, one more custom layer goes over all of it, on top of the
+ * whole style: the map dimmed, a bright spot around every vehicle on the
+ * track (`vehicle-spotlight.ts`).
  */
 
 export type VehicleLayerOptions = {
@@ -62,6 +72,12 @@ export type VehicleLayerOptions = {
    * rails, the supports. Without one the fleet runs on a bare line.
    */
   structure?: StructureAsset | null;
+  /**
+   * A flashlight on every vehicle: the map dimmed, the vehicles lit. Unlike
+   * the rest of the fleet it ignores `beforeId` and goes on top of the whole
+   * style, since whatever it left out would stay bright.
+   */
+  spotlight?: VehicleSpotlight | null;
   /** MapLibre layer the fleet is inserted before, e.g. to sit under labels */
   beforeId?: string;
   id?: string;
@@ -151,6 +167,7 @@ export const createVehicleLayer = (
     trackColor,
     showStations,
     structure = null,
+    spotlight = null,
     beforeId,
     id = DEFAULT_ID,
     onFleetSize,
@@ -168,6 +185,7 @@ export const createVehicleLayer = (
   const railId = `${id}-rail`;
   const stationDotId = `${id}-stations`;
   const stationLabelId = `${id}-station-labels`;
+  const spotlightId = `${id}-spotlight`;
   /** every layer the fleet draws, for the ones that go on or off together */
   const allLayerIds = [
     carsId,
@@ -178,6 +196,7 @@ export const createVehicleLayer = (
     railId,
     stationDotId,
     stationLabelId,
+    spotlightId,
   ];
 
   /** the structure's lines from above, built once: they never move */
@@ -227,6 +246,10 @@ export const createVehicleLayer = (
     opacity,
   });
 
+  const spotlightLayer = spotlight
+    ? createSpotlightLayer({ id: spotlightId, spotlight, opacity })
+    : null;
+
   /** the ground under a vehicle: the flat map has none, terrain does */
   const elevationAt = (distance: number): number => {
     const pose = poseAt(track, distance);
@@ -248,6 +271,11 @@ export const createVehicleLayer = (
       });
     });
     flatCars.setCars(cars);
+    // the same vehicles, each lit at its middle and at the height it is
+    // drawn at, so a spot stays centred on its vehicle with terrain on too
+    spotlightLayer?.setSpots(
+      spotCentres(track, fleet.cars, hasTerrain ? elevationAt : undefined)
+    );
     map.triggerRepaint();
   };
 
@@ -423,6 +451,19 @@ export const createVehicleLayer = (
         },
       });
     }
+    // The spotlight goes on last and without `beforeId`, over everything the
+    // style draws, the Gerüst and the labels included: whatever it did not
+    // cover would stay bright. The vehicles show through their holes.
+    //
+    // With no vehicle on the model it still dims the whole map: a flashlight
+    // with nothing to light. The layer is a look someone switched on, so it
+    // stays that look; brightening the map whenever the timetable has a gap
+    // on the model would flicker between two looks nobody chose. (The
+    // remote's pointer differs here: released, its darkness fades out,
+    // because there the dark is part of pointing, not of a layer.)
+    if (spotlightLayer && !map.getLayer(spotlightId)) {
+      map.addLayer(spotlightLayer.layer);
+    }
 
     // a basemap swap rebuilds every layer with the style's own defaults, so a
     // fleet that was hidden has to be hidden again here
@@ -446,6 +487,7 @@ export const createVehicleLayer = (
   const detach = (): void => {
     if (!map.getStyle()) return;
     for (const layerId of [
+      spotlightId,
       stationLabelId,
       railId,
       supportId,
@@ -466,7 +508,12 @@ export const createVehicleLayer = (
     map,
     track,
     fleet,
-    padMeters: shape.lengthMeters,
+    // a spot reaches further than its vehicle, and one whose vehicle is just
+    // out of view still has to follow it
+    padMeters: Math.max(
+      shape.lengthMeters,
+      spotlight ? spotlightReach(spotlight) : 0
+    ),
     onAdvance: () => {
       selection.tick();
       reportFleet();
@@ -499,6 +546,7 @@ export const createVehicleLayer = (
     setOpacity: (next) => {
       opacity = Math.max(0, Math.min(1, next));
       flatCars.setOpacity(opacity);
+      spotlightLayer?.setOpacity(opacity);
       map.triggerRepaint();
       for (const [layerId, property, value] of [
         [trackId, "line-opacity", 0.6 * opacity],
@@ -549,6 +597,7 @@ export const createVehicleLayer = (
       map.off("styledata", onStyleData);
       detach();
       flatCars.dispose();
+      spotlightLayer?.dispose();
     },
   };
 };

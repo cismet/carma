@@ -29,6 +29,7 @@ import {
   type VehicleSchedule,
 } from "./vehicle-layer";
 import { createVehicleThreeLayer } from "./vehicle-three-layer";
+import type { VehicleSpotlight } from "./vehicle-spotlight";
 import {
   useVehicleAnimationActions,
   useVehicleAnimationLauncher,
@@ -128,6 +129,7 @@ export const VehicleAnimation = ({
     timetableUrl,
     renderer,
     claims3d,
+    spotlight,
     isHidden,
     isPaused,
     focusRequest,
@@ -186,6 +188,7 @@ export const VehicleAnimation = ({
     timetableUrl: configTimetableUrl,
     renderer: configRenderer,
     permanent: configPermanent,
+    spotlight: configSpotlight,
   } = config;
 
   /** what this mount puts on the map, or null when the engine only idles */
@@ -212,6 +215,7 @@ export const VehicleAnimation = ({
             timetableUrl: configTimetableUrl,
             renderer: configRenderer,
             permanent: configPermanent,
+            spotlight: configSpotlight,
           }
         : null,
     [
@@ -234,6 +238,7 @@ export const VehicleAnimation = ({
       configTimetableUrl,
       configRenderer,
       configPermanent,
+      configSpotlight,
     ]
   );
 
@@ -492,6 +497,25 @@ export const VehicleAnimation = ({
     [headwaySeconds, dwellSeconds, stations, stationRadiusMeters]
   );
 
+  // By its values, not by the object: the layer is rebuilt for a different
+  // spotlight, and only for one
+  const spotlightRadius = spotlight?.radiusMeters;
+  const spotlightDim = spotlight?.dim;
+  const spotlightSoftness = spotlight?.softness;
+  const fleetSpotlight = useMemo<VehicleSpotlight | null>(
+    () =>
+      spotlightRadius !== undefined &&
+      spotlightDim !== undefined &&
+      spotlightSoftness !== undefined
+        ? {
+            radiusMeters: spotlightRadius,
+            dim: spotlightDim,
+            softness: spotlightSoftness,
+          }
+        : null,
+    [spotlightRadius, spotlightDim, spotlightSoftness]
+  );
+
   // Mount the fleet. Every value the layer cannot be told about later is a
   // dependency, so changing one rebuilds the layer and the vehicles start over;
   // speed, opacity and holding are pushed down instead and leave them running.
@@ -525,6 +549,7 @@ export const VehicleAnimation = ({
             opacity: opacityRef.current,
             structure,
             claims3d,
+            spotlight: fleetSpotlight,
             beforeId,
             onFleetSize: setFleetSize,
             onSelection: (car) => setSelectedCarRef.current(car),
@@ -546,6 +571,7 @@ export const VehicleAnimation = ({
             showStations:
               showStations && (schedule !== null || fleetTimetable !== null),
             structure,
+            spotlight: fleetSpotlight,
             beforeId,
             onFleetSize: setFleetSize,
             onSelection: (car) => setSelectedCarRef.current(car),
@@ -580,6 +606,7 @@ export const VehicleAnimation = ({
     timetableUrl,
     renderer,
     claims3d,
+    fleetSpotlight,
     beforeId,
     setFleetSize,
   ]);

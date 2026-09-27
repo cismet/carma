@@ -28,6 +28,12 @@ import {
 } from "./geruest";
 import { poseAt, type CarShape, type Track } from "./track";
 import type { VehicleLayerHandle } from "./vehicle-layer";
+import {
+  createSpotlightLayer,
+  spotCentres,
+  spotlightReach,
+  type VehicleSpotlight,
+} from "./vehicle-spotlight";
 
 /**
  * The fleet in three dimensions: the structure as instanced box members, the
@@ -43,6 +49,10 @@ import type { VehicleLayerHandle } from "./vehicle-layer";
  *
  * The layer registers itself as a 3D layer on the map, which is what lets
  * the host unlock the camera tilt and offer terrain while it is on.
+ *
+ * A `spotlight` is the flat renderer's (`vehicle-spotlight.ts`), lit around
+ * each body where it hangs rather than on the ground under it, so the spot
+ * stays on the vehicle when the map is tilted.
  */
 
 export type VehicleThreeLayerOptions = {
@@ -69,6 +79,8 @@ export type VehicleThreeLayerOptions = {
    * the camera stays free, so it could never go back to the flat variant.
    */
   claims3d?: boolean;
+  /** the map dimmed and the vehicles lit, over everything; see the flat renderer */
+  spotlight?: VehicleSpotlight | null;
   beforeId?: string;
   id?: string;
   onFleetSize?: (count: number) => void;
@@ -332,6 +344,7 @@ export const createVehicleThreeLayer = (
     timetable = null,
     structure,
     claims3d = true,
+    spotlight = null,
     beforeId,
     id = DEFAULT_ID,
     onFleetSize,
@@ -534,6 +547,20 @@ export const createVehicleThreeLayer = (
     return model;
   });
 
+  /** the scene height of the rail's bottom chord at `distance`, wrapped onto the track */
+  const railHeightAt = (distance: number): number => {
+    const wrapped = track.closed
+      ? ((distance % track.length) + track.length) % track.length
+      : distance;
+    const bottomChord = poseAt(track, wrapped).height ?? 0;
+    return hasTerrain ? bottomChord : bottomChord - groundAt(wrapped);
+  };
+
+  const spotlightId = `${id}-spotlight`;
+  const spotlightLayer = spotlight
+    ? createSpotlightLayer({ id: spotlightId, spotlight, opacity })
+    : null;
+
   const placeCars = (): void => {
     const selected = selection.get();
     fleet.cars.forEach((car, carIndex) => {
@@ -559,6 +586,14 @@ export const createVehicleThreeLayer = (
         group.scale.x = car.direction;
       }
     });
+    // each spot at the middle of its body, which hangs under the rail
+    spotlightLayer?.setSpots(
+      spotCentres(
+        track,
+        fleet.cars,
+        (distance) => railHeightAt(distance) - CAR_PICK_DEPTH
+      )
+    );
   };
   placeCars();
 
@@ -578,10 +613,7 @@ export const createVehicleThreeLayer = (
       : distance;
     const pose = poseAt(track, wrapped);
     const [x, y] = toLocal(frame, pose.lon, pose.lat);
-    const bottomChord = pose.height ?? 0;
-    const height =
-      (hasTerrain ? bottomChord : bottomChord - groundAt(wrapped)) -
-      CAR_PICK_DEPTH;
+    const height = railHeightAt(wrapped) - CAR_PICK_DEPTH;
     clip.set(x, height, -y, 1).applyMatrix4(camera.projectionMatrix);
     if (clip.w <= 0) return null;
     const canvas = map.getCanvas();
@@ -700,7 +732,10 @@ export const createVehicleThreeLayer = (
     map,
     track,
     fleet,
-    padMeters: VIEW_PAD_METERS,
+    padMeters: Math.max(
+      VIEW_PAD_METERS,
+      spotlight ? spotlightReach(spotlight) : 0
+    ),
     onAdvance: () => {
       selection.tick();
       reportFleet();
@@ -718,21 +753,30 @@ export const createVehicleThreeLayer = (
   };
 
   const attach = (): void => {
-    if (destroyed || !visible || !map.getStyle() || map.getLayer(id)) return;
-    // before the layer goes on: the host reads the presence on the style
-    // event that addLayer fires
-    if (claims3d) {
-      add3dPresence(map, id);
+    if (destroyed || !visible || !map.getStyle()) return;
+    if (!map.getLayer(id)) {
+      // before the layer goes on: the host reads the presence on the style
+      // event that addLayer fires
+      if (claims3d) {
+        add3dPresence(map, id);
+      }
+      const insertBefore =
+        beforeId && map.getLayer(beforeId) ? beforeId : undefined;
+      map.addLayer(layer, insertBefore);
+      map.triggerRepaint();
     }
-    const insertBefore =
-      beforeId && map.getLayer(beforeId) ? beforeId : undefined;
-    map.addLayer(layer, insertBefore);
-    map.triggerRepaint();
+    // over the whole style, after the fleet, as on the flat map
+    if (spotlightLayer && !map.getLayer(spotlightId)) {
+      map.addLayer(spotlightLayer.layer);
+      map.triggerRepaint();
+    }
   };
 
   const detach = (): void => {
     remove3dPresence(map, id);
-    if (map.getStyle() && map.getLayer(id)) map.removeLayer(id);
+    if (!map.getStyle()) return;
+    if (map.getLayer(spotlightId)) map.removeLayer(spotlightId);
+    if (map.getLayer(id)) map.removeLayer(id);
   };
 
   const applyOpacity = (): void => {
@@ -772,6 +816,7 @@ export const createVehicleThreeLayer = (
     setOpacity: (next) => {
       opacity = Math.max(0, Math.min(1, next));
       applyOpacity();
+      spotlightLayer?.setOpacity(opacity);
       map.triggerRepaint();
     },
     /**
@@ -815,6 +860,7 @@ export const createVehicleThreeLayer = (
       });
       renderer?.dispose();
       renderer = null;
+      spotlightLayer?.dispose();
     },
   };
 };
