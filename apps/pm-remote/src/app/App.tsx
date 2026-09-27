@@ -452,33 +452,36 @@ export const App = () => {
               )}
             </div>
 
-            <div className="flex flex-col gap-3">
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  disabled={!target || !canGoBack}
-                  onClick={() => step(-1)}
-                  aria-label="Zurück"
-                  className="min-h-[96px] rounded-2xl border border-neutral-700 bg-neutral-900 text-2xl active:bg-neutral-800 disabled:opacity-40"
-                >
-                  ‹
-                </button>
-                <button
-                  type="button"
-                  disabled={!target || !canGoOn}
-                  onClick={() => step(1)}
-                  aria-label="Weiter"
-                  className="min-h-[96px] rounded-2xl bg-neutral-100 text-2xl text-neutral-950 active:bg-neutral-300 disabled:opacity-40"
-                >
-                  ›
-                </button>
+            {/* one scene: its tile below does all the stepping there is */}
+            {walk.length > 1 && (
+              <div className="flex flex-col gap-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    disabled={!target || !canGoBack}
+                    onClick={() => step(-1)}
+                    aria-label="Zurück"
+                    className="min-h-[96px] rounded-2xl border border-neutral-700 bg-neutral-900 text-2xl active:bg-neutral-800 disabled:opacity-40"
+                  >
+                    ‹
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!target || !canGoOn}
+                    onClick={() => step(1)}
+                    aria-label="Weiter"
+                    className="min-h-[96px] rounded-2xl bg-neutral-100 text-2xl text-neutral-950 active:bg-neutral-300 disabled:opacity-40"
+                  >
+                    ›
+                  </button>
+                </div>
+                {nextTitle && (
+                  <p className="m-0 truncate text-sm text-neutral-400">
+                    Als Nächstes: {nextTitle}
+                  </p>
+                )}
               </div>
-              {nextTitle && (
-                <p className="m-0 truncate text-sm text-neutral-400">
-                  Als Nächstes: {nextTitle}
-                </p>
-              )}
-            </div>
+            )}
 
             {display.series && display.seriesClock && (
               <SeriesControl
