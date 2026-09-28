@@ -16,6 +16,7 @@ const TableCustom = ({
   fixHeight = false,
   setActiveDataId,
   selectedFeatureKey,
+  scroll,
 }) => {
   const [selectedRow, setSelectedRow] = useState(activeRow);
   const features = useSelector(getFeatureCollection);
@@ -70,6 +71,7 @@ const TableCustom = ({
         dataSource={data}
         pagination={paginationConfig}
         bordered={true}
+        scroll={scroll}
         // scroll={{ y: "auto" }}
       />
     </div>

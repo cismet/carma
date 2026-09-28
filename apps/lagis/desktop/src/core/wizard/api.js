@@ -308,6 +308,14 @@ export const fetchStrassennamen = async () => {
   return [...names].filter(Boolean).sort(collator.compare);
 };
 
+export const fetchNutzungStammdaten = async (jwt) => {
+  const data = await run(wizardQueries.nutzungStammdaten, {}, jwt);
+  return {
+    anlageklassen: data.anlageklasse ?? [],
+    nutzungsarten: data.nutzungsart ?? [],
+  };
+};
+
 export const fetchAdminRows = async (schluesselId, jwt) => {
   const data = await run(
     wizardQueries.adminRowsBySchluesselId,

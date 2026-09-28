@@ -19,6 +19,19 @@ export const ColorMark = ({ color }) => (
   ></span>
 );
 
+const withWidths = (columns) => {
+  const fixed = columns.filter((column) => column.width);
+  if (fixed.length === columns.length) {
+    return columns;
+  }
+  const taken = fixed.reduce(
+    (sum, column) => sum + parseFloat(column.width),
+    0
+  );
+  const share = (100 - taken) / (columns.length - fixed.length || 1);
+  return columns.map((column) => ({ width: `${share}%`, ...column }));
+};
+
 const AdminAreaTable = ({
   title,
   rows,
@@ -27,6 +40,7 @@ const AdminAreaTable = ({
   onChange,
   activeId: controlledActiveId,
   onActiveChange,
+  scroll,
 }) => {
   const [ownActiveId, setOwnActiveId] = useState(rows[0]?.id);
   const activeId = onActiveChange ? controlledActiveId : ownActiveId;
@@ -60,13 +74,11 @@ const AdminAreaTable = ({
         </div>
       </div>
       <TableCustom
-        columns={columns(update).map((column, _, all) => ({
-          ...column,
-          width: `${100 / all.length}%`,
-        }))}
+        columns={withWidths(columns(update))}
         data={rows}
         activeRow={rows.find((row) => row.id === activeId)}
         setActiveRow={(row) => setActiveId(row?.id)}
+        scroll={scroll}
       />
     </div>
   );
