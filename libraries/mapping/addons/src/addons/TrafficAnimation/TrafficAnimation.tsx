@@ -87,7 +87,7 @@ export const TrafficAnimation = ({
     anchorLayerId,
   } = config;
 
-  const { update, setOffsetMinutes, offsetMinutes, showNetwork } =
+  const { update, setOffsetMinutes, offsetMinutes, showNetwork, restartCount } =
     useTrafficAnimationActions();
 
   const [network, setNetwork] = useState<TrafficNetwork | null>(null);
@@ -229,6 +229,15 @@ export const TrafficAnimation = ({
   useEffect(() => {
     engineRef.current?.setOffsetMinutes(offsetMinutes);
   }, [offsetMinutes]);
+
+  // after the offset, so a restart together with a new offset fills at the new
+  // moment; an engine born after the restart has nothing to throw away
+  const restartRef = useRef(restartCount);
+  useEffect(() => {
+    if (restartCount === restartRef.current) return;
+    restartRef.current = restartCount;
+    engineRef.current?.restart();
+  }, [restartCount]);
 
   useEffect(() => {
     engineRef.current?.setVisible(!hidden);

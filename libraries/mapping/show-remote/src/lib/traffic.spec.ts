@@ -29,6 +29,10 @@ describe("isTrafficControl", () => {
     expect(isTrafficControl({ offsetMinutes: 1440, seekAt: 5 })).toBe(true);
   });
 
+  it("accepts a restart next to the offset", () => {
+    expect(isTrafficControl({ offsetMinutes: 0, restartAt: 7 })).toBe(true);
+  });
+
   it("rejects what the display cannot show", () => {
     expect(isTrafficControl(null)).toBe(false);
     expect(isTrafficControl({})).toBe(false);
@@ -36,6 +40,7 @@ describe("isTrafficControl", () => {
     expect(isTrafficControl({ offsetMinutes: 1441 })).toBe(false);
     expect(isTrafficControl({ offsetMinutes: Number.NaN })).toBe(false);
     expect(isTrafficControl({ offsetMinutes: 10, seekAt: "now" })).toBe(false);
+    expect(isTrafficControl({ offsetMinutes: 10, restartAt: "now" })).toBe(false);
   });
 });
 

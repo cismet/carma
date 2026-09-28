@@ -13,36 +13,57 @@ import { useTrafficAnimationActions } from "../TrafficAnimation/traffic-actions"
  * and whenever traffic comes on with an entry waiting (a new scene's layer,
  * or a reload of this window). Without an entry the traffic runs as its layer
  * started it.
+ *
+ * A new `restartAt` restarts the traffic, but only one that was already
+ * running: traffic that comes on with an entry waiting has just filled its
+ * roads. The offset is then left alone unless it changed too, so a restart
+ * does not undo the desktop panel.
  */
 export const RemoteTraffic = ({
   wanted,
 }: {
   wanted: TrafficControl | null;
 }) => {
-  const { isOn, networkUrl, setOffsetMinutes } = useTrafficAnimationActions();
+  const { isOn, networkUrl, setOffsetMinutes, restart } =
+    useTrafficAnimationActions();
   const trafficKey = isOn && networkUrl ? networkUrl : null;
 
-  /** the entry last applied, and to which traffic */
-  const appliedRef = useRef<{ key: string; wanted: TrafficControl } | null>(
-    null
-  );
+  /**
+   * The entry last applied, and to which traffic; `wanted` is null for
+   * traffic that ran before the remote had an entry.
+   */
+  const appliedRef = useRef<{
+    key: string;
+    wanted: TrafficControl | null;
+  } | null>(null);
 
   useEffect(() => {
-    if (!trafficKey || !wanted) {
-      if (!trafficKey) appliedRef.current = null;
+    if (!trafficKey) {
+      appliedRef.current = null;
       return;
     }
-    const applied = appliedRef.current;
+    const isRunning = appliedRef.current?.key === trafficKey;
+    const applied = isRunning ? appliedRef.current?.wanted ?? null : null;
+    if (!wanted) {
+      if (!isRunning) appliedRef.current = { key: trafficKey, wanted: null };
+      return;
+    }
     if (
-      applied?.key === trafficKey &&
-      applied.wanted.offsetMinutes === wanted.offsetMinutes &&
-      applied.wanted.seekAt === wanted.seekAt
+      !isRunning ||
+      applied?.offsetMinutes !== wanted.offsetMinutes ||
+      applied.seekAt !== wanted.seekAt
     ) {
-      return;
+      setOffsetMinutes(wanted.offsetMinutes);
     }
-    setOffsetMinutes(wanted.offsetMinutes);
+    if (
+      isRunning &&
+      wanted.restartAt !== undefined &&
+      wanted.restartAt !== applied?.restartAt
+    ) {
+      restart();
+    }
     appliedRef.current = { key: trafficKey, wanted };
-  }, [trafficKey, wanted, setOffsetMinutes]);
+  }, [trafficKey, wanted, setOffsetMinutes, restart]);
 
   return null;
 };

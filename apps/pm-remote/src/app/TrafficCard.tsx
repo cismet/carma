@@ -25,18 +25,21 @@ const JUMPS: readonly { kind: TrafficJump; label: string }[] = [
  * The traffic of the live scene: a slider over the last 24 hours whose right
  * end is live, and jumps to today's (or yesterday's) lunchtime, last night,
  * and back to live. Whatever is set keeps running with the clock on the
- * display, so the label here follows the clock too.
+ * display, so the label here follows the clock too. "Neu starten" throws the
+ * display's vehicles away and fills the roads anew at the same moment.
  */
 export const TrafficCard = ({
   traffic,
   control,
   disabled,
   onOffset,
+  onRestart,
 }: {
   traffic: SceneTraffic;
   control: TrafficControl;
   disabled: boolean;
   onOffset: (minutes: number) => void;
+  onRestart: () => void;
 }) => {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -105,6 +108,14 @@ export const TrafficCard = ({
           </button>
         ))}
       </div>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={onRestart}
+        className="mt-3 min-h-[56px] w-full rounded-xl border border-neutral-700 bg-neutral-950 text-base font-semibold text-neutral-100 active:bg-neutral-800 disabled:opacity-40"
+      >
+        Neu starten
+      </button>
     </section>
   );
 };

@@ -756,20 +756,15 @@ export const useDisplay = (
     [steerShadow]
   );
 
-  /** shows the live scene's traffic this many minutes back; 0 is live */
-  const setTrafficOffset = useCallback(
-    (minutes: number) => {
+  /** one change to the live scene's traffic, sent to the display */
+  const steerTraffic = useCallback(
+    (change: (control: TrafficControl, now: number) => TrafficControl) => {
       const traffic = findSceneTraffic(liveRef.current);
       const own = trafficRef.current;
       if (!traffic || own?.key !== traffic.key) {
         return;
       }
-      const now = Date.now();
-      const control: TrafficControl = {
-        offsetMinutes: clampTrafficOffset(minutes),
-        // a new value for every move, so the display takes each one
-        seekAt: Math.max(now, (own.control.seekAt ?? 0) + 1),
-      };
+      const control = change(own.control, Date.now());
       trafficRef.current = { key: own.key, control, touched: true };
       setTrafficControl(control);
       write(liveRef.current).catch(() => {
@@ -777,6 +772,28 @@ export const useDisplay = (
       });
     },
     [write]
+  );
+
+  /** shows the live scene's traffic this many minutes back; 0 is live */
+  const setTrafficOffset = useCallback(
+    (minutes: number) =>
+      steerTraffic((control, now) => ({
+        ...control,
+        offsetMinutes: clampTrafficOffset(minutes),
+        // a new value for every move, so the display takes each one
+        seekAt: Math.max(now, (control.seekAt ?? 0) + 1),
+      })),
+    [steerTraffic]
+  );
+
+  /** throws the display's vehicles away and fills the network anew, same moment */
+  const restartTraffic = useCallback(
+    () =>
+      steerTraffic((control, now) => ({
+        ...control,
+        restartAt: Math.max(now, (control.restartAt ?? 0) + 1),
+      })),
+    [steerTraffic]
   );
 
   const series = useMemo(() => findSceneSeries(live), [live]);
@@ -799,6 +816,7 @@ export const useDisplay = (
     traffic,
     trafficControl,
     setTrafficOffset,
+    restartTraffic,
     isBlackout,
     activeSceneId,
     isChanging,

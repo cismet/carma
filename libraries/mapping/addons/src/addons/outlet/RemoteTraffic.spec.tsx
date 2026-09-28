@@ -86,6 +86,53 @@ describe("RemoteTraffic", () => {
     expect(handle.traffic?.offsetMinutes).toBe(0);
   });
 
+  it("restarts running traffic when the phone asks, once per press", () => {
+    const { rerender } = render(view({ offsetMinutes: 600, seekAt: 1 }));
+    launch();
+
+    rerender(view({ offsetMinutes: 600, seekAt: 1, restartAt: 5 }));
+    expect(handle.traffic?.restartCount).toBe(1);
+
+    rerender(view({ offsetMinutes: 600, seekAt: 1, restartAt: 5 }));
+    expect(handle.traffic?.restartCount).toBe(1);
+
+    rerender(view({ offsetMinutes: 600, seekAt: 1, restartAt: 6 }));
+    expect(handle.traffic?.restartCount).toBe(2);
+  });
+
+  it("restarts traffic that ran before the remote had an entry", () => {
+    const { rerender } = render(view(null));
+    launch(NETWORK, 30);
+
+    rerender(view({ offsetMinutes: 30, restartAt: 5 }));
+
+    expect(handle.traffic?.restartCount).toBe(1);
+    expect(handle.traffic?.offsetMinutes).toBe(30);
+  });
+
+  it("does not restart traffic that comes on with a restart waiting", () => {
+    render(view({ offsetMinutes: 600, seekAt: 1, restartAt: 5 }));
+    launch();
+    expect(handle.traffic?.restartCount).toBe(0);
+
+    launch("https://example.test/anderes_netz.json", 0);
+    expect(handle.traffic?.restartCount).toBe(0);
+    expect(handle.traffic?.offsetMinutes).toBe(600);
+  });
+
+  it("leaves the desktop panel's offset alone on a restart", () => {
+    const { rerender } = render(view({ offsetMinutes: 600, seekAt: 1 }));
+    launch();
+    act(() =>
+      handle.setTraffic?.({ ...handle.traffic!, offsetMinutes: 120 })
+    );
+
+    rerender(view({ offsetMinutes: 600, seekAt: 1, restartAt: 5 }));
+
+    expect(handle.traffic?.restartCount).toBe(1);
+    expect(handle.traffic?.offsetMinutes).toBe(120);
+  });
+
   it("applies the entry again to the traffic of the next scene", () => {
     render(view({ offsetMinutes: 600, seekAt: 1 }));
     launch();

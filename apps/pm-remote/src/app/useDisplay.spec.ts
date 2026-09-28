@@ -8,6 +8,7 @@ import {
   type RelayTarget,
   type ShadowControl,
   type ShowScene,
+  type TrafficControl,
 } from "@carma-mapping/show-remote";
 
 import { useDisplay } from "./useDisplay";
@@ -363,6 +364,50 @@ describe("useDisplay traffic", () => {
     await waitFor(() => {
       expect(lastWrite()?.["traffic"]).toMatchObject({ offsetMinutes: 1440 });
     });
+  });
+
+  it("restarts at the same offset, with a new value for every press", async () => {
+    const lastTraffic = () => lastWrite()?.["traffic"] as TrafficControl;
+    const { result } = await connect({ config: trafficScene });
+    act(() => {
+      result.current.setTrafficOffset(90);
+    });
+    act(() => {
+      result.current.restartTraffic();
+    });
+    await waitFor(() => {
+      expect(lastTraffic()?.restartAt).toBeDefined();
+    });
+    expect(lastTraffic().offsetMinutes).toBe(90);
+    const first = lastTraffic().restartAt ?? 0;
+
+    act(() => {
+      result.current.restartTraffic();
+    });
+    await waitFor(() => {
+      expect(lastTraffic().restartAt).toBeGreaterThan(first);
+    });
+
+    // moving the slider afterwards keeps the last restart, so it is not taken again
+    const second = lastTraffic().restartAt;
+    act(() => {
+      result.current.setTrafficOffset(0);
+    });
+    await waitFor(() => {
+      expect(lastTraffic().offsetMinutes).toBe(0);
+    });
+    expect(lastTraffic().restartAt).toBe(second);
+  });
+
+  it("sends a restart of traffic the presenter never moved, at its offset", async () => {
+    const { result } = await connect({ config: trafficScene });
+    act(() => {
+      result.current.restartTraffic();
+    });
+    await waitFor(() => {
+      expect(lastWrite()?.["traffic"]).toMatchObject({ offsetMinutes: 0 });
+    });
+    expect(lastWrite()?.["traffic"]).toHaveProperty("restartAt");
   });
 
   it("takes over the offset the display was last sent when it reconnects", async () => {

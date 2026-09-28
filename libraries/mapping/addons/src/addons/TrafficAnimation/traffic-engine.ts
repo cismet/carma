@@ -31,7 +31,8 @@ import { createTrafficSim, type TrafficSim } from "./traffic-sim";
  *
  * Once a second the moment is read anew: the fleet is steered to it, the
  * darkness is worked out from it, and the host is told what is on the map
- * (`onStats`). A new offset does all of that at once.
+ * (`onStats`). A new offset does all of that at once. A restart throws the
+ * fleet away and fills the network anew, as at the start.
  *
  * Nothing runs while the network is out of view or the layer is hidden: the
  * frame loop stops and the vehicles stand where they were until it comes back.
@@ -66,6 +67,8 @@ export type TrafficEngineOptions = {
 
 export type TrafficEngine = {
   setOffsetMinutes: (minutes: number) => void;
+  /** all vehicles off the roads, and the network filled anew at the moment shown */
+  restart: () => void;
   /** off the map without ending it, e.g. while its layer's eye is shut */
   setVisible: (visible: boolean) => void;
   /** the layer bar's opacity, 0..1 */
@@ -102,17 +105,19 @@ export const createTrafficEngine = ({
 
   const shownInstant = (): number => now() - offsetMinutes * MS_PER_MINUTE;
 
-  const sim: TrafficSim = createTrafficSim({
-    network,
-    maxVehicles,
-    densityScale,
-    // the sim keeps the vehicles apart at the size they are drawn
-    sizeScale,
-    clock: () => {
-      const instant = shownInstant();
-      return { instant, minutesOfDay: trafficClockOf(instant).minutes };
-    },
-  });
+  const createSim = (): TrafficSim =>
+    createTrafficSim({
+      network,
+      maxVehicles,
+      densityScale,
+      // the sim keeps the vehicles apart at the size they are drawn
+      sizeScale,
+      clock: () => {
+        const instant = shownInstant();
+        return { instant, minutesOfDay: trafficClockOf(instant).minutes };
+      },
+    });
+  let sim = createSim();
   const traffic = createTrafficLayer({ id, network, sizeScale, nightDim });
 
   let darkness = trafficDarkness(shownInstant());
@@ -239,6 +244,14 @@ export const createTrafficEngine = ({
       if (next === offsetMinutes) return;
       offsetMinutes = next;
       sim.retarget();
+      readClock();
+      mustDraw = true;
+      if (frame === null) draw();
+    },
+    restart: () => {
+      if (destroyed) return;
+      sim = createSim();
+      sim.step(0);
       readClock();
       mustDraw = true;
       if (frame === null) draw();

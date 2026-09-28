@@ -52,10 +52,16 @@ const MS_PER_DAY = MINUTES_PER_DAY * MS_PER_MINUTE;
  * when the presenter last moved the slider or pressed a jump, as the phone's
  * clock says; the display may use it to tell a new wish from the repeated one,
  * though applying the same offset twice changes nothing.
+ *
+ * `restartAt` is when the presenter last asked for the traffic to start
+ * afresh, by the same clock: every change of it throws all vehicles away and
+ * fills the network anew at the moment shown. A display that sees it on
+ * traffic it just started has nothing to throw away and leaves it.
  */
 export type TrafficControl = {
   offsetMinutes: number;
   seekAt?: number;
+  restartAt?: number;
 };
 
 /** the three jumps of the traffic panel */
@@ -97,7 +103,8 @@ export const isTrafficControl = (value: unknown): value is TrafficControl =>
   isFiniteNumber(value["offsetMinutes"]) &&
   value["offsetMinutes"] >= 0 &&
   value["offsetMinutes"] <= TRAFFIC_MAX_OFFSET_MINUTES &&
-  (value["seekAt"] === undefined || isFiniteNumber(value["seekAt"]));
+  (value["seekAt"] === undefined || isFiniteNumber(value["seekAt"])) &&
+  (value["restartAt"] === undefined || isFiniteNumber(value["restartAt"]));
 
 /**
  * One formatter for every call: building an `Intl.DateTimeFormat` costs far

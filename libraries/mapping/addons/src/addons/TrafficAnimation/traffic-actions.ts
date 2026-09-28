@@ -15,7 +15,8 @@ import { useAddonState } from "../../lib/AddonStateContext";
  * it is, how many vehicles are out. Whoever steers it writes one thing, the
  * offset: the addon's ribbon on a desktop route, and on the projection
  * window (`#/outlet`), which has no layer bar, the remote's entry. Both go through
- * `setOffsetMinutes`, so the engine does not care who moved the slider.
+ * `setOffsetMinutes`, so the engine does not care who moved the slider. The
+ * same goes for `restart`, which the remote's "Neu starten" ends up in.
  *
  * Session-only: the offset is a moment in the last 24 hours, which means
  * nothing after a reload a day later.
@@ -52,6 +53,11 @@ export type TrafficAnimationState = {
   error: string | null;
   /** draw the network's lines under the vehicles; an admin's check */
   showNetwork: boolean;
+  /**
+   * Counts up with every restart. The engine throws its vehicles away and
+   * fills the network anew each time it moves; its value means nothing.
+   */
+  restartCount: number;
 };
 
 export const TRAFFIC_ANIMATION_STATE_DEFAULT: TrafficAnimationState = {
@@ -69,6 +75,7 @@ export const TRAFFIC_ANIMATION_STATE_DEFAULT: TrafficAnimationState = {
   isLoading: false,
   error: null,
   showNetwork: false,
+  restartCount: 0,
 };
 
 /** the fields of `patch` that differ from `state` */
@@ -117,5 +124,15 @@ export const useTrafficAnimationActions = () => {
     [update]
   );
 
-  return { ...state, update, setOffsetMinutes, jump, setShowNetwork };
+  /** all vehicles off the roads and the network filled anew, at the same moment */
+  const restart = useCallback(
+    () =>
+      setSessionState((previous) => {
+        const base = previous ?? TRAFFIC_ANIMATION_STATE_DEFAULT;
+        return { ...base, restartCount: base.restartCount + 1 };
+      }),
+    [setSessionState]
+  );
+
+  return { ...state, update, setOffsetMinutes, jump, setShowNetwork, restart };
 };

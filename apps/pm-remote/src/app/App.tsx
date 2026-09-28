@@ -535,6 +535,7 @@ export const App = () => {
                 control={display.trafficControl}
                 disabled={!target}
                 onOffset={display.setTrafficOffset}
+                onRestart={display.restartTraffic}
               />
             )}
             {walk.length === 0 ? (
