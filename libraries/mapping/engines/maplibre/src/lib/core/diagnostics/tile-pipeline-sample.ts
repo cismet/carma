@@ -1,3 +1,4 @@
+import { TILES_LOAD_POLICY } from "../tile-load-config";
 /** Window totals, not resident bytes or estimates of wire bandwidth. */
 export type TilePipelineTotals = ReturnType<typeof emptyTilePipelineTotals>;
 
@@ -18,6 +19,7 @@ export const emptyTilePipelineTotals = () => ({
   timedResponses: 0,
   ttfbMs: 0,
   bodyMs: 0,
+  timedBodies: 0,
   prepared: 0,
   timedPreparations: 0,
   prepareMs: 0,
@@ -42,8 +44,9 @@ export type TileResourceTiming = Pick<
 export const addTileResourceTiming = (
   totals: TilePipelineTotals,
   entry: TileResourceTiming,
-  contentLength?: number
+  observation?: { contentLength?: number; bodyReadMs?: number }
 ): TilePipelineTotals => {
+  const { contentLength, bodyReadMs } = observation ?? {};
   const sized = entry.transferSize > 0 || entry.encodedBodySize > 0;
   const fileBytes =
     entry.encodedBodySize ||
@@ -51,6 +54,9 @@ export const addTileResourceTiming = (
   const fileSized = sized || fileBytes > 0;
   const timed =
     entry.requestStart > 0 && entry.responseStart >= entry.requestStart;
+  const bodyMs = timed ? entry.responseEnd - entry.responseStart : bodyReadMs;
+  const bodyTimed =
+    bodyMs !== undefined && Number.isFinite(bodyMs) && bodyMs >= 0;
   return {
     ...totals,
     responses: totals.responses + 1,
@@ -67,8 +73,8 @@ export const addTileResourceTiming = (
     timedResponses: totals.timedResponses + Number(timed),
     ttfbMs:
       totals.ttfbMs + (timed ? entry.responseStart - entry.requestStart : 0),
-    bodyMs:
-      totals.bodyMs + (timed ? entry.responseEnd - entry.responseStart : 0),
+    bodyMs: totals.bodyMs + (bodyTimed ? bodyMs! : 0),
+    timedBodies: totals.timedBodies + Number(bodyTimed),
   };
 };
 
@@ -99,11 +105,66 @@ export const sampleTilePipeline = (
       : Number.NaN,
     downloadMs: mean(totals.responseMs, totals.responses),
     ttfbMs: mean(totals.ttfbMs, totals.timedResponses),
-    bodyMs: mean(totals.bodyMs, totals.timedResponses),
+    bodyMs: mean(totals.bodyMs, totals.timedBodies),
     preparedPerS: totals.prepared / seconds,
     prepareMs: mean(totals.prepareMs, totals.timedPreparations),
     parseWaitMs: mean(totals.parseWaitMs, totals.timedParseWaits),
     presentedPerS: totals.presented / seconds,
     errorsPerS: totals.errors / seconds,
+  };
+};
+
+/** CSS-pixel geometric SSE weighted by clipped tile-bounds footprints. Bounds
+ * may overlap and include occluded geometry: this is not framebuffer error or
+ * the fraction of actual screen pixels exceeding the threshold.
+ */
+export type VisibleTileQualityObservation = Readonly<{
+  errorCssPixels: number;
+  areaCssPixels: number;
+}>;
+
+export const sampleVisibleTileQuality = (
+  observations: readonly VisibleTileQualityObservation[],
+  now: number,
+  previousOver20Since: number | null = null
+) => {
+  let maximum = Number.NEGATIVE_INFINITY;
+  let weightedError = 0;
+  let area = 0;
+  let over20Area = 0;
+  let known = 0;
+  for (const observation of observations) {
+    const { errorCssPixels, areaCssPixels } = observation;
+    if (
+      !Number.isFinite(errorCssPixels) ||
+      errorCssPixels < 0 ||
+      !Number.isFinite(areaCssPixels) ||
+      areaCssPixels <= 0
+    )
+      continue;
+    known++;
+    maximum = Math.max(maximum, errorCssPixels);
+    weightedError += errorCssPixels * areaCssPixels;
+    area += areaCssPixels;
+    if (errorCssPixels > TILES_LOAD_POLICY.coarseRefinementErrorPixels)
+      over20Area += areaCssPixels;
+  }
+  const over20Since = over20Area > 0 ? previousOver20Since ?? now : null;
+  const unknown = observations.length - known;
+  return {
+    over20Since,
+    metrics: {
+      visibleErrorMaxPx: known ? maximum : Number.NaN,
+      visibleErrorMeanPx: area ? weightedError / area : Number.NaN,
+      visibleOver20Percent: area ? (100 * over20Area) / area : Number.NaN,
+      visibleOver20Ms:
+        over20Since !== null
+          ? Math.max(0, now - over20Since)
+          : known && unknown === 0
+          ? 0
+          : Number.NaN,
+      visibleErrorKnownTiles: known,
+      visibleErrorUnknownTiles: unknown,
+    },
   };
 };

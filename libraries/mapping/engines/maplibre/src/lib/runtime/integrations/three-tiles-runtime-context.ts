@@ -72,7 +72,6 @@ export interface ThreeTilesRuntimeState {
   cacheCeilingStorage: Storage | null;
   cacheCeilingMemory: CacheCeilingMemory | null;
   learnedCeilingBytes: number | null;
-  cacheCeilingPeakWrittenAt: number;
   styleCacheBudgetBytes: number | undefined;
   styleCacheOverflowBytes: number | undefined;
   ceilingBytes: ReturnType<typeof resolveTilesCacheCeiling>;
@@ -112,6 +111,8 @@ export interface ThreeTilesRuntimeState {
   meshDemandSweepPending: boolean;
   /** Sibling payloads/materials needed to replace the published cut without gaps. */
   meshRefinementSupport: Set<Tile>;
+  /** Pending payloads retained across sun changes for the same observer. */
+  retainedShadowRequests: Set<Tile>;
   meshBaseCoverageReady: boolean;
   /** Current observer has uncovered branches beside an already published cut. */
   meshCoverageRecovery: boolean;
@@ -171,7 +172,6 @@ export interface ThreeTilesRuntimeState {
   marginCamera: THREE.PerspectiveCamera;
   marginProjection: THREE.Matrix4;
   marginFrustum: TilesViewFrustum;
-  ringFrustums: TilesViewFrustum[];
   /** Levels by which the ring cascade has been refined below its coarse start. */
   ringRefinePasses: number;
   /** Geometric error of the level the whole extent stays resident at (Infinity: none). */

@@ -1,4 +1,4 @@
-import { Group } from "three";
+import { Group, OrthographicCamera } from "three";
 import { describe, expect, it } from "vitest";
 import { TILE_CAMERA_PRIORITY } from "../../core/tile-camera-demand";
 import { createThreeTilesCascade } from "./three-tiles-runtime-cascade";
@@ -16,6 +16,43 @@ import {
 } from "./three-tiles-runtime-cascade.test-support";
 
 describe("cancellation runtime integration", () => {
+  it("drains earlier solar requests in every phase but releases them under memory pressure", () => {
+    const fixture = createPrefetchFixture(tile());
+    const state = fixture.state as unknown as Parameters<
+      typeof createThreeTilesCascade
+    >[0];
+    state.options = { providesTerrain: true };
+    state.shadowView = {
+      camera: new OrthographicCamera(),
+      shadowMapSize: { width: 1024, height: 1024 },
+    };
+    state.shadowSelectionEnabled = true;
+    fixture.dependencies.isTileInMainView.mockReturnValue(false);
+    const retained = [
+      QUEUED_LOADING_STATE,
+      LOADING_LOADING_STATE,
+      PARSING_LOADING_STATE,
+    ].map((phase) => {
+      const t = tile();
+      t.internal.loadingState = phase;
+      fixture.tiles.loadingTiles.add(t);
+      state.retainedShadowRequests.add(t);
+      return t;
+    });
+    const cascade = createThreeTilesCascade(state, fixture.dependencies);
+    cascade.abortStaleDownloads();
+    expect(fixture.tiles.lruCache.remove).not.toHaveBeenCalled();
+    for (const t of retained)
+      expect(cascade.getTileRequestNeed(t)).toBe("previous-sun-direction");
+    state.meshCoverageRecovery = true;
+    cascade.abortStaleDownloads();
+    expect(fixture.tiles.lruCache.remove).not.toHaveBeenCalled();
+    state.memoryAdmissionPaused = true;
+    cascade.abortStaleDownloads();
+    expect(fixture.tiles.lruCache.remove).toHaveBeenCalledTimes(3);
+    expect(state.retainedShadowRequests.size).toBe(0);
+  });
+
   it("discards stale offscreen support in download and parse queues for current viewport work", () => {
     const fixture = createPrefetchFixture(tile());
     fixture.tiles.downloadQueue.maxJobsPerOrigin = 1;

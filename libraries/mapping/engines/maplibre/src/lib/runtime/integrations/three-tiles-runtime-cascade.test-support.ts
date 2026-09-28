@@ -103,8 +103,10 @@ export const createPrefetchFixture = (root: RuntimeTile) => {
     extentGeometricError: 40,
     extentFloorArmed: false,
     shadowView: null,
+    retainedShadowRequests: new Set<RuntimeTile>(),
     shadowSelectionEnabled: false,
     shadowReceiverMask: null,
+    pendingMeshReceiverFrontier: null,
     map: { triggerRepaint: vi.fn(), isZooming: vi.fn(() => false) },
   };
   const dependencies = {

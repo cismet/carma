@@ -14,6 +14,7 @@ export const TILE_REQUEST_NEED = {
   IDLE: "idle-reserve",
   CAMERA: "camera-demand",
   SHADOW: "shadow-demand",
+  SHADOW_HISTORY: "previous-sun-direction",
   METADATA: "subtree-metadata",
   VIEW: "view-or-margin",
 } as const;
@@ -39,7 +40,9 @@ export type TileRequestNeedContext = Readonly<{
   idleRing: boolean;
   shadowSelection: boolean;
   shadowView: boolean;
+  retainedShadowRequest: boolean;
   refinementSupport: ReadonlySet<Tile>;
+  receiverReplacementAncestors: ReadonlySet<Tile>;
   residentAncestors: ReadonlySet<Tile>;
   visibleTiles: ReadonlySet<Tile>;
   coverageNeeded: (tile: Tile) => boolean;
@@ -60,6 +63,9 @@ export const resolveTileRequestNeed = (
   tile: Tile,
   context: TileRequestNeedContext
 ) => {
+  const retained = context.retainedShadowRequest
+    ? TILE_REQUEST_NEED.SHADOW_HISTORY
+    : null;
   if (context.coverageRecovery && context.coverageNeeded(tile))
     return TILE_REQUEST_NEED.COVERAGE;
   if (
@@ -78,7 +84,7 @@ export const resolveTileRequestNeed = (
     context.providesTerrain &&
     isMeshCoveredByLoadedChildren(tile, context.visibleTiles)
   )
-    return null;
+    return retained;
   if (
     !context.moving &&
     context.baseCoverageReady &&
@@ -95,6 +101,14 @@ export const resolveTileRequestNeed = (
   )
     parent = parent.parent;
   const replacementParent = parent?.refine === "REPLACE" ? parent : null;
+  // Decision: ../../../TILES_COVERAGE.md#exclusive-shadow-caster-handover
+  // A held parent cannot also supply depth after its receiver family switches.
+  // Its demanded siblings are handover prerequisites even at a coarser target.
+  const receiverReplacement =
+    context.shadowView &&
+    replacementParent &&
+    context.receiverReplacementAncestors.has(replacementParent);
+  if (inView && receiverReplacement) return TILE_REQUEST_NEED.SUPPORT;
   if (
     context.cameraDemand(tile).required &&
     (!replacementParent ||
@@ -103,18 +117,27 @@ export const resolveTileRequestNeed = (
     return TILE_REQUEST_NEED.CAMERA;
   if (!inView && context.shadowSelection) {
     const receiverError = context.shadowReceiverError(tile);
+    // Traversal refines the parent's footprint against its strictest receiver.
+    // A child can touch only a coarser receiver and still be required for that
+    // exclusive family handover. Do not test parent error against child demand.
     if (
       receiverError !== null &&
-      (!replacementParent || replacementParent.geometricError > receiverError)
+      (!replacementParent ||
+        replacementParent.geometricError >
+          (context.shadowReceiverError(replacementParent) ?? receiverError) ||
+        receiverReplacement)
     )
       return TILE_REQUEST_NEED.SHADOW;
   } else if (!inView && context.shadowView && !context.shadowSelection)
     return TILE_REQUEST_NEED.SHADOW;
-  if (tile.internal.hasUnrenderableContent) return TILE_REQUEST_NEED.METADATA;
+  if (tile.internal.hasUnrenderableContent)
+    return inView || context.inPrefetchMargin(tile)
+      ? TILE_REQUEST_NEED.METADATA
+      : retained;
   return (inView || context.inPrefetchMargin(tile)) &&
     (!replacementParent ||
       context.screenError(replacementParent) >
         Math.max(context.requestedErrorTarget, context.memoryErrorTarget))
     ? TILE_REQUEST_NEED.VIEW
-    : null;
+    : retained;
 };

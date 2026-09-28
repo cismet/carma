@@ -22,9 +22,8 @@ import type { EffectiveErrorTargetState } from "../../core/effective-error-targe
 import {
   getCacheCeilingStorage,
   readCacheCeilingMemory,
-  settleCrashedCacheCeilingSession,
+  normalizeCacheCeilingMemory,
   startCacheCeilingSession,
-  writeCacheCeilingMemory,
 } from "./three-tiles-cache-ceiling-memory";
 import { createEffectiveErrorTargetState } from "../../core/effective-error-target";
 import { createTileBytesPredictor } from "./three-tiles-byte-prediction";
@@ -104,11 +103,11 @@ export function createThreeTilesRuntimeState(
   const deviceProfile = readTilesDeviceProfile();
   const styleCacheBudgetBytes = options.cacheBudgetBytes;
   const styleCacheOverflowBytes = options.cacheOverflowBytes;
-  // A session that never ended cleanly lowers the ceiling before it applies.
+  // Shared unfinished probes may belong to another live tab, not a crash.
   const cacheCeilingStorage = options.persistCacheCeiling
     ? getCacheCeilingStorage()
     : null;
-  const settledMemory = settleCrashedCacheCeilingSession(
+  const settledMemory = normalizeCacheCeilingMemory(
     readCacheCeilingMemory(cacheCeilingStorage)
   );
   const learnedCeilingBytes = settledMemory.learnedBytes;
@@ -123,9 +122,6 @@ export function createThreeTilesRuntimeState(
   const cacheCeilingMemory = cacheCeilingStorage
     ? startCacheCeilingSession(settledMemory, ceilingBytes, Date.now())
     : null;
-  if (cacheCeilingMemory)
-    writeCacheCeilingMemory(cacheCeilingStorage, cacheCeilingMemory);
-  const cacheCeilingPeakWrittenAt = 0;
   const bytesPredictor = createTileBytesPredictor();
   /** Displayable siblings outside the view and its prefetch margin (D1). */
   const deferred = new Set<Tile>();
@@ -178,6 +174,8 @@ export function createThreeTilesRuntimeState(
   const shadowSimulationStyle: SharedThreeSceneShadowStyle | null = null;
   const shadowView: SharedThreeSceneShadowView | null = null;
   const shadowViewSignature = "";
+  // Pending work from earlier sun directions at the same observer pose.
+  const retainedShadowRequests = new Set<Tile>();
   const pendingShadowView: SharedThreeSceneShadowView | null = null;
   const meshInitialBasePassDone = false;
   const shadowSelectionEnabled = false;
@@ -211,9 +209,6 @@ export function createThreeTilesRuntimeState(
   const marginCamera = new THREE.PerspectiveCamera();
   const marginProjection = new THREE.Matrix4();
   const marginFrustum = new TilesViewFrustum();
-  const ringFrustums = TILES_LOAD_POLICY.idleRingTanMultipliers.map(
-    () => new TilesViewFrustum()
-  );
   const ringRefinePasses = 0;
   const extentGeometricError = options.entry
     ? resolveExtentGeometricError(options.entry.levels, ceilingBytes)
@@ -363,7 +358,6 @@ export function createThreeTilesRuntimeState(
     cacheCeilingStorage,
     cacheCeilingMemory,
     learnedCeilingBytes,
-    cacheCeilingPeakWrittenAt,
     bytesPredictor,
     deferred,
     queuedThisTraversal,
@@ -403,6 +397,7 @@ export function createThreeTilesRuntimeState(
     shadowSimulationStyle,
     shadowView,
     shadowViewSignature,
+    retainedShadowRequests,
     pendingShadowView,
     meshInitialBasePassDone,
     meshInitialHandoverDone: options.providesTerrain !== true,
@@ -437,7 +432,6 @@ export function createThreeTilesRuntimeState(
     marginCamera,
     marginProjection,
     marginFrustum,
-    ringFrustums,
     ringRefinePasses,
     extentGeometricError,
     extentFloorArmed,

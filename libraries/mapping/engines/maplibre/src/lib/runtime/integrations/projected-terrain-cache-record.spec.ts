@@ -171,6 +171,7 @@ describe("projected terrain combined producer epoch", () => {
     expect(mocks.manager).toHaveBeenCalledTimes(1);
     expect(mocks.manager).toHaveBeenCalledWith({
       capacityBytes: 256 * 1024 ** 2,
+      adaptiveCapacity: true,
       producerEpoch: JSON.stringify([mainUrl(), WORKER_URL]),
     });
     const manager = mocks.manager.mock.results[0].value;

@@ -1,5 +1,9 @@
 import * as THREE from "three";
 
+import {
+  intersectsTileFrustumMargin,
+  readOrientedTileBounds,
+} from "./three-tiles-bounds";
 import { TILES_LOAD_POLICY } from "../../core/tile-load-config";
 import type {
   ThreeTilesRuntimeServices,
@@ -18,7 +22,7 @@ export function createThreeTilesViewFrustums(
     | "marginFrustum"
     | "marginProjection"
     | "offsetGroup"
-    | "ringFrustums"
+    | "options"
     | "tileViewFrustum"
     | "tileViewProjection"
     | "tiles"
@@ -91,36 +95,8 @@ export function createThreeTilesViewFrustums(
           viewCamera.coordinateSystem,
           viewCamera.reversedDepth
         );
-        const halfTan = Math.tan(THREE.MathUtils.degToRad(viewCamera.fov / 2));
-        TILES_LOAD_POLICY.idleRingTanMultipliers.forEach((multiplier, k) => {
-          runtimeState.marginCamera.fov = Math.min(
-            175,
-            2 * THREE.MathUtils.radToDeg(Math.atan(halfTan * multiplier))
-          );
-          runtimeState.marginCamera.updateProjectionMatrix();
-          runtimeState.marginCamera.projectionMatrix.elements[8] =
-            viewCamera.projectionMatrix.elements[8];
-          runtimeState.marginCamera.projectionMatrix.elements[9] =
-            viewCamera.projectionMatrix.elements[9];
-          runtimeState.marginCamera.projectionMatrixInverse
-            .copy(runtimeState.marginCamera.projectionMatrix)
-            .invert();
-          runtimeState.marginProjection
-            .multiplyMatrices(
-              runtimeState.marginCamera.projectionMatrix,
-              viewCamera.matrixWorldInverse
-            )
-            .multiply(runtimeState.tiles!.group.matrixWorld);
-          runtimeState.ringFrustums[k].setFromProjectionMatrix(
-            runtimeState.marginProjection,
-            viewCamera.coordinateSystem,
-            viewCamera.reversedDepth
-          );
-        });
       } else {
         runtimeState.marginFrustum.copy(runtimeState.tileViewFrustum);
-        for (const frustum of runtimeState.ringFrustums)
-          frustum.copy(runtimeState.tileViewFrustum);
       }
       runtimeState.viewFrustumsReady = true;
     };
@@ -129,19 +105,32 @@ export function createThreeTilesViewFrustums(
     (tile: RuntimeTile): boolean => {
       const bounds = tile.engineData?.boundingVolume;
       if (!bounds || !runtimeState.viewFrustumsReady) return false;
+      if (runtimeState.options.providesTerrain)
+        return getTileRingIndex(tile) === 1;
       return bounds.intersectsFrustum(runtimeState.marginFrustum);
     };
+
+  const reserveBounds = new THREE.Box3();
+  const reserveTransform = new THREE.Matrix4();
 
   const getTileRingIndex: ThreeTilesRuntimeServices["getTileRingIndex"] = (
     tile: RuntimeTile
   ): number => {
     const bounds = tile.engineData?.boundingVolume;
     if (!bounds || !runtimeState.viewFrustumsReady) return 0;
-    for (let k = 0; k < runtimeState.ringFrustums.length; k++)
-      if (bounds.intersectsFrustum(runtimeState.ringFrustums[k])) return k + 1;
-    // The last ring is the whole model at the coarsest level of the cascade,
-    // so nothing of the extent is ever unloaded below that level.
-    return runtimeState.ringFrustums.length + 1;
+    if (!bounds.getAABB) return 0;
+    readOrientedTileBounds(bounds, reserveBounds, reserveTransform);
+    // Decision: TILES_COVERAGE.md#one-tile-mixed-lod-reserve
+    // Each child is tested at its own scale. A near child may refine above
+    // its parent while farther siblings stay at that parent's base coverage.
+    return intersectsTileFrustumMargin(
+      reserveBounds,
+      reserveTransform,
+      runtimeState.tileViewFrustum,
+      TILES_LOAD_POLICY.idleRingTileWidths
+    )
+      ? 1
+      : 2;
   };
 
   return {

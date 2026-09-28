@@ -314,6 +314,73 @@ describe("tile scheduling decisions", () => {
       decideTileRequestAction({ ...input, highestWaitingBenefit: Number.NaN })
     ).toBe(TILE_REQUEST_ACTION.KEEP);
   });
+  it("protects coarse visible regions before area-weighted microrefinement without crossing camera lanes", () => {
+    const rank = TILE_CAMERA_PRIORITY.PRIMARY;
+    for (const [error, benefit, sign] of [
+      [40, 20000, 1],
+      [20, 20000, -1],
+      [40, 0, -1],
+      [Number.NaN, 20000, -1],
+    ]) {
+      expect(
+        Math.sign(
+          compareTileRequestOrder(rank, rank, benefit, 400000, error, 8)
+        )
+      ).toBe(sign);
+    }
+    expect(
+      compareTileRequestOrder(
+        rank,
+        TILE_CAMERA_PRIORITY.VIEWPORT_FILL,
+        20000,
+        0,
+        40,
+        8
+      )
+    ).toBeLessThan(0);
+    // Two coarse improvements still rank by affected area times error reduction.
+    expect(
+      compareTileRequestOrder(rank, rank, 20000, 400000, 40, 30)
+    ).toBeLessThan(0);
+    const fine = {
+      needed: true,
+      downloading: true,
+      metadata: false,
+      priority: rank,
+      highestWaitingPriority: rank,
+      benefit: 400000,
+      highestWaitingBenefit: 20000,
+      currentErrorPixels: 8,
+      highestWaitingCurrentErrorPixels: 40,
+    };
+    expect(decideTileRequestAction(fine)).toBe(TILE_REQUEST_ACTION.PREEMPT);
+    expect(
+      decideTileRequestAction({ ...fine, sameRefinementGroup: true })
+    ).toBe(TILE_REQUEST_ACTION.KEEP);
+    expect(
+      decideTileRequestAction({
+        ...fine,
+        currentErrorPixels: 40,
+        highestWaitingCurrentErrorPixels: 8,
+      })
+    ).toBe(TILE_REQUEST_ACTION.KEEP);
+    expect(
+      decideTileRequestAction({
+        ...fine,
+        currentErrorPixels: 40,
+        benefit: 16000,
+        highestWaitingBenefit: 20000,
+      })
+    ).toBe(TILE_REQUEST_ACTION.KEEP);
+    expect(
+      decideTileRequestAction({
+        ...fine,
+        currentErrorPixels: 40,
+        benefit: 16000,
+        highestWaitingBenefit: 20001,
+      })
+    ).toBe(TILE_REQUEST_ACTION.PREEMPT);
+  });
   it("cancels obsolete work without consuming a preemption slot, and never preempts metadata or parsing", () => {
     const input = Object.freeze({
       needed: true,

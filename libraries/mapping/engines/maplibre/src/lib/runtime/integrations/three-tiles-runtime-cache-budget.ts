@@ -1,9 +1,10 @@
 import {
   CACHE_CEILING_FAILURE_FRACTION,
-  CACHE_CEILING_PEAK_WRITE_INTERVAL_MS,
   EMPTY_CACHE_CEILING_MEMORY,
   endCacheCeilingSession as endCacheCeilingSessionMemory,
   learnCacheCeiling,
+  normalizeCacheCeilingMemory,
+  readCacheCeilingMemory,
   recordCacheCeilingPeak,
   writeCacheCeilingMemory,
 } from "./three-tiles-cache-ceiling-memory";
@@ -92,13 +93,6 @@ export function createThreeTilesCacheBudget(
           runtimeState.cacheCeilingMemory,
           residentCache.cachedBytes
         );
-        if (
-          now - runtimeState.cacheCeilingPeakWrittenAt >=
-          CACHE_CEILING_PEAK_WRITE_INTERVAL_MS
-        ) {
-          runtimeState.cacheCeilingPeakWrittenAt = now;
-          persistCacheCeilingMemory();
-        }
       }
       const wasPaused = runtimeState.memoryAdmissionPaused;
       // A tab-wide heap ratio includes Vite/HMR, MapLibre and unrelated app
@@ -154,7 +148,11 @@ export function createThreeTilesCacheBudget(
       if (reason === "context-lost" && cached < runtimeState.ceilingBytes * 0.5)
         return;
       const lesson = learnCacheCeiling(
-        runtimeState.cacheCeilingMemory ?? EMPTY_CACHE_CEILING_MEMORY,
+        runtimeState.cacheCeilingStorage
+          ? normalizeCacheCeilingMemory(
+              readCacheCeilingMemory(runtimeState.cacheCeilingStorage)
+            )
+          : runtimeState.cacheCeilingMemory ?? EMPTY_CACHE_CEILING_MEMORY,
         Math.max(cached, runtimeState.ceilingBytes) *
           CACHE_CEILING_FAILURE_FRACTION,
         reason
@@ -162,7 +160,10 @@ export function createThreeTilesCacheBudget(
       if (lesson.learnedBytes === runtimeState.learnedCeilingBytes) return;
       runtimeState.learnedCeilingBytes = lesson.learnedBytes;
       if (runtimeState.cacheCeilingMemory) {
-        runtimeState.cacheCeilingMemory = lesson;
+        runtimeState.cacheCeilingMemory = {
+          ...lesson,
+          probe: runtimeState.cacheCeilingMemory.probe,
+        };
         persistCacheCeilingMemory();
       }
       runtimeState.ceilingBytes = resolveTilesCacheCeiling(
@@ -178,9 +179,19 @@ export function createThreeTilesCacheBudget(
   const endCacheCeilingSession: ThreeTilesRuntimeServices["endCacheCeilingSession"] =
     () => {
       if (!runtimeState.cacheCeilingMemory) return;
+      const shared = runtimeState.cacheCeilingStorage
+        ? normalizeCacheCeilingMemory(
+            readCacheCeilingMemory(runtimeState.cacheCeilingStorage)
+          )
+        : runtimeState.cacheCeilingMemory;
+      // A run under an older limit cannot recover a newer failure lesson.
+      if (shared.learnedBytes !== runtimeState.learnedCeilingBytes) return;
       const peak = dependencies.getRuntimeCache()?.cachedBytes ?? 0;
       runtimeState.cacheCeilingMemory = endCacheCeilingSessionMemory(
-        recordCacheCeilingPeak(runtimeState.cacheCeilingMemory, peak),
+        recordCacheCeilingPeak(
+          { ...shared, probe: runtimeState.cacheCeilingMemory.probe },
+          peak
+        ),
         unlearnedCeilingBytes()
       );
       persistCacheCeilingMemory();

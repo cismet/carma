@@ -9,6 +9,8 @@ export type RuntimeTile = Tile & { idleRing?: boolean };
 
 /** The slice of the runtime state the overlay reads, see three-tiles-runtime-context.ts. */
 export type TilesRuntimeDebugState = {
+  tileCameraSignature?: string;
+  shadowViewSignature?: string;
   tileDebugProgress?: WeakMap<Tile, MeshTileDebugProgress>;
   tileCameraDemand: ReturnType<typeof createTileCameraDemand>;
   tiles: TilesRenderer | null;

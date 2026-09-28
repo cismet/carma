@@ -15,6 +15,7 @@ export function disposeThreeTilesAttachment(
   payloadQueues: ReturnType<typeof createThreeTilesPayloadQueues>
 ): void {
   runtimeState.disposed = true;
+  runtimeState.retainedShadowRequests.clear();
   deferredMaterials.dispose();
   payloadQueues.dispose();
   dependencies.clearTelemetry();

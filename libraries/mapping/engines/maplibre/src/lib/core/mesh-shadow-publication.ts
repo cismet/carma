@@ -38,12 +38,12 @@ export function selectShadowReadyReceivers(
     ancestors,
     { published: previous, allowCoarseBootstrap: true }
   ).tiles;
-  return { receivers, pending };
+  return { receivers: selectExclusiveShadowCut(receivers, previous), pending };
 }
 
 /** Viewport geometry has one LOD owner. Reuse those exact Tile objects for
  * depth; the light selector only owns additional caster content. All receiver
- * corridors share one union and a monotone previous caster cut.
+ * corridors share one union and a monotone, non-overlapping REPLACE cut.
  */
 export function selectShadowCasterPlan(
   available: ReadonlySet<Tile>,
@@ -66,5 +66,39 @@ export function selectShadowCasterPlan(
     new Set([...previous, ...reused]),
     eligible
   );
-  return new Set([...independent, ...reused]);
+  return selectExclusiveShadowCut(
+    new Set([...independent, ...reused]),
+    previous
+  );
 }
+
+/** Receiver colour and shadow depth use the same replacement boundary. */
+const selectExclusiveShadowCut = (
+  proposed: Set<Tile>,
+  previous: ReadonlySet<Tile>
+): Set<Tile> => {
+  // Decision: ../../../TILES_COVERAGE.md#exclusive-shadow-caster-handover
+  // While shadows are active neither colour nor depth can combine different
+  // approximations of the same surface. The shared coverage selector keeps a
+  // parent while any demanded child branch is missing. Suppress its new
+  // descendants until that fallback disappears from the complete cut.
+  const retainedAncestors = new Set<Tile>();
+  for (const tile of proposed) {
+    if (!previous.has(tile)) continue;
+    for (const parent of meshTileAncestors(tile)) retainedAncestors.add(parent);
+  }
+  // A newly expanded corridor may need an uncovered sibling of existing fine
+  // casters. Do not reintroduce their coarse ancestor over live fine depth;
+  // retain that detail and let receiver readiness wait for the missing branch.
+  for (const tile of proposed)
+    if (tile.refine === "REPLACE" && retainedAncestors.has(tile))
+      proposed.delete(tile);
+  return new Set(
+    [...proposed].filter(
+      (tile) =>
+        ![...meshTileAncestors(tile)].some(
+          (parent) => parent.refine === "REPLACE" && proposed.has(parent)
+        )
+    )
+  );
+};

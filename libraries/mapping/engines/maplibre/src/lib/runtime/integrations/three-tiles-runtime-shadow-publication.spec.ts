@@ -152,12 +152,13 @@ describe("mesh caster publication", () => {
       new Set([receiver, otherChild])
     );
     expect(state.committedMeshReceiverFrontier).toEqual(
-      new Set([receiver, otherChild])
+      new Set([parent, otherChild])
     );
     expect(state.committedMeshCasterFrontier).toEqual(
-      new Set([parent, receiver, otherChild])
+      new Set([parent, otherChild])
     );
-    // Pending/failed children retain the conservative parent plus ready casters.
+    expect(state.pendingMeshReceiverFrontier).toEqual(new Set([receiver]));
+    // Pending/failed children keep the same exclusive parent in colour/depth.
     // An unchanged cut must not trigger another hard-shadow invalidation.
     onContentChanged.mockClear();
     for (const loadingState of [2, 3, -1]) {
@@ -166,9 +167,13 @@ describe("mesh caster publication", () => {
         new Set([receiver, otherChild]),
         new Set([receiver, otherChild])
       );
-      expect(state.committedMeshCasterFrontier).toEqual(
-        new Set([parent, receiver, otherChild])
+      expect(state.committedMeshReceiverFrontier).toEqual(
+        new Set([parent, otherChild])
       );
+      expect(state.committedMeshCasterFrontier).toEqual(
+        new Set([parent, otherChild])
+      );
+      expect(state.pendingMeshReceiverFrontier).toEqual(new Set([receiver]));
       expect(onContentChanged).not.toHaveBeenCalled();
     }
 
@@ -215,6 +220,7 @@ describe("mesh caster publication", () => {
     expect(state.committedMeshCasterFrontier).toEqual(
       new Set([receiver, chimney, otherChild])
     );
+    expect(state.pendingMeshReceiverFrontier).toBeNull();
     expect(state.shadowRegionRevisions.has("affected")).toBe(false);
     expect(state.shadowRegionRevisions.has("unrelated")).toBe(true);
     expect(onContentChanged).toHaveBeenCalledOnce();

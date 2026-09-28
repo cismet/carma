@@ -105,15 +105,63 @@ The central manager also exposes `stats`, `inspect(namespace?)`, `invalidateName
 
 **Decision.** Require measured positive savings of at least 5% by default: `restoreMs <= 0.95 * recomputeMs`, with consistent caller-defined boundaries. Missing timing is unknown, not an estimated benefit. Unknown candidates may occupy spare capacity without policy eviction and are the first eviction candidates. Once both costs exist, `updateCosts` removes non-beneficial records. The generic policy does not collect samples or select medians itself.
 
-Rank known entries using `priority = evictionAge + max(0, recomputeMs - restoreMs) / bytes`; refresh priority/access time on a hit and advance age on eviction. This is GreedyDual-Size-inspired, not a theoretical optimality, latency or hit-rate guarantee. A candidate cannot displace a known entry with equal/higher priority. Under capacity pressure, trim toward the configured 80% low-water target; count is capped at 4,096. Terrain currently configures one shared **256 MiB accounted-payload budget**, independent of GPU and RAM budgets.
+Rank known entries using `priority = evictionAge + max(0, recomputeMs - restoreMs) / bytes`; refresh priority/access time on a hit and advance age on eviction. This is GreedyDual-Size-inspired, not a theoretical optimality, latency or hit-rate guarantee. A candidate cannot displace a known entry with equal/higher priority. Under capacity pressure, trim toward the configured 80% low-water target; count is capped at 4,096. The current quota follow-up uses one shared origin-aware accounted-payload budget across terrain, hierarchy and shadow cache producers, independent of GPU and RAM budgets. The configured **256 MiB remains the fallback**, not an additional budget per producer. The 4,096-record cap can bind before the byte budget; reaching the available origin quota is not promised.
 
 Native IndexedDB transactions atomically update metadata, payload and shared budget across clients. On actual `QuotaExceededError`, an aborted write changes nothing. Unknown-benefit writes stop without trim or retry, even when the application budget still has space. Only a measured candidate can trigger one current-producer trim (at least 20% of current bytes and entry count), followed by one retry if anything was removed. Other errors do not evict. Scoped registrations cannot request manager-level trim.
 
-**Alternatives.** Pure LRU and per-client budgets: rejected by design because they ignore saved work or duplicate capacity. Unknown speculative benefit: rejected. Dynamic capacity from `navigator.storage.estimate()`: deferred and **not implemented**; the application cap plus native quota feedback is the current behavior.
+**Alternatives.** Pure LRU and per-client budgets: rejected by design because they ignore saved work or duplicate capacity. Unknown speculative benefit: rejected. Dynamic capacity from `navigator.storage.estimate()`: adopted by the 2026-09-23 follow-up below, replacing the earlier fixed application capacity. Native quota feedback remains authoritative.
 
 **Evidence.** [Policy](./derived-cache-policy.ts), [storage](./derived-cache-storage.ts), and [native core audit v3: 47 checks](../../../../../../output/derived-cache-20260907/storage-audit-v3-results.json), reproduced by [its worker](../../../../../../output/derived-cache-20260907/storage-audit.worker.ts). Checks cover typed-array preservation, scoped identities, 4% rejection, unknown admission, accounting, clone-failure rollback, stale cost feedback, concurrent trims/connections and connection restart. The separate [quota regression spec](./derived-cache-storage.spec.ts) injects synchronous and asynchronous write failures to check rollback, unknown-benefit preservation and the one-retry bound. These mocks do not fill an origin; the native audit uses separate connections within one worker, not multiple tabs or real quota exhaustion.
 
 **Revisit.** Reassess accounting, aging and capacity with real heterogeneous workloads, origin-pressure observations and device-specific reuse samples. Add quota-pressure evidence before claiming that recovery is validated against a full browser origin.
+
+
+### 2026-09-23 quota-aware capacity follow-up
+
+**Status:** Implemented; focused validation pending. No measured storage hit-rate,
+throughput or real-origin quota-exhaustion result is claimed.
+
+**Decision:** All production Derived-Cache clients opt into the same quota policy.
+With a valid origin estimate, effective capacity is
+`max(0, quota - max(0, usage - managedBytesAtSampling) - max(256 MiB, 10% of quota))`.
+Managed accounting is capped at reported usage; missing accounting is zero.
+This reserves explicit space for other origin data and estimate/IDB overhead.
+Quota is approximate browser-managed persistent capacity, not available RAM,
+GPU memory, a disk reservation, or a guarantee that every byte can be filled.
+No data is downloaded or preallocated to consume it.
+
+The first operation immediately uses the configured 256 MiB fallback. Estimates
+resolve in the background, have a two-second deadline and are refreshed on demand
+after 60 seconds; fresh samples are shared through the existing budget state.
+The last valid estimate remains usable during the bounded background refresh.
+Missing/failed estimates use the fallback for new writes; if existing data exceeds
+that fallback, writes are rejected without evicting it merely for missing quota
+information. The
+managed-byte snapshot remains attached to its estimate, so subsequent cache growth
+cannot inflate the capacity computed from an old usage value. Zero capacity
+rejects new records while existing records remain readable. Quota failure
+invalidates the sample, preserving the existing measured-only trim/one-retry rule.
+No new persistence-permission request is introduced; the existing terrain-ready
+opportunistic request remains the only integration point.
+
+Read/inspect/stats operations do not persist optional budget updates; mutation
+transactions publish the shared policy. A quota failure on an optional capacity
+write therefore cannot turn an untouching cached read into a miss.
+
+Stats report `configuredCapacityBytes`, effective `capacityBytes`, `capacitySource`,
+origin quota/usage, headroom, sample time, `maxEntries` and current count. All
+producers must use this shared policy; old fixed-policy clients fail closed when
+they encounter an adaptive budget. Namespace/producer isolation, leases, measured
+saved-work admission and 4,096-record eviction bounds are unchanged.
+
+**Evidence:** Pure quota/sampler tests and adaptive storage integration cases are
+in `derived-cache-quota.spec.ts` and `derived-cache-storage.spec.ts`; execution is
+pending. Prior native/mock evidence above applies only to its recorded scope.
+Real multi-tab quota pressure and device-specific cache benefit remain unverified.
+
+**Revisit:** Origin pressure or estimate lag repeatedly defeats the reserve;
+the item limit binds before bytes; or measured restore cost ceases to justify
+storage. Keep residency and transfer policies independent.
 
 ## DBC-02 — Native, binary Blob and Meshopt formats
 
@@ -150,7 +198,7 @@ When transformed persistence is enabled, live source arrays remain source-cache-
 
 Runtime recomputation timing starts after source loading and measures projection/relief preparation, excluding network and source-cache lookup; it is narrower than the PNG baseline in DBC-02. Restore feedback includes actual worker wait/transfer and reconstruction and is persisted from the **first actual hit**, then refined by a rolling median of at most five reads. It does not wait for three hits or manufacture extra recomputations. GPU upload, final seams and shadows are outside that runtime feedback. Keep these boundaries distinct.
 
-**Alternatives.** Legacy-store cleanup is limited to the old derived `projected_tiles` store; obsolete producer epochs are reclaimed separately (DBC-06). Other legacy contents remain untouched and outside the new budget. Automatically allocating the origin's available quota: deferred. Persistent shadow components: future consumers of this API, **not implemented by this terrain integration**. The renderer still has global RGB soft-shadow accumulation; component caching does not make the final colored image independent of camera/scene invalidation or provide fully reusable per-page soft shadows.
+**Alternatives.** Legacy-store cleanup is limited to the old derived `projected_tiles` store; obsolete producer epochs are reclaimed separately (DBC-06). Other legacy contents remain untouched and outside the new budget. Origin-quota byte-cap sizing now follows DBC-01; eager allocation or prefill remains excluded. Persistent shadow components: future consumers of this API, **not implemented by this terrain integration**. The renderer still has global RGB soft-shadow accumulation; component caching does not make the final colored image independent of camera/scene invalidation or provide fully reusable per-page soft shadows.
 
 **Evidence.** Current integration source and DBC-02 component artifacts establish the implemented boundaries. [Tiled shadow notes](../../../../../mapping/shadow-simulation/three/TILED_SHADOW_PAGES.md) describe separate rendering limitations. No complete new reload/pan/shadow-convergence benchmark is claimed. This document change ran no tests or builds.
 
@@ -170,7 +218,7 @@ Terrain records, profiles and temporary probes share the same combined producer 
 
 An insufficient actual hit may supply one worker-owned, transient calibration seed before normal cost feedback removes the disk record. The feedback job peeks without adding a hit; it does not copy the foreground transfer. At most one pending seed spans all producer strategies, retaining at most 32 MiB of unique buffer backing; it expires after 60 seconds and is released on consumption or strategy disposal. Its measured read/decode cost joins preparation amortization. This enables comparison after rejection without privileged disk retention or invented reuse. A session-/epoch-local FIFO set suppresses further writes for at most 256 exact keys whose actual feedback missed the saving guard; it is cleared on strategy disposal and is not a device-wide format blacklist. `inspectProjectedTerrainCacheProfiles` reads the two small audit profiles with `touch: false`, reports their worker-only scope, pending-seed metadata and suppressed-key count, and never loads terrain payloads.
 
-**Alternatives.** Hard-coded universal winner, predicted reuse, foreground calibration and independent profile budgets: rejected. The current scope targets the measured desktop hardware: binary Blob is its supported optimization, not a claim about every device. Additional source-sample collection, pressure-driven format switching, old-record recompression and automatic backend selection are deliberately out of scope. Unsupported storage is a cache miss; non-beneficial actual feedback removes the persistent entry so later requests recompute. Automatic origin-quota sizing and cross-device profile reuse are not implemented.
+**Alternatives.** Hard-coded universal winner, predicted reuse, foreground calibration and independent profile budgets: rejected. The current scope targets the measured desktop hardware: binary Blob is its supported optimization, not a claim about every device. Additional source-sample collection, pressure-driven format switching, old-record recompression and automatic backend selection are deliberately out of scope. Unsupported storage is a cache miss; non-beneficial actual feedback removes the persistent entry so later requests recompute. Origin-quota sizing now follows DBC-01; cross-device profile reuse is not implemented.
 
 **Evidence.** Selector, [worker strategy spec](../../../../../mapping/engines/maplibre/src/lib/runtime/integrations/projected-terrain-cache-strategy.spec.ts) and DBC-02 artifacts. The focused mock pipeline covers native rejection against source, transient-seed calibration, exact reuse count, seed-cost amortization and a subsequent beneficial binary hit. It does not establish a new client performance result. No new whole-app reload/pan/shadow-convergence result validates the scheduling or chosen format universally.
 

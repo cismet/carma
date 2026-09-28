@@ -2,7 +2,10 @@ import { Camera, Matrix4, PerspectiveCamera, Vector2, Vector3 } from "three";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { TerrainSelection } from "../../core/terrain-selection";
 import type { TerrainWorkerResult } from "./terrain-worker-task";
-import { getTileBounds } from "../../core/raster-dem-tile";
+import {
+  getTileBounds,
+  type TerrainTileId,
+} from "../../core/raster-dem-tile";
 
 const { acquireSource, runWorker, registerSampler } = vi.hoisted(() => ({
   acquireSource: vi.fn(),
@@ -10,13 +13,6 @@ const { acquireSource, runWorker, registerSampler } = vi.hoisted(() => ({
   registerSampler: vi.fn(() => vi.fn()),
 }));
 vi.mock("./terrain-worker-client", () => ({ runTerrainWorkerTask: runWorker }));
-// This fixture controls selection jobs, not the separate optional cache jobs.
-vi.mock("./projected-terrain-geometry-cache", () => ({
-  createProjectedTerrainGeometryCache: () => ({
-    get: vi.fn(async () => null),
-    set: vi.fn(),
-  }),
-}));
 vi.mock("./raster-dem-terrain-tile-source", async (original) => ({
   ...(await original<typeof import("./raster-dem-terrain-tile-source")>()),
   acquireRasterDemTerrainTileSource: acquireSource,
@@ -35,7 +31,7 @@ afterEach(() => {
 });
 
 describe("coalesced asynchronous terrain selection", () => {
-  it("uses an in-flight cut during a pan, then only the latest view; ignores disposed results", async () => {
+  it("discards an obsolete cut during a pan, admits the latest view and ignores disposed results", async () => {
     vi.stubGlobal("Worker", class {});
     const pending: ((result: TerrainWorkerResult) => void)[] = [];
     runWorker.mockImplementation(
@@ -46,7 +42,10 @@ describe("coalesced asynchronous terrain selection", () => {
       getTileBounds,
       sampleHeight: vi.fn(),
       trimCache: vi.fn(),
-      requestTile: vi.fn(() => new Promise(() => undefined)),
+      requestTile: vi.fn(
+        (_id: TerrainTileId, _signal?: AbortSignal) =>
+          new Promise(() => undefined)
+      ),
     };
     acquireSource.mockResolvedValue(source);
     const runtime = buildRasterDemTerrainRuntime(
@@ -108,21 +107,33 @@ describe("coalesced asynchronous terrain selection", () => {
     });
     pending.shift()!({ kind: "select", selection: selection(firstId) });
     await vi.waitFor(() => expect(runWorker).toHaveBeenCalledTimes(2));
-    await vi.waitFor(() =>
-      expect(source.requestTile).toHaveBeenCalledWith(firstId)
-    );
+    expect(source.requestTile).not.toHaveBeenCalled();
     expect(runWorker.mock.calls[1][0].input.lodCameraPosition[0]).toBe(30);
     // An identical frame while pending does not enqueue another walk.
     runtime.update(frame);
+    expect(runWorker).toHaveBeenCalledTimes(2);
+    const latestId = { ...firstId, x: firstId.x + 1 };
+    pending.shift()!({ kind: "select", selection: selection(latestId) });
+    await vi.waitFor(() =>
+      expect(source.requestTile).toHaveBeenCalledWith(
+        latestId,
+        expect.any(AbortSignal)
+      )
+    );
+
+    frame.lodCamera.position.x = 40;
+    runtime.update(frame);
+    expect(runWorker).toHaveBeenCalledTimes(3);
     runtime.dispose();
     pending.shift()!({
       kind: "select",
-      selection: selection({ ...firstId, x: firstId.x + 1 }),
+      selection: selection({ ...firstId, x: firstId.x + 2 }),
     });
     await Promise.resolve();
     await Promise.resolve();
     expect(source.requestTile).toHaveBeenCalledTimes(1);
-    expect(runWorker).toHaveBeenCalledTimes(2);
-    expect(runWorker.mock.calls[1][1].aborted).toBe(true);
+    expect(runWorker).toHaveBeenCalledTimes(3);
+    expect(runWorker.mock.calls[2][1].aborted).toBe(true);
+    expect(source.requestTile.mock.calls[0][1]?.aborted).toBe(true);
   });
 });

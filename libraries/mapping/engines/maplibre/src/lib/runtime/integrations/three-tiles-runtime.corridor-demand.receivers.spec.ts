@@ -18,7 +18,7 @@ vi.hoisted(() => {
 afterEach(() => vi.restoreAllMocks());
 
 describe("receivers runtime integration", () => {
-  it("retains parent coverage while ready children publish during dragging and on moveend", async () => {
+  it("retains one parent surface until the receiver family is ready during movement", async () => {
     vi.useFakeTimers();
     const f = createMeshCorridorFixture();
     let moving = false;
@@ -40,8 +40,7 @@ describe("receivers runtime integration", () => {
         f.tile("receiver-child-b", 0, 10, -100, 1, true, f.receiver),
       ];
       f.receiver.children = children;
-      f.load(children[0]); // A ready child overlays its fallback during movement.
-      const progressive = [...before, "receiver-child-a"].sort();
+      f.load(children[0]); // Shadow colour and depth keep the parent together.
       const stale = f.tile("stale", 150, 160, -50, 0, false, f.root);
       const wanted = f.tile("wanted", -5, 5, -50, 0, false, f.root);
       const removed: string[] = [];
@@ -69,7 +68,7 @@ describe("receivers runtime integration", () => {
         emit(MAPLIBRE_EVENT.MOVE);
         await vi.advanceTimersByTimeAsync(60);
         f.update();
-        expect(f.visibleIds()).toEqual(progressive);
+        expect(f.visibleIds()).toEqual(before);
         expect(f.receiver.internal.loadingState).toBe(4);
         expect(f.caster.internal.loadingState).toBe(4);
         // Current-camera audits cancel obsolete fetches during the drag.
@@ -78,7 +77,7 @@ describe("receivers runtime integration", () => {
       moving = false;
       emit(MAPLIBRE_EVENT.MOVE_END);
       f.update();
-      expect(f.visibleIds()).toEqual(progressive);
+      expect(f.visibleIds()).toEqual(before);
       expect(removed).toEqual(["stale.b3dm"]);
       expect(f.renderer.loadingTiles.has(wanted)).toBe(true);
       expect(f.renderer.downloadQueue.maxJobsPerOrigin).toBeGreaterThan(0);
@@ -134,7 +133,7 @@ describe("receivers runtime integration", () => {
     }
   });
 
-  it("cancels obsolete pending payloads after a solar demand refresh, keeping visible and required payloads", () => {
+  it("retains pending payloads across solar changes without replacing live caster geometry", () => {
     const f = createMeshCorridorFixture();
     try {
       f.update();
@@ -149,13 +148,23 @@ describe("receivers runtime integration", () => {
           f.renderer.loadingTiles.delete(value);
         });
       }
-      f.sun.rotateY(0.01);
-      f.setSun();
-      f.update();
-      expect(removed).toEqual(["stale.b3dm"]);
-      expect(f.renderer.loadingTiles.has(wanted)).toBe(true);
-      expect(f.renderer.visibleTiles.has(f.receiver)).toBe(true);
-      expect(f.renderer.lruCache.has(f.caster)).toBe(true);
+      const casterPayload = f.caster.engineData.scene;
+      for (let step = 0; step < 3; step++) {
+        f.sun.rotateY(0.01);
+        f.setSun();
+        f.update();
+        expect(removed).toEqual([]);
+        for (const pending of [stale, wanted]) {
+          expect(f.runtimeState.retainedShadowRequests.has(pending)).toBe(true);
+          expect(f.renderer.loadingTiles.has(pending)).toBe(true);
+          expect(f.renderer.lruCache.has(pending)).toBe(true);
+          expect(f.renderer.visibleTiles.has(pending)).toBe(false);
+        }
+        expect(f.renderer.visibleTiles.has(f.receiver)).toBe(true);
+        expect(f.renderer.visibleTiles.has(f.caster)).toBe(true);
+        expect(f.renderer.lruCache.has(f.caster)).toBe(true);
+        expect(f.caster.engineData.scene).toBe(casterPayload);
+      }
     } finally {
       f.dispose();
     }
@@ -188,7 +197,7 @@ describe("receivers runtime integration", () => {
     }
   });
 
-  it("admits missing receiver coverage and an already visible child's caster demand independently", () => {
+  it("admits missing sibling coverage and finer receiver caster demand independently", () => {
     const f = createMeshCorridorFixture();
     try {
       const left = f.tile("left1", -10, 0, -100, 1, true, f.receiver);
@@ -205,7 +214,7 @@ describe("receivers runtime integration", () => {
         right,
         caster,
       ]);
-      expect(f.visibleIds()).toEqual(["caster16", "left1", "receiver16"]);
+      expect(f.visibleIds()).toEqual(["caster16", "receiver16"]);
       // Even when the native mock does not update loadingState, same-traversal
       // admission is idempotent. Loaded payloads are never queued again.
       f.renderer.queueTileForDownload(right);

@@ -25,7 +25,9 @@ const context = (
   idleRing: false,
   shadowSelection: false,
   shadowView: false,
+  retainedShadowRequest: false,
   refinementSupport: new Set(),
+  receiverReplacementAncestors: new Set(),
   residentAncestors: new Set(),
   visibleTiles: new Set(),
   coverageNeeded: () => false,
@@ -39,6 +41,38 @@ const context = (
 });
 
 describe("resolveTileRequestNeed", () => {
+  it("releases offscreen metadata unless a current owner or retained sun request needs it", () => {
+    const tile = mesh();
+    tile.internal.hasRenderableContent = false;
+    tile.internal.hasUnrenderableContent = true;
+    expect(resolveTileRequestNeed(tile, context())).toBeNull();
+    expect(
+      resolveTileRequestNeed(tile, context({ inMainView: () => true }))
+    ).toBe(TILE_REQUEST_NEED.METADATA);
+    expect(
+      resolveTileRequestNeed(tile, context({ retainedShadowRequest: true }))
+    ).toBe(TILE_REQUEST_NEED.SHADOW_HISTORY);
+    expect(
+      resolveTileRequestNeed(
+        tile,
+        context({ coverageRecovery: true, coverageNeeded: () => true })
+      )
+    ).toBe(TILE_REQUEST_NEED.COVERAGE);
+  });
+
+  it("keeps earlier sun work without overriding current request ownership", () => {
+    const tile = mesh();
+    const input = context({ retainedShadowRequest: true });
+    expect(resolveTileRequestNeed(tile, input)).toBe(
+      TILE_REQUEST_NEED.SHADOW_HISTORY
+    );
+    expect(
+      resolveTileRequestNeed(tile, { ...input, inMainView: () => true })
+    ).toBe(TILE_REQUEST_NEED.VIEW);
+    expect(
+      resolveTileRequestNeed(tile, { ...input, retainedShadowRequest: false })
+    ).toBeNull();
+  });
   it.each([
     { requestedErrorTarget: 20, memoryErrorTarget: 4 },
     { requestedErrorTarget: 4, memoryErrorTarget: 20 },
@@ -80,6 +114,58 @@ describe("resolveTileRequestNeed", () => {
       ).toBe(inView ? TILE_REQUEST_NEED.SUPPORT : null);
     }
   );
+
+  it.each([false, true])(
+    "keeps demanded receiver replacement siblings, in view %s",
+    (inView) => {
+      const parent = mesh();
+      parent.geometricError = 16;
+      const sibling = mesh(parent);
+      const input = context({
+        shadowView: true,
+        shadowSelection: true,
+        mainViewConverged: false,
+        receiverReplacementAncestors: new Set([parent]),
+        shadowReceiverError: () => 16,
+        inMainView: () => inView,
+        screenError: () => 6,
+      });
+      expect(resolveTileRequestNeed(sibling, input)).toBe(
+        inView ? TILE_REQUEST_NEED.SUPPORT : TILE_REQUEST_NEED.SHADOW
+      );
+      if (!inView)
+        expect(
+          resolveTileRequestNeed(sibling, {
+            ...input,
+            shadowReceiverError: () => null,
+          })
+        ).toBeNull();
+      expect(
+        resolveTileRequestNeed(sibling, {
+          ...input,
+          receiverReplacementAncestors: new Set(),
+        })
+      ).toBeNull();
+    }
+  );
+
+  it("finishes a caster family when its parent needs finer error than this child footprint", () => {
+    const parent = mesh(),
+      child = mesh(parent);
+    parent.geometricError = 0.472;
+    const input = context({
+      shadowView: true,
+      shadowSelection: true,
+      shadowReceiverError: (tile) => (tile === parent ? 0.47 : 1.34),
+    });
+    expect(resolveTileRequestNeed(child, input)).toBe(TILE_REQUEST_NEED.SHADOW);
+    expect(
+      resolveTileRequestNeed(child, {
+        ...input,
+        shadowReceiverError: (tile) => (tile === parent ? 0.5 : 1.34),
+      })
+    ).toBeNull();
+  });
 
   it("retains the armed extent floor independently of old refinement support", () => {
     const floor = mesh();

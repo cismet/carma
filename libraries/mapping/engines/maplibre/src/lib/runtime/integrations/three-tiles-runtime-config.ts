@@ -43,9 +43,11 @@ export const MESH_REFINEMENT_PREFETCH_LEVELS = 0;
  * Skip strategy while the camera moves: downloads and scene commits continue
  * at a bounded rate so newly exposed ground fills during a drag or a zoom
  * instead of in one burst afterwards. Parsing commits Three objects on the
- * renderer thread, hence the small parse limit.
+ * renderer thread, hence the small parse limit. Network slots stay available
+ * during motion; downstream backlog and memory pressure still bound admission.
+ * Decision: TILES_COVERAGE.md#motion-preserves-visible-detail.
  */
-export const MESH_MOTION_DOWNLOAD_CONCURRENCY = 8;
+export const MESH_MOTION_DOWNLOAD_CONCURRENCY = MESH_DOWNLOAD_CONCURRENCY;
 export const MESH_MOTION_PARSE_CONCURRENCY = 2;
 
 export const MESH_PARSE_BACKLOG_SOFT_LIMIT = 12;

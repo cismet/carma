@@ -64,7 +64,6 @@ export function createThreeTilesSpatial(
     | "marginCamera"
     | "marginProjection"
     | "marginFrustum"
-    | "ringFrustums"
     | "tileDebugProgress"
     | "requestedErrorTarget"
   >,

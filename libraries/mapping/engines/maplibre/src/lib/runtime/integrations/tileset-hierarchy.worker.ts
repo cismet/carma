@@ -78,6 +78,7 @@ const initialize = async (
   if (epoch)
     manager = createDerivedBufferCache({
       capacityBytes: 256 * 1024 ** 2,
+      adaptiveCapacity: true,
       producerEpoch: epoch,
     });
 };

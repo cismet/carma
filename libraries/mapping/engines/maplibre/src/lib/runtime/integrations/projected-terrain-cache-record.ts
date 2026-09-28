@@ -132,6 +132,7 @@ const createPipelineCache = (producerEpoch: string) => {
   // same epoch, including format profiles/probes and their cleanup leases.
   const manager = createDerivedBufferCache({
     capacityBytes: 256 * 1024 ** 2,
+    adaptiveCapacity: true,
     producerEpoch,
   });
   return {

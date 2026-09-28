@@ -8,17 +8,15 @@ import { TILES_CACHE_CEILING_BYTES } from "../../core/tile-cache-policy";
  * - An allocation failure learns 75 % of the bytes resident at that moment
  *   (at least 75 % of the ceiling); a lost WebGL context does the same, but
  *   only when the cache was at least half full, a GPU reset is no lesson.
- * - A session that never ended cleanly (no page hide, no dispose: the tab was
- *   killed) learns 50 % of its peak resident bytes on the next start.
+ * - An unfinished shared session is not evidence of memory failure: another
+ *   tab or manager may still own it. Legacy inferred crash limits are discarded.
  * - Three clean sessions that used at least 90 % of a learned ceiling raise
  *   it again by half, up to the unlearned ceiling, so a wrong lesson fades.
  */
 export const CACHE_CEILING_STORAGE_KEY = "carma:tiles3d-cache-ceiling";
 export const CACHE_CEILING_FAILURE_FRACTION = 0.75;
-export const CACHE_CEILING_CRASH_FRACTION = 0.5;
 export const CACHE_CEILING_RECOVERY_RUNS = 3;
 export const CACHE_CEILING_RECOVERY_GROWTH = 1.5;
-export const CACHE_CEILING_PEAK_WRITE_INTERVAL_MS = 5_000;
 
 export type CacheCeilingReason =
   | "allocation"
@@ -73,23 +71,12 @@ export const readCacheCeilingMemory = (
       Number.isFinite(parsed.learnedBytes)
         ? floorBytes(parsed.learnedBytes)
         : null;
-    const probe =
-      parsed.probe &&
-      typeof parsed.probe.peakBytes === "number" &&
-      typeof parsed.probe.ceilingBytes === "number"
-        ? {
-            ceilingBytes: parsed.probe.ceilingBytes,
-            peakBytes: Math.max(0, parsed.probe.peakBytes),
-            healthy: parsed.probe.healthy === true,
-            startedAt: Number(parsed.probe.startedAt) || 0,
-          }
-        : null;
     return {
       version: 1,
       learnedBytes: learned,
       reason: learned === null ? null : parsed.reason ?? null,
       healthyRuns: Math.max(0, Math.floor(Number(parsed.healthyRuns) || 0)),
-      probe,
+      probe: null,
     };
   } catch {
     return EMPTY_CACHE_CEILING_MEMORY;
@@ -102,7 +89,10 @@ export const writeCacheCeilingMemory = (
 ): void => {
   if (!storage) return;
   try {
-    storage.setItem(CACHE_CEILING_STORAGE_KEY, JSON.stringify(memory));
+    storage.setItem(
+      CACHE_CEILING_STORAGE_KEY,
+      JSON.stringify({ ...memory, probe: null })
+    );
   } catch {
     /* Quota or private mode: the lesson is lost, nothing else. */
   }
@@ -120,18 +110,13 @@ export const learnCacheCeiling = (
   return { ...memory, learnedBytes: candidate, reason, healthyRuns: 0 };
 };
 
-/** A previous session that never ended cleanly counts as a crash. */
-export const settleCrashedCacheCeilingSession = (
+/** Discard legacy crash guesses; only observed memory failures set a limit. */
+export const normalizeCacheCeilingMemory = (
   memory: CacheCeilingMemory
-): CacheCeilingMemory => {
-  const probe = memory.probe;
-  if (!probe || probe.healthy || probe.peakBytes <= 0) return memory;
-  return learnCacheCeiling(
-    memory,
-    probe.peakBytes * CACHE_CEILING_CRASH_FRACTION,
-    "unhealthy-session"
-  );
-};
+): CacheCeilingMemory =>
+  memory.reason === "unhealthy-session"
+    ? { ...memory, learnedBytes: null, reason: null, healthyRuns: 0 }
+    : memory;
 
 export const startCacheCeilingSession = (
   memory: CacheCeilingMemory,

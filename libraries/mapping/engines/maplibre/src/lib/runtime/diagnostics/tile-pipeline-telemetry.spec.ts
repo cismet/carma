@@ -1,8 +1,15 @@
-import { notifyTileResponse } from "../integrations/tile-response-observers";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Tile } from "3d-tiles-renderer/core";
+import { Box3, Group, OrthographicCamera, Vector3 } from "three";
+import {
+  createTileCameraDemand,
+  snapshotTileCameraViews,
+  TILE_CAMERA_ROLE,
+  TILE_MAIN_OBSERVER_ID,
+} from "../../core/tile-camera-demand";
 import type { TilesRuntimeDebugState } from "./tile-diagnostic-state";
 import { createTilePipelineTelemetry } from "./tile-pipeline-telemetry";
+import { notifyTileResponse } from "../integrations/tile-response-observers";
 
 const setup = () => {
   let now = 100;
@@ -40,7 +47,13 @@ const setup = () => {
         listeners.set(name, callback),
       removeEventListener: (name: string) => listeners.delete(name),
       loadingTiles: new Set([tile]),
-      downloadQueue: { maxJobsPerOrigin: 8 },
+      downloadQueue: {
+        maxJobsPerOrigin: 8,
+        originQueues: new Map([
+          ["mesh.test", { currJobs: 5 }],
+          ["other.test", { currJobs: 2 }],
+        ]),
+      },
       parseQueue: { maxJobs: 2, currJobs: 1 },
     },
     tileDebugProgress: new WeakMap([[tile, progress]]),
@@ -120,6 +133,70 @@ describe("debug pipeline subscription", () => {
     expect(f.listeners.size).toBe(0);
   });
 
+  it.each(["resource-first", "body-first"])(
+    "counts the observed body duration once with hidden timing (%s)",
+    (order) => {
+      const f = setup();
+      const telemetry = createTilePipelineTelemetry(() => f.state);
+      const url = "https://tiles.test/mesh.b3dm";
+      f.listeners.get("tile-download-start")!({ url, tile: f.tile });
+      f.time(300);
+      notifyTileResponse(f.state.tiles!, { url, contentLength: 0 });
+      const resource = {
+        name: url,
+        duration: 700,
+        requestStart: 0,
+        responseStart: 0,
+        responseEnd: 800,
+        transferSize: 0,
+        encodedBodySize: 0,
+      } as PerformanceResourceTiming;
+      if (order === "resource-first") {
+        f.deliver([resource]);
+        expect(telemetry.sample().bodyMs).toBeNaN();
+      }
+      f.time(800);
+      notifyTileResponse(f.state.tiles!, { url, decodedBytes: 2 ** 20 });
+      if (order === "body-first") f.deliver([resource]);
+      expect(telemetry.sample()).toMatchObject({
+        bodyMs: 500,
+        ttfbMs: Number.NaN,
+      });
+      f.deliver([resource]);
+      notifyTileResponse(f.state.tiles!, { url, decodedBytes: 2 ** 20 });
+      expect(telemetry.sample().bodyMs).toBeNaN();
+      telemetry.dispose();
+    }
+  );
+
+  it.each(["resource-first", "body-first"])(
+    "preserves native body timing without adding the fallback (%s)",
+    (order) => {
+      const f = setup();
+      const telemetry = createTilePipelineTelemetry(() => f.state);
+      const url = "https://tiles.test/mesh.b3dm";
+      f.listeners.get("tile-download-start")!({ url, tile: f.tile });
+      f.time(300);
+      notifyTileResponse(f.state.tiles!, { url, contentLength: 0 });
+      const resource = {
+        name: url,
+        duration: 400,
+        requestStart: 100,
+        responseStart: 300,
+        responseEnd: 500,
+        transferSize: 0,
+        encodedBodySize: 0,
+      } as PerformanceResourceTiming;
+      if (order === "resource-first") f.deliver([resource]);
+      f.time(800);
+      notifyTileResponse(f.state.tiles!, { url, decodedBytes: 2 ** 20 });
+      if (order === "body-first") f.deliver([resource]);
+      expect(telemetry.sample()).toMatchObject({ bodyMs: 200, ttfbMs: 200 });
+      expect(telemetry.sample().bodyMs).toBeNaN();
+      telemetry.dispose();
+    }
+  );
+
   it("keeps current backlog ages and configured slots separate from throughput", () => {
     const f = setup();
     Object.assign(f.progress, { requestDecision: { action: "park" } });
@@ -132,12 +209,185 @@ describe("debug pipeline subscription", () => {
       parseActive: 1,
       parseSlots: 2,
       downloadSlotsPerOrigin: 8,
+      downloadActivePerOrigin: 5,
       downloadsPerS: 0,
     });
     f.tile.internal.loadingState = 3;
     Object.assign(f.progress, { downloadFinishedAt: 1200 });
     f.time(1800);
     expect(telemetry.sample().parseQueueAgeMs).toBe(600);
+    telemetry.dispose();
+  });
+});
+
+describe("visible main-camera geometric SSE", () => {
+  it.each([
+    ["complete", 10],
+    ["outside", Number.NaN],
+    ["partial", 30],
+    ["underlay", 30],
+    ["unmounted", 30],
+    ["unknown metadata", 30],
+    ["unknown bounds", 30],
+    ["additive", 30],
+  ] as const)(
+    "measures the exposed hierarchy cut for %s branches",
+    (mode, max) => {
+      const f = setup();
+      const group = new Group();
+      const camera = new OrthographicCamera(-4, 4, 4, -4, 0.1, 100);
+      const createTile = (error: number, x = 0, halfWidth = 1): Tile => {
+        const scene = new Group();
+        group.add(scene);
+        return {
+          geometricError: error,
+          refine: "REPLACE",
+          children: [],
+          internal: {
+            loadingState: 4,
+            hasContent: true,
+            hasRenderableContent: true,
+          },
+          engineData: {
+            scene,
+            boundingVolume: {
+              getAABB: (target: Box3) =>
+                target.set(
+                  new Vector3(x - halfWidth, -1, -11),
+                  new Vector3(x + halfWidth, 1, -9)
+                ),
+            },
+          },
+        } as unknown as Tile;
+      };
+      const parent = createTile(0.3, 0, mode === "outside" ? 101 : 2);
+      const children = [
+        createTile(0.1, mode === "outside" ? -100 : -1),
+        createTile(0.1, mode === "outside" ? 100 : 1),
+      ];
+      parent.children = children;
+      children.forEach((child) => {
+        child.parent = parent;
+      });
+      if (mode === "unknown metadata") children[1].internal = undefined!;
+      if (mode === "unknown bounds")
+        (
+          children[1] as unknown as { engineData: { boundingVolume?: unknown } }
+        ).engineData.boundingVolume = undefined;
+      if (mode === "unmounted")
+        (
+          children[1] as unknown as { engineData: { scene: Group } }
+        ).engineData.scene.removeFromParent();
+      if (mode === "additive") parent.refine = "ADD";
+      Object.assign(f.state.tiles!, { group });
+      f.state.tileCameraDemand = createTileCameraDemand(
+        snapshotTileCameraViews([
+          {
+            id: TILE_MAIN_OBSERVER_ID,
+            camera,
+            viewport: [800, 800],
+            errorTargetPixels: 6,
+            role: TILE_CAMERA_ROLE.RECEIVER,
+          },
+        ])
+      );
+      const missingChild = mode === "partial" || mode === "underlay";
+      f.state.displayedMeshFrontier = new Set([
+        ...(mode === "underlay" ? [] : [parent]),
+        children[0],
+        ...(missingChild ? [] : [children[1]]),
+      ]);
+      f.state.meshUnderlayFrontier = new Set(
+        mode === "underlay" ? [parent] : []
+      );
+      const telemetry = createTilePipelineTelemetry(() => f.state);
+      expect(telemetry.sample().visibleErrorMaxPx).toBe(max);
+      telemetry.dispose();
+    }
+  );
+
+  it("uses CSS viewport geometry, excludes caster/cache/offscreen tiles and reuses unchanged bounds", () => {
+    const f = setup();
+    const group = new Group();
+    const camera = new OrthographicCamera(-4, 4, 4, -4, 0.1, 100);
+    const view = () =>
+      snapshotTileCameraViews([
+        {
+          id: TILE_MAIN_OBSERVER_ID,
+          camera,
+          viewport: [800, 800],
+          errorTargetPixels: 64,
+          role: TILE_CAMERA_ROLE.RECEIVER,
+        },
+      ]);
+    const demand = (extra = false) =>
+      createTileCameraDemand([
+        ...view(),
+        ...(extra
+          ? [{ ...view()[0], id: "shadow", errorTargetPixels: 0.01 }]
+          : []),
+      ]);
+    const createTile = (error: number, x = 0) => {
+      const scene = new Group();
+      group.add(scene);
+      const getAABB = vi.fn((target: Box3) =>
+        target.set(new Vector3(x - 1, -1, -11), new Vector3(x + 1, 1, -9))
+      );
+      return {
+        geometricError: error,
+        internal: { loadingState: 4, hasRenderableContent: true },
+        engineData: { scene, boundingVolume: { getAABB } },
+      } as unknown as Tile;
+    };
+    const coarse = createTile(0.3);
+    const fine = createTile(0.1);
+    const outside = createTile(100, 100);
+    const cachedCaster = createTile(200);
+    Object.assign(f.state.tiles!, { group });
+    f.state.tileCameraDemand = demand(true);
+    f.state.displayedMeshFrontier = new Set([coarse, fine, outside]);
+    f.state.committedMeshCasterFrontier = new Set([
+      coarse,
+      fine,
+      outside,
+      cachedCaster,
+    ]);
+    const telemetry = createTilePipelineTelemetry(() => f.state);
+    f.time(1000);
+    expect(telemetry.sample()).toMatchObject({
+      visibleErrorMaxPx: 30,
+      visibleErrorMeanPx: 20,
+      visibleOver20Percent: 50,
+      visibleOver20Ms: 0,
+      visibleErrorKnownTiles: 2,
+      visibleErrorUnknownTiles: 0,
+    });
+    f.time(1500);
+    expect(telemetry.sample().visibleOver20Ms).toBe(500);
+    const readBounds = (
+      coarse as unknown as {
+        engineData: { boundingVolume: { getAABB: ReturnType<typeof vi.fn> } };
+      }
+    ).engineData.boundingVolume.getAABB;
+    expect(readBounds).toHaveBeenCalledOnce();
+    // Changing solar demand or admission target is not an observer change.
+    f.state.tileCameraDemand = createTileCameraDemand([
+      { ...view()[0], errorTargetPixels: 6 },
+    ]);
+    f.time(2000);
+    expect(telemetry.sample().visibleOver20Ms).toBe(1000);
+    expect(readBounds).toHaveBeenCalledOnce();
+    camera.position.x = 0.1;
+    f.state.tileCameraDemand = demand();
+    f.time(2500);
+    expect(telemetry.sample().visibleOver20Ms).toBe(0);
+    expect(readBounds).toHaveBeenCalledTimes(2);
+    f.state.displayedMeshFrontier = new Set([fine]);
+    f.time(3000);
+    expect(telemetry.sample()).toMatchObject({
+      visibleErrorMaxPx: 10,
+      visibleOver20Ms: 0,
+    });
     telemetry.dispose();
   });
 });

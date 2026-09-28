@@ -262,7 +262,7 @@ can leak into a new tile. Identical topology is shared across raster tiles.
 
 Reads fall back to extraction after an 8 ms wait; writes run in the background.
 Per worker, resident topology is bounded to 8 MiB/64 entries and pending writes
-to 2 MiB. Persistent storage uses the shared 256 MiB derived-cache policy. The
+to 2 MiB. Persistent storage uses the shared origin-quota derived-cache policy with a 256 MiB fallback (DBC-01 in `libraries/commons/utils/src/lib/collections/DERIVED_CACHE_DECISIONS.md`). The
 runtime requests browser storage persistence after readiness; retention remains
 subject to browser permission, quota and user deletion. Full prepared-mesh disk
 reads, writes and codec calibration are disconnected from the shadow runtime.

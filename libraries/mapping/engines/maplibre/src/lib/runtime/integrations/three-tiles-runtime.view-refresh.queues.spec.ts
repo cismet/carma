@@ -5,6 +5,7 @@ import type { Tile } from "3d-tiles-renderer/core";
 import * as THREE from "three";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { MAPLIBRE_EVENT } from "../../../constants/mapEvents";
+import type { RuntimePriorityQueue } from "./three-tiles-runtime-types";
 import {
   createTileCameraDemand,
   snapshotTileCameraViews,
@@ -109,6 +110,15 @@ describe("queues runtime integration", () => {
         primary.engineData!.boundingVolume!.getAABB = (box) =>
           box.set(new THREE.Vector3(19, -1, -1), new THREE.Vector3(21, 1, 1));
         const secondary = buildTile(1);
+        // This case arbitrates refinement with existing coverage. Real holes
+        // correctly outrank both cameras in the viewport-fill lane.
+        for (const child of [primary, secondary]) {
+          const fallback = buildTile(40);
+          fallback.internal.loadingState = 4;
+          fallback.children = [child];
+          child.parent = fallback;
+          state.displayedMeshFrontier.add(fallback);
+        }
         const higher =
           cameraPriority > TILE_CAMERA_PRIORITY.PRIMARY ? secondary : primary;
         const lower = higher === primary ? secondary : primary;
@@ -268,6 +278,81 @@ describe("queues runtime integration", () => {
     }
   });
 
+  it.each([1, 4])(
+    "wakes newly visible parked downloads only with spare origin slots (capacity %s)",
+    async (capacity) => {
+      vi.useFakeTimers();
+      const mounted = mount();
+      let finishActive: (() => void) | undefined;
+      try {
+        const state = mounted.state;
+        state.extentFloorArmed = true;
+        state.extentGeometricError = 40;
+        state.requestConcurrency = capacity;
+        mounted.setMoving(true);
+        mounted.runtime.scene.update(mounted.frame);
+        const active = buildTile(1);
+        active.internal.loadingState = 2;
+        active.engineData!.boundingVolume!.intersectsFrustum = () => true;
+        const parked = buildTile(40);
+        parked.internal.loadingState = 1;
+        for (const tile of [active, parked]) {
+          tile.internal.renderer = mounted.renderer;
+          mounted.renderer.loadingTiles.add(tile);
+        }
+        const activeCallback = vi.fn(
+          () =>
+            new Promise<void>((resolve) => {
+              finishActive = resolve;
+            })
+        );
+        const parkedCallback = vi.fn().mockResolvedValue("ready");
+        const activeResult = mounted.renderer.downloadQueue.add(
+          "https://example.test/active",
+          active,
+          activeCallback
+        );
+        const parkedResult = mounted.renderer.downloadQueue.add(
+          "https://example.test/parked",
+          parked,
+          parkedCallback
+        );
+        await vi.advanceTimersByTimeAsync(50);
+        expect(activeCallback).toHaveBeenCalledOnce();
+        expect(parkedCallback).not.toHaveBeenCalled();
+        const queue = [
+          ...mounted.renderer.downloadQueue.originQueues.values(),
+        ][0] as RuntimePriorityQueue;
+        expect(queue.currJobs).toBe(1);
+        expect(queue.maxJobs).toBe(capacity);
+        Object.assign(mounted.renderer.stats, { queued: 1, downloading: 1 });
+        const schedule = vi.spyOn(queue, "scheduleJobRun");
+
+        // Existing parked work changes demand without queue insertion, capacity
+        // growth, recovery/base-readiness changes or a completed download.
+        parked.engineData!.boundingVolume!.intersectsFrustum = () => true;
+        mounted.camera.position.x += 1;
+        mounted.camera.updateMatrixWorld(true);
+        mounted.runtime.scene.update(mounted.frame);
+        expect(schedule).toHaveBeenCalledTimes(capacity > 1 ? 1 : 0);
+        await vi.advanceTimersByTimeAsync(50);
+        expect(parkedCallback).toHaveBeenCalledTimes(capacity > 1 ? 1 : 0);
+        expect(queue.currJobs).toBe(1);
+
+        schedule.mockClear();
+        mounted.runtime.scene.update(mounted.frame);
+        expect(schedule).not.toHaveBeenCalled();
+        finishActive?.();
+        await activeResult;
+        await vi.advanceTimersByTimeAsync(50);
+        await expect(parkedResult).resolves.toBe("ready");
+      } finally {
+        finishActive?.();
+        mounted.runtime.scene.dispose();
+      }
+    }
+  );
+
   it.each([false, true])(
     "preempts background parsing only for runnable viewport work across the yield: %s",
     async (runnable) => {
@@ -358,7 +443,8 @@ describe("queues runtime integration", () => {
       });
       mounted.renderer.parseQueue.tryRunJobs();
       tile.engineData!.boundingVolume!.intersectsFrustum = () => false;
-      mounted.camera.position.x += 1;
+      // Leave both the observer and the actual one-tile prefetch reserve.
+      mounted.camera.position.x += 1000;
       mounted.camera.updateMatrixWorld(true);
       mounted.runtime.scene.update(mounted.frame);
       await vi.advanceTimersByTimeAsync(50);

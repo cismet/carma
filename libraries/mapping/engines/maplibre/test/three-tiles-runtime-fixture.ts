@@ -182,6 +182,7 @@ export const createMeshCorridorFixture = (
   return {
     renderer,
     runtime,
+    runtimeState,
     frame,
     root,
     receiver,

@@ -61,6 +61,7 @@ export function createThreeTilesPayloadQueues(
     | "meshRefinementSupport"
     | "options"
     | "requestedErrorTarget"
+    | "retainedShadowRequests"
     | "shadowView"
     | "tiles"
   >,
@@ -120,11 +121,12 @@ export function createThreeTilesPayloadQueues(
     const demandFor = (tile: Tile) => {
       let demand = currentDemand.get(tile);
       if (!demand) {
-        const priority = dependencies.getTileRequestPriority(
-          tile as RuntimeTile
-        );
-        (tile as RuntimeTile).cameraPriority = priority;
         const reason = dependencies.getTileRequestNeed(tile);
+        const priority =
+          reason === TILE_REQUEST_NEED.SHADOW_HISTORY
+            ? Number.NEGATIVE_INFINITY
+            : dependencies.getTileRequestPriority(tile as RuntimeTile);
+        (tile as RuntimeTile).cameraPriority = priority;
         const needed = reason !== null;
         const coverageFill =
           runtimeState.meshCoverageRecovery &&
@@ -382,6 +384,7 @@ export function createThreeTilesPayloadQueues(
               )
             : null;
         const preempted =
+          !runtimeState.retainedShadowRequests.has(item) &&
           evaluation !== null &&
           (parseQueue as RuntimePriorityQueue).items.some(
             (candidate: RuntimeTile) =>
@@ -392,7 +395,12 @@ export function createThreeTilesPayloadQueues(
                 waitingPriority: evaluation.demandFor(candidate).priority,
                 benefit: (item as RuntimeTile).meshRefinement?.benefit,
                 waitingBenefit: candidate.meshRefinement?.benefit,
+                currentErrorPixels: (item as RuntimeTile).meshRefinement
+                  ?.currentErrorPixels,
+                waitingCurrentErrorPixels:
+                  candidate.meshRefinement?.currentErrorPixels,
                 sameRefinementGroup:
+                  !!runtimeState.shadowView &&
                   candidate.meshRefinement !== undefined &&
                   candidate.meshRefinement.group ===
                     (item as RuntimeTile).meshRefinement?.group,

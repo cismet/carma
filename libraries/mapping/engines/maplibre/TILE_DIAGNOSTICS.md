@@ -364,9 +364,52 @@ response sizes are not included in window-only payload Resource Timing. The
 existing B3DM body read also reports its byteLength before glTF upgrade: this is
 a separately labelled decoded-payload rate, with no clone or extra body read.
 It remains available for gzip responses without Content-Length/Timing-Allow-Origin
-and is never presented as compressed network bandwidth. Slots denote
-configured limits, not device utilization. Current waits and held receivers expose
+and is never presented as compressed network bandwidth. Body duration prefers
+Resource Timing; when cross-origin timing is hidden, the existing header/body
+notifications supply headers-to-body-ready elapsed time, including decompression
+and browser body reading. Both notification orders count each body once; TTFB
+and compressed sizes remain unknown. This fallback follows the 2026-09-24 capture:
+153 B3DM requests had no Content-Length and all completed payload timing windows
+reported no accessible file sizes. Revisit if the source exposes native timing.
+Slots denote configured limits, not device utilization. Current waits and held receivers expose
 backpressure alongside throughput.
+
+Main-camera quality metrics use the observer's CSS viewport and geometric SSE,
+independent of admission stages and solar demand. The sample includes mounted,
+loaded receiver and underlay meshes, not caster-only or cached payloads. It
+reuses the regional coverage query on each REPLACE tile's child branches: a
+parent's loose bounds do not contribute when every relevant branch is already
+published, or all children miss the view. Partial replacement, unknown metadata
+and missing published bounds retain the parent observation. This derives the
+exposed hierarchy cut, not framebuffer visibility. Loaded terminal data leaves
+can exceed the requested error after convergence: no finer source payload exists.
+Maximum SSE is a geometric bound; mean and above-20px share are weighted by clipped bounds footprints,
+which can overlap where replacement is partial or geometry is occluded. The
+above-20px duration resets on observer changes. Missing data stays unknown.
+Coverage proofs and bounds samples are cached by observer, receiver/underlay cut,
+content revision and transform; they perform no work with telemetry disabled.
+
+The shared chart is a single parallel canvas with independent metric origins,
+one timestamp axis, and switchable since-recording / trailing30s views. Draws
+sample at10Hz; pipeline counters retain their own elapsed-time intervals. Camera
+movement boundaries and sampled observer/sun demand signatures mark all lanes.
+History uses at most2048 sample buckets, merging the older half into min/max
+envelopes while keeping recent samples exact; old event markers are thinned to
+stay bounded. Docking preserves the chart and its selected window.
+Labels sit above each full-width plot and can collapse to units only. The entire timeline uses one 66%
+opaque panel backdrop; plot, legend, toolbar and header remain transparent over
+it, while text and traces retain full opacity. Canvas redraws clear old pixels
+before painting, so transparency does not accumulate old traces.
+Expanded plots are 64px high, collapsed plots 28px, with separate compact label bands above them. Trailing mode reserves the
+full 30-second window from the first sample so new values always enter at the
+right; its axis shows relative time up to now. Since-start mode fits all history.
+Horizontal references show live parser/per-origin slots, cache admission and JS
+heap limits when reported,100% completeness, and explicitly assumed600Mbit/s
+(71.5MiB/s) fibre /60Hz frame budgets. They are comparison lines, not clipping
+bounds. Completion-based traffic bursts may exceed the link reference; encoded
+cache bytes and decoded payload are not estimates of link utilization. No CPU,
+GPU or geometry ceiling is fabricated where the browser provides none.
+
 
 **Alternatives and disposition:** Window-wide extension-only resource filtering
 and fixed 500 ms divisors are incompatible by inspection: they mix runtimes and

@@ -357,6 +357,14 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
     const [hover, setHoverState] = useState<Hover>(null);
     const hoverRef = useRef<Hover>(null);
     const chartRef = useRef<StripChart | null>(null);
+    const chartHistoryRef = useRef<StripChart | null>(null);
+    useEffect(
+      () => () => {
+        chartHistoryRef.current?.destroy();
+        chartHistoryRef.current = null;
+      },
+      [runtimeHandle]
+    );
     const statusRef = useRef<HTMLOutputElement>(null);
     useEffect(() => {
       if (
@@ -868,10 +876,17 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
       let chartWork: (() => void) | null = null;
       let lastChartAt = 0,
         latestFrameMs = 0;
+      let chartFrameMaxMs = 0;
+      let cameraSignature: string | undefined;
+      let shadowSignature: string | undefined;
+      const markChart = (label: string, color: string) => {
+        chartRef.current?.mark({ at: recorder.elapsed(), label, color });
+      };
       const pushChart = () => {
         chartWork = null;
         if (disposed) return;
-        const frameMs = latestFrameMs;
+        const frameMs = chartFrameMaxMs;
+        chartFrameMaxMs = 0;
         const chart = chartRef.current;
         if (chart) {
           const state = readRuntime(runtimeHandle);
@@ -886,29 +901,45 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
                 }
               | undefined
           )?.stats;
-          chart.push({
-            ...latest.current,
-            frameMs,
-            traversalMs: state?.lastTraversalMs ?? 0,
-            displayed: state?.displayedMeshFrontier.size ?? 0,
-            triangles: triangles / 1000,
-            drawCalls,
-            queued: stats?.queued ?? 0,
-            downloading: stats?.downloading ?? 0,
-            parsing: stats?.parsing ?? 0,
-            chartMs: chart.lastPushMs(),
-            target: state?.effectiveErrorTarget ?? 0,
-          });
+          const sunChanged = state?.shadowViewSignature !== shadowSignature;
+          if (sunChanged) {
+            markChart("Sun frustum", "#a16207");
+            shadowSignature = state?.shadowViewSignature;
+          }
+          if (
+            state?.tileCameraSignature !== cameraSignature &&
+            !map.isMoving()
+          ) {
+            if (!sunChanged) markChart("View frustum", "#0891b2");
+            cameraSignature = state?.tileCameraSignature;
+          }
+          chart.push(
+            {
+              ...latest.current,
+              frameMs,
+              traversalMs: state?.lastTraversalMs ?? 0,
+              displayed: state?.displayedMeshFrontier.size ?? 0,
+              triangles: triangles / 1000,
+              drawCalls,
+              queued: stats?.queued ?? 0,
+              downloading: stats?.downloading ?? 0,
+              parsing: stats?.parsing ?? 0,
+              chartMs: chart.lastPushMs(),
+              target: state?.effectiveErrorTarget ?? 0,
+            },
+            recorder.elapsed()
+          );
         }
       };
       const countFrames = () => {
         const now = performance.now();
         frames += 1;
         latestFrameMs = now - lastFrameAt;
+        chartFrameMaxMs = Math.max(chartFrameMaxMs, latestFrameMs);
         frameMaxMs = Math.max(frameMaxMs, latestFrameMs);
         lastFrameAt = now;
-        // Aim for 60 Hz without queueing work behind the application render loop.
-        if (chartRef.current && !chartWork && now - lastChartAt >= 1000 / 60) {
+        // Timestamped charts need no per-frame history or redraw; sample at 10 Hz.
+        if (chartRef.current && !chartWork && now - lastChartAt >= 100) {
           lastChartAt = now;
           chartWork = diagnostics.scheduleTileDiagnosticTask(pushChart);
         }
@@ -955,9 +986,12 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
             const cachedBytes = next ? next.cachedMB * 1e6 : lastCachedBytes;
             const residentDelta = Math.max(0, cachedBytes - lastCachedBytes);
             lastCachedBytes = cachedBytes;
-            const heap = (
-              performance as unknown as { memory?: { usedJSHeapSize: number } }
-            ).memory?.usedJSHeapSize;
+            const memory = (
+              performance as unknown as {
+                memory?: { usedJSHeapSize: number; jsHeapSizeLimit: number };
+              }
+            ).memory;
+            const heap = memory?.usedJSHeapSize;
             const sampledAt = performance.now();
             const seconds = Math.max(
               0.001,
@@ -969,6 +1003,11 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
               overlayMs,
               displayed: next?.displayed ?? 0,
               cacheMB: next?.cachedMB ?? 0,
+              cacheCeilingMB: next?.ceilingMB ?? Number.NaN,
+              heapLimitMB:
+                memory?.jsHeapSizeLimit !== undefined
+                  ? memory.jsHeapSizeLimit / 1e6
+                  : Number.NaN,
               pressure:
                 next && next.ceilingMB > 0
                   ? (100 * next.cachedMB) / next.ceilingMB
@@ -1020,8 +1059,12 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
           }
         }, SAMPLE_INTERVAL_MS);
       };
-      const onMoveStart = () => recorder.log("move start");
+      const onMoveStart = () => {
+        recorder.log("move start");
+        markChart("Move start", "#0284c7");
+      };
       const onMoveEnd = () => {
+        markChart("Move end", "#7c3aed");
         const center = map.getCenter();
         recorder.log(
           `move end: zoom ${(map.getZoom() + 1).toFixed(2)} pitch ${map
@@ -1845,18 +1888,26 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
         resize: "both",
         content: () => (
           <>
-            <p style={{ margin: "4px 8px", fontSize: 11 }}>
-              Rates use actual elapsed time and completed tile responses. Wire
-              bytes include headers; encoded file sizes include cache hits and
-              use Content-Length when timing is hidden. Decoded B3DM is measured
-              before parsing; it is not wire bandwidth. – means unavailable.
-              Metadata readiness includes the worker/cache. Slots are limits,
-              not CPU/GPU utilization.
-            </p>
+            <details className="tile-debug-timeline-help">
+              <summary>Reading these metrics</summary>
+              <p>
+                All lanes share real time; each lane has its own numeric origin.
+                Since start retains older peaks in compacted buckets; last 30 s
+                follows the live view. Dashed horizontal lines show known limits
+                or labelled assumptions: 600 Mbit/s fibre and a 60 Hz frame
+                budget. Rates count completed responses, so bursts can exceed
+                the line. Encoded bodies include cache hits; decoded bytes are
+                not wire traffic. CPU/GPU capacity is unknown; slots are
+                concurrency limits. – means unavailable. Vertical markers: blue
+                move start, violet move end, cyan view-frustum demand, ochre
+                sun-frustum demand.
+              </p>
+            </details>
             <StripChartPanel
               dataTestId="tile-pipeline-timeline"
               rows={CHART_ROWS}
-              rowHeight={14}
+              retainedChart={chartHistoryRef}
+              rowHeight={64}
               onChart={(chart) => {
                 chartRef.current = chart;
               }}
@@ -2300,7 +2351,10 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
                     padding: "2px 4px 2px 8px",
                     height: 32,
                     boxSizing: "border-box",
-                    background: "rgb(241 245 249 / 80%)",
+                    background:
+                      panel.id === "charts"
+                        ? "transparent"
+                        : "rgb(241 245 249 / 80%)",
                     borderBottom: "1px solid rgb(100 116 139 / 16%)",
                     cursor: "grab",
                     touchAction: "none",
@@ -2503,7 +2557,10 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
                       top: 0,
                       right: 0,
                       zIndex: 2,
-                      background: "rgb(248 250 252 / 94%)",
+                      background:
+                        panel.id === "charts"
+                          ? "transparent"
+                          : "rgb(248 250 252 / 94%)",
                     }}
                   >
                     {windowControls}

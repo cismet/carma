@@ -1,6 +1,9 @@
-import { Box3, Matrix4, Vector3 } from "three";
+import { Box3, Frustum, Matrix4, OrthographicCamera, Vector3 } from "three";
 import { describe, expect, it, vi } from "vitest";
-import { readOrientedTileBounds } from "./three-tiles-bounds";
+import {
+  intersectsTileFrustumMargin,
+  readOrientedTileBounds,
+} from "./three-tiles-bounds";
 
 describe("native oriented tile bounds", () => {
   it("retains the public OBB instead of inflating through an intermediate AABB", () => {
@@ -44,5 +47,68 @@ describe("native oriented tile bounds", () => {
     );
     expect(result).toEqual(source);
     expect(transform).toEqual(new Matrix4());
+  });
+});
+
+const camera = new OrthographicCamera(-1, 1, 1, -1, 1, 10);
+const frustum = new Frustum().setFromProjectionMatrix(camera.projectionMatrix);
+const identity = new Matrix4();
+const box = (x: number, width: number, z = -5) =>
+  new Box3(new Vector3(x, 0, z), new Vector3(x + width, width, z + width));
+
+describe("tile-width reserve margin", () => {
+  it.each([0.125, 1, 8])("uses one own tile width at scale %s", (width) => {
+    expect(
+      intersectsTileFrustumMargin(
+        box(1 + width * 0.99, width),
+        identity,
+        frustum,
+        1
+      )
+    ).toBe(true);
+    expect(
+      intersectsTileFrustumMargin(box(1 + width, width), identity, frustum, 1)
+    ).toBe(false);
+  });
+
+  it("keeps only the nearby children of a coarse reserve parent", () => {
+    const parent = box(1, 2);
+    const nearChild = box(1, 1);
+    const farChild = box(2, 1);
+    expect(intersectsTileFrustumMargin(parent, identity, frustum, 1)).toBe(
+      true
+    );
+    expect(intersectsTileFrustumMargin(nearChild, identity, frustum, 1)).toBe(
+      true
+    );
+    expect(intersectsTileFrustumMargin(farChild, identity, frustum, 1)).toBe(
+      false
+    );
+  });
+
+  it("keeps depth clipping and does not expand behind the camera or far plane", () => {
+    expect(
+      intersectsTileFrustumMargin(box(0, 0.5, 0), identity, frustum, 1)
+    ).toBe(false);
+    expect(
+      intersectsTileFrustumMargin(box(0, 0.5, -12), identity, frustum, 1)
+    ).toBe(false);
+  });
+
+  it("uses transformed OBB widths without changing bounds or camera", () => {
+    const bounds = box(0, 1);
+    const transform = new Matrix4().makeScale(2, 1, 1).setPosition(2.99, 0, 0);
+    const snapshot = bounds.clone();
+    expect(intersectsTileFrustumMargin(bounds, transform, frustum, 1)).toBe(
+      true
+    );
+    transform.setPosition(3, 0, 0);
+    expect(intersectsTileFrustumMargin(bounds, transform, frustum, 1)).toBe(
+      false
+    );
+    expect(bounds).toEqual(snapshot);
+    expect(
+      intersectsTileFrustumMargin(box(1.01, 1), identity, frustum, 0)
+    ).toBe(false);
   });
 });

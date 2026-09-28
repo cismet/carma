@@ -37,6 +37,63 @@ describe("reserve runtime integration", () => {
     vi.restoreAllMocks();
     vi.useRealTimers();
   });
+  it("admits only the near child of a mixed-LOD reserve family", () => {
+    const mounted = mount();
+    try {
+      const state = mounted.state;
+      const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 1, 10);
+      state.tileViewFrustum.setFromProjectionMatrix(camera.projectionMatrix);
+      state.viewFrustumsReady = true;
+      state.meshBaseCoverageReady = true;
+      state.extentFloorArmed = true;
+      state.lastMainViewConverged = true;
+      state.requestedErrorTarget = state.effectiveErrorTarget = 4;
+      const parent = buildTile(40);
+      const near = buildTile(4);
+      const far = buildTile(4);
+      parent.children = [near, far];
+      parent.internal.loadingState = 4;
+      for (const [tile, x] of [
+        [near, 1],
+        [far, 2],
+      ] as const) {
+        tile.parent = parent;
+        tile.engineData!.boundingVolume!.getAABB = (target) =>
+          target.set(
+            new THREE.Vector3(x, 0, -5),
+            new THREE.Vector3(x + 1, 1, -4)
+          );
+      }
+      vi.spyOn(mounted.renderer, "calculateTileViewError").mockImplementation(
+        (_tile, target) =>
+          Object.assign(target, {
+            inView: false,
+            error: 32,
+            distanceFromCamera: 5,
+          })
+      );
+      const read = (tile: typeof near) => {
+        const target = { inView: false, error: 0, distanceFromCamera: 0 };
+        mounted.renderer.calculateTileViewErrorWithPlugin(tile, target);
+        return target;
+      };
+      expect(read(near).inView).toBe(true);
+      expect(near.idleRing).toBe(true);
+      expect(read(far).inView).toBe(false);
+      expect(far.idleRing).toBe(false);
+      expect(mounted.renderer.loadSiblings).toBe(false);
+      // A later pan makes that same far child relevant without a family gate.
+      camera.position.x = 2;
+      camera.updateMatrixWorld(true);
+      state.tileViewFrustum.setFromProjectionMatrix(
+        camera.projectionMatrix.clone().multiply(camera.matrixWorldInverse)
+      );
+      expect(read(far).inView).toBe(true);
+    } finally {
+      mounted.runtime.scene.dispose();
+    }
+  });
+
   it("refines a covered viewport before the separate armed-floor audit finishes", () => {
     const root = buildTile(40);
     delete (root.engineData!.boundingVolume as { getAABB?: unknown }).getAABB;

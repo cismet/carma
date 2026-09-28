@@ -227,39 +227,49 @@ describe("eviction runtime integration", () => {
     state.tiles!.dispose();
   });
 
-  it("releases stale offscreen support under memory pressure", () => {
-    const { state, loading } = fixture();
-    const cache = loading.getRuntimeCache()!;
-    state.viewFrustumsReady = true;
-    const offscreenSibling = (uri: string) =>
-      ({
-        refine: "REPLACE",
-        parent: null,
-        children: [],
-        geometricError: 20,
-        content: { uri },
-        engineData: { boundingVolume: { getAABB: () => undefined } },
-        internal: { hasRenderableContent: true, loadingState: 1 },
-        traversal: { inFrustum: false, error: 100 },
-      } as unknown as RuntimeTile);
-    const support = offscreenSibling("support.b3dm");
-    const stale = offscreenSibling("stale.b3dm");
-    for (const tile of [support, stale]) {
-      cache.add(tile, vi.fn());
-      cache.setMemoryUsage(tile, 100);
-      state.tiles!.loadingTiles.add(tile);
+  it.each([
+    { maxBytes: 150, converged: true, remaining: false, memoryTarget: 4 },
+    { maxBytes: 1000, converged: false, remaining: false, memoryTarget: 4 },
+    { maxBytes: 1000, converged: true, remaining: true, memoryTarget: 4 },
+    { maxBytes: 1000, converged: true, remaining: false, memoryTarget: 9 },
+  ])(
+    "reclaims stale support only for pressure or unfinished view: %j",
+    ({ maxBytes, converged, remaining, memoryTarget }) => {
+      const { state, loading } = fixture();
+      const cache = loading.getRuntimeCache()!;
+      state.viewFrustumsReady = true;
+      const offscreenSibling = (uri: string) =>
+        ({
+          refine: "REPLACE",
+          parent: null,
+          children: [],
+          geometricError: 20,
+          content: { uri },
+          engineData: { boundingVolume: { getAABB: () => undefined } },
+          internal: { hasRenderableContent: true, loadingState: 1 },
+          traversal: { inFrustum: false, error: 100 },
+        } as unknown as RuntimeTile);
+      const support = offscreenSibling("support.b3dm");
+      const stale = offscreenSibling("stale.b3dm");
+      for (const tile of [support, stale]) {
+        cache.add(tile, vi.fn());
+        cache.setMemoryUsage(tile, 100);
+        state.tiles!.loadingTiles.add(tile);
+      }
+      cache.markAllUnused();
+      cache.minBytesSize = 150;
+      cache.maxBytesSize = maxBytes;
+      state.lastMainViewConverged = converged;
+      state.memoryErrorTarget = memoryTarget;
+      // A previous publication prerequisite does not retain offscreen demand.
+      state.meshRefinementSupport.add(support);
+      state.meshDemandSweepPending = true;
+      loading.sweepSettledMeshDemand();
+      expect(cache.itemSet.has(support)).toBe(remaining);
+      // The first obsolete request releases enough memory; do not over-evict.
+      expect(cache.itemSet.has(stale)).toBe(true);
+      state.tiles!.loadingTiles.clear();
+      state.tiles!.dispose();
     }
-    cache.markAllUnused();
-    // The sweep releases only under memory pressure.
-    cache.maxBytesSize = 150;
-    // A previous publication prerequisite does not retain offscreen demand.
-    state.meshRefinementSupport.add(support);
-    state.meshDemandSweepPending = true;
-    loading.sweepSettledMeshDemand();
-    expect(cache.itemSet.has(support)).toBe(false);
-    // The first obsolete request releases enough memory; do not over-evict.
-    expect(cache.itemSet.has(stale)).toBe(true);
-    state.tiles!.loadingTiles.clear();
-    state.tiles!.dispose();
-  });
+  );
 });

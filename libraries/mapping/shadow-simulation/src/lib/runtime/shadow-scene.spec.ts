@@ -2480,6 +2480,35 @@ describe("shadow scene lighting integration", () => {
     hasRenderableContent.mockReturnValue(false);
     expect(accumulation.active()).toBe(false);
     expect(accumulation.pending?.()).toBe(true);
+    const sun = scene.getObjectByName(
+      "shadow-simulation-sun"
+    ) as THREE.DirectionalLight;
+    for (const hour of [12, 16]) {
+      const previousEpoch = accumulation.visualEpoch();
+      const previousDirection = sun.shadow.camera.getWorldDirection(
+        new THREE.Vector3()
+      );
+      map.triggerRepaint.mockClear();
+      controller.updateSolarPosition({
+        instant: new Date(`2026-06-21T${hour}:00:00Z`),
+        azimuthDegrees: hour * 15,
+        elevationDegrees: 45,
+      });
+      expect(accumulation.visualEpoch()).toBeGreaterThan(previousEpoch);
+      expect(map.triggerRepaint).toHaveBeenCalled();
+      updateShadows(map, camera);
+      expect(sun.shadow.needsUpdate).toBe(true);
+      expect(
+        sun.shadow.camera
+          .getWorldDirection(new THREE.Vector3())
+          .equals(previousDirection)
+      ).toBe(false);
+      expect(setShadowView).toHaveBeenLastCalledWith(
+        expect.objectContaining({ camera: sun.shadow.camera })
+      );
+      expect(accumulation.pending?.()).toBe(true);
+      expect(accumulation.renderScene?.(camera, null)).toBe(false);
+    }
     controller.updateRenderQuality({
       shadowBufferLayout: SHADOW_BUFFER_LAYOUT.TILED,
     });

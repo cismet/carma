@@ -7,6 +7,7 @@ import { createMeshCorridorFixture } from "../../../../test/three-tiles-runtime-
 import {
   snapshotTileCameraViews,
   TILE_CAMERA_ROLE,
+  TILE_MAIN_OBSERVER_ID,
 } from "../../core/tile-camera-demand";
 import type { SharedThreeSceneFrame } from "../../core/shared-three-scene-types";
 
@@ -50,7 +51,20 @@ describe("shared 3D Tiles camera demand", () => {
         expect(target.inView).toBe(true);
         update(0);
         f.renderer.calculateTileViewErrorWithPlugin(f.caster, target);
-        expect(target.inView).toBe(false);
+        expect(f.runtimeState.tileCameraDemand.views.map(({ id }) => id)).toEqual([
+          TILE_MAIN_OBSERVER_ID,
+        ]);
+        if (terrain) {
+          // Loaded mesh reserve remains available without retaining the removed
+          // camera's refinement demand or creating another native renderer.
+          expect(target.inView).toBe(true);
+          expect(target.error).toBeLessThanOrEqual(f.renderer.errorTarget);
+          expect(f.caster).toMatchObject({ idleRing: true });
+          expect(f.renderer.lruCache.has(f.caster)).toBe(true);
+        } else {
+          expect(target.inView).toBe(false);
+        }
+        expect(f.renderer.cameras).toHaveLength(1);
       } finally {
         f.dispose();
       }

@@ -265,6 +265,14 @@ describe("camera runtime integration", () => {
     };
     low.meshRefinement = { ...high.meshRefinement, group: low, benefit: 4000 };
     expect(tilesQueuePriorityCallback(high, low)).toBeGreaterThan(0);
+    // A small coarse edge improvement precedes a broader fine improvement.
+    low.meshRefinement = {
+      ...low.meshRefinement,
+      currentErrorPixels: 8,
+      nextErrorPixels: 4,
+      benefit: 400000,
+    };
+    expect(tilesQueuePriorityCallback(high, low)).toBeGreaterThan(0);
     // Native node jobs are the owners of uninitialized children, not the raw
     // children. Their own family gain must survive even with the same parent.
     expect(tilesNodeQueuePriorityCallback(high, low)).toBeGreaterThan(0);

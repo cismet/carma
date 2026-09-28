@@ -6,6 +6,7 @@ import {
   createTileCameraDemand,
   snapshotTileCameraViews,
   TILE_MAIN_OBSERVER_ID,
+  TILE_CAMERA_PRIORITY,
 } from "../../core/tile-camera-demand";
 import { createThreeTilesRuntimeState } from "./three-tiles-runtime-state";
 import { createThreeTilesSpatial } from "./three-tiles-runtime-spatial";
@@ -139,6 +140,92 @@ describe("current-camera screen error before native traversal", () => {
     };
   };
 
+  it("refreshes coverage holes for the current camera while retaining the same published cut", () => {
+    const { state, tiles, camera, receiver, spatial } = fixture();
+    const frontier = state.displayedMeshFrontier;
+    const bounds = vi.spyOn(receiver.engineData!.boundingVolume!, "getAABB");
+    const prepare = () => {
+      camera.updateMatrixWorld(true);
+      spatial.prepareViewFrustums(camera);
+      state.tileCameraDemand = createTileCameraDemand(
+        snapshotTileCameraViews([
+          {
+            id: TILE_MAIN_OBSERVER_ID,
+            camera,
+            viewport: [1000, 1000],
+            errorTargetPixels: state.effectiveErrorTarget,
+            role: "receiver",
+          },
+        ])
+      );
+    };
+    try {
+      camera.position.x = 100;
+      prepare();
+      expect(spatial.isTileNeededForMeshCoverage(receiver)).toBe(false);
+      const firstReads = bounds.mock.calls.length;
+      expect(spatial.isTileNeededForMeshCoverage(receiver)).toBe(false);
+      expect(bounds).toHaveBeenCalledTimes(firstReads);
+
+      camera.position.x = 0;
+      prepare();
+      expect(spatial.isTileNeededForMeshCoverage(receiver)).toBe(true);
+      camera.position.x = 100;
+      prepare();
+      expect(spatial.isTileNeededForMeshCoverage(receiver)).toBe(false);
+      expect(state.displayedMeshFrontier).toBe(frontier);
+    } finally {
+      tiles.dispose();
+    }
+  });
+
+  it.each([false, true])(
+    "refreshes retained coverage proofs after content and traversal changes (caster=%s)",
+    (caster) => {
+      const { state, tiles, camera, receiver, spatial } = fixture();
+      const child: RuntimeTile = {
+        ...receiver,
+        parent: receiver,
+        refine: "REPLACE",
+        internal: { ...receiver.internal, loadingState: 0 },
+      };
+      receiver.refine = "REPLACE";
+      receiver.children = [child];
+      const frontier = caster
+        ? state.committedMeshCasterFrontier
+        : state.displayedMeshFrontier;
+      frontier.add(child);
+      if (caster) {
+        state.displayedMeshFrontier.add(receiver);
+        state.pendingMeshReceiverFrontier = new Set([receiver]);
+        state.shadowReceiverMask = {
+          sourceCount: 1,
+          match: (_bounds, target) => {
+            target.receiverGeometricError = 2;
+            return true;
+          },
+        };
+      }
+      try {
+        spatial.prepareViewFrustums(camera);
+        expect(spatial.isTileNeededForMeshCoverage(receiver)).toBe(true);
+        child.internal.loadingState = 4;
+        state.meshContentRevision++;
+        expect(spatial.isTileNeededForMeshCoverage(receiver)).toBe(false);
+        child.internal.loadingState = 0;
+        tiles.frameCount++;
+        expect(spatial.isTileNeededForMeshCoverage(receiver)).toBe(true);
+        expect(
+          caster
+            ? state.committedMeshCasterFrontier
+            : state.displayedMeshFrontier
+        ).toBe(frontier);
+      } finally {
+        tiles.dispose();
+      }
+    }
+  );
+
   it("values each independent child by absolute visible error reduction and its area", () => {
     const { state, tiles, camera, receiver, spatial } = fixture();
     try {
@@ -193,6 +280,20 @@ describe("current-camera screen error before native traversal", () => {
         );
       };
       setView();
+      // A hole outranks refinement even before the frame-wide recovery flag updates.
+      state.meshCoverageRecovery = false;
+      const missing = member(16);
+      expect(spatial.getTileRequestPriority(missing)).toBe(
+        TILE_CAMERA_PRIORITY.VIEWPORT_FILL
+      );
+      missing.internal = {
+        ...missing.internal,
+        hasRenderableContent: false,
+        hasUnrenderableContent: true,
+      };
+      expect(spatial.getTileRequestPriority(missing)).toBe(
+        TILE_CAMERA_PRIORITY.VIEWPORT_FILL
+      );
       const candidates = [coarse.child, fine.child, small.child, fringe];
       expect(candidates.map(spatial.getTileRequestPriority)).toEqual([
         1,
@@ -215,6 +316,16 @@ describe("current-camera screen error before native traversal", () => {
       lookahead.parent = coarse.child;
       spatial.getTileRequestPriority(lookahead);
       expect(lookahead.meshRefinement).toBeUndefined();
+      tiles.loadAncestors = false;
+      spatial.getTileRequestPriority(lookahead);
+      expect(lookahead.meshRefinement?.group).toBe(coarse.parent);
+      expect(lookahead.meshRefinement?.currentErrorPixels).toBe(
+        coarse.child.meshRefinement?.currentErrorPixels
+      );
+      expect(lookahead.meshRefinement!.benefit).toBeGreaterThan(
+        fine.child.meshRefinement!.benefit
+      );
+      tiles.loadAncestors = true;
       const oldBenefit = coarse.child.meshRefinement!.benefit;
       const metadata = member(16);
       metadata.internal = {
@@ -378,7 +489,7 @@ describe("current-camera screen error before native traversal", () => {
     }
   });
 
-  it("retains asymmetric full-viewport edge rays in the prefetch margin and every idle ring", () => {
+  it("retains asymmetric full-viewport edge rays in the prefetch margin", () => {
     const { tiles, state, camera, spatial } = fixture();
     try {
       camera.setViewOffset(1000, 1000, -400, -100, 1000, 1000);
@@ -387,9 +498,6 @@ describe("current-camera screen error before native traversal", () => {
         const edge = new Vector3(x, 0, 0).unproject(camera);
         expect(state.tileViewFrustum.containsPoint(edge)).toBe(true);
         expect(state.marginFrustum.containsPoint(edge)).toBe(true);
-        state.ringFrustums.forEach((frustum) =>
-          expect(frustum.containsPoint(edge)).toBe(true)
-        );
       }
       const leftEdge = new Vector3(-0.99, 0, 0).unproject(camera);
       camera.clearViewOffset();

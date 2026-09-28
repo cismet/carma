@@ -1,0 +1,204 @@
+.panel {
+  container-type: inline-size;
+  width: 100%;
+  color: #334155;
+  font: 10px/1.1 system-ui, sans-serif;
+}
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px 6px;
+  padding: 3px 4px;
+  background: transparent;
+}
+.toolbar [role="group"] {
+  display: flex;
+  gap: 3px;
+}
+.toolbar button {
+  font: inherit;
+  border: 1px solid #cbd5e1;
+  border-radius: 3px;
+  padding: 2px 6px;
+  background: transparent;
+  color: #334155;
+  cursor: pointer;
+}
+.toolbar button[aria-pressed="true"] {
+  background: rgb(14 165 233 / 14%);
+  border-color: #0284c7;
+  color: #075985;
+}
+.events {
+  flex: 1;
+  min-width: 70px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #64748b;
+}
+.parallel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+.parallel > * {
+  grid-area: 1 / 1;
+}
+.legend {
+  z-index: 1;
+  pointer-events: none;
+}
+.labelBand {
+  box-sizing: border-box;
+  padding: 2px 4px;
+  overflow: hidden;
+  pointer-events: auto;
+}
+.headingLine,
+.metrics,
+.limits {
+  display: flex;
+  align-items: baseline;
+  gap: 3px 8px;
+}
+.metrics,
+.limits {
+  flex-wrap: wrap;
+}
+.headingLine {
+  margin-bottom: 2px;
+}
+.headingLine .heading {
+  flex: 1;
+  min-width: 0;
+}
+.headingLine .scale {
+  white-space: nowrap;
+}
+.axis {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: transparent;
+  border-bottom: 1px solid #cbd5e1;
+  font-variant-numeric: tabular-nums;
+}
+.axis > span {
+  padding: 5px 8px;
+}
+.axis > div {
+  position: relative;
+  min-height: 20px;
+}
+.axis > div > span {
+  position: absolute;
+  top: 4px;
+  transform: translateX(-50%);
+}
+.axis > div > span:first-child {
+  transform: none;
+}
+.axis > div > span:last-child {
+  transform: translateX(-100%);
+}
+.parallel canvas {
+  width: 100%;
+  display: block;
+  min-width: 0;
+}
+.lane {
+  box-sizing: border-box;
+  border-bottom: 1px solid #dce4ec;
+  overflow: hidden;
+  position: relative;
+}
+.section {
+  display: block;
+  color: #64748b;
+  font-size: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.heading {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.scale {
+  display: block;
+  color: #64748b;
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+}
+.metric {
+  display: flex;
+  gap: 4px;
+  align-items: baseline;
+  min-width: 0;
+}
+.swatch {
+  flex: 0 0 8px;
+  height: 2px;
+  align-self: center;
+}
+.label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.value {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  color: #0f172a;
+}
+.limit {
+  display: block;
+  white-space: nowrap;
+  font-size: 9px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.axis > div > span {
+  white-space: nowrap;
+}
+@container (max-width: 450px) {
+  .axis > div > span:nth-child(2),
+  .axis > div > span:nth-child(4) {
+    display: none;
+  }
+}
+
+.legend {
+  background: transparent;
+}
+.legendToggle {
+  border: 0;
+  padding: 2px 5px;
+  text-align: left;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.unitOnly {
+  display: none;
+}
+.panel[data-legend-collapsed="true"] .labelBand {
+  padding-block: 1px;
+}
+.panel[data-legend-collapsed="true"] .labelBand > :not(.unitOnly) {
+  display: none;
+}
+.panel[data-legend-collapsed="true"] .unitOnly {
+  display: block;
+  font-variant-numeric: tabular-nums;
+}
+
+.section,
+.scale,
+.limit,
+.metric {
+  line-height: 1;
+}

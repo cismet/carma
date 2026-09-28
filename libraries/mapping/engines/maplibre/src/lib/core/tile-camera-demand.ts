@@ -217,14 +217,7 @@ export const createTileCameraDemand = (
         Math.max(1, coordinateScale) * Number.EPSILON * 64
       );
       const toleranceSquared = tolerance * tolerance;
-      const boxPlanes = [
-        new Plane(new Vector3(1, 0, 0), halfSize.x),
-        new Plane(new Vector3(-1, 0, 0), halfSize.x),
-        new Plane(new Vector3(0, 1, 0), halfSize.y),
-        new Plane(new Vector3(0, -1, 0), halfSize.y),
-        new Plane(new Vector3(0, 0, 1), halfSize.z),
-        new Plane(new Vector3(0, 0, -1), halfSize.z),
-      ];
+      let boxPlanes: Plane[] | undefined;
       const worldToBounds = boundsToWorld?.clone().invert();
       const vertices: Vector3[] = [];
       const bc = new Vector3();
@@ -233,15 +226,49 @@ export const createTileCameraDemand = (
       const point = new Vector3();
       for (const view of compiled) {
         if (cameraId !== undefined && view.id !== cameraId) continue;
-        const planes = [
-          ...boxPlanes,
-          ...view.frustum.planes.map((worldPlane) => {
-            const plane = worldPlane.clone();
-            if (worldToBounds) plane.applyMatrix4(worldToBounds);
-            plane.constant += plane.normal.dot(origin);
-            return plane;
-          }),
+        const frustumPlanes = view.frustum.planes.map((worldPlane) => {
+          const plane = worldPlane.clone();
+          if (worldToBounds) plane.applyMatrix4(worldToBounds);
+          plane.constant += plane.normal.dot(origin);
+          return plane;
+        });
+        // Decision: ../../../TILES_COVERAGE.md#per-tile-frame-work-demand-memo-and-drape-check-throttle-2026-09-18
+        // Strict containment keeps tolerance-band intersections on the solver
+        // path. Each camera contributes separately to the deduplicated union.
+        if (
+          frustumPlanes.every(
+            ({ normal, constant }) =>
+              constant -
+                Math.abs(normal.x) * halfSize.x -
+                Math.abs(normal.y) * halfSize.y -
+                Math.abs(normal.z) * halfSize.z >
+              tolerance *
+                (Math.abs(normal.x) + Math.abs(normal.y) + Math.abs(normal.z))
+          )
+        ) {
+          for (const x of [-halfSize.x, halfSize.x])
+            for (const y of [-halfSize.y, halfSize.y])
+              for (const z of [-halfSize.z, halfSize.z]) {
+                point.set(x, y, z);
+                if (
+                  !vertices.some(
+                    (vertex) =>
+                      vertex.distanceToSquared(point) <= toleranceSquared
+                  )
+                )
+                  vertices.push(point.clone());
+              }
+          continue;
+        }
+        boxPlanes ??= [
+          new Plane(new Vector3(1, 0, 0), halfSize.x),
+          new Plane(new Vector3(-1, 0, 0), halfSize.x),
+          new Plane(new Vector3(0, 1, 0), halfSize.y),
+          new Plane(new Vector3(0, -1, 0), halfSize.y),
+          new Plane(new Vector3(0, 0, 1), halfSize.z),
+          new Plane(new Vector3(0, 0, -1), halfSize.z),
         ];
+        const planes = [...boxPlanes, ...frustumPlanes];
         // Each vertex of a bounded convex intersection lies on >=3 planes.
         for (let i = 0; i < planes.length - 2; i++) {
           const a = planes[i];

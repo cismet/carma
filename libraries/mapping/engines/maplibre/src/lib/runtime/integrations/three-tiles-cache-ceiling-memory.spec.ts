@@ -6,7 +6,7 @@ import {
   learnCacheCeiling,
   readCacheCeilingMemory,
   recordCacheCeilingPeak,
-  settleCrashedCacheCeilingSession,
+  normalizeCacheCeilingMemory,
   startCacheCeilingSession,
   writeCacheCeilingMemory,
 } from "./three-tiles-cache-ceiling-memory";
@@ -42,6 +42,30 @@ describe("cache ceiling memory", () => {
     expect(readCacheCeilingMemory(null)).toEqual(EMPTY_CACHE_CEILING_MEMORY);
   });
 
+  it("shares client limits without sharing any running session probe", () => {
+    const storage = fakeStorage();
+    const first = recordCacheCeilingPeak(
+      startCacheCeilingSession(
+        learnCacheCeiling(EMPTY_CACHE_CEILING_MEMORY, 2 * GIB, "allocation"),
+        2 * GIB,
+        1000
+      ),
+      GIB
+    );
+    writeCacheCeilingMemory(storage, first);
+    const second = startCacheCeilingSession(
+      readCacheCeilingMemory(storage),
+      2 * GIB,
+      2000
+    );
+    expect(second.learnedBytes).toBe(2 * GIB);
+    expect(second.probe).toMatchObject({ peakBytes: 0, startedAt: 2000 });
+    expect(first.probe).toMatchObject({ peakBytes: GIB, startedAt: 1000 });
+    writeCacheCeilingMemory(storage, second);
+    expect(readCacheCeilingMemory(storage).probe).toBeNull();
+    expect(first.probe?.peakBytes).toBe(GIB);
+  });
+
   it("only lowers a learned ceiling and never below the floor", () => {
     const first = learnCacheCeiling(
       EMPTY_CACHE_CEILING_MEMORY,
@@ -55,27 +79,38 @@ describe("cache ceiling memory", () => {
     expect(lower.reason).toBe("context-lost");
   });
 
-  it("treats a session without a clean end as a crash and learns half its peak", () => {
-    const started = startCacheCeilingSession(
+  it("does not treat another live manager's shared probe as a memory failure", () => {
+    const storage = fakeStorage();
+    const active = recordCacheCeilingPeak(
+      startCacheCeilingSession(EMPTY_CACHE_CEILING_MEMORY, 6 * GIB, 1000),
+      400 * MIB
+    );
+    writeCacheCeilingMemory(storage, active);
+    const second = normalizeCacheCeilingMemory(readCacheCeilingMemory(storage));
+    expect(second.learnedBytes).toBeNull();
+    expect(second.probe).toBeNull();
+    expect(active.probe?.peakBytes).toBe(400 * MIB);
+    const explicit = learnCacheCeiling(active, 2 * GIB, "allocation");
+    expect(normalizeCacheCeilingMemory(explicit)).toBe(explicit);
+  });
+
+  it("migrates legacy inferred limits without dropping confirmed failure limits", () => {
+    const legacy = learnCacheCeiling(
       EMPTY_CACHE_CEILING_MEMORY,
-      6 * GIB,
-      1000
+      200 * MIB,
+      "unhealthy-session"
     );
-    const used = recordCacheCeilingPeak(
-      recordCacheCeilingPeak(started, 4 * GIB),
-      3 * GIB
+    expect(normalizeCacheCeilingMemory(legacy)).toMatchObject({
+      learnedBytes: null,
+      reason: null,
+      healthyRuns: 0,
+    });
+    const confirmed = learnCacheCeiling(
+      EMPTY_CACHE_CEILING_MEMORY,
+      200 * MIB,
+      "context-lost"
     );
-    expect(used.probe?.peakBytes).toBe(4 * GIB);
-    // The tab was killed: the next start finds the probe unhealthy.
-    const settled = settleCrashedCacheCeilingSession(used);
-    expect(settled.learnedBytes).toBe(2 * GIB);
-    expect(settled.reason).toBe("unhealthy-session");
-    // A clean end leaves nothing to settle.
-    const ended = endCacheCeilingSession(used, 6 * GIB);
-    expect(settleCrashedCacheCeilingSession(ended)).toBe(ended);
-    expect(settleCrashedCacheCeilingSession(EMPTY_CACHE_CEILING_MEMORY)).toBe(
-      EMPTY_CACHE_CEILING_MEMORY
-    );
+    expect(normalizeCacheCeilingMemory(confirmed)).toBe(confirmed);
   });
 
   it("recovers a well-used learned ceiling after three clean sessions", () => {

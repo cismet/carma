@@ -88,6 +88,7 @@ export type ThreeTilesRuntimeAttachmentState = Pick<
   | "runtimeVisible"
   | "shadowReceiverMask"
   | "shadowView"
+  | "retainedShadowRequests"
   | "tileCameraDemand"
   | "shadowReceiverMatch"
   | "shadowSelectionEnabled"

@@ -1223,19 +1223,38 @@ describe("progressive strategy host", () => {
 
   it("releases obsolete mono buffers while time changes and recreates them only after settling", () => {
     const host = createProgressiveHost();
-    host.render();
-    vi.clearAllMocks();
-    host.controller.active = () => false;
-    host.controller.visualEpoch = () => 1;
-    host.render();
-    host.render();
-    expect(mono.dispose).toHaveBeenCalledOnce();
-    expect(buildSharedSceneAccumulator).not.toHaveBeenCalled();
-    expect(mono.composite).not.toHaveBeenCalled();
-    host.controller.active = () => true;
-    host.render();
-    expect(buildSharedSceneAccumulator).toHaveBeenCalledOnce();
-    host.layer.dispose();
+    const renderer = host.layer.getRenderer()!;
+    mono.renderRound.mockImplementationOnce(() => {
+      mono.converged = true;
+      mono.hasSettledFrame = true;
+    });
+    host.controller.retainSettledFrame = () => true;
+    try {
+      host.render();
+      vi.clearAllMocks();
+      host.controller.active = () => false;
+      host.controller.pending = () => true;
+      // Waiting geometry may reuse the same sun, never the previous time.
+      host.render();
+      expect(mono.composite).toHaveBeenCalledOnce();
+      expect(renderer.render).not.toHaveBeenCalled();
+      vi.clearAllMocks();
+      for (const epoch of [1, 2]) {
+        host.controller.visualEpoch = () => epoch;
+        host.render();
+      }
+      expect(mono.dispose).toHaveBeenCalledOnce();
+      expect(buildSharedSceneAccumulator).not.toHaveBeenCalled();
+      expect(mono.composite).not.toHaveBeenCalled();
+      expect(renderer.render).toHaveBeenCalledTimes(2);
+      host.controller.active = () => true;
+      host.render();
+      expect(buildSharedSceneAccumulator).toHaveBeenCalledOnce();
+    } finally {
+      mono.converged = false;
+      mono.hasSettledFrame = false;
+      host.layer.dispose();
+    }
   });
 
   it("releases previous mono targets without averaging a corridor-owned frame", () => {

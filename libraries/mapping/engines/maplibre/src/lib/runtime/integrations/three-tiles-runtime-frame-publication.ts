@@ -206,6 +206,9 @@ export function createThreeTilesFramePublication(
                 !(tile as RuntimeTile).engineData?.boundingVolume
               )
                 return false;
+              // Outside the one-tile reserve, a loaded base fallback is enough.
+              // Nearby mixed children remain protected by the same margin test.
+              if (band > 1) return true;
               const projected = {
                 inView: false,
                 error: Infinity,
@@ -255,11 +258,11 @@ export function createThreeTilesFramePublication(
       // Ready children improve colour immediately. Parents fill uncovered
       // regions without depth writes; the shadow caster cut stays separate.
       const previousUnderlay = runtimeState.meshUnderlayFrontier;
-      runtimeState.meshUnderlayFrontier = selectMeshUnderlayParents(
-        displayed,
-        inReceiverView,
-        (tile) => attachment.isDeferredMaterialReady(tile)
-      );
+      runtimeState.meshUnderlayFrontier = runtimeState.shadowView
+        ? new Set()
+        : selectMeshUnderlayParents(displayed, inReceiverView, (tile) =>
+            attachment.isDeferredMaterialReady(tile)
+          );
       const underlay = runtimeState.meshUnderlayFrontier;
       const mountedModels = new Set(runtimeState.tiles.group.children);
       for (const tile of new Set([
@@ -316,8 +319,7 @@ export function createThreeTilesFramePublication(
               ? runtimeState.committedMeshReceiverFrontier.has(tile)
               : visible && dependencies.isTileInMainView(tile as RuntimeTile),
             caster: corridorOwned
-              ? runtimeState.committedMeshCasterFrontier.has(tile) ||
-                dependencies.getTileCameraDemand(tile as RuntimeTile).required
+              ? runtimeState.committedMeshCasterFrontier.has(tile)
               : displayed.has(tile),
           });
           let depth = 0;

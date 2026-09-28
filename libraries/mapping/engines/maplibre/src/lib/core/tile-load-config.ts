@@ -3,24 +3,19 @@ const MIB = 1024 ** 2;
 export const TILES_LOAD_POLICY = {
   /** First visible complete cut; coarser payloads are resident reserves only. */
   firstImageMaxErrorPixels: 64,
+  /** Coarse visible improvements precede sub-threshold detail within a camera lane. */
+  coarseRefinementErrorPixels: 20,
   memoryCheckIntervalMs: 1_000,
   heapPauseFraction: 0.8,
   heapResumeFraction: 0.65,
-  /** Fov multiplier of the prefetch margin around the main view. */
+  /** Fov multiplier for non-terrain prefetch; mesh reserve uses tile widths. */
   prefetchMarginFovFactor: 1.25,
+  /** One tile-width of reserve at each candidate's own LOD. */
+  idleRingTileWidths: 1,
+  /** Bounded idle passes refining the reserve's error anchor. */
+  idleRingRefinePassLimit: 5,
   /**
-   * Idle rings around the view, as multipliers of tan(fov / 2): ring k spans
-   * that many times the view's half extent and may hold tiles up to
-   * anchor error × 2^k. Once the view converged, the skip strategy fills
-   * the rings from the inside out until the outermost covers the model, so
-   * a pan or a zoom-out step finds coarse coverage instead of blank ground.
-   * The largest ring keeps a perspective frustum: 43 × tan(18.4°) is 172°;
-   * beyond it one more ring holds the whole model at the next coarser level.
-   */
-  idleRingTanMultipliers: [2.25, 4.3, 8.2, 17, 43],
-  /**
-   * The cascade in levels: ring k may hold tiles up to
-   * anchor × 2^(step × k), one level coarser per ring by default. The
+   * The one-tile reserve stops one level coarser than its error anchor. The
    * anchor is the base error target (the level the view itself falls back
    * to while it moves) unless idleRingAnchorPixels sets another.
    */

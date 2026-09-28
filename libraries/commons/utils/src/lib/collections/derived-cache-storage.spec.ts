@@ -19,6 +19,7 @@ const installStorageStub = (failureMode: FailureMode = "request-error") => {
   ));
   const failures: string[] = [];
   let payloadWrites = 0;
+  let stateWriteFailures = 0;
   let transactions = 0;
   const keyOf = (key: unknown) => JSON.stringify(key);
   const database = {
@@ -46,7 +47,11 @@ const installStorageStub = (failureMode: FailureMode = "request-error") => {
             getAll: () => enqueue(() => [...rows.values()]),
             delete: (key: unknown) => enqueue(() => rows.delete(keyOf(key))),
             put: (value: unknown, key?: unknown) => {
-              const errorName = name === "payload" ? failures.shift() : undefined;
+              let errorName = name === "payload" ? failures.shift() : undefined;
+              if (name === "state" && stateWriteFailures > 0) {
+                stateWriteFailures--;
+                errorName = "QuotaExceededError";
+              }
               if (name === "payload") payloadWrites += 1;
               if (errorName && failureMode === "throw")
                 throw new DOMException("Injected write failure", errorName);
@@ -95,6 +100,7 @@ const installStorageStub = (failureMode: FailureMode = "request-error") => {
   });
   return {
     failures,
+    failNextStateWrite: () => { stateWriteFailures++; },
     snapshot: () => [...stores].map(([name, rows]) => [name, [...rows]]),
     get payloadWrites() { return payloadWrites; },
     get transactions() { return transactions; },
@@ -107,7 +113,7 @@ const record = (key: string, costs: DerivedCacheCosts = {
   namespace: "terrain", key, version: "v1", bytes: 20, ...costs,
 });
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
 describe.each<FailureMode>(["throw", "request-error"])(
   "derived cache quota safety (%s)", (failureMode) => {
@@ -203,3 +209,108 @@ describe.each<FailureMode>(["throw", "request-error"])(
     });
   }
 );
+
+describe("adaptive shared derived cache capacity", () => {
+  it("uses fallback without waiting, then shares effective quota and entry limits", async () => {
+    installStorageStub();
+    let answer!: (value: StorageEstimate) => void;
+    const estimate = vi.fn(() => new Promise<StorageEstimate>(resolve => { answer = resolve; }));
+    vi.stubGlobal("navigator", { storage: { estimate } });
+    const fallback = 256 * 1024 ** 2;
+    const cache = createDerivedBufferCache({ capacityBytes: fallback, adaptiveCapacity: true });
+    expect(await cache.stats()).toMatchObject({
+      capacityBytes: fallback, configuredCapacityBytes: fallback,
+      capacitySource: "configured-fallback", maxEntries: 4096,
+    });
+    answer({ quota: 10 * 1024 ** 3, usage: 2 * 1024 ** 3 });
+    await vi.waitFor(async () => expect(await cache.stats()).toMatchObject({
+      capacityBytes: 7 * 1024 ** 3, capacitySource: "origin-quota",
+    }));
+    // Mutations publish the shared policy; stats/read paths never need a write.
+    expect(await cache.put(record("sample-owner"), 1)).toBe(true);
+    const other = createDerivedBufferCache({ capacityBytes: fallback, adaptiveCapacity: true });
+    expect(await other.stats()).toMatchObject({ capacityBytes: 7 * 1024 ** 3, maxEntries: 4096 });
+    expect(estimate).toHaveBeenCalledTimes(1);
+    cache.close(); other.close();
+  });
+
+  it("keeps existing records readable when low origin space rejects new writes", async () => {
+    installStorageStub();
+    let answer!: (value: StorageEstimate) => void;
+    vi.stubGlobal("navigator", { storage: {
+      estimate: () => new Promise<StorageEstimate>(resolve => { answer = resolve; }),
+    } });
+    const cache = createDerivedBufferCache({ capacityBytes: 1000, adaptiveCapacity: true });
+    expect(await cache.put(record("valuable"), 7)).toBe(true);
+    answer({ quota: 1024 ** 3, usage: 1024 ** 3 });
+    await vi.waitFor(async () => expect((await cache.stats())?.capacityBytes).toBe(0));
+    expect(await cache.put(record("new"), 9)).toBe(false);
+    expect((await cache.get<number>("terrain", "valuable", "v1"))?.value).toBe(7);
+    expect((await cache.stats())?.count).toBe(1);
+    cache.close();
+  });
+
+  it.each<FailureMode>(["throw", "request-error"])(
+    "invalidates a quota estimate on %s without adding unknown-benefit eviction", async failureMode => {
+      const storage = installStorageStub(failureMode);
+      const estimate = vi.fn(async () => ({ quota: 10 * 1024 ** 3, usage: 0 }));
+      vi.stubGlobal("navigator", { storage: { estimate } });
+      const cache = createDerivedBufferCache({ capacityBytes: 1000, adaptiveCapacity: true });
+      expect(await cache.put(record("valuable"), 7)).toBe(true);
+      await vi.waitFor(async () => expect((await cache.stats())?.capacitySource).toBe("origin-quota"));
+      storage.failures.push("QuotaExceededError");
+      expect(await cache.put(record("unknown", {}), 9)).toBe(false);
+      await cache.stats();
+      await vi.waitFor(() => expect(estimate).toHaveBeenCalledTimes(2));
+      expect((await cache.stats())?.count).toBe(1);
+      expect((await cache.get<number>("terrain", "valuable", "v1"))?.value).toBe(7);
+      cache.close();
+    }
+  );
+});
+
+
+describe("quota refresh preserves readable derived data", () => {
+  it("does not evict a large cache during refresh or a transient estimate failure", async () => {
+    installStorageStub();
+    let now = 1;
+    vi.spyOn(Date, "now").mockImplementation(() => now);
+    let answer!: (value: StorageEstimate) => void;
+    const estimate = vi.fn()
+      .mockResolvedValueOnce({ quota: 10 * 1024 ** 3, usage: 1024 ** 3 })
+      .mockImplementationOnce(() => new Promise<StorageEstimate>(resolve => { answer = resolve; }));
+    vi.stubGlobal("navigator", { storage: { estimate } });
+    const cache = createDerivedBufferCache({ capacityBytes: 256 * 1024 ** 2, adaptiveCapacity: true });
+    await vi.waitFor(async () => expect((await cache.stats())?.capacitySource).toBe("origin-quota"));
+    expect(await cache.put({ ...record("large"), bytes: 512 * 1024 ** 2 }, 7)).toBe(true);
+    now += 60_001;
+    expect(await cache.put({ ...record("during-refresh"), bytes: 1024 ** 2 }, 8)).toBe(true);
+    expect((await cache.stats())?.count).toBe(2);
+    answer({});
+    await vi.waitFor(async () => expect((await cache.stats())?.capacitySource).toBe("configured-fallback"));
+    expect(await cache.put({ ...record("after-failure"), bytes: 1024 ** 2 }, 9)).toBe(false);
+    expect((await cache.stats())?.count).toBe(2);
+    expect((await cache.get<number>("terrain", "large", "v1", { touch: false }))?.value).toBe(7);
+    cache.close();
+  });
+
+  it.each<FailureMode>(["throw", "request-error"])(
+    "does not make an untouching read depend on an optional state write (%s)", async failureMode => {
+      const storage = installStorageStub(failureMode);
+      let answer!: (value: StorageEstimate) => void;
+      vi.stubGlobal("navigator", { storage: {
+        estimate: () => new Promise<StorageEstimate>(resolve => { answer = resolve; }),
+      } });
+      const cache = createDerivedBufferCache({ capacityBytes: 1000, adaptiveCapacity: true });
+      expect(await cache.put(record("valuable"), 7)).toBe(true);
+      answer({ quota: 10 * 1024 ** 3, usage: 0 });
+      await vi.waitFor(async () => expect((await cache.stats())?.capacitySource).toBe("origin-quota"));
+      storage.failNextStateWrite();
+      expect((await cache.get<number>("terrain", "valuable", "v1", { touch: false }))?.value).toBe(7);
+      expect((await cache.inspect())?.length).toBe(1);
+      // The injected failure is still armed and affects an actual mutation.
+      expect(await cache.put(record("new", {}), 9)).toBe(false);
+      cache.close();
+    }
+  );
+});

@@ -12,6 +12,28 @@ vi.hoisted(() => {
 afterEach(() => vi.restoreAllMocks());
 
 describe("mesh receiver and sunward caster publication", () => {
+  it("retains pending work across solar changes and releases it on observer motion", () => {
+    const f = createMeshCorridorFixture();
+    try {
+      f.update();
+      const pending = f.tile("old-sun", 100, 120, -100, 1, false, f.root);
+      pending.internal.loadingState = 2;
+      f.renderer.loadingTiles.add(pending);
+      f.sun.rotateY(0.2);f.setSun();
+      expect(f.runtimeState.retainedShadowRequests.has(pending)).toBe(true);
+      f.sun.rotateY(0.2);f.setSun();
+      expect(f.runtimeState.retainedShadowRequests.size).toBe(1);
+      f.renderer.lruCache.add(pending, () => {});
+      f.renderer.lruCache.markUnused(pending);
+      f.renderer.prepareForTraversal();
+      expect(f.renderer.lruCache.isUsed(pending)).toBe(true);
+
+      f.frame.lodCamera.position.x += 1;
+      f.update();
+      expect(f.runtimeState.retainedShadowRequests.size).toBe(0);
+    } finally { f.dispose(); }
+  });
+
   it("does not declare a partial loaded viewport complete", () => {
     const f = createMeshCorridorFixture();
     try {
@@ -175,7 +197,7 @@ describe("mesh receiver and sunward caster publication", () => {
       f.root.children.push(missing);
       f.update();
       expect(f.renderer.visibleTiles.has(f.root)).toBe(true);
-      expect(f.renderer.visibleTiles.has(f.receiver)).toBe(true);
+      expect(f.renderer.visibleTiles.has(f.receiver)).toBe(false);
       f.load(missing);
       f.update();
       expect(f.renderer.visibleTiles.has(f.root)).toBe(false);

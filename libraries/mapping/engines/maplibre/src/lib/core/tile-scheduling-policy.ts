@@ -1,4 +1,5 @@
 import { TILE_CAMERA_PRIORITY } from "./tile-camera-demand";
+import { TILES_LOAD_POLICY } from "./tile-load-config";
 
 /** Pure decisions: callers collect current facts and retain ownership of effects.
  * Decision: ../../../TILES_COVERAGE.md#functional-decision-pipelines
@@ -37,22 +38,40 @@ const finiteBenefit = (benefit: number | undefined): number =>
     ? Math.max(0, benefit)
     : 0;
 
-/** Higher rank/benefit starts first; native deterministic ties remain separate. */
+const coarseRefinementPriority = (
+  benefit: number | undefined,
+  currentErrorPixels: number | undefined
+): number =>
+  finiteBenefit(benefit) > 0 &&
+  typeof currentErrorPixels === "number" &&
+  Number.isFinite(currentErrorPixels) &&
+  currentErrorPixels > TILES_LOAD_POLICY.coarseRefinementErrorPixels
+    ? 1
+    : 0;
+
+/** Camera rank, coarse improvement, then area-weighted gain; native ties follow. */
 export const compareTileRequestOrder = (
   firstPriority: number,
   secondPriority: number,
   firstBenefit?: number,
-  secondBenefit?: number
+  secondBenefit?: number,
+  firstCurrentErrorPixels?: number,
+  secondCurrentErrorPixels?: number
 ): number => {
   if (firstPriority !== secondPriority)
     return firstPriority > secondPriority ? 1 : -1;
+  const coarseOrder =
+    coarseRefinementPriority(firstBenefit, firstCurrentErrorPixels) -
+    coarseRefinementPriority(secondBenefit, secondCurrentErrorPixels);
+  if (coarseOrder) return coarseOrder;
   const first = finiteBenefit(firstBenefit);
   const second = finiteBenefit(secondBenefit);
   return first === second ? 0 : first > second ? 1 : -1;
 };
 
 /** Queue order is exact; aborting useful work needs a stable, larger gain.
- * A 25% advantage avoids cancellation for small view-dependent score changes.
+ * Coarse improvements precede fine detail; within either band a 25% gain
+ * avoids cancellation for small view-dependent score changes.
  * Members of the same atomic family finish together, never evict each other.
  */
 export const shouldPreemptTileRequest = (
@@ -61,12 +80,20 @@ export const shouldPreemptTileRequest = (
     waitingPriority: number;
     benefit?: number;
     waitingBenefit?: number;
+    currentErrorPixels?: number;
+    waitingCurrentErrorPixels?: number;
     sameRefinementGroup?: boolean;
   }>
 ): boolean => {
   if (input.sameRefinementGroup) return false;
   if (input.waitingPriority !== input.priority)
     return input.waitingPriority > input.priority;
+  const coarseOrder =
+    coarseRefinementPriority(
+      input.waitingBenefit,
+      input.waitingCurrentErrorPixels
+    ) - coarseRefinementPriority(input.benefit, input.currentErrorPixels);
+  if (coarseOrder) return coarseOrder > 0;
   return (
     finiteBenefit(input.waitingBenefit) > finiteBenefit(input.benefit) * 1.25
   );
@@ -251,6 +278,8 @@ export const decideTileRequestAction = (
     highestWaitingPriority: number | undefined;
     benefit?: number;
     highestWaitingBenefit?: number;
+    currentErrorPixels?: number;
+    highestWaitingCurrentErrorPixels?: number;
     sameRefinementGroup?: boolean;
   }>
 ): (typeof TILE_REQUEST_ACTION)[keyof typeof TILE_REQUEST_ACTION] => {
@@ -264,6 +293,8 @@ export const decideTileRequestAction = (
       waitingPriority: input.highestWaitingPriority,
       benefit: input.benefit,
       waitingBenefit: input.highestWaitingBenefit,
+      currentErrorPixels: input.currentErrorPixels,
+      waitingCurrentErrorPixels: input.highestWaitingCurrentErrorPixels,
       sameRefinementGroup: input.sameRefinementGroup,
     })
   )

@@ -14,6 +14,7 @@ import {
 } from "../../core/tile-scheduling-policy";
 import { readOrientedTileBounds } from "./three-tiles-bounds";
 
+import { meshTileAncestors } from "../../core/mesh-tile-coverage";
 import { TILES_LOAD_POLICY } from "../../core/tile-load-config";
 import { resolveTileRequestNeed } from "../../core/tile-request-need";
 import { createThreeTilesMotionPrefetch } from "./three-tiles-motion-prefetch";
@@ -58,7 +59,9 @@ export function createThreeTilesCascade(
     | "requestedErrorTarget"
     | "memoryErrorTarget"
     | "shadowView"
+    | "retainedShadowRequests"
     | "shadowReceiverMask"
+    | "pendingMeshReceiverFrontier"
     | "shadowSelectionEnabled"
     | "ringRefinePasses"
     | "lastRingRefineAt"
@@ -108,7 +111,16 @@ export function createThreeTilesCascade(
       ? casterMatch.receiverGeometricError
       : null;
   };
+  let pendingReceiverCut: ReadonlySet<Tile> | null | undefined;
+  const receiverReplacementAncestors = new Set<Tile>();
   const getTileRequestNeed = (tile: Tile) => {
+    if (pendingReceiverCut !== runtimeState.pendingMeshReceiverFrontier) {
+      pendingReceiverCut = runtimeState.pendingMeshReceiverFrontier;
+      receiverReplacementAncestors.clear();
+      for (const receiver of pendingReceiverCut ?? [])
+        for (const parent of meshTileAncestors(receiver))
+          receiverReplacementAncestors.add(parent);
+    }
     const runtimeTile = tile as RuntimeTile;
     return resolveTileRequestNeed(tile, {
       coverageRecovery: runtimeState.meshCoverageRecovery,
@@ -127,7 +139,13 @@ export function createThreeTilesCascade(
       idleRing: runtimeTile.idleRing === true,
       shadowSelection: runtimeState.shadowSelectionEnabled,
       shadowView: !!runtimeState.shadowView,
+      retainedShadowRequest:
+        !!runtimeState.shadowView &&
+        !runtimeState.memoryAdmissionPaused &&
+        runtimeState.map?.isMoving?.() !== true &&
+        runtimeState.retainedShadowRequests.has(tile),
       refinementSupport: runtimeState.meshRefinementSupport,
+      receiverReplacementAncestors,
       residentAncestors: runtimeState.residentAncestors,
       visibleTiles: runtimeState.tiles?.visibleTiles ?? new Set(),
       coverageNeeded: dependencies.isTileNeededForMeshCoverage,
@@ -143,6 +161,14 @@ export function createThreeTilesCascade(
   const abortStaleDownloads = () => {
     const tiles = runtimeState.tiles;
     if (!tiles) return;
+    for (const tile of runtimeState.retainedShadowRequests) {
+      if (
+        !tiles.loadingTiles.has(tile) ||
+        runtimeState.memoryAdmissionPaused ||
+        runtimeState.map?.isMoving?.() === true
+      )
+        runtimeState.retainedShadowRequests.delete(tile);
+    }
     const pending = [...tiles.loadingTiles] as RuntimeTile[];
     const canStartDownload = runtimeState.options.providesTerrain
       ? dependencies.getDownloadPreemptionEligibility()
@@ -168,6 +194,29 @@ export function createThreeTilesCascade(
         )
       : [];
     const selectedPreemptions = new Set<RuntimeTile>();
+    // Each origin has one order for this demand snapshot. Reusing it avoids
+    // filtering and sorting the same backlog for every active download.
+    const waitingByQueue = new Map<RuntimePriorityQueue, RuntimeTile[]>();
+    const nextWaiting = (queue: RuntimePriorityQueue) => {
+      let ordered = waitingByQueue.get(queue);
+      if (!ordered) {
+        const queued = new Set(queue.items);
+        ordered = foregroundWaiting
+          .filter((candidate) => queued.has(candidate))
+          .sort((left, right) =>
+            compareTileRequestOrder(
+              dependencies.getTileRequestPriority(right),
+              dependencies.getTileRequestPriority(left),
+              right.meshRefinement?.benefit,
+              left.meshRefinement?.benefit,
+              right.meshRefinement?.currentErrorPixels,
+              left.meshRefinement?.currentErrorPixels
+            )
+          );
+        waitingByQueue.set(queue, ordered);
+      }
+      return ordered.find((candidate) => !selectedPreemptions.has(candidate));
+    };
     for (const tile of pending) {
       if (
         tile.internal.loadingState !== LOADING_LOADING_STATE &&
@@ -175,39 +224,27 @@ export function createThreeTilesCascade(
         tile.internal.loadingState !== PARSING_LOADING_STATE
       )
         continue;
-      const needed = isTileRequestNeeded(tile);
+      const reason = getTileRequestNeed(tile);
+      const needed = reason !== null;
       const downloading = tile.internal.loadingState === LOADING_LOADING_STATE;
       const metadata = tile.internal.hasUnrenderableContent;
       const queue =
-        needed && downloading && !metadata
+        needed &&
+        !runtimeState.retainedShadowRequests.has(tile) &&
+        downloading &&
+        !metadata
           ? ([...tiles.downloadQueue.originQueues.values()].find((candidate) =>
               candidate.has(tile)
             ) as RuntimePriorityQueue | undefined)
           : undefined;
-      const waiting = queue
-        ? foregroundWaiting
-            .filter(
-              (candidate) =>
-                candidate !== tile &&
-                !selectedPreemptions.has(candidate) &&
-                queue.items.includes(candidate)
-            )
-            .sort((left, right) =>
-              compareTileRequestOrder(
-                dependencies.getTileRequestPriority(right),
-                dependencies.getTileRequestPriority(left),
-                right.meshRefinement?.benefit,
-                left.meshRefinement?.benefit
-              )
-            )
-        : [];
+      const waiting = queue ? nextWaiting(queue) : undefined;
       const saturated =
         queue !== undefined &&
         tiles.downloadQueue.maxJobsPerOrigin > 0 &&
         queue.currJobs >= tiles.downloadQueue.maxJobsPerOrigin;
       const highestWaitingPriority =
-        saturated && waiting.length > 0
-          ? dependencies.getTileRequestPriority(waiting[0])
+        saturated && waiting !== undefined
+          ? dependencies.getTileRequestPriority(waiting)
           : undefined;
       const priority =
         needed &&
@@ -223,14 +260,21 @@ export function createThreeTilesCascade(
         highestWaitingPriority,
         priority,
         benefit: tile.meshRefinement?.benefit,
-        highestWaitingBenefit: waiting[0]?.meshRefinement?.benefit,
+        highestWaitingBenefit: waiting?.meshRefinement?.benefit,
+        currentErrorPixels: tile.meshRefinement?.currentErrorPixels,
+        highestWaitingCurrentErrorPixels:
+          waiting?.meshRefinement?.currentErrorPixels,
+        // Decision: ../../../../TILES_COVERAGE.md#progressive-receiver-overlays
+        // Only shadow replacement needs the whole family; plain children
+        // improve independently even when they share a displayed ancestor.
         sameRefinementGroup:
+          !!runtimeState.shadowView &&
           tile.meshRefinement !== undefined &&
-          tile.meshRefinement.group === waiting[0]?.meshRefinement?.group,
+          tile.meshRefinement.group === waiting?.meshRefinement?.group,
       });
       if (action !== TILE_REQUEST_ACTION.KEEP) tiles.lruCache.remove(tile);
       if (action === TILE_REQUEST_ACTION.PREEMPT) {
-        selectedPreemptions.add(waiting[0]);
+        if (waiting) selectedPreemptions.add(waiting);
       }
     }
   };
@@ -368,8 +412,7 @@ export function createThreeTilesCascade(
       runtimeState.extentFloorPending > 0 ||
       runtimeState.effectiveErrorTarget !== runtimeState.requestedErrorTarget ||
       runtimeState.map?.isMoving?.() ||
-      runtimeState.ringRefinePasses >=
-        TILES_LOAD_POLICY.idleRingTanMultipliers.length
+      runtimeState.ringRefinePasses >= TILES_LOAD_POLICY.idleRingRefinePassLimit
     )
       return;
     const { stats } = tiles;
@@ -410,8 +453,7 @@ export function createThreeTilesCascade(
       (tiles.lruCache as RuntimeLruCache).cachedBytes >=
         tiles.lruCache.minBytesSize *
           TILES_LOAD_POLICY.idleRingBudgetFraction ||
-      runtimeState.ringRefinePasses >=
-        TILES_LOAD_POLICY.idleRingTanMultipliers.length
+      runtimeState.ringRefinePasses >= TILES_LOAD_POLICY.idleRingRefinePassLimit
     )
       return;
     tickTimer = setTimeout(() => {

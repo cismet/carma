@@ -21,10 +21,15 @@ import {
 import { initialMeshLoadError } from "../../core/mesh-error-policy";
 import { TILE_MEMORY_ALLOCATION_ERROR } from "../../core/tile-cache-policy";
 
+import { meshTileAncestors } from "../../core/mesh-tile-coverage";
 import { getRetainedMeshAncestors } from "../../core/mesh-tile-retention";
 
 import type { ThreeTilesRuntimeServices } from "./three-tiles-runtime-context";
-import type { RuntimeLruCache, RuntimeTile } from "./three-tiles-runtime-types";
+import type {
+  RuntimeLruCache,
+  RuntimePriorityQueue,
+  RuntimeTile,
+} from "./three-tiles-runtime-types";
 import { getThreeTileDiagnosticSteps } from "./three-tiles-diagnostic-steps";
 import { resolveTileContentUrl } from "./three-tiles-runtime-vendor";
 
@@ -63,6 +68,7 @@ export function createThreeTilesFrameUpdate(
   const mountAxisFlip = new THREE.Matrix4().makeRotationY(Math.PI);
   /** Anchor of the reference fit the mount was made at; null = never mounted. */
   let mountedReferenceLngLat: readonly [number, number] | null = null;
+  let movingAtLastUpdate = false;
   const update: ThreeTilesRuntimeServices["update"] = (
     frame: SharedThreeSceneFrame
   ) => {
@@ -73,6 +79,9 @@ export function createThreeTilesFrameUpdate(
       !runtimeState.map
     )
       return;
+    const moving = runtimeState.map.isMoving?.() === true;
+    let downloadDemandChanged = moving !== movingAtLastUpdate;
+    movingAtLastUpdate = moving;
     if (runtimeState.options.cameraLocalMount) {
       // The shared scene owns the local frame. The tileset is mounted once, at
       // the frame's reference fit, inside the layer's local-frame group; a
@@ -123,6 +132,7 @@ export function createThreeTilesFrameUpdate(
       runtimeState.cameraSet.update(viewCamera, lodViewport.x, lodViewport.y);
       dependencies.prepareViewFrustums(viewCamera);
       if (runtimeState.mainViewProjectionChanged) {
+        runtimeState.retainedShadowRequests.clear();
         dependencies.resetDeferredTiles();
         runtimeState.tiles.dispatchEvent({ type: "needs-update" });
         // A downloaded, parked payload can enter the camera without another
@@ -167,6 +177,8 @@ export function createThreeTilesFrameUpdate(
       const allowInViewCoarsening = false;
       const tileCamerasChanged =
         cameraSignature !== runtimeState.tileCameraSignature;
+      downloadDemandChanged ||=
+        runtimeState.mainViewProjectionChanged || tileCamerasChanged;
       if (tileCamerasChanged) {
         runtimeState.tileCameraSignature = cameraSignature;
         runtimeState.tileCameraDemand = createTileCameraDemand(demandViews);
@@ -221,6 +233,13 @@ export function createThreeTilesFrameUpdate(
           dependencies.getTileScreenError,
           allowInViewCoarsening
         );
+        if (runtimeState.shadowView)
+          for (const tile of [
+            ...runtimeState.committedMeshCasterFrontier,
+            ...(runtimeState.pendingMeshReceiverFrontier ?? []),
+          ])
+            for (const parent of meshTileAncestors(tile))
+              frameState.retainedMeshAncestors.add(parent);
       }
       if (runtimeState.options.providesTerrain)
         attachment.updateDeferredMaterials();
@@ -463,6 +482,24 @@ export function createThreeTilesFrameUpdate(
       console.error("[tiles3d] update failed:", error);
     }
     dependencies.prioritizeQueuedTiles();
+
+    if (
+      downloadDemandChanged &&
+      runtimeState.options.providesTerrain &&
+      runtimeState.tiles &&
+      !runtimeState.memoryAdmissionPaused &&
+      !runtimeState.loadingPaused
+    ) {
+      // Decision: TILES_COVERAGE.md#motion-preserves-visible-detail.
+      // Prepared demand can release parked work while other downloads remain
+      // active. Wake spare slots after publication/priority refresh, without
+      // waiting for those transfers or re-auditing unchanged frames.
+      for (const nativeQueue of runtimeState.tiles.downloadQueue.originQueues.values()) {
+        const queue = nativeQueue as RuntimePriorityQueue;
+        if (queue.items.length > 0 && queue.currJobs < queue.maxJobs)
+          queue.scheduleJobRun();
+      }
+    }
 
     // Downloads, decoding and parked queues do not change the image. Native
     // needs-update/load/material events wake the scene when work completes;

@@ -44,6 +44,7 @@ const store = () =>
     );
     const manager = createDerivedBufferCache({
       capacityBytes: 256 * 1024 * 1024,
+      adaptiveCapacity: true,
       producerEpoch: `terrain-edge-topology:${epoch}`,
     });
     return manager.register("terrain-edge-topology", VERSION);

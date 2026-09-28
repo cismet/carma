@@ -95,3 +95,22 @@
 .tile-debug-legend[open] {
   width: 252px;
 }
+
+/* One translucent surface avoids opaque plots or stacked inner backdrops. */
+.tile-debug-panel:has([data-test-id="tile-pipeline-timeline"]) {
+  background: rgb(248 250 252 / 66%);
+}
+.tile-debug-panel .tile-debug-timeline-help {
+  margin: 0;
+  padding: 0 4px;
+  border: 0;
+  background: transparent;
+  font-size: 10px;
+}
+.tile-debug-panel .tile-debug-timeline-help summary {
+  line-height: 18px;
+}
+.tile-debug-panel .tile-debug-timeline-help p {
+  margin: 3px 0;
+  line-height: 1.3;
+}

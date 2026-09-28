@@ -68,6 +68,7 @@ const execute = async (
     // Shared physical database budget must match the terrain producer policy.
     manager = createDerivedBufferCache({
       capacityBytes: 256 * 1024 ** 2,
+      adaptiveCapacity: true,
       producerEpoch: epoch,
     });
   }

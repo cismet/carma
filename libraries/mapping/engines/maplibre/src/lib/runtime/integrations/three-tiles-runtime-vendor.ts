@@ -90,7 +90,13 @@ export const tilesQueuePriorityCallback = (
       : 0,
     includeRefinementBenefit
       ? (second as RuntimeTile).meshRefinement?.benefit
-      : 0
+      : 0,
+    includeRefinementBenefit
+      ? (first as RuntimeTile).meshRefinement?.currentErrorPixels
+      : undefined,
+    includeRefinementBenefit
+      ? (second as RuntimeTile).meshRefinement?.currentErrorPixels
+      : undefined
   );
   return (
     order || tilesRendererCoreRuntime.unifiedPriorityCallback(first, second)

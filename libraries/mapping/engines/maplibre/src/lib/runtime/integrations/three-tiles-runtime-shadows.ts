@@ -55,6 +55,7 @@ export type ThreeTilesShadowsState = Pick<
   | "sourceWorldBoundsTransform"
   | "sourceWorldBoundingBox"
   | "shadowViewSignature"
+  | "retainedShadowRequests"
   | "pendingShadowView"
   | "meshInitialBasePassDone"
   | "displayedMeshFrontier"
@@ -435,10 +436,19 @@ export function createThreeTilesShadows(
     }
     runtimeState.shadowView = view;
     if (nextSignature === runtimeState.shadowViewSignature) return;
+    // Solar animation revisits these directions. Invalidate the geometric
+    // proof immediately, but let existing jobs populate the bounded cache.
+    // This is request retention, never permission to draw obsolete casters.
+    if (view && runtimeState.shadowViewSignature) {
+      for (const tile of runtimeState.tiles?.loadingTiles ?? [])
+        runtimeState.retainedShadowRequests.add(tile);
+    } else {
+      runtimeState.retainedShadowRequests.clear();
+    }
     runtimeState.shadowViewSignature = nextSignature;
     runtimeState.shadowRegionRevisions.clear();
-    // Reconcile pending caster downloads against the NEW corridor mask in the
-    // existing bounded sweep. Never evict visible receivers on a solar change.
+    // Reconcile presentation against the new mask; retained jobs use spare
+    // capacity after current demand. Camera changes release that retention.
     runtimeState.meshDemandSweepPending = true;
     if (view) {
       requestShadowSelectionRefresh();

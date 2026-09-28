@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { mesh } from "./mesh-tile-test-fixtures";
+import { mesh, quartet } from "./mesh-tile-test-fixtures";
 import {
   selectShadowCasterPlan,
   selectShadowReadyReceivers,
@@ -29,7 +29,7 @@ describe("shadow receiver publication", () => {
     expect([...plan.receivers]).toEqual([receiver]);
     expect(plan.pending.size).toBe(0);
   });
-  it("keeps a fallback with ready children and replaces it only after demanded coverage is ready", () => {
+  it("keeps a receiver parent alone until its relevant children are ready", () => {
     const parent = mesh(),
       first = mesh(parent),
       second = mesh(parent),
@@ -45,7 +45,7 @@ describe("shadow receiver publication", () => {
       visible,
       (tile) => tile === first
     );
-    expect(plan.receivers).toEqual(new Set([parent, first]));
+    expect(plan.receivers).toEqual(new Set([parent]));
     expect(plan.pending).toEqual(new Set([second]));
     plan = selectShadowReadyReceivers(
       parent,
@@ -134,5 +134,101 @@ describe("caster LOD ownership", () => {
       6
     );
     expect(relaxed).toEqual(first);
+  });
+});
+
+describe("exclusive replacement caster depth", () => {
+  const plan = (
+    available: Set<ReturnType<typeof mesh>>,
+    previous = new Set<ReturnType<typeof mesh>>(),
+    receivers = new Set<ReturnType<typeof mesh>>(),
+    needed = (_tile: ReturnType<typeof mesh>) => true
+  ) =>
+    selectShadowCasterPlan(
+      available,
+      previous,
+      receivers,
+      (tile) => receivers.has(tile),
+      needed,
+      (tile) => tile.traversal.error,
+      1
+    );
+
+  it.each([0, 5])(
+    "holds a parent alone while a relevant sibling is not drawable (state %i)",
+    (state) => {
+      const {
+        parent,
+        children: [a, b, outside, empty],
+      } = quartet(mesh(null, 16));
+      b.internal.loadingState = state;
+      outside.internal.loadingState = 0;
+      empty.internal.hasContent = false;
+      empty.internal.hasRenderableContent = false;
+      const available = new Set([parent, a]);
+      const previous = new Set([parent]);
+      const needed = (tile: typeof parent) => tile !== outside;
+      // A ready colour receiver must not bypass the caster family handover.
+      expect(plan(available, previous, new Set([a]), needed)).toEqual(previous);
+      b.internal.loadingState = 4;
+      available.add(b);
+      expect(plan(available, previous, new Set([a]), needed)).toEqual(
+        new Set([a, b])
+      );
+    }
+  );
+
+  it("keeps ready sibling branches independent and permits a mixed-depth complete cut", () => {
+    const {
+      parent,
+      children: [a, b, c, d],
+    } = quartet(mesh(null, 16));
+    const [a1, a2] = [mesh(a), mesh(a)];
+    a.children = [a1, a2];
+    a.traversal.error = 8;
+    a2.internal.loadingState = 0;
+    const first = plan(new Set([parent, a, b, c, d, a1]), new Set([parent]));
+    expect(first).toEqual(new Set([a, b, c, d]));
+    a2.internal.loadingState = 4;
+    const second = plan(new Set([...first, parent, a1, a2]), first);
+    expect(second).toEqual(new Set([a1, a2, b, c, d]));
+  });
+
+  it("keeps live fine casters when a corridor expands into an unloaded sibling", () => {
+    const parent = mesh(null, 16),
+      a = mesh(parent),
+      b = mesh(parent);
+    parent.children = [a, b];
+    b.internal.loadingState = 0;
+    const previous = new Set([a]);
+    expect(plan(new Set([parent, a]), previous)).toEqual(previous);
+    b.internal.loadingState = 4;
+    expect(plan(new Set([parent, a, b]), previous)).toEqual(new Set([a, b]));
+  });
+
+  it("waits for unknown external topology and then ignores its outside descendants", () => {
+    const parent = mesh(null, 16),
+      a = mesh(parent),
+      metadata = mesh(parent);
+    parent.children = [a, metadata];
+    metadata.internal.hasRenderableContent = false;
+    metadata.internal.hasUnrenderableContent = true;
+    metadata.internal.loadingState = 0;
+    const available = new Set([parent, a]);
+    expect(plan(available)).toEqual(new Set([parent]));
+    const outside = mesh(metadata);
+    metadata.children = [outside];
+    metadata.internal.loadingState = 4;
+    expect(
+      plan(available, new Set([parent]), new Set(), (t) => t !== outside)
+    ).toEqual(new Set([a]));
+  });
+
+  it("preserves additive content instead of treating it as replacement overlap", () => {
+    const parent = mesh(null, 16),
+      child = mesh(parent);
+    parent.children = [child];
+    parent.refine = "ADD";
+    expect(plan(new Set([parent, child]))).toEqual(new Set([parent, child]));
   });
 });

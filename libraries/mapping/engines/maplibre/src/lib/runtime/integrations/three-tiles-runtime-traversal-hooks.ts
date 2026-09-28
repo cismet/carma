@@ -50,6 +50,18 @@ export function installThreeTilesTraversalHooks(
       isExternalTileset: tile.internal.hasUnrenderableContent,
     });
   };
+  const prepareForTraversal = runtimeState.tiles.prepareForTraversal.bind(
+    runtimeState.tiles
+  );
+  runtimeState.tiles.prepareForTraversal = () => {
+    prepareForTraversal();
+    // Native update clears last frame's used pins before this preparation.
+    // Repin here so its queued-job cleanup respects solar request retention.
+    // Marking before update is too early; it is immediately cleared again.
+    for (const tile of runtimeState.retainedShadowRequests)
+      if (runtimeState.tiles?.loadingTiles.has(tile))
+        runtimeState.tiles.markTileUsed(tile);
+  };
   // D1: the deferral decision rides on upstream's per-frame view error.
   const calculateTileViewErrorWithPlugin =
     runtimeState.tiles.calculateTileViewErrorWithPlugin.bind(
@@ -218,8 +230,7 @@ export function installThreeTilesTraversalHooks(
       // Keep loaded reserve coverage, but admit missing offscreen payloads
       // only after visible demand converges. Ancestors still lead traversal
       // to already resident floor leaves while the view changes.
-      const wholeModelRing =
-        ring > TILES_LOAD_POLICY.idleRingTanMultipliers.length;
+      const wholeModelRing = ring > 1;
       // The budget bounds how far the reserve refines below its coarse floor.
       const admitted =
         (floorLevel && (!floorLeaf || loaded || atRest)) ||
@@ -332,6 +343,19 @@ export function installThreeTilesTraversalHooks(
           ))
     )
       target.error = Math.min(target.error, runtimeState.effectiveErrorTarget);
+    // Decision: ../../../../TILES_COVERAGE.md#exclusive-shadow-caster-handover
+    // A coarse ancestor cannot replace live fine depth. Continue through it
+    // to find newly relevant sibling coverage, even after the sun/motion or
+    // bootstrap policy has relaxed its error. Outside demand stays excluded.
+    if (
+      runtimeState.shadowView &&
+      target.inView &&
+      retainedMeshAncestors.has(tile)
+    )
+      target.error = Math.max(
+        target.error,
+        runtimeState.effectiveErrorTarget + 1
+      );
     dependencies.applyTileDeferral(tile, target.inView);
     // Skip traversal normally requests only its terminal payload. Keep the
     // intervening prefetched LODs available too when looking two levels ahead.

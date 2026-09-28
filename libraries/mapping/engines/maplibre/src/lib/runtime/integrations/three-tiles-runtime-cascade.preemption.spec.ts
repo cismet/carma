@@ -1,3 +1,4 @@
+import { OrthographicCamera } from "three";
 import { describe, expect, it } from "vitest";
 import { TILE_CAMERA_PRIORITY } from "../../core/tile-camera-demand";
 import { createThreeTilesCascade } from "./three-tiles-runtime-cascade";
@@ -42,63 +43,80 @@ describe("preemption runtime integration", () => {
     expect(fixture.tiles.lruCache.remove).not.toHaveBeenCalled();
   });
 
-  it("preempts one same-origin lower-priority job when the origin is full", () => {
-    const fixture = createPrefetchFixture(tile());
-    fixture.state.options = { providesTerrain: true };
-    const active = tile();
-    active.internal.loadingState = LOADING_LOADING_STATE;
-    const waiting = tile();
-    waiting.internal.loadingState = QUEUED_LOADING_STATE;
-    fixture.tiles.loadingTiles.add(active);
-    fixture.tiles.loadingTiles.add(waiting);
-    fixture.tiles.downloadQueue.maxJobsPerOrigin = 1;
-    fixture.dependencies.getTileCameraDemand.mockImplementation((entry) => ({
-      required: true,
-      receiver: true,
-      errorRatio: 2,
-      priority:
-        entry === waiting
-          ? TILE_CAMERA_PRIORITY.FOCUS
-          : TILE_CAMERA_PRIORITY.SECONDARY,
-    }));
-    const cascade = createThreeTilesCascade(
-      fixture.state as never,
-      fixture.dependencies
-    );
-    // Still-needed offscreen support cannot evict work while it is parked.
-    fixture.state.meshCoverageRecovery = true;
-    cascade.abortStaleDownloads();
-    expect(fixture.tiles.lruCache.remove).not.toHaveBeenCalled();
-    fixture.state.meshCoverageRecovery = false;
-    fixture.dependencies.getDownloadPreemptionEligibility.mockReturnValue(
-      () => false
-    );
-    cascade.abortStaleDownloads();
-    expect(fixture.tiles.lruCache.remove).not.toHaveBeenCalled();
-    fixture.dependencies.getDownloadPreemptionEligibility.mockReturnValue(
-      () => true
-    );
-    fixture.dependencies.getTileCameraDemand.mockImplementation(() => ({
-      required: true,
-      receiver: true,
-      errorRatio: 2,
-      priority: TILE_CAMERA_PRIORITY.PRIMARY,
-    }));
-    active.meshRefinement = {
-      group: active,
-      currentErrorPixels: 8,
-      nextErrorPixels: 4,
-      visibleAreaPixels: 25,
-      benefit: 100,
-      provisional: false,
-    };
-    waiting.meshRefinement = { ...active.meshRefinement, benefit: 1000 };
-    cascade.abortStaleDownloads();
-    expect(fixture.tiles.lruCache.remove).not.toHaveBeenCalled();
-    waiting.meshRefinement = { ...waiting.meshRefinement, group: waiting };
-    cascade.abortStaleDownloads();
-    expect(fixture.tiles.lruCache.remove).toHaveBeenCalledWith(active);
-  });
+  it.each([false, true])(
+    "preempts independent same-origin refinements and protects shadow families (shadows=%s)",
+    (shadowsActive) => {
+      const fixture = createPrefetchFixture(tile());
+      const state = fixture.state as unknown as Parameters<
+        typeof createThreeTilesCascade
+      >[0];
+      state.options = { providesTerrain: true };
+      state.shadowView = shadowsActive
+        ? {
+            camera: new OrthographicCamera(),
+            shadowMapSize: { width: 1024, height: 1024 },
+          }
+        : null;
+      state.shadowSelectionEnabled = shadowsActive;
+      const active = tile();
+      active.internal.loadingState = LOADING_LOADING_STATE;
+      const waiting = tile();
+      waiting.internal.loadingState = QUEUED_LOADING_STATE;
+      fixture.tiles.loadingTiles.add(active);
+      fixture.tiles.loadingTiles.add(waiting);
+      fixture.tiles.downloadQueue.maxJobsPerOrigin = 1;
+      fixture.dependencies.getTileCameraDemand.mockImplementation((entry) => ({
+        required: true,
+        receiver: true,
+        errorRatio: 2,
+        priority:
+          entry === waiting
+            ? TILE_CAMERA_PRIORITY.FOCUS
+            : TILE_CAMERA_PRIORITY.SECONDARY,
+      }));
+      const cascade = createThreeTilesCascade(state, fixture.dependencies);
+      // Still-needed offscreen support cannot evict work while it is parked.
+      fixture.state.meshCoverageRecovery = true;
+      cascade.abortStaleDownloads();
+      expect(fixture.tiles.lruCache.remove).not.toHaveBeenCalled();
+      fixture.state.meshCoverageRecovery = false;
+      fixture.dependencies.getDownloadPreemptionEligibility.mockReturnValue(
+        () => false
+      );
+      cascade.abortStaleDownloads();
+      expect(fixture.tiles.lruCache.remove).not.toHaveBeenCalled();
+      fixture.dependencies.getDownloadPreemptionEligibility.mockReturnValue(
+        () => true
+      );
+      fixture.dependencies.getTileCameraDemand.mockImplementation(() => ({
+        required: true,
+        receiver: true,
+        errorRatio: 2,
+        priority: TILE_CAMERA_PRIORITY.PRIMARY,
+      }));
+      active.meshRefinement = {
+        group: active,
+        currentErrorPixels: 8,
+        nextErrorPixels: 4,
+        visibleAreaPixels: 25,
+        benefit: 100,
+        provisional: false,
+      };
+      waiting.meshRefinement = { ...active.meshRefinement, benefit: 125 };
+      cascade.abortStaleDownloads();
+      expect(fixture.tiles.lruCache.remove).not.toHaveBeenCalled();
+      waiting.meshRefinement = { ...waiting.meshRefinement, benefit: 1000 };
+      cascade.abortStaleDownloads();
+      expect(
+        fixture.tiles.lruCache.remove.mock.calls.map(([entry]) => entry)
+      ).toEqual(shadowsActive ? [] : [active]);
+      fixture.tiles.lruCache.remove.mockClear();
+      active.internal.loadingState = LOADING_LOADING_STATE;
+      waiting.meshRefinement = { ...waiting.meshRefinement, group: waiting };
+      cascade.abortStaleDownloads();
+      expect(fixture.tiles.lruCache.remove).toHaveBeenCalledWith(active);
+    }
+  );
 
   it("does not preempt for a higher-priority request on another origin", () => {
     const fixture = createPrefetchFixture(tile());

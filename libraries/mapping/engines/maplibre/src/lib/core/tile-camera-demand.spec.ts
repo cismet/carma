@@ -1,6 +1,7 @@
 import {
   Box3,
   Group,
+  Matrix4,
   OrthographicCamera,
   PerspectiveCamera,
   Vector3,
@@ -89,18 +90,16 @@ describe("tile camera demand", () => {
     const intersections = vi.spyOn(demand, "intersectionVertices");
     expect(demand.evaluate(box(0), 1).visibleAreaPixels).toBe(0);
     expect(intersections).not.toHaveBeenCalled();
-    expect(demand.evaluate(box(0), 1, undefined, true).visibleAreaPixels).toBeCloseTo(
-      40_000,
-      6
-    );
+    expect(
+      demand.evaluate(box(0), 1, undefined, true).visibleAreaPixels
+    ).toBeCloseTo(40_000, 6);
     expect(intersections).toHaveBeenCalledTimes(1);
     const wider = createTileCameraDemand(
       snapshotTileCameraViews([{ ...view, viewport: [2000, 1000] }])
     );
-    expect(wider.evaluate(box(0), 1, undefined, true).visibleAreaPixels).toBeCloseTo(
-      80_000,
-      6
-    );
+    expect(
+      wider.evaluate(box(0), 1, undefined, true).visibleAreaPixels
+    ).toBeCloseTo(80_000, 6);
     expect(demand.evaluate(box(0), 1).visibleAreaPixels).toBe(0);
   });
 
@@ -109,10 +108,9 @@ describe("tile camera demand", () => {
       snapshotTileCameraViews([orthographic("area")])
     );
     const bounds = new Box3(new Vector3(3, -1, -1), new Vector3(6, 1, 1));
-    expect(demand.evaluate(bounds, 1, undefined, true).visibleAreaPixels).toBeCloseTo(
-      40_000,
-      6
-    );
+    expect(
+      demand.evaluate(bounds, 1, undefined, true).visibleAreaPixels
+    ).toBeCloseTo(40_000, 6);
     expect(demand.evaluate(box(100), 1, undefined, true)).toMatchObject({
       required: false,
       visibleAreaPixels: 0,
@@ -246,6 +244,78 @@ describe("tile camera demand", () => {
             expect(
               vertices.some((point) => point.equals(new Vector3(x, y, z)))
             ).toBe(true);
+    });
+
+    it("preserves transformed corners for a contained rotated and scaled box", () => {
+      const demand = createTileCameraDemand(
+        snapshotTileCameraViews([perspective("main")])
+      );
+      const bounds = box(0);
+      const transform = new Matrix4()
+        .makeRotationY(Math.PI / 4)
+        .scale(new Vector3(1, 0.5, 1.5))
+        .setPosition(1, 0, -2);
+      const before = transform.clone();
+      const vertices = demand.intersectionVertices(bounds, "main", transform);
+      expect(vertices).toHaveLength(8);
+      expect(new Set(vertices).size).toBe(8);
+      for (const x of [-1, 1])
+        for (const y of [-1, 1])
+          for (const z of [-1, 1]) {
+            const expected = new Vector3(x, y, z).applyMatrix4(transform);
+            expect(
+              vertices.some((point) => point.distanceTo(expected) < 1e-12)
+            ).toBe(true);
+          }
+      const fresh = demand.intersectionVertices(bounds, "main", transform);
+      vertices[0].set(1000, 1000, 1000);
+      expect(fresh).toEqual(
+        demand.intersectionVertices(bounds, "main", transform)
+      );
+      expect(transform).toEqual(before);
+    });
+
+    it("keeps partial-camera vertices beside a containing view and honors camera selection", () => {
+      const demand = createTileCameraDemand(
+        snapshotTileCameraViews([
+          orthographic("inside"),
+          orthographic("partial", 5.5),
+          orthographic("same-inside"),
+        ])
+      );
+      const bounds = box(0);
+      expect(demand.intersectionVertices(bounds, "inside")).toHaveLength(8);
+      expect(demand.intersectionVertices(bounds, "missing")).toEqual([]);
+      const partial = demand.intersectionVertices(bounds, "partial");
+      expect(partial).toHaveLength(8);
+      expect(new Box3().setFromPoints(partial).min.x).toBeCloseTo(0.5);
+      const union = demand.intersectionVertices(bounds);
+      expect(union).toHaveLength(12);
+      expect(union.filter(({ x }) => Math.abs(x - 0.5) < 1e-12)).toHaveLength(
+        4
+      );
+    });
+
+    it("clips a rotated box crossing an orthographic side without returning its exterior corner", () => {
+      const demand = createTileCameraDemand(
+        snapshotTileCameraViews([orthographic("main")])
+      );
+      const transform = new Matrix4()
+        .makeRotationZ(Math.PI / 4)
+        .setPosition(4.8, 0, 0);
+      const vertices = demand.intersectionVertices(box(0), "main", transform);
+      expect(vertices).toHaveLength(10);
+      expect(Math.max(...vertices.map(({ x }) => x))).toBeCloseTo(5);
+      expect(vertices.filter(({ x }) => Math.abs(x - 5) < 1e-12)).toHaveLength(
+        4
+      );
+      const inverse = transform.clone().invert();
+      for (const vertex of vertices)
+        expect(
+          box(0)
+            .expandByScalar(1e-12)
+            .containsPoint(vertex.clone().applyMatrix4(inverse))
+        ).toBe(true);
     });
 
     it("returns no vertices for empty, non-finite or disjoint bounds", () => {

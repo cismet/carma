@@ -2,7 +2,10 @@ import {
   selectShadowCasterPlan,
   selectShadowReadyReceivers,
 } from "../../core/mesh-shadow-publication";
-import { getReadyMeshRegionCut } from "../../core/mesh-tile-coverage";
+import {
+  getReadyMeshRegionCut,
+  createMeshRegionCutQuery,
+} from "../../core/mesh-tile-coverage";
 import { createCasterVolumeDemand } from "./three-tiles-runtime-caster-demand";
 import type { Tile } from "3d-tiles-renderer/core";
 import * as THREE from "three";
@@ -349,38 +352,43 @@ export function createThreeTilesShadowPublication(
       );
       for (const tile of runtimeState.committedMeshReceiverFrontier)
         proposed.add(tile);
-      const casterCut = selectShadowCasterPlan(
-        proposed,
-        previousCasters,
-        candidates,
-        (tile) => dependencies.isTileInMainView(tile as RuntimeTile),
-        (tile) => {
-          const volume = (tile as RuntimeTile).engineData?.boundingVolume;
-          if (!volume?.getAABB || !runtimeState.shadowReceiverMask) return true;
-          readOrientedTileBounds(
-            volume,
-            runtimeState.tileBoundingBox,
-            runtimeState.tileBoundsTransform
-          );
-          return runtimeState.shadowReceiverMask.match(
-            runtimeState.tileBoundingBox,
-            runtimeState.shadowReceiverMatch,
-            runtimeState.tileBoundsTransform,
-            { key: tile, parent: tile.parent ?? undefined }
-          );
-        },
-        (tile) => casterDemand(tile).errorPixels,
-        runtimeState.effectiveErrorTarget
-      );
-      // Ready light-frustum children contribute immediately; their parent
-      // remains a conservative caster until all required branches are covered.
-      // Camera-only demand never creates a transitive shadow-corridor request.
-      runtimeState.committedMeshCasterFrontier = casterCut;
+      const selectCasters = (receivers: ReadonlySet<Tile>) =>
+        selectShadowCasterPlan(
+          proposed,
+          previousCasters,
+          receivers,
+          (tile) => dependencies.isTileInMainView(tile as RuntimeTile),
+          (tile) => {
+            const volume = (tile as RuntimeTile).engineData?.boundingVolume;
+            if (!volume?.getAABB || !runtimeState.shadowReceiverMask)
+              return true;
+            readOrientedTileBounds(
+              volume,
+              runtimeState.tileBoundingBox,
+              runtimeState.tileBoundsTransform
+            );
+            return runtimeState.shadowReceiverMask.match(
+              runtimeState.tileBoundingBox,
+              runtimeState.shadowReceiverMatch,
+              runtimeState.tileBoundsTransform,
+              { key: tile, parent: tile.parent ?? undefined }
+            );
+          },
+          (tile) => casterDemand(tile).errorPixels,
+          runtimeState.effectiveErrorTarget
+        );
+      const candidateCasters = selectCasters(candidates);
+      // Only candidates in the exclusive depth cut can receive. Recheck coarse
+      // external coverage before changing colour or depth for a receiver family.
       const root = runtimeState.tiles.rootTileset?.root;
       const receiverPlan = root
         ? selectShadowReadyReceivers(
             root,
-            candidates,
+            new Set(
+              [...candidateCasters].filter((tile) =>
+                dependencies.isTileInMainView(tile as RuntimeTile)
+              )
+            ),
             previousReceivers,
             (tile) => dependencies.isTileInMainView(tile as RuntimeTile),
             (tile) => {
@@ -389,7 +397,7 @@ export function createThreeTilesShadowPublication(
                 !!snapshot?.mask &&
                 getReadyMeshRegionCut(
                   root,
-                  casterCut,
+                  candidateCasters,
                   Number.MAX_VALUE,
                   createCasterVolumeDemand(
                     snapshot.mask,
@@ -400,12 +408,41 @@ export function createThreeTilesShadowPublication(
             }
           )
         : { receivers: previousReceivers, pending: candidates };
-      runtimeState.committedMeshReceiverFrontier = receiverPlan.receivers;
-      for (const receiver of receiverPlan.receivers) casterCut.add(receiver);
-      runtimeState.pendingMeshReceiverFrontier = receiverPlan.pending.size
-        ? receiverPlan.pending
-        : null;
-      for (const tile of receiverPlan.pending)
+      // Keep initial receiver geometry available for depth even while its
+      // external casters are pending. A held colour parent takes precedence
+      // over its proposed children in both passes; no hybrid surfaces remain.
+      const casterCut = [...receiverPlan.receivers].every((tile) =>
+        candidateCasters.has(tile)
+      )
+        ? candidateCasters
+        : selectCasters(
+            new Set(
+              [...candidateCasters]
+                .filter((tile) =>
+                  dependencies.isTileInMainView(tile as RuntimeTile)
+                )
+                .concat([...receiverPlan.receivers])
+            )
+          );
+      runtimeState.committedMeshCasterFrontier = casterCut;
+      runtimeState.committedMeshReceiverFrontier = new Set(
+        [...receiverPlan.receivers].filter((tile) => casterCut.has(tile))
+      );
+      // Keep desired receiver demand alive while its family waits. Otherwise
+      // keeping the coarse cut would erase the finer caster requirements.
+      const receiverCoverage = createMeshRegionCutQuery(
+        runtimeState.committedMeshReceiverFrontier,
+        Number.MAX_VALUE,
+        (tile) => ({
+          intersects: dependencies.isTileInMainView(tile as RuntimeTile),
+          errorPixels: 0,
+        })
+      );
+      const pending = new Set(
+        [...candidates].filter((tile) => receiverCoverage(tile) === null)
+      );
+      runtimeState.pendingMeshReceiverFrontier = pending.size ? pending : null;
+      for (const tile of pending)
         dependencies.recordTileWait?.(tile, "receiver", "shadow-render");
       // A proof can be negative between decode and publication. Geometry load
       // invalidation alone never clears that cached false after the cut changes.

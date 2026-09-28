@@ -102,11 +102,26 @@ export function createThreeTilesSettledDemand(
         const pending = runtimeState.tiles.loadingTiles.has(tile);
         const underPressure =
           runtimeState.memoryAdmissionPaused || cache.isFull();
+        if (!underPressure && runtimeState.retainedShadowRequests.has(tile))
+          continue;
         // Skip strategy: memory is bounded by the LRU's retention floor and
         // its priority order (far and coarse first), so below the ceiling
         // every loaded tile stays: the rings, and any finer detail a view
         // had, which a pan back or a zoom-out then shows at once.
-        if (!runtimeState.tiles.loadAncestors && !underPressure) break;
+        // Keep admission headroom while the live view is still refining.
+        // Only obsolete demand is released here; the pressure-only replacement
+        // rules below remain disabled until the physical ceiling is reached.
+        const reclaimForView =
+          (!runtimeState.lastMainViewConverged ||
+            runtimeState.memoryErrorTarget >
+              runtimeState.requestedErrorTarget) &&
+          cache.cachedBytes > cache.minBytesSize;
+        if (
+          !runtimeState.tiles.loadAncestors &&
+          !underPressure &&
+          !reclaimForView
+        )
+          break;
         // A floor tile replaced by its children is still the extent's
         // coverage the next zoom-out shows; never a candidate.
         const replacedParent =
@@ -181,6 +196,7 @@ export function createThreeTilesSettledDemand(
         return;
       if (
         runtimeState.lastMainViewConverged &&
+        runtimeState.memoryErrorTarget <= runtimeState.requestedErrorTarget &&
         !runtimeState.memoryAdmissionPaused &&
         !runtimeState.meshDemandSweepPending
       )

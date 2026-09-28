@@ -188,9 +188,14 @@ export function createThreeTilesSpatialDemand(
       return result;
     };
   let coverageFrontier = runtimeState.displayedMeshFrontier;
+  let coverageView: unknown;
+  let coverageRevision = -1;
+  let coverageFrame = -1;
   let coverageQuery: ReturnType<typeof createMeshRegionCutQuery> | undefined;
   let casterCoverageMask: unknown;
   let casterCoverageFrontier: unknown;
+  let casterCoverageRevision = -1;
+  let casterCoverageFrame = -1;
   let casterCoverageQuery:
     | ReturnType<typeof createMeshRegionCutQuery>
     | undefined;
@@ -205,10 +210,14 @@ export function createThreeTilesSpatialDemand(
       ) {
         if (
           casterCoverageMask !== runtimeState.shadowReceiverMask ||
-          casterCoverageFrontier !== runtimeState.committedMeshCasterFrontier
+          casterCoverageFrontier !== runtimeState.committedMeshCasterFrontier ||
+          casterCoverageRevision !== runtimeState.meshContentRevision ||
+          casterCoverageFrame !== (runtimeState.tiles?.frameCount ?? -1)
         ) {
           casterCoverageMask = runtimeState.shadowReceiverMask;
           casterCoverageFrontier = runtimeState.committedMeshCasterFrontier;
+          casterCoverageRevision = runtimeState.meshContentRevision;
+          casterCoverageFrame = runtimeState.tiles?.frameCount ?? -1;
           casterCoverageQuery = createMeshRegionCutQuery(
             runtimeState.committedMeshCasterFrontier,
             Number.MAX_VALUE,
@@ -227,8 +236,18 @@ export function createThreeTilesSpatialDemand(
         )
           return true;
       }
-      if (coverageFrontier !== runtimeState.displayedMeshFrontier) {
+      if (
+        coverageFrontier !== runtimeState.displayedMeshFrontier ||
+        coverageView !== runtimeState.tileCameraDemand ||
+        coverageRevision !== runtimeState.meshContentRevision ||
+        coverageFrame !== (runtimeState.tiles?.frameCount ?? -1)
+      ) {
+        // A retained cut can expose different holes after a pan or a load.
+        // Subtree proofs belong to this prepared demand/content snapshot.
         coverageFrontier = runtimeState.displayedMeshFrontier;
+        coverageView = runtimeState.tileCameraDemand;
+        coverageRevision = runtimeState.meshContentRevision;
+        coverageFrame = runtimeState.tiles?.frameCount ?? -1;
         coverageQuery = undefined;
       }
       if (hasDisplayedAncestor(tile, coverageFrontier)) return false;
@@ -251,21 +270,30 @@ export function createThreeTilesSpatialDemand(
   ): RuntimeTile["meshRefinement"] => {
     if (!runtimeState.options.providesTerrain) return undefined;
     const published = runtimeState.displayedMeshFrontier;
+    const skippedLevels =
+      runtimeState.tiles?.loadAncestors === false && !runtimeState.shadowView;
     // Native preprocessing queues the owner of still-raw children itself.
     const ownsChildren = published.has(tile) && tile.children?.length > 0;
     if (
       !ownsChildren &&
       tile.internal?.hasRenderableContent &&
-      !isPublishedMeshRefinementLevel(tile, published)
+      !isPublishedMeshRefinementLevel(
+        tile,
+        published,
+        1,
+        skippedLevels ? Number.POSITIVE_INFINITY : 1
+      )
     )
       return undefined;
-    // Routing JSON does not count as a drawable level. A deeper speculative
-    // descendant must not borrow the value of an unrelated coarse ancestor.
+    // Routing JSON is not a drawable level. In skip mode a target descendant
+    // replaces the published ancestor directly, even across unloaded levels.
+    // Shadow families keep their immediate-level publication contract.
     let group = ownsChildren ? tile : tile.parent;
     while (
       group &&
       (!group.internal?.hasRenderableContent ||
-        isMeshTileUnconditionallyRefined(group))
+        isMeshTileUnconditionallyRefined(group) ||
+        (skippedLevels && !published.has(group) && group.refine === "REPLACE"))
     )
       group = group.parent;
     if (
@@ -339,10 +367,7 @@ export function createThreeTilesSpatialDemand(
   const getTileRequestPriority: ThreeTilesRuntimeServices["getTileRequestPriority"] =
     (tile) => {
       tile.meshRefinement = undefined;
-      if (
-        runtimeState.meshCoverageRecovery &&
-        isTileNeededForMeshCoverage(tile)
-      )
+      if (isTileNeededForMeshCoverage(tile))
         return TILE_CAMERA_PRIORITY.VIEWPORT_FILL;
       const inObserver = getTileObserverDemand(tile).intersects;
       tile.meshRefinement = getMeshRefinement(tile);
