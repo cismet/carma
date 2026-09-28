@@ -40,6 +40,22 @@ export {
   type LockToggleButtonProps,
 } from "./lib/components/LockToggleButton";
 export {
+  SymbolBadge,
+  createSymbolBadgeRenderer,
+  type SymbolBadgeProps,
+  type SymbolBadgeRenderer,
+  type SymbolBadgeRendererOptions,
+} from "./lib/components/SymbolBadge/SymbolBadge";
+export {
+  buildSymbolBadgeSvgMarkup,
+  SYMBOL_BADGE_CLASS_NAMES,
+  SYMBOL_BADGE_DEFAULT_DIMENSION,
+  SYMBOL_BADGE_DEFAULT_FOREGROUND_COLOR,
+  SYMBOL_BADGE_DEFAULT_SIZE_PX,
+  type SymbolBadgeDimension,
+  type SymbolBadgeMarkupOptions,
+} from "./lib/components/SymbolBadge/symbolBadgeMarkup";
+export {
   VectorSquareIcon,
   type VectorSquareIconProps,
 } from "./lib/components/VectorSquareIcon";

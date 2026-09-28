@@ -55,7 +55,10 @@ export { buildFeatureStateTarget } from "./lib/featureStateTarget";
 export type { FeatureStateRef } from "./lib/featureStateTarget";
 
 // Stamp feature.sourceLayer from properties._sourceLayer (geojson FCs)
-export { stampSourceLayerFromProperty } from "./lib/sourceLayerStamp";
+export {
+  stampSourceLayerFromProperty,
+  SOURCE_LAYER_PROPERTY,
+} from "./lib/sourceLayerStamp";
 
 // Extent of the GeoJSON features a MapLibre style ships
 export {
