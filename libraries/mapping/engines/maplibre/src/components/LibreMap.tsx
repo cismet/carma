@@ -2150,6 +2150,36 @@ export const LibreMap = ({
     });
   };
 
+  // The gazetteer jump changes the zoom right before onComplete. Until the
+  // tiles of the new zoom are rendered, clustered geojson sources still show
+  // the overzoomed parent tile, so a query at the hit position finds the
+  // cluster (or nothing) instead of the feature. Waits for a rendered frame
+  // with all tiles loaded rather than "idle", which never fires while an
+  // animated layer repaints every frame.
+  const waitForRenderedTiles = (
+    mapInstance: maplibregl.Map,
+    timeoutMs = 3000
+  ): Promise<void> => {
+    return new Promise((resolve) => {
+      const done = () => {
+        window.clearTimeout(timeoutId);
+        mapInstance.off("render", check);
+        resolve();
+      };
+      const check = () => {
+        if (mapInstance.areTilesLoaded()) {
+          done();
+        }
+      };
+      const timeoutId = window.setTimeout(done, timeoutMs);
+      mapInstance.on("render", check);
+      mapInstance.triggerRepaint();
+    });
+  };
+
+  /** bumped per gazetteer completion, so a slower one never overrides a newer one */
+  const gazetteerRunRef = useRef(0);
+
   const onComplete = async (selection: SelectionItem) => {
     if (isAreaType(selection.type as ENDPOINT)) return;
 
@@ -2161,7 +2191,20 @@ export const LibreMap = ({
       selection.y,
     ]);
 
+    const run = ++gazetteerRunRef.current;
+    const startVersion = mapSelectionCtxRef.current.selectionVersion;
+
     const ready = await waitForVectorSources();
+    await waitForRenderedTiles(mapInstance);
+
+    // Something selected while the tiles loaded (a click, an app selecting
+    // the hit by id, a newer gazetteer hit): that selection wins.
+    if (
+      run !== gazetteerRunRef.current ||
+      mapSelectionCtxRef.current.selectionVersion !== startVersion
+    ) {
+      return;
+    }
 
     clearVisualSelection(mapInstance);
     setSelectedFeature(null);
