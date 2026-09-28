@@ -2,6 +2,7 @@ import { useContext, useEffect, useState } from "react";
 import { Badge } from "react-bootstrap";
 import CustomizationContextProvider from "react-cismap/contexts/CustomizationContextProvider";
 import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
+import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 import DefaultSettingsPanel from "react-cismap/topicmaps/menu/DefaultSettingsPanel";
 import ModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMenu";
 import Section from "react-cismap/topicmaps/menu/Section";
@@ -113,6 +114,9 @@ const Menu = ({
 }: MenuProps) => {
   const { setAppMenuActiveMenuSection } =
     useContext<typeof UIDispatchContext>(UIDispatchContext);
+  const { windowSize } = useContext<typeof ResponsiveTopicMapContext>(
+    ResponsiveTopicMapContext
+  );
   const { map } = useLibreContext();
   const [shownCount, setShownCount] = useState(0);
 
@@ -165,7 +169,8 @@ const Menu = ({
                         categories={categories}
                         filterState={filterState}
                         onFilterStateChange={onFilterStateChange}
-                        width={900}
+                        width={windowSize?.width || 500}
+                        wideBreakpoint={995}
                         pieChartData={pieChartData}
                         pieChartColors={pieChartColors}
                         categoryFootnotes={CROSS_LINK_FOOTNOTES}
