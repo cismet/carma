@@ -267,6 +267,7 @@ const CarmaMapContent = (props: CarmaMapProps) => {
             {props.modalMenu && modalMenuControl && (
               <Control position="topright" order={10}>
                 <ControlButtonStyler
+                  id="cmdShowModalApplicationMenu"
                   useDisabledStyle={false}
                   onClick={() => {
                     setAppMenuVisible(true);
