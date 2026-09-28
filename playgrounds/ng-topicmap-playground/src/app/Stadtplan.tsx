@@ -112,6 +112,16 @@ function buildPoiFilterExpression(allowedKombis: string[]): any[] {
   ];
 }
 
+/** Features without a kombi value are never filtered out. */
+function filterPoiFeatures(allFeatures: any[], allowedKombis: string[]): any[] {
+  const allowedSet = new Set(allowedKombis);
+  return allFeatures.filter((f: any) => {
+    const kombi = f.properties?.kombi;
+    if (typeof kombi !== "string" || kombi.length === 0) return true;
+    return allowedSet.has(kombi);
+  });
+}
+
 /** Apply the current POI filter.
  *  - setFilter on non-cluster layers for instant, flicker-free toggling
  *  - setData on the source so cluster aggregation only includes visible features */
@@ -148,14 +158,9 @@ function applyPoiFilter(
         features: allFeatures,
       });
     } else {
-      const allowedSet = new Set(allowedKombis);
       (source as any).setData({
         type: "FeatureCollection",
-        features: allFeatures.filter((f: any) => {
-          const kombi = f.properties?.kombi;
-          if (typeof kombi !== "string" || kombi.length === 0) return true;
-          return allowedSet.has(kombi);
-        }),
+        features: filterPoiFeatures(allFeatures, allowedKombis),
       });
     }
   }
@@ -266,6 +271,15 @@ export function Stadtplan() {
     return { pieChartData: data, pieChartColors: colorArr };
   }, [filterState, allFeatures]);
 
+  const filteredFeatures = useMemo(
+    () =>
+      filterPoiFeatures(
+        allFeatures,
+        getAllowedKombis(allKombisRef.current, filterState)
+      ),
+    [filterState, allFeatures]
+  );
+
   const categories = useMemo(
     () => lebenslagen.map((ll) => ({ key: ll, label: ll })),
     [lebenslagen]
@@ -298,6 +312,7 @@ export function Stadtplan() {
                     onFilterStateChange={setFilterState}
                     pieChartData={pieChartData}
                     pieChartColors={pieChartColors}
+                    filteredFeatures={filteredFeatures}
                   />
                 }
               />

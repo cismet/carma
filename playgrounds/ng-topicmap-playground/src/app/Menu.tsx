@@ -1,4 +1,4 @@
-import { useContext } from "react";
+import { useContext, useEffect, useState } from "react";
 import CustomizationContextProvider from "react-cismap/contexts/CustomizationContextProvider";
 import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
 import DefaultSettingsPanel from "react-cismap/topicmaps/menu/DefaultSettingsPanel";
@@ -13,7 +13,10 @@ import {
 } from "@carma-collab/wuppertal/stadtplan";
 import versionData from "../version.json";
 import { getApplicationVersion } from "@carma-commons/utils";
-import { PreviewLibreMap } from "@carma-mapping/engines/maplibre";
+import {
+  PreviewLibreMap,
+  useLibreContext,
+} from "@carma-mapping/engines/maplibre";
 import {
   AdvancedFilterPanel,
   type AdvancedFilterCategory,
@@ -26,7 +29,25 @@ interface MenuProps {
   onFilterStateChange?: (state: AdvancedFilterState) => void;
   pieChartData?: [string, number][];
   pieChartColors?: string[];
+  filteredFeatures?: any[];
 }
+
+const countFeaturesInBounds = (
+  map: ReturnType<typeof useLibreContext>["map"],
+  features: any[]
+) => {
+  if (!map) {
+    return 0;
+  }
+  const bounds = map.getBounds();
+  return features.filter((f) => {
+    const coordinates = f.geometry?.coordinates;
+    return (
+      f.geometry?.type === "Point" &&
+      bounds.contains(coordinates as [number, number])
+    );
+  }).length;
+};
 
 const Menu = ({
   categories,
@@ -34,17 +55,31 @@ const Menu = ({
   onFilterStateChange,
   pieChartData,
   pieChartColors,
+  filteredFeatures = [],
 }: MenuProps) => {
   const { setAppMenuActiveMenuSection } =
     useContext<typeof UIDispatchContext>(UIDispatchContext);
+  const { map } = useLibreContext();
+  const [shownCount, setShownCount] = useState(0);
+
+  useEffect(() => {
+    if (!map) {
+      return;
+    }
+    const update = () =>
+      setShownCount(countFeaturesInBounds(map, filteredFeatures));
+    update();
+    map.on("moveend", update);
+    return () => {
+      map.off("moveend", update);
+    };
+  }, [map, filteredFeatures]);
 
   const hasFilter = categories && filterState && onFilterStateChange;
 
-  const filterTitle =
-    filterState &&
-    (filterState.positiv.length > 0 || filterState.negativ.length > 0)
-      ? `Filter (${filterState.positiv.length} aktiv, ${filterState.negativ.length} ausgeschlossen)`
-      : "Filter";
+  const count = filteredFeatures.length;
+  const term = count === 1 ? "POI" : "POIs";
+  const filterTitle = `Mein Themenstadtplan (${count} ${term} gefunden, davon ${shownCount} in der Karte)`;
 
   return (
     <CustomizationContextProvider customizations={{}}>
