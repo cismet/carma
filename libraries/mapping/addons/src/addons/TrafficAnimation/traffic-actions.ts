@@ -13,8 +13,8 @@ import { useAddonState } from "../../lib/AddonStateContext";
  *
  * The engine (`TrafficAnimation`) writes what it shows: the moment, how dark
  * it is, how many vehicles are out. Whoever steers it writes one thing, the
- * offset: the addon's own panel on a desktop route, and on the projection
- * window (`#/outlet`), which has no panel, the remote's entry. Both go through
+ * offset: the addon's ribbon on a desktop route, and on the projection
+ * window (`#/outlet`), which has no layer bar, the remote's entry. Both go through
  * `setOffsetMinutes`, so the engine does not care who moved the slider.
  *
  * Session-only: the offset is a moment in the last 24 hours, which means

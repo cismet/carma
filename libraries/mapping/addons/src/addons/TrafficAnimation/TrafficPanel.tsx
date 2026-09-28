@@ -1,26 +1,31 @@
-import { Button, Slider } from "antd";
+import { useState, type ReactNode } from "react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faChevronDown } from "@fortawesome/free-solid-svg-icons";
+import { Slider, Tooltip } from "antd";
 
 import {
+  TRAFFIC_DAY_HOUR,
   TRAFFIC_MAX_OFFSET_MINUTES,
+  TRAFFIC_NIGHT_HOUR,
   formatTrafficTime,
+  type TrafficJump,
 } from "@carma-mapping/show-remote";
 
-import type { TrafficAnimationState } from "./traffic-actions";
+import { useTrafficAnimationActions } from "./traffic-actions";
 
 /**
- * The traffic's panel on a desktop route: which moment of the last 24 hours
- * the vehicles drive at, as a slider from 24 hours ago to live, and the three
- * jumps "Tag", "Nacht" and "Live" the remote on the phone has as well.
+ * The traffic's ribbon under the layer bar, opened from the readout on the
+ * launching layer's button: which moment of the last 24 hours the vehicles
+ * drive at, as a slider from 24 hours ago to live, and the three jumps "Tag",
+ * "Nacht" and "Live" the remote on the phone has as well.
+ *
+ * Collapsed is the whole UI. The chevron opens what is there to read, not to
+ * set: how many vehicles are out, how long ago the moment is, and where the
+ * numbers come from.
  *
  * The slider runs from -1440 to 0 so that live sits at the right end, where a
  * timeline ends; the channel keeps the offset as a positive number of minutes.
  */
-
-const SLIDER_MARKS = {
-  [-TRAFFIC_MAX_OFFSET_MINUTES]: "−24 h",
-  [-TRAFFIC_MAX_OFFSET_MINUTES / 2]: "−12 h",
-  0: "Live",
-};
 
 /** "vor 3 h 20 min", or "Live" at 0 */
 const agoLabel = (minutes: number): string => {
@@ -34,90 +39,163 @@ const agoLabel = (minutes: number): string => {
 const lightLabel = (darkness: number): string =>
   darkness >= 0.5 ? "Nacht" : darkness > 0 ? "Dämmerung" : "Tag";
 
-export type TrafficPanelProps = Pick<
-  TrafficAnimationState,
-  | "title"
-  | "offsetMinutes"
-  | "displayedAt"
-  | "darkness"
-  | "vehicleCount"
-  | "isCapped"
-  | "isLoading"
-  | "error"
-> & {
-  onOffset: (minutes: number) => void;
-  onJump: (kind: "day" | "night" | "live") => void;
-};
+const JUMPS: { kind: TrafficJump; label: string; tooltip: string }[] = [
+  {
+    kind: "day",
+    label: "Tag",
+    tooltip: `Verkehr um ${TRAFFIC_DAY_HOUR} Uhr zeigen`,
+  },
+  {
+    kind: "night",
+    label: "Nacht",
+    tooltip: `Verkehr um ${TRAFFIC_NIGHT_HOUR} Uhr zeigen`,
+  },
+  { kind: "live", label: "Live", tooltip: "Verkehr von jetzt zeigen" },
+];
 
-export const TrafficPanel = ({
-  title,
-  offsetMinutes,
-  displayedAt,
-  darkness,
-  vehicleCount,
-  isCapped,
-  isLoading,
-  error,
-  onOffset,
-  onJump,
-}: TrafficPanelProps) => {
+const SegmentButton = ({
+  active,
+  tooltip,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  tooltip: string;
+  onClick: () => void;
+  children: ReactNode;
+}) => (
+  <Tooltip title={tooltip} placement="top">
+    <button
+      type="button"
+      aria-pressed={active}
+      onClick={onClick}
+      className={`text-sm rounded-md px-3 py-1 border-0 whitespace-nowrap cursor-pointer ${
+        active
+          ? "bg-white text-gray-900 shadow-sm"
+          : "bg-transparent text-gray-600"
+      }`}
+    >
+      {children}
+    </button>
+  </Tooltip>
+);
+
+export const TrafficPanel = () => {
+  const {
+    offsetMinutes,
+    displayedAt,
+    darkness,
+    isNight,
+    vehicleCount,
+    isCapped,
+    isLoading,
+    error,
+    setOffsetMinutes,
+    jump,
+  } = useTrafficAnimationActions();
+  const [expanded, setExpanded] = useState(false);
+
   const shown = displayedAt || Date.now() - offsetMinutes * 60_000;
+  /** the jump the moment shown belongs to, so one segment is always lit */
+  const activeJump: TrafficJump =
+    offsetMinutes === 0 ? "live" : isNight ? "night" : "day";
+
   const status = error
     ? `Fehler: ${error}`
     : isLoading
     ? "Straßennetz wird geladen …"
     : `${vehicleCount.toLocaleString("de-DE")} Fahrzeuge${
         isCapped ? " (begrenzt)" : ""
-      }`;
+      } · ${lightLabel(darkness)} · ${agoLabel(offsetMinutes)}`;
 
   return (
     <div
-      className="flex w-[300px] flex-col gap-1.5 rounded-md bg-white px-3 py-2 shadow-lg"
+      className="w-[100vw] sm:w-[86vw] sm:max-w-[680px] md:max-w-[760px] shrink-0 bg-white rounded-[10px] px-4 py-2 shadow-lg"
       data-test-id="traffic-animation-panel"
     >
-      <div className="flex items-baseline justify-between gap-2">
-        <span className="text-sm font-semibold">{title}</span>
-        <span className="text-xs text-gray-500">{lightLabel(darkness)}</span>
-      </div>
-      <div className="flex items-baseline justify-between gap-2 text-sm tabular-nums text-gray-700">
-        <span>{formatTrafficTime(shown)}</span>
-        <span className="text-xs text-gray-500">{agoLabel(offsetMinutes)}</span>
-      </div>
-      <Slider
-        min={-TRAFFIC_MAX_OFFSET_MINUTES}
-        max={0}
-        step={1}
-        marks={SLIDER_MARKS}
-        value={-offsetMinutes}
-        onChange={(value: number) => onOffset(-value)}
-        tooltip={{
-          formatter: (value) =>
-            formatTrafficTime(Date.now() + (value ?? 0) * 60_000),
-        }}
-        style={{ margin: "0 8px 18px" }}
-      />
-      <div className="flex items-center gap-1.5">
-        <Button size="small" onClick={() => onJump("day")}>
-          Tag
-        </Button>
-        <Button size="small" onClick={() => onJump("night")}>
-          Nacht
-        </Button>
-        <Button
-          size="small"
-          type={offsetMinutes === 0 ? "primary" : "default"}
-          onClick={() => onJump("live")}
-        >
-          Live
-        </Button>
-        <span className="ml-auto text-xs tabular-nums text-gray-500">
-          {status}
+      {/* No title here: the layer button the ribbon hangs off already says
+          which traffic this is. */}
+      <div className="flex items-center gap-3 text-sm text-gray-700">
+        <span className="shrink-0 whitespace-nowrap tabular-nums">
+          {formatTrafficTime(shown)}
         </span>
+
+        <Slider
+          className="grow"
+          min={-TRAFFIC_MAX_OFFSET_MINUTES}
+          max={0}
+          step={1}
+          value={-offsetMinutes}
+          onChange={(value: number) => setOffsetMinutes(-value)}
+          tooltip={{
+            formatter: (value) =>
+              formatTrafficTime(Date.now() + (value ?? 0) * 60_000),
+          }}
+          style={{ margin: 0 }}
+        />
+
+        <div className="inline-flex shrink-0 items-center rounded-lg bg-gray-100 p-1 gap-1">
+          {JUMPS.map(({ kind, label, tooltip }) => (
+            <SegmentButton
+              key={kind}
+              active={activeJump === kind}
+              tooltip={tooltip}
+              onClick={() => jump(kind)}
+            >
+              {label}
+            </SegmentButton>
+          ))}
+        </div>
+
+        <Tooltip
+          title={expanded ? "Details ausblenden" : "Details zeigen"}
+          placement="top"
+        >
+          <button
+            type="button"
+            aria-label={expanded ? "Details ausblenden" : "Details zeigen"}
+            aria-expanded={expanded}
+            onClick={() => setExpanded((open) => !open)}
+            className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent text-gray-600 hover:bg-black/5"
+          >
+            <FontAwesomeIcon
+              icon={faChevronDown}
+              style={{
+                transform: expanded ? "rotate(180deg)" : undefined,
+                transition: "transform 150ms",
+              }}
+            />
+          </button>
+        </Tooltip>
       </div>
-      <p className="m-0 text-[11px] leading-snug text-gray-500">
-        Straßennetz und Tagesmengen: Verkehrsbelastung 2020. Verlauf über den
-        Tag und die letzten 24 Stunden sind erfunden.
-      </p>
+
+      {/* A failing network is the one thing the collapsed ribbon has to say,
+          since the map then just stays empty. */}
+      {!expanded && error && (
+        <p className="m-0 mt-1 text-sm text-red-600">{status}</p>
+      )}
+
+      {expanded && (
+        <div className="mt-2 border-0 border-t border-solid border-gray-200 pt-2">
+          <p
+            className={`m-0 text-sm tabular-nums ${
+              error ? "text-red-600" : "text-gray-500"
+            }`}
+          >
+            {status}
+          </p>
+          <p className="mb-0 mt-1 text-xs leading-snug text-gray-500">
+            Straßennetz und Tagesmengen: Verkehrsbelastung 2020. Verlauf über
+            den Tag und die letzten 24 Stunden sind erfunden.
+          </p>
+        </div>
+      )}
     </div>
   );
 };
+
+/**
+ * What the host's interaction view mounts. The `layer` prop the host passes is
+ * the launching layer's, which says nothing the channel does not.
+ */
+export const TrafficInteractionPanel = () => <TrafficPanel />;

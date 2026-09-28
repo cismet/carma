@@ -1,10 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 
-import {
-  Control,
-  type Positions,
-} from "@carma-mapping/map-controls-layout";
-
 import type { AddonComponentProps } from "../../lib/registry";
 import { placeAtSlot, useStyleSlot } from "../../lib/style-slot";
 import { useTrafficAnimationActions } from "./traffic-actions";
@@ -18,7 +13,6 @@ import {
   resolveNetworkUrl,
   type TrafficNetwork,
 } from "./traffic-network";
-import { TrafficPanel } from "./TrafficPanel";
 
 /**
  * Cars, buses and trucks driving the roads of a network, by day and by night.
@@ -33,7 +27,10 @@ import { TrafficPanel } from "./TrafficPanel";
  * keeps one engine per map and network, and connects it to the channel.
  *
  * The moment shown is steered through the channel's `offsetMinutes`: the
- * panel writes it on a desktop route, the remote on the projection window.
+ * ribbon writes it on a desktop route, the remote on the projection window.
+ * The ribbon is not rendered here: it is the host's interaction view, opened
+ * from the readout the host puts on the launching layer's button
+ * (`traffic-layer-row.tsx`, `TrafficPanel.tsx`).
  */
 
 export type TrafficAnimationConfig = {
@@ -42,7 +39,7 @@ export type TrafficAnimationConfig = {
    * it. Relative to the app's base unless absolute; see `resolveNetworkUrl`.
    */
   networkUrl?: string;
-  /** what the panel calls it. Default: "Verkehr" */
+  /** what the channel calls it. Default: "Verkehr" */
   title?: string;
   /** factor on the vehicle bodies. Default 2.5 */
   sizeScale?: number;
@@ -64,22 +61,10 @@ export type TrafficAnimationConfig = {
    * layer's place in the stack; without a slot they stay on top.
    */
   anchorLayerId?: string;
-  /**
-   * Whether the panel with the slider is shown. Default true; a host without
-   * layer buttons (the projection window) has no one to use it.
-   */
-  showPanel?: boolean;
-  /** Corner the panel is registered in. Default: "bottomleft" */
-  controlPosition?: Positions;
-  /** Sort order within that corner. Default: 20 */
-  controlOrder?: number;
 };
 
 /** the slot a style marks the vehicles' place in the layer order with */
 const TRAFFIC_SLOT = "trafficAnimation";
-
-const DEFAULT_CONTROL_POSITION: Positions = "bottomleft";
-const DEFAULT_CONTROL_ORDER = 20;
 
 export const TrafficAnimation = ({
   config = {},
@@ -96,13 +81,10 @@ export const TrafficAnimation = ({
     hidden = false,
     opacity = 1,
     anchorLayerId,
-    showPanel = true,
-    controlPosition = DEFAULT_CONTROL_POSITION,
-    controlOrder = DEFAULT_CONTROL_ORDER,
   } = config;
 
-  const traffic = useTrafficAnimationActions();
-  const { update, setOffsetMinutes, jump, offsetMinutes } = traffic;
+  const { update, setOffsetMinutes, offsetMinutes } =
+    useTrafficAnimationActions();
 
   const [network, setNetwork] = useState<TrafficNetwork | null>(null);
   const engineRef = useRef<TrafficEngine | null>(null);
@@ -242,24 +224,5 @@ export const TrafficAnimation = ({
     engineRef.current?.setOpacity(opacity);
   }, [opacity]);
 
-  if (!libreMap || !resolvedUrl || !showPanel || hidden) {
-    return null;
-  }
-
-  return (
-    <Control position={controlPosition} order={controlOrder}>
-      <TrafficPanel
-        title={traffic.title}
-        offsetMinutes={traffic.offsetMinutes}
-        displayedAt={traffic.displayedAt}
-        darkness={traffic.darkness}
-        vehicleCount={traffic.vehicleCount}
-        isCapped={traffic.isCapped}
-        isLoading={traffic.isLoading}
-        error={traffic.error}
-        onOffset={setOffsetMinutes}
-        onJump={jump}
-      />
-    </Control>
-  );
+  return null;
 };

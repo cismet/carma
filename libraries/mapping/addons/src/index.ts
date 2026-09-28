@@ -213,10 +213,15 @@ export {
 } from "./addons/FloodSimulation";
 export {
   TrafficAnimation,
+  TrafficInteractionPanel,
   useTrafficAnimationActions,
+  useTrafficAnimationLayerRow,
+  TRAFFIC_ANIMATION_LAYER_ID,
   TRAFFIC_ANIMATION_STATE_DEFAULT,
+  TRAFFIC_TOOLS_INTERACTION_ID,
   type TrafficAnimationConfig,
   type TrafficAnimationState,
+  type UseTrafficAnimationLayerRowOptions,
 } from "./addons/TrafficAnimation";
 
 export { useHasAddonStateProducer } from "./lib/addon-channels";

@@ -283,7 +283,6 @@ describe("getLayerLaunchedAddons, traffic style", () => {
             ...NETWORK,
             hidden: true,
             opacity: 0.6,
-            showPanel: true,
             anchorLayerId: "custom:verkehr",
           },
         },
@@ -291,7 +290,7 @@ describe("getLayerLaunchedAddons, traffic style", () => {
     ]);
   });
 
-  it("shows no panel on a host that only renders the stack", () => {
+  it("launches it the same way on a host that only renders the stack", () => {
     const [launched] = getLayerLaunchedAddons(
       [
         styleLayer("custom:verkehr", [
@@ -306,7 +305,6 @@ describe("getLayerLaunchedAddons, traffic style", () => {
         ...NETWORK,
         hidden: false,
         opacity: 1,
-        showPanel: false,
         anchorLayerId: "custom:verkehr",
       },
     });
