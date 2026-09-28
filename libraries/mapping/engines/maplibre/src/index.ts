@@ -245,6 +245,7 @@ export { ThreeLayerManager } from "./components/ThreeLayerManager";
 export { getGenericThreeLayers as get3dLayers } from "./lib/runtime/integrations/generic-three-layer-registry";
 export {
   add3dPresence,
+  get3dLayerIds,
   has3dLayers,
   remove3dPresence,
 } from "./utils/threeDPresence";
