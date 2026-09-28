@@ -105,12 +105,18 @@ export const flyToPose = (
   animation: AnimationConfig | undefined,
   { dynamicDuration = true }: { dynamicDuration?: boolean } = {}
 ): CameraFlight => {
+  // The roll has to be passed even though the map stays unrolled: MapLibre
+  // 5.18 hands it back as given, `undefined` included, and `jumpTo` and
+  // `easeTo` turn that into a NaN roll. The camera's matrices then cannot be
+  // inverted, the move throws, and the requested camera state it leaves
+  // behind fails every move after it.
   const cameraOptions = () =>
     map.calculateCameraOptionsFromCameraLngLatAltRotation(
       [pose.longitude, pose.latitude],
       altitude,
       pose.bearingDeg,
-      pose.pitchDeg
+      pose.pitchDeg,
+      0
     );
 
   const maxDuration = animation?.duration ?? 2000;
