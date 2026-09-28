@@ -3,6 +3,7 @@ import { useSelector } from "react-redux";
 import { Alert, InputNumber, Select, Spin } from "antd";
 import { EuroOutlined, TagOutlined } from "@ant-design/icons";
 import AdminAreaTable from "../AdminAreaTable";
+import ParcelSelector, { activeTarget } from "../ParcelSelector";
 import { adminTargets } from "../../../core/wizard/adminData";
 import { explain } from "../../../core/wizard/errors";
 import { formatKey } from "../../../core/wizard/keys";
@@ -194,35 +195,34 @@ const UsageStep = ({ value, onChange, onProblem }) => {
     );
   }
 
+  const label = formatKey(activeTarget(targets, value.activeParcel).key);
+  const rows = usage[label] ?? [];
+  const activeRow = rows.find((row) => row.id === activeIds[label]);
+
   return (
     <div className="flex flex-1 flex-col gap-4">
-      {targets.map(({ key }) => {
-        const label = formatKey(key);
-        const rows = usage[label] ?? [];
-        const activeRow = rows.find((row) => row.id === activeIds[label]);
-        return (
-          <div key={label} className="flex flex-col gap-3">
-            <UsageSummary
-              nutzungsart={nutzungsartById.get(activeRow?.nutzungsartId)}
-              gesamtpreis={activeRow ? gesamtpreis(activeRow) : null}
-            />
-            <AdminAreaTable
-              title={targets.length > 1 ? label : undefined}
-              rows={rows}
-              columns={tableColumns}
-              newRow={newUsageRow}
-              scroll={{ x: "max-content" }}
-              activeId={activeIds[label]}
-              onActiveChange={(id) =>
-                setActiveIds((previous) => ({ ...previous, [label]: id }))
-              }
-              onChange={(rows) =>
-                onChange({ usage: { ...usage, [label]: rows } })
-              }
-            />
-          </div>
-        );
-      })}
+      <ParcelSelector
+        targets={targets}
+        value={label}
+        onChange={(next) => onChange({ activeParcel: next })}
+      />
+      <div key={label} className="flex flex-col gap-3">
+        <UsageSummary
+          nutzungsart={nutzungsartById.get(activeRow?.nutzungsartId)}
+          gesamtpreis={activeRow ? gesamtpreis(activeRow) : null}
+        />
+        <AdminAreaTable
+          rows={rows}
+          columns={tableColumns}
+          newRow={newUsageRow}
+          scroll={{ x: "max-content" }}
+          activeId={activeIds[label]}
+          onActiveChange={(id) =>
+            setActiveIds((previous) => ({ ...previous, [label]: id }))
+          }
+          onChange={(rows) => onChange({ usage: { ...usage, [label]: rows } })}
+        />
+      </div>
     </div>
   );
 };

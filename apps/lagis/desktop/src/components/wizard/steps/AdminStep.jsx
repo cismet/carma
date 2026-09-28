@@ -4,6 +4,7 @@ import { Alert, Input, InputNumber, Modal, Select, Spin, Switch } from "antd";
 import { LockOutlined } from "@ant-design/icons";
 import { verwaltung } from "@carma-collab/wuppertal/lagis-desktop";
 import DienststellenEditor from "../DienststellenEditor";
+import ParcelSelector, { activeTarget } from "../ParcelSelector";
 import AdminAreaTable, {
   ColorMark,
   dienststelleLabel,
@@ -149,7 +150,7 @@ const SECTIONS = {
 };
 
 // A Sperre needs a reason; it is only a marker and blocks nothing.
-const NoteEditor = ({ title, parcel, onChange }) => {
+const NoteEditor = ({ parcel, onChange }) => {
   const [asking, setAsking] = useState(false);
   const [reason, setReason] = useState("");
 
@@ -169,11 +170,6 @@ const NoteEditor = ({ title, parcel, onChange }) => {
 
   return (
     <div className="flex flex-col gap-4">
-      {title && (
-        <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-          {title}
-        </span>
-      )}
       <div
         className="flex items-center gap-3 rounded-md px-4 py-3"
         style={
@@ -303,49 +299,53 @@ const AdminStep = ({ section, value, onChange, onProblem, onHideProblem }) => {
 
   const config = SECTIONS[section];
 
+  const label = formatKey(activeTarget(targets, value.activeParcel).key);
+  const parcel = admin[label];
+
+  const renderParcel = () => {
+    if (!parcel) {
+      return null;
+    }
+    if (!config) {
+      return (
+        <NoteEditor
+          key={label}
+          parcel={parcel}
+          onChange={(changes) => patchParcel(label, changes)}
+        />
+      );
+    }
+    if (section === ADMIN_SECTION.DIENSTSTELLEN) {
+      return (
+        <DienststellenEditor
+          key={label}
+          parcel={parcel}
+          dienststellen={stammdaten.dienststellen}
+          columns={config.columns(stammdaten)}
+          newRow={() => config.newRow(parcel)}
+          onChange={(rows) => patchParcel(label, { dienststellen: rows })}
+        />
+      );
+    }
+    return (
+      <AdminAreaTable
+        key={label}
+        rows={parcel[config.field]}
+        columns={config.columns(stammdaten)}
+        newRow={() => config.newRow(parcel)}
+        onChange={(rows) => patchParcel(label, { [config.field]: rows })}
+      />
+    );
+  };
+
   return (
     <div className="flex flex-1 flex-col gap-4">
-      {targets.map(({ key }) => {
-        const label = formatKey(key);
-        const parcel = admin[label];
-        const title = targets.length > 1 ? label : undefined;
-        if (!parcel) {
-          return null;
-        }
-        if (!config) {
-          return (
-            <NoteEditor
-              key={label}
-              title={title}
-              parcel={parcel}
-              onChange={(changes) => patchParcel(label, changes)}
-            />
-          );
-        }
-        if (section === ADMIN_SECTION.DIENSTSTELLEN) {
-          return (
-            <DienststellenEditor
-              key={label}
-              title={title}
-              parcel={parcel}
-              dienststellen={stammdaten.dienststellen}
-              columns={config.columns(stammdaten)}
-              newRow={() => config.newRow(parcel)}
-              onChange={(rows) => patchParcel(label, { dienststellen: rows })}
-            />
-          );
-        }
-        return (
-          <AdminAreaTable
-            key={label}
-            title={title}
-            rows={parcel[config.field]}
-            columns={config.columns(stammdaten)}
-            newRow={() => config.newRow(parcel)}
-            onChange={(rows) => patchParcel(label, { [config.field]: rows })}
-          />
-        );
-      })}
+      <ParcelSelector
+        targets={targets}
+        value={label}
+        onChange={(next) => onChange({ activeParcel: next })}
+      />
+      {renderParcel()}
     </div>
   );
 };
