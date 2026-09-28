@@ -18,6 +18,8 @@ export interface AdvancedFilterPanelProps {
   filterState: AdvancedFilterState;
   onFilterStateChange: (state: AdvancedFilterState) => void;
   width?: number;
+  /** Minimum width at which the pie chart is shown beside the filter rows instead of below. */
+  wideBreakpoint?: number;
   pieChartData?: [string, number][];
   pieChartColors?: string[];
   categoryFootnotes?: Record<string, string>;
@@ -28,6 +30,7 @@ export const AdvancedFilterPanel = ({
   filterState,
   onFilterStateChange,
   width = 500,
+  wideBreakpoint = 600,
   pieChartData,
   pieChartColors,
   categoryFootnotes,
@@ -91,7 +94,7 @@ export const AdvancedFilterPanel = ({
   const hasPieChartProps =
     pieChartData !== undefined && pieChartColors !== undefined;
 
-  const isWide = width >= 600;
+  const isWide = width >= wideBreakpoint;
 
   return (
     <div>
