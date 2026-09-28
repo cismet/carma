@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { describe, expect, it } from "vitest";
 
 import { parseTrafficNetwork, type TrafficNetwork } from "./traffic-network";
@@ -8,7 +11,13 @@ import {
   flowAt,
   hashUnit,
 } from "./traffic-profile";
-import { VEHICLE_BUS, createTrafficSim } from "./traffic-sim";
+import {
+  CLEARANCE_METERS,
+  VEHICLE_BUS,
+  VEHICLE_SIZE,
+  createTrafficSim,
+  type TrafficVehicle,
+} from "./traffic-sim";
 
 /** a straight road of about `meters` running east from 7.15°E, 51.26°N */
 const road = (
@@ -151,6 +160,165 @@ describe("createTrafficSim", () => {
       expect(vehicle.travelled).toBeLessThan(edge.length);
       expect(vehicle.lane).toBeLessThan(edge.lanes);
     }
+  });
+
+  it("keeps the vehicles in a lane apart at the size they are drawn", () => {
+    const sizeScale = 3.5;
+    const sim = createTrafficSim({
+      network,
+      clock: () => EVENING,
+      random: seeded(7),
+      sizeScale,
+      densityScale: 3,
+    });
+    sim.step(0);
+    for (let step = 0; step < 480; step++) sim.step(0.25);
+    const byLane = new Map<string, TrafficVehicle[]>();
+    for (const vehicle of sim.vehicles) {
+      const key = `${vehicle.edge}|${vehicle.forward}|${vehicle.lane}`;
+      byLane.set(key, [...(byLane.get(key) ?? []), vehicle]);
+    }
+    let pairs = 0;
+    for (const lane of byLane.values()) {
+      lane.sort((a, b) => b.travelled - a.travelled);
+      for (let index = 1; index < lane.length; index++) {
+        const ahead = lane[index - 1];
+        const behind = lane[index];
+        const gap =
+          ((VEHICLE_SIZE[ahead.kind][0] + VEHICLE_SIZE[behind.kind][0]) / 2 +
+            CLEARANCE_METERS) *
+          sizeScale;
+        // a vehicle waiting at a junction stands a centimetre short of the end
+        expect(ahead.travelled - behind.travelled).toBeGreaterThan(gap - 0.02);
+        pairs++;
+      }
+    }
+    expect(pairs).toBeGreaterThan(20);
+  });
+
+  it("lets two merging roads zip in behind each other, apart at the drawn size", () => {
+    const sizeScale = 3.5;
+    const merge = parseTrafficNetwork({
+      type: "FeatureCollection",
+      exits: [1, 2, 4],
+      features: [
+        road(400, { name: "Rampe", bel: 30_000, from: 1, to: 3 }),
+        road(400, { name: "Zubringer", bel: 30_000, from: 2, to: 3 }),
+        road(400, { name: "Weiter", bel: 30_000, from: 3, to: 4 }, 7.15 + 400 / 69_700),
+      ],
+    }) as TrafficNetwork;
+    const onward = merge.edges.find((edge) => edge.name === "Weiter");
+    if (!onward) throw new Error("no onward road");
+    let checked = 0;
+    let tooClose = 0;
+    for (let seed = 1; seed <= 10; seed++) {
+      const sim = createTrafficSim({
+        network: merge,
+        clock: () => EVENING,
+        random: seeded(seed),
+        sizeScale,
+        densityScale: 4,
+      });
+      sim.step(0);
+      for (let step = 0; step < 480; step++) {
+        sim.step(0.25);
+        // everything bound for the onward road, on one line through the junction
+        const line = sim.vehicles
+          .filter((vehicle) =>
+            vehicle.edge === onward.index
+              ? vehicle.forward
+              : vehicle.nextEdge === onward.index && vehicle.nextForward
+          )
+          .map((vehicle) => ({
+            vehicle,
+            at:
+              vehicle.edge === onward.index
+                ? vehicle.travelled
+                : vehicle.travelled - merge.edges[vehicle.edge].length,
+          }))
+          .sort((a, b) => b.at - a.at);
+        for (let index = 1; index < line.length; index++) {
+          const ahead = line[index - 1];
+          const behind = line[index];
+          const gap =
+            ((VEHICLE_SIZE[ahead.vehicle.kind][0] + VEHICLE_SIZE[behind.vehicle.kind][0]) /
+              2 +
+              CLEARANCE_METERS) *
+            sizeScale;
+          // further out the two roads are apart; they meet at the junction
+          if (behind.at < -gap || ahead.at > gap) continue;
+          checked++;
+          if (ahead.at - behind.at < gap - 0.02) tooClose++;
+        }
+      }
+    }
+    expect(checked).toBeGreaterThan(1000);
+    // not none: one queued behind a vehicle that turns off joins the line
+    // only once that one is gone, and may be too close by then (without the
+    // zipping, 60 % of the pairs are)
+    expect(tooClose / checked).toBeLessThan(0.01);
+  });
+
+  it("keeps the model's network moving at the evening peak", () => {
+    const sizeScale = 3.5;
+    const model = parseTrafficNetwork(
+      JSON.parse(
+        readFileSync(
+          join(
+            __dirname,
+            "../../../../../../apps/geoportal/public/assets/dz-b-prm/traffic/verkehrsnetz_modell.json"
+          ),
+          "utf8"
+        )
+      )
+    ) as TrafficNetwork;
+    const sim = createTrafficSim({
+      network: model,
+      clock: () => EVENING,
+      random: seeded(2),
+      sizeScale,
+    });
+    sim.step(0);
+    const lastMoved = new Map<TrafficVehicle, { at: number; travelled: number; edge: number }>();
+    let stuck = 0;
+    for (let second = 0; second <= 600; second++) {
+      for (let step = 0; step < 4; step++) sim.step(0.25);
+      stuck = 0;
+      for (const vehicle of sim.vehicles) {
+        const last = lastMoved.get(vehicle);
+        if (
+          !last ||
+          last.edge !== vehicle.edge ||
+          Math.abs(last.travelled - vehicle.travelled) > 0.5
+        ) {
+          lastMoved.set(vehicle, {
+            at: second,
+            travelled: vehicle.travelled,
+            edge: vehicle.edge,
+          });
+        } else if (second - last.at > 60) {
+          stuck++;
+        }
+      }
+    }
+    expect(sim.stats().vehicles).toBeGreaterThan(1000);
+    // a queue at a junction stands for a while, a circle waiting on itself for good
+    expect(stuck).toBeLessThan(sim.stats().vehicles * 0.02);
+  });
+
+  it("puts fewer vehicles on a road than its load asks for when they do not fit", () => {
+    const sim = createTrafficSim({
+      network,
+      clock: () => EVENING,
+      random: seeded(9),
+      sizeScale: 3.5,
+      densityScale: 40,
+    });
+    sim.step(0);
+    for (let second = 0; second < 20; second++) sim.step(1);
+    const { vehicles, target } = sim.stats();
+    expect(vehicles).toBeGreaterThan(50);
+    expect(vehicles).toBeLessThan(target);
   });
 
   it("sends buses out only where buses run", () => {

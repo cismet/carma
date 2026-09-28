@@ -13,9 +13,9 @@ import {
 import { hashUnit } from "./traffic-profile";
 import {
   VEHICLE_BUS,
+  VEHICLE_SIZE,
   VEHICLE_TRUCK,
   type TrafficVehicle,
-  type VehicleKind,
 } from "./traffic-sim";
 
 /**
@@ -25,9 +25,17 @@ import {
  *
  * Seen from above at the model's scale a car is two pixels long, so the
  * bodies are drawn `sizeScale` times their real size (2.5 by default). Only
- * the bodies: where the vehicles are and how far apart stays true. The lanes
- * are widened as far as the larger bodies need to pass each other, no
- * further.
+ * the bodies: where the vehicles are stays true, and the sim keeps them apart
+ * at the drawn size. The lanes are widened as far as the larger cars need to
+ * pass each other, no further; trucks and buses are drawn no wider than a car
+ * there, so they stay in their lane too.
+ *
+ * A body is a rounded box with a few marks, enough to tell a car from a truck
+ * from a bus when the map is zoomed in: cars a windscreen, a rear window and
+ * a lighter roof, trucks a darker cab in front of the box, buses a windscreen
+ * and a roof unit. A darker rim keeps white cars apart from a light map.
+ * Vehicles on busier roads are drawn last, so at a bridge the motorway's
+ * traffic passes over the street's rather than under it.
  *
  * By day the bodies carry everyday colours. At night (`darkness` from the
  * shown time, 0 to 1) the layer first lays a black veil over the whole map
@@ -78,12 +86,6 @@ export type TrafficLayer = {
 export const DEFAULT_SIZE_SCALE = 2.5;
 export const DEFAULT_NIGHT_DIM = 0.8;
 
-/** real vehicle sizes in metres, before `sizeScale`: length, width */
-const VEHICLE_SIZE: Record<VehicleKind, readonly [number, number]> = {
-  0: [4.5, 1.8],
-  1: [12, 2.55],
-  2: [12, 2.5],
-};
 /** a real lane, in metres */
 const LANE_WIDTH = 3.2;
 /** clear space between two enlarged cars side by side, in metres */
@@ -110,9 +112,11 @@ const TAIL_LIGHT_COLOR = "#ff2a1a";
 const NIGHT_BODY_DARKENING = 0.82;
 
 /** shape codes the fragment shader draws */
-const SHAPE_BODY = 0;
+const SHAPE_CAR = 0;
 const SHAPE_LIGHT_PAIR = 1;
 const SHAPE_CONE = 2;
+const SHAPE_TRUCK = 3;
+const SHAPE_BUS = 4;
 
 /**
  * The light pairs: in units of the glow radius, the dots sit this far either
@@ -122,8 +126,11 @@ const DOT_OFFSET = 0.55;
 /** the pair's quad across, in the same units: one radius beyond either dot */
 const PAIR_REACH = DOT_OFFSET + 1;
 
-/** bytes per vertex: position 2 × f32, shape coordinate 2 × f32, colour 4 × u8, shape f32 */
-const STRIDE = 24;
+/**
+ * bytes per vertex: position 2 × f32, shape coordinate 2 × f32, colour 4 × u8,
+ * shape code and the body's length over its width, 2 × f32
+ */
+const STRIDE = 28;
 const VERTICES_PER_QUAD = 4;
 const INDICES_PER_QUAD = 6;
 /** 65536 vertices, the reach of a 16-bit index */
@@ -135,10 +142,10 @@ uniform mat4 u_matrix;
 attribute vec2 a_position;
 attribute vec2 a_shape;
 attribute vec4 a_color;
-attribute float a_kind;
+attribute vec2 a_kind;
 varying vec2 v_shape;
 varying vec4 v_color;
-varying float v_kind;
+varying vec2 v_kind;
 void main() {
   v_shape = a_shape;
   v_color = a_color;
@@ -151,17 +158,33 @@ const FRAGMENT_SHADER = `
 precision mediump float;
 varying vec2 v_shape;
 varying vec4 v_color;
-varying float v_kind;
+varying vec2 v_kind;
+
+const vec3 GLASS = vec3(0.11, 0.14, 0.18);
+
+// distance to a box of half size b with corners rounded by r, negative inside
+float roundedBox(vec2 p, vec2 b, float r) {
+  vec2 q = abs(p) - b + r;
+  return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r;
+}
+
+// 1 on a mark from a to b along the body (0 rear, 1 front), w of it across
+float mark(float t, float x, float a, float b, float w) {
+  return step(a, t) * step(t, b) * step(abs(x), w);
+}
+
 void main() {
+  float kind = v_kind.x;
+  vec3 rgb = v_color.rgb;
   float alpha = 1.0;
-  if (v_kind > 1.5) {
+  if (kind > 1.5 && kind < 2.5) {
     // the cone: x across (-1..1), y ahead (0 at the bumper, 1 at its reach)
     float reach = v_shape.y;
     float halfWidth = mix(0.35, 1.0, reach);
     float across = 1.0 - smoothstep(0.4 * halfWidth, halfWidth, abs(v_shape.x));
     float fall = pow(max(1.0 - reach, 0.0), 1.3) * smoothstep(0.0, 0.06, reach);
     alpha = 0.7 * across * fall;
-  } else if (v_kind > 0.5) {
+  } else if (kind > 0.5 && kind < 1.5) {
     // a pair of lamps: bright cores with a soft halo
     float d = min(
       length(v_shape - vec2(${DOT_OFFSET.toFixed(3)}, 0.0)),
@@ -170,9 +193,33 @@ void main() {
     float core = 1.0 - smoothstep(0.3, 0.5, d);
     float halo = 0.8 * exp(-d * d * 2.5);
     alpha = max(core, halo);
+  } else {
+    // a body, in half widths: x across (-1..1), y along (-aspect..aspect)
+    float aspect = v_kind.y;
+    float x = v_shape.x;
+    float t = 0.5 * (v_shape.y + 1.0);
+    float corner = kind > 2.5 ? 0.25 : 0.5;
+    float d = roundedBox(vec2(x, v_shape.y * aspect), vec2(1.0, aspect), corner);
+    alpha = 1.0 - smoothstep(-0.1, 0.0, d);
+    if (kind > 3.5) {
+      // bus: windscreen, and a roof unit a shade darker
+      rgb = mix(rgb, rgb * 0.82, mark(t, x, 0.38, 0.6, 0.5));
+      rgb = mix(rgb, GLASS, mark(t, x, 0.935, 0.975, 0.8));
+    } else if (kind > 2.5) {
+      // truck: a darker cab ahead of the box, a seam between them
+      rgb = mix(rgb, rgb * 0.62, step(0.8, t));
+      rgb = mix(rgb, rgb * 0.5, mark(t, x, 0.78, 0.8, 1.0));
+      rgb = mix(rgb, GLASS, mark(t, x, 0.905, 0.955, 0.8));
+    } else {
+      // car: a lighter roof between the windscreen and the rear window
+      rgb = mix(rgb, min(rgb * 1.12 + 0.03, 1.0), mark(t, x, 0.3, 0.6, 0.74));
+      rgb = mix(rgb, GLASS, mark(t, x, 0.6, 0.72, 0.8));
+      rgb = mix(rgb, GLASS, mark(t, x, 0.2, 0.3, 0.76));
+    }
+    rgb *= mix(1.0, 0.72, smoothstep(-0.3, -0.15, d));
   }
   float a = alpha * v_color.a;
-  gl_FragColor = vec4(v_color.rgb * a, a);
+  gl_FragColor = vec4(rgb * a, a);
 }
 `;
 
@@ -290,6 +337,11 @@ export const createTrafficLayer = ({
     LANE_WIDTH,
     VEHICLE_SIZE[0][1] * sizeScale + LANE_GAP
   );
+  const widestBody = laneWidth - LANE_GAP;
+  /** busier roads last, so their vehicles are drawn over the others */
+  const byLoad = (a: TrafficVehicle, b: TrafficVehicle): number =>
+    edges[a.edge].bel - edges[b.edge].bel;
+  const drawOrder: TrafficVehicle[] = [];
 
   let bytes = new ArrayBuffer(0);
   let floats = new Float32Array(bytes);
@@ -331,7 +383,8 @@ export const createTrafficLayer = ({
     shapeY1: number,
     rgb: Rgb,
     alpha: number,
-    kind: number
+    kind: number,
+    aspect = 0
   ): void => {
     // right of the direction of travel, x east and y north
     const rx = ay;
@@ -354,6 +407,7 @@ export const createTrafficLayer = ({
       colors[c + 2] = rgb[2];
       colors[c + 3] = a;
       floats[f + 5] = kind;
+      floats[f + 6] = aspect;
     }
   };
 
@@ -374,8 +428,12 @@ export const createTrafficLayer = ({
     lightQuads = lit ? count * 3 : 0;
     veilAlpha = Math.max(0, Math.min(1, darkness * nightDim * opacity));
 
+    drawOrder.length = 0;
+    for (const vehicle of vehicles) drawOrder.push(vehicle);
+    drawOrder.sort(byLoad);
+
     for (let index = 0; index < count; index++) {
-      const vehicle = vehicles[index];
+      const vehicle = drawOrder[index];
       const edge: TrafficEdge = edges[vehicle.edge];
       const along = vehicle.forward
         ? vehicle.travelled
@@ -389,7 +447,7 @@ export const createTrafficLayer = ({
       const cy = pose.y - ax * offset;
       const [realLength, realWidth] = VEHICLE_SIZE[vehicle.kind];
       const length = realLength * sizeScale;
-      const width = realWidth * sizeScale;
+      const width = Math.min(realWidth * sizeScale, widestBody);
       const alpha = vehicle.fade * opacity;
       const body = colorOf(vehicle);
 
@@ -408,7 +466,12 @@ export const createTrafficLayer = ({
         1,
         lit ? nightBody(body, darkness) : body,
         alpha,
-        SHAPE_BODY
+        vehicle.kind === VEHICLE_BUS
+          ? SHAPE_BUS
+          : vehicle.kind === VEHICLE_TRUCK
+          ? SHAPE_TRUCK
+          : SHAPE_CAR,
+        length / width
       );
       if (!lit) continue;
 
@@ -512,7 +575,7 @@ export const createTrafficLayer = ({
       STRIDE,
       base + 16
     );
-    gl.vertexAttribPointer(attributes.kind, 1, gl.FLOAT, false, STRIDE, base + 20);
+    gl.vertexAttribPointer(attributes.kind, 2, gl.FLOAT, false, STRIDE, base + 20);
   };
 
   const drawQuads = (state: GpuState, first: number, count: number): void => {

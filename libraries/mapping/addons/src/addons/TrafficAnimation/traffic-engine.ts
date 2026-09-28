@@ -12,7 +12,7 @@ import {
   metersPerPixel,
   type LonLatBounds,
 } from "../VehicleAnimation/fleet-loop";
-import { createTrafficLayer } from "./traffic-layer";
+import { DEFAULT_SIZE_SCALE, createTrafficLayer } from "./traffic-layer";
 import type { TrafficNetwork } from "./traffic-network";
 import { createTrafficSim, type TrafficSim } from "./traffic-sim";
 
@@ -86,7 +86,7 @@ export const createTrafficEngine = ({
   map,
   network,
   id = DEFAULT_ID,
-  sizeScale,
+  sizeScale = DEFAULT_SIZE_SCALE,
   nightDim,
   maxVehicles,
   densityScale,
@@ -105,6 +105,8 @@ export const createTrafficEngine = ({
     network,
     maxVehicles,
     densityScale,
+    // the sim keeps the vehicles apart at the size they are drawn
+    sizeScale,
     clock: () => {
       const instant = shownInstant();
       return { instant, minutesOfDay: trafficClockOf(instant).minutes };
