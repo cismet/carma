@@ -1,30 +1,22 @@
 import { useEffect, useRef } from "react";
-import type { GeoJSONSource, Map as MaplibreMap } from "maplibre-gl";
-import type { FeatureCollection, Polygon } from "geojson";
+import type { Map as MaplibreMap } from "maplibre-gl";
 
 import type { AnimationConfig, ObliqueFootprintsStyle } from "../types";
 import {
-  findMatchingFeature,
-  type FootprintCollection,
-  type FootprintProperties,
-} from "../utils/footprints";
+  createFootprintOutlineLayer,
+  type FootprintOutlineLayer,
+} from "../footprint-outline-layer";
+import { findMatchingFeature, type FootprintCollection } from "../utils/footprints";
 
 /**
- * The outline of the selected image's footprint on the ground: one GeoJSON
- * source and one line layer, draped over the terrain by MapLibre itself.
+ * The outline of the selected image's footprint on the ground, as a custom
+ * layer that stays visible over the 3D layers (see footprint-outline-layer).
  *
  * Locking the footprint (while the preview is up, or on the way out) fades
- * the line rather than removing it, through the layer's own opacity
- * transition, so the fade costs no animation loop.
+ * the line rather than removing it.
  */
 
-export const OBLIQUE_FOOTPRINT_SOURCE_ID = "carma-oblique-footprint";
 export const OBLIQUE_FOOTPRINT_LAYER_ID = "carma-oblique-footprint-outline";
-
-const EMPTY: FeatureCollection<Polygon, FootprintProperties> = {
-  type: "FeatureCollection",
-  features: [],
-};
 
 const DEFAULT_STYLE: Required<ObliqueFootprintsStyle> = {
   outlineColor: "#ffffff",
@@ -43,46 +35,6 @@ type UseFootprintLayerOptions = {
   fadeOut?: AnimationConfig;
 };
 
-const ensureLayer = (
-  map: MaplibreMap,
-  style: Required<ObliqueFootprintsStyle>,
-  fadeOut: AnimationConfig | undefined
-) => {
-  if (!map.getSource(OBLIQUE_FOOTPRINT_SOURCE_ID)) {
-    map.addSource(OBLIQUE_FOOTPRINT_SOURCE_ID, { type: "geojson", data: EMPTY });
-  }
-  if (!map.getLayer(OBLIQUE_FOOTPRINT_LAYER_ID)) {
-    map.addLayer({
-      id: OBLIQUE_FOOTPRINT_LAYER_ID,
-      type: "line",
-      source: OBLIQUE_FOOTPRINT_SOURCE_ID,
-      layout: { "line-join": "round", "line-cap": "round" },
-      paint: {
-        "line-color": style.outlineColor,
-        "line-width": style.outlineWidth,
-        "line-opacity": style.outlineOpacity,
-        "line-opacity-transition": {
-          duration: fadeOut?.duration ?? 300,
-          delay: fadeOut?.delay ?? 0,
-        },
-      },
-    });
-  }
-};
-
-const removeLayer = (map: MaplibreMap) => {
-  try {
-    if (map.getLayer(OBLIQUE_FOOTPRINT_LAYER_ID)) {
-      map.removeLayer(OBLIQUE_FOOTPRINT_LAYER_ID);
-    }
-    if (map.getSource(OBLIQUE_FOOTPRINT_SOURCE_ID)) {
-      map.removeSource(OBLIQUE_FOOTPRINT_SOURCE_ID);
-    }
-  } catch {
-    // the style may already be gone
-  }
-};
-
 export const useFootprintLayer = ({
   map,
   enabled,
@@ -92,68 +44,52 @@ export const useFootprintLayer = ({
   style,
   fadeOut,
 }: UseFootprintLayerOptions): void => {
-  const mergedStyle = { ...DEFAULT_STYLE, ...(style ?? {}) };
-  const { outlineColor, outlineWidth, outlineOpacity } = mergedStyle;
-  const styleRef = useRef(mergedStyle);
-  styleRef.current = mergedStyle;
+  const { outlineColor, outlineWidth, outlineOpacity } = {
+    ...DEFAULT_STYLE,
+    ...(style ?? {}),
+  };
+  const layerRef = useRef<FootprintOutlineLayer | null>(null);
   const fadeOutRef = useRef(fadeOut);
   fadeOutRef.current = fadeOut;
 
-  // the layer exists while the viewer is on, and comes back after a style swap
+  // the layer exists while the viewer is on; the effects below run after
+  // this one and feed it
   useEffect(() => {
     if (!map || !enabled) return undefined;
-    const apply = () => {
-      if (!map.isStyleLoaded()) return;
-      ensureLayer(map, styleRef.current, fadeOutRef.current);
-    };
-    apply();
-    map.on("styledata", apply);
+    const layer = createFootprintOutlineLayer(map, OBLIQUE_FOOTPRINT_LAYER_ID, {
+      color: outlineColor,
+      width: outlineWidth,
+      opacity: outlineOpacity,
+    });
+    layerRef.current = layer;
     return () => {
-      map.off("styledata", apply);
-      removeLayer(map);
+      layerRef.current = null;
+      layer.destroy();
     };
+    // the look is applied by its own effect; a new colour is no reason to rebuild
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map, enabled]);
 
-  // the feature under the outline
+  // the ring under the outline
   useEffect(() => {
-    if (!map || !enabled) return undefined;
-    const apply = () => {
-      const source = map.getSource(OBLIQUE_FOOTPRINT_SOURCE_ID) as
-        | GeoJSONSource
-        | undefined;
-      if (!source) return;
-      const feature =
-        footprintData && selectedImageId
-          ? findMatchingFeature(footprintData.features, selectedImageId)
-          : undefined;
-      source.setData(
-        feature ? { type: "FeatureCollection", features: [feature] } : EMPTY
-      );
-    };
-    apply();
-    map.on("styledata", apply);
-    return () => {
-      map.off("styledata", apply);
-    };
+    const feature =
+      footprintData && selectedImageId
+        ? findMatchingFeature(footprintData.features, selectedImageId)
+        : undefined;
+    layerRef.current?.setRing(feature?.geometry.coordinates[0] ?? null);
   }, [map, enabled, footprintData, selectedImageId]);
 
-  // the look, and the fade on lock
+  // the look
   useEffect(() => {
-    if (!map || !enabled) return undefined;
-    const apply = () => {
-      if (!map.getLayer(OBLIQUE_FOOTPRINT_LAYER_ID)) return;
-      map.setPaintProperty(OBLIQUE_FOOTPRINT_LAYER_ID, "line-color", outlineColor);
-      map.setPaintProperty(OBLIQUE_FOOTPRINT_LAYER_ID, "line-width", outlineWidth);
-      map.setPaintProperty(
-        OBLIQUE_FOOTPRINT_LAYER_ID,
-        "line-opacity",
-        locked ? 0 : outlineOpacity
-      );
-    };
-    apply();
-    map.on("styledata", apply);
-    return () => {
-      map.off("styledata", apply);
-    };
-  }, [map, enabled, locked, outlineColor, outlineWidth, outlineOpacity]);
+    layerRef.current?.setStyle({
+      color: outlineColor,
+      width: outlineWidth,
+      opacity: outlineOpacity,
+    });
+  }, [map, enabled, outlineColor, outlineWidth, outlineOpacity]);
+
+  // the fade on lock
+  useEffect(() => {
+    layerRef.current?.setLocked(locked, fadeOutRef.current);
+  }, [map, enabled, locked]);
 };
