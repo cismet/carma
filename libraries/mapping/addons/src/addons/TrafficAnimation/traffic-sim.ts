@@ -125,6 +125,14 @@ export type TrafficVehicle = {
   /** the edge it takes at the end of this one; -1 leaves the network there */
   nextEdge: number;
   nextForward: boolean;
+  /**
+   * The edge it came from, -1 when it started on this one, and its lane
+   * there. Only for drawing: the rear of a vehicle that just turned is still
+   * on it.
+   */
+  previousEdge: number;
+  previousForward: boolean;
+  previousLane: number;
   /** 0 invisible, 1 fully there */
   fade: number;
   /** 1 fading in, -1 fading out (and gone at 0), 0 steady */
@@ -557,6 +565,9 @@ export const createTrafficSim = ({
         lane,
         nextEdge: -1,
         nextForward: true,
+        previousEdge: -1,
+        previousForward: true,
+        previousLane: 0,
         fade: 0,
         fading: 1,
       };
@@ -655,6 +666,9 @@ export const createTrafficSim = ({
       }
     }
     // it stays in the list it left until the next sort; `isIn` skips it there
+    vehicle.previousEdge = vehicle.edge;
+    vehicle.previousForward = vehicle.forward;
+    vehicle.previousLane = vehicle.lane;
     vehicle.edge = edge.index;
     vehicle.forward = vehicle.nextForward;
     vehicle.lane = lane;

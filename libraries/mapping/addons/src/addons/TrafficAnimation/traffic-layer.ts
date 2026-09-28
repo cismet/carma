@@ -3,13 +3,8 @@ import type {
   CustomRenderMethodInput,
 } from "maplibre-gl";
 
-import {
-  edgePoseAt,
-  mercatorOf,
-  type EdgePose,
-  type TrafficEdge,
-  type TrafficNetwork,
-} from "./traffic-network";
+import { mercatorOf, type TrafficNetwork } from "./traffic-network";
+import { createVehiclePlacer, type VehiclePose } from "./traffic-path";
 import { hashUnit } from "./traffic-profile";
 import {
   VEHICLE_BUS,
@@ -90,6 +85,8 @@ export const DEFAULT_NIGHT_DIM = 0.8;
 const LANE_WIDTH = 3.2;
 /** clear space between two enlarged cars side by side, in metres */
 const LANE_GAP = 0.6;
+/** INVENTED. Axle to axle as a share of the body's length, about a car's */
+const WHEELBASE_SHARE = 0.6;
 
 /**
  * INVENTED. The colours of the fleet by day, as sRGB. Cars in the colours
@@ -353,7 +350,8 @@ export const createTrafficLayer = ({
   let visible = true;
   let gpu: GpuState | null = null;
   const matrix = new Float32Array(16);
-  const pose: EdgePose = { x: 0, y: 0, dx: 1, dy: 0 };
+  const placer = createVehiclePlacer(edges, laneWidth);
+  const pose: VehiclePose = { x: 0, y: 0, dx: 1, dy: 0 };
 
   const reserve = (quads: number): void => {
     const needed = quads * VERTICES_PER_QUAD * STRIDE;
@@ -434,23 +432,15 @@ export const createTrafficLayer = ({
 
     for (let index = 0; index < count; index++) {
       const vehicle = drawOrder[index];
-      const edge: TrafficEdge = edges[vehicle.edge];
-      const along = vehicle.forward
-        ? vehicle.travelled
-        : edge.length - vehicle.travelled;
-      edgePoseAt(edge, along, pose);
-      const ax = vehicle.forward ? pose.dx : -pose.dx;
-      const ay = vehicle.forward ? pose.dy : -pose.dy;
-      // a two-way road's lanes lie right of its line, a one-way road's across it
-      const offset = edge.oneway
-        ? (vehicle.lane - (edge.lanes - 1) / 2) * laneWidth
-        : (vehicle.lane + 0.5) * laneWidth;
-      // right of travel is (ay, -ax)
-      const cx = pose.x + ay * offset;
-      const cy = pose.y - ax * offset;
       const [realLength, realWidth] = VEHICLE_SIZE[vehicle.kind];
       const length = realLength * sizeScale;
       const width = Math.min(realWidth * sizeScale, widestBody);
+      // the body between its two axles on the lane (`traffic-path.ts`)
+      placer.place(vehicle, WHEELBASE_SHARE * length, pose);
+      const cx = pose.x;
+      const cy = pose.y;
+      const ax = pose.dx;
+      const ay = pose.dy;
       const alpha = vehicle.fade * opacity;
       const body = colorOf(vehicle);
 
