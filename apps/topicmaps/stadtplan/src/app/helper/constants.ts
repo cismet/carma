@@ -1,26 +1,4 @@
-export const host = "https://wupp-topicmaps-data.cismet.de";
-//joined lebenslagen need to be sorted
-export let POI_COLORS = {
-  "Freizeit, Sport": "#194761",
-  Mobilität: "#6BB6D7",
-  "Erholung, Religion": "#094409",
-  Gesellschaft: "#B0CBEC",
-  Religion: "#0D0D0D",
-  Gesundheit: "#CB0D0D",
-  "Erholung, Freizeit": "#638555",
-  Sport: "#0141CF",
-  "Freizeit, Kultur": "#B27A08",
-  "Gesellschaft, Kultur": "#E26B0A",
-  "öffentliche Dienstleistungen": "#417DD4",
-  Orientierung: "#BFBFBF",
-  Bildung: "#FFC000",
-  Stadtbild: "#695656",
-  "Gesellschaft, öffentliche Dienstleistungen": "#569AD6",
-  "Dienstleistungen, Freizeit": "#26978F",
-  Dienstleistungen: "#538DD5",
-  "Bildung, Freizeit": "#BBAA1E",
-  Kinderbetreuung: "#00A0B0",
-};
+import { getGeoJsonSourceId } from "@carma-mapping/engines/maplibre";
 
 export const crossLinkApps = [
   {
@@ -84,3 +62,22 @@ export const crossLinkApps = [
   // {   on: ["Sport"],   name: "Sporthallen",   bsStyle: "default",
   // backgroundColor: null,   link: "/#/ehrenamt",   target: "_hallen" }
 ];
+
+export const POI_LAYER_CONFIG = {
+  type: "geojson" as const,
+  name: "POIs",
+  data: "https://tiles.cismet.de/poi/poi.json",
+  infoboxMapping: [
+    "foto: p.foto",
+    "headerColor:p.schrift",
+    "header:p.kombi",
+    "title:p.geographicidentifier",
+    "additionalInfo:p.adresse",
+    "subtitle: p.info",
+    "url:p.url",
+    "tel:p.telefon",
+    "email:p.email",
+  ],
+};
+
+export const POI_SOURCE_ID = getGeoJsonSourceId(POI_LAYER_CONFIG.name);
