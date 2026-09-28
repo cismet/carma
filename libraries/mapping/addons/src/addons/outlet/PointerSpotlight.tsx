@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import type { Map as LibreMap } from "maplibre-gl";
 
 import {
   isPointerSample,
@@ -8,6 +9,8 @@ import {
   type PointerSample,
 } from "@carma-mapping/show-remote";
 
+import { coverSourcesOf, setCoverTakeover } from "../../lib/spot-cover";
+import { coverSourceHoles, createCoverPainter, ease } from "./cover-canvas";
 import { answerPointerLink } from "./pointer-link";
 import { subscribe } from "./relay";
 
@@ -35,20 +38,30 @@ type Received = { sample: PointerSample; receivedAt: number; ageMs: number };
  * and draws over the model rectangle. When the channel names a direct link
  * too, samples also come straight from the phone; the newest by `seq` wins,
  * whichever way it came.
+ *
+ * The Schwebebahn's cab light darkens the map as well, from inside it. While
+ * the spot is lit, this canvas darkens for both, the way the stored
+ * highlights do (`HighlightSpots`): it cuts the cab spots out too, takes the
+ * stronger of the two dims, and tells the map's cover how far it has faded
+ * in, which the cab light steps back by (`lib/spot-cover.ts`).
  */
 export const PointerSpotlight = ({
+  map,
   base,
   channel,
   box,
   onLitChange,
 }: {
+  map: LibreMap | null;
   base: string;
   channel: PointerChannel;
   box: PointerBox | null;
   /** told whenever the spot comes on or goes off, e.g. to hide other spots */
   onLitChange?: (lit: boolean) => void;
 }) => {
-  const elementRef = useRef<HTMLDivElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const mapRef = useRef(map);
+  mapRef.current = map;
   const onLitChangeRef = useRef(onLitChange);
   onLitChangeRef.current = onLitChange;
   const receivedRef = useRef<Received | null>(null);
@@ -99,18 +112,48 @@ export const PointerSpotlight = ({
     let frame = 0;
     let lastAt = performance.now();
     let drawn: { x: number; y: number } | null = null;
-    let lastStyle = "";
     let lastVisible = false;
+    const paint = createCoverPainter();
+    /** what this canvas writes its takeover under */
+    const writer = {};
+    /** how far the spot has faded in, 0 to 1, before easing */
+    let share = 0;
+    /** the map whose cover this canvas has told how far it took over */
+    let coverMap: LibreMap | null = null;
+
+    /** fades the canvas and tells the cab light how far to step back */
+    const showShare = (map: LibreMap | null): void => {
+      const shown = ease(share);
+      if (canvasRef.current) {
+        canvasRef.current.style.opacity = String(shown);
+      }
+      if (map) {
+        setCoverTakeover(map, writer, shown);
+        // the cab light only reads it when the map draws a frame
+        map.triggerRepaint();
+      }
+    };
 
     const tick = (now: number) => {
       frame = window.requestAnimationFrame(tick);
-      const element = elementRef.current;
+      const canvas = canvasRef.current;
+      const map = mapRef.current;
       const received = receivedRef.current;
       const dt = Math.max(now - lastAt, 0);
       lastAt = now;
-      if (!element || !received) {
+      if (!canvas || !received) {
         return;
       }
+
+      if (map !== coverMap) {
+        if (coverMap) {
+          setCoverTakeover(coverMap, writer, 0);
+          coverMap.triggerRepaint();
+        }
+        coverMap = map;
+        showShare(map);
+      }
+
       const { sample, receivedAt, ageMs } = received;
       const sinceReceipt = now - receivedAt;
       const visible = sample.on && sinceReceipt < STALE_MS;
@@ -139,29 +182,46 @@ export const PointerSpotlight = ({
           y: drawn.y + (target.y - drawn.y) * k,
         };
       }
-
-      const radius = Math.max(sample.radius * area.width, 1);
-      const inner = radius * (1 - EDGE_SOFTNESS);
-      const outer = radius * (1 + EDGE_SOFTNESS);
-      const dim = Math.min(Math.max(sample.dim, 0), 1);
-      const style = `radial-gradient(circle at ${drawn.x.toFixed(
-        1
-      )}px ${drawn.y.toFixed(1)}px, rgba(0,0,0,0) ${inner.toFixed(
-        1
-      )}px, rgba(0,0,0,${dim}) ${outer.toFixed(1)}px)`;
-      if (style !== lastStyle) {
-        element.style.background = style;
-        lastStyle = style;
-      }
       if (visible !== lastVisible) {
-        element.style.opacity = visible ? "1" : "0";
         lastVisible = visible;
         onLitChangeRef.current?.(visible);
       }
+
+      const nextShare = visible
+        ? Math.min(share + dt / FADE_MS, 1)
+        : Math.max(share - dt / FADE_MS, 0);
+      if (nextShare !== share) {
+        share = nextShare;
+        showShare(map);
+      }
+      if (share === 0) {
+        return;
+      }
+
+      const view = { width: window.innerWidth, height: window.innerHeight };
+      const sources = map ? coverSourcesOf(map) : [];
+      const dim = Math.min(
+        Math.max(sample.dim, ...sources.map((source) => source.dim), 0),
+        1
+      );
+      paint(canvas, dim, [
+        {
+          ...drawn,
+          radius: Math.max(sample.radius * area.width, 1),
+          presence: 1,
+          softness: EDGE_SOFTNESS,
+        },
+        // the cab light's spots, cut out of the same cover
+        ...(map ? coverSourceHoles(map, sources, view) : []),
+      ]);
     };
     frame = window.requestAnimationFrame(tick);
     return () => {
       window.cancelAnimationFrame(frame);
+      if (coverMap) {
+        setCoverTakeover(coverMap, writer, 0);
+        coverMap.triggerRepaint();
+      }
       // a closed pointer is not lit, whatever its last sample said
       if (lastVisible) {
         onLitChangeRef.current?.(false);
@@ -170,13 +230,14 @@ export const PointerSpotlight = ({
   }, []);
 
   return (
-    <div
-      ref={elementRef}
+    <canvas
+      ref={canvasRef}
       style={{
         position: "fixed",
         inset: 0,
+        width: "100%",
+        height: "100%",
         opacity: 0,
-        transition: `opacity ${FADE_MS}ms ease`,
         pointerEvents: "none",
         // over the bounds box, under the blackout
         zIndex: 9999,

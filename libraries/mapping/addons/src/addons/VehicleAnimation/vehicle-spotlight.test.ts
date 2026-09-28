@@ -355,9 +355,10 @@ describe("createSpotlightLayer and the map's cover", () => {
       args: CustomRenderMethodInput
     ) => void;
     render(gl, renderArgs);
-    setCoverTakeover(map, 0.25);
+    const canvas = {};
+    setCoverTakeover(map, canvas, 0.25);
     render(gl, renderArgs);
-    setCoverTakeover(map, 1);
+    setCoverTakeover(map, canvas, 1);
     render(gl, renderArgs);
     expect(dims).toHaveLength(2);
     expect(dims[0]).toBeCloseTo(0.8);

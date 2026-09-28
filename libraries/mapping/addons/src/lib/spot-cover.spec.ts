@@ -44,11 +44,27 @@ describe("spot cover", () => {
 
   it("holds the takeover per map, within 0 and 1", () => {
     const map = {};
+    const canvas = {};
     expect(coverTakeoverOf(map)).toBe(0);
-    setCoverTakeover(map, 0.4);
+    setCoverTakeover(map, canvas, 0.4);
     expect(coverTakeoverOf(map)).toBe(0.4);
-    setCoverTakeover(map, 3);
+    setCoverTakeover(map, canvas, 3);
     expect(coverTakeoverOf(map)).toBe(1);
     expect(coverTakeoverOf({})).toBe(0);
+  });
+
+  it("takes the largest share of several canvases", () => {
+    const map = {};
+    const highlights = {};
+    const pointer = {};
+    setCoverTakeover(map, highlights, 0.7);
+    setCoverTakeover(map, pointer, 0.3);
+    expect(coverTakeoverOf(map)).toBe(0.7);
+    setCoverTakeover(map, highlights, 0.2);
+    expect(coverTakeoverOf(map)).toBe(0.3);
+    setCoverTakeover(map, pointer, 0);
+    expect(coverTakeoverOf(map)).toBe(0.2);
+    setCoverTakeover(map, highlights, -1);
+    expect(coverTakeoverOf(map)).toBe(0);
   });
 });

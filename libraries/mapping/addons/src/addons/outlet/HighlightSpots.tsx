@@ -3,20 +3,22 @@ import type { Map as LibreMap } from "maplibre-gl";
 
 import {
   HIGHLIGHT_EDGE_SOFTNESS,
-  lngLatToMercator,
   type HighlightSpot,
 } from "@carma-mapping/show-remote";
 
 import { coverSourcesOf, setCoverTakeover } from "../../lib/spot-cover";
+import {
+  coverSourceHoles,
+  createCoverPainter,
+  ease,
+  type CoverHole,
+} from "./cover-canvas";
 import { projectHighlight } from "./highlight-geometry";
 
 /** the whole cover fades like the pointer's spot does */
 const FADE_MS = 200;
 /** a spot switched on or off while others stay lit opens or closes this fast */
 const SPOT_FADE_MS = 300;
-
-/** slow in, slow out, near enough to css `ease` */
-const ease = (share: number): number => share * share * (3 - 2 * share);
 
 type Entry = {
   spot: HighlightSpot;
@@ -46,8 +48,7 @@ type Entry = {
  * in, which the cab light steps back by (`lib/spot-cover.ts`). The fade is
  * driven here rather than by a css transition, so the two stay in step.
  *
- * The canvas is redrawn only when a spot moved on screen, grew, or faded,
- * since the window is screen-captured and a full repaint of it is not free.
+ * The pointer's canvas does the same while it is lit (`PointerSpotlight`).
  */
 export const HighlightSpots = ({
   map,
@@ -94,7 +95,9 @@ export const HighlightSpots = ({
   useEffect(() => {
     let frame = 0;
     let lastAt = performance.now();
-    let lastSignature = "";
+    const paint = createCoverPainter();
+    /** what this canvas writes its takeover under */
+    const writer = {};
     /** how far the cover has faded in, 0 to 1, before easing */
     let share = 0;
     /** the map whose cover this canvas has told how far it took over */
@@ -107,7 +110,7 @@ export const HighlightSpots = ({
         canvasRef.current.style.opacity = String(shown);
       }
       if (map) {
-        setCoverTakeover(map, shown);
+        setCoverTakeover(map, writer, shown);
         // the cab light only reads it when the map draws a frame
         map.triggerRepaint();
       }
@@ -126,7 +129,7 @@ export const HighlightSpots = ({
 
       if (map !== coverMap) {
         if (coverMap) {
-          setCoverTakeover(coverMap, 0);
+          setCoverTakeover(coverMap, writer, 0);
           coverMap.triggerRepaint();
         }
         coverMap = map;
@@ -170,34 +173,19 @@ export const HighlightSpots = ({
         return;
       }
 
-      const ratio = window.devicePixelRatio || 1;
-      const width = Math.round(window.innerWidth * ratio);
-      const height = Math.round(window.innerHeight * ratio);
-      const drawn = [...entries.values()].map((entry) => ({
-        ...projectHighlight(map, entry.spot),
-        presence: entry.presence,
-        softness: HIGHLIGHT_EDGE_SOFTNESS,
-      }));
-      // the cab light's spots, cut out of the same cover
       const sources = coverSourcesOf(map);
-      for (const source of sources) {
-        for (const { lon, lat } of source.centres) {
-          const spot = projectHighlight(map, {
-            center: lngLatToMercator([lon, lat]),
-            radiusMeters: source.radiusMeters,
-          });
-          const outer = spot.radius * (1 + source.softness);
-          if (
-            spot.x + outer < 0 ||
-            spot.y + outer < 0 ||
-            spot.x - outer > window.innerWidth ||
-            spot.y - outer > window.innerHeight
-          ) {
-            continue;
-          }
-          drawn.push({ ...spot, presence: 1, softness: source.softness });
-        }
-      }
+      const holes: CoverHole[] = [
+        ...[...entries.values()].map((entry) => ({
+          ...projectHighlight(map, entry.spot),
+          presence: entry.presence,
+          softness: HIGHLIGHT_EDGE_SOFTNESS,
+        })),
+        // the cab light's spots, cut out of the same cover
+        ...coverSourceHoles(map, sources, {
+          width: window.innerWidth,
+          height: window.innerHeight,
+        }),
+      ];
       const shown = [...entries.values()].filter(
         ({ target }) => target === 1
       );
@@ -211,56 +199,13 @@ export const HighlightSpots = ({
         ),
         1
       );
-      const signature = [
-        width,
-        height,
-        dim,
-        ...drawn.map(
-          ({ x, y, radius, presence, softness }) =>
-            `${x.toFixed(1)},${y.toFixed(1)},${radius.toFixed(
-              1
-            )},${presence.toFixed(3)},${softness}`
-        ),
-      ].join("|");
-      if (signature === lastSignature) {
-        return;
-      }
-      lastSignature = signature;
-
-      if (canvas.width !== width || canvas.height !== height) {
-        canvas.width = width;
-        canvas.height = height;
-      }
-      const context = canvas.getContext("2d");
-      if (!context) {
-        return;
-      }
-      context.setTransform(ratio, 0, 0, ratio, 0, 0);
-      context.globalCompositeOperation = "source-over";
-      context.clearRect(0, 0, window.innerWidth, window.innerHeight);
-      context.fillStyle = `rgba(0,0,0,${dim})`;
-      context.fillRect(0, 0, window.innerWidth, window.innerHeight);
-      context.globalCompositeOperation = "destination-out";
-      for (const { x, y, radius, presence, softness } of drawn) {
-        if (presence <= 0) {
-          continue;
-        }
-        const outer = radius * (1 + softness);
-        const inner = radius * (1 - softness);
-        const gradient = context.createRadialGradient(x, y, 0, x, y, outer);
-        gradient.addColorStop(inner / outer, `rgba(0,0,0,${presence})`);
-        gradient.addColorStop(1, "rgba(0,0,0,0)");
-        context.fillStyle = gradient;
-        context.beginPath();
-        context.arc(x, y, outer, 0, Math.PI * 2);
-        context.fill();
-      }
+      paint(canvas, dim, holes);
     };
     frame = window.requestAnimationFrame(tick);
     return () => {
       window.cancelAnimationFrame(frame);
       if (coverMap) {
-        setCoverTakeover(coverMap, 0);
+        setCoverTakeover(coverMap, writer, 0);
         coverMap.triggerRepaint();
       }
     };

@@ -950,6 +950,7 @@ export const OutletAddon = ({
       ) : null}
       {pointerChannel && relayBaseUrl ? (
         <PointerSpotlight
+          map={libreMap}
           base={relayBaseUrl}
           channel={pointerChannel}
           box={box}
