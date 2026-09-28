@@ -1280,6 +1280,7 @@ const FeatureInfoBox = ({
           ? {
               previous: infoBoxNavigatorCycle.onPrevious,
               next: infoBoxNavigatorCycle.onNext,
+              navigatorTitle: `${infoBoxNavigatorCycle.count} überlagernde Risse an dieser Stelle`,
               currentlyShownCountLabel: `${infoBoxNavigatorCycle.index + 1} / ${
                 infoBoxNavigatorCycle.count
               }`,
