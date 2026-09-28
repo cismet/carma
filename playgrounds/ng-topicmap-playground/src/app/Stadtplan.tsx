@@ -14,6 +14,7 @@ import {
 } from "@carma-mapping/engines/maplibre";
 import type { AdvancedFilterState } from "@carma-mapping/components";
 import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
+import { md5FetchJSON } from "react-cismap/tools/fetching";
 import { defaultGazDataConfig } from "@carma-commons/resources";
 import { backgroundModes, backgroundConfigurations } from "./backgroundConfig";
 import Menu from "./Menu";
@@ -45,30 +46,11 @@ const LIBRE_LAYERS: LibreLayer[] = [
   },
 ];
 
-// Color mapping for lebenslage combinations (sorted alphabetically)
-const POI_COLORS: Record<string, string> = {
-  "Freizeit, Sport": "#194761",
-  Mobilität: "#6BB6D7",
-  "Erholung, Religion": "#094409",
-  Gesellschaft: "#B0CBEC",
-  Religion: "#0D0D0D",
-  Gesundheit: "#CB0D0D",
-  "Erholung, Freizeit": "#638555",
-  Sport: "#0141CF",
-  "Freizeit, Kultur": "#B27A08",
-  "Gesellschaft, Kultur": "#E26B0A",
-  "öffentliche Dienstleistungen": "#417DD4",
-  Orientierung: "#BFBFBF",
-  Bildung: "#FFC000",
-  Stadtbild: "#695656",
-  "Gesellschaft, öffentliche Dienstleistungen": "#569AD6",
-  "Dienstleistungen, Freizeit": "#26978F",
-  Dienstleistungen: "#538DD5",
-  "Bildung, Freizeit": "#BBAA1E",
-  Kinderbetreuung: "#00A0B0",
-};
+// Color mapping for lebenslage combinations (keys sorted alphabetically)
+const POI_COLORS_URL =
+  "https://wupp-topicmaps-data.cismet.de/data/poi.farben.json";
 
-/** Deterministic fallback color for combinations not in POI_COLORS */
+/** Deterministic fallback color for combinations without a defined color */
 function hashColor(str: string): string {
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
@@ -78,8 +60,11 @@ function hashColor(str: string): string {
   return `hsl(${h}, 30%, 50%)`;
 }
 
-function getColorForCombination(combination: string): string {
-  return POI_COLORS[combination] || hashColor(combination);
+function getColorForCombination(
+  combination: string,
+  poiColors: Record<string, string>
+): string {
+  return poiColors[combination] || hashColor(combination);
 }
 
 const POI_SOURCE_ID = getGeoJsonSourceId(POI_LAYER_NAME);
@@ -169,6 +154,7 @@ function applyPoiFilter(
 export function Stadtplan() {
   const { progress, showProgress, handleProgressUpdate } = useProgress();
 
+  const [poiColors, setPoiColors] = useState<Record<string, string>>();
   const [allFeatures, setAllFeatures] = useState<any[]>([]);
   const [lebenslagen, setLebenslagen] = useState<string[]>([]);
   const [filterState, setFilterState] = useState<AdvancedFilterState>({
@@ -244,10 +230,15 @@ export function Stadtplan() {
     );
   }, [filterState, lebenslagen]);
 
+  useEffect(() => {
+    md5FetchJSON("poi_colors", POI_COLORS_URL).then(setPoiColors);
+  }, []);
+
   // Compute pie chart data from filtered features
   const { pieChartData, pieChartColors } = useMemo(() => {
-    if (allFeatures.length === 0)
+    if (allFeatures.length === 0 || !poiColors) {
       return { pieChartData: [], pieChartColors: [] };
+    }
 
     const allowedKombis = new Set(
       getAllowedKombis(allKombisRef.current, filterState)
@@ -262,14 +253,14 @@ export function Stadtplan() {
       const key = kombi.split(", ").slice().sort().join(", ");
       stats[key] = (stats[key] || 0) + 1;
       if (!colors[key]) {
-        colors[key] = getColorForCombination(key);
+        colors[key] = getColorForCombination(key, poiColors);
       }
     }
 
     const data: [string, number][] = Object.entries(stats);
     const colorArr = data.map(([key]) => colors[key]);
     return { pieChartData: data, pieChartColors: colorArr };
-  }, [filterState, allFeatures]);
+  }, [filterState, allFeatures, poiColors]);
 
   const filteredFeatures = useMemo(
     () =>
