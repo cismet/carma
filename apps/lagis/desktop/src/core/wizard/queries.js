@@ -250,3 +250,16 @@ wizardQueries.adminRowsBySchluesselId = `query AdminRowsBySchluesselId($schluess
     }
   }
 }`;
+
+wizardQueries.nutzungStammdaten = `query NutzungStammdaten {
+  anlageklasse(order_by: {id: asc}) {
+    id
+    bezeichnung
+    schluessel
+  }
+  nutzungsart {
+    id
+    bezeichnung
+    schluessel
+  }
+}`;
