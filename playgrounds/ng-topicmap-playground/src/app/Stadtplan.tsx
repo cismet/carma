@@ -15,6 +15,7 @@ import {
 import type { AdvancedFilterState } from "@carma-mapping/components";
 import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
 import { md5FetchJSON } from "react-cismap/tools/fetching";
+import ColorHash from "color-hash";
 import { defaultGazDataConfig } from "@carma-commons/resources";
 import { backgroundModes, backgroundConfigurations } from "./backgroundConfig";
 import Menu from "./Menu";
@@ -50,21 +51,14 @@ const LIBRE_LAYERS: LibreLayer[] = [
 const POI_COLORS_URL =
   "https://wupp-topicmaps-data.cismet.de/data/poi.farben.json";
 
-/** Deterministic fallback color for combinations without a defined color */
-function hashColor(str: string): string {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    hash = str.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  const h = Math.abs(hash) % 360;
-  return `hsl(${h}, 30%, 50%)`;
-}
+// Same fallback as the Leaflet Stadtplan for combinations without a defined color
+const colorHash = new ColorHash({ saturation: 0.3 });
 
 function getColorForCombination(
   combination: string,
   poiColors: Record<string, string>
 ): string {
-  return poiColors[combination] || hashColor(combination);
+  return poiColors[combination] || colorHash.hex(combination);
 }
 
 const POI_SOURCE_ID = getGeoJsonSourceId(POI_LAYER_NAME);
@@ -304,6 +298,13 @@ export function Stadtplan() {
                     pieChartData={pieChartData}
                     pieChartColors={pieChartColors}
                     filteredFeatures={filteredFeatures}
+                    symbolColor={
+                      poiColors &&
+                      getColorForCombination(
+                        "öffentliche Dienstleistungen",
+                        poiColors
+                      )
+                    }
                   />
                 }
               />

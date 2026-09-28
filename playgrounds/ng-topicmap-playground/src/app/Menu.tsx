@@ -3,6 +3,8 @@ import { Badge } from "react-bootstrap";
 import CustomizationContextProvider from "react-cismap/contexts/CustomizationContextProvider";
 import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
+import { addSVGToProps } from "react-cismap/tools/svgHelper";
+import { getSymbolSVGGetter } from "react-cismap/tools/uiHelper";
 import DefaultSettingsPanel from "react-cismap/topicmaps/menu/DefaultSettingsPanel";
 import ModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMenu";
 import Section from "react-cismap/topicmaps/menu/Section";
@@ -33,7 +35,15 @@ interface MenuProps {
   pieChartData?: [string, number][];
   pieChartColors?: string[];
   filteredFeatures?: any[];
+  symbolColor?: string;
 }
+
+// The Leaflet Stadtplan previews the signature of its first POI (Amtsgericht)
+const SETTINGS_SYMBOL_URL =
+  "https://wupp-digitaltwin-assets.cismet.de/v2/poi-signaturen/";
+const SETTINGS_SYMBOL_SIGNATUR = "Icon_Behoerde_farbig.svg";
+
+type SymbolSVGGetter = ReturnType<typeof getSymbolSVGGetter>;
 
 const countFeaturesInBounds = (
   map: ReturnType<typeof useLibreContext>["map"],
@@ -111,7 +121,20 @@ const Menu = ({
   pieChartData,
   pieChartColors,
   filteredFeatures = [],
+  symbolColor,
 }: MenuProps) => {
+  const [getSymbolSVG, setGetSymbolSVG] = useState<SymbolSVGGetter>();
+
+  useEffect(() => {
+    addSVGToProps({}, () => SETTINGS_SYMBOL_SIGNATUR, SETTINGS_SYMBOL_URL).then(
+      (props: any) => {
+        setGetSymbolSVG(() =>
+          getSymbolSVGGetter(props.svgBadge, props.svgBadgeDimension)
+        );
+      }
+    );
+  }, []);
+
   const { setAppMenuActiveMenuSection } =
     useContext<typeof UIDispatchContext>(UIDispatchContext);
   const { windowSize } = useContext<typeof ResponsiveTopicMapContext>(
@@ -183,18 +206,11 @@ const Menu = ({
             : []),
           <DefaultSettingsPanel
             key="settings"
-            getSymbolSVG={(size: number, color: string) => {
-              return (
-                <img
-                  width={size}
-                  src={
-                    "https://wupp-digitaltwin-assets.cismet.de/v2/poi-signaturen/Icon_Parkanlage_farbig.svg"
-                  }
-                  style={color ? { filter: `drop-shadow(0 0 0 ${color})` } : {}}
-                  alt="symbol"
-                />
-              );
-            }}
+            getSymbolSVG={
+              getSymbolSVG &&
+              ((size: number, color: string) =>
+                getSymbolSVG(size, symbolColor ?? color))
+            }
             overridingMapPreview={<PreviewLibreMap />}
           />,
           <KompaktanleitungSection />,
