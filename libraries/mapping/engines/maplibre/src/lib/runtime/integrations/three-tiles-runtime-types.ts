@@ -29,12 +29,14 @@ export type TileViewErrorTarget = {
 export type RuntimeTile = Tile & {
   priority?: number;
   cameraPriority?: number;
-  /** Current camera's expected improvement of this atomic replacement family. */
+  /** Summed camera-normalized improvement of this replacement family. */
   meshRefinement?: Readonly<{
     group: Tile;
     currentErrorPixels: number;
     nextErrorPixels: number;
     visibleAreaPixels: number;
+    visibleAreaFraction?: number;
+    errorBand?: number;
     benefit: number;
     provisional: boolean;
   }>;

@@ -1,4 +1,5 @@
 import { readOrientedTileBounds } from "./three-tiles-bounds";
+import { TILE_SHADOW_CAMERA_ID } from "../../core/tile-camera-demand";
 import { isExtentFloorTile } from "../../core/mesh-error-policy";
 import {
   hasLoadedExtentFloorAncestor,
@@ -46,7 +47,13 @@ export function createThreeTilesSettledDemand(
     // Metadata is tiny and owns descendant topology. Unknown coverage is never
     // proof that deleting a subtree is safe.
     if (tile.internal?.hasUnrenderableContent || !bounds?.getAABB) return true;
-    if (!runtimeState.shadowView) return false;
+    if (
+      !runtimeState.shadowView ||
+      runtimeState.tileCameraDemand.views.some(
+        (view) => view.id === TILE_SHADOW_CAMERA_ID
+      )
+    )
+      return false;
     if (!runtimeState.shadowReceiverMask) return false;
     readOrientedTileBounds(
       bounds,
@@ -112,7 +119,10 @@ export function createThreeTilesSettledDemand(
         // Only obsolete demand is released here; the pressure-only replacement
         // rules below remain disabled until the physical ceiling is reached.
         const reclaimForView =
-          (!runtimeState.lastMainViewConverged ||
+          (!(
+            runtimeState.lastActiveViewsConverged ??
+            runtimeState.lastMainViewConverged
+          ) ||
             runtimeState.memoryErrorTarget >
               runtimeState.requestedErrorTarget) &&
           cache.cachedBytes > cache.minBytesSize;
@@ -195,7 +205,8 @@ export function createThreeTilesSettledDemand(
       )
         return;
       if (
-        runtimeState.lastMainViewConverged &&
+        (runtimeState.lastActiveViewsConverged ??
+          runtimeState.lastMainViewConverged) &&
         runtimeState.memoryErrorTarget <= runtimeState.requestedErrorTarget &&
         !runtimeState.memoryAdmissionPaused &&
         !runtimeState.meshDemandSweepPending

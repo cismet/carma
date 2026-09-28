@@ -1,3 +1,4 @@
+import { makeRoomForThreeTilesRequest } from "./three-tiles-runtime-request-capacity";
 import {
   TILE_REQUEST_NEED,
   type resolveTileRequestNeed,
@@ -38,8 +39,6 @@ import type {
   RuntimeTile,
 } from "./three-tiles-runtime-types";
 import {
-  LOADING_LOADING_STATE,
-  QUEUED_LOADING_STATE,
   tilesNodeQueuePriorityCallback,
   tilesQueuePriorityCallback,
 } from "./three-tiles-runtime-vendor";
@@ -55,6 +54,8 @@ export function createThreeTilesPayloadQueues(
     | "extentFloorArmed"
     | "extentGeometricError"
     | "map"
+    | "lastMainViewConverged"
+    | "lastActiveViewsConverged"
     | "memoryErrorTarget"
     | "meshBaseCoverageReady"
     | "meshCoverageRecovery"
@@ -73,6 +74,7 @@ export function createThreeTilesPayloadQueues(
     | "getTileRequestPriority"
     | "getTileScreenError"
     | "isTileNeededForMeshCoverage"
+    | "resetMeshCameraObjectives"
   > & {
     getRetainedMeshAncestors: () => ReadonlySet<Tile>;
     isTileRequestNeeded: (tile: Tile) => boolean;
@@ -123,7 +125,9 @@ export function createThreeTilesPayloadQueues(
       if (!demand) {
         const reason = dependencies.getTileRequestNeed(tile);
         const priority =
-          reason === TILE_REQUEST_NEED.SHADOW_HISTORY
+          reason === TILE_REQUEST_NEED.SHADOW_HISTORY ||
+          reason === TILE_REQUEST_NEED.EXTENT ||
+          reason === TILE_REQUEST_NEED.IDLE
             ? Number.NEGATIVE_INFINITY
             : dependencies.getTileRequestPriority(tile as RuntimeTile);
         (tile as RuntimeTile).cameraPriority = priority;
@@ -237,6 +241,13 @@ export function createThreeTilesPayloadQueues(
           motionPrefetch: !!(tile as RuntimeTile).motionPrefetch,
           highestPendingPriority,
           moving,
+          idleReady:
+            demand.reason === TILE_REQUEST_NEED.SHADOW_HISTORY ||
+            (runtimeState.meshBaseCoverageReady &&
+              (runtimeState.lastActiveViewsConverged ??
+                runtimeState.lastMainViewConverged) &&
+              runtimeState.effectiveErrorTarget ===
+                runtimeState.requestedErrorTarget),
         });
       },
     };
@@ -399,6 +410,8 @@ export function createThreeTilesPayloadQueues(
                   ?.currentErrorPixels,
                 waitingCurrentErrorPixels:
                   candidate.meshRefinement?.currentErrorPixels,
+                errorBand: (item as RuntimeTile).meshRefinement?.errorBand,
+                waitingErrorBand: candidate.meshRefinement?.errorBand,
                 sameRefinementGroup:
                   !!runtimeState.shadowView &&
                   candidate.meshRefinement !== undefined &&
@@ -429,58 +442,10 @@ export function createThreeTilesPayloadQueues(
     };
   };
 
-  // Decision: ../../../../TILES_COVERAGE.md#queue-admission-and-capacity-recovery
-  // A full cache rejects new native queue entries before normal preemption can
-  // see them. Release pending background work only for a concrete coverage job.
-  const makeRoomForCoverage = (tile: Tile) => {
-    const tiles = runtimeState.tiles;
-    if (!tiles?.lruCache.isFull()) return;
-    const candidates = [...tiles.loadingTiles]
-      .filter(
-        (candidate) =>
-          candidate !== tile &&
-          (candidate.internal.loadingState === QUEUED_LOADING_STATE ||
-            candidate.internal.loadingState === LOADING_LOADING_STATE) &&
-          candidate.internal.hasRenderableContent &&
-          !candidate.internal.hasUnrenderableContent &&
-          !tiles.visibleTiles.has(candidate) &&
-          !runtimeState.displayedMeshFrontier.has(candidate) &&
-          !runtimeState.committedMeshReceiverFrontier.has(candidate) &&
-          !runtimeState.committedMeshCasterFrontier.has(candidate) &&
-          !dependencies.isTileNeededForMeshCoverage(candidate)
-      )
-      .sort(
-        (left, right) =>
-          left.internal.loadingState - right.internal.loadingState ||
-          dependencies.getTileRequestPriority(left as RuntimeTile) -
-            dependencies.getTileRequestPriority(right as RuntimeTile)
-      );
-    for (const candidate of candidates) {
-      if (!tiles.lruCache.isFull()) break;
-      if (
-        runtimeState.options.diagnostics &&
-        runtimeState.options.tileTelemetry !== false
-      )
-        dependencies.recordTileRequestDecision(candidate, {
-          action: TILE_QUEUE_ACTION.DISCARD,
-          reason: TILE_QUEUE_REASON.COVERAGE_CAPACITY,
-          stage: TILE_QUEUE_STAGE.DOWNLOAD,
-          priority: dependencies.getTileRequestPriority(
-            candidate as RuntimeTile
-          ),
-          needed: dependencies.isTileRequestNeeded(candidate),
-          coverageFill: false,
-          inViewport: dependencies.getTileObserverDemand(
-            candidate as RuntimeTile
-          ).intersects,
-        });
-      tiles.lruCache.remove(candidate);
-    }
-  };
-
   return {
     install,
-    makeRoomForCoverage,
+    makeRoomForRequest: (tile: Tile) =>
+      makeRoomForThreeTilesRequest(runtimeState, dependencies, tile),
     getDownloadPreemptionEligibility: () => {
       const evaluation = createQueueEvaluation(
         TILE_QUEUE_STAGE.DOWNLOAD,

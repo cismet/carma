@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import { TILE_CAMERA_PRIORITY } from "./tile-camera-demand";
 import {
@@ -36,80 +36,41 @@ const downloads = Object.freeze({
 });
 
 describe("tile scheduling decisions", () => {
-  it("keeps visible family support in its owner camera lane", () => {
-    for (const priority of [-Infinity, -1, 0, 1, 2]) {
-      expect(
-        resolveTileRequestPriority(
-          Object.freeze({
-            replacementSupport: true,
-            cameraPriority: priority,
-            motionPrefetch: true,
-            observerVisible: true,
-            selectedShadowReceiver: true,
-            shadowWithoutSelection: true,
-          })
-        )
-      ).toBe(Math.max(priority, TILE_CAMERA_PRIORITY.PRIMARY));
-    }
-  });
-  it("does not promote an extra receiver to the observer lane", () => {
-    const input = Object.freeze({
+  it("normalizes every active camera and its family support to equal refinement priority", () => {
+    const input = {
       replacementSupport: false,
-      cameraPriority: TILE_CAMERA_PRIORITY.SECONDARY,
+      cameraPriority: Number.NEGATIVE_INFINITY,
       motionPrefetch: false,
       observerVisible: false,
       selectedShadowReceiver: false,
       shadowWithoutSelection: false,
-    });
-    expect(resolveTileRequestPriority(input)).toBe(
-      TILE_CAMERA_PRIORITY.SECONDARY
+    };
+    for (const cameraPriority of [0, 1, 2, 3, 4]) {
+      expect(resolveTileRequestPriority({ ...input, cameraPriority })).toBe(
+        TILE_CAMERA_PRIORITY.PRIMARY
+      );
+    }
+    for (const role of [
+      "replacementSupport",
+      "observerVisible",
+      "selectedShadowReceiver",
+      "shadowWithoutSelection",
+    ] as const) {
+      expect(resolveTileRequestPriority({ ...input, [role]: true })).toBe(
+        TILE_CAMERA_PRIORITY.PRIMARY
+      );
+    }
+    expect(resolveTileRequestPriority(input)).toBe(Number.NEGATIVE_INFINITY);
+    expect(resolveTileRequestPriority({ ...input, motionPrefetch: true })).toBe(
+      TILE_CAMERA_PRIORITY.PREFETCH
     );
-    expect(
-      resolveTileRequestPriority({ ...input, observerVisible: true })
-    ).toBe(TILE_CAMERA_PRIORITY.PRIMARY);
     expect(
       resolveTileRequestPriority({
         ...input,
-        cameraPriority: TILE_CAMERA_PRIORITY.FOCUS,
-        observerVisible: true,
+        cameraPriority: TILE_CAMERA_PRIORITY.PREFETCH,
       })
-    ).toBe(TILE_CAMERA_PRIORITY.FOCUS);
+    ).toBe(TILE_CAMERA_PRIORITY.PREFETCH);
   });
-  it.each(["selectedShadowReceiver", "shadowWithoutSelection"] as const)(
-    "keeps visible iterations ahead of offscreen shadows and replacement siblings (%s)",
-    (shadowRole) => {
-      const shadow = {
-        replacementSupport: false,
-        cameraPriority: Number.NEGATIVE_INFINITY,
-        motionPrefetch: false,
-        observerVisible: false,
-        selectedShadowReceiver: false,
-        shadowWithoutSelection: false,
-        [shadowRole]: true,
-      };
-      const shadowPriority = resolveTileRequestPriority(shadow);
-      const visiblePriority = resolveTileRequestPriority({
-        ...shadow,
-        observerVisible: true,
-      });
-      const familyPriority = resolveTileRequestPriority({
-        ...shadow,
-        replacementSupport: true,
-      });
-      expect(shadowPriority).toBe(TILE_CAMERA_PRIORITY.SECONDARY);
-      expect(visiblePriority).toBe(TILE_CAMERA_PRIORITY.PRIMARY);
-      expect(familyPriority).toBe(TILE_CAMERA_PRIORITY.SECONDARY);
-      expect(visiblePriority).toBeGreaterThan(familyPriority);
-      expect(
-        resolveTileRequestPriority({
-          ...shadow,
-          replacementSupport: true,
-          cameraPriority: TILE_CAMERA_PRIORITY.FOCUS,
-        })
-      ).toBe(TILE_CAMERA_PRIORITY.FOCUS);
-      expect(visiblePriority).toBeGreaterThan(shadowPriority);
-    }
-  );
   it("runs a ready foreground parse even while a higher-rank download is pending", () => {
     expect(
       resolveTileQueueDecision({
@@ -220,6 +181,23 @@ describe("tile scheduling decisions", () => {
       )
     ).toBe(16);
   });
+
+  it("parks needed reserve until all active views settle even with no ready foreground payload", () => {
+    const request = {
+      admission: TILE_QUEUE_REASON.CURRENT_DEMAND,
+      foregroundEligible: false,
+      priority: -Infinity,
+      motionPrefetch: false,
+      highestPendingPriority: -Infinity,
+      moving: false,
+    };
+    expect(
+      resolveTileQueueDecision({ ...request, idleReady: false }).action
+    ).toBe(TILE_QUEUE_ACTION.PARK);
+    expect(
+      resolveTileQueueDecision({ ...request, idleReady: true }).action
+    ).toBe(TILE_QUEUE_ACTION.RUN);
+  });
   it("never exceeds the active network limit, including pauses and camera motion", () => {
     for (const active of [0, 1, 4, 8, 16, 32])
       for (const moving of [false, true])
@@ -276,7 +254,7 @@ describe("tile scheduling decisions", () => {
       })
     ).toBe(0);
   });
-  it("orders visible benefit within a camera lane but only preempts for substantial independent gains", () => {
+  it("orders camera benefit within a phase but only preempts for substantial independent gains", () => {
     const rank = TILE_CAMERA_PRIORITY.PRIMARY;
     expect(
       compareTileRequestOrder(rank, rank, 72 * 100000, 4 * 100000)
@@ -285,7 +263,12 @@ describe("tile scheduling decisions", () => {
       compareTileRequestOrder(rank, rank, 4 * 100000, 12 * 10000)
     ).toBeGreaterThan(0);
     expect(
-      compareTileRequestOrder(rank, TILE_CAMERA_PRIORITY.FOCUS, 1e9, 1)
+      compareTileRequestOrder(
+        rank,
+        TILE_CAMERA_PRIORITY.COVERAGE_REPAIR,
+        1e9,
+        1
+      )
     ).toBeLessThan(0);
     expect(
       compareTileRequestOrder(TILE_CAMERA_PRIORITY.VIEWPORT_FILL, rank, 0, 1e9)
@@ -314,11 +297,12 @@ describe("tile scheduling decisions", () => {
       decideTileRequestAction({ ...input, highestWaitingBenefit: Number.NaN })
     ).toBe(TILE_REQUEST_ACTION.KEEP);
   });
-  it("protects coarse visible regions before area-weighted microrefinement without crossing camera lanes", () => {
+  it("orders target-relative bands before gain without crossing fill phases", () => {
     const rank = TILE_CAMERA_PRIORITY.PRIMARY;
     for (const [error, benefit, sign] of [
       [40, 20000, 1],
-      [20, 20000, -1],
+      [20, 20000, 1],
+      [16, 20000, -1],
       [40, 0, -1],
       [Number.NaN, 20000, -1],
     ]) {
@@ -338,9 +322,9 @@ describe("tile scheduling decisions", () => {
         8
       )
     ).toBeLessThan(0);
-    // Two coarse improvements still rank by affected area times error reduction.
+    // Improvements in the same relative band rank by the summed camera gain.
     expect(
-      compareTileRequestOrder(rank, rank, 20000, 400000, 40, 30)
+      compareTileRequestOrder(rank, rank, 20000, 400000, 40, 48)
     ).toBeLessThan(0);
     const fine = {
       needed: true,
@@ -378,6 +362,49 @@ describe("tile scheduling decisions", () => {
         currentErrorPixels: 40,
         benefit: 16000,
         highestWaitingBenefit: 20001,
+      })
+    ).toBe(TILE_REQUEST_ACTION.PREEMPT);
+  });
+  it("uses each objective's explicit band instead of an absolute pixel threshold", () => {
+    const priority = TILE_CAMERA_PRIORITY.PRIMARY;
+    expect(
+      compareTileRequestOrder(priority, priority, 1000, 1, 40, 12, 1, 2)
+    ).toBeLessThan(0);
+    expect(
+      compareTileRequestOrder(priority, priority, 1000, 1, 40, 12, 2, 2)
+    ).toBeGreaterThan(0);
+    expect(
+      compareTileRequestOrder(priority, priority, 0, 1, 40, 12, 5, 2)
+    ).toBeLessThan(0);
+    const input = {
+      needed: true,
+      downloading: true,
+      metadata: false,
+      priority,
+      highestWaitingPriority: priority,
+      benefit: 100,
+      highestWaitingBenefit: 1,
+      currentErrorPixels: 40,
+      highestWaitingCurrentErrorPixels: 12,
+      errorBand: 1,
+      highestWaitingErrorBand: 2,
+    };
+    expect(decideTileRequestAction(input)).toBe(TILE_REQUEST_ACTION.PREEMPT);
+    expect(
+      decideTileRequestAction({ ...input, sameRefinementGroup: true })
+    ).toBe(TILE_REQUEST_ACTION.KEEP);
+    expect(
+      decideTileRequestAction({
+        ...input,
+        errorBand: 2,
+        highestWaitingBenefit: 125,
+      })
+    ).toBe(TILE_REQUEST_ACTION.KEEP);
+    expect(
+      decideTileRequestAction({
+        ...input,
+        errorBand: 2,
+        highestWaitingBenefit: 126,
       })
     ).toBe(TILE_REQUEST_ACTION.PREEMPT);
   });

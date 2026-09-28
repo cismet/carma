@@ -11,6 +11,7 @@ describe("nextMemoryErrorTarget", () => {
       ...base,
       current: 20,
       maximum: 40,
+      cachedBytes: 1e9,
       cacheFull: true,
       viewConverged: false,
       now: 10_000,
@@ -106,6 +107,166 @@ describe("nextMemoryErrorTarget", () => {
       changedAt: 0,
     });
     expect(noLongerEligible.retryInMs).toBeNull();
+  });
+
+  it("uses settled resident headroom above the normal watermark, after its existing deadline", () => {
+    const input = {
+      ...base,
+      current: 30.375,
+      maximum: 100,
+      cacheFull: false,
+      viewConverged: true,
+      cachedBytes: 8.3e8,
+      residentBytes: 8.3e8,
+      settled: true,
+      minimumProbeBytes: 5e7,
+      now: 5_999,
+      changedAt: 0,
+    };
+    expect(nextMemoryErrorTarget(input).retryInMs).toBe(2);
+    expect(nextMemoryErrorTarget({ ...input, now: 6_001 }).target).toBe(20.25);
+    for (const condition of [
+      { settled: false },
+      { residentBytes: undefined },
+      { minimumProbeBytes: 2e8 },
+      { cacheFull: true },
+    ])
+      expect(
+        nextMemoryErrorTarget({ ...input, ...condition, now: 10_000 }).target
+      ).toBe(input.current);
+  });
+
+  it("recovers successful settled steps to requested quality without raising the grant", () => {
+    let input = {
+      ...base,
+      current: 30.375,
+      cacheFull: false,
+      viewConverged: true,
+      cachedBytes: 8.3e8,
+      residentBytes: 8.3e8,
+      settled: true,
+      now: 10_000,
+      changedAt: 0,
+      recovery: undefined as Parameters<
+        typeof nextMemoryErrorTarget
+      >[0]["recovery"],
+    };
+    for (const target of [20.25, 13.5, 9, 6]) {
+      const result = nextMemoryErrorTarget(input);
+      expect(result.target).toBe(target);
+      input = {
+        ...input,
+        current: result.target,
+        changedAt: result.changedAt,
+        recovery: result.recovery,
+        now: input.now + 6_001,
+      };
+    }
+    const completed = nextMemoryErrorTarget(input);
+    expect(completed.target).toBe(6);
+    expect(completed.recovery.pending).toBeNull();
+    expect(completed.retryInMs).toBeNull();
+  });
+
+  it("lets a prediction-full queue drain without failing a low-residency quality probe", () => {
+    const gib = 1024 ** 3;
+    const input = {
+      ...base,
+      current: 9,
+      cacheFull: false,
+      viewConverged: true,
+      cachedBytes: 1.3 * gib,
+      residentBytes: 1.3 * gib,
+      ceilingBytes: 6 * gib,
+      settled: true,
+      now: 16_000,
+      changedAt: 0,
+    };
+    const probe = nextMemoryErrorTarget(input);
+    expect(probe.target).toBe(6);
+    const queued = nextMemoryErrorTarget({
+      ...input,
+      current: probe.target,
+      changedAt: probe.changedAt,
+      recovery: probe.recovery,
+      cachedBytes: 6.006 * gib,
+      now: 18_229,
+      cacheFull: true,
+      settled: false,
+      viewConverged: false,
+    });
+    expect(queued.target).toBe(6);
+    expect(queued.recovery.failed).toBeNull();
+    expect(queued.retryInMs).toBeNull();
+    const drained = nextMemoryErrorTarget({
+      ...input,
+      current: queued.target,
+      recovery: queued.recovery,
+      changedAt: probe.changedAt,
+      cachedBytes: 1.628 * gib,
+      residentBytes: 1.628 * gib,
+      now: 30_000,
+    });
+    expect(drained.target).toBe(6);
+    expect(drained.recovery.pending).toBeNull();
+    expect(drained.recovery.failed).toBeNull();
+    expect(
+      nextMemoryErrorTarget({
+        ...input,
+        current: 6,
+        cacheFull: true,
+        viewConverged: false,
+        residentBytes: 5.8 * gib,
+        cachedBytes: 6.006 * gib,
+      }).target
+    ).toBe(9);
+  });
+
+  it("does not repeat a failed target until additional resident headroom is available", () => {
+    const input = {
+      ...base,
+      current: 30.375,
+      maximum: 100,
+      cacheFull: false,
+      viewConverged: true,
+      cachedBytes: 8.3e8,
+      residentBytes: 8.3e8,
+      settled: true,
+      now: 10_000,
+      changedAt: 0,
+    };
+    const probe = nextMemoryErrorTarget(input);
+    const failed = nextMemoryErrorTarget({
+      ...input,
+      current: probe.target,
+      recovery: probe.recovery,
+      changedAt: probe.changedAt,
+      now: 12_001,
+      cacheFull: true,
+      viewConverged: false,
+      settled: false,
+      cachedBytes: 1e9,
+      residentBytes: 9.5e8,
+    });
+    expect(failed.target).toBe(30.375);
+    const unchangedCapacity = {
+      ...input,
+      recovery: failed.recovery,
+      changedAt: failed.changedAt,
+      now: 30_000,
+    };
+    for (const now of [30_000, 60_000, 90_000]) {
+      const unchanged = nextMemoryErrorTarget({ ...unchangedCapacity, now });
+      expect(unchanged.target).toBe(30.375);
+      expect(unchanged.retryInMs).toBeNull();
+    }
+    expect(
+      nextMemoryErrorTarget({
+        ...unchangedCapacity,
+        cachedBytes: 7.2e8,
+        residentBytes: 7.2e8,
+      }).target
+    ).toBe(20.25);
   });
 
   it("does not let unused LRU retention permanently prevent quality recovery", () => {

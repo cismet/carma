@@ -12,6 +12,7 @@ import { createPortal } from "react-dom";
 import { TILE_PIPELINE_CHART_ROWS as CHART_ROWS } from "./core/tile-pipeline-chart-rows";
 import panelCss from "./TileLoadingDebugPanels.css?inline";
 import { createTileDiagnosticOverlayComponent } from "./TileDiagnosticOverlay";
+import { TileReserveCoverageStats } from "./TileReserveCoverageStats";
 // The popup window belongs to the library, so the overview can pop out too.
 import { DiagnosticWindow as Popout } from "./DiagnosticWindow";
 import {
@@ -160,7 +161,17 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
         )} → ${next.memoryTarget.toFixed(1)} px`
       );
     if (previous.ready !== next.ready)
-      lines.push(next.ready ? "base coverage ready" : "base coverage pending");
+      lines.push(
+        next.ready ? "observer coverage ready" : "observer coverage pending"
+      );
+    if (previous.waitingForBase !== next.waitingForBase)
+      lines.push(
+        next.waitingForBase
+          ? "waiting for whole-base pan reserve"
+          : next.closureCoverage.ready
+          ? "whole-base pan reserve ready"
+          : "whole-base pan reserve inactive"
+      );
     if (
       previous.floorLoaded !== next.floorLoaded ||
       previous.floorTotal !== next.floorTotal
@@ -170,7 +181,7 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
       lines.push(
         next.uncovered > 0
           ? `WARNING ${next.uncovered} floor tiles without a loaded cut`
-          : "every floor tile has a loaded cut"
+          : "no uncovered known floor branches"
       );
     if (previous.pending !== next.pending && next.pending > 0)
       lines.push(`${next.pending} floor tiles pending`);
@@ -470,7 +481,30 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
       // Pipeline sampling must not wait for an overview worker capture to finish.
       const samplePipeline = () => {
         if (disposed) return;
-        const values = pipeline.sample();
+        const coverage = runtimeHandle.loading.getCoverageStatus();
+        const values = {
+          ...pipeline.sample(),
+          baseKnown: coverage.baseCoverage.known,
+          baseDemanded: coverage.baseCoverage.demanded,
+          baseResident: coverage.baseCoverage.resident,
+          baseRenderable: coverage.baseCoverage.renderable,
+          baseCovered: coverage.baseCoverage.covered,
+          baseCoveragePct:
+            coverage.baseCoverage.ratio === null
+              ? Number.NaN
+              : 100 * coverage.baseCoverage.ratio,
+          closureKnown: coverage.closureCoverage.known,
+          closureCovered: coverage.closureCoverage.covered,
+          closureCoveragePct:
+            coverage.closureCoverage.ratio === null
+              ? Number.NaN
+              : 100 * coverage.closureCoverage.ratio,
+          waitingForBase: Number(coverage.waitingForBase),
+          seamKnown: coverage.seamCoverage.known,
+          seamDemanded: coverage.seamCoverage.demanded,
+          seamResident: coverage.seamCoverage.resident,
+          seamRenderable: coverage.seamCoverage.renderable,
+        };
         latest.current = { ...latest.current, ...values };
         recorder.sample(values);
       };
@@ -1246,6 +1280,7 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
           color: "#111",
         }}
       >
+        {summary && <TileReserveCoverageStats {...summary} />}
         <div style={{ whiteSpace: "pre-wrap", marginBottom: 4 }}>
           {summary
             ? `Extent floor ${summary.floorLoaded}/${
@@ -1258,11 +1293,11 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
                 summary.target
               } px (requested ${
                 summary.requested
-              }, memory ${summary.memoryTarget.toFixed(1)}) · base coverage ${
-                summary.ready ? "ready" : "pending"
-              }${summary.full ? " · CACHE FULL" : ""}${
-                summary.paused ? " · LOADING PAUSED" : ""
-              }\n` +
+              }, memory ${summary.memoryTarget.toFixed(
+                1
+              )}) · observer coverage ${summary.ready ? "ready" : "pending"}${
+                summary.full ? " · CACHE FULL" : ""
+              }${summary.paused ? " · LOADING PAUSED" : ""}\n` +
               (hover
                 ? `Hover ${tileId(hover.tile)} depth ${
                     hover.tile.internal?.depth ?? "?"

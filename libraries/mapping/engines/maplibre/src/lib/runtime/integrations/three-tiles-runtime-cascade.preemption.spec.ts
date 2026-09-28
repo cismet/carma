@@ -1,14 +1,19 @@
+import { DownloadPriorityQueue, PriorityQueue } from "3d-tiles-renderer/core";
 import { OrthographicCamera } from "three";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { TILE_CAMERA_PRIORITY } from "../../core/tile-camera-demand";
 import { createThreeTilesCascade } from "./three-tiles-runtime-cascade";
 
-import type { RuntimeTile } from "./three-tiles-runtime-types";
+import type {
+  RuntimePriorityQueue,
+  RuntimeTile,
+} from "./three-tiles-runtime-types";
 import {
   LOADED_LOADING_STATE,
   LOADING_LOADING_STATE,
   PARSING_LOADING_STATE,
   QUEUED_LOADING_STATE,
+  UNLOADED_LOADING_STATE,
 } from "./three-tiles-runtime-vendor";
 import {
   tile,
@@ -16,6 +21,91 @@ import {
 } from "./three-tiles-runtime-cascade.test-support";
 
 describe("preemption runtime integration", () => {
+  it("preempts a running native job after dequeue and releases its origin slot", async () => {
+    const schedule = vi
+      .spyOn(PriorityQueue.prototype, "scheduleJobRun")
+      .mockImplementation(() => {});
+    const fixture = createPrefetchFixture(tile());
+    fixture.state.options = { providesTerrain: true };
+    const downloads = new DownloadPriorityQueue();
+    downloads.maxJobsPerOrigin = 1;
+    fixture.tiles.downloadQueue = downloads as never;
+    const active = tile();
+    const waiting = tile();
+    active.internal.loadingState = QUEUED_LOADING_STATE;
+    waiting.internal.loadingState = QUEUED_LOADING_STATE;
+    fixture.tiles.loadingTiles.add(active);
+    fixture.tiles.loadingTiles.add(waiting);
+    const controller = new AbortController();
+    const activeResult = downloads
+      .add(
+        "https://mesh.test/background.b3dm",
+        active,
+        () => {
+          active.internal.loadingState = LOADING_LOADING_STATE;
+          return new Promise<void>((_resolve, reject) => {
+            controller.signal.addEventListener("abort", () =>
+              reject(controller.signal.reason)
+            );
+          });
+        },
+        controller.signal
+      )
+      .catch((error: unknown) => error);
+    const origin = downloads.originQueues.get(
+      "https://mesh.test"
+    ) as RuntimePriorityQueue;
+    origin.autoUpdate = false;
+    const waitingJob = vi.fn().mockResolvedValue(undefined);
+    try {
+      origin.tryRunJobs();
+      expect(downloads.has(active)).toBe(false);
+      expect(origin.currJobs).toBe(1);
+      const waitingResult = downloads.add(
+        "https://mesh.test/foreground.b3dm",
+        waiting,
+        waitingJob
+      );
+      fixture.dependencies.getTileCameraDemand.mockImplementation((entry) => ({
+        required: true,
+        receiver: true,
+        errorRatio: 2,
+        priority:
+          entry === waiting
+            ? TILE_CAMERA_PRIORITY.FOCUS
+            : TILE_CAMERA_PRIORITY.SECONDARY,
+      }));
+      fixture.tiles.lruCache.remove.mockImplementation((entry) => {
+        entry.internal.loadingState = UNLOADED_LOADING_STATE;
+        fixture.tiles.loadingTiles.delete(entry);
+        if (entry === active) controller.abort();
+        downloads.remove(entry);
+      });
+      const cascade = createThreeTilesCascade(
+        fixture.state as never,
+        fixture.dependencies
+      );
+      fixture.state.retainedShadowRequests.add(active);
+      cascade.abortStaleDownloads();
+      expect(controller.signal.aborted).toBe(false);
+      fixture.state.retainedShadowRequests.clear();
+      cascade.abortStaleDownloads();
+      expect(controller.signal.aborted).toBe(true);
+      expect(fixture.tiles.lruCache.remove).toHaveBeenCalledWith(active);
+      expect(await activeResult).toMatchObject({ name: "AbortError" });
+      await Promise.resolve();
+      expect(origin.currJobs).toBe(0);
+      origin.tryRunJobs();
+      await waitingResult;
+      expect(waitingJob).toHaveBeenCalledOnce();
+    } finally {
+      controller.abort();
+      downloads.remove(waiting);
+      await activeResult;
+      schedule.mockRestore();
+    }
+  });
+
   it("does not preempt a lower-priority download while its origin has a free slot", () => {
     const fixture = createPrefetchFixture(tile());
     fixture.state.options = { providesTerrain: true };
@@ -141,6 +231,10 @@ describe("preemption runtime integration", () => {
     fixture.tiles.downloadQueue.originQueues = new Map([
       ["first", first],
       ["second", second],
+    ]);
+    fixture.tiles.downloadQueue._itemQueues = new WeakMap([
+      [active, first],
+      [waiting, second],
     ]);
     fixture.dependencies.getTileCameraDemand.mockImplementation((entry) => ({
       required: true,

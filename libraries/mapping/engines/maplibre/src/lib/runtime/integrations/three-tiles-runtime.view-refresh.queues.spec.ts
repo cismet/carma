@@ -11,6 +11,7 @@ import {
   snapshotTileCameraViews,
   TILE_CAMERA_PRIORITY,
   TILE_CAMERA_ROLE,
+  TILE_MAIN_OBSERVER_ID,
 } from "../../core/tile-camera-demand";
 
 import {
@@ -38,6 +39,28 @@ type TestRenderer = TilesRenderer & {
   frameCount: number;
   loadingTiles: Set<Tile>;
   queuedTiles: Tile[];
+};
+
+const placeTile = (
+  tile: ReturnType<typeof buildTile>,
+  x: number,
+  renderer: TilesRenderer,
+  halfSize = 1
+) => {
+  const bounds = new THREE.Box3(
+    new THREE.Vector3(x - halfSize, -halfSize, -10 - halfSize),
+    new THREE.Vector3(x + halfSize, halfSize, -10 + halfSize)
+  );
+  const placement = renderer.group.matrixWorld.clone().invert();
+  const native = bounds.clone().applyMatrix4(placement);
+  const volume = tile.engineData!.boundingVolume!;
+  volume.getAABB = (box) => box.copy(native);
+  volume.getOBB = (box, transform) => {
+    box.copy(bounds);
+    transform.copy(placement);
+  };
+  volume.getSphere = (sphere) => native.getBoundingSphere(sphere);
+  volume.intersectsFrustum = (frustum) => frustum.intersectsBox(native);
 };
 
 describe("queues runtime integration", () => {
@@ -74,7 +97,7 @@ describe("queues runtime integration", () => {
     ["download", TILE_CAMERA_PRIORITY.FOCUS],
     ["parse", TILE_CAMERA_PRIORITY.FOCUS],
   ] as const)(
-    "arbitrates %s work between main and camera rank %s, then resumes the parked promise",
+    "orders %s by equal-camera gain despite camera rank %s, preserving queued promises",
     async (phase, cameraPriority) => {
       vi.useFakeTimers();
       const mounted = mount();
@@ -84,6 +107,10 @@ describe("queues runtime integration", () => {
         const state = mounted.state;
         state.meshBaseCoverageReady = true;
         state.extentFloorArmed = false;
+        state.requestedErrorTarget =
+          state.memoryErrorTarget =
+          state.effectiveErrorTarget =
+            2;
         const extraCamera = new THREE.OrthographicCamera(
           -5,
           5,
@@ -92,9 +119,16 @@ describe("queues runtime integration", () => {
           0.1,
           100
         );
-        extraCamera.position.z = 10;
+        extraCamera.position.set(20, 0, 10);
         state.tileCameraDemand = createTileCameraDemand(
           snapshotTileCameraViews([
+            {
+              id: TILE_MAIN_OBSERVER_ID,
+              camera: mounted.camera,
+              viewport: [100, 100],
+              errorTargetPixels: 2,
+              role: TILE_CAMERA_ROLE.RECEIVER,
+            },
             {
               id: "array",
               camera: extraCamera,
@@ -106,21 +140,20 @@ describe("queues runtime integration", () => {
           ])
         );
         const primary = buildTile(1);
-        primary.engineData!.boundingVolume!.intersectsFrustum = () => true;
-        primary.engineData!.boundingVolume!.getAABB = (box) =>
-          box.set(new THREE.Vector3(19, -1, -1), new THREE.Vector3(21, 1, 1));
+        placeTile(primary, 0, mounted.renderer, 0.2);
         const secondary = buildTile(1);
+        placeTile(secondary, 20, mounted.renderer);
         // This case arbitrates refinement with existing coverage. Real holes
         // correctly outrank both cameras in the viewport-fill lane.
         for (const child of [primary, secondary]) {
-          const fallback = buildTile(40);
+          const fallback = buildTile(child === primary ? 30 : 40);
           fallback.internal.loadingState = 4;
           fallback.children = [child];
           child.parent = fallback;
           state.displayedMeshFrontier.add(fallback);
+          mounted.renderer.visibleTiles.add(fallback);
         }
-        const higher =
-          cameraPriority > TILE_CAMERA_PRIORITY.PRIMARY ? secondary : primary;
+        const higher = secondary;
         const lower = higher === primary ? secondary : primary;
         higher.internal.loadingState = 2;
         for (const tile of [primary, secondary]) {
@@ -174,9 +207,11 @@ describe("queues runtime integration", () => {
         state.extentFloorArmed = true;
         state.extentGeometricError = 40;
         const visible = buildTile(1);
+        placeTile(visible, 0, mounted.renderer);
         visible.engineData!.boundingVolume!.intersectsFrustum = () => true;
         visible.internal.loadingState = 2;
         const floor = buildTile(40);
+        placeTile(floor, 1000, mounted.renderer);
         for (const tile of [visible, floor])
           tile.internal.renderer = mounted.renderer;
         mounted.renderer.loadingTiles.add(visible);
@@ -214,10 +249,12 @@ describe("queues runtime integration", () => {
           for (const queue of mounted.renderer.downloadQueue.originQueues.values())
             queue.tryRunJobs();
         await vi.advanceTimersByTimeAsync(50);
-        // Recovery cannot fall through to idle reserve downloads when no
-        // finite-rank payload is queued. Decoded buffers keep progressing.
-        expect(floorJob).toHaveBeenCalledTimes(phase === "parse" ? 1 : 0);
+        // Needed reserve keeps its promise, but both stages wait for active views.
+        expect(floorJob).not.toHaveBeenCalled();
         state.meshCoverageRecovery = false;
+        state.meshBaseCoverageReady = true;
+        state.lastMainViewConverged = state.lastActiveViewsConverged = true;
+        state.effectiveErrorTarget = state.requestedErrorTarget;
         if (phase === "parse") mounted.renderer.parseQueue.tryRunJobs();
         else
           for (const queue of mounted.renderer.downloadQueue.originQueues.values())
@@ -259,6 +296,7 @@ describe("queues runtime integration", () => {
     try {
       const state = mounted.state;
       const support = buildTile(40);
+      placeTile(support, 1000, mounted.renderer);
       state.extentFloorArmed = true;
       state.extentGeometricError = 40;
       mounted.setMoving(true);
@@ -266,7 +304,7 @@ describe("queues runtime integration", () => {
       const result = mounted.renderer.parseQueue.add(support, callback);
       await vi.advanceTimersByTimeAsync(50);
       expect(callback).not.toHaveBeenCalled();
-      support.engineData!.boundingVolume!.intersectsFrustum = () => true;
+      placeTile(support, 0, mounted.renderer);
       mounted.camera.position.x += 1;
       mounted.camera.updateMatrixWorld(true);
       mounted.runtime.scene.update(mounted.frame);
@@ -295,6 +333,7 @@ describe("queues runtime integration", () => {
         active.internal.loadingState = 2;
         active.engineData!.boundingVolume!.intersectsFrustum = () => true;
         const parked = buildTile(40);
+        placeTile(parked, 1000, mounted.renderer);
         parked.internal.loadingState = 1;
         for (const tile of [active, parked]) {
           tile.internal.renderer = mounted.renderer;
@@ -330,7 +369,7 @@ describe("queues runtime integration", () => {
 
         // Existing parked work changes demand without queue insertion, capacity
         // growth, recovery/base-readiness changes or a completed download.
-        parked.engineData!.boundingVolume!.intersectsFrustum = () => true;
+        placeTile(parked, 0, mounted.renderer);
         mounted.camera.position.x += 1;
         mounted.camera.updateMatrixWorld(true);
         mounted.runtime.scene.update(mounted.frame);
@@ -361,8 +400,12 @@ describe("queues runtime integration", () => {
       try {
         const state = mounted.state;
         const background = buildTile(40);
+        placeTile(background, 1000, mounted.renderer);
         state.extentFloorArmed = true;
         state.extentGeometricError = 40;
+        state.meshBaseCoverageReady = true;
+        state.lastMainViewConverged = state.lastActiveViewsConverged = true;
+        state.effectiveErrorTarget = state.requestedErrorTarget;
         const foreground = buildTile(1);
         foreground.engineData!.boundingVolume!.intersectsFrustum = () => true;
         if (!runnable) {

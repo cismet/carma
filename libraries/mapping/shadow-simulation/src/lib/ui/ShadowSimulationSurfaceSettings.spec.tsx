@@ -69,6 +69,8 @@ describe("shadow surface display settings", () => {
       });
     }
     const budget = getByRole("spinbutton", { name: "Mesh-Cache in GiB" });
+    expect((budget as HTMLInputElement).value).toBe("");
+    expect(budget.getAttribute("placeholder")).toBe("Auto");
     expect(budget.getAttribute("aria-valuemax")).toBe("24");
     fireEvent.change(budget, { target: { value: "8" } });
     expect(setState).toHaveBeenLastCalledWith({

@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { mesh, quartet } from "./mesh-tile-test-fixtures";
+import { selectMeshReceiverPlan } from "./mesh-tile-selection";
+import { retainMeshDetailFrontier } from "./mesh-tile-retention";
 import {
   selectShadowCasterPlan,
   selectShadowReadyReceivers,
@@ -86,6 +88,98 @@ describe("shadow receiver publication", () => {
     ).toEqual(previous);
     expect(ready).not.toHaveBeenCalled();
     expect(previous.size).toBe(1);
+  });
+});
+
+describe("resolved empty receiver regions", () => {
+  it("releases a conservative receiver only after topology proves its observer region empty", () => {
+    const root = mesh(null, 100),
+      parent = mesh(root, 11),
+      stable = mesh(root, 1),
+      metadata = mesh(parent, 11),
+      caster = mesh(metadata, 4);
+    root.internal.hasRenderableContent = false;
+    root.children = [parent, stable];
+    parent.children = [metadata];
+    metadata.internal.hasRenderableContent = false;
+    metadata.internal.hasUnrenderableContent = true;
+    metadata.internal.loadingState = 0;
+    const previous = new Set([parent, stable]);
+    const inView = (tile: typeof parent) => tile !== caster;
+    const errorPixels = (tile: typeof parent) => tile.traversal.error;
+    const receivers = () =>
+      retainMeshDetailFrontier({
+        previous,
+        proposed: selectMeshReceiverPlan(
+          root,
+          6,
+          Infinity,
+          inView,
+          errorPixels,
+          undefined,
+          new Set(),
+          {
+            published: previous,
+            allowCoarseBootstrap: true,
+            releaseEmptyReplacementRegions: true,
+          }
+        ).tiles,
+        requestedError: 6,
+        inView,
+        errorPixels,
+      });
+
+    // Neither unfinished JSON nor loaded JSON without known children proves
+    // empty space. Retention must preserve the original colour cut in both.
+    expect(receivers()).toEqual(previous);
+    metadata.internal.loadingState = 4;
+    expect(receivers()).toEqual(previous);
+    metadata.children = [caster];
+    const proposedReceivers = receivers();
+    expect(proposedReceivers).toEqual(new Set([stable]));
+
+    // The released receiver lets the light refine the same REPLACE family.
+    // Receiver readiness must not resurrect its conservative ancestor.
+    const casters = selectShadowCasterPlan(
+      new Set([parent, stable, caster]),
+      previous,
+      proposedReceivers,
+      inView,
+      () => true,
+      errorPixels,
+      6
+    );
+    expect(casters).toEqual(new Set([stable, caster]));
+    const ready = selectShadowReadyReceivers(
+      root,
+      new Set([...casters].filter(inView)),
+      previous,
+      inView,
+      () => true
+    );
+    expect(ready.receivers).toEqual(new Set([stable]));
+    expect(ready.pending.size).toBe(0);
+    expect(previous).toEqual(new Set([parent, stable]));
+  });
+
+  it("keeps additive parent content when all resolved children miss the observer", () => {
+    const parent = mesh(null, 11),
+      child = mesh(parent, 4);
+    parent.refine = "ADD";
+    parent.children = [child];
+    const previous = new Set([parent]);
+    expect(
+      selectMeshReceiverPlan(
+        parent,
+        6,
+        Infinity,
+        (tile) => tile !== child,
+        (tile) => tile.traversal.error,
+        undefined,
+        new Set(),
+        { published: previous, releaseEmptyReplacementRegions: true }
+      ).tiles
+    ).toEqual(previous);
   });
 });
 

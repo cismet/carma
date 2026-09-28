@@ -101,7 +101,7 @@ export type ShadowSimulationState = ShadowRenderQualityOptions & {
    */
   overrideBaseMapWithVectorStyle?: boolean;
   terrainErrorTarget?: MeshErrorTargetPixels;
-  /** Optional explicit resident budget; absent uses the device default. */
+  /** Optional explicit resident budget; absent uses adaptive device admission. */
   meshCacheBudgetBytes?: number;
   showSunDebugVector: boolean;
   showProjectionDebugView?: boolean;

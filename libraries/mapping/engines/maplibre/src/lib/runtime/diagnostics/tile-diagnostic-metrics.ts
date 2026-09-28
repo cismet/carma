@@ -1,6 +1,10 @@
 import type { Tile } from "3d-tiles-renderer/core";
 import type { TilesRenderer } from "3d-tiles-renderer";
 import type { ThreeTilesRuntime } from "../integrations/three-tiles-runtime-types";
+import type {
+  ThreeTilesReserveCoverage,
+  ThreeTilesClosureCoverage,
+} from "../integrations/three-tiles-runtime-coverage";
 import {
   loadingTilesOf,
   tileId,
@@ -23,6 +27,11 @@ export type QueueRow = {
 const QUEUE_HISTORY_LIMIT = 250;
 
 export type CoverageSummary = {
+  presentationMode: "progressive-mesh" | "exclusive-shadow";
+  baseCoverage: ThreeTilesReserveCoverage;
+  seamCoverage: ThreeTilesReserveCoverage;
+  closureCoverage: ThreeTilesClosureCoverage;
+  waitingForBase: boolean;
   floorLoaded: number;
   floorTotal: number;
   uncovered: number;
@@ -63,16 +72,22 @@ export const summarizeTileDiagnostics = (
       stats: { queued: number; downloading: number; parsing: number };
     }
   ).stats;
-  // The floor-status accessor audits the metadata tree. Reuse its proof
-  // while camera, content, membership, phases and readiness are unchanged.
+  // The accessor owns a bounded sampling cadence. Reserve/material readiness
+  // can change even when the overlay's cached legacy floor proof is reusable.
+  const currentCoverage = runtimeHandle.loading.getCoverageStatus();
   const coverage = stableCoverage
     ? {
         floorLoaded: stableCoverage.floorLoaded,
         floorTotal: stableCoverage.floorTotal,
         uncoveredFallbackRoots: stableCoverage.uncovered,
       }
-    : runtimeHandle.loading.getCoverageStatus();
+    : currentCoverage;
   return {
+    presentationMode: currentCoverage.presentationMode,
+    baseCoverage: currentCoverage.baseCoverage,
+    seamCoverage: currentCoverage.seamCoverage,
+    closureCoverage: currentCoverage.closureCoverage,
+    waitingForBase: currentCoverage.waitingForBase,
     floorLoaded: coverage.floorLoaded,
     floorTotal: coverage.floorTotal,
     uncovered: coverage.uncoveredFallbackRoots,

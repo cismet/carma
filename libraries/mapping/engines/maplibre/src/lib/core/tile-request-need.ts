@@ -34,12 +34,14 @@ export type TileRequestNeedContext = Readonly<{
   providesTerrain: boolean;
   baseCoverageReady: boolean;
   mainViewConverged: boolean;
+  activeViewsConverged?: boolean;
   effectiveErrorTarget: number;
   requestedErrorTarget: number;
   memoryErrorTarget: number;
   idleRing: boolean;
   shadowSelection: boolean;
   shadowView: boolean;
+  shadowCameraDemand?: boolean;
   retainedShadowRequest: boolean;
   refinementSupport: ReadonlySet<Tile>;
   receiverReplacementAncestors: ReadonlySet<Tile>;
@@ -50,9 +52,11 @@ export type TileRequestNeedContext = Readonly<{
   inMainView: (tile: Tile) => boolean;
   inPrefetchMargin: (tile: Tile) => boolean;
   screenError: (tile: Tile) => number;
-  cameraDemand: (
-    tile: Tile
-  ) => Readonly<{ required: boolean; errorRatio: number }>;
+  cameraDemand: (tile: Tile) => Readonly<{
+    required: boolean;
+    errorRatio: number;
+    refinementErrorRatio?: number;
+  }>;
   shadowReceiverError: (tile: Tile) => number | null;
 }>;
 
@@ -68,31 +72,20 @@ export const resolveTileRequestNeed = (
     : null;
   if (context.coverageRecovery && context.coverageNeeded(tile))
     return TILE_REQUEST_NEED.COVERAGE;
-  if (
-    context.extentFloorArmed &&
-    isExtentFloorTile(tile, context.extentGeometricError)
-  )
-    return TILE_REQUEST_NEED.EXTENT;
   if (context.motionPrefetch && context.motionNeeded(tile))
     return TILE_REQUEST_NEED.MOTION;
   const inView = context.inMainView(tile);
   if (context.zoomPrefetch && context.zooming && inView)
     return TILE_REQUEST_NEED.ZOOM;
-  if (inView && context.refinementSupport.has(tile))
+  const cameraDemand = context.cameraDemand(tile);
+  const inActiveView = inView || cameraDemand.required;
+  if (inActiveView && context.refinementSupport.has(tile))
     return TILE_REQUEST_NEED.SUPPORT;
   if (
     context.providesTerrain &&
     isMeshCoveredByLoadedChildren(tile, context.visibleTiles)
   )
     return retained;
-  if (
-    !context.moving &&
-    context.baseCoverageReady &&
-    context.mainViewConverged &&
-    context.effectiveErrorTarget === context.requestedErrorTarget &&
-    (context.idleRing || context.residentAncestors.has(tile))
-  )
-    return TILE_REQUEST_NEED.IDLE;
   let parent = tile.parent;
   while (
     parent &&
@@ -108,14 +101,18 @@ export const resolveTileRequestNeed = (
     context.shadowView &&
     replacementParent &&
     context.receiverReplacementAncestors.has(replacementParent);
-  if (inView && receiverReplacement) return TILE_REQUEST_NEED.SUPPORT;
+  if (inActiveView && receiverReplacement) return TILE_REQUEST_NEED.SUPPORT;
+  const parentCameraDemand = replacementParent
+    ? context.cameraDemand(replacementParent)
+    : null;
   if (
-    context.cameraDemand(tile).required &&
-    (!replacementParent ||
-      context.cameraDemand(replacementParent).errorRatio > 1)
+    cameraDemand.required &&
+    (!parentCameraDemand ||
+      (parentCameraDemand.refinementErrorRatio ??
+        parentCameraDemand.errorRatio) > 1)
   )
     return TILE_REQUEST_NEED.CAMERA;
-  if (!inView && context.shadowSelection) {
+  if (!context.shadowCameraDemand && !inView && context.shadowSelection) {
     const receiverError = context.shadowReceiverError(tile);
     // Traversal refines the parent's footprint against its strictest receiver.
     // A child can touch only a coarser receiver and still be required for that
@@ -128,16 +125,37 @@ export const resolveTileRequestNeed = (
         receiverReplacement)
     )
       return TILE_REQUEST_NEED.SHADOW;
-  } else if (!inView && context.shadowView && !context.shadowSelection)
+  } else if (
+    !context.shadowCameraDemand &&
+    !inView &&
+    context.shadowView &&
+    !context.shadowSelection
+  )
     return TILE_REQUEST_NEED.SHADOW;
   if (tile.internal.hasUnrenderableContent)
-    return inView || context.inPrefetchMargin(tile)
+    return (!cameraDemand.required && inView) || context.inPrefetchMargin(tile)
       ? TILE_REQUEST_NEED.METADATA
       : retained;
-  return (inView || context.inPrefetchMargin(tile)) &&
+  if (
+    !cameraDemand.required &&
+    (inView || context.inPrefetchMargin(tile)) &&
     (!replacementParent ||
       context.screenError(replacementParent) >
         Math.max(context.requestedErrorTarget, context.memoryErrorTarget))
-    ? TILE_REQUEST_NEED.VIEW
-    : retained;
+  )
+    return TILE_REQUEST_NEED.VIEW;
+  const idle =
+    !context.moving &&
+    context.baseCoverageReady &&
+    (context.activeViewsConverged ?? context.mainViewConverged) &&
+    context.effectiveErrorTarget === context.requestedErrorTarget &&
+    context.memoryErrorTarget <= context.requestedErrorTarget;
+  if (
+    context.extentFloorArmed &&
+    isExtentFloorTile(tile, context.extentGeometricError)
+  )
+    return TILE_REQUEST_NEED.EXTENT;
+  if (idle && (context.idleRing || context.residentAncestors.has(tile)))
+    return TILE_REQUEST_NEED.IDLE;
+  return retained;
 };

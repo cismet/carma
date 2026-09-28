@@ -127,7 +127,7 @@ export const ShadowSimulationSurfaceSettings = ({
             />
             <Tooltip
               trigger={["hover", "focus", "click"]}
-              title="Residenter Mesh-Cache in GiB. Leer: Geräte-Standard. Große Budgets können RAM und GPU-Speicher überlasten; der Browser meldet nicht jeden Engpass rechtzeitig."
+              title="Residenter Mesh-Cache in GiB. Leer: automatische Anpassung an das Gerät. Große Budgets können RAM und GPU-Speicher überlasten; der Browser meldet nicht jeden Engpass rechtzeitig."
             >
               <Button
                 type="text"

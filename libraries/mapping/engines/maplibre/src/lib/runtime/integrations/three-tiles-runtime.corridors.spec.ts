@@ -19,9 +19,11 @@ describe("mesh receiver and sunward caster publication", () => {
       const pending = f.tile("old-sun", 100, 120, -100, 1, false, f.root);
       pending.internal.loadingState = 2;
       f.renderer.loadingTiles.add(pending);
-      f.sun.rotateY(0.2);f.setSun();
+      f.sun.rotateY(0.2);
+      f.setSun();
       expect(f.runtimeState.retainedShadowRequests.has(pending)).toBe(true);
-      f.sun.rotateY(0.2);f.setSun();
+      f.sun.rotateY(0.2);
+      f.setSun();
       expect(f.runtimeState.retainedShadowRequests.size).toBe(1);
       f.renderer.lruCache.add(pending, () => {});
       f.renderer.lruCache.markUnused(pending);
@@ -31,7 +33,9 @@ describe("mesh receiver and sunward caster publication", () => {
       f.frame.lodCamera.position.x += 1;
       f.update();
       expect(f.runtimeState.retainedShadowRequests.size).toBe(0);
-    } finally { f.dispose(); }
+    } finally {
+      f.dispose();
+    }
   });
 
   it("does not declare a partial loaded viewport complete", () => {
@@ -141,8 +145,10 @@ describe("mesh receiver and sunward caster publication", () => {
     }
   );
 
-  it("requests the next receiver family with shadows while offscreen casters can refine deeper", () => {
+  it("advances receiver and offscreen caster families through their own staged targets", () => {
     const f = createMeshCorridorFixture();
+    f.frame.lodCamera.near = 75;
+    f.frame.lodCamera.updateProjectionMatrix();
     try {
       f.update();
       const left = f.tile("left8", -10, 0, -100, 8, true, f.receiver);
@@ -171,9 +177,17 @@ describe("mesh receiver and sunward caster publication", () => {
       f.renderer.calculateTileViewErrorWithPlugin(left, target);
       expect(target.error).toBeLessThanOrEqual(f.renderer.errorTarget);
       f.renderer.calculateTileViewErrorWithPlugin(fineCaster, target);
-      expect(target.error).toBeGreaterThan(f.renderer.errorTarget);
+      expect(target.error).toBeLessThanOrEqual(f.renderer.errorTarget);
+      f.renderer.queueTileForDownload(fineCaster);
+      expect(f.queued).toHaveBeenCalledWith(fineCaster);
       expect(f.queued).toHaveBeenCalledWith(left);
       expect(f.queued).toHaveBeenCalledWith(right);
+      f.load(fineCaster);
+      f.update();
+      expect(f.visibleIds()).toContain("fine-caster");
+      expect(f.visibleIds()).not.toContain("caster16");
+      f.renderer.calculateTileViewErrorWithPlugin(fineCaster, target);
+      expect(target.error).toBeGreaterThan(f.renderer.errorTarget);
       f.load(left);
       f.update();
       expect(f.visibleIds()).toContain("receiver16");

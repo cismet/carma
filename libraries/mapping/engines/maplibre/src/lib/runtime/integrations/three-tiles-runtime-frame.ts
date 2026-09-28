@@ -3,6 +3,11 @@ import type {
   ThreeTilesFrameDependencies,
   ThreeTilesFrameHooks,
 } from "./three-tiles-runtime-frame-types";
+import {
+  areActiveMeshViewsConverged,
+  getRuntimeTileCameraViews,
+  getRetainedMeshDetailTarget,
+} from "./three-tiles-runtime-cameras";
 import { createThreeTilesFramePublication } from "./three-tiles-runtime-frame-publication";
 
 import * as THREE from "three";
@@ -12,9 +17,6 @@ import { getCameraLocalMercatorFit } from "@carma-geo/proj";
 import type { SharedThreeSceneFrame } from "../../core/shared-three-scene-types";
 import {
   createTileCameraDemand,
-  snapshotTileCameraViews,
-  TILE_CAMERA_ROLE,
-  TILE_MAIN_OBSERVER_ID,
   tileCameraViewsSignature,
 } from "../../core/tile-camera-demand";
 
@@ -139,39 +141,21 @@ export function createThreeTilesFrameUpdate(
         // download completing. Recheck its native parse queue on that event.
         runtimeState.tiles.parseQueue.scheduleJobRun();
       }
-      const demandViews = [
-        ...snapshotTileCameraViews([
-          {
-            id: TILE_MAIN_OBSERVER_ID,
-            camera: viewCamera,
-            viewport: [lodViewport.x, lodViewport.y],
-            // UNIFIED-VISIBLE-SSE-20260916: sharing a pool must preserve each
-            // camera's request, including the main observer's requested target.
-            errorTargetPixels:
-              runtimeState.options.handoverErrorTargetPixels === undefined &&
-              frame.tileCameraViews?.length
-                ? runtimeState.requestedErrorTarget
-                : runtimeState.effectiveErrorTarget,
-            role: TILE_CAMERA_ROLE.RECEIVER,
-          },
-        ]),
-        // Scheduling rank must not weaken a camera's requested detail.
-        // The strictest normalized demand wins wherever volumes overlap.
-        ...(frame.tileCameraViews ?? []),
-      ];
+      const demandViews = getRuntimeTileCameraViews(
+        runtimeState,
+        viewCamera,
+        lodViewport,
+        frame.tileCameraViews
+      );
       const cameraSignature = tileCameraViewsSignature(demandViews);
       // Relaxed motion/startup targets admit new coverage, not replacements
       // for an already-published idle-quality cut. Multi-camera SSE is a
       // demand ratio scaled by effectiveErrorTarget; its ratio=1 still means
       // each camera's requested quality (including the main idle target).
-      const retainedDetailErrorTarget = runtimeState.shadowView
-        ? Math.max(
-            runtimeState.requestedErrorTarget,
-            runtimeState.memoryErrorTarget
-          )
-        : frame.tileCameraViews?.length
-        ? runtimeState.effectiveErrorTarget
-        : runtimeState.requestedErrorTarget;
+      const retainedDetailErrorTarget = getRetainedMeshDetailTarget(
+        runtimeState,
+        frame.tileCameraViews?.length ?? 0
+      );
       // Decision: TILES_COVERAGE.md#motion-preserves-visible-detail
       // A relaxed motion or memory target controls new admissions only.
       const allowInViewCoarsening = false;
@@ -180,6 +164,7 @@ export function createThreeTilesFrameUpdate(
       downloadDemandChanged ||=
         runtimeState.mainViewProjectionChanged || tileCamerasChanged;
       if (tileCamerasChanged) {
+        runtimeState.lastActiveViewsConverged = false;
         runtimeState.tileCameraSignature = cameraSignature;
         runtimeState.tileCameraDemand = createTileCameraDemand(demandViews);
         runtimeState.mainViewIntersectionCache = new WeakMap();
@@ -233,13 +218,25 @@ export function createThreeTilesFrameUpdate(
           dependencies.getTileScreenError,
           allowInViewCoarsening
         );
-        if (runtimeState.shadowView)
-          for (const tile of [
-            ...runtimeState.committedMeshCasterFrontier,
-            ...(runtimeState.pendingMeshReceiverFrontier ?? []),
-          ])
-            for (const parent of meshTileAncestors(tile))
-              frameState.retainedMeshAncestors.add(parent);
+      }
+      if (runtimeState.options.providesTerrain && runtimeState.shadowView) {
+        const candidates = new Set(runtimeState.displayedMeshFrontier);
+        for (const tile of runtimeState.displayedMeshFrontier)
+          for (const parent of meshTileAncestors(tile)) candidates.add(parent);
+        for (const tile of candidates) {
+          const demand = dependencies.getTileCameraDemand(
+            tile as RuntimeTile,
+            true
+          );
+          if (!demand.required || (demand.refinementErrorRatio ?? 0) <= 1)
+            continue;
+          // A completed child family still needs its ancestors' shadow floor.
+          // Judging only the leaves would let camera SSE select their coarse
+          // parent again on the next frame and oscillate the published cut.
+          frameState.retainedMeshAncestors.add(tile);
+          for (const parent of meshTileAncestors(tile))
+            frameState.retainedMeshAncestors.add(parent);
+        }
       }
       if (runtimeState.options.providesTerrain)
         attachment.updateDeferredMaterials();
@@ -315,6 +312,10 @@ export function createThreeTilesFrameUpdate(
         dependencies.runDownloadQueues();
       }
       runtimeState.lastMainViewConverged = dependencies.mainViewConverged();
+      runtimeState.lastActiveViewsConverged = areActiveMeshViewsConverged(
+        runtimeState,
+        dependencies
+      );
       const hadBaseCoverage = runtimeState.meshBaseCoverageReady;
       runtimeState.meshBaseCoverageReady =
         dependencies.mainViewWithinErrorFactor(

@@ -3,7 +3,10 @@ import { Box3, Matrix4 } from "three";
 
 import type { ShadowReceiverMatch } from "../../core/shadow-receiver-mask";
 import type { SharedThreeSceneRuntime } from "../../core/shared-three-scene-types";
-import { createTileCameraDemand } from "../../core/tile-camera-demand";
+import {
+  createTileCameraDemand,
+  TILE_SHADOW_CAMERA_ID,
+} from "../../core/tile-camera-demand";
 import {
   compareTileRequestOrder,
   decideTileRequestAction,
@@ -16,7 +19,10 @@ import { readOrientedTileBounds } from "./three-tiles-bounds";
 
 import { meshTileAncestors } from "../../core/mesh-tile-coverage";
 import { TILES_LOAD_POLICY } from "../../core/tile-load-config";
-import { resolveTileRequestNeed } from "../../core/tile-request-need";
+import {
+  resolveTileRequestNeed,
+  TILE_REQUEST_NEED,
+} from "../../core/tile-request-need";
 import { createThreeTilesMotionPrefetch } from "./three-tiles-motion-prefetch";
 import type {
   ThreeTilesRuntimeServices,
@@ -52,6 +58,8 @@ export function createThreeTilesCascade(
     | "map"
     | "meshBaseCoverageReady"
     | "lastMainViewConverged"
+    | "lastActiveViewsConverged"
+    | "tileCameraDemand"
     | "meshCoverageRecovery"
     | "meshRefinementSupport"
     | "residentAncestors"
@@ -60,6 +68,7 @@ export function createThreeTilesCascade(
     | "memoryErrorTarget"
     | "shadowView"
     | "retainedShadowRequests"
+    | "shadowCasterRequests"
     | "shadowReceiverMask"
     | "pendingMeshReceiverFrontier"
     | "shadowSelectionEnabled"
@@ -114,6 +123,8 @@ export function createThreeTilesCascade(
   let pendingReceiverCut: ReadonlySet<Tile> | null | undefined;
   const receiverReplacementAncestors = new Set<Tile>();
   const getTileRequestNeed = (tile: Tile) => {
+    if (runtimeState.shadowView && runtimeState.shadowCasterRequests.has(tile))
+      return TILE_REQUEST_NEED.SHADOW;
     if (pendingReceiverCut !== runtimeState.pendingMeshReceiverFrontier) {
       pendingReceiverCut = runtimeState.pendingMeshReceiverFrontier;
       receiverReplacementAncestors.clear();
@@ -133,12 +144,18 @@ export function createThreeTilesCascade(
       providesTerrain: runtimeState.options.providesTerrain === true,
       baseCoverageReady: runtimeState.meshBaseCoverageReady,
       mainViewConverged: runtimeState.lastMainViewConverged,
+      activeViewsConverged: runtimeState.lastActiveViewsConverged,
       effectiveErrorTarget: runtimeState.effectiveErrorTarget,
       requestedErrorTarget: runtimeState.requestedErrorTarget,
       memoryErrorTarget: runtimeState.memoryErrorTarget,
       idleRing: runtimeTile.idleRing === true,
       shadowSelection: runtimeState.shadowSelectionEnabled,
       shadowView: !!runtimeState.shadowView,
+      shadowCameraDemand:
+        runtimeState.options.providesTerrain ||
+        runtimeState.tileCameraDemand.views.some(
+          (view) => view.id === TILE_SHADOW_CAMERA_ID
+        ),
       retainedShadowRequest:
         !!runtimeState.shadowView &&
         !runtimeState.memoryAdmissionPaused &&
@@ -153,7 +170,8 @@ export function createThreeTilesCascade(
       inMainView: dependencies.isTileInMainView,
       inPrefetchMargin: dependencies.isTileInPrefetchMargin,
       screenError: dependencies.getTileScreenError,
-      cameraDemand: dependencies.getTileCameraDemand,
+      cameraDemand: (tile) =>
+        dependencies.getTileCameraDemand(tile as RuntimeTile, true),
       shadowReceiverError: getShadowReceiverError,
     });
   };
@@ -210,7 +228,9 @@ export function createThreeTilesCascade(
               right.meshRefinement?.benefit,
               left.meshRefinement?.benefit,
               right.meshRefinement?.currentErrorPixels,
-              left.meshRefinement?.currentErrorPixels
+              left.meshRefinement?.currentErrorPixels,
+              right.meshRefinement?.errorBand,
+              left.meshRefinement?.errorBand
             )
           );
         waitingByQueue.set(queue, ordered);
@@ -233,9 +253,13 @@ export function createThreeTilesCascade(
         !runtimeState.retainedShadowRequests.has(tile) &&
         downloading &&
         !metadata
-          ? ([...tiles.downloadQueue.originQueues.values()].find((candidate) =>
-              candidate.has(tile)
-            ) as RuntimePriorityQueue | undefined)
+          ? (
+              tiles.downloadQueue as unknown as {
+                // Native has() only sees pending callbacks. This ownership map
+                // survives dequeue and keeps running jobs on their exact origin.
+                _itemQueues: WeakMap<Tile, RuntimePriorityQueue>;
+              }
+            )._itemQueues.get(tile)
           : undefined;
       const waiting = queue ? nextWaiting(queue) : undefined;
       const saturated =
@@ -264,6 +288,8 @@ export function createThreeTilesCascade(
         currentErrorPixels: tile.meshRefinement?.currentErrorPixels,
         highestWaitingCurrentErrorPixels:
           waiting?.meshRefinement?.currentErrorPixels,
+        errorBand: tile.meshRefinement?.errorBand,
+        highestWaitingErrorBand: waiting?.meshRefinement?.errorBand,
         // Decision: ../../../../TILES_COVERAGE.md#progressive-receiver-overlays
         // Only shadow replacement needs the whole family; plain children
         // improve independently even when they share a displayed ancestor.
@@ -408,8 +434,12 @@ export function createThreeTilesCascade(
       !tiles ||
       tiles.loadAncestors ||
       !runtimeState.meshBaseCoverageReady ||
-      !runtimeState.lastMainViewConverged ||
+      !(
+        runtimeState.lastActiveViewsConverged ??
+        runtimeState.lastMainViewConverged
+      ) ||
       runtimeState.extentFloorPending > 0 ||
+      runtimeState.memoryErrorTarget > runtimeState.requestedErrorTarget ||
       runtimeState.effectiveErrorTarget !== runtimeState.requestedErrorTarget ||
       runtimeState.map?.isMoving?.() ||
       runtimeState.ringRefinePasses >= TILES_LOAD_POLICY.idleRingRefinePassLimit
@@ -448,8 +478,13 @@ export function createThreeTilesCascade(
       tiles.loadAncestors ||
       runtimeState.map?.isMoving?.() ||
       !runtimeState.meshBaseCoverageReady ||
-      !runtimeState.lastMainViewConverged ||
+      !(
+        runtimeState.lastActiveViewsConverged ??
+        runtimeState.lastMainViewConverged
+      ) ||
       runtimeState.extentFloorPending > 0 ||
+      runtimeState.memoryErrorTarget > runtimeState.requestedErrorTarget ||
+      runtimeState.effectiveErrorTarget !== runtimeState.requestedErrorTarget ||
       (tiles.lruCache as RuntimeLruCache).cachedBytes >=
         tiles.lruCache.minBytesSize *
           TILES_LOAD_POLICY.idleRingBudgetFraction ||

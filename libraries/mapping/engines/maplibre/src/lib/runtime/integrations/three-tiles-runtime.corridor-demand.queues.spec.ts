@@ -16,9 +16,13 @@ vi.hoisted(() => {
 afterEach(() => vi.restoreAllMocks());
 
 describe("queues runtime integration", () => {
-  it("parks payload jobs behind base coverage without rejecting their original promises", async () => {
+  it("starts primary fill first and uses spare slots for another camera without a global barrier", async () => {
     vi.useFakeTimers();
     const f = createMeshCorridorFixture();
+    // The near caster is outside the observer but still in the sun camera.
+    // Native inView=false alone is not a geometric camera exclusion.
+    f.frame.lodCamera.near = 75;
+    f.frame.lodCamera.updateProjectionMatrix();
     try {
       f.update();
       const end = vi
@@ -30,8 +34,15 @@ describe("queues runtime integration", () => {
       expect(f.runtime.scene.isBaseViewReady?.()).toBe(false);
       const visible = f.tile("base-work", -5, 5, -100, 0, true, f.root);
       const caster = f.tile("parked-caster", -5, 5, -50, 0, false, f.root);
-      const baseJob = vi.fn(() => Promise.resolve("base"));
-      const casterJob = vi.fn(() => Promise.resolve("caster"));
+      const started: string[] = [];
+      const baseJob = vi.fn(() => {
+        started.push("base");
+        return Promise.resolve("base");
+      });
+      const casterJob = vi.fn(() => {
+        started.push("caster");
+        return Promise.resolve("caster");
+      });
       const base = f.renderer.downloadQueue.add(
         "https://example.test/base",
         visible,
@@ -45,8 +56,9 @@ describe("queues runtime integration", () => {
       for (const queue of f.renderer.downloadQueue.originQueues.values())
         queue.tryRunJobs();
       expect(baseJob).toHaveBeenCalledOnce();
-      expect(casterJob).not.toHaveBeenCalled();
-      expect(f.renderer.downloadQueue.has(caster)).toBe(true);
+      expect(casterJob).toHaveBeenCalledOnce();
+      expect(started).toEqual(["base", "caster"]);
+      expect(f.runtimeState.meshCoverageRecovery).toBe(false);
       expect(await base).toBe("base");
       f.update();
       expect(f.runtime.scene.isBaseViewReady?.()).toBe(true);

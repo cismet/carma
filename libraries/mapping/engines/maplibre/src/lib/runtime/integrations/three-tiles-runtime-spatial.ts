@@ -1,6 +1,8 @@
 import { type Tile } from "3d-tiles-renderer/core";
 import * as THREE from "three";
 
+import { TILE_MAIN_OBSERVER_ID } from "../../core/tile-camera-demand";
+import { createCasterVolumeDemand } from "./three-tiles-runtime-caster-demand";
 import { receiverMatchedTileError } from "../../core/shadow-receiver-mask";
 import { createThreeTilesSpatialDemand } from "./three-tiles-runtime-spatial-demand";
 import { createThreeTilesModelFrame } from "./three-tiles-runtime-model-frame";
@@ -52,6 +54,7 @@ export function createThreeTilesSpatial(
     | "tileProjectedCenter"
     | "tileViewProjection"
     | "shadowReceiverMask"
+    | "shadowCasterRequests"
     | "shadowSelectionEnabled"
     | "shadowView"
     | "shadowReceiverMatch"
@@ -82,6 +85,7 @@ export function createThreeTilesSpatial(
     getTileRequestPriority,
     isTileNeededForMeshCoverage,
     resetDemandCaches,
+    resetMeshCameraObjectives,
   } = createThreeTilesSpatialDemand(
     runtimeState,
     cameraErrors,
@@ -314,7 +318,25 @@ export function createThreeTilesSpatial(
     includeShadow = true
   ): number => {
     if (!runtimeState.tiles) return Number.POSITIVE_INFINITY;
-    let cameraError = cameraErrors.values.get(tile);
+    // Receiver masks must not become denser in response to their own sun-camera
+    // demand. Measure the observer directly without the shared shadow SSE cache.
+    if (
+      !includeShadow &&
+      runtimeState.options.providesTerrain &&
+      tile.engineData?.boundingVolume?.getAABB &&
+      runtimeState.tileCameraDemand.views.some(
+        (view) => view.id === TILE_MAIN_OBSERVER_ID
+      )
+    )
+      return getTileObserverDemand(tile).errorPixels;
+    // Mesh demand owns camera, mask, placement and content invalidation. Its
+    // cached measurements remain cheap without reviving an older sun demand.
+    let cameraError =
+      runtimeState.options.providesTerrain &&
+      tile.engineData?.boundingVolume?.getAABB &&
+      runtimeState.tileCameraDemand.views.length > 0
+        ? undefined
+        : cameraErrors.values.get(tile);
     // The compiled union now includes the main observer. Do not max it with
     // the vendor's uncut-box SSE, which would reintroduce edge overrefinement.
     const volume = tile.engineData?.boundingVolume;
@@ -354,6 +376,17 @@ export function createThreeTilesSpatial(
       bounds?.getAABB &&
       runtimeState.shadowReceiverMask
     ) {
+      if (runtimeState.options.providesTerrain && runtimeState.shadowView) {
+        const demand = createCasterVolumeDemand(
+          runtimeState.shadowReceiverMask,
+          runtimeState.requestedErrorTarget,
+          runtimeState.shadowView,
+          runtimeState.tiles.group.matrixWorld
+        )(tile);
+        return demand.intersects
+          ? demand.errorPixels
+          : Number.POSITIVE_INFINITY;
+      }
       readOrientedTileBounds(
         bounds,
         runtimeState.tileBoundingBox,
@@ -431,6 +464,7 @@ export function createThreeTilesSpatial(
     getTileObserverDemand,
     getTileCameraDemand,
     getTileRequestPriority,
+    resetMeshCameraObjectives,
     isTileNeededForMeshCoverage,
     isChildUnloadable,
     mainViewWithinErrorFactor,

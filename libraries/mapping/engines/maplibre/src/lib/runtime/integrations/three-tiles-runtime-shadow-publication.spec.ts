@@ -57,6 +57,8 @@ describe("mesh caster publication", () => {
         engineData: {
           boundingVolume: {
             getAABB: (target: THREE.Box3) => target.copy(bounds),
+            intersectsFrustum: (frustum: THREE.Frustum) =>
+              frustum.intersectsBox(bounds),
           },
         },
       } as unknown as Tile;
@@ -72,9 +74,10 @@ describe("mesh caster publication", () => {
     chimney.internal.loadingState = 2;
     state.requestedErrorTarget = 1;
     state.shadowView = {
-      camera: new THREE.OrthographicCamera(),
+      camera: new THREE.OrthographicCamera(-20, 20, 20, -20, 0.1, 100),
       shadowMapSize: { width: 1024, height: 1024 },
     };
+    state.shadowView.camera.position.z = 10;
     state.shadowReceiverMask = {
       match: () => true,
     } as unknown as ShadowReceiverMask;
@@ -161,6 +164,8 @@ describe("mesh caster publication", () => {
     // Pending/failed children keep the same exclusive parent in colour/depth.
     // An unchanged cut must not trigger another hard-shadow invalidation.
     onContentChanged.mockClear();
+    const heldReceivers = state.committedMeshReceiverFrontier;
+    const heldCasters = state.committedMeshCasterFrontier;
     for (const loadingState of [2, 3, -1]) {
       chimney.internal.loadingState = loadingState;
       api.advanceMeshShadowCorridors(
@@ -174,6 +179,8 @@ describe("mesh caster publication", () => {
         new Set([parent, otherChild])
       );
       expect(state.pendingMeshReceiverFrontier).toEqual(new Set([receiver]));
+      expect(state.committedMeshReceiverFrontier).toBe(heldReceivers);
+      expect(state.committedMeshCasterFrontier).toBe(heldCasters);
       expect(onContentChanged).not.toHaveBeenCalled();
     }
 
@@ -221,6 +228,10 @@ describe("mesh caster publication", () => {
       new Set([receiver, chimney, otherChild])
     );
     expect(state.pendingMeshReceiverFrontier).toBeNull();
+    expect(state.committedMeshReceiverFrontier).not.toBe(heldReceivers);
+    expect(state.committedMeshCasterFrontier).not.toBe(heldCasters);
+    const completeReceivers = state.committedMeshReceiverFrontier;
+    const completeCasters = state.committedMeshCasterFrontier;
     expect(state.shadowRegionRevisions.has("affected")).toBe(false);
     expect(state.shadowRegionRevisions.has("unrelated")).toBe(true);
     expect(onContentChanged).toHaveBeenCalledOnce();
@@ -233,6 +244,8 @@ describe("mesh caster publication", () => {
       new Set([receiver, chimney, otherChild])
     );
     expect(state.shadowRegionRevisions.has("affected")).toBe(true);
+    expect(state.committedMeshReceiverFrontier).toBe(completeReceivers);
+    expect(state.committedMeshCasterFrontier).toBe(completeCasters);
     expect(onContentChanged).toHaveBeenCalledOnce();
 
     // Sampling unchanged lighting must reuse the receiver spatial index;

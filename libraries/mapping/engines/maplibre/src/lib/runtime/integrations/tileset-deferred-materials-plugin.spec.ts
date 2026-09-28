@@ -105,6 +105,30 @@ describe("geometry-only tile material lifecycle", () => {
     );
     f.plugin.dispose();
   });
+  it("accounts for retained original textures before promotion applies clay styling", async () => {
+    vi.useFakeTimers();
+    const f = fixture(),
+      tile = f.tile();
+    await f.parse(tile);
+    const mesh = tile.engineData!.scene!.children[0] as Mesh;
+    const texture = new Texture();
+    const original = new MeshBasicMaterial({ map: texture });
+    const clay = new MeshBasicMaterial();
+    f.parsers[0].load.mockResolvedValueOnce(original);
+    f.tiles.calculateBytesUsed = () =>
+      (mesh.material as MeshBasicMaterial).map ? 8192 : 1024;
+    f.onPromoted.mockImplementation(() => {
+      mesh.material = clay;
+    });
+    f.inView.add(tile);
+    f.plugin.update();
+    await vi.advanceTimersByTimeAsync(10);
+    expect(mesh.material).toBe(clay);
+    expect(tile.engineData!.materials).toEqual([original]);
+    expect(tile.engineData!.textures).toEqual([texture]);
+    expect(f.tiles.lruCache.setMemoryUsage).toHaveBeenCalledWith(tile, 8192);
+    f.plugin.dispose();
+  });
   it("does not promote queued tiles after they leave the frustum or get evicted", async () => {
     vi.useFakeTimers();
     const f = fixture(),

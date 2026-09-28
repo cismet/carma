@@ -1,5 +1,6 @@
-import type { Tile } from "3d-tiles-renderer/core";
 import * as THREE from "three";
+import { meshContentLevel } from "../../core/mesh-shadow-retrieval";
+import { createCasterVolumeDemand } from "./three-tiles-runtime-caster-demand";
 
 import {
   createTileCameraDemand,
@@ -11,14 +12,12 @@ import { readOrientedTileBounds } from "./three-tiles-bounds";
 import {
   createMeshRegionCutQuery,
   hasDisplayedAncestor,
-  isMeshTileUnconditionallyRefined,
 } from "../../core/mesh-tile-coverage";
-import { isPublishedMeshRefinementLevel } from "../../core/mesh-tile-refinement";
 import type {
   ThreeTilesRuntimeServices,
   ThreeTilesRuntimeState,
 } from "./three-tiles-runtime-context";
-import { createCasterVolumeDemand } from "./three-tiles-runtime-caster-demand";
+import { createMeshCameraObjectives } from "./three-tiles-runtime-camera-objective";
 import type { RuntimeTile } from "./three-tiles-runtime-types";
 
 /** Evaluates camera and observer demand and ranks native tile requests. */
@@ -36,9 +35,11 @@ export function createThreeTilesSpatialDemand(
     | "options"
     | "requestedErrorTarget"
     | "shadowReceiverMask"
+    | "shadowCasterRequests"
     | "shadowSelectionEnabled"
     | "shadowView"
     | "tileCameraDemand"
+    | "tileRetries"
     | "tileViewFrustum"
     | "tiles"
     | "viewFrustumsReady"
@@ -46,6 +47,7 @@ export function createThreeTilesSpatialDemand(
   cameraErrors: { values: WeakMap<RuntimeTile, number> },
   getTileScreenError: ThreeTilesRuntimeServices["getTileScreenError"]
 ) {
+  const meshCameras = createMeshCameraObjectives(runtimeState);
   const cameraBounds = new THREE.Box3();
   const cameraBoundsTransform = new THREE.Matrix4();
   const noCameraDemand = {
@@ -71,8 +73,52 @@ export function createThreeTilesSpatialDemand(
     [CachedCameraDemand | null, CachedCameraDemand | null]
   >();
   let cameraDemandCacheOwner: unknown = null;
+  let casterMask: unknown;
+  let casterDemand: ReturnType<typeof createCasterVolumeDemand> | undefined;
   const getTileCameraDemand: ThreeTilesRuntimeServices["getTileCameraDemand"] =
     (tile, includeObserver = false) => {
+      if (
+        !includeObserver &&
+        !runtimeState.tileCameraDemand.views.some(
+          (view) => view.id !== TILE_MAIN_OBSERVER_ID
+        )
+      )
+        return noCameraDemand;
+      if (runtimeState.options.providesTerrain) {
+        const demand = meshCameras.demand(tile, includeObserver);
+        if (includeObserver && demand.required)
+          cameraErrors.values.set(
+            tile,
+            demand.errorRatio * runtimeState.effectiveErrorTarget
+          );
+        if (
+          includeObserver &&
+          demand.required &&
+          runtimeState.shadowView &&
+          runtimeState.shadowReceiverMask
+        ) {
+          if (casterMask !== runtimeState.shadowReceiverMask) {
+            casterMask = runtimeState.shadowReceiverMask;
+            casterDemand = createCasterVolumeDemand(
+              runtimeState.shadowReceiverMask,
+              runtimeState.requestedErrorTarget
+            );
+          }
+          const requiredLevel = casterDemand?.(tile).receiverContentLevel ?? -1;
+          const missingLevels = requiredLevel - meshContentLevel(tile);
+          if (missingLevels > 0)
+            return {
+              ...demand,
+              // An observer-owned tile can be a caster for a finer visible tile.
+              // Strengthen only its refinement floor, not reported camera SSE.
+              refinementErrorRatio: Math.max(
+                demand.refinementErrorRatio ?? 0,
+                1 + missingLevels
+              ),
+            };
+        }
+        return demand;
+      }
       const bounds = tile.engineData?.boundingVolume;
       if (
         !runtimeState.tiles ||
@@ -192,50 +238,9 @@ export function createThreeTilesSpatialDemand(
   let coverageRevision = -1;
   let coverageFrame = -1;
   let coverageQuery: ReturnType<typeof createMeshRegionCutQuery> | undefined;
-  let casterCoverageMask: unknown;
-  let casterCoverageFrontier: unknown;
-  let casterCoverageRevision = -1;
-  let casterCoverageFrame = -1;
-  let casterCoverageQuery:
-    | ReturnType<typeof createMeshRegionCutQuery>
-    | undefined;
   const isTileNeededForMeshCoverage: ThreeTilesRuntimeServices["isTileNeededForMeshCoverage"] =
     (tile) => {
       if (!runtimeState.options.providesTerrain) return false;
-      // A pending receiver cannot fill the viewport until this caster coverage
-      // exists. Admit those prerequisites in the same lane, avoiding a cycle.
-      if (
-        runtimeState.pendingMeshReceiverFrontier?.size &&
-        runtimeState.shadowReceiverMask
-      ) {
-        if (
-          casterCoverageMask !== runtimeState.shadowReceiverMask ||
-          casterCoverageFrontier !== runtimeState.committedMeshCasterFrontier ||
-          casterCoverageRevision !== runtimeState.meshContentRevision ||
-          casterCoverageFrame !== (runtimeState.tiles?.frameCount ?? -1)
-        ) {
-          casterCoverageMask = runtimeState.shadowReceiverMask;
-          casterCoverageFrontier = runtimeState.committedMeshCasterFrontier;
-          casterCoverageRevision = runtimeState.meshContentRevision;
-          casterCoverageFrame = runtimeState.tiles?.frameCount ?? -1;
-          casterCoverageQuery = createMeshRegionCutQuery(
-            runtimeState.committedMeshCasterFrontier,
-            Number.MAX_VALUE,
-            createCasterVolumeDemand(
-              runtimeState.shadowReceiverMask,
-              runtimeState.requestedErrorTarget
-            )
-          );
-        }
-        if (
-          !hasDisplayedAncestor(
-            tile,
-            runtimeState.committedMeshCasterFrontier
-          ) &&
-          casterCoverageQuery?.(tile) === null
-        )
-          return true;
-      }
       if (
         coverageFrontier !== runtimeState.displayedMeshFrontier ||
         coverageView !== runtimeState.tileCameraDemand ||
@@ -258,136 +263,35 @@ export function createThreeTilesSpatialDemand(
       );
       return coverageQuery(tile) === null;
     };
-  // Rank each independently publishable improvement by its own visible area
-  // and the reduction from the currently displayed ancestor's error.
-  let refinementView: unknown;
-  let refinementFrontier: unknown;
-  let refinementRevision = -1;
-  let refinementFrame = -1;
-  const refinementBenefits = new Map<Tile, RuntimeTile["meshRefinement"]>();
-  const getMeshRefinement = (
-    tile: RuntimeTile
-  ): RuntimeTile["meshRefinement"] => {
-    if (!runtimeState.options.providesTerrain) return undefined;
-    const published = runtimeState.displayedMeshFrontier;
-    const skippedLevels =
-      runtimeState.tiles?.loadAncestors === false && !runtimeState.shadowView;
-    // Native preprocessing queues the owner of still-raw children itself.
-    const ownsChildren = published.has(tile) && tile.children?.length > 0;
-    if (
-      !ownsChildren &&
-      tile.internal?.hasRenderableContent &&
-      !isPublishedMeshRefinementLevel(
-        tile,
-        published,
-        1,
-        skippedLevels ? Number.POSITIVE_INFINITY : 1
-      )
-    )
-      return undefined;
-    // Routing JSON is not a drawable level. In skip mode a target descendant
-    // replaces the published ancestor directly, even across unloaded levels.
-    // Shadow families keep their immediate-level publication contract.
-    let group = ownsChildren ? tile : tile.parent;
-    while (
-      group &&
-      (!group.internal?.hasRenderableContent ||
-        isMeshTileUnconditionallyRefined(group) ||
-        (skippedLevels && !published.has(group) && group.refine === "REPLACE"))
-    )
-      group = group.parent;
-    if (
-      !group ||
-      group.refine !== "REPLACE" ||
-      !published.has(group) ||
-      group.internal.loadingState !== 4 ||
-      !getTileObserverDemand(tile).intersects
-    )
-      return undefined;
-    if (
-      refinementView !== runtimeState.tileCameraDemand ||
-      refinementFrontier !== published ||
-      refinementRevision !== runtimeState.meshContentRevision ||
-      refinementFrame !== (runtimeState.tiles?.frameCount ?? -1)
-    ) {
-      refinementView = runtimeState.tileCameraDemand;
-      refinementFrontier = published;
-      refinementRevision = runtimeState.meshContentRevision;
-      refinementFrame = runtimeState.tiles?.frameCount ?? -1;
-      refinementBenefits.clear();
-    }
-    if (refinementBenefits.has(tile)) return refinementBenefits.get(tile);
-    const current = getTileObserverDemand(group as RuntimeTile, true);
-    if (!current.intersects || !Number.isFinite(current.errorPixels)) {
-      refinementBenefits.set(tile, undefined);
-      return undefined;
-    }
-    let nextErrorPixels = 0;
-    let visibleChildren = 0;
-    let provisional = false;
-    const pending = ownsChildren ? [...(group.children ?? [])] : [tile];
-    while (pending.length) {
-      const child = pending.pop()!;
-      if (
-        child.internal?.hasRenderableContent &&
-        !isMeshTileUnconditionallyRefined(child)
-      ) {
-        const demand = getTileObserverDemand(child as RuntimeTile);
-        if (demand.intersects) {
-          visibleChildren++;
-          if (Number.isFinite(demand.errorPixels))
-            nextErrorPixels = Math.max(nextErrorPixels, demand.errorPixels);
-          else provisional = true;
-        }
-      } else if (child.children?.length) pending.push(...child.children);
-      else if (child.internal?.hasContent !== false) provisional = true;
-    }
-    if (provisional)
-      nextErrorPixels = Math.max(
-        nextErrorPixels,
-        runtimeState.requestedErrorTarget,
-        runtimeState.memoryErrorTarget
-      );
-    else if (visibleChildren === 0) nextErrorPixels = current.errorPixels;
-    const visibleAreaPixels =
-      getTileObserverDemand(tile, true).visibleAreaPixels ?? 0;
-    const benefit =
-      visibleAreaPixels * Math.max(0, current.errorPixels - nextErrorPixels);
-    const result = {
-      group,
-      currentErrorPixels: current.errorPixels,
-      nextErrorPixels,
-      visibleAreaPixels,
-      benefit: Number.isFinite(benefit) ? benefit : 0,
-      provisional: provisional || visibleAreaPixels === 0,
-    };
-    refinementBenefits.set(tile, result);
-    return result;
-  };
   const getTileRequestPriority: ThreeTilesRuntimeServices["getTileRequestPriority"] =
     (tile) => {
-      tile.meshRefinement = undefined;
+      const objective = runtimeState.options.providesTerrain
+        ? meshCameras.objective(tile)
+        : undefined;
+      tile.meshRefinement =
+        objective && objective.priority > Number.NEGATIVE_INFINITY
+          ? objective
+          : undefined;
       if (isTileNeededForMeshCoverage(tile))
         return TILE_CAMERA_PRIORITY.VIEWPORT_FILL;
       const inObserver = getTileObserverDemand(tile).intersects;
-      tile.meshRefinement = getMeshRefinement(tile);
-      return resolveTileRequestPriority({
-        replacementSupport:
-          inObserver && runtimeState.meshRefinementSupport.has(tile),
-        cameraPriority: Math.max(
-          getTileCameraDemand(tile).priority,
-          tile.meshRefinement
-            ? TILE_CAMERA_PRIORITY.PRIMARY
-            : Number.NEGATIVE_INFINITY
-        ),
-        motionPrefetch: !!tile.motionPrefetch,
-        observerVisible: inObserver,
-        selectedShadowReceiver:
-          runtimeState.shadowSelectionEnabled &&
-          tile.shadowReceiverCurrent === true,
-        shadowWithoutSelection:
-          !!runtimeState.shadowView && !runtimeState.shadowSelectionEnabled,
-      });
+      return Math.max(
+        objective?.priority ?? Number.NEGATIVE_INFINITY,
+        resolveTileRequestPriority({
+          replacementSupport:
+            inObserver && runtimeState.meshRefinementSupport.has(tile),
+          cameraPriority: getTileCameraDemand(tile).priority,
+          motionPrefetch: !!tile.motionPrefetch,
+          observerVisible: inObserver,
+          selectedShadowReceiver:
+            runtimeState.shadowSelectionEnabled &&
+            (runtimeState.options.providesTerrain
+              ? runtimeState.shadowCasterRequests.has(tile)
+              : tile.shadowReceiverCurrent === true),
+          shadowWithoutSelection:
+            !!runtimeState.shadowView && !runtimeState.shadowSelectionEnabled,
+        })
+      );
     };
   const resetDemandCaches = () => {
     coverageQuery = undefined;
@@ -399,5 +303,9 @@ export function createThreeTilesSpatialDemand(
     getTileRequestPriority,
     isTileNeededForMeshCoverage,
     resetDemandCaches,
+    resetMeshCameraObjectives: () => {
+      resetDemandCaches();
+      meshCameras.reset();
+    },
   };
 }

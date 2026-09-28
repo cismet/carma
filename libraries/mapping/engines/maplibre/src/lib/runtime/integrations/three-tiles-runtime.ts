@@ -12,7 +12,10 @@ import { createThreeTilesShadows } from "./three-tiles-runtime-shadows";
 import { createThreeTilesSpatial } from "./three-tiles-runtime-spatial";
 import { createThreeTilesRuntimeState } from "./three-tiles-runtime-state";
 import { createThreeTilesSurfaces } from "./three-tiles-runtime-surfaces";
+import { LOADED_LOADING_STATE } from "./three-tiles-runtime-vendor";
 import type {
+  RuntimeTile,
+  RuntimeTilesRenderer,
   ThreeTilesRuntime,
   ThreeTilesRuntimeOptions,
 } from "./three-tiles-runtime-types";
@@ -50,7 +53,10 @@ export function buildThreeTilesRuntime(
     const tiles = state.tiles;
     const root = tiles?.root;
     const frame = tiles?.frameCount ?? -1;
-    const contentRevision = getTilesetFloorContentRevision(floorRoots);
+    const contentRevision = getTilesetFloorContentRevision(
+      floorRoots,
+      state.deferred
+    );
     if (
       root &&
       (frame !== floorCacheFrame ||
@@ -60,7 +66,10 @@ export function buildThreeTilesRuntime(
       floorRoots = collectTilesetFloorRoots(root, state.extentGeometricError);
       floorCacheFrame = frame;
       floorCacheError = state.extentGeometricError;
-      floorCacheContentRevision = getTilesetFloorContentRevision(floorRoots);
+      floorCacheContentRevision = getTilesetFloorContentRevision(
+        floorRoots,
+        state.deferred
+      );
       floorCacheRevision += 1;
     } else if (!root && floorRoots.length > 0) {
       floorRoots = [];
@@ -76,6 +85,27 @@ export function buildThreeTilesRuntime(
       (!root?.internal || !Number.isFinite(state.extentGeometricError));
     const cache = tiles?.lruCache as { cachedBytes?: number } | undefined;
     const stats = tiles?.stats;
+    const renderer = tiles as RuntimeTilesRenderer | null;
+    const demandedTiles = new Set([
+      ...(renderer?.usedSet ?? []),
+      ...(renderer?.loadingTiles ?? []),
+    ]);
+    const seamTiles = [...demandedTiles].filter((tile) => {
+      const candidate = tile as RuntimeTile;
+      // Native traverseFunctions stamps this field; its declaration omits it.
+      const traversal = candidate.traversal as RuntimeTile["traversal"] & {
+        lastFrameVisited?: number;
+      };
+      return (
+        candidate.idleRing === true &&
+        candidate.idleRingIndex === 1 &&
+        traversal?.lastFrameVisited === frame &&
+        candidate.internal?.hasRenderableContent === true
+      );
+    });
+    const materials = tiles?.getPluginByName(
+      "CARMA_DEFERRED_TILE_MATERIALS"
+    ) as { isReady: (tile: RuntimeTile) => boolean } | null | undefined;
     return coverageDiagnostics.update({
       traversalRevision: floorCacheRevision,
       enabled,
@@ -83,6 +113,22 @@ export function buildThreeTilesRuntime(
       floorArmed: state.extentFloorArmed,
       visibleBaseReady: state.meshBaseCoverageReady,
       floorRoots,
+      deferredTiles: state.deferred,
+      seamTiles,
+      closureCoverage: state.shadowView ? state.meshShadowReserve : undefined,
+      isDemanded: (tile) => demandedTiles.has(tile),
+      isResident: (tile) =>
+        tiles?.lruCache.has(tile) === true &&
+        tile.internal?.loadingState === LOADED_LOADING_STATE,
+      isRenderable: (tile) => {
+        const candidate = tile as RuntimeTile;
+        return (
+          candidate.internal?.loadingState === LOADED_LOADING_STATE &&
+          candidate.internal.hasRenderableContent === true &&
+          !!candidate.engineData?.scene &&
+          (!materials || materials.isReady(candidate))
+        );
+      },
       displayed: state.displayedMeshFrontier,
       underlay: state.meshUnderlayFrontier,
       pending: state.extentFloorPending,
@@ -159,6 +205,7 @@ export function buildThreeTilesRuntime(
       shadows.peekShadowRegionRevision(...args),
   });
   const lifecycle = createThreeTilesLifecycle(state, {
+    resetMeshCameraObjectives: () => spatial.resetMeshCameraObjectives(),
     isTileNeededForMeshCoverage: (...args) =>
       spatial.isTileNeededForMeshCoverage(...args),
 

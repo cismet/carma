@@ -196,6 +196,60 @@ describe("three tiles runtime coverage diagnostics", () => {
     });
   });
 
+  it("distinguishes parked native FAILED from real failures without certifying missing coverage", () => {
+    const diagnostics = createThreeTilesRuntimeCoverageDiagnostics();
+    const parked = tile(FAILED_LOADING_STATE, { renderable: true });
+    const failed = tile(FAILED_LOADING_STATE, { renderable: true });
+    const routing = tile(LOADED_LOADING_STATE, {
+      routing: true,
+      children: [parked],
+    });
+    const roots = [routing, failed];
+    const deferredTiles = new Set([parked]);
+    const stamp = getTilesetFloorContentRevision(roots, deferredTiles);
+    expect(diagnostics.update(input(roots, { deferredTiles }))).toMatchObject({
+      floorReady: false,
+      failedFallbackRoots: 1,
+      unknownFallbackRoots: 1,
+      uncoveredFallbackRoots: 2,
+      baseCoverage: { ready: false, covered: 0 },
+    });
+    // Membership is diagnostic evidence even if native state and frame do not change.
+    deferredTiles.add(failed);
+    expect(getTilesetFloorContentRevision(roots, deferredTiles)).not.toBe(
+      stamp
+    );
+    expect(
+      diagnostics.update(
+        input(roots, {
+          deferredTiles,
+          traversalRevision: 2,
+        })
+      )
+    ).toMatchObject({
+      floorReady: false,
+      failedFallbackRoots: 0,
+      unknownFallbackRoots: 2,
+      uncoveredFallbackRoots: 2,
+      baseCoverage: { ready: false, covered: 0 },
+    });
+    // Real descendant geometry may cover a parked parent; parking itself cannot.
+    parked.children = [tile(LOADED_LOADING_STATE, { renderable: true })];
+    expect(
+      diagnostics.update(
+        input(roots, {
+          deferredTiles,
+          traversalRevision: 3,
+        })
+      )
+    ).toMatchObject({
+      floorReady: false,
+      failedFallbackRoots: 0,
+      unknownFallbackRoots: 1,
+      uncoveredFallbackRoots: 1,
+    });
+  });
+
   it("keeps unprocessed metadata and an empty floor unknown instead of 0/0 ready", () => {
     const diagnostics = createThreeTilesRuntimeCoverageDiagnostics();
     const unknown = tile(UNLOADED_LOADING_STATE, { routing: true });
@@ -248,6 +302,181 @@ describe("three tiles runtime coverage diagnostics", () => {
       queued: 0,
       downloading: 0,
       parsing: 0,
+    });
+  });
+
+  it("keeps whole-base totals unknown despite observer readiness and empty queues", () => {
+    const loaded = tile(LOADED_LOADING_STATE, { renderable: true });
+    const metadata = tile(UNLOADED_LOADING_STATE, { routing: true });
+    const status = createThreeTilesRuntimeCoverageDiagnostics().update(
+      input([loaded, metadata])
+    );
+    expect(status.visibleBaseReady).toBe(true);
+    expect(status.baseCoverage).toMatchObject({
+      known: 2,
+      covered: 1,
+      totalKnown: false,
+      ratio: null,
+      ready: false,
+    });
+    expect(status.waitingForBase).toBe(true);
+  });
+
+  it("requires actual residency and material readiness and refreshes them without traversal", () => {
+    const loaded = tile(LOADED_LOADING_STATE, { renderable: true });
+    const diagnostics = createThreeTilesRuntimeCoverageDiagnostics();
+    const resident = new Set<Tile>();
+    const renderable = new Set<Tile>();
+    const update = () =>
+      diagnostics.update(
+        input([loaded], {
+          isResident: (node) => resident.has(node),
+          isRenderable: (node) => renderable.has(node),
+          isDemanded: () => true,
+        })
+      );
+    expect(update().baseCoverage).toMatchObject({
+      known: 1,
+      demanded: 1,
+      resident: 0,
+      renderable: 0,
+      ratio: 0,
+    });
+    resident.add(loaded);
+    expect(update().baseCoverage).toMatchObject({
+      resident: 1,
+      renderable: 0,
+      ratio: 0,
+    });
+    renderable.add(loaded);
+    expect(update()).toMatchObject({
+      baseCoverage: { resident: 1, renderable: 1, ratio: 1, ready: true },
+      waitingForBase: false,
+    });
+    expect(
+      diagnostics.update(input([loaded], { floorArmed: false })).waitingForBase
+    ).toBe(true);
+  });
+
+  it("counts a complete finer cut as base geometry but not a conflicting pan reserve", () => {
+    const left = tile(LOADED_LOADING_STATE, { renderable: true });
+    const right = tile(LOADED_LOADING_STATE, { renderable: true });
+    const parent = tile(UNLOADED_LOADING_STATE, {
+      renderable: true,
+      children: [left, right],
+    });
+    parent.refine = "REPLACE";
+    const resident = new Set([left, right]);
+    const diagnostics = createThreeTilesRuntimeCoverageDiagnostics();
+    const status = diagnostics.update(
+      input([parent], {
+        isResident: (node) => resident.has(node),
+        closureCoverage: {
+          known: 1,
+          covered: 0,
+          totalKnown: true,
+          ready: false,
+        },
+      })
+    );
+    expect(status.baseCoverage).toMatchObject({
+      resident: 0,
+      renderable: 0,
+      covered: 1,
+      ratio: 1,
+    });
+    expect(status.closureCoverage).toMatchObject({ ratio: 0, ready: false });
+    expect(status.waitingForBase).toBe(true);
+    resident.delete(right);
+    expect(
+      diagnostics.update(
+        input([parent], {
+          isResident: (node) => resident.has(node),
+        })
+      ).baseCoverage.ratio
+    ).toBe(0);
+  });
+
+  it("reports known transition payload demand without claiming a whole-ring denominator", () => {
+    const loaded = tile(LOADED_LOADING_STATE, { renderable: true });
+    const pending = tile(UNLOADED_LOADING_STATE, { renderable: true });
+    const status = createThreeTilesRuntimeCoverageDiagnostics().update(
+      input([loaded], {
+        seamTiles: [loaded, pending],
+        isDemanded: () => true,
+      })
+    );
+    expect(status.seamCoverage).toEqual({
+      known: 2,
+      demanded: 2,
+      resident: 1,
+      renderable: 1,
+      covered: 1,
+      totalKnown: false,
+      ratio: null,
+      ready: false,
+    });
+  });
+
+  it("uses base geometry for progressive mode but waits for an initialized shadow certificate", () => {
+    const roots = [tile(LOADED_LOADING_STATE, { renderable: true })];
+    const diagnostics = createThreeTilesRuntimeCoverageDiagnostics();
+    expect(diagnostics.update(input(roots))).toMatchObject({
+      presentationMode: "progressive-mesh",
+      baseCoverage: { ready: true, ratio: 1 },
+      waitingForBase: false,
+    });
+    expect(
+      diagnostics.update(
+        input(roots, {
+          closureCoverage: {
+            known: 0,
+            covered: 0,
+            totalKnown: false,
+            ready: false,
+          },
+        })
+      )
+    ).toMatchObject({
+      presentationMode: "exclusive-shadow",
+      baseCoverage: { ready: true, ratio: 1 },
+      closureCoverage: { ratio: null, ready: false },
+      waitingForBase: true,
+    });
+  });
+
+  it("knows a resolved container region but leaves unopened descendant metadata unknown", () => {
+    const left = tile(LOADED_LOADING_STATE, { renderable: true });
+    const right = tile(LOADED_LOADING_STATE, { renderable: true });
+    const wrapper = tile(LOADED_LOADING_STATE, {
+      routing: true,
+      children: [left, right],
+    });
+    wrapper.refine = "REPLACE";
+    const diagnostics = createThreeTilesRuntimeCoverageDiagnostics();
+    expect(diagnostics.update(input([wrapper]))).toMatchObject({
+      baseCoverage: {
+        known: 1,
+        covered: 1,
+        renderable: 0,
+        totalKnown: true,
+        ratio: 1,
+        ready: true,
+      },
+      waitingForBase: false,
+    });
+    wrapper.children![1] = tile(UNLOADED_LOADING_STATE, { routing: true });
+    expect(
+      diagnostics.update(input([wrapper], { traversalRevision: 2 }))
+    ).toMatchObject({
+      baseCoverage: {
+        known: 1,
+        covered: 0,
+        totalKnown: false,
+        ratio: null,
+        ready: false,
+      },
+      waitingForBase: true,
     });
   });
 });

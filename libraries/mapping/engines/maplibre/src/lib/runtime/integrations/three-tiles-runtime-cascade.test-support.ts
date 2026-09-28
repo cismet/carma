@@ -1,6 +1,7 @@
 import { Box3, Group, PerspectiveCamera, Vector3 } from "three";
 import { expect, vi } from "vitest";
 import {
+  createTileCameraDemand,
   snapshotTileCameraViews,
   TILE_CAMERA_ROLE,
   TILE_CAMERA_PRIORITY,
@@ -60,7 +61,18 @@ export const createPrefetchFixture = (root: RuntimeTile) => {
         work.get(entry)?.();
       }),
     },
-    downloadQueue: { maxJobsPerOrigin: 4, originQueues: new Map() },
+    downloadQueue: {
+      maxJobsPerOrigin: 4,
+      originQueues: new Map(),
+      _itemQueues: new WeakMap<
+        RuntimeTile,
+        {
+          items: RuntimeTile[];
+          currJobs: number;
+          has: (entry: RuntimeTile) => boolean;
+        }
+      >(),
+    },
     parseQueue: { maxJobs: 2 },
     ensureChildrenArePreprocessed: vi.fn(),
     markTileUsed: vi.fn(),
@@ -87,9 +99,13 @@ export const createPrefetchFixture = (root: RuntimeTile) => {
         (entry) => entry.internal.loadingState === LOADING_LOADING_STATE
       ).length;
     },
-    has: (entry: RuntimeTile) => tiles.loadingTiles.has(entry),
+    has: (entry: RuntimeTile) =>
+      entry.internal.loadingState === QUEUED_LOADING_STATE &&
+      tiles.loadingTiles.has(entry),
   };
   tiles.downloadQueue.originQueues = new Map([["test", originQueue]]);
+  tiles.downloadQueue._itemQueues.get = (entry) =>
+    tiles.loadingTiles.has(entry) ? originQueue : undefined;
   const state = {
     options: {},
     tiles,
@@ -98,6 +114,7 @@ export const createPrefetchFixture = (root: RuntimeTile) => {
     memoryErrorTarget: 2,
     meshCoverageRecovery: false,
     lastMainViewConverged: true,
+    tileCameraDemand: createTileCameraDemand([]),
     meshRefinementSupport: new Set<RuntimeTile>(),
     residentAncestors: new Set<RuntimeTile>(),
     extentGeometricError: 40,

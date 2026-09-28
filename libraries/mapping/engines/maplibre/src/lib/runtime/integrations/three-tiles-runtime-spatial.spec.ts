@@ -315,10 +315,14 @@ describe("current-camera screen error before native traversal", () => {
       const lookahead = member(4);
       lookahead.parent = coarse.child;
       spatial.getTileRequestPriority(lookahead);
-      expect(lookahead.meshRefinement).toBeUndefined();
+      // Camera-local stages own scoring; the vendor's ancestor mode only
+      // bounds traversal and cannot remove a valid regional refinement gain.
+      expect(lookahead.meshRefinement?.group).toBe(coarse.parent);
+      const lookaheadBenefit = lookahead.meshRefinement?.benefit;
       tiles.loadAncestors = false;
       spatial.getTileRequestPriority(lookahead);
       expect(lookahead.meshRefinement?.group).toBe(coarse.parent);
+      expect(lookahead.meshRefinement?.benefit).toBe(lookaheadBenefit);
       expect(lookahead.meshRefinement?.currentErrorPixels).toBe(
         coarse.child.meshRefinement?.currentErrorPixels
       );
@@ -350,6 +354,7 @@ describe("current-camera screen error before native traversal", () => {
       expect(coarse.child.meshRefinement!.benefit).toBeLessThan(oldBenefit);
       state.displayedMeshFrontier.delete(coarse.parent);
       state.displayedMeshFrontier.add(coarse.child);
+      tiles.frameCount++;
       spatial.getTileRequestPriority(coarse.child);
       expect(coarse.child.meshRefinement).toBeUndefined();
     } finally {

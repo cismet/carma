@@ -17,6 +17,12 @@ export const VIEW_QUALITY_AUDIT_PASSES = 2;
 
 export const MESH_SETTLED_AUDIT_INTERVAL_MS = 1_000;
 
+export const MESH_ALLOCATION_RECOVERY_PHASE = {
+  WAITING: "waiting",
+  PROBING: "probing",
+  RECOVERED: "recovered",
+} as const;
+
 export const MESH_MOTION_COVERAGE_INTERVAL_MS = 180;
 
 export const MESH_EVICTION_BATCH_SIZE = 16;
@@ -34,7 +40,11 @@ export const TERRAIN_LOADING_CONTENT_BOOTSTRAP_CONCURRENCY = 8;
 
 export const MESH_PARSE_CONCURRENCY = 2;
 
-export const MESH_DOWNLOAD_CONCURRENCY = 16;
+/** Overlap asynchronous shadow preparation only within a full desktop grant. */
+export const MESH_DESKTOP_SHADOW_PARSE_CONCURRENCY = 8;
+
+/** Bounds per-file contention while retaining measured payload throughput. */
+export const MESH_DOWNLOAD_CONCURRENCY = 6;
 
 /** Extra drawable levels beyond the immediate replacement family; zero disables prefetch. */
 export const MESH_REFINEMENT_PREFETCH_LEVELS = 0;

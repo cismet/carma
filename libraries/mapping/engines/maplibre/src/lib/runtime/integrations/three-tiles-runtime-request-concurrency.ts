@@ -1,5 +1,7 @@
 import type { Tile } from "3d-tiles-renderer/core";
 
+import { TILES_CACHE_CEILING_BYTES } from "../../core/tile-cache-policy";
+
 import {
   resolveTileDownloadConcurrency,
   resolveTileParseConcurrency,
@@ -7,6 +9,8 @@ import {
 import { isSharedThreeTerrainLoading } from "./shared-three-terrain-registry";
 import { resolveRequestConcurrency } from "../../core/tile-request-policy";
 import {
+  MESH_ALLOCATION_RECOVERY_PHASE,
+  MESH_DESKTOP_SHADOW_PARSE_CONCURRENCY,
   MESH_DOWNLOAD_CONCURRENCY,
   MESH_MOTION_DOWNLOAD_CONCURRENCY,
   MESH_MOTION_PARSE_CONCURRENCY,
@@ -30,7 +34,9 @@ export function createThreeTilesRequestConcurrency(
     | "tiles"
     | "map"
     | "normalParseConcurrency"
+    | "shadowView"
     | "memoryAdmissionPaused"
+    | "allocationRecovery"
     | "loadingPaused"
     | "options"
     | "payloadAwareConcurrency"
@@ -61,14 +67,31 @@ export function createThreeTilesRequestConcurrency(
       const zooming = runtimeState.map?.isZooming?.() === true;
       const paused =
         runtimeState.memoryAdmissionPaused || runtimeState.loadingPaused;
+      const normalParseConcurrency =
+        runtimeState.options.providesTerrain &&
+        runtimeState.shadowView &&
+        runtimeState.ceilingBytes >= TILES_CACHE_CEILING_BYTES.desktopDefault
+          ? MESH_DESKTOP_SHADOW_PARSE_CONCURRENCY
+          : runtimeState.normalParseConcurrency;
       runtimeState.tiles.parseQueue.maxJobs = resolveTileParseConcurrency({
         paused,
         moving,
         zooming,
         providesTerrain: !!runtimeState.options.providesTerrain,
-        normal: runtimeState.normalParseConcurrency,
+        normal: normalParseConcurrency,
         motionLimit: MESH_MOTION_PARSE_CONCURRENCY,
       });
+      // A recovered allocation gets one decode at a time until a model really
+      // succeeds. Raising the ceiling or restoring the former fan-out would
+      // immediately recreate the pressure that triggered the pause.
+      if (
+        runtimeState.allocationRecovery?.phase ===
+        MESH_ALLOCATION_RECOVERY_PHASE.PROBING
+      )
+        runtimeState.tiles.parseQueue.maxJobs = Math.min(
+          1,
+          runtimeState.tiles.parseQueue.maxJobs
+        );
       if (runtimeState.tiles.parseQueue.maxJobs > previousParseConcurrency) {
         // Changing the upstream concurrency limit does not wake a paused queue.
         // Defer the restart instead of parsing synchronously in an input event.
@@ -112,7 +135,7 @@ export function createThreeTilesRequestConcurrency(
             (tile) => priorities.get(tile)! >= highestPriority
           ).length;
       }
-      const downloadConcurrency = resolveTileDownloadConcurrency(
+      let downloadConcurrency = resolveTileDownloadConcurrency(
         {
           active: activeConcurrency,
           providesTerrain: !!runtimeState.options.providesTerrain,
@@ -134,6 +157,11 @@ export function createThreeTilesRequestConcurrency(
           terrainBootstrap: TERRAIN_LOADING_CONTENT_BOOTSTRAP_CONCURRENCY,
         }
       );
+      if (
+        runtimeState.allocationRecovery?.phase ===
+        MESH_ALLOCATION_RECOVERY_PHASE.PROBING
+      )
+        downloadConcurrency = Math.min(1, downloadConcurrency);
       // Network throughput is useful only while the downstream GLTF queue can
       // consume it. The former 42-64 request fan-out accumulated 225 parse jobs
       // and starved rendering. A bounded backlog gate keeps decoder and

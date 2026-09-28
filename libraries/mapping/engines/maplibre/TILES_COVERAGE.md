@@ -1,3 +1,110 @@
+## Camera-normalized mesh refinement
+
+Active mesh cameras share one request pool and one geometry cut. The main
+observer fills missing coverage first; other active cameras fill next. Coarse
+casters required to publish the first receiver inherit that receiver's fill
+priority. Within a fill phase, only the missing coverage area of that phase is scored.
+Once covered, every active camera contributes equally to refinement.
+
+A missing region first admits and publishes its first drawable approximation,
+regardless of the former initial-image quality gate. This applies to mesh scenes
+with and without shadows; final pixel quality follows after coverage. Metadata remains
+traversable, but another camera cannot refine that approximation away before its
+receiver has been published. Ancestors of an existing fine cut remain traversal
+paths, so filling nearby gaps never restores overlapping coarse geometry.
+
+A tile's benefit is the sum of its potential error reduction in each camera,
+weighted by the projected bounding-box footprint **clipped to that camera's
+viewport**, divided by the viewport area. This is a projected convex footprint,
+not the box's unclipped area or its screen-aligned enclosing rectangle. Error
+and area remain paired per camera. Duplicate demands share one Tile and request.
+
+Ordinary projected-area queries clip at most three camera-facing box faces to
+the viewport and sum their disjoint areas. The same vertices provide visible
+depth for SSE. Near/far cuts, camera-inside volumes and nonstandard projections
+retain the exact volume-intersection fallback. This replaces the general
+polyhedron-intersection/hull path for ordinary footprint queries.
+
+Each published replacement region advances independently through targets
+`2^n * finalErrorTarget`. Queue ordering uses coverage phase, the current
+relative error band, then summed benefit; there is no whole-scene wave barrier.
+Per-camera pixel errors and final-target demand ratios remain separate from
+admission-stage ratios for diagnostics and coverage proofs. Motion and memory limits affect admission, not retained detail.
+
+The mesh sun camera uses its actual orthographic projection and logical shadow
+map size. Receiver influence still excludes bounds with nowhere relevant to
+cast. Raster terrain keeps its existing path. Atomic, exclusive shadow family
+publication, coarse-caster readiness, and monotone receiver/caster retention
+remain required. Base coverage and reserve loading wait for all active cameras.
+
+This policy supersedes historical primary-versus-secondary refinement ranks
+and receiver-geometric-ratio caster selection described below. Its pure scoring,
+clipped geometry, request need, and runtime publication contracts have focused
+regression tests; timing gains require separate browser measurement.
+
+## Progress and recovery
+
+A blocked stage needs a matching release event or a bounded retry deadline.
+No failure counts as coverage, and recovery must preserve the published receiver
+and caster cut until usable replacements exist.
+
+- Shadow requests, exclusive family publication and regional readiness use the
+  same receiver-mask intersection with the actual light frustum. A branch that
+  cannot be requested must not block publication. Regional proof caches also
+  depend on the light projection, frame transform and logical sampling grid.
+- Initial coverage waits for the first drawable approximation. If an unloaded
+  REPLACE payload exhausts its retries, its healthy child routes remain
+  traversable even below the nominal error target. Pending retries still wait;
+  missing ADD content cannot be replaced by its children.
+- Transport bounds headers and body consumption with the existing deadline.
+  Retries use bounded exponential backoff. Exhausted resources have one shared
+  expiry timer that releases residual FAILED tile/root state and wakes the
+  runtime without a camera gesture. Success, reset and disposal cancel it.
+- Decoder asset deadlines release stalled initialization. A failed Draco init
+  can fetch its assets again; worker errors reject pending decode tasks and
+  remove only the failed native worker. A 30-second decode deadline also releases
+  a silent worker or unresolved asynchronous WASM initialization. Disposal also settles reserved work,
+  including the callback-registration microtask boundary. Geometry and pool
+  ownership remain with the native loader.
+- Running request ownership comes from the native origin map, not pending-queue
+  membership. This lets stronger admitted demand preempt an obsolete download.
+  At full cache, weaker reservations can also make room for live refinement;
+  published cuts, decoded content and atomic shadow families remain protected.
+- Allocation failures lower the learned ceiling and pause admission. After
+  backoff, drained work and sufficient memory headroom permit one payload per
+  origin and one global parse probe. High resident pressure also requires reclamation; visible
+  coverage remains pinned. A successful model restores normal concurrency,
+  while a failed probe increases backoff. A lost graphics context still waits
+  for its real restoration event.
+- Sun changes invalidate obsolete geometry proofs while useful in-flight work
+  remains eligible for completion. Request state belongs to its runtime;
+  learned client capacity may remain shared.
+
+Focused regressions cover these release paths. Persistent unavailable source
+content or a published cut that cannot fit the reduced budget can still prevent
+final quality; the manager must preserve usable coverage and report the wait
+instead of falsely declaring convergence.
+
+## Mesh payload concurrency
+
+The default is six payload downloads per origin, including during movement;
+metadata and parsing retain independent queues. Memory and parse backlog still
+limit admission. This supersedes the historical sixteen-payload setting below.
+
+On a measured 599.5 Mbit/s Ethernet connection, balanced equal-file HTTP/2 runs
+against the configured gzip endpoint averaged 559 Mbit/s with six requests:
+93% of measured line capacity and 99% of eight-request throughput. Five requests
+averaged 516 Mbit/s and four 449 Mbit/s. Median per-request duration was about
+99 ms with six versus 130 ms with eight; completion of the first eight submitted
+files was slightly later (326 ms versus 291 ms). One seven-request run slowed to
+205 Mbit/s; all runs completed without transfer errors. These measurements do
+not establish a universally optimal concurrency or faster rendered convergence.
+
+Earlier eight-versus-sixteen repeats retained about 98% throughput with eight,
+while the first eight files completed about 25% sooner. The uncompressed
+alternate endpoint saturated the link with two requests, but required about
+26% more wire bytes for identical content.
+
 ## Progressive receiver overlays
 
 **ID / date / status:** progressive-receiver-overlays / 2026-09-23 /
@@ -45,16 +152,16 @@ admission, and stop obsolete requests after camera changes.
 - A prerequisite flag is not visibility: old support cannot resurrect an
   obsolete request. Missing coarse casters for a withheld receiver share its
   viewport-fill priority so receiver and caster admission cannot wait on each
-  other. Finer caster improvements retain normal corridor priority. Queue
+  other. Finer caster improvements share the active-camera refinement phase. Queue
   admission still respects current camera/corridor demand, pauses, retries and
   memory limits.
-  Viewport refinement benefit is evaluated per requested child using its
-  visible area and absolute error reduction, rather than assigning each
-  sibling the entire parent's benefit. Only shadow mode protects requests in
+  Refinement benefit is evaluated per requested child and camera using its
+  clipped viewport fraction and absolute error reduction, rather than assigning
+  each sibling the entire parent's benefit. Only shadow mode protects requests in
   the same atomic replacement family from mutual preemption. Without shadows,
   independent children follow the same priority and gain hysteresis within a
   parent group as between groups, for download and pre-parse admission.
-- Full-extent base coverage still fills at observer idle. Its admission uses
+- Full-extent base coverage fills after all active cameras converge. Its admission uses
   the same demand-relative sibling policy; it cannot block visible refinement.
 - Publication is distinct from eviction. Retiring a parent from the current
   view does not prove full-extent replacement; the existing coverage-safe
@@ -156,17 +263,20 @@ observer-only refinement stop in both download and parse queues. Re-inferring
 ownership from location stranded an already downloaded caster in PARSING with
 `refinement-deferred`. Resource and foreground priority limits remain independent.
 
-Receiver demand includes staged candidates before publication. A pure
-`selectShadowReadyReceivers` plan proves each new receiver against the drawable
-caster cut at any LOD and retains existing receivers while that proof waits.
-All receiver corridors share one caster cut, keyed by native Tile identity.
-Overlapping receiver demands use their finest required geometric error. A
-weaker later corridor does not coarsen the retained cut. Additional caster
-selection uses that receiver-matched ratio; viewport-owned tiles bypass this
-selection and enter depth directly, not via a second LOD decision. It reuses the progressive selector and the previous
-caster cut as the minimum retained detail. Native traversal omitting a tile is
-not replacement evidence. Shadow demand starts before the initial base pass;
-otherwise the initial receiver gate and delayed sun demand form a wait cycle.
+**2026-09-28 simplification:** For a terrain-providing mesh, the only extra
+geometry demand is the union of parallel sunward corridors from camera-clipped
+mesh receivers. Independent DEM receivers and finite-disc widening do not enlarge
+this mesh demand. Building-only layers keep their independent terrain receivers.
+Caster detail follows receiver geometric error; the fitted shadow-map camera is
+not a second LOD target or a near/far clipping gate for requests. Viewport tiles
+cast directly, without a second request or selection owner.
+
+The former per-receiver `selectShadowReadyReceivers` runtime gate is superseded
+by a single atomic viewport/corridor cut. Each complete demanded family replaces
+its parent; no parent/child hybrid geometry is published while shadows are on.
+The shadow renderer can capture current coarse coverage and refresh after a
+family improves instead of waiting for final detail. Screen error requirements
+for visible geometry stay unchanged.
 
 **Alternatives and disposition:** Full receiver boxes are superseded. Testing
 only tile centres is incompatible with conservative caster coverage. Exact
@@ -2028,24 +2138,57 @@ device, so with shadows on an iPhone ran into that reload loop. The desired
 behaviour: 6 GB optimistically where the client permits, otherwise the size
 the client really supports, remembered for later sessions.
 
-**Decision:** Desktop class ceilings scale with reported device memory at
-768 MiB per GiB between 768 MiB and 6 GiB and default to 6 GiB when the
-browser hides memory; phones (384 MiB) and tablets or other mobile devices
-(512 MiB) keep hard caps that a consumer or style budget can only lower,
-never raise. A learned ceiling persists in localStorage
-(`carma:tiles3d-cache-ceiling`): an allocation failure or a lost WebGL
-context learns 75 % of the bytes resident at that moment and applies it at
-once. As of 2026-09-24, an unfinished shared session is not treated as a
-memory failure: another tab or manager can still own that probe. Legacy
-`unhealthy-session` limits are discarded on startup; observed allocation
-and context-loss limits remain. Three clean sessions that
-used at least 90 % of a learned ceiling raise it by half again, up to the
-unlearned ceiling. Only learned limits, reasons and recovery counts are shared in localStorage.
-Peak residency and clean-end probes stay in each runtime; periodic sampling
-does not write shared state. Failure and recovery writes read the latest
-shared lesson first, and a session using an older limit cannot recover a newer
-failure. Hosts opt in with `persistCacheCeiling` (the layer
-manager does); tests and stories without it keep the pure policy.
+**Decision (updated 2026-09-28):** Desktop budgets start at 6 GiB, scaled
+by smaller reported memory hints. A healthy, actually occupied budget can grow
+by at most 20% per ten seconds while active quality or base coverage remains
+unfinished. Only loaded scenes count toward the 90% occupancy threshold;
+queued byte predictions cannot drive growth. Growth stays within the configured
+24 GiB desktop maximum, explicit consumer limits and learned failure ceiling.
+iOS retains its 384 MiB cap and other mobile devices 512 MiB; reported low-memory
+desktops keep their scaled cap. These are application budgets, not a browser
+allocation grant: pages cannot query the exact available RAM/GPU memory limit.
+Each genuine increase permits one finer quality attempt. Desktop shadow mode
+uses the engine's automatic budget by default; explicit numeric overrides and
+the existing mobile shadow baseline remain limits. Reapplying identical budget
+options is a no-op that preserves the grown budget, quality target and any
+allocation-recovery pause. Existing published coverage remains pinned.
+
+A settled coarse cut may also probe one finer target with existing cache
+headroom, without increasing its grant. All active cuts must have converged,
+queues and held receivers must be empty, and motion, context loss and allocation
+recovery must be absent. Free accounted cache capacity must cover both 10% of the
+grant and at least one predicted tile or the largest known next-step active
+family. Offscreen and already-sufficient families do not gate this probe. Actual
+loaded scene bytes and family estimates are inspected only at the existing six-
+second recovery deadline; unchanged facts are reused within that interval and
+camera or sun demand invalidates the inspection.
+Queued byte reservations filling the admission ledger are not resident pressure:
+existing work may drain without coarsening or recording a failed quality probe.
+Coarsening requires sampled loaded-scene residency near the grant or a reported
+allocation/context failure. The sample is taken by the existing memory audit
+before quality policy and cleared on disposal; unknown samples remain conservative.
+Successful settled steps may continue to the requested quality. A failed target
+remembers its pre-probe headroom and cannot issue the same or finer request burst
+without materially greater capacity. Camera/time changes alone do not reset that
+checkpoint. These are resident/cache estimates, not free physical RAM readings.
+
+Observed allocation failures and eligible context loss learn exactly 80% of
+the current granted budget, subject to the 128 MiB minimum. Estimated residency
+above the grant does not weaken that reduction. The lesson is persisted in a
+build-scoped localStorage record under `carma:tiles3d-cache-ceiling`; emitted
+module identity includes the production bundle hash. Another build ignores it,
+and concurrent older builds cannot overwrite its record. Clean sessions do not
+raise a confirmed failure ceiling again within the same build. Runtime peak and
+clean-end probes remain private to each manager; only confirmed client limits
+and reasons are shared. Already-running managers adopt lower same-build lessons
+at the normal memory-check cadence without resetting their local recovery or
+sharing probes. Hosts opt in through `persistCacheCeiling`, as the layer manager
+does. Storage unavailable or full does not block rendering.
+
+An unfinished shared session is not a memory-failure signal: another tab or
+manager may still own it. Legacy inferred crash lessons are discarded. A hard
+browser/OS process kill cannot be caught reliably by page code; graceful recovery
+covers reported allocation/decode failures and restorable WebGL context loss.
 
 **Alternatives and disposition:** Measuring free memory directly: not
 possible from a page. Raising phones by consumer budget: rejected by
@@ -2503,10 +2646,20 @@ independent admission. `resolveTileQueueDecision` then applies foreground, motio
 and idle rules. The hard boundary always precedes the idle fallback. A scheduling
 pass derives each tile's current demand once; no demand snapshot survives the pass.
 
-A concrete missing-coverage request may also need space before native admission.
-At a full cache it may release optional queued payloads, then optional active
-downloads, only until admission has room. Metadata, current coverage, loaded
-content and downloaded parse buffers stay protected. Hard memory pauses and
+A concrete missing-coverage or active-camera refinement request may also need
+space before native admission. Only at a full cache may it reclaim weaker queued
+or downloading payload reservations, and only until admission has room. The
+current camera priority/error-band/benefit comparator decides which work is
+weaker; within one band, replacement requires more than 25% greater benefit.
+Weakest work is reclaimed first, with queued work before downloads on equal
+scores. Idle and previous-sun-direction demand cannot initiate reclamation.
+Time changes alone keep useful shadow requests; actual full-cache pressure may
+reclaim a weaker retained request for stronger live demand.
+
+Metadata, current gap coverage, published receiver/caster cuts, loaded content
+and downloaded parse buffers stay protected. Shadow requests from the same
+atomic replacement family cannot preempt each other, including structural
+families whose camera objective is not available yet. Hard memory pauses and
 cache limits remain unchanged. The native tile runtime still owns each request
 and its abort/disposal; parent families express demand, not exclusive ownership.
 
@@ -2724,6 +2877,29 @@ Evidence: the Zoom-22 inspection (MapLibre clamped to 21) found mesh_1503231
 requesting three finer children with zero visible children. Focused regression
 checks missing/loaded outside children and re-entry of one visible child.
 
+**Shadow handover exception (2026-09-28):** Exclusive receiver selection may
+release a REPLACE parent above the current target when resolved child topology
+proves its observer region empty. Keeping that conservative parent as a receiver
+would also pin it in depth and prevent an already loaded finer light-camera cut
+from replacing it. The shadow receiver selectors opt into
+`releaseEmptyReplacementRegions`; ordinary receiver selection keeps the fallback
+behavior above. Unknown external metadata, including loaded metadata without
+known children, remains incomplete. ADD keeps its own content. Retention accepts
+the proven empty observer region, while the caster selector still requires its
+complete demanded cut before changing the shared family. Targets are unchanged.
+
+An entirely empty mesh proposal follows the same rule: an empty published-set
+coverage proof must establish an empty observer domain before publication runs.
+It then snapshots only that empty mesh proposal, preserving independent terrain
+receivers, so the former coarse receiver cannot recreate its own corridor.
+Unavailable camera snapshots and unknown topology retain the previous cuts;
+normal caster diffs still invalidate removed shadow geometry.
+
+Evidence: the stationary 24 s and 84 s tree captures retained mesh_4270 (11.06
+light pixels) despite its required light children 454279, 454369 and 454417 all
+being loaded below 6 pixels and missing the observer. The colocated shadow
+publication regression covers receiver selection, retention, exclusive caster
+replacement and receiver readiness, plus unknown metadata and ADD behavior.
 
 ## Exclusive shadow caster handover
 
@@ -2736,34 +2912,53 @@ Receiver insertion and a camera-demand role override could reintroduce overlap
 after caster selection. Production Mesh2024 needs reliable single-corridor depth;
 raster DEM and the optional tiled-shadow renderer are outside this change.
 
-**Decision:** Keep the shared demand/coverage selector, then resolve receiver
-colour and caster depth into an exclusive REPLACE cut. Keep a loaded parent alone while any
-relevant child branch lacks drawable coverage. Switch to all relevant ready
-branches in one publication; each branch may subsequently refine independently
-and to different depths. Unknown topology and failed content are not coverage.
-Never require siblings outside the viewport and receiver-directed corridor.
-Keep previously published fine casters if an expanded corridor adds a missing
-sibling; do not overlay or replace that live detail with a coarse ancestor.
-New receivers still wait for the missing coarse coverage. Ancestors of live
-casters and pending receiver replacements remain traversal paths within current
-camera/corridor demand, even if
-relaxed SSE or bootstrap admission would otherwise stop at them. A parent that
-cannot be republished must not hide missing sibling requests. The same applies
-to a held receiver parent: a staged child must not wait forever because traversal
-accepts the parent before discovering the rest of its family. Request retention
-uses the same pending receiver ancestry: relevant camera/corridor siblings remain
-needed even when the old parent meets their error limit. Otherwise traversal
-discovers a required replacement but admission cancels it as optional refinement.
-The ancestry set is cached per pending-cut identity; unrelated siblings still
-need current camera or receiver-corridor demand. ADD content retains
-its additive semantics. Only the committed caster cut assigns the depth role;
-receiver membership and camera demand cannot override it. With shadows active,
-colour has no hybrid parent underlays: a new receiver enters only with its
-family's depth handover and drawable coarse external casters. Keep finer desired
-receiver demand pending until publication, so retaining a coarse family does not
-erase its refinement requests. Initial unpublished receivers may still provide
-depth for each other. Without shadows the progressive colour path is unchanged;
-raster terrain and the single-buffer renderer remain untouched.
+**Decision (independent retrieval, 2026-09-28):** Normal camera traversal owns
+visible loading and publication. Shadow mode disables hybrid REPLACE overlays:
+the parent stays alone until all children needed inside the viewport are ready,
+then the complete family replaces it in one publication. Out-of-view siblings
+are not observer prerequisites. No synthetic camera or receiver-wide gate is added.
+The published visible tiles seed parallel sunward corridors. A visible tile
+casting into a finer receiver inherits that receiver's minimum mesh LOD through
+the ordinary camera refinement path. Until that complete visible family is ready,
+the coarser tile can remain in colour but cannot enter the new shadow depth cut.
+The same LOD floor applies to coarsening candidate ancestors after refinement;
+a completed family must not oscillate back to a parent allowed only by camera SSE.
+When resolved child bounds all miss the viewport, that proven empty REPLACE region
+is released even if the loose parent bound meets camera SSE. Unknown topology
+still fails closed; changing receiver demand cannot resurrect an empty parent.
+Visible tiles never enter the extra caster request list or acquire a second mesh.
+One hierarchy query visits the union of those corridors, deduplicated
+by native Tile identity. Only additional caster content and unresolved external
+metadata enter the existing download/parse queues. Metadata discovery proceeds
+without waiting for ancestor payloads. Visible geometry is reused directly:
+receiver anchors never enter the extra caster request set. For offscreen casters,
+material deferral takes precedence over stale reserve/support flags. Opaque
+caster textures are neither fetched separately nor decoded/uploaded until the
+tile enters a receiver view. Already resident visible textures are reused;
+embedded B3DM/GLB image bytes still travel in the indivisible geometry payload.
+Alpha-dependent silhouettes keep their existing coverage-safe material path.
+
+A caster ancestor cannot overlap a visible receiver or its descendants. Outside
+those anchors, a caster must be at the same drawable mesh generation or finer
+than every receiver its corridor intersects. External JSON and container nodes
+do not count as LOD steps. This floor applies to retained parents and terminal
+leaves too. Geometric errors can vary slightly within one generation, so their
+exact numerical equality must not reject same-LOD neighbours. Coarser intermediate payloads are neither
+requested nor published. A loaded REPLACE parent can bridge an atomic child
+handover only while it still meets that floor; unrelated siblings are not
+prerequisites. Unknown/raw
+metadata is prepared asynchronously, and failed jobs remain incomplete. The
+query keeps previously published detail while it is relevant. Request ownership,
+eligible coverage and final convergence come from that same query, not from a
+second shadow-camera traversal or per-receiver whole-tree readiness pass.
+
+Sun-only changes replace current demand while existing useful jobs may finish in
+the bounded cache. Viewport gaps retain first admission priority. Regional depth
+capture uses complete eligible coverage and refreshes it as families improve.
+A leaf from a coarser mesh generation remains ineligible; an exhausted tree
+must never silently weaken the requested caster LOD.
+Non-shadow meshes retain progressive overlays; independent raster terrain and
+LoD2 retrieval are unchanged.
 
 **Alternatives and disposition:** Progressive parent-plus-child shadow depth is
 incompatible by inspection with exclusive surface casting and rejected after
@@ -2772,11 +2967,11 @@ regions is deferred. Loading unrelated siblings or waiting for the whole scene
 is incompatible with demand-relative progressive loading. Tiled shadow pages
 and terrain policy changes are not evaluated here.
 
-**Evidence:** The selector regressions cover missing/failed siblings, external
-metadata, outside and empty branches, mixed descendant depths, retained detail
-on corridor expansion and ADD content. Production-runtime checks assert actual
-mesh castShadow flags and visibility, including children withheld from colour
-until the joint family handover is complete. No timing improvement is implied by those checks.
+**Evidence:** The preceding selector checks describe the replaced joint-cut
+implementation. The independent retrieval is checked in the running static
+preview; no new test series is run under the current user instruction. Timing
+claims require observed complete shadows, not merely a converged visible mesh.
+
 
 **Revisit when:** A complete replacement cut still flickers, or delayed family
 handover measurably harms quality convergence. Distinguish depth-set continuity

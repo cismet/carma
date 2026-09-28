@@ -88,8 +88,13 @@ export interface ThreeTilesRuntimeServices {
   getTileCameraDemand: (
     tile: RuntimeTile,
     includeObserver?: boolean
-  ) => ReturnType<ReturnType<typeof createTileCameraDemand>["evaluate"]>;
+  ) => ReturnType<ReturnType<typeof createTileCameraDemand>["evaluate"]> & {
+    /** Camera-local admission stage; raw errorRatio keeps the final camera demand. */
+    refinementErrorRatio?: number;
+  };
   getTileRequestPriority: (tile: RuntimeTile) => number;
+  /** Start an explicit immutable scoring pass after mutable cut updates. */
+  resetMeshCameraObjectives: () => void;
   isTileNeededForMeshCoverage: (tile: Tile) => boolean;
   isChildUnloadable: (child: RuntimeTile) => boolean;
   mainViewWithinErrorFactor: (

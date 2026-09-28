@@ -2767,6 +2767,7 @@ describe("shadow scene lighting integration", () => {
     // Auto leaves the tileset on its own target: no override at build time.
     expect(setErrorTarget).not.toHaveBeenCalled();
     expect(setErrorTargetOverride).toHaveBeenLastCalledWith(null);
+    expect(setCacheBudget).toHaveBeenLastCalledWith(undefined);
 
     controller.updateMeshErrorTarget(0.25);
     expect(setErrorTargetOverride).toHaveBeenLastCalledWith(0.25);
@@ -2775,6 +2776,8 @@ describe("shadow scene lighting integration", () => {
     const calls = setCacheBudget.mock.calls.length;
     controller.updateMeshCacheBudget(24 * 1024 ** 3);
     expect(setCacheBudget).toHaveBeenCalledTimes(calls);
+    controller.updateMeshCacheBudget(undefined);
+    expect(setCacheBudget).toHaveBeenLastCalledWith(undefined);
 
     controller.updateBuildingAppearance({
       fullOpacity: true,

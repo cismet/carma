@@ -165,12 +165,14 @@ export class TilesetDeferredMaterialsPlugin {
           // original placeholders. Invalidate its memoized byte estimate as well.
           engine.materials = [...materials];
           engine.textures = [...textures];
-          this.options.onPromoted(tile, entry.scene!);
+          // Restyling may retain textures only in material backups, outside the
+          // native estimator's scene traversal. Measure the originals first.
           this.tiles._bytesUsed.delete(tile);
           this.tiles.lruCache.setMemoryUsage(
             tile,
             this.tiles.calculateBytesUsed(tile, entry.scene!) ?? 0
           );
+          this.options.onPromoted(tile, entry.scene!);
           this.entries.delete(tile);
         })
         .catch((error) => {

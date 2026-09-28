@@ -1,22 +1,17 @@
 import { TILES_CACHE_CEILING_BYTES } from "../../core/tile-cache-policy";
 
-/**
- * The resident cache ceiling a client really supports, learned from failures
- * and kept in localStorage across sessions. Decision:
- * TILES_COVERAGE.md#resident-cache-ceiling-policy-2026-09-18.
- *
- * - An allocation failure learns 75 % of the bytes resident at that moment
- *   (at least 75 % of the ceiling); a lost WebGL context does the same, but
- *   only when the cache was at least half full, a GPU reset is no lesson.
- * - An unfinished shared session is not evidence of memory failure: another
- *   tab or manager may still own it. Legacy inferred crash limits are discarded.
- * - Three clean sessions that used at least 90 % of a learned ceiling raise
- *   it again by half, up to the unlearned ceiling, so a wrong lesson fades.
- */
+/** Learned device limit for this application bundle. Runtime probes stay local. */
 export const CACHE_CEILING_STORAGE_KEY = "carma:tiles3d-cache-ceiling";
-export const CACHE_CEILING_FAILURE_FRACTION = 0.75;
-export const CACHE_CEILING_RECOVERY_RUNS = 3;
-export const CACHE_CEILING_RECOVERY_GROWTH = 1.5;
+export const CACHE_CEILING_FAILURE_FRACTION = 0.8;
+/** Production filenames carry the emitted bundle hash. Dev HMR timestamps do
+ * not define another application build, so query/hash parts are excluded. */
+export const cacheCeilingBuildId = (moduleUrl: string): string => {
+  const url = new URL(moduleUrl);
+  return `${url.origin}${url.pathname}`;
+};
+export const CACHE_CEILING_BUILD_ID = cacheCeilingBuildId(import.meta.url);
+export const cacheCeilingStorageKey = (buildId = CACHE_CEILING_BUILD_ID) =>
+  `${CACHE_CEILING_STORAGE_KEY}:${encodeURIComponent(buildId)}`;
 
 export type CacheCeilingReason =
   | "allocation"
@@ -31,18 +26,18 @@ export type CacheCeilingProbe = Readonly<{
 }>;
 
 export type CacheCeilingMemory = Readonly<{
-  version: 1;
+  version: 2;
+  buildId: string;
   learnedBytes: number | null;
   reason: CacheCeilingReason | null;
-  healthyRuns: number;
   probe: CacheCeilingProbe | null;
 }>;
 
 export const EMPTY_CACHE_CEILING_MEMORY: CacheCeilingMemory = {
-  version: 1,
+  version: 2,
+  buildId: CACHE_CEILING_BUILD_ID,
   learnedBytes: null,
   reason: null,
-  healthyRuns: 0,
   probe: null,
 };
 
@@ -58,28 +53,33 @@ export const getCacheCeilingStorage = (): Storage | null => {
 };
 
 export const readCacheCeilingMemory = (
-  storage: Storage | null
+  storage: Storage | null,
+  buildId = CACHE_CEILING_BUILD_ID
 ): CacheCeilingMemory => {
-  if (!storage) return EMPTY_CACHE_CEILING_MEMORY;
+  const empty =
+    buildId === CACHE_CEILING_BUILD_ID
+      ? EMPTY_CACHE_CEILING_MEMORY
+      : { ...EMPTY_CACHE_CEILING_MEMORY, buildId };
+  if (!storage) return empty;
   try {
-    const raw = storage.getItem(CACHE_CEILING_STORAGE_KEY);
-    if (!raw) return EMPTY_CACHE_CEILING_MEMORY;
+    const raw = storage.getItem(cacheCeilingStorageKey(buildId));
+    if (!raw) return empty;
     const parsed = JSON.parse(raw) as Partial<CacheCeilingMemory>;
-    if (parsed.version !== 1) return EMPTY_CACHE_CEILING_MEMORY;
+    if (parsed.version !== 2 || parsed.buildId !== buildId) return empty;
     const learned =
       typeof parsed.learnedBytes === "number" &&
       Number.isFinite(parsed.learnedBytes)
         ? floorBytes(parsed.learnedBytes)
         : null;
     return {
-      version: 1,
+      version: 2,
+      buildId,
       learnedBytes: learned,
       reason: learned === null ? null : parsed.reason ?? null,
-      healthyRuns: Math.max(0, Math.floor(Number(parsed.healthyRuns) || 0)),
       probe: null,
     };
   } catch {
-    return EMPTY_CACHE_CEILING_MEMORY;
+    return empty;
   }
 };
 
@@ -90,7 +90,7 @@ export const writeCacheCeilingMemory = (
   if (!storage) return;
   try {
     storage.setItem(
-      CACHE_CEILING_STORAGE_KEY,
+      cacheCeilingStorageKey(memory.buildId),
       JSON.stringify({ ...memory, probe: null })
     );
   } catch {
@@ -107,7 +107,7 @@ export const learnCacheCeiling = (
   const candidate = floorBytes(bytes);
   if (memory.learnedBytes !== null && memory.learnedBytes <= candidate)
     return memory;
-  return { ...memory, learnedBytes: candidate, reason, healthyRuns: 0 };
+  return { ...memory, learnedBytes: candidate, reason };
 };
 
 /** Discard legacy crash guesses; only observed memory failures set a limit. */
@@ -115,7 +115,7 @@ export const normalizeCacheCeilingMemory = (
   memory: CacheCeilingMemory
 ): CacheCeilingMemory =>
   memory.reason === "unhealthy-session"
-    ? { ...memory, learnedBytes: null, reason: null, healthyRuns: 0 }
+    ? { ...memory, learnedBytes: null, reason: null }
     : memory;
 
 export const startCacheCeilingSession = (
@@ -135,35 +135,10 @@ export const recordCacheCeilingPeak = (
   return { ...memory, probe: { ...memory.probe, peakBytes: bytes } };
 };
 
-/** Mark the session clean and let a well-used learned ceiling recover. */
+/** A clean end never raises a confirmed failure limit within this bundle. */
 export const endCacheCeilingSession = (
-  memory: CacheCeilingMemory,
-  recoverUpToBytes: number
-): CacheCeilingMemory => {
-  const probe = memory.probe;
-  if (!probe || probe.healthy) return memory;
-  let next: CacheCeilingMemory = {
-    ...memory,
-    probe: { ...probe, healthy: true },
-  };
-  if (
-    next.learnedBytes !== null &&
-    probe.peakBytes >= next.learnedBytes * 0.9 &&
-    Number.isFinite(recoverUpToBytes)
-  ) {
-    const healthyRuns = next.healthyRuns + 1;
-    if (healthyRuns >= CACHE_CEILING_RECOVERY_RUNS) {
-      const raised = Math.min(
-        next.learnedBytes * CACHE_CEILING_RECOVERY_GROWTH,
-        recoverUpToBytes
-      );
-      next =
-        raised >= recoverUpToBytes
-          ? { ...next, learnedBytes: null, reason: null, healthyRuns: 0 }
-          : { ...next, learnedBytes: Math.floor(raised), healthyRuns: 0 };
-    } else {
-      next = { ...next, healthyRuns };
-    }
-  }
-  return next;
-};
+  memory: CacheCeilingMemory
+): CacheCeilingMemory =>
+  !memory.probe || memory.probe.healthy
+    ? memory
+    : { ...memory, probe: { ...memory.probe, healthy: true } };

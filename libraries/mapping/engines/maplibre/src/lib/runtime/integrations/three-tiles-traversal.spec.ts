@@ -470,7 +470,13 @@ describe("three tiles traversal (D1 deferral)", () => {
     );
     const { tiles, layer } = harness;
     layer.loading.setErrorTarget(6, 16);
-    await harness.runUntilSettled(createViewCamera(2_000));
+    const timeline: string[][] = [];
+    await harness.runUntilSettled(createViewCamera(2_000), {
+      onFrame: () => {
+        const current = layer.debug.readState() as ThreeTilesRuntimeState;
+        timeline.push(names(current.displayedMeshFrontier));
+      },
+    });
     const state = [
       ...((
         window as unknown as { __carmaTiles3d?: Set<ThreeTilesRuntimeState> }
@@ -478,8 +484,15 @@ describe("three tiles traversal (D1 deferral)", () => {
     ].find((candidate) => candidate.layerId === "mesh")!;
     expect(state).toBeDefined();
     const displayed = () => names(state.displayedMeshFrontier);
-    // The coarse parent alone may hold the first cut.
+    // The first drawable parent must publish even above the old first-image
+    // quality limit, then keep coverage while its loaded children replace it.
     expect(tiles.root).toBeTruthy();
+    expect(timeline).toContainEqual(["root"]);
+    const firstCoverage = timeline.findIndex((cut) => cut.length > 0);
+    expect(firstCoverage).toBeGreaterThanOrEqual(0);
+    expect(timeline.slice(firstCoverage).every((cut) => cut.length > 0)).toBe(
+      true
+    );
     // Refine: every child is loaded and in view, so the published cut must
     // move down a level and the staged target must reach the requested one.
     await harness.runUntilSettled(createViewCamera(2_000));

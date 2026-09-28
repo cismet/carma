@@ -5,6 +5,7 @@ import { isExtentFloorTile } from "../../core/mesh-error-policy";
 import {
   isMeshCoverageRemovalSafe,
   isMeshTileUnconditionallyRefined,
+  meshTileAncestors,
 } from "../../core/mesh-tile-coverage";
 import {
   HIDDEN_TAB_WIPE_DELAY_MS,
@@ -23,7 +24,9 @@ import { createThreeTilesSettledDemand } from "./three-tiles-runtime-settled-dem
 export type ThreeTilesCacheState = Pick<
   ThreeTilesRuntimeState,
   | "allocationFailed"
+  | "allocationRecovery"
   | "bytesPredictor"
+  | "loadedResidentBytes"
   | "cacheCeilingMemory"
   | "cacheCeilingStorage"
   | "ceilingBytes"
@@ -31,6 +34,7 @@ export type ThreeTilesCacheState = Pick<
   | "deviceProfile"
   | "displayedMeshFrontier"
   | "committedMeshCasterFrontier"
+  | "meshShadowReserve"
   | "retainedShadowRequests"
   | "disposed"
   | "effectiveErrorTarget"
@@ -39,11 +43,15 @@ export type ThreeTilesCacheState = Pick<
   | "extentGeometricError"
   | "hiddenWipeTimer"
   | "lastMainViewConverged"
+  | "lastActiveViewsConverged"
+  | "tileCameraDemand"
   | "lastMemoryCheck"
   | "learnedCeilingBytes"
   | "map"
   | "memoryAdmissionPaused"
   | "memoryErrorTarget"
+  | "memoryErrorTargetChangedAt"
+  | "lastCacheGrowthAt"
   | "meshAuditTimer"
   | "meshDemandSweepPending"
   | "meshInitialReserveSettled"
@@ -101,6 +109,23 @@ export function createThreeTilesCache(
       (tile.internal.hasRenderableContent &&
         isExtentFloorTile(tile, runtimeState.extentGeometricError)));
 
+  const isProtectedShadowReserve = (tile: Tile) => {
+    const frontier = runtimeState.meshShadowReserve?.frontier;
+    if (!frontier) return false;
+    if (
+      frontier.has(tile) &&
+      tile.internal?.loadingState === LOADED_LOADING_STATE
+    )
+      return true;
+    if (!tile.internal?.hasUnrenderableContent) return false;
+    for (const member of frontier) {
+      if (member.internal?.loadingState !== LOADED_LOADING_STATE) continue;
+      for (const ancestor of meshTileAncestors(member))
+        if (ancestor === tile) return true;
+    }
+    return false;
+  };
+
   const rememberPublishedCoverage = () => {
     if (!runtimeState.tiles) return;
     for (const tile of runtimeState.tiles.visibleTiles)
@@ -117,7 +142,7 @@ export function createThreeTilesCache(
       if (
         !explicitCacheTeardown &&
         !runtimeState.disposed &&
-        isProtectedResidual(tile)
+        (isProtectedResidual(tile) || isProtectedShadowReserve(tile))
       )
         return false;
       if (
@@ -208,6 +233,13 @@ export function createThreeTilesCache(
       };
       for (const tile of runtimeState.displayedMeshFrontier) pin(tile);
       for (const tile of runtimeState.committedMeshCasterFrontier) pin(tile);
+      for (const tile of runtimeState.meshShadowReserve?.frontier ?? []) {
+        if (tile.internal?.loadingState !== LOADED_LOADING_STATE) continue;
+        pin(tile);
+        for (const ancestor of meshTileAncestors(tile))
+          if (ancestor.internal?.hasUnrenderableContent) pin(ancestor);
+      }
+
       for (const tile of runtimeState.tiles?.visibleTiles ?? []) pin(tile);
       const materials = runtimeState.tiles?.getPluginByName(
         "CARMA_DEFERRED_TILE_MATERIALS"
@@ -289,7 +321,8 @@ export function createThreeTilesCache(
       explicitCacheTeardown = true;
       try {
         for (const tile of [...cache.itemSet.keys()]) {
-          if (!isProtectedResidual(tile)) cache.remove(tile);
+          if (!isProtectedResidual(tile) && !isProtectedShadowReserve(tile))
+            cache.remove(tile);
         }
       } finally {
         explicitCacheTeardown = false;
@@ -342,6 +375,7 @@ export function createThreeTilesCache(
     ...dependencies,
     getRuntimeCache,
     evictUnusedCacheItems,
+    scheduleSettledMeshAudit,
   });
 
   return {

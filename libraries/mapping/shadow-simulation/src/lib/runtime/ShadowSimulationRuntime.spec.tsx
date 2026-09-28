@@ -216,6 +216,15 @@ describe("shadow animation", () => {
   };
   afterEach(() => vi.useRealTimers());
 
+  it("passes automatic and explicit cache budgets through the runtime effect", async () => {
+    const { scene, view, rerender } = await setup();
+    expect(scene.updateMeshCacheBudget).toHaveBeenLastCalledWith(undefined);
+    rerender(view({ meshCacheBudgetBytes: 8 * 1024 ** 3 }));
+    expect(scene.updateMeshCacheBudget).toHaveBeenLastCalledWith(8 * 1024 ** 3);
+    rerender(view({ meshCacheBudgetBytes: undefined }));
+    expect(scene.updateMeshCacheBudget).toHaveBeenLastCalledWith(undefined);
+  });
+
   it("drives the sun on every tick but publishes the shared date at most four times a second", async () => {
     const { scene, setDateState, shownMinutes } = await setup();
     scene.updateSolarPosition.mockClear();

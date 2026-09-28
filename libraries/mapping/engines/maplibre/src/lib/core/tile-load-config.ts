@@ -60,6 +60,8 @@ export const TILES_LOAD_POLICY = {
   memoryTargetRaiseAfterMs: 2_000,
   memoryTargetRelaxAfterMs: 6_000,
   memoryTargetRelaxBelow: 0.6,
+  /** Settled quality probes need this free share and a predicted family slot. */
+  memoryTargetProbeHeadroom: 0.1,
   /** CPU copies of textures/geometry stay alive next to the GPU upload. */
   residentOverhead: 1.5,
   /** Drift slack above the ceiling before the over-max abort loop may run. */

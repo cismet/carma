@@ -1,43 +1,12 @@
-import { getPolygonArea2d, type Point2 } from "@carma-commons/math";
-import { Box3, Camera, Frustum, Matrix4, Plane, Vector3, Vector4 } from "three";
+import { Box3, Camera, Frustum, Matrix4, Plane, Vector3 } from "three";
 
-/** Project clipped vertices before forming the hull: box depth adds interior
- * points, and summing projected faces would count their overlap twice.
- */
-const projectedIntersectionArea = (
-  vertices: readonly Vector3[],
-  clipFromWorld: Matrix4
-): number => {
-  const points = vertices
-    .map((point) =>
-      new Vector4(point.x, point.y, point.z, 1).applyMatrix4(clipFromWorld)
-    )
-    .filter((point) => point.w > 0)
-    .map((point) => ({
-      x: Math.max(-1, Math.min(1, point.x / point.w)),
-      y: Math.max(-1, Math.min(1, point.y / point.w)),
-    }))
-    .filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y))
-    .sort((a, b) => a.x - b.x || a.y - b.y);
-  if (points.length < 3) return 0;
-  const cross = (a: Point2, b: Point2, c: Point2) =>
-    (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
-  const chain = (ordered: readonly Point2[]): Point2[] => {
-    const hull: Point2[] = [];
-    for (const point of ordered) {
-      while (
-        hull.length >= 2 &&
-        cross(hull[hull.length - 2], hull[hull.length - 1], point) <= 0
-      )
-        hull.pop();
-      hull.push(point);
-    }
-    return hull.slice(0, -1);
-  };
-  return getPolygonArea2d([...chain(points), ...chain([...points].reverse())]);
-};
+import {
+  projectedFacingBoxFaces,
+  projectedIntersectionArea,
+} from "./tile-camera-footprint";
 
 export const TILE_MAIN_OBSERVER_ID = "mesh-main-observer";
+export const TILE_SHADOW_CAMERA_ID = "mesh-sun-shadow";
 
 export const TILE_CAMERA_ROLE = {
   RECEIVER: "receiver",
@@ -66,6 +35,18 @@ export type TileCameraView = Readonly<{
   priority?: number;
   /** Geometry-only views serve ray tests/casters without color preparation. */
   role: (typeof TILE_CAMERA_ROLE)[keyof typeof TILE_CAMERA_ROLE];
+}>;
+
+/** Error and projected coverage from one camera, before union aggregation. */
+export type TileCameraContribution = Readonly<{
+  id: string;
+  role: TileCameraView["role"];
+  priority: number;
+  errorPixels: number;
+  errorTargetPixels: number;
+  errorRatio: number;
+  visibleAreaPixels: number;
+  visibleAreaFraction: number;
 }>;
 
 /** Structured-cloneable selection input, shared by mesh and raster adapters. */
@@ -148,7 +129,14 @@ export const createTileCameraDemand = (
       view.reversedDepth
     );
     const position = new Vector3().setFromMatrixPosition(world);
-    const orthographic = projection.elements[15] !== 0;
+    const p = projection.elements;
+    const orthographic = p[15] !== 0;
+    const standardProjection =
+      p[3] === 0 &&
+      p[7] === 0 &&
+      (orthographic
+        ? p[11] === 0 && p[15] === 1 && p[8] === 0 && p[9] === 0
+        : p[11] === -1 && p[15] === 0 && p[12] === 0 && p[13] === 0);
     // Both axes matter for portrait/off-axis cameras and non-square buffers.
     const focal =
       Math.max(
@@ -163,6 +151,9 @@ export const createTileCameraDemand = (
       frustum,
       position,
       orthographic,
+      standardProjection,
+      backward: new Vector3().setFromMatrixColumn(world, 2),
+      viewFromClip: projection.clone().invert(),
       focal,
       minimumScale,
       worldToView: world.clone().invert(),
@@ -170,11 +161,14 @@ export const createTileCameraDemand = (
       clipFromWorld,
     };
   });
+  const intersectionCorner = new Vector3();
+  const contributions: TileCameraContribution[] = [];
   const target: {
     required: boolean;
     receiver: boolean;
     errorRatio: number;
     visibleAreaPixels?: number;
+    contributions?: readonly TileCameraContribution[];
     priority: number;
   } = {
     required: false,
@@ -226,26 +220,31 @@ export const createTileCameraDemand = (
       const point = new Vector3();
       for (const view of compiled) {
         if (cameraId !== undefined && view.id !== cameraId) continue;
-        const frustumPlanes = view.frustum.planes.map((worldPlane) => {
+        // A plane strictly containing the tolerance-expanded box cannot
+        // contribute a vertex or reject a solution of the box's six planes.
+        // Pruning it preserves near/far/touching cuts and avoids solving all
+        // 220 plane triples for an ordinary one-side cut (only 35 remain).
+        const frustumPlanes: Plane[] = [];
+        for (const worldPlane of view.frustum.planes) {
           const plane = worldPlane.clone();
           if (worldToBounds) plane.applyMatrix4(worldToBounds);
           plane.constant += plane.normal.dot(origin);
-          return plane;
-        });
-        // Decision: ../../../TILES_COVERAGE.md#per-tile-frame-work-demand-memo-and-drape-check-throttle-2026-09-18
-        // Strict containment keeps tolerance-band intersections on the solver
-        // path. Each camera contributes separately to the deduplicated union.
-        if (
-          frustumPlanes.every(
-            ({ normal, constant }) =>
-              constant -
-                Math.abs(normal.x) * halfSize.x -
-                Math.abs(normal.y) * halfSize.y -
-                Math.abs(normal.z) * halfSize.z >
+          const { normal, constant } = plane;
+          const clearance =
+            constant -
+            Math.abs(normal.x) * halfSize.x -
+            Math.abs(normal.y) * halfSize.y -
+            Math.abs(normal.z) * halfSize.z;
+          if (
+            !(
+              clearance >
               tolerance *
                 (Math.abs(normal.x) + Math.abs(normal.y) + Math.abs(normal.z))
+            )
           )
-        ) {
+            frustumPlanes.push(plane);
+        }
+        if (frustumPlanes.length === 0) {
           for (const x of [-halfSize.x, halfSize.x])
             for (const y of [-halfSize.y, halfSize.y])
               for (const z of [-halfSize.z, halfSize.z]) {
@@ -308,26 +307,36 @@ export const createTileCameraDemand = (
         return boundsToWorld ? vertex.applyMatrix4(boundsToWorld) : vertex;
       });
     },
-    /** Result is scratch storage; consume before the next evaluation.
-     * Optional area is the largest clipped bounds footprint among included
-     * views, in their viewport pixel units (CSS pixels for the main observer).
+    /** Result and contributions array are scratch storage, cleared by the next
+     * evaluation; copy contributions before retaining them across calls.
+     * Requested area is the largest clipped footprint in viewport pixel units.
+     * Contributions pair each camera's error with its own footprint and viewport
+     * fraction. Set includeContributions for error-only rows without an area
+     * projection; their area fields stay zero until includeVisibleArea is true.
      */
     evaluate(
       bounds: Box3,
       geometricError: number,
       excludeCameraId?: string,
       includeVisibleArea = false,
-      boundsToWorld?: Matrix4
+      boundsToWorld?: Matrix4,
+      includeContributions = includeVisibleArea
     ) {
       target.required = false;
       target.receiver = false;
       target.errorRatio = 0;
       target.visibleAreaPixels = 0;
+      contributions.length = 0;
+      target.contributions = includeContributions ? contributions : undefined;
       target.priority = Number.NEGATIVE_INFINITY;
       if (bounds.isEmpty()) return target;
       const worldBounds = boundsToWorld
         ? bounds.clone().applyMatrix4(boundsToWorld)
         : bounds;
+      const worldToBounds =
+        includeVisibleArea && boundsToWorld
+          ? boundsToWorld.clone().invert()
+          : undefined;
       for (const view of compiled) {
         if (view.id === excludeCameraId) continue;
         if (!view.frustum.intersectsBox(worldBounds)) continue;
@@ -344,23 +353,60 @@ export const createTileCameraDemand = (
                 constant >=
               0
           );
+        const footprint = includeVisibleArea
+          ? projectedFacingBoxFaces(
+              bounds,
+              worldBounds,
+              view,
+              boundsToWorld,
+              worldToBounds
+            )
+          : undefined;
+        if (footprint && !Number.isFinite(footprint.depth)) continue;
+        let intersectionProven = fullyInside;
+        // Orthographic SSE is depth-independent. A real box corner inside
+        // the frustum proves demand without enumerating intersection vertices.
+        // Edge-only intersections and world-AABB false positives still use
+        // the exact solver; an enclosing AABB alone is never a proof.
+        if (view.orthographic && !includeVisibleArea && !intersectionProven)
+          for (let index = 0; index < 8 && !intersectionProven; index++) {
+            intersectionCorner.set(
+              index & 4 ? bounds.max.x : bounds.min.x,
+              index & 2 ? bounds.max.y : bounds.min.y,
+              index & 1 ? bounds.max.z : bounds.min.z
+            );
+            if (boundsToWorld) intersectionCorner.applyMatrix4(boundsToWorld);
+            intersectionProven = view.frustum.containsPoint(intersectionCorner);
+          }
         const clipped =
-          includeVisibleArea || (view.orthographic && !fullyInside)
+          !footprint &&
+          (includeVisibleArea || (view.orthographic && !intersectionProven))
             ? this.intersectionVertices(bounds, view.id, boundsToWorld)
             : undefined;
-        if (clipped) {
-          if (clipped.length === 0) continue;
-          if (includeVisibleArea)
-            target.visibleAreaPixels = Math.max(
-              target.visibleAreaPixels,
-              (projectedIntersectionArea(clipped, view.clipFromWorld) *
-                view.viewport[0] *
-                view.viewport[1]) /
-                4
-            );
+        let visibleAreaPixels = 0;
+        let visibleAreaFraction = 0;
+        if (clipped?.length === 0) continue;
+        if (includeVisibleArea) {
+          visibleAreaPixels =
+            ((footprint?.area ??
+              projectedIntersectionArea(clipped!, view.clipFromWorld)) *
+              view.viewport[0] *
+              view.viewport[1]) /
+            4;
+          visibleAreaFraction =
+            visibleAreaPixels / (view.viewport[0] * view.viewport[1]);
+          target.visibleAreaPixels = Math.max(
+            target.visibleAreaPixels,
+            visibleAreaPixels
+          );
         }
         let distance = view.minimumScale;
-        if (!view.orthographic) {
+        if (!view.orthographic && footprint) {
+          distance = Math.max(
+            Number.EPSILON,
+            footprint.depth * view.minimumScale
+          );
+        } else if (!view.orthographic) {
           // Linear view depth reaches its box minimum at this corner. Most
           // interior tiles take this allocation-light path; only clipped
           // corners require the existing convex intersection calculation.
@@ -387,13 +433,23 @@ export const createTileCameraDemand = (
           // Never let an invisible, near portion of the world AABB set SSE.
           distance = Math.max(Number.EPSILON, depth * view.minimumScale);
         }
+        const errorPixels = (geometricError * view.focal) / distance;
+        const errorRatio = errorPixels / view.errorTargetPixels;
         target.required = true;
         target.priority = Math.max(target.priority, view.priority);
         target.receiver ||= view.role === TILE_CAMERA_ROLE.RECEIVER;
-        target.errorRatio = Math.max(
-          target.errorRatio,
-          (geometricError * view.focal) / distance / view.errorTargetPixels
-        );
+        target.errorRatio = Math.max(target.errorRatio, errorRatio);
+        if (includeContributions)
+          contributions.push({
+            id: view.id,
+            role: view.role,
+            priority: view.priority,
+            errorPixels,
+            errorTargetPixels: view.errorTargetPixels,
+            errorRatio,
+            visibleAreaPixels,
+            visibleAreaFraction,
+          });
       }
       return target;
     },

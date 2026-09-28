@@ -4,6 +4,8 @@ import {
   TILES_CACHE_CEILING_BYTES,
   resolveTilesCacheBounds,
   resolveTilesCacheCeiling,
+  resolveTilesCacheMaximum,
+  nextTilesCacheCeiling,
 } from "./tile-cache-policy";
 import { TILES_LOAD_POLICY } from "./tile-load-config";
 
@@ -107,5 +109,54 @@ describe("resolveTilesCacheCeiling", () => {
       resolveTilesCacheBounds({ ceilingBytes: GIB, estimateBytes: 16 * MIB })
         .maxBytesSize
     ).toBe(GIB + 8 * 16 * MIB);
+  });
+});
+
+describe("controlled resident cache growth", () => {
+  const facts = {
+    current: 6 * GIB,
+    maximum: 24 * GIB,
+    loadedResidentBytes: 5.5 * GIB,
+    workOutstanding: true,
+    healthy: true,
+    now: 10_000,
+    lastGrowthAt: 0,
+  };
+  it("grows only occupied healthy grants with outstanding work after cooldown", () => {
+    expect(nextTilesCacheCeiling(facts)).toBe(Math.floor(7.2 * GIB));
+    for (const change of [
+      { loadedResidentBytes: GIB },
+      { healthy: false },
+      { workOutstanding: false },
+      { now: 9_999 },
+      { maximum: 6 * GIB },
+    ])
+      expect(nextTilesCacheCeiling({ ...facts, ...change })).toBe(6 * GIB);
+    expect(nextTilesCacheCeiling({ ...facts, maximum: 7 * GIB })).toBe(7 * GIB);
+  });
+  it("respects explicit, learned, mobile and reported low-memory hard limits", () => {
+    expect(resolveTilesCacheMaximum(desktop)).toBe(24 * GIB);
+    expect(
+      resolveTilesCacheMaximum(desktop, { cacheBudgetBytes: 7 * GIB })
+    ).toBe(7 * GIB);
+    expect(resolveTilesCacheMaximum(desktop, undefined, 5 * GIB)).toBe(5 * GIB);
+    expect(
+      resolveTilesCacheMaximum(
+        { ...desktop, deviceMemoryGiB: 4 },
+        { cacheBudgetBytes: 24 * GIB }
+      )
+    ).toBe(3 * GIB);
+    expect(
+      resolveTilesCacheCeiling(
+        { ...desktop, deviceMemoryGiB: 4 },
+        { cacheBudgetBytes: 24 * GIB }
+      )
+    ).toBe(3 * GIB);
+    expect(resolveTilesCacheMaximum({ ...desktop, maxTouchPoints: 5 })).toBe(
+      TILES_CACHE_CEILING_BYTES.ios
+    );
+    expect(
+      resolveTilesCacheMaximum({ ...desktop, userAgent: "Android Mobile" })
+    ).toBe(TILES_CACHE_CEILING_BYTES.mobile);
   });
 });

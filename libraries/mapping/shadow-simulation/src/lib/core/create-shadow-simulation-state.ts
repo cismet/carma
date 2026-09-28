@@ -18,7 +18,6 @@ import {
 } from "./solar-position";
 import {
   DEFAULT_TERRAIN_ERROR_TARGET_PIXELS,
-  DEFAULT_MESH_CACHE_BUDGET_BYTES,
   DEFAULT_SHADOW_BUILDING_COLOR,
   DEFAULT_SHADOW_BUILDING_COLOR_MIX,
   DEFAULT_SHADOW_BUILDING_TEXTURE_SATURATION,
@@ -64,9 +63,7 @@ export const createInitialShadowSimulationState = (
       : DEFAULT_SHADOW_QUALITY,
     shadowAdaptiveQuality: true,
     terrainErrorTarget: DEFAULT_TERRAIN_ERROR_TARGET_PIXELS,
-    meshCacheBudgetBytes: mobileBaseline
-      ? MOBILE_MESH_CACHE_BYTES
-      : DEFAULT_MESH_CACHE_BUDGET_BYTES,
+    meshCacheBudgetBytes: mobileBaseline ? MOBILE_MESH_CACHE_BYTES : undefined,
     showSunDebugVector: true,
     showTileBounds: true,
     showProjectionDebugView: false,

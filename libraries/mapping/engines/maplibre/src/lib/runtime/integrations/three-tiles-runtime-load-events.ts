@@ -1,3 +1,4 @@
+import { MESH_ALLOCATION_RECOVERY_PHASE } from "./three-tiles-runtime-config";
 import type { Tile } from "3d-tiles-renderer/core";
 import * as THREE from "three";
 
@@ -20,6 +21,7 @@ export function createThreeTilesLoadEvents(
   runtimeState: Pick<
     ThreeTilesRuntimeState,
     | "allocationFailed"
+    | "allocationRecovery"
     | "bytesPredictor"
     | "committedMeshCasterFrontier"
     | "committedMeshReceiverFrontier"
@@ -124,6 +126,17 @@ export function createThreeTilesLoadEvents(
         );
         dependencies.reapplyCacheBoundsIfDrifted();
       }
+      // Only a successfully decoded model completes the allocation probe;
+      // metadata and network responses do not prove usable memory headroom.
+      if (
+        runtimeState.allocationRecovery?.phase ===
+          MESH_ALLOCATION_RECOVERY_PHASE.PROBING &&
+        event.tile &&
+        event.scene
+      )
+        // Retain the backoff history: a GPU allocation can fail after decode.
+        runtimeState.allocationRecovery.phase =
+          MESH_ALLOCATION_RECOVERY_PHASE.RECOVERED;
       runtimeState.payloadAwareConcurrency.observeSuccess();
       dependencies.applyRequestConcurrency();
       if (event.tile && event.scene)

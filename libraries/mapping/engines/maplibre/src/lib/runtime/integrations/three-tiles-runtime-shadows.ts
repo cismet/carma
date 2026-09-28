@@ -7,6 +7,12 @@ import {
   type ShadowReceiverMask,
   type ShadowReceiverSource,
 } from "../../core/shadow-receiver-mask";
+import {
+  snapshotTileCameraViews,
+  tileCameraViewsSignature,
+  TILE_CAMERA_ROLE,
+  TILE_SHADOW_CAMERA_ID,
+} from "../../core/tile-camera-demand";
 import { readOrientedTileBounds } from "./three-tiles-bounds";
 import { getReadyMeshRegionCut } from "../../core/mesh-tile-coverage";
 import type {
@@ -14,6 +20,7 @@ import type {
   ThreeTilesRuntimeState,
 } from "./three-tiles-runtime-context";
 import type { RuntimeTile } from "./three-tiles-runtime-types";
+import { createCasterVolumeDemand } from "./three-tiles-runtime-caster-demand";
 import { createThreeTilesShadowPublication } from "./three-tiles-runtime-shadow-publication";
 
 export type ThreeTilesShadowsState = Pick<
@@ -56,6 +63,7 @@ export type ThreeTilesShadowsState = Pick<
   | "sourceWorldBoundingBox"
   | "shadowViewSignature"
   | "retainedShadowRequests"
+  | "shadowCasterRequests"
   | "pendingShadowView"
   | "meshInitialBasePassDone"
   | "displayedMeshFrontier"
@@ -86,6 +94,7 @@ export function createThreeTilesShadows(
   const clearShadowReceiverSources: ThreeTilesRuntimeServices["clearShadowReceiverSources"] =
     () => {
       runtimeState.shadowReceiverMask = null;
+      runtimeState.shadowCasterRequests.clear();
       runtimeState.shadowReceiverMaskConverged = false;
       runtimeState.shadowReceiverSourceSignature = "";
       runtimeState.mainViewSourceTiles.clear();
@@ -113,6 +122,8 @@ export function createThreeTilesShadows(
   const currentShadowPathConverged: ThreeTilesRuntimeServices["currentShadowPathConverged"] =
     () => {
       if (!runtimeState.tiles || !runtimeState.shadowReceiverMask) return false;
+      if (runtimeState.options.providesTerrain)
+        return runtimeState.shadowReceiverMaskConverged;
       let currentTileCount = 0;
       for (const visible of runtimeState.tiles.visibleTiles) {
         const tile = visible as RuntimeTile;
@@ -206,7 +217,9 @@ export function createThreeTilesShadows(
           .negate()
           .transformDirection(runtimeState.currentToReference);
         const regionalReceivers: ShadowReceiverSource[] = [];
-        for (const receiver of runtimeState.shadowView.terrainReceivers ?? []) {
+        for (const receiver of runtimeState.options.providesTerrain
+          ? []
+          : runtimeState.shadowView?.terrainReceivers ?? []) {
           const clippedBounds = new THREE.Box3(
             new THREE.Vector3(...receiver.minimum),
             new THREE.Vector3(...receiver.maximum)
@@ -262,10 +275,21 @@ export function createThreeTilesShadows(
             runtimeState.shadowView.camera.matrixWorldInverse,
             runtimeState.referenceToCurrent
           ),
-          runtimeState.shadowView.casterAngularRadiusRadians
+          runtimeState.options.providesTerrain
+            ? 0
+            : runtimeState.shadowView.casterAngularRadiusRadians
         );
         if (!regionMask) return null;
       }
+      const lightDemand =
+        runtimeState.options.providesTerrain && runtimeState.shadowView
+          ? createCasterVolumeDemand(
+              runtimeState.shadowReceiverMask,
+              errorPixels,
+              runtimeState.shadowView,
+              runtimeState.tiles.group.matrixWorld
+            )
+          : undefined;
       let visitedNodes = 0;
       let broadPhaseNodes = 0;
       let rejectedPrismNodes = 0;
@@ -310,6 +334,9 @@ export function createThreeTilesShadows(
               { key: tile, parent: tile.parent ?? undefined }
             );
           }
+          const caster = intersects ? lightDemand?.(tile) : undefined;
+          // Region capture follows the same parallel-ray membership as requests.
+          if (caster) intersects = caster.intersects;
           if (intersects) {
             broadPhaseNodes += 1;
             if (
@@ -327,10 +354,15 @@ export function createThreeTilesShadows(
           }
           return {
             intersects,
+            // The shared mesh cut already enforces exclusive replacement.
+            // Capture coarse coverage now and refresh when its family refines.
             errorPixels:
               !intersects ||
+              runtimeState.options.providesTerrain ||
               runtimeState.committedMeshReceiverFrontier.has(tile)
                 ? 0
+                : caster
+                ? caster.errorPixels
                 : regionMask
                 ? receiverMatchedTileError(
                     tile.geometricError,
@@ -403,14 +435,40 @@ export function createThreeTilesShadows(
     invalidateShadowRegionRevisions,
   });
 
+  let regionalCameraSignature = "";
   const applyShadowView = (
     view: Parameters<ThreeTilesRuntimeServices["setShadowView"]>[0]
   ) => {
-    // Caster membership for a receiver tile depends on sun direction, not
-    // observer position, shadow buffer dimensions or a translated light
-    // camera. Keep the existing union and its regional proofs across pans.
-    // Exact direction changes still invalidate and rebuild it.
+    // Keep receiver-mask lifecycle keyed by sun direction. Regional proofs
+    // also depend on the light volume and logical sampling grid, independently
+    // of pending requests retained across solar changes.
     view?.camera.updateMatrixWorld(true);
+    const nextRegionalCameraSignature =
+      view && runtimeState.options.providesTerrain
+        ? tileCameraViewsSignature(
+            snapshotTileCameraViews([
+              {
+                id: TILE_SHADOW_CAMERA_ID,
+                camera: view.camera,
+                viewport: [view.shadowMapSize.width, view.shadowMapSize.height],
+                errorTargetPixels: 1,
+                role: TILE_CAMERA_ROLE.GEOMETRY,
+              },
+            ]).map((snapshot) => ({
+              ...snapshot,
+              // Proofs live in frame space; a local scene refit alone must not
+              // change their camera identity. Query error is already in the key.
+              matrixWorld: new THREE.Matrix4()
+                .fromArray(snapshot.matrixWorld)
+                .premultiply(runtimeState.currentToReference)
+                .toArray(),
+            }))
+          )
+        : "";
+    if (nextRegionalCameraSignature !== regionalCameraSignature) {
+      runtimeState.shadowRegionRevisions.clear();
+      regionalCameraSignature = nextRegionalCameraSignature;
+    }
     // The ECEF direction is the sun itself. The scene direction also turns
     // with the local frame the light is mounted on, so it would invalidate the
     // union on every refit although no caster changed.

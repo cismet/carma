@@ -9,12 +9,12 @@ import {
   UpdateOnChangePlugin,
 } from "3d-tiles-renderer/plugins";
 import type { Map as MaplibreMap } from "maplibre-gl";
-import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
 
 import { degToRadNumeric } from "@carma-units";
 
 import { MAPLIBRE_EVENT } from "../../../constants/mapEvents";
 import { Gltf1UpgradePlugin } from "./gltf1-upgrade-plugin";
+import { createThreeTilesDracoLoader } from "./three-tiles-draco-loader";
 import { subscribeSharedThreeTerrainLoading } from "./shared-three-terrain-registry";
 import { isExtentFloorTile } from "../../core/mesh-error-policy";
 import {
@@ -45,6 +45,7 @@ import { TilesetMercatorProjectionPlugin } from "./tileset-mercator-projection-p
 export type ThreeTilesRuntimeAttachmentState = Pick<
   ThreeTilesRuntimeState,
   | "bytesPredictor"
+  | "loadedResidentBytes"
   | "cameraSet"
   | "clayMaterialStates"
   | "committedMeshCasterFrontier"
@@ -66,6 +67,7 @@ export type ThreeTilesRuntimeAttachmentState = Pick<
   | "meshCoverageRecovery"
   | "displayedMeshFrontier"
   | "lastMainViewConverged"
+  | "lastActiveViewsConverged"
   | "meshRefinementSupport"
   | "extentGeometricError"
   | "extentFloorArmed"
@@ -89,6 +91,7 @@ export type ThreeTilesRuntimeAttachmentState = Pick<
   | "shadowReceiverMask"
   | "shadowView"
   | "retainedShadowRequests"
+  | "shadowCasterRequests"
   | "tileCameraDemand"
   | "shadowReceiverMatch"
   | "shadowSelectionEnabled"
@@ -142,6 +145,7 @@ export type ThreeTilesRuntimeAttachmentDependencies = Pick<
   | "refreshRenderedMaterials"
   | "requestRender"
   | "resetDeferredTiles"
+  | "resetMeshCameraObjectives"
   | "restoreShadowSides"
   | "runDownloadQueues"
   | "scheduleMotionCoverage"
@@ -161,17 +165,32 @@ export function createThreeTilesRuntimeAttachment(
   dependencies: ThreeTilesRuntimeAttachmentDependencies
 ) {
   const deferredMaterials = new TilesetDeferredMaterialsPlugin({
-    // The idle ring is prefetched to be drawable the moment it scrolls in,
-    // so its materials are promoted like the main view's.
-    inView: (tile) =>
-      dependencies.isTileInMainView(tile as RuntimeTile) ||
-      dependencies.getTileCameraDemand(tile as RuntimeTile).receiver ||
-      runtimeState.meshRefinementSupport.has(tile) ||
-      (runtimeState.extentFloorArmed &&
-        runtimeState.extentGeometricError > 0 &&
-        isExtentFloorTile(tile, runtimeState.extentGeometricError)) ||
-      (tile as RuntimeTile).motionPrefetch === true ||
-      (tile as RuntimeTile).idleRing === true,
+    inView: (tile) => {
+      // Existing receivers own their textures and geometry. A caster request
+      // must never create a second instance or demote a visible tile.
+      if (
+        dependencies.isTileInMainView(tile as RuntimeTile) ||
+        dependencies.getTileCameraDemand(tile as RuntimeTile).receiver
+      )
+        return true;
+      // Caster ownership wins over reserve/support flags. Those flags may be
+      // retained after a pan, but do not justify texture work outside the view.
+      if (
+        runtimeState.shadowView &&
+        (runtimeState.shadowCasterRequests.has(tile) ||
+          runtimeState.committedMeshCasterFrontier.has(tile) ||
+          runtimeState.retainedShadowRequests.has(tile))
+      )
+        return false;
+      return (
+        runtimeState.meshRefinementSupport.has(tile) ||
+        (runtimeState.extentFloorArmed &&
+          runtimeState.extentGeometricError > 0 &&
+          isExtentFloorTile(tile, runtimeState.extentGeometricError)) ||
+        (tile as RuntimeTile).motionPrefetch === true ||
+        (tile as RuntimeTile).idleRing === true
+      );
+    },
     onPromoted: (tile, scene) => {
       dependencies.refreshRenderedMaterials(scene);
       runtimeState.mainViewProjectionChanged = true;
@@ -250,7 +269,7 @@ export function createThreeTilesRuntimeAttachment(
       })
     );
     // Draco-compressed glTF payloads need an explicit decoder
-    runtimeState.dracoLoader = new DRACOLoader();
+    runtimeState.dracoLoader = createThreeTilesDracoLoader();
     runtimeState.dracoLoader.setDecoderPath(
       "https://www.gstatic.com/draco/versioned/decoders/1.5.6/"
     );

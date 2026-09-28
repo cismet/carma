@@ -246,6 +246,103 @@ export const TILE_PIPELINE_CHART_ROWS: readonly StripChartRow[] = [
     ],
   },
   {
+    section: "Base & seam coverage",
+    rows: [
+      row(
+        "baseKnown",
+        "Known regions",
+        "#94a3b8",
+        undefined,
+        "Whole-base regions"
+      ),
+      row(
+        "baseCovered",
+        "Covered regions",
+        "#16a34a",
+        undefined,
+        "Whole-base regions",
+        "Whole-floor regions with resident, material-ready geometry, including complete finer replacements. Metadata placeholders leave the total unknown."
+      ),
+      row("baseResident", "Resident", "#2563eb", undefined, "Floor roots"),
+      row("baseRenderable", "Renderable", "#16a34a", undefined, "Floor roots"),
+      row(
+        "baseDemanded",
+        "Demanded",
+        "#c2410c",
+        undefined,
+        "Floor roots",
+        "Known floor roots used by the current traversal or still loading. Demand and residency can overlap."
+      ),
+      row(
+        "baseCoveragePct",
+        "Base geometry",
+        "#16a34a",
+        "%",
+        "Whole-base coverage",
+        "Fraction of floor regions covered by ready geometry; not area or pan safety. Missing while the full denominator is unknown."
+      ),
+      row(
+        "closureCoveragePct",
+        "Compatible pan reserve",
+        "#7c3aed",
+        "%",
+        "Whole-base coverage",
+        "Fraction of whole-floor regions covered by a ready cut compatible with committed receiver/caster detail. Missing while the full denominator is unknown."
+      ),
+      row(
+        "closureKnown",
+        "Known regions",
+        "#94a3b8",
+        undefined,
+        "Compatible pan regions"
+      ),
+      row(
+        "closureCovered",
+        "Covered regions",
+        "#7c3aed",
+        undefined,
+        "Compatible pan regions"
+      ),
+      row(
+        "waitingForBase",
+        "Waiting for base",
+        "#dc2626",
+        undefined,
+        "Base readiness",
+        "1 until the whole-base compatible reserve is ready and floor retention is armed. Observer convergence and queue idleness do not establish this."
+      ),
+      row(
+        "seamKnown",
+        "Known demand",
+        "#94a3b8",
+        undefined,
+        "Transition seam payloads"
+      ),
+      row(
+        "seamResident",
+        "Resident",
+        "#2563eb",
+        undefined,
+        "Transition seam payloads"
+      ),
+      row(
+        "seamRenderable",
+        "Renderable",
+        "#16a34a",
+        undefined,
+        "Transition seam payloads",
+        "Resident, material-ready payloads among the current traversal's known ring-one demand. The complete adaptive ring denominator is not certified."
+      ),
+      row(
+        "seamDemanded",
+        "Demanded",
+        "#c2410c",
+        undefined,
+        "Transition seam payloads"
+      ),
+    ],
+  },
+  {
     section: "Memory",
     rows: [
       row(

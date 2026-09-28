@@ -47,6 +47,7 @@ describe("reserve runtime integration", () => {
       state.meshBaseCoverageReady = true;
       state.extentFloorArmed = true;
       state.lastMainViewConverged = true;
+      state.lastActiveViewsConverged = true;
       state.requestedErrorTarget = state.effectiveErrorTarget = 4;
       const parent = buildTile(40);
       const near = buildTile(4);

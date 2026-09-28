@@ -199,6 +199,10 @@ describe("receivers runtime integration", () => {
 
   it("admits missing sibling coverage and finer receiver caster demand independently", () => {
     const f = createMeshCorridorFixture();
+    // Keep the caster outside the observer geometrically, as well as in the
+    // native fixture flag, while it remains inside the orthographic sun view.
+    f.frame.lodCamera.near = 75;
+    f.frame.lodCamera.updateProjectionMatrix();
     try {
       const left = f.tile("left1", -10, 0, -100, 1, true, f.receiver);
       const right = f.tile("right1", 0, 10, -100, 1, true, f.receiver);

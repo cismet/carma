@@ -1,5 +1,5 @@
+import { DEFAULT_MESH_BASE_ERROR_PIXELS } from "./mesh-error-policy";
 import { TILE_CAMERA_PRIORITY } from "./tile-camera-demand";
-import { TILES_LOAD_POLICY } from "./tile-load-config";
 
 /** Pure decisions: callers collect current facts and retain ownership of effects.
  * Decision: ../../../TILES_COVERAGE.md#functional-decision-pipelines
@@ -15,20 +15,22 @@ export const resolveTileRequestPriority = (
   }>
 ): number => {
   return Math.max(
-    input.cameraPriority,
+    input.cameraPriority >= 0
+      ? TILE_CAMERA_PRIORITY.PRIMARY
+      : input.cameraPriority,
     input.motionPrefetch
       ? TILE_CAMERA_PRIORITY.PREFETCH
       : Number.NEGATIVE_INFINITY,
     // Decision: ../../../TILES_COVERAGE.md#progressive-shadow-families-and-wait-telemetry
-    // Family dependencies inherit their current visible owner's camera lane.
-    // Within a lane the expected visible improvement decides request order.
+    // Every active camera shares the refinement phase; explicit gap objectives
+    // supply the higher first-fill phases outside this role normalization.
     input.observerVisible
       ? TILE_CAMERA_PRIORITY.PRIMARY
       : Number.NEGATIVE_INFINITY,
     input.replacementSupport ||
       input.selectedShadowReceiver ||
       input.shadowWithoutSelection
-      ? TILE_CAMERA_PRIORITY.SECONDARY
+      ? TILE_CAMERA_PRIORITY.PRIMARY
       : Number.NEGATIVE_INFINITY
   );
 };
@@ -38,39 +40,54 @@ const finiteBenefit = (benefit: number | undefined): number =>
     ? Math.max(0, benefit)
     : 0;
 
-const coarseRefinementPriority = (
+const refinementErrorBand = (
   benefit: number | undefined,
-  currentErrorPixels: number | undefined
-): number =>
-  finiteBenefit(benefit) > 0 &&
-  typeof currentErrorPixels === "number" &&
-  Number.isFinite(currentErrorPixels) &&
-  currentErrorPixels > TILES_LOAD_POLICY.coarseRefinementErrorPixels
-    ? 1
+  currentErrorPixels: number | undefined,
+  errorBand: number | undefined
+): number => {
+  if (finiteBenefit(benefit) === 0) return 0;
+  if (errorBand !== undefined)
+    return Number.isFinite(errorBand) ? Math.max(0, Math.ceil(errorBand)) : 0;
+  return typeof currentErrorPixels === "number" &&
+    Number.isFinite(currentErrorPixels) &&
+    currentErrorPixels > 0
+    ? Math.max(
+        0,
+        Math.ceil(
+          Math.log2(currentErrorPixels / DEFAULT_MESH_BASE_ERROR_PIXELS)
+        )
+      )
     : 0;
+};
 
-/** Camera rank, coarse improvement, then area-weighted gain; native ties follow. */
+/** Fill phase, target-relative error band, then the summed camera-local gain. */
 export const compareTileRequestOrder = (
   firstPriority: number,
   secondPriority: number,
   firstBenefit?: number,
   secondBenefit?: number,
   firstCurrentErrorPixels?: number,
-  secondCurrentErrorPixels?: number
+  secondCurrentErrorPixels?: number,
+  firstErrorBand?: number,
+  secondErrorBand?: number
 ): number => {
   if (firstPriority !== secondPriority)
     return firstPriority > secondPriority ? 1 : -1;
-  const coarseOrder =
-    coarseRefinementPriority(firstBenefit, firstCurrentErrorPixels) -
-    coarseRefinementPriority(secondBenefit, secondCurrentErrorPixels);
-  if (coarseOrder) return coarseOrder;
+  const bandOrder =
+    refinementErrorBand(firstBenefit, firstCurrentErrorPixels, firstErrorBand) -
+    refinementErrorBand(
+      secondBenefit,
+      secondCurrentErrorPixels,
+      secondErrorBand
+    );
+  if (bandOrder) return bandOrder;
   const first = finiteBenefit(firstBenefit);
   const second = finiteBenefit(secondBenefit);
   return first === second ? 0 : first > second ? 1 : -1;
 };
 
 /** Queue order is exact; aborting useful work needs a stable, larger gain.
- * Coarse improvements precede fine detail; within either band a 25% gain
+ * Larger relative error precedes fine detail; within one band a 25% gain
  * avoids cancellation for small view-dependent score changes.
  * Members of the same atomic family finish together, never evict each other.
  */
@@ -82,18 +99,26 @@ export const shouldPreemptTileRequest = (
     waitingBenefit?: number;
     currentErrorPixels?: number;
     waitingCurrentErrorPixels?: number;
+    errorBand?: number;
+    waitingErrorBand?: number;
     sameRefinementGroup?: boolean;
   }>
 ): boolean => {
   if (input.sameRefinementGroup) return false;
   if (input.waitingPriority !== input.priority)
     return input.waitingPriority > input.priority;
-  const coarseOrder =
-    coarseRefinementPriority(
+  const bandOrder =
+    refinementErrorBand(
       input.waitingBenefit,
-      input.waitingCurrentErrorPixels
-    ) - coarseRefinementPriority(input.benefit, input.currentErrorPixels);
-  if (coarseOrder) return coarseOrder > 0;
+      input.waitingCurrentErrorPixels,
+      input.waitingErrorBand
+    ) -
+    refinementErrorBand(
+      input.benefit,
+      input.currentErrorPixels,
+      input.errorBand
+    );
+  if (bandOrder) return bandOrder > 0;
   return (
     finiteBenefit(input.waitingBenefit) > finiteBenefit(input.benefit) * 1.25
   );
@@ -113,6 +138,7 @@ export const TILE_QUEUE_REASON = {
   NO_CURRENT_DEMAND: "no-current-demand",
   VIEWPORT_FILL_FIRST: "viewport-fill-first",
   COVERAGE_CAPACITY: "coverage-capacity",
+  REQUEST_CAPACITY: "request-capacity",
   FOREGROUND: "foreground",
   IDLE_RESERVE: "idle-reserve",
   MOTION: "camera-motion",
@@ -147,6 +173,7 @@ export const resolveTileQueueDecision = (
     motionPrefetch: boolean;
     highestPendingPriority: number;
     moving: boolean;
+    idleReady?: boolean;
   }>
 ) => {
   if (input.admission === TILE_QUEUE_REASON.NO_CURRENT_DEMAND)
@@ -168,6 +195,7 @@ export const resolveTileQueueDecision = (
   if (
     !Number.isFinite(input.priority) &&
     !input.moving &&
+    input.idleReady !== false &&
     !Number.isFinite(input.highestPendingPriority)
   )
     return {
@@ -280,6 +308,8 @@ export const decideTileRequestAction = (
     highestWaitingBenefit?: number;
     currentErrorPixels?: number;
     highestWaitingCurrentErrorPixels?: number;
+    errorBand?: number;
+    highestWaitingErrorBand?: number;
     sameRefinementGroup?: boolean;
   }>
 ): (typeof TILE_REQUEST_ACTION)[keyof typeof TILE_REQUEST_ACTION] => {
@@ -295,6 +325,8 @@ export const decideTileRequestAction = (
       waitingBenefit: input.highestWaitingBenefit,
       currentErrorPixels: input.currentErrorPixels,
       waitingCurrentErrorPixels: input.highestWaitingCurrentErrorPixels,
+      errorBand: input.errorBand,
+      waitingErrorBand: input.highestWaitingErrorBand,
       sameRefinementGroup: input.sameRefinementGroup,
     })
   )

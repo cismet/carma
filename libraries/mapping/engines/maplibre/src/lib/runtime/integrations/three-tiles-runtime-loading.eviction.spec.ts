@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { describe, expect, it, vi } from "vitest";
+import { mesh } from "../../core/mesh-tile-test-fixtures";
 
 import type { RuntimeTile } from "./three-tiles-runtime-types";
 
@@ -123,6 +124,53 @@ describe("eviction runtime integration", () => {
       state.tiles!.dispose();
     }
   );
+
+  it("pins a compatible shadow reserve and its owning metadata until replacement or disposal", () => {
+    const { state, loading } = fixture();
+    const cache = loading.getRuntimeCache()!;
+    const parent = mesh(null, 80),
+      metadata = mesh(parent, 40),
+      reserve = mesh(metadata, 20);
+    parent.children = [metadata];
+    metadata.children = [reserve];
+    metadata.internal.hasRenderableContent = false;
+    metadata.internal.hasUnrenderableContent = true;
+    for (const tile of [parent, metadata, reserve]) {
+      cache.add(tile, () => {
+        tile.internal.loadingState = 0;
+      });
+      cache.setMemoryUsage(tile, 100);
+      cache.setLoaded(tile, true);
+    }
+    state.meshShadowReserve.frontier.add(reserve);
+    cache.markAllUnused();
+    cache.minBytesSize = 50;
+    cache.maxBytesSize = 150;
+    cache.minSize = 0;
+    cache.maxSize = 1;
+    expect(cache.remove(reserve)).toBe(false);
+    expect(cache.remove(metadata)).toBe(false);
+    cache.unloadUnusedContent();
+    loading.wipeCacheWhileHidden();
+    expect(cache.itemSet.has(reserve)).toBe(true);
+    expect(cache.itemSet.has(metadata)).toBe(true);
+    expect(cache.itemSet.has(parent)).toBe(false);
+    state.meshShadowReserve.frontier.clear();
+    // A complete finer cut replaces the reserve before its guard is released.
+    const finer = mesh(reserve, 10);
+    reserve.children = [finer];
+    cache.maxBytesSize = 1_000;
+    cache.maxSize = 10;
+    cache.add(finer, () => {});
+    expect(cache.itemSet.has(finer)).toBe(true);
+    cache.setLoaded(finer, true);
+    expect(cache.remove(reserve)).toBe(true);
+    state.meshShadowReserve.frontier.add(finer);
+    state.disposed = true;
+    expect(cache.remove(metadata)).toBe(true);
+    expect(cache.remove(finer)).toBe(true);
+    state.tiles!.dispose();
+  });
 
   it("keeps reusable tiles above the soft watermark while the hard budget has room", () => {
     const { state, loading } = fixture();
@@ -260,6 +308,7 @@ describe("eviction runtime integration", () => {
       cache.minBytesSize = 150;
       cache.maxBytesSize = maxBytes;
       state.lastMainViewConverged = converged;
+      state.lastActiveViewsConverged = converged;
       state.memoryErrorTarget = memoryTarget;
       // A previous publication prerequisite does not retain offscreen demand.
       state.meshRefinementSupport.add(support);

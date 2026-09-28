@@ -12,8 +12,8 @@ export const TILE_MEMORY_ALLOCATION_ERROR =
  * Decision: TILES_COVERAGE.md#resident-cache-ceiling-policy-2026-09-18.
  * Desktops start optimistically at 6 GiB (scaled down only when the browser
  * reports little memory); phones and tablets have hard caps that no consumer
- * budget can raise; a learned ceiling from an allocation failure, a lost
- * context or a session that never ended cleanly lowers all of them.
+ * budget can raise. Healthy, occupied desktop grants grow in bounded steps;
+ * confirmed memory failures lower the limit for the current bundle.
  */
 export const TILES_CACHE_CEILING_BYTES = {
   configuredMaximum: 24 * GIB,
@@ -45,6 +45,76 @@ const isIosDevice = (device: TilesDeviceProfile): boolean =>
 const isMobileDevice = (device: TilesDeviceProfile): boolean =>
   /Android|Mobile/i.test(device.userAgent);
 
+const validDeviceMemory = (device: TilesDeviceProfile) =>
+  device.deviceMemoryGiB !== undefined &&
+  Number.isFinite(device.deviceMemoryGiB) &&
+  device.deviceMemoryGiB > 0;
+
+/** Browser memory hints are not an allocation grant. Larger desktops grow from
+ * the normal seed; reported low-memory devices and explicit limits stay capped.
+ */
+export const resolveTilesCacheMaximum = (
+  device: TilesDeviceProfile,
+  style?: TilesCacheStyleLimits,
+  learnedCeilingBytes?: number | null
+): number => {
+  let maximum: number = isIosDevice(device)
+    ? TILES_CACHE_CEILING_BYTES.ios
+    : isMobileDevice(device)
+    ? TILES_CACHE_CEILING_BYTES.mobile
+    : validDeviceMemory(device) && device.deviceMemoryGiB! < 8
+    ? Math.max(
+        TILES_CACHE_CEILING_BYTES.desktopMinimum,
+        device.deviceMemoryGiB! * TILES_CACHE_CEILING_BYTES.perDeviceMemoryGiB
+      )
+    : TILES_CACHE_CEILING_BYTES.configuredMaximum;
+  if (
+    Number.isFinite(style?.cacheBudgetBytes) &&
+    Number.isFinite(style?.cacheOverflowBytes ?? 0)
+  )
+    maximum = Math.min(
+      maximum,
+      Math.max(0, style!.cacheBudgetBytes!) +
+        Math.max(0, style?.cacheOverflowBytes ?? 0)
+    );
+  if (learnedCeilingBytes != null && Number.isFinite(learnedCeilingBytes))
+    maximum = Math.min(maximum, learnedCeilingBytes);
+  return Math.max(TILES_CACHE_CEILING_BYTES.floor, Math.floor(maximum));
+};
+
+export const TILE_CACHE_GROWTH = {
+  residentFraction: 0.9,
+  step: 1.2,
+  cooldownMs: 10_000,
+} as const;
+
+/** Queued estimates never qualify as evidence that a larger grant is useful. */
+export const nextTilesCacheCeiling = (
+  input: Readonly<{
+    current: number;
+    maximum: number;
+    loadedResidentBytes: number;
+    workOutstanding: boolean;
+    healthy: boolean;
+    now: number;
+    lastGrowthAt: number;
+  }>
+): number =>
+  input.healthy &&
+  input.workOutstanding &&
+  Number.isFinite(input.loadedResidentBytes) &&
+  input.loadedResidentBytes >=
+    input.current * TILE_CACHE_GROWTH.residentFraction &&
+  input.now - input.lastGrowthAt >= TILE_CACHE_GROWTH.cooldownMs
+    ? Math.max(
+        input.current,
+        Math.min(
+          input.maximum,
+          Math.floor(input.current * TILE_CACHE_GROWTH.step)
+        )
+      )
+    : input.current;
+
 export const resolveTilesCacheCeiling = (
   device: TilesDeviceProfile,
   style?: TilesCacheStyleLimits,
@@ -52,22 +122,12 @@ export const resolveTilesCacheCeiling = (
   learnedCeilingBytes?: number | null
 ): number => {
   let ceiling: number;
-  // A consumer budget may raise a desktop up to the configured maximum, a
-  // phone or tablet never: its class ceiling is the hard cap.
-  let hardCap: number = TILES_CACHE_CEILING_BYTES.configuredMaximum;
-  if (isIosDevice(device)) {
-    ceiling = TILES_CACHE_CEILING_BYTES.ios;
-    hardCap = ceiling;
-  } else if (isMobileDevice(device)) {
-    ceiling = TILES_CACHE_CEILING_BYTES.mobile;
-    hardCap = ceiling;
-  } else if (
-    device.deviceMemoryGiB !== undefined &&
-    Number.isFinite(device.deviceMemoryGiB) &&
-    device.deviceMemoryGiB > 0
-  ) {
+  const hardCap = resolveTilesCacheMaximum(device);
+  if (isIosDevice(device) || isMobileDevice(device)) {
+    ceiling = hardCap;
+  } else if (validDeviceMemory(device)) {
     ceiling = clamp(
-      device.deviceMemoryGiB * TILES_CACHE_CEILING_BYTES.perDeviceMemoryGiB,
+      device.deviceMemoryGiB! * TILES_CACHE_CEILING_BYTES.perDeviceMemoryGiB,
       TILES_CACHE_CEILING_BYTES.desktopMinimum,
       TILES_CACHE_CEILING_BYTES.desktopMaximum
     );

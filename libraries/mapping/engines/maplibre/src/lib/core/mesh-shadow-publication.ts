@@ -36,7 +36,11 @@ export function selectShadowReadyReceivers(
     (tile) => (proposed.has(tile) ? 0 : Number.MAX_VALUE),
     (tile) => ready.has(tile),
     ancestors,
-    { published: previous, allowCoarseBootstrap: true }
+    {
+      published: previous,
+      allowCoarseBootstrap: true,
+      releaseEmptyReplacementRegions: true,
+    }
   ).tiles;
   return { receivers: selectExclusiveShadowCut(receivers, previous), pending };
 }
@@ -64,12 +68,10 @@ export function selectShadowCasterPlan(
     (tile) => reused.has(tile) || inCorridor(tile),
     (tile) => (reused.has(tile) ? 0 : errorPixels(tile)),
     new Set([...previous, ...reused]),
-    eligible
+    eligible,
+    false
   );
-  return selectExclusiveShadowCut(
-    new Set([...independent, ...reused]),
-    previous
-  );
+  return independent;
 }
 
 /** Receiver colour and shadow depth use the same replacement boundary. */

@@ -96,6 +96,12 @@ export const tilesQueuePriorityCallback = (
       : undefined,
     includeRefinementBenefit
       ? (second as RuntimeTile).meshRefinement?.currentErrorPixels
+      : undefined,
+    includeRefinementBenefit
+      ? (first as RuntimeTile).meshRefinement?.errorBand
+      : undefined,
+    includeRefinementBenefit
+      ? (second as RuntimeTile).meshRefinement?.errorBand
       : undefined
   );
   return (

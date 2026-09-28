@@ -18,6 +18,7 @@ import {
   tilesQueuePriorityCallback,
 } from "./three-tiles-runtime-vendor";
 
+import { createThreeTilesSpatial } from "./three-tiles-runtime-spatial";
 import {
   buildTile,
   mount,
@@ -82,14 +83,14 @@ describe("camera runtime integration", () => {
   });
 
   it.each(["perspective", "padded", "orthographic"] as const)(
-    "uses clipped visible-depth SSE for native traversal too (%s)",
+    "keeps clipped visible-depth SSE separate from coverage admission (%s)",
     (projection) => {
       const mounted = mount();
       try {
         const state = mounted.state;
         state.extentFloorArmed = false;
-        // Test the geometric SSE independently of the first-image LOD cap.
-        state.displayedMeshFrontier.add(buildTile(1));
+        // The missing region can stop at coarse drawable coverage, while its
+        // measured camera error remains available for the following refinement.
         mounted.renderer.group.matrixWorld.identity();
         const camera =
           projection === "orthographic"
@@ -119,6 +120,10 @@ describe("camera runtime integration", () => {
               distanceFromCamera: 1,
             })
         );
+        const spatial = createThreeTilesSpatial(state, {
+          getStableTileId: () => "receiver",
+          getTileLoadReason: () => "viewport",
+        });
         const errors: number[] = [];
         for (const farZ of [9, 5]) {
           const bounds = new THREE.Box3(
@@ -134,9 +139,14 @@ describe("camera runtime integration", () => {
           const target = { inView: false, error: 0, distanceFromCamera: 0 };
           mounted.renderer.calculateTileViewErrorWithPlugin(tile, target);
           expect(target.inView).toBe(true);
-          expect(target.error).toBeCloseTo(expected, 8);
-          expect(target.error).toBeLessThan(10000);
-          errors.push(target.error);
+          expect(target.error).toBeCloseTo(
+            Math.min(expected, state.effectiveErrorTarget),
+            8
+          );
+          const measured = spatial.getTileScreenError(tile);
+          expect(measured).toBeCloseTo(expected, 8);
+          expect(measured).toBeLessThan(10000);
+          errors.push(measured);
         }
         expect(errors[0]).toBeCloseTo(errors[1], 8);
         // A conservative broad-phase hit is not observer demand when clipped
@@ -236,9 +246,32 @@ describe("camera runtime integration", () => {
         };
         state.tiles!.calculateTileViewErrorWithPlugin(receiver, target);
         expect(target.inView).toBe(true);
-        expect(target.error).toBeGreaterThanOrEqual(
-          primaryRatio * state.effectiveErrorTarget
-        );
+        if (providesTerrain) {
+          const spatial = createThreeTilesSpatial(state, {
+            getStableTileId: () => "receiver",
+            getTileLoadReason: () => "viewport",
+          });
+          // Admission may stop at a coarser band. Telemetry and publication
+          // retain the undiluted demand and the observer's physical pixel error.
+          expect(
+            spatial.getTileCameraDemand(receiver, true).errorRatio
+          ).toBeCloseTo(primaryRatio);
+          expect(spatial.getTileScreenError(receiver)).toBeCloseTo(
+            primaryRatio * state.effectiveErrorTarget
+          );
+          expect(spatial.getTileScreenError(receiver, false)).toBeCloseTo(
+            primaryRatio *
+              views.find((view) => view.id === TILE_MAIN_OBSERVER_ID)!
+                .errorTargetPixels
+          );
+          expect(target.error).toBeLessThan(
+            primaryRatio * state.effectiveErrorTarget
+          );
+        } else {
+          expect(target.error).toBeGreaterThanOrEqual(
+            primaryRatio * state.effectiveErrorTarget
+          );
+        }
       } finally {
         mounted.runtime.scene.dispose();
       }

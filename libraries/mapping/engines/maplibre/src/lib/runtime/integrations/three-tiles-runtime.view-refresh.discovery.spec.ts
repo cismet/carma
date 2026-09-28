@@ -11,6 +11,7 @@ import type { RuntimeTile } from "./three-tiles-runtime-types";
 import {
   buildTile,
   mount,
+  mockTileViews,
 } from "./three-tiles-runtime.view-refresh.test-support";
 const prefetchPolicy = vi.hoisted(() => ({ levels: 1 }));
 
@@ -97,7 +98,7 @@ describe("discovery runtime integration", () => {
     [2, "download"],
     [2, "parse"],
   ] as const)(
-    "starts %i levels of lookahead %s before pending parents, below coverage-repair priority",
+    "keeps %i levels of native-fallback lookahead %s before pending parents, below coverage-repair priority",
     async (levels, phase) => {
       prefetchPolicy.levels = levels;
       vi.useFakeTimers();
@@ -107,26 +108,17 @@ describe("discovery runtime integration", () => {
         state.effectiveErrorTarget = 6;
         state.requestedErrorTarget = 6;
         state.memoryErrorTarget = 6;
-        // Synthetic visible demand: the pending parent's 12px error is above
-        // final quality but below the 16px bootstrap gate being bypassed.
-        state.tileCameraDemand = {
-          ...state.tileCameraDemand,
-          evaluate: () => ({
-            required: true,
-            receiver: true,
-            errorRatio: 2,
-            priority: TILE_CAMERA_PRIORITY.PRIMARY,
-          }),
-        } as typeof state.tileCameraDemand;
         mounted.renderer.loadAncestors = true;
         const root = buildTile(40);
         const parent = buildTile(12);
         const route = buildTile(12);
         route.internal.hasRenderableContent = false;
         route.internal.hasUnrenderableContent = true;
-        const child = buildTile(6);
+        // The second level remains useful: its parent is still above the
+        // final target, independently of the native lookahead allowance.
+        const child = buildTile(8);
         const sibling = buildTile(6);
-        const second = buildTile(3);
+        const second = buildTile(4);
         child.children = [second];
         second.parent = child;
         root.internal.loadingState = 4;
@@ -141,6 +133,16 @@ describe("discovery runtime integration", () => {
           tile.internal.renderer = mounted.renderer;
           tile.engineData!.boundingVolume!.intersectsFrustum = () => true;
         }
+        // Bounds are not yet available: retain the native metadata/lookahead
+        // fallback while camera-local refinement owns fully bounded tiles.
+        mockTileViews(mounted.renderer, [
+          root,
+          parent,
+          route,
+          child,
+          sibling,
+          second,
+        ]);
         state.displayedMeshFrontier.add(root);
         state.meshRefinementSupport.add(parent);
         mounted.renderer.queueTileForDownload(route);

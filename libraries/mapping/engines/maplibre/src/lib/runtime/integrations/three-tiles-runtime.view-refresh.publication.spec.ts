@@ -112,11 +112,18 @@ describe("publication runtime integration", () => {
         >;
         expect(parentMesh.material.depthWrite).toBe(false);
         expect(parentMesh.renderOrder).toBeLessThan(0);
+        const partial = state.displayedMeshFrontier;
+        // Force another publication pass with the same exact selection.
+        state.meshContentRevision++;
+        mounted.runtime.scene.update(mounted.frame);
+        expect(state.displayedMeshFrontier).toBe(partial);
+        expect(colourCut()).toEqual(new Set([parent, ...children.slice(0, 3)]));
         // The complete replacement can publish after the last payload arrives.
         children[3].internal.loadingState = 4;
         state.meshContentRevision++;
         mounted.runtime.scene.update(mounted.frame);
         expect(state.displayedMeshFrontier).toEqual(new Set(children));
+        expect(state.displayedMeshFrontier).not.toBe(partial);
         expect(colourCut()).toEqual(new Set(children));
         expect(state.meshUnderlayFrontier.size).toBe(0);
       } finally {

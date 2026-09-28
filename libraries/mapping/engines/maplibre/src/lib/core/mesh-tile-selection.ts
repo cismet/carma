@@ -12,9 +12,10 @@ import {
 import { TILES_LOAD_POLICY } from "./tile-load-config";
 
 /**
- * Select ready content in this demand domain. A REPLACE parent supplies the
- * uncovered branches while ready descendants render immediately above it.
- * Completeness is relative to this frustum; unknown topology fails closed.
+ * Select ready content in this demand domain. Colour-only mode lets a REPLACE
+ * parent fill missing branches while ready descendants render above it. With
+ * hybrid replacement disabled, the parent stays alone until every in-view
+ * branch is ready. Completeness is frustum-relative; unknown topology fails closed.
  * Decision: ../../../TILES_COVERAGE.md#progressive-receiver-overlays
  */
 export const selectMeshReceiverPlan = (
@@ -29,6 +30,10 @@ export const selectMeshReceiverPlan = (
     published: ReadonlySet<Tile>;
     allowCoarseBootstrap?: boolean;
     firstImageErrorTargetPixels?: number;
+    /** Let a shared shadow cut leave a proven empty observer region. */
+    releaseEmptyReplacementRegions?: boolean;
+    /** Shadows replace a complete demanded family without overlapping LODs. */
+    allowHybridReplacement?: boolean;
   }>
 ) => {
   const refinementSupport = new Set<Tile>();
@@ -69,20 +74,36 @@ export const selectMeshReceiverPlan = (
         options?.allowCoarseBootstrap ||
         error <= fallbackLimit ||
         children.length === 0);
+    const childrenMissView = () =>
+      children.every(
+        (child) =>
+          !hasMeshRefinementContentInView(
+            child,
+            (candidate) =>
+              !candidate.internal || !candidate.traversal || inView(candidate)
+          )
+      );
+    // A loose parent box can intersect while every real child misses. Release
+    // that proven empty REPLACE region independently of current error demand;
+    // otherwise removing its receiver removes the shadow floor and the next
+    // frame resurrects the same coarse parent through the camera-error shortcut.
+    if (
+      options?.releaseEmptyReplacementRegions &&
+      tile.refine !== "ADD" &&
+      children.length > 0 &&
+      childrenMissView()
+    )
+      return { cut: [], complete: true };
     if (
       fallback &&
       ((error <= targetErrorPixels && !retainedAncestors.has(tile)) ||
         children.length === 0 ||
-        children.every(
-          (child) =>
-            !hasMeshRefinementContentInView(
-              child,
-              (candidate) =>
-                !candidate.internal || !candidate.traversal || inView(candidate)
-            )
-        ))
+        (!options?.releaseEmptyReplacementRegions && childrenMissView()))
     )
       return { cut: [tile], complete: true };
+    // A conservative parent can intersect while every resolved child misses.
+    // Required refinement may replace it with that proven empty domain; unknown
+    // topology remains incomplete below, and ADD still keeps its own content.
     const selected: Tile[] = [];
     let complete = children.length > 0;
     for (const child of children) {
@@ -97,7 +118,13 @@ export const selectMeshReceiverPlan = (
         complete: complete && fallback,
       };
     if (!complete && fallback)
-      return { cut: [tile, ...selected], complete: true };
+      return {
+        cut:
+          options?.allowHybridReplacement === false
+            ? [tile]
+            : [tile, ...selected],
+        complete: true,
+      };
     return { cut: selected, complete };
   };
   return {
@@ -115,7 +142,8 @@ export const refineLoadedMeshFrontier = (
   inView: (tile: Tile) => boolean,
   errorPixels: (tile: Tile) => number = (tile) => tile.traversal.error,
   minimumFrontier: ReadonlySet<Tile> = new Set(),
-  contentReady: (tile: Tile) => boolean = isLoadedMesh
+  contentReady: (tile: Tile) => boolean = isLoadedMesh,
+  allowHybridReplacement = true
 ): Set<Tile> => {
   const requiredAncestors = new Set<Tile>();
   for (const tile of minimumFrontier) {
@@ -138,7 +166,11 @@ export const refineLoadedMeshFrontier = (
       errorPixels,
       contentReady,
       requiredAncestors,
-      { published: proposed, allowCoarseBootstrap: true }
+      {
+        published: proposed,
+        allowCoarseBootstrap: true,
+        allowHybridReplacement,
+      }
     ).tiles)
       result.add(member);
   }

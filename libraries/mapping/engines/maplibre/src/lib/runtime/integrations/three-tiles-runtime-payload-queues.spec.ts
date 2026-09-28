@@ -41,6 +41,7 @@ describe("current demand owns queue refinement", () => {
       };
       waiting.meshRefinement = { ...active.meshRefinement, benefit: 1000 };
       const queues = createThreeTilesPayloadQueues(state, {
+        resetMeshCameraObjectives: vi.fn(),
         getTileDebugProgress: () => undefined!,
         recordTileRequestDecision: vi.fn(),
         getTileRequestPriority: () => 1,
@@ -91,6 +92,7 @@ describe("current demand owns queue refinement", () => {
     state.tiles.loadingTiles.add(earlier);
     state.tiles.loadingTiles.add(current);
     const queues = createThreeTilesPayloadQueues(state, {
+      resetMeshCameraObjectives: vi.fn(),
       getTileDebugProgress: () => undefined!,
       recordTileRequestDecision: vi.fn(),
       getTileRequestPriority: () => 1,
@@ -158,6 +160,7 @@ describe("current demand owns queue refinement", () => {
         shadowMapSize: { width: 1024, height: 1024 },
       };
       const queues = createThreeTilesPayloadQueues(state, {
+        resetMeshCameraObjectives: vi.fn(),
         getTileDebugProgress: () => ({
           discoveredAt: 0,
           iterations: 0,

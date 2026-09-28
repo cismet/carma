@@ -1,3 +1,4 @@
+import { synchronizeSharedCacheCeiling } from "./three-tiles-shared-cache-ceiling";
 import {
   CACHE_CEILING_FAILURE_FRACTION,
   EMPTY_CACHE_CEILING_MEMORY,
@@ -11,15 +12,23 @@ import {
 import {
   resolveTilesCacheBounds,
   resolveTilesCacheCeiling,
+  resolveTilesCacheMaximum,
+  nextTilesCacheCeiling,
 } from "../../core/tile-cache-policy";
+import { LOADED_LOADING_STATE } from "./three-tiles-runtime-vendor";
 import { TILES_LOAD_POLICY } from "../../core/tile-load-config";
 import type { ThreeTilesCacheState } from "./three-tiles-runtime-cache";
 import {
+  MESH_ALLOCATION_RECOVERY_PHASE,
   DEFAULT_CACHE_MAX_ITEMS,
   DEFAULT_CACHE_MIN_ITEMS,
 } from "./three-tiles-runtime-config";
 import type { ThreeTilesRuntimeServices } from "./three-tiles-runtime-context";
-import type { CacheBudgetOptions } from "./three-tiles-runtime-types";
+import type {
+  CacheBudgetOptions,
+  RuntimePriorityQueue,
+  RuntimeTile,
+} from "./three-tiles-runtime-types";
 
 /** Applies cache limits and learns a lower ceiling after memory failures. */
 export function createThreeTilesCacheBudget(
@@ -33,8 +42,13 @@ export function createThreeTilesCacheBudget(
     | "resetEffectiveErrorTarget"
     | "requestShadowSelectionRefresh"
     | "runDownloadQueues"
+    | "scheduleSettledMeshAudit"
   >
 ) {
+  // Context and allocation notifications can describe the same failed GPU work.
+  // This episode stays local and ends only when the context is restored.
+  let contextLossLearned = false;
+  let lastSharedCeilingCheck = Number.NEGATIVE_INFINITY;
   const applyCacheBudget: ThreeTilesRuntimeServices["applyCacheBudget"] =
     () => {
       const cache = dependencies.getRuntimeCache();
@@ -87,12 +101,78 @@ export function createThreeTilesCacheBudget(
       )
         return;
       runtimeState.lastMemoryCheck = now;
+      if (
+        now - lastSharedCeilingCheck >=
+        TILES_LOAD_POLICY.memoryCheckIntervalMs
+      ) {
+        lastSharedCeilingCheck = now;
+        const shared = synchronizeSharedCacheCeiling(
+          runtimeState.cacheCeilingStorage,
+          runtimeState.cacheCeilingMemory
+        );
+        if (shared && shared !== runtimeState.cacheCeilingMemory) {
+          runtimeState.cacheCeilingMemory = shared;
+          runtimeState.learnedCeilingBytes = shared.learnedBytes;
+          const ceiling = resolveTilesCacheMaximum(
+            runtimeState.deviceProfile,
+            {
+              cacheBudgetBytes: runtimeState.styleCacheBudgetBytes,
+              cacheOverflowBytes: runtimeState.styleCacheOverflowBytes,
+            },
+            shared.learnedBytes
+          );
+          if (ceiling < runtimeState.ceilingBytes) {
+            runtimeState.ceilingBytes = ceiling;
+            runtimeState.meshDemandSweepPending = true;
+            applyCacheBudget();
+            dependencies.scheduleSettledMeshAudit();
+            dependencies.requestRender();
+          }
+        }
+      }
       const residentCache = dependencies.getRuntimeCache();
       if (runtimeState.cacheCeilingMemory && residentCache) {
         runtimeState.cacheCeilingMemory = recordCacheCeilingPeak(
           runtimeState.cacheCeilingMemory,
           residentCache.cachedBytes
         );
+      }
+      const recovery = runtimeState.allocationRecovery;
+      if (
+        runtimeState.allocationFailed &&
+        recovery &&
+        !runtimeState.contextLost &&
+        now >= recovery.retryAt &&
+        residentCache &&
+        runtimeState.tiles &&
+        (runtimeState.tiles.parseQueue as RuntimePriorityQueue).currJobs ===
+          0 &&
+        [...runtimeState.tiles.downloadQueue.originQueues.values()].every(
+          (queue) => (queue as RuntimePriorityQueue).currJobs === 0
+        )
+      ) {
+        const estimate = runtimeState.bytesPredictor.globalEstimate();
+        // Far below the reduced ceiling the failure can be a temporary decode
+        // buffer, even while a modest visible cut is fully pinned. Drain native
+        // work and back off there; near the ceiling require actual reclamation.
+        const lowResidency =
+          recovery.failureBytes <=
+          Math.max(
+            estimate,
+            TILES_LOAD_POLICY.cacheDriftSlackMinBytes,
+            runtimeState.ceilingBytes * 0.5
+          );
+        const reclaimed =
+          residentCache.cachedBytes <=
+          recovery.failureBytes *
+            (lowResidency ? 1 : CACHE_CEILING_FAILURE_FRACTION);
+        const probeFits =
+          residentCache.cachedBytes + estimate <=
+          runtimeState.ceilingBytes * TILES_LOAD_POLICY.cacheRetentionFraction;
+        if (reclaimed && probeFits) {
+          runtimeState.allocationFailed = false;
+          recovery.phase = MESH_ALLOCATION_RECOVERY_PHASE.PROBING;
+        }
       }
       const wasPaused = runtimeState.memoryAdmissionPaused;
       // A tab-wide heap ratio includes Vite/HMR, MapLibre and unrelated app
@@ -115,6 +195,60 @@ export function createThreeTilesCacheBudget(
           }
         }
       }
+      if (runtimeState.options.providesTerrain && residentCache) {
+        let loadedResidentBytes = 0;
+        for (const tile of residentCache.itemList)
+          if (
+            tile.internal?.loadingState === LOADED_LOADING_STATE &&
+            (tile as RuntimeTile).engineData?.scene
+          )
+            loadedResidentBytes += residentCache.getMemoryUsage(tile);
+        runtimeState.loadedResidentBytes = loadedResidentBytes;
+        const grown = nextTilesCacheCeiling({
+          current: runtimeState.ceilingBytes,
+          maximum: resolveTilesCacheMaximum(
+            runtimeState.deviceProfile,
+            {
+              cacheBudgetBytes: runtimeState.styleCacheBudgetBytes,
+              cacheOverflowBytes: runtimeState.styleCacheOverflowBytes,
+            },
+            runtimeState.learnedCeilingBytes
+          ),
+          loadedResidentBytes,
+          workOutstanding:
+            !(
+              runtimeState.lastActiveViewsConverged ??
+              runtimeState.lastMainViewConverged
+            ) ||
+            runtimeState.memoryErrorTarget >
+              runtimeState.requestedErrorTarget ||
+            (runtimeState.extentGeometricError > 0 &&
+              (!runtimeState.extentFloorArmed ||
+                runtimeState.extentFloorPending > 0)),
+          healthy:
+            !runtimeState.memoryAdmissionPaused &&
+            (!recovery ||
+              recovery.phase === MESH_ALLOCATION_RECOVERY_PHASE.RECOVERED),
+          now,
+          lastGrowthAt: runtimeState.lastCacheGrowthAt,
+        });
+        if (grown > runtimeState.ceilingBytes) {
+          runtimeState.ceilingBytes = grown;
+          runtimeState.lastCacheGrowthAt = now;
+          // New cache headroom justifies one finer quality attempt. Repeated
+          // audits without a larger grant cannot reopen the same request burst.
+          runtimeState.memoryErrorTarget = Math.max(
+            runtimeState.requestedErrorTarget,
+            runtimeState.memoryErrorTarget / TILES_LOAD_POLICY.memoryTargetStep
+          );
+          runtimeState.memoryErrorTargetChangedAt = now;
+          runtimeState.meshDemandSweepPending = true;
+          applyCacheBudget();
+          dependencies.requestShadowSelectionRefresh();
+          runtimeState.tiles?.dispatchEvent({ type: "needs-update" });
+          dependencies.requestRender();
+        }
+      }
       if (wasPaused && !runtimeState.memoryAdmissionPaused) {
         runtimeState.tiles?.dispatchEvent({ type: "needs-update" });
         dependencies.requestRender();
@@ -123,16 +257,12 @@ export function createThreeTilesCacheBudget(
 
   const handleContextLost: ThreeTilesRuntimeServices["handleContextLost"] =
     () => {
+      if (runtimeState.contextLost) return;
       runtimeState.contextLost = true;
       recordCacheCeilingFailure("context-lost");
       dependencies.applyRequestConcurrency();
     };
 
-  const unlearnedCeilingBytes = () =>
-    resolveTilesCacheCeiling(runtimeState.deviceProfile, {
-      cacheBudgetBytes: runtimeState.styleCacheBudgetBytes,
-      cacheOverflowBytes: runtimeState.styleCacheOverflowBytes,
-    });
   const persistCacheCeilingMemory = () => {
     if (runtimeState.cacheCeilingMemory)
       writeCacheCeilingMemory(
@@ -143,18 +273,48 @@ export function createThreeTilesCacheBudget(
   const recordCacheCeilingFailure: ThreeTilesRuntimeServices["recordCacheCeilingFailure"] =
     (reason) => {
       const cached = dependencies.getRuntimeCache()?.cachedBytes ?? 0;
+      const allocationWaiting =
+        runtimeState.allocationRecovery?.phase ===
+        MESH_ALLOCATION_RECOVERY_PHASE.WAITING;
+      if (reason === "allocation" && runtimeState.options.providesTerrain) {
+        if (allocationWaiting) {
+          // Multiple jobs can fail in one paused episode. Preserve its first
+          // deadline rather than pushing recovery away on every notification.
+          runtimeState.meshDemandSweepPending = true;
+          dependencies.scheduleSettledMeshAudit();
+          return;
+        }
+        const failures = (runtimeState.allocationRecovery?.failures ?? 0) + 1;
+        runtimeState.allocationRecovery = {
+          failures,
+          retryAt:
+            performance.now() +
+            Math.min(30_000, 1_000 * 2 ** Math.min(failures - 1, 5)),
+          failureBytes: cached,
+          phase: MESH_ALLOCATION_RECOVERY_PHASE.WAITING,
+        };
+        runtimeState.meshDemandSweepPending = true;
+        // Failure can occur before the frame reaches its normal audit setup.
+        // Arm that existing wakeup here, including when every queue is paused.
+        dependencies.scheduleSettledMeshAudit();
+      }
+      if (reason === "context-lost" && allocationWaiting) {
+        contextLossLearned = true;
+        return;
+      }
+      if (runtimeState.contextLost && contextLossLearned) return;
       // A lost context with a mostly empty cache is a GPU reset or a
       // backgrounded tab, not a memory signal; only a well-filled cache learns.
       if (reason === "context-lost" && cached < runtimeState.ceilingBytes * 0.5)
         return;
+      if (runtimeState.contextLost) contextLossLearned = true;
       const lesson = learnCacheCeiling(
         runtimeState.cacheCeilingStorage
           ? normalizeCacheCeilingMemory(
               readCacheCeilingMemory(runtimeState.cacheCeilingStorage)
             )
           : runtimeState.cacheCeilingMemory ?? EMPTY_CACHE_CEILING_MEMORY,
-        Math.max(cached, runtimeState.ceilingBytes) *
-          CACHE_CEILING_FAILURE_FRACTION,
+        runtimeState.ceilingBytes * CACHE_CEILING_FAILURE_FRACTION,
         reason
       );
       if (lesson.learnedBytes === runtimeState.learnedCeilingBytes) return;
@@ -166,13 +326,16 @@ export function createThreeTilesCacheBudget(
         };
         persistCacheCeilingMemory();
       }
-      runtimeState.ceilingBytes = resolveTilesCacheCeiling(
-        runtimeState.deviceProfile,
-        {
-          cacheBudgetBytes: runtimeState.styleCacheBudgetBytes,
-          cacheOverflowBytes: runtimeState.styleCacheOverflowBytes,
-        },
-        runtimeState.learnedCeilingBytes
+      runtimeState.ceilingBytes = Math.min(
+        runtimeState.ceilingBytes,
+        resolveTilesCacheMaximum(
+          runtimeState.deviceProfile,
+          {
+            cacheBudgetBytes: runtimeState.styleCacheBudgetBytes,
+            cacheOverflowBytes: runtimeState.styleCacheOverflowBytes,
+          },
+          runtimeState.learnedCeilingBytes
+        )
       );
       applyCacheBudget();
     };
@@ -191,8 +354,7 @@ export function createThreeTilesCacheBudget(
         recordCacheCeilingPeak(
           { ...shared, probe: runtimeState.cacheCeilingMemory.probe },
           peak
-        ),
-        unlearnedCeilingBytes()
+        )
       );
       persistCacheCeilingMemory();
     };
@@ -200,6 +362,7 @@ export function createThreeTilesCacheBudget(
   const handleContextRestored: ThreeTilesRuntimeServices["handleContextRestored"] =
     () => {
       runtimeState.contextLost = false;
+      contextLossLearned = false;
       runtimeState.lastMemoryCheck = Number.NEGATIVE_INFINITY;
       dependencies.applyRequestConcurrency();
       if (!runtimeState.memoryAdmissionPaused) dependencies.runDownloadQueues();
@@ -209,22 +372,30 @@ export function createThreeTilesCacheBudget(
     bytes?: number,
     cacheOptions?: CacheBudgetOptions
   ) => {
-    runtimeState.allocationFailed = false;
-    runtimeState.lastMemoryCheck = Number.NEGATIVE_INFINITY;
-    runtimeState.styleCacheBudgetBytes =
+    const budget =
       bytes === undefined ? undefined : Math.max(0, Math.floor(bytes));
-    runtimeState.styleCacheOverflowBytes =
+    const overflow =
       cacheOptions?.overflowBytes === undefined
         ? undefined
         : Math.max(0, Math.floor(cacheOptions.overflowBytes));
+    const changed =
+      budget !== runtimeState.styleCacheBudgetBytes ||
+      overflow !== runtimeState.styleCacheOverflowBytes;
+    // Debug controls replay this setter with unrelated settings. An identical
+    // budget must not release an allocation pause or restart quality work.
+    if (!changed) return;
+    runtimeState.allocationFailed = false;
+    runtimeState.allocationRecovery = null;
+    runtimeState.lastMemoryCheck = Number.NEGATIVE_INFINITY;
+    runtimeState.styleCacheBudgetBytes = budget;
+    runtimeState.styleCacheOverflowBytes = overflow;
+    const style = { cacheBudgetBytes: budget, cacheOverflowBytes: overflow };
     runtimeState.ceilingBytes = resolveTilesCacheCeiling(
       runtimeState.deviceProfile,
-      {
-        cacheBudgetBytes: runtimeState.styleCacheBudgetBytes,
-        cacheOverflowBytes: runtimeState.styleCacheOverflowBytes,
-      },
+      style,
       runtimeState.learnedCeilingBytes
     );
+    runtimeState.lastCacheGrowthAt = performance.now();
     dependencies.resetEffectiveErrorTarget();
     dependencies.requestShadowSelectionRefresh();
     applyCacheBudget();

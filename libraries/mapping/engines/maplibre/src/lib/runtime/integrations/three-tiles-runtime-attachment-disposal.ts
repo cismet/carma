@@ -16,6 +16,7 @@ export function disposeThreeTilesAttachment(
 ): void {
   runtimeState.disposed = true;
   runtimeState.retainedShadowRequests.clear();
+  runtimeState.shadowCasterRequests.clear();
   deferredMaterials.dispose();
   payloadQueues.dispose();
   dependencies.clearTelemetry();
@@ -112,6 +113,7 @@ export function disposeThreeTilesAttachment(
   debugTilesRuntimes()?.delete(runtimeState);
   if (runtimeState.tiles) disposeTilesRenderer(runtimeState.tiles);
   runtimeState.tiles = null;
+  runtimeState.loadedResidentBytes = null;
   runtimeState.meshRefinementSupport.clear();
   runtimeState.extentFloorArmed = false;
   runtimeState.extentFloorAuditPending = false;

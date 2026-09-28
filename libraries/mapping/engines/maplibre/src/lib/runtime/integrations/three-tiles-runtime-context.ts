@@ -1,3 +1,4 @@
+import type { MESH_ALLOCATION_RECOVERY_PHASE } from "./three-tiles-runtime-config";
 import { type Tile } from "3d-tiles-renderer/core";
 import type { CacheCeilingMemory } from "./three-tiles-cache-ceiling-memory";
 import type { Map as MaplibreMap } from "maplibre-gl";
@@ -67,6 +68,7 @@ export interface ThreeTilesRuntimeState {
   lastProgressAt: number;
   usedBytesMain: number;
   lastMainViewConverged: boolean;
+  lastActiveViewsConverged?: boolean;
   deviceProfile: ReturnType<typeof readTilesDeviceProfile>;
   /** Learned resident ceiling and the session probe, persisted by the host. */
   cacheCeilingStorage: Storage | null;
@@ -75,6 +77,8 @@ export interface ThreeTilesRuntimeState {
   styleCacheBudgetBytes: number | undefined;
   styleCacheOverflowBytes: number | undefined;
   ceilingBytes: ReturnType<typeof resolveTilesCacheCeiling>;
+  /** Last sampled LOADED scene accounting, excluding request reservations. */
+  loadedResidentBytes: number | null;
   bytesPredictor: ReturnType<typeof createTileBytesPredictor>;
   deferred: Set<Tile>;
   queuedThisTraversal: Set<Tile>;
@@ -83,6 +87,13 @@ export interface ThreeTilesRuntimeState {
     typeof createPayloadAwareRequestConcurrency
   >;
   memoryAdmissionPaused: boolean;
+  /** Per-runtime allocation recovery; never persisted or shared with other views. */
+  allocationRecovery?: {
+    failures: number;
+    retryAt: number;
+    failureBytes: number;
+    phase: (typeof MESH_ALLOCATION_RECOVERY_PHASE)[keyof typeof MESH_ALLOCATION_RECOVERY_PHASE];
+  } | null;
   /** Host-requested pause of downloads and parsing (diagnostics); nothing is aborted. */
   loadingPaused: boolean;
   /** The public runtime handle, for diagnostics that hold only the state. */
@@ -94,6 +105,8 @@ export interface ThreeTilesRuntimeState {
    */
   memoryErrorTarget: number;
   memoryErrorTargetChangedAt: number;
+  /** Last actual cache grant increase, measured on the monotonic runtime clock. */
+  lastCacheGrowthAt: number;
   /** Foveated request order, 0 = nearest first (see TilePriorityInput.foveationWeight). */
   foveationWeight: number;
   /** Residual quality as a resolution across the extent; null keeps the hinted floor. */
@@ -111,8 +124,19 @@ export interface ThreeTilesRuntimeState {
   meshDemandSweepPending: boolean;
   /** Sibling payloads/materials needed to replace the published cut without gaps. */
   meshRefinementSupport: Set<Tile>;
+  /** Drawable whole-floor cut compatible with exclusive shadow refinement. */
+  meshShadowReserve: {
+    frontier: Set<Tile>;
+    support: Set<Tile>;
+    ready: boolean;
+    known: number;
+    covered: number;
+    totalKnown: boolean;
+  };
   /** Pending payloads retained across sun changes for the same observer. */
   retainedShadowRequests: Set<Tile>;
+  /** Deduplicated current sun-corridor requests; independent of camera traversal. */
+  shadowCasterRequests: Set<Tile>;
   meshBaseCoverageReady: boolean;
   /** Current observer has uncovered branches beside an already published cut. */
   meshCoverageRecovery: boolean;

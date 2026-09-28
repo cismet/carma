@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  CACHE_CEILING_STORAGE_KEY,
+  cacheCeilingBuildId,
+  cacheCeilingStorageKey,
   EMPTY_CACHE_CEILING_MEMORY,
   endCacheCeilingSession,
   learnCacheCeiling,
@@ -30,7 +31,7 @@ describe("cache ceiling memory", () => {
   it("round-trips through storage and tolerates garbage", () => {
     const storage = fakeStorage();
     expect(readCacheCeilingMemory(storage)).toEqual(EMPTY_CACHE_CEILING_MEMORY);
-    storage.setItem(CACHE_CEILING_STORAGE_KEY, "{not json");
+    storage.setItem(cacheCeilingStorageKey(), "{not json");
     expect(readCacheCeilingMemory(storage)).toEqual(EMPTY_CACHE_CEILING_MEMORY);
     const learned = learnCacheCeiling(
       EMPTY_CACHE_CEILING_MEMORY,
@@ -103,7 +104,6 @@ describe("cache ceiling memory", () => {
     expect(normalizeCacheCeilingMemory(legacy)).toMatchObject({
       learnedBytes: null,
       reason: null,
-      healthyRuns: 0,
     });
     const confirmed = learnCacheCeiling(
       EMPTY_CACHE_CEILING_MEMORY,
@@ -113,51 +113,59 @@ describe("cache ceiling memory", () => {
     expect(normalizeCacheCeilingMemory(confirmed)).toBe(confirmed);
   });
 
-  it("recovers a well-used learned ceiling after three clean sessions", () => {
+  it("does not let an older live bundle overwrite a newer bundle's failure limit", () => {
+    const storage = fakeStorage();
+    const oldBuild = { ...EMPTY_CACHE_CEILING_MEMORY, buildId: "old-bundle" };
+    const newBuild = { ...EMPTY_CACHE_CEILING_MEMORY, buildId: "new-bundle" };
+    writeCacheCeilingMemory(
+      storage,
+      learnCacheCeiling(newBuild, 2 * GIB, "allocation")
+    );
+    writeCacheCeilingMemory(
+      storage,
+      learnCacheCeiling(oldBuild, 5 * GIB, "allocation")
+    );
+    expect(readCacheCeilingMemory(storage, "new-bundle").learnedBytes).toBe(
+      2 * GIB
+    );
+    expect(readCacheCeilingMemory(storage, "old-bundle").learnedBytes).toBe(
+      5 * GIB
+    );
+    expect(readCacheCeilingMemory(storage).learnedBytes).toBeNull();
+  });
+
+  it("retains confirmed limits through healthy sessions until the bundle changes", () => {
+    const storage = fakeStorage();
     let memory = learnCacheCeiling(
       EMPTY_CACHE_CEILING_MEMORY,
       2 * GIB,
       "allocation"
     );
-    for (let run = 0; run < 2; run += 1) {
+    for (let run = 0; run < 5; run++) {
       memory = endCacheCeilingSession(
         recordCacheCeilingPeak(
           startCacheCeilingSession(memory, 2 * GIB, run),
-          1.9 * GIB
-        ),
-        6 * GIB
+          2 * GIB
+        )
       );
       expect(memory.learnedBytes).toBe(2 * GIB);
-      expect(memory.healthyRuns).toBe(run + 1);
     }
-    memory = endCacheCeilingSession(
-      recordCacheCeilingPeak(
-        startCacheCeilingSession(memory, 2 * GIB, 2),
-        1.9 * GIB
-      ),
-      6 * GIB
+    writeCacheCeilingMemory(storage, memory);
+    expect(readCacheCeilingMemory(storage).learnedBytes).toBe(2 * GIB);
+    expect(
+      readCacheCeilingMemory(storage, "new-bundle").learnedBytes
+    ).toBeNull();
+    expect(readCacheCeilingMemory(storage, "new-bundle").probe).toBeNull();
+    expect(
+      cacheCeilingBuildId("https://app.test/assets/runtime-abc.js?t=1#debug")
+    ).toBe(cacheCeilingBuildId("https://app.test/assets/runtime-abc.js?t=2"));
+    expect(
+      cacheCeilingBuildId("https://app.test/assets/runtime-def.js")
+    ).not.toBe(cacheCeilingBuildId("https://app.test/assets/runtime-abc.js"));
+    storage.setItem(
+      cacheCeilingStorageKey(),
+      JSON.stringify({ ...memory, version: 1 })
     );
-    expect(memory.learnedBytes).toBe(3 * GIB);
-    expect(memory.healthyRuns).toBe(0);
-    // A lightly used session does not count towards recovery.
-    const idle = endCacheCeilingSession(
-      recordCacheCeilingPeak(
-        startCacheCeilingSession(memory, 3 * GIB, 3),
-        1 * GIB
-      ),
-      6 * GIB
-    );
-    expect(idle.healthyRuns).toBe(0);
-    // Reaching the unlearned ceiling forgets the lesson.
-    let recovered = memory;
-    for (let run = 0; run < 6; run += 1)
-      recovered = endCacheCeilingSession(
-        recordCacheCeilingPeak(
-          startCacheCeilingSession(recovered, 6 * GIB, run),
-          6 * GIB
-        ),
-        4 * GIB
-      );
-    expect(recovered.learnedBytes).toBeNull();
+    expect(readCacheCeilingMemory(storage).learnedBytes).toBeNull();
   });
 });

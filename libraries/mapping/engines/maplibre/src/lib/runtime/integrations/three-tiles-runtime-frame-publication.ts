@@ -156,9 +156,11 @@ export function createThreeTilesFramePublication(
         frameState.retainedMeshAncestors,
         {
           published: runtimeState.displayedMeshFrontier,
-          // Hard shadows use the currently committed LOD. Only coverage,
-          // not first-image pixel error, is a prerequisite for that draw.
-          allowCoarseBootstrap: runtimeState.pendingShadowView !== null,
+          // Missing mesh coverage admits the first drawable approximation.
+          // Final pixel quality belongs to refinement after that publication.
+          allowCoarseBootstrap: true,
+          releaseEmptyReplacementRegions: Boolean(runtimeState.shadowView),
+          allowHybridReplacement: !runtimeState.shadowView,
           firstImageErrorTargetPixels:
             runtimeState.options.firstImageErrorTargetPixels,
         }
@@ -176,68 +178,80 @@ export function createThreeTilesFramePublication(
       );
       abortStaleDownloads();
       runtimeState.lastLoadedViewportCutSize = loadedViewportCut.size;
-      runtimeState.displayedMeshFrontier = retainMeshDetailFrontier({
-        previous: runtimeState.displayedMeshFrontier,
-        proposed: loadedViewportCut,
-        requestedError: runtimeState.shadowView
-          ? receiverErrorTarget
-          : retainedDetailErrorTarget,
-        inView: inReceiverView,
-        allowInViewCoarsening,
-        errorPixels: dependencies.getTileScreenError,
-        acceptsOffscreenFallback: runtimeState.shadowView
-          ? undefined
-          : (tile) => {
-              if (!attachment.isDeferredMaterialReady(tile)) return false;
-              // Reuse reserve demand for coarsening as well as loading. A
-              // nearby offscreen branch must not jump straight to the root.
-              // These bands select tree levels, not independent ring meshes.
-              if (
-                runtimeState.extentGeometricError > 0 &&
-                tile.children.some(
-                  (child) =>
-                    child.geometricError >= runtimeState.extentGeometricError
-                )
-              )
-                return false;
-              const band = dependencies.getTileRingIndex(tile as RuntimeTile);
-              if (
-                band <= 0 ||
-                !(tile as RuntimeTile).engineData?.boundingVolume
-              )
-                return false;
-              // Outside the one-tile reserve, a loaded base fallback is enough.
-              // Nearby mixed children remain protected by the same margin test.
-              if (band > 1) return true;
-              const projected = {
-                inView: false,
-                error: Infinity,
-                distanceFromCamera: Infinity,
-              };
-              // Outside demand frustums the clipped error is undefined. The
-              // vendor's camera metric is used ONLY for this background cut.
-              runtimeState.tiles!.calculateTileViewError(tile, projected);
-              return (
-                projected.error <=
-                idleRingAllowedError(
-                  initialMeshLoadError(
-                    runtimeState.requestedErrorTarget,
-                    runtimeState.options.baseErrorTargetPixels
-                  ),
-                  band,
-                  runtimeState.ringRefinePasses,
-                  runtimeState.requestedErrorTarget
-                )
-              );
-            },
-      });
+      const previousDisplayed = runtimeState.displayedMeshFrontier;
+      // The shadow mode uses the selector's exclusive cut. Progressive history
+      // retention may overlap a parent with children and belongs to colour-only.
+      const nextDisplayed = runtimeState.shadowView
+        ? loadedViewportCut
+        : retainMeshDetailFrontier({
+            previous: previousDisplayed,
+            proposed: loadedViewportCut,
+            requestedError: runtimeState.shadowView
+              ? receiverErrorTarget
+              : retainedDetailErrorTarget,
+            inView: inReceiverView,
+            allowInViewCoarsening,
+            errorPixels: dependencies.getTileScreenError,
+            acceptsOffscreenFallback: runtimeState.shadowView
+              ? undefined
+              : (tile) => {
+                  if (!attachment.isDeferredMaterialReady(tile)) return false;
+                  // Reuse reserve demand for coarsening as well as loading. A
+                  // nearby offscreen branch must not jump straight to the root.
+                  // These bands select tree levels, not independent ring meshes.
+                  if (
+                    runtimeState.extentGeometricError > 0 &&
+                    tile.children.some(
+                      (child) =>
+                        child.geometricError >=
+                        runtimeState.extentGeometricError
+                    )
+                  )
+                    return false;
+                  const band = dependencies.getTileRingIndex(
+                    tile as RuntimeTile
+                  );
+                  if (
+                    band <= 0 ||
+                    !(tile as RuntimeTile).engineData?.boundingVolume
+                  )
+                    return false;
+                  // Outside the one-tile reserve, a loaded base fallback is enough.
+                  // Nearby mixed children remain protected by the same margin test.
+                  if (band > 1) return true;
+                  const projected = {
+                    inView: false,
+                    error: Infinity,
+                    distanceFromCamera: Infinity,
+                  };
+                  // Outside demand frustums the clipped error is undefined. The
+                  // vendor's camera metric is used ONLY for this background cut.
+                  runtimeState.tiles!.calculateTileViewError(tile, projected);
+                  return (
+                    projected.error <=
+                    idleRingAllowedError(
+                      initialMeshLoadError(
+                        runtimeState.requestedErrorTarget,
+                        runtimeState.options.baseErrorTargetPixels
+                      ),
+                      band,
+                      runtimeState.ringRefinePasses,
+                      runtimeState.requestedErrorTarget
+                    )
+                  );
+                },
+          });
+      // Demand proofs use frontier identity. Rebuilding the same selection
+      // must not invalidate them when no Tile membership changed.
+      if (
+        nextDisplayed.size !== previousDisplayed.size ||
+        [...nextDisplayed].some((tile) => !previousDisplayed.has(tile))
+      )
+        runtimeState.displayedMeshFrontier = nextDisplayed;
       if (runtimeState.shadowView) {
         dependencies.advanceMeshShadowCorridors(
           runtimeState.displayedMeshFrontier,
           traversalFrontier
-        );
-        runtimeState.displayedMeshFrontier = new Set(
-          runtimeState.committedMeshReceiverFrontier
         );
       }
       runtimeState.residentAncestors = collectResidentAncestors(

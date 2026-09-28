@@ -180,6 +180,29 @@ describe("resolveTileRequestNeed", () => {
     expect(resolveTileRequestNeed(support, input)).toBeNull();
   });
 
+  it("retains useful extent requests while admission waits for active cameras", () => {
+    const floor = mesh();
+    floor.geometricError = 40;
+    const input = context({ extentFloorArmed: true });
+    expect(resolveTileRequestNeed(floor, input)).toBe(TILE_REQUEST_NEED.EXTENT);
+    for (const changes of [
+      { activeViewsConverged: false },
+      { moving: true },
+      { baseCoverageReady: false },
+      { effectiveErrorTarget: 12 },
+    ])
+      expect(resolveTileRequestNeed(floor, { ...input, ...changes })).toBe(
+        TILE_REQUEST_NEED.EXTENT
+      );
+    expect(
+      resolveTileRequestNeed(floor, {
+        ...input,
+        activeViewsConverged: false,
+        cameraDemand: () => ({ required: true, errorRatio: 2 }),
+      })
+    ).toBe(TILE_REQUEST_NEED.CAMERA);
+  });
+
   it.each([false, true])(
     "admits idle reserve after convergence, ring=%s",
     (idleRing) => {
@@ -193,7 +216,9 @@ describe("resolveTileRequestNeed", () => {
         { moving: true },
         { baseCoverageReady: false },
         { mainViewConverged: false },
+        { activeViewsConverged: false },
         { effectiveErrorTarget: 12 },
+        { memoryErrorTarget: 9 },
       ])
         expect(
           resolveTileRequestNeed(tile, { ...input, ...changes })
@@ -242,6 +267,67 @@ describe("resolveTileRequestNeed", () => {
         context({ shadowView: true, shadowSelection: true })
       )
     ).toBeNull();
+  });
+
+  it("uses a camera's local refinement stage without falling back to observer final error", () => {
+    const parent = mesh(null, 24);
+    const tile = mesh(parent, 6);
+    const input = context({
+      inMainView: () => true,
+      screenError: () => 24,
+      cameraDemand: () => ({
+        required: true,
+        errorRatio: 4,
+        refinementErrorRatio: 1,
+      }),
+    });
+    expect(resolveTileRequestNeed(tile, input)).toBeNull();
+    expect(
+      resolveTileRequestNeed(tile, {
+        ...input,
+        cameraDemand: () => ({
+          required: true,
+          errorRatio: 4,
+          refinementErrorRatio: 2,
+        }),
+      })
+    ).toBe(TILE_REQUEST_NEED.CAMERA);
+  });
+
+  it("keeps metadata and atomic support for secondary-camera demand", () => {
+    const parent = mesh();
+    const tile = mesh(parent);
+    tile.internal.hasRenderableContent = false;
+    tile.internal.hasUnrenderableContent = true;
+    const input = context({
+      cameraDemand: () => ({ required: true, errorRatio: 2 }),
+    });
+    expect(resolveTileRequestNeed(tile, input)).toBe(TILE_REQUEST_NEED.CAMERA);
+    expect(
+      resolveTileRequestNeed(tile, {
+        ...input,
+        shadowView: true,
+        receiverReplacementAncestors: new Set([parent]),
+        cameraDemand: () => ({ required: true, errorRatio: 0.5 }),
+      })
+    ).toBe(TILE_REQUEST_NEED.SUPPORT);
+  });
+
+  it("does not resurrect demand rejected by the active shadow camera", () => {
+    const tile = mesh(mesh());
+    const shadowReceiverError = vi.fn(() => 0.01);
+    expect(
+      resolveTileRequestNeed(
+        tile,
+        context({
+          shadowView: true,
+          shadowSelection: true,
+          shadowCameraDemand: true,
+          shadowReceiverError,
+        })
+      )
+    ).toBeNull();
+    expect(shadowReceiverError).not.toHaveBeenCalled();
   });
 
   it("resolves urgent coverage before querying expensive secondary demand", () => {

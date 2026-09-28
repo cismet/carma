@@ -5,25 +5,44 @@ import {
   nextEffectiveErrorTarget,
 } from "../../core/effective-error-target";
 import { initialMeshLoadError } from "../../core/mesh-error-policy";
-import { nextMemoryErrorTarget } from "../../core/memory-error-target";
+import { TILES_LOAD_POLICY } from "../../core/tile-load-config";
+import {
+  EMPTY_MEMORY_TARGET_RECOVERY,
+  nextMemoryErrorTarget,
+  type MemoryTargetRecovery,
+} from "../../core/memory-error-target";
 import { getReadyMeshRegionCut } from "../../core/mesh-tile-coverage";
 import {
   TILES_ERROR_TARGET_MAX_PIXELS,
   TILES_ERROR_TARGET_MIN_PIXELS,
   VIEW_QUALITY_AUDIT_PASSES,
+  MESH_ALLOCATION_RECOVERY_PHASE,
 } from "./three-tiles-runtime-config";
 import type {
   ThreeTilesRuntimeServices,
   ThreeTilesRuntimeState,
 } from "./three-tiles-runtime-context";
-import type { RuntimeTile } from "./three-tiles-runtime-types";
+import type {
+  RuntimePriorityQueue,
+  RuntimeTile,
+} from "./three-tiles-runtime-types";
 import { readMapView } from "./three-tiles-runtime-vendor";
+import { readMemoryProbeFacts } from "./three-tiles-memory-probe";
 
 /** Owns quality effects; policy inputs remain explicit and current. */
 export function createThreeTilesQuality(
   runtimeState: Pick<
     ThreeTilesRuntimeState,
     | "appliedTilesetMinResolutionPx"
+    | "allocationFailed"
+    | "allocationRecovery"
+    | "bytesPredictor"
+    | "committedMeshCasterFrontier"
+    | "contextLost"
+    | "lastActiveViewsConverged"
+    | "loadingPaused"
+    | "loadedResidentBytes"
+    | "pendingMeshReceiverFrontier"
     | "ceilingBytes"
     | "configuredErrorTarget"
     | "displayedMeshFrontier"
@@ -64,11 +83,22 @@ export function createThreeTilesQuality(
     | "isPipelineIdle"
     | "isTileInMainView"
     | "getTileObserverDemand"
+    | "getTileCameraDemand"
     | "requestRender"
     | "requestShadowSelectionRefresh"
     | "resetDeferredTiles"
   >
 ) {
+  let memoryRecovery: MemoryTargetRecovery = EMPTY_MEMORY_TARGET_RECOVERY;
+  let probeInspection: {
+    at: number;
+    cachedBytes: number;
+    ceiling: number;
+    target: number;
+    views: ThreeTilesRuntimeState["tileCameraDemand"];
+    shadow: ThreeTilesRuntimeState["shadowView"];
+    facts: ReturnType<typeof readMemoryProbeFacts>;
+  } | null = null;
   const applyEffectiveErrorTarget: ThreeTilesRuntimeServices["applyEffectiveErrorTarget"] =
     (nextTarget: number) => {
       if (runtimeState.effectiveErrorTarget === nextTarget) return;
@@ -107,16 +137,12 @@ export function createThreeTilesQuality(
       // Fill base coverage first, then let independent complete families reach
       // the requested target. Global 8/4/2px barriers delayed ready corridors.
       if (runtimeState.options.providesTerrain) {
-        // Skip strategy: while the camera moves, stay at the base target so
-        // the bounded motion pipeline fetches coverage for newly exposed
-        // ground, not refinements that would queue up behind it and delay
-        // the ring tiles' promotion at moveend; refinement resumes at rest.
+        // During movement, admit new ground at the base target; retain visible
+        // detail and resume refinement at moveend.
         const movingSkipStrategy =
           runtimeState.tiles.loadAncestors === false &&
           runtimeState.map?.isMoving?.() === true;
-        // Memory-adaptive target (TILES_COVERAGE.md, R6): at the ceiling with an
-        // unconverged view the target rises by half, up to the root error;
-        // with room to spare it steps back towards the requested target.
+        // R6: resident pressure raises admission error; headroom allows recovery.
         const base = initialMeshLoadError(
           runtimeState.requestedErrorTarget,
           runtimeState.options.baseErrorTargetPixels,
@@ -135,6 +161,85 @@ export function createThreeTilesQuality(
           for (const tile of cache.usedSet)
             usedBytes += cache.getMemoryUsage(tile);
         }
+        const probeSettled =
+          (runtimeState.memoryErrorTarget > runtimeState.requestedErrorTarget ||
+            memoryRecovery.pending !== null) &&
+          runtimeState.map?.isMoving?.() !== true &&
+          !runtimeState.memoryAdmissionPaused &&
+          !runtimeState.loadingPaused &&
+          !runtimeState.contextLost &&
+          !runtimeState.allocationFailed &&
+          (!runtimeState.allocationRecovery ||
+            runtimeState.allocationRecovery.phase ===
+              MESH_ALLOCATION_RECOVERY_PHASE.RECOVERED) &&
+          runtimeState.lastActiveViewsConverged === true &&
+          !runtimeState.pendingMeshReceiverFrontier?.size &&
+          dependencies.isPipelineIdle() &&
+          [
+            runtimeState.tiles.parseQueue,
+            runtimeState.tiles.processNodeQueue,
+            ...runtimeState.tiles.downloadQueue.originQueues.values(),
+          ].every((entry) => {
+            const queue = entry as RuntimePriorityQueue;
+            return queue.currJobs === 0 && queue.items.length === 0;
+          });
+        const now = performance.now();
+        const nextTarget = Math.max(
+          runtimeState.requestedErrorTarget,
+          runtimeState.memoryErrorTarget / TILES_LOAD_POLICY.memoryTargetStep
+        );
+        const available = runtimeState.ceilingBytes - cache.cachedBytes;
+        const required = Math.max(
+          runtimeState.bytesPredictor.globalEstimate(),
+          runtimeState.ceilingBytes *
+            TILES_LOAD_POLICY.memoryTargetProbeHeadroom
+        );
+        const failed =
+          memoryRecovery.pending &&
+          runtimeState.memoryErrorTarget > memoryRecovery.pending.target
+            ? memoryRecovery.pending
+            : memoryRecovery.failed;
+        let facts: ReturnType<typeof readMemoryProbeFacts> | undefined;
+        if (
+          probeSettled &&
+          now - runtimeState.memoryErrorTargetChangedAt >
+            TILES_LOAD_POLICY.memoryTargetRelaxAfterMs &&
+          available >= required &&
+          (!failed ||
+            nextTarget > failed.target ||
+            available >= failed.headroomBytes + required)
+        ) {
+          // Reuse stable facts so sun animation does not rescan families per frame.
+          if (
+            !probeInspection ||
+            probeInspection.cachedBytes !== cache.cachedBytes ||
+            probeInspection.ceiling !== runtimeState.ceilingBytes ||
+            probeInspection.target !== nextTarget ||
+            probeInspection.views !== runtimeState.tileCameraDemand ||
+            probeInspection.shadow !== runtimeState.shadowView ||
+            now - probeInspection.at >
+              TILES_LOAD_POLICY.memoryTargetRelaxAfterMs
+          )
+            probeInspection = {
+              at: now,
+              cachedBytes: cache.cachedBytes,
+              ceiling: runtimeState.ceilingBytes,
+              target: nextTarget,
+              views: runtimeState.tileCameraDemand,
+              shadow: runtimeState.shadowView,
+              facts: readMemoryProbeFacts(
+                cache,
+                new Set([
+                  ...runtimeState.displayedMeshFrontier,
+                  ...runtimeState.committedMeshCasterFrontier,
+                ]),
+                runtimeState.bytesPredictor,
+                dependencies.getTileCameraDemand,
+                nextTarget / runtimeState.requestedErrorTarget
+              ),
+            };
+          facts = probeInspection.facts;
+        }
         const memory = nextMemoryErrorTarget({
           current: runtimeState.memoryErrorTarget,
           requested: runtimeState.requestedErrorTarget,
@@ -149,10 +254,20 @@ export function createThreeTilesQuality(
           cachedBytes: cache.cachedBytes,
           usedBytes,
           ceilingBytes: runtimeState.ceilingBytes,
-          now: performance.now(),
+          now,
           changedAt: runtimeState.memoryErrorTargetChangedAt,
+          settled: probeSettled,
+          residentBytes:
+            facts?.residentBytes ??
+            runtimeState.loadedResidentBytes ??
+            undefined,
+          memoryFailure:
+            runtimeState.allocationFailed || runtimeState.contextLost,
+          minimumProbeBytes: facts?.minimumProbeBytes ?? required,
+          recovery: memoryRecovery,
         });
         if (!movingSkipStrategy) {
+          memoryRecovery = memory.recovery;
           runtimeState.memoryErrorTarget = memory.target;
           runtimeState.memoryErrorTargetChangedAt = memory.changedAt;
         }
@@ -330,7 +445,8 @@ export function createThreeTilesQuality(
       runtimeState.appliedTilesetMinResolutionPx = Number.NaN;
     }
     runtimeState.requestedErrorTarget = nextErrorTarget;
-    // A new request restarts the memory-adaptive target from it.
+    // A new explicit quality request starts a distinct recovery objective.
+    memoryRecovery = EMPTY_MEMORY_TARGET_RECOVERY;
     runtimeState.memoryErrorTarget = nextErrorTarget;
     runtimeState.memoryErrorTargetChangedAt = 0;
     runtimeState.meshDemandSweepPending =

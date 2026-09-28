@@ -138,6 +138,7 @@ export function createThreeTilesRuntimeState(
   const hostHandle: unknown = null;
   const memoryErrorTarget = requestedErrorTarget;
   const memoryErrorTargetChangedAt = 0;
+  const lastCacheGrowthAt = performance.now();
   const foveationWeight = 0;
   const tilesetMinResolutionPx: number | null = null;
   const appliedTilesetMinResolutionPx: number | null = null;
@@ -176,6 +177,7 @@ export function createThreeTilesRuntimeState(
   const shadowViewSignature = "";
   // Pending work from earlier sun directions at the same observer pose.
   const retainedShadowRequests = new Set<Tile>();
+  const shadowCasterRequests = new Set<Tile>();
   const pendingShadowView: SharedThreeSceneShadowView | null = null;
   const meshInitialBasePassDone = false;
   const shadowSelectionEnabled = false;
@@ -336,6 +338,14 @@ export function createThreeTilesRuntimeState(
     tileCameraDemand: createTileCameraDemand([]),
     tileCameraSignature: "[]",
     meshRefinementSupport: new Set(),
+    meshShadowReserve: {
+      frontier: new Set(),
+      support: new Set(),
+      ready: false,
+      known: 0,
+      covered: 0,
+      totalKnown: false,
+    },
     kickstartTimer,
     requestBackoffTimer,
     hiddenWipeTimer,
@@ -351,10 +361,12 @@ export function createThreeTilesRuntimeState(
     lastProgressAt,
     usedBytesMain,
     lastMainViewConverged,
+    lastActiveViewsConverged: false,
     deviceProfile,
     styleCacheBudgetBytes,
     styleCacheOverflowBytes,
     ceilingBytes,
+    loadedResidentBytes: null,
     cacheCeilingStorage,
     cacheCeilingMemory,
     learnedCeilingBytes,
@@ -368,6 +380,7 @@ export function createThreeTilesRuntimeState(
     hostHandle,
     memoryErrorTarget,
     memoryErrorTargetChangedAt,
+    lastCacheGrowthAt,
     foveationWeight,
     tilesetMinResolutionPx,
     appliedTilesetMinResolutionPx,
@@ -398,6 +411,7 @@ export function createThreeTilesRuntimeState(
     shadowView,
     shadowViewSignature,
     retainedShadowRequests,
+    shadowCasterRequests,
     pendingShadowView,
     meshInitialBasePassDone,
     meshInitialHandoverDone: options.providesTerrain !== true,
