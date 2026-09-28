@@ -118,7 +118,19 @@
           "dev": {
             "pages": {
               "org": "carma-dev-deployments",
-              "prj": "tz-leerstandsmanagement"
+              "prj": "tz-leerstandsmanagement",
+              "envs": [
+                "VITE_TZ_LEERSTANDSMANAGEMENT_REST_SERVICE=https://wunda-rot-cloud.cismet.de/wunda/api/"
+              ]
+            }
+          },
+          "live": {
+            "pages": {
+              "org": "digital-twin-wuppertal-live",
+              "prj": "tz-leerstandsmanagement",
+              "envs": [
+                "VITE_TZ_LEERSTANDSMANAGEMENT_REST_SERVICE=https://wunda-cloud.cismet.de/wunda/api/"
+              ]
             }
           }
         },
@@ -126,7 +138,10 @@
           "dev": {
             "pages": {
               "org": "carma-dev-deployments",
-              "prj": "tz-leerstandsmanagement"
+              "prj": "tz-leerstandsmanagement",
+              "envs": [
+                "VITE_TZ_LEERSTANDSMANAGEMENT_REST_SERVICE=https://wunda-rot-cloud.cismet.de/wunda/api/"
+              ]
             }
           }
         }
