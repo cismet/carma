@@ -12,8 +12,6 @@ const ResultingStep = ({ value, onChange, onProblem }) => {
   const isJoin = value.action === WIZARD_ACTIONS.JOIN;
   const count = isJoin ? 1 : value.splitCount ?? 2;
 
-  // ResultingPanel took the split candidate, or the last join member when
-  // there was none.
   const preset = useMemo(() => {
     if (value.splitKey) {
       return value.splitKey;
@@ -25,8 +23,6 @@ const ResultingStep = ({ value, onChange, onProblem }) => {
   // memoised: a fresh [] on every render would re-run the effect below
   const resultKeys = useMemo(() => value.resultKeys ?? [], [value.resultKeys]);
 
-  // Going back and changing the split count leaves stale entries behind;
-  // ResultingPanel.refresh() dropped them the same way.
   useEffect(() => {
     if (resultKeys.length !== count) {
       const trimmed = resultKeys.slice(0, count);
@@ -36,9 +32,7 @@ const ResultingStep = ({ value, onChange, onProblem }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [count, resultKeys.length]);
 
-  // leading slots whose key and geometry are confirmed; later ones stay locked
   const [confirmed, setConfirmed] = useState(0);
-  // a key the chooser rejected, e.g. one that already exists
   const [chooserProblem, setChooserProblem] = useState();
 
   const handleValidity = (index, status) => {

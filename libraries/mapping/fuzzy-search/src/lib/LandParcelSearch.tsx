@@ -30,7 +30,6 @@ export type ParcelChangeInfo = {
   fstck: string;
 };
 
-/** What `transformOptions` gets: the input, how far it parsed, what matched. */
 export type LandParcelOptionsContext = {
   input: string;
   parseState: LandParcelParseState;
@@ -46,17 +45,13 @@ export type LandParcelSearchProps = {
   showDropdownBelow?: boolean;
   showButton?: boolean;
   defaultValue?: string;
-  /** Controlled input text; the component then keeps none of its own. */
   value?: string;
   onValueChange?: (value: string) => void;
-  /** Last word on the dropdown: filter the options, or add entries of your own. */
   transformOptions?: (
     groups: GroupedOptions[],
     context: LandParcelOptionsContext
   ) => GroupedOptions[];
-  /** The picked option, including entries added by `transformOptions`. */
   onOptionSelect?: (option: Option) => void;
-  /** Replaces the default "Kein Flurstück gefunden" toast. */
   onNotFound?: (input: string) => void;
   dimPrefix?: boolean;
 };

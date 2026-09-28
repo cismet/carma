@@ -9,15 +9,7 @@ import { FLURSTUECK_ART } from "../constants";
 import { joinFlurstuecke } from "./join";
 import { splitFlurstuecke } from "./split";
 
-/**
- * Port of JoinSplitActionSteps + LagisBroker.joinSplitFlurstuecke —
- * "Flurstück zusammenlegen/teilen".
- *
- * Implemented exactly as in the Swing client: the members are merged into a
- * throw-away "pseudo" Flurstücksschlüssel, which is then split into the target
- * parcels. The pseudo key stays in the database as the hinge of the history
- * graph — the history view knows it and renders it as an unnamed node.
- */
+// merged into a pseudo key, then split; the key stays as a history node
 export const joinSplitFlurstuecke = async ({ memberKeys, resultKeys }, ctx) => {
   const { jwt, accountName, journal } = ctx;
 
@@ -52,8 +44,7 @@ export const joinSplitFlurstuecke = async ({ memberKeys, resultKeys }, ctx) => {
 
   await joinFlurstuecke({ memberKeys, resultKey: pseudoKey }, ctx);
 
-  // the new parcels inherit the Flurstücksart of the first merged parcel,
-  // not the pseudo one they technically descend from
+  // inherit the first merged parcel's Flurstücksart, not the pseudo key's
   const inheritedArt = memberKeys[0]?.art;
   const split = await splitFlurstuecke(
     {

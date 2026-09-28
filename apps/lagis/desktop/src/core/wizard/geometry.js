@@ -5,18 +5,7 @@ import { projectionData } from "../tools/mappingTools";
 import wizardQueries from "./queries";
 import { isKeyComplete, isPseudoKey, landparcelLabel, pad } from "./keys";
 
-/**
- * Mirrors the expression `view_flurstueck_schluessel` uses:
- *
- *   '05' || g.schluessel || '-' || lpad(flur, 3) || '-' || lpad(zaehler, 5)
- *        || CASE WHEN nenner <> 0 THEN '/' || lpad(nenner, 4) ELSE '' END
- *
- * The Gemarkungsschlüssel is deliberately not padded — padding it would
- * produce ids that match nothing for any Gemarkung with a shorter Schlüssel.
- *
- * @returns {string|undefined} undefined for incomplete keys and for pseudo
- *   keys, which exist only in LagIS and have no ALKIS counterpart.
- */
+// Gemarkungsschlüssel stays unpadded, as in view_flurstueck_schluessel
 export const buildAlkisId = (key) => {
   if (!key || isPseudoKey(key) || !isKeyComplete(key)) {
     return undefined;
@@ -29,11 +18,6 @@ export const buildAlkisId = (key) => {
   return `05${schluessel}-${pad(key.flur, 3)}-${zaehlerNenner}`;
 };
 
-/**
- * @returns {Object} alkis_id -> { area, geometry }, holding only the parcels
- *   that carry a geometry. A key missing from the result has none, which for a
- *   parcel that is about to be created is the normal case.
- */
 export const fetchGeometries = async (keys, jwt) => {
   const alkisIds = [...new Set((keys ?? []).map(buildAlkisId).filter(Boolean))];
   if (!alkisIds.length) {
@@ -85,7 +69,6 @@ const polygonArea = (rings) =>
     0
   );
 
-/** Planar area of a metric (EPSG:25832) geometry, as JTS getArea computes it. */
 export const planarArea = (geometry) => {
   if (geometry?.type === "Polygon") {
     return polygonArea(geometry.coordinates);

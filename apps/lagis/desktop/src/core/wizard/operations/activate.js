@@ -9,10 +9,6 @@ import { formatKey } from "../keys";
 import { acquireLock, releaseLock } from "../locks";
 import { hasHistoryEntry } from "./core";
 
-/**
- * Port of ActivateActionSteps + LagisBroker.setFlurstueckActive —
- * "Flurstück aktivieren".
- */
 export const activateFlurstueck = async ({ key }, ctx) => {
   const { jwt, accountName, journal, currentKeyString } = ctx;
   const keyString = formatKey(key);
@@ -47,7 +43,6 @@ export const activateFlurstueck = async ({ key }, ctx) => {
       datum_letzter_stadtbesitz: key.datumLetzterStadtbesitz ?? null,
     };
 
-    // A städtisch parcel that comes back gets fresh creation/ownership dates.
     const reactivationDates =
       key.art.bezeichnung === FLURSTUECK_ART.STAEDTISCH
         ? {

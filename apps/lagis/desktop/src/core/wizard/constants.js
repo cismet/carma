@@ -1,6 +1,3 @@
-// Ported from de.cismet.lagis.wizard.steps.InitialStep and
-// de.cismet.lagisEE.entity.core.hardwired.FlurstueckArt
-
 export const WIZARD_ACTIONS = {
   CREATE: "create",
   RENAME: "rename",
@@ -12,7 +9,6 @@ export const WIZARD_ACTIONS = {
   CHANGE_KIND: "changeKind",
 };
 
-// Order and wording follow the Swing ChoiceActionPanel.
 export const ACTION_CHOICES = [
   {
     value: WIZARD_ACTIONS.CREATE,
@@ -73,7 +69,6 @@ export const FLURSTUECK_ART = {
   PSEUDO: "pseudo",
 };
 
-// ResultingPanel/SummaryPanel warn below this size.
 export const SMALL_AREA_THRESHOLD_SQM = 2;
 
 export const MIN_SPLIT_COUNT = 2;

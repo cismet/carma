@@ -21,7 +21,6 @@ import {
 } from "../../core/tools/libreFeatures";
 import { toWgs84 } from "../../core/wizard/geometry";
 
-// the landparcel style of the main map (mapExtractor)
 const PARCEL_STYLE = {
   color: "#005F6B",
   weight: 1,
@@ -40,11 +39,6 @@ const boundsOf = (geometry) => {
   return bounds;
 };
 
-/**
- * The LagIS map reduced to zoom, select and polygon. `areas` are filled in
- * their Dienststelle colour; the polygons themselves live in the measurement
- * host and reach the caller through `onFeaturesChange`.
- */
 const AreaMap = forwardRef(
   (
     {
@@ -126,7 +120,6 @@ const AreaMap = forwardRef(
         style={{ flex: 1, minHeight: 420 }}
       >
         <LibreContextProvider>
-          {/* no storageKey: measurements live only in the wizard data */}
           <MeasurementsProvider>
             <CarmaMap
               mapEngine="maplibre"

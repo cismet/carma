@@ -11,7 +11,6 @@ const emit = () => {
   }
 };
 
-/** "mutation InsertSchluessel(...)" -> "InsertSchluessel" */
 const operationNameOf = (query) => {
   const named = /\b(?:query|mutation)\s+([A-Za-z_][\w]*)/.exec(query);
   if (named) {
@@ -23,10 +22,6 @@ const operationNameOf = (query) => {
 
 const kindOf = (query) => (/^\s*mutation\b/.test(query) ? "mutation" : "query");
 
-/**
- * Turns recording on or off. While off nothing is kept, so switching the panel
- * off also stops the documents and responses piling up in memory.
- */
 export const setLoggingEnabled = (value) => {
   enabled = value;
   if (!value && entries.length > 0) {
@@ -47,12 +42,6 @@ export const clearLog = () => {
   emit();
 };
 
-/**
- * @param {string} query   the document, or for a cids action the request body
- * @param {unknown} variables
- * @param {{kind?: string, operation?: string}} [meta] overrides for calls that
- *   are not GraphQL — SaveObject and DeleteObject name their class instead
- */
 export const startCall = (query, variables, meta) => {
   if (!enabled) {
     return undefined;

@@ -8,7 +8,6 @@ import {
 import GraphQLPanel from "./GraphQLPanel";
 import ResultDescription from "./ResultDescription";
 
-/** Consecutive steps of one group become a single step with its own list. */
 const groupSteps = (steps) => {
   const items = [];
   steps.forEach((step, index) => {
@@ -44,7 +43,6 @@ const StepList = ({ steps, stepIndex }) => {
             direction="vertical"
             size="small"
             progressDot
-            // before the group nothing is done, after it everything is
             current={
               itemIndex < current
                 ? item.children.length
@@ -62,7 +60,6 @@ const StepList = ({ steps, stepIndex }) => {
   );
 };
 
-// same sizes as the BelIS "Erweiterte Suche" modal
 const PANE_STYLE = { height: "min(720px, calc(100vh - 160px))" };
 const SIDEBAR_WIDTH = "clamp(180px, 20vw, 240px)";
 
@@ -121,8 +118,7 @@ const WizardModal = ({
         </div>
       )}
 
-      {/* kept mounted rather than unmounted: the choosers hold the typed
-          Flurstück in local state, which unmounting would discard */}
+      {/* kept mounted: the choosers hold typed input in local state */}
       <div
         style={{
           display: logsVisible ? "none" : "flex",
@@ -153,7 +149,6 @@ const WizardModal = ({
             justifyContent: "space-between",
           }}
         >
-          {/* grows, so a step can hand the free height to its map */}
           <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
             {stepTitle && (
               <div

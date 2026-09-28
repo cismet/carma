@@ -3,19 +3,8 @@ import { PlusOutlined } from "@ant-design/icons";
 import { parseLandParcelInput } from "@carma-mapping/fuzzy-search";
 import { landparcelLabel } from "./keys";
 
-/**
- * What the wizard adds on top of LandParcelSearch, which stays unaware of it.
- *
- * Modes, as in the Swing FlurstueckChooser:
- *   "current"  — active parcels only
- *   "historic" — historic parcels only
- *   "all"      — no filter
- *   "creation" — a key that does not exist yet
- */
-
 export const CREATE_STAGE = "new";
 
-/** Valid Flurstück inputs, as in the Swing panel: "3", "3/0", "3/15". */
 export const parseFlurstueckInput = (text) => {
   if (!text) {
     return { error: "Bitte geben Sie ein Flurstück ein." };
@@ -37,7 +26,6 @@ export const parseFlurstueckInput = (text) => {
 
 const clean = (zaehler, nenner) => `${Number(zaehler)}/${Number(nenner ?? 0)}`;
 
-/** The text LandParcelSearch shows for a key: "Barmen-1-271/0". */
 export const keyToSearchText = (key) =>
   key
     ? `${key.gemarkung?.bezeichnung ?? ""}-${key.flur}-${clean(
@@ -77,10 +65,6 @@ const HIDDEN_PARCEL_MESSAGES = {
   creation: "Flurstück ist bereits vorhanden",
 };
 
-/**
- * Message for a typed key that exists but is filtered out by the mode, or
- * that exists at all when a new one is wanted.
- */
 export const hiddenParcelMessage = (text, mode, structure) => {
   if (!HIDDEN_PARCEL_MESSAGES[mode] || !structure) {
     return undefined;
@@ -179,13 +163,8 @@ const createGroup = (option) => [
   },
 ];
 
-/**
- * Only the Flurstück entries are touched; the Gemarkung and Flur lists stay as
- * the search built them, so typing forward works the same everywhere.
- */
 export const makeTransformOptions = ({ mode, structure }) => {
   return (groups, { parseState }) => {
-    // creation keeps every parcel visible: an existing one answers the question
     const filtered = filterGroups(groups, mode === "creation" ? "all" : mode);
     if (mode !== "creation" || parseState.stage !== "flur_matched") {
       return filtered;
@@ -196,7 +175,6 @@ export const makeTransformOptions = ({ mode, structure }) => {
       return filtered;
     }
 
-    // only offered while the key looks free here; the server decides on pick
     const label = landparcelLabel(parsed.zaehler, parsed.nenner);
     const known =
       structure?.[parseState.gemarkungKey]?.flure?.[parseState.flurKey]
@@ -234,10 +212,7 @@ export const makeTransformOptions = ({ mode, structure }) => {
   };
 };
 
-/**
- * The redux lookup is keyed by the id parsed out of the ALKIS id, which is not
- * the database id, so the Bezeichnung is matched first and the Schlüssel last.
- */
+// redux lookup id is parsed from the ALKIS id, not the DB id
 export const resolveGemarkung = (gemarkungen, { key, name }) => {
   if (!gemarkungen) {
     return undefined;

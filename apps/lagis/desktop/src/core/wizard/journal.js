@@ -1,22 +1,8 @@
-/**
- * The Swing wizard ran inside a cids transaction, so a failing step rolled the
- * whole action back. Over GraphQL there is no such boundary: every mutation is
- * committed on its own. This journal is the replacement — each write registers
- * how to undo itself, and a failure unwinds them in reverse order.
- *
- * It is a compensation, not a rollback: an undo can itself fail (for instance
- * when another user has meanwhile touched the row). Those failures are
- * collected and reported, never swallowed, so the user learns that data may
- * have been left half-changed.
- */
+// GraphQL writes aren't transactional: undo them in reverse on failure.
 export const createJournal = () => {
   const entries = [];
 
   return {
-    /**
-     * @param {string} description shown to the user if the undo fails
-     * @param {() => Promise<unknown>} undo
-     */
     record(description, undo) {
       entries.push({ description, undo });
     },
@@ -25,15 +11,10 @@ export const createJournal = () => {
       return entries.length;
     },
 
-    /** Forget everything — called once an action has completed successfully. */
     commit() {
       entries.length = 0;
     },
 
-    /**
-     * Undoes recorded writes, newest first.
-     * @returns {Promise<string[]>} descriptions of the undos that failed
-     */
     async rollback() {
       const failed = [];
       while (entries.length > 0) {
@@ -50,10 +31,6 @@ export const createJournal = () => {
   };
 };
 
-/**
- * Turns failed compensations into the sentence the user sees underneath the
- * actual error.
- */
 export const describeRollbackFailures = (failed) => {
   if (!failed.length) {
     return "Alle bereits durchgeführten Änderungen wurden zurückgenommen.";

@@ -1,29 +1,15 @@
 import { FLURSTUECK_ART } from "./constants";
 
-/**
- * A "Flurstücksschlüssel" as the wizard passes it around.
- *
- * @typedef {Object} LandParcelKey
- * @property {number} [id]          flurstueck_schluessel.id, absent for keys the user just typed
- * @property {Object} gemarkung     { id, schluessel, bezeichnung }
- * @property {number} flur
- * @property {number} zaehler
- * @property {number|null} nenner
- * @property {Object} [art]         { id, bezeichnung }
- */
-
 export const isPseudoKey = (key) =>
   key?.art?.bezeichnung === FLURSTUECK_ART.PSEUDO;
 
 export const pad = (value, length) => String(value ?? "").padStart(length, "0");
 
-/** Five digit Zähler, four digit Nenner only when there is one. */
 export const landparcelLabel = (zaehler, nenner) =>
   nenner === null || nenner === undefined || Number(nenner) === 0
     ? pad(zaehler, 5)
     : `${pad(zaehler, 5)}/${pad(nenner, 4)}`;
 
-/** Mirrors FlurstueckSchluesselCustomBean.getKeyString(). */
 export const formatKey = (key) => {
   if (!key) {
     return "";
@@ -38,18 +24,12 @@ export const formatKey = (key) => {
     : base;
 };
 
-/**
- * Mirrors FlurstueckSchluessel.FLURSTUECK_EQUALATOR.pedanticEquals: compares
- * gemarkung/flur/zähler/nenner only — id and Flurstücksart are deliberately
- * ignored, because the wizard compares typed keys against persisted ones.
- */
 export const keysEqual = (a, b) => {
   if (!a || !b) {
     return false;
   }
   const same = (x, y) => (x ?? null) === (y ?? null);
-  // a missing Nenner reaches us as 0 from typed keys and as null from the
-  // database, and both mean the same parcel
+  // a missing Nenner is 0 in typed keys and null from the database
   const nenner = (value) =>
     value === null || value === undefined || Number(value) === 0 ? null : value;
   return (
@@ -67,7 +47,6 @@ export const hasDuplicateKeys = (keys) =>
     )
   );
 
-/** True once gemarkung/flur/zähler are filled in — nenner stays optional. */
 export const isKeyComplete = (key) =>
   Boolean(
     key &&
@@ -86,7 +65,6 @@ export const emptyKey = () => ({
   art: undefined,
 });
 
-/** Used by ResultingPanel's COPY_CONTENT_MODE: prefill gemarkung + flur only. */
 export const copyKeyContext = (key) => ({
   ...emptyKey(),
   gemarkung: key?.gemarkung,

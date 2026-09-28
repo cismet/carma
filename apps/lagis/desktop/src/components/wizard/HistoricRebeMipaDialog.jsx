@@ -22,16 +22,7 @@ const foundPart = (rebeCount, mipaCount) => {
   return `Auf dem Flurstück ${verb} ${parts.join(" und ")}`;
 };
 
-/**
- * Port of HistoricNoSucessorDialog.
- *
- * Shown when a parcel that is being set historic still carries rights and
- * burdens or leases. Ticking a box prefills its date with the historic date,
- * exactly as the Swing checkbox listeners did.
- *
- * The Swing dialog always claimed "ohne Nachfolger" — its check is commented
- * out (LagisBroker.java:2740). Here the count decides.
- */
+// Swing always said "ohne Nachfolger"; here the successor count decides
 const HistoricRebeMipaDialog = ({
   open,
   historicDate,

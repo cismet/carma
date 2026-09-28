@@ -9,10 +9,6 @@ import { formatKey } from "./keys";
 
 export { ActionNotSuccessfulError, CidsActionError } from "./errors";
 
-/**
- * Runs a document and unwraps it. Every GraphQL call of the wizard goes through
- * here, so a transport error and a GraphQL `errors` payload fail the same way.
- */
 const execute = async (fetcher, query, variables, jwt) => {
   const callId = startCall(query, variables);
   const startedAt = Date.now();
@@ -62,11 +58,9 @@ const execute = async (fetcher, query, variables, jwt) => {
 export const run = (query, variables, jwt) =>
   execute(fetchGraphQL, query, variables, jwt);
 
-/** The WuNDa endpoint, which carries ALKIS. */
 export const runWuNDa = (query, variables, jwt) =>
   execute(fetchGraphQLFromWuNDa, query, variables, jwt);
 
-/** cids class names, i.e. the database table each write targets. */
 export const CLASS = {
   SCHLUESSEL: "flurstueck_schluessel",
   FLURSTUECK: "flurstueck",
@@ -82,13 +76,7 @@ export const CLASS = {
 
 const pad2 = (value) => String(value).padStart(2, "0");
 
-/**
- * cids parses dates with a Java DateFormat that wants exactly
- * `YYYY-MM-DDTHH:mm:ss` — no timezone, no milliseconds. A bare `2026-09-17`
- * and an ISO string ending in `Z` both come back as
- * `{"Exception": "Unparseable date: ..."}`. Same format BelIS sends from
- * transformDatesForBackend.
- */
+/** cids wants exactly YYYY-MM-DDTHH:mm:ss, no timezone or millis. */
 const formatCidsDate = (date, withTime) => {
   const d = date instanceof Date ? date : new Date(date);
   const day = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(
@@ -100,12 +88,9 @@ const formatCidsDate = (date, withTime) => {
   return `${day}T${time}`;
 };
 
-/** LagisBroker writes java.util.Date, so the clock time is part of the value. */
 export const toTimestamp = (date) => (date ? formatCidsDate(date, true) : null);
 
 const nowIso = () => toTimestamp(new Date());
-
-/* ------------------------------------------------------------ Stammdaten */
 
 export const fetchFlurstueckArten = async (jwt) => {
   const data = await run(wizardQueries.flurstueckArten, {}, jwt);
@@ -125,8 +110,6 @@ export const requireArt = (arten, bezeichnung) => {
   return art;
 };
 
-/* Flurstücksschlüssel */
-
 const mapSchluessel = (row) =>
   row
     ? {
@@ -145,7 +128,6 @@ const mapSchluessel = (row) =>
       }
     : undefined;
 
-/** Mirrors FlurstueckSchluesselCustomBean.createNewByFsKey. */
 export const findSchluesselByKey = async (key, jwt) => {
   const noNenner = key.nenner === null || key.nenner === undefined;
   const zeroNenner = Number(key.nenner) === 0;
@@ -197,8 +179,6 @@ export const updateSchluessel = (id, changes, jwt, accountName) =>
 export const deleteSchluessel = (id, jwt) =>
   deleteObject(CLASS.SCHLUESSEL, { id }, jwt);
 
-/* Flurstück */
-
 export const fetchFlurstueckBySchluesselId = async (schluesselId, jwt) => {
   const data = await run(
     wizardQueries.flurstueckBySchluesselId,
@@ -233,17 +213,9 @@ export const updateFlurstueck = (id, changes, jwt) =>
 export const deleteFlurstueck = (id, jwt) =>
   deleteObject(CLASS.FLURSTUECK, { id }, jwt);
 
-/**
- * Moves the contract and tree links by writing the array properties, the way
- * renameFlurstueck did it in Java (addAll on the new bean, clear on the old).
- * cids persists an array property as a whole, so each side is one call.
- */
 export const saveFlurstueckArrays = (id, arrays, jwt) =>
   saveObject(CLASS.FLURSTUECK, { id, ...arrays }, jwt);
 
-/* Historie */
-
-/** Mirrors LagisBroker.existHistoryEntry / hasFlurstueckSucccessors. */
 export const fetchSuccessorEdges = async (flurstueckId, jwt) => {
   const data = await run(wizardQueries.successorEdges, { flurstueckId }, jwt);
   return data.flurstueck_historie ?? [];
@@ -252,7 +224,6 @@ export const fetchSuccessorEdges = async (flurstueckId, jwt) => {
 export const hasSuccessors = async (flurstueckId, jwt) =>
   (await fetchSuccessorEdges(flurstueckId, jwt)).length > 0;
 
-/** Mirrors LagisBroker.createHistoryEdge(vorgaenger, nachfolger). */
 export const insertHistoryEdge = (vorgaengerId, nachfolgerId, jwt) =>
   saveAndGetId(
     CLASS.HISTORIE,
@@ -262,8 +233,6 @@ export const insertHistoryEdge = (vorgaengerId, nachfolgerId, jwt) =>
 
 export const deleteHistoryEdge = (id, jwt) =>
   deleteObject(CLASS.HISTORIE, { id }, jwt);
-
-/* Nutzung */
 
 export const fetchNutzungenForFlurstueck = async (flurstueckId, jwt) => {
   const data = await run(
@@ -285,8 +254,6 @@ export const deleteNutzung = (id, jwt) =>
 
 export const updateNutzungBuchung = (id, changes, jwt) =>
   saveObject(CLASS.NUTZUNG_BUCHUNG, { id, ...changes }, jwt);
-
-/* angehängte Objekte */
 
 export const moveDmsUrl = (id, flurstueckId, jwt) =>
   saveObject(CLASS.DMS_URL, { id, fk_flurstueck: flurstueckId }, jwt);
@@ -314,8 +281,6 @@ export const fetchMipaByGeo = async (geo, jwt) => {
   return data.mipa ?? [];
 };
 
-/* Verwaltungsbereiche */
-
 export const fetchDienststellen = async (jwt) => {
   const data = await run(wizardQueries.dienststellen, {}, jwt);
   return data.verwaltende_dienststelle ?? [];
@@ -326,10 +291,7 @@ export const fetchZusatzRolleArten = async (jwt) => {
   return data.zusatz_rolle_art ?? [];
 };
 
-/**
- * Java fills the Straße combo from the city's street WFS, which is intranet
- * only. The gazetteer's adressen.json holds the same street register.
- */
+// the street WFS is intranet only; adressen.json has the same register
 export const fetchStrassennamen = async () => {
   const source = gazDataConfig.sources.find(
     (s) => s.topic === ENDPOINT.ADRESSEN
@@ -346,6 +308,18 @@ export const fetchStrassennamen = async () => {
   return [...names].filter(Boolean).sort(collator.compare);
 };
 
+export const fetchAdminRows = async (schluesselId, jwt) => {
+  const data = await run(
+    wizardQueries.adminRowsBySchluesselId,
+    { schluesselId },
+    jwt
+  );
+  return data.flurstueck?.[0];
+};
+
+export const saveFlurstueckAdmin = (id, changes, jwt) =>
+  saveObject(CLASS.FLURSTUECK, { id, ...changes }, jwt);
+
 export const fetchAdminData = async (schluesselId, jwt) => {
   const data = await run(
     wizardQueries.adminDataBySchluesselId,
@@ -356,7 +330,6 @@ export const fetchAdminData = async (schluesselId, jwt) => {
   const eintraege = row?.verwaltungsbereiche_eintragArrayRelationShip ?? [];
   return {
     bemerkung: row?.bemerkung ?? "",
-    // the current Eintrag is the last one, as on the Verwaltungsbereiche page
     bereiche:
       eintraege[eintraege.length - 1]?.verwaltungsbereichArrayRelationShip ??
       [],

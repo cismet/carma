@@ -6,11 +6,6 @@ export class ActionNotSuccessfulError extends Error {
   }
 }
 
-/**
- * A failed SaveObject/DeleteObject call. Extends the above so the server's
- * message reaches the user instead of being flattened into "Unbekannter
- * Fehler".
- */
 export class CidsActionError extends ActionNotSuccessfulError {
   constructor(message, detail) {
     super(message, detail);

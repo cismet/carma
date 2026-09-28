@@ -9,6 +9,7 @@ import { changeFlurstueckArt } from "./changeKind";
 import { splitFlurstuecke } from "./split";
 import { joinFlurstuecke } from "./join";
 import { joinSplitFlurstuecke } from "./joinSplit";
+import { saveAdminData } from "./admin";
 
 const HANDLERS = {
   [WIZARD_ACTIONS.CREATE]: createFlurstueck,
@@ -21,18 +22,6 @@ const HANDLERS = {
   [WIZARD_ACTIONS.SPLIT_JOIN]: joinSplitFlurstuecke,
 };
 
-/**
- * Runs one wizard action.
- *
- * Every action shares a journal: on failure the writes that already went
- * through are undone in reverse order, which is as close to the cids
- * transaction of the Swing client as the GraphQL API gets. Whether that undo
- * fully succeeded is part of the error the caller receives.
- *
- * @param {string} action   one of WIZARD_ACTIONS
- * @param {Object} payload  action specific, see the individual modules
- * @param {Object} context  { jwt, accountName, currentKeyString }
- */
 export const runWizardAction = async (action, payload, context) => {
   const handler = HANDLERS[action];
   if (!handler) {
@@ -44,10 +33,10 @@ export const runWizardAction = async (action, payload, context) => {
 
   try {
     const result = await handler(payload, ctx);
+    await saveAdminData(result.keys ?? [], payload.admin, ctx);
     journal.commit();
     return result;
   } catch (error) {
-    // keep the stack reachable — the panel shows the payload, not the trace
     console.error(`[wizard] ${action} failed`, error);
     const failed = await journal.rollback();
     const reason =

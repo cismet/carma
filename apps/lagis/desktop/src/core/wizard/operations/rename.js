@@ -20,17 +20,6 @@ import {
 } from "./core";
 import { buildNutzungClone } from "./nutzungClone";
 
-/**
- * Port of RenameActionSteps + LagisBroker.renameFlurstueck —
- * "Flurstück umbenennen".
- *
- * The old parcel is kept and set historic; everything hanging off it either
- * moves to the new parcel (documents, contracts, trees, administrative areas)
- * or is copied (Nutzungen, because the old ones stay as the historic record).
- * The order below is the one from the Swing client and matters: the Nutzungen
- * have to be copied before the old parcel is closed, otherwise the copies
- * would already be historic.
- */
 export const renameFlurstueck = async ({ oldKey, newKey }, ctx) => {
   const { jwt, accountName, journal, currentKeyString } = ctx;
   const oldKeyString = formatKey(oldKey);
@@ -54,7 +43,6 @@ export const renameFlurstueck = async ({ oldKey, newKey }, ctx) => {
       );
     }
 
-    // the renamed parcel keeps the Flurstücksart of the old one
     const created = await createFlurstueckForKey(
       { ...newKey, art: newKey.art ?? oldKey.art },
       ctx
@@ -71,9 +59,7 @@ export const renameFlurstueck = async ({ oldKey, newKey }, ctx) => {
       () => deleteHistoryEdge(edgeId, jwt)
     );
 
-    // Java moved these by handing the array property from one bean to the
-    // other — newFlurstueck.getAr_baeume().addAll(old); old.clear() — and cids
-    // persists an array property as a whole, so each side is a single call.
+    // cids persists an array property as a whole: one call per side
     const movedArrays = {
       ar_vertraegeArray: oldFlurstueck.arVertraege,
       ar_baeumeArray: oldFlurstueck.arBaeume,

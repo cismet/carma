@@ -44,7 +44,6 @@ const CHOOSE_ACTION_PROBLEM = "Bitte wählen Sie eine der obigen Aktionen aus";
 const isHint = (message) =>
   Boolean(message) && (message.startsWith("Bitte") || message.endsWith("..."));
 
-/** Keys that have to be free of a Sperre before the step may be left. */
 const keysToCheck = (stepId, data) => {
   switch (stepId) {
     case STEP.RENAME:
@@ -86,7 +85,6 @@ const LandParcelWizard = ({
   const [error, setError] = useState();
   const [rebeMipaPrompt, setRebeMipaPrompt] = useState();
   const [logsOpen, setLogsOpen] = useState(false);
-  // the map step shows only its own area summary
   const [hideProblem, setHideProblem] = useState(false);
   useEffect(() => setLoggingEnabled(showLogs), [showLogs]);
 
@@ -106,7 +104,6 @@ const LandParcelWizard = ({
   const patch = (changes) =>
     setData((previous) => ({ ...previous, ...changes }));
 
-  /** Changing the action throws away everything the old branch collected. */
   const handleActionChange = ({ action }) => {
     if (action !== data.action) {
       setData({ action });
@@ -200,7 +197,7 @@ const LandParcelWizard = ({
       }
       const outcome = await runWizardAction(
         data.action,
-        buildPayload(rebeMipa),
+        { ...buildPayload(rebeMipa), admin: data.admin },
         {
           jwt,
           accountName,
@@ -208,9 +205,6 @@ const LandParcelWizard = ({
         }
       );
       setResult(outcome);
-      // the parcel list has changed — reload it so the choosers and the search
-      // see the new keys, which is what reloadFlurstueckKeys() did in Swing.
-      // UserBar rebuilds the lookup as soon as the new list lands in redux.
       dispatch(getflurstuecke(navigate));
     } catch (e) {
       setError(e.message || "Die Aktion konnte nicht ausgeführt werden.");
@@ -219,7 +213,6 @@ const LandParcelWizard = ({
     }
   };
 
-  /** Wording of the dialog only, so a failure must not stop the action. */
   const countSuccessors = async (flurstueckId) => {
     try {
       return (await fetchSuccessorEdges(flurstueckId, jwt)).length;
@@ -230,16 +223,12 @@ const LandParcelWizard = ({
   };
 
   const handleFinish = async () => {
-    // Setting a parcel historic asks about its rights and leases first — but
-    // only for a parcel that was city owned, as LagisBroker does.
     if (
       data.action === WIZARD_ACTIONS.HISTORIC &&
       data.historicKey?.warStaedtisch
     ) {
       setBusy(true);
       try {
-        // LagisBroker loads the Flurstück before the dialog, so a key without
-        // one fails before any date is asked for
         const flurstueck = await fetchFlurstueckBySchluesselId(
           data.historicKey.id,
           jwt

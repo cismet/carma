@@ -22,7 +22,6 @@ const ICONS = {
   [WIZARD_ACTIONS.CHANGE_KIND]: <TagOutlined />,
 };
 
-/** Port of ChoiceActionPanel — the first screen of the Flurstück-Assistent. */
 const ActionChooserStep = ({ value, onChange }) => (
   <div
     role="radiogroup"
