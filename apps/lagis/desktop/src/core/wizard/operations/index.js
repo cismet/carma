@@ -10,6 +10,7 @@ import { splitFlurstuecke } from "./split";
 import { joinFlurstuecke } from "./join";
 import { joinSplitFlurstuecke } from "./joinSplit";
 import { saveAdminData } from "./admin";
+import { saveUsageData } from "./usage";
 
 const HANDLERS = {
   [WIZARD_ACTIONS.CREATE]: createFlurstueck,
@@ -34,6 +35,7 @@ export const runWizardAction = async (action, payload, context) => {
   try {
     const result = await handler(payload, ctx);
     await saveAdminData(result.keys ?? [], payload.admin, ctx);
+    await saveUsageData(result.keys ?? [], payload.usage, ctx);
     journal.commit();
     return result;
   } catch (error) {

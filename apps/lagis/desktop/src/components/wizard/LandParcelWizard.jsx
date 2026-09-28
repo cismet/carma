@@ -197,7 +197,11 @@ const LandParcelWizard = ({
       }
       const outcome = await runWizardAction(
         data.action,
-        { ...buildPayload(rebeMipa), admin: data.admin },
+        {
+          ...buildPayload(rebeMipa),
+          admin: data.admin,
+          usage: data.usage,
+        },
         {
           jwt,
           accountName,
