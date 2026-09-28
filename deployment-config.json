@@ -112,6 +112,42 @@
       },
       "projectPath": "./dist/apps/topicmaps/tz-baumbewirtschaftung"
     },
+    "tz-leerstandsmanagement": {
+      "deployment": {
+        "manual": {
+          "dev": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "tz-leerstandsmanagement",
+              "envs": [
+                "VITE_TZ_LEERSTANDSMANAGEMENT_REST_SERVICE=https://wunda-rot-cloud.cismet.de/wunda/api/"
+              ]
+            }
+          },
+          "live": {
+            "pages": {
+              "org": "digital-twin-wuppertal-live",
+              "prj": "tz-leerstandsmanagement",
+              "envs": [
+                "VITE_TZ_LEERSTANDSMANAGEMENT_REST_SERVICE=https://wunda-cloud.cismet.de/wunda/api/"
+              ]
+            }
+          }
+        },
+        "auto": {
+          "dev": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "tz-leerstandsmanagement",
+              "envs": [
+                "VITE_TZ_LEERSTANDSMANAGEMENT_REST_SERVICE=https://wunda-rot-cloud.cismet.de/wunda/api/"
+              ]
+            }
+          }
+        }
+      },
+      "projectPath": "./dist/apps/topicmaps/tz-leerstandsmanagement"
+    },
     "x-and-ride": {
       "deployment": {
         "manual": {

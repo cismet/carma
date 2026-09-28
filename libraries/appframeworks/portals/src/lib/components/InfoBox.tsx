@@ -59,6 +59,16 @@ type LightboxDispatch = {
   setVisible: (v: boolean) => void;
 };
 
+// Action links are keyed by what they are, not by their position. react-cismap's
+// Icon falls back to an <i> for names missing in its nameMap and FontAwesome's
+// DOM watcher swaps that <i> for an <svg>. With an index key a changed link set
+// reuses the element, React swaps the icon inside it and removes a node that is
+// no longer there ("removeChild ... not a child of this node").
+const actionKey = (
+  li: { iconname?: string; tooltip?: string },
+  index: number
+) => `${li.iconname ?? ""}.${li.tooltip ?? index}`;
+
 export const InfoBox = ({
   currentFeature,
   featureCollection,
@@ -299,7 +309,7 @@ export const InfoBox = ({
                       );
                       return (
                         <Dropdown
-                          key={`dropdown.${index}`}
+                          key={`dropdown.${actionKey(li, index)}`}
                           overlay={menu}
                           placement="topRight"
                           trigger={["click"]}
@@ -317,7 +327,7 @@ export const InfoBox = ({
                     } else {
                       return (
                         <span
-                          key={`span.${index}`}
+                          key={`span.${actionKey(li, index)}`}
                           style={{ paddingLeft: index > 0 ? 3 : 0 }}
                         >
                           {li.iconname && (
@@ -527,7 +537,7 @@ export const InfoBox = ({
 
             return (
               <Dropdown
-                key={`dropdown.${index}`}
+                key={`dropdown.${actionKey(li, index)}`}
                 overlay={menu}
                 placement="topRight"
                 trigger={["click"]}
@@ -555,7 +565,7 @@ export const InfoBox = ({
             if (li.href) {
               return (
                 <a
-                  key={`actionlink.${index}`}
+                  key={`actionlink.${actionKey(li, index)}`}
                   href={li.href}
                   target={li.target}
                   style={{ flex: 1, textDecoration: "none" }}
@@ -585,7 +595,7 @@ export const InfoBox = ({
                     margin: 0,
                     flex: 1,
                   }}
-                  key={`actionbutton.${index}`}
+                  key={`actionbutton.${actionKey(li, index)}`}
                   size="lg"
                   variant="light"
                   onClick={li.onClick}
