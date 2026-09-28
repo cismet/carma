@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useSelector } from "react-redux";
 import { Alert, InputNumber, Select, Spin } from "antd";
+import { EuroOutlined, TagOutlined } from "@ant-design/icons";
 import AdminAreaTable from "../AdminAreaTable";
 import { adminTargets } from "../../../core/wizard/adminData";
 import { explain } from "../../../core/wizard/errors";
@@ -32,9 +33,6 @@ const toNutzungsartOptions = (entries) =>
     .map((entry) => ({ value: entry.id, label: entry.bezeichnung }));
 
 const columns = (stammdaten) => {
-  const nutzungsartById = new Map(
-    stammdaten.nutzungsarten.map((art) => [art.id, art])
-  );
   const anlageklassen = stammdaten.anlageklassen.map((klasse) => ({
     value: klasse.id,
     label: klasse.bezeichnung,
@@ -58,14 +56,6 @@ const columns = (stammdaten) => {
           onChange={(next) => update(record.id, { anlageklasseId: next })}
         />
       ),
-    },
-    {
-      key: "nutzungsart",
-      width: 110,
-      title: "Nutzungsart",
-      dataIndex: "nutzungsartId",
-      render: (nutzungsartId) =>
-        nutzungsartById.get(nutzungsartId)?.schluessel ?? "",
     },
     {
       key: "nutzungsartBezeichnung",
@@ -121,23 +111,27 @@ const columns = (stammdaten) => {
         />
       ),
     },
-    {
-      key: "gesamtpreis",
-      width: 120,
-      title: "Gesamtpreis",
-      dataIndex: "gesamtpreis",
-      render: (_, record) => {
-        const total = gesamtpreis(record);
-        return total === null ? "" : formatPrice(total);
-      },
-    },
   ];
 };
+
+const UsageSummary = ({ nutzungsart, gesamtpreis: preis }) => (
+  <div className="flex flex-col gap-1 text-sm">
+    <span className="flex items-center gap-2">
+      <TagOutlined />
+      Nutzungsart: {nutzungsart ? nutzungsart.schluessel : "–"}
+    </span>
+    <span className="flex items-center gap-2">
+      <EuroOutlined />
+      Gesamtpreis: {preis === null ? "–" : formatPrice(preis)}
+    </span>
+  </div>
+);
 
 const UsageStep = ({ value, onChange, onProblem }) => {
   const jwt = useSelector((state) => state.auth.jwt);
   const [stammdaten, setStammdaten] = useState();
   const [loadError, setLoadError] = useState();
+  const [activeIds, setActiveIds] = useState({});
 
   const targets = useMemo(() => adminTargets(value), [value]);
   const usage = value.usage ?? {};
@@ -167,6 +161,12 @@ const UsageStep = ({ value, onChange, onProblem }) => {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const nutzungsartById = useMemo(
+    () =>
+      new Map((stammdaten?.nutzungsarten ?? []).map((art) => [art.id, art])),
+    [stammdaten]
+  );
 
   const tableColumns = useMemo(
     () => (stammdaten ? columns(stammdaten) : undefined),
@@ -199,18 +199,28 @@ const UsageStep = ({ value, onChange, onProblem }) => {
       {targets.map(({ key }) => {
         const label = formatKey(key);
         const rows = usage[label] ?? [];
+        const activeRow = rows.find((row) => row.id === activeIds[label]);
         return (
-          <AdminAreaTable
-            key={label}
-            title={targets.length > 1 ? label : undefined}
-            rows={rows}
-            columns={tableColumns}
-            newRow={newUsageRow}
-            scroll={{ x: "max-content" }}
-            onChange={(rows) =>
-              onChange({ usage: { ...usage, [label]: rows } })
-            }
-          />
+          <div key={label} className="flex flex-col gap-3">
+            <UsageSummary
+              nutzungsart={nutzungsartById.get(activeRow?.nutzungsartId)}
+              gesamtpreis={activeRow ? gesamtpreis(activeRow) : null}
+            />
+            <AdminAreaTable
+              title={targets.length > 1 ? label : undefined}
+              rows={rows}
+              columns={tableColumns}
+              newRow={newUsageRow}
+              scroll={{ x: "max-content" }}
+              activeId={activeIds[label]}
+              onActiveChange={(id) =>
+                setActiveIds((previous) => ({ ...previous, [label]: id }))
+              }
+              onChange={(rows) =>
+                onChange({ usage: { ...usage, [label]: rows } })
+              }
+            />
+          </div>
         );
       })}
     </div>
