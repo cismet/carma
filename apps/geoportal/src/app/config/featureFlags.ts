@@ -64,6 +64,13 @@ export const featureFlagConfig: FeatureFlagConfig = {
     default: false,
     alias: "admin",
   },
+  // test variant for stepping through overlapping features (e.g. cracks):
+  // the old topicmap navigator in the infobox instead of arrows on the photo,
+  // and the lightbox steps through the features instead of boxed/original
+  featureFlagOverlapVariantB: {
+    default: false,
+    alias: "overlapVariantB",
+  },
 };
 
 type FeatureFlagConfigEntry = FeatureFlagConfig[string];
