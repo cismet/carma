@@ -1,3 +1,4 @@
+import { MapStyleKeys } from "../MapStyleKeys";
 import {
   schwebebahn2dWorkflowsWithoutStations,
   starkregenFlowWorkflows,
@@ -71,6 +72,53 @@ export const projectionMappingFachzwilling: FachzwillingRoute = {
   ui: { allow3d: false },
   availability: {
     deployments: ["localDev", "dev", "pr"],
+  },
+  /**
+   * One base map per category. Labels would be projected onto the model, so
+   * "Karte" is the Stadtplan without them; "Luftbild" is the plain true
+   * orthofoto, not the geoportal's Luftbildkarte with the RVR Grundriss and
+   * Schrift on top.
+   */
+  background: {
+    layerMap: {
+      stadtplanOhneSchrift: {
+        title: "Stadtplan (ohne Schrift)",
+        layers: "stadtplan_ohne_schrift@100",
+        description: `Stadtplan (ohne Schrift) © basemap.de / BKG, Stadt Wuppertal, OpenStreetMap-Mitwirkende`,
+        inhalt: `<span>Stadtplan ohne Schrift und Symbole, als Hintergrund für die Projektion auf ein 3D-Modell.</span>`,
+      },
+      trueOrtho2024: {
+        title: "True Orthofoto 03/24",
+        layers: "trueOrtho2024@100",
+        description: `True Orthofoto 03/24 © Stadt Wuppertal`,
+        inhalt: `<span>Kartendienst (WMS) der Stadt Wuppertal. Datengrundlage:
+              True Orthofoto aus Bildflügen vom 14.03. und 17.03.2024, hergestellt durch Aerowest
+              GmbH/Dortmund, Bodenauflösung 3 cm.
+              (True Orthofoto: Aus Luftbildern mit hoher Längs- und Querüberdeckung
+              in einem automatisierten Bildverarbeitungsprozess
+              berechnetes Bild in Parallelprojektion, also ohne Gebäudeverkippung und sichttote Bereiche.) © Stadt Wuppertal (</span>
+              <a class="remove-margins" href="https://www.wuppertal.de/geoportal/Nutzungsbedingungen/NB-GDIKOM-C_Geodaten.pdf">NB-GDIKOM C</a>
+              <span>).</span>`,
+      },
+    },
+    namedLayers: {
+      stadtplan_ohne_schrift: {
+        type: "vector",
+        style: "https://tiles.cismet.de/stadtplan/ohne_schrift.style.json",
+      },
+    },
+    categories: [
+      {
+        id: MapStyleKeys.TOPO,
+        title: "Karte",
+        entries: ["stadtplanOhneSchrift"],
+      },
+      {
+        id: MapStyleKeys.AERIAL,
+        title: "Luftbild",
+        entries: ["trueOrtho2024"],
+      },
+    ],
   },
   addons: [
     {
