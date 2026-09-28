@@ -1,4 +1,5 @@
 import { useContext, useEffect, useState } from "react";
+import { Badge } from "react-bootstrap";
 import CustomizationContextProvider from "react-cismap/contexts/CustomizationContextProvider";
 import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
 import DefaultSettingsPanel from "react-cismap/topicmaps/menu/DefaultSettingsPanel";
@@ -22,6 +23,7 @@ import {
   type AdvancedFilterCategory,
   type AdvancedFilterState,
 } from "@carma-mapping/components";
+import { crossLinkApps } from "./crossLinkApps";
 
 interface MenuProps {
   categories?: AdvancedFilterCategory[];
@@ -47,6 +49,54 @@ const countFeaturesInBounds = (
       bounds.contains(coordinates as [number, number])
     );
   }).length;
+};
+
+const CrossLinkAppBadges = ({ positiv }: { positiv: string[] }) => {
+  const apps = crossLinkApps.filter((app) =>
+    app.on.some((lebenslage) => positiv.includes(lebenslage))
+  );
+  if (apps.length === 0) {
+    return null;
+  }
+  return (
+    <div>
+      <hr />
+      <strong>* Themenspezifische Karten:</strong>
+      {"  "}
+      <h4
+        style={{
+          lineHeight: 1.7,
+          wordWrap: "break-word",
+          wordBreak: "normal",
+          lineBreak: "strict",
+          hyphens: "none",
+          overflowWrap: "break-word",
+        }}
+      >
+        {apps.map((app) => (
+          <a
+            key={"appLink_" + app.name}
+            style={{ textDecoration: "none" }}
+            href={app.link}
+            target={app.target}
+            rel="noopener noreferrer"
+          >
+            <Badge
+              variant={app.bsStyle}
+              style={{
+                backgroundColor: app.backgroundColor ?? undefined,
+                marginRight: "5px",
+                display: "inline-block",
+                color: "white",
+              }}
+            >
+              {app.name}
+            </Badge>
+          </a>
+        ))}
+      </h4>
+    </div>
+  );
 };
 
 const Menu = ({
@@ -106,14 +156,17 @@ const Menu = ({
                   sectionTitle={filterTitle}
                   sectionBsStyle="primary"
                   sectionContent={
-                    <AdvancedFilterPanel
-                      categories={categories}
-                      filterState={filterState}
-                      onFilterStateChange={onFilterStateChange}
-                      width={900}
-                      pieChartData={pieChartData}
-                      pieChartColors={pieChartColors}
-                    />
+                    <>
+                      <AdvancedFilterPanel
+                        categories={categories}
+                        filterState={filterState}
+                        onFilterStateChange={onFilterStateChange}
+                        width={900}
+                        pieChartData={pieChartData}
+                        pieChartColors={pieChartColors}
+                      />
+                      <CrossLinkAppBadges positiv={filterState.positiv} />
+                    </>
                   }
                 />,
               ]
