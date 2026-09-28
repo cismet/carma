@@ -32,6 +32,8 @@ interface InfoBoxProps {
   additionalInfo?: any;
   zoomToAllLabel?: any;
   currentlyShownCountLabel?: any;
+  // plain text above the navigator arrows, e.g. what they step through
+  navigatorTitle?: string;
   collapsedInfoBox?: any;
   setCollapsedInfoBox?: any;
   noCurrentFeatureTitle?: any;
@@ -86,6 +88,7 @@ export const InfoBox = ({
   additionalInfo,
   zoomToAllLabel,
   currentlyShownCountLabel,
+  navigatorTitle,
   collapsedInfoBox,
   setCollapsedInfoBox,
   noCurrentFeatureTitle,
@@ -447,6 +450,9 @@ export const InfoBox = ({
                   </tr>
                 </tbody>
               </table>
+            )}
+            {navigatorTitle && (
+              <div style={{ textAlign: "center" }}>{navigatorTitle}</div>
             )}
             <table style={{ width: "100%", marginBottom: 9 }}>
               <tbody>
