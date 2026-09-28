@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useSelector } from "react-redux";
-import { Alert, Checkbox, Input, InputNumber, Modal, Select, Spin } from "antd";
+import { Alert, Input, InputNumber, Modal, Select, Spin, Switch } from "antd";
+import { LockOutlined } from "@ant-design/icons";
 import { verwaltung } from "@carma-collab/wuppertal/lagis-desktop";
 import DienststellenEditor from "../DienststellenEditor";
 import AdminAreaTable, {
@@ -167,33 +168,37 @@ const NoteEditor = ({ title, parcel, onChange }) => {
   };
 
   return (
-    <div>
-      <div className="mb-2 flex items-center gap-2">
-        {title && (
-          <span className="mr-auto text-xs font-semibold uppercase tracking-wide text-gray-500">
-            {title}
-          </span>
-        )}
-        <Checkbox
-          className="ml-auto"
-          checked={parcel.sperre}
-          onChange={(event) => handleSperre(event.target.checked)}
-        >
-          {verwaltung.bemerkungen.checkbox}
-        </Checkbox>
-      </div>
-      {parcel.sperre && parcel.sperreBemerkung && (
-        <Alert
-          className="mb-2"
-          type="warning"
-          showIcon
-          style={{ padding: "4px 12px" }}
-          message={`Sperre: ${parcel.sperreBemerkung}`}
-        />
+    <div className="flex flex-col gap-4">
+      {title && (
+        <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+          {title}
+        </span>
       )}
+      <div
+        className="flex items-center gap-3 rounded-md px-4 py-3"
+        style={
+          parcel.sperre
+            ? { border: "1px solid #ffe58f", background: "#fffbe6" }
+            : { border: "1px solid #f0f0f0", background: "#fafafa" }
+        }
+      >
+        <LockOutlined
+          style={{ color: parcel.sperre ? "#d48806" : "#8c8c8c", fontSize: 18 }}
+        />
+        <div className="min-w-0 flex-1">
+          <div className="font-medium">{verwaltung.bemerkungen.checkbox}</div>
+          <div className="truncate text-xs text-gray-500">
+            {parcel.sperre
+              ? `Grund: ${parcel.sperreBemerkung}`
+              : "Markiert das Flurstück als gesperrt, mit Begründung"}
+          </div>
+        </div>
+        <Switch checked={parcel.sperre} onChange={handleSperre} />
+      </div>
       <Input.TextArea
-        rows={5}
-        style={{ resize: "none" }}
+        rows={6}
+        placeholder="Bemerkung zum Flurstück eingeben"
+        style={{ resize: "none", background: "#fff" }}
         value={parcel.bemerkung}
         onChange={(event) => onChange({ bemerkung: event.target.value })}
       />
