@@ -1,6 +1,9 @@
 import { useState, type ReactNode } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faChevronDown } from "@fortawesome/free-solid-svg-icons";
+import {
+  faChevronDown,
+  faRotateRight,
+} from "@fortawesome/free-solid-svg-icons";
 import { Checkbox, Slider, Tooltip } from "antd";
 
 import {
@@ -18,7 +21,8 @@ import { useTrafficAnimationActions } from "./traffic-actions";
  * The traffic's ribbon under the layer bar, opened from the readout on the
  * launching layer's button: which moment of the last 24 hours the vehicles
  * drive at, as a slider from 24 hours ago to live, and the three jumps "Tag",
- * "Nacht" and "Live" the remote on the phone has as well.
+ * "Nacht" and "Live" the remote on the phone has as well, like its restart,
+ * which throws the vehicles away and fills the roads anew.
  *
  * Collapsed is the whole UI. The chevron opens what is there to read, not to
  * set: how many vehicles are out, how long ago the moment is, and where the
@@ -99,6 +103,7 @@ export const TrafficPanel = () => {
     setOffsetMinutes,
     jump,
     setShowNetwork,
+    restart,
   } = useTrafficAnimationActions();
   const isAdmin = useIsAdminMode();
   const [expanded, setExpanded] = useState(false);
@@ -154,6 +159,17 @@ export const TrafficPanel = () => {
             </SegmentButton>
           ))}
         </div>
+
+        <Tooltip title="Verkehr neu starten" placement="top">
+          <button
+            type="button"
+            aria-label="Verkehr neu starten"
+            onClick={restart}
+            className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent text-gray-600 hover:bg-black/5"
+          >
+            <FontAwesomeIcon icon={faRotateRight} />
+          </button>
+        </Tooltip>
 
         <Tooltip
           title={expanded ? "Details ausblenden" : "Details zeigen"}
