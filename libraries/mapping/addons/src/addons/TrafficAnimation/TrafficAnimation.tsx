@@ -4,6 +4,10 @@ import type { AddonComponentProps } from "../../lib/registry";
 import { placeAtSlot, useStyleSlot } from "../../lib/style-slot";
 import { useTrafficAnimationActions } from "./traffic-actions";
 import {
+  TRAFFIC_NETWORK_LAYER_ID,
+  attachNetworkLines,
+} from "./traffic-network-lines";
+import {
   TRAFFIC_LAYER_ID,
   createTrafficEngine,
   type TrafficEngine,
@@ -83,7 +87,7 @@ export const TrafficAnimation = ({
     anchorLayerId,
   } = config;
 
-  const { update, setOffsetMinutes, offsetMinutes } =
+  const { update, setOffsetMinutes, offsetMinutes, showNetwork } =
     useTrafficAnimationActions();
 
   const [network, setNetwork] = useState<TrafficNetwork | null>(null);
@@ -193,9 +197,15 @@ export const TrafficAnimation = ({
     };
   }, [libreMap, network, sizeScale, nightDim, maxVehicles, densityScale, update]);
 
+  // the admin's check of where the vehicles are attached, under them
+  useEffect(() => {
+    if (!libreMap || !network || !showNetwork || hidden) return undefined;
+    return attachNetworkLines(libreMap, network);
+  }, [libreMap, network, showNetwork, hidden]);
+
   // The engine puts its layer back on the map after a style swap, on top;
   // the swap and every reorder fire `styledata`, which moves it back under
-  // the placeholder.
+  // the placeholder. The network lines go with it, right below.
   const placeholderId = useStyleSlot(
     libreMap,
     TRAFFIC_SLOT,
@@ -204,7 +214,11 @@ export const TrafficAnimation = ({
   useEffect(() => {
     if (!libreMap || !network || !placeholderId) return undefined;
     const place = () =>
-      placeAtSlot(libreMap, [TRAFFIC_LAYER_ID], placeholderId);
+      placeAtSlot(
+        libreMap,
+        [TRAFFIC_NETWORK_LAYER_ID, TRAFFIC_LAYER_ID],
+        placeholderId
+      );
     place();
     libreMap.on("styledata", place);
     return () => {

@@ -64,6 +64,21 @@ export const mercatorOf = (lon: number, lat: number): [number, number] => {
 export const mercatorUnitsPerMeter = (lat: number): number =>
   1 / (2 * Math.PI * EARTH_RADIUS * Math.cos((lat * Math.PI) / 180));
 
+/** lon/lat of a point in `network`'s scene metres, the way back from `toScene` */
+export const sceneToLonLat = (
+  network: Pick<TrafficNetwork, "origin" | "unitsPerMeter">,
+  x: number,
+  y: number
+): [number, number] => {
+  const [originX, originY] = mercatorOf(network.origin[0], network.origin[1]);
+  const mx = originX + x * network.unitsPerMeter;
+  const my = originY - y * network.unitsPerMeter;
+  const lat =
+    (360 / Math.PI) * Math.atan(Math.exp(((180 - my * 360) * Math.PI) / 180)) -
+    90;
+  return [mx * 360 - 180, lat];
+};
+
 export type TrafficNode = {
   index: number;
   /** the id from the data, or the rounded coordinates when it has none */

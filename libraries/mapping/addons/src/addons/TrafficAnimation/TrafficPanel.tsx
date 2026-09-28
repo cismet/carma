@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faChevronDown } from "@fortawesome/free-solid-svg-icons";
-import { Slider, Tooltip } from "antd";
+import { Checkbox, Slider, Tooltip } from "antd";
 
 import {
   TRAFFIC_DAY_HOUR,
@@ -11,6 +11,7 @@ import {
   type TrafficJump,
 } from "@carma-mapping/show-remote";
 
+import { useIsAdminMode } from "../../lib/admin-mode";
 import { useTrafficAnimationActions } from "./traffic-actions";
 
 /**
@@ -22,6 +23,10 @@ import { useTrafficAnimationActions } from "./traffic-actions";
  * Collapsed is the whole UI. The chevron opens what is there to read, not to
  * set: how many vehicles are out, how long ago the moment is, and where the
  * numbers come from.
+ *
+ * Under `?ff=admin` a section below the header draws the network the
+ * vehicles are attached to, so a car off its road shows whether the network
+ * or the renderer is wrong.
  *
  * The slider runs from -1440 to 0 so that live sits at the right end, where a
  * timeline ends; the channel keeps the offset as a positive number of minutes.
@@ -90,9 +95,12 @@ export const TrafficPanel = () => {
     isCapped,
     isLoading,
     error,
+    showNetwork,
     setOffsetMinutes,
     jump,
+    setShowNetwork,
   } = useTrafficAnimationActions();
+  const isAdmin = useIsAdminMode();
   const [expanded, setExpanded] = useState(false);
 
   const shown = displayedAt || Date.now() - offsetMinutes * 60_000;
@@ -173,6 +181,20 @@ export const TrafficPanel = () => {
           since the map then just stays empty. */}
       {!expanded && error && (
         <p className="m-0 mt-1 text-sm text-red-600">{status}</p>
+      )}
+
+      {isAdmin && (
+        <div className="mt-2 border-0 border-t border-solid border-gray-200 pt-2">
+          <h3 className="mb-1 text-xs font-medium uppercase tracking-wide text-gray-500">
+            Darstellung
+          </h3>
+          <Checkbox
+            checked={showNetwork}
+            onChange={(event) => setShowNetwork(event.target.checked)}
+          >
+            Straßennetz der Fahrzeuge zeigen
+          </Checkbox>
+        </div>
       )}
 
       {expanded && (

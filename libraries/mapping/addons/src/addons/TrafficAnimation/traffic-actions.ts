@@ -50,6 +50,8 @@ export type TrafficAnimationState = {
   isLoading: boolean;
   /** why nothing is moving, when nothing is moving */
   error: string | null;
+  /** draw the network's lines under the vehicles; an admin's check */
+  showNetwork: boolean;
 };
 
 export const TRAFFIC_ANIMATION_STATE_DEFAULT: TrafficAnimationState = {
@@ -66,6 +68,7 @@ export const TRAFFIC_ANIMATION_STATE_DEFAULT: TrafficAnimationState = {
   isHidden: false,
   isLoading: false,
   error: null,
+  showNetwork: false,
 };
 
 /** the fields of `patch` that differ from `state` */
@@ -109,5 +112,10 @@ export const useTrafficAnimationActions = () => {
     [update]
   );
 
-  return { ...state, update, setOffsetMinutes, jump };
+  const setShowNetwork = useCallback(
+    (showNetwork: boolean) => update({ showNetwork }),
+    [update]
+  );
+
+  return { ...state, update, setOffsetMinutes, jump, setShowNetwork };
 };
