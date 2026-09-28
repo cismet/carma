@@ -8,8 +8,11 @@
  * without ids gets its nodes from its end coordinates, rounded to about 10 cm,
  * so two sections meeting there still meet in the graph.
  *
- * Every edge is driven in both directions. The loads are counts across the
- * whole cross-section, so each direction gets half of them (`traffic-profile`).
+ * An edge is driven in both directions unless its section says `oneway`; then
+ * only along its point order, which the build turned to run the way the road
+ * is driven (so far the motorway ramps, their direction from OpenStreetMap).
+ * The loads are counts across the whole cross-section, so each direction of a
+ * two-way edge gets half of them, a one-way edge all (`traffic-profile`).
  * Which side of the road a vehicle is drawn on is the renderer's business: the
  * graph only knows the centre line.
  *
@@ -86,6 +89,8 @@ export type TrafficEdge = {
   bus: number;
   /** lanes per direction, at least 1 */
   lanes: number;
+  /** driven only from `from` to `to`, along the point order */
+  oneway: boolean;
   /** node indices at the first and at the last point */
   from: number;
   to: number;
@@ -146,6 +151,7 @@ type RawSection = {
   bel: number;
   bus: number;
   lanes: number;
+  oneway: boolean;
   fromKey: string;
   toKey: string;
   coordinates: Position[];
@@ -185,6 +191,7 @@ const sectionsOf = (feature: unknown): RawSection[] => {
       bel: Math.max(0, toNumber(properties["bel"], 0)),
       bus: Math.max(0, toNumber(properties["bus"], 0)),
       lanes: Math.max(1, Math.round(toNumber(properties["lanes"], 1))),
+      oneway: properties["oneway"] === true,
       fromKey,
       toKey,
       coordinates,
@@ -270,6 +277,7 @@ export const parseTrafficNetwork = (geojson: unknown): TrafficNetwork | null => 
       bel: section.bel,
       bus: section.bus,
       lanes: section.lanes,
+      oneway: section.oneway,
       from,
       to,
       points,

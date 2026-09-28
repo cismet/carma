@@ -164,21 +164,27 @@ export const profileAt = (
 export const dailyLoadOf = (edge: Pick<TrafficEdge, "bel">): number =>
   Math.max(edge.bel, INVENTED_MIN_DAILY_LOAD);
 
+/** what the flow of an edge depends on; an edge without `oneway` is two-way */
+export type FlowEdge = Pick<TrafficEdge, "index" | "bel" | "bus"> &
+  Partial<Pick<TrafficEdge, "oneway">>;
+
 /**
  * Vehicles per hour in ONE direction of `edge` at the moment `moment`
- * describes. The loads are counts across the whole road, so each direction
- * gets half. Buses are part of the load; trucks are a share of the rest.
+ * describes. The loads are counts across the whole road, so each direction of
+ * a two-way road gets half, a one-way road's only direction all. Buses are
+ * part of the load; trucks are a share of the rest.
  */
 export const flowFor = (
-  edge: Pick<TrafficEdge, "index" | "bel" | "bus">,
+  edge: FlowEdge,
   moment: ProfileMoment,
   out: TrafficFlow = { car: 0, bus: 0, truck: 0 }
 ): TrafficFlow => {
   const roadA = roadWobble(moment.hourA, edge.index);
   const roadB = roadWobble(moment.hourB, edge.index);
   const wobble = moment.wobble * (roadA + (roadB - roadA) * moment.hourMix);
-  const total = (dailyLoadOf(edge) / 2) * moment.share * wobble;
-  const bus = Math.min(total, (edge.bus / 2) * moment.busShare * wobble);
+  const directions = edge.oneway ? 1 : 2;
+  const total = (dailyLoadOf(edge) / directions) * moment.share * wobble;
+  const bus = Math.min(total, (edge.bus / directions) * moment.busShare * wobble);
   const rest = total - bus;
   out.bus = bus;
   out.truck = rest * moment.truckShare;
@@ -191,7 +197,7 @@ export const flowFor = (
  * of day is `minutesOfDay`. The one-off form of `profileAt` and `flowFor`.
  */
 export const flowAt = (
-  edge: Pick<TrafficEdge, "index" | "bel" | "bus">,
+  edge: FlowEdge,
   instant: number,
   minutesOfDay: number
 ): TrafficFlow => flowFor(edge, profileAt(instant, minutesOfDay));

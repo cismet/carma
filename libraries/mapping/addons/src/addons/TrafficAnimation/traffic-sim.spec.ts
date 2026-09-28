@@ -84,6 +84,22 @@ describe("traffic profile (invented)", () => {
     const edge = { index: 0, bel: 20_000, bus: 400 };
     expect(flowAt(edge, NIGHT.instant, NIGHT.minutesOfDay).bus).toBe(0);
   });
+
+  it("gives a one-way road's only direction its whole load", () => {
+    const twoWay = flowAt(
+      { index: 0, bel: 20_000, bus: 400 },
+      EVENING.instant,
+      EVENING.minutesOfDay
+    );
+    const oneWay = flowAt(
+      { index: 0, bel: 20_000, bus: 400, oneway: true },
+      EVENING.instant,
+      EVENING.minutesOfDay
+    );
+    expect(oneWay.car).toBeCloseTo(2 * twoWay.car, 6);
+    expect(oneWay.bus).toBeCloseTo(2 * twoWay.bus, 6);
+    expect(oneWay.truck).toBeCloseTo(2 * twoWay.truck, 6);
+  });
 });
 
 describe("parseTrafficNetwork", () => {
@@ -102,6 +118,19 @@ describe("parseTrafficNetwork", () => {
     expect(network.nodes.map((node) => node.exit)).toEqual([true, false, false]);
     expect(network.edges[0].length).toBeGreaterThan(450);
     expect(network.edges[0].length).toBeLessThan(550);
+  });
+
+  it("takes a section as one-way only when it says so", () => {
+    const network = parseTrafficNetwork({
+      type: "FeatureCollection",
+      features: [
+        road(500, { name: "Rampe", from: 1, to: 2, oneway: true }),
+        road(500, { name: "Straße", from: 2, to: 3 }),
+        road(500, { name: "Gasse", from: 3, to: 4, oneway: "yes" }),
+      ],
+    }) as TrafficNetwork;
+
+    expect(network.edges.map((edge) => edge.oneway)).toEqual([true, false, false]);
   });
 
   it("returns null for anything without a line", () => {
@@ -257,6 +286,40 @@ describe("createTrafficSim", () => {
     // only once that one is gone, and may be too close by then (without the
     // zipping, 60 % of the pairs are)
     expect(tooClose / checked).toBeLessThan(0.01);
+  });
+
+  it("drives a one-way road only its way", () => {
+    // the ramp runs into the junction, so a vehicle there must not turn into it
+    const fork = parseTrafficNetwork({
+      type: "FeatureCollection",
+      exits: [1, 3, 4],
+      features: [
+        road(400, { name: "Zubringer", bel: 20_000, from: 1, to: 2 }),
+        road(400, { name: "Rampe", bel: 10_000, from: 3, to: 2, oneway: true }),
+        road(400, { name: "Weiter", bel: 20_000, from: 2, to: 4 }, 7.15 + 400 / 69_700),
+      ],
+    }) as TrafficNetwork;
+    const ramp = fork.edges.find((edge) => edge.name === "Rampe");
+    if (!ramp) throw new Error("no ramp");
+    const sim = createTrafficSim({
+      network: fork,
+      clock: () => EVENING,
+      random: seeded(4),
+      densityScale: 3,
+    });
+    sim.step(0);
+    let onRamp = 0;
+    for (let step = 0; step < 480; step++) {
+      sim.step(0.25);
+      for (const vehicle of sim.vehicles) {
+        if (vehicle.edge === ramp.index) {
+          expect(vehicle.forward).toBe(true);
+          onRamp++;
+        }
+        if (vehicle.nextEdge === ramp.index) expect(vehicle.nextForward).toBe(true);
+      }
+    }
+    expect(onRamp).toBeGreaterThan(100);
   });
 
   it("keeps the model's network moving at the evening peak", () => {

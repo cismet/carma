@@ -11,7 +11,8 @@ import { flowFor, profileAt, type TrafficFlow } from "./traffic-profile";
  * every edge a target count. The fleet is steered towards the sum of those,
  * not edge by edge: vehicles are placed where the targets are and then drive,
  * and at every node they pick their next road weighted by its load, which
- * keeps the busy roads busy on their own.
+ * keeps the busy roads busy on their own. A one-way edge has a target only in
+ * its direction, and no vehicle turns into it the other way.
  *
  * About once a second the fleet is rebalanced. Below the target, new vehicles
  * appear: first where others drove off the model (a vehicle leaving through
@@ -417,6 +418,13 @@ export const createTrafficSim = ({
     wantedTotal = 0;
     for (const target of targets) {
       const edge = edges[target.edge];
+      if (edge.oneway && !target.forward) {
+        target.car = 0;
+        target.bus = 0;
+        target.truck = 0;
+        target.total = 0;
+        continue;
+      }
       flowFor(edge, moment, flow);
       const kilometres = (edge.length / 1000) * densityScale;
       target.car = (flow.car / speedKmhOf(VEHICLE_CAR, edge)) * kilometres;
@@ -466,7 +474,8 @@ export const createTrafficSim = ({
   /**
    * Picks the road the vehicle takes at the end of its edge: none where that
    * end is an exit, the way back at a dead end, and otherwise another road,
-   * weighted by load.
+   * weighted by load, one-way roads only their way. Where a one-way road
+   * leads to nothing it may take, the vehicle leaves there like at an exit.
    */
   const chooseNext = (vehicle: TrafficVehicle): void => {
     const current = vehicle.edge;
@@ -486,10 +495,15 @@ export const createTrafficSim = ({
         ? node.edges.indexOf(edgeIndex) === position
         : edge.from === nodeIndex;
       if (edgeIndex === current && forward !== vehicle.forward) return;
+      if (edge.oneway && !forward) return;
       options.push({ edge: edgeIndex, forward });
     });
     let next: { edge: number; forward: boolean };
     if (options.length === 0) {
+      if (edges[current].oneway) {
+        vehicle.nextEdge = -1;
+        return;
+      }
       next = { edge: current, forward: !vehicle.forward };
     } else {
       const byBus =

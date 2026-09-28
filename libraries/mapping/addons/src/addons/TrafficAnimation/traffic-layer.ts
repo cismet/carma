@@ -441,7 +441,10 @@ export const createTrafficLayer = ({
       edgePoseAt(edge, along, pose);
       const ax = vehicle.forward ? pose.dx : -pose.dx;
       const ay = vehicle.forward ? pose.dy : -pose.dy;
-      const offset = (vehicle.lane + 0.5) * laneWidth;
+      // a two-way road's lanes lie right of its line, a one-way road's across it
+      const offset = edge.oneway
+        ? (vehicle.lane - (edge.lanes - 1) / 2) * laneWidth
+        : (vehicle.lane + 0.5) * laneWidth;
       // right of travel is (ay, -ax)
       const cx = pose.x + ay * offset;
       const cy = pose.y - ax * offset;
