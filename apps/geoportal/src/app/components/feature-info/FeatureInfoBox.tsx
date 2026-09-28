@@ -49,7 +49,7 @@ import { truncateString } from "./featureInfoHelper";
 
 import "../infoBox.css";
 import LoadingInfoBox from "./LoadingInfoBox";
-import { useHighlightedFoto } from "./useHighlightedFoto";
+import { useHighlightedFoto, useHighlightedFotos } from "./useHighlightedFoto";
 import HighlightFotoOverlayPreview from "./HighlightFotoOverlayPreview";
 import OverlappingFeaturesNavigator from "./OverlappingFeaturesNavigator";
 
@@ -236,9 +236,15 @@ const FeatureInfoBox = ({
     selectedFeature?.properties?.fotoHighlightColor ??
     selectedFeature?.properties?.headerColor;
 
+  // Test variant for overlapping features: the old topicmap navigator in the
+  // infobox steps through them instead of arrows on the photo, and the
+  // lightbox steps along (boxed photos only) instead of boxed/original.
+  const isOverlapVariantB = !!flags.featureFlagOverlapVariantB;
+
   const originalFotoUrl = updateUrl(selectedFeature?.properties?.foto);
+  // variant B renders its lightbox copies with useHighlightedFotos below
   const highlightedFotoUrl = useHighlightedFoto(
-    originalFotoUrl,
+    isOverlapVariantB ? undefined : originalFotoUrl,
     fotoHighlight,
     fotoHighlightColor
   );
@@ -257,7 +263,9 @@ const FeatureInfoBox = ({
       if (count < 2) {
         return;
       }
-      dispatch(setSelectedFeature(overlappingFeatures[(index + count) % count]));
+      dispatch(
+        setSelectedFeature(overlappingFeatures[(index + count) % count])
+      );
     },
     [overlappingFeatures, dispatch]
   );
@@ -981,32 +989,131 @@ const FeatureInfoBox = ({
     });
   }, [lightBoxDispatchContext, selectedFeature, mediaSlides]);
 
+  // Variant B: the lightbox holds one boxed slide per group member with a
+  // highlight photo (or just the selection without a group) and paging it
+  // selects that member, like the infobox navigator.
+  const lightBoxMembers = useMemo(() => {
+    if (!isOverlapVariantB) {
+      return [];
+    }
+    const candidates =
+      overlappingIndex >= 0
+        ? overlappingFeatures
+        : selectedFeature
+        ? [selectedFeature]
+        : [];
+    return candidates.filter(
+      (f) => f.properties?.foto && f.properties?.fotoHighlight
+    );
+  }, [
+    isOverlapVariantB,
+    overlappingIndex,
+    overlappingFeatures,
+    selectedFeature,
+  ]);
+  const lightBoxMemberFotos = useHighlightedFotos(
+    lightBoxMembers.map((f) => ({
+      url: updateUrl(f.properties.foto),
+      highlight: f.properties.fotoHighlight,
+      color: f.properties.fotoHighlightColor ?? f.properties.headerColor,
+    }))
+  );
+  // opened only once every copy is rendered (or failed, then the plain photo
+  // stands in), so the lightbox never shows an unboxed photo while stepping
+  const lightBoxMemberFotosReady = lightBoxMemberFotos.every(
+    (url) => url !== undefined
+  );
+  const lightBoxMemberIndex = findOverlappingIndex(
+    lightBoxMembers,
+    selectedFeature
+  );
+
   // The highlight photo's lightbox holds the photo with the box drawn in and
   // the original, paged with the lightbox arrows. Until the boxed copy is
   // rendered (or when that fails) it holds only the original.
   const highlightLightBoxRef = useRef(false);
   const highlightPhotoUrls = (
-    highlightedFotoUrl ? [highlightedFotoUrl, originalFotoUrl] : [originalFotoUrl]
+    isOverlapVariantB
+      ? lightBoxMemberFotos.map(
+          (url, i) => url ?? updateUrl(lightBoxMembers[i].properties.foto)
+        )
+      : highlightedFotoUrl
+      ? [highlightedFotoUrl, originalFotoUrl]
+      : [originalFotoUrl]
   ).filter((url): url is string => !!url);
   const highlightPhotoUrlsKey = highlightPhotoUrls.join("\n");
   const lightBoxIndex = lightBoxState?.index ?? 0;
   const featureTitle = selectedFeature?.properties?.title ?? "";
-  const highlightTitle = highlightedFotoUrl
+  const highlightTitle = isOverlapVariantB
+    ? overlappingIndex >= 0
+      ? `${featureTitle} (${overlappingIndex + 1} / ${
+          overlappingFeatures.length
+        })`
+      : featureTitle
+    : highlightedFotoUrl
     ? `${featureTitle} (${
         lightBoxIndex === 1 ? "Originalfoto" : "mit Markierung"
       })`
     : featureTitle;
 
+  // variant B: a click before the copies are rendered opens once they are
+  const [highlightLightBoxPending, setHighlightLightBoxPending] =
+    useState(false);
+
   const openHighlightLightBox = useCallback(() => {
+    if (isOverlapVariantB && !lightBoxMemberFotosReady) {
+      setHighlightLightBoxPending(true);
+      return;
+    }
+    setHighlightLightBoxPending(false);
     highlightLightBoxRef.current = true;
     lightBoxDispatchContext?.setAll({
       title: highlightTitle,
       photourls: highlightPhotoUrlsKey.split("\n"),
       caption: defaultLightBoxCaptionFactory(),
-      index: 0,
+      index: isOverlapVariantB ? Math.max(lightBoxMemberIndex, 0) : 0,
       visible: true,
     });
-  }, [lightBoxDispatchContext, highlightTitle, highlightPhotoUrlsKey]);
+  }, [
+    isOverlapVariantB,
+    lightBoxMemberFotosReady,
+    lightBoxMemberIndex,
+    lightBoxDispatchContext,
+    highlightTitle,
+    highlightPhotoUrlsKey,
+  ]);
+
+  useEffect(() => {
+    if (highlightLightBoxPending && lightBoxMemberFotosReady) {
+      openHighlightLightBox();
+    }
+  }, [
+    highlightLightBoxPending,
+    lightBoxMemberFotosReady,
+    openHighlightLightBox,
+  ]);
+
+  // variant B: paging in the lightbox selects that member
+  useEffect(() => {
+    if (
+      !isOverlapVariantB ||
+      !lightboxVisible ||
+      !highlightLightBoxRef.current
+    ) {
+      return;
+    }
+    const member = lightBoxMembers[lightBoxIndex];
+    if (member && lightBoxIndex !== lightBoxMemberIndex) {
+      dispatch(setSelectedFeature(member));
+    }
+  }, [
+    isOverlapVariantB,
+    lightboxVisible,
+    lightBoxIndex,
+    lightBoxMembers,
+    lightBoxMemberIndex,
+    dispatch,
+  ]);
 
   // swap in the boxed copy once rendered, and name the version shown
   useEffect(() => {
@@ -1110,9 +1217,11 @@ const FeatureInfoBox = ({
         }
       : undefined;
   // the arrows normally sit on the highlight photo; a member without one
-  // (missing photo) gets a small bar, so stepping doesn't end there
+  // (missing photo) gets a small bar, so stepping doesn't end there.
+  // Variant B steps in the infobox navigator instead, for every member.
   const overlappingNavigatorElements =
     overlappingCycle &&
+    !isOverlapVariantB &&
     !showsHighlightFoto &&
     overlappingFeatures.some((f) => f.properties?.fotoHighlight)
       ? [
@@ -1122,6 +1231,10 @@ const FeatureInfoBox = ({
           />,
         ]
       : [];
+
+  const infoBoxNavigatorCycle = isOverlapVariantB
+    ? overlappingCycle
+    : undefined;
 
   const visibleSecondaryInfoBoxElements =
     selectedFeature.properties.foto ||
@@ -1137,7 +1250,7 @@ const FeatureInfoBox = ({
               url={originalFotoUrl}
               highlight={fotoHighlight}
               color={fotoHighlightColor}
-              cycle={overlappingCycle}
+              cycle={isOverlapVariantB ? undefined : overlappingCycle}
               onOpenLightBox={openHighlightLightBox}
             />
           ) : (
@@ -1162,7 +1275,16 @@ const FeatureInfoBox = ({
       <InfoBox
         pixelwidth={350}
         currentFeature={selectedFeature}
-        hideNavigator={true}
+        hideNavigator={!infoBoxNavigatorCycle}
+        {...(infoBoxNavigatorCycle
+          ? {
+              previous: infoBoxNavigatorCycle.onPrevious,
+              next: infoBoxNavigatorCycle.onNext,
+              currentlyShownCountLabel: `${infoBoxNavigatorCycle.index + 1} / ${
+                infoBoxNavigatorCycle.count
+              }`,
+            }
+          : {})}
         {...selectedFeature?.properties}
         headerColor={headerColor}
         title={
