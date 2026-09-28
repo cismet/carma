@@ -139,6 +139,7 @@ const mapSchluessel = (row) =>
         gueltigBis: row.gueltig_bis,
         warStaedtisch: row.war_staedtisch ?? false,
         istGesperrt: row.ist_gesperrt ?? false,
+        bemerkungSperre: row.bemerkung_sperre ?? "",
         datumEntstehung: row.datum_entstehung,
         datumLetzterStadtbesitz: row.datum_letzter_stadtbesitz,
       }
