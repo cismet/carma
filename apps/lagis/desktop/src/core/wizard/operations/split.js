@@ -12,13 +12,7 @@ import {
   setHistoricForKey,
 } from "./core";
 
-/**
- * Port of SplitActionSteps + LagisBroker.splitFlurstuecke — "Flurstück teilen".
- *
- * The successor check is done before the parcel is set historic. The Swing
- * client did it the other way round, which left the parcel closed even when the
- * split was then rejected; the order here avoids that write entirely.
- */
+// successor check before setting historic, unlike Swing (no stray write)
 export const splitFlurstuecke = async ({ key, resultKeys }, ctx) => {
   const { jwt, accountName, journal, currentKeyString } = ctx;
   const keyString = formatKey(key);
@@ -47,7 +41,6 @@ export const splitFlurstuecke = async ({ key, resultKeys }, ctx) => {
 
     const created = [];
     for (const resultKey of resultKeys) {
-      // the parts inherit the Flurstücksart of the parcel they come from
       const newParcel = await createFlurstueckForKey(
         { ...resultKey, art: resultKey.art ?? key.art },
         ctx

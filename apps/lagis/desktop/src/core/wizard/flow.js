@@ -1,9 +1,5 @@
 import { WIZARD_ACTIONS } from "./constants";
 
-/**
- * The step ids and captions of each branch, taken from the WizardPanelProvider
- * constructors of the Swing wizard.
- */
 export const STEP = {
   CHOOSE_ACTION: "chooseAction",
   CREATE: "create",
@@ -54,7 +50,6 @@ const BRANCHES = {
   ],
 };
 
-/** Asked for every action, once the parcels are settled. */
 const ADMIN_GROUP = "Verwaltungsbereiche";
 
 const ADMIN_STEPS = [
@@ -81,12 +76,10 @@ const withCommonSteps = (branch, action) => [
   ),
 ];
 
-/** Step 0 is always the action chooser; the rest depends on what was picked. */
 export const getSteps = (action) =>
   action
     ? [INITIAL_STEP, ...withCommonSteps(BRANCHES[action], action)]
     : [INITIAL_STEP];
 
-/** True once the current step is the last one of the branch. */
 export const isLastStep = (action, index) =>
   action ? index === getSteps(action).length - 1 : false;

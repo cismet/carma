@@ -63,8 +63,7 @@ const post = async (endpoint, parameters, jwt, logMeta) => {
     );
   }
 
-  // SaveObject answers 200 even when it failed, wrapping the real payload as
-  // { contentType, res } with res holding a JSON *string*.
+  // SaveObject answers 200 even on failure; res is a JSON string
   const value = unwrapCidsResult(parsed);
   if (value && typeof value === "object" && value.Exception) {
     throw fail(`Der Server meldet: ${value.Exception}`, parsed);
@@ -78,7 +77,6 @@ const post = async (endpoint, parameters, jwt, logMeta) => {
   return value;
 };
 
-/** Peels the { contentType, res } envelope and parses the JSON string in res. */
 export const unwrapCidsResult = (payload) => {
   let value = payload;
   if (value && typeof value === "object" && "res" in value) {
@@ -88,7 +86,7 @@ export const unwrapCidsResult = (payload) => {
     try {
       value = JSON.parse(value);
     } catch (e) {
-      // not JSON — hand back the text as it came
+      // not JSON: return the text as is
     }
   }
   return value;
@@ -106,9 +104,6 @@ export const deleteObject = (className, data, jwt) =>
     operation: className,
   });
 
-/**
- * Digs the id of a newly created object out of the response.
- */
 export const idFromSaveResult = (result, className) => {
   const candidates = [
     result?.id,
@@ -135,9 +130,6 @@ export const saveAndGetId = async (className, data, jwt) =>
 
 let classIdCache;
 
-/**
- * The cids class id a `cs_locks` row needs in `class_id`.
- */
 export const fetchClassId = async (tableName, jwt) => {
   if (!classIdCache) {
     const callId = startCall(`GET ${LAGIS_CLASSES_ENDPOINT}`, undefined, {

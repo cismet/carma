@@ -9,7 +9,6 @@ import {
 } from "../../../core/wizard/geometry";
 import { FLURSTUECK_ART } from "../../../core/wizard/constants";
 
-// no point in asking ALKIS while the key is still being typed
 const CHECK_DELAY_MS = 400;
 
 const formatArea = (area) =>
@@ -38,7 +37,6 @@ const CreateStep = ({ value, onChange, onProblem }) => {
       try {
         const found = await fetchGeometryForKey(key, jwt);
         if (!cancelled) {
-          // the Dienststellen sub-step reuses the area and the outline
           onChange({ createOutline: found });
           setGeometry(
             found

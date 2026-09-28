@@ -8,10 +8,6 @@ import { formatKey } from "../keys";
 import { acquireLock, releaseLock } from "../locks";
 import { staedtischColumns } from "./core";
 
-/**
- * Port of ChangeKindActionSteps + LagisBroker.modifyFlurstueckSchluessel —
- * "Art des Flurstücks ändern".
- */
 export const changeFlurstueckArt = async ({ key, newArt }, ctx) => {
   const { jwt, accountName, journal, currentKeyString } = ctx;
   const keyString = formatKey(key);
@@ -37,8 +33,6 @@ export const changeFlurstueckArt = async ({ key, newArt }, ctx) => {
   try {
     const wasStaedtisch = key.art?.bezeichnung === FLURSTUECK_ART.STAEDTISCH;
 
-    // Leaving städtisch records when the city last owned the parcel; every
-    // other change runs through the shared staedtisch bookkeeping.
     const changes = wasStaedtisch
       ? {
           war_staedtisch: true,

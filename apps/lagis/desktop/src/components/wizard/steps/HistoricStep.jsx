@@ -6,10 +6,6 @@ import LandParcelKeyChooser from "../LandParcelKeyChooser";
 const CHOOSE_PROMPT =
   "Bitte wählen Sie das Flurstück aus, das historisch gesetzt werden soll";
 
-/**
- * Port of HistoricActionPanel: the parcel plus the date it becomes historic.
- * Rights and leases are dealt with on finish, in HistoricRebeMipaDialog.
- */
 const HistoricStep = ({ value, onChange, onProblem }) => {
   const [status, setStatus] = useState({ valid: false });
   const date = value.historicDate ?? new Date();
@@ -21,8 +17,7 @@ const HistoricStep = ({ value, onChange, onProblem }) => {
           Flurstück, das historisch gesetzt wird
         </div>
         <LandParcelKeyChooser
-          // HistoricActionPanel's chooser starts on "alle Flurstücke", so an
-          // already historic parcel can be picked
+          // as in Swing, so an already historic parcel can be picked
           mode="all"
           prefillCurrent
           incompleteMessage={CHOOSE_PROMPT}

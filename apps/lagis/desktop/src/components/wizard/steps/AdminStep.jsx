@@ -72,7 +72,6 @@ const numberColumn = (title, dataIndex, update) => ({
   ),
 });
 
-// "keine" first, as in the Java combo
 const strassenOptions = (names) => [
   { value: "", label: <i>keine</i> },
   ...names.map((name) => ({ value: name, label: name })),
@@ -148,10 +147,7 @@ const SECTIONS = {
   },
 };
 
-/**
- * As in Java's VerwaltungsPanel, a Sperre needs a reason: ticking asks for it,
- * cancelling unticks again. The Sperre is a marker only, it blocks nothing.
- */
+// A Sperre needs a reason; it is only a marker and blocks nothing.
 const NoteEditor = ({ title, parcel, onChange }) => {
   const [asking, setAsking] = useState(false);
   const [reason, setReason] = useState("");
@@ -224,7 +220,6 @@ const NoteEditor = ({ title, parcel, onChange }) => {
   );
 };
 
-/** One sub-step of Verwaltungsbereiche; every one of them may stay empty. */
 const AdminStep = ({ section, value, onChange, onProblem, onHideProblem }) => {
   const jwt = useSelector((state) => state.auth.jwt);
   const [stammdaten, setStammdaten] = useState();
@@ -269,7 +264,6 @@ const AdminStep = ({ section, value, onChange, onProblem, onHideProblem }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stammdaten, section, value.admin, targets]);
 
-  // same condition as the map in DienststellenEditor
   const showsMap =
     section === ADMIN_SECTION.DIENSTSTELLEN &&
     targets.some(({ key }) => admin[formatKey(key)]?.dienststellen.length >= 2);
@@ -309,7 +303,6 @@ const AdminStep = ({ section, value, onChange, onProblem, onHideProblem }) => {
       {targets.map(({ key }) => {
         const label = formatKey(key);
         const parcel = admin[label];
-        // the parcel name is only needed to tell several parcels apart
         const title = targets.length > 1 ? label : undefined;
         if (!parcel) {
           return null;

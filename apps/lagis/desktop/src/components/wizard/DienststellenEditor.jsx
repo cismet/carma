@@ -11,7 +11,6 @@ const formatArea = (area) =>
     maximumFractionDigits: 2,
   })} m²`;
 
-/** Java's check: the drawn areas should add up to the parcel. Warning only. */
 const AreaSummary = ({ parcelArea, rows }) => {
   const missing = rows.filter((row) => !row.geometry).length;
   const sum = rows.reduce(
@@ -48,7 +47,6 @@ const roundCoords = (coords) =>
     ? coords.map((c) => Math.round(c * 1e9) / 1e9)
     : coords.map(roundCoords);
 
-/** Rows that already have an area, as terra-draw snapshot features. */
 const toMeasurementFeatures = (rows) =>
   rows
     .filter((row) => row.geometry && row.measurementId)
@@ -75,10 +73,7 @@ const withArea = (row, feature) => {
   };
 };
 
-/**
- * One Dienststelle holds the whole parcel; from two on, a row counts 0 m²
- * until its area is drawn.
- */
+// with 2+ rows, a row counts 0 m² until its area is drawn
 const withStartAreas = (rows, parcelArea) =>
   rows.map((row) => {
     if (row.geometry) {
@@ -90,7 +85,6 @@ const withStartAreas = (rows, parcelArea) =>
     return { ...row, flaeche: 0 };
   });
 
-/** Dienststellen table; from two rows on, each row gets a drawn area. */
 const DienststellenEditor = ({
   title,
   parcel,
@@ -115,7 +109,6 @@ const DienststellenEditor = ({
     onChange(nextRows);
   };
 
-  /** Keeps rows and measurement polygons 1:1, after drawing, editing, deleting. */
   const handleFeaturesChange = (features) => {
     const polygons = new Map(
       features
@@ -150,7 +143,6 @@ const DienststellenEditor = ({
     });
     commit(nextRows);
 
-    // a polygon without a row to hold it, and the one it replaced, go
     const orphans = drawn.filter((id) => id !== newId || !target);
     [...replaced, ...orphans].forEach((id) =>
       hostRef.current?.deleteFeature(id)

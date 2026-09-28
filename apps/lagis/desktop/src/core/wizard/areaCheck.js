@@ -9,10 +9,6 @@ import {
   geometryForKey,
 } from "./geometry";
 
-/**
- * Which parcels are compared against which, as in ResultingPanel's three
- * calls to checkGeometryAreas.
- */
 export const areaCheckKeys = (value) => {
   if (value.action === WIZARD_ACTIONS.JOIN) {
     return {
@@ -32,10 +28,6 @@ export const areaCheckKeys = (value) => {
   };
 };
 
-/**
- * Port of GeometryWorker + GeometryAreaChecker. Every parcel needs an ALKIS
- * geometry; `problem` names the first one without.
- */
 export const checkAreas = async ({ targetKeys, resultKeys }, jwt) => {
   const geometries = await fetchGeometries([...targetKeys, ...resultKeys], jwt);
 
@@ -72,20 +64,14 @@ export const checkAreas = async ({ targetKeys, resultKeys }, jwt) => {
   };
 };
 
-/** LagisBroker.rebeBuffer */
 const REBE_MIPA_BUFFER_M = -1;
 
-/** Rights and leases on a parcel; HistoricNoSucessorDialog needs them. */
 export const findRebeAndMipa = async (key, jwt) => {
   const found = await fetchGeometryForKey(key, jwt);
   if (!found) {
     return { rebe: [], mipa: [], geometryMissing: true };
   }
-  // The parcel is made a metre smaller before the search, as the Swing client
-  // does it. Without that, a right on the parcel next door would count too,
-  // because the two share their boundary line. A parcel narrower than two
-  // metres has nothing left after shrinking, and getBuffer25832 then returns
-  // undefined — in that case the full outline is the best we have.
+  // Shrink 1 m so a right on the neighbour's shared border isn't matched.
   const buffered = getBuffer25832(found.geometry, REBE_MIPA_BUFFER_M);
   if (!buffered) {
     console.warn(

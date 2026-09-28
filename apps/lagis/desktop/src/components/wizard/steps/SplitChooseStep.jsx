@@ -10,14 +10,6 @@ import {
 const CHOOSE_PROMPT =
   "Bitte wählen Sie das Flurstück aus, das geteilt werden soll";
 
-/**
- * Port of SplitActionChoosePanel.
- *
- * For "teilen" the user picks the parcel and how many parts it becomes. In
- * "zusammenlegen/teilen" the source is the merged parcel from the previous
- * step, so only the count is asked for — the Swing panel removed the chooser
- * from the layout in that mode.
- */
 const SplitChooseStep = ({ value, onChange, onProblem }) => {
   const joinMode = value.action === WIZARD_ACTIONS.SPLIT_JOIN;
   const count = value.splitCount ?? MIN_SPLIT_COUNT;

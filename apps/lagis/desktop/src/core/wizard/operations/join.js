@@ -12,14 +12,6 @@ import {
   setHistoricForKey,
 } from "./core";
 
-/**
- * Port of JoinActionSteps + LagisBroker.joinFlurstuecke —
- * "Flurstück zusammenlegen".
- *
- * Every member is locked up front, so the action either owns all of them or
- * none. As in splitFlurstuecke the successor check runs before anything is
- * written.
- */
 export const joinFlurstuecke = async ({ memberKeys, resultKey }, ctx) => {
   const { jwt, accountName, journal, currentKeyString } = ctx;
 
@@ -60,7 +52,6 @@ export const joinFlurstuecke = async ({ memberKeys, resultKey }, ctx) => {
       members.push({ key: memberKey, flurstueck });
     }
 
-    // the merged parcel takes the Flurstücksart of the first member
     const created = await createFlurstueckForKey(
       { ...resultKey, art: resultKey.art ?? memberKeys[0].art },
       ctx

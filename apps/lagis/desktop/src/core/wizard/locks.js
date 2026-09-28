@@ -2,13 +2,6 @@ import wizardQueries from "./queries";
 import { run, ActionNotSuccessfulError, CLASS } from "./api";
 import { deleteObject, fetchClassId, saveAndGetId } from "./cidsActions";
 
-/**
- * Port of the Sperre handling in LagisBroker (isLocked / createLock /
- * releaseLock). Both halves work on `cs_locks`: reads over GraphQL, writes
- * through SaveObject/DeleteObject like every other write.
- */
-
-/** Returns the existing Sperre, or undefined when the key is free. */
 export const findLock = async (schluesselId, jwt) => {
   if (!schluesselId) {
     return undefined;
@@ -30,10 +23,6 @@ const formatInfo = (contextKeyString) => {
   return `${contextKeyString ?? "-"};-;${stamp}`;
 };
 
-/**
- * Acquires a Sperre. Throws when somebody else already holds one, naming the
- * user — the wizard shows that message verbatim, as the Swing panels did.
- */
 export const acquireLock = async (
   schluesselId,
   { jwt, accountName, contextKeyString, keyString }
@@ -73,8 +62,7 @@ export const releaseLock = async (lock, jwt) => {
   try {
     await deleteObject(CLASS.LOCK, { id: lock.id }, jwt);
   } catch (e) {
-    // Releasing is best effort: the Swing client also only logs this, and
-    // failing here would mask the real error of the surrounding action.
+    // best effort, as in Swing: don't mask the action's real error
     console.error("Sperre konnte nicht gelöst werden", e);
   }
 };

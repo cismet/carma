@@ -13,12 +13,11 @@ export function noteExtractor(dataIn) {
   } else {
     const lagisLandparcel = dataIn;
     const currentText = lagisLandparcel?.bemerkung || "";
-    const bemerkungSperre =
-      lagisLandparcel?.flurstueck_schluessel.bemerkung_sperre || null;
-
     return {
       currentText,
-      ifBemerkungSperre: bemerkungSperre === "Stei" ? true : false,
+      ifBemerkungSperre: Boolean(
+        lagisLandparcel?.flurstueck_schluessel?.ist_gesperrt
+      ),
     };
   }
 }

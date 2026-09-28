@@ -16,10 +16,6 @@ export const ADMIN_SECTION = {
   BEMERKUNGEN: "bemerkungen",
 };
 
-/**
- * The parcels that exist after the action, each with the parcel whose
- * Verwaltungsbereiche it starts from (none for newly created parcels).
- */
 export const adminTargets = (value) => {
   const one = (key, source) => (key ? [{ key, source }] : []);
   switch (value.action) {
@@ -40,7 +36,6 @@ export const adminTargets = (value) => {
   }
 };
 
-/** ALKIS outlines the earlier steps already loaded, by formatKey. */
 const knownOutlines = (value) =>
   value.createKey && value.createOutline
     ? { [formatKey(value.createKey)]: value.createOutline }
@@ -56,7 +51,6 @@ const toParcelData = (source, area) => ({
   dienststellen: source.bereiche.map((b, index, all) => ({
     id: rowId(),
     dienststelleId: b.verwaltende_dienststelle?.id,
-    // a single Dienststelle holds the whole parcel, as the page shows it
     flaeche:
       all.length === 1 && area !== undefined ? area : round2(b.flaeche) ?? null,
   })),
@@ -94,10 +88,6 @@ const loadStammdaten = async (jwt) => {
   return stammdatenCache;
 };
 
-/**
- * Stammdaten plus the starting data of every target parcel that has none yet,
- * so edits survive going back and forth between the sub-steps.
- */
 export const loadAdminData = async (value, jwt) => {
   const stammdaten = await loadStammdaten(jwt);
   const missing = adminTargets(value).filter(
@@ -169,7 +159,6 @@ export const findAdminProblem = (section, admin, targets) => {
   return null;
 };
 
-/** The area a first Dienststelle row starts with. */
 export const newDienststelleRow = (parcel) => ({
   id: rowId(),
   dienststelleId: undefined,

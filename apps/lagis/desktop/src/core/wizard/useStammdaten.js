@@ -5,11 +5,6 @@ import wizardQueries from "./queries";
 
 const cache = { gemarkungen: undefined, arten: undefined };
 
-/**
- * Gemarkungen (with their ids, which the app's own gemarkung query omits) and
- * the Flurstücksarten. Both are small, never change during a session, and are
- * needed by almost every step, so they are fetched once and kept.
- */
 const useStammdaten = () => {
   const jwt = useSelector((state) => state.auth.jwt);
   const [state, setState] = useState({

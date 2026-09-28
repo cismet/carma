@@ -5,11 +5,6 @@ import LandParcelKeyChooser from "../LandParcelKeyChooser";
 import { FLURSTUECK_ART } from "../../../core/wizard/constants";
 import useStammdaten from "../../../core/wizard/useStammdaten";
 
-/**
- * Port of ChangeKindActionPanel. Selecting a parcel preselects the art it does
- * not currently have, and choosing the one it already has is rejected with the
- * message the Swing panel used.
- */
 const CHOOSE_PROMPT = "Bitte wählen Sie das Flurstück aus.";
 
 const ChangeKindStep = ({ value, onChange, onProblem }) => {
@@ -18,7 +13,6 @@ const ChangeKindStep = ({ value, onChange, onProblem }) => {
   const key = value.changeKey;
   const target = value.newArtBezeichnung;
 
-  // preselect the other art, as the panel did on every new selection
   useEffect(() => {
     if (!key?.art?.bezeichnung) {
       return;

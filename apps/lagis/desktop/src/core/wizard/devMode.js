@@ -1,10 +1,3 @@
-/**
- * Whether to show the raw GraphQL panel.
- *
- * Same rule the BelIS Arbeitsauftrag search uses: an explicit `showRaw` in the
- * URL wins, otherwise it is on for localhost only. lagis-desktop routes on the
- * hash, so the parameter is looked for there first.
- */
 export const isRawVisible = () => {
   if (typeof window === "undefined") {
     return false;

@@ -25,7 +25,6 @@ const JoinChooseStep = ({ value, onChange, onProblem }) => {
 
   const keys = slots.map((slot) => slot.key).filter(Boolean);
 
-  // a parcel the chooser rejected, e.g. a historic one
   const [chooserProblem, setChooserProblem] = useState();
 
   const handleValidity = (slotId, status) => {
@@ -38,7 +37,6 @@ const JoinChooseStep = ({ value, onChange, onProblem }) => {
     }
   };
 
-  // true once every picked parcel is known to have an ALKIS geometry
   const [geometryOk, setGeometryOk] = useState(false);
 
   useEffect(() => {

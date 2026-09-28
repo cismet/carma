@@ -19,13 +19,6 @@ import {
 import { FLURSTUECK_ART } from "../constants";
 import { formatKey, isPseudoKey } from "../keys";
 
-/**
- * Port of LagisBroker.checkIfFlurstueckWasStaedtisch.
- * Returns the columns that have to be written on the Flurstücksschlüssel.
- *
- * @param {Object} key       the key incl. its (possibly new) Flurstücksart
- * @param {Date} [useDate]   creation date, when the key is being created
- */
 export const staedtischColumns = (key, useDate) => {
   const isStaedtisch = key.art?.bezeichnung === FLURSTUECK_ART.STAEDTISCH;
   if (!isStaedtisch) {
@@ -33,7 +26,6 @@ export const staedtischColumns = (key, useDate) => {
   }
   const now = new Date();
   if (!key.warStaedtisch) {
-    // never owned by the city before
     return useDate
       ? {
           war_staedtisch: true,
@@ -45,18 +37,9 @@ export const staedtischColumns = (key, useDate) => {
           datum_entstehung: toTimestamp(now),
         };
   }
-  // was and still is owned by the city — only refresh the date
   return { datum_letzter_stadtbesitz: toTimestamp(useDate ?? now) };
 };
 
-/**
- * Port of LagisBroker.createFlurstueck.
- *
- * Creates the Flurstücksschlüssel (unless it already carries an id, which is
- * the case for the pseudo key of the zusammenlegen/teilen action) and the
- * Flurstück that belongs to it. Fails when the key is already in the database,
- * exactly as the Swing version did by way of completeFlurstueckSchluessel.
- */
 export const createFlurstueckForKey = async (key, ctx) => {
   const { jwt, accountName, journal } = ctx;
 
@@ -81,7 +64,6 @@ export const createFlurstueckForKey = async (key, ctx) => {
         fk_flurstueck_art: key.art?.id ?? null,
         ist_gesperrt: false,
         datum_entstehung: toTimestamp(created),
-        // left empty unless staedtischColumns sets it, as in LagisBroker
         war_staedtisch: key.warStaedtisch ?? null,
         letzter_bearbeiter: accountName,
         letzte_bearbeitung: toTimestamp(created),
@@ -105,7 +87,6 @@ export const createFlurstueckForKey = async (key, ctx) => {
   return { ...key, id: schluesselId, flurstueckId };
 };
 
-/** Port of LagisBroker.existHistoryEntry — does this Flurstück have a successor? */
 export const hasHistoryEntry = async (flurstueckId, jwt) =>
   (await fetchSuccessorEdges(flurstueckId, jwt)).length > 0;
 
@@ -114,7 +95,6 @@ export const setHistoricForKey = async (key, date, options, ctx) => {
   const keyString = formatKey(key);
 
   if (!key.warStaedtisch) {
-    // never city owned — there are no Nutzungen that need closing
     const previous = key.gueltigBis ?? null;
     await updateSchluessel(
       key.id,
@@ -135,8 +115,7 @@ export const setHistoricForKey = async (key, date, options, ctx) => {
     );
   }
 
-  // Closing rights and leases is only asked for by the "historisch setzen"
-  // action itself, not when rename/split/join set a parcel historic.
+  // only the "historisch setzen" action itself asks to close rights/leases
 
   if (options?.mipaVertragsendeDatum) {
     for (const mipa of options.mipa ?? []) {
@@ -169,8 +148,7 @@ export const setHistoricForKey = async (key, date, options, ctx) => {
   const artName = key.art?.bezeichnung;
 
   if (artName !== FLURSTUECK_ART.STAEDTISCH) {
-    // LagisBroker checks the catalogue first, so a missing entry does not
-    // surface as the misleading message below.
+    // catalogue checked first so the error below is not misleading
     const arten = await fetchFlurstueckArten(jwt);
     if (!findArtByBezeichnung(arten, FLURSTUECK_ART.ABTEILUNG_IX)) {
       throw new ActionNotSuccessfulError(
@@ -197,7 +175,6 @@ export const setHistoricForKey = async (key, date, options, ctx) => {
     );
   }
 
-  // städtisch: closed on the date the user picked
   return await closeParcel(
     key,
     flurstueck,
@@ -207,12 +184,6 @@ export const setHistoricForKey = async (key, date, options, ctx) => {
   );
 };
 
-/**
- * Writes gueltig_bis on the key and closes the Nutzungen plus their Buchungen,
- * the shared tail of both branches of setFlurstueckHistoric.
- *
- * @returns {Promise<string>} the gueltig_bis that was written
- */
 const closeParcel = async (
   key,
   flurstueck,

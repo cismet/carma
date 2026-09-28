@@ -10,7 +10,6 @@ const RenameStep = ({ value, onChange, onProblem }) => {
   const oldStatus = useRef({ valid: false, message: OLD_KEY_PROMPT });
   const newStatus = useRef({ valid: false, message: NEW_KEY_PROMPT });
 
-  // The old key is reported first, so the user is guided top to bottom.
   const report = () => {
     if (!oldStatus.current.valid) {
       onProblem(oldStatus.current.message || OLD_KEY_PROMPT);
@@ -26,8 +25,7 @@ const RenameStep = ({ value, onChange, onProblem }) => {
       <div>
         <div className="mb-1 font-medium">Flurstück, das umbenannt wird</div>
         <LandParcelKeyChooser
-          // as in Java, every parcel is offered; a historic one is turned down
-          // on pick instead of being dropped from the list without a word
+          // every parcel is offered; a historic one is rejected on pick
           mode="all"
           prefillCurrent
           reject={(key) => (key.gueltigBis ? HISTORIC_REJECTED : null)}

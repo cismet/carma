@@ -19,10 +19,6 @@ export const ColorMark = ({ color }) => (
   ></span>
 );
 
-/**
- * The tables of the Verwaltungsbereiche page, edited in place. `columns` get
- * `update(id, changes)` to write a cell back.
- */
 const AdminAreaTable = ({
   title,
   rows,

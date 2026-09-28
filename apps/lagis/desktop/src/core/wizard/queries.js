@@ -8,8 +8,7 @@ wizardQueries.flurstueckArten = `query FlurstueckArten {
   }
 }`;
 
-// The nenner is nullable and Hasura has no conditional operators, so the two
-// cases get their own document instead of one clever one.
+// Hasura has no conditional operators, so a null Nenner needs its own query
 wizardQueries.schluesselByKeyWithNenner = `query SchluesselByKey($gemarkungId: Int!, $flur: Int!, $zaehler: Int!, $nenner: Int!) {
   flurstueck_schluessel(where: {
     fk_gemarkung: {_eq: $gemarkungId},
@@ -56,8 +55,7 @@ wizardQueries.schluesselByKeyWithoutNenner = `query SchluesselByKey($gemarkungId
   }
 }`;
 
-// Nenner 0 and NULL both mean "no Nenner", so a lookup for 0 has to match
-// either — older rows carry NULL where the wizard writes 0.
+// Nenner 0 and NULL both mean none; older rows carry NULL
 wizardQueries.schluesselByKeyZeroNenner = `query SchluesselByKey($gemarkungId: Int!, $flur: Int!, $zaehler: Int!) {
   flurstueck_schluessel(where: {
     fk_gemarkung: {_eq: $gemarkungId},
@@ -121,7 +119,6 @@ wizardQueries.flurstueckBySchluesselId = `query FlurstueckBySchluesselId($schlue
   }
 }`;
 
-// Full nutzung tree, used as the source for the rename-time copy.
 wizardQueries.nutzungenForFlurstueck = `query NutzungenForFlurstueck($flurstueckId: Int!) {
   nutzung(where: {fk_flurstueck: {_eq: $flurstueckId}}) {
     id
@@ -150,8 +147,7 @@ wizardQueries.successorEdges = `query SuccessorEdges($flurstueckId: Int!) {
   }
 }`;
 
-// The `sperre` view stays empty even while cs_locks holds rows, so locks are
-// read from cs_locks directly, keyed the way cids stores them.
+// the `sperre` view stays empty, so locks are read from cs_locks directly
 wizardQueries.lockForSchluessel = `query LockForSchluessel($classId: Int!, $objectId: Int!) {
   cs_locks(where: {class_id: {_eq: $classId}, object_id: {_eq: $objectId}}) {
     id
@@ -173,8 +169,6 @@ wizardQueries.mipaByGeo = `query MipaByGeo($geo: geometry) {
     vertragsende
   }
 }`;
-
-/* Geometrie */
 
 wizardQueries.geometriesFromWuNDa = `query GeometriesFromWuNDa($alkisIds: [String!]) {
   flurstueck(where: {alkis_id: {_in: $alkisIds}}) {
@@ -226,6 +220,31 @@ wizardQueries.adminDataBySchluesselId = `query AdminDataBySchluesselId($schluess
       zusatz_rolle_art { id }
     }
     strassenfrontArrayRelationShip {
+      strassenname
+      laenge
+    }
+  }
+}`;
+
+wizardQueries.adminRowsBySchluesselId = `query AdminRowsBySchluesselId($schluesselId: Int!) {
+  flurstueck(where: {fk_flurstueck_schluessel: {_eq: $schluesselId}}) {
+    id
+    bemerkung
+    verwaltungsbereiche_eintragArrayRelationShip {
+      id
+      geaendert_am
+      verwaltungsbereichArrayRelationShip {
+        flaeche
+        verwaltende_dienststelle { id }
+      }
+    }
+    zusatz_rolleArrayRelationShip {
+      id
+      verwaltende_dienststelle { id }
+      zusatz_rolle_art { id }
+    }
+    strassenfrontArrayRelationShip {
+      id
       strassenname
       laenge
     }

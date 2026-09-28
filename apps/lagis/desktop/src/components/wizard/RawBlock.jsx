@@ -1,8 +1,6 @@
 import React, { useState } from "react";
 import { CheckOutlined, CopyOutlined } from "@ant-design/icons";
 
-// Matches rawDataPreStyle in the BelIS desktop app, so raw blocks look the
-// same across the two applications.
 const preStyle = {
   fontSize: 11,
   lineHeight: 1.5,
@@ -15,7 +13,6 @@ const preStyle = {
   margin: 0,
 };
 
-/** A <pre> with a copy button, for showing raw GraphQL and JSON. */
 const RawBlock = ({ children, maxHeight = 260 }) => {
   const [copied, setCopied] = useState(false);
 

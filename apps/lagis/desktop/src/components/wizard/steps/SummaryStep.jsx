@@ -16,7 +16,6 @@ const Row = ({ label, area }) => (
 
 const Separator = () => <hr className="my-1 border-gray-300" />;
 
-/** Port of SummaryPanel; shows the area check done on the previous step. */
 const SummaryStep = ({ value }) => {
   const check = value.areaCheck;
   if (!check?.targets) {

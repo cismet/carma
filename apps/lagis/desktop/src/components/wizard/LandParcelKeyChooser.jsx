@@ -56,7 +56,6 @@ const LandParcelKeyChooser = ({
   const [text, setText] = useState(
     () => keyToSearchText(value) || presetToSearchText(preset)
   );
-  // going back to a step must not look unfinished, and must not ask again
   const [status, setStatus] = useState(() =>
     value
       ? {
@@ -68,7 +67,6 @@ const LandParcelKeyChooser = ({
         }
       : { valid: false, message: incompleteMessage }
   );
-  // the last picked option, to tell a selection apart from typing
   const pickedRef = useRef(text);
   const checkRef = useRef(0);
   const typedTimerRef = useRef();
@@ -100,7 +98,6 @@ const LandParcelKeyChooser = ({
     onChange(nextStatus.valid ? key : undefined);
   };
 
-  // the parcel this one is derived from changed, so the choice here is void
   useEffect(() => {
     if (!presetText || presetText === presetRef.current) {
       return;
@@ -149,7 +146,6 @@ const LandParcelKeyChooser = ({
         });
         return;
       }
-      // the parcel exists but the step may still not accept it
       const rejected = reject?.(resolved);
       if (rejected) {
         publish(undefined, { valid: false, message: rejected });
@@ -169,7 +165,6 @@ const LandParcelKeyChooser = ({
     }
   };
 
-  /** The key must still be free at the moment it is picked. */
   const takeNew = async (data) => {
     if (stammdatenError) {
       publish(undefined, {
@@ -246,7 +241,6 @@ const LandParcelKeyChooser = ({
     }
   };
 
-  // typing on drops the choice, so no step keeps a key the input no longer shows
   const takeTyped = (typedText) => {
     const typed = resolveTypedKey(typedText, structure);
     if (!typed) {
@@ -300,7 +294,6 @@ const LandParcelKeyChooser = ({
 
   const handleNotFound = (input) => {
     if (mode === "creation") {
-      // the "anlegen" entry is the answer here, not an error
       return;
     }
     publish(undefined, {
