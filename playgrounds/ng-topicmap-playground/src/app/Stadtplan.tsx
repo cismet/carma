@@ -288,6 +288,9 @@ export function Stadtplan() {
                 exposeMapToWindow
                 overrideGlyphs="https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf"
                 onProgressUpdate={handleProgressUpdate}
+                restrictCamera
+                terrainControl={false}
+                compassControl={false}
                 libreLayers={LIBRE_LAYERS}
                 filterFunction={handleFilter}
                 modalMenu={
