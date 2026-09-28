@@ -56,17 +56,14 @@ import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { basename } from "node:path";
 import proj4 from "proj4";
 
+import { CAR_KINDS, OSM_ZOOM, fetchOsmStreets } from "./shortbread-tiles.mjs";
+import { clipBounds } from "./traffic-model-area.mjs";
+
 const DEFAULT_SOURCE =
   "/Users/thorsten/dev/maintenance/wupp-tiling-pipeline/_in/verkehrsbelastung_2020/shp/Verkehrsbelastung_Wuppertal_2020.shp";
 const DEFAULT_TARGET =
   "apps/geoportal/public/assets/dz-b-prm/traffic/verkehrsnetz_modell.json";
 const DEFAULT_MARGIN_METERS = 200;
-
-/**
- * The printed zoo model in EPSG:3857, the `bounds3857` of the outlet route
- * (`apps/geoportal/src/app/constants/fachzwillinge/outlet.ts`).
- */
-const MODEL_BOUNDS_3857 = [788836.855, 6663227.421, 794575.246, 6666423.835];
 
 const [
   ,
@@ -87,7 +84,6 @@ proj4.defs(
   "+proj=utm +zone=32 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs"
 );
 const toWgs84 = proj4("EPSG:25832", "EPSG:4326");
-const fromWebMercator = proj4("EPSG:3857", "EPSG:4326");
 
 // ---------------------------------------------------------------- shapefile
 
@@ -195,17 +191,6 @@ const readDbf = (buffer, encoding) => {
 
 // ------------------------------------------------------------------ clipping
 
-/** west, south, east, north in degrees: the model grown by `margin` metres */
-const clipBounds = (margin) => {
-  const [minX, minY, maxX, maxY] = MODEL_BOUNDS_3857;
-  const [west, south] = fromWebMercator.forward([minX, minY]);
-  const [east, north] = fromWebMercator.forward([maxX, maxY]);
-  const latitude = ((south + north) / 2) * (Math.PI / 180);
-  const marginLat = margin / 111320;
-  const marginLon = margin / (111320 * Math.cos(latitude));
-  return [west - marginLon, south - marginLat, east + marginLon, north + marginLat];
-};
-
 const inside = ([x, y], [west, south, east, north]) =>
   x >= west && x <= east && y >= south && y <= north;
 
@@ -248,196 +233,8 @@ const lineHitsBox = (line, box) => {
   return false;
 };
 
-// --------------------------------------------------------- vector tiles
-
-/**
- * OpenStreetMap roads in the Shortbread schema, the source of
- * `https://tiles.cismet.de/osm_shortbread/osm_shortbread.style.json`. Only the
- * `streets` layer is read, and of it `kind`, `link` (a ramp or slip road),
- * `oneway` (driven only along the line) and `oneway_reverse` (only against it).
- */
-const OSM_TILES = "https://test-maphosting-sb.cismet.de/tiles/{z}/{x}/{y}.pbf";
-/** the tiles' highest zoom, where the lines are least simplified */
-const OSM_ZOOM = 14;
-
-/** the next varint at `cursor.at`, moving the cursor past it */
-const readVarint = (bytes, cursor) => {
-  let value = 0;
-  let shift = 0;
-  let byte;
-  do {
-    byte = bytes[cursor.at++];
-    value += (byte & 0x7f) * 2 ** shift;
-    shift += 7;
-  } while (byte & 0x80);
-  return value;
-};
-
-/**
- * The fields of a protobuf message, in order: `onField(field, value)` with a
- * number for varints and fixed numbers, a byte slice for everything
- * length-delimited.
- */
-const readProto = (bytes, onField) => {
-  const cursor = { at: 0 };
-  while (cursor.at < bytes.length) {
-    const key = readVarint(bytes, cursor);
-    const field = Math.floor(key / 8);
-    const wireType = key % 8;
-    if (wireType === 0) {
-      onField(field, readVarint(bytes, cursor));
-    } else if (wireType === 2) {
-      const length = readVarint(bytes, cursor);
-      onField(field, bytes.subarray(cursor.at, cursor.at + length));
-      cursor.at += length;
-    } else if (wireType === 1) {
-      onField(field, bytes.readDoubleLE(cursor.at));
-      cursor.at += 8;
-    } else if (wireType === 5) {
-      onField(field, bytes.readFloatLE(cursor.at));
-      cursor.at += 4;
-    } else {
-      throw new Error(`protobuf wire type ${wireType} in a vector tile`);
-    }
-  }
-};
-
-const packedVarints = (bytes) => {
-  const values = [];
-  const cursor = { at: 0 };
-  while (cursor.at < bytes.length) values.push(readVarint(bytes, cursor));
-  return values;
-};
-
-/** a tile's attribute value: string, number or boolean */
-const readValue = (bytes) => {
-  let value = null;
-  readProto(bytes, (field, raw) => {
-    if (field === 1) value = raw.toString("utf8");
-    else if (field === 6) value = raw % 2 === 1 ? -(raw + 1) / 2 : raw / 2;
-    else if (field === 7) value = raw !== 0;
-    else value = raw;
-  });
-  return value;
-};
-
-const zigzag = (n) => (n >> 1) ^ -(n & 1);
-
-/** the lines of a feature's geometry commands, each point through `toLonLat` */
-const decodeLines = (commands, toLonLat) => {
-  const lines = [];
-  let x = 0;
-  let y = 0;
-  let line = null;
-  for (let i = 0; i < commands.length; ) {
-    const command = commands[i] & 7;
-    const count = commands[i] >> 3;
-    i++;
-    // ClosePath, only in polygons, has no parameters
-    if (command === 7) continue;
-    for (let n = 0; n < count; n++) {
-      x += zigzag(commands[i++]);
-      y += zigzag(commands[i++]);
-      if (command === 1 || !line) {
-        line = [];
-        lines.push(line);
-      }
-      line.push(toLonLat(x, y));
-    }
-  }
-  return lines.filter((points) => points.length >= 2);
-};
-
-/**
- * The lines of one tile's `streets` layer as { properties, line }, `line` in
- * lon/lat. A road crossing tiles is cut at their borders, with some overlap.
- */
-const readStreets = (bytes, tileX, tileY, zoom) => {
-  const streets = [];
-  readProto(bytes, (field, layerBytes) => {
-    if (field !== 3) return;
-    let name = "";
-    let extent = 4096;
-    const keys = [];
-    const values = [];
-    const features = [];
-    readProto(layerBytes, (layerField, value) => {
-      if (layerField === 1) name = value.toString("utf8");
-      else if (layerField === 2) features.push(value);
-      else if (layerField === 3) keys.push(value.toString("utf8"));
-      else if (layerField === 4) values.push(readValue(value));
-      else if (layerField === 5) extent = value;
-    });
-    if (name !== "streets") return;
-    const tiles = 2 ** zoom;
-    const toLonLat = (x, y) => [
-      ((tileX + x / extent) / tiles) * 360 - 180,
-      (Math.atan(Math.sinh(Math.PI * (1 - (2 * (tileY + y / extent)) / tiles))) *
-        180) /
-        Math.PI,
-    ];
-    for (const featureBytes of features) {
-      let tags = [];
-      let type = 0;
-      let geometry = [];
-      readProto(featureBytes, (featureField, value) => {
-        if (featureField === 2) tags = packedVarints(value);
-        else if (featureField === 3) type = value;
-        else if (featureField === 4) geometry = packedVarints(value);
-      });
-      // 2 is LineString
-      if (type !== 2) continue;
-      const properties = {};
-      for (let i = 0; i + 1 < tags.length; i += 2) {
-        properties[keys[tags[i]]] = values[tags[i + 1]];
-      }
-      for (const line of decodeLines(geometry, toLonLat)) {
-        streets.push({ properties, line });
-      }
-    }
-  });
-  return streets;
-};
-
-/** the `streets` of every OSM tile at `zoom` that covers [west, south, east, north] */
-const fetchOsmStreets = async ([west, south, east, north], zoom) => {
-  const tiles = 2 ** zoom;
-  const tileX = (lon) => Math.floor(((lon + 180) / 360) * tiles);
-  const tileY = (lat) => {
-    const phi = (lat * Math.PI) / 180;
-    return Math.floor(
-      ((1 - Math.log(Math.tan(phi) + 1 / Math.cos(phi)) / Math.PI) / 2) * tiles
-    );
-  };
-  const requests = [];
-  for (let x = tileX(west); x <= tileX(east); x++) {
-    for (let y = tileY(north); y <= tileY(south); y++) {
-      const url = OSM_TILES.replace("{z}", zoom).replace("{x}", x).replace("{y}", y);
-      requests.push(
-        fetch(url).then(async (response) => {
-          if (!response.ok) throw new Error(`${url}: HTTP ${response.status}`);
-          return readStreets(Buffer.from(await response.arrayBuffer()), x, y, zoom);
-        })
-      );
-    }
-  }
-  return { tiles: requests.length, streets: (await Promise.all(requests)).flat() };
-};
-
 // ---------------------------------------------------- driving direction
 
-/** OSM road kinds cars drive on */
-const CAR_KINDS = new Set([
-  "motorway",
-  "trunk",
-  "primary",
-  "secondary",
-  "tertiary",
-  "unclassified",
-  "residential",
-  "living_street",
-  "service",
-]);
 /** a section named like this is a ramp; so is one lying mostly on OSM links */
 const RAMP_NAME = /(auf|ab|aus|zu)fahrt|kreuz/i;
 /** a section is looked at every this many metres */
