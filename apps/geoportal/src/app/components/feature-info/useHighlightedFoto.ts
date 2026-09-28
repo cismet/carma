@@ -78,49 +78,82 @@ const renderHighlightedFoto = (
     img.src = url;
   });
 
+export interface HighlightedFotoSource {
+  url: string | undefined;
+  highlight: unknown;
+  color: string | undefined;
+}
+
+const SEPARATOR = "\n";
+
+const toKey = ({ url, highlight, color }: HighlightedFotoSource) => {
+  const boxKey = parseFotoHighlight(highlight)?.join(",");
+  return url && boxKey ? `${url}|${boxKey}|${color ?? ""}` : "";
+};
+
 /**
- * Returns an object URL of the photo with the given box highlighted, or
- * undefined while rendering, without a valid box or when rendering fails
- * (callers then fall back to the plain photo). Used for the lightbox, which
- * can't take the SVG overlay of the preview.
+ * Returns, per source, an object URL of the photo with its box highlighted,
+ * undefined while rendering or without a valid box, and null when rendering
+ * failed (callers then fall back to the plain photo). Used for the lightbox,
+ * which can't take the SVG overlay of the preview.
+ */
+export const useHighlightedFotos = (
+  sources: HighlightedFotoSource[]
+): (string | null | undefined)[] => {
+  // the sources are rebuilt on every render, so the effect runs on their keys
+  const keys = sources.map(toKey);
+  const keysKey = keys.join(SEPARATOR);
+  const [results, setResults] = useState<Record<string, string | null>>({});
+
+  useEffect(() => {
+    const pending = [...new Set(keysKey.split(SEPARATOR))].filter(Boolean);
+    if (pending.length === 0) {
+      return;
+    }
+    let cancelled = false;
+    const objectUrls: string[] = [];
+
+    pending.forEach((key) => {
+      // box and color never contain "|", the url might
+      const parts = key.split("|");
+      const color = parts.pop();
+      const boxKey = parts.pop() ?? "";
+      const url = parts.join("|");
+      const box = boxKey.split(",").map(Number) as Box;
+      renderHighlightedFoto(url, box, color || DEFAULT_HIGHLIGHT_COLOR)
+        .then((highlightedUrl) => {
+          if (cancelled) {
+            URL.revokeObjectURL(highlightedUrl);
+            return;
+          }
+          objectUrls.push(highlightedUrl);
+          setResults((prev) => ({ ...prev, [key]: highlightedUrl }));
+        })
+        .catch((error) => {
+          console.warn("[FOTO HIGHLIGHT]", error);
+          if (!cancelled) {
+            setResults((prev) => ({ ...prev, [key]: null }));
+          }
+        });
+    });
+
+    return () => {
+      cancelled = true;
+      objectUrls.forEach((objectUrl) => URL.revokeObjectURL(objectUrl));
+      setResults({});
+    };
+  }, [keysKey]);
+
+  return keys.map((key) => (key ? results[key] : undefined));
+};
+
+/**
+ * Single-photo form of useHighlightedFotos: the object URL of the boxed copy,
+ * or undefined while rendering, without a valid box or when rendering failed.
  */
 export const useHighlightedFoto = (
   url: string | undefined,
   highlight: unknown,
   color: string | undefined
-): string | undefined => {
-  const boxKey = parseFotoHighlight(highlight)?.join(",");
-  const key = url && boxKey ? `${url}|${boxKey}|${color ?? ""}` : undefined;
-  const [result, setResult] = useState<{ key: string; url: string }>();
-
-  useEffect(() => {
-    if (!url || !boxKey || !key) {
-      return;
-    }
-    const box = boxKey.split(",").map(Number) as Box;
-    let cancelled = false;
-    let objectUrl: string | undefined;
-
-    renderHighlightedFoto(url, box, color || DEFAULT_HIGHLIGHT_COLOR)
-      .then((highlightedUrl) => {
-        if (cancelled) {
-          URL.revokeObjectURL(highlightedUrl);
-          return;
-        }
-        objectUrl = highlightedUrl;
-        setResult({ key, url: highlightedUrl });
-      })
-      .catch((error) => {
-        console.warn("[FOTO HIGHLIGHT]", error);
-      });
-
-    return () => {
-      cancelled = true;
-      if (objectUrl) {
-        URL.revokeObjectURL(objectUrl);
-      }
-    };
-  }, [url, boxKey, color, key]);
-
-  return result && key && result.key === key ? result.url : undefined;
-};
+): string | undefined =>
+  useHighlightedFotos([{ url, highlight, color }])[0] ?? undefined;
