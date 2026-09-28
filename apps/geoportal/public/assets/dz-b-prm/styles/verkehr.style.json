@@ -13,7 +13,7 @@
           "addon": "trafficAnimation",
           "config": {
             "title": "Verkehr",
-            "networkUrl": "assets/dz-b-prm/traffic/verkehrsnetz_modell.json",
+            "networkUrl": "assets/dz-b-prm/traffic/verkehrsnetz_osm.json",
             "sizeScale": 3.5
           }
         }
