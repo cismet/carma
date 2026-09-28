@@ -129,7 +129,7 @@ export function getOfficesWithColorAndSquare(
       officesArray.verwaltungsbereichArrayRelationShip.length === 1 &&
       !ifHistory
     ) {
-      area = alkisArea;
+      area = alkisArea ?? item.flaeche;
     } else {
       if (item.flaeche !== null) {
         area = item.flaeche;
