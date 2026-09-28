@@ -432,7 +432,8 @@ export type AddonActionContext<K extends AddonKind = AddonKind> =
  * button renders next to its title. Declaring this also decides where the
  * addon is mounted: entries with a `trigger` are rendered into the interaction
  * view while their trigger is active, entries without one are mounted by
- * `AddonHost` and render wherever they like, including `<Control>`.
+ * `AddonHost`. Where the UI of those may land is `ADDON-UI.md`: a `<Control>`
+ * holds the control-column button, settings go into the interaction view.
  */
 export type AddonTrigger<K extends AddonKind = AddonKind> = {
   icon: IconDefinition;

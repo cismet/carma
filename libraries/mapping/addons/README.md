@@ -113,31 +113,28 @@ What the four UI surfaces of a map app look like, and which of them an addon may
 put its own UI on, is [`ADDON-UI.md`](./ADDON-UI.md). This section is only about
 the mount point the registry decides.
 
-There is no `surface` field. An addon renders whatever it wants, and one optional
-registry field decides where that lands:
+There is no `surface` field. One optional registry field decides where an addon's `Component` is mounted; what that component may put on screen, and where, is `ADDON-UI.md`'s business:
 
 | Entry                        | Clicking the trigger     | Renders                                |
 | ---------------------------- | ------------------------ | -------------------------------------- |
 | `trigger` with `onClick`     | runs the action at once  | nothing; the kind needs no `Component` |
 | `trigger` without `onClick`  | toggles the kind's panel | `Component`, in the interaction view   |
-| no `trigger`                 | (nothing to click)       | `Component`, mounted by the addon host, wherever it renders, including `<Control>` |
+| no `trigger`                 | (nothing to click)       | `Component`, mounted by the addon host; its UI goes where `ADDON-UI.md` allows (a `<Control>` button, a layer bar row and its ribbon) |
 
 Because each entry has exactly one mount point, a tool with a trigger is never also
 mounted headlessly.
 
-**Map UI needs nothing from the registry.** `Control` from
-`@carma-mapping/map-controls-layout` registers its children with the layout rather
-than rendering them in place, so any addon may position itself on the map:
+**The control-column button needs nothing from the registry.** `Control` from `@carma-mapping/map-controls-layout` registers its children with the layout rather than rendering them in place, so an addon mounted by `AddonHost` can put its on/off button into the column itself:
 
 ```tsx
 export const SomeKind = ({ config }: AddonComponentProps<"someKind">) => (
-  <Control position="topright" order={10}>
-    <SomePanel {...config} />
+  <Control position="topleft" order={85}>
+    <SomeToggleButton {...config} />
   </Control>
 );
 ```
 
-This works because `AddonHost` is mounted inside `ControlLayout`.
+This works because `AddonHost` is mounted inside `ControlLayout`. `Control` accepts any corner and any child, but a panel with settings in a corner is not one of the surfaces `ADDON-UI.md` allows: settings go into the interaction view, opened from a layer bar row or, for an engine a layer launches, from that layer's button.
 
 Every addon is a component; there is no separate config-derivation path. The
 gazetteer kinds work by registering their sources/modes through

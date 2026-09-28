@@ -34,10 +34,12 @@ geoportal today and names the file it is implemented in.
 | 1 | Control column    | one on/off switch per addon, nothing stateful         | `<Control>` inside the addon      |
 | 2 | Layer bar row     | that the addon is running, its title, its live value  | the host app, from a `Layer`      |
 | 3 | Interaction view  | the panel the row opens: settings, transport, tools   | the host's `INTERACTION_COMPONENTS` |
-| 4 | Map overlays      | anything that draws over or instead of the map        | the addon, freely                 |
+| 4 | Map overlays      | full-bleed UI over or instead of the map, no settings | the addon                         |
+
+These four are the only places an addon's UI may land. A panel with settings, a slider or a status readout in a `<Control>` corner (bottom-left under the gazetteer, top-right) is none of them, even though `Control` places it there without complaint: stateful UI goes into the interaction view (3), and a `<Control>` holds nothing but the on/off button of surface 1. A few older panels still sit in corners (`OriginSearch` bottom-left; `ShowScenes`' panel, `VisibleFeatureStatsPanel` and `VectorHighlightDebugPanel` top-right). They predate this rule and are not models to copy.
 
 An addon uses as few of them as it can. `libreTerrain` is surface 1 alone.
-`timeSlider` uses 1, 2 and 3. `comparing` uses all four.
+`timeSlider` uses 1, 2 and 3. `comparing` uses all four. An engine a layer launches (`flowField`, `timeSlider` from a style, `trafficAnimation`) uses 2 and 3 on that layer's own button, see "Engines a layer launches" below.
 
 ### 1. Control column
 
@@ -173,6 +175,17 @@ Whether the panel is open is the **app's** fact, not the library's, so it is
 passed in and mirrored into the channel from there. That is what lets the
 control-column button, which is nowhere near the layer bar, colour itself by it.
 
+### Engines a layer launches
+
+A style can carry an engine in its `metadata.carmaConf.tools` (a flow field, a time series, the traffic). `getLayerLaunchedAddons` (`src/lib/layer-launched-addons.ts`) starts it for as long as the layer is in the stack. Such an engine belongs to its layer, so it gets no pill of its own:
+
+- the row hook still builds a `Layer`, with `permanent: true`; the host's app half hands it to `useLauncherCarriedControls` (`apps/geoportal/src/app/hooks/useLauncherCarriedControls.ts`), which puts the row's `interactionButtons` on the launching layer's button instead of adding a pill
+- the launching layer's ✕ ends the engine and its eye hides it, so the engine needs neither a ✕ rule nor an eye of its own
+- the readout on that button opens the ribbon exactly as a row's readout does, and the ribbon is registered in `src/lib/interaction-components.ts` like any other
+- there is no "UI elsewhere" fallback: an engine that has no layer bar to sit on (the projection window `#/outlet` mounts none) runs without UI, and whoever steers it there writes its channel (the remote does)
+
+`trafficAnimation` is the smallest complete example: `src/addons/TrafficAnimation/traffic-layer-row.tsx`, `TrafficPanel.tsx` and the geoportal's `useTrafficAnimationLayerButton`. The flow field and the time series use the same hook next to their own rows, because a workflow card can also switch them in without a layer.
+
 ### 3. Interaction view (the ribbon)
 
 The panel under the layer bar, opened from the row. This is where everything
@@ -227,9 +240,7 @@ Anything the row or the map layer also needs goes in the channel.
 
 ### 4. Map overlays
 
-Full-bleed UI: the comparison's panes, the spyglass, a legend. No shared rules
-beyond not colliding with the three surfaces above; see
-`src/addons/comparing/stage/`.
+Full-bleed UI: the comparison's panes, the spyglass, a legend. No shared rules beyond not colliding with the three surfaces above; see `src/addons/comparing/stage/`. Not a place for settings: anything the user adjusts belongs in the interaction view.
 
 ## Visual tokens
 
@@ -270,16 +281,17 @@ least two of those fields.
 ## Checklist for a new addon UI
 
 1. Can it be one control-column button? Then stop there.
-2. Does the user need to see that it is running, or a live value? Add the layer
+2. Does a layer launch it? Then its row goes on that layer's button (`permanent: true`, `useLauncherCarriedControls`), see "Engines a layer launches".
+3. Does the user need to see that it is running, or a live value? Add the layer
    bar row, with the two-half hook.
-3. Does it have settings? Add the ribbon, collapsed, with the header row
-   carrying the primary control.
-4. Put the shared state in a channel and declare it in `AddonStateMap` plus the
+4. Does it have settings? Add the ribbon, collapsed, with the header row
+   carrying the primary control. Never a panel in a `<Control>` corner.
+5. Put the shared state in a channel and declare it in `AddonStateMap` plus the
    registry entry's `provides`.
-5. Add the row's icon to `libraries/mapping/components/src/lib/components/iconMapping.ts`.
-6. Register the panel in `src/lib/interaction-components.ts`.
-7. Call the app-side row hook once, in the host's `LayerWrapper`.
-8. `npx tsc --noEmit -p libraries/mapping/addons/tsconfig.lib.json` and the same
+6. Add the row's icon to `libraries/mapping/components/src/lib/components/iconMapping.ts` (not needed when the row only ever rides on a launching layer's button, which shows that layer's icon).
+7. Register the panel in `src/lib/interaction-components.ts`.
+8. Call the app-side row hook once, in the host's `LayerWrapper`.
+9. `npx tsc --noEmit -p libraries/mapping/addons/tsconfig.lib.json` and the same
    for the host app.
 
 ## Reference implementations
@@ -289,4 +301,5 @@ least two of those fields.
 | `timeSlider`    | 1, 2, 3  | `src/addons/TimeSlider/` (canonical; smallest complete set)  |
 | `comparing`     | 1-4      | `src/addons/comparing/`                                      |
 | `vectorHighlight` | 1-3    | `src/addons/VectorHighlight/`                                |
+| `trafficAnimation` | 2, 3 on its layer's button | `src/addons/TrafficAnimation/` (smallest layer-launched set) |
 | `libreTerrain`  | 1        | `src/addons/LibreTerrain.tsx`                                |
