@@ -20,18 +20,13 @@
       ]
     }
   },
-  "sources": {
-    "verkehr": {
-      "type": "geojson",
-      "data": { "type": "FeatureCollection", "features": [] }
-    }
-  },
+  "sources": {},
   "layers": [
     {
-      "id": "verkehr-anker",
-      "type": "line",
-      "source": "verkehr",
-      "paint": { "line-opacity": 0 }
+      "id": "verkehr-fahrzeuge",
+      "type": "background",
+      "layout": { "visibility": "none" },
+      "metadata": { "carmaConf": { "slot": "trafficAnimation" } }
     }
   ]
 }

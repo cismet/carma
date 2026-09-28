@@ -73,7 +73,8 @@ export type TrafficEngine = {
   destroy: () => void;
 };
 
-const DEFAULT_ID = "traffic-animation";
+/** the id of the custom layer the vehicles are drawn in, unless one is given */
+export const TRAFFIC_LAYER_ID = "traffic-animation";
 /** a tab that was in the background hands back a huge delta; ignore it */
 const MAX_FRAME_SECONDS = 0.25;
 const READ_CLOCK_SECONDS = 1;
@@ -85,7 +86,7 @@ const MS_PER_MINUTE = 60_000;
 export const createTrafficEngine = ({
   map,
   network,
-  id = DEFAULT_ID,
+  id = TRAFFIC_LAYER_ID,
   sizeScale = DEFAULT_SIZE_SCALE,
   nightDim,
   maxVehicles,

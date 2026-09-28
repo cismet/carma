@@ -6,8 +6,13 @@ import {
 } from "@carma-mapping/map-controls-layout";
 
 import type { AddonComponentProps } from "../../lib/registry";
+import { placeAtSlot, useStyleSlot } from "../../lib/style-slot";
 import { useTrafficAnimationActions } from "./traffic-actions";
-import { createTrafficEngine, type TrafficEngine } from "./traffic-engine";
+import {
+  TRAFFIC_LAYER_ID,
+  createTrafficEngine,
+  type TrafficEngine,
+} from "./traffic-engine";
 import {
   parseTrafficNetwork,
   resolveNetworkUrl,
@@ -21,7 +26,9 @@ import { TrafficPanel } from "./TrafficPanel";
  * A layer launches it: a style whose `metadata.carmaConf.tools` carries a
  * `trafficAnimation` with its `networkUrl` puts the traffic on the map for as
  * long as the layer is in the stack (`getLayerLaunchedAddons`), which also
- * hands over the layer's eye and opacity. The engine
+ * hands over the layer's eye and opacity, and the layer's id: its style marks
+ * with a `trafficAnimation` slot where in the layer order the vehicles are
+ * drawn (`style-slot.ts`). The engine
  * (`traffic-engine.ts`) does the rest; this component fetches the network,
  * keeps one engine per map and network, and connects it to the channel.
  *
@@ -52,6 +59,12 @@ export type TrafficAnimationConfig = {
   /** the launching layer's opacity, 0..1 */
   opacity?: number;
   /**
+   * The stack layer that launched the traffic. The vehicles are drawn under
+   * the placeholder of its style's `trafficAnimation` slot, so they keep that
+   * layer's place in the stack; without a slot they stay on top.
+   */
+  anchorLayerId?: string;
+  /**
    * Whether the panel with the slider is shown. Default true; a host without
    * layer buttons (the projection window) has no one to use it.
    */
@@ -61,6 +74,9 @@ export type TrafficAnimationConfig = {
   /** Sort order within that corner. Default: 20 */
   controlOrder?: number;
 };
+
+/** the slot a style marks the vehicles' place in the layer order with */
+const TRAFFIC_SLOT = "trafficAnimation";
 
 const DEFAULT_CONTROL_POSITION: Positions = "bottomleft";
 const DEFAULT_CONTROL_ORDER = 20;
@@ -79,6 +95,7 @@ export const TrafficAnimation = ({
     initialOffsetMinutes,
     hidden = false,
     opacity = 1,
+    anchorLayerId,
     showPanel = true,
     controlPosition = DEFAULT_CONTROL_POSITION,
     controlOrder = DEFAULT_CONTROL_ORDER,
@@ -193,6 +210,25 @@ export const TrafficAnimation = ({
       engineRef.current = null;
     };
   }, [libreMap, network, sizeScale, nightDim, maxVehicles, densityScale, update]);
+
+  // The engine puts its layer back on the map after a style swap, on top;
+  // the swap and every reorder fire `styledata`, which moves it back under
+  // the placeholder.
+  const placeholderId = useStyleSlot(
+    libreMap,
+    TRAFFIC_SLOT,
+    anchorLayerId
+  )?.placeholderId;
+  useEffect(() => {
+    if (!libreMap || !network || !placeholderId) return undefined;
+    const place = () =>
+      placeAtSlot(libreMap, [TRAFFIC_LAYER_ID], placeholderId);
+    place();
+    libreMap.on("styledata", place);
+    return () => {
+      libreMap.off("styledata", place);
+    };
+  }, [libreMap, network, placeholderId]);
 
   useEffect(() => {
     engineRef.current?.setOffsetMinutes(offsetMinutes);

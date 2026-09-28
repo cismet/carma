@@ -261,7 +261,7 @@ const NETWORK = {
 };
 
 describe("getLayerLaunchedAddons, traffic style", () => {
-  it("launches the style's traffic with the layer's eye and opacity", () => {
+  it("launches the style's traffic with the layer's eye, opacity and slot", () => {
     expect(
       getLayerLaunchedAddons([
         {
@@ -284,6 +284,7 @@ describe("getLayerLaunchedAddons, traffic style", () => {
             hidden: true,
             opacity: 0.6,
             showPanel: true,
+            anchorLayerId: "custom:verkehr",
           },
         },
       },
@@ -301,7 +302,13 @@ describe("getLayerLaunchedAddons, traffic style", () => {
     );
     expect(launched?.entry).toEqual({
       addon: "trafficAnimation",
-      config: { ...NETWORK, hidden: false, opacity: 1, showPanel: false },
+      config: {
+        ...NETWORK,
+        hidden: false,
+        opacity: 1,
+        showPanel: false,
+        anchorLayerId: "custom:verkehr",
+      },
     });
   });
 

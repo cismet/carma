@@ -94,7 +94,8 @@ export type LayerLaunchedAddon = {
  * slot.
  *
  * And the traffic: a layer whose tools carry a `trafficAnimation` with its
- * `networkUrl` runs it. It has no row and no controls on the layer button; the
+ * `networkUrl` runs it, drawn at the layer's `trafficAnimation` slot. It has
+ * no row and no controls on the layer button; the
  * layer's eye and opacity go into its config instead, and so does whether it
  * shows its panel, which a host without layer buttons (`includeEngineRow`) has
  * no use for.
@@ -208,6 +209,7 @@ export const getLayerLaunchedAddons = (
             hidden: !visible,
             opacity: layer.opacity ?? 1,
             showPanel: !includeEngineRow,
+            anchorLayerId: layer.id,
           },
         },
       };
