@@ -55,6 +55,8 @@ const vehicle = (state: Partial<TrafficVehicle>): TrafficVehicle => ({
   previousEdge: -1,
   previousForward: true,
   previousLane: 0,
+  waited: 0,
+  heldBy: null,
   fade: 1,
   fading: 0,
   ...state,

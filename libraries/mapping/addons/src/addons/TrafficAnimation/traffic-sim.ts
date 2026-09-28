@@ -33,6 +33,16 @@ import { flowFor, profileAt, type TrafficFlow } from "./traffic-profile";
  * room, so a road the enlarged bodies fill carries fewer than its load asks
  * for.
  *
+ * Vehicles can still end up waiting for each other in a circle: where one-way
+ * streets form a ring, vehicles keep driving in until it is full, and then
+ * each waits for room on the next piece, which the one ahead holds. So a
+ * vehicle that stands at the front of its lane, held by the junction ahead,
+ * tries another road there every `REROUTE_AFTER_SECONDS` if its node has
+ * one. Every vehicle remembers the one it is held back by; where following
+ * those leads back to a vehicle that has stood `GIVE_UP_AFTER_SECONDS`, it
+ * fades out, and the rebalance puts a new one where there is room. A
+ * vehicle in a long queue that is not a circle only waits.
+ *
  * The fleet is capped (`maxVehicles`, default 2500). Above the cap every
  * target is scaled down by the same factor, so the traffic keeps its shape and
  * only gets thinner; the cap is reported so a panel can say so. At the 2020
@@ -78,6 +88,14 @@ export const CLEARANCE_METERS = 2;
 const SPAWN_TRIES = 4;
 /** where a vehicle waiting at a junction stands at most, short of its edge's end, in metres */
 const WAIT_SHORT_OF_END = 0.01;
+/** a vehicle that gets less far in a step, in metres, stands */
+const STANDING_METERS = 0.01;
+/** INVENTED. Seconds a vehicle stands at a junction before it tries another road, and again */
+export const REROUTE_AFTER_SECONDS = 15;
+/** INVENTED. Seconds a vehicle stands in a circle of waiting ones before it fades out */
+export const GIVE_UP_AFTER_SECONDS = 30;
+/** how many vehicles back a circle of waiting ones is looked for */
+const CIRCLE_SEARCH_HOPS = 256;
 
 export const DEFAULT_MAX_VEHICLES = 2500;
 /** how long a vehicle takes to appear or to go, in seconds */
@@ -133,6 +151,13 @@ export type TrafficVehicle = {
   previousEdge: number;
   previousForward: boolean;
   previousLane: number;
+  /**
+   * Seconds it has stood at the front of its lane, held by the junction
+   * ahead; 0 while it moves
+   */
+  waited: number;
+  /** the vehicle it was held back by in the last step, null when it drove freely */
+  heldBy: TrafficVehicle | null;
   /** 0 invisible, 1 fully there */
   fade: number;
   /** 1 fading in, -1 fading out (and gone at 0), 0 steady */
@@ -479,22 +504,18 @@ export const createTrafficSim = ({
   const turnWeight = (edge: TrafficEdge, byBus: boolean): number =>
     byBus ? edge.bus : Math.max(edge.bel, 1);
 
+  type Turn = { edge: number; forward: boolean };
+
   /**
-   * Picks the road the vehicle takes at the end of its edge: none where that
-   * end is an exit, the way back at a dead end, and otherwise another road,
-   * weighted by load, one-way roads only their way. Where a one-way road
-   * leads to nothing it may take, the vehicle leaves there like at an exit.
+   * The roads a vehicle may take at the end of its edge, other than the way
+   * back: one-way roads only their way. A loop is listed twice at its node
+   * and may be taken either way.
    */
-  const chooseNext = (vehicle: TrafficVehicle): void => {
+  const turnsAt = (vehicle: TrafficVehicle): Turn[] => {
     const current = vehicle.edge;
     const nodeIndex = vehicle.forward ? edges[current].to : edges[current].from;
     const node = nodes[nodeIndex];
-    if (node.exit) {
-      vehicle.nextEdge = -1;
-      return;
-    }
-    // a loop is listed twice at its node and may be taken either way
-    const options: { edge: number; forward: boolean }[] = [];
+    const turns: Turn[] = [];
     node.edges.forEach((edgeIndex, position) => {
       const edge = edges[edgeIndex];
       const isLoop = edge.from === edge.to;
@@ -504,33 +525,106 @@ export const createTrafficSim = ({
         : edge.from === nodeIndex;
       if (edgeIndex === current && forward !== vehicle.forward) return;
       if (edge.oneway && !forward) return;
-      options.push({ edge: edgeIndex, forward });
+      turns.push({ edge: edgeIndex, forward });
     });
-    let next: { edge: number; forward: boolean };
-    if (options.length === 0) {
+    return turns;
+  };
+
+  /** one of `turns`, weighted by load; not empty */
+  const pickTurn = (vehicle: TrafficVehicle, turns: Turn[]): Turn => {
+    const byBus =
+      vehicle.kind === VEHICLE_BUS && turns.some((turn) => edges[turn.edge].bus > 0);
+    let total = 0;
+    for (const turn of turns) total += turnWeight(edges[turn.edge], byBus);
+    let roll = random() * total;
+    for (const turn of turns) {
+      roll -= turnWeight(edges[turn.edge], byBus);
+      if (roll < 0) return turn;
+    }
+    return turns[turns.length - 1];
+  };
+
+  /**
+   * Picks the road the vehicle takes at the end of its edge: none where that
+   * end is an exit, the way back at a dead end, and otherwise another road,
+   * weighted by load. Where a one-way road leads to nothing it may take, the
+   * vehicle leaves there like at an exit.
+   */
+  const chooseNext = (vehicle: TrafficVehicle): void => {
+    const current = vehicle.edge;
+    const nodeIndex = vehicle.forward ? edges[current].to : edges[current].from;
+    if (nodes[nodeIndex].exit) {
+      vehicle.nextEdge = -1;
+      return;
+    }
+    const turns = turnsAt(vehicle);
+    let next: Turn;
+    if (turns.length === 0) {
       if (edges[current].oneway) {
         vehicle.nextEdge = -1;
         return;
       }
       next = { edge: current, forward: !vehicle.forward };
     } else {
-      const byBus =
-        vehicle.kind === VEHICLE_BUS &&
-        options.some((option) => edges[option.edge].bus > 0);
-      let total = 0;
-      for (const option of options) total += turnWeight(edges[option.edge], byBus);
-      let roll = random() * total;
-      next = options[options.length - 1];
-      for (const option of options) {
-        roll -= turnWeight(edges[option.edge], byBus);
-        if (roll < 0) {
-          next = option;
-          break;
-        }
-      }
+      next = pickTurn(vehicle, turns);
     }
     vehicle.nextEdge = next.edge;
     vehicle.nextForward = next.forward;
+  };
+
+  /**
+   * Another road than the one it waits for, where the vehicle's node has one.
+   * Returns whether it found one.
+   */
+  const reroute = (vehicle: TrafficVehicle): boolean => {
+    if (vehicle.nextEdge < 0) return false;
+    const turns = turnsAt(vehicle).filter(
+      (turn) =>
+        turn.edge !== vehicle.nextEdge || turn.forward !== vehicle.nextForward
+    );
+    if (turns.length === 0) return false;
+    const next = pickTurn(vehicle, turns);
+    vehicle.nextEdge = next.edge;
+    vehicle.nextForward = next.forward;
+    addFeeder(vehicle);
+    return true;
+  };
+
+  /**
+   * Whether the vehicles `vehicle` waits for wait, in the end, for it. A
+   * queue is followed back this far at most.
+   */
+  const isInCircle = (vehicle: TrafficVehicle): boolean => {
+    let other = vehicle.heldBy;
+    for (let hops = 0; other && hops < CIRCLE_SEARCH_HOPS; hops++) {
+      if (other === vehicle) return true;
+      other = other.heldBy;
+    }
+    return false;
+  };
+
+  /**
+   * The vehicle stood still this step, held by the junction ahead of it: it
+   * tries another road every `REROUTE_AFTER_SECONDS`, and fades out after
+   * `GIVE_UP_AFTER_SECONDS` if it waits in a circle, which nothing else
+   * breaks.
+   */
+  const holdAtJunction = (vehicle: TrafficVehicle, seconds: number): void => {
+    const before = vehicle.waited;
+    vehicle.waited += seconds;
+    if (
+      Math.floor(vehicle.waited / REROUTE_AFTER_SECONDS) >
+      Math.floor(before / REROUTE_AFTER_SECONDS)
+    ) {
+      reroute(vehicle);
+    }
+    if (
+      vehicle.waited >= GIVE_UP_AFTER_SECONDS &&
+      vehicle.fading !== -1 &&
+      isInCircle(vehicle)
+    ) {
+      vehicle.fading = -1;
+    }
   };
 
   /**
@@ -568,6 +662,8 @@ export const createTrafficSim = ({
         previousEdge: -1,
         previousForward: true,
         previousLane: 0,
+        waited: 0,
+        heldBy: null,
         fade: 0,
         fading: 1,
       };
@@ -662,6 +758,7 @@ export const createTrafficSim = ({
           stepStart,
           Math.min(length - WAIT_SHORT_OF_END, length + rear.travelled - gap)
         );
+        vehicle.heldBy = rear;
         return "waits";
       }
     }
@@ -673,6 +770,8 @@ export const createTrafficSim = ({
     vehicle.forward = vehicle.nextForward;
     vehicle.lane = lane;
     vehicle.travelled = rest;
+    vehicle.waited = 0;
+    vehicle.heldBy = null;
     stepStart = 0;
     addToLane(vehicle);
     setSpeed(vehicle, edge);
@@ -689,9 +788,12 @@ export const createTrafficSim = ({
    * along the roads, as if they met in a straight line, so the vehicles from
    * all lanes that merge there line up as one. Further out than the merge
    * zone the roads are apart and nothing limits it here; `reach` is how far
-   * it may drive in this step.
+   * it may drive in this step. The vehicle that sets the limit is left in
+   * `limitedBy`.
    */
+  let limitedBy: TrafficVehicle | null = null;
   const limitAtEnd = (vehicle: TrafficVehicle, reach: number): number => {
+    limitedBy = null;
     if (vehicle.nextEdge < 0) return Infinity;
     const length = edges[vehicle.edge].length;
     const toGo = length - vehicle.travelled;
@@ -700,6 +802,7 @@ export const createTrafficSim = ({
     const { rear } = entryLane(vehicle.nextEdge, vehicle.nextForward, vehicle.lane);
     if (rear && rear !== vehicle) {
       limit = length + rear.travelled - gapBetween(rear.kind, vehicle.kind);
+      limitedBy = rear;
     }
     for (const other of boundFor(intendedKey(vehicle))) {
       if (other === vehicle) continue;
@@ -709,10 +812,11 @@ export const createTrafficSim = ({
       if (otherToGo > toGo || (otherToGo === toGo && other.id > vehicle.id)) {
         continue;
       }
-      limit = Math.min(
-        limit,
-        length - otherToGo - gapBetween(other.kind, vehicle.kind)
-      );
+      const behindOther = length - otherToGo - gapBetween(other.kind, vehicle.kind);
+      if (behindOther < limit) {
+        limit = behindOther;
+        limitedBy = other;
+      }
     }
     return limit;
   };
@@ -767,6 +871,7 @@ export const createTrafficSim = ({
         vehicle.fade = 1;
         vehicle.fading = 0;
       } else if (vehicle.fade <= 0) {
+        vehicle.heldBy = null;
         // order does not matter, so the last one takes the free place
         const last = vehicles.pop();
         if (last && index < vehicles.length) vehicles[index] = last;
@@ -795,15 +900,16 @@ export const createTrafficSim = ({
           continue;
         }
         moved.add(vehicle);
-        stepStart = vehicle.travelled;
+        const start = vehicle.travelled;
+        stepStart = start;
         const behindAhead = ahead
           ? aheadAt - gapBetween(ahead.kind, vehicle.kind)
           : Infinity;
-        const limit = Math.min(
-          behindAhead,
-          limitAtEnd(vehicle, vehicle.speed * seconds)
-        );
+        const atEnd = limitAtEnd(vehicle, vehicle.speed * seconds);
+        const limit = Math.min(behindAhead, atEnd);
         const wanted = vehicle.travelled + vehicle.speed * seconds;
+        vehicle.heldBy =
+          limit >= wanted ? null : behindAhead <= atEnd ? ahead : limitedBy;
         // too close already, e.g. after two merged: wait, never back up
         vehicle.travelled = Math.max(vehicle.travelled, Math.min(wanted, limit));
         const reached = vehicle.travelled;
@@ -814,9 +920,22 @@ export const createTrafficSim = ({
             ahead = null;
             continue;
           }
+          if (outcome === "waits") {
+            if (vehicle.travelled - start < STANDING_METERS) {
+              holdAtJunction(vehicle, seconds);
+            } else {
+              vehicle.waited = 0;
+            }
+          }
           ahead = vehicle;
           aheadAt = outcome === "waits" ? vehicle.travelled : reached;
           continue;
+        }
+        // held by the junction, not by the one ahead, and not moving
+        if (atEnd < behindAhead && atEnd < wanted && reached - start < STANDING_METERS) {
+          holdAtJunction(vehicle, seconds);
+        } else {
+          vehicle.waited = 0;
         }
         ahead = vehicle;
         aheadAt = reached;
@@ -826,6 +945,7 @@ export const createTrafficSim = ({
     if (left.size > 0) {
       for (let index = vehicles.length - 1; index >= 0; index--) {
         if (!left.has(vehicles[index])) continue;
+        vehicles[index].heldBy = null;
         const last = vehicles.pop();
         if (last && index < vehicles.length) vehicles[index] = last;
       }

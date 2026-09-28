@@ -322,21 +322,26 @@ describe("createTrafficSim", () => {
     expect(onRamp).toBeGreaterThan(100);
   });
 
-  it("keeps the model's network moving at the evening peak", () => {
+  // one-way streets forming a ring filled up and stood still for good
+  it.each([
+    ["the model's", "verkehrsnetz_modell.json"],
+    ["the OpenStreetMap", "verkehrsnetz_osm.json"],
+  ])("keeps %s network moving at the evening peak", (_, file) => {
     const sizeScale = 3.5;
-    const model = parseTrafficNetwork(
+    const roads = parseTrafficNetwork(
       JSON.parse(
         readFileSync(
           join(
             __dirname,
-            "../../../../../../apps/geoportal/public/assets/dz-b-prm/traffic/verkehrsnetz_modell.json"
+            "../../../../../../apps/geoportal/public/assets/dz-b-prm/traffic",
+            file
           ),
           "utf8"
         )
       )
     ) as TrafficNetwork;
     const sim = createTrafficSim({
-      network: model,
+      network: roads,
       clock: () => EVENING,
       random: seeded(2),
       sizeScale,
