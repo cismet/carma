@@ -51,7 +51,11 @@ const countFeaturesInBounds = (
   }).length;
 };
 
-const CrossLinkAppBadges = ({ positiv }: { positiv: string[] }) => {
+const CROSS_LINK_FOOTNOTES: Record<string, string> = Object.fromEntries(
+  crossLinkApps.flatMap((app) => app.on.map((lebenslage) => [lebenslage, " *"]))
+);
+
+const CrossLinkAppBadges =({ positiv }: { positiv: string[] }) => {
   const apps = crossLinkApps.filter((app) =>
     app.on.some((lebenslage) => positiv.includes(lebenslage))
   );
@@ -164,6 +168,7 @@ const Menu = ({
                         width={900}
                         pieChartData={pieChartData}
                         pieChartColors={pieChartColors}
+                        categoryFootnotes={CROSS_LINK_FOOTNOTES}
                       />
                       <CrossLinkAppBadges positiv={filterState.positiv} />
                     </>
