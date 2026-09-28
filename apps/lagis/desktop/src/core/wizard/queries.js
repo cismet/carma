@@ -24,6 +24,7 @@ wizardQueries.schluesselByKeyWithNenner = `query SchluesselByKey($gemarkungId: I
     gueltig_bis
     war_staedtisch
     ist_gesperrt
+    bemerkung_sperre
     datum_entstehung
     datum_letzter_stadtbesitz
     fk_gemarkung
@@ -46,6 +47,7 @@ wizardQueries.schluesselByKeyWithoutNenner = `query SchluesselByKey($gemarkungId
     gueltig_bis
     war_staedtisch
     ist_gesperrt
+    bemerkung_sperre
     datum_entstehung
     datum_letzter_stadtbesitz
     fk_gemarkung
@@ -70,6 +72,7 @@ wizardQueries.schluesselByKeyZeroNenner = `query SchluesselByKey($gemarkungId: I
     gueltig_bis
     war_staedtisch
     ist_gesperrt
+    bemerkung_sperre
     datum_entstehung
     datum_letzter_stadtbesitz
     fk_gemarkung
@@ -87,6 +90,7 @@ wizardQueries.schluesselById = `query SchluesselById($id: Int!) {
     gueltig_bis
     war_staedtisch
     ist_gesperrt
+    bemerkung_sperre
     datum_entstehung
     datum_letzter_stadtbesitz
     fk_gemarkung

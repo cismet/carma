@@ -127,6 +127,7 @@ export const loadAdminData = async (value, jwt) => {
       // EPSG:25832, undefined when ALKIS has no geometry
       geometry: outlines[label]?.geometry,
       sperre: source?.istGesperrt ?? false,
+      sperreBemerkung: source?.bemerkungSperre ?? "",
     };
   }
   return { stammdaten, parcels };

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useSelector } from "react-redux";
-import { Alert, Checkbox, Input, InputNumber, Select, Spin } from "antd";
+import { Alert, Checkbox, Input, InputNumber, Modal, Select, Spin } from "antd";
 import { verwaltung } from "@carma-collab/wuppertal/lagis-desktop";
 import DienststellenEditor from "../DienststellenEditor";
 import AdminAreaTable, {
@@ -148,26 +148,81 @@ const SECTIONS = {
   },
 };
 
-const NoteEditor = ({ title, parcel, onChange }) => (
-  <div>
-    <div className="mb-2 flex items-center gap-2">
-      {title && <span className="mr-auto font-medium">{title}</span>}
-      <Checkbox
-        className="ml-auto"
-        checked={parcel.sperre}
-        onChange={(event) => onChange({ sperre: event.target.checked })}
+/**
+ * As in Java's VerwaltungsPanel, a Sperre needs a reason: ticking asks for it,
+ * cancelling unticks again. The Sperre is a marker only, it blocks nothing.
+ */
+const NoteEditor = ({ title, parcel, onChange }) => {
+  const [asking, setAsking] = useState(false);
+  const [reason, setReason] = useState("");
+
+  const handleSperre = (checked) => {
+    if (checked) {
+      setReason("");
+      setAsking(true);
+    } else {
+      onChange({ sperre: false, sperreBemerkung: "" });
+    }
+  };
+
+  const confirm = () => {
+    onChange({ sperre: true, sperreBemerkung: reason.trim() });
+    setAsking(false);
+  };
+
+  return (
+    <div>
+      <div className="mb-2 flex items-center gap-2">
+        {title && (
+          <span className="mr-auto text-xs font-semibold uppercase tracking-wide text-gray-500">
+            {title}
+          </span>
+        )}
+        <Checkbox
+          className="ml-auto"
+          checked={parcel.sperre}
+          onChange={(event) => handleSperre(event.target.checked)}
+        >
+          {verwaltung.bemerkungen.checkbox}
+        </Checkbox>
+      </div>
+      {parcel.sperre && parcel.sperreBemerkung && (
+        <Alert
+          className="mb-2"
+          type="warning"
+          showIcon
+          style={{ padding: "4px 12px" }}
+          message={`Sperre: ${parcel.sperreBemerkung}`}
+        />
+      )}
+      <Input.TextArea
+        rows={5}
+        style={{ resize: "none" }}
+        value={parcel.bemerkung}
+        onChange={(event) => onChange({ bemerkung: event.target.value })}
+      />
+      <Modal
+        open={asking}
+        title="Sperre setzen"
+        okText="OK"
+        cancelText="Abbrechen"
+        okButtonProps={{ disabled: !reason.trim() }}
+        onOk={confirm}
+        onCancel={() => setAsking(false)}
+        destroyOnClose
+        centered
       >
-        {verwaltung.bemerkungen.checkbox}
-      </Checkbox>
+        <div className="mb-2">Bitte eine Bemerkung zur Sperre angeben.</div>
+        <Input
+          autoFocus
+          value={reason}
+          onChange={(event) => setReason(event.target.value)}
+          onPressEnter={() => reason.trim() && confirm()}
+        />
+      </Modal>
     </div>
-    <Input.TextArea
-      rows={5}
-      style={{ resize: "none" }}
-      value={parcel.bemerkung}
-      onChange={(event) => onChange({ bemerkung: event.target.value })}
-    />
-  </div>
-);
+  );
+};
 
 /** One sub-step of Verwaltungsbereiche; every one of them may stay empty. */
 const AdminStep = ({ section, value, onChange, onProblem, onHideProblem }) => {
