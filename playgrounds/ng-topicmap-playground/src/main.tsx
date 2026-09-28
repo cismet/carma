@@ -5,7 +5,6 @@ import { Stadtplan } from "./app/Stadtplan";
 import { Vorhabenkarte } from "./app/Vorhabenkarte";
 import { SimpleMap } from "./app/SimpleMap";
 import { SimpleMapWithoutControls } from "./app/SimpleMapWithoutControls";
-import "./styles.css";
 import { cjsGlobalShim } from "@carma-commons/utils";
 import {
   SelectionProvider,
