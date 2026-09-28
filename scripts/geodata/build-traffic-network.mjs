@@ -26,14 +26,21 @@
  *
  * The traffic model does not say which way a section may be driven: KNO_VON
  * and KNO_NACH are not the driving direction, not even on the motorway ramps.
- * The ramps' directions are taken from OpenStreetMap instead, read from the
- * Shortbread vector tiles cismet serves (`OSM_TILES`). Every ramp section is
- * laid over the OSM roads, and where the OSM road it lies on is one-way, the
+ * The directions are taken from OpenStreetMap instead, read from the
+ * Shortbread vector tiles cismet serves (`OSM_TILES`). Every section is laid
+ * over the OSM roads, and where the OSM road it lies on is one-way, the
  * section gets `"oneway": true` and its line is turned, `from` and `to`
- * with it, to run the way it is driven. A ramp is a section whose name says
- * so (Auffahrt, Abfahrt, Ausfahrt, Zufahrt, Kreuz) or which lies mostly on OSM
- * links. Other roads stay two-way, even where OSM has them one-way; the
- * report counts those.
+ * with it, to run the way it is driven. Its load stays whole, the addon
+ * sends all of it one way: where the model draws a divided road as two
+ * sections, each carries its own carriageway's load (Gustav-Freitag-Platz:
+ * 449 and 759, together the 1208 of Flieth at their end), not the
+ * cross-section's twice. A section leading into a dead end stays two-way, so
+ * vehicles turn round there instead of vanishing mid-street. A one-way
+ * section with no lane count (STR_SPUR 0) takes that of the same road where
+ * it joins it. The
+ * report lists the ramps apart, a ramp being a section whose name says so
+ * (Auffahrt, Abfahrt, Ausfahrt, Zufahrt, Kreuz) or which lies mostly on OSM
+ * links.
  *
  * There is no GDAL on every machine this runs on, so the shapefile is read by
  * hand (PolyLine, PolyLineZ and PolyLineM records, dBase III attributes in the
@@ -488,7 +495,7 @@ const exits = [...clipDegree.keys()]
   .filter((id) => (fullDegree.get(id) ?? 0) > clipDegree.get(id))
   .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
 
-// ramps one way, the way OSM drives them
+// one way, the way OSM drives them
 let keptWest = Infinity;
 let keptSouth = Infinity;
 let keptEast = -Infinity;
@@ -503,7 +510,15 @@ for (const { geometry } of features) {
 }
 const osm = await fetchOsmStreets([keptWest, keptSouth, keptEast, keptNorth], OSM_ZOOM);
 const directionOf = createDirectionMatcher(osm.streets, (keptSouth + keptNorth) / 2);
+/**
+ * a node only one section reaches, in the full network too: a vehicle turns
+ * round there, so a section ending in it stays two-way instead of letting
+ * vehicles vanish mid-street
+ */
+const isDeadEnd = (id) =>
+  id !== null && clipDegree.get(id) === 1 && (fullDegree.get(id) ?? 0) === 1;
 const rampsTwoWay = [];
+const deadEndsTwoWay = [];
 let rampCount = 0;
 let reversedCount = 0;
 let otherOnewayCount = 0;
@@ -511,21 +526,52 @@ for (const feature of features) {
   const { properties, geometry } = feature;
   const { direction, onLinks } = directionOf(geometry.coordinates);
   const isRamp = RAMP_NAME.test(properties.name) || onLinks;
-  if (!isRamp) {
-    if (direction !== 0) otherOnewayCount++;
+  if (isRamp) {
+    rampCount++;
+    if (direction === 0) {
+      rampsTwoWay.push(`${properties.name} (${properties.from} - ${properties.to})`);
+    }
+  }
+  if (direction === 0) continue;
+  if (isDeadEnd(properties.from) || isDeadEnd(properties.to)) {
+    deadEndsTwoWay.push(`${properties.name} (${properties.from} - ${properties.to})`);
     continue;
   }
-  rampCount++;
-  if (direction === 0) {
-    rampsTwoWay.push(`${properties.name} (${properties.from} - ${properties.to})`);
-    continue;
-  }
+  if (!isRamp) otherOnewayCount++;
   if (direction < 0) {
     geometry.coordinates.reverse();
     [properties.from, properties.to] = [properties.to, properties.from];
     reversedCount++;
   }
   properties.oneway = true;
+}
+
+// a one-way section whose lanes the model leaves at 0 (unknown) takes those
+// of the same road where it joins it: its whole load now runs in it, and on
+// one lane the A 46 carriageways jam at the evening peak
+const sectionsAt = new Map();
+for (const { properties } of features) {
+  for (const id of [properties.from, properties.to]) {
+    const list = sectionsAt.get(id);
+    if (list) list.push(properties);
+    else sectionsAt.set(id, [properties]);
+  }
+}
+const lanesTaken = [];
+for (const { properties } of features) {
+  if (!properties.oneway || properties.lanes > 0) continue;
+  let known = 0;
+  for (const id of [properties.from, properties.to]) {
+    for (const other of sectionsAt.get(id) ?? []) {
+      if (other !== properties && other.name === properties.name) {
+        known = Math.max(known, other.lanes);
+      }
+    }
+  }
+  if (known > 1) {
+    properties.lanes = known;
+    lanesTaken.push(`${properties.name} (${properties.from} - ${properties.to}): ${known}`);
+  }
 }
 
 /** one-way sections at whose end no road goes on: vehicles would be stuck there */
@@ -576,10 +622,15 @@ console.log(`road length kept: ${totalKm.toFixed(1)} km`);
 console.log(`exit nodes: ${exits.length}`);
 console.log(`OSM tiles read: ${osm.tiles} (${osm.streets.length} street lines)`);
 console.log(
-  `ramps: ${rampCount}, one-way ${rampCount - rampsTwoWay.length} (turned round: ${reversedCount}), two-way ${rampsTwoWay.length}`
+  `ramps: ${rampCount}, one-way ${rampCount - rampsTwoWay.length}, two-way ${rampsTwoWay.length}`
 );
 for (const ramp of rampsTwoWay) console.log(`  two-way ramp: ${ramp}`);
-console.log(`other sections OSM drives one way, kept two-way: ${otherOnewayCount}`);
+console.log(`other one-way sections: ${otherOnewayCount}`);
+console.log(`one-way in OSM, two-way at a dead end: ${deadEndsTwoWay.length}`);
+for (const section of deadEndsTwoWay) console.log(`  dead end: ${section}`);
+console.log(`one-way sections turned round: ${reversedCount}`);
+console.log(`one-way sections taking the lanes of their road: ${lanesTaken.length}`);
+for (const section of lanesTaken) console.log(`  lanes: ${section}`);
 console.log(`one-way sections with no road on at their end: ${stuckEnds.length}`);
 for (const { properties } of stuckEnds) {
   console.log(`  dead end: ${properties.name} (${properties.from} - ${properties.to})`);
