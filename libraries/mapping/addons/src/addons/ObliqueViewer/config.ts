@@ -91,10 +91,13 @@ const CAMERA_ID_TO_DIRECTION = {
   },
 } as const;
 
+// Row 2 is the optical axis, so it can never be the image's up: the
+// landscape cameras (forward, rear) take it from row 0, the portrait ones
+// (right, left) from row 1, each signed so the far side is on top.
 const CAMERA_ID_TO_UP_VECTOR = {
-  "170": { rowIndex: 2, negate: true }, // forward
+  "170": { rowIndex: 0, negate: true }, // forward
   "171": { rowIndex: 1, negate: false }, // right
-  "174": { rowIndex: 2, negate: true }, // rear
+  "174": { rowIndex: 0, negate: false }, // rear
   "176": { rowIndex: 1, negate: true }, // left
 } as const;
 
