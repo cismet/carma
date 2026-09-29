@@ -15,7 +15,6 @@ type NamedLayerConfig = {
 };
 
 type GeoportalBackgroundLibreOptions = {
-  terrainMeshActive?: boolean;
   shadowTerrainActive?: boolean;
   /** Every visible layer is a standalone tileset: no basemap at all. */
   standaloneMeshOnly?: boolean;

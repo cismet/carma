@@ -14,7 +14,6 @@ import {
   geoportalLayersToLibreLayers,
   isAppOwnedLayer,
   layerIsStandaloneMesh,
-  layerProvidesTerrainMesh,
 } from "../../components/GeoportalMap/geoportalLayersToLibreLayers";
 import { backgroundConfig } from "../../config/backgroundConfig";
 import { getBackgroundLayer, getLayers } from "../../store/slices/mapping";
@@ -46,11 +45,8 @@ export const useLibreLayers = (): LibreLayer[] => {
     );
     const standaloneMeshOnly =
       userLayers.length > 0 && userLayers.every(layerIsStandaloneMesh);
-    const terrainMeshActive =
-      !standaloneMeshOnly && drawnLayers.some(layerProvidesTerrainMesh);
     return [
       ...geoportalBackgroundToLibreLayers(backgroundLayer, namedLayers, {
-        terrainMeshActive,
         shadowTerrainActive: shadowState?.enabled === true,
         vectorBaseOverride:
           shadowState?.enabled === true &&
