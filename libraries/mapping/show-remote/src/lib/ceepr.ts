@@ -1,3 +1,4 @@
+import { packShow, unpackStored } from "./packed-show";
 import { isShow, type Show } from "./show";
 
 /**
@@ -12,11 +13,11 @@ export const DEFAULT_SHOW_STORE_URL =
 export const DEFAULT_SHOW_READ_URL =
   "https://ceepr.cismet.de/config/wuppertal/_dev_geoportal_pmshows/";
 
-/** ceepr parses bodies with express.json(), whose default limit is 100 kB */
+/**
+ * ceepr parses bodies with express.json(), whose default limit is 100 kB. A
+ * show goes there packed (`packShow`); `storedShowByteSize` is what counts.
+ */
 export const MAX_SHOW_BYTES = 100 * 1024;
-
-export const showByteSize = (show: Show): number =>
-  new TextEncoder().encode(JSON.stringify(show)).length;
 
 export class ShowStoreError extends Error {
   readonly status: number | undefined;
@@ -67,7 +68,7 @@ export const publishShow = async (
       "Content-Type": "application/json",
       [EDIT_TOKEN_HEADER]: editToken,
     },
-    body: JSON.stringify(show),
+    body: JSON.stringify(await packShow(show)),
   });
   if (!response.ok) {
     throw storeError(response.status);
@@ -103,7 +104,7 @@ export const republishShow = async (
       "Content-Type": "application/json",
       [EDIT_TOKEN_HEADER]: editToken,
     },
-    body: JSON.stringify(show),
+    body: JSON.stringify(await packShow(show)),
   });
   if (!response.ok) {
     throw storeError(response.status);
@@ -127,7 +128,8 @@ export const fetchShow = async (readUrl: string, key: string): Promise<Show> => 
       response.status
     );
   }
-  const data: unknown = await response.json();
+  // shows published before packing are stored plain
+  const data = await unpackStored(await response.json());
   if (!isShow(data)) {
     throw new ShowStoreError(`what is stored under ${key} is not a show`);
   }

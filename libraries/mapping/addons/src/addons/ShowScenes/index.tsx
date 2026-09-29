@@ -1,4 +1,5 @@
 import {
+  useEffect,
   useMemo,
   useState,
   type DragEvent,
@@ -58,7 +59,7 @@ import {
   publishShow,
   republishShow,
   sceneHighlights,
-  showByteSize,
+  storedShowByteSize,
   storyGroups,
   withStories,
   type Bounds3857,
@@ -593,18 +594,31 @@ export const ShowScenes = ({
     current.excludedLayerIds ?? defaultExcludedIds;
   const initialExcluded = initialExcludedOf(draft);
 
-  const byteSize = useMemo(
-    () =>
-      showByteSize(
-        toShow(
-          draft,
-          new Date(0).toISOString(),
-          draft.excludedLayerIds ?? defaultExcludedIds
-        )
-      ),
-    [draft, defaultExcludedIds]
-  );
-  const isTooLarge = byteSize > MAX_SHOW_BYTES;
+  /** what a publish sends, packed; null until it is worked out */
+  const [byteSize, setByteSize] = useState<number | null>(null);
+  useEffect(() => {
+    let isCurrent = true;
+    storedShowByteSize(
+      toShow(
+        draft,
+        new Date(0).toISOString(),
+        draft.excludedLayerIds ?? defaultExcludedIds
+      )
+    ).then(
+      (size) => {
+        if (isCurrent) {
+          setByteSize(size);
+        }
+      },
+      (error: unknown) => {
+        console.warn("[SHOW SCENES] measuring the show failed", error);
+      }
+    );
+    return () => {
+      isCurrent = false;
+    };
+  }, [draft, defaultExcludedIds]);
+  const isTooLarge = byteSize !== null && byteSize > MAX_SHOW_BYTES;
   const groups = useMemo(() => storyGroups(draft), [draft]);
   const { published } = draft;
   const isPublishCurrent =
@@ -1270,7 +1284,8 @@ export const ShowScenes = ({
                   isTooLarge ? "text-red-600" : "text-gray-500"
                 }`}
               >
-                {formatKb(byteSize)} von {formatKb(MAX_SHOW_BYTES)}
+                {byteSize === null ? "…" : formatKb(byteSize)} von{" "}
+                {formatKb(MAX_SHOW_BYTES)}
               </span>
               <div className="flex-1" />
               {published && (

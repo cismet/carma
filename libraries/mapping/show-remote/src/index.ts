@@ -45,9 +45,16 @@ export {
   newEditToken,
   publishShow,
   republishShow,
-  showByteSize,
   showReadUrl,
 } from "./lib/ceepr";
+export {
+  PACKED_SHOW_FORMAT,
+  isPackedShow,
+  packShow,
+  storedShowByteSize,
+  unpackStored,
+  type PackedShow,
+} from "./lib/packed-show";
 export {
   RelayError,
   helloRelay,
