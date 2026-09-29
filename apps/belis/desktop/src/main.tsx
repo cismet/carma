@@ -34,6 +34,7 @@ import type { UnknownAction } from "redux";
 import { gazDataConfig } from "./config/gazData";
 import { SyncProvider } from "@carma-providers/syncing";
 import { useDeployment, Deployment } from "@carma-commons/utils";
+import { NonLiveBorder } from "@carma-commons/ui/components";
 import { APP_CONFIG } from "./config/appConfig";
 import { belisTaskFormatter } from "./config/taskFormatter";
 import {
@@ -50,22 +51,9 @@ const persistor = persistStore(store);
 // on live. Amber color matches the regular/brandnew toggle buttons.
 const DevDeploymentBorder = () => {
   const deployment = useDeployment();
-  if (deployment === Deployment.LIVE || deployment === null) {
-    return null;
-  }
   return (
-    <div
-      style={{
-        position: "fixed",
-        top: 0,
-        right: 0,
-        bottom: 0,
-        left: 0,
-        border: "3px solid #eab308",
-        pointerEvents: "none", // don't intercept clicks/interactions
-        boxSizing: "border-box",
-        zIndex: 999999,
-      }}
+    <NonLiveBorder
+      visible={deployment !== Deployment.LIVE && deployment !== null}
     />
   );
 };

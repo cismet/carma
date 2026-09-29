@@ -56,6 +56,10 @@ export {
   type ResponsiveStatusBarProps,
 } from "./lib/components/ResponsiveStatusBar";
 export {
+  NonLiveBorder,
+  type NonLiveBorderProps,
+} from "./lib/components/NonLiveBorder";
+export {
   useHostElementSize,
   useHostElementSizeRef,
   type HostElementSize,
