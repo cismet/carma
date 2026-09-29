@@ -109,6 +109,17 @@ export {
 } from "./addons/SwitchOn";
 export type { SwitchOnConfig, SwitchOnTarget } from "./addons/SwitchOn";
 export { useSwitchOn } from "./lib/useSwitchOn";
+export {
+  CONDITIONAL_LAYER_KIND,
+  conditionalLayerConfig,
+  conditionRouteOf,
+  isShownByCondition,
+} from "./addons/ConditionalLayer";
+export type {
+  ConditionalLayerCondition,
+  ConditionalLayerConfig,
+  ConditionalLayerContext,
+} from "./addons/ConditionalLayer";
 
 export {
   TimeSlider,

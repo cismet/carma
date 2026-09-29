@@ -1,7 +1,12 @@
 import { useMemo, useRef } from "react";
 import { useSelector } from "react-redux";
+import { useLocation } from "react-router-dom";
 
-import { useAddonState } from "@carma-mapping/addons";
+import {
+  conditionRouteOf,
+  isShownByCondition,
+  useAddonState,
+} from "@carma-mapping/addons";
 import type { LibreLayer } from "@carma-mapping/core";
 
 import { geoportalBackgroundToLibreLayers } from "../../components/GeoportalMap/geoportalBackgroundToLibreLayers";
@@ -17,17 +22,30 @@ export const useLibreLayers = (): LibreLayer[] => {
   const backgroundLayer = useSelector(getBackgroundLayer);
   const { namedLayers } = backgroundConfig;
   const [shadowState] = useAddonState("shadowSimulation");
+  const { pathname, search } = useLocation();
+
+  // a layer's "conditionalLayer" tool keeps it off the map unless the route or
+  // the hash query asks for it; the stack itself is left as it is
+  const drawnLayers = useMemo(() => {
+    const context = {
+      route: conditionRouteOf(pathname),
+      params: Object.fromEntries(new URLSearchParams(search)),
+    };
+    return geoportalLayers.filter((layer) =>
+      isShownByCondition(layer, context)
+    );
+  }, [geoportalLayers, pathname, search]);
 
   const computedLibreLayers = useMemo(() => {
-    const terrainMeshActive = geoportalLayers.some(layerProvidesTerrainMesh);
+    const terrainMeshActive = drawnLayers.some(layerProvidesTerrainMesh);
     return [
       ...geoportalBackgroundToLibreLayers(backgroundLayer, namedLayers, {
         terrainMeshActive,
         shadowTerrainActive: shadowState?.enabled === true,
       }),
-      ...geoportalLayersToLibreLayers(geoportalLayers),
+      ...geoportalLayersToLibreLayers(drawnLayers),
     ];
-  }, [backgroundLayer, namedLayers, geoportalLayers, shadowState?.enabled]);
+  }, [backgroundLayer, namedLayers, drawnLayers, shadowState?.enabled]);
 
   const libreLayersRef = useRef(computedLibreLayers);
   return useMemo(() => {

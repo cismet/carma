@@ -128,6 +128,7 @@ import {
 } from "../addons/ZoomToExtent";
 import type { AlwaysOnTopConfig } from "../addons/AlwaysOnTop";
 import type { SwitchOnConfig } from "../addons/SwitchOn";
+import type { ConditionalLayerConfig } from "../addons/ConditionalLayer";
 import {
   CageIndicatorBadge,
   type CageIndicatorBadgeConfig,
@@ -221,6 +222,12 @@ export type AddonConfigMap = {
    * is what lets it work on a board with no UI at all.
    */
   switchOn: SwitchOnConfig;
+  /**
+   * Declared on a layer to draw it only where the url asks for it (a hash
+   * parameter, the route); the host leaves it off the map otherwise, so there
+   * is nothing to mount.
+   */
+  conditionalLayer: ConditionalLayerConfig;
   /** implemented in cage; renders nothing when cage is absent */
   cageIndicatorBadge: CageIndicatorBadgeConfig;
 };
@@ -580,6 +587,7 @@ export const addonRegistry: {
   zoomToExtent: { trigger: zoomToExtentTrigger },
   alwaysOnTop: { perTarget: true },
   switchOn: { perTarget: true },
+  conditionalLayer: { perTarget: true },
   // Component is undefined when cage is absent; AddonHost renders nothing then.
   cageIndicatorBadge: { Component: CageIndicatorBadge },
 };
