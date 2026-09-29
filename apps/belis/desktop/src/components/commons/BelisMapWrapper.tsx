@@ -772,6 +772,8 @@ const BelisMapLibWrapper = ({
         regularEnabled: regularLayerEnabled,
         brandnewEnabled: brandnewLayerEnabled,
         inlineFachobjekteLayer,
+        map: m,
+        bbox,
       });
     },
     [

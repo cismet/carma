@@ -18,7 +18,10 @@ import {
   createBelisInlinePrintStyle,
   type BelisPrintFeature,
 } from "@carma-mapping/print-core";
+import { buildInlineVectorStyle } from "@carma-mapping/print-core/maplibre";
+import type { StyleLayerLike } from "@carma-mapping/print-core/maplibre";
 import type { LibreLayer } from "@carma-mapping/engines/maplibre";
+import { slugifyUrl } from "@carma-mapping/engines/maplibre";
 import { buildFeatureStateTarget } from "@carma-mapping/utils";
 
 import {
@@ -31,9 +34,74 @@ import {
   printCategoryStyleUrl,
 } from "../config/mapLayerConfigs";
 
+/** Bounding box [west, south, east, north] in WGS84. */
+type Bbox = [number, number, number, number];
+
+// Not GeoJSON-inlinable: kept as-is from the live style.
+const PASSTHROUGH_TYPES = new Set(["raster", "hillshade", "background"]);
+// Higher raster zooms (e.g. basemap.de hillshade WMS) fail on the print server.
+const PRINT_RASTER_MAXZOOM = 19;
+
+type StyleLayer = StyleLayerLike & { id: string; type: string };
+
+/**
+ * Print a vector layer like the Fachobjekte: its live style layers plus the
+ * loaded features inside the print bbox as one inline GeoJSON style. Raster and
+ * background layers keep their original source.
+ */
+const buildInlineVectorLayer = (
+  map: MaplibreMap,
+  styleUrl: string,
+  bbox: Bbox | undefined,
+  opacity: number
+): PrintInputLayer | null => {
+  const layerId = slugifyUrl(styleUrl);
+  const ownLayer = (sl: StyleLayerLike) => sl.metadata?.["layer-id"] === layerId;
+  const inlineStyle = buildInlineVectorStyle(map, {}, bbox, true, {
+    styleLayerFilter: (sl) => ownLayer(sl) && !PASSTHROUGH_TYPES.has(sl.type),
+  });
+  if (!inlineStyle) return null;
+
+  const live = map.getStyle() as unknown as {
+    sources: Record<string, { type?: string; maxzoom?: number }>;
+    layers: StyleLayer[];
+  };
+  const inlineLayers = new Map(
+    (inlineStyle.layers as StyleLayer[]).map((l) => [l.id, l])
+  );
+  const sources = inlineStyle.sources as Record<string, unknown>;
+  const layers: StyleLayer[] = [];
+  for (const l of live.layers) {
+    if (!ownLayer(l)) continue;
+    if (!PASSTHROUGH_TYPES.has(l.type)) {
+      const inlined = inlineLayers.get(l.id);
+      if (inlined) layers.push(inlined);
+      continue;
+    }
+    if (typeof l.source === "string") {
+      const src = live.sources[l.source];
+      if (!src) continue;
+      sources[l.source] =
+        src.type === "raster" && (src.maxzoom ?? 22) > PRINT_RASTER_MAXZOOM
+          ? { ...src, maxzoom: PRINT_RASTER_MAXZOOM }
+          : src;
+    }
+    layers.push(l);
+  }
+
+  return {
+    visible: true,
+    layerType: "inline",
+    inlineStyle: { ...inlineStyle, sources, layers },
+    opacity,
+  };
+};
+
 const toInputLayer = (
   layer: LibreLayer,
-  fallbackOpacity: number
+  fallbackOpacity: number,
+  map?: MaplibreMap,
+  bbox?: Bbox
 ): PrintInputLayer | null => {
   switch (layer.type) {
     case "wms":
@@ -51,6 +119,15 @@ const toInputLayer = (
       if (typeof layer.style !== "string") {
         return null;
       }
+      const inline = map
+        ? buildInlineVectorLayer(
+            map,
+            layer.style,
+            bbox,
+            layer.opacity ?? fallbackOpacity
+          )
+        : null;
+      if (inline) return inline;
       return {
         visible: true,
         layerType: "vector",
@@ -177,9 +254,6 @@ const SOURCE_LAYER_TO_FILTER_KEY: Record<string, string> = {
   leitungen: "leitungen",
   abzweigdosen: "abzweigdosen",
 };
-
-/** Bounding box [west, south, east, north] in WGS84. */
-type Bbox = [number, number, number, number];
 
 /** Visit every [lng, lat] position in an arbitrarily-nested coordinate array. */
 const eachPosition = (
@@ -444,6 +518,9 @@ export const buildBelisPrintLayers = (params: {
    * belis4print vector styles. null means "nothing to print for Fachobjekte".
    */
   inlineFachobjekteLayer?: PrintInputLayer | null;
+  /** Live map; when set, vector backgrounds/overlays are printed inline. */
+  map?: MaplibreMap;
+  bbox?: Bbox;
 }): PrintInputLayer[] => {
   const {
     activeBackgroundLayer,
@@ -456,6 +533,8 @@ export const buildBelisPrintLayers = (params: {
     regularEnabled,
     brandnewEnabled,
     inlineFachobjekteLayer,
+    map,
+    bbox,
   } = params;
   const useInline = inlineFachobjekteLayer !== undefined;
 
@@ -467,7 +546,7 @@ export const buildBelisPrintLayers = (params: {
   ) => {
     if (!entry) return;
     for (const libreLayer of expand(entry)) {
-      const mapped = toInputLayer(libreLayer, opacity);
+      const mapped = toInputLayer(libreLayer, opacity, map, bbox);
       if (mapped) out.push(mapped);
     }
   };
