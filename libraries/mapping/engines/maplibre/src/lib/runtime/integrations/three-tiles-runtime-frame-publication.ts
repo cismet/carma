@@ -123,15 +123,13 @@ export function createThreeTilesFramePublication(
                 TILES_LOAD_POLICY.firstImageMaxErrorPixels
             )
           : receiverErrorTarget,
-        runtimeState.shadowView
-          ? Number.POSITIVE_INFINITY
-          : Math.max(
-              initialMeshLoadError(
-                runtimeState.requestedErrorTarget,
-                runtimeState.options.baseErrorTargetPixels
-              ),
-              runtimeState.memoryErrorTarget
-            ),
+        Math.max(
+          initialMeshLoadError(
+            runtimeState.requestedErrorTarget,
+            runtimeState.options.baseErrorTargetPixels
+          ),
+          runtimeState.memoryErrorTarget
+        ),
         inReceiverView,
         dependencies.getTileScreenError,
         (tile) => attachment.isDeferredMaterialReady(tile),
@@ -142,9 +140,6 @@ export function createThreeTilesFramePublication(
           // Final pixel quality belongs to refinement after that publication.
           allowCoarseBootstrap: true,
           releaseEmptyReplacementRegions: true,
-          retainedCasters: runtimeState.shadowView
-            ? runtimeState.committedMeshCasterFrontier
-            : undefined,
           firstImageErrorTargetPixels:
             runtimeState.options.firstImageErrorTargetPixels,
         }
@@ -157,10 +152,7 @@ export function createThreeTilesFramePublication(
         for (const tile of receiverPlan.materialWaits)
           dependencies.recordTileWait(tile, "receiver", "material");
       attachment.updateMeshRefinementSupport(
-        new Set([
-          ...receiverPlan.refinementSupport,
-          ...runtimeState.meshShadowReserve.support,
-        ]),
+        receiverPlan.refinementSupport,
         receiverPlan.unpreparedParents
       );
       abortStaleDownloads();
@@ -179,14 +171,6 @@ export function createThreeTilesFramePublication(
           runtimeState.displayedMeshFrontier,
           traversalFrontier
         );
-        // Selection can run ahead of presentation while a replacement's
-        // casters load. Retention and native visibility follow the committed cut.
-        runtimeState.displayedMeshFrontier = new Set([
-          ...[...runtimeState.displayedMeshFrontier].filter(
-            (tile) => !dependencies.isTileInMainView(tile as RuntimeTile)
-          ),
-          ...runtimeState.committedMeshReceiverFrontier,
-        ]);
       }
       runtimeState.residentAncestors = collectResidentAncestors(
         runtimeState.displayedMeshFrontier,
@@ -240,12 +224,8 @@ export function createThreeTilesFramePublication(
             );
         }
         if (model) {
-          // The receiver flag also gates colour and depth writes, so a mesh
-          // tile outside the corridor's committed cut would draw its plain
-          // surface over the corridor's shadowed pass. A terrain-providing
-          // runtime therefore keeps the corridor's own receiver and caster
-          // sets while a shadow view is active; every other runtime, LoD2
-          // among them, simply shows and receives what the view draws.
+          // The normal view owns colour. The extra corridor contributes only
+          // depth; visible objects are reused as casters without duplication.
           const corridorOwned =
             runtimeState.shadowView !== null &&
             runtimeState.options.providesTerrain;

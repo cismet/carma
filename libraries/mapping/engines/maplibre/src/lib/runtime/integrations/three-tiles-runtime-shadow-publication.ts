@@ -1,16 +1,11 @@
 import type { Tile } from "3d-tiles-renderer/core";
 import * as THREE from "three";
 
-import { tileCameraViewsSignature } from "../../core/tile-camera-demand";
-import { meshContentLevel } from "../../core/mesh-shadow-retrieval";
 import {
-  isLoadedMesh,
-  meshTileAncestors,
-  isMeshRegionAtError,
-} from "../../core/mesh-tile-coverage";
-import { planMeshShadowReserveStep } from "../../core/mesh-shadow-reserve-plan";
-import { collectTilesetFloorRoots } from "./three-tiles-runtime-coverage";
-import type { TilesetDeferredMaterialsPlugin } from "./tileset-deferred-materials-plugin";
+  excludeMeshReceiverAncestors,
+  selectMeshShadowRetrieval,
+  meshContentLevel,
+} from "../../core/mesh-shadow-retrieval";
 import { createCasterVolumeDemand } from "./three-tiles-runtime-caster-demand";
 import {
   createShadowReceiverMask,
@@ -57,8 +52,7 @@ export function createThreeTilesShadowPublication(
   };
 
   const createReceiverSnapshot = (
-    frontier: ReadonlySet<Tile>,
-    clipToViewport = true
+    frontier: ReadonlySet<Tile>
   ): ReturnType<ThreeTilesRuntimeServices["createReceiverSnapshot"]> => {
     const sourceCamera = runtimeState.shadowView?.camera;
     if (
@@ -82,21 +76,18 @@ export function createThreeTilesShadowPublication(
       runtimeState.tiles.group.matrixWorld
     );
     const receivers = [...frontier]
-      .filter(
-        (tile) =>
-          !clipToViewport || dependencies.isTileInMainView(tile as RuntimeTile)
-      )
+      .filter((tile) => dependencies.isTileInMainView(tile as RuntimeTile))
       .map((tile) => ({
         tile: tile as RuntimeTile,
         // Decision: ../../../../TILES_COVERAGE.md#caster-lod-follows-displayed-receivers.
         // Shadow demand must not feed back into its own receiver density.
-        screenErrorPixels: clipToViewport
-          ? dependencies.getTileScreenError(tile as RuntimeTile, false)
-          : runtimeState.requestedErrorTarget,
+        screenErrorPixels: dependencies.getTileScreenError(
+          tile as RuntimeTile,
+          false
+        ),
       }));
     // View clipping changes even when the same coarse receivers remain.
     const signature = JSON.stringify([
-      clipToViewport,
       runtimeState.shadowViewSignature,
       runtimeState.tileCameraSignature,
       runtimeState.tiles.group.matrixWorld.elements,
@@ -193,13 +184,11 @@ export function createThreeTilesShadowPublication(
     return {
       signature,
       mask: createShadowReceiverMask(
-        clipToViewport
-          ? clipShadowReceiverSources(
-              sources,
-              runtimeState.tileCameraDemand,
-              runtimeState.tiles.group.matrixWorld
-            )
-          : sources,
+        clipShadowReceiverSources(
+          sources,
+          runtimeState.tileCameraDemand,
+          runtimeState.tiles.group.matrixWorld
+        ),
         runtimeState.tilesToShadowView,
         runtimeState.options.providesTerrain
           ? 0
@@ -288,10 +277,6 @@ export function createThreeTilesShadowPublication(
     };
 
   let requestCameraSignature: string | undefined;
-  let reserveSignature = "";
-  let reserveRoot: Tile | undefined;
-  let reserveRefined = new Set<Tile>();
-  let reservePlanning = false;
 
   const advanceMeshShadowCorridors: ThreeTilesRuntimeServices["advanceMeshShadowCorridors"] =
     (viewportTiles: ReadonlySet<Tile>): void => {
@@ -303,120 +288,26 @@ export function createThreeTilesShadowPublication(
           dependencies.isTileInMainView(tile as RuntimeTile)
         )
       );
-      const previousReceivers = runtimeState.committedMeshReceiverFrontier;
       const previousCasters = runtimeState.committedMeshCasterFrontier;
-      // Admission/error waves do not change geometry. Resetting a pending cut
-      // on memory backoff would evict/re-request its own completed prerequisites.
-      const cameraGeometry = tileCameraViewsSignature(
-        runtimeState.tileCameraDemand.views.map((view) => ({
-          ...view,
-          errorTargetPixels: 1,
-        }))
+      runtimeState.committedMeshReceiverFrontier = proposed;
+      runtimeState.pendingMeshReceiverFrontier = null;
+      runtimeState.pendingMeshReceiverMask = null;
+      // Only displayed receivers seed the corridor; casters never become
+      // receivers merely because they were loaded for someone else's shadow.
+      enableShadowSelection(proposed);
+      const demand = createCasterVolumeDemand(
+        runtimeState.shadowReceiverMask,
+        runtimeState.requestedErrorTarget
       );
-      const nextSignature = `${cameraGeometry}|${runtimeState.shadowViewSignature}`;
-      if (reserveRoot !== root || reserveSignature !== nextSignature) {
-        reserveRoot = root;
-        reserveSignature = nextSignature;
-        reserveRefined = new Set();
-        reservePlanning = false;
-      }
-      if (runtimeState.meshShadowReserve.ready && !reservePlanning) {
-        for (const tile of new Set([...proposed, ...previousCasters]))
-          for (const parent of meshTileAncestors(tile))
-            reserveRefined.add(parent);
-      }
-      reservePlanning = true;
-      const materials = tiles.getPluginByName(
-        "CARMA_DEFERRED_TILE_MATERIALS"
-      ) as TilesetDeferredMaterialsPlugin | null;
-      const plan = planMeshShadowReserveStep(
-        runtimeState.extentGeometricError > 0
-          ? collectTilesetFloorRoots(root, runtimeState.extentGeometricError)
-          : [root],
-        reserveRefined,
-        (tile) => isLoadedMesh(tile) && (!materials || materials.isReady(tile)),
-        (frontier) => {
-          const mask = createReceiverSnapshot(frontier, false)?.mask ?? null;
-          const demand = createCasterVolumeDemand(
-            mask,
-            runtimeState.requestedErrorTarget
-          );
-          return (tile) =>
-            mask ? demand(tile).receiverContentLevel : Number.MAX_VALUE;
-        }
+      const plan = selectMeshShadowRetrieval(
+        root,
+        viewportTiles,
+        previousCasters,
+        runtimeState.requestedErrorTarget,
+        demand,
+        (tile) => dependencies.isTileInMainView(tile as RuntimeTile)
       );
-      reserveRefined = plan.refined;
-      const previousReserve = runtimeState.meshShadowReserve;
-      const complete = plan.ready && plan.shadowReady;
-      if (complete) reservePlanning = false;
-      runtimeState.meshShadowReserve = complete
-        ? {
-            frontier: plan.frontier,
-            support: new Set(),
-            ready: true,
-            known: plan.known,
-            covered: plan.covered,
-            totalKnown: plan.totalKnown,
-          }
-        : { ...previousReserve, support: plan.support };
-      runtimeState.meshShadowReserve.pending = {
-        phase: plan.blocked.size
-          ? "blocked"
-          : !plan.totalKnown
-          ? "metadata"
-          : plan.advance
-          ? "planning"
-          : complete
-          ? "ready"
-          : "loading",
-        required: plan.frontier.size + plan.support.size,
-        missing: plan.support.size,
-        blocked: plan.blocked.size,
-      };
-      const whole = runtimeState.meshShadowReserve.frontier;
-      const publishedReceivers = runtimeState.meshShadowReserve.ready
-        ? new Set(
-            [...whole].filter((tile) =>
-              dependencies.isTileInMainView(tile as RuntimeTile)
-            )
-          )
-        : new Set(
-            [...previousReceivers].filter((tile) =>
-              dependencies.isTileInMainView(tile as RuntimeTile)
-            )
-          );
-      const pending = new Set(
-        [...proposed].filter(
-          (tile) =>
-            !isMeshRegionAtError(tile, publishedReceivers, 1, (candidate) => ({
-              intersects: dependencies.isTileInMainView(
-                candidate as RuntimeTile
-              ),
-              errorPixels:
-                candidate.geometricError /
-                Math.max(Number.EPSILON, tile.geometricError),
-            }))
-        )
-      );
-      const previousPending = runtimeState.pendingMeshReceiverFrontier;
-      const pendingChanged =
-        pending.size !== (previousPending?.size ?? 0) ||
-        [...pending].some((tile) => !previousPending?.has(tile));
-      runtimeState.committedMeshReceiverFrontier = publishedReceivers;
-      runtimeState.pendingMeshReceiverFrontier = pending.size ? pending : null;
-      runtimeState.pendingMeshReceiverMask = pending.size
-        ? createReceiverSnapshot(proposed)?.mask ?? null
-        : null;
-      runtimeState.pendingMeshCasterFrontier = new Set([
-        ...plan.frontier,
-        ...plan.support,
-      ]);
-      enableShadowSelection(publishedReceivers);
-      for (const tile of runtimeState.pendingMeshCasterFrontier)
-        tiles.markTileUsed(tile);
-      for (const parent of plan.unpreparedParents)
-        tiles.ensureChildrenArePreprocessed(parent);
-      const requests = new Set(plan.support);
+      const requests = new Set(plan.requests);
       if (requestCameraSignature === runtimeState.tileCameraSignature)
         for (const tile of runtimeState.shadowCasterRequests)
           if (tiles.loadingTiles.has(tile)) requests.add(tile);
@@ -427,32 +318,44 @@ export function createThreeTilesShadowPublication(
           (tile) => !runtimeState.shadowCasterRequests.has(tile)
         );
       runtimeState.shadowCasterRequests = requests;
-      runtimeState.shadowReceiverMaskConverged = complete && pending.size === 0;
-      if (
-        requestsChanged ||
-        pendingChanged ||
-        plan.unpreparedParents.size ||
-        plan.advance
-      ) {
+      runtimeState.pendingMeshCasterFrontier = new Set(plan.support);
+      // The coarse extent reserve remains owned by the normal loader. This
+      // field now reports only the current offscreen caster plan, not a global
+      // readiness gate or a second colour/material owner.
+      runtimeState.meshShadowReserve = {
+        frontier: new Set(),
+        support: new Set(),
+        ready: plan.converged,
+        known: plan.support.size,
+        covered: plan.casters.size,
+        totalKnown: !plan.unpreparedParents.size,
+        pending: {
+          phase: plan.blocked.size
+            ? "blocked"
+            : plan.unpreparedParents.size
+            ? "metadata"
+            : plan.converged
+            ? "ready"
+            : "loading",
+          required: plan.support.size,
+          missing: plan.requests.size,
+          blocked: plan.blocked.size,
+        },
+      };
+      for (const tile of plan.support) tiles.markTileUsed(tile);
+      for (const parent of plan.unpreparedParents)
+        tiles.ensureChildrenArePreprocessed(parent);
+      runtimeState.shadowReceiverMaskConverged = plan.converged;
+      if (requestsChanged || plan.unpreparedParents.size) {
         runtimeState.shadowSelectionNeedsTraversal = true;
         tiles.dispatchEvent({ type: "needs-update" });
         dependencies.requestRender();
       }
-      const liveDemand = createCasterVolumeDemand(
-        runtimeState.shadowReceiverMask,
-        runtimeState.requestedErrorTarget
+      // Shared visible objects cast directly. Only plan.casters are extra.
+      const casterCut = excludeMeshReceiverAncestors(
+        new Set([...proposed, ...plan.casters]),
+        viewportTiles
       );
-      const casterCut = runtimeState.meshShadowReserve.ready
-        ? new Set(
-            [...whole].filter((tile) => {
-              const demand = liveDemand(tile);
-              return (
-                demand.intersects &&
-                meshContentLevel(tile) >= (demand.receiverContentLevel ?? -1)
-              );
-            })
-          )
-        : new Set(previousCasters);
       if (
         casterCut.size !== previousCasters.size ||
         [...casterCut].some((tile) => !previousCasters.has(tile))

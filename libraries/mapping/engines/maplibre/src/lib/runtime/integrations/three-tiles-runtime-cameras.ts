@@ -58,10 +58,7 @@ export const areActiveMeshViewsConverged = (
             };
           }
         ) &&
-        (!runtimeState.shadowView ||
-          (runtimeState.shadowReceiverMaskConverged &&
-            runtimeState.meshShadowReserve.ready &&
-            runtimeState.meshShadowReserve.support.size === 0))
+        (!runtimeState.shadowView || runtimeState.shadowReceiverMaskConverged)
     : runtimeState.lastMainViewConverged;
 };
 
@@ -96,11 +93,6 @@ export const getRetainedMeshDetailTarget = (
   runtimeState: ThreeTilesFrameRuntimeState,
   additionalCameraCount: number
 ) =>
-  runtimeState.shadowView
-    ? Math.max(
-        runtimeState.requestedErrorTarget,
-        runtimeState.memoryErrorTarget
-      )
-    : additionalCameraCount
+  additionalCameraCount
     ? runtimeState.effectiveErrorTarget
     : runtimeState.requestedErrorTarget;

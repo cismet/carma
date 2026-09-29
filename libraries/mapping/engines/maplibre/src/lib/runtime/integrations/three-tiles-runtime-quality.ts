@@ -342,7 +342,6 @@ export function createThreeTilesQuality(
           !runtimeState.tiles.parseQueue.running &&
           !runtimeState.tiles.processNodeQueue.running;
         if (
-          !runtimeState.shadowView &&
           initialReady &&
           hasReserve &&
           runtimeState.extentFloorArmed &&
@@ -367,13 +366,7 @@ export function createThreeTilesQuality(
         }
         const stageTarget = resolveMeshStageTarget({
           currentTarget: runtimeState.effectiveErrorTarget,
-          stageReady:
-            readyAt(runtimeState.effectiveErrorTarget) &&
-            (!runtimeState.shadowView ||
-              (runtimeState.shadowReceiverMaskConverged &&
-                runtimeState.meshShadowReserve.ready &&
-                runtimeState.meshShadowReserve.support.size === 0 &&
-                !runtimeState.pendingMeshReceiverFrontier?.size)),
+          stageReady: readyAt(runtimeState.effectiveErrorTarget),
           minimumTarget,
           initialTarget,
           handoverTarget,

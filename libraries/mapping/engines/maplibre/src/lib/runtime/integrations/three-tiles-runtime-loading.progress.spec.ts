@@ -81,11 +81,8 @@ describe("progress runtime integration", () => {
       camera: new OrthographicCamera(),
       shadowMapSize: { width: 512, height: 512 },
     };
-    loading.applyErrorTargetPolicy();
-    expect(state.effectiveErrorTarget).toBe(16);
-    state.meshShadowReserve.ready = true;
-    state.shadowReceiverMaskConverged = true;
-    state.meshShadowReserve.frontier = new Set([near, far]);
+    // Caster work must not delay the observer's next quality wave.
+    state.shadowReceiverMaskConverged = false;
     state.lastMainViewConverged = state.lastActiveViewsConverged = true;
     loading.applyErrorTargetPolicy();
     expect(state.effectiveErrorTarget).toBe(8);

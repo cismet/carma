@@ -12,16 +12,16 @@ including retries and cache-backed metadata; wire requests, completion, failure
 and byte counts are measured separately by browser network traces. Neither
 request histories nor phase identities are shared between sessions.
 
-Shadow reserve topology is resolved from prepared bounds before mesh downloads.
-An in-progress reserve keeps its planning identity across admission-target
-changes; diagnostics distinguish metadata, planning, loading, blocked and ready.
+Offscreen caster topology is resolved from prepared bounds before mesh downloads.
+Diagnostics distinguish metadata, loading, blocked and ready for the current
+receiver corridor. Shadow completion is separate from observer quality progress.
 
 ## Complete replacement families and resident base coverage
 
-As of 2026-09-29, every drawable REPLACE family includes its direct siblings
-outside both the observer viewport and the shadow corridor. The same rule applies
-to offscreen LOD rings. This supersedes historical off-frustum sibling exclusions
-below. Containers route to the next drawable generation; they do not require a
+The normal observer loader prepares every drawable REPLACE family with its
+direct siblings, including offscreen siblings, and uses complete offscreen LOD
+rings. Extra shadow-only retrieval follows the narrower corridor rule below.
+This supersedes historical off-frustum sibling exclusions for the normal loader. Containers route to the next drawable generation; they do not require a
 whole metadata subtree to be displayed. ADD content keeps its native semantics.
 
 A parent stays alone until the complete next family is resident. Receiver support
@@ -42,29 +42,50 @@ and explicit cache removal use the same restriction. Base resident bytes report
 cache-accounted mesh resources at or above the configured floor, including coarse
 ancestors; they are not a measurement of total browser or GPU-driver memory.
 
-## Complete shadow reserve and screen-space error waves
+## Independent observer and offscreen caster retrieval
 
-Before publishing a finer shadow mesh cut, prepare a complete, material-ready
-reserve through the base coverage and its caster dependencies. Keep the previous
-complete cut while geometry, materials or shadow closure are pending. Navigation
-selects the newly visible portion of that resident reserve without introducing
-parent/child overlap. Reserve tiles may become receivers, so their materials must
-also be ready. This supersedes historical independent shadow-family handover.
+The observer uses the same loading, publication, material and screen-space error
+policies with and without shadows. Shadows never hold, refine or replace the
+observer's chosen geometry. Every visible receiver also casts using that same
+native Tile and scene object.
+
+Only offscreen geometry intersecting a sunward ray corridor from an actual
+visible receiver creates extra shadow demand. Clip receiver bounds to the current
+observer before sweeping them toward the sun. Match the strictest drawable
+content generation among the receivers affected by a candidate; use geometric
+error for sources without a content generation. Metadata traversal skips coarse
+intermediate mesh payloads and requests the required generation directly.
+Off-corridor siblings are not shadow payload prerequisites. Relevant REPLACE
+caster families publish together, with no parent/descendant overlap. Unavailable
+required detail remains explicitly incomplete rather than claiming convergence.
+
+Caster queries never turn other casters into new receivers. A visible receiver
+owns its complete subtree, preventing a second caster cut from overlapping it.
+Immediately before publication, remove every ancestor of every visible tile from
+the caster cut again. This hard invariant also rejects stale cached selections,
+regardless of their apparent screen error or readiness.
+Retain useful in-flight work across sun-only changes, but recompute demand on
+observer movement. Pure offscreen casters defer texture preparation; normal
+receiver-family and base-reserve material readiness is unchanged.
+
+The separate coarse base coverage remains resident under the normal loader.
+There is no global fine shadow reserve or shadow-ready receiver publication gate.
+This decision supersedes the earlier global reserve, coarse-caster readiness and
+shadow-driven observer refinement requirements below.
 
 The observer advances one complete screen-space error wave at a time, halving
 its threshold toward the requested target (for example 16, 8, then 4 CSS pixels).
-Only the actually published complete view proves a wave; downloaded geometry,
-empty queues or failed requests do not. Shadows additionally require the current
-reserve/caster proof before advancing. These are pixel-error thresholds, not
+Only its actually published complete view proves a wave; downloaded geometry,
+empty queues or failed requests do not. These are pixel-error thresholds, not
 uniform tree levels: near and distant regions of a tilted view can use different
-LODs. Finer resident detail stays visible while other regions catch up.
+LODs. Finer resident detail stays visible while other regions catch up. Offscreen
+casters follow the active receivers without blocking the next observer wave.
 
 ## Camera-normalized mesh refinement
 
 Active mesh cameras share one request pool and one geometry cut. The main
-observer fills missing coverage first; other active cameras fill next. Coarse
-casters required to publish the first receiver inherit that receiver's fill
-priority. Within a fill phase, only the missing coverage area of that phase is scored.
+observer fills missing coverage first; other active cameras fill next. Within a
+fill phase, only the missing coverage area of that phase is scored.
 Once covered, every active camera contributes equally to refinement.
 
 A missing region first admits and publishes its first drawable approximation,
@@ -92,14 +113,14 @@ cannot bypass the observer's current screen-space error threshold.
 Per-camera pixel errors and final-target demand ratios remain separate from
 admission-stage ratios for diagnostics and coverage proofs. Motion and memory limits affect admission, not retained detail.
 
-The mesh sun camera uses its actual orthographic projection and logical shadow
-map size. Receiver influence still excludes bounds with nowhere relevant to
-cast. Raster terrain keeps its existing path. Atomic, exclusive shadow family
-publication, coarse-caster readiness, and monotone receiver/caster retention
-remain required. Base coverage and reserve loading wait for all active cameras.
+The mesh sun camera supplies the ray direction; its fitted projection does not
+create a second mesh receiver or a separate screen-error objective. Receiver
+influence excludes bounds with nowhere relevant to cast. Raster terrain keeps
+its existing path. Base coverage and reserve loading remain background work.
 
 This policy supersedes historical primary-versus-secondary refinement ranks
-and receiver-geometric-ratio caster selection described below. Its pure scoring,
+for explicit observer cameras described below. Shadow-only retrieval uses the
+independent receiver-matched policy above. Its pure scoring,
 clipped geometry, request need, and runtime publication contracts have focused
 regression tests; timing gains require separate browser measurement.
 
@@ -109,9 +130,9 @@ A blocked stage needs a matching release event or a bounded retry deadline.
 No failure counts as coverage, and recovery must preserve the published receiver
 and caster cut until usable replacements exist.
 
-- Shadow requests, exclusive family publication and regional readiness use the
-  same receiver-mask intersection with the actual light frustum. A branch that
-  cannot be requested must not block publication. Regional proof caches also
+- Shadow requests, exclusive caster family publication and regional readiness
+  use the same receiver-mask ray intersection. A branch that cannot be requested
+  must not block observer publication. Regional proof caches also
   depend on the light projection, frame transform and logical sampling grid.
 - Initial coverage waits for the first drawable approximation. If an unloaded
   REPLACE payload exhausts its retries, its healthy child routes remain

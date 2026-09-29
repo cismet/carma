@@ -72,10 +72,7 @@ export function installThreeTilesTraversalHooks(
   const retainsPublishedChildren = (tile: Tile): boolean => {
     if (!publishedAncestors) {
       publishedAncestors = new Set();
-      for (const displayed of [
-        ...runtimeState.displayedMeshFrontier,
-        ...runtimeState.committedMeshCasterFrontier,
-      ])
+      for (const displayed of runtimeState.displayedMeshFrontier)
         for (const parent of meshTileAncestors(displayed))
           publishedAncestors.add(parent);
     }
@@ -408,19 +405,6 @@ export function installThreeTilesTraversalHooks(
       waitingForSiblingCoverage(tile)
     )
       target.error = Math.min(target.error, runtimeState.effectiveErrorTarget);
-    // Decision: ../../../../TILES_COVERAGE.md#exclusive-shadow-caster-handover
-    // A coarse ancestor cannot replace live fine depth. Continue through it
-    // to find newly relevant sibling coverage, even after the sun/motion or
-    // bootstrap policy has relaxed its error. Outside demand stays excluded.
-    if (
-      runtimeState.shadowView &&
-      target.inView &&
-      retainsPublishedChildren(tile)
-    )
-      target.error = Math.max(
-        target.error,
-        runtimeState.effectiveErrorTarget + 1
-      );
     const explicitCaster =
       !!runtimeState.shadowView &&
       runtimeState.options.providesTerrain &&

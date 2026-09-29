@@ -1,6 +1,4 @@
 import * as THREE from "three";
-import { meshContentLevel } from "../../core/mesh-shadow-retrieval";
-import { createCasterVolumeDemand } from "./three-tiles-runtime-caster-demand";
 
 import {
   createTileCameraDemand,
@@ -74,8 +72,6 @@ export function createThreeTilesSpatialDemand(
     [CachedCameraDemand | null, CachedCameraDemand | null]
   >();
   let cameraDemandCacheOwner: unknown = null;
-  let casterMask: unknown;
-  let casterDemand: ReturnType<typeof createCasterVolumeDemand> | undefined;
   const getTileCameraDemand: ThreeTilesRuntimeServices["getTileCameraDemand"] =
     (tile, includeObserver = false) => {
       if (
@@ -92,36 +88,6 @@ export function createThreeTilesSpatialDemand(
             tile,
             demand.errorRatio * runtimeState.effectiveErrorTarget
           );
-        if (
-          includeObserver &&
-          demand.required &&
-          runtimeState.shadowView &&
-          (runtimeState.pendingMeshReceiverMask ||
-            runtimeState.shadowReceiverMask)
-        ) {
-          const refinementMask =
-            runtimeState.pendingMeshReceiverMask ??
-            runtimeState.shadowReceiverMask;
-          if (casterMask !== refinementMask) {
-            casterMask = refinementMask;
-            casterDemand = createCasterVolumeDemand(
-              refinementMask,
-              runtimeState.requestedErrorTarget
-            );
-          }
-          const requiredLevel = casterDemand?.(tile).receiverContentLevel ?? -1;
-          const missingLevels = requiredLevel - meshContentLevel(tile);
-          if (missingLevels > 0)
-            return {
-              ...demand,
-              // An observer-owned tile can be a caster for a finer visible tile.
-              // Strengthen only its refinement floor, not reported camera SSE.
-              refinementErrorRatio: Math.max(
-                demand.refinementErrorRatio ?? 0,
-                1 + missingLevels
-              ),
-            };
-        }
         return demand;
       }
       const bounds = tile.engineData?.boundingVolume;

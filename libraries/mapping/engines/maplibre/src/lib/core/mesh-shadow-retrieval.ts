@@ -1,5 +1,4 @@
 import type { Tile } from "3d-tiles-renderer/core";
-import { createMeshFamilyCoverage } from "./mesh-family-coverage";
 import {
   isLoadedMesh,
   isMeshTileUnconditionallyRefined,
@@ -19,9 +18,23 @@ export const meshContentLevel = (tile: Tile): number => {
   return Math.max(0, level);
 };
 
-/** One hierarchy query for the union of visible receivers' parallel sun rays.
- * Receivers are fixed anchors, not another selection to negotiate with shadows.
- * Tile identity deduplicates overlapping corridors and shares native requests.
+/** Final publication invariant, independent of traversal and cached selections.
+ * No ancestor of a visible tile may contribute a second, coarser shadow surface.
+ */
+export function excludeMeshReceiverAncestors(
+  candidates: ReadonlySet<Tile>,
+  visible: ReadonlySet<Tile>
+): Set<Tile> {
+  const ancestors = new Set<Tile>();
+  for (const receiver of visible)
+    for (const parent of meshTileAncestors(receiver)) ancestors.add(parent);
+  return new Set([...candidates].filter((tile) => !ancestors.has(tile)));
+}
+
+/** Query only offscreen geometry casting into the fixed visible receiver cut.
+ * Metadata is traversed to the receiver's target generation before downloading
+ * payloads. Receivers own their complete subtrees; shadows never refine them.
+ * Relevant REPLACE families publish atomically without coarse intermediates.
  */
 export function selectMeshShadowRetrieval(
   root: Tile,
@@ -33,161 +46,98 @@ export function selectMeshShadowRetrieval(
     errorPixels: number;
     receiverGeometricError: number;
     receiverContentLevel?: number;
-  }
+  },
+  inView: (tile: Tile) => boolean = () => false
 ) {
-  const familyCoverage = createMeshFamilyCoverage();
   const receiverAncestors = new Set<Tile>();
   const retainedAncestors = new Set<Tile>();
   const requests = new Set<Tile>();
   const support = new Set<Tile>();
   const unpreparedParents = new Set<Tile>();
+  const blocked = new Set<Tile>();
   for (const tile of receivers)
     for (const parent of meshTileAncestors(tile)) receiverAncestors.add(parent);
-  for (const tile of previous) {
-    // Receiver publication carries this same floor through a role change.
-    // Never forget finer caster history just because its parent enters view.
+  for (const tile of previous)
     for (const parent of meshTileAncestors(tile)) retainedAncestors.add(parent);
-  }
-  type Cut = {
-    tiles: Tile[];
-    complete: boolean;
-    converged: boolean;
-    missing?: Tile[];
-  };
-  const visit = (tile: Tile): Cut => {
-    const wanted = demand(tile);
-    if (receivers.has(tile)) {
-      // Visible geometry is still loaded by the observer. If it casts into a
-      // finer receiver, that same path refines it; never draw a second mesh or
-      // bypass the caster LOD floor just because this tile is already visible.
-      const ready =
-        meshContentLevel(tile) >= (wanted.receiverContentLevel ?? -1);
-      return {
-        tiles: ready ? [tile] : [],
-        complete: ready,
-        converged: ready,
-        missing: ready ? [] : [tile],
-      };
-    }
+  type Cut = { tiles: Tile[]; complete: boolean; missing: Tile[] };
+  const empty = (): Cut => ({ tiles: [], complete: true, missing: [] });
+  const visit = (tile: Tile, owner = tile.parent): Cut => {
+    // The observer supplies both colour and shadow geometry for this subtree.
+    if (receivers.has(tile)) return empty();
     const anchored = receiverAncestors.has(tile);
-    if (!anchored && !wanted.intersects)
-      return { tiles: [], complete: true, converged: true };
+    const wanted = demand(tile);
+    if (!anchored && !wanted.intersects) return empty();
     if (!tile.internal || !tile.traversal) {
-      if (tile.parent) unpreparedParents.add(tile.parent);
-      return { tiles: [], complete: false, converged: false, missing: [tile] };
+      if (owner) unpreparedParents.add(owner);
+      return { tiles: [], complete: false, missing: [tile] };
     }
     const internal = tile.internal;
     const children = tile.children ?? [];
     if (internal.hasUnrenderableContent && internal.loadingState !== LOADED) {
       requests.add(tile);
-      return { tiles: [], complete: false, converged: false, missing: [tile] };
+      return { tiles: [], complete: false, missing: [tile] };
     }
+    const observerOwned = inView(tile);
     const content =
       internal.hasRenderableContent && !isMeshTileUnconditionallyRefined(tile);
-    // This is a publication floor, including retained/leaf/fallback content.
-    // A caster shared by receivers must meet the strictest receiver it affects.
+    const level = meshContentLevel(tile);
+    const requiredLevel = wanted.receiverContentLevel ?? -1;
     const eligible =
       content &&
       !anchored &&
-      ((wanted.receiverContentLevel ?? -1) >= 0
-        ? meshContentLevel(tile) >= wanted.receiverContentLevel!
-        : tile.geometricError <= wanted.receiverGeometricError);
-    const loaded = eligible && isLoadedMesh(tile);
-    const refine =
-      anchored ||
-      retainedAncestors.has(tile) ||
-      !content ||
-      !eligible ||
-      ((wanted.receiverContentLevel ?? -1) < 0 &&
-        wanted.errorPixels > targetError);
-    if (content && !anchored && (!refine || children.length === 0)) {
-      if (eligible && !loaded) requests.add(tile);
+      !observerOwned &&
+      (requiredLevel >= 0
+        ? level >= requiredLevel
+        : tile.geometricError <= wanted.receiverGeometricError &&
+          wanted.errorPixels <= targetError);
+    const retained = retainedAncestors.has(tile);
+    if (eligible && !retained) {
+      support.add(tile);
+      if (!isLoadedMesh(tile)) requests.add(tile);
       return {
-        tiles: loaded ? [tile] : [],
-        complete: loaded,
-        converged: loaded,
-        missing: loaded ? [] : [tile],
+        tiles: isLoadedMesh(tile) ? [tile] : [],
+        complete: isLoadedMesh(tile),
+        missing: isLoadedMesh(tile) ? [] : [tile],
       };
     }
-    if (children.length === 0)
-      return {
-        tiles: [],
-        complete: !internal.hasContent,
-        converged: !internal.hasContent,
-        missing: internal.hasContent ? [tile] : [],
-      };
-    // Raw native children do not have parent links yet. Ask their known
-    // parent to prepare them rather than leaving this branch permanently pending.
-    if (children.some((child) => !child.internal || !child.traversal))
-      unpreparedParents.add(tile);
+    if (!children.length) {
+      if (observerOwned || (!internal.hasContent && !content)) return empty();
+      blocked.add(tile);
+      return { tiles: [], complete: false, missing: [tile] };
+    }
+    const cuts = children.map((child) => visit(child, tile));
+    const complete = cuts.every((cut) => cut.complete);
+    const descendants = cuts.flatMap((cut) => cut.tiles);
+    const missing = cuts.flatMap((cut) => cut.missing);
+    // Ancestors that contain visible receivers are navigation paths, never
+    // caster payloads. Only the directly replacing caster family waits together.
     const family =
       content &&
+      !anchored &&
       tile.refine === "REPLACE" &&
-      (anchored ||
-        eligible ||
-        meshContentLevel(tile) + 1 >= (wanted.receiverContentLevel ?? -1))
-        ? familyCoverage(tile)
-        : null;
-    if (family) {
-      for (const member of family.support) {
-        // Decoded siblings remain owned while the rest of this family loads.
-        // Otherwise cleanup can evict them before they enter the caster cut.
-        if (!family.ready) support.add(member);
-        if (!receivers.has(member) && !isLoadedMesh(member))
-          requests.add(member);
-      }
-      for (const owner of family.unpreparedParents)
-        unpreparedParents.add(owner);
+      (eligible || level + 1 >= requiredLevel);
+    if (family && !complete) {
+      return { tiles: [], complete: false, missing };
     }
-    const cuts = children.map(visit);
-    const complete =
-      (family?.ready ?? true) && cuts.every((cut) => cut.complete);
-    const descendants = cuts.flatMap((cut) => cut.tiles);
-    // Do not download a coarser intermediate caster. A retained replacement
-    // can bridge refinement only while it still meets every current receiver.
-    if (eligible && !loaded && !complete) requests.add(tile);
-    if (tile.refine === "ADD" && content && !anchored) {
-      if (eligible && !loaded) requests.add(tile);
+    if (tile.refine === "ADD" && content && !anchored && eligible) {
+      support.add(tile);
+      if (!isLoadedMesh(tile)) requests.add(tile);
       return {
-        tiles: loaded ? [tile, ...descendants] : descendants,
-        complete: loaded && complete,
-        converged: loaded && cuts.every((cut) => cut.converged),
-        missing: [
-          ...(loaded ? [] : [tile]),
-          ...cuts.flatMap((cut) => cut.missing ?? []),
-        ],
+        tiles: isLoadedMesh(tile) ? [tile, ...descendants] : descendants,
+        complete: isLoadedMesh(tile) && complete,
+        missing: isLoadedMesh(tile) ? missing : [tile, ...missing],
       };
     }
-    // REPLACE publishes one complete demanded family at a time. No parent is
-    // superimposed with its children, and failed loads never count as coverage.
-    const parentFallback = loaded && !retainedAncestors.has(tile);
-    const familyMissing =
-      family && !family.ready
-        ? [...family.support].filter((member) => !isLoadedMesh(member))
-        : [];
-    return {
-      // A new family may keep its previous parent while loading. Once finer
-      // casters were published, missing neighbours cannot resurrect that parent.
-      tiles:
-        !complete && parentFallback
-          ? [tile]
-          : family && !family.ready && !retainedAncestors.has(tile)
-          ? []
-          : descendants,
-      complete: complete || parentFallback,
-      converged: complete && cuts.every((cut) => cut.converged),
-      missing: parentFallback
-        ? []
-        : [...familyMissing, ...cuts.flatMap((cut) => cut.missing ?? [])],
-    };
+    return { tiles: descendants, complete, missing };
   };
   const cut = visit(root);
   return {
     requests,
     support,
     unpreparedParents,
+    blocked,
     casters: new Set(cut.tiles),
-    converged: cut.converged,
-    missing: cut.missing ?? [],
+    converged: cut.complete,
+    missing: cut.missing,
   };
 }

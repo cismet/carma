@@ -23,7 +23,6 @@ import {
 import { initialMeshLoadError } from "../../core/mesh-error-policy";
 import { TILE_MEMORY_ALLOCATION_ERROR } from "../../core/tile-cache-policy";
 
-import { meshTileAncestors } from "../../core/mesh-tile-coverage";
 import { getRetainedMeshAncestors } from "../../core/mesh-tile-retention";
 
 import type { ThreeTilesRuntimeServices } from "./three-tiles-runtime-context";
@@ -216,38 +215,8 @@ export function createThreeTilesFrameUpdate(
           retainedDetailErrorTarget,
           isTileInAnyView,
           dependencies.getTileScreenError,
-          allowInViewCoarsening && !runtimeState.shadowView
+          allowInViewCoarsening
         );
-      }
-      if (runtimeState.options.providesTerrain && runtimeState.shadowView) {
-        // A caster becoming visible keeps its already published geometry. Its
-        // texture promotion must not authorize a coarse observer parent.
-        for (const tile of runtimeState.committedMeshCasterFrontier)
-          for (const parent of meshTileAncestors(tile))
-            frameState.retainedMeshAncestors.add(parent);
-        // Held receiver candidates must continue refining too. Looking only
-        // at the committed parent deadlocks a sibling that already meets camera
-        // SSE but needs one more generation to serve a finer pending receiver.
-        const candidates = new Set([
-          ...runtimeState.displayedMeshFrontier,
-          ...(runtimeState.pendingMeshReceiverFrontier ?? []),
-        ]);
-        for (const tile of [...candidates])
-          for (const parent of meshTileAncestors(tile)) candidates.add(parent);
-        for (const tile of candidates) {
-          const demand = dependencies.getTileCameraDemand(
-            tile as RuntimeTile,
-            true
-          );
-          if (!demand.required || (demand.refinementErrorRatio ?? 0) <= 1)
-            continue;
-          // A completed child family still needs its ancestors' shadow floor.
-          // Judging only the leaves would let camera SSE select their coarse
-          // parent again on the next frame and oscillate the published cut.
-          frameState.retainedMeshAncestors.add(tile);
-          for (const parent of meshTileAncestors(tile))
-            frameState.retainedMeshAncestors.add(parent);
-        }
       }
       if (runtimeState.options.providesTerrain)
         attachment.updateDeferredMaterials();
@@ -346,17 +315,10 @@ export function createThreeTilesFrameUpdate(
         runtimeState.meshBaseCoverageReady &&
         runtimeState.meshInitialHandoverDone &&
         runtimeState.displayedMeshFrontier.size > 0 &&
-        (runtimeState.options.handoverErrorTargetPixels !== undefined
-          ? runtimeState.meshInitialHandoverDone
-          : !runtimeState.shadowView ||
-            (runtimeState.lastMainViewConverged &&
-              runtimeState.effectiveErrorTarget ===
-                runtimeState.requestedErrorTarget)) &&
         !runtimeState.extentFloorArmed
       ) {
         // Decision: VIEWPORT-FIRST-QUALITY-20260916 in TILES_COVERAGE.md.
         // Initial view -> residual tree with transitions -> final idle quality.
-        // Shadow receivers keep their independent receiver/caster gate.
         runtimeState.extentFloorArmed = true;
         runtimeState.extentFloorAuditPending = true;
         runtimeState.tiles.dispatchEvent({ type: "needs-update" });

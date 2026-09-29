@@ -161,50 +161,30 @@ describe("mesh caster publication", () => {
     // A coarse caster may meet its own SSE after camera/receiver changes.
     // Already displayed descendants still set its minimum geometric detail.
     parent.traversal.error = 0.5;
-    // Filling missing view regions suppresses optional improvements elsewhere,
-    // even when another family's child and its caster cut are already ready.
+    // Receiver publication follows only the normal observer plan, regardless
+    // of missing or failed offscreen casters. They never hold a coarse parent.
     state.meshCoverageRecovery = true;
     onContentChanged.mockClear();
     advance(new Set([receiver, otherChild]));
     expect(state.committedMeshReceiverFrontier).toEqual(
-      new Set([parent, otherParent])
-    );
-    expect(state.committedMeshCasterFrontier).toEqual(
-      new Set([parent, otherParent])
-    );
-    expect(state.shadowCasterRequests.has(chimney)).toBe(true);
-    expect(onContentChanged).not.toHaveBeenCalled();
-    // Every publication keeps the complete reserve until all families are ready.
-    state.meshCoverageRecovery = false;
-    advance(new Set([receiver, otherChild]));
-    expect(state.committedMeshReceiverFrontier).toEqual(
-      new Set([parent, otherParent])
-    );
-    expect(state.committedMeshCasterFrontier).toEqual(
-      new Set([parent, otherParent])
-    );
-    expect(state.pendingMeshReceiverFrontier).toEqual(
       new Set([receiver, otherChild])
     );
-    // Pending/failed children keep the same exclusive parent in colour/depth.
-    // An unchanged cut must not trigger another hard-shadow invalidation.
+    expect(state.committedMeshCasterFrontier).toEqual(
+      new Set([receiver, otherChild])
+    );
+    expect(state.shadowCasterRequests).toEqual(new Set([chimney]));
+    expect(state.pendingMeshReceiverFrontier).toBeNull();
+    expect(onContentChanged).toHaveBeenCalledOnce();
+    state.meshCoverageRecovery = false;
     onContentChanged.mockClear();
     const heldReceivers = state.committedMeshReceiverFrontier;
     const heldCasters = state.committedMeshCasterFrontier;
     for (const loadingState of [2, 3, -1]) {
       chimney.internal.loadingState = loadingState;
       advance(new Set([receiver, otherChild]));
-      expect(state.committedMeshReceiverFrontier).toEqual(
-        new Set([parent, otherParent])
-      );
-      expect(state.committedMeshCasterFrontier).toEqual(
-        new Set([parent, otherParent])
-      );
-      expect(state.pendingMeshReceiverFrontier).toEqual(
-        new Set([receiver, otherChild])
-      );
       expect(state.committedMeshReceiverFrontier).toEqual(heldReceivers);
       expect(state.committedMeshCasterFrontier).toBe(heldCasters);
+      expect(state.pendingMeshReceiverFrontier).toBeNull();
       expect(onContentChanged).not.toHaveBeenCalled();
     }
 
@@ -249,7 +229,7 @@ describe("mesh caster publication", () => {
       new Set([receiver, chimney, otherChild])
     );
     expect(state.pendingMeshReceiverFrontier).toBeNull();
-    expect(state.committedMeshReceiverFrontier).not.toEqual(heldReceivers);
+    expect(state.committedMeshReceiverFrontier).toEqual(heldReceivers);
     expect(state.committedMeshCasterFrontier).not.toBe(heldCasters);
     const completeReceivers = state.committedMeshReceiverFrontier;
     const completeCasters = state.committedMeshCasterFrontier;

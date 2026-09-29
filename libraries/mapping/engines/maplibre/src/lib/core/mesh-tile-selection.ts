@@ -32,8 +32,6 @@ export const selectMeshReceiverPlan = (
     firstImageErrorTargetPixels?: number;
     /** Let a shared shadow cut leave a proven empty observer region. */
     releaseEmptyReplacementRegions?: boolean;
-    /** Published caster detail survives its promotion to an observer receiver. */
-    retainedCasters?: ReadonlySet<Tile>;
   }>
 ) => {
   const familyCoverage = createMeshFamilyCoverage(receiverReady);
@@ -44,11 +42,6 @@ export const selectMeshReceiverPlan = (
   const publishedRefinement = new Set<Tile>();
   for (const tile of published) {
     if (!isLoadedMesh(tile) || !inView(tile)) continue;
-    for (const parent of meshTileAncestors(tile))
-      publishedRefinement.add(parent);
-  }
-  for (const tile of options?.retainedCasters ?? []) {
-    if (!isLoadedMesh(tile)) continue;
     for (const parent of meshTileAncestors(tile))
       publishedRefinement.add(parent);
   }
