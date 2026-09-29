@@ -19,6 +19,7 @@ import {
   type ShowScene,
 } from "@carma-mapping/show-remote";
 
+import { AutoplayControl } from "./AutoplayControl";
 import { HighlightCard } from "./HighlightCard";
 import { showErrorText } from "./messages";
 import { PointerPanel } from "./PointerPanel";
@@ -26,8 +27,14 @@ import { SeriesControl } from "./SeriesControl";
 import { ShadowCard } from "./ShadowCard";
 import { SettingsPanel } from "./SettingsPanel";
 import { TrafficCard } from "./TrafficCard";
-import { loadSettings, saveSettings, type RemoteSettings } from "./settings";
+import {
+  clampAutoplaySeconds,
+  loadSettings,
+  saveSettings,
+  type RemoteSettings,
+} from "./settings";
 import { loadShow } from "./show-cache";
+import { nextAutoplayScene, useAutoplay } from "./useAutoplay";
 import { useDisplay, type Connection } from "./useDisplay";
 import { usePointer } from "./usePointer";
 import { useWakeLock } from "./useWakeLock";
@@ -185,8 +192,10 @@ export const App = () => {
   const [sheet, setSheet] = useState<"layers" | null>(null);
   // null is the overview of all stories
   const [openStoryId, setOpenStoryId] = useState<string | null>(null);
+  /** the story autoplay walks, whichever story is open */
+  const [autoplayStoryId, setAutoplayStoryId] = useState<string | null>(null);
 
-  const { relayBaseUrl, code, showKey, fadeMs } = settings;
+  const { relayBaseUrl, code, showKey, fadeMs, autoplaySeconds } = settings;
   const target = useMemo<RelayTarget | null>(
     () => (code && relayBaseUrl ? { baseUrl: relayBaseUrl, code } : null),
     [relayBaseUrl, code]
@@ -311,6 +320,35 @@ export const App = () => {
   const canGoBack = activeIndex > 0;
   const canGoOn = walk.length > 0 && activeIndex < walk.length - 1;
 
+  // a story that a republish removed stops playing with it
+  const autoplayGroup = groups.find(
+    ({ story }) => story.id === autoplayStoryId
+  );
+  useAutoplay({
+    scenes: autoplayGroup?.scenes,
+    activeSceneId,
+    isHolding: isChanging || isBlackout || display.connection !== "connected",
+    seconds: autoplaySeconds,
+    goToScene,
+    onStop: () => setAutoplayStoryId(null),
+  });
+  const isOpenPlaying =
+    !!openGroup && autoplayGroup?.story.id === openGroup.story.id;
+  const playOpenStory = (play: boolean) => {
+    if (!openGroup) {
+      return;
+    }
+    if (!play) {
+      setAutoplayStoryId(null);
+      return;
+    }
+    setAutoplayStoryId(openGroup.story.id);
+    // a story that is not on the model yet starts with its first scene
+    if (activeIndex < 0 && openGroup.scenes[0]) {
+      goToScene(openGroup.scenes[0]);
+    }
+  };
+
   // a tap on the live card opens the live story, a long press the sliders
   const titlePress = useTapOrLongPress(
     () => {
@@ -370,8 +408,11 @@ export const App = () => {
 
   const showTitle =
     showLoad.status === "ready" ? showLoad.show.title : "Fernbedienung";
-  // with no scene on the display yet, Weiter starts with the first
-  const nextTitle = walk.at(activeIndex + 1)?.title;
+  // with no scene on the display yet, Weiter starts with the first; autoplay
+  // goes from the last back to the first
+  const nextTitle =
+    walk.at(activeIndex + 1)?.title ??
+    (isOpenPlaying ? nextAutoplayScene(walk, activeSceneId)?.title : undefined);
 
   const statusText =
     showLoad.status === "loading"
@@ -498,6 +539,21 @@ export const App = () => {
               </div>
             )}
 
+            {walk.length > 1 && (
+              <AutoplayControl
+                isPlaying={isOpenPlaying}
+                seconds={autoplaySeconds}
+                disabled={!target || display.connection !== "connected"}
+                onPlay={playOpenStory}
+                onSeconds={(seconds) =>
+                  updateSettings({
+                    ...settings,
+                    autoplaySeconds: clampAutoplaySeconds(seconds),
+                  })
+                }
+              />
+            )}
+
             {activeScene && sceneHighlights(activeScene).length > 0 && (
               <HighlightCard
                 highlights={sceneHighlights(activeScene)}
@@ -589,6 +645,8 @@ export const App = () => {
                     {`${liveGroup.story.title} · Szene ${activeIndex + 1} / ${
                       walk.length
                     }`}
+                    {autoplayGroup?.story.id === liveGroup.story.id &&
+                      ` · Autoplay ${autoplaySeconds} s`}
                   </span>
                 )}
               </button>

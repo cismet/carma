@@ -64,6 +64,8 @@ export const SettingsPanel = ({ settings, onSave, onCancel }: Props) => {
   const submit = (event: FormEvent) => {
     event.preventDefault();
     onSave({
+      // what the panel does not edit, the autoplay time, stays as it is
+      ...settings,
       relayBaseUrl: relayBaseUrl.trim(),
       code: code.trim().toUpperCase(),
       showKey: normalizeShowKey(showKey),

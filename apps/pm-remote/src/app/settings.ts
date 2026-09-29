@@ -25,6 +25,17 @@ export const DEFAULT_RELAY_BASE_URL =
 export const FADE_CHOICES = [0, 1000, 2000, 4000] as const;
 export const DEFAULT_FADE_MS = 2000;
 
+/** how long autoplay shows each scene of a story, in seconds */
+export const DEFAULT_AUTOPLAY_SECONDS = 30;
+export const AUTOPLAY_SECONDS_RANGE = [5, 600] as const;
+export const AUTOPLAY_SECONDS_STEP = 5;
+
+export const clampAutoplaySeconds = (seconds: number): number =>
+  Math.min(
+    AUTOPLAY_SECONDS_RANGE[1],
+    Math.max(AUTOPLAY_SECONDS_RANGE[0], Math.round(seconds))
+  );
+
 export type RemoteSettings = {
   relayBaseUrl: string;
   /** the session code the display was started with (`#/outlet?relay=`) */
@@ -32,6 +43,7 @@ export type RemoteSettings = {
   /** the ceepr key the pm-show publish gave */
   showKey: string;
   fadeMs: number;
+  autoplaySeconds: number;
 };
 
 const LOG_PREFIX = "[PM REMOTE]";
@@ -75,6 +87,7 @@ export const loadSettings = (
   const stored = readStored();
   const params = new URLSearchParams(search);
   const fadeMs = stored["fadeMs"];
+  const autoplaySeconds = stored["autoplaySeconds"];
   const settings: RemoteSettings = {
     relayBaseUrl: stringOr(
       params.get("relayBase"),
@@ -88,6 +101,10 @@ export const loadSettings = (
       typeof fadeMs === "number" && Number.isFinite(fadeMs) && fadeMs >= 0
         ? fadeMs
         : DEFAULT_FADE_MS,
+    autoplaySeconds:
+      typeof autoplaySeconds === "number" && Number.isFinite(autoplaySeconds)
+        ? clampAutoplaySeconds(autoplaySeconds)
+        : DEFAULT_AUTOPLAY_SECONDS,
   };
   saveSettings(settings);
   return settings;

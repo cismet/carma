@@ -1,0 +1,73 @@
+import { useEffect, useRef } from "react";
+
+/**
+ * The scene autoplay goes to from `activeId`: the next one of the story, after
+ * the last the first again. With no scene of the story on the display yet, the
+ * first.
+ */
+export const nextAutoplayScene = <T extends { id: string }>(
+  scenes: readonly T[],
+  activeId: string | null
+): T | undefined => {
+  if (scenes.length === 0) {
+    return undefined;
+  }
+  const index = scenes.findIndex(({ id }) => id === activeId);
+  return scenes[(index + 1) % scenes.length];
+};
+
+export type UseAutoplayOptions<T extends { id: string }> = {
+  /** the scenes of the story that plays; undefined when none does */
+  scenes: readonly T[] | undefined;
+  activeSceneId: string | null;
+  /**
+   * The clock waits: while a change runs, the screen is black or the display
+   * is out of reach. Each scene gets its full time once it is on the model.
+   */
+  isHolding: boolean;
+  seconds: number;
+  goToScene: (scene: T) => void;
+  /** a scene of another story was picked */
+  onStop: () => void;
+};
+
+/**
+ * Walks the playing story on its own, one scene every `seconds`, round and
+ * round until it is stopped. A scene picked by hand inside the story restarts
+ * the clock from there.
+ */
+export const useAutoplay = <T extends { id: string }>({
+  scenes,
+  activeSceneId,
+  isHolding,
+  seconds,
+  goToScene,
+  onStop,
+}: UseAutoplayOptions<T>) => {
+  // the display's clocks re-render the remote all the time; the timer must
+  // only start over when what it waits for changes
+  const goToSceneRef = useRef(goToScene);
+  goToSceneRef.current = goToScene;
+  const onStopRef = useRef(onStop);
+  onStopRef.current = onStop;
+
+  useEffect(() => {
+    if (!scenes || scenes.length === 0 || isHolding) {
+      return;
+    }
+    if (
+      activeSceneId !== null &&
+      !scenes.some(({ id }) => id === activeSceneId)
+    ) {
+      onStopRef.current();
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      const next = nextAutoplayScene(scenes, activeSceneId);
+      if (next) {
+        goToSceneRef.current(next);
+      }
+    }, seconds * 1000);
+    return () => window.clearTimeout(timer);
+  }, [scenes, activeSceneId, isHolding, seconds]);
+};
