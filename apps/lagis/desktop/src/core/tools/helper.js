@@ -18,7 +18,7 @@ export const getNonce = () => {
   return todayInt + Math.random();
 };
 
-export const getColorFromCode = (code = 12004320) => {
+export const getColorFromCode = (code) => {
   if (code) {
     let c = code;
     let r = (c & 0xff0000) >> 16;
