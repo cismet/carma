@@ -19,8 +19,8 @@ import {
   useRef,
   useState,
 } from "react";
-import { getHashParams, isHttpCacheForced } from "@carma-commons/utils";
-import { isForcedCacheUrl } from "../utils/forcedCache";
+import { getHashParams } from "@carma-commons/utils";
+import { isForcedCacheUrl, isPageCacheForced } from "../utils/forcedCache";
 import type {
   Carma3dConfig,
   ThreePerfData,
@@ -932,7 +932,7 @@ export const LibreMap = ({
       const bearing = readHashAngle("b", "bearing");
       const pitch = readHashAngle("p", "pitch");
 
-      const forceAllRequests = isHttpCacheForced();
+      const forceAllRequests = isPageCacheForced();
       const mapInstance = new maplibregl.Map({
         container: mapContainer.current,
         style: backgroundStyle,

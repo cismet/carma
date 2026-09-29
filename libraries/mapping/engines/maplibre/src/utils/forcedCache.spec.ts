@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { SourceSpecification } from "maplibre-gl";
 
 import {
@@ -112,5 +112,44 @@ describe("setForcedCachePrefixes / isForcedCacheUrl", () => {
 
   it("matches nothing when empty", () => {
     expect(isForcedCacheUrl("https://tiles.example.org/t50/1.png")).toBe(false);
+  });
+});
+
+describe("isPageCacheForced / styleFetchInit", () => {
+  // the answer is kept per module instance, so every case loads a fresh one
+  beforeEach(() => {
+    vi.resetModules();
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  const loadWithHash = (hash: string) => {
+    vi.stubGlobal("window", { location: { hash } });
+    return import("./forcedCache");
+  };
+
+  it("gives no fetch option without cache=forced", async () => {
+    const { styleFetchInit } = await loadWithHash("#/outlet?ff=ng");
+    expect(styleFetchInit()).toEqual({});
+  });
+
+  it("asks the http cache with cache=forced", async () => {
+    const { styleFetchInit } = await loadWithHash(
+      "#/outlet?ff=ng&cache=forced",
+    );
+    expect(styleFetchInit()).toEqual({ cache: "force-cache" });
+  });
+
+  it("keeps the first answer when the hash changes later", async () => {
+    const { isPageCacheForced } = await loadWithHash("#/outlet?cache=forced");
+    expect(isPageCacheForced()).toBe(true);
+    window.location.hash = "#/outlet";
+    expect(isPageCacheForced()).toBe(true);
+  });
+
+  it("is off where there is no window", async () => {
+    const { isPageCacheForced } = await import("./forcedCache");
+    expect(isPageCacheForced()).toBe(false);
   });
 });

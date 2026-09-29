@@ -82,4 +82,48 @@ describe("retry tile protocol", () => {
     await expect(settled).resolves.toMatchObject({ message: "stale" });
     expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
+
+  it("adds no cache option when the map sent none", async () => {
+    const fetchImpl = vi
+      .fn<[string, RequestInit], Promise<Response>>()
+      .mockResolvedValueOnce(response(503))
+      .mockResolvedValueOnce(response(200));
+
+    const pending = fetchTileWithRetry(
+      { url: "carma-retry://https://tiles.test/1/2/3.png" },
+      new AbortController(),
+      fetchImpl as unknown as typeof fetch
+    );
+    await vi.runAllTimersAsync();
+    await pending;
+
+    for (const [, init] of fetchImpl.mock.calls) {
+      expect(init).not.toHaveProperty("cache");
+    }
+  });
+
+  it("takes a kept tile on the first try only, retries from the network", async () => {
+    const fetchImpl = vi
+      .fn<[string, RequestInit], Promise<Response>>()
+      .mockResolvedValueOnce(response(503))
+      .mockResolvedValueOnce(response(503))
+      .mockResolvedValueOnce(response(200));
+
+    const pending = fetchTileWithRetry(
+      {
+        url: "carma-retry://https://tiles.test/1/2/3.png",
+        cache: "force-cache",
+      },
+      new AbortController(),
+      fetchImpl as unknown as typeof fetch
+    );
+    await vi.runAllTimersAsync();
+    await pending;
+
+    expect(fetchImpl.mock.calls.map(([, init]) => init.cache)).toEqual([
+      "force-cache",
+      "reload",
+      "reload",
+    ]);
+  });
 });

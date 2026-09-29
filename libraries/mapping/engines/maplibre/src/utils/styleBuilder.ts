@@ -14,6 +14,7 @@ import type {
 import {
   setForcedCachePrefixes,
   sourceUrlPrefixes,
+  styleFetchInit,
   styleForcesCache,
 } from "./forcedCache";
 import { validateStyleMin } from "@maplibre/maplibre-gl-style-spec";
@@ -564,7 +565,7 @@ const dropInvalidLayers = (
 };
 
 const fetchJson = async (url: string): Promise<any> => {
-  const response = await fetch(url);
+  const response = await fetch(url, styleFetchInit());
   if (!response.ok) {
     throw new Error(`${response.status} ${response.statusText} for ${url}`);
   }

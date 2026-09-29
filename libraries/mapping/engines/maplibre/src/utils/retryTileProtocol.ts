@@ -61,10 +61,20 @@ export const fetchTileWithRetry = async (
   let lastError: unknown;
   for (let attempt = 0; ; attempt += 1) {
     if (signal.aborted) throw signal.reason ?? new Error("aborted");
+    // `cache=forced` arrives here from the map's `transformRequest`. Only the
+    // first try may take a kept response; a retry goes to the network and
+    // stores what it gets, or a kept error would answer all twelve tries.
+    const cache =
+      requestParameters.cache === undefined
+        ? undefined
+        : attempt === 0
+        ? requestParameters.cache
+        : "reload";
     try {
       const response = await fetchImpl(url, {
         headers: requestParameters.headers,
         credentials: requestParameters.credentials,
+        ...(cache ? { cache } : {}),
         signal,
       });
       if (response.ok) {

@@ -1,4 +1,24 @@
 import type { SourceSpecification } from "maplibre-gl";
+import { isHttpCacheForced } from "@carma-commons/utils";
+
+let pageForced: boolean | undefined;
+
+/**
+ * `cache=forced` for this page (`isHttpCacheForced`), read at the first ask
+ * and kept: the map reads it when it is created, and every later request has
+ * to follow that answer, not a hash the app may have rewritten since.
+ */
+export const isPageCacheForced = (): boolean =>
+  (pageForced ??= typeof window !== "undefined" && isHttpCacheForced());
+
+/**
+ * `fetch` options for the requests the style code makes itself: a vector
+ * style's json never passes the map's `transformRequest`, and the geoportal
+ * fetches every style of the stack again each time it composes it. Without
+ * `cache=forced` no option at all, so such a fetch stays what it was.
+ */
+export const styleFetchInit = (): RequestInit =>
+  isPageCacheForced() ? { cache: "force-cache" } : {};
 
 /**
  * Which requests of the map a style wants served from the browser's http cache
