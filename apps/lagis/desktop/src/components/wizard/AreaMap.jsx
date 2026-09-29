@@ -156,6 +156,7 @@ const AreaMap = forwardRef(
               ref={hostRef}
               mode={drawMode}
               snapping
+              styleVariant="carma"
               initialFeatures={initialFeatures}
               onChange={onFeaturesChange}
             />
