@@ -324,6 +324,8 @@ const StoryBlock = ({
   index,
   count,
   sceneCount,
+  isCollapsed,
+  onToggle,
   onRename,
   onMove,
   onDelete,
@@ -334,6 +336,9 @@ const StoryBlock = ({
   index: number;
   count: number;
   sceneCount: number;
+  /** only the header row, without the scenes and the save button */
+  isCollapsed: boolean;
+  onToggle: () => void;
   onRename: (title: string) => void;
   onMove: (delta: number) => void;
   onDelete: () => void;
@@ -343,6 +348,11 @@ const StoryBlock = ({
 }) => (
   <li className="flex flex-col gap-1 rounded border border-solid border-gray-200 p-2">
     <div className="flex items-center gap-2">
+      <IconButton
+        title={isCollapsed ? "Geschichte aufklappen" : "Geschichte zuklappen"}
+        icon={isCollapsed ? faChevronRight : faChevronDown}
+        onClick={onToggle}
+      />
       <DraftInput
         size="small"
         value={story.title}
@@ -388,22 +398,26 @@ const StoryBlock = ({
         />
       </Popconfirm>
     </div>
-    {sceneCount === 0 ? (
-      <p className="m-0 text-xs text-gray-500">
-        Noch keine Szene. Karte einrichten, dann hier speichern.
-      </p>
-    ) : (
-      children
+    {!isCollapsed && (
+      <>
+        {sceneCount === 0 ? (
+          <p className="m-0 text-xs text-gray-500">
+            Noch keine Szene. Karte einrichten, dann hier speichern.
+          </p>
+        ) : (
+          children
+        )}
+        <Button
+          size="small"
+          type="dashed"
+          icon={<FontAwesomeIcon icon={faPlus} />}
+          onClick={onSave}
+          className="self-start"
+        >
+          Aktuelle Karte als Szene speichern
+        </Button>
+      </>
     )}
-    <Button
-      size="small"
-      type="dashed"
-      icon={<FontAwesomeIcon icon={faPlus} />}
-      onClick={onSave}
-      className="self-start"
-    >
-      Aktuelle Karte als Szene speichern
-    </Button>
   </li>
 );
 
@@ -432,6 +446,10 @@ export const ShowScenes = ({
    */
   const [isQrOpen, setIsQrOpen] = useState(false);
   const [expandedSceneId, setExpandedSceneId] = useState<string | null>(null);
+  /** only for the panel: not in the draft, so the publish fingerprint ignores it */
+  const [collapsedStoryIds, setCollapsedStoryIds] = useState<
+    ReadonlySet<string>
+  >(() => new Set());
   /** the scene whose next highlight the next map click places */
   const [placingSceneId, setPlacingSceneId] = useState<string | null>(null);
   const [draft, updateDraft] = useShowDraft(storageKey);
@@ -614,6 +632,29 @@ export const ShowScenes = ({
       return { ...shaped, stories: change(shaped.stories) };
     });
 
+  const setStoryCollapsed = (storyId: string, isCollapsed: boolean) =>
+    setCollapsedStoryIds((ids) => {
+      if (ids.has(storyId) === isCollapsed) {
+        return ids;
+      }
+      const next = new Set(ids);
+      if (isCollapsed) {
+        next.add(storyId);
+      } else {
+        next.delete(storyId);
+      }
+      return next;
+    });
+
+  /** an open scene closes with its story, so its highlights leave the map */
+  const toggleStory = (storyId: string, scenes: ShowScene[]) => {
+    const isCollapsing = !collapsedStoryIds.has(storyId);
+    setStoryCollapsed(storyId, isCollapsing);
+    if (isCollapsing && scenes.some(({ id }) => id === expandedSceneId)) {
+      setExpandedSceneId(null);
+    }
+  };
+
   const overwriteScene = (id: string) => {
     const scene = currentScene();
     if (scene) {
@@ -795,6 +836,8 @@ export const ShowScenes = ({
                   index={storyIndex}
                   count={groups.length}
                   sceneCount={storyScenes.length}
+                  isCollapsed={collapsedStoryIds.has(story.id)}
+                  onToggle={() => toggleStory(story.id, storyScenes)}
                   onRename={(title) =>
                     updateStories((stories) =>
                       stories.map((entry) =>
@@ -852,7 +895,9 @@ export const ShowScenes = ({
                             excluded={excludedIds}
                             canApplyToAll={draft.scenes.length > 1}
                             stories={groups.map(({ story }) => story)}
-                            onStory={(storyId) =>
+                            onStory={(storyId) => {
+                              // the scene stays open, so its new story opens too
+                              setStoryCollapsed(storyId, false);
                               updateDraft((current) => ({
                                 ...current,
                                 scenes: moveSceneToStory(
@@ -860,8 +905,8 @@ export const ShowScenes = ({
                                   scene.id,
                                   storyId
                                 ),
-                              }))
-                            }
+                              }));
+                            }}
                             onText={(text) => updateScene(scene.id, { text })}
                             onExclude={(layerId, excluded) =>
                               updateDraft((current) =>
