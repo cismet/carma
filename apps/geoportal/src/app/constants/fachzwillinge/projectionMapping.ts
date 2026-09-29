@@ -237,18 +237,16 @@ export const projectionMappingFachzwilling: FachzwillingRoute = {
       Title: "Brücke",
       // the Buga suspension bridge's footprint as printed by Kubitur, the gaps
       // between the hangers left open. It keeps streets and everything else
-      // off the printed bridge, so it stays above whatever is added after it;
-      // black blanks the bridge, the colours light it up. Only for the model
-      // with the bridge insert, on the Bestand insert it covers the valley.
+      // off the printed bridge; black blanks the bridge, the colours light it
+      // up. Each style pins itself on top and, in the outlet, only draws with
+      // `?mask=buga-bruecke`, see its carmaConf.tools: on the Bestand insert
+      // it would cover the valley.
       layers: [
-        "brueckenmaske",
-        "brueckenmaske_silbergrau",
-        "brueckenmaske_stahlblau",
-        "brueckenmaske_regenbogen",
-      ].map((name) => ({
-        styleUrl: `${PROJECTION_MAPPING_STYLES}/${name}.style.json`,
-        tools: ["alwaysOnTop"],
-      })),
+        `${PROJECTION_MAPPING_STYLES}/brueckenmaske.style.json`,
+        `${PROJECTION_MAPPING_STYLES}/brueckenmaske_silbergrau.style.json`,
+        `${PROJECTION_MAPPING_STYLES}/brueckenmaske_stahlblau.style.json`,
+        `${PROJECTION_MAPPING_STYLES}/brueckenmaske_regenbogen.style.json`,
+      ],
     },
     {
       Title: "Hochwasser",
