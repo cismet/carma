@@ -6,6 +6,7 @@ import {
   toTimestamp,
   updateSchluessel,
 } from "../api";
+import { isStaedtischKey } from "../adminData";
 import { formatKey } from "../keys";
 
 const round2 = (number) =>
@@ -176,7 +177,7 @@ export const saveAdminData = async (keys, admin, ctx) => {
   for (const key of keys) {
     const label = formatKey(key);
     const parcel = admin?.[label];
-    if (!parcel || !key.id) {
+    if (!parcel || !key.id || !isStaedtischKey(key)) {
       continue;
     }
 

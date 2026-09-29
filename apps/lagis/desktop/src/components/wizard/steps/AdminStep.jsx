@@ -15,6 +15,7 @@ import { compare, getColorFromCode } from "../../../core/tools/helper";
 import {
   ADMIN_SECTION,
   adminTargets,
+  hasNonStaedtischTargets,
   findAdminProblem,
   loadAdminData,
   newDienststelleRow,
@@ -289,7 +290,11 @@ const AdminStep = ({ section, value, onChange, onProblem, onHideProblem }) => {
         type="info"
         showIcon
         message="Verwaltungsbereiche"
-        description="Für diese Aktion gibt es kein Flurstück, dem Verwaltungsbereiche zugeordnet werden können"
+        description={
+          hasNonStaedtischTargets(value)
+            ? "Verwaltungsbereiche können nur für städtische Flurstücke gepflegt werden"
+            : "Für diese Aktion gibt es kein Flurstück, dem Verwaltungsbereiche zugeordnet werden können"
+        }
       />
     );
   }

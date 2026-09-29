@@ -1,3 +1,4 @@
+import { showsAdminSteps } from "./adminData";
 import { WIZARD_ACTIONS } from "./constants";
 
 export const STEP = {
@@ -65,21 +66,11 @@ const ADMIN_STEPS = [
 
 const COMMON_STEPS = [...ADMIN_STEPS, { id: STEP.USAGE, title: "Nutzung" }];
 
-const SKIPPED_COMMON_STEPS = {
-  [WIZARD_ACTIONS.HISTORIC]: ADMIN_STEPS.map((step) => step.id),
-};
-
-const withCommonSteps = (branch, action) => [
-  ...branch,
-  ...COMMON_STEPS.filter(
-    (step) => !(SKIPPED_COMMON_STEPS[action] ?? []).includes(step.id)
-  ),
-];
-
-export const getSteps = (action) =>
-  action
-    ? [INITIAL_STEP, ...withCommonSteps(BRANCHES[action], action)]
+export const getSteps = (value) =>
+  value.action
+    ? [
+        INITIAL_STEP,
+        ...BRANCHES[value.action],
+        ...(showsAdminSteps(value) ? COMMON_STEPS : []),
+      ]
     : [INITIAL_STEP];
-
-export const isLastStep = (action, index) =>
-  action ? index === getSteps(action).length - 1 : false;

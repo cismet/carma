@@ -4,6 +4,7 @@ import {
   saveFlurstueckAdmin,
   toTimestamp,
 } from "../api";
+import { isStaedtischKey } from "../adminData";
 import { formatKey } from "../keys";
 
 const isEmpty = (row) =>
@@ -36,7 +37,7 @@ export const saveUsageData = async (keys, usage, ctx) => {
   for (const key of keys) {
     const label = formatKey(key);
     const rows = (usage?.[label] ?? []).filter((row) => !isEmpty(row));
-    if (!rows.length || !key.id) {
+    if (!rows.length || !key.id || !isStaedtischKey(key)) {
       continue;
     }
 
