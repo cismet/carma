@@ -42,7 +42,6 @@ export function createThreeTilesQuality(
     | "lastActiveViewsConverged"
     | "loadingPaused"
     | "loadedResidentBytes"
-    | "pendingMeshReceiverFrontier"
     | "ceilingBytes"
     | "configuredErrorTarget"
     | "displayedMeshFrontier"
@@ -111,7 +110,7 @@ export function createThreeTilesQuality(
       runtimeState.lastActiveViewsConverged = false;
       if (runtimeState.tiles)
         runtimeState.tiles.errorTarget = runtimeState.effectiveErrorTarget;
-      // Decision: CURRENT-VIEW-DEMAND-20260913 in TILES_COVERAGE.md. Deferral
+      // Decision: TILES_COVERAGE.md#viewport-coverage-recovery. Deferral
       // belongs to the old target, not to the tile's reusable payload.
       dependencies.resetDeferredTiles();
       runtimeState.meshDemandSweepPending = true;
@@ -148,7 +147,7 @@ export function createThreeTilesQuality(
         const movingSkipStrategy =
           runtimeState.tiles.loadAncestors === false &&
           runtimeState.map?.isMoving?.() === true;
-        // R6: resident pressure raises admission error; headroom allows recovery.
+        // Resident pressure raises admission error; headroom allows recovery.
         const base = initialMeshLoadError(
           runtimeState.requestedErrorTarget,
           runtimeState.options.baseErrorTargetPixels,
@@ -179,7 +178,6 @@ export function createThreeTilesQuality(
             runtimeState.allocationRecovery.phase ===
               MESH_ALLOCATION_RECOVERY_PHASE.RECOVERED) &&
           runtimeState.lastActiveViewsConverged === true &&
-          !runtimeState.pendingMeshReceiverFrontier?.size &&
           dependencies.isPipelineIdle() &&
           [
             runtimeState.tiles.parseQueue,
@@ -289,7 +287,7 @@ export function createThreeTilesQuality(
           runtimeState.requestedErrorTarget,
           runtimeState.memoryErrorTarget
         );
-        // Decision: VIEWPORT-REFINEMENT-WAVES-20260916, TILES_COVERAGE.md.
+        // Decision: TILES_COVERAGE.md#camera-normalized-mesh-refinement.
         // Only the actual published view cut advances a wave, never the
         // whole-extent reserve certificate or idle queues. Each wave remains
         // requestable while incomplete; failures retain the previous surface.
@@ -321,8 +319,8 @@ export function createThreeTilesQuality(
           )
         ) {
           // Decision: ../../../../TILES_COVERAGE.md#viewport-only-cold-replacement-families
-          // First observer idle releases offscreen families, even when memory
-          // keeps the same target. Shadow/background queues need not be empty.
+          // First observer convergence releases background demand, even when
+          // memory keeps the same target. Shadow queues need not be empty.
           runtimeState.meshInitialHandoverDone = true;
           runtimeState.meshDemandSweepPending = true;
           dependencies.resetDeferredTiles();

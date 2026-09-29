@@ -134,7 +134,6 @@ describe("resolveTiles3dConfig", () => {
     expect(resolveTiles3dConfig({ ...legacy, providesTerrain: true })).toEqual({
       ...legacy,
       providesTerrain: true,
-      version: 1,
       errorTarget: 6,
       baseErrorTarget: 16,
       tilesetMinResolutionPx: 0,
@@ -154,9 +153,9 @@ describe("resolveTiles3dConfig", () => {
   });
 
   it.each([
-    ["50-mbit", 16],
-    ["100-mbit", 12],
-    ["500-mbit", 6],
+    ["low", 16],
+    ["standard", 12],
+    ["high", 6],
   ] as const)(
     "resolves %s without overriding explicit quality fields",
     (qualityProfile, errorTarget) => {
@@ -173,11 +172,13 @@ describe("resolveTiles3dConfig", () => {
           errorTarget: 4,
           baseErrorTarget: 8,
           tilesetMinResolutionPx: 0,
+          baseCoverageMemoryShare: 0.15,
         })
       ).toMatchObject({
         errorTarget: 4,
         baseErrorTarget: 8,
         tilesetMinResolutionPx: 0,
+        baseCoverageMemoryShare: 0.15,
       });
       expect(
         resolveTiles3dConfig({ ...config, providesTerrain: false })
@@ -192,7 +193,6 @@ describe("resolveTiles3dConfig", () => {
   it("keeps explicit values, including the zero that defers to the entry hint", () => {
     const resolved = resolveTiles3dConfig({
       ...legacy,
-      version: 1,
       providesTerrain: true,
       errorTarget: 6,
       baseErrorTarget: 12,
@@ -203,7 +203,6 @@ describe("resolveTiles3dConfig", () => {
       shadowBuildingStyle: true,
     });
     expect(resolved).toMatchObject({
-      version: 1,
       errorTarget: 6,
       baseErrorTarget: 12,
       tilesetMinResolutionPx: 0,

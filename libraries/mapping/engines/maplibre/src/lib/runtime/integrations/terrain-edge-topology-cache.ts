@@ -7,7 +7,7 @@ type Topology = Pick<TerrainStitchInput, "indices" | "boundaryEdges"> & {
   sourceIndices: Uint32Array;
   normalTargets: Uint32Array;
 };
-const VERSION = "equal-level-two-ring-topology-v1";
+const VERSION = "equal-level-two-ring-topology-v0.1";
 const READ_DEADLINE_MS = 8;
 const RAM_BUDGET = 8 * 1024 * 1024;
 const WRITE_BUDGET = 2 * 1024 * 1024;

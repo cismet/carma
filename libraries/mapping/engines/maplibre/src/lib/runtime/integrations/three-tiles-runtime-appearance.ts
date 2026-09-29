@@ -125,7 +125,7 @@ export function createThreeTilesAppearance(
   const setShadowSimulationStyle: ThreeTilesRuntimeServices["setShadowSimulationStyle"] =
     (style) => {
       // Keep shadow activation independent of optional appearance overrides.
-      // See ../../../../README.md#shadow-activation-and-declared-mesh-appearance.
+      // See ../../../../README.md#appearance-basemap-and-terrain-ownership.
       if (shadowStylesEqual(runtimeState.shadowSimulationStyle, style)) return;
       runtimeState.shadowSimulationStyle = style;
       // Reapply one bounded cache policy when shadow mode changes. The shadow

@@ -116,7 +116,7 @@ export function makeRoomForThreeTilesRequest(
         !state.displayedMeshFrontier.has(candidate) &&
         !state.committedMeshReceiverFrontier.has(candidate) &&
         !state.committedMeshCasterFrontier.has(candidate) &&
-        // A pending receiver owns these reservations too. Reclaim stale work,
+        // The displayed receiver cut owns these reservations too. Reclaim stale work,
         // not another prerequisite of the cut that releases the old geometry.
         (!state.shadowView ||
           dependencies.getTileRequestNeed(candidate) !==

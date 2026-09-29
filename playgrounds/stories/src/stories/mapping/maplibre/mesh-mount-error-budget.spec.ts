@@ -4,7 +4,7 @@ import { cartographicToEcef, ecefToEnuOffset } from "@carma-geo/proj";
 import { degToRadNumeric } from "@carma-units";
 
 // Historical screenshot coordinates, not the subsequently moved story presets.
-// See MESH_REFERENCE_DECISIONS.md / MESH-ERROR-BUDGET-20260915.
+// See MESH_REFERENCE_DECISIONS.md#imagery-and-model-measurements.
 it("separates the rigid mount's horizontal residual from vertical sag in the historic top-down captures", () => {
   const origin = [7.16346125, 51.24111123] as [number, number];
   const phi = degToRadNumeric(origin[1]);

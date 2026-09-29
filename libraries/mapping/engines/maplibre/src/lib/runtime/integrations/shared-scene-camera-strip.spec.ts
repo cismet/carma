@@ -1,10 +1,8 @@
 import * as THREE from "three";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  createSpineCameraRig,
-  type CameraRigView,
-} from "../../core/multi-camera-rig";
+import { createSpineCameraRig } from "../../core/spine-camera-rig";
+import { type CameraRigView } from "../../core/camera-rig-contract";
 import type { SharedThreeSceneLayer } from "../../core/shared-three-scene-types";
 import {
   TILE_CAMERA_PRIORITY,

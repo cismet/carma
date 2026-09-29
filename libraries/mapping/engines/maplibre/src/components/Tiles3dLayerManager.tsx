@@ -25,8 +25,7 @@ import {
   THREE_TILES_DEFAULT_REQUEST_CONCURRENCY,
   TILES_ERROR_TARGET_DEFAULT_PIXELS,
   TILES_MESH_ERROR_TARGET_DEFAULT_PIXELS,
-  TILES_MESH_NETWORK_PROFILES,
-  TILES3D_STYLE_VERSION,
+  TILES_MESH_QUALITY_PROFILES,
   TILESET_MIN_RESOLUTION_DEFAULT_PX,
 } from "../lib/runtime/integrations/three-tiles-runtime-config";
 import { DEFAULT_MESH_BASE_ERROR_PIXELS } from "../lib/core/mesh-error-policy";
@@ -55,20 +54,13 @@ const STANDALONE_MIN_ELEVATION_FALLBACK_METERS = -500;
 /** What a style has to say for a tileset to be drawn. */
 export interface Tiles3dConfig {
   renderMode: "tiles3d";
-  /**
-   * Contract version of this block, see `TILES3D_STYLE_VERSION`. Optional: a
-   * style without one is version 1, the legacy shape that names only the
-   * tileset and whether terrain is mandatory. Everything else below is
-   * filled in by `resolveTiles3dConfig`.
-   */
-  version?: number;
   colorCorrection?: TextureColorCorrection;
   /** The tileset.json. */
   tilesetUrl: string;
   /** Idle refinement target in pixels; lower asks for more detail. */
   errorTarget?: number;
-  /** Opt-in mesh defaults; explicit quality fields take precedence. */
-  qualityProfile?: keyof typeof TILES_MESH_NETWORK_PROFILES;
+  /** Mesh quality in CSS pixels; explicit targets override profile defaults. */
+  qualityProfile?: keyof typeof TILES_MESH_QUALITY_PROFILES;
   /**
    * Error target of the first, coarse pass over a terrain-providing tileset
    * before loading the residual surface and refining to `errorTarget`.
@@ -159,13 +151,12 @@ export const resolveTiles3dErrorTarget = (
   config.errorTarget ??
   (config.providesTerrain === true
     ? (config.qualityProfile &&
-        TILES_MESH_NETWORK_PROFILES[config.qualityProfile]?.errorTarget) ??
+        TILES_MESH_QUALITY_PROFILES[config.qualityProfile]?.errorTarget) ??
       TILES_MESH_ERROR_TARGET_DEFAULT_PIXELS
     : TILES_ERROR_TARGET_DEFAULT_PIXELS);
 
 /** A style config with every default the layer manager applies made explicit. */
 export type ResolvedTiles3dConfig = Tiles3dConfig & {
-  version: number;
   errorTarget: number;
   basemap: NonNullable<Tiles3dConfig["basemap"]>;
   outline: boolean;
@@ -188,11 +179,10 @@ export const resolveTiles3dConfig = (
   const providesTerrain = config.providesTerrain === true;
   const profile =
     providesTerrain && config.qualityProfile
-      ? TILES_MESH_NETWORK_PROFILES[config.qualityProfile]
+      ? TILES_MESH_QUALITY_PROFILES[config.qualityProfile]
       : undefined;
   return {
     ...config,
-    version: config.version ?? TILES3D_STYLE_VERSION,
     errorTarget: resolveTiles3dErrorTarget(config),
     baseErrorTarget:
       config.baseErrorTarget ??

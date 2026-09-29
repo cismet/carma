@@ -44,7 +44,6 @@ export type TileRequestNeedContext = Readonly<{
   shadowCameraDemand?: boolean;
   retainedShadowRequest: boolean;
   refinementSupport: ReadonlySet<Tile>;
-  receiverReplacementAncestors: ReadonlySet<Tile>;
   residentAncestors: ReadonlySet<Tile>;
   visibleTiles: ReadonlySet<Tile>;
   coverageNeeded: (tile: Tile) => boolean;
@@ -93,14 +92,6 @@ export const resolveTileRequestNeed = (
   )
     parent = parent.parent;
   const replacementParent = parent?.refine === "REPLACE" ? parent : null;
-  // Decision: ../../../TILES_COVERAGE.md#exclusive-shadow-caster-handover
-  // A held parent cannot also supply depth after its receiver family switches.
-  // Its demanded siblings are handover prerequisites even at a coarser target.
-  const receiverReplacement =
-    context.shadowView &&
-    replacementParent &&
-    context.receiverReplacementAncestors.has(replacementParent);
-  if (inActiveView && receiverReplacement) return TILE_REQUEST_NEED.SUPPORT;
   const parentCameraDemand = replacementParent
     ? context.cameraDemand(replacementParent)
     : null;
@@ -114,14 +105,11 @@ export const resolveTileRequestNeed = (
   if (!context.shadowCameraDemand && !inView && context.shadowSelection) {
     const receiverError = context.shadowReceiverError(tile);
     // Traversal refines the parent's footprint against its strictest receiver.
-    // A child can touch only a coarser receiver and still be required for that
-    // exclusive family handover. Do not test parent error against child demand.
     if (
       receiverError !== null &&
       (!replacementParent ||
         replacementParent.geometricError >
-          (context.shadowReceiverError(replacementParent) ?? receiverError) ||
-        receiverReplacement)
+          (context.shadowReceiverError(replacementParent) ?? receiverError))
     )
       return TILE_REQUEST_NEED.SHADOW;
   } else if (
@@ -159,15 +147,9 @@ export const resolveTileRequestNeed = (
   return retained;
 };
 
-/** Recovery must admit the geometry that a held shadow receiver depends on.
- * A visible family can also cast into another receiver; its ordinary camera
- * refinement therefore cannot be parked behind completion of that receiver.
- * Reserve/history requests remain background work; ranking still favours gaps.
- */
+/** Recovery must admit shadow support and visible geometry requests. */
 export const isTileCoveragePrerequisite = (
-  reason: ReturnType<typeof resolveTileRequestNeed>,
-  awaitingShadowReceivers: boolean
+  reason: ReturnType<typeof resolveTileRequestNeed>
 ): boolean =>
   reason === TILE_REQUEST_NEED.SHADOW ||
-  reason === TILE_REQUEST_NEED.SUPPORT ||
-  (awaitingShadowReceivers && reason === TILE_REQUEST_NEED.CAMERA);
+  reason === TILE_REQUEST_NEED.SUPPORT;

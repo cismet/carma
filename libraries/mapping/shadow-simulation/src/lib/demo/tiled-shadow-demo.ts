@@ -45,7 +45,7 @@ export type TiledShadowDemoStatus = Readonly<{
 /** Standalone host of the addon tiled stack, including receiver publication.
  * Replaces the story-only observer atlas; raw depth-cache benchmarks remain in
  * lower-level modules/tests, not this interactive render path.
- * Decision: three/STORY_VALIDATION.md, SHADOW-STORY-ADDON-PARITY-20260914.
+ * Decision: three/STORY_VALIDATION.md, SHADOW-STORY-ADDON-PARITY.
  */
 export const createTiledShadowDemo = (
   container: HTMLElement,

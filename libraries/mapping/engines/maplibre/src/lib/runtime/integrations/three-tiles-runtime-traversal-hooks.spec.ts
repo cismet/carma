@@ -195,7 +195,6 @@ describe("camera-local traversal admission", () => {
         expect(nativeQueue).toHaveBeenCalledWith(coarse);
 
         coarse.internal.loadingState = 4;
-        state.pendingMeshReceiverFrontier = new Set([coarse]);
         state.committedMeshCasterFrontier.add(coarse);
         state.tiles!.calculateTileViewErrorWithPlugin(coarse, coarseTarget);
         expect(coarseTarget.error).toBe(state.effectiveErrorTarget);

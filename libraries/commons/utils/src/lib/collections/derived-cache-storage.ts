@@ -29,7 +29,7 @@ type Policy = NonNullable<ReturnType<typeof resolveDerivedCachePolicy>>;
 type BudgetState = Policy & {
   age: number; bytes: number; count: number;
   configuredCapacityBytes?: number;
-  capacityMode?: "origin-quota-v1";
+  capacityMode?: "origin-quota";
   capacitySource?: "configured-fallback" | "origin-quota";
   quotaSample?: DerivedCacheQuotaSample;
   quotaInvalidatedAt?: number;
@@ -221,7 +221,7 @@ export const createDerivedBufferCache = (
               ...state,
               ...resolveDerivedCacheQuotaCapacity(policy.capacityBytes, sample),
               configuredCapacityBytes: policy.capacityBytes,
-              capacityMode: "origin-quota-v1",
+              capacityMode: "origin-quota",
               quotaSample: sample,
               quotaInvalidatedAt: quotaSampler.invalidatedAt,
             };

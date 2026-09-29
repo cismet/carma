@@ -115,7 +115,7 @@ export function createThreeTilesRequestConcurrency(
         runtimeState.meshBaseCoverageReady &&
         parseBacklog >= MESH_PARSE_BACKLOG_HARD_LIMIT
       ) {
-        // Decision: VIEWPORT-BACKPRESSURE-20260916 in TILES_COVERAGE.md.
+        // Decision: TILES_COVERAGE.md#queue-admission-and-capacity-recovery.
         // Parked lower-priority buffers must not stop the downloads needed to
         // drain the foreground that parks them. Recheck ranks after each move.
         const priorities = new Map<Tile, number>();
@@ -170,7 +170,7 @@ export function createThreeTilesRequestConcurrency(
         runtimeState.tiles.downloadQueue.maxJobsPerOrigin;
       runtimeState.tiles.downloadQueue.maxJobsPerOrigin = downloadConcurrency;
       if (downloadConcurrency > previousDownloadConcurrency) {
-        // Decision: CORRIDOR-REQUEST-CONCURRENCY-20260909 in engines/maplibre/README.md.
+        // Decision: TILES_COVERAGE.md#queue-admission-and-capacity-recovery.
         // Updating the native limit does not wake an idle origin queue. Resume
         // asynchronously on capacity recovery, independent of the next traversal
         // or a different corridor completing its downloads/shadow work.

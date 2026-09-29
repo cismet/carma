@@ -20,7 +20,7 @@ export const hasDeferredGltfMaterials = (mesh: Mesh): boolean =>
 
 /** Geometry-only opaque casters. Alpha masks/blends and unknown material
  * extensions keep the normal path because they may affect shadow coverage.
- * Decision: TILE-OFFSCREEN-TEXTURES-20260909 in engines/maplibre/README.md.
+ * Decision: TILES_COVERAGE.md#visible-receiver-corridors.
  */
 export const createDeferredGltfMaterials = (parser: GLTFParser) => {
   const skipped = new Set<number>();

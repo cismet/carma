@@ -6,7 +6,7 @@ import {
   type DiagnosticFrame,
 } from "../../core/diagnostics/tile-diagnostic-scene";
 
-// Decision TILE-DIAGNOSTICS-WEBGPU-20260916: see the library's TILE_DIAGNOSTICS.md.
+// See TILE_DIAGNOSTICS.md for the diagnostic rendering contract.
 // TypeGPU is worker-only. Its schemas are the single CPU/WGSL layout definition.
 export const DiagnosticPrimitive = d.struct({
   position: d.vec4f,

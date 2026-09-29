@@ -1,25 +1,34 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from "vitest";
 import * as THREE from "three";
+import { getWgs84PrincipalCurvatureRadii } from "@carma-geo/proj";
+import { degToRadNumeric } from "@carma-units";
 vi.hoisted(() => {
   URL.createObjectURL = () => "blob:shader-test";
 });
 import {
   ELEVATION_COLOR_DATUM,
-  REFERENCE_ATMOSPHERE_MODE,
+  elevationColorDatumNumber,
+} from "./reference-elevation-shader";
+import { REFERENCE_ATMOSPHERE_MODE } from "./reference-atmosphere-shader";
+import {
   TERRAIN_GEOMETRY_MODE,
   TERRAIN_HEIGHT_DATUM,
+} from "./reference-surface-types";
+import {
   createReferenceFrame,
-  referenceCurvatureRadii,
   referenceMountDrop,
   projectGeodeticToScene,
-  elevationColorDatumNumber,
+} from "./reference-surface-frame";
+import {
   patchEcefMeshElevationShader,
-  patchTerrainReferenceShader,
   updateMeshElevationShader,
   type MeshElevationShaderBinding,
+} from "./reference-mesh-elevation-shader";
+import {
+  patchTerrainReferenceShader,
   type TerrainShaderBinding,
-} from "./maplibre-three-reference-surfaces";
+} from "./reference-terrain-shader";
 
 const frame = createReferenceFrame([7.2, 51.27], 6371000);
 const field = {
@@ -62,7 +71,9 @@ describe("elevation stripe shader contracts", () => {
       0,
       8
     );
-    const radii = referenceCurvatureRadii(anchored.originLngLat[1]);
+    const radii = getWgs84PrincipalCurvatureRadii(
+      degToRadNumeric(anchored.originLngLat[1])
+    );
     for (const point of [
       [7.25, 51.314],
       [7.3, 51.24],
@@ -76,7 +87,8 @@ describe("elevation stripe shader contracts", () => {
         TERRAIN_GEOMETRY_MODE.WGS84_ECEF
       );
       const quadratic =
-        -(p.x ** 2) / (2 * radii.east) - p.z ** 2 / (2 * radii.north);
+        -(p.x ** 2) / (2 * radii.primeVerticalMeters) -
+        p.z ** 2 / (2 * radii.meridionalMeters);
       expect(
         Math.abs(quadratic - referenceMountDrop(anchored, point[0], point[1]))
       ).toBeLessThan(0.01);

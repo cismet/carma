@@ -1,7 +1,7 @@
 /** Browser-only diagnostic harness. Run from a Mesh Alignment iframe with
  * reprojectionMode=off and projectionBenchmarkProbe=true. Resolves the actual
  * Vite-loaded engine modules, not a copy of the converter. No production API.
- * Decision: MESH_REFERENCE_DECISIONS.md / MESH-PROJECTION-TARGETS-20260915.
+ * Decision: MESH_REFERENCE_DECISIONS.md#reprojection-modes.
  */
 const pause = () => new Promise((resolve) => setTimeout(resolve, 0));
 const status = () =>

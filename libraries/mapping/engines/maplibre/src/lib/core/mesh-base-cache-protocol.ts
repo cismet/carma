@@ -1,5 +1,5 @@
 import type { MeshBaseRenderRecord } from "./mesh-base-render-record";
-export const MESH_BASE_RENDER_FORMAT = "mesh-base-render-v1";
+export const MESH_BASE_RENDER_FORMAT = "mesh-base-render-v0.1";
 export const MESH_BASE_CACHE_OPERATION = {
   initialize: "initialize",
   get: "get",

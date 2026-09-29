@@ -25,7 +25,7 @@ import type {
  * Compose the 3D Tiles integration; policy and render work belong to its owners.
  * Decision: explicit, instance-local state slices and callbacks keep construction
  * inert and avoid runtime import cycles. Stable control groups are separate from
- * the engine adapter; see RUNTIME-API-20260909 and RUNTIME-SPLIT-20260909 in README.md.
+ * the engine adapter; see README.md#shared-threejs-scene-and-runtime-api.
  */
 export function buildThreeTilesRuntime(
   layerId: string,

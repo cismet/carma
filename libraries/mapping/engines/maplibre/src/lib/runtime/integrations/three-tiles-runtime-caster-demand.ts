@@ -5,7 +5,6 @@ import {
   type ShadowReceiverMask,
   type ShadowReceiverMatch,
 } from "../../core/shadow-receiver-mask";
-import type { SharedThreeSceneShadowView } from "../../core/shared-three-scene-types";
 import { readOrientedTileBounds } from "./three-tiles-bounds";
 import type { RuntimeTile } from "./three-tiles-runtime-types";
 
@@ -15,9 +14,7 @@ import type { RuntimeTile } from "./three-tiles-runtime-types";
  */
 export function createCasterVolumeDemand(
   mask: ShadowReceiverMask | null,
-  targetError: number,
-  _shadowView?: Pick<SharedThreeSceneShadowView, "camera" | "shadowMapSize">,
-  _tilesToWorld?: Matrix4
+  targetError: number
 ) {
   const box = new Box3(),
     transform = new Matrix4();

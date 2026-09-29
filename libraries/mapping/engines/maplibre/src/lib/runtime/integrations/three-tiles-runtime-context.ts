@@ -178,13 +178,10 @@ export interface ThreeTilesRuntimeState {
   shadowSelectionNeedsTraversal: boolean;
   shadowSelectionRefreshPending: boolean;
   shadowReceiverMask: ShadowReceiverMask | null;
-  /** Future receiver demand; never used to render the committed shadow cut. */
-  pendingMeshReceiverMask: ShadowReceiverMask | null;
   /** Caster geometry and family siblings owned until compatible publication. */
   pendingMeshCasterFrontier: Set<Tile>;
   shadowReceiverMaskConverged: boolean;
   shadowReceiverSourceSignature: string;
-  pendingMeshReceiverFrontier: Set<Tile> | null;
   committedMeshReceiverFrontier: Set<Tile>;
   committedMeshCasterFrontier: Set<Tile>;
   displayedMeshFrontier: Set<Tile>;

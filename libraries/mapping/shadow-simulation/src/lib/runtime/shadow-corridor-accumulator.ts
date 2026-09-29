@@ -287,7 +287,7 @@ export class ShadowCorridorAccumulator {
       frame.options?.msaaSamples ??
       DEFAULT_SCENE_ACCUMULATION_OPTIONS.msaaSamples;
     const pixels = width * height;
-    // Decision: MESH-CORRIDOR-20260908 in engines/maplibre/README.md.
+    // Decision: README.md#linked-receivercaster-detail.
     // Visibility capture writes a scalar; RGB lighting is composed afterwards.
     // Keeping four channels here spent the working budget again as soon as
     // finished corridor captures arrived, aborting and restarting integration.

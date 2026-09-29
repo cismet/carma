@@ -317,7 +317,7 @@ export function createThreeTilesFrameUpdate(
         runtimeState.displayedMeshFrontier.size > 0 &&
         !runtimeState.extentFloorArmed
       ) {
-        // Decision: VIEWPORT-FIRST-QUALITY-20260916 in TILES_COVERAGE.md.
+        // Decision: TILES_COVERAGE.md#startup-motion-and-reserve-admission.
         // Initial view -> residual tree with transitions -> final idle quality.
         runtimeState.extentFloorArmed = true;
         runtimeState.extentFloorAuditPending = true;

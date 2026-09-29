@@ -10,7 +10,7 @@ import { runTerrainWorkerTask } from "./terrain-worker-client";
 
 /** Source-space metadata survives mesh eviction; persistence is optional and
  * uses the same immutable main+worker graph epoch as generated geometry.
- * Decision: TERRAIN-VOLUMES-20260908 in engines/maplibre/README.md.
+ * Decision: README.md#shared-caster-volumes.
  */
 export const createTerrainHeightMetadataIndex = (
   sourceKey: string,

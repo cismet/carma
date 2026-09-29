@@ -35,7 +35,6 @@ export function createThreeTilesSpatial(
     | "tileBoundingBox"
     | "committedMeshCasterFrontier"
     | "committedMeshCasterFrontier"
-    | "pendingMeshReceiverFrontier"
     | "displayedMeshFrontier"
     | "meshRefinementSupport"
     | "meshCoverageRecovery"
@@ -54,7 +53,6 @@ export function createThreeTilesSpatial(
     | "tileProjectedCenter"
     | "tileViewProjection"
     | "shadowReceiverMask"
-    | "pendingMeshReceiverMask"
     | "shadowCasterRequests"
     | "shadowSelectionEnabled"
     | "shadowView"
@@ -376,9 +374,7 @@ export function createThreeTilesSpatial(
       if (runtimeState.options.providesTerrain && runtimeState.shadowView) {
         const demand = createCasterVolumeDemand(
           runtimeState.shadowReceiverMask,
-          runtimeState.requestedErrorTarget,
-          runtimeState.shadowView,
-          runtimeState.tiles.group.matrixWorld
+          runtimeState.requestedErrorTarget
         )(tile);
         return demand.intersects
           ? demand.errorPixels

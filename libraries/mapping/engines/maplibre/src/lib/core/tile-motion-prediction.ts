@@ -2,7 +2,7 @@ import { Matrix4, Vector3 } from "three";
 import type { TileCameraSnapshot } from "./tile-camera-demand";
 
 /** Bounded speculative demand, never an additional visible camera.
- * Decision: PAN-PREDICTION-20260916 in engines/maplibre/TILES_COVERAGE.md.
+ * Decision: TILES_COVERAGE.md#startup-motion-and-reserve-admission.
  */
 export const createTileMotionPrediction = () => {
   let previous: TileCameraSnapshot | null = null;

@@ -70,34 +70,29 @@ export const HIDDEN_TAB_WIPE_DELAY_MS = 30_000;
 export const CLAY_COLOR = 0xd6d2ca;
 
 /**
- * Contract version of a style's `metadata.carmaConf["3d"]` block. A style that
- * names none is version 1: the legacy shape with `renderMode`, `tilesetUrl` and
- * `terrainMandatory` alone, which the layer manager completes with defaults.
- */
-export const TILES3D_STYLE_VERSION = 1;
-/**
  * Zero selects the finest complete resident baseline fitting its memory share.
  * A positive explicit value additionally limits residual geometric detail.
  */
 export const TILESET_MIN_RESOLUTION_DEFAULT_PX = 0;
 
 /**
- * Opt-in cold-load profiles for terrain-providing meshes. Calibrated with
- * shadow casters at 1920 x 1080 CSS pixels, DPR 1, against the Mesh 2024 data.
- * Connection values name measured throughput classes, not navigator.downlink.
- * These are starting points, not scene-independent load-time guarantees.
+ * Quality settings for terrain-providing meshes, measured in CSS pixels.
+ * Explicit layer targets override these defaults. Memory grants and resident
+ * baseline selection remain independent of quality, bandwidth and display DPR.
+ * Calibrated with shadow casters at 1920 x 1080 CSS pixels against Mesh 2024;
+ * these settings trade visible detail for work, without promising load times.
  */
-export const TILES_MESH_NETWORK_PROFILES = {
-  "50-mbit": {
+export const TILES_MESH_QUALITY_PROFILES = {
+  low: {
     errorTarget: 16,
     baseErrorTarget: 12,
   },
-  "100-mbit": {
+  standard: {
     errorTarget: 12,
     baseErrorTarget: 12,
   },
-  "500-mbit": {
-    errorTarget: 6,
+  high: {
+    errorTarget: TILES_MESH_ERROR_TARGET_DEFAULT_PIXELS,
     baseErrorTarget: 12,
   },
 } as const;

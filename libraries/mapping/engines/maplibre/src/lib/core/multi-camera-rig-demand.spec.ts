@@ -1,7 +1,7 @@
 import { Box3, Vector3 } from "three";
 import { describe, expect, it } from "vitest";
 
-import { createCylinderCameraRig } from "./multi-camera-rig";
+import { createCylinderCameraRig } from "./cylinder-camera-rig";
 import {
   TILE_CAMERA_ROLE,
   createTileCameraDemand,

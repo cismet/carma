@@ -3,6 +3,7 @@ import { TILES_CACHE_CEILING_BYTES } from "../../core/tile-cache-policy";
 /** Learned device limit for this application bundle. Runtime probes stay local. */
 export const CACHE_CEILING_STORAGE_KEY = "carma:tiles3d-cache-ceiling";
 export const CACHE_CEILING_FAILURE_FRACTION = 0.8;
+const CACHE_CEILING_FORMAT = "0.1";
 /** Production filenames carry the emitted bundle hash. Dev HMR timestamps do
  * not define another application build, so query/hash parts are excluded. */
 export const cacheCeilingBuildId = (moduleUrl: string): string => {
@@ -13,10 +14,7 @@ export const CACHE_CEILING_BUILD_ID = cacheCeilingBuildId(import.meta.url);
 export const cacheCeilingStorageKey = (buildId = CACHE_CEILING_BUILD_ID) =>
   `${CACHE_CEILING_STORAGE_KEY}:${encodeURIComponent(buildId)}`;
 
-export type CacheCeilingReason =
-  | "allocation"
-  | "context-lost"
-  | "unhealthy-session";
+export type CacheCeilingReason = "allocation" | "context-lost";
 
 export type CacheCeilingProbe = Readonly<{
   ceilingBytes: number;
@@ -26,7 +24,7 @@ export type CacheCeilingProbe = Readonly<{
 }>;
 
 export type CacheCeilingMemory = Readonly<{
-  version: 2;
+  version: typeof CACHE_CEILING_FORMAT;
   buildId: string;
   learnedBytes: number | null;
   reason: CacheCeilingReason | null;
@@ -34,7 +32,7 @@ export type CacheCeilingMemory = Readonly<{
 }>;
 
 export const EMPTY_CACHE_CEILING_MEMORY: CacheCeilingMemory = {
-  version: 2,
+  version: CACHE_CEILING_FORMAT,
   buildId: CACHE_CEILING_BUILD_ID,
   learnedBytes: null,
   reason: null,
@@ -65,14 +63,15 @@ export const readCacheCeilingMemory = (
     const raw = storage.getItem(cacheCeilingStorageKey(buildId));
     if (!raw) return empty;
     const parsed = JSON.parse(raw) as Partial<CacheCeilingMemory>;
-    if (parsed.version !== 2 || parsed.buildId !== buildId) return empty;
+    if (parsed.version !== CACHE_CEILING_FORMAT || parsed.buildId !== buildId)
+      return empty;
     const learned =
       typeof parsed.learnedBytes === "number" &&
       Number.isFinite(parsed.learnedBytes)
         ? floorBytes(parsed.learnedBytes)
         : null;
     return {
-      version: 2,
+      version: CACHE_CEILING_FORMAT,
       buildId,
       learnedBytes: learned,
       reason: learned === null ? null : parsed.reason ?? null,
@@ -109,14 +108,6 @@ export const learnCacheCeiling = (
     return memory;
   return { ...memory, learnedBytes: candidate, reason };
 };
-
-/** Discard legacy crash guesses; only observed memory failures set a limit. */
-export const normalizeCacheCeilingMemory = (
-  memory: CacheCeilingMemory
-): CacheCeilingMemory =>
-  memory.reason === "unhealthy-session"
-    ? { ...memory, learnedBytes: null, reason: null }
-    : memory;
 
 export const startCacheCeilingSession = (
   memory: CacheCeilingMemory,

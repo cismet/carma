@@ -1,10 +1,13 @@
+import { smoothstep } from "@carma-commons/math";
+import { degToRadNumeric, radToDegNumeric, TWO_PI } from "@carma-units";
+
 /** Eye offset for a constant 20 m vertical clearance, including pitched views. */
 export const meshOverlapEye = (
   pitchDegrees: number,
   bearingDegrees: number
 ) => {
-  const pitch = (pitchDegrees * Math.PI) / 180;
-  const bearing = (bearingDegrees * Math.PI) / 180;
+  const pitch = degToRadNumeric(pitchDegrees);
+  const bearing = degToRadNumeric(bearingDegrees);
   const horizontal = 20 * Math.tan(pitch);
   return {
     distance: 20 / Math.cos(pitch),
@@ -17,12 +20,10 @@ export const meshOverlapEye = (
 /** Deterministic stress fixture: separate orbits converge into a nested top-down view. */
 export const meshOverlapFlight = (elapsedSeconds: number, period = 32) => {
   const phase = (((elapsedSeconds / period) % 1) + 1) % 1;
-  const angle = phase * Math.PI * 2;
+  const angle = phase * TWO_PI;
   // Hold full overlap for eight seconds, with smooth approach and departure.
-  const ramp = Math.min(1, Math.max(0, (phase - 0.2) / 0.15));
-  const departure = Math.min(1, Math.max(0, (phase - 0.6) / 0.2));
-  const smooth = (x: number) => x * x * (3 - 2 * x);
-  const overlap = smooth(ramp) * (1 - smooth(departure));
+  const overlap =
+    smoothstep(0, 0.15, phase - 0.2) * (1 - smoothstep(0, 0.2, phase - 0.6));
   const spread = 1 - overlap;
   return {
     phase,
@@ -39,6 +40,6 @@ export const meshOverlapFlight = (elapsedSeconds: number, period = 32) => {
     // Two zoom levels during overlap: 4x wider, 16x ground area.
     secondaryZoom: 17 - overlap * 1.5,
     pitch: 40 * spread,
-    bearing: (angle * 180) / Math.PI,
+    bearing: radToDegNumeric(angle),
   };
 };

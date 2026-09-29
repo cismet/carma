@@ -35,7 +35,6 @@ export type ThreeTilesCacheState = Pick<
   | "displayedMeshFrontier"
   | "committedMeshCasterFrontier"
   | "pendingMeshCasterFrontier"
-  | "pendingMeshReceiverFrontier"
   | "shadowCasterRequests"
   | "meshShadowReserve"
   | "meshRefinementSupport"
@@ -135,7 +134,6 @@ export function createThreeTilesCache(
       ...runtimeState.displayedMeshFrontier,
       ...runtimeState.committedMeshCasterFrontier,
       ...runtimeState.pendingMeshCasterFrontier,
-      ...(runtimeState.pendingMeshReceiverFrontier ?? []),
       ...(runtimeState.tiles?.visibleTiles ?? []),
     ]))
       for (const parent of meshTileAncestors(tile)) ancestors.add(parent);
@@ -166,7 +164,6 @@ export function createThreeTilesCache(
         !runtimeState.disposed &&
         (runtimeState.committedMeshCasterFrontier.has(tile) ||
           runtimeState.pendingMeshCasterFrontier.has(tile) ||
-          runtimeState.pendingMeshReceiverFrontier?.has(tile) ||
           ((runtimeState.displayedMeshFrontier.has(tile) ||
             runtimeState.tiles?.visibleTiles.has(tile)) &&
             (dependencies.isTileInMainView(tile as RuntimeTile) ||
@@ -257,8 +254,6 @@ export function createThreeTilesCache(
       for (const tile of runtimeState.displayedMeshFrontier) pin(tile);
       for (const tile of runtimeState.committedMeshCasterFrontier) pin(tile);
       for (const tile of runtimeState.pendingMeshCasterFrontier) pin(tile);
-      for (const tile of runtimeState.pendingMeshReceiverFrontier ?? [])
-        pin(tile);
       for (const tile of runtimeState.meshShadowReserve?.frontier ?? []) {
         if (tile.internal?.loadingState !== LOADED_LOADING_STATE) continue;
         pin(tile);

@@ -2,8 +2,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import type { Map as MapLibreMap } from "maplibre-gl";
 import {
-  TILE_DIAGNOSTIC_STEPS,
-  formatTileResidentBytes,
   acquireSharedThreeScene,
   registerSharedThreeSceneRuntime,
   type SharedThreeSceneFrame,
@@ -18,8 +16,6 @@ import { Button } from "antd";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faCrosshairs,
-  faLayerGroup,
-  faTableCells,
   faUpRightFromSquare,
   faVectorSquare,
 } from "@fortawesome/free-solid-svg-icons";
@@ -27,6 +23,11 @@ import { createTileDiagnosticOverlayComponent } from "./TileDiagnosticOverlay";
 import { DiagnosticPanel } from "./DiagnosticPanel";
 import { DiagnosticWindow } from "./DiagnosticWindow";
 import { snapshotShadowCorridorCameras } from "./shadow-corridor-camera";
+import {
+  buildVolumeTileLegend,
+  type VolumeTileLegend,
+} from "./core/volume-tile-legend";
+import { VolumeTileLegendView } from "./VolumeTileLegendView";
 
 const RUNTIME_ID = "volume-tile-diagnostics";
 /** Volumes carry no LOD error, so the error label has nothing to show. */
@@ -79,17 +80,7 @@ export const createVolumeTileDiagnostics = (diagnostics: TileDiagnostics) => {
       left: number;
       top: number;
     } | null>(null);
-    const [legend, setLegend] = useState<{
-      medianMs: number;
-      steps: {
-        label: string;
-        color: string;
-        avg: number;
-        min: number;
-        max: number;
-      }[];
-      bytes: { unit: number; min: number; max: number } | null;
-    } | null>(null);
+    const [legend, setLegend] = useState<VolumeTileLegend | null>(null);
     const [demand, setDemand] = useState({
       view: 0,
       corridor: 0,
@@ -186,56 +177,7 @@ export const createVolumeTileDiagnostics = (diagnostics: TileDiagnostics) => {
           height: size.current.height,
         });
         if (!model) return;
-        // What the marks stand for, measured on the cut that is drawn.
-        const perStep = new Map<
-          string,
-          { sum: number; count: number; min: number; max: number }
-        >();
-        const totals: number[] = [];
-        const sizes: number[] = [];
-        for (const volume of volumes) {
-          const steps = volume.steps ?? [];
-          const total = steps.reduce((sum, step) => sum + step.ms, 0);
-          if (total > 0) totals.push(total);
-          if (volume.bytes) sizes.push(volume.bytes);
-          for (const step of steps) {
-            const entry = perStep.get(step.label) ?? {
-              sum: 0,
-              count: 0,
-              min: Infinity,
-              max: 0,
-            };
-            entry.sum += step.ms;
-            entry.count += 1;
-            entry.min = Math.min(entry.min, step.ms);
-            entry.max = Math.max(entry.max, step.ms);
-            perStep.set(step.label, entry);
-          }
-        }
-        totals.sort((a, b) => a - b);
-        let unit = 10 * 1024;
-        const largest = sizes.length ? Math.max(...sizes) : 0;
-        while (largest / unit > 100) unit *= 10;
-        setLegend({
-          medianMs: totals.length ? totals[totals.length >> 1] : 0,
-          steps: TILE_DIAGNOSTIC_STEPS.flatMap((step) => {
-            const entry = perStep.get(step.label);
-            return entry
-              ? [
-                  {
-                    label: step.label,
-                    color: step.color,
-                    avg: entry.sum / entry.count,
-                    min: entry.min,
-                    max: entry.max,
-                  },
-                ]
-              : [];
-          }),
-          bytes: sizes.length
-            ? { unit, min: Math.min(...sizes), max: largest }
-            : null,
-        });
+        setLegend(buildVolumeTileLegend(volumes));
         setDemand({
           view: (model.volumes ?? []).filter((volume) => volume.inView).length,
           corridor: (model.volumes ?? []).filter((volume) => volume.inShadow)
@@ -426,96 +368,12 @@ export const createVolumeTileDiagnostics = (diagnostics: TileDiagnostics) => {
           </button>
         </div>
         {legend && mode !== "map" ? (
-          <details
-            className="tile-debug-legend"
-            data-test-id="volume-tile-diagnostics-legend"
-            style={{
-              position: "absolute",
-              left: legendAt.left,
-              top: legendAt.top,
-              maxHeight: "70%",
-              overflow: "auto",
-              background: "rgb(12 18 32 / 92%)",
-              color: "#f4fbff",
-              font: "11px/1.5 system-ui, sans-serif",
-              padding: "2px 6px",
-              borderRadius: 3,
-              boxShadow: "0 2px 4px rgba(0, 0, 0, 0.2)",
-            }}
-          >
-            <summary
-              // Drag it out of the way: the panel is small and the cut is the
-              // thing being read.
-              style={{ cursor: "grab", opacity: 0.85, touchAction: "none" }}
-              onPointerDown={(event) => {
-                if (event.button !== 0) return;
-                const box = event.currentTarget
-                  .parentElement as HTMLElement | null;
-                if (!box) return;
-                legendDrag.current = {
-                  x: event.clientX,
-                  y: event.clientY,
-                  left: box.offsetLeft,
-                  top: box.offsetTop,
-                };
-                event.currentTarget.setPointerCapture(event.pointerId);
-              }}
-              onPointerMove={(event) => {
-                const drag = legendDrag.current;
-                if (!drag) return;
-                event.preventDefault();
-                setLegendAt({
-                  left: Math.max(0, drag.left + event.clientX - drag.x),
-                  top: Math.max(0, drag.top + event.clientY - drag.y),
-                });
-              }}
-              onLostPointerCapture={() => {
-                legendDrag.current = null;
-              }}
-              onPointerUp={(event) => {
-                if (event.currentTarget.hasPointerCapture(event.pointerId))
-                  event.currentTarget.releasePointerCapture(event.pointerId);
-              }}
-            >
-              Legende
-            </summary>
-            <div style={{ opacity: 0.85, marginBottom: 2 }}>
-              {`Ring = Median ${Math.round(
-                legend.medianMs
-              )} ms \u00b7 Flache der Scheibe = Ladezeit dagegen`}
-            </div>
-            {legend.steps.map((step) => (
-              <div
-                key={step.label}
-                style={{ display: "flex", alignItems: "center", gap: 4 }}
-              >
-                <span
-                  style={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: 2,
-                    background: step.color,
-                    flex: "0 0 auto",
-                  }}
-                />
-                <span style={{ flex: "1 1 auto" }}>{step.label}</span>
-                <span style={{ opacity: 0.85 }}>
-                  {`\u00f8 ${Math.round(step.avg)} ms (${Math.round(
-                    step.min
-                  )}\u2013${Math.round(step.max)})`}
-                </span>
-              </div>
-            ))}
-            {legend.bytes ? (
-              <div style={{ opacity: 0.85, marginTop: 2 }}>
-                {`1 Kastchen = ${formatTileResidentBytes(
-                  legend.bytes.unit
-                )} \u00b7 residente Cache-Groesse der Kacheln ${formatTileResidentBytes(
-                  legend.bytes.min
-                )}\u2013${formatTileResidentBytes(legend.bytes.max)}`}
-              </div>
-            ) : null}
-          </details>
+          <VolumeTileLegendView
+            legend={legend}
+            legendAt={legendAt}
+            legendDrag={legendDrag}
+            setLegendAt={setLegendAt}
+          />
         ) : null}
         {tileCount === 0 ? (
           <div

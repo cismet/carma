@@ -14,13 +14,15 @@ import { NRW_DOM1_DHHN2016_TERRARIUM_TERRAIN } from "@carma-commons/resources";
 import {
   REFERENCE_CAMERA_PRESET,
   REFERENCE_PHYSICAL_CAMERA_POSES,
-  TERRAIN_GEOMETRY_MODE,
+} from "./reference-camera-presets";
+import { TERRAIN_GEOMETRY_MODE } from "./reference-surface-types";
+import {
   WGS84_REFERENCE_AXES,
   createReferenceFrame,
-  localUpAt,
   projectGeodeticToScene,
   projectMercatorToScene,
-} from "./maplibre-three-reference-surfaces";
+} from "./reference-surface-frame";
+import { localUpAt } from "./reference-surface-distance";
 
 const directionAngles = (
   frame: ReturnType<typeof createReferenceFrame>,

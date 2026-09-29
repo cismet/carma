@@ -238,7 +238,7 @@ export function createThreeTilesFramePublication(
               : displayed.has(tile),
           });
         }
-        // Decision: MESH-PUBLICATION-REPAIR-20260916 in TILES_COVERAGE.md.
+        // Decision: TILES_COVERAGE.md#exclusive-mesh-publication.
         // Active-only models may have group as parent WITHOUT being children.
         // A visibility-set entry alone must not suppress reattachment on pan.
         if (visible) {

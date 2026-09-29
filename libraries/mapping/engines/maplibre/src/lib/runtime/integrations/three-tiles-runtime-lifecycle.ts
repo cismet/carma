@@ -100,7 +100,6 @@ export function createThreeTilesLifecycle(
     | "lastLoadedViewportCutSize"
     | "displayedMeshFrontier"
     | "shadowView"
-    | "pendingMeshReceiverFrontier"
     | "committedMeshReceiverFrontier"
     | "retainedShadowRequests"
     | "committedMeshCasterFrontier"

@@ -28,10 +28,8 @@ import {
   executeTerrainBoundaryStitch,
   type TerrainStitchInput,
 } from "./terrain-boundary-stitch";
-import {
-  buildTerrainSelection,
-  type TerrainSelectionInput,
-} from "../../core/terrain-selection";
+import { buildTerrainSelection } from "../../core/terrain-selection";
+import type { TerrainSelectionInput } from "../../core/terrain-selection-types";
 
 export type TerrainWorkerTask =
   | { kind: "read-height-metadata"; key: string; producerAssetUrl?: string }

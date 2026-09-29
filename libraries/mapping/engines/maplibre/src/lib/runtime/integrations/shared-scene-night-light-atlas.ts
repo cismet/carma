@@ -6,7 +6,7 @@ import {
 } from "../../core/night-light-atlas";
 
 /**
- * Decision NIGHT-BARMEN-20260913 (engine README): a worker bakes fixed lamps
+ * Decision NIGHT-BARMEN (engine README): a worker bakes fixed lamps
  * into a bounded projected irradiance field. This is NOT an occlusion bake.
  * Moving lights remain ordinary Three lights in the same renderer and scene.
  */
@@ -187,7 +187,7 @@ export function createSharedSceneNightLightAtlas(
             );
           };
           material.customProgramCacheKey = () =>
-            `${key.call(material)}|night-field-v1`;
+      `${key.call(material)}|night-field`;
           material.needsUpdate = true;
         }
       });

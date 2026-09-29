@@ -18,7 +18,7 @@ const STADTPLAN_TILE_URL =
   "https://geodaten.metropoleruhr.de/spw2?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=spw2_light&STYLE=default&FORMAT=image/png&TILEMATRIXSET=webmercator_hq&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}";
 // Decision: real 512 px responses, not upscaled 256 px WMTS tiles. The server
 // only caches the 256 px WMTS grid; these WMS tiles use HTTP caching instead.
-// See MESH-REFERENCE-20260914 in MESH_REFERENCE_DECISIONS.md.
+// See MESH_REFERENCE_DECISIONS.md#current-comparison-stories.
 const LUFTBILD_TILE_URL =
   "https://geo.udsp.wuppertal.de/geoserver-cloud/ows?service=WMS&version=1.1.1&request=GetMap&layers=GIS-102:trueortho2024&styles=&format=image/png&transparent=true&width=512&height=512&srs=EPSG:3857&bbox={bbox-epsg-3857}&tiled=true";
 

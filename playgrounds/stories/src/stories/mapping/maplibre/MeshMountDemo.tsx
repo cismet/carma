@@ -1,28 +1,12 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import maplibregl, { type Map as MapLibreMap } from "maplibre-gl";
-import * as THREE from "three";
 import {
   createMeshMercatorLut,
-  getMeshReprojectionCameraFit,
   MESH_REPROJECTION_MODE,
   MESH_PROJECTION_ACCURACY,
-  type MeshProjectionAccuracy,
   MESH_REPROJECTION_METHODS,
-  type MeshReprojectionMode,
   type MeshMercatorLut,
 } from "@carma-geo/utils";
-
-import { WUPP_MESH_2024, WUPP_LOD2_TILESET } from "@carma-commons/resources";
-import {
-  acquireSharedThreeScene,
-  buildThreeTilesRuntime,
-  notifySharedThreeSceneContentChanged,
-  notifySharedThreeSceneRequestStateChanged,
-  registerSharedThreeSceneRuntime,
-  type ThreeTilesRuntime,
-} from "@carma-mapping/engines/maplibre";
-
-import meshParityStyle from "./data/mesh2024-cesium-parity.style.json";
 import {
   createWuppertalStoryStyle,
   WUPPERTAL_TERRAIN_SOURCE_ID,
@@ -35,36 +19,10 @@ import {
   MESH_MOUNT_PRESETS,
   MESH_MOUNT_VIEW,
   getMeshMountProjectionDiagnostics,
-  type MeshMountAnchor,
-  type MeshMountView,
 } from "./mesh-mount-presets";
-
 import "maplibre-gl/dist/maplibre-gl.css";
-
-export type MeshMountDemoOptions = {
-  maplibreTerrain?: boolean;
-  projectBasemap?: boolean;
-  projectionAccuracy?: MeshProjectionAccuracy | "custom";
-  /** Enables the existing native probe registry solely for repeatable benchmarks. */
-  projectionBenchmarkProbe?: boolean;
-  reprojectionMode?: MeshReprojectionMode;
-  projectionGridStepMeters?: number;
-  onMapReady?: (map: MapLibreMap) => () => void;
-  dataset?: "mesh2024" | "lod2";
-  view: MeshMountView;
-  anchor: MeshMountAnchor;
-  zoom: number;
-  pitch: number;
-  verticalFovDegrees: number;
-  basemapOpacity: number;
-  pixelError: number;
-  viewportWidth: number;
-  viewportHeight: number;
-  viewportPosition: "top-left" | "center" | "bottom-right";
-  animateViewport: boolean;
-  /** Embedded comparison cells retain independent maps, with compact diagnostics. */
-  compact?: boolean;
-};
+import type { MeshMountDemoOptions } from "./mesh-mount-demo-types";
+import { useMeshMountRuntime } from "./use-mesh-mount-runtime";
 
 type ViewportSnapshot = {
   width: number;
@@ -72,8 +30,6 @@ type ViewportSnapshot = {
   left: number;
   top: number;
 };
-
-const MESH_RUNTIME_ID = "mesh-mount-diagnostic";
 const textStyle: CSSProperties = {
   padding: "3px 6px",
   font: "12px/1.45 system-ui, sans-serif",
@@ -88,11 +44,6 @@ export const MeshMountDemo = (options: MeshMountDemoOptions) => {
   const viewportRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const resizeRef = useRef<(() => void) | null>(null);
-  const runtimeRef = useRef<ThreeTilesRuntime | null>(null);
-  const fitRef = useRef<(() => void) | null>(null);
-  const drapeRef = useRef<(() => void) | null>(null);
-  const runtimeSequence = useRef(0);
-  const [runtimeGeneration, setRuntimeGeneration] = useState(0);
   const [map, setMap] = useState<MapLibreMap | null>(null);
   // Fast Refresh can retain the retired map in state until its successor loads.
   const liveMapRef = useRef<MapLibreMap | null>(null);
@@ -313,166 +264,16 @@ export const MeshMountDemo = (options: MeshMountDemoOptions) => {
     options.animateViewport,
   ]);
 
-  useEffect(() => {
-    if (
-      !map ||
-      map !== liveMapRef.current ||
-      (method.method && !activeProjectionLut)
-    )
-      return;
-    const lease = acquireSharedThreeScene(map);
-    let disposed = false;
-    let runtime: ThreeTilesRuntime | null = null;
-    let contentReceived = false;
-    let lastStatus = "loading mesh overlay";
-    const reportReady = () => {
-      if (disposed || !runtime) return;
-      const pending = runtime.loading.getRequestDemand();
-      const status = contentReceived
-        ? pending > 0
-          ? "mesh content received · requests pending"
-          : "mesh content received · requests idle"
-        : "loading mesh overlay";
-      if (status === lastStatus) return;
-      lastStatus = status;
-      setMeshStatus(status);
-    };
-    setMeshStatus(lastStatus);
-    runtime = buildThreeTilesRuntime(
-      MESH_RUNTIME_ID,
-      dataset === "lod2" ? WUPP_LOD2_TILESET.url : WUPP_MESH_2024.url,
-      [mountLongitude, mountLatitude],
-      {
-        // Decision: opaque receivers with the addon style projection, not
-        // translucent imagery overlays. See MESH-STORY-CONSOLIDATION-20260915
-        // in MESH_REFERENCE_DECISIONS.md.
-        providesTerrain: false,
-        mapStyleDrape: "none",
-        outline: false,
-        colorCorrection:
-          dataset === "mesh2024" ? WUPP_MESH_2024.colorCorrection : undefined,
-        entry:
-          dataset === "mesh2024"
-            ? meshParityStyle.metadata.carmaConf["3d"].entry
-            : undefined,
-        diagnostics: optionsRef.current.projectionBenchmarkProbe ?? false,
-        tileTelemetry: false,
-        cacheBudgetBytes: 1024 ** 3,
-        mercatorProjection: activeProjectionLut ?? undefined,
-        onContentChanged: (bounds, roots) => {
-          if (disposed) return;
-          if (roots && roots.length > 0) contentReceived = true;
-          notifySharedThreeSceneContentChanged(map, { bounds, roots });
-          reportReady();
-        },
-        onRequestStateChange: () => {
-          if (disposed) return;
-          notifySharedThreeSceneRequestStateChanged(map);
-          reportReady();
-        },
-      }
-    );
-    runtime.loading.setErrorTarget(optionsRef.current.pixelError);
-    runtime.appearance.setOpacity(1);
-    runtimeRef.current = runtime;
-    // Keep the loader, geometry and textures. A parent matrix changes render
-    // AND native tile bounds together; no shader-only culling mismatch.
-    const fitGroup = new THREE.Group();
-    fitGroup.matrixAutoUpdate = false;
-    for (const child of [...runtime.scene.root.children]) fitGroup.add(child);
-    runtime.scene.root.add(fitGroup);
-    const axisFlip = new THREE.Matrix4().makeRotationY(Math.PI);
-    const updateFit = () => {
-      if (!runtime) return;
-      const center = map.getCenter();
-      const currentMode =
-        optionsRef.current.reprojectionMode ?? MESH_REPROJECTION_MODE.OFF;
-      try {
-        fitGroup.matrix.copy(
-          getMeshReprojectionCameraFit(
-            currentMode,
-            {
-              longitudeDegrees: mountLongitude,
-              latitudeDegrees: mountLatitude,
-            },
-            [center.lng, center.lat]
-          )
-        );
-      } catch (error) {
-        // Retain the last valid fit instead of submitting NaNs or identity when
-        // the diagnostic camera leaves this explicitly local projection domain.
-        setMeshStatus(String(error));
-        return;
-      }
-      // Runtime's persistent parent flips plugin west/north to east/south.
-      fitGroup.matrix.premultiply(axisFlip).multiply(axisFlip);
-      runtime.scene.root.updateMatrixWorld(true);
-      map.triggerRepaint();
-    };
-    fitRef.current = updateFit;
-    const updateCameraFit = () => {
-      const currentMode =
-        optionsRef.current.reprojectionMode ?? MESH_REPROJECTION_MODE.OFF;
-      if (MESH_REPROJECTION_METHODS[currentMode].cameraFit) updateFit();
-    };
-    map.on("move", updateCameraFit);
-    updateFit();
-    lease.layer.addRuntime(runtime.scene);
-    const updateDrape = () => {
-      if (!runtime) return;
-      const enabled = optionsRef.current.projectBasemap !== false;
-      // Reuse the addon receiver/material/capture path, not image blending.
-      // Buildings receive the style but must not erase the bare-earth ground.
-      runtime.scene.receivesMapStyleTexture = enabled;
-      runtime.scene.mapStyleProjectionBlend = "replace";
-      runtime.scene.providesTerrain = enabled && dataset === "mesh2024";
-      lease.layer.setMapStyleProjectionVisible(enabled);
-      map.triggerRepaint();
-    };
-    updateDrape();
-    drapeRef.current = updateDrape;
-    const unregister = registerSharedThreeSceneRuntime(map, runtime.scene);
-    runtimeSequence.current += 1;
-    setRuntimeGeneration(runtimeSequence.current);
-    map.on("idle", reportReady);
-    return () => {
-      disposed = true;
-      map.off("idle", reportReady);
-      map.off("move", updateCameraFit);
-      fitRef.current = null;
-      drapeRef.current = null;
-      runtimeRef.current = null;
-      unregister();
-      lease.layer.removeRuntime(MESH_RUNTIME_ID);
-      lease.release();
-    };
-  }, [
+  const runtimeGeneration = useMeshMountRuntime({
     map,
+    liveMapRef,
+    options,
+    optionsRef,
+    activeProjectionLut,
     mountLongitude,
     mountLatitude,
-    method.method,
-    activeProjectionLut,
-    dataset,
-  ]);
-
-  useEffect(() => {
-    drapeRef.current?.();
-  }, [options.projectBasemap]);
-
-  useEffect(() => {
-    fitRef.current?.();
-  }, [mode]);
-
-  useEffect(() => {
-    runtimeRef.current?.loading.setErrorTarget(options.pixelError);
-    if (map === liveMapRef.current) map?.triggerRepaint();
-  }, [map, options.pixelError]);
-
-  useEffect(() => {
-    runtimeRef.current?.debug.setDiagnosticsEnabled(
-      options.projectionBenchmarkProbe ?? false
-    );
-  }, [options.projectionBenchmarkProbe, runtimeGeneration]);
+    setMeshStatus,
+  });
 
   useEffect(() => {
     if (!map || map !== liveMapRef.current) return;

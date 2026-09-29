@@ -1,107 +1,29 @@
-import {
-  EARTH_CIRCUMFERENCE,
-  getPixelResolutionFromZoomAtLatitudeRad,
-  getWebMercatorFromWgs84Deg,
-} from "@carma-geo/proj";
-import { degToRad, degToRadNumeric } from "@carma-units";
-import type { Degrees } from "@carma-units";
-// Pure, worker-safe terrain selection contracts and helpers live here.
-// Runtime code supplies only snapshots and source metadata; this module never
-// touches MapLibre, DOM, WebGL, network state, or mesh ownership.
-import { Box3, Camera, Frustum, Matrix4, Vector3 } from "three";
+// Pure, worker-safe terrain selection consumes snapshots and source metadata.
+// It does not touch MapLibre, DOM, WebGL, network state, or mesh ownership.
+import { Box3, Frustum, Matrix4, Vector3 } from "three";
 import { geographicBoundsIntersect } from "@carma-geo/helpers";
 import { getTerrainScreenErrorRatio } from "./terrain-screen-error";
 import {
   createTileCameraDemand,
   TILE_CAMERA_PRIORITY,
-  type TileCameraSnapshot,
 } from "./tile-camera-demand";
 import {
   createShadowReceiverMask,
   maximumSweepDistanceWithinBox,
 } from "./shadow-receiver-mask";
-
+import { terrainTileKey, type TerrainTileId } from "./raster-dem-tile";
+import { createTerrainSelectionSourceGrid } from "./terrain-selection-source-grid";
 import {
-  boundsIntersect,
-  getTileBounds,
-  latitudeToTileY,
-  longitudeToTileX,
-  type TerrainTileBounds,
-  type TerrainTileId,
-  terrainTileKey,
-} from "./raster-dem-tile";
-
-export type TerrainSelectionEntry = Readonly<{
-  id: TerrainTileId;
-  kind: "source";
-  /** Shared demand rank, including coverage prerequisites for this cut. */
-  priority?: number;
-}>;
-
-export type TerrainSelection = Readonly<{
-  entries: readonly TerrainSelectionEntry[];
-  viewportStages: readonly (readonly TerrainSelectionEntry[])[];
-  loadEntries: readonly TerrainSelectionEntry[];
-  signature: string;
-  viewportElevationSignature: string;
-}>;
-
-export type TerrainSelectionSourceMetadata = Readonly<{
-  bounds: TerrainTileBounds;
-  minzoom: number;
-  maxzoom: number;
-  meshSegments: number;
-}>;
-
-export type TerrainSelectionCameraSnapshot = Readonly<{
-  projectionMatrix: readonly number[];
-  matrixWorldInverse: readonly number[];
-  matrixWorld: readonly number[];
-  coordinateSystem?: Camera["coordinateSystem"];
-  reversedDepth?: boolean;
-  position: readonly [number, number, number];
-  fov: number;
-  isOrthographicCamera?: boolean;
-}>;
-
-export type TerrainSelectionInput = Readonly<{
-  viewportBounds: TerrainTileBounds;
-  viewport: readonly [width: number, height: number];
-  /** Padded observer focus in full-viewport NDC; affects order, not coverage. */
-  viewportFocusNdc?: readonly [x: number, y: number];
-  renderCamera: TerrainSelectionCameraSnapshot;
-  lodCameraPosition: readonly [number, number, number];
-  rootMatrixWorld: readonly number[];
-  origin: readonly [x: number, y: number, z: number];
-  meterScale: number;
-  boundsPaddingMeters?: readonly [x: number, y: number, z: number];
-  cameraViews?: readonly (TileCameraSnapshot & { bounds: TerrainTileBounds })[];
-  shadow?: Readonly<{
-    camera: TerrainSelectionCameraSnapshot;
-    shadowMapSize: readonly [width: number, height: number];
-    bounds: TerrainTileBounds;
-    casterAngularRadiusRadians?: number;
-  }>;
-  source: TerrainSelectionSourceMetadata;
-  knownHeightRanges: Readonly<Record<string, readonly [number, number]>>;
-  unknownHeightRange: readonly [number, number];
-  errorTargetPixels: number;
-  shadowLevelOffset: number;
-  minimumLevel: number;
-  maximumLevel: number;
-  maxSelectionTiles: number;
-  initialErrorTargetPixels: number;
-}>;
-
-export type TerrainSelectionAdapter = Readonly<{
-  getTileGridIdsForBounds: (
-    bounds: TerrainTileBounds,
-    level: number
-  ) => TerrainTileId[];
-  getTileBounds: (id: TerrainTileId) => TerrainTileBounds;
-  getTileGeometricError: (level: number) => number;
-  getTileDataAvailable: (id: TerrainTileId) => boolean;
-}>;
+  buildTerrainTileLocalBox,
+  projectTerrainToLocalWorld as projectToLocalWorld,
+} from "./terrain-selection-local-box";
+import type {
+  TerrainSelection,
+  TerrainSelectionAdapter,
+  TerrainSelectionCameraSnapshot,
+  TerrainSelectionEntry,
+  TerrainSelectionInput,
+} from "./terrain-selection-types";
 
 const selectionKey = ({ id, kind }: TerrainSelectionEntry) =>
   `${kind}:${terrainTileKey(id)}`;
@@ -109,119 +31,8 @@ const selectionKey = ({ id, kind }: TerrainSelectionEntry) =>
 const tileIsAvailable = (adapter: TerrainSelectionAdapter, id: TerrainTileId) =>
   adapter.getTileDataAvailable(id);
 
-const getGridIds = (
-  source: TerrainSelectionSourceMetadata,
-  bounds: TerrainTileBounds,
-  level: number
-): TerrainTileId[] => {
-  if (level < source.minzoom || level > source.maxzoom) return [];
-  const west = Math.max(bounds.west, source.bounds.west);
-  const south = Math.max(bounds.south, source.bounds.south);
-  const east = Math.min(bounds.east, source.bounds.east);
-  const north = Math.min(bounds.north, source.bounds.north);
-  if (west >= east || south >= north) return [];
-  const scale = 2 ** level;
-  const epsilon = 1e-10;
-  const minimumX = Math.max(0, Math.floor(longitudeToTileX(west, level)));
-  const maximumX = Math.min(
-    scale - 1,
-    Math.floor(longitudeToTileX(east - epsilon, level))
-  );
-  const minimumY = Math.max(
-    0,
-    Math.floor(latitudeToTileY(north - epsilon, level))
-  );
-  const maximumY = Math.min(
-    scale - 1,
-    Math.floor(latitudeToTileY(south + epsilon, level))
-  );
-  const ids: TerrainTileId[] = [];
-  for (let y = minimumY; y <= maximumY; y += 1)
-    for (let x = minimumX; x <= maximumX; x += 1) ids.push({ level, x, y });
-  return ids;
-};
-
-const createDefaultAdapter = (
-  source: TerrainSelectionSourceMetadata
-): TerrainSelectionAdapter => ({
-  getTileGridIdsForBounds: (bounds, level) => getGridIds(source, bounds, level),
-  getTileBounds,
-  getTileGeometricError: (level) =>
-    getPixelResolutionFromZoomAtLatitudeRad(
-      level,
-      degToRad(((source.bounds.south + source.bounds.north) / 2) as Degrees),
-      { tileSize: source.meshSegments }
-    ),
-  getTileDataAvailable: (id) =>
-    id.level >= source.minzoom &&
-    id.level <= source.maxzoom &&
-    boundsIntersect(getTileBounds(id), [
-      source.bounds.west,
-      source.bounds.south,
-      source.bounds.east,
-      source.bounds.north,
-    ]),
-});
-
 const geometricError = (adapter: TerrainSelectionAdapter, level: number) => {
   return adapter.getTileGeometricError(level);
-};
-
-const projectToLocalWorld = (
-  longitude: number,
-  latitude: number,
-  height: number,
-  origin: readonly [number, number, number],
-  meterScale: number,
-  target: Vector3
-) => {
-  const latitudeRadians = degToRadNumeric(latitude);
-  const x = (longitude + 180) / 360;
-  const [, northing] = getWebMercatorFromWgs84Deg(
-    0 as Degrees,
-    latitude as Degrees
-  );
-  const y = 0.5 - northing / EARTH_CIRCUMFERENCE;
-  // Reuse the caller's Mercator scale, including its Earth-radius convention.
-  const originLatitude = Math.atan(Math.sinh(Math.PI * (1 - 2 * origin[1])));
-  const z =
-    (height * meterScale * Math.cos(originLatitude)) /
-    Math.cos(latitudeRadians);
-  return target.set(
-    (x - origin[0]) / meterScale,
-    (z - origin[2]) / meterScale,
-    (y - origin[1]) / meterScale
-  );
-};
-
-/**
- * A 2.5D tile as a 3D box: its footprint over the elevation range it covers.
- * Selection culls with this box and the diagnostics draw the same one, so a
- * terrain tile is tested exactly like a 3D Tiles bounding volume.
- */
-export const buildTerrainTileLocalBox = (
-  bounds: TerrainTileBounds,
-  heightRange: readonly [number, number],
-  origin: readonly [number, number, number],
-  meterScale: number,
-  target: Box3 = new Box3()
-): Box3 => {
-  target.makeEmpty();
-  const point = new Vector3();
-  for (const longitude of [bounds.west, bounds.east])
-    for (const latitude of [bounds.south, bounds.north])
-      for (const height of heightRange)
-        target.expandByPoint(
-          projectToLocalWorld(
-            longitude,
-            latitude,
-            height,
-            origin,
-            meterScale,
-            point
-          )
-        );
-  return target;
 };
 
 const snapshotCamera = (snapshot: TerrainSelectionCameraSnapshot) => {
@@ -242,9 +53,10 @@ const snapshotCamera = (snapshot: TerrainSelectionCameraSnapshot) => {
 
 export const buildTerrainSelection = (
   input: TerrainSelectionInput,
-  adapter: TerrainSelectionAdapter = createDefaultAdapter(input.source)
+  adapter: TerrainSelectionAdapter = createTerrainSelectionSourceGrid(
+    input.source
+  )
 ): TerrainSelection => {
-  const { source } = input;
   const [focusX, focusY] = input.viewportFocusNdc ?? [0, 0];
   const cameraDemand = createTileCameraDemand(input.cameraViews ?? []);
   const renderCamera = snapshotCamera(input.renderCamera);
@@ -610,7 +422,7 @@ export const buildTerrainSelection = (
   // Use the same light-space receiver BVH as native 3D tiles. Refine the
   // conservative frustum first: source-LOD extrema describe this payload,
   // not all descendants (unlike a 3D tileset's subtree bounding volume).
-  // Decision: TERRAIN-VOLUMES-20260908 in engines/maplibre/README.md.
+  // Decision: README.md#shared-caster-volumes.
   if (shadowCamera) {
     const lightWorldBounds = new Box3(
       new Vector3(-1, -1, -1),

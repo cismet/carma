@@ -128,7 +128,7 @@ export const createSharedThreeSceneCameraPreview = (
       const clipRight = Math.min(host.right, bounds.right, right);
       const clipBottom = Math.min(host.bottom, bounds.bottom, bottom);
       if (clipRight <= clipLeft || clipBottom <= clipTop) return false;
-      // Decision: SHARED-CANVAS-VIEWS-20260916 in README.md. Keep the full
+      // Decision: README.md#shared-canvas-camera-views. Keep the full
       // viewport projection when partially clipped; scissor only trims pixels.
       const ratio = renderer.getPixelRatio();
       const sx = canvas.width / host.width / ratio;

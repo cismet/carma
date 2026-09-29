@@ -19,7 +19,7 @@ type Job = {
 
 /** Native fetchData plugin, not a second traversal/LOD engine. Static pages are
  * restored on demand; the renderer still owns its original external-root links.
- * Decision: TILE-SPARSE-HIERARCHY-INDEX-20260909 in engines/maplibre/README.md.
+ * Decision: README.md#consolidated-tile-manager.
  */
 export class TilesetHierarchyPlugin {
   readonly name = "CARMA_TILESET_HIERARCHY";

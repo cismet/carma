@@ -46,7 +46,6 @@ export function createThreeTilesPayloadQueues(
     | "committedMeshReceiverFrontier"
     | "disposed"
     | "displayedMeshFrontier"
-    | "pendingMeshReceiverFrontier"
     | "effectiveErrorTarget"
     | "extentFloorArmed"
     | "extentGeometricError"
@@ -139,13 +138,7 @@ export function createThreeTilesPayloadQueues(
           coverageFill,
           admission: resolveTileRequestAdmission({
             needed,
-            coveragePrerequisite: isTileCoveragePrerequisite(
-              reason,
-              Boolean(
-                runtimeState.shadowView &&
-                  runtimeState.pendingMeshReceiverFrontier?.size
-              )
-            ),
+            coveragePrerequisite: isTileCoveragePrerequisite(reason),
             coverageFill,
             coverageRecovery: runtimeState.meshCoverageRecovery,
             stage,
@@ -261,10 +254,10 @@ export function createThreeTilesPayloadQueues(
       // Native PriorityQueue has no eligibility predicate. Partition only its
       // scheduling list synchronously; promises, callbacks and native abort
       // ownership stay registered. Restore parked entries before yielding.
-      // Decision: DRAG-RESIDENT-SIBLINGS-20260916 in TILES_COVERAGE.md.
+      // Decision: TILES_COVERAGE.md#complete-replacement-families-and-resident-base-coverage.
       const parked: Tile[] = [];
       const ready: Tile[] = [];
-      // Decision: VIEWPORT-WORK-FIRST-20260914 in TILES_COVERAGE.md.
+      // Decision: TILES_COVERAGE.md#queue-admission-and-capacity-recovery.
       // Floor residency is not permission to occupy foreground slots.
       // Immediate family support is foreground coverage, not idle refinement.
       // Keep pending payloads (including downloaded buffers) on their original
@@ -313,7 +306,7 @@ export function createThreeTilesPayloadQueues(
     if (!runtimeState.tiles) return;
     const downloadQueue = new DownloadPriorityQueue();
     downloadQueue.priorityCallback = tilesQueuePriorityCallback;
-    // Decision: TILE-METADATA-FAST-LANE-20260909 in engines/maplibre/README.md.
+    // Decision: README.md#consolidated-tile-manager.
     // Preserve upstream ownership/abort handling, but metadata must not wait
     // behind payload downloads or the mesh parse-backlog throttle.
     const addDownload = downloadQueue.add.bind(downloadQueue);

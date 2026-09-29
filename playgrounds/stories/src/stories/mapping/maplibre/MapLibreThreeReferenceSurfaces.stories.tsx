@@ -4,14 +4,14 @@ import {
   MapLibreThreeReferenceSurfacesDemo,
   type MapLibreThreeReferenceSurfacesOptions,
 } from "./MapLibreThreeReferenceSurfacesDemo";
+import { ELEVATION_COLOR_DATUM } from "./reference-elevation-shader";
+import { REFERENCE_ATMOSPHERE_MODE } from "./reference-atmosphere-shader";
+import { REFERENCE_CAMERA_PRESET } from "./reference-camera-presets";
 import {
-  ELEVATION_COLOR_DATUM,
-  REFERENCE_ATMOSPHERE_MODE,
-  REFERENCE_CAMERA_PRESET,
   REFERENCE_SURFACE,
   TERRAIN_GEOMETRY_MODE,
   TERRAIN_HEIGHT_DATUM,
-} from "./maplibre-three-reference-surfaces";
+} from "./reference-surface-types";
 import { REFERENCE_SURFACE_DEFAULTS } from "./reference-surface-defaults";
 
 const REFERENCE_VIEW_PRESET = {

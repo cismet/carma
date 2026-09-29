@@ -3,10 +3,8 @@ export {
   FILL,
   OVERVIEW_COLORS,
 } from "../../core/diagnostics/tile-diagnostic-model";
-export {
-  diagnosticProjection,
-  hitTestDiagnosticLabel,
-} from "../../core/diagnostics/tile-diagnostic-scene";
+export { diagnosticProjection } from "../../core/diagnostics/tile-diagnostic-scene";
+export { hitTestDiagnosticLabel } from "../../core/diagnostics/tile-diagnostic-labels";
 export { captureTileDiagnostics } from "./tile-diagnostic-capture";
 export {
   buildVolumeOverlayModel,

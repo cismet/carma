@@ -173,18 +173,16 @@ describe("mesh caster publication", () => {
       new Set([receiver, otherChild])
     );
     expect(state.shadowCasterRequests).toEqual(new Set([chimney]));
-    expect(state.pendingMeshReceiverFrontier).toBeNull();
     expect(onContentChanged).toHaveBeenCalledOnce();
     state.meshCoverageRecovery = false;
     onContentChanged.mockClear();
-    const heldReceivers = state.committedMeshReceiverFrontier;
+    const committedReceivers = state.committedMeshReceiverFrontier;
     const heldCasters = state.committedMeshCasterFrontier;
     for (const loadingState of [2, 3, -1]) {
       chimney.internal.loadingState = loadingState;
       advance(new Set([receiver, otherChild]));
-      expect(state.committedMeshReceiverFrontier).toEqual(heldReceivers);
+      expect(state.committedMeshReceiverFrontier).toEqual(committedReceivers);
       expect(state.committedMeshCasterFrontier).toBe(heldCasters);
-      expect(state.pendingMeshReceiverFrontier).toBeNull();
       expect(onContentChanged).not.toHaveBeenCalled();
     }
 
@@ -228,8 +226,7 @@ describe("mesh caster publication", () => {
     expect(state.committedMeshCasterFrontier).toEqual(
       new Set([receiver, chimney, otherChild])
     );
-    expect(state.pendingMeshReceiverFrontier).toBeNull();
-    expect(state.committedMeshReceiverFrontier).toEqual(heldReceivers);
+    expect(state.committedMeshReceiverFrontier).toEqual(committedReceivers);
     expect(state.committedMeshCasterFrontier).not.toBe(heldCasters);
     const completeReceivers = state.committedMeshReceiverFrontier;
     const completeCasters = state.committedMeshCasterFrontier;

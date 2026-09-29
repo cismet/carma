@@ -9,15 +9,21 @@ import { REFERENCE_SURFACE_DEFAULTS } from "./reference-surface-defaults";
 import { MESH_MOUNT_PRESETS, MESH_MOUNT_VIEW } from "./mesh-mount-presets";
 import {
   ELEVATION_COLOR_DATUM,
+  type ElevationColorDatum,
+} from "./reference-elevation-shader";
+import {
   TERRAIN_GEOMETRY_MODE,
   TERRAIN_HEIGHT_DATUM,
-  type ElevationColorDatum,
   type TerrainHeightDatum,
+} from "./reference-surface-types";
+import {
   REFERENCE_PHYSICAL_CAMERA_POSES,
   REFERENCE_CAMERA_PRESET,
+} from "./reference-camera-presets";
+import {
   createReferenceFrame,
   referenceMountDrop,
-} from "./maplibre-three-reference-surfaces";
+} from "./reference-surface-frame";
 
 const SITES = {
   barmen: {

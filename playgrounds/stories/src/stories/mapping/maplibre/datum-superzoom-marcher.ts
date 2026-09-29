@@ -4,12 +4,14 @@ import { NRW_DGM1_DHHN2016_TERRARIUM_TERRAIN } from "@carma-commons/resources";
 import { acquireRasterDemTerrainTileSource } from "../../../../../../libraries/mapping/engines/maplibre/src/lib/runtime/integrations/raster-dem-terrain-tile-source";
 import {
   createGcg2016ShaderField,
+  sampleGcg2016Field,
+} from "./reference-gcg2016-field";
+import {
   localGroundLngLat,
   projectGeodeticToScene,
-  sampleGcg2016Field,
-  TERRAIN_GEOMETRY_MODE,
   type ReferenceFrame,
-} from "./maplibre-three-reference-surfaces";
+} from "./reference-surface-frame";
+import { TERRAIN_GEOMETRY_MODE } from "./reference-surface-types";
 
 /** Bounded diagnostic, not certified cross-LOD occlusion. Keep coarse parents. */
 export const startDatumTerrainMarch = (

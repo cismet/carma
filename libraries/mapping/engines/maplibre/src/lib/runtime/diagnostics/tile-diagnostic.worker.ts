@@ -1,13 +1,7 @@
-import {
-  buildDiagnosticPrimitives,
-  buildDiagnosticSelection,
-  drawDiagnosticText,
-  buildDiagnosticViewport,
-  TILE_RECORD_FLOATS,
-  type DiagnosticSnapshot,
-  type DiagnosticWorkerMessage,
-  type DiagnosticFrame,
-} from "../../core/diagnostics/tile-diagnostic-scene";
+import { buildDiagnosticPrimitives } from "../../core/diagnostics/tile-diagnostic-primitives";
+import { buildDiagnosticSelection, buildDiagnosticViewport } from "../../core/diagnostics/tile-diagnostic-camera-primitives";
+import { drawDiagnosticText } from "../../core/diagnostics/tile-diagnostic-labels";
+import { TILE_RECORD_FLOATS, type DiagnosticSnapshot, type DiagnosticWorkerMessage, type DiagnosticFrame } from "../../core/diagnostics/tile-diagnostic-scene";
 import type { TileCameraSnapshot } from "../../core/tile-camera-demand";
 import { projectTileDiagnosticViewports } from "./tile-diagnostic-viewport";
 import * as THREE from "three";

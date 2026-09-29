@@ -1,4 +1,5 @@
-import { MeshMountDemo, type MeshMountDemoOptions } from "./MeshMountDemo";
+import { MeshMountDemo } from "./MeshMountDemo";
+import type { MeshMountDemoOptions } from "./mesh-mount-demo-types";
 import { MESH_MOUNT_COMPARISON_VIEWS } from "./mesh-mount-presets";
 
 /** Independent map contexts are intentional: this compares geographic sites. */

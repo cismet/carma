@@ -1,6 +1,6 @@
 import { Camera, Matrix4, PerspectiveCamera, Vector2, Vector3 } from "three";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { TerrainSelection } from "../../core/terrain-selection";
+import type { TerrainSelection } from "../../core/terrain-selection-types";
 import type { TerrainWorkerResult } from "./terrain-worker-task";
 import {
   getTileBounds,

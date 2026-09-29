@@ -15,13 +15,10 @@ import {
   MeshLambertMaterial,
   Sphere,
   Vector3,
-  WebGLCoordinateSystem,
 } from "three";
 
-import { quantize } from "@carma-commons/math";
 import type { RasterDemTerrainResource } from "@carma-commons/resources";
 import { resolveDerivedCacheAssetEpoch } from "@carma-commons/utils";
-import { getWorkerProbeLimit } from "@carma-commons/worker-scaling";
 import { geographicBoundsIntersect } from "@carma-geo/helpers";
 
 import { MAPLIBRE_EVENT } from "../../../constants/mapEvents";
@@ -55,18 +52,17 @@ import {
   getTerrainScreenErrorColor,
   getTerrainScreenErrorRatio,
 } from "../../core/terrain-screen-error";
-import {
-  buildTerrainSelection,
-  buildTerrainTileLocalBox,
-  type TerrainSelection,
-  type TerrainSelectionEntry,
-  type TerrainSelectionInput,
-} from "../../core/terrain-selection";
+import { buildTerrainSelection } from "../../core/terrain-selection";
+import { buildTerrainTileLocalBox } from "../../core/terrain-selection-local-box";
+import type {
+  TerrainSelection,
+  TerrainSelectionEntry,
+  TerrainSelectionInput,
+} from "../../core/terrain-selection-types";
 import { createTerrainTileHeightSampler } from "../../core/terrain-tile-height-sampler";
 import {
   createTileCameraDemand,
   TILE_CAMERA_PRIORITY,
-  type TileCameraSnapshot,
   tileCameraViewsSignature,
 } from "../../core/tile-camera-demand";
 import { planTileLoadStages } from "../../core/tile-load-plan";
@@ -88,12 +84,16 @@ import {
   registerSharedThreeTerrainSampler,
   setSharedThreeTerrainLoading,
 } from "./shared-three-terrain-registry";
-import {
-  runBatchedTerrainBoundaryStitch,
-  type TerrainBoundaryStitchState,
-  type TerrainStitchInput,
-} from "./terrain-boundary-stitch";
+import type { TerrainStitchInput } from "./terrain-boundary-stitch";
 import { createTerrainHeightMetadataIndex } from "./terrain-height-metadata-index";
+import { prepareEqualLevelTerrainBoundaries } from "./raster-dem-terrain-equal-level-seams";
+import { createRasterDemTerrainSeamCoordinator } from "./raster-dem-terrain-seam-coordinator";
+import { loadRasterDemTerrainStages } from "./raster-dem-terrain-stage-loading";
+import {
+  computeRasterDemSelectionInputSignature,
+  getViewportBounds,
+  snapshotRasterDemTerrainSelectionInput,
+} from "./raster-dem-terrain-selection-snapshot";
 import {
   advanceTerrainTileFrontier,
   terrainTileContains,
@@ -110,10 +110,6 @@ const producerAssetUrl =
 
 const DEFAULT_TERRAIN_COLOR = 0xd8d1c4;
 const DEFAULT_ERROR_TARGET_PIXELS = 2.5;
-// Same screen-space raster-spacing metric as final selection, not a certified
-// vertical DEM error bound. Refine the coverage-first cut to 16 px before
-// final-detail work; the very first coverage cut may intentionally be coarser.
-const INITIAL_ERROR_TARGET_PIXELS = 16;
 /** How long the view has to hold still before the configured target is used. */
 const MOTION_SETTLE_MS = 250;
 const DEFAULT_SHADOW_LEVEL_OFFSET = 2;
@@ -310,111 +306,6 @@ const getFiniteHeightRange = (
   return Number.isFinite(minimum) && Number.isFinite(maximum)
     ? [minimum, maximum]
     : null;
-};
-
-const getViewportBounds = (map: MaplibreMap): TerrainTileBounds => {
-  const bounds = map.getBounds();
-  return {
-    west: bounds.getWest(),
-    south: bounds.getSouth(),
-    east: bounds.getEast(),
-    north: bounds.getNorth(),
-  };
-};
-
-const cameraFrustumBounds = (
-  camera: Camera | TileCameraSnapshot,
-  root: Group,
-  origin: MercatorCoordinate,
-  meterScale: number
-): TerrainTileBounds | null => {
-  if (camera instanceof Camera) camera.updateWorldMatrix(true, false);
-  const projection =
-    camera instanceof Camera
-      ? camera.projectionMatrix
-      : new Matrix4().fromArray(camera.projectionMatrix);
-  const world =
-    camera instanceof Camera
-      ? camera.matrixWorld
-      : new Matrix4().fromArray(camera.matrixWorld);
-  const clipToWorld = world.clone().multiply(projection.clone().invert());
-  root.updateMatrixWorld(true);
-  const localFromWorld = new Matrix4().copy(root.matrixWorld).invert();
-  let west = Number.POSITIVE_INFINITY;
-  let south = Number.POSITIVE_INFINITY;
-  let east = Number.NEGATIVE_INFINITY;
-  let north = Number.NEGATIVE_INFINITY;
-  for (const x of [-1, 1]) {
-    for (const y of [-1, 1]) {
-      for (const z of [
-        camera.coordinateSystem === WebGLCoordinateSystem &&
-        !camera.reversedDepth
-          ? -1
-          : 0,
-        1,
-      ]) {
-        const local = new Vector3(x, y, z)
-          .applyMatrix4(clipToWorld)
-          .applyMatrix4(localFromWorld);
-        const lngLat = new MercatorCoordinate(
-          origin.x + local.x * meterScale,
-          origin.y + local.z * meterScale,
-          0
-        ).toLngLat();
-        west = Math.min(west, lngLat.lng);
-        south = Math.min(south, lngLat.lat);
-        east = Math.max(east, lngLat.lng);
-        north = Math.max(north, lngLat.lat);
-      }
-    }
-  }
-  return [west, south, east, north].every(Number.isFinite)
-    ? {
-        west: Math.max(-180, west),
-        south: Math.max(-90, south),
-        east: Math.min(180, east),
-        north: Math.min(90, north),
-      }
-    : null;
-};
-
-type ConcurrentLoadFailure<T> = { value: T; error: unknown };
-
-/**
- * Load every value with bounded concurrency. One failed value does not stop
- * the others: the failures come back with the results so the caller can
- * retry them without losing what did arrive.
- */
-const loadWithConcurrency = async <T, R>(
-  values: readonly T[],
-  concurrency: number,
-  load: (value: T) => Promise<R>,
-  onLoaded?: (value: T, result: R) => void
-): Promise<{
-  results: Array<R | undefined>;
-  failures: ConcurrentLoadFailure<T>[];
-}> => {
-  const results = new Array<R | undefined>(values.length);
-  const failures: ConcurrentLoadFailure<T>[] = [];
-  let cursor = 0;
-  const worker = async () => {
-    while (cursor < values.length) {
-      const index = cursor;
-      cursor += 1;
-      const value = values[index];
-      try {
-        const result = await load(value);
-        results[index] = result;
-        onLoaded?.(value, result);
-      } catch (error) {
-        failures.push({ value, error });
-      }
-    }
-  };
-  await Promise.all(
-    Array.from({ length: Math.min(concurrency, values.length) }, worker)
-  );
-  return { results, failures };
 };
 
 const SELECTION_RETRY_BASE_DELAY_MS = 1_000;
@@ -1186,366 +1077,25 @@ export const buildRasterDemTerrainRuntime = (
     return finest?.sampleHeight?.(longitude, latitude);
   };
 
-  const prepareEqualLevelBoundaries = async (
-    keys: ReadonlySet<string>,
-    current: () => boolean
-  ) => {
-    const records = [...keys].flatMap((key) => {
-      const record = meshes.get(key);
-      return record?.stitchBase && record.reliefMesh ? [{ key, record }] : [];
-    });
-    const byId = new Set(
-      records.map(({ record }) => terrainTileKey(record.id))
-    );
-    const adjacent = records.filter(({ record: { id } }) =>
-      [-1, 0, 1].some((dx) =>
-        [-1, 0, 1].some(
-          (dy) =>
-            (dx || dy) &&
-            byId.has(terrainTileKey({ ...id, x: id.x + dx, y: id.y + dy }))
-        )
-      )
-    );
-    if (!adjacent.length) return;
-    // Bound full-payload preparation in flight. Shells live with the evictable
-    // mesh record and are reused by subsequent small boundary-only jobs.
-    let next = 0;
-    await Promise.all(
-      Array.from({ length: Math.min(4, adjacent.length) }, async () => {
-        while (next < adjacent.length && current()) {
-          const { key, record } = adjacent[next++];
-          if (record.equalLevelShell) continue;
-          const result = await runTerrainWorkerTask(
-            {
-              kind: "stitch",
-              prepareEqualLevelShells: true,
-              inputs: [
-                {
-                  key,
-                  id: record.id,
-                  ...record.stitchBase!,
-                  boundaryEdges: record.boundaryEdges,
-                  boundaryBaseHeights: record.boundaryBaseHeights,
-                },
-              ],
-            },
-            conversionAbort.signal
-          );
-          if (result.kind !== "stitch")
-            throw new Error("Unexpected terrain shell result");
-          record.equalLevelShell = result.shells?.[0];
-        }
-      })
-    );
-    if (!current()) return;
-    const signatures = new Map(
-      adjacent.map(({ key, record }) => [
-        key,
-        records
-          .filter(
-            (other) =>
-              other.record.id.level === record.id.level &&
-              Math.abs(other.record.id.x - record.id.x) <= 1 &&
-              Math.abs(other.record.id.y - record.id.y) <= 1
-          )
-          .map((other) => other.key)
-          .sort()
-          .join(";"),
-      ])
-    );
-    const dirty = adjacent.filter(
-      ({ key, record }) => record.equalLevelSignature !== signatures.get(key)
-    );
-    if (!dirty.length) return;
-    // Two tile rings contain every incident face contribution at target corners.
-    // Neighbour tiles are read-only context; only changed neighbourhoods publish.
-    const inputs = adjacent
-      .filter(({ record }) =>
-        dirty.some(
-          (target) =>
-            target.record.id.level === record.id.level &&
-            Math.abs(target.record.id.x - record.id.x) <= 2 &&
-            Math.abs(target.record.id.y - record.id.y) <= 2
-        )
-      )
-      .flatMap(({ record }) =>
-        record.equalLevelShell ? [record.equalLevelShell] : []
-      );
-    const result = await runTerrainWorkerTask(
-      {
-        kind: "stitch",
-        sameLevelOnly: true,
-        inputs,
-        outputKeys: dirty.map((t) => t.key),
-      },
-      conversionAbort.signal
-    );
-    if (!current()) return;
-    if (result.kind !== "stitch")
-      throw new Error("Unexpected equal-level terrain result");
-    for (const update of result.updates) {
-      const record = meshes.get(update.key);
-      const shell = record?.equalLevelShell,
-        geometry = record?.reliefMesh?.geometry;
-      if (!shell?.sourceIndices || !shell.normalTargets || !geometry) continue;
-      const position = geometry.getAttribute("position") as BufferAttribute;
-      const normal = geometry.getAttribute("normal") as BufferAttribute;
-      // Preserve the immutable native arrays used by later cuts and mixed LOD.
-      if (position.array === record.stitchBase?.positions)
-        position.array = position.array.slice();
-      if (normal.array === record.stitchBase?.normals)
-        normal.array = normal.array.slice();
-      const patch = (
-        attribute: BufferAttribute,
-        values: Float32Array,
-        targets: Iterable<number>
-      ) => {
-        const sorted = [...new Set(targets)].sort(
-          (a, b) => shell.sourceIndices![a] - shell.sourceIndices![b]
-        );
-        let start = -1,
-          end = -1;
-        for (const i of sorted) {
-          const dst = shell.sourceIndices![i] * 3;
-          attribute.array[dst] = values[i * 3];
-          attribute.array[dst + 1] = values[i * 3 + 1];
-          attribute.array[dst + 2] = values[i * 3 + 2];
-          if (dst !== end) {
-            if (start >= 0) attribute.addUpdateRange(start, end - start);
-            start = dst;
-          }
-          end = dst + 3;
-        }
-        if (start >= 0) attribute.addUpdateRange(start, end - start);
-        attribute.needsUpdate = true;
-      };
-      patch(
-        position,
-        update.positions,
-        Object.values(shell.boundaryEdges).flatMap((edge) => [...edge])
-      );
-      patch(normal, update.normals, shell.normalTargets);
-      geometry.boundingBox?.union(
-        new Box3(
-          new Vector3().fromArray(update.box.min),
-          new Vector3().fromArray(update.box.max)
-        )
-      );
-      if (geometry.boundingBox)
-        geometry.boundingSphere = geometry.boundingBox.getBoundingSphere(
-          new Sphere()
-        );
-    }
-    for (const { key, record } of dirty)
-      record.equalLevelSignature = signatures.get(key);
-  };
-
-  let stitchedActiveSignature = "";
-  let stitchedBoundaryState: TerrainBoundaryStitchState = new Map();
-  conversionAbort.signal.addEventListener(
-    "abort",
-    () => {
-      stitchedBoundaryState = new Map();
-    },
-    { once: true }
-  );
-  let pendingStitch: {
-    signature: string;
-    controller: AbortController;
-    result: Promise<{
-      result: TerrainWorkerResult;
-      state: TerrainBoundaryStitchState;
-    }>;
-  } | null = null;
-  const smoothActiveBoundaryNormals = async (
-    activeKeys: ReadonlySet<string>,
-    generation: number,
-    isCurrentPublication: () => boolean
-  ) => {
-    const signature = [...activeKeys].sort().join(";");
-    if (signature === stitchedActiveSignature) {
-      pendingStitch?.controller.abort();
-      pendingStitch = null;
-      return;
-    }
-    if (pendingStitch?.signature !== signature) {
-      // Retain tile preparation across pans, but never queue obsolete seam passes.
-      pendingStitch?.controller.abort();
-      const controller = new AbortController();
-      const abort = () => controller.abort();
-      conversionAbort.signal.addEventListener("abort", abort, { once: true });
-      const inputs = [...activeKeys].flatMap((key) => {
-        const record = meshes.get(key);
-        const geometry = record?.reliefMesh?.geometry;
-        if (!record?.stitchBase || !geometry) return [];
-        return [
-          {
-            key,
-            id: record.id,
-            ...record.stitchBase,
-            boundaryEdges: record.boundaryEdges,
-            boundaryBaseHeights: record.boundaryBaseHeights,
-          },
-        ];
-      });
-      pendingStitch = {
-        signature,
-        controller,
-        result: (async () => {
-          const stitched = await runBatchedTerrainBoundaryStitch(
-            inputs,
-            stitchedBoundaryState,
-            async (batch, stitchOptions) => {
-              const result = await runTerrainWorkerTask(
-                {
-                  kind: "stitch",
-                  inputs: batch,
-                  ...stitchOptions,
-                },
-                controller.signal
-              );
-              if (result.kind !== "stitch")
-                throw new Error("Unexpected terrain stitching result");
-              return result;
-            },
-            {
-              signal: controller.signal,
-              concurrency: getWorkerProbeLimit(
-                typeof navigator === "undefined"
-                  ? 4
-                  : navigator.hardwareConcurrency
-              ),
-              // The general mixed-LOD solver also changes equal-level junction
-              // normals. Publish its whole cut atomically; a subset would undo
-              // equality on one side of a neighbouring same-level seam.
-              forceOutput: true,
-            }
-          );
-          return {
-            result: { kind: "stitch" as const, updates: stitched.updates },
-            state: stitched.state,
-          };
-        })().finally(() =>
-          conversionAbort.signal.removeEventListener("abort", abort)
-        ),
-      };
-    }
-    const job = pendingStitch;
-    let completion: Awaited<typeof job.result>;
-    try {
-      completion = await job.result;
-    } catch (error) {
-      if (job.controller.signal.aborted) return;
-      throw error;
-    } finally {
-      if (pendingStitch === job) pendingStitch = null;
-    }
-    const { result } = completion;
-    if (result.kind !== "stitch")
-      throw new Error("Unexpected terrain stitching result");
-    if (
-      disposed ||
-      job.controller.signal.aborted ||
-      generation !== selectionGeneration ||
-      !isCurrentPublication()
-    )
-      return;
-    for (const update of result.updates) {
-      const record = meshes.get(update.key);
-      if (record) record.equalLevelSignature = undefined;
-      const geometry = meshes.get(update.key)?.reliefMesh?.geometry;
-      if (!geometry) continue;
-      const position = geometry.getAttribute("position") as BufferAttribute;
-      const normal = geometry.getAttribute("normal") as BufferAttribute;
-      const index = geometry.getIndex();
-      const sameLayout =
-        position.array.length === update.positions.length &&
-        normal.array.length === update.normals.length &&
-        index?.array.length === update.indices.length &&
-        index.array.constructor === update.indices.constructor;
-      if (sameLayout) {
-        // Keep Three's GPU buffer handles. Worker results own these arrays, so
-        // replacing CPU storage needs no extra copy or allocation on this thread.
-        position.array = update.positions;
-        normal.array = update.normals;
-        index.array = update.indices;
-        position.clearUpdateRanges();
-        normal.clearUpdateRanges();
-        index.clearUpdateRanges();
-        position.needsUpdate = normal.needsUpdate = index.needsUpdate = true;
-      } else {
-        // setAttribute alone drops the old handles without deleting their GL
-        // buffers. Dispose BEFORE changing topology; Three reuploads on demand.
-        geometry.dispose();
-        geometry.setAttribute(
-          "position",
-          new BufferAttribute(update.positions, 3)
-        );
-        geometry.setAttribute("normal", new BufferAttribute(update.normals, 3));
-        geometry.setIndex(new BufferAttribute(update.indices, 1));
-      }
-      geometry.boundingBox = new Box3(
-        new Vector3().fromArray(update.box.min),
-        new Vector3().fromArray(update.box.max)
-      );
-      geometry.boundingSphere = new Sphere(
-        new Vector3().fromArray(update.sphere.center),
-        update.sphere.radius
-      );
-    }
-
-    stitchedBoundaryState = completion.state;
-    stitchedActiveSignature = signature;
-  };
-
-  let idleStitchTimer: ReturnType<typeof setTimeout> | null = null;
-  const cancelIdleStitch = () => {
-    if (idleStitchTimer !== null) clearTimeout(idleStitchTimer);
-    idleStitchTimer = null;
-    pendingStitch?.controller.abort();
-    pendingStitch = null;
-  };
-  const scheduleIdleStitch = () => {
-    cancelIdleStitch();
-    if (disposed) return;
-    idleStitchTimer = setTimeout(() => {
-      idleStitchTimer = null;
-      if (disposed) return;
-      if (
-        terrainLoading ||
-        selectionRequestPending ||
-        pendingMeshes.size ||
-        map?.isMoving?.()
-      ) {
-        scheduleIdleStitch();
-        return;
-      }
-      const keys = activeMeshKeys;
-      // Same-LOD terrain keeps its native edges; only mixed-LOD transitions
-      // justify optional geometry work. Detail loading always has priority.
-      const levels = new Set([...keys].map((key) => meshes.get(key)?.id.level));
-      if (levels.size < 2) return;
-      const generation = selectionGeneration;
-      const current = () =>
-        !disposed &&
-        generation === selectionGeneration &&
-        keys === activeMeshKeys;
-      void smoothActiveBoundaryNormals(keys, generation, current)
-        .then(() => {
-          if (!current()) return;
-          contentChangedSinceFrame = true;
-          mapStyleProjectionVersion += 1;
-          map?.triggerRepaint();
-        })
-        .catch((error) => {
-          // Optional seam refinement must never revoke published coverage or
-          // restart foreground downloads. A later settled cut can try again.
-          if (current()) options.onError?.(error);
-        });
-    }, 500);
-  };
-
   let activeMeshKeys: ReadonlySet<string> = new Set();
+  const { cancelIdleStitch, scheduleIdleStitch, abortPendingStitch } =
+    createRasterDemTerrainSeamCoordinator({
+      meshes,
+      signal: conversionAbort.signal,
+      getActiveMeshKeys: () => activeMeshKeys,
+      getSelectionGeneration: () => selectionGeneration,
+      isDisposed: () => disposed,
+      isLoading: () => terrainLoading,
+      isSelectionPending: () => selectionRequestPending,
+      hasPendingMeshes: () => pendingMeshes.size > 0,
+      isMapMoving: () => map?.isMoving?.(),
+      onChanged: () => {
+        contentChangedSinceFrame = true;
+        mapStyleProjectionVersion += 1;
+        map?.triggerRepaint();
+      },
+      onError: options.onError,
+    });
   let shadowDependencies: readonly { key: string; bounds: Box3 }[] = [];
   const terrainBoundsCorner = new Vector3();
 
@@ -1937,158 +1487,35 @@ export const buildRasterDemTerrainRuntime = (
     }
   };
 
-  const buildSelection = (
-    terrainSource: RasterDemTerrainTileSource,
-    frame: SharedThreeSceneFrame
-  ): TerrainSelection => {
-    return buildTerrainSelection(snapshotSelectionInput(terrainSource, frame), {
-      getTileGridIdsForBounds: terrainSource.getTileGridIdsForBounds,
-      getTileBounds: terrainSource.getTileBounds,
-      getTileGeometricError: terrainSource.getLevelMaximumGeometricError,
-      getTileDataAvailable: terrainSource.getTileDataAvailable,
-    });
-  };
-
-  const computeSelectionInputSignature = (
-    frame: SharedThreeSceneFrame
-  ): string => {
-    const center = map?.getCenter?.();
-    const lodViewport = frame.cssViewport ?? frame.viewport;
-    // Evaluate changed matrices, including free cameras and terrain-aware
-    // near/far changes. Equal resolved tile cuts keep their load generation and
-    // overlapping requests; matrix jitter must not restart their preparation.
-    const viewSignature = center
-      ? [
-          quantize(center.lng, 0.0000001),
-          quantize(center.lat, 0.0000001),
-          quantize(map?.getZoom?.() ?? 0, 0.0001),
-          quantize(map?.getBearing?.() ?? 0, 0.001),
-          quantize(map?.getPitch?.() ?? 0, 0.001),
-        ]
-      : [
-          quantize(frame.lodCamera.position.x, 5),
-          quantize(frame.lodCamera.position.y, 5),
-          quantize(frame.lodCamera.position.z, 5),
-          quantize(frame.lodCamera.quaternion.x, 0.005),
-          quantize(frame.lodCamera.quaternion.y, 0.005),
-          quantize(frame.lodCamera.quaternion.z, 0.005),
-          quantize(frame.lodCamera.quaternion.w, 0.005),
-        ];
-    return [
-      ...viewSignature,
-      errorTargetPixels,
-      ...frame.renderCamera.projectionMatrix.elements,
-      ...frame.renderCamera.matrixWorld.elements,
-      ...frame.lodCamera.projectionMatrix.elements,
-      ...frame.lodCamera.position.toArray(),
-      `${lodViewport.x}x${lodViewport.y}`,
-      selectionShadowViewSignature,
-      tileCameraSignature,
-    ].join(";");
-  };
-
-  const snapshotSelectionInput = (
-    terrainSource: RasterDemTerrainTileSource,
-    frame: SharedThreeSceneFrame
-  ): TerrainSelectionInput => {
-    const lodViewport = frame.cssViewport ?? frame.viewport;
-    frame.renderCamera.updateMatrixWorld(true);
-    root.updateWorldMatrix(true, false);
-    shadowView?.camera.updateMatrixWorld(true);
-    const snapshotCamera = (camera: Camera) => ({
-      projectionMatrix: [...camera.projectionMatrix.elements],
-      matrixWorldInverse: [...camera.matrixWorldInverse.elements],
-      matrixWorld: [...camera.matrixWorld.elements],
-      coordinateSystem: camera.coordinateSystem,
-      reversedDepth: camera.reversedDepth,
-      isOrthographicCamera:
-        (camera as Camera & { isOrthographicCamera?: boolean })
-          .isOrthographicCamera ?? false,
-      position: [camera.position.x, camera.position.y, camera.position.z] as [
-        number,
-        number,
-        number
-      ],
-      fov: (camera as Camera & { fov?: number }).fov ?? 0,
-    });
-    const bounds = getViewportBounds(frame.map);
-    const shadowBounds = shadowView
-      ? cameraFrustumBounds(shadowView.camera, root, origin, meterScale)
-      : null;
-    const knownHeightRanges: Record<string, readonly [number, number]> =
-      heightMetadata.snapshot();
-    for (const [key, record] of meshes) {
-      if (key.startsWith("source:")) {
-        const tileKey = terrainTileKey(record.id);
-        const known = knownHeightRanges[tileKey];
-        knownHeightRanges[tileKey] = [
-          Math.min(known?.[0] ?? Infinity, record.minimumHeightMeters),
-          Math.max(known?.[1] ?? -Infinity, record.maximumHeightMeters),
-        ];
-      }
-    }
-    return {
-      viewportBounds: bounds,
-      viewport: [lodViewport.x, lodViewport.y],
-      viewportFocusNdc: [
-        -frame.lodCamera.projectionMatrix.elements[8],
-        -frame.lodCamera.projectionMatrix.elements[9],
-      ],
-      // Projection/frustum comes from the render camera; screen-space error
-      // uses the separate perspective LOD camera, just like the inline walk.
-      renderCamera: {
-        ...snapshotCamera(frame.renderCamera),
-        fov: frame.lodCamera.fov,
-      },
-      lodCameraPosition: [
-        frame.lodCamera.position.x,
-        frame.lodCamera.position.y,
-        frame.lodCamera.position.z,
-      ],
-      rootMatrixWorld: [...root.matrixWorld.elements],
-      origin: [origin.x, origin.y, origin.z],
+  const snapshotSelectionInput = (frame: SharedThreeSceneFrame) =>
+    snapshotRasterDemTerrainSelectionInput(frame, {
+      terrainSourceConfig,
+      root,
+      shadowView,
+      origin,
       meterScale,
-      boundsPaddingMeters: [
-        boundsPaddingMeters.x,
-        boundsPaddingMeters.y,
-        boundsPaddingMeters.z,
-      ],
-      cameraViews: (frame.tileCameraViews ?? []).flatMap((view) => {
-        const bounds = cameraFrustumBounds(view, root, origin, meterScale);
-        return bounds ? [{ ...view, bounds }] : [];
-      }),
-      shadow:
-        shadowView && shadowBounds
-          ? {
-              camera: snapshotCamera(shadowView.camera),
-              casterAngularRadiusRadians: shadowView.casterAngularRadiusRadians,
-              shadowMapSize: [
-                shadowView.shadowMapSize.width,
-                shadowView.shadowMapSize.height,
-              ],
-              bounds: shadowBounds,
-            }
-          : undefined,
-      source: {
-        bounds: {
-          west: terrainSourceConfig.bounds[0],
-          south: terrainSourceConfig.bounds[1],
-          east: terrainSourceConfig.bounds[2],
-          north: terrainSourceConfig.bounds[3],
-        },
-        minzoom: terrainSourceConfig.minzoom,
-        maxzoom: terrainSourceConfig.maxzoom,
-        meshSegments,
-      },
-      knownHeightRanges,
-      unknownHeightRange: unknownTerrainHeightRange,
+      snapshotKnownHeightRanges: heightMetadata.snapshot,
+      meshes,
+      boundsPaddingMeters,
+      unknownTerrainHeightRange,
       errorTargetPixels: effectiveErrorTargetPixels(),
       shadowLevelOffset,
       minimumLevel,
       maximumLevel,
       maxSelectionTiles,
-      initialErrorTargetPixels: INITIAL_ERROR_TARGET_PIXELS,
-    };
+      meshSegments,
+    });
+
+  const buildSelection = (
+    terrainSource: RasterDemTerrainTileSource,
+    frame: SharedThreeSceneFrame
+  ): TerrainSelection => {
+    return buildTerrainSelection(snapshotSelectionInput(frame), {
+      getTileGridIdsForBounds: terrainSource.getTileGridIdsForBounds,
+      getTileBounds: terrainSource.getTileBounds,
+      getTileGeometricError: terrainSource.getLevelMaximumGeometricError,
+      getTileDataAvailable: terrainSource.getTileDataAvailable,
+    });
   };
 
   const loadSelection = (
@@ -2229,9 +1656,11 @@ export const buildRasterDemTerrainRuntime = (
       cancelIdleStitch();
       // Keep the complete previous cut while the new border bands are prepared.
       // Commit shared vertices and normals in one turn before retiring parents.
-      await prepareEqualLevelBoundaries(
+      await prepareEqualLevelTerrainBoundaries(
+        meshes,
         activeKeys,
-        () => current() && !needsCoverageReplan()
+        () => current() && !needsCoverageReplan(),
+        conversionAbort.signal
       );
       if (!current()) return;
       if (needsCoverageReplan()) {
@@ -2370,48 +1799,17 @@ export const buildRasterDemTerrainRuntime = (
       )
         cancelMeshRequest(key, job.controller);
     }
-    let completedEntries = 0;
-    publishInBackground();
-    void (async () => {
-      const failures: ConcurrentLoadFailure<TerrainSelectionEntry>[] = [];
-      for (const stage of loadStages) {
-        if (!current()) break;
-        if (stage.length === 0) continue;
-        const loaded = await loadWithConcurrency(
-          stage,
-          Math.max(
-            1,
-            payloadAwareConcurrency.getConcurrency(requestConcurrency)
-          ),
-          async (entry) => {
-            if (!current()) throw new Error("Stale terrain selection");
-            try {
-              return await prepareMesh(terrainSource, entry);
-            } finally {
-              // Reserve one unit for the final stitched/publication pass.
-              if (current())
-                setTerrainLoading(
-                  true,
-                  ++completedEntries / (scheduledKeys.size + 1)
-                );
-            }
-          },
-          () => {
-            if (current()) publishInBackground();
-          }
-        );
-        failures.push(
-          ...loaded.failures.filter(
-            ({ error }) =>
-              !(error instanceof Error && error.name === "AbortError")
-          )
-        );
-        // Publish first coverage before finer work, yielding to input/painting.
-        // This waits only for the cut, never for optional seam refinement.
-        if (current()) await requestPublication();
-      }
-      return { failures };
-    })()
+    void loadRasterDemTerrainStages({
+      stages: loadStages,
+      scheduledCount: scheduledKeys.size,
+      current,
+      concurrency: () =>
+        Math.max(1, payloadAwareConcurrency.getConcurrency(requestConcurrency)),
+      prepareEntry: (entry) => prepareMesh(terrainSource, entry),
+      setProgress: (fraction) => setTerrainLoading(true, fraction),
+      publishInBackground,
+      requestPublication,
+    })
       .then(async ({ failures }) => {
         if (!current()) return;
         let transientFailure: unknown = null;
@@ -2516,7 +1914,7 @@ export const buildRasterDemTerrainRuntime = (
     // never overwrite geometry now owned by the replacement source runtime.
     invalidateIdlePrefetch();
     selectionGeneration += 1;
-    pendingStitch?.controller.abort();
+    abortPendingStitch();
     for (const key of activeMeshKeys) {
       const record = meshes.get(key);
       if (!record) continue;
@@ -3302,7 +2700,13 @@ export const buildRasterDemTerrainRuntime = (
         options.onContentChanged?.(changedBounds);
       }
       if (selectionGeneration === 0) syncSelectionShadowView();
-      const inputSignature = computeSelectionInputSignature(frame);
+      const inputSignature = computeRasterDemSelectionInputSignature(
+        frame,
+        map,
+        errorTargetPixels,
+        selectionShadowViewSignature,
+        tileCameraSignature
+      );
       if (inputSignature === selectionInputSignature) return;
       invalidateIdlePrefetch();
       selectionInputSignature = inputSignature;
@@ -3325,7 +2729,7 @@ export const buildRasterDemTerrainRuntime = (
         }
         return;
       }
-      const input = snapshotSelectionInput(source, frame);
+      const input = snapshotSelectionInput(frame);
       // Selection can remain superseded throughout continuous movement. This
       // bounded pending-only pass cancels proven offscreen work on every change;
       // exact LOD/corridor refinement stays in the worker, never in this loop.

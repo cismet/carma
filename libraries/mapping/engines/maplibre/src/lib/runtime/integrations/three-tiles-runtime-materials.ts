@@ -116,7 +116,7 @@ export function createThreeTilesMaterialManagement(
       material.toneMapped = basic.toneMapped;
       material.visible = basic.visible;
       material.userData = { ...basic.userData };
-      // Decision MESH-CONTACT-BIAS-20260908 (shadow-simulation/three/
+      // Decision MESH-CONTACT-BIAS (shadow-simulation/three/
       // TILED_SHADOW_PAGES.md): real geometry normals keep sun-away facades dark
       // up to their silhouette; a constant up-normal creates false bright rims.
       delete material.userData.__projPatched;
@@ -269,7 +269,7 @@ export function createThreeTilesMaterialManagement(
       }
       const mesh = object as THREE.Mesh;
       if (!mesh.isMesh) return;
-      // Decision: MESH-SHADOW-FRUSTUM-20260910 in engines/maplibre/README.md.
+      // Decision: README.md#linked-receivercaster-detail.
       // Three tests the observer AND each light's own frustum independently;
       // an offscreen chimney remains a caster when it intersects the light.
       // Disabling this submits the whole loaded city for every solar sample.

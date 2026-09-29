@@ -3,7 +3,7 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { MapLibreThreeReferenceSurfacesDemo } from "./MapLibreThreeReferenceSurfacesDemo";
 import { REFERENCE_SURFACE_DEFAULTS } from "./reference-surface-defaults";
 import { MESH_LONG_AXIS_ENDPOINTS } from "./mesh-mount-presets";
-import { TERRAIN_GEOMETRY_MODE } from "./maplibre-three-reference-surfaces";
+import { TERRAIN_GEOMETRY_MODE } from "./reference-surface-types";
 
 const MeshTelelens = (args: {
   eyeHeight: number;

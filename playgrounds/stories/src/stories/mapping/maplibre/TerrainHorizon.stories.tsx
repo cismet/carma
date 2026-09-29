@@ -7,12 +7,12 @@ import {
 } from "@carma-commons/resources";
 import { MapLibreThreeReferenceSurfacesDemo } from "./MapLibreThreeReferenceSurfacesDemo";
 import { REFERENCE_SURFACE_DEFAULTS } from "./reference-surface-defaults";
+import { REFERENCE_ATMOSPHERE_MODE } from "./reference-atmosphere-shader";
+import { REFERENCE_CAMERA_PRESET } from "./reference-camera-presets";
 import {
-  REFERENCE_ATMOSPHERE_MODE,
-  REFERENCE_CAMERA_PRESET,
   TERRAIN_GEOMETRY_MODE,
   TERRAIN_HEIGHT_DATUM,
-} from "./maplibre-three-reference-surfaces";
+} from "./reference-surface-types";
 
 type HorizonArgs = {
   view: "planar" | "spherical" | "ellipsoidal";

@@ -257,12 +257,9 @@ export {
   type CameraFlightPath,
 } from "./lib/core/camera-flight-path";
 export { sampleCameraPathGroundHeights } from "./lib/runtime/integrations/camera-flight-terrain";
-export {
-  createCylinderCameraRig,
-  createSpineCameraRig,
-  sampleSpine,
-  type CameraRigView,
-} from "./lib/core/multi-camera-rig";
+export { createCylinderCameraRig } from "./lib/core/cylinder-camera-rig";
+export { createSpineCameraRig, sampleSpine } from "./lib/core/spine-camera-rig";
+export { type CameraRigView } from "./lib/core/camera-rig-contract";
 export { createSharedSceneCameraStrip } from "./lib/runtime/integrations/shared-scene-camera-strip";
 export {
   createSharedScenePointLights,
@@ -337,10 +334,9 @@ export { buildThreeTilesRuntime } from "./lib/runtime/integrations/three-tiles-r
 export {
   TILES_ERROR_TARGET_DEFAULT_PIXELS,
   TILES_MESH_ERROR_TARGET_DEFAULT_PIXELS,
-  TILES_MESH_NETWORK_PROFILES,
+  TILES_MESH_QUALITY_PROFILES,
   TILES_ERROR_TARGET_MAX_PIXELS,
   TILES_ERROR_TARGET_MIN_PIXELS,
-  TILES3D_STYLE_VERSION,
   TILESET_MIN_RESOLUTION_DEFAULT_PX,
 } from "./lib/runtime/integrations/three-tiles-runtime-config";
 export type {
@@ -381,7 +377,7 @@ export type {
   OverlayRect as TileDiagnosticRect,
   OverlayModel as TileDiagnosticModel,
 } from "./lib/core/diagnostics/tile-diagnostic-model";
-export { formatTileResidentBytes } from "./lib/core/diagnostics/tile-diagnostic-scene";
+export { formatTileResidentBytes } from "./lib/core/diagnostics/tile-diagnostic-labels";
 export type { DiagnosticView as TileDiagnosticView } from "./lib/core/diagnostics/tile-diagnostic-scene";
 export type { TileDiagnosticOverlayInput } from "./lib/runtime/diagnostics/tile-diagnostic-overlay";
 export type {

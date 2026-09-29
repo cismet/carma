@@ -3,6 +3,7 @@ export * from "./validators";
 export {
   geographicBoundsContain,
   geographicBoundsIntersect,
+  intersectUnwrappedGeographicBounds,
   getGeographicRingBounds,
   padGeographicBounds,
   unionGeographicBounds,

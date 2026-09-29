@@ -179,52 +179,32 @@ describe("current-camera screen error before native traversal", () => {
     }
   });
 
-  it.each([false, true])(
-    "refreshes retained coverage proofs after content and traversal changes (caster=%s)",
-    (caster) => {
-      const { state, tiles, camera, receiver, spatial } = fixture();
-      const child: RuntimeTile = {
-        ...receiver,
-        parent: receiver,
-        refine: "REPLACE",
-        internal: { ...receiver.internal, loadingState: 0 },
-      };
-      receiver.refine = "REPLACE";
-      receiver.children = [child];
-      const frontier = caster
-        ? state.committedMeshCasterFrontier
-        : state.displayedMeshFrontier;
-      frontier.add(child);
-      if (caster) {
-        state.displayedMeshFrontier.add(receiver);
-        state.pendingMeshReceiverFrontier = new Set([receiver]);
-        state.shadowReceiverMask = {
-          sourceCount: 1,
-          match: (_bounds, target) => {
-            target.receiverGeometricError = 2;
-            return true;
-          },
-        };
-      }
-      try {
-        spatial.prepareViewFrustums(camera);
-        expect(spatial.isTileNeededForMeshCoverage(receiver)).toBe(true);
-        child.internal.loadingState = 4;
-        state.meshContentRevision++;
-        expect(spatial.isTileNeededForMeshCoverage(receiver)).toBe(false);
-        child.internal.loadingState = 0;
-        tiles.frameCount++;
-        expect(spatial.isTileNeededForMeshCoverage(receiver)).toBe(true);
-        expect(
-          caster
-            ? state.committedMeshCasterFrontier
-            : state.displayedMeshFrontier
-        ).toBe(frontier);
-      } finally {
-        tiles.dispose();
-      }
+  it("refreshes retained coverage proofs after content and traversal changes", () => {
+    const { state, tiles, camera, receiver, spatial } = fixture();
+    const child: RuntimeTile = {
+      ...receiver,
+      parent: receiver,
+      refine: "REPLACE",
+      internal: { ...receiver.internal, loadingState: 0 },
+    };
+    receiver.refine = "REPLACE";
+    receiver.children = [child];
+    const frontier = state.displayedMeshFrontier;
+    frontier.add(child);
+    try {
+      spatial.prepareViewFrustums(camera);
+      expect(spatial.isTileNeededForMeshCoverage(receiver)).toBe(true);
+      child.internal.loadingState = 4;
+      state.meshContentRevision++;
+      expect(spatial.isTileNeededForMeshCoverage(receiver)).toBe(false);
+      child.internal.loadingState = 0;
+      tiles.frameCount++;
+      expect(spatial.isTileNeededForMeshCoverage(receiver)).toBe(true);
+      expect(state.displayedMeshFrontier).toBe(frontier);
+    } finally {
+      tiles.dispose();
     }
-  );
+  });
 
   it("values each independent child by absolute visible error reduction and its area", () => {
     const { state, tiles, camera, receiver, spatial } = fixture();
@@ -259,13 +239,6 @@ describe("current-camera screen error before native traversal", () => {
         16,
         new Box3(new Vector3(-0.01, -0.01, -1), new Vector3(0.01, 0.01, 1))
       );
-      const fringe = member(
-        8,
-        new Box3(new Vector3(-8, -1, -1), new Vector3(-7, 1, 1))
-      );
-      fringe.parent = coarse.parent;
-      coarse.parent.children.push(fringe);
-      state.meshRefinementSupport.add(fringe);
       const setView = () => {
         state.tileCameraDemand = createTileCameraDemand(
           snapshotTileCameraViews([
@@ -294,12 +267,11 @@ describe("current-camera screen error before native traversal", () => {
       expect(spatial.getTileRequestPriority(missing)).toBe(
         TILE_CAMERA_PRIORITY.VIEWPORT_FILL
       );
-      const candidates = [coarse.child, fine.child, small.child, fringe];
+      const candidates = [coarse.child, fine.child, small.child];
       expect(candidates.map(spatial.getTileRequestPriority)).toEqual([
         1,
         1,
         1,
-        Number.NEGATIVE_INFINITY,
       ]);
       expect(coarse.child.meshRefinement!.benefit).toBeGreaterThan(
         fine.child.meshRefinement!.benefit
@@ -307,9 +279,6 @@ describe("current-camera screen error before native traversal", () => {
       expect(fine.child.meshRefinement!.benefit).toBeGreaterThan(
         small.child.meshRefinement!.benefit
       );
-      // An old support marker cannot give an off-frustum sibling the
-      // visible parent's refinement priority or screen-space benefit.
-      expect(fringe.meshRefinement).toBeUndefined();
       spatial.getTileRequestPriority(coarse.parent);
       expect(coarse.parent.meshRefinement!.group).toBe(coarse.parent);
       const lookahead = member(4);

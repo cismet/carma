@@ -6,10 +6,10 @@ import {
 } from "./terrain-equal-level-boundaries";
 import {
   stitchTerrainBoundaries,
-  runBatchedTerrainBoundaryStitch,
   executeTerrainBoundaryStitch,
   type TerrainStitchInput,
 } from "./terrain-boundary-stitch";
+import { runBatchedTerrainBoundaryStitch } from "./terrain-boundary-stitch-batching";
 
 const grid = (x: number, y: number, size = 9): TerrainStitchInput => {
   const positions = new Float32Array(size * size * 3);

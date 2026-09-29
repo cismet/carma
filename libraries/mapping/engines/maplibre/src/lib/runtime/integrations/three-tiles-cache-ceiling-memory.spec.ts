@@ -7,7 +7,6 @@ import {
   learnCacheCeiling,
   readCacheCeilingMemory,
   recordCacheCeilingPeak,
-  normalizeCacheCeilingMemory,
   startCacheCeilingSession,
   writeCacheCeilingMemory,
 } from "./three-tiles-cache-ceiling-memory";
@@ -87,30 +86,10 @@ describe("cache ceiling memory", () => {
       400 * MIB
     );
     writeCacheCeilingMemory(storage, active);
-    const second = normalizeCacheCeilingMemory(readCacheCeilingMemory(storage));
+    const second = readCacheCeilingMemory(storage);
     expect(second.learnedBytes).toBeNull();
     expect(second.probe).toBeNull();
     expect(active.probe?.peakBytes).toBe(400 * MIB);
-    const explicit = learnCacheCeiling(active, 2 * GIB, "allocation");
-    expect(normalizeCacheCeilingMemory(explicit)).toBe(explicit);
-  });
-
-  it("migrates legacy inferred limits without dropping confirmed failure limits", () => {
-    const legacy = learnCacheCeiling(
-      EMPTY_CACHE_CEILING_MEMORY,
-      200 * MIB,
-      "unhealthy-session"
-    );
-    expect(normalizeCacheCeilingMemory(legacy)).toMatchObject({
-      learnedBytes: null,
-      reason: null,
-    });
-    const confirmed = learnCacheCeiling(
-      EMPTY_CACHE_CEILING_MEMORY,
-      200 * MIB,
-      "context-lost"
-    );
-    expect(normalizeCacheCeilingMemory(confirmed)).toBe(confirmed);
   });
 
   it("does not let an older live bundle overwrite a newer bundle's failure limit", () => {
@@ -164,7 +143,7 @@ describe("cache ceiling memory", () => {
     ).not.toBe(cacheCeilingBuildId("https://app.test/assets/runtime-abc.js"));
     storage.setItem(
       cacheCeilingStorageKey(),
-      JSON.stringify({ ...memory, version: 1 })
+      JSON.stringify({ ...memory, version: "unsupported" })
     );
     expect(readCacheCeilingMemory(storage).learnedBytes).toBeNull();
   });

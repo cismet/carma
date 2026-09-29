@@ -32,7 +32,7 @@ type NativeRenderer = RuntimeTilesRenderer & {
 };
 
 /** Retains native geometry/RTC/metadata; only opaque material creation is deferred.
- * Decision: TILE-OFFSCREEN-TEXTURES-20260909 in engines/maplibre/README.md.
+ * Decision: TILES_COVERAGE.md#visible-receiver-corridors.
  */
 export class TilesetDeferredMaterialsPlugin {
   readonly name = "CARMA_DEFERRED_TILE_MATERIALS";

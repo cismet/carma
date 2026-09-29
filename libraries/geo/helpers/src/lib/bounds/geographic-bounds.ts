@@ -5,6 +5,7 @@ export type GeographicBounds = Readonly<{
   north: number;
 }>;
 
+/** Inclusive overlap in a shared unwrapped longitude frame; no wrap handling. */
 export const geographicBoundsIntersect = (
   left: GeographicBounds,
   right: GeographicBounds
@@ -14,6 +15,7 @@ export const geographicBoundsIntersect = (
   left.south <= right.north &&
   left.north >= right.south;
 
+/** Containment in a shared unwrapped longitude frame; no wrap handling. */
 export const geographicBoundsContain = (
   outer: GeographicBounds,
   inner: GeographicBounds
@@ -23,6 +25,7 @@ export const geographicBoundsContain = (
   outer.east >= inner.east &&
   outer.north >= inner.north;
 
+/** Linear envelope; callers must unwrap ring longitudes consistently first. */
 export const getGeographicRingBounds = (
   ring: readonly (readonly [number, number])[]
 ): GeographicBounds => {
@@ -39,6 +42,7 @@ export const getGeographicRingBounds = (
   return { west, south, east, north };
 };
 
+/** Pad an unwrapped interval without normalizing its longitude frame. */
 export const padGeographicBounds = <T extends GeographicBounds>(
   bounds: T,
   factor: number
@@ -53,6 +57,7 @@ export const padGeographicBounds = <T extends GeographicBounds>(
   };
 };
 
+/** Linear envelope in a shared longitude frame, not a shortest circular union. */
 export const unionGeographicBounds = (
   left: GeographicBounds,
   right: GeographicBounds

@@ -9,7 +9,7 @@ export const TILE_MEMORY_ALLOCATION_ERROR =
   /out of memory|allocation failed|failed to allocate|cannot allocate memory/i;
 
 /**
- * Decision: TILES_COVERAGE.md#resident-cache-ceiling-policy-2026-09-18.
+ * Decision: TILES_COVERAGE.md#resident-cache-ceiling-policy.
  * Desktops start optimistically at 6 GiB (scaled down only when the browser
  * reports little memory); phones and tablets have hard caps that no consumer
  * budget can raise. Healthy, occupied desktop grants grow in bounded steps;

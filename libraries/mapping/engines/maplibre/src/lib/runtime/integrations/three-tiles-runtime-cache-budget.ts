@@ -4,7 +4,6 @@ import {
   EMPTY_CACHE_CEILING_MEMORY,
   endCacheCeilingSession as endCacheCeilingSessionMemory,
   learnCacheCeiling,
-  normalizeCacheCeilingMemory,
   readCacheCeilingMemory,
   recordCacheCeilingPeak,
   writeCacheCeilingMemory,
@@ -310,9 +309,7 @@ export function createThreeTilesCacheBudget(
       if (runtimeState.contextLost) contextLossLearned = true;
       const lesson = learnCacheCeiling(
         runtimeState.cacheCeilingStorage
-          ? normalizeCacheCeilingMemory(
-              readCacheCeilingMemory(runtimeState.cacheCeilingStorage)
-            )
+          ? readCacheCeilingMemory(runtimeState.cacheCeilingStorage)
           : runtimeState.cacheCeilingMemory ?? EMPTY_CACHE_CEILING_MEMORY,
         runtimeState.ceilingBytes * CACHE_CEILING_FAILURE_FRACTION,
         reason
@@ -343,9 +340,7 @@ export function createThreeTilesCacheBudget(
     () => {
       if (!runtimeState.cacheCeilingMemory) return;
       const shared = runtimeState.cacheCeilingStorage
-        ? normalizeCacheCeilingMemory(
-            readCacheCeilingMemory(runtimeState.cacheCeilingStorage)
-          )
+        ? readCacheCeilingMemory(runtimeState.cacheCeilingStorage)
         : runtimeState.cacheCeilingMemory;
       // A run under an older limit cannot recover a newer failure lesson.
       if (shared.learnedBytes !== runtimeState.learnedCeilingBytes) return;

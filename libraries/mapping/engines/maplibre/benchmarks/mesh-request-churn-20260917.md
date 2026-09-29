@@ -1,6 +1,6 @@
 # Cancel/re-request churn between publication support and the settled-demand sweep
 
-**ID:** MESH-SUPPORT-RETENTION-20260917
+**ID:** MESH-SUPPORT-RETENTION
 **Status:** measured diagnosis; fix implemented (`isRequiredMeshTile` honours
 `meshRefinementSupport`); unit-tested; runtime re-measurement outstanding.
 

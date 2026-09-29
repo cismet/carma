@@ -6,13 +6,17 @@ import type { SharedThreeSceneRuntime } from "@carma-mapping/engines/maplibre";
 import * as THREE from "three";
 import {
   TERRAIN_HEIGHT_DATUM,
-  projectGeodeticToScene,
-  sampleGcg2016Field,
-  type Gcg2016ShaderField,
-  type ReferenceFrame,
   type TerrainGeometryMode,
   type TerrainHeightDatum,
-} from "./maplibre-three-reference-surfaces";
+} from "./reference-surface-types";
+import {
+  projectGeodeticToScene,
+  type ReferenceFrame,
+} from "./reference-surface-frame";
+import {
+  sampleGcg2016Field,
+  type Gcg2016ShaderField,
+} from "./reference-gcg2016-field";
 
 /** Render adapter only: all authored model parts, anchors and evidence are resources. */
 export const createReferenceLandmarks = (

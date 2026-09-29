@@ -256,8 +256,7 @@ export function createMeshCameraObjectives(state: CameraObjectiveState) {
     if (viewCount > 0) {
       if (needsDrawableCoverage) {
         // Load the first drawable approximation before traversing to detail.
-        // A different camera's refinement must not replace a pending receiver
-        // while that receiver still waits for coarse external caster coverage.
+        // Load the first drawable approximation before other-camera detail.
         refinementErrorRatio = Math.min(refinementErrorRatio, 1);
       } else if (
         exhaustedReplacement ||

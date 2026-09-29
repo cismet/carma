@@ -17,7 +17,6 @@ import {
 } from "../../core/tile-scheduling-policy";
 import { readOrientedTileBounds } from "./three-tiles-bounds";
 
-import { meshTileAncestors } from "../../core/mesh-tile-coverage";
 import { TILES_LOAD_POLICY } from "../../core/tile-load-config";
 import {
   isTileCoveragePrerequisite,
@@ -71,7 +70,6 @@ export function createThreeTilesCascade(
     | "retainedShadowRequests"
     | "shadowCasterRequests"
     | "shadowReceiverMask"
-    | "pendingMeshReceiverFrontier"
     | "shadowSelectionEnabled"
     | "ringRefinePasses"
     | "lastRingRefineAt"
@@ -121,18 +119,9 @@ export function createThreeTilesCascade(
       ? casterMatch.receiverGeometricError
       : null;
   };
-  let pendingReceiverCut: ReadonlySet<Tile> | null | undefined;
-  const receiverReplacementAncestors = new Set<Tile>();
   const getTileRequestNeed = (tile: Tile) => {
     if (runtimeState.shadowView && runtimeState.shadowCasterRequests.has(tile))
       return TILE_REQUEST_NEED.SHADOW;
-    if (pendingReceiverCut !== runtimeState.pendingMeshReceiverFrontier) {
-      pendingReceiverCut = runtimeState.pendingMeshReceiverFrontier;
-      receiverReplacementAncestors.clear();
-      for (const receiver of pendingReceiverCut ?? [])
-        for (const parent of meshTileAncestors(receiver))
-          receiverReplacementAncestors.add(parent);
-    }
     const runtimeTile = tile as RuntimeTile;
     return resolveTileRequestNeed(tile, {
       coverageRecovery: runtimeState.meshCoverageRecovery,
@@ -163,7 +152,6 @@ export function createThreeTilesCascade(
         runtimeState.map?.isMoving?.() !== true &&
         runtimeState.retainedShadowRequests.has(tile),
       refinementSupport: runtimeState.meshRefinementSupport,
-      receiverReplacementAncestors,
       residentAncestors: runtimeState.residentAncestors,
       visibleTiles: runtimeState.tiles?.visibleTiles ?? new Set(),
       coverageNeeded: dependencies.isTileNeededForMeshCoverage,
@@ -205,11 +193,7 @@ export function createThreeTilesCascade(
             resolveTileRequestAdmission({
               needed: isTileRequestNeeded(tile),
               coveragePrerequisite: isTileCoveragePrerequisite(
-                getTileRequestNeed(tile),
-                Boolean(
-                  runtimeState.shadowView &&
-                    runtimeState.pendingMeshReceiverFrontier?.size
-                )
+                getTileRequestNeed(tile)
               ),
               coverageRecovery: runtimeState.meshCoverageRecovery,
               coverageFill:
@@ -314,7 +298,7 @@ export function createThreeTilesCascade(
     }
   };
 
-  // Decision: ZOOM-PREFETCH-20260913 in README.md. Existing vendor queues,
+  // Decision: TILES_COVERAGE.md#startup-motion-and-reserve-admission. Existing vendor queues,
   // cancellation and payload pool; a small bounded walk, never another loader.
   const prefetchZoom: NonNullable<
     SharedThreeSceneRuntime["prefetchZoom"]

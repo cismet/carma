@@ -26,12 +26,10 @@ import { createThreeTilesShadowPublication } from "./three-tiles-runtime-shadow-
 export type ThreeTilesShadowsState = Pick<
   ThreeTilesRuntimeState,
   | "shadowReceiverMask"
-  | "pendingMeshReceiverMask"
   | "shadowReceiverMaskConverged"
   | "shadowReceiverSourceSignature"
   | "mainViewSourceTiles"
   | "shadowSelectionRefreshPending"
-  | "pendingMeshReceiverFrontier"
   | "committedMeshReceiverFrontier"
   | "meshCoverageRecovery"
   | "extentGeometricError"
@@ -99,7 +97,6 @@ export function createThreeTilesShadows(
   const clearShadowReceiverSources: ThreeTilesRuntimeServices["clearShadowReceiverSources"] =
     () => {
       runtimeState.shadowReceiverMask = null;
-      runtimeState.pendingMeshReceiverMask = null;
       runtimeState.pendingMeshCasterFrontier.clear();
       runtimeState.meshShadowReserve.frontier.clear();
       runtimeState.meshShadowReserve.support.clear();
@@ -109,7 +106,6 @@ export function createThreeTilesShadows(
       runtimeState.shadowReceiverSourceSignature = "";
       runtimeState.mainViewSourceTiles.clear();
       runtimeState.shadowSelectionRefreshPending = false;
-      runtimeState.pendingMeshReceiverFrontier = null;
       runtimeState.committedMeshReceiverFrontier.clear();
       runtimeState.committedMeshCasterFrontier.clear();
     };
@@ -295,9 +291,7 @@ export function createThreeTilesShadows(
         runtimeState.options.providesTerrain && runtimeState.shadowView
           ? createCasterVolumeDemand(
               runtimeState.shadowReceiverMask,
-              errorPixels,
-              runtimeState.shadowView,
-              runtimeState.tiles.group.matrixWorld
+              errorPixels
             )
           : undefined;
       let visitedNodes = 0;

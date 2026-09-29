@@ -22,7 +22,6 @@ import type { EffectiveErrorTargetState } from "../../core/effective-error-targe
 import {
   getCacheCeilingStorage,
   readCacheCeilingMemory,
-  normalizeCacheCeilingMemory,
   startCacheCeilingSession,
 } from "./three-tiles-cache-ceiling-memory";
 import { createEffectiveErrorTargetState } from "../../core/effective-error-target";
@@ -109,9 +108,7 @@ export function createThreeTilesRuntimeState(
   const cacheCeilingStorage = options.persistCacheCeiling
     ? getCacheCeilingStorage()
     : null;
-  const settledMemory = normalizeCacheCeilingMemory(
-    readCacheCeilingMemory(cacheCeilingStorage)
-  );
+  const settledMemory = readCacheCeilingMemory(cacheCeilingStorage);
   const learnedCeilingBytes = settledMemory.learnedBytes;
   const ceilingBytes = resolveTilesCacheCeiling(
     deviceProfile,
@@ -186,10 +183,8 @@ export function createThreeTilesRuntimeState(
   const shadowSelectionNeedsTraversal = false;
   const shadowSelectionRefreshPending = false;
   const shadowReceiverMask: ShadowReceiverMask | null = null;
-  const pendingMeshReceiverMask: ShadowReceiverMask | null = null;
   const shadowReceiverMaskConverged = false;
   const shadowReceiverSourceSignature = "";
-  const pendingMeshReceiverFrontier: Set<Tile> | null = null;
   const committedMeshReceiverFrontier = new Set<Tile>();
   const committedMeshCasterFrontier = new Set<Tile>();
   const pendingMeshCasterFrontier = new Set<Tile>();
@@ -431,11 +426,9 @@ export function createThreeTilesRuntimeState(
     shadowSelectionNeedsTraversal,
     shadowSelectionRefreshPending,
     shadowReceiverMask,
-    pendingMeshReceiverMask,
     pendingMeshCasterFrontier,
     shadowReceiverMaskConverged,
     shadowReceiverSourceSignature,
-    pendingMeshReceiverFrontier,
     committedMeshReceiverFrontier,
     committedMeshCasterFrontier,
     displayedMeshFrontier,

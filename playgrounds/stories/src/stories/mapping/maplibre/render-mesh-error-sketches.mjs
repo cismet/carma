@@ -1,5 +1,5 @@
 // Issue illustrations only. Conditional h=0 model, not surveyed mesh accuracy.
-// See MESH_REFERENCE_DECISIONS.md / MESH-SCALE-ISOLINES-20260915.
+// See MESH_REFERENCE_DECISIONS.md#analytical-graphics-and-sources.
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import assert from 'node:assert/strict';

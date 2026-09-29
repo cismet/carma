@@ -14,7 +14,7 @@ import { getCameraLocalMercatorFit } from "@carma-geo/proj";
 const MAPLIBRE_EARTH_RADIUS_METERS = 6371008.8;
 
 /** Projection-position budgets for the Wuppertal ±24 km, 0–1000 m domain.
- * Decision: MESH_REFERENCE_DECISIONS.md / MESH-PROJECTION-TARGETS-20260915.
+ * Decision: MESH_REFERENCE_DECISIONS.md#reprojection-modes.
  * These tune interpolation only, not source accuracy or triangle tessellation.
  */
 export const MESH_PROJECTION_ACCURACY = {
@@ -184,7 +184,7 @@ type LocalProjector = (
 ) => Vector3;
 
 /** Experimental alternatives share the same root-local input/output convention.
- * Decision: MESH_REFERENCE_DECISIONS.md / MESH-PROJECTION-COMPARISON-20260915.
+ * Decision: MESH_REFERENCE_DECISIONS.md#reprojection-modes.
  * Sphere/AEQD are comparison hypotheses, not certified ellipsoid replacements.
  */
 export const createMeshLocalProjection = (

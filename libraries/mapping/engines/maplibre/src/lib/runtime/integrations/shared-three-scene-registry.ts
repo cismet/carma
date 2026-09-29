@@ -23,6 +23,7 @@ import {
   shouldTintTerrainLabelHalo,
 } from "../../core/terrain-map-style";
 import { MAPLIBRE_EVENT } from "../../../constants/mapEvents";
+import { MAPLIBRE_TILE_SIZE } from "../../../constants/mercator";
 import { buildSharedThreeSceneLayer } from "./shared-three-scene-layer";
 import { subscribeSharedThreeSceneContent } from "./shared-three-scene-content-registry";
 import type { SharedThreeSceneLayer } from "../../core/shared-three-scene-types";
@@ -36,7 +37,6 @@ import {
 
 const SHARED_SCENE_LAYER_ID = "carma-shared-three-scene";
 const SHARED_SCENE_ENTRY_VERSION = 18;
-const MAPLIBRE_TILE_SIZE = 512;
 /** Keep a lifted place name inside the view at high zoom. */
 const MAX_LABEL_LIFT_VIEWPORT_FRACTION = 0.35;
 const TERRAIN_COVERAGE_MARGIN_METERS = 0.5;

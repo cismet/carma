@@ -1,5 +1,5 @@
 // Reproducible issue illustration; analytical h=0 model, not measured mesh accuracy.
-// Decision: MESH_REFERENCE_DECISIONS.md / MESH-SCALE-ISOLINES-20260915.
+// Decision: MESH_REFERENCE_DECISIONS.md#analytical-graphics-and-sources.
 import { contours } from 'd3-contour';
 import { mkdirSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';

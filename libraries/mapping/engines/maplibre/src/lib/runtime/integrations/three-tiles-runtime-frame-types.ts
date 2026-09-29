@@ -25,7 +25,6 @@ export type ThreeTilesFrameRuntimeState = Pick<
   | "committedMeshCasterFrontier"
   | "meshShadowReserve"
   | "committedMeshReceiverFrontier"
-  | "pendingMeshReceiverFrontier"
   | "currentToReference"
   | "displayedMeshFrontier"
   | "effectiveErrorTarget"

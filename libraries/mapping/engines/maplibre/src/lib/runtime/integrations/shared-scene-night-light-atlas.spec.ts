@@ -128,7 +128,7 @@ describe("shared scene night light atlas", () => {
 
     expect(originalCompile).toHaveBeenCalledOnce();
     expect(material.customProgramCacheKey()).toBe(
-      "original-key|night-field-v1"
+      "original-key|night-field"
     );
     expect(shader.uniforms).toMatchObject({
       nightAtlas: expect.any(Object),

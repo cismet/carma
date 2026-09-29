@@ -32,7 +32,7 @@ use one shared preset baseline/window, not per-vertex terrain or rail elevations
 
 ## Sliding array decision
 
-**ID:** CORRIDOR-WINDOW-20260916 · implemented, visual acceptance pending.
+**ID:** CORRIDOR-WINDOW · implemented, visual acceptance pending.
 
 The complete rig is inexpensive camera metadata. Only cameras intersecting the
 displayed strip publish tile demand, render, or retain diagnostic capture

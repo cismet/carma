@@ -26,7 +26,6 @@ export const areActiveMeshViewsConverged = (
   if (!runtimeState.tiles) return false;
   return runtimeState.options.providesTerrain
     ? !!root &&
-        !runtimeState.pendingMeshReceiverFrontier?.size &&
         dependencies.mainViewWithinErrorFactor(
           Math.max(
             runtimeState.requestedErrorTarget,
@@ -73,7 +72,7 @@ export const getRuntimeTileCameraViews = (
       id: TILE_MAIN_OBSERVER_ID,
       camera: camera,
       viewport: [viewport.x, viewport.y],
-      // UNIFIED-VISIBLE-SSE-20260916: sharing a pool must preserve each
+      // TILES_COVERAGE.md#camera-normalized-mesh-refinement: sharing a pool must preserve each
       // camera's request, including the main observer's requested target.
       errorTargetPixels:
         runtimeState.options.handoverErrorTargetPixels === undefined &&

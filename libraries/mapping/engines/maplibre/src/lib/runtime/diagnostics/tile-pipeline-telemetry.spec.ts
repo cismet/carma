@@ -58,7 +58,6 @@ const setup = () => {
     },
     tileDebugProgress: new WeakMap([[tile, progress]]),
     displayedMeshFrontier: new Set<Tile>(),
-    pendingMeshReceiverFrontier: new Set([tile]),
   } as unknown as TilesRuntimeDebugState;
   return {
     state,
@@ -205,7 +204,6 @@ describe("debug pipeline subscription", () => {
     expect(telemetry.sample()).toMatchObject({
       queueAgeMs: 1000,
       blocked: 1,
-      heldReceivers: 1,
       parseActive: 1,
       parseSlots: 2,
       downloadSlotsPerOrigin: 8,

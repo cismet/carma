@@ -29,6 +29,7 @@ const setup = () => {
   state.requestedErrorTarget = 6;
   state.memoryErrorTarget = state.effectiveErrorTarget = 30.375;
   state.memoryErrorTargetChangedAt = 0;
+  state.meshInitialBasePassDone = true;
   state.lastMainViewConverged = state.lastActiveViewsConverged = true;
   const cache = state.tiles!.lruCache;
   const tile = {
@@ -38,6 +39,7 @@ const setup = () => {
   } as unknown as RuntimeTile;
   cache.itemList.push(tile);
   cache.usedSet.add(tile);
+  state.displayedMeshFrontier.add(tile);
   cache.cachedBytes = state.ceilingBytes * 0.83;
   vi.spyOn(cache, "isFull").mockReturnValue(false);
   vi.spyOn(cache, "getMemoryUsage").mockReturnValue(cache.cachedBytes);
@@ -141,6 +143,8 @@ describe("settled memory-target recovery", () => {
       vi.advanceTimersByTime(5_001);
       loading.applyErrorTargetPolicy();
       expect(state.memoryErrorTarget).toBe(6);
+      // The next rendered cut must prove convergence at the new target.
+      state.lastMainViewConverged = state.lastActiveViewsConverged = true;
       loading.applyErrorTargetPolicy();
       expect(state.errorTargetTimer).not.toBe(0);
       vi.advanceTimersByTime(6_001);
@@ -156,14 +160,12 @@ describe("settled memory-target recovery", () => {
     }
   });
 
-  it.each(["moving", "held", "queued", "context", "allocation"])(
+  it.each(["moving", "queued", "context", "allocation"])(
     "does not start a headroom probe while %s",
     (condition) => {
       const { state, loading, cleanup } = setup();
       try {
         if (condition === "moving") state.map!.isMoving = () => true;
-        if (condition === "held")
-          state.pendingMeshReceiverFrontier = new Set([{} as RuntimeTile]);
         if (condition === "queued")
           (state.tiles!.parseQueue as RuntimePriorityQueue).items = [
             {} as RuntimeTile,

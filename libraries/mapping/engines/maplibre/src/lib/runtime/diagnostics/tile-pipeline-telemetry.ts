@@ -365,7 +365,6 @@ export const createTilePipelineTelemetry = (
         parseActive: parseQueue?.currJobs ?? 0,
         parseSlots: parseQueue?.maxJobs ?? 0,
         downloadSlotsPerOrigin: source?.downloadQueue.maxJobsPerOrigin ?? 0,
-        heldReceivers: state?.pendingMeshReceiverFrontier?.size ?? 0,
         casters: state?.committedMeshCasterFrontier?.size ?? 0,
       };
     },

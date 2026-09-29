@@ -12,6 +12,7 @@ export {
   WGS84_B,
   WGS84_E2,
   cartographicToEcef,
+  getWgs84PrincipalCurvatureRadii,
   projectEllipsoidHorizon,
   ecefToCartographic,
   ecefToEnuMatrix,

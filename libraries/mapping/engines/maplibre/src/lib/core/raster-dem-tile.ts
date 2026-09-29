@@ -1,4 +1,5 @@
 import { WEB_MERCATOR_MAX_LATITUDE_DEG } from "@carma-geo/proj";
+import type { GeographicBounds } from "@carma-geo/helpers";
 import { degToRadNumeric, radToDegNumeric } from "@carma-units";
 
 import {
@@ -12,12 +13,7 @@ export type TerrainTileId = Readonly<{
   y: number;
 }>;
 
-export type TerrainTileBounds = Readonly<{
-  west: number;
-  south: number;
-  east: number;
-  north: number;
-}>;
+export type TerrainTileBounds = GeographicBounds;
 
 export type TerrainTile = Readonly<{
   id: TerrainTileId;

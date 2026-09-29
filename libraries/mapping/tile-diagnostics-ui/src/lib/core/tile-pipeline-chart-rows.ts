@@ -196,13 +196,6 @@ export const TILE_PIPELINE_CHART_ROWS: readonly StripChartRow[] = [
         "Includes visible meshes reused as casters; these counts overlap."
       ),
       row(
-        "heldReceivers",
-        "Waiting for casters",
-        "#a16207",
-        undefined,
-        "Held receivers"
-      ),
-      row(
         "target",
         "Admission",
         "#334155",

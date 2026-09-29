@@ -1,16 +1,17 @@
-import { getPixelResolutionFromZoomAtLatitudeRad } from "@carma-geo/proj";
-import { degToRad } from "@carma-units";
-import type { Degrees } from "@carma-units";
 import type { RasterDemTerrainResource } from "@carma-commons/resources";
 import { runTerrainWorkerTask } from "./terrain-worker-client";
 import { resolveRasterMeshErrorMeters } from "../../core/raster-mesh-error";
+import {
+  getRasterDemTileGeometricError,
+  getRasterDemTileGridIdsForBounds,
+  isRasterDemTileDataAvailable,
+  type RasterDemTileGrid,
+} from "../../core/raster-dem-tile-grid";
 
 import {
   assertTileId,
-  longitudeToTileX,
   latitudeToTileY,
   getTileBounds,
-  boundsIntersect,
   sampleRaster,
   terrainTileKey,
   type TerrainTileId,
@@ -118,6 +119,17 @@ const buildSource = (
       Math.floor(options.meshSegments ?? config.tileSize)
     )
   );
+  const tileGrid: RasterDemTileGrid = {
+    bounds: {
+      west: config.bounds[0],
+      south: config.bounds[1],
+      east: config.bounds[2],
+      north: config.bounds[3],
+    },
+    minzoom: config.minzoom,
+    maxzoom: config.maxzoom,
+    meshSegments,
+  };
   const maxCacheBytes = Math.max(
     1,
     Math.floor(options.maxCacheBytes ?? DEFAULT_MAX_CACHE_BYTES)
@@ -128,19 +140,10 @@ const buildSource = (
   let cachedBytes = 0;
   let useClock = 0;
 
-  const getLevelMaximumGeometricError = (level: number) => {
-    const centerLatitude = ((config.bounds[1] + config.bounds[3]) /
-      2) as Degrees;
-    return getPixelResolutionFromZoomAtLatitudeRad(
-      level,
-      degToRad(centerLatitude),
-      { tileSize: meshSegments }
-    );
-  };
+  const getLevelMaximumGeometricError = (level: number) =>
+    getRasterDemTileGeometricError(tileGrid, level);
   const tileIsAvailable = (id: TerrainTileId) =>
-    id.level >= config.minzoom &&
-    id.level <= config.maxzoom &&
-    boundsIntersect(getTileBounds(id), config.bounds);
+    isRasterDemTileDataAvailable(tileGrid, id);
   const trimCache = (retainedKeys: ReadonlySet<string> = new Set()) => {
     if (cachedBytes <= maxCacheBytes) return;
     const candidates = [...cache.entries()]
@@ -332,34 +335,7 @@ const buildSource = (
       if (!Number.isInteger(level) || level < 0) {
         throw new RangeError("Terrain level must be a non-negative integer");
       }
-      if (level < config.minzoom || level > config.maxzoom) return [];
-      const west = Math.max(bounds.west, config.bounds[0]);
-      const south = Math.max(bounds.south, config.bounds[1]);
-      const east = Math.min(bounds.east, config.bounds[2]);
-      const north = Math.min(bounds.north, config.bounds[3]);
-      if (west >= east || south >= north) return [];
-      const scale = 2 ** level;
-      const epsilon = 1e-10;
-      const minimumX = Math.max(0, Math.floor(longitudeToTileX(west, level)));
-      const maximumX = Math.min(
-        scale - 1,
-        Math.floor(longitudeToTileX(east - epsilon, level))
-      );
-      const minimumY = Math.max(
-        0,
-        Math.floor(latitudeToTileY(north - epsilon, level))
-      );
-      const maximumY = Math.min(
-        scale - 1,
-        Math.floor(latitudeToTileY(south + epsilon, level))
-      );
-      const ids: TerrainTileId[] = [];
-      for (let y = minimumY; y <= maximumY; y += 1) {
-        for (let x = minimumX; x <= maximumX; x += 1) {
-          ids.push({ level, x, y });
-        }
-      }
-      return ids;
+      return getRasterDemTileGridIdsForBounds(tileGrid, bounds, level);
     },
     getTileBounds,
     getLevelMaximumGeometricError,

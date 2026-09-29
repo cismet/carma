@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import { buildTerrainSelection } from "./terrain-selection";
 import { executeTerrainWorkerTask } from "../runtime/integrations/terrain-worker-task";
-import type { TerrainSelectionInput } from "./terrain-selection";
+import type { TerrainSelectionInput } from "./terrain-selection-types";
 import {
   advanceTerrainTileFrontier,
   terrainTileContains,

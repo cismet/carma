@@ -1,12 +1,12 @@
 import type { MapLibreThreeReferenceSurfacesOptions } from "./MapLibreThreeReferenceSurfacesDemo";
+import { REFERENCE_ATMOSPHERE_MODE } from "./reference-atmosphere-shader";
+import { REFERENCE_CAMERA_PRESET } from "./reference-camera-presets";
 import {
-  REFERENCE_ATMOSPHERE_MODE,
-  REFERENCE_CAMERA_PRESET,
   REFERENCE_SURFACE,
   TERRAIN_GEOMETRY_MODE,
   TERRAIN_HEIGHT_DATUM,
-  WGS84_REFERENCE_AXES,
-} from "./maplibre-three-reference-surfaces";
+} from "./reference-surface-types";
+import { WGS84_REFERENCE_AXES } from "./reference-surface-frame";
 
 /** Shared defaults; scoped stories override only the variable under comparison. */
 export const REFERENCE_SURFACE_DEFAULTS: MapLibreThreeReferenceSurfacesOptions =

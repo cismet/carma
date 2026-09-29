@@ -23,7 +23,6 @@ export function createThreeTilesSpatialDemand(
   runtimeState: Pick<
     ThreeTilesRuntimeState,
     | "committedMeshCasterFrontier"
-    | "pendingMeshReceiverFrontier"
     | "displayedMeshFrontier"
     | "effectiveErrorTarget"
     | "memoryErrorTarget"
@@ -33,7 +32,6 @@ export function createThreeTilesSpatialDemand(
     | "options"
     | "requestedErrorTarget"
     | "shadowReceiverMask"
-    | "pendingMeshReceiverMask"
     | "shadowCasterRequests"
     | "shadowSelectionEnabled"
     | "shadowView"
@@ -66,7 +64,7 @@ export function createThreeTilesSpatialDemand(
   // selection ask for the same tile several times per frame. Decision: memo
   // per tile for the lifetime of the compiled demand object; the 2026-09-18
   // cold-start profile put the evaluation family at 1.5-2 s of a 15 s shadow
-  // load, see TILES_COVERAGE.md#main-thread-gltf-parse-share-2026-09-18.
+  // load, see TILES_COVERAGE.md#queue-admission-and-capacity-recovery.
   let cameraDemandCache = new WeakMap<
     RuntimeTile,
     [CachedCameraDemand | null, CachedCameraDemand | null]

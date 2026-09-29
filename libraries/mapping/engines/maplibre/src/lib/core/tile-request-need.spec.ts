@@ -27,7 +27,6 @@ const context = (
   shadowView: false,
   retainedShadowRequest: false,
   refinementSupport: new Set(),
-  receiverReplacementAncestors: new Set(),
   residentAncestors: new Set(),
   visibleTiles: new Set(),
   coverageNeeded: () => false,
@@ -112,40 +111,6 @@ describe("resolveTileRequestNeed", () => {
           })
         )
       ).toBe(TILE_REQUEST_NEED.SUPPORT);
-    }
-  );
-
-  it.each([false, true])(
-    "keeps demanded receiver replacement siblings, in view %s",
-    (inView) => {
-      const parent = mesh();
-      parent.geometricError = 16;
-      const sibling = mesh(parent);
-      const input = context({
-        shadowView: true,
-        shadowSelection: true,
-        mainViewConverged: false,
-        receiverReplacementAncestors: new Set([parent]),
-        shadowReceiverError: () => 16,
-        inMainView: () => inView,
-        screenError: () => 6,
-      });
-      expect(resolveTileRequestNeed(sibling, input)).toBe(
-        inView ? TILE_REQUEST_NEED.SUPPORT : TILE_REQUEST_NEED.SHADOW
-      );
-      if (!inView)
-        expect(
-          resolveTileRequestNeed(sibling, {
-            ...input,
-            shadowReceiverError: () => null,
-          })
-        ).toBeNull();
-      expect(
-        resolveTileRequestNeed(sibling, {
-          ...input,
-          receiverReplacementAncestors: new Set(),
-        })
-      ).toBeNull();
     }
   );
 
@@ -296,7 +261,7 @@ describe("resolveTileRequestNeed", () => {
     ).toBe(TILE_REQUEST_NEED.CAMERA);
   });
 
-  it("keeps metadata and atomic support for secondary-camera demand", () => {
+  it("keeps secondary-camera demand ahead of metadata", () => {
     const parent = mesh();
     const tile = mesh(parent);
     tile.internal.hasRenderableContent = false;
@@ -305,14 +270,6 @@ describe("resolveTileRequestNeed", () => {
       cameraDemand: () => ({ required: true, errorRatio: 2 }),
     });
     expect(resolveTileRequestNeed(tile, input)).toBe(TILE_REQUEST_NEED.CAMERA);
-    expect(
-      resolveTileRequestNeed(tile, {
-        ...input,
-        shadowView: true,
-        receiverReplacementAncestors: new Set([parent]),
-        cameraDemand: () => ({ required: true, errorRatio: 0.5 }),
-      })
-    ).toBe(TILE_REQUEST_NEED.SUPPORT);
   });
 
   it("does not resurrect demand rejected by the active shadow camera", () => {

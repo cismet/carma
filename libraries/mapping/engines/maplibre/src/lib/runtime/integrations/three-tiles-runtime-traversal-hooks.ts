@@ -117,8 +117,6 @@ export function installThreeTilesTraversalHooks(
         runtimeState.tiles?.markTileUsed(tile);
       for (const tile of runtimeState.pendingMeshCasterFrontier)
         runtimeState.tiles?.markTileUsed(tile);
-      for (const tile of runtimeState.pendingMeshReceiverFrontier ?? [])
-        runtimeState.tiles?.markTileUsed(tile);
       for (const tile of runtimeState.shadowCasterRequests) {
         dependencies.applyTileDeferral(tile, true);
         runtimeState.tiles?.markTileUsed(tile);
@@ -153,7 +151,7 @@ export function installThreeTilesTraversalHooks(
       runtimeTile.engineData?.boundingVolume?.getAABB &&
       runtimeState.tileCameraDemand.views.length > 0
     ) {
-      // Decision: UNIFIED-VISIBLE-SSE-20260916 in TILES_COVERAGE.md.
+      // Decision: TILES_COVERAGE.md#camera-normalized-mesh-refinement.
       // Use the same clipped camera-depth error as publication/retention.
       // Taking max(native, clipped) would keep the invisible near-box bias.
       target.error = dependencies.getTileScreenError(tile as RuntimeTile);
@@ -234,7 +232,7 @@ export function installThreeTilesTraversalHooks(
     const skipStrategy =
       runtimeState.options.providesTerrain &&
       runtimeState.tiles?.loadAncestors === false;
-    // Decision: MESH-COVERAGE-20260912 (R3), TILES_COVERAGE.md.
+    // Decision: TILES_COVERAGE.md#complete-replacement-families-and-resident-base-coverage.
     // Pin the resident extent floor; reach missing floor payloads before
     // refining their children so fallback coverage always has admission room.
     const extentError = runtimeState.extentGeometricError;
@@ -362,7 +360,7 @@ export function installThreeTilesTraversalHooks(
       !tile.internal.hasRenderableContent &&
       tile.children.length > 0
     ) {
-      // Decision: OFFSCREEN-CASTERS-20260910 in
+      // Decision: OFFSCREEN-CASTERS in
       // libraries/mapping/shadow-simulation/three/TILED_SHADOW_PAGES.md.
       // An implicit-tileset routing node is not an empty coarse surface.
       // Reach actual content before accepting its SSE; otherwise a loaded
@@ -442,13 +440,7 @@ export function installThreeTilesTraversalHooks(
     if (
       resolveTileRequestAdmission({
         needed: requestNeed !== null,
-        coveragePrerequisite: isTileCoveragePrerequisite(
-          requestNeed,
-          Boolean(
-            runtimeState.shadowView &&
-              runtimeState.pendingMeshReceiverFrontier?.size
-          )
-        ),
+        coveragePrerequisite: isTileCoveragePrerequisite(requestNeed),
         coverageRecovery: runtimeState.meshCoverageRecovery,
         coverageFill,
         stage: TILE_QUEUE_STAGE.DOWNLOAD,

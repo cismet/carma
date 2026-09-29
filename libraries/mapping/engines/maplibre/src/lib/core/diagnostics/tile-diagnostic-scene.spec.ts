@@ -1,20 +1,24 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   TILE_STEP_SLOTS,
-  buildDiagnosticPrimitives,
-  buildDiagnosticViewport,
-  buildDiagnosticSelection,
   diagnosticProjection,
-  hitTestDiagnosticLabel,
   TILE_KINDS,
   TILE_RECORD_FLOATS,
   PRIMITIVE_FLOATS,
   PHASE_SWEEP,
+  type DiagnosticSnapshot,
+} from "./tile-diagnostic-scene";
+import { buildDiagnosticPrimitives } from "./tile-diagnostic-primitives";
+import {
+  buildDiagnosticViewport,
+  buildDiagnosticSelection,
+} from "./tile-diagnostic-camera-primitives";
+import {
+  hitTestDiagnosticLabel,
   drawDiagnosticText,
   compactDiagnosticTileId,
   formatTileResidentBytes,
-  type DiagnosticSnapshot,
-} from "./tile-diagnostic-scene";
+} from "./tile-diagnostic-labels";
 
 const snapshot = (overrides: number[] = []): DiagnosticSnapshot => {
   const record = [

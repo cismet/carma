@@ -1,5 +1,4 @@
 import {
-  normalizeCacheCeilingMemory,
   readCacheCeilingMemory,
   type CacheCeilingMemory,
 } from "./three-tiles-cache-ceiling-memory";
@@ -13,9 +12,7 @@ export const synchronizeSharedCacheCeiling = (
   local: CacheCeilingMemory | null
 ): CacheCeilingMemory | null => {
   if (!storage || !local) return local;
-  const shared = normalizeCacheCeilingMemory(
-    readCacheCeilingMemory(storage, local.buildId)
-  );
+  const shared = readCacheCeilingMemory(storage, local.buildId);
   if (
     shared.learnedBytes === null ||
     (local.learnedBytes !== null && local.learnedBytes <= shared.learnedBytes)

@@ -1,10 +1,8 @@
 import * as THREE from "three";
 import { radToDegNumeric } from "@carma-units";
 
-import {
-  getCameraStripLayout,
-  type CameraRigView,
-} from "../../core/multi-camera-rig";
+import { getCameraStripLayout } from "../../core/camera-strip-layout";
+import { type CameraRigView } from "../../core/camera-rig-contract";
 import type { SharedThreeSceneLayer } from "../../core/shared-three-scene-types";
 import {
   TILE_CAMERA_PRIORITY,
@@ -392,7 +390,7 @@ export const createSharedSceneCameraStrip = (
         busy = true;
         helpers.visible = false;
         // Decision: asynchronous PBO readback, not N blocking readPixels calls.
-        // See MULTICAM-STRESS-20260913 in the package README.
+        // See MULTICAM-STRESS in the package README.
         const result = preview.renderAsync(
           view.camera,
           layout.widths[index],

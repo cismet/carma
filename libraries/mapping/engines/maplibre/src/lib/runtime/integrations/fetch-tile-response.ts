@@ -22,7 +22,7 @@ export const fetchTileResponse = async (
   const response = await read(() => fetch(url, { ...options, signal }));
   // Retain Response identity, headers, URL and streaming behavior. Wrapping the
   // public readers avoids a second full buffer or a main-thread stream pump.
-  // Decision: TILE-TRANSPORT-DEADLINE-20260909 in engines/maplibre/README.md.
+  // Decision: TILES_COVERAGE.md#progress-and-recovery.
   const arrayBuffer = response.arrayBuffer.bind(response);
   const json = response.json.bind(response);
   response.arrayBuffer = () => read(arrayBuffer);

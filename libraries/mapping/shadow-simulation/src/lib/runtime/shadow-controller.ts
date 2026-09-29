@@ -1,7 +1,6 @@
 import * as THREE from "three";
 
 import { clamp } from "@carma-commons/math";
-import { degToRadNumeric } from "@carma-units";
 
 import {
   fitShadowMap,
@@ -10,6 +9,10 @@ import {
 } from "../core/fit-shadow-map";
 import type { ShadowQualityMultiplier } from "../core/shadow-types";
 import { shadowRasterOffset } from "../core/shadow-raster-offset";
+import {
+  getSunDiscSampleOffset,
+  SUN_ANGULAR_RADIUS_RAD,
+} from "../core/sun-disc-sampling";
 
 const BASE_SHADOW_MAP_SIZE = 2_048;
 const DEFAULT_MAX_SHADOW_MAP_SIZE = 8_192;
@@ -23,8 +26,6 @@ const SHADOW_NORMAL_BIAS_TEXELS = 1.2;
 const MIN_SHADOW_BIAS_ELEVATION_SINE = 0.2;
 const MIN_SHADOW_NORMAL_BIAS_METERS = 0.05;
 const MAX_SHADOW_NORMAL_BIAS_METERS = 8;
-export const SUN_ANGULAR_RADIUS_RAD = degToRadNumeric(0.53 / 2);
-const GOLDEN_ANGLE_RAD = Math.PI * (3 - Math.sqrt(5));
 
 export const CASTER_RELIEF_MARGIN_METERS = 300;
 
@@ -215,11 +216,11 @@ export class ShadowController {
     if (!fit) return;
     const count = Math.max(1, Math.floor(sampleCount));
     const sampleIndex = ((Math.floor(round) % count) + count) % count;
-    const angularOffset =
-      SUN_ANGULAR_RADIUS_RAD * Math.sqrt((sampleIndex + 0.5) / count);
-    const sampleAngle = sampleIndex * GOLDEN_ANGLE_RAD;
-    const offsetA = Math.cos(sampleAngle) * angularOffset;
-    const offsetB = Math.sin(sampleAngle) * angularOffset;
+    const {
+      angularRadius: angularOffset,
+      tangentA: offsetA,
+      tangentB: offsetB,
+    } = getSunDiscSampleOffset(sampleIndex, count);
     const tangentDirection = fit.tangentA
       .clone()
       .multiplyScalar(offsetA)

@@ -23,6 +23,7 @@
  */
 
 import type { MappingConfig } from "@carma-api";
+import { smoothstep } from "@carma-commons/math";
 
 import { SHADOW_TIME_ZONE, approximateDaylight } from "./shadow";
 
@@ -151,7 +152,8 @@ export const trafficClockOf = (instant: number): TrafficClock => {
 
 /** `minutes` folded into (-720, 720], the short way round the clock face */
 const shortWay = (minutes: number): number => {
-  const folded = ((minutes % MINUTES_PER_DAY) + MINUTES_PER_DAY) % MINUTES_PER_DAY;
+  const folded =
+    ((minutes % MINUTES_PER_DAY) + MINUTES_PER_DAY) % MINUTES_PER_DAY;
   return folded > MINUTES_PER_DAY / 2 ? folded - MINUTES_PER_DAY : folded;
 };
 
@@ -168,7 +170,8 @@ const lastHourBefore = (hour: number, now: number): number => {
   const back =
     (trafficClockOf(now).minutes - target + MINUTES_PER_DAY) % MINUTES_PER_DAY;
   let candidate = now - back * MS_PER_MINUTE;
-  candidate -= shortWay(trafficClockOf(candidate).minutes - target) * MS_PER_MINUTE;
+  candidate -=
+    shortWay(trafficClockOf(candidate).minutes - target) * MS_PER_MINUTE;
   if (candidate > now) candidate -= MS_PER_DAY;
   return candidate;
 };
@@ -185,14 +188,11 @@ export const trafficJumpOffset = (kind: TrafficJump, now: Date): number => {
   const at = lastHourBefore(hour, nowMs);
   return Math.max(
     0,
-    Math.min(Math.floor((nowMs - at) / MS_PER_MINUTE), TRAFFIC_MAX_OFFSET_MINUTES)
+    Math.min(
+      Math.floor((nowMs - at) / MS_PER_MINUTE),
+      TRAFFIC_MAX_OFFSET_MINUTES
+    )
   );
-};
-
-/** 0 below `edge0`, 1 above `edge1`, smooth in between */
-const smoothstep = (edge0: number, edge1: number, value: number): number => {
-  const t = Math.max(0, Math.min(1, (value - edge0) / (edge1 - edge0)));
-  return t * t * (3 - 2 * t);
 };
 
 /**
@@ -211,7 +211,11 @@ export const trafficDarkness = (
     dayOfYear,
   });
   const half = Math.max(1, twilightMinutes) / 2;
-  const morning = smoothstep(sunriseMinutes - half, sunriseMinutes + half, minutes);
+  const morning = smoothstep(
+    sunriseMinutes - half,
+    sunriseMinutes + half,
+    minutes
+  );
   const evening =
     1 - smoothstep(sunsetMinutes - half, sunsetMinutes + half, minutes);
   return 1 - Math.min(morning, evening);

@@ -13,7 +13,7 @@ export const TILE_CAMERA_ROLE = {
   GEOMETRY: "geometry",
 } as const;
 
-/** Decision: TILE-CAMERA-PRIORITY-20260914 in engines/maplibre/TILES_COVERAGE.md.
+/** Decision: TILES_COVERAGE.md#camera-normalized-mesh-refinement.
  * One payload keeps the maximum demand rank; roles and coverage stay a union.
  */
 export const TILE_CAMERA_PRIORITY = {
@@ -114,7 +114,7 @@ export const tileCameraViewsSignature = (
 
 /** Compile once per camera change, never once per tile. No renderer/GPU ownership.
  * Decision: one demand union preserves source/payload identity across views;
- * see SHARED-TILE-CAMERA-DEMAND-20260913 in engines/maplibre/README.md.
+ * see README.md#multi-camera-demand-and-shared-presentation.
  */
 export const createTileCameraDemand = (
   views: readonly TileCameraSnapshot[]
@@ -183,7 +183,7 @@ export const createTileCameraDemand = (
      * Unordered world-space vertices of the bounds/frustum intersections.
      * Multiple views return their deduplicated vertex union, not a convex hull.
      * This diagnostic clips the actual 3D volume; it assumes no ground plane.
-     * Decision: TILES_COVERAGE.md, COVERAGE-DIAGNOSTIC-WINDOWS-20260914.
+     * Decision: TILES_COVERAGE.md#coverage-diagnostics.
      */
     intersectionVertices(
       bounds: Box3,
@@ -429,7 +429,7 @@ export const createTileCameraDemand = (
           for (const point of visible) {
             depth = Math.min(depth, -point.applyMatrix4(view.worldToView).z);
           }
-          // Decision: FRUSTUM-REPLACEMENT-20260914 in TILES_COVERAGE.md.
+          // Decision: TILES_COVERAGE.md#camera-normalized-mesh-refinement.
           // Never let an invisible, near portion of the world AABB set SSE.
           distance = Math.max(Number.EPSILON, depth * view.minimumScale);
         }

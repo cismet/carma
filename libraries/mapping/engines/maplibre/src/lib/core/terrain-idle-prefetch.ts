@@ -9,10 +9,8 @@ import {
   type TerrainTileId,
 } from "./raster-dem-tile";
 import { terrainTileContains } from "../runtime/integrations/terrain-tile-frontier";
-import type {
-  TerrainSelectionEntry,
-  TerrainSelectionSourceMetadata,
-} from "./terrain-selection";
+import type { TerrainSelectionEntry } from "./terrain-selection-types";
+import type { RasterDemTileGrid } from "./raster-dem-tile-grid";
 
 const MAXIMUM_PREFETCH_TILES = 16;
 
@@ -31,10 +29,7 @@ export type TerrainIdleShadowPlanInput = Readonly<{
   /** Already widened for the receiver, light reach, guard and solar disc. */
   casterBounds: TerrainTileBounds;
   terrainLevel: number;
-  source: Pick<
-    TerrainSelectionSourceMetadata,
-    "bounds" | "minzoom" | "maxzoom"
-  >;
+  source: Pick<RasterDemTileGrid, "bounds" | "minzoom" | "maxzoom">;
   /** Published geometry only, including incomplete/no-data tiles. */
   activeTiles: readonly Readonly<{ id: TerrainTileId; complete: boolean }>[];
   isAvailable: (id: TerrainTileId) => boolean;
@@ -167,10 +162,7 @@ export type TerrainIdlePrefetchInput = Readonly<{
   visibleEntries: readonly TerrainSelectionEntry[];
   /** The complete foreground selection, including offscreen shadow casters. */
   requiredEntries: readonly TerrainSelectionEntry[];
-  source: Pick<
-    TerrainSelectionSourceMetadata,
-    "bounds" | "minzoom" | "maxzoom"
-  >;
+  source: Pick<RasterDemTileGrid, "bounds" | "minzoom" | "maxzoom">;
   viewportBounds: TerrainTileBounds;
   /** Exact source tile keys, not the source's geographic availability flags. */
   cachedTileKeys?: ReadonlySet<string>;

@@ -71,7 +71,6 @@ export function createThreeTilesLoading(
     | "committedMeshCasterFrontier"
     | "pendingMeshCasterFrontier"
     | "shadowCasterRequests"
-    | "pendingMeshReceiverFrontier"
     | "meshShadowReserve"
     | "meshRefinementSupport"
     | "retainedShadowRequests"

@@ -1,5 +1,6 @@
 import { BufferAttribute, BufferGeometry } from "three";
 import type { TerrainStitchInput } from "./terrain-boundary-stitch";
+import { terrainBoundaryVertexKey } from "../../core/terrain-boundary-key";
 
 /** Two rings retain all incident faces for the inner ring's corrected normals.
  * Extract once in a worker; subsequent publications transfer only this shell.
@@ -97,9 +98,10 @@ export const stitchEqualLevelTerrainBoundaries = (
         seen.add(vertex);
         const offset = vertex * 3;
         // Same projected frame and precision as the general boundary stitcher.
-        const key = `${tile.id.level}/${Math.round(
-          tile.positions[offset] * 1000
-        )}/${Math.round(tile.positions[offset + 2] * 1000)}`;
+        const key = `${tile.id.level}/${terrainBoundaryVertexKey(
+          tile.positions[offset],
+          tile.positions[offset + 2]
+        )}`;
         const members = groups.get(key) ?? [];
         members.push({ tile: tileIndex, vertex });
         groups.set(key, members);

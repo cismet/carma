@@ -25,7 +25,7 @@ export type MemoryErrorTargetInput = Readonly<{
   ceilingBytes: number;
   now: number;
   changedAt: number;
-  /** All active cuts converged; no held receivers, queues, motion or failures. */
+  /** All active cuts converged; no queues, motion or failures. */
   settled?: boolean;
   /** Actual loaded scene bytes, excluding queued predictions. */
   residentBytes?: number;

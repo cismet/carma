@@ -146,10 +146,7 @@ export const TILE_QUEUE_REASON = {
   REFINEMENT: "refinement-deferred",
 } as const;
 
-/** Need is independent of admission: parked work retains its native promise.
- * Caster dependencies of held receivers are part of viewport recovery; blocking
- * them until coverage is complete would make that coverage impossible.
- */
+/** Need is independent of admission: parked work retains its native promise. */
 export const resolveTileRequestAdmission = (
   input: Readonly<{
     needed: boolean;

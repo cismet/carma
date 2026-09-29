@@ -148,9 +148,21 @@ export const projectEllipsoidHorizon = ({
 // Cartographic (radians) → ECEF
 // ---------------------------------------------------------------------------
 
+const wgs84LatitudeFactor = (sinLatitude: number): number =>
+  1 - WGS84_E2 * sinLatitude * sinLatitude;
+
+/** Principal WGS84 curvature radii at geodetic latitude in radians. */
+export const getWgs84PrincipalCurvatureRadii = (latitudeRadians: number) => {
+  const factor = wgs84LatitudeFactor(Math.sin(latitudeRadians));
+  return {
+    primeVerticalMeters: WGS84_A / Math.sqrt(factor),
+    meridionalMeters: (WGS84_A * (1 - WGS84_E2)) / factor ** 1.5,
+  };
+};
+
 /** Prime vertical radius of curvature at a given latitude. */
 const primeVerticalRadius = (sinLat: number): number =>
-  WGS84_A / Math.sqrt(1 - WGS84_E2 * sinLat * sinLat);
+  WGS84_A / Math.sqrt(wgs84LatitudeFactor(sinLat));
 
 /**
  * Convert geodetic (lon, lat, alt) in radians+meters to ECEF Cartesian3.

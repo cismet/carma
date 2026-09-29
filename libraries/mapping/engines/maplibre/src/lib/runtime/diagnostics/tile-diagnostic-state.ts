@@ -15,7 +15,6 @@ export type TilesRuntimeDebugState = {
   tileCameraDemand: ReturnType<typeof createTileCameraDemand>;
   tiles: TilesRenderer | null;
   displayedMeshFrontier: ReadonlySet<Tile>;
-  pendingMeshReceiverFrontier?: ReadonlySet<Tile>;
   committedMeshCasterFrontier?: ReadonlySet<Tile>;
   meshRefinementSupport?: ReadonlySet<Tile>;
   extentGeometricError: number;

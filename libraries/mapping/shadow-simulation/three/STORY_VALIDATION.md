@@ -1,6 +1,6 @@
 # Shadow story parity and readiness
 
-Decision: **SHADOW-STORY-ADDON-PARITY-20260914**.
+Decision: **SHADOW-STORY-ADDON-PARITY**.
 
 ## Runtime boundary
 

@@ -262,7 +262,6 @@ export function createThreeTilesShadowPublication(
     () => {
       if (
         !runtimeState.tiles ||
-        runtimeState.pendingMeshReceiverFrontier !== null ||
         !runtimeState.shadowSelectionEnabled ||
         runtimeState.shadowReceiverMaskConverged ||
         runtimeState.shadowSelectionNeedsTraversal ||
@@ -290,8 +289,6 @@ export function createThreeTilesShadowPublication(
       );
       const previousCasters = runtimeState.committedMeshCasterFrontier;
       runtimeState.committedMeshReceiverFrontier = proposed;
-      runtimeState.pendingMeshReceiverFrontier = null;
-      runtimeState.pendingMeshReceiverMask = null;
       // Only displayed receivers seed the corridor; casters never become
       // receivers merely because they were loaded for someone else's shadow.
       enableShadowSelection(proposed);

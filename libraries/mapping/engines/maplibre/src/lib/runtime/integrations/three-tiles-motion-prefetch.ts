@@ -41,7 +41,7 @@ type State = Pick<
 
 /** Optional requests share native queues, cancellation and residency. No forecast
  * is registered as a receiver or allowed to change the published tree cut.
- * Decision: PAN-PREDICTION-20260916 in TILES_COVERAGE.md.
+ * Decision: TILES_COVERAGE.md#startup-motion-and-reserve-admission.
  */
 export function createThreeTilesMotionPrefetch(
   state: State,

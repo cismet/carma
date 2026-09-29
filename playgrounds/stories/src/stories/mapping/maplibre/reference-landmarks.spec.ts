@@ -11,11 +11,13 @@ import {
 import {
   createReferenceFrame,
   projectGeodeticToScene,
+  WGS84_REFERENCE_AXES,
+} from "./reference-surface-frame";
+import {
   TERRAIN_GEOMETRY_MODE,
   TERRAIN_HEIGHT_DATUM,
-  WGS84_REFERENCE_AXES,
-  type Gcg2016ShaderField,
-} from "./maplibre-three-reference-surfaces";
+} from "./reference-surface-types";
+import { type Gcg2016ShaderField } from "./reference-gcg2016-field";
 import { createReferenceLandmarks } from "./reference-landmarks";
 
 const origin = [7.20158, 51.25656] as const;

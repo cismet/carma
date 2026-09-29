@@ -28,14 +28,11 @@ export function createThreeTilesSettledDemand(
     | "requestShadowSelectionRefresh"
   >
 ) {
-  // The next compatible cut is live demand even before it can be displayed.
-  // Geometric tests against only the committed mask would repeatedly abort
-  // its fringe casters and evict their decoded siblings before handover.
+  // Keep the selected offscreen caster corridor live until it can be displayed.
   const isPendingShadowDemand = (tile: RuntimeTile): boolean =>
     !!runtimeState.shadowView &&
     (runtimeState.shadowCasterRequests.has(tile) ||
-      runtimeState.pendingMeshCasterFrontier.has(tile) ||
-      runtimeState.pendingMeshReceiverFrontier?.has(tile) === true);
+      runtimeState.pendingMeshCasterFrontier.has(tile));
 
   const isRequiredMeshTile: ThreeTilesRuntimeServices["isRequiredMeshTile"] = (
     tile: RuntimeTile
@@ -77,7 +74,7 @@ export function createThreeTilesSettledDemand(
 
   const sweepSettledMeshDemand: ThreeTilesRuntimeServices["sweepSettledMeshDemand"] =
     () => {
-      // Decision: MESH-SETTLED-DEMAND-20260908 in engines/maplibre/README.md.
+      // Decision: TILES_COVERAGE.md#viewport-coverage-recovery.
       // Fresh geometric demand, not upstream ancestor LRU pins, controls release.
       if (
         !runtimeState.tiles ||

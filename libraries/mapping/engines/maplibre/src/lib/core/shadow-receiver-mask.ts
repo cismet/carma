@@ -314,7 +314,7 @@ export const createShadowReceiverMask = (
   );
   const projectedCandidate = new THREE.Box3();
   const candidateProjection = new THREE.Matrix4();
-  // Decision: MESH-CORRIDOR-MEMBERSHIP-20260909 in engines/maplibre/README.md.
+  // Decision: TILES_COVERAGE.md#visible-receiver-corridors.
   // One immutable union owns its hierarchy proofs. Children only test the
   // corridors their enclosing parent hit; negative parents exclude everything.
   // Weak keys release metadata with its tileset, without a separate LRU scan.
