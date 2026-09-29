@@ -234,6 +234,23 @@ export const projectionMappingFachzwilling: FachzwillingRoute = {
       ],
     },
     {
+      Title: "Brücke",
+      // the Buga suspension bridge's footprint as printed by Kubitur, the gaps
+      // between the hangers left open. It keeps streets and everything else
+      // off the printed bridge, so it stays above whatever is added after it;
+      // black blanks the bridge, the colours light it up. Only for the model
+      // with the bridge insert, on the Bestand insert it covers the valley.
+      layers: [
+        "brueckenmaske",
+        "brueckenmaske_silbergrau",
+        "brueckenmaske_stahlblau",
+        "brueckenmaske_regenbogen",
+      ].map((name) => ({
+        styleUrl: `${PROJECTION_MAPPING_STYLES}/${name}.style.json`,
+        tools: ["alwaysOnTop"],
+      })),
+    },
+    {
       Title: "Hochwasser",
       // one scenario of the Hochwassergefahrenkarte each; no time steps
       layers: [
