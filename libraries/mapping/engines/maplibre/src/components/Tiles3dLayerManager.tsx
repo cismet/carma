@@ -170,6 +170,19 @@ export type ResolvedTiles3dConfig = Tiles3dConfig & {
 };
 
 /**
+ * Fill in a host's colour correction for a tileset URL whose style declares
+ * none. A style's own `colorCorrection` always wins.
+ */
+export const withTilesetColorCorrection = <T extends Tiles3dConfig>(
+  config: T,
+  corrections: Readonly<Record<string, TextureColorCorrection>> | undefined
+): T => {
+  if (config.colorCorrection !== undefined) return config;
+  const colorCorrection = corrections?.[config.tilesetUrl];
+  return colorCorrection ? { ...config, colorCorrection } : config;
+};
+
+/**
  * Complete a style's `3d` block with the manager's defaults, so a legacy
  * style (`renderMode`, `tilesetUrl`, `terrainMandatory`) loads the way a fully
  * declared one does. A terrain-providing tileset gets the mesh loading

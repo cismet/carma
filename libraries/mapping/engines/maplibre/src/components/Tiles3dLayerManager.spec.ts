@@ -3,11 +3,13 @@
 import { cleanup, render } from "@testing-library/react";
 import { createElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { TextureColorCorrection } from "@carma-commons/resources";
 
 import {
   resolveTiles3dErrorTarget,
   resolveTiles3dConfig,
   Tiles3dLayerManager,
+  withTilesetColorCorrection,
 } from "./Tiles3dLayerManager";
 import type { Tiles3dConfig } from "./Tiles3dLayerManager";
 import { existsSync, readFileSync } from "node:fs";
@@ -112,6 +114,44 @@ const baseConfig: Tiles3dConfig = {
 
 const renderManager = (config: Tiles3dConfig, layerOpacity?: number) =>
   createElement(Tiles3dLayerManager, { config, layerOpacity });
+
+describe("withTilesetColorCorrection", () => {
+  const url = "https://tiles.example.test/tileset.json";
+  const hostCorrection: TextureColorCorrection = {
+    gamma: [1.25, 1.25, 1.23],
+    blackPoint: [0, 0, 0],
+    whitePoint: [0.9, 0.9, 0.92],
+    saturation: 1,
+  };
+  const corrections = { [url]: hostCorrection };
+
+  it("fills in the host's correction for a style that declares none", () => {
+    const config: Tiles3dConfig = { renderMode: "tiles3d", tilesetUrl: url };
+    expect(withTilesetColorCorrection(config, corrections)).toEqual({
+      ...config,
+      colorCorrection: hostCorrection,
+    });
+  });
+
+  it("keeps a style's own correction", () => {
+    const own: TextureColorCorrection = { ...hostCorrection, saturation: 0.8 };
+    const config: Tiles3dConfig = {
+      renderMode: "tiles3d",
+      tilesetUrl: url,
+      colorCorrection: own,
+    };
+    expect(withTilesetColorCorrection(config, corrections)).toBe(config);
+  });
+
+  it("returns the same config when no entry matches its URL", () => {
+    const config: Tiles3dConfig = {
+      renderMode: "tiles3d",
+      tilesetUrl: "https://other.example.test/tileset.json",
+    };
+    expect(withTilesetColorCorrection(config, corrections)).toBe(config);
+    expect(withTilesetColorCorrection(config, undefined)).toBe(config);
+  });
+});
 
 describe("resolveTiles3dErrorTarget", () => {
   it("uses a 4 px target for a regular 3D tiles mesh", () => {

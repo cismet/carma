@@ -137,6 +137,7 @@ import { getLibreDrawMode } from "../../store/slices/measurements.ts";
 import LoginForm from "../LoginForm.tsx";
 
 import { LEAFLET_CONFIG, MAP_BACKGROUND_COLOR } from "../../config/app.config";
+import { TILESET_COLOR_CORRECTIONS } from "../../config/tilesetColorCorrections";
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import "../leaflet.css";
@@ -976,6 +977,7 @@ const LibreGeoportalMap = ({ allow3d }: MapProps) => {
           // style whose layer metadata carries `carmaConf.3d` is then rendered
           // as real 3D geometry instead of flat
           threeRuntimeParams={{}}
+          tilesetColorCorrections={TILESET_COLOR_CORRECTIONS}
           minZoom={MAP_MIN_ZOOM}
           maxZoom={MAP_MAX_ZOOM}
           disableInternalSelection={true}

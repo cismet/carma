@@ -65,7 +65,11 @@ import {
   LibreMapSelectionContent,
   SELECTION_OVERLAY_LAYER_IDS,
 } from "./LibreMapSelectionContent";
-import { ENDPOINT, isAreaType } from "@carma-commons/resources";
+import {
+  ENDPOINT,
+  isAreaType,
+  type TextureColorCorrection,
+} from "@carma-commons/resources";
 import proj4 from "proj4";
 import {
   ensureLayerLoadingTracker,
@@ -93,7 +97,10 @@ import { defaultLayerConf } from "@carma-appframeworks/portals";
 import { useMapHashRouting } from "@carma-appframeworks/portals";
 import { ThreeLayerManager } from "./ThreeLayerManager";
 import { getGenericThreeLayers as get3dLayers } from "../lib/runtime/integrations/generic-three-layer-registry";
-import { Tiles3dLayerManager } from "./Tiles3dLayerManager";
+import {
+  Tiles3dLayerManager,
+  withTilesetColorCorrection,
+} from "./Tiles3dLayerManager";
 import type { Tiles3dConfig } from "./Tiles3dLayerManager";
 import { SharedThreeTilesLayerManager } from "./SharedThreeTilesLayerManager";
 import {
@@ -346,6 +353,11 @@ export interface LibreMapProps {
   backgroundRasterPaint?: RasterPaintOverrides;
   /** Runtime parameters for 3D layers (e.g. radiusMix, useLoft) */
   threeRuntimeParams?: Record<string, number | string>;
+  /**
+   * Colour correction per 3D Tiles tileset URL, for tilesets whose style
+   * declares none; a style's own `carmaConf["3d"].colorCorrection` wins.
+   */
+  tilesetColorCorrections?: Readonly<Record<string, TextureColorCorrection>>;
   /** Ref for 3D layer performance data */
   threePerfRef?: React.MutableRefObject<ThreePerfData>;
   /** Maximum tilt (pitch) in degrees. Defaults to 60 (MapLibre's stock cap). */
@@ -478,6 +490,7 @@ export const LibreMap = ({
   disableInternalSelection = false,
   backgroundRasterPaint,
   threeRuntimeParams,
+  tilesetColorCorrections,
   threePerfRef,
   maxPitch = DEFAULT_MAX_PITCH,
   minZoom,
@@ -534,6 +547,13 @@ export const LibreMap = ({
   const [detectedTiles3dConfigs, setDetectedTiles3dConfigs] = useState<
     Array<Tiles3dConfig & { layerOpacity: number }>
   >([]);
+  const renderedTiles3dConfigs = useMemo(
+    () =>
+      detectedTiles3dConfigs.map((config) =>
+        withTilesetColorCorrection(config, tilesetColorCorrections)
+      ),
+    [detectedTiles3dConfigs, tilesetColorCorrections]
+  );
   const geoJsonMetadataRef = useRef<
     Array<{ sourceId: string; uniqueColors: string[] }>
   >([]);
@@ -2383,7 +2403,7 @@ export const LibreMap = ({
           />
         ))}
       {/* Tilesets named by a style's own metadata, see Tiles3dLayerManager */}
-      {detectedTiles3dConfigs.map((config) => (
+      {renderedTiles3dConfigs.map((config) => (
         <Tiles3dLayerManager
           key={config.tilesetUrl}
           config={config}
