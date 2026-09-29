@@ -38,6 +38,7 @@ import { AlkisNav } from "@carma-appframeworks/alkis";
 import { gazDataConfig } from "./config/gazData";
 import { MapMeasurementsProvider } from "@carma-commons/measurements";
 import { APP_KEY } from "./constants/lagis";
+import DevVersionFrame from "./components/DevVersionFrame";
 
 const NavBarWrapper = () => {
   const dispatch = useDispatch();
@@ -124,6 +125,7 @@ const queryClient = new QueryClient();
 const persistor = persistStore(store);
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
+    <DevVersionFrame />
     <ConfigProvider locale={locale}>
       <Provider store={store}>
         <GazDataProvider config={gazDataConfig}>
