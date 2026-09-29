@@ -32,11 +32,16 @@ export default defineConfig({
     include: ["maplibre-gl", "leaflet-snap"],
     esbuildOptions: {
       target: "es2022",
+      supported: {
+        "class-field": true,
+        "class-static-field": true,
+      },
     },
   },
 
   esbuild: {
     supported: {
+      "class-field": true,
       "class-static-field": true,
     },
   },
