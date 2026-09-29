@@ -5,7 +5,7 @@ import {
   fetchStrassennamen,
   fetchZusatzRolleArten,
 } from "./api";
-import { WIZARD_ACTIONS } from "./constants";
+import { FLURSTUECK_ART, WIZARD_ACTIONS } from "./constants";
 import { fetchGeometries, geometryForKey } from "./geometry";
 import { formatKey } from "./keys";
 
@@ -16,25 +16,71 @@ export const ADMIN_SECTION = {
   BEMERKUNGEN: "bemerkungen",
 };
 
-export const adminTargets = (value) => {
-  const one = (key, source) => (key ? [{ key, source }] : []);
+const isStaedtisch = (art) => art?.bezeichnung === FLURSTUECK_ART.STAEDTISCH;
+
+// staedtisch is undefined while the parcel that decides it is not picked yet
+const staedtischOf = (key) => (key ? isStaedtisch(key.art) : undefined);
+
+const resultTargets = (value) => {
+  const one = (key, source, staedtisch) =>
+    key || staedtisch === false ? [{ key, source, staedtisch }] : [];
+  const many = (fallback) => {
+    const keys = (value.resultKeys ?? []).filter(Boolean);
+    if (!keys.length) {
+      return one(undefined, undefined, staedtischOf(fallback));
+    }
+    return keys.map((key) => ({
+      key,
+      staedtisch: key.art ? isStaedtisch(key.art) : staedtischOf(fallback),
+    }));
+  };
   switch (value.action) {
     case WIZARD_ACTIONS.CREATE:
-      return one(value.createKey);
-    case WIZARD_ACTIONS.RENAME:
-      return one(value.createKey, value.renameKey);
+      return one(value.createKey, undefined, value.isStaedtisch ?? true);
     case WIZARD_ACTIONS.ACTIVATE:
-      return one(value.activateKey, value.activateKey);
+      return one(
+        value.activateKey,
+        value.activateKey,
+        staedtischOf(value.activateKey)
+      );
     case WIZARD_ACTIONS.CHANGE_KIND:
-      return one(value.changeKey, value.changeKey);
+      return one(
+        value.changeKey,
+        value.changeKey,
+        value.newArtBezeichnung
+          ? value.newArtBezeichnung === FLURSTUECK_ART.STAEDTISCH
+          : undefined
+      );
     case WIZARD_ACTIONS.SPLIT:
+      return many(value.splitKey);
     case WIZARD_ACTIONS.JOIN:
     case WIZARD_ACTIONS.SPLIT_JOIN:
-      return (value.resultKeys ?? []).filter(Boolean).map((key) => ({ key }));
+      return many(value.joinKeys?.[0]);
     default:
       return [];
   }
 };
+
+export const adminTargets = (value) =>
+  resultTargets(value).filter(({ key, staedtisch }) => key && staedtisch);
+
+export const hasNonStaedtischTargets = (value) =>
+  resultTargets(value).some(({ staedtisch }) => staedtisch === false);
+
+export const showsAdminSteps = (value) => {
+  if (
+    value.action === WIZARD_ACTIONS.HISTORIC ||
+    value.action === WIZARD_ACTIONS.RENAME
+  ) {
+    return false;
+  }
+  const targets = resultTargets(value);
+  return (
+    !targets.length || targets.some(({ staedtisch }) => staedtisch !== false)
+  );
+};
+
+export const isStaedtischKey = (key) => isStaedtisch(key?.art);
 
 const knownOutlines = (value) =>
   value.createKey && value.createOutline

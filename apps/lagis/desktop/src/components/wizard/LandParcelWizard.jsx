@@ -88,7 +88,7 @@ const LandParcelWizard = ({
   const [hideProblem, setHideProblem] = useState(false);
   useEffect(() => setLoggingEnabled(showLogs), [showLogs]);
 
-  const steps = useMemo(() => getSteps(data.action), [data.action]);
+  const steps = useMemo(() => getSteps(data), [data]);
   const currentStep = steps[stepIndex];
   const isLast = Boolean(data.action) && stepIndex === steps.length - 1;
 

@@ -4,7 +4,10 @@ import { Alert, InputNumber, Select, Spin } from "antd";
 import { EuroOutlined, TagOutlined } from "@ant-design/icons";
 import AdminAreaTable from "../AdminAreaTable";
 import ParcelSelector, { activeTarget } from "../ParcelSelector";
-import { adminTargets } from "../../../core/wizard/adminData";
+import {
+  adminTargets,
+  hasNonStaedtischTargets,
+} from "../../../core/wizard/adminData";
 import { explain } from "../../../core/wizard/errors";
 import { formatKey } from "../../../core/wizard/keys";
 import {
@@ -190,7 +193,11 @@ const UsageStep = ({ value, onChange, onProblem }) => {
         type="info"
         showIcon
         message="Nutzung"
-        description="Für diese Aktion gibt es kein Flurstück, dem Nutzungen zugeordnet werden können"
+        description={
+          hasNonStaedtischTargets(value)
+            ? "Nutzungen können nur für städtische Flurstücke gepflegt werden"
+            : "Für diese Aktion gibt es kein Flurstück, dem Nutzungen zugeordnet werden können"
+        }
       />
     );
   }
