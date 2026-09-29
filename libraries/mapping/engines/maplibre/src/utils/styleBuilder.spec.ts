@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import type { StyleSpecification } from "maplibre-gl";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { vectorStylesToMapLibreStyle } from "./styleBuilder";
 
@@ -125,5 +125,51 @@ describe("vectorStylesToMapLibreStyle layer opacity", () => {
     const paint = style.layers?.[0]?.paint as Record<string, unknown>;
     expect(paint["circle-opacity"]).toBeCloseTo(0.2);
     expect(paint["circle-stroke-opacity"]).toBeCloseTo(0.2);
+  });
+});
+
+describe("getVectorMapping WMS capabilities fetch", () => {
+  const capabilitiesUrl =
+    "https://wms.example.org/?SERVICE=WMS&REQUEST=GetCapabilities";
+  const vectorStyles = [
+    {
+      name: "a",
+      style: { version: 8, sources: {}, layers: [] } as StyleSpecification,
+      layer: `lyr@${capabilitiesUrl}`,
+    },
+  ];
+
+  // the cache=forced answer is kept per module instance, so every case loads
+  // a fresh one
+  beforeEach(() => {
+    vi.resetModules();
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    window.location.hash = "";
+  });
+
+  const fetchWithHash = async (hash: string) => {
+    window.location.hash = hash;
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      text: async () => "<WMS_Capabilities/>",
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+    const { getVectorMapping } = await import("./styleBuilder");
+    await getVectorMapping(vectorStyles);
+    return fetchMock;
+  };
+
+  it("asks the http cache with cache=forced", async () => {
+    const fetchMock = await fetchWithHash("#/outlet?cache=forced");
+    expect(fetchMock).toHaveBeenCalledWith(capabilitiesUrl, {
+      cache: "force-cache",
+    });
+  });
+
+  it("gives no fetch option without cache=forced", async () => {
+    const fetchMock = await fetchWithHash("#/outlet?ff=ng");
+    expect(fetchMock).toHaveBeenCalledWith(capabilitiesUrl, {});
   });
 });

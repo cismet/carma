@@ -340,9 +340,10 @@ export const getVectorMapping = async (
           // An unreachable capabilities service must not reject this promise:
           // it would abort the mapping for every other layer as well.
           try {
-            const capabilitiesText = await fetch(capabilitiesUrl).then(
-              (response) => response.text()
-            );
+            const capabilitiesText = await fetch(
+              capabilitiesUrl,
+              styleFetchInit()
+            ).then((response) => response.text());
             const fetchedCapabilities = parser.toJSON(capabilitiesText);
             if (!fetchedCapabilities) {
               return;
