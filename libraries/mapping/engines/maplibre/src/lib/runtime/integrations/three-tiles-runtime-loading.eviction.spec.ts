@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { describe, expect, it, vi } from "vitest";
-import { mesh } from "../../core/mesh-tile-test-fixtures";
+import { mesh, quartet } from "../../core/mesh-tile-test-fixtures";
 
 import type { RuntimeTile } from "./three-tiles-runtime-types";
 
@@ -14,10 +14,10 @@ vi.hoisted(() => {
 });
 
 describe("eviction runtime integration", () => {
-  it("never evicts the configured residual surface, even with a ready coarser replacement or a hidden tab", () => {
+  it("protects a loaded floor before the extent floor is armed", () => {
     const { state, loading } = fixture();
     const cache = loading.getRuntimeCache()!;
-    state.extentFloorArmed = true;
+    state.extentFloorArmed = false;
     state.extentGeometricError = 40;
     const parent = {
       refine: "REPLACE",
@@ -191,41 +191,45 @@ describe("eviction runtime integration", () => {
     state.tiles!.dispose();
   });
 
-  it("preserves unpresented residual coverage through pan and zoom-out without an idle-ring flag", () => {
+  it("keeps siblings during fine publication, then allows the coarse fallback", () => {
     const { state, loading } = fixture(true);
     const cache = loading.getRuntimeCache()!;
-    const reserve = {
-      refine: "REPLACE",
-      children: [],
-      parent: null,
-      internal: { hasRenderableContent: true, loadingState: 4 },
-      traversal: { inFrustum: false, error: 100 },
-    } as unknown as RuntimeTile;
-    const dispose = vi.fn(() => {
+    const { parent, children } = quartet(mesh(null, 80));
+    const [reserve, visibleSibling, ...otherSiblings] = children;
+    reserve.traversal.inFrustum = false;
+    const fine = mesh(visibleSibling, 10);
+    visibleSibling.children = [fine];
+    const disposed = vi.fn(() => {
       reserve.internal.loadingState = 0;
     });
-    cache.add(reserve, dispose);
+    for (const tile of [parent, ...children, fine]) {
+      cache.add(tile, tile === reserve ? disposed : vi.fn());
+      cache.setMemoryUsage(tile, 100);
+      cache.setLoaded(tile, true);
+    }
+    state.displayedMeshFrontier.add(fine);
+    cache.minBytesSize = 50;
+    cache.maxBytesSize = 150;
+    cache.minSize = 0;
+    cache.maxSize = 1;
+    cache.markAllUnused();
+
+    // The offscreen sibling and whole direct-child ring stay cached while a
+    // fine child in another sibling is the exclusive published cut.
     expect(cache.remove(reserve)).toBe(false);
-    reserve.traversal.inFrustum = true; // Zoom-out exposes the resident reserve.
-    expect(cache.remove(reserve)).toBe(false);
-    const parent = {
-      ...reserve,
-      children: [reserve],
-      internal: { ...reserve.internal },
-      traversal: { inFrustum: true, error: 10 },
-    } as RuntimeTile;
-    reserve.parent = parent;
-    cache.add(parent, vi.fn());
+    cache.unloadUnusedContent();
+    expect(cache.itemSet.has(reserve)).toBe(true);
+    expect(otherSiblings.every((sibling) => cache.itemSet.has(sibling))).toBe(
+      true
+    );
+    expect(disposed).not.toHaveBeenCalled();
+
+    // Once the fine cut is gone, the cached coarse parent is a valid fallback.
+    state.displayedMeshFrontier.clear();
     state.displayedMeshFrontier.add(parent);
-    state.displayedMeshFrontier.add(reserve);
-    // Motion admission allows 20px, but existing detail is retained at 4px.
-    expect(cache.remove(reserve)).toBe(false);
-    parent.traversal.error = 3; // Even a target-quality ancestor cannot downgrade it.
-    expect(cache.remove(reserve)).toBe(false);
-    reserve.traversal.inFrustum = false; // Offscreen history may yield to its parent.
     expect(cache.remove(reserve)).toBe(true);
-    expect(dispose).toHaveBeenCalledOnce();
-    expect(cache.remove(parent)).toBe(false); // Never erase the last coverage.
+    expect(disposed).toHaveBeenCalledOnce();
+    expect(cache.remove(parent)).toBe(false);
     loading.wipeCacheWhileHidden();
     state.tiles!.dispose();
   });
@@ -310,13 +314,12 @@ describe("eviction runtime integration", () => {
       state.lastMainViewConverged = converged;
       state.lastActiveViewsConverged = converged;
       state.memoryErrorTarget = memoryTarget;
-      // A previous publication prerequisite does not retain offscreen demand.
+      // Current full-family ownership survives even outside every camera.
       state.meshRefinementSupport.add(support);
       state.meshDemandSweepPending = true;
       loading.sweepSettledMeshDemand();
-      expect(cache.itemSet.has(support)).toBe(remaining);
-      // The first obsolete request releases enough memory; do not over-evict.
-      expect(cache.itemSet.has(stale)).toBe(true);
+      expect(cache.itemSet.has(support)).toBe(true);
+      expect(cache.itemSet.has(stale)).toBe(remaining);
       state.tiles!.loadingTiles.clear();
       state.tiles!.dispose();
     }

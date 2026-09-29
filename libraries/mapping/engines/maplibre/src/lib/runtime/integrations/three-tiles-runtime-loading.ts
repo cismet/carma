@@ -45,6 +45,7 @@ export function createThreeTilesLoading(
     | "disposed"
     | "runtimeVisible"
     | "shadowView"
+    | "shadowReceiverMaskConverged"
     | "meshInitialBasePassDone"
     | "meshInitialHandoverDone"
     | "tileCameraDemand"

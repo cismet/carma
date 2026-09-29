@@ -79,8 +79,7 @@ export const resolveTileRequestNeed = (
     return TILE_REQUEST_NEED.ZOOM;
   const cameraDemand = context.cameraDemand(tile);
   const inActiveView = inView || cameraDemand.required;
-  if (inActiveView && context.refinementSupport.has(tile))
-    return TILE_REQUEST_NEED.SUPPORT;
+  if (context.refinementSupport.has(tile)) return TILE_REQUEST_NEED.SUPPORT;
   if (
     context.providesTerrain &&
     isMeshCoveredByLoadedChildren(tile, context.visibleTiles)
@@ -170,6 +169,5 @@ export const isTileCoveragePrerequisite = (
   awaitingShadowReceivers: boolean
 ): boolean =>
   reason === TILE_REQUEST_NEED.SHADOW ||
-  (awaitingShadowReceivers &&
-    (reason === TILE_REQUEST_NEED.CAMERA ||
-      reason === TILE_REQUEST_NEED.SUPPORT));
+  reason === TILE_REQUEST_NEED.SUPPORT ||
+  (awaitingShadowReceivers && reason === TILE_REQUEST_NEED.CAMERA);

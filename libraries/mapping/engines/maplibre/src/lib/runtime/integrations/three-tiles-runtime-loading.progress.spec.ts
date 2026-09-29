@@ -54,7 +54,52 @@ describe("progress runtime integration", () => {
     state.tiles!.dispose();
   });
 
-  it("releases the requested target after observer handover while reserve work remains pending", () => {
+  it("holds 16 px for an unfinished region and accepts unequal-depth tilted-view tiles", () => {
+    const { state, loading } = fixture();
+    const tile = (error: number, children: RuntimeTile[] = []) =>
+      ({
+        refine: "REPLACE",
+        children,
+        internal: { hasRenderableContent: true, loadingState: 4 },
+        traversal: { error, inFrustum: true },
+      } as unknown as RuntimeTile);
+    const near = tile(12),
+      far = tile(17);
+    const nearParent = tile(30, [near]);
+    const root = tile(80, [nearParent, far]);
+    near.parent = nearParent;
+    nearParent.parent = far.parent = root;
+    Object.assign(state.tiles!, { rootTileset: { root } });
+    state.meshInitialBasePassDone = state.meshInitialHandoverDone = true;
+    state.effectiveErrorTarget = 16;
+    state.displayedMeshFrontier = new Set([near, far]);
+    loading.applyErrorTargetPolicy();
+    expect(state.effectiveErrorTarget).toBe(16);
+    // Projection changes the pixel error, not the two different tree depths.
+    far.traversal.error = 15;
+    state.shadowView = {
+      camera: new OrthographicCamera(),
+      shadowMapSize: { width: 512, height: 512 },
+    };
+    loading.applyErrorTargetPolicy();
+    expect(state.effectiveErrorTarget).toBe(16);
+    state.meshShadowReserve.ready = true;
+    state.shadowReceiverMaskConverged = true;
+    state.meshShadowReserve.frontier = new Set([near, far]);
+    state.lastMainViewConverged = state.lastActiveViewsConverged = true;
+    loading.applyErrorTargetPolicy();
+    expect(state.effectiveErrorTarget).toBe(8);
+    expect(state.lastMainViewConverged).toBe(false);
+    expect(state.lastActiveViewsConverged).toBe(false);
+    loading.applyErrorTargetPolicy();
+    expect(state.effectiveErrorTarget).toBe(8);
+    expect(state.lastMainViewConverged).toBe(false);
+    expect(state.lastActiveViewsConverged).toBe(false);
+    Object.assign(state.tiles!, { rootTileset: null });
+    state.tiles!.dispose();
+  });
+
+  it("finishes each published SSE wave while background reserve work remains pending", () => {
     const { state, loading, applyPendingShadowView } = fixture();
     loading.applyErrorTargetPolicy();
     expect(state.effectiveErrorTarget).toBe(64);
@@ -84,15 +129,15 @@ describe("progress runtime integration", () => {
     expect(state.meshInitialHandoverDone).toBe(false);
     expect(applyPendingShadowView).toHaveBeenCalledOnce();
     loading.applyErrorTargetPolicy();
-    expect(state.effectiveErrorTarget).toBe(20);
+    expect(state.effectiveErrorTarget).toBe(32);
     // The published parent now covers the observer at the handover target.
     // Pending reserve audits, payloads and local children do not gate detail.
     root.traversal.error = 18;
     loading.applyErrorTargetPolicy();
     expect(state.meshInitialHandoverDone).toBe(true);
     expect(state.meshInitialReserveSettled).toBe(false);
-    expect(state.effectiveErrorTarget).toBe(4);
-    expect(state.tiles!.errorTarget).toBe(4);
+    expect(state.effectiveErrorTarget).toBe(16);
+    expect(state.tiles!.errorTarget).toBe(16);
     expect(state.displayedMeshFrontier.has(root)).toBe(true);
     expect(state.meshDemandSweepPending).toBe(true);
     expect(state.map!.triggerRepaint).toHaveBeenCalled();
@@ -104,9 +149,19 @@ describe("progress runtime integration", () => {
     loading.applyErrorTargetPolicy();
     expect(state.meshInitialReserveSettled).toBe(true);
     expect(applyPendingShadowView).toHaveBeenCalledOnce();
-    // Later reserve work does not restart a global quality stage.
+    // Completing 16 px releases 8 px; a 9 px region must still hold that wave.
     state.extentFloorPending = 3;
     root.traversal.error = 9;
+    state.lastMainViewConverged = state.lastActiveViewsConverged = true;
+    loading.applyErrorTargetPolicy();
+    expect(state.effectiveErrorTarget).toBe(8);
+    expect(state.lastMainViewConverged).toBe(false);
+    expect(state.lastActiveViewsConverged).toBe(false);
+    loading.applyErrorTargetPolicy();
+    expect(state.effectiveErrorTarget).toBe(8);
+    expect(state.lastMainViewConverged).toBe(false);
+    expect(state.lastActiveViewsConverged).toBe(false);
+    root.traversal.error = 7;
     loading.applyErrorTargetPolicy();
     expect(state.effectiveErrorTarget).toBe(4);
     Object.assign(state.tiles!, { rootTileset: null });

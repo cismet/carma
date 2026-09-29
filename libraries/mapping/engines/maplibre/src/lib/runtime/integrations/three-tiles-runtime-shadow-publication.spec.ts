@@ -84,6 +84,7 @@ describe("mesh caster publication", () => {
     state.tiles = {
       group: new THREE.Group(),
       markTileUsed: vi.fn(),
+      getPluginByName: () => null,
     } as unknown as RuntimeTilesRenderer;
     const root = makeTile("root", -1, Infinity, true);
     root.internal.hasRenderableContent = false;
@@ -171,18 +172,20 @@ describe("mesh caster publication", () => {
     expect(state.committedMeshCasterFrontier).toEqual(
       new Set([parent, otherParent])
     );
-    expect(state.shadowCasterRequests.has(chimney)).toBe(false);
+    expect(state.shadowCasterRequests.has(chimney)).toBe(true);
     expect(onContentChanged).not.toHaveBeenCalled();
-    // Once recovery ends, the ready family progresses independently again.
+    // Every publication keeps the complete reserve until all families are ready.
     state.meshCoverageRecovery = false;
     advance(new Set([receiver, otherChild]));
     expect(state.committedMeshReceiverFrontier).toEqual(
-      new Set([parent, otherChild])
+      new Set([parent, otherParent])
     );
     expect(state.committedMeshCasterFrontier).toEqual(
-      new Set([parent, otherChild])
+      new Set([parent, otherParent])
     );
-    expect(state.pendingMeshReceiverFrontier).toEqual(new Set([receiver]));
+    expect(state.pendingMeshReceiverFrontier).toEqual(
+      new Set([receiver, otherChild])
+    );
     // Pending/failed children keep the same exclusive parent in colour/depth.
     // An unchanged cut must not trigger another hard-shadow invalidation.
     onContentChanged.mockClear();
@@ -192,12 +195,14 @@ describe("mesh caster publication", () => {
       chimney.internal.loadingState = loadingState;
       advance(new Set([receiver, otherChild]));
       expect(state.committedMeshReceiverFrontier).toEqual(
-        new Set([parent, otherChild])
+        new Set([parent, otherParent])
       );
       expect(state.committedMeshCasterFrontier).toEqual(
-        new Set([parent, otherChild])
+        new Set([parent, otherParent])
       );
-      expect(state.pendingMeshReceiverFrontier).toEqual(new Set([receiver]));
+      expect(state.pendingMeshReceiverFrontier).toEqual(
+        new Set([receiver, otherChild])
+      );
       expect(state.committedMeshReceiverFrontier).toEqual(heldReceivers);
       expect(state.committedMeshCasterFrontier).toBe(heldCasters);
       expect(onContentChanged).not.toHaveBeenCalled();

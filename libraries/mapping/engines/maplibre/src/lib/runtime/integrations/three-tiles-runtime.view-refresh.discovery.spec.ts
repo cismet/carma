@@ -70,9 +70,12 @@ describe("discovery runtime integration", () => {
         expect(error(route)).toBeGreaterThan(state.effectiveErrorTarget);
         missing.internal.loadingState = 4;
         renderer.prepareForTraversal();
+        expect(error(ready)).toBe(state.effectiveErrorTarget);
+        outside.internal.loadingState = 4;
+        renderer.prepareForTraversal();
         expect(error(ready)).toBe(ready.geometricError);
         expect(error(missing)).toBe(missing.geometricError);
-        expect(outside.internal.loadingState).toBe(0);
+        expect(outside.internal.loadingState).toBe(4);
       } finally {
         mounted.runtime.scene.dispose();
       }
@@ -190,7 +193,7 @@ describe("discovery runtime integration", () => {
   });
 
   it.each([16, undefined])(
-    "keeps native sibling expansion disabled before and after handover (base %s)",
+    "completes native sibling families before and after handover (base %s)",
     (baseErrorTargetPixels) => {
       const passes: boolean[] = [];
       const mounted = mount(

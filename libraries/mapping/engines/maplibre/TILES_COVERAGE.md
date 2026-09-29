@@ -1,3 +1,64 @@
+## Outcome proofs and request accounting
+
+Stage advancement and foreground completion use the same published hierarchy
+coverage and measured CSS-pixel-error predicate. A changed target invalidates the
+previous completion signal. Unknown metadata, exhausted source detail and empty
+queues cannot prove an unmet target. Proven empty child regions are released in
+both mesh modes instead of retaining misleading coarse parent bounds.
+
+Each renderer keeps bounded request-start counters for initial load, movement
+and zoom, independent of debug UI visibility. These count native tile admissions,
+including retries and cache-backed metadata; wire requests, completion, failure
+and byte counts are measured separately by browser network traces. Neither
+request histories nor phase identities are shared between sessions.
+
+Shadow reserve topology is resolved from prepared bounds before mesh downloads.
+An in-progress reserve keeps its planning identity across admission-target
+changes; diagnostics distinguish metadata, planning, loading, blocked and ready.
+
+## Complete replacement families and resident base coverage
+
+As of 2026-09-29, every drawable REPLACE family includes its direct siblings
+outside both the observer viewport and the shadow corridor. The same rule applies
+to offscreen LOD rings. This supersedes historical off-frustum sibling exclusions
+below. Containers route to the next drawable generation; they do not require a
+whole metadata subtree to be displayed. ADD content keeps its native semantics.
+
+A parent stays alone until the complete next family is resident. Receiver support
+also prepares its materials. Only demanded children are drawn or used as casters;
+offscreen siblings remain resident support, without extending the light corridor.
+Missing viewport coverage keeps request priority over reserve refinement. The
+family planner owns these requests; recursive upstream sibling loading stays off
+so discarded intermediate parents are not fetched again. During recovery, finish
+the first missing child generation before opening deeper ones. Settled cleanup
+retains current family support, including decoded caster siblings awaiting their
+family handover.
+
+Loaded base-resolution payloads and their owning metadata are protected before
+and after the first idle pass, until layer disposal. A resident coarse parent is
+not an eviction fallback while finer siblings in that region remain published:
+such a fallback would either overlap them or leave a gap. Native batch eviction
+and explicit cache removal use the same restriction. Base resident bytes report
+cache-accounted mesh resources at or above the configured floor, including coarse
+ancestors; they are not a measurement of total browser or GPU-driver memory.
+
+## Complete shadow reserve and screen-space error waves
+
+Before publishing a finer shadow mesh cut, prepare a complete, material-ready
+reserve through the base coverage and its caster dependencies. Keep the previous
+complete cut while geometry, materials or shadow closure are pending. Navigation
+selects the newly visible portion of that resident reserve without introducing
+parent/child overlap. Reserve tiles may become receivers, so their materials must
+also be ready. This supersedes historical independent shadow-family handover.
+
+The observer advances one complete screen-space error wave at a time, halving
+its threshold toward the requested target (for example 16, 8, then 4 CSS pixels).
+Only the actually published complete view proves a wave; downloaded geometry,
+empty queues or failed requests do not. Shadows additionally require the current
+reserve/caster proof before advancing. These are pixel-error thresholds, not
+uniform tree levels: near and distant regions of a tilted view can use different
+LODs. Finer resident detail stays visible while other regions catch up.
+
 ## Camera-normalized mesh refinement
 
 Active mesh cameras share one request pool and one geometry cut. The main
@@ -25,9 +86,9 @@ depth for SSE. Near/far cuts, camera-inside volumes and nonstandard projections
 retain the exact volume-intersection fallback. This replaces the general
 polyhedron-intersection/hull path for ordinary footprint queries.
 
-Each published replacement region advances independently through targets
-`2^n * finalErrorTarget`. Queue ordering uses coverage phase, the current
-relative error band, then summed benefit; there is no whole-scene wave barrier.
+Queue ordering within the current complete-view error wave uses coverage phase,
+the current relative error band, then summed benefit. Regional quality scoring
+cannot bypass the observer's current screen-space error threshold.
 Per-camera pixel errors and final-target demand ratios remain separate from
 admission-stage ratios for diagnostics and coverage proofs. Motion and memory limits affect admission, not retained detail.
 

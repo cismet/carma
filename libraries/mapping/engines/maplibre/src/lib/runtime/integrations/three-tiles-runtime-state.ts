@@ -58,6 +58,8 @@ import {
 import type { TilesCameraSet } from "./tiles-camera-set";
 import { createTileCameraDemand } from "../../core/tile-camera-demand";
 
+import { createThreeTilesRequestHistory } from "./three-tiles-request-history";
+
 export function createThreeTilesRuntimeState(
   layerId: string,
   tilesetUrl: string,
@@ -332,6 +334,7 @@ export function createThreeTilesRuntimeState(
   >();
   const shadowRegionTransform = new THREE.Matrix4();
   const state: ThreeTilesRuntimeState = {
+    requestHistory: createThreeTilesRequestHistory(),
     originMerc,
     mScale,
     map,

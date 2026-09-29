@@ -93,25 +93,7 @@ export function installThreeTilesTraversalHooks(
     readyFamilyRegion ??= createMeshRegionCutQuery(
       { has: isLoadedMesh },
       Number.MAX_VALUE,
-      (candidate) => ({
-        intersects:
-          !candidate.internal ||
-          !candidate.traversal ||
-          dependencies.isTileInMainView(candidate as RuntimeTile) ||
-          dependencies.getTileCameraDemand(candidate as RuntimeTile).required ||
-          runtimeState.shadowCasterRequests.has(candidate) ||
-          (canLoadReserve() &&
-            (() => {
-              const ring = dependencies.getTileRingIndex(
-                candidate as RuntimeTile
-              );
-              return (
-                ring > 0 &&
-                ring <= TILES_LOAD_POLICY.idleRingTanMultipliers.length
-              );
-            })()),
-        errorPixels: 0,
-      })
+      () => ({ intersects: true, errorPixels: 0 })
     );
     // Query the children separately: the parent's own loaded payload is not
     // evidence that its demanded next level is complete. Routing JSON and
@@ -128,6 +110,8 @@ export function installThreeTilesTraversalHooks(
     // Native update clears last frame's used pins before this preparation.
     // Repin here so its queued-job cleanup respects solar request retention.
     // Marking before update is too early; it is immediately cleared again.
+    for (const tile of runtimeState.meshRefinementSupport)
+      runtimeState.tiles?.markTileUsed(tile);
     for (const tile of runtimeState.retainedShadowRequests)
       if (runtimeState.tiles?.loadingTiles.has(tile))
         runtimeState.tiles.markTileUsed(tile);
@@ -189,7 +173,7 @@ export function installThreeTilesTraversalHooks(
     }
     // Support is a prerequisite within current demand, never a second
     // source of visibility that can keep an old offscreen sibling alive.
-    if (target.inView && runtimeState.meshRefinementSupport.has(tile))
+    if (runtimeState.meshRefinementSupport.has(tile))
       runtimeState.tiles?.markTileUsed(tile);
     if (runtimeTile.zoomPrefetch) runtimeState.tiles?.markTileUsed(tile);
     runtimeTile.shadowReceiverCenterness = undefined;
@@ -443,7 +427,12 @@ export function installThreeTilesTraversalHooks(
       (runtimeState.shadowCasterRequests.has(tile) ||
         runtimeState.committedMeshCasterFrontier.has(tile));
     if (explicitCaster) runtimeTile.shadowReceiverCurrent = true;
-    dependencies.applyTileDeferral(tile, target.inView || explicitCaster);
+    dependencies.applyTileDeferral(
+      tile,
+      target.inView ||
+        explicitCaster ||
+        runtimeState.meshRefinementSupport.has(tile)
+    );
   };
   const queueTileForDownload = runtimeState.tiles.queueTileForDownload.bind(
     runtimeState.tiles
@@ -538,8 +527,8 @@ export function installThreeTilesTraversalHooks(
     ) {
       return;
     }
-    // Queue only this request's actual camera/corridor demand. Replacement
-    // siblings are discovered by traversal, never forced into the queue.
+    // Receiver and caster selection explicitly own complete replacement
+    // families; siblings use the same bounded queues as direct camera demand.
     dependencies.assignTilePriority(runtimeTile);
     runtimeState.queuedThisTraversal.add(tile);
     dependencies.getTileDebugProgress(tile).queuedAt ??= performance.now();

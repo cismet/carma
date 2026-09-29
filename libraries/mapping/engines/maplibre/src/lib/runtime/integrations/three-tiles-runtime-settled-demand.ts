@@ -41,6 +41,7 @@ export function createThreeTilesSettledDemand(
     tile: RuntimeTile
   ): boolean => {
     if (
+      runtimeState.meshRefinementSupport.has(tile) ||
       isPendingShadowDemand(tile) ||
       !runtimeState.viewFrustumsReady ||
       dependencies.isTileInMainView(tile) ||
@@ -112,7 +113,14 @@ export function createThreeTilesSettledDemand(
       runtimeState.meshDemandSweepPending = false;
       let removed = 0;
       for (const tile of [...cache.itemList]) {
-        if (isPendingShadowDemand(tile as RuntimeTile)) continue;
+        // Complete replacement families own their off-camera siblings until
+        // publication. Reclaiming them here would fight queue admission and
+        // repeatedly restart the same payloads while the parent waits.
+        if (
+          runtimeState.meshRefinementSupport.has(tile) ||
+          isPendingShadowDemand(tile as RuntimeTile)
+        )
+          continue;
         const underPressure =
           runtimeState.memoryAdmissionPaused || cache.isFull();
         if (!underPressure && runtimeState.retainedShadowRequests.has(tile))

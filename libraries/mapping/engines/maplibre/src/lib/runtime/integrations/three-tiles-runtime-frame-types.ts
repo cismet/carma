@@ -23,6 +23,7 @@ export type ThreeTilesFrameRuntimeState = Pick<
   | "allocationFailed"
   | "cameraSet"
   | "committedMeshCasterFrontier"
+  | "meshShadowReserve"
   | "committedMeshReceiverFrontier"
   | "pendingMeshReceiverFrontier"
   | "currentToReference"

@@ -23,7 +23,7 @@ vi.hoisted(() => {
 });
 
 describe("request admission runtime integration", () => {
-  it("rejects stale offscreen support and admits current-view prerequisites through pause gates", () => {
+  it("admits owned offscreen support through native view-error deferral and current-view pause gates", () => {
     type QueueRenderer = TilesRenderer & {
       queueTileForDownload: (tile: Tile) => void;
     };
@@ -90,6 +90,7 @@ describe("request admission runtime integration", () => {
             memoryAdmissionPaused: boolean;
             loadingPaused: boolean;
             queuedThisTraversal: Set<Tile>;
+            deferred: Set<Tile>;
           }>;
         }
       ).__carmaTiles3d;
@@ -115,7 +116,7 @@ describe("request admission runtime integration", () => {
       expect(nativeQueue).not.toHaveBeenCalled();
       state.meshRefinementSupport.add(obsolete);
       renderer.queueTileForDownload(obsolete);
-      expect(nativeQueue).not.toHaveBeenCalled();
+      expect(nativeQueue).toHaveBeenCalledOnce();
       state.meshRefinementSupport.delete(obsolete);
       state.queuedThisTraversal.delete(obsolete);
       nativeQueue.mockClear();
@@ -146,6 +147,49 @@ describe("request admission runtime integration", () => {
       });
       state.queuedThisTraversal.delete(support);
       renderer.queueTileForDownload(support);
+      expect(nativeQueue).toHaveBeenCalledOnce();
+
+      const ownedSupport = {
+        ...support,
+        content: { uri: "owned-support.b3dm" },
+        internal: { ...support.internal, loadingState: 0 },
+        traversal: { ...support.traversal, inFrustum: false },
+      } as Tile;
+      state.meshRefinementSupport.add(ownedSupport);
+      vi.spyOn(renderer, "calculateTileViewError").mockImplementation(
+        (_tile, target) =>
+          Object.assign(target, {
+            inView: false,
+            error: 10,
+            distanceFromCamera: 1,
+          })
+      );
+      const viewError = { inView: true, error: 0, distanceFromCamera: 0 };
+      renderer.calculateTileViewErrorWithPlugin(ownedSupport, viewError);
+      expect(viewError.inView).toBe(false);
+      expect(ownedSupport.internal.loadingState).toBe(0);
+      expect(state.deferred.has(ownedSupport)).toBe(false);
+
+      nativeQueue.mockClear();
+      nativeQueue.mockImplementation((tile) => {
+        tile.internal.loadingState = 1;
+        renderer.loadingTiles.add(tile);
+      });
+      state.queuedThisTraversal.delete(ownedSupport);
+      renderer.queueTileForDownload(ownedSupport);
+      expect(nativeQueue).toHaveBeenCalledOnce();
+      expect(ownedSupport.internal.loadingState).toBe(1);
+      expect(renderer.loadingTiles.has(ownedSupport)).toBe(true);
+      renderer.calculateTileViewErrorWithPlugin(ownedSupport, viewError);
+      expect(ownedSupport.internal.loadingState).toBe(1);
+
+      state.meshRefinementSupport.delete(ownedSupport);
+      ownedSupport.internal.loadingState = 0;
+      renderer.calculateTileViewErrorWithPlugin(ownedSupport, viewError);
+      expect(ownedSupport.internal.loadingState).toBe(-1);
+      expect(state.deferred.has(ownedSupport)).toBe(true);
+      state.queuedThisTraversal.delete(ownedSupport);
+      renderer.queueTileForDownload(ownedSupport);
       expect(nativeQueue).toHaveBeenCalledOnce();
     } finally {
       runtime.scene.dispose();

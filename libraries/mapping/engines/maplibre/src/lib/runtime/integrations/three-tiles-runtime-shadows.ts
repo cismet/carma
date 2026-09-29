@@ -34,7 +34,9 @@ export type ThreeTilesShadowsState = Pick<
   | "pendingMeshReceiverFrontier"
   | "committedMeshReceiverFrontier"
   | "meshCoverageRecovery"
+  | "extentGeometricError"
   | "committedMeshCasterFrontier"
+  | "meshShadowReserve"
   | "pendingMeshCasterFrontier"
   | "shadowView"
   | "shadowSelectionEnabled"
@@ -99,6 +101,9 @@ export function createThreeTilesShadows(
       runtimeState.shadowReceiverMask = null;
       runtimeState.pendingMeshReceiverMask = null;
       runtimeState.pendingMeshCasterFrontier.clear();
+      runtimeState.meshShadowReserve.frontier.clear();
+      runtimeState.meshShadowReserve.support.clear();
+      runtimeState.meshShadowReserve.ready = false;
       runtimeState.shadowCasterRequests.clear();
       runtimeState.shadowReceiverMaskConverged = false;
       runtimeState.shadowReceiverSourceSignature = "";

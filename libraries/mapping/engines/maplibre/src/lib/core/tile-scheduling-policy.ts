@@ -275,7 +275,8 @@ export const resolveTileDownloadConcurrency = (
 
 export const resolveMeshStageTarget = (
   input: Readonly<{
-    shadowView: boolean;
+    currentTarget: number;
+    stageReady: boolean;
     minimumTarget: number;
     initialTarget: number;
     handoverTarget?: number;
@@ -283,15 +284,17 @@ export const resolveMeshStageTarget = (
     firstImageReady: boolean;
   }>
 ): number => {
-  // Decision: ../../../TILES_COVERAGE.md#independent-refinement-after-observer-handover
-  // Handover releases local replacement families, not a global reserve or
-  // intermediate pixel-error wave. Their ready parents remain the fallback.
-  if (input.handoverReady) return input.minimumTarget;
-  if (input.handoverTarget !== undefined)
-    return input.firstImageReady
-      ? Math.max(input.minimumTarget, input.handoverTarget)
-      : input.initialTarget;
-  return input.shadowView ? input.minimumTarget : input.initialTarget;
+  // Complete the published screen-space error wave before requesting the next.
+  // Tree depth is deliberately absent: a tilted view needs different LODs.
+  const floor = input.handoverReady
+    ? input.minimumTarget
+    : input.firstImageReady && input.handoverTarget !== undefined
+    ? Math.max(input.minimumTarget, input.handoverTarget)
+    : input.initialTarget;
+  return Math.max(
+    floor,
+    input.stageReady ? input.currentTarget / 2 : input.currentTarget
+  );
 };
 
 /** Ordered preemption consumes one waiting slot only when it aborts a useful

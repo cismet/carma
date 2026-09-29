@@ -34,6 +34,10 @@ export type CoverageSummary = {
   waitingForBase: boolean;
   floorLoaded: number;
   floorTotal: number;
+  floorResidentTiles: number;
+  floorResidentBytes: number;
+  baseResidentTiles: number;
+  baseResidentBytes: number;
   uncovered: number;
   resident: number;
   cachedMB: number;
@@ -88,6 +92,10 @@ export const summarizeTileDiagnostics = (
     waitingForBase: currentCoverage.waitingForBase,
     floorLoaded: coverage.floorLoaded,
     floorTotal: coverage.floorTotal,
+    floorResidentTiles: currentCoverage.floorResidentTiles,
+    floorResidentBytes: currentCoverage.floorResidentBytes,
+    baseResidentTiles: currentCoverage.baseResidentTiles,
+    baseResidentBytes: currentCoverage.baseResidentBytes,
     uncovered: coverage.uncoveredFallbackRoots,
     resident: cache.itemSet.size,
     cachedMB: cache.cachedBytes / 1e6,

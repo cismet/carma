@@ -113,15 +113,7 @@ export function createThreeTilesFramePublication(
       // Multi-camera screen errors are demand ratios normalized to the
       // effective target. Comparing them to the raw requested target would
       // refine again by the staging factor and churn the resident cut.
-      const receiverErrorTarget =
-        runtimeState.options.handoverErrorTargetPixels === undefined &&
-        runtimeState.shadowView &&
-        runtimeState.tileCameraDemand.views.length <= 1
-          ? Math.max(
-              runtimeState.requestedErrorTarget,
-              runtimeState.memoryErrorTarget
-            )
-          : runtimeState.effectiveErrorTarget;
+      const receiverErrorTarget = runtimeState.effectiveErrorTarget;
       const receiverPlan = selectMeshReceiverPlan(
         runtimeState.tiles.rootTileset.root,
         runtimeState.meshCoverageRecovery
@@ -142,17 +134,14 @@ export function createThreeTilesFramePublication(
             ),
         inReceiverView,
         dependencies.getTileScreenError,
-        (tile) =>
-          (!dependencies.isTileInMainView(tile as RuntimeTile) &&
-            !dependencies.getTileCameraDemand(tile as RuntimeTile).receiver) ||
-          attachment.isDeferredMaterialReady(tile),
+        (tile) => attachment.isDeferredMaterialReady(tile),
         frameState.retainedMeshAncestors,
         {
           published: runtimeState.displayedMeshFrontier,
           // Missing mesh coverage admits the first drawable approximation.
           // Final pixel quality belongs to refinement after that publication.
           allowCoarseBootstrap: true,
-          releaseEmptyReplacementRegions: Boolean(runtimeState.shadowView),
+          releaseEmptyReplacementRegions: true,
           retainedCasters: runtimeState.shadowView
             ? runtimeState.committedMeshCasterFrontier
             : undefined,
@@ -168,7 +157,10 @@ export function createThreeTilesFramePublication(
         for (const tile of receiverPlan.materialWaits)
           dependencies.recordTileWait(tile, "receiver", "material");
       attachment.updateMeshRefinementSupport(
-        receiverPlan.refinementSupport,
+        new Set([
+          ...receiverPlan.refinementSupport,
+          ...runtimeState.meshShadowReserve.support,
+        ]),
         receiverPlan.unpreparedParents
       );
       abortStaleDownloads();

@@ -139,13 +139,11 @@ describe("mesh receiver plan", () => {
     expect(select().tiles).toEqual(new Set([parent]));
     children[0].traversal.inFrustum = true;
     expect(select().tiles).toEqual(new Set([children[0]]));
-    expect(
-      [...select().refinementSupport].every((tile) => tile === children[0])
-    ).toBe(true);
+    expect(select().refinementSupport).toEqual(new Set(children));
   });
 
   it.each(["missing", "material-pending", "unconditional"])(
-    "does not request or prepare proven offscreen sibling support (%s)",
+    "holds the parent until offscreen siblings have drawable replacements (%s)",
     (outsideState) => {
       const { parent, children } = quartet(mesh(null, 28));
       children.forEach((child) => (child.traversal.error = 10));
@@ -173,12 +171,13 @@ describe("mesh receiver plan", () => {
         { published: new Set([parent]) }
       );
       const cut = plan.tiles;
-      expect(cut).toEqual(new Set([children[0]]));
-      for (const tile of [...children.slice(1), ...outside.children]) {
-        expect(plan.refinementSupport.has(tile)).toBe(false);
-        expect(materialChecks).not.toContain(tile);
-      }
-      // Visibility-relative publication cannot make full-extent eviction safe.
+      expect(cut).toEqual(new Set([parent]));
+      expect(plan.refinementSupport.has(children[0])).toBe(true);
+      const requiredOutside =
+        outsideState === "unconditional" ? outside.children : [outside];
+      for (const tile of requiredOutside)
+        expect(plan.refinementSupport.has(tile)).toBe(true);
+      // No partial child family is published over the resident fallback.
       expect(isMeshCoverageRemovalSafe(parent, cut)).toBe(false);
     }
   );
@@ -195,7 +194,7 @@ describe("mesh receiver plan", () => {
         (tile) => visible.has(tile),
         (tile) => tile.traversal.error
       ).tiles;
-    expect(select()).toEqual(new Set([children[0]]));
+    expect(select()).toEqual(new Set([parent]));
     visible.add(children[1]);
     expect(select()).toEqual(new Set([parent]));
     children[1].internal.loadingState = 4;
@@ -295,11 +294,11 @@ describe("exclusive receiver coverage", () => {
     }
   );
 
-  it("drops the fallback for complete domain coverage and restores it when demand expands", () => {
+  it("keeps complete sibling coverage ready before a viewport expansion", () => {
     const { parent, children } = quartet(mesh(null, 16));
     children[3].internal.loadingState = 2;
     children[3].traversal.inFrustum = false;
-    expect(select(parent, inView)).toEqual(new Set(children.slice(0, 3)));
+    expect(select(parent, inView)).toEqual(new Set([parent]));
     children[3].traversal.inFrustum = true;
     expect(select(parent, inView)).toEqual(new Set([parent]));
     children[3].internal.loadingState = 4;
@@ -353,7 +352,7 @@ describe("exclusive receiver coverage", () => {
     expect(hasMeshRefinementContentInView(empty, inView)).toBe(true);
   });
 
-  it("routes through external metadata without waiting for unrelated offscreen content", () => {
+  it("includes drawable siblings across external metadata routes", () => {
     const root = mesh(null, 64);
     const metadata = mesh(root, 64);
     metadata.internal.hasRenderableContent = false;
@@ -364,7 +363,10 @@ describe("exclusive receiver coverage", () => {
     outside.traversal.inFrustum = false;
     outside.internal.loadingState = 2;
     root.children = [metadata, outside];
+    expect(select(root, inView)).toEqual(new Set([root]));
+    outside.internal.loadingState = 4;
     expect(select(root, inView)).toEqual(new Set([local]));
+    outside.internal.loadingState = 2;
     outside.traversal.inFrustum = true;
     expect(select(root, inView)).toEqual(new Set([root]));
   });

@@ -283,8 +283,7 @@ export function createThreeTilesSpatialDemand(
       return Math.max(
         objective?.priority ?? Number.NEGATIVE_INFINITY,
         resolveTileRequestPriority({
-          replacementSupport:
-            inObserver && runtimeState.meshRefinementSupport.has(tile),
+          replacementSupport: runtimeState.meshRefinementSupport.has(tile),
           cameraPriority: getTileCameraDemand(tile).priority,
           motionPrefetch: !!tile.motionPrefetch,
           observerVisible: inObserver,

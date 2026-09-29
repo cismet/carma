@@ -1,5 +1,5 @@
 import type { Camera } from "three";
-import { getReadyMeshRegionCut } from "../../core/mesh-tile-coverage";
+import { isMeshRegionAtError } from "../../core/mesh-tile-coverage";
 import {
   snapshotTileCameraViews,
   TILE_CAMERA_ROLE,
@@ -13,7 +13,7 @@ import type {
 import type { RuntimeTile } from "./three-tiles-runtime-types";
 
 /** Prove final-target coverage over the hierarchy, including missing branches.
- * This gates only background work; each foreground family progresses locally.
+ * The same published-cut error proof gates stage advancement and background work.
  */
 export const areActiveMeshViewsConverged = (
   runtimeState: ThreeTilesFrameRuntimeState,
@@ -34,7 +34,7 @@ export const areActiveMeshViewsConverged = (
           ) / runtimeState.effectiveErrorTarget,
           false
         ) &&
-        getReadyMeshRegionCut(
+        isMeshRegionAtError(
           root,
           new Set([
             ...runtimeState.displayedMeshFrontier,
@@ -57,8 +57,11 @@ export const areActiveMeshViewsConverged = (
               errorPixels: demand.errorRatio,
             };
           }
-        ) !== null &&
-        (!runtimeState.shadowView || runtimeState.shadowReceiverMaskConverged)
+        ) &&
+        (!runtimeState.shadowView ||
+          (runtimeState.shadowReceiverMaskConverged &&
+            runtimeState.meshShadowReserve.ready &&
+            runtimeState.meshShadowReserve.support.size === 0))
     : runtimeState.lastMainViewConverged;
 };
 

@@ -100,7 +100,7 @@ describe("resolveTileRequestNeed", () => {
   });
 
   it.each([false, true])(
-    "replacement support requires current viewport demand (%s)",
+    "retains complete-family support even outside the viewport (%s)",
     (inView) => {
       const tile = mesh();
       expect(
@@ -111,7 +111,7 @@ describe("resolveTileRequestNeed", () => {
             inMainView: () => inView,
           })
         )
-      ).toBe(inView ? TILE_REQUEST_NEED.SUPPORT : null);
+      ).toBe(TILE_REQUEST_NEED.SUPPORT);
     }
   );
 
@@ -167,7 +167,7 @@ describe("resolveTileRequestNeed", () => {
     ).toBeNull();
   });
 
-  it("retains the armed extent floor independently of old refinement support", () => {
+  it("retains the extent floor and current offscreen family support", () => {
     const floor = mesh();
     floor.geometricError = 40;
     const support = mesh();
@@ -177,7 +177,9 @@ describe("resolveTileRequestNeed", () => {
       refinementSupport: new Set([support]),
     });
     expect(resolveTileRequestNeed(floor, input)).toBe(TILE_REQUEST_NEED.EXTENT);
-    expect(resolveTileRequestNeed(support, input)).toBeNull();
+    expect(resolveTileRequestNeed(support, input)).toBe(
+      TILE_REQUEST_NEED.SUPPORT
+    );
   });
 
   it("retains useful extent requests while admission waits for active cameras", () => {

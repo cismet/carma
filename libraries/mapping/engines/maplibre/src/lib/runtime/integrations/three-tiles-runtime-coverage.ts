@@ -140,6 +140,11 @@ export type ThreeTilesRuntimeCoverageStatus = Readonly<{
   waitingForBase: boolean;
   floorLoaded: number;
   floorTotal: number;
+  /** Loaded floor-cut payloads and all resident payloads at/above the floor. */
+  floorResidentTiles: number;
+  floorResidentBytes: number;
+  baseResidentTiles: number;
+  baseResidentBytes: number;
   uncoveredFallbackRoots: number;
   failedFallbackRoots: number;
   unknownFallbackRoots: number;
@@ -183,6 +188,10 @@ export type ThreeTilesRuntimeCoverageInput = Readonly<{
   paused: boolean;
   cacheBytes: number;
   ceilingBytes: number;
+  floorResidentTiles?: number;
+  floorResidentBytes?: number;
+  baseResidentTiles?: number;
+  baseResidentBytes?: number;
 }>;
 
 type FallbackEvidence = "covered" | "failed" | "unknown";
@@ -338,6 +347,10 @@ const emptyStatus: ThreeTilesRuntimeCoverageStatus = {
   waitingForBase: false,
   floorLoaded: 0,
   floorTotal: 0,
+  floorResidentTiles: 0,
+  floorResidentBytes: 0,
+  baseResidentTiles: 0,
+  baseResidentBytes: 0,
   uncoveredFallbackRoots: 0,
   failedFallbackRoots: 0,
   unknownFallbackRoots: 0,
@@ -469,6 +482,10 @@ export const createThreeTilesRuntimeCoverageDiagnostics = () => {
         input.enabled && (!input.floorArmed || !closureCoverage.ready),
       floorLoaded,
       floorTotal,
+      floorResidentTiles: input.floorResidentTiles ?? 0,
+      floorResidentBytes: input.floorResidentBytes ?? 0,
+      baseResidentTiles: input.baseResidentTiles ?? 0,
+      baseResidentBytes: input.baseResidentBytes ?? 0,
       uncoveredFallbackRoots,
       failedFallbackRoots,
       unknownFallbackRoots,

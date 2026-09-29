@@ -9,11 +9,12 @@ import {
   hasMeshRefinementContentInView,
   isPublishedMeshRefinementLevel,
 } from "./mesh-tile-refinement";
+import { createMeshFamilyCoverage } from "./mesh-family-coverage";
 import { TILES_LOAD_POLICY } from "./tile-load-config";
 
 /**
  * Publish one non-overlapping REPLACE cut per demand domain. A parent stays
- * alone until every relevant child branch is drawable. Independent families
+ * alone until every child branch is drawable. Independent families
  * can refine independently; unknown topology fails closed.
  * Decision: ../../../TILES_COVERAGE.md#exclusive-mesh-publication
  */
@@ -35,6 +36,7 @@ export const selectMeshReceiverPlan = (
     retainedCasters?: ReadonlySet<Tile>;
   }>
 ) => {
+  const familyCoverage = createMeshFamilyCoverage(receiverReady);
   const refinementSupport = new Set<Tile>();
   const unpreparedParents = new Set<Tile>();
   const materialWaits = new Set<Tile>();
@@ -74,6 +76,15 @@ export const selectMeshReceiverPlan = (
       return { cut: [], complete: true };
     const error = errorPixels(tile);
     const loaded = isLoadedMesh(tile);
+    // The containing family already owns this first missing payload. Finish
+    // that generation before opening its descendants: a missing fallback is
+    // not permission to enqueue the entire deeper subtree during recovery.
+    if (
+      !loaded &&
+      refinementSupport.has(tile) &&
+      !publishedRefinement.has(tile)
+    )
+      return { cut: [], complete: false };
     const materialReady = loaded && receiverReady(tile);
     if (loaded && !materialReady) materialWaits.add(tile);
     const fallback =
@@ -113,11 +124,30 @@ export const selectMeshReceiverPlan = (
         (!options?.releaseEmptyReplacementRegions && childrenMissView()))
     )
       return { cut: [tile], complete: true };
+    const family =
+      tile.refine === "REPLACE" &&
+      tile.internal.hasRenderableContent &&
+      !isMeshTileUnconditionallyRefined(tile)
+        ? familyCoverage(tile)
+        : null;
+    if (family) {
+      for (const member of family.support) {
+        refinementSupport.add(member);
+        if (isLoadedMesh(member) && !receiverReady(member))
+          materialWaits.add(member);
+      }
+      for (const owner of family.unpreparedParents)
+        unpreparedParents.add(owner);
+      // Finish this family before opening deeper generations. The visible
+      // parent remains alone while off-camera geometry/materials become ready.
+      if (!family.ready && fallback && !publishedRefinement.has(tile))
+        return { cut: [tile], complete: true };
+    }
     // A conservative parent can intersect while every resolved child misses.
     // Required refinement may replace it with that proven empty domain; unknown
     // topology remains incomplete below, and ADD still keeps its own content.
     const selected: Tile[] = [];
-    let complete = children.length > 0;
+    let complete = children.length > 0 && (family?.ready ?? true);
     for (const child of children) {
       if (!child.internal || !child.traversal) unpreparedParents.add(tile);
       const result = visit(child);

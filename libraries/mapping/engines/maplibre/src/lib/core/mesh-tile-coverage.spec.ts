@@ -2,6 +2,7 @@ import type { Tile } from "3d-tiles-renderer/core";
 import { describe, expect, it } from "vitest";
 import {
   getReadyMeshRegionCut,
+  isMeshRegionAtError,
   hasLoadedExtentFloorAncestor,
   isMeshCoverageRemovalSafe,
 } from "./mesh-tile-coverage";
@@ -23,10 +24,18 @@ describe("regional mesh coverage", () => {
     expect(
       getReadyMeshRegionCut(root, new Set([root, ...children]), 1, demand)
     ).toBeNull();
+    expect(isMeshRegionAtError(root, new Set([root]), 16, demand)).toBe(true);
+    expect(isMeshRegionAtError(root, new Set(children), 8, demand)).toBe(false);
     children[2].internal.loadingState = 4;
     expect(getReadyMeshRegionCut(root, new Set(children), 1, demand)).toEqual(
       children
     );
+  });
+
+  it("does not certify an unattainable target on a terminal payload", () => {
+    const leaf = mesh(null, 20);
+    expect(isMeshRegionAtError(leaf, new Set([leaf]), 8, demand)).toBe(false);
+    expect(isMeshRegionAtError(leaf, new Set([leaf]), 20, demand)).toBe(true);
   });
 
   it("checks pending invisible caster branches but ignores unrelated queued siblings", () => {

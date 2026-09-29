@@ -268,6 +268,9 @@ export function createThreeTilesFrameUpdate(
       }
       const completingShadowTraversal =
         runtimeState.shadowSelectionNeedsTraversal;
+      // Consume only the round we are starting. Publication can request the
+      // next bounded reserve step while this frame is still being processed.
+      runtimeState.shadowSelectionNeedsTraversal = false;
       runtimeState.queuedThisTraversal.clear();
       const previousTraversal = runtimeState.tiles.frameCount;
       // Bound motion audits so filling new gaps cannot monopolize pointer frames.
@@ -457,8 +460,6 @@ export function createThreeTilesFrameUpdate(
         frameState.telemetryTiles.clear();
         frameState.telemetryDropped = 0;
       }
-      if (completingShadowTraversal)
-        runtimeState.shadowSelectionNeedsTraversal = false;
       dependencies.maybeFinalizeShadowSelection();
       if (!runtimeState.shadowSelectionEnabled)
         dependencies.measureUsedBytesMain();

@@ -431,56 +431,39 @@ describe("tile scheduling decisions", () => {
         TILE_REQUEST_ACTION.KEEP
       );
   });
-  it.each([false, true])(
-    "hands an explicit cold cascade to independent idle families (shadows=%s)",
-    (shadowView) => {
-      const input = {
-        shadowView,
-        minimumTarget: 4,
-        initialTarget: 96,
-        handoverTarget: 8,
-        handoverReady: false,
-        firstImageReady: false,
-      };
-      expect(resolveMeshStageTarget(input)).toBe(96);
-      expect(resolveMeshStageTarget({ ...input, firstImageReady: true })).toBe(
-        8
-      );
-      expect(resolveMeshStageTarget({ ...input, handoverReady: true })).toBe(4);
+  it.each([
+    { currentTarget: 64, stageReady: false, expected: 64 },
+    { currentTarget: 64, stageReady: true, expected: 32 },
+    { currentTarget: 16, stageReady: false, expected: 16 },
+    { currentTarget: 16, stageReady: true, expected: 8 },
+    { currentTarget: 8, stageReady: true, expected: 4 },
+    { currentTarget: 4, stageReady: true, expected: 4 },
+  ])(
+    "advances only a completed SSE wave: $currentTarget / $stageReady",
+    ({ expected, ...stage }) => {
       expect(
         resolveMeshStageTarget({
-          ...input,
+          ...stage,
+          minimumTarget: 4,
+          initialTarget: 64,
+          handoverReady: true,
           firstImageReady: true,
-          minimumTarget: 12,
         })
-      ).toBe(12);
+      ).toBe(expected);
     }
   );
-
-  it("keeps legacy first-fill staging and releases the final target after first observer idle", () => {
-    const input = Object.freeze({
-      shadowView: false,
-      minimumTarget: 6,
+  it("preserves first image, explicit handover and memory admission floors", () => {
+    const input = {
+      currentTarget: 16,
+      stageReady: true,
+      minimumTarget: 4,
       initialTarget: 64,
       handoverReady: false,
       firstImageReady: false,
-    });
+      handoverTarget: 8,
+    };
     expect(resolveMeshStageTarget(input)).toBe(64);
-    expect(
-      resolveMeshStageTarget({
-        ...input,
-        initialTarget: 16,
-        firstImageReady: true,
-      })
-    ).toBe(16);
-    expect(
-      resolveMeshStageTarget({
-        ...input,
-        initialTarget: 16,
-        firstImageReady: true,
-        handoverReady: true,
-      })
-    ).toBe(6);
+    expect(resolveMeshStageTarget({ ...input, firstImageReady: true })).toBe(8);
     expect(
       resolveMeshStageTarget({
         ...input,
@@ -488,6 +471,5 @@ describe("tile scheduling decisions", () => {
         minimumTarget: 20,
       })
     ).toBe(20);
-    expect(resolveMeshStageTarget({ ...input, shadowView: true })).toBe(6);
   });
 });

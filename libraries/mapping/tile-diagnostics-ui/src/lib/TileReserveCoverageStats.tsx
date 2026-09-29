@@ -1,4 +1,7 @@
-import type { TileDiagnosticSummary } from "@carma-mapping/engines/maplibre";
+import {
+  formatTileResidentBytes,
+  type TileDiagnosticSummary,
+} from "@carma-mapping/engines/maplibre";
 
 type Props = Pick<
   TileDiagnosticSummary,
@@ -7,6 +10,10 @@ type Props = Pick<
   | "closureCoverage"
   | "waitingForBase"
   | "presentationMode"
+  | "floorResidentTiles"
+  | "floorResidentBytes"
+  | "baseResidentTiles"
+  | "baseResidentBytes"
 >;
 
 const percentage = (ratio: number | null) =>
@@ -21,6 +28,10 @@ export const TileReserveCoverageStats = ({
   closureCoverage: closure,
   waitingForBase,
   presentationMode,
+  floorResidentTiles,
+  floorResidentBytes,
+  baseResidentTiles,
+  baseResidentBytes,
 }: Props) => (
   <div style={{ marginBottom: 6 }}>
     <div>
@@ -47,6 +58,12 @@ export const TileReserveCoverageStats = ({
           ? "ready"
           : "inactive"}
       </strong>
+    </div>
+    <div data-test-id="mesh-base-residency">
+      Resident floor: {floorResidentTiles} payloads ·{" "}
+      {formatTileResidentBytes(floorResidentBytes)}; floor + coarser ancestors:{" "}
+      {baseResidentTiles} payloads ·{" "}
+      {formatTileResidentBytes(baseResidentBytes)}
     </div>
     <div data-test-id="mesh-seam-coverage">
       Transition seam: {seam.renderable}/{seam.known} known payloads renderable

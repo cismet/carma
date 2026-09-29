@@ -28,6 +28,25 @@ describe("publication runtime integration", () => {
     vi.restoreAllMocks();
     vi.useRealTimers();
   });
+  it("retains a new shadow round requested while the current frame is running", () => {
+    let state: ReturnType<typeof mount>["state"] | undefined;
+    let requestNextRound = true;
+    const mounted = mount(() => {
+      if (state && requestNextRound) state.shadowSelectionNeedsTraversal = true;
+    });
+    try {
+      state = mounted.state;
+      state.shadowSelectionNeedsTraversal = true;
+      mounted.runtime.scene.update(mounted.frame);
+      expect(state.shadowSelectionNeedsTraversal).toBe(true);
+      requestNextRound = false;
+      mounted.runtime.scene.update(mounted.frame);
+      expect(state.shadowSelectionNeedsTraversal).toBe(false);
+    } finally {
+      mounted.runtime.scene.dispose();
+    }
+  });
+
   it.each([2, -1])(
     "keeps published fine geometry alone on pan with sibling state=%s",
     (loadingState) => {

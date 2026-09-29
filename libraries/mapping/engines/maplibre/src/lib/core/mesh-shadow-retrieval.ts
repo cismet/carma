@@ -1,4 +1,5 @@
 import type { Tile } from "3d-tiles-renderer/core";
+import { createMeshFamilyCoverage } from "./mesh-family-coverage";
 import {
   isLoadedMesh,
   isMeshTileUnconditionallyRefined,
@@ -34,9 +35,11 @@ export function selectMeshShadowRetrieval(
     receiverContentLevel?: number;
   }
 ) {
+  const familyCoverage = createMeshFamilyCoverage();
   const receiverAncestors = new Set<Tile>();
   const retainedAncestors = new Set<Tile>();
   const requests = new Set<Tile>();
+  const support = new Set<Tile>();
   const unpreparedParents = new Set<Tile>();
   for (const tile of receivers)
     for (const parent of meshTileAncestors(tile)) receiverAncestors.add(parent);
@@ -117,8 +120,28 @@ export function selectMeshShadowRetrieval(
     // parent to prepare them rather than leaving this branch permanently pending.
     if (children.some((child) => !child.internal || !child.traversal))
       unpreparedParents.add(tile);
+    const family =
+      content &&
+      tile.refine === "REPLACE" &&
+      (anchored ||
+        eligible ||
+        meshContentLevel(tile) + 1 >= (wanted.receiverContentLevel ?? -1))
+        ? familyCoverage(tile)
+        : null;
+    if (family) {
+      for (const member of family.support) {
+        // Decoded siblings remain owned while the rest of this family loads.
+        // Otherwise cleanup can evict them before they enter the caster cut.
+        if (!family.ready) support.add(member);
+        if (!receivers.has(member) && !isLoadedMesh(member))
+          requests.add(member);
+      }
+      for (const owner of family.unpreparedParents)
+        unpreparedParents.add(owner);
+    }
     const cuts = children.map(visit);
-    const complete = cuts.every((cut) => cut.complete);
+    const complete =
+      (family?.ready ?? true) && cuts.every((cut) => cut.complete);
     const descendants = cuts.flatMap((cut) => cut.tiles);
     // Do not download a coarser intermediate caster. A retained replacement
     // can bridge refinement only while it still meets every current receiver.
@@ -138,18 +161,30 @@ export function selectMeshShadowRetrieval(
     // REPLACE publishes one complete demanded family at a time. No parent is
     // superimposed with its children, and failed loads never count as coverage.
     const parentFallback = loaded && !retainedAncestors.has(tile);
+    const familyMissing =
+      family && !family.ready
+        ? [...family.support].filter((member) => !isLoadedMesh(member))
+        : [];
     return {
       // A new family may keep its previous parent while loading. Once finer
       // casters were published, missing neighbours cannot resurrect that parent.
-      tiles: !complete && parentFallback ? [tile] : descendants,
+      tiles:
+        !complete && parentFallback
+          ? [tile]
+          : family && !family.ready && !retainedAncestors.has(tile)
+          ? []
+          : descendants,
       complete: complete || parentFallback,
       converged: complete && cuts.every((cut) => cut.converged),
-      missing: parentFallback ? [] : cuts.flatMap((cut) => cut.missing ?? []),
+      missing: parentFallback
+        ? []
+        : [...familyMissing, ...cuts.flatMap((cut) => cut.missing ?? [])],
     };
   };
   const cut = visit(root);
   return {
     requests,
+    support,
     unpreparedParents,
     casters: new Set(cut.tiles),
     converged: cut.converged,

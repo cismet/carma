@@ -42,6 +42,22 @@ export const getReadyMeshRegionCut = (
 ): readonly Tile[] | null =>
   createMeshRegionCutQuery(published, errorPixels, demand)(root);
 
+/** A completed error wave requires real published coverage AND its measured
+ * error. A terminal leaf or failed child cannot certify an unmet pixel target.
+ * Use this same predicate for stage advancement and foreground completion.
+ */
+export const isMeshRegionAtError = (
+  root: Tile,
+  published: ReadonlySet<Tile>,
+  errorPixels: number,
+  demand: (tile: Tile) => { intersects: boolean; errorPixels: number }
+): boolean => {
+  const cut = getReadyMeshRegionCut(root, published, errorPixels, demand);
+  return (
+    cut !== null && cut.every((tile) => demand(tile).errorPixels <= errorPixels)
+  );
+};
+
 /** Reuse subtree proofs within one immutable demand/frontier snapshot.
  * Memo storage belongs to this query; no input tiles or collections are changed.
  */

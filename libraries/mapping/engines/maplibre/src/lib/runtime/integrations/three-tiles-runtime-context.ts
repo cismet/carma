@@ -38,7 +38,10 @@ import {
 import type { TilesCameraSet } from "./tiles-camera-set";
 import type { createTileCameraDemand } from "../../core/tile-camera-demand";
 
+import type { createThreeTilesRequestHistory } from "./three-tiles-request-history";
+
 export interface ThreeTilesRuntimeState {
+  requestHistory: ReturnType<typeof createThreeTilesRequestHistory>;
   layerId: string;
   tilesetUrl: string;
   originLngLat: [number, number];
@@ -126,6 +129,13 @@ export interface ThreeTilesRuntimeState {
   meshRefinementSupport: Set<Tile>;
   /** Drawable whole-floor cut compatible with exclusive shadow refinement. */
   meshShadowReserve: {
+    /** Current transaction, distinct from the retained published certificate. */
+    pending?: {
+      phase: "metadata" | "planning" | "loading" | "blocked" | "ready";
+      required: number;
+      missing: number;
+      blocked: number;
+    };
     frontier: Set<Tile>;
     support: Set<Tile>;
     ready: boolean;
@@ -170,7 +180,7 @@ export interface ThreeTilesRuntimeState {
   shadowReceiverMask: ShadowReceiverMask | null;
   /** Future receiver demand; never used to render the committed shadow cut. */
   pendingMeshReceiverMask: ShadowReceiverMask | null;
-  /** Ready caster geometry owned by receivers awaiting joint publication. */
+  /** Caster geometry and family siblings owned until compatible publication. */
   pendingMeshCasterFrontier: Set<Tile>;
   shadowReceiverMaskConverged: boolean;
   shadowReceiverSourceSignature: string;

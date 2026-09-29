@@ -14,6 +14,7 @@ import { createThreeTilesRuntimeState } from "./three-tiles-runtime-state";
 import { createThreeTilesSurfaces } from "./three-tiles-runtime-surfaces";
 import { LOADED_LOADING_STATE } from "./three-tiles-runtime-vendor";
 import type {
+  RuntimeLruCache,
   RuntimeTile,
   RuntimeTilesRenderer,
   ThreeTilesRuntime,
@@ -83,7 +84,7 @@ export function buildThreeTilesRuntime(
     const sourcePendingMetadata =
       enabled &&
       (!root?.internal || !Number.isFinite(state.extentGeometricError));
-    const cache = tiles?.lruCache as { cachedBytes?: number } | undefined;
+    const cache = tiles?.lruCache as RuntimeLruCache | undefined;
     const stats = tiles?.stats;
     const renderer = tiles as RuntimeTilesRenderer | null;
     const demandedTiles = new Set([
@@ -106,6 +107,29 @@ export function buildThreeTilesRuntime(
     const materials = tiles?.getPluginByName(
       "CARMA_DEFERRED_TILE_MATERIALS"
     ) as { isReady: (tile: RuntimeTile) => boolean } | null | undefined;
+    let floorResidentTiles = 0;
+    let floorResidentBytes = 0;
+    let baseResidentTiles = 0;
+    let baseResidentBytes = 0;
+    const floorRootSet = new Set(floorRoots);
+    if (cache && state.extentGeometricError > 0) {
+      for (const tile of cache.itemList) {
+        const candidate = tile as RuntimeTile;
+        if (
+          tile.geometricError < state.extentGeometricError ||
+          tile.internal?.loadingState !== LOADED_LOADING_STATE ||
+          !candidate.engineData?.scene
+        )
+          continue;
+        const bytes = cache.getMemoryUsage(tile);
+        baseResidentTiles += 1;
+        baseResidentBytes += bytes;
+        if (floorRootSet.has(tile)) {
+          floorResidentTiles += 1;
+          floorResidentBytes += bytes;
+        }
+      }
+    }
     return coverageDiagnostics.update({
       traversalRevision: floorCacheRevision,
       enabled,
@@ -139,6 +163,10 @@ export function buildThreeTilesRuntime(
       paused: state.loadingPaused || state.memoryAdmissionPaused,
       cacheBytes: cache?.cachedBytes ?? 0,
       ceilingBytes: state.ceilingBytes,
+      floorResidentTiles,
+      floorResidentBytes,
+      baseResidentTiles,
+      baseResidentBytes,
     });
   };
   // Callbacks may reference later owners, but factories only construct closures.

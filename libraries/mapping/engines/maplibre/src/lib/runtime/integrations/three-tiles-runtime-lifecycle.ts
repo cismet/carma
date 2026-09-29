@@ -27,6 +27,7 @@ import type { RuntimeLruCache, RuntimeTile } from "./three-tiles-runtime-types";
 export function createThreeTilesLifecycle(
   runtimeState: Pick<
     ThreeTilesRuntimeState,
+    | "requestHistory"
     | "meshContentRevision"
     | "tileCameraDemand"
     | "tileCameraSignature"
@@ -53,6 +54,7 @@ export function createThreeTilesLifecycle(
     | "pendingShadowView"
     | "memoryErrorTarget"
     | "meshRefinementSupport"
+    | "meshShadowReserve"
     | "extentGeometricError"
     | "extentFloorArmed"
     | "extentFloorAuditPending"
@@ -233,6 +235,11 @@ export function createThreeTilesLifecycle(
     frameState.telemetryTiles.add(tile);
   };
   const handleDownloadStart = ({ tile }: { tile: Tile }) => {
+    runtimeState.requestHistory.started(
+      tile,
+      runtimeState.map?.getZoom?.(),
+      !!runtimeState.shadowView
+    );
     const progress = dependencies.getTileDebugProgress(tile);
     progress.downloadStartedAt = performance.now();
     progress.downloadFinishedAt = undefined;
@@ -284,6 +291,10 @@ export function createThreeTilesLifecycle(
       attachment.getDownloadPreemptionEligibility(),
   });
   const handleViewStart: ThreeTilesRuntimeServices["handleViewStart"] = () => {
+    runtimeState.requestHistory.begin(
+      runtimeState.map?.getZoom?.() ?? null,
+      !!runtimeState.shadowView
+    );
     returnToBaseStage();
     dependencies.resetDeferredTiles();
     runtimeState.tiles?.dispatchEvent({ type: "needs-update" });
@@ -319,6 +330,10 @@ export function createThreeTilesLifecycle(
     };
 
   const handleViewEnd: ThreeTilesRuntimeServices["handleViewEnd"] = () => {
+    runtimeState.requestHistory.observeView(
+      runtimeState.map?.getZoom?.(),
+      !!runtimeState.shadowView
+    );
     runtimeState.meshBaseCoverageReady = false;
     returnToBaseStage();
     if (runtimeState.motionCoverageTimer !== null)

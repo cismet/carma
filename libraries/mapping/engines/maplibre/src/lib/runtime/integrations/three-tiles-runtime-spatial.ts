@@ -10,7 +10,7 @@ import { createThreeTilesViewFrustums } from "./three-tiles-runtime-view-frustum
 import type { SharedThreeSceneTileVolume } from "../../core/shared-three-scene-types";
 import { readOrientedTileBounds } from "./three-tiles-bounds";
 import { getThreeTileDiagnosticSteps } from "./three-tiles-diagnostic-steps";
-import { getReadyMeshRegionCut } from "../../core/mesh-tile-coverage";
+import { isMeshRegionAtError } from "../../core/mesh-tile-coverage";
 import { hasMeshRefinementContentInView } from "../../core/mesh-tile-refinement";
 import type {
   ThreeTilesRuntimeServices,
@@ -256,13 +256,8 @@ export function createThreeTilesSpatial(
       if (runtimeState.options.providesTerrain && root) {
         // A complete-looking loaded subset is not proof of viewport coverage.
         // Missing intersecting branches must keep the settled demand audit alive.
-        return (
-          getReadyMeshRegionCut(root, frontier, acceptedError, (tile) => ({
-            intersects:
-              !(tile as RuntimeTile).engineData?.boundingVolume ||
-              isTileInMainView(tile as RuntimeTile),
-            errorPixels: getTileScreenError(tile as RuntimeTile),
-          })) !== null
+        return isMeshRegionAtError(root, frontier, acceptedError, (tile) =>
+          getTileObserverDemand(tile as RuntimeTile)
         );
       }
       for (const visible of frontier) {

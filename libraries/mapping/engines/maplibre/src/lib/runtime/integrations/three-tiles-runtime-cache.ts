@@ -38,6 +38,7 @@ export type ThreeTilesCacheState = Pick<
   | "pendingMeshReceiverFrontier"
   | "shadowCasterRequests"
   | "meshShadowReserve"
+  | "meshRefinementSupport"
   | "retainedShadowRequests"
   | "disposed"
   | "effectiveErrorTarget"
@@ -105,7 +106,6 @@ export function createThreeTilesCache(
   // disposing external metadata also disposes the subtree that it owns.
   const isProtectedResidual = (tile: Tile) =>
     runtimeState.options.providesTerrain &&
-    runtimeState.extentFloorArmed &&
     runtimeState.extentGeometricError > 0 &&
     tile.internal?.loadingState === LOADED_LOADING_STATE &&
     (tile.internal.hasUnrenderableContent ||
@@ -127,6 +127,19 @@ export function createThreeTilesCache(
         if (ancestor === tile) return true;
     }
     return false;
+  };
+
+  const publishedReplacementAncestors = () => {
+    const ancestors = new Set<Tile>();
+    for (const tile of new Set([
+      ...runtimeState.displayedMeshFrontier,
+      ...runtimeState.committedMeshCasterFrontier,
+      ...runtimeState.pendingMeshCasterFrontier,
+      ...(runtimeState.pendingMeshReceiverFrontier ?? []),
+      ...(runtimeState.tiles?.visibleTiles ?? []),
+    ]))
+      for (const parent of meshTileAncestors(tile)) ancestors.add(parent);
+    return ancestors;
   };
 
   const rememberPublishedCoverage = () => {
@@ -174,6 +187,7 @@ export function createThreeTilesCache(
         ...runtimeState.displayedMeshFrontier,
         ...(runtimeState.tiles?.visibleTiles ?? []),
       ]);
+      const refinedFamilies = publishedReplacementAncestors();
       const materials = runtimeState.tiles?.getPluginByName(
         "CARMA_DEFERRED_TILE_MATERIALS"
       ) as TilesetDeferredMaterialsPlugin | null | undefined;
@@ -199,13 +213,14 @@ export function createThreeTilesCache(
           (ancestor) =>
             // A loaded floor prevents holes, but is not an acceptable replacement
             // for detail still demanded by any current receiver camera.
-            !currentPublished.has(tile) ||
-            !dependencies.isTileInMainView(tile as RuntimeTile) ||
-            dependencies.getTileScreenError(ancestor as RuntimeTile) <=
-              Math.max(
-                runtimeState.requestedErrorTarget,
-                runtimeState.memoryErrorTarget
-              )
+            !refinedFamilies.has(ancestor) &&
+            (!currentPublished.has(tile) ||
+              !dependencies.isTileInMainView(tile as RuntimeTile) ||
+              dependencies.getTileScreenError(ancestor as RuntimeTile) <=
+                Math.max(
+                  runtimeState.requestedErrorTarget,
+                  runtimeState.memoryErrorTarget
+                ))
         )
       )
         return false;
@@ -231,6 +246,7 @@ export function createThreeTilesCache(
       // A camera change is not memory pressure. Keep the warmed resident pool
       // above the native soft watermark until the actual budget becomes tight.
       if (!cache.isFull() && !runtimeState.memoryAdmissionPaused) return;
+      const refinedFamilies = publishedReplacementAncestors();
       const temporaryPins = new Set<Tile>();
       const pin = (tile: Tile) => {
         if (cache.itemSet.has(tile) && !cache.usedSet.has(tile)) {
@@ -274,6 +290,7 @@ export function createThreeTilesCache(
             !isMeshTileUnconditionallyRefined(parent) &&
             parent.internal.loadingState === LOADED_LOADING_STATE &&
             cache.itemSet.has(parent) &&
+            !refinedFamilies.has(parent) &&
             (!materials || materials.isReady(parent))
           ) {
             // Published detail is pinned above. Hidden intermediate levels

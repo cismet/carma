@@ -11,7 +11,7 @@ import {
   nextMemoryErrorTarget,
   type MemoryTargetRecovery,
 } from "../../core/memory-error-target";
-import { getReadyMeshRegionCut } from "../../core/mesh-tile-coverage";
+import { isMeshRegionAtError } from "../../core/mesh-tile-coverage";
 import {
   TILES_ERROR_TARGET_MAX_PIXELS,
   TILES_ERROR_TARGET_MIN_PIXELS,
@@ -61,6 +61,7 @@ export function createThreeTilesQuality(
     | "memoryErrorTarget"
     | "memoryErrorTargetChangedAt"
     | "meshBaseCoverageReady"
+    | "meshShadowReserve"
     | "meshDemandSweepPending"
     | "meshInitialBasePassDone"
     | "meshInitialHandoverDone"
@@ -68,6 +69,7 @@ export function createThreeTilesQuality(
     | "options"
     | "requestedErrorTarget"
     | "shadowView"
+    | "shadowReceiverMaskConverged"
     | "tiles"
     | "tileCameraDemand"
     | "usedBytesMain"
@@ -103,6 +105,10 @@ export function createThreeTilesQuality(
     (nextTarget: number) => {
       if (runtimeState.effectiveErrorTarget === nextTarget) return;
       runtimeState.effectiveErrorTarget = nextTarget;
+      // The previous proof belongs to the previous threshold. Do not release
+      // background work or announce completion before the new frame proves it.
+      runtimeState.lastMainViewConverged = false;
+      runtimeState.lastActiveViewsConverged = false;
       if (runtimeState.tiles)
         runtimeState.tiles.errorTarget = runtimeState.effectiveErrorTarget;
       // Decision: CURRENT-VIEW-DEMAND-20260913 in TILES_COVERAGE.md. Deferral
@@ -134,8 +140,8 @@ export function createThreeTilesQuality(
     () => {
       const cache = dependencies.getRuntimeCache();
       if (!runtimeState.tiles || !cache) return;
-      // Fill base coverage first, then let independent complete families reach
-      // the requested target. Global 8/4/2px barriers delayed ready corridors.
+      // Advance complete screen-space-error waves, retaining finer resident
+      // regions while unfinished regions catch up to the current threshold.
       if (runtimeState.options.providesTerrain) {
         // During movement, admit new ground at the base target; retain visible
         // detail and resume refinement at moveend.
@@ -292,23 +298,14 @@ export function createThreeTilesQuality(
         // Decision: ../../../../TILES_COVERAGE.md#configurable-cold-quality-cascades
         // Cold handover is observer coverage, independent of caster detail.
         const demand = dependencies.getTileObserverDemand;
-        const readyAt = (error: number) => {
-          if (!root) return false;
-          const cut = getReadyMeshRegionCut(
+        const readyAt = (error: number) =>
+          !!root &&
+          isMeshRegionAtError(
             root,
             runtimeState.displayedMeshFrontier,
             error,
             (tile) => demand(tile as RuntimeTile)
           );
-          return (
-            cut !== null &&
-            (handoverTarget === undefined ||
-              (cut.length > 0 &&
-                cut.every(
-                  (tile) => demand(tile as RuntimeTile).errorPixels <= error
-                )))
-          );
-        };
         if (
           !runtimeState.meshInitialHandoverDone &&
           runtimeState.map?.isMoving?.() !== true &&
@@ -369,7 +366,14 @@ export function createThreeTilesQuality(
           dependencies.applyPendingShadowView();
         }
         const stageTarget = resolveMeshStageTarget({
-          shadowView: !!runtimeState.shadowView,
+          currentTarget: runtimeState.effectiveErrorTarget,
+          stageReady:
+            readyAt(runtimeState.effectiveErrorTarget) &&
+            (!runtimeState.shadowView ||
+              (runtimeState.shadowReceiverMaskConverged &&
+                runtimeState.meshShadowReserve.ready &&
+                runtimeState.meshShadowReserve.support.size === 0 &&
+                !runtimeState.pendingMeshReceiverFrontier?.size)),
           minimumTarget,
           initialTarget,
           handoverTarget,

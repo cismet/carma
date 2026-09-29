@@ -49,6 +49,7 @@ export type ThreeTilesRuntimeAttachmentState = Pick<
   | "cameraSet"
   | "clayMaterialStates"
   | "committedMeshCasterFrontier"
+  | "meshShadowReserve"
   | "pendingMeshCasterFrontier"
   | "committedMeshReceiverFrontier"
   | "disposed"
@@ -175,8 +176,17 @@ export function createThreeTilesRuntimeAttachment(
         dependencies.getTileCameraDemand(tile as RuntimeTile).receiver
       )
         return true;
-      // Caster ownership wins over reserve/support flags. Those flags may be
-      // retained after a pan, but do not justify texture work outside the view.
+      // A complete receiver family and the resident floor must be colour-ready
+      // on re-entry, even when those same tiles also cast into the live view.
+      if (
+        runtimeState.meshRefinementSupport.has(tile) ||
+        runtimeState.meshShadowReserve.support.has(tile) ||
+        runtimeState.meshShadowReserve.frontier.has(tile) ||
+        (runtimeState.extentGeometricError > 0 &&
+          isExtentFloorTile(tile, runtimeState.extentGeometricError))
+      )
+        return true;
+      // Pure offscreen caster requests still avoid texture preparation.
       if (
         runtimeState.shadowView &&
         (runtimeState.shadowCasterRequests.has(tile) ||
@@ -300,6 +310,8 @@ export function createThreeTilesRuntimeAttachment(
       })
     );
 
+    // The complete-family planner owns sibling demand. Native recursive
+    // sibling loading would also reload superseded parents of ready fine cuts.
     runtimeState.tiles.loadSiblings = false;
     // The mesh first-image pass loads its own fallback without sibling demand.
     runtimeState.tiles.loadAncestors = !runtimeState.options.providesTerrain;
