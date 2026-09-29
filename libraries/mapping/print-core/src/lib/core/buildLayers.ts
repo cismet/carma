@@ -55,6 +55,17 @@ export const buildVectorStylePrint = (
     opacity
   );
 
+// MapFish forwards customParams form-urlencoded without escaping, so `&`, `+`,
+// `=`, `%` and `#` in the style (e.g. WMS tile URLs) corrupt the request.
+// Inside JSON strings they can be written as \uXXXX escapes instead.
+const toFormSafeJson = (style: Record<string, unknown>): string =>
+  JSON.stringify(style).replace(/"(?:[^"\\]|\\.)*"/g, (str) =>
+    str.replace(
+      /[&+=%#]/g,
+      (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, "0")}`
+    )
+  );
+
 /**
  * Print a complete, self-contained MapLibre style (data inlined as a geojson
  * source) via the tgl-wms "inline" renderer. Instead of naming a hosted style,
@@ -70,7 +81,7 @@ export const buildInlineStylePrint = (
   imageFormat: "image/png",
   baseURL: `https://tsgl4printing-wms.cismet.de/tgl-wms/${scalefactor}x/${sizefactor}/`,
   method: "POST",
-  customParams: { style },
+  customParams: { style: toFormSafeJson(style) },
   layers: ["inline"],
   type: "WMS",
   opacity,

@@ -22,6 +22,8 @@
 // the app's layer object, and the print bbox — nothing app-specific is imported.
 
 import type { Map as MaplibreMap } from "maplibre-gl";
+import type { FilterSpecification } from "@maplibre/maplibre-gl-style-spec";
+import { convertFilter } from "@maplibre/maplibre-gl-style-spec";
 
 // ---------------------------------------------------------------------------
 // Loose shapes for the parts of the app layer object we read. Kept local so the
@@ -162,7 +164,7 @@ const statsIntersectBbox = (s: GeomStats, bbox: Bbox): boolean =>
  */
 const collectGetProps = (value: unknown, acc: Set<string>): void => {
   if (Array.isArray(value)) {
-    if (value[0] === "get" && typeof value[1] === "string") {
+    if ((value[0] === "get" || value[0] === "has") && typeof value[1] === "string") {
       acc.add(value[1]);
     }
     for (const item of value) collectGetProps(item, acc);
@@ -281,12 +283,20 @@ export const buildInlineVectorStyle = (
   if (!style) return null;
 
   const styleLayerFilter = options?.styleLayerFilter;
-  const sourceLayers = (style.layers ?? []).filter(
-    (l) =>
-      typeof l.source === "string" &&
-      l.type !== "background" &&
-      (!styleLayerFilter || styleLayerFilter(l))
-  );
+  // Legacy filters (e.g. basemap.de ["==", "klasse", …]) become expressions,
+  // so their property names are kept and the scope filter below stays valid.
+  const sourceLayers = (style.layers ?? [])
+    .filter(
+      (l) =>
+        typeof l.source === "string" &&
+        l.type !== "background" &&
+        (!styleLayerFilter || styleLayerFilter(l))
+    )
+    .map((l) =>
+      l.filter != null
+        ? { ...l, filter: convertFilter(l.filter as FilterSpecification) }
+        : l
+    );
   if (sourceLayers.length === 0) return null;
 
   // Properties the style reads, so we can drop everything else from features.
