@@ -324,7 +324,7 @@ export const App = () => {
   const autoplayGroup = groups.find(
     ({ story }) => story.id === autoplayStoryId
   );
-  useAutoplay({
+  const autoplayCountdown = useAutoplay({
     scenes: autoplayGroup?.scenes,
     activeSceneId,
     isHolding: isChanging || isBlackout || display.connection !== "connected",
@@ -542,6 +542,8 @@ export const App = () => {
             {walk.length > 1 && (
               <AutoplayControl
                 isPlaying={isOpenPlaying}
+                countdown={autoplayCountdown}
+                nextTitle={nextTitle}
                 seconds={autoplaySeconds}
                 disabled={!target || display.connection !== "connected"}
                 onPlay={playOpenStory}

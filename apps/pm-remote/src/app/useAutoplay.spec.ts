@@ -60,8 +60,15 @@ describe("useAutoplay", () => {
     expect(goToScene).toHaveBeenCalledWith({ id: "b" });
   });
 
+  it("reports the running wait for the progress bar", () => {
+    vi.setSystemTime(1_000_000);
+    const { result } = render({});
+    expect(result.current).toEqual({ startedAt: 1_000_000, ms: 10_000 });
+  });
+
   it("waits while it is held and gives the scene its full time after", () => {
-    const { goToScene, rerender, props } = render({ isHolding: true });
+    const { goToScene, rerender, props, result } = render({ isHolding: true });
+    expect(result.current).toBeNull();
     vi.advanceTimersByTime(30_000);
     expect(goToScene).not.toHaveBeenCalled();
     rerender({ ...props, isHolding: false });

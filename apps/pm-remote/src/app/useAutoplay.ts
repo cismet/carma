@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 /**
  * The scene autoplay goes to from `activeId`: the next one of the story, after
@@ -31,10 +31,13 @@ export type UseAutoplayOptions<T extends { id: string }> = {
   onStop: () => void;
 };
 
+/** the running wait for the next scene: since when, and how long in all */
+export type AutoplayCountdown = { startedAt: number; ms: number };
+
 /**
  * Walks the playing story on its own, one scene every `seconds`, round and
  * round until it is stopped. A scene picked by hand inside the story restarts
- * the clock from there.
+ * the clock from there. Returns the running wait, null while none runs.
  */
 export const useAutoplay = <T extends { id: string }>({
   scenes,
@@ -43,7 +46,8 @@ export const useAutoplay = <T extends { id: string }>({
   seconds,
   goToScene,
   onStop,
-}: UseAutoplayOptions<T>) => {
+}: UseAutoplayOptions<T>): AutoplayCountdown | null => {
+  const [countdown, setCountdown] = useState<AutoplayCountdown | null>(null);
   // the display's clocks re-render the remote all the time; the timer must
   // only start over when what it waits for changes
   const goToSceneRef = useRef(goToScene);
@@ -53,21 +57,27 @@ export const useAutoplay = <T extends { id: string }>({
 
   useEffect(() => {
     if (!scenes || scenes.length === 0 || isHolding) {
+      setCountdown(null);
       return;
     }
     if (
       activeSceneId !== null &&
       !scenes.some(({ id }) => id === activeSceneId)
     ) {
+      setCountdown(null);
       onStopRef.current();
       return;
     }
+    const ms = seconds * 1000;
+    setCountdown({ startedAt: Date.now(), ms });
     const timer = window.setTimeout(() => {
       const next = nextAutoplayScene(scenes, activeSceneId);
       if (next) {
         goToSceneRef.current(next);
       }
-    }, seconds * 1000);
+    }, ms);
     return () => window.clearTimeout(timer);
   }, [scenes, activeSceneId, isHolding, seconds]);
+
+  return countdown;
 };

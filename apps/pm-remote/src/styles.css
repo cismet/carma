@@ -24,3 +24,13 @@ input {
   -webkit-user-select: text;
   user-select: text;
 }
+
+/* the autoplay bar fills up until the next scene, see `AutoplayControl` */
+@keyframes pm-autoplay-fill {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
