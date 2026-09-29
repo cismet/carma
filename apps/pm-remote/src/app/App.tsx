@@ -194,6 +194,8 @@ export const App = () => {
   const [openStoryId, setOpenStoryId] = useState<string | null>(null);
   /** the story autoplay walks, whichever story is open */
   const [autoplayStoryId, setAutoplayStoryId] = useState<string | null>(null);
+  /** the Autoplay card, out of the way until the ↻ next to the title asks */
+  const [isAutoplayOn, setIsAutoplayOn] = useState(false);
 
   const { relayBaseUrl, code, showKey, fadeMs, autoplaySeconds } = settings;
   const target = useMemo<RelayTarget | null>(
@@ -343,9 +345,26 @@ export const App = () => {
       return;
     }
     setAutoplayStoryId(openGroup.story.id);
-    // a story that is not on the model yet starts with its first scene
-    if (activeIndex < 0 && openGroup.scenes[0]) {
-      goToScene(openGroup.scenes[0]);
+    // a story that is not on the model yet, or is at its last scene, starts
+    // with its first
+    const first = openGroup.scenes[0];
+    if (
+      first &&
+      (activeIndex < 0 || activeIndex === openGroup.scenes.length - 1)
+    ) {
+      goToScene(first);
+    }
+  };
+  // a story that plays keeps its card; switching autoplay off stops it
+  const isAutoplayShown = walk.length > 1 && (isAutoplayOn || isOpenPlaying);
+  const toggleAutoplay = () => {
+    if (isAutoplayShown) {
+      setIsAutoplayOn(false);
+      if (isOpenPlaying) {
+        setAutoplayStoryId(null);
+      }
+    } else {
+      setIsAutoplayOn(true);
     }
   };
 
@@ -488,19 +507,38 @@ export const App = () => {
         ) : openGroup ? (
           <>
             <div className="flex flex-col gap-3">
-              {/* long press: the layer sliders */}
-              <button
-                type="button"
-                {...titlePress}
-                className="select-none bg-transparent p-0 text-left text-neutral-100 [-webkit-touch-callout:none]"
-              >
-                <span className="block text-xs font-semibold uppercase tracking-[0.2em] text-amber-400">
-                  {activeScene ? "Auf dem Modell" : "Bereit"}
-                </span>
-                <span className="mt-3 block break-words text-4xl font-bold leading-tight tracking-tight sm:text-5xl">
-                  {activeScene ? activeScene.title : openGroup.story.title}
-                </span>
-              </button>
+              <div className="flex items-start gap-3">
+                {/* long press: the layer sliders */}
+                <button
+                  type="button"
+                  {...titlePress}
+                  className="min-w-0 flex-1 select-none bg-transparent p-0 text-left text-neutral-100 [-webkit-touch-callout:none]"
+                >
+                  <span className="block text-xs font-semibold uppercase tracking-[0.2em] text-amber-400">
+                    {activeScene ? "Auf dem Modell" : "Bereit"}
+                  </span>
+                  <span className="mt-3 block break-words text-4xl font-bold leading-tight tracking-tight sm:text-5xl">
+                    {activeScene ? activeScene.title : openGroup.story.title}
+                  </span>
+                </button>
+                {walk.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={toggleAutoplay}
+                    aria-label="Autoplay"
+                    aria-pressed={isAutoplayShown}
+                    className={`-mt-3 min-h-[44px] min-w-[44px] shrink-0 rounded-xl text-xl ${
+                      isOpenPlaying
+                        ? "bg-amber-400 text-neutral-950 active:bg-amber-300"
+                        : isAutoplayShown
+                        ? "border border-amber-400 text-amber-400 active:bg-neutral-800"
+                        : "border border-neutral-700 text-neutral-300 active:bg-neutral-800"
+                    }`}
+                  >
+                    ↻
+                  </button>
+                )}
+              </div>
               {activeScene?.text && (
                 <p className="m-0 whitespace-pre-line text-base leading-relaxed text-neutral-300">
                   {activeScene.text}
@@ -539,7 +577,7 @@ export const App = () => {
               </div>
             )}
 
-            {walk.length > 1 && (
+            {isAutoplayShown && (
               <AutoplayControl
                 isPlaying={isOpenPlaying}
                 countdown={autoplayCountdown}
