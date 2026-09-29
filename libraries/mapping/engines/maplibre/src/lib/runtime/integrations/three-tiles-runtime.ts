@@ -402,7 +402,14 @@ export function buildThreeTilesRuntime(
         state.foveationWeight = Math.max(0, weight);
         state.tiles?.dispatchEvent({ type: "needs-update" });
       },
-      setTilesetMinResolution: (px) => {
+      setTilesetMinResolution: (
+        px,
+        memoryShare = state.options.baseCoverageMemoryShare
+      ) => {
+        if (memoryShare !== state.options.baseCoverageMemoryShare) {
+          state.options.baseCoverageMemoryShare = memoryShare;
+          state.appliedTilesetMinResolutionPx = Number.NaN;
+        }
         state.tilesetMinResolutionPx = px;
         loading.applyTilesetMinResolution();
       },

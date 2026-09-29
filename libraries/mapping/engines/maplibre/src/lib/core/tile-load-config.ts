@@ -52,7 +52,9 @@ export const TILES_LOAD_POLICY = {
    * the cache ceiling, never above the hinted level.
    */
   extentResidentBytesPerTransferByte: 7.6,
-  extentMemoryShare: 0.35,
+  extentMemoryShare: 0.1,
+  extentMemoryShareMin: 0.05,
+  extentMemoryShareMax: 0.15,
   /**
    * Memory-adaptive error target: at the admission ceiling with an
    * unconverged view the effective target rises by this factor (never above

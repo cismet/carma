@@ -85,6 +85,11 @@ describe("extent floor", () => {
     const throughLevel4 = (1e6 + 16e6 + 21e6) * resident;
     expect(resolveExtentGeometricError(levels, throughLevel4 / share)).toBe(42);
     expect(resolveExtentGeometricError(levels, 1e12)).toBe(10);
+    expect(resolveExtentGeometricError(levels, 6 * GIB, 0, 0.05)).toBe(42);
+    expect(resolveExtentGeometricError(levels, 6 * GIB, 0, 0.15)).toBe(20);
+    expect(resolveExtentGeometricError(levels, 6 * GIB, 0, 0)).toBe(42);
+    expect(resolveExtentGeometricError(levels, 6 * GIB, 0, 1)).toBe(20);
+    expect(resolveExtentGeometricError(levels, 6 * GIB, 0, NaN)).toBe(42);
   });
 
   it("falls back above the entry hint when its resident floor cannot fit", () => {

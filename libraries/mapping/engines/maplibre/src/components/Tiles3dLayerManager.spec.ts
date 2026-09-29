@@ -137,7 +137,8 @@ describe("resolveTiles3dConfig", () => {
       version: 1,
       errorTarget: 6,
       baseErrorTarget: 16,
-      tilesetMinResolutionPx: 1024,
+      tilesetMinResolutionPx: 0,
+      baseCoverageMemoryShare: 0.1,
       basemap: "labels",
       outline: true,
       diagnostics: false,
@@ -151,6 +152,42 @@ describe("resolveTiles3dConfig", () => {
     expect(resolved.tilesetMinResolutionPx).toBeUndefined();
     expect(resolved.errorTarget).toBe(4);
   });
+
+  it.each([
+    ["50-mbit", 16],
+    ["100-mbit", 12],
+    ["500-mbit", 6],
+  ] as const)(
+    "resolves %s without overriding explicit quality fields",
+    (qualityProfile, errorTarget) => {
+      const config = { ...legacy, providesTerrain: true, qualityProfile };
+      expect(resolveTiles3dConfig(config)).toMatchObject({
+        errorTarget,
+        baseErrorTarget: 12,
+        tilesetMinResolutionPx: 0,
+        baseCoverageMemoryShare: 0.1,
+      });
+      expect(
+        resolveTiles3dConfig({
+          ...config,
+          errorTarget: 4,
+          baseErrorTarget: 8,
+          tilesetMinResolutionPx: 0,
+        })
+      ).toMatchObject({
+        errorTarget: 4,
+        baseErrorTarget: 8,
+        tilesetMinResolutionPx: 0,
+      });
+      expect(
+        resolveTiles3dConfig({ ...config, providesTerrain: false })
+      ).toMatchObject({
+        errorTarget: 4,
+        baseErrorTarget: undefined,
+        tilesetMinResolutionPx: undefined,
+      });
+    }
+  );
 
   it("keeps explicit values, including the zero that defers to the entry hint", () => {
     const resolved = resolveTiles3dConfig({
@@ -212,7 +249,8 @@ describe("Tiles3dLayerManager", () => {
     >;
     expect(runtime.loading.setErrorTarget).toHaveBeenLastCalledWith(6, 12);
     expect(runtime.loading.setTilesetMinResolution).toHaveBeenLastCalledWith(
-      1024
+      null,
+      0.1
     );
   });
 
@@ -244,7 +282,8 @@ describe("Tiles3dLayerManager", () => {
     >;
     // A terrain-providing style without a residual resolution gets the default.
     expect(runtime.loading.setTilesetMinResolution).toHaveBeenLastCalledWith(
-      1024
+      null,
+      0.1
     );
     rerender(
       renderManager({
@@ -255,22 +294,26 @@ describe("Tiles3dLayerManager", () => {
     );
     expect(runtime.loading.setErrorTarget).toHaveBeenLastCalledWith(4, 12);
     expect(runtime.loading.setTilesetMinResolution).toHaveBeenLastCalledWith(
-      2048
+      2048,
+      0.1
     );
     rerender(
       renderManager({
         ...baseConfig,
         baseErrorTarget: 16,
         tilesetMinResolutionPx: 4096,
+        baseCoverageMemoryShare: 0.15,
       })
     );
     expect(runtime.loading.setErrorTarget).toHaveBeenLastCalledWith(4, 16);
     expect(runtime.loading.setTilesetMinResolution).toHaveBeenLastCalledWith(
-      4096
+      4096,
+      0.15
     );
     rerender(renderManager({ ...baseConfig, tilesetMinResolutionPx: 0 }));
     expect(runtime.loading.setTilesetMinResolution).toHaveBeenLastCalledWith(
-      null
+      null,
+      0.1
     );
     expect(mocks.buildRuntime).toHaveBeenCalledOnce();
   });

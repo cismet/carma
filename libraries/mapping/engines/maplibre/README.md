@@ -23,17 +23,77 @@ the way a fully declared one does:
 | `version` | `1` | Optional contract version, `TILES3D_STYLE_VERSION`. Never required, so served styles need no lockstep edits. |
 | `providesTerrain` | derived | The host sets it from the `Mesh` tag or a `mesh*.style.json` URL before the block reaches the manager. |
 | `errorTarget` | 4 px, 6 px for terrain-providing tilesets | Idle refinement target; the shadow simulation may override it per view (`setErrorTargetOverride`). |
+| `qualityProfile` | none | Opt-in mesh defaults: `50-mbit` (16 CSS px), `100-mbit` (12 CSS px), `500-mbit` (6 CSS px). Explicit quality fields override individual profile fields. |
 | `baseErrorTarget` | 16 px, terrain-providing only | First-pass target and the mesh loading strategy; other tilesets refine straight to the error target. |
 | `firstImageErrorTarget` | 64 px for terrain providers | Optional initial request threshold, bounded below by base and idle targets. Hard shadows may present complete coarser fallback coverage. Read when the runtime is created. |
 | `handoverErrorTarget` | legacy staging | Optional cold observer handover before whole-extent reserve admission. A complete observer cut advances to the idle target independently of caster refinement. Read when the runtime is created. |
-| `tilesetMinResolutionPx` | 1024 px, terrain-providing only | Whole-extent residual resolution. An explicit `0` defers to the `entry` hint instead. |
+| `baseCoverageMemoryShare` | 0.10, terrain-providing only | Fraction of the loader's usable memory grant reserved for a complete resident baseline. Bounded to 0.05–0.15; independent of network and visible quality profiles. |
+| `tilesetMinResolutionPx` | 0, terrain-providing only | Zero chooses the baseline by its memory budget and per-level entry sizes. Positive values add an optional geometric-detail limit. |
 | `hierarchyCache` | true | Worker-built static hierarchy index instead of native tileset JSON paging. `false` loads pages natively; kept after measurement, see TILES_COVERAGE.md, tileset hierarchy cache kept. |
+| `persistBaseTiles` | true for terrain-providing host layers | Optional local render-record cache of the complete resident base. Uses the hierarchy cache's validated source root. Shadows use the same source records. |
 | `basemap` | `labels` | Drape the map labels and keep MapLibre terrain; `none` shows the tileset alone. |
 | `outline` | on | `CESIUM_primitive_outline` edges. |
 | `diagnostics` | off | Never ship it on; the stories switch it on themselves. |
 | `shadowBuildingStyle` | off | Let the shadow simulation restyle the tileset as a building layer while shadows are on. Off keeps the declared appearance; outlines always follow `outline`. |
 | `entry` | none | Per-level `geometricError` and `bytes` size the resident extent within the memory share; `prefetch` names hierarchy files to warm. |
 | `colorCorrection`, cache budgets | none | Colour grading and memory stay as the runtime decides. |
+
+Network profiles are explicitly selected in `metadata.carmaConf["3d"]`, for
+example `"qualityProfile": "100-mbit"`. Remove an existing `errorTarget` if the
+profile should supply it. The exported `TILES_MESH_NETWORK_PROFILES` contains
+the values. The 10 Mbit/s case is a stress case, below the supported 50 Mbit/s
+minimum; it does not introduce another quality profile.
+
+These profiles were calibrated for similar cold-load times in one 1920 x 1080
+CSS-pixel shadow view of Mesh 2024. They do not configure the resident baseline.
+They do not promise equal times for other scenes, display sizes,
+servers or devices. The normal 6 px target remains the default without a
+profile. Selecting a coarser profile explicitly trades visible detail for time.
+
+Use aggregate uncached transfer throughput during busy download intervals to
+inform profile selection, with several samples and hysteresis. Browser
+connection hints are optional and too coarse to select these profiles alone.
+`deviceMemory` is a bounded device hint, not free RAM; storage quota is disk
+space, not RAM or GPU capacity. Runtime memory admission continues to use
+resident estimates, pressure signals and bundle-scoped learned limits.
+
+### Persistent resident base
+
+`baseCoverageMemoryShare` defaults to 10% of the loader's usable memory grant,
+clamped to 5–15%. Per-level source sizes choose a conservative complete floor;
+the coarsest source fallback remains the minimum when no finer floor fits.
+This is independent of the visible CSS-pixel target and network profile.
+
+The optional base cache uses IndexedDB structured-clone records: typed geometry
+buffers, original material parameters and decoded texture `ImageBitmap`s. It
+does not simplify geometry, create another network format, or cache shadow
+maps. Shaded and unshaded views share exactly the same base. Native traversal,
+transforms, material application, publication and disposal still own restored
+tiles. Unsupported materials, unavailable storage and cache failures keep the
+source loading path.
+
+Source URL (including query), validated root-document digest, loader build
+identity and render-format version isolate cache entries. Production build
+identity is the emitted runtime module URL with its bundle hash. Development
+HMR query timestamps are excluded; bump `MESH_BASE_RENDER_FORMAT` when changing
+the stored representation. As with the hierarchy cache, changing child data
+at the same URL requires a root revision or a source-URL revision as well.
+
+Records are written one at a time after visible convergence. A manifest is
+published only when stored content proves complete coverage, allowing a
+stored parent to cover unfinished children. Later idle writes improve that
+baseline. On restart, a validated complete manifest fitting the current memory
+grant arms the resident floor immediately; native first-image traversal can
+restore local tiles before remote detail arrives. The source root is still
+validated on the network. Missing entries and reads exceeding 200 ms fall back
+to source loading; they never become a refinement gate.
+
+The worker shares the existing adaptive origin-quota cache. Confirmation
+requests persistent browser storage, but browsers can deny persistence or
+evict data; every startup checks the manifest and individual record presence.
+`CARMA_MESH_BASE_CACHE.getStats()` reports cache hits, misses, writes, read and
+restore duration, pending bytes and confirmed source identity. These durations
+exclude GPU upload; use a render benchmark when comparing local formats.
 
 The bundled `mesh2024-cesium-parity.style.json` copies in the geoportal and the
 stories are the reference for the 2024 mesh. They declare only what differs

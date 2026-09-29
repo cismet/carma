@@ -25,10 +25,12 @@ import {
   THREE_TILES_DEFAULT_REQUEST_CONCURRENCY,
   TILES_ERROR_TARGET_DEFAULT_PIXELS,
   TILES_MESH_ERROR_TARGET_DEFAULT_PIXELS,
+  TILES_MESH_NETWORK_PROFILES,
   TILES3D_STYLE_VERSION,
   TILESET_MIN_RESOLUTION_DEFAULT_PX,
 } from "../lib/runtime/integrations/three-tiles-runtime-config";
 import { DEFAULT_MESH_BASE_ERROR_PIXELS } from "../lib/core/mesh-error-policy";
+import { TILES_LOAD_POLICY } from "../lib/core/tile-load-config";
 import type {
   ThreeTilesRuntime,
   TilesetEntryHint,
@@ -65,6 +67,8 @@ export interface Tiles3dConfig {
   tilesetUrl: string;
   /** Idle refinement target in pixels; lower asks for more detail. */
   errorTarget?: number;
+  /** Opt-in mesh defaults; explicit quality fields take precedence. */
+  qualityProfile?: keyof typeof TILES_MESH_NETWORK_PROFILES;
   /**
    * Error target of the first, coarse pass over a terrain-providing tileset
    * before loading the residual surface and refining to `errorTarget`.
@@ -75,8 +79,10 @@ export interface Tiles3dConfig {
   firstImageErrorTarget?: number;
   /** Initial viewport target before regular extent/idle scheduling starts. */
   handoverErrorTarget?: number;
-  /** Residual whole-extent resolution; absent or zero uses the entry hint. */
+  /** Whole-extent resolution; absent uses the default, zero the entry hint. */
   tilesetMinResolutionPx?: number;
+  /** Resident baseline share of the loader's memory grant, clamped to 5–15%. */
+  baseCoverageMemoryShare?: number;
   /** Register the runtime for the diagnostics story (window.__carmaTiles3d). */
   diagnostics?: boolean;
   /**
@@ -135,6 +141,7 @@ export interface Tiles3dConfig {
   entry?: TilesetEntryHint;
   /** Worker-backed static hierarchy cache; false loads tileset JSON natively. */
   hierarchyCache?: boolean;
+  persistBaseTiles?: boolean;
 }
 
 export interface Tiles3dLayerManagerProps {
@@ -144,11 +151,16 @@ export interface Tiles3dLayerManagerProps {
 }
 
 export const resolveTiles3dErrorTarget = (
-  config: Pick<Tiles3dConfig, "errorTarget" | "providesTerrain">
+  config: Pick<
+    Tiles3dConfig,
+    "errorTarget" | "providesTerrain" | "qualityProfile"
+  >
 ): number =>
   config.errorTarget ??
   (config.providesTerrain === true
-    ? TILES_MESH_ERROR_TARGET_DEFAULT_PIXELS
+    ? (config.qualityProfile &&
+        TILES_MESH_NETWORK_PROFILES[config.qualityProfile]?.errorTarget) ??
+      TILES_MESH_ERROR_TARGET_DEFAULT_PIXELS
     : TILES_ERROR_TARGET_DEFAULT_PIXELS);
 
 /** A style config with every default the layer manager applies made explicit. */
@@ -174,16 +186,24 @@ export const resolveTiles3dConfig = (
   config: Tiles3dConfig
 ): ResolvedTiles3dConfig => {
   const providesTerrain = config.providesTerrain === true;
+  const profile =
+    providesTerrain && config.qualityProfile
+      ? TILES_MESH_NETWORK_PROFILES[config.qualityProfile]
+      : undefined;
   return {
     ...config,
     version: config.version ?? TILES3D_STYLE_VERSION,
     errorTarget: resolveTiles3dErrorTarget(config),
     baseErrorTarget:
       config.baseErrorTarget ??
+      profile?.baseErrorTarget ??
       (providesTerrain ? DEFAULT_MESH_BASE_ERROR_PIXELS : undefined),
     tilesetMinResolutionPx:
       config.tilesetMinResolutionPx ??
       (providesTerrain ? TILESET_MIN_RESOLUTION_DEFAULT_PX : undefined),
+    baseCoverageMemoryShare:
+      config.baseCoverageMemoryShare ??
+      (providesTerrain ? TILES_LOAD_POLICY.extentMemoryShare : undefined),
     basemap: config.basemap ?? "labels",
     outline: config.outline ?? true,
     diagnostics: config.diagnostics ?? false,
@@ -261,11 +281,14 @@ export function Tiles3dLayerManager({
           groundReferenceMeters: groundReferenceMeters ?? undefined,
           selfGroundReference: standalone && groundReferenceMeters === null,
           baseErrorTargetPixels: initialConfig.baseErrorTarget,
+          baseCoverageMemoryShare: initialConfig.baseCoverageMemoryShare,
           firstImageErrorTargetPixels: initialConfig.firstImageErrorTarget,
           handoverErrorTargetPixels: initialConfig.handoverErrorTarget,
           diagnostics: initialConfig.diagnostics,
           entry: initialConfig.entry,
           hierarchyCache: initialConfig.hierarchyCache,
+          persistBaseTiles:
+            initialConfig.persistBaseTiles ?? initialConfig.providesTerrain,
           persistCacheCeiling: true,
           colorCorrection: initialConfig.colorCorrection,
           shadowBuildingStyle: initialConfig.shadowBuildingStyle,
@@ -286,7 +309,8 @@ export function Tiles3dLayerManager({
         initialConfig.tilesetMinResolutionPx !== undefined &&
           initialConfig.tilesetMinResolutionPx > 0
           ? initialConfig.tilesetMinResolutionPx
-          : null
+          : null,
+        initialConfig.baseCoverageMemoryShare
       );
       runtime.appearance.setOpacity(
         (initialConfig.opacity ?? 1) * (layerOpacityRef.current ?? 1)
@@ -440,9 +464,10 @@ export function Tiles3dLayerManager({
       resolved.tilesetMinResolutionPx !== undefined &&
         resolved.tilesetMinResolutionPx > 0
         ? resolved.tilesetMinResolutionPx
-        : null
+        : null,
+      resolved.baseCoverageMemoryShare
     );
-  }, [resolved.tilesetMinResolutionPx]);
+  }, [resolved.tilesetMinResolutionPx, resolved.baseCoverageMemoryShare]);
 
   useEffect(() => {
     runtimeRef.current?.loading.setCacheBudget(config.cacheBudgetBytes, {

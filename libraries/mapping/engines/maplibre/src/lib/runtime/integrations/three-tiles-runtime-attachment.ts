@@ -17,6 +17,8 @@ import { Gltf1UpgradePlugin } from "./gltf1-upgrade-plugin";
 import { createThreeTilesDracoLoader } from "./three-tiles-draco-loader";
 import { subscribeSharedThreeTerrainLoading } from "./shared-three-terrain-registry";
 import { isExtentFloorTile } from "../../core/mesh-error-policy";
+import type { MeshBaseCachePlugin } from "./mesh-base-cache-plugin";
+import { registerMeshBaseCache } from "./three-tiles-runtime-base-cache";
 import {
   KICKSTART_INTERVAL_MS,
   MESH_PARSE_CONCURRENCY,
@@ -45,6 +47,7 @@ import { TilesetMercatorProjectionPlugin } from "./tileset-mercator-projection-p
 export type ThreeTilesRuntimeAttachmentState = Pick<
   ThreeTilesRuntimeState,
   | "bytesPredictor"
+  | "ceilingBytes"
   | "loadedResidentBytes"
   | "cameraSet"
   | "clayMaterialStates"
@@ -167,6 +170,7 @@ export function createThreeTilesRuntimeAttachment(
   runtimeState: ThreeTilesRuntimeAttachmentState,
   dependencies: ThreeTilesRuntimeAttachmentDependencies
 ) {
+  let baseCache: MeshBaseCachePlugin | null = null;
   const deferredMaterials = new TilesetDeferredMaterialsPlugin({
     inView: (tile) => {
       // Existing receivers own their textures and geometry. A caster request
@@ -204,6 +208,7 @@ export function createThreeTilesRuntimeAttachment(
       );
     },
     onPromoted: (tile, scene) => {
+      baseCache?.processTileModel(scene, tile);
       dependencies.refreshRenderedMaterials(scene);
       runtimeState.mainViewProjectionChanged = true;
       runtimeState.tiles?.dispatchEvent({ type: "needs-update" });
@@ -258,12 +263,25 @@ export function createThreeTilesRuntimeAttachment(
     }
     if (runtimeState.options.providesTerrain)
       runtimeState.tiles.registerPlugin(deferredMaterials);
+    const sourceFetch = new Gltf1UpgradePlugin({
+      onResponse: dependencies.handleWireBytes,
+      onBody: (url, decodedBytes) => {
+        if (runtimeState.options.diagnostics && runtimeState.tiles)
+          notifyTileResponse(runtimeState.tiles, { url, decodedBytes });
+      },
+    });
+    baseCache = registerMeshBaseCache(runtimeState, (url, options) =>
+      sourceFetch.fetchData(url, options)
+    );
     if (
       runtimeState.options.hierarchyCache !== false &&
       typeof Worker !== "undefined"
     ) {
       const hierarchy = new TilesetHierarchyPlugin(runtimeState.tilesetUrl, {
         entry: runtimeState.options.entry,
+        onRootLoaded: baseCache
+          ? (document) => baseCache!.initialize(document)
+          : undefined,
       });
       runtimeState.tiles.registerPlugin(hierarchy);
       if (runtimeState.options.entry?.prefetch?.length)
@@ -271,15 +289,7 @@ export function createThreeTilesRuntimeAttachment(
     }
     // Mesh 2020 ships glTF 1.0 b3dm — upgrade payloads on the fly. The raw
     // response feeds the wire-size sampling of the request concurrency.
-    runtimeState.tiles.registerPlugin(
-      new Gltf1UpgradePlugin({
-        onResponse: dependencies.handleWireBytes,
-        onBody: (url, decodedBytes) => {
-          if (runtimeState.options.diagnostics && runtimeState.tiles)
-            notifyTileResponse(runtimeState.tiles, { url, decodedBytes });
-        },
-      })
-    );
+    runtimeState.tiles.registerPlugin(sourceFetch);
     // Draco-compressed glTF payloads need an explicit decoder
     runtimeState.dracoLoader = createThreeTilesDracoLoader();
     runtimeState.dracoLoader.setDecoderPath(

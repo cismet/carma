@@ -36,7 +36,10 @@ export class TilesetHierarchyPlugin {
 
   constructor(
     private readonly rootUrl: string,
-    readonly options: { entry?: TilesetEntryHint } = {}
+    readonly options: {
+      entry?: TilesetEntryHint;
+      onRootLoaded?: (document: object) => Promise<void>;
+    } = {}
   ) {}
 
   private stop(reason: unknown) {
@@ -159,7 +162,11 @@ export class TilesetHierarchyPlugin {
       const result = await this.request(url, options);
       options.signal?.throwIfAborted();
       if (this.disposed) throw new DOMException("Disposed", "AbortError");
-      if (result.kind === HIERARCHY_RESULT.document) return result.document;
+      if (result.kind === HIERARCHY_RESULT.document) {
+        if (url === this.rootUrl)
+          await this.options.onRootLoaded?.(result.document);
+        return result.document;
+      }
       if (result.kind !== HIERARCHY_RESULT.page)
         throw new Error("Missing hierarchy page");
       if (result.cached) this.stats.cacheHits++;
@@ -188,7 +195,9 @@ export class TilesetHierarchyPlugin {
         options.signal?.throwIfAborted();
         if (this.disposed) throw new DOMException("Disposed", "AbortError");
       }
-      return reader.finish();
+      const document = reader.finish();
+      if (url === this.rootUrl) await this.options.onRootLoaded?.(document);
+      return document;
     } catch (error) {
       if (this.disposed || options.signal?.aborted) throw error;
       this.stats.fallbacks++;

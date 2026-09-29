@@ -76,8 +76,28 @@ export const CLAY_COLOR = 0xd6d2ca;
  */
 export const TILES3D_STYLE_VERSION = 1;
 /**
- * Residual resolution of a terrain-providing tileset whose style names none:
- * the whole extent stays resident at the level that shows it across this many
- * pixels at the base error target.
+ * Zero selects the finest complete resident baseline fitting its memory share.
+ * A positive explicit value additionally limits residual geometric detail.
  */
-export const TILESET_MIN_RESOLUTION_DEFAULT_PX = 1024;
+export const TILESET_MIN_RESOLUTION_DEFAULT_PX = 0;
+
+/**
+ * Opt-in cold-load profiles for terrain-providing meshes. Calibrated with
+ * shadow casters at 1920 x 1080 CSS pixels, DPR 1, against the Mesh 2024 data.
+ * Connection values name measured throughput classes, not navigator.downlink.
+ * These are starting points, not scene-independent load-time guarantees.
+ */
+export const TILES_MESH_NETWORK_PROFILES = {
+  "50-mbit": {
+    errorTarget: 16,
+    baseErrorTarget: 12,
+  },
+  "100-mbit": {
+    errorTarget: 12,
+    baseErrorTarget: 12,
+  },
+  "500-mbit": {
+    errorTarget: 6,
+    baseErrorTarget: 12,
+  },
+} as const;

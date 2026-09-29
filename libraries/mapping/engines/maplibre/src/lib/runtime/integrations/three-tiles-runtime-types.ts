@@ -236,7 +236,7 @@ export interface ThreeTilesRuntime {
     /** Foveated request order: 0 nearest first, higher favours the view centre. */
     setFoveation: (weight: number) => void;
     /** Residual quality as pixels across the extent; null restores the hinted floor. */
-    setTilesetMinResolution: (px: number | null) => void;
+    setTilesetMinResolution: (px: number | null, memoryShare?: number) => void;
     /** Parse jobs at rest (GLTF scene creation on the renderer thread). */
     setParseConcurrency: (jobs: number) => void;
     /** The memory-adaptive error target currently in force (see TILES_COVERAGE.md). */
@@ -278,6 +278,8 @@ export interface ThreeTilesRuntimeOptions {
   mercatorProjection?: MeshMercatorLut;
   /** Optional worker-backed static hierarchy cache; false uses native JSON loading. */
   hierarchyCache?: boolean;
+  /** Restore a complete, source/build-versioned base from local render records. */
+  persistBaseTiles?: boolean;
   /** Persist the learned resident cache ceiling in localStorage (hosts, not tests). */
   persistCacheCeiling?: boolean;
   /** Bounded pipeline console samples; false disables collection/reporting. */
@@ -329,6 +331,8 @@ export interface ThreeTilesRuntimeOptions {
    * ancestor fallback together with the default first pass.
    */
   baseErrorTargetPixels?: number;
+  /** Resident baseline fraction of the cache grant; bounded to 5–15%. */
+  baseCoverageMemoryShare?: number;
   /** Optional cold first-image request target in renderer pixels. */
   firstImageErrorTargetPixels?: number;
   /** Complete the initial viewport at this error before idle/reserve work. */

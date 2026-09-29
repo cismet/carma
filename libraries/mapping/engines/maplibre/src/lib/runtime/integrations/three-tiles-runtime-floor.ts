@@ -81,7 +81,8 @@ export const createTilesetMinResolutionService = (
     runtimeState.extentGeometricError = resolveExtentGeometricError(
       entry?.levels ?? [],
       runtimeState.ceilingBytes,
-      residual
+      residual,
+      runtimeState.options.baseCoverageMemoryShare
     );
     runtimeState.extentFloorAuditPending = runtimeState.extentFloorArmed;
     runtimeState.tiles?.dispatchEvent({ type: "needs-update" });

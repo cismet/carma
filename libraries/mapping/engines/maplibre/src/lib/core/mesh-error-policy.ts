@@ -66,6 +66,18 @@ export const getMeshLoadStage = (
   };
 };
 
+export const meshBaseMemoryBudget = (
+  ceilingBytes: number,
+  share: number = TILES_LOAD_POLICY.extentMemoryShare
+) =>
+  Math.max(0, ceilingBytes) *
+  (Number.isFinite(share)
+    ? Math.min(
+        TILES_LOAD_POLICY.extentMemoryShareMax,
+        Math.max(TILES_LOAD_POLICY.extentMemoryShareMin, share)
+      )
+    : TILES_LOAD_POLICY.extentMemoryShare);
+
 export const resolveExtentGeometricError = (
   levels: ReadonlyArray<{
     level: number;
@@ -77,13 +89,15 @@ export const resolveExtentGeometricError = (
    * Residual quality as a geometric error: the floor never goes finer than
    * this (see tilesetMinResolutionGeometricError), whatever memory allows.
    */
-  minResolutionGeometricError = 0
+  minResolutionGeometricError = 0,
+  memoryShare: number = TILES_LOAD_POLICY.extentMemoryShare
 ): number => {
   const sorted = [...levels].sort((a, b) => a.level - b.level);
   if (sorted.length === 0)
     return minResolutionGeometricError > 0
       ? minResolutionGeometricError
       : Number.POSITIVE_INFINITY;
+  const budget = meshBaseMemoryBudget(ceilingBytes, memoryShare);
   let cumulative = 0;
   // The entry hint accelerates metadata discovery; it cannot reserve more
   // resident payload than the budget. Fall back to the coarsest available cut.
@@ -91,7 +105,7 @@ export const resolveExtentGeometricError = (
   for (const level of sorted) {
     cumulative +=
       level.bytes * TILES_LOAD_POLICY.extentResidentBytesPerTransferByte;
-    if (cumulative > ceilingBytes * TILES_LOAD_POLICY.extentMemoryShare) break;
+    if (cumulative > budget) break;
     if (level.geometricError < minResolutionGeometricError) break;
     chosen = level;
   }
