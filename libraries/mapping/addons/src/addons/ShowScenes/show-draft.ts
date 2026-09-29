@@ -87,6 +87,35 @@ const readDraft = (key: string): ShowDraft => {
   }
 };
 
+/**
+ * Whether the panel is open, kept next to the draft so a reload opens it again
+ * where it was open.
+ */
+export const useStoredPanelOpen = (
+  storageKey: string
+): [boolean, (update: boolean | ((isOpen: boolean) => boolean)) => void] => {
+  const key = `${storageKey}::open`;
+  const [isOpen, setIsOpen] = useState(
+    () => window.localStorage.getItem(key) === "true"
+  );
+
+  const update = useCallback(
+    (change: boolean | ((isOpen: boolean) => boolean)) =>
+      setIsOpen((current) => {
+        const next = typeof change === "function" ? change(current) : change;
+        try {
+          window.localStorage.setItem(key, String(next));
+        } catch (error) {
+          console.warn(`${LOG_PREFIX} storing the panel state failed`, error);
+        }
+        return next;
+      }),
+    [key]
+  );
+
+  return [isOpen, update];
+};
+
 export const useShowDraft = (
   storageKey: string
 ): [ShowDraft, (update: (draft: ShowDraft) => ShowDraft) => void] => {

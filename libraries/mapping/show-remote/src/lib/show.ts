@@ -1,4 +1,4 @@
-import type { MappingConfig } from "@carma-api";
+import type { MappingConfig, MappingConfigLayer } from "@carma-api";
 
 import { isBounds3857, type Bounds3857 } from "./bounds";
 import type { ShowHighlight } from "./highlights";
@@ -20,6 +20,13 @@ export const SHOW_VERSION = 1;
 export type ShowStory = {
   id: string;
   title: string;
+  /**
+   * Layers every scene of the story is drawn on, under the scene's own (the
+   * bridge mask of the insert the story plays on, say). Kept once here rather
+   * than in every scene; a scene with a layer of the same id keeps its own.
+   * See `withBaseLayers`.
+   */
+  baseLayers?: MappingConfigLayer[];
 };
 
 export type ShowScene = {
@@ -62,10 +69,15 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 export const isMappingConfig = (value: unknown): value is MappingConfig =>
   isRecord(value) && Array.isArray(value["layers"]);
 
+const isLayer = (value: unknown): value is MappingConfigLayer =>
+  isRecord(value) && typeof value["id"] === "string";
+
 const isShowStory = (value: unknown): value is ShowStory =>
   isRecord(value) &&
   typeof value["id"] === "string" &&
-  typeof value["title"] === "string";
+  typeof value["title"] === "string" &&
+  (value["baseLayers"] === undefined ||
+    (Array.isArray(value["baseLayers"]) && value["baseLayers"].every(isLayer)));
 
 const isShowScene = (value: unknown): value is ShowScene =>
   isRecord(value) &&

@@ -1,4 +1,7 @@
-import { lngLatToMercator, type ShowHighlight } from "@carma-mapping/show-remote";
+import {
+  lngLatToMercator,
+  type ShowHighlight,
+} from "@carma-mapping/show-remote";
 
 import { highlightPreviewFeatures } from "./highlight-editing";
 
@@ -24,9 +27,7 @@ describe("highlightPreviewFeatures", () => {
     expect(cover.properties).toMatchObject({ kind: "cover" });
     // lighter than on the display, as dark as the strongest spot wants
     expect((cover.properties as { dim: number }).dim).toBeCloseTo(0.54, 6);
-    expect(
-      (cover.geometry as GeoJSON.Polygon).coordinates
-    ).toHaveLength(3);
+    expect((cover.geometry as GeoJSON.Polygon).coordinates).toHaveLength(3);
     expect(rings.map(({ properties }) => properties?.["id"])).toEqual([
       "a",
       "b",

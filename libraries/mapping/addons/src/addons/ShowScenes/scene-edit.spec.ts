@@ -3,12 +3,19 @@ import { describe, expect, it } from "vitest";
 import type { ShowScene } from "@carma-mapping/show-remote";
 
 import {
+  addStoryBaseLayers,
   applyExclusionToAll,
+  copyLayerToScenes,
   deleteStory,
   moveSceneInStory,
   moveSceneToStory,
   publishedScene,
+  publishedStory,
+  removeSceneLayer,
+  removeStoryBaseLayer,
   sceneExclusion,
+  storyBaseLayers,
+  withoutBaseLayers,
 } from "./scene-edit";
 import type { ShowDraft } from "./show-draft";
 
@@ -87,6 +94,30 @@ describe("applyExclusionToAll", () => {
   });
 });
 
+describe("removeSceneLayer", () => {
+  const draft: ShowDraft = {
+    title: "Show",
+    scenes: [
+      { id: "a", title: "A", config: { layers: layers("x", "y") } },
+      { id: "b", title: "B", config: { layers: layers("x") } },
+    ],
+    excludedLayerIdsByScene: { a: ["x", "y"], b: ["x"] },
+  };
+
+  it("takes the layer out of that scene and out of its exclusion list only", () => {
+    const next = removeSceneLayer(draft, "a", "x");
+    expect(idsOf(next.scenes[0].config)).toEqual(["y"]);
+    expect(idsOf(next.scenes[1].config)).toEqual(["x"]);
+    expect(next.excludedLayerIdsByScene).toEqual({ a: ["y"], b: ["x"] });
+  });
+
+  it("gives a scene without a list of its own none", () => {
+    const withoutLists: ShowDraft = { title: "Show", scenes: draft.scenes };
+    const next = removeSceneLayer(withoutLists, "a", "x");
+    expect(next).not.toHaveProperty("excludedLayerIdsByScene");
+  });
+});
+
 describe("stories", () => {
   const inStory = (id: string, story: string): ShowScene => ({
     id,
@@ -132,5 +163,86 @@ describe("stories", () => {
     expect(next.stories).toEqual([{ id: "b", title: "B" }]);
     expect(ids(next.scenes)).toEqual(["b1"]);
     expect(next.excludedLayerIdsByScene).toEqual({ b1: ["y"] });
+  });
+});
+
+describe("base layers", () => {
+  const draft: ShowDraft = {
+    title: "Show",
+    stories: [
+      { id: "bridge", title: "Brücke", baseLayers: layers("mask") },
+      { id: "city", title: "Stadt" },
+    ],
+    scenes: [
+      {
+        id: "b1",
+        title: "B1",
+        story: "bridge",
+        config: { layers: layers("x") },
+      },
+      {
+        id: "b2",
+        title: "B2",
+        story: "bridge",
+        config: { layers: layers("x", "y") },
+      },
+      { id: "c1", title: "C1", story: "city", config: { layers: [] } },
+    ],
+  };
+  const baseIds = (next: ShowDraft, storyId: string) =>
+    storyBaseLayers(next, storyId).map(({ id }) => id);
+
+  it("adds new ones last and replaces a known one in its place", () => {
+    const opaque = { id: "mask", opacity: 1 };
+    const next = addStoryBaseLayers(draft, "bridge", [{ id: "top" }, opaque]);
+    expect(baseIds(next, "bridge")).toEqual(["mask", "top"]);
+    expect(storyBaseLayers(next, "bridge")[0]).toBe(opaque);
+    expect(baseIds(next, "city")).toEqual([]);
+  });
+
+  it("drops the field with the last one removed", () => {
+    const next = removeStoryBaseLayer(draft, "bridge", "mask");
+    expect(next.stories?.[0]).toEqual({ id: "bridge", title: "Brücke" });
+  });
+
+  it("keeps a saved scene free of its story's base layers", () => {
+    const config = { layers: layers("mask", "x") };
+    expect(idsOf(withoutBaseLayers(config, layers("mask")))).toEqual(["x"]);
+    expect(withoutBaseLayers(config, [])).toBe(config);
+  });
+
+  it("copies a layer on top of the scenes that lack it", () => {
+    const { draft: next, count } = copyLayerToScenes(
+      draft,
+      { id: "y" },
+      new Set(["b1", "b2"])
+    );
+    expect(count).toBe(1);
+    expect(idsOf(next.scenes[0].config)).toEqual(["x", "y"]);
+    expect(next.scenes[1]).toBe(draft.scenes[1]);
+    expect(next.scenes[2]).toBe(draft.scenes[2]);
+    expect(copyLayerToScenes(draft, { id: "x" }, new Set(["b1"]))).toEqual({
+      draft,
+      count: 0,
+    });
+  });
+
+  it("publishes a story without the show-wide excluded base layers", () => {
+    const story = {
+      id: "bridge",
+      title: "Brücke",
+      baseLayers: layers("mask", "outline"),
+    };
+    expect(publishedStory(story, new Set(["outline"]))).toEqual({
+      id: "bridge",
+      title: "Brücke",
+      baseLayers: layers("mask"),
+    });
+    expect(
+      publishedStory(
+        { ...story, baseLayers: layers("outline") },
+        new Set(["outline"])
+      )
+    ).toEqual({ id: "bridge", title: "Brücke" });
   });
 });

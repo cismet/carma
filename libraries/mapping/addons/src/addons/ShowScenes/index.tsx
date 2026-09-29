@@ -1,4 +1,10 @@
-import { useMemo, useState, type ReactNode } from "react";
+import {
+  useMemo,
+  useState,
+  type DragEvent,
+  type HTMLAttributes,
+  type ReactNode,
+} from "react";
 
 import {
   Button,
@@ -6,6 +12,7 @@ import {
   Modal,
   Popconfirm,
   QRCode,
+  Tag,
   Tooltip,
   Typography,
 } from "antd";
@@ -43,6 +50,7 @@ import {
   SHOW_FORMAT,
   SHOW_VERSION,
   ShowStoreError,
+  baseLayersUnder,
   isBounds3857,
   layerTitle,
   newEditToken,
@@ -59,30 +67,41 @@ import {
   type ShowScene,
   type ShowStory,
 } from "@carma-mapping/show-remote";
-import type { MappingConfig } from "@carma-api";
+import type { MappingConfig, MappingConfigLayer } from "@carma-api";
 
 import { useAddonScope } from "../../lib/AddonStateContext";
 import { routeScopeFromLocation } from "../../lib/addon-overrides-storage";
 import type { AddonComponentProps } from "../../lib/registry";
 import { DraftInput } from "./DraftInput";
-import { useHighlightPlacement, useHighlightPreview } from "./highlight-editing";
+import {
+  useHighlightPlacement,
+  useHighlightPreview,
+} from "./highlight-editing";
 import { IconButton } from "./IconButton";
 import { OpenShowRow } from "./OpenShowRow";
 import { SceneDetails } from "./SceneDetails";
 import {
+  addStoryBaseLayers,
   applyExclusionToAll,
+  copyLayerToScenes,
   deleteStory,
   moveEntry,
   moveSceneInStory,
   moveSceneToStory,
   newStory,
   publishedScene,
+  publishedStory,
+  removeSceneLayer,
+  removeStoryBaseLayer,
   sceneExclusion,
   setSceneLayerExcluded,
+  storyBaseLayers,
+  withoutBaseLayers,
 } from "./scene-edit";
 import {
   SHOW_DRAFT_STORAGE_PREFIX,
   useShowDraft,
+  useStoredPanelOpen,
   type ShowDraft,
 } from "./show-draft";
 import { useOpenShow } from "./useOpenShow";
@@ -136,21 +155,28 @@ const excludedIdsOf = (entries: string[]): Set<string> =>
     )
   );
 
-/** `initial` is what a scene without its own "Nicht in der Show" list leaves out */
+/**
+ * `initial` is what a scene without its own "Nicht in der Show" list leaves
+ * out; the stories' base layers go without it too.
+ */
 const toShow = (
   draft: ShowDraft,
   publishedAt: string,
   initial: readonly string[]
-): Show => ({
-  format: SHOW_FORMAT,
-  version: SHOW_VERSION,
-  title: draft.title.trim() || "Show",
-  publishedAt,
-  stories: withStories(draft).stories,
-  scenes: withStories(draft).scenes.map((scene) =>
-    publishedScene(scene, sceneExclusion(draft, scene.id, initial))
-  ),
-});
+): Show => {
+  const { stories, scenes } = withStories(draft);
+  const excluded = new Set(initial);
+  return {
+    format: SHOW_FORMAT,
+    version: SHOW_VERSION,
+    title: draft.title.trim() || "Show",
+    publishedAt,
+    stories: stories.map((story) => publishedStory(story, excluded)),
+    scenes: scenes.map((scene) =>
+      publishedScene(scene, sceneExclusion(draft, scene.id, initial))
+    ),
+  };
+};
 
 /**
  * A short hash of what a publish would store, so the panel can tell that the
@@ -209,6 +235,31 @@ const toBounds3857 = (view: ViewBounds): Bounds3857 | null => {
   return isBounds3857(bounds) ? bounds : null;
 };
 
+/**
+ * Where a dragged layer can be dropped: the handlers for the element, and
+ * whether the layer is over it right now.
+ */
+type DropZone = {
+  props: Pick<
+    HTMLAttributes<HTMLElement>,
+    "onDragOver" | "onDragLeave" | "onDrop"
+  >;
+  isOver: boolean;
+};
+
+const NO_DROP_ZONE: DropZone = { props: {}, isOver: false };
+
+/** outline and tint only, so nothing moves under the pointer */
+const dropZoneClass = ({ isOver }: DropZone) =>
+  isOver ? "rounded bg-[#1677ff]/10 ring-1 ring-[#1677ff]" : "";
+
+/** a layer being dragged, with the scene or story base it came from */
+type DraggedLayer = {
+  layer: MappingConfigLayer;
+  sceneId?: string;
+  baseOfStoryId?: string;
+};
+
 const SceneRow = ({
   scene,
   index,
@@ -221,6 +272,7 @@ const SceneRow = ({
   onOverwrite,
   onMove,
   onDelete,
+  drop,
   children,
 }: {
   scene: ShowScene;
@@ -234,6 +286,8 @@ const SceneRow = ({
   onOverwrite: () => void;
   onMove: (delta: number) => void;
   onDelete: () => void;
+  /** a layer dropped on the row goes into the scene */
+  drop: DropZone;
   /** the details, shown under the row while it is expanded */
   children?: ReactNode;
 }) => {
@@ -241,7 +295,7 @@ const SceneRow = ({
   // what the display gets; the excluded ones only stay on the desktop
   const shown = scene.config.layers.length - excluded.length;
   return (
-    <li className="py-1">
+    <li className={`py-1 ${dropZoneClass(drop)}`} {...drop.props}>
       <div className="flex items-center gap-2">
         <IconButton
           title={isExpanded ? "Details schließen" : "Text und Ebenen"}
@@ -261,9 +315,7 @@ const SceneRow = ({
           {shown} {shown === 1 ? "Ebene" : "Ebenen"}
           {excluded.length > 0 && (
             <Tooltip
-              title={`Nicht in der Show: ${excluded
-                .map(layerTitle)
-                .join(", ")}`}
+              title={`Nur am Desktop: ${excluded.map(layerTitle).join(", ")}`}
             >
               <span className="ml-1 text-gray-400">+{excluded.length}</span>
             </Tooltip>
@@ -330,13 +382,19 @@ const StoryBlock = ({
   onMove,
   onDelete,
   onSave,
+  onAddBaseLayersFromMap,
+  onRemoveBaseLayer,
+  onBaseLayerDragStart,
+  onLayerDragEnd,
+  headerDrop,
+  baseDrop,
   children,
 }: {
   story: ShowStory;
   index: number;
   count: number;
   sceneCount: number;
-  /** only the header row, without the scenes and the save button */
+  /** only the header row, without the base layers, scenes and save button */
   isCollapsed: boolean;
   onToggle: () => void;
   onRename: (title: string) => void;
@@ -344,10 +402,22 @@ const StoryBlock = ({
   onDelete: () => void;
   /** the current map as a new scene of this story */
   onSave: () => void;
+  /** the current map's layers into the story's base */
+  onAddBaseLayersFromMap: () => void;
+  onRemoveBaseLayer: (layerId: string) => void;
+  onBaseLayerDragStart: (layer: MappingConfigLayer, event: DragEvent) => void;
+  onLayerDragEnd: () => void;
+  /** a layer dropped on the header row goes into every scene of the story */
+  headerDrop: DropZone;
+  /** one dropped on the base line becomes a base layer */
+  baseDrop: DropZone;
   children?: ReactNode;
 }) => (
   <li className="flex flex-col gap-1 rounded border border-solid border-gray-200 p-2">
-    <div className="flex items-center gap-2">
+    <div
+      className={`flex items-center gap-2 ${dropZoneClass(headerDrop)}`}
+      {...headerDrop.props}
+    >
       <IconButton
         title={isCollapsed ? "Geschichte aufklappen" : "Geschichte zuklappen"}
         icon={isCollapsed ? faChevronRight : faChevronDown}
@@ -400,6 +470,49 @@ const StoryBlock = ({
     </div>
     {!isCollapsed && (
       <>
+        <div
+          className={`flex flex-wrap items-center gap-1 ${dropZoneClass(
+            baseDrop
+          )}`}
+          {...baseDrop.props}
+        >
+          <span className="text-xs font-semibold text-gray-600">
+            Basisebenen
+          </span>
+          {story.baseLayers?.length ? (
+            story.baseLayers.map((layer) => (
+              <Tag
+                key={layer.id}
+                draggable
+                onDragStart={(event) => onBaseLayerDragStart(layer, event)}
+                onDragEnd={onLayerDragEnd}
+                title="Ziehen, um die Ebene zu kopieren"
+                closable
+                onClose={(event) => {
+                  // the list is the draft's; the tag goes with its entry
+                  event.preventDefault();
+                  onRemoveBaseLayer(layer.id);
+                }}
+                style={{ marginInlineEnd: 0, cursor: "grab" }}
+              >
+                {layerTitle(layer)}
+              </Tag>
+            ))
+          ) : (
+            <span className="text-xs text-gray-500">
+              Keine. Basisebenen liegen unter jeder Szene der Geschichte.
+            </span>
+          )}
+          <Popconfirm
+            title="Ebenen der aktuellen Karte als Basisebenen übernehmen?"
+            description="Jede Szene dieser Geschichte liegt dann auf ihnen. Ebenen, die nie in die Show gehen, bleiben draußen."
+            okText="Übernehmen"
+            cancelText="Abbrechen"
+            onConfirm={onAddBaseLayersFromMap}
+          >
+            <IconButton title="Aktuelle Karte als Basisebenen" icon={faPlus} />
+          </Popconfirm>
+        </div>
         {sceneCount === 0 ? (
           <p className="m-0 text-xs text-gray-500">
             Noch keine Szene. Karte einrichten, dann hier speichern.
@@ -439,7 +552,7 @@ export const ShowScenes = ({
   const storageKey =
     config.storageKey || `${SHOW_DRAFT_STORAGE_PREFIX}::${scope}`;
 
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useStoredPanelOpen(storageKey);
   /**
    * Here and not in the panel: `Control` registers its children anew on every
    * render. The same goes for the one expanded scene row.
@@ -452,6 +565,9 @@ export const ShowScenes = ({
   >(() => new Set());
   /** the scene whose next highlight the next map click places */
   const [placingSceneId, setPlacingSceneId] = useState<string | null>(null);
+  const [dragged, setDragged] = useState<DraggedLayer | null>(null);
+  /** the drop zone under the dragged layer, by its key */
+  const [dropTarget, setDropTarget] = useState<string | null>(null);
   const [draft, updateDraft] = useShowDraft(storageKey);
   const [status, setStatus] = useState<Status>(null);
   const openShow = useOpenShow({
@@ -611,6 +727,10 @@ export const ShowScenes = ({
             title: `Szene ${count + 1}`,
             story: storyId,
             ...scene,
+            config: withoutBaseLayers(
+              scene.config,
+              storyBaseLayers(current, storyId)
+            ),
           },
         ],
       };
@@ -655,12 +775,148 @@ export const ShowScenes = ({
     }
   };
 
+  /** the story's base layers stay out of the scene, see `saveCurrentMap` */
   const overwriteScene = (id: string) => {
     const scene = currentScene();
-    if (scene) {
-      setStatus(null);
-      updateScene(id, scene);
+    if (!scene) {
+      return;
     }
+    setStatus(null);
+    updateDraft((current) => ({
+      ...current,
+      scenes: current.scenes.map((entry) =>
+        entry.id === id
+          ? {
+              ...entry,
+              ...scene,
+              config: withoutBaseLayers(
+                scene.config,
+                storyBaseLayers(current, entry.story)
+              ),
+            }
+          : entry
+      ),
+    }));
+  };
+
+  const storyName = (story: ShowStory) => story.title || "(ohne Titel)";
+
+  /** the map's layers, but those the show never gets, as the story's base */
+  const addBaseLayersFromMap = (story: ShowStory) => {
+    const mapConfig = currentMapConfig();
+    if (!mapConfig) {
+      return;
+    }
+    const excluded = new Set(initialExcluded);
+    const layers = mapConfig.layers.filter(({ id }) => !excluded.has(id));
+    if (layers.length === 0) {
+      setStatus({
+        kind: "info",
+        text: `Auf der Karte ist keine Ebene für die Basis von „${storyName(
+          story
+        )}“.`,
+      });
+      return;
+    }
+    updateDraft((current) => addStoryBaseLayers(current, story.id, layers));
+    setStatus({
+      kind: "info",
+      text: `Basis von „${storyName(story)}“: ${layers
+        .map(layerTitle)
+        .join(", ")}.`,
+    });
+  };
+
+  const startLayerDrag = (from: DraggedLayer, event: DragEvent) => {
+    // Firefox starts a drag only with some data set
+    event.dataTransfer.setData("text/plain", layerTitle(from.layer));
+    event.dataTransfer.effectAllowed = "copy";
+    setDragged(from);
+  };
+
+  const endLayerDrag = () => {
+    setDragged(null);
+    setDropTarget(null);
+  };
+
+  /** none while nothing is dragged, and none where the layer came from */
+  const dropZone = (
+    key: string,
+    isSource: boolean,
+    onDrop: (layer: MappingConfigLayer) => void
+  ): DropZone => {
+    if (!dragged || isSource) {
+      return NO_DROP_ZONE;
+    }
+    const { layer } = dragged;
+    return {
+      isOver: dropTarget === key,
+      props: {
+        onDragOver: (event) => {
+          event.preventDefault();
+          event.dataTransfer.dropEffect = "copy";
+          setDropTarget(key);
+        },
+        onDragLeave: () =>
+          setDropTarget((current) => (current === key ? null : current)),
+        onDrop: (event) => {
+          event.preventDefault();
+          endLayerDrag();
+          onDrop(layer);
+        },
+      },
+    };
+  };
+
+  const copyIntoScenes = (layer: MappingConfigLayer, sceneIds: string[]) => {
+    const ids = new Set(sceneIds);
+    const { count } = copyLayerToScenes(draft, layer, ids);
+    updateDraft((current) => copyLayerToScenes(current, layer, ids).draft);
+    return count;
+  };
+
+  const dropOnScene = (layer: MappingConfigLayer, scene: ShowScene) => {
+    const title = layerTitle(layer);
+    const count = copyIntoScenes(layer, [scene.id]);
+    setStatus({
+      kind: "info",
+      text:
+        count === 0
+          ? `„${scene.title}“ hat „${title}“ schon.`
+          : `„${title}“ in „${scene.title}“ kopiert.`,
+    });
+  };
+
+  const dropOnStory = (
+    layer: MappingConfigLayer,
+    story: ShowStory,
+    scenes: ShowScene[]
+  ) => {
+    const title = layerTitle(layer);
+    const name = storyName(story);
+    const count = copyIntoScenes(
+      layer,
+      scenes.map(({ id }) => id)
+    );
+    setStatus({
+      kind: "info",
+      text:
+        scenes.length === 0
+          ? `„${name}“ hat noch keine Szene.`
+          : count === 0
+          ? `Jede Szene von „${name}“ hat „${title}“ schon.`
+          : `„${title}“ in ${count} ${
+              count === 1 ? "Szene" : "Szenen"
+            } von „${name}“ kopiert.`,
+    });
+  };
+
+  const dropOnBase = (layer: MappingConfigLayer, story: ShowStory) => {
+    updateDraft((current) => addStoryBaseLayers(current, story.id, [layer]));
+    setStatus({
+      kind: "info",
+      text: `„${layerTitle(layer)}“ ist Basisebene von „${storyName(story)}“.`,
+    });
   };
 
   const deleteScene = (id: string) =>
@@ -700,8 +956,13 @@ export const ShowScenes = ({
     }
   };
 
-  const showScene = (scene: ShowScene) =>
-    showMap(scene.config, scene.bounds, scene.title);
+  /** the scene on its story's base layers, as the display shows it */
+  const showScene = (scene: ShowScene, story: ShowStory) =>
+    showMap(
+      baseLayersUnder(scene.config, story.baseLayers),
+      scene.bounds,
+      scene.title
+    );
 
   /**
    * "reuse" replaces the show under the key the phone already has, so its link
@@ -854,6 +1115,24 @@ export const ShowScenes = ({
                     updateDraft((current) => deleteStory(current, story.id))
                   }
                   onSave={() => saveCurrentMap(story.id)}
+                  onAddBaseLayersFromMap={() => addBaseLayersFromMap(story)}
+                  onRemoveBaseLayer={(layerId) =>
+                    updateDraft((current) =>
+                      removeStoryBaseLayer(current, story.id, layerId)
+                    )
+                  }
+                  onBaseLayerDragStart={(layer, event) =>
+                    startLayerDrag({ layer, baseOfStoryId: story.id }, event)
+                  }
+                  onLayerDragEnd={endLayerDrag}
+                  headerDrop={dropZone(`story:${story.id}`, false, (layer) =>
+                    dropOnStory(layer, story, storyScenes)
+                  )}
+                  baseDrop={dropZone(
+                    `base:${story.id}`,
+                    dragged?.baseOfStoryId === story.id,
+                    (layer) => dropOnBase(layer, story)
+                  )}
                 >
                   <ol className="m-0 list-none p-0">
                     {storyScenes.map((scene, index) => {
@@ -876,7 +1155,7 @@ export const ShowScenes = ({
                             )
                           }
                           onRename={(title) => updateScene(scene.id, { title })}
-                          onShow={() => showScene(scene)}
+                          onShow={() => showScene(scene, story)}
                           onOverwrite={() => overwriteScene(scene.id)}
                           onMove={(delta) =>
                             updateDraft((current) => ({
@@ -889,6 +1168,11 @@ export const ShowScenes = ({
                             }))
                           }
                           onDelete={() => deleteScene(scene.id)}
+                          drop={dropZone(
+                            `scene:${scene.id}`,
+                            dragged?.sceneId === scene.id,
+                            (layer) => dropOnScene(layer, scene)
+                          )}
                         >
                           <SceneDetails
                             scene={scene}
@@ -908,6 +1192,13 @@ export const ShowScenes = ({
                               }));
                             }}
                             onText={(text) => updateScene(scene.id, { text })}
+                            onLayerDragStart={(layer, event) =>
+                              startLayerDrag(
+                                { layer, sceneId: scene.id },
+                                event
+                              )
+                            }
+                            onLayerDragEnd={endLayerDrag}
                             onExclude={(layerId, excluded) =>
                               updateDraft((current) =>
                                 setSceneLayerExcluded(
@@ -926,6 +1217,11 @@ export const ShowScenes = ({
                                   scene.id,
                                   initialExcludedOf(current)
                                 )
+                              )
+                            }
+                            onRemoveLayer={(layerId) =>
+                              updateDraft((current) =>
+                                removeSceneLayer(current, scene.id, layerId)
                               )
                             }
                             highlights={sceneHighlights(scene)}

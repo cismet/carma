@@ -2,6 +2,7 @@ import {
   DEFAULT_SHOW_READ_URL,
   fetchShow,
   isShow,
+  withBaseLayers,
   type Show,
 } from "@carma-mapping/show-remote";
 
@@ -68,12 +69,16 @@ const writeCachedShow = (key: string, show: Show): void => {
   }
 };
 
-/** the show under `key` from ceepr, or the copy on the phone when ceepr fails */
+/**
+ * The show under `key` from ceepr, or the copy on the phone when ceepr fails,
+ * with every scene carrying its story's base layers. The copy keeps the show
+ * as published.
+ */
 export const loadShow = async (key: string): Promise<Show> => {
   try {
     const show = await fetchShow(SHOW_READ_URL, key);
     writeCachedShow(key, show);
-    return show;
+    return withBaseLayers(show);
   } catch (error) {
     const cached = readCachedShow(key);
     if (!cached) {
@@ -83,6 +88,6 @@ export const loadShow = async (key: string): Promise<Show> => {
       `${LOG_PREFIX} reading the show failed, using the copy on this device`,
       error
     );
-    return cached;
+    return withBaseLayers(cached);
   }
 };

@@ -11,7 +11,9 @@ export {
 export {
   FIRST_STORY_ID,
   FIRST_STORY_TITLE,
+  baseLayersUnder,
   storyGroups,
+  withBaseLayers,
   withStories,
   type StoryGroup,
 } from "./lib/stories";

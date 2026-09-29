@@ -1,6 +1,15 @@
+import type { DragEvent } from "react";
+
 import { Button, Checkbox, Popconfirm, Select } from "antd";
-import { faMinus, faPlus } from "@fortawesome/free-solid-svg-icons";
+import {
+  faGripVertical,
+  faMinus,
+  faPlus,
+  faXmark,
+} from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+
+import type { MappingConfigLayer } from "@carma-api";
 
 import {
   HIGHLIGHT_DIM_RANGE,
@@ -54,7 +63,9 @@ const HighlightList = ({
         </Button>
       )}
     </div>
-    <span className={`text-xs ${isPlacing ? "text-amber-700" : "text-gray-500"}`}>
+    <span
+      className={`text-xs ${isPlacing ? "text-amber-700" : "text-gray-500"}`}
+    >
       {isPlacing
         ? "Klick in die Karte setzt die Hervorhebung dorthin. Esc bricht ab."
         : highlights.length === 0
@@ -88,9 +99,7 @@ const HighlightList = ({
             max={HIGHLIGHT_RADIUS_RANGE_METERS[1]}
             step={5}
             value={highlight.radiusMeters}
-            onValue={(radiusMeters) =>
-              onChange(highlight.id, { radiusMeters })
-            }
+            onValue={(radiusMeters) => onChange(highlight.id, { radiusMeters })}
             tooltip={{ formatter: (value) => `${value ?? ""} m` }}
             className="m-0 flex-1"
           />
@@ -122,9 +131,9 @@ const HighlightList = ({
 
 /**
  * What opens under a scene row: the story it is in, the text for the
- * presenter, its stored highlights and the layers the display leaves out.
- * Keeps no state of its own; the panel's `Control` registers its children
- * anew on every render.
+ * presenter, its stored highlights and its layers, ticked when the display
+ * gets them and draggable to other scenes and stories. Keeps no state of its
+ * own; the panel's `Control` registers its children anew on every render.
  */
 export const SceneDetails = ({
   scene,
@@ -135,6 +144,9 @@ export const SceneDetails = ({
   onText,
   onExclude,
   onExclusionToAll,
+  onRemoveLayer,
+  onLayerDragStart,
+  onLayerDragEnd,
   highlights,
   isPlacingHighlight,
   onStartPlacingHighlight,
@@ -151,6 +163,10 @@ export const SceneDetails = ({
   onText: (text: string) => void;
   onExclude: (layerId: string, excluded: boolean) => void;
   onExclusionToAll: () => void;
+  onRemoveLayer: (layerId: string) => void;
+  /** a layer picked up, to be copied to where it is dropped */
+  onLayerDragStart: (layer: MappingConfigLayer, event: DragEvent) => void;
+  onLayerDragEnd: () => void;
   highlights: readonly ShowHighlight[];
   isPlacingHighlight: boolean;
   onStartPlacingHighlight: () => void;
@@ -203,7 +219,7 @@ export const SceneDetails = ({
       <div className="flex flex-col gap-1">
         <div className="flex items-center">
           <span className="flex-1 text-xs font-semibold text-gray-600">
-            Nicht in der Show
+            Ebenen der Szene
           </span>
           <Popconfirm
             title="Diese Auswahl für alle Szenen übernehmen?"
@@ -225,18 +241,44 @@ export const SceneDetails = ({
         ) : (
           <>
             <span className="text-xs text-gray-500">
-              Angehakte Ebenen bleiben am Desktop in der Szene, die Anzeige
-              bekommt sie nicht.
+              Angehakte Ebenen bekommt die Anzeige, die anderen bleiben nur am
+              Desktop. Zum Kopieren auf eine andere Szene ziehen, auf den Kopf
+              einer Geschichte (alle ihre Szenen) oder auf ihre Basisebenen.
             </span>
-            {layers.map((layer) => (
-              <Checkbox
-                key={layer.id}
-                checked={excluded.has(layer.id)}
-                onChange={(event) => onExclude(layer.id, event.target.checked)}
-              >
-                {layerTitle(layer)}
-              </Checkbox>
-            ))}
+            <ul className="m-0 flex list-none flex-col gap-1 p-0">
+              {layers.map((layer) => (
+                // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- dragging is a pointer-only shortcut for copying
+                <li
+                  key={layer.id}
+                  draggable
+                  onDragStart={(event) => onLayerDragStart(layer, event)}
+                  onDragEnd={onLayerDragEnd}
+                  title="Ziehen, um die Ebene zu kopieren"
+                  className="flex cursor-grab items-center gap-2"
+                >
+                  <FontAwesomeIcon
+                    icon={faGripVertical}
+                    className="text-gray-400"
+                  />
+                  <Checkbox
+                    checked={!excluded.has(layer.id)}
+                    onChange={(event) =>
+                      onExclude(layer.id, !event.target.checked)
+                    }
+                  >
+                    {layerTitle(layer)}
+                  </Checkbox>
+                  <span className="ml-auto">
+                    <IconButton
+                      title="Ebene aus der Szene entfernen"
+                      icon={faXmark}
+                      danger
+                      onClick={() => onRemoveLayer(layer.id)}
+                    />
+                  </span>
+                </li>
+              ))}
+            </ul>
           </>
         )}
       </div>

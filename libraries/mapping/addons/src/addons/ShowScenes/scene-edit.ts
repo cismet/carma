@@ -1,7 +1,8 @@
-import type { MappingConfigLayer } from "@carma-api";
+import type { MappingConfig, MappingConfigLayer } from "@carma-api";
 import {
   newSceneId,
   sceneHighlights,
+  withStories,
   type ShowScene,
   type ShowStory,
 } from "@carma-mapping/show-remote";
@@ -64,6 +65,40 @@ export const setSceneLayerExcluded = (
 /** every layer the scene puts on the map */
 export const sceneLayers = (scene: ShowScene): MappingConfigLayer[] =>
   scene.config.layers;
+
+/**
+ * Takes the layer out of the scene, and out of the scene's own list of what it
+ * leaves out, so a copy of it dropped in later starts ticked again.
+ */
+export const removeSceneLayer = (
+  draft: ShowDraft,
+  sceneId: string,
+  layerId: string
+): ShowDraft => {
+  const own = draft.excludedLayerIdsByScene?.[sceneId];
+  return {
+    ...draft,
+    scenes: draft.scenes.map((scene) =>
+      scene.id === sceneId
+        ? {
+            ...scene,
+            config: {
+              ...scene.config,
+              layers: scene.config.layers.filter(({ id }) => id !== layerId),
+            },
+          }
+        : scene
+    ),
+    ...(own?.includes(layerId)
+      ? {
+          excludedLayerIdsByScene: {
+            ...draft.excludedLayerIdsByScene,
+            [sceneId]: own.filter((id) => id !== layerId),
+          },
+        }
+      : {}),
+  };
+};
 
 /**
  * Gives every scene the source scene's choice for the source scene's layers.
@@ -188,4 +223,130 @@ export const deleteStory = (draft: ShowDraft, storyId: string): ShowDraft => {
         }
       : {}),
   };
+};
+
+/** the layers every scene of the story is drawn on, see `ShowStory.baseLayers` */
+export const storyBaseLayers = (
+  draft: ShowDraft,
+  storyId: string | undefined
+): MappingConfigLayer[] =>
+  withStories(draft).stories.find(({ id }) => id === storyId)?.baseLayers ?? [];
+
+/**
+ * The map's configuration without the story's base layers, so a scene saved
+ * from a map that shows them does not keep a copy of its own.
+ */
+export const withoutBaseLayers = (
+  config: MappingConfig,
+  baseLayers: readonly MappingConfigLayer[]
+): MappingConfig => {
+  if (baseLayers.length === 0) {
+    return config;
+  }
+  const ids = new Set(baseLayers.map(({ id }) => id));
+  return {
+    ...config,
+    layers: config.layers.filter(({ id }) => !ids.has(id)),
+  };
+};
+
+/** a story without base layers goes without the field, as before they existed */
+const withBaseLayerList = (
+  story: ShowStory,
+  baseLayers: MappingConfigLayer[]
+): ShowStory => {
+  if (baseLayers.length > 0) {
+    return { ...story, baseLayers };
+  }
+  const next = { ...story };
+  delete next.baseLayers;
+  return next;
+};
+
+const changeStory = (
+  draft: ShowDraft,
+  storyId: string,
+  change: (story: ShowStory) => ShowStory
+): ShowDraft => {
+  const shaped = withStories(draft);
+  return {
+    ...shaped,
+    stories: shaped.stories.map((story) =>
+      story.id === storyId ? change(story) : story
+    ),
+  };
+};
+
+/**
+ * Adds layers to the story's base; one the base has already (by id) is
+ * replaced where it is, so its place under the others stays.
+ */
+export const addStoryBaseLayers = (
+  draft: ShowDraft,
+  storyId: string,
+  layers: readonly MappingConfigLayer[]
+): ShowDraft =>
+  changeStory(draft, storyId, (story) => {
+    const byId = new Map(layers.map((layer) => [layer.id, layer]));
+    const kept = (story.baseLayers ?? []).map(
+      (entry) => byId.get(entry.id) ?? entry
+    );
+    const known = new Set(kept.map(({ id }) => id));
+    return withBaseLayerList(story, [
+      ...kept,
+      ...[...byId.values()].filter(({ id }) => !known.has(id)),
+    ]);
+  });
+
+export const removeStoryBaseLayer = (
+  draft: ShowDraft,
+  storyId: string,
+  layerId: string
+): ShowDraft =>
+  changeStory(draft, storyId, (story) =>
+    withBaseLayerList(
+      story,
+      (story.baseLayers ?? []).filter(({ id }) => id !== layerId)
+    )
+  );
+
+/**
+ * Puts the layer on top of each of the scenes that has no layer of that id
+ * yet. `count` is how many scenes got it; with none the draft is returned as
+ * it was.
+ */
+export const copyLayerToScenes = (
+  draft: ShowDraft,
+  layer: MappingConfigLayer,
+  sceneIds: ReadonlySet<string>
+): { draft: ShowDraft; count: number } => {
+  let count = 0;
+  const scenes = draft.scenes.map((scene) => {
+    if (
+      !sceneIds.has(scene.id) ||
+      scene.config.layers.some(({ id }) => id === layer.id)
+    ) {
+      return scene;
+    }
+    count++;
+    return {
+      ...scene,
+      config: { ...scene.config, layers: [...scene.config.layers, layer] },
+    };
+  });
+  return count > 0 ? { draft: { ...draft, scenes }, count } : { draft, count };
+};
+
+/**
+ * A story as the display gets it: without the base layers the whole show
+ * leaves out (the outline of the projection area, say). A scene's own
+ * "Nicht in der Show" list is about that scene's layers only.
+ */
+export const publishedStory = (
+  story: ShowStory,
+  excluded: ReadonlySet<string>
+): ShowStory => {
+  const { id, title, baseLayers = [] } = story;
+  const shown = baseLayers.filter((layer) => !excluded.has(layer.id));
+  return { id, title, ...(shown.length > 0 ? { baseLayers: shown } : {}) };
 };

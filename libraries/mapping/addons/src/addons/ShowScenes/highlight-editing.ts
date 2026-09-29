@@ -101,7 +101,10 @@ export const useHighlightPreview = (
         place();
       } catch (error) {
         // a style still loading refuses new sources; its `styledata` retries
-        console.debug("[SHOW SCENES] highlight preview waits for the style", error);
+        console.debug(
+          "[SHOW SCENES] highlight preview waits for the style",
+          error
+        );
       }
     };
 
