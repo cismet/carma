@@ -4,8 +4,7 @@ import {
   fetchNutzungenForFlurstueck,
   fetchNutzungStammdaten,
 } from "./api";
-import { adminTargets, inheritedSourceKeys, uniqueBy } from "./adminData";
-import { fetchGeometries, geometryForKey } from "./geometry";
+import { adminTargets, inheritedSourceKeys } from "./adminData";
 import { formatKey } from "./keys";
 
 let stammdatenCache;
@@ -46,7 +45,7 @@ const fetchSourceBuchungen = async (key, jwt) => {
   return nutzungen.map(currentBuchung).filter(Boolean);
 };
 
-// split/join: new parcels start with the consumed parcels' current Nutzungen
+// split/join: new parcels start with exact copies of the consumed parcels' current Nutzungen
 export const loadInheritedUsage = async (value, jwt) => {
   const missing = adminTargets(value).filter(
     ({ key }) => !value.usage?.[formatKey(key)]
@@ -56,36 +55,20 @@ export const loadInheritedUsage = async (value, jwt) => {
     return {};
   }
 
-  const buchungen = uniqueBy(
-    (
-      await Promise.all(sourceKeys.map((key) => fetchSourceBuchungen(key, jwt)))
-    ).flat(),
-    (b) => `${b.fk_anlageklasse}/${b.fk_nutzungsart}/${b.quadratmeterpreis}`
-  );
+  const buchungen = (
+    await Promise.all(sourceKeys.map((key) => fetchSourceBuchungen(key, jwt)))
+  ).flat();
   if (!buchungen.length) {
     return {};
   }
 
-  const withoutArea = missing
-    .map(({ key }) => key)
-    .filter((key) => value.admin?.[formatKey(key)]?.area === undefined);
-  const geometries = withoutArea.length
-    ? await fetchGeometries(withoutArea, jwt)
-    : {};
-
   const usage = {};
   for (const { key } of missing) {
-    const label = formatKey(key);
-    const area =
-      value.admin?.[label]?.area ?? geometryForKey(key, geometries)?.area;
-    usage[label] = buchungen.map((b) => ({
+    usage[formatKey(key)] = buchungen.map((b) => ({
       id: nanoid(),
       anlageklasseId: b.fk_anlageklasse ?? undefined,
       nutzungsartId: b.fk_nutzungsart ?? undefined,
-      flaeche:
-        buchungen.length === 1 && Number.isFinite(area)
-          ? Math.round(area)
-          : null,
+      flaeche: b.flaeche ?? null,
       quadratmeterpreis: b.quadratmeterpreis ?? null,
     }));
   }

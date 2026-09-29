@@ -95,7 +95,7 @@ export const inheritedSourceKeys = (value) => {
   }
 };
 
-export const uniqueBy = (items, keyOf) => {
+const uniqueBy = (items, keyOf) => {
   const seen = new Set();
   return items.filter((item) => {
     const k = keyOf(item);
