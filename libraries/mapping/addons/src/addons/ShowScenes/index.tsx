@@ -73,6 +73,7 @@ import type { MappingConfig, MappingConfigLayer } from "@carma-api";
 import { useAddonScope } from "../../lib/AddonStateContext";
 import { routeScopeFromLocation } from "../../lib/addon-overrides-storage";
 import type { AddonComponentProps } from "../../lib/registry";
+import { DraftFileRow } from "./DraftFileRow";
 import { DraftInput } from "./DraftInput";
 import {
   useHighlightPlacement,
@@ -105,6 +106,7 @@ import {
   useStoredPanelOpen,
   type ShowDraft,
 } from "./show-draft";
+import { useDraftFile } from "./useDraftFile";
 import { useOpenShow } from "./useOpenShow";
 
 /**
@@ -577,6 +579,14 @@ export const ShowScenes = ({
     updateDraft,
     fingerprintOf,
     onOpened: () => {
+      setStatus(null);
+      setExpandedSceneId(null);
+    },
+  });
+  const draftFile = useDraftFile({
+    draft,
+    updateDraft,
+    onLoaded: () => {
       setStatus(null);
       setExpandedSceneId(null);
     },
@@ -1087,6 +1097,7 @@ export const ShowScenes = ({
             </div>
 
             <OpenShowRow {...openShow} />
+            <DraftFileRow {...draftFile} />
 
             <div className="flex items-center gap-3">
               <span className="flex-1 text-xs text-gray-500">

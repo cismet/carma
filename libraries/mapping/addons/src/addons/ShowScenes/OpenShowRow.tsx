@@ -1,9 +1,7 @@
 import { Button, Input } from "antd";
 
+import { scenesText } from "./scenes-text";
 import type { OpenShow } from "./useOpenShow";
-
-const scenesText = (count: number): string =>
-  `${count} ${count === 1 ? "Szene" : "Szenen"}`;
 
 /** the "Show öffnen" field of the panel, see `useOpenShow` */
 export const OpenShowRow = ({

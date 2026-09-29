@@ -52,32 +52,36 @@ const EMPTY_DRAFT: ShowDraft = withStories({
 
 const LOG_PREFIX = "[SHOW SCENES]";
 
+/**
+ * A draft from what was stored or loaded, with the parts it lacks filled in.
+ * A draft from before stories gets one for all its scenes.
+ */
+export const normalizeDraft = (parsed: Partial<ShowDraft>): ShowDraft =>
+  withStories({
+    title: typeof parsed.title === "string" ? parsed.title : EMPTY_DRAFT.title,
+    ...(Array.isArray(parsed.stories) ? { stories: parsed.stories } : {}),
+    scenes: Array.isArray(parsed.scenes) ? parsed.scenes : [],
+    ...(Array.isArray(parsed.excludedLayerIds)
+      ? {
+          excludedLayerIds: parsed.excludedLayerIds.filter(
+            (id): id is string => typeof id === "string"
+          ),
+        }
+      : {}),
+    ...(parsed.excludedLayerIdsByScene &&
+    typeof parsed.excludedLayerIdsByScene === "object"
+      ? { excludedLayerIdsByScene: parsed.excludedLayerIdsByScene }
+      : {}),
+    ...(parsed.published ? { published: parsed.published } : {}),
+  });
+
 const readDraft = (key: string): ShowDraft => {
   try {
     const raw = window.localStorage.getItem(key);
     if (!raw) {
       return EMPTY_DRAFT;
     }
-    const parsed = JSON.parse(raw) as Partial<ShowDraft>;
-    // a draft from before stories gets one for all its scenes
-    return withStories({
-      title:
-        typeof parsed.title === "string" ? parsed.title : EMPTY_DRAFT.title,
-      ...(Array.isArray(parsed.stories) ? { stories: parsed.stories } : {}),
-      scenes: Array.isArray(parsed.scenes) ? parsed.scenes : [],
-      ...(Array.isArray(parsed.excludedLayerIds)
-        ? {
-            excludedLayerIds: parsed.excludedLayerIds.filter(
-              (id): id is string => typeof id === "string"
-            ),
-          }
-        : {}),
-      ...(parsed.excludedLayerIdsByScene &&
-      typeof parsed.excludedLayerIdsByScene === "object"
-        ? { excludedLayerIdsByScene: parsed.excludedLayerIdsByScene }
-        : {}),
-      ...(parsed.published ? { published: parsed.published } : {}),
-    });
+    return normalizeDraft(JSON.parse(raw) as Partial<ShowDraft>);
   } catch (error) {
     console.warn(
       `${LOG_PREFIX} stored draft unreadable, starting empty`,
