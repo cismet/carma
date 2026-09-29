@@ -12,8 +12,10 @@ import {
   Sphere,
   Texture,
   Vector3,
+  type JSONMeta,
   type Material,
   type Object3D,
+  type TextureJSON,
   type TypedArray,
 } from "three";
 import { BatchTable, FeatureTable } from "3d-tiles-renderer/core";
@@ -172,15 +174,23 @@ export const snapshotMeshBaseRenderRecord = (
       Object.hasOwn(source, "onBeforeCompile")
     )
       throw new Error("Custom material");
-    const meta = {
-      textures: {} as Record<string, { uuid: string }>,
+    const meta: JSONMeta = {
+      geometries: {},
+      materials: {},
+      textures: {},
       images: {},
+      shapes: {},
+      skeletons: {},
+      animations: {},
+      nodes: {},
     };
     for (const value of Object.values(source)) {
       if (!(value instanceof Texture)) continue;
       if (!(value.image instanceof ImageBitmap) || value.mipmaps.length)
         throw new Error("Unsupported texture representation");
-      meta.textures[value.uuid] = { uuid: value.uuid };
+      // Material serialization reads only the UUID of registered textures;
+      // their pixels travel separately as ImageBitmaps, without JSON encoding.
+      meta.textures[value.uuid] = { uuid: value.uuid } as TextureJSON;
       if (textures[value.uuid]) continue;
       textures[value.uuid] = {
         image: value.image,

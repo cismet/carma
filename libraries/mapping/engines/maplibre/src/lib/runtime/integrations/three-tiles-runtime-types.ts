@@ -60,6 +60,7 @@ export type RuntimeTile = Tile & {
     wasSetVisible?: boolean;
   };
   engineData?: {
+    transform?: THREE.Matrix4;
     scene?: THREE.Object3D;
     materials?: THREE.Material[];
     textures?: THREE.Texture[];

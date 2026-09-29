@@ -38,6 +38,7 @@ export function createThreeTilesLifecycle(
     | "lastProgressAt"
     | "tiles"
     | "bytesPredictor"
+    | "ceilingBytes"
     | "loadedResidentBytes"
     | "payloadAwareConcurrency"
     | "modelLocalBounds"

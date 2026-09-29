@@ -411,10 +411,12 @@ export class MeshBaseCachePlugin {
     // GPU budget: use measured residency, conservatively estimate absent data.
     const resident = new Map<string, number>();
     this.tiles.traverse((tile) => {
-      const url = resolveTileContentUrl(tile as RuntimeTile);
+      const runtime = tile as RuntimeTile;
+      const url = resolveTileContentUrl(runtime);
       if (url && this.stored.has(url))
-        resident.set(url, this.tiles.lruCache.getMemoryUsage(tile) || 0);
-    });
+        resident.set(url, this.tiles.lruCache.getMemoryUsage(runtime) || 0);
+      return false;
+    }, null);
     const residentBytes = Math.max(
       this.manifest?.residentBytes ?? 0,
       [...this.stored].reduce(
