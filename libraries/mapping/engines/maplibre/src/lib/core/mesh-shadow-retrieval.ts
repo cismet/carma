@@ -41,13 +41,16 @@ export function selectMeshShadowRetrieval(
   for (const tile of receivers)
     for (const parent of meshTileAncestors(tile)) receiverAncestors.add(parent);
   for (const tile of previous) {
-    // A new visible receiver owns its own depth. Former descendants underneath
-    // it cannot force its refinement or keep overlapping caster geometry alive.
-    if ([...meshTileAncestors(tile)].some((parent) => receivers.has(parent)))
-      continue;
+    // Receiver publication carries this same floor through a role change.
+    // Never forget finer caster history just because its parent enters view.
     for (const parent of meshTileAncestors(tile)) retainedAncestors.add(parent);
   }
-  type Cut = { tiles: Tile[]; complete: boolean; converged: boolean };
+  type Cut = {
+    tiles: Tile[];
+    complete: boolean;
+    converged: boolean;
+    missing?: Tile[];
+  };
   const visit = (tile: Tile): Cut => {
     const wanted = demand(tile);
     if (receivers.has(tile)) {
@@ -56,20 +59,25 @@ export function selectMeshShadowRetrieval(
       // bypass the caster LOD floor just because this tile is already visible.
       const ready =
         meshContentLevel(tile) >= (wanted.receiverContentLevel ?? -1);
-      return { tiles: ready ? [tile] : [], complete: ready, converged: ready };
+      return {
+        tiles: ready ? [tile] : [],
+        complete: ready,
+        converged: ready,
+        missing: ready ? [] : [tile],
+      };
     }
     const anchored = receiverAncestors.has(tile);
     if (!anchored && !wanted.intersects)
       return { tiles: [], complete: true, converged: true };
     if (!tile.internal || !tile.traversal) {
       if (tile.parent) unpreparedParents.add(tile.parent);
-      return { tiles: [], complete: false, converged: false };
+      return { tiles: [], complete: false, converged: false, missing: [tile] };
     }
     const internal = tile.internal;
     const children = tile.children ?? [];
     if (internal.hasUnrenderableContent && internal.loadingState !== LOADED) {
       requests.add(tile);
-      return { tiles: [], complete: false, converged: false };
+      return { tiles: [], complete: false, converged: false, missing: [tile] };
     }
     const content =
       internal.hasRenderableContent && !isMeshTileUnconditionallyRefined(tile);
@@ -95,6 +103,7 @@ export function selectMeshShadowRetrieval(
         tiles: loaded ? [tile] : [],
         complete: loaded,
         converged: loaded,
+        missing: loaded ? [] : [tile],
       };
     }
     if (children.length === 0)
@@ -102,6 +111,7 @@ export function selectMeshShadowRetrieval(
         tiles: [],
         complete: !internal.hasContent,
         converged: !internal.hasContent,
+        missing: internal.hasContent ? [tile] : [],
       };
     // Raw native children do not have parent links yet. Ask their known
     // parent to prepare them rather than leaving this branch permanently pending.
@@ -119,14 +129,22 @@ export function selectMeshShadowRetrieval(
         tiles: loaded ? [tile, ...descendants] : descendants,
         complete: loaded && complete,
         converged: loaded && cuts.every((cut) => cut.converged),
+        missing: [
+          ...(loaded ? [] : [tile]),
+          ...cuts.flatMap((cut) => cut.missing ?? []),
+        ],
       };
     }
     // REPLACE publishes one complete demanded family at a time. No parent is
     // superimposed with its children, and failed loads never count as coverage.
+    const parentFallback = loaded && !retainedAncestors.has(tile);
     return {
-      tiles: !complete && loaded ? [tile] : descendants,
-      complete: complete || loaded,
+      // A new family may keep its previous parent while loading. Once finer
+      // casters were published, missing neighbours cannot resurrect that parent.
+      tiles: !complete && parentFallback ? [tile] : descendants,
+      complete: complete || parentFallback,
       converged: complete && cuts.every((cut) => cut.converged),
+      missing: parentFallback ? [] : cuts.flatMap((cut) => cut.missing ?? []),
     };
   };
   const cut = visit(root);
@@ -135,5 +153,6 @@ export function selectMeshShadowRetrieval(
     unpreparedParents,
     casters: new Set(cut.tiles),
     converged: cut.converged,
+    missing: cut.missing ?? [],
   };
 }

@@ -116,6 +116,11 @@ export function makeRoomForThreeTilesRequest(
         !state.displayedMeshFrontier.has(candidate) &&
         !state.committedMeshReceiverFrontier.has(candidate) &&
         !state.committedMeshCasterFrontier.has(candidate) &&
+        // A pending receiver owns these reservations too. Reclaim stale work,
+        // not another prerequisite of the cut that releases the old geometry.
+        (!state.shadowView ||
+          dependencies.getTileRequestNeed(candidate) !==
+            TILE_REQUEST_NEED.SHADOW) &&
         !dependencies.isTileNeededForMeshCoverage(candidate)
     )
     .map(score)
@@ -130,9 +135,7 @@ export function makeRoomForThreeTilesRequest(
         errorBand: candidate.errorBand,
         waitingErrorBand: requester.errorBand,
         sameRefinementGroup:
-          !!state.shadowView &&
-          requester.group !== undefined &&
-          candidate.group === requester.group,
+          requester.group !== undefined && candidate.group === requester.group,
       })
     )
     .sort(

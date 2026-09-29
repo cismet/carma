@@ -241,43 +241,48 @@ describe("current-camera reservation capacity", () => {
     f.state.tiles!.dispose();
   });
 
-  it("preserves atomic siblings, published cuts, metadata, parsed buffers and coverage reservations", () => {
-    const f = fixture();
-    f.state.shadowView = {
-      camera: new OrthographicCamera(),
-      shadowMapSize: { width: 1024, height: 1024 },
-    };
-    const group = mesh(),
-      requester = f.candidate(1000, group);
-    f.state.tiles!.loadingTiles.delete(requester);
-    const sibling = f.candidate(1, group);
-    const receiver = f.candidate(1),
-      caster = f.candidate(1),
-      visible = f.candidate(1);
-    const metadata = f.candidate(1),
-      parsed = f.candidate(1),
-      loaded = f.candidate(1),
-      gap = f.candidate(1);
-    f.state.committedMeshReceiverFrontier.add(receiver);
-    f.state.committedMeshCasterFrontier.add(caster);
-    f.state.displayedMeshFrontier.add(visible);
-    metadata.internal.hasUnrenderableContent = true;
-    parsed.internal.loadingState = 3;
-    loaded.internal.loadingState = 4;
-    f.coverage.add(gap);
-    f.makeRoom(requester);
-    expect(f.removed).toEqual([]);
-    for (const tile of [
-      sibling,
-      receiver,
-      caster,
-      visible,
-      metadata,
-      parsed,
-      loaded,
-      gap,
-    ])
-      expect(f.state.tiles!.loadingTiles.has(tile)).toBe(true);
-    f.state.tiles!.dispose();
-  });
+  it.each([false, true])(
+    "preserves atomic siblings and coverage reservations (shadows=%s)",
+    (shadows) => {
+      const f = fixture();
+      f.state.shadowView = shadows
+        ? {
+            camera: new OrthographicCamera(),
+            shadowMapSize: { width: 1024, height: 1024 },
+          }
+        : null;
+      const group = mesh(),
+        requester = f.candidate(1000, group);
+      f.state.tiles!.loadingTiles.delete(requester);
+      const sibling = f.candidate(1, group);
+      const receiver = f.candidate(1),
+        caster = f.candidate(1),
+        visible = f.candidate(1);
+      const metadata = f.candidate(1),
+        parsed = f.candidate(1),
+        loaded = f.candidate(1),
+        gap = f.candidate(1);
+      f.state.committedMeshReceiverFrontier.add(receiver);
+      f.state.committedMeshCasterFrontier.add(caster);
+      f.state.displayedMeshFrontier.add(visible);
+      metadata.internal.hasUnrenderableContent = true;
+      parsed.internal.loadingState = 3;
+      loaded.internal.loadingState = 4;
+      f.coverage.add(gap);
+      f.makeRoom(requester);
+      expect(f.removed).toEqual([]);
+      for (const tile of [
+        sibling,
+        receiver,
+        caster,
+        visible,
+        metadata,
+        parsed,
+        loaded,
+        gap,
+      ])
+        expect(f.state.tiles!.loadingTiles.has(tile)).toBe(true);
+      f.state.tiles!.dispose();
+    }
+  );
 });

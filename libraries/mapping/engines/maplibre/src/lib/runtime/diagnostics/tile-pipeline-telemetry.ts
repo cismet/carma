@@ -48,9 +48,6 @@ export const createTilePipelineTelemetry = (
   let qualityFrontier:
     | TilesRuntimeDebugState["displayedMeshFrontier"]
     | undefined;
-  let qualityUnderlay:
-    | TilesRuntimeDebugState["meshUnderlayFrontier"]
-    | undefined;
   let qualityRevision = -1;
   let qualityTransform = "";
   let qualityObservations: VisibleTileQualityObservation[] = [];
@@ -76,14 +73,12 @@ export const createTilePipelineTelemetry = (
     if (
       cameraChanged ||
       qualityFrontier !== state?.displayedMeshFrontier ||
-      qualityUnderlay !== state?.meshUnderlayFrontier ||
       qualityRevision !== (state?.meshContentRevision ?? -1) ||
       qualityTransform !== transform
     ) {
       if (cameraChanged) over20Since = null;
       qualityCameraSignature = cameraSignature;
       qualityFrontier = state?.displayedMeshFrontier;
-      qualityUnderlay = state?.meshUnderlayFrontier;
       qualityRevision = state?.meshContentRevision ?? -1;
       qualityTransform = transform;
       qualityObservations = [];
@@ -93,12 +88,10 @@ export const createTilePipelineTelemetry = (
         const observer = createTileCameraDemand(observerViews);
         const worldScale = group.matrixWorld.getMaxScaleOnAxis();
         const published = new Set(
-          [...(qualityFrontier ?? []), ...(qualityUnderlay ?? [])].filter(
-            (tile) => {
-              const scene = (tile as RuntimeTile).engineData?.scene;
-              return isLoadedMesh(tile) && scene?.visible && scene.parent;
-            }
-          )
+          [...(qualityFrontier ?? [])].filter((tile) => {
+            const scene = (tile as RuntimeTile).engineData?.scene;
+            return isLoadedMesh(tile) && scene?.visible && scene.parent;
+          })
         );
         const demands = new Map<
           Tile,
@@ -251,7 +244,6 @@ export const createTilePipelineTelemetry = (
     source = tiles;
     qualityCameraSignature = "";
     qualityFrontier = undefined;
-    qualityUnderlay = undefined;
     qualityRevision = -1;
     qualityObservations = [];
     over20Since = null;
@@ -350,9 +342,7 @@ export const createTilePipelineTelemetry = (
       const sample = sampleTilePipeline(totals, now - sampledAt);
       sampledAt = now;
       totals = emptyTilePipelineTotals();
-      const parseQueue = source?.parseQueue as
-        | RuntimePriorityQueue
-        | undefined;
+      const parseQueue = source?.parseQueue as RuntimePriorityQueue | undefined;
       const origins = source?.downloadQueue.originQueues;
       let downloadActivePerOrigin = origins ? 0 : Number.NaN;
       for (const queue of origins?.values() ?? [])

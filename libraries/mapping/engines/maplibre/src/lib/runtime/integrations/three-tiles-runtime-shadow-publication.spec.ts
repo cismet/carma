@@ -97,9 +97,16 @@ describe("mesh caster publication", () => {
       );
     root.children = [parent, otherParent];
     parent.parent = otherParent.parent = root;
-    state.tiles.rootTileset = { root } as RuntimeTilesRenderer["rootTileset"];
+    Object.assign(state.tiles, {
+      root,
+      rootTileset: { root },
+      loadingTiles: new Set<Tile>(),
+      dispatchEvent: vi.fn(),
+      ensureChildrenArePreprocessed: vi.fn(),
+    });
     state.committedMeshReceiverFrontier = new Set([parent, otherParent]);
     state.committedMeshCasterFrontier = new Set([parent, otherParent]);
+    state.displayedMeshFrontier = new Set([parent, otherParent]);
     state.viewFrustumsReady = true;
     const observer = new THREE.OrthographicCamera(-20, 20, 20, -20, 0.1, 100);
     observer.position.z = 10;
@@ -140,20 +147,35 @@ describe("mesh caster publication", () => {
       applyRequestConcurrency: vi.fn(),
       notifyRequestStateChange: vi.fn(),
     });
+    const advance = (proposed: ReadonlySet<Tile>) => {
+      api.advanceMeshShadowCorridors(proposed);
+      state.displayedMeshFrontier = new Set(
+        state.committedMeshReceiverFrontier
+      );
+    };
     api.captureShadowReceiverSources();
-    api.advanceMeshShadowCorridors(
-      new Set([parent, otherParent]),
-      new Set([parent, otherParent])
-    );
+    advance(new Set([parent, otherParent]));
 
     state.effectiveErrorTarget = 1;
     // A coarse caster may meet its own SSE after camera/receiver changes.
     // Already displayed descendants still set its minimum geometric detail.
     parent.traversal.error = 0.5;
-    api.advanceMeshShadowCorridors(
-      new Set([receiver, otherChild]),
-      new Set([receiver, otherChild])
+    // Filling missing view regions suppresses optional improvements elsewhere,
+    // even when another family's child and its caster cut are already ready.
+    state.meshCoverageRecovery = true;
+    onContentChanged.mockClear();
+    advance(new Set([receiver, otherChild]));
+    expect(state.committedMeshReceiverFrontier).toEqual(
+      new Set([parent, otherParent])
     );
+    expect(state.committedMeshCasterFrontier).toEqual(
+      new Set([parent, otherParent])
+    );
+    expect(state.shadowCasterRequests.has(chimney)).toBe(false);
+    expect(onContentChanged).not.toHaveBeenCalled();
+    // Once recovery ends, the ready family progresses independently again.
+    state.meshCoverageRecovery = false;
+    advance(new Set([receiver, otherChild]));
     expect(state.committedMeshReceiverFrontier).toEqual(
       new Set([parent, otherChild])
     );
@@ -168,10 +190,7 @@ describe("mesh caster publication", () => {
     const heldCasters = state.committedMeshCasterFrontier;
     for (const loadingState of [2, 3, -1]) {
       chimney.internal.loadingState = loadingState;
-      api.advanceMeshShadowCorridors(
-        new Set([receiver, otherChild]),
-        new Set([receiver, otherChild])
-      );
+      advance(new Set([receiver, otherChild]));
       expect(state.committedMeshReceiverFrontier).toEqual(
         new Set([parent, otherChild])
       );
@@ -179,7 +198,7 @@ describe("mesh caster publication", () => {
         new Set([parent, otherChild])
       );
       expect(state.pendingMeshReceiverFrontier).toEqual(new Set([receiver]));
-      expect(state.committedMeshReceiverFrontier).toBe(heldReceivers);
+      expect(state.committedMeshReceiverFrontier).toEqual(heldReceivers);
       expect(state.committedMeshCasterFrontier).toBe(heldCasters);
       expect(onContentChanged).not.toHaveBeenCalled();
     }
@@ -217,10 +236,7 @@ describe("mesh caster publication", () => {
     // Decode completion is enough: upstream may still withhold this caster
     // from visibleTiles behind unrelated sibling payloads.
     state.tiles.lruCache = { itemList: [chimney] } as RuntimeLruCache;
-    api.advanceMeshShadowCorridors(
-      new Set([receiver, otherChild]),
-      new Set([receiver, otherChild])
-    );
+    advance(new Set([receiver, otherChild]));
     expect(state.committedMeshReceiverFrontier).toEqual(
       new Set([receiver, otherChild])
     );
@@ -228,7 +244,7 @@ describe("mesh caster publication", () => {
       new Set([receiver, chimney, otherChild])
     );
     expect(state.pendingMeshReceiverFrontier).toBeNull();
-    expect(state.committedMeshReceiverFrontier).not.toBe(heldReceivers);
+    expect(state.committedMeshReceiverFrontier).not.toEqual(heldReceivers);
     expect(state.committedMeshCasterFrontier).not.toBe(heldCasters);
     const completeReceivers = state.committedMeshReceiverFrontier;
     const completeCasters = state.committedMeshCasterFrontier;
@@ -239,12 +255,9 @@ describe("mesh caster publication", () => {
       expect.arrayContaining([expect.any(THREE.Box3)])
     );
     state.shadowRegionRevisions.set("affected", affected);
-    api.advanceMeshShadowCorridors(
-      new Set([receiver, otherChild]),
-      new Set([receiver, chimney, otherChild])
-    );
+    advance(new Set([receiver, otherChild]));
     expect(state.shadowRegionRevisions.has("affected")).toBe(true);
-    expect(state.committedMeshReceiverFrontier).toBe(completeReceivers);
+    expect(state.committedMeshReceiverFrontier).toEqual(completeReceivers);
     expect(state.committedMeshCasterFrontier).toBe(completeCasters);
     expect(onContentChanged).toHaveBeenCalledOnce();
 
@@ -304,17 +317,14 @@ describe("mesh caster publication", () => {
     expect(state.shadowReceiverMask).not.toBeNull();
 
     // Membership follows metadata intersection, not a previous traversal flag.
-    const outside = makeTile("outside-corridor", 1000, 1, false);
+    const outside = makeTile("outside-corridor", 1000, 1, false, root);
     Object.assign(outside, { shadowReceiverCurrent: true });
     Object.assign(chimney, { shadowReceiverCurrent: false });
-    api.advanceMeshShadowCorridors(
-      frontier,
-      new Set([receiver, otherChild, chimney, outside])
-    );
+    advance(frontier);
     expect(state.committedMeshCasterFrontier.has(chimney)).toBe(true);
     expect(state.committedMeshCasterFrontier.has(outside)).toBe(false);
-    // A still-needed loaded caster survives a transient omission from upstream.
-    api.advanceMeshShadowCorridors(frontier, new Set([receiver, otherChild]));
+    // Repeated traversal retains the same still-needed loaded caster.
+    advance(frontier);
     expect(state.committedMeshCasterFrontier.has(chimney)).toBe(true);
   });
 });

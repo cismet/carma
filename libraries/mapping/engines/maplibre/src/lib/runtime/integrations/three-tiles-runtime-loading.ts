@@ -68,6 +68,8 @@ export function createThreeTilesLoading(
     | "extentFloorAuditPending"
     | "displayedMeshFrontier"
     | "committedMeshCasterFrontier"
+    | "pendingMeshCasterFrontier"
+    | "shadowCasterRequests"
     | "pendingMeshReceiverFrontier"
     | "meshShadowReserve"
     | "meshRefinementSupport"

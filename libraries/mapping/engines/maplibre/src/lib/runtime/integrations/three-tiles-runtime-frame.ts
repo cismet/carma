@@ -216,12 +216,23 @@ export function createThreeTilesFrameUpdate(
           retainedDetailErrorTarget,
           isTileInAnyView,
           dependencies.getTileScreenError,
-          allowInViewCoarsening
+          allowInViewCoarsening && !runtimeState.shadowView
         );
       }
       if (runtimeState.options.providesTerrain && runtimeState.shadowView) {
-        const candidates = new Set(runtimeState.displayedMeshFrontier);
-        for (const tile of runtimeState.displayedMeshFrontier)
+        // A caster becoming visible keeps its already published geometry. Its
+        // texture promotion must not authorize a coarse observer parent.
+        for (const tile of runtimeState.committedMeshCasterFrontier)
+          for (const parent of meshTileAncestors(tile))
+            frameState.retainedMeshAncestors.add(parent);
+        // Held receiver candidates must continue refining too. Looking only
+        // at the committed parent deadlocks a sibling that already meets camera
+        // SSE but needs one more generation to serve a finer pending receiver.
+        const candidates = new Set([
+          ...runtimeState.displayedMeshFrontier,
+          ...(runtimeState.pendingMeshReceiverFrontier ?? []),
+        ]);
+        for (const tile of [...candidates])
           for (const parent of meshTileAncestors(tile)) candidates.add(parent);
         for (const tile of candidates) {
           const demand = dependencies.getTileCameraDemand(

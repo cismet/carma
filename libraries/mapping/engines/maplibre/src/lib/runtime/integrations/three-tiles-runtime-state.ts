@@ -184,13 +184,14 @@ export function createThreeTilesRuntimeState(
   const shadowSelectionNeedsTraversal = false;
   const shadowSelectionRefreshPending = false;
   const shadowReceiverMask: ShadowReceiverMask | null = null;
+  const pendingMeshReceiverMask: ShadowReceiverMask | null = null;
   const shadowReceiverMaskConverged = false;
   const shadowReceiverSourceSignature = "";
   const pendingMeshReceiverFrontier: Set<Tile> | null = null;
   const committedMeshReceiverFrontier = new Set<Tile>();
   const committedMeshCasterFrontier = new Set<Tile>();
+  const pendingMeshCasterFrontier = new Set<Tile>();
   const displayedMeshFrontier = new Set<Tile>();
-  const meshUnderlayFrontier = new Set<Tile>();
   const meshContentRevision = 0;
   const mainViewSourceTiles = new Set<Tile>();
   const viewQualityAuditPasses = 0;
@@ -211,6 +212,9 @@ export function createThreeTilesRuntimeState(
   const marginCamera = new THREE.PerspectiveCamera();
   const marginProjection = new THREE.Matrix4();
   const marginFrustum = new TilesViewFrustum();
+  const ringFrustums = TILES_LOAD_POLICY.idleRingTanMultipliers.map(
+    () => new TilesViewFrustum()
+  );
   const ringRefinePasses = 0;
   const extentGeometricError = options.entry
     ? resolveExtentGeometricError(options.entry.levels, ceilingBytes)
@@ -419,13 +423,14 @@ export function createThreeTilesRuntimeState(
     shadowSelectionNeedsTraversal,
     shadowSelectionRefreshPending,
     shadowReceiverMask,
+    pendingMeshReceiverMask,
+    pendingMeshCasterFrontier,
     shadowReceiverMaskConverged,
     shadowReceiverSourceSignature,
     pendingMeshReceiverFrontier,
     committedMeshReceiverFrontier,
     committedMeshCasterFrontier,
     displayedMeshFrontier,
-    meshUnderlayFrontier,
     meshContentRevision,
     mainViewSourceTiles,
     viewQualityAuditPasses,
@@ -446,6 +451,7 @@ export function createThreeTilesRuntimeState(
     marginCamera,
     marginProjection,
     marginFrustum,
+    ringFrustums,
     ringRefinePasses,
     extentGeometricError,
     extentFloorArmed,

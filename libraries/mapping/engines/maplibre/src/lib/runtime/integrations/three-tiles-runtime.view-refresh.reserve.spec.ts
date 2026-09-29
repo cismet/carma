@@ -9,14 +9,7 @@ import {
   buildTile,
   mount,
 } from "./three-tiles-runtime.view-refresh.test-support";
-const prefetchPolicy = vi.hoisted(() => ({ levels: 1 }));
-
-vi.mock("./three-tiles-runtime-config", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("./three-tiles-runtime-config")>()),
-  get MESH_REFINEMENT_PREFETCH_LEVELS() {
-    return prefetchPolicy.levels;
-  },
-}));
+import { createThreeTilesViewFrustums } from "./three-tiles-runtime-view-frustums";
 
 vi.hoisted(() => {
   Object.defineProperty(URL, "createObjectURL", {
@@ -33,17 +26,24 @@ type TestRenderer = TilesRenderer & {
 
 describe("reserve runtime integration", () => {
   afterEach(() => {
-    prefetchPolicy.levels = 1;
     vi.restoreAllMocks();
     vi.useRealTimers();
   });
-  it("admits only the near child of a mixed-LOD reserve family", () => {
+  it("admits the full boundary sibling family only after viewport convergence", () => {
     const mounted = mount();
     try {
       const state = mounted.state;
       const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 1, 10);
-      state.tileViewFrustum.setFromProjectionMatrix(camera.projectionMatrix);
-      state.viewFrustumsReady = true;
+      // This fixture's mesh coordinates have a geographic root transform.
+      // Align the test camera with that frame so bounds below stay local.
+      camera.matrixAutoUpdate = false;
+      camera.matrix.copy(mounted.renderer.group.matrixWorld);
+      camera.updateMatrixWorld(true);
+      createThreeTilesViewFrustums(
+        state,
+        new THREE.Vector3(),
+        () => {}
+      ).prepareViewFrustums(camera);
       state.meshBaseCoverageReady = true;
       state.extentFloorArmed = true;
       state.lastMainViewConverged = true;
@@ -54,17 +54,23 @@ describe("reserve runtime integration", () => {
       const far = buildTile(4);
       parent.children = [near, far];
       parent.internal.loadingState = 4;
-      for (const [tile, x] of [
-        [near, 1],
-        [far, 2],
-      ] as const) {
-        tile.parent = parent;
+      const setBounds = (tile: typeof near, minX: number, maxX: number) => {
+        const bounds = new THREE.Box3(
+          new THREE.Vector3(minX, 0, -5),
+          new THREE.Vector3(maxX, 1, -4)
+        );
         tile.engineData!.boundingVolume!.getAABB = (target) =>
-          target.set(
-            new THREE.Vector3(x, 0, -5),
-            new THREE.Vector3(x + 1, 1, -4)
-          );
-      }
+          target.copy(bounds);
+        tile.engineData!.boundingVolume!.intersectsFrustum = (frustum) =>
+          frustum.intersectsBox(bounds);
+        return bounds;
+      };
+      near.parent = far.parent = parent;
+      setBounds(parent, 2, 4);
+      const nearBounds = setBounds(near, 2, 3);
+      const farBounds = setBounds(far, 3, 4);
+      expect(state.ringFrustums[0].intersectsBox(nearBounds)).toBe(true);
+      expect(state.ringFrustums[0].intersectsBox(farBounds)).toBe(false);
       vi.spyOn(mounted.renderer, "calculateTileViewError").mockImplementation(
         (_tile, target) =>
           Object.assign(target, {
@@ -80,16 +86,14 @@ describe("reserve runtime integration", () => {
       };
       expect(read(near).inView).toBe(true);
       expect(near.idleRing).toBe(true);
-      expect(read(far).inView).toBe(false);
-      expect(far.idleRing).toBe(false);
-      expect(mounted.renderer.loadSiblings).toBe(false);
-      // A later pan makes that same far child relevant without a family gate.
-      camera.position.x = 2;
-      camera.updateMatrixWorld(true);
-      state.tileViewFrustum.setFromProjectionMatrix(
-        camera.projectionMatrix.clone().multiply(camera.matrixWorldInverse)
-      );
       expect(read(far).inView).toBe(true);
+      expect(far.idleRing).toBe(true);
+      expect(near.idleRingIndex).toBe(far.idleRingIndex);
+      expect(mounted.renderer.loadSiblings).toBe(false);
+      // Background completion yields immediately when the view needs work.
+      state.lastMainViewConverged = state.lastActiveViewsConverged = false;
+      expect(read(near).inView).toBe(false);
+      expect(read(far).inView).toBe(false);
     } finally {
       mounted.runtime.scene.dispose();
     }

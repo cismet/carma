@@ -2,6 +2,11 @@ import {
   selectMeshShadowRetrieval,
   meshContentLevel,
 } from "../../core/mesh-shadow-retrieval";
+import {
+  hasDisplayedAncestor,
+  meshTileAncestors,
+} from "../../core/mesh-tile-coverage";
+import { holdMeshReceiversForCasters } from "../../core/mesh-shadow-receiver-handover";
 import { createCasterVolumeDemand } from "./three-tiles-runtime-caster-demand";
 import type { Tile } from "3d-tiles-renderer/core";
 import * as THREE from "three";
@@ -274,42 +279,145 @@ export function createThreeTilesShadowPublication(
       dependencies.requestRender();
     };
 
+  let requestCameraSignature: string | undefined;
+
   const advanceMeshShadowCorridors: ThreeTilesRuntimeServices["advanceMeshShadowCorridors"] =
     (viewportTiles: ReadonlySet<Tile>): void => {
       const tiles = runtimeState.tiles;
       const root = tiles?.root;
       if (!tiles || !root || !runtimeState.shadowView) return;
-      const receivers = new Set(
+      let receivers = new Set(
         [...viewportTiles].filter((tile) =>
           dependencies.isTileInMainView(tile as RuntimeTile)
         )
       );
+      const previousReceivers = runtimeState.committedMeshReceiverFrontier;
+      if (runtimeState.meshCoverageRecovery && previousReceivers.size) {
+        const uncovered = new Set(
+          [...receivers].filter(
+            (tile) => !hasDisplayedAncestor(tile, previousReceivers)
+          )
+        );
+        const missingSnapshot = createReceiverSnapshot(uncovered);
+        const missingDemand = createCasterVolumeDemand(
+          missingSnapshot?.mask ?? null,
+          runtimeState.requestedErrorTarget
+        );
+        // A shadow prerequisite is foreground only when it helps fill a hole.
+        // Do not grow corridors for optional refinements of already covered
+        // regions. A covered family may still refine to cast into a new hole.
+        receivers = holdMeshReceiversForCasters(
+          receivers,
+          previousReceivers,
+          (tile) => {
+            if (uncovered.has(tile)) return true;
+            for (const parent of meshTileAncestors(tile)) {
+              if (!previousReceivers.has(parent)) continue;
+              return (
+                (missingDemand(parent).receiverContentLevel ?? -1) >
+                meshContentLevel(parent)
+              );
+            }
+            return false;
+          }
+        ).receivers;
+      }
       const previousCasters = runtimeState.committedMeshCasterFrontier;
-      // Observer publication is authoritative. It never waits for a caster or
-      // gets replaced by a coarser choice from a shadow camera.
-      runtimeState.committedMeshReceiverFrontier = receivers;
-      runtimeState.pendingMeshReceiverFrontier = null;
-      enableShadowSelection(receivers);
-      const plan = selectMeshShadowRetrieval(
+      // First plan the next receiver/caster generation without publishing it.
+      // Its requests keep running while each affected receiver family holds its
+      // old, compatible generation. Unrelated ready families still advance.
+      const candidateSnapshot = createReceiverSnapshot(receivers);
+      const candidate = selectMeshShadowRetrieval(
         root,
         receivers,
         previousCasters,
         runtimeState.requestedErrorTarget,
         createCasterVolumeDemand(
-          runtimeState.shadowReceiverMask,
+          candidateSnapshot?.mask ?? null,
           runtimeState.requestedErrorTarget
         )
       );
+      let publishedReceivers = receivers;
+      let plan = candidate;
+      // Holding one family can withdraw a caster another proposed family needs.
+      // Propagate that dependency before publishing. Each pass only removes new
+      // receivers or restores old parents, so this reaches a finite fixed point.
+      for (;;) {
+        const handover = holdMeshReceiversForCasters(
+          publishedReceivers,
+          previousReceivers,
+          (tile) => {
+            if (!candidateSnapshot) return false;
+            if (plan.missing.length === 0) return true;
+            const region = createReceiverSnapshot(new Set([tile]));
+            if (!region) return false;
+            const demand = createCasterVolumeDemand(
+              region.mask,
+              runtimeState.requestedErrorTarget
+            );
+            return !plan.missing.some((missing) => demand(missing).intersects);
+          }
+        );
+        if (
+          handover.receivers.size === publishedReceivers.size &&
+          [...handover.receivers].every((tile) => publishedReceivers.has(tile))
+        )
+          break;
+        publishedReceivers = handover.receivers;
+        const snapshot = createReceiverSnapshot(publishedReceivers);
+        plan = selectMeshShadowRetrieval(
+          root,
+          publishedReceivers,
+          previousCasters,
+          runtimeState.requestedErrorTarget,
+          createCasterVolumeDemand(
+            snapshot?.mask ?? null,
+            runtimeState.requestedErrorTarget
+          )
+        );
+      }
+      const pending = new Set(
+        [...receivers].filter((tile) => !publishedReceivers.has(tile))
+      );
+      const previousPending = runtimeState.pendingMeshReceiverFrontier;
+      const pendingChanged =
+        pending.size !== (previousPending?.size ?? 0) ||
+        [...pending].some((tile) => !previousPending?.has(tile));
+      runtimeState.committedMeshReceiverFrontier = publishedReceivers;
+      runtimeState.pendingMeshReceiverFrontier = pending.size ? pending : null;
+      runtimeState.pendingMeshReceiverMask = pending.size
+        ? candidateSnapshot?.mask ?? null
+        : null;
+      runtimeState.pendingMeshCasterFrontier = pending.size
+        ? new Set(candidate.casters)
+        : new Set();
+      enableShadowSelection(publishedReceivers);
+      // Future compatible geometry is owned and pinned just like a running
+      // request; the native cache must not evict it while its family completes.
+      for (const tile of candidate.casters) tiles.markTileUsed(tile);
+      for (const tile of pending) tiles.markTileUsed(tile);
+      for (const tile of candidate.requests) plan.requests.add(tile);
+      for (const tile of candidate.unpreparedParents)
+        plan.unpreparedParents.add(tile);
       for (const parent of plan.unpreparedParents)
         tiles.ensureChildrenArePreprocessed(parent);
+      // Native traversal can propose a different receiver cut while the same
+      // view is loading. Finish caster jobs owned by that view rather than
+      // cancelling them between proposed cuts and immediately starting again.
+      // A camera change still drops obsolete work through normal admission.
+      if (requestCameraSignature === runtimeState.tileCameraSignature)
+        for (const tile of runtimeState.shadowCasterRequests)
+          if (tiles.loadingTiles.has(tile)) plan.requests.add(tile);
+      requestCameraSignature = runtimeState.tileCameraSignature;
       const requestsChanged =
         plan.requests.size !== runtimeState.shadowCasterRequests.size ||
         [...plan.requests].some(
           (tile) => !runtimeState.shadowCasterRequests.has(tile)
         );
       runtimeState.shadowCasterRequests = plan.requests;
-      runtimeState.shadowReceiverMaskConverged = plan.converged;
-      if (requestsChanged || plan.unpreparedParents.size) {
+      runtimeState.shadowReceiverMaskConverged =
+        plan.converged && pending.size === 0;
+      if (requestsChanged || pendingChanged || plan.unpreparedParents.size) {
         runtimeState.shadowSelectionNeedsTraversal = true;
         tiles.dispatchEvent({ type: "needs-update" });
         dependencies.requestRender();

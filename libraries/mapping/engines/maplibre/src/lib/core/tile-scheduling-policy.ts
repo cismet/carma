@@ -146,12 +146,16 @@ export const TILE_QUEUE_REASON = {
   REFINEMENT: "refinement-deferred",
 } as const;
 
-/** Need is independent of admission: parked work retains its native promise. */
+/** Need is independent of admission: parked work retains its native promise.
+ * Caster dependencies of held receivers are part of viewport recovery; blocking
+ * them until coverage is complete would make that coverage impossible.
+ */
 export const resolveTileRequestAdmission = (
   input: Readonly<{
     needed: boolean;
     coverageRecovery: boolean;
     coverageFill: boolean;
+    coveragePrerequisite?: boolean;
     stage: (typeof TILE_QUEUE_STAGE)[keyof typeof TILE_QUEUE_STAGE];
   }>
 ) => {
@@ -159,6 +163,7 @@ export const resolveTileRequestAdmission = (
   if (
     input.coverageRecovery &&
     !input.coverageFill &&
+    !input.coveragePrerequisite &&
     input.stage === TILE_QUEUE_STAGE.DOWNLOAD
   )
     return TILE_QUEUE_REASON.VIEWPORT_FILL_FIRST;

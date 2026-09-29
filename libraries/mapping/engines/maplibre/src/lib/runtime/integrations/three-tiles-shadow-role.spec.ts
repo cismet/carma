@@ -3,7 +3,6 @@ import { describe, expect, it, vi } from "vitest";
 import {
   getTileShadowRole,
   setTileShadowRole,
-  setTileDepthUnderlay,
   setTileShadowMaterialReceiver,
 } from "./three-tiles-shadow-role";
 
@@ -46,7 +45,7 @@ describe("mesh shadow roles", () => {
     expect(traverse).toHaveBeenCalledOnce();
   });
 
-  it("shows a receiver child without mixing it into its parent's depth cut", () => {
+  it("keeps receiver and caster material roles independent", () => {
     const child = new Mesh();
     setTileShadowRole(child, { receiver: true, caster: false });
     expect(child.receiveShadow).toBe(true);
@@ -69,18 +68,5 @@ describe("mesh shadow roles", () => {
     setTileShadowRole(mesh, { receiver: true, caster: true });
     expect(mesh.material.colorWrite).toBe(true);
     expect(mesh.material.depthWrite).toBe(false);
-  });
-  it("restores a former underlay without making a caster-only parent write display depth", () => {
-    const mesh = new Mesh();
-    setTileShadowRole(mesh, { receiver: true, caster: true });
-    setTileDepthUnderlay(mesh, true);
-    expect(mesh.material.depthWrite).toBe(false);
-    setTileShadowRole(mesh, { receiver: false, caster: true });
-    setTileDepthUnderlay(mesh, false);
-    expect(mesh.material.depthWrite).toBe(false);
-    expect(mesh.material.colorWrite).toBe(false);
-    setTileShadowRole(mesh, { receiver: true, caster: true });
-    expect(mesh.material.depthWrite).toBe(true);
-    expect(mesh.material.colorWrite).toBe(true);
   });
 });

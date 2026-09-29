@@ -49,7 +49,6 @@ export type ThreeTilesFrameRuntimeState = Pick<
   | "meshCoverageRecovery"
   | "meshContentRevision"
   | "meshDemandSweepPending"
-  | "meshUnderlayFrontier"
   | "offsetGroup"
   | "options"
   | "orientationGroup"

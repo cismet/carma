@@ -27,7 +27,7 @@ export type QueueRow = {
 const QUEUE_HISTORY_LIMIT = 250;
 
 export type CoverageSummary = {
-  presentationMode: "progressive-mesh" | "exclusive-shadow";
+  presentationMode: "exclusive-mesh" | "exclusive-shadow";
   baseCoverage: ThreeTilesReserveCoverage;
   seamCoverage: ThreeTilesReserveCoverage;
   closureCoverage: ThreeTilesClosureCoverage;
@@ -45,7 +45,6 @@ export type CoverageSummary = {
   full: boolean;
   pending: number;
   displayed: number;
-  underlay: number;
   inFlight: number;
   queued: number;
   downloading: number;
@@ -58,7 +57,6 @@ export const summarizeTileDiagnostics = (
   state: TilesRuntimeDebugState,
   runtimeHandle: ThreeTilesRuntime,
   displayed: number,
-  underlay: number,
   stableCoverage?: CoverageSummary
 ): CoverageSummary => {
   const tiles = state.tiles as TilesRenderer;
@@ -101,7 +99,6 @@ export const summarizeTileDiagnostics = (
     full: cache.isFull(),
     pending: state.extentFloorPending,
     displayed,
-    underlay,
     inFlight: stats.downloading + stats.parsing,
     queued: stats.queued,
     downloading: stats.downloading,

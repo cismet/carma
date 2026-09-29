@@ -34,6 +34,9 @@ export type ThreeTilesCacheState = Pick<
   | "deviceProfile"
   | "displayedMeshFrontier"
   | "committedMeshCasterFrontier"
+  | "pendingMeshCasterFrontier"
+  | "pendingMeshReceiverFrontier"
+  | "shadowCasterRequests"
   | "meshShadowReserve"
   | "retainedShadowRequests"
   | "disposed"
@@ -149,8 +152,12 @@ export function createThreeTilesCache(
         !explicitCacheTeardown &&
         !runtimeState.disposed &&
         (runtimeState.committedMeshCasterFrontier.has(tile) ||
-          (runtimeState.displayedMeshFrontier.has(tile) &&
-            dependencies.isTileInMainView(tile as RuntimeTile)))
+          runtimeState.pendingMeshCasterFrontier.has(tile) ||
+          runtimeState.pendingMeshReceiverFrontier?.has(tile) ||
+          ((runtimeState.displayedMeshFrontier.has(tile) ||
+            runtimeState.tiles?.visibleTiles.has(tile)) &&
+            (dependencies.isTileInMainView(tile as RuntimeTile) ||
+              dependencies.getTileCameraDemand(tile as RuntimeTile).required)))
       )
         return false;
       rememberPublishedCoverage();
@@ -233,6 +240,9 @@ export function createThreeTilesCache(
       };
       for (const tile of runtimeState.displayedMeshFrontier) pin(tile);
       for (const tile of runtimeState.committedMeshCasterFrontier) pin(tile);
+      for (const tile of runtimeState.pendingMeshCasterFrontier) pin(tile);
+      for (const tile of runtimeState.pendingMeshReceiverFrontier ?? [])
+        pin(tile);
       for (const tile of runtimeState.meshShadowReserve?.frontier ?? []) {
         if (tile.internal?.loadingState !== LOADED_LOADING_STATE) continue;
         pin(tile);

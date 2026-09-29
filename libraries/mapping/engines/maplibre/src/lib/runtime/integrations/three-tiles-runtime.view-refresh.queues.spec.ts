@@ -19,14 +19,6 @@ import {
   mount,
   mockTileViews,
 } from "./three-tiles-runtime.view-refresh.test-support";
-const prefetchPolicy = vi.hoisted(() => ({ levels: 1 }));
-
-vi.mock("./three-tiles-runtime-config", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("./three-tiles-runtime-config")>()),
-  get MESH_REFINEMENT_PREFETCH_LEVELS() {
-    return prefetchPolicy.levels;
-  },
-}));
 
 vi.hoisted(() => {
   Object.defineProperty(URL, "createObjectURL", {
@@ -65,7 +57,6 @@ const placeTile = (
 
 describe("queues runtime integration", () => {
   afterEach(() => {
-    prefetchPolicy.levels = 1;
     vi.restoreAllMocks();
     vi.useRealTimers();
   });
@@ -393,7 +384,7 @@ describe("queues runtime integration", () => {
   );
 
   it.each([false, true])(
-    "preempts background parsing only for runnable viewport work across the yield: %s",
+    "preserves downloaded buffers when viewport priority changes across the yield: %s",
     async (runnable) => {
       vi.useFakeTimers();
       const mounted = mount();
@@ -428,9 +419,7 @@ describe("queues runtime integration", () => {
           background,
           backgroundCallback
         );
-        const outcome = runnable
-          ? expect(result).rejects.toMatchObject({ name: "AbortError" })
-          : expect(result).resolves.toBe("background");
+        const outcome = expect(result).resolves.toBe("background");
         mounted.renderer.parseQueue.tryRunJobs();
         const next = mounted.renderer.parseQueue.add(
           foreground,
@@ -454,19 +443,9 @@ describe("queues runtime integration", () => {
         }
         await outcome;
         await expect(next).resolves.toBe("foreground");
-        expect(backgroundCallback).not.toHaveBeenCalled();
-        expect(disposed).toHaveBeenCalledOnce();
-        expect(foregroundCallback).toHaveBeenCalledOnce();
-        // The tile stays eligible for a later request, not permanently disabled.
-        expect(state.extentFloorArmed).toBe(true);
-        expect(background.geometricError).toBe(state.extentGeometricError);
-        const retried = mounted.renderer.parseQueue.add(
-          background,
-          backgroundCallback
-        );
-        await vi.advanceTimersByTimeAsync(50);
-        await expect(retried).resolves.toBe("background");
         expect(backgroundCallback).toHaveBeenCalledOnce();
+        expect(disposed).not.toHaveBeenCalled();
+        expect(foregroundCallback).toHaveBeenCalledOnce();
       } finally {
         mounted.runtime.scene.dispose();
       }

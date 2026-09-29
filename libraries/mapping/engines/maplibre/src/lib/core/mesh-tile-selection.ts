@@ -12,11 +12,10 @@ import {
 import { TILES_LOAD_POLICY } from "./tile-load-config";
 
 /**
- * Select ready content in this demand domain. Colour-only mode lets a REPLACE
- * parent fill missing branches while ready descendants render above it. With
- * hybrid replacement disabled, the parent stays alone until every in-view
- * branch is ready. Completeness is frustum-relative; unknown topology fails closed.
- * Decision: ../../../TILES_COVERAGE.md#progressive-receiver-overlays
+ * Publish one non-overlapping REPLACE cut per demand domain. A parent stays
+ * alone until every relevant child branch is drawable. Independent families
+ * can refine independently; unknown topology fails closed.
+ * Decision: ../../../TILES_COVERAGE.md#exclusive-mesh-publication
  */
 export const selectMeshReceiverPlan = (
   root: Tile,
@@ -32,14 +31,25 @@ export const selectMeshReceiverPlan = (
     firstImageErrorTargetPixels?: number;
     /** Let a shared shadow cut leave a proven empty observer region. */
     releaseEmptyReplacementRegions?: boolean;
-    /** Shadows replace a complete demanded family without overlapping LODs. */
-    allowHybridReplacement?: boolean;
+    /** Published caster detail survives its promotion to an observer receiver. */
+    retainedCasters?: ReadonlySet<Tile>;
   }>
 ) => {
   const refinementSupport = new Set<Tile>();
   const unpreparedParents = new Set<Tile>();
   const materialWaits = new Set<Tile>();
   const published = options?.published ?? new Set<Tile>();
+  const publishedRefinement = new Set<Tile>();
+  for (const tile of published) {
+    if (!isLoadedMesh(tile) || !inView(tile)) continue;
+    for (const parent of meshTileAncestors(tile))
+      publishedRefinement.add(parent);
+  }
+  for (const tile of options?.retainedCasters ?? []) {
+    if (!isLoadedMesh(tile)) continue;
+    for (const parent of meshTileAncestors(tile))
+      publishedRefinement.add(parent);
+  }
   const fallbackLimit = options
     ? options.firstImageErrorTargetPixels ??
       TILES_LOAD_POLICY.firstImageMaxErrorPixels
@@ -96,7 +106,9 @@ export const selectMeshReceiverPlan = (
       return { cut: [], complete: true };
     if (
       fallback &&
-      ((error <= targetErrorPixels && !retainedAncestors.has(tile)) ||
+      ((error <= targetErrorPixels &&
+        !retainedAncestors.has(tile) &&
+        !publishedRefinement.has(tile)) ||
         children.length === 0 ||
         (!options?.releaseEmptyReplacementRegions && childrenMissView()))
     )
@@ -117,14 +129,11 @@ export const selectMeshReceiverPlan = (
         cut: fallback ? [tile, ...selected] : selected,
         complete: complete && fallback,
       };
-    if (!complete && fallback)
-      return {
-        cut:
-          options?.allowHybridReplacement === false
-            ? [tile]
-            : [tile, ...selected],
-        complete: true,
-      };
+    // A newly exposed sibling may still be loading after a pan. Keep the
+    // already published fine branches; never resurrect their shared parent.
+    // Families whose parent is still published keep that parent alone as usual.
+    if (!complete && fallback && !publishedRefinement.has(tile))
+      return { cut: [tile], complete: true };
     return { cut: selected, complete };
   };
   return {
@@ -133,46 +142,4 @@ export const selectMeshReceiverPlan = (
     unpreparedParents,
     materialWaits,
   };
-};
-
-/** Use the same progressive selection for the light-frustum caster domain. */
-export const refineLoadedMeshFrontier = (
-  proposed: ReadonlySet<Tile>,
-  requestedError: number,
-  inView: (tile: Tile) => boolean,
-  errorPixels: (tile: Tile) => number = (tile) => tile.traversal.error,
-  minimumFrontier: ReadonlySet<Tile> = new Set(),
-  contentReady: (tile: Tile) => boolean = isLoadedMesh,
-  allowHybridReplacement = true
-): Set<Tile> => {
-  const requiredAncestors = new Set<Tile>();
-  for (const tile of minimumFrontier) {
-    if (!isLoadedMesh(tile)) continue;
-    for (const parent of meshTileAncestors(tile)) requiredAncestors.add(parent);
-  }
-  const result = new Set<Tile>();
-  for (const tile of proposed) {
-    if (
-      [...meshTileAncestors(tile)].some(
-        (parent) => parent.refine === "REPLACE" && proposed.has(parent)
-      )
-    )
-      continue;
-    for (const member of selectMeshReceiverPlan(
-      tile,
-      requestedError,
-      Number.POSITIVE_INFINITY,
-      inView,
-      errorPixels,
-      contentReady,
-      requiredAncestors,
-      {
-        published: proposed,
-        allowCoarseBootstrap: true,
-        allowHybridReplacement,
-      }
-    ).tiles)
-      result.add(member);
-  }
-  return result;
 };

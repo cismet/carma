@@ -105,11 +105,12 @@ while the first eight files completed about 25% sooner. The uncompressed
 alternate endpoint saturated the link with two requests, but required about
 26% more wire bytes for identical content.
 
-## Progressive receiver overlays
+## Exclusive mesh publication
 
-**ID / date / status:** progressive-receiver-overlays / 2026-09-23 /
-implemented; supersedes whole-family publication and forced sibling admission
-in the historical records below.
+**ID / date / status:** exclusive-mesh-publication / 2026-09-28 / implemented.
+Supersedes progressive-receiver-overlays and its parent-underlay rendering in
+both mesh modes. The user approved this after an exploratory A/B comparison.
+Historical records below describe earlier policies, not alternative code paths.
 
 **Context and constraints:** A ready in-view child previously waited for all
 siblings, including branches outside demand. Native `loadAncestors` could also
@@ -119,13 +120,18 @@ admission, and stop obsolete requests after camera changes.
 
 **Decision:**
 
-- A material-ready child is displayed immediately once its publication
-  prerequisites below are ready. A loaded REPLACE parent
-  remains beneath ready children while any required branch lacks drawable
-  coverage. Parent colour draws first without depth writes; nested fallbacks
-  draw from coarse to fine. Once all required branches are covered, the parent
-  leaves the displayed cut. Unknown metadata and failed/loading payloads are
-  never proof of coverage.
+- REPLACE families publish an exclusive cut with and without shadows. Keep the
+  parent alone until every required child branch has drawable geometry and
+  material; then replace that parent in one publication update. Independent
+  families can advance separately. A previously published fine branch never
+  restores an overlapping ancestor when camera motion exposes a missing sibling.
+  If no drawable ancestor exists, ready content may fill uncovered regions.
+  Unknown metadata and failed/loading payloads never prove coverage.
+- Removed the hybrid selector option, overlapping history retention, depth-free
+  parent underlays and their diagnostic state. There is one publication policy;
+  incremental quality targets remain request policy. Native ADD tiles retain
+  their additive semantics because their parent is separate content, not a
+  lower-detail replacement of the same surface.
 - Required branches are relative to the current demand frustum, not every
   sibling in the hierarchy. Meshes use native skip traversal throughout;
   neither native ancestor loading nor an explicit whole-family queue expands
@@ -157,10 +163,10 @@ admission, and stop obsolete requests after camera changes.
   memory limits.
   Refinement benefit is evaluated per requested child and camera using its
   clipped viewport fraction and absolute error reduction, rather than assigning
-  each sibling the entire parent's benefit. Only shadow mode protects requests in
-  the same atomic replacement family from mutual preemption. Without shadows,
-  independent children follow the same priority and gain hysteresis within a
-  parent group as between groups, for download and pre-parse admission.
+  each sibling the entire parent's benefit. Both mesh modes protect requests in the same atomic replacement family
+  from mutual preemption. Between families the existing priority and gain
+  hysteresis still choose the next useful request. Downloaded, still-needed
+  payloads finish parsing instead of restarting for another sibling.
 - Full-extent base coverage fills after all active cameras converge. Its admission uses
   the same demand-relative sibling policy; it cannot block visible refinement.
 - Publication is distinct from eviction. Retiring a parent from the current
@@ -197,9 +203,38 @@ demand-relative requests remain in both modes. Compare
 publication latency, coverage, final pixels, transferred bytes and cancellation
 waste before adding another gating policy.
 
+## Complete reserve rings and family-first discovery
+
+**ID / date / status:** complete-reserve-rings / 2026-09-29 / implemented.
+Supersedes the one-tile mixed-LOD reserve below and extra-level payload prefetch.
+
+Missing observer coverage retains the highest request/admission priority.
+Traversal stops at the next drawable child level while any demanded sibling
+region lacks loaded geometry. Routing JSON does not count as a drawable level;
+a loaded finer cut can also prove a child region ready. Once the family is
+ready, traversal may continue even if shadow publication still awaits casters.
+Existing fine coverage and exhausted-payload recovery remain traversable.
+Publication separately waits for materials and the compatible shadow cut.
+Only genuinely published descendants may bypass the family barrier; a requested
+shadow prerequisite is not published history. During viewport recovery, the
+shadow plan holds covered receiver families at their current cut. It grows
+corridors for missing receiver regions and allows a covered family to refine
+only when it is a required caster for those regions. Caster-only discovery still
+skips intermediate levels below the receiver's mandatory caster LOD floor.
+There is no global scene barrier or demand for unrelated offscreen siblings.
+
+After all active views converge and motion stops, the reserve loads complete
+sibling-compatible rings. Their frustums widen the actual camera projection by
+configured tangent multipliers, preserving principal point and near/far planes.
+Every child inherits the ring of its nearest drawable REPLACE parent. ADD content
+keeps its own bounds. Beyond the last ring, the existing whole-extent floor
+remains the fallback. Background work yields as soon as foreground demand
+returns; stale idle flags cannot block a foreground family. Native
+`loadSiblings` stays disabled because ring ownership supplies the bounded demand.
+
 ## One-tile mixed-LOD reserve
 
-**ID / date / status:** TILE-WIDTH-RESERVE-20260923 / 2026-09-23 / implemented.
+**ID / date / status:** TILE-WIDTH-RESERVE-20260923 / 2026-09-23 / superseded by complete-reserve-rings.
 
 **Context and constraints:** Viewport-sized FOV bands can admit several rows of
 fine offscreen tiles. A seam to the whole-extent base cut only needs a narrow
@@ -300,7 +335,7 @@ or actual screenshots reveal clipped shadow contributors.
 
 The following records preserve earlier evidence. Their whole-family/atomic
 publication and offscreen-sibling requirements are superseded by
-[Progressive receiver overlays](#progressive-receiver-overlays); they are not
+[Exclusive mesh publication](#exclusive-mesh-publication); they are not
 additional requirements on the current implementation. Other independent
 coverage, geometry, cache and resource constraints remain applicable.
 
@@ -1784,7 +1819,11 @@ Existing source-floor failures and no-holes acceptance remain separate blockers.
 # VIEWPORT-PREPARSE-PREEMPTION-20260916
 
 **ID / date / status:** VIEWPORT-PREPARSE-PREEMPTION-20260916 / 2026-09-16 /
-implemented with focused queue regressions.
+superseded on 2026-09-28: needed downloaded buffers finish their admitted parse
+slot. Queue ordering still prioritizes foreground jobs before admission;
+obsolete work remains cancellable. Discarding a needed buffer after the yield
+caused repeated network transfers, not useful scheduling. The original decision
+and its historical evidence follow.
 
 **Context and constraints:** The user permits cancellation or pausing of lower
 priority downloads/processing in favor of the live viewport. Active lower-rank
@@ -2412,7 +2451,7 @@ and without the motion target, or the configured 0.5 px target is revisited.
 
 **Context and constraints.** Camera demand, shadow publication, cache admission
 and motion need explicit precedence. Preserve native tile identity, thresholds,
-queue ownership and the progressive publication contract above.
+queue ownership and the exclusive publication contract above.
 
 **Decision.** Pure policies accept readonly native Tile graphs and facts, return
 plans, and do not mutate their inputs, clocks, queues or renderer. A receiver
@@ -2428,7 +2467,7 @@ mutable scratch maps. Local accumulators avoid unnecessary tile graph copies.
 | Quality and memory | mesh-error-policy, effective-error-target, memory-error-target | quality |
 | Byte prediction | tile-bytes-predictor | byte-prediction (bounded memo and observations) |
 | Coverage and retention | mesh-tile-coverage, mesh-tile-retention | cache, cache-budget, settled-demand |
-| Receiver/caster selection | mesh-tile-selection, mesh-shadow-publication, mesh-tile-refinement, mesh-tile-underlay | frame-publication, shadow-publication |
+| Receiver/caster selection | mesh-tile-selection, mesh-shadow-publication, mesh-tile-refinement | frame-publication, shadow-publication |
 | Visible shadow receivers | shadow-receiver-sources, shadow-receiver-mask | shadow-publication |
 | Raster stage ordering | tile-load-plan | raster-dem-terrain-runtime |
 | Registration and teardown | event-specific handlers | lifecycle, load-events, attachment-disposal |
@@ -2916,7 +2955,20 @@ raster DEM and the optional tiled-shadow renderer are outside this change.
 visible loading and publication. Shadow mode disables hybrid REPLACE overlays:
 the parent stays alone until all children needed inside the viewport are ready,
 then the complete family replaces it in one publication. Out-of-view siblings
-are not observer prerequisites. No synthetic camera or receiver-wide gate is added.
+are not observer prerequisites. No synthetic camera or global readiness gate is added.
+The proposed visible tiles seed requests for their future parallel sunward corridors.
+Publication is a separate transaction: a changed receiver family waits until its
+compatible caster cut is complete. A still-visible previous parent remains alone
+until that handover; unrelated ready families may progress independently. Missing
+caster witnesses come from the same retrieval traversal. If holding one family
+withdraws a caster needed by another new family, readiness propagates until the
+cut is stable before publication. Future receiver masks drive loading/refinement
+only; committed masks drive rendering. Changed pending families wake native
+traversal even when the only missing refinement belongs to visible geometry.
+Previously published caster detail is also an observer refinement floor during
+pan/zoom promotion. Native traversal and texture promotion cannot resurrect its
+coarse ancestor. Scene reconciliation explicitly includes the preceding published
+cut, so retired models cannot remain attached with obsolete shadow roles.
 The published visible tiles seed parallel sunward corridors. A visible tile
 casting into a finer receiver inherits that receiver's minimum mesh LOD through
 the ordinary camera refinement path. Until that complete visible family is ready,
@@ -2926,11 +2978,38 @@ a completed family must not oscillate back to a parent allowed only by camera SS
 When resolved child bounds all miss the viewport, that proven empty REPLACE region
 is released even if the loose parent bound meets camera SSE. Unknown topology
 still fails closed; changing receiver demand cannot resurrect an empty parent.
+Unconditional routing meshes are traversed for that proof just like loaded JSON.
+Published visible detail is not coarsened in shadow mode; already refined caster
+families cannot fall back to a parent while a new relevant neighbour is loading.
+A pan may expose a missing sibling after the family has already refined. Keep
+its ready, still-visible branches and prioritize the new gap; do not resurrect
+the shared parent. Initial parent-to-child publication still waits for every
+currently required child. This keeps the same strict cut without regressing
+already displayed regions or overlapping a coarse parent with fine children.
+Settled memory reclamation excludes the live receiver/caster cut even under
+pressure. It also respects the explicit next-cut owners: caster requests, ready
+pending casters and their held receiver candidates. Checking only the committed
+mask would repeatedly cancel useful fringe downloads before their joint handover.
+These pending owners are replaced on every query and released on publication or
+shadow disable; they are not a historical reserve. Only publication can replace
+the live cut with complete, quality-safe coverage.
+For an unchanged camera, already started caster jobs survive changes between
+proposed receiver cuts until completion. A new camera still replaces obsolete
+demand. Current caster prerequisites cannot preempt each other or lose their
+reservations to another pending family. Needed downloaded buffers finish their
+bounded admitted parse slot; priority is applied before admission, without
+throwing away the buffer merely because stronger work arrived during the yield.
 Visible tiles never enter the extra caster request list or acquire a second mesh.
 One hierarchy query visits the union of those corridors, deduplicated
 by native Tile identity. Only additional caster content and unresolved external
-metadata enter the existing download/parse queues. Metadata discovery proceeds
-without waiting for ancestor payloads. Visible geometry is reused directly:
+metadata enter the existing download/parse queues. Current caster requests are
+viewport-coverage prerequisites during recovery: receivers can be waiting for
+them, so the viewport-fill gate must admit them at enqueue, queue scheduling and
+preemption alike. While receivers are held, visible camera/family refinement is
+also admissible: those visible tiles can be their required casters. The same pure
+request-need decision serves all three stages; gap ranking still wins. Idle
+reserve and previous-sun requests keep their lower priority.
+Metadata discovery proceeds without waiting for ancestor payloads. Visible geometry is reused directly:
 receiver anchors never enter the extra caster request set. For offscreen casters,
 material deferral takes precedence over stale reserve/support flags. Opaque
 caster textures are neither fetched separately nor decoded/uploaded until the
@@ -2957,8 +3036,8 @@ the bounded cache. Viewport gaps retain first admission priority. Regional depth
 capture uses complete eligible coverage and refreshes it as families improve.
 A leaf from a coarser mesh generation remains ineligible; an exhausted tree
 must never silently weaken the requested caster LOD.
-Non-shadow meshes retain progressive overlays; independent raster terrain and
-LoD2 retrieval are unchanged.
+Non-shadow meshes use the same exclusive family publication. Independent raster
+terrain and LoD2 retrieval are unchanged.
 
 **Alternatives and disposition:** Progressive parent-plus-child shadow depth is
 incompatible by inspection with exclusive surface casting and rejected after

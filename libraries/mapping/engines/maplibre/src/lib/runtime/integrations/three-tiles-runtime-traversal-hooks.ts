@@ -1,6 +1,10 @@
+import type { Tile } from "3d-tiles-renderer/core";
 import { applyShadowReceiverMask } from "../../core/shadow-receiver-mask";
 import { TILE_SHADOW_CAMERA_ID } from "../../core/tile-camera-demand";
-import { TILE_REQUEST_NEED } from "../../core/tile-request-need";
+import {
+  isTileCoveragePrerequisite,
+  TILE_REQUEST_NEED,
+} from "../../core/tile-request-need";
 import {
   resolveTileRequestAdmission,
   TILE_QUEUE_REASON,
@@ -13,12 +17,14 @@ import {
   isExtentFloorTile,
 } from "../../core/mesh-error-policy";
 import { TILES_LOAD_POLICY } from "../../core/tile-load-config";
-import { isMeshCoveredByLoadedChildren } from "../../core/mesh-tile-coverage";
 import {
-  isPublishedMeshRefinementLevel,
-  shouldDeferMeshRefinement,
-} from "../../core/mesh-tile-refinement";
-import { MESH_REFINEMENT_PREFETCH_LEVELS } from "./three-tiles-runtime-config";
+  createMeshRegionCutQuery,
+  isLoadedMesh,
+  isMeshCoveredByLoadedChildren,
+  isMeshTileUnconditionallyRefined,
+  meshTileAncestors,
+} from "../../core/mesh-tile-coverage";
+import { shouldDeferMeshRefinement } from "../../core/mesh-tile-refinement";
 import type {
   ThreeTilesRuntimeAttachmentDependencies,
   ThreeTilesRuntimeAttachmentState,
@@ -52,10 +58,72 @@ export function installThreeTilesTraversalHooks(
       isExternalTileset: tile.internal.hasUnrenderableContent,
     });
   };
+  const canLoadReserve = () =>
+    runtimeState.meshBaseCoverageReady &&
+    runtimeState.extentFloorArmed &&
+    (runtimeState.lastActiveViewsConverged ??
+      runtimeState.lastMainViewConverged) &&
+    runtimeState.effectiveErrorTarget === runtimeState.requestedErrorTarget &&
+    runtimeState.map?.isMoving?.() !== true;
+  let readyFamilyRegion:
+    | ReturnType<typeof createMeshRegionCutQuery>
+    | undefined;
+  let publishedAncestors: Set<Tile> | undefined;
+  const retainsPublishedChildren = (tile: Tile): boolean => {
+    if (!publishedAncestors) {
+      publishedAncestors = new Set();
+      for (const displayed of [
+        ...runtimeState.displayedMeshFrontier,
+        ...runtimeState.committedMeshCasterFrontier,
+      ])
+        for (const parent of meshTileAncestors(displayed))
+          publishedAncestors.add(parent);
+    }
+    return publishedAncestors.has(tile);
+  };
+  const waitingForSiblingCoverage = (tile: Tile): boolean => {
+    let parent = tile.parent;
+    while (
+      parent &&
+      (!parent.internal?.hasRenderableContent ||
+        isMeshTileUnconditionallyRefined(parent))
+    )
+      parent = parent.parent;
+    if (parent?.refine !== "REPLACE") return false;
+    readyFamilyRegion ??= createMeshRegionCutQuery(
+      { has: isLoadedMesh },
+      Number.MAX_VALUE,
+      (candidate) => ({
+        intersects:
+          !candidate.internal ||
+          !candidate.traversal ||
+          dependencies.isTileInMainView(candidate as RuntimeTile) ||
+          dependencies.getTileCameraDemand(candidate as RuntimeTile).required ||
+          runtimeState.shadowCasterRequests.has(candidate) ||
+          (canLoadReserve() &&
+            (() => {
+              const ring = dependencies.getTileRingIndex(
+                candidate as RuntimeTile
+              );
+              return (
+                ring > 0 &&
+                ring <= TILES_LOAD_POLICY.idleRingTanMultipliers.length
+              );
+            })()),
+        errorPixels: 0,
+      })
+    );
+    // Query the children separately: the parent's own loaded payload is not
+    // evidence that its demanded next level is complete. Routing JSON and
+    // already-loaded finer replacements are handled by the shared cut query.
+    return parent.children.some((child) => readyFamilyRegion!(child) === null);
+  };
   const prepareForTraversal = runtimeState.tiles.prepareForTraversal.bind(
     runtimeState.tiles
   );
   runtimeState.tiles.prepareForTraversal = () => {
+    readyFamilyRegion = undefined;
+    publishedAncestors = undefined;
     prepareForTraversal();
     // Native update clears last frame's used pins before this preparation.
     // Repin here so its queued-job cleanup respects solar request retention.
@@ -65,6 +133,10 @@ export function installThreeTilesTraversalHooks(
         runtimeState.tiles.markTileUsed(tile);
     if (runtimeState.options.providesTerrain && runtimeState.shadowView) {
       for (const tile of runtimeState.committedMeshCasterFrontier)
+        runtimeState.tiles?.markTileUsed(tile);
+      for (const tile of runtimeState.pendingMeshCasterFrontier)
+        runtimeState.tiles?.markTileUsed(tile);
+      for (const tile of runtimeState.pendingMeshReceiverFrontier ?? [])
         runtimeState.tiles?.markTileUsed(tile);
       for (const tile of runtimeState.shadowCasterRequests) {
         dependencies.applyTileDeferral(tile, true);
@@ -86,8 +158,6 @@ export function installThreeTilesTraversalHooks(
       runtimeTile,
       runtimeState.options.providesTerrain === true
     );
-    const usesCameraRefinementTarget =
-      cameraDemand.required && cameraDemand.refinementErrorRatio !== undefined;
     if (
       runtimeState.options.providesTerrain &&
       runtimeTile.engineData?.boundingVolume?.getAABB &&
@@ -231,14 +301,7 @@ export function installThreeTilesTraversalHooks(
           target.error = 0;
       }
     } else if (skipStrategy && !target.inView) {
-      const atRest =
-        runtimeState.meshBaseCoverageReady &&
-        runtimeState.extentFloorArmed &&
-        (runtimeState.lastActiveViewsConverged ??
-          runtimeState.lastMainViewConverged) &&
-        runtimeState.effectiveErrorTarget ===
-          runtimeState.requestedErrorTarget &&
-        runtimeState.map?.isMoving?.() !== true;
+      const atRest = canLoadReserve();
       if (atRest) {
         const ring = dependencies.getTileRingIndex(runtimeTile);
         runtimeTile.idleRingIndex = ring > 0 ? ring : undefined;
@@ -252,7 +315,8 @@ export function installThreeTilesTraversalHooks(
       // Keep loaded reserve coverage, but admit missing offscreen payloads
       // only after visible demand converges. Ancestors still lead traversal
       // to already resident floor leaves while the view changes.
-      const wholeModelRing = ring > 1;
+      const wholeModelRing =
+        ring > TILES_LOAD_POLICY.idleRingTanMultipliers.length;
       // The budget bounds how far the reserve refines below its coarse floor.
       const admitted =
         (floorLevel && (!floorLeaf || loaded || atRest)) ||
@@ -345,30 +409,19 @@ export function installThreeTilesTraversalHooks(
           parent.geometricError
       );
     }
-    // Decision: ../../../../TILES_COVERAGE.md#bounded-mesh-request-lookahead
-    // Ready content publishes independently. At rest, plain meshes
-    // discover one further LOD while the immediate family is downloading;
-    // JSON routing and payload discovery need not await its presentation.
+    // Complete the next demanded family before drilling into its loaded
+    // branches. Missing screen regions keep their independent fill priority.
+    // Existing fine cuts and exhausted payloads must remain traversable.
+    // Shadow prerequisites also enter retainedMeshAncestors, but they are only
+    // requested detail: they must not bypass this family-loading barrier.
     if (
       runtimeState.options.providesTerrain &&
-      !usesCameraRefinementTarget &&
       target.inView &&
-      (!runtimeState.shadowView ||
-        dependencies.isTileInMainView(runtimeTile)) &&
       tile.internal.hasRenderableContent &&
-      (runtimeState.displayedMeshFrontier.size === 0 ||
-      (runtimeState.meshCoverageRecovery &&
-        dependencies.isTileNeededForMeshCoverage(tile))
-        ? target.error <=
-          (runtimeState.options.firstImageErrorTargetPixels ??
-            TILES_LOAD_POLICY.firstImageMaxErrorPixels)
-        : isPublishedMeshRefinementLevel(
-            tile,
-            runtimeState.displayedMeshFrontier,
-            !runtimeState.shadowView && !runtimeState.map?.isMoving?.()
-              ? 1 + MESH_REFINEMENT_PREFETCH_LEVELS
-              : 1
-          ))
+      !isMeshTileUnconditionallyRefined(tile) &&
+      !retainsPublishedChildren(tile) &&
+      !runtimeState.tileRetries.isExhausted(tile) &&
+      waitingForSiblingCoverage(tile)
     )
       target.error = Math.min(target.error, runtimeState.effectiveErrorTarget);
     // Decision: ../../../../TILES_COVERAGE.md#exclusive-shadow-caster-handover
@@ -378,7 +431,7 @@ export function installThreeTilesTraversalHooks(
     if (
       runtimeState.shadowView &&
       target.inView &&
-      retainedMeshAncestors.has(tile)
+      retainsPublishedChildren(tile)
     )
       target.error = Math.max(
         target.error,
@@ -391,25 +444,6 @@ export function installThreeTilesTraversalHooks(
         runtimeState.committedMeshCasterFrontier.has(tile));
     if (explicitCaster) runtimeTile.shadowReceiverCurrent = true;
     dependencies.applyTileDeferral(tile, target.inView || explicitCaster);
-    // Skip traversal normally requests only its terminal payload. Keep the
-    // intervening prefetched LODs available too when looking two levels ahead.
-    if (
-      runtimeState.options.providesTerrain &&
-      !usesCameraRefinementTarget &&
-      !runtimeState.shadowView &&
-      !runtimeState.map?.isMoving?.() &&
-      target.inView &&
-      dependencies.isTileInMainView(runtimeTile) &&
-      isPublishedMeshRefinementLevel(
-        tile,
-        runtimeState.displayedMeshFrontier,
-        2,
-        MESH_REFINEMENT_PREFETCH_LEVELS
-      )
-    ) {
-      runtimeState.tiles!.markTileUsed(tile);
-      runtimeState.tiles!.queueTileForDownload(tile);
-    }
   };
   const queueTileForDownload = runtimeState.tiles.queueTileForDownload.bind(
     runtimeState.tiles
@@ -435,6 +469,13 @@ export function installThreeTilesTraversalHooks(
     if (
       resolveTileRequestAdmission({
         needed: requestNeed !== null,
+        coveragePrerequisite: isTileCoveragePrerequisite(
+          requestNeed,
+          Boolean(
+            runtimeState.shadowView &&
+              runtimeState.pendingMeshReceiverFrontier?.size
+          )
+        ),
         coverageRecovery: runtimeState.meshCoverageRecovery,
         coverageFill,
         stage: TILE_QUEUE_STAGE.DOWNLOAD,
@@ -447,15 +488,6 @@ export function installThreeTilesTraversalHooks(
         isExtentFloorTile(tile, runtimeState.extentGeometricError)) ||
       runtimeState.residentAncestors.has(tile);
     const supportTile = runtimeState.meshRefinementSupport.has(tile);
-    const refinementLookahead =
-      !runtimeState.shadowView &&
-      !runtimeState.map?.isMoving?.() &&
-      isPublishedMeshRefinementLevel(
-        tile,
-        runtimeState.displayedMeshFrontier,
-        2,
-        1 + MESH_REFINEMENT_PREFETCH_LEVELS
-      );
     if (
       runtimeState.options.providesTerrain &&
       !floorTile &&
@@ -492,7 +524,7 @@ export function installThreeTilesTraversalHooks(
         (parent) => dependencies.getTileScreenError(parent as RuntimeTile),
         retainedMeshAncestors,
         runtimeState.options.baseErrorTargetPixels,
-        runtimeState.tiles.loadAncestors && !refinementLookahead
+        runtimeState.tiles.loadAncestors
       )
     )
       return;

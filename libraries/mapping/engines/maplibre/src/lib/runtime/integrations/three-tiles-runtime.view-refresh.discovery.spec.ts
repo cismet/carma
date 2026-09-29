@@ -11,16 +11,7 @@ import type { RuntimeTile } from "./three-tiles-runtime-types";
 import {
   buildTile,
   mount,
-  mockTileViews,
 } from "./three-tiles-runtime.view-refresh.test-support";
-const prefetchPolicy = vi.hoisted(() => ({ levels: 1 }));
-
-vi.mock("./three-tiles-runtime-config", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("./three-tiles-runtime-config")>()),
-  get MESH_REFINEMENT_PREFETCH_LEVELS() {
-    return prefetchPolicy.levels;
-  },
-}));
 
 vi.hoisted(() => {
   Object.defineProperty(URL, "createObjectURL", {
@@ -29,179 +20,59 @@ vi.hoisted(() => {
   });
 });
 
-type TestRenderer = TilesRenderer & {
-  frameCount: number;
-  loadingTiles: Set<Tile>;
-  queuedTiles: Tile[];
-};
-
 describe("discovery runtime integration", () => {
   afterEach(() => {
-    prefetchPolicy.levels = 1;
     vi.restoreAllMocks();
     vi.useRealTimers();
   });
-  it.each([0, 1, 2])(
-    "bounds stationary discovery with %i prefetched levels and keeps motion at one",
-    (levels) => {
-      prefetchPolicy.levels = levels;
+  it.each([false, true])(
+    "completes demanded child families before deeper discovery (moving %s)",
+    (moving) => {
       const mounted = mount();
       try {
-        const state = mounted.state;
-        const chain = [1600, 800, 400, 200, 100].map((error) =>
-          buildTile(error)
-        );
-        for (let i = 0; i < chain.length; i++) {
-          if (i) {
-            chain[i].parent = chain[i - 1];
-            chain[i - 1].children = [chain[i]];
-          }
-          delete (chain[i].engineData!.boundingVolume as { getAABB?: unknown })
+        mounted.setMoving(moving);
+        const { state, renderer } = mounted;
+        const root = buildTile(1600);
+        const ready = buildTile(800);
+        const missing = buildTile(800);
+        const outside = buildTile(800);
+        const route = buildTile(800);
+        route.internal.hasRenderableContent = false;
+        root.children = [route];
+        route.parent = root;
+        route.children = [ready, missing, outside];
+        ready.parent = missing.parent = outside.parent = route;
+        root.internal.loadingState = ready.internal.loadingState = 4;
+        state.displayedMeshFrontier.add(root);
+        for (const tile of [root, route, ready, missing, outside]) {
+          delete (tile.engineData!.boundingVolume as { getAABB?: unknown })
             .getAABB;
+          tile.engineData!.boundingVolume!.intersectsFrustum = () =>
+            tile !== outside;
         }
-        chain[0].internal.loadingState = 4;
-        state.displayedMeshFrontier.add(chain[0]);
-        vi.spyOn(mounted.renderer, "calculateTileViewError").mockImplementation(
+        vi.spyOn(renderer, "calculateTileViewError").mockImplementation(
           (tile, target) => {
             Object.assign(target, {
-              inView: true,
+              inView: tile !== outside,
               error: tile.geometricError,
               distanceFromCamera: 1,
             });
           }
         );
-        for (const moving of [false, true]) {
-          mounted.setMoving(moving);
-          const boundary = moving ? 1 : 1 + levels;
-          for (let depth = 1; depth < chain.length; depth++) {
-            const target = { inView: false, error: 0, distanceFromCamera: 0 };
-            mounted.renderer.calculateTileViewErrorWithPlugin(
-              chain[depth],
-              target
-            );
-            expect(target.error).toBe(
-              depth === boundary
-                ? state.effectiveErrorTarget
-                : chain[depth].geometricError
-            );
-          }
-        }
-      } finally {
-        mounted.runtime.scene.dispose();
-      }
-    }
-  );
-
-  it.each([
-    [1, "download"],
-    [1, "parse"],
-    [2, "download"],
-    [2, "parse"],
-  ] as const)(
-    "keeps %i levels of native-fallback lookahead %s before pending parents, below coverage-repair priority",
-    async (levels, phase) => {
-      prefetchPolicy.levels = levels;
-      vi.useFakeTimers();
-      const mounted = mount();
-      try {
-        const state = mounted.state;
-        state.effectiveErrorTarget = 6;
-        state.requestedErrorTarget = 6;
-        state.memoryErrorTarget = 6;
-        mounted.renderer.loadAncestors = true;
-        const root = buildTile(40);
-        const parent = buildTile(12);
-        const route = buildTile(12);
-        route.internal.hasRenderableContent = false;
-        route.internal.hasUnrenderableContent = true;
-        // The second level remains useful: its parent is still above the
-        // final target, independently of the native lookahead allowance.
-        const child = buildTile(8);
-        const sibling = buildTile(6);
-        const second = buildTile(4);
-        child.children = [second];
-        second.parent = child;
-        root.internal.loadingState = 4;
-        parent.internal.loadingState = 2;
-        root.children = [parent];
-        parent.parent = root;
-        parent.children = [route];
-        route.parent = parent;
-        route.children = [child, sibling];
-        child.parent = sibling.parent = route;
-        for (const tile of [root, parent, route, child, sibling, second]) {
-          tile.internal.renderer = mounted.renderer;
-          tile.engineData!.boundingVolume!.intersectsFrustum = () => true;
-        }
-        // Bounds are not yet available: retain the native metadata/lookahead
-        // fallback while camera-local refinement owns fully bounded tiles.
-        mockTileViews(mounted.renderer, [
-          root,
-          parent,
-          route,
-          child,
-          sibling,
-          second,
-        ]);
-        state.displayedMeshFrontier.add(root);
-        state.meshRefinementSupport.add(parent);
-        mounted.renderer.queueTileForDownload(route);
-        expect(mounted.renderer.queuedTiles).toEqual([route]);
-        if (levels === 2) {
-          // Native skip traversal would request only the deepest leaf. The
-          // preceding discovery callback must also enqueue this intermediate.
-          vi.spyOn(
-            mounted.renderer,
-            "calculateTileViewError"
-          ).mockImplementation((tile, target) => {
-            Object.assign(target, {
-              inView: true,
-              error: tile.geometricError,
-              distanceFromCamera: 1,
-            });
-          });
-          mounted.renderer.calculateTileViewErrorWithPlugin(child, {
-            inView: false,
-            error: 0,
-            distanceFromCamera: 0,
-          });
-          expect(mounted.renderer.queuedTiles).toContain(child);
-        }
-        for (const candidate of [child, second].slice(0, levels)) {
-          mounted.renderer.queueTileForDownload(candidate);
-          expect(mounted.renderer.queuedTiles).toContain(candidate);
-          expect(mounted.renderer.queuedTiles).not.toContain(sibling);
-          expect(state.meshRefinementSupport.has(candidate)).toBe(false);
-          const callback = vi.fn().mockResolvedValue("ready");
-          const result =
-            phase === "download"
-              ? mounted.renderer.downloadQueue.add(
-                  "https://example.test/child",
-                  candidate,
-                  callback
-                )
-              : mounted.renderer.parseQueue.add(candidate, callback);
-          await vi.advanceTimersByTimeAsync(50);
-          expect(callback).toHaveBeenCalledOnce();
-          await expect(result).resolves.toBe("ready");
-          expect((candidate as RuntimeTile).cameraPriority).toBe(
-            TILE_CAMERA_PRIORITY.PRIMARY
-          );
-        }
-        expect(parent.internal.loadingState).toBe(2);
-        expect(child.internal.loadingState).toBe(0);
-        expect(state.displayedMeshFrontier).toEqual(new Set([root]));
-
-        // Existing backpressure still rejects new native requests.
-        mounted.renderer.queuedTiles.length = 0;
-        state.queuedThisTraversal.clear();
-        state.memoryAdmissionPaused = true;
-        mounted.renderer.queueTileForDownload(child);
-        expect(mounted.renderer.queuedTiles).toEqual([]);
-        state.memoryAdmissionPaused = false;
-        state.loadingPaused = true;
-        mounted.renderer.queueTileForDownload(child);
-        expect(mounted.renderer.queuedTiles).toEqual([]);
+        const error = (tile: Tile) => {
+          const target = { inView: false, error: 0, distanceFromCamera: 0 };
+          renderer.calculateTileViewErrorWithPlugin(tile, target);
+          return target.error;
+        };
+        renderer.prepareForTraversal();
+        expect(error(ready)).toBe(state.effectiveErrorTarget);
+        expect(error(missing)).toBe(state.effectiveErrorTarget);
+        expect(error(route)).toBeGreaterThan(state.effectiveErrorTarget);
+        missing.internal.loadingState = 4;
+        renderer.prepareForTraversal();
+        expect(error(ready)).toBe(ready.geometricError);
+        expect(error(missing)).toBe(missing.geometricError);
+        expect(outside.internal.loadingState).toBe(0);
       } finally {
         mounted.runtime.scene.dispose();
       }

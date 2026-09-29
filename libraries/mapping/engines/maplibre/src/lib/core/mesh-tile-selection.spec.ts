@@ -2,15 +2,9 @@ import type { Tile } from "3d-tiles-renderer/core";
 import { describe, expect, it } from "vitest";
 import { isMeshCoverageRemovalSafe } from "./mesh-tile-coverage";
 import { hasMeshRefinementContentInView } from "./mesh-tile-refinement";
-import {
-  selectMeshReceiverPlan,
-  refineLoadedMeshFrontier,
-} from "./mesh-tile-selection";
-import {
-  getRetainedMeshAncestors,
-  retainMeshDetailFrontier,
-} from "./mesh-tile-retention";
-import { mesh, quartet, retain } from "./mesh-tile-test-fixtures";
+import { selectMeshReceiverPlan } from "./mesh-tile-selection";
+import { getRetainedMeshAncestors } from "./mesh-tile-retention";
+import { mesh, quartet } from "./mesh-tile-test-fixtures";
 
 describe("mesh receiver plan", () => {
   it("returns a fresh plan without modifying the tile graph or published inputs", () => {
@@ -35,10 +29,7 @@ describe("mesh receiver plan", () => {
         { published }
       );
     const first = select();
-    const expected = new Set([
-      parent,
-      ...children.filter((tile) => tile.internal.loadingState === 4),
-    ]);
+    const expected = new Set([parent]);
     expect(first.tiles).toEqual(expected);
     first.tiles.clear();
     first.refinementSupport.clear();
@@ -76,29 +67,25 @@ describe("mesh receiver plan", () => {
   });
 
   it.each([64, 65, 500])(
-    "limits the first fallback to 64px without hiding ready children (%s)",
+    "limits the initial fallback to 64px without overlapping children (%s)",
     (error) => {
       const { parent, children } = quartet(mesh(null, error));
       children[3].internal.loadingState = 2;
       expect(receiverCut(parent)).toEqual(
-        new Set([...children.slice(0, 3), ...(error <= 64 ? [parent] : [])])
+        new Set(error <= 64 ? [parent] : children.slice(0, 3))
       );
-      expect(receiverCut(parent, [parent])).toEqual(
-        new Set([parent, ...children.slice(0, 3)])
-      );
+      expect(receiverCut(parent, [parent])).toEqual(new Set([parent]));
       children[3].internal.loadingState = 4;
       expect(receiverCut(parent)).toEqual(new Set(children));
     }
   );
 
-  it("allows a coarse shadow bootstrap while publishing each ready child", () => {
+  it("keeps a coarse bootstrap alone until its child replacement is drawable", () => {
     const { parent, children } = quartet(mesh(null, 500));
     children.forEach((child) => (child.internal.loadingState = 2));
     expect(receiverCut(parent, [], true)).toEqual(new Set([parent]));
     children[0].internal.loadingState = 4;
-    expect(receiverCut(parent, [], true)).toEqual(
-      new Set([parent, children[0]])
-    );
+    expect(receiverCut(parent, [], true)).toEqual(new Set([parent]));
     parent.internal.loadingState = 2;
     expect(receiverCut(parent, [], true)).toEqual(new Set([children[0]]));
   });
@@ -123,32 +110,11 @@ describe("mesh receiver plan", () => {
         { published: previous }
       ).tiles;
       const expected = new Set(
-        siblingState === "ready" ? children : [parent, ...children.slice(0, 3)]
+        siblingState === "ready" ? children : children.slice(0, 3)
       );
       expect(proposed).toEqual(expected);
-      expect(
-        retainMeshDetailFrontier({
-          previous,
-          proposed,
-          requestedError: 4,
-          inView,
-          errorPixels: error,
-          allowInViewCoarsening: false,
-        })
-      ).toEqual(expected);
     }
   );
-
-  it("promotes an unpublished reserve on pan without removing the existing fine detail", () => {
-    const { parent, children } = quartet(mesh(null, 80));
-    children[3].internal.loadingState = 2;
-    const proposed = receiverCut(parent, children.slice(0, 3));
-    const expected = new Set([parent, ...children.slice(0, 3)]);
-    expect(proposed).toEqual(expected);
-    expect(retain(children.slice(0, 3), [...proposed], 6)).toEqual(expected);
-    children[3].internal.loadingState = 4;
-    expect(receiverCut(parent, [...expected])).toEqual(new Set(children));
-  });
 
   it("keeps a loose visible fallback without requesting its offscreen children", () => {
     const { parent, children } = quartet(mesh(null, 40));
@@ -217,7 +183,7 @@ describe("mesh receiver plan", () => {
     }
   );
 
-  it("restores the resident parent only until a newly intersected sibling is ready", () => {
+  it("holds the resident parent alone for an incomplete new demand", () => {
     const { parent, children } = quartet(mesh(null, 28));
     children[1].internal.loadingState = 0;
     const visible = new Set([parent, children[0]]);
@@ -231,7 +197,7 @@ describe("mesh receiver plan", () => {
       ).tiles;
     expect(select()).toEqual(new Set([children[0]]));
     visible.add(children[1]);
-    expect(select()).toEqual(new Set([parent, children[0]]));
+    expect(select()).toEqual(new Set([parent]));
     children[1].internal.loadingState = 4;
     expect(select()).toEqual(new Set(children.slice(0, 2)));
   });
@@ -255,7 +221,7 @@ describe("mesh receiver plan", () => {
     expect(selected.unpreparedParents).toEqual(new Set([parent]));
   });
 
-  it("keeps the material-ready parent while promoting ready children and reports only material waits", () => {
+  it("holds the material-ready parent alone and reports child material waits", () => {
     const { parent, children } = quartet(mesh(null, 16));
     const ready = new Set([parent, ...children.slice(1)]);
     const select = () =>
@@ -271,7 +237,7 @@ describe("mesh receiver plan", () => {
           published: new Set([parent]),
         }
       );
-    expect(select().tiles).toEqual(new Set([parent, ...children.slice(1)]));
+    expect(select().tiles).toEqual(new Set([parent]));
     expect(select().materialWaits).toEqual(new Set([children[0]]));
     ready.add(children[0]);
     expect(select().tiles).toEqual(new Set(children));
@@ -293,33 +259,19 @@ describe("mesh receiver plan", () => {
   });
 });
 
-describe.each([
-  {
-    domain: "receiver",
-    select: (root: Tile, inView: (tile: Tile) => boolean) =>
-      selectMeshReceiverPlan(
-        root,
-        1,
-        Infinity,
-        inView,
-        (tile) => tile.traversal?.error ?? Infinity
-      ).tiles,
-  },
-  {
-    domain: "caster",
-    select: (root: Tile, inView: (tile: Tile) => boolean) =>
-      refineLoadedMeshFrontier(
-        new Set([root]),
-        1,
-        inView,
-        (tile) => tile.traversal?.error ?? Infinity
-      ),
-  },
-])("progressive $domain coverage", ({ select }) => {
+describe("exclusive receiver coverage", () => {
+  const select = (root: Tile, inView: (tile: Tile) => boolean) =>
+    selectMeshReceiverPlan(
+      root,
+      1,
+      Infinity,
+      inView,
+      (tile) => tile.traversal?.error ?? Infinity
+    ).tiles;
   const inView = (tile: Tile) => tile.traversal?.inFrustum ?? true;
 
-  it.each(Array.from({ length: 16 }, (_, mask) => mask))(
-    "publishes each ready child and retains fallback only for uncovered demand (mask %s)",
+  it.each([0, 1, 7, 15])(
+    "replaces the parent only when the demanded family is complete (mask %s)",
     (mask) => {
       const { parent, children } = quartet(mesh(null, 16));
       children.forEach((tile, index) => {
@@ -327,19 +279,17 @@ describe.each([
       });
       const ready = children.filter((tile) => tile.internal.loadingState === 4);
       expect(select(parent, inView)).toEqual(
-        new Set([...ready, ...(mask === 15 ? [] : [parent])])
+        new Set(mask === 15 ? ready : [parent])
       );
     }
   );
 
   it.each([-1, 0, 1, 2, 3])(
-    "does not count incomplete child state %s as coverage or hide its ready siblings",
+    "waits for child state %s before replacing the parent",
     (state) => {
       const { parent, children } = quartet(mesh(null, 16));
       children[0].internal.loadingState = state;
-      expect(select(parent, inView)).toEqual(
-        new Set([parent, ...children.slice(1)])
-      );
+      expect(select(parent, inView)).toEqual(new Set([parent]));
       parent.internal.loadingState = 0;
       expect(select(parent, inView)).toEqual(new Set(children.slice(1)));
     }
@@ -351,9 +301,7 @@ describe.each([
     children[3].traversal.inFrustum = false;
     expect(select(parent, inView)).toEqual(new Set(children.slice(0, 3)));
     children[3].traversal.inFrustum = true;
-    expect(select(parent, inView)).toEqual(
-      new Set([parent, ...children.slice(0, 3)])
-    );
+    expect(select(parent, inView)).toEqual(new Set([parent]));
     children[3].internal.loadingState = 4;
     expect(select(parent, inView)).toEqual(new Set(children));
   });
@@ -366,9 +314,7 @@ describe.each([
     const ready = quartet(a).children;
     const streaming = quartet(b).children;
     streaming[0].internal.loadingState = 2;
-    expect(select(root, inView)).toEqual(
-      new Set([...ready, b, ...streaming.slice(1)])
-    );
+    expect(select(root, inView)).toEqual(new Set([...ready, b]));
     streaming[0].internal.loadingState = 4;
     expect(select(root, inView)).toEqual(new Set([...ready, ...streaming]));
   });
@@ -403,9 +349,7 @@ describe.each([
     expect(hasMeshRefinementContentInView(empty, inView)).toBe(false);
     empty.internal.hasContent = true;
     empty.internal.hasUnrenderableContent = true;
-    expect(select(parent, inView)).toEqual(
-      new Set([parent, ...children.slice(1)])
-    );
+    expect(select(parent, inView)).toEqual(new Set([parent]));
     expect(hasMeshRefinementContentInView(empty, inView)).toBe(true);
   });
 
@@ -422,60 +366,6 @@ describe.each([
     root.children = [metadata, outside];
     expect(select(root, inView)).toEqual(new Set([local]));
     outside.traversal.inFrustum = true;
-    expect(select(root, inView)).toEqual(new Set([root, local]));
-  });
-});
-
-describe("progressive loaded caster display", () => {
-  it("matches displayed receiver detail while retaining the parent for a missing caster", () => {
-    const { parent, children } = quartet(mesh(null, 0.5));
-    const displayed = new Set(children.slice(0, 3));
-    const proposed = new Set([parent, ...children]);
-    children[3].internal.loadingState = 2;
-    expect(
-      refineLoadedMeshFrontier(
-        proposed,
-        1,
-        () => true,
-        () => 0.5,
-        displayed
-      )
-    ).toEqual(new Set([parent, ...displayed]));
-    children[3].internal.loadingState = 4;
-    expect(
-      refineLoadedMeshFrontier(
-        proposed,
-        1,
-        () => true,
-        () => 0.5,
-        displayed
-      )
-    ).toEqual(new Set(children));
-    // Mere residency does not require extra shadow detail.
-    expect(
-      refineLoadedMeshFrontier(
-        proposed,
-        1,
-        () => true,
-        () => 0.5
-      )
-    ).toEqual(new Set([parent]));
-  });
-
-  it("uses current error while retaining loose relevant parents without offscreen refinement", () => {
-    const { parent, children } = quartet(mesh(null, 0));
-    const proposed = new Set([parent, ...children]);
-    const currentError = (tile: Tile) => (tile === parent ? 16 : 0.5);
-    expect(
-      refineLoadedMeshFrontier(proposed, 1, () => true, currentError)
-    ).toEqual(new Set(children));
-    expect(
-      refineLoadedMeshFrontier(
-        proposed,
-        1,
-        (tile) => tile === parent,
-        currentError
-      )
-    ).toEqual(new Set([parent]));
+    expect(select(root, inView)).toEqual(new Set([root]));
   });
 });

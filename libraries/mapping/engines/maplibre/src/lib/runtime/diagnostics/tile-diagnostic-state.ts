@@ -15,7 +15,6 @@ export type TilesRuntimeDebugState = {
   tileCameraDemand: ReturnType<typeof createTileCameraDemand>;
   tiles: TilesRenderer | null;
   displayedMeshFrontier: ReadonlySet<Tile>;
-  meshUnderlayFrontier: ReadonlySet<Tile>;
   pendingMeshReceiverFrontier?: ReadonlySet<Tile>;
   committedMeshCasterFrontier?: ReadonlySet<Tile>;
   meshRefinementSupport?: ReadonlySet<Tile>;
@@ -132,7 +131,6 @@ export const kindOf = (
 ): Kind | null => {
   const loadingState = tile.internal?.loadingState ?? 0;
   if (state.displayedMeshFrontier.has(tile)) return "displayed";
-  if (state.meshUnderlayFrontier.has(tile)) return "underlay";
   if (loadingState === LOADED) {
     if (floor.has(tile)) return "floor";
     if ((tile as RuntimeTile).idleRing) return "ring";

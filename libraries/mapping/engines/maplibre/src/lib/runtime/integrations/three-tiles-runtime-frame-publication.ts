@@ -1,26 +1,18 @@
 import type { Tile } from "3d-tiles-renderer/core";
 import * as THREE from "three";
 
-import {
-  idleRingAllowedError,
-  initialMeshLoadError,
-} from "../../core/mesh-error-policy";
+import { initialMeshLoadError } from "../../core/mesh-error-policy";
 
 import { TILES_LOAD_POLICY } from "../../core/tile-load-config";
 import { selectMeshReceiverPlan } from "../../core/mesh-tile-selection";
 import {
   collectResidentAncestors,
   getRetainedMeshAncestors,
-  retainMeshDetailFrontier,
 } from "../../core/mesh-tile-retention";
-import { selectMeshUnderlayParents } from "../../core/mesh-tile-underlay";
 
 import type { RuntimeTile } from "./three-tiles-runtime-types";
 
-import {
-  setTileDepthUnderlay,
-  setTileShadowRole,
-} from "./three-tiles-shadow-role";
+import { setTileShadowRole } from "./three-tiles-shadow-role";
 
 import type {
   ThreeTilesFrameRuntimeState,
@@ -37,6 +29,7 @@ export function createThreeTilesFramePublication(
   const { frameState, attachment, abortStaleDownloads, isTileInAnyView } =
     hooks;
   let publishedNativeFrontier = new Set<Tile>();
+  let publishedMeshFrontier = new Set<Tile>();
   return ({
     previousTraversal,
     retainedDetailErrorTarget,
@@ -160,7 +153,9 @@ export function createThreeTilesFramePublication(
           // Final pixel quality belongs to refinement after that publication.
           allowCoarseBootstrap: true,
           releaseEmptyReplacementRegions: Boolean(runtimeState.shadowView),
-          allowHybridReplacement: !runtimeState.shadowView,
+          retainedCasters: runtimeState.shadowView
+            ? runtimeState.committedMeshCasterFrontier
+            : undefined,
           firstImageErrorTargetPixels:
             runtimeState.options.firstImageErrorTargetPixels,
         }
@@ -179,68 +174,7 @@ export function createThreeTilesFramePublication(
       abortStaleDownloads();
       runtimeState.lastLoadedViewportCutSize = loadedViewportCut.size;
       const previousDisplayed = runtimeState.displayedMeshFrontier;
-      // The shadow mode uses the selector's exclusive cut. Progressive history
-      // retention may overlap a parent with children and belongs to colour-only.
-      const nextDisplayed = runtimeState.shadowView
-        ? loadedViewportCut
-        : retainMeshDetailFrontier({
-            previous: previousDisplayed,
-            proposed: loadedViewportCut,
-            requestedError: runtimeState.shadowView
-              ? receiverErrorTarget
-              : retainedDetailErrorTarget,
-            inView: inReceiverView,
-            allowInViewCoarsening,
-            errorPixels: dependencies.getTileScreenError,
-            acceptsOffscreenFallback: runtimeState.shadowView
-              ? undefined
-              : (tile) => {
-                  if (!attachment.isDeferredMaterialReady(tile)) return false;
-                  // Reuse reserve demand for coarsening as well as loading. A
-                  // nearby offscreen branch must not jump straight to the root.
-                  // These bands select tree levels, not independent ring meshes.
-                  if (
-                    runtimeState.extentGeometricError > 0 &&
-                    tile.children.some(
-                      (child) =>
-                        child.geometricError >=
-                        runtimeState.extentGeometricError
-                    )
-                  )
-                    return false;
-                  const band = dependencies.getTileRingIndex(
-                    tile as RuntimeTile
-                  );
-                  if (
-                    band <= 0 ||
-                    !(tile as RuntimeTile).engineData?.boundingVolume
-                  )
-                    return false;
-                  // Outside the one-tile reserve, a loaded base fallback is enough.
-                  // Nearby mixed children remain protected by the same margin test.
-                  if (band > 1) return true;
-                  const projected = {
-                    inView: false,
-                    error: Infinity,
-                    distanceFromCamera: Infinity,
-                  };
-                  // Outside demand frustums the clipped error is undefined. The
-                  // vendor's camera metric is used ONLY for this background cut.
-                  runtimeState.tiles!.calculateTileViewError(tile, projected);
-                  return (
-                    projected.error <=
-                    idleRingAllowedError(
-                      initialMeshLoadError(
-                        runtimeState.requestedErrorTarget,
-                        runtimeState.options.baseErrorTargetPixels
-                      ),
-                      band,
-                      runtimeState.ringRefinePasses,
-                      runtimeState.requestedErrorTarget
-                    )
-                  );
-                },
-          });
+      const nextDisplayed = loadedViewportCut;
       // Demand proofs use frontier identity. Rebuilding the same selection
       // must not invalidate them when no Tile membership changed.
       if (
@@ -253,6 +187,14 @@ export function createThreeTilesFramePublication(
           runtimeState.displayedMeshFrontier,
           traversalFrontier
         );
+        // Selection can run ahead of presentation while a replacement's
+        // casters load. Retention and native visibility follow the committed cut.
+        runtimeState.displayedMeshFrontier = new Set([
+          ...[...runtimeState.displayedMeshFrontier].filter(
+            (tile) => !dependencies.isTileInMainView(tile as RuntimeTile)
+          ),
+          ...runtimeState.committedMeshReceiverFrontier,
+        ]);
       }
       runtimeState.residentAncestors = collectResidentAncestors(
         runtimeState.displayedMeshFrontier,
@@ -268,26 +210,13 @@ export function createThreeTilesFramePublication(
             ),
           ])
         : new Set(runtimeState.displayedMeshFrontier);
-      // Decision: ../../../../TILES_COVERAGE.md#progressive-receiver-overlays
-      // Ready children improve colour immediately. Parents fill uncovered
-      // regions without depth writes; the shadow caster cut stays separate.
-      const previousUnderlay = runtimeState.meshUnderlayFrontier;
-      runtimeState.meshUnderlayFrontier = runtimeState.shadowView
-        ? new Set()
-        : selectMeshUnderlayParents(displayed, inReceiverView, (tile) =>
-            attachment.isDeferredMaterialReady(tile)
-          );
-      const underlay = runtimeState.meshUnderlayFrontier;
       const mountedModels = new Set(runtimeState.tiles.group.children);
       for (const tile of new Set([
         ...traversalFrontier,
+        ...publishedMeshFrontier,
         ...displayed,
-        ...underlay,
-        ...previousUnderlay,
       ])) {
-        // Progressive publication without fades; preserve layer opacity.
-        const isUnderlay = underlay.has(tile);
-        const visible = displayed.has(tile) || isUnderlay;
+        const visible = displayed.has(tile);
         const model = (tile as RuntimeTile).engineData?.scene;
         if (
           visible &&
@@ -336,11 +265,6 @@ export function createThreeTilesFramePublication(
               ? runtimeState.committedMeshCasterFrontier.has(tile)
               : displayed.has(tile),
           });
-          let depth = 0;
-          if (isUnderlay)
-            for (let parent = tile.parent; parent; parent = parent.parent)
-              depth++;
-          setTileDepthUnderlay(model, isUnderlay, -1 / (depth + 1));
         }
         // Decision: MESH-PUBLICATION-REPAIR-20260916 in TILES_COVERAGE.md.
         // Active-only models may have group as parent WITHOUT being children.
@@ -365,6 +289,7 @@ export function createThreeTilesFramePublication(
         traversal.wasSetActive = visible;
         traversal.wasSetVisible = visible;
       }
+      publishedMeshFrontier = displayed;
       dependencies.endTileWaitObservation();
       frameState.publishedContentRevision = runtimeState.meshContentRevision;
     }

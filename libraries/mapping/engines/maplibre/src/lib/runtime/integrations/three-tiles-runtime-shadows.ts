@@ -26,13 +26,16 @@ import { createThreeTilesShadowPublication } from "./three-tiles-runtime-shadow-
 export type ThreeTilesShadowsState = Pick<
   ThreeTilesRuntimeState,
   | "shadowReceiverMask"
+  | "pendingMeshReceiverMask"
   | "shadowReceiverMaskConverged"
   | "shadowReceiverSourceSignature"
   | "mainViewSourceTiles"
   | "shadowSelectionRefreshPending"
   | "pendingMeshReceiverFrontier"
   | "committedMeshReceiverFrontier"
+  | "meshCoverageRecovery"
   | "committedMeshCasterFrontier"
+  | "pendingMeshCasterFrontier"
   | "shadowView"
   | "shadowSelectionEnabled"
   | "shadowSelectionNeedsTraversal"
@@ -94,6 +97,8 @@ export function createThreeTilesShadows(
   const clearShadowReceiverSources: ThreeTilesRuntimeServices["clearShadowReceiverSources"] =
     () => {
       runtimeState.shadowReceiverMask = null;
+      runtimeState.pendingMeshReceiverMask = null;
+      runtimeState.pendingMeshCasterFrontier.clear();
       runtimeState.shadowCasterRequests.clear();
       runtimeState.shadowReceiverMaskConverged = false;
       runtimeState.shadowReceiverSourceSignature = "";

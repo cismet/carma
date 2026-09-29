@@ -46,7 +46,7 @@ export const getReadyMeshRegionCut = (
  * Memo storage belongs to this query; no input tiles or collections are changed.
  */
 export const createMeshRegionCutQuery = (
-  published: ReadonlySet<Tile>,
+  published: Pick<ReadonlySet<Tile>, "has">,
   errorPixels: number,
   demand: (tile: Tile) => { intersects: boolean; errorPixels: number }
 ): ((root: Tile) => readonly Tile[] | null) => {

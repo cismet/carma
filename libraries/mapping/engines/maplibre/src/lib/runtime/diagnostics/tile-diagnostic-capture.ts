@@ -164,7 +164,6 @@ export const captureTileDiagnostics = async (
     ...floorLeaves,
     ...cache.itemSet.keys(),
     ...state.displayedMeshFrontier,
-    ...state.meshUnderlayFrontier,
     ...loadingTilesOf(tiles),
   ]);
   const ordered = [...candidates].sort(
@@ -175,7 +174,6 @@ export const captureTileDiagnostics = async (
   const rects: OverlayRect[] = [];
   const labelled: Array<{ tile: Tile; id: string; kind: Kind }> = [];
   let displayed = 0;
-  let underlay = 0;
   for (const tile of ordered) {
     if (++iterations % 128 === 0 && performance.now() - sliceStart >= 2) {
       await yieldTileDiagnosticTask();
@@ -187,12 +185,7 @@ export const captureTileDiagnostics = async (
     const ancestor = tile.internal?.hasRenderableContent !== true;
     if (ancestor) continue;
     if (kind === "displayed") displayed += 1;
-    if (kind === "underlay") underlay += 1;
-    if (
-      sceneLabels &&
-      (kind === "displayed" || kind === "underlay") &&
-      labelled.length < 400
-    )
+    if (sceneLabels && kind === "displayed" && labelled.length < 400)
       labelled.push({ tile, id: tileId(tile), kind });
     if (!showOverlay) continue;
     if (!ancestor && kind === "resident" && !showResident) continue;
@@ -228,7 +221,6 @@ export const captureTileDiagnostics = async (
         ? "base"
         : state.meshRefinementSupport?.has(tile) ||
           kind === "displayed" ||
-          kind === "underlay" ||
           kind === "ring"
         ? "seam"
         : undefined,
@@ -285,7 +277,7 @@ export const captureTileDiagnostics = async (
   // undersides are not surfaces currently presented by the scene.
   const cutRects = rects.filter(({ tile }) => {
     const kind = kindOf(tile, state, floor);
-    return kind === "displayed" || kind === "underlay";
+    return kind === "displayed";
   });
   const viewportBasis: DiagnosticViewportBasis = {
     tileBounds: cutRects.flatMap((rect) => {
@@ -397,5 +389,5 @@ export const captureTileDiagnostics = async (
       target: targetPixels,
     };
   }
-  return { model, labelled, displayed, underlay, floorLeaves };
+  return { model, labelled, displayed, floorLeaves };
 };

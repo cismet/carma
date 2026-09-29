@@ -20,7 +20,7 @@ describe("reserve coverage stats", () => {
   it("shows unknown totals and waiting status instead of inferring readiness from known loaded tiles", () => {
     const { container } = render(
       <TileReserveCoverageStats
-        presentationMode="progressive-mesh"
+        presentationMode="exclusive-mesh"
         baseCoverage={base}
         seamCoverage={base}
         closureCoverage={base}
@@ -31,7 +31,7 @@ describe("reserve coverage stats", () => {
       "Whole-base geometry: 1/2 known regions covered · total unknown"
     );
     expect(container.textContent).toContain("WAITING FOR BASE");
-    expect(container.textContent).toContain("Mode: Progressive mesh");
+    expect(container.textContent).toContain("Mode: Exclusive mesh");
     expect(container.textContent).toContain(
       "Transition seam: 1/2 known payloads renderable"
     );

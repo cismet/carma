@@ -35,6 +35,7 @@ export function createThreeTilesSpatialDemand(
     | "options"
     | "requestedErrorTarget"
     | "shadowReceiverMask"
+    | "pendingMeshReceiverMask"
     | "shadowCasterRequests"
     | "shadowSelectionEnabled"
     | "shadowView"
@@ -95,12 +96,16 @@ export function createThreeTilesSpatialDemand(
           includeObserver &&
           demand.required &&
           runtimeState.shadowView &&
-          runtimeState.shadowReceiverMask
+          (runtimeState.pendingMeshReceiverMask ||
+            runtimeState.shadowReceiverMask)
         ) {
-          if (casterMask !== runtimeState.shadowReceiverMask) {
-            casterMask = runtimeState.shadowReceiverMask;
+          const refinementMask =
+            runtimeState.pendingMeshReceiverMask ??
+            runtimeState.shadowReceiverMask;
+          if (casterMask !== refinementMask) {
+            casterMask = refinementMask;
             casterDemand = createCasterVolumeDemand(
-              runtimeState.shadowReceiverMask,
+              refinementMask,
               runtimeState.requestedErrorTarget
             );
           }

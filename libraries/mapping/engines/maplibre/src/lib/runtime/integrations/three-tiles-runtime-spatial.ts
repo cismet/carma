@@ -54,6 +54,7 @@ export function createThreeTilesSpatial(
     | "tileProjectedCenter"
     | "tileViewProjection"
     | "shadowReceiverMask"
+    | "pendingMeshReceiverMask"
     | "shadowCasterRequests"
     | "shadowSelectionEnabled"
     | "shadowView"
@@ -67,6 +68,7 @@ export function createThreeTilesSpatial(
     | "marginCamera"
     | "marginProjection"
     | "marginFrustum"
+    | "ringFrustums"
     | "tileDebugProgress"
     | "requestedErrorTarget"
   >,

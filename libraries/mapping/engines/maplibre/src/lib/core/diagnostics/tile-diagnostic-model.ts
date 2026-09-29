@@ -4,7 +4,6 @@ import type { estimateTileTargetSteps } from "../../runtime/integrations/three-t
 
 export const FILL = {
   displayed: "rgba(0, 224, 255, 0.30)",
-  underlay: "rgba(0, 224, 255, 0.30)",
   floor: "rgba(12, 18, 32, 0.26)",
   ring: "rgba(12, 18, 32, 0.26)",
   resident: "rgba(12, 18, 32, 0.26)",

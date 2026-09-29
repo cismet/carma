@@ -503,6 +503,8 @@ describe("current-camera screen error before native traversal", () => {
         const edge = new Vector3(x, 0, 0).unproject(camera);
         expect(state.tileViewFrustum.containsPoint(edge)).toBe(true);
         expect(state.marginFrustum.containsPoint(edge)).toBe(true);
+        for (const ring of state.ringFrustums)
+          expect(ring.containsPoint(edge)).toBe(true);
       }
       const leftEdge = new Vector3(-0.99, 0, 0).unproject(camera);
       camera.clearViewOffset();

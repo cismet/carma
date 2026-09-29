@@ -1626,17 +1626,39 @@ export const buildShadowSimulationScene = (
             .map(({ errorPixels }) => errorPixels)
             .filter((error): error is number => Number.isFinite(error))
         );
-    // Coarse mesh triangles need enough self-intersection tolerance for their
-    // achieved depth-map footprint. Keeping the final 1 cm cap at the 16 px
-    // bootstrap stage produced triangle-edge acne across whole roofs. The cap
-    // follows progressive SSE and converges back to 1 cm at the requested LOD;
-    // only the temporary coarse representation may use up to 25 cm.
+    // A centimetre is below the raster footprint of a city overview. Bound
+    // mesh self-intersection tolerance by a tenth of the nearest receiver's
+    // CSS pixel instead; zooming in still preserves centimetre contact detail.
+    let metersPerPixel = Infinity;
+    for (const volume of volumes) {
+      if (volume.loadReason === "shadow") continue;
+      if (
+        bounds &&
+        (volume.minimum[0] >= bounds.max.x ||
+          volume.maximum[0] <= bounds.min.x ||
+          volume.minimum[2] >= bounds.max.z ||
+          volume.maximum[2] <= bounds.min.z)
+      )
+        continue;
+      const geometricError = volume.geometricError;
+      const pixelError = volume.errorPixels;
+      if (
+        geometricError !== undefined &&
+        pixelError !== undefined &&
+        Number.isFinite(geometricError) &&
+        Number.isFinite(pixelError) &&
+        geometricError > 0 &&
+        pixelError > 0
+      )
+        metersPerPixel = Math.min(metersPerPixel, geometricError / pixelError);
+    }
     return meshReceiverBiasLimitMeters({
       stageErrorPixels: stageError,
       targetErrorPixels,
       groundTexelTargetMeters,
       finalBiasMeters: MESH_FINAL_SHADOW_BIAS_METERS,
       maximumCoarseBiasMeters: MESH_COARSE_SHADOW_BIAS_LIMIT_METERS,
+      metersPerPixel: Number.isFinite(metersPerPixel) ? metersPerPixel : 0,
     });
   };
   const withTileVolumeSnapshot = <T>(render: () => T): T => {

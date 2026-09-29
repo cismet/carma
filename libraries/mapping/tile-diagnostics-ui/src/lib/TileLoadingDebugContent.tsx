@@ -185,14 +185,11 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
       );
     if (previous.pending !== next.pending && next.pending > 0)
       lines.push(`${next.pending} floor tiles pending`);
-    if (
-      previous.displayed !== next.displayed ||
-      previous.underlay !== next.underlay
-    )
+    if (previous.displayed !== next.displayed)
       lines.push(
         `displayed ${next.displayed} (${
           next.displayed - previous.displayed >= 0 ? "+" : ""
-        }${next.displayed - previous.displayed}), underlay ${next.underlay}`
+        }${next.displayed - previous.displayed})`
       );
     if (previous.full !== next.full)
       lines.push(
@@ -676,18 +673,9 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
 
       const summarize = (
         state: TilesRuntimeDebugState,
-        _floorLeaves: Tile[],
         displayed: number,
-        underlay: number,
         stable?: CoverageSummary
-      ) =>
-        summarizeTileDiagnostics(
-          state,
-          runtimeHandle,
-          displayed,
-          underlay,
-          stable
-        );
+      ) => summarizeTileDiagnostics(state, runtimeHandle, displayed, stable);
       const buildQueue = (state: TilesRuntimeDebugState) =>
         updateTileDiagnosticQueue(
           state,
@@ -700,7 +688,6 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
       let lastOverlaySummary: CoverageSummary | null = null;
       let coverageDirty = true;
       let lastDisplayed = 0;
-      let lastUnderlay = 0;
       const captureOverlay = async (
         sampleSummary = false
       ): Promise<CoverageSummary | null> => {
@@ -727,14 +714,12 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
           ...cache.itemSet.keys(),
           ...loadingTilesOf(tiles),
           ...state.displayedMeshFrontier,
-          ...state.meshUnderlayFrontier,
           ...state.deferred,
         ])) {
           pool.set(
             tile,
             (tile.internal?.loadingState ?? 0) * 16 +
               Number(state.displayedMeshFrontier.has(tile)) +
-              Number(state.meshUnderlayFrontier.has(tile)) * 2 +
               Number(state.deferred.has(tile)) * 4 +
               Number((tile as RuntimeTile).idleRing === true) * 8
           );
@@ -782,9 +767,7 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
           if (sampleSummary) {
             lastOverlaySummary = summarize(
               state,
-              [],
               lastDisplayed,
-              lastUnderlay,
               coverageDirty ? undefined : lastOverlaySummary ?? undefined
             );
             coverageDirty = false;
@@ -809,27 +792,15 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
           () => disposed
         );
         if (!captured || disposed) return null;
-        const {
-          model: nextModel,
-          labelled,
-          displayed,
-          underlay,
-          floorLeaves,
-        } = captured;
+        const { model: nextModel, labelled, displayed } = captured;
         syncLabels(currentOptions.sceneLabels ? labelled : [], group);
         syncSceneExtents(nextModel.rects);
         syncDebugPlugin(tiles);
         setModel(nextModel);
         overlayMs = performance.now() - startedAt;
         lastDisplayed = displayed;
-        lastUnderlay = underlay;
         if (sampleSummary) {
-          lastOverlaySummary = summarize(
-            state,
-            floorLeaves,
-            displayed,
-            underlay
-          );
+          lastOverlaySummary = summarize(state, displayed);
           coverageDirty = false;
         }
         lastDiagnosticKey = key;
@@ -1287,11 +1258,9 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
                 summary.floorTotal
               } loaded · ${summary.uncovered} without a loaded cut · ${
                 summary.pending
-              } pending · displayed ${summary.displayed} · underlay ${
-                summary.underlay
-              } · resident ${summary.resident} tiles · target ${
-                summary.target
-              } px (requested ${
+              } pending · displayed ${summary.displayed} · resident ${
+                summary.resident
+              } tiles · target ${summary.target} px (requested ${
                 summary.requested
               }, memory ${summary.memoryTarget.toFixed(
                 1

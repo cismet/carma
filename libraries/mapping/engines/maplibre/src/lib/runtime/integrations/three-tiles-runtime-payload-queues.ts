@@ -1,5 +1,6 @@
 import { makeRoomForThreeTilesRequest } from "./three-tiles-runtime-request-capacity";
 import {
+  isTileCoveragePrerequisite,
   TILE_REQUEST_NEED,
   type resolveTileRequestNeed,
 } from "../../core/tile-request-need";
@@ -12,7 +13,6 @@ import {
 import {
   resolveTileQueueDecision,
   resolveTileRequestAdmission,
-  shouldPreemptTileRequest,
   TILE_QUEUE_ACTION,
   TILE_QUEUE_REASON,
   TILE_QUEUE_STAGE,
@@ -21,12 +21,8 @@ import {
   initialMeshLoadError,
   isExtentFloorTile,
 } from "../../core/mesh-error-policy";
+import { shouldDeferMeshRefinement } from "../../core/mesh-tile-refinement";
 import {
-  isPublishedMeshRefinementLevel,
-  shouldDeferMeshRefinement,
-} from "../../core/mesh-tile-refinement";
-import {
-  MESH_REFINEMENT_PREFETCH_LEVELS,
   TILE_METADATA_DOWNLOAD_CONCURRENCY,
   TILE_METADATA_PARSE_CONCURRENCY,
 } from "./three-tiles-runtime-config";
@@ -50,6 +46,7 @@ export function createThreeTilesPayloadQueues(
     | "committedMeshReceiverFrontier"
     | "disposed"
     | "displayedMeshFrontier"
+    | "pendingMeshReceiverFrontier"
     | "effectiveErrorTarget"
     | "extentFloorArmed"
     | "extentGeometricError"
@@ -142,6 +139,13 @@ export function createThreeTilesPayloadQueues(
           coverageFill,
           admission: resolveTileRequestAdmission({
             needed,
+            coveragePrerequisite: isTileCoveragePrerequisite(
+              reason,
+              Boolean(
+                runtimeState.shadowView &&
+                  runtimeState.pendingMeshReceiverFrontier?.size
+              )
+            ),
             coverageFill,
             coverageRecovery: runtimeState.meshCoverageRecovery,
             stage,
@@ -168,15 +172,6 @@ export function createThreeTilesPayloadQueues(
       const floorTile =
         runtimeState.extentFloorArmed &&
         isExtentFloorTile(tile, runtimeState.extentGeometricError);
-      const refinementLookahead =
-        !runtimeState.shadowView &&
-        !moving &&
-        isPublishedMeshRefinementLevel(
-          tile,
-          runtimeState.displayedMeshFrontier,
-          2,
-          1 + MESH_REFINEMENT_PREFETCH_LEVELS
-        );
       // A tile may be both in the observer and a required caster. Use the
       // owning request reason rather than inferring ownership from location.
       if (
@@ -208,7 +203,7 @@ export function createThreeTilesPayloadQueues(
           (parent) => dependencies.getTileScreenError(parent as RuntimeTile),
           retainedMeshAncestors,
           runtimeState.options.baseErrorTargetPixels,
-          !!runtimeState.tiles?.loadAncestors && !refinementLookahead
+          !!runtimeState.tiles?.loadAncestors
         );
       return (
         floorTile ||
@@ -376,57 +371,12 @@ export function createThreeTilesPayloadQueues(
         // so queue admission itself does not run parsing inside a paint callback.
         await new Promise<void>((resolve) => setTimeout(resolve, 0));
         if (runtimeState.disposed) return;
-        // Decision: VIEWPORT-PREPARSE-PREEMPTION-20260916 in TILES_COVERAGE.md.
-        // A new foreground buffer can arrive across the yield. Relinquish the
-        // slot before entering non-interruptible GLTF work, even if this tile
-        // remains useful to a lower-priority camera or the reserve floor.
-        const priority = dependencies.getTileRequestPriority(
-          item as RuntimeTile
-        );
-        const evaluation =
-          runtimeState.options.providesTerrain &&
-          !item.internal.hasUnrenderableContent
-            ? createQueueEvaluation(
-                TILE_QUEUE_STAGE.PARSE,
-                new Set([
-                  ...(runtimeState.tiles?.loadingTiles ?? []),
-                  ...(parseQueue as RuntimePriorityQueue).items,
-                ])
-              )
-            : null;
-        const preempted =
-          !runtimeState.retainedShadowRequests.has(item) &&
-          evaluation !== null &&
-          (parseQueue as RuntimePriorityQueue).items.some(
-            (candidate: RuntimeTile) =>
-              evaluation.decisionFor(candidate).action ===
-                TILE_QUEUE_ACTION.RUN &&
-              shouldPreemptTileRequest({
-                priority,
-                waitingPriority: evaluation.demandFor(candidate).priority,
-                benefit: (item as RuntimeTile).meshRefinement?.benefit,
-                waitingBenefit: candidate.meshRefinement?.benefit,
-                currentErrorPixels: (item as RuntimeTile).meshRefinement
-                  ?.currentErrorPixels,
-                waitingCurrentErrorPixels:
-                  candidate.meshRefinement?.currentErrorPixels,
-                errorBand: (item as RuntimeTile).meshRefinement?.errorBand,
-                waitingErrorBand: candidate.meshRefinement?.errorBand,
-                sameRefinementGroup:
-                  !!runtimeState.shadowView &&
-                  candidate.meshRefinement !== undefined &&
-                  candidate.meshRefinement.group ===
-                    (item as RuntimeTile).meshRefinement?.group,
-              })
-          );
-        if (preempted || !dependencies.isTileRequestNeeded(item)) {
+        // Queue ordering already gave foreground work the next parse slot.
+        // Once a needed buffer owns a slot, finish it: discarding it after
+        // this yield would repeat its network transfer for a ranking change.
+        if (!dependencies.isTileRequestNeeded(item)) {
           runtimeState.tiles?.lruCache.remove(item);
-          throw new DOMException(
-            preempted
-              ? "Tile preempted by foreground work"
-              : "Obsolete tile request",
-            "AbortError"
-          );
+          throw new DOMException("Obsolete tile request", "AbortError");
         }
         if (progress) progress.parseStartedAt = performance.now();
         try {

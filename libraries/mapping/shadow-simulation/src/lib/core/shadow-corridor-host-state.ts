@@ -156,13 +156,20 @@ export const meshReceiverBiasLimitMeters = ({
   groundTexelTargetMeters,
   finalBiasMeters,
   maximumCoarseBiasMeters,
+  metersPerPixel = 0,
 }: Readonly<{
   stageErrorPixels: number;
   targetErrorPixels: number;
   groundTexelTargetMeters: number;
   finalBiasMeters: number;
   maximumCoarseBiasMeters: number;
+  /** Closest receiver scale in CSS pixels; offscreen casters never relax it. */
+  metersPerPixel?: number;
 }>): number => {
+  const contactLimit = Math.max(
+    finalBiasMeters,
+    Math.min(maximumCoarseBiasMeters, Math.max(0, metersPerPixel) * 0.1)
+  );
   const stageScale = Math.max(
     1,
     Math.min(
@@ -170,9 +177,12 @@ export const meshReceiverBiasLimitMeters = ({
       stageErrorPixels / Math.max(targetErrorPixels, 0.25)
     )
   );
-  return Math.min(
-    maximumCoarseBiasMeters,
-    finalBiasMeters * stageScale,
-    Math.max(finalBiasMeters, groundTexelTargetMeters * 2)
+  return Math.max(
+    contactLimit,
+    Math.min(
+      maximumCoarseBiasMeters,
+      finalBiasMeters * stageScale,
+      Math.max(finalBiasMeters, groundTexelTargetMeters * 2)
+    )
   );
 };

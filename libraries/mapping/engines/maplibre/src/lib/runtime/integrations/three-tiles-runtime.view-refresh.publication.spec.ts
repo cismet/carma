@@ -9,14 +9,6 @@ import {
   buildTile,
   mount,
 } from "./three-tiles-runtime.view-refresh.test-support";
-const prefetchPolicy = vi.hoisted(() => ({ levels: 1 }));
-
-vi.mock("./three-tiles-runtime-config", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("./three-tiles-runtime-config")>()),
-  get MESH_REFINEMENT_PREFETCH_LEVELS() {
-    return prefetchPolicy.levels;
-  },
-}));
 
 vi.hoisted(() => {
   Object.defineProperty(URL, "createObjectURL", {
@@ -33,12 +25,11 @@ type TestRenderer = TilesRenderer & {
 
 describe("publication runtime integration", () => {
   afterEach(() => {
-    prefetchPolicy.levels = 1;
     vi.restoreAllMocks();
     vi.useRealTimers();
   });
   it.each([2, -1])(
-    "keeps complete colour coverage on pan with sibling state=%s",
+    "keeps published fine geometry alone on pan with sibling state=%s",
     (loadingState) => {
       const mounted = mount();
       try {
@@ -86,9 +77,8 @@ describe("publication runtime integration", () => {
         mounted.camera.updateMatrixWorld(true);
         mounted.runtime.scene.update(mounted.frame);
         expect(state.displayedMeshFrontier).toEqual(
-          new Set([parent, ...children.slice(0, 3)])
+          new Set(children.slice(0, 3))
         );
-        expect(state.meshUnderlayFrontier).toEqual(new Set([parent]));
         const colourCut = () =>
           new Set(
             [...mounted.renderer.visibleTiles].filter((tile) => {
@@ -105,19 +95,13 @@ describe("publication runtime integration", () => {
               );
             })
           );
-        expect(colourCut()).toEqual(new Set([parent, ...children.slice(0, 3)]));
-        const parentMesh = parent.engineData!.scene!.children[0] as THREE.Mesh<
-          THREE.BufferGeometry,
-          THREE.MeshBasicMaterial
-        >;
-        expect(parentMesh.material.depthWrite).toBe(false);
-        expect(parentMesh.renderOrder).toBeLessThan(0);
+        expect(colourCut()).toEqual(new Set(children.slice(0, 3)));
         const partial = state.displayedMeshFrontier;
         // Force another publication pass with the same exact selection.
         state.meshContentRevision++;
         mounted.runtime.scene.update(mounted.frame);
         expect(state.displayedMeshFrontier).toBe(partial);
-        expect(colourCut()).toEqual(new Set([parent, ...children.slice(0, 3)]));
+        expect(colourCut()).toEqual(new Set(children.slice(0, 3)));
         // The complete replacement can publish after the last payload arrives.
         children[3].internal.loadingState = 4;
         state.meshContentRevision++;
@@ -125,7 +109,6 @@ describe("publication runtime integration", () => {
         expect(state.displayedMeshFrontier).toEqual(new Set(children));
         expect(state.displayedMeshFrontier).not.toBe(partial);
         expect(colourCut()).toEqual(new Set(children));
-        expect(state.meshUnderlayFrontier.size).toBe(0);
       } finally {
         mounted.runtime.scene.dispose();
       }

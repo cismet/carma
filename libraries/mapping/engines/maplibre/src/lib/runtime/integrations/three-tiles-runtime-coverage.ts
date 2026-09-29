@@ -120,7 +120,7 @@ export type ThreeTilesClosureCoverage = Pick<
 
 export type ThreeTilesRuntimeCoverageStatus = Readonly<{
   enabled: boolean;
-  presentationMode: "progressive-mesh" | "exclusive-shadow";
+  presentationMode: "exclusive-mesh" | "exclusive-shadow";
   sourcePendingMetadata: boolean;
   floorArmed: boolean;
   floorReady: boolean;
@@ -144,7 +144,6 @@ export type ThreeTilesRuntimeCoverageStatus = Readonly<{
   failedFallbackRoots: number;
   unknownFallbackRoots: number;
   displayed: number;
-  underlay: number;
   pending: number;
   queued: number;
   downloading: number;
@@ -175,7 +174,6 @@ export type ThreeTilesRuntimeCoverageInput = Readonly<{
   isDemanded?: (tile: Tile) => boolean;
   closureCoverage?: Omit<ThreeTilesClosureCoverage, "ratio">;
   displayed: ReadonlySet<Tile>;
-  underlay: ReadonlySet<Tile>;
   pending: number;
   queued: number;
   downloading: number;
@@ -303,7 +301,7 @@ const classifyFallback = (
 
 const emptyStatus: ThreeTilesRuntimeCoverageStatus = {
   enabled: false,
-  presentationMode: "progressive-mesh",
+  presentationMode: "exclusive-mesh",
   sourcePendingMetadata: false,
   floorArmed: false,
   floorReady: false,
@@ -344,7 +342,6 @@ const emptyStatus: ThreeTilesRuntimeCoverageStatus = {
   failedFallbackRoots: 0,
   unknownFallbackRoots: 0,
   displayed: 0,
-  underlay: 0,
   pending: 0,
   queued: 0,
   downloading: 0,
@@ -458,7 +455,7 @@ export const createThreeTilesRuntimeCoverageDiagnostics = () => {
       enabled: input.enabled,
       presentationMode: input.closureCoverage
         ? "exclusive-shadow"
-        : "progressive-mesh",
+        : "exclusive-mesh",
       sourcePendingMetadata: input.sourcePendingMetadata,
       floorArmed: input.floorArmed,
       floorReady,
@@ -476,7 +473,6 @@ export const createThreeTilesRuntimeCoverageDiagnostics = () => {
       failedFallbackRoots,
       unknownFallbackRoots,
       displayed: input.displayed.size,
-      underlay: input.underlay.size,
       pending: input.pending,
       queued: input.queued,
       downloading: input.downloading,

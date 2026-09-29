@@ -20,6 +20,7 @@ import { readOrientedTileBounds } from "./three-tiles-bounds";
 import { meshTileAncestors } from "../../core/mesh-tile-coverage";
 import { TILES_LOAD_POLICY } from "../../core/tile-load-config";
 import {
+  isTileCoveragePrerequisite,
   resolveTileRequestNeed,
   TILE_REQUEST_NEED,
 } from "../../core/tile-request-need";
@@ -203,6 +204,13 @@ export function createThreeTilesCascade(
             Number.isFinite(dependencies.getTileRequestPriority(tile)) &&
             resolveTileRequestAdmission({
               needed: isTileRequestNeeded(tile),
+              coveragePrerequisite: isTileCoveragePrerequisite(
+                getTileRequestNeed(tile),
+                Boolean(
+                  runtimeState.shadowView &&
+                    runtimeState.pendingMeshReceiverFrontier?.size
+                )
+              ),
               coverageRecovery: runtimeState.meshCoverageRecovery,
               coverageFill:
                 runtimeState.meshCoverageRecovery &&
@@ -251,6 +259,9 @@ export function createThreeTilesCascade(
       const queue =
         needed &&
         !runtimeState.retainedShadowRequests.has(tile) &&
+        // Current caster prerequisites must finish before their receiver can
+        // publish. Ranking changes between families cannot restart that work.
+        reason !== TILE_REQUEST_NEED.SHADOW &&
         downloading &&
         !metadata
           ? (
@@ -290,11 +301,9 @@ export function createThreeTilesCascade(
           waiting?.meshRefinement?.currentErrorPixels,
         errorBand: tile.meshRefinement?.errorBand,
         highestWaitingErrorBand: waiting?.meshRefinement?.errorBand,
-        // Decision: ../../../../TILES_COVERAGE.md#progressive-receiver-overlays
-        // Only shadow replacement needs the whole family; plain children
-        // improve independently even when they share a displayed ancestor.
+        // A replacement family needs every demanded sibling. Do not preempt
+        // its own pending members while waiting to publish the complete cut.
         sameRefinementGroup:
-          !!runtimeState.shadowView &&
           tile.meshRefinement !== undefined &&
           tile.meshRefinement.group === waiting?.meshRefinement?.group,
       });

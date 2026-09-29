@@ -130,7 +130,6 @@ export function buildThreeTilesRuntime(
         );
       },
       displayed: state.displayedMeshFrontier,
-      underlay: state.meshUnderlayFrontier,
       pending: state.extentFloorPending,
       queued: stats?.queued ?? 0,
       downloading: stats?.downloading ?? 0,

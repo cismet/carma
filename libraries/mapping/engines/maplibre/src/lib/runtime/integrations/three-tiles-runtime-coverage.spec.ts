@@ -99,7 +99,6 @@ const input = (
   visibleBaseReady: true,
   floorRoots,
   displayed: new Set(),
-  underlay: new Set(),
   pending: 0,
   queued: 0,
   downloading: 0,
@@ -418,11 +417,11 @@ describe("three tiles runtime coverage diagnostics", () => {
     });
   });
 
-  it("uses base geometry for progressive mode but waits for an initialized shadow certificate", () => {
+  it("uses base geometry for exclusive mesh mode but waits for an initialized shadow certificate", () => {
     const roots = [tile(LOADED_LOADING_STATE, { renderable: true })];
     const diagnostics = createThreeTilesRuntimeCoverageDiagnostics();
     expect(diagnostics.update(input(roots))).toMatchObject({
-      presentationMode: "progressive-mesh",
+      presentationMode: "exclusive-mesh",
       baseCoverage: { ready: true, ratio: 1 },
       waitingForBase: false,
     });

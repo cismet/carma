@@ -1305,3 +1305,20 @@ has been removed at the user's explicit request.
   for newly exposed surfaces. Neither is implemented by this default change.
   The temporary all-ready timing trace used during the preceding profiling was
   removed before commit; the existing local stall watchdog is unchanged.
+
+
+## Mesh overview contact tolerance (2026-09-28)
+
+A fixed one-centimetre receiver bias is smaller than the depth raster footprint
+at city scale. The reported overview (zoom 14, pitch 50 degrees) retained dark
+facets after a complete depth-cache rebuild and after excluding extra offscreen
+casters. A controlled receiver-only comparison identified self-intersection;
+25 cm removed the broad facets without changing the mesh selection.
+
+Mesh contact tolerance now also accounts for one tenth of the closest displayed
+receiver's CSS pixel, derived from geometric error divided by current observer
+SSE. It remains capped at 25 cm and keeps the existing one-centimetre minimum
+and progressive-stage allowance. Only receivers intersecting a tiled page can
+influence that page's tolerance; offscreen casters cannot loosen it. The normal
+and depth offsets still use the controller's smaller computed raster offsets.
+Raster DEM behavior and mesh error targets are unchanged.

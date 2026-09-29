@@ -8,14 +8,17 @@ export const TILES_LOAD_POLICY = {
   memoryCheckIntervalMs: 1_000,
   heapPauseFraction: 0.8,
   heapResumeFraction: 0.65,
-  /** Fov multiplier for non-terrain prefetch; mesh reserve uses tile widths. */
+  /** Fov multiplier for non-terrain prefetch. Mesh reserve uses full rings. */
   prefetchMarginFovFactor: 1.25,
-  /** One tile-width of reserve at each candidate's own LOD. */
-  idleRingTileWidths: 1,
+  /** Nested camera footprints; the region beyond the final ring uses the floor.
+   * Ring k permits anchor error × 2^k, producing progressively coarser coverage
+   * around the view without independently narrowing each child's footprint.
+   */
+  idleRingTanMultipliers: [2.25, 4.3, 8.2, 17, 43],
   /** Bounded idle passes refining the reserve's error anchor. */
   idleRingRefinePassLimit: 5,
   /**
-   * The one-tile reserve stops one level coarser than its error anchor. The
+   * Each full ring stops one level coarser than the previous ring. The
    * anchor is the base error target (the level the view itself falls back
    * to while it moves) unless idleRingAnchorPixels sets another.
    */

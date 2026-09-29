@@ -27,49 +27,7 @@ describe("mesh refinement admission", () => {
     expect(isPublishedMeshRefinementLevel(child, displayed)).toBe(false);
   });
 
-  it("bounds request discovery to two payload levels across pending parents and JSON routes", () => {
-    const parent = mesh(null, 40);
-    const child = mesh(parent, 20);
-    child.internal.loadingState = 2;
-    const route = mesh(child);
-    route.internal.hasRenderableContent = false;
-    const grandchild = mesh(route, 10);
-    const deeper = mesh(grandchild, 5);
-    const displayed = new Set([parent]);
-    expect(isPublishedMeshRefinementLevel(child, displayed)).toBe(true);
-    expect(isPublishedMeshRefinementLevel(child, displayed, 2)).toBe(false);
-    expect(isPublishedMeshRefinementLevel(grandchild, displayed, 2)).toBe(true);
-    expect(isPublishedMeshRefinementLevel(deeper, displayed, 2)).toBe(false);
-    child.refine = "ADD";
-    expect(isPublishedMeshRefinementLevel(grandchild, displayed, 2)).toBe(
-      false
-    );
-    child.refine = "REPLACE";
-    parent.internal.loadingState = 0;
-    expect(isPublishedMeshRefinementLevel(grandchild, displayed, 2)).toBe(
-      false
-    );
-  });
-
-  it("includes both prefetch levels but excludes immediate support and deeper descendants", () => {
-    const root = mesh(null, 64);
-    const immediate = mesh(root, 32);
-    const first = mesh(immediate, 16);
-    const route = mesh(first);
-    route.internal.hasRenderableContent = false;
-    const second = mesh(route, 8);
-    const third = mesh(second, 4);
-    immediate.internal.loadingState = first.internal.loadingState = 2;
-    const published = new Set([root]);
-    for (const count of [0, 1, 2]) {
-      const selected = [immediate, first, second, third].filter((tile) =>
-        isPublishedMeshRefinementLevel(tile, published, 2, 1 + count)
-      );
-      expect(selected).toEqual([first, second].slice(0, count));
-    }
-  });
-
-  it("advances each loaded branch while an unrelated sibling remains pending", () => {
+  it("evaluates local ancestor readiness independently of the traversal family barrier", () => {
     const root = mesh(null, 64);
     const ready = mesh(root, 8);
     const slow = mesh(root, 8);

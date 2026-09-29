@@ -58,7 +58,6 @@ const fixture = () => {
     },
     tileCameraDemand: { evaluate },
     displayedMeshFrontier: new Set([root, child]),
-    meshUnderlayFrontier: new Set(),
     deferred: new Set(),
     extentGeometricError: 100,
     effectiveErrorTarget: 4,

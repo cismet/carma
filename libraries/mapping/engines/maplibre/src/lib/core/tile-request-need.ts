@@ -159,3 +159,17 @@ export const resolveTileRequestNeed = (
     return TILE_REQUEST_NEED.IDLE;
   return retained;
 };
+
+/** Recovery must admit the geometry that a held shadow receiver depends on.
+ * A visible family can also cast into another receiver; its ordinary camera
+ * refinement therefore cannot be parked behind completion of that receiver.
+ * Reserve/history requests remain background work; ranking still favours gaps.
+ */
+export const isTileCoveragePrerequisite = (
+  reason: ReturnType<typeof resolveTileRequestNeed>,
+  awaitingShadowReceivers: boolean
+): boolean =>
+  reason === TILE_REQUEST_NEED.SHADOW ||
+  (awaitingShadowReceivers &&
+    (reason === TILE_REQUEST_NEED.CAMERA ||
+      reason === TILE_REQUEST_NEED.SUPPORT));

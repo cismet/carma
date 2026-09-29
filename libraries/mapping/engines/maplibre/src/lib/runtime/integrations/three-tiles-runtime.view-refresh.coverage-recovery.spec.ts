@@ -14,14 +14,6 @@ import {
   mockTileViews,
   finishMove,
 } from "./three-tiles-runtime.view-refresh.test-support";
-const prefetchPolicy = vi.hoisted(() => ({ levels: 1 }));
-
-vi.mock("./three-tiles-runtime-config", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("./three-tiles-runtime-config")>()),
-  get MESH_REFINEMENT_PREFETCH_LEVELS() {
-    return prefetchPolicy.levels;
-  },
-}));
 
 vi.hoisted(() => {
   Object.defineProperty(URL, "createObjectURL", {
@@ -38,7 +30,6 @@ type TestRenderer = TilesRenderer & {
 
 describe("coverage recovery runtime integration", () => {
   afterEach(() => {
-    prefetchPolicy.levels = 1;
     vi.restoreAllMocks();
     vi.useRealTimers();
   });

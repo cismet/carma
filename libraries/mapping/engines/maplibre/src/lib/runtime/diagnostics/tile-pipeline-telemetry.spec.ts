@@ -225,7 +225,6 @@ describe("visible main-camera geometric SSE", () => {
     ["complete", 10],
     ["outside", Number.NaN],
     ["partial", 30],
-    ["underlay", 30],
     ["unmounted", 30],
     ["unknown metadata", 30],
     ["unknown bounds", 30],
@@ -291,15 +290,12 @@ describe("visible main-camera geometric SSE", () => {
           },
         ])
       );
-      const missingChild = mode === "partial" || mode === "underlay";
+      const missingChild = mode === "partial";
       f.state.displayedMeshFrontier = new Set([
-        ...(mode === "underlay" ? [] : [parent]),
+        parent,
         children[0],
         ...(missingChild ? [] : [children[1]]),
       ]);
-      f.state.meshUnderlayFrontier = new Set(
-        mode === "underlay" ? [parent] : []
-      );
       const telemetry = createTilePipelineTelemetry(() => f.state);
       expect(telemetry.sample().visibleErrorMaxPx).toBe(max);
       telemetry.dispose();

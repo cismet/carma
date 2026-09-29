@@ -1,10 +1,7 @@
 import * as THREE from "three";
 
-import {
-  intersectsTileFrustumMargin,
-  readOrientedTileBounds,
-} from "./three-tiles-bounds";
 import { TILES_LOAD_POLICY } from "../../core/tile-load-config";
+import { isMeshTileUnconditionallyRefined } from "../../core/mesh-tile-coverage";
 import type {
   ThreeTilesRuntimeServices,
   ThreeTilesRuntimeState,
@@ -23,6 +20,7 @@ export function createThreeTilesViewFrustums(
     | "marginProjection"
     | "offsetGroup"
     | "options"
+    | "ringFrustums"
     | "tileViewFrustum"
     | "tileViewProjection"
     | "tiles"
@@ -98,6 +96,21 @@ export function createThreeTilesViewFrustums(
       } else {
         runtimeState.marginFrustum.copy(runtimeState.tileViewFrustum);
       }
+      // Expand the actual projection, preserving its principal point, depth
+      // mapping and camera model. The rings also work for orthographic views.
+      TILES_LOAD_POLICY.idleRingTanMultipliers.forEach((multiplier, index) => {
+        runtimeState.marginProjection.copy(viewCamera.projectionMatrix);
+        runtimeState.marginProjection.elements[0] /= multiplier;
+        runtimeState.marginProjection.elements[5] /= multiplier;
+        runtimeState.marginProjection
+          .multiply(viewCamera.matrixWorldInverse)
+          .multiply(runtimeState.tiles!.group.matrixWorld);
+        runtimeState.ringFrustums[index].setFromProjectionMatrix(
+          runtimeState.marginProjection,
+          viewCamera.coordinateSystem,
+          viewCamera.reversedDepth
+        );
+      });
       runtimeState.viewFrustumsReady = true;
     };
 
@@ -110,27 +123,29 @@ export function createThreeTilesViewFrustums(
       return bounds.intersectsFrustum(runtimeState.marginFrustum);
     };
 
-  const reserveBounds = new THREE.Box3();
-  const reserveTransform = new THREE.Matrix4();
-
   const getTileRingIndex: ThreeTilesRuntimeServices["getTileRingIndex"] = (
     tile: RuntimeTile
   ): number => {
-    const bounds = tile.engineData?.boundingVolume;
-    if (!bounds || !runtimeState.viewFrustumsReady) return 0;
-    if (!bounds.getAABB) return 0;
-    readOrientedTileBounds(bounds, reserveBounds, reserveTransform);
-    // Decision: TILES_COVERAGE.md#one-tile-mixed-lod-reserve
-    // Each child is tested at its own scale. A near child may refine above
-    // its parent while farther siblings stay at that parent's base coverage.
-    return intersectsTileFrustumMargin(
-      reserveBounds,
-      reserveTransform,
-      runtimeState.tileViewFrustum,
-      TILES_LOAD_POLICY.idleRingTileWidths
-    )
-      ? 1
-      : 2;
+    let bounds = tile.engineData?.boundingVolume;
+    if (!runtimeState.viewFrustumsReady) return 0;
+    // Background siblings share their nearest drawable REPLACE family's ring.
+    // Routing nodes do not introduce another LOD; ADD content remains distinct.
+    for (let parent = tile.parent; parent; parent = parent.parent) {
+      if (
+        !parent.internal?.hasRenderableContent ||
+        isMeshTileUnconditionallyRefined(parent)
+      )
+        continue;
+      if (parent.refine === "REPLACE")
+        bounds = (parent as RuntimeTile).engineData?.boundingVolume ?? bounds;
+      break;
+    }
+    if (!bounds) return 0;
+    for (let index = 0; index < runtimeState.ringFrustums.length; index++)
+      if (bounds.intersectsFrustum(runtimeState.ringFrustums[index]))
+        return index + 1;
+    // Beyond the last ring, whole-extent floor coverage remains the reserve.
+    return runtimeState.ringFrustums.length + 1;
   };
 
   return {

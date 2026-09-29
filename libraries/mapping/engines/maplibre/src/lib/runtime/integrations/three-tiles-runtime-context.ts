@@ -168,6 +168,10 @@ export interface ThreeTilesRuntimeState {
   shadowSelectionNeedsTraversal: boolean;
   shadowSelectionRefreshPending: boolean;
   shadowReceiverMask: ShadowReceiverMask | null;
+  /** Future receiver demand; never used to render the committed shadow cut. */
+  pendingMeshReceiverMask: ShadowReceiverMask | null;
+  /** Ready caster geometry owned by receivers awaiting joint publication. */
+  pendingMeshCasterFrontier: Set<Tile>;
   shadowReceiverMaskConverged: boolean;
   shadowReceiverSourceSignature: string;
   pendingMeshReceiverFrontier: Set<Tile> | null;
@@ -175,7 +179,6 @@ export interface ThreeTilesRuntimeState {
   committedMeshCasterFrontier: Set<Tile>;
   displayedMeshFrontier: Set<Tile>;
   /** Loaded parents drawn under the displayed cut where in-view children are missing. */
-  meshUnderlayFrontier: Set<Tile>;
   meshContentRevision: number;
   mainViewSourceTiles: Set<Tile>;
   viewQualityAuditPasses: number;
@@ -196,6 +199,7 @@ export interface ThreeTilesRuntimeState {
   marginCamera: THREE.PerspectiveCamera;
   marginProjection: THREE.Matrix4;
   marginFrustum: TilesViewFrustum;
+  ringFrustums: TilesViewFrustum[];
   /** Levels by which the ring cascade has been refined below its coarse start. */
   ringRefinePasses: number;
   /** Geometric error of the level the whole extent stays resident at (Infinity: none). */
@@ -206,13 +210,13 @@ export interface ThreeTilesRuntimeState {
   extentFloorAuditPending: boolean;
   /** Floor tiles the last traversal found not loaded; refinement waits for zero. */
   extentFloorPending: number;
-  /** Floor tiles in the main view during the last traversal: always underlay candidates. */
+  /** Floor tiles intersecting the main view during the last traversal. */
   extentFloorInView: Set<Tile>;
   /**
    * Ancestors of the displayed cut down to the floor: loaded at rest and kept
    * used while their descendants are displayed, so a zoom-out step always
    * finds the immediate parent resident and the error regresses one level
-   * at a time instead of falling to the floor underlay.
+   * at a time while preserving a complete exclusive cut.
    */
   residentAncestors: Set<Tile>;
   lastRingRefineAt: number;

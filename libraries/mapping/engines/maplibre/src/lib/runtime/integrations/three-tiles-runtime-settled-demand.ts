@@ -1,11 +1,7 @@
 import { readOrientedTileBounds } from "./three-tiles-bounds";
 import { TILE_SHADOW_CAMERA_ID } from "../../core/tile-camera-demand";
 import { isExtentFloorTile } from "../../core/mesh-error-policy";
-import {
-  hasLoadedExtentFloorAncestor,
-  isMeshCoveredByLoadedChildren,
-} from "../../core/mesh-tile-coverage";
-import { shouldDeferMeshRefinement } from "../../core/mesh-tile-refinement";
+import { isMeshCoveredByLoadedChildren } from "../../core/mesh-tile-coverage";
 import {
   MESH_EVICTION_BATCH_SIZE,
   MESH_SETTLED_AUDIT_INTERVAL_MS,
@@ -32,10 +28,20 @@ export function createThreeTilesSettledDemand(
     | "requestShadowSelectionRefresh"
   >
 ) {
+  // The next compatible cut is live demand even before it can be displayed.
+  // Geometric tests against only the committed mask would repeatedly abort
+  // its fringe casters and evict their decoded siblings before handover.
+  const isPendingShadowDemand = (tile: RuntimeTile): boolean =>
+    !!runtimeState.shadowView &&
+    (runtimeState.shadowCasterRequests.has(tile) ||
+      runtimeState.pendingMeshCasterFrontier.has(tile) ||
+      runtimeState.pendingMeshReceiverFrontier?.has(tile) === true);
+
   const isRequiredMeshTile: ThreeTilesRuntimeServices["isRequiredMeshTile"] = (
     tile: RuntimeTile
   ): boolean => {
     if (
+      isPendingShadowDemand(tile) ||
       !runtimeState.viewFrustumsReady ||
       dependencies.isTileInMainView(tile) ||
       dependencies.getTileCameraDemand(tile).required
@@ -106,7 +112,7 @@ export function createThreeTilesSettledDemand(
       runtimeState.meshDemandSweepPending = false;
       let removed = 0;
       for (const tile of [...cache.itemList]) {
-        const pending = runtimeState.tiles.loadingTiles.has(tile);
+        if (isPendingShadowDemand(tile as RuntimeTile)) continue;
         const underPressure =
           runtimeState.memoryAdmissionPaused || cache.isFull();
         if (!underPressure && runtimeState.retainedShadowRequests.has(tile))
@@ -139,44 +145,22 @@ export function createThreeTilesSettledDemand(
           !runtimeState.tiles.activeTiles.has(tile) &&
           !isExtentFloorTile(tile, runtimeState.extentGeometricError) &&
           isMeshCoveredByLoadedChildren(tile, runtimeState.tiles.visibleTiles);
-        // Skip strategy at the ceiling: a loaded refinement below the current
-        // cut whose floor tile is resident can go, the floor keeps the ground
-        // covered while the coarser level of the new view is admitted. Without
-        // it a cache full of retained fine tiles admits nothing, and the
-        // coarser replacement they wait for never arrives.
-        // A loaded parent (the resident band or the floor) makes any tile
-        // droppable: the parent shows in its place. While floor tiles are
-        // still pending at the ceiling, even a displayed tile goes, finest
-        // first, so the floor is admitted before the view refines.
-        const parentLoaded =
-          tile.parent?.internal?.hasRenderableContent === true &&
-          tile.parent.internal.loadingState === LOADED_LOADING_STATE;
-        const droppableRefinement =
-          underPressure &&
-          !pending &&
-          runtimeState.tiles.loadAncestors === false &&
-          tile.internal?.hasRenderableContent === true &&
-          tile.internal.loadingState === LOADED_LOADING_STATE &&
-          !isExtentFloorTile(tile, runtimeState.extentGeometricError) &&
-          (parentLoaded ||
-            hasLoadedExtentFloorAncestor(
-              tile,
-              runtimeState.extentGeometricError
-            )) &&
-          (runtimeState.extentFloorPending > 0 ||
-            shouldDeferMeshRefinement(
-              tile,
-              runtimeState.effectiveErrorTarget,
-              (parent) => dependencies.getTileScreenError(parent as RuntimeTile)
-            ));
+        // Live publication owns its lifetime. Memory pressure may reclaim
+        // hidden ancestors or stale work, never force a lower-quality handoff.
+        if (
+          tile.internal?.loadingState === LOADED_LOADING_STATE &&
+          (runtimeState.committedMeshCasterFrontier.has(tile) ||
+            ((runtimeState.displayedMeshFrontier.has(tile) ||
+              runtimeState.tiles.visibleTiles.has(tile)) &&
+              (dependencies.isTileInMainView(tile as RuntimeTile) ||
+                dependencies.getTileCameraDemand(tile as RuntimeTile)
+                  .required)))
+        )
+          continue;
         // Paused parsing must not retain finer pending blobs behind the stage
         // that is waiting to publish. Release only unnecessary uncommitted work;
         // the complete visible receiver/caster cut remains pinned throughout.
-        if (
-          !replacedParent &&
-          !droppableRefinement &&
-          isRequiredMeshTile(tile as RuntimeTile)
-        )
+        if (!replacedParent && isRequiredMeshTile(tile as RuntimeTile))
           continue;
         if (removed >= MESH_EVICTION_BATCH_SIZE) {
           runtimeState.meshDemandSweepPending = true;

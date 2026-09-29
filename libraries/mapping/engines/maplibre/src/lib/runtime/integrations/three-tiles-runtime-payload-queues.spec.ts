@@ -17,7 +17,7 @@ vi.hoisted(() =>
 
 describe("current demand owns queue refinement", () => {
   it.each([false, true])(
-    "protects pre-parse siblings only for an atomic shadow family (shadows=%s)",
+    "finishes needed buffers across a priority change without downloading again (shadows=%s)",
     async (shadows) => {
       vi.useFakeTimers();
       const state = createThreeTilesRuntimeState("mesh", "mesh.json", [7, 51], {
@@ -61,16 +61,14 @@ describe("current demand owns queue refinement", () => {
         queues.install();
         state.tiles.parseQueue.maxJobs = 1;
         const activeResult = state.tiles.parseQueue.add(active, activeJob);
-        const outcome = shadows
-          ? expect(activeResult).resolves.toBe("active")
-          : expect(activeResult).rejects.toMatchObject({ name: "AbortError" });
+        const outcome = expect(activeResult).resolves.toBe("active");
         state.tiles.parseQueue.tryRunJobs();
         const waitingResult = state.tiles.parseQueue.add(waiting, waitingJob);
         await vi.advanceTimersByTimeAsync(50);
         await outcome;
         await expect(waitingResult).resolves.toBe("waiting");
-        expect(activeJob).toHaveBeenCalledTimes(shadows ? 1 : 0);
-        expect(disposed).toHaveBeenCalledTimes(shadows ? 0 : 1);
+        expect(activeJob).toHaveBeenCalledOnce();
+        expect(disposed).not.toHaveBeenCalled();
         expect(waitingJob).toHaveBeenCalledOnce();
       } finally {
         queues.dispose();

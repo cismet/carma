@@ -27,7 +27,7 @@ export const TileReserveCoverageStats = ({
       Mode:{" "}
       {presentationMode === "exclusive-shadow"
         ? "Exclusive shadow"
-        : "Progressive mesh"}
+        : "Exclusive mesh"}
     </div>
     <div data-test-id="mesh-base-resolution-coverage">
       Whole-base geometry: {base.covered}/{base.known} known regions covered ·{" "}
