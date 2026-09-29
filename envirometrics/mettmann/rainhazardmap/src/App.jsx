@@ -26,6 +26,11 @@ import {
 import ContactButton from "./components/ContactButton";
 import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
+import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
+import localforage from "localforage";
+
+// react-cismap persists the menu state under this key (appKey from main.tsx)
+const APP_MENU_VISIBLE_KEY = "@cismetRainhazardMap.Mettmann.ui.appMenuVisible";
 
 function App() {
   const version = getApplicationVersion(versionData);
@@ -41,6 +46,16 @@ function App() {
   );
 
   const ifDesktop = responsiveState === "normal";
+
+  // open the help menu on the very first visit; closing it persists false
+  const { setAppMenuVisible } = useContext(UIDispatchContext);
+  useEffect(() => {
+    localforage.getItem(APP_MENU_VISIBLE_KEY).then((visible) => {
+      if (visible === null) {
+        setAppMenuVisible(true);
+      }
+    });
+  }, []);
 
   const getGazData = async (setGazData, adressUrl, kommunenUrl) => {
     const prefix = "GazDataForStarkregengefahrenkarteByCismet";
