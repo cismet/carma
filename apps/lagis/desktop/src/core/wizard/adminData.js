@@ -82,6 +82,31 @@ export const showsAdminSteps = (value) => {
 
 export const isStaedtischKey = (key) => isStaedtisch(key?.art);
 
+// the parcels a split or join consumes; their data prefills the new parcels
+export const inheritedSourceKeys = (value) => {
+  switch (value.action) {
+    case WIZARD_ACTIONS.SPLIT:
+      return value.splitKey ? [value.splitKey] : [];
+    case WIZARD_ACTIONS.JOIN:
+    case WIZARD_ACTIONS.SPLIT_JOIN:
+      return (value.joinKeys ?? []).filter((key) => key?.id);
+    default:
+      return [];
+  }
+};
+
+export const uniqueBy = (items, keyOf) => {
+  const seen = new Set();
+  return items.filter((item) => {
+    const k = keyOf(item);
+    if (seen.has(k)) {
+      return false;
+    }
+    seen.add(k);
+    return true;
+  });
+};
+
 const knownOutlines = (value) =>
   value.createKey && value.createOutline
     ? { [formatKey(value.createKey)]: value.createOutline }
@@ -112,6 +137,30 @@ const toParcelData = (source, area) => ({
   })),
   bemerkung: source.bemerkung,
 });
+
+// old areas and lengths do not fit the new parcel, so they are left for the user
+const mergeSources = (sources) => {
+  const bemerkungen = sources
+    .map((source) => source.bemerkung?.trim())
+    .filter(Boolean);
+  return {
+    bemerkung: bemerkungen.length === 1 ? bemerkungen[0] : "",
+    bereiche: uniqueBy(
+      sources.flatMap((source) => source.bereiche),
+      (b) => b.verwaltende_dienststelle?.id
+    ).map((b) => ({ ...b, flaeche: null })),
+    rollen: uniqueBy(
+      sources.flatMap((source) => source.rollen),
+      (r) => `${r.verwaltende_dienststelle?.id}/${r.zusatz_rolle_art?.id}`
+    ),
+    strassenfronten: uniqueBy(
+      sources
+        .flatMap((source) => source.strassenfronten)
+        .filter((s) => s.strassenname?.trim()),
+      (s) => s.strassenname.trim()
+    ).map((s) => ({ strassenname: s.strassenname.trim(), laenge: null })),
+  };
+};
 
 const EMPTY_SOURCE = {
   bemerkung: "",
@@ -152,12 +201,17 @@ export const loadAdminData = async (value, jwt) => {
     outlines[formatKey(key)] = geometryForKey(key, geometries);
   }
 
+  const sourceKeys = inheritedSourceKeys(value);
+  const inherited = sourceKeys.length
+    ? mergeSources(
+        await Promise.all(sourceKeys.map((key) => fetchAdminData(key.id, jwt)))
+      )
+    : EMPTY_SOURCE;
+
   const parcels = {};
   for (const { key, source } of missing) {
     const label = formatKey(key);
-    const data = source?.id
-      ? await fetchAdminData(source.id, jwt)
-      : EMPTY_SOURCE;
+    const data = source?.id ? await fetchAdminData(source.id, jwt) : inherited;
     parcels[label] = {
       ...toParcelData(data, round2(outlines[label]?.area)),
       // EPSG:25832, undefined when ALKIS has no geometry

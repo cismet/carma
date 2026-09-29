@@ -12,6 +12,7 @@ import { explain } from "../../../core/wizard/errors";
 import { formatKey } from "../../../core/wizard/keys";
 import {
   gesamtpreis,
+  loadInheritedUsage,
   loadUsageStammdaten,
   newUsageRow,
 } from "../../../core/wizard/usageData";
@@ -143,9 +144,12 @@ const UsageStep = ({ value, onChange, onProblem }) => {
   useEffect(() => {
     let cancelled = false;
     onProblem(LOADING);
-    loadUsageStammdaten(jwt)
-      .then((loaded) => {
+    Promise.all([loadUsageStammdaten(jwt), loadInheritedUsage(value, jwt)])
+      .then(([loaded, inherited]) => {
         if (!cancelled) {
+          if (Object.keys(inherited).length) {
+            onChange({ usage: { ...value.usage, ...inherited } });
+          }
           setStammdaten(loaded);
           onProblem(null);
         }
