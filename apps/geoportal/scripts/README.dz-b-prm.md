@@ -9,10 +9,11 @@ depth/color without excluding it from the light pass. Surroundings and trees
 still cast and receive. Without the override, the STL bridge does both. Bestand
 omits both proposed casters, retaining the override preference for later use.
 
-The two optional workflows, "Schatten mit Karte" and "Schatten ohne Karte",
-remain entry presets that enable the addon with the chosen background. The
+On `pm-show` the shadows come only from the "Schatten" styles, which launch
+the addon from their `metadata.carmaConf.tools` with the bridge they stand
+for; the route has no sun button and no workflow cards of its own. The
 separate bridge-comparison workflow was removed: that choice belongs to the
-pane's advanced caster option. Neither preset adds separate geometry rows.
+pane's advanced caster option.
 GLB binaries are served from `https://wupp-3d-data.cismet.de/dz-b-prm/derived`;
 the repository contains manifests/provenance and conversion scripts, not the GLBs.
 
@@ -92,9 +93,9 @@ The build script packages large GLBs as reproducible `*.glb.gz`
 the package. Server-hosted originals are not subject to GitHub's file-size limit.
 Browser loading accepts both servers that pass the gzip
 bytes unchanged and servers that advertise `Content-Encoding: gzip`.
-A deployment defaults to the public 3D-data host; set
-`VITE_DZ_B_PRM_GLB_BASE_URL` only to override its root with the same quality
-subdirectories. Do not use an STL URL in that setting. The receiver remains
+The launching style names that host as its `assetBaseUrl`; another root
+must keep the same quality subdirectories. Do not use an STL URL there. The
+receiver remains
 the model's own non-flat surface; MapLibre
 terrain is not required for this mode.
 

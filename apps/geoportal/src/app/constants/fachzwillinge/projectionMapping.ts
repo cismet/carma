@@ -32,9 +32,6 @@ const LOCAL_STYLES = new URL(
  * 16 would keep the animation still on the whole model.
  */
 const MODEL_FLOW_MIN_ZOOM = 14;
-const DZ_B_PRM_ASSET_BASE_URL =
-  import.meta.env.VITE_DZ_B_PRM_GLB_BASE_URL ||
-  "https://wupp-3d-data.cismet.de/dz-b-prm/derived";
 
 /**
  * The remote the published show opens on the phone (`apps/pm-remote`). The
@@ -130,16 +127,9 @@ export const projectionMappingFachzwilling: FachzwillingRoute = {
       },
     ],
   },
+  // no route-wide shadowTexture: the "Schatten" styles launch their own, see
+  // their carmaConf.tools, and only a layer's shadows go into a scene
   addons: [
-    {
-      addon: "shadowTexture",
-      config: {
-        manifestUrl: `${
-          import.meta.env.BASE_URL
-        }assets/dz-b-prm/collection.json`,
-        assetBaseUrl: DZ_B_PRM_ASSET_BASE_URL,
-      },
-    },
     // the engine the Schwebebahn cards launch into; idle until one is clicked
     "vehicleAnimation",
     // the same for the Starkregen cards. Its own storage key, so tuning it for
@@ -296,40 +286,6 @@ export const projectionMappingFachzwilling: FachzwillingRoute = {
    * meant to be shown as one step of the show.
    */
   perspectives: [
-    {
-      id: "schatten",
-      title: "Schatten",
-      workflows: [
-        {
-          id: "ohne-karte",
-          title: "Schatten ohne Karte",
-          description: "Nur die vom BuGa-Modell berechneten Schatten anzeigen.",
-          tools: [
-            {
-              addon: "shadowTexture",
-              config: {
-                assetBaseUrl: DZ_B_PRM_ASSET_BASE_URL,
-                workflowBackgroundVisible: false,
-              },
-            },
-          ],
-        },
-        {
-          id: "mit-karte",
-          title: "Schatten mit Karte",
-          description: "Die Schatten über der gewählten Basiskarte anzeigen.",
-          tools: [
-            {
-              addon: "shadowTexture",
-              config: {
-                assetBaseUrl: DZ_B_PRM_ASSET_BASE_URL,
-                workflowBackgroundVisible: true,
-              },
-            },
-          ],
-        },
-      ],
-    },
     {
       id: "mobilitaet",
       title: "Mobilität",
