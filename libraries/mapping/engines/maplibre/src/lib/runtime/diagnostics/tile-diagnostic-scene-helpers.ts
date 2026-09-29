@@ -4,9 +4,11 @@ import type { Tile } from "3d-tiles-renderer/core";
 import { DebugTilesPlugin } from "3d-tiles-renderer/plugins";
 import {
   FILL,
+  TILE_DIAGNOSTIC_KIND,
   type Kind,
   type OverlayRect,
 } from "../../core/diagnostics/tile-diagnostic-model";
+import type { TileDiagnosticExtentsMode } from "../../core/diagnostics/tile-diagnostic-options";
 import { createTileDiagnosticExtents } from "./tile-diagnostic-extents";
 import { tileWorldBox } from "./tile-diagnostic-state";
 import type { TileDiagnosticOverlayInput } from "./tile-diagnostic-overlay";
@@ -30,7 +32,7 @@ export const HOVER = {
 export type TileDiagnosticSceneOptions = {
   showTileGeometry: boolean;
   wireframeColor?: string;
-  sceneExtents: "none" | "boxes" | "edges";
+  sceneExtents: TileDiagnosticExtentsMode;
   debugColorMode: string;
   debugBoxBounds: boolean;
   debugSphereBounds: boolean;
@@ -128,7 +130,9 @@ export const createTileDiagnosticScene = (
   };
   const syncSceneExtents = (rects: OverlayRect[]) => {
     const mode = readOptions().sceneExtents;
-    const shown = rects.filter((rect) => rect.kind !== "ancestor");
+    const shown = rects.filter(
+      (rect) => rect.kind !== TILE_DIAGNOSTIC_KIND.ANCESTOR
+    );
     sceneExtents.update(
       mode,
       shown.map((rect) => rect.world),

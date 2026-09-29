@@ -11,6 +11,9 @@ import {
   type StripChart,
 } from "@carma-commons/ui/components";
 import {
+  MAPLIBRE_EVENT,
+  TILE_DIAGNOSTIC_CAMERA_FOCUS,
+  TILE_DIAGNOSTIC_OVERVIEW_VIEW,
   acquireSharedThreeScene,
   type ThreeTilesRuntime,
   type TileCameraSnapshot,
@@ -40,6 +43,12 @@ import {
   type ResolvedDebugOptions,
   type TileLoadingDebugProps,
 } from "./tile-loading-debug-options";
+import {
+  TILE_LOADING_DEBUG_OVERVIEW_MODE,
+  TILE_LOADING_DEBUG_PANEL_ID,
+  type TileLoadingDebugOverviewMode,
+  type TileLoadingDebugPanelId,
+} from "./tile-loading-debug-tokens";
 import panelCss from "./TileLoadingDebugPanels.css?inline";
 
 export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
@@ -92,14 +101,14 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
       };
       if (paused) {
         map.stop();
-        map.once("render", freeze);
+        map.once(MAPLIBRE_EVENT.RENDER, freeze);
         map.triggerRepaint();
       } else {
         lease.layer.setRenderingPaused(false);
         setFrozenImage(null);
       }
       return () => {
-        map.off("render", freeze);
+        map.off(MAPLIBRE_EVENT.RENDER, freeze);
         lease.layer.setRenderingPaused(false);
         lease.release();
       };
@@ -164,9 +173,13 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
       Record<string, { left: number; top: number }>
     >(
       (): Record<string, { left: number; top: number }> =>
-        initialOverviewPosition ? { overview: initialOverviewPosition } : {}
+        initialOverviewPosition
+          ? { [TILE_LOADING_DEBUG_PANEL_ID.OVERVIEW]: initialOverviewPosition }
+          : {}
     );
-    const [frontPanel, setFrontPanel] = useState("legend");
+    const [frontPanel, setFrontPanel] = useState<TileLoadingDebugPanelId>(
+      TILE_LOADING_DEBUG_PANEL_ID.LEGEND
+    );
     const [legendExpanded, setLegendExpanded] = useState(false);
     const panelDrag = useRef<{
       id: string;
@@ -303,31 +316,46 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
         subscribeModel={subscribeModel}
         subscribeCamera={subscribeCamera}
         updateOnRender={options.updateOnRender}
-        followCamera={options.overviewView === "frustum"}
-        cameraFocus={options.overviewCameraFocus ?? "all"}
+        followCamera={
+          options.overviewView === TILE_DIAGNOSTIC_OVERVIEW_VIEW.FRUSTUM
+        }
+        cameraFocus={
+          options.overviewCameraFocus ?? TILE_DIAGNOSTIC_CAMERA_FOCUS.ALL
+        }
         followPaddingPercent={options.overviewPaddingPercent ?? 200}
         showFrustum={options.showFrustum}
         orbit={overviewOrbit}
-        freeView={popout && options.overviewView === "free" ? freeView : null}
+        freeView={
+          popout && options.overviewView === TILE_DIAGNOSTIC_OVERVIEW_VIEW.FREE
+            ? freeView
+            : null
+        }
         popout={popout}
         opacity={options.overlayOpacity}
         labels={options.overlayLabels}
         up={options.overviewUp}
         interactive={
           popout &&
-          (options.overviewView === "free" ||
-            options.overviewView === "frustum")
+          (options.overviewView === TILE_DIAGNOSTIC_OVERVIEW_VIEW.FREE ||
+            options.overviewView === TILE_DIAGNOSTIC_OVERVIEW_VIEW.FRUSTUM)
         }
         onViewChange={(view) => {
           setFreeView(view);
-          if (view && options.overviewView === "frustum")
-            onOptionsChange({ overviewView: "free" });
+          if (
+            view &&
+            options.overviewView === TILE_DIAGNOSTIC_OVERVIEW_VIEW.FRUSTUM
+          )
+            onOptionsChange({
+              overviewView: TILE_DIAGNOSTIC_OVERVIEW_VIEW.FREE,
+            });
         }}
         onOrbitChange={setOverviewOrbit}
         onReset={() => {
           setOverviewOrbit({ yaw: 0, pitch: 0 });
           setFreeView(null);
-          onOptionsChange({ overviewView: "frustum" });
+          onOptionsChange({
+            overviewView: TILE_DIAGNOSTIC_OVERVIEW_VIEW.FRUSTUM,
+          });
         }}
         hover={hover}
         onHover={setHover}
@@ -376,25 +404,27 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
     );
 
     const overviewMode = options.showOverviewPanel
-      ? "window"
+      ? TILE_LOADING_DEBUG_OVERVIEW_MODE.WINDOW
       : options.showOverlay
-      ? "overlay"
-      : "off";
-    const setOverviewMode = (mode: "off" | "overlay" | "window") =>
+      ? TILE_LOADING_DEBUG_OVERVIEW_MODE.OVERLAY
+      : TILE_LOADING_DEBUG_OVERVIEW_MODE.OFF;
+    const setOverviewMode = (mode: TileLoadingDebugOverviewMode) =>
       onOptionsChange({
-        showOverlay: mode === "overlay",
-        showOverviewPanel: mode === "window",
-        ...(mode === "overlay" && options.overviewView === "free"
-          ? { overviewView: "extent" as const }
+        showOverlay: mode === TILE_LOADING_DEBUG_OVERVIEW_MODE.OVERLAY,
+        showOverviewPanel: mode === TILE_LOADING_DEBUG_OVERVIEW_MODE.WINDOW,
+        ...(mode === TILE_LOADING_DEBUG_OVERVIEW_MODE.OVERLAY &&
+        options.overviewView === TILE_DIAGNOSTIC_OVERVIEW_VIEW.FREE
+          ? { overviewView: TILE_DIAGNOSTIC_OVERVIEW_VIEW.EXTENT }
           : {}),
         hideAllDebugPanels: false,
         telemetryEnabled: true,
       });
     // Metrics ticks do not rebuild the GPU scene or the legend.
-    const overviewIsExternal = externalPanels.overview === true;
+    const overviewIsExternal =
+      externalPanels[TILE_LOADING_DEBUG_PANEL_ID.OVERVIEW] === true;
     const mapOverlay = useMemo(
       () =>
-        overviewMode === "overlay" &&
+        overviewMode === TILE_LOADING_DEBUG_OVERVIEW_MODE.OVERLAY &&
         !overviewIsExternal &&
         options.telemetryEnabled &&
         !options.hideAllDebugPanels
@@ -404,7 +434,8 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
     );
     const windowOverlay = useMemo(
       () =>
-        (overviewMode === "window" || overviewIsExternal) &&
+        (overviewMode === TILE_LOADING_DEBUG_OVERVIEW_MODE.WINDOW ||
+          overviewIsExternal) &&
         options.telemetryEnabled &&
         !options.hideAllDebugPanels
           ? renderOverlay(true)
@@ -414,7 +445,10 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
     const legend = useMemo(
       () => (
         <TileLoadingDebugLegend
-          popout={overviewMode === "window" || overviewIsExternal}
+          popout={
+            overviewMode === TILE_LOADING_DEBUG_OVERVIEW_MODE.WINDOW ||
+            overviewIsExternal
+          }
           fill={FILL}
           colors={OVERVIEW_COLORS}
           hoverColors={HOVER}
@@ -425,7 +459,11 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
     const renderOverview = (windowed: boolean) => (
       <div
         data-test-id="mesh-coverage-overview-component"
-        data-mode={windowed ? "window" : "overlay"}
+        data-mode={
+          windowed
+            ? TILE_LOADING_DEBUG_OVERVIEW_MODE.WINDOW
+            : TILE_LOADING_DEBUG_OVERVIEW_MODE.OVERLAY
+        }
         style={{ position: "relative", height: "100%" }}
       >
         {windowed && windowOverlay}
@@ -495,7 +533,7 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
           />
         )}
         {toolsVisible &&
-          overviewMode === "overlay" &&
+          overviewMode === TILE_LOADING_DEBUG_OVERVIEW_MODE.OVERLAY &&
           !overviewIsExternal &&
           mapOverlay}
         {panels.map((panel) => (

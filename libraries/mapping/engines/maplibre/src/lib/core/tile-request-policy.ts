@@ -101,7 +101,14 @@ export const deriveTilePriority = (input: TilePriorityInput): number => {
   );
 };
 
-export type TileDeferralDecision = "defer" | "undefer" | "keep";
+export const TILE_DEFERRAL_DECISION = {
+  DEFER: "defer",
+  UNDEFER: "undefer",
+  KEEP: "keep",
+} as const;
+
+export type TileDeferralDecision =
+  (typeof TILE_DEFERRAL_DECISION)[keyof typeof TILE_DEFERRAL_DECISION];
 
 export type TileDeferralInput = Readonly<{
   /** Renderable REPLACE content that is not unconditionally refined. */
@@ -116,16 +123,18 @@ export const shouldDeferTile = (
   input: TileDeferralInput
 ): TileDeferralDecision => {
   if (input.inView || input.inMargin) {
-    return input.isDeferred ? "undefer" : "keep";
+    return input.isDeferred
+      ? TILE_DEFERRAL_DECISION.UNDEFER
+      : TILE_DEFERRAL_DECISION.KEEP;
   }
   if (
     input.displayable &&
     input.loadingState === UNLOADED_LOADING_STATE &&
     !input.isDeferred
   ) {
-    return "defer";
+    return TILE_DEFERRAL_DECISION.DEFER;
   }
-  return "keep";
+  return TILE_DEFERRAL_DECISION.KEEP;
 };
 
 /** Loading state that makes a deferred tile count as finished for its parent. */

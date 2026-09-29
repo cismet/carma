@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from "vitest";
 import * as THREE from "three";
-import { getWgs84PrincipalCurvatureRadii } from "@carma-geo/proj";
+import { EARTH_RADIUS, getWgs84PrincipalCurvatureRadii } from "@carma-geo/proj";
 import { degToRadNumeric } from "@carma-units";
 vi.hoisted(() => {
   URL.createObjectURL = () => "blob:shader-test";
@@ -30,7 +30,7 @@ import {
   type TerrainShaderBinding,
 } from "./reference-terrain-shader";
 
-const frame = createReferenceFrame([7.2, 51.27], 6371000);
+const frame = createReferenceFrame([7.2, 51.27], EARTH_RADIUS);
 const field = {
   center: [7.2, 51.27] as const,
   halfExtentMeters: 60000,
@@ -64,7 +64,7 @@ describe("elevation stripe shader contracts", () => {
   it("separates anchor-relative datum drift from topography and constant datum offset", () => {
     const anchored = createReferenceFrame(
       [7.16346125, 51.24111123],
-      6371000,
+      EARTH_RADIUS,
       207.6
     );
     expect(referenceMountDrop(anchored, ...anchored.originLngLat)).toBeCloseTo(

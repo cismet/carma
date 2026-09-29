@@ -29,6 +29,12 @@ vi.mock("@carma-mapping/engines/maplibre", async () => {
   const { meshShadowStageError } = await vi.importActual<
     typeof import("../../../../engines/maplibre/src/lib/core/mesh-error-policy")
   >("../../../../engines/maplibre/src/lib/core/mesh-error-policy");
+  const { TILE_VOLUME_LOAD_REASON } = await vi.importActual<
+    typeof import("../../../../engines/maplibre/src/lib/core/tile-volume")
+  >("../../../../engines/maplibre/src/lib/core/tile-volume");
+  const { MAP_STYLE_PROJECTION_BLEND } = await vi.importActual<
+    typeof import("../../../../engines/maplibre/src/lib/core/shared-three-scene-types")
+  >("../../../../engines/maplibre/src/lib/core/shared-three-scene-types");
   const { hasStandaloneTerrain, subscribeSharedThreeTerrain } =
     await vi.importActual<
       typeof import("../../../../engines/maplibre/src/lib/runtime/integrations/shared-three-terrain-registry")
@@ -39,6 +45,8 @@ vi.mock("@carma-mapping/engines/maplibre", async () => {
     hasStandaloneTerrain,
     subscribeSharedThreeTerrain,
     meshShadowStageError,
+    MAP_STYLE_PROJECTION_BLEND,
+    TILE_VOLUME_LOAD_REASON,
     isTerrainShadingStyleLayer,
     TERRAIN_MAP_STYLE,
     MAPLIBRE_EVENT: mapLibreEventMock,

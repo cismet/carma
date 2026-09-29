@@ -1,5 +1,7 @@
 import type { Map as MapLibreMap } from "maplibre-gl";
 
+import { MAPLIBRE_EVENT } from "../../../constants/mapEvents";
+
 type ViewSnapshot = Readonly<{
   center: [number, number];
   zoom: number;
@@ -85,14 +87,14 @@ export const createMapViewSyncGroup = () => {
       };
       const remove = () => {
         if (!members.delete(map)) return;
-        map.off("move", onMove);
-        map.off("resize", onMove);
-        map.off("remove", remove);
+        map.off(MAPLIBRE_EVENT.MOVE, onMove);
+        map.off(MAPLIBRE_EVENT.RESIZE, onMove);
+        map.off(MAPLIBRE_EVENT.REMOVE, remove);
       };
       members.set(map, remove);
-      map.on("move", onMove);
-      map.on("resize", onMove);
-      map.on("remove", remove);
+      map.on(MAPLIBRE_EVENT.MOVE, onMove);
+      map.on(MAPLIBRE_EVENT.RESIZE, onMove);
+      map.on(MAPLIBRE_EVENT.REMOVE, remove);
       applying = true;
       try {
         if (latest) apply(map, latest);

@@ -38,6 +38,7 @@ import type {
   SharedThreeSceneTileVolume,
 } from "../../core/shared-three-scene-types";
 import { getSharedThreeShadowViewSignature } from "../../core/shared-three-shadow-view";
+import type { TerrainBoundarySide } from "../../core/terrain-boundary-key";
 import {
   planTerrainIdlePrefetch,
   planTerrainIdleShadowRegion,
@@ -54,18 +55,25 @@ import {
 } from "../../core/terrain-screen-error";
 import { buildTerrainSelection } from "../../core/terrain-selection";
 import { buildTerrainTileLocalBox } from "../../core/terrain-selection-local-box";
-import type {
-  TerrainSelection,
-  TerrainSelectionEntry,
-  TerrainSelectionInput,
+import {
+  TERRAIN_SELECTION_KIND,
+  type TerrainSelection,
+  type TerrainSelectionEntry,
+  type TerrainSelectionInput,
 } from "../../core/terrain-selection-types";
 import { createTerrainTileHeightSampler } from "../../core/terrain-tile-height-sampler";
+import { TERRAIN_WORKER_TASK_KIND } from "../../core/terrain-worker-protocol";
 import {
   createTileCameraDemand,
   TILE_CAMERA_PRIORITY,
   tileCameraViewsSignature,
 } from "../../core/tile-camera-demand";
 import { planTileLoadStages } from "../../core/tile-load-plan";
+import {
+  TILE_VOLUME_KIND,
+  TILE_VOLUME_LOAD_REASON,
+  TILE_VOLUME_STATE,
+} from "../../core/tile-volume";
 import {
   createPayloadAwareRequestConcurrency,
   DEFAULT_MAXIMUM_REQUEST_CONCURRENCY,
@@ -252,8 +260,6 @@ type TerrainMeshRecord = {
   minimumHeightMeters: number;
   maximumHeightMeters: number;
 };
-
-type TerrainBoundarySide = "west" | "south" | "east" | "north";
 
 type TerrainBoundaryEdges = Record<TerrainBoundarySide, Uint32Array>;
 
@@ -643,19 +649,25 @@ export const buildRasterDemTerrainRuntime = (
   ) => {
     const result = await runTerrainWorkerTask(
       {
-        kind: "project",
+        kind: TERRAIN_WORKER_TASK_KIND.PROJECT,
         tile,
         origin: { x: origin.x, y: origin.y, z: origin.z },
       },
       signal
     );
-    if (result.kind !== "project")
+    if (result.kind !== TERRAIN_WORKER_TASK_KIND.PROJECT)
       throw new Error("Unexpected terrain projection result");
     return restoreWorkerGeometry(result);
   };
 
   const restoreWorkerGeometry = (
-    result: Omit<Extract<TerrainWorkerResult, { kind: "project" }>, "kind">
+    result: Omit<
+      Extract<
+        TerrainWorkerResult,
+        { kind: typeof TERRAIN_WORKER_TASK_KIND.PROJECT }
+      >,
+      "kind"
+    >
   ) => {
     const geometry = new BufferGeometry();
     geometry.setAttribute("position", new BufferAttribute(result.positions, 3));
@@ -794,7 +806,7 @@ export const buildRasterDemTerrainRuntime = (
     try {
       const result = await runTerrainWorkerTask(
         {
-          kind: "partition",
+          kind: TERRAIN_WORKER_TASK_KIND.PARTITION,
           positions: geometry.getAttribute("position").array as Float32Array,
           indices: geometry.index!.array as Uint16Array | Uint32Array,
           heights: tile.heightMeters,
@@ -802,7 +814,7 @@ export const buildRasterDemTerrainRuntime = (
         },
         signal
       );
-      if (result.kind !== "partition")
+      if (result.kind !== TERRAIN_WORKER_TASK_KIND.PARTITION)
         throw new Error("Unexpected terrain partition result");
       return {
         tile,
@@ -1290,10 +1302,12 @@ export const buildRasterDemTerrainRuntime = (
       getTerrainMeshWorldBounds(record, bounds);
       volumes.push({
         id: `${runtimeId}:${key}`,
-        kind: "terrain-tile",
-        state: "loaded",
+        kind: TILE_VOLUME_KIND.TERRAIN_TILE,
+        state: TILE_VOLUME_STATE.LOADED,
         level: record.id.level,
-        loadReason: record.reliefMesh?.receiveShadow ? "viewport" : "shadow",
+        loadReason: record.reliefMesh?.receiveShadow
+          ? TILE_VOLUME_LOAD_REASON.VIEWPORT
+          : TILE_VOLUME_LOAD_REASON.SHADOW,
         minimum: [bounds.min.x, bounds.min.y, bounds.min.z],
         maximum: [bounds.max.x, bounds.max.y, bounds.max.z],
         ...readTileStats(key),
@@ -1315,8 +1329,8 @@ export const buildRasterDemTerrainRuntime = (
       getTerrainMeshWorldBounds(record, bounds);
       volumes.push({
         id: `${runtimeId}:${key}`,
-        kind: "terrain-tile",
-        state: "resident",
+        kind: TILE_VOLUME_KIND.TERRAIN_TILE,
+        state: TILE_VOLUME_STATE.RESIDENT,
         level: record.id.level,
         minimum: [bounds.min.x, bounds.min.y, bounds.min.z],
         maximum: [bounds.max.x, bounds.max.y, bounds.max.z],
@@ -1341,8 +1355,8 @@ export const buildRasterDemTerrainRuntime = (
         ).applyMatrix4(root.matrixWorld);
         volumes.push({
           id: `${runtimeId}:${key}`,
-          kind: "terrain-tile",
-          state: "loading",
+          kind: TILE_VOLUME_KIND.TERRAIN_TILE,
+          state: TILE_VOLUME_STATE.LOADING,
           level: id.level,
           minimum: [box.min.x, box.min.y, box.min.z],
           maximum: [box.max.x, box.max.y, box.max.z],
@@ -1567,7 +1581,10 @@ export const buildRasterDemTerrainRuntime = (
         id = parent;
       }
       if (id.level < record.id.level)
-        coarseReserve.set(terrainTileKey(id), { id, kind: "source" });
+        coarseReserve.set(terrainTileKey(id), {
+          id,
+          kind: TERRAIN_SELECTION_KIND.SOURCE,
+        });
     }
     const reserveEntries = [...coarseReserve.values()].filter(
       (entry) =>
@@ -1732,7 +1749,10 @@ export const buildRasterDemTerrainRuntime = (
         for (const x of [parent.x * 2, parent.x * 2 + 1])
           for (const y of [parent.y * 2, parent.y * 2 + 1]) {
             const child = { level: parent.level + 1, x, y };
-            const key = terrainSelectionKey({ id: child, kind: "source" });
+            const key = terrainSelectionKey({
+              id: child,
+              kind: TERRAIN_SELECTION_KIND.SOURCE,
+            });
             if (
               wanted.has(key) ||
               meshes.has(key) ||
@@ -1742,7 +1762,7 @@ export const buildRasterDemTerrainRuntime = (
             wanted.add(key);
             completion.push({
               id: child,
-              kind: "source",
+              kind: TERRAIN_SELECTION_KIND.SOURCE,
               priority: TILE_CAMERA_PRIORITY.SECONDARY,
             });
           }
@@ -1932,10 +1952,17 @@ export const buildRasterDemTerrainRuntime = (
       viewportBounds: input.viewportBounds,
     };
     selectionRequestPending = true;
-    void runTerrainWorkerTask({ kind: "select", input }, conversionAbort.signal)
+    void runTerrainWorkerTask(
+      { kind: TERRAIN_WORKER_TASK_KIND.SELECT, input },
+      conversionAbort.signal
+    )
       .then((result) => {
         // Coalesce camera motion into one latest selection, not stale loads.
-        if (disposed || queuedSelectionInput || result.kind !== "select")
+        if (
+          disposed ||
+          queuedSelectionInput ||
+          result.kind !== TERRAIN_WORKER_TASK_KIND.SELECT
+        )
           return;
         if (result.selection.signature !== requestedSignature) {
           requestedSignature = result.selection.signature;
@@ -2185,7 +2212,7 @@ export const buildRasterDemTerrainRuntime = (
         y: Math.floor(latitudeToTileY(lat, level)),
       };
       if (!terrainSource.getTileDataAvailable(id)) break;
-      const entry = { id, kind: "source" } as const;
+      const entry = { id, kind: TERRAIN_SELECTION_KIND.SOURCE } as const;
       if (meshes.has(terrainSelectionKey(entry))) continue;
       await new Promise<void>((resolve) => setTimeout(resolve, 0));
       if (!canPrefetch()) break;

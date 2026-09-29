@@ -1,6 +1,12 @@
 import { Slider } from "antd";
 import type { Map as MapLibreMap } from "maplibre-gl";
 import {
+  TILE_DIAGNOSTIC_CAMERA_FOCUS,
+  TILE_DIAGNOSTIC_LABEL_MODE,
+  TILE_DIAGNOSTIC_OVERVIEW_UP,
+  TILE_DIAGNOSTIC_OVERVIEW_VIEW,
+} from "@carma-mapping/engines/maplibre";
+import {
   DiagnosticChoice,
   DiagnosticSection,
   DIAGNOSTIC_BOOLEAN_CHOICES,
@@ -10,6 +16,10 @@ import type {
   ResolvedDebugOptions,
   TileLoadingDebugOptions,
 } from "./tile-loading-debug-options";
+import {
+  TILE_LOADING_DEBUG_OVERVIEW_MODE,
+  type TileLoadingDebugOverviewMode,
+} from "./tile-loading-debug-tokens";
 
 export const TileLoadingDebugOverviewOptions = ({
   options,
@@ -22,8 +32,8 @@ export const TileLoadingDebugOverviewOptions = ({
 }: {
   options: ResolvedDebugOptions;
   onOptionsChange: (patch: Partial<ResolvedDebugOptions>) => void;
-  overviewMode: "off" | "overlay" | "window";
-  setOverviewMode: (mode: "off" | "overlay" | "window") => void;
+  overviewMode: TileLoadingDebugOverviewMode;
+  setOverviewMode: (mode: TileLoadingDebugOverviewMode) => void;
   map: MapLibreMap;
   cameraIds: readonly string[];
   setFreeView: (view: null) => void;
@@ -37,9 +47,9 @@ export const TileLoadingDebugOverviewOptions = ({
       value={overviewMode}
       onChange={setOverviewMode}
       choices={[
-        { value: "off", label: "Off" },
-        { value: "overlay", label: "Overlay" },
-        { value: "window", label: "Window" },
+        { value: TILE_LOADING_DEBUG_OVERVIEW_MODE.OFF, label: "Off" },
+        { value: TILE_LOADING_DEBUG_OVERVIEW_MODE.OVERLAY, label: "Overlay" },
+        { value: TILE_LOADING_DEBUG_OVERVIEW_MODE.WINDOW, label: "Window" },
       ]}
     />
     <DiagnosticChoice
@@ -58,16 +68,16 @@ export const TileLoadingDebugOverviewOptions = ({
       Camera always live. Frame mode refreshes tile diagnostics after each
       render; busy captures coalesce. Statistics remain sampled.
     </div>
-    {options.overviewView === "frustum" && (
+    {options.overviewView === TILE_DIAGNOSTIC_OVERVIEW_VIEW.FRUSTUM && (
       <DiagnosticChoice
         label="Frustum crop"
-        value={options.overviewCameraFocus ?? "all"}
+        value={options.overviewCameraFocus ?? TILE_DIAGNOSTIC_CAMERA_FOCUS.ALL}
         onChange={(overviewCameraFocus: string) =>
           onOptionsChange({ overviewCameraFocus })
         }
         choices={[
-          { value: "overview-live", label: "Main · white" },
-          { value: "all", label: "All frustums" },
+          { value: TILE_DIAGNOSTIC_CAMERA_FOCUS.LIVE, label: "Main · white" },
+          { value: TILE_DIAGNOSTIC_CAMERA_FOCUS.ALL, label: "All frustums" },
           ...cameraIds.map((id, i) => ({
             value: id,
             label: `${
@@ -85,7 +95,7 @@ export const TileLoadingDebugOverviewOptions = ({
         ]}
       />
     )}
-    {options.overviewView === "frustum" && (
+    {options.overviewView === TILE_DIAGNOSTIC_OVERVIEW_VIEW.FRUSTUM && (
       <label>
         Follow padding: {options.overviewPaddingPercent ?? 200}%
         <Slider
@@ -110,10 +120,13 @@ export const TileLoadingDebugOverviewOptions = ({
       }}
       choices={[
         {
-          value: "camera-tangent",
+          value: TILE_DIAGNOSTIC_OVERVIEW_UP.CAMERA_TANGENT,
           label: "Camera tangent up",
         },
-        { value: "tileset", label: "Native tileset Z up" },
+        {
+          value: TILE_DIAGNOSTIC_OVERVIEW_UP.TILESET,
+          label: "Native tileset Z up",
+        },
       ]}
     />
     {(
@@ -137,13 +150,13 @@ export const TileLoadingDebugOverviewOptions = ({
         onChange={(overlayLabels: TileLoadingDebugOptions["overlayLabels"]) =>
           onOptionsChange({ overlayLabels })
         }
-        choices={(["none", "id", "id and error", "id and stats"] as const).map(
-          (value) => ({
-            value,
-            label:
-              value === "id and stats" ? "ID + resident cache size" : value,
-          })
-        )}
+        choices={Object.values(TILE_DIAGNOSTIC_LABEL_MODE).map((value) => ({
+          value,
+          label:
+            value === TILE_DIAGNOSTIC_LABEL_MODE.ID_AND_STATS
+              ? "ID + resident cache size"
+              : value,
+        }))}
       />
       <Slider
         aria-label="Grid opacity"

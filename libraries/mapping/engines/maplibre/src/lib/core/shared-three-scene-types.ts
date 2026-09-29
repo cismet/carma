@@ -2,6 +2,7 @@ import type * as THREE from "three";
 import type { CustomLayerInterface, Map as MaplibreMap } from "maplibre-gl";
 import type { SceneAccumulationOptions } from "@carma-mapping/engines/three/primitives/rendering";
 import type { TileCameraSnapshot, TileCameraView } from "./tile-camera-demand";
+import type { TileVolumeLoadReason, TileVolumeState } from "./tile-volume";
 
 /**
  * The local east/up/south frame at the view anchor, on the ellipsoid.
@@ -80,16 +81,9 @@ export type SharedThreeSceneTileVolume = Readonly<{
   geometricError?: number;
   /** Current observer CSS-pixel error, not the configured final target. */
   errorPixels?: number;
-  loadReason?: "viewport" | "shadow";
+  loadReason?: TileVolumeLoadReason;
   /** Loading state for diagnostics; omitted means the payload is loaded. */
-  state?:
-    | "queued"
-    | "loading"
-    | "parsing"
-    | "failed"
-    | "loaded"
-    /** Loaded and held, but not published: a child waiting for its siblings. */
-    | "resident";
+  state?: TileVolumeState;
   /** Payload size for diagnostics. */
   bytes?: number;
   /** Tile level, so the diagnostics can fade the generations above the cut. */
@@ -375,7 +369,13 @@ export type MapStyleProjectionUniforms = Readonly<{
   texelSize: { value: THREE.Vector2 };
 }>;
 
-export type MapStyleProjectionBlend = "replace" | "overlay";
+export const MAP_STYLE_PROJECTION_BLEND = {
+  REPLACE: "replace",
+  OVERLAY: "overlay",
+} as const;
+
+export type MapStyleProjectionBlend =
+  (typeof MAP_STYLE_PROJECTION_BLEND)[keyof typeof MAP_STYLE_PROJECTION_BLEND];
 
 export type MapStyleProjectionState = Readonly<{
   visible: boolean;

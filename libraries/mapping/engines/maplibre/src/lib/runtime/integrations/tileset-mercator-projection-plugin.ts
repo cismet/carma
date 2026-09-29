@@ -11,13 +11,15 @@ import {
   type Object3D,
 } from "three";
 import { degToRad, type Degrees } from "@carma-units";
-import { cartographicToEcef, ecefToEnuMatrix } from "@carma-geo/proj";
 import {
+  cartographicToEcef,
   createMeshLocalProjection,
+  ecefToEnuMatrix,
   MESH_PROJECTION_SAMPLING,
-  sampleMeshMercatorLut,
   type MeshMercatorLut,
-} from "@carma-geo/utils";
+  sampleMeshMercatorLut,
+  WGS84_B,
+} from "@carma-geo/proj";
 
 type TransformedTile = Tile & { engineData?: { transform?: Matrix4 } };
 
@@ -158,7 +160,7 @@ export class TilesetMercatorProjectionPlugin {
       // Metadata uses direct coordinates, payloads may use a coarse lookup.
       // Include a deliberately loose interpolation envelope for our <=60°,
       // <=50 km domain so coarser profiles cannot cause false-negative culling.
-      ((2 * diagonal * diagonal + 4 * this.lut.stepMeters ** 2) / 6356752 +
+      ((2 * diagonal * diagonal + 4 * this.lut.stepMeters ** 2) / WGS84_B +
         0.05) *
         inverseLinearNorm
     );

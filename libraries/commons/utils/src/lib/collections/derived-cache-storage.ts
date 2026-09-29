@@ -15,7 +15,11 @@ import {
 
 import {
   createDerivedCacheQuotaSampler,
+  DERIVED_CACHE_CAPACITY_MODE,
+  DERIVED_CACHE_CAPACITY_SOURCE,
   resolveDerivedCacheQuotaCapacity,
+  type DerivedCacheCapacityMode,
+  type DerivedCacheCapacitySource,
   type DerivedCacheQuotaSample,
 } from "./derived-cache-quota";
 
@@ -29,8 +33,8 @@ type Policy = NonNullable<ReturnType<typeof resolveDerivedCachePolicy>>;
 type BudgetState = Policy & {
   age: number; bytes: number; count: number;
   configuredCapacityBytes?: number;
-  capacityMode?: "origin-quota";
-  capacitySource?: "configured-fallback" | "origin-quota";
+  capacityMode?: DerivedCacheCapacityMode;
+  capacitySource?: DerivedCacheCapacitySource;
   quotaSample?: DerivedCacheQuotaSample;
   quotaInvalidatedAt?: number;
   quotaBytes?: number | null;
@@ -221,7 +225,7 @@ export const createDerivedBufferCache = (
               ...state,
               ...resolveDerivedCacheQuotaCapacity(policy.capacityBytes, sample),
               configuredCapacityBytes: policy.capacityBytes,
-              capacityMode: "origin-quota",
+              capacityMode: DERIVED_CACHE_CAPACITY_MODE.ORIGIN_QUOTA,
               quotaSample: sample,
               quotaInvalidatedAt: quotaSampler.invalidatedAt,
             };
@@ -356,7 +360,9 @@ export const createDerivedBufferCache = (
       const attempt = () => run<boolean>(false, (tx, state, done) => {
         // A missing estimate restricts new writes, but is not evidence that
         // existing useful data should be evicted down to the fallback budget.
-        if (quotaSampler && state.capacitySource === "configured-fallback" &&
+        if (quotaSampler &&
+            state.capacitySource ===
+              DERIVED_CACHE_CAPACITY_SOURCE.CONFIGURED_FALLBACK &&
             state.bytes > state.capacityBytes) return;
         allMetadata(tx, (rows) => {
           const plan = planDerivedCacheAdmission(rows, physicalRecord, { ...state, nowMs: Date.now() });

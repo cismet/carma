@@ -12,13 +12,15 @@ import { NRW_DGM1_DHHN2016_TERRARIUM_TERRAIN } from "@carma-commons/resources";
 import {
   acquireSharedThreeScene,
   getGenericThreeLayers,
-  MAPLIBRE_EVENT,
   getSharedThreeSceneRuntimes,
-  subscribeSharedThreeSceneContent,
-  subscribeGenericThreeLayers,
-  suppressMapLibreRegularStyleLayers,
   isSharedThreeTerrainLoading,
+  MAP_STYLE_PROJECTION_BLEND,
+  MAPLIBRE_EVENT,
+  subscribeGenericThreeLayers,
+  subscribeSharedThreeSceneContent,
   subscribeSharedThreeTerrainLoading,
+  suppressMapLibreRegularStyleLayers,
+  TILE_VOLUME_LOAD_REASON,
   TILES_MESH_ERROR_TARGET_DEFAULT_PIXELS,
 } from "@carma-mapping/engines/maplibre";
 import { buildRasterDemTerrainRuntime } from "@carma-mapping/engines/maplibre/terrain";
@@ -114,6 +116,7 @@ import {
 } from "./shadow-light-binding";
 import {
   acquireShadowMapLibreTerrain,
+  SHADOW_MAP_STYLE_DRAPE_MODE,
   type ShadowMapStyleDrapeMode,
 } from "./shadow-maplibre-terrain";
 import { createShadowMapLibreLight } from "./shadow-maplibre-light";
@@ -192,10 +195,11 @@ export const buildShadowSimulationScene = (
     );
     return providers.length > 0 &&
       providers.every(
-        (runtime) => runtime.mapStyleProjectionBlend === "overlay"
+        (runtime) =>
+          runtime.mapStyleProjectionBlend === MAP_STYLE_PROJECTION_BLEND.OVERLAY
       )
-      ? "labels"
-      : "opaque";
+      ? SHADOW_MAP_STYLE_DRAPE_MODE.LABELS
+      : SHADOW_MAP_STYLE_DRAPE_MODE.OPAQUE;
   };
   const releaseMapLibreTerrain = acquireShadowMapLibreTerrain(
     map,
@@ -205,7 +209,9 @@ export const buildShadowSimulationScene = (
     mobileBaseline ? SHADOW_TERRAIN_QUALITY.STANDARD : terrainQuality
   );
   const syncMeshLabelStyle = () => {
-    sceneLease.setMeshLabelStyle(getMapStyleDrapeMode() === "labels");
+    sceneLease.setMeshLabelStyle(
+      getMapStyleDrapeMode() === SHADOW_MAP_STYLE_DRAPE_MODE.LABELS
+    );
   };
   let latestSolarPosition: SolarPosition | null = null;
   let latestBuildingAppearance: ShadowBuildingAppearance = {
@@ -635,7 +641,9 @@ export const buildShadowSimulationScene = (
       : Math.max(
           targetErrorPixels,
           ...volumes
-            .filter(({ loadReason }) => loadReason !== "shadow")
+            .filter(
+              ({ loadReason }) => loadReason !== TILE_VOLUME_LOAD_REASON.SHADOW
+            )
             .map(({ errorPixels }) => errorPixels)
             .filter((error): error is number => Number.isFinite(error))
         );
@@ -644,7 +652,7 @@ export const buildShadowSimulationScene = (
     // CSS pixel instead; zooming in still preserves centimetre contact detail.
     let metersPerPixel = Infinity;
     for (const volume of volumes) {
-      if (volume.loadReason === "shadow") continue;
+      if (volume.loadReason === TILE_VOLUME_LOAD_REASON.SHADOW) continue;
       if (
         bounds &&
         (volume.minimum[0] >= bounds.max.x ||
@@ -1154,7 +1162,9 @@ export const buildShadowSimulationScene = (
         // full boxes before frustum filtering so panning cannot rename pages.
         receiverCells = buildShadowReceiverCells(
           committedVolumes
-            .filter(({ loadReason }) => loadReason !== "shadow")
+            .filter(
+              ({ loadReason }) => loadReason !== TILE_VOLUME_LOAD_REASON.SHADOW
+            )
             .map(({ id, minimum, maximum, receiverObjectId }) => ({
               id,
               receiverObjectId,

@@ -14,7 +14,9 @@ import {
   resolveTileContentUrl,
   UNLOADED_LOADING_STATE,
 } from "./three-tiles-runtime-vendor";
+import { TILE_RETRY_STATE } from "./three-tiles-retry-controller";
 import { setTileShadowRole } from "./three-tiles-shadow-role";
+import { CACHE_CEILING_REASON } from "./three-tiles-cache-ceiling-memory";
 
 /** Handles renderer model, tileset, download, and retry events. */
 export function createThreeTilesLoadEvents(
@@ -200,13 +202,21 @@ export function createThreeTilesLoadEvents(
   // D8: retry admission keeps failed tiles UNLOADED, retaining the parent cut.
   const handleLoadError: ThreeTilesRuntimeServices["handleLoadError"] =
     (event: { tile?: Tile | null; url?: string | URL; error?: unknown }) => {
-      console.warn("[tiles3d-debug] load error", {
-        url: String(event.url ?? runtimeState.tilesetUrl),
-        error: String(event.error),
-      });
+      // 3d-tiles-renderer already console.errors every failure; the request
+      // context is opt-in telemetry like the other tiles3d-debug records.
+      if (
+        runtimeState.options.tileTelemetry === true ||
+        (localTelemetry &&
+          runtimeState.tileBoundsVisible &&
+          runtimeState.options.tileTelemetry !== false)
+      )
+        console.debug("[tiles3d-debug] load error", {
+          url: String(event.url ?? runtimeState.tilesetUrl),
+          error: String(event.error),
+        });
       if (TILE_MEMORY_ALLOCATION_ERROR.test(String(event.error))) {
         runtimeState.allocationFailed = true;
-        dependencies.recordCacheCeilingFailure("allocation");
+        dependencies.recordCacheCeilingFailure(CACHE_CEILING_REASON.ALLOCATION);
         dependencies.applyRequestConcurrency();
       }
       const failedTile = event.tile ?? null;
@@ -222,7 +232,11 @@ export function createThreeTilesLoadEvents(
         event.url,
         event.error
       );
-      if (failedTile && runtimeState.tiles && retryState !== "ignored") {
+      if (
+        failedTile &&
+        runtimeState.tiles &&
+        retryState !== TILE_RETRY_STATE.IGNORED
+      ) {
         const wasFailed =
           failedTile.internal.loadingState === FAILED_LOADING_STATE;
         const removed = runtimeState.tiles.lruCache.remove(failedTile);
@@ -235,7 +249,7 @@ export function createThreeTilesLoadEvents(
             runtimeState.tiles.stats.failed - 1
           );
         }
-        if (retryState === "exhausted") {
+        if (retryState === TILE_RETRY_STATE.EXHAUSTED) {
           runtimeState.tiles.dispatchEvent({ type: "needs-update" });
           dependencies.requestRender();
         }

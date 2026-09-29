@@ -7,6 +7,7 @@ import {
   WUPPERTAL_TERRAIN_SOURCE_ID,
   createTerrainSources,
 } from "../constants/wuppertalDefaultStyle";
+import { MAPLIBRE_EVENT } from "../constants/mapEvents";
 import { add3dPresence, remove3dPresence } from "../utils/threeDPresence";
 import {
   notifySharedThreeSceneContentChanged,
@@ -30,6 +31,10 @@ import {
 } from "../lib/runtime/integrations/three-tiles-runtime-config";
 import { DEFAULT_MESH_BASE_ERROR_PIXELS } from "../lib/core/mesh-error-policy";
 import { TILES_LOAD_POLICY } from "../lib/core/tile-load-config";
+import {
+  TILES3D_BASEMAP,
+  type Tiles3dBasemap,
+} from "../lib/core/tiles3d-basemap";
 import type {
   ThreeTilesRuntime,
   TilesetEntryHint,
@@ -128,7 +133,7 @@ export interface Tiles3dConfig {
    * terrain for the centre elevation. `none` shows the tileset on its own:
    * no drape, no MapLibre terrain, the tileset's ground anchors the map plane.
    */
-  basemap?: "labels" | "none";
+  basemap?: Tiles3dBasemap;
   /** Root and residency hints for a paged hierarchy, see `TilesetEntryHint`. */
   entry?: TilesetEntryHint;
   /** Worker-backed static hierarchy cache; false loads tileset JSON natively. */
@@ -194,7 +199,7 @@ export const resolveTiles3dConfig = (
     baseCoverageMemoryShare:
       config.baseCoverageMemoryShare ??
       (providesTerrain ? TILES_LOAD_POLICY.extentMemoryShare : undefined),
-    basemap: config.basemap ?? "labels",
+    basemap: config.basemap ?? TILES3D_BASEMAP.LABELS,
     outline: config.outline ?? true,
     diagnostics: config.diagnostics ?? false,
     shadowBuildingStyle: config.shadowBuildingStyle ?? false,
@@ -249,7 +254,7 @@ export function Tiles3dLayerManager({
     const lease = acquireSharedThreeScene(map);
     let disposed = false;
     let teardown: (() => void) | null = null;
-    const standalone = initialConfig.basemap === "none";
+    const standalone = initialConfig.basemap === TILES3D_BASEMAP.NONE;
     const build = (groundReferenceMeters: number | null) => {
       if (disposed) return;
       const runtime = buildThreeTilesRuntime(
@@ -337,8 +342,8 @@ export function Tiles3dLayerManager({
       };
       if (minElevation !== null) {
         keepFarPlane();
-        map.on("move", keepFarPlane);
-        map.on("render", keepFarPlane);
+        map.on(MAPLIBRE_EVENT.MOVE, keepFarPlane);
+        map.on(MAPLIBRE_EVENT.RENDER, keepFarPlane);
         // The matrices recompute on the next camera change; nudge one.
         const center = map.getCenter();
         map.jumpTo({ center: [center.lng + 1e-9, center.lat] });
@@ -348,8 +353,8 @@ export function Tiles3dLayerManager({
         runtimeRef.current = null;
         unregisterTiles3dRuntimeHandle(map, runtimeId);
         if (minElevation !== null) {
-          map.off("move", keepFarPlane);
-          map.off("render", keepFarPlane);
+          map.off(MAPLIBRE_EVENT.MOVE, keepFarPlane);
+          map.off(MAPLIBRE_EVENT.RENDER, keepFarPlane);
           if (
             mapIsUsable(map) &&
             map.transform.minElevationForCurrentTile === minElevation
@@ -413,7 +418,7 @@ export function Tiles3dLayerManager({
   // the next change to the layer list would undo a deliberate switch-off.
   useEffect(() => {
     if (!map) return;
-    if (resolved.basemap === "none") {
+    if (resolved.basemap === TILES3D_BASEMAP.NONE) {
       // A standalone tileset anchors its own ground; MapLibre terrain would
       // only stream DEM tiles nothing draws on.
       if (mapIsUsable(map) && map.getTerrain()) map.setTerrain(null);

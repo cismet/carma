@@ -1,6 +1,7 @@
 import { FILL, TILE_STEPS, type Kind } from "./tile-diagnostic-model";
 import type { TileCameraSnapshot } from "../tile-camera-demand";
 import type { DiagnosticViewportBasis } from "./tile-diagnostic-model";
+import type { TileDiagnosticLabelMode } from "./tile-diagnostic-options";
 
 export type DiagnosticView = { x: number; y: number; w: number; h: number };
 
@@ -28,13 +29,31 @@ export const PRIMITIVE_FLOATS = 16;
 
 export const TILE_KINDS = Object.keys(FILL) as Kind[];
 
-export const TILE_PHASES = ["", "○", "◐", "●", "×", "Ⅱ"] as const;
+/** The glyph of a tile's load phase; a tile with no phase to show has none. */
+export const TILE_DIAGNOSTIC_PHASE = {
+  NONE: "",
+  QUEUED: "○",
+  LOADING: "◐",
+  LOADED: "●",
+  FAILED: "×",
+  DEFERRED: "Ⅱ",
+} as const;
+
+/** The phases in the order records encode them: a record stores the index. */
+export const TILE_PHASES = [
+  TILE_DIAGNOSTIC_PHASE.NONE,
+  TILE_DIAGNOSTIC_PHASE.QUEUED,
+  TILE_DIAGNOSTIC_PHASE.LOADING,
+  TILE_DIAGNOSTIC_PHASE.LOADED,
+  TILE_DIAGNOSTIC_PHASE.FAILED,
+  TILE_DIAGNOSTIC_PHASE.DEFERRED,
+] as const;
 
 /** How much of a tile's pie a phase alone fills, with no timings to divide. */
 export const PHASE_SWEEP: Readonly<Record<string, number>> = {
-  "\u25cb": 0.25,
-  "\u25d0": 0.6,
-  "\u25cf": 1,
+  [TILE_DIAGNOSTIC_PHASE.QUEUED]: 0.25,
+  [TILE_DIAGNOSTIC_PHASE.LOADING]: 0.6,
+  [TILE_DIAGNOSTIC_PHASE.LOADED]: 1,
 };
 
 /** Transfer-only diagnostic API. Never send Tile, Map, geometry or material objects. */
@@ -64,24 +83,44 @@ export type DiagnosticFrame = {
   pixelRatio: number;
   opacity: number;
   popout: boolean;
-  labels: "none" | "id" | "id and error" | "id and stats";
+  labels: TileDiagnosticLabelMode;
   selection: ReadonlyArray<readonly [number, number]>;
 };
 
+/** What the host asks of the diagnostic worker. */
+export const TILE_DIAGNOSTIC_WORKER_COMMAND = {
+  INIT: "init",
+  DISPOSE: "dispose",
+  CAMERA: "camera",
+  FRAME: "frame",
+} as const;
+
+/** What the diagnostic worker reports back to its host. */
+export const TILE_DIAGNOSTIC_WORKER_REPLY = {
+  ERROR: "error",
+  READY: "ready",
+  FRAME: "frame",
+  DISPOSED: "disposed",
+} as const;
+
 export type DiagnosticWorkerMessage =
   | {
-      type: "init";
+      type: typeof TILE_DIAGNOSTIC_WORKER_COMMAND.INIT;
       foreground: OffscreenCanvas;
       contrast: OffscreenCanvas;
       text: OffscreenCanvas;
     }
-  | { type: "dispose" }
+  | { type: typeof TILE_DIAGNOSTIC_WORKER_COMMAND.DISPOSE }
   | {
-      type: "camera";
+      type: typeof TILE_DIAGNOSTIC_WORKER_COMMAND.CAMERA;
       camera: TileCameraSnapshot;
       cameras?: readonly TileCameraSnapshot[];
     }
-  | { type: "frame"; frame: DiagnosticFrame; snapshot?: DiagnosticSnapshot };
+  | {
+      type: typeof TILE_DIAGNOSTIC_WORKER_COMMAND.FRAME;
+      frame: DiagnosticFrame;
+      snapshot?: DiagnosticSnapshot;
+    };
 
 export const diagnosticProjection = (
   view: DiagnosticView,

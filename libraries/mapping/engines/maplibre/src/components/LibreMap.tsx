@@ -21,6 +21,7 @@ import {
 } from "react";
 import { getHashParams } from "@carma-commons/utils";
 import { isForcedCacheUrl, isPageCacheForced } from "../utils/forcedCache";
+import { MAPLIBRE_EVENT } from "../constants/mapEvents";
 import type {
   Carma3dConfig,
   ThreePerfData,
@@ -440,11 +441,11 @@ const whenStyleShown = (mapInstance: maplibregl.Map, done: () => void) => {
   const cancel = () => {
     settled = true;
     clearTimeout(timer);
-    mapInstance.off("idle", finish);
-    mapInstance.off("sourcedata", check);
+    mapInstance.off(MAPLIBRE_EVENT.IDLE, finish);
+    mapInstance.off(MAPLIBRE_EVENT.SOURCE_DATA, check);
   };
-  mapInstance.on("idle", finish);
-  mapInstance.on("sourcedata", check);
+  mapInstance.on(MAPLIBRE_EVENT.IDLE, finish);
+  mapInstance.on(MAPLIBRE_EVENT.SOURCE_DATA, check);
   return cancel;
 };
 

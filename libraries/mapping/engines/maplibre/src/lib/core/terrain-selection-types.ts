@@ -3,9 +3,17 @@ import type { TerrainTileBounds, TerrainTileId } from "./raster-dem-tile";
 import type { TileCameraSnapshot } from "./tile-camera-demand";
 import type { RasterDemTileGrid } from "./raster-dem-tile-grid";
 
+/** What a selection entry names. */
+export const TERRAIN_SELECTION_KIND = {
+  SOURCE: "source",
+} as const;
+
+export type TerrainSelectionKind =
+  (typeof TERRAIN_SELECTION_KIND)[keyof typeof TERRAIN_SELECTION_KIND];
+
 export type TerrainSelectionEntry = Readonly<{
   id: TerrainTileId;
-  kind: "source";
+  kind: TerrainSelectionKind;
   /** Shared demand rank, including coverage prerequisites for this cut. */
   priority?: number;
 }>;

@@ -1,6 +1,7 @@
 export { faRowResize } from "./lib/icons/fa-row-resize";
 export {
   getViewportPanelLayout,
+  VIEWPORT_PANEL_SIDE,
   VIEWPORT_PANEL_SIDES,
   type ViewportPanelSide,
 } from "./lib/core/viewport-panel-layout";

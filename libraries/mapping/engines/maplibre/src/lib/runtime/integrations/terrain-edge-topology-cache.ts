@@ -1,5 +1,6 @@
 import { createDerivedBufferCache } from "@carma-commons/utils";
 
+import { TERRAIN_BOUNDARY_SIDE } from "../../core/terrain-boundary-key";
 import type { TerrainStitchInput } from "./terrain-boundary-stitch";
 import { prepareEqualLevelTerrainShell } from "./terrain-equal-level-boundaries";
 
@@ -99,7 +100,12 @@ const valid = (
     )
       return false;
   if ([...t.indices, ...t.normalTargets].some((i) => i >= count)) return false;
-  for (const side of ["west", "east", "north", "south"] as const) {
+  for (const side of [
+    TERRAIN_BOUNDARY_SIDE.WEST,
+    TERRAIN_BOUNDARY_SIDE.EAST,
+    TERRAIN_BOUNDARY_SIDE.NORTH,
+    TERRAIN_BOUNDARY_SIDE.SOUTH,
+  ] as const) {
     const edge = t.boundaryEdges[side],
       original = input.boundaryEdges[side];
     if (

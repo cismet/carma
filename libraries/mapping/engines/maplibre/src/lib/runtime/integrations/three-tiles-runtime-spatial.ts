@@ -8,6 +8,7 @@ import { createThreeTilesSpatialDemand } from "./three-tiles-runtime-spatial-dem
 import { createThreeTilesModelFrame } from "./three-tiles-runtime-model-frame";
 import { createThreeTilesViewFrustums } from "./three-tiles-runtime-view-frustums";
 import type { SharedThreeSceneTileVolume } from "../../core/shared-three-scene-types";
+import { TILE_VOLUME_KIND } from "../../core/tile-volume";
 import { readOrientedTileBounds } from "./three-tiles-bounds";
 import { getThreeTileDiagnosticSteps } from "./three-tiles-diagnostic-steps";
 import { isMeshRegionAtError } from "../../core/mesh-tile-coverage";
@@ -181,8 +182,8 @@ export function createThreeTilesSpatial(
         volumes.push({
           id: dependencies.getStableTileId(tile),
           kind: runtimeState.options.providesTerrain
-            ? "terrain-tile"
-            : "3d-tile",
+            ? TILE_VOLUME_KIND.TERRAIN_TILE
+            : TILE_VOLUME_KIND.TILE_3D,
           sourceId: runtimeState.tilesetUrl,
           steps: runtimeState.tileDebugProgress.has(tile)
             ? getThreeTileDiagnosticSteps(

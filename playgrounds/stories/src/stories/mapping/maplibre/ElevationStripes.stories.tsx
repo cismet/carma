@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Map as MapLibreMap } from "maplibre-gl";
 import { createMapViewSyncGroup } from "@carma-mapping/engines/maplibre";
-import { getGcg2016HeightAnomalies } from "@carma-geo/proj";
+import { EARTH_RADIUS, getGcg2016HeightAnomalies } from "@carma-geo/proj";
 import type { LngLatArray } from "@carma-geo/data-structures";
 import { MapLibreThreeReferenceSurfacesDemo } from "./MapLibreThreeReferenceSurfacesDemo";
 import { REFERENCE_SURFACE_DEFAULTS } from "./reference-surface-defaults";
@@ -62,7 +62,7 @@ const SITES = {
 } as const;
 
 const ANCHOR = SITES.origin.lngLat;
-const ANCHOR_FRAME = createReferenceFrame(ANCHOR, 6371000);
+const ANCHOR_FRAME = createReferenceFrame(ANCHOR, EARTH_RADIUS);
 const signedMeters = (value: number) =>
   `${value >= 0 ? "+" : ""}${value.toFixed(3)} m`;
 const METRIC_LABELS = {

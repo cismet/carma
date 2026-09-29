@@ -8,10 +8,10 @@ import {
   LANGENBERG_LANDMARKS,
   NORDHELLE_LANDMARKS,
 } from "@carma-commons/resources";
+import { EARTH_RADIUS } from "@carma-geo/proj";
 import {
   createReferenceFrame,
   projectGeodeticToScene,
-  WGS84_REFERENCE_AXES,
 } from "./reference-surface-frame";
 import {
   TERRAIN_GEOMETRY_MODE,
@@ -21,10 +21,7 @@ import { type Gcg2016ShaderField } from "./reference-gcg2016-field";
 import { createReferenceLandmarks } from "./reference-landmarks";
 
 const origin = [7.20158, 51.25656] as const;
-const frame = createReferenceFrame(
-  origin,
-  WGS84_REFERENCE_AXES.defaultLocalSphereRadiusMeters
-);
+const frame = createReferenceFrame(origin, EARTH_RADIUS);
 const field: Gcg2016ShaderField = {
   center: origin,
   halfExtentMeters: 60_000,

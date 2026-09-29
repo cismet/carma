@@ -9,7 +9,10 @@ import {
   type TerrainTileId,
 } from "./raster-dem-tile";
 import { terrainTileContains } from "../runtime/integrations/terrain-tile-frontier";
-import type { TerrainSelectionEntry } from "./terrain-selection-types";
+import {
+  TERRAIN_SELECTION_KIND,
+  type TerrainSelectionEntry,
+} from "./terrain-selection-types";
 import type { RasterDemTileGrid } from "./raster-dem-tile-grid";
 
 const MAXIMUM_PREFETCH_TILES = 16;
@@ -151,7 +154,7 @@ export const planTerrainIdleShadowRegion = ({
       } catch {
         return fail(TERRAIN_IDLE_SHADOW_REASON.missing);
       }
-      entries.push({ id, kind: "source" });
+      entries.push({ id, kind: TERRAIN_SELECTION_KIND.SOURCE });
     }
   }
   return { entries };
@@ -282,7 +285,10 @@ export const planTerrainIdlePrefetch = ({
           )
         )
           continue;
-        candidates.set(key, { id: candidate, kind: "source" });
+        candidates.set(key, {
+          id: candidate,
+          kind: TERRAIN_SELECTION_KIND.SOURCE,
+        });
       }
     }
   }

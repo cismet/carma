@@ -10,6 +10,7 @@ vi.hoisted(() => {
 
 import { getSolarPosition } from "@carma-mapping/shadow-simulation";
 import { NRW_DOM1_DHHN2016_TERRARIUM_TERRAIN } from "@carma-commons/resources";
+import { EARTH_RADIUS } from "@carma-geo/proj";
 
 import {
   REFERENCE_CAMERA_PRESET,
@@ -17,7 +18,6 @@ import {
 } from "./reference-camera-presets";
 import { TERRAIN_GEOMETRY_MODE } from "./reference-surface-types";
 import {
-  WGS84_REFERENCE_AXES,
   createReferenceFrame,
   projectGeodeticToScene,
   projectMercatorToScene,
@@ -64,10 +64,7 @@ describe("reference-surface physical coordinates", () => {
     expect(pose.distanceMeters).toBeGreaterThan(11_000);
     expect(pose.distanceMeters).toBeLessThan(13_000);
     const angles = directionAngles(
-      createReferenceFrame(
-        pose.eyeLngLat,
-        WGS84_REFERENCE_AXES.defaultLocalSphereRadiusMeters
-      ),
+      createReferenceFrame(pose.eyeLngLat, EARTH_RADIUS),
       [...pose.eyeLngLat, pose.eyeNormalHeightMeters],
       [...pose.targetLngLat, pose.targetNormalHeightMeters]
     );
@@ -88,10 +85,7 @@ describe("reference-surface physical coordinates", () => {
       REFERENCE_PHYSICAL_CAMERA_POSES[
         REFERENCE_CAMERA_PRESET.TOELLETURM_TO_NORDHELLE
       ];
-    const forwardFrame = createReferenceFrame(
-      forward.eyeLngLat,
-      WGS84_REFERENCE_AXES.defaultLocalSphereRadiusMeters
-    );
+    const forwardFrame = createReferenceFrame(forward.eyeLngLat, EARTH_RADIUS);
     const forwardAngles = directionAngles(
       forwardFrame,
       [...forward.eyeLngLat, forward.eyeNormalHeightMeters],
@@ -105,10 +99,7 @@ describe("reference-surface physical coordinates", () => {
       REFERENCE_PHYSICAL_CAMERA_POSES[
         REFERENCE_CAMERA_PRESET.NORDHELLE_TO_TOELLETURM
       ];
-    const reverseFrame = createReferenceFrame(
-      reverse.eyeLngLat,
-      WGS84_REFERENCE_AXES.defaultLocalSphereRadiusMeters
-    );
+    const reverseFrame = createReferenceFrame(reverse.eyeLngLat, EARTH_RADIUS);
     const reverseAngles = directionAngles(
       reverseFrame,
       [...reverse.eyeLngLat, reverse.eyeNormalHeightMeters],
@@ -124,10 +115,7 @@ describe("reference-surface physical coordinates", () => {
       REFERENCE_PHYSICAL_CAMERA_POSES[
         REFERENCE_CAMERA_PRESET.TOELLETURM_TO_NORDHELLE
       ];
-    const frame = createReferenceFrame(
-      pose.eyeLngLat,
-      WGS84_REFERENCE_AXES.defaultLocalSphereRadiusMeters
-    );
+    const frame = createReferenceFrame(pose.eyeLngLat, EARTH_RADIUS);
     const normalHeightMeters = 500;
     const undulationMeters = 46;
     const raw = projectMercatorToScene(
@@ -190,10 +178,7 @@ describe("reference-surface physical coordinates", () => {
     const normalHeightsMeters = [38.95, 722.3] as const;
 
     for (const origin of origins) {
-      const frame = createReferenceFrame(
-        origin,
-        WGS84_REFERENCE_AXES.defaultLocalSphereRadiusMeters
-      );
+      const frame = createReferenceFrame(origin, EARTH_RADIUS);
       for (const mode of modes) {
         for (let row = 0; row <= divisions; row += 1) {
           const latitude = south + ((north - south) * row) / divisions;
@@ -231,7 +216,7 @@ describe("reference-surface physical coordinates", () => {
     expect(maximumDisplacement.toArray()).toEqual([
       expect.closeTo(886.626, 3),
       expect.closeTo(747.006, 3),
-      expect.closeTo(769.356, 3),
+      expect.closeTo(762.491, 3),
     ]);
     expect(Math.max(...maximumDisplacement.toArray())).toBeLessThan(1_500);
   });

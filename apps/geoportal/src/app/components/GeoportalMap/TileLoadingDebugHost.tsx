@@ -14,6 +14,7 @@ import { useFeatureFlags } from "@carma-providers/feature-flag";
 import {
   getTiles3dRuntimeHandles,
   subscribeTiles3dRuntimeHandles,
+  TILE_DIAGNOSTIC_LABEL_MODE,
 } from "@carma-mapping/engines/maplibre";
 
 const LazyTileLoadingDebug = lazy(() =>
@@ -103,7 +104,7 @@ export const TileLoadingDebugHost = ({ map }: { map: MaplibreMap | null }) => {
               showCharts: isDebugMode,
               showOverlay: false,
               showLegend: false,
-              overlayLabels: "id and stats",
+              overlayLabels: TILE_DIAGNOSTIC_LABEL_MODE.ID_AND_STATS,
             }}
           />
         </Suspense>

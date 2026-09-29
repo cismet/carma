@@ -1,6 +1,10 @@
-import { EARTH_CIRCUMFERENCE, getWebMercatorFromWgs84Deg } from "@carma-geo/proj";
+import {
+  EARTH_CIRCUMFERENCE,
+  getWebMercatorFromWgs84Deg,
+  getWgs84DegFromWebMercator,
+} from "@carma-geo/proj";
 import { degToRadNumeric } from "@carma-units";
-import type { Degrees } from "@carma-units";
+import type { Degrees, Meters } from "@carma-units";
 import { Box3, Vector3 } from "three";
 import type { TerrainTileBounds } from "./raster-dem-tile";
 
@@ -20,7 +24,11 @@ export const projectTerrainToLocalWorld = (
   );
   const y = 0.5 - northing / EARTH_CIRCUMFERENCE;
   // Reuse the caller's Mercator scale, including its Earth-radius convention.
-  const originLatitude = Math.atan(Math.sinh(Math.PI * (1 - 2 * origin[1])));
+  const [, originLatitudeDegrees] = getWgs84DegFromWebMercator(
+    0 as Meters,
+    ((0.5 - origin[1]) * EARTH_CIRCUMFERENCE) as Meters
+  );
+  const originLatitude = degToRadNumeric(originLatitudeDegrees);
   const z =
     (height * meterScale * Math.cos(originLatitude)) /
     Math.cos(latitudeRadians);

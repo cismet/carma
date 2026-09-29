@@ -1,6 +1,7 @@
-import type {
-  SharedThreeSceneShadowView,
-  TileCameraSnapshot,
+import {
+  TILE_CAMERA_ROLE,
+  type SharedThreeSceneShadowView,
+  type TileCameraSnapshot,
 } from "@carma-mapping/engines/maplibre";
 
 export const SHADOW_CORRIDOR_CAMERA_ID = "shadow-corridor";
@@ -34,7 +35,7 @@ export const snapshotShadowCorridorCameras = (
         Math.max(1, Math.round(size?.height ?? 1)),
       ],
       errorTargetPixels: 1,
-      role: "geometry",
+      role: TILE_CAMERA_ROLE.GEOMETRY,
     },
   ];
 };

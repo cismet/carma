@@ -1,6 +1,9 @@
 import { BufferAttribute, BufferGeometry } from "three";
 import type { TerrainStitchInput } from "./terrain-boundary-stitch";
-import { terrainBoundaryVertexKey } from "../../core/terrain-boundary-key";
+import {
+  TERRAIN_BOUNDARY_SIDE,
+  terrainBoundaryVertexKey,
+} from "../../core/terrain-boundary-key";
 
 /** Two rings retain all incident faces for the inner ring's corrected normals.
  * Extract once in a worker; subsequent publications transfer only this shell.
@@ -50,10 +53,10 @@ export const prepareEqualLevelTerrainShell = (
     normals,
     indices: Uint32Array.from(faces, (i) => remap[i]),
     boundaryEdges: {
-      west: edge("west"),
-      east: edge("east"),
-      north: edge("north"),
-      south: edge("south"),
+      west: edge(TERRAIN_BOUNDARY_SIDE.WEST),
+      east: edge(TERRAIN_BOUNDARY_SIDE.EAST),
+      north: edge(TERRAIN_BOUNDARY_SIDE.NORTH),
+      south: edge(TERRAIN_BOUNDARY_SIDE.SOUTH),
     },
     sourceIndices,
     normalTargets: Uint32Array.from(

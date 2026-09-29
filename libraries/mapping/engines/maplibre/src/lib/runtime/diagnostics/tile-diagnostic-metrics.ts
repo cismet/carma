@@ -6,6 +6,11 @@ import type {
   ThreeTilesClosureCoverage,
 } from "../integrations/three-tiles-runtime-coverage";
 import {
+  TILE_DIAGNOSTIC_QUEUE_STATE,
+  type TileDiagnosticQueueState,
+} from "../../core/diagnostics/tile-diagnostic-model";
+import type { TilePresentationMode } from "../../core/tile-presentation-mode";
+import {
   loadingTilesOf,
   tileId,
   tileError,
@@ -13,12 +18,11 @@ import {
   type TilesRuntimeDebugState,
 } from "./tile-diagnostic-state";
 const LOADED = 4;
-type QueueState = "queued" | "downloading" | "parsing" | "cancelled" | "failed";
 export type QueueRow = {
   tile: Tile;
   id: string;
   depth: number;
-  state: QueueState;
+  state: TileDiagnosticQueueState;
   error: number;
   levels: number;
   /** Recorder time the tile was first scheduled. */
@@ -27,7 +31,7 @@ export type QueueRow = {
 const QUEUE_HISTORY_LIMIT = 250;
 
 export type CoverageSummary = {
-  presentationMode: "exclusive-mesh" | "exclusive-shadow";
+  presentationMode: TilePresentationMode;
   baseCoverage: ThreeTilesReserveCoverage;
   seamCoverage: ThreeTilesReserveCoverage;
   closureCoverage: ThreeTilesClosureCoverage;
@@ -128,12 +132,12 @@ export const updateTileDiagnosticQueue = (
   const active = loadingTilesOf(tiles);
   for (const tile of active) {
     const loadingState = tile.internal?.loadingState;
-    const kind: QueueState =
+    const kind: TileDiagnosticQueueState =
       loadingState === 3
-        ? "parsing"
+        ? TILE_DIAGNOSTIC_QUEUE_STATE.PARSING
         : loadingState === 2
-        ? "downloading"
-        : "queued";
+        ? TILE_DIAGNOSTIC_QUEUE_STATE.DOWNLOADING
+        : TILE_DIAGNOSTIC_QUEUE_STATE.QUEUED;
     const error = tileError(tile);
     const existing = history.get(tile);
     history.set(tile, {
@@ -150,22 +154,32 @@ export const updateTileDiagnosticQueue = (
     if (active.has(tile)) continue;
     const loadingState = tile.internal?.loadingState;
     if (loadingState === LOADED) history.delete(tile);
-    else if (row.state !== "cancelled" && row.state !== "failed")
-      row.state = loadingState === -1 ? "failed" : "cancelled";
+    else if (
+      row.state !== TILE_DIAGNOSTIC_QUEUE_STATE.CANCELLED &&
+      row.state !== TILE_DIAGNOSTIC_QUEUE_STATE.FAILED
+    )
+      row.state =
+        loadingState === -1
+          ? TILE_DIAGNOSTIC_QUEUE_STATE.FAILED
+          : TILE_DIAGNOSTIC_QUEUE_STATE.CANCELLED;
   }
   if (history.size > QUEUE_HISTORY_LIMIT) {
     const settled = [...history.entries()]
-      .filter(([, row]) => row.state === "cancelled" || row.state === "failed")
+      .filter(
+        ([, row]) =>
+          row.state === TILE_DIAGNOSTIC_QUEUE_STATE.CANCELLED ||
+          row.state === TILE_DIAGNOSTIC_QUEUE_STATE.FAILED
+      )
       .sort((a, b) => a[1].since - b[1].since);
     for (const [tile] of settled.slice(0, history.size - QUEUE_HISTORY_LIMIT))
       history.delete(tile);
   }
-  const order: Record<QueueState, number> = {
-    parsing: 0,
-    downloading: 1,
-    queued: 2,
-    failed: 3,
-    cancelled: 4,
+  const order: Record<TileDiagnosticQueueState, number> = {
+    [TILE_DIAGNOSTIC_QUEUE_STATE.PARSING]: 0,
+    [TILE_DIAGNOSTIC_QUEUE_STATE.DOWNLOADING]: 1,
+    [TILE_DIAGNOSTIC_QUEUE_STATE.QUEUED]: 2,
+    [TILE_DIAGNOSTIC_QUEUE_STATE.FAILED]: 3,
+    [TILE_DIAGNOSTIC_QUEUE_STATE.CANCELLED]: 4,
   };
   return [...history.values()].sort(
     (a, b) =>

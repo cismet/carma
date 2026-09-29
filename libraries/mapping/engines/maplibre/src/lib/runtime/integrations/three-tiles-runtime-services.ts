@@ -2,13 +2,19 @@ import type { Tile } from "3d-tiles-renderer/core";
 import type { Map as MaplibreMap } from "maplibre-gl";
 import type * as THREE from "three";
 
+import type {
+  MeshTileWaitReason,
+  MeshTileWaitRole,
+} from "../../core/mesh-tile-wait";
 import type { ShadowReceiverMask } from "../../core/shadow-receiver-mask";
+import type { ShadowReceiverCapture } from "../../core/shadow-receiver-sources";
 import type {
   SharedThreeSceneFrame,
   SharedThreeSceneShadowStyle,
   SharedThreeSceneTileVolume,
 } from "../../core/shared-three-scene-types";
 import type { createTileCameraDemand } from "../../core/tile-camera-demand";
+import type { CacheCeilingReason } from "./three-tiles-cache-ceiling-memory";
 import type {
   CacheBudgetOptions,
   ClayMaterialOptions,
@@ -115,10 +121,8 @@ export interface ThreeTilesRuntimeServices {
   ) => void;
   recordTileWait: (
     tile: Tile,
-    role: "receiver" | "shadow",
-    reason:
-      | NonNullable<MeshTileDebugProgress["waits"]>[number]["reason"]
-      | null,
+    role: MeshTileWaitRole,
+    reason: MeshTileWaitReason | null,
     blocker?: Tile
   ) => void;
   drainTileWaitEvents: () => readonly unknown[];
@@ -155,7 +159,7 @@ export interface ThreeTilesRuntimeServices {
     mask: ShadowReceiverMask | null;
     sourceTiles: Set<Tile>;
   } | null;
-  captureShadowReceiverSources: () => "empty" | "unchanged" | "updated";
+  captureShadowReceiverSources: () => ShadowReceiverCapture;
   measureUsedBytesMain: () => void;
   applyEffectiveErrorTarget: (nextTarget: number) => void;
   resetEffectiveErrorTarget: () => void;
@@ -193,7 +197,7 @@ export interface ThreeTilesRuntimeServices {
   sampleMemoryPressure: () => void;
   handleContextLost: () => void;
   /** Learn a lower resident ceiling from a failure and apply it at once. */
-  recordCacheCeilingFailure: (reason: "allocation" | "context-lost") => void;
+  recordCacheCeilingFailure: (reason: CacheCeilingReason) => void;
   /** Mark the session clean (page hide or dispose); lets a lesson recover. */
   endCacheCeilingSession: () => void;
   handleContextRestored: () => void;

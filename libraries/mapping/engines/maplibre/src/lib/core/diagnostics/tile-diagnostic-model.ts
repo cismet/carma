@@ -2,18 +2,55 @@ import type { Tile } from "3d-tiles-renderer/core";
 import type * as THREE from "three";
 import type { estimateTileTargetSteps } from "../../runtime/integrations/three-tiles-runtime-coverage";
 
-export const FILL = {
-  displayed: "rgba(0, 224, 255, 0.30)",
-  floor: "rgba(12, 18, 32, 0.26)",
-  ring: "rgba(12, 18, 32, 0.26)",
-  resident: "rgba(12, 18, 32, 0.26)",
-  queued: "rgba(12, 18, 32, 0.26)",
-  loading: "rgba(12, 18, 32, 0.26)",
-  parsing: "rgba(12, 18, 32, 0.26)",
-  failed: "rgba(12, 18, 32, 0.26)",
-  deferred: "rgba(12, 18, 32, 0.26)",
+/** What a tile is to the diagnostics; ancestors are parents above the drawn cut. */
+export const TILE_DIAGNOSTIC_KIND = {
+  DISPLAYED: "displayed",
+  FLOOR: "floor",
+  RING: "ring",
+  RESIDENT: "resident",
+  QUEUED: "queued",
+  LOADING: "loading",
+  PARSING: "parsing",
+  FAILED: "failed",
+  DEFERRED: "deferred",
+  ANCESTOR: "ancestor",
 } as const;
-export type Kind = keyof typeof FILL;
+export type RectKind =
+  (typeof TILE_DIAGNOSTIC_KIND)[keyof typeof TILE_DIAGNOSTIC_KIND];
+/** The kinds with a fill of their own: everything but ancestors. */
+export type Kind = Exclude<RectKind, typeof TILE_DIAGNOSTIC_KIND.ANCESTOR>;
+
+export const FILL = {
+  [TILE_DIAGNOSTIC_KIND.DISPLAYED]: "rgba(0, 224, 255, 0.30)",
+  [TILE_DIAGNOSTIC_KIND.FLOOR]: "rgba(12, 18, 32, 0.26)",
+  [TILE_DIAGNOSTIC_KIND.RING]: "rgba(12, 18, 32, 0.26)",
+  [TILE_DIAGNOSTIC_KIND.RESIDENT]: "rgba(12, 18, 32, 0.26)",
+  [TILE_DIAGNOSTIC_KIND.QUEUED]: "rgba(12, 18, 32, 0.26)",
+  [TILE_DIAGNOSTIC_KIND.LOADING]: "rgba(12, 18, 32, 0.26)",
+  [TILE_DIAGNOSTIC_KIND.PARSING]: "rgba(12, 18, 32, 0.26)",
+  [TILE_DIAGNOSTIC_KIND.FAILED]: "rgba(12, 18, 32, 0.26)",
+  [TILE_DIAGNOSTIC_KIND.DEFERRED]: "rgba(12, 18, 32, 0.26)",
+} as const satisfies Record<Kind, string>;
+
+/** Which demand a tile serves: camera demand, seam support or the base extent. */
+export const TILE_DIAGNOSTIC_COVERAGE = {
+  VIEWPORT: "viewport",
+  SEAM: "seam",
+  BASE: "base",
+} as const;
+export type TileDiagnosticCoverage =
+  (typeof TILE_DIAGNOSTIC_COVERAGE)[keyof typeof TILE_DIAGNOSTIC_COVERAGE];
+
+/** Where a scheduled tile stands in the request queue. */
+export const TILE_DIAGNOSTIC_QUEUE_STATE = {
+  QUEUED: "queued",
+  DOWNLOADING: "downloading",
+  PARSING: "parsing",
+  CANCELLED: "cancelled",
+  FAILED: "failed",
+} as const;
+export type TileDiagnosticQueueState =
+  (typeof TILE_DIAGNOSTIC_QUEUE_STATE)[keyof typeof TILE_DIAGNOSTIC_QUEUE_STATE];
 
 // Map strokes have a narrow darken under-stroke; only the popout has fills.
 export const OVERVIEW_COLORS = {
@@ -63,9 +100,9 @@ export type OverlayRect = {
   y: number;
   w: number;
   h: number;
-  kind: Kind | "ancestor";
+  kind: RectKind;
   floor: boolean;
-  coverage?: "viewport" | "seam" | "base";
+  coverage?: TileDiagnosticCoverage;
   error: number;
   levels: number;
   quality: ReturnType<typeof estimateTileTargetSteps>;

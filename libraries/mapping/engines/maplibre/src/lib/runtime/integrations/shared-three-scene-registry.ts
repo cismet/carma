@@ -26,7 +26,11 @@ import { MAPLIBRE_EVENT } from "../../../constants/mapEvents";
 import { MAPLIBRE_TILE_SIZE } from "../../../constants/mercator";
 import { buildSharedThreeSceneLayer } from "./shared-three-scene-layer";
 import { subscribeSharedThreeSceneContent } from "./shared-three-scene-content-registry";
-import type { SharedThreeSceneLayer } from "../../core/shared-three-scene-types";
+import {
+  MAP_STYLE_PROJECTION_BLEND,
+  type SharedThreeSceneLayer,
+} from "../../core/shared-three-scene-types";
+import { TILE_VOLUME_LOAD_REASON } from "../../core/tile-volume";
 import {
   getMapStylePointLabelLiftMeters,
   isMapStyleContourLineLayer,
@@ -446,7 +450,7 @@ const getTerrainCoverageFilter = (
       // Caster-only tiles follow the sun, not the view. Including them made
       // every sun step rewrite the coverage filter of each label layer, and
       // MapLibre reloads the whole vector source for a filter change.
-      if (volume.loadReason === "shadow") continue;
+      if (volume.loadReason === TILE_VOLUME_LOAD_REASON.SHADOW) continue;
       const [minimumX, , minimumZ] = volume.minimum;
       const [maximumX, , maximumZ] = volume.maximum;
       if (
@@ -806,7 +810,10 @@ const hasMeshDrapeProvider = (entry: SharedSceneEntry): boolean => {
   );
   return (
     providers.length > 0 &&
-    providers.every((runtime) => runtime.mapStyleProjectionBlend === "overlay")
+    providers.every(
+      (runtime) =>
+        runtime.mapStyleProjectionBlend === MAP_STYLE_PROJECTION_BLEND.OVERLAY
+    )
   );
 };
 

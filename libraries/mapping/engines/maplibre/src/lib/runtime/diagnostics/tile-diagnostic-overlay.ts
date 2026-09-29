@@ -1,11 +1,19 @@
 import type { Camera } from "three";
-import type { TileCameraSnapshot } from "../../core/tile-camera-demand";
+import {
+  TILE_CAMERA_ROLE,
+  type TileCameraSnapshot,
+} from "../../core/tile-camera-demand";
 import type { Tile } from "3d-tiles-renderer/core";
 import {
+  TILE_DIAGNOSTIC_COVERAGE,
+  TILE_DIAGNOSTIC_KIND,
   TILE_STEPS,
   type OverlayModel,
 } from "../../core/diagnostics/tile-diagnostic-model";
+import { TILE_DIAGNOSTIC_CAMERA_FOCUS } from "../../core/diagnostics/tile-diagnostic-options";
 import {
+  TILE_DIAGNOSTIC_WORKER_COMMAND,
+  TILE_DIAGNOSTIC_WORKER_REPLY,
   TILE_KINDS,
   TILE_PHASES,
   TILE_RECORD_FLOATS,
@@ -19,6 +27,13 @@ import {
   scheduleTileDiagnosticTask,
   yieldTileDiagnosticTask,
 } from "./tile-diagnostic-scheduler";
+
+/** The stacked canvases the worker draws: their names order the transfer. */
+const DIAGNOSTIC_CANVAS_LAYER = {
+  CONTRAST: "contrast",
+  FOREGROUND: "foreground",
+  TEXT: "text",
+} as const;
 
 export type TileDiagnosticOverlayInput = {
   updateOnRender?: boolean;
@@ -100,16 +115,18 @@ export const createTileDiagnosticOverlay = (
                 !rect.tile.children?.length
             ) <<
               4) |
-            (Number(rect.coverage === "viewport") << 5) |
-            (Number(rect.coverage === "seam") << 6) |
-            (Number(rect.coverage === "base") << 7);
+            (Number(rect.coverage === TILE_DIAGNOSTIC_COVERAGE.VIEWPORT) << 5) |
+            (Number(rect.coverage === TILE_DIAGNOSTIC_COVERAGE.SEAM) << 6) |
+            (Number(rect.coverage === TILE_DIAGNOSTIC_COVERAGE.BASE) << 7);
           tiles.set(
             [
               rect.x,
               rect.y,
               rect.w,
               rect.h,
-              rect.kind === "ancestor" ? -1 : TILE_KINDS.indexOf(rect.kind),
+              rect.kind === TILE_DIAGNOSTIC_KIND.ANCESTOR
+                ? -1
+                : TILE_KINDS.indexOf(rect.kind),
               flags,
               rect.quality?.minimum ?? NaN,
               rect.quality?.maximum ?? NaN,
@@ -230,7 +247,7 @@ export const createTileDiagnosticOverlay = (
       };
       canvases[0].style.visibility = input.popout ? "hidden" : "visible";
       const message: DiagnosticWorkerMessage = {
-        type: "frame",
+        type: TILE_DIAGNOSTIC_WORKER_COMMAND.FRAME,
         snapshot,
         frame,
       };
@@ -262,12 +279,12 @@ export const createTileDiagnosticOverlay = (
       throw new Error(
         "Worker canvases are unavailable; tile diagnostics are disabled."
       );
-    for (const name of ["contrast", "foreground", "text"]) {
+    for (const name of Object.values(DIAGNOSTIC_CANVAS_LAYER)) {
       const canvas = host.ownerDocument.createElement("canvas");
       canvas.dataset.testId =
-        name === "contrast"
+        name === DIAGNOSTIC_CANVAS_LAYER.CONTRAST
           ? "mesh-coverage-contrast"
-          : name === "foreground"
+          : name === DIAGNOSTIC_CANVAS_LAYER.FOREGROUND
           ? "mesh-coverage-overlay"
           : "mesh-coverage-text";
       Object.assign(canvas.style, {
@@ -276,8 +293,9 @@ export const createTileDiagnosticOverlay = (
         width: "100%",
         height: "100%",
         pointerEvents: "none",
-        mixBlendMode: name === "contrast" ? "darken" : "normal",
-        opacity: name === "contrast" ? "0.25" : "1",
+        mixBlendMode:
+          name === DIAGNOSTIC_CANVAS_LAYER.CONTRAST ? "darken" : "normal",
+        opacity: name === DIAGNOSTIC_CANVAS_LAYER.CONTRAST ? "0.25" : "1",
       });
       canvases.push(canvas);
       host.append(canvas);
@@ -289,21 +307,21 @@ export const createTileDiagnosticOverlay = (
     worker.onerror = (event) => fail(event.message);
     worker.onmessage = ({ data }) => {
       if (disposed) return;
-      if (data.type === "error") {
+      if (data.type === TILE_DIAGNOSTIC_WORKER_REPLY.ERROR) {
         fail(data.message);
         return;
       }
-      if (data.type === "ready") {
+      if (data.type === TILE_DIAGNOSTIC_WORKER_REPLY.READY) {
         if (cameraSnapshot)
           worker?.postMessage({
-            type: "camera",
+            type: TILE_DIAGNOSTIC_WORKER_COMMAND.CAMERA,
             camera: cameraSnapshot,
             cameras: additionalCameras,
           });
         ready = true;
         options.onStatus?.({ ready: true });
       }
-      if (data.type === "frame") {
+      if (data.type === TILE_DIAGNOSTIC_WORKER_REPLY.FRAME) {
         working = false;
         host.dataset.instances = String(data.instances);
         host.dataset.bufferBytes = String(data.bufferBytes);
@@ -311,14 +329,14 @@ export const createTileDiagnosticOverlay = (
         host.dataset.workerMs = String(data.workerMs);
         if (data.view) host.dataset.projectedView = data.view.join(" ");
       }
-      if (dirty || data.type === "ready") schedule();
+      if (dirty || data.type === TILE_DIAGNOSTIC_WORKER_REPLY.READY) schedule();
     };
     const [contrast, foreground, text] = canvases.map((canvas) =>
       canvas.transferControlToOffscreen()
     );
     worker.postMessage(
       {
-        type: "init",
+        type: TILE_DIAGNOSTIC_WORKER_COMMAND.INIT,
         contrast,
         foreground,
         text,
@@ -371,18 +389,18 @@ export const createTileDiagnosticOverlay = (
         return;
       additionalCameras = cameras;
       cameraSnapshot = {
-        id: "overview-live",
+        id: TILE_DIAGNOSTIC_CAMERA_FOCUS.LIVE,
         matrixWorld: camera.matrixWorld.toArray(),
         projectionMatrix: camera.projectionMatrix.toArray(),
         coordinateSystem: camera.coordinateSystem,
         reversedDepth: camera.reversedDepth,
         viewport: [Math.max(1, width), Math.max(1, height)],
         errorTargetPixels: 1,
-        role: "receiver",
+        role: TILE_CAMERA_ROLE.RECEIVER,
       };
       if (ready)
         worker?.postMessage({
-          type: "camera",
+          type: TILE_DIAGNOSTIC_WORKER_COMMAND.CAMERA,
           camera: cameraSnapshot,
           cameras: additionalCameras,
         } satisfies DiagnosticWorkerMessage);
@@ -403,13 +421,13 @@ export const createTileDiagnosticOverlay = (
       if (retiring) {
         const timeout = setTimeout(() => retiring.terminate(), 250);
         retiring.onmessage = ({ data }) => {
-          if (data.type === "disposed") {
+          if (data.type === TILE_DIAGNOSTIC_WORKER_REPLY.DISPOSED) {
             clearTimeout(timeout);
             retiring.terminate();
           }
         };
         retiring.postMessage({
-          type: "dispose",
+          type: TILE_DIAGNOSTIC_WORKER_COMMAND.DISPOSE,
         } satisfies DiagnosticWorkerMessage);
       }
       worker = null;

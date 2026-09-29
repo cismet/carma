@@ -1,4 +1,13 @@
-import type { GeoreferencedLandmark } from "../base/landmarks";
+import {
+  LANDMARK_GEOMETRY_EVIDENCE,
+  LANDMARK_GROUND_SAMPLE_METHOD,
+  LANDMARK_GROUND_SOURCE,
+  LANDMARK_GROUND_STATUS,
+  LANDMARK_HEIGHT_STATUS,
+  LANDMARK_POSITION_METHOD,
+  LANDMARK_POSITION_STATUS,
+  type GeoreferencedLandmark,
+} from "../base/landmarks";
 
 /** Evidence snapshot, not a claim of live tile availability or surveyed geometry. */
 export const LANGENBERG_LANDMARK_PROVENANCE = {
@@ -33,29 +42,30 @@ export const LANGENBERG_LANDMARKS = [
     heightMeters: 301,
     groundNormalHeightMeters: 239.25,
     positionEvidence: {
-      status: "mapped-not-surveyed",
+      status: LANDMARK_POSITION_STATUS.MAPPED_NOT_SURVEYED,
       sourceUrl: "https://www.openstreetmap.org/way/158358772",
       osmVersion: 6,
       osmEditedAt: "2023-03-25T19:18:04Z",
-      method: "way-bounds-center",
+      method: LANDMARK_POSITION_METHOD.WAY_BOUNDS_CENTER,
     },
     heightEvidence: {
-      status: "municipality-published",
+      status: LANDMARK_HEIGHT_STATUS.MUNICIPALITY_PUBLISHED,
       sourceUrl:
         "https://stadtmarketing.velbert.de/tourismus/geschichte-erleben",
     },
     groundEvidence: {
-      status: "approximate-terrain",
-      source: "nrw-dgm1-wcs",
+      status: LANDMARK_GROUND_STATUS.APPROXIMATE_TERRAIN,
+      source: LANDMARK_GROUND_SOURCE.NRW_DGM1_WCS,
       verticalDatum: "DHHN2016",
       horizontalCrs: "EPSG:25832",
-      sampleMethod: "containing-1m-pixel-center",
+      sampleMethod: LANDMARK_GROUND_SAMPLE_METHOD.CONTAINING_1M_PIXEL_CENTER,
       requestBoundsUtm32Meters: [370078, 5691090, 370088, 5691100],
       sampleCenterUtm32Meters: [370083.5, 5691095.5],
       sourceUrl:
         "https://www.wcs.nrw.de/geobasis/wcs_nw_dgm?SERVICE=WCS&VERSION=2.0.1&REQUEST=GetCoverage&COVERAGEID=nw_dgm&FORMAT=image%2Ftiff&SUBSET=x%28370078%2C370088%29&SUBSET=y%285691090%2C5691100%29",
     },
-    geometryEvidence: "authored-approximate-silhouette",
+    geometryEvidence:
+      LANDMARK_GEOMETRY_EVIDENCE.AUTHORED_APPROXIMATE_SILHOUETTE,
     parts: [
       {
         baseHeightMeters: 0,
@@ -139,28 +149,29 @@ export const LANGENBERG_LANDMARKS = [
     heightMeters: 170,
     groundNormalHeightMeters: 246.23,
     positionEvidence: {
-      status: "mapped-not-surveyed",
+      status: LANDMARK_POSITION_STATUS.MAPPED_NOT_SURVEYED,
       sourceUrl: "https://www.openstreetmap.org/way/158358778",
       osmVersion: 9,
       osmEditedAt: "2023-05-05T18:38:36Z",
-      method: "way-bounds-center",
+      method: LANDMARK_POSITION_METHOD.WAY_BOUNDS_CENTER,
     },
     heightEvidence: {
-      status: "mapped",
+      status: LANDMARK_HEIGHT_STATUS.MAPPED,
       sourceUrl: "https://www.openstreetmap.org/way/158358778",
     },
     groundEvidence: {
-      status: "approximate-terrain",
-      source: "nrw-dgm1-wcs",
+      status: LANDMARK_GROUND_STATUS.APPROXIMATE_TERRAIN,
+      source: LANDMARK_GROUND_SOURCE.NRW_DGM1_WCS,
       verticalDatum: "DHHN2016",
       horizontalCrs: "EPSG:25832",
-      sampleMethod: "containing-1m-pixel-center",
+      sampleMethod: LANDMARK_GROUND_SAMPLE_METHOD.CONTAINING_1M_PIXEL_CENTER,
       requestBoundsUtm32Meters: [370354, 5690507, 370364, 5690517],
       sampleCenterUtm32Meters: [370359.5, 5690512.5],
       sourceUrl:
         "https://www.wcs.nrw.de/geobasis/wcs_nw_dgm?SERVICE=WCS&VERSION=2.0.1&REQUEST=GetCoverage&COVERAGEID=nw_dgm&FORMAT=image%2Ftiff&SUBSET=x%28370354%2C370364%29&SUBSET=y%285690507%2C5690517%29",
     },
-    geometryEvidence: "authored-approximate-silhouette",
+    geometryEvidence:
+      LANDMARK_GEOMETRY_EVIDENCE.AUTHORED_APPROXIMATE_SILHOUETTE,
     parts: [
       {
         baseHeightMeters: 0,

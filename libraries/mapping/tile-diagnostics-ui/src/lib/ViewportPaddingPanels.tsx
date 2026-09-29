@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type CSSProperties } from "react";
 import type { Map as MapLibreMap } from "maplibre-gl";
 import {
   getViewportPanelLayout,
+  VIEWPORT_PANEL_SIDE,
   VIEWPORT_PANEL_SIDES as SIDES,
   type ViewportPanelSide as Side,
 } from "@carma-commons/ui/components";
@@ -117,7 +118,9 @@ export const ViewportPaddingPanels = ({ map }: { map: MapLibreMap }) => {
         </button>
       </nav>
       {SIDES.filter((side) => enabled[side]).map((side) => {
-        const horizontal = side === "left" || side === "right";
+        const horizontal =
+          side === VIEWPORT_PANEL_SIDE.LEFT ||
+          side === VIEWPORT_PANEL_SIDE.RIGHT;
         const inner = {
           left: "right",
           right: "left",
@@ -193,7 +196,10 @@ export const ViewportPaddingPanels = ({ map }: { map: MapLibreMap }) => {
                 const delta =
                   ((horizontal ? event.clientX : event.clientY) -
                     active.coordinate) *
-                  (side === "right" || side === "bottom" ? -1 : 1);
+                  (side === VIEWPORT_PANEL_SIDE.RIGHT ||
+                  side === VIEWPORT_PANEL_SIDE.BOTTOM
+                    ? -1
+                    : 1);
                 const size = Math.max(48, active.size + delta);
                 cancelAnimationFrame(frame.current);
                 frame.current = requestAnimationFrame(() =>
@@ -226,7 +232,10 @@ export const ViewportPaddingPanels = ({ map }: { map: MapLibreMap }) => {
                     extent(side) +
                       16 *
                         direction *
-                        (side === "right" || side === "bottom" ? -1 : 1)
+                        (side === VIEWPORT_PANEL_SIDE.RIGHT ||
+                        side === VIEWPORT_PANEL_SIDE.BOTTOM
+                          ? -1
+                          : 1)
                   ),
                 }));
               }}

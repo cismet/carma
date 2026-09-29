@@ -1,6 +1,7 @@
 import { synchronizeSharedCacheCeiling } from "./three-tiles-shared-cache-ceiling";
 import {
   CACHE_CEILING_FAILURE_FRACTION,
+  CACHE_CEILING_REASON,
   EMPTY_CACHE_CEILING_MEMORY,
   endCacheCeilingSession as endCacheCeilingSessionMemory,
   learnCacheCeiling,
@@ -258,7 +259,7 @@ export function createThreeTilesCacheBudget(
     () => {
       if (runtimeState.contextLost) return;
       runtimeState.contextLost = true;
-      recordCacheCeilingFailure("context-lost");
+      recordCacheCeilingFailure(CACHE_CEILING_REASON.CONTEXT_LOST);
       dependencies.applyRequestConcurrency();
     };
 
@@ -275,7 +276,10 @@ export function createThreeTilesCacheBudget(
       const allocationWaiting =
         runtimeState.allocationRecovery?.phase ===
         MESH_ALLOCATION_RECOVERY_PHASE.WAITING;
-      if (reason === "allocation" && runtimeState.options.providesTerrain) {
+      if (
+        reason === CACHE_CEILING_REASON.ALLOCATION &&
+        runtimeState.options.providesTerrain
+      ) {
         if (allocationWaiting) {
           // Multiple jobs can fail in one paused episode. Preserve its first
           // deadline rather than pushing recovery away on every notification.
@@ -297,14 +301,17 @@ export function createThreeTilesCacheBudget(
         // Arm that existing wakeup here, including when every queue is paused.
         dependencies.scheduleSettledMeshAudit();
       }
-      if (reason === "context-lost" && allocationWaiting) {
+      if (reason === CACHE_CEILING_REASON.CONTEXT_LOST && allocationWaiting) {
         contextLossLearned = true;
         return;
       }
       if (runtimeState.contextLost && contextLossLearned) return;
       // A lost context with a mostly empty cache is a GPU reset or a
       // backgrounded tab, not a memory signal; only a well-filled cache learns.
-      if (reason === "context-lost" && cached < runtimeState.ceilingBytes * 0.5)
+      if (
+        reason === CACHE_CEILING_REASON.CONTEXT_LOST &&
+        cached < runtimeState.ceilingBytes * 0.5
+      )
         return;
       if (runtimeState.contextLost) contextLossLearned = true;
       const lesson = learnCacheCeiling(

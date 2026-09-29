@@ -7,6 +7,7 @@ import {
   SIZE_GRID,
   ANCESTOR_OPACITY_STEP,
   SIZE_GRID_OPACITY,
+  TILE_DIAGNOSTIC_PHASE,
   TILE_KINDS,
   TILE_PHASES,
   PHASE_SWEEP,
@@ -81,7 +82,7 @@ export const buildDiagnosticPrimitives = (
         offset + TILE_STEP_OFFSET + TILE_STEP_SLOTS
       )
     );
-  const LOADED_PHASE = TILE_PHASES.indexOf("\u25cf");
+  const LOADED_PHASE = TILE_PHASES.indexOf(TILE_DIAGNOSTIC_PHASE.LOADED);
   for (let i = 0; i < data.length; i += TILE_RECORD_FLOATS) {
     const total = stepsOf(i).reduce((sum, ms) => sum + ms, 0);
     if (total > 0 && data[i + 8] === LOADED_PHASE) totals.push(total);

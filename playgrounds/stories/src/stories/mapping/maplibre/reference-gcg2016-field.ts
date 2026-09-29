@@ -2,7 +2,7 @@ import maplibregl from "maplibre-gl";
 import * as THREE from "three";
 
 import type { LngLatArray } from "@carma-geo/data-structures";
-import { getGcg2016HeightAnomalies } from "@carma-geo/proj";
+import { EARTH_RADIUS, getGcg2016HeightAnomalies } from "@carma-geo/proj";
 
 import {
   createReferenceFrame,
@@ -94,7 +94,7 @@ export const sampleGcg2016FieldAtLocal = (
 export const createGcg2016ShaderField = async (
   center: readonly [number, number]
 ): Promise<Gcg2016ShaderField> => {
-  const frame = createReferenceFrame(center, 6_371_000);
+  const frame = createReferenceFrame(center, EARTH_RADIUS);
   const coordinates: LngLatArray.deg[] = [];
   for (let row = 0; row < GCG_TEXTURE_SIZE; row += 1) {
     const southMeters =

@@ -1,6 +1,11 @@
 import { expect, it } from "vitest";
 import { MercatorCoordinate } from "maplibre-gl";
-import { cartographicToEcef, ecefToEnuOffset } from "@carma-geo/proj";
+import {
+  cartographicToEcef,
+  ecefToEnuOffset,
+  getWgs84PrincipalCurvatureRadii,
+  MAPLIBRE_EARTH_RADIUS,
+} from "@carma-geo/proj";
 import { degToRadNumeric } from "@carma-units";
 
 // Historical screenshot coordinates, not the subsequently moved story presets.
@@ -8,11 +13,9 @@ import { degToRadNumeric } from "@carma-units";
 it("separates the rigid mount's horizontal residual from vertical sag in the historic top-down captures", () => {
   const origin = [7.16346125, 51.24111123] as [number, number];
   const phi = degToRadNumeric(origin[1]);
-  const a = 6378137,
-    e2 = 6.6943799901413165e-3,
-    r = 6371008.8;
-  const n = a / Math.sqrt(1 - e2 * Math.sin(phi) ** 2);
-  const m = (a * (1 - e2)) / (1 - e2 * Math.sin(phi) ** 2) ** 1.5;
+  const r = MAPLIBRE_EARTH_RADIUS;
+  const { primeVerticalMeters: n, meridionalMeters: m } =
+    getWgs84PrincipalCurvatureRadii(phi);
   const reference = MercatorCoordinate.fromLngLat(origin, 0);
   const units = reference.meterInMercatorCoordinateUnits();
   const root = cartographicToEcef(degToRadNumeric(origin[0]), phi, 0);

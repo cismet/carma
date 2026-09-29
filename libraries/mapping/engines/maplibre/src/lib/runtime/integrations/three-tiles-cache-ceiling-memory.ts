@@ -14,7 +14,13 @@ export const CACHE_CEILING_BUILD_ID = cacheCeilingBuildId(import.meta.url);
 export const cacheCeilingStorageKey = (buildId = CACHE_CEILING_BUILD_ID) =>
   `${CACHE_CEILING_STORAGE_KEY}:${encodeURIComponent(buildId)}`;
 
-export type CacheCeilingReason = "allocation" | "context-lost";
+export const CACHE_CEILING_REASON = {
+  ALLOCATION: "allocation",
+  CONTEXT_LOST: "context-lost",
+} as const;
+
+export type CacheCeilingReason =
+  (typeof CACHE_CEILING_REASON)[keyof typeof CACHE_CEILING_REASON];
 
 export type CacheCeilingProbe = Readonly<{
   ceilingBytes: number;

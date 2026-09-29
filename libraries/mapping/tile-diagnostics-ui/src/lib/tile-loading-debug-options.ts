@@ -1,6 +1,17 @@
 import type { Map as MapLibreMap } from "maplibre-gl";
 import type { MetricRecorder } from "@carma-commons/ui/components";
-import type { ThreeTilesRuntime } from "@carma-mapping/engines/maplibre";
+import {
+  TILE_DIAGNOSTIC_CAMERA_FOCUS,
+  TILE_DIAGNOSTIC_EXTENTS_MODE,
+  TILE_DIAGNOSTIC_LABEL_MODE,
+  TILE_DIAGNOSTIC_OVERVIEW_UP,
+  TILE_DIAGNOSTIC_OVERVIEW_VIEW,
+  type ThreeTilesRuntime,
+  type TileDiagnosticExtentsMode,
+  type TileDiagnosticLabelMode,
+  type TileDiagnosticOverviewUp,
+  type TileDiagnosticOverviewView,
+} from "@carma-mapping/engines/maplibre";
 
 export type TileLoadingDebugOptions = {
   showOverviewPanel: boolean;
@@ -8,7 +19,7 @@ export type TileLoadingDebugOptions = {
   overviewSize?: boolean;
   overviewSteps?: boolean;
   showDiagnosticTools?: boolean;
-  overviewUp: "tileset" | "camera-tangent";
+  overviewUp: TileDiagnosticOverviewUp;
   showTileGeometry: boolean;
   showMeshStylePanel?: boolean;
   meshFillOpacity?: number;
@@ -26,7 +37,7 @@ export type TileLoadingDebugOptions = {
    * centred on the screen-centre ray and following the camera; or a free
    * slippy view with wheel zoom and drag (blocks the map underneath).
    */
-  overviewView: "extent" | "frustum" | "free";
+  overviewView: TileDiagnosticOverviewView;
   overviewCameraFocus?: string;
   /** 100 fits the viewport; 200 doubles its extent. */
   overviewPaddingPercent?: number;
@@ -34,13 +45,13 @@ export type TileLoadingDebugOptions = {
   showFrustum: boolean;
   showResident: boolean;
   /** Text on the overview rectangles. */
-  overlayLabels: "none" | "id" | "id and error" | "id and stats";
+  overlayLabels: TileDiagnosticLabelMode;
   /** Tile ids as DOM billboards at the top-plane centre of displayed tiles. */
   sceneLabels: boolean;
   showQueue: boolean;
   showStats: boolean;
   /** Tile extents in the scene, coloured like the overview: instanced cubes or edges. */
-  sceneExtents: "none" | "boxes" | "edges";
+  sceneExtents: TileDiagnosticExtentsMode;
   /** 3DTilesRendererJS DebugTilesPlugin: tile colour mode and bounds helpers. */
   debugColorMode: DebugColorModeName;
   debugBoxBounds: boolean;
@@ -79,7 +90,7 @@ export const DEFAULT_TILE_LOADING_DEBUG_OPTIONS: TileLoadingDebugOptions = {
   showOverviewPanel: false,
   overviewSize: true,
   overviewSteps: false,
-  overviewUp: "camera-tangent",
+  overviewUp: TILE_DIAGNOSTIC_OVERVIEW_UP.CAMERA_TANGENT,
   showTileGeometry: false,
   showOverlay: true,
   hideAllDebugPanels: false,
@@ -88,17 +99,17 @@ export const DEFAULT_TILE_LOADING_DEBUG_OPTIONS: TileLoadingDebugOptions = {
   showLegend: true,
   showCharts: false,
   showEventLog: false,
-  overviewView: "frustum",
-  overviewCameraFocus: "all",
+  overviewView: TILE_DIAGNOSTIC_OVERVIEW_VIEW.FRUSTUM,
+  overviewCameraFocus: TILE_DIAGNOSTIC_CAMERA_FOCUS.ALL,
   overviewPaddingPercent: 200,
   overlayOpacity: 0.85,
   showFrustum: true,
   showResident: true,
-  overlayLabels: "none",
+  overlayLabels: TILE_DIAGNOSTIC_LABEL_MODE.NONE,
   sceneLabels: false,
   showQueue: false,
   showStats: false,
-  sceneExtents: "none",
+  sceneExtents: TILE_DIAGNOSTIC_EXTENTS_MODE.NONE,
   debugColorMode: "NONE",
   debugBoxBounds: false,
   debugSphereBounds: false,

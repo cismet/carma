@@ -1,7 +1,8 @@
 import type {
-  MeshTileDebugProgress,
-  MeshTileWait,
-} from "./three-tiles-runtime-types";
+  MeshTileWaitReason,
+  MeshTileWaitRole,
+} from "../../core/mesh-tile-wait";
+import type { MeshTileDebugProgress } from "./three-tiles-runtime-types";
 import type { SharedThreeSceneTileVolume } from "../../core/shared-three-scene-types";
 
 /** Non-overlapping elapsed phases; presentation is observed, never inferred from selection. */
@@ -59,8 +60,8 @@ export const getThreeTileDiagnosticSteps = (
 /** Observe transitions only; never feed diagnostic clocks back into admission. */
 export const recordThreeTileWait = (
   progress: MeshTileDebugProgress,
-  role: MeshTileWait["role"],
-  reason: MeshTileWait["reason"] | null,
+  role: MeshTileWaitRole,
+  reason: MeshTileWaitReason | null,
   now: number,
   blocker?: string
 ): boolean => {

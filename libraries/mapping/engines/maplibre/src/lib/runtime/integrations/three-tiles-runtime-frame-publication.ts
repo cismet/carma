@@ -3,6 +3,10 @@ import * as THREE from "three";
 
 import { initialMeshLoadError } from "../../core/mesh-error-policy";
 
+import {
+  MESH_TILE_WAIT_REASON,
+  MESH_TILE_WAIT_ROLE,
+} from "../../core/mesh-tile-wait";
 import { TILES_LOAD_POLICY } from "../../core/tile-load-config";
 import { selectMeshReceiverPlan } from "../../core/mesh-tile-selection";
 import {
@@ -150,7 +154,11 @@ export function createThreeTilesFramePublication(
         runtimeState.options.tileTelemetry !== false
       )
         for (const tile of receiverPlan.materialWaits)
-          dependencies.recordTileWait(tile, "receiver", "material");
+          dependencies.recordTileWait(
+            tile,
+            MESH_TILE_WAIT_ROLE.RECEIVER,
+            MESH_TILE_WAIT_REASON.MATERIAL
+          );
       attachment.updateMeshRefinementSupport(
         receiverPlan.refinementSupport,
         receiverPlan.unpreparedParents
@@ -206,8 +214,10 @@ export function createThreeTilesFramePublication(
           if (receiver)
             dependencies.recordTileWait(
               tile,
-              "receiver",
-              progress.visibleAt === undefined ? "render" : null
+              MESH_TILE_WAIT_ROLE.RECEIVER,
+              progress.visibleAt === undefined
+                ? MESH_TILE_WAIT_REASON.RENDER
+                : null
             );
           if (
             runtimeState.shadowView &&
@@ -215,12 +225,12 @@ export function createThreeTilesFramePublication(
           )
             dependencies.recordTileWait(
               tile,
-              "shadow",
+              MESH_TILE_WAIT_ROLE.SHADOW,
               progress.shadowPresentedAt !== undefined
                 ? null
                 : progress.shadowDepthSubmittedAt === undefined
-                ? "shadow-render"
-                : "shadow-accumulation"
+                ? MESH_TILE_WAIT_REASON.SHADOW_RENDER
+                : MESH_TILE_WAIT_REASON.SHADOW_ACCUMULATION
             );
         }
         if (model) {

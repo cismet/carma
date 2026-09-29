@@ -1,8 +1,21 @@
 import { buildDiagnosticPrimitives } from "../../core/diagnostics/tile-diagnostic-primitives";
-import { buildDiagnosticSelection, buildDiagnosticViewport } from "../../core/diagnostics/tile-diagnostic-camera-primitives";
+import {
+  buildDiagnosticSelection,
+  buildDiagnosticViewport,
+} from "../../core/diagnostics/tile-diagnostic-camera-primitives";
 import { drawDiagnosticText } from "../../core/diagnostics/tile-diagnostic-labels";
-import { TILE_RECORD_FLOATS, type DiagnosticSnapshot, type DiagnosticWorkerMessage, type DiagnosticFrame } from "../../core/diagnostics/tile-diagnostic-scene";
-import type { TileCameraSnapshot } from "../../core/tile-camera-demand";
+import {
+  TILE_DIAGNOSTIC_WORKER_COMMAND,
+  TILE_DIAGNOSTIC_WORKER_REPLY,
+  TILE_RECORD_FLOATS,
+  type DiagnosticSnapshot,
+  type DiagnosticWorkerMessage,
+  type DiagnosticFrame,
+} from "../../core/diagnostics/tile-diagnostic-scene";
+import {
+  TILE_CAMERA_ROLE,
+  type TileCameraSnapshot,
+} from "../../core/tile-camera-demand";
 import { projectTileDiagnosticViewports } from "./tile-diagnostic-viewport";
 import * as THREE from "three";
 import { createTileDiagnosticRenderer } from "./tile-diagnostic-webgpu";
@@ -19,7 +32,10 @@ let textContext: OffscreenCanvasRenderingContext2D | null = null;
 let disposed = false,
   drawing = false,
   scheduled = false;
-let pending: Extract<DiagnosticWorkerMessage, { type: "frame" }> | null = null;
+let pending: Extract<
+  DiagnosticWorkerMessage,
+  { type: typeof TILE_DIAGNOSTIC_WORKER_COMMAND.FRAME }
+> | null = null;
 let target: DiagnosticFrame | null = null;
 let camera: TileCameraSnapshot | null = null;
 let cameras: readonly TileCameraSnapshot[] = [];
@@ -33,7 +49,7 @@ const fail = (error: unknown) => {
   renderer = null;
   if (!disposed)
     host.postMessage({
-      type: "error",
+      type: TILE_DIAGNOSTIC_WORKER_REPLY.ERROR,
       message: error instanceof Error ? error.message : String(error),
     });
 };
@@ -156,7 +172,8 @@ const draw = async () => {
         : viewport
         ? viewport.views.map((view, i) => {
             const light =
-              (i === 0 ? camera : cameras[i - 1])?.role === "geometry";
+              (i === 0 ? camera : cameras[i - 1])?.role ===
+              TILE_CAMERA_ROLE.GEOMETRY;
             return buildDiagnosticViewport(
               view,
               light ? "rgba(246, 250, 164, 0.6)" : colors[i % colors.length],
@@ -176,7 +193,7 @@ const draw = async () => {
     const metrics = await renderer.render(frame, dynamic);
     if (!disposed && update)
       host.postMessage({
-        type: "frame",
+        type: TILE_DIAGNOSTIC_WORKER_REPLY.FRAME,
         ...metrics,
         workerMs: performance.now() - started,
         view: [frame.view.x, frame.view.y, frame.view.w, frame.view.h],
@@ -190,7 +207,7 @@ const draw = async () => {
 };
 host.onmessage = async ({ data }) => {
   try {
-    if (data.type === "dispose") {
+    if (data.type === TILE_DIAGNOSTIC_WORKER_COMMAND.DISPOSE) {
       disposed = true;
       pending = null;
       camera = null;
@@ -198,13 +215,13 @@ host.onmessage = async ({ data }) => {
       renderer?.dispose();
       renderer = null;
       snapshot = null;
-      host.postMessage({ type: "disposed" });
-    } else if (data.type === "camera") {
+      host.postMessage({ type: TILE_DIAGNOSTIC_WORKER_REPLY.DISPOSED });
+    } else if (data.type === TILE_DIAGNOSTIC_WORKER_COMMAND.CAMERA) {
       camera = data.camera;
       cameras = data.cameras ?? [];
       cameraDirty = true;
       if (target) schedule();
-    } else if (data.type === "init") {
+    } else if (data.type === TILE_DIAGNOSTIC_WORKER_COMMAND.INIT) {
       textCanvas = data.text;
       textContext = textCanvas.getContext("2d");
       if (!textContext)
@@ -218,7 +235,7 @@ host.onmessage = async ({ data }) => {
         renderer = null;
         return;
       }
-      host.postMessage({ type: "ready" });
+      host.postMessage({ type: TILE_DIAGNOSTIC_WORKER_REPLY.READY });
     } else {
       pending = data;
       schedule();

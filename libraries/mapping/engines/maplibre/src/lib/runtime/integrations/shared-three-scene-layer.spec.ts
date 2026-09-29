@@ -3,6 +3,7 @@ import {
   expectMatrixToBeCloseTo,
 } from "./shared-three-scene-layer.test-support";
 import * as THREE from "three";
+import { MAPLIBRE_EARTH_RADIUS } from "@carma-geo/proj";
 import { degToRadNumeric } from "@carma-units";
 import { describe, expect, it, vi } from "vitest";
 import { buildSharedThreeSceneLayer } from "./shared-three-scene-layer";
@@ -90,7 +91,7 @@ describe("shared three scene layer", () => {
         .multiply(new THREE.Matrix4().makeRotationX(degToRadNumeric(-51.25)))
         .multiply(new THREE.Matrix4().makeTranslation(0, 0, 1))
         .multiply(new THREE.Matrix4().makeRotationX(Math.PI / 2))
-        .scale(new THREE.Vector3().setScalar(1 / 6371008.8));
+        .scale(new THREE.Vector3().setScalar(1 / MAPLIBRE_EARTH_RADIUS));
       expectMatrixToBeCloseTo(actual, expected);
       expect(actual.elements.every(Number.isFinite)).toBe(true);
       const parent = root.parent;

@@ -4,9 +4,14 @@ import { MercatorCoordinate } from "maplibre-gl";
 import * as THREE from "three";
 
 import type { TextureColorCorrection } from "@carma-commons/resources";
-import type { MeshMercatorLut } from "@carma-geo/utils";
+import type { MeshMercatorLut } from "@carma-geo/proj";
 
+import type {
+  MeshTileWaitReason,
+  MeshTileWaitRole,
+} from "../../core/mesh-tile-wait";
 import type { SharedThreeSceneRuntime } from "../../core/shared-three-scene-types";
+import type { Tiles3dBasemap } from "../../core/tiles3d-basemap";
 import type {
   TILE_QUEUE_ACTION,
   TILE_QUEUE_STAGE,
@@ -75,14 +80,8 @@ export type RuntimeTile = Tile & {
 };
 
 export type MeshTileWait = {
-  role: "receiver" | "shadow";
-  reason:
-    | "material"
-    | "replacement-family"
-    | "shadow-family"
-    | "render"
-    | "shadow-render"
-    | "shadow-accumulation";
+  role: MeshTileWaitRole;
+  reason: MeshTileWaitReason;
   since: number;
   until?: number;
   blocker?: string;
@@ -310,7 +309,7 @@ export interface ThreeTilesRuntimeOptions {
    * How the map style meets a terrain-providing tileset: `labels` overlays the
    * point labels (default), `none` leaves the tileset untouched.
    */
-  mapStyleDrape?: "labels" | "none";
+  mapStyleDrape?: Tiles3dBasemap;
   /**
    * Known ground height at the layer origin, in metres: the tileset is
    * lowered by it from the first traversal on. Preferred over the probe,

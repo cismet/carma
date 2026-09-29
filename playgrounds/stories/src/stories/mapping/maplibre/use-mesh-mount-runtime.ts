@@ -4,10 +4,10 @@ import * as THREE from "three";
 import { PI } from "@carma-units";
 import {
   getMeshReprojectionCameraFit,
-  MESH_REPROJECTION_MODE,
   MESH_REPROJECTION_METHODS,
+  MESH_REPROJECTION_MODE,
   type MeshMercatorLut,
-} from "@carma-geo/utils";
+} from "@carma-geo/proj";
 import { WUPP_MESH_2024, WUPP_LOD2_TILESET } from "@carma-commons/resources";
 import {
   acquireSharedThreeScene,

@@ -1,3 +1,4 @@
+import { EARTH_RADIUS } from "@carma-geo/proj";
 import type { MapLibreThreeReferenceSurfacesOptions } from "./MapLibreThreeReferenceSurfacesDemo";
 import { REFERENCE_ATMOSPHERE_MODE } from "./reference-atmosphere-shader";
 import { REFERENCE_CAMERA_PRESET } from "./reference-camera-presets";
@@ -6,7 +7,6 @@ import {
   TERRAIN_GEOMETRY_MODE,
   TERRAIN_HEIGHT_DATUM,
 } from "./reference-surface-types";
-import { WGS84_REFERENCE_AXES } from "./reference-surface-frame";
 
 /** Shared defaults; scoped stories override only the variable under comparison. */
 export const REFERENCE_SURFACE_DEFAULTS: MapLibreThreeReferenceSurfacesOptions =
@@ -22,8 +22,7 @@ export const REFERENCE_SURFACE_DEFAULTS: MapLibreThreeReferenceSurfacesOptions =
     referenceOpacity: 0.72,
     referenceVerticalScale: 1,
     referenceVerticalOffsetMeters: 0,
-    localSphereRadiusMeters:
-      WGS84_REFERENCE_AXES.defaultLocalSphereRadiusMeters,
+    localSphereRadiusMeters: EARTH_RADIUS,
     terrainGeometryMode: TERRAIN_GEOMETRY_MODE.WGS84_ECEF,
     terrainHeightDatum: TERRAIN_HEIGHT_DATUM.ELLIPSOIDAL,
     terrainModel: "dom1",

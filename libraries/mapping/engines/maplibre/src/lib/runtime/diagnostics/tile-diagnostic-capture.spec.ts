@@ -68,8 +68,8 @@ const fixture = () => {
 const options = {
   width: 800,
   height: 600,
-  overviewUp: "tileset",
-  overviewView: "extent",
+  overviewUp: "tileset" as const,
+  overviewView: "extent" as const,
   showOverlay: true,
   showOverviewPanel: false,
   showFrustum: false,

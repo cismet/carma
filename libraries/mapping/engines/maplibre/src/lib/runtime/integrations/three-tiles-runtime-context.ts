@@ -1,4 +1,7 @@
-import type { MESH_ALLOCATION_RECOVERY_PHASE } from "./three-tiles-runtime-config";
+import type {
+  MESH_ALLOCATION_RECOVERY_PHASE,
+  MeshShadowReservePhase,
+} from "./three-tiles-runtime-config";
 import { type Tile } from "3d-tiles-renderer/core";
 import type { CacheCeilingMemory } from "./three-tiles-cache-ceiling-memory";
 import type { Map as MaplibreMap } from "maplibre-gl";
@@ -131,7 +134,7 @@ export interface ThreeTilesRuntimeState {
   meshShadowReserve: {
     /** Current transaction, distinct from the retained published certificate. */
     pending?: {
-      phase: "metadata" | "planning" | "loading" | "blocked" | "ready";
+      phase: MeshShadowReservePhase;
       required: number;
       missing: number;
       blocked: number;

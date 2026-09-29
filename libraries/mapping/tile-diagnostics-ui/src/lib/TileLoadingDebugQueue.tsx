@@ -1,8 +1,9 @@
 import { Button } from "antd";
 import type { Tile } from "3d-tiles-renderer/core";
-import type {
-  TileDiagnosticQueueRow,
-  TileDiagnosticSummary,
+import {
+  TILE_DIAGNOSTIC_QUEUE_STATE,
+  type TileDiagnosticQueueRow,
+  type TileDiagnosticSummary,
 } from "@carma-mapping/engines/maplibre";
 
 export const TileLoadingDebugQueue = ({
@@ -19,7 +20,9 @@ export const TileLoadingDebugQueue = ({
   onHover: (tile: Tile | null) => void;
 }) => {
   const activeRows = queue.filter(
-    (row) => row.state !== "cancelled" && row.state !== "failed"
+    (row) =>
+      row.state !== TILE_DIAGNOSTIC_QUEUE_STATE.CANCELLED &&
+      row.state !== TILE_DIAGNOSTIC_QUEUE_STATE.FAILED
   );
   return (
     <div
@@ -76,9 +79,9 @@ export const TileLoadingDebugQueue = ({
               style={{
                 cursor: "default",
                 color:
-                  row.state === "cancelled"
+                  row.state === TILE_DIAGNOSTIC_QUEUE_STATE.CANCELLED
                     ? "#888"
-                    : row.state === "failed"
+                    : row.state === TILE_DIAGNOSTIC_QUEUE_STATE.FAILED
                     ? "#b00"
                     : "#111",
                 background:

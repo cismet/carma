@@ -1,6 +1,10 @@
 import type { Tile } from "3d-tiles-renderer/core";
 import { isMeshCoverageRemovalSafe } from "../../core/mesh-tile-coverage";
 import {
+  TILE_PRESENTATION_MODE,
+  type TilePresentationMode,
+} from "../../core/tile-presentation-mode";
+import {
   FAILED_LOADING_STATE,
   LOADED_LOADING_STATE,
 } from "./three-tiles-runtime-vendor";
@@ -120,7 +124,7 @@ export type ThreeTilesClosureCoverage = Pick<
 
 export type ThreeTilesRuntimeCoverageStatus = Readonly<{
   enabled: boolean;
-  presentationMode: "exclusive-mesh" | "exclusive-shadow";
+  presentationMode: TilePresentationMode;
   sourcePendingMetadata: boolean;
   floorArmed: boolean;
   floorReady: boolean;
@@ -194,7 +198,14 @@ export type ThreeTilesRuntimeCoverageInput = Readonly<{
   baseResidentBytes?: number;
 }>;
 
-type FallbackEvidence = "covered" | "failed" | "unknown";
+const FALLBACK_EVIDENCE = {
+  COVERED: "covered",
+  FAILED: "failed",
+  UNKNOWN: "unknown",
+} as const;
+
+type FallbackEvidence =
+  (typeof FALLBACK_EVIDENCE)[keyof typeof FALLBACK_EVIDENCE];
 
 /** Discover the full source floor, not the main-view-only floor subset. */
 export const collectTilesetFloorRoots = (
@@ -283,34 +294,38 @@ const classifyFallback = (
   tile: Tile,
   deferredTiles?: ReadonlySet<Tile>
 ): FallbackEvidence => {
-  if (isLoadedMesh(tile)) return "covered";
+  if (isLoadedMesh(tile)) return FALLBACK_EVIDENCE.COVERED;
   const internal = tile.internal;
-  if (!internal) return "unknown";
+  if (!internal) return FALLBACK_EVIDENCE.UNKNOWN;
   if (
     internal.loadingState === FAILED_LOADING_STATE &&
     !deferredTiles?.has(tile)
   )
-    return "failed";
+    return FALLBACK_EVIDENCE.FAILED;
   const children = tile.children ?? [];
   if (internal.hasUnrenderableContent) {
     if (internal.loadingState !== LOADED_LOADING_STATE || children.length === 0)
-      return "unknown";
+      return FALLBACK_EVIDENCE.UNKNOWN;
   } else if (children.length === 0) {
-    return "unknown";
+    return FALLBACK_EVIDENCE.UNKNOWN;
   }
   const childrenEvidence = children.map((child) =>
     classifyFallback(child, deferredTiles)
   );
-  if (childrenEvidence.every((evidence) => evidence === "covered"))
-    return "covered";
-  if (childrenEvidence.some((evidence) => evidence === "failed"))
-    return "failed";
-  return "unknown";
+  if (
+    childrenEvidence.every((evidence) => evidence === FALLBACK_EVIDENCE.COVERED)
+  )
+    return FALLBACK_EVIDENCE.COVERED;
+  if (
+    childrenEvidence.some((evidence) => evidence === FALLBACK_EVIDENCE.FAILED)
+  )
+    return FALLBACK_EVIDENCE.FAILED;
+  return FALLBACK_EVIDENCE.UNKNOWN;
 };
 
 const emptyStatus: ThreeTilesRuntimeCoverageStatus = {
   enabled: false,
-  presentationMode: "exclusive-mesh",
+  presentationMode: TILE_PRESENTATION_MODE.EXCLUSIVE_MESH,
   sourcePendingMetadata: false,
   floorArmed: false,
   floorReady: false,
@@ -392,8 +407,9 @@ export const createThreeTilesRuntimeCoverageDiagnostics = () => {
       for (const root of input.floorRoots) {
         if (isLoadedMesh(root)) floorLoaded += 1;
         const evidence = classifyFallback(root, input.deferredTiles);
-        if (evidence === "failed") failedFallbackRoots += 1;
-        else if (evidence === "unknown") unknownFallbackRoots += 1;
+        if (evidence === FALLBACK_EVIDENCE.FAILED) failedFallbackRoots += 1;
+        else if (evidence === FALLBACK_EVIDENCE.UNKNOWN)
+          unknownFallbackRoots += 1;
       }
     }
     const uncoveredFallbackRoots = failedFallbackRoots + unknownFallbackRoots;
@@ -467,8 +483,8 @@ export const createThreeTilesRuntimeCoverageDiagnostics = () => {
     status = {
       enabled: input.enabled,
       presentationMode: input.closureCoverage
-        ? "exclusive-shadow"
-        : "exclusive-mesh",
+        ? TILE_PRESENTATION_MODE.EXCLUSIVE_SHADOW
+        : TILE_PRESENTATION_MODE.EXCLUSIVE_MESH,
       sourcePendingMetadata: input.sourcePendingMetadata,
       floorArmed: input.floorArmed,
       floorReady,

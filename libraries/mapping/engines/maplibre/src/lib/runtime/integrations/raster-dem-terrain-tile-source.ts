@@ -1,6 +1,7 @@
 import type { RasterDemTerrainResource } from "@carma-commons/resources";
 import { runTerrainWorkerTask } from "./terrain-worker-client";
 import { resolveRasterMeshErrorMeters } from "../../core/raster-mesh-error";
+import { TERRAIN_WORKER_TASK_KIND } from "../../core/terrain-worker-protocol";
 import {
   getRasterDemTileGeometricError,
   getRasterDemTileGridIdsForBounds,
@@ -239,7 +240,7 @@ const buildSource = (
       if (decoded) {
         const result = await runTerrainWorkerTask(
           {
-            kind: "remesh",
+            kind: TERRAIN_WORKER_TASK_KIND.REMESH,
             raster: decoded,
             id,
             error: getLevelMaximumGeometricError(id.level),
@@ -248,7 +249,7 @@ const buildSource = (
           },
           loadSignal
         );
-        if (result.kind !== "remesh")
+        if (result.kind !== TERRAIN_WORKER_TASK_KIND.REMESH)
           throw new Error("Unexpected terrain remeshing result");
         loadSignal.throwIfAborted();
         cache.set(key, {
@@ -298,7 +299,7 @@ const buildSource = (
       const payload = await response.blob();
       const result = await runTerrainWorkerTask(
         {
-          kind: "decode",
+          kind: TERRAIN_WORKER_TASK_KIND.DECODE,
           blob: payload,
           id,
           segments: meshSegments,
@@ -308,7 +309,7 @@ const buildSource = (
         },
         loadSignal
       );
-      if (result.kind !== "decode")
+      if (result.kind !== TERRAIN_WORKER_TASK_KIND.DECODE)
         throw new Error("Unexpected terrain decoding result");
       loadSignal.throwIfAborted();
       const { raster } = result;

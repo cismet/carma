@@ -1,8 +1,17 @@
 import type { Tile } from "3d-tiles-renderer/core";
 
+export const REQUEST_PHASE_KIND = {
+  INITIAL: "initial",
+  MOVE: "move",
+  ZOOM: "zoom",
+} as const;
+
+export type RequestPhaseKind =
+  (typeof REQUEST_PHASE_KIND)[keyof typeof REQUEST_PHASE_KIND];
+
 type RequestPhase = {
   id: number;
-  kind: "initial" | "move" | "zoom";
+  kind: RequestPhaseKind;
   startedAt: number;
   zoom: number | null;
   shadows: boolean;
@@ -25,7 +34,9 @@ export const createThreeTilesRequestHistory = () => {
   const begin = (zoom: number | null, shadows: boolean) => {
     const phase: RequestPhase = {
       id: sequence++,
-      kind: phases.length ? "move" : "initial",
+      kind: phases.length
+        ? REQUEST_PHASE_KIND.MOVE
+        : REQUEST_PHASE_KIND.INITIAL,
       startedAt: performance.now(),
       zoom,
       shadows,
@@ -43,8 +54,11 @@ export const createThreeTilesRequestHistory = () => {
     const phase = phases[phases.length - 1];
     if (zoom !== undefined && Number.isFinite(zoom)) {
       if (phase.zoom === null) phase.zoom = zoom;
-      else if (phase.kind !== "initial" && Math.abs(zoom - phase.zoom) > 1e-5)
-        phase.kind = "zoom";
+      else if (
+        phase.kind !== REQUEST_PHASE_KIND.INITIAL &&
+        Math.abs(zoom - phase.zoom) > 1e-5
+      )
+        phase.kind = REQUEST_PHASE_KIND.ZOOM;
     }
     phase.shadows = shadows;
     return phase;

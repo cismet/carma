@@ -1,12 +1,16 @@
 import * as THREE from "three";
-import { meshShadowStageError } from "@carma-mapping/engines/maplibre";
+import {
+  meshShadowStageError,
+  TILE_VOLUME_LOAD_REASON,
+  type TileVolumeLoadReason,
+} from "@carma-mapping/engines/maplibre";
 import type { ShadowReceiverCell } from "./shadow-page-plan";
 
 type ReceiverVolume = Readonly<{
   id: string;
   minimum: readonly [number, number, number];
   maximum: readonly [number, number, number];
-  loadReason?: "viewport" | "shadow";
+  loadReason?: TileVolumeLoadReason;
 }>;
 
 /** Exact identity for read-only queries within one committed render snapshot. */
@@ -69,7 +73,7 @@ export const getPresentedShadowReceiverIds = (
   const presented = new Set(presentedPages.map(({ id }) => id));
   return volumes
     .filter((volume) => {
-      if (volume.loadReason === "shadow") return false;
+      if (volume.loadReason === TILE_VOLUME_LOAD_REASON.SHADOW) return false;
       const pages = visiblePages.filter(
         ({ bounds }) =>
           volume.minimum[0] < bounds.max.x &&
@@ -124,7 +128,7 @@ export const shadowReceiverStageError = (
     minimum: readonly [number, number, number];
     maximum: readonly [number, number, number];
     errorPixels?: number;
-    loadReason?: "viewport" | "shadow";
+    loadReason?: TileVolumeLoadReason;
   }>[],
   target: number
 ): number =>
@@ -132,7 +136,7 @@ export const shadowReceiverStageError = (
     volumes.reduce((error, volume) => {
       // A caster above the same footprint must not relax the receiver stage.
       // Its observer-space error is not the corridor's receiver-relative error.
-      if (volume.loadReason === "shadow") return error;
+      if (volume.loadReason === TILE_VOLUME_LOAD_REASON.SHADOW) return error;
       const [x0, , z0] = volume.minimum;
       const [x1, , z1] = volume.maximum;
       const overlaps =

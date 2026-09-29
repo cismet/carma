@@ -8,7 +8,10 @@ import type {
   SharedThreeSceneFrame,
   SharedThreeSceneShadowView,
 } from "../../core/shared-three-scene-types";
-import type { TerrainSelectionInput } from "../../core/terrain-selection-types";
+import {
+  TERRAIN_SELECTION_KIND,
+  type TerrainSelectionInput,
+} from "../../core/terrain-selection-types";
 import type { TileCameraSnapshot } from "../../core/tile-camera-demand";
 import {
   terrainTileKey,
@@ -201,7 +204,7 @@ export const snapshotRasterDemTerrainSelectionInput = (
   const knownHeightRanges: Record<string, readonly [number, number]> =
     snapshotKnownHeightRanges();
   for (const [key, record] of meshes) {
-    if (key.startsWith("source:")) {
+    if (key.startsWith(`${TERRAIN_SELECTION_KIND.SOURCE}:`)) {
       const tileKey = terrainTileKey(record.id);
       const known = knownHeightRanges[tileKey];
       knownHeightRanges[tileKey] = [

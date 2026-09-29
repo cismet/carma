@@ -22,6 +22,11 @@ import {
 } from "@carma-commons/ui/components";
 import { TILE_PIPELINE_CHART_ROWS as CHART_ROWS } from "./core/tile-pipeline-chart-rows";
 import type { ResolvedDebugOptions } from "./tile-loading-debug-options";
+import {
+  TILE_LOADING_DEBUG_OVERVIEW_MODE,
+  TILE_LOADING_DEBUG_PANEL_ID,
+  type TileLoadingDebugOverviewMode,
+} from "./tile-loading-debug-tokens";
 
 export const createTileLoadingDebugPanels = ({
   options,
@@ -41,7 +46,7 @@ export const createTileLoadingDebugPanels = ({
   options: ResolvedDebugOptions;
   onOptionsChange: (patch: Partial<ResolvedDebugOptions>) => void;
   onExport: () => void;
-  overviewMode: "off" | "overlay" | "window";
+  overviewMode: TileLoadingDebugOverviewMode;
   renderMeshStyle: () => ReactNode;
   renderOverview: (windowed: boolean) => ReactNode;
   renderOverviewOptions: () => ReactNode;
@@ -54,7 +59,7 @@ export const createTileLoadingDebugPanels = ({
 }) => {
   return [
     {
-      id: "diagnostic-tools",
+      id: TILE_LOADING_DEBUG_PANEL_ID.DIAGNOSTIC_TOOLS,
       label: "Diagnostics",
       icon: faGaugeHigh,
       flag: "showDiagnosticTools",
@@ -110,7 +115,7 @@ export const createTileLoadingDebugPanels = ({
       ),
     },
     {
-      id: "mesh-style",
+      id: TILE_LOADING_DEBUG_PANEL_ID.MESH_STYLE,
       label: "Mesh style",
       icon: faDrawPolygon,
       flag: "showMeshStylePanel",
@@ -122,19 +127,24 @@ export const createTileLoadingDebugPanels = ({
       content: renderMeshStyle,
     },
     {
-      id: "overview",
+      id: TILE_LOADING_DEBUG_PANEL_ID.OVERVIEW,
       label: "Tile overview",
       icon: faLayerGroup,
       flag: "showOverviewPanel",
-      width: overviewMode === "overlay" ? 390 : 500,
-      height: overviewMode === "overlay" ? 335 : 420,
+      width:
+        overviewMode === TILE_LOADING_DEBUG_OVERVIEW_MODE.OVERLAY ? 390 : 500,
+      height:
+        overviewMode === TILE_LOADING_DEBUG_OVERVIEW_MODE.OVERLAY ? 335 : 420,
       left: 12,
       top: 56,
       resize: "both",
-      content: () => renderOverview(overviewMode === "window"),
+      content: () =>
+        renderOverview(
+          overviewMode === TILE_LOADING_DEBUG_OVERVIEW_MODE.WINDOW
+        ),
     },
     {
-      id: "overview-options",
+      id: TILE_LOADING_DEBUG_PANEL_ID.OVERVIEW_OPTIONS,
       label: "Overview options",
       icon: faSliders,
       flag: "showOverviewOptions",
@@ -146,7 +156,7 @@ export const createTileLoadingDebugPanels = ({
       content: renderOverviewOptions,
     },
     {
-      id: "legend",
+      id: TILE_LOADING_DEBUG_PANEL_ID.LEGEND,
       label: "Overview legend",
       icon: faCircleInfo,
       flag: "showLegend",
@@ -158,7 +168,7 @@ export const createTileLoadingDebugPanels = ({
       content: () => legend,
     },
     {
-      id: "queue",
+      id: TILE_LOADING_DEBUG_PANEL_ID.QUEUE,
       label: "Queue",
       icon: faBars,
       flag: "showQueue",
@@ -170,7 +180,7 @@ export const createTileLoadingDebugPanels = ({
       content: renderQueue,
     },
     {
-      id: "stats",
+      id: TILE_LOADING_DEBUG_PANEL_ID.STATS,
       label: "Statistics",
       icon: faTableCells,
       flag: "showStats",
@@ -182,7 +192,7 @@ export const createTileLoadingDebugPanels = ({
       content: renderStats,
     },
     {
-      id: "charts",
+      id: TILE_LOADING_DEBUG_PANEL_ID.CHARTS,
       label: "Stats timeline",
       icon: faChartLine,
       flag: "showCharts",
@@ -221,7 +231,7 @@ export const createTileLoadingDebugPanels = ({
       ),
     },
     {
-      id: "log",
+      id: TILE_LOADING_DEBUG_PANEL_ID.LOG,
       label: "Event log",
       icon: faTerminal,
       flag: "showEventLog",

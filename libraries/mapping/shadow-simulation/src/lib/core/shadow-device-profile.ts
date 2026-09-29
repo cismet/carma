@@ -24,25 +24,34 @@ export const readShadowDeviceEnvironment = (): ShadowDeviceEnvironment => {
   };
 };
 
+export const SHADOW_DEVICE_CLASS = {
+  PHONE: "phone",
+  TABLET: "tablet",
+  DESKTOP: "desktop",
+} as const;
+
+export type ShadowDeviceClass =
+  (typeof SHADOW_DEVICE_CLASS)[keyof typeof SHADOW_DEVICE_CLASS];
+
 // Device class is a conservative admission policy, not a measurement of free RAM.
 export const resolveShadowDeviceClass = (
   environment = readShadowDeviceEnvironment()
-) => {
+): ShadowDeviceClass => {
   if (
     /iPhone|iPod|Android.*Mobile/i.test(environment.userAgent) ||
     environment.mobile
   )
-    return "phone";
+    return SHADOW_DEVICE_CLASS.PHONE;
   if (
     /iPad|Android/i.test(environment.userAgent) ||
     (environment.platform === "MacIntel" && environment.maxTouchPoints > 1)
   )
-    return "tablet";
-  return "desktop";
+    return SHADOW_DEVICE_CLASS.TABLET;
+  return SHADOW_DEVICE_CLASS.DESKTOP;
 };
 
 export const usesMobileShadowBaseline = () =>
-  resolveShadowDeviceClass() !== "desktop";
+  resolveShadowDeviceClass() !== SHADOW_DEVICE_CLASS.DESKTOP;
 export const MOBILE_MESH_CACHE_BYTES = 96 * 1024 ** 2;
 
 // Decision: ../../../three/README.md#mobile-shadow-baseline

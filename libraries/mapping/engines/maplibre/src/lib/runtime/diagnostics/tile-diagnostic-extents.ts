@@ -1,4 +1,8 @@
 import * as THREE from "three";
+import {
+  TILE_DIAGNOSTIC_EXTENTS_MODE,
+  type TileDiagnosticExtentsMode,
+} from "../../core/diagnostics/tile-diagnostic-options";
 
 const EDGES = [
   0, 1, 1, 3, 3, 2, 2, 0, 4, 5, 5, 7, 7, 6, 6, 4, 0, 4, 1, 5, 2, 6, 3, 7,
@@ -33,15 +37,16 @@ export const createTileDiagnosticExtents = () => {
   return {
     group,
     update(
-      mode: "none" | "boxes" | "edges",
+      mode: TileDiagnosticExtentsMode,
       bounds: readonly THREE.Box3[],
       colorAt: (index: number) => THREE.Color
     ) {
-      group.visible = mode !== "none" && bounds.length > 0;
-      lines.visible = mode === "edges";
-      if (boxes) boxes.visible = mode === "boxes";
+      group.visible =
+        mode !== TILE_DIAGNOSTIC_EXTENTS_MODE.NONE && bounds.length > 0;
+      lines.visible = mode === TILE_DIAGNOSTIC_EXTENTS_MODE.EDGES;
+      if (boxes) boxes.visible = mode === TILE_DIAGNOSTIC_EXTENTS_MODE.BOXES;
       if (!group.visible) return;
-      if (mode === "boxes") {
+      if (mode === TILE_DIAGNOSTIC_EXTENTS_MODE.BOXES) {
         if (bounds.length > boxCapacity) {
           if (boxes) {
             group.remove(boxes);

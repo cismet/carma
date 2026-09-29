@@ -12,10 +12,23 @@ import {
 } from "./terrain-boundary-refinement";
 import {
   TERRAIN_BOUNDARY_KEY_PRECISION,
+  TERRAIN_BOUNDARY_SIDE,
   terrainBoundaryVertexKey,
+  type TerrainBoundarySide,
 } from "../../core/terrain-boundary-key";
 
-type TerrainBoundarySide = "west" | "south" | "east" | "north";
+const TERRAIN_BOUNDARY_AXIS = {
+  X: "x",
+  Z: "z",
+} as const;
+
+/** Each tile boundary is visited in this order. */
+const TERRAIN_BOUNDARY_SIDES = [
+  TERRAIN_BOUNDARY_SIDE.WEST,
+  TERRAIN_BOUNDARY_SIDE.SOUTH,
+  TERRAIN_BOUNDARY_SIDE.EAST,
+  TERRAIN_BOUNDARY_SIDE.NORTH,
+] as const;
 
 type TerrainBoundaryEdges = Record<TerrainBoundarySide, Uint32Array>;
 
@@ -54,19 +67,21 @@ const oppositeTerrainBoundarySide = (
   side: TerrainBoundarySide
 ): TerrainBoundarySide => {
   switch (side) {
-    case "west":
-      return "east";
-    case "east":
-      return "west";
-    case "south":
-      return "north";
-    case "north":
-      return "south";
+    case TERRAIN_BOUNDARY_SIDE.WEST:
+      return TERRAIN_BOUNDARY_SIDE.EAST;
+    case TERRAIN_BOUNDARY_SIDE.EAST:
+      return TERRAIN_BOUNDARY_SIDE.WEST;
+    case TERRAIN_BOUNDARY_SIDE.SOUTH:
+      return TERRAIN_BOUNDARY_SIDE.NORTH;
+    case TERRAIN_BOUNDARY_SIDE.NORTH:
+      return TERRAIN_BOUNDARY_SIDE.SOUTH;
   }
 };
 
 const terrainBoundaryAxis = (side: TerrainBoundarySide) =>
-  side === "west" || side === "east" ? "x" : "z";
+  side === TERRAIN_BOUNDARY_SIDE.WEST || side === TERRAIN_BOUNDARY_SIDE.EAST
+    ? TERRAIN_BOUNDARY_AXIS.X
+    : TERRAIN_BOUNDARY_AXIS.Z;
 
 const findTerrainBoundaryInterpolationSpan = (
   edge: TerrainBoundaryEdge,
@@ -198,7 +213,7 @@ export const stitchTerrainBoundaries = (
     const { reliefMesh } = record;
     if (!reliefMesh) continue;
     const position = reliefMesh.geometry.getAttribute("position");
-    for (const side of ["west", "south", "east", "north"] as const) {
+    for (const side of TERRAIN_BOUNDARY_SIDES) {
       const indices = record.boundaryEdges[side];
       const baseHeights = record.boundaryBaseHeights[side];
       for (let offset = 0; offset < indices.length; offset += 1) {
@@ -207,7 +222,7 @@ export const stitchTerrainBoundaries = (
     }
     position.needsUpdate = true;
     const normal = reliefMesh.geometry.getAttribute("normal");
-    for (const side of ["west", "south", "east", "north"] as const) {
+    for (const side of TERRAIN_BOUNDARY_SIDES) {
       const indices = record.boundaryEdges[side];
       const axis = terrainBoundaryAxis(side);
       const edgeVertices: TerrainBoundaryVertex[] = [];
@@ -230,7 +245,10 @@ export const stitchTerrainBoundaries = (
         normalAccumulators.set(vertexKey, accumulator);
         edgeVertices.push({
           accumulator,
-          parameter: axis === "x" ? position.getZ(index) : position.getX(index),
+          parameter:
+            axis === TERRAIN_BOUNDARY_AXIS.X
+              ? position.getZ(index)
+              : position.getX(index),
           height: position.getY(index),
           normal: vertexNormal,
         });
@@ -238,7 +256,7 @@ export const stitchTerrainBoundaries = (
       edgeVertices.sort((left, right) => left.parameter - right.parameter);
       if (edgeVertices.length === 0) continue;
       const lineCoordinate =
-        axis === "x"
+        axis === TERRAIN_BOUNDARY_AXIS.X
           ? position.getX(edgeVertices[0].accumulator.index)
           : position.getZ(edgeVertices[0].accumulator.index);
       const lineKey = `${axis}/${Math.round(
@@ -795,10 +813,10 @@ const createTerrainBoundaryShell = (
     normals,
     indices,
     boundaryEdges: {
-      west: remapEdge("west"),
-      south: remapEdge("south"),
-      east: remapEdge("east"),
-      north: remapEdge("north"),
+      west: remapEdge(TERRAIN_BOUNDARY_SIDE.WEST),
+      south: remapEdge(TERRAIN_BOUNDARY_SIDE.SOUTH),
+      east: remapEdge(TERRAIN_BOUNDARY_SIDE.EAST),
+      north: remapEdge(TERRAIN_BOUNDARY_SIDE.NORTH),
     },
   };
 };

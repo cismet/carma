@@ -16,7 +16,15 @@ export interface RetryableTilesRenderer {
   dispatchEvent: (event: { type: string }) => void;
 }
 
-export type TileRetryState = "scheduled" | "pending" | "exhausted" | "ignored";
+export const TILE_RETRY_STATE = {
+  SCHEDULED: "scheduled",
+  PENDING: "pending",
+  EXHAUSTED: "exhausted",
+  IGNORED: "ignored",
+} as const;
+
+export type TileRetryState =
+  (typeof TILE_RETRY_STATE)[keyof typeof TILE_RETRY_STATE];
 
 interface ThreeTilesRetryController {
   handleFailure: (
@@ -180,19 +188,19 @@ export const createThreeTilesRetryController = (
     error
   ) => {
     const key = getTileRetryKey(tile, url);
-    if (!key) return "ignored";
+    if (!key) return TILE_RETRY_STATE.IGNORED;
     if (isKeyExhausted(key)) {
       const exhausted = exhaustedRetries.get(key)!;
       if (tile) exhausted.tiles.add(tile);
       else exhausted.retryRoot = true;
-      return "exhausted";
+      return TILE_RETRY_STATE.EXHAUSTED;
     }
 
     const pending = pendingRetries.get(key);
     if (pending) {
       if (tile) pending.tiles.add(tile);
       else pending.retryRoot = true;
-      return "pending";
+      return TILE_RETRY_STATE.PENDING;
     }
 
     const retryNumber = (retryCounts.get(key) ?? 0) + 1;
@@ -201,7 +209,7 @@ export const createThreeTilesRetryController = (
       isPermanentTileRequestFailure(error)
     ) {
       exhaust(key, tile);
-      return "exhausted";
+      return TILE_RETRY_STATE.EXHAUSTED;
     }
     retryCounts.set(key, retryNumber);
 
@@ -215,7 +223,7 @@ export const createThreeTilesRetryController = (
       tiles: new Set(tile ? [tile] : []),
       retryRoot: tile === null,
     });
-    return "scheduled";
+    return TILE_RETRY_STATE.SCHEDULED;
   };
 
   const clear = () => {

@@ -7,6 +7,7 @@ import {
   type TerrainBoundaryStitchState,
 } from "./terrain-boundary-stitch-batching";
 import type { TerrainSeamMeshRecord } from "./raster-dem-terrain-equal-level-seams";
+import { TERRAIN_WORKER_TASK_KIND } from "../../core/terrain-worker-protocol";
 import { runTerrainWorkerTask } from "./terrain-worker-client";
 import type { TerrainWorkerResult } from "./terrain-worker-task";
 
@@ -96,13 +97,13 @@ export const createRasterDemTerrainSeamCoordinator = ({
             async (batch, stitchOptions) => {
               const result = await runTerrainWorkerTask(
                 {
-                  kind: "stitch",
+                  kind: TERRAIN_WORKER_TASK_KIND.STITCH,
                   inputs: batch,
                   ...stitchOptions,
                 },
                 controller.signal
               );
-              if (result.kind !== "stitch")
+              if (result.kind !== TERRAIN_WORKER_TASK_KIND.STITCH)
                 throw new Error("Unexpected terrain stitching result");
               return result;
             },
@@ -120,7 +121,10 @@ export const createRasterDemTerrainSeamCoordinator = ({
             }
           );
           return {
-            result: { kind: "stitch" as const, updates: stitched.updates },
+            result: {
+              kind: TERRAIN_WORKER_TASK_KIND.STITCH,
+              updates: stitched.updates,
+            },
             state: stitched.state,
           };
         })().finally(() => signal.removeEventListener("abort", abort)),
@@ -137,7 +141,7 @@ export const createRasterDemTerrainSeamCoordinator = ({
       if (pendingStitch === job) pendingStitch = null;
     }
     const { result } = completion;
-    if (result.kind !== "stitch")
+    if (result.kind !== TERRAIN_WORKER_TASK_KIND.STITCH)
       throw new Error("Unexpected terrain stitching result");
     if (
       isDisposed() ||

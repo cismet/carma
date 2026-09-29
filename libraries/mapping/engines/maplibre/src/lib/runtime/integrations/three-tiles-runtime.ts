@@ -1,3 +1,6 @@
+import { MESH_TILE_WAIT_ROLE } from "../../core/mesh-tile-wait";
+import { MAP_STYLE_PROJECTION_BLEND } from "../../core/shared-three-scene-types";
+import { TILES3D_BASEMAP } from "../../core/tiles3d-basemap";
 import { createThreeTilesAppearance } from "./three-tiles-runtime-appearance";
 import { createThreeTilesDebug } from "./three-tiles-runtime-debug";
 import { createThreeTilesLifecycle } from "./three-tiles-runtime-lifecycle";
@@ -329,13 +332,13 @@ export function buildThreeTilesRuntime(
       providesTerrain: state.options.providesTerrain === true,
       receivesMapStyleTexture:
         state.options.providesTerrain === true &&
-        state.options.mapStyleDrape !== "none"
+        state.options.mapStyleDrape !== TILES3D_BASEMAP.NONE
           ? (material) => !surfaces.isRenderedBuildingSurface(material)
           : false,
       mapStyleProjectionBlend:
         state.options.providesTerrain === true &&
-        state.options.mapStyleDrape !== "none"
-          ? "overlay"
+        state.options.mapStyleDrape !== TILES3D_BASEMAP.NONE
+          ? MAP_STYLE_PROJECTION_BLEND.OVERLAY
           : undefined,
       mapStyleProjectionVersion: appearance.mapStyleProjectionVersion,
       onAdd: lifecycle.onAdd,
@@ -369,7 +372,7 @@ export function buildThreeTilesRuntime(
               : progress.visibleAt !== undefined)
           ) {
             progress.shadowPresentedAt ??= time;
-            debug.recordTileWait(tile, "shadow", null);
+            debug.recordTileWait(tile, MESH_TILE_WAIT_ROLE.SHADOW, null);
           }
         }
       },

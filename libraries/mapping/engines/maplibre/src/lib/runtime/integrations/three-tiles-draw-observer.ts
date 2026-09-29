@@ -7,6 +7,14 @@ type Draw = {
   epoch: object;
   frame: number;
 };
+/** What a draw status vouches for: the submission of a draw, never visible pixels. */
+export const TILE_DRAW_EVIDENCE = {
+  DRAW_SUBMITTED_NOT_PIXEL_VISIBILITY: "draw-submitted-not-pixel-visibility",
+} as const;
+
+export type TileDrawEvidence =
+  (typeof TILE_DRAW_EVIDENCE)[keyof typeof TILE_DRAW_EVIDENCE];
+
 export type TileDrawStatus = {
   published: number;
   loaded: number;
@@ -14,7 +22,7 @@ export type TileDrawStatus = {
   submittedInAnyView: number;
   submittedInMainView: number;
   submittedThisMainFrame: number;
-  evidence: "draw-submitted-not-pixel-visibility";
+  evidence: TileDrawEvidence;
 };
 
 /** Draw submission evidence, not a GPU fence or proof of unoccluded pixels.
@@ -147,7 +155,7 @@ export function createTileDrawObserver(
         submittedInAnyView: 0,
         submittedInMainView: 0,
         submittedThisMainFrame: 0,
-        evidence: "draw-submitted-not-pixel-visibility" as const,
+        evidence: TILE_DRAW_EVIDENCE.DRAW_SUBMITTED_NOT_PIXEL_VISIBILITY,
       };
       const mounted = new Set(group?.children);
       for (const tile of tiles) {

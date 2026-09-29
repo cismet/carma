@@ -8,17 +8,36 @@ import {
 } from "@carma-commons/utils";
 import type { CachedProjectedTerrainTile } from "./projected-terrain-cache-record";
 
-type Format = "native" | "binary" | "meshopt";
+const PROJECTED_TERRAIN_CACHE_FORMAT = {
+  NATIVE: "native",
+  BINARY: "binary",
+  MESHOPT: "meshopt",
+} as const;
+type Format =
+  (typeof PROJECTED_TERRAIN_CACHE_FORMAT)[keyof typeof PROJECTED_TERRAIN_CACHE_FORMAT];
+const PROJECTED_TERRAIN_RECORD_KIND = {
+  TERRAIN_COMPONENT_V1: "terrain-component-v1",
+} as const;
+const PROJECTED_TERRAIN_PROFILE_SCOPE = {
+  WORKER_STORAGE_RESTORE: "worker-storage-restore",
+} as const;
+const PROJECTED_TERRAIN_SIZE_CLASS = {
+  COARSE: "coarse",
+  FULL: "full",
+} as const;
+const PROJECTED_TERRAIN_CACHE_BACKEND = {
+  INDEXEDDB: "indexeddb",
+} as const;
 type StoredRecord = {
-  kind: "terrain-component-v1";
-  format: Exclude<Format, "native">;
+  kind: typeof PROJECTED_TERRAIN_RECORD_KIND.TERRAIN_COMPONENT_V1;
+  format: Exclude<Format, typeof PROJECTED_TERRAIN_CACHE_FORMAT.NATIVE>;
   payload: Blob;
 };
 type Profile = {
   environment: string;
   measuredAt: number;
   format: Format;
-  scope: "worker-storage-restore";
+  scope: typeof PROJECTED_TERRAIN_PROFILE_SCOPE.WORKER_STORAGE_RESTORE;
   observedReuseCount: number;
   audit: ReturnType<typeof calibrateDerivedCacheStrategies>;
 };
@@ -73,9 +92,13 @@ const environment = () =>
     ? "no-browser"
     : `${navigator.userAgent}|${navigator.hardwareConcurrency}`;
 const sizeClass = (bytes: number) =>
-  bytes <= 4 * 1024 ** 2 ? "coarse" : "full";
+  bytes <= 4 * 1024 ** 2
+    ? PROJECTED_TERRAIN_SIZE_CLASS.COARSE
+    : PROJECTED_TERRAIN_SIZE_CLASS.FULL;
 const isFormat = (value: unknown): value is Format =>
-  value === "native" || value === "binary" || value === "meshopt";
+  value === PROJECTED_TERRAIN_CACHE_FORMAT.NATIVE ||
+  value === PROJECTED_TERRAIN_CACHE_FORMAT.BINARY ||
+  value === PROJECTED_TERRAIN_CACHE_FORMAT.MESHOPT;
 
 /** DBC-04: Worker-local format trials are only a preselection. Every actual
  * foreground restore still reports queue/transfer/reconstruction costs to the
@@ -113,7 +136,7 @@ export const createProjectedTerrainCacheStrategy = (
     const age = value ? Date.now() - value.measuredAt : -1;
     return value &&
       value.environment === environment() &&
-      value.scope === "worker-storage-restore" &&
+      value.scope === PROJECTED_TERRAIN_PROFILE_SCOPE.WORKER_STORAGE_RESTORE &&
       isFormat(value.format) &&
       age >= 0 &&
       age <= PROFILE_TTL_MS
@@ -124,15 +147,15 @@ export const createProjectedTerrainCacheStrategy = (
     entry: CachedProjectedTerrainTile,
     format: Format
   ) => {
-    if (format === "native") return entry;
+    if (format === PROJECTED_TERRAIN_CACHE_FORMAT.NATIVE) return entry;
     const value =
-      format === "meshopt"
+      format === PROJECTED_TERRAIN_CACHE_FORMAT.MESHOPT
         ? await (
             await import("./projected-terrain-meshopt-codec")
           ).encodeProjectedTerrainMeshoptRecord(entry)
         : entry;
     return {
-      kind: "terrain-component-v1",
+      kind: PROJECTED_TERRAIN_RECORD_KIND.TERRAIN_COMPONENT_V1,
       format,
       payload: encodeTypedBinaryRecord(value, { maxBytes: CACHE_MAX_BYTES }),
     } satisfies StoredRecord;
@@ -144,9 +167,10 @@ export const createProjectedTerrainCacheStrategy = (
     if (!value || typeof value !== "object") return null;
     const stored = value as Partial<StoredRecord>;
     if (
-      stored.kind !== "terrain-component-v1" ||
+      stored.kind !== PROJECTED_TERRAIN_RECORD_KIND.TERRAIN_COMPONENT_V1 ||
       !(stored.payload instanceof Blob) ||
-      (stored.format !== "binary" && stored.format !== "meshopt")
+      (stored.format !== PROJECTED_TERRAIN_CACHE_FORMAT.BINARY &&
+        stored.format !== PROJECTED_TERRAIN_CACHE_FORMAT.MESHOPT)
     )
       return null;
     try {
@@ -154,7 +178,7 @@ export const createProjectedTerrainCacheStrategy = (
         maxBytes: CACHE_MAX_BYTES,
       });
       const entry =
-        stored.format === "meshopt"
+        stored.format === PROJECTED_TERRAIN_CACHE_FORMAT.MESHOPT
           ? await (
               await import("./projected-terrain-meshopt-codec")
             ).decodeProjectedTerrainMeshoptRecord(unpacked)
@@ -178,11 +202,14 @@ export const createProjectedTerrainCacheStrategy = (
     /** Read two small audit profiles without hits; never load terrain payloads. */
     async inspectProfiles() {
       return {
-        backend: "indexeddb" as const,
-        scope: "worker-storage-restore" as const,
+        backend: PROJECTED_TERRAIN_CACHE_BACKEND.INDEXEDDB,
+        scope: PROJECTED_TERRAIN_PROFILE_SCOPE.WORKER_STORAGE_RESTORE,
         profiles: {
-          coarse: await readProfile(1, false),
-          full: await readProfile(CACHE_MAX_BYTES, false),
+          [PROJECTED_TERRAIN_SIZE_CLASS.COARSE]: await readProfile(1, false),
+          [PROJECTED_TERRAIN_SIZE_CLASS.FULL]: await readProfile(
+            CACHE_MAX_BYTES,
+            false
+          ),
         },
         suppressedKeyCount: provenSlowKeys.size,
         pendingSeed:
@@ -278,7 +305,7 @@ export const createProjectedTerrainCacheStrategy = (
         const profile = await readProfile(bytes);
         // The complete managed-codec comparison on the target desktop chose
         // binary Blob. Actual-hit feedback still rejects losses on any client.
-        const format = profile?.format ?? "binary";
+        const format = profile?.format ?? PROJECTED_TERRAIN_CACHE_FORMAT.BINARY;
         const payload = await encodeFormat(entry, format);
         return {
           payload,
@@ -333,7 +360,7 @@ export const createProjectedTerrainCacheStrategy = (
               const previous = await readProfile(row.bytes);
               if (
                 previous &&
-                (previous.format !== "native" ||
+                (previous.format !== PROJECTED_TERRAIN_CACHE_FORMAT.NATIVE ||
                   (row.hits ?? 0) <
                     Math.max(2, previous.observedReuseCount * 2))
               ) {
@@ -362,7 +389,11 @@ export const createProjectedTerrainCacheStrategy = (
                   bytes: number;
                   parityVerified: boolean;
                 }[] = [];
-                for (const format of ["native", "binary", "meshopt"] as const) {
+                for (const format of [
+                  PROJECTED_TERRAIN_CACHE_FORMAT.NATIVE,
+                  PROJECTED_TERRAIN_CACHE_FORMAT.BINARY,
+                  PROJECTED_TERRAIN_CACHE_FORMAT.MESHOPT,
+                ] as const) {
                   if (signal?.aborted) return false;
                   const start = performance.now();
                   const payload = await encodeFormat(entry, format);
@@ -406,20 +437,25 @@ export const createProjectedTerrainCacheStrategy = (
                   // One trial payload at a time; retain no extra geometry pyramid.
                   await probes.remove(key);
                 }
-                const baseline = trials.find((trial) => trial.id === "native")!;
+                const baseline = trials.find(
+                  (trial) => trial.id === PROJECTED_TERRAIN_CACHE_FORMAT.NATIVE
+                )!;
                 const audit = calibrateDerivedCacheStrategies(
                   baseline,
-                  trials.filter((trial) => trial.id !== "native"),
+                  trials.filter(
+                    (trial) =>
+                      trial.id !== PROJECTED_TERRAIN_CACHE_FORMAT.NATIVE
+                  ),
                   row.hits ?? 0
                 );
                 const format = isFormat(audit.winnerId)
                   ? audit.winnerId
-                  : "native";
+                  : PROJECTED_TERRAIN_CACHE_FORMAT.NATIVE;
                 const profile: Profile = {
                   environment: environment(),
                   measuredAt: Date.now(),
                   format,
-                  scope: "worker-storage-restore",
+                  scope: PROJECTED_TERRAIN_PROFILE_SCOPE.WORKER_STORAGE_RESTORE,
                   observedReuseCount: row.hits ?? 0,
                   audit,
                 };

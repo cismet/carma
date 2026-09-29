@@ -3,6 +3,7 @@ import { Box3, BufferAttribute, Mesh, Sphere, Vector3 } from "three";
 import type { TerrainTileId } from "../../core/raster-dem-tile";
 import type { TerrainStitchInput } from "./terrain-boundary-stitch";
 import { terrainTileKey } from "./raster-dem-terrain-tile-source";
+import { TERRAIN_WORKER_TASK_KIND } from "../../core/terrain-worker-protocol";
 import { runTerrainWorkerTask } from "./terrain-worker-client";
 
 export type TerrainSeamMeshRecord = {
@@ -49,7 +50,7 @@ export const prepareEqualLevelTerrainBoundaries = async (
         if (record.equalLevelShell) continue;
         const result = await runTerrainWorkerTask(
           {
-            kind: "stitch",
+            kind: TERRAIN_WORKER_TASK_KIND.STITCH,
             prepareEqualLevelShells: true,
             inputs: [
               {
@@ -63,7 +64,7 @@ export const prepareEqualLevelTerrainBoundaries = async (
           },
           signal
         );
-        if (result.kind !== "stitch")
+        if (result.kind !== TERRAIN_WORKER_TASK_KIND.STITCH)
           throw new Error("Unexpected terrain shell result");
         record.equalLevelShell = result.shells?.[0];
       }
@@ -105,7 +106,7 @@ export const prepareEqualLevelTerrainBoundaries = async (
     );
   const result = await runTerrainWorkerTask(
     {
-      kind: "stitch",
+      kind: TERRAIN_WORKER_TASK_KIND.STITCH,
       sameLevelOnly: true,
       inputs,
       outputKeys: dirty.map((t) => t.key),
@@ -113,7 +114,7 @@ export const prepareEqualLevelTerrainBoundaries = async (
     signal
   );
   if (!current()) return;
-  if (result.kind !== "stitch")
+  if (result.kind !== TERRAIN_WORKER_TASK_KIND.STITCH)
     throw new Error("Unexpected equal-level terrain result");
   for (const update of result.updates) {
     const record = meshes.get(update.key);

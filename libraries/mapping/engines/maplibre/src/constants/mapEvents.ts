@@ -4,6 +4,7 @@ export const MAPLIBRE_EVENT = {
   MOVE: "move",
   MOVE_END: "moveend",
   MOVE_START: "movestart",
+  REMOVE: "remove",
   RENDER: "render",
   RESIZE: "resize",
   ZOOM_START: "zoomstart",

@@ -297,6 +297,16 @@ export type {
   SharedThreeShadowRegionDiagnostics,
 } from "./lib/core/shared-three-scene-types";
 export {
+  MAP_STYLE_PROJECTION_BLEND,
+  type MapStyleProjectionBlend,
+} from "./lib/core/shared-three-scene-types";
+export {
+  TILE_VOLUME_LOAD_REASON,
+  TILE_VOLUME_STATE,
+  type TileVolumeLoadReason,
+  type TileVolumeState,
+} from "./lib/core/tile-volume";
+export {
   createSharedThreeSceneCameraPreview,
   type SharedThreeSceneCameraPreview,
 } from "./lib/runtime/integrations/shared-three-scene-camera-preview";
@@ -344,6 +354,10 @@ export type {
   ThreeTilesRuntime,
 } from "./lib/runtime/integrations/three-tiles-runtime-types";
 export {
+  TILES3D_BASEMAP,
+  type Tiles3dBasemap,
+} from "./lib/core/tiles3d-basemap";
+export {
   isSharedThreeTerrainLoading,
   subscribeSharedThreeTerrainLoading,
   claimStandaloneTerrain,
@@ -371,12 +385,34 @@ export type {
   QueueRow as TileDiagnosticQueueRow,
   CoverageSummary as TileDiagnosticSummary,
 } from "./lib/runtime/diagnostics/tile-diagnostic-metrics";
-export { TILE_STEPS as TILE_DIAGNOSTIC_STEPS } from "./lib/core/diagnostics/tile-diagnostic-model";
+export {
+  TILE_DIAGNOSTIC_KIND,
+  TILE_DIAGNOSTIC_QUEUE_STATE,
+  TILE_STEPS as TILE_DIAGNOSTIC_STEPS,
+} from "./lib/core/diagnostics/tile-diagnostic-model";
 export type {
   Kind as TileDiagnosticKind,
   OverlayRect as TileDiagnosticRect,
   OverlayModel as TileDiagnosticModel,
+  TileDiagnosticQueueState,
 } from "./lib/core/diagnostics/tile-diagnostic-model";
+export {
+  TILE_DIAGNOSTIC_CAMERA_FOCUS,
+  TILE_DIAGNOSTIC_EXTENTS_MODE,
+  TILE_DIAGNOSTIC_LABEL_MODE,
+  TILE_DIAGNOSTIC_OVERVIEW_UP,
+  TILE_DIAGNOSTIC_OVERVIEW_VIEW,
+  TILE_DIAGNOSTIC_PROJECTION,
+  type TileDiagnosticExtentsMode,
+  type TileDiagnosticLabelMode,
+  type TileDiagnosticOverviewUp,
+  type TileDiagnosticOverviewView,
+  type TileDiagnosticProjection,
+} from "./lib/core/diagnostics/tile-diagnostic-options";
+export {
+  TILE_PRESENTATION_MODE,
+  type TilePresentationMode,
+} from "./lib/core/tile-presentation-mode";
 export { formatTileResidentBytes } from "./lib/core/diagnostics/tile-diagnostic-labels";
 export type { DiagnosticView as TileDiagnosticView } from "./lib/core/diagnostics/tile-diagnostic-scene";
 export type { TileDiagnosticOverlayInput } from "./lib/runtime/diagnostics/tile-diagnostic-overlay";

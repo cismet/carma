@@ -1,11 +1,12 @@
-import type {
-  TileDiagnostics,
-  TileDiagnosticKind,
+import {
+  TILE_DIAGNOSTIC_KIND,
+  type TileDiagnostics,
+  type TileDiagnosticKind,
 } from "@carma-mapping/engines/maplibre";
 
 const LEGEND: ReadonlyArray<[TileDiagnosticKind, string]> = [
-  ["displayed", "drawn (including fallback coverage)"],
-  ["resident", "not drawn; see symbol for load state"],
+  [TILE_DIAGNOSTIC_KIND.DISPLAYED, "drawn (including fallback coverage)"],
+  [TILE_DIAGNOSTIC_KIND.RESIDENT, "not drawn; see symbol for load state"],
 ];
 
 export const TileLoadingDebugLegend = ({

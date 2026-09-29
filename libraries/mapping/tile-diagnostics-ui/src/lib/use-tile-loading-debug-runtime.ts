@@ -13,6 +13,7 @@ import {
 } from "three/addons/renderers/CSS2DRenderer.js";
 import type { MetricRecorder, StripChart } from "@carma-commons/ui/components";
 import {
+  MAPLIBRE_EVENT,
   acquireSharedThreeScene,
   registerSharedThreeSceneRuntime,
   type DiagnosticRuntimeTile as RuntimeTile,
@@ -829,9 +830,9 @@ export const useTileLoadingDebugRuntime = (
           .toFixed(0)}° at ${center.lat.toFixed(5)}, ${center.lng.toFixed(5)}`
       );
     };
-    map.on("render", onRender);
-    map.on("movestart", onMoveStart);
-    map.on("moveend", onMoveEnd);
+    map.on(MAPLIBRE_EVENT.RENDER, onRender);
+    map.on(MAPLIBRE_EVENT.MOVE_START, onMoveStart);
+    map.on(MAPLIBRE_EVENT.MOVE_END, onMoveEnd);
     const interval = window.setInterval(sample, SAMPLE_INTERVAL_MS);
     recorder.log("overlay attached");
     sample();
@@ -842,9 +843,9 @@ export const useTileLoadingDebugRuntime = (
       chartWork?.();
       renderWork?.();
       cameraWork?.();
-      map.off("render", onRender);
-      map.off("movestart", onMoveStart);
-      map.off("moveend", onMoveEnd);
+      map.off(MAPLIBRE_EVENT.RENDER, onRender);
+      map.off(MAPLIBRE_EVENT.MOVE_START, onMoveStart);
+      map.off(MAPLIBRE_EVENT.MOVE_END, onMoveEnd);
       window.clearInterval(interval);
       window.clearTimeout(overlayTimer);
       if (idleHandle !== 0) cancelIdle(idleHandle);

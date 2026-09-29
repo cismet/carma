@@ -6,7 +6,8 @@ import {
   type OrthographicCamera,
 } from "three";
 import type { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { degToRadNumeric } from "@carma-units";
+import { getWgs84PrincipalCurvatureRadii } from "@carma-geo/proj";
+import { degToRadNumeric, radToDegNumeric } from "@carma-units";
 import {
   TILE_CAMERA_PRIORITY,
   TILE_CAMERA_ROLE,
@@ -56,12 +57,15 @@ export const createMeshMountFlight = ({
     const pose = meshOverlapFlight(flightElapsed);
     const eye = meshOverlapEye(pose.pitch, pose.bearing);
     secondaryFlightZoom = pose.secondaryZoom;
-    const metersPerDegree = 111320;
-    const longitudeScale =
-      metersPerDegree * Math.cos(degToRadNumeric(root.lngLat[1]));
+    const rootLatitude = degToRadNumeric(root.lngLat[1]);
+    const { primeVerticalMeters, meridionalMeters } =
+      getWgs84PrincipalCurvatureRadii(rootLatitude);
     const lngLat = (offset: readonly [number, number]): [number, number] => [
-      root.lngLat[0] + offset[0] / longitudeScale,
-      root.lngLat[1] + offset[1] / metersPerDegree,
+      root.lngLat[0] +
+        radToDegNumeric(
+          offset[0] / (primeVerticalMeters * Math.cos(rootLatitude))
+        ),
+      root.lngLat[1] + radToDegNumeric(offset[1] / meridionalMeters),
     ];
     let mainZoom = pose.mainZoom;
     let secondaryZoom = pose.secondaryZoom;

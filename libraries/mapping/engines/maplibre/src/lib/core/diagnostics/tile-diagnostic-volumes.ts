@@ -1,11 +1,18 @@
 import * as THREE from "three";
 import type { SharedThreeSceneTileVolume } from "../shared-three-scene-types";
 import type { TileCameraSnapshot } from "../tile-camera-demand";
-import type {
-  Kind,
-  OverlayModel,
-  OverlayVolume,
+import { TILE_VOLUME_LOAD_REASON, TILE_VOLUME_STATE } from "../tile-volume";
+import {
+  TILE_DIAGNOSTIC_KIND,
+  type Kind,
+  type OverlayModel,
+  type OverlayVolume,
 } from "./tile-diagnostic-model";
+import {
+  TILE_DIAGNOSTIC_PROJECTION,
+  type TileDiagnosticProjection,
+} from "./tile-diagnostic-options";
+import { TILE_DIAGNOSTIC_PHASE } from "./tile-diagnostic-scene";
 
 export const frustumOf = (
   projectionMatrix: THREE.Matrix4,
@@ -20,11 +27,11 @@ export const frustumOf = (
   );
 
 const VOLUME_KINDS: Record<string, Kind> = {
-  queued: "queued",
-  loading: "loading",
-  parsing: "parsing",
-  failed: "failed",
-  resident: "resident",
+  [TILE_VOLUME_STATE.QUEUED]: TILE_DIAGNOSTIC_KIND.QUEUED,
+  [TILE_VOLUME_STATE.LOADING]: TILE_DIAGNOSTIC_KIND.LOADING,
+  [TILE_VOLUME_STATE.PARSING]: TILE_DIAGNOSTIC_KIND.PARSING,
+  [TILE_VOLUME_STATE.FAILED]: TILE_DIAGNOSTIC_KIND.FAILED,
+  [TILE_VOLUME_STATE.RESIDENT]: TILE_DIAGNOSTIC_KIND.RESIDENT,
 };
 
 /** A 2.5D tile is a box: its footprint over the elevation range it covers. */
@@ -52,7 +59,7 @@ export const projectDiagnosticVolumes = (
     overview.copy(world).applyMatrix4(worldToOverview);
     const [x0, y0] = toScreen(overview.min.x, overview.min.z);
     const [x1, y1] = toScreen(overview.max.x, overview.max.z);
-    const state = volume.state ?? "loaded";
+    const state = volume.state ?? TILE_VOLUME_STATE.LOADED;
     out.push({
       id: volume.id,
       world: world.clone(),
@@ -62,13 +69,15 @@ export const projectDiagnosticVolumes = (
       h: Math.abs(y1 - y0),
       kind:
         VOLUME_KINDS[state] ??
-        (volume.loadReason === "shadow" ? "resident" : "displayed"),
+        (volume.loadReason === TILE_VOLUME_LOAD_REASON.SHADOW
+          ? TILE_DIAGNOSTIC_KIND.RESIDENT
+          : TILE_DIAGNOSTIC_KIND.DISPLAYED),
       phase:
-        state === "loaded"
-          ? "\u25cf"
-          : state === "queued"
-          ? "\u25cb"
-          : "\u25d0",
+        state === TILE_VOLUME_STATE.LOADED
+          ? TILE_DIAGNOSTIC_PHASE.LOADED
+          : state === TILE_VOLUME_STATE.QUEUED
+          ? TILE_DIAGNOSTIC_PHASE.QUEUED
+          : TILE_DIAGNOSTIC_PHASE.LOADING,
       inView,
       inShadow,
       error: volume.errorPixels ?? NaN,
@@ -107,7 +116,7 @@ export type VolumeOverlayModelInput = {
    * `camera` puts every box where the camera itself draws it, so the overview
    * lies over the map one to one.
    */
-  projection?: "plan" | "camera";
+  projection?: TileDiagnosticProjection;
 };
 
 /**
@@ -122,7 +131,7 @@ export const buildVolumeOverlayModel = ({
   width,
   height,
   target = 1,
-  projection = "plan",
+  projection = TILE_DIAGNOSTIC_PROJECTION.PLAN,
   showSize = true,
   showStats = true,
 }: VolumeOverlayModelInput): OverlayModel | null => {
@@ -156,7 +165,8 @@ export const buildVolumeOverlayModel = ({
     (width - 2 * margin) / spanX,
     (height - 2 * margin) / spanZ
   );
-  const cameraProjection = projection === "camera" && camera !== null;
+  const cameraProjection =
+    projection === TILE_DIAGNOSTIC_PROJECTION.CAMERA && camera !== null;
   // The camera path reads normalised device coordinates: the projection matrix
   // divides by w in applyMatrix4, the row swap puts the vertical axis where the
   // overview reads its second coordinate, and the screen scales flip it.

@@ -1,5 +1,21 @@
-export * from "./conversions";
-export * from "./validators";
+export {
+  latLngDegToRad,
+  latLngRadToDeg,
+  latLngToLngLatArray,
+  lngLatArrayDegToRad,
+  lngLatArrayRadToDeg,
+  lngLatArrayToLatLng,
+} from "./conversions";
+export {
+  isValidLatitudeDeg,
+  isValidLatitudeRad,
+  isValidLongitudeDeg,
+  isValidLongitudeRad,
+  normalizeLatitudeDeg,
+  normalizeLatitudeRad,
+  normalizeLongitudeDeg,
+  normalizeLongitudeRad,
+} from "./validators";
 export {
   geographicBoundsContain,
   geographicBoundsIntersect,

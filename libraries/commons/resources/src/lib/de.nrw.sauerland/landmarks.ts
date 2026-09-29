@@ -3,7 +3,16 @@
  * See README.md for field provenance, uncertainty and separate data licences.
  * These are not surveyed building models or height-validation control points.
  */
-import type { GeoreferencedLandmark } from "../base/landmarks";
+import {
+  LANDMARK_GEOMETRY_EVIDENCE,
+  LANDMARK_GROUND_SAMPLE_METHOD,
+  LANDMARK_GROUND_SOURCE,
+  LANDMARK_GROUND_STATUS,
+  LANDMARK_HEIGHT_STATUS,
+  LANDMARK_POSITION_METHOD,
+  LANDMARK_POSITION_STATUS,
+  type GeoreferencedLandmark,
+} from "../base/landmarks";
 
 export const NORDHELLE_LANDMARK_PROVENANCE = {
   capturedAt: "2026-09-14T12:51:14Z",
@@ -43,31 +52,32 @@ export const NORDHELLE_LANDMARKS = [
     heightMeters: 150,
     groundNormalHeightMeters: 662.09,
     positionEvidence: {
-      status: "mapped-not-surveyed",
+      status: LANDMARK_POSITION_STATUS.MAPPED_NOT_SURVEYED,
       sourceUrl: "https://www.openstreetmap.org/way/462542377",
       osmVersion: 2,
       osmEditedAt: "2026-05-18T11:57:44Z",
-      method: "way-bounds-center",
+      method: LANDMARK_POSITION_METHOD.WAY_BOUNDS_CENTER,
     },
     heightEvidence: {
-      status: "mapped",
+      status: LANDMARK_HEIGHT_STATUS.MAPPED,
       sourceUrl: "https://www.openstreetmap.org/way/462542377",
       conflictingHeightMeters: 130,
       conflictingSourceUrl:
         "https://www.meinerzhagen.de/fileadmin/user_upload/Meinerzhagen/TourismusFreizeit/Freizeitangebote/Sportliches/Wandern/MVG_Wanderbus_Broschuere_2017_WEB.pdf",
     },
     groundEvidence: {
-      status: "approximate-terrain",
-      source: "nrw-dgm1-wcs",
+      status: LANDMARK_GROUND_STATUS.APPROXIMATE_TERRAIN,
+      source: LANDMARK_GROUND_SOURCE.NRW_DGM1_WCS,
       verticalDatum: "DHHN2016",
       horizontalCrs: "EPSG:25832",
-      sampleMethod: "containing-1m-pixel-center",
+      sampleMethod: LANDMARK_GROUND_SAMPLE_METHOD.CONTAINING_1M_PIXEL_CENTER,
       requestBoundsUtm32Meters: [413032, 5667022, 413042, 5667032],
       sampleCenterUtm32Meters: [413037.5, 5667027.5],
       sourceUrl:
         "https://www.wcs.nrw.de/geobasis/wcs_nw_dgm?SERVICE=WCS&VERSION=2.0.1&REQUEST=GetCoverage&COVERAGEID=nw_dgm&FORMAT=image%2Ftiff&SUBSET=x%28413032%2C413042%29&SUBSET=y%285667022%2C5667032%29",
     },
-    geometryEvidence: "authored-approximate-silhouette",
+    geometryEvidence:
+      LANDMARK_GEOMETRY_EVIDENCE.AUTHORED_APPROXIMATE_SILHOUETTE,
     parts: [
       {
         baseHeightMeters: 0,
@@ -151,28 +161,29 @@ export const NORDHELLE_LANDMARKS = [
     heightMeters: 56,
     groundNormalHeightMeters: 656.77,
     positionEvidence: {
-      status: "mapped-not-surveyed",
+      status: LANDMARK_POSITION_STATUS.MAPPED_NOT_SURVEYED,
       sourceUrl: "https://www.openstreetmap.org/node/2812442525",
       osmVersion: 4,
       osmEditedAt: "2023-01-11T18:00:38Z",
-      method: "node",
+      method: LANDMARK_POSITION_METHOD.NODE,
     },
     heightEvidence: {
-      status: "mapped",
+      status: LANDMARK_HEIGHT_STATUS.MAPPED,
       sourceUrl: "https://www.openstreetmap.org/node/2812442525",
     },
     groundEvidence: {
-      status: "approximate-terrain",
-      source: "nrw-dgm1-wcs",
+      status: LANDMARK_GROUND_STATUS.APPROXIMATE_TERRAIN,
+      source: LANDMARK_GROUND_SOURCE.NRW_DGM1_WCS,
       verticalDatum: "DHHN2016",
       horizontalCrs: "EPSG:25832",
-      sampleMethod: "containing-1m-pixel-center",
+      sampleMethod: LANDMARK_GROUND_SAMPLE_METHOD.CONTAINING_1M_PIXEL_CENTER,
       requestBoundsUtm32Meters: [413189, 5667171, 413199, 5667181],
       sampleCenterUtm32Meters: [413194.5, 5667176.5],
       sourceUrl:
         "https://www.wcs.nrw.de/geobasis/wcs_nw_dgm?SERVICE=WCS&VERSION=2.0.1&REQUEST=GetCoverage&COVERAGEID=nw_dgm&FORMAT=image%2Ftiff&SUBSET=x%28413189%2C413199%29&SUBSET=y%285667171%2C5667181%29",
     },
-    geometryEvidence: "authored-approximate-silhouette",
+    geometryEvidence:
+      LANDMARK_GEOMETRY_EVIDENCE.AUTHORED_APPROXIMATE_SILHOUETTE,
     parts: [
       {
         baseHeightMeters: 0,
@@ -216,28 +227,29 @@ export const NORDHELLE_LANDMARKS = [
     heightMeters: 150,
     groundNormalHeightMeters: 638.4,
     positionEvidence: {
-      status: "mapped-not-surveyed",
+      status: LANDMARK_POSITION_STATUS.MAPPED_NOT_SURVEYED,
       sourceUrl: "https://www.openstreetmap.org/node/297576774",
       osmVersion: 10,
       osmEditedAt: "2026-06-30T15:47:18Z",
-      method: "node",
+      method: LANDMARK_POSITION_METHOD.NODE,
     },
     heightEvidence: {
-      status: "mapped",
+      status: LANDMARK_HEIGHT_STATUS.MAPPED,
       sourceUrl: "https://www.openstreetmap.org/node/297576774",
     },
     groundEvidence: {
-      status: "approximate-terrain",
-      source: "nrw-dgm1-wcs",
+      status: LANDMARK_GROUND_STATUS.APPROXIMATE_TERRAIN,
+      source: LANDMARK_GROUND_SOURCE.NRW_DGM1_WCS,
       verticalDatum: "DHHN2016",
       horizontalCrs: "EPSG:25832",
-      sampleMethod: "containing-1m-pixel-center",
+      sampleMethod: LANDMARK_GROUND_SAMPLE_METHOD.CONTAINING_1M_PIXEL_CENTER,
       requestBoundsUtm32Meters: [414187, 5666850, 414197, 5666860],
       sampleCenterUtm32Meters: [414192.5, 5666855.5],
       sourceUrl:
         "https://www.wcs.nrw.de/geobasis/wcs_nw_dgm?SERVICE=WCS&VERSION=2.0.1&REQUEST=GetCoverage&COVERAGEID=nw_dgm&FORMAT=image%2Ftiff&SUBSET=x%28414187%2C414197%29&SUBSET=y%285666850%2C5666860%29",
     },
-    geometryEvidence: "authored-approximate-silhouette",
+    geometryEvidence:
+      LANDMARK_GEOMETRY_EVIDENCE.AUTHORED_APPROXIMATE_SILHOUETTE,
     parts: [
       {
         baseHeightMeters: 0,
@@ -329,28 +341,29 @@ export const NORDHELLE_LANDMARKS = [
     heightMeters: 18,
     groundNormalHeightMeters: 663.5,
     positionEvidence: {
-      status: "mapped-not-surveyed",
+      status: LANDMARK_POSITION_STATUS.MAPPED_NOT_SURVEYED,
       sourceUrl: "https://www.openstreetmap.org/way/462542374",
       osmVersion: 4,
       osmEditedAt: "2020-02-16T16:58:11Z",
-      method: "way-bounds-center",
+      method: LANDMARK_POSITION_METHOD.WAY_BOUNDS_CENTER,
     },
     heightEvidence: {
-      status: "municipality-published",
+      status: LANDMARK_HEIGHT_STATUS.MUNICIPALITY_PUBLISHED,
       sourceUrl: "https://www.herscheid.de/freizeit-tourismus/wandern",
     },
     groundEvidence: {
-      status: "approximate-terrain",
-      source: "nrw-dgm1-wcs",
+      status: LANDMARK_GROUND_STATUS.APPROXIMATE_TERRAIN,
+      source: LANDMARK_GROUND_SOURCE.NRW_DGM1_WCS,
       verticalDatum: "DHHN2016",
       horizontalCrs: "EPSG:25832",
-      sampleMethod: "containing-1m-pixel-center",
+      sampleMethod: LANDMARK_GROUND_SAMPLE_METHOD.CONTAINING_1M_PIXEL_CENTER,
       requestBoundsUtm32Meters: [412995, 5667062, 413005, 5667072],
       sampleCenterUtm32Meters: [413000.5, 5667067.5],
       sourceUrl:
         "https://www.wcs.nrw.de/geobasis/wcs_nw_dgm?SERVICE=WCS&VERSION=2.0.1&REQUEST=GetCoverage&COVERAGEID=nw_dgm&FORMAT=image%2Ftiff&SUBSET=x%28412995%2C413005%29&SUBSET=y%285667062%2C5667072%29",
     },
-    geometryEvidence: "authored-approximate-silhouette",
+    geometryEvidence:
+      LANDMARK_GEOMETRY_EVIDENCE.AUTHORED_APPROXIMATE_SILHOUETTE,
     parts: [
       {
         baseHeightMeters: 0,

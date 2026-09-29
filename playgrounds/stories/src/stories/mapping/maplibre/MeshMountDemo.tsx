@@ -2,11 +2,11 @@ import { useEffect, useRef, useState, type CSSProperties } from "react";
 import maplibregl, { type Map as MapLibreMap } from "maplibre-gl";
 import {
   createMeshMercatorLut,
-  MESH_REPROJECTION_MODE,
   MESH_PROJECTION_ACCURACY,
   MESH_REPROJECTION_METHODS,
+  MESH_REPROJECTION_MODE,
   type MeshMercatorLut,
-} from "@carma-geo/utils";
+} from "@carma-geo/proj";
 import {
   createWuppertalStoryStyle,
   WUPPERTAL_TERRAIN_SOURCE_ID,

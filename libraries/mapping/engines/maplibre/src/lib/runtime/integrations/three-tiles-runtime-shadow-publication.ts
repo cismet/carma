@@ -12,10 +12,15 @@ import {
   maximumSweepDistanceWithinBox,
   type ShadowReceiverSource,
 } from "../../core/shadow-receiver-mask";
-import { clipShadowReceiverSources } from "../../core/shadow-receiver-sources";
+import {
+  SHADOW_RECEIVER_CAPTURE,
+  clipShadowReceiverSources,
+} from "../../core/shadow-receiver-sources";
 import type { SharedThreeSceneTileVolume } from "../../core/shared-three-scene-types";
+import { TILE_VOLUME_LOAD_REASON } from "../../core/tile-volume";
 import { readOrientedTileBounds } from "./three-tiles-bounds";
 
+import { MESH_SHADOW_RESERVE_PHASE } from "./three-tiles-runtime-config";
 import type { ThreeTilesShadowsState } from "./three-tiles-runtime-shadows";
 import type { ThreeTilesRuntimeServices } from "./three-tiles-runtime-context";
 import type { RuntimeTile } from "./three-tiles-runtime-types";
@@ -44,11 +49,12 @@ export function createThreeTilesShadowPublication(
   ): SharedThreeSceneTileVolume["loadReason"] => {
     if (runtimeState.options.providesTerrain && runtimeState.shadowView) {
       return runtimeState.committedMeshReceiverFrontier.has(tile)
-        ? "viewport"
-        : "shadow";
+        ? TILE_VOLUME_LOAD_REASON.VIEWPORT
+        : TILE_VOLUME_LOAD_REASON.SHADOW;
     }
-    if (dependencies.isTileInMainView(tile)) return "viewport";
-    return "shadow";
+    if (dependencies.isTileInMainView(tile))
+      return TILE_VOLUME_LOAD_REASON.VIEWPORT;
+    return TILE_VOLUME_LOAD_REASON.SHADOW;
   };
 
   const createReceiverSnapshot = (
@@ -199,7 +205,7 @@ export function createThreeTilesShadowPublication(
   };
 
   const captureReceiverSources = (receiverOverride?: ReadonlySet<Tile>) => {
-    if (!runtimeState.tiles) return "empty" as const;
+    if (!runtimeState.tiles) return SHADOW_RECEIVER_CAPTURE.EMPTY;
     // Offscreen casters must not seed receivers and recursively grow demand.
     const receiverFrontier =
       receiverOverride ??
@@ -207,10 +213,10 @@ export function createThreeTilesShadowPublication(
         ? runtimeState.tiles.visibleTiles
         : runtimeState.displayedMeshFrontier);
     const snapshot = createReceiverSnapshot(receiverFrontier);
-    if (!snapshot) return "empty" as const;
+    if (!snapshot) return SHADOW_RECEIVER_CAPTURE.EMPTY;
     const { signature: nextSignature, mask: nextMask, sourceTiles } = snapshot;
     if (nextSignature === runtimeState.shadowReceiverSourceSignature) {
-      return "unchanged" as const;
+      return SHADOW_RECEIVER_CAPTURE.UNCHANGED;
     }
     // There is one current union: viewport receivers plus their sunward
     // corridor. Keeping the previous mask alive would retain and request tiles
@@ -225,7 +231,7 @@ export function createThreeTilesShadowPublication(
     runtimeState.shadowReceiverSourceSignature = nextSignature;
     runtimeState.mainViewSourceTiles.clear();
     for (const tile of sourceTiles) runtimeState.mainViewSourceTiles.add(tile);
-    return "updated" as const;
+    return SHADOW_RECEIVER_CAPTURE.UPDATED;
   };
 
   const enableShadowSelection = (receiverOverride?: ReadonlySet<Tile>) => {
@@ -239,14 +245,17 @@ export function createThreeTilesShadowPublication(
       return false;
     }
     const receiverUpdate = captureReceiverSources(receiverOverride);
-    if (receiverUpdate === "empty") {
+    if (receiverUpdate === SHADOW_RECEIVER_CAPTURE.EMPTY) {
       // A transient empty upstream cut while REPLACE children stream must not
       // discard the last useful sunward demand. The next non-empty traversal
       // replaces it directly.
       return false;
     }
     runtimeState.shadowSelectionRefreshPending = false;
-    if (receiverUpdate === "unchanged" && runtimeState.shadowSelectionEnabled)
+    if (
+      receiverUpdate === SHADOW_RECEIVER_CAPTURE.UNCHANGED &&
+      runtimeState.shadowSelectionEnabled
+    )
       return true;
     if (runtimeState.shadowSelectionEnabled) {
       runtimeState.shadowSelectionNeedsTraversal = true;
@@ -328,12 +337,12 @@ export function createThreeTilesShadowPublication(
         totalKnown: !plan.unpreparedParents.size,
         pending: {
           phase: plan.blocked.size
-            ? "blocked"
+            ? MESH_SHADOW_RESERVE_PHASE.BLOCKED
             : plan.unpreparedParents.size
-            ? "metadata"
+            ? MESH_SHADOW_RESERVE_PHASE.METADATA
             : plan.converged
-            ? "ready"
-            : "loading",
+            ? MESH_SHADOW_RESERVE_PHASE.READY
+            : MESH_SHADOW_RESERVE_PHASE.LOADING,
           required: plan.support.size,
           missing: plan.requests.size,
           blocked: plan.blocked.size,

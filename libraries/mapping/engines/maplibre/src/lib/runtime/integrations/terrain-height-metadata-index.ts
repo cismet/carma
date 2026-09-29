@@ -6,6 +6,7 @@ import {
   type TerrainHeightRange,
 } from "../../core/terrain-height-metadata";
 import { terrainTileKey, type TerrainTile } from "../../core/raster-dem-tile";
+import { TERRAIN_WORKER_TASK_KIND } from "../../core/terrain-worker-protocol";
 import { runTerrainWorkerTask } from "./terrain-worker-client";
 
 /** Source-space metadata survives mesh eviction; persistence is optional and
@@ -50,7 +51,7 @@ export const createTerrainHeightMetadataIndex = (
     // pointer/render path. Storage rejection stays optional; a worker yielded
     // to foreground terrain gets a bounded retry instead of losing the batch.
     void runTerrainWorkerTask({
-      kind: "write-height-metadata",
+      kind: TERRAIN_WORKER_TASK_KIND.WRITE_HEIGHT_METADATA,
       key: sourceKey,
       ranges: updates,
       producerAssetUrl,
@@ -77,11 +78,19 @@ export const createTerrainHeightMetadataIndex = (
     ? (async () => {
         let deadline: ReturnType<typeof setTimeout> | undefined;
         const read = runTerrainWorkerTask(
-          { kind: "read-height-metadata", key: sourceKey, producerAssetUrl },
+          {
+            kind: TERRAIN_WORKER_TASK_KIND.READ_HEIGHT_METADATA,
+            key: sourceKey,
+            producerAssetUrl,
+          },
           readAbort.signal
         )
           .then((result) => {
-            if (disposed || result.kind !== "read-height-metadata") return;
+            if (
+              disposed ||
+              result.kind !== TERRAIN_WORKER_TASK_KIND.READ_HEIGHT_METADATA
+            )
+              return;
             let changed = false;
             for (const [key, range] of decodeTerrainHeightMetadata(
               result.ranges

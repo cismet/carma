@@ -1,6 +1,7 @@
 import { createSharedSceneLocalFrame } from "./shared-three-scene-local-frame";
 import { createSharedSceneZoomPrefetch } from "./shared-three-scene-zoom-prefetch";
 import { synthesizeLodCamera } from "@carma-mapping/engines/threejs";
+import { MAPLIBRE_EARTH_RADIUS } from "@carma-geo/proj";
 import { degToRadNumeric, PI_OVER_TWO } from "@carma-units";
 import {
   snapshotTileCameraViews,
@@ -329,7 +330,7 @@ export const buildSharedThreeSceneLayer = (
         // Local tangent mount on MapLibre's sphere (not WGS84 ECEF).
         // Keep the resident scene unchanged; only its scene-to-clip mapping changes.
         const origin = originMerc.toLngLat();
-        const radius = 6371008.8;
+        const radius = MAPLIBRE_EARTH_RADIUS;
         localFromScene
           .makeRotationY(degToRadNumeric(origin.lng))
           .multiply(

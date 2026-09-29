@@ -1,19 +1,42 @@
 import { startTransition, useEffect, useMemo, useRef, useState } from "react";
 import type { Camera } from "three";
 import type { Tile } from "3d-tiles-renderer/core";
-import type {
-  TileDiagnostics,
-  TileDiagnosticOverlayInput,
-  TileDiagnosticView,
-  TileCameraSnapshot,
+import {
+  TILE_DIAGNOSTIC_LABEL_MODE,
+  type TileDiagnostics,
+  type TileDiagnosticOverlayInput,
+  type TileDiagnosticOverviewUp,
+  type TileDiagnosticView,
+  type TileCameraSnapshot,
 } from "@carma-mapping/engines/maplibre";
+
+/** What a pointer drag on the overview does: move the view or orbit it. */
+const OVERLAY_DRAG_MODE = {
+  PAN: "pan",
+  ORBIT: "orbit",
+} as const;
+type OverlayDragMode =
+  (typeof OVERLAY_DRAG_MODE)[keyof typeof OVERLAY_DRAG_MODE];
+
+/** The renderer state the overlay publishes as `data-renderer`. */
+const OVERLAY_RENDERER = {
+  WORKER: "typegpu-worker",
+  UNAVAILABLE: "unavailable",
+  LOADING: "loading",
+} as const;
+
+/** Where the overlay is presented, published as `data-presentation`. */
+const OVERLAY_PRESENTATION = {
+  POPOUT: "popout",
+  MAP: "map",
+} as const;
 
 type Props = Omit<TileDiagnosticOverlayInput, "model" | "view"> & {
   subscribeModel: (
     listener: (model: TileDiagnosticOverlayInput["model"]) => void
   ) => () => void;
   freeView: TileDiagnosticView | null;
-  up: string;
+  up: TileDiagnosticOverviewUp;
   subscribeCamera: (
     listener: (camera: Camera, cameras: readonly TileCameraSnapshot[]) => void
   ) => () => void;
@@ -90,7 +113,7 @@ export const createTileDiagnosticOverlayComponent = ({
       scale: number;
       view: TileDiagnosticView;
       orbit: NonNullable<TileDiagnosticOverlayInput["orbit"]>;
-      mode: "pan" | "orbit";
+      mode: OverlayDragMode;
     } | null>(null);
     const [status, setStatus] = useState<{ ready: boolean; error?: string }>({
       ready: false,
@@ -131,7 +154,12 @@ export const createTileDiagnosticOverlayComponent = ({
     useEffect(() => {
       const element = host.current;
       const parent = element?.parentElement;
-      if (!element || !parent || props.labels === "none") return;
+      if (
+        !element ||
+        !parent ||
+        props.labels === TILE_DIAGNOSTIC_LABEL_MODE.NONE
+      )
+        return;
       let previous: Tile | null = null;
       const move = (event: PointerEvent) => {
         const { model, view, onHover } = latest.current;
@@ -162,7 +190,7 @@ export const createTileDiagnosticOverlayComponent = ({
     }, [props.labels]);
 
     const finishDrag = () => {
-      if (drag.current?.mode === "orbit")
+      if (drag.current?.mode === OVERLAY_DRAG_MODE.ORBIT)
         latest.current.onOrbitChange?.(orbitRef.current);
       drag.current = null;
     };
@@ -181,12 +209,16 @@ export const createTileDiagnosticOverlayComponent = ({
           data-test-id="tile-diagnostic-worker-overlay"
           data-renderer={
             status.ready
-              ? "typegpu-worker"
+              ? OVERLAY_RENDERER.WORKER
               : status.error
-              ? "unavailable"
-              : "loading"
+              ? OVERLAY_RENDERER.UNAVAILABLE
+              : OVERLAY_RENDERER.LOADING
           }
-          data-presentation={props.popout ? "popout" : "map"}
+          data-presentation={
+            props.popout
+              ? OVERLAY_PRESENTATION.POPOUT
+              : OVERLAY_PRESENTATION.MAP
+          }
           data-up={props.up}
           data-orbit={`${props.orbit?.yaw ?? 0} ${props.orbit?.pitch ?? 0}`}
           data-view={`${props.view.x} ${props.view.y} ${props.view.w} ${props.view.h}`}
@@ -243,7 +275,10 @@ export const createTileDiagnosticOverlayComponent = ({
               y: event.clientY,
               view,
               orbit: orbitRef.current,
-              mode: event.button === 2 || event.ctrlKey ? "orbit" : "pan",
+              mode:
+                event.button === 2 || event.ctrlKey
+                  ? OVERLAY_DRAG_MODE.ORBIT
+                  : OVERLAY_DRAG_MODE.PAN,
               scale: diagnosticProjection(view, bounds.width, bounds.height)
                 .scale,
             };
@@ -251,7 +286,7 @@ export const createTileDiagnosticOverlayComponent = ({
           onPointerMove={(event) => {
             if (!drag.current || !props.interactive) return;
             const start = drag.current;
-            if (start.mode === "orbit") {
+            if (start.mode === OVERLAY_DRAG_MODE.ORBIT) {
               const next = {
                 yaw: start.orbit.yaw + (event.clientX - start.x) * 0.005,
                 pitch: Math.max(

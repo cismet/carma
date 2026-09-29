@@ -2,7 +2,10 @@ import type { MeshTileDebugProgress } from "../integrations/three-tiles-runtime-
 import type { Tile } from "3d-tiles-renderer/core";
 import type { TilesRenderer } from "3d-tiles-renderer";
 import * as THREE from "three";
-import type { Kind } from "../../core/diagnostics/tile-diagnostic-model";
+import {
+  TILE_DIAGNOSTIC_KIND,
+  type Kind,
+} from "../../core/diagnostics/tile-diagnostic-model";
 import type { createTileCameraDemand } from "../../core/tile-camera-demand";
 const LOADED = 4;
 export type RuntimeTile = Tile & { idleRing?: boolean };
@@ -129,16 +132,17 @@ export const kindOf = (
   floor: ReadonlySet<Tile>
 ): Kind | null => {
   const loadingState = tile.internal?.loadingState ?? 0;
-  if (state.displayedMeshFrontier.has(tile)) return "displayed";
+  if (state.displayedMeshFrontier.has(tile))
+    return TILE_DIAGNOSTIC_KIND.DISPLAYED;
   if (loadingState === LOADED) {
-    if (floor.has(tile)) return "floor";
-    if ((tile as RuntimeTile).idleRing) return "ring";
-    return "resident";
+    if (floor.has(tile)) return TILE_DIAGNOSTIC_KIND.FLOOR;
+    if ((tile as RuntimeTile).idleRing) return TILE_DIAGNOSTIC_KIND.RING;
+    return TILE_DIAGNOSTIC_KIND.RESIDENT;
   }
-  if (loadingState === 1) return "queued";
-  if (loadingState === 2) return "loading";
-  if (loadingState === 3) return "parsing";
-  if (state.deferred.has(tile)) return "deferred";
-  if (loadingState === -1) return "failed";
+  if (loadingState === 1) return TILE_DIAGNOSTIC_KIND.QUEUED;
+  if (loadingState === 2) return TILE_DIAGNOSTIC_KIND.LOADING;
+  if (loadingState === 3) return TILE_DIAGNOSTIC_KIND.PARSING;
+  if (state.deferred.has(tile)) return TILE_DIAGNOSTIC_KIND.DEFERRED;
+  if (loadingState === -1) return TILE_DIAGNOSTIC_KIND.FAILED;
   return null;
 };

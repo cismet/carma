@@ -1,7 +1,9 @@
 // @vitest-environment node
-import { describe, expect, it } from "vitest";
 import { Vector3 } from "three";
-import { cartographicToEcef, ecefToEnuMatrix } from "@carma-geo/proj";
+import { describe, expect, it } from "vitest";
+import { degToRadNumeric } from "@carma-units";
+
+import { cartographicToEcef, ecefToEnuMatrix } from "./geodetic";
 import { compareMeshReprojection } from "./mesh-reprojection-comparison";
 import {
   createMeshLocalProjection,
@@ -131,13 +133,18 @@ describe("mesh reprojection comparison contract", () => {
   it.each([{ camera: root }, { camera: [7.301936111, 51.23815] as const }])(
     "camera metric and AEQD preserve the horizontal fit anchor at $camera",
     ({ camera }) => {
-      const rad = Math.PI / 180;
       const p = cartographicToEcef(
-        camera[0] * rad,
-        camera[1] * rad,
+        degToRadNumeric(camera[0]),
+        degToRadNumeric(camera[1]),
         0
       ).applyMatrix4(
-        ecefToEnuMatrix(cartographicToEcef(root[0] * rad, root[1] * rad, 0))
+        ecefToEnuMatrix(
+          cartographicToEcef(
+            degToRadNumeric(root[0]),
+            degToRadNumeric(root[1]),
+            0
+          )
+        )
       );
       p.set(p.x, p.z, -p.y);
       const expected = createMeshLocalProjection(options)(p.x, p.y, p.z);

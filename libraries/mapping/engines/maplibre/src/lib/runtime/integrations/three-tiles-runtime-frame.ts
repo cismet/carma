@@ -32,6 +32,7 @@ import type {
   RuntimeTile,
 } from "./three-tiles-runtime-types";
 import { getThreeTileDiagnosticSteps } from "./three-tiles-diagnostic-steps";
+import { CACHE_CEILING_REASON } from "./three-tiles-cache-ceiling-memory";
 import { resolveTileContentUrl } from "./three-tiles-runtime-vendor";
 
 import {
@@ -451,7 +452,7 @@ export function createThreeTilesFrameUpdate(
     } catch (error) {
       if (TILE_MEMORY_ALLOCATION_ERROR.test(String(error))) {
         runtimeState.allocationFailed = true;
-        dependencies.recordCacheCeilingFailure("allocation");
+        dependencies.recordCacheCeilingFailure(CACHE_CEILING_REASON.ALLOCATION);
         dependencies.applyRequestConcurrency();
       }
       console.error("[tiles3d] update failed:", error);

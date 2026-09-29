@@ -17,12 +17,13 @@ import {
   buildTerrainTileLocalBox,
   projectTerrainToLocalWorld as projectToLocalWorld,
 } from "./terrain-selection-local-box";
-import type {
-  TerrainSelection,
-  TerrainSelectionAdapter,
-  TerrainSelectionCameraSnapshot,
-  TerrainSelectionEntry,
-  TerrainSelectionInput,
+import {
+  TERRAIN_SELECTION_KIND,
+  type TerrainSelection,
+  type TerrainSelectionAdapter,
+  type TerrainSelectionCameraSnapshot,
+  type TerrainSelectionEntry,
+  type TerrainSelectionInput,
 } from "./terrain-selection-types";
 
 const selectionKey = ({ id, kind }: TerrainSelectionEntry) =>
@@ -248,13 +249,13 @@ export const buildTerrainSelection = (
   };
   let rootLevel = input.minimumLevel;
   let rootEntries = rootIds(rootLevel).flatMap((id) => {
-    const entry = { id, kind: "source" } as const;
+    const entry = { id, kind: TERRAIN_SELECTION_KIND.SOURCE } as const;
     return intersectsViewport(entry) || intersectsShadow(entry) ? [entry] : [];
   });
   while (rootEntries.length > input.maxSelectionTiles && rootLevel > 0) {
     rootLevel -= 1;
     rootEntries = rootIds(rootLevel).flatMap((id) => {
-      const entry = { id, kind: "source" } as const;
+      const entry = { id, kind: TERRAIN_SELECTION_KIND.SOURCE } as const;
       return intersectsViewport(entry) || intersectsShadow(entry)
         ? [entry]
         : [];
@@ -382,7 +383,7 @@ export const buildTerrainSelection = (
             x: candidate.entry.id.x * 2 + x,
             y: candidate.entry.id.y * 2 + y,
           };
-          const entry = { id, kind: "source" } as const;
+          const entry = { id, kind: TERRAIN_SELECTION_KIND.SOURCE } as const;
           // Refinement replaces the full parent footprint. Offscreen siblings
           // provide coverage but their zero demand prevents further refinement.
           if (!tileIsAvailable(adapter, id)) unavailableChild = true;
@@ -410,7 +411,7 @@ export const buildTerrainSelection = (
     level >= entry.id.level
       ? entry
       : {
-          kind: "source",
+          kind: TERRAIN_SELECTION_KIND.SOURCE,
           id: {
             level,
             x: entry.id.x >> (entry.id.level - level),

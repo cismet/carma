@@ -8,6 +8,21 @@ export const DERIVED_CACHE_QUOTA_POLICY = {
   estimateDeadlineMs: 2_000,
 } as const;
 
+export const DERIVED_CACHE_CAPACITY_SOURCE = {
+  CONFIGURED_FALLBACK: "configured-fallback",
+  ORIGIN_QUOTA: "origin-quota",
+} as const;
+
+export type DerivedCacheCapacitySource =
+  (typeof DERIVED_CACHE_CAPACITY_SOURCE)[keyof typeof DERIVED_CACHE_CAPACITY_SOURCE];
+
+export const DERIVED_CACHE_CAPACITY_MODE = {
+  ORIGIN_QUOTA: "origin-quota",
+} as const;
+
+export type DerivedCacheCapacityMode =
+  (typeof DERIVED_CACHE_CAPACITY_MODE)[keyof typeof DERIVED_CACHE_CAPACITY_MODE];
+
 export type DerivedCacheQuotaSample = Readonly<{
   sampledAt: number;
   quota?: number;
@@ -25,7 +40,7 @@ export const resolveDerivedCacheQuotaCapacity = (
 ) => {
   const fallback = {
     capacityBytes: configuredBytes,
-    capacitySource: "configured-fallback" as const,
+    capacitySource: DERIVED_CACHE_CAPACITY_SOURCE.CONFIGURED_FALLBACK,
     quotaBytes: null,
     usageBytes: null,
     otherUsageBytes: null,
@@ -43,7 +58,7 @@ export const resolveDerivedCacheQuotaCapacity = (
   );
   return {
     capacityBytes: Math.max(0, Math.floor(sample.quota - otherUsageBytes - headroomBytes)),
-    capacitySource: "origin-quota" as const,
+    capacitySource: DERIVED_CACHE_CAPACITY_SOURCE.ORIGIN_QUOTA,
     quotaBytes: sample.quota,
     usageBytes: sample.usage,
     otherUsageBytes,

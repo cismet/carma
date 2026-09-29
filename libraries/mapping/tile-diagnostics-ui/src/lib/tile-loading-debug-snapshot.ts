@@ -1,9 +1,10 @@
 import type { Map as MapLibreMap } from "maplibre-gl";
 import type { MetricRecorder } from "@carma-commons/ui/components";
-import type {
-  ThreeTilesRuntime,
-  TileDiagnosticModel,
-  TileDiagnosticSummary,
+import {
+  MAPLIBRE_EVENT,
+  type ThreeTilesRuntime,
+  type TileDiagnosticModel,
+  type TileDiagnosticSummary,
 } from "@carma-mapping/engines/maplibre";
 import { TILE_PIPELINE_CHART_ROWS as CHART_ROWS } from "./core/tile-pipeline-chart-rows";
 import type { ResolvedDebugOptions } from "./tile-loading-debug-options";
@@ -122,7 +123,7 @@ export const captureTileLoadingDebugSnapshot = ({
   };
   if (frozenImage) finish(frozenImage);
   else {
-    map.once("render", () => {
+    map.once(MAPLIBRE_EVENT.RENDER, () => {
       try {
         finish(map.getCanvas().toDataURL("image/png"));
       } catch (error) {

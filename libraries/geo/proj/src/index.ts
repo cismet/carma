@@ -1,7 +1,35 @@
-export * from "./lib/proj4";
-export * from "./lib/managed-projections";
-export * from "./lib/defs";
-export * from "./lib/utils";
+export {
+  getFromEcefToWGS84,
+  getFromUTM32ToWGS84,
+  getFromWebMercatorToWGS84,
+  getFromWGS84Converter,
+  getFromWGS84ToEcef,
+  getFromWGS84ToUTM32,
+  getFromWGS84ToWebMercator,
+  getProj4Converter,
+  getToEcefConverter,
+  getToUTM32Converter,
+  getToWebMercatorConverter,
+  getUtmToGeographicConverter,
+} from "./lib/proj4";
+export type {
+  CoordinateFor,
+  Proj4Converters,
+  TypedConverter,
+} from "./lib/proj4";
+export { ManagedDefs, ManagedProjections } from "./lib/managed-projections";
+export type {
+  ManagedDefMap,
+  ManagedProjection,
+  ManagedProjectionKey,
+  ManagedProjectionMap,
+} from "./lib/managed-projections";
+export { proj4crs25832def, proj4crs4978def } from "./lib/defs";
+export {
+  getManagedCrs,
+  normalizeCrsCode,
+  registerManagedProjections,
+} from "./lib/utils";
 
 export {
   getWebMercatorFromWgs84Deg,
@@ -28,7 +56,33 @@ export {
   getZoomFromPixelResolutionAtLatitudeRad,
 } from "./lib/mercator";
 export { getCameraLocalMercatorFit } from "./lib/camera-local-mercator-fit";
-export { EARTH_CIRCUMFERENCE, EARTH_RADIUS } from "./lib/earth";
+export {
+  EARTH_CIRCUMFERENCE,
+  EARTH_RADIUS,
+  MAPLIBRE_EARTH_RADIUS,
+} from "./lib/earth";
+export {
+  createMeshLocalProjection,
+  createMeshMercatorLut,
+  getMeshReprojectionCameraFit,
+  getProjectedMeshCameraFit,
+  MESH_PROJECTION_ACCURACY,
+  MESH_PROJECTION_METHOD,
+  MESH_PROJECTION_SAMPLING,
+  MESH_REPROJECTION_METHODS,
+  MESH_REPROJECTION_MODE,
+  projectMeshLocalToMercatorExact,
+  sampleMeshMercatorLut,
+} from "./lib/mesh-mercator-lut";
+export type {
+  MeshMercatorLut,
+  MeshMercatorLutOptions,
+  MeshProjectionAccuracy,
+  MeshProjectionMethod,
+  MeshReprojectionMode,
+} from "./lib/mesh-mercator-lut";
+export { compareMeshReprojection } from "./lib/mesh-reprojection-comparison";
+export type { MeshReprojectionComparison } from "./lib/mesh-reprojection-comparison";
 export {
   DEFAULT_LEAFLET_TILESIZE,
   DEFAULT_MERCATOR_LATITUDE_DEG,

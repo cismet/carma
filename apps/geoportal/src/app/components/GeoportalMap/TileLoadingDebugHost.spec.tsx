@@ -18,13 +18,22 @@ const debug = vi.hoisted(() => ({
 vi.mock("@carma-providers/feature-flag", () => ({
   useFeatureFlags: () => ({ isDebugMode: debug.enabled }),
 }));
-vi.mock("@carma-mapping/engines/maplibre", () => ({
-  getTiles3dRuntimeHandles: () => (debug.loaded ? [debug.runtime] : []),
-  subscribeTiles3dRuntimeHandles: (_map: unknown, listener: () => void) => {
-    debug.listener = listener;
-    return () => {};
-  },
-}));
+vi.mock("@carma-mapping/engines/maplibre", async () => {
+  // The pure option tokens only, not the engine barrel.
+  const { TILE_DIAGNOSTIC_LABEL_MODE } = await vi.importActual<
+    typeof import("../../../../../../libraries/mapping/engines/maplibre/src/lib/core/diagnostics/tile-diagnostic-options")
+  >(
+    "../../../../../../libraries/mapping/engines/maplibre/src/lib/core/diagnostics/tile-diagnostic-options"
+  );
+  return {
+    TILE_DIAGNOSTIC_LABEL_MODE,
+    getTiles3dRuntimeHandles: () => (debug.loaded ? [debug.runtime] : []),
+    subscribeTiles3dRuntimeHandles: (_map: unknown, listener: () => void) => {
+      debug.listener = listener;
+      return () => {};
+    },
+  };
+});
 
 const shadow = vi.hoisted(() => ({
   state: {} as Record<string, unknown>,

@@ -6,6 +6,7 @@ import {
   tileCameraViewsSignature,
   TILE_MAIN_OBSERVER_ID,
 } from "../../core/tile-camera-demand";
+import { TILE_QUEUE_ACTION } from "../../core/tile-scheduling-policy";
 import { createMeshRegionCutQuery } from "../../core/mesh-tile-coverage";
 import { subscribeTileResponses } from "../integrations/tile-response-observers";
 import { readOrientedTileBounds } from "../integrations/three-tiles-bounds";
@@ -326,7 +327,8 @@ export const createTilePipelineTelemetry = (
               parseQueueAgeMs,
               now - progress.downloadFinishedAt
             );
-          if (progress.requestDecision?.action === "park") blocked++;
+          if (progress.requestDecision?.action === TILE_QUEUE_ACTION.PARK)
+            blocked++;
         }
         for (const tile of state.displayedMeshFrontier) {
           if (presented.has(tile)) continue;

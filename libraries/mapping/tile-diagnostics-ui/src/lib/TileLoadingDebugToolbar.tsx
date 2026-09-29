@@ -7,6 +7,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import type { ResolvedDebugOptions } from "./tile-loading-debug-options";
 import type { createTileLoadingDebugPanels } from "./tile-loading-debug-panels";
+import { TILE_LOADING_DEBUG_PANEL_ID } from "./tile-loading-debug-tokens";
 
 type Panel = ReturnType<typeof createTileLoadingDebugPanels>[number];
 
@@ -61,7 +62,10 @@ export const TileLoadingDebugToolbar = ({
               }
             />
             {panels
-              .filter((panel) => panel.id !== "overview-options")
+              .filter(
+                (panel) =>
+                  panel.id !== TILE_LOADING_DEBUG_PANEL_ID.OVERVIEW_OPTIONS
+              )
               .map((panel) => (
                 <Tooltip key={panel.id} title={panel.label}>
                   <Button

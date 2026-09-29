@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { intersectTileFrustumPlanes } from "../../core/diagnostics/tile-frustum-cuts";
+import { TILE_DIAGNOSTIC_CAMERA_FOCUS } from "../../core/diagnostics/tile-diagnostic-options";
 import {
   createTileCameraDemand,
   type TileCameraSnapshot,
@@ -255,7 +256,7 @@ export const projectTileDiagnosticViewport = (
 export const projectTileDiagnosticViewports = (
   basis: DiagnosticViewportBasis,
   cameras: readonly TileCameraSnapshot[],
-  focus = "overview-live",
+  focus: string = TILE_DIAGNOSTIC_CAMERA_FOCUS.LIVE,
   paddingPercent = 200,
   orbit?: { yaw: number; pitch: number }
 ) => {
@@ -266,7 +267,9 @@ export const projectTileDiagnosticViewports = (
     ...projectTileDiagnosticViewport(basis, camera, paddingPercent),
   }));
   const pivotViews =
-    focus === "all" ? baseViews : baseViews.filter((view) => view.id === focus);
+    focus === TILE_DIAGNOSTIC_CAMERA_FOCUS.ALL
+      ? baseViews
+      : baseViews.filter((view) => view.id === focus);
   const pivotPoints = pivotViews.flatMap((view) =>
     view.focusWorld ? [new THREE.Vector3().fromArray(view.focusWorld)] : []
   );
@@ -309,7 +312,9 @@ export const projectTileDiagnosticViewports = (
           ),
         }));
   const selected =
-    focus === "all" ? views : views.filter((view) => view.id === focus);
+    focus === TILE_DIAGNOSTIC_CAMERA_FOCUS.ALL
+      ? views
+      : views.filter((view) => view.id === focus);
   const bounds = selected.flatMap((view) =>
     view.footprintBounds ? [view.footprintBounds] : []
   );

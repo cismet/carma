@@ -5,7 +5,7 @@ import {
   NORDHELLE_LANDMARKS,
   NRW_DGM1_DHHN2016_TERRARIUM_TERRAIN,
 } from "@carma-commons/resources";
-import { getGcg2016HeightAnomalies } from "@carma-geo/proj";
+import { EARTH_RADIUS, getGcg2016HeightAnomalies } from "@carma-geo/proj";
 import type { LngLatArray } from "@carma-geo/data-structures";
 import { acquireRasterDemTerrainTileSource } from "../../../../../../libraries/mapping/engines/maplibre/src/lib/runtime/integrations/raster-dem-terrain-tile-source";
 import { AtmosphericSunlightEvaluator } from "../../../../../../libraries/mapping/shadow-simulation/src/lib/runtime/atmospheric-sunlight";
@@ -91,7 +91,7 @@ export const RefractionExperiment = (args: Args) => {
         eye,
         [tower.longitudeDegrees, tower.latitudeDegrees],
       ] as LngLatArray.deg[]);
-      const frame = createReferenceFrame(eye, 6371000);
+      const frame = createReferenceFrame(eye, EARTH_RADIUS);
       const target = projectGeodeticToScene(
         frame,
         tower.longitudeDegrees,

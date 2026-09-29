@@ -10,6 +10,10 @@ import {
   readFromMaplibre,
   type ViewState,
 } from "@carma-mapping/engines-interop/view-state";
+import {
+  TILE_VOLUME_LOAD_REASON,
+  type TileVolumeLoadReason,
+} from "@carma-mapping/engines/maplibre";
 import { degToRadNumeric, type Meters } from "@carma-units";
 
 import type { SolarPosition } from "../core/solar-position";
@@ -190,7 +194,7 @@ const readViewportFootprint = (map: MaplibreMap) => {
 type RelativeTileVolume = Readonly<{
   minimum: Vector3;
   maximum: Vector3;
-  loadReason?: "viewport" | "shadow";
+  loadReason?: TileVolumeLoadReason;
 }>;
 
 const readRelativeTileVolumes = (
@@ -256,9 +260,9 @@ const normalizeTileVolumes = (
       number
     ],
     color:
-      loadReason === "viewport"
+      loadReason === TILE_VOLUME_LOAD_REASON.VIEWPORT
         ? "#0284c7"
-        : loadReason === "shadow"
+        : loadReason === TILE_VOLUME_LOAD_REASON.SHADOW
         ? "#ea580c"
         : "#64748b",
   }));
@@ -269,7 +273,7 @@ const withTileVolumeDepthRange = (
   relativeVolumes: readonly RelativeTileVolume[]
 ): ViewState => {
   const viewportVolumes = relativeVolumes.filter(
-    ({ loadReason }) => loadReason === "viewport"
+    ({ loadReason }) => loadReason === TILE_VOLUME_LOAD_REASON.VIEWPORT
   );
   const volumes =
     viewportVolumes.length > 0 ? viewportVolumes : relativeVolumes;

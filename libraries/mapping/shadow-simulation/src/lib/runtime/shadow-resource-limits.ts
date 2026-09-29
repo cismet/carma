@@ -1,6 +1,7 @@
 import {
   readShadowDeviceEnvironment,
   resolveShadowDeviceClass,
+  SHADOW_DEVICE_CLASS,
   type ShadowDeviceEnvironment,
 } from "../core/shadow-device-profile";
 import {
@@ -38,13 +39,13 @@ export const resolveShadowResourceLimits = (
   const maxTextureSize = Math.max(256, Math.floor(reportedMaxTextureSize));
   const deviceClass = resolveShadowDeviceClass(environment);
 
-  if (deviceClass === "phone") {
+  if (deviceClass === SHADOW_DEVICE_CLASS.PHONE) {
     return {
       maxShadowMapSize: Math.min(maxTextureSize, PHONE_MAX_SHADOW_MAP_SIZE),
       maxAccumulationPixels: PHONE_MAX_ACCUMULATION_PIXELS,
     };
   }
-  if (deviceClass === "tablet") {
+  if (deviceClass === SHADOW_DEVICE_CLASS.TABLET) {
     return {
       maxShadowMapSize: Math.min(maxTextureSize, TABLET_MAX_SHADOW_MAP_SIZE),
       maxAccumulationPixels: TABLET_MAX_ACCUMULATION_PIXELS,

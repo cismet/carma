@@ -1,4 +1,8 @@
 /// <reference types="@webgpu/types" />
+import { EARTH_RADIUS } from "@carma-geo/proj";
+
+// WGSL needs a float literal, so the shared radius is written with a decimal.
+const EARTH_RADIUS_WGSL = EARTH_RADIUS.toFixed(1);
 
 export const shader = /* wgsl */ `
 struct Settings { size: vec2f, range: f32, halfWidth: f32, eye: f32, k: f32, fov: f32, towerDistance: f32, towerHeight: f32, towerBase: f32, steps: f32, spare: f32, temperature:f32, pressure:f32, lapse:f32, inversion:f32, layer:f32, depth:f32, visibility:f32, charts:f32 }
@@ -63,7 +67,7 @@ fn chartColor(uv:vec2f,km:u32)->vec3f {
     if(f32(i)>settings.steps){break;}
     let z=f32(i)*step;
     let oldY=y;
-    let height=y+previousZ*previousZ/(2*6371000.0);
+    let height=y+previousZ*previousZ/(2*${EARTH_RADIUS_WGSL});
     let bend=select(0.0,curvature(height),right);
     y+=slopeY*step+0.5*bend*step*step;slopeY+=bend*step;
     if(settings.charts>0.5){
@@ -73,7 +77,7 @@ fn chartColor(uv:vec2f,km:u32)->vec3f {
         let center=chartSlope+angularWidth*0.5;
         if(previousZ<d && z>=d && abs(slope.x-center)<angularWidth*0.5){
           let ground=heightAt(center*d,d);
-          let centerHeight=max(settings.eye+100.0,ground+80.0)-d*d/(2*6371000.0);
+          let centerHeight=max(settings.eye+100.0,ground+80.0)-d*d/(2*${EARTH_RADIUS_WGSL});
           let rayY=mix(oldY,y,(d-previousZ)/step);
           if(abs(rayY-centerHeight)<50.0){
             return filtered(chartColor(vec2f((slope.x-center)/angularWidth+0.5,0.5-(rayY-centerHeight)/100.0),c*5u),d,sky);
@@ -85,13 +89,13 @@ fn chartColor(uv:vec2f,km:u32)->vec3f {
     if(previousZ<settings.towerDistance && z>=settings.towerDistance){
       let d=settings.towerDistance;
       let rayY=mix(oldY,y,(d-previousZ)/step);
-      let base=settings.towerBase-d*d/(2*6371000.0);
+      let base=settings.towerBase-d*d/(2*${EARTH_RADIUS_WGSL});
       let radius=4.2;
       let peak=settings.towerHeight;
       if(abs(slope.x*d)<radius && rayY>=base && rayY<=base+peak){return filtered(vec3f(0.65,0.68,0.72),d,sky);}
     }
     let h=heightAt(slope.x*z,z);
-    if(h > -1000 && y<h-z*z/(2*6371000.0)){
+    if(h > -1000 && y<h-z*z/(2*${EARTH_RADIUS_WGSL})){
       return filtered(mix(vec3f(0.12,0.22,0.13),vec3f(0.65,0.61,0.42),clamp(h/900,0.0,1.0)),z,sky);
     }
     previousZ=z;

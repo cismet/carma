@@ -11,16 +11,17 @@ import {
 } from "three";
 import type { Tile } from "3d-tiles-renderer/core";
 import { degToRad, type Degrees } from "@carma-units";
-import { cartographicToEcef, ecefToEnuMatrix } from "@carma-geo/proj";
 import {
-  createMeshMercatorLut,
+  cartographicToEcef,
   createMeshLocalProjection,
-  MESH_PROJECTION_METHOD,
+  createMeshMercatorLut,
+  ecefToEnuMatrix,
   MESH_PROJECTION_ACCURACY,
+  MESH_PROJECTION_METHOD,
   MESH_PROJECTION_SAMPLING,
   type MeshMercatorLutOptions,
   projectMeshLocalToMercatorExact,
-} from "@carma-geo/utils";
+} from "@carma-geo/proj";
 import { TilesetMercatorProjectionPlugin } from "./tileset-mercator-projection-plugin";
 
 const options = {

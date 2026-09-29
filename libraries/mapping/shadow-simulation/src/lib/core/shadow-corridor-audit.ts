@@ -1,4 +1,8 @@
 import * as THREE from "three";
+import {
+  TILE_VOLUME_LOAD_REASON,
+  type TileVolumeLoadReason,
+} from "@carma-mapping/engines/maplibre";
 
 type RegionDiagnostics = Readonly<{
   sourceId: string;
@@ -27,7 +31,7 @@ export const auditShadowCorridor = ({
   regions: readonly RegionDiagnostics[];
   volumes: readonly Readonly<{
     id: string;
-    loadReason?: "viewport" | "shadow";
+    loadReason?: TileVolumeLoadReason;
     minimum: readonly [number, number, number];
     maximum: readonly [number, number, number];
   }>[];
@@ -43,7 +47,7 @@ export const auditShadowCorridor = ({
       missing.push(tileId);
       continue;
     }
-    if (volume.loadReason === "shadow") offscreen += 1;
+    if (volume.loadReason === TILE_VOLUME_LOAD_REASON.SHADOW) offscreen += 1;
     if (
       !casterBounds.intersectsBox(
         new THREE.Box3(

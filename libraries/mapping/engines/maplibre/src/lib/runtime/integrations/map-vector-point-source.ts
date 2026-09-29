@@ -6,6 +6,10 @@ import type {
   SourceSpecification,
   StyleSpecification,
 } from "maplibre-gl";
+import { distanceMeters } from "@carma-geo/utils";
+import type { Degrees } from "@carma-units";
+
+import { MAPLIBRE_EVENT } from "../../../constants/mapEvents";
 
 export type MapVectorPoint = {
   id: string;
@@ -29,8 +33,6 @@ type VectorLayerReference = {
 };
 
 type OwnedSource = { id: string; sourceLayers: Array<string | undefined> };
-
-const EARTH_RADIUS_METERS = 6_371_008.8;
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
@@ -81,20 +83,10 @@ const pointFromGeometry = (geometry: unknown): Array<[number, number]> => {
   return [];
 };
 
-const haversineMeters = (
-  [lngA, latA]: [number, number],
-  [lngB, latB]: [number, number]
-) => {
-  const toRadians = (degrees: number) => (degrees * Math.PI) / 180;
-  const dLat = toRadians(latB - latA);
-  const dLng = toRadians(lngB - lngA);
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRadians(latA)) *
-      Math.cos(toRadians(latB)) *
-      Math.sin(dLng / 2) ** 2;
-  return 2 * EARTH_RADIUS_METERS * Math.asin(Math.sqrt(Math.min(1, a)));
-};
+const toLatLng = ([lng, lat]: [number, number]) => ({
+  latitude: lat as Degrees,
+  longitude: lng as Degrees,
+});
 
 const featureId = (
   feature: unknown,
@@ -145,7 +137,7 @@ export function observeMapVectorPoints(
     disposed = true;
     controller.abort();
     try {
-      map.off("sourcedata", handleSourceData);
+      map.off(MAPLIBRE_EVENT.SOURCE_DATA, handleSourceData);
     } catch {
       /* map may already be removed */
     }
@@ -176,7 +168,7 @@ export function observeMapVectorPoints(
   const emitPoints = () => {
     if (disposed) return;
     const seen = new Set<string>();
-    const center = options.center;
+    const center = toLatLng(options.center);
     for (const source of ownedSources)
       for (const sourceLayer of source.sourceLayers) {
         let features: readonly unknown[];
@@ -199,7 +191,8 @@ export function observeMapVectorPoints(
               coordinate[0] > 180 ||
               coordinate[1] < -90 ||
               coordinate[1] > 90 ||
-              haversineMeters(center, coordinate) > options.radiusMeters
+              distanceMeters(center, toLatLng(coordinate)) >
+                options.radiusMeters
             )
               continue;
             const id = featureId(feature, sourceLayer, coordinate);
@@ -214,9 +207,14 @@ export function observeMapVectorPoints(
         });
       }
     const points = [...retainedPoints.values()];
+    const distances = new Map(
+      points.map((point) => [
+        point.id,
+        distanceMeters(center, toLatLng(point.lngLat)),
+      ])
+    );
     points.sort((a, b) => {
-      const distance =
-        haversineMeters(center, a.lngLat) - haversineMeters(center, b.lngLat);
+      const distance = distances.get(a.id)! - distances.get(b.id)!;
       return distance || a.id.localeCompare(b.id);
     });
     const retainedLimit = Math.max(256, options.limit);
@@ -252,7 +250,7 @@ export function observeMapVectorPoints(
     }
   }
 
-  map.on("sourcedata", handleSourceData);
+  map.on(MAPLIBRE_EVENT.SOURCE_DATA, handleSourceData);
 
   void fetch(styleUrl, { signal: controller.signal })
     .then((response) => {

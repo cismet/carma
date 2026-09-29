@@ -3,6 +3,7 @@ import { type Tile } from "3d-tiles-renderer/core";
 
 import {
   DEFERRED_TILE_LOADING_STATE,
+  TILE_DEFERRAL_DECISION,
   deriveTilePriority,
   shouldDeferTile,
 } from "../../core/tile-request-policy";
@@ -288,10 +289,10 @@ export function createThreeTilesLoading(
       loadingState: tile.internal.loadingState,
       isDeferred,
     });
-    if (decision === "defer") {
+    if (decision === TILE_DEFERRAL_DECISION.DEFER) {
       tile.internal.loadingState = DEFERRED_TILE_LOADING_STATE;
       runtimeState.deferred.add(tile);
-    } else if (decision === "undefer") {
+    } else if (decision === TILE_DEFERRAL_DECISION.UNDEFER) {
       runtimeState.deferred.delete(tile);
       if (tile.internal.loadingState === DEFERRED_TILE_LOADING_STATE) {
         tile.internal.loadingState = UNLOADED_LOADING_STATE;

@@ -30,18 +30,27 @@ import {
 } from "./terrain-boundary-stitch";
 import { buildTerrainSelection } from "../../core/terrain-selection";
 import type { TerrainSelectionInput } from "../../core/terrain-selection-types";
+import { TERRAIN_WORKER_TASK_KIND } from "../../core/terrain-worker-protocol";
 
 export type TerrainWorkerTask =
-  | { kind: "read-height-metadata"; key: string; producerAssetUrl?: string }
   | {
-      kind: "write-height-metadata";
+      kind: typeof TERRAIN_WORKER_TASK_KIND.READ_HEIGHT_METADATA;
+      key: string;
+      producerAssetUrl?: string;
+    }
+  | {
+      kind: typeof TERRAIN_WORKER_TASK_KIND.WRITE_HEIGHT_METADATA;
       key: string;
       ranges: Float64Array;
       producerAssetUrl?: string;
     }
-  | { kind: "read-cache"; key: string; producerAssetUrl?: string }
   | {
-      kind: "write-cache";
+      kind: typeof TERRAIN_WORKER_TASK_KIND.READ_CACHE;
+      key: string;
+      producerAssetUrl?: string;
+    }
+  | {
+      kind: typeof TERRAIN_WORKER_TASK_KIND.WRITE_CACHE;
       key: string;
       entry: CachedProjectedTerrainTile;
       bytes: number;
@@ -49,22 +58,28 @@ export type TerrainWorkerTask =
       producerAssetUrl?: string;
     }
   | {
-      kind: "cache-cost";
+      kind: typeof TERRAIN_WORKER_TASK_KIND.CACHE_COST;
       key: string;
       restoreMs: number;
       producerAssetUrl?: string;
     }
-  | { kind: "calibrate-cache"; producerAssetUrl?: string }
-  | { kind: "select"; input: TerrainSelectionInput }
   | {
-      kind: "partition";
+      kind: typeof TERRAIN_WORKER_TASK_KIND.CALIBRATE_CACHE;
+      producerAssetUrl?: string;
+    }
+  | {
+      kind: typeof TERRAIN_WORKER_TASK_KIND.SELECT;
+      input: TerrainSelectionInput;
+    }
+  | {
+      kind: typeof TERRAIN_WORKER_TASK_KIND.PARTITION;
       positions: Float32Array;
       indices: Uint16Array | Uint32Array;
       heights: Float32Array;
       noDataHeightMeters: number;
     }
   | {
-      kind: "stitch";
+      kind: typeof TERRAIN_WORKER_TASK_KIND.STITCH;
       sameLevelOnly?: boolean;
       prepareEqualLevelShells?: boolean;
       applyBoundaryStates?: Record<string, Float32Array>;
@@ -76,7 +91,7 @@ export type TerrainWorkerTask =
       prepareOnly?: boolean;
     }
   | {
-      kind: "decode";
+      kind: typeof TERRAIN_WORKER_TASK_KIND.DECODE;
       blob: Blob;
       id: TerrainTileId;
       segments: number;
@@ -85,7 +100,7 @@ export type TerrainWorkerTask =
       maximumMeshSegments?: number;
     }
   | {
-      kind: "remesh";
+      kind: typeof TERRAIN_WORKER_TASK_KIND.REMESH;
       raster: DecodedRaster;
       id: TerrainTileId;
       error: number;
@@ -93,7 +108,7 @@ export type TerrainWorkerTask =
       maximumMeshSegments?: number;
     }
   | {
-      kind: "project";
+      kind: typeof TERRAIN_WORKER_TASK_KIND.PROJECT;
       tile: TerrainTile;
       origin: { x: number; y: number; z: number };
     };
@@ -102,12 +117,12 @@ export const executeTerrainWorkerTask = async (
   task: TerrainWorkerTask,
   signal?: AbortSignal
 ) => {
-  if (task.kind === "read-height-metadata")
+  if (task.kind === TERRAIN_WORKER_TASK_KIND.READ_HEIGHT_METADATA)
     return {
       kind: task.kind,
       ranges: await readTerrainHeightMetadata(task.key, task.producerAssetUrl),
     };
-  if (task.kind === "write-height-metadata")
+  if (task.kind === TERRAIN_WORKER_TASK_KIND.WRITE_HEIGHT_METADATA)
     return {
       kind: task.kind,
       stored: await writeTerrainHeightMetadata(
@@ -116,17 +131,17 @@ export const executeTerrainWorkerTask = async (
         task.producerAssetUrl
       ),
     };
-  if (task.kind === "calibrate-cache")
+  if (task.kind === TERRAIN_WORKER_TASK_KIND.CALIBRATE_CACHE)
     return {
-      kind: "calibrate-cache" as const,
+      kind: TERRAIN_WORKER_TASK_KIND.CALIBRATE_CACHE,
       calibrated: await calibrateProjectedTerrainCache(
         task.producerAssetUrl,
         signal
       ),
     };
-  if (task.kind === "write-cache")
+  if (task.kind === TERRAIN_WORKER_TASK_KIND.WRITE_CACHE)
     return {
-      kind: "write-cache" as const,
+      kind: TERRAIN_WORKER_TASK_KIND.WRITE_CACHE,
       stored: await writeProjectedTerrainCacheRecord(
         task.key,
         task.entry,
@@ -135,29 +150,29 @@ export const executeTerrainWorkerTask = async (
         task.producerAssetUrl
       ),
     };
-  if (task.kind === "cache-cost")
+  if (task.kind === TERRAIN_WORKER_TASK_KIND.CACHE_COST)
     return {
-      kind: "cache-cost" as const,
+      kind: TERRAIN_WORKER_TASK_KIND.CACHE_COST,
       updated: await updateProjectedTerrainReadCost(
         task.key,
         task.restoreMs,
         task.producerAssetUrl
       ),
     };
-  if (task.kind === "read-cache")
+  if (task.kind === TERRAIN_WORKER_TASK_KIND.READ_CACHE)
     return {
-      kind: "read-cache" as const,
+      kind: TERRAIN_WORKER_TASK_KIND.READ_CACHE,
       entry: await readProjectedTerrainCacheRecord(
         task.key,
         task.producerAssetUrl
       ),
     };
-  if (task.kind === "select")
+  if (task.kind === TERRAIN_WORKER_TASK_KIND.SELECT)
     return {
-      kind: "select" as const,
+      kind: TERRAIN_WORKER_TASK_KIND.SELECT,
       selection: buildTerrainSelection(task.input),
     };
-  if (task.kind === "partition") {
+  if (task.kind === TERRAIN_WORKER_TASK_KIND.PARTITION) {
     const geometry = new BufferGeometry();
     geometry.setAttribute("position", new BufferAttribute(task.positions, 3));
     geometry.setIndex(new BufferAttribute(task.indices, 1));
@@ -169,32 +184,40 @@ export const executeTerrainWorkerTask = async (
     if (partition.geometry && !partition.geometry.getAttribute("normal"))
       computeMeshVertexNormals(partition.geometry);
     return {
-      kind: "partition" as const,
+      kind: TERRAIN_WORKER_TASK_KIND.PARTITION,
       geometry: partition.geometry
         ? serializeTerrainGeometry(partition.geometry)
         : null,
       reliefVertexMask: partition.reliefVertexMask,
     };
   }
-  if (task.kind === "stitch" && task.prepareEqualLevelShells)
+  if (
+    task.kind === TERRAIN_WORKER_TASK_KIND.STITCH &&
+    task.prepareEqualLevelShells
+  )
     return {
-      kind: "stitch" as const,
+      kind: TERRAIN_WORKER_TASK_KIND.STITCH,
       updates: [] as ReturnType<typeof executeTerrainBoundaryStitch>["updates"],
       shells: await Promise.all(
         task.inputs.map(prepareCachedEqualLevelTerrainShell)
       ),
     };
-  if (task.kind === "stitch")
+  if (task.kind === TERRAIN_WORKER_TASK_KIND.STITCH)
     return {
-      kind: "stitch" as const,
+      kind: TERRAIN_WORKER_TASK_KIND.STITCH,
       ...executeTerrainBoundaryStitch(task.inputs, task),
     };
-  if (task.kind === "decode" || task.kind === "remesh") {
+  if (
+    task.kind === TERRAIN_WORKER_TASK_KIND.DECODE ||
+    task.kind === TERRAIN_WORKER_TASK_KIND.REMESH
+  ) {
     // Decoding the image and meshing its raster are separate costs; the
     // diagnostics draw them as their own steps.
     const decodeStart = performance.now();
     const raster =
-      task.kind === "decode" ? await decodeImage(task.blob) : task.raster;
+      task.kind === TERRAIN_WORKER_TASK_KIND.DECODE
+        ? await decodeImage(task.blob)
+        : task.raster;
     const meshStart = performance.now();
     const maximumSegments = task.maximumMeshSegments;
     // Explicit mobile baseline: allocate the smaller attribute grid as well as
@@ -234,7 +257,10 @@ export const executeTerrainWorkerTask = async (
       new MercatorCoordinate(task.origin.x, task.origin.y, task.origin.z)
     ),
   });
-  return { kind: "project" as const, ...serializeTerrainGeometry(geometry) };
+  return {
+    kind: TERRAIN_WORKER_TASK_KIND.PROJECT,
+    ...serializeTerrainGeometry(geometry),
+  };
 };
 
 const serializeTerrainGeometry = (geometry: BufferGeometry) => {
@@ -264,11 +290,11 @@ export type TerrainWorkerResult = Awaited<
 export const terrainResultTransfers = (
   result: TerrainWorkerResult
 ): Transferable[] =>
-  result.kind === "read-height-metadata"
+  result.kind === TERRAIN_WORKER_TASK_KIND.READ_HEIGHT_METADATA
     ? result.ranges
       ? [result.ranges.buffer as ArrayBuffer]
       : []
-    : result.kind === "read-cache"
+    : result.kind === TERRAIN_WORKER_TASK_KIND.READ_CACHE
     ? result.entry
       ? [
           ...new Set([
@@ -286,13 +312,13 @@ export const terrainResultTransfers = (
           ]),
         ]
       : []
-    : result.kind === "select" ||
-      result.kind === "write-height-metadata" ||
-      result.kind === "write-cache" ||
-      result.kind === "cache-cost" ||
-      result.kind === "calibrate-cache"
+    : result.kind === TERRAIN_WORKER_TASK_KIND.SELECT ||
+      result.kind === TERRAIN_WORKER_TASK_KIND.WRITE_HEIGHT_METADATA ||
+      result.kind === TERRAIN_WORKER_TASK_KIND.WRITE_CACHE ||
+      result.kind === TERRAIN_WORKER_TASK_KIND.CACHE_COST ||
+      result.kind === TERRAIN_WORKER_TASK_KIND.CALIBRATE_CACHE
     ? []
-    : result.kind === "partition"
+    : result.kind === TERRAIN_WORKER_TASK_KIND.PARTITION
     ? ([
         result.reliefVertexMask.buffer,
         ...(result.geometry
@@ -303,7 +329,7 @@ export const terrainResultTransfers = (
             ]
           : []),
       ] as ArrayBuffer[])
-    : result.kind === "stitch"
+    : result.kind === TERRAIN_WORKER_TASK_KIND.STITCH
     ? ([
         ...new Set([
           ...result.updates.flatMap((update) => [
@@ -325,7 +351,7 @@ export const terrainResultTransfers = (
           ),
         ]),
       ] as ArrayBuffer[])
-    : result.kind === "project"
+    : result.kind === TERRAIN_WORKER_TASK_KIND.PROJECT
     ? ([
         result.positions.buffer,
         result.normals.buffer,

@@ -29,7 +29,13 @@ const SHADOW_MAP_STYLE_BASE_LAYER_ID = "carma-shadow-map-style-base";
  * the symbol layers so a textured mesh takes draped street names and nothing
  * else.
  */
-export type ShadowMapStyleDrapeMode = "opaque" | "labels";
+export const SHADOW_MAP_STYLE_DRAPE_MODE = {
+  OPAQUE: "opaque",
+  LABELS: "labels",
+} as const;
+
+export type ShadowMapStyleDrapeMode =
+  (typeof SHADOW_MAP_STYLE_DRAPE_MODE)[keyof typeof SHADOW_MAP_STYLE_DRAPE_MODE];
 
 export type ShadowMapLibreTerrainRelease = (() => void) & {
   /** Re-evaluate the drape mode after the shared scene's runtimes changed. */
@@ -45,7 +51,8 @@ export const acquireShadowMapLibreTerrain = (
   map: MaplibreMap,
   terrainSource: RasterDemTerrainResource = NRW_DGM1_DHHN2016_TERRARIUM_TERRAIN,
   isMapStyleContentVisible: () => boolean = () => true,
-  getDrapeMode: () => ShadowMapStyleDrapeMode = () => "opaque",
+  getDrapeMode: () => ShadowMapStyleDrapeMode = () =>
+    SHADOW_MAP_STYLE_DRAPE_MODE.OPAQUE,
   terrainQuality: ShadowTerrainQuality = SHADOW_TERRAIN_QUALITY.MAX
 ): ShadowMapLibreTerrainRelease => {
   const sourceId = terrainSource.id;
@@ -292,7 +299,7 @@ export const acquireShadowMapLibreTerrain = (
           bounds: [...terrainSource.bounds],
         });
       }
-      if (getDrapeMode() === "labels") {
+      if (getDrapeMode() === SHADOW_MAP_STYLE_DRAPE_MODE.LABELS) {
         // The shared scene registry owns the label drape (it also runs
         // without the shadow simulation); only hand the opaque pass back.
         restoreOpaqueDrape();

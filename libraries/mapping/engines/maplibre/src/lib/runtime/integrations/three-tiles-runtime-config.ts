@@ -23,6 +23,17 @@ export const MESH_ALLOCATION_RECOVERY_PHASE = {
   RECOVERED: "recovered",
 } as const;
 
+export const MESH_SHADOW_RESERVE_PHASE = {
+  METADATA: "metadata",
+  PLANNING: "planning",
+  LOADING: "loading",
+  BLOCKED: "blocked",
+  READY: "ready",
+} as const;
+
+export type MeshShadowReservePhase =
+  (typeof MESH_SHADOW_RESERVE_PHASE)[keyof typeof MESH_SHADOW_RESERVE_PHASE];
+
 export const MESH_MOTION_COVERAGE_INTERVAL_MS = 180;
 
 export const MESH_EVICTION_BATCH_SIZE = 16;

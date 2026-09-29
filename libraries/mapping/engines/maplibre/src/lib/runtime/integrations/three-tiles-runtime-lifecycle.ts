@@ -5,6 +5,10 @@ import { isLocalhostHostname } from "@carma-commons/utils";
 
 import { createTileDrawObserver } from "./three-tiles-draw-observer";
 import { getRetainedMeshAncestors } from "../../core/mesh-tile-retention";
+import {
+  MESH_TILE_WAIT_REASON,
+  MESH_TILE_WAIT_ROLE,
+} from "../../core/mesh-tile-wait";
 import { createThreeTilesRuntimeAttachment } from "./three-tiles-runtime-attachment";
 import { createThreeTilesLoadEvents } from "./three-tiles-runtime-load-events";
 import { createThreeTilesGroundReferenceProbe } from "./three-tiles-runtime-ground-reference";
@@ -193,7 +197,7 @@ export function createThreeTilesLifecycle(
   const drawObserver = createTileDrawObserver(
     (tile) => {
       dependencies.getTileDebugProgress(tile).visibleAt ??= performance.now();
-      dependencies.recordTileWait(tile, "receiver", null);
+      dependencies.recordTileWait(tile, MESH_TILE_WAIT_ROLE.RECEIVER, null);
       const requestedAt = tile.firstPublicationRequestedAt;
       if (requestedAt !== undefined) {
         motionPrefetch.observeLatency(performance.now() - requestedAt);
@@ -209,7 +213,11 @@ export function createThreeTilesLifecycle(
       const progress = dependencies.getTileDebugProgress(tile);
       progress.shadowDepthSubmittedAt ??= performance.now();
       if (progress.shadowPresentedAt === undefined)
-        dependencies.recordTileWait(tile, "shadow", "shadow-accumulation");
+        dependencies.recordTileWait(
+          tile,
+          MESH_TILE_WAIT_ROLE.SHADOW,
+          MESH_TILE_WAIT_REASON.SHADOW_ACCUMULATION
+        );
     }
   );
   const isTileInAnyView = (tile: RuntimeTile) =>

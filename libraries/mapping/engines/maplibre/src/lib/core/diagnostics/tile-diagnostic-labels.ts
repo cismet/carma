@@ -1,4 +1,9 @@
-import { OVERVIEW_COLORS, type OverlayModel } from "./tile-diagnostic-model";
+import {
+  OVERVIEW_COLORS,
+  TILE_DIAGNOSTIC_KIND,
+  type OverlayModel,
+} from "./tile-diagnostic-model";
+import { TILE_DIAGNOSTIC_LABEL_MODE } from "./tile-diagnostic-options";
 import {
   type DiagnosticView,
   TILE_RECORD_FLOATS,
@@ -38,7 +43,7 @@ export const hitTestDiagnosticLabel = (
   for (let i = model.rects.length - 1; i >= 0; i--) {
     const rect = model.rects[i];
     if (
-      rect.kind !== "ancestor" &&
+      rect.kind !== TILE_DIAGNOSTIC_KIND.ANCESTOR &&
       rect.w * scale >= 26 &&
       rect.h * scale >= 12 &&
       Math.abs(x - rect.x - rect.w / 2) < Math.min(rect.w / 2, 50 / scale) &&
@@ -135,7 +140,12 @@ export const drawDiagnosticText = (
       if (flags & 8 && (minimum || maximum))
         text("≈", cx, cy + radius * 0.78, radius * 0.22);
     }
-    if (frame.labels === "none" || w * scale < 26 || h * scale < 12) continue;
+    if (
+      frame.labels === TILE_DIAGNOSTIC_LABEL_MODE.NONE ||
+      w * scale < 26 ||
+      h * scale < 12
+    )
+      continue;
     // Only the tile key, z/x/y: the runtime and source prefix says nothing the
     // overview does not show already, and it never fits inside a tile.
     const id = compactDiagnosticTileId(
@@ -143,9 +153,16 @@ export const drawDiagnosticText = (
     );
     const lines = id.split("/");
     const bytes = data[i + 10];
-    if (frame.labels === "id and stats" && Number.isFinite(bytes) && bytes > 0)
+    if (
+      frame.labels === TILE_DIAGNOSTIC_LABEL_MODE.ID_AND_STATS &&
+      Number.isFinite(bytes) &&
+      bytes > 0
+    )
       lines.push(formatTileResidentBytes(bytes));
-    if (frame.labels === "id and error" && Number.isFinite(data[i + 9]))
+    if (
+      frame.labels === TILE_DIAGNOSTIC_LABEL_MODE.ID_AND_ERROR &&
+      Number.isFinite(data[i + 9])
+    )
       lines.push(`${data[i + 9].toFixed(1)} px`);
     const fontSize = 10;
     const lineHeight = fontSize;

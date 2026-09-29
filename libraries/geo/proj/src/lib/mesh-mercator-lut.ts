@@ -1,17 +1,16 @@
 import { Matrix3, Matrix4, Vector3 } from "three";
 import { degToRad, radToDeg, type Degrees } from "@carma-units";
+
+import { getCameraLocalMercatorFit } from "./camera-local-mercator-fit";
+import { MAPLIBRE_EARTH_RADIUS } from "./earth";
 import {
   cartographicToEcef,
   ecefToCartographic,
   ecefToEnuMatrix,
+  getWgs84PrincipalCurvatureRadii,
   WGS84_A,
-  WGS84_E2,
-} from "@carma-geo/proj";
-import { getWebMercatorFromWgs84Deg } from "@carma-geo/proj";
-import { getCameraLocalMercatorFit } from "@carma-geo/proj";
-
-// MapLibre's MercatorCoordinate metre unit uses the mean radius, not EPSG:3857's A.
-const MAPLIBRE_EARTH_RADIUS_METERS = 6371008.8;
+} from "./geodetic";
+import { getWebMercatorFromWgs84Deg } from "./web-mercator";
 
 /** Projection-position budgets for the Wuppertal ±24 km, 0–1000 m domain.
  * Decision: MESH_REFERENCE_DECISIONS.md#reprojection-modes.
@@ -158,7 +157,7 @@ const exactProjector = (options: Required<MeshMercatorLutOptions>) => {
     options.latitudeDegrees as Degrees
   );
   const rootScale = 1 / Math.cos(latitude);
-  const horizontalScale = MAPLIBRE_EARTH_RADIUS_METERS / WGS84_A / rootScale;
+  const horizontalScale = MAPLIBRE_EARTH_RADIUS / WGS84_A / rootScale;
   const scratch = new Vector3();
   return (east: number, up: number, south: number, target = new Vector3()) => {
     const cartographic = ecefToCartographic(
@@ -197,10 +196,9 @@ export const createMeshLocalProjection = (
   const longitude = degToRad(options.longitudeDegrees as Degrees);
   const sin = Math.sin(latitude),
     cos = Math.cos(latitude);
-  const radius = MAPLIBRE_EARTH_RADIUS_METERS;
-  const denominator = 1 - WGS84_E2 * sin * sin;
-  const n = WGS84_A / Math.sqrt(denominator);
-  const m = (WGS84_A * (1 - WGS84_E2)) / denominator ** 1.5;
+  const radius = MAPLIBRE_EARTH_RADIUS;
+  const { primeVerticalMeters: n, meridionalMeters: m } =
+    getWgs84PrincipalCurvatureRadii(latitude);
   const inverse = ecefToEnuMatrix(
     cartographicToEcef(longitude, latitude, 0)
   ).invert();

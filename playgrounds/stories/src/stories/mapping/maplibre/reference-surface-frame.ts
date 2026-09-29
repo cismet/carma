@@ -172,6 +172,4 @@ export const referenceMountDrop = (
 export const WGS84_REFERENCE_AXES = {
   semiMajorMeters: WGS84_A,
   semiMinorMeters: WGS84_B,
-  // Gaussian curvature radius sqrt(MN) at the Wuppertal story origin.
-  defaultLocalSphereRadiusMeters: 6_382_757,
 } as const;

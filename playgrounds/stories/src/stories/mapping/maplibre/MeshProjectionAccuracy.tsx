@@ -3,15 +3,16 @@ import { InputNumber, Segmented, Space, Table, Tag } from "antd";
 import { MercatorCoordinate } from "maplibre-gl";
 import { Vector3 } from "three";
 import { degToRadNumeric } from "@carma-units";
-import { cartographicToEcef, ecefToEnuMatrix } from "@carma-geo/proj";
 import {
+  cartographicToEcef,
   compareMeshReprojection,
+  ecefToEnuMatrix,
+  MESH_PROJECTION_ACCURACY,
   MESH_REPROJECTION_METHODS,
   MESH_REPROJECTION_MODE,
-  MESH_PROJECTION_ACCURACY,
   type MeshProjectionAccuracy as AccuracyProfile,
   type MeshReprojectionComparison,
-} from "@carma-geo/utils";
+} from "@carma-geo/proj";
 import {
   MESH_MOUNT_PRESETS,
   MESH_MOUNT_VIEW,

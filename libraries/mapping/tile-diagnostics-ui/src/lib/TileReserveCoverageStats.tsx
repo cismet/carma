@@ -1,4 +1,5 @@
 import {
+  TILE_PRESENTATION_MODE,
   formatTileResidentBytes,
   type TileDiagnosticSummary,
 } from "@carma-mapping/engines/maplibre";
@@ -36,7 +37,7 @@ export const TileReserveCoverageStats = ({
   <div style={{ marginBottom: 6 }}>
     <div>
       Mode:{" "}
-      {presentationMode === "exclusive-shadow"
+      {presentationMode === TILE_PRESENTATION_MODE.EXCLUSIVE_SHADOW
         ? "Exclusive shadow"
         : "Exclusive mesh"}
     </div>
@@ -46,7 +47,7 @@ export const TileReserveCoverageStats = ({
       renderable floor roots · {base.demanded} in current demand
     </div>
     <div data-test-id="mesh-pan-reserve-coverage">
-      {presentationMode === "exclusive-shadow"
+      {presentationMode === TILE_PRESENTATION_MODE.EXCLUSIVE_SHADOW
         ? "Exclusive pan reserve"
         : "Base pan reserve"}
       : {closure.covered}/{closure.known} regions · {percentage(closure.ratio)}{" "}

@@ -12,6 +12,10 @@ import {
   getMeshLoadStage,
   meshShadowStageError,
 } from "../../core/mesh-error-policy";
+import {
+  MESH_TILE_WAIT_ROLE,
+  type MeshTileWaitRole,
+} from "../../core/mesh-tile-wait";
 import type {
   ThreeTilesRuntimeServices,
   ThreeTilesRuntimeState,
@@ -72,7 +76,7 @@ export function createThreeTilesDebug(
   let waitObservation = 0;
   const activeWaits = new Map<
     Tile,
-    Partial<Record<"receiver" | "shadow", number>>
+    Partial<Record<MeshTileWaitRole, number>>
   >();
   const getTileDebugId: ThreeTilesRuntimeServices["getTileDebugId"] = (
     tile: Tile
@@ -395,7 +399,7 @@ export function createThreeTilesDebug(
       const oldest = activeWaits.keys().next().value!;
       const previous = runtimeState.tileDebugProgress.get(oldest);
       if (previous)
-        for (const role of ["receiver", "shadow"] as const)
+        for (const role of Object.values(MESH_TILE_WAIT_ROLE))
           recordThreeTileWait(previous, role, null, now);
       activeWaits.delete(oldest);
     }
@@ -429,7 +433,7 @@ export function createThreeTilesDebug(
     endTileWaitObservation: () => {
       // Once a new cut no longer demands this role, it is not still waiting.
       for (const [tile, roles] of activeWaits)
-        for (const role of ["receiver", "shadow"] as const)
+        for (const role of Object.values(MESH_TILE_WAIT_ROLE))
           if (roles[role] !== undefined && roles[role] !== waitObservation)
             recordTileWait(tile, role, null);
     },
@@ -444,7 +448,7 @@ export function createThreeTilesDebug(
         for (const tile of activeWaits.keys()) {
           const progress = runtimeState.tileDebugProgress.get(tile);
           if (progress)
-            for (const role of ["receiver", "shadow"] as const)
+            for (const role of Object.values(MESH_TILE_WAIT_ROLE))
               recordThreeTileWait(progress, role, null, now);
         }
         activeWaits.clear();

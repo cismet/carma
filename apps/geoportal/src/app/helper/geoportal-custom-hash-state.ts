@@ -45,8 +45,14 @@ type GeoportalShadowSimulationHashSource = {
   tileDiagnostics?: boolean;
 };
 
+const SHADOW_SIMULATION_HASH_SUFFIX = {
+  TILE_DIAGNOSTICS: ";k",
+} as const;
+
 /** `minutes;dayOfYear` with an optional `;k` for the tile diagnostics. */
-const SHADOW_SIMULATION_HASH_VALUE_PATTERN = /^(\d{1,4});(\d{1,3})(;k)?$/;
+const SHADOW_SIMULATION_HASH_VALUE_PATTERN = new RegExp(
+  `^(\\d{1,4});(\\d{1,3})(${SHADOW_SIMULATION_HASH_SUFFIX.TILE_DIAGNOSTICS})?$`
+);
 
 export const resolveGeoportalShadowSimulationHashSelection = (
   value: unknown
@@ -121,7 +127,7 @@ export const buildGeoportalShadowSimulationHashUpdate = (
   const { minutes, dayOfYear } = state.dateState;
   // Animation keeps sub-minute precision; the URL represents whole minutes.
   const serialized = `${Math.floor(minutes)};${dayOfYear}${
-    state.tileDiagnostics ? ";k" : ""
+    state.tileDiagnostics ? SHADOW_SIMULATION_HASH_SUFFIX.TILE_DIAGNOSTICS : ""
   }`;
 
   return {

@@ -1,8 +1,8 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import {
-  MESH_REPROJECTION_MODE,
   MESH_REPROJECTION_METHODS,
-} from "@carma-geo/utils";
+  MESH_REPROJECTION_MODE,
+} from "@carma-geo/proj";
 
 import { MeshMountDemo } from "./MeshMountDemo";
 import { MeshMountComparison } from "./MeshMountComparison";

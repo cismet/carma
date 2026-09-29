@@ -1,6 +1,7 @@
 import { Button, ColorPicker, Slider } from "antd";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faDrawPolygon } from "@fortawesome/free-solid-svg-icons";
+import { TILE_DIAGNOSTIC_EXTENTS_MODE } from "@carma-mapping/engines/maplibre";
 import {
   DiagnosticChoice,
   DiagnosticSection,
@@ -93,7 +94,7 @@ export const TileLoadingDebugMeshStyle = ({
         onChange={(sceneExtents: TileLoadingDebugOptions["sceneExtents"]) =>
           onOptionsChange({ sceneExtents })
         }
-        choices={(["none", "boxes", "edges"] as const).map((value) => ({
+        choices={Object.values(TILE_DIAGNOSTIC_EXTENTS_MODE).map((value) => ({
           value,
           label: value,
         }))}

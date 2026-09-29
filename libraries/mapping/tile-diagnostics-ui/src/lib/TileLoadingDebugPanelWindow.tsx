@@ -16,11 +16,21 @@ import {
   faSliders,
 } from "@fortawesome/free-solid-svg-icons";
 import * as THREE from "three";
-import type { TileDiagnosticSummary } from "@carma-mapping/engines/maplibre";
+import {
+  TILE_DIAGNOSTIC_LABEL_MODE,
+  TILE_DIAGNOSTIC_OVERVIEW_VIEW,
+  type TileDiagnosticSummary,
+} from "@carma-mapping/engines/maplibre";
 import { DiagnosticWindowActions } from "./DiagnosticControls";
 import { DiagnosticWindow as Popout } from "./DiagnosticWindow";
 import type { ResolvedDebugOptions } from "./tile-loading-debug-options";
 import type { createTileLoadingDebugPanels } from "./tile-loading-debug-panels";
+import {
+  TILE_LOADING_DEBUG_OVERVIEW_MODE,
+  TILE_LOADING_DEBUG_PANEL_ID,
+  type TileLoadingDebugOverviewMode,
+  type TileLoadingDebugPanelId,
+} from "./tile-loading-debug-tokens";
 
 type Panel = ReturnType<typeof createTileLoadingDebugPanels>[number];
 type PanelPosition = { left: number; top: number };
@@ -64,30 +74,32 @@ export const TileLoadingDebugPanelWindow = ({
     Record<string, { width: number; height: number }>
   >;
   panelPositions: Record<string, PanelPosition>;
-  frontPanel: string;
+  frontPanel: TileLoadingDebugPanelId;
   legendExpanded: boolean;
   panelDrag: MutableRefObject<PanelDrag | null>;
   setExternalPanels: Dispatch<SetStateAction<Record<string, boolean>>>;
   setPanelPositions: Dispatch<SetStateAction<Record<string, PanelPosition>>>;
-  setFrontPanel: (id: string) => void;
+  setFrontPanel: (id: TileLoadingDebugPanelId) => void;
   setLegendExpanded: Dispatch<SetStateAction<boolean>>;
   toolsVisible: boolean;
-  overviewMode: "off" | "overlay" | "window";
+  overviewMode: TileLoadingDebugOverviewMode;
   overviewIsExternal: boolean;
   options: ResolvedDebugOptions;
   onOptionsChange: (patch: Partial<ResolvedDebugOptions>) => void;
-  setOverviewMode: (mode: "off" | "overlay" | "window") => void;
+  setOverviewMode: (mode: TileLoadingDebugOverviewMode) => void;
   summary: TileDiagnosticSummary | null;
   renderOverview: (windowed: boolean) => ReactNode;
 }) => {
   const external = externalPanels[panel.id] === true;
-  const isLegend = panel.id === "legend";
+  const isLegend = panel.id === TILE_LOADING_DEBUG_PANEL_ID.LEGEND;
   const canvasPanel =
-    panel.id === "overview" || panel.id === "charts" || panel.id === "log";
+    panel.id === TILE_LOADING_DEBUG_PANEL_ID.OVERVIEW ||
+    panel.id === TILE_LOADING_DEBUG_PANEL_ID.CHARTS ||
+    panel.id === TILE_LOADING_DEBUG_PANEL_ID.LOG;
   const formPanel =
-    panel.id === "mesh-style" ||
-    panel.id === "overview-options" ||
-    panel.id === "diagnostic-tools";
+    panel.id === TILE_LOADING_DEBUG_PANEL_ID.MESH_STYLE ||
+    panel.id === TILE_LOADING_DEBUG_PANEL_ID.OVERVIEW_OPTIONS ||
+    panel.id === TILE_LOADING_DEBUG_PANEL_ID.DIAGNOSTIC_TOOLS;
   const panelTop = Math.min(
     panelPositions[panel.id]?.top ??
       (isLegend ? window.innerHeight - 44 : panel.top),
@@ -95,14 +107,16 @@ export const TileLoadingDebugPanelWindow = ({
   );
   const visible =
     toolsVisible &&
-    (panel.id === "overview"
-      ? overviewMode !== "off" && (overviewMode === "window" || external)
+    (panel.id === TILE_LOADING_DEBUG_PANEL_ID.OVERVIEW
+      ? overviewMode !== TILE_LOADING_DEBUG_OVERVIEW_MODE.OFF &&
+        (overviewMode === TILE_LOADING_DEBUG_OVERVIEW_MODE.WINDOW || external)
       : options[panel.flag]);
   const dock = () =>
     setExternalPanels((current) => ({ ...current, [panel.id]: false }));
   const close = () => {
     dock();
-    if (panel.id === "overview") setOverviewMode("off");
+    if (panel.id === TILE_LOADING_DEBUG_PANEL_ID.OVERVIEW)
+      setOverviewMode(TILE_LOADING_DEBUG_OVERVIEW_MODE.OFF);
     else onOptionsChange({ [panel.flag]: false });
   };
   const windowControls = (
@@ -141,43 +155,53 @@ export const TileLoadingDebugPanelWindow = ({
           onClick={() => setLegendExpanded((expanded) => !expanded)}
         />
       )}
-      {(panel.id === "overview-options" || panel.id === "overview") && (
+      {(panel.id === TILE_LOADING_DEBUG_PANEL_ID.OVERVIEW_OPTIONS ||
+        panel.id === TILE_LOADING_DEBUG_PANEL_ID.OVERVIEW) && (
         <>
           <Button
             type="text"
             icon={<FontAwesomeIcon icon={faCrosshairs} />}
             aria-label="Follow viewport"
-            aria-pressed={options.overviewView === "frustum"}
+            aria-pressed={
+              options.overviewView === TILE_DIAGNOSTIC_OVERVIEW_VIEW.FRUSTUM
+            }
             title={
-              options.overviewView === "frustum"
+              options.overviewView === TILE_DIAGNOSTIC_OVERVIEW_VIEW.FRUSTUM
                 ? "Following viewport · drag to pan, Ctrl/right-drag to orbit, wheel to zoom"
                 : "Follow viewport"
             }
             onClick={() =>
               onOptionsChange({
                 overviewView:
-                  options.overviewView === "frustum" ? "extent" : "frustum",
+                  options.overviewView === TILE_DIAGNOSTIC_OVERVIEW_VIEW.FRUSTUM
+                    ? TILE_DIAGNOSTIC_OVERVIEW_VIEW.EXTENT
+                    : TILE_DIAGNOSTIC_OVERVIEW_VIEW.FRUSTUM,
               })
             }
           />
-          {(overviewMode === "window" || overviewIsExternal) && (
+          {(overviewMode === TILE_LOADING_DEBUG_OVERVIEW_MODE.WINDOW ||
+            overviewIsExternal) && (
             <Button
               type="text"
               icon={<FontAwesomeIcon icon={faHand} />}
               aria-label="Free pan/zoom"
-              aria-pressed={options.overviewView === "free"}
+              aria-pressed={
+                options.overviewView === TILE_DIAGNOSTIC_OVERVIEW_VIEW.FREE
+              }
               title="Free pan/zoom · window only"
               onClick={() =>
                 onOptionsChange({
                   overviewView:
-                    options.overviewView === "free" ? "extent" : "free",
+                    options.overviewView === TILE_DIAGNOSTIC_OVERVIEW_VIEW.FREE
+                      ? TILE_DIAGNOSTIC_OVERVIEW_VIEW.EXTENT
+                      : TILE_DIAGNOSTIC_OVERVIEW_VIEW.FREE,
                 })
               }
             />
           )}
         </>
       )}
-      {panel.id === "overview" && (
+      {panel.id === TILE_LOADING_DEBUG_PANEL_ID.OVERVIEW && (
         <Button
           className="tile-debug-header-toggle"
           type="text"
@@ -188,14 +212,16 @@ export const TileLoadingDebugPanelWindow = ({
             onOptionsChange({
               overviewSize: options.overviewSize === false,
               overlayLabels:
-                options.overviewSize === false ? "id and stats" : "id",
+                options.overviewSize === false
+                  ? TILE_DIAGNOSTIC_LABEL_MODE.ID_AND_STATS
+                  : TILE_DIAGNOSTIC_LABEL_MODE.ID,
             })
           }
         >
           B
         </Button>
       )}
-      {panel.id === "overview" && (
+      {panel.id === TILE_LOADING_DEBUG_PANEL_ID.OVERVIEW && (
         <Button
           className="tile-debug-header-toggle"
           type="text"
@@ -211,7 +237,7 @@ export const TileLoadingDebugPanelWindow = ({
           ms
         </Button>
       )}
-      {panel.id === "overview" && (
+      {panel.id === TILE_LOADING_DEBUG_PANEL_ID.OVERVIEW && (
         <Button
           type="text"
           icon={<FontAwesomeIcon icon={faSliders} />}
@@ -219,14 +245,15 @@ export const TileLoadingDebugPanelWindow = ({
           aria-pressed={options.showOverviewOptions}
           title="Overview options"
           onClick={() => {
-            setFrontPanel("overview-options");
+            setFrontPanel(TILE_LOADING_DEBUG_PANEL_ID.OVERVIEW_OPTIONS);
             onOptionsChange({
               showOverviewOptions: !options.showOverviewOptions,
             });
           }}
         />
       )}
-      {(panel.id === "overview-options" || panel.id === "overview") && (
+      {(panel.id === TILE_LOADING_DEBUG_PANEL_ID.OVERVIEW_OPTIONS ||
+        panel.id === TILE_LOADING_DEBUG_PANEL_ID.OVERVIEW) && (
         <Button
           className="tile-debug-header-toggle"
           type="text"
@@ -274,7 +301,9 @@ export const TileLoadingDebugPanelWindow = ({
             height: 32,
             boxSizing: "border-box",
             background:
-              panel.id === "charts" ? "transparent" : "rgb(241 245 249 / 80%)",
+              panel.id === TILE_LOADING_DEBUG_PANEL_ID.CHARTS
+                ? "transparent"
+                : "rgb(241 245 249 / 80%)",
             borderBottom: "1px solid rgb(100 116 139 / 16%)",
             cursor: "grab",
             touchAction: "none",
@@ -388,12 +417,12 @@ export const TileLoadingDebugPanelWindow = ({
           <FontAwesomeIcon icon={faGripVertical} style={{ color: "#82909e" }} />
           <FontAwesomeIcon icon={panel.icon} />
           <span style={{ flex: 1 }}>
-            {panel.id === "overview-options"
+            {panel.id === TILE_LOADING_DEBUG_PANEL_ID.OVERVIEW_OPTIONS
               ? "Overview"
-              : panel.id === "overview"
+              : panel.id === TILE_LOADING_DEBUG_PANEL_ID.OVERVIEW
               ? "Kacheln"
               : panel.label}
-            {panel.id === "overview" && summary && (
+            {panel.id === TILE_LOADING_DEBUG_PANEL_ID.OVERVIEW && summary && (
               <span
                 style={{
                   fontWeight: 400,
@@ -421,15 +450,20 @@ export const TileLoadingDebugPanelWindow = ({
             maxWidth: "calc(100vw - 32px)",
             maxHeight: isLegend
               ? `min(calc(100vh - 88px), ${Math.max(0, panelTop - 12)}px)`
-              : panel.id === "queue"
+              : panel.id === TILE_LOADING_DEBUG_PANEL_ID.QUEUE
               ? Math.min(panel.height, window.innerHeight - panelTop - 44)
               : `calc(100vh - ${panelTop + 44}px)`,
             overflow: "auto",
             resize: panel.resize,
-            padding: panel.id === "stats" || panel.id === "queue" ? 12 : 0,
+            padding:
+              panel.id === TILE_LOADING_DEBUG_PANEL_ID.STATS ||
+              panel.id === TILE_LOADING_DEBUG_PANEL_ID.QUEUE
+                ? 12
+                : 0,
             boxSizing: "border-box",
             background:
-              panel.id === "overview" && overviewMode === "window"
+              panel.id === TILE_LOADING_DEBUG_PANEL_ID.OVERVIEW &&
+              overviewMode === TILE_LOADING_DEBUG_OVERVIEW_MODE.WINDOW
                 ? "rgb(38 46 56 / 94%)"
                 : undefined,
           }}
@@ -463,7 +497,7 @@ export const TileLoadingDebugPanelWindow = ({
               right: 0,
               zIndex: 2,
               background:
-                panel.id === "charts"
+                panel.id === TILE_LOADING_DEBUG_PANEL_ID.CHARTS
                   ? "transparent"
                   : "rgb(248 250 252 / 94%)",
             }}
@@ -475,16 +509,22 @@ export const TileLoadingDebugPanelWindow = ({
               position: "relative",
               height: "100%",
               overflow: "auto",
-              padding: panel.id === "stats" || panel.id === "queue" ? 12 : 0,
+              padding:
+                panel.id === TILE_LOADING_DEBUG_PANEL_ID.STATS ||
+                panel.id === TILE_LOADING_DEBUG_PANEL_ID.QUEUE
+                  ? 12
+                  : 0,
               paddingTop:
-                panel.id === "overview-options" ||
-                panel.id === "diagnostic-tools"
+                panel.id === TILE_LOADING_DEBUG_PANEL_ID.OVERVIEW_OPTIONS ||
+                panel.id === TILE_LOADING_DEBUG_PANEL_ID.DIAGNOSTIC_TOOLS
                   ? 28
                   : undefined,
               boxSizing: "border-box",
             }}
           >
-            {panel.id === "overview" ? renderOverview(true) : panel.content()}
+            {panel.id === TILE_LOADING_DEBUG_PANEL_ID.OVERVIEW
+              ? renderOverview(true)
+              : panel.content()}
           </div>
         </div>
       </Popout>

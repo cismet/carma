@@ -5,6 +5,7 @@ import type { LibreLayer } from "@carma-mapping/core";
 import {
   THREE_TILES_LAYER_TYPE,
   THREE_TILES_SHADER_KIND,
+  TILES3D_BASEMAP,
 } from "@carma-mapping/engines/maplibre";
 import {
   applyDynamicStylingToStylesheet,
@@ -68,9 +69,12 @@ export const layerIsStandaloneMesh = (layer: Layer): boolean => {
       | { metadata?: { carmaConf?: { "3d"?: { basemap?: unknown } } } }
       | undefined
   )?.metadata?.carmaConf?.["3d"];
-  if (styleConfig?.basemap === "none") return true;
+  if (styleConfig?.basemap === TILES3D_BASEMAP.NONE) return true;
   const conf = layer.conf as Record<string, unknown> | undefined;
-  if ((conf?.["3d"] as { basemap?: unknown } | undefined)?.basemap === "none")
+  if (
+    (conf?.["3d"] as { basemap?: unknown } | undefined)?.basemap ===
+    TILES3D_BASEMAP.NONE
+  )
     return true;
   const flag = conf?.standaloneMesh;
   return flag === true || flag === "" || flag === "true";

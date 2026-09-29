@@ -2,7 +2,7 @@ import { type Map as MapLibreMap } from "maplibre-gl";
 import {
   type MeshProjectionAccuracy,
   type MeshReprojectionMode,
-} from "@carma-geo/utils";
+} from "@carma-geo/proj";
 import { type MeshMountAnchor, type MeshMountView } from "./mesh-mount-presets";
 
 export type MeshMountDemoOptions = {

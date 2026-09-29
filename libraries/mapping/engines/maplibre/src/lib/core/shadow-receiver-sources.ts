@@ -5,6 +5,16 @@ import {
 } from "./tile-camera-demand";
 import type { ShadowReceiverSource } from "./shadow-receiver-mask";
 
+/** What capturing the receiver sources found: nothing, the last capture again, or a new one. */
+export const SHADOW_RECEIVER_CAPTURE = {
+  EMPTY: "empty",
+  UNCHANGED: "unchanged",
+  UPDATED: "updated",
+} as const;
+
+export type ShadowReceiverCapture =
+  (typeof SHADOW_RECEIVER_CAPTURE)[keyof typeof SHADOW_RECEIVER_CAPTURE];
+
 /** Clip receiver volumes with the same 3D frustums used for tile demand.
  * Decision: TILES_COVERAGE.md#visible-receiver-corridors. Separate views keep
  * separate sources; enclosing their union would request casters over the gap.

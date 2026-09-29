@@ -2,6 +2,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import type { Map as MapLibreMap } from "maplibre-gl";
 import {
+  TILE_CAMERA_ROLE,
+  TILE_DIAGNOSTIC_CAMERA_FOCUS,
+  TILE_DIAGNOSTIC_LABEL_MODE,
+  TILE_DIAGNOSTIC_OVERVIEW_UP,
+  TILE_DIAGNOSTIC_PROJECTION,
+  TILE_VOLUME_STATE,
   acquireSharedThreeScene,
   registerSharedThreeSceneRuntime,
   type SharedThreeSceneFrame,
@@ -9,6 +15,7 @@ import {
   type SharedThreeSceneTileVolume,
   type TileCameraSnapshot,
   type TileDiagnosticModel as OverlayModel,
+  type TileDiagnosticProjection,
   type TileDiagnostics,
 } from "@carma-mapping/engines/maplibre";
 import { createPortal } from "react-dom";
@@ -31,11 +38,22 @@ import { VolumeTileLegendView } from "./VolumeTileLegendView";
 
 const RUNTIME_ID = "volume-tile-diagnostics";
 /** Volumes carry no LOD error, so the error label has nothing to show. */
-const LABEL_MODES = ["none", "id"] as const;
+const LABEL_MODES = [
+  TILE_DIAGNOSTIC_LABEL_MODE.NONE,
+  TILE_DIAGNOSTIC_LABEL_MODE.ID,
+] as const;
 const LABEL_TITLES = {
-  none: "ohne Beschriftung",
-  id: "Kachel-ID",
+  [TILE_DIAGNOSTIC_LABEL_MODE.NONE]: "ohne Beschriftung",
+  [TILE_DIAGNOSTIC_LABEL_MODE.ID]: "Kachel-ID",
 } as const;
+/** Where the overview is drawn: in its panel, over the map, or popped out. */
+const VOLUME_TILE_DIAGNOSTICS_MODE = {
+  PANEL: "panel",
+  MAP: "map",
+  WINDOW: "window",
+} as const;
+type VolumeTileDiagnosticsMode =
+  (typeof VOLUME_TILE_DIAGNOSTICS_MODE)[keyof typeof VOLUME_TILE_DIAGNOSTICS_MODE];
 const WIDTH = 360;
 const HEIGHT = 300;
 /** The model is geometry work; the camera is a matrix copy and stays live. */
@@ -87,20 +105,28 @@ export const createVolumeTileDiagnostics = (diagnostics: TileDiagnostics) => {
       loading: 0,
       backlog: 0,
     });
-    const [labels, setLabels] = useState<(typeof LABEL_MODES)[number]>("none");
+    const [labels, setLabels] = useState<(typeof LABEL_MODES)[number]>(
+      TILE_DIAGNOSTIC_LABEL_MODE.NONE
+    );
     const [followFrustums, setFollowFrustums] = useState(true);
     /** Where the overview is drawn: in its panel, over the map, or popped out. */
-    const [mode, setMode] = useState<"panel" | "map" | "window">("panel");
-    /** Over the map: the camera's own projection, or a padded plan view. */
-    const [mapProjection, setMapProjection] = useState<"camera" | "plan">(
-      "camera"
+    const [mode, setMode] = useState<VolumeTileDiagnosticsMode>(
+      VOLUME_TILE_DIAGNOSTICS_MODE.PANEL
     );
+    /** Over the map: the camera's own projection, or a padded plan view. */
+    const [mapProjection, setMapProjection] =
+      useState<TileDiagnosticProjection>(TILE_DIAGNOSTIC_PROJECTION.CAMERA);
     const hostRef = useRef<HTMLDivElement | null>(null);
     /** Set by the scene effect: forces the next model rebuild immediately. */
     const rebuildRef = useRef<(() => void) | null>(null);
     const size = useRef({ width: WIDTH, height: HEIGHT });
-    const projectionRef = useRef<"camera" | "plan">("camera");
-    projectionRef.current = mode === "map" ? mapProjection : "plan";
+    const projectionRef = useRef<TileDiagnosticProjection>(
+      TILE_DIAGNOSTIC_PROJECTION.CAMERA
+    );
+    projectionRef.current =
+      mode === VOLUME_TILE_DIAGNOSTICS_MODE.MAP
+        ? mapProjection
+        : TILE_DIAGNOSTIC_PROJECTION.PLAN;
 
     const subscribeModel = useCallback(
       (listener: (model: OverlayModel) => void) => {
@@ -163,14 +189,14 @@ export const createVolumeTileDiagnostics = (diagnostics: TileDiagnostics) => {
           showStats: drawsRef.current.stats,
           volumes,
           camera: {
-            id: "overview-live",
+            id: TILE_DIAGNOSTIC_CAMERA_FOCUS.LIVE,
             projectionMatrix: renderCamera.projectionMatrix.toArray(),
             matrixWorld: renderCamera.matrixWorld.toArray(),
             coordinateSystem: renderCamera.coordinateSystem,
             reversedDepth: renderCamera.reversedDepth,
             viewport: [size.current.width, size.current.height],
             errorTargetPixels: 1,
-            role: "receiver",
+            role: TILE_CAMERA_ROLE.RECEIVER,
           },
           shadowCamera: corridor[0] ?? null,
           width: size.current.width,
@@ -182,8 +208,9 @@ export const createVolumeTileDiagnostics = (diagnostics: TileDiagnostics) => {
           view: (model.volumes ?? []).filter((volume) => volume.inView).length,
           corridor: (model.volumes ?? []).filter((volume) => volume.inShadow)
             .length,
-          loading: volumes.filter((volume) => volume.state === "loading")
-            .length,
+          loading: volumes.filter(
+            (volume) => volume.state === TILE_VOLUME_STATE.LOADING
+          ).length,
           // What the runtimes still owe before this view converges: a queue
           // that never drains points at the bottleneck, one that sits at zero
           // while tiles are missing points somewhere else.
@@ -274,7 +301,7 @@ export const createVolumeTileDiagnostics = (diagnostics: TileDiagnostics) => {
       <div
         ref={hostRef}
         style={
-          mode === "panel"
+          mode === VOLUME_TILE_DIAGNOSTICS_MODE.PANEL
             ? {
                 position: "relative",
                 width: WIDTH,
@@ -287,12 +314,24 @@ export const createVolumeTileDiagnostics = (diagnostics: TileDiagnostics) => {
                 background: "rgb(12 18 32 / 86%)",
               }
             : {
-                position: mode === "map" ? "absolute" : "relative",
-                inset: mode === "map" ? 0 : undefined,
-                width: mode === "map" ? undefined : "100%",
-                height: mode === "map" ? undefined : "100%",
+                position:
+                  mode === VOLUME_TILE_DIAGNOSTICS_MODE.MAP
+                    ? "absolute"
+                    : "relative",
+                inset:
+                  mode === VOLUME_TILE_DIAGNOSTICS_MODE.MAP ? 0 : undefined,
+                width:
+                  mode === VOLUME_TILE_DIAGNOSTICS_MODE.MAP
+                    ? undefined
+                    : "100%",
+                height:
+                  mode === VOLUME_TILE_DIAGNOSTICS_MODE.MAP
+                    ? undefined
+                    : "100%",
                 background:
-                  mode === "map" ? "transparent" : "rgb(12 18 32 / 86%)",
+                  mode === VOLUME_TILE_DIAGNOSTICS_MODE.MAP
+                    ? "transparent"
+                    : "rgb(12 18 32 / 86%)",
               }
         }
       >
@@ -300,13 +339,13 @@ export const createVolumeTileDiagnostics = (diagnostics: TileDiagnostics) => {
           subscribeModel={subscribeModel}
           subscribeCamera={subscribeCamera}
           freeView={null}
-          up="tileset"
+          up={TILE_DIAGNOSTIC_OVERVIEW_UP.TILESET}
           interactive={false}
           onViewChange={() => undefined}
           onHover={() => undefined}
           opacity={1}
           // Over the map the marks stay unfilled, as the debugger's map mode.
-          popout={mode !== "map"}
+          popout={mode !== VOLUME_TILE_DIAGNOSTICS_MODE.MAP}
           labels={labels}
           hover={null}
           showFrustum={true}
@@ -315,7 +354,7 @@ export const createVolumeTileDiagnostics = (diagnostics: TileDiagnostics) => {
           // the shadow corridor, as the story's overview does. Off, the model
           // frames the tiles the camera sees.
           followCamera={followFrustums}
-          cameraFocus="all"
+          cameraFocus={TILE_DIAGNOSTIC_CAMERA_FOCUS.ALL}
           followPaddingPercent={180}
         />
         <div
@@ -353,7 +392,7 @@ export const createVolumeTileDiagnostics = (diagnostics: TileDiagnostics) => {
           <button
             type="button"
             data-test-id="volume-tile-diagnostics-draw-labels"
-            aria-pressed={labels !== "none"}
+            aria-pressed={labels !== TILE_DIAGNOSTIC_LABEL_MODE.NONE}
             title={LABEL_TITLES[labels]}
             onClick={() =>
               setLabels(
@@ -362,12 +401,12 @@ export const createVolumeTileDiagnostics = (diagnostics: TileDiagnostics) => {
                 ]
               )
             }
-            style={controlStyle(labels !== "none")}
+            style={controlStyle(labels !== TILE_DIAGNOSTIC_LABEL_MODE.NONE)}
           >
             ID
           </button>
         </div>
-        {legend && mode !== "map" ? (
+        {legend && mode !== VOLUME_TILE_DIAGNOSTICS_MODE.MAP ? (
           <VolumeTileLegendView
             legend={legend}
             legendAt={legendAt}
@@ -427,17 +466,19 @@ export const createVolumeTileDiagnostics = (diagnostics: TileDiagnostics) => {
                 followFrustums,
                 () => setFollowFrustums((current) => !current)
               )}
-              {mode === "map"
+              {mode === VOLUME_TILE_DIAGNOSTICS_MODE.MAP
                 ? toggle(
                     "volume-tile-diagnostics-projection",
                     faVectorSquare,
-                    mapProjection === "camera"
+                    mapProjection === TILE_DIAGNOSTIC_PROJECTION.CAMERA
                       ? "Eins zu eins uber der Karte"
                       : "Aufsicht mit Rand",
-                    mapProjection === "camera",
+                    mapProjection === TILE_DIAGNOSTIC_PROJECTION.CAMERA,
                     () =>
                       setMapProjection((current) =>
-                        current === "camera" ? "plan" : "camera"
+                        current === TILE_DIAGNOSTIC_PROJECTION.CAMERA
+                          ? TILE_DIAGNOSTIC_PROJECTION.PLAN
+                          : TILE_DIAGNOSTIC_PROJECTION.CAMERA
                       )
                   )
                 : null}
@@ -445,10 +486,12 @@ export const createVolumeTileDiagnostics = (diagnostics: TileDiagnostics) => {
                 "volume-tile-diagnostics-window",
                 faUpRightFromSquare,
                 "In eigenem Fenster offnen",
-                mode === "window",
+                mode === VOLUME_TILE_DIAGNOSTICS_MODE.WINDOW,
                 () =>
                   setMode((current) =>
-                    current === "window" ? "panel" : "window"
+                    current === VOLUME_TILE_DIAGNOSTICS_MODE.WINDOW
+                      ? VOLUME_TILE_DIAGNOSTICS_MODE.PANEL
+                      : VOLUME_TILE_DIAGNOSTICS_MODE.WINDOW
                   )
               )}
               {onClose ? (
@@ -464,15 +507,17 @@ export const createVolumeTileDiagnostics = (diagnostics: TileDiagnostics) => {
             </>
           }
         >
-          {mode === "panel" ? (
+          {mode === VOLUME_TILE_DIAGNOSTICS_MODE.PANEL ? (
             overview
           ) : (
             <div style={{ padding: 8, width: 240 }}>
-              {mode === "map" ? "Ansicht auf der Karte" : "Ansicht im Fenster"}
+              {mode === VOLUME_TILE_DIAGNOSTICS_MODE.MAP
+                ? "Ansicht auf der Karte"
+                : "Ansicht im Fenster"}
             </div>
           )}
         </DiagnosticPanel>
-        {mode === "map"
+        {mode === VOLUME_TILE_DIAGNOSTICS_MODE.MAP
           ? createPortal(
               <div
                 style={{
@@ -487,11 +532,11 @@ export const createVolumeTileDiagnostics = (diagnostics: TileDiagnostics) => {
             )
           : null}
         <DiagnosticWindow
-          open={mode === "window"}
+          open={mode === VOLUME_TILE_DIAGNOSTICS_MODE.WINDOW}
           title="Kacheln ohne Tileset"
           width={560}
           height={560}
-          onClose={() => setMode("panel")}
+          onClose={() => setMode(VOLUME_TILE_DIAGNOSTICS_MODE.PANEL)}
         >
           {overview}
         </DiagnosticWindow>

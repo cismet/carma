@@ -1,4 +1,5 @@
 import type { Map as MaplibreMap } from "maplibre-gl";
+import type { TileVolumeLoadReason } from "@carma-mapping/engines/maplibre";
 
 import type { ShadowBufferLayout } from "../core/shadow-types";
 import type { ShadowSnapshot } from "./shadow-controller";
@@ -33,7 +34,7 @@ export type ShadowProjectionDebugSnapshot = Readonly<{
   }>;
   tileVolumes?: readonly Readonly<{
     id: string;
-    loadReason?: "viewport" | "shadow";
+    loadReason?: TileVolumeLoadReason;
     minimum: readonly [number, number, number];
     maximum: readonly [number, number, number];
   }>[];

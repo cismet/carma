@@ -21,12 +21,21 @@ import {
   kindOf,
   type TilesRuntimeDebugState,
 } from "./tile-diagnostic-state";
-import type {
-  Kind,
-  OverlayModel,
-  OverlayRect,
-  DiagnosticViewportBasis,
+import {
+  TILE_DIAGNOSTIC_COVERAGE,
+  TILE_DIAGNOSTIC_KIND,
+  type Kind,
+  type OverlayModel,
+  type OverlayRect,
+  type DiagnosticViewportBasis,
 } from "../../core/diagnostics/tile-diagnostic-model";
+import {
+  TILE_DIAGNOSTIC_OVERVIEW_UP,
+  TILE_DIAGNOSTIC_OVERVIEW_VIEW,
+  type TileDiagnosticOverviewUp,
+  type TileDiagnosticOverviewView,
+} from "../../core/diagnostics/tile-diagnostic-options";
+import { TILE_DIAGNOSTIC_PHASE } from "../../core/diagnostics/tile-diagnostic-scene";
 import {
   frustumOf,
   frustumFromSnapshot,
@@ -40,8 +49,8 @@ import { yieldTileDiagnosticTask } from "./tile-diagnostic-scheduler";
 export type TileDiagnosticCaptureOptions = {
   width: number;
   height: number;
-  overviewUp: "tileset" | "camera-tangent" | string;
-  overviewView: string;
+  overviewUp: TileDiagnosticOverviewUp;
+  overviewView: TileDiagnosticOverviewView;
   showOverlay: boolean;
   showOverviewPanel: boolean;
   showFrustum: boolean;
@@ -106,7 +115,7 @@ export const captureTileDiagnostics = async (
       : new THREE.Vector3()
   ).applyMatrix4(worldToEcef);
   const worldToOverview = readEnuToLocalYUpSceneRotationMatrix();
-  if (options.overviewUp === "camera-tangent")
+  if (options.overviewUp === TILE_DIAGNOSTIC_OVERVIEW_UP.CAMERA_TANGENT)
     worldToOverview.multiply(ecefToEnuMatrix(cameraEcef));
   worldToOverview.multiply(worldToEcef);
   const overviewExtent = extent.clone().applyMatrix4(worldToOverview);
@@ -184,11 +193,16 @@ export const captureTileDiagnostics = async (
     if (!kind) continue;
     const ancestor = tile.internal?.hasRenderableContent !== true;
     if (ancestor) continue;
-    if (kind === "displayed") displayed += 1;
-    if (sceneLabels && kind === "displayed" && labelled.length < 400)
+    if (kind === TILE_DIAGNOSTIC_KIND.DISPLAYED) displayed += 1;
+    if (
+      sceneLabels &&
+      kind === TILE_DIAGNOSTIC_KIND.DISPLAYED &&
+      labelled.length < 400
+    )
       labelled.push({ tile, id: tileId(tile), kind });
     if (!showOverlay) continue;
-    if (!ancestor && kind === "resident" && !showResident) continue;
+    if (!ancestor && kind === TILE_DIAGNOSTIC_KIND.RESIDENT && !showResident)
+      continue;
     if (!tileWorldBox(tile, group, box)) continue;
     const projectedBox = box.clone().applyMatrix4(worldToOverview);
     const [x0, y0] = toScreen(projectedBox.min.x, projectedBox.min.z);
@@ -213,16 +227,16 @@ export const captureTileDiagnostics = async (
       y: y0,
       w: x1 - x0,
       h: y1 - y0,
-      kind: ancestor ? "ancestor" : kind,
+      kind: ancestor ? TILE_DIAGNOSTIC_KIND.ANCESTOR : kind,
       floor: floor.has(tile),
       coverage: demand.required
-        ? "viewport"
+        ? TILE_DIAGNOSTIC_COVERAGE.VIEWPORT
         : floor.has(tile)
-        ? "base"
+        ? TILE_DIAGNOSTIC_COVERAGE.BASE
         : state.meshRefinementSupport?.has(tile) ||
-          kind === "displayed" ||
-          kind === "ring"
-        ? "seam"
+          kind === TILE_DIAGNOSTIC_KIND.DISPLAYED ||
+          kind === TILE_DIAGNOSTIC_KIND.RING
+        ? TILE_DIAGNOSTIC_COVERAGE.SEAM
         : undefined,
       error,
       levels: levelsToTarget(error, targetPixels),
@@ -230,10 +244,15 @@ export const captureTileDiagnostics = async (
       ring: (tile as RuntimeTile).idleRing === true,
       outsideDemand: !demand.required,
       phase: state.deferred.has(tile)
-        ? "Ⅱ"
-        : ({ 1: "○", 2: "◐", 3: "●", [-1]: "×" } as Record<number, string>)[
-            tile.internal?.loadingState ?? 0
-          ] ?? "",
+        ? TILE_DIAGNOSTIC_PHASE.DEFERRED
+        : (
+            {
+              1: TILE_DIAGNOSTIC_PHASE.QUEUED,
+              2: TILE_DIAGNOSTIC_PHASE.LOADING,
+              3: TILE_DIAGNOSTIC_PHASE.LOADED,
+              [-1]: TILE_DIAGNOSTIC_PHASE.FAILED,
+            } as Record<number, string>
+          )[tile.internal?.loadingState ?? 0] ?? TILE_DIAGNOSTIC_PHASE.NONE,
     });
   }
   // Overview hierarchy only: a parent remains a boundary, but its status
@@ -246,7 +265,7 @@ export const captureTileDiagnostics = async (
       sliceStart = performance.now();
       if (isCancelled()) return null;
     }
-    if (rect.kind === "ancestor") continue;
+    if (rect.kind === TILE_DIAGNOSTIC_KIND.ANCESTOR) continue;
     let parent = rect.tile.parent;
     while (parent && !subdivided.has(parent)) {
       subdivided.add(parent);
@@ -259,8 +278,9 @@ export const captureTileDiagnostics = async (
       sliceStart = performance.now();
       if (isCancelled()) return null;
     }
-    if (subdivided.has(rect.tile)) rect.kind = "ancestor";
-    if (rect.kind === "ancestor" || rect.outsideDemand) continue;
+    if (subdivided.has(rect.tile)) rect.kind = TILE_DIAGNOSTIC_KIND.ANCESTOR;
+    if (rect.kind === TILE_DIAGNOSTIC_KIND.ANCESTOR || rect.outsideDemand)
+      continue;
     rect.quality = estimateTileTargetSteps(rect.tile, targetPixels, (node) => {
       if (projectedErrors.has(node)) return projectedErrors.get(node)!;
       if (!tileWorldBox(node, group, box)) return null;
@@ -277,7 +297,7 @@ export const captureTileDiagnostics = async (
   // undersides are not surfaces currently presented by the scene.
   const cutRects = rects.filter(({ tile }) => {
     const kind = kindOf(tile, state, floor);
-    return kind === "displayed";
+    return kind === TILE_DIAGNOSTIC_KIND.DISPLAYED;
   });
   const viewportBasis: DiagnosticViewportBasis = {
     tileBounds: cutRects.flatMap((rect) => {
@@ -302,7 +322,8 @@ export const captureTileDiagnostics = async (
   let footprintBounds: OverlayModel["footprintBounds"] = null;
   if (
     showOverlay &&
-    (showFrustum || options.overviewView === "frustum") &&
+    (showFrustum ||
+      options.overviewView === TILE_DIAGNOSTIC_OVERVIEW_VIEW.FRUSTUM) &&
     renderCamera
   ) {
     const viewport = projectTileDiagnosticViewport(

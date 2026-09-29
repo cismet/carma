@@ -1,13 +1,14 @@
 // @vitest-environment node
-import { describe, expect, it } from "vitest";
-import { Vector3 } from "three";
 import { MercatorCoordinate } from "maplibre-gl";
+import { Vector3 } from "three";
+import { describe, expect, it } from "vitest";
 import { degToRad, radToDeg, type Degrees } from "@carma-units";
+
 import {
   cartographicToEcef,
   ecefToCartographic,
   enuOffsetToEcef,
-} from "@carma-geo/proj";
+} from "./geodetic";
 import {
   createMeshMercatorLut,
   projectMeshLocalToMercatorExact,
