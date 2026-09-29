@@ -103,17 +103,20 @@ export const fetchFlurstueck = (
         const f = result?.data.flurstueck[0];
         f.alkisLandparcel = result?.data.extended_alkis_flurstueck[0];
 
-        dispatch(storeLagisLandparcel(f));
-        dispatch(storeAlkisLandparcel(f.alkisLandparcel));
-
         let geo =
           result?.data.flurstueck[0].extended_geom?.geo_field ||
           result?.data.flurstueck[0].alkisLandparcel?.geometrie;
 
         if (!geo) {
           const resultGeo = await getGeomFromWuNDa(alkis_id, jwt, navigate);
-          geo = resultGeo.data.flurstueck[0].extended_geom.geo_field;
+          const wundaGeom = resultGeo.data.flurstueck[0].extended_geom;
+          geo = wundaGeom.geo_field;
+          // parcels unknown to ALKIS (e.g. renamed ones) get their area from this geometry, as Java does
+          f.geometryArea = wundaGeom.area;
         }
+
+        dispatch(storeLagisLandparcel(f));
+        dispatch(storeAlkisLandparcel(f.alkisLandparcel));
         dispatch(storeGeometry(geo));
 
         if (geo) {

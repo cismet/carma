@@ -118,7 +118,7 @@ export function getOfficesWithColorAndSquare(
   ifHistory = false
 ) {
   const nameGeomColorData = [];
-  const alkisArea = dataIn.alkisLandparcel?.area;
+  const alkisArea = dataIn.alkisLandparcel?.area ?? dataIn.geometryArea;
 
   let area;
   officesArray?.verwaltungsbereichArrayRelationShip.forEach((item) => {
