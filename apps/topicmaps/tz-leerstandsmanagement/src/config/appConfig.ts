@@ -1,3 +1,9 @@
+/** cids REST service of the live WuNDa database (set by the live deployment) */
+const LIVE_REST_SERVICE = "https://wunda-api.cismet.de/";
+
+const withTrailingSlash = (url: string) =>
+  url.endsWith("/") ? url : url + "/";
+
 /**
  * Application configuration for TZ Leerstandsmanagement.
  *
@@ -11,6 +17,11 @@ export const APP_CONFIG = {
   restService:
     import.meta.env.VITE_TZ_LEERSTANDSMANAGEMENT_REST_SERVICE ||
     "https://wunda-rot-cloud.cismet.de/wunda/api/",
+
+  /** false for every database but the live one; drives the NonLiveBorder */
+  get isLiveDatabase() {
+    return withTrailingSlash(this.restService) === LIVE_REST_SERVICE;
+  },
 
   domain: import.meta.env.VITE_TZ_LEERSTANDSMANAGEMENT_DOMAIN || "WUNDA_BLAU",
 

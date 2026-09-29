@@ -129,7 +129,7 @@
               "org": "digital-twin-wuppertal-live",
               "prj": "tz-leerstandsmanagement",
               "envs": [
-                "VITE_TZ_LEERSTANDSMANAGEMENT_REST_SERVICE=https://wunda-cloud.cismet.de/wunda/api/"
+                "VITE_TZ_LEERSTANDSMANAGEMENT_REST_SERVICE=https://wunda-api.cismet.de/"
               ]
             }
           }
