@@ -300,7 +300,8 @@ export const App = () => {
   /**
    * Weiter and Zurück stay in the open story, or in the live one on the
    * overview, where only a clicker's keys reach them. In a story that is not
-   * live, Weiter starts its first scene.
+   * live, Weiter starts its first scene. After the last scene comes the first
+   * again, before the first the last.
    */
   const walk =
     openGroup?.scenes ?? liveGroup?.scenes ?? groups.at(0)?.scenes ?? NO_SCENES;
@@ -308,19 +309,18 @@ export const App = () => {
   const activeScene = activeIndex >= 0 ? walk[activeIndex] : undefined;
   const step = useCallback(
     (delta: number) => {
-      const nextIndex = activeIndex < 0 ? 0 : activeIndex + delta;
-      if (
-        nextIndex !== activeIndex &&
-        nextIndex >= 0 &&
-        nextIndex < walk.length
-      ) {
+      const nextIndex =
+        activeIndex < 0
+          ? 0
+          : (activeIndex + delta + walk.length) % walk.length;
+      if (nextIndex !== activeIndex && walk[nextIndex]) {
         goToScene(walk[nextIndex]);
       }
     },
     [walk, activeIndex, goToScene]
   );
-  const canGoBack = activeIndex > 0;
-  const canGoOn = walk.length > 0 && activeIndex < walk.length - 1;
+  const canGoBack = activeIndex >= 0 && walk.length > 1;
+  const canGoOn = activeIndex < 0 ? walk.length > 0 : walk.length > 1;
 
   // a story that a republish removed stops playing with it
   const autoplayGroup = groups.find(
@@ -427,11 +427,9 @@ export const App = () => {
 
   const showTitle =
     showLoad.status === "ready" ? showLoad.show.title : "Fernbedienung";
-  // with no scene on the display yet, Weiter starts with the first; autoplay
-  // goes from the last back to the first
-  const nextTitle =
-    walk.at(activeIndex + 1)?.title ??
-    (isOpenPlaying ? nextAutoplayScene(walk, activeSceneId)?.title : undefined);
+  // with no scene on the display yet, Weiter starts with the first; after the
+  // last comes the first again, for Weiter and autoplay alike
+  const nextTitle = nextAutoplayScene(walk, activeSceneId)?.title;
 
   const statusText =
     showLoad.status === "loading"
