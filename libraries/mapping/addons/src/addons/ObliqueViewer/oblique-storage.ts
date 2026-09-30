@@ -7,7 +7,7 @@ import {
   OBLIQUE_STATE_DEFAULT,
   resolveBackdropLook,
   type ObliqueViewerState,
-} from "./oblique-actions";
+} from "@carma-mapping/oblique-viewer";
 
 /**
  * Persistence for the viewer: whether it is on, and how the preview looks.
@@ -52,6 +52,11 @@ export const loadObliqueState = (
     if (!isRecord(parsed)) return undefined;
     return {
       ...OBLIQUE_STATE_DEFAULT,
+      enabledSeriesIds: Array.isArray(parsed.enabledSeriesIds)
+        ? parsed.enabledSeriesIds.filter(
+            (id): id is string => typeof id === "string"
+          )
+        : null,
       isOn: parsed.isOn === true,
       title:
         typeof parsed.title === "string" && parsed.title
@@ -65,7 +70,10 @@ export const loadObliqueState = (
       ),
     };
   } catch (error) {
-    console.warn("[ADDON STATE] the stored oblique viewer state is unusable", error);
+    console.warn(
+      "[ADDON STATE] the stored oblique viewer state is unusable",
+      error
+    );
     return undefined;
   }
 };
@@ -75,12 +83,22 @@ export const saveObliqueState = (
   state: ObliqueViewerState
 ): void => {
   try {
-    const { isOn, title, previewQuality, backdropLook } = state;
+    const { isOn, title, previewQuality, backdropLook, enabledSeriesIds } =
+      state;
     window.localStorage.setItem(
       storageKey,
-      JSON.stringify({ isOn, title, previewQuality, backdropLook })
+      JSON.stringify({
+        isOn,
+        title,
+        previewQuality,
+        backdropLook,
+        enabledSeriesIds,
+      })
     );
   } catch (error) {
-    console.warn("[ADDON STATE] the oblique viewer state could not be stored", error);
+    console.warn(
+      "[ADDON STATE] the oblique viewer state could not be stored",
+      error
+    );
   }
 };

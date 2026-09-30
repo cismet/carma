@@ -5,7 +5,12 @@ import { faPlane, faXmark } from "@fortawesome/free-solid-svg-icons";
 import type { InteractionButton, Layer } from "@carma-mapping/layers";
 
 import { useObliqueViewerActions } from "./oblique-actions";
-import { strings } from "./strings.de";
+const strings = {
+  title: "Schrägluftbilder",
+  flyToImageTooltip: "Unverzerrte Bildvorschau starten",
+  closePreviewTooltip: "Bildvorschau beenden",
+  readoutTooltip: "Schrägluftbild-Werkzeuge öffnen",
+};
 
 export const OBLIQUE_LAYER_ID = "__obliqueViewer__";
 
@@ -128,7 +133,9 @@ export const useObliqueLayerRow = ({
     () => ({
       ...OBLIQUE_LAYER,
       title,
-      iconColor: panelOpen ? OBLIQUE_ICON_COLOR.open : OBLIQUE_ICON_COLOR.closed,
+      iconColor: panelOpen
+        ? OBLIQUE_ICON_COLOR.open
+        : OBLIQUE_ICON_COLOR.closed,
       interactionButtons: buildInteractionButtons({
         label,
         previewVisible,

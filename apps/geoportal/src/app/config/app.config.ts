@@ -81,6 +81,7 @@ export const DEFAULT_ADDONS: AddonEntry[] = [
   // and behind its flag while it is being brought up next to the Cesium one
   {
     addon: "obliqueViewer",
+    config: { devOriginalsBaseURI: "http://127.0.0.1:8926" },
     availability: {
       deployments: ["localDev"],
       featureFlag: "featureFlagObliqueViewerAddon",

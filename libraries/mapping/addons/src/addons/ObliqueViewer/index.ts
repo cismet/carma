@@ -1,21 +1,21 @@
-export { ObliqueViewer } from "./ObliqueViewer";
-export { ObliquePanel, ObliqueInteractionPanel } from "./ObliquePanel";
+export { ObliqueViewer } from "./oblique-components";
+export { ObliquePanel, ObliqueInteractionPanel } from "./oblique-components";
 export {
   WUPPERTAL_OBLIQUE_2024,
   resolveDataset,
   BACKDROP_LOOK_BOUNDS,
   BACKDROP_LOOK_DEFAULT,
   type ObliqueViewerConfig,
-} from "./config";
+} from "@carma-mapping/oblique-viewer";
+export { useObliqueViewerActions } from "./oblique-actions";
 export {
-  useObliqueViewerActions,
   formatImageLabel,
   resolveBackdropLook,
   OBLIQUE_STATE_DEFAULT,
   type ObliqueCommand,
   type ObliqueRequest,
   type ObliqueViewerState,
-} from "./oblique-actions";
+} from "@carma-mapping/oblique-viewer";
 export {
   obliqueStateStorageKey,
   loadObliqueState,
@@ -36,4 +36,4 @@ export type {
   ObliqueBackdropLook,
   ObliqueDataset,
   ObliqueHeightDatum,
-} from "./types";
+} from "@carma-mapping/oblique-viewer";
