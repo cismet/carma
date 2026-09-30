@@ -593,16 +593,17 @@ export const useDisplay = (
   );
 
   /**
-   * Switches one stored highlight of the live scene on or off; the others
+   * Switches the stored highlights of one button of the live scene on or
+   * off, all of them together: off when they are all on, else on. The others
    * stay as they are.
    */
   const toggleHighlight = useCallback(
-    (sceneId: string, highlightId: string) => {
+    (sceneId: string, highlightIds: readonly string[]) => {
       const current = highlightsRef.current;
       const on = current?.sceneId === sceneId ? current.on : [];
-      const next = on.includes(highlightId)
-        ? on.filter((id) => id !== highlightId)
-        : [...on, highlightId];
+      const next = highlightIds.every((id) => on.includes(id))
+        ? on.filter((id) => !highlightIds.includes(id))
+        : [...on, ...highlightIds.filter((id) => !on.includes(id))];
       highlightsRef.current = next.length > 0 ? { sceneId, on: next } : null;
       setLitHighlights(highlightsRef.current);
       write(liveRef.current).catch(() => {

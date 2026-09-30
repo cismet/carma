@@ -1,5 +1,6 @@
 import {
   groundToMercator,
+  highlightButtons,
   highlightRing,
   highlightSpotsOf,
   isHighlightSpots,
@@ -49,6 +50,29 @@ describe("sceneHighlights", () => {
     ).toEqual(["a"]);
     expect(sceneHighlights({})).toEqual([]);
     expect(sceneHighlights({ highlights: "nope" })).toEqual([]);
+  });
+});
+
+describe("highlightButtons", () => {
+  it("gives highlights of the same name one button, in first-seen order", () => {
+    expect(
+      highlightButtons([
+        highlight("a", "Punkt 1"),
+        highlight("b", "Punkt 3"),
+        highlight("c", " Punkt 1 "),
+      ])
+    ).toEqual([
+      { key: "a", title: "Punkt 1", ids: ["a", "c"] },
+      { key: "b", title: "Punkt 3", ids: ["b"] },
+    ]);
+  });
+
+  it("keeps a button for each unnamed highlight", () => {
+    expect(
+      highlightButtons([highlight("a", ""), highlight("b", "  ")]).map(
+        ({ ids }) => ids
+      )
+    ).toEqual([["a"], ["b"]]);
   });
 });
 

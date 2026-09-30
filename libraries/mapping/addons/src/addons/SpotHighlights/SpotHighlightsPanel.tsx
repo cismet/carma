@@ -82,6 +82,9 @@ export const SpotHighlightsPanel = () => {
         <div className="mt-2 border-0 border-t border-solid border-gray-200 pt-2">
           <h3 className="mb-1 text-xs font-medium uppercase tracking-wide text-gray-500">
             Knöpfe auf der Fernbedienung
+            <span className="ml-2 font-normal normal-case tracking-normal">
+              gleicher Name, ein Knopf
+            </span>
           </h3>
           <div className="flex flex-wrap gap-x-4 gap-y-2">
             {spots.map((spot) => (

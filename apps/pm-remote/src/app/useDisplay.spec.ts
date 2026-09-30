@@ -249,13 +249,13 @@ describe("useDisplay highlights", () => {
     expect(result.current.activeSceneId).toBe("lit");
 
     act(() => {
-      result.current.toggleHighlight("lit", "b");
+      result.current.toggleHighlight("lit", ["b"]);
     });
     await waitFor(() => {
       expect(lastIds()).toEqual(["b"]);
     });
     act(() => {
-      result.current.toggleHighlight("lit", "a");
+      result.current.toggleHighlight("lit", ["a"]);
     });
     await waitFor(() => {
       expect(lastIds()).toEqual(["a", "b"]);
@@ -266,17 +266,40 @@ describe("useDisplay highlights", () => {
     ]);
 
     act(() => {
-      result.current.toggleHighlight("lit", "a");
+      result.current.toggleHighlight("lit", ["a"]);
     });
     await waitFor(() => {
       expect(lastIds()).toEqual(["b"]);
     });
   });
 
+  it("switches the spots of one button together", async () => {
+    const { result } = await connectWith({ config: lit.config });
+    act(() => {
+      result.current.toggleHighlight("lit", ["b"]);
+    });
+    await waitFor(() => {
+      expect(lastIds()).toEqual(["b"]);
+    });
+    // one of them on: the button lights the rest
+    act(() => {
+      result.current.toggleHighlight("lit", ["a", "b"]);
+    });
+    await waitFor(() => {
+      expect(lastIds()).toEqual(["a", "b"]);
+    });
+    act(() => {
+      result.current.toggleHighlight("lit", ["a", "b"]);
+    });
+    await waitFor(() => {
+      expect(lastWrite()).not.toHaveProperty("highlights");
+    });
+  });
+
   it("switches them all off with the next scene", async () => {
     const { result } = await connectWith({ config: lit.config });
     act(() => {
-      result.current.toggleHighlight("lit", "a");
+      result.current.toggleHighlight("lit", ["a"]);
     });
     await waitFor(() => {
       expect(lastIds()).toEqual(["a"]);

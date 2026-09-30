@@ -603,7 +603,7 @@ export const App = () => {
                     : []
                 }
                 disabled={!target || isChanging}
-                onToggle={(id) => display.toggleHighlight(activeScene.id, id)}
+                onToggle={(ids) => display.toggleHighlight(activeScene.id, ids)}
               />
             )}
             {display.series && display.seriesClock && (

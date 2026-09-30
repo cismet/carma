@@ -25,6 +25,7 @@ export {
   HIGHLIGHT_EDGE_SOFTNESS,
   HIGHLIGHT_RADIUS_RANGE_METERS,
   groundToMercator,
+  highlightButtons,
   highlightRing,
   highlightSpotsOf,
   isHighlightSpot,
@@ -33,6 +34,7 @@ export {
   lngLatToMercator,
   mercatorToLngLat,
   sceneHighlights,
+  type HighlightButton,
   type HighlightSpot,
   type ShowHighlight,
 } from "./lib/highlights";

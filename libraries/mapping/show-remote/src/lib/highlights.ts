@@ -91,6 +91,39 @@ export const sceneHighlights = (scene: {
     ? scene.highlights.filter(isShowHighlight)
     : [];
 
+/** one button on the remote: every highlight of one name */
+export type HighlightButton = {
+  /** stable within the scene: the first highlight's id */
+  key: string;
+  title: string;
+  ids: string[];
+};
+
+/**
+ * The remote's buttons for a scene's highlights. Highlights of the same name
+ * share a button, which switches them together, so several spots can light
+ * up as one; an unnamed one keeps a button of its own. In the order the
+ * names first appear.
+ */
+export const highlightButtons = (
+  highlights: readonly ShowHighlight[]
+): HighlightButton[] => {
+  const buttons: HighlightButton[] = [];
+  const byTitle = new Map<string, HighlightButton>();
+  for (const { id, title } of highlights) {
+    const name = title.trim();
+    const shared = name ? byTitle.get(name) : undefined;
+    if (shared) {
+      shared.ids.push(id);
+      continue;
+    }
+    const button = { key: id, title: name, ids: [id] };
+    buttons.push(button);
+    if (name) byTitle.set(name, button);
+  }
+  return buttons;
+};
+
 /** the spots of the switched-on ids, in the scene's order */
 export const highlightSpotsOf = (
   highlights: readonly ShowHighlight[],
