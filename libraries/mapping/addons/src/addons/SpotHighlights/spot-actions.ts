@@ -72,7 +72,10 @@ export const useSpotHighlightsActions = () => {
       startPlacing: () => change(() => ({ isPlacing: true })),
       cancelPlacing: () =>
         change(({ isPlacing }) => (isPlacing ? { isPlacing: false } : null)),
-      /** a new spot at `center` (EPSG:3857), named after the ones there are */
+      /**
+       * A new spot at `center` (EPSG:3857), named after the ones there are
+       * and as large as the one placed before it
+       */
       placeSpot: (center: [number, number]) =>
         change(({ spots }) => ({
           isPlacing: false,
@@ -82,7 +85,8 @@ export const useSpotHighlightsActions = () => {
               id: newSceneId(),
               title: nextSpotTitle(spots),
               center,
-              radiusMeters: DEFAULT_HIGHLIGHT_RADIUS_METERS,
+              radiusMeters:
+                spots.at(-1)?.radiusMeters ?? DEFAULT_HIGHLIGHT_RADIUS_METERS,
             },
           ],
         })),
