@@ -352,12 +352,21 @@ export const applyKeywordSettings = <T extends Item>(layer: T): T => {
   return updatedLayer;
 };
 
+const isPlainObject = (obj: object): boolean => {
+  const proto = Object.getPrototypeOf(obj);
+  return proto === Object.prototype || proto === null;
+};
+
 export const normalizeObject = (obj: any): any => {
   if (!obj || typeof obj !== "object") return obj;
 
   if (Array.isArray(obj)) {
     return obj.map((item) => normalizeObject(item));
   }
+
+  // instances stay as they are: a JSX icon in a layer row (interactionButtons)
+  // holds its React fiber, whose links run in circles
+  if (!isPlainObject(obj)) return obj;
 
   const normalized: any = {};
   for (const [key, value] of Object.entries(obj)) {

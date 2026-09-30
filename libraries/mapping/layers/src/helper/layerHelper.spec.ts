@@ -253,6 +253,27 @@ describe("normalizeObject", () => {
     expect(normalizeObject(null)).toBeNull();
     expect(normalizeObject("test")).toBe("test");
   });
+
+  it("keeps instances by reference instead of walking into them", () => {
+    // like the React fiber behind a JSX icon: its links run in circles
+    class Node {
+      parent: Node | null = null;
+      child: Node | null = null;
+    }
+    const parent = new Node();
+    const child = new Node();
+    parent.child = child;
+    child.parent = parent;
+
+    const normalized = normalizeObject({
+      interactionButtons: [{ icon: { _owner: parent }, tooltip: undefined }],
+    });
+
+    expect(normalized).toEqual({
+      interactionButtons: [{ icon: { _owner: parent } }],
+    });
+    expect(normalized.interactionButtons[0].icon._owner).toBe(parent);
+  });
 });
 
 describe("findLayerAndAddTags", () => {
