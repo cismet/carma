@@ -31,6 +31,8 @@ const STARKREGEN_T50_SERIES: TimeSeriesDefinition = {
   title: "Starkregen T50 (zeitlicher Verlauf)",
   wmsUrl: "https://starkregenwms-wuppertal.cismet.de/geoserver/wms?SERVICE=WMS",
   styles: "starkregen:depth",
+  /** quarter-size frames, which the show machine's memory needs */
+  frameScale: 0.5,
   intermediateValuesCount: 20,
   opacity: 0.85,
   initialStep: 2,
@@ -135,6 +137,8 @@ const STARKREGEN_T100_SERIES: TimeSeriesDefinition = {
   title: "Starkregen T100 (zeitlicher Verlauf)",
   wmsUrl: "https://starkregenwms-wuppertal.cismet.de/geoserver/wms?SERVICE=WMS",
   styles: "starkregen:depth",
+  /** quarter-size frames, which the show machine's memory needs */
+  frameScale: 0.5,
   intermediateValuesCount: 20,
   opacity: 0.85,
   initialStep: 2,
@@ -230,6 +234,8 @@ const STARKREGEN_90MM_SERIES: TimeSeriesDefinition = {
   title: "Starkregen 90 mm (zeitlicher Verlauf)",
   wmsUrl: "https://starkregenwms-wuppertal.cismet.de/geoserver/wms?SERVICE=WMS",
   styles: "starkregen:depth",
+  /** quarter-size frames, which the show machine's memory needs */
+  frameScale: 0.5,
   intermediateValuesCount: 20,
   opacity: 0.85,
   initialStep: 2,
@@ -326,6 +332,8 @@ const STARKREGEN_EXTREM2018_SERIES: TimeSeriesDefinition = {
   title: "Regen vom 29.05.2018 (zeitlicher Verlauf)",
   wmsUrl: "https://starkregenwms-wuppertal.cismet.de/geoserver/wms?SERVICE=WMS",
   styles: "starkregen:depth",
+  /** quarter-size frames, which the show machine's memory needs */
+  frameScale: 0.5,
   intermediateValuesCount: 20,
   opacity: 0.85,
   initialStep: 2,

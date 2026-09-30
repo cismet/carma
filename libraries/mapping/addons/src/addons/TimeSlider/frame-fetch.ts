@@ -10,23 +10,18 @@
  * change under its url. Nothing refreshes while the switch is on; emptying the
  * browser's cache (carmaPM has a button for its outlet) is how a new one gets
  * in.
+ *
+ * A series with a `frameScale` (`TimeSeriesDefinition`) loads its frames
+ * through here too, with or without that switch, so they can be asked for
+ * smaller than cage would.
  */
-
-import { getHashParams } from "@carma-commons/utils";
 
 /**
- * `#/...?frameScale=0.5`: every frame is asked of the WMS at this fraction of
- * its width and height, and the blend layer stretches it back over the same
- * ground. 0.5 is a quarter of the pixels, and of the memory each of the 24
- * decoded frames holds, at half the sharpness. For a show machine whose frames
- * are big enough to press on memory. Anything outside (0, 1) means 1, the
- * frames as cage asks for them. It rides on the frame cache, so it only acts
- * together with `cache=forced`.
+ * A series' `frameScale` as the frames are fetched with it: anything outside
+ * (0, 1), missing included, means 1, the frames as cage asks for them.
  */
-export const frameScaleFromHash = (hash?: string): number => {
-  const value = Number(getHashParams(hash)["frameScale"]);
-  return value > 0 && value < 1 ? value : 1;
-};
+export const normalizeFrameScale = (value?: number): number =>
+  typeof value === "number" && value > 0 && value < 1 ? value : 1;
 
 /**
  * Decimal places the bbox is rounded to in the request, in the metres of
@@ -48,7 +43,7 @@ const paramKey = (params: URLSearchParams, name: string): string | null => {
 
 /**
  * the url with its bbox rounded, see `BBOX_DECIMALS`, geographic ones as they
- * are, and its width and height times `scale`, see `frameScaleFromHash`
+ * are, and its width and height times `scale`, see `normalizeFrameScale`
  */
 export const frameCacheKey = (url: string, scale = 1): string => {
   try {
@@ -145,8 +140,14 @@ export type FrameCacheOptions = {
   retryDelaysMs?: readonly number[];
   /** where a frame given up on is reported. Default: `console.warn` */
   warn?: (...args: unknown[]) => void;
-  /** see `frameScaleFromHash`. Default: 1 */
+  /** see `normalizeFrameScale`. Default: 1 */
   scale?: number;
+  /**
+   * Whether the first attempt takes a kept response whatever its age, which
+   * is what `cache=forced` wants. Off, it goes through the http cache the
+   * normal way. Default: true
+   */
+  forceCache?: boolean;
 };
 
 const sleep = (ms: number) =>
@@ -165,6 +166,7 @@ export const createFrameCache = (
     retryDelaysMs = RETRY_DELAYS_MS,
     warn = (...args) => console.warn(...args),
     scale = 1,
+    forceCache = true,
   }: FrameCacheOptions = {}
 ): FrameFetch => {
   return async (url) => {
@@ -181,7 +183,8 @@ export const createFrameCache = (
       try {
         const response = await fetchImpl(key, {
           mode: "cors",
-          cache: attempt === 0 ? "force-cache" : "reload",
+          cache:
+            attempt > 0 ? "reload" : forceCache ? "force-cache" : "default",
         });
         const contentType = response.headers.get("content-type") ?? "";
         const bytes = new Uint8Array(await response.arrayBuffer());
@@ -204,16 +207,21 @@ export const createFrameCache = (
   };
 };
 
-let shared: FrameFetch | null = null;
+const shared = new Map<string, FrameFetch>();
 
 /**
- * The same reference on every call, so handing it to the engine never counts
- * as a changed option. `frameScale` is read from the page's url at the first
- * call.
+ * The same reference on every call with the same arguments, so handing it to
+ * the engine never counts as a changed option.
  */
-export const getSharedFrameCache = (): FrameFetch => {
-  shared ??= createFrameCache(undefined, {
-    scale: typeof window !== "undefined" ? frameScaleFromHash() : 1,
-  });
-  return shared;
+export const getSharedFrameCache = (
+  scale = 1,
+  forceCache = true
+): FrameFetch => {
+  const key = `${scale}|${forceCache}`;
+  let fetchFrame = shared.get(key);
+  if (!fetchFrame) {
+    fetchFrame = createFrameCache(undefined, { scale, forceCache });
+    shared.set(key, fetchFrame);
+  }
+  return fetchFrame;
 };

@@ -15,7 +15,11 @@ import {
 } from "../../lib/caged-addons";
 import type { AddonComponentProps } from "../../lib/registry";
 import { placeAtSlot, useStyleSlot } from "../../lib/style-slot";
-import { FRAME_LOG_PREFIX, getSharedFrameCache } from "./frame-fetch";
+import {
+  FRAME_LOG_PREFIX,
+  getSharedFrameCache,
+  normalizeFrameScale,
+} from "./frame-fetch";
 import {
   MAX_FRAME_REQUEST_ROUNDS,
   clockMayRun,
@@ -114,6 +118,7 @@ export const TimeSlider = ({
     layers: configLayers,
     labels: configLabels,
     styles: configStyles,
+    frameScale: configFrameScale,
     intermediateValuesCount: configIntermediateValuesCount,
     opacity: configOpacity,
     initialStep: configInitialStep,
@@ -141,6 +146,7 @@ export const TimeSlider = ({
     wmsUrl,
     layers,
     styles,
+    frameScale,
     stepsPerUnit,
     intermediateValuesCount,
     loaded,
@@ -209,6 +215,7 @@ export const TimeSlider = ({
       layers: configLayers,
       labels: configLabels ?? [],
       styles: configStyles ?? "",
+      frameScale: configFrameScale,
       intermediateValuesCount: configIntermediateValuesCount,
       opacity: configOpacity,
       initialStep: configInitialStep,
@@ -224,6 +231,7 @@ export const TimeSlider = ({
     configLayers,
     configLabels,
     configStyles,
+    configFrameScale,
     configIntermediateValuesCount,
     configOpacity,
     configInitialStep,
@@ -320,7 +328,12 @@ export const TimeSlider = ({
       styles,
       intermediateValuesCount,
       opacity: opacityRef.current,
-      fetchFrame: cacheFrames ? getSharedFrameCache() : undefined,
+      // cage's own fetch unless the frames come from the http cache or are
+      // asked for smaller than cage would
+      fetchFrame:
+        cacheFrames || normalizeFrameScale(frameScale) !== 1
+          ? getSharedFrameCache(normalizeFrameScale(frameScale), cacheFrames)
+          : undefined,
       onFrameLoaded: (count) => {
         if (!disposed) setLoaded(count);
       },
@@ -371,6 +384,7 @@ export const TimeSlider = ({
     setLoaded,
     createBlendLayer,
     cacheFrames,
+    frameScale,
     layers,
     frameRequest,
   ]);

@@ -2,6 +2,7 @@ import { useCallback } from "react";
 
 import { useAddonState } from "../../lib/AddonStateContext";
 import { useIsCagedAvailable } from "../../lib/caged-addons";
+import { normalizeFrameScale } from "./frame-fetch";
 
 /**
  * Everything about the running time series, in one channel.
@@ -24,6 +25,8 @@ export type TimeSliderState = {
   wmsUrl: string;
   layers: readonly string[];
   styles: string;
+  /** see `TimeSeriesDefinition.frameScale`; 1 when the series set none */
+  frameScale: number;
   /** sub-steps between two steps while blending; kept raw for pacing */
   intermediateValuesCount: number;
   /** slider position, in sub-steps when blending and in whole steps when not */
@@ -89,6 +92,7 @@ export const TIME_SLIDER_STATE_DEFAULT: TimeSliderState = {
   wmsUrl: "",
   layers: [],
   styles: "",
+  frameScale: 1,
   intermediateValuesCount: 20,
   value: 0,
   max: 0,
@@ -119,6 +123,16 @@ export type TimeSeriesDefinition = {
   /** what the slider shows per step, e.g. the elapsed time */
   labels: readonly string[];
   styles: string;
+  /**
+   * The fraction of their width and height the crossfade's frames are asked
+   * of the WMS at; the layer stretches them back over the same ground. 0.5 is
+   * a quarter of the pixels, and of the memory each decoded frame holds, at
+   * half the sharpness, for a series whose full frames press on a show
+   * machine's memory. A full-size variant of the same data is the same
+   * definition without it. Only the caged crossfade uses it, see
+   * `normalizeFrameScale`. Default: 1
+   */
+  frameScale?: number;
   /** sub-steps between two steps while blending. Default: 20 */
   intermediateValuesCount?: number;
   /** layer opacity, 0..1. Default: 1 */
@@ -202,6 +216,7 @@ const sameSeriesDefinition = (
   state.title === def.title &&
   state.wmsUrl === def.wmsUrl &&
   state.styles === def.styles &&
+  state.frameScale === normalizeFrameScale(def.frameScale) &&
   state.layers.length === def.layers.length &&
   state.layers.every((layer, index) => layer === def.layers[index]);
 
@@ -470,6 +485,7 @@ export const useTimeSeriesLauncher = () => {
         layers: def.layers,
         labels: def.labels,
         styles: def.styles,
+        frameScale: normalizeFrameScale(def.frameScale),
         intermediateValuesCount,
         stepsPerUnit,
         max,

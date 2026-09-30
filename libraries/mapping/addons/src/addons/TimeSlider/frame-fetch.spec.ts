@@ -4,7 +4,8 @@ import {
   FRAME_LOG_PREFIX,
   createFrameCache,
   frameCacheKey,
-  frameScaleFromHash,
+  getSharedFrameCache,
+  normalizeFrameScale,
 } from "./frame-fetch";
 
 const WMS = "https://example.test/geoserver/wms?SERVICE=WMS";
@@ -112,6 +113,15 @@ describe("createFrameCache", () => {
     expect(key).toContain("width=50");
     expect(key).toContain("height=25");
     expect(key).toContain("bbox=7.1508%2C51.26%2C7.168%2C51.27");
+  });
+
+  it("goes through the http cache the normal way without forceCache", async () => {
+    const fetchImpl = fetchOf(exception, png);
+    const load = createFrameCache(fetchImpl, { ...quick(), forceCache: false });
+
+    await load(GET_MAP);
+
+    expect(cacheModes(fetchImpl)).toEqual(["default", "reload"]);
   });
 
   it("asks the WMS for the scaled frame", async () => {
@@ -249,16 +259,26 @@ describe("createFrameCache", () => {
   });
 });
 
-describe("frameScaleFromHash", () => {
-  it("reads a fraction from the outlet's hash parameters", () => {
-    expect(frameScaleFromHash("cache=forced&frameScale=0.5")).toBe(0.5);
+describe("normalizeFrameScale", () => {
+  it("takes a fraction", () => {
+    expect(normalizeFrameScale(0.5)).toBe(0.5);
   });
 
   it("means the full frame when missing, zero, one or more, or not a number", () => {
-    expect(frameScaleFromHash("cache=forced")).toBe(1);
-    expect(frameScaleFromHash("frameScale=0")).toBe(1);
-    expect(frameScaleFromHash("frameScale=1")).toBe(1);
-    expect(frameScaleFromHash("frameScale=2")).toBe(1);
-    expect(frameScaleFromHash("frameScale=half")).toBe(1);
+    expect(normalizeFrameScale(undefined)).toBe(1);
+    expect(normalizeFrameScale(0)).toBe(1);
+    expect(normalizeFrameScale(1)).toBe(1);
+    expect(normalizeFrameScale(2)).toBe(1);
+    expect(normalizeFrameScale(Number.NaN)).toBe(1);
+  });
+});
+
+describe("getSharedFrameCache", () => {
+  it("hands out one fetch per scale and cache mode", () => {
+    expect(getSharedFrameCache(0.5, true)).toBe(getSharedFrameCache(0.5, true));
+    expect(getSharedFrameCache(0.5, true)).not.toBe(
+      getSharedFrameCache(0.5, false)
+    );
+    expect(getSharedFrameCache(0.5, true)).not.toBe(getSharedFrameCache());
   });
 });
