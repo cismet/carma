@@ -47,6 +47,7 @@ so the second folder is the list of what actually exists:
 | `addons/OriginSearch/`      | the "von wo?" search: where the user starts from (see below) |
 | `addons/VectorHighlight.tsx` | highlight/dim mode for the maplibre map                 |
 | `addons/LayerVisibility.tsx` | per-member visibility toggles for a group               |
+| [`addons/MapStyle3d/`](./src/addons/MapStyle3d/README.md) | optional draped map style and floating labels over terrain and 3D tiles |
 | `addons/LibreTerrain.tsx`   | terrain for the maplibre map: a toggle button, or on whenever the camera is free |
 | `addons/ShadowSimulation/`   | daylight-clamped sun control for MapLibre and Three.js content   |
 

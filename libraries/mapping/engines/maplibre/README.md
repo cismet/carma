@@ -34,7 +34,7 @@ the way a fully declared one does:
 | `tilesetMinResolutionPx` | 0, terrain-providing only | Zero chooses the baseline by its memory budget and per-level entry sizes. Positive values add an optional geometric-detail limit. |
 | `hierarchyCache` | true | Worker-built static hierarchy index instead of native tileset JSON paging. `false` loads pages natively; kept after measurement, see TILES_COVERAGE.md, tileset hierarchy cache kept. |
 | `persistBaseTiles` | true for terrain-providing host layers | Optional local render-record cache of the complete resident base. Uses the hierarchy cache's validated source root. Shadows use the same source records. |
-| `basemap` | `labels` | Drape the map labels and keep MapLibre terrain; `none` shows the tileset alone. |
+| `basemap` | `labels` | Allow map-label draping with MapStyle3d or shadow simulation and keep MapLibre terrain; `none` shows the tileset alone. |
 | `outline` | on | `CESIUM_primitive_outline` edges. |
 | `diagnostics` | off | Never ship it on; the stories switch it on themselves. |
 | `shadowBuildingStyle` | off | Let the shadow simulation restyle the tileset as a building layer while shadows are on. Off keeps the declared appearance; outlines always follow `outline`. |
@@ -205,6 +205,12 @@ The MapLibre wrapper owns one east/up/south local frame at the map centre on the
 Shadow-facing boxes are exchanged in the reference frame. Page fits and keys use host space, so a pure frame refit does not change shadow page identity. Caster selection keys on the ECEF sun direction, and the receiver signature excludes the mount matrix. A real receiver or solar change still invalidates the relevant page and depth. The sampled atmosphere is re-expressed in the current scene frame without re-evaluating its ECEF solar state. The refit happens inside map rendering; it does not publish a content change to React or the registry. Raster terrain under a building-only layer remains an independent receiver with its own frame conversion.
 
 ## Appearance, basemap and terrain ownership
+
+The MapLibre/Three map-style presentation is optional. Enable the `mapStyle3d`
+addon to drape the selected vector style and float its point labels above the
+scene. Shadow simulation acquires the same presentation independently; removing
+MapStyle3d does not remove an active shadow scene or rebuild loaded tiles.
+See [MapStyle3d](../addons/src/addons/MapStyle3d/README.md) for route configuration.
 
 Layer opacity multiplies authored material opacity after any full-opacity shadow styling. Below full opacity, materials enable transparency and disable depth writing; restoring full opacity restores the appropriate source render flags. Updating opacity or colour-correction uniforms does not replace the loaded tile pool.
 
