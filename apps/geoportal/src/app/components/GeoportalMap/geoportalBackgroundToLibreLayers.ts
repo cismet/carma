@@ -4,6 +4,7 @@ import { defaultLayerConf } from "@carma-appframeworks/portals";
 import { prepareTerrainDrapeStyle } from "@carma-mapping/engines/maplibre";
 
 import { cacheableWms } from "../../helper/cacheable-wms";
+import { MapStyleKeys } from "../../constants/MapStyleKeys";
 
 type NamedLayerConfig = {
   type: string;
@@ -18,11 +19,14 @@ type NamedLayerConfig = {
 
 type GeoportalBackgroundLibreOptions = {
   shadowTerrainActive?: boolean;
+  /** Whether MapStyle3d is mounted on the current route, including overrides. */
+  mapStyle3dActive?: boolean;
   /** Every visible layer is a standalone tileset: no basemap at all. */
   standaloneMeshOnly?: boolean;
   /**
    * Replace the authored raster bases with the vector base map, on the user's
-   * explicit request from the shadow settings. Off by default.
+   * explicit request from the shadow settings while MapStyle3d is active.
+   * Only applies to Karte; Luftbild keeps the selected orthophoto.
    */
   vectorBaseOverride?: boolean;
 };
@@ -65,9 +69,13 @@ export const geoportalBackgroundToLibreLayers = (
   // button, so they share one id and their loading states aggregate.
   const carmaLayerId = backgroundLayer.id;
 
-  // The vector base is only substituted when the user asks for it; the
-  // raster bases of the chosen background are otherwise draped as authored.
-  const layerSpecs = options.vectorBaseOverride
+  // The category switch wins over the remembered vector-map preference:
+  // Luftbild must still supply imagery to native or shared Three terrain.
+  const vectorBaseOverride =
+    options.mapStyle3dActive === true &&
+    options.vectorBaseOverride === true &&
+    backgroundLayer.id !== MapStyleKeys.AERIAL;
+  const layerSpecs = vectorBaseOverride
     ? VECTOR_BASE_OVERRIDE_LAYERS.split("|")
     : backgroundLayer.layers.split("|");
 
@@ -138,7 +146,7 @@ export const geoportalBackgroundToLibreLayers = (
           carmaLayerId,
           style: cfg.style,
           opacity,
-          ...(options.shadowTerrainActive || options.vectorBaseOverride
+          ...(options.shadowTerrainActive || vectorBaseOverride
             ? {
                 userStyleTransform: prepareTerrainDrapeStyle,
                 userStyleTransformKey: "terrain-albedo-v1",

@@ -1,12 +1,15 @@
 import { renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Layer } from "@carma-mapping/layers";
+import type { AddonEntry, AddonOverridesState } from "@carma-mapping/addons";
 
 const state = vi.hoisted(() => ({
   layers: [] as unknown[],
   pathname: "/",
   search: "",
   shadow: undefined as Record<string, unknown> | undefined,
+  addons: [] as AddonEntry[],
+  overrides: undefined as AddonOverridesState | undefined,
   backgroundOptions: [] as Array<Record<string, unknown>>,
 }));
 
@@ -25,6 +28,9 @@ vi.mock("../../config/backgroundConfig", () => ({
   backgroundConfig: { namedLayers: {} },
 }));
 vi.mock("@carma-mapping/addons", async () => {
+  const { applyAddonOverrides, resolveAddonEntries } = await vi.importActual<
+    typeof import("@carma-mapping/addons")
+  >("@carma-mapping/addons");
   // The real condition check, not the addon barrel.
   const { conditionRouteOf, isShownByCondition } = await vi.importActual<
     typeof import("../../../../../../libraries/mapping/addons/src/addons/ConditionalLayer")
@@ -33,6 +39,10 @@ vi.mock("@carma-mapping/addons", async () => {
     conditionRouteOf,
     isShownByCondition,
     useAddonState: () => [state.shadow],
+    useRouteAddons: () => state.addons,
+    usePersistedAddonOverrides: () => [state.overrides],
+    applyAddonOverrides,
+    resolveAddonEntries,
   };
 });
 vi.mock(
@@ -104,6 +114,8 @@ describe("useLibreLayers with conditional layers", () => {
     state.pathname = "/";
     state.search = "";
     state.shadow = undefined;
+    state.addons = [];
+    state.overrides = undefined;
     state.backgroundOptions = [];
   });
 
@@ -136,7 +148,47 @@ describe("useLibreLayers with conditional layers", () => {
     expect(lastBackgroundOptions()).toMatchObject({ standaloneMeshOnly: true });
   });
 
-  it("switches to the vector base only while shadows are on", () => {
+  it("gates the remembered vector override by the active route presentation", () => {
+    state.shadow = { enabled: true, overrideBaseMapWithVectorStyle: true };
+    const view = renderHook(() => useLibreLayers());
+    expect(lastBackgroundOptions()).toMatchObject({
+      mapStyle3dActive: false,
+      vectorBaseOverride: false,
+    });
+    state.addons = ["mapStyle3d"];
+    view.rerender();
+    expect(lastBackgroundOptions()).toMatchObject({
+      mapStyle3dActive: true,
+      vectorBaseOverride: true,
+    });
+    state.addons = [];
+    view.rerender();
+    expect(lastBackgroundOptions()).toMatchObject({
+      mapStyle3dActive: false,
+      vectorBaseOverride: false,
+    });
+  });
+
+  it("follows addon-manager suspension and activation", () => {
+    state.shadow = { enabled: true, overrideBaseMapWithVectorStyle: true };
+    state.addons = ["mapStyle3d"];
+    state.overrides = { suspended: ["mapStyle3d"], enabled: [] };
+    const view = renderHook(() => useLibreLayers());
+    expect(lastBackgroundOptions()).toMatchObject({
+      mapStyle3dActive: false,
+      vectorBaseOverride: false,
+    });
+    state.addons = [];
+    state.overrides = { suspended: [], enabled: ["mapStyle3d"] };
+    view.rerender();
+    expect(lastBackgroundOptions()).toMatchObject({
+      mapStyle3dActive: true,
+      vectorBaseOverride: true,
+    });
+  });
+
+  it("applies the vector override only while shadows are on", () => {
+    state.addons = ["mapStyle3d"];
     state.shadow = { enabled: true, overrideBaseMapWithVectorStyle: true };
     drawnIds();
     expect(lastBackgroundOptions()).toMatchObject({ vectorBaseOverride: true });

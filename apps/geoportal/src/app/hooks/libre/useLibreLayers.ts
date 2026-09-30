@@ -3,9 +3,13 @@ import { useSelector } from "react-redux";
 import { useLocation } from "react-router-dom";
 
 import {
+  applyAddonOverrides,
   conditionRouteOf,
   isShownByCondition,
+  resolveAddonEntries,
   useAddonState,
+  usePersistedAddonOverrides,
+  useRouteAddons,
 } from "@carma-mapping/addons";
 import type { LibreLayer } from "@carma-mapping/core";
 
@@ -23,6 +27,16 @@ export const useLibreLayers = (): LibreLayer[] => {
   const backgroundLayer = useSelector(getBackgroundLayer);
   const { namedLayers } = backgroundConfig;
   const [shadowState] = useAddonState("shadowSimulation");
+  const routeAddons = useRouteAddons();
+  const [addonOverrides] = usePersistedAddonOverrides();
+  const mapStyle3dActive = useMemo(
+    () =>
+      applyAddonOverrides(
+        resolveAddonEntries(routeAddons),
+        addonOverrides
+      ).some(({ kind }) => kind === "mapStyle3d"),
+    [routeAddons, addonOverrides]
+  );
   const { pathname, search } = useLocation();
 
   // a layer's "conditionalLayer" tool keeps it off the map unless the route or
@@ -48,7 +62,9 @@ export const useLibreLayers = (): LibreLayer[] => {
     return [
       ...geoportalBackgroundToLibreLayers(backgroundLayer, namedLayers, {
         shadowTerrainActive: shadowState?.enabled === true,
+        mapStyle3dActive,
         vectorBaseOverride:
+          mapStyle3dActive &&
           shadowState?.enabled === true &&
           shadowState?.overrideBaseMapWithVectorStyle === true,
         standaloneMeshOnly,
@@ -59,6 +75,7 @@ export const useLibreLayers = (): LibreLayer[] => {
     backgroundLayer,
     namedLayers,
     drawnLayers,
+    mapStyle3dActive,
     shadowState?.enabled,
     shadowState?.overrideBaseMapWithVectorStyle,
   ]);

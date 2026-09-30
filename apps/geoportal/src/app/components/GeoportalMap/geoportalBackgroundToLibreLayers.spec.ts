@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { BackgroundLayer } from "@carma-mapping/layers";
+import { MapStyleKeys } from "../../constants/MapStyleKeys";
 
 import { geoportalBackgroundToLibreLayers } from "./geoportalBackgroundToLibreLayers";
 
@@ -75,6 +76,7 @@ describe("Geoportal shaded terrain background composition", () => {
     };
     const overridden = geoportalBackgroundToLibreLayers(background, named, {
       shadowTerrainActive: true,
+      mapStyle3dActive: true,
       vectorBaseOverride: true,
     });
     expect(overridden).toEqual([
@@ -94,7 +96,68 @@ describe("Geoportal shaded terrain background composition", () => {
         (layer) => "name" in layer && layer.name === "bg-basemap_relief"
       )
     ).toBe(false);
+
+    const inactive = geoportalBackgroundToLibreLayers(background, named, {
+      shadowTerrainActive: true,
+      mapStyle3dActive: false,
+      vectorBaseOverride: true,
+    });
+    expect(inactive).toEqual(authored);
   });
+
+  it.each(["trueOrtho2024Alternative", "trueOrtho2021"])(
+    "keeps %s on terrain when switching Karte → Luftbild → Karte",
+    (imageryName) => {
+      const named = {
+        [imageryName]: {
+          type: "tiles",
+          url: "https://example.test/ortho/{z}/{x}/{y}.jpg",
+        },
+        basemap_relief: {
+          type: "vector",
+          style: "https://example.test/vector-basemap.json",
+        },
+      };
+      const options = {
+        shadowTerrainActive: true,
+        mapStyle3dActive: true,
+        vectorBaseOverride: true,
+      };
+      const aerial = {
+        ...background,
+        id: MapStyleKeys.AERIAL,
+        layers: `${imageryName}@75`,
+      };
+      const before = geoportalBackgroundToLibreLayers(
+        background,
+        named,
+        options
+      );
+      const imagery = geoportalBackgroundToLibreLayers(aerial, named, options);
+      const after = geoportalBackgroundToLibreLayers(
+        background,
+        named,
+        options
+      );
+
+      expect(before[0]).toMatchObject({ type: "vector" });
+      expect(imagery).toHaveLength(1);
+      expect(imagery[0]).toMatchObject({
+        type: "tiles",
+        name: imageryName,
+        url: named[imageryName].url,
+        carmaLayerId: MapStyleKeys.AERIAL,
+      });
+      expect(imagery[0].opacity).toBeCloseTo(0.6);
+      expect(after).toEqual(before);
+      expect(
+        geoportalBackgroundToLibreLayers(aerial, named, {
+          ...options,
+          standaloneMeshOnly: true,
+        })
+      ).toEqual([]);
+    }
+  );
 
   it("adjusts a vector background in place while shaded terrain is active", () => {
     const vectorBackground = {

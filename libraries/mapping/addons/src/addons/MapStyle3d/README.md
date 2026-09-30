@@ -16,6 +16,13 @@ Terrain-providing mesh styles use `basemap: "labels"` (the default) for this
 presentation. An explicit `basemap: "none"` keeps that tileset standalone; the
 addon does not override this per-layer choice.
 
+Geoportal keeps the Karte/Luftbild selection as the source of the terrain
+drape. With MapStyle3d active, the optional shadow-settings vector override
+only affects Karte; Luftbild always keeps the selected orthophoto. Without
+MapStyle3d, Geoportal drapes the authored raster backgrounds normally, even
+if a remembered vector override is set. Route declarations and addon-manager
+overrides both determine whether this presentation is active.
+
 Optional configuration:
 
 ```ts
