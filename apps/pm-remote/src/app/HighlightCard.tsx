@@ -5,8 +5,9 @@ import {
 
 /**
  * The live scene's stored highlights, one button per name: spots named alike
- * switch on and off together. Several buttons can be on together. Every scene
- * starts with all of them off, and the pointer hides them while it is held.
+ * switch on and off together. A scene comes up with all of them on, so a
+ * scene shows its highlights without a press; a button switches its spots
+ * off and on again. The pointer hides them while it is held.
  */
 export const HighlightCard = ({
   highlights,

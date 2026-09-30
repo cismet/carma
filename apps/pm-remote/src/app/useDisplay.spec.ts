@@ -317,6 +317,21 @@ describe("useDisplay highlights", () => {
     expect(result.current.litHighlights).toBeNull();
   });
 
+  it("switches all of a scene's highlights on once it is there", async () => {
+    const { result } = await connectWith({ config: other.config });
+    act(() => {
+      result.current.goToScene(lit);
+    });
+    await waitFor(() => {
+      expect(lastIds()).toEqual(["a", "b"]);
+    });
+    expect(result.current.litHighlights).toEqual({
+      sceneId: "lit",
+      on: ["a", "b"],
+    });
+    expect(result.current.isChanging).toBe(false);
+  });
+
   it("takes over the spots the display had on when it reconnects", async () => {
     const { result } = await connectWith({
       config: lit.config,

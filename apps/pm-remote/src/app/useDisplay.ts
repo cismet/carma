@@ -120,9 +120,9 @@ const shadowEntry = (
 };
 
 /**
- * The stored highlights the presenter switched on, and the scene they belong
- * to: the ids only mean something there. A scene change drops them, since
- * every scene starts with its highlights off.
+ * The stored highlights that are on, and the scene they belong to: the ids
+ * only mean something there. A scene change drops them, and once the new
+ * scene is there all of its own come on.
  */
 export type LitHighlights = { sceneId: string; on: readonly string[] };
 
@@ -531,7 +531,8 @@ export const useDisplay = (
       const run = ++runRef.current;
       setActiveSceneId(scene.id);
       setIsChanging(true);
-      // every scene starts with its highlights off; the first write says so
+      // the old scene's highlights go off with the first write; the new
+      // one's come on once it is there, see below
       highlightsRef.current = null;
       pendingHighlightIdsRef.current = null;
       setLitHighlights(null);
@@ -548,6 +549,17 @@ export const useDisplay = (
         sleep,
         isCancelled: () => runRef.current !== run,
       })
+        .then(() => {
+          // the scene is there: all its highlights come on, so they show
+          // without a press, in autoplay too; the buttons switch them off
+          const on = sceneHighlights(scene).map(({ id }) => id);
+          if (runRef.current !== run || on.length === 0) {
+            return;
+          }
+          highlightsRef.current = { sceneId: scene.id, on };
+          setLitHighlights(highlightsRef.current);
+          return write(liveRef.current);
+        })
         .catch(() => {
           // already reported by `send`; the scene stays where the write left it
         })
@@ -557,7 +569,7 @@ export const useDisplay = (
           }
         });
     },
-    [fadeMs, send]
+    [fadeMs, send, write]
   );
 
   const setLayerOpacity = useCallback(
