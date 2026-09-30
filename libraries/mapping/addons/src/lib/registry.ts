@@ -123,6 +123,11 @@ import {
   type TrafficAnimationState,
 } from "../addons/TrafficAnimation";
 import {
+  SpotHighlights,
+  type SpotHighlightsConfig,
+  type SpotHighlightsState,
+} from "../addons/SpotHighlights";
+import {
   zoomToExtentTrigger,
   type ZoomToExtentConfig,
 } from "../addons/ZoomToExtent";
@@ -186,6 +191,11 @@ export type AddonConfigMap = {
    * list for the remote on the phone; see `apps/pm-remote`.
    */
   showScenes: ShowScenesConfig;
+  /**
+   * Highlight spots as a layer: placed with "+" and a click, sized with the
+   * wheel. A pm-show scene with the layer publishes them as its highlights.
+   */
+  spotHighlights: SpotHighlightsConfig;
   visibleFeatureStatsSource: VisibleFeatureStatsSourceConfig;
   visibleFeatureStatsPanel: VisibleFeatureStatsPanelConfig;
   /** WMS time-series transport; the interpolation behind it is caged */
@@ -259,6 +269,12 @@ export type AddonStateMap = {
   highlightMode: HighlightModeState;
   /** whether the sketch layer owns the pointer; see `AnnotationOverlay` */
   annotationMode: AnnotationState;
+  /**
+   * the spot layer's working copy of its row: the spots, the dimming and
+   * whether they are being edited; see `SpotHighlights`. Read by the row hook
+   * and the ribbon, which sit in the host's tree rather than in the addon's.
+   */
+  spotHighlights: SpotHighlightsState;
   /** whether the comparison is running; see `ComparingControl` */
   compareState: CompareState;
   /** the assignable layer blocks, with the titles the layer bar shows */
@@ -496,6 +512,7 @@ export const addonRegistry: {
   gazetteerSource: { Component: GazetteerSource },
   outlet: { Component: OutletAddon },
   showScenes: { Component: ShowScenes },
+  spotHighlights: { Component: SpotHighlights, provides: ["spotHighlights"] },
   gazetteerMode: { Component: GazetteerMode },
   homeOverride: { Component: HomeOverride },
   nearestFeature: {

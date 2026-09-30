@@ -122,6 +122,25 @@ export type {
 } from "./addons/ConditionalLayer";
 
 export {
+  SpotHighlights,
+  SpotHighlightsPanel,
+  useSpotHighlightsActions,
+  useSpotHighlightsLayerRow,
+  SPOT_HIGHLIGHTS_LAYER,
+  SPOT_HIGHLIGHTS_LAYER_ID,
+  SPOT_HIGHLIGHTS_TOOLS_INTERACTION_ID,
+  findSpotLayer,
+  spotLayerContent,
+  spotLayerFromHighlights,
+  spotLayerHighlights,
+  type Spot,
+  type SpotHighlightsConfig,
+  type SpotHighlightsState,
+  type SpotLayerContent,
+  type UseSpotHighlightsLayerRowOptions,
+} from "./addons/SpotHighlights";
+
+export {
   TimeSlider,
   TimeSliderPanel,
   TimeSliderInteractionPanel,

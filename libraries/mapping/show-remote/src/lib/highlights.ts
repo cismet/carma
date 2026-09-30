@@ -35,7 +35,7 @@ export type HighlightSpot = Omit<ShowHighlight, "title">;
 
 export const DEFAULT_HIGHLIGHT_RADIUS_METERS = 80;
 export const DEFAULT_HIGHLIGHT_DIM = DEFAULT_POINTER_DIM;
-/** the size slider in pm-show: a single building up to a quarter */
+/** the sizes the spot layer's wheel allows: a single building up to a quarter */
 export const HIGHLIGHT_RADIUS_RANGE_METERS = [15, 400] as const;
 /** the same range the pointer's "Abdunkeln" slider offers */
 export const HIGHLIGHT_DIM_RANGE = [0.2, 0.95] as const;

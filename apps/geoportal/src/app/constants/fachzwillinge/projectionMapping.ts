@@ -149,6 +149,9 @@ export const projectionMappingFachzwilling: FachzwillingRoute = {
         excludeLayers: [PROJECTION_AREA_STYLE],
       },
     },
+    // spots placed on the map; a scene with them gets them as its
+    // highlights, one button each on the remote
+    "spotHighlights",
   ],
   /**
    * The layers of the show, grouped as it walks through them. Most are built

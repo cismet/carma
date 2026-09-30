@@ -1,4 +1,5 @@
 import {
+  faBullseye,
   faCircle,
   faClock,
   faGlobe,
@@ -18,6 +19,7 @@ export const iconMap = {
   measurement: faRuler,
   highlight: faObjectGroup,
   drawing: faPencil,
+  spotHighlights: faBullseye,
   comparing: faTableColumns,
   timeSeries: faClock,
   flowField: faWater,
