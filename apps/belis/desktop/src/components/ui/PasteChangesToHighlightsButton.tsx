@@ -91,8 +91,6 @@ const PasteChangesToHighlightsButton = () => {
     activeSourceLayers,
   ]);
   const [pasting, setPasting] = useState(false);
-  // Feature types ticked in the multi-type dialog; `null` while it is closed.
-  const [selectedTypes, setSelectedTypes] = useState<Set<string> | null>(null);
 
   if (isReadOnly || !jwt || jobs.length === 0) return null;
 
@@ -147,20 +145,6 @@ const PasteChangesToHighlightsButton = () => {
     }
   };
 
-  const handleClick = () => {
-    if (!singleJob) {
-      setSelectedTypes(new Set(jobs.map((job) => job.featureType)));
-      return;
-    }
-    Modal.confirm({
-      title: `Kopierte Änderungen in ${singleJob.features.length} markierte ${singleJob.label} einfügen?`,
-      content: `Für jedes markierte Objekt wird ein Entwurf mit den ${singleJob.fieldCount} kopierten Feldern angelegt. Gespeichert wird erst über "Alle speichern".`,
-      okText: "Einfügen",
-      cancelText: "Abbrechen",
-      onOk: () => runPaste([singleJob]),
-    });
-  };
-
   // Usually a Standort is highlighted together with its Leuchten, so the counts
   // match — then the number is said once, in the title.
   const sharedCount = jobs.every(
@@ -175,20 +159,35 @@ const PasteChangesToHighlightsButton = () => {
           .join(" und ")} einfügen?`
       : "Kopierte Änderungen in markierte Objekte einfügen?";
 
-  const toggleType = (featureType: string, checked: boolean) =>
-    setSelectedTypes((prev) => {
-      const next = new Set(prev);
-      if (checked) next.add(featureType);
-      else next.delete(featureType);
-      return next;
+  const handleClick = () => {
+    if (singleJob) {
+      Modal.confirm({
+        title: `Kopierte Änderungen in ${singleJob.features.length} markierte ${singleJob.label} einfügen?`,
+        content: `Für jedes markierte Objekt wird ein Entwurf mit den ${singleJob.fieldCount} kopierten Feldern angelegt. Gespeichert wird erst über "Alle speichern".`,
+        okText: "Einfügen",
+        cancelText: "Abbrechen",
+        onOk: () => runPaste([singleJob]),
+      });
+      return;
+    }
+    // Same confirm dialog as the single-type case, so icon and position match.
+    let selected = new Set(jobs.map((job) => job.featureType));
+    const dialog = Modal.confirm({
+      title: multiTitle,
+      content: (
+        <PasteTypeChoice
+          jobs={jobs}
+          showCounts={sharedCount == null}
+          onChange={(types) => {
+            selected = types;
+            dialog.update({ okButtonProps: { disabled: types.size === 0 } });
+          }}
+        />
+      ),
+      okText: "Einfügen",
+      cancelText: "Abbrechen",
+      onOk: () => runPaste(jobs.filter((job) => selected.has(job.featureType))),
     });
-
-  const handleConfirmMulti = () => {
-    const selectedJobs = jobs.filter((job) =>
-      selectedTypes?.has(job.featureType)
-    );
-    setSelectedTypes(null);
-    void runPaste(selectedJobs);
   };
 
   return (
@@ -218,31 +217,49 @@ const PasteChangesToHighlightsButton = () => {
           </button>
         </Badge>
       </Tooltip>
-      <Modal
-        open={selectedTypes != null}
-        title={multiTitle}
-        okText="Einfügen"
-        cancelText="Abbrechen"
-        okButtonProps={{ disabled: !selectedTypes?.size }}
-        onOk={handleConfirmMulti}
-        onCancel={() => setSelectedTypes(null)}
-      >
-        {jobs.map((job) => (
-          <div key={job.featureType}>
-            <Checkbox
-              checked={selectedTypes?.has(job.featureType) ?? false}
-              onChange={(e) => toggleType(job.featureType, e.target.checked)}
-            >
-              {sharedCount == null && `${job.features.length} `}
-              {job.label} ({job.fieldCount}{" "}
+    </>
+  );
+};
+
+const PasteTypeChoice = ({
+  jobs,
+  showCounts,
+  onChange,
+}: {
+  jobs: PasteJob[];
+  showCounts: boolean;
+  onChange: (types: Set<string>) => void;
+}) => {
+  const [selected, setSelected] = useState(
+    () => new Set(jobs.map((job) => job.featureType))
+  );
+  const toggle = (featureType: string, checked: boolean) => {
+    const next = new Set(selected);
+    if (checked) next.add(featureType);
+    else next.delete(featureType);
+    setSelected(next);
+    onChange(next);
+  };
+  return (
+    <>
+      {jobs.map((job) => (
+        <div key={job.featureType} className="mt-2">
+          <Checkbox
+            checked={selected.has(job.featureType)}
+            onChange={(e) => toggle(job.featureType, e.target.checked)}
+          >
+            {showCounts && `${job.features.length} `}
+            {job.label}{" "}
+            <span className="text-gray-500">
+              ({job.fieldCount}{" "}
               {job.fieldCount === 1 ? "kopiertes Feld" : "kopierte Felder"})
-            </Checkbox>
-          </div>
-        ))}
-        <p style={{ marginTop: 12, marginBottom: 0 }}>
-          Gespeichert wird erst über &quot;Alle speichern&quot;.
-        </p>
-      </Modal>
+            </span>
+          </Checkbox>
+        </div>
+      ))}
+      <p className="mt-3 mb-0">
+        Gespeichert wird erst über &quot;Alle speichern&quot;.
+      </p>
     </>
   );
 };
