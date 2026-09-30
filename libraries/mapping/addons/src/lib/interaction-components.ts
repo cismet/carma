@@ -23,6 +23,10 @@ import {
   ANNOTATION_TOOLS_INTERACTION_ID,
 } from "../addons/Annotation";
 import {
+  ObliqueInteractionPanel,
+  OBLIQUE_TOOLS_INTERACTION_ID,
+} from "../addons/ObliqueViewer";
+import {
   TrafficInteractionPanel,
   TRAFFIC_TOOLS_INTERACTION_ID,
 } from "../addons/TrafficAnimation";
@@ -46,6 +50,7 @@ export const ADDON_INTERACTION_COMPONENTS: Record<
   // the row only offers the button that opens this under `?ff=admin`
   [FLOW_FIELD_TUNING_INTERACTION_ID]: FlowFieldTuningInteractionPanel,
   [ANNOTATION_TOOLS_INTERACTION_ID]: AnnotationInteractionPanel,
+  [OBLIQUE_TOOLS_INTERACTION_ID]: ObliqueInteractionPanel,
   // opened from the readout on the button of the layer that launched it
   [TRAFFIC_TOOLS_INTERACTION_ID]: TrafficInteractionPanel,
   [SPOT_HIGHLIGHTS_TOOLS_INTERACTION_ID]: SpotHighlightsPanel,

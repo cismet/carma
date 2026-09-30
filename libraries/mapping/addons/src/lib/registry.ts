@@ -119,6 +119,11 @@ import {
   type FloodState,
 } from "../addons/FloodSimulation";
 import {
+  ObliqueViewer,
+  type ObliqueViewerConfig,
+  type ObliqueViewerState,
+} from "../addons/ObliqueViewer";
+import {
   TrafficAnimation,
   type TrafficAnimationConfig,
   type TrafficAnimationState,
@@ -218,6 +223,12 @@ export type AddonConfigMap = {
    */
   floodSimulation: FloodSimulationConfig;
   /**
+   * The Schrägluftbild viewer on the MapLibre map: the oblique image nearest
+   * the map centre, its footprint, and a preview aligned with the camera.
+   * Open, no cage involved.
+   */
+  obliqueViewer: ObliqueViewerConfig;
+  /**
    * Cars, buses and trucks on a road network, by day and by night, launched
    * by a layer; see `TrafficAnimation`. The traffic values are invented.
    */
@@ -306,6 +317,13 @@ export type AddonStateMap = {
    * which sit in the host's tree rather than in the addon's.
    */
   floodSimulation: FloodState;
+  /**
+   * the running oblique viewer: whether it is on, the selected image, the
+   * sector the camera looks into, the siblings, the preview; see
+   * `ObliqueViewer`. Read by the layer-bar row and the ribbon, which sit in
+   * the host's tree, and written back by them for the user's choices.
+   */
+  obliqueViewer: ObliqueViewerState;
   /**
    * the running traffic: the moment it shows as an offset from now, how dark
    * it is and how many vehicles are out; see `TrafficAnimation`. Written by
@@ -599,6 +617,10 @@ export const addonRegistry: {
   floodSimulation: {
     Component: FloodSimulation,
     provides: ["floodSimulation"],
+  },
+  obliqueViewer: {
+    Component: ObliqueViewer,
+    provides: ["obliqueViewer"],
   },
   trafficAnimation: {
     Component: TrafficAnimation,

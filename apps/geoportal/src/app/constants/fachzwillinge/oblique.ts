@@ -12,6 +12,7 @@ export const obliqueFachzwilling: FachzwillingRoute = {
     { styleUrl: "https://tiles.cismet.de/lod2/mesh2024.style.json" },
   ],
   addons: [
+    "mapStyle3d",
     {
       addon: "obliqueViewer",
       config: {

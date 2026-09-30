@@ -92,3 +92,38 @@ cancel obsolete jobs. Missing originals retain the progressive JPEG. This
 avoids loading and decoding a complete 12,736 × 19,136 image in the browser.
 The local 2026 bridge enables this path; existing JPEG-only series retain their
 level-based loader.
+
+## Photo and 3D-label composition
+
+The dedicated Geoportal `#/oblique` route enables `mapStyle3d` by default with
+Mesh 2024. It uses the existing shared Three scene and mesh label rules.
+
+The current photo preview is a DOM overlay. Placing it between the mesh and the
+labels in the shared framebuffer is feasible, but requires an explicit
+composition phase rather than moving the DOM overlay or changing render order:
+
+1. Render the mesh (or its converged accumulation) and retain its depth.
+2. Draw the calibrated photo as a screen-space quad without depth testing or
+   depth writes, outside HDR/tone mapping. Keep its existing pan, roll, principal
+   point, physical-pixel sampling and progressive/native RGB refinement.
+3. Draw only the draped label contribution on the same mesh geometry, with the
+   existing DEM/mesh receiver and occlusion checks against the retained depth.
+4. Keep the existing depth clear and following MapLibre point-label layers.
+
+`SharedThreeSceneLayer.addScreenRenderPass` currently runs after the complete
+MapLibre frame, so using it for the photo would also cover floating place labels.
+Street and water labels are currently composited into mesh color by
+`shared-three-map-style-shaders.ts`; they need a label-only rendering mode for
+step 3. The composition phase belongs immediately after
+`accumulationRuntime.render` and before `clearDepthForMapStyleOverlays` in the
+MapLibre shared scene layer. Reuse its existing projection capture, depth checks
+and renderer-state handling, rather than adding a second scene or tileset.
+
+The label-only pass must be restricted to photo coverage and opacity to avoid
+double blending glyph edges outside the photo or during transitions. Preserved
+accumulation depth must match the label geometry/camera, and GL depth range,
+render target, viewport and scissor state must be restored on every exit. A
+regression should verify both an unoccluded street label above the photo and a
+street label hidden behind a nearer roof, with point labels above both. This
+composition is an investigated next step; the current preview rendering remains
+the DOM implementation.
