@@ -53,7 +53,7 @@ describe("cancellation runtime integration", () => {
     expect(state.retainedShadowRequests.size).toBe(0);
   });
 
-  it("discards stale offscreen support in download and parse queues for current viewport work", () => {
+  it("preempts downloading support while retaining its needed parse buffer", () => {
     const fixture = createPrefetchFixture(tile());
     fixture.tiles.downloadQueue.maxJobsPerOrigin = 1;
     fixture.state.options = { providesTerrain: true };
@@ -78,9 +78,9 @@ describe("cancellation runtime integration", () => {
     cascade.abortStaleDownloads();
     expect(
       fixture.tiles.lruCache.remove.mock.calls.map(([entry]) => entry)
-    ).toEqual([downloading, parsing]);
-    expect(cascade.isTileRequestNeeded(downloading)).toBe(false);
-    expect(parsing.internal.loadingState).toBe(UNLOADED_LOADING_STATE);
+    ).toEqual([downloading]);
+    expect(cascade.isTileRequestNeeded(parsing)).toBe(true);
+    expect(parsing.internal.loadingState).toBe(PARSING_LOADING_STATE);
   });
 
   it("discards a coarse pending REPLACE payload already covered by drawn children", () => {

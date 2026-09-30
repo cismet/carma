@@ -5,12 +5,21 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createMeshCorridorFixture } from "../../../../test/three-tiles-runtime-fixture";
 import {
+  createTileCameraDemand,
   snapshotTileCameraViews,
   TILE_CAMERA_ROLE,
   TILE_MAIN_OBSERVER_ID,
   TILE_SHADOW_CAMERA_ID,
 } from "../../core/tile-camera-demand";
 import type { SharedThreeSceneFrame } from "../../core/shared-three-scene-types";
+import { isMeshRegionAtError } from "../../core/mesh-tile-coverage";
+import {
+  meshContentLevel,
+  selectMeshShadowRetrieval,
+} from "../../core/mesh-shadow-retrieval";
+import { createMeshCameraObjectives } from "./three-tiles-runtime-camera-objective";
+import { areActiveMeshViewsConverged } from "./three-tiles-runtime-cameras";
+import type { RuntimeTile } from "./three-tiles-runtime-types";
 
 vi.hoisted(() => {
   Object.defineProperty(URL, "createObjectURL", {
@@ -22,7 +31,7 @@ afterEach(() => vi.restoreAllMocks());
 
 describe("shared 3D Tiles camera demand", () => {
   it.each([false, true])(
-    "registers a logical sun camera only for terrain mesh (terrain=%s)",
+    "keeps sun projection separate from active camera demand (terrain=%s)",
     (terrain) => {
       const f = createMeshCorridorFixture(0, terrain);
       try {
@@ -31,23 +40,16 @@ describe("shared 3D Tiles camera demand", () => {
         const shadow = f.runtimeState.tileCameraDemand.views.find(
           ({ id }) => id === TILE_SHADOW_CAMERA_ID
         );
-        if (terrain) {
-          expect(shadow).toMatchObject({
-            role: TILE_CAMERA_ROLE.GEOMETRY,
-            viewport: [1024, 1024],
-            errorTargetPixels: 3,
-          });
-          expect(shadow?.projectionMatrix).toEqual(
-            f.sun.projectionMatrix.toArray()
-          );
-          const signature = f.runtimeState.tileCameraSignature;
-          f.sun.zoom = 2;
-          f.sun.updateProjectionMatrix();
-          f.update();
-          expect(f.runtimeState.tileCameraSignature).not.toBe(signature);
-        } else {
-          expect(shadow).toBeUndefined();
-        }
+        expect(shadow).toBeUndefined();
+        const observerIds = f.runtimeState.tileCameraDemand.views.map(
+          ({ id }) => id
+        );
+        f.sun.zoom = 2;
+        f.sun.updateProjectionMatrix();
+        f.update();
+        expect(
+          f.runtimeState.tileCameraDemand.views.map(({ id }) => id)
+        ).toEqual(observerIds);
         f.runtime.scene.setShadowView(null);
         f.update();
         expect(
@@ -61,34 +63,108 @@ describe("shared 3D Tiles camera demand", () => {
     }
   );
 
-  it("keeps the active-view convergence gate closed for an uncovered extra camera", () => {
+  it("converges fulfilled observer views despite an incomplete caster corridor, but blocks an uncovered extra camera", () => {
     const f = createMeshCorridorFixture();
-    f.runtime.scene.setShadowView(null);
+    f.frame.lodCamera.near = 75;
+    f.frame.lodCamera.updateProjectionMatrix();
+    const fine = f.tile("fine-receiver", -10, 10, -100, 0.01, true, f.receiver);
+    f.receiver.children = [fine];
+    f.load(fine);
     const missing = f.tile("missing-extra-view", 40, 45, -50, 1, false, f.root);
-    f.root.children = [f.receiver, missing];
-    const camera = new OrthographicCamera(35, 50, 20, -20, 1, 200);
+    f.root.children.push(missing);
     try {
-      vi.mocked(TilesRenderer.prototype.update).mockImplementation(function () {
-        this.frameCount += 1;
-        this.visibleTiles.add(f.receiver);
-        this.visibleTiles.add(f.caster);
-      });
-      f.update();
-      expect(f.runtimeState.lastActiveViewsConverged).toBe(true);
-      f.runtime.scene.update({
-        ...f.frame,
-        tileCameraViews: snapshotTileCameraViews([
+      // This predicate consumes an acknowledged published cut. The shared
+      // fixture skips native traversal, so it must not assume one cold update
+      // already completed every material/publication step.
+      const state = f.runtimeState;
+      state.requestedErrorTarget =
+        state.memoryErrorTarget =
+        state.effectiveErrorTarget =
+          1;
+      state.displayedMeshFrontier = new Set([fine]);
+      state.committedMeshReceiverFrontier = new Set([fine]);
+      state.committedMeshCasterFrontier = new Set([fine]);
+      f.renderer.visibleTiles.clear();
+      f.renderer.visibleTiles.add(fine);
+      const observerViews = snapshotTileCameraViews([
+        {
+          id: TILE_MAIN_OBSERVER_ID,
+          camera: f.frame.lodCamera,
+          viewport: [f.frame.viewport.x, f.frame.viewport.y],
+          errorTargetPixels: state.requestedErrorTarget,
+          role: TILE_CAMERA_ROLE.RECEIVER,
+        },
+      ]);
+      state.tileCameraDemand = createTileCameraDemand(observerViews);
+      const observerObjectives = createMeshCameraObjectives({ ...state });
+      const objectives = createMeshCameraObjectives(state);
+      const dependencies = {
+        getTileCameraDemand: (tile: RuntimeTile, includeObserver = false) =>
+          objectives.demand(tile, includeObserver),
+        mainViewWithinErrorFactor: (factor: number) =>
+          isMeshRegionAtError(
+            f.root,
+            state.displayedMeshFrontier,
+            state.effectiveErrorTarget * factor,
+            (tile) => {
+              const demand = observerObjectives.demand(
+                tile as RuntimeTile,
+                true
+              );
+              return {
+                intersects: demand.required,
+                errorPixels: demand.errorRatio * state.requestedErrorTarget,
+              };
+            }
+          ),
+      };
+      const observerError = observerObjectives.demand(
+        fine as RuntimeTile,
+        true
+      );
+      expect(observerError.required).toBe(true);
+      expect(observerError.errorRatio).toBeGreaterThan(0);
+      expect(observerError.errorRatio).toBeLessThanOrEqual(1);
+      // The fixed fine receiver needs a finer caster generation than the
+      // exhausted offscreen terminal source can supply. No work can finish it.
+      const casters = selectMeshShadowRetrieval(
+        f.root,
+        state.displayedMeshFrontier,
+        new Set(),
+        state.requestedErrorTarget,
+        (tile) => ({
+          intersects: tile === f.root || tile === f.caster,
+          errorPixels: 1,
+          receiverGeometricError: fine.geometricError,
+          receiverContentLevel: meshContentLevel(fine),
+        }),
+        (tile) => observerObjectives.demand(tile as RuntimeTile, true).required
+      );
+      expect(casters.blocked.has(f.caster)).toBe(true);
+      expect(casters.requests.size).toBe(0);
+      state.shadowReceiverMaskConverged = casters.converged;
+      expect(state.shadowView).not.toBeNull();
+      expect(state.shadowReceiverMaskConverged).toBe(false);
+      expect(dependencies.mainViewWithinErrorFactor(1)).toBe(true);
+      expect(areActiveMeshViewsConverged(state, dependencies)).toBe(true);
+
+      state.tileCameraDemand = createTileCameraDemand([
+        ...observerViews,
+        ...snapshotTileCameraViews([
           {
             id: "uncovered",
-            camera,
+            camera: new OrthographicCamera(35, 50, 20, -20, 1, 200),
             viewport: [400, 400],
             errorTargetPixels: 2,
-            role: TILE_CAMERA_ROLE.GEOMETRY,
+            role: TILE_CAMERA_ROLE.RECEIVER,
           },
         ]),
-      });
-      expect(f.runtimeState.lastMainViewConverged).toBe(true);
-      expect(f.runtimeState.lastActiveViewsConverged).toBe(false);
+      ]);
+      expect(
+        dependencies.getTileCameraDemand(missing as RuntimeTile, true).required
+      ).toBe(true);
+      expect(dependencies.mainViewWithinErrorFactor(1)).toBe(true);
+      expect(areActiveMeshViewsConverged(state, dependencies)).toBe(false);
     } finally {
       f.dispose();
     }

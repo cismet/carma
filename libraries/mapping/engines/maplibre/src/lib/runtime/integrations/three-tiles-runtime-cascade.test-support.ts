@@ -122,6 +122,7 @@ export const createPrefetchFixture = (root: RuntimeTile) => {
     shadowView: null,
     retainedShadowRequests: new Set<RuntimeTile>(),
     shadowSelectionEnabled: false,
+    shadowCasterRequests: new Set<RuntimeTile>(),
     shadowReceiverMask: null,
     map: { triggerRepaint: vi.fn(), isZooming: vi.fn(() => false) },
   };

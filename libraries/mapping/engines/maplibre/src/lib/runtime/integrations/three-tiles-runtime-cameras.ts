@@ -56,8 +56,7 @@ export const areActiveMeshViewsConverged = (
               errorPixels: demand.errorRatio,
             };
           }
-        ) &&
-        (!runtimeState.shadowView || runtimeState.shadowReceiverMaskConverged)
+        )
     : runtimeState.lastMainViewConverged;
 };
 

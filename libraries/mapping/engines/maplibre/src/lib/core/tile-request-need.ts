@@ -77,13 +77,15 @@ export const resolveTileRequestNeed = (
   if (context.zoomPrefetch && context.zooming && inView)
     return TILE_REQUEST_NEED.ZOOM;
   const cameraDemand = context.cameraDemand(tile);
-  const inActiveView = inView || cameraDemand.required;
   if (context.refinementSupport.has(tile)) return TILE_REQUEST_NEED.SUPPORT;
+  const extent =
+    context.extentFloorArmed &&
+    isExtentFloorTile(tile, context.extentGeometricError);
   if (
     context.providesTerrain &&
     isMeshCoveredByLoadedChildren(tile, context.visibleTiles)
   )
-    return retained;
+    return extent ? TILE_REQUEST_NEED.EXTENT : retained;
   let parent = tile.parent;
   while (
     parent &&
@@ -119,10 +121,21 @@ export const resolveTileRequestNeed = (
     !context.shadowSelection
   )
     return TILE_REQUEST_NEED.SHADOW;
+  const idle =
+    !context.moving &&
+    context.baseCoverageReady &&
+    (context.activeViewsConverged ?? context.mainViewConverged) &&
+    context.effectiveErrorTarget === context.requestedErrorTarget &&
+    context.memoryErrorTarget <= context.requestedErrorTarget;
+  const reserve = extent
+    ? TILE_REQUEST_NEED.EXTENT
+    : idle && (context.idleRing || context.residentAncestors.has(tile))
+    ? TILE_REQUEST_NEED.IDLE
+    : null;
   if (tile.internal.hasUnrenderableContent)
     return (!cameraDemand.required && inView) || context.inPrefetchMargin(tile)
       ? TILE_REQUEST_NEED.METADATA
-      : retained;
+      : reserve ?? retained;
   if (
     !cameraDemand.required &&
     (inView || context.inPrefetchMargin(tile)) &&
@@ -131,25 +144,11 @@ export const resolveTileRequestNeed = (
         Math.max(context.requestedErrorTarget, context.memoryErrorTarget))
   )
     return TILE_REQUEST_NEED.VIEW;
-  const idle =
-    !context.moving &&
-    context.baseCoverageReady &&
-    (context.activeViewsConverged ?? context.mainViewConverged) &&
-    context.effectiveErrorTarget === context.requestedErrorTarget &&
-    context.memoryErrorTarget <= context.requestedErrorTarget;
-  if (
-    context.extentFloorArmed &&
-    isExtentFloorTile(tile, context.extentGeometricError)
-  )
-    return TILE_REQUEST_NEED.EXTENT;
-  if (idle && (context.idleRing || context.residentAncestors.has(tile)))
-    return TILE_REQUEST_NEED.IDLE;
-  return retained;
+  return reserve ?? retained;
 };
 
 /** Recovery must admit shadow support and visible geometry requests. */
 export const isTileCoveragePrerequisite = (
   reason: ReturnType<typeof resolveTileRequestNeed>
 ): boolean =>
-  reason === TILE_REQUEST_NEED.SHADOW ||
-  reason === TILE_REQUEST_NEED.SUPPORT;
+  reason === TILE_REQUEST_NEED.SHADOW || reason === TILE_REQUEST_NEED.SUPPORT;

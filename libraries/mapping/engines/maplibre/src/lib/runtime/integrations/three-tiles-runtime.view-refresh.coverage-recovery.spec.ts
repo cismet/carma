@@ -187,6 +187,16 @@ describe("coverage recovery runtime integration", () => {
         expect(state.meshCoverageRecovery).toBe(false);
         finishMove(mounted);
         mounted.renderer.queueTileForDownload(refinement);
+        // The 40px arriving receiver must finish its own published wave before
+        // an 8px covered region refines. Recovery completion does not skip waves.
+        expect(state.effectiveErrorTarget).toBeGreaterThan(8);
+        expect(admitted).not.toContain(refinement);
+        missing.geometricError = 4;
+        missingDetail.internal.loadingState = 4;
+        missingDetail.engineData!.scene = new THREE.Group();
+        for (let frame = 0; frame < 5; frame++)
+          mounted.runtime.scene.update(mounted.frame);
+        mounted.renderer.queueTileForDownload(refinement);
         expect(admitted).toContain(refinement);
         expect(state.effectiveErrorTarget).toBe(4);
       } finally {

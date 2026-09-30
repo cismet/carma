@@ -191,49 +191,55 @@ describe("receivers runtime integration", () => {
       f.renderer.queueTileForDownload(near);
       f.renderer.queueTileForDownload(far);
       expect(f.queued).not.toHaveBeenCalled();
-      expect(f.visibleIds()).toEqual(["caster16", "far", "near"]);
+      // The coarse caster is incomplete at the displayed receiver generation.
+      expect(f.visibleIds()).toEqual(["far", "near"]);
     } finally {
       f.dispose();
     }
   });
 
-  it("admits missing sibling coverage and finer receiver caster demand independently", () => {
+  it("publishes its complete receiver family before admitting the finer caster corridor", () => {
     const f = createMeshCorridorFixture();
-    // Keep the caster outside the observer geometrically, as well as in the
-    // native fixture flag, while it remains inside the orthographic sun view.
     f.frame.lodCamera.near = 75;
     f.frame.lodCamera.updateProjectionMatrix();
     try {
       const left = f.tile("left1", -10, 0, -100, 1, true, f.receiver);
       const right = f.tile("right1", 0, 10, -100, 1, true, f.receiver);
-      const caster = f.tile("caster-final", -10, 10, -50, 0, false, f.caster);
+      const caster = f.tile(
+        "caster-final",
+        -10,
+        10,
+        -50,
+        0.01,
+        false,
+        f.caster
+      );
       f.receiver.children = [left, right];
       f.caster.children = [caster];
       f.load(left);
       f.update();
-      f.queued.mockClear();
-      f.renderer.queueTileForDownload(right);
-      f.renderer.queueTileForDownload(caster);
-      expect(f.queued.mock.calls.map(([tile]) => tile)).toEqual([
-        right,
-        caster,
-      ]);
+      expect(f.queued).toHaveBeenCalledWith(right);
+      expect(f.queued).not.toHaveBeenCalledWith(caster);
       expect(f.visibleIds()).toEqual(["caster16", "receiver16"]);
-      // Even when the native mock does not update loadingState, same-traversal
-      // admission is idempotent. Loaded payloads are never queued again.
+      const admitted = f.queued.mock.calls.length;
+      // Same-traversal admission remains idempotent even when the native mock
+      // leaves loadingState unchanged. Loaded content is never requested again.
       f.renderer.queueTileForDownload(right);
-      f.renderer.queueTileForDownload(caster);
       f.renderer.queueTileForDownload(left);
-      expect(f.queued).toHaveBeenCalledTimes(2);
+      expect(f.queued).toHaveBeenCalledTimes(admitted);
       f.load(right);
       f.update();
-      expect(f.visibleIds()).toEqual(["caster16", "left1", "right1"]);
+      expect(f.visibleIds()).toEqual(["left1", "right1"]);
+      expect(f.runtimeState.shadowCasterRequests.has(caster)).toBe(true);
+      // This fixture does not execute native traversal; admit its proven demand.
+      f.renderer.queueTileForDownload(caster);
+      expect(f.queued).toHaveBeenCalledWith(caster);
       expect(
         f.runtime.scene.isShadowRegionReady?.(f.corridor, 1, f.receiverBox)
       ).toBe(false);
-      f.queued.mockClear();
+      const requested = f.queued.mock.calls.length;
       f.renderer.queueTileForDownload(caster);
-      expect(f.queued.mock.calls.map(([tile]) => tile)).toEqual([caster]);
+      expect(f.queued).toHaveBeenCalledTimes(requested);
       f.load(caster);
       f.update();
       expect(f.visibleIds()).toEqual(["caster-final", "left1", "right1"]);

@@ -71,6 +71,7 @@ const fixture = (cameraId = TILE_MAIN_OBSERVER_ID) => {
     })),
     getTileObserverDemand: vi.fn(() => ({ intersects: true, errorPixels: 60 })),
     getTileScreenError: vi.fn(() => 60),
+    getTileRingIndex: vi.fn(() => 0),
     getRetainedMeshAncestors: () => new Set(),
     getTileRequestNeed: vi.fn(
       (): (typeof TILE_REQUEST_NEED)[keyof typeof TILE_REQUEST_NEED] =>
@@ -97,7 +98,142 @@ const fixture = (cameraId = TILE_MAIN_OBSERVER_ID) => {
 
 afterEach(() => vi.restoreAllMocks());
 
+const offscreenFloorFixture = () => {
+  const mounted = fixture();
+  mounted.state.tiles!.loadAncestors = false;
+  mounted.state.extentFloorArmed = true;
+  mounted.state.extentGeometricError = 32;
+  mounted.state.lastActiveViewsConverged = true;
+  mounted.nativeError.mockImplementation((_tile, target) =>
+    Object.assign(target, { inView: false, error: 0 })
+  );
+  mounted.dependencies.getTileCameraDemand.mockReturnValue({
+    required: false,
+    receiver: false,
+    errorRatio: 0,
+    refinementErrorRatio: 0,
+    priority: -Infinity,
+  });
+  return mounted;
+};
+
 describe("camera-local traversal admission", () => {
+  it("reaches offscreen zero-error routing while stopping below the drawable floor", () => {
+    const { state, dependencies, nativeQueue } = offscreenFloorFixture();
+    dependencies.getTileRequestNeed.mockReturnValue(TILE_REQUEST_NEED.EXTENT);
+    const root = mesh() as RuntimeTile;
+    root.geometricError = 0;
+    root.internal.hasRenderableContent = false;
+    const route = mesh(root) as RuntimeTile;
+    route.geometricError = 0;
+    route.internal.hasRenderableContent = false;
+    route.internal.hasUnrenderableContent = true;
+    route.internal.loadingState = 0;
+    root.children = [route];
+    const floor = mesh(route) as RuntimeTile;
+    floor.geometricError = 32;
+    const fine = mesh(floor) as RuntimeTile;
+    fine.geometricError = 16;
+    const deeperRoute = mesh(fine) as RuntimeTile;
+    deeperRoute.geometricError = 0;
+    deeperRoute.internal.hasRenderableContent = false;
+    deeperRoute.internal.hasUnrenderableContent = true;
+    try {
+      for (const tile of [root, route]) {
+        const target = { inView: false, error: 0, distanceFromCamera: 0 };
+        state.tiles!.calculateTileViewErrorWithPlugin(tile, target);
+        expect(target.inView).toBe(true);
+        expect(target.error).toBeGreaterThan(state.effectiveErrorTarget);
+      }
+      state.tiles!.queueTileForDownload(route);
+      expect(nativeQueue).toHaveBeenCalledWith(route);
+      nativeQueue.mockClear();
+      for (const tile of [fine, deeperRoute]) {
+        const target = { inView: false, error: 0, distanceFromCamera: 0 };
+        state.tiles!.calculateTileViewErrorWithPlugin(tile, target);
+        expect(target.inView).toBe(false);
+      }
+      expect(nativeQueue).not.toHaveBeenCalled();
+    } finally {
+      state.tiles!.dispose();
+    }
+  });
+
+  it("discovers the floor through external metadata before stopping at the next finer payload", () => {
+    const { state } = offscreenFloorFixture();
+    const parent = mesh() as RuntimeTile;
+    parent.geometricError = 64;
+    const route = mesh(parent) as RuntimeTile;
+    route.geometricError = 0;
+    route.internal.hasRenderableContent = false;
+    route.internal.hasUnrenderableContent = true;
+    route.internal.loadingState = 0;
+    parent.children = [route];
+    const floor = mesh(route) as RuntimeTile;
+    floor.geometricError = 32;
+    floor.internal.loadingState = 0;
+    const fine = mesh(floor) as RuntimeTile;
+    fine.geometricError = 16;
+    fine.internal.loadingState = 0;
+    floor.children = [fine];
+    try {
+      const parentTarget = { inView: false, error: 0, distanceFromCamera: 0 };
+      state.tiles!.calculateTileViewErrorWithPlugin(parent, parentTarget);
+      expect(parentTarget.error).toBeGreaterThan(state.effectiveErrorTarget);
+      route.internal.loadingState = 4;
+      route.children = [floor];
+      state.tiles!.calculateTileViewErrorWithPlugin(parent, parentTarget);
+      expect(parentTarget.error).toBeGreaterThan(state.effectiveErrorTarget);
+      const floorTarget = { inView: false, error: 0, distanceFromCamera: 0 };
+      state.tiles!.calculateTileViewErrorWithPlugin(floor, floorTarget);
+      expect(floorTarget.inView).toBe(true);
+      expect(floorTarget.error).toBeLessThanOrEqual(state.effectiveErrorTarget);
+    } finally {
+      state.tiles!.dispose();
+    }
+  });
+
+  it.each([0, 4])(
+    "does not treat external metadata with unknown children as a terminal floor (state=%s)",
+    (loadingState) => {
+      const { state } = offscreenFloorFixture();
+      const parent = mesh() as RuntimeTile;
+      parent.geometricError = 64;
+      const route = mesh(parent) as RuntimeTile;
+      route.geometricError = 0;
+      route.internal.hasRenderableContent = false;
+      route.internal.hasUnrenderableContent = true;
+      route.internal.loadingState = loadingState;
+      parent.children = [route];
+      try {
+        const target = { inView: false, error: 0, distanceFromCamera: 0 };
+        state.tiles!.calculateTileViewErrorWithPlugin(parent, target);
+        expect(target.error).toBeGreaterThan(state.effectiveErrorTarget);
+      } finally {
+        state.tiles!.dispose();
+      }
+    }
+  );
+
+  it("accepts known empty branches when the resident floor has no finer payload", () => {
+    const { state } = offscreenFloorFixture();
+    const parent = mesh() as RuntimeTile;
+    parent.geometricError = 64;
+    const empty = mesh(parent) as RuntimeTile;
+    empty.geometricError = 0;
+    empty.internal.hasRenderableContent = false;
+    empty.internal.hasContent = false;
+    parent.children = [empty];
+    try {
+      const target = { inView: false, error: 0, distanceFromCamera: 0 };
+      state.tiles!.calculateTileViewErrorWithPlugin(parent, target);
+      expect(target.inView).toBe(true);
+      expect(target.error).toBeLessThanOrEqual(state.effectiveErrorTarget);
+    } finally {
+      state.tiles!.dispose();
+    }
+  });
+
   it.each([
     TILE_REQUEST_NEED.CAMERA,
     TILE_REQUEST_NEED.SHADOW,

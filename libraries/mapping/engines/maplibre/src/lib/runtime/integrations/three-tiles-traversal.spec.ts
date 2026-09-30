@@ -502,6 +502,10 @@ describe("three tiles traversal (D1 deferral)", () => {
     expect(cut).not.toContain("root");
     expect(cut.length).toBeGreaterThanOrEqual(4);
     expect(state.effectiveErrorTarget).toBeLessThanOrEqual(16);
-    expect(state.meshRefinementSupport.size).toBe(0);
+    // Published family members remain owned support; support is not a pending queue.
+    for (const tile of state.meshRefinementSupport) {
+      expect(tile.internal.loadingState).toBe(4);
+      expect(tiles.lruCache.has(tile)).toBe(true);
+    }
   });
 });

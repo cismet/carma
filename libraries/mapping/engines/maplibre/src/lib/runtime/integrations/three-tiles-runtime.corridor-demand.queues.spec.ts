@@ -2,9 +2,16 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { PriorityQueue } from "3d-tiles-renderer/core";
+import { OrthographicCamera } from "three";
+import {
+  snapshotTileCameraViews,
+  TILE_CAMERA_PRIORITY,
+  TILE_CAMERA_ROLE,
+} from "../../core/tile-camera-demand";
 
 import { createMeshCorridorFixture } from "../../../../test/three-tiles-runtime-fixture";
 import { MAPLIBRE_EVENT } from "../../../constants/mapEvents";
+import type { RuntimeTile } from "./three-tiles-runtime-types";
 
 vi.hoisted(() => {
   Object.defineProperty(URL, "createObjectURL", {
@@ -13,14 +20,17 @@ vi.hoisted(() => {
   });
 });
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 describe("queues runtime integration", () => {
-  it("starts primary fill first and uses spare slots for another camera without a global barrier", async () => {
+  it("uses spare slots across covered cameras without waiting for global quality", async () => {
     vi.useFakeTimers();
     const f = createMeshCorridorFixture();
-    // The near caster is outside the observer but still in the sun camera.
-    // Native inView=false alone is not a geometric camera exclusion.
+    // Keep the second camera outside the observer near plane. Its geometry
+    // shares the native pool without becoming a shadow-screen objective.
     f.frame.lodCamera.near = 75;
     f.frame.lodCamera.updateProjectionMatrix();
     try {
@@ -32,8 +42,34 @@ describe("queues runtime integration", () => {
         )![1] as () => void;
       end();
       expect(f.runtime.scene.isBaseViewReady?.()).toBe(false);
-      const visible = f.tile("base-work", -5, 5, -100, 0, true, f.root);
-      const caster = f.tile("parked-caster", -5, 5, -50, 0, false, f.root);
+      const visible = f.tile("base-work", -5, 5, -100, 0.01, true, f.receiver);
+      const caster = f.tile(
+        "other-camera-work",
+        -5,
+        5,
+        -50,
+        0.01,
+        false,
+        f.caster
+      );
+      f.receiver.children = [visible];
+      f.caster.children = [caster];
+      const otherCamera = new OrthographicCamera(-10, 10, 10, -10, 1, 75);
+      const frame = {
+        ...f.frame,
+        tileCameraViews: snapshotTileCameraViews([
+          {
+            id: "other-camera",
+            camera: otherCamera,
+            viewport: [400, 400],
+            errorTargetPixels: 2,
+            role: TILE_CAMERA_ROLE.GEOMETRY,
+            priority: TILE_CAMERA_PRIORITY.SECONDARY,
+          },
+        ]),
+      };
+      f.runtime.scene.update(frame);
+      expect(f.runtimeState.lastActiveViewsConverged).toBe(false);
       const started: string[] = [];
       const baseJob = vi.fn(() => {
         started.push("base");
@@ -57,10 +93,20 @@ describe("queues runtime integration", () => {
         queue.tryRunJobs();
       expect(baseJob).toHaveBeenCalledOnce();
       expect(casterJob).toHaveBeenCalledOnce();
-      expect(started).toEqual(["base", "caster"]);
+      // Both regions already have coarse geometry. Refinement order follows
+      // camera error and footprint benefit; it does not impose a fill barrier.
+      expect(new Set(started)).toEqual(new Set(["base", "caster"]));
+      expect(Number.isFinite((visible as RuntimeTile).cameraPriority)).toBe(
+        true
+      );
+      expect(Number.isFinite((caster as RuntimeTile).cameraPriority)).toBe(
+        true
+      );
       expect(f.runtimeState.meshCoverageRecovery).toBe(false);
       expect(await base).toBe("base");
-      f.update();
+      f.load(visible);
+      f.load(caster);
+      f.runtime.scene.update(frame);
       expect(f.runtime.scene.isBaseViewReady?.()).toBe(true);
       await vi.advanceTimersByTimeAsync(50);
       expect(await parked).toBe("caster");
@@ -73,6 +119,15 @@ describe("queues runtime integration", () => {
 
   it("discovers metadata while payload download and parse queues are paused", async () => {
     vi.useFakeTimers();
+    // The native Scheduler uses rAF; make its asynchronous ownership explicit
+    // so advancing fake timers also advances metadata download admission.
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) =>
+      setTimeout(() => callback(performance.now()), 0)
+    );
+    vi.stubGlobal(
+      "cancelAnimationFrame",
+      (handle: ReturnType<typeof setTimeout>) => clearTimeout(handle)
+    );
     const f = createMeshCorridorFixture();
     const metadata = f.tile("external", -10, 10, -100, 16, true, f.root);
     metadata.internal.hasUnrenderableContent = true;

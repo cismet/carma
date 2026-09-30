@@ -17,6 +17,7 @@ import {
   isExtentFloorTile,
 } from "../../core/mesh-error-policy";
 import { TILES_LOAD_POLICY } from "../../core/tile-load-config";
+import { createMeshFamilyCoverage } from "../../core/mesh-family-coverage";
 import {
   createMeshRegionCutQuery,
   isLoadedMesh,
@@ -69,6 +70,41 @@ export function installThreeTilesTraversalHooks(
     | ReturnType<typeof createMeshRegionCutQuery>
     | undefined;
   let publishedAncestors: Set<Tile> | undefined;
+  let floorFamilyCoverage:
+    | ReturnType<typeof createMeshFamilyCoverage>
+    | undefined;
+  const isFloorLeaf = (tile: Tile, extentError: number): boolean => {
+    floorFamilyCoverage ??= createMeshFamilyCoverage();
+    const family = floorFamilyCoverage(tile);
+    if (family.unpreparedParents.size > 0) return false;
+    const supportedBranches = new Set<Tile>();
+    for (const member of family.support) {
+      let current: Tile | null = member;
+      while (current && current !== tile) {
+        if (
+          !current.internal ||
+          (current.internal.hasUnrenderableContent &&
+            (current.internal.loadingState !== LOADED_LOADING_STATE ||
+              !current.children?.length)) ||
+          (current.internal.hasRenderableContent &&
+            !isMeshTileUnconditionallyRefined(current) &&
+            isExtentFloorTile(current, extentError))
+        )
+          return false;
+        if (current.parent === tile) supportedBranches.add(current);
+        current = current.parent;
+      }
+    }
+    readyFamilyRegion ??= createMeshRegionCutQuery(
+      { has: isLoadedMesh },
+      Number.MAX_VALUE,
+      () => ({ intersects: true, errorPixels: 0 })
+    );
+    return (tile.children ?? []).every(
+      (child) =>
+        supportedBranches.has(child) || readyFamilyRegion!(child)?.length === 0
+    );
+  };
   const retainsPublishedChildren = (tile: Tile): boolean => {
     if (!publishedAncestors) {
       publishedAncestors = new Set();
@@ -102,6 +138,7 @@ export function installThreeTilesTraversalHooks(
   );
   runtimeState.tiles.prepareForTraversal = () => {
     readyFamilyRegion = undefined;
+    floorFamilyCoverage = undefined;
     publishedAncestors = undefined;
     prepareForTraversal();
     // Native update clears last frame's used pins before this preparation.
@@ -243,11 +280,7 @@ export function installThreeTilesTraversalHooks(
     const floorLeaf =
       floorLevel &&
       tile.internal.hasRenderableContent &&
-      (tile.children ?? []).every(
-        (child) =>
-          child.geometricError < extentError ||
-          child.internal?.hasRenderableContent === false
-      );
+      isFloorLeaf(tile, extentError);
     const floorLoaded = tile.internal.loadingState === LOADED_LOADING_STATE;
     // The renderer marks only active leaves used in the LRU; a loaded floor
     // tile the traversal passes through would be an eviction candidate.

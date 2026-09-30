@@ -7,7 +7,6 @@ import {
   snapshotTileCameraViews,
   TILE_CAMERA_ROLE,
   TILE_MAIN_OBSERVER_ID,
-  TILE_SHADOW_CAMERA_ID,
 } from "../../core/tile-camera-demand";
 import type { RuntimeTile } from "./three-tiles-runtime-types";
 import type { ThreeTilesRuntimeState } from "./three-tiles-runtime-context";
@@ -123,33 +122,6 @@ describe("mesh camera objectives", () => {
     }
   });
 
-  it("holds a first main receiver while its committed sun camera wants refinement", () => {
-    const f = fixture();
-    f.state.tileCameraDemand = createTileCameraDemand(
-      snapshotTileCameraViews([
-        f.views[0],
-        {
-          ...f.views[0],
-          id: TILE_SHADOW_CAMERA_ID,
-          viewport: [2000, 2000],
-          role: TILE_CAMERA_ROLE.GEOMETRY,
-        },
-      ])
-    );
-    f.state.shadowReceiverMask = {
-      match: () => true,
-    } as unknown as NonNullable<ThreeTilesRuntimeState["shadowReceiverMask"]>;
-    const coarse = f.tile(20);
-    f.state.committedMeshCasterFrontier.add(coarse);
-    const held = f.objective.demand(coarse, true);
-    expect(held.errorRatio).toBe(1000);
-    expect(held.refinementErrorRatio).toBe(1);
-    f.state.displayedMeshFrontier = new Set([coarse]);
-    const published = f.objective.demand(coarse, true);
-    expect(published.errorRatio).toBe(held.errorRatio);
-    expect(published.refinementErrorRatio).toBeGreaterThan(1);
-  });
-
   it("does not let missing prefetch coverage stop active-camera refinement", () => {
     const f = fixture();
     f.state.tileCameraDemand = createTileCameraDemand(
@@ -241,43 +213,21 @@ describe("mesh camera objectives", () => {
     expect(evaluations).toHaveBeenCalledTimes(2);
   });
 
-  it("reuses exact projection through rescoring and content arrivals while applying live sun masks", () => {
+  it("reuses exact projection through rescoring and content arrivals", () => {
     const f = fixture();
-    f.state.tileCameraDemand = createTileCameraDemand(
-      snapshotTileCameraViews([
-        f.views[0],
-        {
-          ...f.views[0],
-          id: TILE_SHADOW_CAMERA_ID,
-          role: TILE_CAMERA_ROLE.GEOMETRY,
-        },
-      ])
-    );
-    f.state.shadowReceiverMask = {
-      match: () => true,
-    } as unknown as NonNullable<ThreeTilesRuntimeState["shadowReceiverMask"]>;
     const parent = f.tile(2);
     const child = f.tile(1, parent);
     f.state.displayedMeshFrontier.add(parent);
-    f.state.committedMeshCasterFrontier.add(parent);
+    f.state.tiles!.visibleTiles.add(parent);
     const evaluations = vi.spyOn(f.state.tileCameraDemand, "evaluate");
     const boundsReads = vi.spyOn(child.engineData!.boundingVolume!, "getAABB");
-    const maskMatches = vi.spyOn(f.state.shadowReceiverMask!, "match");
     expect(f.objective.objective(child).benefit).toBeCloseTo(5);
     f.objective.reset();
     expect(f.objective.objective(child).benefit).toBeCloseTo(5);
     expect(boundsReads).toHaveBeenCalledTimes(1);
-    expect(maskMatches).toHaveBeenCalledTimes(1);
     f.state.meshContentRevision++;
     expect(f.objective.objective(child).benefit).toBeCloseTo(5);
     expect(boundsReads).toHaveBeenCalledTimes(2);
-    expect(maskMatches).toHaveBeenCalledTimes(2);
-    // Mask membership changes without a new camera: projection can be reused,
-    // but the removed caster contribution must disappear immediately.
-    f.state.shadowReceiverMask = {
-      match: () => false,
-    } as unknown as NonNullable<ThreeTilesRuntimeState["shadowReceiverMask"]>;
-    expect(f.objective.objective(child).benefit).toBeCloseTo(2.5);
     expect(evaluations).toHaveBeenCalledTimes(1);
     child.engineData!.boundingVolume!.getAABB = (out: Box3) =>
       out.set(new Vector3(100, 0, -20), new Vector3(101, 1, -19));
@@ -411,64 +361,24 @@ describe("mesh camera objectives", () => {
     expect(f.objective.objective(parent).priority).toBe(-Infinity);
   });
 
-  it("prunes sun-only bounds which cannot cast onto current receivers", () => {
+  it("uses the published observer fallback and normalizes footprint by viewport area", () => {
     const f = fixture();
     f.state.tileCameraDemand = createTileCameraDemand(
-      snapshotTileCameraViews([
-        {
-          ...f.views[0],
-          id: TILE_SHADOW_CAMERA_ID,
-          role: TILE_CAMERA_ROLE.GEOMETRY,
-        },
-      ])
+      snapshotTileCameraViews([f.views[0]])
     );
-    const child = f.tile(1);
-    expect(f.objective.demand(child, true).required).toBe(false);
-    expect(f.objective.objective(child).priority).toBe(-Infinity);
-    f.state.shadowReceiverMask = {
-      match: () => true,
-    } as unknown as NonNullable<ThreeTilesRuntimeState["shadowReceiverMask"]>;
-    expect(f.objective.demand(child, true).required).toBe(true);
-    f.state.shadowReceiverMask = {
-      match: () => false,
-    } as unknown as NonNullable<ThreeTilesRuntimeState["shadowReceiverMask"]>;
-    expect(f.objective.demand(child, true).required).toBe(false);
-    expect(f.objective.objective(child).priority).toBe(-Infinity);
-  });
-
-  it("uses a drawable sun fallback and ignores camera resolution in footprint weight", () => {
-    const f = fixture();
-    f.state.tileCameraDemand = createTileCameraDemand(
-      snapshotTileCameraViews([
-        {
-          ...f.views[0],
-          id: TILE_SHADOW_CAMERA_ID,
-          role: TILE_CAMERA_ROLE.GEOMETRY,
-        },
-      ])
-    );
-    f.state.shadowReceiverMask = {
-      match: () => true,
-    } as unknown as NonNullable<ThreeTilesRuntimeState["shadowReceiverMask"]>;
     const parent = f.tile(2);
     const child = f.tile(1, parent);
-    f.state.committedMeshCasterFrontier.add(parent);
-    const sun = f.objective.objective(child);
-    expect(sun.priority).toBe(1);
-    expect(sun.visibleAreaFraction).toBeCloseTo(0.25);
-    expect(sun.benefit).toBeCloseTo(2.5);
+    f.state.displayedMeshFrontier.add(parent);
+    f.state.tiles!.visibleTiles.add(parent);
+    const observer = f.objective.objective(child);
+    expect(observer.priority).toBe(1);
+    expect(observer.visibleAreaFraction).toBeCloseTo(0.25);
+    expect(observer.benefit).toBeCloseTo(2.5);
     f.state.tileCameraDemand = createTileCameraDemand(
-      snapshotTileCameraViews([
-        {
-          ...f.views[0],
-          id: TILE_SHADOW_CAMERA_ID,
-          viewport: [400, 400],
-          role: TILE_CAMERA_ROLE.GEOMETRY,
-        },
-      ])
+      snapshotTileCameraViews([{ ...f.views[0], viewport: [400, 400] }])
     );
     expect(f.objective.objective(child).visibleAreaFraction).toBeCloseTo(
-      sun.visibleAreaFraction
+      observer.visibleAreaFraction
     );
   });
 });

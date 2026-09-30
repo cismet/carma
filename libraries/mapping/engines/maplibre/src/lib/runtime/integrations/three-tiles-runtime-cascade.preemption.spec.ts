@@ -134,7 +134,7 @@ describe("preemption runtime integration", () => {
   });
 
   it.each([false, true])(
-    "preempts independent same-origin refinements and protects shadow families (shadows=%s)",
+    "preempts independent same-origin refinements and protects replacement families (shadows=%s)",
     (shadowsActive) => {
       const fixture = createPrefetchFixture(tile());
       const state = fixture.state as unknown as Parameters<
@@ -199,7 +199,7 @@ describe("preemption runtime integration", () => {
       cascade.abortStaleDownloads();
       expect(
         fixture.tiles.lruCache.remove.mock.calls.map(([entry]) => entry)
-      ).toEqual(shadowsActive ? [] : [active]);
+      ).toEqual([]);
       fixture.tiles.lruCache.remove.mockClear();
       active.internal.loadingState = LOADING_LOADING_STATE;
       waiting.meshRefinement = { ...waiting.meshRefinement, group: waiting };

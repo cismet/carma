@@ -41,18 +41,19 @@ describe("mesh receiver and sunward caster publication", () => {
   it("does not declare a partial loaded viewport complete", () => {
     const f = createMeshCorridorFixture();
     try {
-      const missing = f.tile("missing", 12, 22, -100, 1, true, f.root);
+      f.receiver.geometricError = 0.01;
+      const missing = f.tile("missing", 12, 22, -100, 0.01, true, f.root);
       f.root.children.push(missing);
       f.update();
       expect(f.renderer.visibleTiles.has(f.receiver)).toBe(true);
       expect(f.runtime.scene.isMainViewReady()).toBe(false);
-      // Final-quality requests proceed independently of this incomplete view.
-      // Readiness above must still reject the missing branch.
-      expect(f.renderer.errorTarget).toBe(1);
+      expect(f.runtimeState.requestedErrorTarget).toBe(1);
+      expect(f.renderer.errorTarget).toBeGreaterThanOrEqual(1);
       f.load(missing);
       f.update();
       expect(f.renderer.visibleTiles.has(missing)).toBe(true);
       expect(f.runtime.scene.isMainViewReady()).toBe(true);
+      for (let frame = 0; frame < 6; frame++) f.update();
       expect(f.renderer.errorTarget).toBe(1);
     } finally {
       f.dispose();
@@ -99,7 +100,7 @@ describe("mesh receiver and sunward caster publication", () => {
         -10,
         10,
         -100,
-        0.25,
+        0.01,
         true,
         f.receiver
       );
@@ -145,7 +146,7 @@ describe("mesh receiver and sunward caster publication", () => {
     }
   );
 
-  it("advances receiver and offscreen caster families through their own staged targets", () => {
+  it("advances complete receiver families before requesting their matching caster generation", () => {
     const f = createMeshCorridorFixture();
     f.frame.lodCamera.near = 75;
     f.frame.lodCamera.updateProjectionMatrix();
@@ -154,8 +155,6 @@ describe("mesh receiver and sunward caster publication", () => {
       const left = f.tile("left8", -10, 0, -100, 8, true, f.receiver);
       const right = f.tile("right8", 0, 10, -100, 8, true, f.receiver);
       f.receiver.children = [left, right];
-      const grandchild = f.tile("grandchild", -10, -5, -100, 1, true, left);
-      left.children = [grandchild];
       const fineCaster = f.tile(
         "fine-caster",
         -10,
@@ -167,27 +166,11 @@ describe("mesh receiver and sunward caster publication", () => {
       );
       f.caster.children = [fineCaster];
       f.caster.geometricError = 128;
-      f.setTileError(f.caster, 128);
       f.update();
-      const target = {
-        inView: false,
-        error: Infinity,
-        distanceFromCamera: 100,
-      };
-      f.renderer.calculateTileViewErrorWithPlugin(left, target);
-      expect(target.error).toBeLessThanOrEqual(f.renderer.errorTarget);
-      f.renderer.calculateTileViewErrorWithPlugin(fineCaster, target);
-      expect(target.error).toBeLessThanOrEqual(f.renderer.errorTarget);
-      f.renderer.queueTileForDownload(fineCaster);
-      expect(f.queued).toHaveBeenCalledWith(fineCaster);
       expect(f.queued).toHaveBeenCalledWith(left);
       expect(f.queued).toHaveBeenCalledWith(right);
-      f.load(fineCaster);
-      f.update();
-      expect(f.visibleIds()).toContain("fine-caster");
-      expect(f.visibleIds()).not.toContain("caster16");
-      f.renderer.calculateTileViewErrorWithPlugin(fineCaster, target);
-      expect(target.error).toBeGreaterThan(f.renderer.errorTarget);
+      expect(f.queued).not.toHaveBeenCalledWith(fineCaster);
+      expect(f.visibleIds()).toContain("receiver16");
       f.load(left);
       f.update();
       expect(f.visibleIds()).toContain("receiver16");
@@ -196,6 +179,14 @@ describe("mesh receiver and sunward caster publication", () => {
       expect(f.visibleIds()).toContain("left8");
       expect(f.visibleIds()).toContain("right8");
       expect(f.visibleIds()).not.toContain("receiver16");
+      expect(f.visibleIds()).not.toContain("caster16");
+      expect(f.runtimeState.shadowCasterRequests.has(fineCaster)).toBe(true);
+      // This fixture does not execute native traversal; admit its proven demand.
+      f.renderer.queueTileForDownload(fineCaster);
+      expect(f.queued).toHaveBeenCalledWith(fineCaster);
+      f.load(fineCaster);
+      f.update();
+      expect(f.visibleIds()).toContain("fine-caster");
     } finally {
       f.dispose();
     }

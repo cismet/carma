@@ -123,9 +123,9 @@ describe("reserve runtime integration", () => {
     mounted.camera.position.x = 1;
     mounted.camera.updateMatrixWorld(true);
     mounted.runtime.scene.update(mounted.frame);
-    // First observer idle releases final quality and arms background reserve.
-    mounted.runtime.scene.update(mounted.frame);
-    mounted.runtime.scene.update(mounted.frame);
+    // Each ready published error wave halves the target independently of reserve.
+    for (let frame = 0; frame < 6; frame++)
+      mounted.runtime.scene.update(mounted.frame);
     expect(mounted.runtime.loading.getCoverageStatus()).toMatchObject({
       floorArmed: true,
       effectiveErrorTarget: 1,
@@ -178,8 +178,8 @@ describe("reserve runtime integration", () => {
       mounted.runtime.scene.update(mounted.frame);
       expect(mounted.runtime.loading.getCoverageStatus()).toMatchObject({
         floorArmed: false,
-        // A ready base cut releases final quality in this same frame.
-        effectiveErrorTarget: floorArmed ? 4 : 64,
+        // Initial coverage releases the next error wave, not final quality.
+        effectiveErrorTarget: floorArmed ? 32 : 64,
       });
       mounted.runtime.scene.update(mounted.frame);
       // The completed visible cut releases normal mode; the requested next
@@ -229,6 +229,9 @@ describe("reserve runtime integration", () => {
     mounted.runtime.scene.update(mounted.frame);
     expect(tile.internal.loadingState).toBe(0);
     expect(state.deferred.size).toBe(0);
+    expect(state.effectiveErrorTarget).toBe(8);
+    for (let frame = 0; frame < 3; frame++)
+      mounted.runtime.scene.update(mounted.frame);
     expect(state.effectiveErrorTarget).toBe(1);
     mounted.runtime.scene.dispose();
   });

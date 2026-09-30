@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { mesh } from "./mesh-tile-test-fixtures";
+import { mesh, quartet } from "./mesh-tile-test-fixtures";
 import {
   resolveTileRequestNeed,
   TILE_REQUEST_NEED,
@@ -57,6 +57,47 @@ describe("resolveTileRequestNeed", () => {
         context({ coverageRecovery: true, coverageNeeded: () => true })
       )
     ).toBe(TILE_REQUEST_NEED.COVERAGE);
+  });
+
+  it("owns offscreen zero-error floor routes while releasing metadata below finer payloads", () => {
+    const route = mesh();
+    route.geometricError = 0;
+    route.internal.hasRenderableContent = false;
+    route.internal.hasUnrenderableContent = true;
+    const input = context({ extentFloorArmed: true });
+    expect(resolveTileRequestNeed(route, input)).toBe(TILE_REQUEST_NEED.EXTENT);
+    const floor = mesh();
+    floor.geometricError = 40;
+    route.parent = floor;
+    expect(resolveTileRequestNeed(route, input)).toBe(TILE_REQUEST_NEED.EXTENT);
+    expect(
+      resolveTileRequestNeed(route, { ...input, inMainView: () => true })
+    ).toBe(TILE_REQUEST_NEED.METADATA);
+    expect(
+      resolveTileRequestNeed(floor, { ...input, inMainView: () => true })
+    ).toBe(TILE_REQUEST_NEED.VIEW);
+    const fine = mesh(floor);
+    fine.geometricError = 20;
+    route.parent = fine;
+    expect(resolveTileRequestNeed(route, input)).toBeNull();
+    expect(resolveTileRequestNeed(fine, input)).toBeNull();
+  });
+
+  it("keeps metadata for an admitted idle ring without retaining unrelated offscreen routes", () => {
+    const fine = mesh();
+    fine.geometricError = 20;
+    const route = mesh(fine);
+    route.geometricError = 0;
+    route.internal.hasRenderableContent = false;
+    route.internal.hasUnrenderableContent = true;
+    const input = context({ extentFloorArmed: true });
+    expect(resolveTileRequestNeed(route, { ...input, idleRing: true })).toBe(
+      TILE_REQUEST_NEED.IDLE
+    );
+    expect(resolveTileRequestNeed(route, input)).toBeNull();
+    expect(
+      resolveTileRequestNeed(route, { ...input, idleRing: true, moving: true })
+    ).toBeNull();
   });
 
   it("keeps earlier sun work without overriding current request ownership", () => {
@@ -145,6 +186,29 @@ describe("resolveTileRequestNeed", () => {
     expect(resolveTileRequestNeed(support, input)).toBe(
       TILE_REQUEST_NEED.SUPPORT
     );
+  });
+
+  it("fills missing floor residency behind published finer coverage without requesting optional ancestors", () => {
+    const { parent, children } = quartet();
+    parent.geometricError = 40;
+    parent.internal.loadingState = 0;
+    for (const child of children) child.geometricError = 20;
+    const input = context({
+      extentFloorArmed: true,
+      visibleTiles: new Set(children),
+      inMainView: () => true,
+      cameraDemand: () => ({ required: true, errorRatio: 0 }),
+      residentAncestors: new Set([parent]),
+      idleRing: true,
+    });
+    expect(resolveTileRequestNeed(parent, input)).toBe(
+      TILE_REQUEST_NEED.EXTENT
+    );
+    expect(
+      resolveTileRequestNeed(parent, { ...input, extentFloorArmed: false })
+    ).toBeNull();
+    parent.geometricError = 20;
+    expect(resolveTileRequestNeed(parent, input)).toBeNull();
   });
 
   it("retains useful extent requests while admission waits for active cameras", () => {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { TILES_LOAD_POLICY } from "./tile-load-config";
+import { mesh } from "./mesh-tile-test-fixtures";
 import {
   idleRingAllowedError,
   initialMeshLoadError,
@@ -110,6 +111,30 @@ describe("extent floor", () => {
     expect(isExtentFloorTile({ geometricError: 100 }, 42)).toBe(true);
     expect(isExtentFloorTile({ geometricError: 20 }, 42)).toBe(false);
     expect(isExtentFloorTile({ geometricError: 20 }, Infinity)).toBe(false);
+  });
+
+  it("reaches the resident level through zero-error routing without owning finer branches", () => {
+    const root = mesh();
+    root.geometricError = 0;
+    root.internal.hasRenderableContent = false;
+    const route = mesh(root);
+    route.geometricError = 0;
+    route.internal.hasRenderableContent = false;
+    route.internal.hasUnrenderableContent = true;
+    const floor = mesh(route);
+    floor.geometricError = 42;
+    const fine = mesh(floor);
+    fine.geometricError = 20;
+    const deeperRoute = mesh(fine);
+    deeperRoute.geometricError = 100;
+    deeperRoute.internal.hasRenderableContent = false;
+    deeperRoute.internal.hasUnrenderableContent = true;
+
+    for (const tile of [root, route, floor])
+      expect(isExtentFloorTile(tile, 42)).toBe(true);
+    for (const tile of [fine, deeperRoute])
+      expect(isExtentFloorTile(tile, 42)).toBe(false);
+    expect(isExtentFloorTile(route, Infinity)).toBe(false);
   });
 });
 

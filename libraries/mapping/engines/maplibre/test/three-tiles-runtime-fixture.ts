@@ -109,6 +109,7 @@ export const createMeshCorridorFixture = (
         hasRenderableContent: true,
         loadingState: 0,
         basePath: "https://example.test/mesh",
+        renderer,
         depth: parent ? parent.internal.depth + 1 : 0,
       },
       traversal: { error, inFrustum: inView, distanceFromCamera: 100 },

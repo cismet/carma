@@ -129,11 +129,35 @@ export const tilesetMinResolutionGeometricError = (
     ? (baseErrorTargetPixels * rootLongestAxisMeters) / tilesetMinResolutionPx
     : 0;
 
-/** At or above the level the whole extent stays resident at. */
+type ExtentFloorTile = {
+  geometricError: number;
+  internal?: {
+    hasRenderableContent: boolean;
+    hasUnrenderableContent?: boolean;
+  };
+  parent?: ExtentFloorTile | null;
+};
+
+/** Resident payload levels and their structural navigation paths. */
 export const isExtentFloorTile = (
-  tile: { geometricError: number },
+  tile: ExtentFloorTile,
   extentGeometricError: number
-): boolean => tile.geometricError >= extentGeometricError;
+): boolean => {
+  if (!Number.isFinite(extentGeometricError))
+    return tile.geometricError >= extentGeometricError;
+  let current = tile;
+  while (
+    current.internal &&
+    (!current.internal.hasRenderableContent ||
+      current.internal.hasUnrenderableContent)
+  ) {
+    // Routing error is not a drawable level. Stop inheritance at the nearest
+    // payload so a finer branch cannot acquire a global metadata owner.
+    if (!current.parent) return true;
+    current = current.parent;
+  }
+  return current.geometricError >= extentGeometricError;
+};
 
 /**
  * Screen-space error a tile in ring k (1 = innermost) may stop at, with the
