@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faClock } from "@fortawesome/free-solid-svg-icons";
 import { Tooltip } from "antd";
@@ -15,6 +15,7 @@ import {
 } from "../../lib/caged-addons";
 import type { AddonComponentProps } from "../../lib/registry";
 import { placeAtSlot, useStyleSlot } from "../../lib/style-slot";
+import { getSharedFrameCache } from "./frame-fetch";
 import { createSnapLayer, type SnapLayerHandle } from "./snap-layer";
 import {
   useTimeSeriesLauncher,
@@ -61,6 +62,13 @@ export type TimeSliderConfig = Partial<TimeSeriesDefinition> & {
   snapPlayIntervalMs?: number;
   /** whether a config-declared series goes on the map at mount. Default: true */
   startEnabled?: boolean;
+  /**
+   * Load the crossfade's frames from the browser's http cache whatever its
+   * age, see `frame-fetch.ts`. Set by the host for a map opened with
+   * `cache=forced`; not part of the series, so it does not travel with scenes.
+   * Default: false
+   */
+  cacheFrames?: boolean;
   /**
    * Whether the control column gets a button toggling the series. Default:
    * false; the layer-bar row is the addon's face, the button is opt-in.
@@ -109,6 +117,7 @@ export const TimeSlider = ({
     playIntervalMs = DEFAULT_PLAY_INTERVAL_MS,
     snapPlayIntervalMs,
     startEnabled = true,
+    cacheFrames = false,
     showControl = false,
     controlPosition = DEFAULT_CONTROL_POSITION,
     controlOrder = DEFAULT_CONTROL_ORDER,
@@ -155,6 +164,12 @@ export const TimeSlider = ({
   const blendShownRef = useRef(false);
   /** step whose tiles have to be up before the canvas may hand over */
   const pendingRestStepRef = useRef<number | null>(null);
+
+  /**
+   * Frames of the current viewport the crossfade gave up on. They never
+   * arrive, so the clock must not wait for them, see `framesSettled`.
+   */
+  const [failedFrames, setFailedFrames] = useState(0);
 
   // read where the slider stands without making the mount effect depend on it,
   // which would tear the layer down and rebuild it on every scrub
@@ -259,13 +274,19 @@ export const TimeSlider = ({
         styles,
         intermediateValuesCount,
         opacity: opacityRef.current,
+        fetchFrame: cacheFrames ? getSharedFrameCache() : undefined,
         onFrameLoaded: (count) => {
           if (!disposed) setLoaded(count);
         },
         // a pan drops every cached frame, and the load line runs while they
         // come back; the tiles keep the map filled in the meantime
         onFramesReset: () => {
-          if (!disposed) setLoaded(0);
+          if (disposed) return;
+          setLoaded(0);
+          setFailedFrames(0);
+        },
+        onError: () => {
+          if (!disposed) setFailedFrames((count) => count + 1);
         },
       });
       blendRef.current.setPosition(valueRef.current);
@@ -276,6 +297,7 @@ export const TimeSlider = ({
 
     return () => {
       disposed = true;
+      setFailedFrames(0);
       blendShownRef.current = false;
       pendingRestStepRef.current = null;
       blendRef.current?.destroy();
@@ -294,6 +316,7 @@ export const TimeSlider = ({
     intermediateValuesCount,
     setLoaded,
     createBlendLayer,
+    cacheFrames,
     // the array identity changes exactly when the launcher writes a new series
     layers,
   ]);
@@ -363,6 +386,15 @@ export const TimeSlider = ({
    */
   const cacheComplete = layers.length > 0 && loaded === layers.length;
   const needsBlend = isPlaying || value % stepsPerUnit !== 0;
+  /**
+   * Whether every frame of the crossfade has come back, loaded or failed. The
+   * clock holds until then, on the step it stands on: played on the tiles
+   * instead, every step is a fresh load and shows as a hard cut whenever its
+   * tiles land. A failed frame is not waited for, since it never comes; the
+   * series then plays on the tiles, as it does without cage.
+   */
+  const framesSettled =
+    !isBlending || (loaded ?? 0) + failedFrames >= layers.length;
 
   useEffect(() => {
     const blend = blendRef.current;
@@ -395,7 +427,9 @@ export const TimeSlider = ({
   }, [needsBlend, cacheComplete, value, stepsPerUnit]);
 
   useEffect(() => {
-    if (!isPlaying || !isOn || isHidden || max <= 0) return undefined;
+    if (!isPlaying || !isOn || isHidden || max <= 0 || !framesSettled) {
+      return undefined;
+    }
     // sub-steps with cage, whole steps without: the interval grows by the same
     // factor as the unit
     const unitIntervalMs = isBlending
@@ -416,6 +450,7 @@ export const TimeSlider = ({
     isOn,
     isHidden,
     max,
+    framesSettled,
     isBlending,
     playIntervalMs,
     snapPlayIntervalMs,

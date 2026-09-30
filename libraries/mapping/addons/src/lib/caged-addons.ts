@@ -62,6 +62,11 @@ export type BlendLayerOptions = {
   viewportBuffer?: number;
   beforeId?: string;
   id?: string;
+  /**
+   * How a frame's image is loaded; a plain `fetch` per frame when left out. A
+   * cage from before this option ignores it and fetches as before.
+   */
+  fetchFrame?: (url: string) => Promise<Blob>;
   onFrameLoaded?: (loaded: number, total: number) => void;
   /**
    * Every cached frame was dropped and the series is being fetched again, which

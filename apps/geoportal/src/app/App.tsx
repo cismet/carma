@@ -69,6 +69,7 @@ import { useSyncToken } from "./hooks/useSyncToken";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useLayerLaunchedAddons } from "./hooks/useLayerLaunchedAddons";
 import { withFlowFieldRasterCache } from "./helper/flow-field-raster-cache";
+import { withTimeSliderFrameCache } from "./helper/time-slider-frame-cache";
 import { useMeasurementLayerButton } from "./hooks/useMeasurementLayerButton";
 import { useShadowSimulationLayerButton } from "./hooks/useShadowSimulationLayerButton";
 import { useModelCollectionLayerButton } from "./hooks/useModelCollectionLayerButton";
@@ -246,11 +247,13 @@ function App({
   // route's and the defaults' place for that kind
   const routeAddons = useLayerLaunchedAddons(addons);
   // `cache=forced`, read once like the map reads it when it is created
-  const cacheFlowFieldRasters = useMemo(() => isHttpCacheForced(), []);
+  const httpCacheForced = useMemo(() => isHttpCacheForced(), []);
   const mergedAddons = useMemo(() => {
     const all = withDefaultAddons(routeAddons);
-    return cacheFlowFieldRasters ? withFlowFieldRasterCache(all) : all;
-  }, [routeAddons, cacheFlowFieldRasters]);
+    return httpCacheForced
+      ? withTimeSliderFrameCache(withFlowFieldRasterCache(all))
+      : all;
+  }, [routeAddons, httpCacheForced]);
 
   const { initialMapFramework } = geoportalInitialHashState;
 
