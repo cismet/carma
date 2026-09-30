@@ -2,7 +2,9 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
+  type MouseEvent,
   type ReactNode,
 } from "react";
 
@@ -35,7 +37,6 @@ import { loadShow } from "./show-cache";
 import { nextAutoplayScene, useAutoplay } from "./useAutoplay";
 import { useDisplay, type Connection } from "./useDisplay";
 import { usePointer } from "./usePointer";
-import { useTapOrLongPress } from "./useTapOrLongPress";
 import { useWakeLock } from "./useWakeLock";
 
 type ShowLoad =
@@ -62,6 +63,54 @@ const CONNECTION_DOT: Record<Connection, string> = {
 
 const isTyping = (target: EventTarget | null): boolean =>
   target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement;
+
+const LONG_PRESS_MS = 500;
+
+/**
+ * A tap and a long press on the same element. The long press swallows the
+ * click the browser sends when the finger lifts.
+ */
+const useTapOrLongPress = (onTap: () => void, onLongPress: () => void) => {
+  const timerRef = useRef<number | null>(null);
+  const firedRef = useRef(false);
+  const cancel = () => {
+    if (timerRef.current !== null) {
+      window.clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  };
+  useEffect(
+    () => () => {
+      if (timerRef.current !== null) {
+        window.clearTimeout(timerRef.current);
+      }
+    },
+    []
+  );
+  return {
+    onPointerDown: () => {
+      firedRef.current = false;
+      cancel();
+      timerRef.current = window.setTimeout(() => {
+        timerRef.current = null;
+        firedRef.current = true;
+        onLongPress();
+      }, LONG_PRESS_MS);
+    },
+    onPointerUp: cancel,
+    onPointerLeave: cancel,
+    onPointerCancel: cancel,
+    // the long press would otherwise open the phone's own menu
+    onContextMenu: (event: MouseEvent) => event.preventDefault(),
+    onClick: () => {
+      if (firedRef.current) {
+        firedRef.current = false;
+        return;
+      }
+      onTap();
+    },
+  };
+};
 
 const Sheet = ({
   title,
