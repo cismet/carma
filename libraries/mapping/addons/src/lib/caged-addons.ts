@@ -187,8 +187,11 @@ export const FLOW_FIELD_OPTION_DEFAULTS = {
  */
 export type FlowLayerOptions = {
   map: MapLibreMap;
-  /** rasterfari base, e.g. `https://rain-rasterfari-wuppertal.cismet.de` */
-  service: string;
+  /**
+   * rasterfari base, e.g. `https://rain-rasterfari-wuppertal.cismet.de`. Left
+   * out, only `preload` is drawn and nothing is fetched per view.
+   */
+  service?: string;
   /** scenario folder, the rain hazard map config's `animation` value */
   scenario: string;
   layerPostfix?: string;

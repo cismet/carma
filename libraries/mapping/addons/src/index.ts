@@ -167,6 +167,7 @@ export {
   useFlowFieldActions,
   useFlowFieldLauncher,
   useFlowFieldLayerRow,
+  hasFlowFieldSource,
   FLOW_FIELD_LAYER,
   FLOW_FIELD_LAYER_ID,
   FLOW_FIELD_STATUS_ID,

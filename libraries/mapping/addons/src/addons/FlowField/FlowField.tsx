@@ -26,6 +26,7 @@ import {
 } from "./flow-slot-layer";
 import { getSharedRasterCache } from "./raster-cache";
 import {
+  hasFlowFieldSource,
   useFlowFieldActions,
   useFlowFieldLauncher,
   type FlowFieldDefinition,
@@ -218,7 +219,11 @@ export const FlowField = ({
    * one.
    */
   useEffect(() => {
-    if (!startEnabled || !configService || !configScenario) {
+    if (
+      !startEnabled ||
+      !configScenario ||
+      !hasFlowFieldSource({ service: configService, preload: configPreload })
+    ) {
       return undefined;
     }
     startField({
@@ -312,14 +317,20 @@ export const FlowField = ({
   // undefined and this whole effect is a no-op, which is the intended
   // degradation: no animation, and the `fallback` above if one is declared.
   useEffect(() => {
-    if (!libreMap || !isOn || !createFlowLayer || !service || !scenario) {
+    if (
+      !libreMap ||
+      !isOn ||
+      !createFlowLayer ||
+      !scenario ||
+      !(service || (preloadU && preloadV))
+    ) {
       return undefined;
     }
 
     let disposed = false;
     const handle = createFlowLayer({
       map: libreMap,
-      service,
+      service: service || undefined,
       scenario,
       layerPostfix,
       uvCorrection,

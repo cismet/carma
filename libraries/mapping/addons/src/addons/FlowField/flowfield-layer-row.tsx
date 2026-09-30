@@ -7,6 +7,7 @@ import type { InteractionButton, Layer } from "@carma-mapping/layers";
 import { useIsAdminMode } from "../../lib/admin-mode";
 import { getToolEntryKind } from "../../lib/tool-entry";
 import {
+  hasFlowFieldSource,
   useFlowFieldActions,
   type FlowFieldDefinition,
 } from "./flowfield-actions";
@@ -116,11 +117,10 @@ export const getFlowFieldRowSeed = (
       getToolEntryKind(tool) === "flowField"
   );
   const config = entry?.config;
-  if (!config?.service || !config.scenario) return undefined;
+  if (!config?.scenario || !hasFlowFieldSource(config)) return undefined;
   return {
     ...config,
     title: config.title ?? FLOW_FIELD_LAYER.title,
-    service: config.service,
     scenario: config.scenario,
   };
 };
@@ -207,13 +207,13 @@ export const useFlowFieldLayerRow = ({
   // animation along.
   const tools = useMemo(
     () =>
-      service && scenario
+      scenario && hasFlowFieldSource({ service, preload })
         ? [
             {
               kind: "flowField",
               config: {
                 title,
-                service,
+                service: service || undefined,
                 scenario,
                 layerPostfix,
                 uvCorrection,

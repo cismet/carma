@@ -6,6 +6,7 @@ export {
 export {
   useFlowFieldActions,
   useFlowFieldLauncher,
+  hasFlowFieldSource,
   FLOW_FIELD_STATE_DEFAULT,
   type FlowFieldBackdrop,
   type FlowFieldDefinition,

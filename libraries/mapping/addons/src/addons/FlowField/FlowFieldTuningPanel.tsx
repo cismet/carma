@@ -456,6 +456,7 @@ export const FlowFieldTuningPanel = () => {
     params,
     backdrop,
     fallback,
+    preload,
     isCaged,
     isActive,
     isLoading,
@@ -746,7 +747,7 @@ export const FlowFieldTuningPanel = () => {
     const identity = all
       ? {
           title,
-          service,
+          ...(service ? { service } : {}),
           scenario,
           ...(layerPostfix ? { layerPostfix } : {}),
         }
@@ -755,6 +756,7 @@ export const FlowFieldTuningPanel = () => {
       ? {
           ...(backdrop ? { backdrop } : {}),
           ...(fallback ? { fallback } : {}),
+          ...(preload ? { preload } : {}),
         }
       : {};
 
@@ -775,6 +777,7 @@ export const FlowFieldTuningPanel = () => {
     resolved,
     backdrop,
     fallback,
+    preload,
   ]);
 
   const copy = () => {

@@ -9,6 +9,7 @@ import {
   FLOW_FIELD_LAYER_ID,
   getFlowFieldRowSeed,
 } from "../addons/FlowField/flowfield-layer-row";
+import { hasFlowFieldSource } from "../addons/FlowField/flowfield-actions";
 import { TIME_SLIDER_LAYER_ID } from "../addons/TimeSlider/timeslider-layer-row";
 import { SHADOW_TEXTURE_LAYER_ID } from "../addons/ShadowTexture/shadow-texture-layer";
 
@@ -81,8 +82,8 @@ export type LayerLaunchedAddon = {
  * same way.
  *
  * The flow field is launched the same way as the fleet: by a layer whose tools
- * carry a `flowField` with its `service` and `scenario`, the topmost such layer
- * winning. It also learns which layer that is (`anchorLayerId`), since the
+ * carry a `flowField` with its `scenario` and a `service` or a `preload`, the
+ * topmost such layer winning. It also learns which layer that is (`anchorLayerId`), since the
  * layer's style says where in the layer order the particles are drawn, see
  * `style-slot.ts`.
  *
@@ -147,7 +148,7 @@ export const getLayerLaunchedAddons = (
     }
     const tools = resolveAddonEntries(layer.tools as AddonEntry[]);
     const flowTool = tools.find(isFlowFieldEntry);
-    if (flowTool?.config?.service && flowTool.config.scenario) {
+    if (flowTool?.config?.scenario && hasFlowFieldSource(flowTool.config)) {
       flowField = {
         layerId: layer.id,
         visible: layer.visible !== false,

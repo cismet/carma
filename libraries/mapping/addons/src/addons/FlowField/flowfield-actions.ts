@@ -49,8 +49,11 @@ export type FlowFieldPreload = { u: string; v: string };
 export type FlowFieldDefinition = {
   /** what the layer-bar row calls the animation */
   title: string;
-  /** rasterfari base, e.g. `https://rain-rasterfari-wuppertal.cismet.de` */
-  service: string;
+  /**
+   * rasterfari base, e.g. `https://rain-rasterfari-wuppertal.cismet.de`. Left
+   * out, the animation runs on `preload` alone and ends at its edge.
+   */
+  service?: string;
   /**
    * Scenario folder, the rain hazard map config's `animation` value, e.g.
    * `"T50/"`. The `84` in the `u84.tif` behind it is WGS84 and not a time step,
@@ -110,7 +113,8 @@ export type FlowFieldDefinition = {
    * per view: two EPSG:4326 GeoTIFFs as rasterfari's `gdalProcessor` returns
    * them, prepared for the whole area and served statically. Views inside
    * their extent need no further request; outside it the animation fetches
-   * per view from `service` as without it. Ignored by a cage without preload.
+   * per view from `service` as without it, or with no `service` shows nothing.
+   * Ignored by a cage without preload.
    */
   preload?: FlowFieldPreload;
   /**
@@ -131,6 +135,7 @@ export type FlowFieldState = {
   /** whether the animation is on the map; the row exists exactly while it is */
   isOn: boolean;
   title: string;
+  /** empty when the animation runs on `preload` alone */
   service: string;
   scenario: string;
   layerPostfix: string;
@@ -211,12 +216,22 @@ export const FLOW_FIELD_STATE_DEFAULT: FlowFieldState = {
   isCaged: false,
 };
 
+/**
+ * Whether a config names somewhere to take the velocity field from: a
+ * rasterfari `service`, or a complete `preload` pair on its own.
+ */
+export const hasFlowFieldSource = (config: {
+  service?: string;
+  preload?: Partial<FlowFieldPreload> | null;
+}): boolean =>
+  Boolean(config.service || (config.preload?.u && config.preload.v));
+
 const sameDefinition = (
   state: FlowFieldState,
   def: FlowFieldDefinition
 ): boolean =>
   state.title === def.title &&
-  state.service === def.service &&
+  state.service === (def.service ?? "") &&
   state.scenario === def.scenario &&
   state.layerPostfix === (def.layerPostfix ?? "") &&
   state.animateWhileMoving === (def.animateWhileMoving ?? true);
@@ -376,7 +391,7 @@ export const useFlowFieldLauncher = () => {
       return {
         ...FLOW_FIELD_STATE_DEFAULT,
         title: def.title,
-        service: def.service,
+        service: def.service ?? "",
         scenario: def.scenario,
         layerPostfix: def.layerPostfix ?? "",
         uvCorrection: def.uvCorrection,

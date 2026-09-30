@@ -6,6 +6,7 @@ import {
 import type { FlowFieldParams, UvCorrection } from "../../lib/caged-addons";
 import {
   FLOW_FIELD_STATE_DEFAULT,
+  hasFlowFieldSource,
   type FlowFieldBackdrop,
   type FlowFieldPreload,
   type FlowFieldState,
@@ -103,7 +104,12 @@ export const loadFlowFieldState = (
     if (!raw) return undefined;
     const parsed: unknown = JSON.parse(raw);
     if (!isRecord(parsed)) return undefined;
-    if (!nonEmptyString(parsed.service) || !nonEmptyString(parsed.scenario)) {
+    const service = nonEmptyString(parsed.service) ? parsed.service : "";
+    const preload = readPreload(parsed.preload);
+    if (
+      !nonEmptyString(parsed.scenario) ||
+      !hasFlowFieldSource({ service, preload })
+    ) {
       return undefined;
     }
     return {
@@ -112,7 +118,7 @@ export const loadFlowFieldState = (
       title: nonEmptyString(parsed.title)
         ? parsed.title
         : FLOW_FIELD_STATE_DEFAULT.title,
-      service: parsed.service,
+      service,
       scenario: parsed.scenario,
       layerPostfix:
         typeof parsed.layerPostfix === "string" ? parsed.layerPostfix : "",
@@ -138,7 +144,7 @@ export const loadFlowFieldState = (
       params: isRecord(parsed.params) ? (parsed.params as FlowFieldParams) : {},
       backdrop: readBackdrop(parsed.backdrop),
       fallback: readBackdrop(parsed.fallback),
-      preload: readPreload(parsed.preload),
+      preload,
       permanent: parsed.permanent === true,
       anchorLayerId: nonEmptyString(parsed.anchorLayerId)
         ? parsed.anchorLayerId

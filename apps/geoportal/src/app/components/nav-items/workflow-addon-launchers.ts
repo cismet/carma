@@ -6,6 +6,7 @@ import {
   resolveAddonEntries,
   useFloodLauncher,
   useFlowFieldLauncher,
+  hasFlowFieldSource,
   useShadowTextureWorkflow,
   useSpotHighlightsActions,
   useTimeSeriesLauncher,
@@ -72,11 +73,11 @@ const toSeriesDefinition = (
 const toFieldDefinition = (
   config: FlowFieldConfig
 ): FlowFieldDefinition | null => {
-  const { service, scenario } = config;
-  if (!service || !scenario) {
+  const { scenario } = config;
+  if (!scenario || !hasFlowFieldSource(config)) {
     return null;
   }
-  return { ...config, title: config.title ?? "Fließwege", service, scenario };
+  return { ...config, title: config.title ?? "Fließwege", scenario };
 };
 
 const toVehicleDefinition = (
