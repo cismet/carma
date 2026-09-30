@@ -112,7 +112,7 @@ const STARKREGEN_T50_FLOW: FlowFieldDefinition = {
     layers: "starkregen:L_T50_direction3857",
     styles: "starkregen:direction",
   },
-  // u/v for the projection model's area plus about 200 m; outside it the
+  // u/v for the projection model's outline box plus 20 m; outside it the
   // animation fetches per view from `service` as before
   preload: {
     u: "https://assets.cismet.de/cache/t50_u.tif",
@@ -215,6 +215,12 @@ const STARKREGEN_T100_FLOW: FlowFieldDefinition = {
     layers: "starkregen:L_T100_direction3857",
     styles: "starkregen:direction",
   },
+  // u/v for the projection model's outline box plus 20 m; outside it the
+  // animation fetches per view from `service` as before
+  preload: {
+    u: "https://assets.cismet.de/cache/t100_u.tif",
+    v: "https://assets.cismet.de/cache/t100_v.tif",
+  },
 };
 
 /** The same animation over the scenario's maximum water depths. */
@@ -310,6 +316,12 @@ const STARKREGEN_90MM_FLOW: FlowFieldDefinition = {
       "https://starkregenwms-wuppertal.cismet.de/geoserver/wms?SERVICE=WMS",
     layers: "starkregen:L_90mm_direction3857",
     styles: "starkregen:direction",
+  },
+  // u/v for the projection model's outline box plus 20 m; outside it the
+  // animation fetches per view from `service` as before
+  preload: {
+    u: "https://assets.cismet.de/cache/90mm_u.tif",
+    v: "https://assets.cismet.de/cache/90mm_v.tif",
   },
 };
 
@@ -407,6 +419,12 @@ const STARKREGEN_EXTREM2018_FLOW: FlowFieldDefinition = {
       "https://starkregenwms-wuppertal.cismet.de/geoserver/wms?SERVICE=WMS",
     layers: "starkregen:L_Extrem2018_direction3857",
     styles: "starkregen:direction",
+  },
+  // u/v for the projection model's outline box plus 20 m; outside it the
+  // animation fetches per view from `service` as before
+  preload: {
+    u: "https://assets.cismet.de/cache/extrem2018_u.tif",
+    v: "https://assets.cismet.de/cache/extrem2018_v.tif",
   },
 };
 

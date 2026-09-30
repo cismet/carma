@@ -218,6 +218,23 @@ export const projectionMappingFachzwilling: FachzwillingRoute = {
       ],
     },
     {
+      Title: "Fließwege",
+      // the same four scenarios as particles, see each style's carmaConf.tools;
+      // they preload the u/v rasters of the model's area from assets.cismet.de,
+      // so the animation starts without a request per view. The
+      // `_wassertiefen` ones draw the scenario's maximum depths underneath.
+      layers: [
+        `${PROJECTION_MAPPING_STYLES}/starkregen_t50_fliesswege.style.json`,
+        `${PROJECTION_MAPPING_STYLES}/starkregen_t100_fliesswege.style.json`,
+        `${PROJECTION_MAPPING_STYLES}/starkregen_90mm_fliesswege.style.json`,
+        `${PROJECTION_MAPPING_STYLES}/starkregen_extrem2018_fliesswege.style.json`,
+        `${PROJECTION_MAPPING_STYLES}/starkregen_t50_fliesswege_wassertiefen.style.json`,
+        `${PROJECTION_MAPPING_STYLES}/starkregen_t100_fliesswege_wassertiefen.style.json`,
+        `${PROJECTION_MAPPING_STYLES}/starkregen_90mm_fliesswege_wassertiefen.style.json`,
+        `${PROJECTION_MAPPING_STYLES}/starkregen_extrem2018_fliesswege_wassertiefen.style.json`,
+      ],
+    },
+    {
       Title: "Schatten",
       // each style switches the BuGa model's shadows on for its bridge, see its
       // carmaConf.tools; date, time and playback sit on the style's button
