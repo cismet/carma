@@ -58,7 +58,7 @@ const toRow = (
  * A base map that is switched off becomes no row, and `backgroundLayer` goes
  * all the same, also when it names no map (`{ visible: false }`): a scene
  * never switches off the display's own base map, which on the outlet is the
- * black that keeps the model dark.
+ * white that lights the model.
  *
  * A row the layers have already (by id) stays where it is, so a configuration
  * that went through here once and was applied again does not get it twice.
