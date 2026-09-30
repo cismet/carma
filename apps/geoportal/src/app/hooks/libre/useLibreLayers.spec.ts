@@ -27,11 +27,22 @@ vi.mock("../../store/slices/mapping", () => ({
 vi.mock("../../config/backgroundConfig", () => ({
   backgroundConfig: { namedLayers: {} },
 }));
+// Registry resolution does not render the canvas-based annotation tools.
+vi.mock(
+  "../../../../../../libraries/mapping/addons/src/addons/Annotation",
+  () => ({
+    AnnotationControl: () => null,
+    AnnotationOverlay: () => null,
+  })
+);
 vi.mock("@carma-mapping/addons", async () => {
-  const { applyAddonOverrides, resolveAddonEntries } = await vi.importActual<
-    typeof import("@carma-mapping/addons")
-  >("@carma-mapping/addons");
-  // The real condition check, not the addon barrel.
+  const { applyAddonOverrides } = await vi.importActual<
+    typeof import("../../../../../../libraries/mapping/addons/src/lib/addon-overrides")
+  >("../../../../../../libraries/mapping/addons/src/lib/addon-overrides");
+  const { resolveAddonEntries } = await vi.importActual<
+    typeof import("../../../../../../libraries/mapping/addons/src/lib/registry")
+  >("../../../../../../libraries/mapping/addons/src/lib/registry");
+  // Keep the real route and override rules without loading the addon barrel.
   const { conditionRouteOf, isShownByCondition } = await vi.importActual<
     typeof import("../../../../../../libraries/mapping/addons/src/addons/ConditionalLayer")
   >("../../../../../../libraries/mapping/addons/src/addons/ConditionalLayer");
