@@ -1,4 +1,9 @@
+import { MapStyleKeys } from "../MapStyleKeys";
+
 import type { FachzwillingRoute } from ".";
+
+/** plain colour styles, the same as the pm-show "Tools" group */
+const COLOR_STYLES = "https://tiles.cismet.de/colors";
 
 /**
  * The relay the source window takes its remote commands from. Deployments set
@@ -31,6 +36,45 @@ export const outletFachzwilling: FachzwillingRoute = {
   cacheConfigsById: true,
   availability: {
     deployments: ["localDev", "dev", "pr"],
+  },
+  /**
+   * No map of its own under what the remote sends: a scene brings its base
+   * map along as one of its layers. Black is no light on the model; white is
+   * there for a scene that wants the plain model lit.
+   */
+  background: {
+    layerMap: {
+      farbeSchwarz: {
+        title: "Schwarz",
+        layers: "farbe_schwarz@100",
+      },
+      farbeWeiss: {
+        title: "Weiß",
+        layers: "farbe_weiss@100",
+      },
+    },
+    namedLayers: {
+      farbe_schwarz: {
+        type: "vector",
+        style: `${COLOR_STYLES}/black.style.json`,
+      },
+      farbe_weiss: {
+        type: "vector",
+        style: `${COLOR_STYLES}/white.style.json`,
+      },
+    },
+    categories: [
+      {
+        id: MapStyleKeys.TOPO,
+        title: "Schwarz",
+        entries: ["farbeSchwarz"],
+      },
+      {
+        id: MapStyleKeys.AERIAL,
+        title: "Weiß",
+        entries: ["farbeWeiss"],
+      },
+    ],
   },
   addons: [
     {
