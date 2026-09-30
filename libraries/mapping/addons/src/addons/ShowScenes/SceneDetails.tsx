@@ -120,7 +120,6 @@ export const SceneDetails = ({
                   draggable
                   onDragStart={(event) => onLayerDragStart(layer, event)}
                   onDragEnd={onLayerDragEnd}
-                  title="Ziehen, um die Ebene zu kopieren"
                   className="flex cursor-grab items-center gap-2"
                 >
                   <FontAwesomeIcon

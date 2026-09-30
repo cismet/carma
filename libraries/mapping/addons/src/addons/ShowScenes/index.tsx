@@ -14,7 +14,6 @@ import {
   Popconfirm,
   QRCode,
   Tag,
-  Tooltip,
   Typography,
 } from "antd";
 import {
@@ -320,19 +319,11 @@ const SceneRow = ({
         <span className="w-20 whitespace-nowrap text-xs text-gray-500">
           {shown} {shown === 1 ? "Ebene" : "Ebenen"}
           {excluded.length > 0 && (
-            <Tooltip
-              title={`Nur am Desktop: ${excluded.map(layerTitle).join(", ")}`}
-            >
-              <span className="ml-1 text-gray-400">+{excluded.length}</span>
-            </Tooltip>
+            <span className="ml-1 text-gray-400">+{excluded.length}</span>
           )}
         </span>
         <span className="w-4 text-center text-gray-500">
-          {scene.bounds && (
-            <Tooltip title="Mit Position: die Anzeige fliegt zu diesem Ausschnitt">
-              <FontAwesomeIcon icon={faLocationCrosshairs} />
-            </Tooltip>
-          )}
+          {scene.bounds && <FontAwesomeIcon icon={faLocationCrosshairs} />}
         </span>
         <IconButton
           title="Auf der Karte anzeigen"
@@ -492,7 +483,6 @@ const StoryBlock = ({
                 draggable
                 onDragStart={(event) => onBaseLayerDragStart(layer, event)}
                 onDragEnd={onLayerDragEnd}
-                title="Ziehen, um die Ebene zu kopieren"
                 closable
                 onClose={(event) => {
                   // the list is the draft's; the tag goes with its entry
@@ -1017,17 +1007,15 @@ export const ShowScenes = ({
   return (
     <>
       <Control position={controlPosition} order={controlOrder}>
-        <Tooltip title="Show-Szenen" placement="right">
-          <ControlButtonStyler
-            onClick={() => setIsOpen((open) => !open)}
-            dataTestId="show-scenes-control"
-          >
-            <FontAwesomeIcon
-              icon={faClapperboard}
-              style={isOpen ? { color: "#1677ff" } : undefined}
-            />
-          </ControlButtonStyler>
-        </Tooltip>
+        <ControlButtonStyler
+          onClick={() => setIsOpen((open) => !open)}
+          dataTestId="show-scenes-control"
+        >
+          <FontAwesomeIcon
+            icon={faClapperboard}
+            style={isOpen ? { color: "#1677ff" } : undefined}
+          />
+        </ControlButtonStyler>
       </Control>
       {isOpen && (
         <Control position={PANEL_POSITION} order={PANEL_ORDER}>
@@ -1068,14 +1056,12 @@ export const ShowScenes = ({
                 Geschichten sind Ordner mit Szenen. Auf dem Handy blättern ‹ ›
                 innerhalb der Geschichte.
               </span>
-              <Tooltip title="Speichert den aktuellen Kartenausschnitt mit, die Anzeige fliegt bei dieser Szene dorthin. Gilt auch fürs Überschreiben.">
-                <Checkbox
-                  checked={withPosition}
-                  onChange={(event) => setWithPosition(event.target.checked)}
-                >
-                  Position mitspeichern
-                </Checkbox>
-              </Tooltip>
+              <Checkbox
+                checked={withPosition}
+                onChange={(event) => setWithPosition(event.target.checked)}
+              >
+                Position mitspeichern
+              </Checkbox>
             </div>
 
             <ol className="m-0 flex list-none flex-col gap-2 p-0">
@@ -1285,31 +1271,21 @@ export const ShowScenes = ({
                   {published.sceneCount === 1 ? "Szene" : "Szenen"}
                 </span>
                 {!isPublishCurrent && (
-                  <Tooltip
-                    title={
-                      published.editToken
-                        ? "Die Liste wurde seitdem geändert. Nach dem nächsten Veröffentlichen sieht das Handy sie unter demselben Link."
-                        : "Die Liste wurde seitdem geändert. Das nächste Veröffentlichen erzeugt einmalig einen neuen Link, danach bleibt er gleich."
-                    }
-                  >
-                    <span className="text-amber-700">geändert</span>
-                  </Tooltip>
+                  <span className="text-amber-700">geändert</span>
                 )}
                 <span className="text-gray-400">·</span>
                 {link ? (
                   <>
-                    <Tooltip title="QR-Code zeigen">
-                      <a
-                        href={link}
-                        onClick={(event) => {
-                          event.preventDefault();
-                          setIsQrOpen(true);
-                        }}
-                        className="min-w-0 flex-1 truncate"
-                      >
-                        {link}
-                      </a>
-                    </Tooltip>
+                    <a
+                      href={link}
+                      onClick={(event) => {
+                        event.preventDefault();
+                        setIsQrOpen(true);
+                      }}
+                      className="min-w-0 flex-1 truncate"
+                    >
+                      {link}
+                    </a>
                     <IconButton
                       title="Link kopieren"
                       icon={faCopy}
