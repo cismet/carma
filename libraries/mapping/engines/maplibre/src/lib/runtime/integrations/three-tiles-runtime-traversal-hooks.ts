@@ -38,6 +38,9 @@ import {
   UNLOADED_LOADING_STATE,
 } from "./three-tiles-runtime-vendor";
 
+const hasDownloadableContent = (tile: Tile): boolean =>
+  !!tile.internal?.hasContent && !!tile.content?.uri;
+
 /** Installs admission and native traversal hooks on the renderer. */
 export function installThreeTilesTraversalHooks(
   runtimeState: ThreeTilesRuntimeAttachmentState,
@@ -45,6 +48,15 @@ export function installThreeTilesTraversalHooks(
   payloadQueues: ReturnType<typeof createThreeTilesPayloadQueues>
 ): void {
   if (!runtimeState.tiles) return;
+  const requestTileContents = runtimeState.tiles.requestTileContents.bind(
+    runtimeState.tiles
+  );
+  runtimeState.tiles.requestTileContents = (tile) => {
+    // Routing containers have children, but no payload. Recheck here as well
+    // as admission: native queued work and direct prefetch share this boundary.
+    if (!hasDownloadableContent(tile)) return;
+    return requestTileContents(tile);
+  };
   const calculateBytesUsed = runtimeState.tiles.calculateBytesUsed.bind(
     runtimeState.tiles
   );
@@ -454,7 +466,7 @@ export function installThreeTilesTraversalHooks(
   );
   runtimeState.tiles.queueTileForDownload = (tile) => {
     const tiles = runtimeState.tiles;
-    if (!tiles) return;
+    if (!tiles || !hasDownloadableContent(tile)) return;
     if (runtimeState.memoryAdmissionPaused || runtimeState.loadingPaused)
       return;
     if (

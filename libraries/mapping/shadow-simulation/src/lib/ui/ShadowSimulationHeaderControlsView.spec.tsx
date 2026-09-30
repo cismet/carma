@@ -1,10 +1,11 @@
-import { cleanup, fireEvent, render } from "@testing-library/react";
+import { cleanup, fireEvent, render, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createInitialShadowSimulationState } from "../core/create-shadow-simulation-state";
 import { getDaylightWindow } from "../core/solar-position";
 import { formatClockMinutes } from "./format-shadow-selection";
 import { ShadowAnimationSpeedControl } from "./ShadowAnimationSpeedControl";
+import { useShadowTimeInteractionState } from "../runtime/hooks/use-shadow-time-interaction";
 import { ShadowSimulationHeaderControlsView } from "./ShadowSimulationHeaderControlsView";
 
 vi.mock("../runtime/hooks/use-map-center-solar-location", () => ({
@@ -297,9 +298,11 @@ describe("shared shadow time controls", () => {
 
   it("reports pointer, keyboard and cancelled time interactions", () => {
     const onTimeInteractionChange = vi.fn();
+    const map = {} as never;
+    const interaction = renderHook(() => useShadowTimeInteractionState(map));
     const view = render(
       <ShadowSimulationHeaderControlsView
-        libreMap={null}
+        libreMap={map}
         state={createInitialShadowSimulationState(undefined)}
         setState={vi.fn()}
         dateState={{
@@ -316,15 +319,20 @@ describe("shared shadow time controls", () => {
     slider.setPointerCapture = vi.fn();
     fireEvent.pointerDown(slider, { pointerId: 1 });
     expect(onTimeInteractionChange).toHaveBeenLastCalledWith(true);
+    expect(interaction.result.current).toBe(true);
     fireEvent.pointerCancel(slider);
     expect(onTimeInteractionChange).toHaveBeenLastCalledWith(false);
+    expect(interaction.result.current).toBe(false);
     fireEvent.keyDown(slider, { key: "ArrowRight" });
     expect(onTimeInteractionChange).toHaveBeenLastCalledWith(true);
+    expect(interaction.result.current).toBe(true);
     fireEvent.keyUp(slider, { key: "ArrowRight" });
     expect(onTimeInteractionChange).toHaveBeenLastCalledWith(false);
+    expect(interaction.result.current).toBe(false);
     fireEvent.pointerDown(slider, { pointerId: 1 });
     fireEvent.lostPointerCapture(slider);
     expect(onTimeInteractionChange).toHaveBeenLastCalledWith(false);
+    expect(interaction.result.current).toBe(false);
   });
 
   it("offers the same 1x, 4x and 12x speed selector to both addons", () => {

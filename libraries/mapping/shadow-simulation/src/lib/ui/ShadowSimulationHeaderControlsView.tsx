@@ -45,6 +45,7 @@ import {
   type SolarSelection,
 } from "../core/solar-position";
 import { updateShadowDateState } from "../core/shadow-date-state";
+import { useShadowTimeInteraction } from "../runtime/hooks/use-shadow-time-interaction";
 import { useMapCenterSolarLocation } from "../runtime/hooks/use-map-center-solar-location";
 import {
   formatClockMinutes,
@@ -108,6 +109,11 @@ export const ShadowSimulationHeaderControlsView = ({
     latitude = DEFAULT_SHADOW_SIMULATION_LOCATION.latitude,
     longitude = DEFAULT_SHADOW_SIMULATION_LOCATION.longitude,
   } = config ?? {};
+  const setTimeInteracting = useShadowTimeInteraction(libreMap);
+  const reportTimeInteraction = (active: boolean) => {
+    setTimeInteracting(active);
+    onTimeInteractionChange?.(active);
+  };
   const location = useMapCenterSolarLocation(libreMap, latitude, longitude);
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const selection = dateState;
@@ -223,11 +229,11 @@ export const ShadowSimulationHeaderControlsView = ({
   const interaction: InputHTMLAttributes<HTMLInputElement> = {
     onPointerDown: (event) => {
       event.currentTarget.setPointerCapture(event.pointerId);
-      onTimeInteractionChange?.(true);
+      reportTimeInteraction(true);
     },
-    onPointerUp: () => onTimeInteractionChange?.(false),
-    onPointerCancel: () => onTimeInteractionChange?.(false),
-    onLostPointerCapture: () => onTimeInteractionChange?.(false),
+    onPointerUp: () => reportTimeInteraction(false),
+    onPointerCancel: () => reportTimeInteraction(false),
+    onLostPointerCapture: () => reportTimeInteraction(false),
     onKeyDown: (event) => {
       if (
         [
@@ -241,10 +247,10 @@ export const ShadowSimulationHeaderControlsView = ({
           "PageDown",
         ].includes(event.key)
       )
-        onTimeInteractionChange?.(true);
+        reportTimeInteraction(true);
     },
-    onKeyUp: () => onTimeInteractionChange?.(false),
-    onBlur: () => onTimeInteractionChange?.(false),
+    onKeyUp: () => reportTimeInteraction(false),
+    onBlur: () => reportTimeInteraction(false),
   };
   const playButton = (mode: ShadowAnimationMode) => {
     const active = Boolean(

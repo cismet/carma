@@ -3,7 +3,7 @@ import { TilesRenderer } from "3d-tiles-renderer";
 import { Box3, OrthographicCamera, Vector3 } from "three";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { mesh } from "../../core/mesh-tile-test-fixtures";
+import { mesh as createMesh } from "../../core/mesh-tile-test-fixtures";
 import {
   createTileCameraDemand,
   snapshotTileCameraViews,
@@ -27,6 +27,14 @@ vi.hoisted(() =>
     value: () => "blob:traversal-camera-test",
   })
 );
+
+// Native request admission requires normalized content, even in test models.
+const mesh = (...args: Parameters<typeof createMesh>) => {
+  const tile = createMesh(...args);
+  tile.content = { uri: "mesh.b3dm" };
+  tile.internal.hasContent = true;
+  return tile;
+};
 
 const fixture = (cameraId = TILE_MAIN_OBSERVER_ID) => {
   const state = createThreeTilesRuntimeState("mesh", "mesh.json", [7, 51], {
@@ -55,6 +63,9 @@ const fixture = (cameraId = TILE_MAIN_OBSERVER_ID) => {
   );
   const nativeQueue = vi
     .spyOn(state.tiles, "queueTileForDownload")
+    .mockImplementation(() => undefined);
+  const nativeRequest = vi
+    .spyOn(state.tiles, "requestTileContents")
     .mockImplementation(() => undefined);
   const nativeError = vi
     .spyOn(state.tiles, "calculateTileViewErrorWithPlugin")
@@ -93,7 +104,14 @@ const fixture = (cameraId = TILE_MAIN_OBSERVER_ID) => {
       typeof createThreeTilesPayloadQueues
     >
   );
-  return { state, dependencies, nativeQueue, nativeError, makeRoomForRequest };
+  return {
+    state,
+    dependencies,
+    nativeQueue,
+    nativeRequest,
+    nativeError,
+    makeRoomForRequest,
+  };
 };
 
 afterEach(() => vi.restoreAllMocks());
@@ -118,6 +136,55 @@ const offscreenFloorFixture = () => {
 };
 
 describe("camera-local traversal admission", () => {
+  it("keeps structural containers out of payload queues while admitting real child content", () => {
+    const { state, nativeQueue, nativeRequest, makeRoomForRequest } = fixture();
+    const container = mesh();
+    delete container.content;
+    container.internal.hasContent = false;
+    container.internal.hasRenderableContent = false;
+    container.internal.loadingState = 0;
+    const child = mesh(container);
+    child.internal.loadingState = 0;
+    container.children = [child];
+    // Reserve ownership must not turn a navigation node into a download.
+    state.residentAncestors.add(container);
+    try {
+      state.tiles!.queueTileForDownload(container);
+      state.tiles!.requestTileContents(container);
+      expect(nativeQueue).not.toHaveBeenCalled();
+      expect(nativeRequest).not.toHaveBeenCalled();
+      expect(makeRoomForRequest).not.toHaveBeenCalled();
+      expect(state.queuedThisTraversal.has(container)).toBe(false);
+      state.tiles!.queueTileForDownload(child);
+      state.tiles!.requestTileContents(child);
+      expect(nativeQueue).toHaveBeenCalledWith(child);
+      expect(nativeRequest).toHaveBeenCalledWith(child);
+    } finally {
+      state.tiles!.dispose();
+    }
+  });
+
+  it("rechecks a queued payload whose source content was invalidated before execution", () => {
+    const { state, nativeQueue, nativeRequest } = fixture();
+    const tile = mesh();
+    tile.internal.loadingState = 0;
+    try {
+      state.tiles!.queueTileForDownload(tile);
+      expect(nativeQueue).toHaveBeenCalledWith(tile);
+      delete tile.content;
+      expect(() => state.tiles!.requestTileContents(tile)).not.toThrow();
+      expect(nativeRequest).not.toHaveBeenCalled();
+      // External JSON remains genuine downloadable routing content.
+      tile.content = { uri: "children.json" };
+      tile.internal.hasRenderableContent = false;
+      tile.internal.hasUnrenderableContent = true;
+      state.tiles!.requestTileContents(tile);
+      expect(nativeRequest).toHaveBeenCalledWith(tile);
+    } finally {
+      state.tiles!.dispose();
+    }
+  });
+
   it("reaches offscreen zero-error routing while stopping below the drawable floor", () => {
     const { state, dependencies, nativeQueue } = offscreenFloorFixture();
     dependencies.getTileRequestNeed.mockReturnValue(TILE_REQUEST_NEED.EXTENT);

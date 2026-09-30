@@ -1,4 +1,4 @@
-import { act, cleanup, render } from "@testing-library/react";
+import { act, cleanup, render, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -8,6 +8,7 @@ import {
 import { createInitialShadowSimulationState } from "../core/create-shadow-simulation-state";
 import { getSolarPosition } from "../core/solar-position";
 import { buildShadowSimulationScene } from "./shadow-scene";
+import { useShadowTimeInteraction } from "./hooks/use-shadow-time-interaction";
 import { ShadowSimulationRuntime } from "./ShadowSimulationRuntime";
 
 vi.mock("@carma-mapping/engines/maplibre", () => ({
@@ -212,9 +213,36 @@ describe("shadow animation", () => {
       scene.updateSolarPosition.mock.calls.map(
         ([position]: [{ minutes: number }]) => position.minutes
       );
-    return { ...rendered, scene, setDateState, view, shownMinutes };
+    return { ...rendered, scene, setDateState, view, shownMinutes, libreMap };
   };
   afterEach(() => vi.useRealTimers());
+
+  it("previews manual time changes without starting playback and restores quality on release", async () => {
+    const { scene, view, rerender, libreMap, setDateState } = await setup();
+    rerender(view({ isAnimating: false }));
+    setDateState.mockClear();
+    const control = renderHook(() =>
+      useShadowTimeInteraction(libreMap as never)
+    );
+    act(() => control.result.current(true));
+    expect(scene.updateTimeAnimating).toHaveBeenLastCalledWith(true);
+    rerender(view({ isAnimating: false }, { ...dateState, minutes: 720 }));
+    expect(scene.updateSolarPosition).toHaveBeenLastCalledWith({
+      minutes: 720,
+      instant: new Date(720),
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(300);
+    });
+    expect(setDateState).not.toHaveBeenCalled();
+    act(() => control.result.current(false));
+    expect(scene.updateTimeAnimating).toHaveBeenLastCalledWith(false);
+    // Releasing a gesture cannot stop a running animation.
+    rerender(view({ isAnimating: true }));
+    act(() => control.result.current(true));
+    act(() => control.result.current(false));
+    expect(scene.updateTimeAnimating).toHaveBeenLastCalledWith(true);
+  });
 
   it("passes automatic and explicit cache budgets through the runtime effect", async () => {
     const { scene, view, rerender } = await setup();

@@ -120,6 +120,8 @@ Geometry demand, queue admission, publication, retained coverage, cache removal 
 
 ## Progress and recovery
 
+Content request admission requires a prepared node with native content and a normalized content URI. Structural containers remain traversal paths, never payload requests. Execution rechecks this precondition so stale queued work cannot abort the frame before queue cleanup; actual child meshes and external tileset JSON keep their native request semantics.
+
 Every blocked stage needs a matching release event or bounded retry. Transport bounds headers and body consumption; retries use bounded backoff. Decoder failures reject pending work and remove the failed worker, with a deadline for silent initialization. Success, reset and disposal cancel failure timers. A failed REPLACE parent may still expose healthy child routes once retries are exhausted; pending retries retain their wait. ADD content cannot be substituted by its children. Published observer coverage remains until usable replacements exist; offscreen caster publication separately reports incomplete corridors. Persistent unavailable source content or a cut that cannot fit the reduced budget can prevent final quality, which must be reported rather than marked converged.
 
 ## Progressive shadow families and wait telemetry

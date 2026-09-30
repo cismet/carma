@@ -248,6 +248,7 @@ describe("shadow scene resource and idle coverage", () => {
       if (mode === "point-light") f.controller.updateSoftSunShadows(false);
       else f.controller.updateTimeAnimating(true);
       updateShadows(f.map, f.camera);
+      expect(accumulationController!.retainSettledFrame!()).toBe(false);
       rendererLookup.mockClear();
       f.raster.getActiveTileVolumes.mockClear();
       for (let tick = 0; tick < 10; tick += 1) {

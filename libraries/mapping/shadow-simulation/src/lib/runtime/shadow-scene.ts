@@ -1539,7 +1539,10 @@ export const buildShadowSimulationScene = (
       latestSolarPosition !== null &&
       latestShadowView !== null &&
       sharedBinding.receiverWorldPoints.length > 0,
+    // A time gesture/playback must draw the live sun, never replay a saved
+    // soft-shadow image while the next time or its terrain is being prepared.
     retainSettledFrame: () =>
+      !timeAnimating &&
       nativeAccumulationFits &&
       softSunShadowsEnabled &&
       latestSolarPosition !== null &&
