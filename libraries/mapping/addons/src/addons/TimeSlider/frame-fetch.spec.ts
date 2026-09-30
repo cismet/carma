@@ -4,6 +4,7 @@ import {
   FRAME_LOG_PREFIX,
   createFrameCache,
   frameCacheKey,
+  frameScaleFromHash,
 } from "./frame-fetch";
 
 const WMS = "https://example.test/geoserver/wms?SERVICE=WMS";
@@ -89,6 +90,37 @@ describe("createFrameCache", () => {
 
   it("leaves a url without a bbox as it is", () => {
     expect(frameCacheKey(WMS)).toBe(WMS);
+  });
+
+  it("scales width and height, whatever their case", () => {
+    const key = frameCacheKey(
+      `${GET_MAP}&width=5682&HEIGHT=3165&layers=a`,
+      0.5
+    );
+
+    expect(key).toContain("width=2841");
+    expect(key).toContain("HEIGHT=1583");
+    expect(key).toContain("bbox=1.00%2C2.00%2C3.00%2C4.00");
+  });
+
+  it("scales a geographic request too", () => {
+    const key = frameCacheKey(
+      `${WMS}&request=GetMap&srs=EPSG%3A4326&bbox=7.1508%2C51.26%2C7.168%2C51.27&width=100&height=50`,
+      0.5
+    );
+
+    expect(key).toContain("width=50");
+    expect(key).toContain("height=25");
+    expect(key).toContain("bbox=7.1508%2C51.26%2C7.168%2C51.27");
+  });
+
+  it("asks the WMS for the scaled frame", async () => {
+    const fetchImpl = fetchOf(png);
+    const load = createFrameCache(fetchImpl, { ...quick(), scale: 0.5 });
+
+    await load(`${GET_MAP}&width=400&height=200`);
+
+    expect(fetchImpl.mock.calls[0]?.[0]).toContain("width=200&height=100");
   });
 
   it("takes a JPEG frame", async () => {
@@ -214,5 +246,19 @@ describe("createFrameCache", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe("frameScaleFromHash", () => {
+  it("reads a fraction from the outlet's hash parameters", () => {
+    expect(frameScaleFromHash("cache=forced&frameScale=0.5")).toBe(0.5);
+  });
+
+  it("means the full frame when missing, zero, one or more, or not a number", () => {
+    expect(frameScaleFromHash("cache=forced")).toBe(1);
+    expect(frameScaleFromHash("frameScale=0")).toBe(1);
+    expect(frameScaleFromHash("frameScale=1")).toBe(1);
+    expect(frameScaleFromHash("frameScale=2")).toBe(1);
+    expect(frameScaleFromHash("frameScale=half")).toBe(1);
   });
 });

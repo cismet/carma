@@ -12,6 +12,22 @@
  * in.
  */
 
+import { getHashParams } from "@carma-commons/utils";
+
+/**
+ * `#/...?frameScale=0.5`: every frame is asked of the WMS at this fraction of
+ * its width and height, and the blend layer stretches it back over the same
+ * ground. 0.5 is a quarter of the pixels, and of the memory each of the 24
+ * decoded frames holds, at half the sharpness. For a show machine whose frames
+ * are big enough to press on memory. Anything outside (0, 1) means 1, the
+ * frames as cage asks for them. It rides on the frame cache, so it only acts
+ * together with `cache=forced`.
+ */
+export const frameScaleFromHash = (hash?: string): number => {
+  const value = Number(getHashParams(hash)["frameScale"]);
+  return value > 0 && value < 1 ? value : 1;
+};
+
 /**
  * Decimal places the bbox is rounded to in the request, in the metres of
  * EPSG:3857: a centimetre. A camera that comes back to a view lands on it to
@@ -30,23 +46,44 @@ const paramKey = (params: URLSearchParams, name: string): string | null => {
   return null;
 };
 
-/** the url with its bbox rounded, see `BBOX_DECIMALS`; geographic ones as they are */
-export const frameCacheKey = (url: string): string => {
+/**
+ * the url with its bbox rounded, see `BBOX_DECIMALS`, geographic ones as they
+ * are, and its width and height times `scale`, see `frameScaleFromHash`
+ */
+export const frameCacheKey = (url: string, scale = 1): string => {
   try {
     const parsed = new URL(url);
     const params = parsed.searchParams;
+    let changed = false;
+
     const srsKey = paramKey(params, "srs") ?? paramKey(params, "crs");
     const bboxKey = paramKey(params, "bbox");
-    if (!srsKey || !bboxKey) return url;
-    if (!METRIC_SRS.has((params.get(srsKey) ?? "").toUpperCase())) return url;
-    const rounded = (params.get(bboxKey) ?? "")
-      .split(",")
-      .map((value) => Number(value).toFixed(BBOX_DECIMALS));
-    if (rounded.length !== 4 || rounded.some((value) => value === "NaN")) {
-      return url;
+    if (
+      srsKey &&
+      bboxKey &&
+      METRIC_SRS.has((params.get(srsKey) ?? "").toUpperCase())
+    ) {
+      const rounded = (params.get(bboxKey) ?? "")
+        .split(",")
+        .map((value) => Number(value).toFixed(BBOX_DECIMALS));
+      if (rounded.length === 4 && !rounded.some((value) => value === "NaN")) {
+        params.set(bboxKey, rounded.join(","));
+        changed = true;
+      }
     }
-    params.set(bboxKey, rounded.join(","));
-    return parsed.toString();
+
+    if (scale !== 1) {
+      for (const name of ["width", "height"]) {
+        const key = paramKey(params, name);
+        const size = key ? Number(params.get(key)) : NaN;
+        if (key && size > 0) {
+          params.set(key, String(Math.max(1, Math.round(size * scale))));
+          changed = true;
+        }
+      }
+    }
+
+    return changed ? parsed.toString() : url;
   } catch {
     return url;
   }
@@ -108,6 +145,8 @@ export type FrameCacheOptions = {
   retryDelaysMs?: readonly number[];
   /** where a frame given up on is reported. Default: `console.warn` */
   warn?: (...args: unknown[]) => void;
+  /** see `frameScaleFromHash`. Default: 1 */
+  scale?: number;
 };
 
 const sleep = (ms: number) =>
@@ -125,10 +164,11 @@ export const createFrameCache = (
   {
     retryDelaysMs = RETRY_DELAYS_MS,
     warn = (...args) => console.warn(...args),
+    scale = 1,
   }: FrameCacheOptions = {}
 ): FrameFetch => {
   return async (url) => {
-    const key = frameCacheKey(url);
+    const key = frameCacheKey(url, scale);
     const attempts = retryDelaysMs.length + 1;
     let lastFailure: {
       reason: string;
@@ -168,9 +208,12 @@ let shared: FrameFetch | null = null;
 
 /**
  * The same reference on every call, so handing it to the engine never counts
- * as a changed option.
+ * as a changed option. `frameScale` is read from the page's url at the first
+ * call.
  */
 export const getSharedFrameCache = (): FrameFetch => {
-  shared ??= createFrameCache();
+  shared ??= createFrameCache(undefined, {
+    scale: typeof window !== "undefined" ? frameScaleFromHash() : 1,
+  });
   return shared;
 };
