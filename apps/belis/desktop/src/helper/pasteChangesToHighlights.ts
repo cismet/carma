@@ -1,6 +1,7 @@
 import { fetchFeatureById, type FeatureType } from "./apiMethods";
 import { serializeValues } from "./draftSerialize";
 import { buildLeuchteFormValues } from "../components/ui/featuresForm/leuchteFormValues";
+import { projectMastToFormValues } from "../components/ui/featuresForm/MastFormFields";
 import {
   setDraft,
   setOriginalValues,
@@ -17,21 +18,19 @@ import type { RepeatableChangeSet } from "../store/slices/repeatableChanges";
  * each draft has to be assembled by hand from the server record:
  *
  *   1. fetch the feature (the same by-id query the datasheet uses),
- *   2. project it onto form values with `buildLeuchteFormValues` — the very
- *      mapping `LeuchteFormFields` seeds its form with,
+ *   2. project it onto form values with the target's `buildFormValues` — the
+ *      same mapping the form seeds itself with,
  *   3. store that as the draft's baseline (`originalValues`) so only the pasted
  *      fields read as changed once the Datenblatt is opened,
  *   4. store baseline + pasted fields as the draft's values.
  *
  * Step 2 is what makes the draft saveable: `saveFeatureDraft` sends
  * `draft.values` as the payload, so a draft holding only the pasted fields
- * would save a Leuchte stripped of everything else.
+ * would save a feature stripped of everything else.
  */
 
 // Which highlighted features a stored change set applies to, and how to fetch
-// them. Keyed by the `repeatableChanges` feature type — only Leuchte offers
-// copy/paste today; adding a type here plus its form-values builder below is
-// what it takes to extend the action.
+// them. Keyed by the `repeatableChanges` feature type.
 const BATCH_PASTE_TARGETS: Record<
   string,
   {
@@ -43,6 +42,9 @@ const BATCH_PASTE_TARGETS: Record<
     graphqlKey: string;
     /** Plural label for the confirm dialog and the result message. */
     label: string;
+    /** Draft key the form values live under; `null` when they sit flat on
+     *  the draft (Standort). */
+    slice: string | null;
     buildFormValues: (
       record: Record<string, unknown>
     ) => Record<string, unknown>;
@@ -53,7 +55,24 @@ const BATCH_PASTE_TARGETS: Record<
     apiFeatureType: "leuchten",
     graphqlKey: "tdta_leuchten",
     label: "Leuchten",
+    slice: "leuchte",
     buildFormValues: buildLeuchteFormValues,
+  },
+  standort: {
+    sourceLayer: "standorte",
+    apiFeatureType: "mast",
+    graphqlKey: "tdta_standort_mast",
+    label: "Standorte",
+    slice: null,
+    // The Mast form has no `fk_strassenschluessel` input, so the baseline it
+    // reports on open lacks it; keeping it here would read as a changed
+    // Straßenschlüssel. The save resolves the FK from the pk.
+    buildFormValues: (record) => {
+      const { fk_strassenschluessel: _fk, ...values } =
+        projectMastToFormValues(record);
+      void _fk;
+      return values;
+    },
   },
 };
 
@@ -197,10 +216,12 @@ export const pasteChangesToFeatures = async ({
   const result: BatchPasteResult = { applied: 0, unchanged: 0, failed: 0 };
   if (!target) return result;
 
-  const pastedSlice = (changeSet.values[featureType] ?? {}) as Record<
-    string,
-    unknown
-  >;
+  const { slice } = target;
+  const pastedSlice = (
+    slice ? changeSet.values[slice] ?? {} : changeSet.values
+  ) as Record<string, unknown>;
+  const wrap = (values: Record<string, unknown>) =>
+    slice ? { [slice]: values } : values;
   if (Object.keys(pastedSlice).length === 0) return result;
 
   // One fetch per feature, a few at a time: sequential round-trips make a
@@ -256,17 +277,16 @@ export const pasteChangesToFeatures = async ({
       const existing = currentDrafts[featureId];
 
       if (existing) {
-        const existingSlice = (existing.values[featureType] ?? {}) as Record<
-          string,
-          unknown
-        >;
+        const existingSlice = (
+          slice ? existing.values[slice] ?? {} : existing.values
+        ) as Record<string, unknown>;
         dispatch(
           setDraft({
             featureId,
             featureType,
             values: {
               ...existing.values,
-              [featureType]: { ...existingSlice, ...pastedSlice },
+              ...wrap({ ...existingSlice, ...pastedSlice }),
             },
             feature:
               existing.feature ?? toDraftFeature(feature, target.sourceLayer),
@@ -286,14 +306,14 @@ export const pasteChangesToFeatures = async ({
         dispatch(
           setOriginalValues({
             featureId,
-            values: { [featureType]: baseline },
+            values: wrap(baseline),
           })
         );
         dispatch(
           setDraft({
             featureId,
             featureType,
-            values: { [featureType]: { ...baseline, ...pastedSlice } },
+            values: wrap({ ...baseline, ...pastedSlice }),
             feature: toDraftFeature(feature, target.sourceLayer),
             fetchedData: data,
             featureDbId: dbId,

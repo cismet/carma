@@ -92,7 +92,7 @@ interface FeatureFormLayoutProps {
   /** Optional Alt-gated header "copy values" button handler. */
   onCopyValues?: () => void;
   /** Show the Wiederholfelder copy/paste icon pair next to the header "+".
-   * Leuchte opts in; the other forms leave it off. */
+   * Leuchte and Standort opt in; the other forms leave it off. */
   showRepeatableChangesButtons?: boolean;
   /** Capture this form's changed fields into the Wiederholfelder clipboard. */
   onCopyRepeatableChanges?: () => void;

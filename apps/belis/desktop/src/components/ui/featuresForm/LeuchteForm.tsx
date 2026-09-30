@@ -49,13 +49,7 @@ import {
   FieldPrefix,
   LockedFields,
 } from "./DraftFieldHighlight";
-import { useEditedFields } from "./editedFieldsContext";
-import { countEditedFields, pickPathValues } from "./formDiffUtils";
-import {
-  clearRepeatableChanges,
-  getRepeatableChanges,
-  setRepeatableChanges,
-} from "../../../store/slices/repeatableChanges";
+import { useRepeatableChanges } from "./useRepeatableChanges";
 import dayjs from "dayjs";
 
 const transformDatesForBackend = (
@@ -312,84 +306,21 @@ const LeuchteForm = ({
   );
 
   // ---- Wiederholfelder (header copy/paste) --------------------------------
-  // A manual clipboard: capture the fields changed in this Datenblatt, then
-  // stamp them onto the next Leuchte the user opens. Scoped to the `leuchte`
-  // slice — that is the only one the paste side can write back, since the
-  // Standort/Mast tab describes another record and is not even mounted on an
-  // existing Leuchte. Capturing a `mast.*` path we could never re-apply would
-  // only inflate the badge.
-  //
-  // The source feature is not remembered: re-pasting into it is a no-op
-  // because its fields already hold exactly those values.
-  const editedFields = useEditedFields();
-  const editedLeuchtePaths = useMemo(
-    () => [...editedFields].filter((p) => p.startsWith("leuchte.")),
-    [editedFields]
+  // Scoped to the `leuchte` slice: the Standort/Mast tab describes another
+  // record and is not even mounted on an existing Leuchte.
+  const handleRepeatablePaste = useCallback(
+    (formValues: Record<string, unknown>) => {
+      editedDraftIdRef.current = featureId;
+      onDraftChange?.({ ...draftValues, leuchte: formValues });
+    },
+    [onDraftChange, draftValues, featureId]
   );
-  const storedRepeatableChanges = useSelector((state: RootState) =>
-    getRepeatableChanges(state, "leuchte")
-  );
-  // What the badge shows, and what the toasts report. Counts *visible* fields,
-  // not stored keys: the Strassenschlüssel trio is three paths but one input,
-  // so a single street change must read as 1 — the same collapsing the header's
-  // "nicht gespeicherte Änderungen (n)" already does.
-  const repeatableChangesCount = useMemo(
-    () => countEditedFields(storedRepeatableChanges?.paths ?? []),
-    [storedRepeatableChanges]
-  );
-
-  const handleCopyRepeatableChanges = useCallback(() => {
-    // Read straight from the live form rather than from `draftValues`: both
-    // hold the same values, but the form is already current for a keystroke
-    // Redux has not round-tripped yet.
-    const source = {
-      leuchte: serializeValues(primaryFormRef.current?.getFieldsValue() ?? {}),
-    };
-    const values = pickPathValues(source, editedLeuchtePaths);
-    // Derive the paths back out of what was actually picked rather than
-    // trusting `editedLeuchtePaths`: a changed path the live form doesn't
-    // carry is skipped by pickPathValues, and a `paths` list longer than
-    // `values` would overstate the badge count.
-    const paths = Object.keys(
-      (values.leuchte ?? {}) as Record<string, unknown>
-    ).map((field) => `leuchte.${field}`);
-    if (paths.length === 0) {
-      message.warning("Keine Änderungen zum Kopieren");
-      return;
-    }
-    // No success toast: the badge on the paste button jumping to the new count
-    // is the confirmation, and it stays on screen instead of flashing past.
-    dispatch(setRepeatableChanges({ featureType: "leuchte", values, paths }));
-  }, [dispatch, editedLeuchtePaths]);
-
-  const handlePasteRepeatableChanges = useCallback(() => {
-    const form = primaryFormRef.current;
-    if (!form || !storedRepeatableChanges) return;
-    const slice = deserializeValues(
-      (storedRepeatableChanges.values.leuchte ?? {}) as Record<string, unknown>
-    );
-    // Guard on the raw key count — `slice` is what actually gets written.
-    if (Object.keys(slice).length === 0) return;
-    form.setFieldsValue(slice);
-    // `setFieldsValue` bypasses antd's `onValuesChange`, so push the whole
-    // slice into the Redux draft here. Without it the pasted values would
-    // live in the DOM only — invisible to the header's change count, to the
-    // gray highlight, and to the save payload.
-    // No success toast: the pasted fields turn gray and the header's change
-    // count goes up, which shows what landed and where.
-    editedDraftIdRef.current = featureId;
-    onDraftChange?.({ ...draftValues, leuchte: form.getFieldsValue() });
-  }, [storedRepeatableChanges, onDraftChange, draftValues, featureId]);
-
-  const handleClearRepeatableChanges = useCallback(() => {
-    // Drops the whole slot for this type, which also empties the persisted
-    // copy — the reducer deletes the entry rather than blanking it, so the
-    // badge count falls to 0 and paste goes inert. Only the clipboard is
-    // touched: values already pasted into a form stay in their draft, since
-    // they are the user's edits now and not a copy any more.
-    dispatch(clearRepeatableChanges("leuchte"));
-    message.success("Kopierte Änderungen verworfen");
-  }, [dispatch]);
+  const repeatableChanges = useRepeatableChanges({
+    featureType: "leuchte",
+    slice: "leuchte",
+    formRef: primaryFormRef,
+    onPaste: handleRepeatablePaste,
+  });
 
   const handleSave = async () => {
     if (!jwt) {
@@ -1324,10 +1255,10 @@ const LeuchteForm = ({
       extraGeneralTabs={extraGeneralTabs}
       // Wiederholfelder icon pair in the header — Leuchte only for now.
       showRepeatableChangesButtons
-      onCopyRepeatableChanges={handleCopyRepeatableChanges}
-      onPasteRepeatableChanges={handlePasteRepeatableChanges}
-      onClearRepeatableChanges={handleClearRepeatableChanges}
-      repeatableChangesCount={repeatableChangesCount}
+      onCopyRepeatableChanges={repeatableChanges.onCopy}
+      onPasteRepeatableChanges={repeatableChanges.onPaste}
+      onClearRepeatableChanges={repeatableChanges.onClear}
+      repeatableChangesCount={repeatableChanges.count}
       onAddTab={showCreationStandortTab ? handleAddLeuchteTab : undefined}
       onActiveTabChange={setActiveFormTabKey}
       onCreateRelatedDraft={() => {
