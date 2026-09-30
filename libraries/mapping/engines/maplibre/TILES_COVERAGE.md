@@ -8,6 +8,15 @@ The shared runtime owns one native tile pool and one geometry cut for all active
 
 ## Complete replacement families and resident base coverage
 
+Resident-base navigation includes external tileset pages and transparent
+structural nodes leading to the floor. Unknown routing topology cannot prove a
+terminal floor tile. A missing baseline parent retains its background request
+even when finer published children cover it; loading that fallback does not
+replace the finer cut. Foreground observer views must converge before new idle
+base work starts; incomplete offscreen caster coverage has its own completion
+proof and does not permanently close that observer gate. Current caster work
+still precedes optional base requests in the queues.
+
 For normal observer loading, each drawable REPLACE parent prepares the complete next child family, including offscreen siblings. Routing and external JSON nodes do not count as drawable generations. Native skip traversal continues through routing nodes, but family discovery stops at the next drawable generation while a demanded sibling lacks loaded geometry. A loaded finer cut may prove that child region ready. Unknown topology and pending or failed payloads cannot prove a complete family. ADD content retains its additive semantics.
 
 A parent remains the sole published surface until its complete next family has geometry and required materials. Then the family replaces it in one update. Independent families advance separately. A previously published fine branch is retained when a pan exposes a missing sibling; its ancestor cannot be restored on top of it. A first drawable approximation may fill a truly uncovered region. A proven empty child region can be released; unknown external metadata cannot. Newly exposed gaps take priority over every quality or reserve request.

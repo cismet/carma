@@ -1,5 +1,9 @@
 # engines/maplibre
 
+See the [mesh tile manager overview](./TILE_MANAGER_OVERVIEW.md) for its
+responsibilities, the comparison with the vanilla loader, and the planned
+separation of resident base coverage from deeper persistent prefetch.
+
 ## Consumers must build workers as ES modules
 
 The engine lazy-loads its terrain worker client, so any app or playground that
