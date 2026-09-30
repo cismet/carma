@@ -4,6 +4,7 @@ import localforage from "localforage";
 import { Button, Collapse, Typography, Divider, Space, Row, Col } from "antd";
 import { isMobile, isTablet, isDesktop } from "react-device-detect";
 import UAParser from "ua-parser-js";
+import { isStaleChunkError } from "@carma-commons/dom/window";
 import { getApplicationVersion } from "@carma-commons/utils";
 import versionData from "../../version.json";
 import store from "../store";
@@ -282,6 +283,22 @@ const AppErrorFallback = ({ error, extra }: AppErrorFallbackProps) => {
 
       {/* Body */}
       <div className="container mx-auto px-6 mt-6">
+        {/* a tab older than the last deployment asked for a chunk that is gone */}
+        {isStaleChunkError(error) && (
+          <Space direction="vertical" size="middle" className="mb-6">
+            <Typography.Title level={3} className="!m-0">
+              Das Geoportal wurde aktualisiert. Bitte laden Sie die Seite neu.
+            </Typography.Title>
+            <Button
+              type="primary"
+              size="large"
+              onClick={() => window.location.reload()}
+            >
+              Seite neu laden
+            </Button>
+          </Space>
+        )}
+
         <Typography.Title level={2}>
           Es ist ein Fehler aufgetreten. Das tut uns leid. ¯\_(ツ)_/¯
         </Typography.Title>

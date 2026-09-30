@@ -19,4 +19,10 @@ export { waitForAnimationFrames } from "./lib/waitForAnimationFrames";
 
 export { preventPinchZoom } from "./lib/prevent-pinch-zoom";
 
+export {
+  isStaleChunkError,
+  reloadOnStaleChunk,
+  type ReloadOnStaleChunkOptions,
+} from "./lib/reload-on-stale-chunk";
+
 export { WindowEventNames, type WindowEventName } from "./lib/events";
