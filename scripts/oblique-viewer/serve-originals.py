@@ -24,11 +24,12 @@ MAX_CACHE_BYTES = 64 * 1024 * 1024
 ID_PATTERN = re.compile(r"[A-Za-z0-9_.-]+\Z")
 
 INVENTORY_SCRIPT = r'''
-import json, os, stat, sys
+import json, os, stat, sys, time
 root = os.path.realpath(sys.argv[1])
 if not os.path.isdir(root):
     raise SystemExit("TIFF image root does not exist")
 images = []
+old_enough_ns = time.time_ns() - 120 * 1000000000
 for directory, directories, files in os.walk(root, followlinks=False):
     directories[:] = sorted(name for name in directories
                             if not os.path.islink(os.path.join(directory, name)))
@@ -38,13 +39,21 @@ for directory, directories, files in os.walk(root, followlinks=False):
         path = os.path.join(directory, name)
         if os.path.islink(path):
             continue
-        info = os.stat(path)
-        if not stat.S_ISREG(info.st_mode):
+        try:
+            before = os.stat(path, follow_symlinks=False)
+            if (not stat.S_ISREG(before.st_mode) or before.st_size <= 0
+                    or before.st_mtime_ns > old_enough_ns):
+                continue
+            after = os.stat(path, follow_symlinks=False)
+        except FileNotFoundError:
+            continue
+        fingerprint = lambda info: (info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns)
+        if fingerprint(before) != fingerprint(after):
             continue
         images.append({"id": os.path.splitext(name)[0], "path": path,
-                       "size": info.st_size, "modified_ns": info.st_mtime_ns})
-        if len(images) > 1000:
-            raise SystemExit("Development bridge is limited to 1000 TIFF originals")
+                       "size": after.st_size, "modified_ns": after.st_mtime_ns})
+        if len(images) > 50000:
+            raise SystemExit("Development bridge is limited to 50000 TIFF originals")
 print(json.dumps(images))
 '''
 
@@ -69,6 +78,24 @@ with open(path, "rb") as source:
 
 class BridgeError(RuntimeError):
     pass
+
+
+def validated_origin(origin: str) -> str:
+    """Accept one exact loopback HTTP origin, without a path or credentials."""
+    try:
+        parsed = urlsplit(origin)
+        port = parsed.port
+        if (parsed.scheme not in ("http", "https")
+                or parsed.hostname not in ("localhost", "127.0.0.1", "::1")
+                or parsed.username is not None or parsed.password is not None
+                or parsed.path or parsed.query or parsed.fragment
+                or origin != f"{parsed.scheme}://{parsed.netloc}"
+                or (port is not None and not 1 <= port <= 65535)
+                or parsed.netloc.endswith(":")):
+            raise ValueError("not a loopback HTTP origin")
+    except ValueError as error:
+        raise BridgeError("Allowed origin must be an exact loopback HTTP(S) origin without a path or credentials") from error
+    return origin
 
 
 @dataclass(frozen=True)
@@ -98,13 +125,16 @@ def original_index(rows: list[dict]) -> dict[str, Original]:
 
 
 def filter_metadata(metadata: dict, originals: dict[str, Original]) -> dict:
-    if metadata.get("schemaVersion") != 1 or not isinstance(metadata.get("images"), dict):
+    if (not isinstance(metadata, dict) or metadata.get("schemaVersion") != 1
+            or not isinstance(metadata.get("images"), dict)):
         raise BridgeError("Expected schemaVersion 1 oblique metadata with source-keyed images")
+    series_id = metadata.get("seriesId")
+    if (not isinstance(series_id, str) or not ID_PATTERN.fullmatch(series_id)
+            or series_id in (".", "..")):
+        raise BridgeError("Metadata requires a nonempty route-safe seriesId")
     images = {key: value for key, value in metadata["images"].items() if key in originals}
-    if not images:
-        raise BridgeError("Metadata and available TIFF originals have no common image IDs")
-    # Preserve cameras, matrix conventions, provenance and the unknown height datum.
-    return {**metadata, "seriesId": "wuppertal-2026-rathaus", "images": images}
+    # Preserve series identity, cameras, conventions, provenance and the unknown height datum.
+    return {**metadata, "images": images}
 
 
 def requested_range(value: str | None, size: int) -> tuple[int, int]:
@@ -205,7 +235,7 @@ class RemoteBackend:
             process.stderr.close()
 
     def inventory(self) -> dict[str, Original]:
-        rows = json.loads(self.execute(["python3", "-", self.image_root], INVENTORY_SCRIPT, 1024 * 1024))
+        rows = json.loads(self.execute(["python3", "-", self.image_root], INVENTORY_SCRIPT, 32 * 1024 * 1024))
         return original_index(rows)
 
     def render(self, original: Original, max_edge: int) -> bytes:
@@ -250,9 +280,22 @@ class RemoteBackend:
 
 
 class Bridge:
-    def __init__(self, metadata: dict, originals: dict[str, Original], backend):
-        self.metadata = json.dumps(filter_metadata(metadata, originals), sort_keys=True).encode()
-        available = json.loads(self.metadata)["images"]
+    def __init__(self, metadata: dict, originals: dict[str, Original], backend,
+                 allowed_origin: str = ALLOWED_ORIGIN,
+                 additional_metadata: list[dict] | None = None):
+        self.allowed_origin = validated_origin(allowed_origin)
+        self.metadata_by_series: dict[str, bytes] = {}
+        available = set()
+        for catalog in [metadata, *(additional_metadata or [])]:
+            filtered = filter_metadata(catalog, originals)
+            series_id = filtered["seriesId"]
+            if series_id in self.metadata_by_series:
+                raise BridgeError(f"Duplicate metadata seriesId: {series_id}")
+            self.metadata_by_series[series_id] = json.dumps(filtered, sort_keys=True).encode()
+            available.update(filtered["images"])
+        if not available:
+            raise BridgeError("Metadata and available TIFF originals have no common image IDs")
+        self.metadata = self.metadata_by_series[metadata["seriesId"]]
         self.originals = {key: value for key, value in originals.items() if key in available}
         self.backend = backend
         self.cache: OrderedDict[tuple[str, int], bytes] = OrderedDict()
@@ -283,16 +326,16 @@ class Bridge:
 def create_handler(bridge: Bridge):
     class Handler(BaseHTTPRequestHandler):
         def end_headers(self):
-            if self.headers.get("Origin") == ALLOWED_ORIGIN:
-                self.send_header("Access-Control-Allow-Origin", ALLOWED_ORIGIN)
+            if self.headers.get("Origin") == bridge.allowed_origin:
+                self.send_header("Access-Control-Allow-Origin", bridge.allowed_origin)
                 self.send_header("Vary", "Origin")
                 self.send_header("Access-Control-Expose-Headers", "Content-Length, Content-Range, Accept-Ranges, ETag")
             self.send_header("X-Content-Type-Options", "nosniff")
             super().end_headers()
 
         def allowed(self) -> bool:
-            if self.headers.get("Origin") not in (None, ALLOWED_ORIGIN):
-                self.send_error(403, "This development bridge allows only localhost:4200")
+            if self.headers.get("Origin") not in (None, bridge.allowed_origin):
+                self.send_error(403, "Origin is not allowed by this development bridge")
                 return False
             return True
 
@@ -334,6 +377,14 @@ def create_handler(bridge: Bridge):
                 path = unquote(urlsplit(self.path).path, errors="strict")
                 if path == "/metadata.json":
                     self.respond(bridge.metadata, "application/json", head)
+                    return
+                catalog_match = re.fullmatch(r"/metadata/([A-Za-z0-9_.-]+)\.json", path)
+                if catalog_match:
+                    catalog = bridge.metadata_by_series.get(catalog_match[1])
+                    if catalog is None:
+                        self.send_error(404, "Unknown image series")
+                    else:
+                        self.respond(catalog, "application/json", head)
                     return
                 match = re.fullmatch(r"/(1|2|3)/([A-Za-z0-9_.-]+)\.jpg", path)
                 original_match = re.fullmatch(r"/original/([A-Za-z0-9_.-]+)\.tif", path)
@@ -394,14 +445,18 @@ def create_handler(bridge: Bridge):
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--metadata", type=Path, default=Path(__file__).resolve().parents[2] / "apps" / "geoportal" / "public" / "oblique" / "2026-rathaus" / "metadata.json", help="Local schemaVersion 1 importer JSON; defaults to the committed Rathaus catalog")
+    parser.add_argument("--additional-metadata", type=Path, action="append", default=[], help="Additional schemaVersion 1 catalog; repeatable, served by its preserved seriesId")
     parser.add_argument("--ssh-host", default="amy.cismet.de")
     parser.add_argument("--container", default="gdal36_gdal3-6-environment_1")
     parser.add_argument("--image-root", default="/data/wupp2026/schraeg/_test-rathaus", help="Path in the existing container")
     parser.add_argument("--port", type=int, default=8926)
+    parser.add_argument("--allow-origin", default=ALLOWED_ORIGIN, help="Exact loopback HTTP(S) browser origin; no path or credentials")
     args = parser.parse_args()
     try:
+        origin = validated_origin(args.allow_origin)
         backend = RemoteBackend(args.ssh_host, args.container, args.image_root)
-        bridge = Bridge(json.loads(args.metadata.read_text()), backend.inventory(), backend)
+        additional = [json.loads(path.read_text()) for path in args.additional_metadata]
+        bridge = Bridge(json.loads(args.metadata.read_text()), backend.inventory(), backend, origin, additional)
         server = ThreadingHTTPServer(("127.0.0.1", args.port), create_handler(bridge))
         server.daemon_threads = True
         print(f"Development originals bridge: http://localhost:{args.port} ({len(bridge.originals)} TIFFs)", flush=True)

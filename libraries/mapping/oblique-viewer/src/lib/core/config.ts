@@ -24,6 +24,8 @@ import type {
  * declares the bare kind.
  */
 export type ObliqueViewerConfig = Partial<ObliqueDataset> & {
+  /** Start the viewer and its panel when the host mounts this addon. */
+  startEnabled?: boolean;
   /** Independently selectable image series; omitted uses the two Wuppertal presets. */
   series?: readonly ObliqueDataset[];
   /** On-demand local TIFF bridge for the delivered 2026 Rathaus originals. */
@@ -283,6 +285,7 @@ export const WUPPERTAL_OBLIQUE_2024: ObliqueDataset = {
 
 /** the config keys that describe the viewer rather than the flight */
 const VIEWER_ONLY_KEYS = new Set<string>([
+  "startEnabled",
   "series",
   "devOriginalsBaseURI",
   "showControl",

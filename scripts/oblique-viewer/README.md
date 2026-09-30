@@ -192,32 +192,71 @@ not cryptographic equality with a supplier's originals.
 Neither mode proves the full delivery valid or complete.
 
 
-## Develop against the original Rathaus TIFFs
+## Reproduce the local originals demo
+
+From the repository root, with repository dependencies installed, run the UI
+and bridge in separate terminals:
 
 ```sh
-python3 scripts/oblique-viewer/serve-originals.py
+npx vite --config apps/geoportal/vite.config.mts \
+  --host localhost --port 4201 --strictPort
 ```
 
-This loopback HTTP bridge uses the committed
-`apps/geoportal/public/oblique/2026-rathaus/metadata.json` and SSH access to amy.
-It serves only catalog IDs with matching originals in the existing GDAL
-container under `/data/wupp2026/schraeg/_test-rathaus`. Overrides are available
-through `--metadata`, `--ssh-host`, `--container`, `--image-root` and `--port`.
-No remote packages, containers or persistent derivatives are created.
+```sh
+python3 scripts/oblique-viewer/serve-originals.py \
+  --allow-origin http://localhost:4201 \
+  --additional-metadata /private/tmp/carma-oblique-2026-importer-evidence/metadata.uploaded.json
+```
 
-`/metadata.json` preserves the source camera poses, calibration, provenance and
-unknown height datum and declares the independent `wuppertal-2026-rathaus`
-series. `/3/{sourceId}.jpg`, `/2/{sourceId}.jpg` and `/1/{sourceId}.jpg` render
-requested views with maximum edges 1024, 2048 and 4096 pixels respectively.
-These are development sizes, not the production pyramid's level definitions.
-GDAL selects an existing TIFF page with sufficient resolution and streams a
-JPEG into a bounded RAM cache. At most two renders run concurrently. No
-watermark is added. `/original/{sourceId}.tif` streams unchanged original bytes
-and supports a single HTTP byte range.
+Open [the local oblique route](http://localhost:4201/#/oblique?ff=ng&lat=51.27174&lng=7.20028&zoom=17).
+The route starts the viewer and offers independent 2024, available 2026, and
+2026 Rathaus sources. Existing 2024 previews and downloads retain their direct
+`/2024/{3,1}/{sourceId}.jpg` URLs.
 
-The HTTP server binds to `127.0.0.1:8926` and allows CORS only for
-`http://localhost:4200`. The Geoportal local-development addon supplies this
-bridge URI to the third source, alongside 2024 and the full 2026 preset.
-Unknown source Z is available only through this explicit development
-configuration and displays an unverified-height warning; this is not a
-production alignment claim.
+The additional catalog path above is a local import/audit artifact, not a
+committed fixture. Recreate it with the reproducible importer above using
+`--series-id wuppertal-2026`, or pass another normalized full-2026 JSON path.
+The bridge intersects each catalog with available stable TIFF IDs, so a full
+metadata catalog can include images whose originals have not arrived yet.
+
+Snapshot checked on 2026-09-30: the available 2026 catalog contains 41 images,
+all from the existing Rathaus originals. The separately selectable Rathaus
+catalog contains the same 41 source images. The upload location
+`/mnt/storagebox/luftbildschraegaufnahmen2026` currently contains zero TIFFs;
+this demo does not claim that the full 30,172-image delivery is available.
+
+This loopback bridge uses SSH access to amy and the existing GDAL container
+under `/data/wupp2026/schraeg/_test-rathaus`. Its primary catalog defaults to
+the committed `apps/geoportal/public/oblique/2026-rathaus/metadata.json`.
+`--metadata`, repeatable `--additional-metadata`, `--ssh-host`, `--container`,
+`--image-root`, `--port`, and `--allow-origin` are explicit overrides. The
+container must already see the selected image root; the current container's
+original image mount does not include the Storagebox upload location.
+
+Each catalog preserves its own validated `seriesId`, source camera poses,
+calibration, provenance, and unknown height datum. `/metadata.json` serves the
+primary Rathaus catalog; `/metadata/wuppertal-2026.json` serves the additional
+available-2026 catalog. Other additional catalogs are addressed by
+`/metadata/{seriesId}.json`. The original-image whitelist is the union of all
+catalogs' available image IDs, while each metadata response remains limited
+to its own catalog. Restart the bridge after uploads or catalog updates to
+refresh this inventory.
+
+The scan is bounded to 50,000 originals and a 32 MB inventory response. It
+skips symlinks, empty files, files modified within the previous 120 seconds,
+and files whose size, modification time, or identity changes between stat
+reads. This stability filter does not certify complete pixel decoding.
+
+`/3/{sourceId}.jpg`, `/2/{sourceId}.jpg`, and `/1/{sourceId}.jpg` render requested
+views with maximum edges 1024, 2048, and 4096 pixels respectively. These are
+development sizes. GDAL selects an existing TIFF page with sufficient
+resolution and streams a JPEG into a bounded 64 MB RAM cache; at most two
+renders run concurrently. `/original/{sourceId}.tif` streams unchanged original
+bytes and supports a single HTTP byte range. No remote packages, containers,
+watermarks, or permanent image derivatives are created.
+
+The server binds to `127.0.0.1:8926`; the command above allows CORS only for the
+exact origin `http://localhost:4201`. Omitting `--allow-origin` retains the
+`http://localhost:4200` default. Unknown source Z is available only through the
+explicit development configuration, with a visible unverified-height warning.
+Physical image alignment and ground registration still need verification.
