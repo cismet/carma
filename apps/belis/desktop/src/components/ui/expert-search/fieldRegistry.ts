@@ -53,9 +53,15 @@ export interface Field {
   sortRelation?: string;
   sortColumn?: string;
   // For a column that lives on a RELATED table rather than on the object itself:
-  // the GraphQL object-relationship to nest the condition in, so the where
-  // builder emits `{<filterRelation>: {<key>: {...}}}`.
+  // the GraphQL relationship path (dot-separated) to nest the condition in, so
+  // the where builder emits `{<rel1>: {<rel2>: {<column>: {...}}}}`.
   filterRelation?: string;
+  // Column to filter on when it differs from `key` (e.g. on a related table).
+  filterColumn?: string;
+  // The first hop of `filterRelation` is an array relationship: "ist leer" /
+  // "ist nicht leer" then mean "has no / has any related row".
+  filterRelationIsArray?: boolean;
+  sortable?: false;
 }
 
 // Columns that recur across BELIS object types (same backend name everywhere).
@@ -69,7 +75,8 @@ const COMMON = {
   erstellungsjahr: { key: "erstellungsjahr", label: "Erstellungsjahr", type: "date" },
   pruefdatum: { key: "pruefdatum", label: "Prüfdatum", type: "date" },
   bemerkung: { key: "bemerkung", label: "Bemerkung", type: "text" },
-  dokumente: { key: "dokumente", label: "Dokumente", type: "text" },
+  // `dokumente` is an Int array key; search the documents' description instead.
+  dokumente: { key: "dokumente", label: "Dokumente", type: "text", filterRelation: "dokumenteArray.dms_url", filterColumn: "description", filterRelationIsArray: true, sortable: false },
   is_deleted: { key: "is_deleted", label: "Gelöscht", type: "boolean" },
 } satisfies Record<string, Field>;
 

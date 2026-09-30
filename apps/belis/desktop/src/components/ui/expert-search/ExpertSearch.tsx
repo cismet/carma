@@ -37,6 +37,7 @@ const LIMIT_OPTIONS = LIMIT_PRESETS.map((n) => ({ value: String(n) }));
 const ExpertSearch = ({ objectType }: ExpertSearchProps) => {
   const dispatch = useDispatch();
   const fields = REGISTRY[objectType];
+  const sortableFields = fields.filter((f) => f.sortable !== false);
   const { groups, sorts, limit, selectedGroupId, sortSelected } = useSelector(
     getExpertTypeState(objectType)
   );
@@ -55,21 +56,24 @@ const ExpertSearch = ({ objectType }: ExpertSearchProps) => {
   // duplicates an existing row), ascending.
   const handleAddSort = () => {
     const used = new Set(sorts.map((s) => s.field));
-    const nextField = fields.find((f) => !used.has(f.key))?.key;
+    const nextField = sortableFields.find((f) => !used.has(f.key))?.key;
     if (!nextField) return;
     dispatch(addSort({ objectType, field: nextField }));
     setSortOpen(true);
   };
 
   // Every field is already used → no more sorts can be added without duplicating.
-  const allFieldsSorted = sorts.length >= fields.length;
+  const allFieldsSorted = sorts.length >= sortableFields.length;
 
   // Clicking a field in the sidebar targets whatever is currently selected:
   // the sort list (add a sort on that field) or a filter group (add a rule).
   const handleFieldClick = (fieldKey: string) => {
     if (sortSelected) {
       // Skip fields already sorted on — no duplicate order_by entries.
-      if (!sorts.some((s) => s.field === fieldKey)) {
+      if (
+        sortableFields.some((f) => f.key === fieldKey) &&
+        !sorts.some((s) => s.field === fieldKey)
+      ) {
         dispatch(addSort({ objectType, field: fieldKey }));
       }
       return;
@@ -237,7 +241,7 @@ const ExpertSearch = ({ objectType }: ExpertSearchProps) => {
                     objectType={objectType}
                     sort={sort}
                     index={index}
-                    fields={fields}
+                    fields={sortableFields}
                     usedFieldKeys={sorts
                       .filter((s) => s.id !== sort.id)
                       .map((s) => s.field)}
