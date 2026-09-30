@@ -9,6 +9,7 @@ import {
   degToRad as degreesToRadians,
   degToRadNumeric as degToRad,
   radToDegNumeric as radToDeg,
+  zeroToTwoPi,
 } from "@carma-units";
 import {
   Control,
@@ -139,6 +140,7 @@ export const ObliqueViewer = ({
         return {
           id: series.id,
           label: series.label,
+          shortLabel: series.shortLabel,
           availableCameraViews: series.availableCameraViews,
           enabled: enabledSet.has(series.id),
           isLoading: status?.isLoading ?? false,
@@ -704,6 +706,19 @@ export const ObliqueViewer = ({
   );
   useEffect(() => {
     if (!libreMap) return undefined;
+    const reportOrientation = () => {
+      if (!runningRef.current) return;
+      const bearing = Math.round(
+        radToDeg(
+          zeroToTwoPi(degreesToRadians(libreMap.getBearing() as Degrees))
+        )
+      );
+      publish({
+        bearingDeg: (bearing === 360 ? 0 : bearing) as Degrees,
+        pitchDeg: Math.round(libreMap.getPitch()) as Degrees,
+      });
+    };
+    reportOrientation();
     let pendingGesture = false;
     const onGestureStart = (event: { originalEvent?: Event }) => {
       if (
@@ -716,6 +731,7 @@ export const ObliqueViewer = ({
       }
     };
     const onGestureEnd = (event: { obliqueFov?: boolean }) => {
+      reportOrientation();
       if (!pendingGesture || event.obliqueFov || busyRef.current) return;
       pendingGesture = false;
       if (!runningRef.current || !previewVisibleRef.current) return;
@@ -729,13 +745,24 @@ export const ObliqueViewer = ({
           true
         );
     };
+    libreMap.on("rotate", reportOrientation);
+    libreMap.on("pitch", reportOrientation);
     libreMap.on("movestart", onGestureStart);
     libreMap.on("moveend", onGestureEnd);
     return () => {
+      libreMap.off("rotate", reportOrientation);
+      libreMap.off("pitch", reportOrientation);
       libreMap.off("movestart", onGestureStart);
       libreMap.off("moveend", onGestureEnd);
     };
-  }, [libreMap, readTarget, chooseRequestedView, selectedDataset]);
+  }, [
+    libreMap,
+    readTarget,
+    chooseRequestedView,
+    selectedDataset,
+    running,
+    publish,
+  ]);
   const onPreviewError = useCallback(
     () =>
       setRuntimeError(

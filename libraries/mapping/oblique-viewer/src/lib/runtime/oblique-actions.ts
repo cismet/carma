@@ -4,6 +4,8 @@ import {
   useContext,
   type ReactNode,
 } from "react";
+import type { Degrees } from "@carma-units";
+
 import { BACKDROP_LOOK_BOUNDS, BACKDROP_LOOK_DEFAULT } from "../core/config";
 import type { PreviewQualityChoice } from "../core/constants";
 import type {
@@ -32,6 +34,7 @@ export type ObliqueRequest = ObliqueCommand & { seq: number };
 export type ViewerSeriesStatus = {
   id: string;
   label: string;
+  shortLabel?: string;
   enabled: boolean;
   isLoading: boolean;
   error: string | null;
@@ -60,6 +63,9 @@ export type ObliqueViewerState = {
   selectedCameraId: string | null;
   /** the sector the camera looks into, null until the map is tilted */
   activeDirection: CardinalDirection | null;
+  /** Current viewport angles, rounded to degrees; bearing is clockwise from north. */
+  bearingDeg: Degrees | null;
+  pitchDeg: Degrees | null;
   /** the neighbours of the selected image, by the direction they lie in */
   canPan: boolean;
   /** the image is shown over the map, aligned with the camera */
@@ -91,6 +97,8 @@ export const OBLIQUE_STATE_DEFAULT: ObliqueViewerState = {
   selectedImageId: null,
   selectedCameraId: null,
   activeDirection: null,
+  bearingDeg: null,
+  pitchDeg: null,
   canPan: false,
   previewVisible: false,
   isBusy: false,

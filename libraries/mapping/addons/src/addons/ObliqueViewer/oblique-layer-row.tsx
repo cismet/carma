@@ -31,8 +31,8 @@ const READOUT_STYLE: CSSProperties = {
 };
 
 /**
- * The row the layer bar shows while the viewer is on: the title, the sector
- * and image under the map centre, and the flight to it. Same shape as the
+ * The row the layer bar shows while the viewer is on: the title, active series
+ * and viewport angles, and the flight to the selected image. Same shape as the
  * flood's and the time series' rows, so a route's tools read as one family.
  */
 export const OBLIQUE_LAYER: Layer = {
@@ -117,12 +117,26 @@ export const useObliqueLayerRow = ({
     isOn,
     setOn,
     title,
-    label,
+    series,
+    bearingDeg,
+    pitchDeg,
     previewVisible,
     selectedImageId,
     setPanelOpen,
     sendRequest,
   } = useObliqueViewerActions();
+
+  const label = [
+    series
+      .filter((entry) => entry.enabled)
+      .map((entry) => entry.shortLabel ?? entry.id)
+      .join(", "),
+    bearingDeg !== null && pitchDeg !== null
+      ? `H ${bearingDeg}° P ${pitchDeg}°`
+      : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   // the app owns the panel state; the row's icon colour reads it from here
   useEffect(() => {
