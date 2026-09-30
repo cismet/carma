@@ -1,5 +1,6 @@
 import { withStories, type Show } from "@carma-mapping/show-remote";
 
+import { withHighlightsAsLayer } from "./scene-edit";
 import type { ShowDraft } from "./show-draft";
 
 /**
@@ -45,10 +46,16 @@ export const draftFromShow = (
     current.published?.key === key ? current.published.editToken : undefined;
   // a show from before stories gets one for all its scenes
   const { stories, scenes } = withStories(show);
+  const baseLayersOf = new Map(
+    stories.map(({ id, baseLayers }) => [id, baseLayers ?? []])
+  );
   return {
     title: show.title,
     stories,
-    scenes,
+    // the highlights come back as the scenes' spot layers
+    scenes: scenes.map((scene) =>
+      withHighlightsAsLayer(scene, baseLayersOf.get(scene.story ?? ""))
+    ),
     published: {
       key,
       // older shows may come without it

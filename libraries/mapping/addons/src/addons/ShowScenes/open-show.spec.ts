@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import type { MappingConfigLayer } from "@carma-api";
 import {
   FIRST_STORY_ID,
   FIRST_STORY_TITLE,
@@ -7,6 +8,11 @@ import {
   SHOW_VERSION,
   type Show,
 } from "@carma-mapping/show-remote";
+
+import {
+  SPOT_HIGHLIGHTS_LAYER_ID,
+  spotLayerFromHighlights,
+} from "../SpotHighlights/spot-layer";
 
 import { draftFromShow, showKeyFrom } from "./open-show";
 import type { ShowDraft } from "./show-draft";
@@ -102,5 +108,39 @@ describe("draftFromShow", () => {
     expect(draftFromShow(undated, "other", current, NOW).published?.at).toBe(
       NOW
     );
+  });
+
+  const highlight = {
+    id: "h1",
+    title: "Zoo",
+    center: [791700, 6664800] as const,
+    radiusMeters: 80,
+    dim: 0.75,
+  };
+
+  it("gives the highlights back as the scene's own spot layer", () => {
+    const withHighlights = {
+      ...show,
+      scenes: [{ ...show.scenes[0], highlights: [highlight] }],
+    } as Show;
+    const [scene] = draftFromShow(withHighlights, "other", current, NOW).scenes;
+    expect(scene).not.toHaveProperty("highlights");
+    expect(scene.config.layers.map(({ id }) => id)).toEqual([
+      "base",
+      SPOT_HIGHLIGHTS_LAYER_ID,
+    ]);
+  });
+
+  it("leaves the spot layer to the story when the story has it", () => {
+    const spotLayer = spotLayerFromHighlights([highlight]) as MappingConfigLayer;
+    const fromStory = {
+      ...show,
+      stories: [{ id: "a", title: "A", baseLayers: [spotLayer] }],
+      scenes: [{ ...show.scenes[0], story: "a", highlights: [highlight] }],
+    } as Show;
+    const draft = draftFromShow(fromStory, "other", current, NOW);
+    expect(draft.scenes[0]).not.toHaveProperty("highlights");
+    expect(draft.scenes[0].config.layers.map(({ id }) => id)).toEqual(["base"]);
+    expect(draft.stories?.[0].baseLayers).toEqual([spotLayer]);
   });
 });

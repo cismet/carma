@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 
+import type { MappingConfigLayer } from "@carma-api";
 import type { ShowScene } from "@carma-mapping/show-remote";
+
+import {
+  SPOT_HIGHLIGHTS_LAYER,
+  SPOT_HIGHLIGHTS_LAYER_ID,
+  withSpotLayerContent,
+  type SpotLayerContent,
+} from "../SpotHighlights/spot-layer";
 
 import {
   addStoryBaseLayers,
@@ -15,11 +23,15 @@ import {
   removeStoryBaseLayer,
   sceneExclusion,
   storyBaseLayers,
+  withHighlightsAsLayer,
   withoutBaseLayers,
 } from "./scene-edit";
 import type { ShowDraft } from "./show-draft";
 
 const layers = (...ids: string[]) => ids.map((id) => ({ id }));
+
+const withSpotContent = (content: SpotLayerContent) =>
+  withSpotLayerContent(SPOT_HIGHLIGHTS_LAYER, content);
 
 const idsOf = (config: ShowScene["config"]) =>
   config.layers.map(({ id }) => id);
@@ -46,25 +58,110 @@ describe("publishedScene", () => {
     expect(publishedScene(stale, new Set())).not.toHaveProperty("controls");
   });
 
-  it("takes the highlights along, without broken ones and without an empty list", () => {
-    const highlight = {
-      id: "h1",
-      title: "Zoo",
-      center: [791700, 6664800] as const,
-      radiusMeters: 80,
-      dim: 0.75,
-    };
+  const spot = {
+    id: "h1",
+    title: "Zoo",
+    center: [791700, 6664800] as [number, number],
+    radiusMeters: 80,
+  };
+  const spotLayer = (dim: number, spots = [spot]) =>
+    withSpotContent({ spots, dim }) as MappingConfigLayer;
+
+  it("takes its spot layer's spots as the highlights, with the layer's dim", () => {
     const published = publishedScene(
       {
         ...scene,
-        highlights: [highlight, { id: "h2" }] as ShowScene["highlights"],
+        config: { layers: [...scene.config.layers, spotLayer(0.75)] },
       },
       new Set()
     );
-    expect(published.highlights).toEqual([highlight]);
+    expect(published.highlights).toEqual([{ ...spot, dim: 0.75 }]);
+    // the layer goes along, the display draws nothing for it
+    expect(idsOf(published.config)).toContain(SPOT_HIGHLIGHTS_LAYER_ID);
+  });
+
+  it("has no highlights without a spot layer, or with it left out", () => {
+    expect(publishedScene(scene, new Set())).not.toHaveProperty("highlights");
+    const withLayer = {
+      ...scene,
+      config: { layers: [...scene.config.layers, spotLayer(0.75)] },
+    };
     expect(
-      publishedScene({ ...scene, highlights: [] }, new Set())
+      publishedScene(withLayer, new Set([SPOT_HIGHLIGHTS_LAYER_ID]))
     ).not.toHaveProperty("highlights");
+    expect(
+      publishedScene(
+        { ...scene, config: { layers: [spotLayer(0.5, [])] } },
+        new Set()
+      )
+    ).not.toHaveProperty("highlights");
+  });
+
+  it("falls back to the story's spot layer, its own winning", () => {
+    const base = [spotLayer(0.4)];
+    expect(publishedScene(scene, new Set(), base).highlights).toEqual([
+      { ...spot, dim: 0.4 },
+    ]);
+    const own = {
+      ...scene,
+      config: { layers: [spotLayer(0.9, [{ ...spot, id: "own" }])] },
+    };
+    expect(publishedScene(own, new Set(), base).highlights).toEqual([
+      { ...spot, id: "own", dim: 0.9 },
+    ]);
+  });
+
+  it("ignores highlights stored on the scene the old way", () => {
+    const old = {
+      ...scene,
+      highlights: [{ ...spot, dim: 0.75 }],
+    };
+    expect(publishedScene(old, new Set())).not.toHaveProperty("highlights");
+  });
+});
+
+describe("withHighlightsAsLayer", () => {
+  const scene: ShowScene = {
+    id: "s1",
+    title: "Szene 1",
+    config: { layers: layers("base") },
+  };
+  const highlight = {
+    id: "h1",
+    title: "Zoo",
+    center: [791700, 6664800] as const,
+    radiusMeters: 80,
+    dim: 0.75,
+  };
+
+  it("leaves a scene without stored highlights as it is", () => {
+    expect(withHighlightsAsLayer(scene)).toBe(scene);
+  });
+
+  it("turns stored highlights into the spot layer, dropping broken ones", () => {
+    const converted = withHighlightsAsLayer({
+      ...scene,
+      highlights: [highlight, { id: "h2" }] as ShowScene["highlights"],
+    });
+    expect(converted).not.toHaveProperty("highlights");
+    expect(idsOf(converted.config)).toEqual([
+      "base",
+      SPOT_HIGHLIGHTS_LAYER_ID,
+    ]);
+    expect(publishedScene(converted, new Set()).highlights).toEqual([
+      highlight,
+    ]);
+  });
+
+  it("keeps a spot layer the scene has already, dropping the copy", () => {
+    const layer = withSpotContent({ spots: [], dim: 0.5 }) as MappingConfigLayer;
+    const converted = withHighlightsAsLayer({
+      ...scene,
+      config: { layers: [layer] },
+      highlights: [highlight],
+    });
+    expect(converted).not.toHaveProperty("highlights");
+    expect(converted.config.layers).toEqual([layer]);
   });
 });
 

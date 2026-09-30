@@ -1,6 +1,6 @@
 import { useState, type ComponentProps } from "react";
 
-import { Input, Slider, type SliderSingleProps } from "antd";
+import { Input } from "antd";
 
 /**
  * The panel reaches the screen through `Control`, which hands its content to
@@ -41,31 +41,4 @@ export const DraftTextArea = ({
 }: Omit<ComponentProps<typeof Input.TextArea>, Bound> & TextProps) => {
   const field = useTypedText(value, onValue);
   return <Input.TextArea {...rest} {...field} />;
-};
-
-/**
- * A slider that commits when it is let go. Bound straight to the draft it
- * would jump back under the thumb while it is dragged, for the same reason
- * the fields above keep what is typed.
- */
-export const DraftSlider = ({
-  value,
-  onValue,
-  ...rest
-}: Pick<
-  SliderSingleProps,
-  "min" | "max" | "step" | "tooltip" | "className" | "disabled"
-> & { value: number; onValue: (value: number) => void }) => {
-  const [dragged, setDragged] = useState<number | null>(null);
-  return (
-    <Slider
-      {...rest}
-      value={dragged ?? value}
-      onChange={(next: number) => setDragged(next)}
-      onChangeComplete={(next: number) => {
-        setDragged(null);
-        onValue(next);
-      }}
-    />
-  );
 };

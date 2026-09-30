@@ -6,6 +6,8 @@ import {
   type ShowStory,
 } from "@carma-mapping/show-remote";
 
+import { withHighlightsAsLayer } from "./scene-edit";
+
 /**
  * The show being put together on the desktop: scenes collect here until they
  * are published. Kept in `localStorage` under the route's scope, so collecting
@@ -54,13 +56,16 @@ const LOG_PREFIX = "[SHOW SCENES]";
 
 /**
  * A draft from what was stored or loaded, with the parts it lacks filled in.
- * A draft from before stories gets one for all its scenes.
+ * A draft from before stories gets one for all its scenes, one from before
+ * the spot layer gets its scenes' highlights as that layer.
  */
 export const normalizeDraft = (parsed: Partial<ShowDraft>): ShowDraft =>
   withStories({
     title: typeof parsed.title === "string" ? parsed.title : EMPTY_DRAFT.title,
     ...(Array.isArray(parsed.stories) ? { stories: parsed.stories } : {}),
-    scenes: Array.isArray(parsed.scenes) ? parsed.scenes : [],
+    scenes: Array.isArray(parsed.scenes)
+      ? parsed.scenes.map((scene) => withHighlightsAsLayer(scene))
+      : [],
     ...(Array.isArray(parsed.excludedLayerIds)
       ? {
           excludedLayerIds: parsed.excludedLayerIds.filter(

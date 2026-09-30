@@ -1,138 +1,26 @@
 import type { DragEvent } from "react";
 
 import { Button, Checkbox, Popconfirm, Select } from "antd";
-import {
-  faGripVertical,
-  faMinus,
-  faPlus,
-  faXmark,
-} from "@fortawesome/free-solid-svg-icons";
+import { faGripVertical, faXmark } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 import type { MappingConfigLayer } from "@carma-api";
 
 import {
-  HIGHLIGHT_DIM_RANGE,
-  HIGHLIGHT_RADIUS_RANGE_METERS,
   layerTitle,
-  type ShowHighlight,
   type ShowScene,
   type ShowStory,
 } from "@carma-mapping/show-remote";
 
-import { DraftInput, DraftSlider, DraftTextArea } from "./DraftInput";
+import { DraftTextArea } from "./DraftInput";
 import { IconButton } from "./IconButton";
 import { sceneLayers } from "./scene-edit";
 
 /**
- * The scene's stored highlights: one row per spot with the name its button
- * gets on the phone, its size and how dark the rest goes. "+" waits for a
- * click on the map, where the new spot goes.
- */
-const HighlightList = ({
-  highlights,
-  isPlacing,
-  onStartPlacing,
-  onCancelPlacing,
-  onChange,
-  onRemove,
-}: {
-  highlights: readonly ShowHighlight[];
-  isPlacing: boolean;
-  onStartPlacing: () => void;
-  onCancelPlacing: () => void;
-  onChange: (id: string, change: Partial<ShowHighlight>) => void;
-  onRemove: (id: string) => void;
-}) => (
-  <div className="flex flex-col gap-1">
-    <div className="flex items-center gap-2">
-      <span className="flex-1 text-xs font-semibold text-gray-600">
-        Hervorhebungen
-      </span>
-      {isPlacing ? (
-        <Button size="small" onClick={onCancelPlacing}>
-          Abbrechen
-        </Button>
-      ) : (
-        <Button
-          size="small"
-          icon={<FontAwesomeIcon icon={faPlus} />}
-          onClick={onStartPlacing}
-        >
-          Setzen
-        </Button>
-      )}
-    </div>
-    <span
-      className={`text-xs ${isPlacing ? "text-amber-700" : "text-gray-500"}`}
-    >
-      {isPlacing
-        ? "Klick in die Karte setzt die Hervorhebung dorthin. Esc bricht ab."
-        : highlights.length === 0
-        ? "Lichtkegel wie beim Zeiger, fest an einer Stelle. Auf dem Handy bekommt jede einen eigenen Knopf."
-        : "Auf dem Handy bekommt jede einen eigenen Knopf; beim Szenenwechsel sind alle aus."}
-    </span>
-    {highlights.map((highlight) => (
-      <div
-        key={highlight.id}
-        className="flex flex-col gap-1 rounded border border-solid border-gray-200 bg-white p-2"
-      >
-        <div className="flex items-center gap-2">
-          <DraftInput
-            size="small"
-            value={highlight.title}
-            onValue={(title) => onChange(highlight.id, { title })}
-            placeholder="Name des Knopfs"
-            className="flex-1"
-          />
-          <IconButton
-            title="Hervorhebung entfernen"
-            icon={faMinus}
-            danger
-            onClick={() => onRemove(highlight.id)}
-          />
-        </div>
-        <div className="flex items-center gap-2 text-xs text-gray-600">
-          <span className="w-16">Größe</span>
-          <DraftSlider
-            min={HIGHLIGHT_RADIUS_RANGE_METERS[0]}
-            max={HIGHLIGHT_RADIUS_RANGE_METERS[1]}
-            step={5}
-            value={highlight.radiusMeters}
-            onValue={(radiusMeters) => onChange(highlight.id, { radiusMeters })}
-            tooltip={{ formatter: (value) => `${value ?? ""} m` }}
-            className="m-0 flex-1"
-          />
-          <span className="w-12 text-right tabular-nums">
-            {Math.round(highlight.radiusMeters)} m
-          </span>
-        </div>
-        <div className="flex items-center gap-2 text-xs text-gray-600">
-          <span className="w-16">Abdunkeln</span>
-          <DraftSlider
-            min={HIGHLIGHT_DIM_RANGE[0]}
-            max={HIGHLIGHT_DIM_RANGE[1]}
-            step={0.05}
-            value={highlight.dim}
-            onValue={(dim) => onChange(highlight.id, { dim })}
-            tooltip={{
-              formatter: (value) => `${Math.round((value ?? 0) * 100)} %`,
-            }}
-            className="m-0 flex-1"
-          />
-          <span className="w-12 text-right tabular-nums">
-            {Math.round(highlight.dim * 100)} %
-          </span>
-        </div>
-      </div>
-    ))}
-  </div>
-);
-
-/**
  * What opens under a scene row: the story it is in, the text for the
- * presenter, its stored highlights and its layers, ticked when the display
- * gets them and draggable to other scenes and stories. Keeps no state of its
+ * presenter and its layers, ticked when the display gets them and draggable
+ * to other scenes and stories. The highlights are one of the layers, see
+ * `SpotHighlights`. Keeps no state of its
  * own; the panel's `Control` registers its children anew on every render.
  */
 export const SceneDetails = ({
@@ -147,12 +35,6 @@ export const SceneDetails = ({
   onRemoveLayer,
   onLayerDragStart,
   onLayerDragEnd,
-  highlights,
-  isPlacingHighlight,
-  onStartPlacingHighlight,
-  onCancelPlacingHighlight,
-  onHighlightChange,
-  onHighlightRemove,
 }: {
   scene: ShowScene;
   excluded: ReadonlySet<string>;
@@ -167,12 +49,6 @@ export const SceneDetails = ({
   /** a layer picked up, to be copied to where it is dropped */
   onLayerDragStart: (layer: MappingConfigLayer, event: DragEvent) => void;
   onLayerDragEnd: () => void;
-  highlights: readonly ShowHighlight[];
-  isPlacingHighlight: boolean;
-  onStartPlacingHighlight: () => void;
-  onCancelPlacingHighlight: () => void;
-  onHighlightChange: (id: string, change: Partial<ShowHighlight>) => void;
-  onHighlightRemove: (id: string) => void;
 }) => {
   const layers = sceneLayers(scene);
 
@@ -206,15 +82,6 @@ export const SceneDetails = ({
           placeholder="Was auf dem Handy zu dieser Szene steht"
         />
       </div>
-
-      <HighlightList
-        highlights={highlights}
-        isPlacing={isPlacingHighlight}
-        onStartPlacing={onStartPlacingHighlight}
-        onCancelPlacing={onCancelPlacingHighlight}
-        onChange={onHighlightChange}
-        onRemove={onHighlightRemove}
-      />
 
       <div className="flex flex-col gap-1">
         <div className="flex items-center">

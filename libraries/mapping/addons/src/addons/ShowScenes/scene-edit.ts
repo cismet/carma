@@ -1,5 +1,6 @@
 import type { MappingConfig, MappingConfigLayer } from "@carma-api";
 import {
+  baseLayersUnder,
   newSceneId,
   sceneHighlights,
   withStories,
@@ -7,6 +8,11 @@ import {
   type ShowStory,
 } from "@carma-mapping/show-remote";
 
+import {
+  findSpotLayer,
+  spotLayerFromHighlights,
+  spotLayerHighlights,
+} from "../SpotHighlights/spot-layer";
 import type { ShowDraft } from "./show-draft";
 
 /**
@@ -136,24 +142,63 @@ export const applyExclusionToAll = (
  * fields of the show format go along, so an older draft's leftovers (the
  * subscene controls of a dropped design) stay on the desktop, and an empty
  * text stays out.
+ *
+ * Its highlights are the spots of its spot layer (`SpotHighlights`), or of its
+ * story's when it has none of its own; `baseLayers` are the story's as
+ * published. The layer itself goes along too: the display draws nothing for
+ * it, and a show opened again for editing gets it back.
  */
 export const publishedScene = (
   scene: ShowScene,
-  excluded: ReadonlySet<string>
+  excluded: ReadonlySet<string>,
+  baseLayers: readonly MappingConfigLayer[] = []
 ): ShowScene => {
   const { id, title, story, config, bounds, text } = scene;
-  const highlights = sceneHighlights(scene);
+  const layers = config.layers.filter((layer) => !excluded.has(layer.id));
+  const spotLayer = findSpotLayer(
+    baseLayersUnder({ layers }, baseLayers).layers
+  );
+  const highlights = spotLayer ? spotLayerHighlights(spotLayer) : [];
   return {
     id,
     title,
     ...(story !== undefined ? { story } : {}),
-    config: {
-      ...config,
-      layers: config.layers.filter((layer) => !excluded.has(layer.id)),
-    },
+    config: { ...config, layers },
     ...(bounds ? { bounds } : {}),
     ...(text?.trim() ? { text } : {}),
     ...(highlights.length > 0 ? { highlights } : {}),
+  };
+};
+
+/**
+ * A scene with highlights stored on itself, as pm-show kept them before the
+ * spot layer, gets them as its spot layer instead, so they can be edited on
+ * the map. A scene that has the layer already, itself or in its story's
+ * `baseLayers` (a published show opened again), just loses the copy; a copy
+ * of the story's layer would hide later edits of it from the scene.
+ */
+export const withHighlightsAsLayer = (
+  scene: ShowScene,
+  baseLayers: readonly MappingConfigLayer[] = []
+): ShowScene => {
+  if (scene.highlights === undefined) {
+    return scene;
+  }
+  const highlights = sceneHighlights(scene);
+  const next = { ...scene };
+  delete next.highlights;
+  if (
+    highlights.length === 0 ||
+    findSpotLayer(baseLayersUnder(scene.config, baseLayers).layers)
+  ) {
+    return next;
+  }
+  return {
+    ...next,
+    config: {
+      ...scene.config,
+      layers: [...scene.config.layers, spotLayerFromHighlights(highlights)],
+    },
   };
 };
 
