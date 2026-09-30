@@ -210,7 +210,7 @@ The MapLibre/Three map-style presentation is optional. Enable the `mapStyle3d`
 addon to drape the selected vector style and float its point labels above the
 scene. Shadow simulation acquires the same presentation independently; removing
 MapStyle3d does not remove an active shadow scene or rebuild loaded tiles.
-See [MapStyle3d](../addons/src/addons/MapStyle3d/README.md) for route configuration.
+See [MapStyle3d](../../addons/src/addons/MapStyle3d/README.md) for route configuration.
 
 Layer opacity multiplies authored material opacity after any full-opacity shadow styling. Below full opacity, materials enable transparency and disable depth writing; restoring full opacity restores the appropriate source render flags. Updating opacity or colour-correction uniforms does not replace the loaded tile pool.
 
