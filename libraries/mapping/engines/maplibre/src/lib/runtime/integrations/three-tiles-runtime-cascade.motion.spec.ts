@@ -99,8 +99,12 @@ describe("motion runtime integration", () => {
     { lastActiveViewsConverged: false },
     { effectiveErrorTarget: 3 },
     { memoryErrorTarget: 3 },
+    { lastTraversalMs: 10 },
+    { loadingPaused: true },
+    { memoryAdmissionPaused: true },
+    { runtimeVisible: false },
   ])(
-    "waits for requested quality before refining or polling reserve rings (%j)",
+    "waits for eligible work before refining or polling reserve rings (%j)",
     (pending) => {
       vi.useFakeTimers();
       const f = createPrefetchFixture(tile());
@@ -111,11 +115,11 @@ describe("motion runtime integration", () => {
         meshBaseCoverageReady: true,
         lastMainViewConverged: true,
         lastActiveViewsConverged: true,
-        ...pending,
         extentFloorPending: 0,
         ringRefinePasses: 0,
         lastRingRefineAt: -Infinity,
         lastTraversalMs: 0,
+        ...pending,
       };
       const cascade = createThreeTilesCascade(state as never, f.dependencies);
       try {
@@ -127,6 +131,12 @@ describe("motion runtime integration", () => {
         state.lastActiveViewsConverged = true;
         state.effectiveErrorTarget = state.requestedErrorTarget;
         state.memoryErrorTarget = state.requestedErrorTarget;
+        Object.assign(state, {
+          lastTraversalMs: 0,
+          loadingPaused: false,
+          memoryAdmissionPaused: false,
+          runtimeVisible: true,
+        });
         cascade.refineRingCascade();
         expect(state.ringRefinePasses).toBe(1);
         expect(dispatchEvent).toHaveBeenCalled();

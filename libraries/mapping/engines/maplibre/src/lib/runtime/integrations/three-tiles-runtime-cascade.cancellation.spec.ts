@@ -16,6 +16,38 @@ import {
 } from "./three-tiles-runtime-cascade.test-support";
 
 describe("cancellation runtime integration", () => {
+  it.each([false, true])(
+    "keeps covered ancestors unnecessary while native visibility is rebuilt, shadows=%s",
+    (shadows) => {
+      const children = [tile(true), tile(true)];
+      const parent = tile(false, children);
+      const fixture = createPrefetchFixture(parent);
+      const state = fixture.state;
+      state.options = { providesTerrain: true };
+      Object.assign(state, { meshBaseCoverageReady: true });
+      state.residentAncestors.add(parent);
+      children.forEach((child) => state.displayedMeshFrontier.add(child));
+      if (shadows)
+        Object.assign(state, {
+          shadowView: {
+            camera: new OrthographicCamera(),
+            shadowMapSize: { width: 1024, height: 1024 },
+          },
+          shadowSelectionEnabled: true,
+        });
+      const cascade = createThreeTilesCascade(
+        state as unknown as Parameters<typeof createThreeTilesCascade>[0],
+        fixture.dependencies
+      );
+      for (const nativeCut of [[], [parent], children, []]) {
+        fixture.tiles.visibleTiles = new Set(nativeCut);
+        expect(cascade.getTileRequestNeed(parent)).toBeNull();
+      }
+      // A new view without published replacement coverage still needs work.
+      state.displayedMeshFrontier.clear();
+      expect(cascade.isTileRequestNeeded(parent)).toBe(true);
+    }
+  );
   it("drains earlier solar requests in every phase but releases them under memory pressure", () => {
     const fixture = createPrefetchFixture(tile());
     const state = fixture.state as unknown as Parameters<
@@ -92,7 +124,10 @@ describe("cancellation runtime integration", () => {
     coarse.internal.loadingState = PARSING_LOADING_STATE;
     const fixture = createPrefetchFixture(coarse);
     fixture.state.options = { providesTerrain: true };
-    children.forEach((t) => fixture.tiles.visibleTiles.add(t));
+    children.forEach((t) => {
+      fixture.tiles.visibleTiles.add(t);
+      fixture.state.displayedMeshFrontier.add(t);
+    });
     fixture.tiles.loadingTiles.add(coarse);
     const cascade = createThreeTilesCascade(
       fixture.state as unknown as Parameters<typeof createThreeTilesCascade>[0],

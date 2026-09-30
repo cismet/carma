@@ -117,6 +117,7 @@ export const createPrefetchFixture = (root: RuntimeTile) => {
     tileCameraDemand: createTileCameraDemand([]),
     meshRefinementSupport: new Set<RuntimeTile>(),
     residentAncestors: new Set<RuntimeTile>(),
+    displayedMeshFrontier: new Set<RuntimeTile>(),
     extentGeometricError: 40,
     extentFloorArmed: false,
     shadowView: null,

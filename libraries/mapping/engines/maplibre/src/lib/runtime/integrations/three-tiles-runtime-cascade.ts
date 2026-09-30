@@ -63,6 +63,7 @@ export function createThreeTilesCascade(
     | "meshCoverageRecovery"
     | "meshRefinementSupport"
     | "residentAncestors"
+    | "displayedMeshFrontier"
     | "effectiveErrorTarget"
     | "requestedErrorTarget"
     | "memoryErrorTarget"
@@ -153,7 +154,13 @@ export function createThreeTilesCascade(
         runtimeState.retainedShadowRequests.has(tile),
       refinementSupport: runtimeState.meshRefinementSupport,
       residentAncestors: runtimeState.residentAncestors,
-      visibleTiles: runtimeState.tiles?.visibleTiles ?? new Set(),
+      // Native traversal clears/rebuilds visibility before queue admission.
+      // Use the published cut throughout admission, parsing and cancellation;
+      // otherwise a covered ancestor is requested, discarded, then requested
+      // again on the eviction repaint even after every demand has settled.
+      visibleTiles: runtimeState.options.providesTerrain
+        ? runtimeState.displayedMeshFrontier
+        : runtimeState.tiles?.visibleTiles ?? new Set(),
       coverageNeeded: dependencies.isTileNeededForMeshCoverage,
       motionNeeded: motionPrefetch.needed,
       inMainView: dependencies.isTileInMainView,
@@ -421,72 +428,53 @@ export function createThreeTilesCascade(
 
   // With every ring loaded, the queues idle, memory within the ring budget
   // and traversals cheap, admit the next finer level of the cascade.
-  const refineRingCascade = () => {
+  const canRefineRingCascade = () => {
     const tiles = runtimeState.tiles;
-    if (
-      !tiles ||
-      tiles.loadAncestors ||
-      !runtimeState.meshBaseCoverageReady ||
-      !(
-        runtimeState.lastActiveViewsConverged ??
-        runtimeState.lastMainViewConverged
-      ) ||
-      runtimeState.extentFloorPending > 0 ||
-      runtimeState.memoryErrorTarget > runtimeState.requestedErrorTarget ||
-      runtimeState.effectiveErrorTarget !== runtimeState.requestedErrorTarget ||
-      runtimeState.map?.isMoving?.() ||
-      runtimeState.ringRefinePasses >= TILES_LOAD_POLICY.idleRingRefinePassLimit
-    )
-      return;
-    const { stats } = tiles;
-    if (stats.queued > 0 || stats.downloading > 0 || stats.parsing > 0) return;
+    return (
+      !!tiles &&
+      !tiles.loadAncestors &&
+      runtimeState.runtimeVisible !== false &&
+      !runtimeState.loadingPaused &&
+      !runtimeState.memoryAdmissionPaused &&
+      runtimeState.meshBaseCoverageReady &&
+      (runtimeState.lastActiveViewsConverged ??
+        runtimeState.lastMainViewConverged) &&
+      runtimeState.extentFloorPending === 0 &&
+      runtimeState.memoryErrorTarget <= runtimeState.requestedErrorTarget &&
+      runtimeState.effectiveErrorTarget === runtimeState.requestedErrorTarget &&
+      !runtimeState.map?.isMoving?.() &&
+      runtimeState.ringRefinePasses < TILES_LOAD_POLICY.idleRingRefinePassLimit &&
+      tiles.stats.queued === 0 &&
+      tiles.stats.downloading === 0 &&
+      tiles.stats.parsing === 0 &&
+      tiles.lruCache.cachedBytes <
+        tiles.lruCache.minBytesSize * TILES_LOAD_POLICY.idleRingBudgetFraction &&
+      runtimeState.lastTraversalMs <=
+        TILES_LOAD_POLICY.idleRingRefineTraversalBudgetMs
+    );
+  };
+  const refineRingCascade = () => {
+    if (!canRefineRingCascade()) return;
     const now = performance.now();
     if (
       now - runtimeState.lastRingRefineAt <
       TILES_LOAD_POLICY.idleRingRefineIntervalMs
     )
       return;
-    const cache = tiles.lruCache as RuntimeLruCache;
-    if (
-      cache.cachedBytes >=
-        cache.minBytesSize * TILES_LOAD_POLICY.idleRingBudgetFraction ||
-      runtimeState.lastTraversalMs >
-        TILES_LOAD_POLICY.idleRingRefineTraversalBudgetMs
-    )
-      return;
     runtimeState.lastRingRefineAt = now;
     runtimeState.ringRefinePasses += 1;
-    tiles.dispatchEvent({ type: "needs-update" });
+    runtimeState.tiles?.dispatchEvent({ type: "needs-update" });
   };
 
-  // At rest the renderer traverses only on events; once the queues drain
-  // nothing would visit the outer rings or advance the cascade. A slow tick
-  // keeps traversing while there is a level left to refine.
+  // Wake only work that can run. A budget-blocked ring must wait for a real
+  // camera/content change, not poll forever without advancing its pass count.
   let tickTimer: ReturnType<typeof setTimeout> | null = null;
   const scheduleCascadeTick = () => {
-    const tiles = runtimeState.tiles;
-    if (
-      tickTimer !== null ||
-      !tiles ||
-      tiles.loadAncestors ||
-      runtimeState.map?.isMoving?.() ||
-      !runtimeState.meshBaseCoverageReady ||
-      !(
-        runtimeState.lastActiveViewsConverged ??
-        runtimeState.lastMainViewConverged
-      ) ||
-      runtimeState.extentFloorPending > 0 ||
-      runtimeState.memoryErrorTarget > runtimeState.requestedErrorTarget ||
-      runtimeState.effectiveErrorTarget !== runtimeState.requestedErrorTarget ||
-      (tiles.lruCache as RuntimeLruCache).cachedBytes >=
-        tiles.lruCache.minBytesSize *
-          TILES_LOAD_POLICY.idleRingBudgetFraction ||
-      runtimeState.ringRefinePasses >= TILES_LOAD_POLICY.idleRingRefinePassLimit
-    )
-      return;
+    if (tickTimer !== null || !canRefineRingCascade()) return;
     tickTimer = setTimeout(() => {
       tickTimer = null;
-      runtimeState.tiles?.dispatchEvent({ type: "needs-update" });
+      if (canRefineRingCascade())
+        runtimeState.tiles?.dispatchEvent({ type: "needs-update" });
     }, TILES_LOAD_POLICY.idleRingRefineIntervalMs);
   };
   const clearCascadeTick = () => {
