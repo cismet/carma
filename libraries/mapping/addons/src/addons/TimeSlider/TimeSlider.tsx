@@ -15,7 +15,12 @@ import {
 } from "../../lib/caged-addons";
 import type { AddonComponentProps } from "../../lib/registry";
 import { placeAtSlot, useStyleSlot } from "../../lib/style-slot";
-import { getSharedFrameCache } from "./frame-fetch";
+import { FRAME_LOG_PREFIX, getSharedFrameCache } from "./frame-fetch";
+import {
+  MAX_FRAME_REQUEST_ROUNDS,
+  clockMayRun,
+  shouldRequestFailedFrames,
+} from "./play-gate";
 import { createSnapLayer, type SnapLayerHandle } from "./snap-layer";
 import {
   useTimeSeriesLauncher,
@@ -66,7 +71,8 @@ export type TimeSliderConfig = Partial<TimeSeriesDefinition> & {
    * Load the crossfade's frames from the browser's http cache whatever its
    * age, see `frame-fetch.ts`. Set by the host for a map opened with
    * `cache=forced`; not part of the series, so it does not travel with scenes.
-   * Default: false
+   * Play then waits for every frame and asks again for failed ones, see
+   * `play-gate.ts`. Default: false
    */
   cacheFrames?: boolean;
   /**
@@ -166,10 +172,18 @@ export const TimeSlider = ({
   const pendingRestStepRef = useRef<number | null>(null);
 
   /**
-   * Frames of the current viewport the crossfade gave up on. They never
-   * arrive, so the clock must not wait for them, see `framesSettled`.
+   * Frames of the current viewport the crossfade gave up on. Cage does not ask
+   * for them again; see `clockMayRun` for what the clock makes of them.
    */
   const [failedFrames, setFailedFrames] = useState(0);
+  /**
+   * Bumped to rebuild the blend layer, which is how failed frames are asked
+   * for again: cage has no call for a single frame. The ones that did load
+   * come back from the http cache, see `frame-fetch.ts`.
+   */
+  const [frameRequest, setFrameRequest] = useState(0);
+  /** rounds of that since play was last pressed */
+  const frameRequestRoundsRef = useRef(0);
 
   // read where the slider stands without making the mount effect depend on it,
   // which would tear the layer down and rebuild it on every scrub
@@ -225,7 +239,8 @@ export const TimeSlider = ({
   // With cage present BOTH are mounted: the tile layer is the resting
   // surface, since a resting slider always sits on a whole step and tiles pan
   // the way tiles pan; the blend canvas takes over only while the series is
-  // in motion. Without cage the tile layer is simply all there is.
+  // in motion. Without cage the tile layer is simply all there is. Two effects,
+  // so the blend layer can be rebuilt without the tiles, see `frameRequest`.
   //
   // The position and opacity are handed over at construction through refs: the
   // effects below have already seen their current values and will not run
@@ -239,14 +254,12 @@ export const TimeSlider = ({
     }
 
     let disposed = false;
-    const layerList = layers as string[];
-    const suffix = randomSuffix();
 
     snapRef.current = createSnapLayer({
-      id: `carma-wms-snap-${suffix}`,
+      id: `carma-wms-snap-${randomSuffix()}`,
       map: libreMap,
       wmsUrl,
-      layers: layerList,
+      layers: layers as string[],
       styles,
       opacity: opacityRef.current,
       initialStep: Math.round(valueRef.current / stepsPerUnit),
@@ -262,47 +275,12 @@ export const TimeSlider = ({
       },
     });
 
-    if (createBlendLayer) {
-      const blendId = `cage-wms-blend-${suffix}`;
-      // cage's `createBlendLayer` names its layer `${id}-layer`
-      blendLayerIdRef.current = `${blendId}-layer`;
-      blendRef.current = createBlendLayer({
-        id: blendId,
-        map: libreMap,
-        wmsUrl,
-        layers: layerList,
-        styles,
-        intermediateValuesCount,
-        opacity: opacityRef.current,
-        fetchFrame: cacheFrames ? getSharedFrameCache() : undefined,
-        onFrameLoaded: (count) => {
-          if (!disposed) setLoaded(count);
-        },
-        // a pan drops every cached frame, and the load line runs while they
-        // come back; the tiles keep the map filled in the meantime
-        onFramesReset: () => {
-          if (disposed) return;
-          setLoaded(0);
-          setFailedFrames(0);
-        },
-        onError: () => {
-          if (!disposed) setFailedFrames((count) => count + 1);
-        },
-      });
-      blendRef.current.setPosition(valueRef.current);
-      // at rest until the visibility machine below says otherwise; hidden, the
-      // frame cache still follows the viewport, so takeover is instant
-      blendRef.current.setVisible(false);
-    }
-
     return () => {
       disposed = true;
-      setFailedFrames(0);
+      // new tiles start as the surface, so the canvas goes back to rest
       blendShownRef.current = false;
       pendingRestStepRef.current = null;
-      blendRef.current?.destroy();
-      blendRef.current = null;
-      blendLayerIdRef.current = null;
+      blendRef.current?.setVisible(false);
       snapRef.current?.destroy();
       snapRef.current = null;
     };
@@ -313,12 +291,87 @@ export const TimeSlider = ({
     wmsUrl,
     styles,
     stepsPerUnit,
+    // the array identity changes exactly when the launcher writes a new series
+    layers,
+  ]);
+
+  useEffect(() => {
+    if (
+      !createBlendLayer ||
+      !libreMap ||
+      !isOn ||
+      isHidden ||
+      !wmsUrl ||
+      layers.length === 0
+    ) {
+      return undefined;
+    }
+
+    let disposed = false;
+    const blendId = `cage-wms-blend-${randomSuffix()}`;
+    // cage's `createBlendLayer` names its layer `${id}-layer`
+    blendLayerIdRef.current = `${blendId}-layer`;
+    blendRef.current = createBlendLayer({
+      id: blendId,
+      map: libreMap,
+      wmsUrl,
+      layers: layers as string[],
+      styles,
+      intermediateValuesCount,
+      opacity: opacityRef.current,
+      fetchFrame: cacheFrames ? getSharedFrameCache() : undefined,
+      onFrameLoaded: (count) => {
+        if (!disposed) setLoaded(count);
+      },
+      // a pan drops every cached frame, and the load line runs while they
+      // come back; the tiles keep the map filled in the meantime
+      onFramesReset: () => {
+        if (disposed) return;
+        setLoaded(0);
+        setFailedFrames(0);
+      },
+      onError: (index, error) => {
+        if (disposed) return;
+        console.warn(FRAME_LOG_PREFIX, "frame failed", {
+          index,
+          layer: layers[index],
+          error: error instanceof Error ? error.message : error,
+        });
+        setFailedFrames((count) => count + 1);
+      },
+    });
+    blendRef.current.setPosition(valueRef.current);
+    // at rest until the visibility machine below says otherwise; hidden, the
+    // frame cache still follows the viewport, so takeover is instant
+    blendRef.current.setVisible(false);
+
+    return () => {
+      disposed = true;
+      // the count belongs to this layer's frames: a series that comes back
+      // must not start on the last one's 24
+      setLoaded(0);
+      setFailedFrames(0);
+      if (blendShownRef.current) {
+        blendShownRef.current = false;
+        snapRef.current?.setVisible(true);
+      }
+      pendingRestStepRef.current = null;
+      blendRef.current?.destroy();
+      blendRef.current = null;
+      blendLayerIdRef.current = null;
+    };
+  }, [
+    libreMap,
+    isOn,
+    isHidden,
+    wmsUrl,
+    styles,
     intermediateValuesCount,
     setLoaded,
     createBlendLayer,
     cacheFrames,
-    // the array identity changes exactly when the launcher writes a new series
     layers,
+    frameRequest,
   ]);
 
   // Push the position down. Separate from mounting so scrubbing never tears the
@@ -373,6 +426,7 @@ export const TimeSlider = ({
     stepsPerUnit,
     intermediateValuesCount,
     createBlendLayer,
+    frameRequest,
   ]);
 
   /**
@@ -386,15 +440,47 @@ export const TimeSlider = ({
    */
   const cacheComplete = layers.length > 0 && loaded === layers.length;
   const needsBlend = isPlaying || value % stepsPerUnit !== 0;
+  const frameStatus = {
+    isBlending,
+    cacheFrames,
+    total: layers.length,
+    loaded: loaded ?? 0,
+    failed: failedFrames,
+  };
   /**
-   * Whether every frame of the crossfade has come back, loaded or failed. The
-   * clock holds until then, on the step it stands on: played on the tiles
-   * instead, every step is a fresh load and shows as a hard cut whenever its
-   * tiles land. A failed frame is not waited for, since it never comes; the
-   * series then plays on the tiles, as it does without cage.
+   * Whether the clock may advance; until then it holds on the step it stands
+   * on, see `clockMayRun`. With frames from the http cache that means all of
+   * them, so the tiles never step while the series plays.
    */
-  const framesSettled =
-    !isBlending || (loaded ?? 0) + failedFrames >= layers.length;
+  const mayRun = clockMayRun(frameStatus);
+  const requestFailedFrames = shouldRequestFailedFrames(
+    frameStatus,
+    isPlaying,
+    frameRequestRoundsRef.current
+  );
+
+  // A press of play asks again for the frames that failed, and so does a
+  // series that is playing when they fail, a limited number of times; the
+  // clock waits for them either way. Pausing starts the count afresh.
+  useEffect(() => {
+    if (!isPlaying) {
+      frameRequestRoundsRef.current = 0;
+      return;
+    }
+    if (!requestFailedFrames) return;
+    frameRequestRoundsRef.current += 1;
+    console.warn(FRAME_LOG_PREFIX, "asking again for failed frames", {
+      failed: failedFrames,
+      loaded: loaded ?? 0,
+      total: layers.length,
+      round: frameRequestRoundsRef.current,
+      // none left: the frames stay missing until play is pressed again
+      roundsLeft: MAX_FRAME_REQUEST_ROUNDS - frameRequestRoundsRef.current,
+    });
+    setFrameRequest((count) => count + 1);
+    // the counts are for the log; the decision is `requestFailedFrames`
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isPlaying, requestFailedFrames]);
 
   useEffect(() => {
     const blend = blendRef.current;
@@ -427,7 +513,7 @@ export const TimeSlider = ({
   }, [needsBlend, cacheComplete, value, stepsPerUnit]);
 
   useEffect(() => {
-    if (!isPlaying || !isOn || isHidden || max <= 0 || !framesSettled) {
+    if (!isPlaying || !isOn || isHidden || max <= 0 || !mayRun) {
       return undefined;
     }
     // sub-steps with cage, whole steps without: the interval grows by the same
@@ -450,7 +536,7 @@ export const TimeSlider = ({
     isOn,
     isHidden,
     max,
-    framesSettled,
+    mayRun,
     isBlending,
     playIntervalMs,
     snapPlayIntervalMs,
