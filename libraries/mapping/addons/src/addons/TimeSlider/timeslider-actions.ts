@@ -45,6 +45,14 @@ export type TimeSliderState = {
    * must not be shown as a count.
    */
   loaded?: number;
+  /** frames of the current viewport the crossfade gave up on */
+  failed?: number;
+  /**
+   * Whether the engine's clock may advance, see `clockMayRun`; with frames
+   * from the http cache it holds until all of them are in. Mirrored here for
+   * the outlet, which tells its remote. Undefined before the engine said.
+   */
+  clockReady?: boolean;
   /** whether the caged interpolation is in this build */
   isBlending: boolean;
   /**
@@ -347,6 +355,17 @@ export const useTimeSliderActions = () => {
     [setState]
   );
 
+  /** written by the engine only, see `clockReady` */
+  const setFrameGate = useCallback(
+    (failed: number, clockReady: boolean) =>
+      setState((previous) =>
+        previous.failed === failed && previous.clockReady === clockReady
+          ? previous
+          : { ...previous, failed, clockReady }
+      ),
+    [setState]
+  );
+
   const total = state.labels.length;
   const stepIndex = Math.min(
     Math.round(state.value / Math.max(state.stepsPerUnit, 1)),
@@ -374,6 +393,7 @@ export const useTimeSliderActions = () => {
     setPanelOpen,
     setHidden,
     setLoaded,
+    setFrameGate,
   };
 };
 

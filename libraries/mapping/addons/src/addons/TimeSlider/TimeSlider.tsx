@@ -149,6 +149,7 @@ export const TimeSlider = ({
     setOn,
     setValue,
     setLoaded,
+    setFrameGate,
   } = useTimeSliderActions();
 
   const { startSeries } = useTimeSeriesLauncher();
@@ -458,6 +459,11 @@ export const TimeSlider = ({
     isPlaying,
     frameRequestRoundsRef.current
   );
+
+  // into the channel, where the outlet reads it for its remote (`RemoteSeries`)
+  useEffect(() => {
+    setFrameGate(failedFrames, mayRun);
+  }, [failedFrames, mayRun, setFrameGate]);
 
   // A press of play asks again for the frames that failed, and so does a
   // series that is playing when they fail, a limited number of times; the

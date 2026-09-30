@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Map as LibreMap } from "maplibre-gl";
 
 import { getHashParams } from "@carma-commons/utils";
@@ -19,12 +19,14 @@ import {
   isSurface,
   isTimeSeriesControl,
   isTrafficControl,
+  seriesStatusSessionCode,
   snapshotSessionCode,
   writeRelayState,
   type Bounds3857,
   type DisplayInfo,
   type HighlightSpot,
   type PointerChannel,
+  type SeriesStatus,
   type ShadowControl,
   type Snapshot,
   type SnapshotRequest,
@@ -39,6 +41,10 @@ import { RemoteSeries } from "./RemoteSeries";
 import { RemoteShadow } from "./RemoteShadow";
 import { RemoteTraffic } from "./RemoteTraffic";
 import { subscribe, type RelaySubscription } from "./relay";
+import {
+  createSeriesStatusPublisher,
+  type SeriesStatusPublisher,
+} from "./series-status-publisher";
 import { captureMap } from "./snapshot";
 
 /**
@@ -429,6 +435,17 @@ export const OutletAddon = ({
   const libreMapRef = useRef(libreMap);
   libreMapRef.current = libreMap;
   const answeredSnapshotRef = useRef<number | null>(null);
+  /**
+   * Where the time series stands, told to the remote. `RemoteSeries` reports
+   * it before the relay effect below has run (a child's effects run first),
+   * so the last report is kept for the publisher to start with.
+   */
+  const seriesStatusRef = useRef<SeriesStatus | null | undefined>(undefined);
+  const seriesStatusPublisherRef = useRef<SeriesStatusPublisher | null>(null);
+  const reportSeriesStatus = useCallback((status: SeriesStatus | null) => {
+    seriesStatusRef.current = status;
+    seriesStatusPublisherRef.current?.publish(status);
+  }, []);
 
   useEffect(() => {
     if (!resolved) {
@@ -662,6 +679,19 @@ export const OutletAddon = ({
     };
     announce();
     const announcer = window.setInterval(announce, ANNOUNCE_INTERVAL_MS);
+
+    // the series' frames and step, in a session of its own, see `SeriesStatus`
+    const seriesStatusTarget = {
+      baseUrl: relayBaseUrl,
+      code: seriesStatusSessionCode(relayCode),
+    };
+    const seriesStatusPublisher = createSeriesStatusPublisher((status) =>
+      writeRelayState(seriesStatusTarget, status)
+    );
+    seriesStatusPublisherRef.current = seriesStatusPublisher;
+    if (seriesStatusRef.current !== undefined) {
+      seriesStatusPublisher.publish(seriesStatusRef.current);
+    }
 
     const answerSnapshot = async (id: number) => {
       let answer: Snapshot;
@@ -909,6 +939,8 @@ export const OutletAddon = ({
 
     return () => {
       window.clearInterval(announcer);
+      seriesStatusPublisher.stop();
+      seriesStatusPublisherRef.current = null;
       subscription.stop();
       relayRef.current = null;
       setPointerChannel(null);
@@ -938,7 +970,9 @@ export const OutletAddon = ({
           }}
         />
       ) : null}
-      {relayCode ? <RemoteSeries wanted={remoteSeries} /> : null}
+      {relayCode ? (
+        <RemoteSeries wanted={remoteSeries} onStatus={reportSeriesStatus} />
+      ) : null}
       {relayCode ? <RemoteShadow wanted={remoteShadow} /> : null}
       {relayCode ? <RemoteTraffic wanted={remoteTraffic} /> : null}
       {relayCode ? (
