@@ -92,6 +92,8 @@ export const REGISTRY: Record<ObjectType, Field[]> = {
     { key: "fk_stadtbezirk", label: "Stadtbezirk", type: "fk", fkTable: "bezirk", filterRelation: "tdta_standort_mast", sortRelation: "tdta_standort_mast", sortColumn: "fk_stadtbezirk" },
     COMMON.strassenschluessel,
     { key: "fk_leuchttyp", label: "Leuchtentyp", type: "fk", fkTable: "leuchtentyp" },
+    // Lampe is a column of the Leuchtentyp key table.
+    { key: "lampe", label: "Lampe", type: "text", filterRelation: "tkey_leuchtentyp", sortRelation: "tkey_leuchtentyp", sortColumn: "lampe" },
     { key: "leuchtmittel", label: "Leuchtmittel", type: "fk", fkTable: "leuchtmittel" },
     { key: "fk_kennziffer", label: "Kennziffer", type: "fk", fkTable: "kennziffer" },
     { key: "fk_energielieferant", label: "Energielieferant", type: "fk", fkTable: "energielieferant" },
@@ -111,6 +113,8 @@ export const REGISTRY: Record<ObjectType, Field[]> = {
     { key: "wartungszyklus", label: "Sonderturnus", type: "date" },
     { key: "vorschaltgeraet", label: "Vorschaltgerät", type: "text" },
     { key: "wechselvorschaltgeraet", label: "Erneuerung VG", type: "date" },
+    // Stored on the parent Standort, like Stadtbezirk.
+    { key: "elek_pruefung", label: "Elektrische Prüfung", type: "date", filterRelation: "tdta_standort_mast", sortRelation: "tdta_standort_mast", sortColumn: "elek_pruefung" },
     { key: "montagefirma_leuchte", label: "Montagefirma", type: "text" },
     { key: "schaltstelle", label: "Schaltstelle", type: "text" },
     { key: "zaehler", label: "Zähler vorhanden", type: "text" },
@@ -140,7 +144,7 @@ export const REGISTRY: Record<ObjectType, Field[]> = {
     { key: "inbetriebnahme_mast", label: "Inbetriebnahme", type: "date" },
     { key: "mastschutz", label: "Mastschutz", type: "date" },
     { key: "mastanstrich", label: "Mastanstrich", type: "date" },
-    { key: "elek_pruefung", label: "Elektr. Prüfung", type: "date" },
+    { key: "elek_pruefung", label: "Elektrische Prüfung", type: "date" },
     { key: "standsicherheitspruefung", label: "Standsicherheitsprüfung", type: "date" },
     { key: "naechstes_pruefdatum", label: "Nächstes Prüfdatum", type: "date" },
     { key: "letzte_aenderung", label: "Letzte Änderung", type: "date" },
