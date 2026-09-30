@@ -170,7 +170,8 @@ export const clockStep = (
  * no scene shows it, and brings it back from there when it is launched again
  * (`useTimeSeriesLauncher` in `@carma-mapping/addons`); another series in
  * between replaces it. "continue" has the phone start where the display left
- * it; "restart" puts both on the series' first step, the display by a seek.
+ * it; "restart" puts both on the series' very first step, the display by a
+ * seek, whatever step its layer starts on the first time (`initialStep`).
  * Switching the behaviour is changing `SERIES_REENTRY`.
  */
 export type SeriesReentry = "continue" | "restart";
@@ -202,7 +203,7 @@ export const enteredSeriesClock = (
   }
   if (reentry === "restart") {
     // the display would carry on where it left off unless told otherwise
-    return { clock: { ...initial, seekAt: now }, touched: true };
+    return { clock: { ...initial, step: 0, seekAt: now }, touched: true };
   }
   const last = Math.max(series.stepCount - 1, 0);
   return {

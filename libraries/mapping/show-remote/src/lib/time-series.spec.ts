@@ -162,6 +162,17 @@ describe("enteredSeriesClock", () => {
       touched: true,
     });
   });
+
+  it("restarts on the very first step, not where the layer starts the first time", () => {
+    expect(
+      enteredSeriesClock(
+        { ...series, initialStep: 2 },
+        { key: "t50", step: 13 },
+        500,
+        "restart"
+      ).clock.step
+    ).toBe(0);
+  });
 });
 
 describe("seriesControlOf", () => {
