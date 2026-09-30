@@ -608,6 +608,7 @@ export const App = () => {
               <SeriesControl
                 series={display.series}
                 clock={display.seriesClock}
+                status={display.seriesStatus}
                 disabled={!target}
                 onPlay={display.setSeriesPlaying}
                 onSeek={display.seekSeries}

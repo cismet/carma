@@ -4,15 +4,18 @@ import type { MappingConfig } from "@carma-api";
 import {
   DEFAULT_PREPARE_MS,
   DEFAULT_SURFACE,
+  SERIES_STATUS_STALE_MS,
+  anchorSeriesClock,
   baseOf,
   blackoutOf,
   clampDayOfYear,
   clampTrafficOffset,
   clockShadowDate,
-  clockStep,
   composeDisplayConfig,
   displayInfoTarget,
+  enteredSeriesClock,
   findSceneSeries,
+  followedSeriesControl,
   findSceneShadow,
   findSceneTraffic,
   helloRelay,
@@ -28,14 +31,16 @@ import {
   planSceneChange,
   readRelayState,
   sceneHighlights,
-  seriesControlOf,
+  seriesView,
   shadowControlOf,
   snapshotTarget,
   surfaceOf,
   withLayerOpacity,
   writeRelayState,
   type Bounds3857,
+  type HeardSeriesStatus,
   type HighlightSpot,
+  type LeftSeries,
   type PointerChannel,
   type RelayTarget,
   type SceneSeries,
@@ -55,6 +60,7 @@ import {
 
 import { createLatestWinsWriter, runSteps, sleep } from "./display-link";
 import { relayErrorText } from "./messages";
+import { followSeriesStatus } from "./series-status-link";
 
 /** the blackout fades rather than cuts, whatever the scene fade is set to */
 const BLACKOUT_FADE_MS = 1000;
@@ -86,19 +92,30 @@ export type Connection = "idle" | "connecting" | "connected" | "error";
  * presenter used it; only then does it go into the state document, so a scene
  * nobody steers leaves the series to its layer's own autoplay.
  */
-type OwnSeries = { key: string; clock: SeriesClock; touched: boolean };
+type OwnSeries = {
+  key: string;
+  series: SceneSeries;
+  clock: SeriesClock;
+  touched: boolean;
+};
 
-/** the series' entry of a write, when the presenter steered the one it runs */
+/**
+ * The series' entry of a write, when the presenter steered the one it runs,
+ * at the step the slider shows: the display's, once it tells.
+ */
 const seriesEntry = (
   own: OwnSeries | null,
-  base: MappingConfig | null
+  base: MappingConfig | null,
+  heard: HeardSeriesStatus | null
 ): { timeSeries?: TimeSeriesControl } => {
   if (!own?.touched) {
     return {};
   }
   const series = findSceneSeries(base);
   return series?.key === own.key
-    ? { timeSeries: seriesControlOf(own.clock, series, Date.now()) }
+    ? {
+        timeSeries: followedSeriesControl(own.clock, series, heard, Date.now()),
+      }
     : {};
 };
 
@@ -201,6 +218,13 @@ export const useDisplay = (
   /** the series clock, repeated in every write like the position */
   const seriesRef = useRef<OwnSeries | null>(null);
   const [seriesClock, setSeriesClock] = useState<SeriesClock | null>(null);
+  /** the series that went off last, which the display keeps where it was */
+  const leftSeriesRef = useRef<LeftSeries | null>(null);
+  /** what the display last said about its series, while that is current */
+  const heardSeriesRef = useRef<HeardSeriesStatus | null>(null);
+  const [seriesStatus, setSeriesStatus] = useState<HeardSeriesStatus | null>(
+    null
+  );
   /** the shadows' clock, repeated in every write like the series */
   const shadowRef = useRef<OwnShadow | null>(null);
   const [shadowClock, setShadowClock] = useState<ShadowClock | null>(null);
@@ -271,7 +295,7 @@ export const useDisplay = (
           ...(boundsRef.current ? { bounds: boundsRef.current } : {}),
           ...(pointerRef.current ? { pointer: pointerRef.current } : {}),
           ...(snapshotRef.current ? { snapshot: snapshotRef.current } : {}),
-          ...seriesEntry(seriesRef.current, base),
+          ...seriesEntry(seriesRef.current, base, heardSeriesRef.current),
           ...shadowEntry(shadowRef.current, base),
           ...highlightsEntry(highlightsRef.current, scenesRef.current),
           ...trafficEntry(trafficRef.current, base),
@@ -283,24 +307,32 @@ export const useDisplay = (
 
   /**
    * Follows the series of what the display is sent. A scene running another
-   * series, or none, drops the clock; the display starts that one as its layer
-   * says. The same series in the next scene keeps it, since the display keeps
-   * running it too.
+   * series, or none, drops the clock and remembers where the series was left;
+   * the one that comes on starts as `enteredSeriesClock` says, which for the
+   * series left last is where the display kept it. The same series in the next
+   * scene keeps the clock, since the display keeps running it too.
    */
   const trackSeries = useCallback((base: MappingConfig | null) => {
     const series = findSceneSeries(base);
-    if (series?.key === seriesRef.current?.key) {
+    const own = seriesRef.current;
+    if (series?.key === own?.key) {
       return;
     }
+    const now = Date.now();
+    if (own) {
+      leftSeriesRef.current = {
+        key: own.key,
+        step: seriesView(own.clock, own.series, heardSeriesRef.current, now)
+          .step,
+      };
+    }
+    heardSeriesRef.current = null;
+    setSeriesStatus(null);
     seriesRef.current = series
       ? {
           key: series.key,
-          clock: {
-            step: series.initialStep,
-            playing: series.autoplay,
-            since: Date.now(),
-          },
-          touched: false,
+          series,
+          ...enteredSeriesClock(series, leftSeriesRef.current, now),
         }
       : null;
     setSeriesClock(seriesRef.current?.clock ?? null);
@@ -383,6 +415,9 @@ export const useDisplay = (
     boundsRef.current = null;
     pointerRef.current = null;
     seriesRef.current = null;
+    leftSeriesRef.current = null;
+    heardSeriesRef.current = null;
+    setSeriesStatus(null);
     shadowRef.current = null;
     highlightsRef.current = null;
     pendingHighlightIdsRef.current = null;
@@ -437,7 +472,7 @@ export const useDisplay = (
         const control = document["timeSeries"];
         if (seriesRef.current && isTimeSeriesControl(control)) {
           seriesRef.current = {
-            key: seriesRef.current.key,
+            ...seriesRef.current,
             clock: { ...control, since: Date.now() },
             touched: true,
           };
@@ -674,7 +709,7 @@ export const useDisplay = (
         return;
       }
       const clock = change(own.clock, series, Date.now());
-      seriesRef.current = { key: own.key, clock, touched: true };
+      seriesRef.current = { ...own, clock, touched: true };
       setSeriesClock(clock);
       write(liveRef.current).catch(() => {
         // reported by `write`
@@ -683,12 +718,16 @@ export const useDisplay = (
     [write]
   );
 
-  /** play or pause; the display pauses where it is, not where the clock is */
+  /**
+   * Play or pause; the display pauses where it is, not where the clock is.
+   * Play goes out while the display still loads its frames too: it holds until
+   * they are in, and asks again for the ones that failed.
+   */
   const setSeriesPlaying = useCallback(
     (playing: boolean) =>
       steerSeries((clock, series, now) => ({
         ...clock,
-        step: clockStep(clock, series, now),
+        step: seriesView(clock, series, heardSeriesRef.current, now).step,
         playing,
         since: now,
       })),
@@ -810,6 +849,50 @@ export const useDisplay = (
   );
 
   const series = useMemo(() => findSceneSeries(live), [live]);
+  const seriesKey = series?.key ?? null;
+
+  // what the display says about the series, while the live scene runs one
+  useEffect(() => {
+    if (!target || !seriesKey) {
+      return undefined;
+    }
+    return followSeriesStatus(target, (heard) => {
+      const now = Date.now();
+      const current =
+        heard &&
+        heard.status.key === seriesKey &&
+        now - heard.writtenAt < SERIES_STATUS_STALE_MS
+          ? heard
+          : null;
+      heardSeriesRef.current = current;
+      setSeriesStatus(current);
+      // the phone's clock goes where the display is, to count on from there
+      // should the display fall silent
+      const own = seriesRef.current;
+      if (own && current) {
+        const clock = anchorSeriesClock(own.clock, own.series, current, now);
+        if (clock !== own.clock) {
+          seriesRef.current = { ...own, clock };
+          setSeriesClock(clock);
+        }
+      }
+    });
+  }, [target, seriesKey]);
+
+  // a status nobody renews is from a display gone quiet: back to the own clock
+  useEffect(() => {
+    if (!seriesStatus) {
+      return undefined;
+    }
+    const timer = window.setTimeout(() => {
+      if (heardSeriesRef.current === seriesStatus) {
+        heardSeriesRef.current = null;
+        setSeriesStatus(null);
+      }
+    }, Math.max(0, seriesStatus.writtenAt + SERIES_STATUS_STALE_MS - Date.now()));
+    return () => window.clearTimeout(timer);
+  }, [seriesStatus]);
+
   const traffic = useMemo(() => findSceneTraffic(live), [live]);
   const shadow = useMemo(() => findSceneShadow(live), [live]);
 
@@ -819,6 +902,7 @@ export const useDisplay = (
     live,
     series,
     seriesClock,
+    seriesStatus,
     setSeriesPlaying,
     seekSeries,
     shadow,

@@ -4,10 +4,15 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import type { MappingConfig } from "@carma-api";
 import {
   approximateDaylight,
+  findSceneSeries,
+  SERIES_STATUS_STALE_MS,
+  seriesView,
   SHADOW_START_BEFORE_SUNRISE_MINUTES,
   type RelayTarget,
+  type SeriesStatus,
   type ShadowControl,
   type ShowScene,
+  type TimeSeriesControl,
   type TrafficControl,
 } from "@carma-mapping/show-remote";
 
@@ -16,12 +21,32 @@ import { useDisplay } from "./useDisplay";
 const relay = vi.hoisted(() => ({
   state: {} as unknown,
   writes: [] as Record<string, unknown>[],
+  /** what the display last wrote into its series status session */
+  series: { v: 0, state: null as unknown },
+  /** readers of that session waiting for the next write */
+  wake: [] as (() => void)[],
 }));
 
 vi.mock("@carma-mapping/show-remote", async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
   helloRelay: async () => undefined,
   readRelayState: async () => ({ v: 1, state: relay.state }),
+  // a held request on the series status session, answered by the next write
+  waitRelayState: async (
+    _target: unknown,
+    since: number,
+    _waitMs: number,
+    signal?: AbortSignal
+  ) => {
+    while (since === relay.series.v) {
+      await new Promise<void>((resolve, reject) => {
+        relay.wake.push(resolve);
+        signal?.addEventListener("abort", () => reject(new Error("stopped")));
+      });
+    }
+    const now = Date.now();
+    return { v: relay.series.v, state: relay.series.state, ts: now, now };
+  },
   writeRelayState: async (_target: unknown, state: Record<string, unknown>) => {
     relay.writes.push(state);
     return { v: relay.writes.length };
@@ -473,5 +498,213 @@ describe("useDisplay traffic", () => {
       expect(result.current.traffic).toBeNull();
     });
     expect(lastWrite()).not.toHaveProperty("traffic");
+  });
+});
+
+describe("useDisplay series", () => {
+  const WMS = "https://wms.example/geoserver/wms?SERVICE=WMS";
+  const LAYERS = Array.from({ length: 24 }, (_, index) => `s:t${index}`);
+
+  /** the Starkregen series: 24 steps of 1.2 s */
+  const seriesScene = (autoplay = true): MappingConfig => ({
+    layers: [
+      {
+        id: "t50",
+        tools: [
+          {
+            addon: "timeSlider",
+            config: { title: "T50", wmsUrl: WMS, layers: LAYERS, autoplay },
+          },
+        ],
+      },
+    ],
+  });
+  const SERIES = findSceneSeries(seriesScene());
+  const KEY = SERIES?.key ?? "";
+
+  /** the display writes where its series stands */
+  const tell = (extra: Partial<SeriesStatus>) => {
+    relay.series = {
+      v: relay.series.v + 1,
+      state: {
+        key: KEY,
+        total: 24,
+        loaded: 24,
+        failed: 0,
+        ready: true,
+        step: 0,
+        playing: true,
+        ...extra,
+      },
+    };
+    relay.wake.splice(0).forEach((wake) => wake());
+  };
+
+  /** the display runs no series, as when a scene without one is on */
+  const tellNone = () => {
+    relay.series = { v: relay.series.v + 1, state: null };
+    relay.wake.splice(0).forEach((wake) => wake());
+  };
+
+  const lastSeries = () =>
+    lastWrite()?.["timeSeries"] as TimeSeriesControl | undefined;
+
+  type Hook = Awaited<ReturnType<typeof connect>>;
+
+  /** what the phone's slider shows now */
+  const shown = ({ result }: Hook) => {
+    const clock = result.current.seriesClock;
+    const series = result.current.series;
+    if (!clock || !series) {
+      throw new Error("no series on the phone");
+    }
+    return seriesView(clock, series, result.current.seriesStatus, Date.now());
+  };
+
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(NOW);
+    relay.writes = [];
+    relay.series = { v: 0, state: null };
+    relay.wake = [];
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("counts on its own clock while the display says nothing", async () => {
+    const hook = await connect({ config: seriesScene() });
+
+    vi.setSystemTime(NOW + 6000);
+
+    expect(hook.result.current.seriesStatus).toBeNull();
+    expect(shown(hook)).toEqual({ kind: "own", step: 5 });
+    hook.unmount();
+  });
+
+  it("holds while the display loads its frames, however long it takes", async () => {
+    const hook = await connect({ config: seriesScene() });
+    act(() => tell({ ready: false, loaded: 17, step: 0 }));
+    await waitFor(() => {
+      expect(hook.result.current.seriesStatus).not.toBeNull();
+    });
+
+    vi.setSystemTime(NOW + 20_000);
+
+    expect(shown(hook)).toEqual({
+      kind: "loading",
+      step: 0,
+      loaded: 17,
+      total: 24,
+      failed: 0,
+    });
+    // pausing stops the display where it holds, not where the phone counted to
+    act(() => {
+      hook.result.current.setSeriesPlaying(false);
+    });
+    await waitFor(() => {
+      expect(lastSeries()).toEqual({ step: 0, playing: false });
+    });
+    hook.unmount();
+  });
+
+  it("still sends play while the display loads, so it asks again for failed frames", async () => {
+    const hook = await connect({ config: seriesScene(false) });
+    act(() => tell({ ready: false, loaded: 21, failed: 3, playing: false }));
+    await waitFor(() => {
+      expect(hook.result.current.seriesStatus).not.toBeNull();
+    });
+
+    act(() => {
+      hook.result.current.setSeriesPlaying(true);
+    });
+
+    await waitFor(() => {
+      expect(lastSeries()).toEqual({ step: 0, playing: true });
+    });
+    expect(shown(hook)).toMatchObject({ kind: "loading", failed: 3 });
+    hook.unmount();
+  });
+
+  it("follows the display's step once it runs", async () => {
+    const hook = await connect({ config: seriesScene() });
+    act(() => tell({ step: 11 }));
+    await waitFor(() => {
+      expect(shown(hook)).toEqual({ kind: "following", step: 11 });
+    });
+    expect(hook.result.current.seriesClock).toMatchObject({ step: 11 });
+
+    act(() => tell({ step: 12 }));
+    await waitFor(() => {
+      expect(shown(hook).step).toBe(12);
+    });
+    hook.unmount();
+  });
+
+  it("goes back to its own clock when the display falls silent", async () => {
+    const hook = await connect({ config: seriesScene() });
+    act(() => tell({ step: 11 }));
+    await waitFor(() => {
+      expect(shown(hook).step).toBe(11);
+    });
+
+    vi.setSystemTime(NOW + SERIES_STATUS_STALE_MS);
+
+    expect(shown(hook).kind).toBe("own");
+    hook.unmount();
+  });
+
+  it("comes back to a re-entered series where the display kept it, not at the start", async () => {
+    const hook = await connect({ config: seriesScene() });
+    act(() => tell({ step: 13 }));
+    await waitFor(() => {
+      expect(shown(hook).step).toBe(13);
+    });
+
+    act(() => {
+      hook.result.current.goToScene(
+        scene("plain", { layers: [{ id: "stadtplan" }] })
+      );
+    });
+    await waitFor(() => {
+      expect(hook.result.current.series).toBeNull();
+    });
+    act(() => tellNone());
+    act(() => {
+      hook.result.current.goToScene(scene("t50", seriesScene()));
+    });
+    await waitFor(() => {
+      expect(hook.result.current.series).not.toBeNull();
+    });
+
+    // before the display tells again, from what the phone remembers
+    expect(shown(hook)).toEqual({ kind: "own", step: 13 });
+    // the display carries on by itself; the phone does not pull it anywhere
+    expect(lastWrite()).not.toHaveProperty("timeSeries");
+    hook.unmount();
+  });
+
+  it("does the same on its own clock with a display that says nothing", async () => {
+    const hook = await connect({ config: seriesScene() });
+    vi.setSystemTime(NOW + 6000);
+
+    act(() => {
+      hook.result.current.goToScene(
+        scene("plain", { layers: [{ id: "stadtplan" }] })
+      );
+    });
+    await waitFor(() => {
+      expect(hook.result.current.series).toBeNull();
+    });
+    act(() => {
+      hook.result.current.goToScene(scene("t50", seriesScene()));
+    });
+    await waitFor(() => {
+      expect(hook.result.current.series).not.toBeNull();
+    });
+
+    expect(shown(hook)).toEqual({ kind: "own", step: 5 });
+    hook.unmount();
   });
 });

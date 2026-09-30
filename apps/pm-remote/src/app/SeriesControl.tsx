@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 
 import {
-  clockStep,
+  seriesView,
+  type HeardSeriesStatus,
   type SceneSeries,
   type SeriesClock,
 } from "@carma-mapping/show-remote";
@@ -12,18 +13,22 @@ const TICK_MS = 250;
 /**
  * Play, pause and the step of the time series the live scene runs.
  *
- * The display never reports where it is, so while it plays the slider counts
- * along on the phone's clock. The "≈" in front of the time says so.
+ * The slider shows the step the display says it shows (`status`). While the
+ * display still loads its frames it holds, and so does the slider, with the
+ * count underneath. A display that says nothing leaves the slider counting
+ * along on the phone's clock; the "≈" in front of the time says so.
  */
 export const SeriesControl = ({
   series,
   clock,
+  status,
   disabled,
   onPlay,
   onSeek,
 }: {
   series: SceneSeries;
   clock: SeriesClock;
+  status: HeardSeriesStatus | null;
   disabled: boolean;
   onPlay: (playing: boolean) => void;
   onSeek: (step: number) => void;
@@ -36,10 +41,10 @@ export const SeriesControl = ({
     }
     const handle = window.setInterval(() => setNow(Date.now()), TICK_MS);
     return () => window.clearInterval(handle);
-  }, [clock]);
+  }, [clock, status]);
 
-  const step = clockStep(clock, series, now);
-  const label = series.labels[step] ?? `Schritt ${step + 1}`;
+  const view = seriesView(clock, series, status, now);
+  const label = series.labels[view.step] ?? `Schritt ${view.step + 1}`;
   const sliderId = "pm-remote-series";
   return (
     <section className="rounded-2xl border border-neutral-800 bg-neutral-900 p-4">
@@ -51,7 +56,7 @@ export const SeriesControl = ({
           {series.title}
         </label>
         <span className="shrink-0 text-sm tabular-nums text-neutral-300">
-          {clock.playing ? `≈ ${label}` : label}
+          {view.kind === "own" && clock.playing ? `≈ ${label}` : label}
         </span>
       </div>
       <div className="flex items-center gap-3">
@@ -74,12 +79,21 @@ export const SeriesControl = ({
           min={0}
           max={Math.max(series.stepCount - 1, 0)}
           step={1}
-          value={step}
+          value={view.step}
           disabled={disabled}
           onChange={(event) => onSeek(Number(event.target.value))}
           className="h-10 min-w-0 flex-1 accent-amber-400 disabled:opacity-40"
         />
       </div>
+      {view.kind === "loading" ? (
+        <p
+          role="status"
+          className="m-0 mt-3 text-sm tabular-nums text-amber-300"
+        >
+          {`Frames laden ${view.loaded}/${view.total}`}
+          {view.failed > 0 ? ` · ${view.failed} fehlgeschlagen` : ""}
+        </p>
+      ) : null}
     </section>
   );
 };
