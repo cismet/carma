@@ -27,6 +27,7 @@ export const createSharedThreeMapStyleProjection = (
   let map: MaplibreMap | null = null;
   let renderer: THREE.WebGLRenderer | null = null;
   let mapStyleProjectionVisible = true;
+  let presentationEnabled = true;
   let mapStyleProjectionEpoch = 0;
   let capturedMapStyleRevision = -1;
   const mapStyleProjectionUniforms: MapStyleProjectionUniforms = {
@@ -187,6 +188,15 @@ export const createSharedThreeMapStyleProjection = (
       };
     },
 
+    setEnabled(enabled: boolean) {
+      if (presentationEnabled === enabled) return;
+      presentationEnabled = enabled;
+      mapStyleProjectionEpoch += 1;
+      mapStyleFramebufferCache?.invalidate();
+      if (!enabled) mapStyleProjectionUniforms.enabled.value = 0;
+      map?.triggerRepaint();
+    },
+
     setVisible(visible: boolean) {
       if (mapStyleProjectionVisible === visible) return;
       mapStyleProjectionVisible = visible;
@@ -216,7 +226,11 @@ export const createSharedThreeMapStyleProjection = (
       lightingReplay: boolean
     ): boolean {
       mapStyleProjectionUniforms.sceneToClip.value.copy(sceneToClipMatrix);
-      if (mapStyleProjectionVisible && configureMapStyleProjection()) {
+      if (
+        presentationEnabled &&
+        mapStyleProjectionVisible &&
+        configureMapStyleProjection()
+      ) {
         try {
           bindMapStyleDepth();
           const contentRevision = mapStyleFramebufferCache?.revision ?? 0;

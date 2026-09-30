@@ -98,7 +98,9 @@ describe("shared Three.js scene registry", () => {
         off: vi.fn(),
       };
 
-      const lease = acquireSharedThreeScene(map as never);
+      const lease = acquireSharedThreeScene(map as never, {
+        mapStylePresentation: true,
+      });
 
       expect(moveLayer).toHaveBeenCalledWith(sharedLayer.id);
       expect(moveLayer).toHaveBeenCalledWith("place-city");
@@ -251,7 +253,9 @@ describe("shared Three.js scene registry", () => {
       off: vi.fn(),
     };
 
-    const lease = acquireSharedThreeScene(map as never);
+    const lease = acquireSharedThreeScene(map as never, {
+      mapStylePresentation: true,
+    });
     lease.setLocationLabelColor("#fff2d8");
     vi.advanceTimersByTime(1000);
 
@@ -365,7 +369,9 @@ describe("shared Three.js scene registry", () => {
       off: vi.fn(),
     };
 
-    const lease = acquireSharedThreeScene(map as never);
+    const lease = acquireSharedThreeScene(map as never, {
+      mapStylePresentation: true,
+    });
 
     // Drape and street styling apply on their own; without a sun color the
     // point labels keep their authored paint.
@@ -442,7 +448,9 @@ describe("shared Three.js scene registry", () => {
       off: vi.fn(),
     };
     // The style settled with no mesh: the basemap stays visible.
-    const lease = acquireSharedThreeScene(map as never);
+    const lease = acquireSharedThreeScene(map as never, {
+      mapStylePresentation: true,
+    });
     expect(layout.has("basemap:visibility")).toBe(false);
     // A mesh added from the layer list registers without any style or idle
     // event following; the registration alone has to apply the drape.

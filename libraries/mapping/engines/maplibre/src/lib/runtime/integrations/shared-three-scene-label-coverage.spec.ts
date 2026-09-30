@@ -59,7 +59,9 @@ describe("shared Three.js scene registry", () => {
       off: vi.fn(),
     };
 
-    const lease = acquireSharedThreeScene(map as never);
+    const lease = acquireSharedThreeScene(map as never, {
+      mapStylePresentation: true,
+    });
 
     expect(currentFilter).toEqual([
       "all",
@@ -137,7 +139,9 @@ describe("shared Three.js scene registry", () => {
       off: vi.fn(),
     };
 
-    const lease = acquireSharedThreeScene(map as never);
+    const lease = acquireSharedThreeScene(map as never, {
+      mapStylePresentation: true,
+    });
 
     expect(map.setFilter).toHaveBeenCalledOnce();
     expect(currentFilter).toEqual([
@@ -217,7 +221,9 @@ describe("shared Three.js scene registry", () => {
       off: vi.fn(),
     };
 
-    const lease = acquireSharedThreeScene(map as never);
+    const lease = acquireSharedThreeScene(map as never, {
+      mapStylePresentation: true,
+    });
 
     expect(getActiveTileVolumes).toHaveBeenCalledOnce();
     expect(sharedLayer.projectSceneToLngLat).toHaveBeenCalledTimes(4);
@@ -303,7 +309,9 @@ describe("shared Three.js scene registry", () => {
       }),
       off: vi.fn(),
     };
-    const lease = acquireSharedThreeScene(map as never);
+    const lease = acquireSharedThreeScene(map as never, {
+      mapStylePresentation: true,
+    });
     // One coverage box: the caster-only tile never reaches the polygon.
     expect(sharedLayer.projectSceneToLngLat).toHaveBeenCalledTimes(4);
     expect(map.setFilter).toHaveBeenCalledTimes(1);

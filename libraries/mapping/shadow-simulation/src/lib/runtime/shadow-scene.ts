@@ -259,7 +259,9 @@ export const buildShadowSimulationScene = (
     sceneLease.layer.setMapStyleProjectionVisible?.(false);
     restoreMapLibreStyleLayers ??= suppressMapLibreRegularStyleLayers(map);
   };
-  const sceneLease = acquireSharedThreeScene(map);
+  const sceneLease = acquireSharedThreeScene(map, {
+    mapStylePresentation: true,
+  });
   /**
    * Sun and sky are evaluated at the shared scene's local frame, the ellipsoid
    * frame the ECEF tilesets mount on, so light and geometry tilt together.

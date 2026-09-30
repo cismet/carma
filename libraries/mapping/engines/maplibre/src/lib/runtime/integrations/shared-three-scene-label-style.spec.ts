@@ -129,7 +129,9 @@ describe("shared Three.js scene registry", () => {
       off: vi.fn(),
     };
 
-    const lease = acquireSharedThreeScene(map as never);
+    const lease = acquireSharedThreeScene(map as never, {
+      mapStylePresentation: true,
+    });
     lease.setLocationLabelColor("#fff2d8");
     vi.advanceTimersByTime(1000);
 
@@ -300,7 +302,9 @@ describe("shared Three.js scene registry", () => {
       off: vi.fn(),
     };
 
-    const lease = acquireSharedThreeScene(map as never);
+    const lease = acquireSharedThreeScene(map as never, {
+      mapStylePresentation: true,
+    });
 
     // 300 m at zoom 16 on the equator: 512 * 2^16 / circumference px per meter.
     const expectedPixels = (300 * 512 * 2 ** 16) / EARTH_CIRCUMFERENCE;

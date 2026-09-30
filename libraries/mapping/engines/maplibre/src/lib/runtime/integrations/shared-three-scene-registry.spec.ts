@@ -15,6 +15,47 @@ import { installSharedThreeSceneRegistryFixture } from "./shared-three-scene-reg
 describe("shared Three.js scene registry", () => {
   const { dispose, sharedLayer } = installSharedThreeSceneRegistryFixture();
 
+  it("enables presentation only while an explicit consumer holds it", () => {
+    let attached = false;
+    const map = {
+      getStyle: () => ({ layers: [] }),
+      getLayersOrder: () => [sharedLayer.id],
+      getLayer: () => (attached ? sharedLayer : undefined),
+      addLayer: () => {
+        attached = true;
+      },
+      removeLayer: () => {
+        attached = false;
+      },
+      on: vi.fn(),
+      off: vi.fn(),
+    };
+    const mesh = acquireSharedThreeScene(map as never);
+    expect(sharedLayer.setMapStylePresentationEnabled).toHaveBeenLastCalledWith(
+      false
+    );
+    const style = acquireSharedThreeScene(map as never, {
+      mapStylePresentation: true,
+    });
+    const shadows = acquireSharedThreeScene(map as never, {
+      mapStylePresentation: true,
+    });
+    expect(sharedLayer.setMapStylePresentationEnabled).toHaveBeenLastCalledWith(
+      true
+    );
+    style.release();
+    expect(sharedLayer.setMapStylePresentationEnabled).toHaveBeenLastCalledWith(
+      true
+    );
+    shadows.release();
+    expect(sharedLayer.setMapStylePresentationEnabled).toHaveBeenLastCalledWith(
+      false
+    );
+    expect(dispose).not.toHaveBeenCalled();
+    mesh.release();
+    expect(dispose).toHaveBeenCalledOnce();
+  });
+
   it("shares one layer and disposes it after the final lease", () => {
     const listeners = new Map<string, () => void>();
     const addLayer = vi.fn();

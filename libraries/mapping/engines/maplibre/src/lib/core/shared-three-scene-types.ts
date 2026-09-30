@@ -335,6 +335,8 @@ export interface SharedThreeSceneLayer extends CustomLayerInterface {
   setAccumulationController: (
     controller: SharedSceneAccumulationController | null
   ) => void;
+  /** Select the optional MapLibre/Three map-style presentation. */
+  setMapStylePresentationEnabled?: (enabled: boolean) => void;
   /** Enable capture and projection of the preceding MapLibre style pass. */
   setMapStyleProjectionVisible?: (visible: boolean) => void;
   /** Diagnostics: what the map-style projection did in the last frame. */

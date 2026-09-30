@@ -15,6 +15,7 @@ export const installSharedThreeSceneRegistryFixture = () => {
       (position: readonly [number, number, number]) =>
         [position[0], position[2]] as [number, number]
     ),
+    setMapStylePresentationEnabled: vi.fn(),
     dispose,
   };
 

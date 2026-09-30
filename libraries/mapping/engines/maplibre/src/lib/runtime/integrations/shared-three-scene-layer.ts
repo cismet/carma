@@ -233,6 +233,9 @@ export const buildSharedThreeSceneLayer = (
     getMapStyleProjectionState() {
       return mapStyleProjection.getState(renderedFrames);
     },
+    setMapStylePresentationEnabled(enabled) {
+      mapStyleProjection.setEnabled(enabled);
+    },
     setMapStyleProjectionVisible(visible) {
       mapStyleProjection.setVisible(visible);
     },
