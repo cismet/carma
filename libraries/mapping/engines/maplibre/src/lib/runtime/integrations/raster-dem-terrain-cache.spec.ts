@@ -46,7 +46,7 @@ vi.mock("./shared-three-terrain-registry", () => ({
 import { buildRasterDemTerrainRuntime } from "./raster-dem-terrain-runtime";
 import { executeTerrainWorkerTask } from "./terrain-worker-task";
 
-describe("prepared terrain cache integration", () => {
+describe("terrain preparation without persisted geometry", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     runTask.mockImplementation(executeTerrainWorkerTask);
@@ -54,11 +54,14 @@ describe("prepared terrain cache integration", () => {
 
   it.each(
     (["complete", "partial", "empty"] as const).flatMap((coverage) =>
-      [true, false].map((cacheHit) => ({ coverage, cacheHit }))
+      [true, false].map((preparedCachePopulated) => ({
+        coverage,
+        preparedCachePopulated,
+      }))
     )
   )(
-    "publishes $coverage relief with cacheHit=$cacheHit and only necessary worker tasks",
-    async ({ coverage, cacheHit }) => {
+    "regenerates $coverage relief with preparedCachePopulated=$preparedCachePopulated",
+    async ({ coverage, preparedCachePopulated }) => {
       const id = { level: 10, x: 532, y: 218 };
       const bounds = { west: 7, south: 51, east: 7.4, north: 51.3 };
       const reliefVertexMask = new Uint8Array(
@@ -105,7 +108,7 @@ describe("prepared terrain cache integration", () => {
         northIndices: new Uint32Array(),
       };
       cache.get.mockResolvedValue(
-        cacheHit ? { tile, geometry, reliefVertexMask } : null
+        preparedCachePopulated ? { tile, geometry, reliefVertexMask } : null
       );
       const source = {
         release: vi.fn(),
@@ -115,7 +118,7 @@ describe("prepared terrain cache integration", () => {
         getLevelMaximumGeometricError: () => 0.01,
         getTileDataAvailable: () => true,
         sampleHeight: vi.fn(() =>
-          cacheHit ? undefined : coverage === "empty" ? -9999 : 123
+          preparedCachePopulated ? undefined : coverage === "empty" ? -9999 : 123
         ),
         trimCache: vi.fn(),
       };
@@ -147,7 +150,7 @@ describe("prepared terrain cache integration", () => {
       lodCamera.position.set(0, 1000, 0);
       try {
         // Exercise both sampler registration paths: source-first and map-first.
-        if (cacheHit)
+        if (preparedCachePopulated)
           await new Promise<void>((resolve) => setTimeout(resolve, 0));
         runtime.onAdd?.(map as never);
         await vi.waitFor(() => expect(registerSampler).toHaveBeenCalledOnce());
@@ -176,7 +179,7 @@ describe("prepared terrain cache integration", () => {
           expectedHeight
         );
         expect(sharedSampler(bounds.west, bounds.south)).toBe(expectedHeight);
-        if (cacheHit) {
+        if (preparedCachePopulated) {
           expect(runtime.getElevation(bounds.east, bounds.north)).toBe(
             coverage === "complete" ? 123 : undefined
           );
@@ -190,41 +193,25 @@ describe("prepared terrain cache integration", () => {
             runtime.getElevation(bounds.west, bounds.south)
           ).toBeUndefined();
         }
-        expect(cache.get).toHaveBeenCalledWith(id, 0.01);
-        if (cacheHit) {
-          expect(source.requestTile).not.toHaveBeenCalled();
-          expect(cache.set).not.toHaveBeenCalled();
-          expect(
-            runTask.mock.calls.every(([task]) => task.kind === "stitch")
-          ).toBe(true);
-        } else {
-          expect(source.requestTile).toHaveBeenCalledOnce();
-          expect(cache.set).toHaveBeenCalledWith(
-            tile,
-            coverage === "empty" ? null : expect.any(BufferGeometry),
-            reliefVertexMask,
-            expect.any(Number)
-          );
-          expect(
-            runTask.mock.calls.filter(([task]) => task.kind === "project")
-          ).toHaveLength(1);
-          expect(
-            runTask.mock.calls.filter(([task]) => task.kind === "partition")
-          ).toHaveLength(coverage === "complete" ? 0 : 1);
-        }
-        expect(createCache).toHaveBeenCalledWith(
-          expect.any(String),
-          [7.15, 51.256],
-          -9999,
-          undefined // This test runs an unbundled, intentionally uncached graph.
-        );
+        // Only edge topology is persisted. Positions and normals are rebuilt
+        // from current source tiles even when an old prepared mesh is stored.
+        expect(createCache).not.toHaveBeenCalled();
+        expect(cache.get).not.toHaveBeenCalled();
+        expect(cache.set).not.toHaveBeenCalled();
+        expect(source.requestTile).toHaveBeenCalledOnce();
+        expect(
+          runTask.mock.calls.filter(([task]) => task.kind === "project")
+        ).toHaveLength(1);
+        expect(
+          runTask.mock.calls.filter(([task]) => task.kind === "partition")
+        ).toHaveLength(coverage === "complete" ? 0 : 1);
         expect(runtime.root.children).toHaveLength(1);
         expect(runtime.root.children[0].children).toHaveLength(
           coverage === "empty" ? 0 : 1
         );
       } finally {
         runtime.dispose();
-        if (!cacheHit) geometry?.dispose();
+        geometry?.dispose();
       }
     }
   );

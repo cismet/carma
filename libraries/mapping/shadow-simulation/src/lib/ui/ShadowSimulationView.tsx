@@ -52,6 +52,7 @@ const ShadowSimulationCurveSettings = lazy(() =>
 const ACTIVE_CONTROL_COLOR = "#1677ff";
 export const ShadowSimulationView = ({
   config,
+  debugEnabled = true,
   libreMap,
   targeted,
   sharedState,
@@ -60,6 +61,7 @@ export const ShadowSimulationView = ({
   setSharedDateState,
 }: {
   config?: ShadowSimulationConfig;
+  debugEnabled?: boolean;
   libreMap: MaplibreMap | null;
   targeted: boolean;
   sharedState: ShadowSimulationState | undefined;
@@ -80,6 +82,7 @@ export const ShadowSimulationView = ({
     mapLibreTerrain,
     controlPosition = "topleft",
     controlOrder = 70,
+    experimentalTiledShadows = false,
   } = config ?? {};
   const location = useMapCenterSolarLocation(libreMap, latitude, longitude);
   const initialState = useMemo<ShadowSimulationState>(
@@ -103,6 +106,17 @@ export const ShadowSimulationView = ({
     ]
   );
   const state = sharedState ?? initialState;
+  const runtimeState = useMemo(
+    () =>
+      debugEnabled
+        ? state
+        : {
+            ...state,
+            showProjectionDebugView: false,
+            showTileDiagnostics: false,
+          },
+    [debugEnabled, state]
+  );
   const dateState = sharedDateState ?? initialDateState;
   const selectableTerrainSources = useMemo(
     () =>
@@ -120,7 +134,6 @@ export const ShadowSimulationView = ({
   useEffect(() => {
     if (!sharedDateState) setSharedDateState(initialDateState);
   }, [initialDateState, setSharedDateState, sharedDateState]);
-
 
   if (targeted) {
     return (
@@ -172,13 +185,14 @@ export const ShadowSimulationView = ({
         </Control>
       )}
       <ShadowSimulationRuntime
+        tiledShadows={experimentalTiledShadows}
         libreMap={libreMap}
         shadowAreaMeters={shadowAreaMeters}
         terrain={selectedTerrain}
         mapLibreTerrain={mapLibreTerrain}
         terrainQuality={state.terrainQuality}
         location={location}
-        state={state}
+        state={runtimeState}
         dateState={dateState}
         setDateState={setSharedDateState}
       />
@@ -200,6 +214,8 @@ export const ShadowSimulationView = ({
       {state.showDisplaySettings && (
         <Suspense fallback={null}>
           <ShadowSimulationDisplaySettingsPanel
+            tiledShadows={experimentalTiledShadows}
+            debugEnabled={debugEnabled}
             state={state}
             setState={setSharedState}
             terrainSources={selectableTerrainSources}
@@ -207,22 +223,27 @@ export const ShadowSimulationView = ({
           />
         </Suspense>
       )}
-      {state.enabled && state.showProjectionDebugView && libreMap && (
-        <Suspense fallback={null}>
-          <ShadowProjectionDebugView
-            map={libreMap}
-            solarPosition={getSolarPosition(dateState, location)}
-            settings={{
-              showSunDebugVector: state.showSunDebugVector ?? true,
-              showTileBounds: state.showTileBounds ?? true,
-            }}
-            onSettingsChange={(patch) => setSharedState({ ...state, ...patch })}
-            onClose={() =>
-              setSharedState({ ...state, showProjectionDebugView: false })
-            }
-          />
-        </Suspense>
-      )}
+      {debugEnabled &&
+        state.enabled &&
+        state.showProjectionDebugView &&
+        libreMap && (
+          <Suspense fallback={null}>
+            <ShadowProjectionDebugView
+              map={libreMap}
+              solarPosition={getSolarPosition(dateState, location)}
+              settings={{
+                showSunDebugVector: state.showSunDebugVector ?? true,
+                showTileBounds: state.showTileBounds ?? true,
+              }}
+              onSettingsChange={(patch) =>
+                setSharedState({ ...state, ...patch })
+              }
+              onClose={() =>
+                setSharedState({ ...state, showProjectionDebugView: false })
+              }
+            />
+          </Suspense>
+        )}
     </>
   );
 };

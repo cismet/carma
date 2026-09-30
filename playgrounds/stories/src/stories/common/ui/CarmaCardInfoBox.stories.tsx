@@ -209,40 +209,40 @@ const Showcase = () => {
           meta="Dieselbe checkerboard-basierte Masonry-Hülle wie in den Label-Stories, mit den bestehenden Drag-Header-Varianten im Inhalt."
         >
           <div style={sectionStackStyle}>
-              <CardVariant
-                title="expanded • static"
-                subtitle="Subtitle row"
-                content="Card body styles with collapsible content."
-                footer="Footer row"
-              />
-              <CardVariant
-                title="collapsed • static (subtitle/footer visible)"
-                subtitle="Subtitle row"
-                content="Collapsed body content."
-                footer="Footer row"
-                defaultCollapsed
-              />
-              <CardVariant
-                title="totally collapsed • static (header only)"
-                content="Collapsed body content."
-                defaultCollapsed
-              />
-              <CardVariant
-                title="expanded • draggable (auto grip)"
-                subtitle="Subtitle row"
-                content="Drag anywhere on the title bar."
-                footer="Footer row"
-                draggable
-              />
-              <CardVariant
-                title="expanded • draggable (auto fallback, narrow width)"
-                subtitle="Subtitle row"
-                content="Long title + narrow width forces non-overlap fallback."
-                footer="Footer row"
-                draggable
-                headerText="CarmaCard very long title for fallback"
-                panelWidth={300}
-              />
+            <CardVariant
+              title="expanded • static"
+              subtitle="Subtitle row"
+              content="Card body styles with collapsible content."
+              footer="Footer row"
+            />
+            <CardVariant
+              title="collapsed • static (subtitle/footer visible)"
+              subtitle="Subtitle row"
+              content="Collapsed body content."
+              footer="Footer row"
+              defaultCollapsed
+            />
+            <CardVariant
+              title="totally collapsed • static (header only)"
+              content="Collapsed body content."
+              defaultCollapsed
+            />
+            <CardVariant
+              title="expanded • draggable (auto grip)"
+              subtitle="Subtitle row"
+              content="Drag anywhere on the title bar."
+              footer="Footer row"
+              draggable
+            />
+            <CardVariant
+              title="expanded • draggable (auto fallback, narrow width)"
+              subtitle="Subtitle row"
+              content="Long title + narrow width forces non-overlap fallback."
+              footer="Footer row"
+              draggable
+              headerText="CarmaCard very long title for fallback"
+              panelWidth={300}
+            />
           </div>
         </StoryMasonrySection>
         <StoryMasonrySection
@@ -250,40 +250,40 @@ const Showcase = () => {
           meta="Gleiche Masonry-Hülle, die eigentlichen Komponenten bleiben unverändert und behalten ihr bestehendes Drag-Verhalten."
         >
           <div style={sectionStackStyle}>
-              <InfoBoxVariant
-                title="expanded • static"
-                subtitle="ResponsiveInfoBox"
-                content="Uses CarmaCard internally."
-                footer="Footer row"
-              />
-              <InfoBoxVariant
-                title="collapsed • static (subtitle/footer visible)"
-                subtitle="ResponsiveInfoBox"
-                content="Collapsed body content."
-                footer="Footer row"
-                defaultCollapsed
-              />
-              <InfoBoxVariant
-                title="totally collapsed • static (header only)"
-                content="Collapsed body content."
-                defaultCollapsed
-              />
-              <InfoBoxVariant
-                title="expanded • draggable (auto grip)"
-                subtitle="ResponsiveInfoBox"
-                content="Drag anywhere on the title bar."
-                footer="Footer row"
-                draggable
-              />
-              <InfoBoxVariant
-                title="expanded • draggable (auto fallback, narrow width)"
-                subtitle="ResponsiveInfoBox"
-                content="Long title + narrow width forces non-overlap fallback."
-                footer="Footer row"
-                draggable
-                headerText="InfoBox very long title for fallback"
-                panelWidth={300}
-              />
+            <InfoBoxVariant
+              title="expanded • static"
+              subtitle="ResponsiveInfoBox"
+              content="Uses CarmaCard internally."
+              footer="Footer row"
+            />
+            <InfoBoxVariant
+              title="collapsed • static (subtitle/footer visible)"
+              subtitle="ResponsiveInfoBox"
+              content="Collapsed body content."
+              footer="Footer row"
+              defaultCollapsed
+            />
+            <InfoBoxVariant
+              title="totally collapsed • static (header only)"
+              content="Collapsed body content."
+              defaultCollapsed
+            />
+            <InfoBoxVariant
+              title="expanded • draggable (auto grip)"
+              subtitle="ResponsiveInfoBox"
+              content="Drag anywhere on the title bar."
+              footer="Footer row"
+              draggable
+            />
+            <InfoBoxVariant
+              title="expanded • draggable (auto fallback, narrow width)"
+              subtitle="ResponsiveInfoBox"
+              content="Long title + narrow width forces non-overlap fallback."
+              footer="Footer row"
+              draggable
+              headerText="InfoBox very long title for fallback"
+              panelWidth={300}
+            />
           </div>
         </StoryMasonrySection>
       </div>
@@ -292,7 +292,8 @@ const Showcase = () => {
 };
 
 const meta: Meta = {
-  title: "Common/UI",
+  title: "UI",
+  id: "common-ui",
   parameters: {
     layout: "fullscreen",
   },

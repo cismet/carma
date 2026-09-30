@@ -41,15 +41,7 @@ export type {
 // Factories
 export { buildLatheInstances } from "./factories/LatheFactory";
 export { buildLoftMeshes } from "./factories/LoftFactory";
-// 3D Tiles
-export {
-  buildTiles3dLayer,
-  DEFAULT_ERROR_TARGET_PIXELS,
-} from "./tiles3d/Tiles3dLayer";
-export type {
-  Tiles3dCustomLayer,
-  Tiles3dLayerOptions,
-} from "./tiles3d/Tiles3dLayer";
+// 3D Tiles primitives; MapLibre tile lifecycles live in its shared runtime.
 export {
   GLTFPrimitiveOutlineExtension,
   TILE_OUTLINE_FLAG,

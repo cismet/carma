@@ -1,5 +1,5 @@
 /** Static, native-compatible tileset descriptors. No renderer state is stored.
- * Decision: TILE-SPARSE-HIERARCHY-INDEX-20260909 in engines/maplibre/README.md.
+ * Decision: README.md#consolidated-tile-manager.
  */
 export const TILESET_HIERARCHY = {
   version: "sparse-hierarchy-v1-renderer-0.5.2",

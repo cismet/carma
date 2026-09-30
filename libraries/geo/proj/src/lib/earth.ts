@@ -19,3 +19,10 @@ export const EARTH_CIRCUMFERENCE: Meters = (2 *
 export const EARTH_RADIUS: Meters = ((2 * WGS84_ELLIPSOID.semiMajorAxis +
   WGS84_ELLIPSOID.semiMinorAxis) /
   3) as Meters;
+
+/**
+ * Sphere radius of MapLibre GL's `MercatorCoordinate` metre unit and globe
+ * (maplibre-gl `earthRadius`). Only for values that must match MapLibre's own
+ * projection numerically; spherical approximations use EARTH_RADIUS.
+ */
+export const MAPLIBRE_EARTH_RADIUS = 6371008.8 as Meters;

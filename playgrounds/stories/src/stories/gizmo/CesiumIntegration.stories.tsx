@@ -885,7 +885,8 @@ const GizmoSandbox = (props: GizmoSandboxProps) => {
 };
 
 const meta: Meta<GizmoSandboxProps> = {
-  title: "Mapping Components/Gizmo",
+  title: "UI/Gizmos",
+  id: "mapping-components-gizmo",
   component: GizmoSandbox,
   parameters: {
     layout: "fullscreen",

@@ -1,3 +1,7 @@
+import {
+  prepareEqualLevelTerrainShell,
+  stitchEqualLevelTerrainBoundaries,
+} from "./terrain-equal-level-boundaries";
 import { BufferAttribute, BufferGeometry, Vector3 } from "three";
 import { clamp } from "@carma-commons/math";
 import { computeMeshVertexNormals } from "@carma-mapping/engines/three/primitives/core";
@@ -6,8 +10,25 @@ import {
   refineTerrainBoundaryTriangles,
   type TerrainEdgeSubdivision,
 } from "./terrain-boundary-refinement";
+import {
+  TERRAIN_BOUNDARY_KEY_PRECISION,
+  TERRAIN_BOUNDARY_SIDE,
+  terrainBoundaryVertexKey,
+  type TerrainBoundarySide,
+} from "../../core/terrain-boundary-key";
 
-type TerrainBoundarySide = "west" | "south" | "east" | "north";
+const TERRAIN_BOUNDARY_AXIS = {
+  X: "x",
+  Z: "z",
+} as const;
+
+/** Each tile boundary is visited in this order. */
+const TERRAIN_BOUNDARY_SIDES = [
+  TERRAIN_BOUNDARY_SIDE.WEST,
+  TERRAIN_BOUNDARY_SIDE.SOUTH,
+  TERRAIN_BOUNDARY_SIDE.EAST,
+  TERRAIN_BOUNDARY_SIDE.NORTH,
+] as const;
 
 type TerrainBoundaryEdges = Record<TerrainBoundarySide, Uint32Array>;
 
@@ -40,26 +61,27 @@ type StitchTerrainRecord = {
   boundaryBaseHeights: Record<TerrainBoundarySide, Float32Array>;
 };
 
-const TERRAIN_BOUNDARY_KEY_PRECISION = 1_000;
 const TERRAIN_BOUNDARY_OVERLAP_EPSILON = 1e-3;
 
 const oppositeTerrainBoundarySide = (
   side: TerrainBoundarySide
 ): TerrainBoundarySide => {
   switch (side) {
-    case "west":
-      return "east";
-    case "east":
-      return "west";
-    case "south":
-      return "north";
-    case "north":
-      return "south";
+    case TERRAIN_BOUNDARY_SIDE.WEST:
+      return TERRAIN_BOUNDARY_SIDE.EAST;
+    case TERRAIN_BOUNDARY_SIDE.EAST:
+      return TERRAIN_BOUNDARY_SIDE.WEST;
+    case TERRAIN_BOUNDARY_SIDE.SOUTH:
+      return TERRAIN_BOUNDARY_SIDE.NORTH;
+    case TERRAIN_BOUNDARY_SIDE.NORTH:
+      return TERRAIN_BOUNDARY_SIDE.SOUTH;
   }
 };
 
 const terrainBoundaryAxis = (side: TerrainBoundarySide) =>
-  side === "west" || side === "east" ? "x" : "z";
+  side === TERRAIN_BOUNDARY_SIDE.WEST || side === TERRAIN_BOUNDARY_SIDE.EAST
+    ? TERRAIN_BOUNDARY_AXIS.X
+    : TERRAIN_BOUNDARY_AXIS.Z;
 
 const findTerrainBoundaryInterpolationSpan = (
   edge: TerrainBoundaryEdge,
@@ -133,6 +155,8 @@ const interpolateTerrainBoundaryHeight = (
 };
 
 export type TerrainStitchInput = {
+  sourceIndices?: Uint32Array;
+  normalTargets?: Uint32Array;
   key: string;
   id: TerrainTileId;
   positions: Float32Array;
@@ -143,10 +167,15 @@ export type TerrainStitchInput = {
 };
 
 export type TerrainBoundaryStitchOptions = {
+  sameLevelOnly?: boolean;
+  prepareEqualLevelShells?: boolean;
   outputKeys?: string[];
   captureBoundaryState?: boolean;
   prepareShellKeys?: string[];
   probeOnly?: boolean;
+  prepareOnly?: boolean;
+  /** Reuse the solved shell boundary state; do not solve the whole cut per output. */
+  applyBoundaryStates?: Record<string, Float32Array>;
 };
 
 export const stitchTerrainBoundaries = (
@@ -184,7 +213,7 @@ export const stitchTerrainBoundaries = (
     const { reliefMesh } = record;
     if (!reliefMesh) continue;
     const position = reliefMesh.geometry.getAttribute("position");
-    for (const side of ["west", "south", "east", "north"] as const) {
+    for (const side of TERRAIN_BOUNDARY_SIDES) {
       const indices = record.boundaryEdges[side];
       const baseHeights = record.boundaryBaseHeights[side];
       for (let offset = 0; offset < indices.length; offset += 1) {
@@ -193,7 +222,7 @@ export const stitchTerrainBoundaries = (
     }
     position.needsUpdate = true;
     const normal = reliefMesh.geometry.getAttribute("normal");
-    for (const side of ["west", "south", "east", "north"] as const) {
+    for (const side of TERRAIN_BOUNDARY_SIDES) {
       const indices = record.boundaryEdges[side];
       const axis = terrainBoundaryAxis(side);
       const edgeVertices: TerrainBoundaryVertex[] = [];
@@ -216,7 +245,10 @@ export const stitchTerrainBoundaries = (
         normalAccumulators.set(vertexKey, accumulator);
         edgeVertices.push({
           accumulator,
-          parameter: axis === "x" ? position.getZ(index) : position.getX(index),
+          parameter:
+            axis === TERRAIN_BOUNDARY_AXIS.X
+              ? position.getZ(index)
+              : position.getX(index),
           height: position.getY(index),
           normal: vertexNormal,
         });
@@ -224,7 +256,7 @@ export const stitchTerrainBoundaries = (
       edgeVertices.sort((left, right) => left.parameter - right.parameter);
       if (edgeVertices.length === 0) continue;
       const lineCoordinate =
-        axis === "x"
+        axis === TERRAIN_BOUNDARY_AXIS.X
           ? position.getX(edgeVertices[0].accumulator.index)
           : position.getZ(edgeVertices[0].accumulator.index);
       const lineKey = `${axis}/${Math.round(
@@ -336,9 +368,10 @@ export const stitchTerrainBoundaries = (
   for (const accumulator of normalAccumulators.values()) {
     const { record, index } = accumulator;
     const position = record.reliefMesh!.geometry.getAttribute("position");
-    const key = `${Math.round(
-      position.getX(index) * TERRAIN_BOUNDARY_KEY_PRECISION
-    )}/${Math.round(position.getZ(index) * TERRAIN_BOUNDARY_KEY_PRECISION)}`;
+    const key = terrainBoundaryVertexKey(
+      position.getX(index),
+      position.getZ(index)
+    );
     const level = record.id.level;
     const junction = junctions.get(key) ?? {
       members: [],
@@ -728,35 +761,6 @@ export const stitchTerrainBoundaries = (
 };
 
 type TerrainStitchUpdate = ReturnType<typeof stitchTerrainBoundaries>[number];
-type TerrainBoundaryStitchEntry = {
-  base: TerrainStitchInput;
-  shell: TerrainStitchInput;
-  boundaryState: Float32Array;
-};
-export type TerrainBoundaryStitchState = ReadonlyMap<
-  string,
-  TerrainBoundaryStitchEntry
->;
-
-const sameStitchBase = (a: TerrainStitchInput, b: TerrainStitchInput) =>
-  a.id.level === b.id.level &&
-  a.id.x === b.id.x &&
-  a.id.y === b.id.y &&
-  a.positions === b.positions &&
-  a.normals === b.normals &&
-  a.indices === b.indices &&
-  a.boundaryEdges === b.boundaryEdges &&
-  a.boundaryBaseHeights === b.boundaryBaseHeights;
-
-const sameStitchArray = (
-  a: Float32Array | Uint16Array | Uint32Array | undefined,
-  b: Float32Array | Uint16Array | Uint32Array | undefined
-) =>
-  !!a &&
-  !!b &&
-  a.constructor === b.constructor &&
-  a.length === b.length &&
-  a.every((value, index) => Object.is(value, b[index]));
 
 // All faces incident to a boundary vertex are retained in their original order.
 // Consequently its normal accumulates exactly the same Float32 contributions
@@ -809,10 +813,10 @@ const createTerrainBoundaryShell = (
     normals,
     indices,
     boundaryEdges: {
-      west: remapEdge("west"),
-      south: remapEdge("south"),
-      east: remapEdge("east"),
-      north: remapEdge("north"),
+      west: remapEdge(TERRAIN_BOUNDARY_SIDE.WEST),
+      south: remapEdge(TERRAIN_BOUNDARY_SIDE.SOUTH),
+      east: remapEdge(TERRAIN_BOUNDARY_SIDE.EAST),
+      north: remapEdge(TERRAIN_BOUNDARY_SIDE.NORTH),
     },
   };
 };
@@ -822,10 +826,94 @@ export const executeTerrainBoundaryStitch = (
   inputs: TerrainStitchInput[],
   options: TerrainBoundaryStitchOptions = {}
 ) => {
+  if (options.prepareEqualLevelShells)
+    return { updates: [], shells: inputs.map(prepareEqualLevelTerrainShell) };
+  if (options.sameLevelOnly)
+    return {
+      updates: stitchEqualLevelTerrainBoundaries(
+        inputs,
+        options.outputKeys ? new Set(options.outputKeys) : undefined
+      ),
+    };
+  if (options.applyBoundaryStates) {
+    const states = options.applyBoundaryStates;
+    const updates: TerrainStitchUpdate[] = inputs.map((input) => {
+      const state = states[input.key];
+      if (!state) throw new Error("Missing solved terrain boundary state");
+      const boundary = [
+        ...new Set(
+          Object.values(input.boundaryEdges).flatMap((edge) => [...edge])
+        ),
+      ].sort((a, b) => a - b);
+      const geometry = new BufferGeometry();
+      geometry.setAttribute(
+        "position",
+        new BufferAttribute(input.positions, 3)
+      );
+      geometry.setAttribute("normal", new BufferAttribute(input.normals, 3));
+      geometry.setIndex(new BufferAttribute(input.indices, 1));
+      const position = geometry.getAttribute("position");
+      // Interior normals depend on heights before the final coarse-edge snap.
+      // The existing boundary-state format records that exact intermediate step.
+      boundary.forEach((index, ordinal) =>
+        position.setY(index, state[ordinal])
+      );
+      computeMeshVertexNormals(geometry);
+      const normal = geometry.getAttribute("normal");
+      let cursor = boundary.length;
+      for (const index of boundary) {
+        position.setXYZ(
+          index,
+          state[cursor++],
+          state[cursor++],
+          state[cursor++]
+        );
+        normal.setXYZ(index, state[cursor++], state[cursor++], state[cursor++]);
+      }
+      const subdivisions: TerrainEdgeSubdivision[] = [];
+      const count = state[cursor++];
+      for (let i = 0; i < count; i++) {
+        const a = boundary[state[cursor++]],
+          b = boundary[state[cursor++]];
+        const vertexCount = state[cursor++];
+        const vertices: TerrainEdgeSubdivision["vertices"] = [];
+        for (let j = 0; j < vertexCount; j++) {
+          vertices.push({
+            position: Array.from(state.subarray(cursor, cursor + 3)),
+            normal: Array.from(state.subarray(cursor + 3, cursor + 6)),
+          });
+          cursor += 6;
+        }
+        subdivisions.push({ a, b, vertices });
+      }
+      refineTerrainBoundaryTriangles(geometry, subdivisions);
+      geometry.computeBoundingBox();
+      geometry.computeBoundingSphere();
+      const result = {
+        key: input.key,
+        positions: geometry.getAttribute("position").array as Float32Array,
+        normals: geometry.getAttribute("normal").array as Float32Array,
+        indices: geometry.index!.array as Uint16Array | Uint32Array,
+        box: {
+          min: geometry.boundingBox!.min.toArray(),
+          max: geometry.boundingBox!.max.toArray(),
+        },
+        sphere: {
+          center: geometry.boundingSphere!.center.toArray(),
+          radius: geometry.boundingSphere!.radius,
+        },
+      };
+      geometry.dispose();
+      return result;
+    });
+    return { updates };
+  }
   const prepare = new Set(options.prepareShellKeys);
   const shells = inputs
     .filter((input) => prepare.has(input.key))
     .map(createTerrainBoundaryShell);
+  if (options.prepareOnly)
+    return { updates: [] as TerrainStitchUpdate[], shells };
   const byKey = new Map(shells.map((shell) => [shell.key, shell]));
   const workInputs = options.probeOnly
     ? inputs.map((input) => {
@@ -844,53 +932,5 @@ export const executeTerrainBoundaryStitch = (
   return {
     updates: stitchTerrainBoundaries(workInputs, options),
     ...(shells.length > 0 ? { shells } : {}),
-  };
-};
-
-/** Prepare from immutable bases; publish `state` only after the result is accepted. */
-export const prepareTerrainBoundaryStitch = (
-  inputs: TerrainStitchInput[],
-  previous: TerrainBoundaryStitchState = new Map()
-) => {
-  const prepareShellKeys: string[] = [];
-  const probeInputs = inputs.map((input) => {
-    const cached = previous.get(input.key);
-    if (cached && sameStitchBase(cached.base, input)) return cached.shell;
-    prepareShellKeys.push(input.key);
-    return input;
-  });
-  return {
-    probeInputs,
-    prepareShellKeys,
-    allNew: prepareShellKeys.length === inputs.length,
-    resolve: (
-      probes: TerrainStitchUpdate[],
-      shells: TerrainStitchInput[] = []
-    ) => {
-      const byKey = new Map(probes.map((probe) => [probe.key, probe]));
-      const shellByKey = new Map(shells.map((shell) => [shell.key, shell]));
-      const state = new Map<string, TerrainBoundaryStitchEntry>();
-      const outputKeys: string[] = [];
-      const workInputs = inputs.map((base) => {
-        const old = previous.get(base.key);
-        const sameBase = old && sameStitchBase(old.base, base);
-        const shell = sameBase ? old.shell : shellByKey.get(base.key);
-        if (!shell) throw new Error("Missing terrain boundary shell");
-        const probe = byKey.get(base.key);
-        if (!probe?.boundaryState)
-          throw new Error("Missing terrain boundary probe");
-        const unchanged =
-          sameBase && sameStitchArray(old.boundaryState, probe.boundaryState);
-        state.set(base.key, {
-          base,
-          shell,
-          boundaryState: probe.boundaryState,
-        });
-        if (unchanged) return shell;
-        outputKeys.push(base.key);
-        return base;
-      });
-      return { inputs: workInputs, outputKeys, state };
-    },
   };
 };

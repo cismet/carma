@@ -1,7 +1,6 @@
 import * as THREE from "three";
 
 import { clamp } from "@carma-commons/math";
-import { degToRadNumeric } from "@carma-units";
 
 import {
   fitShadowMap,
@@ -10,6 +9,10 @@ import {
 } from "../core/fit-shadow-map";
 import type { ShadowQualityMultiplier } from "../core/shadow-types";
 import { shadowRasterOffset } from "../core/shadow-raster-offset";
+import {
+  getSunDiscSampleOffset,
+  SUN_ANGULAR_RADIUS_RAD,
+} from "../core/sun-disc-sampling";
 
 const BASE_SHADOW_MAP_SIZE = 2_048;
 const DEFAULT_MAX_SHADOW_MAP_SIZE = 8_192;
@@ -23,8 +26,6 @@ const SHADOW_NORMAL_BIAS_TEXELS = 1.2;
 const MIN_SHADOW_BIAS_ELEVATION_SINE = 0.2;
 const MIN_SHADOW_NORMAL_BIAS_METERS = 0.05;
 const MAX_SHADOW_NORMAL_BIAS_METERS = 8;
-export const SUN_ANGULAR_RADIUS_RAD = degToRadNumeric(0.53 / 2);
-const GOLDEN_ANGLE_RAD = Math.PI * (3 - Math.sqrt(5));
 
 export const CASTER_RELIEF_MARGIN_METERS = 300;
 
@@ -69,6 +70,8 @@ export type ShadowSnapshot = Readonly<{
   totalShadowTexels: number;
   mapTexelBudget?: number;
   casterReachMeters: number;
+  /** Caster LOD spacing, independent of the allocated depth texture. */
+  casterMetersPerTexel: readonly [number, number];
   camera: ShadowCameraSnapshot;
 }>;
 
@@ -94,6 +97,8 @@ export type ShadowUpdate = Readonly<{
    * 64² texels (the allocation/guard minimum) and at most the hardware limit².
    */
   mapTexelBudget?: number;
+  /** CSS-sized budget for geometry demand; leaves depth allocation unchanged. */
+  casterMapTexelBudget?: number;
 }>;
 
 const LIGHT_UP = new THREE.Vector3(0, 1, 0);
@@ -211,11 +216,11 @@ export class ShadowController {
     if (!fit) return;
     const count = Math.max(1, Math.floor(sampleCount));
     const sampleIndex = ((Math.floor(round) % count) + count) % count;
-    const angularOffset =
-      SUN_ANGULAR_RADIUS_RAD * Math.sqrt((sampleIndex + 0.5) / count);
-    const sampleAngle = sampleIndex * GOLDEN_ANGLE_RAD;
-    const offsetA = Math.cos(sampleAngle) * angularOffset;
-    const offsetB = Math.sin(sampleAngle) * angularOffset;
+    const {
+      angularRadius: angularOffset,
+      tangentA: offsetA,
+      tangentB: offsetB,
+    } = getSunDiscSampleOffset(sampleIndex, count);
     const tangentDirection = fit.tangentA
       .clone()
       .multiplyScalar(offsetA)
@@ -287,6 +292,7 @@ export class ShadowController {
     groundTexelFit = true,
     stabilizeMapSize = false,
     mapTexelBudget,
+    casterMapTexelBudget,
     groundTexelTargetMeters,
     maxReceiverBiasMeters,
   }: ShadowUpdate): ShadowSnapshot | null {
@@ -362,14 +368,17 @@ export class ShadowController {
           receiverSunDiscGuard.planarMeters
         )
       : 0;
-    const shadowFit = fitShadowMap(receiverBounds, {
-      mapSize,
-      mapTexelBudget: resolvedMapTexelBudget,
+    const fitOptions = {
       maxMapSize: this.maxShadowMapSize,
       elevationSine: normalizedDirectionToSun.y,
       sunDiscGuardMeters,
       groundTexelFit,
       groundTexelTargetMeters,
+    };
+    const shadowFit = fitShadowMap(receiverBounds, {
+      ...fitOptions,
+      mapSize,
+      mapTexelBudget: resolvedMapTexelBudget,
       mapDimensions:
         stabilizeMapSize &&
         this.mapAllocation?.texelBudget === resolvedMapTexelBudget &&
@@ -378,6 +387,21 @@ export class ShadowController {
           ? this.mapAllocation
           : undefined,
     });
+    // Fit geometry demand separately: scaling the allocated texture by DPR
+    // would inherit its quantization, caps and motion-stabilized dimensions.
+    const casterTexelBudget = resolveShadowMapTexelBudget(
+      casterMapTexelBudget,
+      resolvedMapTexelBudget,
+      this.maxShadowMapSize
+    );
+    const casterFit =
+      casterMapTexelBudget === undefined
+        ? shadowFit
+        : fitShadowMap(receiverBounds, {
+            ...fitOptions,
+            mapSize: Math.floor(Math.sqrt(casterTexelBudget)),
+            mapTexelBudget: casterTexelBudget,
+          });
     this.mapAllocation = {
       width: shadowFit.mapWidth,
       height: shadowFit.mapHeight,
@@ -509,6 +533,10 @@ export class ShadowController {
           ? resolvedMapTexelBudget
           : undefined,
       casterReachMeters,
+      casterMetersPerTexel: [
+        casterFit.metersPerTexelX,
+        casterFit.metersPerTexelY,
+      ],
       camera: {
         receiverPointCount: receiverWorldPoints.length,
         receiverLeftMeters: receiverBounds.left,

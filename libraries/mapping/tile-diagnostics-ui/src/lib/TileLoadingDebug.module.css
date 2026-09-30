@@ -1,0 +1,83 @@
+.toolbar {
+  pointer-events: auto;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 4px;
+  background: rgb(248 250 252 / 96%);
+  color: #475569;
+  font: 13px/1 system-ui, sans-serif;
+}
+
+/* One treatment for the lightweight launcher and lazy Ant Design controls. */
+.toolbar button {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 32px;
+  width: 32px !important;
+  min-width: 32px !important;
+  height: 32px !important;
+  padding: 0 !important;
+  margin: 0;
+  border: 0 !important;
+  border-radius: 3px !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  color: #475569 !important;
+  font: inherit;
+  cursor: pointer;
+  transition: none !important;
+}
+
+.toolbar button:not(:disabled):hover {
+  background: #e6ebf0 !important;
+  color: #1e293b !important;
+}
+
+.toolbar button[aria-pressed="true"] {
+  background: #dcecf9 !important;
+  color: #1c6095 !important;
+}
+
+.toolbar button[aria-pressed="true"]:hover {
+  background: #cbe2f5 !important;
+}
+
+.toolbar button:focus-visible {
+  outline: 2px solid #2672b5 !important;
+  outline-offset: -2px;
+}
+
+.toolbar button:disabled {
+  background: transparent !important;
+  color: #94a3b8 !important;
+  cursor: not-allowed;
+}
+
+.toolbar svg {
+  width: 14px;
+  height: 14px;
+}
+
+.toolbar button.grip {
+  flex-basis: 20px;
+  width: 20px !important;
+  min-width: 20px !important;
+  color: #94a3b8 !important;
+  cursor: grab;
+  touch-action: none;
+}
+
+.toolbar button.grip:active {
+  cursor: grabbing;
+}
+
+.toolbar [role="separator"] {
+  flex: 0 0 1px;
+  height: 18px;
+  margin: 0 3px;
+  background: #d8e0e8;
+}

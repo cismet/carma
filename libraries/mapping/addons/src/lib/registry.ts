@@ -17,6 +17,7 @@ import type {
 } from "@carma-mapping/fuzzy-search";
 import type { LayerStackEntry } from "@carma-mapping/layers";
 
+import { MapStyle3d, type MapStyle3dConfig } from "../addons/MapStyle3d";
 import { AddonManager, type AddonManagerConfig } from "../addons/AddonManager";
 import type { AddonOverridesState } from "./addon-overrides";
 import {
@@ -181,6 +182,7 @@ export type AddonConfigMap = {
   vectorHighlightDebug: VectorHighlightDebugPanelConfig;
   layerVisibility: LayerVisibilityConfig;
   libreTerrain: LibreTerrainConfig;
+  mapStyle3d: MapStyle3dConfig;
   shadowSimulation: ShadowSimulationConfig;
   shadowTexture: ShadowTextureConfig;
   modelCollection: ModelCollectionConfig;
@@ -555,6 +557,7 @@ export const addonRegistry: {
     trigger: layerVisibilityTrigger,
   },
   libreTerrain: { Component: LibreTerrain },
+  mapStyle3d: { Component: MapStyle3d },
   shadowSimulation: {
     Component: ShadowSimulation,
     targetPlacement: ADDON_TARGET_PLACEMENT.SECONDARY_VIEW,

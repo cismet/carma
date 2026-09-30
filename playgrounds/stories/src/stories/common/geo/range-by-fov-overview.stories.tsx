@@ -14,7 +14,8 @@ type RangeByFovOverviewStoryArgs = {
 };
 
 const meta: Meta<RangeByFovOverviewStoryArgs> = {
-  title: "Geo",
+  title: "Map Navigation/Camera and Scale",
+  id: "geo",
   args: {
     xAxisMode: DOLLY_ZOOM_X_AXIS_MODES.FOV_DEG,
   },

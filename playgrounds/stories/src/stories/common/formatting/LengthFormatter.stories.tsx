@@ -261,7 +261,8 @@ const FormatterPreview = ({
 };
 
 const meta: Meta<LengthFormatterStoryProps> = {
-  title: "Common/Formatter",
+  title: "UI/Formatting",
+  id: "common-formatter",
   component: FormatterPreview,
   parameters: {
     layout: "fullscreen",

@@ -7,11 +7,15 @@ const boxAxes = ["x", "y", "z"] as const;
 
 export interface ShadowReceiverSource {
   readonly bounds: THREE.Box3;
+  /** Optional clipped convex receiver vertices in the bounds coordinate frame. */
+  readonly vertices?: readonly THREE.Vector3[];
   /** Optional local-box to tile-space transform; compose before enclosing the
    * box in light space to avoid inflating an OBB through an intermediate AABB. */
   readonly boundsTransform?: THREE.Matrix4;
   readonly maximumCasterDistance: number;
   readonly geometricError: number;
+  /** Mesh payload generation; JSON-only hierarchy nodes do not count. */
+  readonly contentLevel?: number;
   /** Optional allowed caster error for the shared progressive shadow stage. */
   readonly casterGeometricError?: number;
   readonly screenErrorPixels?: number;
@@ -20,6 +24,7 @@ export interface ShadowReceiverSource {
 
 export interface ShadowReceiverMatch {
   receiverGeometricError: number;
+  receiverContentLevel?: number;
   receiverCenterness: number;
   lightFacing: number;
   receiverPixelsPerMeter?: number;
@@ -66,6 +71,7 @@ type IndexedReceiver = Readonly<{
   maximumCasterDistance: number;
   angularSlope: number;
   geometricError: number;
+  contentLevel: number;
   centerness: number;
   pixelsPerMeter: number;
 }>;
@@ -73,6 +79,7 @@ type IndexedReceiver = Readonly<{
 type ReceiverNode = Readonly<{
   bounds: THREE.Box3;
   minimumGeometricError: number;
+  maximumContentLevel: number;
   receiverCenterness: number;
   maximumPixelsPerMeter: number;
   receivers?: readonly IndexedReceiver[];
@@ -93,11 +100,16 @@ const includeMatch = (
   target: ShadowReceiverMatch,
   receiverGeometricError: number,
   receiverCenterness: number,
-  pixelsPerMeter: number
+  pixelsPerMeter: number,
+  contentLevel = -1
 ) => {
   target.receiverGeometricError = Math.min(
     target.receiverGeometricError,
     receiverGeometricError
+  );
+  target.receiverContentLevel = Math.max(
+    target.receiverContentLevel ?? -1,
+    contentLevel
   );
   target.receiverCenterness = Math.max(
     target.receiverCenterness,
@@ -122,11 +134,13 @@ const buildReceiverNode = (
   let minimumGeometricError = Number.POSITIVE_INFINITY;
   let receiverCenterness = 0;
   let maximumPixelsPerMeter = 0;
+  let maximumContentLevel = -1;
   for (const receiver of receivers) {
     minimumGeometricError = Math.min(
       minimumGeometricError,
       receiver.geometricError
     );
+    maximumContentLevel = Math.max(maximumContentLevel, receiver.contentLevel);
     receiverCenterness = Math.max(receiverCenterness, receiver.centerness);
     maximumPixelsPerMeter = Math.max(
       maximumPixelsPerMeter,
@@ -137,6 +151,7 @@ const buildReceiverNode = (
     return {
       bounds,
       minimumGeometricError,
+      maximumContentLevel,
       receiverCenterness,
       maximumPixelsPerMeter,
       receivers,
@@ -155,6 +170,7 @@ const buildReceiverNode = (
   return {
     bounds,
     minimumGeometricError,
+    maximumContentLevel,
     receiverCenterness,
     maximumPixelsPerMeter,
     left: buildReceiverNode(sorted.slice(0, midpoint)),
@@ -174,7 +190,8 @@ const queryReceiverNode = (
       target,
       node.minimumGeometricError,
       node.receiverCenterness,
-      node.maximumPixelsPerMeter
+      node.maximumPixelsPerMeter,
+      node.maximumContentLevel
     );
     return;
   }
@@ -186,7 +203,8 @@ const queryReceiverNode = (
           target,
           receiver.geometricError,
           receiver.centerness,
-          receiver.pixelsPerMeter
+          receiver.pixelsPerMeter,
+          receiver.contentLevel
         );
       }
     }
@@ -253,7 +271,13 @@ export const createShadowReceiverMask = (
     const sourceProjection = source.boundsTransform
       ? projection.clone().multiply(source.boundsTransform)
       : projection;
-    const sourceBounds = source.bounds.clone().applyMatrix4(sourceProjection);
+    const sourceBounds = source.vertices
+      ? new THREE.Box3().setFromPoints(
+          source.vertices.map((point) =>
+            point.clone().applyMatrix4(sourceProjection)
+          )
+        )
+      : source.bounds.clone().applyMatrix4(sourceProjection);
     const bounds = sourceBounds.clone();
     if (!isFiniteBox(bounds)) continue;
     const maximumCasterDistance = Math.max(0, source.maximumCasterDistance);
@@ -271,6 +295,7 @@ export const createShadowReceiverMask = (
         Number.isFinite(casterError) && casterError >= 0
           ? casterError
           : Number.MAX_VALUE,
+      contentLevel: source.contentLevel ?? -1,
       centerness: clamp(source.centerness, 0, 1),
       pixelsPerMeter:
         source.geometricError > DEPTH_EPSILON &&
@@ -289,7 +314,7 @@ export const createShadowReceiverMask = (
   );
   const projectedCandidate = new THREE.Box3();
   const candidateProjection = new THREE.Matrix4();
-  // Decision: MESH-CORRIDOR-MEMBERSHIP-20260909 in engines/maplibre/README.md.
+  // Decision: TILES_COVERAGE.md#visible-receiver-corridors.
   // One immutable union owns its hierarchy proofs. Children only test the
   // corridors their enclosing parent hit; negative parents exclude everything.
   // Weak keys release metadata with its tileset, without a separate LRU scan.
@@ -297,7 +322,7 @@ export const createShadowReceiverMask = (
     object,
     {
       localBounds: THREE.Box3;
-      transform: THREE.Matrix4;
+      localTransform?: THREE.Matrix4;
       projectedBounds: THREE.Box3;
       receivers: IndexedReceiver[];
       result: ShadowReceiverMatch;
@@ -306,19 +331,22 @@ export const createShadowReceiverMask = (
   return {
     sourceCount: receivers.length,
     match(candidate, target, candidateTransform, identity) {
-      candidateProjection.copy(projection);
-      if (candidateTransform) candidateProjection.multiply(candidateTransform);
       const cached = identity && proofs.get(identity.key);
       if (
         cached?.localBounds.equals(candidate) &&
-        cached.transform.equals(candidateProjection)
+        (candidateTransform
+          ? cached.localTransform?.equals(candidateTransform)
+          : cached.localTransform === undefined)
       ) {
         Object.assign(target, cached.result);
         return cached.receivers.length > 0;
       }
+      candidateProjection.copy(projection);
+      if (candidateTransform) candidateProjection.multiply(candidateTransform);
       projectedCandidate.copy(candidate).applyMatrix4(candidateProjection);
       if (!isFiniteBox(projectedCandidate)) return false;
       target.receiverGeometricError = Number.POSITIVE_INFINITY;
+      target.receiverContentLevel = -1;
       target.receiverCenterness = 0;
       target.receiverPixelsPerMeter = 0;
       target.lightFacing = clamp(
@@ -338,7 +366,8 @@ export const createShadowReceiverMask = (
             target,
             receiver.geometricError,
             receiver.centerness,
-            receiver.pixelsPerMeter
+            receiver.pixelsPerMeter,
+            receiver.contentLevel
           );
         }
       } else {
@@ -352,7 +381,7 @@ export const createShadowReceiverMask = (
       if (identity)
         proofs.set(identity.key, {
           localBounds: candidate.clone(),
-          transform: candidateProjection.clone(),
+          localTransform: candidateTransform?.clone(),
           projectedBounds: projectedCandidate.clone(),
           receivers: matches,
           result: { ...target },

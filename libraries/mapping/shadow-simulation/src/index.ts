@@ -1,5 +1,6 @@
 export {
   clampShadowSimulationSelectionToDaylight,
+  getSolarPosition,
   DEFAULT_SHADOW_SIMULATION_TIME_ZONE,
 } from "./lib/core/solar-position";
 export { formatShadowSelection } from "./lib/ui/format-shadow-selection";

@@ -25,7 +25,8 @@ type MatrixStoryArgs = {
 };
 
 const meta = {
-  title: "Annotations/Trapezoid InfoBox Matrix",
+  title: "Annotations/Measurements",
+  id: "annotations-trapezoid-infobox-matrix",
   parameters: {
     layout: "fullscreen",
     controls: {

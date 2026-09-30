@@ -80,9 +80,8 @@ export function useDatasheetMiniMap(
   >();
   // Track the selected feature's geometry type so the zoom sync effect can
   // branch: lines → fitBounds (show full extent), points → easeTo targetZoom.
-  const [selectedGeometry, setSelectedGeometry] = useState<
-    GeoJSON.Geometry | null
-  >(null);
+  const [selectedGeometry, setSelectedGeometry] =
+    useState<GeoJSON.Geometry | null>(null);
 
   // Every click on the main map sets center to click location.
   // When a feature is selected, the rawFeature effect below overrides this.
@@ -227,9 +226,7 @@ export function useDatasheetMiniMap(
   useEffect(() => {
     if (!miniMap || !mainMap || !isTransitioning) return;
     const zoom =
-      targetZoom != null
-        ? targetZoom
-        : mainMap.getZoom() + effectiveZoomOffset;
+      targetZoom != null ? targetZoom : mainMap.getZoom() + effectiveZoomOffset;
     miniMap.easeTo({
       zoom,
       duration: MINI_MAP_TRANSITION_MS,

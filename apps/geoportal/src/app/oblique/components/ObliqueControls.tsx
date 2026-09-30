@@ -1,4 +1,6 @@
 import {
+  lazy,
+  Suspense,
   useCallback,
   useRef,
   useState,
@@ -20,10 +22,7 @@ import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
 import { ContactMailButton } from "@carma-appframeworks/portals";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
 
-import { ObliqueDebugSvg } from "./debugUI/ObliqueDebugSvg";
 import { ObliqueImagePreview } from "./ObliqueImagePreview";
-import { ObliqueImageInfo } from "./debugUI/ObliqueImageInfo";
-import { CameraVectorControls } from "./debugUI/CameraVectorControls";
 import {
   debugComponentsContainerLeftStyle,
   debugComponentsContainerRightStyle,
@@ -48,6 +47,22 @@ import { getImageUrls } from "../utils/imageHandling";
 import { CAMERA_ID_INTERIOR_ORIENTATION_PERCENTAGE_OFFSETS } from "../config";
 import { CardinalDirectionEnum } from "../utils/orientationUtils";
 import { strings } from "../strings.de";
+
+const ObliqueDebugSvg = lazy(() =>
+  import("./debugUI/ObliqueDebugSvg").then((module) => ({
+    default: module.ObliqueDebugSvg,
+  }))
+);
+const ObliqueImageInfo = lazy(() =>
+  import("./debugUI/ObliqueImageInfo").then((module) => ({
+    default: module.ObliqueImageInfo,
+  }))
+);
+const CameraVectorControls = lazy(() =>
+  import("./debugUI/CameraVectorControls").then((module) => ({
+    default: module.CameraVectorControls,
+  }))
+);
 
 const CESIUM_ROTATION_SHORTCUT_ACTIONS = [
   NAVIGATION_KEYBOARD_SHORTCUT_ACTIONS.ROTATE_CLOCKWISE,
@@ -616,24 +631,28 @@ export const ObliqueControls: FC<ObliqueControlsProps> = ({
     <>
       {isDebugMode && !hideControls && (
         <div style={debugComponentsContainerLeftStyle}>
-          <ObliqueDebugSvg />
+          <Suspense fallback={null}>
+            <ObliqueDebugSvg />
+          </Suspense>
         </div>
       )}
       {isDebugMode && !hideControls && selectedImage && (
         <div style={debugComponentsContainerRightStyle}>
-          <CameraVectorControls
-            imageId={imageId}
-            exteriorOrientation={derivedExteriorOrientationRef.current}
-            directionVectorLocal={
-              derivedExteriorOrientationRef.current?.rotation?.enu?.wgs84
-                ?.direction
-            }
-            upVector={
-              derivedExteriorOrientationRef.current?.rotation?.enu?.wgs84?.up
-            }
-            setUpVector={() => {}}
-          />
-          <ObliqueImageInfo imageRecord={selectedImage} />
+          <Suspense fallback={null}>
+            <CameraVectorControls
+              imageId={imageId}
+              exteriorOrientation={derivedExteriorOrientationRef.current}
+              directionVectorLocal={
+                derivedExteriorOrientationRef.current?.rotation?.enu?.wgs84
+                  ?.direction
+              }
+              upVector={
+                derivedExteriorOrientationRef.current?.rotation?.enu?.wgs84?.up
+              }
+              setUpVector={() => {}}
+            />
+            <ObliqueImageInfo imageRecord={selectedImage} />
+          </Suspense>
         </div>
       )}
       {selectedImage && imageId && (

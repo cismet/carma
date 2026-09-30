@@ -1,10 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
-import {
-  getTileBounds,
-  terrainTileKey,
-} from "./raster-dem-tile";
-import type { TerrainSelectionEntry } from "./terrain-selection";
+import { getTileBounds, terrainTileKey } from "./raster-dem-tile";
+import type { TerrainSelectionEntry } from "./terrain-selection-types";
 import {
   planTerrainIdlePrefetch,
   planTerrainIdleShadowRegion,

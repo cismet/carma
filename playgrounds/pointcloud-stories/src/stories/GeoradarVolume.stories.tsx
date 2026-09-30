@@ -5,7 +5,7 @@ import { investigationDataUrl } from "../components/investigation-data";
 
 const meta = {
   id: "georadar-volume-explorer",
-  title: "Georadar / Volumen-Explorer",
+  title: "Applications/Georadar",
   component: GeoradarVolumeExplorer,
   parameters: {
     layout: "fullscreen",

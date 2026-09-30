@@ -1,5 +1,6 @@
 import { lazy, Suspense } from "react";
 
+import { useFeatureFlags } from "@carma-providers/feature-flag";
 import { useLibreContext } from "@carma-mapping/contexts";
 import type {
   ShadowDateState,
@@ -28,6 +29,7 @@ export const ShadowSimulation = ({
   libreMap,
   target,
 }: AddonComponentProps<"shadowSimulation">) => {
+  const { isDebugMode } = useFeatureFlags();
   const [state, setState] = useAddonState("shadowSimulation");
   const [dateState, setDateState] = useAddonState("shadowDate");
   useShadowStartupPresentation(
@@ -41,6 +43,7 @@ export const ShadowSimulation = ({
     <Suspense fallback={null}>
       <LazyShadowSimulationView
         config={config}
+        debugEnabled={isDebugMode}
         libreMap={libreMap}
         targeted={target !== null}
         sharedState={state}

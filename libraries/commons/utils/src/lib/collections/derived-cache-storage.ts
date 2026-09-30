@@ -13,6 +13,16 @@ import {
   type DerivedCacheRecord,
 } from "./derived-cache-policy";
 
+import {
+  createDerivedCacheQuotaSampler,
+  DERIVED_CACHE_CAPACITY_MODE,
+  DERIVED_CACHE_CAPACITY_SOURCE,
+  resolveDerivedCacheQuotaCapacity,
+  type DerivedCacheCapacityMode,
+  type DerivedCacheCapacitySource,
+  type DerivedCacheQuotaSample,
+} from "./derived-cache-quota";
+
 const STORES = { metadata: "metadata", payload: "payload", state: "state" } as const;
 const STATE_KEY = "budget";
 const READ_WRITE = "readwrite";
@@ -20,11 +30,24 @@ const isQuotaError = (error: unknown) =>
   typeof error === "object" && error !== null && "name" in error &&
   error.name === "QuotaExceededError";
 type Policy = NonNullable<ReturnType<typeof resolveDerivedCachePolicy>>;
-type BudgetState = Policy & { age: number; bytes: number; count: number };
+type BudgetState = Policy & {
+  age: number; bytes: number; count: number;
+  configuredCapacityBytes?: number;
+  capacityMode?: DerivedCacheCapacityMode;
+  capacitySource?: DerivedCacheCapacitySource;
+  quotaSample?: DerivedCacheQuotaSample;
+  quotaInvalidatedAt?: number;
+  quotaBytes?: number | null;
+  usageBytes?: number | null;
+  otherUsageBytes?: number | null;
+  headroomBytes?: number | null;
+};
 export type DerivedBufferCacheOptions = DerivedCachePolicyOptions & Readonly<{
   databaseName?: string;
   producerEpoch?: string;
   enabled?: boolean;
+  /** One shared origin budget, sampled in the background; capacityBytes is fallback. */
+  adaptiveCapacity?: boolean;
 }>;
 export type DerivedBufferCacheStats = Readonly<BudgetState>;
 export type DerivedBufferCacheValue<T> = Readonly<{
@@ -47,7 +70,9 @@ const parseEpochNamespace = (namespace: string): [string, string] | null => {
 /** DBC-01: ./DERIVED_CACHE_DECISIONS.md. Invoke from a worker for large buffers.
  * Native structured cloning only; bytes describe caller-accounted payload, not
  * exact IndexedDB overhead. Disk capacity is unrelated to GPU/RAM budgets.
- * The first operation persists the shared policy; mismatched clients fail closed.
+ * The first mutation persists the shared policy; mismatched clients fail closed.
+ * Adaptive clients share a quota sample/capacity, while preserving configured
+ * fallback and entry limits. Sampling never delays foreground reads.
  * Producer epochs isolate records, not budgets. Only idle callers should request
  * obsolete-epoch cleanup; live cooperative clients retain shared Web Lock leases.
  * Without Web Locks persistence remains isolated but automatic cleanup is off.
@@ -56,6 +81,7 @@ export const createDerivedBufferCache = (
   options: DerivedBufferCacheOptions
 ) => {
   const policy = resolveDerivedCachePolicy(options);
+  const quotaSampler = options.adaptiveCapacity ? createDerivedCacheQuotaSampler() : null;
   const epoch = options.producerEpoch ?? null;
   const enabled = options.enabled !== false &&
     (options.producerEpoch === undefined || typeof options.producerEpoch === "string" && options.producerEpoch.length > 0);
@@ -161,7 +187,8 @@ export const createDerivedBufferCache = (
       state: BudgetState,
       done: (value: T) => void
     ) => void,
-    onQuota?: () => void
+    onQuota?: () => void,
+    persistBudget = true
   ): Promise<T> => {
     const db = await open();
     if (!db || !policy || closed) return fallback;
@@ -175,26 +202,49 @@ export const createDerivedBufferCache = (
             quotaFailures.add(tx);
         };
         tx.onabort = () => {
-          if (isQuotaError(tx.error) || quotaFailures.has(tx)) onQuota?.();
+          if (isQuotaError(tx.error) || quotaFailures.has(tx)) {
+            quotaSampler?.invalidate();
+            onQuota?.();
+          }
           resolve(fallback);
         };
         read(tx, tx.objectStore(STORES.state).get(STATE_KEY), (stored) => {
-          const state: BudgetState = stored ?? {
+          let state: BudgetState = stored ?? {
             ...policy, age: 0, bytes: 0, count: 0,
           };
           if (
-            state.capacityBytes !== policy.capacityBytes ||
+            (state.configuredCapacityBytes ?? state.capacityBytes) !== policy.capacityBytes ||
+            (state.capacityMode !== undefined && !quotaSampler) ||
             state.maxEntries !== policy.maxEntries ||
             state.lowWaterRatio !== policy.lowWaterRatio ||
             state.minimumSavingRatio !== policy.minimumSavingRatio
           ) return;
-          if (!stored) tx.objectStore(STORES.state).put(state, STATE_KEY);
+          if (quotaSampler) {
+            const sample = quotaSampler.read(state.bytes, state.quotaSample, state.quotaInvalidatedAt);
+            state = {
+              ...state,
+              ...resolveDerivedCacheQuotaCapacity(policy.capacityBytes, sample),
+              configuredCapacityBytes: policy.capacityBytes,
+              capacityMode: DERIVED_CACHE_CAPACITY_MODE.ORIGIN_QUOTA,
+              quotaSample: sample,
+              quotaInvalidatedAt: quotaSampler.invalidatedAt,
+            };
+          }
+          if (persistBudget && (!stored || state.capacityBytes !== stored.capacityBytes ||
+              state.capacityMode !== stored.capacityMode ||
+              state.capacitySource !== stored.capacitySource ||
+              state.quotaSample?.sampledAt !== stored.quotaSample?.sampledAt ||
+              state.quotaInvalidatedAt !== stored.quotaInvalidatedAt))
+            tx.objectStore(STORES.state).put(state, STATE_KEY);
           action(tx, state, (value) => {
             result = value;
           });
         });
       } catch (error) {
-        if (isQuotaError(error)) onQuota?.();
+        if (isQuotaError(error)) {
+          quotaSampler?.invalidate();
+          onQuota?.();
+        }
         resolve(fallback);
       }
     });
@@ -299,7 +349,7 @@ export const createDerivedBufferCache = (
             if (options?.touch !== false) tx.objectStore(STORES.metadata).put(metadata);
             done({ value, metadata: publicMetadata(metadata) });
           });
-        })
+        }), undefined, false
       );
     },
     async put<T>(record: DerivedCacheRecord, value: T) {
@@ -307,17 +357,25 @@ export const createDerivedBufferCache = (
       if (namespace === null) return false;
       const physicalRecord = { ...record, namespace };
       let quotaExceeded = false;
-      const attempt = () => run<boolean>(false, (tx, state, done) => allMetadata(tx, (rows) => {
-        const plan = planDerivedCacheAdmission(rows, physicalRecord, { ...state, nowMs: Date.now() });
-        if (!plan.record) return;
-        for (const victim of plan.evicted) erase(tx, victim);
-        tx.objectStore(STORES.payload).put(value, [namespace, record.key]);
-        tx.objectStore(STORES.metadata).put(plan.record);
-        tx.objectStore(STORES.state).put({ ...state,
-          age: plan.age, bytes: plan.bytes, count: plan.count,
-        }, STATE_KEY);
-        done(true);
-      }), () => { quotaExceeded = true; });
+      const attempt = () => run<boolean>(false, (tx, state, done) => {
+        // A missing estimate restricts new writes, but is not evidence that
+        // existing useful data should be evicted down to the fallback budget.
+        if (quotaSampler &&
+            state.capacitySource ===
+              DERIVED_CACHE_CAPACITY_SOURCE.CONFIGURED_FALLBACK &&
+            state.bytes > state.capacityBytes) return;
+        allMetadata(tx, (rows) => {
+          const plan = planDerivedCacheAdmission(rows, physicalRecord, { ...state, nowMs: Date.now() });
+          if (!plan.record) return;
+          for (const victim of plan.evicted) erase(tx, victim);
+          tx.objectStore(STORES.payload).put(value, [namespace, record.key]);
+          tx.objectStore(STORES.metadata).put(plan.record);
+          tx.objectStore(STORES.state).put({ ...state,
+            age: plan.age, bytes: plan.bytes, count: plan.count,
+          }, STATE_KEY);
+          done(true);
+        });
+      }, () => { quotaExceeded = true; });
       const accepted = await attempt();
       // An unknown benefit never justifies eviction, including native quota
       // pressure outside our budget. A measured candidate may trim once and
@@ -375,17 +433,18 @@ export const createDerivedBufferCache = (
     cleanupObsoleteEpochs,
     /** The shared byte/entry budget spans all producers, unlike inspect(). */
     stats() {
-      return run<DerivedBufferCacheStats | null>(null, (_tx, state, done) => done(state));
+      return run<DerivedBufferCacheStats | null>(null, (_tx, state, done) => done(state), undefined, false);
     },
     /** On-demand audit only: bounded metadata, never payload deserialization. */
     inspect(namespace?: string) {
       return run<readonly DerivedCacheMetadata[] | null>(null, (tx, _state, done) =>
         allMetadata(tx, (rows) => done(rows.filter(isOwnRecord).map(publicMetadata)
-          .filter(record => namespace === undefined || record.namespace === namespace)))
+          .filter(record => namespace === undefined || record.namespace === namespace))), undefined, false
       );
     },
     close() {
       closed = true;
+      quotaSampler?.close();
       database?.close();
       database = null;
       leaseAbort?.abort();

@@ -1,0 +1,331 @@
+import { readOrientedTileBounds } from "./three-tiles-bounds";
+import { TILE_SHADOW_CAMERA_ID } from "../../core/tile-camera-demand";
+import { isExtentFloorTile } from "../../core/mesh-error-policy";
+import {
+  getReadyMeshRegionCut,
+  isMeshCoveredByLoadedChildren,
+} from "../../core/mesh-tile-coverage";
+import {
+  MESH_EVICTION_BATCH_SIZE,
+  MESH_SETTLED_AUDIT_INTERVAL_MS,
+} from "./three-tiles-runtime-config";
+import type { ThreeTilesCacheState } from "./three-tiles-runtime-cache";
+import type { ThreeTilesRuntimeServices } from "./three-tiles-runtime-context";
+import type { RuntimeTile } from "./three-tiles-runtime-types";
+import {
+  LOADED_LOADING_STATE,
+  UNLOADED_LOADING_STATE,
+} from "./three-tiles-runtime-vendor";
+
+/** Refreshes demand and releases resident mesh detail after motion settles. */
+export function createThreeTilesSettledDemand(
+  runtimeState: ThreeTilesCacheState,
+  dependencies: Pick<
+    ThreeTilesRuntimeServices,
+    | "getRuntimeCache"
+    | "isTileInMainView"
+    | "getTileCameraDemand"
+    | "getTileObserverDemand"
+    | "assignTilePriority"
+    | "maybeEnableShadowSelection"
+    | "getTileScreenError"
+    | "applyTileDeferral"
+    | "requestRender"
+    | "resetDeferredTiles"
+    | "requestShadowSelectionRefresh"
+    | "reportTileRecovery"
+    | "applyRequestConcurrency"
+    | "runDownloadQueues"
+  >
+) {
+  // Keep the selected offscreen caster corridor live until it can be displayed.
+  const isPendingShadowDemand = (tile: RuntimeTile): boolean =>
+    !!runtimeState.shadowView &&
+    (runtimeState.shadowCasterRequests.has(tile) ||
+      runtimeState.pendingMeshCasterFrontier.has(tile));
+
+  const isRequiredMeshTile: ThreeTilesRuntimeServices["isRequiredMeshTile"] = (
+    tile: RuntimeTile
+  ): boolean => {
+    if (
+      runtimeState.meshRefinementSupport.has(tile) ||
+      isPendingShadowDemand(tile) ||
+      !runtimeState.viewFrustumsReady ||
+      dependencies.isTileInMainView(tile) ||
+      dependencies.getTileCameraDemand(tile).required
+    )
+      return true;
+    // The idle ring is demand too: evicting it after every move would refetch it.
+    if (tile.idleRing === true) return true;
+    const bounds = tile.engineData?.boundingVolume;
+    // Metadata is tiny and owns descendant topology. Unknown coverage is never
+    // proof that deleting a subtree is safe.
+    if (tile.internal?.hasUnrenderableContent || !bounds?.getAABB) return true;
+    if (
+      !runtimeState.shadowView ||
+      runtimeState.tileCameraDemand.views.some(
+        (view) => view.id === TILE_SHADOW_CAMERA_ID
+      )
+    )
+      return false;
+    if (!runtimeState.shadowReceiverMask) return false;
+    readOrientedTileBounds(
+      bounds,
+      runtimeState.tileBoundingBox,
+      runtimeState.tileBoundsTransform
+    );
+    return runtimeState.shadowReceiverMask.match(
+      runtimeState.tileBoundingBox,
+      runtimeState.shadowReceiverMatch,
+      runtimeState.tileBoundsTransform,
+      { key: tile, parent: tile.parent ?? undefined }
+    );
+  };
+
+  const sweepSettledMeshDemand: ThreeTilesRuntimeServices["sweepSettledMeshDemand"] =
+    () => {
+      // Decision: TILES_COVERAGE.md#viewport-coverage-recovery.
+      // Fresh geometric demand, not upstream ancestor LRU pins, controls release.
+      if (
+        !runtimeState.tiles ||
+        !runtimeState.meshDemandSweepPending ||
+        runtimeState.map?.isMoving?.()
+      )
+        return;
+      const cache = dependencies.getRuntimeCache();
+      if (!cache) return;
+      const viewError = { inView: false, error: 0, distanceFromCamera: 0 };
+      for (const entry of cache.itemList) {
+        const tile = entry as RuntimeTile;
+        if (!tile.engineData?.boundingVolume?.distanceToPoint) continue;
+        // The retained cut can include tiles the last traversal did not visit.
+        // Read current camera SSE through the renderer, never reuse old-query
+        // errors to decide that those tiles no longer need refinement.
+        runtimeState.tiles.calculateTileViewError(tile, viewError);
+        if (viewError.inView) {
+          tile.traversal.error = viewError.error;
+          tile.traversal.distanceFromCamera = viewError.distanceFromCamera;
+        }
+        dependencies.assignTilePriority(tile);
+      }
+      // Capture corridors from available receivers, not only from an already
+      // perfect viewport: that would deadlock memory reclamation behind loading.
+      dependencies.maybeEnableShadowSelection();
+      if (
+        runtimeState.shadowView &&
+        (runtimeState.shadowSelectionRefreshPending ||
+          !runtimeState.shadowReceiverMask)
+      )
+        return;
+      runtimeState.meshDemandSweepPending = false;
+      let removed = 0;
+      for (const tile of [...cache.itemList]) {
+        // Complete replacement families own their off-camera siblings until
+        // publication. Reclaiming them here would fight queue admission and
+        // repeatedly restart the same payloads while the parent waits.
+        if (
+          runtimeState.meshRefinementSupport.has(tile) ||
+          isPendingShadowDemand(tile as RuntimeTile)
+        )
+          continue;
+        const underPressure =
+          runtimeState.memoryAdmissionPaused || cache.isFull();
+        if (!underPressure && runtimeState.retainedShadowRequests.has(tile))
+          continue;
+        // Skip strategy: memory is bounded by the LRU's retention floor and
+        // its priority order (far and coarse first), so below the ceiling
+        // every loaded tile stays: the rings, and any finer detail a view
+        // had, which a pan back or a zoom-out then shows at once.
+        // Keep admission headroom while the live view is still refining.
+        // Only obsolete demand is released here; the pressure-only replacement
+        // rules below remain disabled until the physical ceiling is reached.
+        const reclaimForView =
+          (!(
+            runtimeState.lastActiveViewsConverged ??
+            runtimeState.lastMainViewConverged
+          ) ||
+            runtimeState.memoryErrorTarget >
+              runtimeState.requestedErrorTarget) &&
+          cache.cachedBytes > cache.minBytesSize;
+        if (
+          !runtimeState.tiles.loadAncestors &&
+          !underPressure &&
+          !reclaimForView
+        )
+          break;
+        // A floor tile replaced by its children is still the extent's
+        // coverage the next zoom-out shows; never a candidate.
+        const replacedParent =
+          underPressure &&
+          !runtimeState.tiles.activeTiles.has(tile) &&
+          !isExtentFloorTile(tile, runtimeState.extentGeometricError) &&
+          isMeshCoveredByLoadedChildren(tile, runtimeState.tiles.visibleTiles);
+        // Live publication owns its lifetime. Memory pressure may reclaim
+        // hidden ancestors or stale work, never force a lower-quality handoff.
+        if (
+          tile.internal?.loadingState === LOADED_LOADING_STATE &&
+          (runtimeState.committedMeshCasterFrontier.has(tile) ||
+            ((runtimeState.displayedMeshFrontier.has(tile) ||
+              runtimeState.tiles.visibleTiles.has(tile)) &&
+              (dependencies.isTileInMainView(tile as RuntimeTile) ||
+                dependencies.getTileCameraDemand(tile as RuntimeTile)
+                  .required)))
+        )
+          continue;
+        // Paused parsing must not retain finer pending blobs behind the stage
+        // that is waiting to publish. Release only unnecessary uncommitted work;
+        // the complete visible receiver/caster cut remains pinned throughout.
+        if (!replacedParent && isRequiredMeshTile(tile as RuntimeTile))
+          continue;
+        if (removed >= MESH_EVICTION_BATCH_SIZE) {
+          runtimeState.meshDemandSweepPending = true;
+          break;
+        }
+        // LRU removal invokes upstream's AbortController, queue cleanup, disposal
+        // and byte accounting together. Never mutate request queues independently.
+        if (cache.remove(tile)) {
+          removed += 1;
+          dependencies.applyTileDeferral(tile, false);
+        }
+      }
+      if (removed > 0 || runtimeState.meshDemandSweepPending) {
+        runtimeState.tiles.dispatchEvent({ type: "needs-update" });
+        dependencies.requestRender();
+      }
+    };
+
+  // A loaded terminal source can still miss the requested error. Keep that
+  // failure measurable, but do not repeatedly wake a view that cannot improve.
+  const isSourceLimitedView = () => {
+    const tiles = runtimeState.tiles;
+    const root = tiles?.root;
+    if (
+      !tiles ||
+      !root ||
+      runtimeState.tileCameraDemand.views.length !== 1 ||
+      tiles.loadingTiles.size > 0 ||
+      tiles.downloadQueue.running ||
+      tiles.parseQueue.running ||
+      tiles.processNodeQueue.running ||
+      runtimeState.tileRetries.hasPendingRetries() ||
+      runtimeState.memoryAdmissionPaused ||
+      runtimeState.memoryErrorTarget > runtimeState.requestedErrorTarget ||
+      runtimeState.meshDemandSweepPending ||
+      runtimeState.shadowSelectionRefreshPending ||
+      runtimeState.shadowSelectionNeedsTraversal
+    )
+      return false;
+    for (const tile of new Set([
+      ...runtimeState.meshRefinementSupport,
+      ...runtimeState.pendingMeshCasterFrontier,
+      ...runtimeState.shadowCasterRequests,
+    ]))
+      if (tile.internal?.loadingState !== LOADED_LOADING_STATE) return false;
+    const target = runtimeState.requestedErrorTarget;
+    const cut = getReadyMeshRegionCut(
+      root,
+      runtimeState.displayedMeshFrontier,
+      target,
+      (tile) => dependencies.getTileObserverDemand(tile as RuntimeTile)
+    );
+    if (!cut) return false;
+    const unmet = cut.filter(
+      (tile) =>
+        dependencies.getTileObserverDemand(tile as RuntimeTile).errorPixels >
+        target
+    );
+    return (
+      unmet.length > 0 &&
+      unmet.every(
+        (tile) =>
+          (tile.children?.length ?? 0) === 0 &&
+          Number.isFinite(
+            dependencies.getTileObserverDemand(tile as RuntimeTile).errorPixels
+          )
+      )
+    );
+  };
+
+  const scheduleSettledMeshAudit: ThreeTilesRuntimeServices["scheduleSettledMeshAudit"] =
+    () => {
+      if (
+        !runtimeState.options.providesTerrain ||
+        runtimeState.meshAuditTimer !== null ||
+        runtimeState.disposed ||
+        !runtimeState.runtimeVisible ||
+        runtimeState.loadingPaused ||
+        runtimeState.map?.isMoving?.()
+      )
+        return;
+      if (
+        (runtimeState.lastActiveViewsConverged ??
+          runtimeState.lastMainViewConverged) &&
+        runtimeState.memoryErrorTarget <= runtimeState.requestedErrorTarget &&
+        !runtimeState.memoryAdmissionPaused &&
+        !runtimeState.meshDemandSweepPending
+      )
+        return;
+      if (isSourceLimitedView()) return;
+      runtimeState.meshAuditTimer = setTimeout(() => {
+        runtimeState.meshAuditTimer = null;
+        if (
+          runtimeState.disposed ||
+          !runtimeState.runtimeVisible ||
+          runtimeState.loadingPaused ||
+          runtimeState.map?.isMoving?.()
+        )
+          return;
+        // A completion can satisfy the target while this single timer is pending.
+        if (
+          (runtimeState.lastActiveViewsConverged ??
+            runtimeState.lastMainViewConverged) &&
+          runtimeState.memoryErrorTarget <= runtimeState.requestedErrorTarget &&
+          !runtimeState.memoryAdmissionPaused &&
+          !runtimeState.meshDemandSweepPending
+        )
+          return;
+        if (isSourceLimitedView()) return;
+        const tiles = runtimeState.tiles;
+        const cache = dependencies.getRuntimeCache();
+        if (tiles && tiles.stats.downloading === 0 && tiles.stats.parsing === 0)
+          dependencies.reportTileRecovery?.("idle-demand");
+        if (tiles && cache && tiles.loadingTiles.size === 0) {
+          let removed = 0;
+          // An UNLOADED identity without a job or drawable cannot contribute
+          // coverage, but LRU.add would silently reject its next real request.
+          for (const entry of [...cache.itemList]) {
+            const tile = entry as RuntimeTile;
+            if (
+              tile.internal?.loadingState === UNLOADED_LOADING_STATE &&
+              !tile.engineData?.scene &&
+              !tiles.downloadQueue.has(tile) &&
+              !tiles.parseQueue.has(tile) &&
+              !tiles.processNodeQueue.has(tile) &&
+              cache.remove(tile) &&
+              ++removed >= MESH_EVICTION_BATCH_SIZE
+            )
+              break;
+          }
+        }
+        // Refresh stale demand at the requested target; local refinement and
+        // existing deduplication/retry guards still control request admission.
+        runtimeState.meshDemandSweepPending = true;
+        dependencies.resetDeferredTiles();
+        dependencies.requestShadowSelectionRefresh();
+        tiles?.dispatchEvent({ type: "needs-update" });
+        dependencies.applyRequestConcurrency();
+        // Eligibility or a job-completion wake can have changed while a queue
+        // was parked. Resume native schedulers within their existing limits.
+        dependencies.runDownloadQueues();
+        tiles?.parseQueue.scheduleJobRun();
+        tiles?.processNodeQueue.scheduleJobRun();
+        dependencies.requestRender();
+      }, MESH_SETTLED_AUDIT_INTERVAL_MS);
+    };
+
+  return {
+    isRequiredMeshTile,
+    sweepSettledMeshDemand,
+    scheduleSettledMeshAudit,
+  };
+}

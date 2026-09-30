@@ -32,11 +32,7 @@ export const createTilesCameraSet = (
       activeCamera = camera;
       tiles.setCamera(activeCamera);
     }
-    tiles.setResolution(
-      activeCamera,
-      Math.max(1, width),
-      Math.max(1, height)
-    );
+    tiles.setResolution(activeCamera, Math.max(1, width), Math.max(1, height));
   };
 
   return {

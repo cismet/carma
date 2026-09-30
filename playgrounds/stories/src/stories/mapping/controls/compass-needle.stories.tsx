@@ -626,7 +626,8 @@ const CompassNeedleStory = (args: CompassNeedleStoryArgs) => {
 };
 
 const meta = {
-  title: "Mapping Components/Controls",
+  title: "UI",
+  id: "mapping-components-controls",
   component: CompassNeedleStory,
   parameters: {
     layout: "padded",

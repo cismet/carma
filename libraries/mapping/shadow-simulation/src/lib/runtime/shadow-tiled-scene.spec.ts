@@ -53,6 +53,7 @@ describe("Geoportal tiled scene adapter", () => {
     };
     vi.mocked(SceneFrameCache).mockImplementation(() => frameCache as never);
     const pages = {
+      pageLevels: [{ id: "64:1:0", level: 2, width: 512, height: 256 }],
       setView: vi.fn(),
       updatePresentation: vi.fn(),
       renderSample: vi.fn(),
@@ -171,6 +172,32 @@ describe("Geoportal tiled scene adapter", () => {
       2048,
       undefined
     );
+  });
+
+  it("accepts a standalone camera frame without a fabricated MapLibre host", () => {
+    const f = fixture();
+    const camera = new THREE.PerspectiveCamera();
+    const viewport = new THREE.Vector2(640, 360);
+    const cells = [{ id: "fixture", bounds: new THREE.Box3() }];
+    const lighting = {
+      directionToSun: new THREE.Vector3(1, 1, 0).normalize(),
+      color: "#ffffff",
+      intensity: 3,
+      shadowIntensity: 1,
+    };
+    f.adapter.update(cells, { renderCamera: camera, viewport }, lighting, 4);
+    expect(f.pages.setView).toHaveBeenCalledWith(
+      cells,
+      camera,
+      viewport,
+      4,
+      lighting,
+      undefined
+    );
+    expect(f.adapter.pageLevels).toBe(f.pages.pageLevels);
+    f.adapter.updatePresentation({ renderCamera: camera, viewport });
+    expect(f.pages.updatePresentation).toHaveBeenCalledWith(camera);
+    f.adapter.dispose();
   });
 
   it("cancels obsolete solar jobs while retaining the last publication only for display", () => {

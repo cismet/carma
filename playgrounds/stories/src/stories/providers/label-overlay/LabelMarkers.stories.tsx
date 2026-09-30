@@ -9,7 +9,8 @@ import {
 } from "./LabelMarkers.story-helpers";
 
 const meta = {
-  title: "Overlay/Labels",
+  title: "Annotations/Labels",
+  id: "overlay-labels",
   args: LABEL_MARKERS_DEFAULT_ARGS,
   argTypes: LABEL_MARKERS_ARG_TYPES,
   parameters: {

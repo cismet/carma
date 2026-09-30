@@ -3,7 +3,8 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { TilesetPointCloudScene } from "../components/TilesetPointCloudScene";
 
 const meta = {
-  title: "Pointcloud Investigation/Point Clouds 3D Tiles",
+  title: "Applications/Point Clouds",
+  id: "pointcloud-investigation-point-clouds-3d-tiles",
   component: TilesetPointCloudScene,
   argTypes: {
     tilesetUrl: { name: "tileset url", control: "text" },
@@ -30,7 +31,7 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const WuppertalOelbergMls: Story = {};
+export const WuppertalOelbergMls: Story = { name: "Ölberg MLS · 3D Tiles" };
 
 WuppertalOelbergMls.args = {
   tilesetUrl:

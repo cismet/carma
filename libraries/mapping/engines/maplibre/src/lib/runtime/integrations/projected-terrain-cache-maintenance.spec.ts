@@ -11,21 +11,30 @@ const createIndexedDbMock = () => {
   const clearRequest = { onerror: null as Handler };
   const clear = vi.fn(() => clearRequest);
   const transaction = {
-    oncomplete: null as Handler, onabort: null as Handler, onerror: null as Handler,
-    abort: vi.fn(), objectStore: vi.fn(() => ({ clear })),
+    oncomplete: null as Handler,
+    onabort: null as Handler,
+    onerror: null as Handler,
+    abort: vi.fn(),
+    objectStore: vi.fn(() => ({ clear })),
   };
   const database = {
     objectStoreNames: { contains: vi.fn((name: string) => name === storeName) },
-    transaction: vi.fn(() => transaction), close: vi.fn(), onversionchange: null as Handler,
+    transaction: vi.fn(() => transaction),
+    close: vi.fn(),
+    onversionchange: null as Handler,
   };
   const request = {
-    onsuccess: null as Handler, onerror: null as Handler,
-    onblocked: null as Handler, onupgradeneeded: null as Handler,
-    result: database, transaction: { abort: vi.fn() },
+    onsuccess: null as Handler,
+    onerror: null as Handler,
+    onblocked: null as Handler,
+    onupgradeneeded: null as Handler,
+    result: database,
+    transaction: { abort: vi.fn() },
   };
   const factory = {
     databases: vi.fn(async () => [{ name: databaseName }]),
-    open: vi.fn(() => request), deleteDatabase: vi.fn(),
+    open: vi.fn(() => request),
+    deleteDatabase: vi.fn(),
   };
   vi.stubGlobal("indexedDB", factory);
   vi.stubGlobal("navigator", {});
@@ -49,7 +58,10 @@ describe("legacy projected terrain store maintenance", () => {
     await flushPromises();
     expect(mock.factory.open).toHaveBeenCalledWith(databaseName);
     mock.request.onsuccess?.();
-    expect(mock.database.transaction).toHaveBeenCalledWith(storeName, "readwrite");
+    expect(mock.database.transaction).toHaveBeenCalledWith(
+      storeName,
+      "readwrite"
+    );
     expect(mock.transaction.objectStore).toHaveBeenCalledWith(storeName);
     expect(mock.clear).toHaveBeenCalledOnce();
     expect(mock.database.close).not.toHaveBeenCalled();
@@ -66,11 +78,14 @@ describe("legacy projected terrain store maintenance", () => {
     expect(mock.factory.open).not.toHaveBeenCalled();
   });
 
-  it.each([undefined, {}, { open: vi.fn() }])("skips unavailable native APIs %j", async (factory) => {
-    vi.stubGlobal("indexedDB", factory);
-    vi.stubGlobal("navigator", {});
-    expect(await cleanupLegacyProjectedTerrainCache()).toBe(false);
-  });
+  it.each([undefined, {}, { open: vi.fn() }])(
+    "skips unavailable native APIs %j",
+    async (factory) => {
+      vi.stubGlobal("indexedDB", factory);
+      vi.stubGlobal("navigator", {});
+      expect(await cleanupLegacyProjectedTerrainCache()).toBe(false);
+    }
+  );
 
   it("handles database enumeration failure without opening anything", async () => {
     const mock = createIndexedDbMock();
@@ -101,26 +116,32 @@ describe("legacy projected terrain store maintenance", () => {
     expect(mock.database.close).toHaveBeenCalledOnce();
   });
 
-  it.each(["onerror", "onblocked"] as const)("handles open %s and closes a late connection", async (event) => {
-    const mock = createIndexedDbMock();
-    const operation = cleanupLegacyProjectedTerrainCache();
-    await flushPromises();
-    mock.request[event]?.();
-    expect(await operation).toBe(false);
-    mock.request.onsuccess?.();
-    expect(mock.database.close).toHaveBeenCalledOnce();
-    expect(mock.clear).not.toHaveBeenCalled();
-  });
+  it.each(["onerror", "onblocked"] as const)(
+    "handles open %s and closes a late connection",
+    async (event) => {
+      const mock = createIndexedDbMock();
+      const operation = cleanupLegacyProjectedTerrainCache();
+      await flushPromises();
+      mock.request[event]?.();
+      expect(await operation).toBe(false);
+      mock.request.onsuccess?.();
+      expect(mock.database.close).toHaveBeenCalledOnce();
+      expect(mock.clear).not.toHaveBeenCalled();
+    }
+  );
 
-  it.each(["onabort", "onerror"] as const)("handles transaction %s", async (event) => {
-    const mock = createIndexedDbMock();
-    const operation = cleanupLegacyProjectedTerrainCache();
-    await flushPromises();
-    mock.request.onsuccess?.();
-    mock.transaction[event]?.();
-    expect(await operation).toBe(false);
-    expect(mock.database.close).toHaveBeenCalledOnce();
-  });
+  it.each(["onabort", "onerror"] as const)(
+    "handles transaction %s",
+    async (event) => {
+      const mock = createIndexedDbMock();
+      const operation = cleanupLegacyProjectedTerrainCache();
+      await flushPromises();
+      mock.request.onsuccess?.();
+      mock.transaction[event]?.();
+      expect(await operation).toBe(false);
+      expect(mock.database.close).toHaveBeenCalledOnce();
+    }
+  );
 
   it("aborts and closes on versionchange", async () => {
     const mock = createIndexedDbMock();
@@ -146,7 +167,9 @@ describe("legacy projected terrain store maintenance", () => {
 
   it("closes when transaction creation throws", async () => {
     const mock = createIndexedDbMock();
-    mock.database.transaction.mockImplementation(() => { throw new Error("Transaction failed"); });
+    mock.database.transaction.mockImplementation(() => {
+      throw new Error("Transaction failed");
+    });
     const operation = cleanupLegacyProjectedTerrainCache();
     await flushPromises();
     mock.request.onsuccess?.();
@@ -157,18 +180,24 @@ describe("legacy projected terrain store maintenance", () => {
 
   it("fails closed for synchronous native errors", async () => {
     const mock = createIndexedDbMock();
-    mock.factory.open.mockImplementation(() => { throw new Error("Open failed"); });
+    mock.factory.open.mockImplementation(() => {
+      throw new Error("Open failed");
+    });
     expect(await cleanupLegacyProjectedTerrainCache()).toBe(false);
   });
 
   it("does not wait for an already held cooperative lock", async () => {
     const mock = createIndexedDbMock();
-    const request = vi.fn(async (_name: string, _options: LockOptions, callback: LockCallback) => callback(null));
+    const request = vi.fn(
+      async (_name: string, _options: LockOptions, callback: LockCallback) =>
+        callback(null)
+    );
     vi.stubGlobal("navigator", { locks: { request } });
     expect(await cleanupLegacyProjectedTerrainCache()).toBe(false);
     expect(request).toHaveBeenCalledWith(
       "carma-legacy-projected-terrain-cache-cleanup",
-      { mode: "exclusive", ifAvailable: true }, expect.any(Function)
+      { mode: "exclusive", ifAvailable: true },
+      expect.any(Function)
     );
     expect(mock.factory.databases).not.toHaveBeenCalled();
     expect(mock.factory.open).not.toHaveBeenCalled();
@@ -177,10 +206,12 @@ describe("legacy projected terrain store maintenance", () => {
   it("holds the cooperative lock until transaction completion", async () => {
     const mock = createIndexedDbMock();
     let released = false;
-    const request = vi.fn(async (_name: string, _options: LockOptions, callback: LockCallback) => {
-      await callback({});
-      released = true;
-    });
+    const request = vi.fn(
+      async (_name: string, _options: LockOptions, callback: LockCallback) => {
+        await callback({});
+        released = true;
+      }
+    );
     vi.stubGlobal("navigator", { locks: { request } });
     const operation = cleanupLegacyProjectedTerrainCache();
     await flushPromises();
@@ -195,7 +226,9 @@ describe("legacy projected terrain store maintenance", () => {
   it("fails closed when lock acquisition rejects", async () => {
     const mock = createIndexedDbMock();
     vi.stubGlobal("navigator", {
-      locks: { request: vi.fn().mockRejectedValue(new Error("Lock unavailable")) },
+      locks: {
+        request: vi.fn().mockRejectedValue(new Error("Lock unavailable")),
+      },
     });
     expect(await cleanupLegacyProjectedTerrainCache()).toBe(false);
     expect(mock.factory.open).not.toHaveBeenCalled();
@@ -229,7 +262,12 @@ describe("legacy projected terrain store maintenance", () => {
     vi.useFakeTimers();
     const mock = createIndexedDbMock();
     let completeListing = (_entries: { name: string }[]) => {};
-    mock.factory.databases.mockImplementation(() => new Promise((resolve) => { completeListing = resolve; }));
+    mock.factory.databases.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          completeListing = resolve;
+        })
+    );
     const operation = cleanupLegacyProjectedTerrainCache();
     await vi.advanceTimersByTimeAsync(1000);
     expect(await operation).toBe(false);

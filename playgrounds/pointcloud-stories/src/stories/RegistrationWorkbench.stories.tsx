@@ -9,7 +9,8 @@ import {
 import { RAMP_NAMES } from "../../../ng-topicmap-playground/src/app/pointcloud/colorRamps";
 
 const meta = {
-  title: "Pointcloud Investigation/Registration Workbench",
+  title: "Applications/Point Clouds",
+  id: "pointcloud-investigation-registration-workbench",
   component: MeshRegistrationScene,
   argTypes: {
     color: {

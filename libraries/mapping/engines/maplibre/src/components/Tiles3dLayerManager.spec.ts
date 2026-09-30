@@ -3,12 +3,40 @@
 import { cleanup, render } from "@testing-library/react";
 import { createElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { TextureColorCorrection } from "@carma-commons/resources";
 
 import {
   resolveTiles3dErrorTarget,
+  resolveTiles3dConfig,
   Tiles3dLayerManager,
+  withTilesetColorCorrection,
 } from "./Tiles3dLayerManager";
 import type { Tiles3dConfig } from "./Tiles3dLayerManager";
+import { existsSync, readFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+
+// The shipped styles are read at run time on purpose. A static import would
+// make this library depend on the geoportal app and the stories playground in
+// the Nx project graph, inverting the package layering and closing a
+// build cycle. The assertion still compares the real files, not a copy.
+const findRepositoryRoot = (start: string): string => {
+  let directory = start;
+  while (!existsSync(resolve(directory, "nx.json"))) {
+    const parent = dirname(directory);
+    if (parent === directory) throw new Error("repository root not found");
+    directory = parent;
+  }
+  return directory;
+};
+const repositoryRoot = findRepositoryRoot(process.cwd());
+const readShippedStyle = (relativePath: string) =>
+  JSON.parse(readFileSync(resolve(repositoryRoot, relativePath), "utf8"));
+const geoportalMeshStyle = readShippedStyle(
+  "apps/geoportal/public/data/mesh2024-cesium-parity.style.json"
+);
+const storyMeshStyle = readShippedStyle(
+  "playgrounds/stories/src/stories/mapping/maplibre/data/mesh2024-cesium-parity.style.json"
+);
 
 vi.hoisted(() => {
   Object.defineProperty(URL, "createObjectURL", {
@@ -72,6 +100,7 @@ const buildFakeRuntime = (id: string) => ({
   },
   loading: {
     setErrorTarget: vi.fn(),
+    setTilesetMinResolution: vi.fn(),
     setCacheBudget: vi.fn(),
   },
 });
@@ -86,6 +115,44 @@ const baseConfig: Tiles3dConfig = {
 const renderManager = (config: Tiles3dConfig, layerOpacity?: number) =>
   createElement(Tiles3dLayerManager, { config, layerOpacity });
 
+describe("withTilesetColorCorrection", () => {
+  const url = "https://tiles.example.test/tileset.json";
+  const hostCorrection: TextureColorCorrection = {
+    gamma: [1.25, 1.25, 1.23],
+    blackPoint: [0, 0, 0],
+    whitePoint: [0.9, 0.9, 0.92],
+    saturation: 1,
+  };
+  const corrections = { [url]: hostCorrection };
+
+  it("fills in the host's correction for a style that declares none", () => {
+    const config: Tiles3dConfig = { renderMode: "tiles3d", tilesetUrl: url };
+    expect(withTilesetColorCorrection(config, corrections)).toEqual({
+      ...config,
+      colorCorrection: hostCorrection,
+    });
+  });
+
+  it("keeps a style's own correction", () => {
+    const own: TextureColorCorrection = { ...hostCorrection, saturation: 0.8 };
+    const config: Tiles3dConfig = {
+      renderMode: "tiles3d",
+      tilesetUrl: url,
+      colorCorrection: own,
+    };
+    expect(withTilesetColorCorrection(config, corrections)).toBe(config);
+  });
+
+  it("returns the same config when no entry matches its URL", () => {
+    const config: Tiles3dConfig = {
+      renderMode: "tiles3d",
+      tilesetUrl: "https://other.example.test/tileset.json",
+    };
+    expect(withTilesetColorCorrection(config, corrections)).toBe(config);
+    expect(withTilesetColorCorrection(config, undefined)).toBe(config);
+  });
+});
+
 describe("resolveTiles3dErrorTarget", () => {
   it("uses a 4 px target for a regular 3D tiles mesh", () => {
     expect(resolveTiles3dErrorTarget({})).toBe(4);
@@ -93,6 +160,97 @@ describe("resolveTiles3dErrorTarget", () => {
 
   it("keeps an explicit style target", () => {
     expect(resolveTiles3dErrorTarget({ errorTarget: 1.25 })).toBe(1.25);
+  });
+});
+
+describe("resolveTiles3dConfig", () => {
+  const legacy: Tiles3dConfig = {
+    renderMode: "tiles3d",
+    tilesetUrl: "https://tiles.test/mesh/tileset.json",
+    terrainMandatory: true,
+  };
+
+  it("completes a legacy mesh style with the mesh loading defaults", () => {
+    expect(resolveTiles3dConfig({ ...legacy, providesTerrain: true })).toEqual({
+      ...legacy,
+      providesTerrain: true,
+      errorTarget: 6,
+      baseErrorTarget: 16,
+      tilesetMinResolutionPx: 0,
+      baseCoverageMemoryShare: 0.1,
+      basemap: "labels",
+      outline: true,
+      diagnostics: false,
+      shadowBuildingStyle: false,
+    });
+  });
+
+  it("leaves the mesh strategy off for a tileset that provides no terrain", () => {
+    const resolved = resolveTiles3dConfig(legacy);
+    expect(resolved.baseErrorTarget).toBeUndefined();
+    expect(resolved.tilesetMinResolutionPx).toBeUndefined();
+    expect(resolved.errorTarget).toBe(4);
+  });
+
+  it.each([
+    ["low", 16],
+    ["standard", 12],
+    ["high", 6],
+  ] as const)(
+    "resolves %s without overriding explicit quality fields",
+    (qualityProfile, errorTarget) => {
+      const config = { ...legacy, providesTerrain: true, qualityProfile };
+      expect(resolveTiles3dConfig(config)).toMatchObject({
+        errorTarget,
+        baseErrorTarget: 12,
+        tilesetMinResolutionPx: 0,
+        baseCoverageMemoryShare: 0.1,
+      });
+      expect(
+        resolveTiles3dConfig({
+          ...config,
+          errorTarget: 4,
+          baseErrorTarget: 8,
+          tilesetMinResolutionPx: 0,
+          baseCoverageMemoryShare: 0.15,
+        })
+      ).toMatchObject({
+        errorTarget: 4,
+        baseErrorTarget: 8,
+        tilesetMinResolutionPx: 0,
+        baseCoverageMemoryShare: 0.15,
+      });
+      expect(
+        resolveTiles3dConfig({ ...config, providesTerrain: false })
+      ).toMatchObject({
+        errorTarget: 4,
+        baseErrorTarget: undefined,
+        tilesetMinResolutionPx: undefined,
+      });
+    }
+  );
+
+  it("keeps explicit values, including the zero that defers to the entry hint", () => {
+    const resolved = resolveTiles3dConfig({
+      ...legacy,
+      providesTerrain: true,
+      errorTarget: 6,
+      baseErrorTarget: 12,
+      tilesetMinResolutionPx: 0,
+      basemap: "none",
+      outline: false,
+      diagnostics: true,
+      shadowBuildingStyle: true,
+    });
+    expect(resolved).toMatchObject({
+      errorTarget: 6,
+      baseErrorTarget: 12,
+      tilesetMinResolutionPx: 0,
+      basemap: "none",
+      outline: false,
+      diagnostics: true,
+      shadowBuildingStyle: true,
+    });
   });
 });
 
@@ -108,18 +266,110 @@ describe("Tiles3dLayerManager", () => {
     cleanup();
   });
 
+  it("preserves the ad-hoc mesh metadata in both hosts and forwards its loading hints", () => {
+    expect(storyMeshStyle).toEqual(geoportalMeshStyle);
+    const metadata = geoportalMeshStyle.metadata.carmaConf["3d"];
+    expect(metadata.entry.levels.length).toBeGreaterThan(0);
+    // The reference file declares the tuned base target and leaves the rest
+    // to the defaults, so a legacy style and this one share every other value.
+    expect(metadata).toMatchObject({ errorTarget: 6, baseErrorTarget: 12 });
+    expect(metadata).not.toHaveProperty("tilesetMinResolutionPx");
+    // Use the normal draped host to inspect creation synchronously; standalone
+    // mounting adds a DEM lookup but must pass the same hierarchy hints.
+    render(renderManager({ ...metadata, basemap: "labels" } as Tiles3dConfig));
+    expect(mocks.buildRuntime.mock.calls[0]?.[3]).toMatchObject({
+      entry: metadata.entry,
+      providesTerrain: metadata.providesTerrain,
+      baseErrorTargetPixels: metadata.baseErrorTarget,
+      colorCorrection: metadata.colorCorrection,
+    });
+    const runtime = mocks.buildRuntime.mock.results[0]?.value as ReturnType<
+      typeof buildFakeRuntime
+    >;
+    expect(runtime.loading.setErrorTarget).toHaveBeenLastCalledWith(6, 12);
+    expect(runtime.loading.setTilesetMinResolution).toHaveBeenLastCalledWith(
+      null,
+      0.1
+    );
+  });
+
+  it("forwards independent cold image and handover targets from configuration", () => {
+    render(
+      renderManager({
+        ...baseConfig,
+        providesTerrain: true,
+        firstImageErrorTarget: 96,
+        baseErrorTarget: 24,
+        handoverErrorTarget: 8,
+        errorTarget: 4,
+      })
+    );
+    expect(mocks.buildRuntime.mock.calls[0]?.[3]).toMatchObject({
+      firstImageErrorTargetPixels: 96,
+      baseErrorTargetPixels: 24,
+      handoverErrorTargetPixels: 8,
+    });
+    const runtime = mocks.buildRuntime.mock.results[0]?.value as ReturnType<
+      typeof buildFakeRuntime
+    >;
+    expect(runtime.loading.setErrorTarget).toHaveBeenLastCalledWith(4, 24);
+  });
+  it("updates initial and residual targets without replacing the tile pool", () => {
+    const { rerender } = render(renderManager(baseConfig));
+    const runtime = mocks.buildRuntime.mock.results[0]?.value as ReturnType<
+      typeof buildFakeRuntime
+    >;
+    // A terrain-providing style without a residual resolution gets the default.
+    expect(runtime.loading.setTilesetMinResolution).toHaveBeenLastCalledWith(
+      null,
+      0.1
+    );
+    rerender(
+      renderManager({
+        ...baseConfig,
+        baseErrorTarget: 12,
+        tilesetMinResolutionPx: 2048,
+      })
+    );
+    expect(runtime.loading.setErrorTarget).toHaveBeenLastCalledWith(4, 12);
+    expect(runtime.loading.setTilesetMinResolution).toHaveBeenLastCalledWith(
+      2048,
+      0.1
+    );
+    rerender(
+      renderManager({
+        ...baseConfig,
+        baseErrorTarget: 16,
+        tilesetMinResolutionPx: 4096,
+        baseCoverageMemoryShare: 0.15,
+      })
+    );
+    expect(runtime.loading.setErrorTarget).toHaveBeenLastCalledWith(4, 16);
+    expect(runtime.loading.setTilesetMinResolution).toHaveBeenLastCalledWith(
+      4096,
+      0.15
+    );
+    rerender(renderManager({ ...baseConfig, tilesetMinResolutionPx: 0 }));
+    expect(runtime.loading.setTilesetMinResolution).toHaveBeenLastCalledWith(
+      null,
+      0.1
+    );
+    expect(mocks.buildRuntime).toHaveBeenCalledOnce();
+  });
+
   it("applies target, opacity, outline and cache changes through the setters without a rebuild", () => {
     const { rerender } = render(renderManager(baseConfig, 1));
     expect(mocks.buildRuntime).toHaveBeenCalledOnce();
     const runtime = mocks.buildRuntime.mock.results[0]?.value as ReturnType<
       typeof buildFakeRuntime
     >;
-    expect(runtime.loading.setErrorTarget).toHaveBeenLastCalledWith(4);
+    // The base target defaults for a terrain-providing tileset.
+    expect(runtime.loading.setErrorTarget).toHaveBeenLastCalledWith(4, 16);
     expect(mocks.addRuntime).toHaveBeenCalledWith(runtime.scene);
 
     rerender(renderManager({ ...baseConfig, errorTarget: 1 }, 1));
     expect(mocks.buildRuntime).toHaveBeenCalledOnce();
-    expect(runtime.loading.setErrorTarget).toHaveBeenLastCalledWith(1);
+    expect(runtime.loading.setErrorTarget).toHaveBeenLastCalledWith(1, 16);
 
     rerender(
       renderManager({ ...baseConfig, errorTarget: 1, opacity: 0.5 }, 0.5)

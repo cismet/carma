@@ -1,4 +1,4 @@
-import { act, cleanup, render } from "@testing-library/react";
+import { act, cleanup, render, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -8,9 +8,11 @@ import {
 import { createInitialShadowSimulationState } from "../core/create-shadow-simulation-state";
 import { getSolarPosition } from "../core/solar-position";
 import { buildShadowSimulationScene } from "./shadow-scene";
+import { useShadowTimeInteraction } from "./hooks/use-shadow-time-interaction";
 import { ShadowSimulationRuntime } from "./ShadowSimulationRuntime";
 
 vi.mock("@carma-mapping/engines/maplibre", () => ({
+  TILES_MESH_ERROR_TARGET_DEFAULT_PIXELS: 6,
   getSharedThreeSceneRuntimes: vi.fn(() => []),
   subscribeSharedThreeSceneContent: vi.fn(() => vi.fn()),
   MAPLIBRE_EVENT: {
@@ -31,32 +33,37 @@ afterEach(() => {
 });
 
 describe("tile diagnostics runtime registration", () => {
-  it.each([false, undefined])("does not register scene diagnostics when the debug panel is %s", (showProjectionDebugView) => {
-    const runtime = { setTileBoundsVisible: vi.fn() };
-    vi.mocked(getSharedThreeSceneRuntimes).mockReturnValue([runtime] as never);
-    render(
-      <ShadowSimulationRuntime
-        libreMap={
-          { isStyleLoaded: () => false, on: vi.fn(), off: vi.fn() } as never
-        }
-        state={{
-          ...createInitialShadowSimulationState(undefined),
-          enabled: true,
-          showProjectionDebugView,
-          showTileBounds: true,
-        }}
-        dateState={{
-          year: 2026,
-          dayOfYear: 250,
-          minutes: 720,
-          timeZone: "Europe/Berlin",
-        }}
-        location={{ latitude: 51.27, longitude: 7.2 }}
-      />
-    );
-    expect(subscribeSharedThreeSceneContent).not.toHaveBeenCalled();
-    expect(runtime.setTileBoundsVisible).not.toHaveBeenCalled();
-  });
+  it.each([false, undefined])(
+    "does not register scene diagnostics when the debug panel is %s",
+    (showProjectionDebugView) => {
+      const runtime = { setTileBoundsVisible: vi.fn() };
+      vi.mocked(getSharedThreeSceneRuntimes).mockReturnValue([
+        runtime,
+      ] as never);
+      render(
+        <ShadowSimulationRuntime
+          libreMap={
+            { isStyleLoaded: () => false, on: vi.fn(), off: vi.fn() } as never
+          }
+          state={{
+            ...createInitialShadowSimulationState(undefined),
+            enabled: true,
+            showProjectionDebugView,
+            showTileBounds: true,
+          }}
+          dateState={{
+            year: 2026,
+            dayOfYear: 250,
+            minutes: 720,
+            timeZone: "Europe/Berlin",
+          }}
+          location={{ latitude: 51.27, longitude: 7.2 }}
+        />
+      );
+      expect(subscribeSharedThreeSceneContent).not.toHaveBeenCalled();
+      expect(runtime.setTileBoundsVisible).not.toHaveBeenCalled();
+    }
+  );
 
   it("applies enabled bounds to arriving runtimes once and unsubscribes on cleanup", () => {
     const first = { setTileBoundsVisible: vi.fn() };
@@ -109,12 +116,26 @@ describe("tile diagnostics runtime registration", () => {
     vi.mocked(subscribeSharedThreeSceneContent).mockReturnValue(unsubscribe);
     const map = { isStyleLoaded: () => false, on: vi.fn(), off: vi.fn() };
     const initial = createInitialShadowSimulationState(undefined);
-    const view = (open: boolean, enabled = true, bounds = initial.showTileBounds) => (
+    const view = (
+      open: boolean,
+      enabled = true,
+      bounds = initial.showTileBounds
+    ) => (
       <ShadowSimulationRuntime
         libreMap={map as never}
-        state={{ ...initial, enabled, showProjectionDebugView: open, showTileBounds: bounds }}
-        dateState={{year: 2026, dayOfYear: 250, minutes: 720, timeZone: "Europe/Berlin"}}
-        location={{latitude: 51.27, longitude: 7.2}}
+        state={{
+          ...initial,
+          enabled,
+          showProjectionDebugView: open,
+          showTileBounds: bounds,
+        }}
+        dateState={{
+          year: 2026,
+          dayOfYear: 250,
+          minutes: 720,
+          timeZone: "Europe/Berlin",
+        }}
+        location={{ latitude: 51.27, longitude: 7.2 }}
       />
     );
     const { rerender, unmount } = render(view(false));
@@ -160,11 +181,15 @@ describe("shadow animation", () => {
     });
     vi.mocked(buildShadowSimulationScene).mockReturnValue(scene as never);
     vi.mocked(getSolarPosition).mockImplementation(
-      (date) => ({ minutes: date.minutes, instant: new Date(date.minutes) }) as never
+      (date) =>
+        ({ minutes: date.minutes, instant: new Date(date.minutes) } as never)
     );
     const setDateState = vi.fn();
     const libreMap = { isStyleLoaded: () => true, on: vi.fn(), off: vi.fn() };
-    const view = (state: Partial<ReturnType<typeof createInitialShadowSimulationState>>, date = dateState) => (
+    const view = (
+      state: Partial<ReturnType<typeof createInitialShadowSimulationState>>,
+      date = dateState
+    ) => (
       <ShadowSimulationRuntime
         libreMap={libreMap as never}
         state={{
@@ -188,9 +213,45 @@ describe("shadow animation", () => {
       scene.updateSolarPosition.mock.calls.map(
         ([position]: [{ minutes: number }]) => position.minutes
       );
-    return { ...rendered, scene, setDateState, view, shownMinutes };
+    return { ...rendered, scene, setDateState, view, shownMinutes, libreMap };
   };
   afterEach(() => vi.useRealTimers());
+
+  it("previews manual time changes without starting playback and restores quality on release", async () => {
+    const { scene, view, rerender, libreMap, setDateState } = await setup();
+    rerender(view({ isAnimating: false }));
+    setDateState.mockClear();
+    const control = renderHook(() =>
+      useShadowTimeInteraction(libreMap as never)
+    );
+    act(() => control.result.current(true));
+    expect(scene.updateTimeAnimating).toHaveBeenLastCalledWith(true);
+    rerender(view({ isAnimating: false }, { ...dateState, minutes: 720 }));
+    expect(scene.updateSolarPosition).toHaveBeenLastCalledWith({
+      minutes: 720,
+      instant: new Date(720),
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(300);
+    });
+    expect(setDateState).not.toHaveBeenCalled();
+    act(() => control.result.current(false));
+    expect(scene.updateTimeAnimating).toHaveBeenLastCalledWith(false);
+    // Releasing a gesture cannot stop a running animation.
+    rerender(view({ isAnimating: true }));
+    act(() => control.result.current(true));
+    act(() => control.result.current(false));
+    expect(scene.updateTimeAnimating).toHaveBeenLastCalledWith(true);
+  });
+
+  it("passes automatic and explicit cache budgets through the runtime effect", async () => {
+    const { scene, view, rerender } = await setup();
+    expect(scene.updateMeshCacheBudget).toHaveBeenLastCalledWith(undefined);
+    rerender(view({ meshCacheBudgetBytes: 8 * 1024 ** 3 }));
+    expect(scene.updateMeshCacheBudget).toHaveBeenLastCalledWith(8 * 1024 ** 3);
+    rerender(view({ meshCacheBudgetBytes: undefined }));
+    expect(scene.updateMeshCacheBudget).toHaveBeenLastCalledWith(undefined);
+  });
 
   it("drives the sun on every tick but publishes the shared date at most four times a second", async () => {
     const { scene, setDateState, shownMinutes } = await setup();
@@ -226,7 +287,9 @@ describe("shadow animation", () => {
     rerender(view({ isAnimating: false }, published));
     // Stopping publishes the final animated date exactly once.
     expect(setDateState).toHaveBeenCalledOnce();
-    expect(setDateState.mock.lastCall![0].minutes).toBe(lastShownWhileAnimating);
+    expect(setDateState.mock.lastCall![0].minutes).toBe(
+      lastShownWhileAnimating
+    );
     rerender(view({ isAnimating: false }, setDateState.mock.lastCall![0]));
     await act(async () => {
       await vi.advanceTimersByTimeAsync(200);

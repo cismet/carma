@@ -34,7 +34,7 @@ describe("shadow surface display settings", () => {
       </StyleProvider>
     );
     expect(getByText("Terrain")).toBeTruthy();
-    expect(queryByText("Mesh-LOD")).toBeNull();
+    expect(queryByText("Tileset-LOD")).toBeNull();
     expect(queryByText("Sonnenvektor")).toBeNull();
     expect(queryByText("Tile-Kanten + IDs")).toBeNull();
     expect(queryByText("Qualitätsziel")).toBeNull();
@@ -49,11 +49,12 @@ describe("shadow surface display settings", () => {
           state={state}
           setState={setState}
           meshLoaded
+          tilesetErrorTarget={6}
         />
       </StyleProvider>
     );
     expect(
-      (getByRole("radio", { name: "2 px" }) as HTMLInputElement).checked
+      (getByRole("radio", { name: "Auto (6 px)" }) as HTMLInputElement).checked
     ).toBe(true);
     for (const [label, value] of [
       ["0,25 px", 0.25],
@@ -68,6 +69,8 @@ describe("shadow surface display settings", () => {
       });
     }
     const budget = getByRole("spinbutton", { name: "Mesh-Cache in GiB" });
+    expect((budget as HTMLInputElement).value).toBe("");
+    expect(budget.getAttribute("placeholder")).toBe("Auto");
     expect(budget.getAttribute("aria-valuemax")).toBe("24");
     fireEvent.change(budget, { target: { value: "8" } });
     expect(setState).toHaveBeenLastCalledWith({

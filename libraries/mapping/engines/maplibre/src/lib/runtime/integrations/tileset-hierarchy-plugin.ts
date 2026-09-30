@@ -1,3 +1,4 @@
+import type { TilesetEntryHint } from "./three-tiles-runtime-types";
 import {
   createTilesetHierarchyPageReader,
   type TilesetDescriptor,
@@ -18,7 +19,7 @@ type Job = {
 
 /** Native fetchData plugin, not a second traversal/LOD engine. Static pages are
  * restored on demand; the renderer still owns its original external-root links.
- * Decision: TILE-SPARSE-HIERARCHY-INDEX-20260909 in engines/maplibre/README.md.
+ * Decision: README.md#consolidated-tile-manager.
  */
 export class TilesetHierarchyPlugin {
   readonly name = "CARMA_TILESET_HIERARCHY";
@@ -33,7 +34,13 @@ export class TilesetHierarchyPlugin {
     return { ...this.stats };
   }
 
-  constructor(private readonly rootUrl: string) {}
+  constructor(
+    private readonly rootUrl: string,
+    readonly options: {
+      entry?: TilesetEntryHint;
+      onRootLoaded?: (document: object) => Promise<void>;
+    } = {}
+  ) {}
 
   private stop(reason: unknown) {
     this.disabled = true;
@@ -133,6 +140,19 @@ export class TilesetHierarchyPlugin {
     return this.load(url, options);
   }
 
+  /**
+   * Warm the hierarchy cache with the files a style names, so the traversal
+   * finds them cached instead of walking the chain one file at a time. The
+   * worker de-duplicates a file that the traversal asks for meanwhile.
+   */
+  prefetch(urls: readonly string[]) {
+    for (const url of urls) {
+      const absolute = new URL(url, this.rootUrl).href;
+      if (absolute === this.rootUrl) continue;
+      void this.request(absolute, {}).catch(() => {});
+    }
+  }
+
   private async load(
     url: string,
     options: RequestInit
@@ -142,7 +162,11 @@ export class TilesetHierarchyPlugin {
       const result = await this.request(url, options);
       options.signal?.throwIfAborted();
       if (this.disposed) throw new DOMException("Disposed", "AbortError");
-      if (result.kind === HIERARCHY_RESULT.document) return result.document;
+      if (result.kind === HIERARCHY_RESULT.document) {
+        if (url === this.rootUrl)
+          await this.options.onRootLoaded?.(result.document);
+        return result.document;
+      }
       if (result.kind !== HIERARCHY_RESULT.page)
         throw new Error("Missing hierarchy page");
       if (result.cached) this.stats.cacheHits++;
@@ -171,7 +195,9 @@ export class TilesetHierarchyPlugin {
         options.signal?.throwIfAborted();
         if (this.disposed) throw new DOMException("Disposed", "AbortError");
       }
-      return reader.finish();
+      const document = reader.finish();
+      if (url === this.rootUrl) await this.options.onRootLoaded?.(document);
+      return document;
     } catch (error) {
       if (this.disposed || options.signal?.aborted) throw error;
       this.stats.fallbacks++;

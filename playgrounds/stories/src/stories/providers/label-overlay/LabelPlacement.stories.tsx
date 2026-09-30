@@ -19,7 +19,8 @@ import {
 } from "./LabelPlacement.story-helpers";
 
 const meta = {
-  title: "Overlay/Labels",
+  title: "Annotations/Labels",
+  id: "overlay-labels",
   parameters: {
     layout: "fullscreen",
     controls: {

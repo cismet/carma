@@ -301,6 +301,7 @@ export const buildSharedSceneAccumulator = (
       round = 0;
     },
     renderRound(renderer, nextWidth, nextHeight, renderScene) {
+      if (broken) return;
       const previousTarget = renderer.getRenderTarget();
       try {
         ensureTargets(nextWidth, nextHeight);
@@ -362,6 +363,8 @@ export const buildSharedSceneAccumulator = (
             console.error(
               "[shadow-simulation] accumulation self-check failed; falling back to direct rendering"
             );
+            disposeTargets();
+            return;
           }
         }
         const swap = accumRead;

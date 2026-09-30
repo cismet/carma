@@ -15,28 +15,23 @@ const children = [
 
 describe("advanceTerrainTileFrontier", () => {
   it("keeps visible detail when a drag selection omits it or its parent is still loading", () => {
-    const visible = new Set(children.map(({ key }) => key));
-    expect(
-      advanceTerrainTileFrontier(children, [], () => false, true, visible)
-    ).toEqual(children);
-    expect(
-      advanceTerrainTileFrontier(children, [parent], () => false, true, visible)
-    ).toEqual(children);
-    expect(
-      advanceTerrainTileFrontier(children, [parent], () => true, true, visible)
-    ).toEqual([parent]);
+    expect(advanceTerrainTileFrontier(children, [], () => false)).toEqual(
+      children
+    );
+    expect(advanceTerrainTileFrontier(children, [parent], () => false)).toEqual(
+      children
+    );
+    expect(advanceTerrainTileFrontier(children, [parent], () => true)).toEqual([
+      parent,
+    ]);
   });
 
-  it("releases omitted tiles only after they leave the visible set", () => {
-    expect(
-      advanceTerrainTileFrontier(
-        children,
-        [],
-        () => false,
-        true,
-        new Set([children[0].key])
-      )
-    ).toEqual([children[0]]);
+  it("keeps historical offscreen tiles while the next pan requests disjoint terrain", () => {
+    const other = tile("next-view", 10, 533, 218);
+    expect(advanceTerrainTileFrontier(children, [other], () => true)).toEqual([
+      ...children,
+      other,
+    ]);
   });
   it("replaces one ready tile without waiting for an unrelated tile", () => {
     const other = tile("old-other", 10, 533, 218);
@@ -72,17 +67,100 @@ describe("advanceTerrainTileFrontier", () => {
     ).toEqual([other, ...children]);
   });
 
+  it("retains protected detail while admitting new coarse regions and refining other families", () => {
+    const other = tile("other", 10, 533, 218);
+    const protectedKeys = new Set(children.map(({ key }) => key));
+    const moving = advanceTerrainTileFrontier(
+      children,
+      [parent, other],
+      () => true,
+      (key) => !protectedKeys.has(key)
+    );
+    expect(moving).toEqual([...children, other]);
+    expect(
+      advanceTerrainTileFrontier(moving, [parent, other], () => true)
+    ).toEqual([parent, other]);
+    expect(
+      advanceTerrainTileFrontier(
+        [parent],
+        children,
+        () => true,
+        () => false
+      )
+    ).toEqual(children);
+  });
+
   it("replaces fine tiles with a ready parent atomically", () => {
     expect(advanceTerrainTileFrontier(children, [parent], () => true)).toEqual([
       parent,
     ]);
   });
 
-  it("retains failed coverage but prunes offscreen coverage at completion", () => {
+  it("retains failed and offscreen coverage even after the new selection completes", () => {
     const other = tile("old-other", 10, 533, 218);
     expect(
-      advanceTerrainTileFrontier([parent, other], children, () => false, true)
+      advanceTerrainTileFrontier([parent, other], children, () => false)
+    ).toEqual([parent, other]);
+    expect(
+      advanceTerrainTileFrontier([parent, other], children, () => true)
+    ).toEqual([other, ...children]);
+  });
+
+  it("does not mistake a fully ready requested subset for spatial coverage", () => {
+    for (let count = 1; count < 4; count += 1) {
+      expect(
+        advanceTerrainTileFrontier(
+          [parent],
+          children.slice(0, count),
+          () => true
+        )
+      ).toEqual([parent]);
+    }
+  });
+
+  it("proves a mixed-depth cut recursively before retiring its parent", () => {
+    const grandchildren = [
+      tile("grandchild-nw", 12, 2128, 872),
+      tile("grandchild-ne", 12, 2129, 872),
+      tile("grandchild-sw", 12, 2128, 873),
+      tile("grandchild-se", 12, 2129, 873),
+    ];
+    const mixed = [...grandchildren, ...children.slice(1)];
+    expect(
+      advanceTerrainTileFrontier(
+        [parent],
+        mixed,
+        (key) => key !== "grandchild-se"
+      )
     ).toEqual([parent]);
+    expect(
+      advanceTerrainTileFrontier([parent], mixed.slice(1), () => true)
+    ).toEqual([parent]);
+    expect(advanceTerrainTileFrontier([parent], mixed, () => true)).toEqual(
+      mixed
+    );
+  });
+
+  it("does not count duplicate or overlapping descendants as missing quadrants", () => {
+    const grandchild = tile("grandchild-nw", 12, 2128, 872);
+    expect(
+      advanceTerrainTileFrontier(
+        [parent],
+        [
+          children[0],
+          { ...children[0], key: "duplicate" },
+          grandchild,
+          children[1],
+        ],
+        () => true
+      )
+    ).toEqual([parent]);
+    const normalized = advanceTerrainTileFrontier(
+      [parent],
+      [...children, grandchild],
+      () => true
+    );
+    expect(normalized).toEqual(children);
   });
 
   it("supports rapid source changes from an already mixed cut", () => {

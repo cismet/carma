@@ -1,7 +1,10 @@
 import type { Map as MaplibreMap } from "maplibre-gl";
 import { describe, expect, it, vi } from "vitest";
 import { MAPLIBRE_EVENT } from "../../../constants/mapEvents";
-import { createMapStyleFramebufferCache } from "./map-style-framebuffer-cache";
+import {
+  createMapStyleFramebufferCache,
+  VERSIONLESS_IMAGE_CHECK_INTERVAL_MS,
+} from "./map-style-framebuffer-cache";
 
 const fixture = () => {
   const listeners = new Map<string, Set<() => void>>();
@@ -209,6 +212,7 @@ describe("MapLibre ground capture reuse", () => {
   it.each([NaN, undefined])(
     "reuses stable versionless sprite pixels (%s) but detects an in-place update",
     (version) => {
+      vi.useFakeTimers();
       const { cache, emit, map } = fixture();
       const data = new Uint8Array([10, 20, 30, 255]);
       map.getImage.mockReturnValue({
@@ -224,12 +228,16 @@ describe("MapLibre ground capture reuse", () => {
         emit(MAPLIBRE_EVENT.IDLE);
       }
       data[2] = 99;
+      // Bytes are compared once per interval, not per frame.
+      expect(cache.revision).toBe(revision);
+      vi.advanceTimersByTime(VERSIONLESS_IMAGE_CHECK_INTERVAL_MS);
       expect(cache.revision).toBeGreaterThan(revision);
       expect(cache.canReuse("pose", true)).toBe(false);
       emit(MAPLIBRE_EVENT.IDLE);
       cache.captured("pose");
       expect(cache.canReuse("pose", true)).toBe(true);
       expect(cache.stats.captures).toBe(2);
+      vi.useRealTimers();
     }
   );
 

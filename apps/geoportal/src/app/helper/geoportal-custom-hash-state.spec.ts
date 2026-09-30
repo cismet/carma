@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   buildOrderedSearchParamsString,
@@ -12,6 +12,9 @@ import {
   resolveGeoportalCustomHashState,
   resolveGeoportalShadowSimulationHashSelection,
 } from "./geoportal-custom-hash-state";
+
+// App config imports annotation addons; hash parsing never renders their canvas.
+vi.mock("@excalidraw/excalidraw", () => ({ getSceneVersion: vi.fn() }));
 
 describe("geoportal-custom-hash-state", () => {
   it("decodes mm as a framework-neutral measurement mode request", () => {
@@ -95,18 +98,24 @@ describe("geoportal-custom-hash-state", () => {
     expect(resolveGeoportalShadowSimulationHashSelection(value)).toBeNull();
   });
 
-  it("serializes sub-minute animation positions without clearing the enabled shadow hash", () => {
-    for (const minutes of [0, 803.625, 1439.999]) {
-      const update = buildGeoportalShadowSimulationHashUpdate({
-        enabled: true,
-        dateState: { minutes, dayOfYear: 267 },
-      });
-      expect(update).toEqual({ shadow: `${Math.floor(minutes)};267` });
-      expect(
-        resolveGeoportalShadowSimulationHashSelection(update.shadow)
-      ).toEqual({ minutes: Math.floor(minutes), dayOfYear: 267 });
+  it.each([false, true])(
+    "round-trips sub-minute animation positions with tile diagnostics %s",
+    (tileDiagnostics) => {
+      for (const minutes of [0, 803.625, 1439.999]) {
+        const update = buildGeoportalShadowSimulationHashUpdate({
+          enabled: true,
+          dateState: { minutes, dayOfYear: 267 },
+          tileDiagnostics,
+        });
+        expect(update).toEqual({
+          shadow: `${Math.floor(minutes)};267${tileDiagnostics ? ";k" : ""}`,
+        });
+        expect(
+          resolveGeoportalShadowSimulationHashSelection(update.shadow)
+        ).toEqual({ minutes: Math.floor(minutes), dayOfYear: 267, tileDiagnostics });
+      }
     }
-  });
+  );
 
   it("serializes enabled shadow state and removes disabled shadow state", () => {
     expect(

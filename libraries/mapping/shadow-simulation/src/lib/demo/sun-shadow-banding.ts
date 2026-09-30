@@ -3,7 +3,7 @@ import { Vector3, type Camera } from "three";
 import { clamp } from "@carma-commons/math";
 import { degToRadNumeric } from "@carma-units";
 
-import { SUN_ANGULAR_RADIUS_RAD } from "../runtime/shadow-controller";
+import { SUN_ANGULAR_RADIUS_RAD } from "../core/sun-disc-sampling";
 
 export type SunShadowBanding = Readonly<{
   coherentP95Codes: number;

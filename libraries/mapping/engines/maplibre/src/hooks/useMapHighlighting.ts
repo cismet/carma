@@ -58,8 +58,9 @@ function promotesProperty(
   sourceLayer: string,
   property: string
 ): boolean {
-  const promoteId = (map.getSource(source) as { promoteId?: unknown } | undefined)
-    ?.promoteId;
+  const promoteId = (
+    map.getSource(source) as { promoteId?: unknown } | undefined
+  )?.promoteId;
   if (typeof promoteId === "string") return promoteId === property;
   if (promoteId && typeof promoteId === "object") {
     return (promoteId as Record<string, unknown>)[sourceLayer] === property;

@@ -50,6 +50,7 @@ export const SWITCHABLE_KINDS = [
   "vectorHighlightControl",
   "vectorHighlightDebug",
   "libreTerrain",
+  "mapStyle3d",
   "annotationOverlay",
   "annotationControl",
   "shadowSimulation",

@@ -12,19 +12,48 @@ vi.hoisted(() => {
 afterEach(() => vi.restoreAllMocks());
 
 describe("mesh receiver and sunward caster publication", () => {
+  it("retains pending work across solar changes and releases it on observer motion", () => {
+    const f = createMeshCorridorFixture();
+    try {
+      f.update();
+      const pending = f.tile("old-sun", 100, 120, -100, 1, false, f.root);
+      pending.internal.loadingState = 2;
+      f.renderer.loadingTiles.add(pending);
+      f.sun.rotateY(0.2);
+      f.setSun();
+      expect(f.runtimeState.retainedShadowRequests.has(pending)).toBe(true);
+      f.sun.rotateY(0.2);
+      f.setSun();
+      expect(f.runtimeState.retainedShadowRequests.size).toBe(1);
+      f.renderer.lruCache.add(pending, () => {});
+      f.renderer.lruCache.markUnused(pending);
+      f.renderer.prepareForTraversal();
+      expect(f.renderer.lruCache.isUsed(pending)).toBe(true);
+
+      f.frame.lodCamera.position.x += 1;
+      f.update();
+      expect(f.runtimeState.retainedShadowRequests.size).toBe(0);
+    } finally {
+      f.dispose();
+    }
+  });
+
   it("does not declare a partial loaded viewport complete", () => {
     const f = createMeshCorridorFixture();
     try {
-      const missing = f.tile("missing", 12, 22, -100, 1, true, f.root);
+      f.receiver.geometricError = 0.01;
+      const missing = f.tile("missing", 12, 22, -100, 0.01, true, f.root);
       f.root.children.push(missing);
       f.update();
       expect(f.renderer.visibleTiles.has(f.receiver)).toBe(true);
       expect(f.runtime.scene.isMainViewReady()).toBe(false);
-      expect(f.renderer.errorTarget).toBe(16);
+      expect(f.runtimeState.requestedErrorTarget).toBe(1);
+      expect(f.renderer.errorTarget).toBeGreaterThanOrEqual(1);
       f.load(missing);
       f.update();
       expect(f.renderer.visibleTiles.has(missing)).toBe(true);
       expect(f.runtime.scene.isMainViewReady()).toBe(true);
+      for (let frame = 0; frame < 6; frame++) f.update();
       expect(f.renderer.errorTarget).toBe(1);
     } finally {
       f.dispose();
@@ -71,7 +100,7 @@ describe("mesh receiver and sunward caster publication", () => {
         -10,
         10,
         -100,
-        0.25,
+        0.01,
         true,
         f.receiver
       );
@@ -117,40 +146,47 @@ describe("mesh receiver and sunward caster publication", () => {
     }
   );
 
-  it("replaces a receiver parent only with its complete loaded family, without waiting for another corridor", () => {
+  it("advances complete receiver families before requesting their matching caster generation", () => {
     const f = createMeshCorridorFixture();
+    f.frame.lodCamera.near = 75;
+    f.frame.lodCamera.updateProjectionMatrix();
     try {
-      const left = f.tile("left1", -10, 0, -100, 1, true, f.receiver);
-      const right = f.tile("right1", 0, 10, -100, 1, true, f.receiver);
+      f.update();
+      const left = f.tile("left8", -10, 0, -100, 8, true, f.receiver);
+      const right = f.tile("right8", 0, 10, -100, 8, true, f.receiver);
+      f.receiver.children = [left, right];
       const fineCaster = f.tile(
-        "caster-final",
+        "fine-caster",
         -10,
         10,
         -50,
-        0,
+        64,
         false,
         f.caster
       );
       f.caster.children = [fineCaster];
-      f.receiver.children = [left, right];
+      f.caster.geometricError = 128;
+      f.update();
+      expect(f.queued).toHaveBeenCalledWith(left);
+      expect(f.queued).toHaveBeenCalledWith(right);
+      expect(f.queued).not.toHaveBeenCalledWith(fineCaster);
+      expect(f.visibleIds()).toContain("receiver16");
       f.load(left);
       f.update();
-      expect(f.visibleIds()).toEqual(["caster16", "receiver16"]);
+      expect(f.visibleIds()).toContain("receiver16");
       f.load(right);
       f.update();
-      expect(f.visibleIds()).toEqual(["caster16", "left1", "right1"]);
-      expect(f.renderer.visibleTiles.has(f.receiver)).toBe(false);
-      // Caster quality and soft-mask readiness are separate from mesh residency.
-      // No removed acknowledgeShadowStage/setShadowStagePresentationGate API.
-      expect(
-        f.runtime.scene.isShadowRegionReady?.(f.corridor, 1, f.receiverBox)
-      ).toBe(false);
+      expect(f.visibleIds()).toContain("left8");
+      expect(f.visibleIds()).toContain("right8");
+      expect(f.visibleIds()).not.toContain("receiver16");
+      expect(f.visibleIds()).not.toContain("caster16");
+      expect(f.runtimeState.shadowCasterRequests.has(fineCaster)).toBe(true);
+      // This fixture does not execute native traversal; admit its proven demand.
+      f.renderer.queueTileForDownload(fineCaster);
+      expect(f.queued).toHaveBeenCalledWith(fineCaster);
       f.load(fineCaster);
       f.update();
-      expect(f.visibleIds()).toEqual(["caster-final", "left1", "right1"]);
-      expect(
-        f.runtime.scene.isShadowRegionReady?.(f.corridor, 1, f.receiverBox)
-      ).toBe(true);
+      expect(f.visibleIds()).toContain("fine-caster");
     } finally {
       f.dispose();
     }

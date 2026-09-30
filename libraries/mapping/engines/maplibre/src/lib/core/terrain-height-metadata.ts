@@ -7,7 +7,7 @@ export type TerrainHeightRange = readonly [minimum: number, maximum: number];
 
 /** Exact tile/LOD extents, not a bound on resampled descendants. Dataset and
  * producer identity belong to the enclosing cache registration, never origin.
- * Decision: TERRAIN-VOLUMES-20260908 in engines/maplibre/README.md.
+ * Decision: README.md#shared-caster-volumes.
  */
 export const decodeTerrainHeightMetadata = (
   value: unknown

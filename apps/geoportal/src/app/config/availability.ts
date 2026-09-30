@@ -26,9 +26,10 @@ import {
  */
 export const currentDeployment =
   resolveDeployment() ??
-  // the dev server reached through another name (a flexo https route for a
-  // second machine) is still local development
-  (import.meta.env.DEV ? Deployment.LOCAL_DEV : null);
+  // Local dev servers and explicit preview builds expose development addons.
+  (import.meta.env.DEV || import.meta.env.MODE === "preview"
+    ? Deployment.LOCAL_DEV
+    : null);
 
 const baseFeatureFlagConfig = getFeatureFlagConfig(currentDeployment);
 

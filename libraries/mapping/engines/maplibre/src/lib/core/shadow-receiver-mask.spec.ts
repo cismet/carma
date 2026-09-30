@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   applyShadowReceiverMask,
@@ -56,6 +56,36 @@ describe("createShadowReceiverMask", () => {
         );
         expect(actual).toEqual(expected);
       }
+    }
+  });
+
+  it("reuses unchanged candidate proofs before composing their transform", () => {
+    const mask = createShadowReceiverMask(
+      [source(box([0, 0, 0], [2, 2, 2]))],
+      new THREE.Matrix4()
+    )!;
+    const candidate = box([0, 0, 5], [1, 1, 6]);
+    const transform = new THREE.Matrix4();
+    const identity = { key: {} };
+    const multiply = vi.spyOn(THREE.Matrix4.prototype, "multiply");
+    try {
+      const expected = match();
+      expect(mask.match(candidate, expected, transform, identity)).toBe(true);
+      expect(multiply).toHaveBeenCalledOnce();
+      const actual = match();
+      expect(mask.match(candidate, actual, transform.clone(), identity)).toBe(
+        true
+      );
+      expect(actual).toEqual(expected);
+      expect(multiply).toHaveBeenCalledOnce();
+
+      transform.makeTranslation(30, 0, 0);
+      expect(mask.match(candidate, match(), transform, identity)).toBe(false);
+      expect(mask.match(candidate, match(), transform, identity)).toBe(false);
+      expect(multiply).toHaveBeenCalledTimes(2);
+      expect(mask.match(candidate, match(), undefined, identity)).toBe(true);
+    } finally {
+      multiply.mockRestore();
     }
   });
 

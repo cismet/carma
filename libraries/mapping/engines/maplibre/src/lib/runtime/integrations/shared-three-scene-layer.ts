@@ -1,19 +1,18 @@
-import {
-  EARTH_RADIUS,
-  getCameraLocalMercatorFit,
-  getPixelResolutionFromZoomAtLatitudeRad,
-} from "@carma-geo/proj";
-import { distanceMeters } from "@carma-geo/utils";
-import { degToRad } from "@carma-units";
-import type { CssPixels, Degrees, Meters } from "@carma-units";
+import { createSharedSceneLocalFrame } from "./shared-three-scene-local-frame";
+import { createSharedSceneZoomPrefetch } from "./shared-three-scene-zoom-prefetch";
 import { synthesizeLodCamera } from "@carma-mapping/engines/threejs";
+import { MAPLIBRE_EARTH_RADIUS } from "@carma-geo/proj";
+import { degToRadNumeric, PI_OVER_TWO } from "@carma-units";
+import {
+  snapshotTileCameraViews,
+  type TileCameraView,
+} from "../../core/tile-camera-demand";
 import { MercatorCoordinate } from "maplibre-gl";
 import type { Map as MaplibreMap, CustomRenderMethodInput } from "maplibre-gl";
 import * as THREE from "three";
 import type {
   SharedThreeSceneLayer,
   SharedThreeSceneLayerOptions,
-  SharedThreeSceneLocalFrame,
   SharedThreeSceneRuntime,
   SharedThreeSceneFrame,
 } from "../../core/shared-three-scene-types";
@@ -32,58 +31,11 @@ import { runMapLibreIdleRender } from "./maplibre-idle-render";
 import { setSharedThreeShadedPresentation } from "./shared-three-scene-content-registry";
 import { MAP_LOADING_PHASE } from "../../core/map-loading-progress";
 import { publishMapLoadingProgress } from "./map-loading-progress";
-
-const MAPLIBRE_TILE_SIZE = 512;
-/** Screen error the local frame may accumulate before it is refitted. */
-const LOCAL_FRAME_MAX_ERROR_PIXELS = 0.5 as CssPixels;
-/**
- * Content height the up-vector tilt is charged against. Tall buildings and
- * terrain relief in the served cities stay under it; a taller scene shows the
- * tilt a little earlier than the pixel budget promises.
- */
-const LOCAL_FRAME_NOMINAL_HEIGHT_METERS = 200 as Meters;
-
-/**
- * Screen-space error, in CSS pixels, that the current view would show if the
- * scene kept the frame fitted `distance` metres away from its centre.
- *
- * Decision: engines/maplibre/README.md#local-frame-for-ecef-tilesets-sun-and-sky.
- * The frame is a tangent-plane affine at its anchor, so three errors grow with
- * the distance d to it and all are exact at d = 0: the Mercator scale drifts by
- * tan(lat) * d / R and that drift acts across the whole visible half width; the
- * surface sags by d^2 / 2R, visible in proportion to the pitch; and the up
- * vector tilts by d / R, which moves content in proportion to its height. The
- * sum is compared with half a pixel at the current metres per pixel, so a
- * zoomed-in view refits after a few hundred metres and a city overview almost
- * never. Only scalars are touched per frame; vectors move on a refit.
- */
-const localFrameErrorPixels = (
-  distance: Meters,
-  latitude: Degrees,
-  zoom: number,
-  pitch: Degrees,
-  viewportWidth: CssPixels
-): CssPixels => {
-  const latitudeRad = degToRad(latitude);
-  const metersPerPixel = getPixelResolutionFromZoomAtLatitudeRad(
-    zoom,
-    latitudeRad,
-    { tileSize: MAPLIBRE_TILE_SIZE }
-  );
-  const halfViewMeters = (viewportWidth / 2) * metersPerPixel;
-  const scaleDrift = (Math.tan(latitudeRad) * distance) / EARTH_RADIUS;
-  const scaleErrorMeters = (distance + halfViewMeters) * scaleDrift;
-  const sagMeters =
-    ((distance * distance) / (2 * EARTH_RADIUS)) * Math.sin(degToRad(pitch));
-  const tiltMeters =
-    (LOCAL_FRAME_NOMINAL_HEIGHT_METERS * distance) / EARTH_RADIUS;
-  return ((scaleErrorMeters + sagMeters + tiltMeters) /
-    metersPerPixel) as CssPixels;
-};
+import { MAPLIBRE_EVENT } from "../../../constants/mapEvents";
 
 const rotationX = new THREE.Matrix4().makeRotationAxis(
   new THREE.Vector3(1, 0, 0),
-  Math.PI / 2
+  PI_OVER_TWO
 );
 
 /**
@@ -111,6 +63,7 @@ export const buildSharedThreeSceneLayer = (
   const lodCamera = new THREE.PerspectiveCamera();
   const accumulationRuntime = createSharedThreeSceneAccumulation(layerId);
   const viewport = new THREE.Vector2(1, 1);
+  const cssViewport = new THREE.Vector2(1, 1);
   const lookTarget = new THREE.Vector3();
   const runtimes = new Map<string, SharedThreeSceneRuntime>();
   const mapStyleProjection = createSharedThreeMapStyleProjection(
@@ -127,68 +80,20 @@ export const buildSharedThreeSceneLayer = (
   let renderedFrames = 0;
   let disposed = false;
   let originLngLat: readonly [number, number] | null = null;
-  let localFrame: SharedThreeSceneLocalFrame | null = null;
 
-  /**
-   * Fit the local frame at the current map centre. The frame is kept while
-   * the current view would show at most `LOCAL_FRAME_MAX_ERROR_PIXELS` from
-   * it, so the runtimes and lights mounted on it are not disturbed on every
-   * pan frame; `force` refits regardless, on attach.
-   */
-  const refitLocalFrame = (
-    force = false
-  ): SharedThreeSceneLocalFrame | null => {
-    if (!map || !originLngLat) return localFrame;
-    const center = map.getCenter();
-    const lngLat: readonly [number, number] = [center.lng, center.lat];
-    if (
-      !force &&
-      localFrame &&
-      localFrameErrorPixels(
-        distanceMeters(
-          {
-            longitude: localFrame.lngLat[0] as Degrees,
-            latitude: localFrame.lngLat[1] as Degrees,
-          },
-          { longitude: center.lng as Degrees, latitude: center.lat as Degrees }
-        ) as Meters,
-        center.lat as Degrees,
-        map.getZoom?.() ?? 16,
-        (map.getPitch?.() ?? 0) as Degrees,
-        (map.getCanvas?.()?.clientWidth || 1920) as CssPixels
-      ) <= LOCAL_FRAME_MAX_ERROR_PIXELS
-    ) {
-      return localFrame;
-    }
-    const sceneFromLocal = getCameraLocalMercatorFit(
-      [originLngLat[0], originLngLat[1]],
-      [lngLat[0], lngLat[1]],
-      { correctEllipsoidMetric: true }
-    );
-    const referenceLngLat = localFrame?.referenceLngLat ?? lngLat;
-    const sceneFromLocalReference =
-      localFrame?.sceneFromLocalReference ?? sceneFromLocal;
-    const referenceToCurrent = localFrame
-      ? sceneFromLocal
-          .clone()
-          .multiply(sceneFromLocalReference.clone().invert())
-      : new THREE.Matrix4();
-    localFrame = {
-      lngLat,
-      revision: (localFrame?.revision ?? 0) + 1,
-      sceneFromLocal,
-      sceneFromLocalRotation: new THREE.Matrix4().extractRotation(
-        sceneFromLocal
-      ),
-      referenceLngLat,
-      sceneFromLocalReference,
-      referenceToCurrent,
-      currentToReference: referenceToCurrent.clone().invert(),
-    };
-    localFrameGroup.matrix.copy(referenceToCurrent);
-    localFrameGroup.updateMatrixWorld(true);
-    return localFrame;
+  const localFrameState = createSharedSceneLocalFrame(localFrameGroup);
+
+  let renderingPaused = false;
+  const screenRenderPasses = new Set<() => void>();
+  const renderScreenPasses = () => {
+    if (!renderer || disposed || renderingPaused) return;
+    for (const render of screenRenderPasses) render();
   };
+  const tileCameraViews = new Map<string, TileCameraView>();
+  const zoomPrefetch = createSharedSceneZoomPrefetch(
+    layerId,
+    () => runtimeUpdateOrder
+  );
 
   const placeRuntime = (runtime: SharedThreeSceneRuntime) => {
     if (!originMerc || meterScale <= 0) return;
@@ -210,6 +115,49 @@ export const buildSharedThreeSceneLayer = (
     id: layerId,
     type: "custom",
     renderingMode: "3d",
+    setRenderingPaused(paused) {
+      renderingPaused = paused;
+      if (!paused) map?.triggerRepaint();
+    },
+    isRenderingPaused: () => renderingPaused,
+
+    setTileCameraView(view) {
+      if (disposed) return;
+      snapshotTileCameraViews([view]);
+      tileCameraViews.set(view.id, view);
+      map?.triggerRepaint();
+    },
+
+    removeTileCameraView(id) {
+      if (tileCameraViews.delete(id)) map?.triggerRepaint();
+    },
+
+    requestTileCameraAhead(viewAt, aheadMs, validForMs = 250) {
+      if (
+        !Number.isFinite(aheadMs) ||
+        aheadMs < 0 ||
+        aheadMs > 5000 ||
+        !Number.isFinite(validForMs) ||
+        validForMs <= 0 ||
+        validForMs > 2000
+      )
+        throw new Error(
+          "Prediction needs aheadMs in [0, 5000] and validity in (0, 2000] ms"
+        );
+      const [view] = snapshotTileCameraViews([viewAt(aheadMs)]);
+      if (!disposed) {
+        for (const runtime of runtimeUpdateOrder)
+          runtime.setPrefetchCameraView?.(view, view.id, validForMs);
+        map?.triggerRepaint();
+      }
+      return view.id;
+    },
+
+    removePrefetchCameraView(id) {
+      for (const runtime of runtimeUpdateOrder)
+        runtime.setPrefetchCameraView?.(null, id);
+      map?.triggerRepaint();
+    },
 
     addRuntime(runtime) {
       if (disposed) return;
@@ -253,7 +201,7 @@ export const buildSharedThreeSceneLayer = (
     },
 
     getLocalFrame() {
-      return localFrame;
+      return localFrameState.current;
     },
 
     getLocalFrameGroup() {
@@ -262,6 +210,17 @@ export const buildSharedThreeSceneLayer = (
 
     getRenderer() {
       return renderer;
+    },
+    addScreenRenderPass(render) {
+      screenRenderPasses.add(render);
+      map?.triggerRepaint();
+      return () => {
+        screenRenderPasses.delete(render);
+        map?.triggerRepaint();
+      };
+    },
+    requestScreenRender() {
+      map?.triggerRepaint();
     },
     runIdleRender(render) {
       return renderer !== null && runMapLibreIdleRender(map, render);
@@ -273,6 +232,9 @@ export const buildSharedThreeSceneLayer = (
 
     getMapStyleProjectionState() {
       return mapStyleProjection.getState(renderedFrames);
+    },
+    setMapStylePresentationEnabled(enabled) {
+      mapStyleProjection.setEnabled(enabled);
     },
     setMapStyleProjectionVisible(visible) {
       mapStyleProjection.setVisible(visible);
@@ -308,6 +270,7 @@ export const buildSharedThreeSceneLayer = (
     },
 
     detach() {
+      map?.off?.(MAPLIBRE_EVENT.RENDER, renderScreenPasses);
       if (map)
         publishMapLoadingProgress(map, MAP_LOADING_PHASE.SHADOW, layerId, 1);
       mapStyleProjection.dispose();
@@ -320,16 +283,18 @@ export const buildSharedThreeSceneLayer = (
       originMerc = null;
       meterScale = 0;
       originLngLat = null;
-      localFrame = null;
+      localFrameState.reset();
     },
 
     onAdd(mapInstance, gl) {
       map = mapInstance;
+      map.on?.(MAPLIBRE_EVENT.RENDER, renderScreenPasses);
+      zoomPrefetch.attach(map);
       const center = mapInstance.getCenter();
       originMerc = MercatorCoordinate.fromLngLat([center.lng, center.lat], 0);
       meterScale = originMerc.meterInMercatorCoordinateUnits();
       originLngLat = [center.lng, center.lat];
-      refitLocalFrame(true);
+      localFrameState.refit(map, originLngLat, true);
       renderer = new THREE.WebGLRenderer({
         canvas: mapInstance.getCanvas(),
         context: gl,
@@ -353,6 +318,7 @@ export const buildSharedThreeSceneLayer = (
     },
 
     render(gl, options: CustomRenderMethodInput) {
+      if (renderingPaused) return;
       if (!map || !renderer || !originMerc || meterScale <= 0) return;
       renderedFrames += 1;
 
@@ -363,16 +329,39 @@ export const buildSharedThreeSceneLayer = (
         .makeTranslation(originMerc.x, originMerc.y, originMerc.z)
         .scale(new THREE.Vector3(meterScale, -meterScale, meterScale))
         .multiply(rotationX);
+      if (options.defaultProjectionData.projectionTransition > 0) {
+        // Local tangent mount on MapLibre's sphere (not WGS84 ECEF).
+        // Keep the resident scene unchanged; only its scene-to-clip mapping changes.
+        const origin = originMerc.toLngLat();
+        const radius = MAPLIBRE_EARTH_RADIUS;
+        localFromScene
+          .makeRotationY(degToRadNumeric(origin.lng))
+          .multiply(
+            new THREE.Matrix4().makeRotationX(degToRadNumeric(-origin.lat))
+          )
+          .multiply(new THREE.Matrix4().makeTranslation(0, 0, 1))
+          .multiply(rotationX)
+          .scale(new THREE.Vector3(1 / radius, 1 / radius, 1 / radius));
+      }
       const sceneToClipMatrix = mainMatrix.multiply(localFromScene);
 
-      syncSharedCanvasViewport(renderer, map.getCanvas(), viewport);
+      syncSharedCanvasViewport(
+        renderer,
+        map.getCanvas(),
+        viewport,
+        cssViewport
+      );
       // Same pose the MapLibre 3D Tiles layer works out for itself, so it
       // lives in the engine rather than here, see synthesizeLodCamera.
       const centerLngLat = map.getCenter();
-      const mapLibreTerrainElevation = map.getTerrain()
-        ? map.queryTerrainElevation(centerLngLat) ??
-          map.getCameraTargetElevation()
-        : 0;
+      const centerElevation = map.getCenterElevation?.();
+      const mapLibreTerrainElevation =
+        typeof centerElevation === "number" && Number.isFinite(centerElevation)
+          ? centerElevation
+          : map.getTerrain()
+          ? map.queryTerrainElevation(centerLngLat) ??
+            map.getCameraTargetElevation()
+          : 0;
       if (
         !synthesizeLodCamera(
           lodCamera,
@@ -390,7 +379,7 @@ export const buildSharedThreeSceneLayer = (
       }
       configureSharedRenderCamera(renderCamera, lodCamera, sceneToClipMatrix);
 
-      const currentLocalFrame = refitLocalFrame();
+      const currentLocalFrame = localFrameState.refit(map, originLngLat);
       if (!currentLocalFrame) return;
       const frame: SharedThreeSceneFrame = {
         map,
@@ -398,12 +387,15 @@ export const buildSharedThreeSceneLayer = (
         lodCamera,
         lookTarget,
         viewport,
+        cssViewport,
         localFrame: currentLocalFrame,
+        tileCameraViews: snapshotTileCameraViews([...tileCameraViews.values()]),
       };
       scene.updateMatrixWorld(true);
       for (const runtime of runtimeUpdateOrder) {
         runtime.update(frame);
       }
+      zoomPrefetch.update(renderCamera, viewport);
       scene.updateMatrixWorld(true);
 
       const currentDepthRange = gl.getParameter(gl.DEPTH_RANGE) as Float32Array;
@@ -424,10 +416,12 @@ export const buildSharedThreeSceneLayer = (
         runtimeUpdateOrder.some(
           (runtime) =>
             runtime.providesTerrain === true ||
-            Boolean(runtime.receivesMapStyleTexture)
+            (runtime.providesTerrain !== false &&
+              Boolean(runtime.receivesMapStyleTexture))
         )
       ) {
-        // The visible ground now belongs to Three. Keep MapLibre's color only
+        // Explicit building-only receivers retain MapLibre's ground. Otherwise
+        // the visible ground belongs to Three. Keep MapLibre's color only
         // in the captured texture; discard its competing fill, DEM and skirts.
         clearMapStyleGroundBeforeThreeTerrain(gl, savedDepthRange);
       }
@@ -441,6 +435,8 @@ export const buildSharedThreeSceneLayer = (
     },
 
     onRemove() {
+      map?.off?.(MAPLIBRE_EVENT.RENDER, renderScreenPasses);
+      zoomPrefetch.detach();
       accumulationRuntime.dispose();
       if (map)
         publishMapLoadingProgress(
@@ -460,6 +456,9 @@ export const buildSharedThreeSceneLayer = (
     },
 
     dispose() {
+      map?.off?.(MAPLIBRE_EVENT.RENDER, renderScreenPasses);
+      screenRenderPasses.clear();
+      zoomPrefetch.detach();
       accumulationRuntime.dispose();
       if (disposed) return;
       if (map)
@@ -475,6 +474,7 @@ export const buildSharedThreeSceneLayer = (
       disposed = true;
       for (const runtime of runtimes.values()) runtime.dispose();
       runtimes.clear();
+      tileCameraViews.clear();
       scene.clear();
       depthRangeBridge?.dispose();
       depthRangeBridge = null;

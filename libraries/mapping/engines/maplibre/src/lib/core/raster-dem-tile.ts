@@ -1,4 +1,5 @@
 import { WEB_MERCATOR_MAX_LATITUDE_DEG } from "@carma-geo/proj";
+import type { GeographicBounds } from "@carma-geo/helpers";
 import { degToRadNumeric, radToDegNumeric } from "@carma-units";
 
 import {
@@ -12,12 +13,7 @@ export type TerrainTileId = Readonly<{
   y: number;
 }>;
 
-export type TerrainTileBounds = Readonly<{
-  west: number;
-  south: number;
-  east: number;
-  north: number;
-}>;
+export type TerrainTileBounds = GeographicBounds;
 
 export type TerrainTile = Readonly<{
   id: TerrainTileId;
@@ -34,6 +30,10 @@ export type TerrainTile = Readonly<{
   northIndices: Uint32Array;
   geometricErrorMeters: number;
   byteLength: number;
+  /** Size of the fetched payload, which the decoded arrays do not reflect. */
+  payloadByteLength?: number;
+  /** What decoding and meshing this tile cost, for the diagnostics. */
+  timings?: Readonly<{ decodeMs: number; meshMs: number }>;
   /** Certified against the native raster triangle surface, before projection. */
   reconstructionErrorMeters?: number;
   maximumMeshErrorMeters?: number;

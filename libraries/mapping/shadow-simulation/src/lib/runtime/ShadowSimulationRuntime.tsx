@@ -18,7 +18,6 @@ import type {
 } from "../contracts/shadow-simulation";
 import { getSolarPosition, type SolarLocation } from "../core/solar-position";
 import {
-  DEFAULT_MESH_ERROR_TARGET_PIXELS,
   DEFAULT_SHADOW_BUILDING_COLOR,
   DEFAULT_SHADOW_BUILDING_COLOR_MIX,
   DEFAULT_SHADOW_BUILDING_TEXTURE_SATURATION,
@@ -30,9 +29,11 @@ import {
   buildShadowSimulationScene,
   type ShadowSimulationScene,
 } from "./shadow-scene";
+import { useShadowTimeInteractionState } from "./hooks/use-shadow-time-interaction";
 import { useShadowAnimation } from "./hooks/use-shadow-animation";
 
 export const ShadowSimulationRuntime = ({
+  tiledShadows = false,
   libreMap,
   shadowAreaMeters,
   terrain,
@@ -44,6 +45,8 @@ export const ShadowSimulationRuntime = ({
   setDateState,
 }: {
   libreMap: MaplibreMap | null;
+  /** Without it the buffer layout stays the single buffer. */
+  tiledShadows?: boolean;
   shadowAreaMeters?: number;
   terrain?: ShadowTerrainOptions;
   mapLibreTerrain?: RasterDemTerrainResource;
@@ -54,6 +57,7 @@ export const ShadowSimulationRuntime = ({
   setDateState: ShadowDateStateSetter;
 }) => {
   const shadowScene = useRef<ShadowSimulationScene | null>(null);
+  const timeInteracting = useShadowTimeInteractionState(libreMap);
   // Animation ticks bypass React: the sun is pushed into the scene here and the
   // shared date follows at a throttled rate for the label and the URL hash.
   const animatedDate = useShadowAnimation({
@@ -63,7 +67,9 @@ export const ShadowSimulationRuntime = ({
     shadowState: state,
     onFrame: (next) => {
       if (!state.enabled) return;
-      shadowScene.current?.updateSolarPosition(getSolarPosition(next, location));
+      shadowScene.current?.updateSolarPosition(
+        getSolarPosition(next, location)
+      );
     },
   });
   const effectiveTerrain = useMemo(
@@ -157,7 +163,7 @@ export const ShadowSimulationRuntime = ({
     if (!state.enabled) return;
     shadowScene.current?.updateRenderQuality({
       shadowAdaptiveQuality: state.shadowAdaptiveQuality,
-      shadowBufferLayout: state.shadowBufferLayout,
+      shadowBufferLayout: tiledShadows ? state.shadowBufferLayout : undefined,
       shadowBufferFormat: state.shadowBufferFormat,
       shadowSunDiscSamples: state.shadowSunDiscSamples,
       shadowMsaaSamples: state.shadowMsaaSamples,
@@ -165,6 +171,7 @@ export const ShadowSimulationRuntime = ({
     });
   }, [
     state.enabled,
+    tiledShadows,
     state.shadowAdaptiveQuality,
     state.shadowBufferLayout,
     state.shadowBufferFormat,
@@ -176,9 +183,7 @@ export const ShadowSimulationRuntime = ({
 
   useEffect(() => {
     if (!state.enabled) return;
-    shadowScene.current?.updateMeshErrorTarget(
-      state.meshErrorTarget ?? DEFAULT_MESH_ERROR_TARGET_PIXELS
-    );
+    shadowScene.current?.updateMeshErrorTarget(state.meshErrorTarget ?? null);
   }, [state.enabled, state.meshErrorTarget, sceneRevision]);
 
   useEffect(() => {
@@ -193,8 +198,12 @@ export const ShadowSimulationRuntime = ({
 
   useEffect(() => {
     if (!state.enabled) return;
-    shadowScene.current?.updateTimeAnimating(state.isAnimating ?? false);
-  }, [state.enabled, state.isAnimating, sceneRevision]);
+    // Dragging previews the live sun directly, just like playback. Finite-disc
+    // refinement and label-style maintenance resume after the gesture ends.
+    shadowScene.current?.updateTimeAnimating(
+      (state.isAnimating ?? false) || timeInteracting
+    );
+  }, [state.enabled, state.isAnimating, timeInteracting, sceneRevision]);
 
   useEffect(() => {
     if (!state.enabled) return;

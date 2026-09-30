@@ -12,7 +12,8 @@ import type { LibreLayer } from "@carma-mapping/core";
 import { geoportalBackgroundToLibreLayers } from "../../components/GeoportalMap/geoportalBackgroundToLibreLayers";
 import {
   geoportalLayersToLibreLayers,
-  layerProvidesTerrainMesh,
+  isAppOwnedLayer,
+  layerIsStandaloneMesh,
 } from "../../components/GeoportalMap/geoportalLayersToLibreLayers";
 import { backgroundConfig } from "../../config/backgroundConfig";
 import { getBackgroundLayer, getLayers } from "../../store/slices/mapping";
@@ -37,15 +38,30 @@ export const useLibreLayers = (): LibreLayer[] => {
   }, [geoportalLayers, pathname, search]);
 
   const computedLibreLayers = useMemo(() => {
-    const terrainMeshActive = drawnLayers.some(layerProvidesTerrainMesh);
+    // the mesh decisions look at what is drawn, so a layer its condition keeps
+    // off the map neither holds the base map nor takes it away
+    const userLayers = drawnLayers.filter(
+      (layer) => layer.visible && !isAppOwnedLayer(layer)
+    );
+    const standaloneMeshOnly =
+      userLayers.length > 0 && userLayers.every(layerIsStandaloneMesh);
     return [
       ...geoportalBackgroundToLibreLayers(backgroundLayer, namedLayers, {
-        terrainMeshActive,
         shadowTerrainActive: shadowState?.enabled === true,
+        vectorBaseOverride:
+          shadowState?.enabled === true &&
+          shadowState?.overrideBaseMapWithVectorStyle === true,
+        standaloneMeshOnly,
       }),
       ...geoportalLayersToLibreLayers(drawnLayers),
     ];
-  }, [backgroundLayer, namedLayers, drawnLayers, shadowState?.enabled]);
+  }, [
+    backgroundLayer,
+    namedLayers,
+    drawnLayers,
+    shadowState?.enabled,
+    shadowState?.overrideBaseMapWithVectorStyle,
+  ]);
 
   const libreLayersRef = useRef(computedLibreLayers);
   return useMemo(() => {

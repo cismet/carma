@@ -32,7 +32,7 @@ type NativeRenderer = RuntimeTilesRenderer & {
 };
 
 /** Retains native geometry/RTC/metadata; only opaque material creation is deferred.
- * Decision: TILE-OFFSCREEN-TEXTURES-20260909 in engines/maplibre/README.md.
+ * Decision: TILES_COVERAGE.md#visible-receiver-corridors.
  */
 export class TilesetDeferredMaterialsPlugin {
   readonly name = "CARMA_DEFERRED_TILE_MATERIALS";
@@ -165,12 +165,14 @@ export class TilesetDeferredMaterialsPlugin {
           // original placeholders. Invalidate its memoized byte estimate as well.
           engine.materials = [...materials];
           engine.textures = [...textures];
-          this.options.onPromoted(tile, entry.scene!);
+          // Restyling may retain textures only in material backups, outside the
+          // native estimator's scene traversal. Measure the originals first.
           this.tiles._bytesUsed.delete(tile);
           this.tiles.lruCache.setMemoryUsage(
             tile,
             this.tiles.calculateBytesUsed(tile, entry.scene!) ?? 0
           );
+          this.options.onPromoted(tile, entry.scene!);
           this.entries.delete(tile);
         })
         .catch((error) => {

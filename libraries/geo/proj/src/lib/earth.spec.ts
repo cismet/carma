@@ -1,11 +1,26 @@
+import { MercatorCoordinate } from "maplibre-gl";
 import { describe, expect, test } from "vitest";
 
-import { EARTH_CIRCUMFERENCE, EARTH_RADIUS } from "./earth";
+import {
+  EARTH_CIRCUMFERENCE,
+  EARTH_RADIUS,
+  MAPLIBRE_EARTH_RADIUS,
+} from "./earth";
 import { GRS80_ELLIPSOID, WGS84_ELLIPSOID } from "./ellipsoids";
 
 describe("earth constants derive from the WGS84 ellipsoid", () => {
   test("mean radius R1 matches the published IUGG value", () => {
     expect(EARTH_RADIUS).toBeCloseTo(6371008.7714, 4);
+  });
+
+  test("MapLibre's sphere radius matches its MercatorCoordinate metre unit", () => {
+    const equatorMetreUnits = MercatorCoordinate.fromLngLat([
+      0, 0,
+    ]).meterInMercatorCoordinateUnits();
+    expect(1 / (2 * Math.PI * equatorMetreUnits)).toBeCloseTo(
+      MAPLIBRE_EARTH_RADIUS,
+      6
+    );
   });
 
   test("equatorial circumference matches the published value", () => {

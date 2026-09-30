@@ -12,9 +12,9 @@ import {
 } from "../core/shadow-page-plan";
 import {
   ShadowController,
-  SUN_ANGULAR_RADIUS_RAD,
   type ShadowUpdate,
 } from "./shadow-controller";
+import { SUN_ANGULAR_RADIUS_RAD } from "../core/sun-disc-sampling";
 import {
   ShadowDepthPageCache,
   disposeShadowDepthPage,

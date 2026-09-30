@@ -45,7 +45,7 @@ describe("mesh shadow roles", () => {
     expect(traverse).toHaveBeenCalledOnce();
   });
 
-  it("shows a receiver child without mixing it into its parent's depth cut", () => {
+  it("keeps receiver and caster material roles independent", () => {
     const child = new Mesh();
     setTileShadowRole(child, { receiver: true, caster: false });
     expect(child.receiveShadow).toBe(true);

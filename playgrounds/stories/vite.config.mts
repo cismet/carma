@@ -4,10 +4,11 @@ import { nxViteTsPaths } from "@nx/vite/plugins/nx-tsconfig-paths.plugin";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 import { viteStaticCopy } from "vite-plugin-static-copy";
+import { localInvestigationData } from "../pointcloud-stories/vite.config.mts";
 const CESIUM_PATHNAME = "__cesium__";
 const THREE_DRACO_PATHNAME = "__three_draco__";
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   root: __dirname,
   cacheDir: "../../node_modules/.vite/playgrounds/stories",
   base: process.env.BASE_URL || "/",
@@ -34,6 +35,7 @@ export default defineConfig({
     react(),
     nxViteTsPaths(),
     nxCopyAssetsPlugin(["*.md"]),
+    localInvestigationData(mode),
     // Copy Cesium assets to dist
     viteStaticCopy({
       targets: [
@@ -50,6 +52,7 @@ export default defineConfig({
     }),
   ],
   worker: {
+    format: "es",
     plugins: () => [nxViteTsPaths()],
   },
   build: {
@@ -60,4 +63,4 @@ export default defineConfig({
   optimizeDeps: {
     include: ["cesium"],
   },
-});
+}));

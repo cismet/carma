@@ -8,6 +8,9 @@ import {
 
 const SHADOW_TERRAIN_RUNTIME_OPTIONS = {
   errorTargetPixels: 0.5,
+  // While the view keeps changing, select at a target the next camera change
+  // does not immediately discard; the fine target above runs once it settles.
+  motionErrorTargetPixels: 4,
   shadowLevelOffset: 3,
   minimumLevel: 8,
   meshSegments: 512,

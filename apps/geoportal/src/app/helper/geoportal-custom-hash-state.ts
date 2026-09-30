@@ -32,14 +32,27 @@ export type GeoportalCustomHashState = {
 export type GeoportalShadowSimulationHashSelection = {
   minutes: number;
   dayOfYear: number;
+  /** Reopen the tile diagnostics overlay with the shared link. */
+  tileDiagnostics: boolean;
 };
 
 type GeoportalShadowSimulationHashSource = {
   enabled: boolean;
-  dateState: GeoportalShadowSimulationHashSelection;
+  dateState: Pick<
+    GeoportalShadowSimulationHashSelection,
+    "minutes" | "dayOfYear"
+  >;
+  tileDiagnostics?: boolean;
 };
 
-const SHADOW_SIMULATION_HASH_VALUE_PATTERN = /^(\d{1,4});(\d{1,3})$/;
+const SHADOW_SIMULATION_HASH_SUFFIX = {
+  TILE_DIAGNOSTICS: ";k",
+} as const;
+
+/** `minutes;dayOfYear` with an optional `;k` for the tile diagnostics. */
+const SHADOW_SIMULATION_HASH_VALUE_PATTERN = new RegExp(
+  `^(\\d{1,4});(\\d{1,3})(${SHADOW_SIMULATION_HASH_SUFFIX.TILE_DIAGNOSTICS})?$`
+);
 
 export const resolveGeoportalShadowSimulationHashSelection = (
   value: unknown
@@ -59,7 +72,7 @@ export const resolveGeoportalShadowSimulationHashSelection = (
     return null;
   }
 
-  return { minutes, dayOfYear };
+  return { minutes, dayOfYear, tileDiagnostics: match[3] !== undefined };
 };
 
 const resolveGeoportalMeasurementModeRequested = (
@@ -113,7 +126,9 @@ export const buildGeoportalShadowSimulationHashUpdate = (
 
   const { minutes, dayOfYear } = state.dateState;
   // Animation keeps sub-minute precision; the URL represents whole minutes.
-  const serialized = `${Math.floor(minutes)};${dayOfYear}`;
+  const serialized = `${Math.floor(minutes)};${dayOfYear}${
+    state.tileDiagnostics ? SHADOW_SIMULATION_HASH_SUFFIX.TILE_DIAGNOSTICS : ""
+  }`;
 
   return {
     [URL_PARAM_KEYS.shadowSimulation]:

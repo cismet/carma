@@ -504,7 +504,8 @@ const CursorRateDiagnosticsSandbox = ({
 };
 
 const meta: Meta<CursorRateDiagnosticsStoryProps> = {
-  title: "Annotations/Cursor Diagnostics",
+  title: "Annotations/Cursors",
+  id: "annotations-cursor-diagnostics",
   component: CursorRateDiagnosticsSandbox,
   parameters: {
     layout: "fullscreen",

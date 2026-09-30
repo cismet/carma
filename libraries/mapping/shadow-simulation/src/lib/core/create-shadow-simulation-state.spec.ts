@@ -17,15 +17,22 @@ describe("initial shadow states", () => {
       shadowSunDiscSamples: 32 as const,
       shadowGroundTexelFit: false,
       terrainSourceId: "dem",
+      meshCacheBudgetBytes: 8 * 1024 ** 3,
     };
     const next = selectShadowQualityPreset(previous, 256);
     expect(next).toMatchObject({
       shadowBufferLayout: SHADOW_BUFFER_LAYOUT.TILED,
       shadowQuality: 256,
-      meshErrorTarget: 0.25,
       terrainSourceId: "dem",
+      meshCacheBudgetBytes: 8 * 1024 ** 3,
       showMapStyleContent: true,
     });
+    // The tileset LOD is independent of the shadow resolution preset.
+    expect(next.meshErrorTarget).toBeUndefined();
+    expect(
+      selectShadowQualityPreset({ ...previous, meshErrorTarget: 1 }, 256)
+        .meshErrorTarget
+    ).toBe(1);
     expect(next.shadowMsaaSamples).toBeUndefined();
     expect(next.shadowSunDiscSamples).toBeUndefined();
     expect(next.shadowGroundTexelFit).toBeUndefined();
@@ -42,8 +49,9 @@ describe("initial shadow states", () => {
     expect(state.enabled).toBe(false);
     expect(state.buildingColorMix).toBe(0);
     expect(state.meshTextureColorCorrection).toBe(true);
-    expect(state.meshCacheBudgetBytes).toBe(24 * 1024 ** 3);
-    expect(state.meshErrorTarget).toBe(2);
+    expect(state.meshCacheBudgetBytes).toBeUndefined();
+    // Auto: the mesh tileset keeps its own target until overridden.
+    expect(state.meshErrorTarget).toBeUndefined();
     expect(state.showDisplaySettings).toBe(false);
     expect(dateState.year).toBe(2026);
     expect(dateState.dayOfYear).toBe(172);

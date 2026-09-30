@@ -127,6 +127,7 @@ describe("corridor binary storage boundary", () => {
     });
     expect(mocks.manager).toHaveBeenCalledWith({
       capacityBytes: 256 * 1024 ** 2,
+      adaptiveCapacity: true,
       producerEpoch: JSON.stringify([producerAssetUrl, scope.location.href]),
     });
     expect(mocks.register).toHaveBeenCalledWith(

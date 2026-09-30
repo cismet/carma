@@ -23,6 +23,32 @@ describe("createThreeTilesRetryController", () => {
     vi.useRealTimers();
   });
 
+  it("skips URL resolution when no retry can block a tile", () => {
+    vi.useFakeTimers();
+    const tile = failedTile();
+    const renderer = buildRenderer();
+    const retries = createThreeTilesRetryController(() => renderer, vi.fn());
+    const url = new URL("https://example.com/tiles/tile.b3dm");
+    const stringify = vi.spyOn(url, "toString");
+    expect(retries.isBlocked(tile, url)).toBe(false);
+    expect(retries.isExhausted(tile, url)).toBe(false);
+    expect(stringify).not.toHaveBeenCalled();
+
+    retries.handleFailure(tile, url, { status: 404 });
+    stringify.mockClear();
+    expect(retries.isBlocked(tile, url)).toBe(true);
+    expect(retries.isExhausted(tile, url)).toBe(true);
+    expect(stringify).toHaveBeenCalledTimes(2);
+
+    retries.handleSuccess(tile, url);
+    stringify.mockClear();
+    expect(retries.isBlocked(tile, url)).toBe(false);
+    expect(retries.isExhausted(tile, url)).toBe(false);
+    expect(stringify).not.toHaveBeenCalled();
+    stringify.mockRestore();
+    retries.dispose();
+  });
+
   it("blocks a failed tile until its backoff fired, then asks for a traversal", () => {
     vi.useFakeTimers();
     const tile = failedTile();
@@ -96,14 +122,14 @@ describe("createThreeTilesRetryController", () => {
     expect(retries.handleFailure(tile, url, new Error("status 503"))).toBe(
       "exhausted"
     );
-    expect(vi.getTimerCount()).toBe(0);
+    expect(vi.getTimerCount()).toBe(1);
     expect(tile.internal.loadingState).toBe(-1);
     expect(retries.hasExhaustedRetries()).toBe(true);
     expect(retries.isExhausted(tile, url)).toBe(true);
     expect(retries.isBlocked(tile, url)).toBe(true);
   });
 
-  it("exhausts permanent failures at once without a retry", () => {
+  it("holds permanent failures until the existing exhaustion deadline", () => {
     vi.useFakeTimers();
     const renderer = buildRenderer();
     const retries = createThreeTilesRetryController(() => renderer, vi.fn());
@@ -113,7 +139,7 @@ describe("createThreeTilesRetryController", () => {
     expect(retries.handleFailure(tile, url, new Error("status 404"))).toBe(
       "exhausted"
     );
-    expect(vi.getTimerCount()).toBe(0);
+    expect(vi.getTimerCount()).toBe(1);
     expect(retries.hasPendingRetries()).toBe(false);
     expect(retries.isExhausted(tile, url)).toBe(true);
     expect(retries.handleFailure(tile, url, new Error("status 404"))).toBe(
@@ -126,29 +152,121 @@ describe("createThreeTilesRetryController", () => {
         { status: 403 }
       )
     ).toBe("exhausted");
+    expect(vi.getTimerCount()).toBe(1);
   });
 
   it("lets an exhausted resource be tried once more after the expiry", () => {
     vi.useFakeTimers();
     vi.setSystemTime(10_000);
     const renderer = buildRenderer();
-    const retries = createThreeTilesRetryController(() => renderer, vi.fn());
+    const requestRender = vi.fn();
+    const retries = createThreeTilesRetryController(
+      () => renderer,
+      requestRender
+    );
     const url = "https://example.com/tiles/missing.b3dm";
     const tile = failedTile("missing.b3dm");
 
     retries.handleFailure(tile, url, new Error("status 404"));
     vi.advanceTimersByTime(EXHAUSTED_RETRY_TTL_MS - 1);
     expect(retries.isBlocked(tile, url)).toBe(true);
+    expect(requestRender).not.toHaveBeenCalled();
     vi.advanceTimersByTime(1);
+    // Recovery must happen while the scene is asleep, before a query or frame.
+    expect(tile.internal.loadingState).toBe(0);
+    expect(renderer.stats.failed).toBe(0);
+    expect(renderer.dispatchEvent).toHaveBeenCalledOnce();
+    expect(renderer.dispatchEvent).toHaveBeenCalledWith({
+      type: "needs-update",
+    });
+    expect(requestRender).toHaveBeenCalledOnce();
     expect(retries.isBlocked(tile, url)).toBe(false);
     expect(retries.isExhausted(tile, url)).toBe(false);
     expect(retries.hasExhaustedRetries()).toBe(false);
+    expect(vi.getTimerCount()).toBe(0);
+    expect(requestRender).toHaveBeenCalledOnce();
 
     // The next failure exhausts it again for another period.
     expect(retries.handleFailure(tile, url, new Error("status 404"))).toBe(
       "exhausted"
     );
     expect(retries.isBlocked(tile, url)).toBe(true);
+  });
+
+  it("releases an exhausted root without an external frame", () => {
+    vi.useFakeTimers();
+    const renderer = { ...buildRenderer(), rootLoadingState: -1 };
+    const requestRender = vi.fn();
+    const retries = createThreeTilesRetryController(
+      () => renderer,
+      requestRender
+    );
+    const url = "https://example.com/tileset.json";
+
+    retries.handleFailure(null, url, { status: 404 });
+    vi.advanceTimersByTime(EXHAUSTED_RETRY_TTL_MS);
+
+    expect(renderer.rootLoadingState).toBe(0);
+    expect(renderer.stats.failed).toBe(0);
+    expect(renderer.dispatchEvent).toHaveBeenCalledOnce();
+    expect(renderer.dispatchEvent).toHaveBeenCalledWith({
+      type: "needs-update",
+    });
+    expect(requestRender).toHaveBeenCalledOnce();
+    expect(retries.isBlocked(null, url)).toBe(false);
+  });
+
+  it("recovers all failed objects for a URL without extending its deadline", () => {
+    vi.useFakeTimers();
+    const renderer = buildRenderer();
+    renderer.stats.failed = 2;
+    const requestRender = vi.fn();
+    const retries = createThreeTilesRetryController(
+      () => renderer,
+      requestRender
+    );
+    const first = failedTile();
+    const replacement = failedTile();
+
+    retries.handleFailure(first, null, { status: 404 });
+    vi.advanceTimersByTime(EXHAUSTED_RETRY_TTL_MS / 2);
+    retries.handleFailure(replacement, null, { status: 404 });
+    expect(vi.getTimerCount()).toBe(1);
+    vi.advanceTimersByTime(EXHAUSTED_RETRY_TTL_MS / 2);
+
+    expect(first.internal.loadingState).toBe(0);
+    expect(replacement.internal.loadingState).toBe(0);
+    expect(renderer.stats.failed).toBe(0);
+    expect(requestRender).toHaveBeenCalledOnce();
+  });
+
+  it("shares one timer across exhaustion deadlines and cancels succeeded resources", () => {
+    vi.useFakeTimers();
+    const renderer = buildRenderer();
+    const requestRender = vi.fn();
+    const retries = createThreeTilesRetryController(
+      () => renderer,
+      requestRender
+    );
+    const first = failedTile("first.b3dm");
+    const second = failedTile("second.b3dm");
+    const third = failedTile("third.b3dm");
+
+    retries.handleFailure(first, null, { status: 404 });
+    vi.advanceTimersByTime(1_000);
+    retries.handleFailure(second, null, { status: 404 });
+    retries.handleFailure(third, null, { status: 404 });
+    expect(vi.getTimerCount()).toBe(1);
+    retries.handleSuccess(first);
+    vi.advanceTimersByTime(EXHAUSTED_RETRY_TTL_MS - 1_000);
+    expect(requestRender).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(1_000);
+
+    expect(first.internal.loadingState).toBe(-1);
+    expect(second.internal.loadingState).toBe(0);
+    expect(third.internal.loadingState).toBe(0);
+    expect(requestRender).toHaveBeenCalledOnce();
+    expect(vi.getTimerCount()).toBe(0);
   });
 
   it("resets consecutive-failure budgets after a successful reload", () => {
@@ -186,7 +304,7 @@ describe("createThreeTilesRetryController", () => {
 
     const replacement = failedTile("another-object.b3dm");
     retries.handleFailure(replacement, url);
-    expect(vi.getTimerCount()).toBe(0);
+    expect(vi.getTimerCount()).toBe(1);
     expect(replacement.internal.loadingState).toBe(-1);
   });
 
@@ -200,10 +318,14 @@ describe("createThreeTilesRetryController", () => {
       retries.handleFailure(tile, url, new Error("status 503"));
       vi.runOnlyPendingTimers();
     }
-    expect(retries.handleFailure(tile, url, new Error("status 503"))).toBe("exhausted");
+    expect(retries.handleFailure(tile, url, new Error("status 503"))).toBe(
+      "exhausted"
+    );
     vi.advanceTimersByTime(EXHAUSTED_RETRY_TTL_MS);
     expect(retries.isBlocked(tile, url)).toBe(false);
-    expect(retries.handleFailure(tile, url, new Error("status 503"))).toBe("scheduled");
+    expect(retries.handleFailure(tile, url, new Error("status 503"))).toBe(
+      "scheduled"
+    );
   });
 
   it("cancels a pending retry after a successful load", () => {
@@ -221,6 +343,50 @@ describe("createThreeTilesRetryController", () => {
 
     expect(tile.internal.loadingState).toBe(-1);
     expect(renderer.dispatchEvent).not.toHaveBeenCalled();
+  });
+
+  it.each(["reset", "dispose"] as const)(
+    "cancels exhaustion recovery on %s",
+    (action) => {
+      vi.useFakeTimers();
+      const renderer = { ...buildRenderer(), rootLoadingState: -1 };
+      const requestRender = vi.fn();
+      const retries = createThreeTilesRetryController(
+        () => renderer,
+        requestRender
+      );
+      retries.handleFailure(null, "https://example.com/tileset.json", {
+        status: 404,
+      });
+
+      retries[action]();
+      expect(vi.getTimerCount()).toBe(0);
+      vi.advanceTimersByTime(EXHAUSTED_RETRY_TTL_MS);
+
+      expect(renderer.rootLoadingState).toBe(-1);
+      expect(renderer.dispatchEvent).not.toHaveBeenCalled();
+      expect(requestRender).not.toHaveBeenCalled();
+    }
+  );
+
+  it("cancels exhaustion recovery after a successful root load", () => {
+    vi.useFakeTimers();
+    const renderer = { ...buildRenderer(), rootLoadingState: -1 };
+    const requestRender = vi.fn();
+    const retries = createThreeTilesRetryController(
+      () => renderer,
+      requestRender
+    );
+    const url = "https://example.com/tileset.json";
+    retries.handleFailure(null, url, { status: 404 });
+    renderer.rootLoadingState = 4;
+    retries.handleSuccess(null, url);
+    expect(vi.getTimerCount()).toBe(0);
+    vi.advanceTimersByTime(EXHAUSTED_RETRY_TTL_MS);
+
+    expect(renderer.rootLoadingState).toBe(4);
+    expect(renderer.dispatchEvent).not.toHaveBeenCalled();
+    expect(requestRender).not.toHaveBeenCalled();
   });
 
   it("forgets pending and exhausted resources on reset", () => {

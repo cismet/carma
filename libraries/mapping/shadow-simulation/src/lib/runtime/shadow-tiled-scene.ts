@@ -140,7 +140,7 @@ export class ShadowTiledScene {
    * rendering keeps using the frame's world cameras. */
   update(
     cells: readonly ShadowReceiverCell[],
-    frame: SharedThreeSceneFrame,
+    frame: Pick<SharedThreeSceneFrame, "renderCamera" | "viewport">,
     lighting: TiledShadowLighting,
     targetPixels: number,
     planningCamera: THREE.Camera = frame.renderCamera
@@ -176,7 +176,7 @@ export class ShadowTiledScene {
   /** Keep completed corridor textures attached to their receiver tiles while
    * the observer camera moves; capture dimensions are reconsidered on moveend. */
   updatePresentation(
-    frame: SharedThreeSceneFrame,
+    frame: Pick<SharedThreeSceneFrame, "renderCamera" | "viewport">,
     planningCamera: THREE.Camera = frame.renderCamera
   ) {
     this.viewport.copy(frame.viewport);
@@ -633,6 +633,11 @@ export class ShadowTiledScene {
     } finally {
       for (const child of hidden) child.visible = true;
     }
+  }
+
+  /** Actual page resolutions, including standalone production-stack fixtures. */
+  get pageLevels() {
+    return this.pages.pageLevels;
   }
 
   get stats(): TiledShadowStats & {

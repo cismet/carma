@@ -48,6 +48,8 @@ export default defineConfig({
 
   // Uncomment this if you are using workers.
   worker: {
+    // Worker chunks code-split through the MapLibre engine; iife workers cannot.
+    format: "es" as const,
     plugins: () => [nxViteTsPaths(), comlink()],
   },
 

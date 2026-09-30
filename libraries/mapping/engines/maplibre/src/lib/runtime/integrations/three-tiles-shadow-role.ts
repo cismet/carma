@@ -44,10 +44,7 @@ export const setTileShadowRole = (
   role: TileShadowRole
 ): void => {
   const previous = roles.get(root);
-  if (
-    previous?.receiver === role.receiver &&
-    previous.caster === role.caster
-  )
+  if (previous?.receiver === role.receiver && previous.caster === role.caster)
     return;
   roles.set(root, role);
   root.traverse((object) => {
@@ -56,8 +53,7 @@ export const setTileShadowRole = (
     roles.set(mesh, role);
     mesh.receiveShadow = role.receiver;
     mesh.castShadow = role.caster;
-    // Existing shared shadow-scene contract: later material setup must not
-    // reactivate partial child casters while their parent still owns depth.
+    // Later material setup must preserve the committed caster role.
     mesh.userData.disableShadowCasting = !role.caster;
     for (const material of Array.isArray(mesh.material)
       ? mesh.material

@@ -23,8 +23,14 @@ import {
   shouldTintTerrainLabelHalo,
 } from "../../core/terrain-map-style";
 import { MAPLIBRE_EVENT } from "../../../constants/mapEvents";
+import { MAPLIBRE_TILE_SIZE } from "../../../constants/mercator";
 import { buildSharedThreeSceneLayer } from "./shared-three-scene-layer";
-import type { SharedThreeSceneLayer } from "../../core/shared-three-scene-types";
+import { subscribeSharedThreeSceneContent } from "./shared-three-scene-content-registry";
+import {
+  MAP_STYLE_PROJECTION_BLEND,
+  type SharedThreeSceneLayer,
+} from "../../core/shared-three-scene-types";
+import { TILE_VOLUME_LOAD_REASON } from "../../core/tile-volume";
 import {
   getMapStylePointLabelLiftMeters,
   isMapStyleContourLineLayer,
@@ -34,8 +40,7 @@ import {
 } from "./map-style-layer-suppression";
 
 const SHARED_SCENE_LAYER_ID = "carma-shared-three-scene";
-const SHARED_SCENE_ENTRY_VERSION = 17;
-const MAPLIBRE_TILE_SIZE = 512;
+const SHARED_SCENE_ENTRY_VERSION = 19;
 /** Keep a lifted place name inside the view at high zoom. */
 const MAX_LABEL_LIFT_VIEWPORT_FRACTION = 0.35;
 const TERRAIN_COVERAGE_MARGIN_METERS = 0.5;
@@ -59,6 +64,10 @@ type SharedSceneEntry = {
   layer: SharedThreeSceneLayer;
   references: number;
   disposed: boolean;
+  /** Prevent a synchronous style event from re-entering `map.addLayer`. */
+  mountingLayer: boolean;
+  /** Stops following runtime registrations, see `subscribeRuntimeChanges`. */
+  unsubscribeContent: (() => void) | null;
   /** All style layers, reused until the layer list changes. */
   styleLayersCache: PointLabelLayersCache | null;
   labelMaintenanceTimer: ReturnType<typeof setTimeout> | null;
@@ -73,6 +82,7 @@ type SharedSceneEntry = {
   pointLabelOverlayVisibilityRequests: Map<symbol, boolean>;
   /** Street names and house numbers in sun color on a textured mesh. */
   meshLabelStyleRequests: Map<symbol, boolean>;
+  mapStylePresentationRequests: Set<symbol>;
   elevationVisibilityRequests: Map<symbol, readonly [boolean, boolean]>;
   savedMeshLabelPaint: Map<string, SavedMeshLabelPaint>;
   /** Fills, strokes and rasters hidden below Three while a mesh is draped. */
@@ -441,7 +451,7 @@ const getTerrainCoverageFilter = (
       // Caster-only tiles follow the sun, not the view. Including them made
       // every sun step rewrite the coverage filter of each label layer, and
       // MapLibre reloads the whole vector source for a filter change.
-      if (volume.loadReason === "shadow") continue;
+      if (volume.loadReason === TILE_VOLUME_LOAD_REASON.SHADOW) continue;
       const [minimumX, , minimumZ] = volume.minimum;
       const [maximumX, , maximumZ] = volume.maximum;
       if (
@@ -801,7 +811,10 @@ const hasMeshDrapeProvider = (entry: SharedSceneEntry): boolean => {
   );
   return (
     providers.length > 0 &&
-    providers.every((runtime) => runtime.mapStyleProjectionBlend === "overlay")
+    providers.every(
+      (runtime) =>
+        runtime.mapStyleProjectionBlend === MAP_STYLE_PROJECTION_BLEND.OVERLAY
+    )
   );
 };
 
@@ -1339,6 +1352,41 @@ const ensureSharedCaptureOrder = (
   for (const id of locationLabelIds) map.moveLayer(id);
 };
 
+const restoreMapStylePresentation = (
+  map: MaplibreMap,
+  entry: SharedSceneEntry
+): void => {
+  restoreMeshIconTint(map, entry);
+  restoreTerrainFrame(entry);
+  restoreMeshDrape(map, entry);
+  restoreMeshLabelPaint(map, entry.savedMeshLabelPaint);
+  restoreLabelLifts(map, entry.savedLabelLifts);
+  restoreLocationLabelOffsets(map, entry.savedLocationLabelOffsets);
+  restoreLocationLabelPaint(
+    map,
+    "text-halo-width",
+    entry.savedLocationLabelHaloWidths
+  );
+  restoreLocationLabelPaint(
+    map,
+    "text-halo-color",
+    entry.savedLocationLabelHaloColors
+  );
+  restoreLocationLabelPaint(
+    map,
+    "text-color",
+    entry.savedLocationLabelTextColors
+  );
+  restoreLocationLabelFilters(map, entry.savedLocationLabelFilters);
+  setManagedStyleLayersHidden(
+    map,
+    [],
+    entry.savedPointLabelVisibilities,
+    false
+  );
+  entry.liftLayers = [];
+};
+
 const ensureSharedLayerOrder = (
   map: MaplibreMap,
   entry: SharedSceneEntry,
@@ -1362,6 +1410,12 @@ const ensureSharedLayerOrder = (
     layerOrder
   );
   ensureSharedCaptureOrder(map, layerOrder, locationLabelLayers);
+  const presentationEnabled = entry.mapStylePresentationRequests.size > 0;
+  sceneLayer.setMapStylePresentationEnabled?.(presentationEnabled);
+  if (!presentationEnabled) {
+    restoreMapStylePresentation(map, entry);
+    return;
+  }
   suppressTerrainFrame(map, entry);
   const meshLabelStyle = isMeshLabelStyle(entry);
   if (meshLabelStyle) {
@@ -1439,10 +1493,14 @@ const clearLabelMaintenanceTimer = (entry: SharedSceneEntry): void => {
 };
 
 const mountSharedLayer = (map: MaplibreMap, entry: SharedSceneEntry): void => {
+  if (entry.mountingLayer || getMountedSharedThreeSceneLayer(map)) return;
+  entry.mountingLayer = true;
   try {
-    if (!getMountedSharedThreeSceneLayer(map)) map.addLayer(entry.layer);
+    map.addLayer(entry.layer);
   } catch {
     // A style replacement or map teardown can race this callback.
+  } finally {
+    entry.mountingLayer = false;
   }
 };
 
@@ -1508,6 +1566,23 @@ const configureEnsureLayer = (
   };
 };
 
+/**
+ * A runtime that registers after the style settled, a mesh added from the
+ * layer list for instance, changes the drape policy without any style or idle
+ * event following it: the basemap stayed visible under the mesh until the next
+ * interaction. A registration notifies without a content change, so that is
+ * the case maintained here at once; tile content changes carry bounds and are
+ * left to the rate-limited event path.
+ */
+const subscribeRuntimeChanges = (
+  map: MaplibreMap,
+  entry: SharedSceneEntry
+): (() => void) =>
+  subscribeSharedThreeSceneContent(map, (change) => {
+    if (change !== undefined || entry.disposed) return;
+    entry.ensureLayerNow();
+  });
+
 const addEnsureLayerListeners = (
   map: MaplibreMap,
   entry: SharedSceneEntry
@@ -1532,11 +1607,14 @@ const removeEnsureLayerListeners = (
  * Acquire the one shared Three.js custom layer belonging to a MapLibre map.
  * Consumers contribute runtimes or lights and release their lease on cleanup;
  * the last release removes and disposes the shared renderer and scene.
+ * Map-style presentation is opt-in: shadow simulation and MapStyle3d request it.
  */
 export const acquireSharedThreeScene = (
-  map: MaplibreMap
+  map: MaplibreMap,
+  options: { mapStylePresentation?: boolean } = {}
 ): SharedThreeSceneLease => {
   let entry = entries.get(map);
+  if (entry) entry.mountingLayer ??= false;
   if (entry && entry.version !== SHARED_SCENE_ENTRY_VERSION) {
     removeEnsureLayerListeners(map, entry);
     if (entry.labelMaintenanceTimer != null) {
@@ -1596,11 +1674,15 @@ export const acquireSharedThreeScene = (
     entry.locationLabelColorRequests ??= new Map();
     entry.pointLabelOverlayVisibilityRequests ??= new Map();
     entry.meshLabelStyleRequests ??= new Map();
+    entry.mapStylePresentationRequests ??= new Set();
     entry.elevationVisibilityRequests ??= new Map();
     entry.savedMeshLabelPaint ??= new Map();
     entry.updateLabelLift ??= () => undefined;
     configureEnsureLayer(map, entry);
     addEnsureLayerListeners(map, entry);
+    entry.unsubscribeContent ??= null;
+    entry.unsubscribeContent?.();
+    entry.unsubscribeContent = subscribeRuntimeChanges(map, entry);
     entry.ensureLayer();
   }
   if (!entry) {
@@ -1617,6 +1699,8 @@ export const acquireSharedThreeScene = (
       layer,
       references: 0,
       disposed: false,
+      mountingLayer: false,
+      unsubscribeContent: null,
       styleLayersCache: null,
       labelMaintenanceTimer: null,
       lastLabelMaintenanceMs: Number.NEGATIVE_INFINITY,
@@ -1629,6 +1713,7 @@ export const acquireSharedThreeScene = (
       locationLabelColorRequests: new Map(),
       pointLabelOverlayVisibilityRequests: new Map(),
       meshLabelStyleRequests: new Map(),
+      mapStylePresentationRequests: new Set(),
       elevationVisibilityRequests: new Map(),
       savedMeshLabelPaint: new Map(),
       savedMeshDrapeVisibilities: new Map(),
@@ -1644,6 +1729,7 @@ export const acquireSharedThreeScene = (
     configureEnsureLayer(map, nextEntry);
     entries.set(map, nextEntry);
     addEnsureLayerListeners(map, nextEntry);
+    nextEntry.unsubscribeContent = subscribeRuntimeChanges(map, nextEntry);
     nextEntry.ensureLayer();
     entry = nextEntry;
   }
@@ -1652,6 +1738,10 @@ export const acquireSharedThreeScene = (
   const labelColorRequestId = Symbol("location-label-color");
   const labelVisibilityRequestId = Symbol("point-label-overlay-visibility");
   const meshLabelStyleRequestId = Symbol("mesh-label-style");
+  if (options.mapStylePresentation) {
+    entry.mapStylePresentationRequests.add(meshLabelStyleRequestId);
+    entry.ensureLayerNow();
+  }
   let released = false;
 
   return {
@@ -1721,10 +1811,11 @@ export const acquireSharedThreeScene = (
         labelVisibilityRequestId
       );
       current.meshLabelStyleRequests.delete(meshLabelStyleRequestId);
+      current.mapStylePresentationRequests.delete(meshLabelStyleRequestId);
       current.elevationVisibilityRequests.delete(meshLabelStyleRequestId);
       current.references -= 1;
       if (current.references > 0) {
-        current.ensureLayer();
+        current.ensureLayerNow();
         return;
       }
 
@@ -1738,34 +1829,9 @@ export const acquireSharedThreeScene = (
       } catch {
         // The host may already have disposed or replaced its style.
       }
-      restoreMeshIconTint(map, current);
-      restoreTerrainFrame(current);
-      restoreMeshDrape(map, current);
-      restoreMeshLabelPaint(map, current.savedMeshLabelPaint);
-      restoreLabelLifts(map, current.savedLabelLifts);
-      restoreLocationLabelOffsets(map, current.savedLocationLabelOffsets);
-      restoreLocationLabelPaint(
-        map,
-        "text-halo-width",
-        current.savedLocationLabelHaloWidths
-      );
-      restoreLocationLabelPaint(
-        map,
-        "text-halo-color",
-        current.savedLocationLabelHaloColors
-      );
-      restoreLocationLabelPaint(
-        map,
-        "text-color",
-        current.savedLocationLabelTextColors
-      );
-      restoreLocationLabelFilters(map, current.savedLocationLabelFilters);
-      setManagedStyleLayersHidden(
-        map,
-        [],
-        current.savedPointLabelVisibilities,
-        false
-      );
+      restoreMapStylePresentation(map, current);
+      current.unsubscribeContent?.();
+      current.unsubscribeContent = null;
       terrainCoverageCache.delete(current.layer);
       current.layer.dispose();
       entries.delete(map);

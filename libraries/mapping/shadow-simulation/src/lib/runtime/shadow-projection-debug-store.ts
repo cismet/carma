@@ -1,4 +1,5 @@
 import type { Map as MaplibreMap } from "maplibre-gl";
+import type { TileVolumeLoadReason } from "@carma-mapping/engines/maplibre";
 
 import type { ShadowBufferLayout } from "../core/shadow-types";
 import type { ShadowSnapshot } from "./shadow-controller";
@@ -33,7 +34,7 @@ export type ShadowProjectionDebugSnapshot = Readonly<{
   }>;
   tileVolumes?: readonly Readonly<{
     id: string;
-    loadReason?: "viewport" | "shadow";
+    loadReason?: TileVolumeLoadReason;
     minimum: readonly [number, number, number];
     maximum: readonly [number, number, number];
   }>[];
@@ -126,4 +127,66 @@ export const clearShadowProjectionDebugSnapshot = (map: MaplibreMap) => {
   for (const listener of entry.listeners) listener();
   if (entry.listeners.size === 0 && entry.demandListeners.size === 0)
     entries.delete(map);
+};
+
+type DebugPublisherFactory =
+  typeof import("./shadow-projection-debug-publisher").createShadowProjectionDebugPublisher;
+let debugPublisherFactory: DebugPublisherFactory | undefined;
+
+/** The optional module installs its capability only when it has been imported. */
+export const registerShadowProjectionDebugPublisher = (
+  factory: DebugPublisherFactory
+) => {
+  debugPublisherFactory = factory;
+};
+
+/** No snapshot publishing/timer implementation is loaded without a subscriber. */
+export const createOptionalShadowProjectionDebugPublisher = (
+  ...args: Parameters<DebugPublisherFactory>
+) => {
+  const [map] = args;
+  let publisher: ReturnType<DebugPublisherFactory> | undefined;
+  let loading = false;
+  let disposed = false;
+  let snapshot: ShadowProjectionDebugSnapshot | null = null;
+  const ensure = () => {
+    if (disposed || !hasShadowProjectionDebugListeners(map)) return undefined;
+    if (!publisher && debugPublisherFactory)
+      publisher = debugPublisherFactory(...args);
+    if (!publisher && !loading) {
+      loading = true;
+      void import("./shadow-projection-debug-publisher")
+        .then((module) => {
+          if (disposed || !hasShadowProjectionDebugListeners(map)) return;
+          publisher = module.createShadowProjectionDebugPublisher(...args);
+          publisher.setSnapshot(snapshot);
+          publisher.publish();
+        })
+        .catch((error) => {
+          if (!disposed)
+            console.error("Unable to load shadow diagnostics", error);
+        })
+        .finally(() => {
+          loading = false;
+        });
+    }
+    return publisher;
+  };
+  return {
+    publish: () => ensure()?.publish(),
+    setSnapshot(value: ShadowProjectionDebugSnapshot | null) {
+      snapshot = value;
+      ensure()?.setSnapshot(value);
+    },
+    markStale: () => ensure()?.markStale(),
+    reset() {
+      snapshot = null;
+      publisher?.reset();
+    },
+    dispose() {
+      disposed = true;
+      snapshot = null;
+      publisher?.dispose();
+    },
+  };
 };

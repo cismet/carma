@@ -1,0 +1,253 @@
+// @vitest-environment jsdom
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { TilesRenderer } from "3d-tiles-renderer";
+
+import { createMeshCorridorFixture } from "../../../../test/three-tiles-runtime-fixture";
+import { MAPLIBRE_EVENT } from "../../../constants/mapEvents";
+import {
+  MESH_MOTION_DOWNLOAD_CONCURRENCY,
+  MESH_MOTION_PARSE_CONCURRENCY,
+} from "./three-tiles-runtime-config";
+vi.hoisted(() => {
+  Object.defineProperty(URL, "createObjectURL", {
+    configurable: true,
+    value: () => "blob:vitest-maplibre-worker",
+  });
+});
+
+afterEach(() => vi.restoreAllMocks());
+
+describe("receivers runtime integration", () => {
+  it("retains one parent surface until the receiver family is ready during movement", async () => {
+    vi.useFakeTimers();
+    const f = createMeshCorridorFixture();
+    let moving = false;
+    vi.spyOn(f.frame.map, "isMoving").mockImplementation(() => moving);
+    const emit = (event: string) => {
+      const calls = vi.mocked(f.frame.map.on).mock.calls as unknown as [
+        string,
+        () => void
+      ][];
+      for (const [type, handler] of calls) if (type === event) handler();
+    };
+    try {
+      f.update();
+      const before = f.visibleIds();
+      expect(before).toContain("receiver16");
+      expect(before).toContain("caster16");
+      const children = [
+        f.tile("receiver-child-a", -10, 0, -100, 1, true, f.receiver),
+        f.tile("receiver-child-b", 0, 10, -100, 1, true, f.receiver),
+      ];
+      f.receiver.children = children;
+      f.load(children[0]); // Shadow colour and depth keep the parent together.
+      const stale = f.tile("stale", 150, 160, -50, 0, false, f.root);
+      const wanted = f.tile("wanted", -5, 5, -50, 0, false, f.root);
+      const removed: string[] = [];
+      for (const value of [stale, wanted]) {
+        value.internal.loadingState = 2;
+        f.renderer.loadingTiles.add(value);
+        f.renderer.lruCache.add(value, () => {
+          removed.push(value.content.uri!);
+          f.renderer.loadingTiles.delete(value);
+        });
+      }
+      moving = true;
+      emit(MAPLIBRE_EVENT.MOVE_START);
+      expect(f.renderer.downloadQueue.maxJobsPerOrigin).toBeGreaterThan(0);
+      expect(f.renderer.downloadQueue.maxJobsPerOrigin).toBeLessThanOrEqual(
+        MESH_MOTION_DOWNLOAD_CONCURRENCY
+      );
+      expect(f.renderer.parseQueue.maxJobs).toBeGreaterThan(0);
+      expect(f.renderer.parseQueue.maxJobs).toBeLessThanOrEqual(
+        MESH_MOTION_PARSE_CONCURRENCY
+      );
+      expect(f.visibleIds()).toEqual(before);
+      expect(removed).toEqual([]); // Pointer-down has not prepared the new view.
+      for (let index = 0; index < 8; index++) {
+        emit(MAPLIBRE_EVENT.MOVE);
+        await vi.advanceTimersByTimeAsync(60);
+        f.update();
+        expect(f.visibleIds()).toEqual(before);
+        expect(f.receiver.internal.loadingState).toBe(4);
+        expect(f.caster.internal.loadingState).toBe(4);
+        // Current-camera audits cancel obsolete fetches during the drag.
+        expect(removed).toEqual(["stale.b3dm"]);
+      }
+      moving = false;
+      emit(MAPLIBRE_EVENT.MOVE_END);
+      f.update();
+      expect(f.visibleIds()).toEqual(before);
+      expect(removed).toEqual(["stale.b3dm"]);
+      expect(f.renderer.loadingTiles.has(wanted)).toBe(true);
+      expect(f.renderer.downloadQueue.maxJobsPerOrigin).toBeGreaterThan(0);
+      expect(f.renderer.parseQueue.maxJobs).toBeGreaterThan(0);
+    } finally {
+      f.dispose();
+      vi.useRealTimers();
+    }
+  });
+
+  it("shows a first-view ready branch while missing coverage remains admissible", () => {
+    const f = createMeshCorridorFixture();
+    try {
+      // Separate the coverage contract from shadow publication in this fixture.
+      f.runtime.scene.setShadowView(null);
+      const coarse = f.tile("coarse", -10, 10, -100, 8, true, f.root);
+      const fine = f.tile("fine", -10, 0, -100, 0.5, true, coarse);
+      const missing = f.tile("missing", 0, 10, -100, 2, true, coarse);
+      coarse.children = [fine, missing];
+      f.root.children = [coarse];
+      f.load(fine);
+      f.update();
+      // First image does not wait for a complete viewport cut.
+      f.update();
+      expect(f.visibleIds()).toEqual(["fine"]);
+      const target = { inView: false, error: 0, distanceFromCamera: 0 };
+      f.renderer.calculateTileViewErrorWithPlugin(coarse, target);
+      expect(target.error).toBeGreaterThan(f.renderer.errorTarget);
+      f.renderer.queueTileForDownload(coarse);
+      f.renderer.queueTileForDownload(missing);
+      // A ready fallback is permitted again; partial detail cannot forbid it.
+      expect(f.queued).toHaveBeenCalledWith(coarse);
+      expect(f.queued).toHaveBeenCalledWith(missing);
+      f.load(missing);
+      f.update();
+      expect(f.visibleIds()).toEqual(["fine", "missing"]);
+    } finally {
+      f.dispose();
+    }
+  });
+
+  it("selects sunward casters while unrelated downloads run, without a second native camera", () => {
+    const setCamera = vi.spyOn(TilesRenderer.prototype, "setCamera");
+    const f = createMeshCorridorFixture();
+    try {
+      f.renderer.stats.downloading = 1;
+      f.update();
+      expect(f.visibleIds()).toEqual(["caster16", "receiver16"]);
+      expect(setCamera).not.toHaveBeenCalledWith(f.sun);
+      expect(setCamera).toHaveBeenCalledWith(f.frame.lodCamera);
+    } finally {
+      f.dispose();
+    }
+  });
+
+  it("retains pending payloads across solar changes without replacing live caster geometry", () => {
+    const f = createMeshCorridorFixture();
+    try {
+      f.update();
+      const stale = f.tile("stale", 150, 160, -50, 0, false, f.root);
+      const wanted = f.tile("wanted", -5, 5, -50, 0, false, f.root);
+      const removed: string[] = [];
+      for (const value of [stale, wanted]) {
+        value.internal.loadingState = 2;
+        f.renderer.loadingTiles.add(value);
+        f.renderer.lruCache.add(value, () => {
+          removed.push(value.content.uri!);
+          f.renderer.loadingTiles.delete(value);
+        });
+      }
+      const casterPayload = f.caster.engineData.scene;
+      for (let step = 0; step < 3; step++) {
+        f.sun.rotateY(0.01);
+        f.setSun();
+        f.update();
+        expect(removed).toEqual([]);
+        for (const pending of [stale, wanted]) {
+          expect(f.runtimeState.retainedShadowRequests.has(pending)).toBe(true);
+          expect(f.renderer.loadingTiles.has(pending)).toBe(true);
+          expect(f.renderer.lruCache.has(pending)).toBe(true);
+          expect(f.renderer.visibleTiles.has(pending)).toBe(false);
+        }
+        expect(f.renderer.visibleTiles.has(f.receiver)).toBe(true);
+        expect(f.renderer.visibleTiles.has(f.caster)).toBe(true);
+        expect(f.renderer.lruCache.has(f.caster)).toBe(true);
+        expect(f.caster.engineData.scene).toBe(casterPayload);
+      }
+    } finally {
+      f.dispose();
+    }
+  });
+
+  it("orders receiver requests near-first and does not restart demand for loaded meshes", () => {
+    const f = createMeshCorridorFixture();
+    try {
+      const near = f.tile("near", -10, 0, -100, 1, true, f.receiver);
+      const far = f.tile("far", 0, 10, -100, 1, true, f.receiver);
+      f.receiver.children = [near, far];
+      f.update();
+      near.traversal.distanceFromCamera = 10;
+      far.traversal.distanceFromCamera = 1000;
+      f.renderer.queueTileForDownload(far);
+      f.renderer.queueTileForDownload(near);
+      expect(
+        f.renderer.downloadQueue.priorityCallback!(near, far)
+      ).toBeGreaterThan(0);
+      f.load(near);
+      f.load(far);
+      f.update();
+      f.queued.mockClear();
+      f.renderer.queueTileForDownload(near);
+      f.renderer.queueTileForDownload(far);
+      expect(f.queued).not.toHaveBeenCalled();
+      // The coarse caster is incomplete at the displayed receiver generation.
+      expect(f.visibleIds()).toEqual(["far", "near"]);
+    } finally {
+      f.dispose();
+    }
+  });
+
+  it("publishes its complete receiver family before admitting the finer caster corridor", () => {
+    const f = createMeshCorridorFixture();
+    f.frame.lodCamera.near = 75;
+    f.frame.lodCamera.updateProjectionMatrix();
+    try {
+      const left = f.tile("left1", -10, 0, -100, 1, true, f.receiver);
+      const right = f.tile("right1", 0, 10, -100, 1, true, f.receiver);
+      const caster = f.tile(
+        "caster-final",
+        -10,
+        10,
+        -50,
+        0.01,
+        false,
+        f.caster
+      );
+      f.receiver.children = [left, right];
+      f.caster.children = [caster];
+      f.load(left);
+      f.update();
+      expect(f.queued).toHaveBeenCalledWith(right);
+      expect(f.queued).not.toHaveBeenCalledWith(caster);
+      expect(f.visibleIds()).toEqual(["caster16", "receiver16"]);
+      const admitted = f.queued.mock.calls.length;
+      // Same-traversal admission remains idempotent even when the native mock
+      // leaves loadingState unchanged. Loaded content is never requested again.
+      f.renderer.queueTileForDownload(right);
+      f.renderer.queueTileForDownload(left);
+      expect(f.queued).toHaveBeenCalledTimes(admitted);
+      f.load(right);
+      f.update();
+      expect(f.visibleIds()).toEqual(["left1", "right1"]);
+      expect(f.runtimeState.shadowCasterRequests.has(caster)).toBe(true);
+      // This fixture does not execute native traversal; admit its proven demand.
+      f.renderer.queueTileForDownload(caster);
+      expect(f.queued).toHaveBeenCalledWith(caster);
+      expect(
+        f.runtime.scene.isShadowRegionReady?.(f.corridor, 1, f.receiverBox)
+      ).toBe(false);
+      const requested = f.queued.mock.calls.length;
+      f.renderer.queueTileForDownload(caster);
+      expect(f.queued).toHaveBeenCalledTimes(requested);
+      f.load(caster);
+      f.update();
+      expect(f.visibleIds()).toEqual(["caster-final", "left1", "right1"]);
+      expect(
+        f.runtime.scene.isShadowRegionReady?.(f.corridor, 1, f.receiverBox)
+      ).toBe(true);
+    } finally {
+      f.dispose();
+    }
+  });
+});

@@ -49,17 +49,17 @@ describe("advanced shadow render settings", () => {
     expect(queryByRole("checkbox", { name: "Transmittanz-LUT" })).toBeNull();
     expect(queryByRole("checkbox", { name: "Sky-Irradianz-LUT" })).toBeNull();
   });
-  it("shows the buffer selector while advanced quality settings stay collapsed", () => {
+  it("names the buffer method while advanced quality settings stay collapsed", () => {
     const state = createInitialShadowSimulationState(undefined);
-    const { getByLabelText } = render(
+    const { getByLabelText, getByText } = render(
       <ShadowSimulationRenderSettings state={state} setState={vi.fn()} />
     );
-    const layout = getByLabelText("Schattenpuffer", { selector: "input" });
-    expect(selectedText(layout)).toBe("Einzelpuffer");
+    // One method, so the row states it instead of offering a choice.
+    const method = getByText("Einzelpuffer");
     const details = getByLabelText("Farbpuffer der Schattenakkumulation", {
       selector: "input",
     }).closest("details");
-    expect(layout.closest("details")).toBeNull();
+    expect(method.closest("details")).toBeNull();
     expect(details).not.toBeNull();
     expect(details?.open).toBe(false);
     expect(
@@ -67,6 +67,20 @@ describe("advanced shadow render settings", () => {
         selector: "input",
       }).closest("details")
     ).toBe(details);
+  });
+
+  it("hides the tiled buffer and shows the single buffer unless the host enables it", () => {
+    const state = {
+      ...createInitialShadowSimulationState(undefined),
+      shadowBufferLayout: SHADOW_BUFFER_LAYOUT.TILED,
+    };
+    const { getByText, queryByLabelText } = render(
+      <ShadowSimulationRenderSettings state={state} setState={vi.fn()} />
+    );
+    expect(getByText("Einzelpuffer")).toBeTruthy();
+    expect(
+      queryByLabelText("Schattenpuffer", { selector: "input" })
+    ).toBeNull();
   });
 
   it("switches buffer layout independently from the quality preset and samples", async () => {
@@ -77,7 +91,11 @@ describe("advanced shadow render settings", () => {
     };
     const setState = vi.fn();
     const { getByLabelText, getByRole, queryByRole, rerender } = render(
-      <ShadowSimulationRenderSettings state={state} setState={setState} />
+      <ShadowSimulationRenderSettings
+        state={state}
+        setState={setState}
+        tiledShadows
+      />
     );
     const layout = getByLabelText("Schattenpuffer", {
       selector: "input",
@@ -91,7 +109,11 @@ describe("advanced shadow render settings", () => {
     };
     expect(setState).toHaveBeenLastCalledWith(tiledState);
     rerender(
-      <ShadowSimulationRenderSettings state={tiledState} setState={setState} />
+      <ShadowSimulationRenderSettings
+        state={tiledState}
+        setState={setState}
+        tiledShadows
+      />
     );
     expect(selectedText(layout)).toBe("Gekachelt (experimentell)");
     expect(queryByRole("status")).toBeNull();
@@ -221,16 +243,10 @@ describe("advanced shadow render settings", () => {
       shadowBufferLayout: SHADOW_BUFFER_LAYOUT.MONO,
       softSunShadows: false,
     };
-    const { getByLabelText } = render(
+    const { getByLabelText, getByText } = render(
       <ShadowSimulationRenderSettings state={state} setState={vi.fn()} />
     );
-    expect(
-      (
-        getByLabelText("Schattenpuffer", {
-          selector: "input",
-        }) as HTMLInputElement
-      ).disabled
-    ).toBe(false);
+    expect(getByText("Einzelpuffer")).toBeTruthy();
     expect(
       (
         getByLabelText("Samples der Sonnenscheibe", {

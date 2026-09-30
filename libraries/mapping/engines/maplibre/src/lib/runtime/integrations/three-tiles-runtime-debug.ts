@@ -1,313 +1,182 @@
-import { type Tile } from "3d-tiles-renderer/core";
-import * as THREE from "three";
-
-import {
-  maximumSweepDistanceWithinBox,
-  type ShadowReceiverMatch,
-} from "../../core/shadow-receiver-mask";
-import { readOrientedTileBounds } from "./three-tiles-bounds";
-import type { createThreeTilesDebugOverlay } from "./three-tiles-debug-overlay";
-import {
-  getMeshLoadStage,
-  meshShadowStageError,
-} from "./three-tiles-load-policy";
-import type {
-  ThreeTilesRuntimeServices,
-  ThreeTilesRuntimeState,
-} from "./three-tiles-runtime-context";
-import type {
-  MeshTileDebugProgress,
-  RuntimeTile,
-} from "./three-tiles-runtime-types";
+import type { Tile } from "3d-tiles-renderer/core";
+import type { createThreeTilesDiagnostics } from "./three-tiles-runtime-diagnostics";
+import type { MeshTileDebugProgress } from "./three-tiles-runtime-types";
 import { resolveTileContentUrl } from "./three-tiles-runtime-vendor";
 
-/** debug responsibility of the shared 3D Tiles runtime. */
+/** Reading or disposing an ordinary runtime must not create a debug registry. */
+export const debugTilesRuntimes = (create = false): Set<unknown> | null => {
+  if (typeof window === "undefined") return null;
+  const host = window as unknown as { __carmaTiles3d?: Set<unknown> };
+  if (create) host.__carmaTiles3d ??= new Set();
+  return host.__carmaTiles3d ?? null;
+};
+
+/** Optional diagnostics capability; capture/overlay modules load only on opt-in. */
 export function createThreeTilesDebug(
-  runtimeState: Pick<
-    ThreeTilesRuntimeState,
-    | "tileDebugIds"
-    | "nextTileDebugId"
-    | "layerId"
-    | "tileDebugProgress"
-    | "tiles"
-    | "tilesetUrl"
-    | "tileBoundsVisible"
-    | "tileDebugOverlay"
-    | "tileDebugOverlayUpdatedAt"
-    | "shadowView"
-    | "sunwardDirection"
-    | "committedMeshCasterFrontier"
-    | "requestedErrorTarget"
-    | "rootWorldBoundingBox"
-    | "sourceWorldBoundsTransform"
-    | "sourceWorldBoundingBox"
-    | "map"
-  >,
-  dependencies: Pick<
-    ThreeTilesRuntimeServices,
-    | "isTileInMainView"
-    | "updateRootWorldBounds"
-    | "createReceiverSnapshot"
-    | "getTileScreenError"
-    | "peekShadowRegionRevision"
+  state: Parameters<typeof createThreeTilesDiagnostics>[0],
+  dependencies: Omit<
+    Parameters<typeof createThreeTilesDiagnostics>[1],
+    "getStableTileId"
   >
 ) {
-  let createOverlay: typeof createThreeTilesDebugOverlay | undefined;
-  let loadingOverlay = false;
-  const getTileDebugId: ThreeTilesRuntimeServices["getTileDebugId"] = (
-    tile: Tile
-  ) => {
-    let sequence = runtimeState.tileDebugIds.get(tile);
-    if (sequence === undefined) {
-      sequence = runtimeState.nextTileDebugId++;
-      runtimeState.tileDebugIds.set(tile, sequence);
-    }
-    const uri = tile.content?.uri;
-    const depth = (tile as Tile & { internal?: { depth?: number } }).internal
-      ?.depth;
-    return `${runtimeState.layerId}:${uri ?? `d${depth ?? "?"}:t${sequence}`}`;
+  let diagnostics: ReturnType<typeof createThreeTilesDiagnostics> | undefined;
+  let pending: Promise<void> | undefined;
+  const enabled = () => state.options.diagnostics === true && !state.disposed;
+  const load = () => {
+    if (!enabled() || diagnostics || pending) return;
+    pending = import("./three-tiles-runtime-diagnostics")
+      .then((module) => {
+        if (!enabled()) return;
+        diagnostics = module.createThreeTilesDiagnostics(state, {
+          ...dependencies,
+          getStableTileId,
+        });
+        if (state.tileBoundsVisible) diagnostics.syncTileDebugOverlay();
+        state.map?.triggerRepaint();
+      })
+      .catch((error) => {
+        if (enabled()) console.error("Unable to load tile diagnostics", error);
+      })
+      .finally(() => {
+        pending = undefined;
+      });
   };
-
-  const getTileDebugProgress: ThreeTilesRuntimeServices["getTileDebugProgress"] =
-    (tile: Tile): MeshTileDebugProgress => {
-      let progress = runtimeState.tileDebugProgress.get(tile);
-      if (!progress) {
-        progress = {
-          discoveredAt: performance.now(),
-          iterations: 0,
-          lastIterationFrame: -1,
-        };
-        runtimeState.tileDebugProgress.set(tile, progress);
-      }
-      return progress;
-    };
-
-  const recordTileIteration: ThreeTilesRuntimeServices["recordTileIteration"] =
-    (tile: Tile) => {
-      const progress = getTileDebugProgress(tile);
-      const frame = runtimeState.tiles?.frameCount ?? -1;
-      if (progress.lastIterationFrame === frame) return;
-      progress.lastIterationFrame = frame;
-      progress.iterations += 1;
-    };
-
-  const formatDebugDuration: ThreeTilesRuntimeServices["formatDebugDuration"] =
-    (milliseconds: number | undefined): string =>
-      milliseconds === undefined || !Number.isFinite(milliseconds)
-        ? "–"
-        : `${Math.max(0, milliseconds / 1_000).toFixed(2)}s`;
-
-  const getStableTileId: ThreeTilesRuntimeServices["getStableTileId"] = (
-    tile: Tile
-  ) => {
+  const register = () => {
+    if (enabled() && state.tiles) debugTilesRuntimes(true)?.add(state);
+    else debugTilesRuntimes()?.delete(state);
+  };
+  // Source/cut identities are also required for production shadow caching.
+  const getStableTileId = (tile: Tile) => {
     const path: number[] = [];
-    for (let entry = tile; entry.parent; entry = entry.parent) {
+    for (let entry = tile; entry.parent; entry = entry.parent)
       path.push(entry.parent.children?.indexOf(entry) ?? -1);
-    }
-    return `${runtimeState.tilesetUrl}#${path.reverse().join("/")}:${
+    return `${state.tilesetUrl}#${path.reverse().join("/")}:${
       resolveTileContentUrl(tile) ?? "metadata"
     }`;
   };
-
-  /** The overlay only exists while tile bounds are shown. */
-  const syncTileDebugOverlay: ThreeTilesRuntimeServices["syncTileDebugOverlay"] =
-    () => {
-      const tiles = runtimeState.tiles;
-      if (!tiles) return;
-      if (!runtimeState.tileBoundsVisible) {
-        runtimeState.tileDebugOverlay?.dispose();
-        runtimeState.tileDebugOverlay = null;
-        return;
-      }
-      if (!createOverlay) {
-        if (!loadingOverlay) {
-          loadingOverlay = true;
-          void import("./three-tiles-debug-overlay").then((module) => {
-            createOverlay = module.createThreeTilesDebugOverlay;
-            loadingOverlay = false;
-            if (runtimeState.tileBoundsVisible && runtimeState.tiles === tiles) {
-              syncTileDebugOverlay();
-              runtimeState.map?.triggerRepaint();
-            }
-          }).catch((error: unknown) => {
-            loadingOverlay = false;
-            console.error("Unable to load mesh diagnostics", error);
-          });
-        }
-        return;
-      }
-      const now = performance.now();
-      // Diagnostics must observe production work, never drive it. Text/line
-      // rebuilds are intentionally slow and the readiness probe below only
-      // reads an existing corridor proof.
-      if (now - runtimeState.tileDebugOverlayUpdatedAt < 1_000) return;
-      runtimeState.tileDebugOverlayUpdatedAt = now;
-      runtimeState.tileDebugOverlay ??= createOverlay(
-        tiles.group
-      );
-      const receiverTiles = [...tiles.visibleTiles].filter((tile) =>
-        dependencies.isTileInMainView(tile as RuntimeTile)
-      );
-      tiles.group.updateWorldMatrix(true, false);
-      dependencies.updateRootWorldBounds();
-      const groupWorldInverse = tiles.group.matrixWorld.clone().invert();
-      const sourceCamera = runtimeState.shadowView?.camera;
-      if (sourceCamera) {
-        sourceCamera.updateMatrixWorld(true);
-        sourceCamera
-          .getWorldDirection(runtimeState.sunwardDirection)
-          .negate()
-          .normalize();
-      }
-      const localSunwardDirection = sourceCamera
-        ? runtimeState.sunwardDirection
-            .clone()
-            .transformDirection(groupWorldInverse)
-        : null;
-      const volumes = receiverTiles.flatMap((tile) => {
-        const runtimeTile = tile as RuntimeTile;
-        const bounds = runtimeTile.engineData?.boundingVolume;
-        if (!bounds?.getAABB) return [];
-        const box = new THREE.Box3();
-        const transform = new THREE.Matrix4();
-        readOrientedTileBounds(bounds, box, transform);
-        if (box.isEmpty()) return [];
-        let casterCount = 0;
-        const receiverMask = dependencies.createReceiverSnapshot(
-          new Set([tile])
-        )?.mask;
-        if (receiverMask) {
-          const match: ShadowReceiverMatch = {
-            receiverGeometricError: Number.POSITIVE_INFINITY,
-            receiverCenterness: 0,
-            lightFacing: 0,
-          };
-          for (const caster of runtimeState.committedMeshCasterFrontier) {
-            const casterVolume = (caster as RuntimeTile).engineData
-              ?.boundingVolume;
-            if (!casterVolume?.getAABB) continue;
-            const casterBox = new THREE.Box3();
-            const casterTransform = new THREE.Matrix4();
-            readOrientedTileBounds(casterVolume, casterBox, casterTransform);
-            if (
-              !casterBox.isEmpty() &&
-              receiverMask.match(casterBox, match, casterTransform)
-            ) {
-              casterCount += 1;
-            }
-          }
-        }
-        const errorPixels = dependencies.getTileScreenError(runtimeTile);
-        const stage = getMeshLoadStage(
-          errorPixels,
-          runtimeState.requestedErrorTarget
-        );
-        const progress = getTileDebugProgress(tile);
-        progress.loadedAt ??= runtimeTile.engineData?.scene ? now : undefined;
-        progress.visibleAt ??= now;
-        const visibleAt = progress.visibleAt;
-        let corridorDistance = 0;
-        let corridorReady = false;
-        if (sourceCamera && !runtimeState.rootWorldBoundingBox.isEmpty()) {
-          runtimeState.sourceWorldBoundsTransform.multiplyMatrices(
-            tiles.group.matrixWorld,
-            transform
-          );
-          runtimeState.sourceWorldBoundingBox
-            .copy(box)
-            .applyMatrix4(runtimeState.sourceWorldBoundsTransform);
-          corridorDistance = maximumSweepDistanceWithinBox(
-            runtimeState.sourceWorldBoundingBox,
-            runtimeState.rootWorldBoundingBox,
-            runtimeState.sunwardDirection
-          );
-          corridorReady =
-            dependencies.peekShadowRegionRevision(
-              runtimeState.sourceWorldBoundingBox,
-              meshShadowStageError(
-                errorPixels,
-                runtimeState.requestedErrorTarget
-              ),
-              runtimeState.sourceWorldBoundingBox
-            ) !== null;
-        }
-        if (corridorReady) progress.corridorReadyAt ??= now;
-        const stable = stage.stable && corridorReady;
-        if (stable) progress.stableAt ??= now;
-        const totalElapsed = (progress.stableAt ?? now) - progress.discoveredAt;
-        const queueElapsed = progress.queuedAt
-          ? progress.queuedAt - progress.discoveredAt
-          : undefined;
-        const loadElapsed = progress.loadedAt
-          ? progress.loadedAt - (progress.queuedAt ?? progress.discoveredAt)
-          : undefined;
-        const visibleElapsed = progress.visibleAt
-          ? visibleAt - (progress.loadedAt ?? progress.discoveredAt)
-          : undefined;
-        const corridorElapsed = progress.corridorReadyAt
-          ? progress.corridorReadyAt - visibleAt
-          : now - visibleAt;
-        return [
-          {
-            id: getStableTileId(tile),
-            bounds: box,
-            boundsTransform: transform,
-            loadReason: "viewport" as const,
-            details: [
-              `stage ${stage.current}/${stage.total} · ${
-                stable
-                  ? "stable"
-                  : corridorReady
-                  ? "corridor ready"
-                  : "corridor streaming"
-              } · ${
-                Number.isFinite(errorPixels) ? errorPixels.toFixed(2) : "∞"
-              } px`,
-              `total ${formatDebugDuration(totalElapsed)} · ${
-                progress.iterations
-              } iterations`,
-              `queue ${formatDebugDuration(
-                queueElapsed
-              )} · load ${formatDebugDuration(
-                loadElapsed
-              )} · visible ${formatDebugDuration(visibleElapsed)}`,
-              `corridor ${formatDebugDuration(
-                corridorElapsed
-              )} · ${casterCount}/${
-                runtimeState.committedMeshCasterFrontier.size
-              } casters`,
-            ],
-            ...(localSunwardDirection && corridorDistance > 0
-              ? {
-                  corridor: {
-                    direction: localSunwardDirection,
-                    distance: corridorDistance,
-                  },
-                }
-              : {}),
-          },
-        ];
-      });
-      runtimeState.tileDebugOverlay.update(volumes);
-    };
-
-  const setTileBoundsVisible: ThreeTilesRuntimeServices["setTileBoundsVisible"] =
-    (enabled: boolean) => {
-      if (runtimeState.tileBoundsVisible === enabled) return;
-      runtimeState.tileBoundsVisible = enabled;
-      if (!enabled) runtimeState.tileDebugProgress = new WeakMap();
-      runtimeState.tileDebugOverlayUpdatedAt = -Infinity;
-      syncTileDebugOverlay();
-      runtimeState.tiles?.dispatchEvent({ type: "needs-update" });
-      runtimeState.map?.triggerRepaint();
-    };
+  const getTileDebugId = (tile: Tile) => {
+    let sequence = state.tileDebugIds.get(tile);
+    if (sequence === undefined) {
+      sequence = state.nextTileDebugId++;
+      state.tileDebugIds.set(tile, sequence);
+    }
+    return `${state.layerId}:${
+      tile.content?.uri ?? `d${tile.internal?.depth ?? "?"}:t${sequence}`
+    }`;
+  };
+  const inactiveProgress: MeshTileDebugProgress = {
+    discoveredAt: 0,
+    iterations: 0,
+    lastIterationFrame: -1,
+  };
+  const getTileDebugProgress = (tile: Tile): MeshTileDebugProgress => {
+    if (!enabled() || state.options.tileTelemetry === false)
+      return inactiveProgress;
+    // Preserve startup timestamps while the optional module is being loaded.
+    let progress = state.tileDebugProgress.get(tile);
+    if (!progress) {
+      progress = {
+        discoveredAt: performance.now(),
+        iterations: 0,
+        lastIterationFrame: -1,
+      };
+      state.tileDebugProgress.set(tile, progress);
+    }
+    return progress;
+  };
+  load();
   return {
+    getStableTileId,
     getTileDebugId,
     getTileDebugProgress,
-    recordTileIteration,
-    formatDebugDuration,
-    getStableTileId,
-    syncTileDebugOverlay,
-    setTileBoundsVisible,
+    readState: () => (enabled() ? state : undefined),
+    setDiagnosticsEnabled(value: boolean) {
+      state.options.diagnostics = value;
+      diagnostics?.setDiagnosticsEnabled(value);
+      register();
+      if (value) load();
+    },
+    setTelemetryEnabled(value: boolean) {
+      state.options.tileTelemetry = value;
+      diagnostics?.setTelemetryEnabled(value);
+      if (value) {
+        state.options.diagnostics = true;
+        register();
+        load();
+      }
+    },
+    setTileBoundsVisible(value: boolean) {
+      if (value) {
+        state.options.diagnostics = true;
+        register();
+      }
+      if (diagnostics) {
+        diagnostics.setTileBoundsVisible(value);
+        return;
+      }
+      state.tileBoundsVisible = value;
+      if (value) {
+        state.options.diagnostics = true;
+        register();
+        load();
+      }
+    },
+    syncTileDebugOverlay: () => {
+      if (enabled()) {
+        load();
+        diagnostics?.syncTileDebugOverlay();
+      }
+    },
+    recordTileIteration: (tile: Tile) => {
+      if (enabled()) diagnostics?.recordTileIteration(tile);
+    },
+    recordTileRequestTrace: (
+      ...args: Parameters<
+        ReturnType<typeof createThreeTilesDiagnostics>["recordTileRequestTrace"]
+      >
+    ) => {
+      if (enabled() && state.options.tileTelemetry !== false)
+        diagnostics?.recordTileRequestTrace(...args);
+    },
+    reportTileRecovery: (
+      ...args: Parameters<
+        ReturnType<typeof createThreeTilesDiagnostics>["reportTileRecovery"]
+      >
+    ) => {
+      if (enabled() && state.options.tileTelemetry !== false)
+        diagnostics?.reportTileRecovery(...args);
+    },
+    recordTileRequestDecision: (
+      ...args: Parameters<
+        ReturnType<
+          typeof createThreeTilesDiagnostics
+        >["recordTileRequestDecision"]
+      >
+    ) => {
+      if (enabled()) diagnostics?.recordTileRequestDecision(...args);
+    },
+    recordTileWait: (
+      ...args: Parameters<
+        ReturnType<typeof createThreeTilesDiagnostics>["recordTileWait"]
+      >
+    ) => {
+      if (enabled()) diagnostics?.recordTileWait(...args);
+    },
+    beginTileWaitObservation: () => {
+      if (enabled()) diagnostics?.beginTileWaitObservation();
+    },
+    endTileWaitObservation: () => {
+      if (enabled()) diagnostics?.endTileWaitObservation();
+    },
+    drainTileWaitEvents: () => diagnostics?.drainTileWaitEvents() ?? [],
+    getTileDiagnosticSteps: (tile: Tile) =>
+      enabled() ? diagnostics?.getTileDiagnosticSteps(tile) : undefined,
+    reportFrameTelemetry: (
+      ...args: Parameters<
+        ReturnType<typeof createThreeTilesDiagnostics>["reportFrameTelemetry"]
+      >
+    ) => {
+      if (enabled()) diagnostics?.reportFrameTelemetry(...args);
+    },
   };
 }

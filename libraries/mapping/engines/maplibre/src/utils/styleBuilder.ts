@@ -14,7 +14,6 @@ import type {
 import {
   setForcedCachePrefixes,
   sourceUrlPrefixes,
-  styleFetchInit,
   styleForcesCache,
 } from "./forcedCache";
 import { validateStyleMin } from "@maplibre/maplibre-gl-style-spec";
@@ -37,6 +36,7 @@ import {
   SPRITE_IMAGE_PAINT_PROPERTIES,
   type SpriteRegistration,
 } from "./spriteNamespace";
+import { fetchStyleResource } from "./fetch-style-resource";
 
 // Inlined from @carma-mapping/layers to avoid circular dependency through portals
 interface WMSLayerLike {
@@ -340,10 +340,10 @@ export const getVectorMapping = async (
           // An unreachable capabilities service must not reject this promise:
           // it would abort the mapping for every other layer as well.
           try {
-            const capabilitiesText = await fetch(
+            const capabilitiesText = await fetchStyleResource(
               capabilitiesUrl,
-              styleFetchInit()
-            ).then((response) => response.text());
+              (response) => response.text()
+            );
             const fetchedCapabilities = parser.toJSON(capabilitiesText);
             if (!fetchedCapabilities) {
               return;
@@ -445,8 +445,7 @@ export const transformedPois = (
   pois: GeoJSON.FeatureCollection
 ): GeoJSON.FeatureCollection => {
   const features = pois.features.filter((feature) => {
-    const coordinates = (feature.geometry as GeoJSON.Point | null)
-      ?.coordinates;
+    const coordinates = (feature.geometry as GeoJSON.Point | null)?.coordinates;
     return Array.isArray(coordinates) && coordinates.length >= 2;
   });
   if (features.length < pois.features.length) {
@@ -565,13 +564,8 @@ const dropInvalidLayers = (
   return [...failed];
 };
 
-const fetchJson = async (url: string): Promise<any> => {
-  const response = await fetch(url, styleFetchInit());
-  if (!response.ok) {
-    throw new Error(`${response.status} ${response.statusText} for ${url}`);
-  }
-  return response.json();
-};
+const fetchJson = (url: string): Promise<any> =>
+  fetchStyleResource(url, (response) => response.json());
 
 /**
  * Convert vector styles and GeoJSON layers to a MapLibre style specification
@@ -765,7 +759,10 @@ export const vectorStylesToMapLibreStyle = async ({
               metadata: {
                 ...withTerrainProviderMetadata(
                   styleLayerMetadata,
-                  providesTerrain
+                  providesTerrain,
+                  additionalStyle.metadata as
+                    | Record<string, unknown>
+                    | undefined
                 ),
                 "z-index": index,
                 "layer-id": layerId,

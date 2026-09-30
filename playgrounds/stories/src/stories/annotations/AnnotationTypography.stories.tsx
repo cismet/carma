@@ -6,6 +6,7 @@ import {
 
 const meta = {
   title: "Annotations/Typography",
+  id: "annotations-typography",
   parameters: {
     layout: "fullscreen",
     controls: {

@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720" role="img" aria-labelledby="title description">
+  <title id="title">Ein gekrümmtes Mesh in einer ebenen Karte</title>
+  <desc id="description">Am Montageursprung stimmen Tangentialebene und Ellipsoid überein. Mit wachsender Entfernung nimmt der krümmungsbedingte Abstand zu. Eine lokale Anpassung verschiebt den passenden Bereich, beseitigt aber nicht die Krümmung. Mercator-Verzerrung und Höhenbezug sind getrennt zu behandeln.</desc>
+  <rect width="1200" height="720" fill="white"/>
+  <g font-family="Arial, Helvetica, sans-serif" fill="#17212b">
+    <text x="40" y="48" font-size="28" font-weight="700">Ein gekrümmtes Mesh in einer ebenen Karte</text>
+    <text x="40" y="78" font-size="16" fill="#52606d">Prinzipdarstellung: Krümmung, Höhen und Abstände überhöht – keine Fehlermessung.</text>
+    <g transform="translate(80 65)">
+      <g fill="none" stroke-width="3">
+        <path stroke="#1261a0" stroke-width="3" d="M 60 155 H 940"/>
+        <path stroke="#25834b" stroke-width="3" d="M 60 330 Q 500 -20 940 330"/>
+        <path stroke="#9a428f" stroke-width="3" d="M 630 164 L 900 244"/>
+        <path stroke="#ba4b00" stroke-width="3" d="M 720 155 V 199 M 712 155 H 728 M 712 199 H 728"/>
+        <path stroke="#17212b" stroke-width="3" d="M 485 147 L 485 125 L 500 115 L 515 125 L 515 147"/>
+        <path stroke="#17212b" stroke-width="3" d="M 708 199 L 715 174 L 733 168 L 745 182 L 738 207"/>
+      </g>
+      <circle cx="500" cy="155" r="5"/>
+      <g font-size="18">
+        <text x="60" y="130" fill="#1261a0">Feste Tangentialebene</text>
+        <text x="500" y="92" text-anchor="middle">Montageursprung</text>
+        <text x="500" y="187" text-anchor="middle">Lokale Übereinstimmung</text>
+        <text x="755" y="130" fill="#ba4b00">Abstand durch Krümmung</text>
+        <path fill="none" stroke="#ba4b00" stroke-width="1.5" d="M 770 135 L 728 175"/>
+        <text x="680" y="275" fill="#9a428f">Lokale Anpassung</text>
+        <text x="680" y="299" fill="#9a428f">an einem anderen Ort</text>
+        <text x="60" y="358" fill="#25834b">Erdellipsoid / gekrümmte ECEF-Geometrie</text>
+      </g>
+    </g>
+    <g font-size="17">
+      <text x="40" y="478" font-weight="700">1 · Feste Montage</text>
+      <text x="40" y="506">Passt in der Nähe des Ursprungs.</text>
+      <text x="40" y="533">Abstand näherungsweise d² / (2R).</text>
+      <text x="40" y="560" fill="#52606d">d: Entfernung · R: Krümmungsradius</text>
+      <text x="430" y="478" font-weight="700">2 · Lokale Anpassung</text>
+      <text x="430" y="506">Verschieben, Drehen und Skalieren</text>
+      <text x="430" y="533">verschieben den passenden Bereich.</text>
+      <text x="430" y="560">Die Krümmung bleibt bestehen.</text>
+      <text x="820" y="478" font-weight="700">3 · Mercator-Reprojektion</text>
+      <text x="820" y="506">Geometrie nichtlinear umrechnen.</text>
+      <text x="820" y="533">Geländehöhen bleiben erhalten.</text>
+      <text x="820" y="560">Für Fernsichten nicht abflachen!</text>
+      <path stroke="#d4dce3" d="M 40 592 H 1160"/>
+      <text x="40" y="623">Mercator-Maßstab: k ≈ 1 / cos(Breite) – nach Norden wächst der Kartenmaßstab bei Wuppertal.</text>
+      <text x="40" y="653">Höhenbezug separat: DHHN2016-Normalhöhe H + GCG2016-Höhenanomalie ζ = ellipsoidische Höhe h.</text>
+      <text x="40" y="683" fill="#52606d">Eine Datumkorrektur beseitigt weder Erdkrümmung noch horizontale Projektionsverzerrung.</text>
+    </g>
+  </g>
+</svg>

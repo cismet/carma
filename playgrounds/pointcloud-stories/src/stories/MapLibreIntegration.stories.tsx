@@ -4,7 +4,8 @@ import { PointCloudPlayground } from "../../../ng-topicmap-playground/src/app/po
 import { CarmaMapStoryProviders } from "../components/CarmaMapStoryProviders";
 
 const meta = {
-  title: "Pointcloud Investigation/MapLibre Integration",
+  title: "Applications/Point Clouds",
+  id: "pointcloud-investigation-maplibre-integration",
   component: PointCloudPlayground,
   decorators: [
     (Story) => (
