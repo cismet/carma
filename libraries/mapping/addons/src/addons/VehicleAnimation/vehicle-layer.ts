@@ -18,6 +18,7 @@ import {
   spotlightReach,
   type VehicleSpotlight,
 } from "./vehicle-spotlight";
+import { placeFleet } from "./vehicle-placement";
 
 export type { VehicleMode, VehicleSchedule } from "./fleet";
 
@@ -80,6 +81,11 @@ export type VehicleLayerOptions = {
   spotlight?: VehicleSpotlight | null;
   /** MapLibre layer the fleet is inserted before, e.g. to sit under labels */
   beforeId?: string;
+  /**
+   * The stack layer whose style launched the fleet. The fleet is kept
+   * directly over that style's layers, see `vehicle-placement.ts`.
+   */
+  anchorLayerId?: string;
   id?: string;
   /** how many vehicles the service needs, once that is known */
   onFleetSize?: (count: number) => void;
@@ -169,6 +175,7 @@ export const createVehicleLayer = (
     structure = null,
     spotlight = null,
     beforeId,
+    anchorLayerId,
     id = DEFAULT_ID,
     onFleetSize,
     onSelection,
@@ -468,6 +475,20 @@ export const createVehicleLayer = (
     // a basemap swap rebuilds every layer with the style's own defaults, so a
     // fleet that was hidden has to be hidden again here
     applyVisibility();
+    placeFleet(map, {
+      anchorLayerId,
+      fleetIds: [
+        trackId,
+        stationDotId,
+        carsId,
+        girderId,
+        bracingId,
+        supportId,
+        railId,
+        stationLabelId,
+      ],
+      spotlightId,
+    });
   };
 
   /** what `setVisible` and every re-attach apply to the layers that exist */

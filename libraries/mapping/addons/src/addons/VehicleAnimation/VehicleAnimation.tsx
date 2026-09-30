@@ -78,6 +78,12 @@ export type VehicleAnimationConfig = Partial<VehicleAnimationDefinition> & {
   controlOrder?: number;
   /** MapLibre layer the fleet is inserted before, e.g. to sit under labels */
   beforeId?: string;
+  /**
+   * The stack layer whose style launched the animation. Its vehicles are kept
+   * directly over that style's layers, so the style's own track, arriving
+   * after the addon, does not cover them.
+   */
+  anchorLayerId?: string;
 };
 
 /** geoportal's topleft column: comparison 75, terrain 80, flow field 84, time series 85 */
@@ -101,6 +107,7 @@ export const VehicleAnimation = ({
     controlPosition = DEFAULT_CONTROL_POSITION,
     controlOrder = DEFAULT_CONTROL_ORDER,
     beforeId,
+    anchorLayerId,
   } = config;
 
   const {
@@ -551,6 +558,7 @@ export const VehicleAnimation = ({
             claims3d,
             spotlight: fleetSpotlight,
             beforeId,
+            anchorLayerId,
             onFleetSize: setFleetSize,
             onSelection: (car) => setSelectedCarRef.current(car),
           })
@@ -573,6 +581,7 @@ export const VehicleAnimation = ({
             structure,
             spotlight: fleetSpotlight,
             beforeId,
+            anchorLayerId,
             onFleetSize: setFleetSize,
             onSelection: (car) => setSelectedCarRef.current(car),
           });
@@ -608,6 +617,7 @@ export const VehicleAnimation = ({
     claims3d,
     fleetSpotlight,
     beforeId,
+    anchorLayerId,
     setFleetSize,
   ]);
 

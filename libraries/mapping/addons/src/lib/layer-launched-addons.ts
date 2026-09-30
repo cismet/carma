@@ -222,7 +222,12 @@ export const getLayerLaunchedAddons = (
       visible: layer.visible !== false,
       entry: {
         addon: "vehicleAnimation",
-        config: { ...tool.config, startEnabled: true, permanent: true },
+        config: {
+          ...tool.config,
+          startEnabled: true,
+          permanent: true,
+          anchorLayerId: layer.id,
+        },
       },
     };
   }

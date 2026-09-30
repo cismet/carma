@@ -28,6 +28,7 @@ import {
 } from "./geruest";
 import { poseAt, type CarShape, type Track } from "./track";
 import type { VehicleLayerHandle } from "./vehicle-layer";
+import { placeFleet } from "./vehicle-placement";
 import {
   createSpotlightLayer,
   spotCentres,
@@ -82,6 +83,8 @@ export type VehicleThreeLayerOptions = {
   /** the map dimmed and the vehicles lit, over everything; see the flat renderer */
   spotlight?: VehicleSpotlight | null;
   beforeId?: string;
+  /** the stack layer whose style launched the fleet; see the flat renderer */
+  anchorLayerId?: string;
   id?: string;
   onFleetSize?: (count: number) => void;
   /** told about the selected vehicle, refreshed as it runs; null when there is none */
@@ -346,6 +349,7 @@ export const createVehicleThreeLayer = (
     claims3d = true,
     spotlight = null,
     beforeId,
+    anchorLayerId,
     id = DEFAULT_ID,
     onFleetSize,
     onSelection,
@@ -770,6 +774,7 @@ export const createVehicleThreeLayer = (
       map.addLayer(spotlightLayer.layer);
       map.triggerRepaint();
     }
+    placeFleet(map, { anchorLayerId, fleetIds: [id], spotlightId });
   };
 
   const detach = (): void => {
