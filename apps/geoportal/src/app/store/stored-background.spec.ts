@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import type { BackgroundLayer } from "@carma-mapping/layers";
 
-import { withKnownBackground } from "./stored-background";
+import {
+  withKnownBackground,
+  withoutStoredBackground,
+} from "./stored-background";
 
 // the outlet's two categories, one base map each
 const config = {
@@ -102,5 +105,29 @@ describe("withKnownBackground", () => {
   it("leaves a stored state without base maps alone", () => {
     const state = { focusMode: true };
     expect(withKnownBackground(state, config, build)).toBe(state);
+  });
+});
+
+describe("withoutStoredBackground", () => {
+  it("drops a stored base map, the hidden one an older scene left included", () => {
+    const state = {
+      focusMode: true,
+      selectedByCategory: { karte: storedEntry("stadtplan") },
+      backgroundLayer: {
+        ...storedEntry("stadtplan"),
+        id: "karte",
+        visible: false,
+      },
+    };
+    expect(withoutStoredBackground(state)).toEqual({ focusMode: true });
+  });
+
+  it("leaves the stored state itself unchanged", () => {
+    const state = {
+      focusMode: true,
+      backgroundLayer: { ...storedEntry("stadtplan"), id: "karte" },
+    };
+    withoutStoredBackground(state);
+    expect(state.backgroundLayer.id).toBe("karte");
   });
 });

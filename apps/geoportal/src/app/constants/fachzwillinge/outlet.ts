@@ -28,6 +28,9 @@ export const outletFachzwilling: FachzwillingRoute = {
   // every expired-tile refresh repaints through the raster fade, which the
   // projector shows as a flicker
   disableExpiredTileRefresh: true,
+  // black and switched on at every start: older scenes hid the base map, and
+  // a remembered "hidden" would leave the page white under every scene
+  disableBackgroundPersistence: true,
   // the app-wide "config" key is stripped after loading and dropped from share
   // links, so the source window carries its own key that nothing else touches
   configHashKey: "usedConfig",

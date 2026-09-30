@@ -79,6 +79,15 @@ type FachzwillingRouteBase = {
    */
   disableExpiredTileRefresh?: boolean;
   /**
+   * Do not remember the base map: every start begins with the route's default
+   * category and its default map, switched on. For a window whose base map is
+   * whatever the remote says during a session, where a choice an earlier
+   * session left behind (a hidden base map, say) would be served again.
+   *
+   * Read at store construction time (store/index.ts), like `appKey`.
+   */
+  disableBackgroundPersistence?: boolean;
+  /**
    * Hash key this route reads its shared layer config from, instead of the
    * app-wide `config`. That key is reserved geoportal-wide (it is stripped
    * after loading and omitted from generated share links), so a route that

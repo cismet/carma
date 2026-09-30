@@ -8,6 +8,18 @@ type StoredBackground = {
   backgroundLayer?: BackgroundLayer;
 };
 
+/**
+ * The stored slice without its base map choice, for a route that does not
+ * remember one (`disableBackgroundPersistence`): the store's initial state
+ * stands, and the next write leaves the old entries out of the record.
+ */
+export const withoutStoredBackground = <T extends object>(state: T): T => {
+  const rest: StoredBackground = { ...state };
+  delete rest.selectedByCategory;
+  delete rest.backgroundLayer;
+  return rest as T;
+};
+
 /** `toBackgroundLayer` of `config/backgroundConfig` */
 type BuildBackgroundLayer = (
   id: string,
