@@ -360,6 +360,7 @@ const CarmaMapContent = (props: CarmaMapProps) => {
                 }
                 backgroundRasterPaint={effectiveRasterPaint}
                 threeRuntimeParams={props.threeRuntimeParams}
+                tilesDiagnosticsEnabled={props.tilesDiagnosticsEnabled}
                 tilesetColorCorrections={props.tilesetColorCorrections}
                 threePerfRef={props.threePerfRef}
                 maxPitch={props.maxPitch}

@@ -121,7 +121,7 @@ import {
 } from "./shadow-maplibre-terrain";
 import { createShadowMapLibreLight } from "./shadow-maplibre-light";
 import { createShadowFrameProjection } from "./shadow-frame-projection";
-import { createShadowProjectionDebugPublisher } from "./shadow-projection-debug-publisher";
+import { createOptionalShadowProjectionDebugPublisher } from "./shadow-projection-debug-store";
 import {
   buildGenericThreeShadowBridge,
   makeSceneMeshesShadeable,
@@ -880,11 +880,14 @@ export const buildShadowSimulationScene = (
     tiledRenderer = null;
     receiverCells = [];
   };
-  const debugPublisher = createShadowProjectionDebugPublisher(map, () => ({
-    bufferLayout: effectiveRenderQuality.shadowBufferLayout,
-    sunDiscSamples: effectiveRenderQuality.shadowSunDiscSamples,
-    tiledStats: isTiledBufferEnabled() ? tiledScene?.stats ?? null : null,
-  }));
+  const debugPublisher = createOptionalShadowProjectionDebugPublisher(
+    map,
+    () => ({
+      bufferLayout: effectiveRenderQuality.shadowBufferLayout,
+      sunDiscSamples: effectiveRenderQuality.shadowSunDiscSamples,
+      tiledStats: isTiledBufferEnabled() ? tiledScene?.stats ?? null : null,
+    })
+  );
   sharedBinding.controller.setSoftSun(softSunShadowsEnabled);
 
   const quantizeViewValue = (value: number, step: number) =>

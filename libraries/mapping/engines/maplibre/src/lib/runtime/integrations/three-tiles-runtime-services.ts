@@ -115,6 +115,10 @@ export interface ThreeTilesRuntimeServices {
   ) => number;
   getTileDebugId: (tile: Tile) => string;
   getTileDebugProgress: (tile: Tile) => MeshTileDebugProgress;
+  getTileDiagnosticSteps?: ReturnType<
+    typeof import("./three-tiles-runtime-diagnostics").createThreeTilesDiagnostics
+  >["getTileDiagnosticSteps"];
+  reportFrameTelemetry?: typeof import("./three-tiles-diagnostic-steps").reportThreeTilesFrameTelemetry;
   recordTileRequestDecision: (
     tile: Tile,
     decision: MeshTileRequestDecision
@@ -129,7 +133,6 @@ export interface ThreeTilesRuntimeServices {
   beginTileWaitObservation: () => void;
   endTileWaitObservation: () => void;
   recordTileIteration: (tile: Tile) => void;
-  formatDebugDuration: (milliseconds: number | undefined) => string;
   getStableTileId: (tile: Tile) => string;
   getTileScreenError: (tile: RuntimeTile, includeShadow?: boolean) => number;
   updateRootWorldBounds: () => boolean;

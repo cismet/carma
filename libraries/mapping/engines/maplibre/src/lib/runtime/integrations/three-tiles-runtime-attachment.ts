@@ -236,7 +236,7 @@ export function createThreeTilesRuntimeAttachment(
       runtimeState.tilesetUrl
     ) as RuntimeTilesRenderer;
     if (runtimeState.options.diagnostics)
-      debugTilesRuntimes()?.add(runtimeState);
+      debugTilesRuntimes(true)?.add(runtimeState);
     const tileCache = new LRUCache();
     tileCache.unloadPriorityCallback = (
       runtimeState.options.providesTerrain

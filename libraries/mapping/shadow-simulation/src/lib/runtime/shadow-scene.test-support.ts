@@ -1,4 +1,5 @@
 import "./shadow-scene.test-mocks";
+import "./shadow-projection-debug-publisher";
 
 import * as THREE from "three";
 import { afterEach, beforeEach, expect, vi } from "vitest";

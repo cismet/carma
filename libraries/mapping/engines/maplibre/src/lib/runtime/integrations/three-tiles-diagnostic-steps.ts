@@ -1,3 +1,5 @@
+import { resolveTileContentUrl } from "./three-tiles-runtime-vendor";
+import type { RuntimeTile } from "./three-tiles-runtime-types";
 import type {
   MeshTileWaitReason,
   MeshTileWaitRole,
@@ -81,3 +83,91 @@ export const recordThreeTileWait = (
   }
   return true;
 };
+
+/** Optional console snapshot; never imported by ordinary frame processing. */
+export function reportThreeTilesFrameTelemetry(
+  runtimeState: import("./three-tiles-runtime-frame-types").ThreeTilesFrameRuntimeState,
+  dependencies: Pick<
+    import("./three-tiles-runtime-services").ThreeTilesRuntimeServices,
+    "getTileDebugProgress" | "isTileInMainView" | "drainTileWaitEvents"
+  >,
+  hooks: import("./three-tiles-runtime-frame-types").ThreeTilesFrameHooks
+) {
+  if (!runtimeState.options.diagnostics || !runtimeState.tiles) return;
+  const {
+    frameState,
+    attachment,
+    localTelemetry,
+    telemetryCenter,
+    telemetrySphere,
+  } = hooks;
+  if (
+    (runtimeState.options.tileTelemetry === true ||
+      (localTelemetry && runtimeState.tileBoundsVisible)) &&
+    runtimeState.options.tileTelemetry !== false &&
+    performance.now() - runtimeState.lastRuntimeDebugAt >= 1_000
+  ) {
+    runtimeState.lastRuntimeDebugAt = performance.now();
+    const tileEvents = [...frameState.telemetryTiles].map((tile) => {
+      const progress = dependencies.getTileDebugProgress(tile);
+      const inView = dependencies.isTileInMainView(tile as RuntimeTile);
+      const bounds = (tile as RuntimeTile).engineData?.boundingVolume;
+      if (bounds) {
+        bounds.getSphere(telemetrySphere);
+        telemetryCenter
+          .copy(telemetrySphere.center)
+          .applyMatrix4(runtimeState.tileViewProjection);
+      }
+      return {
+        url: resolveTileContentUrl(tile),
+        inView,
+        shadowOnly:
+          !inView && (tile as RuntimeTile).shadowReceiverCurrent === true,
+        externalTileset: tile.internal.hasUnrenderableContent,
+        loadingState: tile.internal.loadingState,
+        lodDepth: tile.internal.depth,
+        geometricError: tile.geometricError,
+        screenErrorPixels: tile.traversal.error,
+        cameraDistance: tile.traversal.distanceFromCamera,
+        screenCenterDistanceNdc: bounds
+          ? Math.hypot(telemetryCenter.x, telemetryCenter.y)
+          : null,
+        ...progress,
+        steps: getThreeTileDiagnosticSteps(
+          progress,
+          runtimeState.shadowView !== null,
+          performance.now()
+        ),
+      };
+    });
+    frameState.telemetryTiles.clear();
+    console.debug(
+      "[tiles3d-debug] runtime state",
+      JSON.stringify({
+        frameCount: runtimeState.tiles.frameCount,
+        visible: runtimeState.tiles.visibleTiles.size,
+        active: runtimeState.tiles.activeTiles.size,
+        groupChildren: runtimeState.tiles.group.children.length,
+        queued: runtimeState.tiles.stats.queued,
+        downloading: runtimeState.tiles.stats.downloading,
+        parsing: runtimeState.tiles.stats.parsing,
+        ...attachment.getQueueTelemetry(),
+        viewportCut: runtimeState.lastLoadedViewportCutSize,
+        retainedViewport: runtimeState.displayedMeshFrontier.size,
+        corridorTiles: runtimeState.committedMeshCasterFrontier.size,
+        shadowSelectionEnabled: runtimeState.shadowSelectionEnabled,
+        receiverCount: runtimeState.shadowReceiverMask?.sourceCount ?? 0,
+        tileEvents,
+        tileWaitEvents: dependencies.drainTileWaitEvents(),
+        telemetryDropped: frameState.telemetryDropped,
+        requestConcurrency: runtimeState.tiles.downloadQueue.maxJobsPerOrigin,
+        perOriginConcurrency: runtimeState.tiles.downloadQueue.maxJobsPerOrigin,
+        memoryAdmissionPaused: runtimeState.memoryAdmissionPaused,
+        effectiveErrorTarget: runtimeState.effectiveErrorTarget,
+        requestedErrorTarget: runtimeState.requestedErrorTarget,
+        mainViewConverged: runtimeState.lastMainViewConverged,
+      })
+    );
+    frameState.telemetryDropped = 0;
+  }
+}

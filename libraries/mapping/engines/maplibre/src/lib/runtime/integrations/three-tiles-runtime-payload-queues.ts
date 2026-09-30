@@ -353,7 +353,11 @@ export function createThreeTilesPayloadQueues(
     const hasParseJob = parseQueue.has.bind(parseQueue);
     parseQueue.has = (tile) => metadataParsing.has(tile) || hasParseJob(tile);
     parseQueue.add = (tile: Tile, callback) => {
-      const progress = dependencies.getTileDebugProgress(tile);
+      const progress =
+        runtimeState.options.diagnostics &&
+        runtimeState.options.tileTelemetry !== false
+          ? dependencies.getTileDebugProgress(tile)
+          : undefined;
       if (progress) progress.downloadFinishedAt = performance.now();
       dependencies.noteTileActivity(tile);
       const add = tile.internal.hasUnrenderableContent

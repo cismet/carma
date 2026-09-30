@@ -540,7 +540,11 @@ export function installThreeTilesTraversalHooks(
     // families; siblings use the same bounded queues as direct camera demand.
     dependencies.assignTilePriority(runtimeTile);
     runtimeState.queuedThisTraversal.add(tile);
-    dependencies.getTileDebugProgress(tile).queuedAt ??= performance.now();
+    if (
+      runtimeState.options.diagnostics &&
+      runtimeState.options.tileTelemetry !== false
+    )
+      dependencies.getTileDebugProgress(tile).queuedAt ??= performance.now();
     dependencies.noteTileActivity(tile);
     runtimeTile.firstPublicationRequestedAt = performance.now();
     payloadQueues.makeRoomForRequest(tile);

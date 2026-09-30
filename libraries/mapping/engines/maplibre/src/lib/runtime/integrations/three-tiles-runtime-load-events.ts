@@ -74,7 +74,11 @@ export function createThreeTilesLoadEvents(
 ) {
   const handleModelLoad: ThreeTilesRuntimeServices["handleModelLoad"] =
     (event: { scene?: THREE.Object3D; tile?: Tile; url?: string }) => {
-      if (event.tile) {
+      if (
+        event.tile &&
+        runtimeState.options.diagnostics &&
+        runtimeState.options.tileTelemetry !== false
+      ) {
         dependencies.getTileDebugProgress(event.tile).publicationStartedAt =
           performance.now();
         dependencies.getTileDebugProgress(event.tile).loadedAt ??=
@@ -145,7 +149,11 @@ export function createThreeTilesLoadEvents(
         drawObserver.attach(event.tile as RuntimeTile, event.scene);
       dependencies.notifyRequestStateChange();
       dependencies.requestRender();
-      if (event.tile)
+      if (
+        event.tile &&
+        runtimeState.options.diagnostics &&
+        runtimeState.options.tileTelemetry !== false
+      )
         dependencies.getTileDebugProgress(event.tile).publicationFinishedAt =
           performance.now();
     };

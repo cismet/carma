@@ -4,7 +4,7 @@ import {
   TILE_QUEUE_ACTION,
   TILE_QUEUE_STAGE,
 } from "../../core/tile-scheduling-policy";
-import { createThreeTilesDebug } from "./three-tiles-runtime-debug";
+import { createThreeTilesDiagnostics as createThreeTilesDebug } from "./three-tiles-runtime-diagnostics";
 import type { MeshTileDebugProgress } from "./three-tiles-runtime-types";
 import {
   recordThreeTileWait,

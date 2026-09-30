@@ -50,7 +50,7 @@ const OVERLAY_ANCHOR_STYLE: CSSProperties = {
   pointerEvents: "auto",
 };
 
-/** Shadow options or the explicit debug feature flag expose the same overlay. */
+/** The explicit debug flag owns diagnostics; saved options cannot bypass it. */
 export const TileLoadingDebugHost = ({ map }: { map: MaplibreMap | null }) => {
   const [shadowState, setShadowState] = useAddonState("shadowSimulation");
   const { isDebugMode } = useFeatureFlags();
@@ -67,7 +67,9 @@ export const TileLoadingDebugHost = ({ map }: { map: MaplibreMap | null }) => {
     )
   );
   const meshControls = isDebugMode && !!runtimeHandle;
-  const open = !!shadowState?.showTileDiagnostics || (meshControls && meshOpen);
+  const open =
+    isDebugMode &&
+    (!!shadowState?.showTileDiagnostics || (meshControls && meshOpen));
   const container = map?.getContainer?.() ?? null;
   if ((!open && !meshControls) || !map || !container) return null;
   const close = () => {

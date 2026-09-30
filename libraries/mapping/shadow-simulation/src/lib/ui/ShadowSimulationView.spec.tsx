@@ -27,13 +27,14 @@ import { DEFAULT_SHADOW_SIMULATION_LOCATION } from "../core/solar-position";
 import { ShadowSimulationView } from "./ShadowSimulationView";
 
 const debugLifecycle = vi.hoisted(() => ({
+  runtime: vi.fn(() => null),
   imported: vi.fn(),
   mounted: vi.fn(),
   unmounted: vi.fn(),
 }));
 
 vi.mock("../runtime/ShadowSimulationRuntime", () => ({
-  ShadowSimulationRuntime: () => null,
+  ShadowSimulationRuntime: debugLifecycle.runtime,
 }));
 vi.mock("./ShadowProjectionDebugView", async () => {
   const { useEffect } = await import("react");
@@ -247,10 +248,14 @@ describe("shadow display panel integration", () => {
       enabled: true,
     };
     const dateState = createInitialShadowDateState(undefined, location);
-    const viewForState = (state: ShadowSimulationState) => (
+    const viewForState = (
+      state: ShadowSimulationState,
+      debugEnabled = true
+    ) => (
       <ControlLayout>
         <ShadowSimulationView
           libreMap={libreMap}
+          debugEnabled={debugEnabled}
           targeted={false}
           sharedState={state}
           setSharedState={vi.fn()}
@@ -260,11 +265,27 @@ describe("shadow display panel integration", () => {
       </ControlLayout>
     );
     const { findByRole, queryByRole, rerender } = render(
-      viewForState(initialState)
+      viewForState(
+        {
+          ...initialState,
+          showProjectionDebugView: true,
+          showTileDiagnostics: true,
+        },
+        false
+      )
     );
     await act(async () => {
       await vi.dynamicImportSettled();
     });
+    expect(debugLifecycle.runtime).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        state: expect.objectContaining({
+          showProjectionDebugView: false,
+          showTileDiagnostics: false,
+        }),
+      }),
+      expect.anything()
+    );
     expect(debugLifecycle.imported).not.toHaveBeenCalled();
     expect(debugLifecycle.mounted).not.toHaveBeenCalled();
     expect(

@@ -177,6 +177,7 @@ describe("lifecycle runtime integration", () => {
     await vi.dynamicImportSettled();
     expect(findOverlay()).toBeUndefined();
     layer.debug.setTileBoundsVisible(true);
+    await vi.dynamicImportSettled();
     expect(findOverlay()).toBeDefined();
 
     layer.debug.setTileBoundsVisible(false);

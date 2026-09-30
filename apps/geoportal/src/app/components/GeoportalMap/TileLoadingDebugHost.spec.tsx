@@ -128,12 +128,14 @@ describe("TileLoadingDebugHost", () => {
 
   it("mounts nothing by default, including in development mode", () => {
     debug.loaded = true;
+    shadow.state = { showTileDiagnostics: true };
     const { map, mapContainer } = createMap();
     render(<TileLoadingDebugHost map={map} />);
     expect(mapContainer.innerHTML).toBe("");
   });
 
-  it("opens from shadow option or decoded URL state and unmounts when disabled", async () => {
+  it("opens from shadow options only with the debug flag and unmounts when disabled", async () => {
+    debug.enabled = true;
     const { map, mapContainer } = createMap();
     shadow.state = { showTileDiagnostics: true };
     const { rerender } = render(<TileLoadingDebugHost map={map} />);
@@ -152,6 +154,7 @@ describe("TileLoadingDebugHost", () => {
   });
 
   it("closing the overlay clears the shared option and preserves other shadow state", async () => {
+    debug.enabled = true;
     const { map } = createMap();
     shadow.state = { showTileDiagnostics: true, enabled: true };
     render(<TileLoadingDebugHost map={map} />);

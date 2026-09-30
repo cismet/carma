@@ -122,6 +122,7 @@ export function createThreeTilesLifecycle(
   dependencies: Pick<
     ThreeTilesRuntimeServices,
     | "getTileDebugProgress"
+    | "reportFrameTelemetry"
     | "recordTileRequestDecision"
     | "recordTileWait"
     | "drainTileWaitEvents"
@@ -196,8 +197,13 @@ export function createThreeTilesLifecycle(
   };
   const drawObserver = createTileDrawObserver(
     (tile) => {
-      dependencies.getTileDebugProgress(tile).visibleAt ??= performance.now();
-      dependencies.recordTileWait(tile, MESH_TILE_WAIT_ROLE.RECEIVER, null);
+      if (
+        runtimeState.options.diagnostics &&
+        runtimeState.options.tileTelemetry !== false
+      ) {
+        dependencies.getTileDebugProgress(tile).visibleAt ??= performance.now();
+        dependencies.recordTileWait(tile, MESH_TILE_WAIT_ROLE.RECEIVER, null);
+      }
       const requestedAt = tile.firstPublicationRequestedAt;
       if (requestedAt !== undefined) {
         motionPrefetch.observeLatency(performance.now() - requestedAt);
@@ -248,6 +254,13 @@ export function createThreeTilesLifecycle(
       runtimeState.map?.getZoom?.(),
       !!runtimeState.shadowView
     );
+    if (
+      !(
+        runtimeState.options.diagnostics &&
+        runtimeState.options.tileTelemetry !== false
+      )
+    )
+      return;
     const progress = dependencies.getTileDebugProgress(tile);
     progress.downloadStartedAt = performance.now();
     progress.downloadFinishedAt = undefined;

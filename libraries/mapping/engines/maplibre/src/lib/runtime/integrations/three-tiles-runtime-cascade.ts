@@ -443,12 +443,14 @@ export function createThreeTilesCascade(
       runtimeState.memoryErrorTarget <= runtimeState.requestedErrorTarget &&
       runtimeState.effectiveErrorTarget === runtimeState.requestedErrorTarget &&
       !runtimeState.map?.isMoving?.() &&
-      runtimeState.ringRefinePasses < TILES_LOAD_POLICY.idleRingRefinePassLimit &&
+      runtimeState.ringRefinePasses <
+        TILES_LOAD_POLICY.idleRingRefinePassLimit &&
       tiles.stats.queued === 0 &&
       tiles.stats.downloading === 0 &&
       tiles.stats.parsing === 0 &&
-      tiles.lruCache.cachedBytes <
-        tiles.lruCache.minBytesSize * TILES_LOAD_POLICY.idleRingBudgetFraction &&
+      (tiles.lruCache as RuntimeLruCache).cachedBytes <
+        tiles.lruCache.minBytesSize *
+          TILES_LOAD_POLICY.idleRingBudgetFraction &&
       runtimeState.lastTraversalMs <=
         TILES_LOAD_POLICY.idleRingRefineTraversalBudgetMs
     );

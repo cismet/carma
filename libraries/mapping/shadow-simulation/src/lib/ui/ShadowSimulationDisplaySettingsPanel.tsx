@@ -49,6 +49,7 @@ import { SHADOW_QUALITY_LEVELS } from "./shadow-control-utils";
 
 export const ShadowSimulationDisplaySettingsPanel = ({
   tiledShadows = false,
+  debugEnabled = true,
   state,
   setState,
   terrainSources,
@@ -59,6 +60,7 @@ export const ShadowSimulationDisplaySettingsPanel = ({
   terrainSources?: readonly ShadowTerrainSourceOption[];
   map?: MaplibreMap | null;
   tiledShadows?: boolean;
+  debugEnabled?: boolean;
 }) => {
   const mobileBaseline = usesMobileShadowBaseline();
   const { token } = theme.useToken();
@@ -477,34 +479,38 @@ export const ShadowSimulationDisplaySettingsPanel = ({
             />
             <Divider style={{ margin: 0 }} />
             <Space style={{ padding: token.paddingXS }}>
-              <Button
-                type="default"
-                icon={<FontAwesomeIcon icon={faBug} />}
-                aria-pressed={state.showProjectionDebugView ?? false}
-                onClick={() =>
-                  setState({
-                    ...state,
-                    showProjectionDebugView: !state.showProjectionDebugView,
-                  })
-                }
-                data-test-id="shadow-simulation-projection-debug"
-              >
-                Debug
-              </Button>
-              <Button
-                type="default"
-                icon={<FontAwesomeIcon icon={faLayerGroup} />}
-                aria-pressed={state.showTileDiagnostics ?? false}
-                onClick={() =>
-                  setState({
-                    ...state,
-                    showTileDiagnostics: !state.showTileDiagnostics,
-                  })
-                }
-                data-test-id="shadow-simulation-tile-diagnostics"
-              >
-                Kacheln
-              </Button>
+              {debugEnabled && (
+                <>
+                  <Button
+                    type="default"
+                    icon={<FontAwesomeIcon icon={faBug} />}
+                    aria-pressed={state.showProjectionDebugView ?? false}
+                    onClick={() =>
+                      setState({
+                        ...state,
+                        showProjectionDebugView: !state.showProjectionDebugView,
+                      })
+                    }
+                    data-test-id="shadow-simulation-projection-debug"
+                  >
+                    Debug
+                  </Button>
+                  <Button
+                    type="default"
+                    icon={<FontAwesomeIcon icon={faLayerGroup} />}
+                    aria-pressed={state.showTileDiagnostics ?? false}
+                    onClick={() =>
+                      setState({
+                        ...state,
+                        showTileDiagnostics: !state.showTileDiagnostics,
+                      })
+                    }
+                    data-test-id="shadow-simulation-tile-diagnostics"
+                  >
+                    Kacheln
+                  </Button>
+                </>
+              )}
               <Button
                 icon={<FontAwesomeIcon icon={faChartLine} />}
                 aria-pressed={state.controlStyle === SHADOW_CONTROL_STYLE.CURVE}

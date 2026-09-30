@@ -205,6 +205,7 @@ export function buildThreeTilesRuntime(
   const spatial = createThreeTilesSpatial(state, {
     getStableTileId: (...args) => debug.getStableTileId(...args),
     getTileLoadReason: (...args) => shadows.getTileLoadReason(...args),
+    getTileDiagnosticSteps: (...args) => debug.getTileDiagnosticSteps(...args),
   });
   const projection = createThreeTilesProjection(state);
   const surfaces = createThreeTilesSurfaces(state);
@@ -248,6 +249,7 @@ export function buildThreeTilesRuntime(
       spatial.getTileRequestPriority(...args),
     getTileCameraDemand: (...args) => spatial.getTileCameraDemand(...args),
     getTileDebugProgress: (...args) => debug.getTileDebugProgress(...args),
+    reportFrameTelemetry: (...args) => debug.reportFrameTelemetry(...args),
     recordTileRequestDecision: (...args) =>
       debug.recordTileRequestDecision(...args),
     recordTileWait: (...args) => debug.recordTileWait(...args),

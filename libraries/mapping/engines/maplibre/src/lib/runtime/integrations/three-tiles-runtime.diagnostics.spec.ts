@@ -8,6 +8,12 @@ import { describe, expect, it, vi } from "vitest";
 import { buildThreeTilesRuntime } from "./three-tiles-runtime";
 import { debugTilesRuntimes } from "./three-tiles-runtime-debug";
 
+const capture = vi.hoisted(() => ({ imported: vi.fn() }));
+vi.mock("./three-tiles-runtime-diagnostics", async (importOriginal) => {
+  capture.imported();
+  return importOriginal();
+});
+
 const MIB = 1024 ** 2;
 
 type BytesRenderer = {
@@ -22,7 +28,7 @@ vi.hoisted(() => {
 });
 
 describe("diagnostics runtime integration", () => {
-  it("toggles diagnostics without replacing the runtime or its loaded tiles", () => {
+  it("loads diagnostics only on opt-in without replacing the runtime or its loaded tiles", async () => {
     const runtime = buildThreeTilesRuntime(
       "telemetry-toggle",
       "mesh.json",
@@ -35,7 +41,12 @@ describe("diagnostics runtime integration", () => {
     } as unknown as MaplibreMap;
     runtime.scene.onAdd?.(map);
     try {
+      await vi.dynamicImportSettled();
+      expect(capture.imported).not.toHaveBeenCalled();
+      expect(runtime.debug.readState()).toBeUndefined();
       runtime.debug.setDiagnosticsEnabled(true);
+      await vi.dynamicImportSettled();
+      expect(capture.imported).toHaveBeenCalledTimes(1);
       const state = [...(debugTilesRuntimes() ?? [])].find(
         (entry) => (entry as { layerId: string }).layerId === "telemetry-toggle"
       ) as { tiles: TilesRenderer; options: { diagnostics: boolean } };

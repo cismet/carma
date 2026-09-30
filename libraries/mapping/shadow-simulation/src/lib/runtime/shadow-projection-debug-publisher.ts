@@ -3,6 +3,7 @@ import type { Map as MaplibreMap } from "maplibre-gl";
 import type { ShadowProjectionDebugSnapshot } from "./shadow-projection-debug-store";
 import {
   hasShadowProjectionDebugListeners,
+  registerShadowProjectionDebugPublisher,
   publishShadowProjectionDebugSnapshot,
 } from "./shadow-projection-debug-store";
 
@@ -92,3 +93,5 @@ export const createShadowProjectionDebugPublisher = (
     },
   };
 };
+
+registerShadowProjectionDebugPublisher(createShadowProjectionDebugPublisher);

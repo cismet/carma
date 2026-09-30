@@ -1,6 +1,7 @@
 import L from "leaflet";
 import { getFromWebMercatorToWGS84 } from "@carma-geo/proj";
 import {
+  lazy,
   Suspense,
   useCallback,
   useContext,
@@ -59,7 +60,7 @@ import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
 import { useAuth } from "@carma-providers/auth";
 import { useLibreMapEnabled } from "../../hooks/useLibreMapEnabled";
-import { TileLoadingDebugHost } from "./TileLoadingDebugHost";
+import { useFeatureFlags } from "@carma-providers/feature-flag";
 import {
   defaultLayerConf,
   getLayers as getBackgroundLayers,
@@ -143,6 +144,12 @@ import "cesium/Build/Cesium/Widgets/widgets.css";
 import "../leaflet.css";
 import AdhocSelectionSync from "../feature-info/AdhocSelectionSync.tsx";
 import { selectionPadding } from "../../constants/selection.ts";
+
+const TileLoadingDebugHost = lazy(() =>
+  import("./TileLoadingDebugHost").then((module) => ({
+    default: module.TileLoadingDebugHost,
+  }))
+);
 
 interface MapProps {
   height: number;
@@ -851,6 +858,7 @@ const GeoportalModalMenu = () => {
 };
 
 const LibreGeoportalMap = ({ allow3d }: MapProps) => {
+  const { isDebugMode } = useFeatureFlags();
   useGeoportalHelpOverlays();
 
   const showHamburgerMenu = useSelector(getShowHamburgerMenu);
@@ -977,6 +985,7 @@ const LibreGeoportalMap = ({ allow3d }: MapProps) => {
           // style whose layer metadata carries `carmaConf.3d` is then rendered
           // as real 3D geometry instead of flat
           threeRuntimeParams={{}}
+          tilesDiagnosticsEnabled={isDebugMode}
           tilesetColorCorrections={TILESET_COLOR_CORRECTIONS}
           minZoom={MAP_MIN_ZOOM}
           maxZoom={MAP_MAX_ZOOM}
@@ -1023,7 +1032,11 @@ const LibreGeoportalMap = ({ allow3d }: MapProps) => {
             />
           ))}
         {!isCesium && <LibrePrintPreview />}
-        <TileLoadingDebugHost map={libreMap} />
+        {isDebugMode && (
+          <Suspense fallback={null}>
+            <TileLoadingDebugHost map={libreMap} />
+          </Suspense>
+        )}
       </div>
       <GeoportalCesiumHost
         allow3d={allow3d}

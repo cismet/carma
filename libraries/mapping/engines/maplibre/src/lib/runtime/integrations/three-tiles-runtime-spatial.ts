@@ -10,7 +10,6 @@ import { createThreeTilesViewFrustums } from "./three-tiles-runtime-view-frustum
 import type { SharedThreeSceneTileVolume } from "../../core/shared-three-scene-types";
 import { TILE_VOLUME_KIND } from "../../core/tile-volume";
 import { readOrientedTileBounds } from "./three-tiles-bounds";
-import { getThreeTileDiagnosticSteps } from "./three-tiles-diagnostic-steps";
 import { isMeshRegionAtError } from "../../core/mesh-tile-coverage";
 import { hasMeshRefinementContentInView } from "../../core/mesh-tile-refinement";
 import type {
@@ -73,7 +72,7 @@ export function createThreeTilesSpatial(
   >,
   dependencies: Pick<
     ThreeTilesRuntimeServices,
-    "getStableTileId" | "getTileLoadReason"
+    "getStableTileId" | "getTileLoadReason" | "getTileDiagnosticSteps"
   >
 ) {
   const cameraErrors = { values: new WeakMap<RuntimeTile, number>() };
@@ -185,13 +184,7 @@ export function createThreeTilesSpatial(
             ? TILE_VOLUME_KIND.TERRAIN_TILE
             : TILE_VOLUME_KIND.TILE_3D,
           sourceId: runtimeState.tilesetUrl,
-          steps: runtimeState.tileDebugProgress.has(tile)
-            ? getThreeTileDiagnosticSteps(
-                runtimeState.tileDebugProgress.get(tile)!,
-                runtimeState.shadowView !== null,
-                performance.now()
-              )
-            : undefined,
+          steps: dependencies.getTileDiagnosticSteps?.(tile),
           geometricError: tile.geometricError,
           errorPixels: getTileScreenError(tile as RuntimeTile),
           loadReason: dependencies.getTileLoadReason(activeTile as RuntimeTile),

@@ -361,6 +361,8 @@ export interface LibreMapProps {
    * declares none; a style's own `carmaConf["3d"].colorCorrection` wins.
    */
   tilesetColorCorrections?: Readonly<Record<string, TextureColorCorrection>>;
+  /** Hosts can forbid diagnostics requested by a layer style. */
+  tilesDiagnosticsEnabled?: boolean;
   /** Ref for 3D layer performance data */
   threePerfRef?: React.MutableRefObject<ThreePerfData>;
   /** Maximum tilt (pitch) in degrees. Defaults to 60 (MapLibre's stock cap). */
@@ -494,6 +496,7 @@ export const LibreMap = ({
   backgroundRasterPaint,
   threeRuntimeParams,
   tilesetColorCorrections,
+  tilesDiagnosticsEnabled,
   threePerfRef,
   maxPitch = DEFAULT_MAX_PITCH,
   minZoom,
@@ -553,9 +556,14 @@ export const LibreMap = ({
   const renderedTiles3dConfigs = useMemo(
     () =>
       detectedTiles3dConfigs.map((config) =>
-        withTilesetColorCorrection(config, tilesetColorCorrections)
+        withTilesetColorCorrection(
+          tilesDiagnosticsEnabled === false
+            ? { ...config, diagnostics: false }
+            : config,
+          tilesetColorCorrections
+        )
       ),
-    [detectedTiles3dConfigs, tilesetColorCorrections]
+    [detectedTiles3dConfigs, tilesetColorCorrections, tilesDiagnosticsEnabled]
   );
   const geoJsonMetadataRef = useRef<
     Array<{ sourceId: string; uniqueColors: string[] }>

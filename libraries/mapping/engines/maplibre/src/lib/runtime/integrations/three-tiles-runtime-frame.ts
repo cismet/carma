@@ -31,9 +31,7 @@ import type {
   RuntimePriorityQueue,
   RuntimeTile,
 } from "./three-tiles-runtime-types";
-import { getThreeTileDiagnosticSteps } from "./three-tiles-diagnostic-steps";
 import { CACHE_CEILING_REASON } from "./three-tiles-cache-ceiling-memory";
-import { resolveTileContentUrl } from "./three-tiles-runtime-vendor";
 
 import {
   createTilesCameraSet,
@@ -56,9 +54,6 @@ export function createThreeTilesFrameUpdate(
     refineRingCascade,
     scheduleCascadeTick,
     isTileInAnyView,
-    localTelemetry,
-    telemetryCenter,
-    telemetrySphere,
   } = hooks;
   const publishFrame = createThreeTilesFramePublication(
     runtimeState,
@@ -347,77 +342,7 @@ export function createThreeTilesFrameUpdate(
         for (const queue of runtimeState.tiles.downloadQueue.originQueues.values())
           queue.scheduleJobRun();
       }
-      if (
-        (runtimeState.options.tileTelemetry === true ||
-          (localTelemetry && runtimeState.tileBoundsVisible)) &&
-        runtimeState.options.tileTelemetry !== false &&
-        performance.now() - runtimeState.lastRuntimeDebugAt >= 1_000
-      ) {
-        runtimeState.lastRuntimeDebugAt = performance.now();
-        const tileEvents = [...frameState.telemetryTiles].map((tile) => {
-          const progress = dependencies.getTileDebugProgress(tile);
-          const inView = dependencies.isTileInMainView(tile as RuntimeTile);
-          const bounds = (tile as RuntimeTile).engineData?.boundingVolume;
-          if (bounds) {
-            bounds.getSphere(telemetrySphere);
-            telemetryCenter
-              .copy(telemetrySphere.center)
-              .applyMatrix4(runtimeState.tileViewProjection);
-          }
-          return {
-            url: resolveTileContentUrl(tile),
-            inView,
-            shadowOnly:
-              !inView && (tile as RuntimeTile).shadowReceiverCurrent === true,
-            externalTileset: tile.internal.hasUnrenderableContent,
-            loadingState: tile.internal.loadingState,
-            lodDepth: tile.internal.depth,
-            geometricError: tile.geometricError,
-            screenErrorPixels: tile.traversal.error,
-            cameraDistance: tile.traversal.distanceFromCamera,
-            screenCenterDistanceNdc: bounds
-              ? Math.hypot(telemetryCenter.x, telemetryCenter.y)
-              : null,
-            ...progress,
-            steps: getThreeTileDiagnosticSteps(
-              progress,
-              runtimeState.shadowView !== null,
-              performance.now()
-            ),
-          };
-        });
-        frameState.telemetryTiles.clear();
-        console.debug(
-          "[tiles3d-debug] runtime state",
-          JSON.stringify({
-            frameCount: runtimeState.tiles.frameCount,
-            visible: runtimeState.tiles.visibleTiles.size,
-            active: runtimeState.tiles.activeTiles.size,
-            groupChildren: runtimeState.tiles.group.children.length,
-            queued: runtimeState.tiles.stats.queued,
-            downloading: runtimeState.tiles.stats.downloading,
-            parsing: runtimeState.tiles.stats.parsing,
-            ...attachment.getQueueTelemetry(),
-            viewportCut: runtimeState.lastLoadedViewportCutSize,
-            retainedViewport: runtimeState.displayedMeshFrontier.size,
-            corridorTiles: runtimeState.committedMeshCasterFrontier.size,
-            shadowSelectionEnabled: runtimeState.shadowSelectionEnabled,
-            receiverCount: runtimeState.shadowReceiverMask?.sourceCount ?? 0,
-            tileEvents,
-            tileWaitEvents: dependencies.drainTileWaitEvents(),
-            telemetryDropped: frameState.telemetryDropped,
-            requestConcurrency:
-              runtimeState.tiles.downloadQueue.maxJobsPerOrigin,
-            perOriginConcurrency:
-              runtimeState.tiles.downloadQueue.maxJobsPerOrigin,
-            memoryAdmissionPaused: runtimeState.memoryAdmissionPaused,
-            effectiveErrorTarget: runtimeState.effectiveErrorTarget,
-            requestedErrorTarget: runtimeState.requestedErrorTarget,
-            mainViewConverged: runtimeState.lastMainViewConverged,
-          })
-        );
-        frameState.telemetryDropped = 0;
-      }
+      dependencies.reportFrameTelemetry?.(runtimeState, dependencies, hooks);
       if (runtimeState.tileBoundsVisible) dependencies.syncTileDebugOverlay();
       else if (frameState.telemetryTiles.size) {
         frameState.telemetryTiles.clear();
