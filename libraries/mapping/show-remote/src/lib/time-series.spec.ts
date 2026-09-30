@@ -2,6 +2,7 @@ import type { MappingConfig } from "@carma-api";
 
 import {
   clockStep,
+  enteredSeriesClock,
   findSceneSeries,
   isTimeSeriesControl,
   planSeriesApply,
@@ -123,6 +124,43 @@ describe("clockStep", () => {
 
   it("keeps a step inside the series", () => {
     expect(clockStep({ step: 9, playing: false, since: 0 }, series, 0)).toBe(4);
+  });
+});
+
+describe("enteredSeriesClock", () => {
+  const series = {
+    key: "t50",
+    stepCount: 24,
+    initialStep: 0,
+    autoplay: true,
+  };
+
+  it("starts a series that was not the last one on as its layer says", () => {
+    expect(enteredSeriesClock(series, null, 500)).toEqual({
+      clock: { step: 0, playing: true, since: 500 },
+      touched: false,
+    });
+    expect(
+      enteredSeriesClock(series, { key: "t100", step: 9 }, 500).clock.step
+    ).toBe(0);
+  });
+
+  it("continues a re-entered series where the display left it, and leaves the display to it", () => {
+    expect(
+      enteredSeriesClock(series, { key: "t50", step: 13 }, 500, "continue")
+    ).toEqual({
+      clock: { step: 13, playing: true, since: 500 },
+      touched: false,
+    });
+  });
+
+  it("puts both back on the first step when set to restart", () => {
+    expect(
+      enteredSeriesClock(series, { key: "t50", step: 13 }, 500, "restart")
+    ).toEqual({
+      clock: { step: 0, playing: true, since: 500, seekAt: 500 },
+      touched: true,
+    });
   });
 });
 

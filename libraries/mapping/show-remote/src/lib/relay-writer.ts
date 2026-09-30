@@ -108,3 +108,69 @@ export const readRelayState = async (
 export const helloRelay = async (target: RelayTarget): Promise<void> => {
   await request(`${sessionUrl(target)}/hello`, { method: "POST" });
 };
+
+/**
+ * A session as the relay hands it to a reader: `ts` is when it was last
+ * written and `now` when this answer left, both on the relay's clock, so their
+ * difference is the state's age whatever this device's clock says.
+ */
+export type RelaySnapshot = {
+  v: number;
+  state: unknown;
+  ts: number;
+  now: number;
+};
+
+/** how much longer than the relay's hold an answer may take on the way */
+const WAIT_MARGIN_MS = 7_000;
+
+/**
+ * The session's state once its version differs from `since`, or unchanged
+ * after the relay held the request `waitMs` (long polling). `signal` ends the
+ * wait early, e.g. when the reader goes away.
+ */
+export const waitRelayState = async (
+  target: RelayTarget,
+  since: number,
+  waitMs: number,
+  signal?: AbortSignal
+): Promise<RelaySnapshot> => {
+  const controller = new AbortController();
+  let timedOut = false;
+  const abort = () => controller.abort();
+  const timer = setTimeout(() => {
+    timedOut = true;
+    abort();
+  }, waitMs + WAIT_MARGIN_MS);
+  signal?.addEventListener("abort", abort);
+  let response: Response;
+  try {
+    response = await fetch(
+      `${sessionUrl(target)}?since=${since}&wait=${Math.max(0, waitMs)}`,
+      {
+        method: "GET",
+        cache: "no-store",
+        credentials: "omit",
+        signal: controller.signal,
+      }
+    );
+    if (!response.ok) {
+      throw new RelayError(describeStatus(response.status), response.status);
+    }
+    return (await response.json()) as RelaySnapshot;
+  } catch (error) {
+    if (error instanceof RelayError) {
+      throw error;
+    }
+    throw new RelayError(
+      timedOut
+        ? `the relay did not answer within ${waitMs + WAIT_MARGIN_MS} ms`
+        : `the relay is not reachable (${
+            error instanceof Error ? error.message : String(error)
+          })`
+    );
+  } finally {
+    clearTimeout(timer);
+    signal?.removeEventListener("abort", abort);
+  }
+};

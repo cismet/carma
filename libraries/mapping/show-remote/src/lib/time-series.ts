@@ -4,9 +4,10 @@
  *
  * The phone says what it wants in the display's state document
  * (`TimeSeriesControl`), the same desired-state way as the scene itself. The
- * display never answers, so while the series plays the phone only knows where
- * it is by counting along on its own clock (`SeriesClock`). That count is an
- * estimate and may be a step off; the display is what is right.
+ * display answers in a session of its own (`SeriesStatus`, see
+ * `series-status.ts`) with its frames and the step it shows, and the phone
+ * follows that. A display that does not answer leaves the phone counting along
+ * on its own clock (`SeriesClock`), an estimate that may be a step off.
  *
  * Which series a scene runs is read from the scene: the layer whose tools carry
  * a complete `timeSlider` config launches it on the display, see
@@ -160,6 +161,57 @@ export const clockStep = (
   }
   const position = step + Math.max(0, now - clock.since) / series.stepMs;
   return Math.round(position % last);
+};
+
+/**
+ * Where a series starts when its scene comes back after scenes without it.
+ *
+ * The display keeps the last series it ran, and the step it stood on, while
+ * no scene shows it, and brings it back from there when it is launched again
+ * (`useTimeSeriesLauncher` in `@carma-mapping/addons`); another series in
+ * between replaces it. "continue" has the phone start where the display left
+ * it; "restart" puts both on the series' first step, the display by a seek.
+ * Switching the behaviour is changing `SERIES_REENTRY`.
+ */
+export type SeriesReentry = "continue" | "restart";
+export const SERIES_REENTRY: SeriesReentry = "continue";
+
+/** the series that was on last, and the step it was left on */
+export type LeftSeries = { key: string; step: number };
+
+/**
+ * The phone's clock for a series coming on, and whether it goes into the state
+ * document right away (`touched`). A series that was not the last one on
+ * starts as its layer says, and so does the display. `left` is the one that
+ * went off last, see `LeftSeries`.
+ */
+export const enteredSeriesClock = (
+  series: Pick<SceneSeries, "key" | "stepCount" | "initialStep" | "autoplay">,
+  left: LeftSeries | null,
+  now: number,
+  reentry: SeriesReentry = SERIES_REENTRY
+): { clock: SeriesClock; touched: boolean } => {
+  // coming back on, the display plays again only if it plays by itself
+  const initial: SeriesClock = {
+    step: series.initialStep,
+    playing: series.autoplay,
+    since: now,
+  };
+  if (left?.key !== series.key) {
+    return { clock: initial, touched: false };
+  }
+  if (reentry === "restart") {
+    // the display would carry on where it left off unless told otherwise
+    return { clock: { ...initial, seekAt: now }, touched: true };
+  }
+  const last = Math.max(series.stepCount - 1, 0);
+  return {
+    clock: {
+      ...initial,
+      step: Math.max(0, Math.min(Math.round(left.step), last)),
+    },
+    touched: false,
+  };
 };
 
 /** the entry the phone writes for its clock at `now` */

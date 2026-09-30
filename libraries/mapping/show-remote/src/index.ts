@@ -61,8 +61,10 @@ export {
   RelayError,
   helloRelay,
   readRelayState,
+  waitRelayState,
   writeRelayState,
   type RelayReadResult,
+  type RelaySnapshot,
   type RelayTarget,
   type RelayWriteResult,
 } from "./lib/relay-writer";
@@ -138,16 +140,36 @@ export {
   type Surface,
 } from "./lib/display-info";
 export {
+  SERIES_REENTRY,
   clockStep,
+  enteredSeriesClock,
   findSceneSeries,
   isTimeSeriesControl,
   planSeriesApply,
   seriesControlOf,
   type AppliedSeriesControl,
+  type LeftSeries,
   type SceneSeries,
   type SeriesClock,
+  type SeriesReentry,
   type TimeSeriesControl,
 } from "./lib/time-series";
+export {
+  SERIES_SEEK_GRACE_MS,
+  SERIES_STATUS_HEARTBEAT_MS,
+  SERIES_STATUS_STALE_MS,
+  anchorSeriesClock,
+  followedSeriesControl,
+  isSeekPending,
+  isSeriesStatus,
+  isSeriesStatusCurrent,
+  seriesStatusSessionCode,
+  seriesStatusTarget,
+  seriesView,
+  type HeardSeriesStatus,
+  type SeriesStatus,
+  type SeriesView,
+} from "./lib/series-status";
 export {
   DEFAULT_SHADOW_CYCLE_SECONDS,
   SHADOW_CYCLE_STEPS_SECONDS,
