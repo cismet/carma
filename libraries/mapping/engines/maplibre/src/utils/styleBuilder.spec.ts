@@ -3,6 +3,7 @@
 import type { StyleSpecification } from "maplibre-gl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { STYLE_RESOURCE_TIMEOUT_MS } from "./fetch-style-resource";
 import { vectorStylesToMapLibreStyle } from "./styleBuilder";
 
 vi.hoisted(() => {
@@ -128,6 +129,117 @@ describe("vectorStylesToMapLibreStyle layer opacity", () => {
   });
 });
 
+describe("vectorStylesToMapLibreStyle remote style deadline", () => {
+  const backgroundStyle: StyleSpecification = {
+    version: 8,
+    sources: {},
+    layers: [{ id: "background", type: "background" }],
+  };
+  const remoteStyle: StyleSpecification = {
+    version: 8,
+    sources: {},
+    layers: [{ id: "remote", type: "background" }],
+  };
+  const layers = [
+    {
+      type: "vector" as const,
+      name: "stalled",
+      carmaLayerId: "stalled-layer",
+      style: "https://styles.example.test/stalled.json",
+    },
+    {
+      type: "vector" as const,
+      name: "ready",
+      carmaLayerId: "ready-layer",
+      style: "https://styles.example.test/ready.json",
+    },
+  ];
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  it.each(["connection", "body"])(
+    "skips a stalled %s, retains other layers, and permits retry",
+    async (stage) => {
+      const stalled = new Promise<never>(() => undefined);
+      const fetchMock = vi.fn(async (url: string, _init?: RequestInit) => {
+        if (url === layers[0].style) {
+          if (stage === "connection") return stalled;
+          return { ok: true, json: () => stalled };
+        }
+        return { ok: true, json: async () => remoteStyle };
+      });
+      vi.stubGlobal("fetch", fetchMock);
+      let settled = false;
+      const pending = vectorStylesToMapLibreStyle({
+        layers,
+        backgroundStyle,
+      }).then((result) => {
+        settled = true;
+        return result;
+      });
+
+      await vi.advanceTimersByTimeAsync(STYLE_RESOURCE_TIMEOUT_MS - 1);
+      expect(settled).toBe(false);
+      await vi.advanceTimersByTimeAsync(1);
+      const result = await pending;
+      expect(result.failedLayerIds).toEqual(["stalled-layer"]);
+      expect(result.style.layers).toHaveLength(2);
+      expect(result.style.layers[0].id).toBe("background");
+      expect(result.style.layers[1].metadata?.["carma-layer-id"]).toBe("ready-layer");
+      expect(vi.getTimerCount()).toBe(0);
+      const options = fetchMock.mock.calls[0][1] as RequestInit;
+      expect(options.signal?.aborted).toBe(true);
+      expect(console.warn).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          error: expect.objectContaining({
+            message: expect.stringContaining("timed out"),
+          }),
+        })
+      );
+
+      fetchMock.mockImplementation(async () => ({
+        ok: true,
+        json: async () => remoteStyle,
+      }));
+      const retried = await vectorStylesToMapLibreStyle({
+        layers,
+        backgroundStyle,
+      });
+      expect(retried.failedLayerIds).toEqual([]);
+      expect(retried.style.layers).toHaveLength(3);
+      expect(vi.getTimerCount()).toBe(0);
+    }
+  );
+
+  it("clears the deadline when a style arrives without aborting it later", async () => {
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => ({
+      ok: true,
+      json: async () => remoteStyle,
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+    const result = await vectorStylesToMapLibreStyle({
+      layers,
+      backgroundStyle,
+    });
+    expect(result.failedLayerIds).toEqual([]);
+    expect(result.style.layers).toHaveLength(3);
+    expect(vi.getTimerCount()).toBe(0);
+    await vi.advanceTimersByTimeAsync(STYLE_RESOURCE_TIMEOUT_MS);
+    for (const [, options] of fetchMock.mock.calls) {
+      expect((options as RequestInit).signal?.aborted).toBe(false);
+    }
+  });
+});
+
 describe("getVectorMapping WMS capabilities fetch", () => {
   const capabilitiesUrl =
     "https://wms.example.org/?SERVICE=WMS&REQUEST=GetCapabilities";
@@ -165,11 +277,14 @@ describe("getVectorMapping WMS capabilities fetch", () => {
     const fetchMock = await fetchWithHash("#/outlet?cache=forced");
     expect(fetchMock).toHaveBeenCalledWith(capabilitiesUrl, {
       cache: "force-cache",
+      signal: expect.any(AbortSignal),
     });
   });
 
-  it("gives no fetch option without cache=forced", async () => {
+  it("keeps the default cache mode without cache=forced", async () => {
     const fetchMock = await fetchWithHash("#/outlet?ff=ng");
-    expect(fetchMock).toHaveBeenCalledWith(capabilitiesUrl, {});
+    expect(fetchMock).toHaveBeenCalledWith(capabilitiesUrl, {
+      signal: expect.any(AbortSignal),
+    });
   });
 });
