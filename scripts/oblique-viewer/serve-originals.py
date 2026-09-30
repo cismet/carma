@@ -14,13 +14,18 @@ import shlex
 import subprocess
 import sys
 import threading
-from typing import Iterator
-from urllib.parse import unquote, urlsplit
+from typing import Callable, Iterator
+from urllib.parse import parse_qsl, unquote, urlsplit
 
 ALLOWED_ORIGIN = "http://localhost:4200"
 LEVEL_EDGES = {0: None, 1: 4096, 2: 2048, 3: 1024, 4: 512, 5: 256, 6: 128}
 MAX_RENDER_BYTES = 32 * 1024 * 1024
 MAX_CACHE_BYTES = 64 * 1024 * 1024
+MAX_RGB_PIXELS = 8_000_000
+MAX_RGB_EDGE = 8192
+MAX_REQUEST_INTEGER = 2**31 - 1
+PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
+PNG_IEND = b"\x00\x00\x00\x00IEND\xaeB`\x82"
 ID_PATTERN = re.compile(r"[A-Za-z0-9_.-]+\Z")
 
 INVENTORY_SCRIPT = r'''
@@ -77,6 +82,10 @@ with open(path, "rb") as source:
 
 
 class BridgeError(RuntimeError):
+    pass
+
+
+class InvalidRgbRequest(ValueError):
     pass
 
 
@@ -175,6 +184,51 @@ def render_source(info: dict, original: Original, max_edge: int | None) -> tuple
     return min(sufficient, key=lambda entry: entry[1] * entry[2])
 
 
+def requested_rgb_crop(query: str) -> tuple[int, int, int, int, int]:
+    """Accept exactly five bounded decimal integers, without query aliases."""
+    try:
+        pairs = parse_qsl(query, keep_blank_values=True, strict_parsing=True,
+                          encoding="ascii", errors="strict", max_num_fields=5)
+    except (ValueError, UnicodeError) as error:
+        raise InvalidRgbRequest("Expected x, y, width, height and edge integer parameters") from error
+    fields = ("x", "y", "width", "height", "edge")
+    values = dict(pairs)
+    if len(pairs) != len(fields) or set(values) != set(fields):
+        raise InvalidRgbRequest("Expected each of x, y, width, height and edge exactly once")
+    result = []
+    for field in fields:
+        value = values[field]
+        if not re.fullmatch(r"0|[1-9][0-9]{0,9}", value):
+            raise InvalidRgbRequest(f"{field} must be a bounded nonnegative decimal integer")
+        number = int(value)
+        if number > MAX_REQUEST_INTEGER or (field not in ("x", "y") and number == 0):
+            raise InvalidRgbRequest(f"{field} is outside the supported integer range")
+        result.append(number)
+    if result[4] > MAX_RGB_EDGE:
+        raise InvalidRgbRequest(f"RGB edge must not exceed {MAX_RGB_EDGE}")
+    return tuple(result)
+
+
+def rgb_output_size(info: dict, crop: tuple[int, int, int, int, int]) -> tuple[int, int]:
+    """Preserve native pixel layout while bounding RGB output allocation."""
+    dimensions = info.get("size")
+    if (not isinstance(dimensions, (list, tuple)) or len(dimensions) != 2
+            or any(type(value) is not int or not 0 < value <= MAX_REQUEST_INTEGER for value in dimensions)):
+        raise BridgeError("GDAL returned invalid native TIFF dimensions")
+    x, y, width, height, edge = crop
+    if (any(type(value) is not int or not 0 <= value <= MAX_REQUEST_INTEGER for value in crop)
+            or not 0 < width or not 0 < height or not 0 < edge <= MAX_RGB_EDGE
+            or x + width > dimensions[0] or y + height > dimensions[1]):
+        raise InvalidRgbRequest("RGB crop must be inside the native TIFF pixel bounds")
+    long_edge = max(width, height)
+    output_edge = min(edge, long_edge)
+    output_width = max(1, (width * output_edge + long_edge // 2) // long_edge)
+    output_height = max(1, (height * output_edge + long_edge // 2) // long_edge)
+    if output_width * output_height > MAX_RGB_PIXELS:
+        raise InvalidRgbRequest(f"RGB output must not exceed {MAX_RGB_PIXELS} pixels")
+    return output_width, output_height
+
+
 class RemoteBackend:
     def __init__(self, host: str, container: str, image_root: str):
         if not re.fullmatch(r"[A-Za-z0-9_.@-]+", host) or host.startswith("-"):
@@ -240,19 +294,34 @@ class RemoteBackend:
         rows = json.loads(self.execute(["python3", "-", self.image_root], INVENTORY_SCRIPT, 32 * 1024 * 1024))
         return original_index(rows)
 
-    def render(self, original: Original, max_edge: int | None) -> bytes:
+    def image_info(self, original: Original) -> dict:
         with self.info_lock:
             if original.id not in self.info:
                 self.info[original.id] = json.loads(self.execute(["gdalinfo", "-json", original.path], limit=1024 * 1024))
-            info = self.info[original.id]
-        source, width, height = render_source(info, original, max_edge)
+            return self.info[original.id]
+
+    def render(self, original: Original, max_edge: int | None) -> bytes:
+        source, width, height = render_source(self.image_info(original), original, max_edge)
         scale = min(1, max_edge / max(width, height)) if max_edge is not None else 1
         output_width, output_height = max(1, round(width * scale)), max(1, round(height * scale))
-        data = self.execute(["gdal_translate", "-q", "-of", "JPEG", "-co", "QUALITY=85",
-                             "-outsize", str(output_width), str(output_height), "-r", "bilinear",
+        data = self.execute(["gdal_translate", "-q", "-of", "JPEG", "-co", "QUALITY=95",
+                             "-outsize", str(output_width), str(output_height), "-r", "lanczos",
                              source, "/vsistdout/"])
         if not data.startswith(b"\xff\xd8") or not data.endswith(b"\xff\xd9"):
             raise BridgeError("GDAL did not return a complete JPEG")
+        return data
+
+    def render_rgb(self, original: Original, crop: tuple[int, int, int, int, int]) -> bytes:
+        output_width, output_height = rgb_output_size(self.image_info(original), crop)
+        x, y, width, height, _ = crop
+        # The open option hides overviews on GDAL versions that predate -ovr.
+        data = self.execute(["gdal_translate", "-q", "-oo", "OVERVIEW_LEVEL=NONE",
+                             "-srcwin", str(x), str(y), str(width), str(height),
+                             "-outsize", str(output_width), str(output_height),
+                             "-r", "lanczos", "-b", "1", "-b", "2", "-b", "3",
+                             "-of", "PNG", original.path, "/vsistdout/"])
+        if not data.startswith(PNG_SIGNATURE) or not data.endswith(PNG_IEND):
+            raise BridgeError("GDAL did not return a complete RGB PNG")
         return data
 
     def original(self, image: Original, start: int, length: int) -> Iterator[bytes]:
@@ -305,21 +374,31 @@ class Bridge:
         self.metadata = self.metadata_by_series[metadata["seriesId"]]
         self.originals = {key: value for key, value in originals.items() if key in available}
         self.backend = backend
-        self.cache: OrderedDict[tuple[str, int], bytes] = OrderedDict()
+        self.cache: OrderedDict[tuple, bytes] = OrderedDict()
         self.cache_bytes = 0
         self.cache_lock = threading.Lock()
         self.workers = threading.BoundedSemaphore(2)
 
     def preview(self, original: Original, level: int) -> bytes:
-        key = (original.id, level)
+        return self.render_cached(("jpeg", original.id, level),
+                                  lambda: self.backend.render(original, LEVEL_EDGES[level]))
+
+    def rgb(self, original: Original, crop: tuple[int, int, int, int, int]) -> bytes:
+        def render():
+            rgb_output_size(self.backend.image_info(original), crop)
+            return self.backend.render_rgb(original, crop)
+
+        return self.render_cached(("rgb", original.id, *crop), render)
+
+    def render_cached(self, key: tuple, render: Callable[[], bytes]) -> bytes:
         with self.cache_lock:
             if key in self.cache:
                 self.cache.move_to_end(key)
                 return self.cache[key]
         with self.workers:
-            data = self.backend.render(original, LEVEL_EDGES[level])
+            data = render()
         if len(data) > MAX_RENDER_BYTES:
-            raise BridgeError("JPEG exceeds the memory limit")
+            raise BridgeError("Rendered image exceeds the memory limit")
         with self.cache_lock:
             previous = self.cache.pop(key, b"")
             self.cache_bytes -= len(previous)
@@ -381,7 +460,8 @@ def create_handler(bridge: Bridge):
             if not self.allowed():
                 return
             try:
-                path = unquote(urlsplit(self.path).path, errors="strict")
+                request = urlsplit(self.path)
+                path = unquote(request.path, errors="strict")
                 if path == "/metadata.json":
                     self.respond(bridge.metadata, "application/json", head)
                     return
@@ -395,10 +475,17 @@ def create_handler(bridge: Bridge):
                     return
                 match = re.fullmatch(r"/([0-6])/([A-Za-z0-9_.-]+)\.jpg", path)
                 original_match = re.fullmatch(r"/original/([A-Za-z0-9_.-]+)\.tif", path)
-                image_id = (match or original_match)[2 if match else 1] if match or original_match else None
+                rgb_match = re.fullmatch(r"/rgb/([A-Za-z0-9_.-]+)\.png", path)
+                asset_match = match or original_match or rgb_match
+                image_id = asset_match[2 if match else 1] if asset_match else None
                 image = bridge.originals.get(image_id)
                 if image is None:
                     self.send_error(404, "Image ID is not in the available TIFF metadata whitelist")
+                    return
+                if rgb_match:
+                    crop = requested_rgb_crop(request.query)
+                    etag = image.etag[:-1] + '-rgb-' + '-'.join(map(str, crop)) + '"'
+                    self.respond(bridge.rgb(image, crop), "image/png", head, etag)
                     return
                 if match:
                     level = int(match[1])
@@ -407,6 +494,8 @@ def create_handler(bridge: Bridge):
                 self.serve_original(image, head)
             except (BrokenPipeError, ConnectionResetError):
                 pass
+            except InvalidRgbRequest as error:
+                self.send_error(400, str(error))
             except (BridgeError, ValueError, KeyError, TypeError) as error:
                 self.send_error(502, str(error))
 

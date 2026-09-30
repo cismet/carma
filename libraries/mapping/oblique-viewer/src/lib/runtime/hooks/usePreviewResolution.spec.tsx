@@ -7,7 +7,10 @@ import { PREVIEW_WIDTH_VAR, PREVIEW_HEIGHT_VAR } from "./usePreviewSizeSync";
 vi.mock("../utils/cameraMath", () => ({
   readCameraToCenterDistancePx: () => 500,
 }));
-afterEach(() => vi.useRealTimers());
+afterEach(() => {
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+});
 const setup = () => {
   vi.useFakeTimers();
   const root = document.createElement("div");
@@ -29,6 +32,18 @@ const setup = () => {
   return { root, props, listeners };
 };
 describe("on-demand preview resolution", () => {
+  it("upgrades even a small DPR-adjusted pixel deficit instead of accepting blur", () => {
+    const { root, props } = setup();
+    vi.stubGlobal("devicePixelRatio", 2);
+    root.style.setProperty(PREVIEW_WIDTH_VAR, "520px");
+    root.style.setProperty(PREVIEW_HEIGHT_VAR, "340px");
+    const { result } = renderHook(usePreviewResolution, {
+      initialProps: props,
+    });
+    act(() => vi.advanceTimersByTime(200));
+    expect(result.current).toBe("2");
+  });
+
   it("requests one sharper level after zoom settles, waits for it to decode, and keeps it after zooming out", () => {
     const { root, props, listeners } = setup();
     const { result, rerender } = renderHook(usePreviewResolution, {

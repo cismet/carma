@@ -1,16 +1,15 @@
 import type { Map as MaplibreMap, PaddingOptions } from "maplibre-gl";
+import type { CssPixels } from "@carma-units";
 
 /** Shift the perspective centre in CSS pixels, preserving the shared edge inset. */
 export const paddingForCenterOffset = (
   map: MaplibreMap,
-  offset: { x: number; y: number }
+  offset: { x: CssPixels; y: CssPixels }
 ): PaddingOptions => {
-  const { width, height } = map.transform;
   const padding = map.getPadding();
-  const x = Math.max(-width / 2, Math.min(width / 2, offset.x));
-  const y = Math.max(-height / 2, Math.min(height / 2, offset.y));
-  const horizontal = Math.min(padding.left, padding.right);
-  const vertical = Math.min(padding.top, padding.bottom);
+  const { x, y } = offset;
+  const horizontal = Math.min(padding.left ?? 0, padding.right ?? 0);
+  const vertical = Math.min(padding.top ?? 0, padding.bottom ?? 0);
   return {
     left: horizontal + Math.max(0, 2 * x),
     right: horizontal + Math.max(0, -2 * x),

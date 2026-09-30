@@ -1,5 +1,12 @@
 import { useCallback, useEffect, useRef, type MutableRefObject } from "react";
 import type { Map as MaplibreMap, PaddingOptions } from "maplibre-gl";
+import type { CssPixels } from "@carma-units";
+import {
+  clampPreviewPan,
+  type PreviewImageGeometry,
+} from "../../core/utils/preview-pan-bounds";
+import { readCameraToCenterDistancePx } from "../utils/cameraMath";
+import { acquirePreviewProjectionWindow } from "../utils/preview-projection-window";
 
 /** Drag the perspective window; the image camera never moves or changes orientation. */
 export const usePreviewPan = ({
@@ -7,6 +14,7 @@ export const usePreviewPan = ({
   root,
   enabled,
   imageId,
+  imageGeometry,
   busyRef,
   onPanEnd,
 }: {
@@ -14,9 +22,12 @@ export const usePreviewPan = ({
   root: HTMLDivElement | null;
   enabled: boolean;
   imageId: string | null;
+  imageGeometry: PreviewImageGeometry | null;
   busyRef: MutableRefObject<boolean>;
   onPanEnd: () => void;
 }) => {
+  const imageGeometryRef = useRef(imageGeometry);
+  imageGeometryRef.current = imageGeometry;
   const savedPaddingRef = useRef<PaddingOptions | null>(null);
   const onPanEndRef = useRef(onPanEnd);
   onPanEndRef.current = onPanEnd;
@@ -28,7 +39,14 @@ export const usePreviewPan = ({
 
   useEffect(() => {
     if (!map || !root || !enabled) return undefined;
-    const padding = { ...map.getPadding() };
+    const releaseProjection = acquirePreviewProjectionWindow(map);
+    const currentPadding = map.getPadding();
+    const padding = {
+      left: currentPadding.left ?? 0,
+      right: currentPadding.right ?? 0,
+      top: currentPadding.top ?? 0,
+      bottom: currentPadding.bottom ?? 0,
+    };
     savedPaddingRef.current = padding;
     const baseOffset = { ...map.transform.centerOffset };
     let pointer: {
@@ -74,16 +92,28 @@ export const usePreviewPan = ({
       event.preventDefault();
       event.stopPropagation();
       root.style.setProperty("--oblique-preview-cursor", "grabbing");
-      const { width, height, centerOffset } = map.transform;
-      // MapLibre keeps the perspective centre within its viewport. Stop at that
-      // boundary without accumulating overscroll, so reversing a drag is immediate.
-      const x = Math.max(
-        -width / 2,
-        Math.min(width / 2, centerOffset.x + event.clientX - pointer.x)
-      );
-      const y = Math.max(
-        -height / 2,
-        Math.min(height / 2, centerOffset.y + event.clientY - pointer.y)
+      const { centerOffset } = map.transform;
+      const geometry = imageGeometryRef.current;
+      if (!geometry) return;
+      const edge = 2 * readCameraToCenterDistancePx(map) * geometry.halfFovTan;
+      const aspect = geometry.aspectRatio;
+      const { x, y } = clampPreviewPan(
+        {
+          x: (centerOffset.x + event.clientX - pointer.x) as CssPixels,
+          y: (centerOffset.y + event.clientY - pointer.y) as CssPixels,
+        },
+        {
+          viewport: {
+            width: map.transform.width as CssPixels,
+            height: map.transform.height as CssPixels,
+          },
+          image: {
+            width: (aspect >= 1 ? edge : edge * aspect) as CssPixels,
+            height: (aspect >= 1 ? edge / aspect : edge) as CssPixels,
+          },
+          principal: geometry.principal,
+          roll: geometry.roll,
+        }
       );
       const dx = x - baseOffset.x;
       const dy = y - baseOffset.y;
@@ -140,6 +170,7 @@ export const usePreviewPan = ({
       pointer = null;
       root.style.removeProperty("--oblique-preview-cursor");
       resetPan();
+      releaseProjection();
       savedPaddingRef.current = null;
     };
   }, [map, root, enabled, imageId, busyRef, resetPan]);

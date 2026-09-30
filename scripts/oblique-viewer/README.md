@@ -263,8 +263,39 @@ as the displayed image grows, keeping the decoded preview if an upgrade is
 unavailable. These are
 development sizes. GDAL selects an existing TIFF page with sufficient
 resolution and streams a JPEG into a bounded 64 MB RAM cache; at most two
-renders run concurrently. `/original/{sourceId}.tif` streams unchanged original
-bytes and supports a single HTTP byte range. No remote packages, containers,
+renders run concurrently. JPEG previews use quality 95 and Lanczos resampling.
+
+`/rgb/{sourceId}.png?x=0&y=0&width=1000&height=500&edge=1000` reads a
+native-pixel window from the original TIFF page. The source dataset is opened
+with GDAL's `-oo OVERVIEW_LEVEL=NONE` option, hiding every overview before
+Lanczos resampling. This works with the existing container's verified GDAL 3.3.0
+runtime, which predates `gdal_translate -ovr` (introduced in
+[GDAL 3.6](https://gdal.org/en/stable/programs/gdal_translate.html#cmdoption-gdal_translate-ovr)).
+The RGB request transfers only its rendered crop to the browser; it does not
+download the complete TIFF. Coordinates are top-left origin, x right and y down. Width and height
+describe source pixels; edge is the requested maximum output edge. Lanczos
+downsampling preserves the crop aspect ratio, and a crop smaller than edge
+retains its native dimensions without upscaling. The result is lossless RGB
+PNG, with no additional JPEG encoding or chroma subsampling. Native full-page
+reads can be requested with the source dimensions when the output fits these
+bounds; large full-resolution pages must be requested as visible windows.
+
+All five query fields are required exactly once as nonnegative decimal integers;
+width, height and edge must be positive. The crop must fit the native image,
+coordinates/dimensions must fit signed 32-bit integers, edge must not exceed
+8192, and the computed output must not exceed 8,000,000 pixels. Requests that
+exceed these bounds return HTTP 400 instead of a silently smaller preview.
+The full source/crop/edge cache key shares the bounded RAM cache and two render
+workers with JPEG previews. Source whitelisting and allowed origins apply to
+every RGB request before remote work.
+
+The verified delivery contains stripped, JPEG-compressed TIFFs with reduced
+pages, rather than COGs. PNG rendering preserves the decoded native RGB values
+without adding a second lossy encoding; it cannot recover detail discarded by
+the source TIFF's existing JPEG compression.
+
+`/original/{sourceId}.tif` streams unchanged original bytes and supports a single
+HTTP byte range. No remote packages, containers,
 watermarks, or permanent image derivatives are created.
 
 The server binds to `127.0.0.1:8926`; the command above allows CORS only for the

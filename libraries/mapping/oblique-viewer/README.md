@@ -60,8 +60,35 @@ The full 2026 upload is being placed under `/mnt/storagebox/luftbildschraegaufna
 
 Inside a flown-to image, dragging shifts the perspective centre and the image
 together without moving the calibrated camera. Wheel zoom is anchored at the
-mouse pointer. MapLibre limits its perspective centre to the viewport bounds.
-Leaving the preview restores the previous map padding before the next flight.
+mouse pointer, with the current viewport centre as the fallback for a missing
+or outside cursor. The preview leases an instance-specific transform window so
+its perspective centre can lie outside the viewport. Projection matrices,
+picking, camera queries and transform clones share that centre; Three.js reads
+the same offset. This prevents cursor drift during large zooms or image pans.
+Dragging can bring image edges to the viewport centre. The bounds use the
+calibrated image size, principal point and roll; rotated corners stop earlier
+when needed to retain 25% of the viewport as imagery (at most 75% exposed mesh).
+Naturally smaller zoomed-out photos retain their size instead of enlarging as a
+side effect of dragging. Moving back from a boundary takes effect immediately.
+Leaving the preview restores the original transform members and map padding
+before the next flight.
 The Three.js tile-selection camera uses the same off-centre projection as the
 render camera. Sharper preview levels load on demand, retaining the current
 image until decoding succeeds.
+
+Preview wheel zoom reaches two physical display pixels per native source
+pixel (200%), using calibrated dimensions and the current device pixel ratio.
+The preview temporarily raises the map zoom limit when necessary; leaving the
+preview restores the original limit. Above 100%, magnification adds no new
+source detail.
+
+When `originalPixelPreviewPath` is configured, the decoded JPEG remains visible
+while the view settles for 800 ms. Visible native TIFF windows then arrive as
+lossless RGB PNG tiles and a browser worker resamples them to physical display
+pixels. Lanczos3, gamma 0.454545/2.2 and unsharp 0x0.2 follow the 2024 scaling
+settings; magnification uses native pixel replication. The RGB path adds no
+chroma subsampling. Each fetch and worker job is bounded; pan/zoom and teardown
+cancel obsolete jobs. Missing originals retain the progressive JPEG. This
+avoids loading and decoding a complete 12,736 × 19,136 image in the browser.
+The local 2026 bridge enables this path; existing JPEG-only series retain their
+level-based loader.

@@ -189,6 +189,8 @@ export type ObliqueDataset = {
   downloadPath?: string;
   /** Development original endpoint; {imageId} receives the encoded source ID. */
   originalImageUrlTemplate?: string;
+  /** Lossless original-page RGB crop endpoint, addressed by source image ID. */
+  originalPixelPreviewPath?: string;
   /** Explicit development-only source-Z inspection; the source datum remains unknown. */
   allowUnverifiedSourceHeight?: boolean;
   previewQualityLevel: PreviewQualityLevel;

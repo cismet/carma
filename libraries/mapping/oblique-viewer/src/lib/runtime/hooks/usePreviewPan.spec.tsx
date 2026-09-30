@@ -1,13 +1,16 @@
 import { useCallback, useRef, useState } from "react";
-import { act, fireEvent, render } from "@testing-library/react";
+import { act, configure, fireEvent, render } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { Map as MaplibreMap, PaddingOptions } from "maplibre-gl";
+import type { Radians, Ratio } from "@carma-units";
 import { usePreviewPan } from "./usePreviewPan";
 import {
   usePreviewSizeSync,
   PREVIEW_OFFSET_X_VAR,
   PREVIEW_OFFSET_Y_VAR,
 } from "./usePreviewSizeSync";
+
+configure({ testIdAttribute: "data-test-id" });
 
 vi.mock("../utils/cameraMath", () => ({
   readCameraToCenterDistancePx: () => 500,
@@ -60,6 +63,12 @@ const setup = () => {
       root,
       enabled: true,
       imageId: "test",
+      imageGeometry: {
+        aspectRatio: 1.5 as Ratio,
+        halfFovTan: 0.3 as Ratio,
+        principal: { xOffset: 0 as Ratio, yOffset: 0 as Ratio },
+        roll: 0 as Radians,
+      },
       busyRef: busy,
       onPanEnd: end,
     });
@@ -72,8 +81,8 @@ const setup = () => {
       halfFovTan: 0.3,
     });
     return (
-      <div ref={attachRoot} data-testid="preview">
-        <div onClick={close} data-testid="backdrop" />
+      <div ref={attachRoot} data-test-id="preview">
+        <div onClick={close} data-test-id="backdrop" />
       </div>
     );
   };
@@ -115,16 +124,16 @@ describe("image preview panning", () => {
   it("moves the image principal point with the map projection and consumes the drag click", () => {
     const view = setup();
     view.pointer("pointerdown", 100, 100);
-    view.pointer("pointermove", 300, 200);
+    view.pointer("pointermove", 200, 200);
     expect(view.root.style.getPropertyValue(PREVIEW_OFFSET_X_VAR)).toBe(
-      "210px"
+      "110px"
     );
     expect(view.root.style.getPropertyValue(PREVIEW_OFFSET_Y_VAR)).toBe("95px");
     expect(view.map.setPadding).toHaveBeenLastCalledWith(
-      { top: 200, bottom: 10, left: 420, right: 0 },
+      { top: 200, bottom: 10, left: 220, right: 0 },
       { obliqueFov: true }
     );
-    view.pointer("pointerup", 300, 200);
+    view.pointer("pointerup", 200, 200);
     fireEvent.click(view.getByTestId("backdrop"));
     expect(view.close).not.toHaveBeenCalled();
     expect(view.end).toHaveBeenCalledOnce();
@@ -158,23 +167,26 @@ describe("image preview panning", () => {
     expect(view.map.setPadding).toHaveBeenCalledOnce();
     view.unmount();
   });
-  it("reverses immediately at the viewport boundary and restores the host padding on unmount", () => {
+  it("stops at image edges at the screen centre, reverses immediately and restores padding", () => {
     const view = setup();
     view.pointer("pointerdown", 100, 100);
     view.pointer("pointermove", 10000, 10000);
     expect(view.root.style.getPropertyValue(PREVIEW_OFFSET_X_VAR)).toBe(
-      "400px"
+      "150px"
     );
     expect(view.root.style.getPropertyValue(PREVIEW_OFFSET_Y_VAR)).toBe(
-      "300px"
+      "100px"
     );
-    view.pointer("pointermove", 9900, 9900);
+    view.pointer("pointermove", 11000, 11000);
     expect(view.root.style.getPropertyValue(PREVIEW_OFFSET_X_VAR)).toBe(
-      "300px"
+      "150px"
     );
     expect(view.root.style.getPropertyValue(PREVIEW_OFFSET_Y_VAR)).toBe(
-      "200px"
+      "100px"
     );
+    view.pointer("pointermove", 10900, 10900);
+    expect(view.root.style.getPropertyValue(PREVIEW_OFFSET_X_VAR)).toBe("50px");
+    expect(view.root.style.getPropertyValue(PREVIEW_OFFSET_Y_VAR)).toBe("0px");
     view.unmount();
     expect(view.map.getPadding()).toEqual(view.original);
     expect(view.root.releasePointerCapture).toHaveBeenCalledWith(1);

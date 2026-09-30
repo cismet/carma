@@ -6,6 +6,7 @@ import {
   useState,
   type FC,
 } from "react";
+import type { DevicePixels } from "@carma-units";
 import type { Map as MaplibreMap } from "maplibre-gl";
 
 import type { PreviewQualityLevel } from "../core/constants";
@@ -19,6 +20,7 @@ import type {
 } from "../core/types";
 import { getPreviewImageUrl } from "./utils/imageUrls";
 import { Backdrop } from "./ObliqueImagePreview.Backdrop";
+import { NativePixels } from "./ObliqueImagePreview.NativePixels";
 import { PreviewImage } from "./ObliqueImagePreview.PreviewImage";
 
 /**
@@ -36,6 +38,8 @@ type ObliqueImagePreviewProps = {
   map: MaplibreMap;
   onRootChange?: (root: HTMLDivElement | null) => void;
   previewPath: string;
+  originalPixelPreviewPath?: string;
+  nativePixelSize: { width: DevicePixels; height: DevicePixels };
   imageId: string;
   qualityLevel: PreviewQualityLevel;
   halfFovTan: number;
@@ -64,6 +68,8 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
   map,
   onRootChange,
   previewPath,
+  originalPixelPreviewPath,
+  nativePixelSize,
   imageId,
   qualityLevel,
   halfFovTan,
@@ -83,8 +89,8 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
     },
     [onRootChange]
   );
-  const [isVertical, setIsVertical] = useState(false);
-  const [imageAspectRatio, setImageAspectRatio] = useState(1);
+  const isVertical = nativePixelSize.width < nativePixelSize.height;
+  const imageAspectRatio = nativePixelSize.width / nativePixelSize.height;
   const [loadedSrc, setLoadedSrc] = useState<string | null>(null);
   const [shouldFadeIn, setShouldFadeIn] = useState(false);
   const [contrast, setContrast] = useState(backdropLook.contrast);
@@ -102,6 +108,7 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
     imageId,
     qualityLevel,
     loadedImage,
+    minimumLevel: originalPixelPreviewPath ? "1" : "0",
   });
   const finalPreviewUrl = useMemo(
     () => getPreviewImageUrl(previewPath, requestedQuality, imageId),
@@ -114,8 +121,7 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
     onError,
   });
 
-  // the source is shown only once the browser has it, and its shape is read
-  // off it then
+  // Keep the decoded progressive source while its next resolution loads.
   useEffect(() => {
     if (!progressiveSrc) return undefined;
     let cancelled = false;
@@ -123,8 +129,6 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
     img.decoding = "async";
     img.onload = () => {
       if (cancelled) return;
-      setIsVertical(img.naturalWidth < img.naturalHeight);
-      setImageAspectRatio(img.naturalWidth / img.naturalHeight);
       setLoadedSrc(progressiveSrc);
       setLoadedImage({
         url: progressiveSrc,
@@ -204,7 +208,21 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
           boxShadowStyle={style?.boxShadow}
           translate={translate}
           rollDeg={PREVIEW_ROLL_SIGN * rollDeg}
-        />
+        >
+          {originalPixelPreviewPath && (
+            <NativePixels
+              map={map}
+              rootRef={rootRef}
+              path={originalPixelPreviewPath}
+              imageId={imageId}
+              nativeSize={nativePixelSize}
+              halfFovTan={halfFovTan}
+              principal={interiorOrientationOffsets}
+              rollDeg={PREVIEW_ROLL_SIGN * rollDeg}
+              dimImage={dimImage}
+            />
+          )}
+        </PreviewImage>
       )}
     </div>
   );

@@ -1,3 +1,4 @@
+import type { Degrees, DevicePixels, Ratio } from "@carma-units";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Map as MaplibreMap } from "maplibre-gl";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -5,6 +6,7 @@ import { faImages } from "@fortawesome/free-solid-svg-icons";
 import { Tooltip } from "antd";
 
 import {
+  degToRad as degreesToRadians,
   degToRadNumeric as degToRad,
   radToDegNumeric as radToDeg,
 } from "@carma-units";
@@ -200,6 +202,13 @@ export const ObliqueViewer = ({
     selectedRecord && resolvedSelectedDataset
       ? getCameraCalibration(resolvedSelectedDataset, selectedRecord.cameraId)
       : null;
+  const rollDeg =
+    selectedRecord && resolvedSelectedDataset
+      ? poseOf(selectedRecord, resolvedSelectedDataset).rollDeg
+      : 0;
+  const principalOffset = selectedCalibration
+    ? calibrationImageOffset(selectedCalibration)
+    : undefined;
   const previewQualityLevel =
     previewQuality === "hq"
       ? selectedDataset.hqQualityLevel
@@ -228,6 +237,19 @@ export const ObliqueViewer = ({
     root: previewRoot,
     enabled: running && previewVisible,
     imageId: selectedImageId,
+    imageGeometry:
+      selectedCalibration && principalOffset
+        ? {
+            aspectRatio: (selectedCalibration.widthPx /
+              selectedCalibration.heightPx) as Ratio,
+            halfFovTan: selectedCalibration.halfFovTan as Ratio,
+            principal: {
+              xOffset: principalOffset.xOffset as Ratio,
+              yOffset: principalOffset.yOffset as Ratio,
+            },
+            roll: degreesToRadians(rollDeg as Degrees),
+          }
+        : null,
     busyRef,
     onPanEnd: () => {
       targetRef.current = readTarget();
@@ -302,6 +324,15 @@ export const ObliqueViewer = ({
     map: libreMap,
     enabled: browsing,
     previewRoot,
+    previewSampling: selectedCalibration
+      ? {
+          longEdgePixels: Math.max(
+            selectedCalibration.widthPx,
+            selectedCalibration.heightPx
+          ) as DevicePixels,
+          halfFovTan: selectedCalibration.halfFovTan,
+        }
+      : undefined,
     onPreviewZoomEnd: () => {
       if (previewVisibleRef.current) targetRef.current = readTarget();
     },
@@ -712,13 +743,6 @@ export const ObliqueViewer = ({
       ),
     []
   );
-  const rollDeg =
-    selectedRecord && resolvedSelectedDataset
-      ? poseOf(selectedRecord, resolvedSelectedDataset).rollDeg
-      : 0;
-  const principalOffset = selectedCalibration
-    ? calibrationImageOffset(selectedCalibration)
-    : undefined;
   if (!libreMap) return null;
   return (
     <>
@@ -733,6 +757,13 @@ export const ObliqueViewer = ({
               map={libreMap}
               onRootChange={setPreviewRoot}
               previewPath={selectedDataset.previewPath}
+              originalPixelPreviewPath={
+                selectedDataset.originalPixelPreviewPath
+              }
+              nativePixelSize={{
+                width: selectedCalibration.widthPx as DevicePixels,
+                height: selectedCalibration.heightPx as DevicePixels,
+              }}
               imageId={selectedRecord.sourceId}
               qualityLevel={previewQualityLevel}
               halfFovTan={selectedCalibration.halfFovTan}

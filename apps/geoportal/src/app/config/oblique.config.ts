@@ -17,6 +17,7 @@ export const LOCAL_OBLIQUE_VIEWER_CONFIG: ObliqueViewerConfig = {
         "http://127.0.0.1:8926/metadata/wuppertal-2026.json",
       previewPath: "http://127.0.0.1:8926",
       originalImageUrlTemplate: "http://127.0.0.1:8926/original/{imageId}.tif",
+      originalPixelPreviewPath: "http://127.0.0.1:8926/rgb",
       allowUnverifiedSourceHeight: true,
     },
     WUPPERTAL_2026_RATHAUS_DATASET,

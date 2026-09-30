@@ -1,4 +1,4 @@
-import type { CSSProperties, FC } from "react";
+import type { CSSProperties, FC, ReactNode } from "react";
 
 import {
   PREVIEW_HEIGHT_VAR,
@@ -20,6 +20,7 @@ type PreviewImageProps = {
   translate: string;
   /** turns the image about the screen centre, degrees */
   rollDeg: number;
+  children?: ReactNode;
 };
 
 /**
@@ -36,6 +37,7 @@ export const PreviewImage: FC<PreviewImageProps> = ({
   boxShadowStyle,
   translate,
   rollDeg,
+  children,
 }) => {
   const wrapperStyle: CSSProperties = {
     position: "absolute",
@@ -58,12 +60,13 @@ export const PreviewImage: FC<PreviewImageProps> = ({
     pointerEvents: "none",
     opacity: shown ? 1 : 0,
     transition: fadeIn ? "opacity 0.8s linear" : "opacity 0s linear",
-    border: borderStyle,
+    outline: borderStyle,
     boxShadow: boxShadowStyle,
   };
   return (
     <div style={wrapperStyle}>
       <img src={src} alt={alt} style={imageStyle} draggable={false} />
+      {children}
     </div>
   );
 };

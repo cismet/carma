@@ -1,6 +1,16 @@
-import { clamp } from "@carma-commons/math";
 import { useEffect, useRef, type MutableRefObject } from "react";
 import type { Map as MaplibreMap } from "maplibre-gl";
+
+import { clamp } from "@carma-commons/math";
+import {
+  degToRad,
+  radToDeg,
+  type CssPixels,
+  type Degrees,
+  type DevicePixels,
+  type Radians,
+  type Ratio,
+} from "@carma-units";
 
 import { zoomKeepingCameraForFov, type TweenHandle } from "../utils/cameraMath";
 import { paddingForCenterOffset } from "../utils/offCenterCamera";
@@ -19,6 +29,20 @@ const WHEEL_ZOOM_DELTA = 0.08;
 const WHEEL_ANIMATION_MS = 500;
 const PIXEL_WHEEL_DELTA_PER_STEP = 100;
 const LINE_WHEEL_DELTA_PER_STEP = 3;
+const MAX_SOURCE_PIXEL_SCALE = 2;
+const ZOOM_COMPENSATION_EPSILON = 1e-8;
+
+const readMinimumFovForMapZoom = (
+  map: MaplibreMap,
+  maximumZoom = map.getMaxZoom()
+): Degrees =>
+  radToDeg(
+    (2 *
+      Math.atan(
+        Math.tan(degToRad(map.getVerticalFieldOfView() as Degrees) / 2) /
+          2 ** (maximumZoom - map.getZoom())
+      )) as Radians
+  );
 
 /** the zoom delta as a fraction, from whatever unit the wheel reports */
 const readWheelZoomDelta = (event: WheelEvent): number => {
@@ -39,27 +63,31 @@ export const applyFovKeepingCamera = (
   fovDeg: number,
   anchor?: { x: number; y: number }
 ): void => {
-  const zoom = zoomKeepingCameraForFov(
-    map.getZoom(),
-    map.getVerticalFieldOfView(),
-    fovDeg
+  const nextFovDeg = Math.max(fovDeg, readMinimumFovForMapZoom(map)) as Degrees;
+  const zoom = Math.min(
+    map.getMaxZoom(),
+    zoomKeepingCameraForFov(
+      map.getZoom(),
+      map.getVerticalFieldOfView(),
+      nextFovDeg
+    )
   );
   if (anchor) {
     const scale =
-      Math.tan((map.getVerticalFieldOfView() * Math.PI) / 360) /
-      Math.tan((fovDeg * Math.PI) / 360);
+      Math.tan(degToRad(map.getVerticalFieldOfView() as Degrees) / 2) /
+      Math.tan(degToRad(nextFovDeg) / 2);
     const { width, height, centerOffset } = map.transform;
     const x = anchor.x - width / 2;
     const y = anchor.y - height / 2;
     map.setPadding(
       paddingForCenterOffset(map, {
-        x: x + (centerOffset.x - x) * scale,
-        y: y + (centerOffset.y - y) * scale,
+        x: (x + (centerOffset.x - x) * scale) as CssPixels,
+        y: (y + (centerOffset.y - y) * scale) as CssPixels,
       }),
       { obliqueFov: true }
     );
   }
-  setFov(map, fovDeg);
+  setFov(map, nextFovDeg);
   map.jumpTo({ zoom }, { obliqueFov: true });
 };
 
@@ -70,10 +98,12 @@ export const useFovWheelZoom = ({
   maxFovDeg,
   busyRef,
   previewRoot,
+  previewSampling,
   onPreviewZoomEnd,
 }: {
   map: MaplibreMap | null;
   previewRoot: HTMLDivElement | null;
+  previewSampling?: { longEdgePixels: DevicePixels; halfFovTan: number };
   onPreviewZoomEnd?: () => void;
   enabled: boolean;
   minFovDeg: number;
@@ -81,8 +111,28 @@ export const useFovWheelZoom = ({
   /** a flight is running; the wheel is ignored meanwhile */
   busyRef: MutableRefObject<boolean>;
 }): void => {
+  const sourceLongEdgePixels = previewSampling?.longEdgePixels;
+  const previewHalfFovTan = previewSampling?.halfFovTan;
+  const previewMounted = previewRoot !== null;
+  const previewMaximumZoomRef = useRef<{
+    map: MaplibreMap;
+    maximumZoom: number;
+  } | null>(null);
   const onPreviewZoomEndRef = useRef(onPreviewZoomEnd);
   onPreviewZoomEndRef.current = onPreviewZoomEnd;
+  useEffect(() => {
+    if (!map || !enabled || !previewMounted) return undefined;
+    const maximumZoom = map.getMaxZoom();
+    previewMaximumZoomRef.current = { map, maximumZoom };
+    return () => {
+      // Widen the projection before restoring the limit, so MapLibre cannot move the camera by clamping zoom.
+      if (map.getZoom() > maximumZoom) {
+        applyFovKeepingCamera(map, readMinimumFovForMapZoom(map, maximumZoom));
+      }
+      map.setMaxZoom(maximumZoom);
+      previewMaximumZoomRef.current = null;
+    };
+  }, [map, enabled, previewMounted]);
   useEffect(() => {
     if (!map || !enabled) return undefined;
     const container = map.getContainer();
@@ -97,20 +147,73 @@ export const useFovWheelZoom = ({
       const delta = readWheelZoomDelta(event);
       if (delta <= 0) return;
       const base = pendingTarget ?? map.getVerticalFieldOfView();
+      let minimumFovDeg = minFovDeg;
+      if (
+        previewRoot &&
+        sourceLongEdgePixels !== undefined &&
+        Number.isFinite(sourceLongEdgePixels) &&
+        sourceLongEdgePixels > 0 &&
+        previewHalfFovTan !== undefined &&
+        Number.isFinite(previewHalfFovTan) &&
+        previewHalfFovTan > 0 &&
+        map.transform.height > 0
+      ) {
+        const viewportHeight = map.transform.height as CssPixels;
+        const pixelRatio = (
+          Number.isFinite(window.devicePixelRatio) &&
+          window.devicePixelRatio > 0
+            ? window.devicePixelRatio
+            : 1
+        ) as Ratio;
+        const physicalViewportHeight = (viewportHeight *
+          pixelRatio) as DevicePixels;
+        const maximumImageLongEdge = (sourceLongEdgePixels *
+          MAX_SOURCE_PIXEL_SCALE) as DevicePixels;
+        minimumFovDeg = radToDeg(
+          (2 *
+            Math.atan(
+              (physicalViewportHeight * previewHalfFovTan) /
+                maximumImageLongEdge
+            )) as Radians
+        );
+        const requiredMaximumZoom =
+          zoomKeepingCameraForFov(
+            map.getZoom(),
+            map.getVerticalFieldOfView(),
+            minimumFovDeg
+          ) + ZOOM_COMPENSATION_EPSILON;
+        if (
+          previewMaximumZoomRef.current?.map === map &&
+          requiredMaximumZoom > map.getMaxZoom()
+        ) {
+          map.setMaxZoom(requiredMaximumZoom);
+        }
+      }
       const next = clamp(
         event.deltaY > 0 ? base * (1 + delta) : base / (1 + delta),
-        minFovDeg,
+        Math.max(minimumFovDeg, readMinimumFovForMapZoom(map)),
         maxFovDeg
       );
       if (Math.abs(next - base) < 1e-4) return;
       running?.cancel();
       pendingTarget = next;
       const rect = container.getBoundingClientRect();
+      const cursor = {
+        x: (event.clientX - rect.left) as CssPixels,
+        y: (event.clientY - rect.top) as CssPixels,
+      };
+      const { width, height } = map.transform;
+      const cursorInsideViewport =
+        Number.isFinite(cursor.x) &&
+        Number.isFinite(cursor.y) &&
+        cursor.x >= 0 &&
+        cursor.x <= width &&
+        cursor.y >= 0 &&
+        cursor.y <= height;
       const anchor = previewRoot
-        ? {
-            x: event.clientX - rect.left,
-            y: event.clientY - rect.top,
-          }
+        ? cursorInsideViewport
+          ? cursor
+          : { x: (width / 2) as CssPixels, y: (height / 2) as CssPixels }
         : undefined;
       running = tweenFov(
         map,
@@ -138,5 +241,14 @@ export const useFovWheelZoom = ({
       host.removeEventListener("wheel", onWheel, { capture: true });
       running?.cancel();
     };
-  }, [map, enabled, minFovDeg, maxFovDeg, busyRef, previewRoot]);
+  }, [
+    map,
+    enabled,
+    minFovDeg,
+    maxFovDeg,
+    busyRef,
+    previewRoot,
+    sourceLongEdgePixels,
+    previewHalfFovTan,
+  ]);
 };

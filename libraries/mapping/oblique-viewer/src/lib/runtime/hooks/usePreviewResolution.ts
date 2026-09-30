@@ -14,6 +14,7 @@ export const usePreviewResolution = ({
   imageId,
   qualityLevel,
   loadedImage,
+  minimumLevel = "0",
 }: {
   map: MaplibreMap;
   rootRef: RefObject<HTMLElement>;
@@ -21,15 +22,19 @@ export const usePreviewResolution = ({
   imageId: string;
   qualityLevel: PreviewQualityLevel;
   loadedImage: LoadedImage | null;
+  minimumLevel?: PreviewQualityLevel;
 }): PreviewQualityLevel => {
   const [requested, setRequested] = useState(qualityLevel);
-  const level = Math.min(Number(requested), Number(qualityLevel));
+  const level = Math.max(
+    Number(minimumLevel),
+    Math.min(Number(requested), Number(qualityLevel))
+  );
   const result = String(level) as PreviewQualityLevel;
   useEffect(() => {
     const root = rootRef.current;
     if (
       !root ||
-      level === 0 ||
+      level <= Number(minimumLevel) ||
       !loadedImage ||
       loadedImage.url !== getPreviewImageUrl(previewPath, result, imageId)
     )
@@ -45,7 +50,7 @@ export const usePreviewResolution = ({
       if (edge === previousEdge) return;
       previousEdge = edge;
       window.clearTimeout(timer);
-      if (edge > Math.max(loadedImage.width, loadedImage.height) * 1.15) {
+      if (edge > Math.max(loadedImage.width, loadedImage.height)) {
         timer = window.setTimeout(() => {
           setRequested(String(level - 1) as PreviewQualityLevel);
         }, 200);
@@ -59,6 +64,15 @@ export const usePreviewResolution = ({
       map.off("render", check);
       map.off("resize", check);
     };
-  }, [map, rootRef, previewPath, imageId, result, level, loadedImage]);
+  }, [
+    map,
+    rootRef,
+    previewPath,
+    imageId,
+    result,
+    level,
+    loadedImage,
+    minimumLevel,
+  ]);
   return result;
 };

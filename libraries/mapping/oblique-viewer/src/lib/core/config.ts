@@ -459,6 +459,7 @@ export const resolveSeries = (
         previewPath: devBase,
         downloadPath: undefined,
         originalImageUrlTemplate: `${devBase}/original/{imageId}.tif`,
+        originalPixelPreviewPath: `${devBase}/rgb`,
         allowUnverifiedSourceHeight: true,
       };
     return dataset;
