@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { MappingConfigLayer } from "@carma-api";
+import type { MappingConfig, MappingConfigLayer } from "@carma-api";
 import type { ShowScene } from "@carma-mapping/show-remote";
 
 import {
@@ -23,6 +23,7 @@ import {
   removeStoryBaseLayer,
   sceneExclusion,
   storyBaseLayers,
+  withBaseMapsAsLayers,
   withHighlightsAsLayer,
   withoutBaseLayers,
 } from "./scene-edit";
@@ -144,17 +145,17 @@ describe("withHighlightsAsLayer", () => {
       highlights: [highlight, { id: "h2" }] as ShowScene["highlights"],
     });
     expect(converted).not.toHaveProperty("highlights");
-    expect(idsOf(converted.config)).toEqual([
-      "base",
-      SPOT_HIGHLIGHTS_LAYER_ID,
-    ]);
+    expect(idsOf(converted.config)).toEqual(["base", SPOT_HIGHLIGHTS_LAYER_ID]);
     expect(publishedScene(converted, new Set()).highlights).toEqual([
       highlight,
     ]);
   });
 
   it("keeps a spot layer the scene has already, dropping the copy", () => {
-    const layer = withSpotContent({ spots: [], dim: 0.5 }) as MappingConfigLayer;
+    const layer = withSpotContent({
+      spots: [],
+      dim: 0.5,
+    }) as MappingConfigLayer;
     const converted = withHighlightsAsLayer({
       ...scene,
       config: { layers: [layer] },
@@ -341,5 +342,63 @@ describe("base layers", () => {
         new Set(["outline"])
       )
     ).toEqual({ id: "bridge", title: "Brücke" });
+  });
+});
+
+describe("withBaseMapsAsLayers", () => {
+  const chosen: MappingConfig = {
+    layers: layers("top"),
+    backgroundLayer: { id: "luftbild", selectedLayerId: "trueOrtho2024" },
+  };
+  const converted: MappingConfig = { layers: layers("top") };
+  const draft: ShowDraft = {
+    title: "Show",
+    scenes: [
+      { id: "old", title: "Alt", config: chosen },
+      { id: "new", title: "Neu", config: converted },
+    ],
+  };
+  /** what the app answers: the base map as a row, the choice dropped */
+  const asLayers = (config: MappingConfig): MappingConfig => ({
+    layers: [{ id: "background:trueOrtho2024" }, ...config.layers],
+  });
+
+  it("gives a scene with a base map choice its base map as a layer", () => {
+    const next = withBaseMapsAsLayers(draft, asLayers);
+    expect(idsOf(next.scenes[0].config)).toEqual([
+      "background:trueOrtho2024",
+      "top",
+    ]);
+    expect(next.scenes[0].config).not.toHaveProperty("backgroundLayer");
+    expect(next.scenes[1]).toBe(draft.scenes[1]);
+  });
+
+  it("also converts a scene that only switches the base map off", () => {
+    const switchedOff: ShowDraft = {
+      title: "Show",
+      scenes: [
+        {
+          id: "off",
+          title: "Aus",
+          config: {
+            layers: layers("top"),
+            // what a stored scene may say, though the type wants the entry
+            backgroundLayer: { visible: false } as NonNullable<
+              MappingConfig["backgroundLayer"]
+            >,
+          },
+        },
+      ],
+    };
+    const next = withBaseMapsAsLayers(switchedOff, ({ layers }) => ({
+      layers,
+    }));
+    expect(next.scenes[0].config).toEqual({ layers: layers("top") });
+  });
+
+  it("returns the draft itself when the app cannot convert anything", () => {
+    expect(withBaseMapsAsLayers(draft, (config) => config)).toBe(draft);
+    const done = withBaseMapsAsLayers(draft, asLayers);
+    expect(withBaseMapsAsLayers(done, asLayers)).toBe(done);
   });
 });

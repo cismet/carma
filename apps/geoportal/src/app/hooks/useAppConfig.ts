@@ -4,6 +4,7 @@ import { useLocation } from "react-router-dom";
 
 import { registerConfig, type MappingConfig } from "@carma-api";
 import {
+  defaultLayerConf,
   type SelectedObject,
   useAdhocFeatureDisplay,
   type LayerMap,
@@ -17,8 +18,12 @@ import {
   DEFAULT_BACKGROUND_LAYER_ID,
   DEFAULT_BACKGROUND_SELECTED_LAYER_ID,
 } from "../config";
-import { toBackgroundLayer } from "../config/backgroundConfig";
+import {
+  backgroundConfig,
+  toBackgroundLayer,
+} from "../config/backgroundConfig";
 import { findFachzwillingByPathname } from "../constants/fachzwillinge";
+import { backgroundAsLayers } from "../helper/background-as-layers";
 import { readCachedConfig, writeCachedConfig } from "../helper/config-cache";
 
 import {
@@ -47,6 +52,9 @@ type Config = {
 };
 
 const DEFAULT_CONFIG_KEY = "config";
+
+/** the services a base map's layer string names, see `backgroundAsLayers` */
+type NamedLayerServices = Parameters<typeof backgroundAsLayers>[2];
 
 /** enough of a configuration to apply; what a fetch or the cache returns is checked against it */
 const isUsableConfig = (value: unknown): value is Config =>
@@ -345,6 +353,11 @@ export const useAppConfig = (
       setMappingConfig: applyMappingConfig,
       getAppliedId: () => appliedConfigRef.current ?? null,
       getMappingConfig,
+      backgroundAsLayers: (mappingConfig) =>
+        backgroundAsLayers(mappingConfig, depsRef.current.layerMap, {
+          ...(defaultLayerConf.namedLayers as NamedLayerServices),
+          ...(backgroundConfig.namedLayers as NamedLayerServices | undefined),
+        }),
     });
     return () => {
       registerConfig(null);

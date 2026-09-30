@@ -79,6 +79,7 @@ import {
   applyExclusionToAll,
   copyLayerToScenes,
   deleteStory,
+  hasBaseMapChoice,
   moveEntry,
   moveSceneInStory,
   moveSceneToStory,
@@ -90,6 +91,7 @@ import {
   sceneExclusion,
   setSceneLayerExcluded,
   storyBaseLayers,
+  withBaseMapsAsLayers,
   withoutBaseLayers,
 } from "./scene-edit";
 import {
@@ -645,6 +647,10 @@ export const ShowScenes = ({
       ),
     }));
 
+  /**
+   * The map as it stands, its base map as the lowest of its layers: listed
+   * with the others, and the display draws it whatever base maps it has.
+   */
   const currentMapConfig = () => {
     const mapConfig = carma.config.getMappingConfig();
     if (!mapConfig) {
@@ -652,9 +658,19 @@ export const ShowScenes = ({
         kind: "error",
         text: "Die Karte liefert gerade keine Konfiguration.",
       });
+      return null;
     }
-    return mapConfig;
+    return carma.config.backgroundAsLayers(mapConfig);
   };
+
+  // scenes saved before the base map went into their layers get it there too
+  useEffect(() => {
+    if (draft.scenes.some(({ config }) => hasBaseMapChoice(config))) {
+      updateDraft((current) =>
+        withBaseMapsAsLayers(current, carma.config.backgroundAsLayers)
+      );
+    }
+  }, [draft, updateDraft, carma]);
 
   /**
    * What a save stores: the map, and its visible rectangle when the tick is

@@ -66,6 +66,7 @@ export interface ConfigAdapter {
   setMappingConfig?: (config: MappingConfig) => Promise<boolean>;
   getAppliedId?: () => string | null;
   getMappingConfig?: () => MappingConfig | null;
+  backgroundAsLayers?: (config: MappingConfig) => MappingConfig;
 }
 
 /** Public shape seen by callers of `carma.config`. */
@@ -99,6 +100,16 @@ export interface ConfigFacade {
    * to ask. Handing it back to `setMappingConfig` later restores the view.
    */
   getMappingConfig: () => MappingConfig | null;
+  /**
+   * The same configuration with its base map as ordinary layers: the base
+   * map's parts go under `layers`, bottom first, and `backgroundLayer` is left
+   * out. A display then draws it whatever base maps its own table has, and
+   * keeps its own under the layers. A hidden base map adds no layers.
+   *
+   * Returns `config` itself when it names no base map choice, when no app is
+   * there to ask, or when the app cannot resolve the entry.
+   */
+  backgroundAsLayers: (config: MappingConfig) => MappingConfig;
 }
 
 export const { facade: config, register: registerConfig } = createNamespace<
@@ -110,4 +121,6 @@ export const { facade: config, register: registerConfig } = createNamespace<
     get()?.setMappingConfig?.(mappingConfig) ?? Promise.resolve(false),
   getAppliedId: () => get()?.getAppliedId?.() ?? null,
   getMappingConfig: () => get()?.getMappingConfig?.() ?? null,
+  backgroundAsLayers: (mappingConfig) =>
+    get()?.backgroundAsLayers?.(mappingConfig) ?? mappingConfig,
 }));

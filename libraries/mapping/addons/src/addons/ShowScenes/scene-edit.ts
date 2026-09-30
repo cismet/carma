@@ -203,6 +203,40 @@ export const withHighlightsAsLayer = (
 };
 
 /**
+ * Whether the configuration names the base map by its entry in the app's own
+ * table, which a display with other base maps cannot draw, or switches the
+ * base map off, which would take the display's own away. A scene saved now
+ * has it as layers instead, see `carma.config.backgroundAsLayers`.
+ */
+export const hasBaseMapChoice = (config: MappingConfig): boolean =>
+  typeof config.backgroundLayer?.selectedLayerId === "string" ||
+  config.backgroundLayer?.visible === false;
+
+/**
+ * The draft with the base map of every scene saved before as layers of that
+ * scene, like one saved now. `asLayers` is `carma.config.backgroundAsLayers`.
+ * Returns `draft` itself when no scene changed.
+ */
+export const withBaseMapsAsLayers = (
+  draft: ShowDraft,
+  asLayers: (config: MappingConfig) => MappingConfig
+): ShowDraft => {
+  let isChanged = false;
+  const scenes = draft.scenes.map((scene) => {
+    if (!hasBaseMapChoice(scene.config)) {
+      return scene;
+    }
+    const config = asLayers(scene.config);
+    if (config === scene.config) {
+      return scene;
+    }
+    isChanged = true;
+    return { ...scene, config };
+  });
+  return isChanged ? { ...draft, scenes } : draft;
+};
+
+/**
  * Moves a scene up or down among the scenes of its own story; the scenes of
  * the other stories stay where they are in the list.
  */
