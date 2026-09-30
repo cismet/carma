@@ -5,8 +5,9 @@
 // Hasura GraphQL `where` clause string, in the same shape the classic per-type
 // builders in SearchModal.tsx emit (so it plugs into the same query execution).
 //
-// `field.key` in the registry is already the real backend column name, so each
-// rule maps to a flat `{ key: { _op: value } }` condition.
+// `field.key` in the registry is usually the real backend column name, so a
+// rule maps to a flat `{ key: { _op: value } }` condition; fields with
+// `filterRelation` / `filterColumn` get nested into their relationship.
 
 import type { Field } from "./fieldRegistry";
 import type {
@@ -60,16 +61,25 @@ const buildRuleCondition = (
   rule: ExpertRuleState,
   field: Field
 ): string | null => {
+  const relations = field.filterRelation?.split(".") ?? [];
+  if (
+    field.filterRelationIsArray &&
+    (rule.operator === "empty" || rule.operator === "notEmpty")
+  ) {
+    return rule.operator === "empty"
+      ? `_not: {${relations[0]}: {}}`
+      : `${relations[0]}: {}`;
+  }
   const cond = buildColumnCondition(rule, field);
   if (cond === null) return null;
-  return field.filterRelation ? `${field.filterRelation}: {${cond}}` : cond;
+  return relations.reduceRight((inner, rel) => `${rel}: {${inner}}`, cond);
 };
 
 const buildColumnCondition = (
   rule: ExpertRuleState,
   field: Field
 ): string | null => {
-  const col = field.key;
+  const col = field.filterColumn ?? field.key;
   const { operator, value } = rule;
 
   // "ist leer" / "ist nicht leer" need no value.
@@ -208,11 +218,9 @@ export const buildExpertOrderBy = (
   const fieldMap = new Map(fields.map((f) => [f.key, f]));
   const clauses = query.sorts.flatMap((s) => {
     const field = fieldMap.get(s.field);
-    if (!field) return [];
+    if (!field || field.sortable === false) return [];
     if (field.sortRelation && field.sortColumn) {
-      return [
-        `{${field.sortRelation}: {${field.sortColumn}: ${s.direction}}}`,
-      ];
+      return [`{${field.sortRelation}: {${field.sortColumn}: ${s.direction}}}`];
     }
     return [`{${s.field}: ${s.direction}}`];
   });
@@ -225,7 +233,9 @@ export const buildExpertSortSpec = (
   query: ExpertTypeState,
   fields: Field[]
 ): ExpertSortSpec => {
-  const fieldKeys = new Set(fields.map((f) => f.key));
+  const fieldKeys = new Set(
+    fields.filter((f) => f.sortable !== false).map((f) => f.key)
+  );
   return query.sorts
     .filter((s) => fieldKeys.has(s.field))
     .map((s) => ({ field: s.field, direction: s.direction }));
