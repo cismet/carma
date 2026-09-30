@@ -4,7 +4,10 @@ import { LoadingOutlined, SnippetsOutlined } from "@ant-design/icons";
 import { useDispatch, useSelector, useStore } from "react-redux";
 import type { RootState } from "../../store";
 import { getJWT, getIsReadOnly } from "../../store/slices/auth";
-import { getAllRepeatableChanges } from "../../store/slices/repeatableChanges";
+import {
+  getAllRepeatableChanges,
+  type RepeatableChangeSet,
+} from "../../store/slices/repeatableChanges";
 import { getAllDrafts } from "../../store/slices/featuresForms";
 import { getSelectedFeature } from "../../store/slices/featureCollection";
 import { useDatasheet } from "@carma-mapping/engines/maplibre";
@@ -45,17 +48,16 @@ const PasteChangesToHighlightsButton = () => {
     sourceLayer?: string;
     properties?: Record<string, unknown> | null;
   } | null;
-  const [pasting, setPasting] = useState(false);
 
   // The Fachobjekt whose Datenblatt is open, if any. It is kept out of the
   // batch: its mounted form owns the draft and would not pick the pasted
   // values up — see `filterPasteTargets`. Its own header paste button covers it.
   const openInDatasheet = isDatasheetOpen ? selectedFeature : null;
 
-  // The one stored change set that has somewhere to go. Only Leuchte offers
-  // copy/paste today, so this resolves to that type or to nothing at all; the
-  // loop keeps the button honest if another type is wired up later.
-  const job = useMemo(() => {
+  // Every stored change set that has somewhere to go — one button each, so a
+  // Leuchte and a Standort clipboard can both be pasted from the same selection.
+  const jobs = useMemo(() => {
+    const result: PasteJob[] = [];
     for (const [featureType, changeSet] of Object.entries(repeatableChanges)) {
       const target = getBatchPasteTarget(featureType);
       if (!target) continue;
@@ -70,9 +72,9 @@ const PasteChangesToHighlightsButton = () => {
         openInDatasheet
       );
       if (features.length === 0) continue;
-      return { featureType, changeSet, features, label: target.label };
+      result.push({ featureType, changeSet, features, label: target.label });
     }
-    return null;
+    return result;
   }, [
     repeatableChanges,
     activeHighlights,
@@ -80,7 +82,45 @@ const PasteChangesToHighlightsButton = () => {
     activeSourceLayers,
   ]);
 
-  if (isReadOnly || !jwt || !job) return null;
+  if (isReadOnly || !jwt || jobs.length === 0) return null;
+
+  return (
+    <>
+      {jobs.map((job) => (
+        <PasteJobButton
+          key={job.featureType}
+          job={job}
+          jwt={jwt}
+          drafts={drafts}
+          dispatch={dispatch}
+          getDrafts={() => store.getState().featuresForms?.drafts ?? {}}
+        />
+      ))}
+    </>
+  );
+};
+
+interface PasteJob {
+  featureType: string;
+  changeSet: RepeatableChangeSet;
+  features: ReturnType<typeof filterPasteTargets>;
+  label: string;
+}
+
+const PasteJobButton = ({
+  job,
+  jwt,
+  drafts,
+  dispatch,
+  getDrafts,
+}: {
+  job: PasteJob;
+  jwt: string;
+  drafts: ReturnType<typeof getAllDrafts>;
+  dispatch: Parameters<typeof pasteChangesToFeatures>[0]["dispatch"];
+  getDrafts: () => ReturnType<typeof getAllDrafts>;
+}) => {
+  const [pasting, setPasting] = useState(false);
 
   // Visible fields, not stored keys — the Strassenschlüssel trio is one input.
   // Same collapsing the Datenblatt header's paste badge does.
@@ -97,7 +137,7 @@ const PasteChangesToHighlightsButton = () => {
         changeSet: job.changeSet,
         drafts,
         dispatch,
-        getDrafts: () => store.getState().featuresForms?.drafts ?? {},
+        getDrafts,
       });
       // One message per run, but the two outcomes are not interchangeable: a
       // feature that already carried the values got no draft (setDraft discards
