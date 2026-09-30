@@ -60,8 +60,13 @@ export const createSharedSceneLocalFrame = (localFrameGroup: THREE.Group) => {
       lngLat,
       revision: (localFrame?.revision ?? 0) + 1,
       sceneFromLocal,
+      // The ellipsoidal metric correction scales scene axes differently. Once
+      // the tangent frame rotates, normalizing its columns cannot remove that
+      // shear. Sun/sky need the rigid orientation, not the geometry's metric fit.
       sceneFromLocalRotation: new THREE.Matrix4().extractRotation(
-        sceneFromLocal
+        getCameraLocalMercatorFit(originLngLat, lngLat, {
+          correctScale: false,
+        })
       ),
       referenceLngLat,
       sceneFromLocalReference,

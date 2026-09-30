@@ -210,7 +210,9 @@ describe("shadow scene lighting and local frame", () => {
       null
     );
 
-    expect(acquireSharedThreeScene).toHaveBeenCalledWith(map);
+    expect(acquireSharedThreeScene).toHaveBeenCalledWith(map, {
+      mapStylePresentation: true,
+    });
     expect(setLight).toHaveBeenLastCalledWith(
       expect.objectContaining({
         anchor: "map",

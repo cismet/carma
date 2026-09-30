@@ -3,7 +3,10 @@ import {
   expectMatrixToBeCloseTo,
 } from "./shared-three-scene-layer.test-support";
 import * as THREE from "three";
-import { MAPLIBRE_EARTH_RADIUS } from "@carma-geo/proj";
+import {
+  getCameraLocalMercatorFit,
+  MAPLIBRE_EARTH_RADIUS,
+} from "@carma-geo/proj";
 import { degToRadNumeric } from "@carma-units";
 import { describe, expect, it, vi } from "vitest";
 import { buildSharedThreeSceneLayer } from "./shared-three-scene-layer";
@@ -379,7 +382,11 @@ describe("shared three scene layer", () => {
     expect(moved.lngLat).toEqual([7.15, 51.3]);
     expectMatrixToBeCloseTo(
       moved.sceneFromLocalRotation,
-      new THREE.Matrix4().extractRotation(moved.sceneFromLocal)
+      new THREE.Matrix4().extractRotation(
+        getCameraLocalMercatorFit([7.15, 51.25], moved.lngLat, {
+          correctScale: false,
+        })
+      )
     );
     expect(moved.sceneFromLocalRotation.determinant()).toBeCloseTo(1, 10);
     expect(
