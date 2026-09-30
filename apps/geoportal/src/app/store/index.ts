@@ -8,6 +8,10 @@ import localForage from "localforage";
 import { HASH_LAUNCH_MODE } from "@carma-commons/utils";
 
 import { APP_KEY, STORAGE_PREFIX } from "../config";
+import {
+  backgroundConfig,
+  toBackgroundLayer,
+} from "../config/backgroundConfig";
 import { STORE_APP_KEY } from "./app-key";
 import {
   dropUnrestorableRows,
@@ -20,6 +24,7 @@ import measurementsReducer from "./slices/measurements";
 import uiReducer, { initialUIState, UIMode } from "./slices/ui";
 import featuresReducer from "./slices/features";
 import printReducer from "./slices/print";
+import { withKnownBackground } from "./stored-background";
 import { resolveGeoportalCustomHashState } from "../helper/geoportal-custom-hash-state";
 
 console.info("store initializing ....");
@@ -128,11 +133,19 @@ const mappingMigrations = {
   },
 };
 
+const migrateMapping = createMigrate(mappingMigrations);
+
 const mappingConfig = {
   key: "@" + (customAppKey || APP_KEY) + "." + STORAGE_PREFIX + ".app.mapping",
   storage: localForage,
   version: 1,
-  migrate: createMigrate(mappingMigrations),
+  // runs on every load, so a stored base map is checked against the route's
+  migrate: (state: PersistedState, version: number) =>
+    migrateMapping(state, version).then((migrated) =>
+      migrated
+        ? withKnownBackground(migrated, backgroundConfig, toBackgroundLayer)
+        : migrated
+    ),
   transforms: [dropModeRows],
   whitelist: [
     "layers",
