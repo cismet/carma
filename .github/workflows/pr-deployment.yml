@@ -201,6 +201,12 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ needs.preparation.outputs.has_projects == 'true' && needs.preparation.outputs.project_list != '[]' }}
 
+    # Publication and cleanup both write the shared preview gh-pages branch.
+    concurrency:
+      group: carma-pr-deployments-gh-pages
+      queue: max
+      cancel-in-progress: false
+
     permissions:
       contents: write
       pages: write
@@ -333,6 +339,19 @@ jobs:
         shell: bash
 
       - name: Deploy to PR deployment repository
+        id: publish_preview
+        continue-on-error: true
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          personal_token: ${{ secrets.CISMET_CI_DEPLOY_PAT }}
+          external_repository: ${{ env.EXTERNAL_REPO }}
+          publish_dir: ${{ env.PROJECT_PATH }}
+          destination_dir: ${{ env.PR_NUMBER }}/${{ matrix.project }}
+          keep_files: true
+
+      # Older workflow versions may still publish concurrently; a fresh checkout retains their updates.
+      - name: Retry PR publication from the current deployment branch
+        if: steps.publish_preview.outcome == 'failure'
         uses: peaceiris/actions-gh-pages@v4
         with:
           personal_token: ${{ secrets.CISMET_CI_DEPLOY_PAT }}

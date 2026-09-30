@@ -12,6 +12,12 @@ jobs:
     name: 🧹 Remove PR Deployment
     runs-on: ubuntu-latest
 
+    # Publication and cleanup both write the shared preview gh-pages branch.
+    concurrency:
+      group: carma-pr-deployments-gh-pages
+      queue: max
+      cancel-in-progress: false
+
     permissions:
       contents: write
 
