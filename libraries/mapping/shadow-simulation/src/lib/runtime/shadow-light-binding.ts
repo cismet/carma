@@ -183,7 +183,7 @@ export const disposeShadowLightBinding = (binding: ShadowLightBinding) => {
   }
   binding.scene.remove(binding.skyLight);
   binding.scene.remove(binding.atmosphericSky.mesh);
-  binding.scene.remove(binding.sunVectorRoot);
+  binding.sunVectorRoot.removeFromParent();
   binding.sunVector?.dispose();
   binding.atmosphericSky.dispose();
   binding.controller.dispose();

@@ -157,6 +157,11 @@ describe("mesh caster publication", () => {
     api.captureShadowReceiverSources();
     advance(new Set([parent, otherParent]));
 
+    // A prior sun request is retained history, even with an unchanged observer.
+    const priorSunCaster = makeTile("prior-sun", 30, 1, false);
+    state.tiles.loadingTiles.add(priorSunCaster);
+    state.shadowCasterRequests.add(priorSunCaster);
+    state.retainedShadowRequests.add(priorSunCaster);
     state.effectiveErrorTarget = 1;
     // A coarse caster may meet its own SSE after camera/receiver changes.
     // Already displayed descendants still set its minimum geometric detail.
@@ -173,6 +178,7 @@ describe("mesh caster publication", () => {
       new Set([receiver, otherChild])
     );
     expect(state.shadowCasterRequests).toEqual(new Set([chimney]));
+    expect(state.retainedShadowRequests.has(priorSunCaster)).toBe(true);
     expect(onContentChanged).toHaveBeenCalledOnce();
     state.meshCoverageRecovery = false;
     onContentChanged.mockClear();

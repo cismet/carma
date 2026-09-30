@@ -12,11 +12,11 @@ import {
   snapshotMeshBaseRenderRecord,
 } from "./mesh-base-render-record";
 import {
+  collectCachedMeshBase,
   meshBaseCacheKey,
   meshBaseManifestMatches,
   meshBaseCacheSourceUrl,
 } from "./mesh-base-cache-protocol";
-import { collectCachedMeshBase } from "./mesh-base-cache-coverage";
 
 describe("persistent mesh base", () => {
   it("confirms complete cached families or a stored fallback, never a partial family", () => {

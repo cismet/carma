@@ -185,14 +185,10 @@ export {
 } from "./lib/components/StripChartPanel";
 export {
   createMetricRecorder,
-  useMetricRecorder,
   type MetricLogEntry,
   type MetricRecorder,
-  type MetricSeriesSpec,
 } from "./lib/hooks/useMetricRecorder";
 export {
-  createStripChart,
   type StripChart,
-  type StripChartOptions,
   type StripChartRow,
 } from "./lib/utils/strip-chart";

@@ -39,7 +39,6 @@ export const WUPP_MESH_2024_ROOT_REFERENCE = {
   source: WUPP_MESH_2024.url,
   alternateSources: WUPP_MESH_2024.alternateUrls,
   retrievedOn: "2026-09-14",
-  evidence: "output/playwright/mesh-crs-source-metadata.log",
   assetVersion: "1.0",
   datumStatus: "horizontal and vertical datum not certified by root metadata",
   transform: [

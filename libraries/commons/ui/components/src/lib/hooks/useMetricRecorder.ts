@@ -1,18 +1,5 @@
 import { useSyncExternalStore } from "react";
 
-/** One named time series the recorder keeps, with how to show it. */
-export type MetricSeriesSpec = {
-  id: string;
-  label: string;
-  unit?: string;
-  /** Fixed lower bound of the sparkline; omitted autoscales to the samples. */
-  min?: number;
-  /** Fixed upper bound of the sparkline; omitted autoscales to the samples. */
-  max?: number;
-  /** Formats the current value; default one decimal at most. */
-  format?: (value: number) => string;
-};
-
 export type MetricLogEntry = {
   /** Milliseconds since the recorder started. */
   at: number;

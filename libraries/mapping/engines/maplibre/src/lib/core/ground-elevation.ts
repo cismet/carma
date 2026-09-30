@@ -14,6 +14,7 @@ export type GroundElevationSource = Readonly<{
 }>;
 
 const DEFAULT_LEVEL = 14;
+export const GROUND_ELEVATION_TIMEOUT_MS = 5_000;
 
 /**
  * Height of the ground at one coordinate from a single Terrarium DEM tile,
@@ -25,6 +26,7 @@ export const fetchGroundElevationMeters = async (
   latitude: number,
   source: GroundElevationSource
 ): Promise<number | null> => {
+  if (source.signal?.aborted) return null;
   const level = Math.max(
     0,
     Math.min(source.level ?? DEFAULT_LEVEL, source.maxzoom ?? DEFAULT_LEVEL)
@@ -43,37 +45,61 @@ export const fetchGroundElevationMeters = async (
     .replace("{z}", String(level))
     .replace("{x}", String(x))
     .replace("{y}", String(y));
+  const controller = new AbortController();
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  let onAbort = () => {};
+  const deadline = new Promise<null>((resolve) => {
+    onAbort = () => {
+      controller.abort();
+      resolve(null);
+    };
+    source.signal?.addEventListener("abort", onAbort, { once: true });
+    timeoutId = setTimeout(onAbort, GROUND_ELEVATION_TIMEOUT_MS);
+  });
+  const sample = async (): Promise<number | null> => {
+    let bitmap: ImageBitmap | undefined;
+    try {
+      const response = await fetch(url, { signal: controller.signal });
+      if (!response.ok || controller.signal.aborted) return null;
+      const blob = await response.blob();
+      if (controller.signal.aborted) return null;
+      bitmap = await createImageBitmap(blob);
+      if (controller.signal.aborted) return null;
+      const canvas =
+        typeof OffscreenCanvas !== "undefined"
+          ? new OffscreenCanvas(bitmap.width, bitmap.height)
+          : Object.assign(document.createElement("canvas"), {
+              width: bitmap.width,
+              height: bitmap.height,
+            });
+      const context = canvas.getContext("2d") as
+        | OffscreenCanvasRenderingContext2D
+        | CanvasRenderingContext2D
+        | null;
+      if (!context) return null;
+      context.drawImage(bitmap, 0, 0);
+      const { data, width, height } = context.getImageData(
+        0,
+        0,
+        bitmap.width,
+        bitmap.height
+      );
+      const height_ = sampleRaster(
+        { width, height, pixels: data },
+        (tileX - x) * width,
+        (tileY - y) * height
+      );
+      return Number.isFinite(height_) ? height_ : null;
+    } catch {
+      return null;
+    } finally {
+      bitmap?.close();
+    }
+  };
   try {
-    const response = await fetch(url, { signal: source.signal });
-    if (!response.ok) return null;
-    const bitmap = await createImageBitmap(await response.blob());
-    const canvas =
-      typeof OffscreenCanvas !== "undefined"
-        ? new OffscreenCanvas(bitmap.width, bitmap.height)
-        : Object.assign(document.createElement("canvas"), {
-            width: bitmap.width,
-            height: bitmap.height,
-          });
-    const context = canvas.getContext("2d") as
-      | OffscreenCanvasRenderingContext2D
-      | CanvasRenderingContext2D
-      | null;
-    if (!context) return null;
-    context.drawImage(bitmap, 0, 0);
-    const { data, width, height } = context.getImageData(
-      0,
-      0,
-      bitmap.width,
-      bitmap.height
-    );
-    bitmap.close();
-    const height_ = sampleRaster(
-      { width, height, pixels: data },
-      (tileX - x) * width,
-      (tileY - y) * height
-    );
-    return Number.isFinite(height_) ? height_ : null;
-  } catch {
-    return null;
+    return await Promise.race([sample(), deadline]);
+  } finally {
+    clearTimeout(timeoutId);
+    source.signal?.removeEventListener("abort", onAbort);
   }
 };

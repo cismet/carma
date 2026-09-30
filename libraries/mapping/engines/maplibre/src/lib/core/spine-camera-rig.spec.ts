@@ -197,4 +197,23 @@ describe("spine camera rig", () => {
     });
     expect(views).toHaveLength(3);
   });
+
+  it("rejects degenerate spines and invalid sampling", () => {
+    expect(() =>
+      createSpineCameraRig({
+        points: [new Vector3(), new Vector3()],
+        closed: false,
+        count: 1,
+        height: 1,
+        offset: 1,
+        near: 0.1,
+        far: 2,
+        clipBeforeSurface: 0.1,
+        side: 1,
+      })
+    ).toThrow();
+    expect(() =>
+      sampleSpine([new Vector3(), new Vector3(1, 0, 0)], false, NaN)
+    ).toThrow();
+  });
 });

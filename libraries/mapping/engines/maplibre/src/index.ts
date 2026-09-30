@@ -376,7 +376,6 @@ export {
 
 // Clicks an addon answers before the engine does
 export { claimClick, isClickClaimed } from "./utils/clickClaims";
-export { estimateTileTargetSteps } from "./lib/runtime/integrations/three-tiles-runtime-coverage";
 export {
   loadTileDiagnostics,
   type TileDiagnostics,
@@ -422,7 +421,5 @@ export type {
 } from "./lib/runtime/diagnostics/tile-diagnostic-state";
 export {
   getTiles3dRuntimeHandles,
-  registerTiles3dRuntimeHandle,
   subscribeTiles3dRuntimeHandles,
-  unregisterTiles3dRuntimeHandle,
 } from "./lib/runtime/integrations/tiles3d-runtime-handles";

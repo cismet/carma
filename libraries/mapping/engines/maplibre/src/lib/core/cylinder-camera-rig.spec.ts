@@ -60,4 +60,19 @@ describe("cylinder camera rig", () => {
       views[0].clipPlanes[0].distanceToPoint(new Vector3())
     ).toBeGreaterThan(0);
   });
+
+  it("rejects an invalid panorama count", () => {
+    expect(() =>
+      createCylinderCameraRig({
+        center: new Vector3(),
+        radius: 1,
+        height: 1,
+        count: 2,
+        mode: "panorama",
+        aspect: 1,
+        near: 1,
+        far: 2,
+      })
+    ).toThrow();
+  });
 });

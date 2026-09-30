@@ -435,10 +435,8 @@ export function createThreeTilesQuality(
     )
       return;
     runtimeState.options.baseErrorTargetPixels = nextInitial;
-    if (initialChanged) {
-      runtimeState.meshInitialReserveSettled = false;
-      runtimeState.appliedTilesetMinResolutionPx = Number.NaN;
-    }
+    runtimeState.meshInitialReserveSettled = false;
+    runtimeState.appliedTilesetMinResolutionPx = Number.NaN;
     runtimeState.requestedErrorTarget = nextErrorTarget;
     // A new explicit quality request starts a distinct recovery objective.
     memoryRecovery = EMPTY_MEMORY_TARGET_RECOVERY;

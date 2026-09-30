@@ -41,8 +41,8 @@ The earlier three-fixture, counterbalanced normal-only comparison measured
 across runs. Warm WebGPU readback did not consistently beat WASM for that stage;
 CSR setup cost 21–27 ms. The exact CPU/WASM path keeps the existing WebGL2 consumer.
 
-- [Integrated benchmark, source and raw trials](../../../../output/playwright/terrain-startup-wasm-20260905/)
-- [Earlier backend/parity comparison](../../../../output/playwright/normal-production-parity-20260905/README.md)
+These measurements came from local benchmark captures; their raw artifacts
+are not included in this package.
 
 ### App startup experiment
 
@@ -58,7 +58,8 @@ from runtime creation, mostly between first worker dispatch and reply. HTTP
 caches, Vite and other host/GPU workloads were uncontrolled; this delay remains
 unisolated. Frame marks measure submitted terrain, not GPU presentation or final
 sun-disc convergence. The settled app screenshot confirms draped map and shadows.
-No full DevTools trace was available. [Raw runs and limits](../../../../output/playwright/terrain-startup-wasm-20260905/startup-results.json).
+No full DevTools trace was available; raw captures are not included in this
+package. These historical runs do not establish current production performance.
 
 Regenerate the embedded WASM bytes with
 `node libraries/mapping/engines/three/primitives/scripts/build-mesh-normals.mjs /path/to/wabt/index.js`

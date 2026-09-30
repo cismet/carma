@@ -6,6 +6,7 @@ import {
   type MeshBaseRenderRecord,
 } from "../../core/mesh-base-render-record";
 import {
+  collectCachedMeshBase,
   MESH_BASE_CACHE_OPERATION,
   MESH_BASE_RENDER_FORMAT,
   meshBaseCacheSourceUrl,
@@ -13,7 +14,6 @@ import {
   type MeshBaseCacheResponse,
   type MeshBaseManifest,
 } from "../../core/mesh-base-cache-protocol";
-import { collectCachedMeshBase } from "../../core/mesh-base-cache-coverage";
 import { resolveTileContentUrl } from "./three-tiles-runtime-vendor";
 import type {
   RuntimeTile,
@@ -141,6 +141,7 @@ export class MeshBaseCachePlugin {
         new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)),
         (n) => n.toString(16).padStart(2, "0")
       ).join("");
+      if (this.disposed) return;
       this.worker = new Worker(
         new URL("./mesh-base-cache.worker.ts", import.meta.url),
         { type: "module" }

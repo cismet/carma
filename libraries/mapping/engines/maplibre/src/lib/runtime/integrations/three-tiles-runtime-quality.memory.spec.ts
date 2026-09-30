@@ -183,3 +183,24 @@ describe("settled memory-target recovery", () => {
     }
   );
 });
+
+describe("resident floor quality changes", () => {
+  it("recomputes and recertifies the floor when only the requested target changes", () => {
+    const { state, loading } = fixture();
+    state.options.baseErrorTargetPixels = 16;
+    state.tilesetMinResolutionPx = 100;
+    state.rootLongestAxisMeters = 1000;
+    loading.applyTilesetMinResolution();
+    const previousFloor = state.extentGeometricError;
+    state.meshInitialReserveSettled = true;
+    loading.setErrorTarget(32);
+    loading.applyTilesetMinResolution();
+    expect(state.extentGeometricError).toBe(previousFloor * 2);
+    expect(state.meshInitialReserveSettled).toBe(false);
+    const dispatch = vi.spyOn(state.tiles!, "dispatchEvent");
+    loading.setErrorTarget(32);
+    loading.applyTilesetMinResolution();
+    expect(dispatch).not.toHaveBeenCalled();
+    loading.clearErrorTargetTimer();
+  });
+});

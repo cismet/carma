@@ -83,6 +83,7 @@ import { useMapSelection } from "../contexts/MapSelectionContext";
 import { useDatasheet } from "../contexts/DatasheetContext";
 import { useClusterMarkers } from "../hooks/useClusterMarkers";
 import { useImperativeStyle } from "../hooks/useImperativeStyle";
+import { useInitialMapStyle } from "../hooks/useInitialMapStyle";
 import {
   WUPPERTAL_DEFAULT_STYLE,
   WUPPERTAL_CONFIG,
@@ -284,6 +285,8 @@ export interface LibreMapProps {
    * instance loads its final style once instead of a background style that
    * the composed one replaces a moment later. The host must hand over the
    * layers it wants on the first render; later changes apply as before.
+   * A failed or slow composition falls back to the background within
+   * five seconds.
    */
   deferInitialStyle?: boolean;
   /** Disable all map interaction (pan, zoom, rotate, keyboard) */
@@ -907,8 +910,14 @@ export const LibreMap = ({
   );
   // With `deferInitialStyle` the merged-mode effect below composes this
   // before the map exists; the mount effect then creates the map with it.
-  const [deferredInitialStyle, setDeferredInitialStyle] =
-    useState<StyleSpecification | null>(null);
+  const {
+    initialStyle: deferredInitialStyle,
+    completeInitialStyle: setDeferredInitialStyle,
+  } = useInitialMapStyle({
+    backgroundStyle,
+    defer: deferInitialStyle && !map.current,
+    layerMode,
+  });
 
   // Imperatively apply/clear raster paint overrides on background layers
   // so that toggling night mode doesn't rebuild the entire style (which
@@ -2000,7 +2009,7 @@ export const LibreMap = ({
           }
 
           // Track progress for geojson layers
-          if (geoJsonMetadata.length > 0 && onProgressUpdate) {
+          if (map.current && geoJsonMetadata.length > 0 && onProgressUpdate) {
             const loadedSources = new Set<string>();
 
             const handleStyleLoad = () => {
@@ -2033,17 +2042,20 @@ export const LibreMap = ({
             } else {
               map.current!.once("styledata", handleStyleLoad);
             }
-          } else if (onProgressUpdate) {
+          } else if (onProgressUpdate && geoJsonMetadata.length === 0) {
             onProgressUpdate({ current: 1, total: 1 });
           }
         } else {
           // Only update background layers
           if (aborted) return;
+          if (composingInitialStyle) setDeferredInitialStyle(backgroundStyle);
           map.current?.setStyle(backgroundStyle);
           setMapStyle(backgroundStyle);
           geoJsonMetadataRef.current = [];
         }
       } catch (error) {
+        if (aborted) return;
+        if (composingInitialStyle) setDeferredInitialStyle(backgroundStyle);
         console.error("Error updating map style:", error);
         // Release anything still flagged busy, so a failed rebuild shows the
         // layers as failed rather than permanently loading.
@@ -2070,6 +2082,7 @@ export const LibreMap = ({
     layerMode,
     deferInitialStyle,
     deferredInitialStyle,
+    setDeferredInitialStyle,
   ]);
 
   const getLeafletMap = useCallback(() => {

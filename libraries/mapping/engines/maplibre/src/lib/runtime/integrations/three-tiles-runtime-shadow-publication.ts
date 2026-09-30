@@ -284,8 +284,6 @@ export function createThreeTilesShadowPublication(
       dependencies.requestRender();
     };
 
-  let requestCameraSignature: string | undefined;
-
   const advanceMeshShadowCorridors: ThreeTilesRuntimeServices["advanceMeshShadowCorridors"] =
     (viewportTiles: ReadonlySet<Tile>): void => {
       const tiles = runtimeState.tiles;
@@ -314,10 +312,6 @@ export function createThreeTilesShadowPublication(
         (tile) => dependencies.isTileInMainView(tile as RuntimeTile)
       );
       const requests = new Set(plan.requests);
-      if (requestCameraSignature === runtimeState.tileCameraSignature)
-        for (const tile of runtimeState.shadowCasterRequests)
-          if (tiles.loadingTiles.has(tile)) requests.add(tile);
-      requestCameraSignature = runtimeState.tileCameraSignature;
       const requestsChanged =
         requests.size !== runtimeState.shadowCasterRequests.size ||
         [...requests].some(

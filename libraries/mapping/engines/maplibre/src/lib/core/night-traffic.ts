@@ -50,13 +50,6 @@ export const getNightTrafficSignalPhase = (
   return NIGHT_TRAFFIC_SIGNAL_PHASE.ALL_RED;
 };
 
-export const isNightTrafficSignalGo = (
-  elapsedSeconds: number,
-  phaseOffsetSeconds = 0
-): boolean =>
-  getNightTrafficSignalPhase(elapsedSeconds, phaseOffsetSeconds) ===
-  NIGHT_TRAFFIC_SIGNAL_PHASE.GREEN;
-
 export const advanceNightTrafficDistance = ({
   distanceMeters,
   speedMetersPerSecond,

@@ -266,6 +266,7 @@ export function Tiles3dLayerManager({
     )}`;
     const lease = acquireSharedThreeScene(map);
     let disposed = false;
+    const groundProbe = new AbortController();
     let teardown: (() => void) | null = null;
     const standalone = initialConfig.basemap === TILES3D_BASEMAP.NONE;
     const build = (groundReferenceMeters: number | null) => {
@@ -409,11 +410,13 @@ export function Tiles3dLayerManager({
         void fetchGroundElevationMeters(origin[0], origin[1], {
           tileUrlTemplate: template,
           maxzoom: terrainSource.maxzoom,
+          signal: groundProbe.signal,
         }).then(build);
       } else build(null);
     } else build(null);
     return () => {
       disposed = true;
+      groundProbe.abort();
       teardown?.();
       lease.release();
     };

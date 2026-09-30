@@ -87,7 +87,8 @@ own follow-up, not parsing tile IDs as viewport-grid coordinates.
 cover the listed transitions. An isolated Apple M4 Max / ANGLE Metal GPU probe
 compares direct and retained hard shadows at three poses: finite visibility 0–1,
 no GL errors, mean RGB error below 0.012/255; translation keeps the same capture.
-Individual edge differences remain (see `output/playwright/receiver-gpu-parity.md`).
+Individual edge differences remain; the local parity capture is not included
+in this package.
 This proves neither mesh-loader completion nor absence of full-app regressions.
 Live Geoportal initially showed dark meshes with zero depth passes; after the
 discovery fix it held incomplete geometry instead. A frozen reload before the
@@ -347,15 +348,15 @@ Game Developer May 2010, pp.35–38. No performance gain is claimed by this audi
   cap reduces them compared with 1 mm but does not establish universal acne-free
   rendering. Metadata volumes spanned -7384..7887 m versus actual visible geometry
   at 50..360 m; geometry bounds reduced a page fit from ~1051 m to ~563 m height.
-  Screenshots in `/private/tmp/mesh-contact-*.png` are local diagnostic artifacts.
+  The screenshots were local diagnostic artifacts and are not included here.
   This is a visual comparison, not a speed benchmark. Broad mesh LOD/angle/fold
   acceptance remains open; do not report this as universally acne-free.
 - **Follow-up verification:** Fresh page reload and a 40 px pan/back in the
   close-up retained contact at the facade corner without the repeated planar
   stripes. Controller tests (62), scene/material tests (47), mesh runtime tests
   (22) pass, including immediate policy installation on arriving meshes and
-  material-program invalidation on flag changes. Final close-up capture:
-  `output/playwright/mesh-contact-after-fix.png`.
+  material-program invalidation on flag changes. The final close-up capture was
+  a local diagnostic artifact and is not included here.
 - **Revisit when:** Improve depth footprint fitting/comparison; validate both
   contact loss and false self-shadowing on mesh and non-planar heightfield
   receivers before declaring the shadow quality fixed.
