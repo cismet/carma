@@ -57,3 +57,11 @@ python3 scripts/oblique-viewer/serve-originals.py
 The local-development Geoportal addon connects to `http://127.0.0.1:8926`. Use the Geoportal dev server for this branch at its normal `http://localhost:4200` URL and enable the MapLibre and oblique addon flags (`ng` and `oblqml`). The bridge serves the committed 41-image sample catalog, JPEG views generated on demand and original TIFF downloads. The multiple-selection dropdown keeps the Rathaus sample separate from the full 2026 delivery. See the [script guide](../../../scripts/oblique-viewer/README.md) for options and delivery validation.
 
 The full 2026 upload is being placed under `/mnt/storagebox/luftbildschraegaufnahmen2026`. It is not the Rathaus bridge source and must be inventoried and validated after transfer before enabling the full-flight asset configuration.
+
+Inside a flown-to image, dragging shifts the perspective centre and the image
+together without moving the calibrated camera. Wheel zoom is anchored at the
+mouse pointer. MapLibre limits its perspective centre to the viewport bounds.
+Leaving the preview restores the previous map padding before the next flight.
+The Three.js tile-selection camera uses the same off-centre projection as the
+render camera. Sharper preview levels load on demand, retaining the current
+image until decoding succeeds.

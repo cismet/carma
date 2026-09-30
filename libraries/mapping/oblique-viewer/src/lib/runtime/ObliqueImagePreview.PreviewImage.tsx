@@ -1,6 +1,11 @@
 import type { CSSProperties, FC } from "react";
 
-import { PREVIEW_HEIGHT_VAR, PREVIEW_WIDTH_VAR } from "./hooks/usePreviewSizeSync";
+import {
+  PREVIEW_HEIGHT_VAR,
+  PREVIEW_WIDTH_VAR,
+  PREVIEW_OFFSET_X_VAR,
+  PREVIEW_OFFSET_Y_VAR,
+} from "./hooks/usePreviewSizeSync";
 
 type PreviewImageProps = {
   src: string;
@@ -35,7 +40,7 @@ export const PreviewImage: FC<PreviewImageProps> = ({
   const wrapperStyle: CSSProperties = {
     position: "absolute",
     inset: 0,
-    transform: `rotate(${rollDeg}deg)`,
+    transform: `translate(var(${PREVIEW_OFFSET_X_VAR}, 0px), var(${PREVIEW_OFFSET_Y_VAR}, 0px)) rotate(${rollDeg}deg)`,
     transformOrigin: "50% 50%",
     pointerEvents: "none",
     zIndex: 2,

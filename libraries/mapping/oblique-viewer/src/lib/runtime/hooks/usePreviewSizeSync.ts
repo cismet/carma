@@ -5,6 +5,8 @@ import { readCameraToCenterDistancePx } from "../utils/cameraMath";
 
 export const PREVIEW_WIDTH_VAR = "--oblique-preview-width";
 export const PREVIEW_HEIGHT_VAR = "--oblique-preview-height";
+export const PREVIEW_OFFSET_X_VAR = "--oblique-preview-offset-x";
+export const PREVIEW_OFFSET_Y_VAR = "--oblique-preview-offset-y";
 
 /**
  * Keeps the preview the size the camera makes it: the image's long edge is
@@ -32,16 +34,30 @@ export const usePreviewSizeSync = ({
     const root = rootRef.current;
     if (!map || !enabled || !root) return undefined;
 
-    let applied: { width: number; height: number } | null = null;
+    let applied: {
+      width: number;
+      height: number;
+      x: number;
+      y: number;
+    } | null = null;
     const sync = () => {
       const base = 2 * readCameraToCenterDistancePx(map) * halfFovTan;
       if (!(base > 0)) return;
       const width = base * (isVertical ? imageAspectRatio : 1);
       const height = base * (isVertical ? 1 : 1 / imageAspectRatio);
-      if (applied?.width === width && applied.height === height) return;
-      applied = { width, height };
+      const { x, y } = map.transform.centerOffset;
+      if (
+        applied?.width === width &&
+        applied.height === height &&
+        applied.x === x &&
+        applied.y === y
+      )
+        return;
+      applied = { width, height, x, y };
       root.style.setProperty(PREVIEW_WIDTH_VAR, `${width}px`);
       root.style.setProperty(PREVIEW_HEIGHT_VAR, `${height}px`);
+      root.style.setProperty(PREVIEW_OFFSET_X_VAR, `${x}px`);
+      root.style.setProperty(PREVIEW_OFFSET_Y_VAR, `${y}px`);
     };
 
     sync();
@@ -52,6 +68,8 @@ export const usePreviewSizeSync = ({
       map.off("resize", sync);
       root.style.removeProperty(PREVIEW_WIDTH_VAR);
       root.style.removeProperty(PREVIEW_HEIGHT_VAR);
+      root.style.removeProperty(PREVIEW_OFFSET_X_VAR);
+      root.style.removeProperty(PREVIEW_OFFSET_Y_VAR);
     };
   }, [map, rootRef, enabled, isVertical, imageAspectRatio, halfFovTan]);
 };

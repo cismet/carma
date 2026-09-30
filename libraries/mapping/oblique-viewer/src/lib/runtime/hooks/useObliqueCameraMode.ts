@@ -42,6 +42,7 @@ type UseObliqueCameraModeOptions = {
   enabled: boolean;
   dataset: ObliqueDataset;
   terrainSourceId?: string;
+  onBeforeLeave?: () => void;
 };
 
 export const useObliqueCameraMode = ({
@@ -49,9 +50,12 @@ export const useObliqueCameraMode = ({
   enabled,
   dataset,
   terrainSourceId = WUPPERTAL_TERRAIN_SOURCE_ID,
+  onBeforeLeave,
 }: UseObliqueCameraModeOptions) => {
   const [phase, setPhase] = useState<CameraPhase>("idle");
   const sessionRef = useRef<Session | null>(null);
+  const beforeLeaveRef = useRef(onBeforeLeave);
+  beforeLeaveRef.current = onBeforeLeave;
 
   useEffect(() => {
     if (!map) return undefined;
@@ -89,6 +93,7 @@ export const useObliqueCameraMode = ({
     if (!session) return undefined;
     sessionRef.current = null;
     setPhase("leaving");
+    beforeLeaveRef.current?.();
     freePitch(map);
 
     let cancelled = false;
@@ -117,6 +122,7 @@ export const useObliqueCameraMode = ({
       sessionRef.current = null;
       session.flight?.cancel();
       try {
+        beforeLeaveRef.current?.();
         releaseCamera(map);
         map.scrollZoom.enable();
         if (session.terrainByUs) map.setTerrain(null);

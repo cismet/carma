@@ -53,6 +53,10 @@ export function synthesizeLodCamera(
     map as unknown as {
       transform: {
         _fov?: number;
+        fovInRadians?: number;
+        width?: number;
+        height?: number;
+        centerOffset?: { x: number; y: number };
         cameraToCenterDistance?: number;
         worldSize?: number;
         width?: number;

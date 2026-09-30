@@ -38,6 +38,7 @@ import { getHeadingFromCardinalDirection } from "../core/utils/orientation";
 import { useActiveDirection } from "./hooks/useActiveDirection";
 import { useFootprintLayer } from "./hooks/useFootprintLayer";
 import { useFovWheelZoom } from "./hooks/useFovWheelZoom";
+import { usePreviewPan } from "./hooks/usePreviewPan";
 import { useNearestImage } from "./hooks/useNearestImage";
 import { useObliqueCameraMode } from "./hooks/useObliqueCameraMode";
 import { useObliqueData } from "./hooks/useObliqueData";
@@ -165,10 +166,14 @@ export const ObliqueViewer = ({
     data,
   ]);
 
+  const [previewRoot, setPreviewRoot] = useState<HTMLDivElement | null>(null);
+  const resetPreviewPanRef = useRef(() => {});
+  const beforeLeave = useCallback(() => resetPreviewPanRef.current(), []);
   const { phase, freeCamera, lockCamera } = useObliqueCameraMode({
     map: libreMap,
     enabled: running,
     dataset: browsingDataset,
+    onBeforeLeave: beforeLeave,
   });
   const browsing = running && phase === "active";
   const busyRef = useRef(false);
@@ -206,14 +211,29 @@ export const ObliqueViewer = ({
   const selectionEpochRef = useRef(0);
   const readTarget = useCallback((): ObliqueGroundTarget | null => {
     if (!libreMap) return null;
-    const center = libreMap.getCenter();
+    const center = libreMap.unproject([
+      libreMap.transform.width / 2,
+      libreMap.transform.height / 2,
+    ]);
     return {
       longitude: center.lng,
       latitude: center.lat,
-      heightMeters: libreMap.getCenterElevation(),
+      heightMeters:
+        libreMap.queryTerrainElevation(center) ?? libreMap.getCenterElevation(),
       heightDatum: "dhhn2016",
     };
   }, [libreMap]);
+  const resetPreviewPan = usePreviewPan({
+    map: libreMap,
+    root: previewRoot,
+    enabled: running && previewVisible,
+    imageId: selectedImageId,
+    busyRef,
+    onPanEnd: () => {
+      targetRef.current = readTarget();
+    },
+  });
+  resetPreviewPanRef.current = resetPreviewPan;
   const onSelect = useCallback(
     (next: NearestObliqueImageRecord | null) => {
       if (next && !enabledSetRef.current.has(next.record.seriesId)) return;
@@ -281,6 +301,10 @@ export const ObliqueViewer = ({
   useFovWheelZoom({
     map: libreMap,
     enabled: browsing,
+    previewRoot,
+    onPreviewZoomEnd: () => {
+      if (previewVisibleRef.current) targetRef.current = readTarget();
+    },
     minFovDeg: browsingDataset.minFovDeg,
     maxFovDeg: browsingDataset.maxFovDeg,
     busyRef,
@@ -303,6 +327,7 @@ export const ObliqueViewer = ({
       const epoch = selectionEpochRef.current;
       setBusy(true);
       setRuntimeError(null);
+      resetPreviewPanRef.current();
       try {
         const pose = poseOf(record, dataset);
         const altitude = await resolveCameraAltitude(
@@ -359,6 +384,7 @@ export const ObliqueViewer = ({
 
   const settleToBrowsing = useCallback(async () => {
     if (!libreMap || !runningRef.current) return;
+    resetPreviewPanRef.current();
     const epoch = selectionEpochRef.current;
     setBusy(true);
     try {
@@ -705,6 +731,7 @@ export const ObliqueViewer = ({
             <ObliqueImagePreview
               key={selectedRecord.id}
               map={libreMap}
+              onRootChange={setPreviewRoot}
               previewPath={selectedDataset.previewPath}
               imageId={selectedRecord.sourceId}
               qualityLevel={previewQualityLevel}

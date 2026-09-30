@@ -1,8 +1,9 @@
 import { clamp } from "@carma-commons/math";
-import { useEffect, type MutableRefObject } from "react";
+import { useEffect, useRef, type MutableRefObject } from "react";
 import type { Map as MaplibreMap } from "maplibre-gl";
 
 import { zoomKeepingCameraForFov, type TweenHandle } from "../utils/cameraMath";
+import { paddingForCenterOffset } from "../utils/offCenterCamera";
 import { setFov, tweenFov } from "../utils/obliqueCamera";
 
 /**
@@ -35,13 +36,29 @@ const readWheelZoomDelta = (event: WheelEvent): number => {
 /** fov and zoom moved together so the camera stays put */
 export const applyFovKeepingCamera = (
   map: MaplibreMap,
-  fovDeg: number
+  fovDeg: number,
+  anchor?: { x: number; y: number }
 ): void => {
   const zoom = zoomKeepingCameraForFov(
     map.getZoom(),
     map.getVerticalFieldOfView(),
     fovDeg
   );
+  if (anchor) {
+    const scale =
+      Math.tan((map.getVerticalFieldOfView() * Math.PI) / 360) /
+      Math.tan((fovDeg * Math.PI) / 360);
+    const { width, height, centerOffset } = map.transform;
+    const x = anchor.x - width / 2;
+    const y = anchor.y - height / 2;
+    map.setPadding(
+      paddingForCenterOffset(map, {
+        x: x + (centerOffset.x - x) * scale,
+        y: y + (centerOffset.y - y) * scale,
+      }),
+      { obliqueFov: true }
+    );
+  }
   setFov(map, fovDeg);
   map.jumpTo({ zoom }, { obliqueFov: true });
 };
@@ -52,14 +69,20 @@ export const useFovWheelZoom = ({
   minFovDeg,
   maxFovDeg,
   busyRef,
+  previewRoot,
+  onPreviewZoomEnd,
 }: {
   map: MaplibreMap | null;
+  previewRoot: HTMLDivElement | null;
+  onPreviewZoomEnd?: () => void;
   enabled: boolean;
   minFovDeg: number;
   maxFovDeg: number;
   /** a flight is running; the wheel is ignored meanwhile */
   busyRef: MutableRefObject<boolean>;
 }): void => {
+  const onPreviewZoomEndRef = useRef(onPreviewZoomEnd);
+  onPreviewZoomEndRef.current = onPreviewZoomEnd;
   useEffect(() => {
     if (!map || !enabled) return undefined;
     const container = map.getContainer();
@@ -82,14 +105,30 @@ export const useFovWheelZoom = ({
       if (Math.abs(next - base) < 1e-4) return;
       running?.cancel();
       pendingTarget = next;
+      const rect = container.getBoundingClientRect();
+      const anchor = previewRoot
+        ? {
+            x: event.clientX - rect.left,
+            y: event.clientY - rect.top,
+          }
+        : undefined;
       running = tweenFov(
         map,
         next,
         WHEEL_ANIMATION_MS,
-        (fov) => applyFovKeepingCamera(map, fov),
+        (fov) => {
+          if (busyRef.current) {
+            running?.cancel();
+            running = null;
+            pendingTarget = null;
+            return;
+          }
+          applyFovKeepingCamera(map, fov, anchor);
+        },
         () => {
           if (pendingTarget === next) pendingTarget = null;
           running = null;
+          if (previewRoot) onPreviewZoomEndRef.current?.();
         }
       );
     };
@@ -99,5 +138,5 @@ export const useFovWheelZoom = ({
       host.removeEventListener("wheel", onWheel, { capture: true });
       running?.cancel();
     };
-  }, [map, enabled, minFovDeg, maxFovDeg, busyRef]);
+  }, [map, enabled, minFovDeg, maxFovDeg, busyRef, previewRoot]);
 };

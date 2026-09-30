@@ -74,13 +74,13 @@ class BridgeTests(unittest.TestCase):
         self.assertEqual(headers["Access-Control-Allow-Origin"], bridge_module.ALLOWED_ORIGIN)
 
     def test_preview_levels_use_bounded_edges_and_cache(self):
-        for level, edge in ((1, 4096), (2, 2048), (3, 1024)):
+        for level, edge in bridge_module.LEVEL_EDGES.items():
             code, headers, data = self.request(f"/{level}/{self.image.id}.jpg")
             self.assertEqual(code, 200)
             self.assertEqual(headers["Content-Type"], "image/jpeg")
             self.assertTrue(data.startswith(b"\xff\xd8"))
             self.request(f"/{level}/{self.image.id}.jpg")
-        self.assertEqual(self.backend.renders, [(self.image.id, edge) for edge in (4096, 2048, 1024)])
+        self.assertEqual(self.backend.renders, [(self.image.id, edge) for edge in bridge_module.LEVEL_EDGES.values()])
 
     def test_original_bytes_and_range_are_unchanged(self):
         code, headers, data = self.request(f"/original/{self.image.id}.tif", {"Range": "bytes=2-5"})

@@ -256,7 +256,11 @@ and files whose size, modification time, or identity changes between stat
 reads. This stability filter does not certify complete pixel decoding.
 
 `/3/{sourceId}.jpg`, `/2/{sourceId}.jpg`, and `/1/{sourceId}.jpg` render requested
-views with maximum edges 1024, 2048, and 4096 pixels respectively. These are
+views with maximum edges 1024, 2048, and 4096 pixels respectively. Levels
+4–6 provide 512, 256 and 128-pixel thumbnails; level 0 reads the original
+full-resolution page without upscaling. The viewer requests sharper levels
+as the displayed image grows, keeping the decoded preview if an upgrade is
+unavailable. These are
 development sizes. GDAL selects an existing TIFF page with sufficient
 resolution and streams a JPEG into a bounded 64 MB RAM cache; at most two
 renders run concurrently. `/original/{sourceId}.tif` streams unchanged original

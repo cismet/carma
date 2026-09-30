@@ -15,7 +15,7 @@ type BackdropProps = {
 /**
  * The sheet between the map and the preview image: it tints and filters
  * the map showing through, catches the click that closes the preview, and
- * blocks the drag that would move the map out from under the image.
+ * lets the preview controller capture drags for off-center panning.
  */
 export const Backdrop = ({
   contrast,
@@ -34,7 +34,7 @@ export const Backdrop = ({
     backdropFilter: filterValue,
     transition:
       "backdrop-filter 1.2s linear, -webkit-backdrop-filter 1.2s linear",
-    cursor: interactive ? "pointer" : "default",
+    cursor: interactive ? "var(--oblique-preview-cursor, grab)" : "default",
     pointerEvents: interactive ? "auto" : "none",
     touchAction: "none",
     zIndex: 1,

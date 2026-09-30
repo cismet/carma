@@ -31,6 +31,8 @@ export const useProgressivePreviewSource = ({
     initialLowQuality
   );
   const imageTokenRef = useRef<string | undefined>(imageId);
+  const sourceKeyRef = useRef(`${previewPath}/${imageId}`);
+  const hasFinalRef = useRef(false);
 
   useEffect(() => {
     imageTokenRef.current = imageId;
@@ -43,18 +45,29 @@ export const useProgressivePreviewSource = ({
       PREVIEW_QUALITY.LEVEL_6,
       imageId
     );
-    setProgressiveSrc(lowQuality);
+    const key = `${previewPath}/${imageId}`;
+    if (sourceKeyRef.current !== key) {
+      sourceKeyRef.current = key;
+      hasFinalRef.current = false;
+      setProgressiveSrc(lowQuality);
+    }
     if (!finalPreviewUrl || finalPreviewUrl === lowQuality) return undefined;
     let cancelled = false;
     const img = new Image();
     img.decoding = "async";
     img.onload = () => {
       if (!cancelled && imageTokenRef.current === imageId) {
+        hasFinalRef.current = true;
         setProgressiveSrc(finalPreviewUrl);
       }
     };
     img.onerror = () => {
-      if (!cancelled && imageTokenRef.current === imageId) onError?.();
+      if (
+        !cancelled &&
+        imageTokenRef.current === imageId &&
+        !hasFinalRef.current
+      )
+        onError?.();
     };
     img.src = finalPreviewUrl;
     return () => {

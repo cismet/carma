@@ -18,7 +18,7 @@ from typing import Iterator
 from urllib.parse import unquote, urlsplit
 
 ALLOWED_ORIGIN = "http://localhost:4200"
-LEVEL_EDGES = {1: 4096, 2: 2048, 3: 1024}
+LEVEL_EDGES = {0: None, 1: 4096, 2: 2048, 3: 1024, 4: 512, 5: 256, 6: 128}
 MAX_RENDER_BYTES = 32 * 1024 * 1024
 MAX_CACHE_BYTES = 64 * 1024 * 1024
 ID_PATTERN = re.compile(r"[A-Za-z0-9_.-]+\Z")
@@ -157,9 +157,11 @@ def requested_range(value: str | None, size: int) -> tuple[int, int]:
     return start, end
 
 
-def render_source(info: dict, original: Original, max_edge: int) -> tuple[str, int, int]:
+def render_source(info: dict, original: Original, max_edge: int | None) -> tuple[str, int, int]:
     """Use the smallest already-delivered TIFF page that avoids upscaling."""
     width, height = info["size"]
+    if max_edge is None:
+        return original.path, width, height
     candidates = [(original.path, width, height)]
     pages = info.get("metadata", {}).get("SUBDATASETS", {})
     for key, description in pages.items():
@@ -238,13 +240,13 @@ class RemoteBackend:
         rows = json.loads(self.execute(["python3", "-", self.image_root], INVENTORY_SCRIPT, 32 * 1024 * 1024))
         return original_index(rows)
 
-    def render(self, original: Original, max_edge: int) -> bytes:
+    def render(self, original: Original, max_edge: int | None) -> bytes:
         with self.info_lock:
             if original.id not in self.info:
                 self.info[original.id] = json.loads(self.execute(["gdalinfo", "-json", original.path], limit=1024 * 1024))
             info = self.info[original.id]
         source, width, height = render_source(info, original, max_edge)
-        scale = min(1, max_edge / max(width, height))
+        scale = min(1, max_edge / max(width, height)) if max_edge is not None else 1
         output_width, output_height = max(1, round(width * scale)), max(1, round(height * scale))
         data = self.execute(["gdal_translate", "-q", "-of", "JPEG", "-co", "QUALITY=85",
                              "-outsize", str(output_width), str(output_height), "-r", "bilinear",
@@ -391,7 +393,7 @@ def create_handler(bridge: Bridge):
                     else:
                         self.respond(catalog, "application/json", head)
                     return
-                match = re.fullmatch(r"/(1|2|3)/([A-Za-z0-9_.-]+)\.jpg", path)
+                match = re.fullmatch(r"/([0-6])/([A-Za-z0-9_.-]+)\.jpg", path)
                 original_match = re.fullmatch(r"/original/([A-Za-z0-9_.-]+)\.tif", path)
                 image_id = (match or original_match)[2 if match else 1] if match or original_match else None
                 image = bridge.originals.get(image_id)

@@ -1,7 +1,15 @@
-import { useEffect, useMemo, useRef, useState, type FC } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FC,
+} from "react";
 import type { Map as MaplibreMap } from "maplibre-gl";
 
 import type { PreviewQualityLevel } from "../core/constants";
+import { usePreviewResolution } from "./hooks/usePreviewResolution";
 import { usePreviewSizeSync } from "./hooks/usePreviewSizeSync";
 import { useProgressivePreviewSource } from "./hooks/useProgressivePreviewSource";
 import type {
@@ -26,6 +34,7 @@ const CALM_SATURATION = 50;
 
 type ObliqueImagePreviewProps = {
   map: MaplibreMap;
+  onRootChange?: (root: HTMLDivElement | null) => void;
   previewPath: string;
   imageId: string;
   qualityLevel: PreviewQualityLevel;
@@ -53,6 +62,7 @@ type ObliqueImagePreviewProps = {
  */
 export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
   map,
+  onRootChange,
   previewPath,
   imageId,
   qualityLevel,
@@ -65,7 +75,14 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
   onClose,
   onError,
 }) => {
-  const rootRef = useRef<HTMLDivElement>(null);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const attachRoot = useCallback(
+    (root: HTMLDivElement | null) => {
+      rootRef.current = root;
+      onRootChange?.(root);
+    },
+    [onRootChange]
+  );
   const [isVertical, setIsVertical] = useState(false);
   const [imageAspectRatio, setImageAspectRatio] = useState(1);
   const [loadedSrc, setLoadedSrc] = useState<string | null>(null);
@@ -73,9 +90,22 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
   const [contrast, setContrast] = useState(backdropLook.contrast);
   const [saturation, setSaturation] = useState(backdropLook.saturation);
 
+  const [loadedImage, setLoadedImage] = useState<{
+    url: string;
+    width: number;
+    height: number;
+  } | null>(null);
+  const requestedQuality = usePreviewResolution({
+    map,
+    rootRef,
+    previewPath,
+    imageId,
+    qualityLevel,
+    loadedImage,
+  });
   const finalPreviewUrl = useMemo(
-    () => getPreviewImageUrl(previewPath, qualityLevel, imageId),
-    [previewPath, qualityLevel, imageId]
+    () => getPreviewImageUrl(previewPath, requestedQuality, imageId),
+    [previewPath, requestedQuality, imageId]
   );
   const progressiveSrc = useProgressivePreviewSource({
     finalPreviewUrl,
@@ -96,6 +126,11 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
       setIsVertical(img.naturalWidth < img.naturalHeight);
       setImageAspectRatio(img.naturalWidth / img.naturalHeight);
       setLoadedSrc(progressiveSrc);
+      setLoadedImage({
+        url: progressiveSrc,
+        width: img.naturalWidth,
+        height: img.naturalHeight,
+      });
     };
     img.onerror = () => {
       if (!cancelled && progressiveSrc === finalPreviewUrl) onError?.();
@@ -142,8 +177,13 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
 
   return (
     <div
-      ref={rootRef}
-      style={{ position: "absolute", inset: 0, overflow: "hidden" }}
+      ref={attachRoot}
+      style={{
+        position: "absolute",
+        inset: 0,
+        overflow: "hidden",
+        touchAction: "none",
+      }}
       data-test-id="oblique-image-preview"
     >
       <Backdrop
