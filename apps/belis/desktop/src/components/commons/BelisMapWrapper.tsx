@@ -2968,14 +2968,7 @@ const BelisMapLibWrapper = ({
       const hiddenLeitungIds = hiddenOriginalIds.leitungen ?? [];
       const idExclusion: maplibregl.FilterSpecification | null =
         hiddenLeitungIds.length > 0
-          ? [
-              "!",
-              [
-                "any",
-                ["in", ["id"], ["literal", hiddenLeitungIds]],
-                ["in", ["get", "id"], ["literal", hiddenLeitungIds]],
-              ],
-            ]
+          ? ["!", ["in", ["get", "id"], ["literal", hiddenLeitungIds]]]
           : null;
       const combine = (
         a: maplibregl.FilterSpecification | null,
@@ -3019,8 +3012,10 @@ const BelisMapLibWrapper = ({
   // layers (NOT the brandnew source — drafts live there). Driven by
   // hiddenOriginalIds: union of every open draft's hiddenOriginalIds plus the
   // persistent post-save set. The map filter excludes vector tile features
-  // whose id matches — either via feature `id` (vector-tile primary) or
-  // `properties.id` (fallback when the tile encoding stashes it there).
+  // whose `properties.id` (DB id) matches. Never match `["id"]`: filter
+  // expressions see the tile-local MVT id (promoteId does not apply there), and
+  // it collides with unrelated DB ids — e.g. a brandnew Standort with DB id
+  // 11775 hid the tile Standort whose MVT id was 11775.
   // We track which source-layers we've previously touched so we can clear
   // the filter when its bucket empties, without ever poking source-layers we
   // don't manage (e.g. the leitungstyp-filtered leitungen). Two refs because
@@ -3053,14 +3048,7 @@ const BelisMapLibWrapper = ({
         if (sourceLayer === "standorte") {
           const ids = hiddenOriginalIds[sourceLayer];
           if (ids && ids.length > 0) {
-            filter = [
-              "!",
-              [
-                "any",
-                ["in", ["id"], ["literal", ids]],
-                ["in", ["get", "id"], ["literal", ids]],
-              ],
-            ];
+            filter = ["!", ["in", ["get", "id"], ["literal", ids]]];
           }
         } else if (sourceLayer === "leuchten") {
           const leuchtenIds = hiddenOriginalIds[sourceLayer] ?? [];
@@ -3073,11 +3061,7 @@ const BelisMapLibWrapper = ({
             ]);
           }
           if (leuchtenIds.length > 0) {
-            clauses.push([
-              "any",
-              ["in", ["id"], ["literal", leuchtenIds]],
-              ["in", ["get", "id"], ["literal", leuchtenIds]],
-            ]);
+            clauses.push(["in", ["get", "id"], ["literal", leuchtenIds]]);
           }
           if (clauses.length > 0) {
             filter = [
@@ -3088,14 +3072,7 @@ const BelisMapLibWrapper = ({
         } else {
           const ids = hiddenOriginalIds[sourceLayer];
           if (ids && ids.length > 0) {
-            filter = [
-              "!",
-              [
-                "any",
-                ["in", ["id"], ["literal", ids]],
-                ["in", ["get", "id"], ["literal", ids]],
-              ],
-            ];
+            filter = ["!", ["in", ["get", "id"], ["literal", ids]]];
           }
         }
         if (filter) {
