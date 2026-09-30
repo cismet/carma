@@ -4,6 +4,7 @@ import type { GeoJSONSource, Map as LibreMap } from "maplibre-gl";
 import { claimClick } from "@carma-mapping/engines/maplibre";
 import { lngLatToMercator } from "@carma-mapping/show-remote";
 
+import { keepOnTop } from "../AlwaysOnTop";
 import { spotAt, spotPreviewFeatures, wheelPixels } from "./spot-geometry";
 import type { Spot, SpotLayerContent } from "./spot-layer";
 
@@ -22,7 +23,8 @@ const CLICK_TOLERANCE_PX = 3;
 /**
  * Draws the spots while `content` is set and takes them off again when it is
  * null. A base map swap throws every layer away, so they go back on after
- * each style change.
+ * each style change. The dimming covers everything outside the spots, so they
+ * stay above the layers other addons add later.
  */
 export const useSpotMapLayers = (
   map: LibreMap | null,
@@ -104,9 +106,11 @@ export const useSpotMapLayers = (
     attachRef.current = attach;
     attach();
     map.on("styledata", attach);
+    const stopKeepingOnTop = keepOnTop(map, LAYER_IDS);
     return () => {
       attachRef.current = null;
       map.off("styledata", attach);
+      stopKeepingOnTop();
       remove();
     };
   }, [map]);

@@ -1,3 +1,4 @@
+import type { Map as MaplibreMap } from "maplibre-gl";
 import type { ToolEntry } from "@carma-mapping/layers";
 
 /**
@@ -9,6 +10,9 @@ import type { ToolEntry } from "@carma-mapping/layers";
  * layers it renders through `orderAlwaysOnTopLast` and keeps its own layer bar
  * order untouched, so the pinned layer stays where the user put it in the list
  * and is only drawn last.
+ *
+ * Layers an addon puts on the map itself are not part of what the host
+ * renders; such an addon keeps them on top through `keepOnTop`.
  */
 export type AlwaysOnTopConfig = {
   /**
@@ -65,4 +69,80 @@ export const orderAlwaysOnTopLast = <T extends ToolCarrier>(
     // sort is stable, so equal orders keep the order they were declared in
     ...pinned.sort((a, b) => pinOrder(a) - pinOrder(b)),
   ];
+};
+
+/** the map calls `keepOnTop` makes */
+type TopKeeperMap = Pick<
+  MaplibreMap,
+  "getLayersOrder" | "getLayer" | "moveLayer" | "on" | "off"
+>;
+
+/**
+ * Keeps `layerIds`, layers an addon adds to the map itself, above the other
+ * layers, in this order. `orderAlwaysOnTopLast` cannot do that for them: the
+ * host's composition does not know them, so a layer another addon adds later
+ * without a place of its own lands above them.
+ *
+ * Checked on every `styledata`: whatever sits above these layers is moved under
+ * them, once. A layer that comes back on top after that keeps its place, since
+ * it puts itself last on every style change as well (cage's occlusion snapshot
+ * does). Moving over it again would never end: every `moveLayer` fires
+ * `styledata` for both sides, and while they take turns a WMS in the map
+ * refetches its tiles at render cadence. The count starts over when these
+ * layers are added anew, e.g. after a composition dropped them.
+ *
+ * Layers not on the map are skipped. Returns the function that stops it.
+ */
+export const keepOnTop = (
+  map: TopKeeperMap,
+  layerIds: readonly string[]
+): (() => void) => {
+  const isOurs = (id: string): boolean => layerIds.includes(id);
+  /** the layers these were moved above since they were last added */
+  let passed = new Set<string>();
+  /** the first of these layers as the map held it at the last check */
+  let placed: unknown;
+
+  const restack = (): void => {
+    let order: string[];
+    try {
+      order = map.getLayersOrder();
+    } catch {
+      return; // no style to ask yet
+    }
+    const onMap = new Set(order);
+    const ours = layerIds.filter((id) => onMap.has(id));
+    const first = ours[0];
+    if (first === undefined) return;
+
+    const current = map.getLayer(first);
+    if (current !== placed) {
+      placed = current;
+      passed = new Set();
+    }
+    for (const id of passed) {
+      if (!onMap.has(id)) passed.delete(id);
+    }
+
+    const above = order
+      .slice(order.findIndex(isOurs))
+      .filter((id) => !isOurs(id));
+    const returned = new Set(above.filter((id) => passed.has(id)));
+    const others = order.filter((id) => !isOurs(id));
+    // the layers that came back on top stay there, these go right under them
+    let cut = others.length;
+    while (cut > 0 && returned.has(others[cut - 1])) cut -= 1;
+    const wanted = [...others.slice(0, cut), ...ours, ...others.slice(cut)];
+    if (wanted.every((id, i) => order[i] === id)) return;
+
+    for (const id of above) passed.add(id);
+    const beforeId = others[cut];
+    for (const id of ours) map.moveLayer(id, beforeId);
+  };
+
+  restack();
+  map.on("styledata", restack);
+  return () => {
+    map.off("styledata", restack);
+  };
 };
