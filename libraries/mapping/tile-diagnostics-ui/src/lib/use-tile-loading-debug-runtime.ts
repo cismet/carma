@@ -468,12 +468,14 @@ export const useTileLoadingDebugRuntime = (
         ...cache.itemSet.keys(),
         ...loadingTilesOf(tiles),
         ...state.displayedMeshFrontier,
+        ...(state.committedMeshCasterFrontier ?? []),
         ...state.deferred,
       ])) {
         pool.set(
           tile,
           (tile.internal?.loadingState ?? 0) * 16 +
             Number(state.displayedMeshFrontier.has(tile)) +
+            Number(state.committedMeshCasterFrontier?.has(tile) === true) * 2 +
             Number(state.deferred.has(tile)) * 4 +
             Number((tile as RuntimeTile).idleRing === true) * 8
         );
@@ -506,7 +508,16 @@ export const useTileLoadingDebugRuntime = (
         ...(renderCamera?.projectionMatrix.elements ?? []),
         JSON.stringify(currentOptions),
         hoverRef.current?.tile && tileId(hoverRef.current.tile),
-        volumes.map((volume) => `${volume.id}${volume.state ?? ""}`).join(),
+        volumes
+          .map((volume) =>
+            [
+              volume.id,
+              volume.state ?? "",
+              ...volume.minimum,
+              ...volume.maximum,
+            ].join(",")
+          )
+          .join(";"),
         ...(shadowCamera?.matrixWorld ?? []),
         ...(shadowCamera?.projectionMatrix ?? []),
       ].join("|");
@@ -567,8 +578,10 @@ export const useTileLoadingDebugRuntime = (
       if (pendingCapture) return pendingCapture;
       pendingCapture = captureOverlay(sampleSummary).finally(() => {
         pendingCapture = null;
-        if (!disposed && overlayDue && optionsRef.current.updateOnRender)
-          scheduleRenderCapture();
+        if (!disposed && overlayDue) {
+          if (optionsRef.current.updateOnRender) scheduleRenderCapture();
+          else scheduleIdle();
+        }
       });
       return pendingCapture;
     };
@@ -592,7 +605,7 @@ export const useTileLoadingDebugRuntime = (
     const runIdle = () => {
       idleHandle = 0;
       if (disposed) return;
-      if (!overlayDue) return;
+      if (!overlayDue || pendingCapture) return;
       if (optionsRef.current.updateOnRender) {
         scheduleRenderCapture();
         return;

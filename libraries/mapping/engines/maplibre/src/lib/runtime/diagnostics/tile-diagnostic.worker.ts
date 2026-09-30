@@ -1,13 +1,19 @@
 import { buildDiagnosticPrimitives } from "../../core/diagnostics/tile-diagnostic-primitives";
+import { buildDiagnosticBoxScene } from "../../core/diagnostics/tile-diagnostic-box-scene";
 import {
   buildDiagnosticSelection,
-  buildDiagnosticViewport,
+  buildDiagnosticViewportGeometry,
 } from "../../core/diagnostics/tile-diagnostic-camera-primitives";
-import { drawDiagnosticText } from "../../core/diagnostics/tile-diagnostic-labels";
+import {
+  drawDiagnosticText,
+  type DiagnosticLabelHit,
+} from "../../core/diagnostics/tile-diagnostic-labels";
 import {
   TILE_DIAGNOSTIC_WORKER_COMMAND,
   TILE_DIAGNOSTIC_WORKER_REPLY,
-  TILE_RECORD_FLOATS,
+  PRIMITIVE_FLOATS,
+  rgba,
+  type DiagnosticLegendEntry,
   type DiagnosticSnapshot,
   type DiagnosticWorkerMessage,
   type DiagnosticFrame,
@@ -17,7 +23,6 @@ import {
   type TileCameraSnapshot,
 } from "../../core/tile-camera-demand";
 import { projectTileDiagnosticViewports } from "./tile-diagnostic-viewport";
-import * as THREE from "three";
 import { createTileDiagnosticRenderer } from "./tile-diagnostic-webgpu";
 
 const host = self as unknown as {
@@ -44,6 +49,8 @@ let viewport: ReturnType<typeof projectTileDiagnosticViewports> | null = null;
 let renderedSnapshot: DiagnosticSnapshot | null = null;
 let sourceSnapshot: DiagnosticSnapshot | null = null;
 let renderedOrbit = "";
+let boxScene: ReturnType<typeof buildDiagnosticBoxScene> | null = null;
+let sceneLegend: DiagnosticLegendEntry[] = [];
 const fail = (error: unknown) => {
   renderer?.dispose();
   renderer = null;
@@ -101,61 +108,31 @@ const draw = async () => {
           : null;
       cameraDirty = false;
     }
-    const orbitKey = `${target.orbit?.yaw ?? 0},${target.orbit?.pitch ?? 0}:${
-      target.cameraFocus ?? ""
-    }:${
-      target.orbit?.yaw || target.orbit?.pitch
-        ? viewport?.basis.worldToOverview.join(",")
-        : ""
-    }`;
+    const basis = viewport?.basis ?? snapshot.viewportBasis;
+    const orbitKey = basis?.worldToOverview.join(",") ?? "";
     if (sourceSnapshot !== snapshot || renderedOrbit !== orbitKey) {
       sourceSnapshot = snapshot;
       renderedOrbit = orbitKey;
-      const basis = viewport?.basis;
-      const bounds = basis?.rectBounds;
-      const transforms = basis?.rectTransforms;
-      let scene = snapshot;
-      if (
-        basis &&
-        bounds &&
-        (target.orbit?.yaw || target.orbit?.pitch) &&
-        bounds.length >= (snapshot.tiles.length / TILE_RECORD_FLOATS) * 6
-      ) {
-        const tiles = snapshot.tiles.slice();
-        const worldToOverview = new THREE.Matrix4().fromArray(
-          basis.worldToOverview
+      boxScene = basis
+        ? buildDiagnosticBoxScene(snapshot, basis, camera ?? undefined)
+        : null;
+      renderedSnapshot = boxScene?.annotationSnapshot ?? snapshot;
+      if (boxScene) {
+        sceneLegend = boxScene.legend;
+        renderer.setScene(boxScene.primitives, boxScene.planes);
+      } else
+        renderer.setScene(
+          buildDiagnosticPrimitives(snapshot, (entries) => {
+            sceneLegend = entries;
+          })
         );
-        const box = new THREE.Box3();
-        const transform = new THREE.Matrix4();
-        const [scale, offsetX, offsetY, scaleY = scale] = basis.screen;
-        for (let i = 0; i < tiles.length / TILE_RECORD_FLOATS; i++) {
-          box.min.fromArray(bounds, i * 6);
-          box.max.fromArray(bounds, i * 6 + 3);
-          if (transforms) transform.fromArray(transforms, i * 16);
-          else transform.identity();
-          const projected = box.applyMatrix4(
-            worldToOverview.clone().multiply(transform)
-          );
-          const x0 = offsetX + projected.min.x * scale;
-          const x1 = offsetX + projected.max.x * scale;
-          const y0 = offsetY + projected.min.z * scaleY;
-          const y1 = offsetY + projected.max.z * scaleY;
-          const offset = i * TILE_RECORD_FLOATS;
-          tiles[offset] = Math.min(x0, x1);
-          tiles[offset + 1] = Math.min(y0, y1);
-          tiles[offset + 2] = Math.abs(x1 - x0);
-          tiles[offset + 3] = Math.abs(y1 - y0);
-        }
-        scene = { ...snapshot, tiles, extent: null, edges: new Float32Array() };
-      }
-      renderedSnapshot = scene;
-      renderer.setScene(buildDiagnosticPrimitives(scene));
     }
     const scene = renderedSnapshot ?? snapshot;
     // Camera presentation is immediate, never interpolated or held behind tile capture.
-    const frame = {
+    const frame: DiagnosticFrame = {
       ...target,
       view: target.followCamera && viewport ? viewport.view : target.view,
+      depthRange: boxScene?.depthRange ?? [-1, 1],
     };
     const width = Math.max(1, Math.round(frame.width * frame.pixelRatio)),
       height = Math.max(1, Math.round(frame.height * frame.pixelRatio));
@@ -163,8 +140,68 @@ const draw = async () => {
       textCanvas.width = width;
       textCanvas.height = height;
     }
-    drawDiagnosticText(textContext, scene, frame);
-    const selected = buildDiagnosticSelection(scene, frame.selection);
+    const labelHits: DiagnosticLabelHit[] = [];
+    drawDiagnosticText(textContext, scene, frame, boxScene?.labelFaces, (hit) =>
+      labelHits.push(hit)
+    );
+    const selectionValues: number[] = [],
+      selectionPlanes: number[] = [];
+    if (boxScene)
+      for (const [record, primary] of frame.selection) {
+        const range = boxScene.edgeRanges.get(record);
+        if (!range) continue;
+        for (let i = range.start; i < range.start + range.count; i++) {
+          const item = Array.from(
+            boxScene.primitives.subarray(
+              i * PRIMITIVE_FLOATS,
+              (i + 1) * PRIMITIVE_FLOATS
+            )
+          );
+          item[5] = 2;
+          item.splice(8, 4, ...rgba(primary ? "#fff05a" : "#ff974f"));
+          selectionValues.push(...item);
+          selectionPlanes.push(
+            ...boxScene.planes.subarray(i * 12, (i + 1) * 12)
+          );
+        }
+      }
+    const selected = boxScene
+      ? new Float32Array(selectionValues)
+      : buildDiagnosticSelection(scene, frame.selection);
+    const selectedPlanes = boxScene
+      ? new Float32Array(selectionPlanes)
+      : new Float32Array(
+          Array.from({ length: selected.length / PRIMITIVE_FLOATS }, () => [
+            0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0, 0,
+          ]).flat()
+        );
+    const legend = [...sceneLegend];
+    const appendCutLegend = (
+      primitives: Float32Array,
+      id: string,
+      label: string
+    ) => {
+      if (!primitives.length) return;
+      const sample = Array.from(primitives.subarray(0, PRIMITIVE_FLOATS));
+      if (sample[4] === 3 || sample[4] === 5) sample.splice(0, 4, 1, 9, 11, 2);
+      else sample.splice(0, 4, 6, 6, 4, 4);
+      for (
+        let i = PRIMITIVE_FLOATS;
+        i < primitives.length;
+        i += PRIMITIVE_FLOATS
+      ) {
+        if (primitives[i + 4] !== 7) continue;
+        const direction = Array.from(
+          primitives.subarray(i, i + PRIMITIVE_FLOATS)
+        );
+        direction.splice(0, 4, 6, 6, 4, 4);
+        sample.push(...direction);
+        break;
+      }
+      if (sample.every(Number.isFinite))
+        legend.push({ id, label, primitives: sample });
+    };
+    appendCutLegend(selected, "selection", "Selection");
     const colors = ["#ffffff", "#ffbf69", "#7bffb2", "#c7a0ff"];
     const frustums =
       target.showFrustum === false
@@ -174,26 +211,61 @@ const draw = async () => {
             const light =
               (i === 0 ? camera : cameras[i - 1])?.role ===
               TILE_CAMERA_ROLE.GEOMETRY;
-            return buildDiagnosticViewport(
+            const geometry = buildDiagnosticViewportGeometry(
               view,
               light ? "rgba(246, 250, 164, 0.6)" : colors[i % colors.length],
               light
             );
+            appendCutLegend(
+              geometry.primitives,
+              `camera-${i}`,
+              light
+                ? "Sun cuts / light"
+                : i === 0
+                ? "Camera cuts"
+                : `Camera ${i + 1} cuts`
+            );
+            return geometry;
           })
-        : [buildDiagnosticViewport(snapshot)];
+        : [buildDiagnosticViewportGeometry(snapshot)];
+    if (!viewport && frustums.length)
+      appendCutLegend(frustums[0].primitives, "camera-0", "Camera cuts");
     const dynamic = new Float32Array(
-      selected.length + frustums.reduce((n, f) => n + f.length, 0)
+      selected.length + frustums.reduce((n, f) => n + f.primitives.length, 0)
+    );
+    const dynamicPlanes = new Float32Array(
+      (dynamic.length / PRIMITIVE_FLOATS) * 12
     );
     dynamic.set(selected);
+    dynamicPlanes.set(selectedPlanes);
     let offset = selected.length;
     for (const frustum of frustums) {
-      dynamic.set(frustum, offset);
-      offset += frustum.length;
+      dynamic.set(frustum.primitives, offset);
+      dynamicPlanes.set(frustum.planes, (offset / PRIMITIVE_FLOATS) * 12);
+      offset += frustum.primitives.length;
     }
-    const metrics = await renderer.render(frame, dynamic);
-    if (!disposed && update)
+    // The light direction marker may sit in front of all content boxes.
+    const depths =
+      viewport?.views.flatMap((view) => [
+        ...view.edgeDepths,
+        ...(view.nearDepth === undefined ? [] : [view.nearDepth]),
+      ]) ?? [];
+    let [near, far] = frame.depthRange!;
+    for (const depth of depths) {
+      if (Number.isFinite(depth)) {
+        near = Math.min(near, depth);
+        far = Math.max(far, depth);
+      }
+    }
+    const margin = Math.max(1e-6, (far - near) * 0.001);
+    frame.depthRange = [near - margin, far + margin];
+    const metrics = await renderer.render(frame, dynamic, dynamicPlanes);
+    if (!disposed)
       host.postMessage({
         type: TILE_DIAGNOSTIC_WORKER_REPLY.FRAME,
+        completed: Boolean(update),
+        legend,
+        labelHits,
         ...metrics,
         workerMs: performance.now() - started,
         view: [frame.view.x, frame.view.y, frame.view.w, frame.view.h],
@@ -215,6 +287,10 @@ host.onmessage = async ({ data }) => {
       renderer?.dispose();
       renderer = null;
       snapshot = null;
+      sceneLegend = [];
+      boxScene = null;
+      renderedSnapshot = null;
+      sourceSnapshot = null;
       host.postMessage({ type: TILE_DIAGNOSTIC_WORKER_REPLY.DISPOSED });
     } else if (data.type === TILE_DIAGNOSTIC_WORKER_COMMAND.CAMERA) {
       camera = data.camera;

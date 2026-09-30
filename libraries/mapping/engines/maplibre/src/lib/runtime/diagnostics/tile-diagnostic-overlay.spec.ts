@@ -83,7 +83,10 @@ afterEach(() => {
 });
 describe("diagnostic worker mailbox", () => {
   it("delivers camera changes immediately during an unacknowledged tile frame without repacking tiles", async () => {
-    const overlay = createTileDiagnosticOverlay(document.createElement("div"));
+    const onLegend = vi.fn();
+    const overlay = createTileDiagnosticOverlay(document.createElement("div"), {
+      onLegend,
+    });
     const worker = TestWorker.instances[0];
     worker.emit({ type: "ready" });
     overlay.update(input());
@@ -109,7 +112,17 @@ describe("diagnostic worker mailbox", () => {
         ([message]) => message.type === "camera"
       )
     ).toHaveLength(3);
+    overlay.update({ ...input(), opacity: 0.5 });
+    await tick();
+    worker.emit({ type: "frame", completed: false, legend: [] });
+    await tick();
+    expect(onLegend).toHaveBeenCalledWith([]);
+    expect(frames(worker)).toHaveLength(1);
+    worker.emit({ type: "frame", completed: true });
+    await tick();
+    expect(frames(worker)).toHaveLength(2);
     overlay.dispose();
+    expect(onLegend).toHaveBeenCalledTimes(2);
     overlay.updateCamera(camera);
     expect(
       worker.postMessage.mock.calls.filter(
@@ -145,7 +158,14 @@ describe("diagnostic worker mailbox", () => {
     await tick();
     expect(frames(worker)[0].snapshot.tiles[10]).toBe(24 * 1024);
     expect(frames(worker)[0].snapshot.tiles[14]).toBe(5);
-    worker.emit({ type: "frame" });
+    const polygon = [10, 0, 20, 10, 10, 20, 0, 10];
+    worker.emit({
+      type: "frame",
+      completed: true,
+      labelHits: [{ record: 0, depth: 0, polygon }],
+    });
+    expect(overlay.hitTestLabel(10, 10)).toBe(rect.tile);
+    expect(overlay.hitTestLabel(1, 1)).toBeNull();
     const b = model();
     b.rects = Array.from(
       { length: 128 },
@@ -166,6 +186,7 @@ describe("diagnostic worker mailbox", () => {
     expect(frames(worker)).toHaveLength(2);
     expect(frames(worker)[1].snapshot).toBeUndefined();
     expect(frames(worker)[1].frame.selection).toEqual([[0, 1]]);
+    expect(overlay.hitTestLabel(10, 10)).toBe(rect.tile);
     overlay.dispose();
   });
   it("starts only on attachment and coalesces pending models behind one in-flight frame", async () => {

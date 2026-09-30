@@ -173,6 +173,7 @@ export const captureTileDiagnostics = async (
     ...floorLeaves,
     ...cache.itemSet.keys(),
     ...state.displayedMeshFrontier,
+    ...(state.committedMeshCasterFrontier ?? []),
     ...loadingTilesOf(tiles),
   ]);
   const ordered = [...candidates].sort(
@@ -201,7 +202,12 @@ export const captureTileDiagnostics = async (
     )
       labelled.push({ tile, id: tileId(tile), kind });
     if (!showOverlay) continue;
-    if (!ancestor && kind === TILE_DIAGNOSTIC_KIND.RESIDENT && !showResident)
+    if (
+      !ancestor &&
+      kind === TILE_DIAGNOSTIC_KIND.RESIDENT &&
+      !showResident &&
+      !state.committedMeshCasterFrontier?.has(tile)
+    )
       continue;
     if (!tileWorldBox(tile, group, box)) continue;
     const projectedBox = box.clone().applyMatrix4(worldToOverview);
@@ -294,10 +300,14 @@ export const captureTileDiagnostics = async (
   }
 
   // Hierarchy/cache boxes remain inspectable, but their often very deep
-  // undersides are not surfaces currently presented by the scene.
+  // undersides are not surfaces currently presented by the scene. Published
+  // caster-only content is part of that scene too, even with retained tiles hidden.
   const cutRects = rects.filter(({ tile }) => {
     const kind = kindOf(tile, state, floor);
-    return kind === TILE_DIAGNOSTIC_KIND.DISPLAYED;
+    return (
+      kind === TILE_DIAGNOSTIC_KIND.DISPLAYED ||
+      state.committedMeshCasterFrontier?.has(tile) === true
+    );
   });
   const viewportBasis: DiagnosticViewportBasis = {
     tileBounds: cutRects.flatMap((rect) => {

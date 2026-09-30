@@ -87,6 +87,7 @@ export type ThreeTilesFrameDependencies = Pick<
   | "isTileNeededForMeshCoverage"
   | "getTileDebugProgress"
   | "reportFrameTelemetry"
+  | "reportTileRecovery"
   | "recordTileWait"
   | "drainTileWaitEvents"
   | "beginTileWaitObservation"

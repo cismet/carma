@@ -26,8 +26,12 @@ loader quality targets.
 Tile snapshots default to a 10 Hz cap. The optional **Every render frame** mode
 requests a capture after each scene render. In either mode, at most one capture
 runs at a time and busy work coalesces to the latest pending request. Capture
-statistics keep their own sampling intervals. Frame mode does not start a
-render loop or promise one completed tile audit per displayed frame.
+statistics keep their own sampling intervals. Changes arriving during capture
+keep a pending refresh in both deferred and frame modes. Publishing already
+loaded caster content and changing external-volume bounds invalidate the tile
+snapshot even when camera matrices and cache membership stay unchanged. Frame
+mode does not start a render loop or promise one completed tile audit per
+displayed frame.
 
 Camera matrices travel through a separate latest-wins mailbox. The render
 callback records camera state and schedules a small update; it does not project
@@ -49,13 +53,49 @@ padding is 200% of that footprint, with 100% fitting the viewport. The overview
 can also show the full extent or a free window view. The map overlay does not
 intercept map gestures. In a focused overview window, drag pans, Ctrl-drag or
 right-drag orbits around the overview center, and the wheel zooms. Double-click
-resets the view.
+resets the view. Orbit pitch stays above the local ENU plane; positive pitch
+projects elevated geometry upward. Heading rotates around local up. The
+overview does not change the loader camera, its field of view or its demands.
+
+The compact Overview header contains only window actions. Camera controls sit
+at the upper left, display toggles at the upper right, a collapsible legend at
+the lower left and sampled high-level statistics at the lower right. The
+statistics distinguish published receivers intersecting the main view, all
+published receiver/caster scenes and loaded drawable scenes in memory. Tile
+memory reports the runtime cache charge, not total browser or GPU memory.
+These controls overlay the canvas without reducing its drawing area.
+
+The compact legend is emitted alongside the worker's actual primitives, including
+their colors, shapes and byte-cell scale. It lists only marks in the current
+snapshot and enabled camera cuts. Switching B, ms or frustum visibility changes
+the same rendering branches that publish legend entries; the UI does not
+reconstruct rendering rules from tile state. Camera-only changes also refresh
+the legend. Unchanged entries do not update React state.
+
+### Box volumes and annotations
+
+The overview renders the six faces and twelve edges of each captured oriented
+box in 3D. The box transform remains intact; an enclosing projected rectangle
+is not substituted during orbit. Size grids, processing marks, labels and
+selection outlines use those same face and edge transforms. Annotations attach
+to the face most aligned with the observer, preferring the ENU-up face when its
+alignment is comparable. Labels that do not fit their projected face are omitted.
+
+The worker uses a depth buffer and weighted blended transparency for overlapping
+boxes. Transparent color mixing approximates sorted alpha composition; combined
+transmittance includes every contributing fragment. Opaque marks occlude content
+behind them, while rear edges can remain visible through translucent faces.
+Geometry and depth buffers rebuild only when the snapshot or overview projection
+changes and are released with the existing renderer lifecycle.
 
 ### Frustum markers
 
 The loader's camera and native content bounds define the diagnostic cuts.
-Presented content oriented bounding boxes retain their transforms; enclosing
-world-axis boxes are not used to decide whether a cut exists. For each box, the
+Published receiver and caster-only content both contribute boxes; pending work
+and merely retained ancestors do not. Hiding retained tiles does not hide active
+casters from these cuts. Presented content oriented bounding boxes retain their
+transforms; enclosing world-axis boxes are not used to decide whether a cut
+exists. For each box, the
 four camera side planes intersect its faces. Each resulting segment is clipped
 against the complete frustum, including near and far depth limits. Near and far
 planes constrain the segments but do not generate lines. A contained tile has
@@ -68,15 +108,14 @@ overview reports published content and the runtime's diagnostic coverage state;
 membership in a runtime set by itself is not proof that a tile was drawn by the
 primary camera.
 
-### Surface cuts share the loader's camera and bounds
-
-The overview uses the same LOD camera that drives tile selection. It preserves
-each content box and its local-to-world transform through capture and
-projection. Only the four side-plane cuts produce lines; clipping against the
-near and far planes only limits their endpoints. A contained tile therefore
-contributes no cut, and the projection does not add cap edges or free-standing
-frustum edges. Orbit changes the overview projection only; loader camera demand
-and field of view remain unchanged.
+The overview uses the same camera matrices and coordinate/depth convention as
+tile selection. All six finite frustum halfspaces constrain each segment;
+side planes do not extend beyond their near, far or neighbouring side limits.
+The intersection tolerance scales with the box extent and coordinate precision.
+Orbit changes the overview projection only. Cut ribbons use local segment
+coordinates and stop exactly at their geometric endpoints, avoiding depth
+extrapolation along their end caps. Boxes, cuts and face annotations share the
+same overview transform and depth convention.
 
 ## Pipeline timeline
 

@@ -28,6 +28,16 @@ export const projectTileDiagnosticViewport = (
     offsetX + x * scale,
     offsetY + z * scaleY,
   ];
+  const matrix = worldToOverview.elements;
+  const affine =
+    matrix[3] === 0 &&
+    matrix[7] === 0 &&
+    matrix[11] === 0 &&
+    !basis.cameraProjection;
+  const depthAt = (point: THREE.Vector3) =>
+    affine
+      ? -Math.abs(scale) * point.y
+      : point.y * (basis.cameraProjection?.reversedDepth ? -1 : 1);
   const demand = createTileCameraDemand([camera]);
   const frustum = new THREE.Frustum().setFromProjectionMatrix(
     new THREE.Matrix4()
@@ -134,8 +144,12 @@ export const projectTileDiagnosticViewport = (
   }
 
   const outline = new Float32Array(intersectionEdges?.flat() ?? []);
+  let edgeDepths = new Float32Array();
   {
-    const segments = new Map<string, [number, number, number, number]>();
+    const segments = new Map<
+      string,
+      { edge: [number, number, number, number]; depths: [number, number] }
+    >();
     const box = new THREE.Box3();
     const transform = new THREE.Matrix4();
     for (let offset = 0; offset + 5 < tileBounds.length; offset += 6) {
@@ -150,18 +164,25 @@ export const projectTileDiagnosticViewport = (
         const first = toScreen(a.x, a.z),
           last = toScreen(b.x, b.z);
         if (
-          !first.concat(last).every(Number.isFinite) ||
+          !first.concat(last, depthAt(a), depthAt(b)).every(Number.isFinite) ||
           Math.hypot(first[0] - last[0], first[1] - last[1]) < 1e-7
         )
           continue;
-        const key = [first, last]
+        const depths: [number, number] = [depthAt(a), depthAt(b)];
+        const key = [
+          [...first, depths[0]],
+          [...last, depths[1]],
+        ]
           .map((point) => point.map((value) => value.toFixed(6)).join(","))
           .sort()
           .join(";");
-        segments.set(key, [...first, ...last]);
+        segments.set(key, { edge: [...first, ...last], depths });
       }
     }
-    intersectionEdges = [...segments.values()];
+    intersectionEdges = [...segments.values()].map(({ edge }) => edge);
+    edgeDepths = new Float32Array(
+      [...segments.values()].flatMap(({ depths }) => depths)
+    );
   }
 
   const fullView = { x: 0, y: 0, w: basis.width, h: basis.height };
@@ -187,8 +208,10 @@ export const projectTileDiagnosticViewport = (
     overviewMatrix[3] === 0 &&
     overviewMatrix[7] === 0 &&
     overviewMatrix[11] === 0 &&
-    overviewMatrix[15] !== 0;
+    overviewMatrix[15] !== 0 &&
+    !basis.cameraProjection;
   let nearCenter: [number, number] | undefined;
+  let nearDepth: number | undefined;
   // Only the light direction marker needs a separately projected near centre.
   if (affineOverview) {
     // Preserve asymmetric bounds and the camera depth convention.
@@ -206,6 +229,7 @@ export const projectTileDiagnosticViewport = (
       .applyMatrix4(clipToWorld)
       .applyMatrix4(worldToOverview);
     nearCenter = toScreen(nearPoint.x, nearPoint.z);
+    nearDepth = depthAt(nearPoint);
   }
   const eyeWorld = new THREE.Vector3().setFromMatrixPosition(cameraMatrix);
   const eye = eyeWorld.clone().applyMatrix4(worldToOverview);
@@ -234,6 +258,8 @@ export const projectTileDiagnosticViewport = (
   return {
     focusWorld,
     nearCenter,
+    nearDepth,
+    edgeDepths,
     forward:
       forwardLength > 1e-6
         ? ([
@@ -287,7 +313,7 @@ export const projectTileDiagnosticViewports = (
           ...basis,
           worldToOverview: new THREE.Matrix4()
             .makeTranslation(pivotOverview.x, pivotOverview.y, pivotOverview.z)
-            .multiply(new THREE.Matrix4().makeRotationX(orbit.pitch))
+            .multiply(new THREE.Matrix4().makeRotationX(-orbit.pitch))
             .multiply(new THREE.Matrix4().makeRotationY(orbit.yaw))
             .multiply(
               new THREE.Matrix4().makeTranslation(

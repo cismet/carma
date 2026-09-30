@@ -16,7 +16,10 @@ import type {
   ThreeTilesRuntimeState,
 } from "./three-tiles-runtime-context";
 import type { RuntimeLruCache, RuntimeTile } from "./three-tiles-runtime-types";
-import { LOADED_LOADING_STATE } from "./three-tiles-runtime-vendor";
+import {
+  LOADED_LOADING_STATE,
+  UNLOADED_LOADING_STATE,
+} from "./three-tiles-runtime-vendor";
 import type { TilesetDeferredMaterialsPlugin } from "./tileset-deferred-materials-plugin";
 import { createThreeTilesCacheBudget } from "./three-tiles-runtime-cache-budget";
 import { createThreeTilesSettledDemand } from "./three-tiles-runtime-settled-demand";
@@ -51,6 +54,8 @@ export type ThreeTilesCacheState = Pick<
   | "lastMemoryCheck"
   | "learnedCeilingBytes"
   | "map"
+  | "loadingPaused"
+  | "runtimeVisible"
   | "memoryAdmissionPaused"
   | "memoryErrorTarget"
   | "memoryErrorTargetChangedAt"
@@ -63,6 +68,7 @@ export type ThreeTilesCacheState = Pick<
   | "shadowReceiverMask"
   | "shadowReceiverMatch"
   | "shadowSelectionRefreshPending"
+  | "shadowSelectionNeedsTraversal"
   | "shadowView"
   | "styleCacheBudgetBytes"
   | "styleCacheOverflowBytes"
@@ -83,11 +89,13 @@ export function createThreeTilesCache(
     | "assignTilePriority"
     | "clearHiddenWipeTimer"
     | "getTileCameraDemand"
+    | "getTileObserverDemand"
     | "getTileScreenError"
     | "isTileInMainView"
     | "maybeEnableShadowSelection"
     | "requestRender"
     | "requestShadowSelectionRefresh"
+    | "reportTileRecovery"
     | "resetDeferredTiles"
     | "resetEffectiveErrorTarget"
     | "runDownloadQueues"
@@ -153,13 +161,20 @@ export function createThreeTilesCache(
     guardedCache = cache;
     originalCacheRemove = cache.remove.bind(cache);
     cache.remove = ((tile: Tile) => {
+      // Failed jobs provide no coverage. They must leave the native cache before
+      // retrying: LRU.add rejects an identity that still has its old failed job.
+      const retainable =
+        (tile.internal?.loadingState ?? UNLOADED_LOADING_STATE) >
+        UNLOADED_LOADING_STATE;
       if (
+        retainable &&
         !explicitCacheTeardown &&
         !runtimeState.disposed &&
         (isProtectedResidual(tile) || isProtectedShadowReserve(tile))
       )
         return false;
       if (
+        retainable &&
         !explicitCacheTeardown &&
         !runtimeState.disposed &&
         (runtimeState.committedMeshCasterFrontier.has(tile) ||
@@ -189,6 +204,7 @@ export function createThreeTilesCache(
         "CARMA_DEFERRED_TILE_MATERIALS"
       ) as TilesetDeferredMaterialsPlugin | null | undefined;
       if (
+        retainable &&
         !explicitCacheTeardown &&
         !runtimeState.disposed &&
         (publishedCoverage.has(tile) ||

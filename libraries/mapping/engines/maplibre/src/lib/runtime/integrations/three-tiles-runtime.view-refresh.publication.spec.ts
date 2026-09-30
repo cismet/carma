@@ -4,10 +4,12 @@ import type { Tile } from "3d-tiles-renderer/core";
 
 import * as THREE from "three";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { MESH_SETTLED_AUDIT_INTERVAL_MS } from "./three-tiles-runtime-config";
 
 import {
   buildTile,
   mount,
+  mockTileViews,
 } from "./three-tiles-runtime.view-refresh.test-support";
 
 vi.hoisted(() => {
@@ -42,6 +44,113 @@ describe("publication runtime integration", () => {
       requestNextRound = false;
       mounted.runtime.scene.update(mounted.frame);
       expect(state.shadowSelectionNeedsTraversal).toBe(false);
+    } finally {
+      mounted.runtime.scene.dispose();
+    }
+  });
+
+  it("rearms recovery after a failed frame without clearing published geometry", () => {
+    vi.useFakeTimers();
+    let fail = false;
+    const mounted = mount(() => {
+      if (fail) throw new Error("interrupted traversal");
+    });
+    try {
+      const state = mounted.state;
+      if (state.meshAuditTimer !== null) clearTimeout(state.meshAuditTimer);
+      state.meshAuditTimer = null;
+      state.lastMainViewConverged = state.lastActiveViewsConverged = true;
+      state.meshDemandSweepPending = false;
+      const published = new Set([buildTile(4)]);
+      state.displayedMeshFrontier = published;
+      const error = vi.spyOn(console, "error").mockImplementation(() => {});
+      fail = true;
+      mounted.runtime.scene.update(mounted.frame);
+      expect(error).toHaveBeenCalled();
+      expect(state.displayedMeshFrontier).toBe(published);
+      expect(state.lastActiveViewsConverged).toBe(false);
+      expect(state.meshAuditTimer).not.toBeNull();
+      const dispatch = vi.spyOn(mounted.renderer, "dispatchEvent");
+      vi.mocked(mounted.map.triggerRepaint).mockClear();
+      vi.advanceTimersByTime(MESH_SETTLED_AUDIT_INTERVAL_MS);
+      expect(
+        dispatch.mock.calls.some(([event]) => event.type === "needs-update")
+      ).toBe(true);
+      expect(mounted.map.triggerRepaint).toHaveBeenCalled();
+      fail = false;
+      mounted.runtime.scene.update(mounted.frame);
+      expect(error).toHaveBeenCalledTimes(1);
+    } finally {
+      mounted.runtime.scene.dispose();
+    }
+  });
+
+  it("keeps a terminal source error measurable without repeatedly auditing impossible refinement", () => {
+    vi.useFakeTimers();
+    const mounted = mount();
+    try {
+      const leaf = buildTile(80);
+      leaf.internal.loadingState = 4;
+      leaf.engineData!.scene = new THREE.Group();
+      mockTileViews(mounted.renderer, [leaf]);
+      Object.assign(mounted.renderer, { rootTileset: { root: leaf } });
+      vi.spyOn(mounted.renderer, "getBoundingBox").mockReturnValue(false);
+      const state = mounted.state;
+      if (state.meshAuditTimer !== null) clearTimeout(state.meshAuditTimer);
+      state.meshAuditTimer = null;
+      state.requestedErrorTarget =
+        state.effectiveErrorTarget =
+        state.memoryErrorTarget =
+          4;
+      state.displayedMeshFrontier = new Set([leaf]);
+      state.meshDemandSweepPending = false;
+      mounted.runtime.scene.update(mounted.frame);
+      expect(state.displayedMeshFrontier.has(leaf)).toBe(true);
+      expect(state.lastMainViewConverged).toBe(false);
+      expect(state.lastActiveViewsConverged).toBe(false);
+      expect(state.requestedErrorTarget).toBe(4);
+      expect(state.meshAuditTimer).toBeNull();
+    } finally {
+      mounted.runtime.scene.dispose();
+    }
+  });
+
+  it("keeps a newly required offscreen sibling until its current family publishes", () => {
+    const mounted = mount();
+    try {
+      const parent = buildTile(80);
+      const children = Array.from({ length: 4 }, () => buildTile(2));
+      parent.children = children;
+      parent.internal.loadingState = 4;
+      parent.engineData!.scene = new THREE.Group();
+      for (const child of children) child.parent = parent;
+      const sibling = children[3];
+      sibling.internal.loadingState = 2;
+      sibling.content = { uri: "sibling.b3dm" };
+      mounted.renderer.loadingTiles.add(sibling);
+      Object.assign(mounted.renderer, { rootTileset: { root: parent } });
+      vi.spyOn(mounted.renderer, "getBoundingBox").mockReturnValue(false);
+      mockTileViews(
+        mounted.renderer,
+        [parent, ...children],
+        (tile) => tile !== sibling
+      );
+      const remove = vi.spyOn(mounted.renderer.lruCache, "remove");
+      const state = mounted.state;
+      state.extentFloorArmed = false;
+      state.requestedErrorTarget =
+        state.effectiveErrorTarget =
+        state.memoryErrorTarget =
+          4;
+      state.meshInitialHandoverDone = true;
+      state.displayedMeshFrontier = new Set([parent]);
+      mounted.setMoving(true);
+      mounted.camera.position.x += 1;
+      mounted.camera.updateMatrixWorld(true);
+      mounted.runtime.scene.update(mounted.frame);
+      expect(state.meshRefinementSupport.has(sibling)).toBe(true);
+      expect(remove.mock.calls.some(([tile]) => tile === sibling)).toBe(false);
+      expect(sibling.internal.loadingState).toBe(2);
     } finally {
       mounted.runtime.scene.dispose();
     }

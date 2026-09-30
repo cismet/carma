@@ -6,7 +6,17 @@ type TimeInteraction = {
   listeners: Set<() => void>;
 };
 
-const interactions = new WeakMap<MaplibreMap, TimeInteraction>();
+type TimeInteractionHotData = {
+  shadowTimeInteractions?: WeakMap<MaplibreMap, TimeInteraction>;
+};
+
+// Mounted controls and scene subscribers can survive different HMR boundaries.
+// Keep their map-local leases together when this hook module is replaced.
+const hotData = import.meta.hot?.data as TimeInteractionHotData | undefined;
+const interactions =
+  hotData?.shadowTimeInteractions ??
+  new WeakMap<MaplibreMap, TimeInteraction>();
+if (hotData) hotData.shadowTimeInteractions = interactions;
 const getInteraction = (map: MaplibreMap): TimeInteraction => {
   let interaction = interactions.get(map);
   if (!interaction) {

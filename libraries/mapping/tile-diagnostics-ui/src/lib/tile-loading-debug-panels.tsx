@@ -128,7 +128,7 @@ export const createTileLoadingDebugPanels = ({
     },
     {
       id: TILE_LOADING_DEBUG_PANEL_ID.OVERVIEW,
-      label: "Tile overview",
+      label: "Overview",
       icon: faLayerGroup,
       flag: "showOverviewPanel",
       width:
@@ -160,7 +160,7 @@ export const createTileLoadingDebugPanels = ({
       label: "Overview legend",
       icon: faCircleInfo,
       flag: "showLegend",
-      width: 300,
+      width: 240,
       height: 480,
       left: 12,
       top: 56,

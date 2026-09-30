@@ -30,6 +30,7 @@ import {
   recordThreeTileWait,
 } from "./three-tiles-diagnostic-steps";
 import { resolveTileContentUrl } from "./three-tiles-runtime-vendor";
+import { createTileRecoveryDiagnostics } from "../diagnostics/tile-recovery-diagnostics";
 
 /** debug responsibility of the shared 3D Tiles runtime. */
 export function createThreeTilesDiagnostics(
@@ -56,6 +57,24 @@ export function createThreeTilesDiagnostics(
     | "sourceWorldBoundingBox"
     | "map"
     | "options"
+    | "committedMeshReceiverFrontier"
+    | "mainViewSourceTiles"
+    | "meshShadowReserve"
+    | "queuedThisTraversal"
+    | "lastMainViewConverged"
+    | "lastActiveViewsConverged"
+    | "meshCoverageRecovery"
+    | "meshDemandSweepPending"
+    | "extentFloorArmed"
+    | "runtimeVisible"
+    | "allocationFailed"
+    | "contextLost"
+    | "residentAncestors"
+    | "shadowCasterRequests"
+    | "pendingMeshCasterFrontier"
+    | "retainedShadowRequests"
+    | "shadowSelectionNeedsTraversal"
+    | "shadowReceiverMaskConverged"
   >,
   dependencies: Pick<
     ThreeTilesRuntimeServices,
@@ -67,6 +86,7 @@ export function createThreeTilesDiagnostics(
     | "getStableTileId"
   >
 ) {
+  const recovery = createTileRecoveryDiagnostics(runtimeState, dependencies);
   let createOverlay: typeof createThreeTilesDebugOverlay | undefined;
   let loadingOverlay = false;
   // Decision: ../../../../TILES_COVERAGE.md#progressive-shadow-families-and-wait-telemetry
@@ -397,6 +417,7 @@ export function createThreeTilesDiagnostics(
       });
   };
   return {
+    ...recovery,
     recordTileRequestDecision,
     recordTileWait,
     beginTileWaitObservation: () => {

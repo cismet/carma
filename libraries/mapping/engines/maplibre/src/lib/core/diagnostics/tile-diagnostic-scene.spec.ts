@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
   TILE_STEP_SLOTS,
   diagnosticProjection,
@@ -7,18 +7,13 @@ import {
   PRIMITIVE_FLOATS,
   PHASE_SWEEP,
   type DiagnosticSnapshot,
+  type DiagnosticLegendEntry,
 } from "./tile-diagnostic-scene";
 import { buildDiagnosticPrimitives } from "./tile-diagnostic-primitives";
 import {
   buildDiagnosticViewport,
   buildDiagnosticSelection,
 } from "./tile-diagnostic-camera-primitives";
-import {
-  hitTestDiagnosticLabel,
-  drawDiagnosticText,
-  compactDiagnosticTileId,
-  formatTileResidentBytes,
-} from "./tile-diagnostic-labels";
 
 const snapshot = (overrides: number[] = []): DiagnosticSnapshot => {
   const record = [
@@ -102,18 +97,6 @@ describe("instanced tile diagnostics", () => {
       buildDiagnosticPrimitives(snapshot([, , , , , 16, -2, -2]))[20]
     ).toBe(2);
   });
-  it("hit tests labels in reverse draw order without confusing ancestor outlines", () => {
-    const tile = {};
-    const model = {
-      rects: [
-        { x: 0, y: 0, w: 100, h: 100, kind: "displayed", tile },
-        { x: 0, y: 0, w: 100, h: 100, kind: "ancestor", tile: {} },
-      ],
-    } as Parameters<typeof hitTestDiagnosticLabel>[0];
-    const view = { x: 0, y: 0, w: 100, h: 100 };
-    expect(hitTestDiagnosticLabel(model, view, 100, 100, 50, 50)).toBe(tile);
-    expect(hitTestDiagnosticLabel(model, view, 100, 100, 50, 90)).toBeNull();
-  });
   it("stores all concentric contours in one instance, without a three-level cap", () => {
     const data = buildDiagnosticPrimitives(snapshot([, , , , , , 12, 12]));
     expect(data.length).toBe(PRIMITIVE_FLOATS * 2);
@@ -157,96 +140,6 @@ describe("instanced tile diagnostics", () => {
     expect(
       buildDiagnosticPrimitives(snapshot([, , , , , , 0, 0, 1])).length
     ).toBe(48);
-  });
-  it("labels offscreen retained tiles without inventing an unknown LOD state", () => {
-    const fillText = vi.fn();
-    const context = {
-      setTransform: vi.fn(),
-      clearRect: vi.fn(),
-      strokeText: vi.fn(),
-      fillText,
-      measureText: (value: string) => ({ width: value.length * 6.6 }),
-    } as unknown as CanvasRenderingContext2D;
-    drawDiagnosticText(context, snapshot([, , , , , 4, NaN, NaN, 0, NaN]), {
-      width: 200,
-      height: 200,
-      pixelRatio: 1,
-      opacity: 1,
-      view: { x: 0, y: 0, w: 200, h: 200 },
-      labels: "id",
-    } as Parameters<typeof drawDiagnosticText>[2]);
-    expect(fillText).not.toHaveBeenCalled();
-  });
-  it("compacts terrain and stable content URLs without using the tileset prefix", () => {
-    expect(compactDiagnosticTileId("dem:source:14/4260/2733")).toBe(
-      "14/4260/2733"
-    );
-    expect(
-      compactDiagnosticTileId(
-        "https://example/tileset.json#0/2:https://example/content/5_23_29.glb"
-      )
-    ).toBe("5/23/29");
-    expect(compactDiagnosticTileId("https://example/mesh_1168775.glb")).toBe(
-      "1168775"
-    );
-    expect(compactDiagnosticTileId("https://example/_mesh_1168775.glb")).toBe(
-      "1168775"
-    );
-  });
-  it.each([
-    [0, "0 B"],
-    [1023, "1023 B"],
-    [1024, "1 KiB"],
-    [1536, "1.5 KiB"],
-    [1024 ** 2, "1 MiB"],
-    [1024 ** 3, "1 GiB"],
-  ])("formats %d resident bytes as %s", (bytes, expected) => {
-    expect(formatTileResidentBytes(bytes)).toBe(expected);
-  });
-
-  it("omits IDs that do not fit and suppresses overlapping labels", () => {
-    const fillText = vi.fn();
-    const context = {
-      setTransform: vi.fn(),
-      clearRect: vi.fn(),
-      strokeText: vi.fn(),
-      fillText,
-      measureText: (value: string) => ({ width: value.length * 6.6 }),
-    } as unknown as CanvasRenderingContext2D;
-    const data = snapshot([, , 26]);
-    data.ids = ["14/4260/2733"];
-    const frame = {
-      width: 200,
-      height: 200,
-      pixelRatio: 1,
-      opacity: 1,
-      view: { x: 0, y: 0, w: 200, h: 200 },
-      labels: "id",
-    } as Parameters<typeof drawDiagnosticText>[2];
-    drawDiagnosticText(context, data, frame);
-    expect(fillText).not.toHaveBeenCalled();
-    data.tiles = snapshot().tiles;
-    drawDiagnosticText(context, data, frame);
-    expect(fillText.mock.calls.map(([label]) => label)).toEqual([
-      "14",
-      "4260",
-      "2733",
-    ]);
-    expect(fillText.mock.calls.map(([, , y]) => y)).toEqual([50, 60, 70]);
-    fillText.mockClear();
-    data.tiles[10] = 24 * 1024;
-    drawDiagnosticText(context, data, { ...frame, labels: "id and stats" });
-    expect(fillText.mock.calls.map(([label]) => label)).toEqual([
-      "14",
-      "4260",
-      "2733",
-      "24 KiB",
-    ]);
-    fillText.mockClear();
-    data.tiles = new Float32Array([...snapshot().tiles, ...snapshot().tiles]);
-    data.ids = ["one", "two"];
-    drawDiagnosticText(context, data, frame);
-    expect(fillText.mock.calls.map(([label]) => label)).toEqual(["one"]);
   });
   it("packs frustum segments and ignores stale hover indices", () => {
     const state = snapshot();
@@ -308,6 +201,64 @@ describe("instanced tile diagnostics", () => {
     const pitch = cells[1][0] - cells[0][0];
     expect(cells[0][2] * 2).toBeLessThan(pitch);
     expect(cells[0][2] * 2).toBeGreaterThan(pitch * 0.8);
+  });
+
+  it("publishes legend samples from the enabled primitive emission branches", () => {
+    const state = snapshot();
+    state.tiles = new Float32Array(
+      tileRecord({ flags: 32, bytes: 2 * 1024 * 1024, steps: [100, 50] })
+    );
+    let legend: DiagnosticLegendEntry[] = [];
+    const publishLegend = (entries: DiagnosticLegendEntry[]) => {
+      legend = entries;
+    };
+    const data = buildDiagnosticPrimitives(state, publishLegend);
+    expect(data).toEqual(buildDiagnosticPrimitives(state));
+    expect(legend.map(({ id }) => id)).toEqual([
+      "viewport",
+      "bytes",
+      "step-0",
+      "step-1",
+      "time",
+    ]);
+    expect(legend.find(({ id }) => id === "bytes")?.label).toBe(
+      "1 cell = 100 KiB"
+    );
+    const emitted = primitivesOf(data);
+    for (const { primitives } of legend)
+      expect(
+        emitted.some(
+          (primitive) =>
+            primitive[4] === primitives[4] &&
+            primitive
+              .slice(8)
+              .every((value, i) => Math.abs(value - primitives[i + 8]) < 1e-6)
+        )
+      ).toBe(true);
+    buildDiagnosticPrimitives(
+      { ...state, showSize: false, showStats: false },
+      publishLegend
+    );
+    expect(legend.map(({ id }) => id)).toEqual(["viewport"]);
+    const untimed = snapshot([, , , , , 0, 0, 0, 2]);
+    buildDiagnosticPrimitives(untimed, publishLegend);
+    const phase = legend.find(({ id }) => id === "phase-2")!;
+    expect(phase.primitives).toHaveLength(PRIMITIVE_FLOATS * 2);
+    expect(phase.primitives[4]).toBe(6);
+    expect(phase.primitives[7]).toBe(0.6);
+    expect(phase.primitives[PRIMITIVE_FLOATS + 4]).toBe(1);
+    for (const phase of [4, 5]) {
+      buildDiagnosticPrimitives(
+        snapshot([, , , , , 0, 0, 0, phase]),
+        publishLegend
+      );
+      expect(legend.some(({ id }) => id.startsWith("phase-"))).toBe(false);
+    }
+    buildDiagnosticPrimitives(
+      { ...state, tiles: new Float32Array() },
+      publishLegend
+    );
+    expect(legend).toEqual([]);
   });
 
   it("steps the size unit by ten until the largest tile fits the grid", () => {

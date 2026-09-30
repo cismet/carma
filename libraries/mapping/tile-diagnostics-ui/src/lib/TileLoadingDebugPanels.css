@@ -114,3 +114,99 @@
   margin: 3px 0;
   line-height: 1.3;
 }
+
+.tile-debug-overview-controls {
+  position: absolute;
+  top: 4px;
+  z-index: 2;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 2px;
+  max-width: calc(100% - 8px);
+  pointer-events: auto;
+}
+
+.tile-debug-overview-controls.tile-debug-window-controls {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  background: rgb(241 245 249 / 88%);
+}
+
+.tile-debug-overview-controls button {
+  width: 24px;
+  height: 24px;
+}
+
+.tile-debug-overview-controls .tile-debug-header-toggle {
+  margin: 0;
+  padding-inline: 4px;
+  font-size: 11px;
+}
+
+.tile-debug-overview-camera-controls {
+  left: 4px;
+}
+.tile-debug-overview-display-controls {
+  right: 4px;
+}
+
+.tile-debug-overview-legend {
+  position: absolute;
+  left: 4px;
+  bottom: 4px;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  max-height: calc(100% - 36px);
+  max-width: calc(100% - 8px);
+  pointer-events: auto;
+}
+
+.tile-debug-overview-legend-content {
+  min-height: 0;
+  width: 100%;
+  overflow: auto;
+}
+
+.tile-debug-overview-legend > .tile-debug-window-controls {
+  flex-shrink: 0;
+  background: rgb(241 245 249 / 88%);
+}
+
+.tile-debug-overview-legend button {
+  width: auto;
+  height: 24px;
+  padding: 0 4px;
+  font-size: 11px;
+}
+
+.tile-debug-overview-statistics {
+  position: absolute;
+  right: 6px;
+  bottom: 4px;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: max-content max-content;
+  gap: 0 6px;
+  margin: 0;
+  color: #e6edf3;
+  font: 11px/16px system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 1px 2px #0c1220;
+  pointer-events: none;
+}
+
+.tile-debug-overview-statistics dd {
+  margin: 0;
+  text-align: right;
+}
+
+@container (max-width: 220px) {
+  .tile-debug-overview-legend .tile-debug-overview-legend-label {
+    display: none;
+  }
+}

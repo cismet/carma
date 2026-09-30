@@ -162,6 +162,7 @@ export const createVolumeTileDiagnostics = (diagnostics: TileDiagnostics) => {
       let corridor: readonly TileCameraSnapshot[] = [];
       let work: (() => void) | null = null;
       let rebuiltAt = 0;
+      let trailingRebuild = 0;
       const collect = (): readonly SharedThreeSceneTileVolume[] =>
         lease.layer
           .getRuntimes()
@@ -179,7 +180,19 @@ export const createVolumeTileDiagnostics = (diagnostics: TileDiagnostics) => {
         for (const listener of cameraListeners.current)
           listener(renderCamera, corridor);
         const now = performance.now();
-        if (now - rebuiltAt < REBUILD_INTERVAL_MS) return;
+        const remaining = REBUILD_INTERVAL_MS - (now - rebuiltAt);
+        if (remaining > 0) {
+          // Keep the final tile update even when the scene stops rendering
+          // before this throttle window expires.
+          if (!trailingRebuild)
+            trailingRebuild = window.setTimeout(() => {
+              trailingRebuild = 0;
+              schedule();
+            }, remaining);
+          return;
+        }
+        window.clearTimeout(trailingRebuild);
+        trailingRebuild = 0;
         rebuiltAt = now;
         const volumes = collect();
         setTileCount(volumes.length);
@@ -280,6 +293,8 @@ export const createVolumeTileDiagnostics = (diagnostics: TileDiagnostics) => {
       map.triggerRepaint();
       return () => {
         disposed = true;
+        window.clearTimeout(trailingRebuild);
+        trailingRebuild = 0;
         work = null;
         observer.disconnect();
         unregister();

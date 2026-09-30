@@ -25,7 +25,17 @@ export const intersectTileFrustumPlanes = (
   );
   const extent = new Box3().setFromPoints(corners);
   if (!frustum.intersectsBox(extent)) return [];
-  const epsilon = Math.max(1e-7, extent.getSize(new Vector3()).length() * 1e-9);
+  // Scene coordinates may be metres or normalized Mercator. An absolute
+  // tolerance can turn metres of outside geometry into an accepted cut.
+  const coordinateScale = Math.max(
+    ...extent.min.toArray().map(Math.abs),
+    ...extent.max.toArray().map(Math.abs)
+  );
+  const epsilon = Math.max(
+    extent.getSize(new Vector3()).length() * 1e-9,
+    coordinateScale * Number.EPSILON * 64,
+    Number.MIN_VALUE
+  );
   const segments: Line3[] = [];
   // Three orders the four side planes before far/near. Depth clips remain
   // constraints, but do not generate diagnostic lines.

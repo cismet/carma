@@ -413,7 +413,10 @@ export {
   type TilePresentationMode,
 } from "./lib/core/tile-presentation-mode";
 export { formatTileResidentBytes } from "./lib/core/diagnostics/tile-diagnostic-labels";
-export type { DiagnosticView as TileDiagnosticView } from "./lib/core/diagnostics/tile-diagnostic-scene";
+export type {
+  DiagnosticView as TileDiagnosticView,
+  DiagnosticLegendEntry as TileDiagnosticLegendEntry,
+} from "./lib/core/diagnostics/tile-diagnostic-scene";
 export type { TileDiagnosticOverlayInput } from "./lib/runtime/diagnostics/tile-diagnostic-overlay";
 export type {
   RuntimeTile as DiagnosticRuntimeTile,

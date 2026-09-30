@@ -151,6 +151,8 @@ export type DiagnosticViewportBasis = {
   rectTransforms?: number[];
   bounds: number[];
   worldToOverview: number[];
+  /** Camera-projected space uses NDC depth, including orthographic cameras. */
+  cameraProjection?: { reversedDepth: boolean };
   /** [scale, offsetX, offsetY] and optionally a separate vertical scale. */
   screen: number[];
   width: number;

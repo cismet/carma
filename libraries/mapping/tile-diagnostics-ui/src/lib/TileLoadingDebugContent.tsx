@@ -20,6 +20,7 @@ import {
   type TileDiagnosticModel as OverlayModel,
   type TileDiagnosticQueueRow as QueueRow,
   type TileDiagnosticSummary as CoverageSummary,
+  type TileDiagnosticLegendEntry,
   type TileDiagnostics,
 } from "@carma-mapping/engines/maplibre";
 
@@ -52,7 +53,7 @@ import {
 import panelCss from "./TileLoadingDebugPanels.css?inline";
 
 export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
-  const { FILL, OVERVIEW_COLORS, HOVER, tileId, tileError } = diagnostics;
+  const { tileId, tileError } = diagnostics;
   const TileDiagnosticOverlay =
     createTileDiagnosticOverlayComponent(diagnostics);
   const DIAGNOSTIC_THEME = {
@@ -131,6 +132,31 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
         listener(latestModel.current);
         return () => {
           modelListeners.current.delete(listener);
+        };
+      },
+      []
+    );
+    const latestLegend = useRef<readonly TileDiagnosticLegendEntry[]>([]);
+    const legendKey = useRef("");
+    const legendListeners = useRef(
+      new Set<(entries: readonly TileDiagnosticLegendEntry[]) => void>()
+    );
+    const setLegend = useCallback(
+      (entries: readonly TileDiagnosticLegendEntry[]) => {
+        const key = JSON.stringify(entries);
+        if (legendKey.current === key) return;
+        legendKey.current = key;
+        latestLegend.current = entries;
+        for (const listener of legendListeners.current) listener(entries);
+      },
+      []
+    );
+    const subscribeLegend = useCallback(
+      (listener: (entries: readonly TileDiagnosticLegendEntry[]) => void) => {
+        legendListeners.current.add(listener);
+        listener(latestLegend.current);
+        return () => {
+          legendListeners.current.delete(listener);
         };
       },
       []
@@ -314,6 +340,7 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
     const renderOverlay = (popout: boolean) => (
       <TileDiagnosticOverlay
         subscribeModel={subscribeModel}
+        onLegend={setLegend}
         subscribeCamera={subscribeCamera}
         updateOnRender={options.updateOnRender}
         followCamera={
@@ -443,18 +470,8 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
       [options, freeView, hover, overviewIsExternal]
     );
     const legend = useMemo(
-      () => (
-        <TileLoadingDebugLegend
-          popout={
-            overviewMode === TILE_LOADING_DEBUG_OVERVIEW_MODE.WINDOW ||
-            overviewIsExternal
-          }
-          fill={FILL}
-          colors={OVERVIEW_COLORS}
-          hoverColors={HOVER}
-        />
-      ),
-      [overviewMode, overviewIsExternal]
+      () => <TileLoadingDebugLegend subscribeLegend={subscribeLegend} />,
+      [subscribeLegend]
     );
     const renderOverview = (windowed: boolean) => (
       <div
@@ -557,6 +574,8 @@ export const createTileLoadingDebugContent = (diagnostics: TileDiagnostics) => {
             onOptionsChange={onOptionsChange}
             setOverviewMode={setOverviewMode}
             summary={summary}
+            runtimeHandle={runtimeHandle}
+            legend={legend}
             renderOverview={renderOverview}
           />
         ))}

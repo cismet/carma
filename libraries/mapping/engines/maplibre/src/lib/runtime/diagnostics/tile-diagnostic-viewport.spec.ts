@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import * as THREE from "three";
+import { buildDiagnosticViewportGeometry } from "../../core/diagnostics/tile-diagnostic-camera-primitives";
 import { snapshotTileCameraViews } from "../../core/tile-camera-demand";
 import {
   projectTileDiagnosticViewport,
@@ -47,6 +48,38 @@ describe("live overview viewport", () => {
     expect(endpoints.some((x) => Math.abs(x - 4) < 1e-5)).toBe(true);
     expect(endpoints.some((x) => Math.abs(x - 6) < 1e-5)).toBe(true);
     expect(view.forward).toBeNull();
+    expect(view.edgeDepths.length).toBe(view.edges.length / 2);
+    expect(new Set(view.edgeDepths)).toEqual(new Set([-1, 1]));
+    const { primitives, planes } = buildDiagnosticViewportGeometry(view);
+    for (let i = 0; i < primitives.length / 16; i++) {
+      const start = planes[i * 12 + 2];
+      const end = start + planes[i * 12 + 6] * primitives[i * 16 + 2];
+      expect([-1, 1].some((depth) => Math.abs(start - depth) < 1e-5)).toBe(
+        true
+      );
+      expect([-1, 1].some((depth) => Math.abs(end - depth) < 1e-5)).toBe(true);
+    }
+  });
+
+  it("keeps a thin cut's local endpoint depths and skips only collapsed stored endpoints", () => {
+    const edges = new Float32Array([
+      750, 500, 750.0001, 500, 750, 500, 750, 500, 760, 500, 761, 500,
+    ]);
+    const before = edges.slice();
+    const { primitives, planes } = buildDiagnosticViewportGeometry({
+      edges,
+      center: null,
+      edgeDepths: new Float32Array([15, 17, 18, 19, 20, 21]),
+    });
+    expect(edges).toEqual(before);
+    expect(primitives).toHaveLength(32);
+    expect(primitives[6]).toBe(1);
+    expect(planes[0]).toBe(750);
+    expect(planes[2]).toBe(15);
+    expect(planes[2] + planes[6] * primitives[2]).toBeCloseTo(17, 5);
+    expect(planes[14]).toBe(20);
+    expect(planes[14] + planes[18] * primitives[18]).toBeCloseTo(21, 5);
+    expect(Array.from(planes).every(Number.isFinite)).toBe(true);
   });
 
   it("keeps only tile-plane cuts in a perspective map-aligned overview", () => {
@@ -249,10 +282,16 @@ describe("live overview viewport", () => {
       { yaw: 0.4, pitch: 0.6 }
     );
     const pivot = new THREE.Vector3().fromArray(plan.views[0].focusWorld!);
-    const projected = pivot
-      .clone()
-      .applyMatrix4(new THREE.Matrix4().fromArray(orbit.basis.worldToOverview));
+    const matrix = new THREE.Matrix4().fromArray(orbit.basis.worldToOverview);
+    const projected = pivot.clone().applyMatrix4(matrix);
     expect(projected.distanceTo(pivot)).toBeLessThan(1e-6);
+    const raised = pivot
+      .clone()
+      .add(new THREE.Vector3(0, 1, 0))
+      .applyMatrix4(matrix);
+    // CSS Y follows overview Z; depth is negative overview Y.
+    expect(raised.z).toBeLessThan(projected.z);
+    expect(-raised.y).toBeLessThan(-projected.y);
     expect(orbit.views[0].edges.length).toBeGreaterThan(0);
     expect(Array.from(orbit.views[0].edges)).not.toEqual(
       Array.from(plan.views[0].edges)

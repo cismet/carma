@@ -6,6 +6,7 @@ import {
   type TileDiagnostics,
   type TileDiagnosticOverlayInput,
   type TileDiagnosticOverviewUp,
+  type TileDiagnosticLegendEntry,
   type TileDiagnosticView,
   type TileCameraSnapshot,
 } from "@carma-mapping/engines/maplibre";
@@ -35,6 +36,7 @@ type Props = Omit<TileDiagnosticOverlayInput, "model" | "view"> & {
   subscribeModel: (
     listener: (model: TileDiagnosticOverlayInput["model"]) => void
   ) => () => void;
+  onLegend?: (entries: readonly TileDiagnosticLegendEntry[]) => void;
   freeView: TileDiagnosticView | null;
   up: TileDiagnosticOverviewUp;
   subscribeCamera: (
@@ -49,7 +51,7 @@ type Props = Omit<TileDiagnosticOverlayInput, "model" | "view"> & {
   onHover: (tile: Tile | null) => void;
 };
 
-/** Story UI only. Snapshot serialization, scheduling and rendering belong to the library. */
+/** Shared app/story interaction. Snapshot capture and rendering belong to the engine. */
 export const createTileDiagnosticOverlayComponent = ({
   createTileDiagnosticOverlay,
   diagnosticProjection,
@@ -122,6 +124,7 @@ export const createTileDiagnosticOverlayComponent = ({
       if (!host.current) return;
       const overlay = createTileDiagnosticOverlay(host.current, {
         onStatus: setStatus,
+        onLegend: (entries) => latest.current.onLegend?.(entries),
       });
       controller.current = overlay;
       overlay.update(latest.current);
@@ -164,14 +167,19 @@ export const createTileDiagnosticOverlayComponent = ({
       const move = (event: PointerEvent) => {
         const { model, view, onHover } = latest.current;
         const bounds = element.getBoundingClientRect();
-        const match = hitTestDiagnosticLabel(
-          model,
-          view,
-          bounds.width,
-          bounds.height,
-          event.clientX - bounds.left,
-          event.clientY - bounds.top
-        );
+        const match = controller.current?.hitTestLabel
+          ? controller.current.hitTestLabel(
+              event.clientX - bounds.left,
+              event.clientY - bounds.top
+            )
+          : hitTestDiagnosticLabel(
+              model,
+              view,
+              bounds.width,
+              bounds.height,
+              event.clientX - bounds.left,
+              event.clientY - bounds.top
+            );
         if (match !== previous) {
           previous = match;
           onHover(previous);
@@ -290,7 +298,7 @@ export const createTileDiagnosticOverlayComponent = ({
               const next = {
                 yaw: start.orbit.yaw + (event.clientX - start.x) * 0.005,
                 pitch: Math.max(
-                  -1.55,
+                  0,
                   Math.min(
                     1.55,
                     start.orbit.pitch + (event.clientY - start.y) * 0.005

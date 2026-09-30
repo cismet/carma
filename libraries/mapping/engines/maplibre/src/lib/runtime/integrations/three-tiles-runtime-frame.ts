@@ -216,7 +216,9 @@ export function createThreeTilesFrameUpdate(
       }
       if (runtimeState.options.providesTerrain)
         attachment.updateDeferredMaterials();
-      abortStaleDownloads();
+      // Mesh publication refreshes complete-family and caster ownership before
+      // cancellation. The previous frame cannot prove which siblings are stale.
+      if (!runtimeState.options.providesTerrain) abortStaleDownloads();
       if (runtimeState.mainViewProjectionChanged)
         runtimeState.meshBaseCoverageReady = false;
       // Refresh both pending jobs AND cached candidates before the upstream
@@ -370,18 +372,27 @@ export function createThreeTilesFrameUpdate(
         )
           runtimeState.meshDemandSweepPending = true;
         dependencies.sweepSettledMeshDemand();
-        dependencies.scheduleSettledMeshAudit();
         refineRingCascade();
         if (runtimeState.map?.isMoving?.() !== true) scheduleCascadeTick();
       }
     } catch (error) {
+      dependencies.reportTileRecovery?.("update-error", error);
       if (TILE_MEMORY_ALLOCATION_ERROR.test(String(error))) {
         runtimeState.allocationFailed = true;
         dependencies.recordCacheCeilingFailure(CACHE_CEILING_REASON.ALLOCATION);
         dependencies.applyRequestConcurrency();
       }
+      // A failed audit cannot certify coverage. Keep the published geometry,
+      // but make the existing bounded recovery timer retry fresh demand.
+      if (runtimeState.options.providesTerrain) {
+        runtimeState.lastMainViewConverged = false;
+        runtimeState.lastActiveViewsConverged = false;
+        runtimeState.meshDemandSweepPending = true;
+      }
       console.error("[tiles3d] update failed:", error);
     }
+    // Recovery must be armed even when traversal/publication throws.
+    dependencies.scheduleSettledMeshAudit();
     dependencies.prioritizeQueuedTiles();
 
     if (

@@ -7,7 +7,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MAPLIBRE_EVENT } from "../../../constants/mapEvents";
 
 import type { ThreeTilesRuntimeState } from "./three-tiles-runtime-context";
-import { MESH_MOTION_COVERAGE_INTERVAL_MS } from "./three-tiles-runtime-config";
+import {
+  MESH_MOTION_COVERAGE_INTERVAL_MS,
+  MESH_SETTLED_AUDIT_INTERVAL_MS,
+} from "./three-tiles-runtime-config";
 import {
   buildTile,
   dispatchedTypes,
@@ -140,60 +143,67 @@ describe("demand runtime integration", () => {
     }
   );
 
-  it("removes a failed tile from the cache and requests it again after the backoff", () => {
-    const { layer, renderer } = mountRuntime();
-    // Content exists, so the demand below only reflects the retry state.
-    renderer.group.add(new THREE.Group());
-    const tile = buildTile("child.b3dm");
-    expect(layer.loading.getRequestDemand()).toBe(0);
+  it.each([false, true])(
+    "retries a failed payload after removing its cache identity, caster support=%s",
+    (casterSupport) => {
+      const { layer, renderer } = mountRuntime(false, false, true);
+      // Content exists, so the demand below only reflects the retry state.
+      renderer.group.add(new THREE.Group());
+      const tile = buildTile("child.b3dm");
+      if (casterSupport) {
+        const state = layer.debug.readState() as ThreeTilesRuntimeState;
+        state.pendingMeshCasterFrontier.add(tile);
+      }
+      expect(layer.loading.getRequestDemand()).toBe(0);
 
-    // first request: enters the cache and the download queue
-    renderer.requestTileContents(tile);
-    expect(tile.internal.loadingState).toBe(1);
-    expect(renderer.lruCache.has(tile as never)).toBe(true);
-    expect(renderer.downloadQueue.has(tile)).toBe(true);
+      // first request: enters the cache and the download queue
+      renderer.requestTileContents(tile);
+      expect(tile.internal.loadingState).toBe(1);
+      expect(renderer.lruCache.has(tile as never)).toBe(true);
+      expect(renderer.downloadQueue.has(tile)).toBe(true);
 
-    // upstream's failure bookkeeping: state FAILED, tile stays cached
-    renderer.downloadQueue.remove(tile);
-    renderer.loadingTiles.delete(tile);
-    tile.internal.loadingState = -1;
-    renderer.stats.queued = 0;
-    renderer.stats.failed = 1;
-    renderer.lruCache.setLoaded(tile as never, true);
-    renderer.dispatchEvent({
-      type: "load-error",
-      tile: tile as never,
-      error: new Error("status 503"),
-      url: "https://example.test/tiles/child.b3dm",
-    } as never);
+      // upstream's failure bookkeeping: state FAILED, tile stays cached
+      renderer.downloadQueue.remove(tile);
+      renderer.loadingTiles.delete(tile);
+      tile.internal.loadingState = -1;
+      renderer.stats.queued = 0;
+      renderer.stats.failed = 1;
+      renderer.lruCache.setLoaded(tile as never, true);
+      renderer.dispatchEvent({
+        type: "load-error",
+        tile: tile as never,
+        error: new Error("status 503"),
+        url: "https://example.test/tiles/child.b3dm",
+      } as never);
 
-    // The tile left the cache, is UNLOADED and skipped while the retry is
-    // pending, so the parent keeps rendering as the fallback.
-    expect(renderer.lruCache.has(tile as never)).toBe(false);
-    expect(tile.internal.loadingState).toBe(0);
-    expect(renderer.stats.failed).toBe(0);
-    renderer.queueTileForDownload(tile);
-    expect(renderer.queuedTiles).toHaveLength(0);
-    // Only the required retry blocks a settled scene. Policy cooldowns and
-    // adaptive-error timers do not represent missing tile content.
-    expect(layer.loading.getRequestDemand()).toBe(1);
+      // The tile left the cache, is UNLOADED and skipped while the retry is
+      // pending, so the parent keeps rendering as the fallback.
+      expect(renderer.lruCache.has(tile as never)).toBe(false);
+      expect(tile.internal.loadingState).toBe(0);
+      expect(renderer.stats.failed).toBe(0);
+      renderer.queueTileForDownload(tile);
+      expect(renderer.queuedTiles).toHaveLength(0);
+      // Only the required retry blocks a settled scene. Policy cooldowns and
+      // adaptive-error timers do not represent missing tile content.
+      expect(layer.loading.getRequestDemand()).toBe(1);
 
-    const dispatchSpy = vi.spyOn(renderer, "dispatchEvent");
-    vi.advanceTimersByTime(2_000);
-    expect(dispatchedTypes(dispatchSpy)).toContain("needs-update");
-    expect(layer.loading.getRequestDemand()).toBe(0);
+      const dispatchSpy = vi.spyOn(renderer, "dispatchEvent");
+      vi.advanceTimersByTime(2_000);
+      expect(dispatchedTypes(dispatchSpy)).toContain("needs-update");
+      expect(layer.loading.getRequestDemand()).toBe(0);
 
-    // the next traversal can request it again
-    renderer.queueTileForDownload(tile);
-    expect(renderer.queuedTiles).toHaveLength(1);
-    renderer.queuedTiles.length = 0;
-    renderer.requestTileContents(tile);
-    expect(tile.internal.loadingState).toBe(1);
-    expect(renderer.lruCache.has(tile as never)).toBe(true);
-    expect(renderer.downloadQueue.has(tile)).toBe(true);
+      // the next traversal can request it again
+      renderer.queueTileForDownload(tile);
+      expect(renderer.queuedTiles).toHaveLength(1);
+      renderer.queuedTiles.length = 0;
+      renderer.requestTileContents(tile);
+      expect(tile.internal.loadingState).toBe(1);
+      expect(renderer.lruCache.has(tile as never)).toBe(true);
+      expect(renderer.downloadQueue.has(tile)).toBe(true);
 
-    layer.scene.dispose();
-  });
+      layer.scene.dispose();
+    }
+  );
 
   it("asks for a traversal when a disposed model frees cache space", () => {
     const { layer, repaint, renderer } = mountRuntime();
@@ -240,24 +250,73 @@ describe("demand runtime integration", () => {
     layer.scene.dispose();
   });
 
+  it("releases an orphan cache identity when an unmet stationary view has no requests", () => {
+    const { layer, renderer, repaint } = mountRuntime(true, false, true);
+    const state = layer.debug.readState() as ThreeTilesRuntimeState;
+    const ghost = buildTile("ghost.b3dm");
+    renderer.lruCache.add(ghost as never, () => {});
+    state.pendingMeshCasterFrontier.add(ghost);
+    state.lastMainViewConverged = state.lastActiveViewsConverged = false;
+    state.meshDemandSweepPending = false;
+    expect(renderer.loadingTiles.size).toBe(0);
+    expect(renderer.lruCache.has(ghost as never)).toBe(true);
+    repaint.mockClear();
+    const parseWake = vi.spyOn(renderer.parseQueue, "scheduleJobRun");
+    vi.advanceTimersByTime(MESH_SETTLED_AUDIT_INTERVAL_MS);
+    expect(renderer.lruCache.has(ghost as never)).toBe(false);
+    expect(parseWake).toHaveBeenCalled();
+    expect(state.meshDemandSweepPending).toBe(true);
+    expect(repaint).toHaveBeenCalled();
+    // Recovery frees the identity instead of relaxing quality or bypassing the
+    // native request lifecycle. The same tile can now own a real queued job.
+    renderer.requestTileContents(ghost);
+    expect(ghost.internal.loadingState).toBe(1);
+    expect(renderer.downloadQueue.has(ghost)).toBe(true);
+    layer.scene.dispose();
+  });
+
+  it("preserves an unloaded identity still owned by topology preprocessing", () => {
+    const { layer, renderer } = mountRuntime(true, false, true);
+    const topology = buildTile("routing.json");
+    renderer.lruCache.add(topology as never, () => {});
+    vi.spyOn(renderer.processNodeQueue, "has").mockImplementation(
+      (tile) => tile === topology
+    );
+    vi.advanceTimersByTime(MESH_SETTLED_AUDIT_INTERVAL_MS);
+    expect(renderer.lruCache.has(topology as never)).toBe(true);
+    layer.scene.dispose();
+  });
+
+  it.each(["settled", "paused", "hidden"] as const)(
+    "does not wake a pending recovery timer once the scene is %s",
+    (condition) => {
+      const { layer, renderer, repaint } = mountRuntime(true, false, true);
+      const state = layer.debug.readState() as ThreeTilesRuntimeState;
+      state.meshDemandSweepPending = false;
+      // This assertion isolates the settled audit from the root kickstarter.
+      window.clearInterval(state.kickstartTimer);
+      state.kickstartTimer = 0;
+      state.memoryErrorTarget = state.requestedErrorTarget;
+      if (condition === "settled") {
+        state.lastMainViewConverged = state.lastActiveViewsConverged = true;
+        state.memoryAdmissionPaused = false;
+      }
+      if (condition === "paused") state.loadingPaused = true;
+      if (condition === "hidden") state.runtimeVisible = false;
+      repaint.mockClear();
+      const dispatch = vi.spyOn(renderer, "dispatchEvent");
+      vi.advanceTimersByTime(MESH_SETTLED_AUDIT_INTERVAL_MS);
+      expect(dispatchedTypes(dispatch)).not.toContain("needs-update");
+      expect(repaint).not.toHaveBeenCalled();
+      layer.scene.dispose();
+    }
+  );
+
   it("wakes one coverage audit when the final request leaves deferred base gaps", () => {
     const { layer, repaint, renderer } = mountRuntime(true, false, true);
     const tile = buildTile("parked.b3dm");
     tile.internal.loadingState = -1;
-    const states = (
-      window as unknown as {
-        __carmaTiles3d: Set<{
-          layerId: string;
-          deferred: Set<typeof tile>;
-          meshBaseCoverageReady: boolean;
-          meshDemandSweepPending: boolean;
-          viewQualityAuditPasses: number;
-        }>;
-      }
-    ).__carmaTiles3d;
-    const state = [...states].find(
-      (candidate) => candidate.layerId === "mesh"
-    )!;
+    const state = layer.debug.readState() as ThreeTilesRuntimeState;
     state.meshBaseCoverageReady = false;
     state.meshDemandSweepPending = false;
     state.viewQualityAuditPasses = 0;

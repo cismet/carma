@@ -124,6 +124,7 @@ export type ThreeTilesRuntimeAttachmentDependencies = Pick<
   | "disposeLitTextureState"
   | "getTileDebugProgress"
   | "recordTileRequestDecision"
+  | "recordTileRequestTrace"
   | "getTileScreenError"
   | "getTileCameraDemand"
   | "getTileRequestPriority"

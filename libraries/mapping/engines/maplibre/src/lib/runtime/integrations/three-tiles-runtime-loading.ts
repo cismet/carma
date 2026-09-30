@@ -117,6 +117,7 @@ export function createThreeTilesLoading(
   dependencies: Pick<
     ThreeTilesRuntimeServices,
     | "requestShadowSelectionRefresh"
+    | "reportTileRecovery"
     | "setShadowSelectionEnabled"
     | "applyPendingShadowView"
     | "isTileInMainView"

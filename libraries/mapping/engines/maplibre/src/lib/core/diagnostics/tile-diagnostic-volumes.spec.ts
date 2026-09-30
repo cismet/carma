@@ -4,6 +4,12 @@ import {
   buildVolumeOverlayModel,
   projectDiagnosticVolumes,
 } from "./tile-diagnostic-volumes";
+import {
+  snapshotTileCameraViews,
+  TILE_CAMERA_ROLE,
+  TILE_MAIN_OBSERVER_ID,
+} from "../tile-camera-demand";
+import { TILE_DIAGNOSTIC_PROJECTION } from "./tile-diagnostic-options";
 import type { SharedThreeSceneTileVolume } from "../shared-three-scene-types";
 
 const frustumOf = (camera: THREE.Camera) => {
@@ -105,6 +111,13 @@ describe("buildVolumeOverlayModel", () => {
     expect(model.volumes?.[1].kind).toBe("loading");
     // The extent is the union of the boxes and stays inside the canvas.
     expect(model.viewportBasis?.bounds).toEqual([0, 0, 0, 200, 30, 100]);
+    expect(model.viewportBasis?.rectBounds).toEqual([
+      0, 0, 0, 100, 20, 100, 100, 0, 0, 200, 30, 100,
+    ]);
+    expect(model.viewportBasis?.rectTransforms).toEqual([
+      ...new THREE.Matrix4().toArray(),
+      ...new THREE.Matrix4().toArray(),
+    ]);
     const extent = model.extent;
     if (!extent) throw new Error("expected an extent");
     expect(extent.x).toBeGreaterThanOrEqual(0);
@@ -114,6 +127,41 @@ describe("buildVolumeOverlayModel", () => {
     const [scale, screenX, screenY] = model.viewportBasis?.screen ?? [];
     expect(scale * 200 + screenX).toBeCloseTo(extent.x + extent.w, 6);
     expect(scale * 100 + screenY).toBeCloseTo(extent.y + extent.h, 6);
+  });
+
+  it("aligns box geometry to the filtered perspective records", () => {
+    const camera = new THREE.PerspectiveCamera(60, 4 / 3, 1, 400);
+    camera.lookAt(0, 0, -1);
+    const [observer] = snapshotTileCameraViews([
+      {
+        id: TILE_MAIN_OBSERVER_ID,
+        camera,
+        viewport: [400, 300],
+        errorTargetPixels: 1,
+        role: TILE_CAMERA_ROLE.RECEIVER,
+      },
+    ]);
+    const model = buildVolumeOverlayModel({
+      volumes: [
+        volume("behind", [-10, -10, 100], [10, 10, 120]),
+        volume("visible", [-10, -10, -120], [10, 10, -100]),
+      ],
+      camera: observer,
+      shadowCamera: null,
+      projection: TILE_DIAGNOSTIC_PROJECTION.CAMERA,
+      width: 400,
+      height: 300,
+    });
+    expect(model?.volumes?.map(({ id }) => id)).toEqual(["visible"]);
+    expect(model?.viewportBasis?.cameraProjection).toEqual({
+      reversedDepth: false,
+    });
+    expect(model?.viewportBasis?.rectBounds).toEqual([
+      -10, -10, -120, 10, 10, -100,
+    ]);
+    expect(model?.viewportBasis?.rectTransforms).toEqual(
+      new THREE.Matrix4().toArray()
+    );
   });
 
   it("returns nothing without usable boxes or space to draw them", () => {

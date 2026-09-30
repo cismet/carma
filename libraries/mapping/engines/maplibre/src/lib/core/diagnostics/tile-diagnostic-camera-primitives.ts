@@ -1,6 +1,7 @@
 import { OVERVIEW_COLORS } from "./tile-diagnostic-model";
 import {
   TILE_RECORD_FLOATS,
+  PRIMITIVE_FLOATS,
   type DiagnosticSnapshot,
   type DiagnosticFrame,
   rgba,
@@ -119,4 +120,73 @@ export const buildDiagnosticSelection = (
     );
   }
   return new Float32Array(values);
+};
+
+/** Local cut coordinates retain endpoint depths without subtracting large screen offsets. */
+export const buildDiagnosticViewportGeometry = (
+  snapshot: Parameters<typeof buildDiagnosticViewport>[0] & {
+    edgeDepths?: Float32Array;
+    nearDepth?: number;
+  },
+  color: string = OVERVIEW_COLORS.frustum,
+  light = false
+) => {
+  const source = buildDiagnosticViewport(snapshot, color, light);
+  const primitives: number[] = [],
+    planes: number[] = [];
+  for (let i = 0; i < source.length / PRIMITIVE_FLOATS; i++) {
+    const primitive = Array.from(
+      source.subarray(i * PRIMITIVE_FLOATS, (i + 1) * PRIMITIVE_FLOATS)
+    );
+    const [x, y, endX, endY, kind] = primitive;
+    if (kind === 3 || kind === 5) {
+      const dx = endX - x,
+        dy = endY - y,
+        length = Math.hypot(dx, dy);
+      // The stored Float32 endpoints can collapse even when their double
+      // precision projections differ. They have no visible centreline.
+      if (!(length > 0) || !Number.isFinite(length)) continue;
+      const startDepth = snapshot.edgeDepths?.[i * 2] ?? 0;
+      const endDepth = snapshot.edgeDepths?.[i * 2 + 1] ?? startDepth;
+      if (!Number.isFinite(startDepth + endDepth)) continue;
+      primitive.splice(0, 4, 0, 0, length, 0);
+      if (kind === 3) primitive[6] = 1;
+      planes.push(
+        x,
+        y,
+        startDepth,
+        1,
+        dx / length,
+        dy / length,
+        (endDepth - startDepth) / length,
+        0,
+        -dy / length,
+        dx / length,
+        0,
+        0
+      );
+    } else {
+      primitive[0] = primitive[1] = 0;
+      const depth = snapshot.nearDepth ?? 0;
+      planes.push(
+        x,
+        y,
+        Number.isFinite(depth) ? depth : 0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0
+      );
+    }
+    primitives.push(...primitive);
+  }
+  return {
+    primitives: new Float32Array(primitives),
+    planes: new Float32Array(planes),
+  };
 };

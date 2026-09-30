@@ -1,4 +1,5 @@
 import type { Camera } from "three";
+import type { DiagnosticLabelHit } from "../../core/diagnostics/tile-diagnostic-labels";
 import {
   TILE_CAMERA_ROLE,
   type TileCameraSnapshot,
@@ -18,6 +19,7 @@ import {
   TILE_PHASES,
   TILE_RECORD_FLOATS,
   TILE_STEP_SLOTS,
+  type DiagnosticLegendEntry,
   type DiagnosticFrame,
   type DiagnosticSnapshot,
   type DiagnosticView,
@@ -50,6 +52,7 @@ export type TileDiagnosticOverlayInput = {
   hover: { tile: Tile; parent: Tile | null; siblings: Tile[] } | null;
 };
 export type TileDiagnosticOverlayOptions = {
+  onLegend?: (entries: readonly DiagnosticLegendEntry[]) => void;
   onStatus?: (status: { ready: boolean; error?: string }) => void;
 };
 
@@ -68,6 +71,7 @@ export const createTileDiagnosticOverlay = (
   let additionalCameras: readonly TileCameraSnapshot[] = [];
   let uploadedModel: OverlayModel | null = null;
   let tileIndices = new Map<Tile, number>();
+  let labelHits: readonly DiagnosticLabelHit[] = [];
   let cancelTask: (() => void) | null = null;
   let width = host.clientWidth,
     height = host.clientHeight;
@@ -75,14 +79,18 @@ export const createTileDiagnosticOverlay = (
   const canvases: HTMLCanvasElement[] = [];
   const fail = (error: unknown) => {
     ready = false;
+    labelHits = [];
+    tileIndices.clear();
     worker?.terminate();
     worker = null;
     for (const canvas of canvases) canvas.remove();
-    if (!disposed)
+    if (!disposed) {
+      options.onLegend?.([]);
       options.onStatus?.({
         ready: false,
         error: error instanceof Error ? error.message : String(error),
       });
+    }
   };
   const flush = async () => {
     cancelTask = null;
@@ -256,6 +264,7 @@ export const createTileDiagnosticOverlay = (
         snapshot ? [snapshot.tiles.buffer, snapshot.edges.buffer] : []
       );
       if (snapshot) {
+        labelHits = [];
         uploadedModel = model;
         tileIndices = pendingTileIndices;
       }
@@ -322,7 +331,10 @@ export const createTileDiagnosticOverlay = (
         options.onStatus?.({ ready: true });
       }
       if (data.type === TILE_DIAGNOSTIC_WORKER_REPLY.FRAME) {
-        working = false;
+        if (data.legend) options.onLegend?.(data.legend);
+        if (data.labelHits && (!working || data.completed !== false))
+          labelHits = data.labelHits;
+        if (data.completed !== false) working = false;
         host.dataset.instances = String(data.instances);
         host.dataset.bufferBytes = String(data.bufferBytes);
         host.dataset.uploads = String(data.uploads);
@@ -356,6 +368,26 @@ export const createTileDiagnosticOverlay = (
     fail(error);
   }
   return {
+    hitTestLabel(x: number, y: number): Tile | null {
+      if (!ready || disposed) return null;
+      for (const hit of labelHits) {
+        const p = hit.polygon;
+        let positive = false,
+          negative = false;
+        for (let i = 0; i < 4; i++) {
+          const j = (i + 1) % 4;
+          const cross =
+            (p[j * 2] - p[i * 2]) * (y - p[i * 2 + 1]) -
+            (p[j * 2 + 1] - p[i * 2 + 1]) * (x - p[i * 2]);
+          positive ||= cross > 1e-7;
+          negative ||= cross < -1e-7;
+        }
+        if (positive && negative) continue;
+        for (const [tile, record] of tileIndices)
+          if (record === hit.record) return tile;
+      }
+      return null;
+    },
     /** Render-thread work is only a matrix comparison/copy and a tiny mailbox message. */
     updateCamera(
       camera: Camera,
@@ -411,12 +443,14 @@ export const createTileDiagnosticOverlay = (
       schedule();
     },
     dispose() {
+      options.onLegend?.([]);
       disposed = true;
       cancelTask?.();
       observer?.disconnect();
       latest = null;
       uploadedModel = null;
       tileIndices.clear();
+      labelHits = [];
       const retiring = worker;
       if (retiring) {
         const timeout = setTimeout(() => retiring.terminate(), 250);

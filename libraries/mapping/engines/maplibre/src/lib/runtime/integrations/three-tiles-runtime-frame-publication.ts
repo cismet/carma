@@ -163,7 +163,6 @@ export function createThreeTilesFramePublication(
         receiverPlan.refinementSupport,
         receiverPlan.unpreparedParents
       );
-      abortStaleDownloads();
       runtimeState.lastLoadedViewportCutSize = loadedViewportCut.size;
       const previousDisplayed = runtimeState.displayedMeshFrontier;
       const nextDisplayed = loadedViewportCut;
@@ -184,6 +183,9 @@ export function createThreeTilesFramePublication(
         runtimeState.displayedMeshFrontier,
         runtimeState.extentGeometricError
       );
+      // Cancel only after every owner describes this frame: new offscreen
+      // siblings survive, and obsolete caster requests release slots now.
+      abortStaleDownloads();
       const displayed = runtimeState.shadowView
         ? new Set([
             ...runtimeState.committedMeshReceiverFrontier,

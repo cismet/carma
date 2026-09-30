@@ -226,12 +226,21 @@ export const buildVolumeOverlayModel = ({
     showSize,
     showStats,
     viewportBasis: {
+      rectBounds: projected.flatMap(({ world }) => [
+        ...world.min.toArray(),
+        ...world.max.toArray(),
+      ]),
+      rectTransforms: projected.flatMap(() => new THREE.Matrix4().toArray()),
       tileBounds: volumes.flatMap((volume) => [
         ...volume.minimum,
         ...volume.maximum,
       ]),
       bounds: [...extent.min.toArray(), ...extent.max.toArray()],
       worldToOverview: worldToOverview.toArray(),
+      cameraProjection:
+        cameraProjection && camera
+          ? { reversedDepth: camera.reversedDepth === true }
+          : undefined,
       screen: [scale, offsetX, offsetY, scaleY],
       width,
       height,

@@ -3,6 +3,13 @@ import type { TileCameraSnapshot } from "../tile-camera-demand";
 import type { DiagnosticViewportBasis } from "./tile-diagnostic-model";
 import type { TileDiagnosticLabelMode } from "./tile-diagnostic-options";
 
+/** Symbols are samples of the emitted primitives, normalized to a 12×12 swatch. */
+export type DiagnosticLegendEntry = {
+  id: string;
+  label: string;
+  primitives: readonly number[];
+};
+
 export type DiagnosticView = { x: number; y: number; w: number; h: number };
 
 /** x, y, w, h, kind, flags, qMin, qMax, phase, error, bytes, steps…, level. */
@@ -77,6 +84,8 @@ export type DiagnosticFrame = {
   followPaddingPercent?: number;
   showFrustum?: boolean;
   orbit?: { yaw: number; pitch: number };
+  /** Overview-space depth range; the worker preserves each face and cut depth. */
+  depthRange?: readonly [number, number];
   view: DiagnosticView;
   width: number;
   height: number;

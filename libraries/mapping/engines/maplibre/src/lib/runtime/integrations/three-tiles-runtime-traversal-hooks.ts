@@ -52,9 +52,27 @@ export function installThreeTilesTraversalHooks(
     runtimeState.tiles
   );
   runtimeState.tiles.requestTileContents = (tile) => {
+    const downloadable = hasDownloadableContent(tile);
+    if (
+      runtimeState.options.diagnostics === true &&
+      runtimeState.options.tileTelemetry !== false &&
+      (!downloadable || tile.internal.loadingState === UNLOADED_LOADING_STATE)
+    ) {
+      try {
+        dependencies.recordTileRequestTrace?.(
+          tile,
+          "execution",
+          downloadable
+            ? dependencies.getTileRequestNeed(tile)
+            : "no-downloadable-content"
+        );
+      } catch {
+        // A trace-only demand query must not prevent the actual native request.
+      }
+    }
     // Routing containers have children, but no payload. Recheck here as well
     // as admission: native queued work and direct prefetch share this boundary.
-    if (!hasDownloadableContent(tile)) return;
+    if (!downloadable) return;
     return requestTileContents(tile);
   };
   const calculateBytesUsed = runtimeState.tiles.calculateBytesUsed.bind(
@@ -466,7 +484,19 @@ export function installThreeTilesTraversalHooks(
   );
   runtimeState.tiles.queueTileForDownload = (tile) => {
     const tiles = runtimeState.tiles;
-    if (!tiles || !hasDownloadableContent(tile)) return;
+    if (!tiles) return;
+    if (!hasDownloadableContent(tile)) {
+      if (
+        runtimeState.options.diagnostics === true &&
+        runtimeState.options.tileTelemetry !== false
+      )
+        dependencies.recordTileRequestTrace?.(
+          tile,
+          "admission",
+          "no-downloadable-content"
+        );
+      return;
+    }
     if (runtimeState.memoryAdmissionPaused || runtimeState.loadingPaused)
       return;
     if (
@@ -476,6 +506,11 @@ export function installThreeTilesTraversalHooks(
       return;
     const runtimeTile = tile as RuntimeTile;
     const requestNeed = dependencies.getTileRequestNeed(tile);
+    if (
+      runtimeState.options.diagnostics === true &&
+      runtimeState.options.tileTelemetry !== false
+    )
+      dependencies.recordTileRequestTrace?.(tile, "admission", requestNeed);
     const cameraRequest =
       requestNeed === TILE_REQUEST_NEED.CAMERA ||
       requestNeed === TILE_REQUEST_NEED.SHADOW;

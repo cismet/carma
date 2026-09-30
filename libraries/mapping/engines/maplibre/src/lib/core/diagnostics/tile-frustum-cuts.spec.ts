@@ -63,29 +63,44 @@ describe("3D tile surface cuts and request geometry", () => {
       new PerspectiveCamera(60, 1, 1, 10)
     );
     const box = new Box3(new Vector3(1, -0.5, -4), new Vector3(3, 0.5, -2));
-    const cuts = intersectTileFrustumPlanes(box, frustum);
     expect(demand.evaluate(box, 1).required).toBe(true);
-    expect(cuts.length).toBeGreaterThan(0);
-    for (const cut of cuts)
-      for (const point of [cut.start, cut.getCenter(new Vector3()), cut.end]) {
-        expect(
-          frustum.planes.every((plane) => plane.distanceToPoint(point) >= -1e-6)
-        ).toBe(true);
-        expect(
-          frustum.planes.some(
-            (plane) => Math.abs(plane.distanceToPoint(point)) < 1e-6
-          )
-        ).toBe(true);
-        expect(
-          (["x", "y", "z"] as const).some(
-            (axis) =>
-              Math.min(
-                Math.abs(point[axis] - box.min[axis]),
-                Math.abs(point[axis] - box.max[axis])
-              ) < 1e-6
-          )
-        ).toBe(true);
-      }
+    for (const scale of [1, 1e-8]) {
+      const transform = new Matrix4().makeScale(scale, scale, scale);
+      const scaled = frustum.clone();
+      for (const plane of scaled.planes) plane.applyMatrix4(transform);
+      const cuts = intersectTileFrustumPlanes(box, scaled, transform);
+      expect(cuts.length).toBeGreaterThan(0);
+      const inverse = transform.clone().invert();
+      for (const cut of cuts)
+        for (const point of [
+          cut.start,
+          cut.getCenter(new Vector3()),
+          cut.end,
+        ]) {
+          expect(
+            scaled.planes.every(
+              (plane) => plane.distanceToPoint(point) / scale >= -1e-6
+            )
+          ).toBe(true);
+          expect(
+            scaled.planes
+              .slice(0, 4)
+              .some(
+                (plane) => Math.abs(plane.distanceToPoint(point)) / scale < 1e-6
+              )
+          ).toBe(true);
+          const local = point.clone().applyMatrix4(inverse);
+          expect(
+            (["x", "y", "z"] as const).some(
+              (axis) =>
+                Math.min(
+                  Math.abs(local[axis] - box.min[axis]),
+                  Math.abs(local[axis] - box.max[axis])
+                ) < 1e-6
+            )
+          ).toBe(true);
+        }
+    }
   });
 
   it.each([1.5, 0.9])(

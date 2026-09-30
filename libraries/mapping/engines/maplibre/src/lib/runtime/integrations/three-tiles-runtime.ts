@@ -175,6 +175,7 @@ export function buildThreeTilesRuntime(
   // Callbacks may reference later owners, but factories only construct closures.
   // Engine subscriptions and traversal start in onAdd, after all owners exist.
   const loading = createThreeTilesLoading(state, {
+    reportTileRecovery: (...args) => debug.reportTileRecovery(...args),
     applyPendingShadowView: (...args) =>
       shadows.applyPendingShadowView(...args),
     getTileRequestPriority: (...args) =>
@@ -236,6 +237,8 @@ export function buildThreeTilesRuntime(
       shadows.peekShadowRegionRevision(...args),
   });
   const lifecycle = createThreeTilesLifecycle(state, {
+    recordTileRequestTrace: (...args) => debug.recordTileRequestTrace(...args),
+    reportTileRecovery: (...args) => debug.reportTileRecovery(...args),
     resetMeshCameraObjectives: () => spatial.resetMeshCameraObjectives(),
     isTileNeededForMeshCoverage: (...args) =>
       spatial.isTileNeededForMeshCoverage(...args),

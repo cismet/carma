@@ -1,7 +1,10 @@
 import { readOrientedTileBounds } from "./three-tiles-bounds";
 import { TILE_SHADOW_CAMERA_ID } from "../../core/tile-camera-demand";
 import { isExtentFloorTile } from "../../core/mesh-error-policy";
-import { isMeshCoveredByLoadedChildren } from "../../core/mesh-tile-coverage";
+import {
+  getReadyMeshRegionCut,
+  isMeshCoveredByLoadedChildren,
+} from "../../core/mesh-tile-coverage";
 import {
   MESH_EVICTION_BATCH_SIZE,
   MESH_SETTLED_AUDIT_INTERVAL_MS,
@@ -9,7 +12,10 @@ import {
 import type { ThreeTilesCacheState } from "./three-tiles-runtime-cache";
 import type { ThreeTilesRuntimeServices } from "./three-tiles-runtime-context";
 import type { RuntimeTile } from "./three-tiles-runtime-types";
-import { LOADED_LOADING_STATE } from "./three-tiles-runtime-vendor";
+import {
+  LOADED_LOADING_STATE,
+  UNLOADED_LOADING_STATE,
+} from "./three-tiles-runtime-vendor";
 
 /** Refreshes demand and releases resident mesh detail after motion settles. */
 export function createThreeTilesSettledDemand(
@@ -19,6 +25,7 @@ export function createThreeTilesSettledDemand(
     | "getRuntimeCache"
     | "isTileInMainView"
     | "getTileCameraDemand"
+    | "getTileObserverDemand"
     | "assignTilePriority"
     | "maybeEnableShadowSelection"
     | "getTileScreenError"
@@ -26,6 +33,9 @@ export function createThreeTilesSettledDemand(
     | "requestRender"
     | "resetDeferredTiles"
     | "requestShadowSelectionRefresh"
+    | "reportTileRecovery"
+    | "applyRequestConcurrency"
+    | "runDownloadQueues"
   >
 ) {
   // Keep the selected offscreen caster corridor live until it can be displayed.
@@ -184,12 +194,66 @@ export function createThreeTilesSettledDemand(
       }
     };
 
+  // A loaded terminal source can still miss the requested error. Keep that
+  // failure measurable, but do not repeatedly wake a view that cannot improve.
+  const isSourceLimitedView = () => {
+    const tiles = runtimeState.tiles;
+    const root = tiles?.root;
+    if (
+      !tiles ||
+      !root ||
+      runtimeState.tileCameraDemand.views.length !== 1 ||
+      tiles.loadingTiles.size > 0 ||
+      tiles.downloadQueue.running ||
+      tiles.parseQueue.running ||
+      tiles.processNodeQueue.running ||
+      runtimeState.tileRetries.hasPendingRetries() ||
+      runtimeState.memoryAdmissionPaused ||
+      runtimeState.memoryErrorTarget > runtimeState.requestedErrorTarget ||
+      runtimeState.meshDemandSweepPending ||
+      runtimeState.shadowSelectionRefreshPending ||
+      runtimeState.shadowSelectionNeedsTraversal
+    )
+      return false;
+    for (const tile of new Set([
+      ...runtimeState.meshRefinementSupport,
+      ...runtimeState.pendingMeshCasterFrontier,
+      ...runtimeState.shadowCasterRequests,
+    ]))
+      if (tile.internal?.loadingState !== LOADED_LOADING_STATE) return false;
+    const target = runtimeState.requestedErrorTarget;
+    const cut = getReadyMeshRegionCut(
+      root,
+      runtimeState.displayedMeshFrontier,
+      target,
+      (tile) => dependencies.getTileObserverDemand(tile as RuntimeTile)
+    );
+    if (!cut) return false;
+    const unmet = cut.filter(
+      (tile) =>
+        dependencies.getTileObserverDemand(tile as RuntimeTile).errorPixels >
+        target
+    );
+    return (
+      unmet.length > 0 &&
+      unmet.every(
+        (tile) =>
+          (tile.children?.length ?? 0) === 0 &&
+          Number.isFinite(
+            dependencies.getTileObserverDemand(tile as RuntimeTile).errorPixels
+          )
+      )
+    );
+  };
+
   const scheduleSettledMeshAudit: ThreeTilesRuntimeServices["scheduleSettledMeshAudit"] =
     () => {
       if (
         !runtimeState.options.providesTerrain ||
         runtimeState.meshAuditTimer !== null ||
         runtimeState.disposed ||
+        !runtimeState.runtimeVisible ||
+        runtimeState.loadingPaused ||
         runtimeState.map?.isMoving?.()
       )
         return;
@@ -201,15 +265,60 @@ export function createThreeTilesSettledDemand(
         !runtimeState.meshDemandSweepPending
       )
         return;
+      if (isSourceLimitedView()) return;
       runtimeState.meshAuditTimer = setTimeout(() => {
         runtimeState.meshAuditTimer = null;
-        if (runtimeState.disposed || runtimeState.map?.isMoving?.()) return;
+        if (
+          runtimeState.disposed ||
+          !runtimeState.runtimeVisible ||
+          runtimeState.loadingPaused ||
+          runtimeState.map?.isMoving?.()
+        )
+          return;
+        // A completion can satisfy the target while this single timer is pending.
+        if (
+          (runtimeState.lastActiveViewsConverged ??
+            runtimeState.lastMainViewConverged) &&
+          runtimeState.memoryErrorTarget <= runtimeState.requestedErrorTarget &&
+          !runtimeState.memoryAdmissionPaused &&
+          !runtimeState.meshDemandSweepPending
+        )
+          return;
+        if (isSourceLimitedView()) return;
+        const tiles = runtimeState.tiles;
+        const cache = dependencies.getRuntimeCache();
+        if (tiles && tiles.stats.downloading === 0 && tiles.stats.parsing === 0)
+          dependencies.reportTileRecovery?.("idle-demand");
+        if (tiles && cache && tiles.loadingTiles.size === 0) {
+          let removed = 0;
+          // An UNLOADED identity without a job or drawable cannot contribute
+          // coverage, but LRU.add would silently reject its next real request.
+          for (const entry of [...cache.itemList]) {
+            const tile = entry as RuntimeTile;
+            if (
+              tile.internal?.loadingState === UNLOADED_LOADING_STATE &&
+              !tile.engineData?.scene &&
+              !tiles.downloadQueue.has(tile) &&
+              !tiles.parseQueue.has(tile) &&
+              !tiles.processNodeQueue.has(tile) &&
+              cache.remove(tile) &&
+              ++removed >= MESH_EVICTION_BATCH_SIZE
+            )
+              break;
+          }
+        }
         // Refresh stale demand at the requested target; local refinement and
         // existing deduplication/retry guards still control request admission.
         runtimeState.meshDemandSweepPending = true;
         dependencies.resetDeferredTiles();
         dependencies.requestShadowSelectionRefresh();
-        runtimeState.tiles?.dispatchEvent({ type: "needs-update" });
+        tiles?.dispatchEvent({ type: "needs-update" });
+        dependencies.applyRequestConcurrency();
+        // Eligibility or a job-completion wake can have changed while a queue
+        // was parked. Resume native schedulers within their existing limits.
+        dependencies.runDownloadQueues();
+        tiles?.parseQueue.scheduleJobRun();
+        tiles?.processNodeQueue.scheduleJobRun();
         dependencies.requestRender();
       }, MESH_SETTLED_AUDIT_INTERVAL_MS);
     };

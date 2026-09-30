@@ -77,6 +77,45 @@ const options = {
   sceneLabels: false,
 };
 describe("library-owned diagnostic capture", () => {
+  it.each([true, false])(
+    "refreshes frustum cuts for published casters with retained tiles shown=%s",
+    async (showResident) => {
+      const { state } = fixture();
+      const receiver = state.tiles!.root!;
+      const caster = receiver.children[0];
+      receiver.children = [];
+      caster.parent = null;
+      caster.engineData!.boundingVolume!.getAABB = (box: THREE.Box3) =>
+        box.set(new THREE.Vector3(120, 0, -20), new THREE.Vector3(180, 30, 40));
+      state.displayedMeshFrontier = new Set([receiver]);
+      state.committedMeshCasterFrontier = new Set();
+      const before = await captureTileDiagnostics(state, null, {
+        ...options,
+        showResident,
+      });
+      expect(before!.model.viewportBasis!.tileBounds).toHaveLength(6);
+      // Publishing already cached content must not depend on another model load.
+      state.committedMeshCasterFrontier = new Set([receiver, caster]);
+      const after = await captureTileDiagnostics(state, null, {
+        ...options,
+        showResident,
+      });
+      expect(after!.model.viewportBasis!.tileBounds).toHaveLength(12);
+      expect(after!.model.viewportBasis!.tileBounds!.slice(6)).toEqual([
+        120, 0, -20, 180, 30, 40,
+      ]);
+      expect(after!.model.viewportBasis!.tileTransforms).toHaveLength(32);
+      expect(after!.model.rects.some(({ tile }) => tile === caster)).toBe(true);
+      expect(after!.displayed).toBe(1);
+      state.committedMeshCasterFrontier = new Set();
+      const released = await captureTileDiagnostics(state, null, {
+        ...options,
+        showResident,
+      });
+      expect(released!.model.viewportBasis!.tileBounds).toHaveLength(6);
+    }
+  );
+
   it("omits contentless routing boxes even when they are cached or selected", async () => {
     const { state } = fixture();
     const root = state.tiles!.root!;

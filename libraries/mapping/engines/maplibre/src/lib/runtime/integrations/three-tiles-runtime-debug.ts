@@ -130,6 +130,22 @@ export function createThreeTilesDebug(
     recordTileIteration: (tile: Tile) => {
       if (enabled()) diagnostics?.recordTileIteration(tile);
     },
+    recordTileRequestTrace: (
+      ...args: Parameters<
+        ReturnType<typeof createThreeTilesDiagnostics>["recordTileRequestTrace"]
+      >
+    ) => {
+      if (enabled() && state.options.tileTelemetry !== false)
+        diagnostics?.recordTileRequestTrace(...args);
+    },
+    reportTileRecovery: (
+      ...args: Parameters<
+        ReturnType<typeof createThreeTilesDiagnostics>["reportTileRecovery"]
+      >
+    ) => {
+      if (enabled() && state.options.tileTelemetry !== false)
+        diagnostics?.reportTileRecovery(...args);
+    },
     recordTileRequestDecision: (
       ...args: Parameters<
         ReturnType<

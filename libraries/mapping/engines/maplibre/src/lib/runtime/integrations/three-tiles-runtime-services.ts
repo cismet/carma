@@ -119,6 +119,15 @@ export interface ThreeTilesRuntimeServices {
     typeof import("./three-tiles-runtime-diagnostics").createThreeTilesDiagnostics
   >["getTileDiagnosticSteps"];
   reportFrameTelemetry?: typeof import("./three-tiles-diagnostic-steps").reportThreeTilesFrameTelemetry;
+  recordTileRequestTrace?: (
+    tile: Tile,
+    stage: "admission" | "execution",
+    reason: string | null
+  ) => void;
+  reportTileRecovery?: (
+    reason: "idle-demand" | "update-error",
+    error?: unknown
+  ) => void;
   recordTileRequestDecision: (
     tile: Tile,
     decision: MeshTileRequestDecision

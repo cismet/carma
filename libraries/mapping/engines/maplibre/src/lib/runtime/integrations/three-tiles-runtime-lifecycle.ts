@@ -124,6 +124,8 @@ export function createThreeTilesLifecycle(
     | "getTileDebugProgress"
     | "reportFrameTelemetry"
     | "recordTileRequestDecision"
+    | "recordTileRequestTrace"
+    | "reportTileRecovery"
     | "recordTileWait"
     | "drainTileWaitEvents"
     | "beginTileWaitObservation"

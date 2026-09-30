@@ -1,27 +1,27 @@
-import type {
-  Dispatch,
-  ReactNode,
-  MutableRefObject,
-  SetStateAction,
+import {
+  type Dispatch,
+  type ReactNode,
+  type MutableRefObject,
+  type SetStateAction,
 } from "react";
 import { Button } from "antd";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faChevronDown,
   faChevronUp,
-  faCrosshairs,
-  faHand,
-  faCircleInfo,
   faGripVertical,
-  faSliders,
 } from "@fortawesome/free-solid-svg-icons";
 import * as THREE from "three";
 import {
-  TILE_DIAGNOSTIC_LABEL_MODE,
-  TILE_DIAGNOSTIC_OVERVIEW_VIEW,
+  type ThreeTilesRuntime,
   type TileDiagnosticSummary,
 } from "@carma-mapping/engines/maplibre";
 import { DiagnosticWindowActions } from "./DiagnosticControls";
+import {
+  TileLoadingDebugOverviewControls,
+  TileLoadingDebugOverviewLegend,
+  TileLoadingDebugOverviewStats,
+} from "./TileLoadingDebugOverviewOptions";
 import { DiagnosticWindow as Popout } from "./DiagnosticWindow";
 import type { ResolvedDebugOptions } from "./tile-loading-debug-options";
 import type { createTileLoadingDebugPanels } from "./tile-loading-debug-panels";
@@ -67,6 +67,8 @@ export const TileLoadingDebugPanelWindow = ({
   setOverviewMode,
   summary,
   renderOverview,
+  runtimeHandle,
+  legend,
 }: {
   panel: Panel;
   externalPanels: Record<string, boolean>;
@@ -89,11 +91,14 @@ export const TileLoadingDebugPanelWindow = ({
   setOverviewMode: (mode: TileLoadingDebugOverviewMode) => void;
   summary: TileDiagnosticSummary | null;
   renderOverview: (windowed: boolean) => ReactNode;
+  runtimeHandle: ThreeTilesRuntime;
+  legend: ReactNode;
 }) => {
   const external = externalPanels[panel.id] === true;
+  const isOverview = panel.id === TILE_LOADING_DEBUG_PANEL_ID.OVERVIEW;
   const isLegend = panel.id === TILE_LOADING_DEBUG_PANEL_ID.LEGEND;
   const canvasPanel =
-    panel.id === TILE_LOADING_DEBUG_PANEL_ID.OVERVIEW ||
+    isOverview ||
     panel.id === TILE_LOADING_DEBUG_PANEL_ID.CHARTS ||
     panel.id === TILE_LOADING_DEBUG_PANEL_ID.LOG;
   const formPanel =
@@ -107,17 +112,25 @@ export const TileLoadingDebugPanelWindow = ({
   );
   const visible =
     toolsVisible &&
-    (panel.id === TILE_LOADING_DEBUG_PANEL_ID.OVERVIEW
+    (isOverview
       ? overviewMode !== TILE_LOADING_DEBUG_OVERVIEW_MODE.OFF &&
         (overviewMode === TILE_LOADING_DEBUG_OVERVIEW_MODE.WINDOW || external)
-      : options[panel.flag]);
+      : options[panel.flag] &&
+        !(
+          isLegend &&
+          (overviewMode === TILE_LOADING_DEBUG_OVERVIEW_MODE.WINDOW ||
+            overviewIsExternal)
+        ));
   const dock = () =>
     setExternalPanels((current) => ({ ...current, [panel.id]: false }));
   const close = () => {
     dock();
-    if (panel.id === TILE_LOADING_DEBUG_PANEL_ID.OVERVIEW)
-      setOverviewMode(TILE_LOADING_DEBUG_OVERVIEW_MODE.OFF);
+    if (isOverview) setOverviewMode(TILE_LOADING_DEBUG_OVERVIEW_MODE.OFF);
     else onOptionsChange({ [panel.flag]: false });
+  };
+  const toggleOverviewOptions = () => {
+    setFrontPanel(TILE_LOADING_DEBUG_PANEL_ID.OVERVIEW_OPTIONS);
+    onOptionsChange({ showOverviewOptions: !options.showOverviewOptions });
   };
   const windowControls = (
     <DiagnosticWindowActions
@@ -155,118 +168,75 @@ export const TileLoadingDebugPanelWindow = ({
           onClick={() => setLegendExpanded((expanded) => !expanded)}
         />
       )}
-      {(panel.id === TILE_LOADING_DEBUG_PANEL_ID.OVERVIEW_OPTIONS ||
-        panel.id === TILE_LOADING_DEBUG_PANEL_ID.OVERVIEW) && (
-        <>
-          <Button
-            type="text"
-            icon={<FontAwesomeIcon icon={faCrosshairs} />}
-            aria-label="Follow viewport"
-            aria-pressed={
-              options.overviewView === TILE_DIAGNOSTIC_OVERVIEW_VIEW.FRUSTUM
-            }
-            title={
-              options.overviewView === TILE_DIAGNOSTIC_OVERVIEW_VIEW.FRUSTUM
-                ? "Following viewport · drag to pan, Ctrl/right-drag to orbit, wheel to zoom"
-                : "Follow viewport"
-            }
-            onClick={() =>
-              onOptionsChange({
-                overviewView:
-                  options.overviewView === TILE_DIAGNOSTIC_OVERVIEW_VIEW.FRUSTUM
-                    ? TILE_DIAGNOSTIC_OVERVIEW_VIEW.EXTENT
-                    : TILE_DIAGNOSTIC_OVERVIEW_VIEW.FRUSTUM,
-              })
-            }
-          />
-          {(overviewMode === TILE_LOADING_DEBUG_OVERVIEW_MODE.WINDOW ||
-            overviewIsExternal) && (
-            <Button
-              type="text"
-              icon={<FontAwesomeIcon icon={faHand} />}
-              aria-label="Free pan/zoom"
-              aria-pressed={
-                options.overviewView === TILE_DIAGNOSTIC_OVERVIEW_VIEW.FREE
-              }
-              title="Free pan/zoom · window only"
-              onClick={() =>
-                onOptionsChange({
-                  overviewView:
-                    options.overviewView === TILE_DIAGNOSTIC_OVERVIEW_VIEW.FREE
-                      ? TILE_DIAGNOSTIC_OVERVIEW_VIEW.EXTENT
-                      : TILE_DIAGNOSTIC_OVERVIEW_VIEW.FREE,
-                })
-              }
-            />
-          )}
-        </>
-      )}
-      {panel.id === TILE_LOADING_DEBUG_PANEL_ID.OVERVIEW && (
-        <Button
-          className="tile-debug-header-toggle"
-          type="text"
-          aria-label="Resident tile size grid"
-          aria-pressed={options.overviewSize !== false}
-          title="Square resident cache-size grid and labels"
-          onClick={() =>
-            onOptionsChange({
-              overviewSize: options.overviewSize === false,
-              overlayLabels:
-                options.overviewSize === false
-                  ? TILE_DIAGNOSTIC_LABEL_MODE.ID_AND_STATS
-                  : TILE_DIAGNOSTIC_LABEL_MODE.ID,
-            })
+      {panel.id === TILE_LOADING_DEBUG_PANEL_ID.OVERVIEW_OPTIONS && (
+        <TileLoadingDebugOverviewControls
+          options={options}
+          onOptionsChange={onOptionsChange}
+          windowed={
+            overviewMode === TILE_LOADING_DEBUG_OVERVIEW_MODE.WINDOW ||
+            overviewIsExternal
           }
-        >
-          B
-        </Button>
-      )}
-      {panel.id === TILE_LOADING_DEBUG_PANEL_ID.OVERVIEW && (
-        <Button
-          className="tile-debug-header-toggle"
-          type="text"
-          aria-label="Tile processing steps"
-          aria-pressed={options.overviewSteps !== false}
-          title="Processing time pies"
-          onClick={() =>
-            onOptionsChange({
-              overviewSteps: options.overviewSteps === false,
-            })
-          }
-        >
-          ms
-        </Button>
-      )}
-      {panel.id === TILE_LOADING_DEBUG_PANEL_ID.OVERVIEW && (
-        <Button
-          type="text"
-          icon={<FontAwesomeIcon icon={faSliders} />}
-          aria-label="Overview options"
-          aria-pressed={options.showOverviewOptions}
-          title="Overview options"
-          onClick={() => {
-            setFrontPanel(TILE_LOADING_DEBUG_PANEL_ID.OVERVIEW_OPTIONS);
-            onOptionsChange({
-              showOverviewOptions: !options.showOverviewOptions,
-            });
-          }}
+          fullControls={false}
+          onToggleOptions={toggleOverviewOptions}
         />
       )}
-      {(panel.id === TILE_LOADING_DEBUG_PANEL_ID.OVERVIEW_OPTIONS ||
-        panel.id === TILE_LOADING_DEBUG_PANEL_ID.OVERVIEW) && (
-        <Button
-          className="tile-debug-header-toggle"
-          type="text"
-          icon={<FontAwesomeIcon icon={faCircleInfo} />}
-          aria-label="Show / hide overview legend"
-          aria-pressed={options.showLegend}
-          title={options.showLegend ? "Hide legend" : "Show legend"}
-          onClick={() => onOptionsChange({ showLegend: !options.showLegend })}
-        >
-          Legend
-        </Button>
-      )}
     </DiagnosticWindowActions>
+  );
+  const overviewControlOverlay = panel.id ===
+    TILE_LOADING_DEBUG_PANEL_ID.OVERVIEW && (
+    <>
+      <div
+        className="tile-debug-overview-controls tile-debug-overview-camera-controls tile-debug-window-controls"
+        data-test-id="mesh-coverage-overview-controls"
+        role="group"
+        aria-label="Overview camera controls"
+      >
+        <TileLoadingDebugOverviewControls
+          options={options}
+          onOptionsChange={onOptionsChange}
+          windowed={
+            overviewMode === TILE_LOADING_DEBUG_OVERVIEW_MODE.WINDOW ||
+            overviewIsExternal
+          }
+          fullControls
+          cameraControls
+          displayControls={false}
+          onToggleOptions={toggleOverviewOptions}
+        />
+      </div>
+      <div
+        className="tile-debug-overview-controls tile-debug-overview-display-controls tile-debug-window-controls"
+        role="group"
+        aria-label="Overview display controls"
+        style={{ right: external ? 64 : 4 }}
+      >
+        <TileLoadingDebugOverviewControls
+          options={options}
+          onOptionsChange={onOptionsChange}
+          windowed={
+            overviewMode === TILE_LOADING_DEBUG_OVERVIEW_MODE.WINDOW ||
+            overviewIsExternal
+          }
+          fullControls
+          cameraControls={false}
+          displayControls
+          onToggleOptions={toggleOverviewOptions}
+        />
+      </div>
+      <TileLoadingDebugOverviewLegend
+        open={options.showLegend && legendExpanded}
+        onToggle={() => {
+          setLegendExpanded(!legendExpanded || !options.showLegend);
+          onOptionsChange({ showLegend: true });
+        }}
+      >
+        {legend}
+      </TileLoadingDebugOverviewLegend>
+      <TileLoadingDebugOverviewStats
+        runtimeHandle={runtimeHandle}
+        summary={summary}
+      />
+    </>
   );
   return (
     <div key={panel.id}>
@@ -298,7 +268,7 @@ export const TileLoadingDebugPanelWindow = ({
             alignItems: "center",
             gap: 6,
             padding: "2px 4px 2px 8px",
-            height: 32,
+            height: isOverview ? 28 : 32,
             boxSizing: "border-box",
             background:
               panel.id === TILE_LOADING_DEBUG_PANEL_ID.CHARTS
@@ -416,24 +386,16 @@ export const TileLoadingDebugPanelWindow = ({
         >
           <FontAwesomeIcon icon={faGripVertical} style={{ color: "#82909e" }} />
           <FontAwesomeIcon icon={panel.icon} />
-          <span style={{ flex: 1 }}>
-            {panel.id === TILE_LOADING_DEBUG_PANEL_ID.OVERVIEW_OPTIONS
-              ? "Overview"
-              : panel.id === TILE_LOADING_DEBUG_PANEL_ID.OVERVIEW
-              ? "Kacheln"
-              : panel.label}
-            {panel.id === TILE_LOADING_DEBUG_PANEL_ID.OVERVIEW && summary && (
-              <span
-                style={{
-                  fontWeight: 400,
-                  color: "#64748b",
-                  marginLeft: 6,
-                }}
-              >
-                Aktiv {summary.displayed} · Laden {summary.pending} · Cache{" "}
-                {summary.resident}
-              </span>
-            )}
+          <span
+            style={{
+              flex: 1,
+              minWidth: 0,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {panel.label}
           </span>
           {windowControls}
         </header>
@@ -441,11 +403,12 @@ export const TileLoadingDebugPanelWindow = ({
           data-test-id={`mesh-coverage-panel-body-${panel.id}`}
           style={{
             position: isLegend ? "absolute" : "relative",
+            containerType: isOverview ? "inline-size" : undefined,
             bottom: isLegend ? "100%" : undefined,
             display: isLegend && !legendExpanded ? "none" : undefined,
             width: formPanel ? 304 : panel.width,
             height: canvasPanel ? panel.height : "auto",
-            minWidth: 220,
+            minWidth: isOverview ? 160 : 220,
             minHeight: canvasPanel ? 100 : undefined,
             maxWidth: "calc(100vw - 32px)",
             maxHeight: isLegend
@@ -462,12 +425,13 @@ export const TileLoadingDebugPanelWindow = ({
                 : 0,
             boxSizing: "border-box",
             background:
-              panel.id === TILE_LOADING_DEBUG_PANEL_ID.OVERVIEW &&
+              isOverview &&
               overviewMode === TILE_LOADING_DEBUG_OVERVIEW_MODE.WINDOW
                 ? "rgb(38 46 56 / 94%)"
                 : undefined,
           }}
         >
+          {overviewControlOverlay}
           {visible &&
             !external &&
             (!isLegend || legendExpanded) &&
@@ -476,7 +440,7 @@ export const TileLoadingDebugPanelWindow = ({
       </section>
       <Popout
         open={visible === true && external === true}
-        title={`Tile coverage ${panel.label}`}
+        title={isOverview ? "Overview" : `Tile coverage ${panel.label}`}
         width={externalSizes.current[panel.id]?.width ?? panel.width}
         height={externalSizes.current[panel.id]?.height ?? panel.height}
         onClose={dock}
@@ -507,6 +471,7 @@ export const TileLoadingDebugPanelWindow = ({
           <div
             style={{
               position: "relative",
+              containerType: isOverview ? "inline-size" : undefined,
               height: "100%",
               overflow: "auto",
               padding:
@@ -522,9 +487,8 @@ export const TileLoadingDebugPanelWindow = ({
               boxSizing: "border-box",
             }}
           >
-            {panel.id === TILE_LOADING_DEBUG_PANEL_ID.OVERVIEW
-              ? renderOverview(true)
-              : panel.content()}
+            {overviewControlOverlay}
+            {isOverview ? renderOverview(true) : panel.content()}
           </div>
         </div>
       </Popout>

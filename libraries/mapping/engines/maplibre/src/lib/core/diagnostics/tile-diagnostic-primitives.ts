@@ -1,3 +1,4 @@
+import { formatTileResidentBytes } from "./tile-diagnostic-labels";
 import { FILL, OVERVIEW_COLORS, TILE_STEPS } from "./tile-diagnostic-model";
 import {
   TILE_RECORD_FLOATS,
@@ -11,14 +12,53 @@ import {
   TILE_KINDS,
   TILE_PHASES,
   PHASE_SWEEP,
+  PRIMITIVE_FLOATS,
+  type DiagnosticLegendEntry,
   type DiagnosticSnapshot,
   rgba,
 } from "./tile-diagnostic-scene";
 
 export const buildDiagnosticPrimitives = (
-  snapshot: DiagnosticSnapshot
+  snapshot: DiagnosticSnapshot,
+  onLegend?: (entries: DiagnosticLegendEntry[]) => void,
+  onPrimitive?: (offset: number, record: number) => void
 ): Float32Array => {
   const values: number[] = [];
+  let record = -1;
+  const legend = onLegend ? new Map<string, DiagnosticLegendEntry>() : null;
+  const remember = (
+    entry?: readonly [id: string, label: string],
+    append = false
+  ) => {
+    if (!entry || !legend) return;
+    const previous = legend.get(entry[0]);
+    if (
+      previous &&
+      (!append || previous.primitives.length >= PRIMITIVE_FLOATS * 2)
+    )
+      return;
+    const primitive = values.slice(-PRIMITIVE_FLOATS);
+    if (!primitive.every(Number.isFinite)) return;
+    primitive.splice(
+      0,
+      4,
+      6,
+      6,
+      primitive[4] === 4 ? 3 : 5,
+      primitive[4] === 4 ? 3 : 5
+    );
+    if (primitive[4] === 1 || primitive[4] === 2)
+      primitive[6] = Math.min(2, primitive[6]);
+    if (primitive[4] === 6 && entry[0].startsWith("step-")) {
+      primitive[6] = 0;
+      primitive[7] = 0.25;
+    }
+    legend.set(entry[0], {
+      id: entry[0],
+      label: entry[1],
+      primitives: previous ? [...previous.primitives, ...primitive] : primitive,
+    });
+  };
   const faded = (color: readonly number[], alpha: number) => [
     color[0],
     color[1],
@@ -33,7 +73,9 @@ export const buildDiagnosticPrimitives = (
     progress: number,
     color: string,
     fill = "rgba(0,0,0,0)",
-    alpha = 1
+    alpha = 1,
+    legendEntry?: readonly [id: string, label: string],
+    appendLegend = false
   ) => {
     if (!position.every(Number.isFinite)) return;
     values.push(
@@ -45,6 +87,8 @@ export const buildDiagnosticPrimitives = (
       ...faded(rgba(color), alpha),
       ...faded(rgba(fill), alpha)
     );
+    onPrimitive?.(values.length - PRIMITIVE_FLOATS, record);
+    remember(legendEntry, appendLegend);
   };
   const rect = (
     x: number,
@@ -54,7 +98,8 @@ export const buildDiagnosticPrimitives = (
     stroke: number,
     color: string,
     fill?: string,
-    alpha = 1
+    alpha = 1,
+    legendEntry?: readonly [id: string, label: string]
   ) =>
     add(
       [x + w / 2, y + h / 2, w / 2, h / 2],
@@ -64,11 +109,15 @@ export const buildDiagnosticPrimitives = (
       0,
       color,
       fill,
-      alpha
+      alpha,
+      legendEntry
     );
   if (snapshot.extent) {
     const { x, y, w, h } = snapshot.extent;
-    rect(x, y, w, h, 1, OVERVIEW_COLORS.grid);
+    rect(x, y, w, h, 1, OVERVIEW_COLORS.grid, undefined, 1, [
+      "extent",
+      "Tileset extent",
+    ]);
   }
   const data = snapshot.tiles;
   // Optimistic progress needs a yardstick: the median cost of the tiles that
@@ -120,26 +169,30 @@ export const buildDiagnosticPrimitives = (
   // tile of the cut fits into the hundred cells.
   let byteUnit = 10 * 1024;
   while (maximumBytes / byteUnit > SIZE_GRID * SIZE_GRID) byteUnit *= 10;
+  const byteLegend: readonly [string, string] | undefined = legend
+    ? ["bytes", `1 cell = ${formatTileResidentBytes(byteUnit)}`]
+    : undefined;
   for (let i = 0; i < data.length; i += TILE_RECORD_FLOATS) {
+    record = i / TILE_RECORD_FLOATS;
     const [x, y, w, h, kind, flags] = data.subarray(i, i + 6);
     const outlier = isOutlier(i);
-    const color = outlier
-      ? OVERVIEW_COLORS.failed
+    const [id, label, color] = outlier
+      ? ["slow", "Slow tile", OVERVIEW_COLORS.failed]
       : flags & 32
-      ? OVERVIEW_COLORS.grid
+      ? ["viewport", "Viewport", OVERVIEW_COLORS.grid]
       : flags & 64
-      ? OVERVIEW_COLORS.seam
+      ? ["seam", "Seam", OVERVIEW_COLORS.seam]
       : flags & 128
-      ? OVERVIEW_COLORS.reserve
+      ? ["base", "Base", OVERVIEW_COLORS.reserve]
       : flags & 4
-      ? OVERVIEW_COLORS.baseline
+      ? ["retained", "Outside views", OVERVIEW_COLORS.baseline]
       : flags & 1
-      ? OVERVIEW_COLORS.reserve
+      ? ["base", "Base", OVERVIEW_COLORS.reserve]
       : flags & 2
-      ? OVERVIEW_COLORS.ring
+      ? ["ring", "LOD ring", OVERVIEW_COLORS.ring]
       : kind < 0
-      ? OVERVIEW_COLORS.parent
-      : OVERVIEW_COLORS.grid;
+      ? ["ancestor", "Coarser boundary", OVERVIEW_COLORS.parent]
+      : ["content", "Content", OVERVIEW_COLORS.grid];
     rect(
       x,
       y,
@@ -156,10 +209,12 @@ export const buildDiagnosticPrimitives = (
         : flags & 128
         ? "rgba(255,156,240,0.18)"
         : FILL[TILE_KINDS[kind]],
-      outlier ? 1 : opacityOf(data[i + TILE_LEVEL_OFFSET])
+      outlier ? 1 : opacityOf(data[i + TILE_LEVEL_OFFSET]),
+      [id, label]
     );
   }
   for (let i = 0; i < data.length; i += TILE_RECORD_FLOATS) {
+    record = i / TILE_RECORD_FLOATS;
     const [x, y, w, h, kind, , , , , , bytes] = data.subarray(
       i,
       i + TILE_RECORD_FLOATS
@@ -185,7 +240,8 @@ export const buildDiagnosticPrimitives = (
         0.6,
         OVERVIEW_COLORS.baseline,
         OVERVIEW_COLORS.baseline,
-        gridAlpha
+        gridAlpha,
+        byteLegend
       );
   }
   // One instance evaluates every concentric contour; no per-step geometry or cap.
@@ -196,6 +252,7 @@ export const buildDiagnosticPrimitives = (
     snapshot.showStats !== false && i < data.length;
     i += TILE_RECORD_FLOATS
   ) {
+    record = i / TILE_RECORD_FLOATS;
     const [x, y, w, h, kind, flags, minimum, maximum, phase] = data.subarray(
       i,
       i + 9
@@ -231,20 +288,16 @@ export const buildDiagnosticPrimitives = (
       stepTimes.forEach((ms, slot) => {
         if (!(ms > 0)) return;
         const end = start + (ms / stepTotal) * sweep;
-        values.push(
-          x + w / 2,
-          y + h / 2,
-          radius,
-          radius,
+        add(
+          [x + w / 2, y + h / 2, radius, radius],
           6,
           1,
           start,
           end,
-          ...faded(rgba(TILE_STEPS[slot].color), pieAlpha * 0.85),
-          0,
-          0,
-          0,
-          0
+          TILE_STEPS[slot].color,
+          undefined,
+          pieAlpha * 0.85,
+          [`step-${slot}`, TILE_STEPS[slot].label]
         );
         start = end;
       });
@@ -260,7 +313,8 @@ export const buildDiagnosticPrimitives = (
           ? OVERVIEW_COLORS.quality
           : OVERVIEW_COLORS.processing,
         undefined,
-        pieAlpha
+        pieAlpha,
+        ["time", "Ring = median · area = time"]
       );
       continue;
     }
@@ -268,7 +322,17 @@ export const buildDiagnosticPrimitives = (
     // A terminal tile cannot refine further: a fixed-size centroid dot replaces
     // hypothetical remaining LOD circles.
     if (flags & 16 && minimum > 0) {
-      add([x + w / 2, y + h / 2, 3, 3], 4, 0, 0, 0, OVERVIEW_COLORS.quality);
+      add(
+        [x + w / 2, y + h / 2, 3, 3],
+        4,
+        0,
+        0,
+        0,
+        OVERVIEW_COLORS.quality,
+        undefined,
+        1,
+        ["quality-leaf", "Finest tile · target unmet"]
+      );
       if (!phase) continue;
     }
     const count = Number.isFinite(minimum)
@@ -285,27 +349,28 @@ export const buildDiagnosticPrimitives = (
         1.2,
         count,
         0,
-        OVERVIEW_COLORS.quality
+        OVERVIEW_COLORS.quality,
+        undefined,
+        1,
+        minimum < 0
+          ? ["quality-excess", "Finer than target"]
+          : ["quality-detail", "Needs detail"]
       );
     // A tile that reports no timings still reads as a pie: one wedge swept by
     // how far its phase has come, the same shape as everywhere else.
     const progress = PHASE_SWEEP[TILE_PHASES[phase]] ?? 0;
     if (progress <= 0) continue;
     const pieRadius = Math.min(w, h) / 3;
-    values.push(
-      x + w / 2,
-      y + h / 2,
-      pieRadius,
-      pieRadius,
+    add(
+      [x + w / 2, y + h / 2, pieRadius, pieRadius],
       6,
       1,
       0,
       progress,
-      ...faded(rgba(OVERVIEW_COLORS.processing), 0.75),
-      0,
-      0,
-      0,
-      0
+      OVERVIEW_COLORS.processing,
+      undefined,
+      0.75,
+      [`phase-${phase}`, ["", "Queued", "Downloading", "Ready"][phase]]
     );
     add(
       [x + w / 2, y + h / 2, pieRadius, pieRadius],
@@ -313,8 +378,13 @@ export const buildDiagnosticPrimitives = (
       1.2,
       1,
       0,
-      OVERVIEW_COLORS.processing
+      OVERVIEW_COLORS.processing,
+      undefined,
+      1,
+      [`phase-${phase}`, ["", "Queued", "Downloading", "Ready"][phase]],
+      true
     );
   }
+  if (legend) onLegend?.([...legend.values()]);
   return new Float32Array(values);
 };
