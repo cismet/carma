@@ -6,7 +6,7 @@ The Cesium viewer is the legacy implementation. This change does not update its 
 
 ## Imagery series
 
-The host declares a list of series. The panel enables each independently: 2024, the full 2026 delivery, the 41-image 2026 Rathaus sample, any combination, or none. Enabled series participate in one geometric selection. Source image names are opaque asset identifiers; a series-qualified key identifies records in state and indexes. A filename shared by two years therefore remains two separate records and URLs always use the original source name.
+The host declares a list of series. The panel's multiple-selection dropdown enables each independently: 2024, the full 2026 delivery, the 41-image 2026 Rathaus sample, any combination, or none. Enabled series participate in one geometric selection. Source image names are opaque asset identifiers; a series-qualified key identifies records in state and indexes. A filename shared by two years therefore remains two separate records and URLs always use the original source name.
 
 Each series owns its metadata URI, asset base URL, camera calibrations, source conventions and height datum. 2024 has no nadir assets. 2026 includes all five Osprey heads; camera-relative labels LE/RI/FW/BW/NA do not define fixed north/east/south/west eligibility.
 
@@ -17,6 +17,14 @@ Metadata and asset availability are separate. The 2026 preset prepares the viewe
 Best-fit selection evaluates the requested ground target and continuous camera bearing/pitch against the poses and camera field of view of enabled series. Geographic cardinal sectors are presentation/navigation hints, not candidate bins. Orbit requests change the desired view direction; pan requests change the target in the current image-view frame. Both requests search enabled series and may choose a different year. No-enabled-series and no-candidate results are valid empty states.
 
 A delivered footprint is optional. Core selection can use calibrated camera rays and a target/reference-height plane; an approximate center/coverage test is not a terrain-occlusion check or a surveyed footprint. Terrain-derived polygons can be added later without changing the authoritative pose source.
+
+The selected footprint carries an open two-line caret with a 120-degree tip at
+the image-bottom boundary, pointing toward image up, and its series' explicit
+`acquisitionYear` at the polygon centroid. The caret shares the outline's colour
+and line width; the year uses that colour at 50% opacity, weight 800 and no stroke. Camera roll and the projected image-up axis determine orientation;
+polygon start corner and winding do not. Both markers follow sampled terrain
+heights, draw above 3D layers and share the outline's preview fade. An unknown
+acquisition year produces no year label.
 
 ## Data contract
 
@@ -34,12 +42,16 @@ The 2026 delivery contains 30,172 images (23,823 oblique and 6,349 nadir). Its 4
 
 ## Run the Rathaus sample
 
+The local-development route `#/oblique?ff=ng` starts the addon and loads the
+existing Mesh 2024 style by default. Its layer visibility is remembered in the
+route's own storage namespace.
+
 From this worktree, with SSH access to `amy.cismet.de`:
 
 ```sh
 python3 scripts/oblique-viewer/serve-originals.py
 ```
 
-The local-development Geoportal addon connects to `http://127.0.0.1:8926`. Use the Geoportal dev server for this branch at its normal `http://localhost:4200` URL and enable the MapLibre and oblique addon flags (`ng` and `oblqml`). The bridge serves the committed 41-image sample catalog, JPEG views generated on demand and original TIFF downloads. The checkbox list keeps the Rathaus sample separate from the full 2026 delivery. See the [script guide](../../../scripts/oblique-viewer/README.md) for options and delivery validation.
+The local-development Geoportal addon connects to `http://127.0.0.1:8926`. Use the Geoportal dev server for this branch at its normal `http://localhost:4200` URL and enable the MapLibre and oblique addon flags (`ng` and `oblqml`). The bridge serves the committed 41-image sample catalog, JPEG views generated on demand and original TIFF downloads. The multiple-selection dropdown keeps the Rathaus sample separate from the full 2026 delivery. See the [script guide](../../../scripts/oblique-viewer/README.md) for options and delivery validation.
 
 The full 2026 upload is being placed under `/mnt/storagebox/luftbildschraegaufnahmen2026`. It is not the Rathaus bridge source and must be inventoried and validated after transfer before enabling the full-flight asset configuration.

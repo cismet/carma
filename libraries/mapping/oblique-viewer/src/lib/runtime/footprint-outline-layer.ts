@@ -12,7 +12,8 @@ import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
 
 import { get3dLayerIds } from "@carma-mapping/engines/maplibre";
 
-import type { AnimationConfig } from "../core/types";
+import type { AnimationConfig, ObliquePose } from "../core/types";
+import { footprintMarkerGeometry } from "../core/utils/footprint-marker";
 
 /**
  * The outline of the selected image's footprint, drawn over everything 3D.
@@ -40,7 +41,13 @@ export type FootprintOutlineStyle = {
 
 export type FootprintOutlineLayer = {
   /** the footprint's outer ring in lon/lat, or null for none */
-  setRing: (ring: Position[] | null) => void;
+  setRing: (
+    ring: Position[] | null,
+    annotation?: {
+      pose: ObliquePose | null;
+      acquisitionYear?: number;
+    }
+  ) => void;
   setStyle: (style: FootprintOutlineStyle) => void;
   /** fade out and stay out while locked; the first call sets the state without a fade */
   setLocked: (locked: boolean, fade?: AnimationConfig) => void;
@@ -85,6 +92,9 @@ export const createFootprintOutlineLayer = (
   /** the densified ring in lon/lat, and the terrain height under each point */
   let points: [number, number][] = [];
   let heights: number[] = [];
+  let markerPoints: [number, number][] = [];
+  let arrowVertexCount = 0;
+  let labelYear: number | undefined;
   /** the same points in the local frame, as drawn */
   let localPoints: THREE.Vector3[] = [];
   /** the local frame: metres around the ring's first corner, up is up */
@@ -104,6 +114,18 @@ export const createFootprintOutlineLayer = (
   line.frustumCulled = false;
   const scene = new THREE.Scene();
   scene.add(line);
+  const labelMaterial = new THREE.MeshBasicMaterial({
+    color: style.color,
+    transparent: true,
+    depthTest: false,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+  });
+  const arrow = new Line2(new LineGeometry(), material);
+  const yearLabel = new THREE.Mesh(new THREE.BufferGeometry(), labelMaterial);
+  arrow.frustumCulled = yearLabel.frustumCulled = false;
+  arrow.visible = yearLabel.visible = false;
+  scene.add(arrow, yearLabel);
   const camera = new THREE.Camera();
   let renderer: THREE.WebGLRenderer | null = null;
 
@@ -145,7 +167,7 @@ export const createFootprintOutlineLayer = (
    */
   const updateHeights = (): boolean => {
     if (points.length < 2) return false;
-    const next = points.map(
+    const next = [...points, ...markerPoints].map(
       ([lng, lat]) => map.queryTerrainElevation([lng, lat]) ?? 0
     );
     const unchanged =
@@ -160,11 +182,165 @@ export const createFootprintOutlineLayer = (
     localPoints = points.map(([lng, lat], index) =>
       toLocal(lng, lat, heights[index])
     );
-    const positions = localPoints.flatMap((point) => [point.x, point.y, point.z]);
+    const positions = localPoints.flatMap((point) => [
+      point.x,
+      point.y,
+      point.z,
+    ]);
     const previous = line.geometry;
     line.geometry = new LineGeometry().setPositions(positions);
     previous.dispose();
+    const markerPositions = markerPoints.flatMap(([lng, lat], index) =>
+      toLocal(lng, lat, heights[points.length + index]).toArray()
+    );
+    const setPositions = (mesh: THREE.Mesh, values: number[]) => {
+      const attribute = mesh.geometry.getAttribute("position");
+      if (
+        attribute instanceof THREE.BufferAttribute &&
+        attribute.array.length === values.length
+      ) {
+        attribute.array.set(values);
+        attribute.needsUpdate = true;
+      } else {
+        mesh.geometry.setAttribute(
+          "position",
+          new THREE.Float32BufferAttribute(values, 3)
+        );
+      }
+    };
+    const previousArrow = arrow.geometry;
+    arrow.geometry = new LineGeometry();
+    const arrowPositions = markerPositions.slice(0, arrowVertexCount * 3);
+    if (arrowPositions.length >= 6) arrow.geometry.setPositions(arrowPositions);
+    previousArrow.dispose();
+    setPositions(yearLabel, markerPositions.slice(arrowVertexCount * 3));
     return true;
+  };
+
+  /** The open caret and text follow sampled terrain and the outline's fade. */
+  const updateMarkers = (
+    ring: Position[],
+    annotation: Parameters<FootprintOutlineLayer["setRing"]>[1]
+  ): void => {
+    markerPoints = [];
+    arrowVertexCount = 0;
+    arrow.visible = yearLabel.visible = false;
+    arrow.geometry.dispose();
+    yearLabel.geometry.dispose();
+    arrow.geometry = new LineGeometry();
+    yearLabel.geometry = new THREE.BufferGeometry();
+    if (!annotation?.pose) return;
+    const polygon = ring.map(([lng, lat]) => {
+      const local = toLocal(lng, lat, 0);
+      return new THREE.Vector2(local.x, -local.y);
+    });
+    const marker = footprintMarkerGeometry(polygon, annotation.pose);
+    if (!marker) return;
+    const uv: number[] = [];
+    const appendTriangle = (
+      vertices: THREE.Vector2[],
+      texture: THREE.Vector2[]
+    ) => {
+      const [a, b, c] = vertices;
+      const steps = Math.max(
+        1,
+        Math.ceil(
+          Math.max(a.distanceTo(b), b.distanceTo(c), c.distanceTo(a)) /
+            SEGMENT_METERS
+        )
+      );
+      const vertex = (i: number, j: number) => {
+        const x = i / steps,
+          y = j / steps;
+        const point = a
+          .clone()
+          .multiplyScalar(1 - x - y)
+          .addScaledVector(b, x)
+          .addScaledVector(c, y);
+        const ll = new MercatorCoordinate(
+          origin.x + point.x * meterScale,
+          origin.y - point.y * meterScale
+        ).toLngLat();
+        markerPoints.push([ll.lng, ll.lat]);
+        const tex = texture[0]
+          .clone()
+          .multiplyScalar(1 - x - y)
+          .addScaledVector(texture[1], x)
+          .addScaledVector(texture[2], y);
+        uv.push(tex.x, tex.y);
+      };
+      for (let i = 0; i < steps; i++) {
+        for (let j = 0; i + j < steps; j++) {
+          vertex(i, j);
+          vertex(i + 1, j);
+          vertex(i, j + 1);
+          if (i + j + 1 < steps) {
+            vertex(i + 1, j);
+            vertex(i + 1, j + 1);
+            vertex(i, j + 1);
+          }
+        }
+      }
+    };
+    const [tip, right, left] = marker.triangle;
+    const caret = [right, tip, left].map((point) => {
+      const ll = new MercatorCoordinate(
+        origin.x + point.x * meterScale,
+        origin.y - point.y * meterScale
+      ).toLngLat();
+      return [ll.lng, ll.lat];
+    });
+    markerPoints = densify(caret);
+    arrowVertexCount = markerPoints.length;
+    arrow.visible = true;
+    uv.length = 0;
+    const year = annotation.acquisitionYear;
+    if (
+      typeof year !== "number" ||
+      !Number.isInteger(year) ||
+      year < 1 ||
+      year > 9999
+    )
+      return;
+    if (year !== labelYear) {
+      const canvas = document.createElement("canvas");
+      canvas.width = 512;
+      canvas.height = 256;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      ctx.font = "800 172px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = "white";
+      ctx.fillText(String(year), 256, 132);
+      labelMaterial.map?.dispose();
+      labelMaterial.map = new THREE.CanvasTexture(canvas);
+      labelMaterial.map.colorSpace = THREE.SRGBColorSpace;
+      labelMaterial.needsUpdate = true;
+      labelYear = year;
+    }
+    const [tl, tr, br, bl] = marker.labelCorners;
+    appendTriangle(
+      [tl, tr, bl],
+      [
+        new THREE.Vector2(0, 1),
+        new THREE.Vector2(1, 1),
+        new THREE.Vector2(0, 0),
+      ]
+    );
+    appendTriangle(
+      [tr, br, bl],
+      [
+        new THREE.Vector2(1, 1),
+        new THREE.Vector2(1, 0),
+        new THREE.Vector2(0, 0),
+      ]
+    );
+    yearLabel.geometry.setAttribute(
+      "uv",
+      new THREE.Float32BufferAttribute(uv, 2)
+    );
+    yearLabel.visible = true;
   };
 
   /* ---------------------------------------------------------------- *
@@ -179,7 +355,8 @@ export const createFootprintOutlineLayer = (
    */
   const inFrontOfCamera = (matrix: THREE.Matrix4): boolean =>
     localPoints.every(
-      (point) => clip.set(point.x, point.y, point.z, 1).applyMatrix4(matrix).w > 0
+      (point) =>
+        clip.set(point.x, point.y, point.z, 1).applyMatrix4(matrix).w > 0
     );
 
   const layer: CustomLayerInterface = {
@@ -213,13 +390,24 @@ export const createFootprintOutlineLayer = (
       const matrix = new THREE.Matrix4()
         .fromArray(args.defaultProjectionData.mainMatrix as unknown as number[])
         .multiply(model);
-      if (!inFrontOfCamera(matrix)) return;
+      // Wide lines cannot clip a combined MapLibre camera matrix safely.
+      // Ordinary triangle meshes can, so keep markers when an edge is behind us.
+      line.visible = inFrontOfCamera(matrix);
+      arrow.visible =
+        markerPoints.slice(0, arrowVertexCount).length > 0 &&
+        markerPoints.slice(0, arrowVertexCount).every(([lng, lat], index) => {
+          const point = toLocal(lng, lat, heights[points.length + index]);
+          return (
+            clip.set(point.x, point.y, point.z, 1).applyMatrix4(matrix).w > 0
+          );
+        });
       camera.projectionMatrix.copy(matrix);
       camera.projectionMatrixInverse.copy(matrix).invert();
 
       const canvas = map.getCanvas();
       material.resolution.set(canvas.clientWidth, canvas.clientHeight);
       material.opacity = opacity;
+      labelMaterial.opacity = opacity * 0.5;
 
       // MapLibre's depth range must survive three's state reset, or the
       // layers after this one test against the wrong depth space
@@ -271,20 +459,26 @@ export const createFootprintOutlineLayer = (
   attach();
 
   return {
-    setRing: (ring) => {
+    setRing: (ring, annotation) => {
       if (!ring || ring.length < 2) {
         points = [];
         heights = [];
         localPoints = [];
+        markerPoints = [];
+        arrow.visible = yearLabel.visible = false;
         map.triggerRepaint();
         return;
       }
-      origin = MercatorCoordinate.fromLngLat({ lng: ring[0][0], lat: ring[0][1] });
+      origin = MercatorCoordinate.fromLngLat({
+        lng: ring[0][0],
+        lat: ring[0][1],
+      });
       meterScale = origin.meterInMercatorCoordinateUnits();
       model
         .makeTranslation(origin.x, origin.y, 0)
         .scale(new THREE.Vector3(meterScale, meterScale, meterScale));
       points = densify(ring);
+      updateMarkers(ring, annotation);
       heights = [];
       updateHeights();
       map.triggerRepaint();
@@ -292,6 +486,7 @@ export const createFootprintOutlineLayer = (
     setStyle: (next) => {
       style = next;
       material.color.set(next.color);
+      labelMaterial.color.set(next.color);
       material.linewidth = next.width;
       map.triggerRepaint();
     },
@@ -328,6 +523,10 @@ export const createFootprintOutlineLayer = (
       }
       line.geometry.dispose();
       material.dispose();
+      arrow.geometry.dispose();
+      yearLabel.geometry.dispose();
+      labelMaterial.map?.dispose();
+      labelMaterial.dispose();
       renderer?.dispose();
       renderer = null;
     },

@@ -214,6 +214,7 @@ const CAMERAS_2024: Record<string, ObliqueCameraCalibration> =
 export const WUPPERTAL_OBLIQUE_2024: ObliqueDataset = {
   id: "wuppertal-2024",
   label: "Schrägluftbilder 2024",
+  acquisitionYear: 2024,
   enabledByDefault: true,
   metadataFormat: "legacy-array-map",
   heightDatum: "dhhn2016",
@@ -307,6 +308,11 @@ export const resolveDataset = (
   return {
     ...WUPPERTAL_OBLIQUE_2024,
     ...dataset,
+    acquisitionYear:
+      dataset.acquisitionYear ??
+      (!dataset.id || dataset.id === WUPPERTAL_OBLIQUE_2024.id
+        ? 2024
+        : undefined),
     animations: {
       ...WUPPERTAL_OBLIQUE_2024.animations,
       ...(dataset.animations ?? {}),
@@ -364,6 +370,7 @@ export const WUPPERTAL_OBLIQUE_2026: ObliqueDataset = {
   ...WUPPERTAL_OBLIQUE_2024,
   id: "wuppertal-2026",
   label: "Schrägluftbilder 2026",
+  acquisitionYear: 2026,
   enabledByDefault: false,
   metadataFormat: "inpho-v1",
   heightDatum: "unknown",

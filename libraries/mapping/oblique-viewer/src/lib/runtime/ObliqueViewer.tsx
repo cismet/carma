@@ -268,6 +268,8 @@ export const ObliqueViewer = ({
     enabled: running,
     footprintData: data?.footprintData ?? null,
     selectedImageId,
+    selectedRecord,
+    acquisitionYear: selectedDataset.acquisitionYear,
     locked: previewVisible || isBusy,
     style: selectedDataset.footprintsStyle,
     fadeOut: selectedDataset.animations.outlineFadeOut,

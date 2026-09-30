@@ -1,12 +1,19 @@
 import { useEffect, useRef } from "react";
 import type { Map as MaplibreMap } from "maplibre-gl";
 
-import type { AnimationConfig, ObliqueFootprintsStyle } from "../../core/types";
+import type {
+  AnimationConfig,
+  ObliqueFootprintsStyle,
+  ObliqueImageRecord,
+} from "../../core/types";
 import {
   createFootprintOutlineLayer,
   type FootprintOutlineLayer,
 } from "../footprint-outline-layer";
-import { findMatchingFeature, type FootprintCollection } from "../utils/footprints";
+import {
+  findMatchingFeature,
+  type FootprintCollection,
+} from "../utils/footprints";
 
 /**
  * The outline of the selected image's footprint on the ground, as a custom
@@ -29,6 +36,8 @@ type UseFootprintLayerOptions = {
   enabled: boolean;
   footprintData: FootprintCollection | null;
   selectedImageId: string | null;
+  selectedRecord: ObliqueImageRecord | null;
+  acquisitionYear?: number;
   /** fade the outline out and keep it out until unlocked */
   locked: boolean;
   style?: ObliqueFootprintsStyle;
@@ -40,6 +49,8 @@ export const useFootprintLayer = ({
   enabled,
   footprintData,
   selectedImageId,
+  selectedRecord,
+  acquisitionYear,
   locked,
   style,
   fadeOut,
@@ -76,8 +87,18 @@ export const useFootprintLayer = ({
       footprintData && selectedImageId
         ? findMatchingFeature(footprintData.features, selectedImageId)
         : undefined;
-    layerRef.current?.setRing(feature?.geometry.coordinates[0] ?? null);
-  }, [map, enabled, footprintData, selectedImageId]);
+    layerRef.current?.setRing(feature?.geometry.coordinates[0] ?? null, {
+      pose: selectedRecord?.pose ?? null,
+      acquisitionYear,
+    });
+  }, [
+    map,
+    enabled,
+    footprintData,
+    selectedImageId,
+    selectedRecord,
+    acquisitionYear,
+  ]);
 
   // the look
   useEffect(() => {

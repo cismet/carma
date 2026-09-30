@@ -6,6 +6,39 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 vi.mock("antd", () => ({
   Tooltip: ({ children }: { children: ReactNode }) => children,
   Slider: () => null,
+  Select: ({
+    value,
+    options,
+    onChange,
+    ...props
+  }: {
+    value: string[];
+    options: { value: string; label: string }[];
+    onChange: (ids: string[]) => void;
+    "aria-label": string;
+  }) =>
+    createElement(
+      "select",
+      {
+        multiple: true,
+        "aria-label": props["aria-label"],
+        value,
+        onChange: (event: { currentTarget: HTMLSelectElement }) =>
+          onChange(
+            Array.from(
+              event.currentTarget.selectedOptions,
+              (option) => option.value
+            )
+          ),
+      },
+      options.map((option) =>
+        createElement(
+          "option",
+          { key: option.value, value: option.value },
+          option.label
+        )
+      )
+    ),
 }));
 vi.mock("@carma-mapping/components", () => ({ ContactMailButton: () => null }));
 vi.mock("./utils/imageUrls", () => ({ downloadAsBlobAsync: vi.fn() }));
@@ -91,21 +124,24 @@ const Harness = ({ failure2026 = false }: { failure2026?: boolean }) => {
 describe("oblique series controls", () => {
   it("lets users enable either series, both, or none independently", () => {
     render(createElement(Harness));
-    const image2024 = screen.getByRole("checkbox", {
-      name: /Wuppertal 2024/,
-    }) as HTMLInputElement;
-    const image2026 = screen.getByRole("checkbox", {
-      name: /Wuppertal 2026/,
-    }) as HTMLInputElement;
-    expect(image2024.checked).toBe(true);
-    expect(image2026.checked).toBe(false);
-    fireEvent.click(image2026);
-    expect(image2024.checked && image2026.checked).toBe(true);
-    fireEvent.click(image2024);
-    expect(image2024.checked).toBe(false);
-    expect(image2026.checked).toBe(true);
-    fireEvent.click(image2026);
-    expect(image2024.checked || image2026.checked).toBe(false);
+    const select = screen.getByRole("listbox", {
+      name: "Bildserien",
+    }) as HTMLSelectElement;
+    const selected = () =>
+      Array.from(select.selectedOptions, (option) => option.value);
+    const choose = (ids: string[]) => {
+      Array.from(select.options).forEach((option) => {
+        option.selected = ids.includes(option.value);
+      });
+      fireEvent.change(select);
+    };
+    expect(selected()).toEqual([series[0].id]);
+    choose([series[0].id, series[1].id]);
+    expect(selected()).toEqual([series[0].id, series[1].id]);
+    choose([series[1].id]);
+    expect(selected()).toEqual([series[1].id]);
+    choose([]);
+    expect(selected()).toEqual([]);
     expect(
       (
         screen.getByRole("button", {
@@ -118,7 +154,7 @@ describe("oblique series controls", () => {
 
   it("reports a failed 2026 series while a selected 2024 image remains usable", () => {
     render(createElement(Harness, { failure2026: true }));
-    expect(screen.getByText("Metadaten 2026 fehlen")).toBeTruthy();
+    expect(screen.getByText(/Metadaten 2026 fehlen/)).toBeTruthy();
     expect(
       (
         screen.getByRole("button", {
@@ -126,12 +162,11 @@ describe("oblique series controls", () => {
         }) as HTMLButtonElement
       ).disabled
     ).toBe(false);
+    const select = screen.getByRole("listbox", {
+      name: "Bildserien",
+    }) as HTMLSelectElement;
     expect(
-      (
-        screen.getByRole("checkbox", {
-          name: /Wuppertal 2024/,
-        }) as HTMLInputElement
-      ).checked
-    ).toBe(true);
+      Array.from(select.selectedOptions, (option) => option.value)
+    ).toContain(series[0].id);
   });
 });

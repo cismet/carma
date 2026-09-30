@@ -164,6 +164,8 @@ export type UpVectorMapping = { rowIndex: 0 | 1 | 2; negate: boolean };
 export type ObliqueDataset = {
   id: string;
   label: string;
+  /** Calendar year of image acquisition, when known; never inferred from a label. */
+  acquisitionYear?: number;
   enabledByDefault?: boolean;
   metadataFormat: "legacy-array-map" | "inpho-v1";
   /** Source z datum; unknown forbids an aligned camera flight. */

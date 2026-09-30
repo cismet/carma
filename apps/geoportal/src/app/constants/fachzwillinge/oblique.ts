@@ -8,6 +8,9 @@ export const obliqueFachzwilling: FachzwillingRoute = {
   availability: {
     deployments: ["localDev"],
   },
+  defaultLayers: [
+    { styleUrl: "https://tiles.cismet.de/lod2/mesh2024.style.json" },
+  ],
   addons: [
     {
       addon: "obliqueViewer",

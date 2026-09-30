@@ -15,7 +15,7 @@ import {
   faPlane,
 } from "@fortawesome/free-solid-svg-icons";
 import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
-import { Slider, Tooltip } from "antd";
+import { Select, Slider, Tooltip } from "antd";
 
 import { ContactMailButton } from "@carma-mapping/components";
 
@@ -300,45 +300,51 @@ export const ObliquePanel = () => {
         />
       </div>
 
-      <div
-        className="mt-2 flex flex-wrap items-start gap-x-4 gap-y-1 border-0 border-t border-solid border-gray-200 pt-2"
-        aria-label="Bildserien"
-      >
-        {series.map((entry) => (
-          <label
-            key={entry.id}
-            className="m-0 flex max-w-full items-start gap-1.5 text-xs text-gray-700"
-          >
-            <input
-              type="checkbox"
-              checked={entry.enabled}
-              data-test-id={`oblique-series-${entry.id}`}
-              onChange={(event) => {
-                const current =
-                  enabledSeriesIds ??
-                  series.filter((item) => item.enabled).map((item) => item.id);
-                setEnabledSeriesIds(
-                  event.target.checked
-                    ? [...current, entry.id]
-                    : current.filter((id) => id !== entry.id)
-                );
-              }}
-            />
-            <span>
-              {entry.label}
-              {entry.enabled && entry.isLoading
+      <div className="mt-2 border-0 border-t border-solid border-gray-200 pt-2">
+        <label
+          htmlFor="oblique-series-select"
+          className="mb-1 block text-xs text-gray-500"
+        >
+          Bildserien
+        </label>
+        <Select
+          id="oblique-series-select"
+          aria-label="Bildserien"
+          data-test-id="oblique-series-select"
+          mode="multiple"
+          size="small"
+          allowClear
+          showSearch={false}
+          maxTagCount="responsive"
+          className="w-full"
+          placeholder="Bildserien auswählen"
+          value={
+            enabledSeriesIds ??
+            series.filter((entry) => entry.enabled).map((entry) => entry.id)
+          }
+          options={series.map((entry) => ({
+            value: entry.id,
+            label:
+              entry.label +
+              (entry.enabled && entry.isLoading
                 ? " · lädt …"
                 : entry.enabled && !entry.error
                 ? ` · ${entry.imageCount} Bilder`
-                : ""}
-              {entry.enabled && entry.error && (
-                <span className="block text-red-700" role="status">
-                  {entry.error}
-                </span>
-              )}
-            </span>
-          </label>
-        ))}
+                : ""),
+          }))}
+          onChange={setEnabledSeriesIds}
+        />
+        {series
+          .filter((entry) => entry.enabled && entry.error)
+          .map((entry) => (
+            <div
+              key={entry.id}
+              className="mt-1 text-xs text-red-700"
+              role="status"
+            >
+              {entry.label}: {entry.error}
+            </div>
+          ))}
       </div>
       <div
         className="mt-1 truncate text-xs text-gray-500"
