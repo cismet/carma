@@ -98,7 +98,7 @@ describe("spotPreviewFeatures", () => {
     expect(spotPreviewFeatures([], 0.5).features).toEqual([]);
   });
 
-  it("has one cover with a hole per spot, then a ring and a middle each", () => {
+  it("has one cover, then a ring and a middle for each spot", () => {
     const { features } = spotPreviewFeatures([spot, eastSpot], 0.6);
     expect(features.map(({ properties }) => properties?.["kind"])).toEqual([
       "cover",
@@ -107,14 +107,25 @@ describe("spotPreviewFeatures", () => {
       "middle",
       "middle",
     ]);
-    const [cover] = features;
-    expect(cover.properties).toEqual({ kind: "cover", dim: 0.6 });
-    expect(
-      cover.geometry.type === "Polygon" && cover.geometry.coordinates
-    ).toHaveLength(3);
+    expect(features[0].properties).toEqual({ kind: "cover", dim: 0.6 });
     const middle = features[3].geometry;
     expect(middle.type === "Point" && middle.coordinates).toEqual(
       mercatorToLngLat(center)
     );
+  });
+
+  /** the rings of the cover: the world's outline and one per opening */
+  const coverRings = (spots: readonly Spot[]) => {
+    const { geometry } = spotPreviewFeatures(spots, 0.6).features[0];
+    return geometry.type === "Polygon" ? geometry.coordinates : undefined;
+  };
+
+  it("cuts spots apart from each other out one by one", () => {
+    const farSpot = { ...eastSpot, center: east(400) };
+    expect(coverRings([spot, farSpot])).toHaveLength(3);
+  });
+
+  it("leaves overlapping spots one opening, not two holes that cross", () => {
+    expect(coverRings([spot, eastSpot])).toHaveLength(2);
   });
 });

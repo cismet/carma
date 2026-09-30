@@ -1,3 +1,5 @@
+import { difference, featureCollection, polygon } from "@turf/turf";
+
 import {
   HIGHLIGHT_RADIUS_RANGE_METERS,
   groundToMercator,
@@ -33,30 +35,40 @@ const RADIUS_LOG_PER_PX = Math.log(1.15) / 100;
 const DIM_PER_PX = 0.05 / 100;
 
 /**
- * The layer as GeoJSON: one cover with a hole per spot, as dark as the layer
- * says, and an outline and a middle for each spot.
+ * The world with every spot cut out. Not one hole per spot: holes that
+ * overlap make an invalid polygon, which the map draws as wedges. Cut out one
+ * by one, overlapping spots leave their union bright, and a patch the spots
+ * enclose stays dark, the same as on the display.
+ */
+const coverGeometry = (
+  rings: readonly [number, number][][]
+): GeoJSON.Polygon | GeoJSON.MultiPolygon | undefined =>
+  difference(
+    featureCollection([
+      polygon([WORLD_RING]),
+      ...rings.map((ring) => polygon([ring])),
+    ])
+  )?.geometry;
+
+/**
+ * The layer as GeoJSON: one cover with the spots cut out, as dark as the
+ * layer says, and an outline and a middle for each spot.
  */
 export const spotPreviewFeatures = (
   spots: readonly Spot[],
   dim: number
 ): GeoJSON.FeatureCollection => {
   const rings = spots.map((spot) => highlightRing(spot));
+  const cover = spots.length > 0 ? coverGeometry(rings) : undefined;
   return {
     type: "FeatureCollection",
     features: [
-      ...(spots.length > 0
+      ...(cover
         ? [
             {
               type: "Feature" as const,
               properties: { kind: "cover", dim },
-              geometry: {
-                type: "Polygon" as const,
-                // holes wind the other way round than the outer ring
-                coordinates: [
-                  WORLD_RING,
-                  ...rings.map((ring) => [...ring].reverse()),
-                ],
-              },
+              geometry: cover,
             },
           ]
         : []),
