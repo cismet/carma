@@ -92,8 +92,6 @@ export const REGISTRY: Record<ObjectType, Field[]> = {
     { key: "fk_stadtbezirk", label: "Stadtbezirk", type: "fk", fkTable: "bezirk", filterRelation: "tdta_standort_mast", sortRelation: "tdta_standort_mast", sortColumn: "fk_stadtbezirk" },
     COMMON.strassenschluessel,
     { key: "fk_leuchttyp", label: "Leuchtentyp", type: "fk", fkTable: "leuchtentyp" },
-    // Lampe is a column of the Leuchtentyp key table.
-    { key: "lampe", label: "Lampe", type: "text", filterRelation: "tkey_leuchtentyp", sortRelation: "tkey_leuchtentyp", sortColumn: "lampe" },
     { key: "leuchtmittel", label: "Leuchtmittel", type: "fk", fkTable: "leuchtmittel" },
     { key: "fk_kennziffer", label: "Kennziffer", type: "fk", fkTable: "kennziffer" },
     { key: "fk_energielieferant", label: "Energielieferant", type: "fk", fkTable: "energielieferant" },
