@@ -97,6 +97,7 @@ import {
 import {
   SHOW_DRAFT_STORAGE_PREFIX,
   useShowDraft,
+  useStoredCollapsedStories,
   useStoredPanelOpen,
   type ShowDraft,
 } from "./show-draft";
@@ -564,10 +565,8 @@ export const ShowScenes = ({
    */
   const [isQrOpen, setIsQrOpen] = useState(false);
   const [expandedSceneId, setExpandedSceneId] = useState<string | null>(null);
-  /** only for the panel: not in the draft, so the publish fingerprint ignores it */
-  const [collapsedStoryIds, setCollapsedStoryIds] = useState<
-    ReadonlySet<string>
-  >(() => new Set());
+  const [collapsedStoryIds, setCollapsedStoryIds] =
+    useStoredCollapsedStories(storageKey);
   const [dragged, setDragged] = useState<DraggedLayer | null>(null);
   /** the drop zone under the dragged layer, by its key */
   const [dropTarget, setDropTarget] = useState<string | null>(null);

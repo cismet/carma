@@ -125,6 +125,58 @@ export const useStoredPanelOpen = (
   return [isOpen, update];
 };
 
+/** the stored ids, or none when the entry is missing or not a list of ids */
+const readCollapsedStoryIds = (key: string): ReadonlySet<string> => {
+  try {
+    const parsed: unknown = JSON.parse(
+      window.localStorage.getItem(key) ?? "[]"
+    );
+    return new Set(
+      Array.isArray(parsed)
+        ? parsed.filter((id): id is string => typeof id === "string")
+        : []
+    );
+  } catch {
+    return new Set();
+  }
+};
+
+/**
+ * The stories collapsed in the panel, kept next to the draft so a reload
+ * shows them the way they were. Not in the draft: the publish fingerprint
+ * ignores it. A story not in the list is open, so a new one comes up open.
+ */
+export const useStoredCollapsedStories = (
+  storageKey: string
+): [
+  ReadonlySet<string>,
+  (change: (ids: ReadonlySet<string>) => ReadonlySet<string>) => void
+] => {
+  const key = `${storageKey}::collapsed`;
+  const [ids, setIds] = useState(() => readCollapsedStoryIds(key));
+
+  const update = useCallback(
+    (change: (ids: ReadonlySet<string>) => ReadonlySet<string>) =>
+      setIds((current) => {
+        const next = change(current);
+        if (next !== current) {
+          try {
+            window.localStorage.setItem(key, JSON.stringify([...next]));
+          } catch (error) {
+            console.warn(
+              `${LOG_PREFIX} storing the collapsed stories failed`,
+              error
+            );
+          }
+        }
+        return next;
+      }),
+    [key]
+  );
+
+  return [ids, update];
+};
+
 export const useShowDraft = (
   storageKey: string
 ): [ShowDraft, (update: (draft: ShowDraft) => ShowDraft) => void] => {
