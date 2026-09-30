@@ -36,7 +36,6 @@ import {
   setUIVisibleControls,
 } from "./app/store/slices/ui";
 import { discoverProps } from "./app/constants/discover";
-import { outletFachzwilling } from "./app/constants/fachzwillinge/outlet";
 import { projectionMappingFachzwilling } from "./app/constants/fachzwillinge/projectionMapping";
 import {
   fachzwillingRoutes,
@@ -138,14 +137,15 @@ suppressReactCismapErrors();
 preventPinchZoom();
 
 /**
- * The projection window and the show's curating route run in front of an
- * audience, where a reload of their own would interrupt the show; there the
- * error page offers the reload as a button instead.
+ * The show's curating route runs in front of an audience, where a reload of
+ * its own would interrupt the show; there the error page offers the reload as
+ * a button instead. The projection window (the outlet) does reload: nobody
+ * stands at its window to press a button, and on the projector the error page
+ * is worse than the second a reload takes.
  */
-const NO_AUTO_RELOAD_PATHS = [
-  outletFachzwilling.path,
-  projectionMappingFachzwilling.path,
-].map((path) => `/${path}`);
+const NO_AUTO_RELOAD_PATHS = [projectionMappingFachzwilling.path].map(
+  (path) => `/${path}`
+);
 
 reloadOnStaleChunk("carma::geoportal", {
   shouldReload: () =>
