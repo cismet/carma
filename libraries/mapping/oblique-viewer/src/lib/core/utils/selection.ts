@@ -225,6 +225,11 @@ export const rankImagesForView = (
     const dataset = data.datasets.get(record.seriesId);
     const xy = targets.get(record.seriesId);
     if (!dataset || !xy) continue;
+    if (
+      query.cameraView &&
+      getCameraCalibration(dataset, record.cameraId).view !== query.cameraView
+    )
+      continue;
     const distanceToCamera = Math.hypot(xy[0] - record.x, xy[1] - record.y);
     const maxDistance = query.maxDistanceMeters ?? dataset.maxDistanceMeters;
     if (distanceToCamera > maxDistance) continue;

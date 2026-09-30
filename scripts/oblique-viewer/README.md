@@ -205,23 +205,31 @@ npx vite --config apps/geoportal/vite.config.mts \
 ```sh
 python3 scripts/oblique-viewer/serve-originals.py \
   --allow-origin http://localhost:4201 \
-  --additional-metadata /private/tmp/carma-oblique-2026-importer-evidence/metadata.uploaded.json
+  --additional-metadata /private/tmp/carma-oblique-2026-importer-evidence/orientation.reingest.json \
+  --optimistic-series wuppertal-2026
 ```
 
 Open [the local oblique route](http://localhost:4201/#/oblique?ff=ng&lat=51.27174&lng=7.20028&zoom=17).
-The route starts the viewer and offers independent 2024, available 2026, and
-2026 Rathaus sources. Existing 2024 previews and downloads retain their direct
+The route starts the viewer and offers independent 03/2024, 04/2026, and
+04/2026 Sample sources. Their compact footprint labels are 2024, 2026, and
+2026Test; the label is omitted with only one active series. The full 2026
+source also enables the Nadir navigation option. Existing 2024 previews and downloads retain their direct
 `/2024/{3,1}/{sourceId}.jpg` URLs.
 
 The additional catalog path above is a local import/audit artifact, not a
 committed fixture. Recreate it with the reproducible importer above using
 `--series-id wuppertal-2026`, or pass another normalized full-2026 JSON path.
-The bridge intersects each catalog with available stable TIFF IDs, so a full
-metadata catalog can include images whose originals have not arrived yet.
+By default the bridge intersects each catalog with available stable TIFF IDs.
+The explicit, repeatable --optimistic-series option retains every pose for
+the named configured series, including originals that have not arrived yet.
+It keeps the original-file whitelist limited to stable files actually found.
+A missing preview or original returns 404; optimistic metadata does not certify
+asset availability. Catalogs not named by that option remain filtered.
 
-Snapshot checked on 2026-09-30: the available 2026 catalog contains 41 images,
-all from the existing Rathaus originals. The separately selectable Rathaus
-catalog contains the same 41 source images. The upload location
+Snapshot refreshed on 2026-09-30: the optimistic 2026 catalog contains all
+30,172 imported orientations, including 6,349 nadir records. Only 41 originals
+from the existing Rathaus delivery are present. The separately selectable
+Sample catalog stays limited to those 41 source images. The upload location
 `/mnt/storagebox/luftbildschraegaufnahmen2026` currently contains zero TIFFs;
 this demo does not claim that the full 30,172-image delivery is available.
 
@@ -237,9 +245,9 @@ Each catalog preserves its own validated `seriesId`, source camera poses,
 calibration, provenance, and unknown height datum. `/metadata.json` serves the
 primary Rathaus catalog; `/metadata/wuppertal-2026.json` serves the additional
 available-2026 catalog. Other additional catalogs are addressed by
-`/metadata/{seriesId}.json`. The original-image whitelist is the union of all
-catalogs' available image IDs, while each metadata response remains limited
-to its own catalog. Restart the bridge after uploads or catalog updates to
+`/metadata/{seriesId}.json`. The original-image whitelist contains only actual stable originals referenced
+by the configured catalogs. Each metadata response preserves its own series ID
+and follows that series' explicit availability or optimistic mode. Restart the bridge after uploads or catalog updates to
 refresh this inventory.
 
 The scan is bounded to 50,000 originals and a 32 MB inventory response. It
@@ -258,5 +266,5 @@ watermarks, or permanent image derivatives are created.
 The server binds to `127.0.0.1:8926`; the command above allows CORS only for the
 exact origin `http://localhost:4201`. Omitting `--allow-origin` retains the
 `http://localhost:4200` default. Unknown source Z is available only through the
-explicit development configuration, with a visible unverified-height warning.
+explicit development configuration.
 Physical image alignment and ground registration still need verification.

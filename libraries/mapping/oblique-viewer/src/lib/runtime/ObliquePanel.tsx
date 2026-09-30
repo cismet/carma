@@ -193,6 +193,7 @@ export const ObliquePanel = () => {
     error,
     selectedImageId,
     activeDirection,
+    viewMode,
     canPan,
     series,
     enabledSeriesIds,
@@ -204,7 +205,6 @@ export const ObliquePanel = () => {
     previewQuality,
     backdropLook,
     downloadUrl,
-    warning,
     label,
     sendRequest,
     setPreviewQuality,
@@ -215,6 +215,9 @@ export const ObliquePanel = () => {
   const [expanded, setExpanded] = useState(false);
 
   const hasEnabledSeries = series.some((entry) => entry.enabled);
+  const hasNadir = series.some(
+    (entry) => entry.enabled && entry.availableCameraViews?.includes("nadir")
+  );
   const ready =
     selectedImageId !== null &&
     series.some((entry) => entry.enabled && entry.id === selectedSeriesId);
@@ -249,11 +252,6 @@ export const ObliquePanel = () => {
       className="relative w-[100vw] sm:w-[86vw] sm:max-w-[680px] md:max-w-[760px] shrink-0 bg-white rounded-[10px] px-4 py-2 shadow-lg"
       data-test-id="oblique-viewer"
     >
-      {warning && (
-        <div role="note" className="mb-2 text-xs text-amber-800">
-          {warning}
-        </div>
-      )}
       {/* No title here: the layer-bar row the ribbon hangs off already carries
           it, and repeating it costs the width the controls want. */}
       <div className="flex items-center gap-1.5 text-sm text-gray-700">
@@ -264,10 +262,31 @@ export const ObliquePanel = () => {
           onClick={() => sendRequest({ type: "rotate", clockwise: false })}
         />
         <SectorSwitch
-          active={activeDirection}
-          disabled={held}
+          active={viewMode === "nadir" ? null : activeDirection}
+          disabled={isBusy || isLoading || !hasEnabledSeries}
           onSelect={(direction) => sendRequest({ type: "rotateTo", direction })}
         />
+        {hasNadir && (
+          <button
+            type="button"
+            aria-label="Nadiransicht"
+            aria-pressed={viewMode === "nadir"}
+            disabled={isBusy || isLoading}
+            className={`h-8 rounded-md border-0 px-2 text-xs font-semibold disabled:text-gray-300 ${
+              viewMode === "nadir"
+                ? "bg-gray-100 text-blue-600"
+                : "bg-transparent text-gray-500 hover:bg-gray-100"
+            }`}
+            onClick={() =>
+              sendRequest({
+                type: "setViewMode",
+                mode: viewMode === "nadir" ? "oblique" : "nadir",
+              })
+            }
+          >
+            Nadir
+          </button>
+        )}
         <IconButton
           label={strings.rotateRight}
           icon={faRotateRight}

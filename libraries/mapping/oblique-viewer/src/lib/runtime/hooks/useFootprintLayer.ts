@@ -37,7 +37,7 @@ type UseFootprintLayerOptions = {
   footprintData: FootprintCollection | null;
   selectedImageId: string | null;
   selectedRecord: ObliqueImageRecord | null;
-  acquisitionYear?: number;
+  seriesLabel?: string;
   /** fade the outline out and keep it out until unlocked */
   locked: boolean;
   style?: ObliqueFootprintsStyle;
@@ -50,7 +50,7 @@ export const useFootprintLayer = ({
   footprintData,
   selectedImageId,
   selectedRecord,
-  acquisitionYear,
+  seriesLabel,
   locked,
   style,
   fadeOut,
@@ -89,7 +89,7 @@ export const useFootprintLayer = ({
         : undefined;
     layerRef.current?.setRing(feature?.geometry.coordinates[0] ?? null, {
       pose: selectedRecord?.pose ?? null,
-      acquisitionYear,
+      seriesLabel,
     });
   }, [
     map,
@@ -97,7 +97,7 @@ export const useFootprintLayer = ({
     footprintData,
     selectedImageId,
     selectedRecord,
-    acquisitionYear,
+    seriesLabel,
   ]);
 
   // the look

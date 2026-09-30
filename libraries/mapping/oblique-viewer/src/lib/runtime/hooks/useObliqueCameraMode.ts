@@ -133,9 +133,12 @@ export const useObliqueCameraMode = ({
   }, [map]);
 
   /** back to the browsing tilt lock once the camera is level with it again */
-  const lockCamera = useCallback(() => {
-    if (map && sessionRef.current) lockPitch(map, dataset.pitchDeg);
-  }, [map, dataset.pitchDeg]);
+  const lockCamera = useCallback(
+    (pitchDeg = dataset.pitchDeg) => {
+      if (map && sessionRef.current) lockPitch(map, pitchDeg);
+    },
+    [map, dataset.pitchDeg]
+  );
 
   return { phase, freeCamera, lockCamera };
 };

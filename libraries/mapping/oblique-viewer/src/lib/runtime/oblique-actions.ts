@@ -6,7 +6,11 @@ import {
 } from "react";
 import { BACKDROP_LOOK_BOUNDS, BACKDROP_LOOK_DEFAULT } from "../core/config";
 import type { PreviewQualityChoice } from "../core/constants";
-import type { CardinalDirection, ObliqueBackdropLook } from "../core/types";
+import type {
+  CardinalDirection,
+  ObliqueBackdropLook,
+  ObliqueViewMode,
+} from "../core/types";
 import { cardinalLetter } from "../core/utils/orientation";
 import { strings } from "./strings.de";
 
@@ -14,6 +18,7 @@ import { strings } from "./strings.de";
 export type ObliqueCommand =
   /** Continuous true-north bearing; optional pitch is measured from nadir. */
   | { type: "orbit"; bearingDeg: number; pitchDeg?: number }
+  | { type: "setViewMode"; mode: ObliqueViewMode }
   | { type: "rotate"; clockwise: boolean }
   | { type: "rotateTo"; direction: CardinalDirection }
   /** Positive horizontal moves right; positive vertical moves forward on the ground. */
@@ -31,12 +36,14 @@ export type ViewerSeriesStatus = {
   isLoading: boolean;
   error: string | null;
   imageCount: number;
+  availableCameraViews?: readonly string[];
 };
 
 export type ObliqueViewerState = {
   /** null uses each series default; [] deliberately disables every series. */
   enabledSeriesIds: string[] | null;
   series: ViewerSeriesStatus[];
+  viewMode: ObliqueViewMode;
   selectedSeriesId: string | null;
   selectedSourceImageId: string | null;
   /** whether the viewer runs; the row exists exactly while it does */
@@ -48,8 +55,6 @@ export type ObliqueViewerState = {
   isLoading: boolean;
   isAllDataReady: boolean;
   error: string | null;
-  /** Visible development-only caveat; source height conventions remain unchanged. */
-  warning: string | null;
   /** the image nearest the map centre in the current sector, or the one flown to */
   selectedImageId: string | null;
   selectedCameraId: string | null;
@@ -74,6 +79,7 @@ export type ObliqueViewerState = {
 export const OBLIQUE_STATE_DEFAULT: ObliqueViewerState = {
   enabledSeriesIds: null,
   series: [],
+  viewMode: "oblique",
   selectedSeriesId: null,
   selectedSourceImageId: null,
   isOn: false,
@@ -82,7 +88,6 @@ export const OBLIQUE_STATE_DEFAULT: ObliqueViewerState = {
   isLoading: false,
   isAllDataReady: false,
   error: null,
-  warning: null,
   selectedImageId: null,
   selectedCameraId: null,
   activeDirection: null,

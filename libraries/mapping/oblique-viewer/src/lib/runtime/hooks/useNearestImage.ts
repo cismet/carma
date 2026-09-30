@@ -9,6 +9,7 @@ import type {
   NearestObliqueImageRecord,
   ObliqueDataset,
   ObliqueGroundTarget,
+  ObliqueViewMode,
 } from "../../core/types";
 import { getHeadingFromCardinalDirection } from "../../core/utils/orientation";
 import { rankImagesForView } from "../../core/utils/selection";
@@ -21,6 +22,7 @@ export type RefreshSearchArgs = {
   /** search for this heading rather than the camera's, radians */
   headingRad?: number;
   pitchRad?: number;
+  cameraView?: "nadir";
   target?: ObliqueGroundTarget;
   /** skip the debounce */
   immediate?: boolean;
@@ -33,6 +35,7 @@ type UseNearestImageOptions = {
   /** search on move */
   enabled: boolean;
   dataset: ObliqueDataset;
+  viewMode?: ObliqueViewMode;
   data: ObliqueData | null;
   /** the selection is held (preview up, flight running); on-demand searches still compute */
   locked: boolean;
@@ -45,12 +48,15 @@ export const useNearestImage = ({
   map,
   enabled,
   dataset,
+  viewMode = "oblique",
   data,
   locked,
   selectedImageId,
   onSelect,
   debounceMs = 150,
 }: UseNearestImageOptions) => {
+  const modeRef = useRef(viewMode);
+  modeRef.current = viewMode;
   const activeRef = useRef(true);
   useEffect(() => {
     activeRef.current = true;
@@ -156,6 +162,9 @@ export const useNearestImage = ({
         target,
         headingRad: heading,
         pitchRad: args?.pitchRad ?? degToRadNumeric(map.getPitch()),
+        cameraView:
+          args?.cameraView ??
+          (modeRef.current === "nadir" ? "nadir" : undefined),
         numCandidates: numNearestImages,
         maxDistanceMeters,
         perSeriesTargetHeightMeters,

@@ -26,12 +26,14 @@ import type {
   NearestObliqueImageRecord,
   ObliqueGroundTarget,
   ObliqueImageRecord,
+  ObliqueViewMode,
 } from "../core/types";
 import {
   calibrationImageOffset,
   getCameraCalibration,
 } from "../core/utils/calibration";
 import { panViewTarget } from "../core/utils/selection";
+import { footprintSeriesLabel } from "../core/utils/footprint-marker";
 import { getHeadingFromCardinalDirection } from "../core/utils/orientation";
 import { useActiveDirection } from "./hooks/useActiveDirection";
 import { useFootprintLayer } from "./hooks/useFootprintLayer";
@@ -117,6 +119,16 @@ export const ObliqueViewer = ({
     running
   );
   const [runtimeError, setRuntimeError] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<ObliqueViewMode>("oblique");
+  const viewModeRef = useRef(viewMode);
+  viewModeRef.current = viewMode;
+  useEffect(() => {
+    if (!running && viewMode !== "oblique") {
+      viewModeRef.current = "oblique";
+      setViewMode("oblique");
+      publish({ viewMode: "oblique" });
+    }
+  }, [running, viewMode, publish]);
   const seriesStatus = useMemo(
     () =>
       configuredSeries.map((series) => {
@@ -124,6 +136,7 @@ export const ObliqueViewer = ({
         return {
           id: series.id,
           label: series.label,
+          availableCameraViews: series.availableCameraViews,
           enabled: enabledSet.has(series.id),
           isLoading: status?.isLoading ?? false,
           error: status?.error ?? null,
@@ -138,6 +151,7 @@ export const ObliqueViewer = ({
       isAllDataReady,
       error: runtimeError ?? error,
       series: seriesStatus,
+      viewMode,
       canPan: (data?.imageRecords.size ?? 0) > 1,
     });
   }, [
@@ -147,6 +161,7 @@ export const ObliqueViewer = ({
     error,
     runtimeError,
     seriesStatus,
+    viewMode,
     data,
   ]);
 
@@ -211,6 +226,7 @@ export const ObliqueViewer = ({
     map: libreMap,
     enabled: browsing && !isBusy,
     dataset: browsingDataset,
+    viewMode,
     data,
     locked: previewVisible || isBusy,
     selectedImageId,
@@ -236,20 +252,8 @@ export const ObliqueViewer = ({
       selectedSeriesId: selectedRecord?.seriesId ?? null,
       selectedCameraId: selectedRecord?.cameraId ?? null,
       downloadUrl,
-      warning:
-        resolvedSelectedDataset?.heightDatum === "unknown" &&
-        resolvedSelectedDataset.allowUnverifiedSourceHeight &&
-        import.meta.env.DEV
-          ? "Entwicklungsvorschau: Höhenbezug ungeprüft. Original-Z wird unverändert verwendet; die Ausrichtung ist noch nicht bestätigt."
-          : null,
     });
-  }, [
-    publish,
-    selectedImageId,
-    selectedRecord,
-    downloadUrl,
-    resolvedSelectedDataset,
-  ]);
+  }, [publish, selectedImageId, selectedRecord, downloadUrl]);
   const onDirectionChange = useCallback(
     (direction: CardinalDirection | null) =>
       publish({ activeDirection: direction }),
@@ -258,7 +262,7 @@ export const ObliqueViewer = ({
   // Cardinal labels are only a readout; they never exclude a camera from selection.
   useActiveDirection({
     map: libreMap,
-    enabled: browsing,
+    enabled: browsing && viewMode === "oblique",
     headingOffsetDeg: 0,
     busy: isBusy,
     onChange: onDirectionChange,
@@ -269,7 +273,7 @@ export const ObliqueViewer = ({
     footprintData: data?.footprintData ?? null,
     selectedImageId,
     selectedRecord,
-    acquisitionYear: selectedDataset.acquisitionYear,
+    seriesLabel: footprintSeriesLabel(selectedDataset, enabledSeries.length),
     locked: previewVisible || isBusy,
     style: selectedDataset.footprintsStyle,
     fadeOut: selectedDataset.animations.outlineFadeOut,
@@ -358,19 +362,62 @@ export const ObliqueViewer = ({
     const epoch = selectionEpochRef.current;
     setBusy(true);
     try {
+      freeCamera();
       restoreCenterOnGround(libreMap);
-      const flight = settleToPitch(libreMap, browsingDataset.pitchDeg);
+      const pitch =
+        viewModeRef.current === "nadir" ? 0 : browsingDataset.pitchDeg;
+      const flight = settleToPitch(libreMap, pitch);
       activeFlightRef.current = flight;
       await flight.done;
       if (activeFlightRef.current === flight) activeFlightRef.current = null;
       if (epoch === selectionEpochRef.current && runningRef.current)
-        lockCamera();
+        lockCamera(pitch);
     } finally {
       if (epoch === selectionEpochRef.current) setBusy(false);
     }
     if (epoch === selectionEpochRef.current && runningRef.current)
       refreshSearch({ immediate: true });
-  }, [libreMap, browsingDataset.pitchDeg, lockCamera, setBusy, refreshSearch]);
+  }, [
+    libreMap,
+    browsingDataset.pitchDeg,
+    freeCamera,
+    lockCamera,
+    setBusy,
+    refreshSearch,
+  ]);
+
+  const switchViewMode = useCallback(
+    async (mode: ObliqueViewMode) => {
+      if (!libreMap || !runningRef.current || busyRef.current) return;
+      if (
+        mode === "nadir" &&
+        !enabledSeries.some((series) =>
+          series.availableCameraViews?.includes("nadir")
+        )
+      )
+        return;
+      viewModeRef.current = mode;
+      setViewMode(mode);
+      setRuntimeError(null);
+      setDimImage(false);
+      publish({ viewMode: mode, previewVisible: false });
+      await settleToBrowsing();
+    },
+    [libreMap, enabledSeries, publish, settleToBrowsing]
+  );
+
+  useEffect(() => {
+    if (
+      viewMode === "nadir" &&
+      !enabledSeries.some((series) =>
+        series.availableCameraViews?.includes("nadir")
+      ) &&
+      browsing &&
+      !isBusy
+    ) {
+      void switchViewMode("oblique");
+    }
+  }, [viewMode, enabledSeries, browsing, isBusy, switchViewMode]);
   const closePreview = useCallback(() => {
     if (!previewVisibleRef.current) return;
     publish({ previewVisible: false });
@@ -507,6 +554,9 @@ export const ObliqueViewer = ({
     handledRequestRef.current = request.seq;
     clearRequest(request.seq);
     switch (request.type) {
+      case "setViewMode":
+        void switchViewMode(request.mode);
+        break;
       case "orbit":
         void orbitToBearing(request.bearingDeg, request.pitchDeg);
         break;
@@ -516,9 +566,12 @@ export const ObliqueViewer = ({
         );
         break;
       case "rotateTo":
-        void orbitToBearing(
-          radToDeg(getHeadingFromCardinalDirection(request.direction))
-        );
+        void (async () => {
+          if (viewModeRef.current === "nadir") await switchViewMode("oblique");
+          await orbitToBearing(
+            radToDeg(getHeadingFromCardinalDirection(request.direction))
+          );
+        })();
         break;
       case "pan":
         requestPan(request.horizontal, request.vertical);
@@ -537,6 +590,7 @@ export const ObliqueViewer = ({
     isBusy,
     clearRequest,
     orbitToBearing,
+    switchViewMode,
     libreMap,
     requestPan,
     closePreview,

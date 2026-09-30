@@ -72,6 +72,7 @@ const series = [
     isLoading: false,
     error: null,
     imageCount: 120,
+    availableCameraViews: ["front", "back", "left", "right"],
   },
   {
     id: "wuppertal-2026",
@@ -79,17 +80,27 @@ const series = [
     enabled: false,
     isLoading: false,
     error: null,
-    imageCount: 41,
+    imageCount: 30172,
+    availableCameraViews: ["front", "back", "left", "right", "nadir"],
   },
 ];
 
-const Harness = ({ failure2026 = false }: { failure2026?: boolean }) => {
+const Harness = ({
+  failure2026 = false,
+  nadirActive = false,
+  sendRequest = vi.fn(),
+}: {
+  failure2026?: boolean;
+  nadirActive?: boolean;
+  sendRequest?: ReturnType<typeof vi.fn>;
+}) => {
   const [enabledSeriesIds, setEnabledSeriesIds] = useState(
     failure2026 ? [series[0].id, series[1].id] : [series[0].id]
   );
   const actions: ObliqueViewerActions = {
     ...OBLIQUE_STATE_DEFAULT,
     isOn: true,
+    viewMode: nadirActive ? "nadir" : "oblique",
     isAllDataReady: !failure2026,
     selectedImageId: "wuppertal-2024::001_001_170003373",
     selectedSourceImageId: "001_001_170003373",
@@ -112,7 +123,7 @@ const Harness = ({ failure2026 = false }: { failure2026?: boolean }) => {
     setPreviewQuality: vi.fn(),
     setBackdropLook: vi.fn(),
     resetLook: vi.fn(),
-    sendRequest: vi.fn(),
+    sendRequest,
     clearRequest: vi.fn(),
   };
   return createElement(ObliqueViewerActionsProvider, {
@@ -168,5 +179,44 @@ describe("oblique series controls", () => {
     expect(
       Array.from(select.selectedOptions, (option) => option.value)
     ).toContain(series[0].id);
+  });
+});
+
+describe("nadir navigation control", () => {
+  it("offers nadir only when a capable series is enabled", () => {
+    const sendRequest = vi.fn();
+    render(createElement(Harness, { sendRequest }));
+    expect(screen.queryByRole("button", { name: "Nadiransicht" })).toBeNull();
+    const select = screen.getByRole("listbox", {
+      name: "Bildserien",
+    }) as HTMLSelectElement;
+    select.options[1].selected = true;
+    fireEvent.change(select);
+    const button = screen.getByRole("button", { name: "Nadiransicht" });
+    fireEvent.click(button);
+    expect(sendRequest).toHaveBeenCalledWith({
+      type: "setViewMode",
+      mode: "nadir",
+    });
+    select.options[1].selected = false;
+    fireEvent.change(select);
+    expect(screen.queryByRole("button", { name: "Nadiransicht" })).toBeNull();
+  });
+  it("returns from nadir to oblique with the same control", () => {
+    const sendRequest = vi.fn();
+    render(
+      createElement(Harness, {
+        nadirActive: true,
+        failure2026: true,
+        sendRequest,
+      })
+    );
+    const button = screen.getByRole("button", { name: "Nadiransicht" });
+    expect(button.getAttribute("aria-pressed")).toBe("true");
+    fireEvent.click(button);
+    expect(sendRequest).toHaveBeenCalledWith({
+      type: "setViewMode",
+      mode: "oblique",
+    });
   });
 });

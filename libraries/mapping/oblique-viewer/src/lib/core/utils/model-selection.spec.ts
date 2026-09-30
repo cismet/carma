@@ -355,3 +355,26 @@ describe("geometric best fit", () => {
     expect(ranked[0].coversTarget).toBe(false);
   });
 });
+
+describe("explicit nadir capability", () => {
+  it("finds nadir cameras across enabled series without falling back to 2024", () => {
+    const nadir = metadata("2026", "NA_01_0001", 0, 0);
+    nadir.cameras.camera = { ...camera, view: "nadir" };
+    const data = selectionData([
+      [metadata("2024", "oblique"), dataset("2024")],
+      [nadir, dataset("2026")],
+    ]);
+    const query = {
+      target: queryTarget(370000, 5680000),
+      headingRad: 0,
+      pitchRad: 0,
+      cameraView: "nadir" as const,
+    };
+    const result = rankImagesForView(data, query);
+    expect(result).toHaveLength(1);
+    expect(result[0].record.sourceId).toBe("NA_01_0001");
+    expect(
+      rankImagesForView(data, { ...query, enabledSeriesIds: ["2024"] })
+    ).toEqual([]);
+  });
+});

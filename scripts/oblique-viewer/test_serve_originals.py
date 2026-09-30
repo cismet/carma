@@ -198,6 +198,28 @@ class MultipleCatalogTests(BridgeTests):
             bridge_module.Bridge(self.metadata, self.bridge.originals, self.backend, additional_metadata=[self.metadata])
 
 
+class OptimisticCatalogTests(BridgeTests):
+    def test_full_catalog_retains_missing_nadir_pose_without_widening_original_access(self):
+        full = {**self.metadata, "seriesId": "wuppertal-2026", "images": {
+            self.image.id: {"cameraId": "BW"}, "NA_01_0001": {"cameraId": "NA"}}}
+        optimistic = bridge_module.Bridge(self.metadata, self.bridge.originals, self.backend,
+            additional_metadata=[full], optimistic_series=["wuppertal-2026"])
+        self.bridge.metadata_by_series = optimistic.metadata_by_series
+        self.bridge.originals = optimistic.originals
+        self.assertEqual(set(json.loads(self.request("/metadata/wuppertal-2026.json")[2])["images"]),
+                         {self.image.id, "NA_01_0001"})
+        self.assertEqual(set(json.loads(self.request("/metadata.json")[2])["images"]), {self.image.id})
+        self.assertEqual(self.request("/3/NA_01_0001.jpg")[0], 404)
+        self.assertEqual(self.request("/original/NA_01_0001.tif")[0], 404)
+        self.assertEqual(self.backend.renders, [])
+        self.assertEqual(self.backend.original_calls, [])
+
+    def test_optimistic_series_must_match_a_configured_catalog(self):
+        with self.assertRaisesRegex(bridge_module.BridgeError, "configured metadata catalog"):
+            bridge_module.Bridge(self.metadata, self.bridge.originals, self.backend,
+                                 optimistic_series=["unknown-series"])
+
+
 class OriginValidationTests(unittest.TestCase):
     def test_rejects_non_loopback_paths_credentials_and_invalid_ports(self):
         for origin in ("https://example.com", "http://localhost:4201/", "http://user@localhost:4201", "http://localhost:4201?q=x", "http://localhost:4201?", " http://localhost:4201", "http://localhost:abc"):

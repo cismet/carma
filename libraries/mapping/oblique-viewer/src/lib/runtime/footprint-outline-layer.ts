@@ -45,7 +45,7 @@ export type FootprintOutlineLayer = {
     ring: Position[] | null,
     annotation?: {
       pose: ObliquePose | null;
-      acquisitionYear?: number;
+      seriesLabel?: string;
     }
   ) => void;
   setStyle: (style: FootprintOutlineStyle) => void;
@@ -94,7 +94,7 @@ export const createFootprintOutlineLayer = (
   let heights: number[] = [];
   let markerPoints: [number, number][] = [];
   let arrowVertexCount = 0;
-  let labelYear: number | undefined;
+  let labelText: string | undefined;
   /** the same points in the local frame, as drawn */
   let localPoints: THREE.Vector3[] = [];
   /** the local frame: metres around the ring's first corner, up is up */
@@ -294,15 +294,9 @@ export const createFootprintOutlineLayer = (
     arrowVertexCount = markerPoints.length;
     arrow.visible = true;
     uv.length = 0;
-    const year = annotation.acquisitionYear;
-    if (
-      typeof year !== "number" ||
-      !Number.isInteger(year) ||
-      year < 1 ||
-      year > 9999
-    )
-      return;
-    if (year !== labelYear) {
+    const text = annotation.seriesLabel;
+    if (!text) return;
+    if (text !== labelText) {
       const canvas = document.createElement("canvas");
       canvas.width = 512;
       canvas.height = 256;
@@ -312,12 +306,17 @@ export const createFootprintOutlineLayer = (
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.fillStyle = "white";
-      ctx.fillText(String(year), 256, 132);
+      const fontSize = Math.min(
+        172,
+        (172 * 480) / Math.max(480, ctx.measureText(text).width)
+      );
+      ctx.font = `800 ${fontSize}px sans-serif`;
+      ctx.fillText(text, 256, 132);
       labelMaterial.map?.dispose();
       labelMaterial.map = new THREE.CanvasTexture(canvas);
       labelMaterial.map.colorSpace = THREE.SRGBColorSpace;
       labelMaterial.needsUpdate = true;
-      labelYear = year;
+      labelText = text;
     }
     const [tl, tr, br, bl] = marker.labelCorners;
     appendTriangle(

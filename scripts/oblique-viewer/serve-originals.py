@@ -124,7 +124,7 @@ def original_index(rows: list[dict]) -> dict[str, Original]:
     return result
 
 
-def filter_metadata(metadata: dict, originals: dict[str, Original]) -> dict:
+def filter_metadata(metadata: dict, originals: dict[str, Original], optimistic: bool = False) -> dict:
     if (not isinstance(metadata, dict) or metadata.get("schemaVersion") != 1
             or not isinstance(metadata.get("images"), dict)):
         raise BridgeError("Expected schemaVersion 1 oblique metadata with source-keyed images")
@@ -132,7 +132,7 @@ def filter_metadata(metadata: dict, originals: dict[str, Original]) -> dict:
     if (not isinstance(series_id, str) or not ID_PATTERN.fullmatch(series_id)
             or series_id in (".", "..")):
         raise BridgeError("Metadata requires a nonempty route-safe seriesId")
-    images = {key: value for key, value in metadata["images"].items() if key in originals}
+    images = metadata["images"] if optimistic else {key: value for key, value in metadata["images"].items() if key in originals}
     # Preserve series identity, cameras, conventions, provenance and the unknown height datum.
     return {**metadata, "images": images}
 
@@ -282,12 +282,17 @@ class RemoteBackend:
 class Bridge:
     def __init__(self, metadata: dict, originals: dict[str, Original], backend,
                  allowed_origin: str = ALLOWED_ORIGIN,
-                 additional_metadata: list[dict] | None = None):
+                 additional_metadata: list[dict] | None = None,
+                 optimistic_series: list[str] | None = None):
         self.allowed_origin = validated_origin(allowed_origin)
         self.metadata_by_series: dict[str, bytes] = {}
         available = set()
-        for catalog in [metadata, *(additional_metadata or [])]:
-            filtered = filter_metadata(catalog, originals)
+        optimistic = set(optimistic_series or [])
+        catalogs = [metadata, *(additional_metadata or [])]
+        if optimistic - {catalog.get("seriesId") for catalog in catalogs}:
+            raise BridgeError("Optimistic series must identify a configured metadata catalog")
+        for catalog in catalogs:
+            filtered = filter_metadata(catalog, originals, catalog.get("seriesId") in optimistic)
             series_id = filtered["seriesId"]
             if series_id in self.metadata_by_series:
                 raise BridgeError(f"Duplicate metadata seriesId: {series_id}")
@@ -446,6 +451,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--metadata", type=Path, default=Path(__file__).resolve().parents[2] / "apps" / "geoportal" / "public" / "oblique" / "2026-rathaus" / "metadata.json", help="Local schemaVersion 1 importer JSON; defaults to the committed Rathaus catalog")
     parser.add_argument("--additional-metadata", type=Path, action="append", default=[], help="Additional schemaVersion 1 catalog; repeatable, served by its preserved seriesId")
+    parser.add_argument("--optimistic-series", action="append", default=[], help="Retain all poses for this configured series, including originals not yet uploaded; repeatable")
     parser.add_argument("--ssh-host", default="amy.cismet.de")
     parser.add_argument("--container", default="gdal36_gdal3-6-environment_1")
     parser.add_argument("--image-root", default="/data/wupp2026/schraeg/_test-rathaus", help="Path in the existing container")
@@ -456,7 +462,7 @@ def main() -> int:
         origin = validated_origin(args.allow_origin)
         backend = RemoteBackend(args.ssh_host, args.container, args.image_root)
         additional = [json.loads(path.read_text()) for path in args.additional_metadata]
-        bridge = Bridge(json.loads(args.metadata.read_text()), backend.inventory(), backend, origin, additional)
+        bridge = Bridge(json.loads(args.metadata.read_text()), backend.inventory(), backend, origin, additional, args.optimistic_series)
         server = ThreadingHTTPServer(("127.0.0.1", args.port), create_handler(bridge))
         server.daemon_threads = True
         print(f"Development originals bridge: http://localhost:{args.port} ({len(bridge.originals)} TIFFs)", flush=True)

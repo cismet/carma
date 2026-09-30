@@ -1,5 +1,15 @@
 import { Vector2 } from "three";
-import type { ObliquePose } from "../types";
+import type { ObliqueDataset, ObliquePose } from "../types";
+
+/** A single enabled series needs no superimposed identity label. */
+export const footprintSeriesLabel = (
+  series: Pick<ObliqueDataset, "shortLabel" | "acquisitionYear">,
+  enabledSeriesCount: number
+): string | undefined =>
+  enabledSeriesCount > 1
+    ? series.shortLabel ??
+      (series.acquisitionYear ? String(series.acquisitionYear) : undefined)
+    : undefined;
 
 export type FootprintMarkerGeometry = {
   triangle: [Vector2, Vector2, Vector2];

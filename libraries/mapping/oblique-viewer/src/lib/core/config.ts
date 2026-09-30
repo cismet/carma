@@ -213,7 +213,9 @@ const CAMERAS_2024: Record<string, ObliqueCameraCalibration> =
 
 export const WUPPERTAL_OBLIQUE_2024: ObliqueDataset = {
   id: "wuppertal-2024",
-  label: "Schrägluftbilder 2024",
+  label: "Schrägluftbilder 03/2024",
+  shortLabel: "2024",
+  acquisitionMonth: 3,
   acquisitionYear: 2024,
   enabledByDefault: true,
   metadataFormat: "legacy-array-map",
@@ -308,6 +310,14 @@ export const resolveDataset = (
   return {
     ...WUPPERTAL_OBLIQUE_2024,
     ...dataset,
+    shortLabel:
+      dataset.shortLabel ??
+      (!dataset.id || dataset.id === WUPPERTAL_OBLIQUE_2024.id
+        ? "2024"
+        : undefined),
+    acquisitionMonth:
+      dataset.acquisitionMonth ??
+      (!dataset.id || dataset.id === WUPPERTAL_OBLIQUE_2024.id ? 3 : undefined),
     acquisitionYear:
       dataset.acquisitionYear ??
       (!dataset.id || dataset.id === WUPPERTAL_OBLIQUE_2024.id
@@ -369,7 +379,10 @@ const CAMERAS_2026: Record<string, ObliqueCameraCalibration> =
 export const WUPPERTAL_OBLIQUE_2026: ObliqueDataset = {
   ...WUPPERTAL_OBLIQUE_2024,
   id: "wuppertal-2026",
-  label: "Schrägluftbilder 2026",
+  label: "Schrägluftbilder 04/2026",
+  shortLabel: "2026",
+  // Delivered Aufnahmeorte.shp timestamps (ATTR_6): 2026-04-11 for every point.
+  acquisitionMonth: 4,
   acquisitionYear: 2026,
   enabledByDefault: false,
   metadataFormat: "inpho-v1",
@@ -404,7 +417,8 @@ export const WUPPERTAL_OBLIQUE_2026: ObliqueDataset = {
 export const WUPPERTAL_2026_RATHAUS_DATASET: ObliqueDataset = {
   ...WUPPERTAL_OBLIQUE_2026,
   id: "wuppertal-2026-rathaus",
-  label: "Schrägluftbilder 2026 Rathaus",
+  label: "Schrägluftbilder 04/2026 (Sample)",
+  shortLabel: "2026Test",
   availableCameraViews: ["left", "right", "front", "back"],
   enabledByDefault: false,
   exteriorOrientationsURI: "/oblique/2026-rathaus/metadata.json",
@@ -439,7 +453,6 @@ export const resolveSeries = (
     if (devBase && dataset.id === WUPPERTAL_2026_RATHAUS_DATASET.id)
       return {
         ...dataset,
-        label: "Schrägluftbilder 2026 (Rathaus Originale)",
         enabledByDefault: true,
         exteriorOrientationsURI: `${devBase}/metadata.json`,
         footprintsURI: undefined,

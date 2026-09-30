@@ -5,14 +5,13 @@ import {
   type ObliqueViewerConfig,
 } from "@carma-mapping/oblique-viewer";
 
-/** Local demo using the published 2024 series and currently available 2026 originals. */
+/** Local demo using 2024 and the complete, optimistically addressable 2026 catalog. */
 export const LOCAL_OBLIQUE_VIEWER_CONFIG: ObliqueViewerConfig = {
   devOriginalsBaseURI: "http://127.0.0.1:8926",
   series: [
     WUPPERTAL_OBLIQUE_2024,
     {
       ...WUPPERTAL_OBLIQUE_2026,
-      label: "Schrägluftbilder 2026 (verfügbare Originale)",
       enabledByDefault: true,
       exteriorOrientationsURI:
         "http://127.0.0.1:8926/metadata/wuppertal-2026.json",

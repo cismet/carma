@@ -8,23 +8,25 @@ The Cesium viewer is the legacy implementation. This change does not update its 
 
 The host declares a list of series. The panel's multiple-selection dropdown enables each independently: 2024, the full 2026 delivery, the 41-image 2026 Rathaus sample, any combination, or none. Enabled series participate in one geometric selection. Source image names are opaque asset identifiers; a series-qualified key identifies records in state and indexes. A filename shared by two years therefore remains two separate records and URLs always use the original source name.
 
+The list names the acquisitions as 03/2024 and 04/2026, with a Sample suffix for the independent Rathaus subset. The 2024 month follows the published March 14/17 flight description in the Geoportal background configuration; the 2026 delivery's Aufnahmeorte.shp records April 11 in ATTR_6 for all 7,436 capture points. Short footprint labels are `2024`, `2026`, and `2026Test`, and are shown only while more than one series is enabled.
+
 Each series owns its metadata URI, asset base URL, camera calibrations, source conventions and height datum. 2024 has no nadir assets. 2026 includes all five Osprey heads; camera-relative labels LE/RI/FW/BW/NA do not define fixed north/east/south/west eligibility.
 
-Metadata and asset availability are separate. The 2026 preset prepares the viewer for the metadata/derivatives endpoint; it does not create JPEG derivatives. A failed series load is reported independently and does not disable a successfully loaded series. An unknown vertical datum prevents an aligned camera flight until the operator declares the verified source datum. The explicit local-development Rathaus configuration can use unverified source Z with a visible warning; this does not change the source datum or enable this exception in production.
+Metadata and asset availability are separate. The 2026 preset prepares the viewer for the metadata/derivatives endpoint; it does not create JPEG derivatives. A failed series load is reported independently and does not disable a successfully loaded series. An unknown vertical datum prevents an aligned camera flight until the operator declares the verified source datum. The explicit local-development Rathaus configuration can use unverified source Z; this does not change the source datum or enable this exception in production.
 
 ## Selection and navigation
 
-Best-fit selection evaluates the requested ground target and continuous camera bearing/pitch against the poses and camera field of view of enabled series. Geographic cardinal sectors are presentation/navigation hints, not candidate bins. Orbit requests change the desired view direction; pan requests change the target in the current image-view frame. Both requests search enabled series and may choose a different year. No-enabled-series and no-candidate results are valid empty states.
+Best-fit selection evaluates the requested ground target and continuous camera bearing/pitch against the poses and camera field of view of enabled series. Geographic cardinal sectors are presentation/navigation hints, not candidate bins. Enabling the full 2026 series offers a Nadir button. It locks browsing at zero pitch and selects calibrated nadir cameras only, including on subsequent pan requests; the compass or the same button returns to oblique browsing. Removing the last nadir-capable series returns to oblique mode. Orbit requests change the desired view direction; pan requests change the target in the current image-view frame. Both requests search enabled series and may choose a different year. No-enabled-series and no-candidate results are valid empty states.
 
 A delivered footprint is optional. Core selection can use calibrated camera rays and a target/reference-height plane; an approximate center/coverage test is not a terrain-occlusion check or a surveyed footprint. Terrain-derived polygons can be added later without changing the authoritative pose source.
 
 The selected footprint carries an open two-line caret with a 120-degree tip at
-the image-bottom boundary, pointing toward image up, and its series' explicit
-`acquisitionYear` at the polygon centroid. The caret shares the outline's colour
+the image-bottom boundary, pointing toward image up, and its series'
+short label at the polygon centroid when multiple series are enabled. The caret shares the outline's colour
 and line width; the year uses that colour at 50% opacity, weight 800 and no stroke. Camera roll and the projected image-up axis determine orientation;
 polygon start corner and winding do not. Both markers follow sampled terrain
-heights, draw above 3D layers and share the outline's preview fade. An unknown
-acquisition year produces no year label.
+heights, draw above 3D layers and share the outline's preview fade. A single
+enabled series produces no superimposed label.
 
 ## Data contract
 

@@ -164,6 +164,10 @@ export type UpVectorMapping = { rowIndex: 0 | 1 | 2; negate: boolean };
 export type ObliqueDataset = {
   id: string;
   label: string;
+  /** Compact series identity used on the footprint. */
+  shortLabel?: string;
+  /** Verified acquisition month, 1 through 12; processing dates do not qualify. */
+  acquisitionMonth?: number;
   /** Calendar year of image acquisition, when known; never inferred from a label. */
   acquisitionYear?: number;
   enabledByDefault?: boolean;
@@ -298,12 +302,16 @@ export type ObliqueGroundTarget = {
   heightDatum?: ObliqueHeightDatum;
 };
 
+export type ObliqueViewMode = "oblique" | "nadir";
+
 export type ObliqueViewQuery = {
   target: ObliqueGroundTarget;
   /** Continuous clockwise bearing from true north. */
   headingRad: number;
   /** Angle from nadir, matching the map's camera convention. */
   pitchRad: number;
+  /** Optional explicit camera capability; continuous bearing ranking is unchanged. */
+  cameraView?: "nadir";
   enabledSeriesIds?: readonly string[];
   numCandidates?: number;
   maxDistanceMeters?: number;

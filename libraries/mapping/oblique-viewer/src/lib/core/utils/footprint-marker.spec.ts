@@ -1,8 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { Vector2 } from "three";
-import { footprintMarkerGeometry } from "./footprint-marker";
+import {
+  footprintMarkerGeometry,
+  footprintSeriesLabel,
+} from "./footprint-marker";
 import type { ObliquePose } from "../types";
-import { resolveDataset, WUPPERTAL_2026_RATHAUS_DATASET } from "../config";
+import {
+  resolveDataset,
+  WUPPERTAL_OBLIQUE_2024,
+  WUPPERTAL_OBLIQUE_2026,
+  WUPPERTAL_2026_RATHAUS_DATASET,
+} from "../config";
 
 const ring = [
   [-200, -100],
@@ -101,5 +109,31 @@ describe("terrain footprint marker placement", () => {
     expect(
       footprintMarkerGeometry(ring, { direction: [0, 1, -1e-8], up: [0, 0, 1] })
     ).toBeNull();
+  });
+});
+
+describe("series footprint identity", () => {
+  it("uses distinct short labels for both 2026 catalogs", () => {
+    expect(footprintSeriesLabel(WUPPERTAL_OBLIQUE_2024, 3)).toBe("2024");
+    expect(footprintSeriesLabel(WUPPERTAL_OBLIQUE_2026, 3)).toBe("2026");
+    expect(footprintSeriesLabel(WUPPERTAL_2026_RATHAUS_DATASET, 3)).toBe(
+      "2026Test"
+    );
+    expect(WUPPERTAL_OBLIQUE_2024.acquisitionMonth).toBe(3);
+    expect(WUPPERTAL_OBLIQUE_2026.acquisitionMonth).toBe(4);
+  });
+  it("suppresses labels when only one series is enabled", () => {
+    for (const series of [
+      WUPPERTAL_OBLIQUE_2024,
+      WUPPERTAL_OBLIQUE_2026,
+      WUPPERTAL_2026_RATHAUS_DATASET,
+    ]) {
+      expect(footprintSeriesLabel(series, 1)).toBeUndefined();
+    }
+    expect(footprintSeriesLabel(WUPPERTAL_OBLIQUE_2026, 0)).toBeUndefined();
+    expect(resolveDataset({ id: "unknown-flight" }).shortLabel).toBeUndefined();
+    expect(
+      resolveDataset({ id: "unknown-flight" }).acquisitionMonth
+    ).toBeUndefined();
   });
 });

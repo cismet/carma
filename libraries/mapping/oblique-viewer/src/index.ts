@@ -41,6 +41,7 @@ export type {
   ObliqueCameraCalibration,
   ObliqueGroundTarget,
   ObliqueViewQuery,
+  ObliqueViewMode,
   ObliqueSelectionData,
 } from "./lib/core/types";
 export type { PreviewQualityChoice } from "./lib/core/constants";
