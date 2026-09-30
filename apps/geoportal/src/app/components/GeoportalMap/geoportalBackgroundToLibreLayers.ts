@@ -3,6 +3,8 @@ import type { LibreLayer } from "@carma-mapping/core";
 import { defaultLayerConf } from "@carma-appframeworks/portals";
 import { prepareTerrainDrapeStyle } from "@carma-mapping/engines/maplibre";
 
+import { cacheableWms } from "../../helper/cacheable-wms";
+
 type NamedLayerConfig = {
   type: string;
   url?: string;
@@ -101,11 +103,13 @@ export const geoportalBackgroundToLibreLayers = (
         if (!cfg.url || !cfg.layers) continue;
         result.push({
           type: "wmts",
-          url: cfg.url,
-          layers: cfg.layers,
+          ...cacheableWms({
+            url: cfg.url,
+            layers: cfg.layers,
+            transparent: isTransparent(cfg.transparent),
+          }),
           carmaLayerId,
           opacity,
-          transparent: isTransparent(cfg.transparent),
           ...(cfg.type === "wmts-nt" ? { nonTiled: true } : {}),
         });
         break;
@@ -115,12 +119,14 @@ export const geoportalBackgroundToLibreLayers = (
         if (!cfg.url || !cfg.layers) continue;
         result.push({
           type: "wms",
-          url: cfg.url,
-          layers: cfg.layers,
+          ...cacheableWms({
+            url: cfg.url,
+            layers: cfg.layers,
+            transparent: isTransparent(cfg.transparent),
+          }),
           carmaLayerId,
           version: cfg.version,
           opacity,
-          transparent: isTransparent(cfg.transparent),
           ...(cfg.type === "wms-nt" ? { nonTiled: true } : {}),
         });
         break;

@@ -11,6 +11,8 @@ import {
   buildFilterExpression,
 } from "@carma-mapping/components";
 
+import { cacheableWms } from "../../helper/cacheable-wms";
+
 type ThreeTilesLibreLayer = Extract<LibreLayer, { type: "three-tiles" }>;
 
 const isFiniteNumber = (value: unknown): value is number =>
@@ -187,10 +189,8 @@ export const geoportalLayersToLibreLayers = (layers: Layer[]): LibreLayer[] => {
       }
       result.push({
         type: "wmts",
-        url,
-        layers: name,
+        ...cacheableWms({ url, layers: name, transparent: true }),
         carmaLayerId: layer.id,
-        transparent: true,
         opacity: layer.opacity ?? 1,
         ...(layer.opacityTransition !== undefined
           ? { opacityTransition: layer.opacityTransition }
