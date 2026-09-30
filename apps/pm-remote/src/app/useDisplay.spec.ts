@@ -655,7 +655,7 @@ describe("useDisplay series", () => {
     hook.unmount();
   });
 
-  it("comes back to a re-entered series where the display kept it, not at the start", async () => {
+  it("starts a re-entered series at its first step and has the display seek there", async () => {
     const hook = await connect({ config: seriesScene() });
     act(() => tell({ step: 13 }));
     await waitFor(() => {
@@ -678,10 +678,12 @@ describe("useDisplay series", () => {
       expect(hook.result.current.series).not.toBeNull();
     });
 
-    // before the display tells again, from what the phone remembers
-    expect(shown(hook)).toEqual({ kind: "own", step: 13 });
-    // the display carries on by itself; the phone does not pull it anywhere
-    expect(lastWrite()).not.toHaveProperty("timeSeries");
+    // not where the display kept it
+    expect(shown(hook)).toEqual({ kind: "own", step: 0 });
+    // the display would carry on by itself, so the phone tells it to seek
+    await waitFor(() => {
+      expect(lastSeries()).toMatchObject({ step: 0, seekAt: NOW });
+    });
     hook.unmount();
   });
 
@@ -704,7 +706,10 @@ describe("useDisplay series", () => {
       expect(hook.result.current.series).not.toBeNull();
     });
 
-    expect(shown(hook)).toEqual({ kind: "own", step: 5 });
+    expect(shown(hook)).toEqual({ kind: "own", step: 0 });
+    await waitFor(() => {
+      expect(lastSeries()).toMatchObject({ step: 0, seekAt: NOW + 6000 });
+    });
     hook.unmount();
   });
 });

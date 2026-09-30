@@ -174,7 +174,7 @@ export const clockStep = (
  * Switching the behaviour is changing `SERIES_REENTRY`.
  */
 export type SeriesReentry = "continue" | "restart";
-export const SERIES_REENTRY: SeriesReentry = "continue";
+export const SERIES_REENTRY: SeriesReentry = "restart";
 
 /** the series that was on last, and the step it was left on */
 export type LeftSeries = { key: string; step: number };
