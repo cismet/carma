@@ -303,5 +303,24 @@ export const projectionMappingFachzwilling: FachzwillingRoute = {
       // the workflows route's Fließwege cards, animated from the model's zoom
       workflows: starkregenFlowWorkflows(MODEL_FLOW_MIN_ZOOM),
     },
+    {
+      id: "praesentation",
+      title: "Präsentation",
+      workflows: [
+        {
+          // No `layers`: the spots live in a row of their own, which the card
+          // adds or removes, the same as the bullseye button on the map
+          id: "hervorhebungen",
+          title: "Hervorhebungen",
+          description:
+            "Inhalt: Kreise auf der Karte, alles außerhalb wird abgedunkelt. " +
+            "Nutzung: Mit + und einem Klick in die Karte einen Kreis setzen. " +
+            "Das Mausrad auf einem Kreis ändert seine Größe, daneben das " +
+            "Abdunkeln. In einer Szene gespeichert, wird jeder Name ein Knopf " +
+            "auf der Fernbedienung; Kreise mit gleichem Namen teilen sich einen.",
+          tools: ["spotHighlights"],
+        },
+      ],
+    },
   ],
 };

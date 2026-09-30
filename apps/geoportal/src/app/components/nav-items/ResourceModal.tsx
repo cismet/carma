@@ -94,6 +94,7 @@ const ResourceModal = () => {
     startVehicleAnimation,
     startFlood,
     startShadowTexture,
+    startSpotHighlights,
     isWorkflowActive,
   } = useWorkflowAddonLaunchers(messageApi);
 
@@ -118,6 +119,7 @@ const ResourceModal = () => {
       startVehicleAnimation,
       startFlood,
       startShadowTexture,
+      startSpotHighlights,
     }),
     { measurements }
   );

@@ -130,6 +130,11 @@ type ResourceLayerUpdaterDeps = {
   startShadowTexture?: (
     config: AddonConfigMap["shadowTexture"]
   ) => void | Promise<void>;
+  /**
+   * Adds or removes the spot highlights row a workflow card launches with
+   * its `spotHighlights` tool. Supplied by ResourceModal.
+   */
+  startSpotHighlights?: () => void;
 };
 
 const DEFAULT_MAX_LAYERS = 12;
@@ -568,6 +573,7 @@ export const createResourceLayerUpdater = ({
   startVehicleAnimation,
   startFlood,
   startShadowTexture,
+  startSpotHighlights,
 }: ResourceLayerUpdaterDeps) => {
   return async (
     layer: Item,
@@ -635,6 +641,16 @@ export const createResourceLayerUpdater = ({
       );
       if (floodTool && startFlood) {
         startFlood(floodTool.config ?? {});
+        return;
+      }
+
+      // The spots live in a row of their own that the addon adds, so the card
+      // only switches it on or off.
+      if (
+        startSpotHighlights &&
+        tools.some((entry) => entry.kind === "spotHighlights")
+      ) {
+        startSpotHighlights();
         return;
       }
     }
