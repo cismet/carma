@@ -38,7 +38,7 @@ const escapeString = (s: string): string =>
   s.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
 
 const isEmptyValue = (v: unknown): boolean =>
-  v === undefined || v === null || v === "";
+  v === undefined || v === null || (typeof v === "string" && v.trim() === "");
 
 // The antd DatePicker yields a dayjs object; duck-type it to avoid importing
 // dayjs here. Fall back to plain ISO strings just in case.
@@ -129,7 +129,7 @@ const buildColumnCondition = (
 
     case "text":
     default: {
-      const str = escapeString(String(value));
+      const str = escapeString(String(value).trim());
       if (operator === "contains") {
         return `${col}: {_ilike: "%${str}%"}`;
       }
