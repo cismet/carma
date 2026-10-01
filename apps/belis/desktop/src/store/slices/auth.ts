@@ -76,9 +76,11 @@ export const getIsReadOnly = (state) => {
   );
 };
 
+// Gast stays read-only; without loaded rights, everyone else keeps full access.
 const hasRight = (state, key) => {
+  if (getIsReadOnly(state)) return false;
   const rights = state.auth.rights;
-  return rights ? rights[key] : !getIsReadOnly(state);
+  return rights ? rights[key] : true;
 };
 
 export const getRights = (state) => state.auth.rights;
