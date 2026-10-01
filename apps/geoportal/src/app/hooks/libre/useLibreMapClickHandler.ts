@@ -76,6 +76,44 @@ const getStyleLayerIdCandidates = (hit: maplibregl.MapGeoJSONFeature) => {
   return candidates;
 };
 
+const isSameSourceLayer = (
+  a: maplibregl.MapGeoJSONFeature,
+  b: maplibregl.MapGeoJSONFeature
+) => a.source === b.source && a.sourceLayer === b.sourceLayer;
+
+const isArea = (hit: maplibregl.MapGeoJSONFeature) =>
+  hit.geometry.type === "Polygon" || hit.geometry.type === "MultiPolygon";
+
+/**
+ * A symbol's hit box is its whole icon image, rotated and padded, so densely
+ * placed icons (e.g. panorama arrows a few meters apart) overlap and the
+ * topmost box is often a neighbor of the icon under the cursor. For a point
+ * hit, the point of the same source-layer nearest to the click wins instead.
+ */
+const pickNearestPoint = (
+  hits: maplibregl.MapGeoJSONFeature[],
+  topmost: maplibregl.MapGeoJSONFeature,
+  latlng: maplibregl.LngLat
+) => {
+  if (topmost.geometry.type !== "Point") {
+    return topmost;
+  }
+  const click = point([latlng.lng, latlng.lat]);
+  let nearest = topmost;
+  let nearestDistance = Infinity;
+  for (const hit of hits) {
+    if (hit.geometry.type !== "Point" || !isSameSourceLayer(hit, topmost)) {
+      continue;
+    }
+    const hitDistance = distance(click, point(hit.geometry.coordinates));
+    if (hitDistance < nearestDistance) {
+      nearest = hit;
+      nearestDistance = hitDistance;
+    }
+  }
+  return nearest;
+};
+
 /**
  * The hits of the same source and source-layer as the picked one (e.g. all
  * cracks under the cursor, but not the road polygon below them), topmost
@@ -89,7 +127,7 @@ const getOverlappingHits = (
 ) => {
   const byKey = new Map<unknown, maplibregl.MapGeoJSONFeature>();
   for (const hit of hits) {
-    if (hit.source !== picked.source || hit.sourceLayer !== picked.sourceLayer) {
+    if (!isSameSourceLayer(hit, picked)) {
       continue;
     }
     const key = hit.id ?? JSON.stringify(hit.properties);
@@ -123,8 +161,7 @@ const getHitsInShape = (
     ])
     .filter(
       (hit) =>
-        hit.source === picked.source &&
-        hit.sourceLayer === picked.sourceLayer &&
+        isSameSourceLayer(hit, picked) &&
         !hit.layer.id.includes("selection") &&
         booleanIntersects(turfFeature(hit.geometry), shape)
     );
@@ -409,7 +446,7 @@ export const useLibreMapSelectionHandler = (
         const currentLayers = getLayers(store.getState());
         const selectedVectorFeature =
           resolveSemanticHit(e.hits, currentLayers, e.semanticIdentifier) ??
-          e.hits[0];
+          pickNearestPoint(e.hits, e.hits[0], e.latlng);
         const layerId = selectedVectorFeature.layer?.metadata?.["layer-id"];
         const layer = currentLayers.find((l) => l.id === layerId);
         if (!layer) {
@@ -451,11 +488,15 @@ export const useLibreMapSelectionHandler = (
             )
           ).filter((f): f is NonNullable<typeof f> => !!f);
 
-        const hitsAtClick = getOverlappingHits(
-          e.hits,
-          selectedVectorFeature,
-          MAX_OVERLAPPING_COUNT
-        );
+        // Only areas really overlap; points under the cursor are just icon
+        // boxes of neighbors and get no stepping.
+        const hitsAtClick = isArea(selectedVectorFeature)
+          ? getOverlappingHits(
+              e.hits,
+              selectedVectorFeature,
+              MAX_OVERLAPPING_COUNT
+            )
+          : [selectedVectorFeature];
         const featuresAtClick = await buildFeatures(hitsAtClick);
         const pickedFeature = featuresAtClick.find(
           (f) => f.sourceFeature === selectedVectorFeature
@@ -466,7 +507,10 @@ export const useLibreMapSelectionHandler = (
         let overlappingFeatures = featuresAtClick;
         if (map && pickedFeature?.properties?.fotoHighlight) {
           const inShape = getOverlappingHits(
-            [...hitsAtClick, ...getHitsInShape(map, selectedVectorFeature, e.latlng)],
+            [
+              ...hitsAtClick,
+              ...getHitsInShape(map, selectedVectorFeature, e.latlng),
+            ],
             selectedVectorFeature,
             MAX_OVERLAPPING_COUNT
           ).slice(hitsAtClick.length);
