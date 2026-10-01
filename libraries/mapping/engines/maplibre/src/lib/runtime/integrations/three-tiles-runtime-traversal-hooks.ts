@@ -38,6 +38,8 @@ import {
   UNLOADED_LOADING_STATE,
 } from "./three-tiles-runtime-vendor";
 
+import { createAffineTilesTraversalPreparation } from "./three-tiles-affine-traversal";
+
 const hasDownloadableContent = (tile: Tile): boolean =>
   !!tile.internal?.hasContent && !!tile.content?.uri;
 
@@ -166,11 +168,14 @@ export function installThreeTilesTraversalHooks(
   const prepareForTraversal = runtimeState.tiles.prepareForTraversal.bind(
     runtimeState.tiles
   );
+  const prepareAffineTraversal = createAffineTilesTraversalPreparation(
+    runtimeState.tiles
+  );
   runtimeState.tiles.prepareForTraversal = () => {
     readyFamilyRegion = undefined;
     floorFamilyCoverage = undefined;
     publishedAncestors = undefined;
-    prepareForTraversal();
+    if (!prepareAffineTraversal()) prepareForTraversal();
     // Native update clears last frame's used pins before this preparation.
     // Repin here so its queued-job cleanup respects solar request retention.
     // Marking before update is too early; it is immediately cleared again.
