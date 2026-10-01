@@ -106,7 +106,12 @@ export const useObliqueCameraMode = ({
       if (pendingReturnRef.current === preparation)
         pendingReturnRef.current = null;
       if (cancelled) return;
-      flight = leaveObliqueView(map, dataset, session.savedFovDeg);
+      flight = leaveObliqueView(
+        map,
+        dataset,
+        session.savedFovDeg,
+        preparation ? 250 : 500
+      );
       session.flight = flight;
       await flight.done;
       if (cancelled) return;

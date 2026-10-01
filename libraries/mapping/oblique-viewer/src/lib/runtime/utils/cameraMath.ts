@@ -79,20 +79,27 @@ export const cameraDistanceM = (map: MaplibreMap): number => {
   return distancePx * metersPerPx;
 };
 
-const MAX_FLY_DURATION_MS = 2000;
+export const MAX_OBLIQUE_TRANSITION_MS = 500;
+/** Bound camera actions while preserving explicit immediate moves. */
+export const capObliqueAnimationDuration = (durationMs: number): number =>
+  clamp(
+    Number.isFinite(durationMs) ? durationMs : MAX_OBLIQUE_TRANSITION_MS,
+    0,
+    MAX_OBLIQUE_TRANSITION_MS
+  );
 /** about a frame, so no code path ever sees a zero duration */
 const MIN_FLY_DURATION_MS = 50;
-const DYNAMIC_DISTANCE_TO_MS_FACTOR = 100;
+const DYNAMIC_DISTANCE_TO_MS_FACTOR = 35;
 
 /** a flight's duration from how far it goes: the square root of the metres */
 export const dynamicDurationMs = (
   distanceM: number,
-  maxDurationMs = MAX_FLY_DURATION_MS
+  maxDurationMs = MAX_OBLIQUE_TRANSITION_MS
 ): number =>
   clamp(
     Math.sqrt(Math.abs(distanceM)) * DYNAMIC_DISTANCE_TO_MS_FACTOR,
     MIN_FLY_DURATION_MS,
-    maxDurationMs
+    Math.max(MIN_FLY_DURATION_MS, capObliqueAnimationDuration(maxDurationMs))
   );
 
 /** great-circle-free planar distance in metres between two lng/lat points */

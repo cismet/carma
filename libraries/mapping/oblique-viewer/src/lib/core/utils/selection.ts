@@ -184,10 +184,11 @@ const containsPoint = (
   return inside;
 };
 
-/** All enabled series compete geometrically. Filename/cardinal bins are never eligibility filters. */
+/** Enabled series compete geometrically; optional indexed candidates avoid a full-catalog scan. */
 export const rankImagesForView = (
   data: ObliqueSelectionData,
-  query: ObliqueViewQuery
+  query: ObliqueViewQuery,
+  candidates: Iterable<ObliqueImageRecord> = data.imageRecords.values()
 ): NearestObliqueImageRecord[] => {
   if (
     ![
@@ -221,7 +222,7 @@ export const rankImagesForView = (
     -Math.cos(query.pitchRad),
   ];
   const ranked: NearestObliqueImageRecord[] = [];
-  for (const record of data.imageRecords.values()) {
+  for (const record of candidates) {
     const dataset = data.datasets.get(record.seriesId);
     const xy = targets.get(record.seriesId);
     if (!dataset || !xy) continue;

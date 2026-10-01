@@ -8,6 +8,7 @@ type BackdropProps = {
   /** percent */
   saturation?: number;
   color?: string;
+  filterEnabled?: boolean;
   onClick?: () => void;
   interactive?: boolean;
 };
@@ -24,8 +25,11 @@ export const Backdrop = ({
   color,
   onClick,
   interactive = true,
+  filterEnabled = true,
 }: BackdropProps) => {
-  const filterValue = `contrast(${contrast}%) brightness(${brightness}%) saturate(${saturation}%)`;
+  const filterValue = filterEnabled
+    ? `contrast(${contrast}%) brightness(${brightness}%) saturate(${saturation}%)`
+    : "none";
   const style: CSSProperties = {
     position: "absolute",
     inset: 0,
@@ -33,7 +37,7 @@ export const Backdrop = ({
     WebkitBackdropFilter: filterValue,
     backdropFilter: filterValue,
     transition:
-      "backdrop-filter 1.2s linear, -webkit-backdrop-filter 1.2s linear",
+      "backdrop-filter 0.25s linear, -webkit-backdrop-filter 0.25s linear",
     cursor: interactive ? "var(--oblique-preview-cursor, grab)" : "default",
     pointerEvents: interactive ? "auto" : "none",
     touchAction: "none",

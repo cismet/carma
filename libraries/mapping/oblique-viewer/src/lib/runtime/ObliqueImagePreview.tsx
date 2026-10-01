@@ -18,9 +18,10 @@ import type {
   ObliqueBackdropLook,
   ObliqueImagePreviewStyle,
 } from "../core/types";
-import { getPreviewImageUrl } from "./utils/imageUrls";
+import { getPreviewImageUrl, loadPreviewImage } from "./utils/imageUrls";
 import { Backdrop } from "./ObliqueImagePreview.Backdrop";
 import { NativePixels } from "./ObliqueImagePreview.NativePixels";
+import { useScenePreviewImage } from "./hooks/useScenePreviewImage";
 import { PreviewImage } from "./ObliqueImagePreview.PreviewImage";
 
 /**
@@ -100,6 +101,7 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
     url: string;
     width: number;
     height: number;
+    element: HTMLImageElement;
   } | null>(null);
   const requestedQuality = usePreviewResolution({
     map,
@@ -125,21 +127,20 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
   useEffect(() => {
     if (!progressiveSrc) return undefined;
     let cancelled = false;
-    const img = new Image();
-    img.decoding = "async";
-    img.onload = () => {
-      if (cancelled) return;
-      setLoadedSrc(progressiveSrc);
-      setLoadedImage({
-        url: progressiveSrc,
-        width: img.naturalWidth,
-        height: img.naturalHeight,
+    void loadPreviewImage(progressiveSrc)
+      .then((img) => {
+        if (cancelled) return;
+        setLoadedSrc(progressiveSrc);
+        setLoadedImage({
+          url: progressiveSrc,
+          width: img.naturalWidth,
+          height: img.naturalHeight,
+          element: img,
+        });
+      })
+      .catch(() => {
+        if (!cancelled && progressiveSrc === finalPreviewUrl) onError?.();
       });
-    };
-    img.onerror = () => {
-      if (!cancelled && progressiveSrc === finalPreviewUrl) onError?.();
-    };
-    img.src = progressiveSrc;
     return () => {
       cancelled = true;
     };
@@ -175,6 +176,15 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
   }, [dimImage, backdropLook.contrast, backdropLook.saturation]);
 
   const { xOffset, yOffset } = interiorOrientationOffsets;
+  const sceneImage = useScenePreviewImage({
+    map,
+    source: loadedImage?.element ?? null,
+    shown: !dimImage,
+    halfFovTan,
+    nativeSize: nativePixelSize,
+    principal: interiorOrientationOffsets,
+    rollDeg: PREVIEW_ROLL_SIGN * rollDeg,
+  });
   const translate = `translate(${(xOffset - 0.5) * 100}%, ${
     (yOffset - 0.5) * 100
   }%)`;
@@ -191,18 +201,19 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
       data-test-id="oblique-image-preview"
     >
       <Backdrop
-        color={style?.backdropColor}
-        contrast={contrast}
-        brightness={backdropLook.brightness}
-        saturation={saturation}
+        color={sceneImage ? undefined : style?.backdropColor}
+        contrast={sceneImage ? 100 : contrast}
+        brightness={sceneImage ? 100 : backdropLook.brightness}
+        saturation={sceneImage ? 100 : saturation}
         interactive
+        filterEnabled={!sceneImage}
         onClick={onClose}
       />
       {loadedSrc && (
         <PreviewImage
           src={loadedSrc}
           alt={imageId}
-          shown={!dimImage}
+          shown={!dimImage && !sceneImage}
           fadeIn={shouldFadeIn && !dimImage}
           borderStyle={style?.border}
           boxShadowStyle={style?.boxShadow}

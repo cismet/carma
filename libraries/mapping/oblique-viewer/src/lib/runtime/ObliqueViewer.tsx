@@ -46,6 +46,8 @@ import { footprintSeriesLabel } from "../core/utils/footprint-marker";
 import { getHeadingFromCardinalDirection } from "../core/utils/orientation";
 import { useActiveDirection } from "./hooks/useActiveDirection";
 import { useFootprintLayer } from "./hooks/useFootprintLayer";
+import { useVisibleFootprints } from "./hooks/useVisibleFootprints";
+import { groundDistanceM } from "./utils/cameraMath";
 import { useFovWheelZoom } from "./hooks/useFovWheelZoom";
 import { usePreviewPan } from "./hooks/usePreviewPan";
 import { useNearestImage } from "./hooks/useNearestImage";
@@ -71,7 +73,7 @@ import {
 
 const ON_COLOR = "#1677ff";
 const OFF_COLOR = "#000000";
-const PAN_DEBOUNCE_MS = 200;
+const PAN_DEBOUNCE_MS = 80;
 const EMPTY_CONFIG: ObliqueViewerConfig = {};
 
 /** Metadata and renderer orchestration; the host supplies state through the actions context. */
@@ -181,10 +183,10 @@ export const ObliqueViewer = ({
 
   const [previewRoot, setPreviewRoot] = useState<HTMLDivElement | null>(null);
   const resetPreviewPanRef = useRef(() => {});
-  const returnCameraRef = useRef<() => CameraFlight | undefined>(
-    () => undefined
-  );
-  const beforeLeave = useCallback(() => returnCameraRef.current(), []);
+  const returnCameraRef = useRef<
+    (durationMs?: number) => CameraFlight | undefined
+  >(() => undefined);
+  const beforeLeave = useCallback(() => returnCameraRef.current(250), []);
   const [previewTransitionActive, setPreviewTransitionActive] = useState(false);
   const previewCameraActive = previewVisible || previewTransitionActive;
   const { phase, freeCamera, lockCamera } = useObliqueCameraMode({
@@ -218,13 +220,14 @@ export const ObliqueViewer = ({
         : next
     );
   }, []);
-  const nearbyRecords = useMemo(
-    () =>
-      nearbyImages
-        .map((image) => image.record)
-        .filter((record) => enabledSetRef.current.has(record.seriesId)),
-    [nearbyImages, enabledSeries]
-  );
+  const { records: visibleFootprints, findAtGroundPoint } =
+    useVisibleFootprints({
+      map: libreMap,
+      data,
+      enabled: running,
+      locked: previewVisible || isBusy,
+      viewMode,
+    });
   const selectedImageRef = useRef(selectedImage);
   selectedImageRef.current = selectedImage;
   const selectedRecord = selectedImage?.record ?? null;
@@ -371,84 +374,111 @@ export const ObliqueViewer = ({
     busyRef,
   });
 
-  const readViewAnchor = useCallback((): MercatorCoordinate | undefined => {
-    if (!libreMap) return undefined;
-    let anchor: MercatorCoordinate | undefined;
-    const surfaces = getSharedThreeSceneRuntimes(libreMap).filter(
-      (runtime) => runtime.providesTerrain && runtime.root.visible
-    );
-    if (surfaces.length) {
-      const scene = acquireSharedThreeScene(libreMap);
-      try {
-        const inverse = new Matrix4()
-          .fromArray(
-            libreMap.transform.getProjectionDataForCustomLayer(true).mainMatrix
-          )
-          .invert();
-        const toScene = (point: Vector3) => {
-          const coordinate = new MercatorCoordinate(point.x, point.y, point.z);
-          const lngLat = coordinate.toLngLat();
-          return scene.layer.projectLngLatToScene(
-            [lngLat.lng, lngLat.lat],
-            coordinate.toAltitude()
-          );
-        };
-        const near = toScene(new Vector3(0, 0, -1).applyMatrix4(inverse));
-        const far = toScene(new Vector3(0, 0, 1).applyMatrix4(inverse));
-        if (near && far) {
-          surfaces.forEach(({ root }) => root.updateWorldMatrix(true, true));
-          const ray = new Raycaster(
-            near,
-            far.clone().sub(near).normalize(),
-            0,
-            near.distanceTo(far)
-          );
-          const profile = interactionProfile(libreMap);
-          const raycastStarted = performance.now();
-          const hit = ray
-            .intersectObjects(
-              surfaces.map(({ root }) => root),
-              true
+  const readViewAnchor = useCallback(
+    (screenPoint?: {
+      x: number;
+      y: number;
+    }): MercatorCoordinate | undefined => {
+      if (!libreMap) return undefined;
+      let anchor: MercatorCoordinate | undefined;
+      const surfaces = getSharedThreeSceneRuntimes(libreMap).filter(
+        (runtime) => runtime.providesTerrain && runtime.root.visible
+      );
+      if (surfaces.length) {
+        const scene = acquireSharedThreeScene(libreMap);
+        try {
+          const inverse = new Matrix4()
+            .fromArray(
+              libreMap.transform.getProjectionDataForCustomLayer(true)
+                .mainMatrix
             )
-            .find(({ object }) => {
-              for (let parent = object; parent; parent = parent.parent!) {
-                if (!parent.visible) return false;
-              }
-              return true;
-            });
-          profile?.record("anchorRaycast", performance.now() - raycastStarted);
-          if (hit) {
-            const lngLat = scene.layer.projectSceneToLngLat(hit.point);
-            if (lngLat) {
-              const base = scene.layer.projectLngLatToScene(lngLat, 0);
-              const raised = scene.layer.projectLngLatToScene(lngLat, 1);
-              if (base && raised) {
-                const vertical = raised.sub(base);
-                const height =
-                  hit.point.clone().sub(base).dot(vertical) /
-                  vertical.lengthSq();
-                if (Number.isFinite(height))
-                  anchor = MercatorCoordinate.fromLngLat(lngLat, height);
+            .invert();
+          const toScene = (point: Vector3) => {
+            const coordinate = new MercatorCoordinate(
+              point.x,
+              point.y,
+              point.z
+            );
+            const lngLat = coordinate.toLngLat();
+            return scene.layer.projectLngLatToScene(
+              [lngLat.lng, lngLat.lat],
+              coordinate.toAltitude()
+            );
+          };
+          const ndcX = screenPoint
+            ? (2 * screenPoint.x) / libreMap.transform.width - 1
+            : 0;
+          const ndcY = screenPoint
+            ? 1 - (2 * screenPoint.y) / libreMap.transform.height
+            : 0;
+          const near = toScene(
+            new Vector3(ndcX, ndcY, -1).applyMatrix4(inverse)
+          );
+          const far = toScene(new Vector3(ndcX, ndcY, 1).applyMatrix4(inverse));
+          if (near && far) {
+            if (!screenPoint)
+              surfaces.forEach(({ root }) =>
+                root.updateWorldMatrix(true, true)
+              );
+            const ray = new Raycaster(
+              near,
+              far.clone().sub(near).normalize(),
+              0,
+              near.distanceTo(far)
+            );
+            (ray as Raycaster & { firstHitOnly: boolean }).firstHitOnly =
+              !!screenPoint;
+            const profile = interactionProfile(libreMap);
+            const raycastStarted = performance.now();
+            const hit = ray
+              .intersectObjects(
+                surfaces.map(({ root }) => root),
+                true
+              )
+              .find(({ object }) => {
+                for (let parent = object; parent; parent = parent.parent!) {
+                  if (!parent.visible) return false;
+                }
+                return true;
+              });
+            profile?.record(
+              "anchorRaycast",
+              performance.now() - raycastStarted
+            );
+            if (hit) {
+              const lngLat = scene.layer.projectSceneToLngLat(hit.point);
+              if (lngLat) {
+                const base = scene.layer.projectLngLatToScene(lngLat, 0);
+                const raised = scene.layer.projectLngLatToScene(lngLat, 1);
+                if (base && raised) {
+                  const vertical = raised.sub(base);
+                  const height =
+                    hit.point.clone().sub(base).dot(vertical) /
+                    vertical.lengthSq();
+                  if (Number.isFinite(height))
+                    anchor = MercatorCoordinate.fromLngLat(lngLat, height);
+                }
               }
             }
           }
+        } finally {
+          scene.release();
         }
-      } finally {
-        scene.release();
       }
-    }
-    if (!anchor) {
-      const point = libreMap.unproject([
-        libreMap.transform.width / 2,
-        libreMap.transform.height / 2,
-      ]);
-      anchor = MercatorCoordinate.fromLngLat(
-        point,
-        libreMap.queryTerrainElevation(point) ?? libreMap.getCenterElevation()
-      );
-    }
-    return anchor;
-  }, [libreMap]);
+      if (!anchor) {
+        const point = libreMap.unproject([
+          screenPoint?.x ?? libreMap.transform.width / 2,
+          screenPoint?.y ?? libreMap.transform.height / 2,
+        ]);
+        anchor = MercatorCoordinate.fromLngLat(
+          point,
+          libreMap.queryTerrainElevation(point) ?? libreMap.getCenterElevation()
+        );
+      }
+      return anchor;
+    },
+    [libreMap]
+  );
 
   const flyTo = useCallback(
     async (
@@ -543,51 +573,55 @@ export const ObliqueViewer = ({
     ]
   );
 
-  const returnCameraToBrowsing = useCallback((): CameraFlight | undefined => {
-    if (!libreMap) return undefined;
-    activeFlightRef.current?.cancel();
-    setBusy(true);
-    setPreviewTransitionActive(true);
-    setDimImage(true);
-    freeCamera();
-    const pitch =
-      viewModeRef.current === "nadir" ? 0 : browsingDataset.pitchDeg;
-    const anchor = readViewAnchor();
-    const flight = settleToPitch(libreMap, pitch, {
-      anchor,
-      fovDeg: clamp(
-        libreMap.getVerticalFieldOfView(),
-        browsingDataset.minFovDeg,
-        browsingDataset.maxFovDeg
-      ) as Degrees,
-      padding: getBrowsingPadding(),
-      maxZoom: getBrowsingMaxZoom(),
-      durationMs: browsingDataset.animations.leaveObliqueMode?.duration,
-    });
-    activeFlightRef.current = flight;
-    flight.done.then(() => {
-      if (activeFlightRef.current !== flight) return;
-      activeFlightRef.current = null;
-      publish({ previewVisible: false });
-      setPreviewTransitionActive(false);
-      setDimImage(false);
-      if (runningRef.current) lockCamera(pitch);
-      setBusy(false);
-      if (runningRef.current) refreshSearch({ immediate: true });
-    });
-    return flight;
-  }, [
-    libreMap,
-    browsingDataset,
-    readViewAnchor,
-    getBrowsingPadding,
-    getBrowsingMaxZoom,
-    freeCamera,
-    lockCamera,
-    setBusy,
-    publish,
-    refreshSearch,
-  ]);
+  const returnCameraToBrowsing = useCallback(
+    (durationMs?: number): CameraFlight | undefined => {
+      if (!libreMap) return undefined;
+      activeFlightRef.current?.cancel();
+      setBusy(true);
+      setPreviewTransitionActive(true);
+      setDimImage(true);
+      freeCamera();
+      const pitch =
+        viewModeRef.current === "nadir" ? 0 : browsingDataset.pitchDeg;
+      const anchor = readViewAnchor();
+      const flight = settleToPitch(libreMap, pitch, {
+        anchor,
+        fovDeg: clamp(
+          libreMap.getVerticalFieldOfView(),
+          browsingDataset.minFovDeg,
+          browsingDataset.maxFovDeg
+        ) as Degrees,
+        padding: getBrowsingPadding(),
+        maxZoom: getBrowsingMaxZoom(),
+        durationMs:
+          durationMs ?? browsingDataset.animations.leaveObliqueMode?.duration,
+      });
+      activeFlightRef.current = flight;
+      flight.done.then(() => {
+        if (activeFlightRef.current !== flight) return;
+        activeFlightRef.current = null;
+        publish({ previewVisible: false });
+        setPreviewTransitionActive(false);
+        setDimImage(false);
+        if (runningRef.current) lockCamera(pitch);
+        setBusy(false);
+        if (runningRef.current) void refreshSearch({ immediate: true });
+      });
+      return flight;
+    },
+    [
+      libreMap,
+      browsingDataset,
+      readViewAnchor,
+      getBrowsingPadding,
+      getBrowsingMaxZoom,
+      freeCamera,
+      lockCamera,
+      setBusy,
+      publish,
+      refreshSearch,
+    ]
+  );
   returnCameraRef.current = returnCameraToBrowsing;
   const settleToBrowsing = useCallback(async () => {
     await returnCameraToBrowsing()?.done;
@@ -633,10 +667,50 @@ export const ObliqueViewer = ({
   }, [publish, settleToBrowsing]);
   const openPreview = useCallback(
     async (imageId?: string) => {
-      const requested = imageId
+      if (busyRef.current || !runningRef.current) return;
+      const epoch = selectionEpochRef.current;
+      let requested = imageId
         ? nearbyImages.find((image) => image.record.id === imageId)
         : undefined;
-      const record = requested?.record ?? selectedImageRef.current?.record;
+      if (imageId && !requested && data) {
+        const record = data.imageRecords.get(imageId);
+        const center = data.centers.get(imageId);
+        if (record && center) {
+          // Explicit footprint selection does not require coverage of the old view centre.
+          const target = readTarget();
+          const origin = target
+            ? { lng: target.longitude, lat: target.latitude }
+            : { lng: center.longitude, lat: center.latitude };
+          requested = {
+            record,
+            imageCenter: center,
+            distanceOnGround: groundDistanceM(origin, {
+              lng: center.longitude,
+              lat: center.latitude,
+            }),
+            distanceToCamera: groundDistanceM(origin, {
+              lng: record.centerWGS84[0],
+              lat: record.centerWGS84[1],
+            }),
+          };
+        }
+      }
+      if (!imageId) {
+        requested = (
+          await refreshSearch({
+            target: readTarget(),
+            immediate: true,
+            computeOnly: true,
+          })
+        )?.[0];
+        if (
+          busyRef.current ||
+          !runningRef.current ||
+          epoch !== selectionEpochRef.current
+        )
+          return;
+      }
+      const record = requested?.record;
       if (
         !record ||
         busyRef.current ||
@@ -663,16 +737,46 @@ export const ObliqueViewer = ({
         await settleToBrowsing();
       }
     },
-    [libreMap, readTarget, data, flyTo, publish, settleToBrowsing, nearbyImages]
+    [
+      libreMap,
+      readTarget,
+      data,
+      flyTo,
+      publish,
+      settleToBrowsing,
+      nearbyImages,
+      refreshSearch,
+    ]
+  );
+
+  const hoverSeriesLabels = useMemo(
+    () =>
+      new Map(
+        configuredSeries.map((series) => [
+          series.id,
+          footprintSeriesLabel(series, enabledSeries.length, true),
+        ])
+      ),
+    [configuredSeries, enabledSeries]
   );
 
   useFootprintLayer({
     map: libreMap,
     enabled: running,
-    footprintData: data?.footprintData ?? null,
     selectedImageId,
-    selectedRecord,
-    nearbyRecords,
+    selectedRecord:
+      visibleFootprints.find((record) => record.id === selectedImageId) ?? null,
+    nearbyRecords: visibleFootprints,
+    seriesLabels: hoverSeriesLabels,
+    findAtScreenPoint: async (point) => {
+      const ground = readViewAnchor(point)?.toLngLat();
+      return ground
+        ? findAtGroundPoint(
+            [ground.lng, ground.lat],
+            selectedImageRef.current?.record.id
+          )
+        : null;
+    },
     seriesLabel: footprintSeriesLabel(selectedDataset, enabledSeries.length),
     locked: previewVisible || isBusy,
     style: selectedDataset.footprintsStyle,
@@ -692,13 +796,21 @@ export const ObliqueViewer = ({
     ) => {
       if (!libreMap || busyRef.current) return;
       targetRef.current = target;
-      const nearest = refreshSearch({
+      const epoch = selectionEpochRef.current;
+      const candidates = await refreshSearch({
         headingRad,
         pitchRad: requestedPitchRad ?? degToRad(libreMap.getPitch()),
         target,
         immediate: true,
         computeOnly: true,
-      })?.find((candidate) =>
+      });
+      if (
+        !runningRef.current ||
+        busyRef.current ||
+        epoch !== selectionEpochRef.current
+      )
+        return;
+      const nearest = candidates?.find((candidate) =>
         enabledSetRef.current.has(candidate.record.seriesId)
       );
       if (

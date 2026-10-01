@@ -76,6 +76,7 @@ const setup = (mesh = false) => {
     queryTerrainElevation: vi.fn(),
     triggerRepaint: vi.fn(),
     getZoom: () => 17,
+    unproject: vi.fn(() => ({ lng: 0.001, lat: -0.001 })),
     queryRenderedFeatures: vi.fn(
       (): Array<{ id?: string; properties?: Record<string, unknown> }> => [
         { id: "footprint", properties: { revision: 1 } },
@@ -127,6 +128,7 @@ beforeEach(() => {
 
 describe("native footprint draping and activation", () => {
   it("paints on existing receivers without terrain samples or additional scene geometry", () => {
+    const now = vi.spyOn(performance, "now").mockReturnValue(100);
     const { handle, map, fire } = setup(true);
     scene.runtimes = [{ id: "mesh", receivesMapStyleTexture: true }];
     handle.setRing(ring, { pose, seriesLabel: "2026Test" });
@@ -139,13 +141,26 @@ describe("native footprint draping and activation", () => {
     expect(map.setPaintProperty).toHaveBeenCalledWith(
       "footprint",
       "line-opacity",
-      ["*", 0, ["case", ["==", ["get", "active"], false], 0.1, 1]]
+      [
+        "*",
+        0,
+        [
+          "case",
+          ["==", ["get", "imageId"], ""],
+          1,
+          ["==", ["get", "active"], false],
+          0.2,
+          1,
+        ],
+      ]
     );
     expect(map.setPaintProperty).toHaveBeenCalledWith(
       "footprint-label",
       "icon-opacity",
       0
     );
+    now.mockReturnValue(280);
+    fire("render");
     const updates = scene.surface.mock.calls.length;
     for (let index = 0; index < 20; index++) {
       fire("idle");
@@ -157,6 +172,43 @@ describe("native footprint draping and activation", () => {
     handle.destroy();
     expect(scene.surface).toHaveBeenLastCalledWith("footprint", null);
     expect(dispose).toHaveBeenCalledOnce();
+  });
+  it("crossfades completed atlases without rerasterizing each frame and releases the retired texture", () => {
+    const now = vi.spyOn(performance, "now").mockReturnValue(100);
+    const { handle, map, fire } = setup(true);
+    scene.runtimes = [{ id: "mesh", receivesMapStyleTexture: true }];
+    handle.setRing(ring, { pose, seriesLabel: "2024" });
+    now.mockReturnValue(280);
+    fire("render");
+    const previous = scene.surface.mock.calls.at(-1)?.[1]?.texture;
+    const disposePrevious = vi.spyOn(previous, "dispose");
+    handle.setStyle({ color: "cyan", width: 5, opacity: 1 });
+    const overlay = scene.surface.mock.calls.at(-1)?.[1];
+    expect(overlay.previous.texture).toBe(previous);
+    expect(overlay.transition).toBe(0);
+    const context = vi.mocked(HTMLCanvasElement.prototype.getContext).mock
+      .results[0].value as CanvasRenderingContext2D;
+    const rasterizations = vi.mocked(context.stroke).mock.calls.length;
+    now.mockReturnValue(370);
+    fire("render");
+    expect(scene.surface.mock.calls.at(-1)?.[1]?.transition).toBeCloseTo(0.5);
+    expect(disposePrevious).not.toHaveBeenCalled();
+    now.mockReturnValue(460);
+    fire("render");
+    expect(scene.surface.mock.calls.at(-1)?.[1]?.transition).toBe(1);
+    expect(scene.surface.mock.calls.at(-1)?.[1]?.previous).toBeUndefined();
+    expect(disposePrevious).toHaveBeenCalledOnce();
+    expect(context.stroke).toHaveBeenCalledTimes(rasterizations);
+    const updates = scene.surface.mock.calls.length,
+      repaints = map.triggerRepaint.mock.calls.length;
+    fire("render");
+    fire("idle");
+    expect(scene.surface).toHaveBeenCalledTimes(updates);
+    expect(map.triggerRepaint).toHaveBeenCalledTimes(repaints);
+    const disposeCurrent = vi.spyOn(overlay.texture, "dispose");
+    handle.destroy();
+    expect(disposeCurrent).toHaveBeenCalledOnce();
+    expect(disposePrevious).toHaveBeenCalledOnce();
   });
   it("rebuilds labelled surface data after synchronous image-registration style events", () => {
     const { handle, map, images, fire } = setup(true);
@@ -188,7 +240,7 @@ describe("native footprint draping and activation", () => {
     expect(drawSurfaceLabel).toHaveBeenCalled();
     handle.destroy();
   });
-  it("retains active outlines, caps fill and inactive opacity, and prefers the active hit", () => {
+  it("keeps active outlines, caps inactive fill at twenty percent, and breaks equal-center ties for the active hit", () => {
     const { handle, map, sources } = setup();
     handle.setStyle({
       color: "white",
@@ -209,7 +261,7 @@ describe("native footprint draping and activation", () => {
     expect(map.setPaintProperty).toHaveBeenCalledWith(
       "footprint-interior",
       "fill-opacity",
-      ["*", 1, ["case", ["==", ["get", "active"], false], 0.1, 0.2]]
+      ["*", 1, ["case", ["==", ["get", "active"], false], 0.2, 0.2]]
     );
     map.queryRenderedFeatures.mockReturnValue([
       {
@@ -233,6 +285,43 @@ describe("native footprint draping and activation", () => {
     expect(handle.imageAtScreenPoint({ x: 80, y: 40 })).toBeNull();
     handle.destroy();
   });
+  it("picks the nearest diagonal intersection in overlapping inactive footprints and highlights that outline", () => {
+    const { handle, map } = setup();
+    const other = ring.map(([lng, lat]) => [lng + 0.01, lat]);
+    handle.setRing(ring, { pose, imageId: "active" }, [
+      { id: "other", ring: other },
+    ]);
+    map.queryRenderedFeatures.mockReturnValue([
+      { properties: { revision: 1, active: true, imageId: "active" } },
+      { properties: { revision: 1, active: false, imageId: "other" } },
+    ]);
+    map.unproject.mockReturnValue({ lng: 0.011, lat: -0.001 });
+    expect(handle.imageAtScreenPoint({ x: 100, y: 100 })).toBe("other");
+    handle.setHoveredImage("other");
+    expect(map.setPaintProperty).toHaveBeenCalledWith(
+      "footprint",
+      "line-color",
+      ["case", ["==", ["get", "imageId"], "other"], "#ffff00", "white"]
+    );
+    handle.setHoveredImage(null);
+    expect(map.setPaintProperty).toHaveBeenCalledWith(
+      "footprint",
+      "line-width",
+      [
+        "*",
+        5 * (2 / 3),
+        [
+          "case",
+          ["==", ["get", "imageId"], ""],
+          1,
+          ["==", ["get", "active"], false],
+          0.5,
+          1,
+        ],
+      ]
+    );
+    handle.destroy();
+  });
   it("stops repainting when the finite surface fade is complete and restores the native fallback", () => {
     const now = vi.spyOn(performance, "now").mockReturnValue(100);
     const { handle, map, fire } = setup(true);
@@ -245,6 +334,8 @@ describe("native footprint draping and activation", () => {
     now.mockReturnValue(200);
     fire("render");
     expect(scene.surface.mock.calls.at(-1)?.[1]?.opacity).toBe(0);
+    now.mockReturnValue(280);
+    fire("render");
     const updates = scene.surface.mock.calls.length;
     const repaints = map.triggerRepaint.mock.calls.length;
     fire("render");
@@ -257,7 +348,18 @@ describe("native footprint draping and activation", () => {
     expect(map.setPaintProperty).toHaveBeenCalledWith(
       "footprint",
       "line-opacity",
-      ["*", 1, ["case", ["==", ["get", "active"], false], 0.1, 1]]
+      [
+        "*",
+        1,
+        [
+          "case",
+          ["==", ["get", "imageId"], ""],
+          1,
+          ["==", ["get", "active"], false],
+          0.2,
+          1,
+        ],
+      ]
     );
     expect(scene.surface).toHaveBeenLastCalledWith("footprint", null);
     handle.destroy();
@@ -312,10 +414,9 @@ describe("native footprint draping and activation", () => {
     const { handle, map } = setup();
     handle.setRing(ring);
     expect(handle.containsScreenPoint({ x: 80, y: 40 })).toBe(true);
-    expect(map.queryRenderedFeatures).toHaveBeenCalledWith(
-      { x: 80, y: 40 },
-      { layers: ["footprint-interior"] }
-    );
+    expect(map.queryRenderedFeatures).toHaveBeenCalledWith([80, 40], {
+      layers: ["footprint-interior"],
+    });
     map.queryRenderedFeatures.mockReturnValue([
       { id: "old-footprint", properties: { revision: 0 } },
     ]);
@@ -361,5 +462,53 @@ describe("native footprint draping and activation", () => {
     expect(images.size).toBe(0);
     expect(map.removeImage).toHaveBeenCalled();
     expect(handle.containsScreenPoint({ x: 80, y: 40 })).toBe(false);
+  });
+  it("temporarily exposes a catalog hover outside the displayed subset without exceeding 128 polygons", () => {
+    const { handle, sources } = setup();
+    const inactive = Array.from({ length: 127 }, (_, i) => ({
+      id: "near-" + i,
+      ring,
+      pose,
+    }));
+    handle.setRing(
+      ring,
+      { pose, imageId: "active", seriesLabel: "2024" },
+      inactive
+    );
+    const outsideRing = ring.map(([lng, lat]) => [lng + 0.01, lat]);
+    handle.setHoveredImage("outside", {
+      id: "outside",
+      ring: outsideRing,
+      pose,
+      seriesLabel: "2026",
+    });
+    const hovered = sources.get("footprint-source")!.data.features;
+    expect(
+      hovered.filter((feature) => feature.geometry.type === "Polygon")
+    ).toHaveLength(128);
+    expect(
+      hovered.some(
+        (feature) =>
+          feature.geometry.type === "Polygon" &&
+          feature.properties?.imageId === "outside"
+      )
+    ).toBe(true);
+    expect(
+      hovered.some((feature) => feature.properties?.imageId === "near-126")
+    ).toBe(false);
+    const labels = hovered.filter(
+      (feature) => feature.properties?.part === "label"
+    );
+    expect(labels).toHaveLength(1);
+    expect(labels[0].properties?.imageId).toBe("outside");
+    handle.setHoveredImage(null);
+    const restored = sources.get("footprint-source")!.data.features;
+    expect(
+      restored.some((feature) => feature.properties?.imageId === "outside")
+    ).toBe(false);
+    expect(
+      restored.some((feature) => feature.properties?.imageId === "near-126")
+    ).toBe(true);
+    handle.destroy();
   });
 });

@@ -352,6 +352,28 @@ export interface SharedThreeSceneLayer extends CustomLayerInterface {
         north: number
       ];
       opacity: number;
+      /** Crossfade in world space; caller owns both textures. */
+      previous?: {
+        texture: THREE.Texture;
+        bounds: readonly [
+          west: number,
+          south: number,
+          east: number,
+          north: number
+        ];
+      };
+      transition?: number;
+    } | null
+  ) => void;
+  /** Screen image composed between receiver color and its draped labels. Caller owns textures. */
+  setMapStyleScreenOverlay?: (
+    id: string,
+    overlay: {
+      texture: THREE.Texture;
+      /** Normalized viewport UV (bottom left) to texture UV (bottom left). */
+      viewportToTexture: THREE.Matrix3;
+      opacity: number;
+      priority?: number;
     } | null
   ) => void;
   /** Diagnostics: what the map-style projection did in the last frame. */
@@ -384,11 +406,28 @@ export type MapStyleProjectionUniforms = Readonly<{
   /** Near and far plane of the MapLibre camera that wrote that depth. */
   depthNearFar: { value: THREE.Vector2 };
   texelSize: { value: THREE.Vector2 };
+  /** Two bounded screen images: progressive source and optional sharp crop. */
+  screenOverlays?: readonly [
+    {
+      texture: { value: THREE.Texture | null };
+      viewportToTexture: { value: THREE.Matrix3 };
+      opacity: { value: number };
+    },
+    {
+      texture: { value: THREE.Texture | null };
+      viewportToTexture: { value: THREE.Matrix3 };
+      opacity: { value: number };
+    }
+  ];
   /** Optional world-aligned surface marking; independent of DEM label occlusion. */
   surfaceOverlay?: {
     texture: { value: THREE.Texture | null };
     sceneToTexture: { value: THREE.Matrix4 };
     opacity: { value: number };
+    previousTexture: { value: THREE.Texture | null };
+    previousSceneToTexture: { value: THREE.Matrix4 };
+    previousEnabled: { value: number };
+    transition: { value: number };
   };
 }>;
 

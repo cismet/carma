@@ -12,7 +12,10 @@ import type {
   ObliqueViewMode,
 } from "../../core/types";
 import { getHeadingFromCardinalDirection } from "../../core/utils/orientation";
-import { rankImagesForView } from "../../core/utils/selection";
+import {
+  createImageSelectionSearch,
+  type ImageSelectionSearch,
+} from "../utils/image-selection";
 import type { ObliqueData } from "./useObliqueData";
 
 /** Continuous camera/target geometry ranks candidates from every loaded enabled series. */
@@ -66,10 +69,32 @@ export const useNearestImage = ({
       activeRef.current = false;
     };
   }, []);
+  const searchRef = useRef<{
+    data: ObliqueData;
+    search: ImageSelectionSearch;
+  } | null>(null);
+  const requestIdRef = useRef(0);
+  const dataRef = useRef(data);
+  dataRef.current = data;
+  useEffect(() => {
+    requestIdRef.current++;
+    if (!data) return undefined;
+    const search = createImageSelectionSearch(data);
+    searchRef.current = { data, search };
+    return () => {
+      requestIdRef.current++;
+      searchRef.current = null;
+      search.dispose();
+    };
+  }, [data]);
+  useEffect(() => {
+    requestIdRef.current++;
+  }, [map, enabled, locked, viewMode]);
   const lastSearchTimeRef = useRef(0);
   const convertedHeightsRef = useRef(new Map<string, number>());
-  const convertingHeightsRef = useRef(new Set<string>());
-  const latestTargetKeyRef = useRef("");
+  const convertingHeightsRef = useRef(
+    new Map<string, Promise<number | undefined>>()
+  );
   const selectedIdRef = useRef(selectedImageId);
   selectedIdRef.current = selectedImageId;
   const onSelectRef = useRef(onSelect);
@@ -83,8 +108,11 @@ export const useNearestImage = ({
   const { numNearestImages, maxDistanceMeters } = dataset;
 
   const refreshSearch = useCallback(
-    (args?: RefreshSearchArgs): NearestObliqueImageRecord[] | undefined => {
-      if (!map || !data) return undefined;
+    async (
+      args?: RefreshSearchArgs
+    ): Promise<NearestObliqueImageRecord[] | undefined> => {
+      const client = searchRef.current;
+      if (!map || !data || client?.data !== data) return undefined;
       const computeOnly = args?.computeOnly === true;
       if (lockedRef.current && !computeOnly) return undefined;
 
@@ -103,8 +131,11 @@ export const useNearestImage = ({
         return undefined;
       }
       lastSearchTimeRef.current = now;
+      const requestId = ++requestIdRef.current;
+      const mode = modeRef.current;
 
       const heading = overrideHeading ?? degToRadNumeric(map.getBearing());
+      const pitch = args?.pitchRad ?? degToRadNumeric(map.getPitch());
       const center = map.getCenter();
       const target = args?.target ?? {
         longitude: center.lng,
@@ -113,8 +144,8 @@ export const useNearestImage = ({
         heightDatum: "dhhn2016" as const,
       };
       const heightKey = `${target.longitude}|${target.latitude}|${target.heightMeters}|${target.heightDatum}`;
-      latestTargetKeyRef.current = heightKey;
       const perSeriesTargetHeightMeters = new Map<string, number>();
+      const conversions: Promise<void>[] = [];
       for (const [id, series] of data.datasets) {
         if (
           target.heightMeters === undefined ||
@@ -130,51 +161,72 @@ export const useNearestImage = ({
           perSeriesTargetHeightMeters.set(id, converted);
           continue;
         }
-        if (convertingHeightsRef.current.has(key)) continue;
-        convertingHeightsRef.current.add(key);
-        const coordinate = [
-          target.longitude,
-          target.latitude,
-        ] as LngLatArray.deg;
-        const transform = getGcg2016Wgs84VerticalTransformer();
-        const conversion =
-          target.heightDatum === "dhhn2016"
-            ? transform.forward(
-                coordinate,
-                target.heightMeters as Altitude.DHHN2016Meters
-              )
-            : transform.inverse(
-                coordinate,
-                target.heightMeters as Altitude.EllipsoidalWGS84Meters
-              );
-        conversion
-          .then((height) => {
-            if (convertedHeightsRef.current.size > 32)
-              convertedHeightsRef.current.clear();
-            convertedHeightsRef.current.set(key, height);
-            if (activeRef.current && latestTargetKeyRef.current === heightKey)
-              refreshRef.current({ ...args, target, immediate: true });
+        let conversion = convertingHeightsRef.current.get(key);
+        if (!conversion) {
+          const coordinate = [
+            target.longitude,
+            target.latitude,
+          ] as LngLatArray.deg;
+          const transform = getGcg2016Wgs84VerticalTransformer();
+          const height =
+            target.heightDatum === "dhhn2016"
+              ? transform.forward(
+                  coordinate,
+                  target.heightMeters as Altitude.DHHN2016Meters
+                )
+              : transform.inverse(
+                  coordinate,
+                  target.heightMeters as Altitude.EllipsoidalWGS84Meters
+                );
+          conversion = height
+            .then((value) => {
+              if (convertedHeightsRef.current.size > 32)
+                convertedHeightsRef.current.clear();
+              convertedHeightsRef.current.set(key, value);
+              return value;
+            })
+            .catch(() => undefined)
+            .finally(() => {
+              convertingHeightsRef.current.delete(key);
+            });
+          convertingHeightsRef.current.set(key, conversion);
+        }
+        conversions.push(
+          conversion.then((height) => {
+            if (height !== undefined)
+              perSeriesTargetHeightMeters.set(id, height);
           })
-          .catch(() => {
-            /* The incompatible-datum series remains excluded; no fabricated height. */
-          })
-          .finally(() => {
-            convertingHeightsRef.current.delete(key);
-          });
+        );
       }
-      const ranked = rankImagesForView(data, {
+      if (conversions.length) await Promise.all(conversions);
+      if (
+        !activeRef.current ||
+        requestId !== requestIdRef.current ||
+        dataRef.current !== data ||
+        modeRef.current !== mode
+      )
+        return undefined;
+      const ranked = await client.search.query({
         target,
         headingRad: heading,
-        pitchRad: args?.pitchRad ?? degToRadNumeric(map.getPitch()),
+        pitchRad: pitch,
         cameraView:
-          args?.cameraView ??
-          (modeRef.current === "nadir" ? "nadir" : undefined),
+          args?.cameraView ?? (mode === "nadir" ? "nadir" : undefined),
         numCandidates: numNearestImages,
         maxDistanceMeters,
         perSeriesTargetHeightMeters,
       });
 
+      if (
+        !ranked ||
+        !activeRef.current ||
+        requestId !== requestIdRef.current ||
+        dataRef.current !== data ||
+        modeRef.current !== mode
+      )
+        return undefined;
       if (!computeOnly) {
+        if (lockedRef.current) return undefined;
         onCandidatesRef.current?.(ranked);
         const next = ranked[0] ?? null;
         if ((next?.record.id ?? null) !== selectedIdRef.current) {
@@ -200,16 +252,19 @@ export const useNearestImage = ({
     if (!map || !enabled || !data || locked) return undefined;
     let timerId: number | undefined;
     const onMove = () => {
+      requestIdRef.current++;
       window.clearTimeout(timerId);
-      timerId = window.setTimeout(() => refreshRef.current(), debounceMs);
+      timerId = window.setTimeout(() => {
+        void refreshRef.current();
+      }, debounceMs);
     };
     const onMoveEnd = () => {
       window.clearTimeout(timerId);
-      refreshRef.current({ immediate: true });
+      void refreshRef.current({ immediate: true });
     };
     map.on("move", onMove);
     map.on("moveend", onMoveEnd);
-    refreshRef.current({ immediate: true });
+    void refreshRef.current({ immediate: true });
     return () => {
       window.clearTimeout(timerId);
       map.off("move", onMove);

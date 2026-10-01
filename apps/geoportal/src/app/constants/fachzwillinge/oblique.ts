@@ -15,6 +15,7 @@ export const obliqueFachzwilling: FachzwillingRoute = {
     { addon: "mapStyle3d", config: { vectorBaseMap: true } },
     {
       addon: "obliqueViewer",
+      availability: { featureFlag: "featureFlagObliqueViewerAddon" },
       config: {
         ...LOCAL_OBLIQUE_VIEWER_CONFIG,
         storageKey: "carma.geoportal.oblique.viewer",

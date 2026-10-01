@@ -71,6 +71,7 @@ export const buildSharedThreeSceneLayer = (
     runtimes,
     viewport
   );
+  scene.add(mapStyleProjection.screenOverlayMesh);
   let runtimeUpdateOrder: SharedThreeSceneRuntime[] = [];
   let map: MaplibreMap | null = null;
   let renderer: THREE.WebGLRenderer | null = null;
@@ -240,23 +241,26 @@ export const buildSharedThreeSceneLayer = (
       mapStyleProjection.setVisible(visible);
     },
 
+    setMapStyleScreenOverlay(id, overlay) {
+      mapStyleProjection.setScreenOverlay(id, overlay);
+    },
     setMapStyleSurfaceOverlay(id, overlay) {
       if (!overlay || !originMerc || meterScale <= 0) {
         mapStyleProjection.setSurfaceOverlay(id, null);
         return;
       }
-      const [west, south, east, north] = overlay.bounds;
-      const min = MercatorCoordinate.fromLngLat([west, north]);
-      const max = MercatorCoordinate.fromLngLat([east, south]);
-      const width = (max.x - min.x) / meterScale;
-      const height = (max.y - min.y) / meterScale;
-      if (!(width > 0 && height > 0)) return;
-      const minX = (min.x - originMerc.x) / meterScale;
-      const maxZ = (max.y - originMerc.y) / meterScale;
-      mapStyleProjection.setSurfaceOverlay(id, {
-        texture: overlay.texture,
-        opacity: overlay.opacity,
-        sceneToTexture: new THREE.Matrix4().set(
+      const sceneToTexture = (
+        bounds: readonly [number, number, number, number]
+      ) => {
+        const [west, south, east, north] = bounds;
+        const min = MercatorCoordinate.fromLngLat([west, north]);
+        const max = MercatorCoordinate.fromLngLat([east, south]);
+        const width = (max.x - min.x) / meterScale;
+        const height = (max.y - min.y) / meterScale;
+        if (!(width > 0 && height > 0)) return null;
+        const minX = (min.x - originMerc!.x) / meterScale;
+        const maxZ = (max.y - originMerc!.y) / meterScale;
+        return new THREE.Matrix4().set(
           1 / width,
           0,
           0,
@@ -273,7 +277,24 @@ export const buildSharedThreeSceneLayer = (
           0,
           0,
           1
-        ),
+        );
+      };
+      const currentMatrix = sceneToTexture(overlay.bounds);
+      if (!currentMatrix) return;
+      const previousMatrix =
+        overlay.previous && sceneToTexture(overlay.previous.bounds);
+      mapStyleProjection.setSurfaceOverlay(id, {
+        texture: overlay.texture,
+        opacity: overlay.opacity,
+        sceneToTexture: currentMatrix,
+        previous:
+          overlay.previous && previousMatrix
+            ? {
+                texture: overlay.previous.texture,
+                sceneToTexture: previousMatrix,
+              }
+            : undefined,
+        transition: overlay.transition,
       });
     },
 

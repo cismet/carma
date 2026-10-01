@@ -1,12 +1,13 @@
 import { degToRadNumeric as degToRad } from "@carma-units";
 import type { Map as MaplibreMap } from "maplibre-gl";
 
-import { Easing } from "@carma-commons/math";
+import { Easing, shortestAngleDelta } from "@carma-commons/math";
 import { setCameraRestrictionOverride } from "@carma-mapping/engines/maplibre";
 
 import type { AnimationConfig, ObliqueDataset } from "../../core/types";
 import {
   tween,
+  capObliqueAnimationDuration,
   zoomForCameraDistance,
   type TweenHandle,
 } from "./cameraMath";
@@ -103,7 +104,7 @@ const resolveAnimation = (
   config: AnimationConfig | undefined,
   fallbackDurationMs: number
 ) => ({
-  duration: config?.duration ?? fallbackDurationMs,
+  duration: capObliqueAnimationDuration(config?.duration ?? fallbackDurationMs),
   easing: config?.easingFunction ?? Easing.LINEAR_NONE,
 });
 
@@ -170,11 +171,18 @@ export const enterObliqueView = (
 export const leaveObliqueView = (
   map: MaplibreMap,
   dataset: ObliqueDataset,
-  restoreFovDeg: number
+  restoreFovDeg: number,
+  maxDurationMs = 500
 ): CameraFlight => {
   const { duration, easing } = resolveAnimation(
-    dataset.animations.leaveObliqueMode,
-    1100
+    {
+      ...dataset.animations.leaveObliqueMode,
+      duration: Math.min(
+        dataset.animations.leaveObliqueMode?.duration ?? 450,
+        maxDurationMs
+      ),
+    },
+    450
   );
   const fovTween = tween({
     from: map.getVerticalFieldOfView(),
@@ -202,7 +210,15 @@ export const turnTo = (
   bearingDeg: number,
   animation: AnimationConfig | undefined
 ): CameraFlight => {
-  const { duration, easing } = resolveAnimation(animation, 1000);
+  const resolved = resolveAnimation(animation, 300);
+  const angle =
+    (Math.abs(
+      shortestAngleDelta(degToRad(map.getBearing()), degToRad(bearingDeg))
+    ) *
+      180) /
+    Math.PI;
+  const duration = Math.min(resolved.duration, 120 + 3 * angle);
+  const easing = resolved.easing;
   map.easeTo({ bearing: bearingDeg, duration, easing, essential: true });
   return {
     done: whenMoveEnds(map, duration),
@@ -221,7 +237,7 @@ export const tweenFov = (
   tween({
     from: map.getVerticalFieldOfView(),
     to: toFovDeg,
-    durationMs,
+    durationMs: capObliqueAnimationDuration(durationMs),
     easing: Easing.CUBIC_OUT,
     onUpdate: onFrame,
     onComplete,

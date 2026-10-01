@@ -1,7 +1,11 @@
-import type { Feature, FeatureCollection, Polygon, Position } from "geojson";
+import type { Feature, FeatureCollection, Polygon } from "geojson";
 
+import { diagonalIntersection } from "../../core/utils/footprint-diagonal-intersection";
 import type { PointWithSector } from "../../core/types";
-import { wgs84ToDatasetXY, type DatasetConverter } from "../../core/utils/imageRecord";
+import {
+  wgs84ToDatasetXY,
+  type DatasetConverter,
+} from "../../core/utils/imageRecord";
 import { getCardinalDirection } from "../../core/utils/orientation";
 
 /**
@@ -39,23 +43,6 @@ export const findMatchingFeature = (
   imageId: string
 ): FootprintFeature | undefined =>
   features.find((feature) => feature.properties[ID_PROPERTY_NAME] === imageId);
-
-/** where the two diagonals of a quadrilateral cross, planar */
-const diagonalIntersection = (
-  p0: Position,
-  p1: Position,
-  p2: Position,
-  p3: Position
-): [number, number] | null => {
-  const [x1, y1] = p0;
-  const [x2, y2] = p2;
-  const [x3, y3] = p1;
-  const [x4, y4] = p3;
-  const denominator = (y4 - y3) * (x2 - x1) - (x4 - x3) * (y2 - y1);
-  if (denominator === 0) return null;
-  const ua = ((x4 - x3) * (y1 - y3) - (y4 - y3) * (x1 - x3)) / denominator;
-  return [x1 + ua * (x2 - x1), y1 + ua * (y2 - y1)];
-};
 
 const toPointWithSector = (
   feature: FootprintFeature,

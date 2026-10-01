@@ -59,13 +59,19 @@ export const PreviewImage: FC<PreviewImageProps> = ({
     boxSizing: "content-box",
     pointerEvents: "none",
     opacity: shown ? 1 : 0,
-    transition: fadeIn ? "opacity 0.8s linear" : "opacity 0s linear",
+    transition: fadeIn ? "opacity 0.25s linear" : "opacity 0s linear",
     outline: borderStyle,
     boxShadow: boxShadowStyle,
   };
   return (
     <div style={wrapperStyle}>
-      <img src={src} alt={alt} style={imageStyle} draggable={false} />
+      <img
+        crossOrigin="anonymous"
+        src={src}
+        alt={alt}
+        style={imageStyle}
+        draggable={false}
+      />
       {children}
     </div>
   );

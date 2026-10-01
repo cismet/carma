@@ -70,7 +70,7 @@ describe("oblique preview return lifecycle", () => {
     expect(camera.leave).not.toHaveBeenCalled();
     expect(view.result.current.phase).toBe("leaving");
     await act(async () => view.preparation.finish());
-    expect(camera.leave).toHaveBeenCalledWith(view.map, dataset, 45);
+    expect(camera.leave).toHaveBeenCalledWith(view.map, dataset, 45, 250);
     expect(camera.release).not.toHaveBeenCalled();
     await act(async () => view.leave.finish());
     expect(view.result.current.phase).toBe("idle");
@@ -112,7 +112,7 @@ describe("oblique preview return lifecycle", () => {
     await act(async () => nextEntry.finish());
     view.rerender({ ...view.props, enabled: false });
     await act(async () => {});
-    expect(camera.leave).toHaveBeenCalledWith(view.map, dataset, 45);
+    expect(camera.leave).toHaveBeenCalledWith(view.map, dataset, 45, 250);
     view.unmount();
   });
 });

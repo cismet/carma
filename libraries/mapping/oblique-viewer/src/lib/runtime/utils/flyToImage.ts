@@ -30,7 +30,12 @@ import type {
   ObliqueImageRecord,
   ObliquePose,
 } from "../../core/types";
-import { dynamicDurationMs, groundDistanceM, tween } from "./cameraMath";
+import {
+  capObliqueAnimationDuration,
+  dynamicDurationMs,
+  groundDistanceM,
+  tween,
+} from "./cameraMath";
 import { getCameraCalibration } from "../../core/utils/calibration";
 import { computePose } from "../../core/utils/exteriorOrientation";
 import { setFov, whenMoveEnds, type CameraFlight } from "./obliqueCamera";
@@ -162,9 +167,22 @@ export const flyToPose = (
       0
     );
 
-  const maxDuration = animation?.duration ?? 2000;
+  const maxDuration = capObliqueAnimationDuration(animation?.duration ?? 500);
+  const angularDuration =
+    120 +
+    3 *
+      Math.max(
+        angleDifferenceDeg(map.getBearing(), pose.bearingDeg),
+        Math.abs(map.getPitch() - pose.pitchDeg)
+      );
   const duration = dynamicDuration
-    ? dynamicDurationMs(cameraErrorM(map, pose, altitude), maxDuration)
+    ? Math.min(
+        maxDuration,
+        Math.max(
+          angularDuration,
+          dynamicDurationMs(cameraErrorM(map, pose, altitude), maxDuration)
+        )
+      )
     : maxDuration;
   const easing = animation?.easingFunction ?? Easing.LINEAR_NONE;
 
@@ -233,7 +251,7 @@ export const settleToPitch = (
     fovDeg = map.getVerticalFieldOfView() as Degrees,
     padding = map.getPadding(),
     maxZoom = map.getMaxZoom(),
-    durationMs = 1100,
+    durationMs = 450,
     anchor,
     screenPoint,
     restoreGround = true,
@@ -465,7 +483,7 @@ export const settleToPitch = (
   const flight = tween({
     from: 0,
     to: 1,
-    durationMs,
+    durationMs: capObliqueAnimationDuration(durationMs),
     easing: Easing.CUBIC_IN_OUT,
     onUpdate: (progress) => {
       const profile = interactionProfile(map);

@@ -8,7 +8,7 @@ import { CardinalDirectionClockwise } from "@carma-geo/data-structures";
 import type { Positions } from "@carma-mapping/map-controls-layout";
 
 import { calibrationFromMetadata } from "./utils/calibration";
-import { PREVIEW_QUALITY } from "./constants";
+import { FOOTPRINT_SELECTION_COLOR, PREVIEW_QUALITY } from "./constants";
 import type {
   InteriorOrientationOffset,
   ObliqueBackdropLook,
@@ -244,12 +244,12 @@ export const WUPPERTAL_OBLIQUE_2024: ObliqueDataset = {
   maxDistanceMeters: 5000,
   animations: {
     enterObliqueMode: {
-      duration: 2000,
-      easingFunction: Easing.EXPONENTIAL_IN_OUT,
+      duration: 450,
+      easingFunction: Easing.CUBIC_IN_OUT,
     },
     flyToExteriorOrientation: {
-      duration: 800,
-      easingFunction: Easing.QUADRATIC_IN,
+      duration: 450,
+      easingFunction: Easing.CUBIC_IN_OUT,
     },
     flyToNextImage: {
       delay: 0,
@@ -257,27 +257,28 @@ export const WUPPERTAL_OBLIQUE_2024: ObliqueDataset = {
       easingFunction: Easing.LINEAR_NONE,
     },
     flyToRotatedImage: {
-      duration: 1800,
+      duration: 350,
       easingFunction: Easing.CUBIC_IN_OUT,
     },
     rotateCamera: {
-      duration: 1000,
+      duration: 300,
       easingFunction: Easing.CUBIC_IN_OUT,
     },
     leaveObliqueMode: {
-      duration: 1100,
+      duration: 450,
       easingFunction: Easing.CUBIC_IN_OUT,
     },
     outlineFadeOut: {
-      delay: 500,
-      duration: 300,
+      delay: 0,
+      duration: 150,
       easingFunction: Easing.QUADRATIC_IN_OUT,
     },
   },
   footprintsStyle: {
-    outlineColor: "#ffffff",
+    outlineColor: FOOTPRINT_SELECTION_COLOR,
     outlineWidth: 8,
     outlineOpacity: 0.85,
+    inactiveOpacity: 0.2,
   },
   imagePreviewStyle: {
     backdropColor: "rgba(0, 0, 0, 0.13)",

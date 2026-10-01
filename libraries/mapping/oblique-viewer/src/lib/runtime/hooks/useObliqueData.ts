@@ -1,24 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { getProj4Converter } from "@carma-geo/proj";
-import type {
-  ObliqueDataset,
-  ObliqueSelectionData,
-  PointWithSector,
-} from "../../core/types";
-import { buildImageRecords } from "../../core/utils/imageRecord";
+import type { ObliqueDataset } from "../../core/types";
 import {
-  estimateGroundCenter,
-  estimateGroundFootprint,
-} from "../../core/utils/selection";
-import {
-  fetchGeoJson,
-  getFootprintCenterpoints,
-  type FootprintCollection,
-} from "../utils/footprints";
-
-export type ObliqueData = ObliqueSelectionData & {
-  footprintData: FootprintCollection;
-};
+  loadObliqueSeriesData,
+  type ObliqueData,
+} from "../utils/load-oblique-series";
+export type { ObliqueData } from "../utils/load-oblique-series";
 
 export type ObliqueSeriesDataState = {
   id: string;
@@ -44,106 +30,77 @@ const IDLE: ObliqueDataState = {
   perSeries: [],
 };
 const cache = new Map<string, Promise<ObliqueData>>();
-const emptyFootprints = (): FootprintCollection => ({
-  type: "FeatureCollection",
-  features: [],
-});
-
 /** Configuration/calibration changes cannot reuse a differently interpreted cached series. */
-const cacheKey = (dataset: ObliqueDataset): string => JSON.stringify(dataset);
-
 const loadSeries = (dataset: ObliqueDataset): Promise<ObliqueData> => {
-  const key = cacheKey(dataset);
-  const cached = cache.get(key);
+  const key = JSON.stringify(dataset),
+    cached = cache.get(key);
   if (cached) return cached;
-  const loading = (async () => {
-    const response = await fetch(dataset.exteriorOrientationsURI);
-    if (!response.ok) throw new Error(`Metadaten: HTTP ${response.status}`);
-    const converter = getProj4Converter(dataset.crs, "EPSG:4326");
-    const built = buildImageRecords(await response.json(), dataset, converter);
-    // Delivered footprints are optional. Unavailable ones do not hide valid image metadata.
-    let delivered = emptyFootprints();
-    if (dataset.footprintsURI) {
-      try {
-        delivered = await fetchGeoJson(dataset.footprintsURI);
-      } catch {
-        /* Calibrated ground-plane approximations remain visibly marked below. */
-      }
-    }
-    const deliveredCenters = new Map(
-      getFootprintCenterpoints(delivered, converter).map((point) => [
-        point.id,
-        point,
-      ])
-    );
-    const deliveredById = new Map(
-      delivered.features.map((feature) => [
-        feature.properties.FILENAME,
-        feature,
-      ])
-    );
-    const centers = new Map<string, PointWithSector>();
-    const footprintData = emptyFootprints();
-    for (const record of built.imageRecords.values()) {
-      const original = deliveredById.get(record.sourceId);
-      const rawCenter = deliveredCenters.get(record.sourceId);
-      if (rawCenter)
-        centers.set(record.id, {
-          ...rawCenter,
-          id: record.id,
-          cardinal: record.sector,
+  const loading =
+    typeof Worker === "undefined"
+      ? loadObliqueSeriesData(dataset)
+      : new Promise<ObliqueData>((resolve, reject) => {
+          const worker = new Worker(
+            new URL("../utils/oblique-series.worker.ts", import.meta.url),
+            { type: "module" }
+          );
+          let settled = false;
+          const timer = window.setTimeout(
+            () =>
+              finish(
+                new Error("Metadaten konnten nicht rechtzeitig geladen werden.")
+              ),
+            60000
+          );
+          const finish = (error?: Error, data?: ObliqueData) => {
+            if (settled) return;
+            settled = true;
+            worker.onmessage = null;
+            worker.onerror = null;
+            window.clearTimeout(timer);
+            worker.terminate();
+            if (error) reject(error);
+            else if (data) {
+              const resolved = data.datasets.get(dataset.id);
+              if (resolved)
+                data.datasets.set(dataset.id, {
+                  ...resolved,
+                  animations: dataset.animations,
+                  exteriorOrientationsURI: dataset.exteriorOrientationsURI,
+                  footprintsURI: dataset.footprintsURI,
+                });
+              resolve(data);
+            }
+          };
+          worker.onmessage = (
+            event: MessageEvent<{ data?: ObliqueData; error?: string }>
+          ) => {
+            if (event.data.error) finish(new Error(event.data.error));
+            else if (event.data.data) finish(undefined, event.data.data);
+            else finish(new Error("Unvollständige Metadatenantwort."));
+          };
+          worker.onerror = () =>
+            finish(new Error("Metadaten-Worker konnte nicht geladen werden."));
+          try {
+            // Runtime easing callbacks stay in the UI; worker inputs contain only cloneable values.
+            worker.postMessage({
+              dataset: {
+                ...dataset,
+                animations: {},
+                exteriorOrientationsURI: new URL(
+                  dataset.exteriorOrientationsURI,
+                  window.location.href
+                ).href,
+                footprintsURI: dataset.footprintsURI
+                  ? new URL(dataset.footprintsURI, window.location.href).href
+                  : undefined,
+              },
+            });
+          } catch (error) {
+            finish(error instanceof Error ? error : new Error(String(error)));
+          }
         });
-      else
-        centers.set(
-          record.id,
-          estimateGroundCenter(record, built.dataset, converter)
-        );
-      if (original) {
-        record.footprint = original.geometry.coordinates[0].map((position) => [
-          position[0],
-          position[1],
-        ]);
-        record.footprintApproximate = false;
-        footprintData.features.push({
-          ...original,
-          properties: {
-            ...original.properties,
-            FILENAME: record.id,
-            SOURCE_ID: record.sourceId,
-            SERIES_ID: record.seriesId,
-          },
-        });
-      } else {
-        record.footprint = estimateGroundFootprint(
-          record,
-          built.dataset,
-          converter
-        );
-        record.footprintApproximate = true;
-        if (record.footprint)
-          footprintData.features.push({
-            type: "Feature",
-            geometry: { type: "Polygon", coordinates: [record.footprint] },
-            properties: {
-              FILENAME: record.id,
-              SOURCE_ID: record.sourceId,
-              SERIES_ID: record.seriesId,
-              APPROXIMATE: true,
-            },
-          });
-      }
-    }
-    return {
-      imageRecords: built.imageRecords,
-      datasets: new Map([[dataset.id, built.dataset]]),
-      centers,
-      footprintData,
-    };
-  })();
   cache.set(key, loading);
-  loading.catch(() => {
-    cache.delete(key);
-  });
+  loading.catch(() => cache.delete(key));
   return loading;
 };
 
@@ -152,14 +109,12 @@ const mergeSeries = (loaded: Iterable<ObliqueData>): ObliqueData => {
     imageRecords: new Map(),
     datasets: new Map(),
     centers: new Map(),
-    footprintData: emptyFootprints(),
   };
   for (const data of loaded) {
     for (const [id, record] of data.imageRecords)
       result.imageRecords.set(id, record);
     for (const [id, dataset] of data.datasets) result.datasets.set(id, dataset);
     for (const [id, center] of data.centers) result.centers.set(id, center);
-    result.footprintData.features.push(...data.footprintData.features);
   }
   return result;
 };
@@ -242,9 +197,14 @@ export const useObliqueData = (
       cancelled = true;
     };
   }, [enabledDatasets, enabled]);
-  // Checkbox changes take effect in this render, before the fetch effect can publish.
+  // Series changes take effect in this render, before the fetch effect can publish.
   const filtered = useMemo(() => {
     const enabledIds = new Set(enabledDatasets.map((dataset) => dataset.id));
+    if (
+      state.data &&
+      [...state.data.datasets.keys()].every((id) => enabledIds.has(id))
+    )
+      return state.data;
     return state.data
       ? {
           imageRecords: new Map(
@@ -262,12 +222,6 @@ export const useObliqueData = (
                 enabledIds.has(state.data.imageRecords.get(id)!.seriesId)
             )
           ),
-          footprintData: {
-            ...state.data.footprintData,
-            features: state.data.footprintData.features.filter((feature) =>
-              enabledIds.has(String(feature.properties.SERIES_ID))
-            ),
-          },
         }
       : null;
   }, [enabledDatasets, state.data]);

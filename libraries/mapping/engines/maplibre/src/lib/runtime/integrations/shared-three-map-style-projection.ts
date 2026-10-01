@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { MAP_STYLE_SCREEN_OVERLAY_FRAGMENT_HEADER } from "../../core/shared-three-map-style-shaders";
 import type { Map as MaplibreMap } from "maplibre-gl";
 import type {
   SharedThreeSceneRuntime,
@@ -38,10 +39,19 @@ export const createSharedThreeMapStyleProjection = (
     depthEnabled: { value: 0 },
     depthNearFar: { value: new THREE.Vector2(1, 1000) },
     texelSize: { value: new THREE.Vector2(1, 1) },
+    screenOverlays: [0, 1].map(() => ({
+      texture: { value: null },
+      viewportToTexture: { value: new THREE.Matrix3() },
+      opacity: { value: 0 },
+    })) as NonNullable<MapStyleProjectionUniforms["screenOverlays"]>,
     surfaceOverlay: {
       texture: { value: null },
       sceneToTexture: { value: new THREE.Matrix4() },
       opacity: { value: 0 },
+      previousTexture: { value: null },
+      previousSceneToTexture: { value: new THREE.Matrix4() },
+      previousEnabled: { value: 0 },
+      transition: { value: 1 },
     },
   };
   const surfaceOverlays = new Map<
@@ -50,8 +60,49 @@ export const createSharedThreeMapStyleProjection = (
       texture: THREE.Texture;
       sceneToTexture: THREE.Matrix4;
       opacity: number;
+      previous?: { texture: THREE.Texture; sceneToTexture: THREE.Matrix4 };
+      transition?: number;
     }
   >();
+  const screenOverlays = new Map<
+    string,
+    {
+      texture: THREE.Texture;
+      viewportToTexture: THREE.Matrix3;
+      opacity: number;
+      priority?: number;
+      version: number;
+    }
+  >();
+  const screenUniforms: Record<string, THREE.IUniform> = {};
+  mapStyleProjectionUniforms.screenOverlays!.forEach((screen, index) => {
+    screenUniforms[`carmaScreenTexture${index}`] = screen.texture;
+    screenUniforms[`carmaScreenToTexture${index}`] = screen.viewportToTexture;
+    screenUniforms[`carmaScreenOpacity${index}`] = screen.opacity;
+  });
+  const screenMaterial = new THREE.ShaderMaterial({
+    uniforms: screenUniforms,
+    vertexShader: `varying vec2 vScreenUv; void main(){vScreenUv=uv;gl_Position=vec4(position.xy,0.0,1.0);}`,
+    fragmentShader: `varying vec2 vScreenUv; ${MAP_STYLE_SCREEN_OVERLAY_FRAGMENT_HEADER}
+void main(){vec4 image=carmaScreenImages(vScreenUv);if(image.a<=0.0)discard;gl_FragColor=image;
+#include <colorspace_fragment>
+}`,
+    depthTest: false,
+    depthWrite: false,
+    toneMapped: false,
+    // Custom blending keeps this quad in the opaque list, before receiver meshes.
+    blending: THREE.CustomBlending,
+    blendSrc: THREE.SrcAlphaFactor,
+    blendDst: THREE.OneMinusSrcAlphaFactor,
+  });
+  const screenOverlayMesh = new THREE.Mesh(
+    new THREE.PlaneGeometry(2, 2),
+    screenMaterial
+  );
+  screenOverlayMesh.name = "map-style-screen-image";
+  screenOverlayMesh.renderOrder = -100000;
+  screenOverlayMesh.frustumCulled = false;
+  screenOverlayMesh.visible = false;
   let mapStyleFramebufferTexture: THREE.FramebufferTexture | null = null;
   const capturedMapStyleMatrix = new THREE.Matrix4();
   let mapStyleFramebufferCache: ReturnType<
@@ -201,12 +252,56 @@ export const createSharedThreeMapStyleProjection = (
       };
     },
 
+    screenOverlayMesh,
+    setScreenOverlay(
+      id: string,
+      overlay: {
+        texture: THREE.Texture;
+        viewportToTexture: THREE.Matrix3;
+        opacity: number;
+        priority?: number;
+      } | null
+    ) {
+      const previous = screenOverlays.get(id);
+      if (
+        overlay &&
+        previous &&
+        previous.texture === overlay.texture &&
+        previous.version === overlay.texture.version &&
+        previous.opacity === overlay.opacity &&
+        previous.priority === overlay.priority &&
+        previous.viewportToTexture.equals(overlay.viewportToTexture)
+      )
+        return;
+      if (!overlay && !previous) return;
+      if (overlay)
+        screenOverlays.set(id, {
+          ...overlay,
+          viewportToTexture: overlay.viewportToTexture.clone(),
+          version: overlay.texture.version,
+        });
+      else screenOverlays.delete(id);
+      const ordered = [...screenOverlays.values()]
+        .sort((a, b) => (a.priority ?? 0) - (b.priority ?? 0))
+        .slice(-2);
+      mapStyleProjectionUniforms.screenOverlays!.forEach((screen, index) => {
+        const entry = ordered[index];
+        screen.texture.value = entry?.texture ?? null;
+        screen.opacity.value = entry?.opacity ?? 0;
+        if (entry) screen.viewportToTexture.value.copy(entry.viewportToTexture);
+      });
+      screenOverlayMesh.visible = ordered.some((entry) => entry.opacity > 0);
+      mapStyleProjectionEpoch++;
+      map?.triggerRepaint();
+    },
     setSurfaceOverlay(
       id: string,
       overlay: {
         texture: THREE.Texture;
         sceneToTexture: THREE.Matrix4;
         opacity: number;
+        previous?: { texture: THREE.Texture; sceneToTexture: THREE.Matrix4 };
+        transition?: number;
       } | null
     ) {
       if (overlay) surfaceOverlays.set(id, overlay);
@@ -215,6 +310,16 @@ export const createSharedThreeMapStyleProjection = (
       const surface = mapStyleProjectionUniforms.surfaceOverlay!;
       surface.texture.value = active?.texture ?? null;
       surface.opacity.value = active?.opacity ?? 0;
+      surface.previousTexture.value = active?.previous?.texture ?? null;
+      surface.previousEnabled.value = active?.previous ? 1 : 0;
+      surface.transition.value = Math.max(
+        0,
+        Math.min(1, active?.transition ?? 1)
+      );
+      if (active?.previous)
+        surface.previousSceneToTexture.value.copy(
+          active.previous.sceneToTexture
+        );
       if (active) surface.sceneToTexture.value.copy(active.sceneToTexture);
       mapStyleProjectionEpoch++;
       map?.triggerRepaint();
@@ -259,7 +364,9 @@ export const createSharedThreeMapStyleProjection = (
     ): boolean {
       mapStyleProjectionUniforms.sceneToClip.value.copy(sceneToClipMatrix);
       const hasReceivers =
-        (presentationEnabled || surfaceOverlays.size > 0) &&
+        (presentationEnabled ||
+          surfaceOverlays.size > 0 ||
+          screenOverlays.size > 0) &&
         configureMapStyleProjection();
       if (presentationEnabled && mapStyleProjectionVisible && hasReceivers) {
         try {
@@ -314,6 +421,9 @@ export const createSharedThreeMapStyleProjection = (
       mapStyleFramebufferTexture = null;
       mapStyleProjectionUniforms.texture.value = null;
       mapStyleProjectionUniforms.enabled.value = 0;
+      screenOverlays.clear();
+      screenOverlayMesh.geometry.dispose();
+      screenMaterial.dispose();
       surfaceOverlays.clear();
       mapStyleProjectionUniforms.surfaceOverlay!.texture.value = null;
       mapStyleProjectionUniforms.surfaceOverlay!.opacity.value = 0;

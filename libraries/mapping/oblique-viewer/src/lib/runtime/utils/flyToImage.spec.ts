@@ -11,6 +11,10 @@ vi.mock("maplibre-gl", async () => {
   const { LngLat } = await import("maplibre-gl/src/geo/lng_lat");
   return { MercatorCoordinate, LngLat };
 });
+vi.mock("@carma-mapping/engines/maplibre", () => ({
+  zoom512as256: (zoom: number) => zoom + 1,
+  zoom256as512: (zoom: number) => zoom - 1,
+}));
 vi.mock("./obliqueCamera", () => ({ whenMoveEnds: vi.fn() }));
 vi.mock("./cameraMath", () => ({
   dynamicDurationMs: vi.fn(),

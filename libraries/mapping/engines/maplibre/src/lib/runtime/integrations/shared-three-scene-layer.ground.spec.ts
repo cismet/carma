@@ -131,7 +131,7 @@ describe("shared three scene layer.ground", () => {
     expect(terrainDepthBranch).toContain("return true;");
     expect(terrainDepthBranch).not.toContain("fragmentDistance");
     expect(material.customProgramCacheKey()).toContain(
-      "carma-map-style-projection-v6"
+      "carma-map-style-projection-v8"
     );
     expect(material.defines?.CARMA_MAP_STYLE_OVERLAY).toBeUndefined();
   });
@@ -229,16 +229,14 @@ describe("shared three scene layer.ground", () => {
     ]);
     const fragment = fixture.shader.fragmentShader;
     const surfaceBranch = fragment
-      .split("// A world-aligned footprint paints")[1]
-      .split("#include <opaque_fragment>")[0];
+      .split("if ( carmaSurfaceOpacity > 0.0 )")[1]
+      .split("if (carmaScreenOpacity")[0];
 
     expect(
       fixture.uniformValue<THREE.Texture | null>("carmaSurfaceTexture")
     ).toBe(secondTexture);
     expect(fixture.uniformValue<number>("carmaSurfaceOpacity")).toBe(0.5);
-    expect(surfaceBranch).toContain(
-      "carmaSurfaceSample.a * carmaSurfaceOpacity"
-    );
+    expect(surfaceBranch).toContain("alpha*carmaSurfaceOpacity");
     expect(surfaceBranch).not.toContain("carmaMapStyleOccludedByMesh");
     expect(surfaceBranch).not.toContain("carmaMapStyleDepth");
 

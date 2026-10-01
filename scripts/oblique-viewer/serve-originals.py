@@ -414,8 +414,8 @@ def create_handler(bridge: Bridge):
         def end_headers(self):
             if self.headers.get("Origin") == bridge.allowed_origin:
                 self.send_header("Access-Control-Allow-Origin", bridge.allowed_origin)
-                self.send_header("Vary", "Origin")
                 self.send_header("Access-Control-Expose-Headers", "Content-Length, Content-Range, Accept-Ranges, ETag")
+            self.send_header("Vary", "Origin")
             self.send_header("X-Content-Type-Options", "nosniff")
             super().end_headers()
 

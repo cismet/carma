@@ -13,6 +13,7 @@ import {
   nativePreviewTiles,
   type NativePreviewWindow,
 } from "../core/utils/native-preview-window";
+import { useScenePreviewImage } from "./hooks/useScenePreviewImage";
 import { readCameraToCenterDistancePx } from "./utils/cameraMath";
 import {
   PREVIEW_HEIGHT_VAR,
@@ -42,6 +43,8 @@ export const NativePixels = ({
   dimImage: boolean;
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [ready, setReady] = useState(false);
+  const [revision, setRevision] = useState(0);
   const [window, setWindow] = useState<NativePreviewWindow | null>(null);
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -78,6 +81,7 @@ export const NativePixels = ({
       controller?.abort();
       worker?.terminate();
       worker = null;
+      setReady(false);
       canvas.style.opacity = "0";
       if (!frame) return;
       const epoch = generation;
@@ -116,25 +120,10 @@ export const NativePixels = ({
               bitmap.close();
               return;
             }
-            const scratch = new OffscreenCanvas(bitmap.width, bitmap.height);
-            const scratchContext = scratch.getContext("2d", {
-              willReadFrequently: true,
-            });
-            if (!scratchContext) {
-              bitmap.close();
-              throw new Error("No RGB decode canvas");
-            }
-            scratchContext.drawImage(bitmap, 0, 0);
-            const pixels = scratchContext.getImageData(
-              0,
-              0,
-              bitmap.width,
-              bitmap.height
-            );
             const scaleX = bitmap.width / tile.source.width,
               scaleY = bitmap.height / tile.source.height;
             const message = {
-              pixels: pixels.data.buffer,
+              bitmap,
               sourceWidth: bitmap.width,
               sourceHeight: bitmap.height,
               width: tile.target.width,
@@ -146,20 +135,45 @@ export const NativePixels = ({
                 height: tile.sample.height * scaleY,
               },
             };
-            bitmap.close();
-            scratch.width = 1;
-            scratch.height = 1;
             const output = await new Promise<ArrayBuffer>((resolve, reject) => {
+              let settled = false;
+              const finish = (error?: Error, pixels?: ArrayBuffer) => {
+                if (settled) return;
+                settled = true;
+                globalThis.window.clearTimeout(timeout);
+                signal.removeEventListener("abort", abort);
+                currentWorker.onmessage = null;
+                currentWorker.onerror = null;
+                currentWorker.onmessageerror = null;
+                if (error) reject(error);
+                else if (pixels) resolve(pixels);
+                else reject(new Error("No RGB pixels"));
+              };
+              const abort = () => finish(new Error("RGB resampling cancelled"));
+              const timeout = globalThis.window.setTimeout(
+                () => finish(new Error("RGB resampling timed out")),
+                30000
+              );
+              signal.addEventListener("abort", abort, { once: true });
               currentWorker.onmessage = (
                 event: MessageEvent<{ pixels?: ArrayBuffer; error?: string }>
               ) => {
                 if (event.data.error || !event.data.pixels)
-                  reject(new Error(event.data.error || "No RGB pixels"));
-                else resolve(event.data.pixels);
+                  finish(new Error(event.data.error || "No RGB pixels"));
+                else finish(undefined, event.data.pixels);
               };
               currentWorker.onerror = () =>
-                reject(new Error("RGB resampling worker failed"));
-              currentWorker.postMessage(message, [message.pixels]);
+                finish(new Error("RGB resampling worker failed"));
+              currentWorker.onmessageerror = () =>
+                finish(new Error("RGB resampling response failed"));
+              try {
+                currentWorker.postMessage(message, [bitmap]);
+              } catch (error) {
+                bitmap.close();
+                finish(
+                  error instanceof Error ? error : new Error(String(error))
+                );
+              }
             });
             if (signal.aborted || disposed || epoch !== generation) return;
             context.putImageData(
@@ -171,7 +185,8 @@ export const NativePixels = ({
               tile.target.x,
               tile.target.y
             );
-            canvas.style.opacity = "1";
+            setReady(true);
+            setRevision((value) => value + 1);
           }
         };
         void run()
@@ -199,6 +214,7 @@ export const NativePixels = ({
       map.off("render", schedule);
       map.off("resize", schedule);
       globalThis.window.removeEventListener("resize", schedule);
+      setReady(false);
       canvas.style.opacity = "0";
     };
   }, [
@@ -214,6 +230,18 @@ export const NativePixels = ({
     rollDeg,
     dimImage,
   ]);
+  const sceneImage = useScenePreviewImage({
+    map,
+    source: canvasRef.current,
+    revision,
+    shown: ready && !dimImage,
+    halfFovTan,
+    nativeSize,
+    principal,
+    rollDeg,
+    crop: window?.source,
+    priority: 1,
+  });
   const source = window?.source;
   return (
     <canvas
@@ -223,7 +251,7 @@ export const NativePixels = ({
       style={{
         position: "absolute",
         pointerEvents: "none",
-        opacity: 0,
+        opacity: ready && !sceneImage ? 1 : 0,
         left: `calc(50% + var(${PREVIEW_WIDTH_VAR},0px) * ${
           principal.xOffset - 0.5 + (source?.x ?? 0) / nativeSize.width
         })`,

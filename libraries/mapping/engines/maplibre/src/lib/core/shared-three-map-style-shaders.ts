@@ -1,8 +1,33 @@
+/** Shared by the receiver and its background quad; texture inputs use sRGB color space. */
+export const MAP_STYLE_SCREEN_OVERLAY_FRAGMENT_HEADER = /* glsl */ `
+uniform sampler2D carmaScreenTexture0;
+uniform mat3 carmaScreenToTexture0;
+uniform float carmaScreenOpacity0;
+uniform sampler2D carmaScreenTexture1;
+uniform mat3 carmaScreenToTexture1;
+uniform float carmaScreenOpacity1;
+vec4 carmaScreenSample(sampler2D image, mat3 transform, float opacity, vec2 uv) {
+  vec2 imageUv = (transform * vec3(uv, 1.0)).xy;
+  if (opacity <= 0.0 || any(lessThan(imageUv,vec2(0.0))) || any(greaterThan(imageUv,vec2(1.0)))) return vec4(0.0);
+  vec4 pixel = texture2D(image, imageUv);
+  pixel.a *= opacity;
+  return pixel;
+}
+vec4 carmaScreenImages(vec2 uv) {
+  vec4 base = carmaScreenSample(carmaScreenTexture0,carmaScreenToTexture0,carmaScreenOpacity0,uv);
+  vec4 crop = carmaScreenSample(carmaScreenTexture1,carmaScreenToTexture1,carmaScreenOpacity1,uv);
+  float alpha = crop.a + base.a * (1.0-crop.a);
+  return vec4((crop.rgb*crop.a + base.rgb*base.a*(1.0-crop.a))/max(alpha,0.00001),alpha);
+}
+`;
+
 export const MAP_STYLE_PROJECTION_VERTEX_HEADER = /* glsl */ `
 uniform mat4 carmaMapStyleSceneToClip;
 varying vec4 vCarmaMapStyleClip;
 uniform mat4 carmaSurfaceSceneToTexture;
+uniform mat4 carmaSurfacePreviousSceneToTexture;
 varying vec2 vCarmaSurfaceUv;
+varying vec2 vCarmaSurfacePreviousUv;
 `;
 
 export const MAP_STYLE_PROJECTION_VERTEX_BODY = /* glsl */ `
@@ -10,9 +35,12 @@ export const MAP_STYLE_PROJECTION_VERTEX_BODY = /* glsl */ `
 vec4 carmaSurfacePosition = modelMatrix * vec4( transformed, 1.0 );
 vCarmaMapStyleClip = carmaMapStyleSceneToClip * carmaSurfacePosition;
 vCarmaSurfaceUv = (carmaSurfaceSceneToTexture * carmaSurfacePosition).xy;
+vCarmaSurfacePreviousUv = (carmaSurfacePreviousSceneToTexture * carmaSurfacePosition).xy;
 `;
 
-export const MAP_STYLE_PROJECTION_FRAGMENT_HEADER = /* glsl */ `
+export const MAP_STYLE_PROJECTION_FRAGMENT_HEADER =
+  MAP_STYLE_SCREEN_OVERLAY_FRAGMENT_HEADER +
+  /* glsl */ `
 uniform sampler2D carmaMapStyleTexture;
 uniform float carmaMapStyleEnabled;
 uniform sampler2D carmaMapStyleDepthTexture;
@@ -23,6 +51,10 @@ varying vec4 vCarmaMapStyleClip;
 varying vec2 vCarmaSurfaceUv;
 uniform sampler2D carmaSurfaceTexture;
 uniform float carmaSurfaceOpacity;
+uniform sampler2D carmaSurfacePreviousTexture;
+uniform float carmaSurfacePreviousEnabled;
+uniform float carmaSurfaceTransition;
+varying vec2 vCarmaSurfacePreviousUv;
 #ifdef CARMA_MAP_STYLE_OVERLAY
 // Draped label picked up in map_fragment, composited after lighting.
 float carmaMapStyleLabelCoverage = 0.0;
@@ -120,32 +152,40 @@ vec3 carmaMapStyleSRGBToLinear( vec3 value ) {
 
 export const MAP_STYLE_PROJECTION_FRAGMENT_OUTPUT = /* glsl */ `
 #ifdef CARMA_MAP_STYLE_OVERLAY
+// Retain the mesh's light/shadow factor before replacing its color with a photograph.
+const vec3 carmaLuma = vec3( 0.2126, 0.7152, 0.0722 );
+float carmaAlbedo = max( dot( diffuseColor.rgb, carmaLuma ), 1e-3 );
+float carmaLit = dot( outgoingLight, carmaLuma );
+float carmaShade = clamp( carmaLit / carmaAlbedo, 0.35, 1.0 );
+#endif
+// World markings use visible mesh surfaces without the DEM street-label mask.
+if ( carmaSurfaceOpacity > 0.0 ) {
+  vec4 current = vec4(0.0);
+  vec4 previous = vec4(0.0);
+  if (all(greaterThanEqual(vCarmaSurfaceUv, vec2(0.0))) &&
+      all(lessThanEqual(vCarmaSurfaceUv, vec2(1.0))))
+    current = texture2D(carmaSurfaceTexture, vCarmaSurfaceUv);
+  if (carmaSurfacePreviousEnabled > 0.5 &&
+      all(greaterThanEqual(vCarmaSurfacePreviousUv, vec2(0.0))) &&
+      all(lessThanEqual(vCarmaSurfacePreviousUv, vec2(1.0))))
+    previous = texture2D(carmaSurfacePreviousTexture, vCarmaSurfacePreviousUv);
+  // Interpolate premultiplied colors so unchanged markings keep their opacity.
+  float alpha = mix(previous.a, current.a, carmaSurfaceTransition);
+  vec3 color = mix(carmaMapStyleSRGBToLinear(previous.rgb) * previous.a,
+                  carmaMapStyleSRGBToLinear(current.rgb) * current.a,
+                  carmaSurfaceTransition);
+  outgoingLight = outgoingLight * (1.0-alpha*carmaSurfaceOpacity) + color*carmaSurfaceOpacity;
+}
+if (carmaScreenOpacity0 > 0.0 || carmaScreenOpacity1 > 0.0) {
+  vec2 screenUv = vCarmaMapStyleClip.xy / vCarmaMapStyleClip.w * 0.5 + 0.5;
+  vec4 image = carmaScreenImages(screenUv);
+  outgoingLight = mix(outgoingLight,image.rgb,image.a);
+}
+#ifdef CARMA_MAP_STYLE_OVERLAY
 if ( carmaMapStyleLabelCoverage > 0.0 ) {
-  // Keep the surface's own light and shadow ratio (how much brighter or
-  // darker lighting made the albedo) and apply it to the label color, so
-  // the text stays the sun color in the light and darkens in shadow
-  // without blowing out.
-  const vec3 carmaLuma = vec3( 0.2126, 0.7152, 0.0722 );
-  float carmaAlbedo = max( dot( diffuseColor.rgb, carmaLuma ), 1e-3 );
-  float carmaLit = dot( outgoingLight, carmaLuma );
-  float carmaShade = clamp( carmaLit / carmaAlbedo, 0.35, 1.0 );
-  outgoingLight = mix(
-    outgoingLight,
-    carmaMapStyleLabelColor * carmaShade,
-    carmaMapStyleLabelCoverage
-  );
+  outgoingLight = mix(outgoingLight,carmaMapStyleLabelColor * carmaShade,carmaMapStyleLabelCoverage);
 }
 #endif
-// A world-aligned footprint paints the actual visible surface. It does not
-// use the DEM-depth street-label mask; roofs and facades remain marked too.
-if ( carmaSurfaceOpacity > 0.0 &&
-     all( greaterThanEqual( vCarmaSurfaceUv, vec2( 0.0 ) ) ) &&
-     all( lessThanEqual( vCarmaSurfaceUv, vec2( 1.0 ) ) ) ) {
-  vec4 carmaSurfaceSample = texture2D( carmaSurfaceTexture, vCarmaSurfaceUv );
-  outgoingLight = mix( outgoingLight,
-    carmaMapStyleSRGBToLinear( carmaSurfaceSample.rgb ),
-    carmaSurfaceSample.a * carmaSurfaceOpacity );
-}
 #include <opaque_fragment>
 `;
 

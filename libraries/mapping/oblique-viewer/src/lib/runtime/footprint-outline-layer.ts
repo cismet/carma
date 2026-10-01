@@ -14,6 +14,9 @@ import {
 
 import type { AnimationConfig, ObliquePose } from "../core/types";
 import { footprintMarkerGeometry } from "../core/utils/footprint-marker";
+import { diagonalIntersection } from "../core/utils/footprint-diagonal-intersection";
+import { MAX_VISIBLE_FOOTPRINTS } from "../core/utils/viewport-footprints";
+import { radToDeg, type Radians } from "@carma-units";
 
 /**
  * Native terrain features plus a world-aligned texture on visible mesh receivers.
@@ -28,13 +31,19 @@ export type FootprintOutlineStyle = {
   fillOpacity?: number;
   inactiveOpacity?: number;
 };
-export type InactiveFootprint = { id: string; ring: Position[] };
+export type InactiveFootprint = {
+  id: string;
+  ring: Position[];
+  pose?: ObliquePose;
+  seriesLabel?: string;
+};
 export type FootprintOutlineLayer = {
   setRing: (
     ring: Position[] | null,
     annotation?: {
       pose: ObliquePose | null;
       seriesLabel?: string;
+      hoverLabel?: string;
       imageId?: string;
     },
     inactive?: readonly InactiveFootprint[]
@@ -42,12 +51,65 @@ export type FootprintOutlineLayer = {
   containsScreenPoint: (point: { x: number; y: number }) => boolean;
   imageAtScreenPoint: (point: { x: number; y: number }) => string | null;
   setStyle: (style: FootprintOutlineStyle) => void;
+  setHoveredImage: (
+    imageId: string | null,
+    candidate?: InactiveFootprint
+  ) => void;
   setLocked: (locked: boolean, fade?: AnimationConfig) => void;
   destroy: () => void;
 };
 const DEFAULT_FADE_MS = 300;
+const FOOTPRINT_TRANSITION_MS = 180;
+const OUTLINE_WIDTH_SCALE = 2 / 3;
+const LABEL_FONT_WEIGHT = 1000;
 const LABEL_WIDTH = 512;
 const LABEL_HEIGHT = 256;
+const LABEL_FONT_FAMILY =
+  '"Arial Black", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans", sans-serif';
+
+const createLabelCanvas = (
+  text: string,
+  color: string
+): HTMLCanvasElement | null => {
+  const canvas = document.createElement("canvas");
+  canvas.width = LABEL_WIDTH;
+  canvas.height = LABEL_HEIGHT;
+  const context = canvas.getContext("2d");
+  if (!context) return null;
+  context.font = LABEL_FONT_WEIGHT + " 172px " + LABEL_FONT_FAMILY;
+  context.textAlign = "center";
+  context.textBaseline = "middle";
+  const fontSize = Math.min(
+    172,
+    (172 * 480) / Math.max(480, context.measureText(text).width)
+  );
+  context.font = LABEL_FONT_WEIGHT + " " + fontSize + "px " + LABEL_FONT_FAMILY;
+  context.fillStyle = color;
+  context.fillText(text, 256, 132);
+  return canvas;
+};
+
+const markerForRing = (ring: Position[], pose: ObliquePose) => {
+  const origin = MercatorCoordinate.fromLngLat([ring[0][0], ring[0][1]]);
+  const meterScale = origin.meterInMercatorCoordinateUnits();
+  const polygon = ring.map(([lng, lat]) => {
+    const point = MercatorCoordinate.fromLngLat([lng, lat]);
+    return new Vector2(
+      (point.x - origin.x) / meterScale,
+      -(point.y - origin.y) / meterScale
+    );
+  });
+  const marker = footprintMarkerGeometry(polygon, pose);
+  if (!marker) return null;
+  const toLngLat = (point: Vector2): number[] => {
+    const coordinate = new MercatorCoordinate(
+      origin.x + point.x * meterScale,
+      origin.y - point.y * meterScale
+    ).toLngLat();
+    return [coordinate.lng, coordinate.lat];
+  };
+  return { marker, toLngLat, meterScale };
+};
 
 export const createFootprintOutlineLayer = (
   map: MaplibreMap,
@@ -58,14 +120,25 @@ export const createFootprintOutlineLayer = (
     hitId = `${id}-interior`,
     caretId = `${id}-caret`,
     labelId = `${id}-label`,
-    imageId = `${id}-label-image`;
+    imageId = `${id}-label-image`,
+    hoverImageId = `${id}-hover-label-image`;
   const layerIds = [hitId, id, caretId, labelId];
   let style = initialStyle,
     locked = false,
     destroyed = false,
     attaching = false;
   let data: FeatureCollection = { type: "FeatureCollection", features: [] };
+  let baseData = data;
+  const labelCandidates = new Map<string, InactiveFootprint>();
+  let hoverText: string | undefined;
+  let hoverCanvas: HTMLCanvasElement | null = null;
+  let hoverImage: ImageData | null = null;
+  let hoverImageDirty = false;
+  let hoverRing: Position[] | null = null;
   let revision = 0;
+  let hoveredImageId: string | null = null;
+  let externalHoverCandidate: InactiveFootprint | undefined;
+  const centers = new Map<string, [number, number]>();
   let labelText: string | undefined, labelColor: string | undefined;
   let labelImage: ImageData | null = null;
   let labelImageDirty = false;
@@ -75,6 +148,18 @@ export const createFootprintOutlineLayer = (
   let surfaceTexture: CanvasTexture | null = null;
   let sharedLayerId: string | null = null;
   let surfaceBounds: [number, number, number, number] | null = null;
+  let previousSurface:
+    | { texture: CanvasTexture; bounds: [number, number, number, number] }
+    | undefined;
+  let surfaceTransitionStart: number | null = null;
+  let surfaceTransition = 1;
+  const clearPreviousSurface = () => {
+    const previous = previousSurface;
+    previousSurface = undefined;
+    surfaceTransitionStart = null;
+    surfaceTransition = 1;
+    return previous;
+  };
   let surfaceDirty = true,
     surfaceZoom = Number.NaN;
   let surfaceOpacity = initialStyle.opacity;
@@ -90,21 +175,33 @@ export const createFootprintOutlineLayer = (
         texture: surfaceTexture,
         bounds: surfaceBounds,
         opacity: surfaceOpacity,
+        previous: previousSurface,
+        transition: surfaceTransition,
       });
   };
   const renderFade = () => {
-    if (!fadeState || !surfaceLease) return;
-    const t = Math.max(
-      0,
-      Math.min(
-        1,
-        (performance.now() - fadeState.start) / Math.max(1, fadeState.duration)
-      )
-    );
-    surfaceOpacity = fadeState.from + (fadeState.to - fadeState.from) * t;
+    if ((!fadeState && surfaceTransitionStart === null) || !surfaceLease)
+      return;
+    const now = performance.now();
+    if (fadeState) {
+      const t = Math.max(
+        0,
+        Math.min(1, (now - fadeState.start) / Math.max(1, fadeState.duration))
+      );
+      surfaceOpacity = fadeState.from + (fadeState.to - fadeState.from) * t;
+      if (t >= 1) fadeState = null;
+    }
+    let retired: typeof previousSurface;
+    if (surfaceTransitionStart !== null) {
+      surfaceTransition = Math.max(
+        0,
+        Math.min(1, (now - surfaceTransitionStart) / FOOTPRINT_TRANSITION_MS)
+      );
+      if (surfaceTransition >= 1) retired = clearPreviousSurface();
+    }
     publishSurface();
-    if (t >= 1) fadeState = null;
-    else map.triggerRepaint();
+    retired?.texture.dispose();
+    if (fadeState || surfaceTransitionStart !== null) map.triggerRepaint();
   };
   map.on("render", renderFade);
 
@@ -114,21 +211,9 @@ export const createFootprintOutlineLayer = (
       (text === labelText && style.color === labelColor && labelImage)
     )
       return;
-    const canvas = document.createElement("canvas");
-    canvas.width = LABEL_WIDTH;
-    canvas.height = LABEL_HEIGHT;
-    const context = canvas.getContext("2d");
-    if (!context) return;
-    context.font = "800 172px sans-serif";
-    context.textAlign = "center";
-    context.textBaseline = "middle";
-    const fontSize = Math.min(
-      172,
-      (172 * 480) / Math.max(480, context.measureText(text).width)
-    );
-    context.font = `800 ${fontSize}px sans-serif`;
-    context.fillStyle = style.color;
-    context.fillText(text, 256, 132);
+    const canvas = createLabelCanvas(text, style.color);
+    const context = canvas?.getContext("2d");
+    if (!canvas || !context) return;
     labelCanvas = canvas;
     labelImage = context.getImageData(0, 0, LABEL_WIDTH, LABEL_HEIGHT);
     labelText = text;
@@ -136,30 +221,147 @@ export const createFootprintOutlineLayer = (
     labelImageDirty = true;
   };
   const attachImage = () => {
-    if (!labelImage) return;
-    const exists = map.hasImage(imageId);
-    if (exists && !labelImageDirty) return;
-    // Register only after the geometry commit. Image writes can emit styledata
-    // synchronously, which must never rasterize a half-built footprint.
-    labelImageDirty = false;
-    try {
-      if (exists) map.updateImage(imageId, labelImage);
-      else map.addImage(imageId, labelImage);
-    } catch (error) {
-      labelImageDirty = true;
-      throw error;
+    for (const [key, pixels, dirty, isHover] of [
+      [imageId, labelImage, labelImageDirty, false],
+      [hoverImageId, hoverImage, hoverImageDirty, true],
+    ] as const) {
+      if (!pixels) continue;
+      const exists = map.hasImage(key);
+      if (exists && !dirty) continue;
+      // Image writes can emit styledata: publish only after a complete geometry commit.
+      if (isHover) hoverImageDirty = false;
+      else labelImageDirty = false;
+      try {
+        if (exists) map.updateImage(key, pixels);
+        else map.addImage(key, pixels);
+      } catch (error) {
+        if (isHover) hoverImageDirty = true;
+        else labelImageDirty = true;
+        throw error;
+      }
     }
+  };
+  const updateHoveredLabel = () => {
+    hoverRing = null;
+    data = { type: "FeatureCollection", features: [...baseData.features] };
+    const candidate = hoveredImageId
+      ? labelCandidates.get(hoveredImageId) ??
+        (externalHoverCandidate?.id === hoveredImageId
+          ? externalHoverCandidate
+          : undefined)
+      : undefined;
+    if (
+      candidate &&
+      candidate.ring.length >= 4 &&
+      !data.features.some(
+        (feature) =>
+          feature.geometry.type === "Polygon" &&
+          feature.properties?.imageId === candidate.id
+      )
+    ) {
+      const polygonCount = data.features.filter(
+        (feature) => feature.geometry.type === "Polygon"
+      ).length;
+      if (polygonCount >= MAX_VISIBLE_FOOTPRINTS) {
+        let lastInactive = -1;
+        for (let i = data.features.length - 1; i >= 0; i--) {
+          const feature = data.features[i];
+          if (
+            feature.geometry.type === "Polygon" &&
+            feature.properties?.active === false
+          ) {
+            lastInactive = i;
+            break;
+          }
+        }
+        if (lastInactive >= 0) data.features.splice(lastInactive, 1);
+      }
+      data.features.push({
+        type: "Feature",
+        properties: {
+          part: "footprint",
+          revision,
+          active: false,
+          imageId: candidate.id,
+        },
+        geometry: { type: "Polygon", coordinates: [candidate.ring] },
+      });
+      const [p0, p1, p2, p3] = candidate.ring;
+      const center = diagonalIntersection(p0, p1, p2, p3);
+      if (center) centers.set(candidate.id, center);
+    }
+    const projected = candidate?.pose
+      ? markerForRing(candidate.ring, candidate.pose)
+      : null;
+    const text = candidate?.seriesLabel;
+    if (!projected || !text) return;
+    if (text !== hoverText || !hoverCanvas) {
+      const canvas = createLabelCanvas(text, "#ffff00");
+      const context = canvas?.getContext("2d");
+      if (!canvas || !context) return;
+      hoverCanvas = canvas;
+      hoverImage = context.getImageData(0, 0, LABEL_WIDTH, LABEL_HEIGHT);
+      hoverText = text;
+      hoverImageDirty = true;
+    }
+    const { marker, toLngLat, meterScale } = projected;
+    hoverRing = marker.labelCorners.map(toLngLat);
+    const center = marker.labelCorners
+      .reduce((sum, point) => sum.add(point), new Vector2())
+      .divideScalar(4);
+    const edge = marker.labelCorners[1].clone().sub(marker.labelCorners[0]);
+    // Hover takes precedence: expose a single identity annotation in either renderer.
+    data.features = data.features.filter(
+      (feature) => feature.properties?.part !== "label"
+    );
+    data.features.push({
+      type: "Feature",
+      properties: {
+        part: "label",
+        hovered: true,
+        imageId: hoveredImageId,
+        scale: edge.length() * meterScale,
+        rotationDeg: radToDeg(Math.atan2(-edge.y, edge.x) as Radians),
+      },
+      geometry: { type: "Point", coordinates: toLngLat(center) },
+    });
   };
   const opacity = () => (locked ? 0 : style.opacity);
   const nativeOpacity = () => (surfaceLease ? 0 : opacity());
   const inactiveOpacity = () =>
-    Math.max(0, Math.min(0.1, style.inactiveOpacity ?? 0.1));
+    Math.max(0, Math.min(0.2, style.inactiveOpacity ?? 0.2)) /
+    Math.max(0.2, style.opacity);
   const fillOpacity = () =>
     Math.max(0, Math.min(0.2, style.fillOpacity ?? 0.2));
   const lineOpacity = (): ExpressionSpecification => [
     "*",
     nativeOpacity(),
-    ["case", ["==", ["get", "active"], false], inactiveOpacity(), 1],
+    [
+      "case",
+      ["==", ["get", "imageId"], hoveredImageId ?? ""],
+      1,
+      ["==", ["get", "active"], false],
+      inactiveOpacity(),
+      1,
+    ],
+  ];
+  const lineColor = (): ExpressionSpecification => [
+    "case",
+    ["==", ["get", "imageId"], hoveredImageId ?? ""],
+    "#ffff00",
+    style.color,
+  ];
+  const lineWidth = (): ExpressionSpecification => [
+    "*",
+    style.width * OUTLINE_WIDTH_SCALE,
+    [
+      "case",
+      ["==", ["get", "imageId"], hoveredImageId ?? ""],
+      1,
+      ["==", ["get", "active"], false],
+      0.5,
+      1,
+    ],
   ];
   const renderedFootprints = (point: { x: number; y: number }) =>
     !destroyed && !locked && style.opacity > 0 && !!map.getLayer(hitId)
@@ -176,6 +378,7 @@ export const createFootprintOutlineLayer = (
       fadeState = null;
       surfaceOpacity = opacity();
       surfaceLease?.layer.setMapStyleSurfaceOverlay?.(id, null);
+      clearPreviousSurface()?.texture.dispose();
       surfaceLease?.release();
       surfaceLease = null;
       if (wasActive) applyStyle();
@@ -201,6 +404,7 @@ export const createFootprintOutlineLayer = (
       polygons.find((f) => f.properties?.active !== false) ?? polygons[0];
     if (!polygon || polygon.geometry.type !== "Polygon") {
       surfaceLease.layer.setMapStyleSurfaceOverlay?.(id, null);
+      clearPreviousSurface()?.texture.dispose();
       surfaceTexture?.dispose();
       surfaceTexture = null;
       return;
@@ -242,8 +446,11 @@ export const createFootprintOutlineLayer = (
       );
     };
     context.strokeStyle = style.color;
-    context.lineWidth =
-      ((style.width / (512 * 2 ** zoom)) * canvas.width) / width;
+    const outlineWidth =
+      (((style.width * OUTLINE_WIDTH_SCALE) / (512 * 2 ** zoom)) *
+        canvas.width) /
+      width;
+    context.lineWidth = outlineWidth;
     context.lineJoin = "round";
     context.lineCap = "round";
     const trace = (feature: FeatureCollection["features"][number]) => {
@@ -286,20 +493,40 @@ export const createFootprintOutlineLayer = (
       context.globalAlpha = fillOpacity();
       context.fill();
     }
+    context.lineWidth = outlineWidth * 0.5;
     context.globalAlpha = inactiveOpacity();
     context.beginPath();
     polygons
-      .filter((feature) => feature.properties?.active === false)
+      .filter(
+        (feature) =>
+          feature.properties?.active === false &&
+          feature.properties.imageId !== hoveredImageId
+      )
       .forEach(trace);
     context.stroke();
+    context.lineWidth = outlineWidth;
     for (const feature of activeFeatures) {
       context.beginPath();
       trace(feature);
       context.globalAlpha = 1;
       context.stroke();
     }
-    if (labelRing && labelCanvas) {
-      const [p0, p1, , p3] = labelRing.map(pixel);
+    const hovered = polygons.find(
+      (feature) => feature.properties?.imageId === hoveredImageId
+    );
+    if (hovered) {
+      context.strokeStyle = "#ffff00";
+      context.globalAlpha = 1;
+      context.beginPath();
+      trace(hovered);
+      context.stroke();
+    }
+    for (const [ring, image] of [
+      [hoverRing ? null : labelRing, labelCanvas],
+      [hoverRing, hoverCanvas],
+    ] as const) {
+      if (!ring || !image) continue;
+      const [p0, p1, , p3] = ring.map(pixel);
       context.globalAlpha = 0.5;
       context.setTransform(
         (p1.x - p0.x) / LABEL_WIDTH,
@@ -309,29 +536,36 @@ export const createFootprintOutlineLayer = (
         p0.x,
         p0.y
       );
-      context.drawImage(labelCanvas, 0, 0);
+      context.drawImage(image, 0, 0);
     }
     const northWest = new MercatorCoordinate(left, top).toLngLat();
     const southEast = new MercatorCoordinate(
       left + width,
       top + height
     ).toLngLat();
+    const oldTexture = surfaceTexture;
+    const oldBounds = surfaceBounds;
+    const retired = clearPreviousSurface();
     surfaceBounds = [
       northWest.lng,
       southEast.lat,
       southEast.lng,
       northWest.lat,
     ];
-    const previous = surfaceTexture;
+    if (oldTexture && oldBounds)
+      previousSurface = { texture: oldTexture, bounds: oldBounds };
+    surfaceTransitionStart = performance.now();
+    surfaceTransition = 0;
     surfaceTexture = new CanvasTexture(canvas);
     publishSurface();
-    previous?.dispose();
+    retired?.texture.dispose();
+    map.triggerRepaint();
   };
   const applyStyle = () => {
     for (const lineId of [id, caretId]) {
       if (!map.getLayer(lineId)) continue;
-      map.setPaintProperty(lineId, "line-color", style.color);
-      map.setPaintProperty(lineId, "line-width", style.width);
+      map.setPaintProperty(lineId, "line-color", lineColor());
+      map.setPaintProperty(lineId, "line-width", lineWidth());
       map.setPaintProperty(lineId, "line-opacity", lineOpacity());
     }
     if (map.getLayer(labelId))
@@ -388,6 +622,10 @@ export const createFootprintOutlineLayer = (
           filter: ["==", ["get", "part"], "footprint"],
           layout: { visibility: locked ? "none" : "visible" },
           paint: {
+            "fill-opacity-transition": {
+              duration: FOOTPRINT_TRANSITION_MS,
+              delay: 0,
+            },
             "fill-color": style.color,
             "fill-opacity": [
               "*",
@@ -413,8 +651,12 @@ export const createFootprintOutlineLayer = (
             filter: ["==", ["get", "part"], part],
             layout: { "line-join": "round", "line-cap": "round" },
             paint: {
-              "line-color": style.color,
-              "line-width": style.width,
+              "line-opacity-transition": {
+                duration: FOOTPRINT_TRANSITION_MS,
+                delay: 0,
+              },
+              "line-color": lineColor(),
+              "line-width": lineWidth(),
               "line-opacity": lineOpacity(),
             },
           });
@@ -427,7 +669,12 @@ export const createFootprintOutlineLayer = (
           metadata: { "carma:map-style-placement": "draped" },
           filter: ["==", ["get", "part"], "label"],
           layout: {
-            "icon-image": imageId,
+            "icon-image": [
+              "case",
+              ["==", ["get", "hovered"], true],
+              hoverImageId,
+              imageId,
+            ],
             "icon-pitch-alignment": "map",
             "icon-rotation-alignment": "map",
             "icon-rotate": ["get", "rotationDeg"],
@@ -462,6 +709,17 @@ export const createFootprintOutlineLayer = (
       revision++;
       surfaceDirty = true;
       labelRing = null;
+      labelCandidates.clear();
+      for (const candidate of inactive ?? [])
+        if (candidate.ring.length >= 4)
+          labelCandidates.set(candidate.id, candidate);
+      if (ring && annotation?.imageId && ring.length >= 4)
+        labelCandidates.set(annotation.imageId, {
+          id: annotation.imageId,
+          ring,
+          pose: annotation.pose ?? undefined,
+          seriesLabel: annotation.hoverLabel ?? annotation.seriesLabel,
+        });
       const features: FeatureCollection["features"] = (inactive ?? [])
         .filter((footprint) => footprint.ring.length >= 4)
         .map((footprint) => ({
@@ -486,27 +744,9 @@ export const createFootprintOutlineLayer = (
           geometry: { type: "Polygon", coordinates: [ring] },
         });
         if (annotation?.pose) {
-          const origin = MercatorCoordinate.fromLngLat([
-            ring[0][0],
-            ring[0][1],
-          ]);
-          const meterScale = origin.meterInMercatorCoordinateUnits();
-          const polygon = ring.map(([lng, lat]) => {
-            const point = MercatorCoordinate.fromLngLat([lng, lat]);
-            return new Vector2(
-              (point.x - origin.x) / meterScale,
-              -(point.y - origin.y) / meterScale
-            );
-          });
-          const marker = footprintMarkerGeometry(polygon, annotation.pose);
-          if (marker) {
-            const toLngLat = (point: Vector2): number[] => {
-              const coordinate = new MercatorCoordinate(
-                origin.x + point.x * meterScale,
-                origin.y - point.y * meterScale
-              ).toLngLat();
-              return [coordinate.lng, coordinate.lat];
-            };
+          const projected = markerForRing(ring, annotation.pose);
+          if (projected) {
+            const { marker, toLngLat, meterScale } = projected;
             const [tip, right, left] = marker.triangle;
             features.push({
               type: "Feature",
@@ -530,6 +770,7 @@ export const createFootprintOutlineLayer = (
                 type: "Feature",
                 properties: {
                   part: "label",
+                  imageId: annotation.imageId,
                   scale: edge.length() * meterScale,
                   rotationDeg: (Math.atan2(-edge.y, edge.x) * 180) / Math.PI,
                 },
@@ -539,7 +780,26 @@ export const createFootprintOutlineLayer = (
           }
         }
       }
-      data = { type: "FeatureCollection", features };
+      centers.clear();
+      for (const feature of features) {
+        if (
+          feature.geometry.type !== "Polygon" ||
+          typeof feature.properties?.imageId !== "string"
+        )
+          continue;
+        const points = feature.geometry.coordinates[0];
+        if (points.length >= 4) {
+          const center = diagonalIntersection(
+            points[0],
+            points[1],
+            points[2],
+            points[3]
+          );
+          if (center) centers.set(feature.properties.imageId, center);
+        }
+      }
+      baseData = { type: "FeatureCollection", features };
+      updateHoveredLabel();
       surfaceDirty = true;
       attach();
       (map.getSource(sourceId) as GeoJSONSource | undefined)?.setData(data);
@@ -549,11 +809,51 @@ export const createFootprintOutlineLayer = (
     },
     imageAtScreenPoint(point) {
       const hits = renderedFootprints(point);
-      const feature =
-        hits.find((feature) => feature.properties?.active === true) ?? hits[0];
+      if (!hits.length) return null;
+      const target = map.unproject([point.x, point.y]);
+      const targetMercator = MercatorCoordinate.fromLngLat(target);
+      let nearestDistance = Infinity;
+      let feature = hits[0];
+      // Rank the intersecting images against the next view axis, not worker tile order.
+      for (const hit of hits) {
+        const center = centers.get(hit.properties?.imageId);
+        if (!center) continue;
+        const mercator = MercatorCoordinate.fromLngLat(center);
+        const distance =
+          (mercator.x - targetMercator.x) ** 2 +
+          (mercator.y - targetMercator.y) ** 2;
+        if (
+          distance < nearestDistance ||
+          (distance === nearestDistance && hit.properties?.active === true)
+        ) {
+          nearestDistance = distance;
+          feature = hit;
+        }
+      }
       return typeof feature?.properties?.imageId === "string"
         ? feature.properties.imageId
         : null;
+    },
+    setHoveredImage(next, candidate) {
+      if (
+        hoveredImageId === next &&
+        externalHoverCandidate?.ring === candidate?.ring &&
+        externalHoverCandidate?.seriesLabel === candidate?.seriesLabel
+      )
+        return;
+      if (
+        externalHoverCandidate &&
+        !labelCandidates.has(externalHoverCandidate.id)
+      )
+        centers.delete(externalHoverCandidate.id);
+      hoveredImageId = next;
+      externalHoverCandidate = candidate;
+      updateHoveredLabel();
+      attachImage();
+      (map.getSource(sourceId) as GeoJSONSource | undefined)?.setData(data);
+      surfaceDirty = true;
+      updateSurface();
+      applyStyle();
     },
     setStyle(next) {
       if (
@@ -575,6 +875,14 @@ export const createFootprintOutlineLayer = (
     setLocked(next, fade) {
       if (next === locked) return;
       locked = next;
+      if (next && hoveredImageId) {
+        hoveredImageId = null;
+        externalHoverCandidate = undefined;
+        updateHoveredLabel();
+        (map.getSource(sourceId) as GeoJSONSource | undefined)?.setData(data);
+        surfaceDirty = true;
+        updateSurface();
+      }
       if (surfaceLease) {
         fadeState = {
           from: surfaceOpacity,
@@ -613,7 +921,8 @@ export const createFootprintOutlineLayer = (
         for (const layerId of layerIds.slice().reverse())
           if (map.getLayer(layerId)) map.removeLayer(layerId);
         if (map.getSource(sourceId)) map.removeSource(sourceId);
-        if (map.hasImage(imageId)) map.removeImage(imageId);
+        for (const key of [imageId, hoverImageId])
+          if (map.hasImage(key)) map.removeImage(key);
       } catch {
         /* Map teardown or a style replacement has already removed them. */
       }

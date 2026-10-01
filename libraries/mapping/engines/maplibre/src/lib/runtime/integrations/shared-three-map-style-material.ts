@@ -17,7 +17,7 @@ type MapStyleProjectionMaterialState = {
 };
 
 const MAP_STYLE_PROJECTION_STATE = "carmaMapStyleProjectionState";
-const MAP_STYLE_PROJECTION_SHADER_KEY = "|carma-map-style-projection-v6";
+const MAP_STYLE_PROJECTION_SHADER_KEY = "|carma-map-style-projection-v8";
 const MAP_STYLE_PROJECTION_OVERLAY_DEFINE = "CARMA_MAP_STYLE_OVERLAY";
 
 const applyMapStyleProjectionBlend = (
@@ -59,6 +59,10 @@ export const configureMapStyleProjectedMaterial = (
     texture: { value: null },
     sceneToTexture: { value: new THREE.Matrix4() },
     opacity: { value: 0 },
+    previousTexture: { value: null },
+    previousSceneToTexture: { value: new THREE.Matrix4() },
+    previousEnabled: { value: 0 },
+    transition: { value: 1 },
   };
   userData[MAP_STYLE_PROJECTION_STATE] = state;
   applyMapStyleProjectionBlend(material, blend);
@@ -74,6 +78,22 @@ export const configureMapStyleProjectedMaterial = (
     shader.uniforms["carmaMapStyleDepthNearFar"] = state.uniforms.depthNearFar;
     shader.uniforms["carmaMapStyleTexelSize"] = state.uniforms.texelSize;
     const surface = state.uniforms.surfaceOverlay ?? emptySurface;
+    for (let index = 0; index < 2; index++) {
+      const screen = state.uniforms.screenOverlays?.[index];
+      shader.uniforms[`carmaScreenTexture${index}`] = screen?.texture ?? {
+        value: null,
+      };
+      shader.uniforms[`carmaScreenToTexture${index}`] =
+        screen?.viewportToTexture ?? { value: new THREE.Matrix3() };
+      shader.uniforms[`carmaScreenOpacity${index}`] = screen?.opacity ?? {
+        value: 0,
+      };
+    }
+    shader.uniforms["carmaSurfacePreviousTexture"] = surface.previousTexture;
+    shader.uniforms["carmaSurfacePreviousSceneToTexture"] =
+      surface.previousSceneToTexture;
+    shader.uniforms["carmaSurfacePreviousEnabled"] = surface.previousEnabled;
+    shader.uniforms["carmaSurfaceTransition"] = surface.transition;
     shader.uniforms["carmaSurfaceTexture"] = surface.texture;
     shader.uniforms["carmaSurfaceSceneToTexture"] = surface.sceneToTexture;
     shader.uniforms["carmaSurfaceOpacity"] = surface.opacity;

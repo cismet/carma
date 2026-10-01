@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { PREVIEW_QUALITY } from "../../core/constants";
-import { getPreviewImageUrl } from "../utils/imageUrls";
+import { getPreviewImageUrl, loadPreviewImage } from "../utils/imageUrls";
 
 type ProgressivePreviewOptions = {
   /** the url the preview is meant to end up showing */
@@ -53,23 +53,21 @@ export const useProgressivePreviewSource = ({
     }
     if (!finalPreviewUrl || finalPreviewUrl === lowQuality) return undefined;
     let cancelled = false;
-    const img = new Image();
-    img.decoding = "async";
-    img.onload = () => {
-      if (!cancelled && imageTokenRef.current === imageId) {
-        hasFinalRef.current = true;
-        setProgressiveSrc(finalPreviewUrl);
-      }
-    };
-    img.onerror = () => {
-      if (
-        !cancelled &&
-        imageTokenRef.current === imageId &&
-        !hasFinalRef.current
-      )
-        onError?.();
-    };
-    img.src = finalPreviewUrl;
+    void loadPreviewImage(finalPreviewUrl)
+      .then(() => {
+        if (!cancelled && imageTokenRef.current === imageId) {
+          hasFinalRef.current = true;
+          setProgressiveSrc(finalPreviewUrl);
+        }
+      })
+      .catch(() => {
+        if (
+          !cancelled &&
+          imageTokenRef.current === imageId &&
+          !hasFinalRef.current
+        )
+          onError?.();
+      });
     return () => {
       cancelled = true;
     };

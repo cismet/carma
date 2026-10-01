@@ -24,7 +24,7 @@ const installImages = () => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("progressive image resolution", () => {
-  it("keeps the decoded image while upgrading and when a sharper level is unavailable", () => {
+  it("keeps the decoded image while upgrading and when a sharper level is unavailable", async () => {
     installImages();
     const onError = vi.fn();
     const { result, rerender } = renderHook(
@@ -37,18 +37,21 @@ describe("progressive image resolution", () => {
         }),
       { initialProps: { url: "/images/3/test.jpg" } }
     );
-    act(() => images.at(-1)!.onload?.());
+    await act(async () => images.at(-1)!.onload?.());
     expect(result.current).toBe("/images/3/test.jpg");
     rerender({ url: "/images/2/test.jpg" });
     expect(result.current).toBe("/images/3/test.jpg");
-    act(() => images.at(-1)!.onerror?.());
+    await act(async () => {
+      images.at(-1)!.onerror?.();
+      images.at(-1)!.onerror?.();
+    });
     expect(result.current).toBe("/images/3/test.jpg");
     expect(onError).not.toHaveBeenCalled();
     rerender({ url: "/images/1/test.jpg" });
-    act(() => images.at(-1)!.onload?.());
+    await act(async () => images.at(-1)!.onload?.());
     expect(result.current).toBe("/images/1/test.jpg");
   });
-  it("ignores a late completion from the previous image and reports an initial failure", () => {
+  it("ignores a late completion from the previous image and reports an initial failure", async () => {
     installImages();
     const onError = vi.fn();
     const { result, rerender } = renderHook(
@@ -63,9 +66,12 @@ describe("progressive image resolution", () => {
     );
     const first = images.at(-1)!;
     rerender({ id: "second" });
-    act(() => first.onload?.());
+    await act(async () => first.onload?.());
     expect(result.current).toBe("/images/6/second.jpg");
-    act(() => images.at(-1)!.onerror?.());
+    await act(async () => {
+      images.at(-1)!.onerror?.();
+      images.at(-1)!.onerror?.();
+    });
     expect(onError).toHaveBeenCalledOnce();
   });
 });

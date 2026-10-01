@@ -232,6 +232,17 @@ the texture; removing the latest owner restores the preceding overlay. The
 oblique footprint uses this instead of per-vertex height queries or additional
 scene geometry.
 
+`setMapStyleScreenOverlay(id, { texture, viewportToTexture, opacity, priority })`
+places a caller-owned photograph between receiver colour and draped labels in the
+same scene. The Matrix3 maps normalized bottom-left viewport UV to texture UV,
+including calibrated pan/roll and a native source crop. The two highest-priority
+owners supply at most two texture slots. An opaque-list two-triangle background
+quad shares these uniforms to cover pixels without receiver geometry; receiver
+fragments composite the same image before their existing depth-tested labels.
+Following native point labels retain their normal order. Removing an owner clears
+its slot; callers dispose their textures. Unchanged texture versions, transforms
+and opacities do not invalidate the map.
+
 Layer opacity multiplies authored material opacity after any full-opacity shadow styling. Below full opacity, materials enable transparency and disable depth writing; restoring full opacity restores the appropriate source render flags. Updating opacity or colour-correction uniforms does not replace the loaded tile pool.
 
 The Mesh 2024 resource may supply gamma, black/white point and saturation through `colorCorrection`; catalog-authored settings override that fallback. The correction adjusts texture or vertex RGB before physical lighting. It is a display correction, not recovered physical albedo. `shadowBuildingStyle` gates shadow UI colour, saturation and opacity overrides, but every activated textured mesh still receives the lit material adapter and can receive simulated shadows. Opted-out styles keep their declared appearance; outlines follow their own `outline` setting. Source materials are restored when shadows stop.

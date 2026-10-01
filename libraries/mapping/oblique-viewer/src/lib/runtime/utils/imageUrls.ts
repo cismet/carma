@@ -58,16 +58,18 @@ export const downloadAsBlobAsync = async (
 };
 
 /** Confirm that the browser can decode the requested image before aligning a preview. */
-export const loadPreviewImage = (url: string): Promise<void> =>
+export const loadPreviewImage = (url: string): Promise<HTMLImageElement> =>
   new Promise((resolve, reject) => {
     const image = new Image();
     image.decoding = "async";
+    image.crossOrigin = "anonymous";
+    let retried = false;
     const finish = (error?: Error) => {
       window.clearTimeout(timeout);
       image.onload = null;
       image.onerror = null;
       if (error) reject(error);
-      else resolve();
+      else resolve(image);
     };
     const timeout = window.setTimeout(
       () =>
@@ -77,11 +79,20 @@ export const loadPreviewImage = (url: string): Promise<void> =>
       20000
     );
     image.onload = () => finish();
-    image.onerror = () =>
+    image.onerror = () => {
+      // Older responses cached without Vary: Origin cannot be uploaded to WebGL.
+      if (!retried) {
+        retried = true;
+        const fresh = new URL(url, window.location.href);
+        fresh.searchParams.set("obliqueTexture", "1");
+        image.src = fresh.href;
+        return;
+      }
       finish(
         new Error(
           "Das Vorschaubild ist noch nicht verfügbar oder konnte nicht geladen werden."
         )
       );
+    };
     image.src = url;
   });

@@ -89,6 +89,8 @@ const setup = ({ zoom = 25.4, height = 0, pitch = 45, fov = 0.1 } = {}) => {
     getVerticalFieldOfView: () => transform.fov,
     setVerticalFieldOfView: (fov: number) => transform.setFov(fov),
     getZoom: () => transform.zoom,
+    getBearing: () => transform.bearing,
+    getPitch: () => transform.pitch,
     getMaxZoom: () => transform.maxZoom,
     getMinZoom: () => transform.minZoom,
     getCenter: () => transform.center,
@@ -281,7 +283,7 @@ describe("preview camera return", () => {
         durationMs: 1000,
         padding: { left: 0, right: 0, top: 0, bottom: 0 },
       });
-      advance(500);
+      advance(250);
       const middle = eye();
       advance(1000);
       await flight.done;
@@ -356,7 +358,7 @@ describe("preview camera return", () => {
       padding: { left: 0, right: 0, top: 0, bottom: 0 },
     });
     advance(0);
-    advance(500);
+    advance(250);
     expect(transform.pitch).toBeGreaterThan(0);
     expect(transform.pitch).toBeLessThan(45);
     expect(transform.zoom).toBeGreaterThan(20);
@@ -375,7 +377,7 @@ describe("preview camera return", () => {
       durationMs: 1000,
       padding: { left: 0, right: 0, top: 0, bottom: 0 },
     });
-    advance(500);
+    advance(250);
     const zoom = transform.zoom;
     const writes = vi.mocked(map.jumpTo).mock.calls.length;
     flight.cancel();

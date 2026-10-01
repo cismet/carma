@@ -18,7 +18,7 @@ export const featureFlagConfig: FeatureFlagConfig = {
   // viewer stays until the MapLibre one has replaced it
   featureFlagObliqueViewerAddon: {
     default: false,
-    alias: "oblqml",
+    alias: "oblique",
   },
   isDebugMode: {
     // general debug mode

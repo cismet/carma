@@ -1,12 +1,13 @@
 import { Vector2 } from "three";
 import type { ObliqueDataset, ObliquePose } from "../types";
 
-/** A single enabled series needs no superimposed identity label. */
+/** Browsing a single series hides identity; hover can reveal it explicitly. */
 export const footprintSeriesLabel = (
   series: Pick<ObliqueDataset, "shortLabel" | "acquisitionYear">,
-  enabledSeriesCount: number
+  enabledSeriesCount: number,
+  hovered = false
 ): string | undefined =>
-  enabledSeriesCount > 1
+  enabledSeriesCount > 1 || hovered
     ? series.shortLabel ??
       (series.acquisitionYear ? String(series.acquisitionYear) : undefined)
     : undefined;

@@ -315,6 +315,12 @@ class RgbBackendTests(unittest.TestCase):
 class AdditionalPortTests(BridgeTests):
     allowed_origin = "http://localhost:4201"
 
+    def test_non_cors_response_still_varies_by_origin(self):
+        code, headers, _ = self.request("/metadata.json")
+        self.assertEqual(code, 200)
+        self.assertEqual(headers["Vary"], "Origin")
+        self.assertNotIn("Access-Control-Allow-Origin", headers)
+
     def test_configured_port_is_allowed_and_default_port_is_rejected(self):
         code, headers, _ = self.request("/metadata.json", {"Origin": self.allowed_origin})
         self.assertEqual(code, 200)

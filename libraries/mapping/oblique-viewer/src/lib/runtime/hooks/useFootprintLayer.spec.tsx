@@ -17,6 +17,7 @@ const footprint = vi.hoisted(() => ({
   imageAtScreenPoint: vi.fn(() => "2024:image"),
   setRing: vi.fn(),
   setStyle: vi.fn(),
+  setHoveredImage: vi.fn(),
   setLocked: vi.fn((locked: boolean) => {
     footprint.locked = locked;
   }),
@@ -31,7 +32,12 @@ vi.mock(
     await import("../../../../../engines/maplibre/src/utils/clickClaims")
 );
 
-const setup = () => {
+const setup = (
+  findAtScreenPoint?: (point: {
+    x: number;
+    y: number;
+  }) => Promise<ObliqueImageRecord | null | undefined>
+) => {
   const container = document.createElement("div");
   const canvas = document.createElement("canvas");
   const control = document.createElement("button");
@@ -41,6 +47,8 @@ const setup = () => {
   const map = {
     getCanvasContainer: () => container,
     getCanvas: () => canvas,
+    on: vi.fn(),
+    off: vi.fn(),
   } as unknown as MaplibreMap;
   const onClick = vi.fn();
   const hostSelection = vi.fn((event: MouseEvent) => {
@@ -55,8 +63,8 @@ const setup = () => {
     locked: false,
     selectedImageId: "2024:image",
     selectedRecord: null as ObliqueImageRecord | null,
-    footprintData: null,
     onClick,
+    findAtScreenPoint,
   };
   const view = renderHook(useFootprintLayer, { initialProps: props });
   const dispatch = (
@@ -153,5 +161,67 @@ describe("footprint click activation", () => {
     view.dispatch("click");
     expect(view.onClick).not.toHaveBeenCalled();
     expect(footprint.destroy).toHaveBeenCalledOnce();
+  });
+});
+
+describe("catalog footprint hover activation", () => {
+  it("highlights and opens a catalog match outside the displayed click targets", async () => {
+    vi.useFakeTimers();
+    const record = {
+      id: "2026:outside",
+      seriesId: "2026",
+      footprint: [
+        [7.2, 51.27],
+        [7.21, 51.27],
+        [7.21, 51.28],
+        [7.2, 51.28],
+        [7.2, 51.27],
+      ],
+    } as ObliqueImageRecord;
+    const find = vi.fn(async () => record);
+    const view = setup(find);
+    try {
+      view.dispatch("pointermove", 200, 70);
+      await vi.advanceTimersByTimeAsync(50);
+      expect(find).toHaveBeenCalledWith({ x: 160, y: 50 });
+      expect(footprint.setHoveredImage).toHaveBeenLastCalledWith(
+        record.id,
+        expect.objectContaining({ id: record.id, ring: record.footprint })
+      );
+      expect(view.canvas.style.cursor).toBe("pointer");
+      view.dispatch("click", 200, 70);
+      expect(view.onClick).toHaveBeenCalledWith(record.id);
+      expect(view.hostQuery).not.toHaveBeenCalled();
+    } finally {
+      view.unmount();
+      vi.useRealTimers();
+    }
+  });
+
+  it("ignores late hover replies after the pointer leaves", async () => {
+    vi.useFakeTimers();
+    let resolve: (record: ObliqueImageRecord) => void = () => {};
+    const find = vi.fn(
+      () =>
+        new Promise<ObliqueImageRecord>((done) => {
+          resolve = done;
+        })
+    );
+    const view = setup(find);
+    try {
+      view.dispatch("pointermove", 200, 70);
+      await vi.advanceTimersByTimeAsync(50);
+      view.dispatch("pointercancel");
+      resolve({ id: "late", footprint: [[7.2, 51.27]] } as ObliqueImageRecord);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(view.canvas.style.cursor).toBe("grab");
+      expect(footprint.setHoveredImage).not.toHaveBeenCalledWith(
+        "late",
+        expect.anything()
+      );
+    } finally {
+      view.unmount();
+      vi.useRealTimers();
+    }
   });
 });

@@ -16,24 +16,41 @@ Metadata and asset availability are separate. The 2026 preset prepares the viewe
 
 ## Selection and navigation
 
-Best-fit selection evaluates the requested ground target and continuous camera bearing/pitch against the poses and camera field of view of enabled series. Geographic cardinal sectors are presentation/navigation hints, not candidate bins. Enabling the full 2026 series offers a Nadir button. It locks browsing at zero pitch and selects calibrated nadir cameras only, including on subsequent pan requests; the compass or the same button returns to oblique browsing. Removing the last nadir-capable series returns to oblique mode. Orbit requests change the desired view direction; pan requests change the target in the current image-view frame. Both requests search enabled series and may choose a different year. No-enabled-series and no-candidate results are valid empty states.
+Best-fit selection evaluates the requested ground target and continuous camera bearing/pitch against the poses and camera field of view of enabled series. Direction names remain per-series hints rather than a shared north/east/south/west eligibility rule. Enabling the full 2026 series offers a Nadir button. It locks browsing at zero pitch and selects calibrated nadir cameras only, including on subsequent pan requests; the compass or the same button returns to oblique browsing. Removing the last nadir-capable series returns to oblique mode. Orbit requests change the desired view direction; pan requests change the target in the current image-view frame. Both requests search enabled series and may choose a different year. No-enabled-series and no-candidate results are valid empty states.
+
+Best-fit queries use a persistent Vite module worker with one catalog copy per data revision. A combined index holds record references in one-kilometre UTM cells, grouped by each series' own intrinsic sector. Circular means of the actual calibrated headings choose one oblique group independently per series; group spacing need not be 90 degrees and matching groups need not share a sector name. Spatial filtering retains only camera positions inside the configured search radius before exact coverage/orientation ranking. Nadir has its own spatial group and no bearing filter. The application neither loads tiled catalogs nor uses a database; the indexes contain references into the existing catalog. The UI sends only the target, direction, pitch and normalized per-series heights and receives a small ranked candidate list, preserving the original record identities. At most one query runs and one newer query waits; a subsequent request replaces the waiting query. Selection ignores results from earlier view requests, removed series, locked cameras and disposed workers. Heights are converted asynchronously before evaluating candidates, so a late datum conversion cannot change an already superseded selection.
 
 A delivered footprint is optional. Core selection can use calibrated camera rays and a target/reference-height plane; an approximate center/coverage test is not a terrain-occlusion check or a surveyed footprint. Terrain-derived polygons can be added later without changing the authoritative pose source.
 
 The selected footprint carries an open two-line caret with a 120-degree tip at
 the image-bottom boundary, pointing toward image up, and its series'
 short label at the polygon centroid when multiple series are enabled. The caret shares the outline's colour
-and line width; the year uses that colour at 50% opacity, weight 800 and no stroke. Camera roll and the projected image-up axis determine orientation;
-polygon start corner and winding do not. The active footprint retains its outline
-and adds a fill capped at 20% opacity. Inactive footprints use at most 10% opacity
-for both outline and fill. Up to twelve locally ranked candidates are reused from
-the existing image search; the full image catalog is never sent to the scene.
+and line width; the year uses that colour at 50% opacity, weight 1000 with Arial Black and a widely available system sans-serif fallback stack and no stroke. Camera roll and the projected image-up axis determine orientation;
+polygon start corner and winding do not. Selection defaults to saturated cyan (#00b8ff), distinct from neutral aerial
+textures and the yellow hover. Outline, caret, fill and active label share that
+selection colour. The active footprint retains its outline
+and adds a fill capped at 20% opacity. All footprint and caret line widths use two thirds of the configured width.
+Inactive outlines use half the active line
+width and 20% opacity; inactive fill uses 20% opacity.
+The hovered prospective image has a yellow outline at the active width and opacity,
+plus its short year/series label in yellow at the same font weight and 50% opacity.
+Only one identity label is displayed: hover takes precedence over the active label.
+Hover reveals this identity even when only one series is enabled; the ordinary
+active label remains hidden in that case. Up to 128 footprints from every enabled series intersect the current viewport
+within a continuous +/-45-degree camera-heading sector. A worker orders matching
+footprints by ground-centroid distance to the viewport centre and retains the nearest
+128. Nadir mode uses nadir cameras without an undefined horizontal-heading filter.
+This display selection is independent from the best-image search; the full image catalog is never sent to the scene. Hover resolves the actual visible mesh point under the pointer, with MapLibre terrain as fallback, and asks the existing footprint worker for all viewport-intersecting polygons matching the current +/-45-degree view direction (or Nadir). The pointer need not lie inside the polygon. The query does not depend on rendered features or the display cap. Hover chooses the nearest footprint-diagonal/image-axis intersection; the active image wins exact ties. Pointer requests run at most every 50ms with one active and one latest queued worker request, and stale replies after movement/lock/teardown are ignored. A match outside the 128 displayed footprints temporarily replaces the farthest inactive outline and receives the yellow outline/year label. Clicking opens the hovered catalog record even before native GeoJSON tiling catches up; leaving the pointer restores the ordinary subset.
 Footprint polygons, the active caret and label use one native MapLibre GeoJSON
-source with at most fifteen features. MapLibre workers own its
+source with at most 130 features. MapLibre workers own its
 tiling/tessellation. Without a mesh receiver, the markings use ordinary raster-DEM draping.
 With a receiver, the same geometry is rasterized once into a bounded,
 georeferenced canvas texture (at most 2048 pixels per side), and the existing
 shared material pass paints it on the actual visible mesh, including roofs.
+Changes crossfade in world space over 180ms between the old and new textures,
+with independent georeferenced bounds and premultiplied color interpolation.
+Only the blend uniform changes during these frames; completed transitions
+release the previous texture and stop requesting repaints.
 This world-aligned pass retains the requested alpha and is independent of the
 DEM-depth mask that keeps street labels occluded by buildings. No extra Three
 geometry or render target is created. Native marker paint is suppressed while
@@ -46,8 +63,12 @@ there is no recurring footprint height polling.
 The markers share the outline's preview fade. A single enabled series produces
 no superimposed label. Clicking inside the visible footprint uses MapLibre's
 rendered-polygon query and opens that image through the same anchored transition
-as “Flug zum Bild”. An overlap selects the active image first; another footprint
-selects its own image. The native hit layer becomes hidden synchronously when
+as “Flug zum Bild”. The toolbar action independently refreshes the best-fit search
+at the physical viewport centre, so a pointer highlight cannot change its target.
+Among overlapping footprints, the nearest projected
+intersection of the image diagonals to the clicked ground point wins; the active
+image only wins an exact tie. A click outside the active footprint can select
+another image. The native hit layer becomes hidden synchronously when
 a flight starts; stale source revisions, drags, hidden outlines and preview/flight
 locks do not activate it. Handled clicks leave host feature-info selection alone.
 
@@ -86,7 +107,7 @@ From this worktree, with SSH access to `amy.cismet.de`:
 python3 scripts/oblique-viewer/serve-originals.py
 ```
 
-The local-development Geoportal addon connects to `http://127.0.0.1:8926`. Use the Geoportal dev server for this branch at its normal `http://localhost:4200` URL and enable the MapLibre and oblique addon flags (`ng` and `oblqml`). The bridge serves the committed 41-image sample catalog, JPEG views generated on demand and original TIFF downloads. The multiple-selection dropdown keeps the Rathaus sample separate from the full 2026 delivery. See the [script guide](../../../scripts/oblique-viewer/README.md) for options and delivery validation.
+The local-development Geoportal addon connects to `http://127.0.0.1:8926`. Use the Geoportal dev server for this branch at its normal `http://localhost:4200` URL and enable the MapLibre and oblique addon flags (`ng` and `oblique`). The bridge serves the committed 41-image sample catalog, JPEG views generated on demand and original TIFF downloads. The multiple-selection dropdown keeps the Rathaus sample separate from the full 2026 delivery. See the [script guide](../../../scripts/oblique-viewer/README.md) for options and delivery validation.
 
 The full 2026 upload is being placed under `/mnt/storagebox/luftbildschraegaufnahmen2026`. It is not the Rathaus bridge source and must be inventoried and validated after transfer before enabling the full-flight asset configuration.
 
@@ -152,37 +173,53 @@ avoids loading and decoding a complete 12,736 × 19,136 image in the browser.
 The local 2026 bridge enables this path; existing JPEG-only series retain their
 level-based loader.
 
+## Catalog preparation
+
+Each series loads and normalizes its metadata in a Vite module worker. Pose parsing,
+projection, optional delivered-footprint association and estimated coverage stay
+off the UI thread. The worker returns records and keyed selection maps; each
+footprint belongs to its image record instead of a duplicate full GeoJSON catalog.
+Runtime animation callbacks remain on the UI thread, and worker inputs use absolute
+metadata URLs. Loads are cached by series configuration, time out after 60 seconds,
+and terminate their worker on completion or failure.
+
+The Geoportal registers the new viewer addon only when the URL feature flag
+`oblique` is enabled, including on the dedicated `#/oblique` route. Use
+`ff=ng|oblique` and reload after changing flags; availability resolves at startup.
+
 ## Photo and 3D-label composition
 
 The dedicated Geoportal `#/oblique` route enables `mapStyle3d` by default with
 Mesh 2024. It uses the existing shared Three scene and mesh label rules.
 
-The current photo preview is a DOM overlay. Placing it between the mesh and the
-labels in the shared framebuffer is feasible, but requires an explicit
-composition phase rather than moving the DOM overlay or changing render order:
+The photo uses a screen-image slot in the existing shared Three scene. Receiver
+materials apply their ordinary mesh appearance first, then the calibrated photo,
+then the draped street/water labels with the existing terrain-depth and receiver
+occlusion checks. Following native MapLibre point-label layers remain above this
+pass. This preserves mesh-based label placement and visibility while the photograph
+replaces the underlying mesh colour. There is one MapLibre map and one shared scene.
 
-1. Render the mesh (or its converged accumulation) and retain its depth.
-2. Draw the calibrated photo as a screen-space quad without depth testing or
-   depth writes, outside HDR/tone mapping. Keep its existing pan, roll, principal
-   point, physical-pixel sampling and progressive/native RGB refinement.
-3. Draw only the draped label contribution on the same mesh geometry, with the
-   existing DEM/mesh receiver and occlusion checks against the retained depth.
-4. Keep the existing depth clear and following MapLibre point-label layers.
+A two-triangle screen quad supplies photograph coverage outside available receiver
+geometry. It shares the same uniforms as the receiver pass and renders before the
+mesh. At most two caller-owned image textures are active: the progressive image
+and a higher-priority native RGB crop. Both use the existing pan, roll, principal
+point and physical-pixel projection, with the crop mapped back to source pixels.
+No second map, label scene or additional label render target is created.
 
-`SharedThreeSceneLayer.addScreenRenderPass` currently runs after the complete
-MapLibre frame, so using it for the photo would also cover floating place labels.
-Street and water labels are currently composited into mesh color by
-`shared-three-map-style-shaders.ts`; they need a label-only rendering mode for
-step 3. The composition phase belongs immediately after
-`accumulationRuntime.render` and before `clearDepthForMapStyleOverlays` in the
-MapLibre shared scene layer. Reuse its existing projection capture, depth checks
-and renderer-state handling, rather than adding a second scene or tileset.
+The DOM preview root remains the input surface; its image/canvas is hidden when
+the shared scene supports this slot. The DOM image remains a fallback for hosts
+without that API. Texture images use anonymous CORS; the local TIFF bridge sends
+Vary: Origin so previously cached non-CORS image responses can be refreshed once.
+The initial image fade ends after 250 ms; unchanged image transforms do not request
+idle repaints. Browser RGB bitmap readback and resampling run in the existing
+preview worker; the UI only receives bounded output tiles for texture updates.
 
-The label-only pass must be restricted to photo coverage and opacity to avoid
-double blending glyph edges outside the photo or during transitions. Preserved
-accumulation depth must match the label geometry/camera, and GL depth range,
-render target, viewport and scissor state must be restored on every exit. A
-regression should verify both an unoccluded street label above the photo and a
-street label hidden behind a nearer roof, with point labels above both. This
-composition is an investigated next step; the current preview rendering remains
-the DOM implementation.
+## Responsive transitions
+
+Camera transitions are capped at 500 ms. Default rotations take up to 300–350 ms,
+image entry/return up to 450 ms; small flights shorten with ground distance and
+angular displacement. Smooth easing and the existing anchored camera/FOV/pan path
+are retained. Switching the addon off reserves 250 ms each for preview compensation
+and flattening, so the combined camera action also stays within 500 ms. Image and
+backdrop fades take 250 ms; native pixel fetching retains its 800-ms idle debounce.
+Viewport-footprint queries stop during flights/previews and resume after settling.
