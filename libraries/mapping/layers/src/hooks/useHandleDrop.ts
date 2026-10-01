@@ -19,7 +19,11 @@ import {
 import type { CarmaVectorStyle } from "../helper/vectorStyleItem";
 import { parseToMapLayer } from "@carma-mapping/utils";
 import { useLiveDeployment } from "@carma-commons/utils";
-import { isJsonUrl, resolveDroppedUrl } from "../helper/resolve-dropped-url";
+import {
+  isJsonUrl,
+  parseWmsLayerUrl,
+  resolveDroppedUrl,
+} from "../helper/resolve-dropped-url";
 
 // @ts-expect-error tbd
 const parser = new WMSCapabilities();
@@ -198,6 +202,36 @@ export const useHandleDrop = ({
     }
   };
 
+  // a link to specific wms layers only adds those layers, resolved through the
+  // service's capabilities; like a vector style they go onto the map directly
+  // outside the live deployment and open the catalog on live
+  const handleWmsLayerUrl = async (
+    capabilitiesUrl: string,
+    layerNames: string[]
+  ) => {
+    try {
+      const text = await (await fetch(capabilitiesUrl)).text();
+      const result = parser.toJSON(text);
+      if (!result?.Capability) {
+        message.warning("WMS-Capabilities konnten nicht geladen werden");
+        return;
+      }
+      const items = wmsCapabilitiesToCustomItems(result).filter((item) =>
+        layerNames.includes(item.name)
+      );
+      if (items.length === 0) {
+        message.warning(`Layer ${layerNames.join(", ")} nicht im WMS gefunden`);
+        return;
+      }
+      for (const item of items) {
+        await handleAddToMap(item, !isLiveDeployment);
+      }
+    } catch (error) {
+      message.error("Fehler beim Laden des WMS-Layers");
+      console.error("Error handling wms layer drop:", error);
+    }
+  };
+
   useEffect(() => {
     const handleDrop = async (event: DragEvent) => {
       event.preventDefault();
@@ -211,8 +245,14 @@ export const useHandleDrop = ({
       ) {
         handleTwinFile(file ?? null, url ?? null);
       } else {
+        const wmsLayerUrl = url ? parseWmsLayerUrl(url) : null;
         if (url && isJsonUrl(url)) {
           handleJsonStyle(null, url);
+        } else if (wmsLayerUrl) {
+          handleWmsLayerUrl(
+            wmsLayerUrl.capabilitiesUrl,
+            wmsLayerUrl.layerNames
+          );
         } else if (url) {
           fetch(url)
             .then((response) => {

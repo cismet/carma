@@ -63,3 +63,82 @@ export const replaceVectorTileServerPlaceholders = (
   input
     .replaceAll("__SERVER_URL__", vectorTileServerUrl)
     .replaceAll("__server_url__", vectorTileServerUrl);
+
+// standard WMS request params; everything else (e.g. `map=`, tokens) is kept
+// on the derived capabilities url since the service may need it
+const WMS_REQUEST_PARAMS = new Set([
+  "service",
+  "request",
+  "version",
+  "layers",
+  "styles",
+  "bbox",
+  "width",
+  "height",
+  "format",
+  "crs",
+  "srs",
+  "transparent",
+  "bgcolor",
+  "exceptions",
+  "time",
+  "elevation",
+  "query_layers",
+  "info_format",
+  "feature_count",
+  "x",
+  "y",
+  "i",
+  "j",
+]);
+
+export interface WmsLayerUrl {
+  capabilitiesUrl: string;
+  layerNames: string[];
+}
+
+// Recognizes a link to individual WMS layers (typically a GetMap request,
+// e.g. `...?service=WMS&request=GetMap&layers=solar_year`) and derives the
+// GetCapabilities url plus the requested layer names. Plain capabilities urls
+// return null so they keep loading every layer.
+export const parseWmsLayerUrl = (input: string): WmsLayerUrl | null => {
+  let url: URL;
+  try {
+    url = new URL(input);
+  } catch {
+    return null;
+  }
+
+  const params = new Map<string, string>();
+  url.searchParams.forEach((value, key) => {
+    params.set(key.toLowerCase(), value);
+  });
+
+  const service = params.get("service")?.toLowerCase();
+  const request = params.get("request")?.toLowerCase();
+  if (service !== "wms" && request !== "getmap") {
+    return null;
+  }
+  if (request === "getcapabilities") {
+    return null;
+  }
+
+  const layerNames = (params.get("layers") ?? "")
+    .split(",")
+    .map((name) => name.trim())
+    .filter(Boolean);
+  if (layerNames.length === 0) {
+    return null;
+  }
+
+  const capabilitiesUrl = new URL(url.toString());
+  [...capabilitiesUrl.searchParams.keys()].forEach((key) => {
+    if (WMS_REQUEST_PARAMS.has(key.toLowerCase())) {
+      capabilitiesUrl.searchParams.delete(key);
+    }
+  });
+  capabilitiesUrl.searchParams.set("service", "WMS");
+  capabilitiesUrl.searchParams.set("request", "GetCapabilities");
+
+  return { capabilitiesUrl: capabilitiesUrl.toString(), layerNames };
+};
