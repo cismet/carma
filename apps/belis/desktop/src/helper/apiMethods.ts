@@ -40,15 +40,46 @@ import {
   arbeitsauftraegeByIdsQuery,
 } from "../constants/belis";
 import store from "../store";
-import { getIsReadOnly } from "../store/slices/auth";
+import {
+  canCreateBasic,
+  canEditBasic,
+  canCreateAA,
+  canEditAA,
+  canEditKeytables,
+  canDelete,
+} from "../store/slices/auth";
 
-// Defensive guard: read-only ("Gast") users must never trigger a write/mutation
-// request. UI entry points are hidden too, but this backs them up.
-const assertWritable = () => {
-  if (getIsReadOnly(store.getState())) {
-    throw new Error(
-      "READ_ONLY: write operations are disabled for Gast users."
-    );
+const FACHOBJEKT_CLASSES = new Set([
+  "tdta_leuchten",
+  "tdta_standort_mast",
+  "leitung",
+  "schaltstelle",
+  "mauerlasche",
+  "abzweigdose",
+]);
+const AA_CLASSES = new Set(["arbeitsauftrag", "arbeitsprotokoll", "veranlassung"]);
+
+// Defensive guard: users must never trigger a write request they have no right
+// for. UI entry points are hidden too, but this backs them up. Fachobjekt
+// deletion is a soft delete via save, so saving a Fachobjekt allows create or edit.
+const assertWritable = (className: string, op: "save" | "remove" = "save") => {
+  const state = store.getState();
+  let allowed: boolean;
+  if (FACHOBJEKT_CLASSES.has(className)) {
+    allowed =
+      op === "save"
+        ? canCreateBasic(state) || canEditBasic(state)
+        : canDelete(state) && canCreateBasic(state);
+  } else if (AA_CLASSES.has(className)) {
+    allowed =
+      op === "save"
+        ? canCreateAA(state) || canEditAA(state)
+        : canDelete(state);
+  } else {
+    allowed = canEditKeytables(state);
+  }
+  if (!allowed) {
+    throw new Error(`READ_ONLY: no right to ${op} ${className}.`);
   }
 };
 
@@ -99,7 +130,7 @@ export const updateDataByClassName = async <T extends Record<string, unknown>>(
   dataToSave: T,
   extraParams?: Record<string, string>
 ) => {
-  assertWritable();
+  assertWritable(className);
   const formData = new FormData();
   const taskparams = JSON.stringify({
     parameters: {
@@ -143,7 +174,8 @@ export const executeAction = async (
   actionName: string,
   params: Record<string, string>
 ) => {
-  assertWritable();
+  // All current actions belong to Arbeitsaufträge / Protokolle.
+  assertWritable("arbeitsauftrag");
   const formData = new FormData();
   const taskparams = JSON.stringify({ parameters: params });
 
@@ -181,7 +213,7 @@ export const removeDataByClassName = async <T extends Record<string, unknown>>(
   className: string,
   dataToSave: T
 ) => {
-  assertWritable();
+  assertWritable(className, "remove");
   const formData = new FormData();
   const taskparams = JSON.stringify({
     parameters: {
@@ -1173,7 +1205,13 @@ export const uploadBelisDocument = async (
   jwt: string,
   params: UploadDocumentParams
 ): Promise<UploadDocumentResult> => {
-  if (getIsReadOnly(store.getState())) {
+  // Documents belong to Fachobjekte or key table entries.
+  const state = store.getState();
+  if (
+    !canCreateBasic(state) &&
+    !canEditBasic(state) &&
+    !canEditKeytables(state)
+  ) {
     return { success: false, error: "READ_ONLY: uploads disabled" };
   }
 

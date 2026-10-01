@@ -38,6 +38,7 @@ import { updateDataByClassName } from "../../../helper/apiMethods";
 import { uploadDraftFiles } from "../../../helper/uploadDraftFiles";
 import toTitleCase from "../../../helper/toTitleCase";
 import { useRepeatableChanges } from "./useRepeatableChanges";
+import { useFeatureRights } from "./FeatureRightsContext";
 
 // Wiederholfelder never carry the read-only timestamp or the creation-only
 // "+ Leuchte" tabs.
@@ -125,6 +126,7 @@ const StandortForm = ({
   removedDocumentKeys: removedDocumentKeysProp,
   onRemovedDocumentKeysChange,
 }: StandortFormProps) => {
+  const { fieldsReadOnly } = useFeatureRights();
   const removedDocumentKeys = removedDocumentKeysProp ?? new Set<string>();
   const [saving, setSaving] = useState(false);
   const [localDocuments, setLocalDocuments] = useState<DokumentItem[] | null>(
@@ -598,7 +600,7 @@ const StandortForm = ({
               <FieldPrefix name="leuchte">
                 <LeuchteFormFields
                   leuchte={null}
-                  readOnly={readOnly}
+                  readOnly={readOnly || fieldsReadOnly}
                   isCreation={isCreation}
                   featureId={`${featureId ?? ""}#${tabId}`}
                   hideStrassenschluessel={isCreation}
@@ -660,7 +662,7 @@ const StandortForm = ({
     >
       <MastFormFields
         mast={mast}
-        readOnly={readOnly}
+        readOnly={readOnly || fieldsReadOnly}
         isCreation={isCreation}
         featureId={featureId}
         geometrySelector={geometrySelector}

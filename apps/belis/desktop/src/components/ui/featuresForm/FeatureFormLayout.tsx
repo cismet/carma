@@ -12,6 +12,7 @@ import { useSelector } from "react-redux";
 import FormHeader from "./FormHeader";
 import DangerZone from "./DangerZone";
 import { useDeleteFeature } from "./DeleteFeatureContext";
+import { useFeatureRights } from "./FeatureRightsContext";
 import { isDangerousDeleteModeActive } from "../../../store/slices/mapSettings";
 import { DokumentItem } from "../DocumentPreview";
 import FilePreview, {
@@ -209,6 +210,8 @@ const FeatureFormLayout = ({
   // box hidden regardless of the setting.
   const dangerousDeleteMode = useSelector(isDangerousDeleteModeActive);
   const deleteControls = useDeleteFeature();
+  const { canCreate, fieldsReadOnly } = useFeatureRights();
+  const lockFields = readOnly || fieldsReadOnly;
 
   // Controlled active tab key so we can intercept clicks on the "+" sentinel
   // (which must add a new Leuchte tab without navigating to a blank pane).
@@ -480,7 +483,7 @@ const FeatureFormLayout = ({
     pendingUploads.length > 0 ||
     extraDocumentSections.some((s) => s.documents.length > 0);
 
-  const uploadProps = !readOnly
+  const uploadProps = !lockFields
     ? {
         readOnly: false as const,
         pendingUploads,
@@ -495,7 +498,7 @@ const FeatureFormLayout = ({
 
   const documentsContent = (
     <div className="flex flex-col gap-4">
-      {!hasAnyDocuments && readOnly ? (
+      {!hasAnyDocuments && lockFields ? (
         <div>
           <div style={{ ...labelStyle }}>{mainDocumentsTitle}</div>
           <div style={{ color: "#8c8c8c", fontSize: 13, padding: "16px 0" }}>
@@ -691,10 +694,12 @@ const FeatureFormLayout = ({
           isCreation={isCreation}
           customDraftsCount={customDraftsCount}
           onSaveAll={onSaveAll}
-          onCreateRelatedDraft={onCreateRelatedDraft}
+          onCreateRelatedDraft={canCreate ? onCreateRelatedDraft : undefined}
           createDraftButtonVariant={createDraftButtonVariant}
-          onCopyValues={onCopyValues}
-          showRepeatableChangesButtons={showRepeatableChangesButtons}
+          onCopyValues={canCreate ? onCopyValues : undefined}
+          showRepeatableChangesButtons={
+            showRepeatableChangesButtons && !fieldsReadOnly
+          }
           onCopyRepeatableChanges={onCopyRepeatableChanges}
           onPasteRepeatableChanges={onPasteRepeatableChanges}
           onClearRepeatableChanges={onClearRepeatableChanges}
@@ -758,10 +763,12 @@ const FeatureFormLayout = ({
         isCreation={isCreation}
         customDraftsCount={customDraftsCount}
         onSaveAll={onSaveAll}
-        onCreateRelatedDraft={onCreateRelatedDraft}
+        onCreateRelatedDraft={canCreate ? onCreateRelatedDraft : undefined}
         createDraftButtonVariant={createDraftButtonVariant}
-        onCopyValues={onCopyValues}
-        showRepeatableChangesButtons={showRepeatableChangesButtons}
+        onCopyValues={canCreate ? onCopyValues : undefined}
+        showRepeatableChangesButtons={
+            showRepeatableChangesButtons && !fieldsReadOnly
+          }
         onCopyRepeatableChanges={onCopyRepeatableChanges}
         onPasteRepeatableChanges={onPasteRepeatableChanges}
         onClearRepeatableChanges={onClearRepeatableChanges}
