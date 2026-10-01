@@ -1,533 +1,622 @@
 import { MercatorCoordinate } from "maplibre-gl";
 import type {
-  CustomLayerInterface,
-  CustomRenderMethodInput,
+  ExpressionSpecification,
+  GeoJSONSource,
   Map as MaplibreMap,
 } from "maplibre-gl";
-import type { Position } from "geojson";
-import * as THREE from "three";
-import { Line2 } from "three/examples/jsm/lines/Line2.js";
-import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
-import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
+import type { FeatureCollection, Position } from "geojson";
+import { CanvasTexture, Vector2 } from "three";
 
-import { get3dLayerIds } from "@carma-mapping/engines/maplibre";
+import {
+  acquireSharedThreeScene,
+  getSharedThreeSceneRuntimes,
+} from "@carma-mapping/engines/maplibre";
 
 import type { AnimationConfig, ObliquePose } from "../core/types";
 import { footprintMarkerGeometry } from "../core/utils/footprint-marker";
 
 /**
- * The outline of the selected image's footprint, drawn over everything 3D.
- *
- * A MapLibre line layer is draped onto the terrain, and a city mesh brings its
- * own ground a little above that, so the mesh hides such a line wherever it is
- * on. The Cesium viewer does not have the problem because its ground polyline
- * drapes over terrain and tiles alike. Here the ring is a custom layer
- * instead: it follows the terrain height, skips the depth test and keeps
- * itself above every 3D layer on the map. A building standing in front of the
- * ring does not hide it either.
- *
- * Locking fades the outline out rather than removing it, and unlocking fades
- * it back in, the way the line layer's opacity transition did.
+ * Native terrain features plus a world-aligned texture on visible mesh receivers.
+ * Replaces the manual Three scene/tessellation and repeated DEM queries. GeoJSON
+ * tiling and terrain subdivision belong to MapLibre's existing worker pipeline.
  */
-
 export type FootprintOutlineStyle = {
-  /** any CSS colour */
   color: string;
   /** CSS pixels */
   width: number;
-  /** 0 to 1 */
   opacity: number;
+  fillOpacity?: number;
+  inactiveOpacity?: number;
 };
-
+export type InactiveFootprint = { id: string; ring: Position[] };
 export type FootprintOutlineLayer = {
-  /** the footprint's outer ring in lon/lat, or null for none */
   setRing: (
     ring: Position[] | null,
     annotation?: {
       pose: ObliquePose | null;
       seriesLabel?: string;
-    }
+      imageId?: string;
+    },
+    inactive?: readonly InactiveFootprint[]
   ) => void;
+  containsScreenPoint: (point: { x: number; y: number }) => boolean;
+  imageAtScreenPoint: (point: { x: number; y: number }) => string | null;
   setStyle: (style: FootprintOutlineStyle) => void;
-  /** fade out and stay out while locked; the first call sets the state without a fade */
   setLocked: (locked: boolean, fade?: AnimationConfig) => void;
   destroy: () => void;
 };
-
-/** ring edges are cut into pieces this long, so the line can follow the terrain */
-const SEGMENT_METERS = 10;
-/** terrain heights that moved less than this leave the line as it is */
-const HEIGHT_TOLERANCE_METERS = 0.05;
 const DEFAULT_FADE_MS = 300;
-
-/** the ring with every edge cut into pieces of at most SEGMENT_METERS */
-const densify = (ring: Position[]): [number, number][] => {
-  const points: [number, number][] = [];
-  for (let index = 0; index + 1 < ring.length; index++) {
-    const [lng1, lat1] = ring[index];
-    const [lng2, lat2] = ring[index + 1];
-    const a = MercatorCoordinate.fromLngLat({ lng: lng1, lat: lat1 });
-    const b = MercatorCoordinate.fromLngLat({ lng: lng2, lat: lat2 });
-    const meters =
-      Math.hypot(b.x - a.x, b.y - a.y) / a.meterInMercatorCoordinateUnits();
-    const steps = Math.max(1, Math.ceil(meters / SEGMENT_METERS));
-    for (let step = 0; step < steps; step++) {
-      const t = step / steps;
-      points.push([lng1 + (lng2 - lng1) * t, lat1 + (lat2 - lat1) * t]);
-    }
-  }
-  const last = ring[ring.length - 1];
-  points.push([last[0], last[1]]);
-  return points;
-};
+const LABEL_WIDTH = 512;
+const LABEL_HEIGHT = 256;
 
 export const createFootprintOutlineLayer = (
   map: MaplibreMap,
   id: string,
   initialStyle: FootprintOutlineStyle
 ): FootprintOutlineLayer => {
-  let destroyed = false;
-  let style = initialStyle;
-
-  /** the densified ring in lon/lat, and the terrain height under each point */
-  let points: [number, number][] = [];
-  let heights: number[] = [];
-  let markerPoints: [number, number][] = [];
-  let arrowVertexCount = 0;
-  let labelText: string | undefined;
-  /** the same points in the local frame, as drawn */
-  let localPoints: THREE.Vector3[] = [];
-  /** the local frame: metres around the ring's first corner, up is up */
-  let origin = new MercatorCoordinate(0, 0, 0);
-  let meterScale = 1;
-  const model = new THREE.Matrix4();
-
-  const material = new LineMaterial({
-    color: style.color,
-    linewidth: style.width,
-    transparent: true,
-    opacity: style.opacity,
-    depthTest: false,
-    depthWrite: false,
-  });
-  const line = new Line2(new LineGeometry(), material);
-  line.frustumCulled = false;
-  const scene = new THREE.Scene();
-  scene.add(line);
-  const labelMaterial = new THREE.MeshBasicMaterial({
-    color: style.color,
-    transparent: true,
-    depthTest: false,
-    depthWrite: false,
-    side: THREE.DoubleSide,
-  });
-  const arrow = new Line2(new LineGeometry(), material);
-  const yearLabel = new THREE.Mesh(new THREE.BufferGeometry(), labelMaterial);
-  arrow.frustumCulled = yearLabel.frustumCulled = false;
-  arrow.visible = yearLabel.visible = false;
-  scene.add(arrow, yearLabel);
-  const camera = new THREE.Camera();
-  let renderer: THREE.WebGLRenderer | null = null;
-
-  /* ---------------------------------------------------------------- *
-   *  Fade: from one visibility to the other, 0 to 1
-   * ---------------------------------------------------------------- */
-
-  let fadeFrom = 1;
-  let fadeTo = 1;
-  let fadeStart = 0;
-  let fadeDelay = 0;
-  let fadeDuration = 0;
-  let lockSet = false;
-
-  const visibilityAt = (now: number): number => {
-    const elapsed = now - fadeStart - fadeDelay;
-    if (elapsed <= 0) return fadeFrom;
-    if (fadeDuration <= 0 || elapsed >= fadeDuration) return fadeTo;
-    return fadeFrom + ((fadeTo - fadeFrom) * elapsed) / fadeDuration;
+  const sourceId = `${id}-source`,
+    hitId = `${id}-interior`,
+    caretId = `${id}-caret`,
+    labelId = `${id}-label`,
+    imageId = `${id}-label-image`;
+  const layerIds = [hitId, id, caretId, labelId];
+  let style = initialStyle,
+    locked = false,
+    destroyed = false,
+    attaching = false;
+  let data: FeatureCollection = { type: "FeatureCollection", features: [] };
+  let revision = 0;
+  let labelText: string | undefined, labelColor: string | undefined;
+  let labelImage: ImageData | null = null;
+  let labelImageDirty = false;
+  let labelCanvas: HTMLCanvasElement | null = null;
+  let labelRing: Position[] | null = null;
+  let surfaceLease: ReturnType<typeof acquireSharedThreeScene> | null = null;
+  let surfaceTexture: CanvasTexture | null = null;
+  let sharedLayerId: string | null = null;
+  let surfaceBounds: [number, number, number, number] | null = null;
+  let surfaceDirty = true,
+    surfaceZoom = Number.NaN;
+  let surfaceOpacity = initialStyle.opacity;
+  let fadeState: {
+    start: number;
+    duration: number;
+    from: number;
+    to: number;
+  } | null = null;
+  const publishSurface = () => {
+    if (surfaceTexture && surfaceBounds)
+      surfaceLease?.layer.setMapStyleSurfaceOverlay?.(id, {
+        texture: surfaceTexture,
+        bounds: surfaceBounds,
+        opacity: surfaceOpacity,
+      });
   };
-
-  /* ---------------------------------------------------------------- *
-   *  Geometry
-   * ---------------------------------------------------------------- */
-
-  const toLocal = (lng: number, lat: number, height: number): THREE.Vector3 => {
-    const point = MercatorCoordinate.fromLngLat({ lng, lat });
-    return new THREE.Vector3(
-      (point.x - origin.x) / meterScale,
-      (point.y - origin.y) / meterScale,
-      height
-    );
-  };
-
-  /**
-   * Reads the terrain under every point and rebuilds the line when a height
-   * has moved. Without terrain the map is flat at zero. Returns whether the
-   * line changed.
-   */
-  const updateHeights = (): boolean => {
-    if (points.length < 2) return false;
-    const next = [...points, ...markerPoints].map(
-      ([lng, lat]) => map.queryTerrainElevation([lng, lat]) ?? 0
-    );
-    const unchanged =
-      next.length === heights.length &&
-      next.every(
-        (height, index) =>
-          Math.abs(height - heights[index]) <= HEIGHT_TOLERANCE_METERS
-      );
-    if (unchanged) return false;
-    heights = next;
-
-    localPoints = points.map(([lng, lat], index) =>
-      toLocal(lng, lat, heights[index])
-    );
-    const positions = localPoints.flatMap((point) => [
-      point.x,
-      point.y,
-      point.z,
-    ]);
-    const previous = line.geometry;
-    line.geometry = new LineGeometry().setPositions(positions);
-    previous.dispose();
-    const markerPositions = markerPoints.flatMap(([lng, lat], index) =>
-      toLocal(lng, lat, heights[points.length + index]).toArray()
-    );
-    const setPositions = (mesh: THREE.Mesh, values: number[]) => {
-      const attribute = mesh.geometry.getAttribute("position");
-      if (
-        attribute instanceof THREE.BufferAttribute &&
-        attribute.array.length === values.length
-      ) {
-        attribute.array.set(values);
-        attribute.needsUpdate = true;
-      } else {
-        mesh.geometry.setAttribute(
-          "position",
-          new THREE.Float32BufferAttribute(values, 3)
-        );
-      }
-    };
-    const previousArrow = arrow.geometry;
-    arrow.geometry = new LineGeometry();
-    const arrowPositions = markerPositions.slice(0, arrowVertexCount * 3);
-    if (arrowPositions.length >= 6) arrow.geometry.setPositions(arrowPositions);
-    previousArrow.dispose();
-    setPositions(yearLabel, markerPositions.slice(arrowVertexCount * 3));
-    return true;
-  };
-
-  /** The open caret and text follow sampled terrain and the outline's fade. */
-  const updateMarkers = (
-    ring: Position[],
-    annotation: Parameters<FootprintOutlineLayer["setRing"]>[1]
-  ): void => {
-    markerPoints = [];
-    arrowVertexCount = 0;
-    arrow.visible = yearLabel.visible = false;
-    arrow.geometry.dispose();
-    yearLabel.geometry.dispose();
-    arrow.geometry = new LineGeometry();
-    yearLabel.geometry = new THREE.BufferGeometry();
-    if (!annotation?.pose) return;
-    const polygon = ring.map(([lng, lat]) => {
-      const local = toLocal(lng, lat, 0);
-      return new THREE.Vector2(local.x, -local.y);
-    });
-    const marker = footprintMarkerGeometry(polygon, annotation.pose);
-    if (!marker) return;
-    const uv: number[] = [];
-    const appendTriangle = (
-      vertices: THREE.Vector2[],
-      texture: THREE.Vector2[]
-    ) => {
-      const [a, b, c] = vertices;
-      const steps = Math.max(
+  const renderFade = () => {
+    if (!fadeState || !surfaceLease) return;
+    const t = Math.max(
+      0,
+      Math.min(
         1,
-        Math.ceil(
-          Math.max(a.distanceTo(b), b.distanceTo(c), c.distanceTo(a)) /
-            SEGMENT_METERS
-        )
+        (performance.now() - fadeState.start) / Math.max(1, fadeState.duration)
+      )
+    );
+    surfaceOpacity = fadeState.from + (fadeState.to - fadeState.from) * t;
+    publishSurface();
+    if (t >= 1) fadeState = null;
+    else map.triggerRepaint();
+  };
+  map.on("render", renderFade);
+
+  const updateLabelImage = (text: string | undefined) => {
+    if (
+      !text ||
+      (text === labelText && style.color === labelColor && labelImage)
+    )
+      return;
+    const canvas = document.createElement("canvas");
+    canvas.width = LABEL_WIDTH;
+    canvas.height = LABEL_HEIGHT;
+    const context = canvas.getContext("2d");
+    if (!context) return;
+    context.font = "800 172px sans-serif";
+    context.textAlign = "center";
+    context.textBaseline = "middle";
+    const fontSize = Math.min(
+      172,
+      (172 * 480) / Math.max(480, context.measureText(text).width)
+    );
+    context.font = `800 ${fontSize}px sans-serif`;
+    context.fillStyle = style.color;
+    context.fillText(text, 256, 132);
+    labelCanvas = canvas;
+    labelImage = context.getImageData(0, 0, LABEL_WIDTH, LABEL_HEIGHT);
+    labelText = text;
+    labelColor = style.color;
+    labelImageDirty = true;
+  };
+  const attachImage = () => {
+    if (!labelImage) return;
+    const exists = map.hasImage(imageId);
+    if (exists && !labelImageDirty) return;
+    // Register only after the geometry commit. Image writes can emit styledata
+    // synchronously, which must never rasterize a half-built footprint.
+    labelImageDirty = false;
+    try {
+      if (exists) map.updateImage(imageId, labelImage);
+      else map.addImage(imageId, labelImage);
+    } catch (error) {
+      labelImageDirty = true;
+      throw error;
+    }
+  };
+  const opacity = () => (locked ? 0 : style.opacity);
+  const nativeOpacity = () => (surfaceLease ? 0 : opacity());
+  const inactiveOpacity = () =>
+    Math.max(0, Math.min(0.1, style.inactiveOpacity ?? 0.1));
+  const fillOpacity = () =>
+    Math.max(0, Math.min(0.2, style.fillOpacity ?? 0.2));
+  const lineOpacity = (): ExpressionSpecification => [
+    "*",
+    nativeOpacity(),
+    ["case", ["==", ["get", "active"], false], inactiveOpacity(), 1],
+  ];
+  const renderedFootprints = (point: { x: number; y: number }) =>
+    !destroyed && !locked && style.opacity > 0 && !!map.getLayer(hitId)
+      ? map
+          .queryRenderedFeatures(point, { layers: [hitId] })
+          .filter((feature) => feature.properties?.revision === revision)
+      : [];
+  const updateSurface = () => {
+    const receivers = getSharedThreeSceneRuntimes(map).some(
+      (runtime) => runtime.receivesMapStyleTexture
+    );
+    const wasActive = !!surfaceLease;
+    if (!receivers) {
+      fadeState = null;
+      surfaceOpacity = opacity();
+      surfaceLease?.layer.setMapStyleSurfaceOverlay?.(id, null);
+      surfaceLease?.release();
+      surfaceLease = null;
+      if (wasActive) applyStyle();
+      return;
+    }
+    if (!surfaceLease) {
+      surfaceLease = acquireSharedThreeScene(map);
+      if (!surfaceLease.layer.setMapStyleSurfaceOverlay) {
+        surfaceLease.release();
+        surfaceLease = null;
+        return;
+      }
+      sharedLayerId = surfaceLease.layer.id;
+      surfaceDirty = true;
+      applyStyle();
+    }
+    const zoom = map.getZoom();
+    if (!surfaceDirty && zoom === surfaceZoom) return;
+    surfaceDirty = false;
+    surfaceZoom = zoom;
+    const polygons = data.features.filter((f) => f.geometry.type === "Polygon");
+    const polygon =
+      polygons.find((f) => f.properties?.active !== false) ?? polygons[0];
+    if (!polygon || polygon.geometry.type !== "Polygon") {
+      surfaceLease.layer.setMapStyleSurfaceOverlay(id, null);
+      surfaceTexture?.dispose();
+      surfaceTexture = null;
+      return;
+    }
+    const coordinates = polygons.flatMap((feature) =>
+      feature.geometry.type === "Polygon"
+        ? feature.geometry.coordinates[0].map((point) =>
+            MercatorCoordinate.fromLngLat([point[0], point[1]])
+          )
+        : []
+    );
+    const minX = Math.min(...coordinates.map((p) => p.x)),
+      minY = Math.min(...coordinates.map((p) => p.y));
+    const maxX = Math.max(...coordinates.map((p) => p.x)),
+      maxY = Math.max(...coordinates.map((p) => p.y));
+    const span = Math.max(maxX - minX, maxY - minY);
+    if (!(span > 0)) return;
+    const margin = span * 0.01;
+    const left = minX - margin,
+      top = minY - margin,
+      width = maxX - minX + 2 * margin,
+      height = maxY - minY + 2 * margin;
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(
+      16,
+      Math.round((2048 * width) / Math.max(width, height))
+    );
+    canvas.height = Math.max(
+      16,
+      Math.round((2048 * height) / Math.max(width, height))
+    );
+    const context = canvas.getContext("2d");
+    if (!context) return;
+    const pixel = (point: Position): Vector2 => {
+      const merc = MercatorCoordinate.fromLngLat([point[0], point[1]]);
+      return new Vector2(
+        ((merc.x - left) / width) * canvas.width,
+        ((merc.y - top) / height) * canvas.height
       );
-      const vertex = (i: number, j: number) => {
-        const x = i / steps,
-          y = j / steps;
-        const point = a
-          .clone()
-          .multiplyScalar(1 - x - y)
-          .addScaledVector(b, x)
-          .addScaledVector(c, y);
-        const ll = new MercatorCoordinate(
-          origin.x + point.x * meterScale,
-          origin.y - point.y * meterScale
-        ).toLngLat();
-        markerPoints.push([ll.lng, ll.lat]);
-        const tex = texture[0]
-          .clone()
-          .multiplyScalar(1 - x - y)
-          .addScaledVector(texture[1], x)
-          .addScaledVector(texture[2], y);
-        uv.push(tex.x, tex.y);
-      };
-      for (let i = 0; i < steps; i++) {
-        for (let j = 0; i + j < steps; j++) {
-          vertex(i, j);
-          vertex(i + 1, j);
-          vertex(i, j + 1);
-          if (i + j + 1 < steps) {
-            vertex(i + 1, j);
-            vertex(i + 1, j + 1);
-            vertex(i, j + 1);
+    };
+    context.strokeStyle = style.color;
+    context.lineWidth =
+      ((style.width / (512 * 2 ** zoom)) * canvas.width) / width;
+    context.lineJoin = "round";
+    context.lineCap = "round";
+    const trace = (feature: FeatureCollection["features"][number]) => {
+      const points =
+        feature.geometry.type === "Polygon"
+          ? feature.geometry.coordinates[0]
+          : feature.geometry.type === "LineString"
+          ? feature.geometry.coordinates
+          : null;
+      points
+        ?.map(pixel)
+        .forEach((point, index) =>
+          index === 0
+            ? context.moveTo(point.x, point.y)
+            : context.lineTo(point.x, point.y)
+        );
+      if (feature.geometry.type === "Polygon") context.closePath();
+    };
+    context.fillStyle = style.color;
+    // One background pass avoids accumulating opacity where inactive rings overlap.
+    context.globalAlpha = inactiveOpacity();
+    context.beginPath();
+    polygons
+      .filter((feature) => feature.properties?.active === false)
+      .forEach(trace);
+    context.fill();
+    const activeFeatures = data.features.filter(
+      (feature) => feature.properties?.active !== false
+    );
+    const activePolygon = activeFeatures.find(
+      (feature) => feature.geometry.type === "Polygon"
+    );
+    if (activePolygon) {
+      context.beginPath();
+      trace(activePolygon);
+      context.save();
+      context.clip();
+      context.clearRect(0, 0, canvas.width, canvas.height);
+      context.restore();
+      context.globalAlpha = fillOpacity();
+      context.fill();
+    }
+    context.globalAlpha = inactiveOpacity();
+    context.beginPath();
+    polygons
+      .filter((feature) => feature.properties?.active === false)
+      .forEach(trace);
+    context.stroke();
+    for (const feature of activeFeatures) {
+      context.beginPath();
+      trace(feature);
+      context.globalAlpha = 1;
+      context.stroke();
+    }
+    if (labelRing && labelCanvas) {
+      const [p0, p1, , p3] = labelRing.map(pixel);
+      context.globalAlpha = 0.5;
+      context.setTransform(
+        (p1.x - p0.x) / LABEL_WIDTH,
+        (p1.y - p0.y) / LABEL_WIDTH,
+        (p3.x - p0.x) / LABEL_HEIGHT,
+        (p3.y - p0.y) / LABEL_HEIGHT,
+        p0.x,
+        p0.y
+      );
+      context.drawImage(labelCanvas, 0, 0);
+    }
+    const northWest = new MercatorCoordinate(left, top).toLngLat();
+    const southEast = new MercatorCoordinate(
+      left + width,
+      top + height
+    ).toLngLat();
+    surfaceBounds = [
+      northWest.lng,
+      southEast.lat,
+      southEast.lng,
+      northWest.lat,
+    ];
+    const previous = surfaceTexture;
+    surfaceTexture = new CanvasTexture(canvas);
+    publishSurface();
+    previous?.dispose();
+  };
+  const applyStyle = () => {
+    for (const lineId of [id, caretId]) {
+      if (!map.getLayer(lineId)) continue;
+      map.setPaintProperty(lineId, "line-color", style.color);
+      map.setPaintProperty(lineId, "line-width", style.width);
+      map.setPaintProperty(lineId, "line-opacity", lineOpacity());
+    }
+    if (map.getLayer(labelId))
+      map.setPaintProperty(labelId, "icon-opacity", nativeOpacity() * 0.5);
+    if (map.getLayer(hitId)) {
+      map.setPaintProperty(hitId, "fill-color", style.color);
+      map.setPaintProperty(hitId, "fill-opacity", [
+        "*",
+        nativeOpacity(),
+        [
+          "case",
+          ["==", ["get", "active"], false],
+          inactiveOpacity(),
+          fillOpacity(),
+        ],
+      ]);
+      map.setLayoutProperty(
+        hitId,
+        "visibility",
+        locked || style.opacity <= 0 ? "none" : "visible"
+      );
+    }
+  };
+  const placeLayers = () => {
+    if (!getSharedThreeSceneRuntimes(map).length) return;
+    // Discover once. Reacquiring/releasing a lease on every idle/style event
+    // would force the shared label/style reconciliation again.
+    if (!sharedLayerId) {
+      const lease = acquireSharedThreeScene(map);
+      sharedLayerId = lease.layer.id;
+      lease.release();
+    }
+    const order = map.getLayersOrder();
+    const sharedIndex = order.indexOf(sharedLayerId);
+    if (sharedIndex < 0) return;
+    // The shared scene owns capture order. Ground overlays must precede it.
+    for (const layerId of layerIds) {
+      if (order.indexOf(layerId) > sharedIndex)
+        map.moveLayer(layerId, sharedLayerId);
+    }
+  };
+  const attach = () => {
+    if (destroyed || attaching) return;
+    attaching = true;
+    try {
+      if (!map.getSource(sourceId))
+        map.addSource(sourceId, { type: "geojson", data });
+      attachImage();
+      if (!map.getLayer(hitId))
+        map.addLayer({
+          id: hitId,
+          type: "fill",
+          source: sourceId,
+          filter: ["==", ["get", "part"], "footprint"],
+          layout: { visibility: locked ? "none" : "visible" },
+          paint: {
+            "fill-color": style.color,
+            "fill-opacity": [
+              "*",
+              nativeOpacity(),
+              [
+                "case",
+                ["==", ["get", "active"], false],
+                inactiveOpacity(),
+                fillOpacity(),
+              ],
+            ],
+          },
+        });
+      for (const [layerId, part] of [
+        [id, "footprint"],
+        [caretId, "caret"],
+      ]) {
+        if (!map.getLayer(layerId))
+          map.addLayer({
+            id: layerId,
+            type: "line",
+            source: sourceId,
+            filter: ["==", ["get", "part"], part],
+            layout: { "line-join": "round", "line-cap": "round" },
+            paint: {
+              "line-color": style.color,
+              "line-width": style.width,
+              "line-opacity": lineOpacity(),
+            },
+          });
+      }
+      if (!map.getLayer(labelId))
+        map.addLayer({
+          id: labelId,
+          type: "symbol",
+          source: sourceId,
+          metadata: { "carma:map-style-placement": "draped" },
+          filter: ["==", ["get", "part"], "label"],
+          layout: {
+            "icon-image": imageId,
+            "icon-pitch-alignment": "map",
+            "icon-rotation-alignment": "map",
+            "icon-rotate": ["get", "rotationDeg"],
+            "icon-allow-overlap": true,
+            "icon-ignore-placement": true,
+            // A 512px sprite follows the marker's world width, independent of zoom.
+            "icon-size": [
+              "interpolate",
+              ["exponential", 2],
+              ["zoom"],
+              0,
+              ["get", "scale"],
+              24,
+              ["*", ["get", "scale"], 2 ** 24],
+            ],
+          },
+          paint: { "icon-opacity": nativeOpacity() * 0.5 },
+        });
+      updateSurface();
+      placeLayers();
+    } catch {
+      /* Style replacement/loading: the next styledata/idle retries. */
+    } finally {
+      attaching = false;
+    }
+  };
+  map.on("styledata", attach);
+  map.on("idle", attach);
+  attach();
+  return {
+    setRing(ring, annotation, inactive) {
+      revision++;
+      surfaceDirty = true;
+      labelRing = null;
+      const features: FeatureCollection["features"] = (inactive ?? [])
+        .filter((footprint) => footprint.ring.length >= 4)
+        .map((footprint) => ({
+          type: "Feature",
+          properties: {
+            part: "footprint",
+            revision,
+            active: false,
+            imageId: footprint.id,
+          },
+          geometry: { type: "Polygon", coordinates: [footprint.ring] },
+        }));
+      if (ring && ring.length >= 4) {
+        features.push({
+          type: "Feature",
+          properties: {
+            part: "footprint",
+            revision,
+            active: true,
+            imageId: annotation?.imageId,
+          },
+          geometry: { type: "Polygon", coordinates: [ring] },
+        });
+        if (annotation?.pose) {
+          const origin = MercatorCoordinate.fromLngLat([
+            ring[0][0],
+            ring[0][1],
+          ]);
+          const meterScale = origin.meterInMercatorCoordinateUnits();
+          const polygon = ring.map(([lng, lat]) => {
+            const point = MercatorCoordinate.fromLngLat([lng, lat]);
+            return new Vector2(
+              (point.x - origin.x) / meterScale,
+              -(point.y - origin.y) / meterScale
+            );
+          });
+          const marker = footprintMarkerGeometry(polygon, annotation.pose);
+          if (marker) {
+            const toLngLat = (point: Vector2): number[] => {
+              const coordinate = new MercatorCoordinate(
+                origin.x + point.x * meterScale,
+                origin.y - point.y * meterScale
+              ).toLngLat();
+              return [coordinate.lng, coordinate.lat];
+            };
+            const [tip, right, left] = marker.triangle;
+            features.push({
+              type: "Feature",
+              properties: { part: "caret" },
+              geometry: {
+                type: "LineString",
+                coordinates: [right, tip, left].map(toLngLat),
+              },
+            });
+            const text = annotation.seriesLabel;
+            if (text) {
+              updateLabelImage(text);
+              labelRing = marker.labelCorners.map(toLngLat);
+              const center = marker.labelCorners
+                .reduce((sum, point) => sum.add(point), new Vector2())
+                .divideScalar(4);
+              const edge = marker.labelCorners[1]
+                .clone()
+                .sub(marker.labelCorners[0]);
+              features.push({
+                type: "Feature",
+                properties: {
+                  part: "label",
+                  scale: edge.length() * meterScale,
+                  rotationDeg: (Math.atan2(-edge.y, edge.x) * 180) / Math.PI,
+                },
+                geometry: { type: "Point", coordinates: toLngLat(center) },
+              });
+            }
           }
         }
       }
-    };
-    const [tip, right, left] = marker.triangle;
-    const caret = [right, tip, left].map((point) => {
-      const ll = new MercatorCoordinate(
-        origin.x + point.x * meterScale,
-        origin.y - point.y * meterScale
-      ).toLngLat();
-      return [ll.lng, ll.lat];
-    });
-    markerPoints = densify(caret);
-    arrowVertexCount = markerPoints.length;
-    arrow.visible = true;
-    uv.length = 0;
-    const text = annotation.seriesLabel;
-    if (!text) return;
-    if (text !== labelText) {
-      const canvas = document.createElement("canvas");
-      canvas.width = 512;
-      canvas.height = 256;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
-      ctx.font = "800 172px sans-serif";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillStyle = "white";
-      const fontSize = Math.min(
-        172,
-        (172 * 480) / Math.max(480, ctx.measureText(text).width)
-      );
-      ctx.font = `800 ${fontSize}px sans-serif`;
-      ctx.fillText(text, 256, 132);
-      labelMaterial.map?.dispose();
-      labelMaterial.map = new THREE.CanvasTexture(canvas);
-      labelMaterial.map.colorSpace = THREE.SRGBColorSpace;
-      labelMaterial.needsUpdate = true;
-      labelText = text;
-    }
-    const [tl, tr, br, bl] = marker.labelCorners;
-    appendTriangle(
-      [tl, tr, bl],
-      [
-        new THREE.Vector2(0, 1),
-        new THREE.Vector2(1, 1),
-        new THREE.Vector2(0, 0),
-      ]
-    );
-    appendTriangle(
-      [tr, br, bl],
-      [
-        new THREE.Vector2(1, 1),
-        new THREE.Vector2(1, 0),
-        new THREE.Vector2(0, 0),
-      ]
-    );
-    yearLabel.geometry.setAttribute(
-      "uv",
-      new THREE.Float32BufferAttribute(uv, 2)
-    );
-    yearLabel.visible = true;
-  };
-
-  /* ---------------------------------------------------------------- *
-   *  The MapLibre layer
-   * ---------------------------------------------------------------- */
-
-  const clip = new THREE.Vector4();
-  /**
-   * False when a point lies behind the camera. The wide line trims such
-   * segments only for a camera of its own, not for MapLibre's combined
-   * matrix, and would smear them across the screen.
-   */
-  const inFrontOfCamera = (matrix: THREE.Matrix4): boolean =>
-    localPoints.every(
-      (point) =>
-        clip.set(point.x, point.y, point.z, 1).applyMatrix4(matrix).w > 0
-    );
-
-  const layer: CustomLayerInterface = {
-    id,
-    type: "custom",
-    renderingMode: "3d",
-    onAdd(_map, gl) {
-      renderer?.dispose();
-      renderer = new THREE.WebGLRenderer({
-        canvas: map.getCanvas(),
-        context: gl,
-        antialias: true,
-      });
-      renderer.autoClear = false;
+      data = { type: "FeatureCollection", features };
+      surfaceDirty = true;
+      attach();
+      (map.getSource(sourceId) as GeoJSONSource | undefined)?.setData(data);
     },
-    onRemove() {
-      renderer?.dispose();
-      renderer = null;
+    containsScreenPoint(point) {
+      return renderedFootprints(point).length > 0;
     },
-    render(
-      gl: WebGLRenderingContext | WebGL2RenderingContext,
-      args: CustomRenderMethodInput
-    ) {
-      if (destroyed || !renderer || points.length < 2) return;
-
-      const now = performance.now();
-      if (now < fadeStart + fadeDelay + fadeDuration) map.triggerRepaint();
-      const opacity = style.opacity * visibilityAt(now);
-      if (opacity <= 0) return;
-
-      const matrix = new THREE.Matrix4()
-        .fromArray(args.defaultProjectionData.mainMatrix as unknown as number[])
-        .multiply(model);
-      // Wide lines cannot clip a combined MapLibre camera matrix safely.
-      // Ordinary triangle meshes can, so keep markers when an edge is behind us.
-      line.visible = inFrontOfCamera(matrix);
-      arrow.visible =
-        markerPoints.slice(0, arrowVertexCount).length > 0 &&
-        markerPoints.slice(0, arrowVertexCount).every(([lng, lat], index) => {
-          const point = toLocal(lng, lat, heights[points.length + index]);
-          return (
-            clip.set(point.x, point.y, point.z, 1).applyMatrix4(matrix).w > 0
-          );
-        });
-      camera.projectionMatrix.copy(matrix);
-      camera.projectionMatrixInverse.copy(matrix).invert();
-
-      const canvas = map.getCanvas();
-      material.resolution.set(canvas.clientWidth, canvas.clientHeight);
-      material.opacity = opacity;
-      labelMaterial.opacity = opacity * 0.5;
-
-      // MapLibre's depth range must survive three's state reset, or the
-      // layers after this one test against the wrong depth space
-      const savedDepthRange = gl.getParameter(gl.DEPTH_RANGE) as Float32Array;
-      renderer.resetState();
-      renderer.render(scene, camera);
-      gl.depthRange(savedDepthRange[0], savedDepthRange[1]);
+    imageAtScreenPoint(point) {
+      const hits = renderedFootprints(point);
+      const feature =
+        hits.find((feature) => feature.properties?.active === true) ?? hits[0];
+      return typeof feature?.properties?.imageId === "string"
+        ? feature.properties.imageId
+        : null;
     },
-  };
-
-  /**
-   * Above every 3D layer, and no higher than it has to be: another overlay
-   * that keeps itself on top (the flood water does) would otherwise trade
-   * places with this one forever, each move firing the other's styledata.
-   */
-  const keepAbove3dLayers = (): void => {
-    const order = map.getLayersOrder();
-    const at = order.indexOf(id);
-    const highest3d = Math.max(
-      -1,
-      ...get3dLayerIds(map).map((other) => order.indexOf(other))
-    );
-    if (highest3d > at) map.moveLayer(id);
-  };
-
-  /** idempotent, and safe from `styledata`: a style change can drop custom layers */
-  const attach = (): void => {
-    if (destroyed) return;
-    try {
-      if (!map.getLayer(id)) map.addLayer(layer);
-      keepAbove3dLayers();
-    } catch {
-      // the style is still loading; the next styledata or idle comes back here
-    }
-  };
-
-  /** terrain arrives in tiles, and each tile refines the heights */
-  const onIdle = (): void => {
-    attach();
-    if (updateHeights()) map.triggerRepaint();
-  };
-  const onTerrain = (): void => {
-    if (updateHeights()) map.triggerRepaint();
-  };
-
-  map.on("styledata", attach);
-  map.on("idle", onIdle);
-  map.on("terrain", onTerrain);
-  attach();
-
-  return {
-    setRing: (ring, annotation) => {
-      if (!ring || ring.length < 2) {
-        points = [];
-        heights = [];
-        localPoints = [];
-        markerPoints = [];
-        arrow.visible = yearLabel.visible = false;
-        map.triggerRepaint();
+    setStyle(next) {
+      if (
+        next.color === style.color &&
+        next.width === style.width &&
+        next.opacity === style.opacity &&
+        next.fillOpacity === style.fillOpacity &&
+        next.inactiveOpacity === style.inactiveOpacity
+      )
         return;
-      }
-      origin = MercatorCoordinate.fromLngLat({
-        lng: ring[0][0],
-        lat: ring[0][1],
-      });
-      meterScale = origin.meterInMercatorCoordinateUnits();
-      model
-        .makeTranslation(origin.x, origin.y, 0)
-        .scale(new THREE.Vector3(meterScale, meterScale, meterScale));
-      points = densify(ring);
-      updateMarkers(ring, annotation);
-      heights = [];
-      updateHeights();
-      map.triggerRepaint();
-    },
-    setStyle: (next) => {
       style = next;
-      material.color.set(next.color);
-      labelMaterial.color.set(next.color);
-      material.linewidth = next.width;
-      map.triggerRepaint();
+      surfaceDirty = true;
+      if (!fadeState) surfaceOpacity = opacity();
+      updateLabelImage(labelText);
+      attachImage();
+      updateSurface();
+      applyStyle();
     },
-    setLocked: (locked, fade) => {
-      const target = locked ? 0 : 1;
-      const now = performance.now();
-      if (!lockSet) {
-        lockSet = true;
-        fadeFrom = target;
-        fadeTo = target;
-        fadeDuration = 0;
-        fadeDelay = 0;
-        fadeStart = now;
+    setLocked(next, fade) {
+      if (next === locked) return;
+      locked = next;
+      if (surfaceLease) {
+        fadeState = {
+          from: surfaceOpacity,
+          to: opacity(),
+          start: performance.now() + (fade?.delay ?? 0),
+          duration: fade?.duration ?? DEFAULT_FADE_MS,
+        };
         map.triggerRepaint();
-        return;
+      } else surfaceOpacity = opacity();
+      for (const [layerId, property] of [
+        [hitId, "fill-opacity"],
+        [id, "line-opacity"],
+        [caretId, "line-opacity"],
+        [labelId, "icon-opacity"],
+      ]) {
+        if (map.getLayer(layerId))
+          map.setPaintProperty(layerId, `${property}-transition`, {
+            duration: fade?.duration ?? DEFAULT_FADE_MS,
+            delay: fade?.delay ?? 0,
+          });
       }
-      if (target === fadeTo) return;
-      fadeFrom = visibilityAt(now);
-      fadeTo = target;
-      fadeStart = now;
-      fadeDelay = fade?.delay ?? 0;
-      fadeDuration = fade?.duration ?? DEFAULT_FADE_MS;
-      map.triggerRepaint();
+      applyStyle();
     },
-    destroy: () => {
+    destroy() {
       destroyed = true;
       map.off("styledata", attach);
-      map.off("idle", onIdle);
-      map.off("terrain", onTerrain);
+      map.off("idle", attach);
+      map.off("render", renderFade);
+      fadeState = null;
+      surfaceLease?.layer.setMapStyleSurfaceOverlay?.(id, null);
+      surfaceLease?.release();
+      surfaceLease = null;
+      surfaceTexture?.dispose();
+      surfaceTexture = null;
       try {
-        if (map.getLayer(id)) map.removeLayer(id);
+        for (const layerId of layerIds.slice().reverse())
+          if (map.getLayer(layerId)) map.removeLayer(layerId);
+        if (map.getSource(sourceId)) map.removeSource(sourceId);
+        if (map.hasImage(imageId)) map.removeImage(imageId);
       } catch {
-        // the style may already be gone
+        /* Map teardown or a style replacement has already removed them. */
       }
-      line.geometry.dispose();
-      material.dispose();
-      arrow.geometry.dispose();
-      yearLabel.geometry.dispose();
-      labelMaterial.map?.dispose();
-      labelMaterial.dispose();
-      renderer?.dispose();
-      renderer = null;
     },
   };
 };

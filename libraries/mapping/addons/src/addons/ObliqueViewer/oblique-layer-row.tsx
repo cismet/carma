@@ -3,6 +3,11 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faPlane, faXmark } from "@fortawesome/free-solid-svg-icons";
 
 import type { InteractionButton, Layer } from "@carma-mapping/layers";
+import {
+  CARDINAL_BEARING_FORM,
+  formatCardinalBearing,
+} from "@carma-mapping/annotations/runtime";
+import { degToRadNumeric } from "@carma-units";
 
 import { useObliqueViewerActions } from "./oblique-actions";
 const strings = {
@@ -132,7 +137,10 @@ export const useObliqueLayerRow = ({
       .map((entry) => entry.shortLabel ?? entry.id)
       .join(", "),
     bearingDeg !== null && pitchDeg !== null
-      ? `H ${bearingDeg}° P ${pitchDeg}°`
+      ? `${formatCardinalBearing(degToRadNumeric(bearingDeg), {
+          form: CARDINAL_BEARING_FORM.SHORT,
+          points: 16,
+        })} (${bearingDeg}°) P ${pitchDeg}°`
       : null,
   ]
     .filter(Boolean)

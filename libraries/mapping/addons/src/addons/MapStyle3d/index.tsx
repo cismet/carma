@@ -5,6 +5,8 @@ import { acquireSharedThreeScene } from "@carma-mapping/engines/maplibre";
 import type { AddonComponentProps } from "../../lib/registry";
 
 export type MapStyle3dConfig = {
+  /** Host chooses a vector Karte source for separate mesh labels. Luftbild is retained. */
+  vectorBaseMap?: boolean;
   /** Floating place names, POIs and point symbols above the 3D scene. */
   pointLabels?: boolean;
   elevationLines?: boolean;

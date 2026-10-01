@@ -125,6 +125,42 @@ const finishLastAnimation = () => {
 };
 
 describe("off-centre image zoom", () => {
+  it("holds native pixel zoom after hiding the photo and releases its limit only after the return", () => {
+    const { map, host } = setup({ maxZoom: 22 });
+    const props = {
+      map,
+      enabled: true,
+      minFovDeg: 10,
+      maxFovDeg: 110,
+      busyRef: { current: false },
+      previewRoot: host as HTMLDivElement | null,
+      previewCameraActive: true,
+      previewSampling: {
+        longEdgePixels: 20000 as DevicePixels,
+        halfFovTan: 0.3,
+      },
+    };
+    const view = renderHook(useFovWheelZoom, { initialProps: props });
+    fireEvent.wheel(host, { deltaY: -1000000 });
+    finishLastAnimation();
+    const zoom = map.getZoom();
+    const fov = map.getVerticalFieldOfView();
+    const maximum = map.getMaxZoom();
+    expect(zoom).toBeGreaterThan(22);
+    expect(view.result.current.getBrowsingMaxZoom()).toBe(22);
+    view.rerender({ ...props, previewRoot: null });
+    expect(map.getZoom()).toBe(zoom);
+    expect(map.getVerticalFieldOfView()).toBe(fov);
+    expect(map.getMaxZoom()).toBe(maximum);
+    applyFovKeepingCamera(map, 34);
+    const returnedZoom = map.getZoom();
+    expect(returnedZoom).toBeLessThanOrEqual(22);
+    view.rerender({ ...props, previewRoot: null, previewCameraActive: false });
+    expect(map.getMaxZoom()).toBe(22);
+    expect(map.getZoom()).toBe(returnedZoom);
+    expect(map.getVerticalFieldOfView()).toBe(34);
+    view.unmount();
+  });
   it("keeps the pixel under the mouse fixed while retaining the physical camera distance", () => {
     const { map } = setup();
     const anchor = { x: 610, y: 380 };

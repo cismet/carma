@@ -42,7 +42,7 @@ type UseObliqueCameraModeOptions = {
   enabled: boolean;
   dataset: ObliqueDataset;
   terrainSourceId?: string;
-  onBeforeLeave?: () => void;
+  onBeforeLeave?: () => CameraFlight | undefined;
 };
 
 export const useObliqueCameraMode = ({
@@ -54,6 +54,7 @@ export const useObliqueCameraMode = ({
 }: UseObliqueCameraModeOptions) => {
   const [phase, setPhase] = useState<CameraPhase>("idle");
   const sessionRef = useRef<Session | null>(null);
+  const pendingReturnRef = useRef<CameraFlight | null>(null);
   const beforeLeaveRef = useRef(onBeforeLeave);
   beforeLeaveRef.current = onBeforeLeave;
 
@@ -61,9 +62,11 @@ export const useObliqueCameraMode = ({
     if (!map) return undefined;
 
     if (enabled) {
+      const previous = sessionRef.current;
       const session: Session = {
-        savedFovDeg: map.getVerticalFieldOfView(),
-        terrainByUs: ensureTerrain(map, terrainSourceId),
+        savedFovDeg: previous?.savedFovDeg ?? map.getVerticalFieldOfView(),
+        terrainByUs:
+          previous?.terrainByUs ?? ensureTerrain(map, terrainSourceId),
         flight: null,
       };
       sessionRef.current = session;
@@ -74,42 +77,52 @@ export const useObliqueCameraMode = ({
       setPhase("entering");
 
       let cancelled = false;
-      const flight = enterObliqueView(map, dataset);
-      session.flight = flight;
-      flight.done.then(() => {
+      (pendingReturnRef.current?.done ?? Promise.resolve()).then(async () => {
+        if (cancelled) return;
+        const flight = enterObliqueView(map, dataset);
+        session.flight = flight;
+        await flight.done;
         session.flight = null;
         if (cancelled) return;
         lockPitch(map, dataset.pitchDeg);
         setPhase("active");
       });
-
       return () => {
         cancelled = true;
-        flight.cancel();
+        session.flight?.cancel();
       };
     }
 
     const session = sessionRef.current;
     if (!session) return undefined;
-    sessionRef.current = null;
     setPhase("leaving");
-    beforeLeaveRef.current?.();
     freePitch(map);
-
+    const preparation = beforeLeaveRef.current?.();
+    pendingReturnRef.current = preparation ?? null;
+    let flight: CameraFlight | null = preparation ?? null;
+    session.flight = flight;
     let cancelled = false;
-    const flight = leaveObliqueView(map, dataset, session.savedFovDeg);
-    flight.done.then(() => {
+    (preparation?.done ?? Promise.resolve()).then(async () => {
+      if (pendingReturnRef.current === preparation)
+        pendingReturnRef.current = null;
+      if (cancelled) return;
+      flight = leaveObliqueView(map, dataset, session.savedFovDeg);
+      session.flight = flight;
+      await flight.done;
+      if (cancelled) return;
+      sessionRef.current = null;
       releaseCamera(map);
       map.scrollZoom.enable();
       if (session.terrainByUs && getCameraRestriction(map)?.restricted) {
         map.setTerrain(null);
       }
-      if (!cancelled) setPhase("idle");
+      setPhase("idle");
     });
     return () => {
-      // a switch-on during the tilt-out lets the tilt-out finish; the new
-      // session then starts from wherever the camera is
       cancelled = true;
+      // Re-enabling waits for the preview to recenter rather than cancelling
+      // halfway and restoring its limits abruptly.
+      if (flight !== preparation) flight?.cancel();
     };
   }, [map, enabled, dataset, terrainSourceId]);
 
@@ -121,8 +134,9 @@ export const useObliqueCameraMode = ({
       if (!session) return;
       sessionRef.current = null;
       session.flight?.cancel();
+      pendingReturnRef.current?.cancel();
+      pendingReturnRef.current = null;
       try {
-        beforeLeaveRef.current?.();
         releaseCamera(map);
         map.scrollZoom.enable();
         if (session.terrainByUs) map.setTerrain(null);

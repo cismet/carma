@@ -240,6 +240,43 @@ export const buildSharedThreeSceneLayer = (
       mapStyleProjection.setVisible(visible);
     },
 
+    setMapStyleSurfaceOverlay(id, overlay) {
+      if (!overlay || !originMerc || meterScale <= 0) {
+        mapStyleProjection.setSurfaceOverlay(id, null);
+        return;
+      }
+      const [west, south, east, north] = overlay.bounds;
+      const min = MercatorCoordinate.fromLngLat([west, north]);
+      const max = MercatorCoordinate.fromLngLat([east, south]);
+      const width = (max.x - min.x) / meterScale;
+      const height = (max.y - min.y) / meterScale;
+      if (!(width > 0 && height > 0)) return;
+      const minX = (min.x - originMerc.x) / meterScale;
+      const maxZ = (max.y - originMerc.y) / meterScale;
+      mapStyleProjection.setSurfaceOverlay(id, {
+        texture: overlay.texture,
+        opacity: overlay.opacity,
+        sceneToTexture: new THREE.Matrix4().set(
+          1 / width,
+          0,
+          0,
+          -minX / width,
+          0,
+          0,
+          -1 / height,
+          maxZ / height,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1
+        ),
+      });
+    },
+
     projectLngLatToScene(
       lngLat,
       altitudeMeters = 0,

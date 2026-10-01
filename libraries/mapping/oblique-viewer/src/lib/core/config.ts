@@ -213,7 +213,7 @@ const CAMERAS_2024: Record<string, ObliqueCameraCalibration> =
 
 export const WUPPERTAL_OBLIQUE_2024: ObliqueDataset = {
   id: "wuppertal-2024",
-  label: "Schrägluftbilder 03/2024",
+  label: "03/2024",
   shortLabel: "2024",
   acquisitionMonth: 3,
   acquisitionYear: 2024,
@@ -379,7 +379,7 @@ const CAMERAS_2026: Record<string, ObliqueCameraCalibration> =
 export const WUPPERTAL_OBLIQUE_2026: ObliqueDataset = {
   ...WUPPERTAL_OBLIQUE_2024,
   id: "wuppertal-2026",
-  label: "Schrägluftbilder 04/2026",
+  label: "04/2026",
   shortLabel: "2026",
   // Delivered Aufnahmeorte.shp timestamps (ATTR_6): 2026-04-11 for every point.
   acquisitionMonth: 4,
@@ -417,7 +417,7 @@ export const WUPPERTAL_OBLIQUE_2026: ObliqueDataset = {
 export const WUPPERTAL_2026_RATHAUS_DATASET: ObliqueDataset = {
   ...WUPPERTAL_OBLIQUE_2026,
   id: "wuppertal-2026-rathaus",
-  label: "Schrägluftbilder 04/2026 (Sample)",
+  label: "04/2026 (Sample)",
   shortLabel: "2026Test",
   availableCameraViews: ["left", "right", "front", "back"],
   enabledByDefault: false,

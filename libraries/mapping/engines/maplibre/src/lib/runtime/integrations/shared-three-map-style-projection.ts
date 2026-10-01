@@ -38,7 +38,20 @@ export const createSharedThreeMapStyleProjection = (
     depthEnabled: { value: 0 },
     depthNearFar: { value: new THREE.Vector2(1, 1000) },
     texelSize: { value: new THREE.Vector2(1, 1) },
+    surfaceOverlay: {
+      texture: { value: null },
+      sceneToTexture: { value: new THREE.Matrix4() },
+      opacity: { value: 0 },
+    },
   };
+  const surfaceOverlays = new Map<
+    string,
+    {
+      texture: THREE.Texture;
+      sceneToTexture: THREE.Matrix4;
+      opacity: number;
+    }
+  >();
   let mapStyleFramebufferTexture: THREE.FramebufferTexture | null = null;
   const capturedMapStyleMatrix = new THREE.Matrix4();
   let mapStyleFramebufferCache: ReturnType<
@@ -188,6 +201,25 @@ export const createSharedThreeMapStyleProjection = (
       };
     },
 
+    setSurfaceOverlay(
+      id: string,
+      overlay: {
+        texture: THREE.Texture;
+        sceneToTexture: THREE.Matrix4;
+        opacity: number;
+      } | null
+    ) {
+      if (overlay) surfaceOverlays.set(id, overlay);
+      else surfaceOverlays.delete(id);
+      const active = [...surfaceOverlays.values()].at(-1);
+      const surface = mapStyleProjectionUniforms.surfaceOverlay!;
+      surface.texture.value = active?.texture ?? null;
+      surface.opacity.value = active?.opacity ?? 0;
+      if (active) surface.sceneToTexture.value.copy(active.sceneToTexture);
+      mapStyleProjectionEpoch++;
+      map?.triggerRepaint();
+    },
+
     setEnabled(enabled: boolean) {
       if (presentationEnabled === enabled) return;
       presentationEnabled = enabled;
@@ -226,11 +258,10 @@ export const createSharedThreeMapStyleProjection = (
       lightingReplay: boolean
     ): boolean {
       mapStyleProjectionUniforms.sceneToClip.value.copy(sceneToClipMatrix);
-      if (
-        presentationEnabled &&
-        mapStyleProjectionVisible &&
-        configureMapStyleProjection()
-      ) {
+      const hasReceivers =
+        (presentationEnabled || surfaceOverlays.size > 0) &&
+        configureMapStyleProjection();
+      if (presentationEnabled && mapStyleProjectionVisible && hasReceivers) {
         try {
           bindMapStyleDepth();
           const contentRevision = mapStyleFramebufferCache?.revision ?? 0;
@@ -283,6 +314,9 @@ export const createSharedThreeMapStyleProjection = (
       mapStyleFramebufferTexture = null;
       mapStyleProjectionUniforms.texture.value = null;
       mapStyleProjectionUniforms.enabled.value = 0;
+      surfaceOverlays.clear();
+      mapStyleProjectionUniforms.surfaceOverlay!.texture.value = null;
+      mapStyleProjectionUniforms.surfaceOverlay!.opacity.value = 0;
       mapStyleProjectionVersions.clear();
       mapStyleProjectionReceivers.clear();
 

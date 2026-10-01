@@ -339,6 +339,21 @@ export interface SharedThreeSceneLayer extends CustomLayerInterface {
   setMapStylePresentationEnabled?: (enabled: boolean) => void;
   /** Enable capture and projection of the preceding MapLibre style pass. */
   setMapStyleProjectionVisible?: (visible: boolean) => void;
+  /** A georeferenced marking painted on the visible receivers, including roofs.
+   * Caller owns the texture; remove its ID before disposing it. */
+  setMapStyleSurfaceOverlay?: (
+    id: string,
+    overlay: {
+      texture: THREE.Texture;
+      bounds: readonly [
+        west: number,
+        south: number,
+        east: number,
+        north: number
+      ];
+      opacity: number;
+    } | null
+  ) => void;
   /** Diagnostics: what the map-style projection did in the last frame. */
   getMapStyleProjectionState?: () => MapStyleProjectionState;
   projectLngLatToScene: (
@@ -369,6 +384,12 @@ export type MapStyleProjectionUniforms = Readonly<{
   /** Near and far plane of the MapLibre camera that wrote that depth. */
   depthNearFar: { value: THREE.Vector2 };
   texelSize: { value: THREE.Vector2 };
+  /** Optional world-aligned surface marking; independent of DEM label occlusion. */
+  surfaceOverlay?: {
+    texture: { value: THREE.Texture | null };
+    sceneToTexture: { value: THREE.Matrix4 };
+    opacity: { value: number };
+  };
 }>;
 
 export const MAP_STYLE_PROJECTION_BLEND = {

@@ -29,14 +29,16 @@ export const useLibreLayers = (): LibreLayer[] => {
   const [shadowState] = useAddonState("shadowSimulation");
   const routeAddons = useRouteAddons();
   const [addonOverrides] = usePersistedAddonOverrides();
-  const mapStyle3dActive = useMemo(
+  const mapStyle3dEntry = useMemo(
     () =>
       applyAddonOverrides(
         resolveAddonEntries(routeAddons),
         addonOverrides
-      ).some(({ kind }) => kind === "mapStyle3d"),
+      ).find((entry) => entry.kind === "mapStyle3d"),
     [routeAddons, addonOverrides]
   );
+  const mapStyle3dActive = !!mapStyle3dEntry;
+  const vectorBaseMap = mapStyle3dEntry?.config?.vectorBaseMap === true;
   const { pathname, search } = useLocation();
 
   // a layer's "conditionalLayer" tool keeps it off the map unless the route or
@@ -65,8 +67,9 @@ export const useLibreLayers = (): LibreLayer[] => {
         mapStyle3dActive,
         vectorBaseOverride:
           mapStyle3dActive &&
-          shadowState?.enabled === true &&
-          shadowState?.overrideBaseMapWithVectorStyle === true,
+          (vectorBaseMap ||
+            (shadowState?.enabled === true &&
+              shadowState?.overrideBaseMapWithVectorStyle === true)),
         standaloneMeshOnly,
       }),
       ...geoportalLayersToLibreLayers(drawnLayers),
@@ -76,6 +79,7 @@ export const useLibreLayers = (): LibreLayer[] => {
     namedLayers,
     drawnLayers,
     mapStyle3dActive,
+    vectorBaseMap,
     shadowState?.enabled,
     shadowState?.overrideBaseMapWithVectorStyle,
   ]);

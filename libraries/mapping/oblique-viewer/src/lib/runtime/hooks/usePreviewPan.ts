@@ -29,6 +29,12 @@ export const usePreviewPan = ({
   const imageGeometryRef = useRef(imageGeometry);
   imageGeometryRef.current = imageGeometry;
   const savedPaddingRef = useRef<PaddingOptions | null>(null);
+  const releaseProjectionRef = useRef<(() => void) | null>(null);
+  const beginPreview = useCallback(() => {
+    if (!map || releaseProjectionRef.current) return;
+    savedPaddingRef.current = { ...map.getPadding() };
+    releaseProjectionRef.current = acquirePreviewProjectionWindow(map);
+  }, [map]);
   const onPanEndRef = useRef(onPanEnd);
   onPanEndRef.current = onPanEnd;
   const resetPan = useCallback(() => {
@@ -37,9 +43,34 @@ export const usePreviewPan = ({
       map.setPadding(padding, { obliqueFov: true });
   }, [map]);
 
+  const getBrowsingPadding = useCallback(
+    () => savedPaddingRef.current ?? map?.getPadding(),
+    [map]
+  );
+  useEffect(
+    () => () => {
+      resetPan();
+      releaseProjectionRef.current?.();
+      releaseProjectionRef.current = null;
+      savedPaddingRef.current = null;
+    },
+    [map, resetPan]
+  );
+
+  useEffect(() => {
+    if (!map || !enabled) return undefined;
+    beginPreview();
+    return () => {
+      resetPan();
+      releaseProjectionRef.current?.();
+      releaseProjectionRef.current = null;
+      savedPaddingRef.current = null;
+    };
+  }, [map, enabled, resetPan, beginPreview]);
+
   useEffect(() => {
     if (!map || !root || !enabled) return undefined;
-    const releaseProjection = acquirePreviewProjectionWindow(map);
+    // Entry may already be off-centre; dragging starts from that projection.
     const currentPadding = map.getPadding();
     const padding = {
       left: currentPadding.left ?? 0,
@@ -47,7 +78,6 @@ export const usePreviewPan = ({
       top: currentPadding.top ?? 0,
       bottom: currentPadding.bottom ?? 0,
     };
-    savedPaddingRef.current = padding;
     const baseOffset = { ...map.transform.centerOffset };
     let pointer: {
       id: number;
@@ -113,6 +143,12 @@ export const usePreviewPan = ({
           },
           principal: geometry.principal,
           roll: geometry.roll,
+        },
+        {
+          previousOffset: {
+            x: centerOffset.x as CssPixels,
+            y: centerOffset.y as CssPixels,
+          },
         }
       );
       const dx = x - baseOffset.x;
@@ -169,10 +205,7 @@ export const usePreviewPan = ({
         root.releasePointerCapture(pointer.id);
       pointer = null;
       root.style.removeProperty("--oblique-preview-cursor");
-      resetPan();
-      releaseProjection();
-      savedPaddingRef.current = null;
     };
-  }, [map, root, enabled, imageId, busyRef, resetPan]);
-  return resetPan;
+  }, [map, root, enabled, imageId, busyRef]);
+  return { beginPreview, resetPan, getBrowsingPadding };
 };

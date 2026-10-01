@@ -131,6 +131,10 @@ export type ObliqueFootprintsStyle = {
   outlineColor?: string;
   outlineWidth?: number;
   outlineOpacity?: number;
+  /** Active footprint fill; capped at 20%. */
+  fillOpacity?: number;
+  /** Entire non-selected footprint, capped at 10%. */
+  inactiveOpacity?: number;
 };
 
 export type ObliqueImagePreviewStyle = {

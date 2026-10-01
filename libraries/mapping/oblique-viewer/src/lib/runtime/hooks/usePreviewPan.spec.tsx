@@ -16,7 +16,7 @@ vi.mock("../utils/cameraMath", () => ({
   readCameraToCenterDistancePx: () => 500,
 }));
 
-const setup = () => {
+const setup = (initialActive = true) => {
   let padding: PaddingOptions = { top: 0, bottom: 10, left: 20, right: 0 };
   const original = { ...padding };
   const listeners = new Map<string, Set<() => void>>();
@@ -51,17 +51,18 @@ const setup = () => {
     end = vi.fn();
   const busy = { current: false };
   let reset = () => {};
-  const Harness = () => {
+  let beginPreview = () => {};
+  const Harness = ({ show = true, active = true } = {}) => {
     const rootRef = useRef<HTMLDivElement>(null);
     const [root, setRoot] = useState<HTMLDivElement | null>(null);
     const attachRoot = useCallback((node: HTMLDivElement | null) => {
       rootRef.current = node;
       setRoot(node);
     }, []);
-    reset = usePreviewPan({
+    const pan = usePreviewPan({
       map: map as unknown as MaplibreMap,
       root,
-      enabled: true,
+      enabled: active,
       imageId: "test",
       imageGeometry: {
         aspectRatio: 1.5 as Ratio,
@@ -72,6 +73,8 @@ const setup = () => {
       busyRef: busy,
       onPanEnd: end,
     });
+    reset = pan.resetPan;
+    beginPreview = pan.beginPreview;
     usePreviewSizeSync({
       map: map as unknown as MaplibreMap,
       rootRef,
@@ -80,13 +83,14 @@ const setup = () => {
       imageAspectRatio: 1.5,
       halfFovTan: 0.3,
     });
+    if (!show) return null;
     return (
       <div ref={attachRoot} data-test-id="preview">
         <div onClick={close} data-test-id="backdrop" />
       </div>
     );
   };
-  const view = render(<Harness />);
+  const view = render(<Harness active={initialActive} />);
   const root = view.getByTestId("preview");
   const captured = new Set<number>();
   root.setPointerCapture = vi.fn((id) => {
@@ -117,10 +121,42 @@ const setup = () => {
     busy,
     original,
     reset: () => reset(),
+    beginPreview: () => beginPreview(),
+    showPreview: () => view.rerender(<Harness />),
+    hidePreview: () => view.rerender(<Harness show={false} />),
+    finishReturn: () => view.rerender(<Harness show={false} active={false} />),
   };
 };
 
 describe("image preview panning", () => {
+  it("retains browsing padding when an entering flight prepares and offsets the projection before showing the image", () => {
+    const view = setup(false);
+    act(() => view.beginPreview());
+    view.map.setPadding({ left: 200, right: 0, top: 40, bottom: 0 });
+    view.showPreview();
+    view.pointer("pointerdown", 100, 100);
+    view.pointer("pointermove", 130, 100);
+    view.pointer("pointerup", 130, 100);
+    expect(view.map.getPadding().left).toBe(260);
+    view.hidePreview();
+    expect(view.map.getPadding().left).toBe(260);
+    view.finishReturn();
+    expect(view.map.getPadding()).toEqual(view.original);
+    view.unmount();
+  });
+
+  it("retains panned padding after the photo disappears until its camera return finishes", () => {
+    const view = setup();
+    view.pointer("pointerdown", 100, 100);
+    view.pointer("pointermove", 200, 200);
+    view.pointer("pointerup", 200, 200);
+    const panned = view.map.getPadding();
+    view.hidePreview();
+    expect(view.map.getPadding()).toEqual(panned);
+    view.finishReturn();
+    expect(view.map.getPadding()).toEqual(view.original);
+    view.unmount();
+  });
   it("moves the image principal point with the map projection and consumes the drag click", () => {
     const view = setup();
     view.pointer("pointerdown", 100, 100);

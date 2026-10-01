@@ -1,11 +1,15 @@
 export const MAP_STYLE_PROJECTION_VERTEX_HEADER = /* glsl */ `
 uniform mat4 carmaMapStyleSceneToClip;
 varying vec4 vCarmaMapStyleClip;
+uniform mat4 carmaSurfaceSceneToTexture;
+varying vec2 vCarmaSurfaceUv;
 `;
 
 export const MAP_STYLE_PROJECTION_VERTEX_BODY = /* glsl */ `
 #include <project_vertex>
-vCarmaMapStyleClip = carmaMapStyleSceneToClip * modelMatrix * vec4( transformed, 1.0 );
+vec4 carmaSurfacePosition = modelMatrix * vec4( transformed, 1.0 );
+vCarmaMapStyleClip = carmaMapStyleSceneToClip * carmaSurfacePosition;
+vCarmaSurfaceUv = (carmaSurfaceSceneToTexture * carmaSurfacePosition).xy;
 `;
 
 export const MAP_STYLE_PROJECTION_FRAGMENT_HEADER = /* glsl */ `
@@ -16,6 +20,9 @@ uniform float carmaMapStyleDepthEnabled;
 uniform vec2 carmaMapStyleDepthNearFar;
 uniform vec2 carmaMapStyleTexelSize;
 varying vec4 vCarmaMapStyleClip;
+varying vec2 vCarmaSurfaceUv;
+uniform sampler2D carmaSurfaceTexture;
+uniform float carmaSurfaceOpacity;
 #ifdef CARMA_MAP_STYLE_OVERLAY
 // Draped label picked up in map_fragment, composited after lighting.
 float carmaMapStyleLabelCoverage = 0.0;
@@ -129,6 +136,16 @@ if ( carmaMapStyleLabelCoverage > 0.0 ) {
   );
 }
 #endif
+// A world-aligned footprint paints the actual visible surface. It does not
+// use the DEM-depth street-label mask; roofs and facades remain marked too.
+if ( carmaSurfaceOpacity > 0.0 &&
+     all( greaterThanEqual( vCarmaSurfaceUv, vec2( 0.0 ) ) ) &&
+     all( lessThanEqual( vCarmaSurfaceUv, vec2( 1.0 ) ) ) ) {
+  vec4 carmaSurfaceSample = texture2D( carmaSurfaceTexture, vCarmaSurfaceUv );
+  outgoingLight = mix( outgoingLight,
+    carmaMapStyleSRGBToLinear( carmaSurfaceSample.rgb ),
+    carmaSurfaceSample.a * carmaSurfaceOpacity );
+}
 #include <opaque_fragment>
 `;
 

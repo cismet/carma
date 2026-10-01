@@ -2,6 +2,7 @@ import { renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Layer } from "@carma-mapping/layers";
 import type { AddonEntry, AddonOverridesState } from "@carma-mapping/addons";
+import { obliqueFachzwilling } from "../../constants/fachzwillinge/oblique";
 
 const state = vi.hoisted(() => ({
   layers: [] as unknown[],
@@ -206,6 +207,32 @@ describe("useLibreLayers with conditional layers", () => {
     state.shadow = { enabled: false, overrideBaseMapWithVectorStyle: true };
     drawnIds();
     expect(lastBackgroundOptions()).toMatchObject({
+      vectorBaseOverride: false,
+    });
+  });
+
+  it("uses oblique route vector base map without shadows and respects suspension", () => {
+    state.addons = obliqueFachzwilling.addons ?? [];
+    const view = renderHook(() => useLibreLayers());
+
+    expect(state.shadow).toBeUndefined();
+    expect(lastBackgroundOptions()).toMatchObject({
+      mapStyle3dActive: true,
+      vectorBaseOverride: true,
+    });
+
+    state.overrides = { suspended: ["mapStyle3d"], enabled: [] };
+    view.rerender();
+    expect(lastBackgroundOptions()).toMatchObject({
+      mapStyle3dActive: false,
+      vectorBaseOverride: false,
+    });
+
+    state.addons = [];
+    state.overrides = undefined;
+    view.rerender();
+    expect(lastBackgroundOptions()).toMatchObject({
+      mapStyle3dActive: false,
       vectorBaseOverride: false,
     });
   });

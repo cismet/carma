@@ -3,6 +3,14 @@ import type { ObliqueImageRecord } from "../../core/types";
 import { resolveCameraAltitude } from "./flyToImage";
 
 // Camera flights are outside this height-contract test and pull in browser MapLibre.
+// Use MapLibre's real geometry without initializing its bundled WebGL worker.
+vi.mock("maplibre-gl", async () => {
+  const { MercatorCoordinate } = await import(
+    "maplibre-gl/src/geo/mercator_coordinate"
+  );
+  const { LngLat } = await import("maplibre-gl/src/geo/lng_lat");
+  return { MercatorCoordinate, LngLat };
+});
 vi.mock("./obliqueCamera", () => ({ whenMoveEnds: vi.fn() }));
 vi.mock("./cameraMath", () => ({
   dynamicDurationMs: vi.fn(),

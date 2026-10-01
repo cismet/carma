@@ -88,20 +88,42 @@ export const previewImageCoverage = (
 /** Allow edges/corners to reach the viewport centre, retaining at least a quarter of the viewport when the image permits it. */
 export const clampPreviewPan = (
   offset: Point,
-  frame: PreviewPanFrame
+  frame: PreviewPanFrame,
+  { previousOffset }: { previousOffset?: Point } = {}
 ): Point => {
   const { image, principal, roll } = frame;
   if (!(image.width > 0 && image.height > 0)) return offset;
   const local = rotate(offset, -roll as Radians);
+  const previousLocal = previousOffset
+    ? rotate(previousOffset, -roll as Radians)
+    : undefined;
   const bounded = rotate(
     {
       x: Math.max(
-        -(principal.xOffset + 0.5) * image.width,
-        Math.min((0.5 - principal.xOffset) * image.width, local.x)
+        Math.min(
+          -(principal.xOffset + 0.5) * image.width,
+          previousLocal?.x ?? Infinity
+        ),
+        Math.min(
+          Math.max(
+            (0.5 - principal.xOffset) * image.width,
+            previousLocal?.x ?? -Infinity
+          ),
+          local.x
+        )
       ) as CssPixels,
       y: Math.max(
-        -(principal.yOffset + 0.5) * image.height,
-        Math.min((0.5 - principal.yOffset) * image.height, local.y)
+        Math.min(
+          -(principal.yOffset + 0.5) * image.height,
+          previousLocal?.y ?? Infinity
+        ),
+        Math.min(
+          Math.max(
+            (0.5 - principal.yOffset) * image.height,
+            previousLocal?.y ?? -Infinity
+          ),
+          local.y
+        )
       ) as CssPixels,
     },
     roll
@@ -115,7 +137,12 @@ export const clampPreviewPan = (
   );
   // A zoomed-out photo can naturally cover less than the viewport; don't enlarge it as a side effect of drag.
   const available = previewImageCoverage(centred, frame);
-  const minimum = available >= 0.25 ? 0.25 : 0.25 * available;
+  const normalMinimum = available >= 0.25 ? 0.25 : 0.25 * available;
+  // A tracked entry can begin at an edge with less photo visible. Do not
+  // recenter it on the first drag; allow recovery without reducing coverage.
+  const minimum = previousOffset
+    ? Math.min(normalMinimum, previewImageCoverage(previousOffset, frame))
+    : normalMinimum;
   if (previewImageCoverage(bounded, frame) >= minimum) return bounded;
   let low = 0,
     high = 1;

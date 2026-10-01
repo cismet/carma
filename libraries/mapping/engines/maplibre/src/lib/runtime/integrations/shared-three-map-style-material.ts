@@ -17,7 +17,7 @@ type MapStyleProjectionMaterialState = {
 };
 
 const MAP_STYLE_PROJECTION_STATE = "carmaMapStyleProjectionState";
-const MAP_STYLE_PROJECTION_SHADER_KEY = "|carma-map-style-projection-v5";
+const MAP_STYLE_PROJECTION_SHADER_KEY = "|carma-map-style-projection-v6";
 const MAP_STYLE_PROJECTION_OVERLAY_DEFINE = "CARMA_MAP_STYLE_OVERLAY";
 
 const applyMapStyleProjectionBlend = (
@@ -55,6 +55,11 @@ export const configureMapStyleProjectedMaterial = (
   }
 
   const state: MapStyleProjectionMaterialState = { uniforms, blend };
+  const emptySurface = {
+    texture: { value: null },
+    sceneToTexture: { value: new THREE.Matrix4() },
+    opacity: { value: 0 },
+  };
   userData[MAP_STYLE_PROJECTION_STATE] = state;
   applyMapStyleProjectionBlend(material, blend);
   const previousOnBeforeCompile = material.onBeforeCompile.bind(material);
@@ -68,6 +73,10 @@ export const configureMapStyleProjectedMaterial = (
     shader.uniforms["carmaMapStyleDepthEnabled"] = state.uniforms.depthEnabled;
     shader.uniforms["carmaMapStyleDepthNearFar"] = state.uniforms.depthNearFar;
     shader.uniforms["carmaMapStyleTexelSize"] = state.uniforms.texelSize;
+    const surface = state.uniforms.surfaceOverlay ?? emptySurface;
+    shader.uniforms["carmaSurfaceTexture"] = surface.texture;
+    shader.uniforms["carmaSurfaceSceneToTexture"] = surface.sceneToTexture;
+    shader.uniforms["carmaSurfaceOpacity"] = surface.opacity;
     shader.vertexShader = shader.vertexShader
       .replace(
         "#include <common>",

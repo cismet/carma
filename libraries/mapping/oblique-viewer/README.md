@@ -24,9 +24,38 @@ The selected footprint carries an open two-line caret with a 120-degree tip at
 the image-bottom boundary, pointing toward image up, and its series'
 short label at the polygon centroid when multiple series are enabled. The caret shares the outline's colour
 and line width; the year uses that colour at 50% opacity, weight 800 and no stroke. Camera roll and the projected image-up axis determine orientation;
-polygon start corner and winding do not. Both markers follow sampled terrain
-heights, draw above 3D layers and share the outline's preview fade. A single
-enabled series produces no superimposed label.
+polygon start corner and winding do not. The active footprint retains its outline
+and adds a fill capped at 20% opacity. Inactive footprints use at most 10% opacity
+for both outline and fill. Up to twelve locally ranked candidates are reused from
+the existing image search; the full image catalog is never sent to the scene.
+Footprint polygons, the active caret and label use one native MapLibre GeoJSON
+source with at most fifteen features. MapLibre workers own its
+tiling/tessellation. Without a mesh receiver, the markings use ordinary raster-DEM draping.
+With a receiver, the same geometry is rasterized once into a bounded,
+georeferenced canvas texture (at most 2048 pixels per side), and the existing
+shared material pass paints it on the actual visible mesh, including roofs.
+This world-aligned pass retains the requested alpha and is independent of the
+DEM-depth mask that keeps street labels occluded by buildings. No extra Three
+geometry or render target is created. Native marker paint is suppressed while
+the surface texture is active; removal restores the terrain fallback. The ground-aligned label opts out of floating
+point-label placement with `carma:map-style-placement: "draped"` metadata.
+This replaces the manual Three overlay and repeated per-vertex terrain-height
+queries. The preview fade is bounded and stops requesting repaints once complete;
+there is no recurring footprint height polling.
+
+The markers share the outline's preview fade. A single enabled series produces
+no superimposed label. Clicking inside the visible footprint uses MapLibre's
+rendered-polygon query and opens that image through the same anchored transition
+as “Flug zum Bild”. An overlap selects the active image first; another footprint
+selects its own image. The native hit layer becomes hidden synchronously when
+a flight starts; stale source revisions, drags, hidden outlines and preview/flight
+locks do not activate it. Handled clicks leave host feature-info selection alone.
+
+For a bounded development-only interaction capture, add `obliqueProfile=1` to the
+route query and activate an image. The console emits one `[oblique-profile]`
+report after eight seconds with frame gaps, long tasks, camera timing, map events
+and visible mesh geometry counts. The sampler never requests map repaints and
+detaches itself after the capture.
 
 ## Data contract
 
@@ -45,7 +74,10 @@ The 2026 delivery contains 30,172 images (23,823 oblique and 6,349 nadir). Its 4
 ## Run the Rathaus sample
 
 The local-development route `#/oblique?ff=ng` starts the addon and loads the
-existing Mesh 2024 style by default. Its layer visibility is remembered in the
+existing Mesh 2024 style by default. Its MapStyle3d declaration explicitly
+requests a vector Karte source for separate street labels. Luftbild retains the
+selected orthophoto, and routes without this declaration retain their authored
+background sources. Its layer visibility is remembered in the
 route's own storage namespace.
 
 From this worktree, with SSH access to `amy.cismet.de`:
@@ -70,8 +102,34 @@ calibrated image size, principal point and roll; rotated corners stop earlier
 when needed to retain 25% of the viewport as imagery (at most 75% exposed mesh).
 Naturally smaller zoomed-out photos retain their size instead of enlarging as a
 side effect of dragging. Moving back from a boundary takes effect immediately.
-Leaving the preview restores the original transform members and map padding
-before the next flight.
+A tracked image-camera entry may initially sit at an image edge with less
+coverage. The first drag retains that position and can recover coverage without
+reducing it further; ordinary bounds resume once sufficient coverage is reached.
+Leaving the preview tracks the visible Mesh/terrain point under the physical
+viewport centre; when no loaded surface can be picked, it uses the terrain
+height there. The return cancels the projection offset and moves the camera
+in its plane on the same eased progress as optical-depth travel. FOV follows
+from the target's pixel scale rather than running on a separate timing curve.
+The current FOV is changed only to the nearest permitted browsing FOV; the
+entry FOV is not a return requirement. Only the ordinary map zoom bound may
+reduce the tracked point's scale. Ground-reference changes reparameterize the
+physical camera before restoring clamping. Closing the photo does not reset
+pan first. Turning the addon off waits for this return before tilting out;
+re-enabling during the return retains the original camera/terrain baseline.
+
+Entering “Flug zum Bild” uses the inverse operation. It tracks the visible
+mesh/terrain point at the physical viewport centre while travelling to the
+calibrated image-camera position and orientation. FOV follows that target's
+pixel scale; off-centre projection keeps it in place instead of centring the
+image first. The projection lease captures ordinary browsing padding before
+the flight starts and remains active until the later return finishes.
+
+The isolated `Map Navigation/Camera and Scale/Off-center Pan Cancellation`
+Storybook fixture exercises both directions on this same runtime path with
+synthetic Three.js geometry. Its “Fly back to image camera” control reverses
+the return without recentering the tracked point. Pan Only, Pan And Dolly Zoom,
+and Off Center Target variants report rendered position and horizontal/vertical camera-plane scale errors. Sideways
+parallax of objects at different depths is expected.
 The Three.js tile-selection camera uses the same off-centre projection as the
 render camera. Sharper preview levels load on demand, retaining the current
 image until decoding succeeds.
@@ -79,7 +137,8 @@ image until decoding succeeds.
 Preview wheel zoom reaches two physical display pixels per native source
 pixel (200%), using calibrated dimensions and the current device pixel ratio.
 The preview temporarily raises the map zoom limit when necessary; leaving the
-preview restores the original limit. Above 100%, magnification adds no new
+preview restores the original limit after the animated camera return. Above
+100%, magnification adds no new
 source detail.
 
 When `originalPixelPreviewPath` is configured, the decoded JPEG remains visible

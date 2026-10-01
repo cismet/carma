@@ -41,6 +41,7 @@ type UseNearestImageOptions = {
   locked: boolean;
   selectedImageId: string | null;
   onSelect: (next: NearestObliqueImageRecord | null) => void;
+  onCandidates?: (ranked: NearestObliqueImageRecord[]) => void;
   debounceMs?: number;
 };
 
@@ -53,6 +54,7 @@ export const useNearestImage = ({
   locked,
   selectedImageId,
   onSelect,
+  onCandidates,
   debounceMs = 150,
 }: UseNearestImageOptions) => {
   const modeRef = useRef(viewMode);
@@ -72,6 +74,8 @@ export const useNearestImage = ({
   selectedIdRef.current = selectedImageId;
   const onSelectRef = useRef(onSelect);
   onSelectRef.current = onSelect;
+  const onCandidatesRef = useRef(onCandidates);
+  onCandidatesRef.current = onCandidates;
   const lockedRef = useRef(locked);
   lockedRef.current = locked;
 
@@ -171,6 +175,7 @@ export const useNearestImage = ({
       });
 
       if (!computeOnly) {
+        onCandidatesRef.current?.(ranked);
         const next = ranked[0] ?? null;
         if ((next?.record.id ?? null) !== selectedIdRef.current) {
           onSelectRef.current(next);

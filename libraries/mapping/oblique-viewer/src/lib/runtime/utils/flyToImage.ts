@@ -1,6 +1,20 @@
-import type { Map as MaplibreMap } from "maplibre-gl";
+import { interactionProfile } from "./interaction-profile";
+import {
+  MercatorCoordinate,
+  type Map as MaplibreMap,
+  type PaddingOptions,
+} from "maplibre-gl";
+import { Matrix3, Matrix4, Vector3, Vector4 } from "three";
+import { degToRadNumeric, radToDegNumeric, type Degrees } from "@carma-units";
+import {
+  readLongerEdgeFovFromIntrinsics,
+  readLongerEdgeFovFromMetersPerCssPixel,
+  readMetersPerCssPixel,
+  readVerticalFovFromLongerEdge,
+  readDollyCompensatedRange,
+} from "@carma-commons/camera/model";
 
-import { Easing } from "@carma-commons/math";
+import { Easing, clamp } from "@carma-commons/math";
 import type { Altitude, Coordinates } from "@carma-geo/data-structures";
 import { ellipsoidalToDhhn2016Height } from "@carma-geo/proj";
 
@@ -11,10 +25,10 @@ import type {
   ObliqueImageRecord,
   ObliquePose,
 } from "../../core/types";
-import { dynamicDurationMs, groundDistanceM } from "./cameraMath";
+import { dynamicDurationMs, groundDistanceM, tween } from "./cameraMath";
 import { getCameraCalibration } from "../../core/utils/calibration";
 import { computePose } from "../../core/utils/exteriorOrientation";
-import { whenMoveEnds, type CameraFlight } from "./obliqueCamera";
+import { setFov, whenMoveEnds, type CameraFlight } from "./obliqueCamera";
 
 /**
  * The flight to an image: the camera to the perspective centre, looking
@@ -117,7 +131,17 @@ export const flyToPose = (
   pose: ObliquePose,
   altitude: number,
   animation: AnimationConfig | undefined,
-  { dynamicDuration = true }: { dynamicDuration?: boolean } = {}
+  {
+    dynamicDuration = true,
+    anchor,
+    screenPoint,
+    maxFovDeg,
+  }: {
+    dynamicDuration?: boolean;
+    anchor?: MercatorCoordinate;
+    screenPoint?: { x: number; y: number };
+    maxFovDeg?: number;
+  } = {}
 ): CameraFlight => {
   // The roll has to be passed even though the map stays unrolled: MapLibre
   // 5.18 hands it back as given, `undefined` included, and `jumpTo` and
@@ -138,6 +162,16 @@ export const flyToPose = (
     ? dynamicDurationMs(cameraErrorM(map, pose, altitude), maxDuration)
     : maxDuration;
   const easing = animation?.easingFunction ?? Easing.LINEAR_NONE;
+
+  if (anchor)
+    return settleToPitch(map, pose.pitchDeg, {
+      anchor,
+      screenPoint,
+      camera: { pose, altitude },
+      maxFovDeg,
+      durationMs: duration,
+      restoreGround: false,
+    });
 
   map.setCenterClampedToGround(false);
   map.easeTo({ ...cameraOptions(), duration, easing, essential: true });
@@ -180,17 +214,359 @@ export const restoreCenterOnGround = (map: MaplibreMap): void => {
   );
 };
 
-/** ease the tilt back to the browsing pitch, for the pitch lock to take */
+/**
+ * Track one rendered point while cancelling the projection offset. Dolly
+ * compensation uses its optical depth, not the distance to the map centre.
+ * The camera can travel in its plane without changing the target's pixel scale;
+ * only a browsing zoom bound permits an unavoidable reduction in that scale.
+ * Visual fixture: stories/mapping/maplibre/off-center-pan-cancellation.stories.tsx.
+ */
 export const settleToPitch = (
   map: MaplibreMap,
   pitchDeg: number,
-  durationMs = 300
+  {
+    fovDeg = map.getVerticalFieldOfView() as Degrees,
+    padding = map.getPadding(),
+    maxZoom = map.getMaxZoom(),
+    durationMs = 1100,
+    anchor,
+    screenPoint,
+    restoreGround = true,
+    camera,
+    maxFovDeg = 110,
+  }: {
+    fovDeg?: Degrees;
+    padding?: PaddingOptions;
+    maxZoom?: number;
+    durationMs?: number;
+    anchor?: MercatorCoordinate;
+    screenPoint?: { x: number; y: number };
+    restoreGround?: boolean;
+    /** Fixed image-camera destination; the projection follows the anchor. */
+    camera?: { pose: ObliquePose; altitude: number };
+    maxFovDeg?: number;
+  } = {}
 ): CameraFlight => {
-  map.easeTo({
-    pitch: pitchDeg,
-    duration: durationMs,
-    easing: Easing.QUADRATIC_IN_OUT,
-    essential: true,
+  map.stop();
+  const from = map.transform.clone();
+  const viewportPoint = from.centerPoint.clone();
+  viewportPoint.x = screenPoint?.x ?? from.width / 2;
+  viewportPoint.y = screenPoint?.y ?? from.height / 2;
+  const groundTarget =
+    anchor?.toLngLat() ?? map.unproject([viewportPoint.x, viewportPoint.y]);
+  const groundHeight =
+    map.queryTerrainElevation(groundTarget) ?? from.elevation;
+  const target =
+    anchor ?? MercatorCoordinate.fromLngLat(groundTarget, groundHeight);
+  const targetHeight = target.toAltitude();
+  const startFovRad = degToRadNumeric(from.fov);
+  const targetFovRad = degToRadNumeric(fovDeg);
+  const viewport = {
+    viewportWidthPx: from.width,
+    viewportHeightPx: from.height,
+  };
+  const mercatorUnitsPerMeter = from.pixelsPerMeter / from.worldSize;
+  const readDepth = (frame: typeof from): number =>
+    new Vector4(
+      target.x * frame.worldSize,
+      target.y * frame.worldSize,
+      targetHeight,
+      1
+    ).applyMatrix4(new Matrix4().fromArray(frame.modelViewProjectionMatrix)).w /
+    (mercatorUnitsPerMeter * frame.worldSize);
+  const startDepth = readDepth(from);
+  const startResolution = Number(
+    readMetersPerCssPixel({
+      rangeM: startDepth,
+      fovRad: readLongerEdgeFovFromIntrinsics({ fov: startFovRad }, viewport)!,
+      ...viewport,
+    })
+  );
+  const fovForResolution = (depth: number, resolution: number): number =>
+    radToDegNumeric(
+      readVerticalFovFromLongerEdge(
+        readLongerEdgeFovFromMetersPerCssPixel({
+          metersPerCssPixel: resolution,
+          rangeM: depth,
+          ...viewport,
+        }) ?? undefined,
+        from.width / from.height
+      ) ?? startFovRad
+    );
+  const placeCamera = (
+    frame: typeof from,
+    lngLat: { lng: number; lat: number },
+    altitude: number
+  ): void => {
+    const reference = frame.calculateCenterFromCameraLngLatAlt(
+      lngLat,
+      altitude,
+      frame.bearing,
+      frame.pitch
+    );
+    frame.setCenter(reference.center);
+    frame.setElevation(reference.elevation);
+    frame.setZoom(reference.zoom);
+  };
+  const aim = (frame: typeof from, moveProjection = false): void => {
+    for (let correction = 0; correction < 2; correction++) {
+      const matrix = new Matrix4().fromArray(frame.modelViewProjectionMatrix);
+      const clip = new Vector4(
+        target.x * frame.worldSize,
+        target.y * frame.worldSize,
+        targetHeight,
+        1
+      ).applyMatrix4(matrix);
+      const x = (2 * viewportPoint.x) / frame.width - 1;
+      const y = 1 - (2 * viewportPoint.y) / frame.height;
+      if (moveProjection) {
+        const dx =
+          (viewportPoint.x - ((clip.x / clip.w + 1) * frame.width) / 2) * 2;
+        const dy =
+          (viewportPoint.y - ((1 - clip.y / clip.w) * frame.height) / 2) * 2;
+        frame.setPadding({
+          left: frame.padding.left + Math.max(0, dx),
+          right: frame.padding.right + Math.max(0, -dx),
+          top: frame.padding.top + Math.max(0, dy),
+          bottom: frame.padding.bottom + Math.max(0, -dy),
+        });
+        continue;
+      }
+      const m = matrix.elements;
+      // Solve the projected position directly. Inverting a near/far ray at
+      // a telephoto FOV loses precision through subtraction of distant points.
+      const translation = new Vector3(
+        clip.x - x * clip.w,
+        clip.y - y * clip.w,
+        0
+      ).applyMatrix3(
+        new Matrix3()
+          .set(
+            m[0] - x * m[3],
+            m[4] - x * m[7],
+            0,
+            m[1] - y * m[3],
+            m[5] - y * m[7],
+            0,
+            0,
+            0,
+            1
+          )
+          .invert()
+      );
+      const center = MercatorCoordinate.fromLngLat(frame.center);
+      frame.setCenter(
+        new MercatorCoordinate(
+          center.x + translation.x / frame.worldSize,
+          center.y + translation.y / frame.worldSize
+        ).toLngLat()
+      );
+    }
+  };
+  const compensate = (frame: typeof from, depth: number): void => {
+    // Centre translation changes the rendered depth. Retain the initial
+    // tangent-plane metre scale and solve against the actual matrix again.
+    for (let correction = 0; correction < 4; correction++) {
+      aim(frame);
+      const actualDepth = readDepth(frame);
+      if (!(actualDepth > 0 && depth > 0)) break;
+      frame.setZoom(frame.zoom + Math.log2(actualDepth / depth));
+    }
+    aim(frame);
+  };
+  let targetDepth = Number(
+    readDollyCompensatedRange({
+      currentRangeM: startDepth,
+      currentFovRad: startFovRad,
+      targetFovRad,
+    })
+  );
+  const finalFrame = from.clone();
+  finalFrame.setFov(fovDeg);
+  finalFrame.setPitch(pitchDeg);
+  finalFrame.setElevation(targetHeight);
+  finalFrame.setPadding(padding);
+  if (camera) {
+    finalFrame.setBearing(camera.pose.bearingDeg);
+    finalFrame.setRoll(0);
+    const eye = { lng: camera.pose.longitude, lat: camera.pose.latitude };
+    placeCamera(finalFrame, eye, camera.altitude);
+    targetDepth = readDepth(finalFrame);
+    if (!(targetDepth > 0))
+      throw new Error("Das aktuelle Blickziel liegt hinter der Bildkamera.");
+    finalFrame.setFov(
+      clamp(fovForResolution(targetDepth, startResolution), 0.1, maxFovDeg)
+    );
+    placeCamera(finalFrame, eye, camera.altitude);
+    aim(finalFrame, true);
+  } else {
+    compensate(finalFrame, targetDepth);
+  }
+  if (restoreGround && targetHeight !== groundHeight) {
+    // Resolve the ordinary terrain reference before evaluating its zoom bound.
+    // This changes centre/zoom representation while retaining the physical eye.
+    for (let correction = 0; correction < 2; correction++) {
+      const eye = finalFrame.getCameraLngLat();
+      const altitude = finalFrame.getCameraAltitude();
+      finalFrame.setElevation(
+        map.queryTerrainElevation(finalFrame.center) ?? groundHeight
+      );
+      const reference = finalFrame.calculateCenterFromCameraLngLatAlt(
+        eye,
+        altitude,
+        finalFrame.bearing,
+        finalFrame.pitch
+      );
+      finalFrame.setCenter(reference.center);
+      finalFrame.setElevation(reference.elevation);
+      finalFrame.setZoom(reference.zoom);
+      aim(finalFrame);
+    }
+  }
+  if (!camera) {
+    finalFrame.setZoom(clamp(finalFrame.zoom, map.getMinZoom(), maxZoom));
+    aim(finalFrame);
+  }
+  const scaleReduction = camera
+    ? Number(
+        readMetersPerCssPixel({
+          rangeM: readDepth(finalFrame),
+          fovRad: readLongerEdgeFovFromIntrinsics(
+            { fov: degToRadNumeric(finalFrame.fov) },
+            viewport
+          )!,
+          ...viewport,
+        })
+      ) / startResolution
+    : Math.max(1, readDepth(finalFrame) / targetDepth);
+  const startEye = MercatorCoordinate.fromLngLat(from.getCameraLngLat());
+  const endEye = camera
+    ? MercatorCoordinate.fromLngLat([
+        camera.pose.longitude,
+        camera.pose.latitude,
+      ])
+    : undefined;
+  const bearingDelta = camera
+    ? ((camera.pose.bearingDeg - from.bearing + 540) % 360) - 180
+    : 0;
+  map.setCenterClampedToGround(false);
+  let resolveDone!: () => void;
+  const done = new Promise<void>((resolve) => {
+    resolveDone = resolve;
   });
-  return { done: whenMoveEnds(map, durationMs), cancel: () => map.stop() };
+  const flight = tween({
+    from: 0,
+    to: 1,
+    durationMs,
+    easing: Easing.CUBIC_IN_OUT,
+    onUpdate: (progress) => {
+      const profile = interactionProfile(map);
+      const frameStarted = performance.now();
+      const frame = from.clone();
+      // Travel and projection move on the same eased progress. Interpolate
+      // optical depth, then derive FOV, rather than giving FOV a different
+      // speed curve that makes the camera's path appear to reverse.
+      const resolutionRatio = Math.pow(scaleReduction, progress);
+      const depth =
+        startDepth + (targetDepth * scaleReduction - startDepth) * progress;
+      const fovRad =
+        readVerticalFovFromLongerEdge(
+          readLongerEdgeFovFromMetersPerCssPixel({
+            metersPerCssPixel: startResolution * resolutionRatio,
+            rangeM: depth,
+            ...viewport,
+          }) ?? undefined,
+          from.width / from.height
+        ) ?? startFovRad;
+      frame.setFov(radToDegNumeric(fovRad));
+      frame.setPitch(from.pitch + (pitchDeg - from.pitch) * progress);
+      frame.setBearing(from.bearing + bearingDelta * progress);
+      if (progress > 0) frame.setElevation(targetHeight);
+      frame.interpolatePadding(from.padding, padding, progress);
+      if (progress > 0 && camera && endEye) {
+        // Reverse the return by travelling to the physical image camera.
+        // Its optical depth determines FOV; projection pan keeps the target fixed.
+        frame.setRoll(from.roll * (1 - progress));
+        const eye = new MercatorCoordinate(
+          startEye.x + (endEye.x - startEye.x) * progress,
+          startEye.y + (endEye.y - startEye.y) * progress
+        ).toLngLat();
+        const altitude =
+          from.getCameraAltitude() +
+          (camera.altitude - from.getCameraAltitude()) * progress;
+        placeCamera(frame, eye, altitude);
+        const actualDepth = readDepth(frame);
+        if (actualDepth > 0) {
+          frame.setFov(
+            clamp(
+              fovForResolution(actualDepth, startResolution * resolutionRatio),
+              0.1,
+              maxFovDeg
+            )
+          );
+          placeCamera(frame, eye, altitude);
+        }
+        aim(frame, true);
+      } else if (progress > 0) {
+        // Interpolate the offset in the camera plane, in metres. When scale
+        // must change, a linear pixel pan would otherwise bend that motion.
+        const projectedCenter = from.centerPoint.clone();
+        projectedCenter.x =
+          viewportPoint.x +
+          ((from.centerPoint.x - viewportPoint.x) * (1 - progress) +
+            (finalFrame.centerPoint.x - viewportPoint.x) *
+              scaleReduction *
+              progress) /
+            resolutionRatio;
+        projectedCenter.y =
+          viewportPoint.y +
+          ((from.centerPoint.y - viewportPoint.y) * (1 - progress) +
+            (finalFrame.centerPoint.y - viewportPoint.y) *
+              scaleReduction *
+              progress) /
+            resolutionRatio;
+        const dx = (projectedCenter.x - frame.centerPoint.x) * 2;
+        const dy = (projectedCenter.y - frame.centerPoint.y) * 2;
+        frame.setPadding({
+          left: frame.padding.left + Math.max(0, dx),
+          right: frame.padding.right + Math.max(0, -dx),
+          top: frame.padding.top + Math.max(0, dy),
+          bottom: frame.padding.bottom + Math.max(0, -dy),
+        });
+        compensate(frame, depth);
+      }
+      if (progress === 1) {
+        frame.apply(finalFrame, false);
+      }
+      profile?.record("solveFrame", performance.now() - frameStarted);
+      const writeStarted = performance.now();
+      setFov(map, frame.fov);
+      profile?.record("writeFov", performance.now() - writeStarted);
+      const jumpStarted = performance.now();
+      map.jumpTo(
+        {
+          center: frame.center,
+          zoom: frame.zoom,
+          pitch: frame.pitch,
+          bearing: frame.bearing,
+          roll: frame.roll,
+          elevation: frame.elevation,
+          padding: frame.padding,
+        },
+        { obliqueFov: true }
+      );
+      profile?.record("writeCamera", performance.now() - jumpStarted);
+    },
+    onComplete: () => {
+      if (restoreGround) restoreCenterOnGround(map);
+      resolveDone();
+    },
+  });
+  return {
+    done,
+    cancel: () => {
+      flight.cancel();
+      resolveDone();
+    },
+  };
 };

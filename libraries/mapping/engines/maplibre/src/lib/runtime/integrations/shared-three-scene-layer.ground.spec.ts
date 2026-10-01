@@ -7,6 +7,47 @@ import {
 } from "./shared-three-scene-render-context";
 import { configureMapStyleProjectedMaterial } from "./shared-three-map-style-material";
 
+const createSurfaceOverlayFixture = (
+  overlays: Array<{
+    id: string;
+    texture: THREE.Texture;
+    bounds: readonly [west: number, south: number, east: number, north: number];
+    opacity: number;
+  }>
+) => {
+  const host = createProgressiveHost();
+  const material = new THREE.MeshStandardMaterial();
+  const root = new THREE.Group();
+  root.add(new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), material));
+  host.layer.addRuntime({
+    id: "surface-overlay-receiver",
+    originLngLat: [7.15, 51.25],
+    root,
+    providesTerrain: false,
+    receivesMapStyleTexture: true,
+    update: vi.fn(),
+    dispose: vi.fn(),
+  });
+  host.layer.setAccumulationController(null);
+  host.layer.setMapStylePresentationEnabled!(false);
+  for (const overlay of overlays) {
+    host.layer.setMapStyleSurfaceOverlay!(overlay.id, overlay);
+  }
+  host.render();
+
+  const shader = {
+    uniforms: {} as Record<string, unknown>,
+    vertexShader: "#include <common>\n#include <project_vertex>",
+    fragmentShader:
+      "#include <common>\n#include <map_fragment>\n#include <opaque_fragment>",
+  };
+  material.onBeforeCompile(shader as never, {} as never);
+  const uniformValue = <T>(name: string): T =>
+    (shader.uniforms[name] as { value: T }).value;
+
+  return { host, material, shader, uniformValue };
+};
+
 describe("shared three scene layer.ground", () => {
   it.each([false, true, undefined])(
     "preserves DEM under building-only style receivers (%s)",
@@ -78,7 +119,7 @@ describe("shared three scene layer.ground", () => {
       carmaMapStyleTexelSize: uniforms.texelSize,
     });
     expect(shader.vertexShader).toContain(
-      "carmaMapStyleSceneToClip * modelMatrix"
+      "carmaMapStyleSceneToClip * carmaSurfacePosition"
     );
     expect(shader.fragmentShader).toContain(
       "diffuseColor.rgb = carmaMapStyleSRGBToLinear"
@@ -90,7 +131,7 @@ describe("shared three scene layer.ground", () => {
     expect(terrainDepthBranch).toContain("return true;");
     expect(terrainDepthBranch).not.toContain("fragmentDistance");
     expect(material.customProgramCacheKey()).toContain(
-      "carma-map-style-projection-v5"
+      "carma-map-style-projection-v6"
     );
     expect(material.defines?.CARMA_MAP_STYLE_OVERLAY).toBeUndefined();
   });
@@ -136,6 +177,88 @@ describe("shared three scene layer.ground", () => {
     configureMapStyleProjectedMaterial(material, uniforms, "replace");
     expect(material.defines?.CARMA_MAP_STYLE_OVERLAY).toBeUndefined();
     expect(material.customProgramCacheKey()).toContain("|replace");
+  });
+
+  it("maps Mercator northwest/southeast bounds to world UV independent of height", () => {
+    const texture = new THREE.Texture();
+    const bounds = [7.14, 51.24, 7.16, 51.26] as const;
+    const fixture = createSurfaceOverlayFixture([
+      { id: "year-marker", texture, bounds, opacity: 0.5 },
+    ]);
+    const matrix = fixture.uniformValue<THREE.Matrix4>(
+      "carmaSurfaceSceneToTexture"
+    );
+    const uv = (lng: number, lat: number, height: number) => {
+      const point = fixture.host.layer.projectLngLatToScene(
+        [lng, lat],
+        height
+      )!;
+      return new THREE.Vector4(point.x, point.y, point.z, 1).applyMatrix4(
+        matrix
+      );
+    };
+    const northwest = uv(bounds[0], bounds[3], 0);
+    const northwestRoof = uv(bounds[0], bounds[3], 250);
+    const southeast = uv(bounds[2], bounds[1], 0);
+
+    expect(northwest.x).toBeCloseTo(0, 8);
+    expect(northwest.y).toBeCloseTo(1, 8);
+    expect(southeast.x).toBeCloseTo(1, 8);
+    expect(southeast.y).toBeCloseTo(0, 8);
+    expect(northwestRoof.x).toBeCloseTo(northwest.x, 10);
+    expect(northwestRoof.y).toBeCloseTo(northwest.y, 10);
+    expect(
+      fixture.uniformValue<THREE.Texture | null>("carmaSurfaceTexture")
+    ).toBe(texture);
+    expect(fixture.uniformValue<number>("carmaSurfaceOpacity")).toBe(0.5);
+    expect(fixture.uniformValue<number>("carmaMapStyleEnabled")).toBe(0);
+    fixture.host.layer.onRemove!(
+      fixture.host.map as never,
+      fixture.host.gl as never
+    );
+    texture.dispose();
+  });
+
+  it("keeps surface opacity out of DEM occlusion and restores the previous owner", () => {
+    const firstTexture = new THREE.Texture();
+    const secondTexture = new THREE.Texture();
+    const bounds = [7.14, 51.24, 7.16, 51.26] as const;
+    const fixture = createSurfaceOverlayFixture([
+      { id: "first-owner", texture: firstTexture, bounds, opacity: 0.25 },
+      { id: "second-owner", texture: secondTexture, bounds, opacity: 0.5 },
+    ]);
+    const fragment = fixture.shader.fragmentShader;
+    const surfaceBranch = fragment
+      .split("// A world-aligned footprint paints")[1]
+      .split("#include <opaque_fragment>")[0];
+
+    expect(
+      fixture.uniformValue<THREE.Texture | null>("carmaSurfaceTexture")
+    ).toBe(secondTexture);
+    expect(fixture.uniformValue<number>("carmaSurfaceOpacity")).toBe(0.5);
+    expect(surfaceBranch).toContain(
+      "carmaSurfaceSample.a * carmaSurfaceOpacity"
+    );
+    expect(surfaceBranch).not.toContain("carmaMapStyleOccludedByMesh");
+    expect(surfaceBranch).not.toContain("carmaMapStyleDepth");
+
+    fixture.host.layer.setMapStyleSurfaceOverlay!("second-owner", null);
+    expect(
+      fixture.uniformValue<THREE.Texture | null>("carmaSurfaceTexture")
+    ).toBe(firstTexture);
+    expect(fixture.uniformValue<number>("carmaSurfaceOpacity")).toBe(0.25);
+    fixture.host.layer.setMapStyleSurfaceOverlay!("first-owner", null);
+    expect(
+      fixture.uniformValue<THREE.Texture | null>("carmaSurfaceTexture")
+    ).toBe(null);
+    expect(fixture.uniformValue<number>("carmaSurfaceOpacity")).toBe(0);
+
+    fixture.host.layer.onRemove!(
+      fixture.host.map as never,
+      fixture.host.gl as never
+    );
+    firstTexture.dispose();
+    secondTexture.dispose();
   });
 
   it("clears mesh depth before MapLibre draws retained place labels", () => {

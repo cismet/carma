@@ -36,6 +36,28 @@ const imageCentrePixel = (
 });
 
 describe("preview drag bounds", () => {
+  it("does not recenter an edge entry on the first drag and restores ordinary bounds as coverage improves", () => {
+    const value = frame(300, 600);
+    value.principal = { xOffset: 0 as Ratio, yOffset: 0 as Ratio };
+    const previousOffset = point(0, -300);
+    expect(previewImageCoverage(previousOffset, value)).toBeLessThan(0.25);
+    expect(clampPreviewPan(point(30, -300), value, { previousOffset })).toEqual(
+      point(30, -300)
+    );
+    expect(clampPreviewPan(point(0, -330), value, { previousOffset })).toEqual(
+      previousOffset
+    );
+    expect(clampPreviewPan(point(0, -280), value, { previousOffset })).toEqual(
+      point(0, -280)
+    );
+    const recovered = point(0, -150);
+    expect(previewImageCoverage(recovered, value)).toBeGreaterThan(0.25);
+    const next = clampPreviewPan(point(0, -400), value, {
+      previousOffset: recovered,
+    });
+    expect(previewImageCoverage(next, value)).toBeGreaterThanOrEqual(0.25);
+  });
+
   it("allows each edge and corner to reach the viewport centre with an off-centre principal point", () => {
     const value = frame();
     expect(clampPreviewPan(point(50, 25), value)).toEqual(point(50, 25));

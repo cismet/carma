@@ -1,4 +1,4 @@
-import { useEffect, useRef, type MutableRefObject } from "react";
+import { useCallback, useEffect, useRef, type MutableRefObject } from "react";
 import type { Map as MaplibreMap } from "maplibre-gl";
 
 import { clamp } from "@carma-commons/math";
@@ -100,28 +100,34 @@ export const useFovWheelZoom = ({
   previewRoot,
   previewSampling,
   onPreviewZoomEnd,
+  previewCameraActive = previewRoot !== null,
 }: {
   map: MaplibreMap | null;
   previewRoot: HTMLDivElement | null;
   previewSampling?: { longEdgePixels: DevicePixels; halfFovTan: number };
   onPreviewZoomEnd?: () => void;
+  /** Keep the projection and zoom lease until the return flight finishes. */
+  previewCameraActive?: boolean;
   enabled: boolean;
   minFovDeg: number;
   maxFovDeg: number;
   /** a flight is running; the wheel is ignored meanwhile */
   busyRef: MutableRefObject<boolean>;
-}): void => {
+}) => {
   const sourceLongEdgePixels = previewSampling?.longEdgePixels;
   const previewHalfFovTan = previewSampling?.halfFovTan;
-  const previewMounted = previewRoot !== null;
   const previewMaximumZoomRef = useRef<{
     map: MaplibreMap;
     maximumZoom: number;
   } | null>(null);
+  const getBrowsingMaxZoom = useCallback(
+    () => previewMaximumZoomRef.current?.maximumZoom ?? map?.getMaxZoom(),
+    [map]
+  );
   const onPreviewZoomEndRef = useRef(onPreviewZoomEnd);
   onPreviewZoomEndRef.current = onPreviewZoomEnd;
   useEffect(() => {
-    if (!map || !enabled || !previewMounted) return undefined;
+    if (!map || !previewCameraActive) return undefined;
     const maximumZoom = map.getMaxZoom();
     previewMaximumZoomRef.current = { map, maximumZoom };
     return () => {
@@ -132,7 +138,7 @@ export const useFovWheelZoom = ({
       map.setMaxZoom(maximumZoom);
       previewMaximumZoomRef.current = null;
     };
-  }, [map, enabled, previewMounted]);
+  }, [map, previewCameraActive]);
   useEffect(() => {
     if (!map || !enabled) return undefined;
     const container = map.getContainer();
@@ -251,4 +257,5 @@ export const useFovWheelZoom = ({
     sourceLongEdgePixels,
     previewHalfFovTan,
   ]);
+  return { getBrowsingMaxZoom };
 };
