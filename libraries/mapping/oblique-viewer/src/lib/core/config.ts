@@ -27,8 +27,6 @@ export type ObliqueViewerConfig = Partial<ObliqueDataset> & {
   startEnabled?: boolean;
   /** Independently selectable image series; omitted uses the two Wuppertal presets. */
   series?: readonly ObliqueDataset[];
-  /** On-demand local TIFF bridge for the delivered 2026 Rathaus originals. */
-  devOriginalsBaseURI?: string;
   /**
    * Whether the control column gets a button toggling the viewer. Default:
    * true; the row in the layer bar is the addon's face while it runs, the
@@ -292,7 +290,6 @@ export const WUPPERTAL_OBLIQUE_2024: ObliqueDataset = {
 const VIEWER_ONLY_KEYS = new Set<string>([
   "startEnabled",
   "series",
-  "devOriginalsBaseURI",
   "showControl",
   "controlPosition",
   "controlOrder",
@@ -435,35 +432,11 @@ export const resolveSeries = (
     WUPPERTAL_OBLIQUE_2026,
     WUPPERTAL_2026_RATHAUS_DATASET,
   ];
-  const devBase = config?.devOriginalsBaseURI?.replace(/\/+$/, "");
-  if (devBase) {
-    const url = new URL(devBase);
-    if (
-      !["http:", "https:"].includes(url.protocol) ||
-      !["localhost", "127.0.0.1", "[::1]"].includes(url.hostname)
-    ) {
-      throw new Error(
-        "The original-image development bridge must use a loopback HTTP endpoint."
-      );
-    }
-  }
   const ids = new Set<string>();
   return series.map((dataset) => {
     if (!dataset.id || ids.has(dataset.id))
       throw new Error("Image series IDs must be nonempty and unique.");
     ids.add(dataset.id);
-    if (devBase && dataset.id === WUPPERTAL_2026_RATHAUS_DATASET.id)
-      return {
-        ...dataset,
-        enabledByDefault: true,
-        exteriorOrientationsURI: `${devBase}/metadata.json`,
-        footprintsURI: undefined,
-        previewPath: devBase,
-        downloadPath: undefined,
-        originalImageUrlTemplate: `${devBase}/original/{imageId}.tif`,
-        originalPixelPreviewPath: `${devBase}/rgb`,
-        allowUnverifiedSourceHeight: true,
-      };
     return dataset;
   });
 };

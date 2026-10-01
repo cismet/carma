@@ -125,24 +125,10 @@ describe("oblique deployment route", () => {
 });
 
 describe("oblique imagery configuration", () => {
-  it("retains the original TIFF bridge only for localhost development", () => {
-    const config = resolveObliqueViewerConfig("localDev", "/");
-    expect(config.devOriginalsBaseURI).toBe("http://127.0.0.1:8926");
-    expect(
-      config.series?.find((series) => series.id === "wuppertal-2026")
-    ).toMatchObject({
-      enabledByDefault: true,
-      exteriorOrientationsURI:
-        "http://127.0.0.1:8926/metadata/wuppertal-2026.json",
-      allowUnverifiedSourceHeight: true,
-    });
-  });
-
-  it.each(["dev", "pr", "live", null] as const)(
-    "uses public imagery on %s and enables only 2024",
-    (deployment) => {
-      const config = resolveObliqueViewerConfig(deployment, prBase);
-      expect(config.devOriginalsBaseURI).toBeUndefined();
+  it.each(["/", prBase])(
+    "uses public imagery below %s and enables only 2024",
+    (baseUrl) => {
+      const config = resolveObliqueViewerConfig(baseUrl);
       expect(
         config.series
           ?.filter((series) => series.enabledByDefault)
@@ -155,8 +141,8 @@ describe("oblique imagery configuration", () => {
       expect(
         config.series?.find((series) => series.id === "wuppertal-2026-rathaus")
       ).toMatchObject({
-        exteriorOrientationsURI: `${prBase}oblique/2026-rathaus/metadata.json`,
-        previewPath: `${prBase}oblique/2026-rathaus`,
+        exteriorOrientationsURI: `${baseUrl}oblique/2026-rathaus/metadata.json`,
+        previewPath: `${baseUrl}oblique/2026-rathaus`,
       });
     }
   );

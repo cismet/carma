@@ -17,15 +17,15 @@ describe("source image URLs", () => {
     });
   });
 
-  it("previews temporary JPEGs and downloads the actual development TIFF", () => {
+  it("supports direct original TIFF downloads alongside JPEG previews", () => {
     expect(
-      getImageUrls("BW_25_4049", "http://localhost:8926", 3, 1, {
+      getImageUrls("BW_25_4049", "https://images.example/2026", 3, 1, {
         originalImageUrlTemplate:
-          "http://localhost:8926/original/{imageId}.tif",
+          "https://images.example/2026/original/{imageId}.tif",
       })
     ).toEqual({
-      previewUrl: "http://localhost:8926/3/BW_25_4049.jpg",
-      downloadUrl: "http://localhost:8926/original/BW_25_4049.tif",
+      previewUrl: "https://images.example/2026/3/BW_25_4049.jpg",
+      downloadUrl: "https://images.example/2026/original/BW_25_4049.tif",
     });
   });
 

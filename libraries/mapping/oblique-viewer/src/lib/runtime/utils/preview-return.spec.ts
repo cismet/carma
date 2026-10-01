@@ -486,72 +486,128 @@ describe("preview camera return", () => {
     }
   );
 
-  it("tracks the centre while changing image heading and pitch on a straight camera path", async () => {
-    const { map, transform, release } = setup({
-      fov: 30,
+  it.each([
+    {
+      turn: 12,
       zoom: 18.5,
-      height: 250,
-    });
-    transform.setElevation(250);
-    transform.setPadding({ left: 0, right: 0, top: 0, bottom: 0 });
-    const target = MercatorCoordinate.fromLngLat(
-      map.unproject([400, 300]),
-      250
-    );
-    const start = MercatorCoordinate.fromLngLat(transform.getCameraLngLat());
-    const height = transform.getCameraAltitude();
-    const end = new MercatorCoordinate(
-      start.x + 50 * target.meterInMercatorCoordinateUnits(),
-      start.y - 30 * target.meterInMercatorCoordinateUnits()
-    );
-    const eye = end.toLngLat();
-    const pose = {
-      longitude: eye.lng,
-      latitude: eye.lat,
-      z: height + 100,
-      bearingDeg: transform.bearing + 12,
-      pitchDeg: 48,
-      rollDeg: 0,
-      direction: [0, 0, -1] as [number, number, number],
-      up: [0, 1, 0] as [number, number, number],
-      utmConvergenceRad: 0,
-    };
-    const flight = flyToPose(
-      map,
-      pose,
-      height + 100,
-      { duration: 1000 },
-      { dynamicDuration: false, anchor: target }
-    );
-    let lastProgress = 0;
-    for (const time of [0, 100, 250, 500, 750, 900, 1000]) {
-      advance(time);
-      const p = new Vector3(
-        target.x * transform.worldSize,
-        target.y * transform.worldSize,
+      fov: 30,
+      padding: { left: 0, right: 0, top: 0, bottom: 0 },
+    },
+    {
+      turn: 90,
+      zoom: 21,
+      fov: 8,
+      padding: { left: 600, right: 0, top: 0, bottom: 300 },
+    },
+    {
+      turn: -90,
+      zoom: 21,
+      fov: 8,
+      padding: { left: 0, right: 600, top: 300, bottom: 0 },
+    },
+  ])(
+    "keeps the panned viewport centre and scale during a $turn degree image turn",
+    async ({ turn, zoom, fov, padding }) => {
+      const { map, transform, release } = setup({
+        fov,
+        zoom,
+        height: 250,
+      });
+      transform.setElevation(250);
+      transform.setPadding(padding);
+      const target = MercatorCoordinate.fromLngLat(
+        map.unproject([400, 300]),
         250
-      ).applyMatrix4(
-        new Matrix4().fromArray(transform.modelViewProjectionMatrix)
       );
-      expect((p.x + 1) * 400).toBeCloseTo(400, 2);
-      expect((1 - p.y) * 300).toBeCloseTo(300, 2);
-      const actual = MercatorCoordinate.fromLngLat(transform.getCameraLngLat());
-      const progress = (actual.x - start.x) / (end.x - start.x);
-      expect(progress).toBeGreaterThanOrEqual(lastProgress - 1e-6);
-      expect(actual.y).toBeCloseTo(start.y + (end.y - start.y) * progress, 9);
-      expect(transform.getCameraAltitude()).toBeCloseTo(
-        height + 100 * progress,
-        3
+      const start = MercatorCoordinate.fromLngLat(transform.getCameraLngLat());
+      const height = transform.getCameraAltitude();
+      const project = (offset: Vector3) => {
+        const unit = target.meterInMercatorCoordinateUnits();
+        const p = new Vector3(
+          (target.x + offset.x * unit) * transform.worldSize,
+          (target.y + offset.y * unit) * transform.worldSize,
+          250 + offset.z
+        ).applyMatrix4(
+          new Matrix4().fromArray(transform.modelViewProjectionMatrix)
+        );
+        return new Vector3((p.x + 1) * 400, (1 - p.y) * 300, 0);
+      };
+      const pixelScales = () => {
+        const bearing = transform.bearingInRadians;
+        const pitch = transform.pitchInRadians;
+        const centre = project(new Vector3());
+        return [
+          project(
+            new Vector3(Math.cos(bearing), Math.sin(bearing), 0)
+          ).distanceTo(centre),
+          project(
+            new Vector3(
+              Math.sin(bearing) * Math.cos(pitch),
+              -Math.cos(bearing) * Math.cos(pitch),
+              Math.sin(pitch)
+            )
+          ).distanceTo(centre),
+        ];
+      };
+      const initialScales = pixelScales();
+      const end = new MercatorCoordinate(
+        start.x + 50 * target.meterInMercatorCoordinateUnits(),
+        start.y - 30 * target.meterInMercatorCoordinateUnits()
       );
-      lastProgress = progress;
+      const eye = end.toLngLat();
+      const pose = {
+        longitude: eye.lng,
+        latitude: eye.lat,
+        z: height + 100,
+        bearingDeg: transform.bearing + turn,
+        pitchDeg: 48,
+        rollDeg: 0,
+        direction: [0, 0, -1] as [number, number, number],
+        up: [0, 1, 0] as [number, number, number],
+        utmConvergenceRad: 0,
+      };
+      const flight = flyToPose(
+        map,
+        pose,
+        height + 100,
+        { duration: 1000 },
+        { dynamicDuration: false, anchor: target }
+      );
+      let lastProgress = 0;
+      for (const time of [0, 100, 250, 500, 750, 900, 1000]) {
+        advance(time);
+        const p = new Vector3(
+          target.x * transform.worldSize,
+          target.y * transform.worldSize,
+          250
+        ).applyMatrix4(
+          new Matrix4().fromArray(transform.modelViewProjectionMatrix)
+        );
+        expect((p.x + 1) * 400).toBeCloseTo(400, 2);
+        expect((1 - p.y) * 300).toBeCloseTo(300, 2);
+        pixelScales().forEach((scale, index) =>
+          expect(scale / initialScales[index]).toBeCloseTo(1, 5)
+        );
+        const actual = MercatorCoordinate.fromLngLat(
+          transform.getCameraLngLat()
+        );
+        const progress = (actual.x - start.x) / (end.x - start.x);
+        expect(progress).toBeGreaterThanOrEqual(lastProgress - 1e-6);
+        expect(actual.y).toBeCloseTo(start.y + (end.y - start.y) * progress, 9);
+        expect(transform.getCameraAltitude()).toBeCloseTo(
+          height + 100 * progress,
+          3
+        );
+        lastProgress = progress;
+      }
+      await flight.done;
+      expect(transform.bearing).toBeCloseTo(
+        ((pose.bearingDeg + 180) % 360) - 180,
+        7
+      );
+      expect(transform.pitch).toBe(48);
+      expect(transform.getCameraAltitude()).toBeCloseTo(height + 100, 4);
+      release();
     }
-    await flight.done;
-    expect(transform.bearing).toBeCloseTo(
-      ((pose.bearingDeg + 180) % 360) - 180,
-      7
-    );
-    expect(transform.pitch).toBe(48);
-    expect(transform.getCameraAltitude()).toBeCloseTo(height + 100, 4);
-    release();
-  });
+  );
 });

@@ -123,13 +123,10 @@ Turning the viewer off releases the presentation and terrain leases and restores
 ordinary background and explicit-layer behavior. Other routes retain their
 configured background sources.
 
-From this worktree, with SSH access to `amy.cismet.de`:
-
-```sh
-python3 scripts/oblique-viewer/serve-originals.py
-```
-
-The local-development Geoportal addon connects to `http://127.0.0.1:8926`. Use the Geoportal dev server for this branch at its normal `http://localhost:4200` URL and enable the MapLibre and oblique addon flags (`ng` and `oblique`). The bridge serves the committed 41-image sample catalog, JPEG views generated on demand and original TIFF downloads. The multiple-selection dropdown keeps the Rathaus sample separate from the full 2026 delivery. See the [script guide](../../../scripts/oblique-viewer/README.md) for options and delivery validation.
+Local development uses the same public imagery configuration as published previews.
+The multiple-selection dropdown keeps the committed 41-image Rathaus sample
+separate from the full 2026 delivery. See the
+[script guide](../../../scripts/oblique-viewer/README.md) for import and delivery validation.
 
 Inventory and validate the full 2026 imagery before enabling its asset configuration;
 metadata availability alone does not establish image availability.
@@ -241,8 +238,8 @@ created.
 
 The DOM preview root remains the input surface; its image/canvas is hidden when
 the shared scene supports this slot. The DOM image remains a fallback for hosts
-without that API. Texture images use anonymous CORS; the local TIFF bridge sends
-Vary: Origin so previously cached non-CORS image responses can be refreshed once.
+without that API. Texture images use anonymous CORS; previously cached non-CORS
+image responses can be refreshed once.
 The photo transform samples the finalized shared render camera in a synchronous
 before-render callback, before runtime updates, style capture and mesh drawing.
 The same frame therefore carries the image and mesh through a pan. Uniform scale

@@ -194,7 +194,7 @@ describe("normalized image series", () => {
   });
 });
 
-describe("development original source configuration", () => {
+describe("image series configuration", () => {
   it("retains direct 2024 preview and download URLs", () => {
     expect(WUPPERTAL_OBLIQUE_2024.previewPath).toMatch(/2024$/);
     expect(WUPPERTAL_OBLIQUE_2024.downloadPath).toBeUndefined();
@@ -227,31 +227,6 @@ describe("development original source configuration", () => {
         WUPPERTAL_2026_RATHAUS_DATASET
       )
     ).toThrow(/series/i);
-  });
-  it("enables only the local sample bridge without inventing a vertical datum", () => {
-    const series = resolveSeries({
-      devOriginalsBaseURI: "http://127.0.0.1:8926/",
-    });
-    const full = series.find(
-      (entry) => entry.id === WUPPERTAL_OBLIQUE_2026.id
-    )!;
-    const bridge = series.find(
-      (entry) => entry.id === WUPPERTAL_2026_RATHAUS_DATASET.id
-    )!;
-    expect(full).toBe(WUPPERTAL_OBLIQUE_2026);
-    expect(full.enabledByDefault).toBe(false);
-    expect(full.allowUnverifiedSourceHeight).toBe(false);
-    expect(bridge.enabledByDefault).toBe(true);
-    expect(bridge.exteriorOrientationsURI).toBe(
-      "http://127.0.0.1:8926/metadata.json"
-    );
-    expect(bridge.previewPath).toBe("http://127.0.0.1:8926");
-    expect(bridge.originalImageUrlTemplate).toBe(
-      "http://127.0.0.1:8926/original/{imageId}.tif"
-    );
-    expect(bridge.heightDatum).toBe("unknown");
-    expect(bridge.sourceConventions.verticalDatum).toBe("unknown");
-    expect(bridge.allowUnverifiedSourceHeight).toBe(true);
   });
 });
 

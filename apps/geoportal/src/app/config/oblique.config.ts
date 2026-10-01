@@ -1,5 +1,5 @@
 import type { StyleSpecification } from "maplibre-gl";
-import { resolveDeployment, type DeploymentTarget } from "@carma-commons/utils";
+import type { DeploymentTarget } from "@carma-commons/utils";
 import { WUPP_LOD2_TILESET, WUPP_MESH_2024 } from "@carma-commons/resources";
 
 import {
@@ -19,47 +19,24 @@ export const OBLIQUE_VIEWER_DEPLOYMENTS: DeploymentTarget[] = [
 const publicAssetUrl = (path: string, baseUrl: string) =>
   `${baseUrl.replace(/\/?$/, "/")}${path.replace(/^\/+/, "")}`;
 
-/** Local demo using 2024 and the complete, optimistically addressable 2026 catalog. */
-export const LOCAL_OBLIQUE_VIEWER_CONFIG: ObliqueViewerConfig = {
-  devOriginalsBaseURI: "http://127.0.0.1:8926",
+/** All deployments use public imagery and deployment-relative sample assets. */
+export const resolveObliqueViewerConfig = (
+  baseUrl: string = import.meta.env.BASE_URL
+): ObliqueViewerConfig => ({
   series: [
     WUPPERTAL_OBLIQUE_2024,
+    { ...WUPPERTAL_OBLIQUE_2026, enabledByDefault: false },
     {
-      ...WUPPERTAL_OBLIQUE_2026,
-      enabledByDefault: true,
-      exteriorOrientationsURI:
-        "http://127.0.0.1:8926/metadata/wuppertal-2026.json",
-      previewPath: "http://127.0.0.1:8926",
-      originalImageUrlTemplate: "http://127.0.0.1:8926/original/{imageId}.tif",
-      originalPixelPreviewPath: "http://127.0.0.1:8926/rgb",
-      allowUnverifiedSourceHeight: true,
+      ...WUPPERTAL_2026_RATHAUS_DATASET,
+      enabledByDefault: false,
+      exteriorOrientationsURI: publicAssetUrl(
+        "oblique/2026-rathaus/metadata.json",
+        baseUrl
+      ),
+      previewPath: publicAssetUrl("oblique/2026-rathaus", baseUrl),
     },
-    WUPPERTAL_2026_RATHAUS_DATASET,
   ],
-};
-
-/** Published previews use public imagery; the TIFF bridge belongs to localhost. */
-export const resolveObliqueViewerConfig = (
-  deployment: DeploymentTarget | null = resolveDeployment(),
-  baseUrl: string = import.meta.env.BASE_URL
-): ObliqueViewerConfig =>
-  deployment === "localDev"
-    ? LOCAL_OBLIQUE_VIEWER_CONFIG
-    : {
-        series: [
-          WUPPERTAL_OBLIQUE_2024,
-          { ...WUPPERTAL_OBLIQUE_2026, enabledByDefault: false },
-          {
-            ...WUPPERTAL_2026_RATHAUS_DATASET,
-            enabledByDefault: false,
-            exteriorOrientationsURI: publicAssetUrl(
-              "oblique/2026-rathaus/metadata.json",
-              baseUrl
-            ),
-            previewPath: publicAssetUrl("oblique/2026-rathaus", baseUrl),
-          },
-        ],
-      };
+});
 
 export const OBLIQUE_VIEWER_CONFIG = resolveObliqueViewerConfig();
 

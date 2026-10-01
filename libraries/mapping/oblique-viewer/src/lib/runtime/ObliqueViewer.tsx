@@ -498,7 +498,8 @@ export const ObliqueViewer = ({
       record: ObliqueImageRecord,
       animation: AnimationConfig | undefined,
       dynamicDuration: boolean,
-      preserveView = false
+      preserveView = false,
+      viewAnchor?: MercatorCoordinate
     ): Promise<boolean> => {
       if (
         !libreMap ||
@@ -509,6 +510,7 @@ export const ObliqueViewer = ({
       const dataset = data?.datasets.get(record.seriesId);
       if (!dataset) return false;
       const epoch = selectionEpochRef.current;
+      const anchor = preserveView ? viewAnchor ?? readViewAnchor() : undefined;
       setBusy(true);
       setRuntimeError(null);
       if (preserveView) {
@@ -563,7 +565,7 @@ export const ObliqueViewer = ({
         profile?.phase("flight");
         const flight = flyToPose(libreMap, pose, altitude, animation, {
           dynamicDuration,
-          anchor: preserveView ? readViewAnchor() : undefined,
+          anchor,
           maxFovDeg: browsingDataset.maxFovDeg,
         });
         activeFlightRef.current = flight;
@@ -829,7 +831,8 @@ export const ObliqueViewer = ({
       target: ObliqueGroundTarget,
       animation: AnimationConfig | undefined,
       requestedPitchRad?: number,
-      forceFlight = false
+      forceFlight = false,
+      viewAnchor?: MercatorCoordinate
     ) => {
       if (!libreMap || busyRef.current) return;
       targetRef.current = target;
@@ -861,12 +864,19 @@ export const ObliqueViewer = ({
       const withPreview = previewVisibleRef.current;
       if (withPreview) setDimImage(true);
       setSelectedImage(nearest);
-      const succeeded = await flyTo(nearest.record, animation, true);
+      const succeeded = await flyTo(
+        nearest.record,
+        animation,
+        true,
+        viewAnchor !== undefined,
+        viewAnchor
+      );
       setDimImage(false);
       if (!succeeded) {
         publish({ previewVisible: false });
         if (runningRef.current) void settleToBrowsing();
       } else if (!withPreview) await settleToBrowsing();
+      else setPreviewTransitionActive(false);
     },
     [libreMap, refreshSearch, flyTo, publish, settleToBrowsing]
   );
@@ -926,17 +936,28 @@ export const ObliqueViewer = ({
         (pitchDeg !== undefined && !Number.isFinite(pitchDeg))
       )
         return;
-      const target = targetRef.current ?? readTarget();
+      const anchor = readViewAnchor();
+      const lngLat = anchor?.toLngLat();
+      const target: ObliqueGroundTarget | null =
+        anchor && lngLat
+          ? {
+              longitude: lngLat.lng,
+              latitude: lngLat.lat,
+              heightMeters: anchor.toAltitude(),
+              heightDatum: "dhhn2016",
+            }
+          : readTarget();
       if (!target) return;
       await chooseRequestedView(
         degToRad(bearingDeg),
         target,
         selectedDataset.animations.flyToRotatedImage,
         pitchDeg === undefined ? undefined : degToRad(pitchDeg),
-        true
+        true,
+        anchor
       );
     },
-    [libreMap, readTarget, chooseRequestedView, selectedDataset]
+    [libreMap, readTarget, readViewAnchor, chooseRequestedView, selectedDataset]
   );
 
   const handledRequestRef = useRef(0);

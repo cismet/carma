@@ -95,7 +95,6 @@ vi.mock("@carma-mapping/components", () => ({
   buildFilterExpression: () => null,
 }));
 vi.mock("../../config/oblique.config", () => ({
-  LOCAL_OBLIQUE_VIEWER_CONFIG: {},
   OBLIQUE_VIEWER_CONFIG: {},
   OBLIQUE_VIEWER_DEPLOYMENTS: ["localDev", "dev", "pr"],
   OBLIQUE_MESH_2024_STYLE_URI: "/data/test-parity.style.json",
