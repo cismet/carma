@@ -1279,6 +1279,32 @@ const BelisMapLibWrapper = ({
     assignStableId: assignBrandnewStableId,
   });
 
+  // Saving highlighted features moves them into the brandnew FC, which hides
+  // their tile copies. Re-point the rows (and their map highlight) onto the
+  // brandnew copies, or they stay highlighted only on the hidden tile features.
+  const unfilteredHighlightsRef = useRef(unfilteredHighlights);
+  unfilteredHighlightsRef.current = unfilteredHighlights;
+  useEffect(() => {
+    const prev = unfilteredHighlightsRef.current;
+    const next = repointBrandnewHighlightRows(prev, brandnewFc, brandnewSource);
+    if (!prev || !next || next === prev) return;
+    const toTarget = (f: SidebarFeature) => ({
+      source: (f as unknown as { source?: string }).source ?? namespacedSource,
+      sourceLayer: f.sourceLayer ?? "",
+      id: f.id!,
+    });
+    const removed: ReturnType<typeof toTarget>[] = [];
+    const added: ReturnType<typeof toTarget>[] = [];
+    next.forEach((f, i) => {
+      if (f === prev[i]) return;
+      removed.push(toTarget(prev[i]));
+      added.push(toTarget(f));
+    });
+    ensureToggledFeatures(removed, false);
+    ensureToggledFeatures(added, true);
+    setUnfilteredHighlights(next);
+  }, [brandnewFc, brandnewSource, namespacedSource, ensureToggledFeatures]);
+
   // AA lasso selection (disabled – button now only logs "hallo world")
   // useAaLassoSelection({
   //   map,
