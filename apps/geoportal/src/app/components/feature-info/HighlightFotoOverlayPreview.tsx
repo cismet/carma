@@ -1,9 +1,4 @@
-import { useState, type CSSProperties, type MouseEvent } from "react";
-import {
-  faChevronLeft,
-  faChevronRight,
-} from "@fortawesome/free-solid-svg-icons";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { useState } from "react";
 
 import { parseFotoHighlight } from "./useHighlightedFoto";
 
@@ -11,49 +6,10 @@ import { parseFotoHighlight } from "./useHighlightedFoto";
 const PREVIEW_WIDTH = 250;
 const DIM_COLOR = "rgba(0, 0, 0, 0.45)";
 
-const cycleButtonStyle: CSSProperties = {
-  position: "absolute",
-  top: "50%",
-  transform: "translateY(-50%)",
-  width: 28,
-  height: 28,
-  border: "none",
-  borderRadius: "50%",
-  background: "rgba(0, 0, 0, 0.55)",
-  color: "white",
-  cursor: "pointer",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  padding: 0,
-};
-
-const cycleBadgeStyle: CSSProperties = {
-  position: "absolute",
-  bottom: 6,
-  left: "50%",
-  transform: "translateX(-50%)",
-  padding: "1px 8px",
-  borderRadius: 10,
-  background: "rgba(0, 0, 0, 0.55)",
-  color: "white",
-  fontSize: 12,
-  pointerEvents: "none",
-};
-
-export interface FotoCycle {
-  index: number;
-  count: number;
-  onPrevious: () => void;
-  onNext: () => void;
-}
-
 interface HighlightFotoOverlayPreviewProps {
   url: string | undefined;
   highlight: unknown;
   color?: string;
-  // stepping through overlapping features; arrows show when count > 1
-  cycle?: FotoCycle;
   // the lightbox can't take the overlay, so the caller opens it with a copy
   // that has the box drawn in (see useHighlightedFoto)
   onOpenLightBox: () => void;
@@ -66,7 +22,6 @@ const HighlightFotoOverlayPreview = ({
   url,
   highlight,
   color = "#3A7CEB",
-  cycle,
   onOpenLightBox,
 }: HighlightFotoOverlayPreviewProps) => {
   const [size, setSize] = useState<{ w: number; h: number }>();
@@ -86,13 +41,6 @@ const HighlightFotoOverlayPreview = ({
         h: box[3] - box[1] + 2 * pad,
       }
     : undefined;
-
-  const showCycle = !!cycle && cycle.count > 1;
-  // the arrows sit on the photo, which opens the lightbox on click
-  const step = (e: MouseEvent, action: () => void) => {
-    e.stopPropagation();
-    action();
-  };
 
   return (
     <table style={{ width: "100%", opacity: 0.9 }}>
@@ -167,31 +115,6 @@ const HighlightFotoOverlayPreview = ({
                       vectorEffect="non-scaling-stroke"
                     />
                   </svg>
-                )}
-                {showCycle && (
-                  <>
-                    <button
-                      type="button"
-                      title="vorheriges Objekt"
-                      aria-label="vorheriges Objekt"
-                      style={{ ...cycleButtonStyle, left: 6 }}
-                      onClick={(e) => step(e, cycle.onPrevious)}
-                    >
-                      <FontAwesomeIcon icon={faChevronLeft} />
-                    </button>
-                    <button
-                      type="button"
-                      title="nächstes Objekt"
-                      aria-label="nächstes Objekt"
-                      style={{ ...cycleButtonStyle, right: 6 }}
-                      onClick={(e) => step(e, cycle.onNext)}
-                    >
-                      <FontAwesomeIcon icon={faChevronRight} />
-                    </button>
-                    <div style={cycleBadgeStyle}>
-                      {cycle.index + 1} / {cycle.count}
-                    </div>
-                  </>
                 )}
               </div>
             </a>
