@@ -58,6 +58,7 @@ describe("shadow scene lighting and local frame", () => {
       new THREE.Vector3(lng * 1_000, altitude, lat * 1_000);
     const map = {
       getCenter: vi.fn(() => ({ lng: 7.15, lat: 51.256 })),
+      getZoom: vi.fn(() => 16),
       getCanvas: vi.fn(() => ({ clientWidth: 800, clientHeight: 600 })),
       unproject: vi.fn(([x, y]: [number, number]) => ({
         lng: 7.15 + (x / 800 - 0.5) * 0.02,
@@ -130,6 +131,18 @@ describe("shadow scene lighting and local frame", () => {
       expect(evaluate).toHaveBeenCalledTimes(evaluations);
       expect(sun.shadow.needsUpdate).toBe(false);
     }
+    const fittedPosition = sun.position.clone();
+    const fittedTarget = sun.target.position.clone();
+    const fittedCamera = sun.shadow.camera.matrixWorld.clone();
+    controller.updateSolarPosition({
+      instant: new Date("2026-06-21T11:00:00Z"),
+      azimuthDegrees: 150,
+      elevationDegrees: 50,
+    });
+    expect(sun.position.equals(fittedPosition)).toBe(true);
+    expect(sun.target.position.equals(fittedTarget)).toBe(true);
+    expect(sun.shadow.camera.matrixWorld.equals(fittedCamera)).toBe(true);
+    expect(sun.shadow.needsUpdate).toBe(true);
     controller.dispose();
   });
 
@@ -145,6 +158,7 @@ describe("shadow scene lighting and local frame", () => {
     let mapCenter = { lng: 7.15, lat: 51.256 };
     const map = {
       getCenter: vi.fn(() => mapCenter),
+      getZoom: vi.fn(() => 16),
       getCanvas: vi.fn(() => ({ clientWidth: 800, clientHeight: 600 })),
       unproject: vi.fn(([x, y]: [number, number]) => ({
         lng: 7.15 + (x / 800 - 0.5) * 0.02,
@@ -308,7 +322,9 @@ describe("shadow scene lighting and local frame", () => {
       .applyQuaternion(sunVector.quaternion)
       .normalize();
     expect(sunVector.visible).toBe(true);
-    expect(sunVector.position).toEqual(sun.target.position);
+    expect(sunVector.position).toEqual(
+      sharedLayer.projectLngLatToScene([mapCenter.lng, mapCenter.lat], 0)
+    );
     expect(vectorDirection.dot(lightDirection)).toBeCloseTo(1);
     expect(sunVector.cone.castShadow).toBe(false);
     expect(sunVector.cone.receiveShadow).toBe(false);

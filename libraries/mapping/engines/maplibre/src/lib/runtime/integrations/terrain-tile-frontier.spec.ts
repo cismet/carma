@@ -118,6 +118,30 @@ describe("advanceTerrainTileFrontier", () => {
     }
   });
 
+  it("replaces an edge parent outside source siblings but requires interior source siblings", () => {
+    const edgeParent = tile("edge-parent", 10, 532, 218);
+    const edgeChild = children[0];
+    expect(
+      advanceTerrainTileFrontier(
+        [edgeParent],
+        [edgeChild],
+        () => true,
+        undefined,
+        (id) => id.level !== 11 || (id.x === 1064 && id.y === 436)
+      )
+    ).toEqual([edgeChild]);
+
+    expect(
+      advanceTerrainTileFrontier(
+        [parent],
+        children.slice(0, 3),
+        () => true,
+        undefined,
+        () => true
+      )
+    ).toEqual([parent]);
+  });
+
   it("proves a mixed-depth cut recursively before retiring its parent", () => {
     const grandchildren = [
       tile("grandchild-nw", 12, 2128, 872),

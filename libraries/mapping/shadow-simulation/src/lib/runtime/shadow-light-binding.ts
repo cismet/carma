@@ -148,13 +148,10 @@ export const applySolarPositionToBinding = (
   const normalizedDirection = direction.clone().normalize();
   binding.directionToSun.copy(normalizedDirection);
   binding.sunColor.set(color);
-  binding.lightTarget.position.copy(binding.center);
+  // ShadowController owns the light pose together with its fitted projection.
+  // Retargeting here would move the raster to the viewport centre between
+  // controller updates, even when the sun and terrain have not moved.
   for (const sunLight of binding.controller.lights) {
-    sunLight.target.position.copy(binding.center);
-    sunLight.position
-      .copy(normalizedDirection)
-      .multiplyScalar(binding.shadowCameraOffsetMeters)
-      .add(binding.center);
     sunLight.color.copy(binding.sunColor);
   }
   binding.sunVector?.update(

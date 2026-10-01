@@ -44,8 +44,10 @@ const makeMeshShadeable = (mesh: THREE.Mesh, receiverPlane = false) => {
   // shadows the ground under a solid that does not sit flush on the terrain.
   // Tile runtimes can provide a topology-derived side before they join the
   // shared scene; keep that ground truth instead of replacing it here.
-  if (!mesh.userData.isShadowTerrainSurface) {
-    for (const material of materials) {
+  for (const material of materials) {
+    if (mesh.userData.isShadowTerrainSurface) {
+      configureReceiverPlaneShadow(material, true);
+    } else {
       material.shadowSide ??= THREE.DoubleSide;
       configureReceiverPlaneShadow(material, receiverPlane);
     }

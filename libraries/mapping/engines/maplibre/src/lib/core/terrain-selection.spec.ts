@@ -175,6 +175,38 @@ describe("terrain selection worker task", () => {
     ]);
   });
 
+  it("refines at the source edge while preserving missing-child coverage", () => {
+    const { selectionInput, adapter } = cornerViewport();
+    const edgeSelection = buildTerrainSelection(
+      {
+        ...selectionInput,
+        maximumLevel: 2,
+        source: {
+          ...selectionInput.source,
+          bounds: { west: 0, east: 2, south: 0, north: 2 },
+        },
+      },
+      {
+        ...adapter,
+        getTileDataAvailable: (id) =>
+          id.level === 1 || (id.level === 2 && id.x === 0 && id.y === 0),
+      }
+    );
+
+    expect(edgeSelection.entries.map(({ id }) => terrainTileKey(id))).toEqual([
+      "2/0/0",
+    ]);
+
+    const missingValidChild = buildTerrainSelection(selectionInput, {
+      ...adapter,
+      getTileDataAvailable: (id) =>
+        !(id.level === 2 && id.x === 1 && id.y === 1),
+    });
+    expect(
+      missingValidChild.entries.map(({ id }) => terrainTileKey(id))
+    ).toEqual(["1/0/0"]);
+  });
+
   it("orders raster work around the padded focus while retaining the full viewport and source identities", () => {
     const base: TerrainSelectionInput = {
       ...input(),

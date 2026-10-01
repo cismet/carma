@@ -434,6 +434,25 @@ export const ShadowSimulationDisplaySettingsPanel = ({
                         </div>
                       )}
 
+                      <div
+                        className="grid min-w-0 grid-cols-[110px_minmax(0,1fr)] items-center"
+                        style={{ gap: token.marginSM }}
+                      >
+                        <Typography.Text>Geometrie</Typography.Text>
+                        <Select
+                          aria-label="Terrain-Geometrie"
+                          value={state.terrainGeometryProjection ?? "ecef"}
+                          options={[
+                            { value: "ecef", label: "Geodätisch (ECEF)" },
+                            { value: "mercator", label: "Flaches Mercator" },
+                          ]}
+                          onChange={(terrainGeometryProjection) =>
+                            setState({ ...state, terrainGeometryProjection })
+                          }
+                          style={{ width: "100%", minWidth: 0 }}
+                        />
+                      </div>
+
                       <ShadowSimulationSurfaceSettings
                         state={state}
                         setState={setState}

@@ -241,6 +241,7 @@ export const createIdleTerrainHost = async (
       pixelRatio = ratio;
     }),
     getCenter: () => ({ lng: 7.15, lat: 51.256 }),
+    getZoom: () => 16,
     getCanvas: () => ({ clientWidth: 800, clientHeight: 600 }),
     unproject: ([x, y]: [number, number]) => ({
       lng: 7.15 + (x / 800 - 0.5) * 0.02,

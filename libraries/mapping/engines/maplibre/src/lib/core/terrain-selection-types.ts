@@ -45,6 +45,8 @@ export type TerrainSelectionInput = Readonly<{
   renderCamera: TerrainSelectionCameraSnapshot;
   lodCameraPosition: readonly [number, number, number];
   rootMatrixWorld: readonly number[];
+  /** Geographic anchor of the local ECEF frame; omitted selects flat Mercator. */
+  geodeticOrigin?: readonly [longitude: number, latitude: number];
   origin: readonly [x: number, y: number, z: number];
   meterScale: number;
   boundsPaddingMeters?: readonly [x: number, y: number, z: number];

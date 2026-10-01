@@ -48,6 +48,14 @@ export {
   enuOffsetToEcef,
 } from "./lib/geodetic";
 export type { CartographicRad } from "./lib/geodetic";
+export { createRasterEcefProjector } from "./lib/raster-ecef-projector";
+export { getGeodeticPatchBounds } from "./lib/geodetic-patch-bounds";
+export {
+  createGcg2016HeightField,
+  sampleGcg2016HeightField,
+} from "./lib/gcg2016-height-field";
+export type { Gcg2016HeightField } from "./lib/gcg2016-height-field";
+export { createLocalEcefFrame } from "./lib/local-ecef-frame";
 export {
   clampLatitudeToWebMercatorExtent,
   getMercatorScaleFactorAtLatitudeDeg,

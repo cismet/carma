@@ -86,6 +86,7 @@ export type ShadowSimulationState = ShadowRenderQualityOptions & {
   terrainSourceId?: string;
   terrainQuality?: ShadowTerrainQuality;
   buildingsFullOpacity: boolean;
+  terrainGeometryProjection?: RasterDemTerrainRuntimeOptions["geometryProjection"];
   buildingColorMix: number;
   meshTextureSaturation?: number;
   meshTextureColorCorrection?: boolean;

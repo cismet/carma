@@ -50,6 +50,7 @@ export const createInitialShadowSimulationState = (
     enabled: false,
     terrainColor: resolveShadowSurfaceColor(initialTerrain?.material?.color),
     terrainSourceId: initialTerrain?.id,
+    terrainGeometryProjection: initialTerrain?.geometryProjection ?? "ecef",
     terrainQuality: mobileBaseline
       ? SHADOW_TERRAIN_QUALITY.STANDARD
       : SHADOW_TERRAIN_QUALITY.MAX,

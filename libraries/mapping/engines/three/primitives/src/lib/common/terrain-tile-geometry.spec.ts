@@ -57,6 +57,22 @@ describe("createProjectedTerrainTileGeometry", () => {
     }
   });
 
+  it("keeps nondegenerate geographic faces whose local XZ projection collapses", () => {
+    const geometry = createProjectedTerrainTileGeometry({
+      tile: { ...tile, indices: [0, 2, 1] },
+      triangleOrientation: "geographic",
+      projectToWorld: (longitude, latitude, height, target) =>
+        target.set(longitude, latitude, height),
+    });
+
+    expect([...(geometry.getIndex()?.array ?? [])]).toEqual([0, 2, 1]);
+    const normal = geometry.getAttribute("normal");
+    for (const index of [0, 1, 2])
+      expect(
+        Math.hypot(normal.getX(index), normal.getY(index), normal.getZ(index))
+      ).toBeGreaterThan(0);
+  });
+
   it("rejects out-of-range indices before creating GPU buffers", () => {
     expect(() =>
       createProjectedTerrainTileGeometry({

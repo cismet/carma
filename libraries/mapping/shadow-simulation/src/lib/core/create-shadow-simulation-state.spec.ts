@@ -47,6 +47,7 @@ describe("initial shadow states", () => {
     );
 
     expect(state.enabled).toBe(false);
+    expect(state.terrainGeometryProjection).toBe("ecef");
     expect(state.buildingColorMix).toBe(0);
     expect(state.meshTextureColorCorrection).toBe(true);
     expect(state.meshCacheBudgetBytes).toBeUndefined();
@@ -67,6 +68,7 @@ describe("initial shadow states", () => {
       terrain: {
         url: "https://example.invalid/terrain.json",
         material: { color: "#123456" },
+        geometryProjection: "mercator" as const,
       },
     };
     const state = createInitialShadowSimulationState(config);
@@ -82,5 +84,6 @@ describe("initial shadow states", () => {
       timeZone: "Europe/Berlin",
     });
     expect(state.terrainColor).toBe("#123456");
+    expect(state.terrainGeometryProjection).toBe("mercator");
   });
 });

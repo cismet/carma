@@ -318,6 +318,9 @@ export const buildShadowSimulationScene = (
       maximumMeshSegments,
       noDataHeightMeters,
       heightRangeMeters,
+      geometryProjection,
+      heightOffsetMeters,
+      heightOffsetRangeMeters,
       material,
       ...terrainSourceConfig
     } = constrainMobileShadowTerrain(terrain, mobileBaseline)!;
@@ -341,6 +344,9 @@ export const buildShadowSimulationScene = (
         maximumMeshSegments,
         noDataHeightMeters,
         heightRangeMeters,
+        geometryProjection: geometryProjection ?? "ecef",
+        heightOffsetMeters,
+        heightOffsetRangeMeters,
         material,
         receivesMapStyleTexture: true,
         onContentChanged: (changedBounds) =>
@@ -770,7 +776,9 @@ export const buildShadowSimulationScene = (
     appliedRuntimeShadowView = view;
     runtimeShadowViewDeferredByAnimation = false;
     const selectionSignature = getTerrainSelectionSignature(view);
-    const receiverCamera = latestFrame?.renderCamera;
+    // Receiver boxes have already been moved into the stable reference frame.
+    // Test them against a camera in that frame too, including after a refit.
+    const receiverCamera = latestFrame ? getFrameCamera(latestFrame) : null;
     const receiverFrustum =
       view && receiverCamera
         ? new THREE.Frustum().setFromProjectionMatrix(
@@ -1195,7 +1203,9 @@ export const buildShadowSimulationScene = (
         resourceLimits.maxShadowMapSize,
         sharedBinding.shadowQuality,
         frame.viewport.x * frame.viewport.y,
-        mapInMotion ? shadowFrameBudget.depthScale : 1
+        mapInMotion && sharedSceneProvidesTerrain()
+          ? shadowFrameBudget.depthScale
+          : 1
       );
       const lodViewport = frame.cssViewport ?? frame.viewport;
       // Decision: engines/maplibre/TILES_COVERAGE.md#css-pixel-error-targets.
@@ -1208,8 +1218,18 @@ export const buildShadowSimulationScene = (
       );
       const snapshot = sharedBinding.controller.update({
         maxReceiverBiasMeters: resolveMeshReceiverBiasLimit(),
+        // Terrain offsets must not grow when camera pitch enlarges the fit.
+        receiverBiasMeters: sharedSceneProvidesTerrain() ? undefined : 0.5,
+        mountedShadowCamera: !sharedSceneProvidesTerrain(),
+        rasterKey: sharedSceneProvidesTerrain()
+          ? undefined
+          : String(map.getZoom()),
         receiverWorldPoints: sharedBinding.receiverWorldPoints,
-        receiverAnchorWorldPosition: sharedBinding.center,
+        // Anchor terrain texels in the mounted reference frame. A viewport
+        // centroid moves when pitching even though no surface has moved.
+        receiverAnchorWorldPosition: sharedSceneProvidesTerrain()
+          ? sharedBinding.center
+          : new THREE.Vector3(),
         minimumElevationMeters: sharedBinding.minimumElevationMeters,
         maximumElevationMeters: sharedBinding.maximumElevationMeters,
         directionToSun: sharedBinding.directionToSun,
@@ -1219,7 +1239,11 @@ export const buildShadowSimulationScene = (
         quality: sharedBinding.shadowQuality,
         mapTexelBudget: depthTexelBudget,
         casterMapTexelBudget,
-        groundTexelFit: effectiveRenderQuality.shadowGroundTexelFit,
+        // Keep the terrain buffer square in light space, independently of
+        // camera-frustum aspect. Meshes retain their existing quality policy.
+        groundTexelFit: sharedSceneProvidesTerrain()
+          ? effectiveRenderQuality.shadowGroundTexelFit
+          : false,
         stabilizeMapSize: mapInMotion,
       });
       sharedBinding.dirty = false;

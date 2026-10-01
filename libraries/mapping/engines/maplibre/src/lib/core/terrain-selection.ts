@@ -1,7 +1,10 @@
 // Pure, worker-safe terrain selection consumes snapshots and source metadata.
 // It does not touch MapLibre, DOM, WebGL, network state, or mesh ownership.
 import { Box3, Frustum, Matrix4, Vector3 } from "three";
-import { geographicBoundsIntersect } from "@carma-geo/helpers";
+import {
+  geographicBoundsIntersect,
+  intersectUnwrappedGeographicBounds,
+} from "@carma-geo/helpers";
 import { getTerrainScreenErrorRatio } from "./terrain-screen-error";
 import {
   createTileCameraDemand,
@@ -17,6 +20,7 @@ import {
   buildTerrainTileLocalBox,
   projectTerrainToLocalWorld as projectToLocalWorld,
 } from "./terrain-selection-local-box";
+import { createTerrainGeodeticProjection } from "./terrain-geometry-projection";
 import {
   TERRAIN_SELECTION_KIND,
   type TerrainSelection,
@@ -81,6 +85,9 @@ export const buildTerrainSelection = (
       )
     : null;
   const rootMatrixWorld = new Matrix4().fromArray([...input.rootMatrixWorld]);
+  const geodetic = input.geodeticOrigin
+    ? createTerrainGeodeticProjection(input.geodeticOrigin)
+    : null;
   const boundsPadding = new Vector3(
     ...(input.boundsPaddingMeters ?? [0, 0, 0])
   );
@@ -139,18 +146,19 @@ export const buildTerrainSelection = (
     const known =
       input.knownHeightRanges[terrainTileKey(entry.id)] ??
       input.unknownHeightRange;
-    const localBoundingBox = buildTerrainTileLocalBox(
-      bounds,
-      known,
-      input.origin,
-      input.meterScale
-    );
+    const localBoundingBox = geodetic
+      ? geodetic.bounds(bounds, known)
+      : buildTerrainTileLocalBox(bounds, known, input.origin, input.meterScale);
     const worldBoundingBox = localBoundingBox
       .clone()
       .expandByVector(boundsPadding)
       .applyMatrix4(rootMatrixWorld);
-    const traversalBounds = localBoundingBox.clone();
-    if (entry.id.level < input.maximumLevel) {
+    const traversalBounds = geodetic
+      ? geodetic
+          .bounds(bounds, input.unknownHeightRange)
+          .union(localBoundingBox)
+      : localBoundingBox.clone();
+    if (!geodetic && entry.id.level < input.maximumLevel) {
       // Payload min/max is not a subtree certificate. Only the final chosen
       // payload may be culled tightly; child traversal remains conservative.
       for (const longitude of [bounds.west, bounds.east])
@@ -386,8 +394,15 @@ export const buildTerrainSelection = (
           const entry = { id, kind: TERRAIN_SELECTION_KIND.SOURCE } as const;
           // Refinement replaces the full parent footprint. Offscreen siblings
           // provide coverage but their zero demand prevents further refinement.
-          if (!tileIsAvailable(adapter, id)) unavailableChild = true;
-          else children.push(entry);
+          if (!tileIsAvailable(adapter, id)) {
+            // A sibling outside the declared source extent has no surface to
+            // preserve. An unavailable child inside it still blocks handover.
+            unavailableChild ||=
+              intersectUnwrappedGeographicBounds(
+                adapter.getTileBounds(id),
+                input.source.bounds
+              ) !== null;
+          } else children.push(entry);
         }
       if (
         unavailableChild ||

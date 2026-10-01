@@ -19,7 +19,10 @@ import {
 
 import type { RasterDemTerrainResource } from "@carma-commons/resources";
 import { resolveDerivedCacheAssetEpoch } from "@carma-commons/utils";
-import { geographicBoundsIntersect } from "@carma-geo/helpers";
+import {
+  geographicBoundsIntersect,
+  intersectUnwrappedGeographicBounds,
+} from "@carma-geo/helpers";
 
 import { MAPLIBRE_EVENT } from "../../../constants/mapEvents";
 import {
@@ -54,7 +57,9 @@ import {
   getTerrainScreenErrorRatio,
 } from "../../core/terrain-screen-error";
 import { buildTerrainSelection } from "../../core/terrain-selection";
-import { buildTerrainTileLocalBox } from "../../core/terrain-selection-local-box";
+import { createTerrainGeodeticProjection } from "../../core/terrain-geometry-projection";
+import { createTerrainEcefPresentation } from "./terrain-ecef-presentation";
+import { createTerrainRuntimeFrame } from "./terrain-runtime-frame";
 import {
   TERRAIN_SELECTION_KIND,
   type TerrainSelection,
@@ -158,6 +163,12 @@ export type RasterDemTerrainMaterialOptions = Readonly<{
 }>;
 
 export type RasterDemTerrainRuntimeOptions = Readonly<{
+  /** Physical ECEF surface or the explicit native planar presentation. */
+  geometryProjection?: "ecef" | "mercator";
+  /** Optional source datum correction; applied only to the ECEF display. */
+  heightOffsetMeters?: (longitude: number, latitude: number) => number;
+  /** Conservative range of that correction, used by curved selection bounds. */
+  heightOffsetRangeMeters?: readonly [minimum: number, maximum: number];
   /** Unlit per-tile observer SSE / target coloring; no additional geometry. */
   debugScreenError?: boolean;
   errorTargetPixels?: number;
@@ -199,6 +210,12 @@ export type RasterDemTerrainRuntimeOptions = Readonly<{
 
 export interface RasterDemTerrainRuntime extends SharedThreeSceneRuntime {
   ready: Promise<boolean>;
+  /** Published cut only; borrowed meshes remain owned by this runtime. */
+  getPublishedTerrainTiles: () => readonly Readonly<{
+    tile: TerrainTile;
+    mesh: Mesh;
+    bounds: Box3;
+  }>[];
   getIdlePrefetchAvailability: () => Readonly<{
     ready: boolean;
     remaining: number;
@@ -239,6 +256,7 @@ export interface RasterDemTerrainRuntime extends SharedThreeSceneRuntime {
 }
 
 type TerrainMeshRecord = {
+  sourceTile: TerrainTile;
   equalLevelShell?: TerrainStitchInput;
   equalLevelSignature?: string;
   debugMaterial?: MeshLambertMaterial;
@@ -414,6 +432,16 @@ export const buildRasterDemTerrainRuntime = (
   );
   const unknownTerrainHeightRange =
     options.heightRangeMeters ?? UNKNOWN_TERRAIN_HEIGHT_RANGE_METERS;
+  const heightOffsetRange = options.heightOffsetRangeMeters ?? [0, 0];
+  if (
+    options.geometryProjection === "ecef" &&
+    ((options.heightOffsetMeters && !options.heightOffsetRangeMeters) ||
+      !heightOffsetRange.every(Number.isFinite) ||
+      heightOffsetRange[0] > heightOffsetRange[1])
+  )
+    throw new RangeError(
+      "ECEF terrain height correction needs a finite ordered range"
+    );
   const origin = MercatorCoordinate.fromLngLat(originLngLat, 0);
   const meterScale = origin.meterInMercatorCoordinateUnits();
   const maximumMeshErrorMeters = resolveRasterMeshErrorMeters(
@@ -433,6 +461,18 @@ export const buildRasterDemTerrainRuntime = (
   const payloadAwareConcurrency = createPayloadAwareRequestConcurrency();
   const root = new Group();
   root.name = `${runtimeId}-root`;
+  const geodeticOrigin =
+    options.geometryProjection === "ecef" ? originLngLat : undefined;
+  const geodetic = geodeticOrigin
+    ? createTerrainGeodeticProjection(geodeticOrigin)
+    : null;
+  const ecefPresentation = geodeticOrigin
+    ? createTerrainEcefPresentation(geodeticOrigin, options.heightOffsetMeters)
+    : null;
+  // Only an ECEF runtime owns this extra group. Never parent root to itself.
+  const contentRoot = ecefPresentation ? ecefPresentation.root : root;
+  if (ecefPresentation) root.add(ecefPresentation.root);
+  const terrainFrame = geodeticOrigin ? createTerrainRuntimeFrame() : null;
   const material = new MeshLambertMaterial({
     color: options.material?.color ?? DEFAULT_TERRAIN_COLOR,
     side: FrontSide,
@@ -480,7 +520,11 @@ export const buildRasterDemTerrainRuntime = (
   let tileCameraDemand = createTileCameraDemand([]);
   let tileCameraSignature = "[]";
   let shadowView: SharedThreeSceneShadowView | null = null;
-  let previousShadowFrustum: Frustum | null = null;
+  let previousShadowView: SharedThreeSceneShadowView | null = null;
+  const worldShadowView = (view: SharedThreeSceneShadowView | null) =>
+    view && terrainFrame
+      ? { ...view, camera: terrainFrame.toWorldCamera(view.camera) }
+      : view;
   let unregisterSampler: (() => void) | null = null;
   let disposed = false;
   let terrainLoading = true;
@@ -983,7 +1027,8 @@ export const buildRasterDemTerrainRuntime = (
       node.add(reliefMesh);
     }
     node.visible = false;
-    root.add(node);
+    contentRoot.add(node);
+    if (reliefMesh) ecefPresentation?.mount(reliefMesh, tile);
     // Publication updates the projection once for the complete ready batch.
     const filterReliefBoundary = (indices: Uint32Array | undefined) =>
       Uint32Array.from(
@@ -1020,6 +1065,7 @@ export const buildRasterDemTerrainRuntime = (
         ? tile.maximumHeightMeters
         : decodedHeightRange[1];
     meshes.set(key, {
+      sourceTile: tile,
       debugMaterial,
       node,
       reliefMesh,
@@ -1120,6 +1166,19 @@ export const buildRasterDemTerrainRuntime = (
   ): Box3 => {
     const geographicBounds =
       source?.getTileBounds(record.id) ?? getTileBounds(record.id);
+    if (geodetic) {
+      geodetic.bounds(
+        geographicBounds,
+        [
+          record.minimumHeightMeters + heightOffsetRange[0],
+          record.maximumHeightMeters + heightOffsetRange[1],
+        ],
+        target
+      );
+      target.min.sub(boundsPaddingMeters);
+      target.max.add(boundsPaddingMeters);
+      return target.applyMatrix4(contentRoot.matrixWorld);
+    }
     target.makeEmpty();
     for (const longitude of [geographicBounds.west, geographicBounds.east]) {
       for (const latitude of [geographicBounds.south, geographicBounds.north]) {
@@ -1225,6 +1284,7 @@ export const buildRasterDemTerrainRuntime = (
       if (!record?.node.visible) continue;
       getTerrainMeshWorldBounds(record, localBounds);
       if (!viewFrustum.intersectsBox(localBounds)) continue;
+      terrainFrame?.toReferenceBounds(localBounds);
       minimum = Math.min(minimum, localBounds.min.y);
       maximum = Math.max(maximum, localBounds.max.y);
     }
@@ -1300,6 +1360,7 @@ export const buildRasterDemTerrainRuntime = (
       const record = meshes.get(key);
       if (!record?.node.visible) continue;
       getTerrainMeshWorldBounds(record, bounds);
+      terrainFrame?.toReferenceBounds(bounds);
       volumes.push({
         id: `${runtimeId}:${key}`,
         kind: TILE_VOLUME_KIND.TERRAIN_TILE,
@@ -1327,6 +1388,7 @@ export const buildRasterDemTerrainRuntime = (
       .slice(0, Math.max(0, MAXIMUM_REPORTED_TILES - volumes.length));
     for (const [key, record] of residents) {
       getTerrainMeshWorldBounds(record, bounds);
+      terrainFrame?.toReferenceBounds(bounds);
       volumes.push({
         id: `${runtimeId}:${key}`,
         kind: TILE_VOLUME_KIND.TERRAIN_TILE,
@@ -1346,13 +1408,17 @@ export const buildRasterDemTerrainRuntime = (
         if (meshes.has(key)) continue;
         const id = parseMeshKeyTileId(key);
         if (!id) continue;
-        const box = buildTerrainTileLocalBox(
-          source?.getTileBounds(id) ?? getTileBounds(id),
-          knownHeightRanges[terrainTileKey(id)] ?? unknownTerrainHeightRange,
-          [origin.x, origin.y, origin.z],
-          meterScale,
+        const heights =
+          knownHeightRanges[terrainTileKey(id)] ?? unknownTerrainHeightRange;
+        const box = getTerrainMeshWorldBounds(
+          {
+            id,
+            minimumHeightMeters: heights[0],
+            maximumHeightMeters: heights[1],
+          },
           bounds
-        ).applyMatrix4(root.matrixWorld);
+        );
+        terrainFrame?.toReferenceBounds(box);
         volumes.push({
           id: `${runtimeId}:${key}`,
           kind: TILE_VOLUME_KIND.TERRAIN_TILE,
@@ -1373,6 +1439,7 @@ export const buildRasterDemTerrainRuntime = (
     for (const [key, record] of meshes) {
       record.node.visible = root.visible && activeMeshKeys.has(key);
       if (!record.node.visible || !record.reliefMesh) continue;
+      ecefPresentation?.sync(record.reliefMesh);
       getTerrainMeshWorldBounds(record, bounds);
       const receiver =
         !observerFrustumReady ||
@@ -1402,6 +1469,7 @@ export const buildRasterDemTerrainRuntime = (
         mapStyleProjectionVersion += 1;
       }
       record.reliefMesh.receiveShadow = receiver;
+      ecefPresentation?.sync(record.reliefMesh);
     }
   };
 
@@ -1422,16 +1490,21 @@ export const buildRasterDemTerrainRuntime = (
       latestRenderCamera.coordinateSystem,
       latestRenderCamera.reversedDepth
     );
-    const shadowFrustum = shadowView
-      ? new Frustum().setFromProjectionMatrix(
-          new Matrix4().multiplyMatrices(
-            shadowView.camera.projectionMatrix,
-            shadowView.camera.matrixWorldInverse
-          ),
-          shadowView.camera.coordinateSystem,
-          shadowView.camera.reversedDepth
-        )
-      : null;
+    const shadowFrustumFor = (view: SharedThreeSceneShadowView | null) => {
+      const current = worldShadowView(view);
+      return current
+        ? new Frustum().setFromProjectionMatrix(
+            new Matrix4().multiplyMatrices(
+              current.camera.projectionMatrix,
+              current.camera.matrixWorldInverse
+            ),
+            current.camera.coordinateSystem,
+            current.camera.reversedDepth
+          )
+        : null;
+    };
+    const shadowFrustum = shadowFrustumFor(shadowView);
+    const previousShadowFrustum = shadowFrustumFor(previousShadowView);
     const bounds = new Box3();
     return new Set(
       [...activeMeshKeys].filter((key) => {
@@ -1458,8 +1531,11 @@ export const buildRasterDemTerrainRuntime = (
     ]) {
       if (!attribute || !("array" in attribute)) continue;
       arrays.add(attribute.array.buffer);
-      gpuBytes += attribute.array.byteLength;
+      if (!ecefPresentation) gpuBytes += attribute.array.byteLength;
     }
+    if (ecefPresentation)
+      for (const value of Object.values(record.sourceTile))
+        if (ArrayBuffer.isView(value)) arrays.add(value.buffer);
     for (const array of Object.values(record.stitchBase ?? {}))
       arrays.add(array.buffer);
     if (record.equalLevelShell) {
@@ -1476,13 +1552,25 @@ export const buildRasterDemTerrainRuntime = (
         if (array) arrays.add(array.buffer);
     }
     return (
-      record.sourceByteLength +
+      (ecefPresentation
+        ? record.reliefMesh
+          ? ecefPresentation.bytes(record.reliefMesh)
+          : 0
+        : record.sourceByteLength) +
       gpuBytes +
       [...arrays].reduce((sum, buffer) => sum + buffer.byteLength, 0)
     );
   };
   const cachedMeshBytes = () =>
     [...meshes.values()].reduce((sum, record) => sum + meshBytes(record), 0);
+  const disposeMeshRecord = (record: TerrainMeshRecord) => {
+    if (record.reliefMesh) {
+      ecefPresentation?.disposeTile(record.reliefMesh);
+      record.reliefMesh.geometry.dispose();
+    }
+    record.node.removeFromParent();
+    record.debugMaterial?.dispose();
+  };
   const trimMeshCache = (activeKeys: ReadonlySet<string>) => {
     let bytes = cachedMeshBytes();
     if (meshes.size <= maxCachedMeshes && bytes <= maxCachedMeshBytes) return;
@@ -1494,18 +1582,17 @@ export const buildRasterDemTerrainRuntime = (
     for (const [key, record] of candidates) {
       if (meshes.size <= maxCachedMeshes && bytes <= maxCachedMeshBytes) break;
       bytes -= meshBytes(record);
-      root.remove(record.node);
-      record.reliefMesh?.geometry.dispose();
-      record.debugMaterial?.dispose();
+      disposeMeshRecord(record);
       meshes.delete(key);
     }
   };
 
-  const snapshotSelectionInput = (frame: SharedThreeSceneFrame) =>
-    snapshotRasterDemTerrainSelectionInput(frame, {
+  const snapshotSelectionInput = (frame: SharedThreeSceneFrame) => {
+    const input = snapshotRasterDemTerrainSelectionInput(frame, {
       terrainSourceConfig,
-      root,
-      shadowView,
+      root: contentRoot,
+      geodeticOrigin,
+      shadowView: worldShadowView(shadowView),
       origin,
       meterScale,
       snapshotKnownHeightRanges: heightMetadata.snapshot,
@@ -1519,6 +1606,23 @@ export const buildRasterDemTerrainRuntime = (
       maxSelectionTiles,
       meshSegments,
     });
+    if (!geodetic) return input;
+    const correctedRange = (range: readonly [number, number]) =>
+      [
+        range[0] + heightOffsetRange[0],
+        range[1] + heightOffsetRange[1],
+      ] as const;
+    return {
+      ...input,
+      knownHeightRanges: Object.fromEntries(
+        Object.entries(input.knownHeightRanges).map(([key, range]) => [
+          key,
+          correctedRange(range),
+        ])
+      ),
+      unknownHeightRange: correctedRange(input.unknownHeightRange),
+    };
+  };
 
   const buildSelection = (
     terrainSource: RasterDemTerrainTileSource,
@@ -1599,15 +1703,23 @@ export const buildRasterDemTerrainRuntime = (
     // Cache footprints at selection time, not for every sun-disc sample. Extend
     // vertically because an unloaded tile's actual elevation is not yet known.
     root.updateMatrixWorld(true);
-    shadowDependencies = requested.map(({ key, id }) => ({
-      key,
-      bounds: getTerrainMeshWorldBounds(
+    shadowDependencies = requested.map(({ key, id }) => {
+      const bounds = getTerrainMeshWorldBounds(
         { id, minimumHeightMeters: -1000000, maximumHeightMeters: 1000000 },
         new Box3()
-      ),
-    }));
+      );
+      terrainFrame?.toReferenceBounds(bounds);
+      return { key, bounds };
+    });
     const hasReadySurface = (key: string) =>
       Boolean(meshes.get(key)?.reliefMesh);
+    const hasSourceSurface = (id: TerrainTileId) =>
+      intersectUnwrappedGeographicBounds(getTileBounds(id), {
+        west: terrainSourceConfig.bounds[0],
+        south: terrainSourceConfig.bounds[1],
+        east: terrainSourceConfig.bounds[2],
+        north: terrainSourceConfig.bounds[3],
+      }) !== null;
     const publish = async () => {
       const publishStartedAt = performance.now();
       let frontier = [...activeMeshKeys].flatMap((key) => {
@@ -1629,7 +1741,9 @@ export const buildRasterDemTerrainRuntime = (
           frontier = advanceTerrainTileFrontier(
             frontier,
             candidates,
-            hasReadySurface
+            hasReadySurface,
+            undefined,
+            hasSourceSurface
           );
         }
       }
@@ -1639,7 +1753,8 @@ export const buildRasterDemTerrainRuntime = (
         frontier,
         [...requested, ...toFrontier(reserveEntries)],
         hasReadySurface,
-        (key) => !retainedDetailKeys?.has(key)
+        (key) => !retainedDetailKeys?.has(key),
+        hasSourceSurface
       );
       const activeKeys = new Set(frontier.map(({ key }) => key));
       const signature = [...activeKeys].sort().join(";");
@@ -1693,9 +1808,7 @@ export const buildRasterDemTerrainRuntime = (
       // Release it immediately once its replacement cut has been published.
       for (const [key, record] of meshes) {
         if (!key.startsWith("fallback:") || activeKeys.has(key)) continue;
-        root.remove(record.node);
-        record.reliefMesh?.geometry.dispose();
-        record.debugMaterial?.dispose();
+        disposeMeshRecord(record);
         meshes.delete(key);
       }
       mapStyleProjectionVersion += 1;
@@ -1853,7 +1966,7 @@ export const buildRasterDemTerrainRuntime = (
           prefetchView.shadowSignature === shadowViewSignature &&
           failures.length === 0
         )
-          previousShadowFrustum = null;
+          previousShadowView = null;
         terrainSource.trimCache(
           new Set(selection.entries.map((entry) => terrainTileKey(entry.id)))
         );
@@ -1938,6 +2051,7 @@ export const buildRasterDemTerrainRuntime = (
     for (const key of activeMeshKeys) {
       const record = meshes.get(key);
       if (!record) continue;
+      if (record.reliefMesh) ecefPresentation?.detach(record.reliefMesh);
       meshes.delete(key);
       transferred.push(record);
     }
@@ -2266,6 +2380,9 @@ export const buildRasterDemTerrainRuntime = (
   };
 
   const getIdleShadowRegions = (): readonly TerrainIdleShadowRegion[] => {
+    // Optional page preparation currently uses a planar geographic envelope.
+    // Foreground ECEF casters remain active; never prepare incorrect flat pages.
+    if (ecefPresentation) return [];
     const snapshot = idlePrefetchSelection;
     if (!source || !snapshot || !isIdlePrefetchCurrent(snapshot)) return [];
     root.updateMatrixWorld(true);
@@ -2304,6 +2421,8 @@ export const buildRasterDemTerrainRuntime = (
       });
       const snapshot = idlePrefetchSelection;
       const terrainSource = source;
+      if (ecefPresentation)
+        return reject(TERRAIN_IDLE_SHADOW_REASON.unavailable);
       if (signal?.aborted) return reject(TERRAIN_IDLE_SHADOW_REASON.aborted);
       if (!snapshot || !terrainSource || !getIdlePrefetchAvailability().ready)
         return reject(TERRAIN_IDLE_SHADOW_REASON.unavailable);
@@ -2559,6 +2678,7 @@ export const buildRasterDemTerrainRuntime = (
     id: runtimeId,
     originLngLat,
     root,
+    mountsOnLocalFrame: ecefPresentation !== null,
     providesTerrain: true,
     receivesMapStyleTexture:
       options.receivesMapStyleTexture === true
@@ -2567,6 +2687,21 @@ export const buildRasterDemTerrainRuntime = (
     mapStyleProjectionVersion: () => mapStyleProjectionVersion,
     updatePriority: TERRAIN_UPDATE_PRIORITY,
     ready,
+    getPublishedTerrainTiles: () =>
+      [...activeMeshKeys].flatMap((key) => {
+        const record = meshes.get(key);
+        return record?.node.visible && record.reliefMesh
+          ? [
+              {
+                tile: record.sourceTile,
+                mesh:
+                  ecefPresentation?.mesh(record.reliefMesh) ??
+                  record.reliefMesh,
+                bounds: getTerrainMeshWorldBounds(record, new Box3()),
+              },
+            ]
+          : [];
+      }),
     setErrorTarget(value: number) {
       if (!Number.isFinite(value) || value <= 0)
         throw new RangeError(
@@ -2616,7 +2751,9 @@ export const buildRasterDemTerrainRuntime = (
         if (record.reliefMesh) record.reliefMesh.material = material;
         record.lastUsed = ++meshUseClock;
         meshes.set(key, record);
-        root.add(record.node);
+        contentRoot.add(record.node);
+        if (record.reliefMesh)
+          ecefPresentation?.mount(record.reliefMesh, record.sourceTile);
         keys.add(key);
       }
       activeMeshKeys = keys;
@@ -2643,6 +2780,10 @@ export const buildRasterDemTerrainRuntime = (
       map.triggerRepaint();
     },
     update(frame) {
+      if (ecefPresentation && terrainFrame) {
+        terrainFrame.update(frame.localFrame);
+        ecefPresentation.refit(frame.localFrame.referenceLngLat);
+      }
       latestRenderCamera = frame.renderCamera;
       if (options.debugScreenError) {
         debugCameraPosition.copy(frame.lodCamera.position);
@@ -2697,14 +2838,19 @@ export const buildRasterDemTerrainRuntime = (
         const changedBounds: Box3[] = [];
         for (const key of activeMeshKeys) {
           const record = meshes.get(key);
-          const geometry = record?.reliefMesh?.geometry;
+          const geometry = record?.reliefMesh
+            ? (ecefPresentation?.mesh(record.reliefMesh) ?? record.reliefMesh)
+                .geometry
+            : undefined;
           if (!record?.node.visible || !geometry) continue;
           const revision = [
             geometry.id,
             (geometry.getAttribute("position") as BufferAttribute).version,
             (geometry.getAttribute("normal") as BufferAttribute).version,
             geometry.index?.version,
-            ...record.reliefMesh!.matrixWorld.elements,
+            ...(
+              ecefPresentation?.mesh(record.reliefMesh!) ?? record.reliefMesh!
+            ).matrixWorld.elements,
           ].join(",");
           const bounds = new Box3();
           getTerrainMeshWorldBounds(record, bounds);
@@ -2724,6 +2870,9 @@ export const buildRasterDemTerrainRuntime = (
           if (!nextGeometry.has(key)) changedBounds.push(previous.bounds);
         }
         publishedShadowGeometry = nextGeometry;
+        if (terrainFrame)
+          for (const bounds of changedBounds)
+            terrainFrame.toReferenceBounds(bounds);
         options.onContentChanged?.(changedBounds);
       }
       if (selectionGeneration === 0) syncSelectionShadowView();
@@ -2765,26 +2914,24 @@ export const buildRasterDemTerrainRuntime = (
       else runSelection(input);
     },
     setShadowView(view) {
-      if (shadowView && !previousShadowFrustum) {
-        previousShadowFrustum = new Frustum().setFromProjectionMatrix(
-          new Matrix4().multiplyMatrices(
-            shadowView.camera.projectionMatrix,
-            shadowView.camera.matrixWorldInverse
-          ),
-          shadowView.camera.coordinateSystem,
-          shadowView.camera.reversedDepth
-        );
-      }
-      // Controller cameras are mutable. Freeze the selection epoch rather than
-      // letting a later refit silently change the active caster-retention volume.
+      if (shadowView && !previousShadowView) previousShadowView = shadowView;
+      // Three's light camera is world-space. The controller runs before this
+      // runtime, so read the already-refitted mount rather than last frame's fit.
+      if (terrainFrame && root.parent)
+        terrainFrame.updateMount(root.parent.matrixWorld);
+      // Keep its snapshot in reference space; queries carry it through later
+      // refits exactly once, alongside the terrain geometry.
       view?.camera.updateMatrixWorld(true);
       shadowView = view
         ? {
-            camera: view.camera.clone(),
+            ...view,
+            camera:
+              terrainFrame?.toReferenceCamera(view.camera) ??
+              view.camera.clone(),
             shadowMapSize: normalizeShadowMapSize(view.shadowMapSize),
           }
         : null;
-      if (!view) previousShadowFrustum = null;
+      if (!view) previousShadowView = null;
       const nextSignature = getSharedThreeShadowViewSignature(shadowView);
       if (nextSignature !== shadowViewSignature) {
         invalidateIdlePrefetch();
@@ -2839,9 +2986,9 @@ export const buildRasterDemTerrainRuntime = (
       unregisterSampler = null;
       if (map) setSharedThreeTerrainLoading(map, runtimeId, false, 0, false);
       for (const record of meshes.values()) {
-        record.reliefMesh?.geometry.dispose();
-        record.debugMaterial?.dispose();
+        disposeMeshRecord(record);
       }
+      ecefPresentation?.dispose();
       meshes.clear();
       publishedShadowGeometry.clear();
       material.dispose();

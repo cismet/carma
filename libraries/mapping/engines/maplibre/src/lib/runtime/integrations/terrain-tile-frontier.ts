@@ -19,7 +19,8 @@ const overlaps = (left: FrontierTile, right: FrontierTile) =>
 
 const coversWholeTile = (
   id: TerrainTileId,
-  descendants: readonly FrontierTile[]
+  descendants: readonly FrontierTile[],
+  hasSurface: (id: TerrainTileId) => boolean
 ): boolean => {
   if (descendants.some((tile) => terrainTileContains(tile.id, id))) return true;
   const inside = descendants.filter((tile) => terrainTileContains(id, tile.id));
@@ -27,9 +28,11 @@ const coversWholeTile = (
   for (let y = 0; y < 2; y += 1)
     for (let x = 0; x < 2; x += 1)
       if (
+        hasSurface({ level: id.level + 1, x: id.x * 2 + x, y: id.y * 2 + y }) &&
         !coversWholeTile(
           { level: id.level + 1, x: id.x * 2 + x, y: id.y * 2 + y },
-          inside
+          inside,
+          hasSurface
         )
       )
         return false;
@@ -47,7 +50,8 @@ export const advanceTerrainTileFrontier = (
   current: readonly FrontierTile[],
   requested: readonly FrontierTile[],
   isReady: (key: string) => boolean,
-  canCoarsen: (key: string) => boolean = () => true
+  canCoarsen: (key: string) => boolean = () => true,
+  hasSurface: (id: TerrainTileId) => boolean = () => true
 ): FrontierTile[] => {
   let frontier = [...current];
   const ready = requested.filter((tile) => isReady(tile.key));
@@ -71,7 +75,8 @@ export const advanceTerrainTileFrontier = (
     const replacements = ancestor
       ? readyCut.filter((tile) => terrainTileContains(ancestor.id, tile.id))
       : [candidate];
-    if (ancestor && !coversWholeTile(ancestor.id, replacements)) continue;
+    if (ancestor && !coversWholeTile(ancestor.id, replacements, hasSurface))
+      continue;
     frontier = frontier.filter(
       (tile) => !replacements.some((replacement) => overlaps(tile, replacement))
     );

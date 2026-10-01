@@ -1,9 +1,9 @@
 import * as THREE from "three";
 
-/** Mesh-only receiver correction; NEVER enable for the raster heightfield.
- * Decision MESH-CONTACT-BIAS-20260908 in three/TILED_SHADOW_PAGES.md: combined
- * with real mesh normals, this removes planar acne without metre-scale offsets.
- * The non-planar heightfield oracle still fails (output/tiled-shadow-acne-20260907).
+/** Receiver correction for triangulated surfaces. Terrain combines this with
+ * a stable physical bias: plane extrapolation alone cannot cover neighbouring
+ * terrain triangles inside a coarse texel. The earlier heightfield oracle
+ * (output/tiled-shadow-acne-20260907) failed without this residual allowance.
  * Receiver-plane PCF: compare each texel with the depth of the SAME receiver
  * plane at that texel centre, rather than biasing the whole surface away.
  * See David Tuft, "Plane-Based Depth Bias for PCF", Game Developer May 2010:
@@ -91,7 +91,9 @@ export const configureReceiverPlaneShadow = (
     );
   };
   material.customProgramCacheKey = () =>
-    `${previousKey}|carma-receiver-plane-pcf-v3|${enabled.value ? "mesh" : "stock"}`;
+    `${previousKey}|carma-receiver-plane-pcf-v3|${
+      enabled.value ? "mesh" : "stock"
+    }`;
   material.needsUpdate = true;
   materials.set(material, enabled);
   return enabled;

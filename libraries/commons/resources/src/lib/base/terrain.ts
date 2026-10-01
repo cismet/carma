@@ -27,9 +27,11 @@ export type RasterDemTerrainResource = Readonly<{
    * case (flat, open ground) and worst case (steep or vegetated) pair.
    */
   elevation: Readonly<{
-    groundSamplingMeters: number;
+    /** Null when a heterogeneous source has no single sampling distance. */
+    groundSamplingMeters: number | null;
     heightStepMeters: number;
-    accuracyMeters95: readonly [best: number, worst: number];
+    /** Null when the source does not declare a global accuracy bound. */
+    accuracyMeters95: readonly [best: number, worst: number] | null;
   }>;
   /** Change when content at an unchanged URL or its height datum changes. */
   revision?: string;

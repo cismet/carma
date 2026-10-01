@@ -108,6 +108,7 @@ describe("shadow scene terrain provider lifecycle", () => {
     });
     const map = {
       getCenter: vi.fn(() => ({ lng: 7.15, lat: 51.256 })),
+      getZoom: vi.fn(() => 16),
       getCanvas: vi.fn(() => ({ clientWidth: 800, clientHeight: 600 })),
       unproject: vi.fn(([x, y]: [number, number]) => ({
         lng: 7.15 + (x / 800 - 0.5) * 0.02,
@@ -187,8 +188,9 @@ describe("shadow scene terrain provider lifecycle", () => {
       (shadowView.camera as THREE.OrthographicCamera).isOrthographicCamera
     ).toBe(true);
     // The 30 FPS preset budgets 4096² depth texels at native 2560×1440.
-    expect(shadowView.shadowMapSize.width).toBe(
-      Math.floor(Math.sqrt((4096 ** 2 * (800 * 600)) / (2560 * 1440)))
+    expect(shadowView.shadowMapSize.width).toBeCloseTo(
+      Math.floor(Math.sqrt((4096 ** 2 * (800 * 600)) / (2560 * 1440))),
+      10
     );
     expect(shadowView.shadowMapSize.width).not.toBe(800);
     // Ground irradiance is evaluated at the stable scene reference, not at the

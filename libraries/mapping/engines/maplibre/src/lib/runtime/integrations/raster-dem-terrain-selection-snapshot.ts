@@ -2,6 +2,8 @@ import { MercatorCoordinate, type Map as MaplibreMap } from "maplibre-gl";
 import { Camera, Group, Matrix4, Vector3, WebGLCoordinateSystem } from "three";
 
 import { quantize } from "@carma-commons/math";
+import { createLocalEcefFrame, ecefToCartographic } from "@carma-geo/proj";
+import { radToDegNumeric } from "@carma-units";
 import type { RasterDemTerrainResource } from "@carma-commons/resources";
 
 import type {
@@ -27,6 +29,7 @@ const INITIAL_ERROR_TARGET_PIXELS = 16;
 type RasterDemTerrainSelectionSnapshotContext = Readonly<{
   terrainSourceConfig: RasterDemTerrainResource;
   root: Group;
+  geodeticOrigin?: readonly [number, number];
   shadowView: SharedThreeSceneShadowView | null;
   origin: MercatorCoordinate;
   meterScale: number;
@@ -63,7 +66,8 @@ const cameraFrustumBounds = (
   camera: Camera | TileCameraSnapshot,
   root: Group,
   origin: MercatorCoordinate,
-  meterScale: number
+  meterScale: number,
+  geodeticOrigin?: readonly [number, number]
 ): TerrainTileBounds | null => {
   if (camera instanceof Camera) camera.updateWorldMatrix(true, false);
   const projection =
@@ -77,6 +81,9 @@ const cameraFrustumBounds = (
   const clipToWorld = world.clone().multiply(projection.clone().invert());
   root.updateMatrixWorld(true);
   const localFromWorld = new Matrix4().copy(root.matrixWorld).invert();
+  const ecefFromLocal = geodeticOrigin
+    ? createLocalEcefFrame(...geodeticOrigin).ecefFromLocal
+    : null;
   let west = Number.POSITIVE_INFINITY;
   let south = Number.POSITIVE_INFINITY;
   let east = Number.NEGATIVE_INFINITY;
@@ -93,11 +100,19 @@ const cameraFrustumBounds = (
         const local = new Vector3(x, y, z)
           .applyMatrix4(clipToWorld)
           .applyMatrix4(localFromWorld);
-        const lngLat = new MercatorCoordinate(
-          origin.x + local.x * meterScale,
-          origin.y + local.z * meterScale,
-          0
-        ).toLngLat();
+        const cartographic = ecefFromLocal
+          ? ecefToCartographic(local.clone().applyMatrix4(ecefFromLocal))
+          : null;
+        const lngLat = cartographic
+          ? {
+              lng: radToDegNumeric(cartographic.longitude),
+              lat: radToDegNumeric(cartographic.latitude),
+            }
+          : new MercatorCoordinate(
+              origin.x + local.x * meterScale,
+              origin.y + local.z * meterScale,
+              0
+            ).toLngLat();
         west = Math.min(west, lngLat.lng);
         south = Math.min(south, lngLat.lat);
         east = Math.max(east, lngLat.lng);
@@ -162,6 +177,7 @@ export const snapshotRasterDemTerrainSelectionInput = (
   {
     terrainSourceConfig,
     root,
+    geodeticOrigin,
     shadowView,
     origin,
     meterScale,
@@ -199,7 +215,13 @@ export const snapshotRasterDemTerrainSelectionInput = (
   });
   const bounds = getViewportBounds(frame.map);
   const shadowBounds = shadowView
-    ? cameraFrustumBounds(shadowView.camera, root, origin, meterScale)
+    ? cameraFrustumBounds(
+        shadowView.camera,
+        root,
+        origin,
+        meterScale,
+        geodeticOrigin
+      )
     : null;
   const knownHeightRanges: Record<string, readonly [number, number]> =
     snapshotKnownHeightRanges();
@@ -232,6 +254,7 @@ export const snapshotRasterDemTerrainSelectionInput = (
       frame.lodCamera.position.z,
     ],
     rootMatrixWorld: [...root.matrixWorld.elements],
+    geodeticOrigin,
     origin: [origin.x, origin.y, origin.z],
     meterScale,
     boundsPaddingMeters: [
@@ -240,7 +263,13 @@ export const snapshotRasterDemTerrainSelectionInput = (
       boundsPaddingMeters.z,
     ],
     cameraViews: (frame.tileCameraViews ?? []).flatMap((view) => {
-      const bounds = cameraFrustumBounds(view, root, origin, meterScale);
+      const bounds = cameraFrustumBounds(
+        view,
+        root,
+        origin,
+        meterScale,
+        geodeticOrigin
+      );
       return bounds ? [{ ...view, bounds }] : [];
     }),
     shadow:
