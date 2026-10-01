@@ -3,8 +3,14 @@ import React, { useEffect, useState } from "react";
 
 import { useWindowSize } from "@react-hook/window-size";
 import { useDispatch, useSelector } from "react-redux";
+import type { UnknownAction } from "redux";
 import { useLocation, useNavigate } from "react-router-dom";
-import { storeJWT, storeLogin, storePermissions } from "../../store/slices/auth";
+import {
+  loadRights,
+  storeJWT,
+  storeLogin,
+  storePermissions,
+} from "../../store/slices/auth";
 import { resetKeyTablesFetched } from "../../store/slices/keyTables";
 import { DOMAIN, REST_SERVICE } from "../../constants/belis";
 import { getApplicationVersion } from "@carma-commons/utils";
@@ -65,6 +71,7 @@ const Login = () => {
               dispatch(storeJWT(jwt));
               dispatch(storeLogin(user));
               dispatch(storePermissions(permissions));
+              dispatch(loadRights(jwt) as unknown as UnknownAction);
             }, 500);
           });
         } else {
