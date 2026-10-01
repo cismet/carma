@@ -1,4 +1,5 @@
 import { readOrientedTileBounds } from "./three-tiles-bounds";
+import { createRootTileDomainClip } from "./three-tiles-root-domain";
 import { TILE_SHADOW_CAMERA_ID } from "../../core/tile-camera-demand";
 import { isExtentFloorTile } from "../../core/mesh-error-policy";
 import {
@@ -38,6 +39,9 @@ export function createThreeTilesSettledDemand(
     | "runDownloadQueues"
   >
 ) {
+  const clipRootDomain = createRootTileDomainClip(
+    () => runtimeState.tiles?.root
+  );
   // Keep the selected offscreen caster corridor live until it can be displayed.
   const isPendingShadowDemand = (tile: RuntimeTile): boolean =>
     !!runtimeState.shadowView &&
@@ -74,11 +78,17 @@ export function createThreeTilesSettledDemand(
       runtimeState.tileBoundingBox,
       runtimeState.tileBoundsTransform
     );
-    return runtimeState.shadowReceiverMask.match(
-      runtimeState.tileBoundingBox,
-      runtimeState.shadowReceiverMatch,
-      runtimeState.tileBoundsTransform,
-      { key: tile, parent: tile.parent ?? undefined }
+    return (
+      clipRootDomain(
+        runtimeState.tileBoundingBox,
+        runtimeState.tileBoundsTransform
+      ) &&
+      runtimeState.shadowReceiverMask.match(
+        runtimeState.tileBoundingBox,
+        runtimeState.shadowReceiverMatch,
+        runtimeState.tileBoundsTransform,
+        { key: tile, parent: tile.parent ?? undefined }
+      )
     );
   };
 

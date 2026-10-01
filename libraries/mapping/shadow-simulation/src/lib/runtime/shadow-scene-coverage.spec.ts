@@ -68,6 +68,7 @@ describe("shadow scene viewport and content coverage", () => {
       getNorth: () => mapCenter.lat + viewportHalfHeight * 4,
     }));
     const map = {
+      getZoom: vi.fn(() => (viewportHalfWidth < 1 ? 18 : 16)),
       getCenter: vi.fn(() => mapCenter),
       getBounds,
       getCanvas: vi.fn(() => ({
@@ -163,7 +164,7 @@ describe("shadow scene viewport and content coverage", () => {
       (
         scene.getObjectByName("shadow-simulation-sun") as THREE.DirectionalLight
       ).target.position.toArray()
-    ).toEqual([500, 0, 1_000]);
+    ).toEqual([0, 0, 0]);
 
     viewportHalfWidth = 0.05;
     viewportHalfHeight = 0.1;
@@ -214,6 +215,7 @@ describe("shadow scene viewport and content coverage", () => {
       },
     ] as never);
     const map = {
+      getZoom: vi.fn(() => 16),
       getCenter: vi.fn(() => ({ lng: 0, lat: 0 })),
       getCanvas: vi.fn(() => ({ clientWidth: 800, clientHeight: 600 })),
       unproject: vi.fn(([x, y]: [number, number]) => ({
@@ -289,6 +291,7 @@ describe("shadow scene viewport and content coverage", () => {
     sharedLayer.projectLngLatToScene = ([lng, lat], altitude = 0) =>
       new THREE.Vector3(lng * 1_000, altitude, lat * 1_000);
     const map = {
+      getZoom: vi.fn(() => 16),
       getCenter: vi.fn(() => ({ lng: 0, lat: 0 })),
       getCanvas: vi.fn(() => ({ clientWidth: 800, clientHeight: 600 })),
       unproject: vi.fn(() => ({ lng: 0, lat: 0 })),
@@ -363,6 +366,7 @@ describe("shadow scene viewport and content coverage", () => {
     sharedLayer.projectLngLatToScene = ([lng, lat], altitude = 0) =>
       new THREE.Vector3(lng * 1_000, altitude, lat * 1_000);
     const map = {
+      getZoom: vi.fn(() => 16),
       getCenter: vi.fn(() => ({ lng: 0, lat: 0 })),
       getCanvas: vi.fn(() => ({ clientWidth: 800, clientHeight: 600 })),
       unproject: vi.fn(() => ({ lng: 0, lat: 0 })),
@@ -459,6 +463,7 @@ describe("shadow scene viewport and content coverage", () => {
       },
     ]);
     const map = {
+      getZoom: vi.fn(() => 16),
       getCenter: vi.fn(() => ({ lng: 0, lat: 0 })),
       getCanvas: vi.fn(() => ({ clientWidth: 800, clientHeight: 600 })),
       unproject: vi.fn(([x, y]: [number, number]) => ({
@@ -547,6 +552,7 @@ describe("shadow scene viewport and content coverage", () => {
     elevatedReceiver.position.y = 150;
     scene.add(elevatedReceiver);
     const map = {
+      getZoom: vi.fn(() => 16),
       getCenter: vi.fn(() => ({ lng: 0, lat: 0 })),
       getCanvas: vi.fn(() => ({ clientWidth: 800, clientHeight: 600 })),
       unproject: vi.fn(([x, y]: [number, number]) => ({

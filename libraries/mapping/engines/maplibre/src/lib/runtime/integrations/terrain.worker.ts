@@ -16,6 +16,7 @@ import { prepareMeshVertexNormalsWasm } from "@carma-mapping/engines/three/primi
 const normalsReady = prepareMeshVertexNormalsWasm();
 const NORMALS_TASK_KINDS: readonly TerrainWorkerTaskKind[] = [
   TERRAIN_WORKER_TASK_KIND.PROJECT,
+  TERRAIN_WORKER_TASK_KIND.PROJECT_ECEF,
   TERRAIN_WORKER_TASK_KIND.PARTITION,
   TERRAIN_WORKER_TASK_KIND.STITCH,
 ];

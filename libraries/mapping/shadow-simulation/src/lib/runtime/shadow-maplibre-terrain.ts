@@ -2,6 +2,7 @@ import type { Map as MaplibreMap } from "maplibre-gl";
 
 import {
   NRW_DGM1_DHHN2016_TERRARIUM_TERRAIN,
+  rasterDemTerrainTileUrl,
   type RasterDemTerrainResource,
 } from "@carma-commons/resources";
 import {
@@ -291,7 +292,7 @@ export const acquireShadowMapLibreTerrain = (
       if (!terrainMap.getSource(sourceId) && map.isStyleLoaded()) {
         map.addSource(sourceId, {
           type: "raster-dem",
-          tiles: [terrainSource.url],
+          tiles: [rasterDemTerrainTileUrl(terrainSource)],
           tileSize: terrainSource.tileSize,
           minzoom: terrainSource.minzoom,
           maxzoom: terrainSource.maxzoom,

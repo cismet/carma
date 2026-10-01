@@ -22,6 +22,8 @@ import {
   calibrateProjectedTerrainCache,
   readTerrainHeightMetadata,
   writeTerrainHeightMetadata,
+  protectProjectedTerrainCache,
+  markProjectedTerrainCacheUsed,
   type CachedProjectedTerrainTile,
 } from "./projected-terrain-cache-record";
 import {
@@ -31,6 +33,12 @@ import {
 import { buildTerrainSelection } from "../../core/terrain-selection";
 import type { TerrainSelectionInput } from "../../core/terrain-selection-types";
 import { TERRAIN_WORKER_TASK_KIND } from "../../core/terrain-worker-protocol";
+import { terrainIndexArraysEqual } from "../../core/terrain-index-equality";
+import type { terrainCacheTree } from "./terrain-cache-tree";
+import {
+  convertTerrainGeometryToEcef,
+  type TerrainEcefConversionInput,
+} from "./terrain-ecef-conversion";
 
 export type TerrainWorkerTask =
   | {
@@ -47,12 +55,14 @@ export type TerrainWorkerTask =
   | {
       kind: typeof TERRAIN_WORKER_TASK_KIND.READ_CACHE;
       key: string;
+      tree?: ReturnType<typeof terrainCacheTree>;
       producerAssetUrl?: string;
     }
   | {
       kind: typeof TERRAIN_WORKER_TASK_KIND.WRITE_CACHE;
       key: string;
       entry: CachedProjectedTerrainTile;
+      tree?: ReturnType<typeof terrainCacheTree>;
       bytes: number;
       recomputeMs?: number;
       producerAssetUrl?: string;
@@ -61,6 +71,18 @@ export type TerrainWorkerTask =
       kind: typeof TERRAIN_WORKER_TASK_KIND.CACHE_COST;
       key: string;
       restoreMs: number;
+      producerAssetUrl?: string;
+    }
+  | {
+      kind: typeof TERRAIN_WORKER_TASK_KIND.PROTECT_CACHE;
+      identity: string;
+      nodes: readonly string[];
+      producerAssetUrl?: string;
+    }
+  | {
+      kind: typeof TERRAIN_WORKER_TASK_KIND.MARK_CACHE_USED;
+      identity: string;
+      nodes: readonly string[];
       producerAssetUrl?: string;
     }
   | {
@@ -111,12 +133,35 @@ export type TerrainWorkerTask =
       kind: typeof TERRAIN_WORKER_TASK_KIND.PROJECT;
       tile: TerrainTile;
       origin: { x: number; y: number; z: number };
+    }
+  | {
+      kind: typeof TERRAIN_WORKER_TASK_KIND.PROJECT_ECEF;
+      input: TerrainEcefConversionInput;
+      background?: boolean;
     };
 
 export const executeTerrainWorkerTask = async (
   task: TerrainWorkerTask,
   signal?: AbortSignal
 ) => {
+  if (task.kind === TERRAIN_WORKER_TASK_KIND.MARK_CACHE_USED)
+    return {
+      kind: task.kind,
+      updated: await markProjectedTerrainCacheUsed(
+        task.identity,
+        task.nodes,
+        task.producerAssetUrl
+      ),
+    };
+  if (task.kind === TERRAIN_WORKER_TASK_KIND.PROTECT_CACHE)
+    return {
+      kind: task.kind,
+      protected: await protectProjectedTerrainCache(
+        task.identity,
+        task.nodes,
+        task.producerAssetUrl
+      ),
+    };
   if (task.kind === TERRAIN_WORKER_TASK_KIND.READ_HEIGHT_METADATA)
     return {
       kind: task.kind,
@@ -147,7 +192,8 @@ export const executeTerrainWorkerTask = async (
         task.entry,
         task.bytes,
         task.recomputeMs,
-        task.producerAssetUrl
+        task.producerAssetUrl,
+        task.tree
       ),
     };
   if (task.kind === TERRAIN_WORKER_TASK_KIND.CACHE_COST)
@@ -164,7 +210,8 @@ export const executeTerrainWorkerTask = async (
       kind: TERRAIN_WORKER_TASK_KIND.READ_CACHE,
       entry: await readProjectedTerrainCacheRecord(
         task.key,
-        task.producerAssetUrl
+        task.producerAssetUrl,
+        task.tree
       ),
     };
   if (task.kind === TERRAIN_WORKER_TASK_KIND.SELECT)
@@ -251,6 +298,21 @@ export const executeTerrainWorkerTask = async (
       },
     };
   }
+  if (task.kind === TERRAIN_WORKER_TASK_KIND.PROJECT_ECEF) {
+    const startedAt = performance.now();
+    const projected = convertTerrainGeometryToEcef(task.input);
+    return {
+      kind: task.kind,
+      ...serializeTerrainGeometry(projected.geometry),
+      indicesUnchanged: projected.indicesUnchanged,
+      nativeBaseHeights: projected.nativeBaseHeights,
+      ecefBounds: {
+        min: projected.ecefBounds.min.toArray(),
+        max: projected.ecefBounds.max.toArray(),
+      },
+      recomputeMs: performance.now() - startedAt,
+    };
+  }
   const geometry = createProjectedTerrainTileGeometry({
     tile: task.tile,
     projectToWorld: createMercatorTerrainProjector(
@@ -259,6 +321,10 @@ export const executeTerrainWorkerTask = async (
   });
   return {
     kind: TERRAIN_WORKER_TASK_KIND.PROJECT,
+    indicesUnchanged: terrainIndexArraysEqual(
+      geometry.index!.array as Uint16Array | Uint32Array,
+      task.tile.indices
+    ),
     ...serializeTerrainGeometry(geometry),
   };
 };
@@ -302,6 +368,13 @@ export const terrainResultTransfers = (
               ArrayBuffer.isView(value) ? [value.buffer as ArrayBuffer] : []
             ),
             result.entry.reliefVertexMask.buffer as ArrayBuffer,
+            ...(result.entry.presentation
+              ? ([
+                  result.entry.presentation.geometry.positions.buffer,
+                  result.entry.presentation.geometry.normals.buffer,
+                  result.entry.presentation.geometry.indices.buffer,
+                ] as ArrayBuffer[])
+              : []),
             ...(result.entry.geometry
               ? ([
                   result.entry.geometry.positions.buffer,
@@ -316,6 +389,8 @@ export const terrainResultTransfers = (
       result.kind === TERRAIN_WORKER_TASK_KIND.WRITE_HEIGHT_METADATA ||
       result.kind === TERRAIN_WORKER_TASK_KIND.WRITE_CACHE ||
       result.kind === TERRAIN_WORKER_TASK_KIND.CACHE_COST ||
+      result.kind === TERRAIN_WORKER_TASK_KIND.PROTECT_CACHE ||
+      result.kind === TERRAIN_WORKER_TASK_KIND.MARK_CACHE_USED ||
       result.kind === TERRAIN_WORKER_TASK_KIND.CALIBRATE_CACHE
     ? []
     : result.kind === TERRAIN_WORKER_TASK_KIND.PARTITION
@@ -350,6 +425,13 @@ export const terrainResultTransfers = (
             ].map((array) => array.buffer)
           ),
         ]),
+      ] as ArrayBuffer[])
+    : result.kind === TERRAIN_WORKER_TASK_KIND.PROJECT_ECEF
+    ? ([
+        result.positions.buffer,
+        result.normals.buffer,
+        result.indices.buffer,
+        result.nativeBaseHeights.buffer,
       ] as ArrayBuffer[])
     : result.kind === TERRAIN_WORKER_TASK_KIND.PROJECT
     ? ([

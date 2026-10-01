@@ -117,9 +117,18 @@ describe("buildRasterDemTerrainRuntime mixed-LOD seams", () => {
     const source = {
       requestTile: vi.fn(async (id) => ({
         id,
+        u: isFineTile(id)
+          ? new Float32Array([0, 0, 0, 1, 1, 1])
+          : new Float32Array([0, 0, 1, 1]),
+        v: isFineTile(id)
+          ? new Float32Array([0, 0.5, 1, 0, 0.5, 1])
+          : new Float32Array([0, 1, 0, 1]),
         heightMeters: isFineTile(id)
-          ? new Float32Array([456])
-          : new Float32Array([100]),
+          ? new Float32Array(6).fill(456)
+          : new Float32Array(4).fill(100),
+        indices: isFineTile(id)
+          ? new Uint32Array([0, 3, 1, 1, 3, 4, 1, 4, 2, 2, 4, 5])
+          : new Uint32Array([0, 2, 1, 1, 2, 3]),
         westIndices: isFineTile(id)
           ? new Uint32Array([0, 1, 2])
           : new Uint32Array(),
@@ -172,9 +181,13 @@ describe("buildRasterDemTerrainRuntime mixed-LOD seams", () => {
     });
     const lodCamera = new PerspectiveCamera(60, 1, 1, 10_000);
     lodCamera.position.set(0, 1_000, 0);
+    const renderCamera = new Camera();
+    renderCamera.position.y = 200;
+    renderCamera.projectionMatrix.makeScale(1 / 30_000, 1 / 1_000, 1 / 30_000);
+    renderCamera.updateMatrixWorld(true);
     runtime.update({
       map: map as never,
-      renderCamera: new Camera(),
+      renderCamera,
       lodCamera,
       lookTarget: new Vector3(),
       viewport: new Vector2(1_000, 1_000),

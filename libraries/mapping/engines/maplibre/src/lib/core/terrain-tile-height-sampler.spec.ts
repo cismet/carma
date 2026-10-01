@@ -107,12 +107,18 @@ describe("mesh-lifetime terrain height fallback", () => {
     const latitude = (south + north) / 2;
     const sample = createTerrainTileHeightSampler(tile)!;
     const expected = sample(longitude, latitude);
+    const ownedBytes =
+      tile.heightMeters.byteLength +
+      tile.northIndices.length * 2 * Float32Array.BYTES_PER_ELEMENT +
+      tile.westIndices.length * 2 * Float64Array.BYTES_PER_ELEMENT;
+    expect(sample.byteLength).toBe(ownedBytes);
     tile.u.fill(NaN);
     tile.v.fill(NaN);
     tile.heightMeters.fill(-9999);
     tile.indices.fill(0);
     Object.assign(tile.bounds, { west: -180, east: -179 });
     expect(sample(longitude, latitude)).toBe(expected);
+    expect(sample.byteLength).toBe(ownedBytes);
   });
 
   it("does not interpolate across a no-data vertex or outside the tile", () => {
@@ -140,6 +146,12 @@ describe("mesh-lifetime terrain height fallback", () => {
       eastIndices: new Uint32Array(),
     };
     const sample = createTerrainTileHeightSampler(tile)!;
+    expect(sample.byteLength).toBe(
+      tile.u.byteLength +
+        tile.v.length * Float64Array.BYTES_PER_ELEMENT +
+        tile.heightMeters.byteLength +
+        tile.indices.byteLength
+    );
     expect(sample(tile.bounds.west, tile.bounds.north)).toBeCloseTo(30);
     expect(sample(tile.bounds.east, tile.bounds.north)).toBeUndefined();
     expect(

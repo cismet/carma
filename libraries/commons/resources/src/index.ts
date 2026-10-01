@@ -22,6 +22,7 @@ export type {
   TextureColorCorrection,
   TilesetConfig,
 } from "./lib/base/tilesets";
+export { rasterDemTerrainTileUrl } from "./lib/base/terrain";
 export type { RasterDemTerrainResource } from "./lib/base/terrain";
 export type {
   GeoreferencedLandmark,

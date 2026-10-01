@@ -25,6 +25,25 @@ import {
 } from "@carma-geo/helpers";
 
 import { MAPLIBRE_EVENT } from "../../../constants/mapEvents";
+import { meshBaseMemoryBudget } from "../../core/mesh-error-policy";
+import {
+  resolveTilesCacheCeiling,
+  resolveTilesCacheMaximum,
+  TILE_MEMORY_ALLOCATION_ERROR,
+} from "../../core/tile-cache-policy";
+import { readTileDeviceProfile } from "./tile-device-profile";
+import {
+  CACHE_CEILING_FAILURE_FRACTION,
+  CACHE_CEILING_REASON,
+  getCacheCeilingStorage,
+  learnCacheCeiling,
+  readCacheCeilingMemory,
+  writeCacheCeilingMemory,
+} from "./three-tiles-cache-ceiling-memory";
+import { planTerrainBaseStages } from "../../core/terrain-base-coverage";
+import { createRasterDemTerrainBaseCache } from "./raster-dem-terrain-base-coverage";
+import { createProjectedTerrainGeometryCache } from "./projected-terrain-geometry-cache";
+import { createPersistentTileUsageQueue } from "./persistent-tile-usage";
 import {
   getTileBounds,
   latitudeToTileY,
@@ -188,6 +207,12 @@ export type RasterDemTerrainRuntimeOptions = Readonly<{
   maxCachedMeshes?: number;
   /** Prepared CPU/GPU cache budget; published and requested coverage stays pinned. */
   maxCachedMeshBytes?: number;
+  /** Prepare complete source-wide fallback cuts, lowest priority after convergence. */
+  persistBaseTiles?: boolean;
+  /** Effective longest input-raster edge; stages are built coarse to fine. */
+  baseRasterEdgePixels?: number;
+  /** Same 5–15% resident reserve policy as terrain-providing 3D Tiles. */
+  baseCoverageMemoryShare?: number;
   /** Number of height-grid segments per tile used by the Three.js terrain. */
   meshSegments?: number;
   /** Explicit lossy mobile baseline ceiling; omitted preserves native residual accuracy. */
@@ -210,6 +235,14 @@ export type RasterDemTerrainRuntimeOptions = Readonly<{
 
 export interface RasterDemTerrainRuntime extends SharedThreeSceneRuntime {
   ready: Promise<boolean>;
+  getTerrainCacheStats: () => {
+    cachedMeshes: number;
+    cachedMeshBytes: number;
+    cacheCeilingBytes: number;
+    baseline: ReturnType<
+      ReturnType<typeof createRasterDemTerrainBaseCache>["snapshot"]
+    >;
+  };
   /** Published cut only; borrowed meshes remain owned by this runtime. */
   getPublishedTerrainTiles: () => readonly Readonly<{
     tile: TerrainTile;
@@ -257,6 +290,9 @@ export interface RasterDemTerrainRuntime extends SharedThreeSceneRuntime {
 
 type TerrainMeshRecord = {
   sourceTile: TerrainTile;
+  sourceGeometryBounds: Box3 | null;
+  sourceGeometrySphere: Sphere | null;
+  reliefVertexMask: Uint8Array;
   equalLevelShell?: TerrainStitchInput;
   equalLevelSignature?: string;
   debugMaterial?: MeshLambertMaterial;
@@ -398,11 +434,53 @@ export const buildRasterDemTerrainRuntime = (
     DEFAULT_MAX_CACHED_MESHES,
     1
   );
-  const maxCachedMeshBytes = clampInteger(
-    options.maxCachedMeshBytes,
-    256 * 1024 * 1024,
-    1
+  const deviceProfile = readTileDeviceProfile();
+  const cacheCeilingStorage = getCacheCeilingStorage();
+  let learnedCacheCeiling =
+    readCacheCeilingMemory(cacheCeilingStorage).learnedBytes;
+  const maximumDeviceCacheBytes = resolveTilesCacheMaximum(deviceProfile);
+  const initialMaxCachedMeshBytes = Math.min(
+    maximumDeviceCacheBytes,
+    learnedCacheCeiling ?? Infinity,
+    clampInteger(
+      options.maxCachedMeshBytes,
+      resolveTilesCacheCeiling(deviceProfile, undefined, learnedCacheCeiling),
+      1
+    )
   );
+  let maxCachedMeshBytes = initialMaxCachedMeshBytes;
+  let lastAllocationLessonAt = -Infinity;
+  const reportTerrainError = (error: unknown) => {
+    const now = performance.now();
+    if (
+      TILE_MEMORY_ALLOCATION_ERROR.test(String(error)) &&
+      now - lastAllocationLessonAt >= 30_000
+    ) {
+      lastAllocationLessonAt = now;
+      const resident = cachedMeshBytes();
+      const lesson = learnCacheCeiling(
+        readCacheCeilingMemory(cacheCeilingStorage),
+        Math.min(maxCachedMeshBytes, resident || maxCachedMeshBytes) *
+          CACHE_CEILING_FAILURE_FRACTION,
+        CACHE_CEILING_REASON.ALLOCATION
+      );
+      learnedCacheCeiling = lesson.learnedBytes;
+      writeCacheCeilingMemory(cacheCeilingStorage, lesson);
+      maxCachedMeshBytes = Math.min(maxCachedMeshBytes, learnedCacheCeiling!);
+      invalidateIdlePrefetch();
+      baseCoverage.setMemoryBudget(
+        meshBaseMemoryBudget(
+          maxCachedMeshBytes,
+          options.baseCoverageMemoryShare
+        )
+      );
+      // Keep live receivers, their casters and the complete resident baseline.
+      // Only unused cached records make room for a bounded retry.
+      trimMeshCache(activeMeshKeys);
+      map?.triggerRepaint();
+    }
+    options.onError?.(error);
+  };
   if (
     options.noDataHeightMeters !== undefined &&
     !Number.isFinite(options.noDataHeightMeters)
@@ -466,9 +544,57 @@ export const buildRasterDemTerrainRuntime = (
   const geodetic = geodeticOrigin
     ? createTerrainGeodeticProjection(geodeticOrigin)
     : null;
+  const terrainCacheSource = JSON.stringify([
+    terrainSourceConfig.url,
+    terrainSourceConfig.revision ?? null,
+    terrainSourceConfig.verticalDatum,
+    terrainSourceConfig.format,
+    terrainSourceConfig.encoding,
+    terrainSourceConfig.tileSize,
+    terrainSourceConfig.bounds,
+    terrainSourceConfig.minzoom,
+    terrainSourceConfig.maxzoom,
+    meshSegments,
+    options.maximumMeshSegments,
+    maximumMeshErrorMeters,
+    noDataHeightMeters,
+  ]);
   const ecefPresentation = geodeticOrigin
-    ? createTerrainEcefPresentation(geodeticOrigin, options.heightOffsetMeters)
+    ? createTerrainEcefPresentation(
+        geodeticOrigin,
+        options.heightOffsetMeters,
+        // Geoportal persists the selected presentation with its seam inputs in
+        // one prepared record; the standalone ECEF cache is not a second copy.
+        undefined,
+        () => {
+          if (disposed) return;
+          contentChangedSinceFrame = true;
+          mapStyleProjectionVersion += 1;
+          map?.triggerRepaint();
+        },
+        reportTerrainError
+      )
     : null;
+  const preparedGeometryCache = createProjectedTerrainGeometryCache(
+    terrainCacheSource,
+    originLngLat,
+    noDataHeightMeters,
+    options.persistBaseTiles &&
+      !(ecefPresentation && options.heightOffsetMeters)
+      ? producerAssetUrl
+      : undefined,
+    {
+      presentationMode: ecefPresentation ? "ecef" : "native",
+      minimumSourceLevel: terrainSourceConfig.minzoom,
+      sourceRevision: terrainSourceConfig.revision,
+    }
+  );
+  const persistentTileUsage = createPersistentTileUsageQueue({
+    key: terrainTileKey,
+    write: async (ids) => {
+      await preparedGeometryCache.markUsed(ids);
+    },
+  });
   // Only an ECEF runtime owns this extra group. Never parent root to itself.
   const contentRoot = ecefPresentation ? ecefPresentation.root : root;
   if (ecefPresentation) root.add(ecefPresentation.root);
@@ -701,7 +827,10 @@ export const buildRasterDemTerrainRuntime = (
     );
     if (result.kind !== TERRAIN_WORKER_TASK_KIND.PROJECT)
       throw new Error("Unexpected terrain projection result");
-    return restoreWorkerGeometry(result);
+    return restoreWorkerGeometry({
+      ...result,
+      indices: result.indicesUnchanged ? tile.indices : result.indices,
+    });
   };
 
   const restoreWorkerGeometry = (
@@ -710,7 +839,7 @@ export const buildRasterDemTerrainRuntime = (
         TerrainWorkerResult,
         { kind: typeof TERRAIN_WORKER_TASK_KIND.PROJECT }
       >,
-      "kind"
+      "kind" | "indicesUnchanged"
     >
   ) => {
     const geometry = new BufferGeometry();
@@ -777,6 +906,37 @@ export const buildRasterDemTerrainRuntime = (
     // disk lookup: readiness consumers and cancellation run before caster work.
     await Promise.resolve();
     signal.throwIfAborted();
+    const restored = await preparedGeometryCache.get(
+      entry.id,
+      maximumMeshErrorMeters
+    );
+    if (signal.aborted) {
+      restored?.geometry?.dispose();
+      restored?.cachedEcefGeometry?.dispose();
+    }
+    signal.throwIfAborted();
+    if (restored) {
+      heightMetadata.record(restored.tile);
+      try {
+        const cachedEcefGeometry = restored.geometry
+          ? await ecefPresentation?.prepare(
+              restored.geometry,
+              restored.tile,
+              signal,
+              restored.cachedEcefGeometry
+            )
+          : null;
+        return {
+          tile: restored.tile,
+          projectedGeometry: restored.geometry,
+          reliefVertexMask: restored.reliefVertexMask,
+          cachedEcefGeometry: cachedEcefGeometry ?? null,
+        };
+      } catch (error) {
+        restored.geometry?.dispose();
+        throw error;
+      }
+    }
     const statsKey = terrainSelectionKey(entry);
     let tile: TerrainTile;
     markTileStage(statsKey, null);
@@ -828,7 +988,19 @@ export const buildRasterDemTerrainRuntime = (
       prepared.projectedGeometry?.dispose();
       signal.throwIfAborted();
     }
-    return prepared;
+    try {
+      const cachedEcefGeometry = prepared.projectedGeometry
+        ? await ecefPresentation?.prepare(
+            prepared.projectedGeometry,
+            tile,
+            signal
+          )
+        : null;
+      return { ...prepared, cachedEcefGeometry: cachedEcefGeometry ?? null };
+    } catch (error) {
+      prepared.projectedGeometry?.dispose();
+      throw error;
+    }
   };
 
   const prepareReliefGeometry = async (
@@ -941,10 +1113,24 @@ export const buildRasterDemTerrainRuntime = (
       entry,
       AbortSignal.any([controller.signal, conversionAbort.signal])
     )
-      .then(({ tile, projectedGeometry, reliefVertexMask }) => {
-        if (disposed || controller.signal.aborted) projectedGeometry?.dispose();
-        else {
-          ensureMesh(tile, entry, projectedGeometry, reliefVertexMask);
+      .then((result) => {
+        const {
+          tile,
+          projectedGeometry,
+          reliefVertexMask,
+          cachedEcefGeometry,
+        } = result;
+        if (disposed || controller.signal.aborted) {
+          projectedGeometry?.dispose();
+          cachedEcefGeometry?.dispose();
+        } else {
+          ensureMesh(
+            tile,
+            entry,
+            projectedGeometry,
+            reliefVertexMask,
+            cachedEcefGeometry
+          );
           trimMeshCache(activeMeshKeys);
         }
       })
@@ -992,7 +1178,8 @@ export const buildRasterDemTerrainRuntime = (
     tile: TerrainTile,
     entry: TerrainSelectionEntry,
     projectedGeometry: BufferGeometry | null,
-    reliefVertexMask: Uint8Array
+    reliefVertexMask: Uint8Array,
+    cachedEcefGeometry: BufferGeometry | null = null
   ) => {
     const key = terrainSelectionKey(entry);
     // Building the Three objects is its own cost; what remains after it is the
@@ -1002,6 +1189,7 @@ export const buildRasterDemTerrainRuntime = (
     const cached = meshes.get(key);
     if (cached) {
       projectedGeometry?.dispose();
+      cachedEcefGeometry?.dispose();
       cached.lastUsed = ++meshUseClock;
       return cached.node;
     }
@@ -1027,8 +1215,19 @@ export const buildRasterDemTerrainRuntime = (
       node.add(reliefMesh);
     }
     node.visible = false;
+    try {
+      if (reliefMesh)
+        ecefPresentation?.mount(
+          reliefMesh,
+          tile,
+          cachedEcefGeometry ?? undefined
+        );
+    } catch (error) {
+      // A failed optional projection must not attach an untracked scene node.
+      debugMaterial?.dispose();
+      throw error;
+    }
     contentRoot.add(node);
-    if (reliefMesh) ecefPresentation?.mount(reliefMesh, tile);
     // Publication updates the projection once for the complete ready batch.
     const filterReliefBoundary = (indices: Uint32Array | undefined) =>
       Uint32Array.from(
@@ -1066,6 +1265,9 @@ export const buildRasterDemTerrainRuntime = (
         : decodedHeightRange[1];
     meshes.set(key, {
       sourceTile: tile,
+      sourceGeometryBounds: reliefGeometry?.boundingBox?.clone() ?? null,
+      sourceGeometrySphere: reliefGeometry?.boundingSphere?.clone() ?? null,
+      reliefVertexMask,
       debugMaterial,
       node,
       reliefMesh,
@@ -1152,9 +1354,13 @@ export const buildRasterDemTerrainRuntime = (
         mapStyleProjectionVersion += 1;
         map?.triggerRepaint();
       },
-      onError: options.onError,
+      onError: reportTerrainError,
     });
-  let shadowDependencies: readonly { key: string; bounds: Box3 }[] = [];
+  let shadowDependencies: readonly {
+    key: string;
+    id: TerrainTileId;
+    bounds: Box3;
+  }[] = [];
   const terrainBoundsCorner = new Vector3();
 
   const getTerrainMeshWorldBounds = (
@@ -1538,6 +1744,9 @@ export const buildRasterDemTerrainRuntime = (
         if (ArrayBuffer.isView(value)) arrays.add(value.buffer);
     for (const array of Object.values(record.stitchBase ?? {}))
       arrays.add(array.buffer);
+    for (const array of Object.values(record.boundaryBaseHeights))
+      arrays.add(array.buffer);
+    arrays.add(record.reliefVertexMask.buffer);
     if (record.equalLevelShell) {
       const shell = record.equalLevelShell;
       for (const array of [
@@ -1554,10 +1763,11 @@ export const buildRasterDemTerrainRuntime = (
     return (
       (ecefPresentation
         ? record.reliefMesh
-          ? ecefPresentation.bytes(record.reliefMesh)
+          ? ecefPresentation.bytes(record.reliefMesh, arrays)
           : 0
         : record.sourceByteLength) +
       gpuBytes +
+      (record.sampleHeight?.byteLength ?? 0) +
       [...arrays].reduce((sum, buffer) => sum + buffer.byteLength, 0)
     );
   };
@@ -1576,7 +1786,10 @@ export const buildRasterDemTerrainRuntime = (
     if (meshes.size <= maxCachedMeshes && bytes <= maxCachedMeshBytes) return;
     const candidates = [...meshes.entries()]
       .filter(
-        ([key]) => !activeKeys.has(key) && !requiredPreparationKeys.has(key)
+        ([key, record]) =>
+          !activeKeys.has(key) &&
+          !requiredPreparationKeys.has(key) &&
+          !baseCoverage.pinned.has(terrainTileKey(record.id))
       )
       .sort(([, left], [, right]) => left.lastUsed - right.lastUsed);
     for (const [key, record] of candidates) {
@@ -1587,8 +1800,121 @@ export const buildRasterDemTerrainRuntime = (
     }
   };
 
+  const baseCoverage = createRasterDemTerrainBaseCache({
+    stages: options.persistBaseTiles
+      ? planTerrainBaseStages(
+          terrainSourceConfig,
+          options.baseRasterEdgePixels ?? 8192
+        )
+      : [],
+    memoryBudgetBytes: meshBaseMemoryBudget(
+      maxCachedMeshBytes,
+      options.baseCoverageMemoryShare
+    ),
+    bytes: (id) => {
+      const record = meshes.get(
+        terrainSelectionKey({ id, kind: TERRAIN_SELECTION_KIND.SOURCE })
+      );
+      return record ? meshBytes(record) : null;
+    },
+    load: async (id, signal) => {
+      if (!source) throw new Error("Terrain source is not ready");
+      const entry = { id, kind: TERRAIN_SELECTION_KIND.SOURCE };
+      const key = terrainSelectionKey(entry);
+      // Visible demand owns any outstanding preparation. Never queue behind it
+      // as an idle dependency; retry this baseline entry on a later idle turn.
+      if (pendingMeshes.has(key))
+        throw new DOMException(
+          "Foreground preparation owns tile",
+          "AbortError"
+        );
+      signal.throwIfAborted();
+      const resident = meshes.get(key);
+      if (resident) {
+        // Borrow foreground's pristine buffers. This disposable wrapper owns
+        // no GPU allocation and never changes the live, stitched surface.
+        const geometry = resident.stitchBase && new BufferGeometry();
+        if (geometry && resident.stitchBase) {
+          geometry.setAttribute(
+            "position",
+            new BufferAttribute(resident.stitchBase.positions, 3)
+          );
+          geometry.setAttribute(
+            "normal",
+            new BufferAttribute(resident.stitchBase.normals, 3)
+          );
+          geometry.setIndex(
+            new BufferAttribute(resident.stitchBase.indices, 1)
+          );
+          geometry.boundingBox = resident.sourceGeometryBounds?.clone() ?? null;
+          geometry.boundingSphere =
+            resident.sourceGeometrySphere?.clone() ?? null;
+        }
+        try {
+          const cachedEcefGeometry = geometry
+            ? await ecefPresentation?.prepare(
+                geometry,
+                resident.sourceTile,
+                signal
+              )
+            : null;
+          return {
+            tile: resident.sourceTile,
+            projectedGeometry: geometry,
+            reliefVertexMask: resident.reliefVertexMask,
+            cachedEcefGeometry: cachedEcefGeometry ?? null,
+          };
+        } catch (error) {
+          geometry?.dispose();
+          throw error;
+        }
+      }
+      return loadTerrainEntry(source, entry, signal);
+    },
+    persistPrepared: (result, signal) =>
+      preparedGeometryCache.set(
+        result.tile,
+        result.projectedGeometry,
+        result.reliefVertexMask,
+        undefined,
+        signal,
+        result.cachedEcefGeometry
+      ),
+    install: (result, id) => {
+      ensureMesh(
+        result.tile,
+        { id, kind: TERRAIN_SELECTION_KIND.SOURCE },
+        result.projectedGeometry,
+        result.reliefVertexMask,
+        result.cachedEcefGeometry
+      );
+    },
+    confirmPersistedStage: async (ids, signal) => {
+      signal.throwIfAborted();
+      return preparedGeometryCache.protectBaseline(ids);
+    },
+    isDisposed: () => disposed,
+    isUnavailable: isConfirmedTerrainServerError,
+    release: (id) => {
+      const key = terrainSelectionKey({
+        id,
+        kind: TERRAIN_SELECTION_KIND.SOURCE,
+      });
+      const record = meshes.get(key);
+      if (
+        !record ||
+        activeMeshKeys.has(key) ||
+        requiredPreparationKeys.has(key)
+      )
+        return;
+      disposeMeshRecord(record);
+      meshes.delete(key);
+    },
+    trim: () => trimMeshCache(activeMeshKeys),
+  });
+
   const snapshotSelectionInput = (frame: SharedThreeSceneFrame) => {
-    const input = snapshotRasterDemTerrainSelectionInput(frame, {
+    const snapshot = snapshotRasterDemTerrainSelectionInput(frame, {
       terrainSourceConfig,
       root: contentRoot,
       geodeticOrigin,
@@ -1606,6 +1932,8 @@ export const buildRasterDemTerrainRuntime = (
       maxSelectionTiles,
       meshSegments,
     });
+    const baseLevel = baseCoverage.snapshot().residentLevel;
+    const input = baseLevel === null ? snapshot : { ...snapshot, baseLevel };
     if (!geodetic) return input;
     const correctedRange = (range: readonly [number, number]) =>
       [
@@ -1667,7 +1995,10 @@ export const buildRasterDemTerrainRuntime = (
       const record = meshes.get(key);
       if (!record || requiredNow.has(key)) continue;
       let id = record.id;
-      while (id.level > terrainSourceConfig.minzoom) {
+      while (
+        id.level >
+        (baseCoverage.snapshot().residentLevel ?? terrainSourceConfig.minzoom)
+      ) {
         const parent = {
           level: id.level - 1,
           x: Math.floor(id.x / 2),
@@ -1700,20 +2031,29 @@ export const buildRasterDemTerrainRuntime = (
     );
     reserveSelectionEntries = reserveEntries;
     reconcileMeshRequests(selection);
-    // Cache footprints at selection time, not for every sun-disc sample. Extend
-    // vertically because an unloaded tile's actual elevation is not yet known.
+    // Cache volumes at selection time, not for every sun-disc sample. Use the
+    // same certified height envelope as traversal until native data is known.
     root.updateMatrixWorld(true);
+    const dependencyHeightRanges = heightMetadata.snapshot();
     shadowDependencies = requested.map(({ key, id }) => {
+      const heights =
+        dependencyHeightRanges[terrainTileKey(id)] ?? unknownTerrainHeightRange;
       const bounds = getTerrainMeshWorldBounds(
-        { id, minimumHeightMeters: -1000000, maximumHeightMeters: 1000000 },
+        {
+          id,
+          minimumHeightMeters: heights[0],
+          maximumHeightMeters: heights[1],
+        },
         new Box3()
       );
       terrainFrame?.toReferenceBounds(bounds);
-      return { key, bounds };
+      return { key, id, bounds };
     });
-    const hasReadySurface = (key: string) =>
-      Boolean(meshes.get(key)?.reliefMesh);
+    // A loaded all-no-data payload is a ready empty quadrant, not an unfinished
+    // sibling. This certifies only this payload; descendants still traverse.
+    const hasReadySurface = (key: string) => meshes.has(key);
     const hasSourceSurface = (id: TerrainTileId) =>
+      !unavailableTileKeys.has(terrainTileKey(id)) &&
       intersectUnwrappedGeographicBounds(getTileBounds(id), {
         west: terrainSourceConfig.bounds[0],
         south: terrainSourceConfig.bounds[1],
@@ -1751,14 +2091,28 @@ export const buildRasterDemTerrainRuntime = (
       const retainedDetailKeys = mapMoving ? getRequiredMeshKeys() : null;
       frontier = advanceTerrainTileFrontier(
         frontier,
-        [...requested, ...toFrontier(reserveEntries)],
+        [
+          ...requested,
+          ...toFrontier(completion),
+          ...toFrontier(reserveEntries),
+        ],
         hasReadySurface,
         (key) => !retainedDetailKeys?.has(key),
         hasSourceSurface
       );
       const activeKeys = new Set(frontier.map(({ key }) => key));
+      const notePublishedUse = () =>
+        persistentTileUsage.note(
+          [...getRequiredMeshKeys()].flatMap((key) => {
+            const record = activeMeshKeys.has(key) ? meshes.get(key) : null;
+            return record ? [record.id] : [];
+          })
+        );
       const signature = [...activeKeys].sort().join(";");
-      if (signature === [...activeMeshKeys].sort().join(";")) return;
+      if (signature === [...activeMeshKeys].sort().join(";")) {
+        notePublishedUse();
+        return;
+      }
       if (!current()) return;
       // Worker boundary preparation may outlive a camera move. Replan if its
       // proposal would now remove or coarsen a visible tile during motion.
@@ -1836,7 +2190,7 @@ export const buildRasterDemTerrainRuntime = (
     };
     const publishInBackground = () => {
       void requestPublication().catch((error) => {
-        if (current()) options.onError?.(error);
+        if (current()) reportTerrainError(error);
       });
     };
     const finalKeys = new Set(requested.map(({ key }) => key));
@@ -1886,6 +2240,12 @@ export const buildRasterDemTerrainRuntime = (
       selection.entries,
       ...(completion.length ? [completion] : []),
     ];
+    // Completion siblings are real preparation demand, even though traversal
+    // did not include their offscreen quadrants in its initial selection.
+    requiredPreparationKeys = new Set([
+      ...requiredPreparationKeys,
+      ...completion.map(terrainSelectionKey),
+    ]);
     const { stages: loadStages, scheduledKeys } = planTileLoadStages(
       sourceStages,
       {
@@ -1954,7 +2314,7 @@ export const buildRasterDemTerrainRuntime = (
           }
         }
         if (transientFailure !== null) {
-          options.onError?.(transientFailure);
+          reportTerrainError(transientFailure);
           scheduleSelectionRetry();
         } else {
           failedSelectionRounds = 0;
@@ -1962,6 +2322,16 @@ export const buildRasterDemTerrainRuntime = (
         finishedLoading = true;
         await requestPublication();
         if (!current()) return;
+        // Preview ancestors stop owning cache space only after their published
+        // replacements are ready. Active surfaces and pinned baseline records
+        // remain protected independently; failures and pending work can retry.
+        requiredPreparationKeys = new Set([
+          ...[...selection.entries, ...completion, ...reserveEntries].map(
+            terrainSelectionKey
+          ),
+          ...failures.map(({ value }) => terrainSelectionKey(value)),
+          ...meshJobs.keys(),
+        ]);
         if (
           prefetchView.shadowSignature === shadowViewSignature &&
           failures.length === 0
@@ -2013,7 +2383,7 @@ export const buildRasterDemTerrainRuntime = (
         // Stitch/publication can fail after successful downloads. Retry the
         // same view too; its signatures otherwise suppress all future work.
         scheduleSelectionRetry();
-        options.onError?.(error);
+        reportTerrainError(error);
         settleReady(false);
       });
   };
@@ -2037,7 +2407,7 @@ export const buildRasterDemTerrainRuntime = (
     .catch((error) => {
       if (disposed) return;
       setTerrainLoading(false);
-      options.onError?.(error);
+      reportTerrainError(error);
       settleReady(false);
     });
 
@@ -2090,7 +2460,7 @@ export const buildRasterDemTerrainRuntime = (
       })
       .catch((error) => {
         if (disposed || queuedSelectionInput) return;
-        options.onError?.(error);
+        reportTerrainError(error);
         scheduleSelectionRetry();
       })
       .finally(() => {
@@ -2113,8 +2483,10 @@ export const buildRasterDemTerrainRuntime = (
       selectionInputSignature !== view.inputSignature ||
       shadowViewSignature !== view.shadowSignature ||
       selectionShadowViewSignature !== view.shadowSignature ||
-      !selection.entries.every((entry) =>
-        activeMeshKeys.has(terrainSelectionKey(entry))
+      !selection.entries.every(
+        (entry) =>
+          activeMeshKeys.has(terrainSelectionKey(entry)) ||
+          unavailableTileKeys.has(terrainTileKey(entry.id))
       )
     )
       return;
@@ -2207,7 +2579,8 @@ export const buildRasterDemTerrainRuntime = (
     return {
       ready: ready && idlePrefetchController === null,
       remaining: ready
-        ? snapshot.entries.filter(
+        ? baseCoverage.snapshot().remaining +
+          snapshot.entries.filter(
             ({ id }) => !snapshot.attemptedKeys.has(terrainTileKey(id))
           ).length
         : 0,
@@ -2231,6 +2604,15 @@ export const buildRasterDemTerrainRuntime = (
     let prepared = 0;
     let failed = 0;
     try {
+      const previousBaseLevel = baseCoverage.snapshot().residentLevel;
+      prepared += await baseCoverage.run(controller.signal, () =>
+        isIdlePrefetchCurrent(snapshot)
+      );
+      if (isIdlePrefetchCurrent(snapshot)) await persistentTileUsage.flush();
+      if (previousBaseLevel !== baseCoverage.snapshot().residentLevel) {
+        selectionInputSignature = "";
+        map?.triggerRepaint();
+      }
       for (const entry of snapshot.entries) {
         if (controller.signal.aborted || !isIdlePrefetchCurrent(snapshot))
           break;
@@ -2252,6 +2634,7 @@ export const buildRasterDemTerrainRuntime = (
             controller.signal
           );
           result.projectedGeometry?.dispose();
+          result.cachedEcefGeometry?.dispose();
           if (controller.signal.aborted || !isIdlePrefetchCurrent(snapshot))
             break;
           if (
@@ -2354,14 +2737,16 @@ export const buildRasterDemTerrainRuntime = (
         entry,
         AbortSignal.any([controller.signal, conversionAbort.signal])
       ).then((result) => {
-        if (disposed || controller.signal.aborted)
+        if (disposed || controller.signal.aborted) {
           result.projectedGeometry?.dispose();
-        else {
+          result.cachedEcefGeometry?.dispose();
+        } else {
           ensureMesh(
             result.tile,
             entry,
             result.projectedGeometry,
-            result.reliefVertexMask
+            result.reliefVertexMask,
+            result.cachedEcefGeometry
           );
           trimMeshCache(activeMeshKeys);
         }
@@ -2687,6 +3072,34 @@ export const buildRasterDemTerrainRuntime = (
     mapStyleProjectionVersion: () => mapStyleProjectionVersion,
     updatePriority: TERRAIN_UPDATE_PRIORITY,
     ready,
+    getTerrainCacheStats: () => ({
+      cachedMeshes: meshes.size,
+      cachedMeshBytes: cachedMeshBytes(),
+      cacheCeilingBytes: maxCachedMeshBytes,
+      baseline: baseCoverage.snapshot(),
+    }),
+    setCacheBudget(bytes?: number) {
+      const next =
+        bytes !== undefined && Number.isFinite(bytes) && bytes > 0
+          ? Math.min(
+              maximumDeviceCacheBytes,
+              learnedCacheCeiling ?? Infinity,
+              Math.floor(bytes)
+            )
+          : Math.min(
+              initialMaxCachedMeshBytes,
+              learnedCacheCeiling ?? Infinity
+            );
+      if (next === maxCachedMeshBytes) return;
+      invalidateIdlePrefetch();
+      maxCachedMeshBytes = next;
+      baseCoverage.setMemoryBudget(
+        meshBaseMemoryBudget(next, options.baseCoverageMemoryShare)
+      );
+      trimMeshCache(activeMeshKeys);
+      selectionInputSignature = "";
+      map?.triggerRepaint();
+    },
     getPublishedTerrainTiles: () =>
       [...activeMeshKeys].flatMap((key) => {
         const record = meshes.get(key);
@@ -2961,8 +3374,9 @@ export const buildRasterDemTerrainRuntime = (
       return (
         dependencies.length > 0 &&
         dependencies.every(
-          ({ key }) =>
-            activeMeshKeys.has(key) && Boolean(meshes.get(key)?.reliefMesh)
+          ({ key, id }) =>
+            unavailableTileKeys.has(terrainTileKey(id)) ||
+            (activeMeshKeys.has(key) && meshes.has(key))
         )
       );
     },
@@ -2973,6 +3387,8 @@ export const buildRasterDemTerrainRuntime = (
       if (motionSettleTimer !== null) clearTimeout(motionSettleTimer);
       motionSettleTimer = null;
       heightMetadata.dispose();
+      persistentTileUsage.close();
+      preparedGeometryCache.close();
       invalidateIdlePrefetch();
       map?.off?.(MAPLIBRE_EVENT.MOVE_START, handleIdlePrefetchMovement);
       map?.off?.(MAPLIBRE_EVENT.MOVE_END, handleMovementEnd);

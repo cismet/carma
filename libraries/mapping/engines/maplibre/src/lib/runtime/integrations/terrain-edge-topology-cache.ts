@@ -1,4 +1,4 @@
-import { createDerivedBufferCache } from "@carma-commons/utils";
+import { createPersistentTileCache } from "./persistent-tile-cache";
 
 import { TERRAIN_BOUNDARY_SIDE } from "../../core/terrain-boundary-key";
 import type { TerrainStitchInput } from "./terrain-boundary-stitch";
@@ -17,7 +17,7 @@ let residentBytes = 0,
   pendingWriteBytes = 0;
 let storePromise:
   | Promise<ReturnType<
-      ReturnType<typeof createDerivedBufferCache>["register"]
+      ReturnType<typeof createPersistentTileCache>["register"]
     > | null>
   | undefined;
 const arrays = (t: Topology) => [
@@ -43,11 +43,7 @@ const store = () =>
         VERSION + prepareEqualLevelTerrainShell.toString()
       )
     );
-    const manager = createDerivedBufferCache({
-      capacityBytes: 256 * 1024 * 1024,
-      adaptiveCapacity: true,
-      producerEpoch: `terrain-edge-topology:${epoch}`,
-    });
+    const manager = createPersistentTileCache(`terrain-edge-topology:${epoch}`);
     return manager.register("terrain-edge-topology", VERSION);
   })().catch(() => null));
 
@@ -174,10 +170,12 @@ export const prepareCachedEqualLevelTerrainShell = async (
     return restore(input, memory);
   }
   let timer: ReturnType<typeof setTimeout> | undefined;
+  const readStart = performance.now();
   try {
     const read = (async () => {
       const cache = await store();
-      const record = await cache?.get(key);
+      // A late or rejected sidecar never counts as an actual cache use.
+      const record = await cache?.get(key, { touch: false });
       return record?.value;
     })();
     const cached = await Promise.race([
@@ -186,16 +184,29 @@ export const prepareCachedEqualLevelTerrainShell = async (
         timer = setTimeout(() => resolve(null), READ_DEADLINE_MS);
       }),
     ]);
-    if (valid(cached, input)) {
+    if (
+      performance.now() - readStart < READ_DEADLINE_MS &&
+      valid(cached, input)
+    ) {
+      const shell = restore(input, cached);
+      const restoreMs = performance.now() - readStart;
       remember(key, cached);
-      return restore(input, cached);
+      // Feed back only a completed disk restore, never a timeout or RAM hit.
+      // Useful, expensive sidecars compete by measured saved work per byte;
+      // they are not permanently pinned or granted a separate storage quota.
+      void store()
+        .then((cache) => cache?.updateCosts(key, { restoreMs }))
+        .catch(() => {});
+      return shell;
     }
   } catch {
     /* Source geometry remains authoritative. */
   } finally {
     clearTimeout(timer);
   }
+  const recomputeStart = performance.now();
   const shell = prepareEqualLevelTerrainShell(input);
+  const recomputeMs = performance.now() - recomputeStart;
   const topology: Topology = {
     indices: shell.indices as Uint32Array,
     sourceIndices: shell.sourceIndices!,
@@ -209,7 +220,7 @@ export const prepareCachedEqualLevelTerrainShell = async (
   if (pendingWriteBytes + size <= WRITE_BUDGET) {
     pendingWriteBytes += size;
     void store()
-      .then((cache) => cache?.put(key, saved, { bytes: size }))
+      .then((cache) => cache?.put(key, saved, { bytes: size, recomputeMs }))
       .catch(() => {})
       .finally(() => {
         pendingWriteBytes -= size;

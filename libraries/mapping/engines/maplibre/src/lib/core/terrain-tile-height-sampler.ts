@@ -7,10 +7,14 @@ import {
   type TerrainTileBounds,
 } from "./raster-dem-tile";
 
-type HeightSampler = (
+type HeightSampler = ((
   longitude: number,
   latitude: number
-) => number | undefined;
+) => number | undefined) &
+  Readonly<{
+    /** Owned typed-array copies, excluding the source tile and JS objects. */
+    byteLength: number;
+  }>;
 type SampleCoordinates = (index: number, target: Vector3) => Vector3;
 
 const sampleLatitude = (bounds: TerrainTileBounds, latitude: number) => {
@@ -44,6 +48,7 @@ const makeSampler = (
     v: number,
     sample: (a: number, b: number, c: number) => number | undefined
   ) => number | undefined,
+  additionalOwnedByteLength: number,
   noDataHeightMeters?: number
 ): HeightSampler => {
   const point = new Vector3();
@@ -76,7 +81,7 @@ const makeSampler = (
       return undefined;
     return ha * weights.x + hb * weights.y + hc * weights.z;
   };
-  return (longitude, latitude) => {
+  const sampler = (longitude: number, latitude: number) => {
     if (
       !Number.isFinite(longitude) ||
       !Number.isFinite(latitude) ||
@@ -91,6 +96,9 @@ const makeSampler = (
     point.set(u, v, 0);
     return findTriangles(u, v, sample);
   };
+  return Object.assign(sampler, {
+    byteLength: heights.byteLength + additionalOwnedByteLength,
+  });
 };
 
 /** A mesh-lifetime fallback when a persistent restore has no source raster.
@@ -176,6 +184,10 @@ export const createTerrainTileHeightSampler = (
         }
         return undefined;
       },
+      boundaryU.byteLength +
+        interiorU.byteLength +
+        boundaryV.byteLength +
+        interiorV.byteLength,
       noDataHeightMeters
     );
   }
@@ -205,6 +217,7 @@ export const createTerrainTileHeightSampler = (
       }
       return undefined;
     },
+    u.byteLength + v.byteLength + indices.byteLength,
     noDataHeightMeters
   );
 };

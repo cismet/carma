@@ -10,6 +10,7 @@ import { createThreeTilesViewFrustums } from "./three-tiles-runtime-view-frustum
 import type { SharedThreeSceneTileVolume } from "../../core/shared-three-scene-types";
 import { TILE_VOLUME_KIND } from "../../core/tile-volume";
 import { readOrientedTileBounds } from "./three-tiles-bounds";
+import { createRootTileDomainClip } from "./three-tiles-root-domain";
 import { isMeshRegionAtError } from "../../core/mesh-tile-coverage";
 import { hasMeshRefinementContentInView } from "../../core/mesh-tile-refinement";
 import type {
@@ -76,6 +77,18 @@ export function createThreeTilesSpatial(
   >
 ) {
   const cameraErrors = { values: new WeakMap<RuntimeTile, number>() };
+  const clipRootDomain = createRootTileDomainClip(
+    () => runtimeState.tiles?.root
+  );
+  let rootDomainRevision = -1;
+  const refreshRootDomain = () => {
+    const revision = clipRootDomain.revision();
+    if (rootDomainRevision !== revision) {
+      rootDomainRevision = revision;
+      cameraErrors.values = new WeakMap();
+      runtimeState.mainViewIntersectionCache = new WeakMap();
+    }
+  };
   const { updateFrameFromTiles, readModelFrameBounds } =
     createThreeTilesModelFrame(runtimeState);
   const viewportFocusNdc = new THREE.Vector3();
@@ -199,6 +212,7 @@ export function createThreeTilesSpatial(
   const isTileInMainView: ThreeTilesRuntimeServices["isTileInMainView"] = (
     tile: RuntimeTile
   ): boolean => {
+    refreshRootDomain();
     const cached = runtimeState.mainViewIntersectionCache.get(tile);
     if (cached !== undefined) return cached;
     const bounds = tile.engineData?.boundingVolume;
@@ -306,6 +320,7 @@ export function createThreeTilesSpatial(
     tile: RuntimeTile,
     includeShadow = true
   ): number => {
+    refreshRootDomain();
     if (!runtimeState.tiles) return Number.POSITIVE_INFINITY;
     // Receiver masks must not become denser in response to their own sun-camera
     // demand. Measure the observer directly without the shared shadow SSE cache.
@@ -368,7 +383,8 @@ export function createThreeTilesSpatial(
       if (runtimeState.options.providesTerrain && runtimeState.shadowView) {
         const demand = createCasterVolumeDemand(
           runtimeState.shadowReceiverMask,
-          runtimeState.requestedErrorTarget
+          runtimeState.requestedErrorTarget,
+          () => runtimeState.tiles?.root
         )(tile);
         return demand.intersects
           ? demand.errorPixels
@@ -383,6 +399,10 @@ export function createThreeTilesSpatial(
       // coarse family retains its fringe casters until their joint replacement;
       // those casters remain measurable against that committed receiver mask.
       if (
+        clipRootDomain(
+          runtimeState.tileBoundingBox,
+          runtimeState.tileBoundsTransform
+        ) &&
         runtimeState.shadowReceiverMask?.match(
           runtimeState.tileBoundingBox,
           runtimeState.shadowReceiverMatch,

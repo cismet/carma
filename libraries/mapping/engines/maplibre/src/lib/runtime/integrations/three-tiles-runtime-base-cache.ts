@@ -22,7 +22,9 @@ export const registerMeshBaseCache = (
   state: State,
   fetchSource: (url: string, options: RequestInit) => Promise<Response>
 ): MeshBaseCachePlugin | null => {
+  // HMR module paths do not identify an immutable producer build.
   if (
+    !import.meta.env.PROD ||
     !state.tiles ||
     !state.options.persistBaseTiles ||
     !state.options.providesTerrain ||

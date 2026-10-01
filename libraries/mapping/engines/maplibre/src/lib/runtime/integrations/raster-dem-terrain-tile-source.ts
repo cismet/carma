@@ -1,4 +1,7 @@
-import type { RasterDemTerrainResource } from "@carma-commons/resources";
+import {
+  rasterDemTerrainTileUrl,
+  type RasterDemTerrainResource,
+} from "@carma-commons/resources";
 import { runTerrainWorkerTask } from "./terrain-worker-client";
 import { resolveRasterMeshErrorMeters } from "../../core/raster-mesh-error";
 import { TERRAIN_WORKER_TASK_KIND } from "../../core/terrain-worker-protocol";
@@ -261,7 +264,7 @@ const buildSource = (
         trimCache();
         return result.tile;
       }
-      const url = config.url
+      const url = rasterDemTerrainTileUrl(config)
         .replace("{z}", String(id.level))
         .replace("{x}", String(id.x))
         .replace("{y}", String(id.y));

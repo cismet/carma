@@ -1,7 +1,5 @@
-import {
-  createDerivedBufferCache,
-  resolveDerivedCacheAssetEpoch,
-} from "@carma-commons/utils";
+import { resolveDerivedCacheAssetEpoch } from "@carma-commons/utils";
+import { createPersistentTileCache } from "./persistent-tile-cache";
 import {
   mergeTerrainHeightMetadata,
   TERRAIN_HEIGHT_METADATA_VERSION,
@@ -9,9 +7,15 @@ import {
 import type { TerrainTile } from "../../core/raster-dem-tile";
 import { createProjectedTerrainCacheStrategy } from "./projected-terrain-cache-strategy";
 import { cleanupLegacyProjectedTerrainCache } from "./projected-terrain-cache-maintenance";
+import type { terrainCacheTree } from "./terrain-cache-tree";
+import {
+  isCachedTerrainPresentation,
+  rebuildCachedNativeGeometry,
+  type CachedTerrainPresentation,
+} from "./terrain-presentation-cache-record";
 
 export const PROJECTED_TERRAIN_GEOMETRY_CACHE_REVISION =
-  "prepared-raster-dem-error-bounded-grid-v7";
+  "prepared-raster-dem-presentation-v0.1";
 
 const TERRAIN_CACHE_NAMESPACE = "terrain-projected";
 // DBC-06: use the ENTRY worker identity, not this module's potentially split
@@ -38,6 +42,7 @@ export type CachedProjectedTerrainTile = Readonly<{
   tile: TerrainTile;
   geometry: CachedProjectedTerrainGeometry | null;
   reliefVertexMask: Uint8Array;
+  presentation?: CachedTerrainPresentation;
 }>;
 
 const isTypedArray = <T extends Float32Array | Uint32Array>(
@@ -122,7 +127,9 @@ export const isCachedProjectedTerrainTile = (
     isCachedTile(entry.tile) &&
       (entry.geometry === null || isCachedGeometry(entry.geometry)) &&
       entry.reliefVertexMask instanceof Uint8Array &&
-      entry.reliefVertexMask.length === entry.tile!.u.length
+      entry.reliefVertexMask.length === entry.tile!.u.length &&
+      (entry.presentation === undefined ||
+        isCachedTerrainPresentation(entry.presentation, entry.tile!.u.length))
   );
 };
 
@@ -130,11 +137,7 @@ const createPipelineCache = (producerEpoch: string) => {
   // DBC-06: preparation orchestration lives in the main runtime, while kernels,
   // codecs and inline WASM live in the worker. Both immutable graphs own the
   // same epoch, including format profiles/probes and their cleanup leases.
-  const manager = createDerivedBufferCache({
-    capacityBytes: 256 * 1024 ** 2,
-    adaptiveCapacity: true,
-    producerEpoch,
-  });
+  const manager = createPersistentTileCache(producerEpoch);
   return {
     manager,
     heightMetadata: manager.register(
@@ -221,13 +224,28 @@ export const calibrateProjectedTerrainCache = (
 /** IndexedDB deserialization and full index validation run in the terrain worker. */
 export const readProjectedTerrainCacheRecord = (
   key: string,
-  producerAssetUrl?: string
+  producerAssetUrl?: string,
+  tree?: ReturnType<typeof terrainCacheTree>
 ): Promise<CachedProjectedTerrainTile | null> =>
   withPipelineCache<CachedProjectedTerrainTile | null>(
     producerAssetUrl,
     null,
-    async ({ records, strategy }) =>
-      strategy.decode((await records.get<unknown>(key))?.value)
+    async ({ records, strategy }) => {
+      const entry = await strategy.decode(
+        (
+          await records.get<unknown>(key, { tree, touch: false })
+        )?.value
+      );
+      return entry?.presentation
+        ? {
+            ...entry,
+            geometry: rebuildCachedNativeGeometry(
+              entry.tile,
+              entry.presentation
+            ),
+          }
+        : entry;
+    }
   );
 
 export const readTerrainHeightMetadata = (
@@ -267,17 +285,56 @@ export const writeProjectedTerrainCacheRecord = (
   entry: CachedProjectedTerrainTile,
   bytes: number,
   recomputeMs?: number,
-  producerAssetUrl?: string
+  producerAssetUrl?: string,
+  tree?: ReturnType<typeof terrainCacheTree>
 ) =>
   withPipelineCache(producerAssetUrl, false, async ({ records, strategy }) => {
     if (!strategy.canWrite(key)) return false;
-    const encoded = await strategy.encode(entry, bytes);
+    let stored = entry;
+    if (entry.presentation && entry.geometry) {
+      // Publication supplies pristine source geometry. Refuse a mutated/appended
+      // seam surface rather than silently reconstructing different positions.
+      const rebuilt = rebuildCachedNativeGeometry(
+        entry.tile,
+        entry.presentation
+      );
+      if (
+        rebuilt.positions.length !== entry.geometry.positions.length ||
+        !rebuilt.positions.every((v, i) => v === entry.geometry!.positions[i])
+      )
+        return false;
+      stored = { ...entry, geometry: null };
+    }
+    const encoded = await strategy.encode(
+      stored,
+      bytes -
+        (entry.presentation ? entry.geometry?.positions.byteLength ?? 0 : 0)
+    );
     if (!encoded) return false;
     return records.put(key, encoded.payload, {
       bytes: encoded.bytes,
       recomputeMs,
+      tree,
     });
   });
+
+export const protectProjectedTerrainCache = (
+  identity: string,
+  nodes: readonly string[],
+  producerAssetUrl?: string
+) =>
+  withPipelineCache(producerAssetUrl, false, ({ records }) =>
+    records.protectTree(identity, nodes, { replace: true })
+  );
+
+export const markProjectedTerrainCacheUsed = (
+  identity: string,
+  nodes: readonly string[],
+  producerAssetUrl?: string
+) =>
+  withPipelineCache(producerAssetUrl, 0, ({ records }) =>
+    records.markTreeUsed(identity, nodes)
+  );
 
 export const updateProjectedTerrainReadCost = (
   key: string,

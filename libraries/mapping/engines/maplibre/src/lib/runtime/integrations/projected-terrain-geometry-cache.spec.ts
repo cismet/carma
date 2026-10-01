@@ -5,6 +5,10 @@ import {
   Vector3,
 } from "three";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { MercatorCoordinate } from "maplibre-gl";
+import { createProjectedTerrainTileGeometry } from "@carma-mapping/engines/three/primitives/core";
+import { createMercatorTerrainProjector } from "./mercator-terrain-projector";
+import { convertTerrainGeometryToEcef } from "./terrain-ecef-conversion";
 
 const { stored, storage } = vi.hoisted(() => {
   const stored = new Map<string, unknown>();
@@ -27,9 +31,8 @@ const { stored, storage } = vi.hoisted(() => {
   };
 });
 
-vi.mock("@carma-commons/utils", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@carma-commons/utils")>()),
-  createDerivedBufferCache: () => ({
+vi.mock("@carma-commons/utils", async (importOriginal) => {
+  const createCache = () => ({
     register: () => ({
       get: async (key: string) => {
         const value = await storage.getItem(key);
@@ -45,8 +48,13 @@ vi.mock("@carma-commons/utils", async (importOriginal) => ({
       },
       updateCosts: storage.updateCosts,
     }),
-  }),
-}));
+  });
+  return {
+    ...(await importOriginal<typeof import("@carma-commons/utils")>()),
+    createDerivedBufferCache: createCache,
+    createPersistentTileCache: createCache,
+  };
+});
 
 // This suite owns main-thread restoration, dispatch and byte accounting. Codec
 // selection/admission has its own strategy tests; keep records as typed buffers
@@ -101,6 +109,85 @@ const createGeometry = () => {
 
 const reliefVertexMask = new Uint8Array([1, 1, 1]);
 describe("projected terrain geometry cache", () => {
+  it.each([Uint16Array, Uint32Array])(
+    "stores one ECEF presentation with %s indices and reconstructs exact native seam inputs without persisting flat positions",
+    async (IndexArray) => {
+      const origin = [7.15, 51.25] as const;
+      const native = createProjectedTerrainTileGeometry({
+        tile,
+        projectToWorld: createMercatorTerrainProjector(
+          MercatorCoordinate.fromLngLat([...origin], 0)
+        ),
+      });
+      native.setIndex(
+        new BufferAttribute(Uint32Array.from(native.index!.array), 1)
+      );
+      const projected = convertTerrainGeometryToEcef({
+        origin,
+        tile,
+        positions: native.getAttribute("position").array as Float32Array,
+        normals: native.getAttribute("normal").array as Float32Array,
+        indices: native.index!.array as Uint32Array,
+      }).geometry;
+      projected.setIndex(
+        new BufferAttribute(IndexArray.from(projected.index!.array), 1)
+      );
+      const cache = createProjectedTerrainGeometryCache(
+        "combined",
+        origin,
+        undefined,
+        "https://fixture.test/assets/terrain-main-a1b2c3d4.js",
+        { presentationMode: "ecef" }
+      );
+      expect(
+        await cache.set(
+          { ...tile, indices: native.index!.array as Uint32Array },
+          native,
+          reliefVertexMask,
+          20,
+          undefined,
+          projected
+        )
+      ).toBe(true);
+      const record = [...stored.values()].find(
+        (value) => value && typeof value === "object" && "tile" in value
+      ) as import("./projected-terrain-cache-record").CachedProjectedTerrainTile;
+      expect(record.geometry).toBeNull();
+      expect(record.presentation!.native).not.toHaveProperty("positions");
+      expect(record.presentation!.native.indices).toBe(record.tile.indices);
+      expect(record.presentation!.geometry.indices).toBeInstanceOf(IndexArray);
+      if (IndexArray === Uint32Array)
+        expect(record.presentation!.geometry.indices).toBe(
+          record.presentation!.native.indices
+        );
+      const restored = (await cache.get(tile.id))!;
+      expect(restored.geometry!.getAttribute("position").array).toEqual(
+        native.getAttribute("position").array
+      );
+      expect(restored.geometry!.getAttribute("normal").array).toEqual(
+        native.getAttribute("normal").array
+      );
+      expect(
+        restored.cachedEcefGeometry!.getAttribute("position").array
+      ).toEqual(projected.getAttribute("position").array);
+      expect(restored.cachedEcefGeometry!.getAttribute("normal").array).toEqual(
+        projected.getAttribute("normal").array
+      );
+      expect(restored.cachedEcefGeometry!.index!.array).toBeInstanceOf(
+        IndexArray
+      );
+      if (IndexArray === Uint32Array)
+        expect(restored.cachedEcefGeometry!.index!.array).toBe(
+          restored.geometry!.index!.array
+        );
+      expect(storage.setItem).toHaveBeenCalledTimes(1);
+      cache.close();
+      native.dispose();
+      projected.dispose();
+      restored.geometry?.dispose();
+      restored.cachedEcefGeometry?.dispose();
+    }
+  );
   beforeEach(async () => {
     vi.stubEnv("PROD", true);
     vi.stubGlobal("location", {
@@ -130,13 +217,15 @@ describe("projected terrain geometry cache", () => {
       source,
       origin,
       noData,
-      producerAssetUrl = "https://fixture.test/assets/terrain-main-a1b2c3d4.js"
+      producerAssetUrl = "https://fixture.test/assets/terrain-main-a1b2c3d4.js",
+      options = {}
     ) =>
       module.createProjectedTerrainGeometryCache(
         source,
         origin,
         noData,
-        producerAssetUrl
+        producerAssetUrl,
+        options
       );
     stored.set(
       "__conversion_revision__",
@@ -505,7 +594,7 @@ describe("projected terrain geometry cache", () => {
     ).toEqual([1, 2, 2, 3, 3, 10, 11]);
   });
 
-  it("dispatches only a cache key and transfers validated read buffers without cloning them again", async () => {
+  it("dispatches the cache identity and transfers validated read buffers without cloning them again", async () => {
     const worker = await import("./terrain-worker-client");
     const dispatch = vi.spyOn(worker, "runTerrainWorkerTask");
     const cache = createProjectedTerrainGeometryCache(
@@ -520,6 +609,12 @@ describe("projected terrain geometry cache", () => {
       {
         kind: "read-cache",
         key: expect.any(String),
+        tree: {
+          identity: expect.any(String),
+          node: "10/532/218",
+          parent: "9/266/109",
+          level: 10,
+        },
         producerAssetUrl:
           "https://fixture.test/assets/terrain-main-a1b2c3d4.js",
       },
@@ -624,7 +719,8 @@ describe("projected terrain geometry cache", () => {
     expect(first.geometry!.getAttribute("normal").array).toBe(
       adapterResult.geometry!.normals
     );
-    expect(first.geometry!.getIndex()!.array).toBe(
+    expect(first.geometry!.getIndex()!.array).toBe(adapterResult.tile.indices);
+    expect(first.geometry!.getIndex()!.array).toEqual(
       adapterResult.geometry!.indices
     );
     const persisted = structuredClone([...stored.entries()]);
@@ -783,7 +879,7 @@ describe("projected terrain geometry cache", () => {
   });
 
   it("bounds pending array bytes across namespaces and admits writes after completion", async () => {
-    // Byte accounting only: the 12 MiB fixtures are cloned three times per
+    // Byte accounting only: the 24 MiB fixtures are cloned three times per
     // write, so a real clock would let the 50 ms read deadline fire under load.
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "performance"] });
     const caches = ["first", "second", "third"].map((source) =>
@@ -801,11 +897,12 @@ describe("projected terrain geometry cache", () => {
       return value;
     });
     const geometry = createGeometry();
-    // Each geometry snapshot owns 12 MiB, plus its small index/source arrays.
+    // Two 24 MiB writes fit the shared 64 MiB admission; a third must fail
+    // before copying, then become eligible once those writes complete.
     for (const attribute of ["position", "normal"]) {
       geometry.setAttribute(
         attribute,
-        new BufferAttribute(new Float32Array(3 * 512 * 1024), 3)
+        new BufferAttribute(new Float32Array(3 * 1024 * 1024), 3)
       );
     }
     caches[0].set(tile, geometry, reliefVertexMask);
@@ -840,7 +937,7 @@ describe("projected terrain geometry cache", () => {
       new DOMException("Storage quota exhausted", "QuotaExceededError")
     );
     const geometry = createGeometry();
-    expect(cache.set(tile, geometry, reliefVertexMask)).toBeUndefined();
+    expect(await cache.set(tile, geometry, reliefVertexMask)).toBe(false);
     expect(await cache.get(tile.id)).toBeNull();
     const copies = vi.spyOn(Float32Array, "from");
     cache.set(

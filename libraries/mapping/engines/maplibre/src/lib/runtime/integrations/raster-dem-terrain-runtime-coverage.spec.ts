@@ -2,7 +2,7 @@ import { NRW_DGM1_DHHN2016_TERRARIUM_TERRAIN } from "@carma-commons/resources";
 import { Camera, Matrix4, PerspectiveCamera, Vector2, Vector3 } from "three";
 import { describe, expect, it, vi } from "vitest";
 import { getTileBounds } from "../../core/raster-dem-tile";
-import type { TerrainTileId } from "../../core/raster-dem-tile";
+import type { TerrainTile, TerrainTileId } from "../../core/raster-dem-tile";
 import {
   acquireRasterDemTerrainTileSource,
   registerSharedThreeTerrainSampler,
@@ -53,7 +53,7 @@ describe("buildRasterDemTerrainRuntime coverage refinement", () => {
           ).toBe(false);
       };
       const source = {
-        requestTile: vi.fn(async (id: TerrainTileId) => {
+        requestTile: vi.fn(async (id: TerrainTileId): Promise<TerrainTile> => {
           if (id.level > 11) {
             expectCompleteCut();
             expect(
@@ -69,7 +69,12 @@ describe("buildRasterDemTerrainRuntime coverage refinement", () => {
           }
           return {
             id,
-            heightMeters: new Float32Array([100]),
+            bounds: source.getTileBounds(id),
+            u: new Float32Array([0, 0, 1, 1]),
+            v: new Float32Array([0, 1, 0, 1]),
+            heightMeters: new Float32Array([100, 100, 100, 100]),
+            indices: new Uint32Array([0, 2, 1, 1, 2, 3]),
+            byteLength: 256,
             westIndices: new Uint32Array(),
             southIndices: new Uint32Array(),
             eastIndices: new Uint32Array(),
@@ -99,7 +104,12 @@ describe("buildRasterDemTerrainRuntime coverage refinement", () => {
           maxzoom: sourceMaxzoom,
         },
         [7.101, 51.349],
-        { minimumLevel: 10, maximumLevel, errorTargetPixels: 0.5 }
+        {
+          minimumLevel: 10,
+          maximumLevel,
+          errorTargetPixels: 0.5,
+          maxCachedMeshes: 1,
+        }
       );
       const map = {
         getBounds: () => ({
@@ -160,6 +170,11 @@ describe("buildRasterDemTerrainRuntime coverage refinement", () => {
       );
       expect(Math.max(...visibleIds().map(({ level }) => level))).toBe(
         finalLevel
+      );
+      // A tiny optional cache keeps the complete published cut, but hidden
+      // preview ancestors must lose preparation protection after publication.
+      expect(runtime.getTerrainCacheStats().cachedMeshes).toBe(
+        visibleIds().length
       );
       runtime.dispose();
     }

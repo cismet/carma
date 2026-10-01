@@ -1,5 +1,5 @@
+import { MercatorCoordinate } from "maplibre-gl";
 import {
-  Camera,
   Group,
   Matrix4,
   Mesh,
@@ -18,6 +18,36 @@ import {
   installRasterDemTerrainRuntimeFixture,
 } from "./raster-dem-terrain-runtime.test-support";
 import { buildRasterDemTerrainRuntime } from "./raster-dem-terrain-runtime";
+
+const viewCamera = (
+  west: number,
+  east: number,
+  south: number,
+  north: number,
+  latitude = 51.25
+) => {
+  const origin = MercatorCoordinate.fromLngLat([7.15, latitude]);
+  const southwest = MercatorCoordinate.fromLngLat([west, south]);
+  const northeast = MercatorCoordinate.fromLngLat([east, north]);
+  const scale = origin.meterInMercatorCoordinateUnits();
+  const halfWidth = (northeast.x - southwest.x) / scale / 2;
+  const halfDepth = (southwest.y - northeast.y) / scale / 2;
+  const camera = new OrthographicCamera(
+    -halfWidth,
+    halfWidth,
+    halfDepth,
+    -halfDepth,
+    1,
+    100_000
+  );
+  const centerX = ((southwest.x + northeast.x) / 2 - origin.x) / scale;
+  const centerZ = ((southwest.y + northeast.y) / 2 - origin.y) / scale;
+  camera.up.set(0, 0, -1);
+  camera.position.set(centerX, 50_000, centerZ);
+  camera.lookAt(centerX, 0, centerZ);
+  camera.updateMatrixWorld(true);
+  return camera;
+};
 
 describe("buildRasterDemTerrainRuntime missing coverage", () => {
   installRasterDemTerrainRuntimeFixture();
@@ -84,7 +114,7 @@ describe("buildRasterDemTerrainRuntime missing coverage", () => {
     lodCamera.position.set(0, 1_000, 0);
     runtime.update({
       map: map as never,
-      renderCamera: new Camera(),
+      renderCamera: viewCamera(6.8, 7.4, 51, 51.3, 51.256),
       lodCamera,
       lookTarget: new Vector3(),
       viewport: new Vector2(1_000, 1_000),
@@ -148,7 +178,11 @@ describe("buildRasterDemTerrainRuntime missing coverage", () => {
     const source = {
       requestTile: vi.fn(async (id) => ({
         id,
-        heightMeters: new Float32Array([100]),
+        bounds: { west: 7, south: 51, east: 7.4, north: 51.4 },
+        u: new Float32Array([0, 0, 1, 1]),
+        v: new Float32Array([0, 1, 0, 1]),
+        heightMeters: new Float32Array([100, 100, 100, 100]),
+        indices: new Uint32Array([0, 2, 1, 1, 2, 3]),
         westIndices: new Uint32Array(),
         southIndices: new Uint32Array(),
         eastIndices: new Uint32Array(),
@@ -211,7 +245,7 @@ describe("buildRasterDemTerrainRuntime missing coverage", () => {
     });
     runtime.update({
       map: map as never,
-      renderCamera: new Camera(),
+      renderCamera: lowResolutionShadowCamera,
       lodCamera,
       lookTarget: new Vector3(),
       viewport: new Vector2(1_000, 1_000),
@@ -273,7 +307,11 @@ describe("buildRasterDemTerrainRuntime missing coverage", () => {
             pendingResolvers.push(() =>
               resolve({
                 id,
-                heightMeters: new Float32Array([100]),
+                bounds: boundsOf(id),
+                u: new Float32Array([0, 0, 1, 1]),
+                v: new Float32Array([0, 1, 0, 1]),
+                heightMeters: new Float32Array([100, 100, 100, 100]),
+                indices: new Uint32Array([0, 2, 1, 1, 2, 3]),
                 westIndices: new Uint32Array(),
                 southIndices: new Uint32Array(),
                 eastIndices: new Uint32Array(),
@@ -320,7 +358,7 @@ describe("buildRasterDemTerrainRuntime missing coverage", () => {
       lodCamera.updateMatrixWorld(true);
       runtime.update({
         map: map as never,
-        renderCamera: new Camera(),
+        renderCamera: viewCamera(7.125, viewEast, 51.2, 51.3),
         lodCamera,
         lookTarget: new Vector3(),
         viewport: new Vector2(1_000, 1_000),

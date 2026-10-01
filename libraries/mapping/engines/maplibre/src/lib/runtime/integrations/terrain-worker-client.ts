@@ -37,6 +37,8 @@ const isOptionalCacheTask = (task: TerrainWorkerTask) =>
   task.kind === TERRAIN_WORKER_TASK_KIND.READ_HEIGHT_METADATA ||
   task.kind === TERRAIN_WORKER_TASK_KIND.WRITE_HEIGHT_METADATA ||
   task.kind === TERRAIN_WORKER_TASK_KIND.CACHE_COST ||
+  task.kind === TERRAIN_WORKER_TASK_KIND.PROTECT_CACHE ||
+  task.kind === TERRAIN_WORKER_TASK_KIND.MARK_CACHE_USED ||
   task.kind === TERRAIN_WORKER_TASK_KIND.CALIBRATE_CACHE;
 
 const updateLoad = () => {
@@ -59,13 +61,20 @@ const TASK_PRIORITY = {
   [TERRAIN_WORKER_TASK_KIND.SELECT]: 0,
   [TERRAIN_WORKER_TASK_KIND.PARTITION]: 0,
   [TERRAIN_WORKER_TASK_KIND.PROJECT]: 1,
+  [TERRAIN_WORKER_TASK_KIND.PROJECT_ECEF]: 1,
   [TERRAIN_WORKER_TASK_KIND.STITCH]: 2,
   [TERRAIN_WORKER_TASK_KIND.DECODE]: 3,
   [TERRAIN_WORKER_TASK_KIND.REMESH]: 3,
   [TERRAIN_WORKER_TASK_KIND.CACHE_COST]: 4,
+  [TERRAIN_WORKER_TASK_KIND.PROTECT_CACHE]: 5,
+  [TERRAIN_WORKER_TASK_KIND.MARK_CACHE_USED]: 5,
   [TERRAIN_WORKER_TASK_KIND.WRITE_CACHE]: 5,
   [TERRAIN_WORKER_TASK_KIND.CALIBRATE_CACHE]: 6,
 } as const;
+const taskPriority = (task: TerrainWorkerTask) =>
+  task.kind === TERRAIN_WORKER_TASK_KIND.PROJECT_ECEF && task.background
+    ? 4
+    : TASK_PRIORITY[task.kind];
 
 const removeSlot = (slot: Slot) => {
   const index = slots.indexOf(slot);
@@ -133,8 +142,7 @@ const pump = () => {
         const victim = running
           .filter((slot) => isOptionalCacheTask(slot.job!.task))
           .sort(
-            (a, b) =>
-              TASK_PRIORITY[b.job!.task.kind] - TASK_PRIORITY[a.job!.task.kind]
+            (a, b) => taskPriority(b.job!.task) - taskPriority(a.job!.task)
           )[0];
         preemptedCacheWorker = true;
         victim.job!.reject(
@@ -334,11 +342,17 @@ export const runTerrainWorkerTask = async (
     };
     signal?.addEventListener("abort", onAbort, { once: true });
     const before = queue.findIndex(
-      (queued) => TASK_PRIORITY[queued.task.kind] > TASK_PRIORITY[task.kind]
+      (queued) => taskPriority(queued.task) > taskPriority(task)
     );
     queue.splice(before < 0 ? queue.length : before, 0, job);
     pump();
   });
 };
 
-import.meta.hot?.dispose(disposeTerrainWorkerPool);
+if (import.meta.hot) {
+  import.meta.hot.dispose(disposeTerrainWorkerPool);
+  // MapLibre keeps imperative terrain runtimes beyond React refresh boundaries.
+  // Replace both the retained closures and the worker pool after a kernel update;
+  // otherwise a retained runtime can keep submitting to the disposed pool.
+  import.meta.hot.accept(() => window.location.reload());
+}

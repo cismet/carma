@@ -22,24 +22,28 @@ describe("buildRasterDemTerrainRuntime shadow selection", () => {
 
   it("uses orthographic shadow resolution to refine offscreen occluders", async () => {
     const parentId = { level: 10, x: 532, y: 218 };
+    const boundsOf = (id: { level: number; x: number; y: number }) => {
+      if (id.level === parentId.level)
+        return { west: 7.4, south: 51.24, east: 7.46, north: 51.27 };
+      const west = id.x % 2 === 0 ? 7.4 : 7.43;
+      const north = id.y % 2 === 0 ? 51.27 : 51.255;
+      return { west, south: north - 0.015, east: west + 0.03, north };
+    };
     const source = {
       requestTile: vi.fn(async (id) => ({
         id,
-        heightMeters: new Float32Array([100]),
+        bounds: boundsOf(id),
+        u: new Float32Array([0, 0, 1, 1]),
+        v: new Float32Array([0, 1, 0, 1]),
+        heightMeters: new Float32Array([100, 100, 100, 100]),
+        indices: new Uint32Array([0, 2, 1, 1, 2, 3]),
         westIndices: new Uint32Array(),
         southIndices: new Uint32Array(),
         eastIndices: new Uint32Array(),
         northIndices: new Uint32Array(),
       })),
       getTileGridIdsForBounds: vi.fn(() => [parentId]),
-      getTileBounds: vi.fn((id) => {
-        if (id.level === parentId.level) {
-          return { west: 7.4, south: 51.24, east: 7.46, north: 51.27 };
-        }
-        const west = id.x % 2 === 0 ? 7.4 : 7.43;
-        const north = id.y % 2 === 0 ? 51.27 : 51.255;
-        return { west, south: north - 0.015, east: west + 0.03, north };
-      }),
+      getTileBounds: vi.fn(boundsOf),
       getLevelMaximumGeometricError: vi.fn(() => 100),
       getTileDataAvailable: vi.fn(() => true),
       sampleHeight: vi.fn(),
@@ -151,7 +155,11 @@ describe("buildRasterDemTerrainRuntime shadow selection", () => {
     const source = {
       requestTile: vi.fn(async (id) => ({
         id,
-        heightMeters: new Float32Array([100]),
+        bounds: boundsOf(id),
+        u: new Float32Array([0, 0, 1, 1]),
+        v: new Float32Array([0, 1, 0, 1]),
+        heightMeters: new Float32Array([100, 100, 100, 100]),
+        indices: new Uint32Array([0, 2, 1, 1, 2, 3]),
         westIndices: new Uint32Array(),
         southIndices: new Uint32Array(),
         eastIndices: new Uint32Array(),
@@ -224,9 +232,11 @@ describe("buildRasterDemTerrainRuntime shadow selection", () => {
     });
     const lodCamera = new PerspectiveCamera(60, 1, 1, 100_000);
     lodCamera.position.set(0, 500, 0);
+    lodCamera.lookAt(0, 0, 0);
+    lodCamera.updateMatrixWorld(true);
     runtime.update({
       map: map as never,
-      renderCamera: new Camera(),
+      renderCamera: lodCamera,
       lodCamera,
       lookTarget: new Vector3(),
       viewport: new Vector2(1_000, 1_000),
@@ -297,7 +307,11 @@ describe("buildRasterDemTerrainRuntime shadow selection", () => {
     const source = {
       requestTile: vi.fn(async (id) => ({
         id,
-        heightMeters: new Float32Array([200, 220]),
+        bounds: boundsOf(id),
+        u: new Float32Array([0, 0, 1, 1]),
+        v: new Float32Array([0, 1, 0, 1]),
+        heightMeters: new Float32Array([200, 220, 200, 220]),
+        indices: new Uint32Array([0, 2, 1, 1, 2, 3]),
         westIndices: new Uint32Array(),
         southIndices: new Uint32Array(),
         eastIndices: new Uint32Array(),

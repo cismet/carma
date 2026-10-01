@@ -6,7 +6,6 @@ import * as THREE from "three";
 import { GLTFPrimitiveOutlineExtension } from "@carma-mapping/engines/threejs";
 
 import { compareTileRequestOrder } from "../../core/tile-scheduling-policy";
-import type { TilesDeviceProfile } from "../../core/tile-cache-policy";
 import type {
   RuntimeLruCache,
   RuntimeTile,
@@ -175,21 +174,6 @@ export class TilesViewFrustum extends THREE.Frustum {
     return this;
   }
 }
-
-export const readTilesDeviceProfile = (): TilesDeviceProfile => {
-  if (typeof navigator === "undefined") {
-    return { userAgent: "", platform: "", maxTouchPoints: 0 };
-  }
-  const deviceMemory = (navigator as Navigator & { deviceMemory?: number })
-    .deviceMemory;
-  return {
-    deviceMemoryGiB:
-      typeof deviceMemory === "number" ? deviceMemory : undefined,
-    userAgent: navigator.userAgent ?? "",
-    platform: navigator.platform ?? "",
-    maxTouchPoints: navigator.maxTouchPoints ?? 0,
-  };
-};
 
 export const resolveTileContentUrl = (tile: Tile): string | null => {
   const uri = tile.content?.uri;

@@ -5,6 +5,8 @@ export const TERRAIN_WORKER_TASK_KIND = {
   READ_CACHE: "read-cache",
   WRITE_CACHE: "write-cache",
   CACHE_COST: "cache-cost",
+  PROTECT_CACHE: "protect-cache",
+  MARK_CACHE_USED: "mark-cache-used",
   CALIBRATE_CACHE: "calibrate-cache",
   SELECT: "select",
   PARTITION: "partition",
@@ -12,6 +14,7 @@ export const TERRAIN_WORKER_TASK_KIND = {
   DECODE: "decode",
   REMESH: "remesh",
   PROJECT: "project",
+  PROJECT_ECEF: "project-ecef",
 } as const;
 
 export type TerrainWorkerTaskKind =

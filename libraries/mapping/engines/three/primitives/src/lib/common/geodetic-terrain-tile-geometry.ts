@@ -14,15 +14,21 @@ import {
  */
 export const createGeodeticTerrainTileGeometry = (
   tile: ProjectedTerrainTileSource,
-  heightOffsetMeters?: (longitude: number, latitude: number) => number
+  heightOffsetMeters?: (longitude: number, latitude: number) => number,
+  context?: {
+    frame: ReturnType<typeof createLocalEcefFrame>;
+    project: ReturnType<typeof createRasterEcefProjector>;
+    normalBuffer?: Float32Array;
+  }
 ) => {
   const longitude = (tile.bounds.west + tile.bounds.east) / 2;
   const latitude = (tile.bounds.south + tile.bounds.north) / 2;
-  const frame = createLocalEcefFrame(longitude, latitude);
-  const project = createRasterEcefProjector();
+  const frame = context?.frame ?? createLocalEcefFrame(longitude, latitude);
+  const project = context?.project ?? createRasterEcefProjector();
   const geometry = createProjectedTerrainTileGeometry({
     tile,
     triangleOrientation: "geographic",
+    normalBuffer: context?.normalBuffer,
     projectToWorld: (lng, lat, height, target) =>
       project(
         lng,
@@ -42,7 +48,7 @@ export const createGeodeticTerrainTileGeometry = (
     );
   return {
     geometry,
-    ecefFromLocal: frame.ecefFromLocal,
+    ecefFromLocal: frame.ecefFromLocal.clone(),
     ecefBounds,
     localBounds: geometry.boundingBox!.clone() as Box3,
   };

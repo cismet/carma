@@ -80,6 +80,37 @@ describe("projected terrain cache strategy routing", () => {
     expect(context.profiles.get).not.toHaveBeenCalled();
   });
 
+  it("preserves combined ECEF streams when an older Meshopt profile is selected", async () => {
+    const importsBefore = meshopt.imports;
+    const context = cache();
+    const entry = source();
+    const indices = entry.tile.indices;
+    entry.presentation = {
+      mode: "ecef",
+      origin: [7.15, 51.25],
+      native: {
+        normals: new Float32Array([0, 0, 1, 0, 0, 1, 0, 0, 1]),
+        indices,
+        bounds: [0, 0, 0, 1, 1, 1],
+        sphere: [0, 0, 0, 1],
+      },
+      geometry: {
+        positions: new Float32Array([1, 2, 3, 4, 5, 6, 7, 8, 9]),
+        normals: new Float32Array([0, 1, 0, 0, 1, 0, 0, 1, 0]),
+        indices,
+        bounds: [1, 2, 3, 7, 8, 9],
+        sphere: [4, 5, 6, 8],
+      },
+    };
+    context.profiles.values.set(profileKey(), profile("meshopt"));
+    const encoded = await context.strategy.encode(entry, 256);
+    expect(encoded?.payload).toMatchObject({ format: "binary" });
+    expect(await context.strategy.decode(encoded?.payload)).toEqual(entry);
+    expect(meshopt.encode).not.toHaveBeenCalled();
+    expect(meshopt.decode).not.toHaveBeenCalled();
+    expect(meshopt.imports).toBe(importsBefore);
+  });
+
   it.each([
     ["environment", { environment: "other-device|2" }],
     ["expired", { measuredAt: NOW - TTL - 1 }],

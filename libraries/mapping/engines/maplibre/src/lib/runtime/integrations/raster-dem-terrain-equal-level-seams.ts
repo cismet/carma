@@ -123,15 +123,11 @@ export const prepareEqualLevelTerrainBoundaries = async (
     if (!shell?.sourceIndices || !shell.normalTargets || !geometry) continue;
     const position = geometry.getAttribute("position") as BufferAttribute;
     const normal = geometry.getAttribute("normal") as BufferAttribute;
-    // Preserve the immutable native arrays used by later cuts and mixed LOD.
-    if (position.array === record.stitchBase?.positions)
-      position.array = position.array.slice();
-    if (normal.array === record.stitchBase?.normals)
-      normal.array = normal.array.slice();
     const patch = (
       attribute: BufferAttribute,
       values: Float32Array,
-      targets: Iterable<number>
+      targets: Iterable<number>,
+      borrowed?: Float32Array
     ) => {
       const sorted = [...new Set(targets)].sort(
         (a, b) => shell.sourceIndices![a] - shell.sourceIndices![b]
@@ -140,6 +136,15 @@ export const prepareEqualLevelTerrainBoundaries = async (
         end = -1;
       for (const i of sorted) {
         const dst = shell.sourceIndices![i] * 3;
+        if (
+          attribute.array[dst] === values[i * 3] &&
+          attribute.array[dst + 1] === values[i * 3 + 1] &&
+          attribute.array[dst + 2] === values[i * 3 + 2]
+        )
+          continue;
+        // Only real changes copy and invalidate the pristine native buffer.
+        if (attribute.array === borrowed)
+          attribute.array = attribute.array.slice();
         attribute.array[dst] = values[i * 3];
         attribute.array[dst + 1] = values[i * 3 + 1];
         attribute.array[dst + 2] = values[i * 3 + 2];
@@ -150,21 +155,29 @@ export const prepareEqualLevelTerrainBoundaries = async (
         end = dst + 3;
       }
       if (start >= 0) attribute.addUpdateRange(start, end - start);
-      attribute.needsUpdate = true;
+      if (start >= 0) attribute.needsUpdate = true;
+      return start >= 0;
     };
-    patch(
+    const positionsChanged = patch(
       position,
       update.positions,
-      Object.values(shell.boundaryEdges).flatMap((edge) => [...edge])
+      Object.values(shell.boundaryEdges).flatMap((edge) => [...edge]),
+      record.stitchBase?.positions
     );
-    patch(normal, update.normals, shell.normalTargets);
-    geometry.boundingBox?.union(
-      new Box3(
-        new Vector3().fromArray(update.box.min),
-        new Vector3().fromArray(update.box.max)
-      )
+    patch(
+      normal,
+      update.normals,
+      shell.normalTargets,
+      record.stitchBase?.normals
     );
-    if (geometry.boundingBox)
+    if (positionsChanged)
+      geometry.boundingBox?.union(
+        new Box3(
+          new Vector3().fromArray(update.box.min),
+          new Vector3().fromArray(update.box.max)
+        )
+      );
+    if (positionsChanged && geometry.boundingBox)
       geometry.boundingSphere = geometry.boundingBox.getBoundingSphere(
         new Sphere()
       );

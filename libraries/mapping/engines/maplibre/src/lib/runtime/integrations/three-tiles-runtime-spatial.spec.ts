@@ -140,6 +140,50 @@ describe("current-camera screen error before native traversal", () => {
     };
   };
 
+  it("refreshes camera memoization when a root certificate arrives or changes", () => {
+    const { state, tiles, camera, receiver, spatial } = fixture();
+    let root: RuntimeTile | undefined;
+    Object.defineProperty(tiles, "root", {
+      configurable: true,
+      get: () => root,
+    });
+    spatial.prepareViewFrustums(camera);
+    state.tileCameraDemand = createTileCameraDemand(
+      snapshotTileCameraViews([
+        {
+          id: TILE_MAIN_OBSERVER_ID,
+          camera,
+          viewport: [1000, 1000],
+          errorTargetPixels: state.effectiveErrorTarget,
+          role: "receiver",
+        },
+      ])
+    );
+    const rootBounds = new Box3(
+      new Vector3(100, -2, -2),
+      new Vector3(101, 2, 2)
+    );
+    try {
+      expect(spatial.getTileCameraDemand(receiver, true).required).toBe(true);
+      expect(spatial.isTileInMainView(receiver)).toBe(true);
+      root = {
+        ...receiver,
+        engineData: {
+          boundingVolume: {
+            getAABB: (target: Box3) => target.copy(rootBounds),
+          },
+        },
+      } as RuntimeTile;
+      expect(spatial.getTileCameraDemand(receiver, true).required).toBe(false);
+      expect(spatial.isTileInMainView(receiver)).toBe(false);
+      rootBounds.set(new Vector3(-2, -2, -2), new Vector3(2, 2, 2));
+      expect(spatial.getTileCameraDemand(receiver, true).required).toBe(true);
+      expect(spatial.isTileInMainView(receiver)).toBe(true);
+    } finally {
+      tiles.dispose();
+    }
+  });
+
   it("refreshes coverage holes for the current camera while retaining the same published cut", () => {
     const { state, tiles, camera, receiver, spatial } = fixture();
     const frontier = state.displayedMeshFrontier;
@@ -268,11 +312,7 @@ describe("current-camera screen error before native traversal", () => {
         TILE_CAMERA_PRIORITY.VIEWPORT_FILL
       );
       const candidates = [coarse.child, fine.child, small.child];
-      expect(candidates.map(spatial.getTileRequestPriority)).toEqual([
-        1,
-        1,
-        1,
-      ]);
+      expect(candidates.map(spatial.getTileRequestPriority)).toEqual([1, 1, 1]);
       expect(coarse.child.meshRefinement!.benefit).toBeGreaterThan(
         fine.child.meshRefinement!.benefit
       );

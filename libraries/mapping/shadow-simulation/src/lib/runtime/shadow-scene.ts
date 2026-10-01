@@ -8,6 +8,8 @@ import { MercatorCoordinate, type Map as MaplibreMap } from "maplibre-gl";
 import * as THREE from "three";
 
 import { clamp } from "@carma-commons/math";
+import { getPixelResolutionFromZoomAtLatitudeRad } from "@carma-geo/proj";
+import { degToRad, type Degrees } from "@carma-units";
 import { NRW_DGM1_DHHN2016_TERRARIUM_TERRAIN } from "@carma-commons/resources";
 import {
   acquireSharedThreeScene,
@@ -314,6 +316,9 @@ export const buildShadowSimulationScene = (
       maxCacheBytes,
       maxCachedMeshes,
       maxCachedMeshBytes,
+      persistBaseTiles,
+      baseRasterEdgePixels,
+      baseCoverageMemoryShare,
       meshSegments,
       maximumMeshSegments,
       noDataHeightMeters,
@@ -340,6 +345,9 @@ export const buildShadowSimulationScene = (
         maxCacheBytes,
         maxCachedMeshes,
         maxCachedMeshBytes,
+        persistBaseTiles,
+        baseRasterEdgePixels,
+        baseCoverageMemoryShare,
         meshSegments: meshSegments ?? terrainSourceConfig.tileSize,
         maximumMeshSegments,
         noDataHeightMeters,
@@ -414,8 +422,6 @@ export const buildShadowSimulationScene = (
         mapInMotion ||
         timeAnimating ||
         contentChangeTimer !== 0 ||
-        !softSunShadowsEnabled ||
-        !nativeAccumulationFits ||
         !latestFrame
       )
         return null;
@@ -438,6 +444,8 @@ export const buildShadowSimulationScene = (
           await runtime.prefetchIdleTerrain(signal);
           if (
             signal.aborted ||
+            !softSunShadowsEnabled ||
+            !nativeAccumulationFits ||
             !isTiledBufferEnabled() ||
             !tiledScene ||
             !latestFrame ||
@@ -1218,8 +1226,21 @@ export const buildShadowSimulationScene = (
       );
       const snapshot = sharedBinding.controller.update({
         maxReceiverBiasMeters: resolveMeshReceiverBiasLimit(),
-        // Terrain offsets must not grow when camera pitch enlarges the fit.
-        receiverBiasMeters: sharedSceneProvidesTerrain() ? undefined : 0.5,
+        // Bias follows the terrain's fixed world sampling grid and sun angle.
+        // A constant 0.5 m under-biases shallow sunlight; using the camera fit
+        // instead would move the shadow contact when the observer pitches.
+        receiverTexelMeters: sharedSceneProvidesTerrain()
+          ? undefined
+          : getPixelResolutionFromZoomAtLatitudeRad(
+              map.getZoom(),
+              degToRad(
+                (terrainRuntime?.originLngLat?.[1] ??
+                  map.getCenter().lat) as Degrees
+              ),
+              { tileSize: 512 }
+            ) *
+            SHADOW_QUALITY_PROFILES[sharedBinding.shadowQuality]
+              .shadowTexelErrorPixels,
         mountedShadowCamera: !sharedSceneProvidesTerrain(),
         rasterKey: sharedSceneProvidesTerrain()
           ? undefined

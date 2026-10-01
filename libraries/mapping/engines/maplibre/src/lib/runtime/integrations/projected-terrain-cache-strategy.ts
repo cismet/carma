@@ -43,7 +43,7 @@ type Profile = {
 };
 const PROFILE_VERSION = "terrain-cache-formats-v1:meshopt-0.25-exact";
 const PROFILE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
-const CACHE_MAX_BYTES = 32 * 1024 ** 2;
+const CACHE_MAX_BYTES = 64 * 1024 ** 2;
 const SEED_TTL_MS = 60_000;
 type CalibrationSeed = {
   owner: symbol;
@@ -65,7 +65,7 @@ const clearSeed = (owner: symbol) => {
 };
 const entryBufferBytes = (entry: CachedProjectedTerrainTile) => {
   const tile = entry.tile;
-  const arrays = [
+  const arrays: (Float32Array | Uint8Array | Uint16Array | Uint32Array)[] = [
     tile.u,
     tile.v,
     tile.heightMeters,
@@ -81,6 +81,14 @@ const entryBufferBytes = (entry: CachedProjectedTerrainTile) => {
       entry.geometry.positions,
       entry.geometry.normals,
       entry.geometry.indices
+    );
+  if (entry.presentation)
+    arrays.push(
+      entry.presentation.native.normals,
+      entry.presentation.native.indices,
+      entry.presentation.geometry.positions,
+      entry.presentation.geometry.normals,
+      entry.presentation.geometry.indices
     );
   return [...new Set(arrays.map((array) => array.buffer))].reduce(
     (sum, buffer) => sum + buffer.byteLength,
@@ -305,7 +313,15 @@ export const createProjectedTerrainCacheStrategy = (
         const profile = await readProfile(bytes);
         // The complete managed-codec comparison on the target desktop chose
         // binary Blob. Actual-hit feedback still rejects losses on any client.
-        const format = profile?.format ?? PROJECTED_TERRAIN_CACHE_FORMAT.BINARY;
+        const selected =
+          profile?.format ?? PROJECTED_TERRAIN_CACHE_FORMAT.BINARY;
+        // The old Meshopt codec has no ECEF presentation streams. Never drop
+        // those arrays just because a flat-record profile selected that codec.
+        const format =
+          entry.presentation &&
+          selected === PROJECTED_TERRAIN_CACHE_FORMAT.MESHOPT
+            ? PROJECTED_TERRAIN_CACHE_FORMAT.BINARY
+            : selected;
         const payload = await encodeFormat(entry, format);
         return {
           payload,
@@ -394,6 +410,11 @@ export const createProjectedTerrainCacheStrategy = (
                   PROJECTED_TERRAIN_CACHE_FORMAT.BINARY,
                   PROJECTED_TERRAIN_CACHE_FORMAT.MESHOPT,
                 ] as const) {
+                  if (
+                    entry.presentation &&
+                    format === PROJECTED_TERRAIN_CACHE_FORMAT.MESHOPT
+                  )
+                    continue;
                   if (signal?.aborted) return false;
                   const start = performance.now();
                   const payload = await encodeFormat(entry, format);

@@ -51,7 +51,83 @@ const fixture = () => {
 };
 
 describe("terrain ECEF presentation ownership", () => {
-  it("updates derived geometry after a seam change without modifying the borrowed source", () => {
+  it("prepares worker buffers before publication with the same surface as synchronous mounting", async () => {
+    const worker = fixture();
+    const synchronous = fixture();
+    const nativePositions = worker.native.geometry
+      .getAttribute("position")
+      .array.slice();
+    const geometry = await worker.presentation.prepare(
+      worker.native.geometry,
+      worker.tile
+    );
+    expect(worker.native.parent).toBe(worker.parent);
+    expect(worker.presentation.mesh(worker.native)).toBeUndefined();
+    const derived = worker.presentation.mount(
+      worker.native,
+      worker.tile,
+      geometry
+    );
+    const reference = synchronous.presentation.mount(
+      synchronous.native,
+      synchronous.tile
+    );
+    expect(derived.geometry).toBe(geometry);
+    expect(geometry.getAttribute("position").array).toEqual(
+      reference.geometry.getAttribute("position").array
+    );
+    expect(geometry.getAttribute("normal").array).toEqual(
+      reference.geometry.getAttribute("normal").array
+    );
+    expect(geometry.index!.array).toEqual(reference.geometry.index!.array);
+    expect(geometry.index!.array).toBe(worker.native.geometry.index!.array);
+    expect(geometry.index).not.toBe(worker.native.geometry.index);
+    expect(reference.geometry.index!.array).toBe(
+      synchronous.native.geometry.index!.array
+    );
+    expect(worker.native.geometry.getAttribute("position").array).toEqual(
+      nativePositions
+    );
+    worker.presentation.dispose();
+    synchronous.presentation.dispose();
+    worker.native.geometry.dispose();
+    synchronous.native.geometry.dispose();
+  });
+
+  it("keeps corrected ECEF winding separate from reversed native topology", async () => {
+    const { native, tile, presentation } = fixture();
+    const index = native.geometry.index!;
+    const b = index.getX(1);
+    index.setX(1, index.getX(2));
+    index.setX(2, b);
+    index.needsUpdate = true;
+    const before = index.array.slice();
+    const geometry = await presentation.prepare(native.geometry, tile);
+    expect(geometry.index!.array).not.toBe(index.array);
+    expect(geometry.index!.array).not.toEqual(before);
+    expect(index.array).toEqual(before);
+    geometry.dispose();
+    presentation.dispose();
+    native.geometry.dispose();
+  });
+
+  it("rejects prepared geometry if the native surface changes before mounting", async () => {
+    const { native, tile, parent, presentation } = fixture();
+    const geometry = await presentation.prepare(native.geometry, tile);
+    const position = native.geometry.getAttribute("position");
+    position.setY(0, position.getY(0) + 1);
+    position.needsUpdate = true;
+    expect(() => presentation.mount(native, tile, geometry)).toThrow(
+      /changed after/
+    );
+    expect(native.parent).toBe(parent);
+    expect(presentation.mesh(native)).toBeUndefined();
+    geometry.dispose();
+    presentation.dispose();
+    native.geometry.dispose();
+  });
+
+  it("keeps the displayed surface until the latest seam projection completes", async () => {
     const { native, tile, parent, presentation } = fixture();
     const original = native.geometry.getAttribute("position").array.slice();
     const projected = presentation.mount(native, tile);
@@ -66,6 +142,9 @@ describe("terrain ECEF presentation ownership", () => {
     position.needsUpdate = true;
     const afterSeam = position.array.slice();
     presentation.sync(native);
+    expect(projected.geometry).toBe(oldGeometry);
+    expect(disposed).not.toHaveBeenCalled();
+    await presentation.syncAsync(native);
     expect(projected.geometry).not.toBe(oldGeometry);
     expect(disposed).toHaveBeenCalledTimes(1);
     expect(position.array).toEqual(afterSeam);
@@ -88,13 +167,19 @@ describe("terrain ECEF presentation ownership", () => {
       attributes.map((attribute) => attribute.array.buffer)
     );
     const expected =
-      native.geometry.getAttribute("position").array.byteLength +
+      tile.u.length * Float32Array.BYTES_PER_ELEMENT +
       [...buffers].reduce((sum, buffer) => sum + buffer.byteLength, 0) +
       attributes.reduce(
         (sum, attribute) => sum + attribute.array.byteLength,
         0
       );
     expect(presentation.bytes(native)).toBe(expected);
+    expect(
+      presentation.bytes(
+        native,
+        new Set([projected.geometry.index!.array.buffer])
+      )
+    ).toBe(expected - projected.geometry.index!.array.buffer.byteLength);
     expect(() => presentation.mount(native, tile)).toThrow(/already/);
     const nativeDisposed = vi.fn();
     const derivedDisposed = vi.fn();

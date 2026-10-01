@@ -7,6 +7,12 @@ import type {
   ThreeTilesRuntimeState,
 } from "./three-tiles-runtime-context";
 import type { RuntimeTile } from "./three-tiles-runtime-types";
+import {
+  intersectsTileFrustumMargin,
+  readOrientedTileBounds,
+  type TileBoundsVolume,
+} from "./three-tiles-bounds";
+import { createRootTileDomainClip } from "./three-tiles-root-domain";
 
 /** Prepares native traversal frustums and idle coverage rings for a view. */
 export function createThreeTilesViewFrustums(
@@ -29,6 +35,26 @@ export function createThreeTilesViewFrustums(
   viewportFocusNdc: THREE.Vector3,
   resetCaches: () => void
 ) {
+  const clipRootDomain = createRootTileDomainClip(
+    () => runtimeState.tiles?.root
+  );
+  const queryBounds = new THREE.Box3();
+  const queryTransform = new THREE.Matrix4();
+  const intersectsDomainFrustum = (
+    volume: TileBoundsVolume & {
+      intersectsFrustum?: (frustum: THREE.Frustum) => boolean;
+    },
+    frustum: THREE.Frustum
+  ) => {
+    if (volume.intersectsFrustum && !volume.intersectsFrustum(frustum))
+      return false;
+    if (!volume.getAABB) return true;
+    readOrientedTileBounds(volume, queryBounds, queryTransform);
+    return (
+      clipRootDomain(queryBounds, queryTransform) &&
+      intersectsTileFrustumMargin(queryBounds, queryTransform, frustum, 0)
+    );
+  };
   /** Main-view and prefetch-margin frustums in the tiles group frame. */
   const prepareViewFrustums: ThreeTilesRuntimeServices["prepareViewFrustums"] =
     (viewCamera: THREE.Camera) => {
@@ -120,7 +146,7 @@ export function createThreeTilesViewFrustums(
       if (!bounds || !runtimeState.viewFrustumsReady) return false;
       if (runtimeState.options.providesTerrain)
         return getTileRingIndex(tile) === 1;
-      return bounds.intersectsFrustum(runtimeState.marginFrustum);
+      return intersectsDomainFrustum(bounds, runtimeState.marginFrustum);
     };
 
   const getTileRingIndex: ThreeTilesRuntimeServices["getTileRingIndex"] = (
@@ -128,6 +154,10 @@ export function createThreeTilesViewFrustums(
   ): number => {
     let bounds = tile.engineData?.boundingVolume;
     if (!runtimeState.viewFrustumsReady) return 0;
+    if (bounds?.getAABB) {
+      readOrientedTileBounds(bounds, queryBounds, queryTransform);
+      if (!clipRootDomain(queryBounds, queryTransform)) return 0;
+    }
     // Background siblings share their nearest drawable REPLACE family's ring.
     // Routing nodes do not introduce another LOD; ADD content remains distinct.
     for (let parent = tile.parent; parent; parent = parent.parent) {
@@ -142,7 +172,7 @@ export function createThreeTilesViewFrustums(
     }
     if (!bounds) return 0;
     for (let index = 0; index < runtimeState.ringFrustums.length; index++)
-      if (bounds.intersectsFrustum(runtimeState.ringFrustums[index]))
+      if (intersectsDomainFrustum(bounds, runtimeState.ringFrustums[index]))
         return index + 1;
     // Beyond the last ring, whole-extent floor coverage remains the reserve.
     return runtimeState.ringFrustums.length + 1;

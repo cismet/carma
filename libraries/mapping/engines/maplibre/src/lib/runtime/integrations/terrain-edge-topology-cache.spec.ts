@@ -7,18 +7,31 @@ const mock = vi.hoisted(() => {
   const values = new Map<string, unknown>();
   return {
     values,
-    get: vi.fn(async (key: string) =>
+    get: vi.fn(async (key: string, _options?: { touch?: boolean }) =>
       values.has(key) ? { value: structuredClone(values.get(key)) } : null
     ),
-    put: vi.fn(async (key: string, value: unknown) => {
-      values.set(key, structuredClone(value));
-      return true;
-    }),
+    put: vi.fn(
+      async (
+        key: string,
+        value: unknown,
+        _metadata?: { bytes: number; recomputeMs?: number }
+      ) => {
+        values.set(key, structuredClone(value));
+        return true;
+      }
+    ),
+    updateCosts: vi.fn(
+      async (_key: string, _costs: { restoreMs: number }) => true
+    ),
   };
 });
 vi.mock("@carma-commons/utils", () => ({
   createDerivedBufferCache: () => ({
-    register: () => ({ get: mock.get, put: mock.put }),
+    register: () => ({
+      get: mock.get,
+      put: mock.put,
+      updateCosts: mock.updateCosts,
+    }),
   }),
 }));
 const input = (): TerrainStitchInput => ({
@@ -60,6 +73,7 @@ describe("persistent terrain edge atlas", () => {
       "normalTargets",
       "sourceIndices",
     ]);
+    expect(mock.put.mock.calls[0][2]?.recomputeMs).toBeGreaterThanOrEqual(0);
     vi.resetModules();
     const next = await import("./terrain-edge-topology-cache"),
       moved = input();
@@ -72,6 +86,13 @@ describe("persistent terrain edge atlas", () => {
     );
     expect(mock.put).toHaveBeenCalledOnce();
     expect(mock.get).toHaveBeenCalledTimes(2);
+    expect(mock.get).toHaveBeenLastCalledWith(expect.any(String), {
+      touch: false,
+    });
+    await vi.waitFor(() => expect(mock.updateCosts).toHaveBeenCalledOnce());
+    expect(mock.updateCosts.mock.calls[0][1].restoreMs).toBeGreaterThanOrEqual(
+      0
+    );
   });
   it("does not detach the resident atlas when the result transfers", async () => {
     const { prepareCachedEqualLevelTerrainShell: prepare } = await import(
@@ -90,6 +111,7 @@ describe("persistent terrain edge atlas", () => {
     expect(await prepare(input())).toEqual(
       prepareEqualLevelTerrainShell(input())
     );
+    expect(mock.updateCosts).not.toHaveBeenCalled();
   });
   it("invalidates changed topology, edge membership and vertex count", async () => {
     const { terrainEdgeTopologyKey: key } = await import(
@@ -117,15 +139,26 @@ describe("persistent terrain edge atlas", () => {
     expect(await prepare(input())).toEqual(
       prepareEqualLevelTerrainShell(input())
     );
+    expect(mock.updateCosts).not.toHaveBeenCalled();
   });
   it("does not wait indefinitely for storage", async () => {
-    mock.get.mockImplementationOnce(() => new Promise(() => {}));
+    let finishRead!: (record: { value: unknown }) => void;
+    mock.get.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finishRead = resolve;
+        })
+    );
     const { prepareCachedEqualLevelTerrainShell: prepare } = await import(
       "./terrain-edge-topology-cache"
     );
     expect(await prepare(input())).toEqual(
       prepareEqualLevelTerrainShell(input())
     );
+    finishRead({ value: prepareEqualLevelTerrainShell(input()) });
+    await Promise.resolve();
+    expect(mock.get).toHaveBeenCalledWith(expect.any(String), { touch: false });
+    expect(mock.updateCosts).not.toHaveBeenCalled();
   });
   it("works without WebCrypto", async () => {
     vi.stubGlobal("crypto", undefined);

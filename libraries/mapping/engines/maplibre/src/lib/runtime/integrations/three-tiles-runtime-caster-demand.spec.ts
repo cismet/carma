@@ -5,6 +5,31 @@ import type { ShadowReceiverMask } from "../../core/shadow-receiver-mask";
 import { createCasterVolumeDemand } from "./three-tiles-runtime-caster-demand";
 
 describe("caster publication demand", () => {
+  it("rejects caster volume outside the root before receiver queries", () => {
+    const root = mesh(null, 0);
+    const tile = mesh(root, 1);
+    const rootBounds = new Box3(new Vector3(-2, -2, -2), new Vector3(2, 2, 2));
+    const outsideBounds = new Box3(
+      new Vector3(3, -1, -1),
+      new Vector3(4, 1, 1)
+    );
+    for (const [entry, bounds] of [
+      [root, rootBounds],
+      [tile, outsideBounds],
+    ] as const)
+      Object.assign(entry, {
+        engineData: {
+          boundingVolume: { getAABB: (out: Box3) => out.copy(bounds) },
+        },
+      });
+    const match = vi.fn(() => true);
+    const mask = { sourceCount: 1, match } as unknown as ShadowReceiverMask;
+    expect(createCasterVolumeDemand(mask, 6, () => root)(tile)).toMatchObject({
+      intersects: false,
+      errorPixels: 0,
+    });
+    expect(match).not.toHaveBeenCalled();
+  });
   it("uses receiver-relative error after corridor pruning", () => {
     const tile = mesh(null, 2);
     tile.geometricError = 2;

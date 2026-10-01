@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { Vector3 } from "three";
 
 import { createProjectedTerrainTileGeometry } from "./terrain-tile-geometry";
 
@@ -37,6 +38,30 @@ describe("createProjectedTerrainTileGeometry", () => {
 
     expect(geometry.getAttribute("position").count).toBe(4);
     expect(geometry.getIndex()?.count).toBe(6);
+  });
+
+  it("preserves caller-prepared normals and rejects incomplete output buffers", () => {
+    const normalBuffer = new Float32Array([0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1]);
+    const options = {
+      tile,
+      normalBuffer,
+      projectToWorld: (
+        longitude: number,
+        latitude: number,
+        height: number,
+        target: Vector3
+      ) => target.set(longitude, height, -latitude),
+    };
+    const geometry = createProjectedTerrainTileGeometry(options);
+    expect(geometry.getAttribute("normal").array).toBe(normalBuffer);
+    expect(geometry.getAttribute("normal").getZ(0)).toBe(1);
+    expect(() =>
+      createProjectedTerrainTileGeometry({
+        ...options,
+        normalBuffer: new Float32Array(3),
+      })
+    ).toThrow("normal buffer");
+    geometry.dispose();
   });
 
   it("drops zero-area faces and corrects downward winding", () => {

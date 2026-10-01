@@ -50,10 +50,8 @@ import {
   THREE_TILES_DEFAULT_REQUEST_CONCURRENCY,
   TILES_ERROR_TARGET_DEFAULT_PIXELS,
 } from "./three-tiles-runtime-config";
-import {
-  TilesViewFrustum,
-  readTilesDeviceProfile,
-} from "./three-tiles-runtime-vendor";
+import { TilesViewFrustum } from "./three-tiles-runtime-vendor";
+import { readTileDeviceProfile } from "./tile-device-profile";
 import type { TilesCameraSet } from "./tiles-camera-set";
 import { createTileCameraDemand } from "../../core/tile-camera-demand";
 
@@ -101,7 +99,7 @@ export function createThreeTilesRuntimeState(
   const lastProgressAt = 0;
   const usedBytesMain = 0;
   const lastMainViewConverged = false;
-  const deviceProfile = readTilesDeviceProfile();
+  const deviceProfile = readTileDeviceProfile();
   const styleCacheBudgetBytes = options.cacheBudgetBytes;
   const styleCacheOverflowBytes = options.cacheOverflowBytes;
   // Shared unfinished probes may belong to another live tab, not a crash.

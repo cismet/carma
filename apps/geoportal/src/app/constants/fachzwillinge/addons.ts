@@ -19,6 +19,9 @@ const SHADOW_TERRAIN_RUNTIME_OPTIONS = {
   requestConcurrency: 24,
   maxCacheBytes: 268_435_456,
   maxCachedMeshes: 2_048,
+  persistBaseTiles: true,
+  baseRasterEdgePixels: 8_192,
+  baseCoverageMemoryShare: 0.1,
   material: {
     color: "#d3d3d3",
   },

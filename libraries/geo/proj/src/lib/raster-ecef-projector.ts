@@ -6,7 +6,13 @@ import { WGS84_A, WGS84_E2 } from "./geodetic";
  * No LUT approximation or vertical datum conversion is introduced here.
  * One instance belongs to one tile, so the lookup tables remain bounded.
  */
-export const createRasterEcefProjector = () => {
+export const createRasterEcefProjector = (options?: {
+  maximumCacheEntries?: number;
+}) => {
+  const maximumCacheEntries = Math.max(
+    1,
+    options?.maximumCacheEntries ?? Infinity
+  );
   const columns = new Map<number, readonly [number, number]>();
   const rows = new Map<number, readonly [number, number, number]>();
   let previousLatitude: number | undefined;
@@ -21,6 +27,7 @@ export const createRasterEcefProjector = () => {
     if (!column) {
       const radians = degToRadNumeric(longitude);
       column = [Math.cos(radians), Math.sin(radians)];
+      if (columns.size >= maximumCacheEntries) columns.clear();
       columns.set(longitude, column);
     }
     let row = latitude === previousLatitude ? previousRow : rows.get(latitude);
@@ -32,6 +39,7 @@ export const createRasterEcefProjector = () => {
         sin,
         WGS84_A / Math.sqrt(1 - WGS84_E2 * sin * sin),
       ];
+      if (rows.size >= maximumCacheEntries) rows.clear();
       rows.set(latitude, row);
     }
     previousLatitude = latitude;
@@ -47,6 +55,13 @@ export const createRasterEcefProjector = () => {
   // Rotate an east/up/south tangent direction into ECEF with the same cached
   // longitude columns and latitude rows as the position projection.
   return Object.assign(project, {
+    /** Numeric lookup payload; JavaScript Map/array bookkeeping is additional. */
+    cacheStats: () => ({
+      columns: columns.size,
+      rows: rows.size,
+      numericBytes:
+        (columns.size * 3 + rows.size * 4) * Float64Array.BYTES_PER_ELEMENT,
+    }),
     direction: (
       longitude: number,
       latitude: number,

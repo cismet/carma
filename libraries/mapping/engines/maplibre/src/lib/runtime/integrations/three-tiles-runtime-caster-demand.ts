@@ -6,6 +6,7 @@ import {
   type ShadowReceiverMatch,
 } from "../../core/shadow-receiver-mask";
 import { readOrientedTileBounds } from "./three-tiles-bounds";
+import { createRootTileDomainClip } from "./three-tiles-root-domain";
 import type { RuntimeTile } from "./three-tiles-runtime-types";
 
 /** Parallel sun-ray membership and receiver-relative LOD share one demand.
@@ -14,8 +15,10 @@ import type { RuntimeTile } from "./three-tiles-runtime-types";
  */
 export function createCasterVolumeDemand(
   mask: ShadowReceiverMask | null,
-  targetError: number
+  targetError: number,
+  getRoot: () => Tile | null | undefined = () => undefined
 ) {
+  const clipRootDomain = createRootTileDomainClip(getRoot);
   const box = new Box3(),
     transform = new Matrix4();
   const match: ShadowReceiverMatch = {
@@ -33,10 +36,12 @@ export function createCasterVolumeDemand(
       };
     readOrientedTileBounds(volume, box, transform);
     const intersects =
-      mask?.match(box, match, transform, {
+      clipRootDomain(box, transform) &&
+      (mask?.match(box, match, transform, {
         key: tile,
         parent: tile.parent ?? undefined,
-      }) ?? false;
+      }) ??
+        false);
     return {
       intersects,
       receiverGeometricError: intersects ? match.receiverGeometricError : 0,

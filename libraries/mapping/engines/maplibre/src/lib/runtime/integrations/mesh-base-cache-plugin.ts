@@ -2,54 +2,56 @@ import type { Tile } from "3d-tiles-renderer/core";
 import { Matrix4, type Object3D } from "three";
 import {
   snapshotMeshBaseRenderRecord,
-  restoreMeshBaseRenderRecord,
   type MeshBaseRenderRecord,
 } from "../../core/mesh-base-render-record";
 import {
-  collectCachedMeshBase,
   MESH_BASE_CACHE_OPERATION,
   MESH_BASE_RENDER_FORMAT,
   meshBaseCacheSourceUrl,
-  type MeshBaseCacheRequest,
-  type MeshBaseCacheResponse,
+  meshBaseCacheIdentity,
+  meshBaseManifestMatches,
+  type MeshBaseCacheTree,
   type MeshBaseManifest,
 } from "../../core/mesh-base-cache-protocol";
+import { meshBaseContentLineage } from "../../core/mesh-base-cache-tree";
+import {
+  prepareMeshBaseManifest,
+  getMeshBaseContentUrl,
+  invalidateMeshBaseRenderer,
+} from "./mesh-base-cache-manifest";
+import {
+  requestMeshBaseCache,
+  bindMeshBaseCacheWorker,
+  closeMeshBaseRecord,
+  type MeshCacheRequest,
+  type MeshCacheJob,
+} from "./mesh-base-cache-request";
+import {
+  createMeshBasePayload,
+  meshBasePayloadId,
+  parseMeshBasePayload,
+  restoreMeshBasePayload,
+  type MeshBaseNativeRenderer,
+} from "./mesh-base-cache-payload";
+import { createPersistentTileUsageQueue } from "./persistent-tile-usage";
 import { resolveTileContentUrl } from "./three-tiles-runtime-vendor";
 import type {
   RuntimeTile,
   RuntimeTilesRenderer,
 } from "./three-tiles-runtime-types";
 
-type Request = MeshBaseCacheRequest extends infer R
-  ? R extends { id: number }
-    ? Omit<R, "id">
-    : never
-  : never;
-type NativeRenderer = RuntimeTilesRenderer & {
-  parseTile: (
-    buffer: ArrayBuffer,
-    tile: Tile,
-    extension: string,
-    url: string,
-    signal: AbortSignal
-  ) => Promise<void>;
-};
-const marker = 0x3172626d; // mbr1, a private parseToMesh payload, never persisted.
-const closeRecord = (record: MeshBaseRenderRecord) => {
-  for (const texture of Object.values(record.textures ?? {}))
-    texture?.image?.close?.();
-};
-
-/** Optional, bounded I/O. Native traversal, publication, transforms and resource
- * disposal remain with TilesRenderer; cache misses retain its source path. */
+/** Optional cache I/O; TilesRenderer owns traversal, publication and disposal. */
 export class MeshBaseCachePlugin {
   readonly name = "CARMA_MESH_BASE_CACHE";
   readonly priority = -200;
-  private tiles!: NativeRenderer;
+  private tiles!: MeshBaseNativeRenderer;
   private worker: Worker | null = null;
   private revision = "";
   private sequence = 0;
-  private initialized = false;
+  private identity = "";
+  private generation = 0;
+  private initializationAttempt = 0;
+  private sourceTransition = false;
   private disposed = false;
   private confirming = false;
   private lastAudit = 0;
@@ -57,18 +59,19 @@ export class MeshBaseCachePlugin {
   private confirmedUrls = new Set<string>();
   private stored = new Set<string>();
   private writing = new Set<string>();
+  private usage = this.createUsageQueue();
   private pendingBytes = 0;
-  private readonly pendingWrites = new Map<string, MeshBaseRenderRecord>();
+  private readonly pendingWrites = new Map<
+    string,
+    { record: MeshBaseRenderRecord; tree: MeshBaseCacheTree }
+  >();
   private readonly storedBytes = new Map<string, number>();
   private writeTimer: ReturnType<typeof setTimeout> | null = null;
   private prepared = new Map<
     number,
     { record: MeshBaseRenderRecord; cleanup: () => void }
   >();
-  private jobs = new Map<
-    number,
-    (value: MeshBaseCacheResponse["value"]) => void
-  >();
+  private jobs = new Map<number, MeshCacheJob>();
   private readonly stats = {
     hits: 0,
     misses: 0,
@@ -92,8 +95,9 @@ export class MeshBaseCachePlugin {
   ) {}
 
   init(tiles: RuntimeTilesRenderer) {
-    this.tiles = tiles as NativeRenderer;
+    this.tiles = tiles as MeshBaseNativeRenderer;
     tiles.addEventListener("update-after", this.updateAfter);
+    tiles.addEventListener("tile-visibility-change", this.visibilityChanged);
   }
   getStats() {
     return {
@@ -103,69 +107,89 @@ export class MeshBaseCachePlugin {
     };
   }
 
-  private request(
-    data: Request,
-    deadline = 200
-  ): Promise<MeshBaseCacheResponse["value"]> {
-    if (!this.worker || this.disposed) return Promise.resolve(null);
-    const id = ++this.sequence;
-    return new Promise((resolve) => {
-      const timer = setTimeout(() => {
-        this.jobs.delete(id);
-        if (data.operation === MESH_BASE_CACHE_OPERATION.get) {
-          this.confirmedUrls.clear();
-          this.stats.confirmed = false;
-        }
-        resolve(null);
-      }, deadline);
-      this.jobs.set(id, (value) => {
-        clearTimeout(timer);
-        resolve(value);
-      });
-      try {
-        this.worker!.postMessage({ ...data, id });
-      } catch {
-        this.jobs.get(id)?.(null);
-        this.jobs.delete(id);
-      }
+  private createUsageQueue() {
+    return createPersistentTileUsageQueue<string>({
+      key: (url) => url,
+      write: async (values) => {
+        const nodes = values.filter((url) => this.stored.has(url));
+        this.usage.note(
+          values.filter(
+            (url) =>
+              !this.stored.has(url) &&
+              (this.pendingWrites.has(url) || this.writing.has(url))
+          )
+        );
+        if (nodes.length)
+          await this.request(
+            { operation: MESH_BASE_CACHE_OPERATION.markUsed, nodes },
+            5000
+          );
+      },
     });
+  }
+
+  private request(data: MeshCacheRequest, deadline = 200) {
+    return requestMeshBaseCache(
+      this.disposed ? null : this.worker,
+      data,
+      ++this.sequence,
+      this.jobs,
+      () => {
+        this.confirmedUrls.clear();
+        this.stats.confirmed = false;
+      },
+      deadline
+    );
   }
 
   /** The existing hierarchy loader validates the root before calling this. */
   async initialize(document: object) {
-    if (this.initialized || this.disposed) return;
-    this.initialized = true;
+    if (this.disposed) return;
+    const attempt = ++this.initializationAttempt;
     try {
       const bytes = new TextEncoder().encode(JSON.stringify(document));
-      this.revision = Array.from(
+      const revision = Array.from(
         new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)),
         (n) => n.toString(16).padStart(2, "0")
       ).join("");
-      if (this.disposed) return;
+      if (this.disposed || attempt !== this.initializationAttempt) return;
+      const identity = meshBaseCacheIdentity({
+        ...this.options,
+        sourceRevision: revision,
+      });
+      if (identity === this.identity && this.worker) return;
+      const replacingSource =
+        this.identity !== "" && identity !== this.identity;
+      this.sourceTransition = true;
+      if (replacingSource) {
+        invalidateMeshBaseRenderer(this.tiles);
+        await this.request({ operation: MESH_BASE_CACHE_OPERATION.invalidate });
+        if (this.disposed || attempt !== this.initializationAttempt) return;
+      }
+      this.stopWorker();
+      this.revision = revision;
+      this.identity = identity;
       this.worker = new Worker(
         new URL("./mesh-base-cache.worker.ts", import.meta.url),
         { type: "module" }
       );
-      this.worker.onmessage = ({
-        data,
-      }: MessageEvent<MeshBaseCacheResponse>) => {
-        const job = this.jobs.get(data.id);
-        this.jobs.delete(data.id);
-        if (job) job(data.value);
-        else if (
-          data.value &&
-          typeof data.value === "object" &&
-          "urls" in data.value
-        )
-          this.acceptManifest(data.value);
-        else if (
-          data.value &&
-          typeof data.value === "object" &&
-          "textures" in data.value
-        )
-          closeRecord(data.value);
-      };
-      this.worker.onerror = () => this.stopWorker();
+      const generation = this.generation;
+      const worker = this.worker;
+      bindMeshBaseCacheWorker(
+        worker,
+        this.jobs,
+        (manifest) => {
+          if (
+            generation === this.generation &&
+            worker === this.worker &&
+            !this.sourceTransition
+          )
+            this.acceptManifest(manifest);
+        },
+        () => {
+          if (this.worker === worker) this.stopWorker();
+        }
+      );
       const saved = await this.request(
         {
           operation: MESH_BASE_CACHE_OPERATION.initialize,
@@ -175,15 +199,32 @@ export class MeshBaseCachePlugin {
         },
         200
       );
-      if (saved && typeof saved === "object" && "urls" in saved)
+      if (
+        generation === this.generation &&
+        saved &&
+        typeof saved === "object" &&
+        "urls" in saved
+      )
         this.acceptManifest(saved);
+      if (replacingSource) invalidateMeshBaseRenderer(this.tiles);
+      if (attempt === this.initializationAttempt) this.sourceTransition = false;
     } catch {
-      this.stopWorker();
+      if (attempt === this.initializationAttempt) {
+        this.stopWorker();
+        this.sourceTransition = false;
+      }
     }
   }
 
   private acceptManifest(saved: MeshBaseManifest) {
-    if (this.disposed || saved.residentBytes > this.options.memoryBudget())
+    if (
+      this.disposed ||
+      !meshBaseManifestMatches(saved, {
+        ...this.options,
+        sourceRevision: this.revision,
+      }) ||
+      saved.residentBytes > this.options.memoryBudget()
+    )
       return;
     this.manifest = saved;
     this.confirmedUrls = new Set(saved.urls);
@@ -193,17 +234,23 @@ export class MeshBaseCachePlugin {
   }
 
   fetchData(url: string, options: RequestInit): Promise<Response> | null {
-    if (!this.confirmedUrls.has(url) || !this.worker) return null;
+    if (this.sourceTransition || !this.confirmedUrls.has(url) || !this.worker)
+      return null;
     return (async () => {
+      const identity = this.identity;
       const start = performance.now();
       const result = await this.request({
         operation: MESH_BASE_CACHE_OPERATION.get,
         url,
       });
       this.stats.readMs += performance.now() - start;
-      if (options.signal?.aborted || this.disposed) {
+      if (
+        options.signal?.aborted ||
+        this.disposed ||
+        identity !== this.identity
+      ) {
         if (result && typeof result === "object" && "textures" in result)
-          closeRecord(result);
+          closeMeshBaseRecord(result);
         options.signal?.throwIfAborted();
         throw new DOMException("Disposed", "AbortError");
       }
@@ -211,10 +258,12 @@ export class MeshBaseCachePlugin {
         !result ||
         typeof result !== "object" ||
         !("textures" in result) ||
-        result.version !== MESH_BASE_RENDER_FORMAT
+        result.version !== MESH_BASE_RENDER_FORMAT ||
+        result.cacheIdentity !== this.identity ||
+        result.contentUrl !== url
       ) {
         if (result && typeof result === "object" && "textures" in result)
-          closeRecord(result);
+          closeMeshBaseRecord(result);
         this.stats.misses++;
         this.confirmedUrls.delete(url);
         this.stored.delete(url);
@@ -227,7 +276,7 @@ export class MeshBaseCachePlugin {
         const value = this.prepared.get(id);
         if (value) {
           value.cleanup();
-          closeRecord(value.record);
+          closeMeshBaseRecord(value.record);
         }
         this.prepared.delete(id);
       };
@@ -237,11 +286,7 @@ export class MeshBaseCachePlugin {
         cleanup: () => options.signal?.removeEventListener("abort", cancel),
       });
       this.stats.hits++;
-      const buffer = new ArrayBuffer(8),
-        view = new DataView(buffer);
-      view.setUint32(0, marker, true);
-      view.setUint32(4, id, true);
-      return new Response(buffer);
+      return new Response(createMeshBasePayload(id));
     })();
   }
 
@@ -252,62 +297,28 @@ export class MeshBaseCachePlugin {
     url: string,
     signal: AbortSignal
   ) {
-    if (
-      buffer.byteLength !== 8 ||
-      new DataView(buffer).getUint32(0, true) !== marker
-    )
-      return null;
-    // Bypass deferred opaque-material parsing: this confirmed record already
-    // contains complete original materials. The native parser still runs every
-    // processTileModel hook and owns subsequent resources and visibility.
-    return this.tiles
-      .parseTile(buffer, tile, extension, url, signal)
-      .catch(async () => {
-        // A corrupt or unsupported record must not turn into a retry loop.
+    return parseMeshBasePayload(
+      this.tiles,
+      { buffer, tile, extension, url, signal },
+      this.options.fetchSource,
+      () => {
         this.confirmedUrls.delete(url);
         this.stored.delete(url);
         this.stats.confirmed = false;
-        signal.throwIfAborted();
-        const response = await this.options.fetchSource(url, {
-          ...this.tiles.fetchOptions,
-          signal,
-        });
-        if (!response.ok) throw new Error(`Tile response ${response.status}`);
-        return this.tiles.parseTile(
-          await response.arrayBuffer(),
-          tile,
-          extension,
-          url,
-          signal
-        );
-      });
+      }
+    );
   }
 
   parseToMesh(buffer: ArrayBuffer) {
-    if (
-      buffer.byteLength !== 8 ||
-      new DataView(buffer).getUint32(0, true) !== marker
-    )
-      return null;
-    const id = new DataView(buffer).getUint32(4, true),
-      prepared = this.prepared.get(id);
+    const id = meshBasePayloadId(buffer);
+    if (id === null) return null;
+    const prepared = this.prepared.get(id);
     if (!prepared) throw new Error("Missing prepared mesh record");
     this.prepared.delete(id);
     prepared.cleanup();
-    const start = performance.now();
-    let scene: Object3D & { featureTable?: object; batchTable?: object };
-    try {
-      scene = restoreMeshBaseRenderRecord(prepared.record);
-    } catch (error) {
-      closeRecord(prepared.record);
-      throw error;
-    }
-    this.stats.restoreMs += performance.now() - start;
-    return {
-      scene,
-      featureTable: scene.featureTable,
-      batchTable: scene.batchTable,
-    };
+    const restored = restoreMeshBasePayload(prepared.record);
+    this.stats.restoreMs += restored.restoreMs;
+    return restored.model;
   }
 
   processTileModel(scene: Object3D, tile: Tile) {
@@ -315,6 +326,7 @@ export class MeshBaseCachePlugin {
     const url = resolveTileContentUrl(runtime);
     if (
       !url ||
+      this.sourceTransition ||
       !this.worker ||
       !this.revision ||
       this.stored.has(url) ||
@@ -324,6 +336,20 @@ export class MeshBaseCachePlugin {
     )
       return;
     // Snapshot before application styling can replace original materials.
+    const tree = meshBaseContentLineage(
+      runtime,
+      this.identity,
+      getMeshBaseContentUrl,
+      (tile) => tile.parent as RuntimeTile | null
+    );
+    if (
+      !tree ||
+      (tree.parent &&
+        !this.stored.has(tree.parent) &&
+        !this.pendingWrites.has(tree.parent) &&
+        !this.writing.has(tree.parent))
+    )
+      return;
     const record = snapshotMeshBaseRenderRecord(
       scene,
       runtime.engineData?.transform ?? new Matrix4()
@@ -335,9 +361,8 @@ export class MeshBaseCachePlugin {
       this.stats.skipped++;
       return;
     }
-    // Records reference existing geometry/bitmaps. Clone only one record at a
-    // time, after the visible view has converged; cache work never holds a tile.
-    this.pendingWrites.set(url, record);
+    // Clone source buffers one at a time only after the view converges.
+    this.pendingWrites.set(url, { record, tree });
     this.pendingBytes += record.bytes;
     this.scheduleWrite();
   }
@@ -357,13 +382,24 @@ export class MeshBaseCachePlugin {
         this.scheduleWrite();
         return;
       }
-      const [url, record] = this.pendingWrites.entries().next().value!;
+      const ready = [...this.pendingWrites].find(
+        ([, item]) => !item.tree.parent || this.stored.has(item.tree.parent)
+      );
+      if (!ready) {
+        // Missing/evicted ancestors invalidate optional child snapshots.
+        this.pendingWrites.clear();
+        this.pendingBytes = 0;
+        return;
+      }
+      const [url, { record, tree }] = ready;
+      const generation = this.generation;
       this.pendingWrites.delete(url);
       this.writing.add(url);
       void this.request(
-        { operation: MESH_BASE_CACHE_OPERATION.put, url, record },
+        { operation: MESH_BASE_CACHE_OPERATION.put, url, record, tree },
         5000
       ).then((saved) => {
+        if (generation !== this.generation) return;
         this.writing.delete(url);
         this.pendingBytes -= record.bytes;
         if (saved === true) {
@@ -380,9 +416,22 @@ export class MeshBaseCachePlugin {
     }, 250);
   }
 
+  private visibilityChanged = (event: { tile: Tile; visible: boolean }) => {
+    if (!event.visible || this.sourceTransition || !this.worker) return;
+    const url = resolveTileContentUrl(event.tile as RuntimeTile);
+    if (
+      url &&
+      (this.stored.has(url) ||
+        this.pendingWrites.has(url) ||
+        this.writing.has(url))
+    )
+      this.usage.note([url]);
+  };
+
   private updateAfter = () => {
     if (
       this.disposed ||
+      this.sourceTransition ||
       !this.worker ||
       this.confirming ||
       !this.options.canPrepare() ||
@@ -390,66 +439,27 @@ export class MeshBaseCachePlugin {
     )
       return;
     this.lastAudit = performance.now();
-    const root = this.tiles.root;
-    if (!root) return;
-    const roots = collectCachedMeshBase(
-      root as RuntimeTile,
-      (tile) =>
-        tile.internal?.hasRenderableContent === true &&
-        this.stored.has(resolveTileContentUrl(tile) ?? ""),
-      (tile) =>
-        !tile.internal ||
-        (tile.internal.hasUnrenderableContent &&
-          tile.internal.loadingState !== 4)
-          ? null
-          : ((tile.children ?? []) as RuntimeTile[]),
-      (tile) =>
-        !tile.internal.hasRenderableContent &&
-        !tile.internal.hasUnrenderableContent
+    void this.usage.flush();
+    const manifest = prepareMeshBaseManifest(
+      this.tiles,
+      { ...this.options, sourceRevision: this.revision },
+      this.stored,
+      this.storedBytes,
+      this.options.memoryBudget()
     );
-    if (!roots?.length) return;
-    // Include coarser first-image fallbacks too. Disk byte counts are not a
-    // GPU budget: use measured residency, conservatively estimate absent data.
-    const resident = new Map<string, number>();
-    this.tiles.traverse((tile) => {
-      const runtime = tile as RuntimeTile;
-      const url = resolveTileContentUrl(runtime);
-      if (url && this.stored.has(url))
-        resident.set(url, this.tiles.lruCache.getMemoryUsage(runtime) || 0);
-      return false;
-    }, null);
-    const residentBytes = Math.max(
-      this.manifest?.residentBytes ?? 0,
-      [...this.stored].reduce(
-        (sum, url) =>
-          sum +
-          Math.max(
-            resident.get(url) ?? 0,
-            (this.storedBytes.get(url) ?? 0) * 2
-          ),
-        0
-      )
-    );
-    if (!residentBytes || residentBytes > this.options.memoryBudget()) return;
-    // Include already prepared coarser fallbacks for native first-image traversal.
-    const manifest: MeshBaseManifest = {
-      sourceUrl: meshBaseCacheSourceUrl(this.options.sourceUrl),
-      sourceRevision: this.revision,
-      buildId: this.options.buildId,
-      extentError: Math.max(...roots.map((tile) => tile.geometricError)),
-      residentBytes,
-      urls: [...this.stored].sort(),
-    };
+    if (!manifest) return;
     if (
       this.manifest &&
       JSON.stringify(this.manifest) === JSON.stringify(manifest)
     )
       return;
     this.confirming = true;
+    const generation = this.generation;
     void this.request(
       { operation: MESH_BASE_CACHE_OPERATION.confirm, manifest },
       5000
     ).then((saved) => {
+      if (generation !== this.generation) return;
       this.confirming = false;
       if (saved !== true) return;
       this.manifest = manifest;
@@ -460,6 +470,7 @@ export class MeshBaseCachePlugin {
   };
 
   private stopWorker() {
+    this.generation++;
     this.worker?.terminate();
     this.worker = null;
     for (const done of this.jobs.values()) done(null);
@@ -467,18 +478,31 @@ export class MeshBaseCachePlugin {
     if (this.writeTimer) clearTimeout(this.writeTimer);
     this.writeTimer = null;
     this.pendingWrites.clear();
+    this.pendingBytes = 0;
+    this.writing.clear();
+    this.stored.clear();
+    this.storedBytes.clear();
+    this.usage.close();
+    if (!this.disposed) this.usage = this.createUsageQueue();
+    this.confirmedUrls.clear();
+    this.manifest = null;
+    this.stats.confirmed = false;
+    this.confirming = false;
+    this.lastAudit = 0;
+    for (const value of this.prepared.values()) {
+      value.cleanup();
+      closeMeshBaseRecord(value.record);
+    }
+    this.prepared.clear();
   }
   dispose() {
     this.disposed = true;
+    this.initializationAttempt++;
     this.stopWorker();
     this.tiles?.removeEventListener("update-after", this.updateAfter);
-    if (this.writeTimer) clearTimeout(this.writeTimer);
-    this.pendingWrites.clear();
-    this.pendingBytes = 0;
-    for (const value of this.prepared.values()) {
-      value.cleanup();
-      closeRecord(value.record);
-    }
-    this.prepared.clear();
+    this.tiles?.removeEventListener(
+      "tile-visibility-change",
+      this.visibilityChanged
+    );
   }
 }

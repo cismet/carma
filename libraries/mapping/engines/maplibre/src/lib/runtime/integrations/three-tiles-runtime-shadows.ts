@@ -14,6 +14,7 @@ import {
   TILE_SHADOW_CAMERA_ID,
 } from "../../core/tile-camera-demand";
 import { readOrientedTileBounds } from "./three-tiles-bounds";
+import { createRootTileDomainClip } from "./three-tiles-root-domain";
 import { getReadyMeshRegionCut } from "../../core/mesh-tile-coverage";
 import type {
   ThreeTilesRuntimeServices,
@@ -94,6 +95,9 @@ export function createThreeTilesShadows(
     | "notifyRequestStateChange"
   >
 ) {
+  const clipRootDomain = createRootTileDomainClip(
+    () => runtimeState.tiles?.root
+  );
   const clearShadowReceiverSources: ThreeTilesRuntimeServices["clearShadowReceiverSources"] =
     () => {
       runtimeState.shadowReceiverMask = null;
@@ -291,7 +295,8 @@ export function createThreeTilesShadows(
         runtimeState.options.providesTerrain && runtimeState.shadowView
           ? createCasterVolumeDemand(
               runtimeState.shadowReceiverMask,
-              errorPixels
+              errorPixels,
+              () => runtimeState.tiles?.root
             )
           : undefined;
       let visitedNodes = 0;
@@ -314,6 +319,8 @@ export function createThreeTilesShadows(
             const box = new THREE.Box3();
             const transform = new THREE.Matrix4();
             readOrientedTileBounds(volume, box, transform);
+            if (!clipRootDomain(box, transform))
+              return { intersects: false, errorPixels: 0 };
             transform.premultiply(runtimeState.frameFromTiles);
             cachedBounds = {
               box,
@@ -331,12 +338,17 @@ export function createThreeTilesShadows(
               runtimeState.tileBoundingBox,
               runtimeState.tileBoundsTransform
             );
-            intersects = runtimeState.shadowReceiverMask.match(
-              runtimeState.tileBoundingBox,
-              runtimeState.shadowReceiverMatch,
-              runtimeState.tileBoundsTransform,
-              { key: tile, parent: tile.parent ?? undefined }
-            );
+            intersects =
+              clipRootDomain(
+                runtimeState.tileBoundingBox,
+                runtimeState.tileBoundsTransform
+              ) &&
+              runtimeState.shadowReceiverMask.match(
+                runtimeState.tileBoundingBox,
+                runtimeState.shadowReceiverMatch,
+                runtimeState.tileBoundsTransform,
+                { key: tile, parent: tile.parent ?? undefined }
+              );
           }
           const caster = intersects ? lightDemand?.(tile) : undefined;
           // Region capture follows the same parallel-ray membership as requests.

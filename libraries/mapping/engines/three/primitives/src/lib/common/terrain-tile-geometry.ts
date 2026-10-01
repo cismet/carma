@@ -28,6 +28,8 @@ export type ProjectedTerrainTileGeometryOptions = Readonly<{
   projectToWorld: TerrainTileProjector;
   /** Geographic surfaces use source east/north orientation across horizons. */
   triangleOrientation?: "local-up" | "geographic";
+  /** Owned output buffer, supplied when the caller prepares normals itself. */
+  normalBuffer?: Float32Array;
 }>;
 
 const assertTile = ({ tile }: ProjectedTerrainTileGeometryOptions) => {
@@ -130,12 +132,12 @@ const buildTriangleIndices = (
   return indices.subarray(0, indexCount);
 };
 
-/** Projects one geographic terrain triangle mesh without synthetic skirts. */
-export const createProjectedTerrainTileGeometry = (
-  options: ProjectedTerrainTileGeometryOptions
-): BufferGeometry => {
-  assertTile(options);
-  const { tile, projectToWorld, triangleOrientation = "local-up" } = options;
+/** Shared source-position kernel, also used to restore prepared seam inputs
+ * without rebuilding their already stored normals, triangles or bounds. */
+export const projectTerrainTilePositions = (
+  tile: ProjectedTerrainTileSource,
+  projectToWorld: TerrainTileProjector
+): Float32Array => {
   const positions = new Float32Array(tile.u.length * 3);
   const projected = new Vector3();
 
@@ -167,6 +169,21 @@ export const createProjectedTerrainTileGeometry = (
   for (let index = 0; index < tile.u.length; index += 1) {
     projectVertex(index);
   }
+  return positions;
+};
+
+/** Projects one geographic terrain triangle mesh without synthetic skirts. */
+export const createProjectedTerrainTileGeometry = (
+  options: ProjectedTerrainTileGeometryOptions
+): BufferGeometry => {
+  assertTile(options);
+  if (
+    options.normalBuffer &&
+    options.normalBuffer.length !== options.tile.u.length * 3
+  )
+    throw new RangeError("Terrain normal buffer has a different vertex count");
+  const { tile, projectToWorld, triangleOrientation = "local-up" } = options;
+  const positions = projectTerrainTilePositions(tile, projectToWorld);
 
   const geometry = new BufferGeometry();
   geometry.setAttribute("position", new BufferAttribute(positions, 3));
@@ -176,7 +193,12 @@ export const createProjectedTerrainTileGeometry = (
       1
     )
   );
-  computeMeshVertexNormals(geometry);
+  if (options.normalBuffer)
+    geometry.setAttribute(
+      "normal",
+      new BufferAttribute(options.normalBuffer, 3)
+    );
+  else computeMeshVertexNormals(geometry);
   geometry.computeBoundingBox();
   geometry.computeBoundingSphere();
   return geometry;

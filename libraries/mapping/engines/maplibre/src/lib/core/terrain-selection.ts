@@ -1,10 +1,7 @@
 // Pure, worker-safe terrain selection consumes snapshots and source metadata.
 // It does not touch MapLibre, DOM, WebGL, network state, or mesh ownership.
 import { Box3, Frustum, Matrix4, Vector3 } from "three";
-import {
-  geographicBoundsIntersect,
-  intersectUnwrappedGeographicBounds,
-} from "@carma-geo/helpers";
+import { intersectUnwrappedGeographicBounds } from "@carma-geo/helpers";
 import { getTerrainScreenErrorRatio } from "./terrain-screen-error";
 import {
   createTileCameraDemand,
@@ -21,6 +18,7 @@ import {
   projectTerrainToLocalWorld as projectToLocalWorld,
 } from "./terrain-selection-local-box";
 import { createTerrainGeodeticProjection } from "./terrain-geometry-projection";
+import { createTerrainSelectionReserve } from "./terrain-selection-reserve";
 import {
   TERRAIN_SELECTION_KIND,
   type TerrainSelection,
@@ -63,13 +61,19 @@ export const buildTerrainSelection = (
   )
 ): TerrainSelection => {
   const [focusX, focusY] = input.viewportFocusNdc ?? [0, 0];
-  const cameraDemand = createTileCameraDemand(input.cameraViews ?? []);
+  const reserve = createTerrainSelectionReserve(input);
+  const cameraDemand = createTileCameraDemand([
+    ...(input.cameraViews ?? []),
+    ...reserve.views,
+  ]);
   const renderCamera = snapshotCamera(input.renderCamera);
   const viewportFrustum = new Frustum().setFromProjectionMatrix(
     new Matrix4().multiplyMatrices(
       renderCamera.projectionMatrix,
       renderCamera.matrixWorldInverse
-    )
+    ),
+    renderCamera.coordinateSystem,
+    renderCamera.reversedDepth
   );
   const shadowCamera = input.shadow
     ? snapshotCamera(input.shadow.camera)
@@ -153,11 +157,15 @@ export const buildTerrainSelection = (
       .clone()
       .expandByVector(boundsPadding)
       .applyMatrix4(rootMatrixWorld);
-    const traversalBounds = geodetic
-      ? geodetic
-          .bounds(bounds, input.unknownHeightRange)
-          .union(localBoundingBox)
-      : localBoundingBox.clone();
+    const sameHeightEnvelope =
+      known[0] === input.unknownHeightRange[0] &&
+      known[1] === input.unknownHeightRange[1];
+    const traversalBounds =
+      geodetic && !sameHeightEnvelope
+        ? geodetic
+            .bounds(bounds, input.unknownHeightRange)
+            .union(localBoundingBox)
+        : localBoundingBox.clone();
     if (!geodetic && entry.id.level < input.maximumLevel) {
       // Payload min/max is not a subtree certificate. Only the final chosen
       // payload may be culled tightly; child traversal remains conservative.
@@ -182,9 +190,9 @@ export const buildTerrainSelection = (
       .applyMatrix4(renderCamera.matrixWorldInverse)
       .applyMatrix4(renderCamera.projectionMatrix);
     const value = {
-      intersectsViewport:
-        geographicBoundsIntersect(bounds, input.viewportBounds) ||
-        viewportFrustum.intersectsBox(worldBoundingBox),
+      // Geographic overlap enumerates candidates, not receiver demand. Test
+      // the real camera in 3D; unknown descendant peaks remain conservative.
+      intersectsViewport: viewportFrustum.intersectsBox(traversalBounds),
       intersectsShadow: shadowFrustum?.intersectsBox(traversalBounds) ?? false,
       localBoundingBox,
       distance:
@@ -210,6 +218,8 @@ export const buildTerrainSelection = (
       extra.priority,
       value.intersectsObserver || value.intersectsSun
         ? TILE_CAMERA_PRIORITY.PRIMARY
+        : reserve.baseLevel !== undefined
+        ? TILE_CAMERA_PRIORITY.PREFETCH
         : Number.NEGATIVE_INFINITY
     );
     value.intersectsViewport ||= extra.receiver;
@@ -222,6 +232,10 @@ export const buildTerrainSelection = (
   const intersectsShadow = (entry: TerrainSelectionEntry) =>
     getMetrics(entry).intersectsShadow;
   const rootIds = (level: number) => {
+    if (reserve.baseLevel !== undefined)
+      return adapter
+        .getTileGridIdsForBounds(input.source.bounds, level)
+        .filter((id) => tileIsAvailable(adapter, id));
     const viewportIds = adapter.getTileGridIdsForBounds(
       input.viewportBounds,
       level
@@ -255,12 +269,20 @@ export const buildTerrainSelection = (
         ids.set(terrainTileKey(id), id);
     return [...ids.values()].filter((id) => tileIsAvailable(adapter, id));
   };
-  let rootLevel = input.minimumLevel;
+  let rootLevel = reserve.baseLevel ?? input.minimumLevel;
   let rootEntries = rootIds(rootLevel).flatMap((id) => {
     const entry = { id, kind: TERRAIN_SELECTION_KIND.SOURCE } as const;
-    return intersectsViewport(entry) || intersectsShadow(entry) ? [entry] : [];
+    return reserve.baseLevel !== undefined ||
+      intersectsViewport(entry) ||
+      intersectsShadow(entry)
+      ? [entry]
+      : [];
   });
-  while (rootEntries.length > input.maxSelectionTiles && rootLevel > 0) {
+  while (
+    reserve.baseLevel === undefined &&
+    rootEntries.length > input.maxSelectionTiles &&
+    rootLevel > 0
+  ) {
     rootLevel -= 1;
     rootEntries = rootIds(rootLevel).flatMap((id) => {
       const entry = { id, kind: TERRAIN_SELECTION_KIND.SOURCE } as const;
@@ -272,6 +294,11 @@ export const buildTerrainSelection = (
   const selected = new Map(
     rootEntries.map((entry) => [selectionKey(entry), entry])
   );
+  // The separately budgeted resident cut must not consume the active-view
+  // allowance, otherwise a full base can prevent every refinement forever.
+  const selectionLimit =
+    input.maxSelectionTiles +
+    (reserve.baseLevel !== undefined ? rootEntries.length : 0);
   type Candidate = {
     entry: TerrainSelectionEntry;
     viewportErrorRatio: number;
@@ -407,7 +434,7 @@ export const buildTerrainSelection = (
       if (
         unavailableChild ||
         !children.length ||
-        selected.size + children.length - 1 > input.maxSelectionTiles
+        selected.size + children.length - 1 > selectionLimit
       )
         continue;
       selected.delete(selectionKey(candidate.entry));
@@ -491,7 +518,11 @@ export const buildTerrainSelection = (
       for (const [key, entry] of selected) {
         // Culling an entire unrelated root is safe. Culling one sibling from a
         // demanded root would leave an incomplete cut that cannot retire it.
-        if (!demandedRoots.has(rootKey(entry))) selected.delete(key);
+        if (
+          reserve.baseLevel === undefined &&
+          !demandedRoots.has(rootKey(entry))
+        )
+          selected.delete(key);
       }
     }
   }

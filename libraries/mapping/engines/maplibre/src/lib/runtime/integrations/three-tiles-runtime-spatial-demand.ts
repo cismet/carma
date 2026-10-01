@@ -7,6 +7,7 @@ import {
 } from "../../core/tile-camera-demand";
 import { resolveTileRequestPriority } from "../../core/tile-scheduling-policy";
 import { readOrientedTileBounds } from "./three-tiles-bounds";
+import { createRootTileDomainClip } from "./three-tiles-root-domain";
 import {
   createMeshRegionCutQuery,
   hasDisplayedAncestor,
@@ -45,6 +46,9 @@ export function createThreeTilesSpatialDemand(
   getTileScreenError: ThreeTilesRuntimeServices["getTileScreenError"]
 ) {
   const meshCameras = createMeshCameraObjectives(runtimeState);
+  const clipRootDomain = createRootTileDomainClip(
+    () => runtimeState.tiles?.root
+  );
   const cameraBounds = new THREE.Box3();
   const cameraBoundsTransform = new THREE.Matrix4();
   const noCameraDemand = {
@@ -70,6 +74,7 @@ export function createThreeTilesSpatialDemand(
     [CachedCameraDemand | null, CachedCameraDemand | null]
   >();
   let cameraDemandCacheOwner: unknown = null;
+  let cameraRootRevision = -1;
   const getTileCameraDemand: ThreeTilesRuntimeServices["getTileCameraDemand"] =
     (tile, includeObserver = false) => {
       if (
@@ -98,7 +103,12 @@ export function createThreeTilesSpatialDemand(
           ))
       )
         return noCameraDemand;
-      if (cameraDemandCacheOwner !== runtimeState.tileCameraDemand) {
+      const rootRevision = clipRootDomain.revision();
+      if (
+        cameraDemandCacheOwner !== runtimeState.tileCameraDemand ||
+        cameraRootRevision !== rootRevision
+      ) {
+        cameraRootRevision = rootRevision;
         cameraDemandCacheOwner = runtimeState.tileCameraDemand;
         cameraDemandCache = new WeakMap();
       }
@@ -114,6 +124,8 @@ export function createThreeTilesSpatialDemand(
         return hit;
       }
       readOrientedTileBounds(bounds, cameraBounds, cameraBoundsTransform);
+      if (!clipRootDomain(cameraBounds, cameraBoundsTransform))
+        return noCameraDemand;
       cameraBoundsTransform.premultiply(runtimeState.tiles.group.matrixWorld);
       const demand = runtimeState.tileCameraDemand.evaluate(
         cameraBounds,
@@ -143,6 +155,7 @@ export function createThreeTilesSpatialDemand(
       return result;
     };
   let observerOwner: unknown;
+  let observerRootRevision = -1;
   let observer: ReturnType<typeof createTileCameraDemand> | null = null;
   let observerErrorTarget = 1;
   let observerDemands = new WeakMap<
@@ -152,6 +165,11 @@ export function createThreeTilesSpatialDemand(
   const getTileObserverDemand: ThreeTilesRuntimeServices["getTileObserverDemand"] =
     (tile, includeVisibleArea = false) => {
       const volume = tile.engineData?.boundingVolume;
+      const rootRevision = clipRootDomain.revision();
+      if (observerRootRevision !== rootRevision) {
+        observerRootRevision = rootRevision;
+        observerDemands = new WeakMap();
+      }
       if (observerOwner !== runtimeState.tileCameraDemand) {
         observerOwner = runtimeState.tileCameraDemand;
         const views = runtimeState.tileCameraDemand.views.filter(
@@ -172,6 +190,17 @@ export function createThreeTilesSpatialDemand(
         !runtimeState.viewFrustumsReady ||
         !volume.intersectsFrustum ||
         volume.intersectsFrustum(runtimeState.tileViewFrustum);
+      if (volume?.getAABB)
+        readOrientedTileBounds(volume, cameraBounds, cameraBoundsTransform);
+      if (
+        volume?.getAABB &&
+        !clipRootDomain(cameraBounds, cameraBoundsTransform)
+      )
+        return {
+          intersects: false,
+          errorPixels: Number.POSITIVE_INFINITY,
+          ...(includeVisibleArea ? { visibleAreaPixels: 0 } : {}),
+        };
       if (!observer || !volume?.getAABB || !runtimeState.tiles)
         return {
           intersects: inFrustum,
@@ -180,7 +209,6 @@ export function createThreeTilesSpatialDemand(
             ? getTileScreenError(tile, false)
             : tile.traversal?.error ?? Number.POSITIVE_INFINITY,
         };
-      readOrientedTileBounds(volume, cameraBounds, cameraBoundsTransform);
       cameraBoundsTransform.premultiply(runtimeState.tiles.group.matrixWorld);
       const demand = observer.evaluate(
         cameraBounds,

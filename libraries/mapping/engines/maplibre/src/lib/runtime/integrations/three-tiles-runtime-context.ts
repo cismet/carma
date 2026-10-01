@@ -34,11 +34,9 @@ import type {
   RuntimeTilesRenderer,
   ThreeTilesRuntimeOptions,
 } from "./three-tiles-runtime-types";
-import {
-  TilesViewFrustum,
-  readTilesDeviceProfile,
-} from "./three-tiles-runtime-vendor";
+import { TilesViewFrustum } from "./three-tiles-runtime-vendor";
 import type { TilesCameraSet } from "./tiles-camera-set";
+import type { readTileDeviceProfile } from "./tile-device-profile";
 import type { createTileCameraDemand } from "../../core/tile-camera-demand";
 
 import type { createThreeTilesRequestHistory } from "./three-tiles-request-history";
@@ -75,7 +73,7 @@ export interface ThreeTilesRuntimeState {
   usedBytesMain: number;
   lastMainViewConverged: boolean;
   lastActiveViewsConverged?: boolean;
-  deviceProfile: ReturnType<typeof readTilesDeviceProfile>;
+  deviceProfile: ReturnType<typeof readTileDeviceProfile>;
   /** Learned resident ceiling and the session probe, persisted by the host. */
   cacheCeilingStorage: Storage | null;
   cacheCeilingMemory: CacheCeilingMemory | null;

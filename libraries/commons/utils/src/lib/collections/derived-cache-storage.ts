@@ -1,3 +1,8 @@
+import { createDerivedCacheReader } from "./derived-cache-reader";
+import {
+  createDerivedCacheLease,
+  parseDerivedCacheEpochNamespace,
+} from "./derived-cache-lease";
 import {
   DERIVED_CACHE_DEFAULTS,
   derivedCacheSavedMilliseconds,
@@ -12,7 +17,12 @@ import {
   type DerivedCachePolicyOptions,
   type DerivedCacheRecord,
 } from "./derived-cache-policy";
-
+import {
+  canDeleteDerivedCacheRecord,
+  planDerivedCacheTreeProtection,
+  type DerivedCacheReadOptions,
+  type DerivedCacheTreeProtectionOptions,
+} from "./derived-cache-tree-policy";
 import {
   createDerivedCacheQuotaSampler,
   DERIVED_CACHE_CAPACITY_MODE,
@@ -22,16 +32,23 @@ import {
   type DerivedCacheCapacitySource,
   type DerivedCacheQuotaSample,
 } from "./derived-cache-quota";
-
-const STORES = { metadata: "metadata", payload: "payload", state: "state" } as const;
+const STORES = {
+  metadata: "metadata",
+  payload: "payload",
+  state: "state",
+} as const;
 const STATE_KEY = "budget";
 const READ_WRITE = "readwrite";
 const isQuotaError = (error: unknown) =>
-  typeof error === "object" && error !== null && "name" in error &&
+  typeof error === "object" &&
+  error !== null &&
+  "name" in error &&
   error.name === "QuotaExceededError";
 type Policy = NonNullable<ReturnType<typeof resolveDerivedCachePolicy>>;
 type BudgetState = Policy & {
-  age: number; bytes: number; count: number;
+  age: number;
+  bytes: number;
+  count: number;
   configuredCapacityBytes?: number;
   capacityMode?: DerivedCacheCapacityMode;
   capacitySource?: DerivedCacheCapacitySource;
@@ -42,31 +59,19 @@ type BudgetState = Policy & {
   otherUsageBytes?: number | null;
   headroomBytes?: number | null;
 };
-export type DerivedBufferCacheOptions = DerivedCachePolicyOptions & Readonly<{
-  databaseName?: string;
-  producerEpoch?: string;
-  enabled?: boolean;
-  /** One shared origin budget, sampled in the background; capacityBytes is fallback. */
-  adaptiveCapacity?: boolean;
-}>;
+export type DerivedBufferCacheOptions = DerivedCachePolicyOptions &
+  Readonly<{
+    databaseName?: string;
+    producerEpoch?: string;
+    enabled?: boolean;
+    /** One shared origin budget, sampled in the background; capacityBytes is fallback. */
+    adaptiveCapacity?: boolean;
+  }>;
 export type DerivedBufferCacheStats = Readonly<BudgetState>;
 export type DerivedBufferCacheValue<T> = Readonly<{
   value: T;
   metadata: DerivedCacheMetadata;
 }>;
-
-// Canonical tuples reserve a disjoint physical namespace domain. Legacy
-// managers cannot address these tuples as if they were unscoped namespaces.
-const parseEpochNamespace = (namespace: string): [string, string] | null => {
-  if (!namespace.startsWith("[")) return null;
-  try {
-    const pair: unknown = JSON.parse(namespace);
-    return Array.isArray(pair) && pair.length === 2 &&
-      pair.every(value => typeof value === "string" && value.length > 0) &&
-      JSON.stringify(pair) === namespace ? pair as [string, string] : null;
-  } catch { return null; }
-};
-
 /** DBC-01: ./DERIVED_CACHE_DECISIONS.md. Invoke from a worker for large buffers.
  * Native structured cloning only; bytes describe caller-accounted payload, not
  * exact IndexedDB overhead. Disk capacity is unrelated to GPU/RAM budgets.
@@ -81,59 +86,53 @@ export const createDerivedBufferCache = (
   options: DerivedBufferCacheOptions
 ) => {
   const policy = resolveDerivedCachePolicy(options);
-  const quotaSampler = options.adaptiveCapacity ? createDerivedCacheQuotaSampler() : null;
+  const quotaSampler = options.adaptiveCapacity
+    ? createDerivedCacheQuotaSampler()
+    : null;
   const epoch = options.producerEpoch ?? null;
-  const enabled = options.enabled !== false &&
-    (options.producerEpoch === undefined || typeof options.producerEpoch === "string" && options.producerEpoch.length > 0);
-  const databaseName = options.databaseName ?? DERIVED_CACHE_DEFAULTS.databaseName;
+  const enabled =
+    options.enabled !== false &&
+    (options.producerEpoch === undefined ||
+      (typeof options.producerEpoch === "string" &&
+        options.producerEpoch.length > 0));
+  const databaseName =
+    options.databaseName ?? DERIVED_CACHE_DEFAULTS.databaseName;
   const physicalNamespace = (namespace: string) => {
     if (typeof namespace !== "string" || namespace.length === 0) return null;
-    return epoch !== null ? JSON.stringify([epoch, namespace])
-      : parseEpochNamespace(namespace) ? null : namespace;
+    return epoch !== null
+      ? JSON.stringify([epoch, namespace])
+      : parseDerivedCacheEpochNamespace(namespace)
+      ? null
+      : namespace;
   };
   const logicalNamespace = (namespace: string) => {
-    const pair = parseEpochNamespace(namespace);
-    return pair ? pair[0] === epoch ? pair[1] : null
-      : epoch === null ? namespace : null;
+    const pair = parseDerivedCacheEpochNamespace(namespace);
+    return pair
+      ? pair[0] === epoch
+        ? pair[1]
+        : null
+      : epoch === null
+      ? namespace
+      : null;
   };
-  const isOwnRecord = (record: DerivedCacheMetadata) => logicalNamespace(record.namespace) !== null;
-  const publicMetadata = (record: DerivedCacheMetadata): DerivedCacheMetadata => ({
-    ...record, namespace: logicalNamespace(record.namespace)!,
+  const isOwnRecord = (record: DerivedCacheMetadata) =>
+    logicalNamespace(record.namespace) !== null;
+  const publicMetadata = (
+    record: DerivedCacheMetadata
+  ): DerivedCacheMetadata => ({
+    ...record,
+    namespace: logicalNamespace(record.namespace)!,
   });
   let database: IDBDatabase | null = null;
   let opening: Promise<IDBDatabase | null> | null = null;
   let closed = false;
-  let locks: LockManager | undefined;
-  try { if (enabled && typeof navigator !== "undefined") locks = navigator.locks; } catch { /* No cleanup without locks. */ }
-  if (typeof locks?.request !== "function") locks = undefined;
-  const leaseName = (producer: string | null) =>
-    `carma-derived-cache-epoch:${JSON.stringify([databaseName, producer])}`;
-  let leaseReady: Promise<boolean> | null = null;
-  let leaseAbort: AbortController | null = null;
-  let releaseLease: (() => void) | null = null;
-  const acquireLease = (): Promise<boolean> => {
-    if (closed || !enabled) return Promise.resolve(false);
-    if (!locks) return Promise.resolve(true);
-    leaseReady ??= new Promise<boolean>((resolve) => {
-      const controller = new AbortController();
-      leaseAbort = controller;
-      try {
-        void locks!.request(leaseName(epoch), { mode: "shared", signal: controller.signal }, async () => {
-          leaseAbort = null;
-          if (closed) { resolve(false); return; }
-          const held = new Promise<void>((release) => { releaseLease = release; });
-          resolve(true);
-          await held;
-          releaseLease = null;
-        }).catch(() => resolve(false));
-      } catch { resolve(false); }
-    });
-    return leaseReady;
-  };
+  const lease = createDerivedCacheLease(databaseName, epoch, enabled);
+  const { locks, leaseName } = lease;
   const quotaFailures = new WeakSet<IDBTransaction>();
   const open = async (): Promise<IDBDatabase | null> => {
-    if (closed || !enabled || !policy || typeof indexedDB === "undefined") return null;
-    if (!await acquireLease() || closed) return null;
+    if (closed || !enabled || !policy || typeof indexedDB === "undefined")
+      return null;
+    if (!(await lease.acquire()) || closed) return null;
     if (database) return database;
     opening ??= new Promise<IDBDatabase | null>((resolve) => {
       let settled = false;
@@ -146,14 +145,13 @@ export const createDerivedBufferCache = (
         resolve(value);
       };
       try {
-        const request = indexedDB.open(
-          databaseName,
-          1
-        );
+        const request = indexedDB.open(databaseName, 1);
         request.onupgradeneeded = () => {
           const db = request.result;
           if (!db.objectStoreNames.contains(STORES.metadata))
-            db.createObjectStore(STORES.metadata, { keyPath: ["namespace", "key"] });
+            db.createObjectStore(STORES.metadata, {
+              keyPath: ["namespace", "key"],
+            });
           for (const name of [STORES.payload, STORES.state])
             if (!db.objectStoreNames.contains(name)) db.createObjectStore(name);
         };
@@ -188,14 +186,18 @@ export const createDerivedBufferCache = (
       done: (value: T) => void
     ) => void,
     onQuota?: () => void,
-    persistBudget = true
+    persistBudget = true,
+    readOnly = false
   ): Promise<T> => {
     const db = await open();
     if (!db || !policy || closed) return fallback;
     return new Promise<T>((resolve) => {
       let result = fallback;
       try {
-        const tx = db.transaction(Object.values(STORES), READ_WRITE);
+        const tx = db.transaction(
+          Object.values(STORES),
+          readOnly ? "readonly" : READ_WRITE
+        );
         tx.oncomplete = () => resolve(result);
         tx.onerror = (event) => {
           if (isQuotaError((event.target as IDBRequest | null)?.error))
@@ -210,17 +212,26 @@ export const createDerivedBufferCache = (
         };
         read(tx, tx.objectStore(STORES.state).get(STATE_KEY), (stored) => {
           let state: BudgetState = stored ?? {
-            ...policy, age: 0, bytes: 0, count: 0,
+            ...policy,
+            age: 0,
+            bytes: 0,
+            count: 0,
           };
           if (
-            (state.configuredCapacityBytes ?? state.capacityBytes) !== policy.capacityBytes ||
+            (state.configuredCapacityBytes ?? state.capacityBytes) !==
+              policy.capacityBytes ||
             (state.capacityMode !== undefined && !quotaSampler) ||
             state.maxEntries !== policy.maxEntries ||
             state.lowWaterRatio !== policy.lowWaterRatio ||
             state.minimumSavingRatio !== policy.minimumSavingRatio
-          ) return;
+          )
+            return;
           if (quotaSampler) {
-            const sample = quotaSampler.read(state.bytes, state.quotaSample, state.quotaInvalidatedAt);
+            const sample = quotaSampler.read(
+              state.bytes,
+              state.quotaSample,
+              state.quotaInvalidatedAt
+            );
             state = {
               ...state,
               ...resolveDerivedCacheQuotaCapacity(policy.capacityBytes, sample),
@@ -230,11 +241,15 @@ export const createDerivedBufferCache = (
               quotaInvalidatedAt: quotaSampler.invalidatedAt,
             };
           }
-          if (persistBudget && (!stored || state.capacityBytes !== stored.capacityBytes ||
+          if (
+            persistBudget &&
+            (!stored ||
+              state.capacityBytes !== stored.capacityBytes ||
               state.capacityMode !== stored.capacityMode ||
               state.capacitySource !== stored.capacitySource ||
               state.quotaSample?.sampledAt !== stored.quotaSample?.sampledAt ||
-              state.quotaInvalidatedAt !== stored.quotaInvalidatedAt))
+              state.quotaInvalidatedAt !== stored.quotaInvalidatedAt)
+          )
             tx.objectStore(STORES.state).put(state, STATE_KEY);
           action(tx, state, (value) => {
             result = value;
@@ -266,122 +281,185 @@ export const createDerivedBufferCache = (
   };
   const allMetadata = (
     tx: IDBTransaction,
-    use: (rows: DerivedCacheMetadata[]) => void
+    use: (rows: DerivedCacheMetadata[]) => void,
+    namespace?: string
   ) =>
-    read(tx, tx.objectStore(STORES.metadata).getAll(
-      undefined, DERIVED_CACHE_DEFAULTS.maxEntries + 1
-    ),
+    read(
+      tx,
+      tx
+        .objectStore(STORES.metadata)
+        .getAll(
+          namespace !== undefined && typeof IDBKeyRange !== "undefined"
+            ? IDBKeyRange.bound([namespace], [namespace, []])
+            : undefined,
+          DERIVED_CACHE_DEFAULTS.maxEntries + 1
+        ),
       (rows: DerivedCacheMetadata[]) => {
         if (rows.length > DERIVED_CACHE_DEFAULTS.maxEntries) {
           tx.abort();
           return;
         }
         use(rows);
-      });
+      }
+    );
   const erase = (tx: IDBTransaction, record: DerivedCacheMetadata) => {
     const id = [record.namespace, record.key];
     tx.objectStore(STORES.metadata).delete(id);
     tx.objectStore(STORES.payload).delete(id);
   };
   const removeWhere = (matches: (record: DerivedCacheMetadata) => boolean) =>
-    run<number>(0, (tx, state, done) => allMetadata(tx, (rows) => {
-      let removed = 0;
-      let bytes = 0;
-      let count = 0;
-      for (const record of rows) {
-        if (matches(record)) { erase(tx, record); removed += 1; }
-        else { bytes += record.bytes; count += 1; }
-      }
-      tx.objectStore(STORES.state).put({ ...state,
-        bytes, count,
-      }, STATE_KEY);
-      done(removed);
-    }));
+    run<number>(0, (tx, state, done) =>
+      allMetadata(tx, (rows) => {
+        let removed = 0;
+        let bytes = 0;
+        let count = 0;
+        for (const record of rows) {
+          if (matches(record)) {
+            erase(tx, record);
+            removed += 1;
+          } else {
+            bytes += record.bytes;
+            count += 1;
+          }
+        }
+        tx.objectStore(STORES.state).put({ ...state, bytes, count }, STATE_KEY);
+        done(removed);
+      })
+    );
   const trim = () =>
-    run<number>(0, (tx, state, done) => allMetadata(tx, (rows) => {
-      const plan = planDerivedCacheTrim(rows.filter(isOwnRecord), state.age);
-      for (const victim of plan.evicted) erase(tx, victim);
-      const victims = new Set(plan.evicted);
-      const remaining = rows.filter(record => !victims.has(record));
-      tx.objectStore(STORES.state).put({ ...state,
-        age: plan.age,
-        bytes: remaining.reduce((sum, record) => sum + record.bytes, 0),
-        count: remaining.length,
-      }, STATE_KEY);
-      done(plan.evicted.length);
-    }));
+    run<number>(0, (tx, state, done) =>
+      allMetadata(tx, (rows) => {
+        const plan = planDerivedCacheTrim(rows.filter(isOwnRecord), state.age);
+        for (const victim of plan.evicted) erase(tx, victim);
+        const victims = new Set(plan.evicted);
+        const remaining = rows.filter((record) => !victims.has(record));
+        tx.objectStore(STORES.state).put(
+          {
+            ...state,
+            age: plan.age,
+            bytes: remaining.reduce((sum, record) => sum + record.bytes, 0),
+            count: remaining.length,
+          },
+          STATE_KEY
+        );
+        done(plan.evicted.length);
+      })
+    );
   const cleanupObsoleteEpochs = async () => {
     if (!enabled || closed || !locks) return 0;
-    const foreign = await run<readonly (string | null)[] | null>(null, (tx, _state, done) =>
-      allMetadata(tx, rows => done([...new Set(rows.map(record =>
-        parseEpochNamespace(record.namespace)?.[0] ?? null
-      ))].filter(producer => producer !== epoch)))
+    const foreign = await run<readonly (string | null)[] | null>(
+      null,
+      (tx, _state, done) =>
+        allMetadata(tx, (rows) =>
+          done(
+            [
+              ...new Set(
+                rows.map(
+                  (record) =>
+                    parseDerivedCacheEpochNamespace(record.namespace)?.[0] ??
+                    null
+                )
+              ),
+            ].filter((producer) => producer !== epoch)
+          )
+        )
     );
     let removed = 0;
     for (const producer of foreign ?? []) {
       if (closed) break;
       try {
-        await locks.request(leaseName(producer), { mode: "exclusive", ifAvailable: true }, async lock => {
-          if (!lock || closed) return;
-          // A new client must wait for its shared lease until this atomic delete
-          // commits. Existing live epochs are never selected by this cleanup.
-          removed += await removeWhere(record =>
-            (parseEpochNamespace(record.namespace)?.[0] ?? null) === producer
-          );
-        });
-      } catch { /* Optional idle cleanup; preserve cache availability. */ }
+        await locks.request(
+          leaseName(producer),
+          { mode: "exclusive", ifAvailable: true },
+          async (lock) => {
+            if (!lock || closed) return;
+            // A new client must wait for its shared lease until this atomic delete
+            // commits. Existing live epochs are never selected by this cleanup.
+            removed += await removeWhere(
+              (record) =>
+                (parseDerivedCacheEpochNamespace(record.namespace)?.[0] ??
+                  null) === producer
+            );
+          }
+        );
+      } catch {
+        /* Optional idle cleanup; preserve cache availability. */
+      }
     }
     return removed;
   };
+  const reader = createDerivedCacheReader({
+    transaction: (fallback, use, readOnly) =>
+      run(
+        fallback,
+        (tx, state, done) => use(tx, state.age, done),
+        undefined,
+        false,
+        readOnly
+      ),
+    read,
+    allMetadata,
+    physicalNamespace,
+    publicMetadata,
+  });
   const cache = {
-    get<T>(namespace: string, key: string, version: string, options?: { touch?: boolean }) {
-      const physical = physicalNamespace(namespace);
-      if (physical === null) return Promise.resolve(null);
-      return run<DerivedBufferCacheValue<T> | null>(null, (tx, state, done) =>
-        read(tx, tx.objectStore(STORES.metadata).get([physical, key]), (record: DerivedCacheMetadata | undefined) => {
-          if (!record || record.version !== version) return;
-          read(tx, tx.objectStore(STORES.payload).get([physical, key]), (value: T | undefined) => {
-            if (value === undefined) return;
-            const metadata = options?.touch === false ? record : {
-              ...refreshDerivedCacheMetadata(record, state.age, Date.now()),
-              hits: (record.hits ?? 0) + 1,
-            };
-            if (options?.touch !== false) tx.objectStore(STORES.metadata).put(metadata);
-            done({ value, metadata: publicMetadata(metadata) });
-          });
-        }), undefined, false
-      );
-    },
+    ...reader,
     async put<T>(record: DerivedCacheRecord, value: T) {
       const namespace = physicalNamespace(record.namespace);
       if (namespace === null) return false;
       const physicalRecord = { ...record, namespace };
       let quotaExceeded = false;
-      const attempt = () => run<boolean>(false, (tx, state, done) => {
-        // A missing estimate restricts new writes, but is not evidence that
-        // existing useful data should be evicted down to the fallback budget.
-        if (quotaSampler &&
-            state.capacitySource ===
-              DERIVED_CACHE_CAPACITY_SOURCE.CONFIGURED_FALLBACK &&
-            state.bytes > state.capacityBytes) return;
-        allMetadata(tx, (rows) => {
-          const plan = planDerivedCacheAdmission(rows, physicalRecord, { ...state, nowMs: Date.now() });
-          if (!plan.record) return;
-          for (const victim of plan.evicted) erase(tx, victim);
-          tx.objectStore(STORES.payload).put(value, [namespace, record.key]);
-          tx.objectStore(STORES.metadata).put(plan.record);
-          tx.objectStore(STORES.state).put({ ...state,
-            age: plan.age, bytes: plan.bytes, count: plan.count,
-          }, STATE_KEY);
-          done(true);
-        });
-      }, () => { quotaExceeded = true; });
+      const attempt = () =>
+        run<boolean>(
+          false,
+          (tx, state, done) => {
+            // A missing estimate restricts new writes, but is not evidence that
+            // existing useful data should be evicted down to the fallback budget.
+            if (
+              quotaSampler &&
+              state.capacitySource ===
+                DERIVED_CACHE_CAPACITY_SOURCE.CONFIGURED_FALLBACK &&
+              state.bytes > state.capacityBytes
+            )
+              return;
+            allMetadata(tx, (rows) => {
+              const plan = planDerivedCacheAdmission(rows, physicalRecord, {
+                ...state,
+                nowMs: Date.now(),
+              });
+              if (!plan.record) return;
+              for (const victim of plan.evicted) erase(tx, victim);
+              tx.objectStore(STORES.payload).put(value, [
+                namespace,
+                record.key,
+              ]);
+              tx.objectStore(STORES.metadata).put(plan.record);
+              tx.objectStore(STORES.state).put(
+                {
+                  ...state,
+                  age: plan.age,
+                  bytes: plan.bytes,
+                  count: plan.count,
+                },
+                STATE_KEY
+              );
+              done(true);
+            });
+          },
+          () => {
+            quotaExceeded = true;
+          }
+        );
       const accepted = await attempt();
       // An unknown benefit never justifies eviction, including native quota
       // pressure outside our budget. A measured candidate may trim once and
       // retry in a fresh transaction; its aborted first write changed nothing.
-      if (accepted || !quotaExceeded ||
-        derivedCacheSavedMilliseconds(record) === null || await trim() === 0)
+      if (
+        accepted ||
+        !quotaExceeded ||
+        derivedCacheSavedMilliseconds(record) === null ||
+        (await trim()) === 0
+      )
         return accepted;
       return attempt();
     },
@@ -394,38 +472,158 @@ export const createDerivedBufferCache = (
       const physical = physicalNamespace(namespace);
       if (physical === null) return Promise.resolve(false);
       return run<boolean>(false, (tx, state, done) =>
-        read(tx, tx.objectStore(STORES.metadata).get([physical, key]), (record: DerivedCacheMetadata | undefined) => {
-          if (!record || record.version !== version) return;
-          const next = {
-            ...record,
-            recomputeMs: costs.recomputeMs ?? record.recomputeMs,
-            restoreMs: costs.restoreMs ?? record.restoreMs,
-          };
-          if (!isDerivedCacheRecordValid(next)) return;
-          if (!isDerivedCacheSavingSufficient(next, state.minimumSavingRatio)) {
-            erase(tx, record);
-            tx.objectStore(STORES.state).put({ ...state,
-              bytes: state.bytes - record.bytes, count: state.count - 1,
-            }, STATE_KEY);
-          } else {
-            tx.objectStore(STORES.metadata).put(
-              refreshDerivedCacheMetadata(next, state.age, Date.now())
-            );
+        read(
+          tx,
+          tx.objectStore(STORES.metadata).get([physical, key]),
+          (record: DerivedCacheMetadata | undefined) => {
+            if (!record || record.version !== version) return;
+            const next = {
+              ...record,
+              recomputeMs: costs.recomputeMs ?? record.recomputeMs,
+              restoreMs: costs.restoreMs ?? record.restoreMs,
+            };
+            if (!isDerivedCacheRecordValid(next)) return;
+            if (
+              !isDerivedCacheSavingSufficient(next, state.minimumSavingRatio)
+            ) {
+              allMetadata(tx, (rows) => {
+                if (!canDeleteDerivedCacheRecord(rows, record)) return;
+                erase(tx, record);
+                tx.objectStore(STORES.state).put(
+                  {
+                    ...state,
+                    bytes: state.bytes - record.bytes,
+                    count: state.count - 1,
+                  },
+                  STATE_KEY
+                );
+                done(true);
+              });
+            } else {
+              tx.objectStore(STORES.metadata).put({
+                ...refreshDerivedCacheMetadata(next, state.age, Date.now()),
+                lastAccess: record.lastAccess,
+              });
+              done(true);
+            }
           }
-          done(true);
-        })
+        )
       );
     },
     async remove(namespace: string, key: string, version?: string) {
       const physical = physicalNamespace(namespace);
       if (physical === null) return false;
-      return (await removeWhere((record) => record.namespace === physical &&
-        record.key === key && (version === undefined || record.version === version))) > 0;
+      return run(false, (tx, state, done) =>
+        allMetadata(tx, (rows) => {
+          const record = rows.find(
+            (record) =>
+              record.namespace === physical &&
+              record.key === key &&
+              (version === undefined || record.version === version)
+          );
+          if (!record || !canDeleteDerivedCacheRecord(rows, record)) return;
+          erase(tx, record);
+          tx.objectStore(STORES.state).put(
+            {
+              ...state,
+              bytes: state.bytes - record.bytes,
+              count: state.count - 1,
+            },
+            STATE_KEY
+          );
+          done(true);
+        })
+      );
+    },
+    protectTree(
+      namespace: string,
+      version: string,
+      identity: string,
+      nodes: readonly string[],
+      options?: DerivedCacheTreeProtectionOptions
+    ) {
+      const physical = physicalNamespace(namespace);
+      if (physical === null) return Promise.resolve(false);
+      return run(false, (tx, state, done) =>
+        allMetadata(tx, (rows) => {
+          const plan = planDerivedCacheTreeProtection(
+            rows,
+            physical,
+            version,
+            identity,
+            nodes,
+            options?.replace === true
+          );
+          if (!plan) return;
+          const removed = new Set<DerivedCacheMetadata>();
+          if (options?.manifest) {
+            const byKey = new Map(plan.map((record) => [record.key, record]));
+            const protectedRows = rows.map((record) =>
+              record.namespace === physical && record.version === version
+                ? byKey.get(record.key) ?? record
+                : record
+            );
+            const manifest = options.manifest;
+            const admission = planDerivedCacheAdmission(
+              protectedRows,
+              {
+                namespace: physical,
+                version,
+                key: manifest.key,
+                bytes: manifest.bytes,
+                tree: {
+                  identity,
+                  node: JSON.stringify(["manifest", manifest.key]),
+                  parent: null,
+                  level: 0,
+                  protected: true,
+                },
+              },
+              { ...state, nowMs: Date.now() }
+            );
+            if (!admission.record) return;
+            for (const victim of admission.evicted) {
+              erase(tx, victim);
+              removed.add(victim);
+            }
+            tx.objectStore(STORES.metadata).put(admission.record);
+            tx.objectStore(STORES.payload).put(manifest.value, [
+              physical,
+              manifest.key,
+            ]);
+            tx.objectStore(STORES.state).put(
+              {
+                ...state,
+                age: admission.age,
+                bytes: admission.bytes,
+                count: admission.count,
+              },
+              STATE_KEY
+            );
+          }
+          for (const record of plan)
+            if (!removed.has(record) && record.key !== options?.manifest?.key)
+              tx.objectStore(STORES.metadata).put(record);
+          done(true);
+        })
+      );
     },
     invalidateNamespace(namespace: string) {
       const physical = physicalNamespace(namespace);
-      return physical === null ? Promise.resolve(0)
+      return physical === null
+        ? Promise.resolve(0)
         : removeWhere((record) => record.namespace === physical);
+    },
+    invalidateTree(namespace: string, version: string, identity: string) {
+      const physical = physicalNamespace(namespace);
+      return physical === null || !identity
+        ? Promise.resolve(0)
+        : removeWhere(
+            (record) =>
+              record.namespace === physical &&
+              record.version === version &&
+              record.tree?.identity === identity
+          );
     },
     /** Current producer only; registered namespace clients cannot trim siblings. */
     trim,
@@ -433,13 +631,31 @@ export const createDerivedBufferCache = (
     cleanupObsoleteEpochs,
     /** The shared byte/entry budget spans all producers, unlike inspect(). */
     stats() {
-      return run<DerivedBufferCacheStats | null>(null, (_tx, state, done) => done(state), undefined, false);
+      return run<DerivedBufferCacheStats | null>(
+        null,
+        (_tx, state, done) => done(state),
+        undefined,
+        false
+      );
     },
     /** On-demand audit only: bounded metadata, never payload deserialization. */
     inspect(namespace?: string) {
-      return run<readonly DerivedCacheMetadata[] | null>(null, (tx, _state, done) =>
-        allMetadata(tx, (rows) => done(rows.filter(isOwnRecord).map(publicMetadata)
-          .filter(record => namespace === undefined || record.namespace === namespace))), undefined, false
+      return run<readonly DerivedCacheMetadata[] | null>(
+        null,
+        (tx, _state, done) =>
+          allMetadata(tx, (rows) =>
+            done(
+              rows
+                .filter(isOwnRecord)
+                .map(publicMetadata)
+                .filter(
+                  (record) =>
+                    namespace === undefined || record.namespace === namespace
+                )
+            )
+          ),
+        undefined,
+        false
       );
     },
     close() {
@@ -447,10 +663,7 @@ export const createDerivedBufferCache = (
       quotaSampler?.close();
       database?.close();
       database = null;
-      leaseAbort?.abort();
-      leaseAbort = null;
-      releaseLease?.();
-      releaseLease = null;
+      lease.close();
     },
   };
   return {
@@ -465,20 +678,62 @@ export const createDerivedBufferCache = (
       return Object.freeze({
         namespace,
         version,
-        get<T>(key: string, options?: { touch?: boolean }) {
-          return valid ? cache.get<T>(namespace, key, version, options) : Promise.resolve(null);
+        get<T>(key: string, options?: DerivedCacheReadOptions) {
+          return valid
+            ? cache.get<T>(namespace, key, version, options)
+            : Promise.resolve(null);
         },
-        put<T>(key: string, value: T, entry: DerivedCacheCosts & { bytes: number }) {
-          return valid ? cache.put({
-            namespace, key, version, bytes: entry.bytes,
-            recomputeMs: entry.recomputeMs, restoreMs: entry.restoreMs,
-          }, value) : Promise.resolve(false);
+        put<T>(
+          key: string,
+          value: T,
+          entry: DerivedCacheCosts & {
+            bytes: number;
+            tree?: DerivedCacheRecord["tree"];
+          }
+        ) {
+          return valid
+            ? cache.put(
+                {
+                  namespace,
+                  key,
+                  version,
+                  bytes: entry.bytes,
+                  recomputeMs: entry.recomputeMs,
+                  restoreMs: entry.restoreMs,
+                  tree: entry.tree,
+                },
+                value
+              )
+            : Promise.resolve(false);
         },
         remove(key: string) {
-          return valid ? cache.remove(namespace, key, version) : Promise.resolve(false);
+          return valid
+            ? cache.remove(namespace, key, version)
+            : Promise.resolve(false);
+        },
+        protectTree(
+          identity: string,
+          nodes: readonly string[],
+          options?: DerivedCacheTreeProtectionOptions
+        ) {
+          return valid
+            ? cache.protectTree(namespace, version, identity, nodes, options)
+            : Promise.resolve(false);
+        },
+        markTreeUsed(identity: string, nodes: readonly string[]) {
+          return valid
+            ? cache.markTreeUsed(namespace, version, identity, nodes)
+            : Promise.resolve(0);
+        },
+        invalidateTree(identity: string) {
+          return valid
+            ? cache.invalidateTree(namespace, version, identity)
+            : Promise.resolve(0);
         },
         updateCosts(key: string, costs: DerivedCacheCosts) {
-          return valid ? cache.updateCosts(namespace, key, version, costs) : Promise.resolve(false);
+          return valid
+            ? cache.updateCosts(namespace, key, version, costs)
+            : Promise.resolve(false);
         },
         async inspect() {
           if (!valid) return null;
@@ -491,4 +746,6 @@ export const createDerivedBufferCache = (
 };
 
 export type DerivedBufferCache = ReturnType<typeof createDerivedBufferCache>;
-export type DerivedBufferCacheRegistration = ReturnType<DerivedBufferCache["register"]>;
+export type DerivedBufferCacheRegistration = ReturnType<
+  DerivedBufferCache["register"]
+>;

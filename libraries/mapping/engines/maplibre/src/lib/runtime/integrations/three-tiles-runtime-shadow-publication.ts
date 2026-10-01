@@ -301,7 +301,8 @@ export function createThreeTilesShadowPublication(
       enableShadowSelection(proposed);
       const demand = createCasterVolumeDemand(
         runtimeState.shadowReceiverMask,
-        runtimeState.requestedErrorTarget
+        runtimeState.requestedErrorTarget,
+        () => runtimeState.tiles?.root
       );
       const plan = selectMeshShadowRetrieval(
         root,

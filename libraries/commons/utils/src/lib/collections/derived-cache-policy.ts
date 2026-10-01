@@ -1,3 +1,9 @@
+import {
+  canAdmitDerivedCacheTree,
+  isDerivedCacheTreeValid,
+  selectDerivedCacheVictim,
+} from "./derived-cache-tree-policy";
+
 /** DBC-01: measured saved work per byte; see ./DERIVED_CACHE_DECISIONS.md.
  * Costs are milliseconds measured by the caller at consistent restore/recompute
  * boundaries. This policy never substitutes estimated wins for missing timings.
@@ -22,13 +28,33 @@ export type DerivedCacheCosts = Readonly<{
   restoreMs?: number;
 }>;
 
+export type DerivedCacheTree = Readonly<{
+  identity: string;
+  node: string;
+  parent: string | null;
+  level: number;
+  protected?: boolean;
+}>;
 export type DerivedCacheRecord = DerivedCacheCosts &
-  Readonly<{ namespace: string; key: string; version: string; bytes: number }>;
+  Readonly<{
+    namespace: string;
+    key: string;
+    version: string;
+    bytes: number;
+    tree?: DerivedCacheTree;
+  }>;
 
 export type DerivedCacheMetadata = DerivedCacheRecord &
-  Readonly<{ priority: number; lastAccess: number; writtenMs: number; hits?: number }>;
+  Readonly<{
+    priority: number;
+    lastAccess: number;
+    writtenMs: number;
+    hits?: number;
+  }>;
 
-export const resolveDerivedCachePolicy = (options: DerivedCachePolicyOptions) => {
+export const resolveDerivedCachePolicy = (
+  options: DerivedCachePolicyOptions
+) => {
   const maxEntries = options.maxEntries ?? DERIVED_CACHE_DEFAULTS.maxEntries;
   const lowWaterRatio =
     options.lowWaterRatio ?? DERIVED_CACHE_DEFAULTS.lowWaterRatio;
@@ -37,7 +63,8 @@ export const resolveDerivedCachePolicy = (options: DerivedCachePolicyOptions) =>
   if (
     !Number.isSafeInteger(options.capacityBytes) ||
     options.capacityBytes <= 0 ||
-    !Number.isSafeInteger(maxEntries) || maxEntries <= 0 ||
+    !Number.isSafeInteger(maxEntries) ||
+    maxEntries <= 0 ||
     !(lowWaterRatio > 0 && lowWaterRatio <= 1) ||
     !(minimumSavingRatio >= 0 && minimumSavingRatio <= 1)
   ) {
@@ -61,18 +88,23 @@ export const isDerivedCacheSavingSufficient = (
   minimumSavingRatio: number = DERIVED_CACHE_DEFAULTS.minimumSavingRatio
 ) => {
   const saved = derivedCacheSavedMilliseconds(costs);
-  return saved === null ||
-    (saved > 0 && costs.restoreMs! <= costs.recomputeMs! * (1 - minimumSavingRatio));
+  return (
+    saved === null ||
+    (saved > 0 &&
+      costs.restoreMs! <= costs.recomputeMs! * (1 - minimumSavingRatio))
+  );
 };
 
 export const isDerivedCacheRecordValid = (record: DerivedCacheRecord) =>
   [record.namespace, record.key, record.version].every(
     (value) => typeof value === "string" && value.length > 0
   ) &&
-  Number.isSafeInteger(record.bytes) && record.bytes > 0 &&
+  Number.isSafeInteger(record.bytes) &&
+  record.bytes > 0 &&
   [record.recomputeMs, record.restoreMs].every(
     (value) => value === undefined || (Number.isFinite(value) && value >= 0)
-  );
+  ) &&
+  (record.tree === undefined || isDerivedCacheTreeValid(record.tree));
 
 export const refreshDerivedCacheMetadata = (
   record: DerivedCacheMetadata,
@@ -92,10 +124,14 @@ export type DerivedCacheAdmission = Readonly<{
   count: number;
 }>;
 
-const compareEvictionPriority = (a: DerivedCacheMetadata, b: DerivedCacheMetadata) =>
+const compareEvictionPriority = (
+  a: DerivedCacheMetadata,
+  b: DerivedCacheMetadata
+) =>
   Number(derivedCacheSavedMilliseconds(b) === null) -
     Number(derivedCacheSavedMilliseconds(a) === null) ||
-  a.priority - b.priority || a.lastAccess - b.lastAccess;
+  a.priority - b.priority ||
+  a.lastAccess - b.lastAccess;
 
 /** External quota pressure: release 20% of current bytes AND entry count,
  * independently of configured capacity. Whole records may release more.
@@ -111,8 +147,15 @@ export const planDerivedCacheTrim = (
   const targetBytes = Math.floor(bytes * DERIVED_CACHE_DEFAULTS.lowWaterRatio);
   const targetCount = Math.floor(count * DERIVED_CACHE_DEFAULTS.lowWaterRatio);
   if (Number.isFinite(age) && age >= 0) {
-    for (const victim of [...entries].sort(compareEvictionPriority)) {
+    const remaining = [...entries];
+    while (remaining.length) {
       if (bytes <= targetBytes && count <= targetCount) break;
+      const victim = selectDerivedCacheVictim(
+        remaining,
+        compareEvictionPriority
+      );
+      if (!victim) break;
+      remaining.splice(remaining.indexOf(victim), 1);
       evicted.push(victim);
       bytes -= victim.bytes;
       count -= 1;
@@ -137,11 +180,15 @@ export const planDerivedCacheAdmission = (
   };
   const policy = resolveDerivedCachePolicy(options);
   if (
-    !policy || !isDerivedCacheRecordValid(candidate) ||
+    !policy ||
+    !isDerivedCacheRecordValid(candidate) ||
+    !canAdmitDerivedCacheTree(entries, candidate) ||
     candidate.bytes > policy.capacityBytes ||
-    !Number.isFinite(options.age) || options.age < 0 ||
+    !Number.isFinite(options.age) ||
+    options.age < 0 ||
     !Number.isFinite(options.nowMs)
-  ) return rejected;
+  )
+    return rejected;
   const savedMs = derivedCacheSavedMilliseconds(candidate);
   if (!isDerivedCacheSavingSufficient(candidate, policy.minimumSavingRatio))
     return rejected;
@@ -152,7 +199,8 @@ export const planDerivedCacheAdmission = (
       entry.namespace !== candidate.namespace || entry.key !== candidate.key
   );
   let bytes = remaining.reduce(
-    (sum, record) => sum + record.bytes, candidate.bytes
+    (sum, record) => sum + record.bytes,
+    candidate.bytes
   );
   let count = remaining.length + 1;
   let age = options.age;
@@ -163,16 +211,26 @@ export const planDerivedCacheAdmission = (
       candidate.bytes,
       Math.floor(policy.capacityBytes * policy.lowWaterRatio)
     );
-    const targetCount = count > policy.maxEntries
-      ? Math.max(1, Math.floor(policy.maxEntries * policy.lowWaterRatio))
-      : policy.maxEntries;
-    const victims = [...remaining].sort(compareEvictionPriority);
-    for (const victim of victims) {
+    const targetCount =
+      count > policy.maxEntries
+        ? Math.max(1, Math.floor(policy.maxEntries * policy.lowWaterRatio))
+        : policy.maxEntries;
+    const victims = [...remaining];
+    while (victims.length) {
       if (bytes <= targetBytes && count <= targetCount) break;
+      const victim = selectDerivedCacheVictim(
+        victims,
+        compareEvictionPriority,
+        candidate
+      );
+      if (!victim) break;
       if (
+        !victim.tree &&
         derivedCacheSavedMilliseconds(victim) !== null &&
         victim.priority >= priority
-      ) return rejected;
+      )
+        return rejected;
+      victims.splice(victims.indexOf(victim), 1);
       evicted.push(victim);
       bytes -= victim.bytes;
       count -= 1;
@@ -182,11 +240,32 @@ export const planDerivedCacheAdmission = (
   }
   const finalPriority = age + (savedMs ?? 0) / candidate.bytes;
   if (!Number.isFinite(finalPriority)) return rejected;
+  const previous = entries.find(
+    (entry) =>
+      entry.namespace === candidate.namespace && entry.key === candidate.key
+  );
   return {
     record: {
       ...candidate,
+      ...(candidate.tree
+        ? {
+            tree: {
+              ...candidate.tree,
+              protected:
+                candidate.tree.protected ||
+                entries.some(
+                  (entry) =>
+                    entry.namespace === candidate.namespace &&
+                    entry.key === candidate.key &&
+                    entry.tree?.protected
+                ),
+            },
+          }
+        : {}),
       writtenMs: options.nowMs,
-      lastAccess: options.nowMs,
+      lastAccess:
+        candidate.tree && previous?.tree ? previous.lastAccess : options.nowMs,
+      ...(candidate.tree && previous?.tree ? { hits: previous.hits } : {}),
       priority: finalPriority,
     },
     evicted,

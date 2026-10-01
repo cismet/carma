@@ -18,6 +18,56 @@ import {
 describe("buildRasterDemTerrainRuntime selection dispatch", () => {
   installRasterDemTerrainRuntimeFixture();
 
+  it("prepares omitted siblings before replacing a published parent", async () => {
+    const f = createIdlePrefetchFixture("completion-demand", 11);
+    let worker: { mockRestore: () => void } | undefined;
+    try {
+      await f.start();
+      await vi.waitFor(() => expect(f.source.trimCache).toHaveBeenCalledOnce());
+      const parent = f.runtime.root.children.find((node) => node.visible)!;
+      vi.stubGlobal("Worker", class {});
+      worker = vi
+        .spyOn(terrainWorkers, "runTerrainWorkerTask")
+        .mockImplementation((task, signal) => {
+          if (task.kind !== "select")
+            return executeTerrainWorkerTask(structuredClone(task), signal);
+          const entry = {
+            id: { level: 11, x: 1064, y: 436 },
+            kind: "source" as const,
+          };
+          return Promise.resolve({
+            kind: "select",
+            selection: {
+              entries: [entry],
+              viewportStages: [[entry]],
+              loadEntries: [entry],
+              signature: "completion-child",
+              viewportElevationSignature: "completion-child",
+            },
+          });
+        });
+      f.frame.lodCamera.position.x += 10;
+      f.runtime.update(f.frame);
+      await vi.waitFor(() => {
+        expect(f.source.trimCache).toHaveBeenCalledTimes(2);
+        expect(parent.visible).toBe(false);
+      });
+      expect(
+        f.source.requestTile.mock.calls
+          .filter(([id]) => id.level === 11)
+          .map(([id]) => `${id.x}/${id.y}`)
+          .sort()
+      ).toEqual(["1064/436", "1064/437", "1065/436", "1065/437"]);
+      expect(
+        f.runtime.root.children.filter((node) => node.visible)
+      ).toHaveLength(4);
+    } finally {
+      f.runtime.dispose();
+      worker?.mockRestore();
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("does not reselect terrain on DPR-only changes and sends CSS dimensions to workers", async () => {
     const f = createIdlePrefetchFixture("css-terrain-demand");
     let worker: { mockRestore: () => void } | undefined;
@@ -70,6 +120,15 @@ describe("buildRasterDemTerrainRuntime selection dispatch", () => {
     let finishSelection: (() => void) | undefined;
     let worker: { mockRestore: () => void } | undefined;
     try {
+      // The same tile must remain in the real frustum after its source height
+      // becomes known; an identity clip camera excludes its 100 m surface.
+      f.frame.renderCamera.position.y = 100;
+      f.frame.renderCamera.projectionMatrix.makeScale(
+        1 / 30_000,
+        1 / 1_000,
+        1 / 30_000
+      );
+      f.frame.renderCamera.updateMatrixWorld(true);
       await f.start();
       await vi.waitFor(() => expect(f.source.trimCache).toHaveBeenCalledOnce());
       vi.stubGlobal("Worker", class {});

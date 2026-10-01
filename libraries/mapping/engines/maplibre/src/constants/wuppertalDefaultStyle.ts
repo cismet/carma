@@ -2,6 +2,7 @@ import type { StyleSpecification } from "maplibre-gl";
 
 import {
   NRW_DGM1_DHHN2016_TERRARIUM_TERRAIN,
+  rasterDemTerrainTileUrl,
   type RasterDemTerrainResource,
 } from "@carma-commons/resources";
 
@@ -49,7 +50,7 @@ export function createTerrainSources(
       type: "raster-dem",
       // A DEM tile that drops out leaves the terrain flat there for good;
       // fetch it through the retrying protocol instead.
-      tiles: [withRetryTileProtocol(config.terrain.url)],
+      tiles: [withRetryTileProtocol(rasterDemTerrainTileUrl(config.terrain))],
       tileSize: config.terrain.tileSize,
       minzoom: config.terrain.minzoom,
       maxzoom: config.terrain.maxzoom,

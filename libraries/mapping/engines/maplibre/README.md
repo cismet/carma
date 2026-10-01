@@ -30,7 +30,7 @@ the way a fully declared one does:
 | `baseErrorTarget` | 12 px with a quality profile, otherwise 16 px, terrain-providing only | First-pass target and the mesh loading strategy; other tilesets refine straight to the error target. |
 | `firstImageErrorTarget` | 64 px for terrain providers | Optional initial request threshold, bounded below by base and idle targets. Hard shadows may present complete coarser fallback coverage. Read when the runtime is created. |
 | `handoverErrorTarget` | legacy staging | Optional cold observer handover before whole-extent reserve admission. A complete observer cut advances to the idle target independently of caster refinement. Read when the runtime is created. |
-| `baseCoverageMemoryShare` | 0.10, terrain-providing only | Fraction of the loader's usable memory grant reserved for a complete resident baseline. Bounded to 0.05–0.15; independent of network and visible quality profiles. |
+| `baseCoverageMemoryShare` | 0.10, terrain-providing only | Fraction of the loader's usable memory grant reserved for a complete resident baseline. Bounded to 0.05–0.15; independent of network and visible quality profiles. Raster terrain shares this policy; see [terrain baseline](./TERRAIN_BASE_COVERAGE.md). |
 | `tilesetMinResolutionPx` | 0, terrain-providing only | Zero chooses the baseline by its memory budget and per-level entry sizes. Positive values add an optional geometric-detail limit. |
 | `hierarchyCache` | true | Worker-built static hierarchy index instead of native tileset JSON paging. `false` loads pages natively; kept after measurement, see TILES_COVERAGE.md, tileset hierarchy cache kept. |
 | `persistBaseTiles` | true for terrain-providing host layers | Optional local render-record cache of the complete resident base. Uses the hierarchy cache's validated source root. Shadows use the same source records. |
@@ -132,6 +132,13 @@ evict data; every startup checks the manifest and individual record presence.
 `CARMA_MESH_BASE_CACHE.getStats()` reports cache hits, misses, writes, read and
 restore duration, pending bytes and confirmed source identity. These durations
 exclude GPU upload; use a render benchmark when comparing local formats.
+
+Prepared mesh tiles and prepared terrain tiles use the same derived-storage
+factory, origin quota, hierarchy-safe eviction and idle usage queue. Payload
+schemas differ: imported meshes retain their materials/textures; terrain stores
+one ECEF presentation plus necessary seam inputs. Reusable coordinate-free edge
+topology is a small sidecar rather than another full mesh. See
+[TERRAIN_BASE_COVERAGE.md](./TERRAIN_BASE_COVERAGE.md#persistent-upload-buffers).
 
 The bundled `mesh2024-cesium-parity.style.json` copies in the geoportal and the
 stories are the reference for the 2024 mesh. They declare only what differs

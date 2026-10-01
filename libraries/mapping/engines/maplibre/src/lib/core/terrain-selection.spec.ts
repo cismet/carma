@@ -375,6 +375,10 @@ describe("terrain selection worker task", () => {
     ({ caster, included }) => {
       const base = input();
       const receiver = { west: 0, east: 1, south: 0, north: 1 };
+      const camera = new Camera();
+      camera.position.set(0.5, 20, -0.5);
+      camera.projectionMatrix.makeScale(2, 0.05, 2);
+      camera.updateMatrixWorld(true);
       const ids = [
         { level: 1, x: 0, y: 0 },
         { level: 1, x: 0, y: 1 },
@@ -384,6 +388,13 @@ describe("terrain selection worker task", () => {
         {
           ...base,
           viewportBounds: receiver,
+          renderCamera: {
+            ...base.renderCamera,
+            projectionMatrix: camera.projectionMatrix.toArray(),
+            matrixWorldInverse: camera.matrixWorldInverse.toArray(),
+            matrixWorld: camera.matrixWorld.toArray(),
+            position: camera.position.toArray(),
+          },
           source: {
             ...base.source,
             bounds: { west: 0, east: 5, south: -2, north: 1 },
@@ -439,56 +450,63 @@ describe("terrain selection worker task", () => {
     expect(selection.entries).toEqual([]);
     expect(selection.loadEntries).toEqual([]);
   });
-  it("selects an otherwise off-frustum tile through local bounds padding", () => {
-    const base = input();
-    const id = { level: 1, x: 0, y: 0 };
-    const adapter = {
-      getTileGridIdsForBounds: () => [id],
-      getTileBounds: () => ({ west: 4, east: 5, south: -1, north: 0 }),
-      getTileGeometricError: () => 0,
-      getTileDataAvailable: () => true,
-    };
-    const unpadded = buildTerrainSelection(
-      {
-        ...base,
-        viewportBounds: { west: 0, east: 1, south: 0, north: 1 },
-        source: {
-          ...base.source,
-          bounds: { west: 0, east: 5, south: -1, north: 1 },
-          minzoom: 1,
-          maxzoom: 1,
+  it.each([undefined, [0, 0] as const])(
+    "rejects geographic candidate overlap outside the real frustum while preserving local padding (ECEF origin=%s)",
+    (geodeticOrigin) => {
+      const base = input();
+      const id = { level: 1, x: 0, y: 0 };
+      const adapter = {
+        getTileGridIdsForBounds: () => [id],
+        getTileBounds: () => ({ west: 4, east: 5, south: -1, north: 0 }),
+        getTileGeometricError: () => 0,
+        getTileDataAvailable: () => true,
+      };
+      const unpadded = buildTerrainSelection(
+        {
+          ...base,
+          viewportBounds: adapter.getTileBounds(),
+          geodeticOrigin,
+          source: {
+            ...base.source,
+            bounds: { west: 0, east: 5, south: -1, north: 1 },
+            minzoom: 1,
+            maxzoom: 1,
+          },
+          origin: [0.5, 0.5, 0],
+          meterScale: 1 / 360,
+          minimumLevel: 1,
+          maximumLevel: 1,
+          knownHeightRanges: { "1/0/0": [0, 0] },
         },
-        origin: [0.5, 0.5, 0],
-        meterScale: 1 / 360,
-        minimumLevel: 1,
-        maximumLevel: 1,
-        knownHeightRanges: { "1/0/0": [0, 0] },
-      },
-      adapter
-    );
-    const padded = buildTerrainSelection(
-      {
-        ...base,
-        viewportBounds: { west: 0, east: 1, south: 0, north: 1 },
-        source: {
-          ...base.source,
-          bounds: { west: 0, east: 5, south: -1, north: 1 },
-          minzoom: 1,
-          maxzoom: 1,
+        adapter
+      );
+      const padded = buildTerrainSelection(
+        {
+          ...base,
+          viewportBounds: adapter.getTileBounds(),
+          geodeticOrigin,
+          source: {
+            ...base.source,
+            bounds: { west: 0, east: 5, south: -1, north: 1 },
+            minzoom: 1,
+            maxzoom: 1,
+          },
+          origin: [0.5, 0.5, 0],
+          meterScale: 1 / 360,
+          boundsPaddingMeters: geodeticOrigin
+            ? [1_000_000, 1_000_000, 1_000_000]
+            : [2_000, 2_000, 2_000],
+          minimumLevel: 1,
+          maximumLevel: 1,
+          knownHeightRanges: { "1/0/0": [0, 0] },
         },
-        origin: [0.5, 0.5, 0],
-        meterScale: 1 / 360,
-        boundsPaddingMeters: [2_000, 2_000, 2_000],
-        minimumLevel: 1,
-        maximumLevel: 1,
-        knownHeightRanges: { "1/0/0": [0, 0] },
-      },
-      adapter
-    );
+        adapter
+      );
 
-    expect(unpadded.entries).toEqual([]);
-    expect(padded.entries.map((entry) => entry.id)).toEqual([id]);
-  });
+      expect(unpadded.entries).toEqual([]);
+      expect(padded.entries.map((entry) => entry.id)).toEqual([id]);
+    }
+  );
   it("fills unknown-height coverage with a bounded coarse cut before detailed receivers", () => {
     const selectionInput = input();
     const selection = buildTerrainSelection(

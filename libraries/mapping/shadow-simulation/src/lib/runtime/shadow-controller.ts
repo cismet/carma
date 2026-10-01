@@ -10,6 +10,7 @@ import {
 import type { ShadowQualityMultiplier } from "../core/shadow-types";
 import { shadowRasterOffset } from "../core/shadow-raster-offset";
 import { retainShadowRaster } from "../core/retain-shadow-raster";
+import { resolveShadowReceiverBias } from "../core/shadow-receiver-bias";
 import { configureMountedShadowCamera } from "./mounted-shadow-camera";
 import {
   getSunDiscSampleOffset,
@@ -23,11 +24,7 @@ const MIN_CASTER_REACH_METERS = 50;
 const MAX_CASTER_REACH_METERS = 10_000;
 const CASTER_REACH_ELEVATION_EPSILON = 0.04;
 const LIGHT_CAMERA_SAFETY_METERS = 25;
-const SHADOW_DEPTH_BIAS_TEXELS = 4;
-const SHADOW_NORMAL_BIAS_TEXELS = 1.2;
-const MIN_SHADOW_BIAS_ELEVATION_SINE = 0.2;
 const MIN_SHADOW_NORMAL_BIAS_METERS = 0.05;
-const MAX_SHADOW_NORMAL_BIAS_METERS = 8;
 
 export const CASTER_RELIEF_MARGIN_METERS = 300;
 
@@ -96,6 +93,8 @@ export type ShadowUpdate = Readonly<{
   maxReceiverBiasMeters?: number;
   /** Stable physical offset; independent of the fitted camera footprint. */
   receiverBiasMeters?: number;
+  /** World-grid footprint for bias, independent of camera coverage or DPR. */
+  receiverTexelMeters?: number;
   /** Reuse the existing world raster while its guarded coverage is sufficient.
    * Change this identity on zoom; the anchor must stay in the terrain frame. */
   rasterKey?: string;
@@ -316,6 +315,7 @@ export class ShadowController {
     groundTexelTargetMeters,
     maxReceiverBiasMeters,
     receiverBiasMeters,
+    receiverTexelMeters,
     rasterKey,
     mountedShadowCamera = false,
   }: ShadowUpdate): ShadowSnapshot | null {
@@ -498,18 +498,6 @@ export class ShadowController {
     // different triangles. Capping bias to that value produced black facets in
     // the overhead-sun GPU oracle. Coarse maps can still lose contact detail;
     // report unmet texel demand rather than promising centimetre shadow accuracy.
-    const normalBias = clamp(
-      (metersPerTexel * SHADOW_NORMAL_BIAS_TEXELS) /
-        Math.max(MIN_SHADOW_BIAS_ELEVATION_SINE, normalizedDirectionToSun.y),
-      MIN_SHADOW_NORMAL_BIAS_METERS,
-      MAX_SHADOW_NORMAL_BIAS_METERS
-    );
-    const depthBias = -clamp(
-      (metersPerTexel * SHADOW_DEPTH_BIAS_TEXELS) /
-        Math.max(shadowBounds.far - shadowBounds.near, 1),
-      Number.EPSILON,
-      0.01
-    );
     const tangentA = new THREE.Vector3();
     if (Math.abs(normalizedDirectionToSun.y) > 0.99) {
       tangentA.set(1, 0, 0);
@@ -545,22 +533,16 @@ export class ShadowController {
     light.target.position.copy(targetPosition);
     // Decision MESH-CONTACT-BIAS-20260908 (three/TILED_SHADOW_PAGES.md): mesh
     // contact must not inherit metre-scale heightfield acne suppression.
-    const biasLimit =
-      maxReceiverBiasMeters !== undefined &&
-      Number.isFinite(maxReceiverBiasMeters)
-        ? Math.max(0, maxReceiverBiasMeters)
-        : Infinity;
-    const stableBias =
-      receiverBiasMeters !== undefined && Number.isFinite(receiverBiasMeters)
-        ? Math.max(0, receiverBiasMeters)
-        : undefined;
-    light.shadow.bias = Math.max(
-      stableBias === undefined
-        ? depthBias
-        : -stableBias / (shadowBounds.far - shadowBounds.near),
-      -biasLimit / (shadowBounds.far - shadowBounds.near)
-    );
-    light.shadow.normalBias = Math.min(stableBias ?? normalBias, biasLimit);
+    const receiverBias = resolveShadowReceiverBias({
+      metersPerTexel,
+      receiverTexelMeters,
+      elevationSine: normalizedDirectionToSun.y,
+      depthRangeMeters: shadowBounds.far - shadowBounds.near,
+      maxReceiverBiasMeters,
+      receiverBiasMeters,
+    });
+    light.shadow.bias = receiverBias.bias;
+    light.shadow.normalBias = receiverBias.normalBias;
     const camera = light.shadow.camera;
     camera.left = shadowBounds.left;
     camera.right = shadowBounds.right;

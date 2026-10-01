@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { rasterDemTerrainTileUrl } from "@carma-commons/resources";
 
 import { acquireRasterDemTerrainTileSource } from "./raster-dem-terrain-tile-source";
 import {
@@ -53,6 +54,29 @@ const createPendingSource = async (name: string) => {
 };
 
 describe("raster DEM terrain tile source", () => {
+  it.each([
+    [
+      "https://terrain.test/{z}/{x}/{y}.png",
+      undefined,
+      "https://terrain.test/{z}/{x}/{y}.png",
+    ],
+    [
+      "https://terrain.test/{z}/{x}/{y}.png",
+      "2026/10",
+      "https://terrain.test/{z}/{x}/{y}.png?carmaTerrainRevision=2026%2F10",
+    ],
+    [
+      "https://terrain.test/{z}/{x}/{y}.png?token=a#fragment",
+      "next",
+      "https://terrain.test/{z}/{x}/{y}.png?token=a&carmaTerrainRevision=next#fragment",
+    ],
+  ])(
+    "shares a versioned DEM request while preserving XYZ placeholders",
+    (url, revision, expected) => {
+      expect(rasterDemTerrainTileUrl({ url: url!, revision })).toBe(expected);
+    }
+  );
+
   it("preserves asymmetric row/column samples including Terrarium blue-channel fractions", () => {
     const pixels = new Uint8ClampedArray(4 * 3 * 4);
     for (let y = 0; y < 3; y++) {

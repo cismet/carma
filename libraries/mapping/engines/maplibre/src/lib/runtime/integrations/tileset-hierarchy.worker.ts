@@ -1,7 +1,7 @@
 import {
-  createDerivedBufferCache,
   resolveDerivedCacheAssetEpoch,
 } from "@carma-commons/utils";
+import { createPersistentTileCache } from "./persistent-tile-cache";
 import {
   TILESET_HIERARCHY,
   createTilesetHierarchyPageReader,
@@ -24,7 +24,7 @@ const scope = self as unknown as {
 };
 const jobs = new Map<number, AbortController>();
 const inflight = new Map<string, Promise<TilesetDescriptor>>();
-let manager: ReturnType<typeof createDerivedBufferCache> | null = null;
+let manager: ReturnType<typeof createPersistentTileCache> | null = null;
 let rootRevision: string | null = null;
 let initialized: Promise<void> | null = null;
 let rootDocument: TilesetDescriptor | null = null;
@@ -76,11 +76,7 @@ const initialize = async (
         )
       : null);
   if (epoch)
-    manager = createDerivedBufferCache({
-      capacityBytes: 256 * 1024 ** 2,
-      adaptiveCapacity: true,
-      producerEpoch: epoch,
-    });
+    manager = createPersistentTileCache(epoch);
 };
 
 const optionalRead = async (url: string) => {

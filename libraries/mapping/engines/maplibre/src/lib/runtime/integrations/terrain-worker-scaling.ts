@@ -22,6 +22,8 @@ export const getTerrainTaskWork = (task: TerrainWorkerTask): number => {
       return (task.raster.width + 2) * (task.raster.height + 2);
     case TERRAIN_WORKER_TASK_KIND.PROJECT:
       return task.tile.heightMeters.length;
+    case TERRAIN_WORKER_TASK_KIND.PROJECT_ECEF:
+      return task.input.positions.length / 3;
     case TERRAIN_WORKER_TASK_KIND.PARTITION:
       return task.heights.length;
     case TERRAIN_WORKER_TASK_KIND.STITCH:
@@ -45,7 +47,7 @@ export const createTerrainWorkerScaling = (onLimitChanged: () => void) => {
       typeof navigator === "undefined" ? 4 : navigator.hardwareConcurrency,
     storageKey: "carma:terrain-worker-calibration",
     workloadVersion:
-      "throughput-aba-v3:raster-grid-error-v7:wasm-normals-v1:selection-v1:cache-read-v1",
+      "throughput-aba-v3:raster-grid-error-v7:wasm-normals-v1:selection-v1:cache-read-v1:ecef-v0.1",
     storage,
     onLimitChanged,
   });

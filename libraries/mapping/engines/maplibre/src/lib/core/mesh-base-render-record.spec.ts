@@ -14,6 +14,9 @@ import {
 import {
   collectCachedMeshBase,
   meshBaseCacheKey,
+  MESH_BASE_RENDER_FORMAT,
+  meshBaseCacheIdentity,
+  meshBaseIdentitySourceMatches,
   meshBaseManifestMatches,
   meshBaseCacheSourceUrl,
 } from "./mesh-base-cache-protocol";
@@ -94,7 +97,20 @@ describe("persistent mesh base", () => {
     expect(meshBaseCacheKey(sourceUrl, "revision-a", "a.b3dm")).not.toBe(
       meshBaseCacheKey(sourceUrl, "revision-b", "a.b3dm")
     );
+    const identity = meshBaseCacheIdentity({
+      sourceUrl,
+      sourceRevision: "revision-a",
+      buildId: "build-a",
+    });
+    expect(meshBaseIdentitySourceMatches(identity, sourceUrl + "#camera")).toBe(
+      true
+    );
+    expect(meshBaseIdentitySourceMatches(identity, sourceUrl + "&v=3")).toBe(
+      false
+    );
+    expect(meshBaseIdentitySourceMatches("legacy", sourceUrl)).toBe(false);
     const manifest = {
+      format: MESH_BASE_RENDER_FORMAT,
       sourceUrl,
       sourceRevision: "a",
       buildId: "build-a",
@@ -103,6 +119,12 @@ describe("persistent mesh base", () => {
       urls: ["a.b3dm"],
     };
     expect(meshBaseManifestMatches(manifest, manifest)).toBe(true);
+    expect(
+      meshBaseManifestMatches(
+        { ...manifest, format: "legacy" as typeof MESH_BASE_RENDER_FORMAT },
+        manifest
+      )
+    ).toBe(false);
     for (const change of [
       { sourceUrl: sourceUrl + "&v=3" },
       { sourceRevision: "b" },

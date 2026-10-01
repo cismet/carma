@@ -251,7 +251,7 @@ position/normal equality and existing coverage throughout such changes.
 **ID / date / status:** TERRAIN-EDGE-ATLAS / 2026-09-20 / implemented; browser speedup unmeasured.
 
 **Context and constraints:** Terrarium remains the network ground truth. Preserve
-reusable edge work across sessions without storing complete prepared meshes.
+reusable edge work across sessions as a topology sidecar alongside prepared tiles.
 
 **Decision:** persist only the two-ring shell topology (triangle indices, source
 vertex mapping, boundary indices and normal targets) in the shared IndexedDB
@@ -262,22 +262,31 @@ the current mesh on every restore, so neither scene origin nor old elevations
 can leak into a new tile. Identical topology is shared across raster tiles.
 
 Reads fall back to extraction after an 8 ms wait; writes run in the background.
+Cold extraction records its measured CPU cost; an accepted disk hit records the
+complete read, validation and reconstruction cost. The shared saved-work-per-byte
+policy can therefore retain expensive topology longer than cheap metadata, while
+discarding sidecars whose measured restore is not beneficial. Reads use
+`touch: false`, so timed-out or rejected records never invent cache-use hits.
+RAM hits and normal render frames do not write cost feedback or permanent pins.
 Per worker, resident topology is bounded to 8 MiB/64 entries and pending writes
 to 2 MiB. Persistent storage uses the shared origin-quota derived-cache policy with a 256 MiB fallback (DBC-01 in `libraries/commons/utils/src/lib/collections/DERIVED_CACHE_DECISIONS.md`). The
 runtime requests browser storage persistence after readiness; retention remains
-subject to browser permission, quota and user deletion. Full prepared-mesh disk
-reads, writes and codec calibration are disconnected from the shadow runtime.
-Existing source caches and RAM terrain eviction remain in use.
+subject to browser permission, quota and user deletion. Cold extraction and
+accepted disk restoration record their measured costs in the shared retention
+policy, so expensive reusable work can outlive cheap metadata. Timed-out/corrupt
+reads do not produce cost feedback, and no sidecar is permanently pinned.
+The prepared ECEF tile record is documented in [TERRAIN_BASE_COVERAGE.md](./TERRAIN_BASE_COVERAGE.md);
+it stores the actual presentation without a second flat position buffer.
 
-**Alternatives:** complete mesh persistence is superseded for this runtime;
-persisting projected shell attributes is rejected because they depend on current
+**Alternatives:** embedding the reusable recipe into every complete mesh is
+rejected; persisting projected shell attributes is rejected because they depend on current
 heights and scene origin. Cached topology still requires input hashing and fresh
 attribute gathering; a disk hit is not automatically faster than extraction.
 
 **Evidence:** 106 focused cache, edge, runtime and worker-client tests pass. Cache
 tests exercise reload through a mocked persistent store, topology invalidation,
 fresh attributes, detached transfer buffers, corrupt payloads, quota failures,
-stalled storage and unavailable WebCrypto. Native IndexedDB roundtrip speed and
+stalled storage, accepted-only cost feedback and unavailable WebCrypto. Native IndexedDB roundtrip speed and
 retention across a real browser restart remain unmeasured. The earlier shell
 benchmark measures in-memory solves, not this persistent cache.
 

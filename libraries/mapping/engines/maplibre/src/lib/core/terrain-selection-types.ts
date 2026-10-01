@@ -63,6 +63,10 @@ export type TerrainSelectionInput = Readonly<{
   errorTargetPixels: number;
   shadowLevelOffset: number;
   minimumLevel: number;
+  /** Confirmed resident whole-source cut; enables complete reserve rings. */
+  baseLevel?: number;
+  /** Shared offscreen ring error passes; defaults to the settled reserve target. */
+  baseRingRefinementPasses?: number;
   maximumLevel: number;
   maxSelectionTiles: number;
   initialErrorTargetPixels: number;

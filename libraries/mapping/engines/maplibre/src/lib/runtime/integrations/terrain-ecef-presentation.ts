@@ -5,27 +5,71 @@ import {
   Group,
   Matrix4,
   Mesh,
-  Vector3,
 } from "three";
-import { MercatorCoordinate } from "maplibre-gl";
 import {
   createLocalEcefFrame,
-  createRasterEcefProjector,
   getCameraLocalMercatorFit,
 } from "@carma-geo/proj";
-import { createGeodeticTerrainTileGeometry } from "@carma-mapping/engines/three/primitives/core";
-import type { TerrainTile } from "../../core/raster-dem-tile";
+import type { TerrainTile, TerrainTileId } from "../../core/raster-dem-tile";
+import {
+  createTerrainEcefSeamReprojection,
+  projectTerrainEcefInWorker,
+  snapshotTerrainEcefSeamInput,
+} from "./terrain-ecef-worker-projection";
+import {
+  convertTerrainGeometryToEcef,
+  type TerrainEcefConversionInput,
+} from "./terrain-ecef-conversion";
+import {
+  createTerrainEcefGeometryCache,
+  type TerrainEcefCacheOptions,
+} from "./terrain-ecef-geometry-cache";
 
 /** Keeps the native raster topology for seam workers, but renders its ECEF
  * surface. Neither camera gestures nor frame refits reproject these vertices.
  */
 export const createTerrainEcefPresentation = (
   origin: readonly [number, number],
-  heightOffsetMeters?: (longitude: number, latitude: number) => number
+  heightOffsetMeters?: (longitude: number, latitude: number) => number,
+  cacheOptions?: TerrainEcefCacheOptions,
+  onContentChanged?: () => void,
+  onProjectionError?: (error: unknown) => void
 ) => {
+  // An arbitrary callback cannot identify its complete correction graph. A
+  // caller must explicitly version it, otherwise derived persistence is off.
+  const cache =
+    cacheOptions && (!heightOffsetMeters || cacheOptions.heightOffsetIdentity)
+      ? createTerrainEcefGeometryCache(origin, cacheOptions)
+      : null;
   const originFrame = createLocalEcefFrame(...origin);
-  const mercator = MercatorCoordinate.fromLngLat([...origin], 0);
-  const scale = mercator.meterInMercatorCoordinateUnits();
+  const prepared = new WeakMap<
+    BufferGeometry,
+    {
+      nativeVersion: string;
+      nativeBaseHeights: Float32Array;
+      ecefBounds: Box3;
+      recomputeMs: number;
+      persisted: boolean;
+    }
+  >();
+  let disposed = false;
+  const conversionInput = (
+    native: BufferGeometry,
+    tile: TerrainTile,
+    nativeBaseHeights?: Float32Array
+  ): TerrainEcefConversionInput => ({
+    origin,
+    tile: {
+      bounds: tile.bounds,
+      u: tile.u,
+      v: tile.v,
+      heightMeters: tile.heightMeters,
+    },
+    positions: native.getAttribute("position").array as Float32Array,
+    normals: native.getAttribute("normal").array as Float32Array,
+    indices: native.index!.array as Uint16Array | Uint32Array,
+    nativeBaseHeights,
+  });
   const root = new Group();
   root.name = "terrain-ecef-mount";
   root.matrixAutoUpdate = false;
@@ -35,21 +79,31 @@ export const createTerrainEcefPresentation = (
     {
       mesh: Mesh;
       tile: TerrainTile;
-      nativePositions: Float32Array;
+      nativeBaseHeights: Float32Array;
       version: string;
       ecefBounds: Box3;
+      recomputeMs: number;
+      persistedVersion: string;
+      pendingPersistence: Promise<boolean> | null;
+      reprojection: ReturnType<typeof createTerrainEcefSeamReprojection> | null;
     }
   >();
   const version = (geometry: BufferGeometry) =>
     [
       geometry.id,
+      (geometry.getAttribute("position") as BufferAttribute).id,
       (geometry.getAttribute("position") as BufferAttribute).version,
+      geometry.index?.id,
       geometry.index?.version,
+      (geometry.getAttribute("normal") as BufferAttribute).id,
       (geometry.getAttribute("normal") as BufferAttribute).version,
     ].join(":");
   const mount = (native: Mesh, tile: TerrainTile, cached?: BufferGeometry) => {
     if (tiles.has(native))
       throw new Error("Terrain mesh already has an ECEF presentation");
+    const preparation = cached ? prepared.get(cached) : undefined;
+    if (preparation && preparation.nativeVersion !== version(native.geometry))
+      throw new Error("Terrain geometry changed after ECEF preparation");
     const frame = createLocalEcefFrame(
       (tile.bounds.west + tile.bounds.east) / 2,
       (tile.bounds.south + tile.bounds.north) / 2
@@ -65,34 +119,30 @@ export const createTerrainEcefPresentation = (
     );
     native.parent?.add(mesh);
     native.removeFromParent();
-    const nativePositions = new Float32Array(
-      native.geometry.getAttribute("position").array
-    );
-    // A published tile may already have seam height corrections or appended
-    // vertices. Recover their delta against the source, not the current mesh.
-    for (let index = 0; index < tile.u.length; index++) {
-      const lng =
-        tile.bounds.west +
-        tile.u[index] * (tile.bounds.east - tile.bounds.west);
-      const lat =
-        tile.bounds.south +
-        tile.v[index] * (tile.bounds.north - tile.bounds.south);
-      nativePositions[index * 3 + 1] =
-        MercatorCoordinate.fromLngLat([lng, lat], tile.heightMeters[index]).z /
-        scale;
-    }
     tiles.set(native, {
       mesh,
       tile,
-      nativePositions,
+      nativeBaseHeights: preparation?.nativeBaseHeights ?? new Float32Array(),
       version: cached ? version(native.geometry) : "",
-      ecefBounds: cached
-        ? new Box3()
-            .setFromBufferAttribute(
-              cached.getAttribute("position") as BufferAttribute
-            )
-            .applyMatrix4(frame.ecefFromLocal)
-        : new Box3(),
+      persistedVersion:
+        cached && (!preparation || preparation.persisted)
+          ? version(native.geometry)
+          : "",
+      recomputeMs: preparation?.recomputeMs ?? 0,
+      pendingPersistence: null,
+      reprojection: null,
+      ecefBounds:
+        preparation?.ecefBounds ??
+        (cached
+          ? new Box3()
+              .copy(
+                cached.boundingBox ??
+                  new Box3().setFromBufferAttribute(
+                    cached.getAttribute("position") as BufferAttribute
+                  )
+              )
+              .applyMatrix4(frame.ecefFromLocal)
+          : new Box3()),
     });
     try {
       sync(native);
@@ -115,74 +165,218 @@ export const createTerrainEcefPresentation = (
     state.mesh.receiveShadow = native.receiveShadow;
     const current = version(native.geometry);
     if (current === state.version) return;
-    // Seam updates preserve source vertex order. Apply their height adjustment
-    // before the shared geodetic transform, rather than stitching in ECEF axes.
-    const position = native.geometry.getAttribute("position");
-    const u = new Float64Array(position.count);
-    const v = new Float64Array(position.count);
-    const heights = new Float64Array(position.count);
-    const bounds = state.tile.bounds;
-    for (let i = 0; i < position.count; i++) {
-      const coordinate = new MercatorCoordinate(
-        mercator.x + position.getX(i) * scale,
-        mercator.y + position.getZ(i) * scale,
-        position.getY(i) * scale
-      );
-      const lngLat = coordinate.toLngLat();
-      if (i < state.tile.u.length) {
-        u[i] = state.tile.u[i];
-        v[i] = state.tile.v[i];
-        const verticalScale =
-          MercatorCoordinate.fromLngLat(lngLat, 1).z / scale;
-        heights[i] =
-          state.tile.heightMeters[i] +
-          (position.getY(i) - state.nativePositions[i * 3 + 1]) / verticalScale;
-      } else {
-        // Mixed-level seam workers append vertices. Restore their geographic
-        // coordinates instead of trapping the display at an obsolete topology.
-        u[i] = (lngLat.lng - bounds.west) / (bounds.east - bounds.west);
-        v[i] = (lngLat.lat - bounds.south) / (bounds.north - bounds.south);
-        heights[i] = coordinate.toAltitude();
-      }
+    if (state.version && !heightOffsetMeters) {
+      state.reprojection ??= createTerrainEcefSeamReprojection({
+        version: () => version(native.geometry),
+        publishedVersion: () => state.version,
+        project: (signal) =>
+          projectTerrainEcefInWorker(
+            snapshotTerrainEcefSeamInput(
+              conversionInput(
+                native.geometry,
+                state.tile,
+                state.nativeBaseHeights.length
+                  ? state.nativeBaseHeights
+                  : undefined
+              )
+            ),
+            native.geometry.index!.array as Uint16Array | Uint32Array,
+            signal,
+            true
+          ),
+        publish: (projected, current) => {
+          const previous = state.mesh.geometry;
+          state.mesh.geometry = projected.geometry;
+          state.nativeBaseHeights = projected.nativeBaseHeights;
+          state.ecefBounds = projected.ecefBounds;
+          state.version = current;
+          state.recomputeMs = projected.recomputeMs;
+          previous.dispose();
+          onContentChanged?.();
+        },
+        onError: (error) => {
+          console.warn("[terrain] ECEF seam reprojection failed", error);
+          onProjectionError?.(error);
+        },
+      });
+      state.reprojection.sync();
+      return;
     }
-    const projected = createGeodeticTerrainTileGeometry(
-      {
-        bounds,
-        u,
-        v,
-        heightMeters: heights,
-        indices: native.geometry.index!.array,
-      },
+    // Explicit synchronous path for custom callbacks and unprepared mounting.
+    const startedAt = performance.now();
+    const projected = convertTerrainGeometryToEcef(
+      conversionInput(
+        native.geometry,
+        state.tile,
+        state.nativeBaseHeights.length ? state.nativeBaseHeights : undefined
+      ),
       heightOffsetMeters
     );
-    // Preserve the normals the seam workers agreed on, expressed in the local
-    // tangent basis at each vertex, rather than reintroducing shading seams.
-    const normal = native.geometry.getAttribute("normal");
-    const target = projected.geometry.getAttribute("normal");
-    const tileFromEcef = projected.ecefFromLocal.clone().invert();
-    const project = createRasterEcefProjector();
-    const direction = new Vector3();
-    for (let i = 0; i < normal.count; i++) {
-      direction.fromBufferAttribute(normal, i);
-      project
-        .direction(
-          bounds.west + u[i] * (bounds.east - bounds.west),
-          bounds.south + v[i] * (bounds.north - bounds.south),
-          direction,
-          direction
-        )
-        .transformDirection(tileFromEcef);
-      target.setXYZ(i, direction.x, direction.y, direction.z);
-    }
+    state.nativeBaseHeights = projected.nativeBaseHeights;
     state.mesh.geometry.dispose();
     state.mesh.geometry = projected.geometry;
     state.ecefBounds = projected.ecefBounds;
     state.version = current;
+    state.recomputeMs = performance.now() - startedAt;
   };
   return {
     root,
     mount,
     sync,
+    syncAsync: async (native: Mesh) => {
+      sync(native);
+      await tiles.get(native)?.reprojection?.settled();
+    },
+    /** Await before publishing a pristine native tile. Disk hits need only a
+     * short Y-buffer copy; misses run projection on the shared worker pool. */
+    prepare: async (
+      native: BufferGeometry,
+      tile: TerrainTile,
+      signal?: AbortSignal,
+      restoredGeometry?: BufferGeometry | null
+    ): Promise<BufferGeometry> => {
+      signal?.throwIfAborted();
+      const nativeVersion = version(native);
+      const valid = () => {
+        signal?.throwIfAborted();
+        if (disposed || version(native) !== nativeVersion)
+          throw new Error("Terrain geometry changed during ECEF preparation");
+      };
+      const cached =
+        restoredGeometry ?? (await cache?.restore(native, tile, signal));
+      if (cached) {
+        try {
+          valid();
+          const nativeBaseHeights = new Float32Array(tile.u.length);
+          const positions = native.getAttribute("position");
+          for (let i = 0; i < nativeBaseHeights.length; i++)
+            nativeBaseHeights[i] = positions.getY(i);
+          const frame = createLocalEcefFrame(
+            (tile.bounds.west + tile.bounds.east) / 2,
+            (tile.bounds.south + tile.bounds.north) / 2
+          );
+          prepared.set(cached, {
+            nativeVersion,
+            nativeBaseHeights,
+            recomputeMs: 0,
+            persisted: true,
+            ecefBounds: cached
+              .boundingBox!.clone()
+              .applyMatrix4(frame.ecefFromLocal),
+          });
+          return cached;
+        } catch (error) {
+          cached.dispose();
+          throw error;
+        }
+      }
+      valid();
+      // Arbitrary height-correction callbacks cannot cross a worker boundary.
+      // This explicit custom-hook fallback uses the identical converter.
+      if (heightOffsetMeters) {
+        const startedAt = performance.now();
+        const result = convertTerrainGeometryToEcef(
+          conversionInput(native, tile),
+          heightOffsetMeters
+        );
+        prepared.set(result.geometry, {
+          nativeVersion,
+          nativeBaseHeights: result.nativeBaseHeights,
+          ecefBounds: result.ecefBounds,
+          persisted: false,
+          recomputeMs: performance.now() - startedAt,
+        });
+        return result.geometry;
+      }
+      const result = await projectTerrainEcefInWorker(
+        conversionInput(native, tile),
+        native.index!.array as Uint16Array | Uint32Array,
+        signal
+      );
+      try {
+        valid();
+      } catch (error) {
+        result.geometry.dispose();
+        throw error;
+      }
+      prepared.set(result.geometry, {
+        nativeVersion,
+        nativeBaseHeights: result.nativeBaseHeights,
+        recomputeMs: result.recomputeMs,
+        persisted: false,
+        ecefBounds: result.ecefBounds,
+      });
+      return result.geometry;
+    },
+    restore: (
+      native: BufferGeometry,
+      tile: TerrainTile,
+      signal?: AbortSignal
+    ) => cache?.restore(native, tile, signal) ?? Promise.resolve(null),
+    /** Persist a pristine idle preparation without touching a live tile or
+     * republishing its seam state. The caller retains both input geometries. */
+    offerPrepared: (
+      native: BufferGeometry,
+      tile: TerrainTile,
+      geometry: BufferGeometry
+    ): Promise<boolean> => {
+      const preparation = prepared.get(geometry);
+      if (
+        !cache ||
+        !preparation ||
+        disposed ||
+        preparation.nativeVersion !== version(native)
+      )
+        return Promise.resolve(false);
+      return preparation.persisted
+        ? Promise.resolve(true)
+        : cache.offer(native, geometry, tile, preparation.recomputeMs);
+    },
+    offer: (native: Mesh): Promise<boolean> => {
+      const state = tiles.get(native);
+      if (!cache || !state) return Promise.resolve(false);
+      sync(native);
+      if (disposed || version(native.geometry) !== state.version)
+        return Promise.resolve(false);
+      if (state.pendingPersistence) return state.pendingPersistence;
+      if (state.persistedVersion === state.version)
+        return Promise.resolve(true);
+      const offeredVersion = state.version;
+      // Pair this derived record with the native generation at offer time,
+      // including while the cache worker is warming or another seam arrives.
+      const nativeSnapshot = new BufferGeometry();
+      nativeSnapshot.setAttribute(
+        "position",
+        native.geometry.getAttribute("position").clone()
+      );
+      nativeSnapshot.setAttribute(
+        "normal",
+        native.geometry.getAttribute("normal").clone()
+      );
+      nativeSnapshot.setIndex(native.geometry.index!.clone());
+      state.pendingPersistence = cache
+        .offer(
+          nativeSnapshot,
+          state.mesh.geometry,
+          state.tile,
+          state.recomputeMs
+        )
+        .then((stored) => {
+          // A seam update during IDB writing is a different record. It remains
+          // eligible for the next idle offer instead of claiming the old write.
+          if (stored) state.persistedVersion = offeredVersion;
+          return stored;
+        })
+        .finally(() => {
+          nativeSnapshot.dispose();
+          state.pendingPersistence = null;
+        });
+      return state.pendingPersistence;
+    },
+    markUsed: (ids: readonly TerrainTileId[]) =>
+      cache?.markUsed(ids) ?? Promise.resolve(false),
+    protectBaseline: (ids: readonly TerrainTileId[]) =>
+      cache?.protectBaseline(ids) ?? Promise.resolve(false),
     mesh: (native: Mesh) => tiles.get(native)?.mesh,
     ecefBounds: (native: Mesh, target: Box3) => {
       const state = tiles.get(native);
@@ -207,7 +401,7 @@ export const createTerrainEcefPresentation = (
       return target.copy(mesh.geometry.boundingBox!).applyMatrix4(matrix);
     },
     localToWorld: () => root.matrixWorld,
-    bytes: (native: Mesh) => {
+    bytes: (native: Mesh, excludeCpuBuffers?: ReadonlySet<ArrayBufferLike>) => {
       const state = tiles.get(native);
       if (!state) return 0;
       const attributes = [
@@ -215,13 +409,17 @@ export const createTerrainEcefPresentation = (
         ...(state.mesh.geometry.index ? [state.mesh.geometry.index] : []),
       ];
       const buffers = new Set<ArrayBufferLike>([
-        state.nativePositions.buffer,
+        state.nativeBaseHeights.buffer,
         ...attributes.map((attribute) => attribute.array.buffer),
       ]);
       // CPU views can share one backing record; Three uploads a separate GPU
       // buffer per attribute. Count each retained resource exactly once.
       return (
-        [...buffers].reduce((sum, buffer) => sum + buffer.byteLength, 0) +
+        [...buffers].reduce(
+          (sum, buffer) =>
+            sum + (excludeCpuBuffers?.has(buffer) ? 0 : buffer.byteLength),
+          0
+        ) +
         attributes.reduce(
           (sum, attribute) => sum + attribute.array.byteLength,
           0
@@ -231,6 +429,7 @@ export const createTerrainEcefPresentation = (
     detach: (native: Mesh) => {
       const state = tiles.get(native);
       if (!state) return;
+      state.reprojection?.dispose();
       state.mesh.parent?.add(native);
       state.mesh.removeFromParent();
       state.mesh.geometry.dispose();
@@ -238,12 +437,16 @@ export const createTerrainEcefPresentation = (
     },
     disposeTile: (native: Mesh) => {
       const state = tiles.get(native);
+      state?.reprojection?.dispose();
       state?.mesh.geometry.dispose();
       state?.mesh.removeFromParent();
       tiles.delete(native);
     },
     dispose: () => {
+      disposed = true;
+      cache?.close();
       for (const state of tiles.values()) {
+        state.reprojection?.dispose();
         state.mesh.geometry.dispose();
         state.mesh.removeFromParent();
       }

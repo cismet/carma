@@ -16,6 +16,7 @@ import {
   TILE_REQUEST_ACTION,
 } from "../../core/tile-scheduling-policy";
 import { readOrientedTileBounds } from "./three-tiles-bounds";
+import { createRootTileDomainClip } from "./three-tiles-root-domain";
 
 import { TILES_LOAD_POLICY } from "../../core/tile-load-config";
 import {
@@ -101,6 +102,9 @@ export function createThreeTilesCascade(
   // support and other cameras retain their work. Native removal aborts fetch
   // and pending/active parsing, restoring UNLOADED for a future request.
   const casterBounds = new Box3();
+  const clipRootDomain = createRootTileDomainClip(
+    () => runtimeState.tiles?.root
+  );
   const casterTransform = new Matrix4();
   const casterMatch: ShadowReceiverMatch = {
     receiverGeometricError: 0,
@@ -111,6 +115,7 @@ export function createThreeTilesCascade(
     const bounds = (tile as RuntimeTile).engineData?.boundingVolume;
     if (!bounds?.getAABB || !runtimeState.shadowReceiverMask) return null;
     readOrientedTileBounds(bounds, casterBounds, casterTransform);
+    if (!clipRootDomain(casterBounds, casterTransform)) return null;
     return runtimeState.shadowReceiverMask.match(
       casterBounds,
       casterMatch,

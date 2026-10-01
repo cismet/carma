@@ -16,6 +16,7 @@ import {
   type TileCameraContribution,
 } from "../../core/tile-camera-demand";
 import { readOrientedTileBounds } from "./three-tiles-bounds";
+import { createRootTileDomainClip } from "./three-tiles-root-domain";
 import type { ThreeTilesRuntimeState } from "./three-tiles-runtime-context";
 import type { RuntimeTile } from "./three-tiles-runtime-types";
 import { UNLOADED_LOADING_STATE } from "./three-tiles-runtime-vendor";
@@ -37,9 +38,11 @@ type CameraObjectiveState = Pick<
  * geometricError, so candidate and fallback share their per-camera measurement.
  */
 export function createMeshCameraObjectives(state: CameraObjectiveState) {
+  const clipRootDomain = createRootTileDomainClip(() => state.tiles?.root);
   const bounds = new Box3();
   const transform = new Matrix4();
   let owner: unknown;
+  let rootDomainRevision = -1;
   type CameraUnits = {
     errors?: readonly TileCameraContribution[];
     areas?: readonly TileCameraContribution[];
@@ -65,6 +68,7 @@ export function createMeshCameraObjectives(state: CameraObjectiveState) {
   let publishedAncestors: Set<Tile> | undefined;
 
   const sync = () => {
+    const nextRootDomainRevision = clipRootDomain.revision();
     const nextFrame = state.tiles?.frameCount ?? -1;
     const group = state.tiles?.group;
     let placementChanged = false;
@@ -76,9 +80,11 @@ export function createMeshCameraObjectives(state: CameraObjectiveState) {
     }
     const geometryChanged =
       owner !== state.tileCameraDemand ||
+      rootDomainRevision !== nextRootDomainRevision ||
       revision !== state.meshContentRevision ||
       placementChanged;
     if (geometryChanged) {
+      rootDomainRevision = nextRootDomainRevision;
       if (owner !== state.tileCameraDemand) projections = new WeakMap();
       owner = state.tileCameraDemand;
       units = new WeakMap();
@@ -116,6 +122,7 @@ export function createMeshCameraObjectives(state: CameraObjectiveState) {
     const volume = tile.engineData?.boundingVolume;
     if (!volume?.getAABB || !state.tiles) return [];
     readOrientedTileBounds(volume, bounds, transform);
+    if (!clipRootDomain(bounds, transform)) return [];
     transform.premultiply(state.tiles.group.matrixWorld);
     const scale = state.tiles.group.matrixWorld.getMaxScaleOnAxis();
     let projected = projections.get(tile);
