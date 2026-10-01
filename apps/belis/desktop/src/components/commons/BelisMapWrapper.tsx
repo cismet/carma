@@ -1293,17 +1293,30 @@ const BelisMapLibWrapper = ({
       sourceLayer: f.sourceLayer ?? "",
       id: f.id!,
     });
+    // Move only existing toggles (lasso / Alt+click). A row matched by a street
+    // search already highlights its brandnew copy through the matcher, and the
+    // toggle is an XOR flip — adding one there would switch the copy off.
     const removed: ReturnType<typeof toTarget>[] = [];
     const added: ReturnType<typeof toTarget>[] = [];
     next.forEach((f, i) => {
       if (f === prev[i]) return;
-      removed.push(toTarget(prev[i]));
+      const old = toTarget(prev[i]);
+      const key = `${old.source}::${old.sourceLayer}::${old.id}`;
+      if (old.source === brandnewSource) return;
+      if (!criteria.toggledFeatures.has(key)) return;
+      removed.push(old);
       added.push(toTarget(f));
     });
     ensureToggledFeatures(removed, false);
     ensureToggledFeatures(added, true);
     setUnfilteredHighlights(next);
-  }, [brandnewFc, brandnewSource, namespacedSource, ensureToggledFeatures]);
+  }, [
+    brandnewFc,
+    brandnewSource,
+    namespacedSource,
+    criteria,
+    ensureToggledFeatures,
+  ]);
 
   // AA lasso selection (disabled – button now only logs "hallo world")
   // useAaLassoSelection({
