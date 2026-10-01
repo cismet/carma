@@ -131,6 +131,12 @@ this baseline does not enable those pages or change terrain shadow fitting.
 
 ## Repeated conversion cost
 
+Repeated visibility and shadow queries reuse up to 512 exact local geodetic
+envelopes. Keys include all geographic bounds and height limits; changing the
+local ECEF frame clears them. Queries copy the envelope and still apply the
+current scene transform, so camera movement cannot reuse stale world bounds.
+Raster coordinate lookup tables in this projection are bounded to 2048 entries.
+
 Camera gestures refit the shared group matrix; they do not reproject terrain
 vertices. Actual height/normal seam edits invalidate only the affected geometry.
 Unchanged same-level boundary values leave geometry versions untouched.
@@ -152,5 +158,7 @@ An actual allocation failure records the shared versioned cache policy's
 A long low-sun browser run exceeded its grant through protected content.
 Completed preview ancestors now release preparation protection after successful
 publication; completion siblings participate in full-family replacement. The
-remaining active-cut admission issue still needs verification before publishing
-this terrain work. The conversion checks alone do not establish memory or visual readiness.
+remaining active-cut admission issue is an outstanding memory risk: protected
+active content may exceed the grant. Publishing the implementation does not
+resolve that risk. The conversion checks alone do not establish memory or visual
+readiness under that working set.

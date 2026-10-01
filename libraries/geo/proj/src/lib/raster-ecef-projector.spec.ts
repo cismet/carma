@@ -20,14 +20,15 @@ describe("createRasterEcefProjector", () => {
       [9, 53],
     ]) {
       expect(
-        bounded(longitude, latitude, 200, a).distanceTo(
-          reference(longitude, latitude, 200, b)
-        )
-      ).toBe(0);
-      expect(
         bounded
           .direction(longitude, latitude, direction, a)
           .distanceTo(reference.direction(longitude, latitude, direction, b))
+      ).toBe(0);
+      // Normal-first calls must populate cold or evicted lookups for positions.
+      expect(
+        bounded(longitude, latitude, 200, a).distanceTo(
+          reference(longitude, latitude, 200, b)
+        )
       ).toBe(0);
       expect(bounded.cacheStats().columns).toBeLessThanOrEqual(2);
       expect(bounded.cacheStats().rows).toBeLessThanOrEqual(2);

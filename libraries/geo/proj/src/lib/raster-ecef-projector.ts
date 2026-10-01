@@ -68,9 +68,19 @@ export const createRasterEcefProjector = (options?: {
       direction: Vector3,
       out: Vector3
     ) => {
-      project(longitude, latitude, 0, basisPoint);
-      const [cosLon, sinLon] = columns.get(longitude)!;
-      const [cosLat, sinLat] = rows.get(latitude)!;
+      // Reuse the tangent basis without recomputing an unused ECEF position.
+      let column = columns.get(longitude);
+      let row =
+        latitude === previousLatitude ? previousRow : rows.get(latitude);
+      if (!column || !row) {
+        project(longitude, latitude, 0, basisPoint);
+        column = columns.get(longitude)!;
+        row = rows.get(latitude)!;
+      }
+      previousLatitude = latitude;
+      previousRow = row;
+      const [cosLon, sinLon] = column;
+      const [cosLat, sinLat] = row;
       const { x, y, z } = direction;
       return out.set(
         -x * sinLon + y * cosLat * cosLon + z * sinLat * cosLon,

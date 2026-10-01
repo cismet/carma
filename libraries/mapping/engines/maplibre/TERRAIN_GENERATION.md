@@ -17,7 +17,7 @@ remain historical measurements, not the current source-resolution limit.
 | NoData / seams | `terrain-no-data.ts` removes incomplete faces; `terrain-boundary-stitch.ts` reconciles shared/mixed-LOD edges and recomputes normals in workers | No skirts or zero-plane fill. Full settled boundary processing remains; progressive arrivals can precede final stitching. |
 | Scheduling | Adaptive Commons worker-throughput controller; non-preemptive stable priority: partition → project → decode → stitch | Starts conservatively, compares total work/s, cruises with 20% worker-count headroom, and backs off under main-thread pressure. Same-priority FIFO and running work are preserved; no moving-camera detail reduction. See `libraries/commons/worker-scaling/README.md`. |
 | Publication | Coarsest viewport stage satisfying the **16 px raster-spacing target**, then final selection; omit all intermediate stages | Publish non-overlapping startup tiles as they arrive. Retain detailed meshes on pan. Complete replacement coverage is published immediately; optional mixed-LOD stitching follows after foreground work settles. Content/shadow invalidations are combined once per render frame. |
-| Cache | Decoded-source/in-flight caches and versioned IndexedDB edge-topology atlas | The shadow runtime no longer reads or writes full prepared meshes. Only reusable edge topology is persisted; positions and normals always come from current raster-derived geometry. |
+| Cache | Bounded decoded-source/in-flight caches, selected-presentation prepared tiles and versioned IndexedDB edge-topology atlas | Idle baseline preparation stores upload-ready native or ECEF tiles with source-aware identities. Edge topology remains a coordinate-free sidecar whose attributes come from the current geometry. See [terrain baseline](./TERRAIN_BASE_COVERAGE.md). |
 
 The pixel criterion is `sampleSpacingMetres × focalLengthPixels / distanceToTileBounds`.
 It is **not a certified vertical-error bound** against unfetched higher-resolution
@@ -113,8 +113,10 @@ remounting, new dependency or source-neutral production cache was retained.
 
 All A/B geometry/normal/index/mask comparisons are exact; capture output pixels
 match byte-for-byte. Different fixtures, runtimes and measurement scopes must not
-be added together. Methods, raw paired trials, reproducible harnesses and
-validation limitations: [benchmark evidence](../../../../output/terrain-cache-optimizations-20260906/README.md).
+be added together. The September 6 raw paired trials and harnesses were recorded
+in local benchmark output, which is not included in this repository. The figures
+above are historical component measurements, not a reproducible current-app
+benchmark or evidence for the selected-presentation cache added later.
 
 
 ## Responsive time changes and bounded working sets (2026-09-20)
@@ -271,10 +273,7 @@ RAM hits and normal render frames do not write cost feedback or permanent pins.
 Per worker, resident topology is bounded to 8 MiB/64 entries and pending writes
 to 2 MiB. Persistent storage uses the shared origin-quota derived-cache policy with a 256 MiB fallback (DBC-01 in `libraries/commons/utils/src/lib/collections/DERIVED_CACHE_DECISIONS.md`). The
 runtime requests browser storage persistence after readiness; retention remains
-subject to browser permission, quota and user deletion. Cold extraction and
-accepted disk restoration record their measured costs in the shared retention
-policy, so expensive reusable work can outlive cheap metadata. Timed-out/corrupt
-reads do not produce cost feedback, and no sidecar is permanently pinned.
+subject to browser permission, quota and user deletion.
 The prepared ECEF tile record is documented in [TERRAIN_BASE_COVERAGE.md](./TERRAIN_BASE_COVERAGE.md);
 it stores the actual presentation without a second flat position buffer.
 

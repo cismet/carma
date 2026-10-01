@@ -5,6 +5,11 @@ targets and resource budgets into a coherent set of drawable tiles. It runs in
 the shared MapLibre/Three engine; Geoportal and stories use the same runtime.
 Shadows are an optional consumer of that runtime. Raster elevation has its own
 processing pipeline and is outside the mesh-cache design below.
+Its implemented idle baseline preparation can already persist complete finer
+stages beyond the resident-memory allowance, up to its configured input-raster
+edge limit; see [raster terrain baseline](./TERRAIN_BASE_COVERAGE.md). That bounded
+adapter behavior does not implement the mesh full-pyramid extension proposed
+below.
 
 **Status:** the loading behavior described first is implemented. The deeper
 idle disk prefetch and conditional cached quality floor described under

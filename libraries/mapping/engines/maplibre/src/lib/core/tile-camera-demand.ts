@@ -162,6 +162,10 @@ export const createTileCameraDemand = (
     };
   });
   const intersectionCorner = new Vector3();
+  const evaluationWorldBounds = new Box3();
+  const evaluationWorldToBounds = new Matrix4();
+  const evaluationBoundsToView = new Matrix4();
+  const evaluationNearest = new Vector3();
   const contributions: TileCameraContribution[] = [];
   const target: {
     required: boolean;
@@ -331,11 +335,11 @@ export const createTileCameraDemand = (
       target.priority = Number.NEGATIVE_INFINITY;
       if (bounds.isEmpty()) return target;
       const worldBounds = boundsToWorld
-        ? bounds.clone().applyMatrix4(boundsToWorld)
+        ? evaluationWorldBounds.copy(bounds).applyMatrix4(boundsToWorld)
         : bounds;
       const worldToBounds =
         includeVisibleArea && boundsToWorld
-          ? boundsToWorld.clone().invert()
+          ? evaluationWorldToBounds.copy(boundsToWorld).invert()
           : undefined;
       for (const view of compiled) {
         if (view.id === excludeCameraId) continue;
@@ -411,9 +415,11 @@ export const createTileCameraDemand = (
           // interior tiles take this allocation-light path; only clipped
           // corners require the existing convex intersection calculation.
           const e = boundsToWorld
-            ? view.worldToView.clone().multiply(boundsToWorld).elements
+            ? evaluationBoundsToView
+                .copy(view.worldToView)
+                .multiply(boundsToWorld).elements
             : view.worldToView.elements;
-          const nearest = new Vector3(
+          const nearest = evaluationNearest.set(
             e[2] > 0 ? bounds.max.x : bounds.min.x,
             e[6] > 0 ? bounds.max.y : bounds.min.y,
             e[10] > 0 ? bounds.max.z : bounds.min.z

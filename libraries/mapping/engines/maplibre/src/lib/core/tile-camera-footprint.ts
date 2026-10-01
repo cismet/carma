@@ -1,4 +1,4 @@
-import { Box3, Frustum, Matrix4, Plane, Vector3, Vector4 } from "three";
+import { Box3, Frustum, Matrix4, Plane, Vector3 } from "three";
 
 import {
   clipConvexPolygonByPlanes3d,
@@ -34,17 +34,28 @@ export const projectedIntersectionArea = (
   vertices: readonly Vector3[],
   clipFromWorld: Matrix4
 ): number => {
-  const points = vertices
-    .map((point) =>
-      new Vector4(point.x, point.y, point.z, 1).applyMatrix4(clipFromWorld)
-    )
-    .filter((point) => point.w > 0)
-    .map((point) => ({
-      x: Math.max(-1, Math.min(1, point.x / point.w)),
-      y: Math.max(-1, Math.min(1, point.y / point.w)),
-    }))
-    .filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y))
-    .sort((a, b) => a.x - b.x || a.y - b.y);
+  const points: Point2[] = [];
+  const e = clipFromWorld.elements;
+  for (const point of vertices) {
+    const w = e[3] * point.x + e[7] * point.y + e[11] * point.z + e[15];
+    if (!(w > 0)) continue;
+    const x = Math.max(
+      -1,
+      Math.min(
+        1,
+        (e[0] * point.x + e[4] * point.y + e[8] * point.z + e[12]) / w
+      )
+    );
+    const y = Math.max(
+      -1,
+      Math.min(
+        1,
+        (e[1] * point.x + e[5] * point.y + e[9] * point.z + e[13]) / w
+      )
+    );
+    if (Number.isFinite(x) && Number.isFinite(y)) points.push({ x, y });
+  }
+  points.sort((a, b) => a.x - b.x || a.y - b.y);
   if (points.length < 3) return 0;
   const cross = (a: Point2, b: Point2, c: Point2) =>
     (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);

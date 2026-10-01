@@ -1,9 +1,9 @@
+import { Box3, Vector3 } from "three";
 import {
   createLocalEcefFrame,
   createRasterEcefProjector,
   getGeodeticPatchBounds,
 } from "@carma-geo/proj";
-import { Box3, Vector3 } from "three";
 import type { TerrainTileBounds } from "./raster-dem-tile";
 
 export const TERRAIN_GEOMETRY_PROJECTION = {
@@ -18,7 +18,9 @@ export const createTerrainGeodeticProjection = (
   origin: readonly [number, number]
 ) => {
   const frame = createLocalEcefFrame(...origin);
-  const project = createRasterEcefProjector();
+  const project = createRasterEcefProjector({ maximumCacheEntries: 2048 });
+  const boundsCache = new Map<string, Box3>();
+  const boundsFrame = frame.localFromEcef.clone();
   return {
     ...frame,
     project: (
@@ -35,9 +37,28 @@ export const createTerrainGeodeticProjection = (
       heights: readonly [number, number],
       target = new Box3()
     ) => {
-      return target.copy(
-        getGeodeticPatchBounds(bounds, heights, frame.localFromEcef)
-      );
+      // Tile geography and heights stay fixed across camera/shadow queries.
+      // Cache only this local envelope; the caller still applies its current
+      // world transform. Copy results so consumers cannot change cached bounds.
+      if (!boundsFrame.equals(frame.localFromEcef)) {
+        boundsCache.clear();
+        boundsFrame.copy(frame.localFromEcef);
+      }
+      const key = [
+        bounds.west,
+        bounds.south,
+        bounds.east,
+        bounds.north,
+        ...heights,
+      ].join(":");
+      let box = boundsCache.get(key);
+      if (!box) {
+        box = getGeodeticPatchBounds(bounds, heights, frame.localFromEcef);
+        if (boundsCache.size >= 512)
+          boundsCache.delete(boundsCache.keys().next().value!);
+      } else boundsCache.delete(key);
+      boundsCache.set(key, box);
+      return target.copy(box);
     },
   };
 };
