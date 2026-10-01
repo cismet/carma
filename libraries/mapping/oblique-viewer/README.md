@@ -112,7 +112,7 @@ The 2026 delivery contains 30,172 images (23,823 oblique and 6,349 nadir). Its 4
 
 ## Run the Rathaus sample
 
-The local-development route `#/oblique?ff=ng|oblique` starts the addon.
+The route `#/oblique?ff=oblique` starts the addon in local development and PR previews.
 Enabling the Geoportal viewer selects Luftbild and loads the committed Mesh 2024
 Cesium-parity style with separate draped street labels. The existing Karte /
 Luftbild selector switches between LoD2 buildings on Three.js raster-DEM terrain
@@ -208,7 +208,7 @@ and terminate their worker on completion or failure.
 
 The Geoportal registers the new viewer addon only when the URL feature flag
 `oblique` is enabled, including on the dedicated `#/oblique` route. Use
-`ff=ng|oblique` and reload after changing flags; availability resolves at startup.
+`ff=oblique` and reload after changing flags; availability resolves at startup.
 
 ## Photo and 3D-label composition
 

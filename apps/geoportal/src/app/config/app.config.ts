@@ -32,7 +32,10 @@ import {
 import { Rectangle } from "cesium";
 
 import { availabilityContext } from "./availability";
-import { LOCAL_OBLIQUE_VIEWER_CONFIG } from "./oblique.config";
+import {
+  OBLIQUE_VIEWER_CONFIG,
+  OBLIQUE_VIEWER_DEPLOYMENTS,
+} from "./oblique.config";
 import { defaultWorkflowAddons } from "../constants/default-workflows";
 
 export const APP_BASE_PATH = import.meta.env.BASE_URL;
@@ -78,13 +81,12 @@ export const DEFAULT_ADDONS: AddonEntry[] = [
     addon: "libreTerrain",
     config: { appKey: "geoportal", mode: "whileCameraFree" },
   },
-  // the Schrägluftbild viewer on the MapLibre map, local development only
-  // and behind its flag while it is being brought up next to the Cesium one
+  // The MapLibre oblique viewer is opt-in on development deployments.
   {
     addon: "obliqueViewer",
-    config: LOCAL_OBLIQUE_VIEWER_CONFIG,
+    config: OBLIQUE_VIEWER_CONFIG,
     availability: {
-      deployments: ["localDev"],
+      deployments: OBLIQUE_VIEWER_DEPLOYMENTS,
       featureFlag: "featureFlagObliqueViewerAddon",
     },
   },

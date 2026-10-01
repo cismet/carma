@@ -21,6 +21,8 @@ import {
   acquireMapLibreTerrainMeshComposition,
   registerSharedThreeSceneRuntime,
   notifySharedThreeSceneContentChanged,
+  hasSharedThreeShadedPresentation,
+  subscribeSharedThreeShadedPresentation,
 } from "@carma-mapping/engines/maplibre";
 import { buildRasterDemTerrainRuntime } from "@carma-mapping/engines/maplibre/terrain";
 
@@ -117,6 +119,29 @@ export const useLibreLayers = (): LibreLayer[] => {
     lease.setPointLabelOverlayVisible(true);
     return () => lease.release();
   }, [map, obliqueActive]);
+
+  useEffect(() => {
+    if (!map || !obliqueActive || currentStyle !== MapStyleKeys.AERIAL) return;
+    let restoreNativePaint: (() => void) | undefined;
+    const syncComposition = () => {
+      const visible = hasSharedThreeShadedPresentation(map);
+      if (visible && !restoreNativePaint)
+        restoreNativePaint = acquireMapLibreTerrainMeshComposition(map);
+      else if (!visible && restoreNativePaint) {
+        restoreNativePaint();
+        restoreNativePaint = undefined;
+      }
+    };
+    const unsubscribe = subscribeSharedThreeShadedPresentation(
+      map,
+      syncComposition
+    );
+    syncComposition();
+    return () => {
+      unsubscribe();
+      restoreNativePaint?.();
+    };
+  }, [map, obliqueActive, currentStyle]);
 
   useEffect(() => {
     if (!map || !obliqueActive || currentStyle === MapStyleKeys.AERIAL) return;

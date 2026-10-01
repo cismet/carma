@@ -208,7 +208,7 @@ python3 scripts/oblique-viewer/serve-originals.py \
   --optimistic-series wuppertal-2026
 ```
 
-Open [the local oblique route](http://localhost:4201/#/oblique?ff=ng&lat=51.27174&lng=7.20028&zoom=17).
+Open [the local oblique route](http://localhost:4201/#/oblique?ff=oblique&lat=51.27174&lng=7.20028&zoom=17).
 The route starts the viewer and offers independent 03/2024, 04/2026, and
 04/2026 Sample sources. Their compact footprint labels are 2024, 2026, and
 2026Test; the label is omitted with only one active series. The full 2026

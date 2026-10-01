@@ -59,6 +59,8 @@ const state = vi.hoisted(() => ({
   acquireComposition: vi.fn(),
   buildTerrain: vi.fn(),
   notifyChanged: vi.fn(),
+  shadedReady: false,
+  presentationListeners: new Set<() => void>(),
 }));
 
 vi.mock("react-redux", async (importOriginal) => ({
@@ -94,6 +96,8 @@ vi.mock("@carma-mapping/components", () => ({
 }));
 vi.mock("../../config/oblique.config", () => ({
   LOCAL_OBLIQUE_VIEWER_CONFIG: {},
+  OBLIQUE_VIEWER_CONFIG: {},
+  OBLIQUE_VIEWER_DEPLOYMENTS: ["localDev", "dev", "pr"],
   OBLIQUE_MESH_2024_STYLE_URI: "/data/test-parity.style.json",
   OBLIQUE_LOD2_STYLE: {
     version: 8,
@@ -141,6 +145,14 @@ vi.mock("@carma-mapping/engines/maplibre", () => ({
     return unregister;
   },
   notifySharedThreeSceneContentChanged: state.notifyChanged,
+  hasSharedThreeShadedPresentation: () => state.shadedReady,
+  subscribeSharedThreeShadedPresentation: (
+    _map: unknown,
+    listener: () => void
+  ) => {
+    state.presentationListeners.add(listener);
+    return () => state.presentationListeners.delete(listener);
+  },
   acquireMapLibreTerrainMeshComposition: (...args: unknown[]) => {
     state.acquireComposition(...args);
     const restore = vi.fn();
@@ -297,6 +309,8 @@ describe("useLibreLayers with conditional layers", () => {
     state.unregisters = [];
     state.restores = [];
     state.terrainUsable = true;
+    state.shadedReady = false;
+    state.presentationListeners.clear();
     state.layers = [];
     state.pathname = "/";
     state.search = "";
@@ -641,6 +655,43 @@ describe("useLibreLayers with conditional layers", () => {
       { id: "explicit-lod2" },
       { id: "different-mesh" },
     ]);
+  });
+
+  it("hides native ground paint once the aerial mesh is presented and restores it on exit", () => {
+    state.map = { getCenter: () => ({ lng: 7.2, lat: 51.27 }) };
+    state.addons = ["obliqueViewer"];
+    state.obliqueEnabled = true;
+    const view = renderHook(() => useLibreLayers());
+    expect(state.acquireComposition).not.toHaveBeenCalled();
+    act(() => {
+      state.shadedReady = true;
+      for (const listener of state.presentationListeners) listener();
+    });
+    expect(state.acquireComposition).toHaveBeenCalledOnce();
+    act(() => {
+      for (const listener of state.presentationListeners) listener();
+    });
+    expect(state.acquireComposition).toHaveBeenCalledOnce();
+    state.obliqueEnabled = false;
+    view.rerender();
+    expect(state.restores[0]).toHaveBeenCalledOnce();
+    expect(state.presentationListeners.size).toBe(0);
+  });
+
+  it("releases aerial suppression if the shared mesh is no longer presented", () => {
+    state.map = { getCenter: () => ({ lng: 7.2, lat: 51.27 }) };
+    state.addons = ["obliqueViewer"];
+    state.obliqueEnabled = true;
+    state.shadedReady = true;
+    const view = renderHook(() => useLibreLayers());
+    expect(state.acquireComposition).toHaveBeenCalledOnce();
+    act(() => {
+      state.shadedReady = false;
+      for (const listener of state.presentationListeners) listener();
+    });
+    expect(state.restores[0]).toHaveBeenCalledOnce();
+    view.unmount();
+    expect(state.restores[0]).toHaveBeenCalledOnce();
   });
 
   it("ignores a late parity response after the viewer is disabled", async () => {

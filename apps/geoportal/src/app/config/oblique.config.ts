@@ -1,4 +1,5 @@
 import type { StyleSpecification } from "maplibre-gl";
+import { resolveDeployment, type DeploymentTarget } from "@carma-commons/utils";
 import { WUPP_LOD2_TILESET, WUPP_MESH_2024 } from "@carma-commons/resources";
 
 import {
@@ -7,6 +8,16 @@ import {
   WUPPERTAL_2026_RATHAUS_DATASET,
   type ObliqueViewerConfig,
 } from "@carma-mapping/oblique-viewer";
+
+/** The oblique addon is available behind its flag on development deployments. */
+export const OBLIQUE_VIEWER_DEPLOYMENTS: DeploymentTarget[] = [
+  "localDev",
+  "dev",
+  "pr",
+];
+
+const publicAssetUrl = (path: string, baseUrl: string) =>
+  `${baseUrl.replace(/\/?$/, "/")}${path.replace(/^\/+/, "")}`;
 
 /** Local demo using 2024 and the complete, optimistically addressable 2026 catalog. */
 export const LOCAL_OBLIQUE_VIEWER_CONFIG: ObliqueViewerConfig = {
@@ -27,9 +38,36 @@ export const LOCAL_OBLIQUE_VIEWER_CONFIG: ObliqueViewerConfig = {
   ],
 };
 
+/** Published previews use public imagery; the TIFF bridge belongs to localhost. */
+export const resolveObliqueViewerConfig = (
+  deployment: DeploymentTarget | null = resolveDeployment(),
+  baseUrl: string = import.meta.env.BASE_URL
+): ObliqueViewerConfig =>
+  deployment === "localDev"
+    ? LOCAL_OBLIQUE_VIEWER_CONFIG
+    : {
+        series: [
+          WUPPERTAL_OBLIQUE_2024,
+          { ...WUPPERTAL_OBLIQUE_2026, enabledByDefault: false },
+          {
+            ...WUPPERTAL_2026_RATHAUS_DATASET,
+            enabledByDefault: false,
+            exteriorOrientationsURI: publicAssetUrl(
+              "oblique/2026-rathaus/metadata.json",
+              baseUrl
+            ),
+            previewPath: publicAssetUrl("oblique/2026-rathaus", baseUrl),
+          },
+        ],
+      };
+
+export const OBLIQUE_VIEWER_CONFIG = resolveObliqueViewerConfig();
+
 /** Public style stays the sole authored parity profile; load it asynchronously. */
-export const OBLIQUE_MESH_2024_STYLE_URI =
-  "/data/mesh2024-cesium-parity.style.json";
+export const OBLIQUE_MESH_2024_STYLE_URI = publicAssetUrl(
+  "data/mesh2024-cesium-parity.style.json",
+  import.meta.env.BASE_URL
+);
 
 export const OBLIQUE_LOD2_STYLE: StyleSpecification = {
   version: 8,
