@@ -1,16 +1,8 @@
-import { TilesRenderer } from "3d-tiles-renderer";
-import {
-  GLTFExtensionsPlugin,
-  ImplicitTilingPlugin,
-  ReorientationPlugin,
-  UpdateOnChangePlugin,
-} from "3d-tiles-renderer/plugins";
 import * as THREE from "three";
-import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
 
-import type {
-  SharedThreeSceneFrame,
-  SharedThreeSceneRuntime,
+import {
+  createPointTilesetRuntime,
+  type PointTilesetRuntime,
 } from "@carma-mapping/engines/maplibre";
 
 /**
@@ -18,6 +10,9 @@ import type {
  * content) inside the shared MapLibre point-cloud scene. It is the tileset
  * counterpart of the COPC runtime: same scene layer, same local ENU origin,
  * so both deliveries of one dataset land in exactly the same place.
+ *
+ * The rendering lives in the engine's `createPointTilesetRuntime`; this adds
+ * the playground's interactive registration offsets and the extent helper.
  */
 export type PointTilesetSceneRuntimeOptions = {
   id: string;
@@ -32,15 +27,9 @@ export type PointTilesetSceneRuntimeOptions = {
 };
 
 export const createPointTilesetSceneRuntime = ({
-  id,
-  tilesetUrl,
-  originLngLat,
-  anchorHeightEllipsoidal,
-  pointSize: initialPointSize = 2,
-  errorTarget = 8,
   requestRender = () => undefined,
-}: PointTilesetSceneRuntimeOptions): SharedThreeSceneRuntime & {
-  setPointSize: (size: number) => void;
+  ...options
+}: PointTilesetSceneRuntimeOptions): PointTilesetRuntime & {
   /** WGS84 extent of the loaded tileset, or null before its root arrives. */
   getGeographicBounds: () => {
     centerLngLat: [number, number];
@@ -53,91 +42,22 @@ export const createPointTilesetSceneRuntime = ({
     upDegrees: number
   ) => void;
 } => {
-  let pointSize = initialPointSize;
-  let disposed = false;
-
-  const tiles = new TilesRenderer(tilesetUrl);
-  const dracoLoader = new DRACOLoader();
-  dracoLoader.setDecoderPath(
-    "https://www.gstatic.com/draco/versioned/decoders/1.5.6/"
-  );
-  tiles.registerPlugin(new ImplicitTilingPlugin());
-  tiles.registerPlugin(new UpdateOnChangePlugin());
-  tiles.registerPlugin(new GLTFExtensionsPlugin({ dracoLoader }));
-  tiles.registerPlugin(
-    new ReorientationPlugin({
-      lat: THREE.MathUtils.degToRad(originLngLat[1]),
-      lon: THREE.MathUtils.degToRad(originLngLat[0]),
-      height: anchorHeightEllipsoidal,
-    })
-  );
-  tiles.errorTarget = errorTarget;
-  tiles.downloadQueue.maxJobsPerOrigin = 8;
-  tiles.parseQueue.maxJobs = 8;
-  tiles.lruCache.minSize = 512;
-  tiles.lruCache.maxSize = 4_096;
-
-  // ReorientationPlugin yields X west / Z north; the scene layer expects
-  // X east / Z south, the same correction the COPC chunks already carry.
-  // The scene layer positions and scales `root` itself, so the interactive
-  // registration offsets live on their own group between it and the tileset:
-  // translation in the scene frame, rotation about the anchor, then the
-  // X east / Z south correction the reoriented tileset needs.
-  const root = new THREE.Group();
-  const registrationGroup = new THREE.Group();
-  const orientationGroup = new THREE.Group();
-  orientationGroup.rotation.y = Math.PI;
-  orientationGroup.add(tiles.group);
-  registrationGroup.add(orientationGroup);
-  root.add(registrationGroup);
-
-  const applyPointSize = (object: THREE.Object3D) => {
-    object.traverse((child) => {
-      const points = child as THREE.Points;
-      if (!(points instanceof THREE.Points)) return;
-      const material = points.material as THREE.PointsMaterial;
-      material.size = pointSize;
-      material.sizeAttenuation = false;
-      material.vertexColors = Boolean(points.geometry.getAttribute("color"));
-      material.needsUpdate = true;
-    });
-  };
-  const onLoadModel = (event: { scene?: THREE.Object3D }) => {
-    if (!event.scene) return;
-    applyPointSize(event.scene);
-    requestRender();
-  };
-  tiles.addEventListener("load-model", onLoadModel);
-  // UpdateOnChangePlugin only re-traverses on detected change; a periodic kick
-  // keeps a slow tileset from settling in a half-loaded state.
-  const watchdogTimer = window.setInterval(() => {
-    if (!disposed) tiles.dispatchEvent({ type: "needs-update" });
-  }, 2_000);
+  const runtime = createPointTilesetRuntime({
+    ...options,
+    dracoDecoderPath: "https://www.gstatic.com/draco/versioned/decoders/1.5.6/",
+    requestRender,
+  });
+  const registrationGroup = runtime.offsetGroup;
 
   return {
-    id,
-    originLngLat,
-    root,
-    update: (frame: SharedThreeSceneFrame) => {
-      if (disposed) return;
-      tiles.setCamera(frame.lodCamera);
-      // setResolutionFromRenderer would call renderer.getSize(); this layer
-      // draws through MapLibre's own context and has no three renderer to
-      // hand over, so the frame's viewport is passed explicitly.
-      tiles.setResolution(
-        frame.lodCamera,
-        Math.max(1, frame.viewport.x),
-        Math.max(1, frame.viewport.y)
-      );
-      tiles.update();
-    },
+    ...runtime,
     getGeographicBounds: () => {
       const sphere = new THREE.Sphere();
-      if (!tiles.getBoundingSphere(sphere) || !(sphere.radius > 0)) return null;
+      if (!runtime.getBoundingSphere(sphere)) return null;
       // The tileset is anchored on its own centre, so the sphere radius is the
       // half-extent to frame. Using it for both axes over-frames slightly,
       // which is what a fly-to wants.
-      const [longitude, latitude] = originLngLat;
+      const [longitude, latitude] = options.originLngLat;
       const metresPerDegreeLatitude = 111_320;
       const metresPerDegreeLongitude = Math.max(
         1,
@@ -176,19 +96,6 @@ export const createPointTilesetSceneRuntime = ({
       );
       registrationGroup.updateMatrixWorld(true);
       requestRender();
-    },
-    setPointSize: (size: number) => {
-      if (size === pointSize) return;
-      pointSize = size;
-      applyPointSize(tiles.group);
-      requestRender();
-    },
-    dispose: () => {
-      disposed = true;
-      window.clearInterval(watchdogTimer);
-      tiles.removeEventListener("load-model", onLoadModel);
-      tiles.dispose();
-      dracoLoader.dispose();
     },
   };
 };
