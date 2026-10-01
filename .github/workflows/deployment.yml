@@ -26,6 +26,7 @@ on:
         options:
           - live
           - dev
+          - stable
       create-docker-image:
         type: boolean
         description: Create a Docker image? 🐳
@@ -658,7 +659,7 @@ jobs:
         shell: bash
       - name: Create the version number
         id: update_version_number
-        if: ${{ (github.event.inputs.target || github.event.client_payload.target) != 'dev' }} # Skip version manipulation for dev deployments
+        if: ${{ (github.event.inputs.target || github.event.client_payload.target) == 'live' }} # Only live deployments manipulate the version
         run: |
           if [[ -f "$SRC_PATH/version.json" ]]; then
             if [[ -n "${{ (github.event.inputs['version-manipulator'] || github.event.client_payload['version-manipulator']) }}" ]]; then
@@ -679,7 +680,7 @@ jobs:
         shell: bash
 
       - name: Commit version.json changes
-        if: env.version_changed == 'true' && (github.event.inputs.target || github.event.client_payload.target) != 'dev' # Only commit if version was updated and target is not dev
+        if: env.version_changed == 'true' && (github.event.inputs.target || github.event.client_payload.target) == 'live' # Only commit if version was updated and target is live
         run: |
           git config --global user.email "902348742+github-actions[bot]@users.noreply.github.com"
           git config --global user.name "GitHub Actions"
@@ -946,7 +947,7 @@ jobs:
 
       - name: Create the version number
         id: update_version_number
-        if: ${{ (github.event.inputs.target || github.event.client_payload.target) != 'dev' }} # Skip version manipulation for dev deployments
+        if: ${{ (github.event.inputs.target || github.event.client_payload.target) == 'live' }} # Only live deployments manipulate the version
         run: |
           if [[ -f "$SRC_PATH/version.json" ]]; then
             if [[ -n "${{ (github.event.inputs['version-manipulator'] || github.event.client_payload['version-manipulator']) }}" ]]; then
@@ -967,7 +968,7 @@ jobs:
         shell: bash
 
       - name: Commit version.json changes
-        if: env.version_changed == 'true' && (github.event.inputs.target || github.event.client_payload.target) != 'dev' # Only commit if version was updated and target is not dev
+        if: env.version_changed == 'true' && (github.event.inputs.target || github.event.client_payload.target) == 'live' # Only commit if version was updated and target is live
         run: |
           git config --global user.email "902348742+github-actions[bot]@users.noreply.github.com"
           git config --global user.name "GitHub Actions"

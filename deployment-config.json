@@ -422,6 +422,17 @@
                 "VITE_DISCOVER_API_URL=https://geoportal-rest-api.cismet.de"
               ]
             }
+          },
+          "stable": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "geoportal-stable",
+              "envs": [
+                "VITE_MATOMO_SITE_ID=3",
+                "VITE_RELAY_BASE_URL=https://relay-wupp-digitaltwin.cismet.de",
+                "VITE_PM_REMOTE_URL=https://carma-dev-deployments.github.io/pm-remote-stable/"
+              ]
+            }
           }
         },
         "auto": {
@@ -446,6 +457,15 @@
             "pages": {
               "org": "carma-dev-deployments",
               "prj": "pm-remote",
+              "envs": [
+                "VITE_RELAY_BASE_URL=https://relay-wupp-digitaltwin.cismet.de"
+              ]
+            }
+          },
+          "stable": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "pm-remote-stable",
               "envs": [
                 "VITE_RELAY_BASE_URL=https://relay-wupp-digitaltwin.cismet.de"
               ]
