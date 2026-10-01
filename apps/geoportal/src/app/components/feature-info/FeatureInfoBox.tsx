@@ -975,7 +975,8 @@ const FeatureInfoBox = ({
     lightBoxDispatchContext,
   ]);
 
-  const openPanoramaLightBox = useCallback(() => {
+  // `index` is the slide the preview shows: 0 the panorama, 1..n the photos.
+  const openPanoramaLightBox = useCallback((index = 0) => {
     lightBoxDispatchContext?.setAll({
       // No title — matches the standalone photo lightbox, which shows none here.
       title: "",
@@ -983,7 +984,7 @@ const FeatureInfoBox = ({
       // Same Stadt-Wuppertal attribution the photo lightbox shows, so the two
       // viewers read identically. Slides may override per-slide if needed.
       caption: defaultLightBoxCaptionFactory(),
-      index: 0, // the panorama is always the first slide
+      index, // the panorama is always the first slide, the photos follow
       visible: true,
       slides: mediaSlides,
     });
@@ -1196,6 +1197,8 @@ const FeatureInfoBox = ({
           key="infobox-panorama-preview"
           src={selectedFeature.properties.panorama}
           multiResConfigUrl={selectedFeature.properties.panoramaMultiResConfig}
+          // the photos step through in the preview, in lightbox slide order
+          photos={photoSlides.map((slide) => slide.src)}
           onExpand={openPanoramaLightBox}
           // Only the active viewer drives the map arrow; yield to the
           // lightbox viewer while it is open.
@@ -1236,10 +1239,16 @@ const FeatureInfoBox = ({
     ? overlappingCycle
     : undefined;
 
+  // A panorama's photos are stepped through in its own preview, so they get
+  // no separate photo preview (a route's zoom image still does).
+  const photosInPanoramaPreview =
+    !!selectedFeature.properties.panorama && !zoomImageUrl;
+
   const visibleSecondaryInfoBoxElements =
-    selectedFeature.properties.foto ||
-    selectedFeature.properties.fotos ||
-    zoomImageUrl
+    !photosInPanoramaPreview &&
+    (selectedFeature.properties.foto ||
+      selectedFeature.properties.fotos ||
+      zoomImageUrl)
       ? [
           ...additionalSecondaryInfoBoxElements,
           ...featureHeaders,
