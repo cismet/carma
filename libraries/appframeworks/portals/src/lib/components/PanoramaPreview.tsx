@@ -1,4 +1,10 @@
 import { useEffect, useRef, useState } from "react";
+import type { MouseEvent } from "react";
+import {
+  faChevronLeft,
+  faChevronRight,
+} from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 import "pannellum/build/pannellum.css";
 import "pannellum";
@@ -10,8 +16,16 @@ interface PanoramaPreviewProps {
   src: string;
   /** URL of a pannellum multiresolution config.json; preferred over `src`. */
   multiResConfigUrl?: string;
-  /** Called when the user clicks the expand control (open fullscreen). */
-  onExpand?: () => void;
+  /**
+   * Further photos taken together with the panorama (e.g. side cameras). They
+   * follow the panorama as slides 2..n; arrows on the preview step through them.
+   */
+  photos?: string[];
+  /**
+   * Called when the user clicks the expand control (open fullscreen), with the
+   * slide shown in the preview: 0 is the panorama, 1..n the `photos`.
+   */
+  onExpand?: (index: number) => void;
   /** Called with the viewer's current yaw (deg) as the user looks around. */
   onYawChange?: (yaw: number) => void;
   /** Initial view yaw (deg); rotates the image so it opens facing forward. */
@@ -39,10 +53,21 @@ const PREVIEW_HEIGHT = 160;
 export const PanoramaPreview = ({
   src,
   multiResConfigUrl,
+  photos = [],
   onExpand,
   onYawChange,
   initialYaw,
 }: PanoramaPreviewProps) => {
+  // Slide shown in the preview: 0 is the panorama, 1..n the photos. Kept when
+  // the next feature is selected, so the user stays on the same camera.
+  const [index, setIndex] = useState(0);
+  const slideCount = 1 + photos.length;
+  const shownIndex = index < slideCount ? index : 0;
+  const step = (e: MouseEvent, delta: number) => {
+    // don't let the click reach the viewer (drag) or the photo (expand)
+    e.stopPropagation();
+    setIndex((shownIndex + delta + slideCount) % slideCount);
+  };
   const containerRef = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<PannellumViewer | null>(null);
   const [width, setWidth] = useState<number>(getPreviewWidth);
@@ -122,19 +147,54 @@ export const PanoramaPreview = ({
       className="carma-panorama-preview"
       style={{ width, height: PREVIEW_HEIGHT }}
     >
+      {/* the viewer stays mounted under a photo, so going back to the
+          panorama neither reloads it nor loses the view direction */}
       <div ref={containerRef} className="carma-panorama-preview__viewer" />
+      {shownIndex > 0 && (
+        <img
+          src={photos[shownIndex - 1]}
+          alt=""
+          className="carma-panorama-preview__photo"
+          onClick={() => onExpand?.(shownIndex)}
+        />
+      )}
       {onExpand && (
         <button
           type="button"
           aria-label="Panorama im Vollbild öffnen"
           onClick={(e) => {
             e.stopPropagation();
-            onExpand();
+            onExpand(shownIndex);
           }}
           className="carma-panorama-preview__expand"
         >
           ⤢
         </button>
+      )}
+      {slideCount > 1 && (
+        <>
+          <button
+            type="button"
+            title="vorheriges Bild"
+            aria-label="vorheriges Bild"
+            className="carma-panorama-preview__step carma-panorama-preview__step--previous"
+            onClick={(e) => step(e, -1)}
+          >
+            <FontAwesomeIcon icon={faChevronLeft} />
+          </button>
+          <button
+            type="button"
+            title="nächstes Bild"
+            aria-label="nächstes Bild"
+            className="carma-panorama-preview__step carma-panorama-preview__step--next"
+            onClick={(e) => step(e, 1)}
+          >
+            <FontAwesomeIcon icon={faChevronRight} />
+          </button>
+          <div className="carma-panorama-preview__badge">
+            {shownIndex + 1} / {slideCount}
+          </div>
+        </>
       )}
     </div>
   );
