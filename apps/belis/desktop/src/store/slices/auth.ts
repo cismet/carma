@@ -1,11 +1,14 @@
 import { createSlice } from "@reduxjs/toolkit";
 import { ENDPOINT, jwtTestQuery } from "../../constants/belis";
+import { fetchBelisRights } from "../../helper/rights";
 
 const initialState = {
   jwt: undefined,
   login: undefined,
   loginRequested: false,
   permissions: undefined,
+  // null = unknown, selectors then fall back to the Gast check.
+  rights: null,
 };
 
 const slice = createSlice({
@@ -28,13 +31,28 @@ const slice = createSlice({
       state.permissions = action.payload;
       return state;
     },
+    storeRights(state, action) {
+      state.rights = action.payload;
+      return state;
+    },
   },
 });
 
 export default slice;
 
-export const { storeJWT, storeLogin, setLoginRequested, storePermissions } =
-  slice.actions;
+export const {
+  storeJWT,
+  storeLogin,
+  setLoginRequested,
+  storePermissions,
+  storeRights,
+} = slice.actions;
+
+export const loadRights = (jwt) => {
+  return async (dispatch) => {
+    dispatch(storeRights(await fetchBelisRights(jwt)));
+  };
+};
 
 export const getJWT = (state) => {
   return state.auth.jwt;
@@ -57,6 +75,19 @@ export const getIsReadOnly = (state) => {
     permissions[0] === "Gast"
   );
 };
+
+const hasRight = (state, key) => {
+  const rights = state.auth.rights;
+  return rights ? rights[key] : !getIsReadOnly(state);
+};
+
+export const getRights = (state) => state.auth.rights;
+export const canCreateBasic = (state) => hasRight(state, "createBasic");
+export const canCreateAA = (state) => hasRight(state, "createAA");
+export const canEditBasic = (state) => hasRight(state, "editBasic");
+export const canEditAA = (state) => hasRight(state, "editAA");
+export const canEditKeytables = (state) => hasRight(state, "editKeytables");
+export const canDelete = (state) => hasRight(state, "delete");
 
 export const isLoginRequested = (state) => {
   return state.auth.loginRequested;
@@ -107,6 +138,7 @@ export const checkJWTValidation = () => {
         dispatch(storeJWT(undefined));
         dispatch(storeLogin(undefined));
         dispatch(storePermissions(undefined));
+        dispatch(storeRights(null));
       });
   };
 };
