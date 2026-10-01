@@ -130,8 +130,18 @@ export const setDzbPrmGlbVisibility = (
 };
 
 // The parsed GLB templates share geometry and materials with their scene
-// clones. Detach only; do not dispose shared GPU resources when toggling.
+// clones, so those are only detached. An instanced mesh's clone owns its
+// instance buffers, and the renderer keeps a vertex array per instanced mesh
+// and program until the mesh is disposed: nearly every mesh of these GLBs is
+// instanced, and the shadow capture clones them for every frame. Left alone
+// they piled up while the shadows played, and deleting them all when the
+// capture went away blocked the next scene for seconds.
 export const disposeDzbPrmGlbRoot = (root: THREE.Group) => {
+  root.traverse((object) => {
+    if ((object as THREE.InstancedMesh).isInstancedMesh) {
+      (object as THREE.InstancedMesh).dispose();
+    }
+  });
   root.removeFromParent();
   root.clear();
 };
