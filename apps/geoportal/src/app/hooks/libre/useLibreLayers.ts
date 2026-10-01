@@ -40,6 +40,11 @@ import { MapStyleKeys } from "../../constants/MapStyleKeys";
 import { useMapStyle } from "../useGeoportalMapStyle";
 import { getBackgroundLayer, getLayers } from "../../store/slices/mapping";
 
+const readStyleObject = (value: unknown): Record<string, unknown> =>
+  value !== null && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+
 export const useLibreLayers = (): LibreLayer[] => {
   const geoportalLayers = useSelector(getLayers);
   const backgroundLayer = useSelector(getBackgroundLayer);
@@ -71,16 +76,21 @@ export const useLibreLayers = (): LibreLayer[] => {
         if (!response.ok) throw new Error("Mesh style HTTP " + response.status);
         const style = (await response.json()) as StyleSpecification;
         if (controller.signal.aborted) return;
-        const carmaConf = style.metadata?.carmaConf;
-        if (!carmaConf?.["3d"]?.tilesetUrl)
+        const metadata = readStyleObject(style.metadata);
+        const carmaConf = readStyleObject(metadata.carmaConf);
+        const tiles3d = readStyleObject(carmaConf["3d"]);
+        if (
+          typeof tiles3d.tilesetUrl !== "string" ||
+          tiles3d.tilesetUrl.trim().length === 0
+        )
           throw new Error("Mesh style has no 3D tileset");
         setObliqueMeshStyle({
           ...style,
           metadata: {
-            ...style.metadata,
+            ...metadata,
             carmaConf: {
               ...carmaConf,
-              "3d": { ...carmaConf["3d"], basemap: "labels" },
+              "3d": { ...tiles3d, basemap: "labels" },
             },
           },
         });
