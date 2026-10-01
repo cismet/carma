@@ -131,9 +131,9 @@ export type ObliqueFootprintsStyle = {
   outlineColor?: string;
   outlineWidth?: number;
   outlineOpacity?: number;
-  /** Active footprint fill; capped at 20%. */
+  /** Active footprint fill; capped at 8%. */
   fillOpacity?: number;
-  /** Entire non-selected footprint, capped at 10%. */
+  /** Previous centre outline at the start of its trail; capped at 20%. */
   inactiveOpacity?: number;
 };
 

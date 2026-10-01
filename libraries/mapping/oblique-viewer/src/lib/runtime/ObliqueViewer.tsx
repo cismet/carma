@@ -1,5 +1,9 @@
 import type { Degrees, DevicePixels, Ratio } from "@carma-units";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  prefetchPreviewThumbnail,
+  disposePreviewThumbnailPrefetch,
+} from "./utils/preview-thumbnail-cache";
 import { MercatorCoordinate, type Map as MaplibreMap } from "maplibre-gl";
 import { Matrix4, Raycaster, Vector3 } from "three";
 import {
@@ -53,6 +57,7 @@ import { usePreviewPan } from "./hooks/usePreviewPan";
 import { useNearestImage } from "./hooks/useNearestImage";
 import { useObliqueCameraMode } from "./hooks/useObliqueCameraMode";
 import { useObliqueData } from "./hooks/useObliqueData";
+import { useBasemapStarted } from "./hooks/useBasemapStarted";
 import { useObliqueDirectionKeybindings } from "./hooks/useObliqueDirectionKeybindings";
 import { useObliqueViewerActions } from "./oblique-actions";
 import { ObliqueImagePreview } from "./ObliqueImagePreview";
@@ -127,11 +132,16 @@ export const ObliqueViewer = ({
   const enabledSetRef = useRef(enabledSet);
   enabledSetRef.current = enabledSet;
   const running = isOn && libreMap !== null;
+  useEffect(() => {
+    if (!running) disposePreviewThumbnailPrefetch();
+    return () => disposePreviewThumbnailPrefetch();
+  }, [running]);
   const runningRef = useRef(running);
   runningRef.current = running;
+  const basemapStarted = useBasemapStarted(libreMap, running, true);
   const { data, isLoading, isAllDataReady, error, perSeries } = useObliqueData(
     enabledSeries,
-    running
+    running && basemapStarted
   );
   const [runtimeError, setRuntimeError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ObliqueViewMode>("oblique");
@@ -157,6 +167,8 @@ export const ObliqueViewer = ({
           isLoading: status?.isLoading ?? false,
           error: status?.error ?? null,
           imageCount: status?.imageCount ?? 0,
+          acquisitionMonth: series.acquisitionMonth,
+          acquisitionYear: series.acquisitionYear,
         };
       }),
     [configuredSeries, perSeries, enabledSet]
@@ -426,8 +438,7 @@ export const ObliqueViewer = ({
               0,
               near.distanceTo(far)
             );
-            (ray as Raycaster & { firstHitOnly: boolean }).firstHitOnly =
-              !!screenPoint;
+            (ray as Raycaster & { firstHitOnly: boolean }).firstHitOnly = true;
             const profile = interactionProfile(libreMap);
             const raycastStarted = performance.now();
             const hit = ray
@@ -523,8 +534,23 @@ export const ObliqueViewer = ({
           throw new Error("Für dieses Bild ist keine Vorschau-URL verfügbar.");
         const profile = interactionProfile(libreMap);
         const loadStarted = performance.now();
-        await loadPreviewImage(url);
-        profile?.record("loadImage", performance.now() - loadStarted);
+        // Navigation starts immediately; progressive/native preview sources load
+        // concurrently and replace the mesh only when their pixels are ready.
+        void loadPreviewImage(url).then(
+          () => profile?.record("loadImage", performance.now() - loadStarted),
+          (error: unknown) => {
+            if (
+              epoch === selectionEpochRef.current &&
+              runningRef.current &&
+              selectedImageRef.current?.record.id === record.id
+            )
+              setRuntimeError(
+                error instanceof Error
+                  ? error.message
+                  : "Bild konnte nicht geladen werden."
+              );
+          }
+        );
         if (
           epoch !== selectionEpochRef.current ||
           !runningRef.current ||
@@ -698,7 +724,7 @@ export const ObliqueViewer = ({
       if (!imageId) {
         requested = (
           await refreshSearch({
-            target: readTarget(),
+            target: readTarget() ?? undefined,
             immediate: true,
             computeOnly: true,
           })
@@ -764,10 +790,19 @@ export const ObliqueViewer = ({
     map: libreMap,
     enabled: running,
     selectedImageId,
-    selectedRecord:
-      visibleFootprints.find((record) => record.id === selectedImageId) ?? null,
+    selectedRecord: selectedRecord,
     nearbyRecords: visibleFootprints,
+    datasets: data?.datasets,
+    heightOffset,
     seriesLabels: hoverSeriesLabels,
+    onHoveredRecord: (record) => {
+      const dataset = record && data?.datasets.get(record.seriesId);
+      prefetchPreviewThumbnail(
+        record && dataset
+          ? { previewPath: dataset.previewPath, imageId: record.sourceId }
+          : null
+      );
+    },
     findAtScreenPoint: async (point) => {
       const ground = readViewAnchor(point)?.toLngLat();
       return ground

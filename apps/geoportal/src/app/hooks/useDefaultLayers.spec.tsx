@@ -25,9 +25,6 @@ vi.mock("@carma-mapping/layers", () => ({
 vi.mock("@carma-mapping/utils", () => ({ parseToMapLayer: parseLayer }));
 vi.mock("@carma-commons/utils", () => ({ isAvailable: () => true }));
 vi.mock("../config/availability", () => ({ availabilityContext: {} }));
-vi.mock("../config/oblique.config", () => ({
-  LOCAL_OBLIQUE_VIEWER_CONFIG: {},
-}));
 vi.mock("../constants/discover", () => ({
   layerCatalogConfig: { vectorTileServerUrl: "https://tiles.cismet.de" },
 }));
@@ -41,12 +38,14 @@ vi.mock("../store/slices/mapping", () => ({
   }),
 }));
 
-import { obliqueFachzwilling } from "../constants/fachzwillinge/oblique";
+import type { DefaultLayer } from "../constants/default-layers";
 import { useDefaultLayers } from "./useDefaultLayers";
 
 const meshUrl = "https://tiles.cismet.de/lod2/mesh2024.style.json";
 const meshId = `custom:${meshUrl}`;
-const meshLayers = obliqueFachzwilling.defaultLayers;
+// An explicitly configured route can still seed a persistent layer; Oblique
+// itself now owns its basis at runtime instead of declaring route defaults.
+const meshLayers: DefaultLayer[] = [{ styleUrl: meshUrl }];
 
 type TestLayer = {
   id: string;
@@ -136,7 +135,7 @@ describe("route default layers", () => {
     );
   });
 
-  it.each(["/gesundheit", undefined])(
+  it.each(["/gesundheit", "/oblique", undefined])(
     "seeds nothing on an unconfigured route %s",
     (path) => {
       const store = createStore();

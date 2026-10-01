@@ -18,9 +18,13 @@ import {
 /** Footprints belong to image records; do not clone a second full GeoJSON catalog. */
 export type ObliqueData = ObliqueSelectionData;
 export const loadObliqueSeriesData = async (
-  dataset: ObliqueDataset
+  dataset: ObliqueDataset,
+  signal?: AbortSignal,
+  fetchSource: typeof fetch = fetch
 ): Promise<ObliqueData> => {
-  const response = await fetch(dataset.exteriorOrientationsURI);
+  const response = await fetchSource(dataset.exteriorOrientationsURI, {
+    signal,
+  });
   if (!response.ok) throw new Error(`Metadaten: HTTP ${response.status}`);
   const converter = getProj4Converter(dataset.crs, "EPSG:4326");
   const built = buildImageRecords(await response.json(), dataset, converter);
@@ -31,8 +35,13 @@ export const loadObliqueSeriesData = async (
   };
   if (dataset.footprintsURI) {
     try {
-      delivered = await fetchGeoJson(dataset.footprintsURI);
-    } catch {
+      delivered = await fetchGeoJson(
+        dataset.footprintsURI,
+        signal,
+        fetchSource
+      );
+    } catch (error) {
+      if (signal?.aborted) throw error;
       /* Calibrated ground-plane approximations remain visibly marked below. */
     }
   }

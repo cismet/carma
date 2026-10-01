@@ -39,6 +39,8 @@ export type ViewerSeriesStatus = {
   isLoading: boolean;
   error: string | null;
   imageCount: number;
+  acquisitionMonth?: number;
+  acquisitionYear?: number;
   availableCameraViews?: readonly string[];
 };
 

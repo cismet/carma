@@ -9,7 +9,7 @@ import {
 import type { DevicePixels } from "@carma-units";
 import type { Map as MaplibreMap } from "maplibre-gl";
 
-import type { PreviewQualityLevel } from "../core/constants";
+import { PREVIEW_QUALITY, type PreviewQualityLevel } from "../core/constants";
 import { usePreviewResolution } from "./hooks/usePreviewResolution";
 import { usePreviewSizeSync } from "./hooks/usePreviewSizeSync";
 import { useProgressivePreviewSource } from "./hooks/useProgressivePreviewSource";
@@ -22,6 +22,8 @@ import { getPreviewImageUrl, loadPreviewImage } from "./utils/imageUrls";
 import { Backdrop } from "./ObliqueImagePreview.Backdrop";
 import { NativePixels } from "./ObliqueImagePreview.NativePixels";
 import { useScenePreviewImage } from "./hooks/useScenePreviewImage";
+import { usePrefetchedPreviewThumbnail } from "./hooks/usePrefetchedPreviewThumbnail";
+import { previewBackdropTint } from "./utils/preview-backdrop";
 import { PreviewImage } from "./ObliqueImagePreview.PreviewImage";
 
 /**
@@ -92,17 +94,30 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
   );
   const isVertical = nativePixelSize.width < nativePixelSize.height;
   const imageAspectRatio = nativePixelSize.width / nativePixelSize.height;
-  const [loadedSrc, setLoadedSrc] = useState<string | null>(null);
   const [shouldFadeIn, setShouldFadeIn] = useState(false);
   const [contrast, setContrast] = useState(backdropLook.contrast);
   const [saturation, setSaturation] = useState(backdropLook.saturation);
+  const backdropTint = useMemo(
+    () => previewBackdropTint(style?.backdropColor),
+    [style?.backdropColor]
+  );
 
-  const [loadedImage, setLoadedImage] = useState<{
+  const sourceKey = `${previewPath}/${imageId}`;
+  const [decodedImage, setDecodedImage] = useState<{
+    sourceKey: string;
     url: string;
     width: number;
     height: number;
     element: HTMLImageElement;
   } | null>(null);
+  const loadedImage =
+    decodedImage?.sourceKey === sourceKey ? decodedImage : null;
+  const loadedSrc = loadedImage?.url ?? null;
+  const thumbnail = usePrefetchedPreviewThumbnail(
+    previewPath,
+    imageId,
+    !!loadedImage
+  );
   const requestedQuality = usePreviewResolution({
     map,
     rootRef,
@@ -116,35 +131,54 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
     () => getPreviewImageUrl(previewPath, requestedQuality, imageId),
     [previewPath, requestedQuality, imageId]
   );
+  const loadingOptions = useRef({ finalPreviewUrl, onError });
+  loadingOptions.current = { finalPreviewUrl, onError };
+  const reportLoadingError = useCallback(
+    () => loadingOptions.current.onError?.(),
+    []
+  );
   const progressiveSrc = useProgressivePreviewSource({
     finalPreviewUrl,
     previewPath,
     imageId,
-    onError,
+    onError: reportLoadingError,
   });
+  // The progressive hook can expose its preceding key until its source-change effect runs.
+  const currentProgressiveSrc =
+    progressiveSrc &&
+    Object.values(PREVIEW_QUALITY).some(
+      (level) =>
+        progressiveSrc === getPreviewImageUrl(previewPath, level, imageId)
+    )
+      ? progressiveSrc
+      : null;
 
   // Keep the decoded progressive source while its next resolution loads.
   useEffect(() => {
-    if (!progressiveSrc) return undefined;
+    if (!currentProgressiveSrc) return undefined;
     let cancelled = false;
-    void loadPreviewImage(progressiveSrc)
+    void loadPreviewImage(currentProgressiveSrc)
       .then((img) => {
         if (cancelled) return;
-        setLoadedSrc(progressiveSrc);
-        setLoadedImage({
-          url: progressiveSrc,
+        setDecodedImage({
+          sourceKey,
+          url: currentProgressiveSrc,
           width: img.naturalWidth,
           height: img.naturalHeight,
           element: img,
         });
       })
       .catch(() => {
-        if (!cancelled && progressiveSrc === finalPreviewUrl) onError?.();
+        if (
+          !cancelled &&
+          currentProgressiveSrc === loadingOptions.current.finalPreviewUrl
+        )
+          loadingOptions.current.onError?.();
       });
     return () => {
       cancelled = true;
     };
-  }, [progressiveSrc, finalPreviewUrl, onError]);
+  }, [currentProgressiveSrc, sourceKey]);
 
   usePreviewSizeSync({
     map,
@@ -178,16 +212,20 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
   const { xOffset, yOffset } = interiorOrientationOffsets;
   const sceneImage = useScenePreviewImage({
     map,
-    source: loadedImage?.element ?? null,
+    source: loadedImage?.element ?? thumbnail?.bitmap ?? null,
     shown: !dimImage,
     halfFovTan,
     nativeSize: nativePixelSize,
     principal: interiorOrientationOffsets,
     rollDeg: PREVIEW_ROLL_SIGN * rollDeg,
+    backdropLook: { contrast, brightness: backdropLook.brightness, saturation },
+    backdropTint,
   });
   const translate = `translate(${(xOffset - 0.5) * 100}%, ${
     (yOffset - 0.5) * 100
   }%)`;
+  const displaySrc =
+    loadedSrc ?? (!sceneImage ? thumbnail?.blobUrl ?? null : null);
 
   return (
     <div
@@ -209,9 +247,9 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
         filterEnabled={!sceneImage}
         onClick={onClose}
       />
-      {loadedSrc && (
+      {displaySrc && (
         <PreviewImage
-          src={loadedSrc}
+          src={displaySrc}
           alt={imageId}
           shown={!dimImage && !sceneImage}
           fadeIn={shouldFadeIn && !dimImage}

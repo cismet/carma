@@ -56,18 +56,25 @@ vi.mock("../core/utils/orientation", () => ({
 }));
 
 import { ObliquePanel } from "./ObliquePanel";
+import { downloadAsBlobAsync } from "./utils/imageUrls";
 import {
   OBLIQUE_STATE_DEFAULT,
   ObliqueViewerActionsProvider,
   type ObliqueViewerActions,
 } from "./oblique-actions";
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+  vi.clearAllMocks();
+});
 
 const series = [
   {
     id: "wuppertal-2024",
     label: "Wuppertal 2024",
+    acquisitionMonth: 3,
+    acquisitionYear: 2024,
     enabled: true,
     isLoading: false,
     error: null,
@@ -89,10 +96,14 @@ const Harness = ({
   failure2026 = false,
   nadirActive = false,
   sendRequest = vi.fn(),
+  downloadUrl = null,
+  hasAcquisitionDate = true,
 }: {
   failure2026?: boolean;
   nadirActive?: boolean;
   sendRequest?: ReturnType<typeof vi.fn>;
+  downloadUrl?: string | null;
+  hasAcquisitionDate?: boolean;
 }) => {
   const [enabledSeriesIds, setEnabledSeriesIds] = useState(
     failure2026 ? [series[0].id, series[1].id] : [series[0].id]
@@ -100,6 +111,7 @@ const Harness = ({
   const actions: ObliqueViewerActions = {
     ...OBLIQUE_STATE_DEFAULT,
     isOn: true,
+    downloadUrl,
     viewMode: nadirActive ? "nadir" : "oblique",
     isAllDataReady: !failure2026,
     selectedImageId: "wuppertal-2024::001_001_170003373",
@@ -108,6 +120,8 @@ const Harness = ({
     enabledSeriesIds,
     series: series.map((entry) => ({
       ...entry,
+      acquisitionMonth: hasAcquisitionDate ? entry.acquisitionMonth : undefined,
+      acquisitionYear: hasAcquisitionDate ? entry.acquisitionYear : undefined,
       enabled: enabledSeriesIds.includes(entry.id),
       error:
         entry.id === series[1].id && failure2026
@@ -218,5 +232,52 @@ describe("nadir navigation control", () => {
       type: "setViewMode",
       mode: "oblique",
     });
+  });
+});
+
+describe("compact image actions and acquisition precision", () => {
+  it("offers the current original without expanding image styling", () => {
+    const url = "https://images.example/2026/RI_29_3398.tif";
+    const open = vi.spyOn(window, "open").mockReturnValue(null);
+    render(createElement(Harness, { downloadUrl: url }));
+    fireEvent.click(screen.getByRole("button", { name: "Bild öffnen" }));
+    expect(open).toHaveBeenCalledWith(url, "_blank", "noopener,noreferrer");
+    fireEvent.click(screen.getByRole("button", { name: "Herunterladen" }));
+    expect(downloadAsBlobAsync).toHaveBeenCalledWith(url);
+    expect(screen.queryByText("Darstellung")).toBeNull();
+  });
+  it("shows only the verified month and year without inventing a capture day", () => {
+    const view = render(createElement(Harness));
+    expect(
+      screen.getByText("Aufnahme: März 2024").getAttribute("datetime")
+    ).toBe("2024-03");
+    view.rerender(createElement(Harness, { hasAcquisitionDate: false }));
+    expect(screen.queryByText(/Aufnahme:/)).toBeNull();
+  });
+  it("disables downloads when the selected series is disabled", () => {
+    render(
+      createElement(Harness, {
+        downloadUrl: "https://images.example/photo.jpg",
+      })
+    );
+    const select = screen.getByRole("listbox", {
+      name: "Bildserien",
+    }) as HTMLSelectElement;
+    Array.from(select.options).forEach((option) => {
+      option.selected = false;
+    });
+    fireEvent.change(select);
+    expect(
+      (screen.getByRole("button", { name: "Bild öffnen" }) as HTMLButtonElement)
+        .disabled
+    ).toBe(true);
+    expect(
+      (
+        screen.getByRole("button", {
+          name: "Herunterladen",
+        }) as HTMLButtonElement
+      ).disabled
+    ).toBe(true);
+    expect(screen.queryByText(/Aufnahme:/)).toBeNull();
   });
 });

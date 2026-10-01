@@ -5,6 +5,10 @@ import {
   type ObliqueData,
 } from "../utils/load-oblique-series";
 export type { ObliqueData } from "../utils/load-oblique-series";
+import {
+  OBLIQUE_CATALOG_FRESHNESS_MS,
+  syncObliqueCatalogCacheVersion,
+} from "../utils/oblique-series-cache-version";
 
 export type ObliqueSeriesDataState = {
   id: string;
@@ -29,80 +33,140 @@ const IDLE: ObliqueDataState = {
   error: null,
   perSeries: [],
 };
-const cache = new Map<string, Promise<ObliqueData>>();
-/** Configuration/calibration changes cannot reuse a differently interpreted cached series. */
-const loadSeries = (dataset: ObliqueDataset): Promise<ObliqueData> => {
-  const key = JSON.stringify(dataset),
-    cached = cache.get(key);
-  if (cached) return cached;
-  const loading =
-    typeof Worker === "undefined"
-      ? loadObliqueSeriesData(dataset)
-      : new Promise<ObliqueData>((resolve, reject) => {
-          const worker = new Worker(
-            new URL("../utils/oblique-series.worker.ts", import.meta.url),
-            { type: "module" }
-          );
-          let settled = false;
-          const timer = window.setTimeout(
-            () =>
-              finish(
-                new Error("Metadaten konnten nicht rechtzeitig geladen werden.")
-              ),
-            60000
-          );
-          const finish = (error?: Error, data?: ObliqueData) => {
-            if (settled) return;
-            settled = true;
-            worker.onmessage = null;
-            worker.onerror = null;
-            window.clearTimeout(timer);
-            worker.terminate();
-            if (error) reject(error);
-            else if (data) {
-              const resolved = data.datasets.get(dataset.id);
-              if (resolved)
-                data.datasets.set(dataset.id, {
-                  ...resolved,
-                  animations: dataset.animations,
-                  exteriorOrientationsURI: dataset.exteriorOrientationsURI,
-                  footprintsURI: dataset.footprintsURI,
-                });
-              resolve(data);
-            }
-          };
-          worker.onmessage = (
-            event: MessageEvent<{ data?: ObliqueData; error?: string }>
-          ) => {
-            if (event.data.error) finish(new Error(event.data.error));
-            else if (event.data.data) finish(undefined, event.data.data);
-            else finish(new Error("Unvollständige Metadatenantwort."));
-          };
-          worker.onerror = () =>
-            finish(new Error("Metadaten-Worker konnte nicht geladen werden."));
-          try {
-            // Runtime easing callbacks stay in the UI; worker inputs contain only cloneable values.
-            worker.postMessage({
-              dataset: {
-                ...dataset,
-                animations: {},
-                exteriorOrientationsURI: new URL(
-                  dataset.exteriorOrientationsURI,
-                  window.location.href
-                ).href,
-                footprintsURI: dataset.footprintsURI
-                  ? new URL(dataset.footprintsURI, window.location.href).href
-                  : undefined,
-              },
-            });
-          } catch (error) {
-            finish(error instanceof Error ? error : new Error(String(error)));
-          }
-        });
-  cache.set(key, loading);
-  loading.catch(() => cache.delete(key));
-  return loading;
+type SeriesLoad = {
+  promise: Promise<ObliqueData>;
+  users: number;
+  isPending: () => boolean;
+  isFresh: () => boolean;
+  cancel: () => void;
 };
+const cache = new Map<string, SeriesLoad>();
+
+const createSeriesLoad = (dataset: ObliqueDataset): SeriesLoad => {
+  let settled = false;
+  let completedAt = 0;
+  let cancel = () => {};
+  const promise = new Promise<ObliqueData>((resolve, reject) => {
+    let worker: Worker | undefined;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const controller = new AbortController();
+    const finish = (error?: Error, data?: ObliqueData) => {
+      if (settled) return;
+      settled = true;
+      if (timer !== undefined) clearTimeout(timer);
+      controller.abort();
+      if (worker) {
+        worker.onmessage = null;
+        worker.onerror = null;
+        worker.terminate();
+      }
+      if (error) reject(error);
+      else if (data) {
+        completedAt = Date.now();
+        const resolved = data.datasets.get(dataset.id);
+        if (resolved)
+          data.datasets.set(dataset.id, {
+            ...resolved,
+            animations: dataset.animations,
+            exteriorOrientationsURI: dataset.exteriorOrientationsURI,
+            footprintsURI: dataset.footprintsURI,
+          });
+        resolve(data);
+      } else reject(new Error("Unvollständige Metadatenantwort."));
+    };
+    cancel = () =>
+      finish(new DOMException("Metadatenladen abgebrochen.", "AbortError"));
+    timer = setTimeout(
+      () =>
+        finish(
+          new Error("Metadaten konnten nicht rechtzeitig geladen werden.")
+        ),
+      60000
+    );
+    if (typeof Worker === "undefined") {
+      loadObliqueSeriesData(dataset, controller.signal).then(
+        (data) => finish(undefined, data),
+        (error: unknown) =>
+          finish(error instanceof Error ? error : new Error(String(error)))
+      );
+      return;
+    }
+    try {
+      worker = new Worker(
+        new URL("../utils/oblique-series.worker.ts", import.meta.url),
+        { type: "module" }
+      );
+      worker.onmessage = (
+        event: MessageEvent<{ data?: ObliqueData; error?: string }>
+      ) =>
+        finish(
+          event.data.error ? new Error(event.data.error) : undefined,
+          event.data.data
+        );
+      worker.onerror = () =>
+        finish(new Error("Metadaten-Worker konnte nicht geladen werden."));
+      // Runtime easing callbacks stay in the UI; worker inputs contain only cloneable values.
+      worker.postMessage({
+        dataset: {
+          ...dataset,
+          animations: {},
+          exteriorOrientationsURI: new URL(
+            dataset.exteriorOrientationsURI,
+            window.location.href
+          ).href,
+          footprintsURI: dataset.footprintsURI
+            ? new URL(dataset.footprintsURI, window.location.href).href
+            : undefined,
+        },
+      });
+    } catch (error) {
+      finish(error instanceof Error ? error : new Error(String(error)));
+    }
+  });
+  return {
+    promise,
+    users: 0,
+    isPending: () => !settled,
+    isFresh: () =>
+      !settled || Date.now() - completedAt < OBLIQUE_CATALOG_FRESHNESS_MS,
+    cancel: () => cancel(),
+  };
+};
+
+/** Share completed catalogs, but stop a pending request when its last viewer releases it. */
+const acquireSeries = (dataset: ObliqueDataset) => {
+  // Configuration/calibration changes cannot reuse a differently interpreted catalog.
+  const key = JSON.stringify(dataset);
+  let entry = cache.get(key);
+  if (!entry?.isFresh()) {
+    entry = createSeriesLoad(dataset);
+    cache.set(key, entry);
+    const created = entry;
+    entry.promise.catch(() => {
+      if (cache.get(key) === created) cache.delete(key);
+    });
+  }
+  const acquired = entry;
+  acquired.users++;
+  let released = false;
+  return {
+    promise: acquired.promise,
+    release() {
+      if (released) return;
+      released = true;
+      acquired.users--;
+      if (acquired.users === 0 && acquired.isPending()) {
+        if (cache.get(key) === acquired) cache.delete(key);
+        acquired.cancel();
+      }
+    },
+  };
+};
+
+import.meta.hot?.dispose(() => {
+  for (const entry of cache.values()) if (entry.isPending()) entry.cancel();
+  cache.clear();
+});
 
 const mergeSeries = (loaded: Iterable<ObliqueData>): ObliqueData => {
   const result: ObliqueData = {
@@ -129,6 +193,7 @@ export const useObliqueData = (
       setState(IDLE);
       return undefined;
     }
+    syncObliqueCatalogCacheVersion();
     let cancelled = false;
     const statuses = new Map(
       enabledDatasets.map((dataset) => [
@@ -165,8 +230,11 @@ export const useObliqueData = (
       });
     };
     publish();
+    const releases: (() => void)[] = [];
     for (const dataset of enabledDatasets) {
-      loadSeries(dataset)
+      const request = acquireSeries(dataset);
+      releases.push(request.release);
+      request.promise
         .then((data) => {
           loaded.set(dataset.id, data);
           statuses.set(dataset.id, {
@@ -195,6 +263,7 @@ export const useObliqueData = (
     }
     return () => {
       cancelled = true;
+      for (const release of releases) release();
     };
   }, [enabledDatasets, enabled]);
   // Series changes take effect in this render, before the fetch effect can publish.

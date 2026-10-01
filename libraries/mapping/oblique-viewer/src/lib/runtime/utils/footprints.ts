@@ -29,9 +29,11 @@ const ORIENTATION_PROPERTY_NAME = "ORI";
 const ID_PROPERTY_NAME = "FILENAME";
 
 export const fetchGeoJson = async (
-  url: string
+  url: string,
+  signal?: AbortSignal,
+  fetchSource: typeof fetch = fetch
 ): Promise<FootprintCollection> => {
-  const response = await fetch(url);
+  const response = await fetchSource(url, signal ? { signal } : undefined);
   if (!response.ok) {
     throw new Error(`footprints: ${response.status} ${response.statusText}`);
   }

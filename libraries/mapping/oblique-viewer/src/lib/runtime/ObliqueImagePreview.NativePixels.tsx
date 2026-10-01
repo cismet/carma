@@ -10,17 +10,20 @@ import {
 } from "@carma-units";
 import {
   nativePreviewWindow,
-  nativePreviewTiles,
   type NativePreviewWindow,
 } from "../core/utils/native-preview-window";
-import { useScenePreviewImage } from "./hooks/useScenePreviewImage";
+import {
+  useScenePreviewImage,
+  type ScenePreviewImageContent,
+  type ScenePreviewImageGeometry,
+} from "./hooks/useScenePreviewImage";
 import { readCameraToCenterDistancePx } from "./utils/cameraMath";
 import {
   PREVIEW_HEIGHT_VAR,
   PREVIEW_WIDTH_VAR,
 } from "./hooks/usePreviewSizeSync";
 
-/** Keep source-size TIFF decoding remote; resample bounded, lossless RGB tiles in a browser worker. */
+/** Fetch, decode and assemble native RGB in a cancellable worker after the camera rests. */
 export const NativePixels = ({
   map,
   rootRef,
@@ -43,179 +46,201 @@ export const NativePixels = ({
   dimImage: boolean;
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const contentRef = useRef<ScenePreviewImageContent | null>(null);
+  const scheduleRef = useRef<
+    ((geometry: ScenePreviewImageGeometry) => void) | null
+  >(null);
+  // These states serve only the DOM fallback. Shared-scene publication is synchronous.
   const [ready, setReady] = useState(false);
-  const [revision, setRevision] = useState(0);
-  const [window, setWindow] = useState<NativePreviewWindow | null>(null);
+  const [previewWindow, setPreviewWindow] =
+    useState<NativePreviewWindow | null>(null);
+  const sceneImage = useScenePreviewImage({
+    map,
+    contentRef,
+    shown: !dimImage,
+    halfFovTan,
+    nativeSize,
+    principal,
+    rollDeg,
+    priority: 1,
+    onBeforeRender: (geometry) => scheduleRef.current?.(geometry),
+  });
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || !rootRef.current || dimImage) return undefined;
-    let timer: number | undefined,
-      controller: AbortController | null = null,
-      worker: Worker | null = null;
-    let key = "",
-      disposed = false,
-      generation = 0;
-    const schedule = () => {
-      const { width, height, centerOffset } = map.transform;
-      const edge = 2 * readCameraToCenterDistancePx(map) * halfFovTan;
-      const aspect = nativeSize.width / nativeSize.height;
-      const image = {
-        width: (aspect >= 1 ? edge : edge * aspect) as CssPixels,
-        height: (aspect >= 1 ? edge / aspect : edge) as CssPixels,
-      };
-      const frame = nativePreviewWindow(
-        { width: width as CssPixels, height: height as CssPixels },
-        image,
-        nativeSize,
-        { x: centerOffset.x as CssPixels, y: centerOffset.y as CssPixels },
-        principal,
-        degToRad(rollDeg as Degrees),
-        (globalThis.window.devicePixelRatio || 1) as Ratio
-      );
-      // Include projection scale as well as crop: an unchanged source window may need a new DPR.
-      const next = JSON.stringify({ frame, image });
-      if (next === key) return;
-      key = next;
+    let timer: number | undefined;
+    let timeout: number | undefined;
+    let worker: Worker | null = null;
+    let published: ImageBitmap | null = null;
+    let previousGeometry: ScenePreviewImageGeometry | null = null;
+    let disposed = false;
+    let generation = 0;
+    const url = new URL(
+      `${path.replace(/\/$/, "")}/${encodeURIComponent(imageId)}.png`,
+      globalThis.window.location.href
+    ).href;
+    const cancel = () => {
       generation++;
       globalThis.window.clearTimeout(timer);
-      controller?.abort();
+      globalThis.window.clearTimeout(timeout);
       worker?.terminate();
       worker = null;
-      setReady(false);
-      canvas.style.opacity = "0";
+    };
+    const schedule = (geometry: ScenePreviewImageGeometry) => {
+      if (disposed || geometry === previousGeometry) return;
+      previousGeometry = geometry;
+      cancel();
+      const frame = nativePreviewWindow(
+        geometry.viewport,
+        geometry.image,
+        nativeSize,
+        geometry.offset,
+        principal,
+        degToRad(rollDeg as Degrees),
+        geometry.pixelRatio
+      );
       if (!frame) return;
       const epoch = generation;
-      timer = globalThis.window.setTimeout(() => {
+      const start = () => {
         if (disposed || epoch !== generation) return;
-        controller = new AbortController();
-        const signal = controller.signal;
-        worker = new Worker(
-          new URL("./utils/preview-rgb.worker.ts", import.meta.url),
-          { type: "module" }
-        );
-        const currentWorker = worker;
-        canvas.width = frame.target.width;
-        canvas.height = frame.target.height;
-        const context = canvas.getContext("2d");
-        if (!context) {
-          currentWorker.terminate();
+        if (map.isMoving?.()) {
+          timer = globalThis.window.setTimeout(start, 800);
           return;
         }
-        setWindow(frame);
-        const run = async () => {
-          for (const tile of nativePreviewTiles(frame, nativeSize)) {
-            if (signal.aborted || disposed || epoch !== generation) return;
-            const url = new URL(
-              `${path.replace(/\/$/, "")}/${encodeURIComponent(imageId)}.png`,
-              globalThis.window.location.href
-            );
-            Object.entries({ ...tile.source, edge: tile.edge }).forEach(
-              ([name, value]) => url.searchParams.set(name, String(value))
-            );
-            const response = await fetch(url, { signal });
-            if (!response.ok)
-              throw new Error(`Native RGB preview: ${response.status}`);
-            const bitmap = await createImageBitmap(await response.blob());
-            if (signal.aborted || disposed || epoch !== generation) {
-              bitmap.close();
-              return;
-            }
-            const scaleX = bitmap.width / tile.source.width,
-              scaleY = bitmap.height / tile.source.height;
-            const message = {
-              bitmap,
-              sourceWidth: bitmap.width,
-              sourceHeight: bitmap.height,
-              width: tile.target.width,
-              height: tile.target.height,
-              sample: {
-                x: (tile.sample.x - tile.source.x) * scaleX,
-                y: (tile.sample.y - tile.source.y) * scaleY,
-                width: tile.sample.width * scaleX,
-                height: tile.sample.height * scaleY,
-              },
-            };
-            const output = await new Promise<ArrayBuffer>((resolve, reject) => {
-              let settled = false;
-              const finish = (error?: Error, pixels?: ArrayBuffer) => {
-                if (settled) return;
-                settled = true;
-                globalThis.window.clearTimeout(timeout);
-                signal.removeEventListener("abort", abort);
-                currentWorker.onmessage = null;
-                currentWorker.onerror = null;
-                currentWorker.onmessageerror = null;
-                if (error) reject(error);
-                else if (pixels) resolve(pixels);
-                else reject(new Error("No RGB pixels"));
-              };
-              const abort = () => finish(new Error("RGB resampling cancelled"));
-              const timeout = globalThis.window.setTimeout(
-                () => finish(new Error("RGB resampling timed out")),
-                30000
-              );
-              signal.addEventListener("abort", abort, { once: true });
-              currentWorker.onmessage = (
-                event: MessageEvent<{ pixels?: ArrayBuffer; error?: string }>
-              ) => {
-                if (event.data.error || !event.data.pixels)
-                  finish(new Error(event.data.error || "No RGB pixels"));
-                else finish(undefined, event.data.pixels);
-              };
-              currentWorker.onerror = () =>
-                finish(new Error("RGB resampling worker failed"));
-              currentWorker.onmessageerror = () =>
-                finish(new Error("RGB resampling response failed"));
-              try {
-                currentWorker.postMessage(message, [bitmap]);
-              } catch (error) {
-                bitmap.close();
-                finish(
-                  error instanceof Error ? error : new Error(String(error))
-                );
-              }
-            });
-            if (signal.aborted || disposed || epoch !== generation) return;
-            context.putImageData(
-              new ImageData(
-                new Uint8ClampedArray(output),
-                tile.target.width,
-                tile.target.height
-              ),
-              tile.target.x,
-              tile.target.y
-            );
-            setReady(true);
-            setRevision((value) => value + 1);
-          }
+        let currentWorker: Worker;
+        try {
+          currentWorker = new Worker(
+            new URL("./utils/preview-rgb.worker.ts", import.meta.url),
+            { type: "module" }
+          );
+        } catch {
+          return;
+        }
+        worker = currentWorker;
+        let jobTimeout: number | undefined;
+        const finish = (error?: string) => {
+          globalThis.window.clearTimeout(jobTimeout);
+          currentWorker.terminate();
+          if (worker === currentWorker) worker = null;
+          if (error && !disposed && epoch === generation && import.meta.env.DEV)
+            console.warn("Native RGB preview unavailable", error);
         };
-        void run()
-          .catch((error: unknown) => {
-            // A missing original or unavailable renderer keeps the decoded progressive image.
-            if (import.meta.env.DEV && !signal.aborted)
-              console.warn("Native RGB preview unavailable", error);
-          })
-          .finally(() => {
-            currentWorker.terminate();
-            if (worker === currentWorker) worker = null;
+        currentWorker.onmessage = (
+          event: MessageEvent<{ bitmap?: ImageBitmap; error?: string }>
+        ) => {
+          const bitmap = event.data.bitmap;
+          if (disposed || epoch !== generation) {
+            bitmap?.close();
+            finish();
+            return;
+          }
+          if (!bitmap || event.data.error) {
+            bitmap?.close();
+            finish(event.data.error || "No RGB bitmap");
+            return;
+          }
+          if (sceneImage) {
+            const previous = published;
+            published = bitmap;
+            contentRef.current = { source: bitmap, crop: frame.source };
+            previous?.close();
+            map.triggerRepaint();
+          } else {
+            canvas.width = bitmap.width;
+            canvas.height = bitmap.height;
+            const context = canvas.getContext("2d");
+            if (context) {
+              context.drawImage(bitmap, 0, 0);
+              setPreviewWindow(frame);
+              setReady(true);
+            }
+            bitmap.close();
+          }
+          finish();
+        };
+        currentWorker.onerror = () => finish("RGB worker failed");
+        currentWorker.onmessageerror = () =>
+          finish("RGB bitmap transfer failed");
+        jobTimeout = globalThis.window.setTimeout(
+          () => finish("RGB worker timed out"),
+          90000
+        );
+        timeout = jobTimeout;
+        try {
+          currentWorker.postMessage({
+            url,
+            window: frame,
+            nativeSize,
+            flipForTexture: sceneImage,
           });
-      }, 800);
+        } catch {
+          finish("RGB request transfer failed");
+        }
+      };
+      timer = globalThis.window.setTimeout(start, 800);
     };
-    schedule();
-    map.on("render", schedule);
-    map.on("resize", schedule);
-    globalThis.window.addEventListener("resize", schedule);
+    const movementStarted = () => {
+      cancel();
+      previousGeometry = null;
+      previousFallback = [];
+    };
+    scheduleRef.current = schedule;
+    map.on("movestart", movementStarted);
+    // Hosts without the shared callback retain the existing DOM projection path.
+    let previousFallback: number[] = [];
+    const scheduleFallback = () => {
+      const { width, height, centerOffset } = map.transform;
+      const focus = readCameraToCenterDistancePx(map);
+      const ratio = globalThis.window.devicePixelRatio || 1;
+      const values = [
+        width,
+        height,
+        centerOffset.x,
+        centerOffset.y,
+        focus,
+        ratio,
+      ];
+      if (values.every((value, index) => value === previousFallback[index]))
+        return;
+      previousFallback = values;
+      const edge = 2 * focus * halfFovTan;
+      const aspect = nativeSize.width / nativeSize.height;
+      schedule({
+        viewport: { width: width as CssPixels, height: height as CssPixels },
+        image: {
+          width: (aspect >= 1 ? edge : edge * aspect) as CssPixels,
+          height: (aspect >= 1 ? edge / aspect : edge) as CssPixels,
+        },
+        offset: {
+          x: centerOffset.x as CssPixels,
+          y: centerOffset.y as CssPixels,
+        },
+        pixelRatio: ratio as Ratio,
+      });
+    };
+    if (!sceneImage) {
+      scheduleFallback();
+      map.on("render", scheduleFallback);
+      map.on("resize", scheduleFallback);
+      globalThis.window.addEventListener("resize", scheduleFallback);
+    }
+    map.triggerRepaint();
     return () => {
       disposed = true;
-      generation++;
-      globalThis.window.clearTimeout(timer);
-      controller?.abort();
-      worker?.terminate();
-      map.off("render", schedule);
-      map.off("resize", schedule);
-      globalThis.window.removeEventListener("resize", schedule);
+      cancel();
+      scheduleRef.current = null;
+      contentRef.current = null;
+      published?.close();
+      map.off("movestart", movementStarted);
+      if (!sceneImage) {
+        map.off("render", scheduleFallback);
+        map.off("resize", scheduleFallback);
+        globalThis.window.removeEventListener("resize", scheduleFallback);
+      }
       setReady(false);
       canvas.style.opacity = "0";
+      map.triggerRepaint();
     };
   }, [
     map,
@@ -229,20 +254,10 @@ export const NativePixels = ({
     principal.yOffset,
     rollDeg,
     dimImage,
+    sceneImage,
   ]);
-  const sceneImage = useScenePreviewImage({
-    map,
-    source: canvasRef.current,
-    revision,
-    shown: ready && !dimImage,
-    halfFovTan,
-    nativeSize,
-    principal,
-    rollDeg,
-    crop: window?.source,
-    priority: 1,
-  });
-  const source = window?.source;
+
+  const source = previewWindow?.source;
   return (
     <canvas
       ref={canvasRef}

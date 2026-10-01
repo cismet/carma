@@ -7,6 +7,7 @@ import { claimClick, isClickClaimed } from "@carma-mapping/engines/maplibre";
 import type {
   AnimationConfig,
   ObliqueFootprintsStyle,
+  ObliqueDataset,
   ObliqueImageRecord,
 } from "../../core/types";
 import {
@@ -14,13 +15,7 @@ import {
   type FootprintOutlineLayer,
 } from "../footprint-outline-layer";
 
-/**
- * The selected footprint as native ground features, captured onto the mesh
- * by the shared map-style pass (see footprint-outline-layer).
- *
- * Locking the footprint (while the preview is up, or on the way out) fades
- * the line rather than removing it.
- */
+/** Photo-camera projected markings; catalog picks remain independent of drawn marks. */
 
 export const OBLIQUE_FOOTPRINT_LAYER_ID = "carma-oblique-footprint-outline";
 
@@ -28,7 +23,7 @@ const DEFAULT_STYLE: Required<ObliqueFootprintsStyle> = {
   outlineColor: FOOTPRINT_SELECTION_COLOR,
   outlineWidth: 5,
   outlineOpacity: 1,
-  fillOpacity: 0.2,
+  fillOpacity: 0.08,
   inactiveOpacity: 0.2,
 };
 
@@ -38,13 +33,16 @@ type UseFootprintLayerOptions = {
   selectedImageId: string | null;
   selectedRecord: ObliqueImageRecord | null;
   nearbyRecords?: readonly ObliqueImageRecord[];
+  datasets?: ReadonlyMap<string, ObliqueDataset>;
+  heightOffset?: number;
   seriesLabel?: string;
   seriesLabels?: ReadonlyMap<string, string | undefined>;
-  /** fade the outline out and keep it out until unlocked */
+  /** Disable further picks during flight/preview while retaining its center contour. */
   locked: boolean;
   style?: ObliqueFootprintsStyle;
   fadeOut?: AnimationConfig;
   onClick?: (imageId: string) => void;
+  onHoveredRecord?: (record: ObliqueImageRecord | null) => void;
   findAtScreenPoint?: (point: {
     x: number;
     y: number;
@@ -57,12 +55,15 @@ export const useFootprintLayer = ({
   selectedImageId,
   selectedRecord,
   nearbyRecords,
+  datasets,
+  heightOffset = 0,
   seriesLabel,
   seriesLabels,
   locked,
   style,
   fadeOut,
   onClick,
+  onHoveredRecord,
   findAtScreenPoint,
 }: UseFootprintLayerOptions): void => {
   const {
@@ -80,11 +81,22 @@ export const useFootprintLayer = ({
   fadeOutRef.current = fadeOut;
   const onClickRef = useRef(onClick);
   onClickRef.current = onClick;
+  const onHoveredRecordRef = useRef(onHoveredRecord);
+  onHoveredRecordRef.current = onHoveredRecord;
+  const selectedImageIdRef = useRef(selectedImageId);
+  selectedImageIdRef.current = selectedImageId;
   const findAtScreenPointRef = useRef(findAtScreenPoint);
   findAtScreenPointRef.current = findAtScreenPoint;
   const seriesLabelsRef = useRef(seriesLabels);
   seriesLabelsRef.current = seriesLabels;
   const catalogHover = !!findAtScreenPoint;
+  const hasSelectedImage = !!selectedImageId;
+  const nearbyRecordsRef = useRef(nearbyRecords);
+  nearbyRecordsRef.current = nearbyRecords;
+  const datasetsRef = useRef(datasets);
+  datasetsRef.current = datasets;
+  const heightOffsetRef = useRef(heightOffset);
+  heightOffsetRef.current = heightOffset;
 
   // the layer exists while the viewer is on; the effects below run after
   // this one and feed it
@@ -94,7 +106,7 @@ export const useFootprintLayer = ({
       color: outlineColor,
       width: outlineWidth,
       opacity: outlineOpacity,
-      fillOpacity: Math.max(0, Math.min(0.2, fillOpacity)),
+      fillOpacity: Math.max(0, Math.min(0.08, fillOpacity)),
       inactiveOpacity: Math.max(0, Math.min(0.2, inactiveOpacity)),
     });
     layerRef.current = layer;
@@ -117,14 +129,22 @@ export const useFootprintLayer = ({
           ? seriesLabels?.get(selectedRecord.seriesId)
           : undefined,
         imageId: selectedImageId ?? undefined,
+        record: selectedRecord ?? undefined,
+        dataset: selectedRecord
+          ? datasets?.get(selectedRecord.seriesId)
+          : undefined,
+        heightOffset,
       },
-      nearbyRecords
+      nearbyRecordsRef.current
         ?.filter((record) => record.id !== selectedImageId && record.footprint)
         .map((record) => ({
           id: record.id,
           ring: record.footprint!,
           pose: record.pose,
           seriesLabel: seriesLabels?.get(record.seriesId),
+          record,
+          dataset: datasets?.get(record.seriesId),
+          heightOffset,
         }))
     );
   }, [
@@ -132,7 +152,8 @@ export const useFootprintLayer = ({
     enabled,
     selectedImageId,
     selectedRecord,
-    nearbyRecords,
+    datasets,
+    heightOffset,
     seriesLabel,
     seriesLabels,
   ]);
@@ -143,7 +164,7 @@ export const useFootprintLayer = ({
       color: outlineColor,
       width: outlineWidth,
       opacity: outlineOpacity,
-      fillOpacity: Math.max(0, Math.min(0.2, fillOpacity)),
+      fillOpacity: Math.max(0, Math.min(0.08, fillOpacity)),
       inactiveOpacity: Math.max(0, Math.min(0.2, inactiveOpacity)),
     });
   }, [
@@ -158,7 +179,7 @@ export const useFootprintLayer = ({
 
   // Claim the DOM click before the host starts feature-info selection.
   useEffect(() => {
-    if (!map || !enabled || locked || (!selectedImageId && !catalogHover))
+    if (!map || !enabled || locked || (!hasSelectedImage && !catalogHover))
       return undefined;
     const container = map.getCanvasContainer();
     const canvas = map.getCanvas();
@@ -167,6 +188,7 @@ export const useFootprintLayer = ({
     let pressedAt: { x: number; y: number } | null = null;
     let dragged = false;
     let disposed = false;
+    let clickPending = false;
     let hoverGeneration = 0;
     let hoverTimer: ReturnType<typeof setTimeout> | undefined;
     let pointerPoint: { x: number; y: number } | null = null;
@@ -196,6 +218,7 @@ export const useFootprintLayer = ({
       );
     };
     const clearHover = () => {
+      if (hoveredPick) onHoveredRecordRef.current?.(null);
       hoveredPick = null;
       if (ownsCursor && canvas.style.cursor === "pointer")
         canvas.style.cursor = previousCursor;
@@ -216,7 +239,7 @@ export const useFootprintLayer = ({
         hoverTimer = undefined;
         const point = pointerPoint;
         const find = findAtScreenPointRef.current;
-        if (!point || !find || disposed) return;
+        if (!point || !find || disposed || clickPending) return;
         const generation = hoverGeneration;
         void find(point)
           .then((record) => {
@@ -230,12 +253,17 @@ export const useFootprintLayer = ({
               clearHover();
               return;
             }
+            if (hoveredPick?.record.id !== record.id)
+              onHoveredRecordRef.current?.(record);
             hoveredPick = { point, record };
             layerRef.current?.setHoveredImage(record.id, {
               id: record.id,
               ring: record.footprint,
               pose: record.pose,
               seriesLabel: seriesLabelsRef.current?.get(record.seriesId),
+              record,
+              dataset: datasetsRef.current?.get(record.seriesId),
+              heightOffset: heightOffsetRef.current,
             });
             canvas.style.cursor = "pointer";
             ownsCursor = true;
@@ -259,6 +287,7 @@ export const useFootprintLayer = ({
       dragged = false;
     };
     const onPointerMove = (event: PointerEvent) => {
+      if (clickPending) return;
       if (
         pressedAt &&
         Math.hypot(event.clientX - pressedAt.x, event.clientY - pressedAt.y) > 3
@@ -288,16 +317,43 @@ export const useFootprintLayer = ({
             3);
       pressedAt = null;
       dragged = false;
-      if (event.button !== 0 || moved || isClickClaimed(event) || !hit(event))
+      if (
+        event.button !== 0 ||
+        moved ||
+        isClickClaimed(event) ||
+        event.target !== canvas ||
+        clickPending ||
+        !onClickRef.current
+      )
         return;
-      const clickedImageId =
-        cachedImageId(event) ??
-        layerRef.current?.imageAtScreenPoint(screenPoint(event));
+      const cached = cachedImageId(event);
+      const find = findAtScreenPointRef.current;
+      if (!cached && !find && !hit(event)) return;
+      // Claim before feature-info starts; an oriented footprint does not have a
+      // native MapLibre feature to hit, and the first click need not await hover.
       claimClick(event);
-      layerRef.current?.setLocked(true, fadeOutRef.current);
+      clickPending = true;
+      const point = screenPoint(event);
       restoreCursor();
-      const id = clickedImageId ?? selectedImageId;
-      if (id) onClickRef.current?.(id);
+      const clickGeneration = hoverGeneration;
+      const activate = (id: string | null | undefined) => {
+        if (disposed) return;
+        clickPending = false;
+        if (!id || clickGeneration !== hoverGeneration) return;
+        layerRef.current?.setLocked(true, fadeOutRef.current);
+        onClickRef.current?.(id);
+      };
+      if (cached) activate(cached);
+      else if (find) {
+        void find(point).then(
+          (record) => activate(record?.id),
+          () => activate(null)
+        );
+      } else
+        activate(
+          layerRef.current?.imageAtScreenPoint(point) ??
+            selectedImageIdRef.current
+        );
     };
     const onPointerCancel = () => {
       pressedAt = null;
@@ -326,7 +382,7 @@ export const useFootprintLayer = ({
       container.removeEventListener("click", onClick, true);
       restoreCursor();
     };
-  }, [map, enabled, locked, selectedImageId, catalogHover]);
+  }, [map, enabled, locked, hasSelectedImage, catalogHover]);
 
   // the fade on lock
   useEffect(() => {

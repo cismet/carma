@@ -8,9 +8,7 @@ export const obliqueFachzwilling: FachzwillingRoute = {
   availability: {
     deployments: ["localDev"],
   },
-  defaultLayers: [
-    { styleUrl: "https://tiles.cismet.de/lod2/mesh2024.style.json" },
-  ],
+  // Oblique owns its mesh/LoD2 basis while running; it is not a saved extra layer.
   addons: [
     { addon: "mapStyle3d", config: { vectorBaseMap: true } },
     {

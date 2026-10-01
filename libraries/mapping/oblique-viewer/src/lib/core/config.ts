@@ -1,7 +1,6 @@
 import { Easing } from "@carma-commons/math";
 import {
   OBLIQUE_2024_EXT_ORI_UTM32_URI,
-  OBLIQUE_2024_FPRFC_GEOJSON_URI,
   OBLIQUE_2024_PREVIEW_PATH,
 } from "@carma-commons/resources";
 import { CardinalDirectionClockwise } from "@carma-geo/data-structures";
@@ -198,7 +197,8 @@ const CAMERAS_2024: Record<string, ObliqueCameraCalibration> =
         focalLengthMm: LEGACY_FOCAL_LENGTHS[id],
         principalPointPx: [camera.principalPointX, camera.principalPointY],
         halfFovTan: PREVIEW_IMAGE_BASE_SCALE_FACTOR,
-        upMapping: CAMERA_ID_TO_UP_VECTOR[id],
+        upMapping:
+          CAMERA_ID_TO_UP_VECTOR[id as keyof typeof CAMERA_ID_TO_UP_VECTOR],
         view: (
           {
             "170": "front",
@@ -224,7 +224,7 @@ export const WUPPERTAL_OBLIQUE_2024: ObliqueDataset = {
   cameras: CAMERAS_2024,
   availableCameraViews: ["front", "right", "back", "left"],
   exteriorOrientationsURI: OBLIQUE_2024_EXT_ORI_UTM32_URI,
-  footprintsURI: OBLIQUE_2024_FPRFC_GEOJSON_URI,
+  footprintsURI: undefined,
   crs: "EPSG:25832",
   previewPath: OBLIQUE_2024_PREVIEW_PATH,
   allowUnverifiedSourceHeight: false,
@@ -278,6 +278,7 @@ export const WUPPERTAL_OBLIQUE_2024: ObliqueDataset = {
     outlineColor: FOOTPRINT_SELECTION_COLOR,
     outlineWidth: 8,
     outlineOpacity: 0.85,
+    fillOpacity: 0.08,
     inactiveOpacity: 0.2,
   },
   imagePreviewStyle: {

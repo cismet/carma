@@ -1,4 +1,4 @@
-import { renderHook } from "@testing-library/react";
+import { act, renderHook } from "@testing-library/react";
 import type { Map as MaplibreMap } from "maplibre-gl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ObliqueImageRecord } from "../../core/types";
@@ -63,8 +63,10 @@ const setup = (
     locked: false,
     selectedImageId: "2024:image",
     selectedRecord: null as ObliqueImageRecord | null,
+    nearbyRecords: undefined as readonly ObliqueImageRecord[] | undefined,
     onClick,
     findAtScreenPoint,
+    onHoveredRecord: vi.fn(),
   };
   const view = renderHook(useFootprintLayer, { initialProps: props });
   const dispatch = (
@@ -165,6 +167,42 @@ describe("footprint click activation", () => {
 });
 
 describe("catalog footprint hover activation", () => {
+  it("starts on one click before hover has completed, without native features", async () => {
+    const record = {
+      id: "2026:one-click",
+      seriesId: "2026",
+    } as ObliqueImageRecord;
+    const find = vi.fn(async () => record);
+    const view = setup(find);
+    try {
+      view.dispatch("click", 220, 100);
+      expect(view.hostQuery).not.toHaveBeenCalled();
+      await act(async () => {
+        await Promise.resolve();
+      });
+      expect(find).toHaveBeenCalledWith({ x: 180, y: 80 });
+      expect(view.onClick).toHaveBeenCalledOnce();
+      expect(view.onClick).toHaveBeenCalledWith(record.id);
+    } finally {
+      view.unmount();
+    }
+  });
+  it("ignores a delayed click pick after the viewer is disabled", async () => {
+    let resolve = (_record: ObliqueImageRecord) => {};
+    const find = () =>
+      new Promise<ObliqueImageRecord>((done) => {
+        resolve = done;
+      });
+    const view = setup(find);
+    view.dispatch("click", 220, 100);
+    view.rerender({ ...view.props, enabled: false });
+    await act(async () => {
+      resolve({ id: "2026:late" } as ObliqueImageRecord);
+    });
+    expect(view.onClick).not.toHaveBeenCalled();
+    view.unmount();
+  });
+
   it("highlights and opens a catalog match outside the displayed click targets", async () => {
     vi.useFakeTimers();
     const record = {
@@ -198,6 +236,36 @@ describe("catalog footprint hover activation", () => {
     }
   });
 
+  it("reports only actual hovered record changes and clears the prefetch candidate on leave", async () => {
+    vi.useFakeTimers();
+    const record = {
+      id: "2026:hover",
+      seriesId: "2026",
+      footprint: [
+        [7, 51],
+        [7.01, 51],
+        [7.01, 50.99],
+        [7, 50.99],
+        [7, 51],
+      ],
+    } as ObliqueImageRecord;
+    const view = setup(vi.fn(async () => record));
+    try {
+      view.dispatch("pointermove", 200, 70);
+      await vi.advanceTimersByTimeAsync(50);
+      view.dispatch("pointermove", 210, 70);
+      await vi.advanceTimersByTimeAsync(50);
+      expect(view.props.onHoveredRecord).toHaveBeenCalledOnce();
+      expect(view.props.onHoveredRecord).toHaveBeenCalledWith(record);
+      view.dispatch("pointercancel");
+      expect(view.props.onHoveredRecord).toHaveBeenLastCalledWith(null);
+      expect(view.props.onHoveredRecord).toHaveBeenCalledTimes(2);
+    } finally {
+      view.unmount();
+      vi.useRealTimers();
+    }
+  });
+
   it("ignores late hover replies after the pointer leaves", async () => {
     vi.useFakeTimers();
     let resolve: (record: ObliqueImageRecord) => void = () => {};
@@ -223,5 +291,30 @@ describe("catalog footprint hover activation", () => {
       view.unmount();
       vi.useRealTimers();
     }
+  });
+  it("keeps catalog-neighbor updates out of the drawing effect while retaining full-catalog hover", () => {
+    const view = setup();
+    const center = {
+      id: "2024:image",
+      seriesId: "2024",
+      footprint: [
+        [7, 51],
+        [7.01, 51],
+        [7.01, 50.99],
+        [7, 50.99],
+        [7, 51],
+      ],
+    } as unknown as ObliqueImageRecord;
+    view.rerender({ ...view.props, selectedRecord: center, nearbyRecords: [] });
+    const commits = footprint.setRing.mock.calls.length;
+    for (let index = 0; index < 20; index++) {
+      view.rerender({
+        ...view.props,
+        selectedRecord: center,
+        nearbyRecords: [{ ...center, id: "candidate-" + index }],
+      });
+    }
+    expect(footprint.setRing).toHaveBeenCalledTimes(commits);
+    view.unmount();
   });
 });

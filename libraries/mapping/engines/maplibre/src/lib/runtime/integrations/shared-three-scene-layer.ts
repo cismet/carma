@@ -85,6 +85,10 @@ export const buildSharedThreeSceneLayer = (
   const localFrameState = createSharedSceneLocalFrame(localFrameGroup);
 
   let renderingPaused = false;
+  const beforeRenderCallbacks = new Set<
+    (frame: SharedThreeSceneFrame) => void
+  >();
+  let invokingBeforeRenderCallbacks = false;
   const screenRenderPasses = new Set<() => void>();
   const renderScreenPasses = () => {
     if (!renderer || disposed || renderingPaused) return;
@@ -212,6 +216,14 @@ export const buildSharedThreeSceneLayer = (
     getRenderer() {
       return renderer;
     },
+    addBeforeRenderCallback(callback) {
+      beforeRenderCallbacks.add(callback);
+      map?.triggerRepaint();
+      return () => {
+        beforeRenderCallbacks.delete(callback);
+        map?.triggerRepaint();
+      };
+    },
     addScreenRenderPass(render) {
       screenRenderPasses.add(render);
       map?.triggerRepaint();
@@ -242,7 +254,18 @@ export const buildSharedThreeSceneLayer = (
     },
 
     setMapStyleScreenOverlay(id, overlay) {
-      mapStyleProjection.setScreenOverlay(id, overlay);
+      mapStyleProjection.setScreenOverlay(
+        id,
+        overlay,
+        !invokingBeforeRenderCallbacks
+      );
+    },
+    setMapStyleProjectiveOverlay(id, overlay) {
+      mapStyleProjection.setProjectiveOverlay(
+        id,
+        overlay,
+        !invokingBeforeRenderCallbacks
+      );
     },
     setMapStyleSurfaceOverlay(id, overlay) {
       if (!overlay || !originMerc || meterScale <= 0) {
@@ -292,6 +315,7 @@ export const buildSharedThreeSceneLayer = (
             ? {
                 texture: overlay.previous.texture,
                 sceneToTexture: previousMatrix,
+                opacity: overlay.previous.opacity,
               }
             : undefined,
         transition: overlay.transition,
@@ -449,6 +473,12 @@ export const buildSharedThreeSceneLayer = (
         localFrame: currentLocalFrame,
         tileCameraViews: snapshotTileCameraViews([...tileCameraViews.values()]),
       };
+      invokingBeforeRenderCallbacks = true;
+      try {
+        for (const callback of beforeRenderCallbacks) callback(frame);
+      } finally {
+        invokingBeforeRenderCallbacks = false;
+      }
       scene.updateMatrixWorld(true);
       for (const runtime of runtimeUpdateOrder) {
         runtime.update(frame);
@@ -515,6 +545,7 @@ export const buildSharedThreeSceneLayer = (
 
     dispose() {
       map?.off?.(MAPLIBRE_EVENT.RENDER, renderScreenPasses);
+      beforeRenderCallbacks.clear();
       screenRenderPasses.clear();
       zoomPrefetch.detach();
       accumulationRuntime.dispose();

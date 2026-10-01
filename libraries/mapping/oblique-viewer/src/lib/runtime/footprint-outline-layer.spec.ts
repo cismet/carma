@@ -1,7 +1,12 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { LayerSpecification, Map as MaplibreMap } from "maplibre-gl";
 import type { FeatureCollection, Position } from "geojson";
-import type { ObliquePose } from "../core/types";
+import type {
+  ObliqueDataset,
+  ObliqueImageRecord,
+  ObliquePose,
+} from "../core/types";
+import { Matrix4, Vector3 } from "three";
 import { createFootprintOutlineLayer } from "./footprint-outline-layer";
 
 vi.mock("maplibre-gl", async () => {
@@ -13,12 +18,28 @@ vi.mock("maplibre-gl", async () => {
 const scene = vi.hoisted(() => ({
   runtimes: [] as object[],
   release: vi.fn(),
-  surface: vi.fn(),
+  projective: vi.fn(),
+  removeBefore: vi.fn(),
+  beforeRender: undefined as ((frame: unknown) => void) | undefined,
+  localFrame: undefined as
+    | { revision: number; sceneFromLocal: Matrix4; lngLat: [number, number] }
+    | undefined,
 }));
 vi.mock("@carma-mapping/engines/maplibre", () => ({
   getSharedThreeSceneRuntimes: () => scene.runtimes,
   acquireSharedThreeScene: () => ({
-    layer: { id: "shared", setMapStyleSurfaceOverlay: scene.surface },
+    layer: {
+      id: "shared",
+      setMapStyleProjectiveOverlay: scene.projective,
+      getLocalFrame: () => scene.localFrame,
+      projectSceneToLngLat: () => [0, 0],
+      projectLngLatToScene: ([lng, lat]: [number, number], height: number) =>
+        new Vector3(lng, height, -lat),
+      addBeforeRenderCallback: (callback: (frame: unknown) => void) => {
+        scene.beforeRender = callback;
+        return scene.removeBefore;
+      },
+    },
     release: scene.release,
   }),
 }));
@@ -31,8 +52,18 @@ const ring: Position[] = [
 ];
 const pose = { direction: [0, 0, -1], up: [0, 1, 0] } as ObliquePose;
 const drawSurfaceLabel = vi.fn();
+const readLabelPixels = vi.fn();
+const cleanupHandles: Array<ReturnType<typeof createFootprintOutlineLayer>> =
+  [];
 const setup = (mesh = false) => {
-  scene.runtimes = mesh ? [{ id: "mesh" }] : [];
+  scene.runtimes = mesh
+    ? [{ id: "mesh", receivesMapStyleTexture: true, mountsOnLocalFrame: true }]
+    : [];
+  scene.localFrame = {
+    revision: 1,
+    sceneFromLocal: new Matrix4(),
+    lngLat: [0, 0],
+  };
   const layers = new Map<string, LayerSpecification>();
   const images = new Map<string, ImageData>();
   const sources = new Map<
@@ -75,7 +106,10 @@ const setup = (mesh = false) => {
     setLayoutProperty: vi.fn(),
     queryTerrainElevation: vi.fn(),
     triggerRepaint: vi.fn(),
-    getZoom: () => 17,
+    setFeatureState: vi.fn(),
+    removeFeatureState: vi.fn(),
+    getZoom: vi.fn(() => 17),
+    isMoving: vi.fn(() => false),
     unproject: vi.fn(() => ({ lng: 0.001, lat: -0.001 })),
     queryRenderedFeatures: vi.fn(
       (): Array<{ id?: string; properties?: Record<string, unknown> }> => [
@@ -99,8 +133,14 @@ const setup = (mesh = false) => {
     "footprint",
     { color: "white", width: 5, opacity: 1 }
   );
+  cleanupHandles.push(handle);
   return { handle, map, layers, sources, images, fire };
 };
+afterEach(() => {
+  cleanupHandles.splice(0).forEach((handle) => handle.destroy());
+  vi.useRealTimers();
+  vi.restoreAllMocks();
+});
 beforeEach(() => {
   vi.clearAllMocks();
   vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({
@@ -118,397 +158,306 @@ beforeEach(() => {
     setTransform: vi.fn(),
     drawImage: drawSurfaceLabel,
     fillText: vi.fn(),
-    getImageData: () => ({
-      width: 512,
-      height: 256,
-      data: new Uint8ClampedArray(512 * 256 * 4),
-    }),
+    getImageData: readLabelPixels,
   } as unknown as CanvasRenderingContext2D);
 });
 
-describe("native footprint draping and activation", () => {
-  it("paints on existing receivers without terrain samples or additional scene geometry", () => {
-    const now = vi.spyOn(performance, "now").mockReturnValue(100);
-    const { handle, map, fire } = setup(true);
-    scene.runtimes = [{ id: "mesh", receivesMapStyleTexture: true }];
-    handle.setRing(ring, { pose, seriesLabel: "2026Test" });
-    const overlay = scene.surface.mock.calls.at(-1)?.[1];
-    expect(overlay.bounds[0]).toBeLessThan(0);
-    expect(overlay.bounds[2]).toBeGreaterThan(0.002);
-    expect(overlay.texture.image.width).toBeLessThanOrEqual(2048);
-    expect(overlay.texture.image.height).toBeLessThanOrEqual(2048);
-    expect(overlay.opacity).toBe(1);
-    expect(map.setPaintProperty).toHaveBeenCalledWith(
-      "footprint",
-      "line-opacity",
-      [
-        "*",
-        0,
-        [
-          "case",
-          ["==", ["get", "imageId"], ""],
-          1,
-          ["==", ["get", "active"], false],
-          0.2,
-          1,
-        ],
-      ]
-    );
-    expect(map.setPaintProperty).toHaveBeenCalledWith(
-      "footprint-label",
-      "icon-opacity",
-      0
-    );
-    now.mockReturnValue(280);
-    fire("render");
-    const updates = scene.surface.mock.calls.length;
-    for (let index = 0; index < 20; index++) {
-      fire("idle");
-      fire("render");
-    }
-    expect(scene.surface).toHaveBeenCalledTimes(updates);
-    expect(map.queryTerrainElevation).not.toHaveBeenCalled();
-    const dispose = vi.spyOn(overlay.texture, "dispose");
-    handle.destroy();
-    expect(scene.surface).toHaveBeenLastCalledWith("footprint", null);
-    expect(dispose).toHaveBeenCalledOnce();
-  });
-  it("crossfades completed atlases without rerasterizing each frame and releases the retired texture", () => {
-    const now = vi.spyOn(performance, "now").mockReturnValue(100);
-    const { handle, map, fire } = setup(true);
-    scene.runtimes = [{ id: "mesh", receivesMapStyleTexture: true }];
-    handle.setRing(ring, { pose, seriesLabel: "2024" });
-    now.mockReturnValue(280);
-    fire("render");
-    const previous = scene.surface.mock.calls.at(-1)?.[1]?.texture;
-    const disposePrevious = vi.spyOn(previous, "dispose");
-    handle.setStyle({ color: "cyan", width: 5, opacity: 1 });
-    const overlay = scene.surface.mock.calls.at(-1)?.[1];
-    expect(overlay.previous.texture).toBe(previous);
-    expect(overlay.transition).toBe(0);
-    const context = vi.mocked(HTMLCanvasElement.prototype.getContext).mock
-      .results[0].value as CanvasRenderingContext2D;
-    const rasterizations = vi.mocked(context.stroke).mock.calls.length;
-    now.mockReturnValue(370);
-    fire("render");
-    expect(scene.surface.mock.calls.at(-1)?.[1]?.transition).toBeCloseTo(0.5);
-    expect(disposePrevious).not.toHaveBeenCalled();
-    now.mockReturnValue(460);
-    fire("render");
-    expect(scene.surface.mock.calls.at(-1)?.[1]?.transition).toBe(1);
-    expect(scene.surface.mock.calls.at(-1)?.[1]?.previous).toBeUndefined();
-    expect(disposePrevious).toHaveBeenCalledOnce();
-    expect(context.stroke).toHaveBeenCalledTimes(rasterizations);
-    const updates = scene.surface.mock.calls.length,
-      repaints = map.triggerRepaint.mock.calls.length;
-    fire("render");
-    fire("idle");
-    expect(scene.surface).toHaveBeenCalledTimes(updates);
-    expect(map.triggerRepaint).toHaveBeenCalledTimes(repaints);
-    const disposeCurrent = vi.spyOn(overlay.texture, "dispose");
-    handle.destroy();
-    expect(disposeCurrent).toHaveBeenCalledOnce();
-    expect(disposePrevious).toHaveBeenCalledOnce();
-  });
-  it("rebuilds labelled surface data after synchronous image-registration style events", () => {
-    const { handle, map, images, fire } = setup(true);
-    scene.runtimes = [{ id: "mesh", receivesMapStyleTexture: true }];
-    map.addImage.mockImplementation((id, image) => {
-      images.set(id, image);
-      fire("styledata");
-    });
-    map.updateImage.mockImplementation((id, image) => {
-      images.set(id, image);
-      fire("styledata");
-    });
-    drawSurfaceLabel.mockClear();
+const physicalPose: ObliquePose = {
+  ...pose,
+  longitude: 0,
+  latitude: 0,
+  z: 100,
+  bearingDeg: 0,
+  pitchDeg: 0,
+  rollDeg: 0,
+  utmConvergenceRad: 0,
+};
+const dataset = {
+  id: "series",
+  heightDatum: "dhhn2016",
+  cameras: {
+    camera: {
+      widthPx: 2000,
+      heightPx: 1000,
+      focalLengthMm: 100,
+      principalPointPx: [1000, 500],
+      halfFovTan: 0.5,
+      upMapping: { rowIndex: 1, negate: false },
+    },
+  },
+} as unknown as ObliqueDataset;
+const annotation = (id: string) => ({
+  pose: physicalPose,
+  imageId: id,
+  hoverLabel: "2024",
+  record: {
+    id,
+    sourceId: id,
+    seriesId: "series",
+    cameraId: "camera",
+    x: 0,
+    y: 0,
+    z: 100,
+    m: [
+      [1, 0, 0],
+      [0, 1, 0],
+      [0, 0, 1],
+    ],
+    centerWGS84: [0, 0, 100],
+    pose: physicalPose,
+  } as unknown as ObliqueImageRecord,
+  dataset,
+});
+const candidate = (id: string) => {
+  const input = annotation(id);
+  return {
+    id,
+    ring,
+    pose: input.pose,
+    seriesLabel: "2024",
+    record: input.record,
+    dataset,
+  };
+};
 
-    handle.setRing(ring, { pose, seriesLabel: "2024" });
-    const firstOverlay = scene.surface.mock.calls.at(-1)?.[1];
-    expect(firstOverlay).toBeTruthy();
-    expect(drawSurfaceLabel).toHaveBeenCalled();
-
-    drawSurfaceLabel.mockClear();
-    const secondRing = ring.map(([lng, lat]) => [lng + 0.01, lat + 0.02]);
-    handle.setRing(secondRing, { pose, seriesLabel: "2026" });
-    const secondOverlay = scene.surface.mock.calls.at(-1)?.[1];
-    expect(secondOverlay).toBeTruthy();
-    expect(secondOverlay.bounds[0]).toBeCloseTo(0.00998, 4);
-    expect(secondOverlay.bounds[1]).toBeCloseTo(0.01797, 4);
-    expect(secondOverlay.bounds[2]).toBeCloseTo(0.01202, 4);
-    expect(secondOverlay.bounds[3]).toBeCloseTo(0.02003, 4);
-    expect(drawSurfaceLabel).toHaveBeenCalled();
-    handle.destroy();
-  });
-  it("keeps active outlines, caps inactive fill at twenty percent, and breaks equal-center ties for the active hit", () => {
-    const { handle, map, sources } = setup();
-    handle.setStyle({
-      color: "white",
-      width: 5,
-      opacity: 1,
-      fillOpacity: 0.8,
-      inactiveOpacity: 0.6,
-    });
-    handle.setRing(ring, { pose, imageId: "active", seriesLabel: "2024" }, [
-      { id: "other", ring },
-    ]);
-    const features = sources.get("footprint-source")!.data.features;
-    expect(
-      features
-        .filter((f) => f.geometry.type === "Polygon")
-        .map((f) => f.properties?.active)
-    ).toEqual([false, true]);
-    expect(map.setPaintProperty).toHaveBeenCalledWith(
-      "footprint-interior",
-      "fill-opacity",
-      ["*", 1, ["case", ["==", ["get", "active"], false], 0.2, 0.2]]
-    );
-    map.queryRenderedFeatures.mockReturnValue([
-      {
-        id: "other",
-        properties: { revision: 1, active: false, imageId: "other" },
-      },
-      {
-        id: "active",
-        properties: { revision: 1, active: true, imageId: "active" },
-      },
-    ]);
-    expect(handle.imageAtScreenPoint({ x: 80, y: 40 })).toBe("active");
-    map.queryRenderedFeatures.mockReturnValue([
-      {
-        id: "other",
-        properties: { revision: 1, active: false, imageId: "other" },
-      },
-    ]);
-    expect(handle.imageAtScreenPoint({ x: 80, y: 40 })).toBe("other");
-    handle.setLocked(true);
-    expect(handle.imageAtScreenPoint({ x: 80, y: 40 })).toBeNull();
-    handle.destroy();
-  });
-  it("picks the nearest diagonal intersection in overlapping inactive footprints and highlights that outline", () => {
-    const { handle, map } = setup();
-    const other = ring.map(([lng, lat]) => [lng + 0.01, lat]);
-    handle.setRing(ring, { pose, imageId: "active" }, [
-      { id: "other", ring: other },
-    ]);
-    map.queryRenderedFeatures.mockReturnValue([
-      { properties: { revision: 1, active: true, imageId: "active" } },
-      { properties: { revision: 1, active: false, imageId: "other" } },
-    ]);
-    map.unproject.mockReturnValue({ lng: 0.011, lat: -0.001 });
-    expect(handle.imageAtScreenPoint({ x: 100, y: 100 })).toBe("other");
-    handle.setHoveredImage("other");
-    expect(map.setPaintProperty).toHaveBeenCalledWith(
-      "footprint",
-      "line-color",
-      ["case", ["==", ["get", "imageId"], "other"], "#ffff00", "white"]
-    );
-    handle.setHoveredImage(null);
-    expect(map.setPaintProperty).toHaveBeenCalledWith(
-      "footprint",
-      "line-width",
-      [
-        "*",
-        5 * (2 / 3),
-        [
-          "case",
-          ["==", ["get", "imageId"], ""],
-          1,
-          ["==", ["get", "active"], false],
-          0.5,
-          1,
-        ],
-      ]
-    );
-    handle.destroy();
-  });
-  it("stops repainting when the finite surface fade is complete and restores the native fallback", () => {
-    const now = vi.spyOn(performance, "now").mockReturnValue(100);
-    const { handle, map, fire } = setup(true);
-    scene.runtimes = [{ id: "mesh", receivesMapStyleTexture: true }];
-    handle.setRing(ring, { pose, seriesLabel: "2024" });
-    handle.setLocked(true, { duration: 100, delay: 0 });
-    now.mockReturnValue(150);
-    fire("render");
-    expect(scene.surface.mock.calls.at(-1)?.[1]?.opacity).toBeCloseTo(0.5);
-    now.mockReturnValue(200);
-    fire("render");
-    expect(scene.surface.mock.calls.at(-1)?.[1]?.opacity).toBe(0);
-    now.mockReturnValue(280);
-    fire("render");
-    const updates = scene.surface.mock.calls.length;
-    const repaints = map.triggerRepaint.mock.calls.length;
-    fire("render");
+describe("calibrated current highlights and bounded selection trails", () => {
+  it("waits for a shared receiver without creating approximate native footprints", () => {
+    const { handle, map, fire, sources, layers } = setup();
+    handle.setRing(ring, annotation("center"));
+    handle.setHoveredImage("pointer", candidate("pointer"));
+    expect(scene.projective).not.toHaveBeenCalled();
+    expect(sources.size).toBe(0);
+    expect(layers.size).toBe(0);
+    expect(handle.containsScreenPoint({ x: 20, y: 20 })).toBe(false);
+    expect(handle.imageAtScreenPoint({ x: 20, y: 20 })).toBeNull();
+    expect(map.queryRenderedFeatures).not.toHaveBeenCalled();
+    scene.runtimes = [{ receivesMapStyleTexture: true }];
     fire("idle");
-    expect(scene.surface).toHaveBeenCalledTimes(updates);
-    expect(map.triggerRepaint).toHaveBeenCalledTimes(repaints);
-    scene.runtimes = [];
-    handle.setLocked(false, { duration: 0, delay: 0 });
-    fire("idle");
-    expect(map.setPaintProperty).toHaveBeenCalledWith(
+    expect(scene.projective.mock.calls.at(-1)?.[1].marks).toHaveLength(2);
+    expect(map.addSource).not.toHaveBeenCalled();
+    expect(map.addLayer).not.toHaveBeenCalled();
+  });
+  it("removes only retained legacy layers after the render stack and never recreates them", () => {
+    vi.useFakeTimers();
+    const { handle, map, fire, sources, layers, images } = setup(true);
+    for (const id of [
       "footprint",
-      "line-opacity",
-      [
-        "*",
-        1,
-        [
-          "case",
-          ["==", ["get", "imageId"], ""],
-          1,
-          ["==", ["get", "active"], false],
-          0.2,
-          1,
-        ],
-      ]
-    );
-    expect(scene.surface).toHaveBeenLastCalledWith("footprint", null);
-    handle.destroy();
-    now.mockRestore();
-  });
-  it("sends only the polygon, open caret and one label to the native worker-backed source", () => {
-    const { handle, map, sources, layers, fire } = setup();
-    handle.setRing(ring, { pose, seriesLabel: "2026Test" });
-    const features = sources.get("footprint-source")!.data.features;
-    expect(features.map((feature) => feature.geometry.type)).toEqual([
-      "Polygon",
-      "LineString",
-      "Point",
-    ]);
-    expect(features[0].geometry).toEqual({
-      type: "Polygon",
-      coordinates: [ring],
-    });
-    expect(
-      features[1].geometry.type === "LineString" &&
-        features[1].geometry.coordinates.length
-    ).toBe(3);
-    expect(layers.get("footprint-label")?.metadata).toEqual({
-      "carma:map-style-placement": "draped",
-    });
-    expect(map.queryTerrainElevation).not.toHaveBeenCalled();
-    for (let index = 0; index < 20; index++) fire("idle");
-    expect(map.queryTerrainElevation).not.toHaveBeenCalled();
-    handle.destroy();
-  });
-  it("stays before the shared capture and does not request recurring layer moves at rest", () => {
-    const { handle, map, fire } = setup(true);
-    expect(map.getLayersOrder()).toEqual([
       "footprint-interior",
-      "footprint",
       "footprint-caret",
       "footprint-label",
-      "shared",
-    ]);
-    const moves = map.moveLayer.mock.calls.length;
-    const releases = scene.release.mock.calls.length;
-    for (let index = 0; index < 20; index++) {
-      fire("styledata");
-      fire("idle");
-    }
-    expect(map.moveLayer).toHaveBeenCalledTimes(moves);
-    expect(scene.release).toHaveBeenCalledTimes(releases);
-    expect(map.queryTerrainElevation).not.toHaveBeenCalled();
-    handle.destroy();
-  });
-  it("uses native rendered polygon hits and removes the target immediately when locked", () => {
-    const { handle, map } = setup();
-    handle.setRing(ring);
-    expect(handle.containsScreenPoint({ x: 80, y: 40 })).toBe(true);
-    expect(map.queryRenderedFeatures).toHaveBeenCalledWith([80, 40], {
-      layers: ["footprint-interior"],
+    ])
+      layers.set(id, { id, type: "fill", source: "footprint-source" });
+    sources.set("footprint-source", {
+      data: { type: "FeatureCollection", features: [] },
+      setData: vi.fn(),
     });
-    map.queryRenderedFeatures.mockReturnValue([
-      { id: "old-footprint", properties: { revision: 0 } },
-    ]);
-    expect(handle.containsScreenPoint({ x: 80, y: 40 })).toBe(false);
-    map.queryRenderedFeatures.mockReturnValue([]);
-    expect(handle.containsScreenPoint({ x: 300, y: 40 })).toBe(false);
-    handle.setLocked(true);
-    const queries = map.queryRenderedFeatures.mock.calls.length;
-    expect(handle.containsScreenPoint({ x: 80, y: 40 })).toBe(false);
-    expect(map.queryRenderedFeatures).toHaveBeenCalledTimes(queries);
-    expect(map.setLayoutProperty).toHaveBeenCalledWith(
-      "footprint-interior",
-      "visibility",
-      "none"
-    );
-    handle.setLocked(false);
-    expect(map.setLayoutProperty).toHaveBeenCalledWith(
-      "footprint-interior",
-      "visibility",
-      "visible"
-    );
-    handle.setStyle({ color: "white", width: 5, opacity: 0 });
-    expect(handle.containsScreenPoint({ x: 80, y: 40 })).toBe(false);
-    handle.destroy();
-  });
-  it("removes the label for one series and restores cached data after style replacement", () => {
-    const { handle, map, layers, sources, images, fire } = setup();
-    handle.setRing(ring, { pose, seriesLabel: "2024" });
-    expect(images.size).toBe(1);
-    handle.setRing(ring, { pose });
-    expect(sources.get("footprint-source")!.data.features).toHaveLength(2);
-    layers.clear();
-    sources.clear();
-    images.clear();
-    fire("styledata");
-    expect(layers.size).toBe(4);
-    expect(sources.get("footprint-source")!.data.features).toHaveLength(2);
-    handle.setRing(null);
-    expect(sources.get("footprint-source")!.data.features).toHaveLength(0);
-    handle.destroy();
+    images.set("footprint-label-image", {} as ImageData);
+    images.set("footprint-hover-label-image", {} as ImageData);
+    handle.setRing(ring, annotation("center"));
+    scene.beforeRender?.({ localFrame: scene.localFrame });
+    expect(map.removeLayer).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(0);
     expect(layers.size).toBe(0);
     expect(sources.size).toBe(0);
     expect(images.size).toBe(0);
-    expect(map.removeImage).toHaveBeenCalled();
-    expect(handle.containsScreenPoint({ x: 80, y: 40 })).toBe(false);
+    expect(map.removeLayer).toHaveBeenCalledTimes(4);
+    fire("styledata");
+    fire("idle");
+    expect(map.addSource).not.toHaveBeenCalled();
+    expect(map.addLayer).not.toHaveBeenCalled();
+    expect(map.addImage).not.toHaveBeenCalled();
   });
-  it("temporarily exposes a catalog hover outside the displayed subset without exceeding 128 polygons", () => {
-    const { handle, sources } = setup();
-    const inactive = Array.from({ length: 127 }, (_, i) => ({
-      id: "near-" + i,
-      ring,
-      pose,
-    }));
-    handle.setRing(
-      ring,
-      { pose, imageId: "active", seriesLabel: "2024" },
-      inactive
+  it("draws only center and pointer and applies highlight color without a crossfade", () => {
+    const { handle, map, sources, layers } = setup(true);
+    const nearby = Array.from({ length: 128 }, (_, i) =>
+      candidate("candidate-" + i)
     );
-    const outsideRing = ring.map(([lng, lat]) => [lng + 0.01, lat]);
-    handle.setHoveredImage("outside", {
-      id: "outside",
-      ring: outsideRing,
-      pose,
-      seriesLabel: "2026",
-    });
-    const hovered = sources.get("footprint-source")!.data.features;
+    handle.setRing(ring, annotation("center"), nearby);
+    let overlay = scene.projective.mock.calls.at(-1)?.[1];
+    expect(overlay.marks).toHaveLength(1);
+    expect(overlay.marks[0].color.getHexString()).toBe("ffff00");
+    expect(overlay.marks[0].labelRect).toEqual([0, 0, 1, 1]);
+    handle.setHoveredImage("pointer", candidate("pointer"));
+    overlay = scene.projective.mock.calls.at(-1)?.[1];
+    expect(overlay.marks).toHaveLength(2);
     expect(
-      hovered.filter((feature) => feature.geometry.type === "Polygon")
-    ).toHaveLength(128);
+      overlay.marks.map((mark: { fillOpacity: number }) => mark.fillOpacity)
+    ).toEqual([0.08, 0]);
+    expect(overlay.marks[0].color.getHexString()).toBe("ffffff");
+    expect(overlay.marks[1].color.getHexString()).toBe("ffff00");
+    handle.setHoveredImage(null);
+    overlay = scene.projective.mock.calls.at(-1)?.[1];
+    const center = overlay.marks.at(-1);
+    expect(center.color.getHexString()).toBe("ffff00");
+    expect(center.labelRect).toEqual([0, 0, 1, 1]);
+    expect(map.setPaintProperty).not.toHaveBeenCalled();
+    expect(map.addSource).not.toHaveBeenCalled();
+    expect(map.addLayer).not.toHaveBeenCalled();
+    expect(sources.size).toBe(0);
+    expect(layers.size).toBe(0);
+    expect(readLabelPixels).not.toHaveBeenCalled();
+  });
+  it("retains at most 32 preceding center or pointer outlines, with no fill and unchanged width", () => {
+    const { handle } = setup(true);
+    handle.setRing(ring, annotation("center"));
+    for (let i = 0; i < 40; i++)
+      handle.setHoveredImage("pointer-" + i, candidate("pointer-" + i));
+    const overlay = scene.projective.mock.calls.at(-1)?.[1];
+    const trails = overlay.marks.filter(
+      (mark: { trailStartedAt?: number }) => mark.trailStartedAt !== undefined
+    );
+    expect(trails).toHaveLength(32);
     expect(
-      hovered.some(
-        (feature) =>
-          feature.geometry.type === "Polygon" &&
-          feature.properties?.imageId === "outside"
+      trails.every((mark: { fillOpacity: number }) => mark.fillOpacity === 0)
+    ).toBe(true);
+    expect(overlay.marks).toHaveLength(34);
+    expect(
+      overlay.marks.every(
+        (mark: { width: number }) => mark.width === 5 * (2 / 3)
       )
     ).toBe(true);
     expect(
-      hovered.some((feature) => feature.properties?.imageId === "near-126")
-    ).toBe(false);
-    const labels = hovered.filter(
-      (feature) => feature.properties?.part === "label"
-    );
-    expect(labels).toHaveLength(1);
-    expect(labels[0].properties?.imageId).toBe("outside");
-    handle.setHoveredImage(null);
-    const restored = sources.get("footprint-source")!.data.features;
-    expect(
-      restored.some((feature) => feature.properties?.imageId === "outside")
-    ).toBe(false);
-    expect(
-      restored.some((feature) => feature.properties?.imageId === "near-126")
+      trails.every((mark: { opacity: number }) => mark.opacity === 0.2)
     ).toBe(true);
+  });
+  it("repaints GPU trail fades at ten Hz without rebuilding marks or label pixels", () => {
+    vi.useFakeTimers();
+    vi.spyOn(performance, "now").mockImplementation(() => Date.now());
+    const { handle, map } = setup(true);
+    handle.setRing(ring, annotation("first"));
+    handle.setRing(ring, annotation("second"));
+    const uploads = scene.projective.mock.calls.length,
+      repaints = map.triggerRepaint.mock.calls.length,
+      labelDraws = drawSurfaceLabel.mock.calls.length;
+    vi.advanceTimersByTime(4000);
+    expect(scene.projective).toHaveBeenCalledTimes(uploads);
+    expect(drawSurfaceLabel).toHaveBeenCalledTimes(labelDraws);
+    expect(map.triggerRepaint).toHaveBeenCalledTimes(repaints + 40);
+    expect(map.setFeatureState).not.toHaveBeenCalled();
+    expect(readLabelPixels).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(4000);
+    expect(scene.projective.mock.calls.at(-1)?.[1].marks).toHaveLength(1);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+  it("preserves absolute trail deadlines through preview locks without hidden repaint loops", () => {
+    vi.useFakeTimers();
+    vi.spyOn(performance, "now").mockImplementation(() => Date.now());
+    const { handle, map } = setup(true);
+    handle.setRing(ring, annotation("first"));
+    handle.setRing(ring, annotation("second"));
+    handle.setHoveredImage("pointer", candidate("pointer"));
+    handle.setLocked(true);
+    const preview = scene.projective.mock.calls.at(-1)?.[1];
+    expect(preview.marks).toHaveLength(1);
+    expect(preview.opacity).toBe(1);
+    expect(preview.marks[0].opacity).toBe(1);
+    expect(preview.marks[0].fillOpacity).toBe(0);
+    expect(preview.marks[0].labelRect).toBeUndefined();
+    expect(preview.marks[0].showUpMarker).toBe(false);
+    const repaints = map.triggerRepaint.mock.calls.length;
+    vi.advanceTimersByTime(8000);
+    expect(map.triggerRepaint).toHaveBeenCalledTimes(repaints);
+    expect(scene.projective.mock.calls.at(-1)?.[1].marks).toHaveLength(1);
+    expect(vi.getTimerCount()).toBe(0);
+    handle.setLocked(false);
+    expect(scene.projective.mock.calls.at(-1)?.[1].marks).toHaveLength(1);
+    expect(scene.projective.mock.calls.at(-1)?.[1].marks[0].fillOpacity).toBe(
+      0.08
+    );
+  });
+  it("publishes immediate calibrated highlights after trails without native feature-state layers", () => {
+    const { handle, map } = setup(true);
+    handle.setRing(ring, annotation("first"));
+    handle.setRing(ring, annotation("center"));
+    handle.setHoveredImage("pointer", candidate("pointer"));
+    const overlay = scene.projective.mock.calls.at(-1)?.[1];
+    expect(overlay.marks).toHaveLength(3);
+    expect(
+      overlay.marks.map(
+        (mark: { trailStartedAt?: number }) => mark.trailStartedAt !== undefined
+      )
+    ).toEqual([true, false, false]);
+    expect(
+      overlay.marks.map((mark: { fillOpacity: number }) => mark.fillOpacity)
+    ).toEqual([0, 0.08, 0]);
+    expect(
+      overlay.marks.every(
+        (mark: { sceneToImage: Matrix4; sceneToImageTerrain: Matrix4 }) =>
+          mark.sceneToImage.isMatrix4 && mark.sceneToImageTerrain.isMatrix4
+      )
+    ).toBe(true);
+    expect(overlay.labelAtlas.image.width).toBe(512);
+    expect(overlay.trailDuration).toBe(8);
+    expect(map.addSource).not.toHaveBeenCalled();
+    expect(map.addLayer).not.toHaveBeenCalled();
+    expect(map.setLayoutProperty).not.toHaveBeenCalled();
+    expect(map.addImage).not.toHaveBeenCalled();
+  });
+  it("refreshes matrices only for local-frame changes and reuses the small label atlas", () => {
+    const { handle } = setup(true);
+    handle.setRing(ring, annotation("center"));
+    const overlay = scene.projective.mock.calls.at(-1)?.[1],
+      calls = scene.projective.mock.calls.length;
+    const frame = { localFrame: scene.localFrame };
+    scene.beforeRender?.(frame);
+    scene.beforeRender?.(frame);
+    expect(scene.projective).toHaveBeenCalledTimes(calls);
+    const next = {
+      ...scene.localFrame!,
+      revision: 2,
+      sceneFromLocal: new Matrix4().makeTranslation(10, 0, 0),
+    };
+    scene.beforeRender?.({ localFrame: next });
+    expect(scene.projective.mock.calls.at(-1)?.[1].labelAtlas).toBe(
+      overlay.labelAtlas
+    );
+    expect(
+      scene.projective.mock.calls
+        .at(-1)?.[1]
+        .marks[0].sceneToImage.equals(overlay.marks[0].sceneToImage)
+    ).toBe(false);
+  });
+  it("keeps center contours visible during preview and applies live styles without fill accumulation", () => {
+    const { handle } = setup(true);
+    handle.setRing(ring, annotation("center"));
+    handle.setHoveredImage("pointer", candidate("pointer"));
+    handle.setLocked(true);
+    handle.setStyle({
+      color: "#00ffff",
+      width: 3,
+      opacity: 0.5,
+      fillOpacity: 1,
+    });
+    let overlay = scene.projective.mock.calls.at(-1)?.[1];
+    expect(overlay.opacity).toBe(0.5);
+    expect(overlay.marks).toHaveLength(1);
+    expect(overlay.marks[0].fillOpacity).toBe(0);
+    expect(overlay.marks[0].width).toBe(2);
+    expect(overlay.marks[0].showUpMarker).toBe(false);
+    expect(overlay.marks[0].labelRect).toBeUndefined();
+    expect(overlay.labelAtlas).toBeUndefined();
+    handle.setLocked(false);
+    overlay = scene.projective.mock.calls.at(-1)?.[1];
+    expect(overlay.marks[0].showUpMarker).toBe(true);
+    expect(overlay.marks[0].fillOpacity).toBe(0.08);
+    expect(overlay.opacity * overlay.marks[0].fillOpacity).toBe(0.04);
+  });
+  it("removes expired or out-of-viewport trails and releases callbacks, textures and timers", () => {
+    vi.useFakeTimers();
+    vi.spyOn(performance, "now").mockImplementation(() => Date.now());
+    const { handle, map, fire } = setup(true);
+    handle.setRing(ring, annotation("first"));
+    handle.setRing(ring, annotation("second"));
+    Object.assign(map, { transform: { width: 100, height: 100 } });
+    map.unproject.mockReturnValue({ lng: 10, lat: 10 });
+    fire("idle");
+    expect(scene.projective.mock.calls.at(-1)?.[1].marks).toHaveLength(1);
+    const atlas = scene.projective.mock.calls.at(-1)?.[1].labelAtlas,
+      dispose = vi.spyOn(atlas, "dispose");
     handle.destroy();
+    expect(dispose).toHaveBeenCalledOnce();
+    expect(scene.removeBefore).toHaveBeenCalledOnce();
+    expect(scene.release).toHaveBeenCalledOnce();
+    expect(vi.getTimerCount()).toBe(0);
   });
 });

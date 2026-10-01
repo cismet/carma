@@ -4,6 +4,7 @@ import type { Map as MaplibreMap } from "maplibre-gl";
 import type {
   SharedThreeSceneRuntime,
   MapStyleProjectionUniforms,
+  MapStyleProjectiveOverlay,
 } from "../../core/shared-three-scene-types";
 import { createMapStyleFramebufferCache } from "./map-style-framebuffer-cache";
 import { configureMapStyleProjectedMaterial } from "./shared-three-map-style-material";
@@ -39,11 +40,33 @@ export const createSharedThreeMapStyleProjection = (
     depthEnabled: { value: 0 },
     depthNearFar: { value: new THREE.Vector2(1, 1000) },
     texelSize: { value: new THREE.Vector2(1, 1) },
-    screenOverlays: [0, 1].map(() => ({
-      texture: { value: null },
-      viewportToTexture: { value: new THREE.Matrix3() },
+    screenOverlays: [
+      {
+        texture: { value: null },
+        viewportToTexture: { value: new THREE.Matrix3() },
+        opacity: { value: 0 },
+      },
+      {
+        texture: { value: null },
+        viewportToTexture: { value: new THREE.Matrix3() },
+        opacity: { value: 0 },
+      },
+    ],
+    screenBackdrop: {
+      look: { value: new THREE.Vector3(1, 1, 1) },
+      tint: { value: new THREE.Vector4(0, 0, 0, 0) },
       opacity: { value: 0 },
-    })) as NonNullable<MapStyleProjectionUniforms["screenOverlays"]>,
+    },
+    projectiveOverlay: {
+      data: { value: null },
+      labelAtlas: { value: null },
+      count: { value: 0 },
+      time: { value: 0 },
+      trailColor: { value: new THREE.Color() },
+      trailDuration: { value: 8 },
+      opacity: { value: 0 },
+      pixelRatio: { value: 1 },
+    },
     surfaceOverlay: {
       texture: { value: null },
       sceneToTexture: { value: new THREE.Matrix4() },
@@ -51,16 +74,40 @@ export const createSharedThreeMapStyleProjection = (
       previousTexture: { value: null },
       previousSceneToTexture: { value: new THREE.Matrix4() },
       previousEnabled: { value: 0 },
+      previousOpacity: { value: -1 },
       transition: { value: 1 },
     },
   };
+  // Eleven RGBA texels per marking: two receiver-frame matrices, color, style, label cell.
+  // A small float texture avoids per-camera varyings and low mobile uniform limits.
+  const projectiveCapacity = 34;
+  const projectiveData = new Float32Array(projectiveCapacity * 11 * 4);
+  const projectiveScratch = new Float32Array(projectiveData.length);
+  const projectiveTexture = new THREE.DataTexture(
+    projectiveData,
+    11,
+    projectiveCapacity,
+    THREE.RGBAFormat,
+    THREE.FloatType
+  );
+  projectiveTexture.minFilter = THREE.NearestFilter;
+  projectiveTexture.magFilter = THREE.NearestFilter;
+  projectiveTexture.generateMipmaps = false;
+  projectiveTexture.needsUpdate = true;
+  const projectiveOverlays = new Map<string, MapStyleProjectiveOverlay>();
+  let projectiveTrailUntil = -1;
+  let projectiveFadeBucket = -1;
   const surfaceOverlays = new Map<
     string,
     {
       texture: THREE.Texture;
       sceneToTexture: THREE.Matrix4;
       opacity: number;
-      previous?: { texture: THREE.Texture; sceneToTexture: THREE.Matrix4 };
+      previous?: {
+        texture: THREE.Texture;
+        sceneToTexture: THREE.Matrix4;
+        opacity?: number;
+      };
       transition?: number;
     }
   >();
@@ -71,10 +118,21 @@ export const createSharedThreeMapStyleProjection = (
       viewportToTexture: THREE.Matrix3;
       opacity: number;
       priority?: number;
+      backdropLook?: {
+        contrast: number;
+        brightness: number;
+        saturation: number;
+      };
+      backdropTint?: readonly [number, number, number, number];
       version: number;
     }
   >();
-  const screenUniforms: Record<string, THREE.IUniform> = {};
+  const screenUniforms: Record<string, THREE.IUniform> = {
+    carmaScreenBackdropLook: mapStyleProjectionUniforms.screenBackdrop!.look,
+    carmaScreenBackdropTint: mapStyleProjectionUniforms.screenBackdrop!.tint,
+    carmaScreenBackdropOpacity:
+      mapStyleProjectionUniforms.screenBackdrop!.opacity,
+  };
   mapStyleProjectionUniforms.screenOverlays!.forEach((screen, index) => {
     screenUniforms[`carmaScreenTexture${index}`] = screen.texture;
     screenUniforms[`carmaScreenToTexture${index}`] = screen.viewportToTexture;
@@ -132,7 +190,8 @@ void main(){vec4 image=carmaScreenImages(vScreenUv);if(image.a<=0.0)discard;gl_F
           configureMapStyleProjectedMaterial(
             material,
             mapStyleProjectionUniforms,
-            runtime.mapStyleProjectionBlend ?? "replace"
+            runtime.mapStyleProjectionBlend ?? "replace",
+            runtime.mountsOnLocalFrame === true
           );
           configured = true;
         }
@@ -260,7 +319,14 @@ void main(){vec4 image=carmaScreenImages(vScreenUv);if(image.a<=0.0)discard;gl_F
         viewportToTexture: THREE.Matrix3;
         opacity: number;
         priority?: number;
-      } | null
+        backdropLook?: {
+          contrast: number;
+          brightness: number;
+          saturation: number;
+        };
+        backdropTint?: readonly [number, number, number, number];
+      } | null,
+      requestRepaint = true
     ) {
       const previous = screenOverlays.get(id);
       if (
@@ -270,6 +336,15 @@ void main(){vec4 image=carmaScreenImages(vScreenUv);if(image.a<=0.0)discard;gl_F
         previous.version === overlay.texture.version &&
         previous.opacity === overlay.opacity &&
         previous.priority === overlay.priority &&
+        previous.backdropLook?.contrast === overlay.backdropLook?.contrast &&
+        previous.backdropLook?.brightness ===
+          overlay.backdropLook?.brightness &&
+        previous.backdropLook?.saturation ===
+          overlay.backdropLook?.saturation &&
+        [0, 1, 2, 3].every(
+          (index) =>
+            previous.backdropTint?.[index] === overlay.backdropTint?.[index]
+        ) &&
         previous.viewportToTexture.equals(overlay.viewportToTexture)
       )
         return;
@@ -277,6 +352,12 @@ void main(){vec4 image=carmaScreenImages(vScreenUv);if(image.a<=0.0)discard;gl_F
       if (overlay)
         screenOverlays.set(id, {
           ...overlay,
+          backdropLook: overlay.backdropLook
+            ? { ...overlay.backdropLook }
+            : undefined,
+          backdropTint: overlay.backdropTint
+            ? [...overlay.backdropTint]
+            : undefined,
           viewportToTexture: overlay.viewportToTexture.clone(),
           version: overlay.texture.version,
         });
@@ -290,20 +371,110 @@ void main(){vec4 image=carmaScreenImages(vScreenUv);if(image.a<=0.0)discard;gl_F
         screen.opacity.value = entry?.opacity ?? 0;
         if (entry) screen.viewportToTexture.value.copy(entry.viewportToTexture);
       });
+      const backdrop = ordered.find(
+        (entry) => entry.backdropLook || entry.backdropTint
+      );
+      const backdropUniforms = mapStyleProjectionUniforms.screenBackdrop!;
+      backdropUniforms.look.value.set(
+        backdrop?.backdropLook?.contrast ?? 1,
+        backdrop?.backdropLook?.brightness ?? 1,
+        backdrop?.backdropLook?.saturation ?? 1
+      );
+      backdropUniforms.tint.value.fromArray(
+        backdrop?.backdropTint ?? [0, 0, 0, 0]
+      );
+      backdropUniforms.opacity.value = backdrop?.opacity ?? 0;
       screenOverlayMesh.visible = ordered.some((entry) => entry.opacity > 0);
       mapStyleProjectionEpoch++;
-      map?.triggerRepaint();
+      if (requestRepaint) map?.triggerRepaint();
     },
+    setProjectiveOverlay(
+      id: string,
+      overlay: MapStyleProjectiveOverlay | null,
+      requestRepaint = true
+    ) {
+      if (overlay) projectiveOverlays.set(id, overlay);
+      else projectiveOverlays.delete(id);
+      const active = [...projectiveOverlays.values()].at(-1);
+      const uniform = mapStyleProjectionUniforms.projectiveOverlay!;
+      const marks = active?.marks.slice(0, projectiveCapacity) ?? [];
+      projectiveScratch.fill(0);
+      for (let index = 0; index < marks.length; index++) {
+        const mark = marks[index];
+        const offset = index * 44;
+        projectiveScratch.set(mark.sceneToImage.elements, offset);
+        projectiveScratch.set(
+          (mark.sceneToImageTerrain ?? mark.sceneToImage).elements,
+          offset + 16
+        );
+        projectiveScratch.set(
+          [
+            mark.color.r,
+            mark.color.g,
+            mark.color.b,
+            Math.max(0, Math.min(1, mark.opacity)),
+            Math.max(0, mark.width),
+            Math.max(0, Math.min(0.08, mark.fillOpacity ?? 0)),
+            mark.trailStartedAt ?? -1,
+            mark.showUpMarker === false ? 1 : 0,
+            ...(mark.labelRect ?? [0, 0, 0, 0]),
+          ],
+          offset + 32
+        );
+      }
+      let changed =
+        uniform.count.value !== marks.length ||
+        uniform.labelAtlas.value !== (active?.labelAtlas ?? null) ||
+        uniform.opacity.value !== (active?.opacity ?? 0) ||
+        uniform.trailDuration.value !== (active?.trailDuration ?? 8) ||
+        (active && !uniform.trailColor.value.equals(active.trailColor));
+      let dataChanged = false;
+      for (let index = 0; index < projectiveData.length; index++) {
+        if (projectiveData[index] !== projectiveScratch[index]) {
+          dataChanged = true;
+          break;
+        }
+      }
+      if (!changed && !dataChanged) return;
+      if (dataChanged) {
+        projectiveData.set(projectiveScratch);
+        projectiveTexture.needsUpdate = true;
+      }
+      uniform.data.value = marks.length ? projectiveTexture : null;
+      uniform.labelAtlas.value = active?.labelAtlas ?? null;
+      uniform.count.value = marks.length;
+      uniform.opacity.value = active?.opacity ?? 0;
+      uniform.trailDuration.value = Math.max(0.001, active?.trailDuration ?? 8);
+      projectiveTrailUntil = marks.reduce(
+        (deadline, mark) =>
+          mark.trailStartedAt !== undefined && mark.trailStartedAt >= 0
+            ? Math.max(
+                deadline,
+                mark.trailStartedAt + uniform.trailDuration.value
+              )
+            : deadline,
+        -1
+      );
+      if (active) uniform.trailColor.value.copy(active.trailColor);
+      mapStyleProjectionEpoch++;
+      if (requestRepaint) map?.triggerRepaint();
+    },
+
     setSurfaceOverlay(
       id: string,
       overlay: {
         texture: THREE.Texture;
         sceneToTexture: THREE.Matrix4;
         opacity: number;
-        previous?: { texture: THREE.Texture; sceneToTexture: THREE.Matrix4 };
+        previous?: {
+          texture: THREE.Texture;
+          sceneToTexture: THREE.Matrix4;
+          opacity?: number;
+        };
         transition?: number;
       } | null
     ) {
+      const preceding = [...surfaceOverlays.values()].at(-1);
       if (overlay) surfaceOverlays.set(id, overlay);
       else surfaceOverlays.delete(id);
       const active = [...surfaceOverlays.values()].at(-1);
@@ -312,6 +483,11 @@ void main(){vec4 image=carmaScreenImages(vScreenUv);if(image.a<=0.0)discard;gl_F
       surface.opacity.value = active?.opacity ?? 0;
       surface.previousTexture.value = active?.previous?.texture ?? null;
       surface.previousEnabled.value = active?.previous ? 1 : 0;
+      const previousOpacity = active?.previous?.opacity;
+      surface.previousOpacity.value =
+        typeof previousOpacity === "number" && Number.isFinite(previousOpacity)
+          ? Math.max(0, Math.min(1, previousOpacity))
+          : -1;
       surface.transition.value = Math.max(
         0,
         Math.min(1, active?.transition ?? 1)
@@ -322,7 +498,22 @@ void main(){vec4 image=carmaScreenImages(vScreenUv);if(image.a<=0.0)discard;gl_F
         );
       if (active) surface.sceneToTexture.value.copy(active.sceneToTexture);
       mapStyleProjectionEpoch++;
-      map?.triggerRepaint();
+      const trailScalarOnly =
+        active &&
+        preceding &&
+        typeof active.previous?.opacity === "number" &&
+        typeof preceding.previous?.opacity === "number" &&
+        active.texture === preceding.texture &&
+        active.opacity === preceding.opacity &&
+        active.transition === preceding.transition &&
+        active.sceneToTexture.equals(preceding.sceneToTexture) &&
+        active.previous.texture === preceding.previous.texture &&
+        active.previous.sceneToTexture.equals(
+          preceding.previous.sceneToTexture
+        );
+      // Trail cadence belongs to its caller. Uploading its scalar in a render
+      // event must not turn an idle ten-second fade into a full-rate render loop.
+      if (!trailScalarOnly) map?.triggerRepaint();
     },
 
     setEnabled(enabled: boolean) {
@@ -362,10 +553,26 @@ void main(){vec4 image=carmaScreenImages(vScreenUv);if(image.a<=0.0)discard;gl_F
       sceneToClipMatrix: THREE.Matrix4,
       lightingReplay: boolean
     ): boolean {
+      const projective = mapStyleProjectionUniforms.projectiveOverlay!;
+      projective.time.value = performance.now() / 1000;
+      const fadeBucket =
+        projective.opacity.value > 0 &&
+        projective.time.value < projectiveTrailUntil
+          ? Math.floor(projective.time.value * 10)
+          : -1;
+      if (fadeBucket !== projectiveFadeBucket) {
+        projectiveFadeBucket = fadeBucket;
+        // Invalidate only the finite 10-Hz fade, including its final transparent
+        // frame. Otherwise lighting accumulation can keep an old trail forever.
+        mapStyleProjectionEpoch++;
+      }
+      projective.pixelRatio.value =
+        viewport.x / Math.max(1, map?.getCanvas().clientWidth ?? viewport.x);
       mapStyleProjectionUniforms.sceneToClip.value.copy(sceneToClipMatrix);
       const hasReceivers =
         (presentationEnabled ||
           surfaceOverlays.size > 0 ||
+          projectiveOverlays.size > 0 ||
           screenOverlays.size > 0) &&
         configureMapStyleProjection();
       if (presentationEnabled && mapStyleProjectionVisible && hasReceivers) {
@@ -424,6 +631,10 @@ void main(){vec4 image=carmaScreenImages(vScreenUv);if(image.a<=0.0)discard;gl_F
       screenOverlays.clear();
       screenOverlayMesh.geometry.dispose();
       screenMaterial.dispose();
+      projectiveOverlays.clear();
+      projectiveTexture.dispose();
+      mapStyleProjectionUniforms.projectiveOverlay!.data.value = null;
+      mapStyleProjectionUniforms.projectiveOverlay!.count.value = 0;
       surfaceOverlays.clear();
       mapStyleProjectionUniforms.surfaceOverlay!.texture.value = null;
       mapStyleProjectionUniforms.surfaceOverlay!.opacity.value = 0;

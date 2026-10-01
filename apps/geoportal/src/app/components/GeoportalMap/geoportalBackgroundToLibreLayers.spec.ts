@@ -1,7 +1,15 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { BackgroundLayer } from "@carma-mapping/layers";
 import { MapStyleKeys } from "../../constants/MapStyleKeys";
+
+vi.mock("@carma-appframeworks/portals", () => ({
+  defaultLayerConf: { namedLayers: {} },
+}));
+vi.mock("@carma-mapping/engines/maplibre", () => ({
+  prepareTerrainDrapeStyle: (style: unknown) => style,
+}));
+vi.mock("@carma-commons/utils", () => ({ isHttpCacheForced: () => false }));
 
 import { geoportalBackgroundToLibreLayers } from "./geoportalBackgroundToLibreLayers";
 
@@ -225,4 +233,85 @@ describe("Geoportal shaded terrain background composition", () => {
       )
     ).toBe(true);
   });
+  it("uses vector labels over a mesh aerial basis and restores the orthophoto when that basis is removed", () => {
+    const aerial = {
+      ...background,
+      id: MapStyleKeys.AERIAL,
+      layers: "trueOrtho2024Alternative@75",
+    };
+    const named = {
+      trueOrtho2024Alternative: {
+        type: "tiles",
+        url: "https://example.test/ortho/{z}/{x}/{y}.jpg",
+      },
+      basemap_relief: {
+        type: "vector",
+        style: "https://example.test/vector-basemap.json",
+      },
+    };
+    const options = { mapStyle3dActive: true, vectorBaseOverride: true };
+    const ortho = geoportalBackgroundToLibreLayers(aerial, named, options);
+    const meshLabels = geoportalBackgroundToLibreLayers(aerial, named, {
+      ...options,
+      meshBaseActive: true,
+    });
+    expect(meshLabels).toEqual([
+      expect.objectContaining({
+        type: "vector",
+        name: "bg-basemap_relief",
+        carmaLayerId: MapStyleKeys.AERIAL,
+        style: named.basemap_relief.style,
+        opacity: 0.8,
+        userStyleTransformKey: "terrain-albedo-v1",
+      }),
+    ]);
+    expect(meshLabels.some((layer) => layer.type === "tiles")).toBe(false);
+    expect(ortho).toEqual([
+      expect.objectContaining({
+        type: "tiles",
+        name: "trueOrtho2024Alternative",
+      }),
+    ]);
+    expect(ortho[0].opacity).toBeCloseTo(0.6);
+    expect(
+      geoportalBackgroundToLibreLayers(aerial, named, {
+        ...options,
+        meshBaseActive: false,
+      })
+    ).toEqual(ortho);
+  });
+
+  it.each([
+    { mapStyle3dActive: false, vectorBaseOverride: true, meshBaseActive: true },
+    { mapStyle3dActive: true, vectorBaseOverride: false, meshBaseActive: true },
+    { mapStyle3dActive: true, vectorBaseOverride: true, meshBaseActive: false },
+  ])(
+    "keeps aerial raster pixels when the mesh-label override is incomplete: %j",
+    (options) => {
+      const aerial = {
+        ...background,
+        id: MapStyleKeys.AERIAL,
+        layers: "ortho@100",
+      };
+      const named = {
+        ortho: {
+          type: "tiles",
+          url: "https://example.test/ortho/{z}/{x}/{y}.jpg",
+        },
+        basemap_relief: {
+          type: "vector",
+          style: "https://example.test/vector-basemap.json",
+        },
+      };
+      const layers = geoportalBackgroundToLibreLayers(aerial, named, options);
+      expect(layers).toEqual([
+        expect.objectContaining({
+          type: "tiles",
+          name: "ortho",
+          carmaLayerId: MapStyleKeys.AERIAL,
+        }),
+      ]);
+      expect(layers[0]).not.toHaveProperty("userStyleTransform");
+    }
+  );
 });

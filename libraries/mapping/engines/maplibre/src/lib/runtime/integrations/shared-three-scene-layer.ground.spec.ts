@@ -1,5 +1,6 @@
 import { createProgressiveHost } from "./shared-three-scene-layer.test-support";
 import * as THREE from "three";
+import type { CssPixels } from "@carma-units";
 import { describe, expect, it, vi } from "vitest";
 import {
   clearDepthForMapStyleOverlays,
@@ -13,6 +14,12 @@ const createSurfaceOverlayFixture = (
     texture: THREE.Texture;
     bounds: readonly [west: number, south: number, east: number, north: number];
     opacity: number;
+    previous?: {
+      texture: THREE.Texture;
+      bounds: readonly [number, number, number, number];
+      opacity?: number;
+    };
+    transition?: number;
   }>
 ) => {
   const host = createProgressiveHost();
@@ -49,6 +56,154 @@ const createSurfaceOverlayFixture = (
 };
 
 describe("shared three scene layer.ground", () => {
+  it("bounds projective camera data and avoids redundant repaint/uploads", () => {
+    const fixture = createSurfaceOverlayFixture([
+      {
+        id: "surface",
+        texture: new THREE.Texture(),
+        bounds: [7.14, 51.24, 7.16, 51.26],
+        opacity: 0,
+      },
+    ]);
+    const overlay = {
+      marks: Array.from({ length: 50 }, (_, index) => ({
+        sceneToImage: new THREE.Matrix4().makeTranslation(index, 0, 0),
+        color: new THREE.Color("#ffff00"),
+        width: 3 as CssPixels,
+        opacity: 0.85,
+        fillOpacity: index === 49 ? 1 : 0,
+        trailStartedAt: index,
+        labelRect: [0, 0, 1, 1] as const,
+      })),
+      labelAtlas: new THREE.Texture(),
+      trailColor: new THREE.Color("#00b8ff"),
+      trailDuration: 8,
+      opacity: 1,
+    };
+    fixture.host.layer.setMapStyleProjectiveOverlay!("photos", overlay);
+    fixture.host.render();
+    const shader = {
+      uniforms: {} as Record<string, { value: unknown }>,
+      vertexShader: "#include <common>\n#include <project_vertex>",
+      fragmentShader:
+        "#include <common>\n#include <map_fragment>\n#include <opaque_fragment>",
+    };
+    fixture.material.onBeforeCompile(shader as never, {} as never);
+    const texture = shader.uniforms.carmaProjectiveData
+      .value as THREE.DataTexture;
+    expect(shader.uniforms.carmaProjectiveCount.value).toBe(34);
+    expect(texture.image.width).toBe(11);
+    expect(texture.image.height).toBe(34);
+    expect(texture.image.data.byteLength).toBe(34 * 44 * 4);
+    const version = texture.version;
+    const repaints = fixture.host.map.triggerRepaint.mock.calls.length;
+    fixture.host.layer.setMapStyleProjectiveOverlay!("photos", overlay);
+    expect(texture.version).toBe(version);
+    expect(fixture.host.map.triggerRepaint).toHaveBeenCalledTimes(repaints);
+    const dispose = vi.spyOn(texture, "dispose");
+    fixture.host.layer.dispose();
+    expect(dispose).toHaveBeenCalledOnce();
+  });
+
+  it("changes only backdrop uniforms while keeping the screen image texture", () => {
+    const fixture = createSurfaceOverlayFixture([
+      {
+        id: "surface",
+        texture: new THREE.Texture(),
+        bounds: [7.14, 51.24, 7.16, 51.26],
+        opacity: 0,
+      },
+    ]);
+    const texture = new THREE.Texture();
+    const overlay = {
+      texture,
+      viewportToTexture: new THREE.Matrix3(),
+      opacity: 0.75,
+      backdropLook: { contrast: 0.5, brightness: 1.25, saturation: 0.5 },
+      backdropTint: [0, 0, 0, 0.13] as const,
+    };
+    fixture.host.layer.setMapStyleScreenOverlay!("preview", overlay);
+    fixture.host.render();
+    expect(
+      fixture.uniformValue<THREE.Vector3>("carmaScreenBackdropLook").toArray()
+    ).toEqual([0.5, 1.25, 0.5]);
+    expect(fixture.uniformValue<number>("carmaScreenBackdropOpacity")).toBe(
+      0.75
+    );
+    const version = texture.version;
+    const repaints = fixture.host.map.triggerRepaint.mock.calls.length;
+    fixture.host.layer.setMapStyleScreenOverlay!("preview", overlay);
+    expect(fixture.host.map.triggerRepaint).toHaveBeenCalledTimes(repaints);
+    fixture.host.layer.setMapStyleScreenOverlay!("preview", {
+      ...overlay,
+      backdropLook: { ...overlay.backdropLook, contrast: 0.7 },
+    });
+    expect(
+      fixture.uniformValue<THREE.Vector3>("carmaScreenBackdropLook").x
+    ).toBe(0.7);
+    expect(fixture.uniformValue<THREE.Texture>("carmaScreenTexture0")).toBe(
+      texture
+    );
+    expect(texture.version).toBe(version);
+    fixture.host.layer.setMapStyleScreenOverlay!("preview", null);
+    expect(fixture.uniformValue<number>("carmaScreenBackdropOpacity")).toBe(0);
+    fixture.host.layer.dispose();
+  });
+
+  it("projects frame edges and labels from photo UV above the screen image", () => {
+    const fixture = createSurfaceOverlayFixture([
+      {
+        id: "surface",
+        texture: new THREE.Texture(),
+        bounds: [7.14, 51.24, 7.16, 51.26],
+        opacity: 0,
+      },
+    ]);
+    fixture.host.layer.setMapStyleProjectiveOverlay!("photos", {
+      marks: [
+        {
+          sceneToImage: new THREE.Matrix4(),
+          color: new THREE.Color("yellow"),
+          width: 3 as CssPixels,
+          opacity: 1,
+          fillOpacity: 0.08,
+          labelRect: [0, 0, 1, 1],
+        },
+      ],
+      labelAtlas: new THREE.Texture(),
+      trailColor: new THREE.Color("cyan"),
+      trailDuration: 8,
+      opacity: 1,
+    });
+    fixture.host.render();
+    const shader = {
+      uniforms: {} as Record<string, { value: unknown }>,
+      vertexShader: "#include <common>\n#include <project_vertex>",
+      fragmentShader:
+        "#include <common>\n#include <map_fragment>\n#include <opaque_fragment>",
+    };
+    fixture.material.onBeforeCompile(shader as never, {} as never);
+    expect(shader.vertexShader).toContain(
+      "vCarmaReceiverPosition = carmaSurfacePosition.xyz"
+    );
+    expect(shader.fragmentShader).toContain(
+      "projection * vec4(vCarmaReceiverPosition,1.0)"
+    );
+    expect(shader.fragmentShader).toContain("fwidth(uv)");
+    expect(shader.fragmentShader).toContain("carmaProjectiveTime-style.z");
+    expect(shader.fragmentShader).toContain("labelUv*cell.zw");
+    expect(
+      shader.fragmentShader.indexOf("vec4 projectiveMarkings =")
+    ).toBeGreaterThan(
+      shader.fragmentShader.indexOf(
+        "outgoingLight = mix(outgoingLight,image.rgb,image.a)"
+      )
+    );
+    fixture.host.layer.setMapStyleProjectiveOverlay!("photos", null);
+    expect(shader.uniforms.carmaProjectiveCount.value).toBe(0);
+    fixture.host.layer.dispose();
+  });
+
   it.each([false, true, undefined])(
     "preserves DEM under building-only style receivers (%s)",
     (providesTerrain) => {
@@ -131,7 +286,7 @@ describe("shared three scene layer.ground", () => {
     expect(terrainDepthBranch).toContain("return true;");
     expect(terrainDepthBranch).not.toContain("fragmentDistance");
     expect(material.customProgramCacheKey()).toContain(
-      "carma-map-style-projection-v8"
+      "carma-map-style-projection-v13"
     );
     expect(material.defines?.CARMA_MAP_STYLE_OVERLAY).toBeUndefined();
   });
@@ -218,6 +373,103 @@ describe("shared three scene layer.ground", () => {
     );
     texture.dispose();
   });
+
+  it("fades a previous world marking independently while retaining the current texture", () => {
+    const texture = new THREE.Texture();
+    const previousTexture = new THREE.Texture();
+    const bounds = [7.14, 51.24, 7.16, 51.26] as const;
+    const previousBounds = [7.12, 51.22, 7.14, 51.24] as const;
+    const overlay = {
+      id: "finite-trail",
+      texture,
+      bounds,
+      opacity: 0.85,
+      previous: {
+        texture: previousTexture,
+        bounds: previousBounds,
+        opacity: 0.2,
+      },
+    };
+    const fixture = createSurfaceOverlayFixture([overlay]);
+    expect(fixture.uniformValue("carmaSurfaceTexture")).toBe(texture);
+    expect(fixture.uniformValue("carmaSurfacePreviousTexture")).toBe(
+      previousTexture
+    );
+    expect(fixture.uniformValue("carmaSurfaceTransition")).toBe(1);
+    expect(fixture.uniformValue("carmaSurfacePreviousOpacity")).toBe(0.2);
+    const currentProjection = fixture
+      .uniformValue<THREE.Matrix4>("carmaSurfaceSceneToTexture")
+      .clone();
+    const previousProjection = fixture
+      .uniformValue<THREE.Matrix4>("carmaSurfacePreviousSceneToTexture")
+      .clone();
+    expect(previousProjection.equals(currentProjection)).toBe(false);
+    const precedingRepaints = fixture.host.map.triggerRepaint.mock.calls.length;
+    fixture.host.layer.setMapStyleSurfaceOverlay!(overlay.id, {
+      ...overlay,
+      previous: { ...overlay.previous, opacity: 0.04 },
+    });
+    expect(fixture.host.map.triggerRepaint.mock.calls.length).toBe(
+      precedingRepaints
+    );
+    expect(fixture.uniformValue("carmaSurfacePreviousOpacity")).toBe(0.04);
+    expect(fixture.uniformValue("carmaSurfaceOpacity")).toBe(0.85);
+    expect(fixture.uniformValue("carmaSurfaceTexture")).toBe(texture);
+    expect(
+      fixture
+        .uniformValue<THREE.Matrix4>("carmaSurfaceSceneToTexture")
+        .equals(currentProjection)
+    ).toBe(true);
+    fixture.host.layer.setMapStyleSurfaceOverlay!(overlay.id, {
+      ...overlay,
+      previous: undefined,
+    });
+    expect(fixture.uniformValue("carmaSurfacePreviousTexture")).toBe(null);
+    expect(fixture.uniformValue("carmaSurfacePreviousOpacity")).toBe(-1);
+    expect(fixture.uniformValue("carmaSurfaceTexture")).toBe(texture);
+    fixture.host.layer.onRemove!(
+      fixture.host.map as never,
+      fixture.host.gl as never
+    );
+    texture.dispose();
+    previousTexture.dispose();
+  });
+
+  it.each([-0.5, 0, 0.5, 2, Number.NaN])(
+    "bounds explicit trail opacity %s and preserves legacy crossfades",
+    (opacity) => {
+      const texture = new THREE.Texture();
+      const previousTexture = new THREE.Texture();
+      const bounds = [7.14, 51.24, 7.16, 51.26] as const;
+      const fixture = createSurfaceOverlayFixture([
+        {
+          id: "trail-opacity",
+          texture,
+          bounds,
+          opacity: 1,
+          previous: { texture: previousTexture, bounds, opacity },
+        },
+      ]);
+      expect(fixture.uniformValue("carmaSurfacePreviousOpacity")).toBe(
+        Number.isFinite(opacity) ? Math.max(0, Math.min(1, opacity)) : -1
+      );
+      fixture.host.layer.setMapStyleSurfaceOverlay!("trail-opacity", {
+        texture,
+        bounds,
+        opacity: 1,
+        previous: { texture: previousTexture, bounds },
+        transition: 0.5,
+      });
+      expect(fixture.uniformValue("carmaSurfacePreviousOpacity")).toBe(-1);
+      expect(fixture.uniformValue("carmaSurfaceTransition")).toBe(0.5);
+      fixture.host.layer.onRemove!(
+        fixture.host.map as never,
+        fixture.host.gl as never
+      );
+      texture.dispose();
+      previousTexture.dispose();
+    }
+  );
 
   it("keeps surface opacity out of DEM occlusion and restores the previous owner", () => {
     const firstTexture = new THREE.Texture();

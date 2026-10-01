@@ -1,4 +1,5 @@
 import type * as THREE from "three";
+import type { CssPixels } from "@carma-units";
 import type { CustomLayerInterface, Map as MaplibreMap } from "maplibre-gl";
 import type { SceneAccumulationOptions } from "@carma-mapping/engines/three/primitives/rendering";
 import type { TileCameraSnapshot, TileCameraView } from "./tile-camera-demand";
@@ -40,6 +41,31 @@ export type SharedThreeSceneLocalFrame = Readonly<{
   /** Matrix of the local-frame group: reference placement to current one. */
   referenceToCurrent: THREE.Matrix4;
   currentToReference: THREE.Matrix4;
+}>;
+
+/** Camera-calibrated markings on existing visible receivers, without extra geometry. */
+export type MapStyleProjectiveOverlay = Readonly<{
+  marks: readonly Readonly<{
+    /** World scene position to homogeneous photo UV; positive w is camera depth. */
+    sceneToImage: THREE.Matrix4;
+    /** Mercator terrain receivers can use their own scene fit alongside ECEF tiles. */
+    sceneToImageTerrain?: THREE.Matrix4;
+    color: THREE.Color;
+    /** CSS pixels; antialiasing uses the receiver's physical fragment derivatives. */
+    width: CssPixels;
+    opacity: number;
+    fillOpacity?: number;
+    /** Hide the image-up caret while retaining the projected border. Defaults to true. */
+    showUpMarker?: boolean;
+    /** performance.now()/1000 at release; omit for an immediate current highlight. */
+    trailStartedAt?: number;
+    /** Label atlas cell [x,y,width,height] in bottom-left normalized UVs. */
+    labelRect?: readonly [number, number, number, number];
+  }>[];
+  labelAtlas?: THREE.Texture;
+  trailColor: THREE.Color;
+  trailDuration: number;
+  opacity: number;
 }>;
 
 export interface SharedThreeSceneFrame {
@@ -335,10 +361,20 @@ export interface SharedThreeSceneLayer extends CustomLayerInterface {
   setAccumulationController: (
     controller: SharedSceneAccumulationController | null
   ) => void;
+  /** Runs with the final frame camera/viewport before capture and scene drawing. */
+  addBeforeRenderCallback?: (
+    callback: (frame: SharedThreeSceneFrame) => void
+  ) => () => void;
   /** Select the optional MapLibre/Three map-style presentation. */
   setMapStylePresentationEnabled?: (enabled: boolean) => void;
   /** Enable capture and projection of the preceding MapLibre style pass. */
   setMapStyleProjectionVisible?: (visible: boolean) => void;
+  /** Project camera image borders and labels onto live mesh/terrain receivers.
+   * Bounded to two current highlights and 32 fading trails; caller owns labelAtlas. */
+  setMapStyleProjectiveOverlay?: (
+    id: string,
+    overlay: MapStyleProjectiveOverlay | null
+  ) => void;
   /** A georeferenced marking painted on the visible receivers, including roofs.
    * Caller owns the texture; remove its ID before disposing it. */
   setMapStyleSurfaceOverlay?: (
@@ -361,6 +397,10 @@ export interface SharedThreeSceneLayer extends CustomLayerInterface {
           east: number,
           north: number
         ];
+        /** Independent trail opacity under the unchanged current marking.
+         * The caller schedules repaints for opacity-only trail updates.
+         * Omit to retain ordinary previous/current crossfading. */
+        opacity?: number;
       };
       transition?: number;
     } | null
@@ -374,6 +414,14 @@ export interface SharedThreeSceneLayer extends CustomLayerInterface {
       viewportToTexture: THREE.Matrix3;
       opacity: number;
       priority?: number;
+      /** CSS filter factors applied only to the mesh outside this image. */
+      backdropLook?: {
+        contrast: number;
+        brightness: number;
+        saturation: number;
+      };
+      /** Normalized sRGB tint and alpha, after the backdrop filters. */
+      backdropTint?: readonly [number, number, number, number];
     } | null
   ) => void;
   /** Diagnostics: what the map-style projection did in the last frame. */
@@ -419,6 +467,21 @@ export type MapStyleProjectionUniforms = Readonly<{
       opacity: { value: number };
     }
   ];
+  screenBackdrop?: {
+    look: { value: THREE.Vector3 };
+    tint: { value: THREE.Vector4 };
+    opacity: { value: number };
+  };
+  projectiveOverlay?: {
+    data: { value: THREE.DataTexture | null };
+    labelAtlas: { value: THREE.Texture | null };
+    count: { value: number };
+    time: { value: number };
+    trailColor: { value: THREE.Color };
+    trailDuration: { value: number };
+    opacity: { value: number };
+    pixelRatio: { value: number };
+  };
   /** Optional world-aligned surface marking; independent of DEM label occlusion. */
   surfaceOverlay?: {
     texture: { value: THREE.Texture | null };
@@ -427,6 +490,7 @@ export type MapStyleProjectionUniforms = Readonly<{
     previousTexture: { value: THREE.Texture | null };
     previousSceneToTexture: { value: THREE.Matrix4 };
     previousEnabled: { value: number };
+    previousOpacity: { value: number };
     transition: { value: number };
   };
 }>;

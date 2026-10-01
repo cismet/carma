@@ -95,8 +95,10 @@ export const createMapStyleFramebufferCache = (
     // source-dirty flag is already cleared before custom layers render.
     // Preserve live highlights rather than caching state-dependent paint.
     if (
-      style.layers.some((layer) =>
-        JSON.stringify(layer).includes('"feature-state"')
+      style.layers.some(
+        (layer) =>
+          layer.layout?.visibility !== "none" &&
+          JSON.stringify(layer).includes('"feature-state"')
       )
     )
       return false;

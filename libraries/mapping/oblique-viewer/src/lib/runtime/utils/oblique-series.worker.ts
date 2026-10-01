@@ -1,9 +1,11 @@
 /// <reference lib="webworker" />
-import { loadObliqueSeriesData } from "./load-oblique-series";
+import { loadCachedObliqueSeriesData } from "./oblique-series-cache";
 import type { ObliqueDataset } from "../../core/types";
 self.onmessage = async (event: MessageEvent<{ dataset: ObliqueDataset }>) => {
   try {
-    self.postMessage({ data: await loadObliqueSeriesData(event.data.dataset) });
+    self.postMessage({
+      data: await loadCachedObliqueSeriesData(event.data.dataset),
+    });
   } catch (error) {
     self.postMessage({
       error:
