@@ -307,6 +307,10 @@ export const App = () => {
     openGroup?.scenes ?? liveGroup?.scenes ?? groups.at(0)?.scenes ?? NO_SCENES;
   const activeIndex = walk.findIndex(({ id }) => id === activeSceneId);
   const activeScene = activeIndex >= 0 ? walk[activeIndex] : undefined;
+  // what the model shows while another story is open
+  const elsewhereScene = activeScene
+    ? undefined
+    : liveGroup?.scenes.find(({ id }) => id === activeSceneId);
   const step = useCallback(
     (delta: number) => {
       const nextIndex =
@@ -542,6 +546,23 @@ export const App = () => {
                   {activeScene.text}
                 </p>
               )}
+              {/* the live scene's controls stay in its story, one tap away:
+                  here they would push this story's scenes off the screen */}
+              {elsewhereScene && liveGroup && (
+                <button
+                  type="button"
+                  onClick={() => setOpenStoryId(liveGroup.story.id)}
+                  className="flex min-h-[44px] items-center gap-3 rounded-xl border border-neutral-800 bg-neutral-900 px-3 text-left text-sm text-neutral-300 active:bg-neutral-800"
+                >
+                  <span className="shrink-0 text-xs font-semibold uppercase tracking-[0.2em] text-amber-400">
+                    Auf dem Modell
+                  </span>
+                  <span className="min-w-0 flex-1 truncate">
+                    {elsewhereScene.title}
+                  </span>
+                  <span aria-hidden="true">›</span>
+                </button>
+              )}
             </div>
 
             {/* one scene: its tile below does all the stepping there is */}
@@ -604,7 +625,7 @@ export const App = () => {
                 onToggle={(ids) => display.toggleHighlight(activeScene.id, ids)}
               />
             )}
-            {display.series && display.seriesClock && (
+            {activeScene && display.series && display.seriesClock && (
               <SeriesControl
                 series={display.series}
                 clock={display.seriesClock}
@@ -614,7 +635,7 @@ export const App = () => {
                 onSeek={display.seekSeries}
               />
             )}
-            {display.shadow && display.shadowClock && (
+            {activeScene && display.shadow && display.shadowClock && (
               <ShadowCard
                 shadow={display.shadow}
                 clock={display.shadowClock}
@@ -624,7 +645,7 @@ export const App = () => {
                 onCycle={display.setShadowCycle}
               />
             )}
-            {display.traffic && display.trafficControl && (
+            {activeScene && display.traffic && display.trafficControl && (
               <TrafficCard
                 traffic={display.traffic}
                 control={display.trafficControl}
