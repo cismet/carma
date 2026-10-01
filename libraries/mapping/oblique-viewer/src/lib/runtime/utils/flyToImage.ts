@@ -5,7 +5,12 @@ import {
   type PaddingOptions,
 } from "maplibre-gl";
 import { Matrix3, Matrix4, Vector3, Vector4 } from "three";
-import { degToRadNumeric, radToDegNumeric, type Degrees } from "@carma-units";
+import {
+  degToRadNumeric,
+  radToDegNumeric,
+  type Degrees,
+  type Radians,
+} from "@carma-units";
 import {
   readLongerEdgeFovFromIntrinsics,
   readLongerEdgeFovFromMetersPerCssPixel,
@@ -278,7 +283,10 @@ export const settleToPitch = (
   const startResolution = Number(
     readMetersPerCssPixel({
       rangeM: startDepth,
-      fovRad: readLongerEdgeFovFromIntrinsics({ fov: startFovRad }, viewport)!,
+      fovRad: readLongerEdgeFovFromIntrinsics(
+        { fov: startFovRad as Radians },
+        viewport
+      )!,
       ...viewport,
     })
   );
@@ -432,7 +440,7 @@ export const settleToPitch = (
         readMetersPerCssPixel({
           rangeM: readDepth(finalFrame),
           fovRad: readLongerEdgeFovFromIntrinsics(
-            { fov: degToRadNumeric(finalFrame.fov) },
+            { fov: degToRadNumeric(finalFrame.fov) as Radians },
             viewport
           )!,
           ...viewport,

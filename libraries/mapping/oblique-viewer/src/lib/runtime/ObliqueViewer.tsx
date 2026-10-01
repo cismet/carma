@@ -382,7 +382,7 @@ export const ObliqueViewer = ({
       try {
         const inverse = new Matrix4()
           .fromArray(
-            libreMap.transform.getProjectionDataForCustomLayer().mainMatrix
+            libreMap.transform.getProjectionDataForCustomLayer(true).mainMatrix
           )
           .invert();
         const toScene = (point: Vector3) => {

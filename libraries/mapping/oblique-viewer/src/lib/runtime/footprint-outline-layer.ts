@@ -164,7 +164,7 @@ export const createFootprintOutlineLayer = (
   const renderedFootprints = (point: { x: number; y: number }) =>
     !destroyed && !locked && style.opacity > 0 && !!map.getLayer(hitId)
       ? map
-          .queryRenderedFeatures(point, { layers: [hitId] })
+          .queryRenderedFeatures([point.x, point.y], { layers: [hitId] })
           .filter((feature) => feature.properties?.revision === revision)
       : [];
   const updateSurface = () => {
