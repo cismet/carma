@@ -1,6 +1,6 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 import type { RootState } from "../index";
-import { getIsReadOnly } from "./auth";
+import { canUseEditMode } from "./auth";
 import { isFormDirtyManaged } from "../../components/ui/featuresForm/formDiffUtils";
 import type { DokumentItem } from "../../components/ui/DocumentPreview";
 
@@ -943,10 +943,10 @@ export const getAllDraftFeatures = (state: RootState) => {
 };
 
 // Get count of drafts that have a stored feature
-// Read-only ("Gast") users can never enter edit mode, regardless of the stored
-// globalEditMode flag — this keeps every form/AA/geometry consumer read-only at once.
+// Users without any edit right (incl. "Gast") can never enter edit mode,
+// regardless of the stored globalEditMode flag. Each form still checks its own right.
 export const getGlobalEditMode = (state: RootState): boolean =>
-  (state.featuresForms?.globalEditMode ?? false) && !getIsReadOnly(state);
+  (state.featuresForms?.globalEditMode ?? false) && canUseEditMode(state);
 
 export const getDraftFeaturesCount = (state: RootState) =>
   Object.values(state.featuresForms?.drafts ?? {}).filter(

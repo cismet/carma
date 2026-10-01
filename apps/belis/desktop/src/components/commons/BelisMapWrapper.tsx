@@ -80,7 +80,7 @@ import {
   fetchArbeitsauftraegeByTeam,
   fetchArbeitsauftraegeByIds,
 } from "../../helper/apiMethods";
-import { getJWT, getIsReadOnly } from "../../store/slices/auth";
+import { getJWT, canCreateBasic, canEditBasic } from "../../store/slices/auth";
 import { flattenGqlRecord } from "../../helper/flattenGqlRecord";
 import {
   setFeatures as setAAFeatures,
@@ -686,7 +686,10 @@ const BelisMapLibWrapper = ({
   const aaLoading = useSelector(getAALoading);
   const aaGraphqlLoading = useSelector(getGraphqlLoading);
   const globalEditMode = useSelector(getGlobalEditMode);
-  const isReadOnly = useSelector(getIsReadOnly);
+  // Drafts, measurements and draw tools serve moving and creating Fachobjekte.
+  const mayCreateBasic = useSelector(canCreateBasic) as boolean;
+  const mayEditBasic = useSelector(canEditBasic) as boolean;
+  const mayChangeFachobjekte = mayCreateBasic || mayEditBasic;
 
   const selectedTeamId = useSelector(getSelectedTeamId);
   const aaFeatures = useSelector(getAAFeatures);
@@ -2117,11 +2120,16 @@ const BelisMapLibWrapper = ({
   useEffect(() => {
     if (
       sidebarMode === "drafts" &&
-      (draftSidebarFeatures.length === 0 || isReadOnly)
+      (draftSidebarFeatures.length === 0 || !mayChangeFachobjekte)
     ) {
       setSidebarMode(hasHighlights ? "highlights" : "fachobjekte");
     }
-  }, [sidebarMode, draftSidebarFeatures.length, isReadOnly, hasHighlights]);
+  }, [
+    sidebarMode,
+    draftSidebarFeatures.length,
+    mayChangeFachobjekte,
+    hasHighlights,
+  ]);
 
   // Drop the captured parent selection (and the highlighted Entwürfe row) once
   // the active selection is no longer a creation draft — covers draft save
@@ -3903,7 +3911,9 @@ const BelisMapLibWrapper = ({
   useEffect(() => {
     if (!map || !mapReady) return;
     const desired =
-      isReadOnly || sidebarVariant === "arbeitsauftraege" ? "none" : "visible";
+      !mayChangeFachobjekte || sidebarVariant === "arbeitsauftraege"
+        ? "none"
+        : "visible";
     const apply = () => {
       for (const layer of map.getStyle()?.layers ?? []) {
         if (!isMeasurementLayerId(layer.id)) continue;
@@ -3925,7 +3935,7 @@ const BelisMapLibWrapper = ({
     return () => {
       map.off("styledata", apply);
     };
-  }, [map, mapReady, sidebarVariant, isReadOnly]);
+  }, [map, mapReady, sidebarVariant, mayChangeFachobjekte]);
 
   // --- Mini-map: push every open creation draft AND the server-side brandnew
   // FC into the brandnew GeoJSON source so they render together with the
@@ -5366,7 +5376,7 @@ const BelisMapLibWrapper = ({
             sidebarMode === "highlights" && highlightExpertSort.length > 0
           }
           hasHighlights={hasHighlights}
-          hasDrafts={!isReadOnly && draftFeaturesCount > 0}
+          hasDrafts={mayChangeFachobjekte && draftFeaturesCount > 0}
           fachobjekteCount={fachobjekteCount}
           highlightCount={highlightsForSidebar?.length ?? undefined}
           draftsCount={draftFeaturesCount}
@@ -5377,11 +5387,11 @@ const BelisMapLibWrapper = ({
           brandnewSource={brandnewSource}
           unfilteredHighlights={unfilteredHighlights}
           setUnfilteredHighlights={setUnfilteredHighlights}
-          measurements={isReadOnly ? [] : measurementsForSidebar}
+          measurements={!mayChangeFachobjekte ? [] : measurementsForSidebar}
           selectedMeasurementId={selectedMeasurementId}
           onMeasurementSelect={(id) => dispatch(selectMeasurement(id))}
           onMeasurementsDeleteAll={
-            isReadOnly
+            !mayChangeFachobjekte
               ? undefined
               : () => {
                   // terra-draw owns its internal store; clearing it fires
@@ -5506,7 +5516,7 @@ const BelisMapLibWrapper = ({
                 // fachobjekt selection logic.
                 selectionEnabled={drawMode === "none"}
                 extraControls={
-                  isReadOnly ? undefined : (
+                  !mayChangeFachobjekte ? undefined : (
                     <DrawModeControls
                       active={drawMode}
                       onSelect={(mode) =>

@@ -3,7 +3,7 @@ import { Badge, Checkbox, Modal, Tooltip, message } from "antd";
 import { LoadingOutlined, SnippetsOutlined } from "@ant-design/icons";
 import { useDispatch, useSelector, useStore } from "react-redux";
 import type { RootState } from "../../store";
-import { getJWT, getIsReadOnly } from "../../store/slices/auth";
+import { getJWT, canEditBasic } from "../../store/slices/auth";
 import {
   getAllRepeatableChanges,
   type RepeatableChangeSet,
@@ -38,7 +38,7 @@ const PasteChangesToHighlightsButton = () => {
   const dispatch = useDispatch();
   const store = useStore<RootState>();
   const jwt = useSelector(getJWT) as string | null;
-  const isReadOnly = useSelector(getIsReadOnly) as boolean;
+  const mayEdit = useSelector(canEditBasic) as boolean;
   const repeatableChanges = useSelector(getAllRepeatableChanges);
   const drafts = useSelector(getAllDrafts);
   const { activeHighlights, config } = useMapPage();
@@ -92,7 +92,7 @@ const PasteChangesToHighlightsButton = () => {
   ]);
   const [pasting, setPasting] = useState(false);
 
-  if (isReadOnly || !jwt || jobs.length === 0) return null;
+  if (!mayEdit || !jwt || jobs.length === 0) return null;
 
   const totalFieldCount = jobs.reduce((sum, job) => sum + job.fieldCount, 0);
   const singleJob = jobs.length === 1 ? jobs[0] : null;

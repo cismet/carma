@@ -11,7 +11,7 @@ import LeitungFormFields from "./LeitungFormFields";
 import SchaltstelleFormFields from "./SchaltstelleFormFields";
 import MauerlascheFormFields from "./MauerlascheFormFields";
 import type { DokumentItem } from "../DocumentPreview";
-import { getJWT } from "../../../store/slices/auth";
+import { getJWT, canEditAA } from "../../../store/slices/auth";
 
 interface ArbeitsprotokollFormProps {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -54,6 +54,7 @@ const ArbeitsprotokollForm = ({
   customDraftsCount,
   onSaveAll,
 }: ArbeitsprotokollFormProps) => {
+  const mayEditAA = useSelector(canEditAA) as boolean;
   const jwt = useSelector(getJWT);
 
   const fachobjekt = useMemo(() => getFachobjektOfProtocol(data), [data]);
@@ -213,7 +214,7 @@ const ArbeitsprotokollForm = ({
       <ArbeitsprotokollFormFields
         data={data}
         fachobjektType={fachobjekt?.type}
-        readOnly={readOnly}
+        readOnly={readOnly || !mayEditAA}
         onFormInstance={onFormInstance}
         draftValues={draftValues}
         onValuesChange={onValuesChange}

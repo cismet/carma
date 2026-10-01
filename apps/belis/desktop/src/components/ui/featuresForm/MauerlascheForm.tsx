@@ -15,6 +15,7 @@ import MauerlascheFormFields from "./MauerlascheFormFields";
 import toTitleCase from "../../../helper/toTitleCase";
 import { updateDataByClassName } from "../../../helper/apiMethods";
 import { uploadDraftFiles } from "../../../helper/uploadDraftFiles";
+import { useFeatureRights } from "./FeatureRightsContext";
 
 const transformDatesForBackend = (
   values: Record<string, unknown>
@@ -77,6 +78,7 @@ const MauerlascheForm = ({
   removedDocumentKeys: removedDocumentKeysProp,
   onRemovedDocumentKeysChange,
 }: MauerlascheFormProps) => {
+  const { fieldsReadOnly } = useFeatureRights();
   const removedDocumentKeys = removedDocumentKeysProp ?? new Set<string>();
   const formRef = useRef<FormInstance | null>(null);
   const [saving, setSaving] = useState(false);
@@ -263,7 +265,7 @@ const MauerlascheForm = ({
     >
       <MauerlascheFormFields
         mauerlasche={ml}
-        readOnly={readOnly}
+        readOnly={readOnly || fieldsReadOnly}
         isCreation={isCreation}
         featureId={featureId}
         geometrySelector={geometrySelector}

@@ -13,6 +13,7 @@ import { extractListItem } from "../BelisSidebar";
 import LeitungFormFields from "./LeitungFormFields";
 import { updateDataByClassName } from "../../../helper/apiMethods";
 import { uploadDraftFiles } from "../../../helper/uploadDraftFiles";
+import { useFeatureRights } from "./FeatureRightsContext";
 
 interface LeitungFormProps {
   data: Record<string, unknown> | null;
@@ -61,6 +62,7 @@ const LeitungForm = ({
   removedDocumentKeys: removedDocumentKeysProp,
   onRemovedDocumentKeysChange,
 }: LeitungFormProps) => {
+  const { fieldsReadOnly } = useFeatureRights();
   const removedDocumentKeys = removedDocumentKeysProp ?? new Set<string>();
   const formRef = useRef<FormInstance | null>(null);
   const [saving, setSaving] = useState(false);
@@ -245,7 +247,7 @@ const LeitungForm = ({
     >
       <LeitungFormFields
         leitung={lt}
-        readOnly={readOnly}
+        readOnly={readOnly || fieldsReadOnly}
         featureId={featureId}
         geometrySelector={geometrySelector}
         onFormInstance={setFormInstance}

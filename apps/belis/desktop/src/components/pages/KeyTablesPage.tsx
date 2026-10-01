@@ -2,7 +2,7 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import { fetchAllKeyTables, keyTableFetchers } from "../../helper/apiMethods";
 import { AppDispatch } from "../../store";
 import { useDispatch, useSelector } from "react-redux";
-import { getJWT, getIsReadOnly } from "../../store/slices/auth";
+import { getJWT, canEditKeytables } from "../../store/slices/auth";
 import { useSyncOptional } from "@carma-providers/syncing";
 import {
   setKeyTablesData,
@@ -32,7 +32,7 @@ interface SelectedItem {
 const KeyTablesPage = () => {
   const dispatch: AppDispatch = useDispatch();
   const storedJWT = useSelector(getJWT);
-  const isReadOnly = useSelector(getIsReadOnly);
+  const isReadOnly = !useSelector(canEditKeytables);
   const data = useSelector(getKeyTablesData);
   const errors = useSelector(getKeyTablesErrors);
   const loading = useSelector(getKeyTablesLoading);
