@@ -80,6 +80,7 @@ describe("shadow scene corridor and building bridge", () => {
     let mapCenter = { lng: 7.15, lat: 51.256 };
     const map = {
       getCenter: vi.fn(() => mapCenter),
+      getZoom: vi.fn(() => 16),
       getCanvas: vi.fn(() => ({ clientWidth: 800, clientHeight: 600 })),
       unproject: vi.fn(([x, y]: [number, number]) => ({
         lng: mapCenter.lng + (x / 800 - 0.5) * 0.02,
@@ -401,13 +402,24 @@ describe("shadow scene corridor and building bridge", () => {
   });
 
   it("restyles registered building tiles only while shadow mode is active", () => {
-    const setShadowSimulationStyle = vi.fn();
+    const mesh = new THREE.Mesh(
+      new THREE.BoxGeometry(1, 1, 1),
+      new THREE.MeshBasicMaterial()
+    );
+    scene.add(mesh);
+    const setShadowSimulationStyle = vi.fn((style) => {
+      // A preloaded unlit tile changes material when shading is enabled.
+      mesh.material = style
+        ? new THREE.MeshStandardMaterial()
+        : new THREE.MeshBasicMaterial();
+    });
     const setErrorTarget = vi.fn();
     const setErrorTargetOverride = vi.fn();
     const setCacheBudget = vi.fn();
     vi.mocked(getSharedThreeSceneRuntimes).mockReturnValue([
       {
         providesTerrain: true,
+        root: mesh,
         setErrorTarget,
         setErrorTargetOverride,
         setCacheBudget,
@@ -432,6 +444,9 @@ describe("shadow scene corridor and building bridge", () => {
       textureSaturation: 1,
       textureColorCorrection: true,
     });
+    expect(mesh.material.customProgramCacheKey()).toContain(
+      "carma-receiver-plane-pcf-v3|mesh"
+    );
     // Auto leaves the tileset on its own target: no override at build time.
     expect(setErrorTarget).not.toHaveBeenCalled();
     expect(setErrorTargetOverride).toHaveBeenLastCalledWith(null);

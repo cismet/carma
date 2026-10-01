@@ -1790,6 +1790,7 @@ export const buildShadowSimulationScene = (
   syncGenericBridges();
   syncMeshLabelStyle();
 
+  const preparedShadowRuntimes = new WeakSet<SharedThreeSceneRuntime>();
   const handleSharedSceneContentChanged = () => {
     if (disposed) return;
     if (contentChangeTimer) {
@@ -1818,6 +1819,13 @@ export const buildShadowSimulationScene = (
         }
       }
       runtime.setShadowSimulationStyle?.(latestBuildingAppearance);
+      if (!preparedShadowRuntimes.has(runtime)) {
+        // Enabling shadows replaces preloaded unlit materials. Prepare the
+        // replacements before their first draw, without waiting for an arrival.
+        // Subsequent arrivals use their published subtree below.
+        makeSceneMeshesShadeable(runtime.root, sharedSceneProvidesTerrain());
+        preparedShadowRuntimes.add(runtime);
+      }
     }
     // New terrain providers receive the current shadow-selection envelope,
     // while existing ones keep their stationary-view signature. Refitting the
