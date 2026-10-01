@@ -35,12 +35,10 @@ import { isAvailable } from "@carma-commons/utils";
 import { resolveFeatureFlags } from "@carma-providers/feature-flag";
 import { obliqueFachzwilling } from "../constants/fachzwillinge/oblique";
 import { resolveObliqueViewerConfig } from "./oblique.config";
+import { getFeatureFlagConfig } from "./featureFlags";
 
 const prBase = "/carma-pr-deployments/822/geoportal/";
-const flagConfig = {
-  featureFlagObliqueViewerAddon: { alias: "oblique", default: false },
-  featureFlagLibreMap: { alias: "ng", default: false },
-};
+const flagConfig = getFeatureFlagConfig("pr");
 
 const viewerEntry = obliqueFachzwilling.addons?.find(
   (entry) =>
@@ -91,8 +89,35 @@ describe("oblique deployment route", () => {
     ).toBe(false);
   });
 
+  it("requires an explicit mapstyle3d opt-in independently of the viewer", () => {
+    const style = obliqueFachzwilling.addons?.find(
+      (entry) =>
+        typeof entry !== "string" &&
+        "addon" in entry &&
+        entry.addon === "mapStyle3d"
+    );
+    if (!style || typeof style === "string")
+      throw new Error("Missing style addon");
+    expect(flagConfig.featureFlagMapStyle3d).toEqual({
+      alias: "mapstyle3d",
+      default: false,
+    });
+    expect(
+      isAvailable(style.availability, {
+        deployment: "pr",
+        featureFlags: resolveFlags("oblique"),
+      })
+    ).toBe(false);
+    expect(
+      isAvailable(style.availability, {
+        deployment: "pr",
+        featureFlags: resolveFlags("oblique.mapstyle3d"),
+      })
+    ).toBe(true);
+  });
+
   it("also accepts the established dot separator", () => {
-    expect(resolveFlags("oblique.ng")).toEqual({
+    expect(resolveFlags("oblique.ng")).toMatchObject({
       featureFlagObliqueViewerAddon: true,
       featureFlagLibreMap: true,
     });

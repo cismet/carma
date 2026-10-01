@@ -13,6 +13,8 @@ import {
   faRotateRight,
   faXmark,
   faPlane,
+  faImages,
+  faTriangleExclamation,
 } from "@fortawesome/free-solid-svg-icons";
 import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 import { Select, Slider, Tooltip } from "antd";
@@ -198,6 +200,7 @@ export const ObliquePanel = () => {
     enabledSeriesIds,
     selectedSourceImageId,
     selectedSeriesId,
+    selectedImageBearingDeg,
     setEnabledSeriesIds,
     previewVisible,
     isBusy,
@@ -327,13 +330,6 @@ export const ObliquePanel = () => {
         </div>
 
         <div className="ml-auto flex shrink-0 items-center gap-1">
-          <RibbonButton
-            label={previewVisible ? strings.closePreview : strings.flyToImage}
-            icon={previewVisible ? faXmark : faPlane}
-            disabled={held && !previewVisible}
-            onClick={() => sendRequest({ type: "flyToImage" })}
-          />
-
           <IconButton
             label={expanded ? strings.collapse : strings.expand}
             icon={expanded ? faChevronUp : faChevronDown}
@@ -343,12 +339,6 @@ export const ObliquePanel = () => {
       </div>
 
       <div className="mt-1 flex min-w-0 items-center gap-2">
-        <label
-          htmlFor="oblique-series-select"
-          className="shrink-0 text-xs text-gray-500"
-        >
-          Bildserien
-        </label>
         <Select
           id="oblique-series-select"
           aria-label="Bildserien"
@@ -359,51 +349,89 @@ export const ObliquePanel = () => {
           showSearch={false}
           maxTagCount="responsive"
           className="min-w-0 flex-1"
-          placeholder="Bildserien auswählen"
+          placeholder="Bildserien"
           value={
             enabledSeriesIds ??
             series.filter((entry) => entry.enabled).map((entry) => entry.id)
           }
-          options={series.map((entry) => ({
-            value: entry.id,
-            label:
-              entry.label +
-              (entry.enabled && entry.isLoading
-                ? " · lädt …"
-                : entry.enabled && !entry.error
-                ? ` · ${entry.imageCount} Bilder`
-                : ""),
-          }))}
+          options={series.map((entry) => {
+            const warning =
+              entry.error ??
+              (entry.id === selectedSeriesId &&
+              !series.some(
+                (candidate) =>
+                  candidate.error && error?.endsWith(candidate.error)
+              )
+                ? error
+                : null);
+            return {
+              value: entry.id,
+              label: (
+                <span className="inline-flex items-baseline gap-1.5">
+                  <span>{entry.label}</span>
+                  {entry.enabled && warning && (
+                    <Tooltip
+                      title={`${entry.label}: ${warning}`}
+                      trigger={["hover", "focus", "click"]}
+                    >
+                      <button
+                        type="button"
+                        className="border-0 bg-transparent p-0 text-xs text-amber-600"
+                        aria-label={`${entry.label}: ${warning}`}
+                        onMouseDown={(event) => event.stopPropagation()}
+                        onClick={(event) => event.stopPropagation()}
+                      >
+                        <FontAwesomeIcon icon={faTriangleExclamation} />
+                      </button>
+                    </Tooltip>
+                  )}
+                  {entry.enabled && entry.isLoading ? (
+                    <span className="text-xs">lädt …</span>
+                  ) : entry.enabled && !entry.error ? (
+                    <span
+                      className="inline-flex items-center gap-1 text-xs tabular-nums"
+                      aria-label={`${entry.imageCount.toLocaleString(
+                        "de-DE"
+                      )} Bilder`}
+                    >
+                      <FontAwesomeIcon icon={faImages} />
+                      {entry.imageCount.toLocaleString("de-DE")}
+                    </span>
+                  ) : null}
+                </span>
+              ),
+            };
+          })}
           onChange={setEnabledSeriesIds}
         />
       </div>
-      {series
-        .filter((entry) => entry.enabled && entry.error)
-        .map((entry) => (
-          <div
-            key={entry.id}
-            className="mt-1 text-xs text-red-700"
-            role="status"
-          >
-            {entry.label}: {entry.error}
-          </div>
-        ))}
-      <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-gray-500">
-        <span
-          className="min-w-0 flex-1 truncate"
-          role="status"
-          aria-live="polite"
-          title={status}
-        >
-          {status}
-        </span>
+      <span className="sr-only" role="status" aria-live="polite">
+        {status}
+      </span>
+      <div className="mt-1 flex flex-wrap items-center gap-1 text-xs text-gray-500">
+        <RibbonButton
+          label={previewVisible ? strings.closePreview : strings.flyToImage}
+          icon={previewVisible ? faXmark : faPlane}
+          disabled={held && !previewVisible}
+          onClick={() => sendRequest({ type: "flyToImage" })}
+        />
+        {ready && selectedImageBearingDeg !== null && (
+          <span className="shrink-0 tabular-nums" title="Bildrichtung">
+            {Math.round(selectedImageBearingDeg)}°
+          </span>
+        )}
+        {ready && selectedSourceImageId && (
+          <span className="min-w-0 truncate" title={selectedSourceImageId}>
+            {selectedSourceImageId}
+          </span>
+        )}
         {acquisitionDate && acquisitionLabel && (
           <time
             dateTime={acquisitionDate}
             className="shrink-0 whitespace-nowrap"
             title={hasMonth ? "Aufnahmemonat" : "Aufnahmejahr"}
           >
-            Aufnahme: {acquisitionLabel}
+            {acquisitionLabel}
           </time>
         )}
         <div className="ml-auto flex shrink-0 items-center">

@@ -251,11 +251,11 @@ function App({
   // `cache=forced`, read once like the map reads it when it is created
   const httpCacheForced = useMemo(() => isHttpCacheForced(), []);
   const mergedAddons = useMemo(() => {
-    const all = withDefaultAddons(routeAddons);
+    const all = withDefaultAddons(routeAddons, routePath);
     return httpCacheForced
       ? withTimeSliderFrameCache(withFlowFieldRasterCache(all))
       : all;
-  }, [routeAddons, httpCacheForced]);
+  }, [routeAddons, routePath, httpCacheForced]);
 
   const { initialMapFramework } = geoportalInitialHashState;
 

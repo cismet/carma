@@ -13,7 +13,7 @@ vi.mock("antd", () => ({
     ...props
   }: {
     value: string[];
-    options: { value: string; label: string }[];
+    options: { value: string; label: ReactNode }[];
     onChange: (ids: string[]) => void;
     "aria-label": string;
   }) =>
@@ -116,6 +116,7 @@ const Harness = ({
     isAllDataReady: !failure2026,
     selectedImageId: "wuppertal-2024::001_001_170003373",
     selectedSourceImageId: "001_001_170003373",
+    selectedImageBearingDeg: 324 as ObliqueViewerActions["selectedImageBearingDeg"],
     selectedSeriesId: series[0].id,
     enabledSeriesIds,
     series: series.map((entry) => ({
@@ -179,7 +180,9 @@ describe("oblique series controls", () => {
 
   it("reports a failed 2026 series while a selected 2024 image remains usable", () => {
     render(createElement(Harness, { failure2026: true }));
-    expect(screen.getByText(/Metadaten 2026 fehlen/)).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: /Metadaten 2026 fehlen/ })
+    ).toBeTruthy();
     expect(
       (
         screen.getByRole("button", {
@@ -240,6 +243,7 @@ describe("compact image actions and acquisition precision", () => {
     const url = "https://images.example/2026/RI_29_3398.tif";
     const open = vi.spyOn(window, "open").mockReturnValue(null);
     render(createElement(Harness, { downloadUrl: url }));
+    expect(screen.getByTitle("Bildrichtung").textContent).toBe("324°");
     fireEvent.click(screen.getByRole("button", { name: "Bild öffnen" }));
     expect(open).toHaveBeenCalledWith(url, "_blank", "noopener,noreferrer");
     fireEvent.click(screen.getByRole("button", { name: "Herunterladen" }));
@@ -248,11 +252,11 @@ describe("compact image actions and acquisition precision", () => {
   });
   it("shows only the verified month and year without inventing a capture day", () => {
     const view = render(createElement(Harness));
-    expect(
-      screen.getByText("Aufnahme: März 2024").getAttribute("datetime")
-    ).toBe("2024-03");
+    expect(screen.getByText("März 2024").getAttribute("datetime")).toBe(
+      "2024-03"
+    );
     view.rerender(createElement(Harness, { hasAcquisitionDate: false }));
-    expect(screen.queryByText(/Aufnahme:/)).toBeNull();
+    expect(screen.queryByText("März 2024")).toBeNull();
   });
   it("disables downloads when the selected series is disabled", () => {
     render(

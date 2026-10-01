@@ -448,9 +448,12 @@ describe("useLibreLayers with conditional layers", () => {
     }
   );
 
-  it("loads the parity mesh asynchronously as an owned basis, leases map style, and chooses Luftbild only on activation", async () => {
+  it("loads the parity mesh and leases the explicitly enabled map style", async () => {
     state.map = { getCenter: () => ({ lng: 7.2, lat: 51.27 }) };
-    state.addons = ["obliqueViewer"];
+    state.addons = [
+      "obliqueViewer",
+      { addon: "mapStyle3d", config: { vectorBaseMap: true } },
+    ];
     const view = renderHook(() => useLibreLayers());
     expect(view.result.current).toEqual([]);
     state.obliqueEnabled = true;
@@ -491,7 +494,7 @@ describe("useLibreLayers with conditional layers", () => {
     expect(view.result.current).toEqual([]);
     expect(state.leases[0].release).toHaveBeenCalledOnce();
     expect(lastBackgroundOptions()).toMatchObject({
-      mapStyle3dActive: false,
+      mapStyle3dActive: true,
       meshBaseActive: false,
     });
     state.obliqueEnabled = true;
@@ -499,9 +502,43 @@ describe("useLibreLayers with conditional layers", () => {
     expect(state.setCurrentStyle).toHaveBeenCalledTimes(2);
   });
 
-  it("switches Luftbild to LoD2 and terrain on Karte, hides native paint only after readiness, and restores it on return", async () => {
+  it("keeps the mesh and Karte terrain without opting into map-style presentation", async () => {
     state.map = { getCenter: () => ({ lng: 7.2, lat: 51.27 }) };
     state.addons = ["obliqueViewer"];
+    state.obliqueEnabled = true;
+    const view = renderHook(() => useLibreLayers());
+    await waitFor(() => expect(view.result.current).toHaveLength(1));
+    expect(view.result.current[0]).toMatchObject({ name: "oblique-mesh2024" });
+    expect(lastBackgroundOptions()).toMatchObject({
+      mapStyle3dActive: false,
+      vectorBaseOverride: false,
+      meshBaseActive: true,
+    });
+    expect(state.leases).toEqual([]);
+    state.currentStyle = MapStyleKeys.TOPO;
+    view.rerender();
+    expect(view.result.current[0]).toMatchObject({ name: "oblique-lod2" });
+    expect(lastBackgroundOptions()).toMatchObject({
+      mapStyle3dActive: false,
+      vectorBaseOverride: false,
+      shadowTerrainActive: true,
+    });
+    expect(state.buildTerrain).toHaveBeenCalledOnce();
+    expect(state.leases).toHaveLength(1);
+    expect(state.leases[0].options).toBeUndefined();
+    expect(state.leases[0].setPointLabelOverlayVisible).not.toHaveBeenCalled();
+    await act(async () => state.pendingTerrain[0](true));
+    expect(state.acquireComposition).toHaveBeenCalledOnce();
+    view.unmount();
+    expect(state.leases[0].release).toHaveBeenCalledOnce();
+  });
+
+  it("switches Luftbild to LoD2 and terrain on Karte, hides native paint only after readiness, and restores it on return", async () => {
+    state.map = { getCenter: () => ({ lng: 7.2, lat: 51.27 }) };
+    state.addons = [
+      "obliqueViewer",
+      { addon: "mapStyle3d", config: { vectorBaseMap: true } },
+    ];
     state.obliqueEnabled = true;
     const view = renderHook(() => useLibreLayers());
     const presentation = state.leases[0];
@@ -608,11 +645,11 @@ describe("useLibreLayers with conditional layers", () => {
       });
       expect(state.acquireComposition).not.toHaveBeenCalled();
       expect(state.unregisters[0]).toHaveBeenCalledOnce();
-      expect(state.leases[1].layer.removeRuntime).toHaveBeenCalledWith(
+      expect(state.leases[0].layer.removeRuntime).toHaveBeenCalledWith(
         "carma-oblique-terrain"
       );
       expect(state.runtimes[0].dispose).toHaveBeenCalledOnce();
-      expect(state.leases[1].release).toHaveBeenCalledOnce();
+      expect(state.leases[0].release).toHaveBeenCalledOnce();
     }
   );
 

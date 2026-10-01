@@ -203,6 +203,46 @@ describe("catalog footprint hover activation", () => {
     view.unmount();
   });
 
+  it("accepts a hover reply while the next pointer position is still coalescing", async () => {
+    vi.useFakeTimers();
+    const record = {
+      id: "2026:moving",
+      seriesId: "2026",
+      footprint: [
+        [7, 51],
+        [7.01, 51],
+        [7.01, 50.99],
+        [7, 50.99],
+        [7, 51],
+      ],
+    } as ObliqueImageRecord;
+    let resolve = (_record: ObliqueImageRecord) => {};
+    const find = vi.fn(
+      () =>
+        new Promise<ObliqueImageRecord>((done) => {
+          resolve = done;
+        })
+    );
+    const view = setup(find);
+    try {
+      view.dispatch("pointermove", 200, 70);
+      await vi.advanceTimersByTimeAsync(50);
+      view.dispatch("pointermove", 210, 70);
+      await act(async () => {
+        resolve(record);
+      });
+      expect(find).toHaveBeenCalledOnce();
+      expect(footprint.setHoveredImage).toHaveBeenLastCalledWith(
+        record.id,
+        expect.objectContaining({ id: record.id })
+      );
+      expect(view.canvas.style.cursor).toBe("pointer");
+    } finally {
+      view.unmount();
+      vi.useRealTimers();
+    }
+  });
+
   it("highlights and opens a catalog match outside the displayed click targets", async () => {
     vi.useFakeTimers();
     const record = {

@@ -20,6 +20,10 @@ export const featureFlagConfig: FeatureFlagConfig = {
     default: false,
     alias: "oblique",
   },
+  featureFlagMapStyle3d: {
+    default: false,
+    alias: "mapstyle3d",
+  },
   isDebugMode: {
     // general debug mode
     default: false,

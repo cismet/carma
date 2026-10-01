@@ -233,14 +233,13 @@ export const useFootprintLayer = ({
       clearHover();
     };
     const requestHover = () => {
-      hoverGeneration++;
       if (hoverTimer !== undefined) return;
       hoverTimer = setTimeout(() => {
         hoverTimer = undefined;
         const point = pointerPoint;
         const find = findAtScreenPointRef.current;
         if (!point || !find || disposed || clickPending) return;
-        const generation = hoverGeneration;
+        const generation = ++hoverGeneration;
         void find(point)
           .then((record) => {
             if (

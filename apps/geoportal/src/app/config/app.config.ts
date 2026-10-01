@@ -81,6 +81,10 @@ export const DEFAULT_ADDONS: AddonEntry[] = [
     addon: "libreTerrain",
     config: { appKey: "geoportal", mode: "whileCameraFree" },
   },
+  {
+    addon: "mapStyle3d",
+    availability: { featureFlag: "featureFlagMapStyle3d" },
+  },
   // The MapLibre oblique viewer is opt-in on development deployments.
   {
     addon: "obliqueViewer",
@@ -103,7 +107,10 @@ export const DEFAULT_ADDONS: AddonEntry[] = [
  * They follow the same precedence rule, so a route that declares the same kind
  * takes the engine over and the default workflow does not run there.
  */
-export const withDefaultAddons = (addons?: AddonEntry[]): AddonEntry[] => {
+export const withDefaultAddons = (
+  addons?: AddonEntry[],
+  routePath?: string
+): AddonEntry[] => {
   const declared = new Set((addons ?? []).map(getAddonKind));
   return [
     ...[
@@ -111,7 +118,23 @@ export const withDefaultAddons = (addons?: AddonEntry[]): AddonEntry[] => {
       ...defaultWorkflowAddons(),
     ].filter((addon) => !declared.has(getAddonKind(addon))),
     ...(addons ?? []),
-  ];
+  ].filter((entry) => {
+    const kind = getAddonKind(entry);
+    if (
+      kind === "mapStyle3d" &&
+      availabilityContext.featureFlags.featureFlagMapStyle3d !== true
+    )
+      return false;
+    return (
+      routePath !== "/oblique" ||
+      [
+        "obliqueViewer",
+        "cameraRestriction",
+        "libreTerrain",
+        "mapStyle3d",
+      ].includes(kind)
+    );
+  });
 };
 
 const CESIUM_PATHNAME = "__cesium__";

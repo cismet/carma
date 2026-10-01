@@ -13,7 +13,11 @@ export const obliqueFachzwilling: FachzwillingRoute = {
   },
   // Oblique owns its mesh/LoD2 basis while running; it is not a saved extra layer.
   addons: [
-    { addon: "mapStyle3d", config: { vectorBaseMap: true } },
+    {
+      addon: "mapStyle3d",
+      availability: { featureFlag: "featureFlagMapStyle3d" },
+      config: { vectorBaseMap: true },
+    },
     {
       addon: "obliqueViewer",
       availability: { featureFlag: "featureFlagObliqueViewerAddon" },

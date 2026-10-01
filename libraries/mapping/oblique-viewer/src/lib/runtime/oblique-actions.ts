@@ -63,6 +63,7 @@ export type ObliqueViewerState = {
   /** the image nearest the map centre in the current sector, or the one flown to */
   selectedImageId: string | null;
   selectedCameraId: string | null;
+  selectedImageBearingDeg: Degrees | null;
   /** the sector the camera looks into, null until the map is tilted */
   activeDirection: CardinalDirection | null;
   /** Current viewport angles, rounded to degrees; bearing is clockwise from north. */
@@ -98,6 +99,7 @@ export const OBLIQUE_STATE_DEFAULT: ObliqueViewerState = {
   error: null,
   selectedImageId: null,
   selectedCameraId: null,
+  selectedImageBearingDeg: null,
   activeDirection: null,
   bearingDeg: null,
   pitchDeg: null,

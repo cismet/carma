@@ -348,6 +348,8 @@ export const ObliqueViewer = ({
       selectedSourceImageId: selectedRecord?.sourceId ?? null,
       selectedSeriesId: selectedRecord?.seriesId ?? null,
       selectedCameraId: selectedRecord?.cameraId ?? null,
+      selectedImageBearingDeg:
+        (selectedRecord?.pose?.bearingDeg as Degrees) ?? null,
       downloadUrl,
     });
   }, [publish, selectedImageId, selectedRecord, downloadUrl]);

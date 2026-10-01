@@ -65,9 +65,8 @@ export const useLibreLayers = (): LibreLayer[] => {
   const mapStyle3dEntry = effectiveAddons.find(
     (entry) => entry.kind === "mapStyle3d"
   );
-  const mapStyle3dActive = !!mapStyle3dEntry || obliqueActive;
-  const vectorBaseMap =
-    mapStyle3dEntry?.config?.vectorBaseMap === true || obliqueActive;
+  const mapStyle3dActive = !!mapStyle3dEntry;
+  const vectorBaseMap = mapStyle3dEntry?.config?.vectorBaseMap === true;
   const [obliqueMeshStyle, setObliqueMeshStyle] =
     useState<StyleSpecification | null>(null);
   useEffect(() => {
@@ -112,13 +111,13 @@ export const useLibreLayers = (): LibreLayer[] => {
     wasObliqueActive.current = obliqueActive;
   }, [obliqueActive, setCurrentStyle]);
 
-  // The viewer owns a presentation lease rather than changing saved addon choices.
+  // Three.js labels are opt-in independently of the viewer's mesh/terrain basis.
   useEffect(() => {
-    if (!map || !obliqueActive) return;
+    if (!map || !obliqueActive || !mapStyle3dActive) return;
     const lease = acquireSharedThreeScene(map, { mapStylePresentation: true });
     lease.setPointLabelOverlayVisible(true);
     return () => lease.release();
-  }, [map, obliqueActive]);
+  }, [map, obliqueActive, mapStyle3dActive]);
 
   useEffect(() => {
     if (!map || !obliqueActive || currentStyle !== MapStyleKeys.AERIAL) return;
