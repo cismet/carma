@@ -12,10 +12,8 @@ export interface BelisRights {
 const ATTRIBUTES = [
   "belis.create.Basic",
   "belis.create.Arbeitsauftrag",
-  "belis.create.Veranlassung",
   "belis.edit.Basic",
   "belis.edit.Arbeitsauftrag",
-  "belis.edit.Veranlassung",
   "belis.edit.Keytables",
   "belis.delete",
 ] as const;
@@ -50,14 +48,11 @@ export const fetchBelisRights = async (
       ATTRIBUTES.map((name, i) => [name, values[i]])
     ) as Record<Attribute, boolean>;
 
-    // Veranlassung is treated as part of Arbeitsauftrag.
     return {
       createBasic: has["belis.create.Basic"],
-      createAA:
-        has["belis.create.Arbeitsauftrag"] || has["belis.create.Veranlassung"],
+      createAA: has["belis.create.Arbeitsauftrag"],
       editBasic: has["belis.edit.Basic"],
-      editAA:
-        has["belis.edit.Arbeitsauftrag"] || has["belis.edit.Veranlassung"],
+      editAA: has["belis.edit.Arbeitsauftrag"],
       editKeytables: has["belis.edit.Keytables"],
       delete: has["belis.delete"],
     };
