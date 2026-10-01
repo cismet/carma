@@ -200,7 +200,7 @@ export const createFootprintOutlineLayer = (
     const polygon =
       polygons.find((f) => f.properties?.active !== false) ?? polygons[0];
     if (!polygon || polygon.geometry.type !== "Polygon") {
-      surfaceLease.layer.setMapStyleSurfaceOverlay(id, null);
+      surfaceLease.layer.setMapStyleSurfaceOverlay?.(id, null);
       surfaceTexture?.dispose();
       surfaceTexture = null;
       return;

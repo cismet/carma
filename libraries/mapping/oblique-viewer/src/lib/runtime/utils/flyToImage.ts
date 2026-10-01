@@ -333,10 +333,10 @@ export const settleToPitch = (
         const dy =
           (viewportPoint.y - ((1 - clip.y / clip.w) * frame.height) / 2) * 2;
         frame.setPadding({
-          left: frame.padding.left + Math.max(0, dx),
-          right: frame.padding.right + Math.max(0, -dx),
-          top: frame.padding.top + Math.max(0, dy),
-          bottom: frame.padding.bottom + Math.max(0, -dy),
+          left: (frame.padding.left ?? 0) + Math.max(0, dx),
+          right: (frame.padding.right ?? 0) + Math.max(0, -dx),
+          top: (frame.padding.top ?? 0) + Math.max(0, dy),
+          bottom: (frame.padding.bottom ?? 0) + Math.max(0, -dy),
         });
         continue;
       }
@@ -536,10 +536,10 @@ export const settleToPitch = (
         const dx = (projectedCenter.x - frame.centerPoint.x) * 2;
         const dy = (projectedCenter.y - frame.centerPoint.y) * 2;
         frame.setPadding({
-          left: frame.padding.left + Math.max(0, dx),
-          right: frame.padding.right + Math.max(0, -dx),
-          top: frame.padding.top + Math.max(0, dy),
-          bottom: frame.padding.bottom + Math.max(0, -dy),
+          left: (frame.padding.left ?? 0) + Math.max(0, dx),
+          right: (frame.padding.right ?? 0) + Math.max(0, -dx),
+          top: (frame.padding.top ?? 0) + Math.max(0, dy),
+          bottom: (frame.padding.bottom ?? 0) + Math.max(0, -dy),
         });
         compensate(frame, depth);
       }
