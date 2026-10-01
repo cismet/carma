@@ -1193,6 +1193,11 @@ export const LibreMap = ({
         }
       });
 
+      mapInstance.on(MAPLIBRE_EVENT.TERRAIN, () => {
+        delete (mapInstance as unknown as { _requestedCameraState?: unknown })
+          ._requestedCameraState;
+      });
+
       mapInstance.on("click", async (e) => {
         // Selection fully disabled (e.g. host app is in a custom interaction
         // mode like terra-draw measurement). Skip everything: 3D raycast,
@@ -2670,10 +2675,7 @@ export const LibreMap = ({
       ))}
       {/* Point clouds named by a style's own metadata, see PointCloudLayerManager */}
       {detectedPointCloudConfigs.map((config) => (
-        <PointCloudLayerManager
-          key={config.pointcloud.url}
-          config={config}
-        />
+        <PointCloudLayerManager key={config.pointcloud.url} config={config} />
       ))}
       <SharedThreeTilesLayerManager layers={threeTilesLayers} />
     </>
