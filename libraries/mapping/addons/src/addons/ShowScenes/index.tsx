@@ -1081,6 +1081,11 @@ export const ShowScenes = ({
               <span className="flex-1 text-base font-semibold">
                 Show-Szenen
               </span>
+              {published && (
+                <span className="mr-2 font-mono text-xs text-gray-400">
+                  {published.key}
+                </span>
+              )}
               <IconButton
                 title="Schließen"
                 icon={faXmark}

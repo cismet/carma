@@ -82,22 +82,25 @@ export const useOpenShow = ({
     onOpened();
   };
 
-  const open = async () => {
-    if (!key || state.kind === "busy") {
+  const openKey = async (keyToOpen: string | null) => {
+    if (!keyToOpen || state.kind === "busy") {
       return;
     }
     setState({ kind: "busy" });
     try {
-      const show = await fetchShow(readUrl, key);
+      const show = await fetchShow(readUrl, keyToOpen);
       if (draft.scenes.length === 0) {
-        apply(key, show);
+        apply(keyToOpen, show);
       } else {
-        setState({ kind: "pending", key, show });
+        setState({ kind: "pending", key: keyToOpen, show });
       }
     } catch (error) {
-      setState({ kind: "error", text: loadErrorText(error, key) });
+      setState({ kind: "error", text: loadErrorText(error, keyToOpen) });
     }
   };
+
+  /** the draft's own published show, as it is stored under its key */
+  const publishedKey = draft.published?.key ?? null;
 
   return {
     input,
@@ -108,9 +111,11 @@ export const useOpenShow = ({
       }
     },
     canOpen: key !== null && state.kind !== "busy",
+    canReload: publishedKey !== null && state.kind !== "busy",
     state,
     sceneCount: draft.scenes.length,
-    open: () => void open(),
+    open: () => void openKey(key),
+    reload: () => void openKey(publishedKey),
     confirm: () => {
       if (state.kind === "pending") {
         apply(state.key, state.show);
