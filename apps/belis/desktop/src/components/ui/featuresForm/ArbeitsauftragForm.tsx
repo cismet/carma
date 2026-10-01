@@ -3,7 +3,7 @@ import { useSelector } from "react-redux";
 import FeatureFormLayout from "./FeatureFormLayout";
 import ArbeitsauftragFormFields from "./ArbeitsauftragFormFields";
 import type { DokumentItem } from "../DocumentPreview";
-import { getJWT } from "../../../store/slices/auth";
+import { getJWT, canEditAA, canDelete } from "../../../store/slices/auth";
 
 interface ArbeitsauftragFormProps {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -42,6 +42,8 @@ const ArbeitsauftragForm = ({
   onSaveAll,
   aaId,
 }: ArbeitsauftragFormProps) => {
+  const mayEditAA = useSelector(canEditAA) as boolean;
+  const mayDelete = useSelector(canDelete) as boolean;
   const jwt = useSelector(getJWT);
 
   // Collect documents from all protocols' veranlassung.ar_dokumenteArray
@@ -83,7 +85,8 @@ const ArbeitsauftragForm = ({
     >
       <ArbeitsauftragFormFields
         data={data}
-        readOnly={readOnly}
+        readOnly={readOnly || !mayEditAA}
+        allowProtokollDeletion={!readOnly && mayDelete}
         onFormInstance={onFormInstance}
         draftValues={draftValues}
         onValuesChange={onValuesChange}

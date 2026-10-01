@@ -51,6 +51,7 @@ import {
 } from "./DraftFieldHighlight";
 import { useRepeatableChanges } from "./useRepeatableChanges";
 import dayjs from "dayjs";
+import { useFeatureRights } from "./FeatureRightsContext";
 
 const transformDatesForBackend = (
   values: Record<string, unknown>
@@ -195,6 +196,7 @@ const LeuchteForm = ({
   removedDocumentKeys: removedDocumentKeysProp,
   onRemovedDocumentKeysChange,
 }: LeuchteFormProps) => {
+  const { fieldsReadOnly } = useFeatureRights();
   const removedDocumentKeys = removedDocumentKeysProp ?? new Set<string>();
   const dispatch = useDispatch();
   const [saving, setSaving] = useState(false);
@@ -1115,7 +1117,7 @@ const LeuchteForm = ({
               <FieldPrefix name="leuchte">
                 <LeuchteFormFields
                   leuchte={null}
-                  readOnly={readOnly}
+                  readOnly={readOnly || fieldsReadOnly}
                   isCreation={isCreation}
                   featureId={`${featureId ?? ""}#${tabId}`}
                   hideStrassenschluessel={isCreation}
@@ -1213,7 +1215,7 @@ const LeuchteForm = ({
     <FieldPrefix name="leuchte">
       <LeuchteFormFields
         leuchte={leuchte}
-        readOnly={readOnly}
+        readOnly={readOnly || fieldsReadOnly}
         isCreation={isCreation}
         featureId={featureId}
         hideStrassenschluessel={isCreation}

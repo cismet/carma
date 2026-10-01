@@ -90,6 +90,9 @@ export const canEditBasic = (state) => hasRight(state, "editBasic");
 export const canEditAA = (state) => hasRight(state, "editAA");
 export const canEditKeytables = (state) => hasRight(state, "editKeytables");
 export const canDelete = (state) => hasRight(state, "delete");
+// Edit mode is also needed to delete (danger zone, Protokoll deletion).
+export const canUseEditMode = (state) =>
+  canEditBasic(state) || canEditAA(state) || canDelete(state);
 
 export const isLoginRequested = (state) => {
   return state.auth.loginRequested;

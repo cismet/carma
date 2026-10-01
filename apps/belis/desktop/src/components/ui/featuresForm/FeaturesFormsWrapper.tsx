@@ -38,10 +38,16 @@ import {
   getAllDrafts,
   promoteDraftHiddenToPermanent,
 } from "../../../store/slices/featuresForms";
-import { getJWT, getIsReadOnly } from "../../../store/slices/auth";
+import {
+  getJWT,
+  canCreateBasic,
+  canEditBasic,
+  canDelete,
+} from "../../../store/slices/auth";
 import type { DokumentItem } from "../DocumentPreview";
 import { ChangedFieldsProvider } from "./DraftFieldHighlight";
 import { DeleteFeatureProvider } from "./DeleteFeatureContext";
+import { FeatureRightsProvider } from "./FeatureRightsContext";
 import { LOCKED_FIELD_CLASSES } from "./readOnlyFormUtils";
 import {
   getAllowlistedPaths,
@@ -486,13 +492,23 @@ const FeaturesFormsWrapper = ({
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const pendingDeletion = !!draft?.pendingDeletion;
-  // A read-only ("Gast") user must never get an editable form — not even a
-  // creation form. This overrides the normal creation/editing/globalEditMode
-  // logic so no CRUD UI (save buttons, green "+" create button, editable
-  // fields) is exposed.
-  const isReadOnly = useSelector(getIsReadOnly) as boolean;
+  // Rights selectors are always false for "Gast", so a Gast user never gets an
+  // editable form. A user who may delete but not edit can enter edit mode, but
+  // the fields stay locked: only the danger zone and Speichern work.
+  const mayCreate = useSelector(canCreateBasic) as boolean;
+  const mayEdit = useSelector(canEditBasic) as boolean;
+  const mayDeleteRight = useSelector(canDelete) as boolean;
+  const mayDelete = mayDeleteRight && mayCreate;
+  const mayChangeFields = isCreation ? mayCreate : mayEdit;
+  const mayEnterEditMode = mayChangeFields || (!isCreation && mayDelete);
   const effectiveReadOnly =
-    isReadOnly || (!isCreation && readOnlyProp && !isEditing && !globalEditMode);
+    !mayEnterEditMode ||
+    (!isCreation && readOnlyProp && !isEditing && !globalEditMode);
+  const fieldsReadOnly = effectiveReadOnly || !mayChangeFields;
+  const featureRights = useMemo(
+    () => ({ canCreate: mayCreate, fieldsReadOnly }),
+    [mayCreate, fieldsReadOnly]
+  );
 
   // Exit edit mode when feature data is refetched externally (e.g. Save All).
   // No FormComponent remount here: re-population happens inside *FormFields via
@@ -1255,7 +1271,7 @@ const FeaturesFormsWrapper = ({
   const geometryEdited =
     !!draft?.geometryKey && !draft.geometryKey.startsWith("current.");
   const editGeometrySelector =
-    isGeometryEditFeature && !effectiveReadOnly && editGeometryOptions.length > 0 ? (
+    isGeometryEditFeature && !fieldsReadOnly && editGeometryOptions.length > 0 ? (
       <div className={geometryEdited ? "mb-4 draft-changed-field" : "mb-4"}>
         <span className="text-sm font-medium text-gray-700">
           Geometrie
@@ -1312,12 +1328,12 @@ const FeaturesFormsWrapper = ({
   }, [featureId, formKey, dispatch, draftFeature, data, dbPK]);
 
   // Deletion is only offered for existing features (creation drafts are
-  // cancelled, not deleted), editable (non-"Gast") users, and only while the
-  // form is actually in edit mode (`!effectiveReadOnly`) — not when merely
+  // cancelled, not deleted), users with delete + create rights, and only while
+  // the form is actually in edit mode (`!effectiveReadOnly`) — not when merely
   // viewing the feature. `undefined` keeps the danger zone hidden entirely.
   const deleteControls = useMemo(
     () =>
-      !isReadOnly &&
+      mayDelete &&
       !effectiveReadOnly &&
       !isCreation &&
       dbPK != null &&
@@ -1326,7 +1342,7 @@ const FeaturesFormsWrapper = ({
         ? { pendingDeletion, mark: handleMarkForDeletion }
         : undefined,
     [
-      isReadOnly,
+      mayDelete,
       effectiveReadOnly,
       isCreation,
       dbPK,
@@ -1340,6 +1356,7 @@ const FeaturesFormsWrapper = ({
   if (FormComponent) {
     return (
       <DeleteFeatureProvider value={deleteControls}>
+      <FeatureRightsProvider value={featureRights}>
       <SingleSaveCtx.Provider value={singleSaveValue}>
         <ChangedFieldsProvider
           originalValues={originalValues}
@@ -1418,6 +1435,7 @@ const FeaturesFormsWrapper = ({
           </div>
         </ChangedFieldsProvider>
       </SingleSaveCtx.Provider>
+      </FeatureRightsProvider>
       </DeleteFeatureProvider>
     );
   }
