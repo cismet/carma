@@ -60,7 +60,7 @@ interface FormHeaderProps {
   createDraftButtonVariant?: "green" | "white";
   onCopyValues?: () => void;
   /** Show the Wiederholfelder copy/paste pair next to the "+" button. Leuchte
-   * sets it; the other forms leave it off. */
+   * and Standort set it; the other forms leave it off. */
   showRepeatableChangesButtons?: boolean;
   /** Capture the form's changed fields into the Wiederholfelder clipboard. */
   onCopyRepeatableChanges?: () => void;

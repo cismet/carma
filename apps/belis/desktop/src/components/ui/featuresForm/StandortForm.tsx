@@ -37,6 +37,14 @@ import { ChangedFieldsProvider, FieldPrefix } from "./DraftFieldHighlight";
 import { updateDataByClassName } from "../../../helper/apiMethods";
 import { uploadDraftFiles } from "../../../helper/uploadDraftFiles";
 import toTitleCase from "../../../helper/toTitleCase";
+import { useRepeatableChanges } from "./useRepeatableChanges";
+
+// Wiederholfelder never carry the read-only timestamp or the creation-only
+// "+ Leuchte" tabs.
+const REPEATABLE_EXCLUDED_FIELDS: ReadonlySet<string> = new Set([
+  "letzte_aenderung",
+  "leuchten",
+]);
 
 const transformDatesForBackend = (
   values: Record<string, unknown>
@@ -380,6 +388,19 @@ const StandortForm = ({
     [onDraftChange, draftValues]
   );
 
+  const handleRepeatablePaste = useCallback(
+    (formValues: Record<string, unknown>) =>
+      handleMastValuesChange({}, formValues),
+    [handleMastValuesChange]
+  );
+  const repeatableChanges = useRepeatableChanges({
+    featureType: "standort",
+    slice: null,
+    formRef: mastFormRef,
+    excludedFields: REPEATABLE_EXCLUDED_FIELDS,
+    onPaste: handleRepeatablePaste,
+  });
+
   // Sidebar-driven tab focus: clicking a nested Leuchte row in the "Entwürfe"
   // list raises a focus request. Forward it to FeatureFormLayout only when it
   // targets this very draft.
@@ -623,6 +644,11 @@ const StandortForm = ({
       onToggleReadOnly={onToggleReadOnly}
       onCancel={onCancel}
       onSave={handleSave}
+      showRepeatableChangesButtons
+      onCopyRepeatableChanges={repeatableChanges.onCopy}
+      onPasteRepeatableChanges={repeatableChanges.onPaste}
+      onClearRepeatableChanges={repeatableChanges.onClear}
+      repeatableChangesCount={repeatableChanges.count}
       onCreateRelatedDraft={() =>
         createFeatureDraft(
           "standort",
