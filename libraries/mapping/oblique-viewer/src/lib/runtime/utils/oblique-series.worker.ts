@@ -1,10 +1,10 @@
 /// <reference lib="webworker" />
-import { loadCachedObliqueSeriesData } from "./oblique-series-cache";
+import { loadWithOptionalCatalogCache } from "./optional-catalog-cache";
 import type { ObliqueDataset } from "../../core/types";
 self.onmessage = async (event: MessageEvent<{ dataset: ObliqueDataset }>) => {
   try {
     self.postMessage({
-      data: await loadCachedObliqueSeriesData(event.data.dataset),
+      data: await loadWithOptionalCatalogCache(event.data.dataset),
     });
   } catch (error) {
     self.postMessage({

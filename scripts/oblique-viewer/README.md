@@ -8,8 +8,7 @@ or image-processing command is required.
 
 ## Provenance and parser boundary
 
-`vendor/parse_prj.py` is an unchanged snapshot of
-`/Users/friedrich/dev/2.work/cismet/git/parse-inpho-prj/parse_prj.py`, SHA-256
+`vendor/parse_prj.py` is the reference parser snapshot, SHA-256
 `3a0fa654c0910427fb78bf0f605bf682d191f9e14fdc7b8111c6d779beda37bd`.
 The canonical reader reuses its comment/braced-list preprocessing and number
 conversion. Run `import-prj.py`, rather than the reference snapshot, for imports.
@@ -65,7 +64,7 @@ before an atomic output replacement; errors produce a nonzero exit code.
 
 ## Reproducible import
 
-From the repository root, using a verified local copy of the amy original:
+From the repository root, using a verified local copy of the source project:
 
 ```sh
 python3 scripts/oblique-viewer/import-prj.py \
@@ -205,7 +204,7 @@ npx vite --config apps/geoportal/vite.config.mts \
 ```sh
 python3 scripts/oblique-viewer/serve-originals.py \
   --allow-origin http://localhost:4201 \
-  --additional-metadata /private/tmp/carma-oblique-2026-importer-evidence/orientation.reingest.json \
+  --additional-metadata output/oblique-viewer/2026/orientation.json \
   --optimistic-series wuppertal-2026
 ```
 
@@ -216,9 +215,8 @@ The route starts the viewer and offers independent 03/2024, 04/2026, and
 source also enables the Nadir navigation option. Existing 2024 previews and downloads retain their direct
 `/2024/{3,1}/{sourceId}.jpg` URLs.
 
-The additional catalog path above is a local import/audit artifact, not a
-committed fixture. Recreate it with the reproducible importer above using
-`--series-id wuppertal-2026`, or pass another normalized full-2026 JSON path.
+Create the additional catalog with the reproducible full-2026 import above,
+or pass another normalized full-2026 JSON path.
 By default the bridge intersects each catalog with available stable TIFF IDs.
 The explicit, repeatable --optimistic-series option retains every pose for
 the named configured series, including originals that have not arrived yet.
@@ -226,12 +224,9 @@ It keeps the original-file whitelist limited to stable files actually found.
 A missing preview or original returns 404; optimistic metadata does not certify
 asset availability. Catalogs not named by that option remain filtered.
 
-Snapshot refreshed on 2026-09-30: the optimistic 2026 catalog contains all
-30,172 imported orientations, including 6,349 nadir records. Only 41 originals
-from the existing Rathaus delivery are present. The separately selectable
-Sample catalog stays limited to those 41 source images. The upload location
-`/mnt/storagebox/luftbildschraegaufnahmen2026` currently contains zero TIFFs;
-this demo does not claim that the full 30,172-image delivery is available.
+The full 2026 catalog includes 30,172 orientations and 6,349 nadir records;
+the independently selectable sample catalog contains 41 oblique images.
+Audit the actual originals separately before exposing full-flight assets.
 
 This loopback bridge uses SSH access to amy and the existing GDAL container
 under `/data/wupp2026/schraeg/_test-rathaus`. Its primary catalog defaults to

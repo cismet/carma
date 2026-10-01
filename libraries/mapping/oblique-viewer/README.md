@@ -1,6 +1,6 @@
 # Oblique imagery viewer
 
-This project continues Thorsten’s MapLibre/Three.js oblique viewer originally implemented inside `mapping/addons/src/addons/ObliqueViewer`. Pure camera/data/selection logic lives in `src/lib/core`; React, image loading and camera flights live in `src/lib/runtime`. The mapping-addons package owns the route registry and persistent state adapter and mounts this feature through its public API. This project does not import the addon registry.
+This project provides the MapLibre/Three.js oblique viewer extracted from `mapping/addons/src/addons/ObliqueViewer`. Pure camera/data/selection logic lives in `src/lib/core`; React, image loading and camera flights live in `src/lib/runtime`. The mapping-addons package owns the route registry and persistent state adapter and mounts this feature through its public API.
 
 The Cesium viewer is the legacy implementation. This change does not update its runtime.
 
@@ -79,8 +79,8 @@ Ground labels retain carma:map-style-placement "draped" metadata. There is
 no recurring footprint height polling.
 
 The center contour stays visible above the photograph during preview; pointer
-marks and trails are suspended there. Ordinary selection labels remain hidden
-with one series; the explicit or implicit hover identity is still shown. One
+marks and trails are suspended there. The year label and up marker are hidden
+throughout preview. One
 click resolves the enabled direction-compatible catalog at the clicked mesh or
 terrain point, even before hover completes. It requires no native rendered feature.
 The toolbar action independently refreshes best fit at the physical viewport
@@ -131,7 +131,8 @@ python3 scripts/oblique-viewer/serve-originals.py
 
 The local-development Geoportal addon connects to `http://127.0.0.1:8926`. Use the Geoportal dev server for this branch at its normal `http://localhost:4200` URL and enable the MapLibre and oblique addon flags (`ng` and `oblique`). The bridge serves the committed 41-image sample catalog, JPEG views generated on demand and original TIFF downloads. The multiple-selection dropdown keeps the Rathaus sample separate from the full 2026 delivery. See the [script guide](../../../scripts/oblique-viewer/README.md) for options and delivery validation.
 
-The full 2026 upload is being placed under `/mnt/storagebox/luftbildschraegaufnahmen2026`. It is not the Rathaus bridge source and must be inventoried and validated after transfer before enabling the full-flight asset configuration.
+Inventory and validate the full 2026 imagery before enabling its asset configuration;
+metadata availability alone does not establish image availability.
 
 Inside a flown-to image, dragging shifts the perspective centre and the image
 together without moving the calibrated camera. Wheel zoom is anchored at the
