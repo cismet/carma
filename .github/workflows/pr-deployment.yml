@@ -70,10 +70,9 @@ jobs:
 
       - name: Parse PR description for deploy projects
         id: parse_deploy_projects
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
         run: |
-          # Get PR description
-          PR_BODY='${{ github.event.pull_request.body }}'
-
           echo "==================================="
           echo "PR Description:"
           echo "$PR_BODY"
