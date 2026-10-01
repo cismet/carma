@@ -10,6 +10,7 @@ import {
 import {
   Button,
   Checkbox,
+  Input,
   Modal,
   Popconfirm,
   QRCode,
@@ -23,6 +24,7 @@ import {
   faChevronRight,
   faClapperboard,
   faCopy,
+  faDisplay,
   faEye,
   faFloppyDisk,
   faLocationCrosshairs,
@@ -98,6 +100,7 @@ import {
   useShowDraft,
   useStoredCollapsedStories,
   useStoredPanelOpen,
+  useStoredRelayCode,
   type ShowDraft,
 } from "./show-draft";
 import { useDraftFile } from "./useDraftFile";
@@ -116,6 +119,11 @@ export type ShowScenesConfig = {
   readUrl?: string;
   /** the remote app the published link opens; without it only the key is shown */
   remoteUrl?: string;
+  /**
+   * The display page (`#/outlet`, without `relay`). With it the published row
+   * opens the display for the relay code of the QR dialog.
+   */
+  outletUrl?: string;
   /** overrides the draft's per-route key */
   storageKey?: string;
   /**
@@ -203,15 +211,37 @@ const fingerprintOf = (draft: ShowDraft): string => {
   return (hash >>> 0).toString(36);
 };
 
-const remoteLinkFor = (remoteUrl: string, key: string): string => {
+/** what the relay accepts for a code a remote brings along */
+const RELAY_CODE = /^[A-Za-z0-9_-]{4,32}$/;
+
+/**
+ * The remote with the show and, when given, the display's relay code: a phone
+ * that never opened the remote drives nothing without one, and one that did
+ * would drive the display it had last.
+ */
+const remoteLinkFor = (
+  remoteUrl: string,
+  key: string,
+  relayCode: string | null
+): string => {
   try {
     const url = new URL(remoteUrl);
     url.searchParams.set("show", key);
+    if (relayCode) {
+      url.searchParams.set("relay", relayCode);
+    }
     return url.toString();
   } catch {
-    return `${remoteUrl}?show=${encodeURIComponent(key)}`;
+    const relay = relayCode ? `&relay=${encodeURIComponent(relayCode)}` : "";
+    return `${remoteUrl}?show=${encodeURIComponent(key)}${relay}`;
   }
 };
+
+/** the outlet's parameters sit in the hash, so the url is extended as text */
+const outletLinkFor = (outletUrl: string, relayCode: string): string =>
+  `${outletUrl}${outletUrl.includes("?") ? "&" : "?"}relay=${encodeURIComponent(
+    relayCode
+  )}`;
 
 const formatKb = (bytes: number): string =>
   `${(bytes / 1024).toFixed(bytes < 10 * 1024 ? 1 : 0)} kB`;
@@ -540,6 +570,7 @@ export const ShowScenes = ({
     storeUrl = DEFAULT_SHOW_STORE_URL,
     readUrl = DEFAULT_SHOW_READ_URL,
     remoteUrl,
+    outletUrl,
     excludeLayers,
     controlPosition = DEFAULT_CONTROL_POSITION,
     controlOrder = DEFAULT_CONTROL_ORDER,
@@ -561,6 +592,7 @@ export const ShowScenes = ({
   /** the drop zone under the dragged layer, by its key */
   const [dropTarget, setDropTarget] = useState<string | null>(null);
   const [draft, updateDraft] = useShowDraft(storageKey);
+  const [relayCode, setRelayCode] = useStoredRelayCode(storageKey);
   const [status, setStatus] = useState<Status>(null);
   const openShow = useOpenShow({
     readUrl,
@@ -623,8 +655,16 @@ export const ShowScenes = ({
   const isPublishCurrent =
     published?.fingerprint !== undefined &&
     published.fingerprint === fingerprintOf(draft);
+  const trimmedRelayCode = relayCode.trim();
+  const isRelayCodeValid = RELAY_CODE.test(trimmedRelayCode);
   const link =
-    published && remoteUrl ? remoteLinkFor(remoteUrl, published.key) : null;
+    published && remoteUrl
+      ? remoteLinkFor(
+          remoteUrl,
+          published.key,
+          isRelayCodeValid ? trimmedRelayCode : null
+        )
+      : null;
   const canPublish =
     draft.scenes.length > 0 && !isTooLarge && status?.kind !== "busy";
 
@@ -993,6 +1033,19 @@ export const ShowScenes = ({
     }
   };
 
+  /** without a code there is no display to open; the QR dialog asks for it */
+  const openOutlet = (url: string) => {
+    if (!isRelayCodeValid) {
+      setStatus({
+        kind: "info",
+        text: "Für das Outlet fehlt der Relay-Code, er steht im QR-Dialog.",
+      });
+      setIsQrOpen(true);
+      return;
+    }
+    window.open(outletLinkFor(url, trimmedRelayCode), "_blank", "noopener");
+  };
+
   const copyLink = (text: string) => {
     navigator.clipboard.writeText(text).then(
       () => setStatus({ kind: "info", text: "Link kopiert." }),
@@ -1297,6 +1350,13 @@ export const ShowScenes = ({
                     Schlüssel <code>{published.key}</code>
                   </span>
                 )}
+                {outletUrl && (
+                  <IconButton
+                    title="Outlet öffnen"
+                    icon={faDisplay}
+                    onClick={() => openOutlet(outletUrl)}
+                  />
+                )}
               </div>
             )}
           </div>
@@ -1312,6 +1372,28 @@ export const ShowScenes = ({
       >
         {link && (
           <div className="flex flex-col items-center gap-3">
+            <label className="flex w-full flex-col gap-1 text-xs text-gray-600">
+              Relay-Code der Anzeige
+              <Input
+                size="small"
+                allowClear
+                value={relayCode}
+                onChange={(event) => setRelayCode(event.target.value)}
+                placeholder="relay= aus der Outlet-Adresse"
+                status={
+                  trimmedRelayCode && !isRelayCodeValid ? "error" : undefined
+                }
+              />
+              {trimmedRelayCode && !isRelayCodeValid ? (
+                <span className="text-red-600">
+                  4 bis 32 Zeichen aus A-Z, 0-9, _ und -; so nicht im Link
+                </span>
+              ) : !trimmedRelayCode ? (
+                <span>
+                  Leer: das Handy steuert die Anzeige, die es zuletzt hatte
+                </span>
+              ) : null}
+            </label>
             <QRCode value={link} size={256} bordered={false} />
             <Typography.Link
               href={link}

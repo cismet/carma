@@ -177,6 +177,34 @@ export const useStoredCollapsedStories = (
   return [ids, update];
 };
 
+/**
+ * The relay code of the display the phone should drive (`#/outlet?relay=`),
+ * kept next to the draft. Not in the draft: it names a display, not the show,
+ * so it neither travels with a publish nor counts for the fingerprint.
+ */
+export const useStoredRelayCode = (
+  storageKey: string
+): [string, (code: string) => void] => {
+  const key = `${storageKey}::relay`;
+  const [code, setCode] = useState(
+    () => window.localStorage.getItem(key) ?? ""
+  );
+
+  const update = useCallback(
+    (next: string) => {
+      setCode(next);
+      try {
+        window.localStorage.setItem(key, next);
+      } catch (error) {
+        console.warn(`${LOG_PREFIX} storing the relay code failed`, error);
+      }
+    },
+    [key]
+  );
+
+  return [code, update];
+};
+
 export const useShowDraft = (
   storageKey: string
 ): [ShowDraft, (update: (draft: ShowDraft) => ShowDraft) => void] => {

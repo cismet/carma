@@ -47,6 +47,15 @@ const PM_REMOTE_URL =
     : "https://carma-dev-deployments.github.io/pm-remote/");
 
 /**
+ * The display page of this deployment, for "Outlet öffnen" in the Show-Szenen
+ * panel, which adds the relay code. The route brings the model's bounds along.
+ */
+const OUTLET_URL = new URL(
+  `${import.meta.env.BASE_URL}#/outlet?ff=ng`,
+  window.location.origin
+).href;
+
+/**
  * Where "Veröffentlichen" stores the show. Unset, the addon's default ceepr
  * folder; a local test points it at a ceepr on this machine.
  */
@@ -143,6 +152,7 @@ export const projectionMappingFachzwilling: FachzwillingRoute = {
       addon: "showScenes",
       config: {
         remoteUrl: PM_REMOTE_URL,
+        outletUrl: OUTLET_URL,
         ...(SHOW_STORE_URL ? { storeUrl: SHOW_STORE_URL } : {}),
         ...(SHOW_READ_URL ? { readUrl: SHOW_READ_URL } : {}),
         // pre-ticked in the panel's "Nicht in der Show" list
