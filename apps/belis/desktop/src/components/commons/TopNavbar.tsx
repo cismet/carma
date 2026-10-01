@@ -6,7 +6,12 @@ import {
   CaretDownFilled,
 } from "@ant-design/icons";
 import type { MenuProps } from "antd";
-import { storeJWT, storeLogin, storePermissions } from "../../store/slices/auth";
+import {
+  storeJWT,
+  storeLogin,
+  storePermissions,
+  storeRights,
+} from "../../store/slices/auth";
 import { getJWT, getIsReadOnly } from "../../store/slices/auth";
 import { useDispatch, useSelector } from "react-redux";
 import { NavLink, useNavigate } from "react-router-dom";
@@ -224,6 +229,7 @@ const TopNavbar = () => {
               dispatch(storeJWT(null));
               dispatch(storeLogin(null));
               dispatch(storePermissions(undefined));
+              dispatch(storeRights(null));
               navigate("/login");
             }}
           />

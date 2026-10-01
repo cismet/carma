@@ -29,6 +29,7 @@ import {
   getJWT,
   getLogin,
   getLoginFromJWT,
+  loadRights,
 } from "./store/slices/auth";
 import type { UnknownAction } from "redux";
 import { gazDataConfig } from "./config/gazData";
@@ -67,6 +68,9 @@ const NavBarWrapper = () => {
   useEffect(() => {
     setIsLoading(true);
     dispatch(checkJWTValidation() as unknown as UnknownAction);
+    if (jwt) {
+      dispatch(loadRights(jwt) as unknown as UnknownAction);
+    }
     setIsLoading(false);
   }, []);
 
