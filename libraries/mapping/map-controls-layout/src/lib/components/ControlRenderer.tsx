@@ -1,5 +1,5 @@
-import { Fragment } from "react";
-import { type ControlComponent } from "../map-control";
+import type { CSSProperties } from "react";
+import { type ControlComponent, useControlContext } from "../map-control";
 import { filterControls, sortControls } from "../utils/controlHelper";
 import { DEFAULT_CONTROL_STYLE_OPTIONS } from "./control-styles";
 
@@ -7,8 +7,21 @@ interface ControlRendererProps {
   controls: ControlComponent[];
 }
 
+/**
+ * The display a control's wrapper gets while the layout hides its controls.
+ * `none` takes the control off the screen without unmounting it, so its
+ * children keep their state; the wrapper is otherwise `contents`, which
+ * leaves the group's flex layout exactly as if there were no wrapper.
+ */
+const wrapperDisplay = (
+  control: ControlComponent,
+  controlsHidden: boolean
+): CSSProperties["display"] =>
+  controlsHidden && !control.keepWhenHidden ? "none" : "contents";
+
 function ControlRenderer({ controls }: ControlRendererProps) {
   const { renderer } = DEFAULT_CONTROL_STYLE_OPTIONS;
+  const { controlsHidden } = useControlContext();
   const topLeftControls = controls
     .filter((c) => filterControls(c, "topleft"))
     .sort(sortControls);
@@ -33,12 +46,27 @@ function ControlRenderer({ controls }: ControlRendererProps) {
     justifyContent: hasBottomLeftControls ? "space-between" : "flex-end",
   };
 
+  // the item wrappers of the centre groups carry the display themselves; the
+  // side groups get a layout-transparent wrapper per control for it
+  const itemStyle = (
+    base: CSSProperties,
+    control: ControlComponent
+  ): CSSProperties =>
+    controlsHidden && !control.keepWhenHidden
+      ? { ...base, display: "none" }
+      : base;
+
   return (
     <>
       {topLeftControls.length > 0 && (
         <div style={renderer.topLeft}>
           {topLeftControls.map((control, index) => (
-            <Fragment key={`topLeft-${index}`}>{control.component}</Fragment>
+            <div
+              key={`topLeft-${index}`}
+              style={{ display: wrapperDisplay(control, controlsHidden) }}
+            >
+              {control.component}
+            </div>
           ))}
         </div>
       )}
@@ -46,7 +74,12 @@ function ControlRenderer({ controls }: ControlRendererProps) {
       {topRightControls.length > 0 && (
         <div style={renderer.topRight}>
           {topRightControls.map((control, index) => (
-            <Fragment key={`topRight-${index}`}>{control.component}</Fragment>
+            <div
+              key={`topRight-${index}`}
+              style={{ display: wrapperDisplay(control, controlsHidden) }}
+            >
+              {control.component}
+            </div>
           ))}
         </div>
       )}
@@ -54,7 +87,10 @@ function ControlRenderer({ controls }: ControlRendererProps) {
       {topCenterControls.length > 0 && (
         <div style={renderer.topCenter}>
           {topCenterControls.map((control, index) => (
-            <div style={renderer.topCenterItem} key={`topCenter-${index}`}>
+            <div
+              style={itemStyle(renderer.topCenterItem, control)}
+              key={`topCenter-${index}`}
+            >
               {control.component}
             </div>
           ))}
@@ -68,9 +104,12 @@ function ControlRenderer({ controls }: ControlRendererProps) {
           {hasBottomLeftControls && (
             <div style={renderer.bottomLeft}>
               {bottomLeftControls.map((control, index) => (
-                <Fragment key={`bottomLeft-${index}`}>
+                <div
+                  key={`bottomLeft-${index}`}
+                  style={{ display: wrapperDisplay(control, controlsHidden) }}
+                >
                   {control.component}
-                </Fragment>
+                </div>
               ))}
             </div>
           )}
@@ -79,7 +118,7 @@ function ControlRenderer({ controls }: ControlRendererProps) {
             <div style={renderer.bottomCenter}>
               {bottomCenterControls.map((control, index) => (
                 <div
-                  style={renderer.bottomCenterItem}
+                  style={itemStyle(renderer.bottomCenterItem, control)}
                   key={`bottomCenter-${index}`}
                 >
                   {control.component}
@@ -91,9 +130,12 @@ function ControlRenderer({ controls }: ControlRendererProps) {
           {bottomRightControls.length > 0 && (
             <div style={renderer.bottomRight}>
               {bottomRightControls.map((control, index) => (
-                <Fragment key={`bottomRight-${index}`}>
+                <div
+                  key={`bottomRight-${index}`}
+                  style={{ display: wrapperDisplay(control, controlsHidden) }}
+                >
                   {control.component}
-                </Fragment>
+                </div>
               ))}
             </div>
           )}

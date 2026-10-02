@@ -15,6 +15,13 @@ export { LocateContext, LocateProvider, useLocate } from "./LocateContext";
 export type { LocateContextType, LocateProblem } from "./LocateContext";
 
 export {
+  getGeolocationSource,
+  setGeolocationSource,
+} from "./locate/geolocation-source";
+
+export type { GeolocationSource } from "./locate/geolocation-source";
+
+export {
   MapSelectionContext,
   MapSelectionProvider,
   useMapSelection,
