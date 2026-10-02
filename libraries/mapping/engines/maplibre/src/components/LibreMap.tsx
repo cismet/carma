@@ -40,6 +40,7 @@ import {
   createNonTiledImageSource,
   createNonTiledMetadata,
 } from "../utils/nonTiledWms";
+import { attachTerrainZoomBoundaryRefresh } from "../lib/runtime/integrations/terrain-zoom-boundary-rtt";
 import {
   DEFAULT_MAX_PITCH,
   setCameraRestrictionBase,
@@ -525,6 +526,7 @@ export const LibreMap = ({
   );
   const hidingManagerRef = useRef<HidingForwardingManager | null>(null);
   const detachNonTiledRef = useRef<(() => void) | null>(null);
+  const detachTerrainZoomRef = useRef<(() => void) | null>(null);
   const selectedFeaturesRef = useRef<
     Set<{
       source: string;
@@ -1589,6 +1591,9 @@ export const LibreMap = ({
       hidingManagerRef.current = new HidingForwardingManager(mapInstance);
 
       detachNonTiledRef.current = attachNonTiledWmsUpdater(mapInstance);
+      // zoom bands (minzoom/maxzoom, zoom steps) would stay stale on terrain
+      detachTerrainZoomRef.current =
+        attachTerrainZoomBoundaryRefresh(mapInstance);
 
       mapInstance.on("move", () => {
         if (layers?.find((layer) => layer.type === "vector")) {
@@ -1605,6 +1610,8 @@ export const LibreMap = ({
       hidingManagerRef.current = null;
       detachNonTiledRef.current?.();
       detachNonTiledRef.current = null;
+      detachTerrainZoomRef.current?.();
+      detachTerrainZoomRef.current = null;
       if (map.current) {
         map.current.remove();
         map.current = null;
