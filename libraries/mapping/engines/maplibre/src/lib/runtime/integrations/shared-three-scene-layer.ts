@@ -384,6 +384,7 @@ export const buildSharedThreeSceneLayer = (
       const frame: SharedThreeSceneFrame = {
         map,
         renderCamera,
+        renderer,
         lodCamera,
         lookTarget,
         viewport,
