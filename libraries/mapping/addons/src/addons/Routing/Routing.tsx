@@ -5,6 +5,7 @@ import { faRoute } from "@fortawesome/free-solid-svg-icons";
 import { useLocate } from "@carma-mapping/contexts";
 import {
   fetchRoute,
+  formatArrivalTime,
   formatRouteSummary,
   getModeIcon,
   type RouteStep,
@@ -55,6 +56,7 @@ import {
 } from "./routeChannel";
 import { travelModeOf, type RouteMode } from "./routeMode";
 import { stepAt } from "./routeSteps";
+import { useMinuteTick } from "./useMinuteTick";
 
 /**
  * Puts the user on the route and keeps them there: the map eases to where
@@ -774,18 +776,22 @@ export const Routing = ({
    * What the note says: the whole route while it is only in focus, what is
    * left of it while it is being driven. A route that carries no numbers is a
    * straight line someone measured rather than a route, and gets no note
-   * either way.
+   * either way. Both end on when the route would be over, setting out now.
    */
+  useMinuteTick();
   const summary =
     durationInSeconds !== undefined && distanceInMeters !== undefined
-      ? formatRouteSummary(durationInSeconds, distanceInMeters)
+      ? `${formatRouteSummary(
+          durationInSeconds,
+          distanceInMeters
+        )} · ${formatArrivalTime(durationInSeconds)}`
       : null;
   const countdown =
     summary && progress && progress.remainingSeconds !== undefined
       ? `${REMAINING_PREFIX} ${formatRouteSummary(
           progress.remainingSeconds,
           progress.remainingMeters
-        )}`
+        )} · ${formatArrivalTime(progress.remainingSeconds)}`
       : null;
   // the old route's numbers are no answer while a new route is on its way
   const noteText = rerouting ? REROUTING_LABEL : countdown ?? summary;

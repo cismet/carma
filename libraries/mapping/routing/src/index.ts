@@ -41,6 +41,7 @@ export {
 
 // How a route's numbers and instructions read, everywhere they are shown
 export {
+  formatArrivalTime,
   formatDirection,
   formatDistance,
   formatDuration,

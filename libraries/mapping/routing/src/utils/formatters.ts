@@ -59,6 +59,19 @@ export function formatRouteSummary(
   )}`;
 }
 
+const CLOCK = new Intl.DateTimeFormat("de-DE", {
+  hour: "2-digit",
+  minute: "2-digit",
+});
+
+/** "an 14:32": when a route that takes this long ends, setting out at `now` */
+export function formatArrivalTime(
+  durationInSeconds: number,
+  now: number = Date.now()
+): string {
+  return `an ${CLOCK.format(now + durationInSeconds * 1000)}`;
+}
+
 /**
  * The turn itself, before the street it leads onto. The verb is left off the
  * ones that are not a turn: "Abfahrt", "weiter", "wenden", "im Kreisverkehr",

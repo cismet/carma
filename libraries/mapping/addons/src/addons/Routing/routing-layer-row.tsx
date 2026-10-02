@@ -3,12 +3,17 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faArrowsRotate } from "@fortawesome/free-solid-svg-icons";
 
 import type { InteractionButton, Layer } from "@carma-mapping/layers";
-import { formatDistance, formatRouteSummary } from "@carma-mapping/routing";
+import {
+  formatArrivalTime,
+  formatDistance,
+  formatRouteSummary,
+} from "@carma-mapping/routing";
 
 import { useLocationSimulation } from "../LocationSimulator/simulationChannel";
 import { REMAINING_PREFIX, REROUTING_LABEL } from "./config";
 import { useActiveRoute, useRouteNavigation } from "./routeChannel";
 import { travelModeOf, type RouteMode } from "./routeMode";
+import { useMinuteTick } from "./useMinuteTick";
 
 export const ROUTING_LAYER_ID = "__routing__";
 
@@ -134,15 +139,16 @@ export const useRoutingLayerRow = ({
   // route that was only measured carries no minutes and gets the meters alone.
   // While a new route is on its way the old one's numbers are no answer, and
   // the row says what is happening instead
+  useMinuteTick();
   const label = rerouting
     ? REROUTING_LABEL
     : progress
     ? `${REMAINING_PREFIX} ${
         progress.remainingSeconds !== undefined
-          ? formatRouteSummary(
+          ? `${formatRouteSummary(
               progress.remainingSeconds,
               progress.remainingMeters
-            )
+            )} · ${formatArrivalTime(progress.remainingSeconds)}`
           : formatDistance(progress.remainingMeters)
       }`
     : "…";
