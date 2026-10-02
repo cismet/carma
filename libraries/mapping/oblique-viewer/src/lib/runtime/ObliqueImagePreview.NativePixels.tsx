@@ -29,7 +29,7 @@ import type { PreviewBackdropTint } from "./utils/preview-backdrop";
 const parkedCompositions = new Map<string, Worker>();
 let compositionGeneration = 0;
 
-/** Fetch, decode and assemble native RGB in a cancellable worker after the camera rests. */
+/** Assemble the visible source window in a reusable, cancellable worker. */
 export const NativePixels = ({
   map,
   rootRef,
@@ -41,6 +41,7 @@ export const NativePixels = ({
   rollDeg,
   dimImage,
   sourceUrl,
+  tiff = false,
   onSourceLoaded,
   onError,
   backdropLook,
@@ -55,7 +56,8 @@ export const NativePixels = ({
   principal: { xOffset: number; yOffset: number };
   rollDeg: number;
   dimImage: boolean;
-  sourceUrl?: string;
+  sourceUrl: string;
+  tiff?: boolean;
   onSourceLoaded?: (url: string, width: number, height: number) => void;
   onError?: () => void;
   backdropLook?: ObliqueBackdropLook;
@@ -71,7 +73,6 @@ export const NativePixels = ({
   const lastSourceRef = useRef<string | null>(null);
   const sourceUrlRef = useRef(sourceUrl);
   sourceUrlRef.current = sourceUrl;
-  const wholeImage = !!sourceUrl;
   // These states serve only the DOM fallback. Shared-scene publication is synchronous.
   const [ready, setReady] = useState(false);
   const [previewWindow, setPreviewWindow] =
@@ -92,38 +93,32 @@ export const NativePixels = ({
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas || !rootRef.current || dimImage || (!wholeImage && !path))
-      return undefined;
+    if (!canvas || !rootRef.current || dimImage) return undefined;
     let timer: number | undefined;
     let timeout: number | undefined;
     let worker: Worker | null = null;
     let published: ImageBitmap | null = null;
     let previousGeometry: ScenePreviewImageGeometry | null = null;
+    let started = false;
     let disposed = false;
     let generation = ++compositionGeneration;
-    const workerKey = `${path}/${imageId}`;
-    if (wholeImage) {
-      worker = parkedCompositions.get(workerKey) ?? null;
-      parkedCompositions.delete(workerKey);
-    }
+    const memoryGb =
+      (navigator as Navigator & { deviceMemory?: number }).deviceMemory ?? 4;
+    const retainedSourceByteLimit =
+      (Math.min(1024, Math.max(256, memoryGb * 128)) * 1024 * 1024) / 4;
+    const workerKey = `${path}/${imageId}/${tiff}`;
+    worker = parkedCompositions.get(workerKey) ?? null;
+    parkedCompositions.delete(workerKey);
     let scheduledUrl: string | null = null;
     const cancel = () => {
       generation = ++compositionGeneration;
       globalThis.window.clearTimeout(timer);
       globalThis.window.clearTimeout(timeout);
-      if (wholeImage) worker?.postMessage({ cancel: true });
-      else {
-        worker?.terminate();
-        worker = null;
-      }
+      worker?.postMessage({ cancel: true });
     };
     const schedule = (geometry: ScenePreviewImageGeometry) => {
       const requestedUrl = sourceUrlRef.current;
-      const url = new URL(
-        requestedUrl ??
-          `${path!.replace(/\/$/, "")}/${encodeURIComponent(imageId)}.png`,
-        globalThis.window.location.href
-      ).href;
+      const url = new URL(requestedUrl, globalThis.window.location.href).href;
       if (disposed || (geometry === previousGeometry && url === scheduledUrl))
         return;
       scheduledUrl = url;
@@ -158,14 +153,15 @@ export const NativePixels = ({
           return;
         }
         worker = currentWorker;
+        started = true;
         let jobTimeout: number | undefined;
         const finish = (error?: string) => {
           globalThis.window.clearTimeout(jobTimeout);
-          if (!wholeImage || error) {
+          if (error) {
             currentWorker.terminate();
             if (worker === currentWorker) worker = null;
           }
-          if (error && wholeImage && !disposed && epoch === generation)
+          if (error && !disposed && epoch === generation)
             callbacksRef.current.onError?.();
           if (error && !disposed && epoch === generation && import.meta.env.DEV)
             console.warn("Native RGB preview unavailable", error);
@@ -183,7 +179,7 @@ export const NativePixels = ({
           if (
             disposed ||
             epoch !== generation ||
-            (wholeImage && requestedUrl !== sourceUrlRef.current) ||
+            requestedUrl !== sourceUrlRef.current ||
             (event.data.generation !== undefined &&
               event.data.generation !== epoch)
           ) {
@@ -213,7 +209,6 @@ export const NativePixels = ({
             bitmap.close();
           }
           if (
-            wholeImage &&
             lastSourceRef.current !== url &&
             event.data.sourceWidth &&
             event.data.sourceHeight
@@ -241,14 +236,16 @@ export const NativePixels = ({
             window: frame,
             nativeSize,
             flipForTexture: sceneImage,
-            wholeImage,
+            tiff,
             generation: epoch,
+            retainedSourceByteLimit,
           });
         } catch {
           finish("RGB request transfer failed");
         }
       };
-      timer = globalThis.window.setTimeout(start, 200);
+      if (!started && !map.isMoving?.()) start();
+      else timer = globalThis.window.setTimeout(start, 200);
     };
     const movementStarted = () => {
       cancel();
@@ -299,19 +296,15 @@ export const NativePixels = ({
     return () => {
       disposed = true;
       cancel();
-      if (worker && wholeImage) {
+      if (worker) {
         worker.onmessage = (event: MessageEvent<{ bitmap?: ImageBitmap }>) =>
           event.data.bitmap?.close();
         worker.onerror = null;
         worker.onmessageerror = null;
-        const memoryGb =
-          (navigator as Navigator & { deviceMemory?: number }).deviceMemory ??
-          4;
         worker.postMessage({
           cancel: true,
           park: true,
-          retainedSourceByteLimit:
-            (Math.min(1024, Math.max(256, memoryGb * 128)) * 1024 * 1024) / 4,
+          retainedSourceByteLimit,
         });
         parkedCompositions.get(workerKey)?.terminate();
         parkedCompositions.delete(workerKey);
@@ -340,7 +333,7 @@ export const NativePixels = ({
     map,
     rootRef,
     path,
-    wholeImage,
+    tiff,
     imageId,
     nativeSize.width,
     nativeSize.height,

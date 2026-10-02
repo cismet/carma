@@ -29,12 +29,12 @@ import {
 import {
   DEFAULT_CONTROL_ORDER,
   DEFAULT_CONTROL_POSITION,
-  WUPPERTAL_OBLIQUE_2024,
   resolveSeries,
   type ObliqueViewerConfig,
 } from "../core/config";
 import type {
   AnimationConfig,
+  ObliqueDataset,
   CardinalDirection,
   NearestObliqueImageRecord,
   ObliqueGroundTarget,
@@ -90,6 +90,89 @@ export const ObliqueViewer = ({
   libreMap: MaplibreMap | null;
 }) => {
   const viewerConfig = config ?? EMPTY_CONFIG;
+  const uri = viewerConfig.seriesConfigURI;
+  const basemapStarted = useBasemapStarted(libreMap, libreMap !== null, true);
+  const { publish } = useObliqueViewerActions();
+  const [remote, setRemote] = useState<{
+    uri: string;
+    series: ObliqueDataset[];
+  } | null>(null);
+  const inlineSeries = useMemo(
+    () => resolveSeries(viewerConfig),
+    [viewerConfig]
+  );
+  useEffect(() => {
+    if (!uri || !basemapStarted) return undefined;
+    const controller = new AbortController();
+    const timer = setTimeout(
+      () =>
+        controller.abort(
+          new Error("Bildserien konnten nicht rechtzeitig geladen werden.")
+        ),
+      20000
+    );
+    let disposed = false;
+    publish({ isLoading: true, error: null });
+    void (async () => {
+      const response = await fetch(uri, {
+        signal: controller.signal,
+        cache: "no-cache",
+      });
+      if (!response.ok)
+        throw new Error(`Bildserien-Konfiguration: HTTP ${response.status}`);
+      if (Number(response.headers.get("Content-Length")) > 1024 * 1024) {
+        await response.body?.cancel();
+        throw new Error("Bildserien-Konfiguration ist zu groß.");
+      }
+      const document = await response.json();
+      if (
+        document?.schemaVersion !== 1 ||
+        !Array.isArray(document.series) ||
+        document.series.length === 0
+      )
+        throw new Error("Ungültige Bildserien-Konfiguration.");
+      const series = resolveSeries({ series: document.series });
+      if (!disposed) setRemote({ uri, series });
+    })()
+      .catch((error: unknown) => {
+        if (!disposed)
+          publish({
+            isLoading: false,
+            error:
+              error instanceof Error
+                ? error.message
+                : "Bildserien konnten nicht geladen werden.",
+          });
+      })
+      .finally(() => clearTimeout(timer));
+    return () => {
+      disposed = true;
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [uri, basemapStarted, publish]);
+  const series = uri
+    ? remote?.uri === uri
+      ? remote.series
+      : undefined
+    : inlineSeries;
+  const resolved = useMemo(
+    () => (series ? { ...viewerConfig, series } : null),
+    [viewerConfig, series]
+  );
+  return resolved && series?.length ? (
+    <ObliqueViewerRuntime config={resolved} libreMap={libreMap} />
+  ) : null;
+};
+
+const ObliqueViewerRuntime = ({
+  config,
+  libreMap,
+}: {
+  config: ObliqueViewerConfig;
+  libreMap: MaplibreMap | null;
+}) => {
+  const viewerConfig = config ?? EMPTY_CONFIG;
   const {
     showControl = true,
     controlPosition = DEFAULT_CONTROL_POSITION,
@@ -101,7 +184,7 @@ export const ObliqueViewer = ({
     [viewerConfig]
   );
   // Camera browsing policy remains stable while the user toggles image series.
-  const browsingDataset = configuredSeries[0] ?? WUPPERTAL_OBLIQUE_2024;
+  const browsingDataset = configuredSeries[0];
   const {
     isOn,
     panelOpen,
@@ -337,7 +420,10 @@ export const ObliqueViewer = ({
             selectedDataset.previewPath,
             selectedDataset.previewQualityLevel,
             selectedDataset.downloadQualityLevel,
-            selectedDataset
+            {
+              ...selectedDataset,
+              originalImageUrl: selectedRecord?.assets?.original?.href,
+            }
           )
         : { downloadUrl: null },
     [selectedRecord, selectedDataset, resolvedSelectedDataset]
@@ -812,9 +898,20 @@ export const ObliqueViewer = ({
     seriesLabels: hoverSeriesLabels,
     onHoveredRecord: (record) => {
       const dataset = record && data?.datasets.get(record.seriesId);
+      const camera =
+        record && dataset
+          ? getCameraCalibration(dataset, record.cameraId)
+          : null;
       prefetchPreviewThumbnail(
         record && dataset
-          ? { previewPath: dataset.previewPath, imageId: record.sourceId }
+          ? {
+              previewPath: dataset.previewPath,
+              imageId: record.sourceId,
+              originalImageUrl: record.assets?.original?.href,
+              nativeSize: camera
+                ? { width: camera.widthPx, height: camera.heightPx }
+                : undefined,
+            }
           : null
       );
     },
@@ -1163,6 +1260,9 @@ export const ObliqueViewer = ({
       ),
     []
   );
+  useEffect(() => {
+    if (!previewVisible) prefetchPreviewThumbnail(null);
+  }, [previewVisible]);
   if (!libreMap) return null;
   return (
     <>
@@ -1177,9 +1277,10 @@ export const ObliqueViewer = ({
               map={libreMap}
               onRootChange={setPreviewRoot}
               previewPath={selectedDataset.previewPath}
-              originalPixelPreviewPath={
-                selectedDataset.originalPixelPreviewPath
+              originalImageUrlTemplate={
+                selectedDataset.originalImageUrlTemplate
               }
+              originalImageUrl={selectedRecord.assets?.original?.href}
               nativePixelSize={{
                 width: selectedCalibration.widthPx as DevicePixels,
                 height: selectedCalibration.heightPx as DevicePixels,

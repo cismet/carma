@@ -10,9 +10,16 @@ import {
 export const usePrefetchedPreviewThumbnail = (
   previewPath: string,
   imageId: string,
-  hasDecodedImage: boolean
+  hasDecodedImage: boolean,
+  options?: {
+    originalImageUrl?: string;
+    nativeSize?: { width: number; height: number };
+  }
 ): PreviewThumbnailLease | null => {
-  const sourceKey = `${previewPath}/${imageId}`;
+  const originalImageUrl = options?.originalImageUrl;
+  const width = options?.nativeSize?.width;
+  const height = options?.nativeSize?.height;
+  const sourceKey = originalImageUrl ?? `${previewPath}/${imageId}`;
   const [thumbnail, setThumbnail] = useState<{
     sourceKey: string;
     lease: PreviewThumbnailLease;
@@ -22,7 +29,12 @@ export const usePrefetchedPreviewThumbnail = (
       setThumbnail(null);
       return undefined;
     }
-    const source = { previewPath, imageId };
+    const source = {
+      previewPath,
+      imageId,
+      originalImageUrl,
+      nativeSize: width && height ? { width, height } : undefined,
+    };
     let lease: PreviewThumbnailLease | null = null;
     const receive = () => {
       if (lease) return;
@@ -36,7 +48,15 @@ export const usePrefetchedPreviewThumbnail = (
       unsubscribe();
       lease?.release();
     };
-  }, [previewPath, imageId, sourceKey, hasDecodedImage]);
+  }, [
+    previewPath,
+    imageId,
+    sourceKey,
+    hasDecodedImage,
+    originalImageUrl,
+    width,
+    height,
+  ]);
   return !hasDecodedImage && thumbnail?.sourceKey === sourceKey
     ? thumbnail.lease
     : null;

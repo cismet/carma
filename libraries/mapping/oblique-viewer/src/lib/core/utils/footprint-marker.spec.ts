@@ -1,3 +1,4 @@
+import { resolveSeries } from "../config";
 import { describe, expect, it } from "vitest";
 import { Vector2 } from "three";
 import {
@@ -6,11 +7,10 @@ import {
 } from "./footprint-marker";
 import type { ObliquePose } from "../types";
 import {
-  resolveDataset,
-  WUPPERTAL_OBLIQUE_2024,
-  WUPPERTAL_OBLIQUE_2026,
-  WUPPERTAL_2026_RATHAUS_DATASET,
-} from "../config";
+  TEST_LEGACY_SERIES,
+  TEST_INPHO_SERIES,
+  TEST_SAMPLE_SERIES,
+} from "./synthetic-series.test-fixture";
 
 const ring = [
   [-200, -100],
@@ -35,10 +35,18 @@ describe("terrain footprint marker placement", () => {
     expect((angle * 180) / Math.PI).toBeCloseTo(120);
   });
   it("uses declared acquisition years without inventing one for another flight", () => {
-    expect(resolveDataset(undefined).acquisitionYear).toBe(2024);
-    expect(WUPPERTAL_2026_RATHAUS_DATASET.acquisitionYear).toBe(2026);
+    expect(TEST_LEGACY_SERIES.acquisitionYear).toBe(2024);
+    expect(TEST_SAMPLE_SERIES.acquisitionYear).toBe(2026);
     expect(
-      resolveDataset({ id: "undated-flight" }).acquisitionYear
+      resolveSeries({
+        series: [
+          {
+            ...TEST_LEGACY_SERIES,
+            id: "undated-flight",
+            acquisitionYear: undefined,
+          },
+        ],
+      })[0].acquisitionYear
     ).toBeUndefined();
   });
   it("anchors the triangle at image bottom and points toward image top", () => {
@@ -114,26 +122,42 @@ describe("terrain footprint marker placement", () => {
 
 describe("series footprint identity", () => {
   it("uses distinct short labels for both 2026 catalogs", () => {
-    expect(footprintSeriesLabel(WUPPERTAL_OBLIQUE_2024, 3)).toBe("2024");
-    expect(footprintSeriesLabel(WUPPERTAL_OBLIQUE_2026, 3)).toBe("2026");
-    expect(footprintSeriesLabel(WUPPERTAL_2026_RATHAUS_DATASET, 3)).toBe(
-      "2026Test"
-    );
-    expect(WUPPERTAL_OBLIQUE_2024.acquisitionMonth).toBe(3);
-    expect(WUPPERTAL_OBLIQUE_2026.acquisitionMonth).toBe(4);
+    expect(footprintSeriesLabel(TEST_LEGACY_SERIES, 3)).toBe("2024");
+    expect(footprintSeriesLabel(TEST_INPHO_SERIES, 3)).toBe("2026");
+    expect(footprintSeriesLabel(TEST_SAMPLE_SERIES, 3)).toBe("2026Test");
+    expect(TEST_LEGACY_SERIES.acquisitionMonth).toBe(3);
+    expect(TEST_INPHO_SERIES.acquisitionMonth).toBe(4);
   });
   it("suppresses labels when only one series is enabled", () => {
     for (const series of [
-      WUPPERTAL_OBLIQUE_2024,
-      WUPPERTAL_OBLIQUE_2026,
-      WUPPERTAL_2026_RATHAUS_DATASET,
+      TEST_LEGACY_SERIES,
+      TEST_INPHO_SERIES,
+      TEST_SAMPLE_SERIES,
     ]) {
       expect(footprintSeriesLabel(series, 1)).toBeUndefined();
     }
-    expect(footprintSeriesLabel(WUPPERTAL_OBLIQUE_2026, 0)).toBeUndefined();
-    expect(resolveDataset({ id: "unknown-flight" }).shortLabel).toBeUndefined();
+    expect(footprintSeriesLabel(TEST_INPHO_SERIES, 0)).toBeUndefined();
     expect(
-      resolveDataset({ id: "unknown-flight" }).acquisitionMonth
+      resolveSeries({
+        series: [
+          {
+            ...TEST_LEGACY_SERIES,
+            id: "unknown-flight",
+            shortLabel: undefined,
+          },
+        ],
+      })[0].shortLabel
+    ).toBeUndefined();
+    expect(
+      resolveSeries({
+        series: [
+          {
+            ...TEST_LEGACY_SERIES,
+            id: "unknown-flight",
+            acquisitionMonth: undefined,
+          },
+        ],
+      })[0].acquisitionMonth
     ).toBeUndefined();
   });
 });

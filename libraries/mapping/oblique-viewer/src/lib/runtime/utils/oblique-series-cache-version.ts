@@ -1,5 +1,5 @@
 /** Bump when the parsed catalog schema or development parser semantics change. */
-export const OBLIQUE_CATALOG_CACHE_VERSION = "oblique-catalog-v1";
+export const OBLIQUE_CATALOG_CACHE_VERSION = "oblique-catalog-v2";
 export const OBLIQUE_CATALOG_FRESHNESS_MS = 60000;
 const VERSION_KEY = "carma.oblique.parsed-catalog.version";
 

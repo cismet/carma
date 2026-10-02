@@ -17,23 +17,29 @@ export const getImageUrls = (
   path: string | undefined,
   level: PreviewQualityLevel,
   downloadLevel?: PreviewQualityLevel,
-  options?: { downloadPath?: string; originalImageUrlTemplate?: string }
+  options?: {
+    downloadPath?: string;
+    originalImageUrlTemplate?: string;
+    originalImageUrl?: string;
+  }
 ): { previewUrl: string | null; downloadUrl: string | null } => {
   if (!id || !path) {
     return { previewUrl: null, downloadUrl: null };
   }
   return {
     previewUrl: getPreviewImageUrl(path, level, id),
-    downloadUrl: options?.originalImageUrlTemplate
-      ? options.originalImageUrlTemplate.replace(
-          /\{imageId\}/g,
-          encodeURIComponent(id)
-        )
-      : options?.downloadPath
-      ? `${options.downloadPath.replace(/\/$/, "")}/${encodeURIComponent(
-          id
-        )}.${PREVIEW_IMAGE_EXTENSION}`
-      : getPreviewImageUrl(path, downloadLevel ?? level, id),
+    downloadUrl:
+      options?.originalImageUrl ??
+      (options?.originalImageUrlTemplate
+        ? options.originalImageUrlTemplate.replace(
+            /\{imageId\}/g,
+            encodeURIComponent(id)
+          )
+        : options?.downloadPath
+        ? `${options.downloadPath.replace(/\/$/, "")}/${encodeURIComponent(
+            id
+          )}.${PREVIEW_IMAGE_EXTENSION}`
+        : getPreviewImageUrl(path, downloadLevel ?? level, id)),
   };
 };
 

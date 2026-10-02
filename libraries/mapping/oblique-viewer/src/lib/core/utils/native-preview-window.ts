@@ -85,10 +85,10 @@ export const nativePreviewTiles = (
   const stepX = source.width / target.width,
     stepY = source.height / target.height;
   const halo = Math.max(3, Math.ceil(6 * Math.max(stepX, stepY)));
-  for (let y = 0; y < target.height; y += 1280) {
-    for (let x = 0; x < target.width; x += 1280) {
-      const w = Math.min(1280, target.width - x),
-        h = Math.min(1280, target.height - y);
+  for (let y = 0; y < target.height; y += 1024) {
+    for (let x = 0; x < target.width; x += 1024) {
+      const w = Math.min(1024, target.width - x),
+        h = Math.min(1024, target.height - y);
       const sx = source.x + x * stepX,
         sy = source.y + y * stepY;
       const sw = w * stepX,

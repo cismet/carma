@@ -28,7 +28,7 @@ vi.mock("./utils/cameraMath", () => ({
 type Request = {
   url: string;
   generation: number;
-  wholeImage: boolean;
+  tiff: boolean;
   flipForTexture: boolean;
   window: NativePreviewWindow;
 };
@@ -131,13 +131,14 @@ describe("worker-composed preview pixels", () => {
   it("coalesces geometry requests and reuses one worker and one metadata notification per source URL", () => {
     const view = setup();
     beforeRender();
+    const worker = workers[0];
+    expect(worker.requests).toHaveLength(1);
     act(() => vi.advanceTimersByTime(100));
     beforeRender(geometry(80));
     act(() => vi.advanceTimersByTime(100));
-    expect(workers).toHaveLength(0);
-    act(() => vi.advanceTimersByTime(100));
-    const worker = workers[0];
     expect(worker.requests).toHaveLength(1);
+    act(() => vi.advanceTimersByTime(100));
+    expect(worker.requests).toHaveLength(2);
     const renders = scene.renders.mock.calls.length;
     complete(worker);
     expect(content()?.source).toBeDefined();
@@ -152,7 +153,7 @@ describe("worker-composed preview pixels", () => {
     rest();
     complete(worker);
     expect(workers).toHaveLength(1);
-    expect(worker.requests).toHaveLength(2);
+    expect(worker.requests).toHaveLength(3);
     expect(worker.terminate).not.toHaveBeenCalled();
     expect(view.props.onSourceLoaded).toHaveBeenCalledOnce();
     expect(scene.renders).toHaveBeenCalledTimes(renders);
@@ -346,22 +347,28 @@ describe("worker-composed preview pixels", () => {
     evicted.unmount();
   });
 
-  it("retains the original-PNG worker's termination behavior", () => {
-    const view = setup("original", { sourceUrl: undefined, path: "/native" });
+  it("requests TIFF windows immediately and accepts one sharper replacement in the same worker", () => {
+    const view = setup("original", {
+      sourceUrl: "https://imagery.test/original.tif",
+      tiff: true,
+    });
     beforeRender();
     rest();
     const worker = workers[0];
     expect(worker.requests[0]).toMatchObject({
-      url: new URL("/native/original.png", window.location.href).href,
-      wholeImage: false,
+      url: "https://imagery.test/original.tif",
+      tiff: true,
       flipForTexture: true,
     });
     const pixels = complete(worker);
     expect(content()?.source).toBe(pixels);
-    expect(worker.terminate).toHaveBeenCalledOnce();
-    expect(view.props.onSourceLoaded).not.toHaveBeenCalled();
-    view.unmount();
-    expect(worker.terminate).toHaveBeenCalledOnce();
+    expect(worker.terminate).not.toHaveBeenCalled();
+    const sharper = complete(worker);
+    expect(content()?.source).toBe(sharper);
     expect(pixels.close).toHaveBeenCalledOnce();
+    expect(view.props.onSourceLoaded).toHaveBeenCalledOnce();
+    view.unmount();
+    expect(worker.terminate).not.toHaveBeenCalled();
+    expect(sharper.close).toHaveBeenCalledOnce();
   });
 });

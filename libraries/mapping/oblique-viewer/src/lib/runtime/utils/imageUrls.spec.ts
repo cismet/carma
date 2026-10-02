@@ -39,6 +39,18 @@ describe("source image URLs", () => {
       downloadUrl: "https://example.com/originals/source%20image.jpg",
     });
   });
+
+  it("uses the delivered asset folder instead of inferring it from the camera prefix", () => {
+    const originalImageUrl =
+      "https://images.example/2026/tiff/West/FW_11_6458.tif";
+    expect(
+      getImageUrls("FW_11_6458", "https://images.example/2026", 3, 1, {
+        originalImageUrl,
+        originalImageUrlTemplate:
+          "https://images.example/2026/tiff/{imageId}.tif",
+      }).downloadUrl
+    ).toBe(originalImageUrl);
+  });
 });
 
 describe("texture-safe preview loading", () => {

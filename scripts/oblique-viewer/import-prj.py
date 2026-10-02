@@ -12,6 +12,7 @@ import re
 import runpy
 import sys
 import tempfile
+from urllib.parse import quote, urlsplit
 
 
 _parser = runpy.run_path(str(Path(__file__).with_name("inpho-parser.py")))
@@ -194,13 +195,13 @@ def load_image_ids(path):
     return set(ids)
 
 
-def write_atomic(path, payload):
+def write_atomic(path, payload, compact=False):
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = None
     try:
         with tempfile.NamedTemporaryFile("w", encoding="utf-8", dir=path.parent, delete=False) as stream:
             temporary = Path(stream.name)
-            json.dump(payload, stream, indent=2, ensure_ascii=False, allow_nan=False)
+            json.dump(payload, stream, indent=None if compact else 2, separators=(",", ":") if compact else None, ensure_ascii=False, allow_nan=False)
             stream.write("\n")
         os.replace(temporary, path)
     finally:
@@ -215,11 +216,18 @@ def main(argv=None):
     parser.add_argument("--series-id", required=True)
     parser.add_argument("--height-datum", choices=("unknown", "dhhn2016", "ellipsoidal"), default="unknown")
     parser.add_argument("--image-ids", type=Path, help="One source ID per line, or semicolon CSV with a photo column")
+    parser.add_argument("--image-root", type=Path, help="Read-only inventory of uploaded TIFFs; no pixel decoding")
+    parser.add_argument("--image-base-url", help="Public HTTP(S) URL corresponding exactly to image-root")
+    parser.add_argument("--compact", action="store_true", help="Write compact JSON for serving a large catalog")
     parser.add_argument("--expected-images", type=int, help="Assert full source image count before subsetting")
     parser.add_argument("--expected-cameras", type=int)
     parser.add_argument("--expected-stations", type=int)
     args = parser.parse_args(argv)
     try:
+        if bool(args.image_root) != bool(args.image_base_url):
+            raise InphoError("image-root and image-base-url must be supplied together")
+        if args.image_base_url and urlsplit(args.image_base_url).scheme not in ("http", "https"):
+            raise InphoError("image-base-url must be an HTTP(S) URL")
         sources = [args.input, *([args.image_ids] if args.image_ids else [])]
         if any(args.output.resolve() == source.resolve() for source in sources):
             raise InphoError("output must not replace a source PRJ or image-ID file")
@@ -241,11 +249,24 @@ def main(argv=None):
             metadata["images"] = {key: value for key, value in metadata["images"].items() if key in selected}
         metadata["provenance"] = {"sourceFormat": "INPHO PRJ", "sourceFileName": args.input.name,
                                   "sourceSha256": hashlib.sha256(source).hexdigest()}
-        write_atomic(args.output, metadata)
+        if args.image_root:
+            if not args.image_root.is_dir():
+                raise InphoError("image-root must be an existing directory")
+            for directory, _, filenames in os.walk(args.image_root):
+                for filename in sorted(filenames):
+                    file = Path(directory) / filename
+                    if file.suffix.lower() not in (".tif", ".tiff") or file.stem not in metadata["images"]:
+                        continue
+                    image = metadata["images"][file.stem]
+                    if image.get("assets", {}).get("original"):
+                        raise InphoError(f"duplicate uploaded image ID: {file.stem}")
+                    image["assets"] = {"original": {"href": args.image_base_url.rstrip("/") + "/" + quote(file.relative_to(args.image_root).as_posix(), safe="/"), "type": "image/tiff", "roles": ["data"]}}
+        write_atomic(args.output, metadata, args.compact)
         views = Counter(metadata["cameras"][record["cameraId"]].get("view", "unspecified") for record in metadata["images"].values())
         print(json.dumps({"seriesId": args.series_id, "sourceCounts": counts, "outputImages": len(metadata["images"]),
                           "views": dict(sorted(views.items())), "verticalDatum": args.height_datum,
-                          "sourceSha256": metadata["provenance"]["sourceSha256"]}, sort_keys=True))
+                          "sourceSha256": metadata["provenance"]["sourceSha256"],
+                          "originalAssets": sum("assets" in image for image in metadata["images"].values())}, sort_keys=True))
         return 0
     except (InphoError, OSError, UnicodeError, csv.Error, ValueError) as error:
         print(f"INPHO import failed: {error}", file=sys.stderr)

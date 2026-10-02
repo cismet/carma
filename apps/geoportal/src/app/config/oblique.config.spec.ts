@@ -4,28 +4,6 @@ vi.mock("@carma-commons/resources", () => ({
   WUPP_LOD2_TILESET: { url: "https://tiles.example/lod2/tileset.json" },
   WUPP_MESH_2024: { url: "https://tiles.example/mesh2024/tileset.json" },
 }));
-vi.mock("@carma-mapping/oblique-viewer", () => ({
-  WUPPERTAL_OBLIQUE_2024: {
-    id: "wuppertal-2024",
-    enabledByDefault: true,
-    exteriorOrientationsURI: "https://images.example/2024/orientation.json",
-    previewPath: "https://images.example/2024",
-  },
-  WUPPERTAL_OBLIQUE_2026: {
-    id: "wuppertal-2026",
-    enabledByDefault: false,
-    exteriorOrientationsURI: "https://images.example/2026/orientation.json",
-    previewPath: "https://images.example/2026",
-    allowUnverifiedSourceHeight: false,
-  },
-  WUPPERTAL_2026_RATHAUS_DATASET: {
-    id: "wuppertal-2026-rathaus",
-    enabledByDefault: false,
-    exteriorOrientationsURI: "/oblique/2026-rathaus/metadata.json",
-    previewPath: "/oblique/2026-rathaus",
-    allowUnverifiedSourceHeight: false,
-  },
-}));
 vi.mock("@carma-commons/utils", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@carma-commons/utils")>()),
   resolveDeployment: () => "pr",
@@ -126,24 +104,12 @@ describe("oblique deployment route", () => {
 
 describe("oblique imagery configuration", () => {
   it.each(["/", prBase])(
-    "uses public imagery below %s and enables only 2024",
+    "loads server-owned series for %s without bundling metadata",
     (baseUrl) => {
-      const config = resolveObliqueViewerConfig(baseUrl);
-      expect(
-        config.series
-          ?.filter((series) => series.enabledByDefault)
-          .map((series) => series.id)
-      ).toEqual(["wuppertal-2024"]);
-      expect(JSON.stringify(config)).not.toContain("127.0.0.1");
-      expect(
-        config.series?.some((series) => series.allowUnverifiedSourceHeight)
-      ).toBe(false);
-      expect(
-        config.series?.find((series) => series.id === "wuppertal-2026-rathaus")
-      ).toMatchObject({
-        exteriorOrientationsURI: `${baseUrl}oblique/2026-rathaus/metadata.json`,
-        previewPath: `${baseUrl}oblique/2026-rathaus`,
+      expect(resolveObliqueViewerConfig(baseUrl)).toEqual({
+        seriesConfigURI: "https://wupp-oblique.cismet.de/series-config.json",
       });
+      expect(resolveObliqueViewerConfig(baseUrl).series).toBeUndefined();
     }
   );
 

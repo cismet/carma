@@ -2,12 +2,7 @@ import type { StyleSpecification } from "maplibre-gl";
 import type { DeploymentTarget } from "@carma-commons/utils";
 import { WUPP_LOD2_TILESET, WUPP_MESH_2024 } from "@carma-commons/resources";
 
-import {
-  WUPPERTAL_OBLIQUE_2024,
-  WUPPERTAL_OBLIQUE_2026,
-  WUPPERTAL_2026_RATHAUS_DATASET,
-  type ObliqueViewerConfig,
-} from "@carma-mapping/oblique-viewer";
+import type { ObliqueViewerConfig } from "@carma-mapping/oblique-viewer";
 
 /** The oblique addon is available behind its flag on development deployments. */
 export const OBLIQUE_VIEWER_DEPLOYMENTS: DeploymentTarget[] = [
@@ -19,23 +14,11 @@ export const OBLIQUE_VIEWER_DEPLOYMENTS: DeploymentTarget[] = [
 const publicAssetUrl = (path: string, baseUrl: string) =>
   `${baseUrl.replace(/\/?$/, "/")}${path.replace(/^\/+/, "")}`;
 
-/** All deployments use public imagery and deployment-relative sample assets. */
+/** Series, camera calibration and image metadata remain on the imagery server. */
 export const resolveObliqueViewerConfig = (
-  baseUrl: string = import.meta.env.BASE_URL
+  _baseUrl: string = import.meta.env.BASE_URL
 ): ObliqueViewerConfig => ({
-  series: [
-    WUPPERTAL_OBLIQUE_2024,
-    { ...WUPPERTAL_OBLIQUE_2026, enabledByDefault: false },
-    {
-      ...WUPPERTAL_2026_RATHAUS_DATASET,
-      enabledByDefault: false,
-      exteriorOrientationsURI: publicAssetUrl(
-        "oblique/2026-rathaus/metadata.json",
-        baseUrl
-      ),
-      previewPath: publicAssetUrl("oblique/2026-rathaus", baseUrl),
-    },
-  ],
+  seriesConfigURI: "https://wupp-oblique.cismet.de/series-config.json",
 });
 
 export const OBLIQUE_VIEWER_CONFIG = resolveObliqueViewerConfig();

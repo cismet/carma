@@ -41,6 +41,14 @@ also supply `lineIndex` and `waypointIndex`. Unknown naming schemes retain their
 source IDs without inventing station/group information. Series-qualified
 runtime identity is the viewer's responsibility; the source names stay intact.
 
+`--image-root` and `--image-base-url` optionally inventory uploaded originals
+without decoding pixels. Each matching source image receives
+`assets.original: {href, type: "image/tiff", roles: ["data"]}` using the actual
+relative folder and filename. These asset fields follow STAC conventions;
+the catalog remains the normalized INPHO format. Missing uploads retain their
+orientation without an invented asset URL. `--compact` removes JSON whitespace
+for a served catalog.
+
 Conventions declare `positionUnit: m`, `worldAxes: [easting,northing,up]`,
 `rotationLayout: row-major`, `rotationTransform: world-to-camera`, and
 `opticalAxis: -z`. The source matrix rows and their image-mm frame are preserved;
@@ -64,65 +72,38 @@ before an atomic output replacement; errors produce a nonzero exit code.
 
 ## Reproducible import
 
-From the repository root, using a verified local copy of the source project:
+Run the canonical importer beside the server-owned imagery directory:
 
 ```sh
 python3 scripts/oblique-viewer/import-prj.py \
-  --input /path/to/ImageOrientation_MatchAT.prj \
-  --output output/oblique-viewer/2026/orientation.json \
-  --series-id wuppertal-2026 \
-  --expected-images 30172 --expected-cameras 5 --expected-stations 7351
-
-python3 scripts/oblique-viewer/import-prj.py \
-  --input /path/to/ImageOrientation_MatchAT.prj \
-  --image-ids /path/to/orientation.test.csv \
-  --output output/oblique-viewer/2026/orientation.rathaus.json \
-  --series-id wuppertal-2026-rathaus \
-  --expected-images 30172 --expected-cameras 5 --expected-stations 7351
+  --input /path/to/flight.prj \
+  --output /path/to/imagery/catalog.json \
+  --series-id flight-id --height-datum unknown \
+  --image-root /path/to/uploaded-originals \
+  --image-base-url https://images.example/flight/tiff \
+  --compact
 ```
 
-`--image-ids` accepts one source ID per line or the supplied semicolon CSV's
-`photo` column. Full-source counts and rotations are checked before filtering.
-Use `--height-datum dhhn2016` or `--height-datum ellipsoidal` only after verifying
-the source Z convention. Output order and provenance are deterministic; no
-execution timestamp or absolute local path enters the output.
+Supply `--expected-images`, `--expected-cameras` and `--expected-stations`
+when source counts are known. `--image-ids` accepts one source ID per line or
+the semicolon CSV's `photo` column for a subset. Full-source counts and
+rotations are checked before filtering; all camera definitions remain present.
+The CSV selects IDs only and never supplies poses.
 
-The verified 2026 source has 30,172 images: 23,823 oblique and 6,349 nadir, five
-cameras, and 7,351 stations. The Rathaus subset has 41 oblique images. Matching
-CSV/PRJ image names do not imply matching positions: the observed median 3D
-position difference is 29.18 m, maximum 62.39 m. This importer uses PRJ poses
-consistently and never combines CSV positions with PRJ matrices. CSV may select
-IDs only; its camera poses are not imported.
+Use `--height-datum dhhn2016` or `--height-datum ellipsoidal` after verifying
+the source Z convention. Source positions, matrices and camera calibration
+remain unchanged. Output order and provenance are deterministic; no execution
+timestamp or absolute local path enters the catalog.
 
-The 2026 calibration declares 124 mm oblique lenses (the system name says f120)
-and 80 mm nadir. LE/RI's principal y differs from the portrait image centre by
-3,202.847 pixels; mount metadata and the NA comment also disagree. These source
-values remain visible for later alignment checks. No source-value correction
-is guessed here.
+Publish catalogs, camera calibrations and series configuration on the imagery
+server. The viewer host supplies `seriesConfigURI` to a JSON document containing
+`schemaVersion: 1` and a `series` array. Neither production catalogs nor
+delivery-specific configuration belongs in committed sources. Publishing
+metadata does not create JPEG pyramids; the client can use range-readable TIFF
+pages. Image processing and watermarking are separate operations.
 
-Original PRJs and generated full-flight JSON stay outside committed sources.
-Generation alone does not make TIFFs browser-viewable: the currently supplied
-test imagery is TIFF and the served 2026 image directory has no viewer JPEGs.
-Publishing metadata or imagery is a separate operation.
-
-### Delivery availability checked on 2026-10-02
-
-The upload contains all 23,823 oblique TIFFs, matching the INPHO photo IDs
-without duplicates: Nord 5,966, Ost 5,954, Sued 5,929 and West 5,974.
-The 6,349 nadir originals are still absent. The uploaded TIFFs occupy
-3.03 TB; the upload volume has about 5.03 TB free.
-
-The public 2026 directory still contains only `test/index.html`.
-`/2026/metadata/orientation.json` and the configured JPEG pyramid paths return
-404. The committed Rathaus catalog loads, but its JPEG preview files are not
-included in the deployment. Both 2026 presets remain opt-in; there is no
-verified public replacement image URL to configure yet. Nadir remains an
-optimistic catalog option, rather than a claim that its images were uploaded.
-
-The uploaded TIFFs must be exposed by a byte-range-capable static endpoint
-before a client TIFF decoder can use their internal reduced-resolution pages.
 Filename coverage and TIFF directory checks do not establish pixel integrity
-or certified COG conformance. Image conversion and watermarking remain deferred.
+or certified COG conformance.
 
 ## Tests
 
@@ -133,7 +114,7 @@ python3 -m unittest discover -s scripts/oblique-viewer -p 'test_*.py'
 Small synthetic fixtures cover named block ends, scientific notation, malformed
 rotations, ID/reference collisions, nadir retention, subsets, failure exit codes,
 output preservation, deterministic reruns, Classic TIFF/BigTIFF truncation and
-GDAL errors that occur despite exit code zero. The committed 41-image Rathaus catalog is the only delivery-data fixture; full-flight metadata and TIFFs stay external.
+GDAL errors that occur despite exit code zero. Unit tests use synthetic fixtures; delivery catalogs, configurations and TIFFs stay on the server.
 
 ## Read-only delivery audit
 
@@ -214,6 +195,5 @@ Neither mode proves the full delivery valid or complete.
 
 Open the Geoportal oblique route with the oblique feature flag enabled. Local
 development uses the same public imagery configuration as published previews.
-The 2024 series is enabled by default; the complete 2026 catalog and committed
-41-image Rathaus sample remain independently selectable. Import and verification
-scripts above do not require a local image server.
+The server configuration determines the available and initially enabled series.
+Import and verification scripts above do not require a local image server.

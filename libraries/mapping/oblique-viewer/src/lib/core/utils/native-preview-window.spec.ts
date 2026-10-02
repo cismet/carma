@@ -42,7 +42,7 @@ describe("native TIFF display windows", () => {
     });
     expect(frame.target).toEqual({ width: 1600, height: 1200 });
     const tiles = nativePreviewTiles(frame, device(10000, 5000));
-    expect(tiles).toHaveLength(2);
+    expect(tiles).toHaveLength(4);
     expect(
       tiles.reduce(
         (sum, tile) => sum + tile.target.width * tile.target.height,
@@ -54,6 +54,8 @@ describe("native TIFF display windows", () => {
       tiles[0].sample.x + tiles[0].sample.width
     );
     for (const tile of tiles) {
+      expect(tile.target.width).toBeLessThanOrEqual(1024);
+      expect(tile.target.height).toBeLessThanOrEqual(1024);
       const long = Math.max(tile.source.width, tile.source.height),
         short = Math.min(tile.source.width, tile.source.height);
       expect((tile.edge * tile.edge * short) / long).toBeLessThan(8_000_000);

@@ -200,6 +200,17 @@ const validateMetadata = (
     }
     if (value.stationId !== undefined && typeof value.stationId !== "string")
       throw new Error(`Invalid station ID for image ${sourceId}.`);
+    if (
+      value.assets !== undefined &&
+      (!isObject(value.assets) ||
+        Object.values(value.assets).some(
+          (asset) =>
+            !isObject(asset) ||
+            typeof asset.href !== "string" ||
+            !/^https?:\/\//.test(asset.href)
+        ))
+    )
+      throw new Error(`Invalid image asset URL for ${sourceId}.`);
   }
   return input as unknown as ObliqueMetadata;
 };
@@ -246,6 +257,7 @@ export const buildImageRecords = (
       stationId: image.stationId,
       lineIndex: image.lineIndex,
       waypointIndex: image.waypointIndex,
+      assets: image.assets,
     }));
   } else {
     if (!isObject(metadata))

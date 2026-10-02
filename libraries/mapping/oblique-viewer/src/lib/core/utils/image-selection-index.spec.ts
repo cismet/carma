@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { getProj4Converter } from "@carma-geo/proj";
 import { degToRad, type Degrees } from "@carma-units";
-import { WUPPERTAL_OBLIQUE_2024 } from "../config";
+import { TEST_LEGACY_SERIES } from "./synthetic-series.test-fixture";
+
 import type {
   CardinalDirection,
   ObliqueDataset,
@@ -17,11 +18,11 @@ const target = { longitude: 7.2, latitude: 51.27 };
 const converter = getProj4Converter("EPSG:25832", "EPSG:4326");
 const [x, y] = wgs84ToDatasetXY(converter, target.longitude, target.latitude);
 const dataset = (id: string): ObliqueDataset => ({
-  ...WUPPERTAL_OBLIQUE_2024,
+  ...TEST_LEGACY_SERIES,
   id,
   cameras: {
-    ...WUPPERTAL_OBLIQUE_2024.cameras,
-    nadir: { ...WUPPERTAL_OBLIQUE_2024.cameras["170"], view: "nadir" },
+    ...TEST_LEGACY_SERIES.cameras,
+    nadir: { ...TEST_LEGACY_SERIES.cameras["170"], view: "nadir" },
   },
 });
 const image = (

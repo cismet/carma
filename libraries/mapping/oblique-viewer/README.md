@@ -6,33 +6,43 @@ The Cesium viewer is the legacy implementation. This change does not update its 
 
 ## Imagery series
 
-The host declares a list of series. The panel's multiple-selection dropdown enables each independently: 2024, the full 2026 delivery, the 41-image 2026 Rathaus sample, any combination, or none. Enabled series participate in one geometric selection. Source image names are opaque asset identifiers; a series-qualified key identifies records in state and indexes. A filename shared by two years therefore remains two separate records and URLs always use the original source name.
+The host supplies either an explicit `series` array or a `seriesConfigURI`.
+The latter points to a server-owned JSON document with `schemaVersion: 1` and
+a nonempty `series` array of `ObliqueDataset` entries. No production series,
+camera calibration or image metadata is bundled with this package. Geoportal
+stores only the server configuration URL; changing the available series does
+not require rebuilding the app.
 
-The list names the acquisitions as 03/2024 and 04/2026, with a Sample suffix for the independent Rathaus subset. The 2024 month follows the published March 14/17 flight description in the Geoportal background configuration; the 2026 delivery's Aufnahmeorte.shp records April 11 in ATTR_6 for all 7,436 capture points. Short footprint labels are `2024`, `2026`, and `2026Test`, and ordinary selection labels are shown only while more than one series is enabled; hover also exposes a single series. The first-level layer button uses those short labels for all active series plus the current heading and pitch, rounded to degrees; the image ID stays in the expanded tools.
+The configuration loads asynchronously after the basemap starts, with a bounded
+timeout and cancellation on teardown. Named animation curves in JSON are
+resolved against the existing Easing exports. Dataset IDs must be nonempty and
+unique. Each entry owns its catalog URL, image URLs, camera calibration, source
+conventions, height datum, acquisition month/year and short display label.
 
-Each series owns its metadata URI, asset base URL, camera calibrations, source conventions and height datum. 2024 has no nadir assets. 2026 includes all five Osprey heads; camera-relative labels LE/RI/FW/BW/NA do not define fixed north/east/south/west eligibility.
+The multiple-selection dropdown enables configured series independently, in any
+combination or none. Enabled series participate in one geometric selection.
+Source image names remain opaque asset identifiers; series-qualified keys keep
+identically named images from separate flights distinct. The first-level layer
+button shows the enabled short labels and current heading/pitch; the expanded
+tools show the active image ID.
 
-Metadata and asset availability are separate. The 2026 preset prepares the viewer for the metadata/derivatives endpoint; it does not create JPEG derivatives. A failed series load is reported independently and does not disable a successfully loaded series. An unknown vertical datum prevents an aligned camera flight until the operator declares the verified source datum. The explicit local-development Rathaus configuration can use unverified source Z; this does not change the source datum or enable this exception in production.
+Camera-relative view names do not define fixed cardinal eligibility. A series
+without nadir imagery omits that capability. Catalog availability and image
+availability are independent; errors remain attached to the affected series.
+Unknown height datum remains explicit. Source-Z inspection requires the existing
+development-only opt-in, without guessing a datum conversion.
 
-The host can declare `minimumPreviewQualityLevel` as the finest published JPEG
-level. Wuppertal uses level 1: its public level 0 directory does not exist.
-Higher zoom preserves the last available pixels instead of requesting an absent
-file. Current 2026 upload and public-endpoint availability are documented in
-[the importer instructions](../../../scripts/oblique-viewer/README.md#delivery-availability-checked-on-2026-10-02).
-
-Preview JPEG decoding and 4:4:4 resampling run in reusable workers. Each worker
-composes the visible source-pixel window in an OffscreenCanvas and transfers
-only that viewport-sized bitmap to the existing scene. Camera movement keeps
-the last composition visible while a replacement is prepared. Three parked
-workers plus the active worker retain four image sources; oversized decoded
-sources are released according to a memory budget. The optional, versioned
-CacheStorage cache retains up to four original encoded preview files without
-lossy re-encoding. This path handles published JPEG levels; it does not decode
-original TIFFs or create a source-sized RGBA canvas for a 244-megapixel image.
+For JPEG series, `minimumPreviewQualityLevel` identifies the finest published
+level. Higher zoom retains available pixels instead of requesting an absent
+level. Preview decode and resampling run in reusable workers, composing only the
+visible source-pixel window in OffscreenCanvas. Three parked workers plus the
+active worker retain four sources within a memory budget. Optional CacheStorage
+retains encoded sources without lossy recompression. Original TIFF range reads
+and progressive overview loading are described below.
 
 ## Selection and navigation
 
-Best-fit selection evaluates the requested ground target and continuous camera bearing/pitch against the poses and camera field of view of enabled series. Direction names remain per-series hints rather than a shared north/east/south/west eligibility rule. Enabling the full 2026 series offers a Nadir button. It locks browsing at zero pitch and selects calibrated nadir cameras only, including on subsequent pan requests; the compass or the same button returns to oblique browsing. Removing the last nadir-capable series returns to oblique mode. Orbit requests change the desired view direction; pan requests change the target in the current image-view frame. Both requests search enabled series and may choose a different year. No-enabled-series and no-candidate results are valid empty states.
+Best-fit selection evaluates the requested ground target and continuous camera bearing/pitch against the poses and camera field of view of enabled series. Direction names remain per-series hints rather than a shared north/east/south/west eligibility rule. Enabling a nadir-capable series offers a Nadir button. It locks browsing at zero pitch and selects calibrated nadir cameras only, including on subsequent pan requests; the compass or the same button returns to oblique browsing. Removing the last nadir-capable series returns to oblique mode. Orbit requests change the desired view direction; pan requests change the target in the current image-view frame. Both requests search enabled series and may choose a different year. No-enabled-series and no-candidate results are valid empty states.
 
 Best-fit queries use a persistent Vite module worker with one catalog copy per data revision. A combined index holds record references in one-kilometre UTM cells, grouped by each series' own intrinsic sector. Circular means of the actual calibrated headings choose one oblique group independently per series; group spacing need not be 90 degrees and matching groups need not share a sector name. Spatial filtering retains only camera positions inside the configured search radius before exact coverage/orientation ranking. Nadir has its own spatial group and no bearing filter. The application neither loads tiled catalogs nor uses a database; the indexes contain references into the existing catalog. The UI sends only the target, direction, pitch and normalized per-series heights and receives a small ranked candidate list, preserving the original record identities. At most one query runs and one newer query waits; a subsequent request replaces the waiting query. Selection ignores results from earlier view requests, removed series, locked cameras and disposed workers. Heights are converted asynchronously before evaluating candidates, so a late datum conversion cannot change an already superseded selection.
 
@@ -83,10 +93,9 @@ large footprint canvas, extra geometry, photo-depth pass or second map is needed
 Camera heights resolve outside render callbacks and are cached per record, datum
 and offset. Local-frame revision/origin changes refresh the ECEF matrix; Mercator
 terrain gets a separate matrix using the existing image-flight camera convention.
-The 2026 development convention still permits unverified original Z; it does not
-claim a confirmed DHHN2016 conversion. Native GeoJSON footprint layers and their
-large surface atlas are no longer created. The 2024 delivered-footprint download
-is disabled; derived coarse bounds remain only in the worker search index. The
+An explicit development configuration may permit original source Z without
+claiming a confirmed datum conversion. Native GeoJSON footprint layers and their
+large surface atlas are no longer created. Delivered-footprint downloads are optional; derived coarse bounds remain only in the worker search index. The
 visible contour follows the actual receiver tiles through their material-version
 changes, without rerasterizing or scheduling an extra render loop. It is independent
 of the DEM-depth mask that keeps street labels occluded by buildings.
@@ -114,7 +123,7 @@ detaches itself after the capture.
 
 ## Data contract
 
-The old `image-name -> [x,y,z,row0,row1,row2]` feed remains an ingestion format for 2024. New imports use the typed version-1 INPHO envelope with `seriesId`, explicit conventions, camera definitions and a map of source image names to camera poses. Keep calibration and pose together; do not reconstruct the camera from a filename prefix.
+The legacy `image-name -> [x,y,z,row0,row1,row2]` feed remains an ingestion format. New imports use the typed version-1 INPHO envelope with `seriesId`, explicit conventions, camera definitions and a map of source image names to camera poses. Keep calibration and pose together; do not reconstruct the camera from a filename prefix.
 
 Positions use named horizontal CRS and declared vertical datum, in metres. Matrix layout is row-major; the world-to-camera rotation applies to world coordinates relative to the perspective center. The optical axis is camera negative Z. Camera focal length and the image plane use millimetres; dimensions and principal points use pixels. Pixel origin, axis signs and pixel-center reference are explicit. The INPHO image-plane-to-pixel affine is a camera calibration, not a raster-to-world geotransform.
 
@@ -124,7 +133,7 @@ A source mount rotation is preserved for provenance. The calibrated pixel axes d
 
 The canonical INPHO importer and reproducible commands live in [scripts/oblique-viewer](../../../scripts/oblique-viewer/README.md). It performs metadata conversion only. The delivery PRJ is authoritative; the footprint-derived CSV is diagnostic reference and is not mixed into camera poses.
 
-The 2026 delivery contains 30,172 images (23,823 oblique and 6,349 nadir). Its 41 Rathaus TIFFs contain no nadir. The sample catalog is committed separately from the full-flight metadata. A loopback development bridge reads the original TIFFs on amy and renders requested views in memory, using their embedded reduced pages. It writes no image derivatives and applies no watermark. Browser alignment and the source height convention still need to be checked against buildings and terrain.
+The 2026 delivery contains 30,172 images (23,823 oblique and 6,349 nadir). Its 41 Rathaus TIFFs contain no nadir. The sample catalog is committed separately from the full-flight metadata. Original TIFFs are decoded in the browser worker using their embedded reduced pages; no image bridge or image-processing service is required. The source height convention and physical image alignment remain unverified.
 
 ## Run the Rathaus sample
 
@@ -198,16 +207,36 @@ preview restores the original limit after the animated camera return. Above
 100%, magnification adds no new
 source detail.
 
-When `originalPixelPreviewPath` is configured, the decoded JPEG remains visible
-while the view settles for 800 ms. Visible native TIFF windows then arrive as
-lossless RGB PNG tiles and a browser worker resamples them to physical display
-pixels. Lanczos3, gamma 0.454545/2.2 and unsharp 0x0.2 follow the 2024 scaling
-settings; magnification uses native pixel replication. The RGB path adds no
-chroma subsampling. Each fetch and worker job is bounded; pan/zoom and teardown
-cancel obsolete jobs. Missing originals retain the progressive JPEG. This
-avoids loading and decoding a complete 12,736 × 19,136 image in the browser.
-The local 2026 bridge enables this path; existing JPEG-only series retain their
-level-based loader.
+When the catalog supplies `assets.original.href`, or a series configures
+`originalImageUrlTemplate`, the preview worker reads the
+original TIFF directly. The first image uses the coarsest internal overview
+that meets the visible window's physical pixel demand, including device pixel
+ratio, image roll and off-centre pan. After publishing that image it reads only
+the immediately finer overview for the same window. Native resolution is the
+final step; there is no full-image idle download.
+
+Composition uses 1024-pixel output regions with a filter halo. Encoded TIFF
+tiles or strips that intersect each region are read through bounded HTTP
+byte ranges and decoded with a JPEG WebAssembly codec. Lanczos3, gamma
+0.454545/2.2 and unsharp 0x0.2 follow the 2024 scaling settings; magnification
+uses native pixel replication. No JPEG re-encode or additional chroma
+subsampling is introduced. The delivered strip-based sample and tiled
+originals are supported without claiming certified COG layout.
+
+The server must support HTTP 206. The client verifies exposed `Content-Range`
+when available, or a bounded `Content-Length` with the existing CORS settings.
+Ignored range responses are cancelled before buffering a whole TIFF. Reads
+use at most four simultaneous requests, each at most 1 MiB. Panning aborts
+obsolete TIFF work; leaving the preview aborts all active downloads. Three
+parked workers and the active worker retain bounded compressed-byte and
+decoded-block caches. Optional CacheStorage stores the original compressed
+byte ranges for up to four images; it never stores decoded RGBA images.
+Cache keys use the exposed ETag or Last-Modified value. A first range request
+establishes that version before persisted ranges are reused. Hover thumbnails
+read one suitable TIFF overview in a separate worker and warm the same byte cache.
+JPEG-only series retain the published resolution pyramid. JPEG byte ranges
+do not provide independent pixel tiles, so their selected JPEG must be read
+in full before cropping it in the worker.
 
 ## Catalog preparation
 
@@ -225,7 +254,8 @@ The Geoportal registers the new viewer addon only when the URL feature flag
 
 ## Photo and 3D-label composition
 
-The dedicated Geoportal `#/oblique` route declares `mapStyle3d` by default.
+The dedicated Geoportal `#/oblique` route enables `mapStyle3d` only when its
+feature flag is explicitly present.
 On any available Geoportal route, the enabled oblique viewer leases that same
 presentation in the existing shared Three scene, with its mesh label rules.
 
@@ -264,8 +294,8 @@ principal-point offset. The 250-ms fade advances in these same camera frames;
 unchanged transforms do not request idle repaints. Native RGB fetching, decoding,
 readback, resampling and tile assembly run in the existing preview worker. It
 transfers one completed ImageBitmap for a texture upload, without per-tile pixel
-copies or React state updates on the UI thread. Movement immediately terminates
-superseded workers; completed crops retain their correct source-pixel transform.
+copies or React state updates on the UI thread. Movement cancels superseded
+composition while retaining the worker and caches; completed crops retain their correct source-pixel transform.
 A source-key guard prevents decoded photographs from a preceding image or series
 from becoming the current scene texture.
 
@@ -278,7 +308,6 @@ A preview leases its warm bitmap for the first scene image, then replaces it
 with the existing progressive JPEG; the DOM fallback can use its cached blob
 URL. `null` clears the queued hover and `disposePreviewThumbnailPrefetch()`
 terminates pending work and retires cache entries when the viewer closes.
-The local 2026 bridge's Level-6 endpoint is a 128-pixel JPEG.
 
 ## Responsive transitions
 
@@ -287,5 +316,6 @@ image entry/return up to 450 ms; small flights shorten with ground distance and
 angular displacement. Smooth easing and the existing anchored camera/FOV/pan path
 are retained. Switching the addon off reserves 250 ms each for preview compensation
 and flattening, so the combined camera action also stays within 500 ms. Image and
-backdrop fades take 250 ms; native pixel fetching retains its 800-ms idle debounce.
+backdrop fades take 250 ms; the first preview crop starts immediately once its
+camera geometry is available, while subsequent pan/zoom crops coalesce for 200 ms.
 Viewport-footprint queries stop during flights/previews and resume after settling.

@@ -18,7 +18,11 @@ import type {
   ObliqueBackdropLook,
   ObliqueImagePreviewStyle,
 } from "../core/types";
-import { getPreviewImageUrl, loadPreviewImage } from "./utils/imageUrls";
+import {
+  getImageUrls,
+  getPreviewImageUrl,
+  loadPreviewImage,
+} from "./utils/imageUrls";
 import { Backdrop } from "./ObliqueImagePreview.Backdrop";
 import { NativePixels } from "./ObliqueImagePreview.NativePixels";
 import { useScenePreviewImage } from "./hooks/useScenePreviewImage";
@@ -41,7 +45,8 @@ type ObliqueImagePreviewProps = {
   map: MaplibreMap;
   onRootChange?: (root: HTMLDivElement | null) => void;
   previewPath: string;
-  originalPixelPreviewPath?: string;
+  originalImageUrlTemplate?: string;
+  originalImageUrl?: string;
   nativePixelSize: { width: DevicePixels; height: DevicePixels };
   imageId: string;
   qualityLevel: PreviewQualityLevel;
@@ -72,7 +77,8 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
   map,
   onRootChange,
   previewPath,
-  originalPixelPreviewPath,
+  originalImageUrlTemplate,
+  originalImageUrl,
   nativePixelSize,
   imageId,
   qualityLevel,
@@ -117,10 +123,18 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
   const loadedSrc = loadedImage?.url ?? null;
   const workerPreview =
     typeof Worker !== "undefined" && typeof OffscreenCanvas !== "undefined";
+  const originalUrl =
+    originalImageUrl ??
+    (originalImageUrlTemplate
+      ? getImageUrls(imageId, previewPath, qualityLevel, undefined, {
+          originalImageUrlTemplate,
+        }).downloadUrl
+      : undefined);
   const thumbnail = usePrefetchedPreviewThumbnail(
     previewPath,
     imageId,
-    !!loadedImage && !workerPreview
+    !!loadedImage,
+    { originalImageUrl: originalUrl ?? undefined, nativeSize: nativePixelSize }
   );
   const requestedQuality = usePreviewResolution({
     map,
@@ -128,8 +142,8 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
     previewPath,
     imageId,
     qualityLevel,
-    loadedImage,
-    minimumLevel: originalPixelPreviewPath ? "1" : minimumQualityLevel,
+    loadedImage: originalUrl ? null : loadedImage,
+    minimumLevel: minimumQualityLevel,
   });
   const finalPreviewUrl = useMemo(
     () => getPreviewImageUrl(previewPath, requestedQuality, imageId),
@@ -274,12 +288,13 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
           translate={translate}
           rollDeg={PREVIEW_ROLL_SIGN * rollDeg}
         >
-          {(originalPixelPreviewPath || workerPreview) && (
+          {workerPreview && (
             <NativePixels
               map={map}
               rootRef={rootRef}
-              path={originalPixelPreviewPath ?? previewPath}
-              sourceUrl={originalPixelPreviewPath ? undefined : finalPreviewUrl}
+              path={previewPath}
+              sourceUrl={originalUrl ?? finalPreviewUrl}
+              tiff={!!originalUrl}
               onSourceLoaded={onSourceLoaded}
               onError={reportLoadingError}
               backdropLook={{

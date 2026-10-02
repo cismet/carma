@@ -20,16 +20,14 @@ class ThumbnailWorker {
     this.onmessage?.({ data: result } as MessageEvent<Result>);
   }
 }
-const source = (imageId: string) => ({ previewPath: "/bridge", imageId });
+const source = (imageId: string) => ({ previewPath: "/images", imageId });
 const bitmap = () =>
   ({ width: 128, height: 64, close: vi.fn() } as unknown as ImageBitmap);
 const complete = (image: ImageBitmap = bitmap()) => {
-  ThumbnailWorker.instances
-    .at(-1)!
-    .reply({
-      bitmap: image,
-      blob: new Blob(["thumbnail"], { type: "image/jpeg" }),
-    });
+  ThumbnailWorker.instances.at(-1)!.reply({
+    bitmap: image,
+    blob: new Blob(["thumbnail"], { type: "image/jpeg" }),
+  });
   return image;
 };
 beforeEach(() => {
@@ -59,12 +57,12 @@ describe("bounded hover thumbnail prefetch", () => {
     expect(ThumbnailWorker.instances).toHaveLength(1);
     expect(
       ThumbnailWorker.instances[0].postMessage.mock.lastCall?.[0].url
-    ).toMatch(/\/bridge\/6\/first\.jpg$/);
+    ).toMatch(/\/images\/6\/first\.jpg$/);
     complete();
     expect(ThumbnailWorker.instances).toHaveLength(2);
     expect(
       ThumbnailWorker.instances[1].postMessage.mock.lastCall?.[0].url
-    ).toMatch(/\/bridge\/6\/latest\.jpg$/);
+    ).toMatch(/\/images\/6\/latest\.jpg$/);
     complete();
     prefetchPreviewThumbnail(source("first"));
     expect(ThumbnailWorker.instances).toHaveLength(2);

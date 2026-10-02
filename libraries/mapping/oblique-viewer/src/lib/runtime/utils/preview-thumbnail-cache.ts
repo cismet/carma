@@ -1,7 +1,12 @@
 import { PREVIEW_QUALITY } from "../../core/constants";
 import { getPreviewImageUrl } from "./imageUrls";
 
-type ThumbnailSource = Readonly<{ previewPath: string; imageId: string }>;
+type ThumbnailSource = Readonly<{
+  previewPath: string;
+  imageId: string;
+  originalImageUrl?: string;
+  nativeSize?: { width: number; height: number };
+}>;
 type Entry = {
   blob: Blob;
   bitmap: ImageBitmap | null;
@@ -21,13 +26,19 @@ const entries = new Map<string, Entry>();
 const listeners = new Map<string, Set<() => void>>();
 let worker: Worker | null = null;
 let activeUrl: string | null = null;
-let queuedUrl: string | null = null;
+let activeTiff = false;
+let queuedSource: { url: string; source: ThumbnailSource } | null = null;
 let timeout: number | undefined;
 let epoch = 0;
 
-const sourceUrl = ({ previewPath, imageId }: ThumbnailSource) =>
+const sourceUrl = ({
+  previewPath,
+  imageId,
+  originalImageUrl,
+}: ThumbnailSource) =>
   new URL(
-    getPreviewImageUrl(previewPath, PREVIEW_QUALITY.LEVEL_6, imageId),
+    originalImageUrl ??
+      getPreviewImageUrl(previewPath, PREVIEW_QUALITY.LEVEL_6, imageId),
     globalThis.window.location.href
   ).href;
 const close = (entry: Entry) => {
@@ -59,7 +70,7 @@ const trim = () => {
   }
 };
 
-const start = (url: string) => {
+const start = (url: string, source: ThumbnailSource) => {
   const cached = entries.get(url);
   if (cached?.bitmap) {
     touch(url, cached);
@@ -77,15 +88,17 @@ const start = (url: string) => {
   }
   worker = currentWorker;
   activeUrl = url;
+  activeTiff = !!source.originalImageUrl;
   const finish = () => {
     currentWorker.terminate();
     if (worker !== currentWorker) return;
     globalThis.window.clearTimeout(timeout);
     worker = null;
     activeUrl = null;
-    const next = queuedUrl;
-    queuedUrl = null;
-    if (next && token === epoch) start(next);
+    activeTiff = false;
+    const next = queuedSource;
+    queuedSource = null;
+    if (next && token === epoch) start(next.url, next.source);
   };
   currentWorker.onmessage = (
     event: MessageEvent<{ bitmap?: ImageBitmap; blob?: Blob; error?: string }>
@@ -115,30 +128,43 @@ const start = (url: string) => {
   currentWorker.onmessageerror = finish;
   timeout = globalThis.window.setTimeout(finish, 10000);
   try {
-    currentWorker.postMessage({ url, blob: cached?.blob });
+    currentWorker.postMessage({
+      url,
+      blob: cached?.blob,
+      ...(source.originalImageUrl
+        ? { tiff: true, nativeSize: source.nativeSize }
+        : {}),
+    });
   } catch {
     finish();
   }
 };
 
-/** Optimistic Level-6 JPEG only: one active worker and one replaceable next hover. */
+/** One optimistic JPEG/TIFF thumbnail worker and one replaceable next hover. */
 export const prefetchPreviewThumbnail = (source: ThumbnailSource | null) => {
   if (!source) {
-    queuedUrl = null;
+    queuedSource = null;
+    if (activeTiff) {
+      globalThis.window.clearTimeout(timeout);
+      worker?.terminate();
+      worker = null;
+      activeUrl = null;
+      activeTiff = false;
+    }
     return;
   }
   const url = sourceUrl(source);
   const cached = entries.get(url);
   if (cached?.bitmap) {
     touch(url, cached);
-    queuedUrl = null;
+    queuedSource = null;
     return;
   }
   if (worker) {
-    queuedUrl = url === activeUrl ? null : url;
+    queuedSource = url === activeUrl ? null : { url, source };
     return;
   }
-  start(url);
+  start(url, source);
 };
 
 /** Pin a decoded thumbnail until the progressive image replaces its texture. */
@@ -182,8 +208,9 @@ export const subscribePreviewThumbnail = (
 /** Release the bounded optimistic cache when its viewer leaves the scene. */
 export const disposePreviewThumbnailPrefetch = () => {
   epoch++;
-  queuedUrl = null;
+  queuedSource = null;
   activeUrl = null;
+  activeTiff = false;
   globalThis.window.clearTimeout(timeout);
   worker?.terminate();
   worker = null;

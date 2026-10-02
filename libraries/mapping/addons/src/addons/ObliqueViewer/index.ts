@@ -1,8 +1,6 @@
 export { ObliqueViewer } from "./oblique-components";
 export { ObliquePanel, ObliqueInteractionPanel } from "./oblique-components";
 export {
-  WUPPERTAL_OBLIQUE_2024,
-  resolveDataset,
   BACKDROP_LOOK_BOUNDS,
   BACKDROP_LOOK_DEFAULT,
   type ObliqueViewerConfig,

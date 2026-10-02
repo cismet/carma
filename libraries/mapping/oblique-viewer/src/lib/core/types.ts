@@ -41,6 +41,7 @@ export type BasicObliqueImageRecord = ObliqueImageIdInfo & {
   z: number;
   /** rotation matrix, row major, as served */
   m: Matrix3RowMajor;
+  assets?: ObliqueMetadataImage["assets"];
 };
 
 /**
@@ -191,10 +192,8 @@ export type ObliqueDataset = {
   previewPath: string;
   /** Canonical downloadable JPEG directory, with no quality level appended. */
   downloadPath?: string;
-  /** Development original endpoint; {imageId} receives the encoded source ID. */
+  /** Range-readable original TIFF; {imageId} receives the encoded source ID. */
   originalImageUrlTemplate?: string;
-  /** Lossless original-page RGB crop endpoint, addressed by source image ID. */
-  originalPixelPreviewPath?: string;
   /** Explicit development-only source-Z inspection; the source datum remains unknown. */
   allowUnverifiedSourceHeight?: boolean;
   previewQualityLevel: PreviewQualityLevel;
@@ -285,6 +284,8 @@ export type ObliqueMetadataImage = {
   stationId?: string;
   lineIndex?: number;
   waypointIndex?: number;
+  /** STAC-compatible asset fields; href identifies an actual delivered file. */
+  assets?: Record<string, { href: string; type?: string; roles?: string[] }>;
 };
 
 /** Normalized INPHO interchange; source image IDs are the map keys. */

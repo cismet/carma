@@ -20,11 +20,7 @@ export {
   type ObliqueStatePatch,
 } from "./lib/runtime/oblique-actions";
 export {
-  WUPPERTAL_OBLIQUE_2024,
-  WUPPERTAL_OBLIQUE_2026,
-  WUPPERTAL_2026_RATHAUS_DATASET,
   resolveSeries,
-  resolveDataset,
   BACKDROP_LOOK_BOUNDS,
   BACKDROP_LOOK_DEFAULT,
   type ObliqueViewerConfig,

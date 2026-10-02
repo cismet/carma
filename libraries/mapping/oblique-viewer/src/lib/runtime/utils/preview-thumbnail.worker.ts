@@ -1,10 +1,63 @@
 /// <reference lib="webworker" />
-export {};
+import type { DevicePixels } from "@carma-units";
 
-self.onmessage = async (event: MessageEvent<{ url: string; blob?: Blob }>) => {
+self.onmessage = async (
+  event: MessageEvent<{
+    url: string;
+    blob?: Blob;
+    tiff?: boolean;
+    nativeSize?: { width: DevicePixels; height: DevicePixels };
+  }>
+) => {
   let bitmap: ImageBitmap | null = null;
   try {
     let blob = event.data.blob;
+    if (!blob && event.data.tiff) {
+      const native = event.data.nativeSize;
+      if (!native) throw new Error("TIFF thumbnail requires camera dimensions");
+      const { TiffPreviewSource } = await import(
+        "../integrations/tiff-preview-source"
+      );
+      const source = new TiffPreviewSource(event.data.url, 16 * 1024 * 1024);
+      const signal = AbortSignal.timeout(9000);
+      const longEdge = Math.max(native.width, native.height);
+      const { image } = await source.select(
+        {
+          source: {
+            x: 0 as DevicePixels,
+            y: 0 as DevicePixels,
+            width: native.width,
+            height: native.height,
+          },
+          target: {
+            width: Math.max(
+              1,
+              Math.round((native.width * 512) / longEdge)
+            ) as DevicePixels,
+            height: Math.max(
+              1,
+              Math.round((native.height * 512) / longEdge)
+            ) as DevicePixels,
+          },
+        },
+        native,
+        signal
+      );
+      const pixels = await source.read(
+        image,
+        [0, 0, image.getWidth(), image.getHeight()],
+        signal
+      );
+      const canvas = new OffscreenCanvas(image.getWidth(), image.getHeight());
+      const context = canvas.getContext("2d");
+      if (!context) throw new Error("TIFF thumbnail canvas unavailable");
+      context.putImageData(
+        new ImageData(pixels, canvas.width, canvas.height),
+        0,
+        0
+      );
+      blob = await canvas.convertToBlob({ type: "image/png" });
+    }
     if (!blob) {
       const response = await fetch(event.data.url, {
         cache: "force-cache",
@@ -19,7 +72,7 @@ self.onmessage = async (event: MessageEvent<{ url: string; blob?: Blob }>) => {
     if (blob.size > 4 * 1024 * 1024)
       throw new Error("Thumbnail exceeds the bounded JPEG size");
     const signature = new Uint8Array(await blob.slice(0, 2).arrayBuffer());
-    if (signature[0] !== 0xff || signature[1] !== 0xd8)
+    if (!event.data.tiff && (signature[0] !== 0xff || signature[1] !== 0xd8))
       throw new Error("Thumbnail endpoint did not return a JPEG");
     // WebGL ignores Texture.flipY for ImageBitmap; decode in the upload orientation.
     bitmap = await createImageBitmap(blob, {

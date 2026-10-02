@@ -3,11 +3,11 @@ import { Vector3 } from "three";
 import { degToRadNumeric } from "@carma-units";
 import { getProj4Converter } from "@carma-geo/proj";
 import {
-  WUPPERTAL_OBLIQUE_2024,
-  WUPPERTAL_OBLIQUE_2026,
-  WUPPERTAL_2026_RATHAUS_DATASET,
-  resolveSeries,
-} from "../config";
+  TEST_LEGACY_SERIES,
+  TEST_INPHO_SERIES,
+  TEST_SAMPLE_SERIES,
+} from "./synthetic-series.test-fixture";
+import { resolveSeries } from "../config";
 import type {
   ObliqueDataset,
   ObliqueMetadata,
@@ -64,7 +64,7 @@ const metadata = (
   schemaVersion: 1,
   seriesId,
   conventions: {
-    ...WUPPERTAL_OBLIQUE_2026.sourceConventions,
+    ...TEST_INPHO_SERIES.sourceConventions,
     verticalDatum: "dhhn2016",
   },
   cameras: { camera },
@@ -77,7 +77,7 @@ const metadata = (
   },
 });
 const dataset = (id: string): ObliqueDataset => ({
-  ...WUPPERTAL_OBLIQUE_2026,
+  ...TEST_INPHO_SERIES,
   id,
   metadataFormat: "inpho-v1",
   heightDatum: "unknown",
@@ -176,56 +176,52 @@ describe("normalized image series", () => {
     expect(() => resolveSeries({ series: [dataset("")] })).toThrow(/nonempty/);
   });
   it("keeps normalized 2024 nadir records out of the served-image capability", () => {
-    const input = metadata("wuppertal-2024");
+    const input = metadata("test-legacy");
     input.cameras.nadir = { ...camera, view: "nadir" };
     input.images.nadir = { ...input.images.same, cameraId: "nadir" };
     const built = buildImageRecords(input, {
-      ...WUPPERTAL_OBLIQUE_2024,
+      ...TEST_LEGACY_SERIES,
       metadataFormat: "inpho-v1",
     });
     expect(
       [...built.imageRecords.values()].map((record) => record.sourceId)
     ).toEqual(["same"]);
     const all = buildImageRecords(
-      { ...input, seriesId: "wuppertal-2026" },
-      WUPPERTAL_OBLIQUE_2026
+      { ...input, seriesId: "test-inpho" },
+      TEST_INPHO_SERIES
     );
     expect(all.imageRecords.size).toBe(2);
   });
 });
 
 describe("image series configuration", () => {
-  it("retains direct 2024 preview and download URLs", () => {
-    expect(WUPPERTAL_OBLIQUE_2024.previewPath).toMatch(/2024$/);
-    expect(WUPPERTAL_OBLIQUE_2024.downloadPath).toBeUndefined();
+  it("uses explicit preview and download URLs", () => {
+    expect(TEST_LEGACY_SERIES.previewPath).toMatch(/2024$/);
+    expect(TEST_LEGACY_SERIES.downloadPath).toBeUndefined();
     const urls = getImageUrls(
       "1_2_17001",
-      WUPPERTAL_OBLIQUE_2024.previewPath,
-      WUPPERTAL_OBLIQUE_2024.previewQualityLevel,
-      WUPPERTAL_OBLIQUE_2024.downloadQualityLevel
+      TEST_LEGACY_SERIES.previewPath,
+      TEST_LEGACY_SERIES.previewQualityLevel,
+      TEST_LEGACY_SERIES.downloadQualityLevel
     );
-    expect(urls.previewUrl).toBe(
-      "https://wupp-oblique.cismet.de/2024/3/1_2_17001.jpg"
-    );
+    expect(urls.previewUrl).toBe("https://images.example/2024/3/1_2_17001.jpg");
     expect(urls.downloadUrl).toBe(
-      "https://wupp-oblique.cismet.de/2024/1/1_2_17001.jpg"
+      "https://images.example/2024/1/1_2_17001.jpg"
     );
   });
-  it("keeps full 2026 and the Rathaus sample independently selectable", () => {
-    const series = resolveSeries(undefined);
+  it("keeps explicit series independently selectable without bundled defaults", () => {
+    const series = resolveSeries({
+      series: [TEST_LEGACY_SERIES, TEST_INPHO_SERIES, TEST_SAMPLE_SERIES],
+    });
+    expect(resolveSeries(undefined)).toEqual([]);
     expect(series.map((entry) => entry.id)).toEqual([
-      "wuppertal-2024",
-      "wuppertal-2026",
-      "wuppertal-2026-rathaus",
+      "test-legacy",
+      "test-inpho",
+      "test-sample",
     ]);
-    expect(WUPPERTAL_2026_RATHAUS_DATASET.cameras).toBe(
-      WUPPERTAL_OBLIQUE_2026.cameras
-    );
+    expect(TEST_SAMPLE_SERIES.cameras).toBe(TEST_INPHO_SERIES.cameras);
     expect(() =>
-      buildImageRecords(
-        metadata(WUPPERTAL_OBLIQUE_2026.id),
-        WUPPERTAL_2026_RATHAUS_DATASET
-      )
+      buildImageRecords(metadata(TEST_INPHO_SERIES.id), TEST_SAMPLE_SERIES)
     ).toThrow(/series/i);
   });
 });
