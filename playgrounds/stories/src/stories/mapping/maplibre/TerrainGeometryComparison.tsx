@@ -18,6 +18,7 @@ import { ShadowController } from "@carma-mapping/shadow-simulation/three";
 import { getTileBounds } from "@carma-mapping/engines/maplibre/terrain";
 import { createTerrainComparisonRuntime } from "./terrain-comparison-runtime";
 import { createTerrainEncodingPresentation } from "./terrain-encoding-presentation";
+import { createDisplacedTerrainPresentation } from "../../../../../../libraries/mapping/engines/three/primitives/src/lib/common/displaced-terrain/displaced-terrain-presentation";
 import type { MeshPositionBits } from "../../../../../../libraries/mapping/engines/three/primitives/src/lib/common/quantize-mesh-positions";
 import {
   TERRAIN_COMPARISON_SOURCES,
@@ -36,6 +37,7 @@ type Props = {
   sunHeading: number;
   sunElevation: number;
   encodingBits?: MeshPositionBits;
+  gpuDisplacement?: boolean;
 };
 
 /** Two ordinary Three.js scenes share the same Terrarium data and camera.
@@ -48,6 +50,8 @@ export const TerrainGeometryComparison = (props: Props) => {
   const [status, setStatus] = useState("Loading raster tiles…");
   const [encodingStatus, setEncodingStatus] = useState("");
   const compareEncoding = props.encodingBits !== undefined;
+  const compareDisplaced = props.gpuDisplacement === true;
+  const comparePrepared = compareEncoding || compareDisplaced;
   useEffect(() => redraw.current(), [props]);
   useEffect(() => {
     const element = canvas.current;
@@ -63,7 +67,19 @@ export const TerrainGeometryComparison = (props: Props) => {
     const camera = new PerspectiveCamera(45, 1, 1, 500_000);
     const controls = new OrbitControls(camera, element);
     const scenes = [new Scene(), new Scene()];
-    const renderScenes = compareEncoding ? [new Scene(), new Scene()] : scenes;
+    const renderScenes = compareDisplaced
+      ? [scenes[1], new Scene()]
+      : compareEncoding
+      ? [new Scene(), new Scene()]
+      : scenes;
+    const displaced = compareDisplaced
+      ? createDisplacedTerrainPresentation(scenes[1], renderScenes[1], {
+          maxTextureSize: renderer.capabilities.maxTextureSize,
+          maxArrayLayers: renderer
+            .getContext()
+            .getParameter(renderer.getContext().MAX_ARRAY_TEXTURE_LAYERS),
+        })
+      : null;
     const encoding = compareEncoding
       ? createTerrainEncodingPresentation(scenes[1], renderScenes)
       : null;
@@ -132,9 +148,22 @@ export const TerrainGeometryComparison = (props: Props) => {
           previous === label ? previous : label
         );
       }
+      if (displaced) {
+        const metrics = displaced.update();
+        const label = `Render buffers ${(metrics.sourceBytes / 2 ** 20).toFixed(
+          2
+        )} → ${(metrics.displacedBytes / 2 ** 20).toFixed(2)} MiB · ${
+          metrics.instancedTiles
+        } instanced / ${metrics.fallbackTiles} fallback · ${
+          metrics.batches
+        } batches · source CPU buffers retained`;
+        setEncodingStatus((previous) =>
+          previous === label ? previous : label
+        );
+      }
       renderer.setScissorTest(true);
       renderScenes.forEach((scene, index) => {
-        const points = receivers?.[encoding ? 1 : index] ?? [];
+        const points = receivers?.[comparePrepared ? 1 : index] ?? [];
         // Use the production shadow fit and raster-footprint bias. Fitting a
         // fixed multi-million-metre light box made nearby terrain self-shadow.
         const bounds = new Box3().setFromPoints(points);
@@ -245,6 +274,7 @@ export const TerrainGeometryComparison = (props: Props) => {
     });
     return () => {
       abort.abort();
+      displaced?.dispose();
       encoding?.dispose();
       terrain?.dispose();
       observer.disconnect();
@@ -261,6 +291,7 @@ export const TerrainGeometryComparison = (props: Props) => {
     props.level,
     props.segments,
     compareEncoding,
+    compareDisplaced,
   ]);
   return (
     <div
@@ -279,7 +310,7 @@ export const TerrainGeometryComparison = (props: Props) => {
           pointerEvents: "none",
         }}
       >
-        {compareEncoding ? "ECEF · Float32 positions" : "Native flat Mercator"}
+        {comparePrepared ? "ECEF · Float32 positions" : "Native flat Mercator"}
       </div>
       <div
         style={{
@@ -290,7 +321,9 @@ export const TerrainGeometryComparison = (props: Props) => {
           pointerEvents: "none",
         }}
       >
-        {compareEncoding
+        {compareDisplaced
+          ? "ECEF · lossless GPU displacement / instancing"
+          : compareEncoding
           ? `ECEF · UInt${props.encodingBits === 8 ? 8 : 16} positions${
               props.encodingBits === 12 ? " · 12 effective bits" : ""
             }`
@@ -322,7 +355,7 @@ export const TerrainGeometryComparison = (props: Props) => {
           pointerEvents: "none",
         }}
       >
-        {compareEncoding && <div>{encodingStatus}</div>}
+        {comparePrepared && <div>{encodingStatus}</div>}
         {status}
       </div>
     </div>
