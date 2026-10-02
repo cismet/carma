@@ -8,7 +8,10 @@ import distance from "@turf/distance";
 import { feature as turfFeature, point } from "@turf/helpers";
 
 import { useMapSelection } from "@carma-mapping/contexts";
-import { getCarmaConf } from "@carma-mapping/engines/maplibre";
+import {
+  getCarmaConf,
+  isHiddenByOpacity,
+} from "@carma-mapping/engines/maplibre";
 import { utils } from "@carma-appframeworks/portals";
 
 import {
@@ -163,6 +166,7 @@ const getHitsInShape = (
       (hit) =>
         isSameSourceLayer(hit, picked) &&
         !hit.layer.id.includes("selection") &&
+        !isHiddenByOpacity(hit) &&
         booleanIntersects(turfFeature(hit.geometry), shape)
     );
   const click = point([latlng.lng, latlng.lat]);
