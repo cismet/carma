@@ -57,7 +57,7 @@ export const resolveSeries = (
   const series = config?.series ?? [];
   if (!Array.isArray(series)) throw new Error("Image series must be an array.");
   const ids = new Set<string>();
-  return series.map((dataset) => {
+  return series.map((dataset: ObliqueDataset) => {
     if (
       !dataset ||
       typeof dataset.id !== "string" ||
