@@ -124,7 +124,13 @@ export const renameFlurstueck = async ({ oldKey, newKey }, ctx) => {
     );
 
     return {
-      message: `Flurstück "${oldKeyString}" konnte erfolgreich in "${newKeyString}" umbenannt werden.`,
+      message: [
+        "Flurstück ",
+        oldKey,
+        " konnte erfolgreich in ",
+        created,
+        " umbenannt werden.",
+      ],
       keys: [created],
     };
   } finally {

@@ -62,7 +62,7 @@ export const activateFlurstueck = async ({ key }, ctx) => {
     );
 
     return {
-      message: `Flurstück "${keyString}" konnte erfolgreich aktiviert werden.`,
+      message: ["Flurstück ", key, " konnte erfolgreich aktiviert werden."],
       keys: [{ ...key, gueltigBis: null }],
     };
   } finally {

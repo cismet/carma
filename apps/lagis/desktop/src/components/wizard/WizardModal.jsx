@@ -75,6 +75,7 @@ const WizardModal = ({
   showLogs,
   logsVisible,
   result,
+  onSelectKey,
   error,
   problem,
   problemTone = "info",
@@ -170,7 +171,12 @@ const WizardModal = ({
                 type="success"
                 showIcon
                 message="Aktion erfolgreich"
-                description={<ResultDescription result={result} />}
+                description={
+                  <ResultDescription
+                    result={result}
+                    onSelectKey={onSelectKey}
+                  />
+                }
               />
             )}
             {!result && (

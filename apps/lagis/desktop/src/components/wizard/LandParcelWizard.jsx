@@ -269,8 +269,7 @@ const LandParcelWizard = ({
     await execute();
   };
 
-  const switchToResult = () => {
-    const key = result?.keys?.[0];
+  const switchToKey = (key) => {
     if (!key?.gemarkung) {
       return;
     }
@@ -341,7 +340,9 @@ const LandParcelWizard = ({
       isLast={isLast}
       canAdvance={canAdvance}
       onSwitchToResult={
-        result?.keys?.[0]?.gemarkung ? switchToResult : undefined
+        result?.keys?.[0]?.gemarkung
+          ? () => switchToKey(result.keys[0])
+          : undefined
       }
       onClose={handleClose}
       onBack={() => {
@@ -381,6 +382,7 @@ const LandParcelWizard = ({
         showLogs={showLogs}
         logsVisible={logsVisible}
         result={result}
+        onSelectKey={switchToKey}
         error={error}
         problem={result || stepIndex === 0 ? null : problem}
         problemTone={isHint(problem) ? "info" : "error"}
