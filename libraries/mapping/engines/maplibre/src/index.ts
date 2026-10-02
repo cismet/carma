@@ -376,6 +376,8 @@ export {
 
 // Clicks an addon answers before the engine does
 export { claimClick, isClickClaimed } from "./utils/clickClaims";
+// Clicks an addon fires for one particular feature
+export { targetClick, type ClickTarget } from "./utils/clickTargets";
 export {
   loadTileDiagnostics,
   type TileDiagnostics,
