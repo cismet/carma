@@ -42,7 +42,7 @@ import {
   getJWT,
   canCreateBasic,
   canEditBasic,
-  canDelete,
+  canDeleteFachobjekte,
 } from "../../../store/slices/auth";
 import type { DokumentItem } from "../DocumentPreview";
 import { ChangedFieldsProvider } from "./DraftFieldHighlight";
@@ -497,8 +497,7 @@ const FeaturesFormsWrapper = ({
   // the fields stay locked: only the danger zone and Speichern work.
   const mayCreate = useSelector(canCreateBasic) as boolean;
   const mayEdit = useSelector(canEditBasic) as boolean;
-  const mayDeleteRight = useSelector(canDelete) as boolean;
-  const mayDelete = mayDeleteRight && mayCreate;
+  const mayDelete = useSelector(canDeleteFachobjekte) as boolean;
   const mayChangeFields = isCreation ? mayCreate : mayEdit;
   const mayEnterEditMode = mayChangeFields || (!isCreation && mayDelete);
   const effectiveReadOnly =

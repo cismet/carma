@@ -9,7 +9,7 @@ import {
   message,
 } from "antd";
 import { clearAllDefaults } from "../../store/slices/creationDefaults";
-import { canCreateBasic, canDelete } from "../../store/slices/auth";
+import { canDeleteFachobjekte } from "../../store/slices/auth";
 import {
   getActiveBackgroundLayer,
   getBackgroundLayerOpacities,
@@ -125,9 +125,7 @@ const AdditionalLayerRow = ({
 const Settings = ({ open = true }: { open?: boolean }) => {
   const dispatch = useDispatch();
   const { health, offline } = useLayerHealth(open);
-  const mayDelete = useSelector(canDelete) as boolean;
-  const mayCreateBasic = useSelector(canCreateBasic) as boolean;
-  const mayDeleteFachobjekte = mayDelete && mayCreateBasic;
+  const mayDeleteFachobjekte = useSelector(canDeleteFachobjekte) as boolean;
   const backgroundLayerOpacities = useSelector(getBackgroundLayerOpacities);
   const activeBackgroundLayer = useSelector(getActiveBackgroundLayer);
   const activeAdditionalLayers = useSelector(getActiveAdditionalLayers);
