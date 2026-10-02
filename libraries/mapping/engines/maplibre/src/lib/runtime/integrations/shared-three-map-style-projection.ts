@@ -174,6 +174,7 @@ void main(){vec4 image=carmaScreenImages(vScreenUv);if(image.a<=0.0)discard;gl_F
   const mapStyleProjectionReceivers = new Map<string, boolean>();
 
   const configureMapStyleProjection = (): boolean => {
+    let receiversChanged = false;
     for (const runtime of runtimes.values()) {
       const receiver = runtime.receivesMapStyleTexture;
       if (!receiver) continue;
@@ -198,7 +199,11 @@ void main(){vec4 image=carmaScreenImages(vScreenUv);if(image.a<=0.0)discard;gl_F
       });
       mapStyleProjectionVersions.set(runtime.id, version);
       mapStyleProjectionReceivers.set(runtime.id, configured);
+      receiversChanged = true;
     }
+    // A new LOD needs the current markings even while lighting reuses a settled
+    // frame. Share the receiver revision with that cache in this render cycle.
+    if (receiversChanged) mapStyleProjectionEpoch++;
     return [...mapStyleProjectionReceivers.values()].some(Boolean);
   };
 

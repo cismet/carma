@@ -56,6 +56,115 @@ const createSurfaceOverlayFixture = (
 };
 
 describe("shared three scene layer.ground", () => {
+  it.each([false, true])(
+    "refreshes unchanged photo markings on a newly published LOD (local frame: %s)",
+    (mountsOnLocalFrame) => {
+      const host = createProgressiveHost();
+      Object.assign(host.gl, {
+        COLOR_BUFFER_BIT: 0x4000,
+        COLOR_CLEAR_VALUE: 0x0c22,
+        clearColor: vi.fn(),
+      });
+      host.gl.getParameter.mockImplementation((parameter) =>
+        parameter === 0x0b70
+          ? [0, 0.985]
+          : parameter === 0x0c22
+          ? [0, 0, 0, 0]
+          : host.hostFramebuffer
+      );
+      const root = new THREE.Group();
+      const material = new THREE.MeshStandardMaterial();
+      root.add(new THREE.Mesh(new THREE.PlaneGeometry(1, 1), material));
+      let revision = 0;
+      let incoming: THREE.Mesh | undefined;
+      const renderProgressive = vi.fn<
+        NonNullable<typeof host.controller.renderProgressive>
+      >(() => ({
+        settled: true,
+        progress: 1,
+        needsRepaint: false,
+      }));
+      host.layer.setAccumulationController({
+        ...host.controller,
+        renderProgressive,
+      });
+      host.layer.setMapStylePresentationEnabled!(false);
+      host.layer.addRuntime({
+        id: "lod-receiver",
+        originLngLat: [7.15, 51.25],
+        root,
+        mountsOnLocalFrame,
+        receivesMapStyleTexture: true,
+        mapStyleProjectionVersion: () => revision,
+        update: () => {
+          if (!incoming) return;
+          root.clear();
+          root.add(incoming);
+          incoming = undefined;
+          revision++;
+        },
+        dispose: vi.fn(),
+      });
+      const labels = new THREE.Texture();
+      host.layer.setMapStyleProjectiveOverlay!("photos", {
+        marks: Array.from({ length: 3 }, (_, index) => ({
+          sceneToImage: new THREE.Matrix4().makeTranslation(index, 0, 0),
+          color: new THREE.Color("white"),
+          width: 3 as CssPixels,
+          opacity: 1,
+          labelRect: [0, 0, 1, 1] as const,
+        })),
+        labelAtlas: labels,
+        trailColor: new THREE.Color("cyan"),
+        opacity: 1,
+      });
+      const traversal = vi.spyOn(root, "traverse");
+      const shader = () => ({
+        uniforms: {} as Record<string, { value: unknown }>,
+        vertexShader: "#include <common>\n#include <project_vertex>",
+        fragmentShader:
+          "#include <common>\n#include <map_fragment>\n#include <opaque_fragment>",
+      });
+      try {
+        host.render();
+        const initialEpoch = renderProgressive.mock.calls.at(-1)![1].styleEpoch;
+        const initialShader = shader();
+        material.onBeforeCompile(initialShader as never, {} as never);
+        const marks = initialShader.uniforms.carmaProjectiveData
+          .value as THREE.DataTexture;
+        const textureVersion = marks.version;
+        const repaintCount = host.map.triggerRepaint.mock.calls.length;
+        host.render();
+        expect(renderProgressive.mock.calls.at(-1)![1].styleEpoch).toBe(
+          initialEpoch
+        );
+        expect(traversal).toHaveBeenCalledTimes(1);
+
+        const newMaterial = new THREE.MeshStandardMaterial();
+        incoming = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), newMaterial);
+        host.render();
+        const lodEpoch = renderProgressive.mock.calls.at(-1)![1].styleEpoch;
+        expect(lodEpoch).toBeGreaterThan(initialEpoch);
+        const lodShader = shader();
+        newMaterial.onBeforeCompile(lodShader as never, {} as never);
+        expect(lodShader.uniforms.carmaProjectiveCount.value).toBe(3);
+        expect(lodShader.uniforms.carmaProjectiveData.value).toBe(marks);
+        expect(lodShader.uniforms.carmaProjectiveLabelAtlas.value).toBe(labels);
+        expect(marks.version).toBe(textureVersion);
+        expect(traversal).toHaveBeenCalledTimes(2);
+        expect(host.map.triggerRepaint).toHaveBeenCalledTimes(repaintCount);
+
+        host.render();
+        expect(renderProgressive.mock.calls.at(-1)![1].styleEpoch).toBe(
+          lodEpoch
+        );
+        expect(traversal).toHaveBeenCalledTimes(2);
+      } finally {
+        host.layer.dispose();
+      }
+    }
+  );
+
   it("bounds projective camera data and avoids redundant repaint/uploads", () => {
     const fixture = createSurfaceOverlayFixture([
       {
