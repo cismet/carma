@@ -48,6 +48,7 @@ import {
   canEditKeytables,
   canDeleteFachobjekte,
   canDeleteProtokolle,
+  canDeleteKeytables,
 } from "../store/slices/auth";
 
 const FACHOBJEKT_CLASSES = new Set([
@@ -77,7 +78,8 @@ const assertWritable = (className: string, op: "save" | "remove" = "save") => {
         ? canCreateAA(state) || canEditAA(state)
         : canDeleteProtokolle(state);
   } else {
-    allowed = canEditKeytables(state);
+    allowed =
+      op === "save" ? canEditKeytables(state) : canDeleteKeytables(state);
   }
   if (!allowed) {
     throw new Error(`READ_ONLY: no right to ${op} ${className}.`);
