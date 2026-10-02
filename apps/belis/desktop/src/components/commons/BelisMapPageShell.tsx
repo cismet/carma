@@ -16,7 +16,12 @@ import {
   getGlobalEditMode,
   toggleGlobalEditMode,
 } from "../../store/slices/featuresForms";
-import { canDelete, canEditAA, canUseEditMode } from "../../store/slices/auth";
+import {
+  canCreateBasic,
+  canDelete,
+  canEditAA,
+  canEditBasic,
+} from "../../store/slices/auth";
 import { getKeyTablesLoading } from "../../store/slices/keyTables";
 import {
   getSelectedTeamId,
@@ -67,7 +72,9 @@ const BelisMapPageShell = () => {
   const dispatch: AppDispatch = useDispatch();
   const keyTablesLoading = useSelector(getKeyTablesLoading);
   const globalEditMode = useSelector(getGlobalEditMode);
-  const mayUseEditMode = useSelector(canUseEditMode) as boolean;
+  const mayCreateBasic = useSelector(canCreateBasic) as boolean;
+  const mayEditBasic = useSelector(canEditBasic) as boolean;
+  const mayChangeFachobjekte = mayCreateBasic || mayEditBasic;
   const mayEditAA = useSelector(canEditAA) as boolean;
   const mayDelete = useSelector(canDelete) as boolean;
   const mayChangeAA = mayEditAA || mayDelete;
@@ -265,7 +272,9 @@ const BelisMapPageShell = () => {
     clear: "both",
   };
 
-  // Users without any edit right (incl. "Gast") cannot enter edit mode.
+  // Shown only with a right that edit mode serves on this page (never for "Gast").
+  const mayUseEditMode =
+    sidebarVariant === "arbeitsauftraege" ? mayChangeAA : mayChangeFachobjekte;
   const editModeButton = !mayUseEditMode ? null : (
     <Tooltip title={globalEditMode ? "Bearbeitung sperren" : "Alle bearbeiten"}>
       <Button
