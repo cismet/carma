@@ -3,7 +3,7 @@ import useComponentSize from "@rehooks/component-size";
 import useOnlineStatus from "@rehooks/online-status";
 import React, { useContext, useEffect, useRef, useState } from "react";
 import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
-import PhotoLightBox from "react-cismap/topicmaps/PhotoLightbox";
+import { PhotoLightBox } from "@carma-mapping/lightbox";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, useLocation } from "react-router-dom";
 

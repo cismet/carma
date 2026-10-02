@@ -6,7 +6,7 @@ import {
   FeatureCollectionDispatchContext,
 } from "react-cismap/contexts/FeatureCollectionContextProvider";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
-import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextProvider";
+import { LightBoxDispatchContext } from "@carma-mapping/lightbox";
 import Color from "color";
 import parseHtml from "html-react-parser";
 import Button from "react-bootstrap/Button";
@@ -32,6 +32,8 @@ interface InfoBoxProps {
   additionalInfo?: any;
   zoomToAllLabel?: any;
   currentlyShownCountLabel?: any;
+  // plain text above the navigator arrows, e.g. what they step through
+  navigatorTitle?: string;
   collapsedInfoBox?: any;
   setCollapsedInfoBox?: any;
   noCurrentFeatureTitle?: any;
@@ -86,6 +88,7 @@ export const InfoBox = ({
   additionalInfo,
   zoomToAllLabel,
   currentlyShownCountLabel,
+  navigatorTitle,
   collapsedInfoBox,
   setCollapsedInfoBox,
   noCurrentFeatureTitle,
@@ -172,7 +175,11 @@ export const InfoBox = ({
   } else {
     _fitAll = fitAll;
   }
-  let _next, _previous, infoBoxBottomMargin;
+  // callers that pass their own next/previous (e.g. with a currentFeature)
+  // get them; otherwise the feature collection context steps
+  let _next = next;
+  let _previous = previous;
+  let infoBoxBottomMargin;
   if (handleResponsiveDesign === true) {
     if (responsiveState === "small") {
       infoBoxBottomMargin = 5;
@@ -188,15 +195,11 @@ export const InfoBox = ({
         _next = () => {
           gotoNext();
         };
-      } else {
-        _next = next;
       }
       if (previous === undefined) {
         _previous = () => {
           gotoPrevious();
         };
-      } else {
-        _previous = previous;
       }
     } else {
       _currentFeature = featureCollection[selectedIndex];
@@ -426,24 +429,31 @@ export const InfoBox = ({
         </table>
         {hideNavigator === false && (
           <div>
-            <table style={{ width: "100%" }}>
-              <tbody>
-                <tr>
-                  <td />
-                  <td style={{ textAlign: "center", verticalAlign: "center" }}>
-                    <a
-                      className="renderAsProperLink"
-                      onClick={() => {
-                        _fitAll();
-                      }}
+            {zoomToAllLabel && (
+              <table style={{ width: "100%" }}>
+                <tbody>
+                  <tr>
+                    <td />
+                    <td
+                      style={{ textAlign: "center", verticalAlign: "center" }}
                     >
-                      {zoomToAllLabel}
-                    </a>
-                  </td>
-                  <td />
-                </tr>
-              </tbody>
-            </table>
+                      <a
+                        className="renderAsProperLink"
+                        onClick={() => {
+                          _fitAll();
+                        }}
+                      >
+                        {zoomToAllLabel}
+                      </a>
+                    </td>
+                    <td />
+                  </tr>
+                </tbody>
+              </table>
+            )}
+            {navigatorTitle && (
+              <div style={{ textAlign: "center" }}>{navigatorTitle}</div>
+            )}
             <table style={{ width: "100%", marginBottom: 9 }}>
               <tbody>
                 <tr>

@@ -1,20 +1,31 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import maplibregl from "maplibre-gl";
+import bbox from "@turf/bbox";
+import booleanIntersects from "@turf/boolean-intersects";
+import centroid from "@turf/centroid";
+import distance from "@turf/distance";
+import { feature as turfFeature, point } from "@turf/helpers";
 
 import { useMapSelection } from "@carma-mapping/contexts";
-import { getCarmaConf } from "@carma-mapping/engines/maplibre";
+import {
+  getCarmaConf,
+  isHiddenByOpacity,
+} from "@carma-mapping/engines/maplibre";
 import { utils } from "@carma-appframeworks/portals";
 
 import {
   addCompletedVectorLayer,
+  findOverlappingIndex,
   getPreferredLayerId,
   getPreferredVectorLayerId,
   getSelectedFeature,
   setSecondaryInfoBoxElements,
   setFeatures,
+  setOverlappingFeatures,
   setSelectedFeature,
   setPreferredLayerId,
+  type VectorFeatureInfo,
 } from "../../store/slices/features";
 import { getLayers } from "../../store/slices/mapping";
 import {
@@ -35,6 +46,8 @@ import { addFeatureInfoCrosshair } from "../../components/feature-info/featureIn
 import { useSelectionForwarding } from "./useSelectionForwarding";
 
 const MAX_SELECTION_COUNT = 10;
+// a big crack can hold many small ones
+const MAX_OVERLAPPING_COUNT = 20;
 
 const RECLICK_DELAY_MS = 250;
 
@@ -64,6 +77,105 @@ const getStyleLayerIdCandidates = (hit: maplibregl.MapGeoJSONFeature) => {
     }
   }
   return candidates;
+};
+
+const isSameSourceLayer = (
+  a: maplibregl.MapGeoJSONFeature,
+  b: maplibregl.MapGeoJSONFeature
+) => a.source === b.source && a.sourceLayer === b.sourceLayer;
+
+const isArea = (hit: maplibregl.MapGeoJSONFeature) =>
+  hit.geometry.type === "Polygon" || hit.geometry.type === "MultiPolygon";
+
+/**
+ * A symbol's hit box is its whole icon image, rotated and padded, so densely
+ * placed icons (e.g. panorama arrows a few meters apart) overlap and the
+ * topmost box is often a neighbor of the icon under the cursor. For a point
+ * hit, the point of the same source-layer nearest to the click wins instead.
+ */
+const pickNearestPoint = (
+  hits: maplibregl.MapGeoJSONFeature[],
+  topmost: maplibregl.MapGeoJSONFeature,
+  latlng: maplibregl.LngLat
+) => {
+  if (topmost.geometry.type !== "Point") {
+    return topmost;
+  }
+  const click = point([latlng.lng, latlng.lat]);
+  let nearest = topmost;
+  let nearestDistance = Infinity;
+  for (const hit of hits) {
+    if (hit.geometry.type !== "Point" || !isSameSourceLayer(hit, topmost)) {
+      continue;
+    }
+    const hitDistance = distance(click, point(hit.geometry.coordinates));
+    if (hitDistance < nearestDistance) {
+      nearest = hit;
+      nearestDistance = hitDistance;
+    }
+  }
+  return nearest;
+};
+
+/**
+ * The hits of the same source and source-layer as the picked one (e.g. all
+ * cracks under the cursor, but not the road polygon below them), topmost
+ * first. Features cut at tile borders come back once per tile, so they are
+ * deduplicated.
+ */
+const getOverlappingHits = (
+  hits: maplibregl.MapGeoJSONFeature[],
+  picked: maplibregl.MapGeoJSONFeature,
+  maxCount: number
+) => {
+  const byKey = new Map<unknown, maplibregl.MapGeoJSONFeature>();
+  for (const hit of hits) {
+    if (!isSameSourceLayer(hit, picked)) {
+      continue;
+    }
+    const key = hit.id ?? JSON.stringify(hit.properties);
+    if (!byKey.has(key) || hit === picked) {
+      byKey.set(key, hit);
+    }
+  }
+  const overlapping = [...byKey.values()].slice(0, maxCount);
+  if (!overlapping.includes(picked)) {
+    return [picked, ...overlapping.slice(0, maxCount - 1)];
+  }
+  return overlapping;
+};
+
+/**
+ * Features of the picked one's source that lie in or overlap its shape, e.g.
+ * a small crack inside a big one, which a click on the big one doesn't hit.
+ * Nearest to the click first. Only what is rendered in the viewport is found.
+ */
+const getHitsInShape = (
+  map: maplibregl.Map,
+  picked: maplibregl.MapGeoJSONFeature,
+  latlng: maplibregl.LngLat
+) => {
+  const shape = turfFeature(picked.geometry);
+  const [west, south, east, north] = bbox(shape);
+  const candidates = map
+    .queryRenderedFeatures([
+      map.project([west, north]),
+      map.project([east, south]),
+    ])
+    .filter(
+      (hit) =>
+        isSameSourceLayer(hit, picked) &&
+        !hit.layer.id.includes("selection") &&
+        !isHiddenByOpacity(hit) &&
+        booleanIntersects(turfFeature(hit.geometry), shape)
+    );
+  const click = point([latlng.lng, latlng.lat]);
+  const distanceOf = (hit: maplibregl.MapGeoJSONFeature) =>
+    distance(click, centroid(turfFeature(hit.geometry)));
+  return candidates
+    .map((hit) => ({ hit, distance: distanceOf(hit) }))
+    .sort((a, b) => a.distance - b.distance)
+    .map(({ hit }) => hit);
 };
 
 /**
@@ -338,7 +450,7 @@ export const useLibreMapSelectionHandler = (
         const currentLayers = getLayers(store.getState());
         const selectedVectorFeature =
           resolveSemanticHit(e.hits, currentLayers, e.semanticIdentifier) ??
-          e.hits[0];
+          pickNearestPoint(e.hits, e.hits[0], e.latlng);
         const layerId = selectedVectorFeature.layer?.metadata?.["layer-id"];
         const layer = currentLayers.find((l) => l.id === layerId);
         if (!layer) {
@@ -373,15 +485,64 @@ export const useLibreMapSelectionHandler = (
           return;
         }
 
-        const feature = await createVectorFeature(
-          layer,
-          selectedVectorFeature,
-          map,
-          e.latlng
+        const buildFeatures = async (hits: maplibregl.MapGeoJSONFeature[]) =>
+          (
+            await Promise.all(
+              hits.map((hit) => createVectorFeature(layer, hit, map, e.latlng))
+            )
+          ).filter((f): f is NonNullable<typeof f> => !!f);
+
+        // Only areas really overlap; points under the cursor are just icon
+        // boxes of neighbors and get no stepping.
+        const hitsAtClick = isArea(selectedVectorFeature)
+          ? getOverlappingHits(
+              e.hits,
+              selectedVectorFeature,
+              MAX_OVERLAPPING_COUNT
+            )
+          : [selectedVectorFeature];
+        const featuresAtClick = await buildFeatures(hitsAtClick);
+        const pickedFeature = featuresAtClick.find(
+          (f) => f.sourceFeature === selectedVectorFeature
         );
+
+        // Stepping happens on the highlight photo, so only then the group
+        // grows by the features inside the picked one's shape.
+        let overlappingFeatures = featuresAtClick;
+        if (map && pickedFeature?.properties?.fotoHighlight) {
+          const inShape = getOverlappingHits(
+            [
+              ...hitsAtClick,
+              ...getHitsInShape(map, selectedVectorFeature, e.latlng),
+            ],
+            selectedVectorFeature,
+            MAX_OVERLAPPING_COUNT
+          ).slice(hitsAtClick.length);
+          overlappingFeatures = [
+            ...featuresAtClick,
+            ...(await buildFeatures(inShape)),
+          ];
+        }
+
+        // After stepping through the overlapping features, a click on the
+        // same spot keeps the one shown (if it is under the cursor) and
+        // counts as a reclick, instead of jumping back to the topmost.
+        const currentAtClick =
+          featuresAtClick[
+            findOverlappingIndex(
+              featuresAtClick,
+              currentSelected as VectorFeatureInfo | null
+            )
+          ];
+        const feature = currentAtClick ?? pickedFeature;
+        const zoom = currentAtClick
+          ? getCarmaConf(currentAtClick.sourceFeature)?.zoomOnReclick !== false
+          : zoomOnReclick;
+
+        dispatch(setOverlappingFeatures(overlappingFeatures));
         if (feature) {
           dispatch(setSelectedFeature(feature));
-          if (zoomOnReclick && map) {
+          if (zoom && map) {
             utils.zoomToFeature({ selectedFeature: feature, libreMap: map });
           }
         } else {
