@@ -1186,6 +1186,7 @@ export const ObliqueViewer = ({
               }}
               imageId={selectedRecord.sourceId}
               qualityLevel={previewQualityLevel}
+              minimumQualityLevel={selectedDataset.minimumPreviewQualityLevel}
               halfFovTan={selectedCalibration.halfFovTan}
               dimImage={dimImage}
               rollDeg={rollDeg}

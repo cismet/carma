@@ -45,6 +45,7 @@ type ObliqueImagePreviewProps = {
   nativePixelSize: { width: DevicePixels; height: DevicePixels };
   imageId: string;
   qualityLevel: PreviewQualityLevel;
+  minimumQualityLevel?: PreviewQualityLevel;
   halfFovTan: number;
   /** a flight to the next image is running: the image is hidden until it lands */
   dimImage: boolean;
@@ -75,6 +76,7 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
   nativePixelSize,
   imageId,
   qualityLevel,
+  minimumQualityLevel = "0",
   halfFovTan,
   dimImage,
   rollDeg,
@@ -127,7 +129,7 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
     imageId,
     qualityLevel,
     loadedImage,
-    minimumLevel: originalPixelPreviewPath ? "1" : "0",
+    minimumLevel: originalPixelPreviewPath ? "1" : minimumQualityLevel,
   });
   const finalPreviewUrl = useMemo(
     () => getPreviewImageUrl(previewPath, requestedQuality, imageId),

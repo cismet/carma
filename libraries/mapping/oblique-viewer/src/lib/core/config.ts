@@ -227,6 +227,7 @@ export const WUPPERTAL_OBLIQUE_2024: ObliqueDataset = {
   previewPath: OBLIQUE_2024_PREVIEW_PATH,
   allowUnverifiedSourceHeight: false,
   previewQualityLevel: PREVIEW_QUALITY.LEVEL_3,
+  minimumPreviewQualityLevel: PREVIEW_QUALITY.LEVEL_1,
   hqQualityLevel: PREVIEW_QUALITY.LEVEL_2,
   downloadQualityLevel: PREVIEW_QUALITY.LEVEL_1,
   pitchDeg: 45,

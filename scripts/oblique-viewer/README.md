@@ -105,6 +105,25 @@ Generation alone does not make TIFFs browser-viewable: the currently supplied
 test imagery is TIFF and the served 2026 image directory has no viewer JPEGs.
 Publishing metadata or imagery is a separate operation.
 
+### Delivery availability checked on 2026-10-02
+
+The upload contains all 23,823 oblique TIFFs, matching the INPHO photo IDs
+without duplicates: Nord 5,966, Ost 5,954, Sued 5,929 and West 5,974.
+The 6,349 nadir originals are still absent. The uploaded TIFFs occupy
+3.03 TB; the upload volume has about 5.03 TB free.
+
+The public 2026 directory still contains only `test/index.html`.
+`/2026/metadata/orientation.json` and the configured JPEG pyramid paths return
+404. The committed Rathaus catalog loads, but its JPEG preview files are not
+included in the deployment. Both 2026 presets remain opt-in; there is no
+verified public replacement image URL to configure yet. Nadir remains an
+optimistic catalog option, rather than a claim that its images were uploaded.
+
+The uploaded TIFFs must be exposed by a byte-range-capable static endpoint
+before a client TIFF decoder can use their internal reduced-resolution pages.
+Filename coverage and TIFF directory checks do not establish pixel integrity
+or certified COG conformance. Image conversion and watermarking remain deferred.
+
 ## Tests
 
 ```sh

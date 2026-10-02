@@ -14,6 +14,22 @@ Each series owns its metadata URI, asset base URL, camera calibrations, source c
 
 Metadata and asset availability are separate. The 2026 preset prepares the viewer for the metadata/derivatives endpoint; it does not create JPEG derivatives. A failed series load is reported independently and does not disable a successfully loaded series. An unknown vertical datum prevents an aligned camera flight until the operator declares the verified source datum. The explicit local-development Rathaus configuration can use unverified source Z; this does not change the source datum or enable this exception in production.
 
+The host can declare `minimumPreviewQualityLevel` as the finest published JPEG
+level. Wuppertal uses level 1: its public level 0 directory does not exist.
+Higher zoom preserves the last available pixels instead of requesting an absent
+file. Current 2026 upload and public-endpoint availability are documented in
+[the importer instructions](../../../scripts/oblique-viewer/README.md#delivery-availability-checked-on-2026-10-02).
+
+Preview JPEG decoding and 4:4:4 resampling run in reusable workers. Each worker
+composes the visible source-pixel window in an OffscreenCanvas and transfers
+only that viewport-sized bitmap to the existing scene. Camera movement keeps
+the last composition visible while a replacement is prepared. Three parked
+workers plus the active worker retain four image sources; oversized decoded
+sources are released according to a memory budget. The optional, versioned
+CacheStorage cache retains up to four original encoded preview files without
+lossy re-encoding. This path handles published JPEG levels; it does not decode
+original TIFFs or create a source-sized RGBA canvas for a 244-megapixel image.
+
 ## Selection and navigation
 
 Best-fit selection evaluates the requested ground target and continuous camera bearing/pitch against the poses and camera field of view of enabled series. Direction names remain per-series hints rather than a shared north/east/south/west eligibility rule. Enabling the full 2026 series offers a Nadir button. It locks browsing at zero pitch and selects calibrated nadir cameras only, including on subsequent pan requests; the compass or the same button returns to oblique browsing. Removing the last nadir-capable series returns to oblique mode. Orbit requests change the desired view direction; pan requests change the target in the current image-view frame. Both requests search enabled series and may choose a different year. No-enabled-series and no-candidate results are valid empty states.

@@ -198,6 +198,8 @@ export type ObliqueDataset = {
   /** Explicit development-only source-Z inspection; the source datum remains unknown. */
   allowUnverifiedSourceHeight?: boolean;
   previewQualityLevel: PreviewQualityLevel;
+  /** Finest published preview level; lower-numbered files are not requested. */
+  minimumPreviewQualityLevel?: PreviewQualityLevel;
   /** one step sharper than the preview, for the ribbon's "HQ" */
   hqQualityLevel: PreviewQualityLevel;
   downloadQualityLevel: PreviewQualityLevel;
