@@ -9,6 +9,9 @@ uniform float carmaScreenOpacity1;
 uniform vec3 carmaScreenBackdropLook;
 uniform vec4 carmaScreenBackdropTint;
 uniform float carmaScreenBackdropOpacity;
+uniform mat3 carmaScreenToBorderImage;
+uniform vec2 carmaScreenBorderImageSize;
+uniform vec4 carmaScreenBorderStyle;
 vec4 carmaScreenSample(sampler2D image, mat3 transform, float opacity, vec2 uv) {
   vec2 imageUv = (transform * vec3(uv, 1.0)).xy;
   if (opacity <= 0.0 || any(lessThan(imageUv,vec2(0.0))) || any(greaterThan(imageUv,vec2(1.0)))) return vec4(0.0);
@@ -16,11 +19,50 @@ vec4 carmaScreenSample(sampler2D image, mat3 transform, float opacity, vec2 uv) 
   pixel.a *= opacity;
   return pixel;
 }
-vec4 carmaScreenImages(vec2 uv) {
+// Integral of a unit Gaussian, used to blur the whole rectangle rather than
+// individual edges. CSS box-shadow's blur radius corresponds to twice sigma.
+vec2 carmaScreenGaussianIntegral(vec2 position, float sigma) {
+  vec2 x = position / (max(sigma,0.0001)*1.4142135624);
+  vec2 t = 1.0/(1.0+0.47047*abs(x));
+  vec2 erf = 1.0-exp(-x*x)*t*(0.3480242+t*(-0.0958798+t*0.7478556));
+  return 0.5+0.5*sign(x)*erf;
+}
+float carmaScreenBorder(vec2 uv) {
+  if (carmaScreenBorderStyle.y<=0.0 && carmaScreenBorderStyle.w<=0.0) return 0.0;
+  vec2 imageUv = (carmaScreenToBorderImage*vec3(uv,1.0)).xy;
+  vec2 position = (imageUv-0.5)*carmaScreenBorderImageSize;
+  vec2 halfSize = carmaScreenBorderImageSize*0.5;
+  vec2 delta = abs(position)-halfSize;
+  float edge = max(delta.x,delta.y);
+  float antialias = max(fwidth(edge)*0.5,0.0001);
+  // The outside frame cannot contribute within the photograph. Compute its
+  // derivative before branching, then skip Gaussian work for interior pixels.
+  if (edge<=-antialias) return 0.0;
+  float outside = smoothstep(-antialias,antialias,edge);
+  float line = carmaScreenBorderStyle.x>0.0 ?
+    outside*(1.0-smoothstep(carmaScreenBorderStyle.x-antialias,
+                           carmaScreenBorderStyle.x+antialias,edge)) : 0.0;
+  float borderAlpha = line*carmaScreenBorderStyle.y;
+  float shadowAlpha = 0.0;
+  if (carmaScreenBorderStyle.z>0.0) {
+    // Blur the outer border box, matching the CSS shadow of a bordered image.
+    vec2 shadowHalfSize = halfSize+max(carmaScreenBorderStyle.x,0.0);
+    vec2 coverage = carmaScreenGaussianIntegral(position+shadowHalfSize,carmaScreenBorderStyle.z*0.5)
+                   -carmaScreenGaussianIntegral(position-shadowHalfSize,carmaScreenBorderStyle.z*0.5);
+    float shadowOutside = smoothstep(carmaScreenBorderStyle.x-antialias,
+                                     carmaScreenBorderStyle.x+antialias,edge);
+    shadowAlpha = clamp(coverage.x*coverage.y,0.0,1.0)*shadowOutside*carmaScreenBorderStyle.w;
+  }
+  return borderAlpha+shadowAlpha*(1.0-borderAlpha);
+}
+vec4 carmaScreenImages(vec2 uv, out float photographAlpha, out float decorationAlpha) {
   vec4 base = carmaScreenSample(carmaScreenTexture0,carmaScreenToTexture0,carmaScreenOpacity0,uv);
   vec4 crop = carmaScreenSample(carmaScreenTexture1,carmaScreenToTexture1,carmaScreenOpacity1,uv);
-  float alpha = crop.a + base.a * (1.0-crop.a);
-  return vec4((crop.rgb*crop.a + base.rgb*base.a*(1.0-crop.a))/max(alpha,0.00001),alpha);
+  photographAlpha = crop.a + base.a * (1.0-crop.a);
+  decorationAlpha = carmaScreenBorder(uv);
+  float borderAlpha = decorationAlpha*(1.0-photographAlpha);
+  float alpha = photographAlpha+borderAlpha;
+  return vec4((crop.rgb*crop.a + base.rgb*base.a*(1.0-crop.a)+vec3(borderAlpha))/max(alpha,0.00001),alpha);
 }
 `;
 
@@ -221,11 +263,15 @@ vec3 carmaMapStyleSRGBToLinear( vec3 value ) {
   );
 }
 
+vec3 carmaMapStyleLinearToSRGB( vec3 value ) {
+  value = max(value,vec3(0.0));
+  return mix(value*12.92,1.055*pow(value,vec3(1.0/2.4))-vec3(0.055),
+             vec3(greaterThan(value,vec3(0.0031308))));
+}
+
 // Legacy CSS backdrop filters operate on display sRGB, in this exact order.
 vec3 carmaScreenBackdrop( vec3 linearColor ) {
-  vec3 value = max(linearColor,vec3(0.0));
-  value = mix(value*12.92,1.055*pow(value,vec3(1.0/2.4))-vec3(0.055),
-              vec3(greaterThan(value,vec3(0.0031308))));
+  vec3 value = carmaMapStyleLinearToSRGB(linearColor);
   value = clamp((value-vec3(0.5))*carmaScreenBackdropLook.x+vec3(0.5),0.0,1.0);
   value = clamp(value*carmaScreenBackdropLook.y,0.0,1.0);
   float grey = dot(value,vec3(0.213,0.715,0.072));
@@ -270,11 +316,18 @@ if ( carmaSurfaceOpacity > 0.0 ) {
 }
 if (carmaScreenOpacity0 > 0.0 || carmaScreenOpacity1 > 0.0) {
   vec2 screenUv = vCarmaMapStyleClip.xy / vCarmaMapStyleClip.w * 0.5 + 0.5;
-  vec4 image = carmaScreenImages(screenUv);
+  float photographAlpha;
+  float decorationAlpha;
+  vec4 image = carmaScreenImages(screenUv,photographAlpha,decorationAlpha);
   // Filter only the visible receiver beneath/outside the photo. Its source RGB stays untouched.
-  float outside = carmaScreenBackdropOpacity*(1.0-image.a);
+  float outside = carmaScreenBackdropOpacity*(1.0-photographAlpha);
   if (outside>0.0) outgoingLight = mix(outgoingLight,carmaScreenBackdrop(outgoingLight),outside);
-  outgoingLight = mix(outgoingLight,image.rgb,image.a);
+  // CSS white framing blends in display sRGB. Place it beneath the photograph
+  // so fading/antialiasing cannot attenuate the photograph's foreground color.
+  if (decorationAlpha>0.0) outgoingLight = carmaMapStyleSRGBToLinear(
+    mix(carmaMapStyleLinearToSRGB(outgoingLight),vec3(1.0),decorationAlpha));
+  vec3 photograph = max(image.rgb*image.a-vec3(decorationAlpha*(1.0-photographAlpha)),vec3(0.0));
+  outgoingLight = outgoingLight*(1.0-photographAlpha)+photograph;
 }
 #ifdef CARMA_MAP_STYLE_OVERLAY
 if ( carmaMapStyleLabelCoverage > 0.0 ) {

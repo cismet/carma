@@ -7,7 +7,7 @@ import type { Map as MaplibreMap } from "maplibre-gl";
  * map's wrapper, the way the comparison mounts its panels (see
  * `comparing/stage/CompareStage.tsx` for why not the wrapper itself). It
  * sits over the map and under the control layer, so the layer bar, the
- * ribbon and the control column stay usable above the backdrop.
+ * information panel and the control column stay usable above the backdrop.
  */
 
 /** above the map canvas at 0, below the controls at 1000 */
@@ -40,7 +40,7 @@ export const ObliqueOverlay = ({
 
   if (!host) return null;
   return createPortal(
-    <div style={{ position: "absolute", inset: 0, pointerEvents: "auto" }}>
+    <div style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
       {children}
     </div>,
     host

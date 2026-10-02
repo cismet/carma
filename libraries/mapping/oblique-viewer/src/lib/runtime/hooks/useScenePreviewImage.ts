@@ -118,12 +118,14 @@ export const useScenePreviewImage = ({
     let geometry: ScenePreviewImageGeometry | null = null;
     let previousView: number[] = [];
     let matrix = new Matrix3();
+    let imageMatrix = matrix;
     let matrixGeometry: ScenePreviewImageGeometry | null = null;
     let matrixCrop: NativePreviewWindow["source"] | undefined;
     let applied: {
       texture: Texture;
       version: number;
       matrix: Matrix3;
+      imageMatrix: Matrix3;
       opacity: number;
       priority: number;
       backdropLook?: ObliqueBackdropLook;
@@ -270,6 +272,17 @@ export const useScenePreviewImage = ({
           degToRad(options.rollDeg as Degrees),
           textureCrop
         );
+        // A native crop changes sampling bounds, while decoration follows the complete sensor frame.
+        imageMatrix = textureCrop
+          ? nativePreviewTextureTransform(
+              geometry.viewport,
+              geometry.image,
+              options.nativeSize,
+              geometry.offset,
+              options.principal,
+              degToRad(options.rollDeg as Degrees)
+            )
+          : matrix;
         matrixGeometry = geometry;
         matrixCrop = textureCrop;
       }
@@ -277,6 +290,7 @@ export const useScenePreviewImage = ({
         applied?.texture === texture &&
         applied.version === texture.version &&
         applied.matrix === matrix &&
+        applied.imageMatrix === imageMatrix &&
         applied.opacity === opacity &&
         applied.priority === options.priority &&
         applied.backdropLook?.contrast === options.backdropLook?.contrast &&
@@ -293,6 +307,14 @@ export const useScenePreviewImage = ({
         viewportToTexture: matrix,
         opacity,
         priority: options.priority,
+        border: {
+          viewportToImage: imageMatrix,
+          imageSize: geometry.image,
+          width: 2,
+          opacity: 0.9,
+          feather: 50,
+          featherOpacity: 0.8,
+        },
         backdropLook: options.backdropLook
           ? {
               contrast: options.backdropLook.contrast / 100,
@@ -306,6 +328,7 @@ export const useScenePreviewImage = ({
         texture,
         version: texture.version,
         matrix,
+        imageMatrix,
         opacity,
         priority: options.priority,
         backdropLook: options.backdropLook

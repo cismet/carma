@@ -5,6 +5,7 @@ import type {
   SharedThreeSceneRuntime,
   MapStyleProjectionUniforms,
   MapStyleProjectiveOverlay,
+  MapStyleScreenOverlay,
 } from "../../core/shared-three-scene-types";
 import { createMapStyleFramebufferCache } from "./map-style-framebuffer-cache";
 import { configureMapStyleProjectedMaterial } from "./shared-three-map-style-material";
@@ -56,6 +57,11 @@ export const createSharedThreeMapStyleProjection = (
       look: { value: new THREE.Vector3(1, 1, 1) },
       tint: { value: new THREE.Vector4(0, 0, 0, 0) },
       opacity: { value: 0 },
+    },
+    screenBorder: {
+      viewportToImage: { value: new THREE.Matrix3() },
+      imageSize: { value: new THREE.Vector2(1, 1) },
+      style: { value: new THREE.Vector4() },
     },
     projectiveOverlay: {
       data: { value: null },
@@ -113,25 +119,18 @@ export const createSharedThreeMapStyleProjection = (
   >();
   const screenOverlays = new Map<
     string,
-    {
-      texture: THREE.Texture;
-      viewportToTexture: THREE.Matrix3;
-      opacity: number;
-      priority?: number;
-      backdropLook?: {
-        contrast: number;
-        brightness: number;
-        saturation: number;
-      };
-      backdropTint?: readonly [number, number, number, number];
-      version: number;
-    }
+    MapStyleScreenOverlay & { version: number }
   >();
   const screenUniforms: Record<string, THREE.IUniform> = {
     carmaScreenBackdropLook: mapStyleProjectionUniforms.screenBackdrop!.look,
     carmaScreenBackdropTint: mapStyleProjectionUniforms.screenBackdrop!.tint,
     carmaScreenBackdropOpacity:
       mapStyleProjectionUniforms.screenBackdrop!.opacity,
+    carmaScreenToBorderImage:
+      mapStyleProjectionUniforms.screenBorder!.viewportToImage,
+    carmaScreenBorderImageSize:
+      mapStyleProjectionUniforms.screenBorder!.imageSize,
+    carmaScreenBorderStyle: mapStyleProjectionUniforms.screenBorder!.style,
   };
   mapStyleProjectionUniforms.screenOverlays!.forEach((screen, index) => {
     screenUniforms[`carmaScreenTexture${index}`] = screen.texture;
@@ -142,7 +141,7 @@ export const createSharedThreeMapStyleProjection = (
     uniforms: screenUniforms,
     vertexShader: `varying vec2 vScreenUv; void main(){vScreenUv=uv;gl_Position=vec4(position.xy,0.0,1.0);}`,
     fragmentShader: `varying vec2 vScreenUv; ${MAP_STYLE_SCREEN_OVERLAY_FRAGMENT_HEADER}
-void main(){vec4 image=carmaScreenImages(vScreenUv);if(image.a<=0.0)discard;gl_FragColor=image;
+void main(){float photographAlpha;float decorationAlpha;vec4 image=carmaScreenImages(vScreenUv,photographAlpha,decorationAlpha);if(image.a<=0.0)discard;gl_FragColor=image;
 #include <colorspace_fragment>
 }`,
     depthTest: false,
@@ -319,18 +318,7 @@ void main(){vec4 image=carmaScreenImages(vScreenUv);if(image.a<=0.0)discard;gl_F
     screenOverlayMesh,
     setScreenOverlay(
       id: string,
-      overlay: {
-        texture: THREE.Texture;
-        viewportToTexture: THREE.Matrix3;
-        opacity: number;
-        priority?: number;
-        backdropLook?: {
-          contrast: number;
-          brightness: number;
-          saturation: number;
-        };
-        backdropTint?: readonly [number, number, number, number];
-      } | null,
+      overlay: MapStyleScreenOverlay | null,
       requestRepaint = true
     ) {
       const previous = screenOverlays.get(id);
@@ -350,6 +338,18 @@ void main(){vec4 image=carmaScreenImages(vScreenUv);if(image.a<=0.0)discard;gl_F
           (index) =>
             previous.backdropTint?.[index] === overlay.backdropTint?.[index]
         ) &&
+        previous.border?.width === overlay.border?.width &&
+        previous.border?.opacity === overlay.border?.opacity &&
+        previous.border?.feather === overlay.border?.feather &&
+        previous.border?.featherOpacity === overlay.border?.featherOpacity &&
+        previous.border?.imageSize.width === overlay.border?.imageSize.width &&
+        previous.border?.imageSize.height ===
+          overlay.border?.imageSize.height &&
+        (!previous.border ||
+          !overlay.border ||
+          previous.border.viewportToImage.equals(
+            overlay.border.viewportToImage
+          )) &&
         previous.viewportToTexture.equals(overlay.viewportToTexture)
       )
         return;
@@ -362,6 +362,13 @@ void main(){vec4 image=carmaScreenImages(vScreenUv);if(image.a<=0.0)discard;gl_F
             : undefined,
           backdropTint: overlay.backdropTint
             ? [...overlay.backdropTint]
+            : undefined,
+          border: overlay.border
+            ? {
+                ...overlay.border,
+                imageSize: { ...overlay.border.imageSize },
+                viewportToImage: overlay.border.viewportToImage.clone(),
+              }
             : undefined,
           viewportToTexture: overlay.viewportToTexture.clone(),
           version: overlay.texture.version,
@@ -389,6 +396,24 @@ void main(){vec4 image=carmaScreenImages(vScreenUv);if(image.a<=0.0)discard;gl_F
         backdrop?.backdropTint ?? [0, 0, 0, 0]
       );
       backdropUniforms.opacity.value = backdrop?.opacity ?? 0;
+      const borderEntry = ordered.find(
+        (entry) => entry.border && entry.opacity > 0
+      );
+      const border = borderEntry?.border;
+      const borderUniforms = mapStyleProjectionUniforms.screenBorder!;
+      if (border) {
+        borderUniforms.viewportToImage.value.copy(border.viewportToImage);
+        borderUniforms.imageSize.value.set(
+          border.imageSize.width,
+          border.imageSize.height
+        );
+      }
+      borderUniforms.style.value.set(
+        Math.max(0, border?.width ?? 0),
+        (border?.opacity ?? 0) * (borderEntry?.opacity ?? 0),
+        Math.max(0, border?.feather ?? 0),
+        (border?.featherOpacity ?? 0) * (borderEntry?.opacity ?? 0)
+      );
       screenOverlayMesh.visible = ordered.some((entry) => entry.opacity > 0);
       mapStyleProjectionEpoch++;
       if (requestRepaint) map?.triggerRepaint();

@@ -15,6 +15,7 @@ import type {
 } from "../core/types";
 import { cardinalLetter } from "../core/utils/orientation";
 import { strings } from "./strings.de";
+import type { ObliqueDownloadOptions } from "./utils/imageUrls";
 
 /** what the ribbon can ask the engine to do */
 export type ObliqueCommand =
@@ -81,6 +82,8 @@ export type ObliqueViewerState = {
   backdropLook: ObliqueBackdropLook;
   /** the selected image at download quality, for the ribbon's buttons */
   downloadUrl: string | null;
+  /** Native geometry and publisher watermark for downloadable TIFF originals. */
+  downloadOptions: ObliqueDownloadOptions | null;
   /** the ribbon's last command for the engine; the engine clears it */
   request: ObliqueRequest | null;
   /** Monotonic across acknowledgements, so consecutive commands remain distinct. */
@@ -111,6 +114,7 @@ export const OBLIQUE_STATE_DEFAULT: ObliqueViewerState = {
   previewQuality: "standard",
   backdropLook: BACKDROP_LOOK_DEFAULT,
   downloadUrl: null,
+  downloadOptions: null,
   request: null,
   requestSequence: 0,
 };

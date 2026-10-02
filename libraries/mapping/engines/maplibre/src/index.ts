@@ -292,6 +292,7 @@ export { getSharedThreeShadowViewSignature } from "./lib/core/shared-three-shado
 export type {
   SharedThreeSceneFrame,
   MapStyleProjectiveOverlay,
+  MapStyleScreenOverlay,
   SharedThreeSceneLayer,
   SharedThreeSceneRuntime,
   SharedThreeSceneShadowView,

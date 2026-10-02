@@ -65,6 +65,20 @@ export const useVisibleFootprints = ({
           requestId: request.requestId,
           query: request.query,
         });
+        // The pointer also controls whether the viewport keeps its sector filter.
+        if (request.query.viewportCorners) {
+          worker.postMessage({
+            type: "query",
+            requestId: ++requestIdRef.current,
+            query: {
+              corners: request.query.viewportCorners,
+              center: request.query.point,
+              point: request.query.point,
+              headingRad: request.query.headingRad,
+              viewMode: request.query.viewMode,
+            } satisfies FootprintViewportQuery,
+          });
+        }
       } catch {
         stopHover();
       }

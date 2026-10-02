@@ -27,6 +27,124 @@ const rectangle = (
 });
 
 describe("catalog footprint hover", () => {
+  it("prefers actual current-sector hits over a nearer axis crossing outside its polygon", () => {
+    const containing = rectangle("containing", 7.2008);
+    containing.ring = [
+      [7.1999, 51.269],
+      [7.204, 51.269],
+      [7.204, 51.271],
+      [7.1999, 51.271],
+      [7.1999, 51.269],
+    ];
+    const index = indexViewportFootprints([
+      containing,
+      rectangle("nearby-without-hit", 7.2005),
+      rectangle("other-sector-hit", 7.2, degToRad(144 as Degrees)),
+    ]);
+    expect(
+      selectFootprintAtPoint(index, {
+        point: [7.2, 51.27],
+        headingRad,
+        viewMode: "oblique",
+      })
+    ).toBe("containing");
+  });
+
+  it("keeps proximity ranking among actual hits in the current sector", () => {
+    const index = indexViewportFootprints([
+      rectangle("aligned-but-farther", 7.2003, headingRad),
+      rectangle("nearer-sector-hit", 7.2, headingRad + Math.PI / 6),
+    ]);
+    expect(
+      selectFootprintAtPoint(index, {
+        point: [7.2, 51.27],
+        headingRad,
+        viewMode: "oblique",
+      })
+    ).toBe("nearer-sector-hit");
+  });
+
+  it("falls back to every sector and ranks the shortest heading deviation before proximity", () => {
+    const index = indexViewportFootprints([
+      rectangle("nearer-but-90-degrees-away", 7.2006, degToRad(270 as Degrees)),
+      rectangle("farther-but-50-degrees-away", 7.205, degToRad(310 as Degrees)),
+    ]);
+    expect(
+      selectFootprintAtPoint(index, {
+        point: [7.2, 51.27],
+        headingRad: 0,
+        viewMode: "oblique",
+      })
+    ).toBe("farther-but-50-degrees-away");
+  });
+
+  it("compares both heading directions across north before distance and active-image ties", () => {
+    const index = indexViewportFootprints([
+      rectangle("nearer-three-degrees", 7.2006, degToRad(2 as Degrees)),
+      rectangle("farther-one-degree", 7.205, 0),
+      rectangle("same-heading-active", 7.205, 0),
+    ]);
+    const query = {
+      point: [7.2, 51.27] as [number, number],
+      headingRad: degToRad(359 as Degrees),
+      viewMode: "oblique" as const,
+    };
+    expect(selectFootprintAtPoint(index, query)).toBe("farther-one-degree");
+    expect(
+      selectFootprintAtPoint(index, {
+        ...query,
+        activeImageId: "same-heading-active",
+      })
+    ).toBe("same-heading-active");
+  });
+
+  it("uses distance to break heading ties and keeps nadir independent of bearing", () => {
+    const index = indexViewportFootprints([
+      rectangle("farther", 7.205, 0),
+      rectangle("nearer", 7.201, 0),
+      rectangle("nadir-farther", 7.205, 0, true),
+      rectangle("nadir-nearer", 7.201, Math.PI, true),
+    ]);
+    const query = {
+      point: [7.2, 51.27] as [number, number],
+      headingRad: 0,
+      viewMode: "oblique" as const,
+    };
+    expect(selectFootprintAtPoint(index, query)).toBe("nearer");
+    expect(selectFootprintAtPoint(index, { ...query, viewMode: "nadir" })).toBe(
+      "nadir-nearer"
+    );
+  });
+
+  it("exposes all viewport sectors in gaps and reapplies the preferred sector at the pointer", () => {
+    const index = indexViewportFootprints([
+      rectangle("current-sector", 7.2),
+      rectangle("other-sector", 7.203, degToRad(54 as Degrees)),
+      rectangle("nadir", 7.202, 0, true),
+    ]);
+    const viewport = {
+      corners: [
+        [7.199, 51.269],
+        [7.205, 51.269],
+        [7.205, 51.271],
+        [7.199, 51.271],
+      ] as [number, number][],
+      center: [7.2015, 51.27] as [number, number],
+      headingRad,
+      viewMode: "oblique" as const,
+    };
+    expect(selectViewportFootprints(index, viewport)).toEqual([
+      "current-sector",
+      "other-sector",
+    ]);
+    expect(
+      selectViewportFootprints(index, { ...viewport, point: [7.2, 51.27] })
+    ).toEqual(["current-sector"]);
+    expect(
+      selectViewportFootprints(index, { ...viewport, viewMode: "nadir" })
+    ).toEqual(["nadir"]);
+  });
+
   it("finds the nearest diagonal center outside the 128 displayed nearest footprints", () => {
     const index = indexViewportFootprints(
       Array.from({ length: 160 }, (_, i) =>

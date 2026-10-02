@@ -1,6 +1,7 @@
 import {
   clipConvexPolygonByConvexPolygon2d,
   getPolygonCentroid2d,
+  isPointInsideConvexPolygon2d,
   shortestAngleDelta,
   type Point2,
 } from "@carma-commons/math";
@@ -21,6 +22,8 @@ export type FootprintViewportQuery = {
   center: [number, number];
   headingRad: number;
   viewMode: ObliqueViewMode;
+  /** The pointer when present; otherwise the viewport centre drives display. */
+  point?: [number, number];
 };
 export type FootprintPointQuery = {
   point: [number, number];
@@ -91,62 +94,99 @@ export const indexViewportFootprints = (
     (a, b) => a.bounds[0] - b.bounds[0] || a.id.localeCompare(b.id)
   );
 };
-/** Continuous +/-45 degrees; exact polygon overlap after a cheap bounds prefilter. */
-export const selectViewportFootprints = (
+type FootprintCandidate = {
+  item: IndexedFootprint;
+  headingDelta: number;
+  distance: number;
+  coversPoint: boolean;
+};
+
+const candidatesAtPoint = (
   index: readonly IndexedFootprint[],
-  query: FootprintViewportQuery
-): string[] => {
-  const viewport = query.corners.map(project);
-  const center = project(query.center);
-  if (
-    viewport.length < 3 ||
-    viewport.some((point) => !Number.isFinite(point.x + point.y)) ||
-    !Number.isFinite(center.x + center.y + query.headingRad)
-  )
-    return [];
-  const bounds = boundsOf(viewport);
-  const candidates: { item: IndexedFootprint; distance: number }[] = [];
+  point: Point2,
+  headingRad: number,
+  viewMode: ObliqueViewMode,
+  viewport?: readonly Point2[]
+): FootprintCandidate[] => {
+  const bounds = viewport ? boundsOf(viewport) : null;
+  const candidates: FootprintCandidate[] = [];
   for (const item of index) {
-    if (item.bounds[0] > bounds[2]) break;
+    if (bounds && item.bounds[0] > bounds[2]) break;
     if (
-      item.bounds[2] < bounds[0] ||
-      item.bounds[3] < bounds[1] ||
-      item.bounds[1] > bounds[3]
+      bounds &&
+      (item.bounds[2] < bounds[0] ||
+        item.bounds[3] < bounds[1] ||
+        item.bounds[1] > bounds[3])
     )
       continue;
+    if (viewMode === "nadir" ? !item.nadir : item.nadir) continue;
     if (
-      query.viewMode === "nadir"
-        ? !item.nadir
-        : item.nadir ||
-          Math.abs(shortestAngleDelta(query.headingRad, item.headingRad)) >
-            PI_OVER_FOUR
-    )
-      continue;
-    candidates.push({
-      item,
-      distance:
-        (item.center.x - center.x) ** 2 + (item.center.y - center.y) ** 2,
-    });
-  }
-  candidates.sort(
-    (a, b) => a.distance - b.distance || a.item.id.localeCompare(b.item.id)
-  );
-  const selected: string[] = [];
-  for (const { item } of candidates) {
-    if (
+      viewport &&
       clipConvexPolygonByConvexPolygon2d({
         subject: item.polygon,
         clip: viewport,
       }).length === 0
     )
       continue;
-    selected.push(item.id);
-    if (selected.length === MAX_VISIBLE_FOOTPRINTS) break;
+    candidates.push({
+      item,
+      headingDelta:
+        viewMode === "nadir"
+          ? 0
+          : Math.abs(shortestAngleDelta(headingRad, item.headingRad)),
+      distance:
+        (item.axisIntersection.x - point.x) ** 2 +
+        (item.axisIntersection.y - point.y) ** 2,
+      coversPoint:
+        point.x >= item.bounds[0] &&
+        point.x <= item.bounds[2] &&
+        point.y >= item.bounds[1] &&
+        point.y <= item.bounds[3] &&
+        isPointInsideConvexPolygon2d({ point, polygon: item.polygon }),
+    });
   }
-  return selected;
+  return candidates;
 };
 
-/** Nearest image-axis crossing among every direction-compatible viewport intersection. */
+/** The current sector is preferred while it has real hits; gaps expose all sectors. */
+export const selectViewportFootprints = (
+  index: readonly IndexedFootprint[],
+  query: FootprintViewportQuery
+): string[] => {
+  const viewport = query.corners.map(project);
+  const point = project(query.point ?? query.center);
+  if (
+    viewport.length < 3 ||
+    viewport.some((point) => !Number.isFinite(point.x + point.y)) ||
+    !Number.isFinite(point.x + point.y + query.headingRad)
+  )
+    return [];
+  const candidates = candidatesAtPoint(
+    index,
+    point,
+    query.headingRad,
+    query.viewMode,
+    viewport
+  );
+  const hasSectorHit = candidates.some(
+    (candidate) =>
+      candidate.coversPoint && candidate.headingDelta <= PI_OVER_FOUR
+  );
+  return candidates
+    .filter(
+      (candidate) => !hasSectorHit || candidate.headingDelta <= PI_OVER_FOUR
+    )
+    .sort(
+      (a, b) =>
+        (!hasSectorHit ? a.headingDelta - b.headingDelta : 0) ||
+        a.distance - b.distance ||
+        a.item.id.localeCompare(b.item.id)
+    )
+    .slice(0, MAX_VISIBLE_FOOTPRINTS)
+    .map(({ item }) => item.id);
+};
+
+/** Actual sector hits precede proximity; gaps rank every sector by heading, then distance. */
 export const selectFootprintAtPoint = (
   index: readonly IndexedFootprint[],
   query: FootprintPointQuery
@@ -160,47 +200,25 @@ export const selectFootprintAtPoint = (
       viewport.some((point) => !Number.isFinite(point.x + point.y)))
   )
     return null;
-  const bounds = viewport ? boundsOf(viewport) : null;
-  let selected: string | null = null;
-  let nearest = Infinity;
-  for (const item of index) {
-    if (bounds && item.bounds[0] > bounds[2]) break;
-    if (
-      bounds &&
-      (item.bounds[2] < bounds[0] ||
-        item.bounds[1] > bounds[3] ||
-        item.bounds[3] < bounds[1])
-    )
-      continue;
-    if (
-      query.viewMode === "nadir"
-        ? !item.nadir
-        : item.nadir ||
-          Math.abs(shortestAngleDelta(query.headingRad, item.headingRad)) >
-            PI_OVER_FOUR
-    )
-      continue;
-    if (
-      viewport &&
-      clipConvexPolygonByConvexPolygon2d({
-        subject: item.polygon,
-        clip: viewport,
-      }).length === 0
-    )
-      continue;
-    const distance =
-      (item.axisIntersection.x - point.x) ** 2 +
-      (item.axisIntersection.y - point.y) ** 2;
-    if (
-      distance < nearest ||
-      (distance === nearest && item.id === query.activeImageId) ||
-      (distance === nearest &&
-        selected !== query.activeImageId &&
-        (selected === null || item.id.localeCompare(selected) < 0))
-    ) {
-      selected = item.id;
-      nearest = distance;
-    }
-  }
-  return selected;
+  const candidates = candidatesAtPoint(
+    index,
+    point,
+    query.headingRad,
+    query.viewMode,
+    viewport
+  );
+  const hits = candidates.filter(
+    (candidate) =>
+      candidate.coversPoint && candidate.headingDelta <= PI_OVER_FOUR
+  );
+  const preferred = hits.length ? hits : candidates;
+  preferred.sort(
+    (a, b) =>
+      (!hits.length ? a.headingDelta - b.headingDelta : 0) ||
+      a.distance - b.distance ||
+      Number(b.item.id === query.activeImageId) -
+        Number(a.item.id === query.activeImageId) ||
+      a.item.id.localeCompare(b.item.id)
+  );
+  return preferred[0]?.item.id ?? null;
 };

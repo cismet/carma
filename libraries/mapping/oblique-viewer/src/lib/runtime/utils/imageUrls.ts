@@ -2,6 +2,16 @@ import {
   PREVIEW_IMAGE_EXTENSION,
   type PreviewQualityLevel,
 } from "../../core/constants";
+import { downloadTiffJpeg } from "./tiff-download";
+import type { ObliqueDownloadWatermark } from "./tiff-download-types";
+
+export type { ObliqueDownloadWatermark } from "./tiff-download-types";
+export type ObliqueDownloadOptions = Readonly<{
+  tiff?: boolean;
+  nativeSize?: { width: number; height: number };
+  watermark?: ObliqueDownloadWatermark;
+  signal?: AbortSignal;
+}>;
 
 export const getPreviewImageUrl = (
   previewPath: string,
@@ -44,22 +54,46 @@ export const getImageUrls = (
 };
 
 export const downloadAsBlobAsync = async (
-  downloadUrl: string
+  downloadUrl: string,
+  options?: ObliqueDownloadOptions
 ): Promise<void> => {
+  const tiff = options?.tiff;
+  if (tiff && !options.nativeSize)
+    throw new Error("Für den JPG-Download fehlen die Originalbildmaße.");
+  if (tiff && !options.watermark)
+    throw new Error("Für den JPG-Download fehlt die Wasserzeichen-Vorlage.");
+  const blob = tiff
+    ? await downloadTiffJpeg(
+        {
+          url: downloadUrl,
+          nativeSize: options!.nativeSize!,
+          watermark: options!.watermark!,
+        },
+        options?.signal
+      )
+    : await (async () => {
+        const response = await fetch(downloadUrl, {
+          mode: "cors",
+          signal: options?.signal,
+        });
+        if (!response.ok)
+          throw new Error(
+            `Das Bild konnte nicht geladen werden (${response.status}).`
+          );
+        return response.blob();
+      })();
+  options?.signal?.throwIfAborted();
+  const blobUrl = window.URL.createObjectURL(blob);
   try {
-    const response = await fetch(downloadUrl, { mode: "cors" });
-    if (!response.ok) throw new Error("Network response was not ok");
-    const blob = await response.blob();
-    const blobUrl = window.URL.createObjectURL(blob);
     const filename =
-      downloadUrl.split("/").pop() || `oblique-image-${Date.now()}.jpg`;
+      new URL(downloadUrl, window.location.href).pathname.split("/").pop() ||
+      `oblique-image-${Date.now()}.jpg`;
     const link = document.createElement("a");
     link.href = blobUrl;
-    link.download = filename;
+    link.download = tiff ? filename.replace(/\.tiff?$/i, ".jpg") : filename;
     link.click();
+  } finally {
     window.URL.revokeObjectURL(blobUrl);
-  } catch (error) {
-    console.warn("[OBLIQUE] download failed", error);
   }
 };
 

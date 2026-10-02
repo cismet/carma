@@ -153,6 +153,24 @@ describe("shared-frame preview image", () => {
     act(() => shared.callback?.(frame));
     expect(before).toHaveBeenCalledOnce();
     expect(shared.setOverlay.mock.lastCall?.[1]?.texture.image).toBe(source);
+    const overlay = shared.setOverlay.mock.lastCall?.[1];
+    expect(overlay.border).toMatchObject({
+      imageSize: { width: 50, height: 25 },
+      width: 2,
+      opacity: 0.9,
+      feather: 50,
+      featherOpacity: 0.8,
+    });
+    // The crop samples a smaller region; the white frame still follows the whole photograph.
+    const imageUv = new Vector3(0.5, 0.5, 1).applyMatrix3(
+      overlay.border.viewportToImage
+    );
+    const cropUv = new Vector3(0.5, 0.5, 1).applyMatrix3(
+      overlay.viewportToTexture
+    );
+    expect(imageUv.x).toBeCloseTo(0.4);
+    expect(imageUv.y).toBeCloseTo(0.7);
+    expect(cropUv.x).toBeCloseTo(0.6);
     hook.unmount();
   });
 

@@ -5,6 +5,36 @@ import type { SceneAccumulationOptions } from "@carma-mapping/engines/three/prim
 import type { TileCameraSnapshot, TileCameraView } from "./tile-camera-demand";
 import type { TileVolumeLoadReason, TileVolumeState } from "./tile-volume";
 
+/** Screen photograph and optional full-image framing, shared by receivers and backdrop. */
+export type MapStyleScreenOverlay = Readonly<{
+  texture: THREE.Texture;
+  /** Normalized viewport UV (bottom left) to texture UV (bottom left). */
+  viewportToTexture: THREE.Matrix3;
+  opacity: number;
+  priority?: number;
+  /** CSS filter factors applied only to the mesh outside this image. */
+  backdropLook?: {
+    contrast: number;
+    brightness: number;
+    saturation: number;
+  };
+  /** Normalized sRGB tint and alpha, after the backdrop filters. */
+  backdropTint?: readonly [number, number, number, number];
+  /** White outside border and shadow around the full image, independent of texture crops. */
+  border?: {
+    /** Viewport UV to full-image UV, both normalized with a bottom-left origin. */
+    viewportToImage: THREE.Matrix3;
+    /** Displayed unrotated image dimensions in CSS pixels. */
+    imageSize: { width: number; height: number };
+    /** Outside border width in CSS pixels. */
+    width: number;
+    opacity: number;
+    /** CSS box-shadow blur radius in pixels; its Gaussian sigma is half this value. */
+    feather: number;
+    featherOpacity: number;
+  };
+}>;
+
 /**
  * The local east/up/south frame at the view anchor, on the ellipsoid.
  *
@@ -408,21 +438,7 @@ export interface SharedThreeSceneLayer extends CustomLayerInterface {
   /** Screen image composed between receiver color and its draped labels. Caller owns textures. */
   setMapStyleScreenOverlay?: (
     id: string,
-    overlay: {
-      texture: THREE.Texture;
-      /** Normalized viewport UV (bottom left) to texture UV (bottom left). */
-      viewportToTexture: THREE.Matrix3;
-      opacity: number;
-      priority?: number;
-      /** CSS filter factors applied only to the mesh outside this image. */
-      backdropLook?: {
-        contrast: number;
-        brightness: number;
-        saturation: number;
-      };
-      /** Normalized sRGB tint and alpha, after the backdrop filters. */
-      backdropTint?: readonly [number, number, number, number];
-    } | null
+    overlay: MapStyleScreenOverlay | null
   ) => void;
   /** Diagnostics: what the map-style projection did in the last frame. */
   getMapStyleProjectionState?: () => MapStyleProjectionState;
@@ -471,6 +487,13 @@ export type MapStyleProjectionUniforms = Readonly<{
     look: { value: THREE.Vector3 };
     tint: { value: THREE.Vector4 };
     opacity: { value: number };
+  };
+  /** One full-image frame even when a native-resolution crop occupies the second slot. */
+  screenBorder?: {
+    viewportToImage: { value: THREE.Matrix3 };
+    imageSize: { value: THREE.Vector2 };
+    /** CSS border width, border opacity, CSS blur radius, shadow opacity. */
+    style: { value: THREE.Vector4 };
   };
   projectiveOverlay?: {
     data: { value: THREE.DataTexture | null };

@@ -128,7 +128,7 @@ describe("series footprint identity", () => {
     expect(TEST_LEGACY_SERIES.acquisitionMonth).toBe(3);
     expect(TEST_INPHO_SERIES.acquisitionMonth).toBe(4);
   });
-  it("suppresses labels when only one series is enabled", () => {
+  it("suppresses labels until multiple enabled series have loaded successfully", () => {
     for (const series of [
       TEST_LEGACY_SERIES,
       TEST_INPHO_SERIES,

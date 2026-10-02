@@ -21,7 +21,7 @@ export const OBLIQUE_FOOTPRINT_LAYER_ID = "carma-oblique-footprint-outline";
 
 const DEFAULT_STYLE: Required<ObliqueFootprintsStyle> = {
   outlineColor: FOOTPRINT_SELECTION_COLOR,
-  outlineWidth: 5,
+  outlineWidth: 2,
   outlineOpacity: 1,
   fillOpacity: 0.08,
   inactiveOpacity: 0.2,
@@ -37,6 +37,8 @@ type UseFootprintLayerOptions = {
   heightOffset?: number;
   seriesLabel?: string;
   seriesLabels?: ReadonlyMap<string, string | undefined>;
+  /** Labels only distinguish multiple successfully loaded, enabled catalogs. */
+  showSeriesLabels?: boolean;
   /** Disable further picks during flight/preview while retaining its center contour. */
   locked: boolean;
   style?: ObliqueFootprintsStyle;
@@ -60,6 +62,7 @@ export const useFootprintLayer = ({
   heightOffset = 0,
   seriesLabel,
   seriesLabels,
+  showSeriesLabels = true,
   locked,
   style,
   fadeOut,
@@ -127,6 +130,10 @@ export const useFootprintLayer = ({
     // the look is applied by its own effect; a new colour is no reason to rebuild
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map, enabled]);
+
+  useEffect(() => {
+    layerRef.current?.setLabelsVisible(showSeriesLabels);
+  }, [map, enabled, showSeriesLabels]);
 
   // the ring under the outline
   useEffect(() => {

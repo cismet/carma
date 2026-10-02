@@ -1,4 +1,5 @@
 export { ObliqueViewer } from "./lib/runtime/ObliqueViewer";
+export { ObliqueNavigation } from "./lib/runtime/ObliqueNavigation";
 export {
   ObliquePanel,
   ObliqueInteractionPanel,

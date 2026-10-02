@@ -297,6 +297,39 @@ describe("calibrated current highlights and bounded selection trails", () => {
     expect(layers.size).toBe(0);
     expect(readLabelPixels).not.toHaveBeenCalled();
   });
+  it("hides centre and cached pointer labels as the loaded series count changes", () => {
+    const { handle } = setup(true);
+    handle.setRing(ring, { ...annotation("center"), seriesLabel: "2024" });
+    handle.setHoveredImage("pointer", candidate("pointer"));
+    const initial = scene.projective.mock.calls.at(-1)?.[1];
+    expect(
+      initial.marks.every((mark: { labelRect?: unknown }) => mark.labelRect)
+    ).toBe(true);
+    const dispose = vi.spyOn(initial.labelAtlas, "dispose");
+    handle.setLabelsVisible(false);
+    let overlay = scene.projective.mock.calls.at(-1)?.[1];
+    expect(overlay.marks).toHaveLength(2);
+    expect(
+      overlay.marks.every((mark: { labelRect?: unknown }) => !mark.labelRect)
+    ).toBe(true);
+    expect(
+      overlay.marks.every(
+        (mark: { showUpMarker: boolean }) => mark.showUpMarker
+      )
+    ).toBe(true);
+    expect(overlay.labelAtlas).toBeUndefined();
+    expect(dispose).toHaveBeenCalledOnce();
+    const uploads = scene.projective.mock.calls.length;
+    handle.setLabelsVisible(false);
+    expect(scene.projective).toHaveBeenCalledTimes(uploads);
+    handle.setLabelsVisible(true);
+    overlay = scene.projective.mock.calls.at(-1)?.[1];
+    expect(
+      overlay.marks.every((mark: { labelRect?: unknown }) => mark.labelRect)
+    ).toBe(true);
+    expect(overlay.marks[0].sceneToImage).toBe(initial.marks[0].sceneToImage);
+    expect(overlay.marks[1].sceneToImage).toBe(initial.marks[1].sceneToImage);
+  });
   it("retains at most 32 preceding center or pointer outlines, with no fill and unchanged width", () => {
     const { handle } = setup(true);
     handle.setRing(ring, annotation("center"));

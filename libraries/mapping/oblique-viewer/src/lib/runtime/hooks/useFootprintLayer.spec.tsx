@@ -17,6 +17,7 @@ const footprint = vi.hoisted(() => ({
   imageAtScreenPoint: vi.fn(() => "2024:image"),
   setRing: vi.fn(),
   setStyle: vi.fn(),
+  setLabelsVisible: vi.fn(),
   setHoveredImage: vi.fn(),
   setLocked: vi.fn((locked: boolean) => {
     footprint.locked = locked;
@@ -65,6 +66,7 @@ const setup = (
     selectedImageId: "2024:image",
     selectedRecord: null as ObliqueImageRecord | null,
     nearbyRecords: undefined as readonly ObliqueImageRecord[] | undefined,
+    showSeriesLabels: true,
     onClick,
     onDoubleClick,
     findAtScreenPoint,
@@ -103,6 +105,22 @@ const setup = (
 };
 
 beforeEach(() => vi.clearAllMocks());
+describe("footprint appearance", () => {
+  it("uses a two CSS pixel outline and updates labels without recreating the layer", () => {
+    const view = setup();
+    expect(footprint.setStyle).toHaveBeenLastCalledWith(
+      expect.objectContaining({ width: 2 })
+    );
+    expect(footprint.setLabelsVisible).toHaveBeenLastCalledWith(true);
+    view.rerender({ ...view.props, showSeriesLabels: false });
+    expect(footprint.setLabelsVisible).toHaveBeenLastCalledWith(false);
+    expect(footprint.destroy).not.toHaveBeenCalled();
+    view.rerender(view.props);
+    expect(footprint.setLabelsVisible).toHaveBeenLastCalledWith(true);
+    view.unmount();
+  });
+});
+
 describe("footprint click activation", () => {
   it("opens the image on an interior click and claims it before host selection", () => {
     const view = setup();

@@ -59,9 +59,12 @@ import { useObliqueCameraMode } from "./hooks/useObliqueCameraMode";
 import { useObliqueData } from "./hooks/useObliqueData";
 import { useBasemapStarted } from "./hooks/useBasemapStarted";
 import { useObliqueDirectionKeybindings } from "./hooks/useObliqueDirectionKeybindings";
+import { useObjectCoverage } from "./hooks/useObjectCoverage";
 import { useObliqueViewerActions } from "./oblique-actions";
 import { ObliqueImagePreview } from "./ObliqueImagePreview";
 import { ObliqueOverlay } from "./ObliqueOverlay";
+import { ObliqueNavigation } from "./ObliqueNavigation";
+import { ObliqueObjectCoverage } from "./ObliqueObjectCoverage";
 import { strings } from "./strings.de";
 import {
   flyToPose,
@@ -70,6 +73,7 @@ import {
   settleToPitch,
 } from "./utils/flyToImage";
 import { getImageUrls } from "./utils/imageUrls";
+import type { ObliqueDownloadOptions } from "./utils/imageUrls";
 import type { CameraFlight } from "./utils/obliqueCamera";
 import {
   beginInteractionProfile,
@@ -208,6 +212,7 @@ const ObliqueViewerRuntime = ({
     [enabledSeriesIds, configuredSeries]
   );
   const enabledSet = useMemo(() => new Set(enabledIds), [enabledIds]);
+  const enabledToken = JSON.stringify(enabledIds);
   const enabledSeries = useMemo(
     () => configuredSeries.filter((series) => enabledSet.has(series.id)),
     [configuredSeries, enabledSet]
@@ -263,7 +268,8 @@ const ObliqueViewerRuntime = ({
       error: runtimeError ?? error,
       series: seriesStatus,
       viewMode,
-      canPan: (data?.imageRecords.size ?? 0) > 1,
+      canPan:
+        viewMode !== "objectCoverage" && (data?.imageRecords.size ?? 0) > 1,
     });
   }, [
     publish,
@@ -319,7 +325,7 @@ const ObliqueViewerRuntime = ({
     useVisibleFootprints({
       map: libreMap,
       data,
-      enabled: running,
+      enabled: running && viewMode !== "objectCoverage",
       locked: previewVisible || isBusy,
       viewMode,
     });
@@ -403,7 +409,7 @@ const ObliqueViewerRuntime = ({
   );
   const refreshSearch = useNearestImage({
     map: libreMap,
-    enabled: browsing && !isBusy,
+    enabled: browsing && !isBusy && viewMode !== "objectCoverage",
     dataset: browsingDataset,
     viewMode,
     data,
@@ -428,6 +434,20 @@ const ObliqueViewerRuntime = ({
         : { downloadUrl: null },
     [selectedRecord, selectedDataset, resolvedSelectedDataset]
   );
+  const downloadOptions = useMemo<ObliqueDownloadOptions | null>(() => {
+    if (!downloadUrl || !selectedCalibration) return null;
+    const mime = selectedRecord?.assets?.original?.type;
+    const pathname = new URL(downloadUrl, "https://oblique.invalid").pathname;
+    return {
+      tiff:
+        /(?:^|\/)tiff(?:$|;)/i.test(mime ?? "") || /\.tiff?$/i.test(pathname),
+      nativeSize: {
+        width: selectedCalibration.widthPx,
+        height: selectedCalibration.heightPx,
+      },
+      watermark: selectedDataset.downloadWatermark,
+    };
+  }, [downloadUrl, selectedRecord, selectedCalibration, selectedDataset]);
   useEffect(() => {
     publish({
       selectedImageId,
@@ -437,8 +457,9 @@ const ObliqueViewerRuntime = ({
       selectedImageBearingDeg:
         (selectedRecord?.pose?.bearingDeg as Degrees) ?? null,
       downloadUrl,
+      downloadOptions,
     });
-  }, [publish, selectedImageId, selectedRecord, downloadUrl]);
+  }, [publish, selectedImageId, selectedRecord, downloadUrl, downloadOptions]);
   const onDirectionChange = useCallback(
     (direction: CardinalDirection | null) =>
       publish({ activeDirection: direction }),
@@ -744,7 +765,8 @@ const ObliqueViewerRuntime = ({
 
   const switchViewMode = useCallback(
     async (mode: ObliqueViewMode) => {
-      if (!libreMap || !runningRef.current || busyRef.current) return;
+      if (!libreMap || !runningRef.current) return;
+      if (busyRef.current && viewModeRef.current !== "objectCoverage") return;
       if (
         mode === "nadir" &&
         !enabledSeries.some((series) =>
@@ -752,6 +774,11 @@ const ObliqueViewerRuntime = ({
         )
       )
         return;
+      selectionEpochRef.current++;
+      activeFlightRef.current?.cancel();
+      activeFlightRef.current = null;
+      window.clearTimeout(panTimerRef.current);
+      pendingPanRef.current = null;
       viewModeRef.current = mode;
       setViewMode(mode);
       setRuntimeError(null);
@@ -761,6 +788,40 @@ const ObliqueViewerRuntime = ({
     },
     [libreMap, enabledSeries, publish, settleToBrowsing]
   );
+
+  const cancelCoverage = useCallback(() => {
+    void switchViewMode("oblique");
+  }, [switchViewMode]);
+  const coverage = useObjectCoverage({
+    map: libreMap,
+    enabled: running && viewMode === "objectCoverage",
+    suspended: isBusy,
+    data,
+    resetToken: enabledToken,
+    heightOffset,
+    readViewAnchor,
+    onCancel: cancelCoverage,
+  });
+  const resetCoverage = useCallback(() => {
+    const interruptedFlight = busyRef.current;
+    selectionEpochRef.current++;
+    activeFlightRef.current?.cancel();
+    activeFlightRef.current = null;
+    setPreviewTransitionActive(false);
+    setBusy(false);
+    coverage.reset();
+    if (interruptedFlight) void settleToBrowsing();
+  }, [coverage.reset, setBusy, settleToBrowsing]);
+  useEffect(() => {
+    if (!running || viewModeRef.current !== "objectCoverage") return;
+    const interruptedFlight = busyRef.current;
+    selectionEpochRef.current++;
+    activeFlightRef.current?.cancel();
+    activeFlightRef.current = null;
+    setPreviewTransitionActive(false);
+    setBusy(false);
+    if (interruptedFlight) void settleToBrowsing();
+  }, [data, enabledToken, running, setBusy]);
 
   useEffect(() => {
     if (
@@ -781,10 +842,10 @@ const ObliqueViewerRuntime = ({
     void settleToBrowsing();
   }, [publish, settleToBrowsing]);
   const openPreview = useCallback(
-    async (imageId?: string, centerPreview = true) => {
-      if (!runningRef.current) return;
+    async (imageId?: string, centerPreview = true): Promise<boolean> => {
+      if (!runningRef.current) return false;
       if (busyRef.current) {
-        if (!imageId || !centerPreview) return;
+        if (!imageId || !centerPreview) return false;
         // A double-click upgrades the immediate single-click flight to centering.
         selectionEpochRef.current++;
         activeFlightRef.current?.cancel();
@@ -831,7 +892,7 @@ const ObliqueViewerRuntime = ({
           !runningRef.current ||
           epoch !== selectionEpochRef.current
         )
-          return;
+          return false;
       }
       const record = requested?.record;
       if (
@@ -839,7 +900,7 @@ const ObliqueViewerRuntime = ({
         busyRef.current ||
         !enabledSetRef.current.has(record.seriesId)
       )
-        return;
+        return false;
       if (requested) {
         selectedImageRef.current = requested;
         setSelectedImage(requested);
@@ -855,13 +916,15 @@ const ObliqueViewerRuntime = ({
         undefined,
         centerPreview
       );
-      if (epoch !== selectionEpochRef.current || !runningRef.current) return;
+      if (epoch !== selectionEpochRef.current || !runningRef.current)
+        return false;
       if (succeeded) {
         publish({ previewVisible: true });
         setPreviewTransitionActive(false);
       } else {
         await settleToBrowsing();
       }
+      return succeeded;
     },
     [
       libreMap,
@@ -876,26 +939,51 @@ const ObliqueViewerRuntime = ({
     ]
   );
 
+  const openCoverageImage = useCallback(
+    async (imageId: string) => {
+      if (viewModeRef.current !== "objectCoverage") return;
+      const succeeded = await openPreview(imageId, true);
+      if (!succeeded || viewModeRef.current !== "objectCoverage") return;
+      coverage.reset();
+      viewModeRef.current = "oblique";
+      setViewMode("oblique");
+      publish({ viewMode: "oblique" });
+    },
+    [openPreview, coverage.reset, publish]
+  );
+
+  const loadedEnabledSeriesCount = useMemo(
+    () =>
+      perSeries.filter(
+        (status) =>
+          enabledSet.has(status.id) &&
+          status.imageCount > 0 &&
+          data?.datasets.has(status.id)
+      ).length,
+    [perSeries, enabledSet, data]
+  );
+
   const hoverSeriesLabels = useMemo(
     () =>
       new Map(
         configuredSeries.map((series) => [
           series.id,
-          footprintSeriesLabel(series, enabledSeries.length, true),
+          footprintSeriesLabel(series, loadedEnabledSeriesCount),
         ])
       ),
-    [configuredSeries, enabledSeries]
+    [configuredSeries, loadedEnabledSeriesCount]
   );
 
   useFootprintLayer({
     map: libreMap,
-    enabled: running,
+    enabled: running && viewMode !== "objectCoverage",
     selectedImageId,
     selectedRecord: selectedRecord,
     nearbyRecords: visibleFootprints,
     datasets: data?.datasets,
     heightOffset,
     seriesLabels: hoverSeriesLabels,
+    showSeriesLabels: loadedEnabledSeriesCount > 1,
     onHoveredRecord: (record) => {
       const dataset = record && data?.datasets.get(record.seriesId);
       const camera =
@@ -924,9 +1012,12 @@ const ObliqueViewerRuntime = ({
           )
         : null;
     },
-    seriesLabel: footprintSeriesLabel(selectedDataset, enabledSeries.length),
+    seriesLabel: footprintSeriesLabel(
+      selectedDataset,
+      loadedEnabledSeriesCount
+    ),
     locked: previewVisible || isBusy,
-    style: selectedDataset.footprintsStyle,
+    style: { ...selectedDataset.footprintsStyle, outlineWidth: 2 },
     fadeOut: selectedDataset.animations.outlineFadeOut,
     onClick: (imageId) => {
       void openPreview(imageId, false);
@@ -995,6 +1086,7 @@ const ObliqueViewerRuntime = ({
 
   const pan = useCallback(
     async (horizontal: number, vertical: number) => {
+      if (viewModeRef.current === "objectCoverage") return;
       const record = selectedImageRef.current?.record;
       const dataset = record ? data?.datasets.get(record.seriesId) : null;
       const target = targetRef.current ?? readTarget();
@@ -1035,7 +1127,10 @@ const ObliqueViewerRuntime = ({
     [pan]
   );
   useObliqueDirectionKeybindings({
-    enabled: browsing && (data?.imageRecords.size ?? 0) > 1,
+    enabled:
+      browsing &&
+      viewMode !== "objectCoverage" &&
+      (data?.imageRecords.size ?? 0) > 1,
     onPan: requestPan,
   });
 
@@ -1043,6 +1138,7 @@ const ObliqueViewerRuntime = ({
     async (bearingDeg: number, pitchDeg?: number) => {
       if (
         !libreMap ||
+        viewModeRef.current === "objectCoverage" ||
         busyRef.current ||
         !Number.isFinite(bearingDeg) ||
         (pitchDeg !== undefined && !Number.isFinite(pitchDeg))
@@ -1079,12 +1175,28 @@ const ObliqueViewerRuntime = ({
       request.seq === handledRequestRef.current ||
       !browsing ||
       ((isBusy || busyRef.current) &&
-        request.type !== "leavePreviewForNavigation")
+        request.type !== "leavePreviewForNavigation" &&
+        !(
+          request.type === "setViewMode" &&
+          viewModeRef.current === "objectCoverage"
+        ))
     )
       return;
     handledRequestRef.current = request.seq;
     clearRequest(request.seq);
+    if (
+      viewModeRef.current === "objectCoverage" &&
+      request.type !== "setViewMode" &&
+      request.type !== "leavePreviewForNavigation"
+    )
+      return;
     if (request.type === "leavePreviewForNavigation") {
+      if (viewModeRef.current === "objectCoverage") {
+        coverage.reset();
+        viewModeRef.current = "oblique";
+        setViewMode("oblique");
+        publish({ viewMode: "oblique" });
+      }
       const epoch = ++selectionEpochRef.current;
       window.clearTimeout(panTimerRef.current);
       pendingPanRef.current = null;
@@ -1141,10 +1253,10 @@ const ObliqueViewerRuntime = ({
     closePreview,
     openPreview,
     returnCameraToBrowsing,
+    coverage.reset,
   ]);
 
   // Disabling a series cancels its pending flights and cannot leave its image on screen.
-  const enabledToken = JSON.stringify(enabledIds);
   useEffect(() => {
     if (enabledSeriesIds !== null) {
       const configuredIds = new Set(
@@ -1266,39 +1378,89 @@ const ObliqueViewerRuntime = ({
   if (!libreMap) return null;
   return (
     <>
-      {running &&
-        previewVisible &&
-        selectedRecord &&
-        enabledSet.has(selectedRecord.seriesId) &&
-        selectedCalibration && (
-          <ObliqueOverlay map={libreMap}>
-            <ObliqueImagePreview
-              key={selectedRecord.id}
-              map={libreMap}
-              onRootChange={setPreviewRoot}
-              previewPath={selectedDataset.previewPath}
-              originalImageUrlTemplate={
-                selectedDataset.originalImageUrlTemplate
-              }
-              originalImageUrl={selectedRecord.assets?.original?.href}
-              nativePixelSize={{
-                width: selectedCalibration.widthPx as DevicePixels,
-                height: selectedCalibration.heightPx as DevicePixels,
-              }}
-              imageId={selectedRecord.sourceId}
-              qualityLevel={previewQualityLevel}
-              minimumQualityLevel={selectedDataset.minimumPreviewQualityLevel}
-              halfFovTan={selectedCalibration.halfFovTan}
-              dimImage={dimImage}
-              rollDeg={rollDeg}
-              interiorOrientationOffsets={principalOffset}
-              style={selectedDataset.imagePreviewStyle}
-              backdropLook={backdropLook}
-              onClose={closePreview}
-              onError={onPreviewError}
+      {running && (
+        <ObliqueOverlay map={libreMap}>
+          {previewVisible &&
+            selectedRecord &&
+            enabledSet.has(selectedRecord.seriesId) &&
+            selectedCalibration && (
+              <ObliqueImagePreview
+                key={selectedRecord.id}
+                map={libreMap}
+                onRootChange={setPreviewRoot}
+                previewPath={selectedDataset.previewPath}
+                originalImageUrlTemplate={
+                  selectedDataset.originalImageUrlTemplate
+                }
+                originalImageUrl={selectedRecord.assets?.original?.href}
+                nativePixelSize={{
+                  width: selectedCalibration.widthPx as DevicePixels,
+                  height: selectedCalibration.heightPx as DevicePixels,
+                }}
+                imageId={selectedRecord.sourceId}
+                qualityLevel={previewQualityLevel}
+                minimumQualityLevel={selectedDataset.minimumPreviewQualityLevel}
+                halfFovTan={selectedCalibration.halfFovTan}
+                dimImage={dimImage}
+                rollDeg={rollDeg}
+                interiorOrientationOffsets={principalOffset}
+                style={selectedDataset.imagePreviewStyle}
+                backdropLook={backdropLook}
+                onClose={closePreview}
+                onError={onPreviewError}
+              />
+            )}
+          {viewMode === "objectCoverage" && coverage.sphere && (
+            <ObliqueObjectCoverage
+              sphere={coverage.sphere}
+              groups={coverage.groups}
+              loading={coverage.loading}
+              onOpen={(imageId) => void openCoverageImage(imageId)}
+              onReset={resetCoverage}
+              onCancel={cancelCoverage}
             />
-          </ObliqueOverlay>
-        )}
+          )}
+          {viewMode === "objectCoverage" &&
+            (!coverage.sphere || coverage.error) && (
+              <div
+                data-oblique-coverage-ui="true"
+                aria-live="polite"
+                style={{
+                  position: "absolute",
+                  top: 12,
+                  left: "50%",
+                  transform: "translateX(-50%)",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  maxWidth: "90%",
+                  padding: "8px 12px",
+                  borderRadius: 6,
+                  background: "white",
+                  boxShadow: "0 2px 8px #0004",
+                  pointerEvents: "auto",
+                  zIndex: 5,
+                }}
+              >
+                <span role="status">
+                  {coverage.error ??
+                    (coverage.center
+                      ? "Zweiten Punkt für den Kugelradius wählen."
+                      : "Objektmittelpunkt auf der Karte wählen.")}
+                </span>
+                {coverage.center && !coverage.sphere && (
+                  <button type="button" onClick={resetCoverage}>
+                    Neu wählen
+                  </button>
+                )}
+                <button type="button" onClick={cancelCoverage}>
+                  Schließen
+                </button>
+              </div>
+            )}
+          <ObliqueNavigation />
+        </ObliqueOverlay>
+      )}
       {showControl && (
         <Control position={controlPosition} order={controlOrder}>
           <Tooltip

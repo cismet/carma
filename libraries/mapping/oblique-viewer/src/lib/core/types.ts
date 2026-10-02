@@ -1,6 +1,7 @@
 import type { Easing, Matrix3RowMajor, Vector3Arr } from "@carma-commons/math";
 import type { FeatureCollection, Polygon } from "geojson";
 import type { CardinalDirectionClockwise } from "@carma-geo/data-structures";
+import type { ObliqueDownloadWatermark } from "../runtime/utils/tiff-download-types";
 
 import type { PreviewQualityLevel } from "./constants";
 
@@ -194,6 +195,8 @@ export type ObliqueDataset = {
   downloadPath?: string;
   /** Range-readable original TIFF; {imageId} receives the encoded source ID. */
   originalImageUrlTemplate?: string;
+  /** Verified publisher artwork and placement for converting original TIFF downloads. */
+  downloadWatermark?: ObliqueDownloadWatermark;
   /** Explicit development-only source-Z inspection; the source datum remains unknown. */
   allowUnverifiedSourceHeight?: boolean;
   previewQualityLevel: PreviewQualityLevel;
@@ -311,7 +314,7 @@ export type ObliqueGroundTarget = {
   heightDatum?: ObliqueHeightDatum;
 };
 
-export type ObliqueViewMode = "oblique" | "nadir";
+export type ObliqueViewMode = "oblique" | "nadir" | "objectCoverage";
 
 export type ObliqueViewQuery = {
   target: ObliqueGroundTarget;

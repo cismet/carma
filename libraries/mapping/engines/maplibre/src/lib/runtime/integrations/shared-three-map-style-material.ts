@@ -18,7 +18,7 @@ type MapStyleProjectionMaterialState = {
 };
 
 const MAP_STYLE_PROJECTION_STATE = "carmaMapStyleProjectionState";
-const MAP_STYLE_PROJECTION_SHADER_KEY = "|carma-map-style-projection-v13";
+const MAP_STYLE_PROJECTION_SHADER_KEY = "|carma-map-style-projection-v14";
 const MAP_STYLE_PROJECTION_OVERLAY_DEFINE = "CARMA_MAP_STYLE_OVERLAY";
 
 const applyMapStyleProjectionBlend = (
@@ -117,6 +117,12 @@ export const configureMapStyleProjectedMaterial = (
       ?.tint ?? { value: new THREE.Vector4() };
     shader.uniforms["carmaScreenBackdropOpacity"] = state.uniforms
       .screenBackdrop?.opacity ?? { value: 0 };
+    shader.uniforms["carmaScreenToBorderImage"] = state.uniforms.screenBorder
+      ?.viewportToImage ?? { value: new THREE.Matrix3() };
+    shader.uniforms["carmaScreenBorderImageSize"] = state.uniforms.screenBorder
+      ?.imageSize ?? { value: new THREE.Vector2(1, 1) };
+    shader.uniforms["carmaScreenBorderStyle"] = state.uniforms.screenBorder
+      ?.style ?? { value: new THREE.Vector4() };
     const surface = state.uniforms.surfaceOverlay ?? emptySurface;
     for (let index = 0; index < 2; index++) {
       const screen = state.uniforms.screenOverlays?.[index];

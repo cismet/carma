@@ -397,8 +397,8 @@ export class TiffPreviewSource {
     }
   }
 
-  async select(
-    window: NativePreviewWindow,
+  /** Native page for an explicit full-resolution export, without overview reads. */
+  async native(
     nativeSize: { width: DevicePixels; height: DevicePixels },
     signal: AbortSignal
   ) {
@@ -413,6 +413,15 @@ export class TiffPreviewSource {
       native.getHeight() !== nativeSize.height
     )
       throw new Error("TIFF dimensions do not match the camera calibration");
+    return native;
+  }
+
+  async select(
+    window: NativePreviewWindow,
+    nativeSize: { width: DevicePixels; height: DevicePixels },
+    signal: AbortSignal
+  ) {
+    const native = await this.native(nativeSize, signal);
     let index = 0,
       image = native;
     const densityX = window.target.width / window.source.width;

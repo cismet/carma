@@ -63,6 +63,7 @@ export type FootprintOutlineLayer = {
   containsScreenPoint: (point: { x: number; y: number }) => boolean;
   imageAtScreenPoint: (point: { x: number; y: number }) => string | null;
   setStyle: (style: FootprintOutlineStyle) => void;
+  setLabelsVisible: (visible: boolean) => void;
   setHoveredImage: (
     imageId: string | null,
     candidate?: InactiveFootprint
@@ -114,6 +115,7 @@ export const createFootprintOutlineLayer = (
   const layerIds = [hitId, id, caretId, labelId];
   let style = initialStyle,
     locked = false,
+    labelsVisible = true,
     destroyed = false,
     attaching = false;
   const labelCandidates = new Map<string, InactiveFootprint>();
@@ -367,7 +369,7 @@ export const createFootprintOutlineLayer = (
       !locked && hovered?.id !== centerFootprint?.id ? hovered : null,
     ].filter((value): value is InactiveFootprint => !!value);
     const labelFor = (footprint: InactiveFootprint) =>
-      locked
+      locked || !labelsVisible
         ? undefined
         : footprint.id === hovered?.id
         ? footprint.seriesLabel
@@ -602,6 +604,13 @@ export const createFootprintOutlineLayer = (
       surfaceDirty = true;
       surfaceOpacity = Math.max(0, Math.min(1, style.opacity));
       attach();
+    },
+    setLabelsVisible(next) {
+      if (labelsVisible === next) return;
+      labelsVisible = next;
+      surfaceDirty = true;
+      updateSurface();
+      map.triggerRepaint();
     },
     setLocked(next) {
       if (next === locked) return;
