@@ -30,16 +30,24 @@ const newNutzung = (row, bookedAt) => ({
   ],
 });
 
-export const saveUsageData = async (keys, usage, ctx) => {
-  const { jwt, journal } = ctx;
-  const bookedAt = toTimestamp(new Date());
+const rowsFor = (usage, key) =>
+  (usage?.[formatKey(key)] ?? []).filter((row) => !isEmpty(row));
 
-  for (const key of keys) {
+export const usageTargets = (keys, usage) =>
+  keys.filter(
+    (key) => rowsFor(usage, key).length && key.id && isStaedtischKey(key)
+  );
+
+export const saveUsageData = async (keys, usage, ctx) => {
+  const { jwt, journal, progress } = ctx;
+  const bookedAt = toTimestamp(new Date());
+  const targets = usageTargets(keys, usage);
+  progress?.start("usage", targets.length);
+
+  for (const key of targets) {
     const label = formatKey(key);
-    const rows = (usage?.[label] ?? []).filter((row) => !isEmpty(row));
-    if (!rows.length || !key.id || !isStaedtischKey(key)) {
-      continue;
-    }
+    const rows = rowsFor(usage, key);
+    progress?.step("usage", label);
 
     const flurstueck = await fetchFlurstueckBySchluesselId(key.id, jwt);
     if (!flurstueck) {
@@ -66,5 +74,7 @@ export const saveUsageData = async (keys, usage, ctx) => {
         jwt
       )
     );
+    progress?.stepDone("usage");
   }
+  progress?.finish("usage");
 };

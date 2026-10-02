@@ -171,15 +171,20 @@ const saveSperre = async (key, parcel, ctx) => {
   );
 };
 
-export const saveAdminData = async (keys, admin, ctx) => {
-  const { jwt, accountName, journal } = ctx;
+export const adminTargets = (keys, admin) =>
+  keys.filter(
+    (key) => admin?.[formatKey(key)] && key.id && isStaedtischKey(key)
+  );
 
-  for (const key of keys) {
+export const saveAdminData = async (keys, admin, ctx) => {
+  const { jwt, accountName, journal, progress } = ctx;
+  const targets = adminTargets(keys, admin);
+  progress?.start("admin", targets.length);
+
+  for (const key of targets) {
     const label = formatKey(key);
-    const parcel = admin?.[label];
-    if (!parcel || !key.id || !isStaedtischKey(key)) {
-      continue;
-    }
+    const parcel = admin[label];
+    progress?.step("admin", label);
 
     const flurstueck = await fetchAdminRows(key.id, jwt);
     if (!flurstueck) {
@@ -197,5 +202,7 @@ export const saveAdminData = async (keys, admin, ctx) => {
     }
 
     await saveSperre(key, parcel, ctx);
+    progress?.stepDone("admin");
   }
+  progress?.finish("admin");
 };

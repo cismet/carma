@@ -4,6 +4,8 @@ let entries = [];
 let nextId = 1;
 let enabled = true;
 const listeners = new Set();
+// fed even with logging off: drives the save progress
+const requestListeners = new Set();
 
 const emit = () => {
   for (const listener of listeners) {
@@ -35,6 +37,11 @@ export const subscribe = (listener) => {
   return () => listeners.delete(listener);
 };
 
+export const onRequest = (listener) => {
+  requestListeners.add(listener);
+  return () => requestListeners.delete(listener);
+};
+
 export const getEntries = () => entries;
 
 export const clearLog = () => {
@@ -43,6 +50,12 @@ export const clearLog = () => {
 };
 
 export const startCall = (query, variables, meta) => {
+  for (const listener of requestListeners) {
+    listener({
+      kind: meta?.kind ?? kindOf(query),
+      operation: meta?.operation ?? operationNameOf(query),
+    });
+  }
   if (!enabled) {
     return undefined;
   }
