@@ -26,6 +26,8 @@ export type ObliqueCommand =
   /** Positive horizontal moves right; positive vertical moves forward on the ground. */
   | { type: "pan"; horizontal: number; vertical: number }
   | { type: "flyToImage" }
+  /** Finish preview camera cleanup before the host moves or changes engines. */
+  | { type: "leavePreviewForNavigation"; onComplete: () => void }
   | { type: "closePreview" };
 
 /** a command with the sequence number that tells one request from the next */

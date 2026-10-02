@@ -20,6 +20,7 @@ type MapFrameworkSwitcherProps = {
   switchTo2DText?: string;
   style?: CSSProperties;
   onToggleOverride?: () => void | Promise<void>;
+  onBeforeToggle?: () => void | Promise<void>;
 };
 
 export type { MapFrameworkSwitcherProps };
@@ -50,6 +51,7 @@ export const MapFrameworkSwitcher = forwardRef<
       switchTo2DText = LOCALE_DE_SWITCH_TO_2D_MODE,
       style,
       onToggleOverride,
+      onBeforeToggle,
     },
     ref
   ) => {
@@ -76,6 +78,7 @@ export const MapFrameworkSwitcher = forwardRef<
         else return;
       }
 
+      await onBeforeToggle?.();
       if (onToggleOverride) {
         await onToggleOverride();
         return;

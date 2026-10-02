@@ -760,6 +760,7 @@ export const ObliqueViewer = ({
         true,
         true
       );
+      if (epoch !== selectionEpochRef.current || !runningRef.current) return;
       if (succeeded) {
         publish({ previewVisible: true });
         setPreviewTransitionActive(false);
@@ -871,6 +872,7 @@ export const ObliqueViewer = ({
         viewAnchor !== undefined,
         viewAnchor
       );
+      if (epoch !== selectionEpochRef.current || !runningRef.current) return;
       setDimImage(false);
       if (!succeeded) {
         publish({ previewVisible: false });
@@ -966,12 +968,26 @@ export const ObliqueViewer = ({
       !request ||
       request.seq === handledRequestRef.current ||
       !browsing ||
-      isBusy ||
-      busyRef.current
+      ((isBusy || busyRef.current) &&
+        request.type !== "leavePreviewForNavigation")
     )
       return;
     handledRequestRef.current = request.seq;
     clearRequest(request.seq);
+    if (request.type === "leavePreviewForNavigation") {
+      const epoch = ++selectionEpochRef.current;
+      window.clearTimeout(panTimerRef.current);
+      pendingPanRef.current = null;
+      previewVisibleRef.current = false;
+      publish({ previewVisible: false });
+      setRuntimeError(null);
+      const flight = returnCameraToBrowsing();
+      void (flight?.done ?? Promise.resolve()).then(() => {
+        if (epoch === selectionEpochRef.current && runningRef.current)
+          request.onComplete();
+      });
+      return;
+    }
     switch (request.type) {
       case "setViewMode":
         void switchViewMode(request.mode);
@@ -1014,6 +1030,7 @@ export const ObliqueViewer = ({
     requestPan,
     closePreview,
     openPreview,
+    returnCameraToBrowsing,
   ]);
 
   // Disabling a series cancels its pending flights and cannot leave its image on screen.

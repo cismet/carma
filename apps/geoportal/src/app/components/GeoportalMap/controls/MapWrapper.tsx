@@ -42,7 +42,11 @@ import {
   RoutedMapLocateControl,
   useMapFrameworkSwitcherContext,
 } from "@carma-mapping/components";
-import { AddonHost, useAddonState } from "@carma-mapping/addons";
+import {
+  AddonHost,
+  useAddonState,
+  useObliqueViewerActions,
+} from "@carma-mapping/addons";
 import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
 import {
   Control,
@@ -138,6 +142,20 @@ const MapWrapper = () => {
   // The map-frame loading bar reports terrain and shadow work, so it only
   // belongs on screen while the shadow simulation is switched on.
   const [shadowSimulationState] = useAddonState("shadowSimulation");
+  const obliqueViewer = useObliqueViewerActions();
+  const beforeMapNavigation = () =>
+    new Promise<void>((resolve) => {
+      if (
+        showLibreMap &&
+        obliqueViewer.isOn &&
+        (obliqueViewer.previewVisible || obliqueViewer.isBusy)
+      )
+        obliqueViewer.sendRequest({
+          type: "leavePreviewForNavigation",
+          onComplete: resolve,
+        });
+      else resolve();
+    });
   const showLoadingProgress = shadowSimulationState?.enabled ?? false;
 
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -279,7 +297,7 @@ const MapWrapper = () => {
 
   const { setSelection } = useSelection();
 
-  const onGazetteerSelection = (
+  const onGazetteerSelection = async (
     selection: SearchResultItem,
     skipMapMovement = false
   ) => {
@@ -288,6 +306,7 @@ const MapWrapper = () => {
       setSelection(null);
       return;
     }
+    if (!skipMapMovement) await beforeMapNavigation();
     const selectionMetaData: SelectionMetaData = {
       selectedFrom: "gazetteer",
       selectedFromMapMode: isLeaflet
@@ -422,6 +441,7 @@ const MapWrapper = () => {
                 </Tooltip>
 
                 <MapFrameworkSwitcher
+                  onBeforeToggle={beforeMapNavigation}
                   enableMobileWarning={true}
                   className="!rounded-t-none !border-t-[1px]"
                   ref={tourRefLabels.toggle2d3d}
@@ -461,7 +481,8 @@ const MapWrapper = () => {
               >
                 <ControlButtonStyler
                   ref={tourRefLabels.home}
-                  onClick={() => {
+                  onClick={async () => {
+                    await beforeMapNavigation();
                     if (showLibreMap) {
                       if (isCesium) {
                         handleCesiumHomeClick();
