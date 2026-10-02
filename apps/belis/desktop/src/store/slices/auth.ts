@@ -90,9 +90,17 @@ export const canEditBasic = (state) => hasRight(state, "editBasic");
 export const canEditAA = (state) => hasRight(state, "editAA");
 export const canEditKeytables = (state) => hasRight(state, "editKeytables");
 export const canDelete = (state) => hasRight(state, "delete");
+// Delete only covers objects the user may also create.
+export const canDeleteFachobjekte = (state) =>
+  canDelete(state) && canCreateBasic(state);
+export const canDeleteProtokolle = (state) =>
+  canDelete(state) && canCreateAA(state);
 // Edit mode is also needed to delete (danger zone, Protokoll deletion).
 export const canUseEditMode = (state) =>
-  canEditBasic(state) || canEditAA(state) || canDelete(state);
+  canEditBasic(state) ||
+  canEditAA(state) ||
+  canDeleteFachobjekte(state) ||
+  canDeleteProtokolle(state);
 
 export const isLoginRequested = (state) => {
   return state.auth.loginRequested;

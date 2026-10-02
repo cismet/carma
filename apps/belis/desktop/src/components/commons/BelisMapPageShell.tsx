@@ -18,7 +18,7 @@ import {
 } from "../../store/slices/featuresForms";
 import {
   canCreateBasic,
-  canDelete,
+  canDeleteProtokolle,
   canEditAA,
   canEditBasic,
 } from "../../store/slices/auth";
@@ -76,8 +76,8 @@ const BelisMapPageShell = () => {
   const mayEditBasic = useSelector(canEditBasic) as boolean;
   const mayChangeFachobjekte = mayCreateBasic || mayEditBasic;
   const mayEditAA = useSelector(canEditAA) as boolean;
-  const mayDelete = useSelector(canDelete) as boolean;
-  const mayChangeAA = mayEditAA || mayDelete;
+  const mayDeleteProtokolle = useSelector(canDeleteProtokolle) as boolean;
+  const mayChangeAA = mayEditAA || mayDeleteProtokolle;
 
   const selectedTeamId = useSelector(getSelectedTeamId);
   const draftMode = useSelector(getDraftMode);
