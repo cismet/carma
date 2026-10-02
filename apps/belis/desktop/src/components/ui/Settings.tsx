@@ -9,6 +9,7 @@ import {
   message,
 } from "antd";
 import { clearAllDefaults } from "../../store/slices/creationDefaults";
+import { canDeleteFachobjekte } from "../../store/slices/auth";
 import {
   getActiveBackgroundLayer,
   getBackgroundLayerOpacities,
@@ -124,6 +125,7 @@ const AdditionalLayerRow = ({
 const Settings = ({ open = true }: { open?: boolean }) => {
   const dispatch = useDispatch();
   const { health, offline } = useLayerHealth(open);
+  const mayDeleteFachobjekte = useSelector(canDeleteFachobjekte) as boolean;
   const backgroundLayerOpacities = useSelector(getBackgroundLayerOpacities);
   const activeBackgroundLayer = useSelector(getActiveBackgroundLayer);
   const activeAdditionalLayers = useSelector(getActiveAdditionalLayers);
@@ -230,25 +232,30 @@ const Settings = ({ open = true }: { open?: boolean }) => {
           <Button block>Gemerkte Felder zurücksetzen</Button>
         </Popconfirm>
       </div>
-      <div className="flex flex-col gap-2 rounded-md border border-[#f5c2c7] overflow-hidden">
-        <div className="bg-[#fff5f5] px-3 py-2 border-b border-[#f5c2c7]">
-          <span className="text-[#cf222e] font-semibold text-sm">
-            Löschmodus
-          </span>
-        </div>
-        <div className="flex items-center justify-between gap-3 px-3 pb-3 pt-1">
-          <div className="flex flex-col">
-            <span className="text-[12px] text-gray-500">
-              Blendet im Fachobjekt einen Button zum Löschen ein.
+      {mayDeleteFachobjekte && (
+        <div className="flex flex-col gap-2 rounded-md border border-[#f5c2c7] overflow-hidden">
+          <div className="bg-[#fff5f5] px-3 py-2 border-b border-[#f5c2c7]">
+            <span className="text-[#cf222e] font-semibold text-sm">
+              Löschmodus
             </span>
           </div>
-          <Switch
-            checked={dangerousDeleteMode}
-            onChange={(checked) => dispatch(setDangerousDeleteMode(checked))}
-            style={{ transform: "scale(1.2)", transformOrigin: "right center" }}
-          />
+          <div className="flex items-center justify-between gap-3 px-3 pb-3 pt-1">
+            <div className="flex flex-col">
+              <span className="text-[12px] text-gray-500">
+                Blendet im Fachobjekt einen Button zum Löschen ein.
+              </span>
+            </div>
+            <Switch
+              checked={dangerousDeleteMode}
+              onChange={(checked) => dispatch(setDangerousDeleteMode(checked))}
+              style={{
+                transform: "scale(1.2)",
+                transformOrigin: "right center",
+              }}
+            />
+          </div>
         </div>
-      </div>
+      )}
       <VersionInfo version={getApplicationVersion(versionData)} />
     </div>
   );

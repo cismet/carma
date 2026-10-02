@@ -31,6 +31,10 @@ export const BELIS_BRAND_NEW_STYLE_PREFIX =
   (BELIS_BRAND_NEW_FC_URL.split("/").pop() ?? "").replace(/\.json$/, "") + ".";
 
 export const DOMAIN = "BELIS2";
+
+export const CONFIG_ATTRIBUTES_URL =
+  import.meta.env.VITE_BELIS_DESKTOP_CONFIG_ATTRIBUTES_URL ||
+  REST_SERVICE + "/configattributes/";
 export const ENDPOINT = REST_SERVICE + `/graphql/` + DOMAIN + "/execute";
 export const SAVE_ENDPOINT =
   REST_SERVICE +

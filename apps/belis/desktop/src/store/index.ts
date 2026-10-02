@@ -51,7 +51,7 @@ if (stateLoggingEnabled === true) {
 const authConfig = {
   key: "auth",
   storage: localForage,
-  whitelist: ["jwt", "login", "permissions"],
+  whitelist: ["jwt", "login", "permissions", "rights"],
 };
 
 const mapSettingsConfig = {

@@ -21,6 +21,7 @@ import SchaltstelleFormFields from "./SchaltstelleFormFields";
 import { normalizeSensorValues } from "./sensorFields";
 import { updateDataByClassName } from "../../../helper/apiMethods";
 import { uploadDraftFiles } from "../../../helper/uploadDraftFiles";
+import { useFeatureRights } from "./FeatureRightsContext";
 
 const transformDatesForBackend = (
   values: Record<string, unknown>
@@ -83,6 +84,7 @@ const SchaltstelleForm = ({
   removedDocumentKeys: removedDocumentKeysProp,
   onRemovedDocumentKeysChange,
 }: SchaltstelleFormProps) => {
+  const { fieldsReadOnly } = useFeatureRights();
   const removedDocumentKeys = removedDocumentKeysProp ?? new Set<string>();
   const formRef = useRef<FormInstance | null>(null);
   const [saving, setSaving] = useState(false);
@@ -284,7 +286,7 @@ const SchaltstelleForm = ({
     >
       <SchaltstelleFormFields
         schaltstelle={ss}
-        readOnly={readOnly}
+        readOnly={readOnly || fieldsReadOnly}
         isCreation={isCreation}
         featureId={featureId}
         geometrySelector={geometrySelector}
