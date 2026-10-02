@@ -1,5 +1,6 @@
 import { Box3, BufferAttribute, Mesh, Sphere, Vector3 } from "three";
 
+import { TerrainMemoryDeferredError } from "../../core/terrain-memory-admission";
 import type { TerrainTileId } from "../../core/raster-dem-tile";
 import type { TerrainStitchInput } from "./terrain-boundary-stitch";
 import { terrainTileKey } from "./raster-dem-terrain-tile-source";
@@ -23,7 +24,8 @@ export const prepareEqualLevelTerrainBoundaries = async (
   meshes: ReadonlyMap<string, TerrainSeamMeshRecord>,
   keys: ReadonlySet<string>,
   current: () => boolean,
-  signal: AbortSignal
+  signal: AbortSignal,
+  admitRetainedBytes: (additionalBytes: number) => boolean = () => true
 ) => {
   const records = [...keys].flatMap((key) => {
     const record = meshes.get(key);
@@ -42,6 +44,7 @@ export const prepareEqualLevelTerrainBoundaries = async (
   if (!adjacent.length) return;
   // Bound full-payload preparation in flight. Shells live with the evictable
   // mesh record and are reused by subsequent small boundary-only jobs.
+  const preparedShells = new Map<string, TerrainStitchInput>();
   let next = 0;
   await Promise.all(
     Array.from({ length: Math.min(4, adjacent.length) }, async () => {
@@ -66,7 +69,7 @@ export const prepareEqualLevelTerrainBoundaries = async (
         );
         if (result.kind !== TERRAIN_WORKER_TASK_KIND.STITCH)
           throw new Error("Unexpected terrain shell result");
-        record.equalLevelShell = result.shells?.[0];
+        if (result.shells?.[0]) preparedShells.set(key, result.shells[0]);
       }
     })
   );
@@ -101,9 +104,10 @@ export const prepareEqualLevelTerrainBoundaries = async (
           Math.abs(target.record.id.y - record.id.y) <= 2
       )
     )
-    .flatMap(({ record }) =>
-      record.equalLevelShell ? [record.equalLevelShell] : []
-    );
+    .flatMap(({ key, record }) => {
+      const shell = record.equalLevelShell ?? preparedShells.get(key);
+      return shell ? [shell] : [];
+    });
   const result = await runTerrainWorkerTask(
     {
       kind: TERRAIN_WORKER_TASK_KIND.STITCH,
@@ -116,6 +120,70 @@ export const prepareEqualLevelTerrainBoundaries = async (
   if (!current()) return;
   if (result.kind !== TERRAIN_WORKER_TASK_KIND.STITCH)
     throw new Error("Unexpected equal-level terrain result");
+  // Shell ownership and copy-on-write native arrays are one publication.
+  // Never mutate the old cut, or pin a partial shell batch, before it fits.
+  const retainedBuffers = new Set<ArrayBufferLike>();
+  const addShellBuffers = (shell: TerrainStitchInput) => {
+    for (const array of [
+      shell.positions,
+      shell.normals,
+      shell.indices,
+      shell.sourceIndices,
+      shell.normalTargets,
+      ...Object.values(shell.boundaryEdges),
+      ...Object.values(shell.boundaryBaseHeights),
+    ])
+      if (array) retainedBuffers.add(array.buffer);
+  };
+  for (const record of meshes.values()) {
+    for (const array of [
+      record.stitchBase?.positions,
+      record.stitchBase?.normals,
+      record.stitchBase?.indices,
+      ...Object.values(record.boundaryEdges),
+      ...Object.values(record.boundaryBaseHeights),
+      (
+        record.reliefMesh?.geometry.getAttribute("position") as
+          | BufferAttribute
+          | undefined
+      )?.array,
+      (
+        record.reliefMesh?.geometry.getAttribute("normal") as
+          | BufferAttribute
+          | undefined
+      )?.array,
+      record.reliefMesh?.geometry.index?.array,
+    ])
+      if (array) retainedBuffers.add(array.buffer);
+    if (record.equalLevelShell) addShellBuffers(record.equalLevelShell);
+  }
+  const existingBytes = [...retainedBuffers].reduce(
+    (sum, buffer) => sum + buffer.byteLength,
+    0
+  );
+  for (const shell of preparedShells.values()) addShellBuffers(shell);
+  let additionalBytes =
+    [...retainedBuffers].reduce((sum, buffer) => sum + buffer.byteLength, 0) -
+    existingBytes;
+  for (const update of result.updates) {
+    const record = meshes.get(update.key);
+    const geometry = record?.reliefMesh?.geometry;
+    if (!geometry) continue;
+    for (const [name, borrowed] of [
+      ["position", record?.stitchBase?.positions],
+      ["normal", record?.stitchBase?.normals],
+    ] as const) {
+      const attribute = geometry.getAttribute(name) as BufferAttribute;
+      if (attribute.array === borrowed)
+        additionalBytes += attribute.array.byteLength;
+    }
+  }
+  if (!admitRetainedBytes(Math.max(0, additionalBytes)))
+    throw new TerrainMemoryDeferredError();
+  for (const [key, shell] of preparedShells) {
+    const record = meshes.get(key);
+    if (record) record.equalLevelShell = shell;
+  }
   for (const update of result.updates) {
     const record = meshes.get(update.key);
     const shell = record?.equalLevelShell,

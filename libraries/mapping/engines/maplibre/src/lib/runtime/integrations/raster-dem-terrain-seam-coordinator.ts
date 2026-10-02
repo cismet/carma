@@ -21,6 +21,7 @@ type TerrainSeamCoordinatorOptions = Readonly<{
   isSelectionPending: () => boolean;
   hasPendingMeshes: () => boolean;
   isMapMoving: () => boolean | undefined;
+  admitRetainedBytes?: (additionalBytes: number) => boolean;
   onChanged: () => void;
   onError?: (error: unknown) => void;
 }>;
@@ -36,6 +37,7 @@ export const createRasterDemTerrainSeamCoordinator = ({
   isSelectionPending,
   hasPendingMeshes,
   isMapMoving,
+  admitRetainedBytes = () => true,
   onChanged,
   onError,
 }: TerrainSeamCoordinatorOptions) => {
@@ -48,6 +50,51 @@ export const createRasterDemTerrainSeamCoordinator = ({
     },
     { once: true }
   );
+  const shellBuffers = (shell: TerrainSeamMeshRecord["equalLevelShell"]) =>
+    shell
+      ? [
+          shell.positions,
+          shell.normals,
+          shell.indices,
+          shell.sourceIndices,
+          shell.normalTargets,
+          ...Object.values(shell.boundaryEdges),
+          ...Object.values(shell.boundaryBaseHeights),
+        ]
+      : [];
+  const immutableBuffers = (record: TerrainSeamMeshRecord) =>
+    new Set(
+      [
+        record.stitchBase?.positions,
+        record.stitchBase?.normals,
+        record.stitchBase?.indices,
+        ...Object.values(record.boundaryEdges),
+        ...Object.values(record.boundaryBaseHeights),
+        ...shellBuffers(record.equalLevelShell),
+      ].flatMap((array) => (array ? [array.buffer] : []))
+    );
+  const stateRetainedBytes = (state: TerrainBoundaryStitchState) => {
+    const meshBuffers = new Set<ArrayBufferLike>();
+    for (const record of meshes.values()) {
+      for (const buffer of immutableBuffers(record)) meshBuffers.add(buffer);
+      const geometry = record.reliefMesh?.geometry;
+      for (const attribute of [
+        ...Object.values(geometry?.attributes ?? {}),
+        geometry?.index,
+      ])
+        if (attribute && "array" in attribute)
+          meshBuffers.add(attribute.array.buffer);
+    }
+    const buffers = new Set<ArrayBufferLike>();
+    for (const entry of state.values())
+      for (const array of [
+        ...shellBuffers(entry.base),
+        ...shellBuffers(entry.shell),
+        entry.boundaryState,
+      ])
+        if (array && !meshBuffers.has(array.buffer)) buffers.add(array.buffer);
+    return [...buffers].reduce((sum, buffer) => sum + buffer.byteLength, 0);
+  };
   let pendingStitch: {
     signature: string;
     controller: AbortController;
@@ -65,7 +112,7 @@ export const createRasterDemTerrainSeamCoordinator = ({
     if (signature === stitchedActiveSignature) {
       pendingStitch?.controller.abort();
       pendingStitch = null;
-      return;
+      return false;
     }
     if (pendingStitch?.signature !== signature) {
       // Retain tile preparation across pans, but never queue obsolete seam passes.
@@ -150,6 +197,39 @@ export const createRasterDemTerrainSeamCoordinator = ({
       !isCurrentPublication()
     )
       return;
+    // Check the complete replacement before touching any existing GPU handle.
+    // Pristine bases remain retained when a stitched array replaces a borrowed view.
+    let additionalBytes = Math.max(
+      0,
+      stateRetainedBytes(completion.state) -
+        stateRetainedBytes(stitchedBoundaryState)
+    );
+    for (const update of result.updates) {
+      const record = meshes.get(update.key);
+      const geometry = record?.reliefMesh?.geometry;
+      if (!record || !geometry) continue;
+      const immutable = immutableBuffers(record);
+      const currentArrays = [
+        (geometry.getAttribute("position") as BufferAttribute).array,
+        (geometry.getAttribute("normal") as BufferAttribute).array,
+        geometry.index!.array,
+      ];
+      const nextArrays = [update.positions, update.normals, update.indices];
+      const ownedCpuBytes = (arrays: typeof currentArrays) =>
+        [
+          ...new Set(
+            arrays
+              .map((array) => array.buffer)
+              .filter((buffer) => !immutable.has(buffer))
+          ),
+        ].reduce((sum, buffer) => sum + buffer.byteLength, 0);
+      additionalBytes +=
+        ownedCpuBytes(nextArrays) -
+        ownedCpuBytes(currentArrays) +
+        nextArrays.reduce((sum, array) => sum + array.byteLength, 0) -
+        currentArrays.reduce((sum, array) => sum + array.byteLength, 0);
+    }
+    if (!admitRetainedBytes(Math.max(0, additionalBytes))) return false;
     for (const update of result.updates) {
       const record = meshes.get(update.key);
       if (record) record.equalLevelSignature = undefined;
@@ -196,6 +276,7 @@ export const createRasterDemTerrainSeamCoordinator = ({
 
     stitchedBoundaryState = completion.state;
     stitchedActiveSignature = signature;
+    return result.updates.length > 0;
   };
 
   let idleStitchTimer: ReturnType<typeof setTimeout> | null = null;
@@ -231,8 +312,8 @@ export const createRasterDemTerrainSeamCoordinator = ({
         generation === getSelectionGeneration() &&
         keys === getActiveMeshKeys();
       void smoothActiveBoundaryNormals(keys, generation, current)
-        .then(() => {
-          if (!current()) return;
+        .then((changed) => {
+          if (!current() || !changed) return;
           onChanged();
         })
         .catch((error) => {
@@ -246,6 +327,7 @@ export const createRasterDemTerrainSeamCoordinator = ({
   return {
     cancelIdleStitch,
     scheduleIdleStitch,
+    getRetainedBytes: () => stateRetainedBytes(stitchedBoundaryState),
     abortPendingStitch: () => pendingStitch?.controller.abort(),
   };
 };

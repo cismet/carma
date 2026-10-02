@@ -1,5 +1,5 @@
-import { BufferAttribute, BufferGeometry } from "three";
-import { describe, expect, it } from "vitest";
+import { BufferAttribute, BufferGeometry, Mesh } from "three";
+import { describe, expect, it, vi } from "vitest";
 import {
   prepareEqualLevelTerrainShell,
   stitchEqualLevelTerrainBoundaries,
@@ -10,6 +10,12 @@ import {
   type TerrainStitchInput,
 } from "./terrain-boundary-stitch";
 import { runBatchedTerrainBoundaryStitch } from "./terrain-boundary-stitch-batching";
+
+import { TerrainMemoryDeferredError } from "../../core/terrain-memory-admission";
+import {
+  prepareEqualLevelTerrainBoundaries,
+  type TerrainSeamMeshRecord,
+} from "./raster-dem-terrain-equal-level-seams";
 
 const grid = (x: number, y: number, size = 9): TerrainStitchInput => {
   const positions = new Float32Array(size * size * 3);
@@ -61,6 +67,74 @@ const cut = (size = 9) => [
 ];
 
 describe("equal-level border ownership", () => {
+  it("retains the whole old surface when shell and copy-on-write growth is refused", async () => {
+    const inputs = cut();
+    const meshes = new Map<string, TerrainSeamMeshRecord>(
+      inputs.map((input) => {
+        const geometry = new BufferGeometry();
+        geometry.setAttribute(
+          "position",
+          new BufferAttribute(input.positions, 3)
+        );
+        geometry.setAttribute("normal", new BufferAttribute(input.normals, 3));
+        geometry.setIndex(new BufferAttribute(input.indices, 1));
+        return [
+          input.key,
+          { ...input, stitchBase: input, reliefMesh: new Mesh(geometry) },
+        ];
+      })
+    );
+    const keys = new Set(meshes.keys());
+    const before = inputs.map((input) => ({
+      positions: input.positions.slice(),
+      normals: input.normals.slice(),
+    }));
+    const admit = vi.fn((_additionalBytes: number) => false);
+    try {
+      await expect(
+        prepareEqualLevelTerrainBoundaries(
+          meshes,
+          keys,
+          () => true,
+          new AbortController().signal,
+          admit
+        )
+      ).rejects.toBeInstanceOf(TerrainMemoryDeferredError);
+      expect(admit).toHaveBeenCalledOnce();
+      expect(admit.mock.calls[0][0]).toBeGreaterThan(
+        inputs.reduce(
+          (sum, input) =>
+            sum + input.positions.byteLength + input.normals.byteLength,
+          0
+        )
+      );
+      inputs.forEach((input, index) => {
+        const record = meshes.get(input.key)!;
+        expect(record.equalLevelShell).toBeUndefined();
+        expect(record.equalLevelSignature).toBeUndefined();
+        expect(record.reliefMesh!.geometry.getAttribute("position").array).toBe(
+          input.positions
+        );
+        expect(input.positions).toEqual(before[index].positions);
+        expect(input.normals).toEqual(before[index].normals);
+      });
+      await prepareEqualLevelTerrainBoundaries(
+        meshes,
+        keys,
+        () => true,
+        new AbortController().signal
+      );
+      expect(
+        [...meshes.values()].every(
+          (record) => record.equalLevelShell && record.equalLevelSignature
+        )
+      ).toBe(true);
+    } finally {
+      for (const record of meshes.values())
+        record.reliefMesh!.geometry.dispose();
+    }
+  });
+
   it("has identical shared positions and area-weighted normals, including the four-way corner", () => {
     const result = stitchEqualLevelTerrainBoundaries(cut());
     const seen = new Map<string, number[]>();

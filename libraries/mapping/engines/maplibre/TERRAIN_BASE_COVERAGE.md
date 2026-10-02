@@ -155,10 +155,26 @@ view convergence, and supersede preliminary unpaired timings.
 
 An actual allocation failure records the shared versioned cache policy's
 20% lower client grant. Cached failures do not discard protected live coverage.
-A long low-sun browser run exceeded its grant through protected content.
-Completed preview ancestors now release preparation protection after successful
-publication; completion siblings participate in full-family replacement. The
-remaining active-cut admission issue is an outstanding memory risk: protected
-active content may exceed the grant. Publishing the implementation does not
-resolve that risk. The conversion checks alone do not establish memory or visual
-readiness under that working set.
+A long low-sun browser run previously exceeded its grant through protected content.
+Foreground admission now reserves complete direct sibling families before dispatch
+and checks actual retained CPU/GPU buffers before installation. If refinement or
+its mandatory shared borders do not fit, the current complete cut remains visible.
+Unpublished rejected families are released; memory refusal is deferred detail,
+not an unavailable tile or a timed network retry. Changed demand, a changed grant
+or released resident capacity can resume the same target. Cache statistics expose
+`reservedMeshBytes` and `memoryDeferred` separately from installed bytes.
+
+Completed preview ancestors release preparation protection immediately after
+successful replacement publication. A baseline tile saved to disk but refused RAM
+installation advances as disk-only content; it never certifies a resident level
+or repeatedly prepares the same tile on idle. Earlier complete fallback levels
+remain pinned. Optional mixed-level seams and ECEF seam replacements also check
+retained growth before replacing their existing surface.
+
+The cap governs new retained terrain records and seam state. A previously visible
+cut inherited from another runtime or retained after a grant reduction may already
+exceed the new grant; coverage takes precedence and further growth is deferred.
+Transient decode/worker copies, the independently bounded decoded raster cache
+and temporary idle shadow depth-pass geometry are separate resources. Offline
+coverage/admission checks do not establish a dense browser RSS limit or improved
+end-to-end loading time.

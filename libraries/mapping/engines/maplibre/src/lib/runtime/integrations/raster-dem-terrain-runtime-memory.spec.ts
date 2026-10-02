@@ -54,4 +54,51 @@ describe("terrain allocation recovery", () => {
       vi.unstubAllGlobals();
     }
   });
+  it("keeps complete coarse coverage without retrying deferred detail until the grant changes", async () => {
+    const f = createIdlePrefetchFixture("bounded-refinement", 11, {
+      maxCachedMeshBytes: 1024,
+      requestConcurrency: 1,
+    });
+    try {
+      await f.start();
+      await f.runtime.ready;
+      await vi.waitFor(() => expect(f.runtime.isBaseViewReady?.()).toBe(true));
+      const initialKeys = f.runtime
+        .getPublishedTerrainTiles()
+        .map(({ tile }) => tile.id);
+      expect(initialKeys).toHaveLength(1);
+      const initialRequests = f.source.requestTile.mock.calls.length;
+      f.runtime.setErrorTarget(0.00001);
+      f.runtime.update(f.frame);
+      await vi.waitFor(() =>
+        expect(f.runtime.getTerrainCacheStats().memoryDeferred).toBe(true)
+      );
+      expect(
+        f.runtime.getPublishedTerrainTiles().map(({ tile }) => tile.id)
+      ).toEqual(initialKeys);
+      expect(
+        f.runtime.getTerrainCacheStats().cachedMeshBytes
+      ).toBeLessThanOrEqual(1024);
+      expect(f.source.requestTile).toHaveBeenCalledTimes(initialRequests);
+      for (let i = 0; i < 5; i++) f.runtime.update(f.frame);
+      await new Promise((resolve) => setTimeout(resolve, 25));
+      expect(f.source.requestTile).toHaveBeenCalledTimes(initialRequests);
+      expect(f.onError).not.toHaveBeenCalled();
+      f.runtime.setCacheBudget(16 * 1024);
+      f.runtime.update(f.frame);
+      await vi.waitFor(() =>
+        expect(f.source.requestTile.mock.calls.length).toBeGreaterThan(
+          initialRequests
+        )
+      );
+      await vi.waitFor(() =>
+        expect(f.runtime.getTerrainCacheStats().memoryDeferred).toBe(false)
+      );
+      expect(
+        f.runtime.getTerrainCacheStats().cachedMeshBytes
+      ).toBeLessThanOrEqual(16 * 1024);
+    } finally {
+      f.runtime.dispose();
+    }
+  });
 });

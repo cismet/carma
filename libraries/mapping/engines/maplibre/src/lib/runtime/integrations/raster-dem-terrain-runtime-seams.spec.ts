@@ -1,4 +1,5 @@
 import {
+  BufferAttribute,
   BufferGeometry,
   Camera,
   Float32BufferAttribute,
@@ -22,8 +23,86 @@ import {
 } from "./raster-dem-terrain-runtime.test-support";
 import { buildRasterDemTerrainRuntime } from "./raster-dem-terrain-runtime";
 
+import { createRasterDemTerrainSeamCoordinator } from "./raster-dem-terrain-seam-coordinator";
+import { grid as stitchGrid } from "./terrain-boundary-stitch-fixtures";
+import type { TerrainSeamMeshRecord } from "./raster-dem-terrain-equal-level-seams";
+
 describe("buildRasterDemTerrainRuntime mixed-LOD seams", () => {
   installRasterDemTerrainRuntimeFixture();
+
+  it("rejects an entire optional seam batch without changing buffers or repainting", async () => {
+    const inputs = [stitchGrid(0, 0, 2, 1), stitchGrid(2, 0, 3, 0.5)];
+    const meshes = new Map<string, TerrainSeamMeshRecord>(
+      inputs.map((input) => {
+        const geometry = new BufferGeometry();
+        geometry.setAttribute(
+          "position",
+          new BufferAttribute(input.positions, 3)
+        );
+        geometry.setAttribute("normal", new BufferAttribute(input.normals, 3));
+        geometry.setIndex(new BufferAttribute(input.indices, 1));
+        return [
+          input.key,
+          {
+            ...input,
+            stitchBase: input,
+            reliefMesh: new Mesh(geometry),
+            equalLevelSignature: "old-seam",
+          },
+        ];
+      })
+    );
+    const keys = new Set(meshes.keys());
+    let allowed = false;
+    const admit = vi.fn((_additionalBytes: number) => allowed);
+    const onChanged = vi.fn();
+    const onError = vi.fn();
+    const controller = new AbortController();
+    const coordinator = createRasterDemTerrainSeamCoordinator({
+      meshes,
+      signal: controller.signal,
+      getActiveMeshKeys: () => keys,
+      getSelectionGeneration: () => 1,
+      isDisposed: () => false,
+      isLoading: () => false,
+      isSelectionPending: () => false,
+      hasPendingMeshes: () => false,
+      isMapMoving: () => false,
+      admitRetainedBytes: admit,
+      onChanged,
+      onError,
+    });
+    try {
+      coordinator.scheduleIdleStitch();
+      await vi.waitFor(() => expect(admit).toHaveBeenCalledOnce());
+      expect(onError).not.toHaveBeenCalled();
+      expect(admit.mock.calls[0][0]).toBeGreaterThan(0);
+      expect(onChanged).not.toHaveBeenCalled();
+      expect(onError).not.toHaveBeenCalled();
+      expect(coordinator.getRetainedBytes()).toBe(0);
+      for (const input of inputs) {
+        const record = meshes.get(input.key)!;
+        expect(record.equalLevelSignature).toBe("old-seam");
+        expect(record.reliefMesh!.geometry.getAttribute("position").array).toBe(
+          input.positions
+        );
+        expect(record.reliefMesh!.geometry.getAttribute("normal").array).toBe(
+          input.normals
+        );
+        expect(record.reliefMesh!.geometry.index!.array).toBe(input.indices);
+      }
+      allowed = true;
+      coordinator.scheduleIdleStitch();
+      await vi.waitFor(() => expect(onChanged).toHaveBeenCalledOnce());
+      expect(coordinator.getRetainedBytes()).toBeGreaterThan(0);
+      expect(onError).not.toHaveBeenCalled();
+    } finally {
+      coordinator.cancelIdleStitch();
+      controller.abort();
+      for (const record of meshes.values())
+        record.reliefMesh!.geometry.dispose();
+    }
+  });
 
   it("interpolates coarse neighbor normals", async () => {
     let fineBoundaryNormalBeforeSmoothing: Vector3 | null = null;
@@ -117,6 +196,8 @@ describe("buildRasterDemTerrainRuntime mixed-LOD seams", () => {
     const source = {
       requestTile: vi.fn(async (id) => ({
         id,
+        bounds: source.getTileBounds(id),
+        byteLength: isFineTile(id) ? 132 : 80,
         u: isFineTile(id)
           ? new Float32Array([0, 0, 0, 1, 1, 1])
           : new Float32Array([0, 0, 1, 1]),

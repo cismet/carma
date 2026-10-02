@@ -52,8 +52,13 @@ describe("buildRasterDemTerrainRuntime coverage refinement", () => {
             )
           ).toBe(false);
       };
+      let releaseFinalTiles!: () => void;
+      const finalTilesReady = new Promise<void>((resolve) => {
+        releaseFinalTiles = resolve;
+      });
       const source = {
         requestTile: vi.fn(async (id: TerrainTileId): Promise<TerrainTile> => {
+          if (id.level === finalLevel) await finalTilesReady;
           if (id.level > 11) {
             expectCompleteCut();
             expect(
@@ -144,6 +149,22 @@ describe("buildRasterDemTerrainRuntime coverage refinement", () => {
         },
       });
       await runtime.ready;
+      await vi.waitFor(() =>
+        expect(
+          source.requestTile.mock.calls.some(([id]) => id.level === finalLevel)
+        ).toBe(true)
+      );
+      // Finer requests can remain pending without pinning successfully retired
+      // preview ancestors. Preserve every published tile while reclaiming them.
+      try {
+        expectCompleteCut();
+        expect(runtime.getTerrainCacheStats().cachedMeshes).toBe(
+          visibleIds().length
+        );
+        expect(source.trimCache).not.toHaveBeenCalled();
+      } finally {
+        releaseFinalTiles();
+      }
       await vi.waitFor(() => expect(source.trimCache).toHaveBeenCalled());
       const requestedIds = source.requestTile.mock.calls.map(([id]) => id);
       // The bounded first-coverage stage may start with at most four tiles;
@@ -192,10 +213,14 @@ describe("buildRasterDemTerrainRuntime coverage refinement", () => {
       const childrenReady = new Promise<void>((resolve) => {
         resolveChildren = resolve;
       });
-      const createTile = (id: typeof parentId) => ({
+      const createTile = (id: typeof parentId): TerrainTile => ({
         id,
         bounds: { west: 7, south: 51, east: 7.4, north: 51.4 },
-        heightMeters: new Float32Array([100]),
+        u: new Float32Array([0, 0, 1, 1]),
+        v: new Float32Array([0, 1, 0, 1]),
+        heightMeters: new Float32Array([100, 100, 100, 100]),
+        indices: new Uint32Array([0, 2, 1, 1, 2, 3]),
+        byteLength: 256,
         westIndices: new Uint32Array(),
         southIndices: new Uint32Array(),
         eastIndices: new Uint32Array(),
@@ -251,9 +276,19 @@ describe("buildRasterDemTerrainRuntime coverage refinement", () => {
       });
       const lodCamera = new PerspectiveCamera(60, 1, 1, 100_000);
       lodCamera.position.set(0, 1_000, 0);
+      // Match the loaded 100 m terrain envelope rather than the identity
+      // clip cube, which excludes known-height leaves during real culling.
+      const renderCamera = new Camera();
+      renderCamera.position.y = 100;
+      renderCamera.projectionMatrix.makeScale(
+        1 / 50_000,
+        1 / 1_000,
+        1 / 50_000
+      );
+      renderCamera.updateMatrixWorld(true);
       runtime.update({
         map: map as never,
-        renderCamera: new Camera(),
+        renderCamera,
         lodCamera,
         lookTarget: new Vector3(),
         viewport: new Vector2(1_000, 1_000),
@@ -301,7 +336,7 @@ describe("buildRasterDemTerrainRuntime coverage refinement", () => {
       lodCamera.position.x += 100;
       runtime.update({
         map: map as never,
-        renderCamera: new Camera(),
+        renderCamera,
         lodCamera,
         lookTarget: new Vector3(),
         viewport: new Vector2(1_000, 1_000),

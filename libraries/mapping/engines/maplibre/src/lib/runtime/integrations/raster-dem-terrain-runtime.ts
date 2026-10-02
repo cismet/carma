@@ -94,6 +94,11 @@ import {
 } from "../../core/tile-camera-demand";
 import { planTileLoadStages } from "../../core/tile-load-plan";
 import {
+  createTerrainMemoryAdmission,
+  planTerrainAdmissionFamilies,
+  TerrainMemoryDeferredError,
+} from "../../core/terrain-memory-admission";
+import {
   TILE_VOLUME_KIND,
   TILE_VOLUME_LOAD_REASON,
   TILE_VOLUME_STATE,
@@ -238,6 +243,8 @@ export interface RasterDemTerrainRuntime extends SharedThreeSceneRuntime {
   getTerrainCacheStats: () => {
     cachedMeshes: number;
     cachedMeshBytes: number;
+    reservedMeshBytes: number;
+    memoryDeferred: boolean;
     cacheCeilingBytes: number;
     baseline: ReturnType<
       ReturnType<typeof createRasterDemTerrainBaseCache>["snapshot"]
@@ -572,7 +579,8 @@ export const buildRasterDemTerrainRuntime = (
           mapStyleProjectionVersion += 1;
           map?.triggerRepaint();
         },
-        reportTerrainError
+        reportTerrainError,
+        (bytes) => canRetainTerrainBytes(bytes)
       )
     : null;
   const preparedGeometryCache = createProjectedTerrainGeometryCache(
@@ -1058,17 +1066,35 @@ export const buildRasterDemTerrainRuntime = (
     }
   >();
   let requiredPreparationKeys: ReadonlySet<string> = new Set();
+  let terrainMemoryDeferred = false;
+  let deferredResidentBytes = Infinity;
   let reserveSelectionEntries: readonly TerrainSelectionEntry[] = [];
+  let siblingCompletionEntries: readonly TerrainSelectionEntry[] = [];
   const cancelMeshRequest = (key: string, controller: AbortController) => {
+    if (meshJobs.get(key)?.controller !== controller) return;
+    terrainMemoryAdmission.release(key);
     meshJobs.delete(key);
     pendingMeshes.delete(key);
     controller.abort(new DOMException("Terrain demand changed", "AbortError"));
   };
   const reconcileMeshRequests = (selection: TerrainSelection) => {
+    siblingCompletionEntries = siblingCompletionEntries.filter(({ id }) => {
+      const parent = {
+        level: id.level - 1,
+        x: Math.floor(id.x / 2),
+        y: Math.floor(id.y / 2),
+      };
+      return selection.entries.some(
+        (entry) =>
+          entry.id.level >= id.level && terrainTileContains(parent, entry.id)
+      );
+    });
     requiredPreparationKeys = new Set(
-      [...selection.loadEntries, ...reserveSelectionEntries].map(
-        terrainSelectionKey
-      )
+      [
+        ...selection.loadEntries,
+        ...reserveSelectionEntries,
+        ...siblingCompletionEntries,
+      ].map(terrainSelectionKey)
     );
     trimMeshCache(activeMeshKeys);
     for (const [key, job] of meshJobs) {
@@ -1091,6 +1117,9 @@ export const buildRasterDemTerrainRuntime = (
         continue;
       cancelMeshRequest(key, job.controller);
     }
+    terrainMemoryAdmission.reconcile(
+      new Set([...requiredPreparationKeys, ...meshJobs.keys()])
+    );
   };
   const prepareMesh = (
     source: RasterDemTerrainTileSource,
@@ -1134,8 +1163,17 @@ export const buildRasterDemTerrainRuntime = (
           trimMeshCache(activeMeshKeys);
         }
       })
+      .catch((error) => {
+        if (error instanceof TerrainMemoryDeferredError) {
+          rejectTerrainMemoryFamily(key);
+        }
+        throw error;
+      })
       .finally(() => {
-        if (pendingMeshes.get(key) === work) pendingMeshes.delete(key);
+        if (pendingMeshes.get(key) === work) {
+          terrainMemoryAdmission.release(key);
+          pendingMeshes.delete(key);
+        }
         if (meshJobs.get(key) === job) meshJobs.delete(key);
       });
     pendingMeshes.set(key, work);
@@ -1227,7 +1265,6 @@ export const buildRasterDemTerrainRuntime = (
       debugMaterial?.dispose();
       throw error;
     }
-    contentRoot.add(node);
     // Publication updates the projection once for the complete ready batch.
     const filterReliefBoundary = (indices: Uint32Array | undefined) =>
       Uint32Array.from(
@@ -1263,7 +1300,7 @@ export const buildRasterDemTerrainRuntime = (
       !tileRangeIncludesNoData && Number.isFinite(tile.maximumHeightMeters)
         ? tile.maximumHeightMeters
         : decodedHeightRange[1];
-    meshes.set(key, {
+    const record: TerrainMeshRecord = {
       sourceTile: tile,
       sourceGeometryBounds: reliefGeometry?.boundingBox?.clone() ?? null,
       sourceGeometrySphere: reliefGeometry?.boundingSphere?.clone() ?? null,
@@ -1291,7 +1328,15 @@ export const buildRasterDemTerrainRuntime = (
         : null,
       minimumHeightMeters,
       maximumHeightMeters,
-    });
+    };
+    const bytes = meshBytes(record);
+    if (!terrainMemoryAdmission.canInstall(key, bytes)) {
+      disposeMeshRecord(record);
+      throw new TerrainMemoryDeferredError(bytes);
+    }
+    contentRoot.add(node);
+    meshes.set(key, record);
+    terrainMemoryAdmission.installed(key, bytes);
     if (tileStats.has(key)) {
       // Close the build and start waiting for the cut that shows the tile.
       addTileStep(key, "Aufbau", performance.now() - buildStart);
@@ -1338,24 +1383,29 @@ export const buildRasterDemTerrainRuntime = (
   };
 
   let activeMeshKeys: ReadonlySet<string> = new Set();
-  const { cancelIdleStitch, scheduleIdleStitch, abortPendingStitch } =
-    createRasterDemTerrainSeamCoordinator({
-      meshes,
-      signal: conversionAbort.signal,
-      getActiveMeshKeys: () => activeMeshKeys,
-      getSelectionGeneration: () => selectionGeneration,
-      isDisposed: () => disposed,
-      isLoading: () => terrainLoading,
-      isSelectionPending: () => selectionRequestPending,
-      hasPendingMeshes: () => pendingMeshes.size > 0,
-      isMapMoving: () => map?.isMoving?.(),
-      onChanged: () => {
-        contentChangedSinceFrame = true;
-        mapStyleProjectionVersion += 1;
-        map?.triggerRepaint();
-      },
-      onError: reportTerrainError,
-    });
+  const {
+    cancelIdleStitch,
+    scheduleIdleStitch,
+    abortPendingStitch,
+    getRetainedBytes: getSeamRetainedBytes,
+  } = createRasterDemTerrainSeamCoordinator({
+    meshes,
+    signal: conversionAbort.signal,
+    getActiveMeshKeys: () => activeMeshKeys,
+    getSelectionGeneration: () => selectionGeneration,
+    isDisposed: () => disposed,
+    isLoading: () => terrainLoading,
+    isSelectionPending: () => selectionRequestPending,
+    hasPendingMeshes: () => pendingMeshes.size > 0,
+    isMapMoving: () => map?.isMoving?.(),
+    onChanged: () => {
+      contentChangedSinceFrame = true;
+      mapStyleProjectionVersion += 1;
+      map?.triggerRepaint();
+    },
+    onError: reportTerrainError,
+    admitRetainedBytes: (bytes) => canRetainTerrainBytes(bytes),
+  });
   let shadowDependencies: readonly {
     key: string;
     id: TerrainTileId;
@@ -1744,6 +1794,8 @@ export const buildRasterDemTerrainRuntime = (
         if (ArrayBuffer.isView(value)) arrays.add(value.buffer);
     for (const array of Object.values(record.stitchBase ?? {}))
       arrays.add(array.buffer);
+    for (const array of Object.values(record.boundaryEdges))
+      arrays.add(array.buffer);
     for (const array of Object.values(record.boundaryBaseHeights))
       arrays.add(array.buffer);
     arrays.add(record.reliefVertexMask.buffer);
@@ -1772,7 +1824,22 @@ export const buildRasterDemTerrainRuntime = (
     );
   };
   const cachedMeshBytes = () =>
+    getSeamRetainedBytes() +
     [...meshes.values()].reduce((sum, record) => sum + meshBytes(record), 0);
+  const rasterEdge = terrainSourceConfig.tileSize + 2;
+  const nativeVertices = rasterEdge ** 2;
+  const nativeIndices = 6 * (rasterEdge - 1) ** 2;
+  const terrainMemoryAdmission = createTerrainMemoryAdmission({
+    residentBytes: cachedMeshBytes,
+    resident: (key) => meshes.has(key),
+    grantBytes: () => maxCachedMeshBytes,
+    // Source arrays, native/ECEF attributes, GPU copies and sampler/edge data.
+    // Prepared results are checked exactly; decoded PNG sizes are not trusted.
+    initialEstimateBytes:
+      (ecefPresentation ? 89 : 65) * nativeVertices +
+      (ecefPresentation ? 16 : 12) * nativeIndices +
+      80 * rasterEdge,
+  });
   const disposeMeshRecord = (record: TerrainMeshRecord) => {
     if (record.reliefMesh) {
       ecefPresentation?.disposeTile(record.reliefMesh);
@@ -1781,19 +1848,56 @@ export const buildRasterDemTerrainRuntime = (
     record.node.removeFromParent();
     record.debugMaterial?.dispose();
   };
-  const trimMeshCache = (activeKeys: ReadonlySet<string>) => {
+  const canRetainTerrainBytes = (bytes: number) => {
+    if (terrainMemoryAdmission.canInstall("", Math.max(0, bytes))) return true;
+    terrainMemoryDeferred = true;
+    deferredResidentBytes = cachedMeshBytes();
+    return false;
+  };
+  const rejectTerrainMemoryFamily = (key: string) => {
+    for (const member of terrainMemoryAdmission.rejectFamily(key)) {
+      const job = meshJobs.get(member);
+      if (job) cancelMeshRequest(member, job.controller);
+      const record = meshes.get(member);
+      // A resource refusal may roll back a prepared family, never a live cut
+      // or a confirmed baseline used as the immediate pan fallback.
+      if (
+        !record ||
+        activeMeshKeys.has(member) ||
+        baseCoverage.pinned.has(terrainTileKey(record.id))
+      )
+        continue;
+      disposeMeshRecord(record);
+      meshes.delete(member);
+    }
+  };
+  const trimMeshCache = (
+    activeKeys: ReadonlySet<string>,
+    requestedHeadroom = 0
+  ) => {
     let bytes = cachedMeshBytes();
-    if (meshes.size <= maxCachedMeshes && bytes <= maxCachedMeshBytes) return;
+    const retainedLimit = Math.max(0, maxCachedMeshBytes - requestedHeadroom);
+    if (meshes.size <= maxCachedMeshes && bytes <= retainedLimit) return;
     const candidates = [...meshes.entries()]
       .filter(
         ([key, record]) =>
           !activeKeys.has(key) &&
-          !requiredPreparationKeys.has(key) &&
+          (!requiredPreparationKeys.has(key) ||
+            [...activeKeys].some((activeKey) => {
+              const active = meshes.get(activeKey);
+              return (
+                active &&
+                active.id.level > record.id.level &&
+                terrainTileContains(record.id, active.id)
+              );
+            })) &&
+          !terrainMemoryAdmission.hasReservation(key) &&
+          !meshJobs.has(key) &&
           !baseCoverage.pinned.has(terrainTileKey(record.id))
       )
       .sort(([, left], [, right]) => left.lastUsed - right.lastUsed);
     for (const [key, record] of candidates) {
-      if (meshes.size <= maxCachedMeshes && bytes <= maxCachedMeshBytes) break;
+      if (meshes.size <= maxCachedMeshes && bytes <= retainedLimit) break;
       bytes -= meshBytes(record);
       disposeMeshRecord(record);
       meshes.delete(key);
@@ -2142,17 +2246,49 @@ export const buildRasterDemTerrainRuntime = (
       cancelIdleStitch();
       // Keep the complete previous cut while the new border bands are prepared.
       // Commit shared vertices and normals in one turn before retiring parents.
-      await prepareEqualLevelTerrainBoundaries(
-        meshes,
-        activeKeys,
-        () => current() && !needsCoverageReplan(),
-        conversionAbort.signal
-      );
+      try {
+        await prepareEqualLevelTerrainBoundaries(
+          meshes,
+          activeKeys,
+          () => current() && !needsCoverageReplan(),
+          conversionAbort.signal,
+          canRetainTerrainBytes
+        );
+      } catch (error) {
+        if (!(error instanceof TerrainMemoryDeferredError)) throw error;
+        // Mandatory shared borders must stay atomic with publication. Keep the
+        // previous complete surface; retry only after a resource/demand change.
+        for (const key of activeKeys)
+          if (!activeMeshKeys.has(key)) rejectTerrainMemoryFamily(key);
+        terrainMemoryDeferred = true;
+        deferredResidentBytes = cachedMeshBytes();
+        return;
+      }
       if (!current()) return;
       if (needsCoverageReplan()) {
         publicationRequested = true;
         return;
       }
+      // Retired preview ancestors no longer own preparation space once the
+      // replacement cut is published. Keep target, completion, reserve and
+      // outstanding job ownership; built unpublished siblings must stay ready.
+      const retainedPreparationKeys = new Set([
+        ...finalKeys,
+        ...completion.map(terrainSelectionKey),
+        ...reserveEntries.map(terrainSelectionKey),
+        ...meshJobs.keys(),
+      ]);
+      const retiredPreviewKeys = new Set(
+        [...activeMeshKeys].filter(
+          (key) => !activeKeys.has(key) && !retainedPreparationKeys.has(key)
+        )
+      );
+      if (retiredPreviewKeys.size)
+        requiredPreparationKeys = new Set(
+          [...requiredPreparationKeys].filter(
+            (key) => !retiredPreviewKeys.has(key)
+          )
+        );
       activeMeshKeys = activeKeys;
       trimMeshCache(activeMeshKeys);
       closeDisplayStages(activeKeys, publishStartedAt);
@@ -2235,6 +2371,7 @@ export const buildRasterDemTerrainRuntime = (
           }
       }
     }
+    siblingCompletionEntries = completion;
     const sourceStages = [
       ...selection.viewportStages,
       selection.entries,
@@ -2272,6 +2409,25 @@ export const buildRasterDemTerrainRuntime = (
         },
       }
     );
+    const admissionFamilies = planTerrainAdmissionFamilies(
+      loadStages,
+      terrainSelectionKey,
+      ({ id }) =>
+        id.level > 0
+          ? terrainTileKey({
+              level: id.level - 1,
+              x: Math.floor(id.x / 2),
+              y: Math.floor(id.y / 2),
+            })
+          : `root:${terrainTileKey(id)}`,
+      [...meshes.values()].map(({ id }) => ({
+        id,
+        kind: TERRAIN_SELECTION_KIND.SOURCE,
+      }))
+    );
+    terrainMemoryAdmission.reconcile(
+      new Set([...requiredPreparationKeys, ...meshJobs.keys()])
+    );
     const highestPendingPriority = loadStages
       .flat()
       .reduce(
@@ -2298,13 +2454,33 @@ export const buildRasterDemTerrainRuntime = (
       current,
       concurrency: () =>
         Math.max(1, payloadAwareConcurrency.getConcurrency(requestConcurrency)),
+      admitEntry: (entry) => {
+        const key = terrainSelectionKey(entry);
+        const family = admissionFamilies.get(key) ?? [key];
+        const firstCoverage = activeMeshKeys.size === 0;
+        trimMeshCache(
+          activeMeshKeys,
+          terrainMemoryAdmission.reservedBytes() +
+            terrainMemoryAdmission.forecastFamilyBytes(family, firstCoverage)
+        );
+        const admitted = terrainMemoryAdmission.reserveFamily(
+          family,
+          firstCoverage
+        );
+        if (!admitted)
+          for (const member of family) rejectTerrainMemoryFamily(member);
+        return admitted;
+      },
+      hasEntryReservation: (entry) =>
+        terrainMemoryAdmission.hasReservation(terrainSelectionKey(entry)),
       prepareEntry: (entry) => prepareMesh(terrainSource, entry),
       setProgress: (fraction) => setTerrainLoading(true, fraction),
       publishInBackground,
       requestPublication,
     })
-      .then(async ({ failures }) => {
+      .then(async ({ failures, memoryDeferred }) => {
         if (!current()) return;
+        terrainMemoryDeferred ||= memoryDeferred;
         let transientFailure: unknown = null;
         for (const { value, error } of failures) {
           if (isConfirmedTerrainServerError(error)) {
@@ -2334,17 +2510,19 @@ export const buildRasterDemTerrainRuntime = (
         ]);
         if (
           prefetchView.shadowSignature === shadowViewSignature &&
-          failures.length === 0
+          failures.length === 0 &&
+          !terrainMemoryDeferred
         )
           previousShadowView = null;
         terrainSource.trimCache(
           new Set(selection.entries.map((entry) => terrainTileKey(entry.id)))
         );
         trimMeshCache(activeMeshKeys);
+        deferredResidentBytes = cachedMeshBytes();
         setTerrainLoading(false);
         scheduleIdleStitch();
         syncSelectionShadowView();
-        if (failures.length === 0)
+        if (failures.length === 0 && !terrainMemoryDeferred)
           recordIdlePrefetchSelection(
             selection,
             latestResolvedSelectionView ?? prefetchView
@@ -2754,6 +2932,10 @@ export const buildRasterDemTerrainRuntime = (
       pendingMeshes.set(key, work);
       try {
         await work;
+      } catch (error) {
+        if (!(error instanceof TerrainMemoryDeferredError)) throw error;
+        rejectTerrainMemoryFamily(key);
+        break;
       } finally {
         signal.removeEventListener("abort", abort);
         if (meshJobs.get(key) === job) meshJobs.delete(key);
@@ -3075,6 +3257,8 @@ export const buildRasterDemTerrainRuntime = (
     getTerrainCacheStats: () => ({
       cachedMeshes: meshes.size,
       cachedMeshBytes: cachedMeshBytes(),
+      reservedMeshBytes: terrainMemoryAdmission.reservedBytes(),
+      memoryDeferred: terrainMemoryDeferred,
       cacheCeilingBytes: maxCachedMeshBytes,
       baseline: baseCoverage.snapshot(),
     }),
@@ -3093,6 +3277,9 @@ export const buildRasterDemTerrainRuntime = (
       if (next === maxCachedMeshBytes) return;
       invalidateIdlePrefetch();
       maxCachedMeshBytes = next;
+      terrainMemoryAdmission.resetDeferred();
+      terrainMemoryDeferred = false;
+      requestedSignature = "";
       baseCoverage.setMemoryBudget(
         meshBaseMemoryBudget(next, options.baseCoverageMemoryShare)
       );
@@ -3122,6 +3309,9 @@ export const buildRasterDemTerrainRuntime = (
         );
       if (disposed || value === errorTargetPixels) return;
       errorTargetPixels = value;
+      terrainMemoryAdmission.resetDeferred();
+      terrainMemoryDeferred = false;
+      requestedSignature = "";
       debugErrorDirty = true;
       selectionInputSignature = "";
       map?.triggerRepaint();
@@ -3296,7 +3486,14 @@ export const buildRasterDemTerrainRuntime = (
         selectionShadowViewSignature,
         tileCameraSignature
       );
-      if (inputSignature === selectionInputSignature) return;
+      const releasedMemory =
+        terrainMemoryDeferred && cachedMeshBytes() < deferredResidentBytes;
+      if (inputSignature === selectionInputSignature && !releasedMemory) return;
+      if (terrainMemoryDeferred) {
+        terrainMemoryAdmission.resetDeferred();
+        terrainMemoryDeferred = false;
+        requestedSignature = "";
+      }
       invalidateIdlePrefetch();
       selectionInputSignature = inputSignature;
 

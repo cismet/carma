@@ -6,6 +6,7 @@ import {
 import { BufferGeometry } from "three";
 import type { TerrainTile } from "../../core/raster-dem-tile";
 import { terrainTileKey } from "../../core/raster-dem-tile";
+import { TerrainMemoryDeferredError } from "../../core/terrain-memory-admission";
 
 const stages = [0, 1, 2].map((level) => ({
   level,
@@ -156,6 +157,53 @@ describe("terrain baseline reserve", () => {
       residentBytes: 210,
       pinnedTiles: 21,
     });
+  });
+
+  it("persists refused RAM installs once without certifying missing baseline geometry", async () => {
+    const resident = new Set<string>();
+    let loads = 0;
+    let disposed = 0;
+    const coverage = createRasterDemTerrainBaseCache({
+      stages: stages.slice(0, 2),
+      memoryBudgetBytes: 50,
+      bytes: (id) => (resident.has(terrainTileKey(id)) ? 10 : null),
+      load: async (id) => {
+        loads++;
+        const geometry = new BufferGeometry();
+        geometry.addEventListener("dispose", () => disposed++);
+        return {
+          tile: { id } as TerrainTile,
+          projectedGeometry: geometry,
+          reliefVertexMask: new Uint8Array(),
+          cachedEcefGeometry: null,
+        };
+      },
+      persistPrepared: async () => true,
+      install: (_, id) => {
+        if (id.level > 0) throw new TerrainMemoryDeferredError(10);
+        resident.add(terrainTileKey(id));
+      },
+      isDisposed: () => false,
+      release: (id) => {
+        resident.delete(terrainTileKey(id));
+      },
+      trim: () => {},
+    });
+    await coverage.run(new AbortController().signal, () => true);
+    expect(coverage.snapshot()).toMatchObject({
+      residentLevel: 0,
+      residentBytes: 10,
+      pinnedTiles: 1,
+      remaining: 0,
+      stages: [
+        { level: 0, resident: true, persisted: true, bytes: 10 },
+        { level: 1, resident: false, persisted: true, bytes: 40 },
+      ],
+    });
+    expect(disposed).toBe(4);
+    await coverage.run(new AbortController().signal, () => true);
+    expect(loads).toBe(5);
+    expect(resident.size).toBe(1);
   });
 
   it("releases aborted optional writes and stops confirmed unavailable source retries", async () => {
