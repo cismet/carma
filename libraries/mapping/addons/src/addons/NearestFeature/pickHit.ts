@@ -14,7 +14,9 @@ import type { SelectedFeatureIdentifier } from "@carma-mapping/contexts";
  * box, for the right layer, with everything under the pointer in it.
  *
  * That is why the click is not fired blind at the middle of the hit's bounding
- * box. The middle of a bent street or a doughnut is not on it, and a symbol
+ * box. A hit that is not on screen (the user zoomed in on the way there) is
+ * brought onto it first: the caller fits `pickBounds` and clicks again.
+ * The middle of a bent street or a doughnut is not on it, and a symbol
  * sits above its own coordinate, so the point is searched for: a small ring
  * around the middle, and the click goes to the first point at which the map
  * draws this feature on top of everything else there, because the topmost hit
@@ -74,6 +76,29 @@ const isSelectable = (hit: { layer?: { metadata?: unknown } }) => {
   const carmaConf = (hit.layer?.metadata as Record<string, unknown> | undefined)
     ?.carmaConf as { nonSelectable?: boolean } | undefined;
   return !carmaConf?.nonSelectable;
+};
+
+/**
+ * What to show so a hit can be clicked: the hit, the origin and the route
+ * between them, `[west, south, east, north]` in WGS84. The route is grown
+ * point by point, a line is too long to spread into `Math.min`.
+ */
+export const pickBounds = (
+  hit: PickableHit,
+  origin: { lat: number; lng: number } | null,
+  route: [number, number][] = []
+): [number, number, number, number] => {
+  let [west, south, east, north] = hit.bbox;
+  const points: [number, number][] = origin
+    ? [[origin.lng, origin.lat], ...route]
+    : route;
+  for (const [lng, lat] of points) {
+    west = Math.min(west, lng);
+    south = Math.min(south, lat);
+    east = Math.max(east, lng);
+    north = Math.max(north, lat);
+  }
+  return [west, south, east, north];
 };
 
 /**

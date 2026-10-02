@@ -38,7 +38,8 @@ import {
   DEFAULT_PLACEHOLDER,
 } from "./config";
 import { featureKey } from "./featureProperties";
-import { clickHit, type PickableHit } from "./pickHit";
+import { waitForIdle } from "./mapReady";
+import { clickHit, pickBounds, type PickableHit } from "./pickHit";
 import { rankCategory } from "./rankCategory";
 import {
   clearRoutes,
@@ -157,6 +158,10 @@ export const NearestFeature = ({
   selectFeatureRef.current = selectFeature;
   const clearSelectionRef = useRef(clearSelection);
   clearSelectionRef.current = clearSelection;
+  const carmaRef = useRef(carma);
+  carmaRef.current = carma;
+  const fitPaddingRef = useRef(fitPadding);
+  fitPaddingRef.current = fitPadding;
 
   // the categories the route's category addons published, read through a ref
   // for the same reason: one mounting later must not re-register the mode
@@ -249,6 +254,12 @@ export const NearestFeature = ({
    * dropped when the mode is left or the user is back at the category list.
    */
   const [drawnRoutes, setDrawnRoutes] = useState<NearestFeatureRoute[]>([]);
+  // read by a pick, which the rows hold on to from the run that made them
+  const drawnRoutesRef = useRef(drawnRoutes);
+  drawnRoutesRef.current = drawnRoutes;
+  // counts picks, so a pick still waiting for the map to settle knows when a
+  // newer one has taken over
+  const pickCountRef = useRef(0);
 
   /** which route is the picked one; the selection is all that says so */
   const selectedRouteKey =
@@ -273,16 +284,45 @@ export const NearestFeature = ({
   /**
    * What picking a hit does, from a row and from its route alike: click it
    * where the map draws it, so the host app shows the info box it shows for
-   * any other click on that feature (see `pickHit.ts`). A hit that is not on
-   * screen cannot be clicked, and is selected as it was before: highlighted,
-   * without an info box, which is better than nothing happening at all.
+   * any other click on that feature (see `pickHit.ts`).
+   *
+   * A hit that is not on screen (the user zoomed in somewhere along the way)
+   * cannot be clicked, so the map first fits its route, from the origin to the
+   * hit, waits until that is drawn and clicks then. When it still cannot (the
+   * layer is off, or not drawn at that zoom) the hit is selected as before:
+   * highlighted, without an info box, which is better than nothing at all.
    */
   const pickHit = useCallback((hit: PickableHit) => {
+    const pick = ++pickCountRef.current;
     const map = mapRef.current;
     if (map && clickHit(map, hit)) {
       return;
     }
-    selectFeatureRef.current(hit);
+    void (async () => {
+      if (map) {
+        const route = drawnRoutesRef.current.find(
+          (one) =>
+            one.hit.source === hit.source &&
+            one.hit.sourceLayer === hit.sourceLayer &&
+            String(one.hit.id) === String(hit.id)
+        );
+        const fitted = carmaRef.current.mapping2D.fitBounds(
+          ...pickBounds(hit, originRef.current, route?.coordinates),
+          fitPaddingRef.current
+        );
+        if (fitted) {
+          await waitForIdle(map);
+          if (pick !== pickCountRef.current) {
+            // the user picked another one meanwhile; that pick is in charge
+            return;
+          }
+          if (clickHit(map, hit)) {
+            return;
+          }
+        }
+      }
+      selectFeatureRef.current(hit);
+    })();
   }, []);
 
   /**
