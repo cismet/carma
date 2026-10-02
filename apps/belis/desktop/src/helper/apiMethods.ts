@@ -46,7 +46,8 @@ import {
   canCreateAA,
   canEditAA,
   canEditKeytables,
-  canDelete,
+  canDeleteFachobjekte,
+  canDeleteProtokolle,
 } from "../store/slices/auth";
 
 const FACHOBJEKT_CLASSES = new Set([
@@ -69,12 +70,12 @@ const assertWritable = (className: string, op: "save" | "remove" = "save") => {
     allowed =
       op === "save"
         ? canCreateBasic(state) || canEditBasic(state)
-        : canDelete(state) && canCreateBasic(state);
+        : canDeleteFachobjekte(state);
   } else if (AA_CLASSES.has(className)) {
     allowed =
       op === "save"
         ? canCreateAA(state) || canEditAA(state)
-        : canDelete(state);
+        : canDeleteProtokolle(state);
   } else {
     allowed = canEditKeytables(state);
   }
