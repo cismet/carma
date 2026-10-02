@@ -26,7 +26,8 @@ interface KeyTableDataGroupsListProps {
   selectedItem: SelectedItem | null;
   onItemSelect: (item: unknown, tableName: string) => void;
   onAddItem: () => void;
-  onRemoveItem: () => void;
+  /** Omitted when the user may not delete entries. */
+  onRemoveItem?: () => void;
   readOnly?: boolean;
   sortMode?: SortMode;
   isFirstColumnCollapsed?: boolean;
@@ -190,10 +191,12 @@ const KeyTableDataGroupsList = ({
                 className="cursor-pointer hover:text-blue-500"
                 onClick={onAddItem}
               />
-              <DeleteOutlined
-                className="cursor-pointer hover:text-red-500"
-                onClick={onRemoveItem}
-              />
+              {onRemoveItem && (
+                <DeleteOutlined
+                  className="cursor-pointer hover:text-red-500"
+                  onClick={onRemoveItem}
+                />
+              )}
             </>
           )}
         </div>

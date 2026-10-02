@@ -95,6 +95,8 @@ export const canDeleteFachobjekte = (state) =>
   canDelete(state) && canCreateBasic(state);
 export const canDeleteProtokolle = (state) =>
   canDelete(state) && canCreateAA(state);
+export const canDeleteKeytables = (state) =>
+  canDelete(state) && canEditKeytables(state);
 // Edit mode is also needed to delete (danger zone, Protokoll deletion).
 export const canUseEditMode = (state) =>
   canEditBasic(state) ||
