@@ -19,7 +19,12 @@ vi.mock("../integrations/tiff-preview-source", () => ({
 
 class ExportCanvas {
   static instances: ExportCanvas[] = [];
-  context = { putImageData: vi.fn(), drawImage: vi.fn(), globalAlpha: 1 };
+  context = {
+    putImageData: vi.fn(),
+    drawImage: vi.fn(),
+    globalAlpha: 1,
+    globalCompositeOperation: "source-over",
+  };
   getContext = vi.fn(() => this.context);
   convertToBlob = vi.fn(async () => new Blob(["jpeg"], { type: "image/jpeg" }));
   constructor(public width: number, public height: number) {
@@ -104,7 +109,7 @@ describe("full native TIFF JPG composition", () => {
     );
     expect(canvas.convertToBlob).toHaveBeenCalledWith({
       type: "image/jpeg",
-      quality: 1,
+      quality: 0.95,
     });
     expect(blob.type).toBe("image/jpeg");
     expect(artwork.close).toHaveBeenCalledOnce();
@@ -130,6 +135,56 @@ describe("full native TIFF JPG composition", () => {
       4,
       4
     );
+  });
+
+  it("matches the publisher's northwest screen caption without scaling the artwork", async () => {
+    let composition: string | undefined;
+    let alpha: number | undefined;
+    // Capture the blend at draw time, before the compositor restores its defaults.
+    vi.stubGlobal(
+      "OffscreenCanvas",
+      class extends ExportCanvas {
+        constructor(width: number, height: number) {
+          super(width, height);
+          this.context.drawImage.mockImplementation(() => {
+            composition = this.context.globalCompositeOperation;
+            alpha = this.context.globalAlpha;
+          });
+        }
+      }
+    );
+    await createTiffDownloadJpeg(
+      {
+        ...request,
+        nativeSize: { width: 800, height: 600 },
+        watermark: {
+          ...request.watermark,
+          position: "top-left",
+          marginPx: 6,
+          opacity: 1,
+          blend: "screen",
+        },
+      },
+      new AbortController().signal
+    );
+    const canvas = ExportCanvas.instances[0];
+    expect(canvas.context.drawImage).toHaveBeenCalledWith(artwork, 6, 6, 2, 2);
+    expect(composition).toBe("screen");
+    expect(alpha).toBe(1);
+    expect(canvas.context.globalCompositeOperation).toBe("source-over");
+  });
+
+  it("rejects an unsupported blend before requesting any assets", async () => {
+    await expect(
+      createTiffDownloadJpeg(
+        {
+          ...request,
+          watermark: { ...request.watermark, blend: "multiply" as "screen" },
+        },
+        new AbortController().signal
+      )
+    ).rejects.toThrow("Wasserzeichen");
+    expect(fetch).not.toHaveBeenCalled();
   });
 
   it("checks watermark availability before downloading native pixels", async () => {

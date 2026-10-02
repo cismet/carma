@@ -360,13 +360,13 @@ describe("calibrated current highlights and bounded selection trails", () => {
     const uploads = scene.projective.mock.calls.length,
       repaints = map.triggerRepaint.mock.calls.length,
       labelDraws = drawSurfaceLabel.mock.calls.length;
-    vi.advanceTimersByTime(4000);
+    vi.advanceTimersByTime(1333);
     expect(scene.projective).toHaveBeenCalledTimes(uploads);
     expect(drawSurfaceLabel).toHaveBeenCalledTimes(labelDraws);
-    expect(map.triggerRepaint).toHaveBeenCalledTimes(repaints + 40);
+    expect(map.triggerRepaint).toHaveBeenCalledTimes(repaints + 13);
     expect(map.setFeatureState).not.toHaveBeenCalled();
     expect(readLabelPixels).not.toHaveBeenCalled();
-    vi.advanceTimersByTime(4000);
+    vi.advanceTimersByTime(1334);
     expect(scene.projective.mock.calls.at(-1)?.[1].marks).toHaveLength(1);
     expect(vi.getTimerCount()).toBe(0);
   });
@@ -418,7 +418,7 @@ describe("calibrated current highlights and bounded selection trails", () => {
       )
     ).toBe(true);
     expect(overlay.labelAtlas.image.width).toBe(512);
-    expect(overlay.trailDuration).toBe(8);
+    expect(overlay.trailDuration).toBeCloseTo(8 / 3);
     expect(map.addSource).not.toHaveBeenCalled();
     expect(map.addLayer).not.toHaveBeenCalled();
     expect(map.setLayoutProperty).not.toHaveBeenCalled();

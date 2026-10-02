@@ -71,7 +71,7 @@ export type FootprintOutlineLayer = {
   setLocked: (locked: boolean, fade?: AnimationConfig) => void;
   destroy: () => void;
 };
-const TRAIL_DURATION_MS = 8000;
+const TRAIL_DURATION_MS = Math.round(8000 / 3);
 const TRAIL_REPAINT_INTERVAL_MS = 100;
 const LABEL_FONT_WEIGHT = 1000;
 const LABEL_WIDTH = 512;
@@ -217,7 +217,10 @@ export const createFootprintOutlineLayer = (
   const scheduleTrailExpiry = () => {
     if (trailTimer !== undefined) clearTimeout(trailTimer);
     trailTimer = undefined;
-    if (!trails.size || destroyed) return;
+    if (!trails.size || destroyed) {
+      clearTrailRepaint();
+      return;
+    }
     const deadline = Math.min(
       ...Array.from(trails.values(), (value) => value.start + TRAIL_DURATION_MS)
     );

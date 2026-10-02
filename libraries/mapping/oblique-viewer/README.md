@@ -85,7 +85,7 @@ hovered record even before native GeoJSON tiling catches up.
 
 Previous center and pointer selections leave at most 32 outline trails. They retain
 the current line width and white colour at at most 20% outline opacity and fade
-over eight seconds. Expired trails and trails outside the current
+over about 2.7 seconds. Expired trails and trails outside the current
 viewport are removed. Trails carry no fill, label, caret or click target. Absolute
 deadlines survive preview locks; one expiry timer cleans hidden trails and idle
 repaints run at at most ten Hz.
@@ -282,15 +282,16 @@ in full before cropping it in the worker.
 For TIFF originals, “Herunterladen” creates a JPEG at the calibrated native image
 dimensions in a short-lived worker. It reads the original resolution in bounded
 strips, reuses the TIFF range reader and compressed-byte cache, draws the publisher's
-watermark, and encodes the completed image. This path runs only for an explicit
+watermark, and encodes the completed image at JPEG quality 95. This path runs only for an explicit
 download; previews and hover do not request a native export. Only one export runs
 at a time, and cancellation or timeout terminates its worker.
 
 The server-owned series entry must provide `downloadWatermark` with the exact
-artwork `imageUrl`, `position` (`center` or `bottom-right`), and `opacity` in `(0, 1]`.
+artwork `imageUrl`, `position` (`center`, `top-left`, or `bottom-right`), and `opacity` in `(0, 1]`.
 Optional `widthFraction` scales the artwork relative to the native image width;
 omitting it preserves the artwork's pixel size. `marginPx` controls the placement
-margin. The artwork must be readable with CORS and fit inside the original image.
+margin. Optional `blend: "screen"` reproduces ImageMagick Screen composition;
+omitting it uses ordinary alpha blending. The artwork must be readable with CORS and fit inside the original image.
 It is validated before native TIFF pixels are requested. Missing or invalid
 configuration fails the download instead of inventing watermark text or exporting
 an unwatermarked TIFF-derived JPEG. Published JPEG downloads retain their existing

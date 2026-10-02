@@ -25,7 +25,9 @@ export const createTiffDownloadJpeg = async (
   const watermark = request.watermark;
   if (
     !watermark?.imageUrl ||
-    !["center", "bottom-right"].includes(watermark.position) ||
+    !["center", "top-left", "bottom-right"].includes(watermark.position) ||
+    (watermark.blend !== undefined &&
+      !["source-over", "screen"].includes(watermark.blend)) ||
     !Number.isFinite(watermark.opacity) ||
     watermark.opacity <= 0 ||
     watermark.opacity > 1 ||
@@ -105,16 +107,25 @@ export const createTiffDownloadJpeg = async (
     const x =
       watermark.position === "center"
         ? (width - artworkWidth) / 2
+        : watermark.position === "top-left"
+        ? margin
         : width - artworkWidth - margin;
     const y =
       watermark.position === "center"
         ? (height - artworkHeight) / 2
+        : watermark.position === "top-left"
+        ? margin
         : height - artworkHeight - margin;
+    context.globalCompositeOperation = watermark.blend ?? "source-over";
     context.globalAlpha = watermark.opacity;
     context.drawImage(artwork, x, y, artworkWidth, artworkHeight);
     context.globalAlpha = 1;
+    context.globalCompositeOperation = "source-over";
     signal.throwIfAborted();
-    const blob = await canvas.convertToBlob({ type: "image/jpeg", quality: 1 });
+    const blob = await canvas.convertToBlob({
+      type: "image/jpeg",
+      quality: 0.95,
+    });
     signal.throwIfAborted();
     if (!blob.size || blob.type !== "image/jpeg")
       throw new Error("Der Browser hat kein gültiges JPG erzeugt.");
