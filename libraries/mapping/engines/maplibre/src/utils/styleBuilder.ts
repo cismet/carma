@@ -39,6 +39,7 @@ import {
   type SpriteRegistration,
 } from "./spriteNamespace";
 import { fetchStyleResource } from "./fetch-style-resource";
+import { scaleOpacity } from "./scaleOpacity";
 
 // Inlined from @carma-mapping/layers to avoid circular dependency through portals
 interface WMSLayerLike {
@@ -830,15 +831,12 @@ export const vectorStylesToMapLibreStyle = async ({
                   );
                   const result: Record<string, unknown> = {};
                   for (const prop of props) {
+                    // `??`, not `||`: a style's deliberate 0 (e.g. an invisible
+                    // click target) must stay 0 and not become fully opaque
                     const baseOpacity =
-                      (styleLayer.paint as Record<string, unknown>)?.[prop] ||
+                      (styleLayer.paint as Record<string, unknown>)?.[prop] ??
                       1;
-                    const baked =
-                      typeof baseOpacity === "number"
-                        ? baseOpacity * layerOpacity
-                        : layerOpacity < 1
-                        ? layerOpacity
-                        : baseOpacity;
+                    const baked = scaleOpacity(baseOpacity, layerOpacity);
                     // The dim wraps whatever the slider already produced, so it
                     // composes with the layer's opacity instead of replacing it
                     // and never makes a value less legal than it was: a curve it
