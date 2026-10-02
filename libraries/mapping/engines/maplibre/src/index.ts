@@ -213,6 +213,7 @@ export {
   getCarmaConf,
   getCarmaConfFromStyle,
   isNonSelectable,
+  isHiddenByOpacity,
   applySelectionForwarding,
   resolvePropertyTarget,
   enrichHitsWithCarmaInfo,
