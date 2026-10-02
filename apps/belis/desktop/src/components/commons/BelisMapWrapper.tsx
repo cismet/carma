@@ -583,10 +583,12 @@ const BelisMapLibWrapper = ({
     rawFeature: any;
   } | null>(null);
   const prevVariantRef = useRef(sidebarVariant);
-  // Datenblatt open/closed per route variant (the DatasheetProvider is global).
-  const datasheetOpenByVariantRef = useRef<
-    Partial<Record<typeof sidebarVariant, boolean>>
-  >({});
+  // Selection restored by a route switch: may sit off-screen, but must not
+  // auto-open the Datenblatt (see the bounds check below).
+  const restoredOnRouteSwitchRef = useRef<{
+    sourceLayer?: string;
+    id?: string | number;
+  } | null>(null);
 
   // Extract the infoboxMapping code from the style (browser-cached, no extra network cost)
   const [infoboxMappingCode, setInfoboxMappingCode] = useState<string | null>(
@@ -2636,6 +2638,13 @@ const BelisMapLibWrapper = ({
       return;
     }
 
+    const restored = restoredOnRouteSwitchRef.current;
+    const isRestoredSelection =
+      restored != null &&
+      restored.sourceLayer === selectedFeatureId.sourceLayer &&
+      String(restored.id) === String(selectedFeatureId.id);
+    if (!isRestoredSelection) restoredOnRouteSwitchRef.current = null;
+
     if (rawFeature?.properties?._isCreation === true) {
       setFeatureOnMap(true);
       return;
@@ -2666,7 +2675,9 @@ const BelisMapLibWrapper = ({
     }
     setFeatureOnMap(inside);
 
-    if (!inside) {
+    if (isRestoredSelection) {
+      restoredOnRouteSwitchRef.current = null;
+    } else if (!inside) {
       openDatasheet();
     }
   }, [map, selectedFeatureId, rawFeature, sidebarMode, openDatasheet]);
@@ -3157,9 +3168,6 @@ const BelisMapLibWrapper = ({
     prevVariantRef.current = sidebarVariant;
     if (prev === sidebarVariant) return;
 
-    datasheetOpenByVariantRef.current[prev] = isDatasheetOpen;
-    let incomingHasSelection = false;
-
     // Save outgoing fachobjekte selection
     if (prev === "fachobjekte" && selectedFeatureId) {
       savedFachobjekteRef.current = {
@@ -3170,6 +3178,8 @@ const BelisMapLibWrapper = ({
 
     // Clear current selection to prevent stale infobox bleed-through
     clearMapSelection();
+    closeDatasheet();
+    restoredOnRouteSwitchRef.current = null;
     setOverrideSelectedFeature(null);
     setFetchedFeatureData(null);
 
@@ -3179,8 +3189,11 @@ const BelisMapLibWrapper = ({
       if (saved?.identifier) {
         // Re-trigger selection pipeline; the override path handles
         // the infobox when the feature is not visible on the map.
+        restoredOnRouteSwitchRef.current = {
+          sourceLayer: saved.identifier.sourceLayer,
+          id: saved.identifier.id,
+        };
         selectFeature(saved.identifier, saved.rawFeature);
-        incomingHasSelection = true;
       }
     } else if (sidebarVariant === "arbeitsauftraege") {
       // AA state persists in Redux — re-select on map if present
@@ -3190,18 +3203,6 @@ const BelisMapLibWrapper = ({
       if (aaId != null && aaTab === "aa") {
         handleAAFeatureSelect(aaId);
       }
-      incomingHasSelection =
-        aaId != null || state.arbeitsauftraege.selectedAPId != null;
-    }
-
-    // Restore the incoming variant's Datenblatt, but never onto an empty one.
-    if (
-      datasheetOpenByVariantRef.current[sidebarVariant] &&
-      incomingHasSelection
-    ) {
-      openDatasheet();
-    } else {
-      closeDatasheet();
     }
   }, [sidebarVariant]); // eslint-disable-line react-hooks/exhaustive-deps
 
