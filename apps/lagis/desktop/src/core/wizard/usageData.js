@@ -16,12 +16,13 @@ export const loadUsageStammdaten = async (jwt) => {
   return stammdatenCache;
 };
 
-export const newUsageRow = () => ({
+// prefilled from the previous row, so similar Nutzungen need fewer edits
+export const newUsageRow = (previous) => ({
   id: nanoid(),
-  anlageklasseId: undefined,
-  nutzungsartId: undefined,
-  flaeche: null,
-  quadratmeterpreis: null,
+  anlageklasseId: previous?.anlageklasseId,
+  nutzungsartId: previous?.nutzungsartId,
+  flaeche: previous?.flaeche ?? null,
+  quadratmeterpreis: previous?.quadratmeterpreis ?? null,
 });
 
 export const gesamtpreis = (row) =>
