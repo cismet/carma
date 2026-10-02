@@ -16,7 +16,11 @@ export const setFlurstueckHistoric = async ({ key, date, rebeMipa }, ctx) => {
   try {
     const gueltigBis = await setHistoricForKey(key, date, rebeMipa, ctx);
     return {
-      message: `Flurstück "${keyString}" konnte erfolgreich historisch gesetzt werden.`,
+      message: [
+        "Flurstück ",
+        key,
+        " konnte erfolgreich historisch gesetzt werden.",
+      ],
       keys: [{ ...key, gueltigBis }],
     };
   } finally {
