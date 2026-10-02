@@ -267,7 +267,7 @@ describe("calibrated current highlights and bounded selection trails", () => {
     expect(map.addLayer).not.toHaveBeenCalled();
     expect(map.addImage).not.toHaveBeenCalled();
   });
-  it("draws only center and pointer and applies highlight color without a crossfade", () => {
+  it("draws center and pointer outlines in white without a crossfade", () => {
     const { handle, map, sources, layers } = setup(true);
     const nearby = Array.from({ length: 128 }, (_, i) =>
       candidate("candidate-" + i)
@@ -275,7 +275,7 @@ describe("calibrated current highlights and bounded selection trails", () => {
     handle.setRing(ring, annotation("center"), nearby);
     let overlay = scene.projective.mock.calls.at(-1)?.[1];
     expect(overlay.marks).toHaveLength(1);
-    expect(overlay.marks[0].color.getHexString()).toBe("ffff00");
+    expect(overlay.marks[0].color.getHexString()).toBe("ffffff");
     expect(overlay.marks[0].labelRect).toEqual([0, 0, 1, 1]);
     handle.setHoveredImage("pointer", candidate("pointer"));
     overlay = scene.projective.mock.calls.at(-1)?.[1];
@@ -284,11 +284,11 @@ describe("calibrated current highlights and bounded selection trails", () => {
       overlay.marks.map((mark: { fillOpacity: number }) => mark.fillOpacity)
     ).toEqual([0.08, 0]);
     expect(overlay.marks[0].color.getHexString()).toBe("ffffff");
-    expect(overlay.marks[1].color.getHexString()).toBe("ffff00");
+    expect(overlay.marks[1].color.getHexString()).toBe("ffffff");
     handle.setHoveredImage(null);
     overlay = scene.projective.mock.calls.at(-1)?.[1];
     const center = overlay.marks.at(-1);
-    expect(center.color.getHexString()).toBe("ffff00");
+    expect(center.color.getHexString()).toBe("ffffff");
     expect(center.labelRect).toEqual([0, 0, 1, 1]);
     expect(map.setPaintProperty).not.toHaveBeenCalled();
     expect(map.addSource).not.toHaveBeenCalled();
@@ -312,9 +312,7 @@ describe("calibrated current highlights and bounded selection trails", () => {
     ).toBe(true);
     expect(overlay.marks).toHaveLength(34);
     expect(
-      overlay.marks.every(
-        (mark: { width: number }) => mark.width === 5 * (2 / 3)
-      )
+      overlay.marks.every((mark: { width: number }) => mark.width === 5)
     ).toBe(true);
     expect(
       trails.every((mark: { opacity: number }) => mark.opacity === 0.2)
@@ -432,7 +430,7 @@ describe("calibrated current highlights and bounded selection trails", () => {
     expect(overlay.opacity).toBe(0.5);
     expect(overlay.marks).toHaveLength(1);
     expect(overlay.marks[0].fillOpacity).toBe(0);
-    expect(overlay.marks[0].width).toBe(2);
+    expect(overlay.marks[0].width).toBe(3);
     expect(overlay.marks[0].showUpMarker).toBe(false);
     expect(overlay.marks[0].labelRect).toBeUndefined();
     expect(overlay.labelAtlas).toBeUndefined();

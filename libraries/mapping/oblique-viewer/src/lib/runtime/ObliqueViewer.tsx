@@ -499,7 +499,8 @@ export const ObliqueViewer = ({
       animation: AnimationConfig | undefined,
       dynamicDuration: boolean,
       preserveView = false,
-      viewAnchor?: MercatorCoordinate
+      viewAnchor?: MercatorCoordinate,
+      centerPreview?: boolean
     ): Promise<boolean> => {
       if (
         !libreMap ||
@@ -563,10 +564,26 @@ export const ObliqueViewer = ({
           return false;
         freeCamera();
         profile?.phase("flight");
+        const calibration = getCameraCalibration(dataset, record.cameraId);
+        const principal = calibrationImageOffset(calibration);
         const flight = flyToPose(libreMap, pose, altitude, animation, {
           dynamicDuration,
           anchor,
           maxFovDeg: browsingDataset.maxFovDeg,
+          centerPreview,
+          preview:
+            centerPreview === undefined
+              ? undefined
+              : {
+                  aspectRatio: (calibration.widthPx /
+                    calibration.heightPx) as Ratio,
+                  halfFovTan: calibration.halfFovTan as Ratio,
+                  principal: {
+                    xOffset: principal.xOffset as Ratio,
+                    yOffset: principal.yOffset as Ratio,
+                  },
+                  roll: degreesToRadians(pose.rollDeg as Degrees),
+                },
         });
         activeFlightRef.current = flight;
         await flight.done;
@@ -696,8 +713,16 @@ export const ObliqueViewer = ({
     void settleToBrowsing();
   }, [publish, settleToBrowsing]);
   const openPreview = useCallback(
-    async (imageId?: string) => {
-      if (busyRef.current || !runningRef.current) return;
+    async (imageId?: string, centerPreview = true) => {
+      if (!runningRef.current) return;
+      if (busyRef.current) {
+        if (!imageId || !centerPreview) return;
+        // A double-click upgrades the immediate single-click flight to centering.
+        selectionEpochRef.current++;
+        activeFlightRef.current?.cancel();
+        activeFlightRef.current = null;
+        setBusy(false);
+      }
       const epoch = selectionEpochRef.current;
       let requested = imageId
         ? nearbyImages.find((image) => image.record.id === imageId)
@@ -758,7 +783,9 @@ export const ObliqueViewer = ({
         record,
         dataset?.animations.flyToExteriorOrientation,
         true,
-        true
+        true,
+        undefined,
+        centerPreview
       );
       if (epoch !== selectionEpochRef.current || !runningRef.current) return;
       if (succeeded) {
@@ -777,6 +804,7 @@ export const ObliqueViewer = ({
       settleToBrowsing,
       nearbyImages,
       refreshSearch,
+      setBusy,
     ]
   );
 
@@ -822,7 +850,10 @@ export const ObliqueViewer = ({
     style: selectedDataset.footprintsStyle,
     fadeOut: selectedDataset.animations.outlineFadeOut,
     onClick: (imageId) => {
-      void openPreview(imageId);
+      void openPreview(imageId, false);
+    },
+    onDoubleClick: (imageId) => {
+      void openPreview(imageId, true);
     },
   });
 

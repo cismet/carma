@@ -42,6 +42,7 @@ type UseFootprintLayerOptions = {
   style?: ObliqueFootprintsStyle;
   fadeOut?: AnimationConfig;
   onClick?: (imageId: string) => void;
+  onDoubleClick?: (imageId: string) => void;
   onHoveredRecord?: (record: ObliqueImageRecord | null) => void;
   findAtScreenPoint?: (point: {
     x: number;
@@ -63,6 +64,7 @@ export const useFootprintLayer = ({
   style,
   fadeOut,
   onClick,
+  onDoubleClick,
   onHoveredRecord,
   findAtScreenPoint,
 }: UseFootprintLayerOptions): void => {
@@ -81,6 +83,14 @@ export const useFootprintLayer = ({
   fadeOutRef.current = fadeOut;
   const onClickRef = useRef(onClick);
   onClickRef.current = onClick;
+  const onDoubleClickRef = useRef(onDoubleClick);
+  onDoubleClickRef.current = onDoubleClick;
+  const lastClickRef = useRef<{
+    id: string;
+    x: number;
+    y: number;
+    time: number;
+  } | null>(null);
   const onHoveredRecordRef = useRef(onHoveredRecord);
   onHoveredRecordRef.current = onHoveredRecord;
   const selectedImageIdRef = useRef(selectedImageId);
@@ -178,6 +188,54 @@ export const useFootprintLayer = ({
   ]);
 
   // Claim the DOM click before the host starts feature-info selection.
+  useEffect(() => {
+    if (!map || !enabled) return;
+    // Keep this listener during the first flight and over the mounted preview.
+    const container = map.getContainer?.() ?? map.getCanvasContainer();
+    const host = container.parentElement ?? container;
+    const onSecondClick = (event: MouseEvent) => {
+      const last = lastClickRef.current;
+      if (
+        event.detail !== 2 ||
+        !last ||
+        performance.now() - last.time > 1500 ||
+        Math.hypot(event.clientX - last.x, event.clientY - last.y) > 5 ||
+        (event.target instanceof Element &&
+          event.target.closest("button, input, select, a"))
+      )
+        return;
+      // Do not let the second click dismiss the preview before dblclick centers it.
+      claimClick(event);
+      event.preventDefault();
+      event.stopPropagation();
+    };
+    const onDoubleClick = (event: MouseEvent) => {
+      const last = lastClickRef.current;
+      if (
+        !last ||
+        !onDoubleClickRef.current ||
+        event.button !== 0 ||
+        performance.now() - last.time > 1500 ||
+        Math.hypot(event.clientX - last.x, event.clientY - last.y) > 5 ||
+        (event.target instanceof Element &&
+          event.target.closest("button, input, select, a"))
+      )
+        return;
+      lastClickRef.current = null;
+      claimClick(event);
+      event.preventDefault();
+      event.stopPropagation();
+      onDoubleClickRef.current(last.id);
+    };
+    host.addEventListener("dblclick", onDoubleClick, true);
+    host.addEventListener("click", onSecondClick, true);
+    return () => {
+      lastClickRef.current = null;
+      host.removeEventListener("dblclick", onDoubleClick, true);
+      host.removeEventListener("click", onSecondClick, true);
+    };
+  }, [map, enabled]);
+
   useEffect(() => {
     if (!map || !enabled || locked || (!hasSelectedImage && !catalogHover))
       return undefined;
@@ -339,6 +397,12 @@ export const useFootprintLayer = ({
         if (disposed) return;
         clickPending = false;
         if (!id || clickGeneration !== hoverGeneration) return;
+        lastClickRef.current = {
+          id,
+          x: event.clientX,
+          y: event.clientY,
+          time: performance.now(),
+        };
         layerRef.current?.setLocked(true, fadeOutRef.current);
         onClickRef.current?.(id);
       };

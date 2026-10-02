@@ -37,6 +37,7 @@ import {
   tween,
 } from "./cameraMath";
 import { getCameraCalibration } from "../../core/utils/calibration";
+import type { PreviewImageGeometry } from "../../core/utils/preview-pan-bounds";
 import { computePose } from "../../core/utils/exteriorOrientation";
 import { setFov, whenMoveEnds, type CameraFlight } from "./obliqueCamera";
 
@@ -146,11 +147,15 @@ export const flyToPose = (
     anchor,
     screenPoint,
     maxFovDeg,
+    preview,
+    centerPreview = false,
   }: {
     dynamicDuration?: boolean;
     anchor?: MercatorCoordinate;
     screenPoint?: { x: number; y: number };
     maxFovDeg?: number;
+    preview?: PreviewImageGeometry;
+    centerPreview?: boolean;
   } = {}
 ): CameraFlight => {
   // The roll has to be passed even though the map stays unrolled: MapLibre
@@ -192,6 +197,8 @@ export const flyToPose = (
       screenPoint,
       camera: { pose, altitude },
       maxFovDeg,
+      preview,
+      centerPreview,
       durationMs: duration,
       restoreGround: false,
     });
@@ -257,6 +264,8 @@ export const settleToPitch = (
     restoreGround = true,
     camera,
     maxFovDeg = 110,
+    preview,
+    centerPreview = false,
   }: {
     fovDeg?: Degrees;
     padding?: PaddingOptions;
@@ -268,6 +277,8 @@ export const settleToPitch = (
     /** Fixed image-camera destination; the projection follows the anchor. */
     camera?: { pose: ObliquePose; altitude: number };
     maxFovDeg?: number;
+    preview?: PreviewImageGeometry;
+    centerPreview?: boolean;
   } = {}
 ): CameraFlight => {
   map.stop();
@@ -408,6 +419,8 @@ export const settleToPitch = (
     })
   );
   const finalFrame = from.clone();
+  const startViewportPoint = viewportPoint.clone();
+  let centeredPreview = false;
   finalFrame.setFov(fovDeg);
   finalFrame.setPitch(pitchDeg);
   finalFrame.setElevation(targetHeight);
@@ -424,7 +437,32 @@ export const settleToPitch = (
       clamp(fovForResolution(targetDepth, startResolution), 0.1, maxFovDeg)
     );
     placeCamera(finalFrame, eye, camera.altitude);
-    aim(finalFrame, true);
+    if (preview) {
+      const longEdge =
+        2 * finalFrame.cameraToCenterDistance * preview.halfFovTan;
+      const width = longEdge * Math.min(1, preview.aspectRatio);
+      const height = longEdge / Math.max(1, preview.aspectRatio);
+      centeredPreview =
+        centerPreview ||
+        Math.min(width, height) < Math.min(from.width, from.height);
+      if (centeredPreview) {
+        // Cancel projection pan, including the rotated principal-point offset.
+        const x = preview.principal.xOffset * width;
+        const y = preview.principal.yOffset * height;
+        const dx =
+          -2 * (Math.cos(preview.roll) * x - Math.sin(preview.roll) * y);
+        const dy =
+          -2 * (Math.sin(preview.roll) * x + Math.cos(preview.roll) * y);
+        finalFrame.setPadding({
+          left: Math.max(0, dx),
+          right: Math.max(0, -dx),
+          top: Math.max(0, dy),
+          bottom: Math.max(0, -dy),
+        });
+        placeCamera(finalFrame, eye, camera.altitude);
+      }
+    }
+    if (!centeredPreview) aim(finalFrame, true);
   } else {
     compensate(finalFrame, targetDepth);
   }
@@ -475,6 +513,19 @@ export const settleToPitch = (
   const bearingDelta = camera
     ? ((camera.pose.bearingDeg - from.bearing + 540) % 360) - 180
     : 0;
+  const endViewportPoint = startViewportPoint.clone();
+  if (centeredPreview) {
+    const clip = new Vector4(
+      target.x * finalFrame.worldSize,
+      target.y * finalFrame.worldSize,
+      targetHeight,
+      1
+    ).applyMatrix4(
+      new Matrix4().fromArray(finalFrame.modelViewProjectionMatrix)
+    );
+    endViewportPoint.x = ((clip.x / clip.w + 1) * finalFrame.width) / 2;
+    endViewportPoint.y = ((1 - clip.y / clip.w) * finalFrame.height) / 2;
+  }
   map.setCenterClampedToGround(false);
   let resolveDone!: () => void;
   const done = new Promise<void>((resolve) => {
@@ -489,6 +540,12 @@ export const settleToPitch = (
       const profile = interactionProfile(map);
       const frameStarted = performance.now();
       const frame = from.clone();
+      viewportPoint.x =
+        startViewportPoint.x +
+        (endViewportPoint.x - startViewportPoint.x) * progress;
+      viewportPoint.y =
+        startViewportPoint.y +
+        (endViewportPoint.y - startViewportPoint.y) * progress;
       // Travel and projection move on the same eased progress. Interpolate
       // optical depth, then derive FOV, rather than giving FOV a different
       // speed curve that makes the camera's path appear to reverse.

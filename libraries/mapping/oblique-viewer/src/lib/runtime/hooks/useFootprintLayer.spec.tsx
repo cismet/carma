@@ -51,6 +51,7 @@ const setup = (
     off: vi.fn(),
   } as unknown as MaplibreMap;
   const onClick = vi.fn();
+  const onDoubleClick = vi.fn();
   const hostSelection = vi.fn((event: MouseEvent) => {
     if (!(event as unknown as Record<string, unknown>).__carmaClaimedClick)
       hostQuery();
@@ -65,6 +66,7 @@ const setup = (
     selectedRecord: null as ObliqueImageRecord | null,
     nearbyRecords: undefined as readonly ObliqueImageRecord[] | undefined,
     onClick,
+    onDoubleClick,
     findAtScreenPoint,
     onHoveredRecord: vi.fn(),
   };
@@ -74,10 +76,13 @@ const setup = (
     x = 90,
     y = 70,
     target: HTMLElement = canvas,
-    button = 0
+    button = 0,
+    detail = 0
   ) => {
     const event = new MouseEvent(type, {
       bubbles: true,
+      cancelable: true,
+      detail,
       clientX: x,
       clientY: y,
       button,
@@ -85,7 +90,16 @@ const setup = (
     target.dispatchEvent(event);
     return event;
   };
-  return { ...view, props, canvas, control, dispatch, onClick, hostQuery };
+  return {
+    ...view,
+    props,
+    canvas,
+    control,
+    dispatch,
+    onClick,
+    onDoubleClick,
+    hostQuery,
+  };
 };
 
 beforeEach(() => vi.clearAllMocks());
@@ -106,6 +120,73 @@ describe("footprint click activation", () => {
     expect(view.onClick).toHaveBeenCalledOnce();
     expect(view.hostQuery).toHaveBeenCalledTimes(2);
     view.unmount();
+  });
+
+  it("retains the clicked image through a locked rerender and intercepts the preview's second click", () => {
+    const view = setup();
+    const centered = vi.fn();
+    const preview = document.createElement("div");
+    const dismissPreview = vi.fn();
+    preview.addEventListener("click", dismissPreview);
+    view.canvas.parentElement!.append(preview);
+    try {
+      view.dispatch("click");
+      view.rerender({
+        ...view.props,
+        locked: true,
+        selectedImageId: "2026:updated",
+        onDoubleClick: centered,
+      });
+      const second = view.dispatch("click", 90, 70, preview, 0, 2);
+      expect(second.defaultPrevented).toBe(true);
+      expect(dismissPreview).not.toHaveBeenCalled();
+      const double = view.dispatch("dblclick", 90, 70, preview);
+      expect(double.defaultPrevented).toBe(true);
+      expect(centered).toHaveBeenCalledOnce();
+      expect(centered).toHaveBeenCalledWith("2024:image");
+      expect(view.onClick).toHaveBeenCalledOnce();
+      view.dispatch("dblclick", 90, 70, preview);
+      expect(centered).toHaveBeenCalledOnce();
+    } finally {
+      view.unmount();
+    }
+  });
+
+  it("ignores unrelated, expired, control and disabled-viewer double clicks", () => {
+    const now = vi.spyOn(performance, "now").mockReturnValue(0);
+    const view = setup();
+    const controlClick = vi.fn();
+    view.control.addEventListener("click", controlClick);
+    try {
+      view.dispatch("dblclick");
+      view.dispatch("click");
+      view.rerender({ ...view.props, locked: true });
+      view.dispatch("dblclick", 90, 70, view.canvas, 2);
+      view.dispatch("dblclick", 120, 70);
+      const secondOnControl = view.dispatch(
+        "click",
+        90,
+        70,
+        view.control,
+        0,
+        2
+      );
+      expect(secondOnControl.defaultPrevented).toBe(false);
+      expect(controlClick).toHaveBeenCalledOnce();
+      view.dispatch("dblclick", 90, 70, view.control);
+      now.mockReturnValue(1501);
+      view.dispatch("dblclick");
+      now.mockReturnValue(500);
+      view.rerender({ ...view.props, enabled: false });
+      view.dispatch("dblclick");
+      view.rerender(view.props);
+      view.dispatch("dblclick");
+      expect(view.onDoubleClick).not.toHaveBeenCalled();
+      expect(view.onClick).toHaveBeenCalledOnce();
+    } finally {
+      view.unmount();
+      now.mockRestore();
+    }
   });
 
   it("ignores right clicks, controls, claimed events and drags that return to their start", () => {

@@ -72,7 +72,6 @@ export type FootprintOutlineLayer = {
 };
 const TRAIL_DURATION_MS = 8000;
 const TRAIL_REPAINT_INTERVAL_MS = 100;
-const OUTLINE_WIDTH_SCALE = 2 / 3;
 const LABEL_FONT_WEIGHT = 1000;
 const LABEL_WIDTH = 512;
 const LABEL_HEIGHT = 256;
@@ -425,10 +424,8 @@ export const createFootprintOutlineLayer = (
       marks.push({
         sceneToImage: projection.matrix,
         sceneToImageTerrain: projection.terrainMatrix,
-        color: new Color(
-          trail || footprint.id === hovered?.id ? "#ffff00" : style.color
-        ),
-        width: (style.width * OUTLINE_WIDTH_SCALE) as CssPixels,
+        color: new Color(style.color),
+        width: style.width as CssPixels,
         opacity: trail
           ? Math.max(0, Math.min(0.2, style.inactiveOpacity ?? 0.2))
           : 1,
