@@ -22,6 +22,12 @@ import {
   PREVIEW_HEIGHT_VAR,
   PREVIEW_WIDTH_VAR,
 } from "./hooks/usePreviewSizeSync";
+import type { ObliqueBackdropLook } from "../core/types";
+import type { PreviewBackdropTint } from "./utils/preview-backdrop";
+
+// Three parked compositions plus the visible one cover a cardinal rotation.
+const parkedCompositions = new Map<string, Worker>();
+let compositionGeneration = 0;
 
 /** Fetch, decode and assemble native RGB in a cancellable worker after the camera rests. */
 export const NativePixels = ({
@@ -34,22 +40,38 @@ export const NativePixels = ({
   principal,
   rollDeg,
   dimImage,
+  sourceUrl,
+  onSourceLoaded,
+  onError,
+  backdropLook,
+  backdropTint,
 }: {
   map: MaplibreMap;
   rootRef: RefObject<HTMLElement>;
-  path: string;
+  path?: string;
   imageId: string;
   nativeSize: { width: DevicePixels; height: DevicePixels };
   halfFovTan: number;
   principal: { xOffset: number; yOffset: number };
   rollDeg: number;
   dimImage: boolean;
+  sourceUrl?: string;
+  onSourceLoaded?: (url: string, width: number, height: number) => void;
+  onError?: () => void;
+  backdropLook?: ObliqueBackdropLook;
+  backdropTint?: PreviewBackdropTint;
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const contentRef = useRef<ScenePreviewImageContent | null>(null);
   const scheduleRef = useRef<
     ((geometry: ScenePreviewImageGeometry) => void) | null
   >(null);
+  const callbacksRef = useRef({ onSourceLoaded, onError });
+  callbacksRef.current = { onSourceLoaded, onError };
+  const lastSourceRef = useRef<string | null>(null);
+  const sourceUrlRef = useRef(sourceUrl);
+  sourceUrlRef.current = sourceUrl;
+  const wholeImage = !!sourceUrl;
   // These states serve only the DOM fallback. Shared-scene publication is synchronous.
   const [ready, setReady] = useState(false);
   const [previewWindow, setPreviewWindow] =
@@ -63,32 +85,48 @@ export const NativePixels = ({
     principal,
     rollDeg,
     priority: 1,
+    backdropLook,
+    backdropTint,
     onBeforeRender: (geometry) => scheduleRef.current?.(geometry),
   });
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas || !rootRef.current || dimImage) return undefined;
+    if (!canvas || !rootRef.current || dimImage || (!wholeImage && !path))
+      return undefined;
     let timer: number | undefined;
     let timeout: number | undefined;
     let worker: Worker | null = null;
     let published: ImageBitmap | null = null;
     let previousGeometry: ScenePreviewImageGeometry | null = null;
     let disposed = false;
-    let generation = 0;
-    const url = new URL(
-      `${path.replace(/\/$/, "")}/${encodeURIComponent(imageId)}.png`,
-      globalThis.window.location.href
-    ).href;
+    let generation = ++compositionGeneration;
+    const workerKey = `${path}/${imageId}`;
+    if (wholeImage) {
+      worker = parkedCompositions.get(workerKey) ?? null;
+      parkedCompositions.delete(workerKey);
+    }
+    let scheduledUrl: string | null = null;
     const cancel = () => {
-      generation++;
+      generation = ++compositionGeneration;
       globalThis.window.clearTimeout(timer);
       globalThis.window.clearTimeout(timeout);
-      worker?.terminate();
-      worker = null;
+      if (wholeImage) worker?.postMessage({ cancel: true });
+      else {
+        worker?.terminate();
+        worker = null;
+      }
     };
     const schedule = (geometry: ScenePreviewImageGeometry) => {
-      if (disposed || geometry === previousGeometry) return;
+      const requestedUrl = sourceUrlRef.current;
+      const url = new URL(
+        requestedUrl ??
+          `${path!.replace(/\/$/, "")}/${encodeURIComponent(imageId)}.png`,
+        globalThis.window.location.href
+      ).href;
+      if (disposed || (geometry === previousGeometry && url === scheduledUrl))
+        return;
+      scheduledUrl = url;
       previousGeometry = geometry;
       cancel();
       const frame = nativePreviewWindow(
@@ -105,15 +143,17 @@ export const NativePixels = ({
       const start = () => {
         if (disposed || epoch !== generation) return;
         if (map.isMoving?.()) {
-          timer = globalThis.window.setTimeout(start, 800);
+          timer = globalThis.window.setTimeout(start, 200);
           return;
         }
         let currentWorker: Worker;
         try {
-          currentWorker = new Worker(
-            new URL("./utils/preview-rgb.worker.ts", import.meta.url),
-            { type: "module" }
-          );
+          currentWorker =
+            worker ??
+            new Worker(
+              new URL("./utils/preview-rgb.worker.ts", import.meta.url),
+              { type: "module" }
+            );
         } catch {
           return;
         }
@@ -121,18 +161,33 @@ export const NativePixels = ({
         let jobTimeout: number | undefined;
         const finish = (error?: string) => {
           globalThis.window.clearTimeout(jobTimeout);
-          currentWorker.terminate();
-          if (worker === currentWorker) worker = null;
+          if (!wholeImage || error) {
+            currentWorker.terminate();
+            if (worker === currentWorker) worker = null;
+          }
+          if (error && wholeImage && !disposed && epoch === generation)
+            callbacksRef.current.onError?.();
           if (error && !disposed && epoch === generation && import.meta.env.DEV)
             console.warn("Native RGB preview unavailable", error);
         };
         currentWorker.onmessage = (
-          event: MessageEvent<{ bitmap?: ImageBitmap; error?: string }>
+          event: MessageEvent<{
+            bitmap?: ImageBitmap;
+            error?: string;
+            generation?: number;
+            sourceWidth?: number;
+            sourceHeight?: number;
+          }>
         ) => {
           const bitmap = event.data.bitmap;
-          if (disposed || epoch !== generation) {
+          if (
+            disposed ||
+            epoch !== generation ||
+            (wholeImage && requestedUrl !== sourceUrlRef.current) ||
+            (event.data.generation !== undefined &&
+              event.data.generation !== epoch)
+          ) {
             bitmap?.close();
-            finish();
             return;
           }
           if (!bitmap || event.data.error) {
@@ -157,6 +212,19 @@ export const NativePixels = ({
             }
             bitmap.close();
           }
+          if (
+            wholeImage &&
+            lastSourceRef.current !== url &&
+            event.data.sourceWidth &&
+            event.data.sourceHeight
+          ) {
+            lastSourceRef.current = url;
+            callbacksRef.current.onSourceLoaded?.(
+              requestedUrl ?? url,
+              event.data.sourceWidth,
+              event.data.sourceHeight
+            );
+          }
           finish();
         };
         currentWorker.onerror = () => finish("RGB worker failed");
@@ -173,12 +241,14 @@ export const NativePixels = ({
             window: frame,
             nativeSize,
             flipForTexture: sceneImage,
+            wholeImage,
+            generation: epoch,
           });
         } catch {
           finish("RGB request transfer failed");
         }
       };
-      timer = globalThis.window.setTimeout(start, 800);
+      timer = globalThis.window.setTimeout(start, 200);
     };
     const movementStarted = () => {
       cancel();
@@ -229,6 +299,30 @@ export const NativePixels = ({
     return () => {
       disposed = true;
       cancel();
+      if (worker && wholeImage) {
+        worker.onmessage = (event: MessageEvent<{ bitmap?: ImageBitmap }>) =>
+          event.data.bitmap?.close();
+        worker.onerror = null;
+        worker.onmessageerror = null;
+        const memoryGb =
+          (navigator as Navigator & { deviceMemory?: number }).deviceMemory ??
+          4;
+        worker.postMessage({
+          cancel: true,
+          park: true,
+          retainedSourceByteLimit:
+            (Math.min(1024, Math.max(256, memoryGb * 128)) * 1024 * 1024) / 4,
+        });
+        parkedCompositions.get(workerKey)?.terminate();
+        parkedCompositions.delete(workerKey);
+        parkedCompositions.set(workerKey, worker);
+        while (parkedCompositions.size > 3) {
+          const oldest = parkedCompositions.keys().next().value!;
+          parkedCompositions.get(oldest)?.terminate();
+          parkedCompositions.delete(oldest);
+        }
+      } else worker?.terminate();
+      worker = null;
       scheduleRef.current = null;
       contentRef.current = null;
       published?.close();
@@ -246,6 +340,7 @@ export const NativePixels = ({
     map,
     rootRef,
     path,
+    wholeImage,
     imageId,
     nativeSize.width,
     nativeSize.height,
@@ -256,6 +351,9 @@ export const NativePixels = ({
     dimImage,
     sceneImage,
   ]);
+  useEffect(() => {
+    map.triggerRepaint();
+  }, [map, sourceUrl]);
 
   const source = previewWindow?.source;
   return (

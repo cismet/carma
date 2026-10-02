@@ -108,15 +108,17 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
     url: string;
     width: number;
     height: number;
-    element: HTMLImageElement;
+    element?: HTMLImageElement;
   } | null>(null);
   const loadedImage =
     decodedImage?.sourceKey === sourceKey ? decodedImage : null;
   const loadedSrc = loadedImage?.url ?? null;
+  const workerPreview =
+    typeof Worker !== "undefined" && typeof OffscreenCanvas !== "undefined";
   const thumbnail = usePrefetchedPreviewThumbnail(
     previewPath,
     imageId,
-    !!loadedImage
+    !!loadedImage && !workerPreview
   );
   const requestedQuality = usePreviewResolution({
     map,
@@ -138,9 +140,9 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
     []
   );
   const progressiveSrc = useProgressivePreviewSource({
-    finalPreviewUrl,
-    previewPath,
-    imageId,
+    finalPreviewUrl: workerPreview ? null : finalPreviewUrl,
+    previewPath: workerPreview ? undefined : previewPath,
+    imageId: workerPreview ? undefined : imageId,
     onError: reportLoadingError,
   });
   // The progressive hook can expose its preceding key until its source-change effect runs.
@@ -155,7 +157,7 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
 
   // Keep the decoded progressive source while its next resolution loads.
   useEffect(() => {
-    if (!currentProgressiveSrc) return undefined;
+    if (workerPreview || !currentProgressiveSrc) return undefined;
     let cancelled = false;
     void loadPreviewImage(currentProgressiveSrc)
       .then((img) => {
@@ -178,7 +180,7 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [currentProgressiveSrc, sourceKey]);
+  }, [currentProgressiveSrc, sourceKey, workerPreview]);
 
   usePreviewSizeSync({
     map,
@@ -225,7 +227,19 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
     (yOffset - 0.5) * 100
   }%)`;
   const displaySrc =
-    loadedSrc ?? (!sceneImage ? thumbnail?.blobUrl ?? null : null);
+    !sceneImage && !workerPreview
+      ? loadedSrc ?? thumbnail?.blobUrl ?? null
+      : null;
+  const onSourceLoaded = useCallback(
+    (url: string, width: number, height: number) => {
+      setDecodedImage((previous) =>
+        previous?.sourceKey === sourceKey && previous.url === url
+          ? previous
+          : { sourceKey, url, width, height }
+      );
+    },
+    [sourceKey]
+  );
 
   return (
     <div
@@ -247,7 +261,7 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
         filterEnabled={!sceneImage}
         onClick={onClose}
       />
-      {displaySrc && (
+      {(displaySrc || workerPreview) && (
         <PreviewImage
           src={displaySrc}
           alt={imageId}
@@ -258,11 +272,20 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
           translate={translate}
           rollDeg={PREVIEW_ROLL_SIGN * rollDeg}
         >
-          {originalPixelPreviewPath && (
+          {(originalPixelPreviewPath || workerPreview) && (
             <NativePixels
               map={map}
               rootRef={rootRef}
-              path={originalPixelPreviewPath}
+              path={originalPixelPreviewPath ?? previewPath}
+              sourceUrl={originalPixelPreviewPath ? undefined : finalPreviewUrl}
+              onSourceLoaded={onSourceLoaded}
+              onError={reportLoadingError}
+              backdropLook={{
+                contrast,
+                brightness: backdropLook.brightness,
+                saturation,
+              }}
+              backdropTint={backdropTint}
               imageId={imageId}
               nativeSize={nativePixelSize}
               halfFovTan={halfFovTan}

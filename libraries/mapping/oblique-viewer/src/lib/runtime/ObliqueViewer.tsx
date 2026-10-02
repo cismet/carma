@@ -69,7 +69,7 @@ import {
   resolveCameraAltitude,
   settleToPitch,
 } from "./utils/flyToImage";
-import { getImageUrls, loadPreviewImage } from "./utils/imageUrls";
+import { getImageUrls } from "./utils/imageUrls";
 import type { CameraFlight } from "./utils/obliqueCamera";
 import {
   beginInteractionProfile,
@@ -538,24 +538,6 @@ export const ObliqueViewer = ({
         if (!url)
           throw new Error("Für dieses Bild ist keine Vorschau-URL verfügbar.");
         const profile = interactionProfile(libreMap);
-        const loadStarted = performance.now();
-        // Navigation starts immediately; progressive/native preview sources load
-        // concurrently and replace the mesh only when their pixels are ready.
-        void loadPreviewImage(url).then(
-          () => profile?.record("loadImage", performance.now() - loadStarted),
-          (error: unknown) => {
-            if (
-              epoch === selectionEpochRef.current &&
-              runningRef.current &&
-              selectedImageRef.current?.record.id === record.id
-            )
-              setRuntimeError(
-                error instanceof Error
-                  ? error.message
-                  : "Bild konnte nicht geladen werden."
-              );
-          }
-        );
         if (
           epoch !== selectionEpochRef.current ||
           !runningRef.current ||

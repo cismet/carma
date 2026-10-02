@@ -8,7 +8,7 @@ import {
 } from "./hooks/usePreviewSizeSync";
 
 type PreviewImageProps = {
-  src: string;
+  src: string | null;
   alt: string;
   /** fade in over 0.8 s rather than appear */
   fadeIn: boolean;
@@ -65,13 +65,15 @@ export const PreviewImage: FC<PreviewImageProps> = ({
   };
   return (
     <div style={wrapperStyle}>
-      <img
-        crossOrigin="anonymous"
-        src={src}
-        alt={alt}
-        style={imageStyle}
-        draggable={false}
-      />
+      {src && (
+        <img
+          crossOrigin="anonymous"
+          src={src}
+          alt={alt}
+          style={imageStyle}
+          draggable={false}
+        />
+      )}
       {children}
     </div>
   );
