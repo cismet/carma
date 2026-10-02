@@ -59,6 +59,7 @@ import {
   getCarmaConfFromStyle,
   isNonSelectable,
   ownLayerId,
+  isHiddenByOpacity,
   resolvePropertyTarget,
 } from "../lib/SelectionManager";
 import type { FeatureIdentifier } from "../lib/selectionTypes";
@@ -1450,7 +1451,8 @@ export const LibreMap = ({
             !ownLayerId(hit).includes("selection") &&
             !ownLayerId(hit).includes("cluster") &&
             !SELECTION_OVERLAY_LAYER_IDS.includes(hit.layer.id) &&
-            !isNonSelectable(hit)
+            !isNonSelectable(hit) &&
+            !isHiddenByOpacity(hit)
           );
         });
 
@@ -2567,7 +2569,8 @@ export const LibreMap = ({
           !ownLayerId(hit).includes("selection") &&
           !ownLayerId(hit).includes("cluster") &&
           !SELECTION_OVERLAY_LAYER_IDS.includes(hit.layer.id) &&
-          !isNonSelectable(hit)
+          !isNonSelectable(hit) &&
+          !isHiddenByOpacity(hit)
       );
 
       // Stamp effective sourceLayer on geojson hits (same convention as

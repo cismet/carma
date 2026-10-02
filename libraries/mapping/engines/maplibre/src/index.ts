@@ -233,6 +233,7 @@ export {
   getCarmaConfFromStyle,
   isNonSelectable,
   ownLayerId,
+  isHiddenByOpacity,
   applySelectionForwarding,
   resolvePropertyTarget,
   enrichHitsWithCarmaInfo,
