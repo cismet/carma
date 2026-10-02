@@ -15,6 +15,7 @@ import CismapLayer from "react-cismap/CismapLayer";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
 import type { Layer } from "@carma-mapping/layers";
+import { FILTER_TYPES } from "@carma-mapping/layers";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
 
 import type { RootState } from "../../../store";
@@ -35,6 +36,7 @@ import {
   setLastAppliedSelection,
   buildFilterExpression,
   captureOriginalFilters,
+  applyStoredPoiFilter,
 } from "@carma-mapping/components";
 
 import { UIMode } from "../../../store/slices/ui";
@@ -369,7 +371,11 @@ export const useCreateCismapLayers = (
             const filterConfig = latestLayer?.filterConfig;
             const filterState = latestLayer?.filterState;
             if (!filterConfig || !filterState) {
-              return;
+              return true;
+            }
+
+            if (filterConfig.filterType === FILTER_TYPES.POI) {
+              return applyStoredPoiFilter(map, filterState);
             }
 
             const pattern = filterConfig.layerPattern.toLowerCase();
@@ -377,7 +383,7 @@ export const useCreateCismapLayers = (
               (styleLayer) => styleLayer.id.toLowerCase().includes(pattern)
             );
             if (styleLayers.length === 0) {
-              return;
+              return true;
             }
 
             styleLayers.forEach((styleLayer) => {
@@ -421,6 +427,7 @@ export const useCreateCismapLayers = (
                 );
               }
             });
+            return true;
           };
 
           return createCismapLayer({
@@ -502,8 +509,20 @@ export const useCreateCismapLayers = (
             onMapLibreCoreMapReady: (map) => {
               console.log("MapLibre map ready for layer:", layer.id, map);
 
-              if (layer.filterConfig?.layerPattern) {
-                applyLayerFilters(map);
+              if (
+                layer.filterConfig &&
+                (layer.filterConfig.filterType === FILTER_TYPES.POI ||
+                  layer.filterConfig.layerPattern)
+              ) {
+                if (!applyLayerFilters(map)) {
+                  // POI kombis come from loaded tiles, so retry until they arrive
+                  const onSourceData = () => {
+                    if (applyLayerFilters(map)) {
+                      map.off("sourcedata", onSourceData);
+                    }
+                  };
+                  map.on("sourcedata", onSourceData);
+                }
                 map.on("styledata", () => applyLayerFilters(map));
               }
 

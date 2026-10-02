@@ -3,39 +3,6 @@
 @tailwind utilities;
 
 html,
-.h5,
-h5 {
-  font-size: 14px;
-}
-
-.h6,
-h6 {
-  font-size: 12px;
-}
-
-p {
-  margin-top: 0;
-  margin-bottom: 1rem;
-}
-
-.h1,
-.h2,
-.h3,
-.h4,
-.h5,
-.h6,
-h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
-  margin-bottom: 0.5rem;
-  font-weight: 500;
-  line-height: 1.2;
-}
-
-html,
 body {
   overscroll-behavior: contain;
 }
@@ -65,27 +32,11 @@ ul {
   display: inline;
 }
 
-a {
-  color: #007bff;
-  text-decoration: none;
-  background-color: transparent;
-}
-
-a:hover {
-  color: #0056b3;
-  text-decoration: underline;
-}
-
+/* Fix Tailwind's .collapse overriding Bootstrap's accordion collapse */
 .collapse.show {
   visibility: visible;
 }
 
 body {
   pointer-events: all !important;
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
-    "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
 }

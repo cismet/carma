@@ -269,6 +269,7 @@ const CarmaMapContent = (props: CarmaMapProps) => {
             {props.modalMenu && modalMenuControl && (
               <Control position="topright" order={10}>
                 <ControlButtonStyler
+                  id="cmdShowModalApplicationMenu"
                   useDisabledStyle={false}
                   onClick={() => {
                     setAppMenuVisible(true);
@@ -284,7 +285,7 @@ const CarmaMapContent = (props: CarmaMapProps) => {
                 {gazetteerSearchComponent ? (
                   gazetteerSearchComponent
                 ) : (
-                  <div data-test-id="fuzzy-search" style={{ marginTop: "4px" }}>
+                  <div style={{ marginTop: "4px" }}>
                     <LibFuzzySearch
                       pixelwidth={
                         responsiveState === "normal"

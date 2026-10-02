@@ -7,7 +7,7 @@ import {
   type ComponentType,
 } from "react";
 import type { Map as MaplibreMap } from "maplibre-gl";
-import type { FilterConfig } from "@carma-mapping/layers";
+import type { ButtonsFilterConfig } from "@carma-mapping/layers";
 import { CarmaMap } from "@carma-mapping/core";
 import { Control } from "@carma-mapping/map-controls-layout";
 import {
@@ -44,7 +44,9 @@ type LayerFilterControlsProps = {
 };
 
 function LayerFilterControls({ layer, libreMap }: LayerFilterControlsProps) {
-  const [filterConfig, setFilterConfig] = useState<FilterConfig | null>(null);
+  const [filterConfig, setFilterConfig] = useState<ButtonsFilterConfig | null>(
+    null
+  );
   const [feature, setFeature] = useState<unknown>(undefined);
   const [layersReady, setLayersReady] = useState(false);
 
@@ -57,7 +59,7 @@ function LayerFilterControls({ layer, libreMap }: LayerFilterControlsProps) {
           return;
         }
         const cfg = style?.metadata?.carmaConf?.filterConfig as
-          | FilterConfig
+          | ButtonsFilterConfig
           | undefined;
         if (cfg) {
           setFilterConfig(cfg);

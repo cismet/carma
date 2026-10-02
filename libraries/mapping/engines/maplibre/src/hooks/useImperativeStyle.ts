@@ -69,6 +69,8 @@ export function useImperativeStyle({
   const prevIdsRef = useRef<string[]>([]);
   const prevOpacitiesRef = useRef<Map<string, number>>(new Map());
   const isApplyingRef = useRef(false);
+  const markerSymbolSizeRef = useRef(markerSymbolSize);
+  markerSymbolSizeRef.current = markerSymbolSize;
 
   // Stable callback: add all effective layers to the composer
   const applyAllLayers = useCallback(
@@ -98,7 +100,7 @@ export function useImperativeStyle({
           if (layer.type === "vector") {
             await composer.addVectorSubStyle(layer, {
               opacity: layer.opacity,
-              markerSymbolSize,
+              markerSymbolSize: markerSymbolSizeRef.current,
               zIndex: i,
             });
           } else if (layer.type === "geojson") {
@@ -189,11 +191,11 @@ export function useImperativeStyle({
         isApplyingRef.current = false;
       }
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- markerSymbolSize accessed via ref
     [
       vectorBackgroundLayers,
       layers,
       clusteringEnabled,
-      markerSymbolSize,
       filterFunction,
       onMappingUpdate,
       onGeoJsonMetadataUpdate,
@@ -356,7 +358,7 @@ export function useImperativeStyle({
           if (layer.type === "vector") {
             await composer.addVectorSubStyle(layer, {
               opacity: layer.opacity,
-              markerSymbolSize,
+              markerSymbolSize: markerSymbolSizeRef.current,
               zIndex: i,
               beforeId,
             });
@@ -432,13 +434,13 @@ export function useImperativeStyle({
     return () => {
       aborted = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- markerSymbolSize accessed via ref
   }, [
     enabled,
     map,
     layers,
     vectorBackgroundLayers,
     clusteringEnabled,
-    markerSymbolSize,
     filterFunction,
     onMappingUpdate,
     onGeoJsonMetadataUpdate,
