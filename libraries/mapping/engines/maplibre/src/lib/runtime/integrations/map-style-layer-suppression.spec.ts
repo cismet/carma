@@ -495,3 +495,26 @@ describe("MapLibre terrain mesh composition", () => {
     ]);
   });
 });
+
+describe("authored ground symbol capture", () => {
+  it("keeps explicitly draped point icons in the ground pass while ordinary point labels remain overlaid", () => {
+    expect(
+      isMapStylePointLabelLayer({
+        id: "carma-oblique-label",
+        type: "symbol",
+        metadata: { "carma:map-style-placement": "draped" },
+        layout: { "symbol-placement": "point" },
+      })
+    ).toBe(false);
+    expect(
+      isMapStylePointLabelLayer({
+        id: "ordinary-poi",
+        type: "symbol",
+        layout: { "symbol-placement": "point" },
+      })
+    ).toBe(true);
+    expect(
+      isMapStylePointLabelLayer({ id: "ordinary-poi", type: "symbol" })
+    ).toBe(true);
+  });
+});

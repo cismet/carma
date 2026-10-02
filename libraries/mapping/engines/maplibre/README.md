@@ -217,7 +217,31 @@ The MapLibre/Three map-style presentation is optional. Enable the `mapStyle3d`
 addon to drape the selected vector style and float its point labels above the
 scene. Shadow simulation acquires the same presentation independently; removing
 MapStyle3d does not remove an active shadow scene or rebuild loaded tiles.
-See [MapStyle3d](../../addons/src/addons/MapStyle3d/README.md) for route configuration.
+See [MapStyle3d](../../addons/src/addons/MapStyle3d/README.md) for route configuration. Native point symbols that represent ground annotations may declare
+`metadata: { "carma:map-style-placement": "draped" }` to remain in the captured
+ground pass instead of the floating point-label pass. They must precede the shared
+scene layer, as the oblique footprint's year label does. Ordinary point labels
+retain their existing placement.
+
+`setMapStyleSurfaceOverlay(id, { texture, bounds, opacity })` on the existing
+shared scene layer paints a caller-owned georeferenced texture on visible style
+receivers using world coordinates. Unlike DEM street labels, this surface pass
+also marks roofs and retains the texture's alpha. It is available independently
+of the MapStyle3d presentation toggle. Owners remove their ID before disposing
+the texture; removing the latest owner restores the preceding overlay. The
+oblique footprint uses this instead of per-vertex height queries or additional
+scene geometry.
+
+`setMapStyleScreenOverlay(id, { texture, viewportToTexture, opacity, priority })`
+places a caller-owned photograph between receiver colour and draped labels in the
+same scene. The Matrix3 maps normalized bottom-left viewport UV to texture UV,
+including calibrated pan/roll and a native source crop. The two highest-priority
+owners supply at most two texture slots. An opaque-list two-triangle background
+quad shares these uniforms to cover pixels without receiver geometry; receiver
+fragments composite the same image before their existing depth-tested labels.
+Following native point labels retain their normal order. Removing an owner clears
+its slot; callers dispose their textures. Unchanged texture versions, transforms
+and opacities do not invalidate the map.
 
 Layer opacity multiplies authored material opacity after any full-opacity shadow styling. Below full opacity, materials enable transparency and disable depth writing; restoring full opacity restores the appropriate source render flags. Updating opacity or colour-correction uniforms does not replace the loaded tile pool.
 

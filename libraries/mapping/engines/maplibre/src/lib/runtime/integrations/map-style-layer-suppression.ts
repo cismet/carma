@@ -86,7 +86,11 @@ const ROAD_LABEL_HINT =
 export const isMapStylePointLabelLayer = (
   layer: RuntimeStyleLayer
 ): boolean => {
-  if (layer.type !== "symbol") return false;
+  if (
+    layer.type !== "symbol" ||
+    layer.metadata?.["carma:map-style-placement"] === "draped"
+  )
+    return false;
   const placement = layer.layout?.["symbol-placement"];
   return placement === undefined || placement === "point";
 };

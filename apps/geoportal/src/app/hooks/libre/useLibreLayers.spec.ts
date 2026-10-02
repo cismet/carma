@@ -1,9 +1,44 @@
-import { renderHook } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Layer } from "@carma-mapping/layers";
 import type { AddonEntry, AddonOverridesState } from "@carma-mapping/addons";
+import { obliqueFachzwilling } from "../../constants/fachzwillinge/oblique";
+import { MapStyleKeys } from "../../constants/MapStyleKeys";
+import {
+  OBLIQUE_MESH_2024_STYLE_URI,
+  OBLIQUE_LOD2_STYLE,
+} from "../../config/oblique.config";
+
+type TerrainRuntime = {
+  id: string;
+  ready: Promise<boolean>;
+  isBaseViewReady: ReturnType<typeof vi.fn>;
+  dispose: ReturnType<typeof vi.fn>;
+};
+type SceneLease = {
+  options?: { mapStylePresentation?: boolean };
+  release: ReturnType<typeof vi.fn>;
+  setPointLabelOverlayVisible: ReturnType<typeof vi.fn>;
+  layer: {
+    addRuntime: ReturnType<typeof vi.fn>;
+    removeRuntime: ReturnType<typeof vi.fn>;
+  };
+};
 
 const state = vi.hoisted(() => ({
+  sourceParityStyle: {
+    version: 8,
+    metadata: {
+      carmaConf: {
+        "3d": {
+          tilesetUrl: "https://example.test/mesh2024/tileset.json",
+          basemap: "none",
+        },
+      },
+    },
+    sources: {},
+    layers: [],
+  },
   layers: [] as unknown[],
   pathname: "/",
   search: "",
@@ -11,6 +46,21 @@ const state = vi.hoisted(() => ({
   addons: [] as AddonEntry[],
   overrides: undefined as AddonOverridesState | undefined,
   backgroundOptions: [] as Array<Record<string, unknown>>,
+  currentStyle: "luftbild",
+  setCurrentStyle: vi.fn(),
+  obliqueEnabled: false,
+  map: null as { getCenter: () => { lng: number; lat: number } } | null,
+  leases: [] as SceneLease[],
+  runtimes: [] as TerrainRuntime[],
+  terrainUsable: true,
+  pendingTerrain: [] as Array<(ready: boolean) => void>,
+  unregisters: [] as ReturnType<typeof vi.fn>[],
+  restores: [] as ReturnType<typeof vi.fn>[],
+  acquireComposition: vi.fn(),
+  buildTerrain: vi.fn(),
+  notifyChanged: vi.fn(),
+  shadedReady: false,
+  presentationListeners: new Set<() => void>(),
 }));
 
 vi.mock("react-redux", async (importOriginal) => ({
@@ -27,33 +77,137 @@ vi.mock("../../store/slices/mapping", () => ({
 vi.mock("../../config/backgroundConfig", () => ({
   backgroundConfig: { namedLayers: {} },
 }));
-// Registry resolution does not render the canvas-based annotation tools.
-vi.mock(
-  "../../../../../../libraries/mapping/addons/src/addons/Annotation",
-  () => ({
-    AnnotationControl: () => null,
-    AnnotationOverlay: () => null,
-  })
-);
+vi.mock("../useGeoportalMapStyle", () => ({
+  useMapStyle: () => ({
+    currentStyle: state.currentStyle,
+    setCurrentStyle: state.setCurrentStyle,
+  }),
+}));
+vi.mock("@carma-mapping/contexts", () => ({
+  useLibreContext: () => ({ map: state.map }),
+}));
+vi.mock("@carma-commons/resources", () => ({
+  NRW_DGM1_DHHN2016_TERRARIUM_TERRAIN: { id: "test-terrain" },
+}));
+vi.mock("@carma-commons/utils", () => ({ isHttpCacheForced: () => false }));
+vi.mock("@carma-mapping/components", () => ({
+  applyDynamicStylingToStylesheet: (style: unknown) => style,
+  buildFilterExpression: () => null,
+}));
+vi.mock("../../config/oblique.config", () => ({
+  OBLIQUE_VIEWER_CONFIG: {},
+  OBLIQUE_VIEWER_DEPLOYMENTS: ["localDev", "dev", "pr"],
+  OBLIQUE_MESH_2024_STYLE_URI: "/data/test-parity.style.json",
+  OBLIQUE_LOD2_STYLE: {
+    version: 8,
+    metadata: {
+      carmaConf: {
+        "3d": {
+          tilesetUrl: "https://example.test/lod2/tileset.json",
+          providesTerrain: false,
+        },
+      },
+    },
+    sources: {},
+    layers: [],
+  },
+  OBLIQUE_BASE_TILESET_URLS: [
+    "https://example.test/mesh2024/tileset.json",
+    "https://example.test/lod2/tileset.json",
+  ],
+}));
+vi.mock("@carma-mapping/engines/maplibre", () => ({
+  THREE_TILES_LAYER_TYPE: "three-tiles",
+  THREE_TILES_SHADER_KIND: { CLAY: "clay" },
+  TILES3D_BASEMAP: { NONE: "none", LABELS: "labels" },
+  acquireSharedThreeScene: (_map: unknown, options?: SceneLease["options"]) => {
+    let attached: TerrainRuntime | undefined;
+    const lease = {
+      options,
+      release: vi.fn(),
+      setPointLabelOverlayVisible: vi.fn(),
+      layer: {
+        addRuntime: vi.fn((runtime: TerrainRuntime) => {
+          attached = runtime;
+        }),
+        removeRuntime: vi.fn((id: string) => {
+          if (attached?.id === id) attached.dispose();
+        }),
+      },
+    };
+    state.leases.push(lease);
+    return lease;
+  },
+  registerSharedThreeSceneRuntime: () => {
+    const unregister = vi.fn();
+    state.unregisters.push(unregister);
+    return unregister;
+  },
+  notifySharedThreeSceneContentChanged: state.notifyChanged,
+  hasSharedThreeShadedPresentation: () => state.shadedReady,
+  subscribeSharedThreeShadedPresentation: (
+    _map: unknown,
+    listener: () => void
+  ) => {
+    state.presentationListeners.add(listener);
+    return () => state.presentationListeners.delete(listener);
+  },
+  acquireMapLibreTerrainMeshComposition: (...args: unknown[]) => {
+    state.acquireComposition(...args);
+    const restore = vi.fn();
+    state.restores.push(restore);
+    return restore;
+  },
+}));
+vi.mock("@carma-mapping/engines/maplibre/terrain", () => ({
+  buildRasterDemTerrainRuntime: (...args: unknown[]) => {
+    state.buildTerrain(...args);
+    const runtime: TerrainRuntime = {
+      id: String(args[0]),
+      ready: new Promise<boolean>((resolve) =>
+        state.pendingTerrain.push(resolve)
+      ),
+      isBaseViewReady: vi.fn(() => state.terrainUsable),
+      dispose: vi.fn(),
+    };
+    state.runtimes.push(runtime);
+    return runtime;
+  },
+}));
 vi.mock("@carma-mapping/addons", async () => {
-  const { applyAddonOverrides } = await vi.importActual<
-    typeof import("../../../../../../libraries/mapping/addons/src/lib/addon-overrides")
-  >("../../../../../../libraries/mapping/addons/src/lib/addon-overrides");
-  const { resolveAddonEntries } = await vi.importActual<
-    typeof import("../../../../../../libraries/mapping/addons/src/lib/registry")
-  >("../../../../../../libraries/mapping/addons/src/lib/registry");
-  // Keep the real route and override rules without loading the addon barrel.
   const { conditionRouteOf, isShownByCondition } = await vi.importActual<
     typeof import("../../../../../../libraries/mapping/addons/src/addons/ConditionalLayer")
   >("../../../../../../libraries/mapping/addons/src/addons/ConditionalLayer");
+  type Entry = { kind: string; config?: unknown };
   return {
     conditionRouteOf,
     isShownByCondition,
     useAddonState: () => [state.shadow],
     useRouteAddons: () => state.addons,
     usePersistedAddonOverrides: () => [state.overrides],
-    applyAddonOverrides,
-    resolveAddonEntries,
+    useObliqueViewerActions: () => ({ isOn: state.obliqueEnabled }),
+    // Registry and persistence have their own tests; exercise this hook without
+    // initializing unrelated addon components and mapping-engine barrels.
+    resolveAddonEntries: (entries: AddonEntry[]) =>
+      entries.map((entry) =>
+        typeof entry === "string"
+          ? { kind: entry }
+          : {
+              kind: "addon" in entry ? entry.addon : entry.kind,
+              config: entry.config,
+            }
+      ),
+    applyAddonOverrides: (
+      entries: Entry[],
+      overrides?: AddonOverridesState
+    ) => [
+      ...entries.filter(
+        (entry) => !overrides?.suspended.some((kind) => kind === entry.kind)
+      ),
+      ...(overrides?.enabled ?? [])
+        .filter((kind) => !entries.some((entry) => entry.kind === kind))
+        .map((kind) => ({ kind })),
+    ],
   };
 });
 vi.mock(
@@ -84,6 +238,18 @@ vi.mock(
 );
 
 import { useLibreLayers } from "./useLibreLayers";
+
+const expectedParityStyle = {
+  ...state.sourceParityStyle,
+  metadata: {
+    carmaConf: {
+      "3d": {
+        ...state.sourceParityStyle.metadata.carmaConf["3d"],
+        basemap: "labels",
+      },
+    },
+  },
+};
 
 const bridgeMask = {
   id: "buga-bruecke",
@@ -120,7 +286,30 @@ const lastBackgroundOptions = () =>
   state.backgroundOptions[state.backgroundOptions.length - 1];
 
 describe("useLibreLayers with conditional layers", () => {
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+  });
   beforeEach(() => {
+    vi.clearAllMocks();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => structuredClone(state.sourceParityStyle),
+      })
+    );
+    state.currentStyle = MapStyleKeys.AERIAL;
+    state.obliqueEnabled = false;
+    state.map = null;
+    state.leases = [];
+    state.runtimes = [];
+    state.pendingTerrain = [];
+    state.unregisters = [];
+    state.restores = [];
+    state.terrainUsable = true;
+    state.shadedReady = false;
+    state.presentationListeners.clear();
     state.layers = [];
     state.pathname = "/";
     state.search = "";
@@ -208,5 +397,373 @@ describe("useLibreLayers with conditional layers", () => {
     expect(lastBackgroundOptions()).toMatchObject({
       vectorBaseOverride: false,
     });
+  });
+
+  it("uses oblique route vector base map without shadows and respects suspension", () => {
+    state.addons = obliqueFachzwilling.addons ?? [];
+    const view = renderHook(() => useLibreLayers());
+
+    expect(state.shadow).toBeUndefined();
+    expect(lastBackgroundOptions()).toMatchObject({
+      mapStyle3dActive: true,
+      vectorBaseOverride: true,
+    });
+
+    state.overrides = { suspended: ["mapStyle3d"], enabled: [] };
+    view.rerender();
+    expect(lastBackgroundOptions()).toMatchObject({
+      mapStyle3dActive: false,
+      vectorBaseOverride: false,
+    });
+
+    state.addons = [];
+    state.overrides = undefined;
+    view.rerender();
+    expect(lastBackgroundOptions()).toMatchObject({
+      mapStyle3dActive: false,
+      vectorBaseOverride: false,
+    });
+  });
+  it.each(["disabled", "unregistered", "suspended"])(
+    "does not own an Oblique basis when the viewer is %s",
+    (reason) => {
+      state.map = { getCenter: () => ({ lng: 7.2, lat: 51.27 }) };
+      state.obliqueEnabled = reason !== "disabled";
+      state.addons = reason === "unregistered" ? [] : ["obliqueViewer"];
+      state.overrides =
+        reason === "suspended"
+          ? { suspended: ["obliqueViewer"], enabled: [] }
+          : undefined;
+      expect(drawnIds()).toEqual([]);
+      expect(state.setCurrentStyle).not.toHaveBeenCalled();
+      expect(state.leases).toEqual([]);
+      expect(state.buildTerrain).not.toHaveBeenCalled();
+      expect(lastBackgroundOptions()).toMatchObject({
+        meshBaseActive: false,
+        mapStyle3dActive: false,
+        vectorBaseOverride: false,
+        shadowTerrainActive: false,
+      });
+    }
+  );
+
+  it("loads the parity mesh and leases the explicitly enabled map style", async () => {
+    state.map = { getCenter: () => ({ lng: 7.2, lat: 51.27 }) };
+    state.addons = [
+      "obliqueViewer",
+      { addon: "mapStyle3d", config: { vectorBaseMap: true } },
+    ];
+    const view = renderHook(() => useLibreLayers());
+    expect(view.result.current).toEqual([]);
+    state.obliqueEnabled = true;
+    view.rerender();
+    expect(view.result.current).toEqual([]);
+    expect(fetch).toHaveBeenCalledWith(OBLIQUE_MESH_2024_STYLE_URI, {
+      signal: expect.any(AbortSignal),
+    });
+    await waitFor(() => expect(view.result.current).toHaveLength(1));
+    expect(view.result.current).toEqual([
+      expect.objectContaining({
+        type: "vector",
+        name: "oblique-mesh2024",
+        carmaLayerId: "__oblique-basemap",
+        style: expectedParityStyle,
+      }),
+    ]);
+    expect(state.layers).toEqual([]);
+    expect(state.setCurrentStyle).toHaveBeenCalledOnce();
+    expect(state.setCurrentStyle).toHaveBeenCalledWith(MapStyleKeys.AERIAL);
+    expect(state.leases).toHaveLength(1);
+    expect(state.leases[0].options).toEqual({ mapStylePresentation: true });
+    expect(state.leases[0].setPointLabelOverlayVisible).toHaveBeenCalledWith(
+      true
+    );
+    expect(lastBackgroundOptions()).toMatchObject({
+      mapStyle3dActive: true,
+      vectorBaseOverride: true,
+      meshBaseActive: true,
+      shadowTerrainActive: false,
+      standaloneMeshOnly: false,
+    });
+    view.rerender();
+    expect(state.setCurrentStyle).toHaveBeenCalledTimes(1);
+    expect(state.leases).toHaveLength(1);
+    state.obliqueEnabled = false;
+    view.rerender();
+    expect(view.result.current).toEqual([]);
+    expect(state.leases[0].release).toHaveBeenCalledOnce();
+    expect(lastBackgroundOptions()).toMatchObject({
+      mapStyle3dActive: true,
+      meshBaseActive: false,
+    });
+    state.obliqueEnabled = true;
+    view.rerender();
+    expect(state.setCurrentStyle).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps the mesh and Karte terrain without opting into map-style presentation", async () => {
+    state.map = { getCenter: () => ({ lng: 7.2, lat: 51.27 }) };
+    state.addons = ["obliqueViewer"];
+    state.obliqueEnabled = true;
+    const view = renderHook(() => useLibreLayers());
+    await waitFor(() => expect(view.result.current).toHaveLength(1));
+    expect(view.result.current[0]).toMatchObject({ name: "oblique-mesh2024" });
+    expect(lastBackgroundOptions()).toMatchObject({
+      mapStyle3dActive: false,
+      vectorBaseOverride: false,
+      meshBaseActive: true,
+    });
+    expect(state.leases).toEqual([]);
+    state.currentStyle = MapStyleKeys.TOPO;
+    view.rerender();
+    expect(view.result.current[0]).toMatchObject({ name: "oblique-lod2" });
+    expect(lastBackgroundOptions()).toMatchObject({
+      mapStyle3dActive: false,
+      vectorBaseOverride: false,
+      shadowTerrainActive: true,
+    });
+    expect(state.buildTerrain).toHaveBeenCalledOnce();
+    expect(state.leases).toHaveLength(1);
+    expect(state.leases[0].options).toBeUndefined();
+    expect(state.leases[0].setPointLabelOverlayVisible).not.toHaveBeenCalled();
+    await act(async () => state.pendingTerrain[0](true));
+    expect(state.acquireComposition).toHaveBeenCalledOnce();
+    view.unmount();
+    expect(state.leases[0].release).toHaveBeenCalledOnce();
+  });
+
+  it("switches Luftbild to LoD2 and terrain on Karte, hides native paint only after readiness, and restores it on return", async () => {
+    state.map = { getCenter: () => ({ lng: 7.2, lat: 51.27 }) };
+    state.addons = [
+      "obliqueViewer",
+      { addon: "mapStyle3d", config: { vectorBaseMap: true } },
+    ];
+    state.obliqueEnabled = true;
+    const view = renderHook(() => useLibreLayers());
+    const presentation = state.leases[0];
+    expect(state.buildTerrain).not.toHaveBeenCalled();
+    state.currentStyle = MapStyleKeys.TOPO;
+    view.rerender();
+    expect(view.result.current).toEqual([
+      expect.objectContaining({
+        name: "oblique-lod2",
+        style: OBLIQUE_LOD2_STYLE,
+      }),
+    ]);
+    expect(state.setCurrentStyle).toHaveBeenCalledTimes(1);
+    expect(lastBackgroundOptions()).toMatchObject({
+      meshBaseActive: false,
+      shadowTerrainActive: true,
+      vectorBaseOverride: true,
+    });
+    expect(state.buildTerrain).toHaveBeenCalledWith(
+      "carma-oblique-terrain",
+      { id: "test-terrain" },
+      [7.2, 51.27],
+      expect.objectContaining({
+        receivesMapStyleTexture: true,
+        errorTargetPixels: 1,
+        motionErrorTargetPixels: 4,
+      })
+    );
+    const terrain = state.runtimes[0];
+    const terrainLease = state.leases[1];
+    expect(terrainLease.layer.addRuntime).toHaveBeenCalledWith(terrain);
+    expect(state.acquireComposition).not.toHaveBeenCalled();
+    await act(async () => {
+      state.pendingTerrain[0](true);
+    });
+    expect(state.acquireComposition).toHaveBeenCalledOnce();
+    expect(state.acquireComposition).toHaveBeenCalledWith(state.map);
+    const options = state.buildTerrain.mock.calls[0][3] as {
+      onContentChanged: (bounds: unknown) => void;
+    };
+    const bounds = [0, 0, 1, 1];
+    options.onContentChanged(bounds);
+    expect(state.notifyChanged).toHaveBeenCalledWith(state.map, { bounds });
+    state.currentStyle = MapStyleKeys.AERIAL;
+    view.rerender();
+    await waitFor(() =>
+      expect(view.result.current[0]).toMatchObject({
+        name: "oblique-mesh2024",
+        style: expectedParityStyle,
+      })
+    );
+    expect(state.unregisters[0]).toHaveBeenCalledOnce();
+    expect(terrainLease.layer.removeRuntime).toHaveBeenCalledWith(terrain.id);
+    expect(terrain.dispose).toHaveBeenCalledOnce();
+    expect(state.restores[0]).toHaveBeenCalledOnce();
+    expect(terrainLease.release).toHaveBeenCalledOnce();
+    expect(presentation.release).not.toHaveBeenCalled();
+    view.unmount();
+    expect(presentation.release).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    { ready: false, usable: true },
+    { ready: true, usable: false },
+  ])(
+    "keeps native ground paint when terrain readiness is $ready and usability is $usable",
+    async ({ ready, usable }) => {
+      state.map = { getCenter: () => ({ lng: 7.2, lat: 51.27 }) };
+      state.addons = ["obliqueViewer"];
+      state.obliqueEnabled = true;
+      state.terrainUsable = usable;
+      const view = renderHook(() => useLibreLayers());
+      state.currentStyle = MapStyleKeys.TOPO;
+      view.rerender();
+      await act(async () => {
+        state.pendingTerrain[0](ready);
+      });
+      expect(state.acquireComposition).not.toHaveBeenCalled();
+      view.unmount();
+      expect(state.runtimes[0].dispose).toHaveBeenCalledOnce();
+      expect(state.unregisters[0]).toHaveBeenCalledOnce();
+    }
+  );
+
+  it.each(["aerial", "off", "suspended", "unmount"])(
+    "ignores late terrain readiness after %s and releases the terrain runtime",
+    async (exit) => {
+      state.map = { getCenter: () => ({ lng: 7.2, lat: 51.27 }) };
+      state.addons = ["obliqueViewer"];
+      state.obliqueEnabled = true;
+      const view = renderHook(() => useLibreLayers());
+      state.currentStyle = MapStyleKeys.TOPO;
+      view.rerender();
+      if (exit === "unmount") view.unmount();
+      else {
+        if (exit === "aerial") state.currentStyle = MapStyleKeys.AERIAL;
+        if (exit === "off") state.obliqueEnabled = false;
+        if (exit === "suspended")
+          state.overrides = { suspended: ["obliqueViewer"], enabled: [] };
+        view.rerender();
+      }
+      await act(async () => {
+        state.pendingTerrain[0](true);
+      });
+      expect(state.acquireComposition).not.toHaveBeenCalled();
+      expect(state.unregisters[0]).toHaveBeenCalledOnce();
+      expect(state.leases[0].layer.removeRuntime).toHaveBeenCalledWith(
+        "carma-oblique-terrain"
+      );
+      expect(state.runtimes[0].dispose).toHaveBeenCalledOnce();
+      expect(state.leases[0].release).toHaveBeenCalledOnce();
+    }
+  );
+
+  it("draws managed tileset URLs once and restores their explicit stack entries when the viewer is off", async () => {
+    const mesh = {
+      id: "explicit-mesh",
+      visible: true,
+      conf: {
+        "3d": { tilesetUrl: "https://example.test/mesh2024/tileset.json" },
+      },
+    };
+    const lod2 = {
+      id: "explicit-lod2",
+      visible: true,
+      props: { style: OBLIQUE_LOD2_STYLE },
+    };
+    const custom = {
+      id: "different-mesh",
+      visible: true,
+      conf: {
+        "3d": {
+          tilesetUrl: "https://example.test/mesh2024/tileset.json?custom=1",
+        },
+      },
+    };
+    state.layers = [mesh, lod2, custom];
+    state.obliqueEnabled = true;
+    state.addons = ["obliqueViewer"];
+    const view = renderHook(() => useLibreLayers());
+    await waitFor(() => expect(view.result.current).toHaveLength(2));
+    expect(view.result.current).toEqual([
+      expect.objectContaining({ carmaLayerId: "__oblique-basemap" }),
+      { id: "different-mesh" },
+    ]);
+    expect(state.layers).toEqual([mesh, lod2, custom]);
+    state.obliqueEnabled = false;
+    view.rerender();
+    expect(view.result.current).toEqual([
+      { id: "explicit-mesh" },
+      { id: "explicit-lod2" },
+      { id: "different-mesh" },
+    ]);
+  });
+
+  it("hides native ground paint once the aerial mesh is presented and restores it on exit", () => {
+    state.map = { getCenter: () => ({ lng: 7.2, lat: 51.27 }) };
+    state.addons = ["obliqueViewer"];
+    state.obliqueEnabled = true;
+    const view = renderHook(() => useLibreLayers());
+    expect(state.acquireComposition).not.toHaveBeenCalled();
+    act(() => {
+      state.shadedReady = true;
+      for (const listener of state.presentationListeners) listener();
+    });
+    expect(state.acquireComposition).toHaveBeenCalledOnce();
+    act(() => {
+      for (const listener of state.presentationListeners) listener();
+    });
+    expect(state.acquireComposition).toHaveBeenCalledOnce();
+    state.obliqueEnabled = false;
+    view.rerender();
+    expect(state.restores[0]).toHaveBeenCalledOnce();
+    expect(state.presentationListeners.size).toBe(0);
+  });
+
+  it("releases aerial suppression if the shared mesh is no longer presented", () => {
+    state.map = { getCenter: () => ({ lng: 7.2, lat: 51.27 }) };
+    state.addons = ["obliqueViewer"];
+    state.obliqueEnabled = true;
+    state.shadedReady = true;
+    const view = renderHook(() => useLibreLayers());
+    expect(state.acquireComposition).toHaveBeenCalledOnce();
+    act(() => {
+      state.shadedReady = false;
+      for (const listener of state.presentationListeners) listener();
+    });
+    expect(state.restores[0]).toHaveBeenCalledOnce();
+    view.unmount();
+    expect(state.restores[0]).toHaveBeenCalledOnce();
+  });
+
+  it("ignores a late parity response after the viewer is disabled", async () => {
+    let deliver!: (response: unknown) => void;
+    vi.mocked(fetch).mockReturnValueOnce(
+      new Promise((resolve) => {
+        deliver = resolve;
+      }) as Promise<Response>
+    );
+    state.addons = ["obliqueViewer"];
+    state.obliqueEnabled = true;
+    const view = renderHook(() => useLibreLayers());
+    const signal = vi.mocked(fetch).mock.calls[0][1]?.signal;
+    expect(view.result.current).toEqual([]);
+    state.obliqueEnabled = false;
+    view.rerender();
+    expect(signal?.aborted).toBe(true);
+    await act(async () => {
+      deliver({
+        ok: true,
+        json: async () => structuredClone(state.sourceParityStyle),
+      });
+    });
+    expect(view.result.current).toEqual([]);
+    expect(lastBackgroundOptions().meshBaseActive).toBe(false);
+  });
+
+  it("does not claim a mesh basis for ordinary MapStyle3d aerial rendering", () => {
+    state.addons = [{ addon: "mapStyle3d", config: { vectorBaseMap: true } }];
+    drawnIds();
+    expect(lastBackgroundOptions()).toMatchObject({
+      mapStyle3dActive: true,
+      vectorBaseOverride: true,
+      meshBaseActive: false,
+      shadowTerrainActive: false,
+    });
+    expect(state.buildTerrain).not.toHaveBeenCalled();
   });
 });

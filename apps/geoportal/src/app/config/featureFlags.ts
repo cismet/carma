@@ -14,6 +14,16 @@ export const featureFlagConfig: FeatureFlagConfig = {
     default: false,
     alias: "oblqui",
   },
+  // the Schrägluftbild viewer as an addon on the MapLibre map; the Cesium
+  // viewer stays until the MapLibre one has replaced it
+  featureFlagObliqueViewerAddon: {
+    default: false,
+    alias: "oblique",
+  },
+  featureFlagMapStyle3d: {
+    default: false,
+    alias: "mapstyle3d",
+  },
   isDebugMode: {
     // general debug mode
     default: false,

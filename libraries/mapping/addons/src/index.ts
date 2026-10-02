@@ -255,6 +255,34 @@ export {
   type UseTrafficAnimationLayerRowOptions,
 } from "./addons/TrafficAnimation";
 
+export {
+  ObliqueViewer,
+  ObliquePanel,
+  ObliqueInteractionPanel,
+  useObliqueViewerActions,
+  useObliqueLayerRow,
+  formatImageLabel,
+  resolveBackdropLook,
+  obliqueStateStorageKey,
+  BACKDROP_LOOK_BOUNDS as OBLIQUE_BACKDROP_LOOK_BOUNDS,
+  BACKDROP_LOOK_DEFAULT as OBLIQUE_BACKDROP_LOOK_DEFAULT,
+  OBLIQUE_ICON_COLOR,
+  OBLIQUE_LAYER,
+  OBLIQUE_LAYER_ID,
+  OBLIQUE_FLY_TOGGLE_ID,
+  OBLIQUE_TOOLS_INTERACTION_ID,
+  OBLIQUE_STATE_DEFAULT,
+  OBLIQUE_STATE_STORAGE_KEY,
+  type ObliqueBackdropLook,
+  type ObliqueDataset,
+  type ObliqueHeightDatum,
+  type ObliqueCommand,
+  type ObliqueRequest,
+  type ObliqueViewerConfig,
+  type ObliqueViewerState,
+  type UseObliqueLayerRowOptions,
+} from "./addons/ObliqueViewer";
+
 export { useHasAddonStateProducer } from "./lib/addon-channels";
 export {
   useAddonState,

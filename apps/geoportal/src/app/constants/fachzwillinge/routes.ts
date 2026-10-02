@@ -5,6 +5,7 @@ import { addonsFachzwilling } from "./addons";
 import { kommunalePlanungFachzwilling } from "./kommunalePlanung";
 import { workflowsFachzwilling } from "./workflows";
 import { projectionMappingFachzwilling } from "./projectionMapping";
+import { obliqueFachzwilling } from "./oblique";
 
 import type { FachzwillingRoute } from ".";
 
@@ -24,6 +25,7 @@ export const allFachzwillingRoutes: FachzwillingRoute[] = [
   kommunalePlanungFachzwilling,
   workflowsFachzwilling,
   projectionMappingFachzwilling,
+  obliqueFachzwilling,
 ];
 
 /**

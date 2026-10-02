@@ -241,6 +241,25 @@ describe("MapLibre ground capture reuse", () => {
     }
   );
 
+  it("reuses ground beneath hidden feature-state footprint layers", () => {
+    const { cache, emit, map } = fixture();
+    map.getStyle.mockReturnValue({
+      sources: {},
+      layers: [
+        {
+          id: "outline",
+          type: "line",
+          layout: { visibility: "none" },
+          paint: { "line-opacity": ["feature-state", "opacity"] },
+        },
+      ],
+    });
+    emit(MAPLIBRE_EVENT.IDLE);
+    cache.captured("pose");
+    expect(cache.canReuse("pose", true)).toBe(true);
+    cache.dispose();
+  });
+
   it("preserves eventless feature-state highlighting through the fallback", () => {
     const { cache, emit, map } = fixture();
     map.getStyle.mockReturnValue({

@@ -51,6 +51,36 @@ describe("lifecycle runtime integration", () => {
     vi.restoreAllMocks();
     vi.useRealTimers();
   });
+  it("refreshes projected markings when an already styled tile enters or leaves the LOD cut", () => {
+    const { layer, renderer } = mountRuntime(true);
+    const scene = new THREE.Group();
+    // The tile already has the current appearance, so no restyle is needed.
+    scene.userData.materialRevision = 0;
+    const tile = buildTile("cached.glb", scene);
+    const material = new THREE.MeshBasicMaterial();
+    scene.add(new THREE.Mesh(new THREE.PlaneGeometry(1, 1), material));
+    const initial = layer.scene.mapStyleProjectionVersion!();
+    try {
+      renderer.dispatchEvent({
+        type: "tile-visibility-change",
+        tile,
+        visible: true,
+      } as never);
+      const visible = layer.scene.mapStyleProjectionVersion!();
+      expect(visible).toBeGreaterThan(initial);
+      expect((scene.children[0] as THREE.Mesh).material).toBe(material);
+      renderer.dispatchEvent({
+        type: "tile-visibility-change",
+        tile,
+        visible: false,
+      } as never);
+      expect(layer.scene.mapStyleProjectionVersion!()).toBeGreaterThan(visible);
+      expect((scene.children[0] as THREE.Mesh).material).toBe(material);
+    } finally {
+      layer.scene.dispose();
+    }
+  });
+
   it("mounts once at the frame's reference fit and leaves the mount alone on a refit", () => {
     const { layer, renderer, frame } = mountRuntime(false, true);
     try {

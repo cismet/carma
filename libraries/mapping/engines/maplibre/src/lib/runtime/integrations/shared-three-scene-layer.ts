@@ -71,6 +71,7 @@ export const buildSharedThreeSceneLayer = (
     runtimes,
     viewport
   );
+  scene.add(mapStyleProjection.screenOverlayMesh);
   let runtimeUpdateOrder: SharedThreeSceneRuntime[] = [];
   let map: MaplibreMap | null = null;
   let renderer: THREE.WebGLRenderer | null = null;
@@ -84,6 +85,10 @@ export const buildSharedThreeSceneLayer = (
   const localFrameState = createSharedSceneLocalFrame(localFrameGroup);
 
   let renderingPaused = false;
+  const beforeRenderCallbacks = new Set<
+    (frame: SharedThreeSceneFrame) => void
+  >();
+  let invokingBeforeRenderCallbacks = false;
   const screenRenderPasses = new Set<() => void>();
   const renderScreenPasses = () => {
     if (!renderer || disposed || renderingPaused) return;
@@ -211,6 +216,14 @@ export const buildSharedThreeSceneLayer = (
     getRenderer() {
       return renderer;
     },
+    addBeforeRenderCallback(callback) {
+      beforeRenderCallbacks.add(callback);
+      map?.triggerRepaint();
+      return () => {
+        beforeRenderCallbacks.delete(callback);
+        map?.triggerRepaint();
+      };
+    },
     addScreenRenderPass(render) {
       screenRenderPasses.add(render);
       map?.triggerRepaint();
@@ -238,6 +251,75 @@ export const buildSharedThreeSceneLayer = (
     },
     setMapStyleProjectionVisible(visible) {
       mapStyleProjection.setVisible(visible);
+    },
+
+    setMapStyleScreenOverlay(id, overlay) {
+      mapStyleProjection.setScreenOverlay(
+        id,
+        overlay,
+        !invokingBeforeRenderCallbacks
+      );
+    },
+    setMapStyleProjectiveOverlay(id, overlay) {
+      mapStyleProjection.setProjectiveOverlay(
+        id,
+        overlay,
+        !invokingBeforeRenderCallbacks
+      );
+    },
+    setMapStyleSurfaceOverlay(id, overlay) {
+      if (!overlay || !originMerc || meterScale <= 0) {
+        mapStyleProjection.setSurfaceOverlay(id, null);
+        return;
+      }
+      const sceneToTexture = (
+        bounds: readonly [number, number, number, number]
+      ) => {
+        const [west, south, east, north] = bounds;
+        const min = MercatorCoordinate.fromLngLat([west, north]);
+        const max = MercatorCoordinate.fromLngLat([east, south]);
+        const width = (max.x - min.x) / meterScale;
+        const height = (max.y - min.y) / meterScale;
+        if (!(width > 0 && height > 0)) return null;
+        const minX = (min.x - originMerc!.x) / meterScale;
+        const maxZ = (max.y - originMerc!.y) / meterScale;
+        return new THREE.Matrix4().set(
+          1 / width,
+          0,
+          0,
+          -minX / width,
+          0,
+          0,
+          -1 / height,
+          maxZ / height,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1
+        );
+      };
+      const currentMatrix = sceneToTexture(overlay.bounds);
+      if (!currentMatrix) return;
+      const previousMatrix =
+        overlay.previous && sceneToTexture(overlay.previous.bounds);
+      mapStyleProjection.setSurfaceOverlay(id, {
+        texture: overlay.texture,
+        opacity: overlay.opacity,
+        sceneToTexture: currentMatrix,
+        previous:
+          overlay.previous && previousMatrix
+            ? {
+                texture: overlay.previous.texture,
+                sceneToTexture: previousMatrix,
+                opacity: overlay.previous.opacity,
+              }
+            : undefined,
+        transition: overlay.transition,
+      });
     },
 
     projectLngLatToScene(
@@ -391,6 +473,12 @@ export const buildSharedThreeSceneLayer = (
         localFrame: currentLocalFrame,
         tileCameraViews: snapshotTileCameraViews([...tileCameraViews.values()]),
       };
+      invokingBeforeRenderCallbacks = true;
+      try {
+        for (const callback of beforeRenderCallbacks) callback(frame);
+      } finally {
+        invokingBeforeRenderCallbacks = false;
+      }
       scene.updateMatrixWorld(true);
       for (const runtime of runtimeUpdateOrder) {
         runtime.update(frame);
@@ -457,6 +545,7 @@ export const buildSharedThreeSceneLayer = (
 
     dispose() {
       map?.off?.(MAPLIBRE_EVENT.RENDER, renderScreenPasses);
+      beforeRenderCallbacks.clear();
       screenRenderPasses.clear();
       zoomPrefetch.detach();
       accumulationRuntime.dispose();

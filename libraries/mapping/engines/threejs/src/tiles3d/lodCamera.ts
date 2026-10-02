@@ -1,13 +1,14 @@
 import { MercatorCoordinate } from "maplibre-gl";
 import type { Map as MaplibreMap } from "maplibre-gl";
 import * as THREE from "three";
+import { degToRad, radToDeg, type Degrees, type Radians } from "@carma-units";
 
 // ─────────────────────────────────────────────────────────────
 //  Putting a real camera where MapLibre is looking from.
 // ─────────────────────────────────────────────────────────────
 
 /** MapLibre's own default field of view, radians, for when the transform hides it. */
-const DEFAULT_FOV_RAD = 0.6435011087932844;
+const DEFAULT_FOV_RAD = 0.6435011087932844 as Radians;
 
 /** Below this pitch the view is flat enough that "up" has to follow the bearing. */
 const FLAT_PITCH_DEG = 5;
@@ -52,12 +53,13 @@ export function synthesizeLodCamera(
   const transform = (
     map as unknown as {
       transform: {
-        _fov?: number;
-        cameraToCenterDistance?: number;
-        worldSize?: number;
+        _fov?: Radians;
+        fovInRadians?: Radians;
         width?: number;
         height?: number;
         centerOffset?: { x: number; y: number };
+        cameraToCenterDistance?: number;
+        worldSize?: number;
       };
     }
   ).transform;
@@ -65,11 +67,11 @@ export function synthesizeLodCamera(
   const publicFovDegrees = (
     map as unknown as { getVerticalFieldOfView?: () => number }
   ).getVerticalFieldOfView?.();
-  const publicFovRad = THREE.MathUtils.degToRad(publicFovDegrees ?? NaN);
+  const publicFovRad = degToRad((publicFovDegrees ?? NaN) as Degrees);
   const fovRad =
     Number.isFinite(publicFovRad) && publicFovRad > 0
       ? publicFovRad
-      : transform._fov ?? DEFAULT_FOV_RAD;
+      : transform.fovInRadians ?? transform._fov ?? DEFAULT_FOV_RAD;
   const distancePx = transform.cameraToCenterDistance ?? 0;
   const worldSize = transform.worldSize ?? 1;
   if (!distancePx || !worldSize || meterScale <= 0) {
@@ -92,8 +94,8 @@ export function synthesizeLodCamera(
     (centerMerc.y - originMerc.y) / meterScale
   );
 
-  const pitch = THREE.MathUtils.degToRad(map.getPitch());
-  const bearing = THREE.MathUtils.degToRad(map.getBearing());
+  const pitch = degToRad(map.getPitch() as Degrees);
+  const bearing = degToRad(map.getBearing() as Degrees);
   camera.position.set(
     lookTarget.x - Math.sin(bearing) * Math.sin(pitch) * distanceMeters,
     lookTarget.y + Math.cos(pitch) * distanceMeters,
@@ -110,7 +112,7 @@ export function synthesizeLodCamera(
   }
   camera.lookAt(lookTarget);
 
-  camera.fov = THREE.MathUtils.radToDeg(fovRad);
+  camera.fov = radToDeg(fovRad);
   const canvas = map.getCanvas?.();
   const width = transform.width || canvas?.clientWidth || viewport.x;
   const height = transform.height || canvas?.clientHeight || viewport.y;
@@ -122,11 +124,19 @@ export function synthesizeLodCamera(
   // offset retains those asymmetric edge rays without cropping coverage.
   // Decision: TILES_COVERAGE.md#camera-normalized-mesh-refinement.
   const offset = transform.centerOffset;
-  if (offset && (offset.x !== 0 || offset.y !== 0)) {
+  if (
+    offset &&
+    width > 0 &&
+    height > 0 &&
+    Number.isFinite(offset.x) &&
+    Number.isFinite(offset.y) &&
+    (offset.x !== 0 || offset.y !== 0)
+  ) {
     camera.setViewOffset(width, height, -offset.x, -offset.y, width, height);
   } else {
     camera.clearViewOffset();
   }
+  camera.updateProjectionMatrix();
   camera.updateMatrixWorld(true);
   return true;
 }

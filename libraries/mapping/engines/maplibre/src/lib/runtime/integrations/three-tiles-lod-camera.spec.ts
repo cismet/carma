@@ -67,13 +67,20 @@ const buildMapLibreMainMatrix = (
   );
 };
 
-const buildCameras = () => {
+const buildCameras = (offset = { x: 0, y: 0 }) => {
   const worldSize = 512 * 2 ** ZOOM;
   const originMerc = MercatorCoordinate.fromLngLat([LNG, LAT], 0);
   const meterScale = originMerc.meterInMercatorCoordinateUnits();
   const camToCenterPx = (0.5 / Math.tan(FOV / 2)) * H;
   const map = {
-    transform: { _fov: FOV, cameraToCenterDistance: camToCenterPx, worldSize },
+    transform: {
+      _fov: FOV,
+      cameraToCenterDistance: camToCenterPx,
+      worldSize,
+      width: W,
+      height: H,
+      centerOffset: offset,
+    },
     getCenter: () => ({ lng: LNG, lat: LAT }),
     getPitch: () => PITCH,
     getBearing: () => 0,
@@ -99,15 +106,26 @@ const buildCameras = () => {
     .makeTranslation(originMerc.x, originMerc.y, originMerc.z)
     .scale(new THREE.Vector3(meterScale, -meterScale, meterScale))
     .multiply(rotationX);
-  const sceneToClip = buildMapLibreMainMatrix(
+  const mainMatrix = buildMapLibreMainMatrix(
     worldSize,
     originMerc.x,
     originMerc.y,
     camToCenterPx
-  ).multiply(localFromScene);
+  );
+  const shift = new THREE.Matrix4().makeTranslation(
+    (2 * offset.x) / W,
+    (-2 * offset.y) / H,
+    0
+  );
+  const sceneToClip = shift.multiply(mainMatrix).multiply(localFromScene);
   const renderCamera = new THREE.PerspectiveCamera();
   configureSharedRenderCamera(renderCamera, lodCamera, sceneToClip);
-  return { renderCamera, lodCamera };
+  return {
+    renderCamera,
+    lodCamera,
+    map,
+    frame: { originMerc, meterScale, viewport },
+  };
 };
 
 const trueDenominator = (2 * Math.tan(FOV / 2)) / H;
@@ -172,5 +190,50 @@ describe("three tiles LOD camera (D0)", () => {
     tiles.prepareForTraversal();
     expect(tiles.cameraInfo[0].isOrthographic).toBe(true);
     expect(tiles.cameraInfo[0].pixelSize).toBeCloseTo(L / H, 6);
+  });
+});
+
+describe("off-center Three camera", () => {
+  it("matches the MapLibre perspective window without moving the camera or changing focal scale", () => {
+    const centered = buildCameras();
+    const shifted = buildCameras({ x: 180, y: -100 });
+    expect(shifted.lodCamera.position.toArray()).toEqual(
+      centered.lodCamera.position.toArray()
+    );
+    expect(shifted.lodCamera.quaternion.toArray()).toEqual(
+      centered.lodCamera.quaternion.toArray()
+    );
+    expect(shifted.lodCamera.projectionMatrix.elements[5]).toBeCloseTo(
+      centered.lodCamera.projectionMatrix.elements[5],
+      12
+    );
+    expect(shifted.lodCamera.projectionMatrix.elements[8]).toBeCloseTo(
+      -360 / W,
+      12
+    );
+    expect(shifted.lodCamera.projectionMatrix.elements[9]).toBeCloseTo(
+      -200 / H,
+      12
+    );
+    for (const point of [new THREE.Vector3(), new THREE.Vector3(50, 30, 70)]) {
+      const lod = point.clone().project(shifted.lodCamera);
+      const rendered = point.clone().project(shifted.renderCamera);
+      expect(lod.x).toBeCloseTo(rendered.x, 10);
+      expect(lod.y).toBeCloseTo(rendered.y, 10);
+    }
+  });
+  it("clears the off-center frustum when the preview returns to centered browsing", () => {
+    const { lodCamera, map, frame } = buildCameras({ x: 180, y: -100 });
+    const transform = map.transform as unknown as {
+      centerOffset: { x: number; y: number };
+      fovInRadians: number;
+    };
+    transform.centerOffset = { x: 0, y: 0 };
+    transform.fovInRadians = 0.4;
+    synthesizeLodCamera(lodCamera, map, frame);
+    expect(lodCamera.view?.enabled).toBe(false);
+    expect(lodCamera.projectionMatrix.elements[8]).toBe(0);
+    expect(lodCamera.projectionMatrix.elements[9]).toBe(0);
+    expect(THREE.MathUtils.degToRad(lodCamera.fov)).toBeCloseTo(0.4, 12);
   });
 });

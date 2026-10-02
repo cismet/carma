@@ -1,8 +1,39 @@
 import type * as THREE from "three";
+import type { CssPixels } from "@carma-units";
 import type { CustomLayerInterface, Map as MaplibreMap } from "maplibre-gl";
 import type { SceneAccumulationOptions } from "@carma-mapping/engines/three/primitives/rendering";
 import type { TileCameraSnapshot, TileCameraView } from "./tile-camera-demand";
 import type { TileVolumeLoadReason, TileVolumeState } from "./tile-volume";
+
+/** Screen photograph and optional full-image framing, shared by receivers and backdrop. */
+export type MapStyleScreenOverlay = Readonly<{
+  texture: THREE.Texture;
+  /** Normalized viewport UV (bottom left) to texture UV (bottom left). */
+  viewportToTexture: THREE.Matrix3;
+  opacity: number;
+  priority?: number;
+  /** CSS filter factors applied only to the mesh outside this image. */
+  backdropLook?: {
+    contrast: number;
+    brightness: number;
+    saturation: number;
+  };
+  /** Normalized sRGB tint and alpha, after the backdrop filters. */
+  backdropTint?: readonly [number, number, number, number];
+  /** White outside border and shadow around the full image, independent of texture crops. */
+  border?: {
+    /** Viewport UV to full-image UV, both normalized with a bottom-left origin. */
+    viewportToImage: THREE.Matrix3;
+    /** Displayed unrotated image dimensions in CSS pixels. */
+    imageSize: { width: number; height: number };
+    /** Outside border width in CSS pixels. */
+    width: number;
+    opacity: number;
+    /** CSS box-shadow blur radius in pixels; its Gaussian sigma is half this value. */
+    feather: number;
+    featherOpacity: number;
+  };
+}>;
 
 /**
  * The local east/up/south frame at the view anchor, on the ellipsoid.
@@ -40,6 +71,31 @@ export type SharedThreeSceneLocalFrame = Readonly<{
   /** Matrix of the local-frame group: reference placement to current one. */
   referenceToCurrent: THREE.Matrix4;
   currentToReference: THREE.Matrix4;
+}>;
+
+/** Camera-calibrated markings on existing visible receivers, without extra geometry. */
+export type MapStyleProjectiveOverlay = Readonly<{
+  marks: readonly Readonly<{
+    /** World scene position to homogeneous photo UV; positive w is camera depth. */
+    sceneToImage: THREE.Matrix4;
+    /** Mercator terrain receivers can use their own scene fit alongside ECEF tiles. */
+    sceneToImageTerrain?: THREE.Matrix4;
+    color: THREE.Color;
+    /** CSS pixels; antialiasing uses the receiver's physical fragment derivatives. */
+    width: CssPixels;
+    opacity: number;
+    fillOpacity?: number;
+    /** Hide the image-up caret while retaining the projected border. Defaults to true. */
+    showUpMarker?: boolean;
+    /** performance.now()/1000 at release; omit for an immediate current highlight. */
+    trailStartedAt?: number;
+    /** Label atlas cell [x,y,width,height] in bottom-left normalized UVs. */
+    labelRect?: readonly [number, number, number, number];
+  }>[];
+  labelAtlas?: THREE.Texture;
+  trailColor: THREE.Color;
+  trailDuration: number;
+  opacity: number;
 }>;
 
 export interface SharedThreeSceneFrame {
@@ -335,10 +391,55 @@ export interface SharedThreeSceneLayer extends CustomLayerInterface {
   setAccumulationController: (
     controller: SharedSceneAccumulationController | null
   ) => void;
+  /** Runs with the final frame camera/viewport before capture and scene drawing. */
+  addBeforeRenderCallback?: (
+    callback: (frame: SharedThreeSceneFrame) => void
+  ) => () => void;
   /** Select the optional MapLibre/Three map-style presentation. */
   setMapStylePresentationEnabled?: (enabled: boolean) => void;
   /** Enable capture and projection of the preceding MapLibre style pass. */
   setMapStyleProjectionVisible?: (visible: boolean) => void;
+  /** Project camera image borders and labels onto live mesh/terrain receivers.
+   * Bounded to two current highlights and 32 fading trails; caller owns labelAtlas. */
+  setMapStyleProjectiveOverlay?: (
+    id: string,
+    overlay: MapStyleProjectiveOverlay | null
+  ) => void;
+  /** A georeferenced marking painted on the visible receivers, including roofs.
+   * Caller owns the texture; remove its ID before disposing it. */
+  setMapStyleSurfaceOverlay?: (
+    id: string,
+    overlay: {
+      texture: THREE.Texture;
+      bounds: readonly [
+        west: number,
+        south: number,
+        east: number,
+        north: number
+      ];
+      opacity: number;
+      /** Crossfade in world space; caller owns both textures. */
+      previous?: {
+        texture: THREE.Texture;
+        bounds: readonly [
+          west: number,
+          south: number,
+          east: number,
+          north: number
+        ];
+        /** Independent trail opacity under the unchanged current marking.
+         * The caller schedules repaints for opacity-only trail updates.
+         * Omit to retain ordinary previous/current crossfading. */
+        opacity?: number;
+      };
+      transition?: number;
+    } | null
+  ) => void;
+  /** Screen image composed between receiver color and its draped labels. Caller owns textures. */
+  setMapStyleScreenOverlay?: (
+    id: string,
+    overlay: MapStyleScreenOverlay | null
+  ) => void;
   /** Diagnostics: what the map-style projection did in the last frame. */
   getMapStyleProjectionState?: () => MapStyleProjectionState;
   projectLngLatToScene: (
@@ -369,6 +470,52 @@ export type MapStyleProjectionUniforms = Readonly<{
   /** Near and far plane of the MapLibre camera that wrote that depth. */
   depthNearFar: { value: THREE.Vector2 };
   texelSize: { value: THREE.Vector2 };
+  /** Two bounded screen images: progressive source and optional sharp crop. */
+  screenOverlays?: readonly [
+    {
+      texture: { value: THREE.Texture | null };
+      viewportToTexture: { value: THREE.Matrix3 };
+      opacity: { value: number };
+    },
+    {
+      texture: { value: THREE.Texture | null };
+      viewportToTexture: { value: THREE.Matrix3 };
+      opacity: { value: number };
+    }
+  ];
+  screenBackdrop?: {
+    look: { value: THREE.Vector3 };
+    tint: { value: THREE.Vector4 };
+    opacity: { value: number };
+  };
+  /** One full-image frame even when a native-resolution crop occupies the second slot. */
+  screenBorder?: {
+    viewportToImage: { value: THREE.Matrix3 };
+    imageSize: { value: THREE.Vector2 };
+    /** CSS border width, border opacity, CSS blur radius, shadow opacity. */
+    style: { value: THREE.Vector4 };
+  };
+  projectiveOverlay?: {
+    data: { value: THREE.DataTexture | null };
+    labelAtlas: { value: THREE.Texture | null };
+    count: { value: number };
+    time: { value: number };
+    trailColor: { value: THREE.Color };
+    trailDuration: { value: number };
+    opacity: { value: number };
+    pixelRatio: { value: number };
+  };
+  /** Optional world-aligned surface marking; independent of DEM label occlusion. */
+  surfaceOverlay?: {
+    texture: { value: THREE.Texture | null };
+    sceneToTexture: { value: THREE.Matrix4 };
+    opacity: { value: number };
+    previousTexture: { value: THREE.Texture | null };
+    previousSceneToTexture: { value: THREE.Matrix4 };
+    previousEnabled: { value: number };
+    previousOpacity: { value: number };
+    transition: { value: number };
+  };
 }>;
 
 export const MAP_STYLE_PROJECTION_BLEND = {
