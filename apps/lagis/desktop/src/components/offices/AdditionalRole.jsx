@@ -39,6 +39,7 @@ const AdditionalRole = ({ dataIn, extractor = additionalRollExtractor }) => {
     section: "admin",
     field: "rollen",
     newRow: newRolleRow,
+    minusOffset: 1,
   });
   const dienststellen = useStammdatenList("dienststellen", editable);
   const rolleArten = useStammdatenList("rolleArten", editable);
