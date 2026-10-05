@@ -1,6 +1,10 @@
-import wizardQueries from "./queries";
-import { run, ActionNotSuccessfulError, CLASS } from "./api";
-import { deleteObject, fetchClassId, saveAndGetId } from "./cidsActions";
+import wizardQueries from "../wizard/queries";
+import { run, ActionNotSuccessfulError, CLASS } from "../wizard/api";
+import {
+  deleteObject,
+  fetchClassId,
+  saveAndGetId,
+} from "../wizard/cidsActions";
 
 export const findLock = async (schluesselId, jwt) => {
   if (!schluesselId) {
