@@ -222,6 +222,7 @@ export const geoportalLayersToLibreLayers = (layers: Layer[]): LibreLayer[] => {
                 buttonsFilterConfig!,
                 layer.filterState!
               ),
+              userFilterLayerPattern: buttonsFilterConfig!.layerPattern,
             }
           : {}),
         ...(dynamicTransform
