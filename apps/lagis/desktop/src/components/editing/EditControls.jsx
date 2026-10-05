@@ -81,6 +81,7 @@ const EditControls = () => {
       )
     );
 
+  // saveEditing also ends edit mode
   const save = async () => {
     try {
       await dispatch(saveEditing());
@@ -110,7 +111,6 @@ const EditControls = () => {
 
   const saveAndEnd = async () => {
     if (await save()) {
-      await dispatch(discardEditing());
       setEndDialogOpen(false);
     }
   };

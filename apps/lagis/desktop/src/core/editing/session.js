@@ -14,7 +14,6 @@ import { formatKey } from "../wizard/keys";
 import { acquireLock, findLock, releaseLock } from "./locks";
 import { createJournal, describeRollbackFailures } from "./journal";
 import {
-  draftReloaded,
   editEnded,
   editStarted,
   lockLost,
@@ -48,6 +47,11 @@ const loadSections = async (schluesselId, jwt) => {
 export const startEditing =
   ({ schluesselId, urlParams }) =>
   async (dispatch, getState) => {
+    // a double click must not take two locks
+    const { active, status } = getState().editing;
+    if (active || status !== "idle") {
+      return;
+    }
     const { jwt, accountName } = context(getState);
     dispatch(setEditStatus("starting"));
     let lock;
@@ -97,7 +101,8 @@ export const findDraftProblem = (editing) => {
   return null;
 };
 
-// GraphQL writes aren't transactional: the journal undoes them on failure
+// GraphQL writes aren't transactional: the journal undoes them on failure.
+// Like the Java client, a successful save ends edit mode and frees the lock.
 export const saveEditing = () => async (dispatch, getState) => {
   const editing = getState().editing;
   if (editing.lockHolder) {
@@ -111,7 +116,7 @@ export const saveEditing = () => async (dispatch, getState) => {
   }
 
   const { jwt, accountName } = context(getState);
-  const { parcel, draft } = editing;
+  const { parcel, draft, lock } = editing;
   const journal = createJournal();
   dispatch(setEditStatus("saving"));
   try {
@@ -123,8 +128,6 @@ export const saveEditing = () => async (dispatch, getState) => {
       );
     }
     journal.commit();
-    const { sections } = await loadSections(parcel.schluesselId, jwt);
-    dispatch(draftReloaded(sections));
   } catch (error) {
     if (journal.size === 0) {
       throw error;
@@ -141,6 +144,8 @@ export const saveEditing = () => async (dispatch, getState) => {
   } finally {
     dispatch(setEditStatus("idle"));
   }
+  await releaseLock(lock, jwt);
+  dispatch(editEnded());
 };
 
 export const discardEditing = () => async (dispatch, getState) => {
@@ -151,15 +156,6 @@ export const discardEditing = () => async (dispatch, getState) => {
   }
   dispatch(editEnded());
 };
-
-export const stopEditing =
-  ({ save }) =>
-  async (dispatch) => {
-    if (save) {
-      await dispatch(saveEditing());
-    }
-    await dispatch(discardEditing());
-  };
 
 // after a reload the persisted lock may be gone or taken over
 export const verifyEditLock = () => async (dispatch, getState) => {
