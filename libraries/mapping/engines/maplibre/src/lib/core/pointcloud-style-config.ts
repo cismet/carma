@@ -7,12 +7,21 @@
  * everything else. Its `minzoom` / `maxzoom` gate the cloud, so a style that
  * switches content by zoom switches the cloud along with it.
  *
+ * `metadata["pointcloud-visibility"]: "none"` on the carrier stops drawing the
+ * cloud but keeps it mounted, so the map stays three dimensional (free camera,
+ * terrain). The carrier's own `layout.visibility` cannot do that, since
+ * carriers are usually hidden themselves; a dynamic styling toggle can flip
+ * this key.
+ *
  * The payload is the shared `carma-pointcloud-v1` contract
  * (`CarmaConf3DPointCloud` in `@carma-appframeworks/portals`). This engine
  * cannot depend on that package, so the fields it reads are declared here.
  */
 
 export const POINTCLOUD_RENDER_MODE = "pointcloud";
+
+/** Carrier layer metadata key; "none" stops drawing the cloud. */
+export const POINTCLOUD_VISIBILITY_KEY = "pointcloud-visibility";
 
 export type PointCloudStylePayload = {
   format: "carma-pointcloud-v1";
@@ -41,6 +50,8 @@ export interface PointCloudLayerConfig {
   maxzoom?: number;
   /** The opacity the layer bar asked of the carrier layer, 0 to 1. */
   layerOpacity: number;
+  /** False when the carrier's pointcloud-visibility is "none". */
+  visible: boolean;
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -118,6 +129,7 @@ export const readPointCloudLayerConfig = (
     ...(isFiniteNumber(layer.minzoom) ? { minzoom: layer.minzoom } : {}),
     ...(isFiniteNumber(layer.maxzoom) ? { maxzoom: layer.maxzoom } : {}),
     layerOpacity: isFiniteNumber(carriedOpacity) ? carriedOpacity : 1,
+    visible: metadata?.[POINTCLOUD_VISIBILITY_KEY] !== "none",
   };
 };
 
