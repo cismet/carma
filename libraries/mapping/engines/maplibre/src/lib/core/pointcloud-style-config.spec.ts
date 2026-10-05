@@ -73,6 +73,7 @@ describe("readPointCloudLayerConfig", () => {
       errorTarget: 8,
       minzoom: 18,
       layerOpacity: 1,
+      visible: true,
     });
   });
 
@@ -96,6 +97,20 @@ describe("readPointCloudLayerConfig", () => {
       carrierLayer(pointcloudBlock(), { metadata: { "layer-opacity": 0.4 } })
     );
     expect(config?.layerOpacity).toBe(0.4);
+  });
+
+  it("keeps a cloud switched off through pointcloud-visibility, but not drawn", () => {
+    const hidden = readPointCloudLayerConfig(
+      carrierLayer(pointcloudBlock(), {
+        metadata: { "pointcloud-visibility": "none" },
+      })
+    );
+    expect(hidden).not.toBeNull();
+    expect(hidden?.visible).toBe(false);
+    // the carrier's own layout is hidden in both cases and does not count
+    expect(readPointCloudLayerConfig(carrierLayer(pointcloudBlock()))?.visible).toBe(
+      true
+    );
   });
 
   it("drops invalid optional values instead of passing them on", () => {
