@@ -84,7 +84,10 @@ export function PointCloudLayerManager({ config }: PointCloudLayerManagerProps) 
       if (!runtime || !mapIsUsable(map)) {
         return;
       }
-      runtime.setActive(isPointCloudZoomInRange(configRef.current, map.getZoom()));
+      runtime.setActive(
+        configRef.current.visible &&
+          isPointCloudZoomInRange(configRef.current, map.getZoom())
+      );
     };
 
     const build = (anchorHeightEllipsoidal: number) => {
@@ -150,19 +153,22 @@ export function PointCloudLayerManager({ config }: PointCloudLayerManagerProps) 
     };
   }, [map, url]);
 
-  // A changed carrier layer zoom range re-gates without waiting for a move.
+  // A changed carrier layer zoom range or visibility re-gates without waiting
+  // for a move. Hiding only deactivates the runtime: the cloud stays mounted,
+  // so the map keeps its 3D presence (free camera, terrain).
   useEffect(() => {
     const runtime = runtimeRef.current;
     if (!map || !runtime || !mapIsUsable(map)) {
       return;
     }
     runtime.setActive(
-      isPointCloudZoomInRange(
-        { minzoom: config.minzoom, maxzoom: config.maxzoom },
-        map.getZoom()
-      )
+      config.visible &&
+        isPointCloudZoomInRange(
+          { minzoom: config.minzoom, maxzoom: config.maxzoom },
+          map.getZoom()
+        )
     );
-  }, [map, config.minzoom, config.maxzoom]);
+  }, [map, config.minzoom, config.maxzoom, config.visible]);
 
   useEffect(() => {
     runtimeRef.current?.setPointSize(config.pointSize ?? DEFAULT_POINT_SIZE_PX);
