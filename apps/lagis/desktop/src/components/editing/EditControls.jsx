@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button, Modal, Tooltip, message } from "antd";
-import { EditOutlined } from "@ant-design/icons";
+import { EditOutlined, SaveOutlined } from "@ant-design/icons";
 import {
   getAlkisLandparcel,
   getLandparcel,
@@ -22,8 +22,6 @@ import {
   startEditing,
   verifyEditLock,
 } from "../../core/editing/session";
-
-const ACTIVE_COLOR = "#4ABC96";
 
 export const urlParamsOf = (searchParams) => ({
   gem: searchParams.get("gem"),
@@ -52,6 +50,7 @@ const EditControls = () => {
   const parcel = useSelector(getEditParcel);
   const lockHolder = useSelector(getEditLockHolder);
   const [endDialogOpen, setEndDialogOpen] = useState(false);
+  const [saveDialogOpen, setSaveDialogOpen] = useState(false);
 
   const schluesselId = landparcel?.flurstueck_schluessel?.id;
   const busy = status !== "idle";
@@ -116,12 +115,18 @@ const EditControls = () => {
     }
   };
 
+  const confirmSave = async () => {
+    setSaveDialogOpen(false);
+    await save();
+  };
+
   const discardAndEnd = async () => {
     await dispatch(discardEditing());
     setEndDialogOpen(false);
   };
 
   const canStart = isEdit || Boolean(schluesselId);
+  const canSave = isDirty && !lockHolder && !busy;
 
   return (
     <>
@@ -136,17 +141,17 @@ const EditControls = () => {
           }
           placement="bottom"
         >
-          <Button
-            size="small"
-            type="primary"
-            className="mr-2"
-            disabled={!isDirty || Boolean(lockHolder)}
-            loading={status === "saving"}
-            onClick={save}
+          <SaveOutlined
+            className={`text-sm ${
+              canSave ? "cursor-pointer" : "cursor-not-allowed"
+            }`}
+            style={{
+              paddingRight: "12px",
+              color: canSave ? undefined : "#bfbfbf",
+            }}
+            onClick={canSave ? () => setSaveDialogOpen(true) : undefined}
             data-test-id="save-edit-mode"
-          >
-            Speichern
-          </Button>
+          />
         </Tooltip>
       )}
       <Tooltip
@@ -165,7 +170,7 @@ const EditControls = () => {
           }`}
           style={{
             paddingRight: "12px",
-            color: isEdit ? ACTIVE_COLOR : canStart ? undefined : "#bfbfbf",
+            color: canStart ? undefined : "#bfbfbf",
           }}
           onClick={canStart ? toggle : undefined}
           data-test-id="toggle-edit-mode"
@@ -186,8 +191,7 @@ const EditControls = () => {
           <Button
             key="save"
             type="primary"
-            disabled={Boolean(lockHolder)}
-            loading={status === "saving"}
+            disabled={Boolean(lockHolder) || busy}
             onClick={saveAndEnd}
           >
             Speichern
@@ -196,6 +200,16 @@ const EditControls = () => {
       >
         Es gibt ungespeicherte Änderungen an {parcel?.label}. Sollen sie
         gespeichert oder verworfen werden?
+      </Modal>
+      <Modal
+        open={saveDialogOpen}
+        title="Änderungen speichern"
+        okText="Speichern"
+        cancelText="Abbrechen"
+        onOk={confirmSave}
+        onCancel={() => setSaveDialogOpen(false)}
+      >
+        Sollen die Änderungen an {parcel?.label} gespeichert werden?
       </Modal>
     </>
   );
