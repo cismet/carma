@@ -211,7 +211,12 @@ export const geoportalLayersToLibreLayers = (layers: Layer[]): LibreLayer[] => {
         ...(layer.opacityTransition !== undefined
           ? { opacityTransition: layer.opacityTransition }
           : {}),
-        ...(userFilter ? { userFilter } : {}),
+        ...(userFilter
+          ? {
+              userFilter,
+              userFilterLayerPattern: layer.filterConfig?.layerPattern,
+            }
+          : {}),
         ...(dynamicTransform
           ? {
               userStyleTransform: dynamicTransform.transform,
