@@ -4,7 +4,7 @@ import lagisSlice from "./slices/lagis";
 import landParcels from "./slices/landParcels";
 import mappingSlice from "./slices/mapping";
 import gazDataSlice from "./slices/gazData";
-import permissionsSlice from "./slices/permissions";
+import editingSlice from "./slices/editing";
 import stammdatenSlice from "./slices/stammdaten";
 import uiSlice from "./slices/ui";
 import searchSlice from "./slices/search";
@@ -127,6 +127,13 @@ const persistPrintConfig = {
   whitelist: ["orientation", "dpi", "scale"],
 };
 
+// status and lockHolder describe this browser session only
+const persistEditingConfig = {
+  key: "@lagis-desktop.1.app.editing",
+  storage: localForage,
+  whitelist: ["active", "parcel", "lock", "original", "draft"],
+};
+
 // const persis
 
 // const persistlagisLandparcelConfig = {
@@ -140,7 +147,7 @@ export default configureStore({
     auth: persistReducer(persistAuthSliceConfig, authSlice.reducer),
     lagis: persistReducer(persistLagisSliceConfig, lagisSlice.reducer),
     landParcels: persistReducer(persistParcelsConfig, landParcels.reducer),
-    permissions: permissionsSlice.reducer,
+    editing: persistReducer(persistEditingConfig, editingSlice.reducer),
     stammdaten: stammdatenSlice.reducer,
     mapping: persistReducer(persisMappingConfig, mappingSlice.reducer),
     ui: persistReducer(persisUIConfig, uiSlice.reducer),

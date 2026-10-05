@@ -1,6 +1,6 @@
 import HeadBlock from "../heads/HeadBlock";
 import { useSelector } from "react-redux";
-import { getPermissionsEdit } from "../../../store/slices/permissions";
+import { getEditActive } from "../../../store/slices/editing";
 const InfoBlock = ({
   title,
   children,
@@ -8,7 +8,7 @@ const InfoBlock = ({
   titleAction,
   extraActions,
 }) => {
-  const isEdit = useSelector(getPermissionsEdit);
+  const isEdit = useSelector(getEditActive);
   return (
     <div
       style={{
