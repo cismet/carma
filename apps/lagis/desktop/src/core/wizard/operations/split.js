@@ -5,7 +5,7 @@ import {
   insertHistoryEdge,
 } from "../api";
 import { formatKey } from "../keys";
-import { acquireLock, releaseLock } from "../locks";
+import { acquireLock, releaseLock } from "../../editing/locks";
 import {
   createFlurstueckForKey,
   hasHistoryEntry,

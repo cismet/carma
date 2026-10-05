@@ -6,7 +6,7 @@ import {
 } from "../api";
 import { FLURSTUECK_ART } from "../constants";
 import { formatKey } from "../keys";
-import { acquireLock, releaseLock } from "../locks";
+import { acquireLock, releaseLock } from "../../editing/locks";
 import { hasHistoryEntry } from "./core";
 
 export const activateFlurstueck = async ({ key }, ctx) => {

@@ -21,7 +21,7 @@ import WizardFooter from "./WizardFooter";
 
 import { STEP, getSteps } from "../../core/wizard/flow";
 import { ACTION_TITLES, WIZARD_ACTIONS } from "../../core/wizard/constants";
-import { findLock } from "../../core/wizard/locks";
+import { findLock } from "../../core/editing/locks";
 import { ADMIN_SECTION } from "../../core/wizard/adminData";
 import { explain } from "../../core/wizard/errors";
 import { findRebeAndMipa } from "../../core/wizard/areaCheck";

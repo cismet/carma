@@ -1,6 +1,6 @@
 import React, { useRef, useState } from "react";
 import { Alert } from "antd";
-import AdminAreaTable from "./AdminAreaTable";
+import EditableTable from "../editing/EditableTable";
 import AreaMap from "./AreaMap";
 import { getColorFromCode } from "../../core/tools/helper";
 import { planarArea, toUtm, toWgs84 } from "../../core/wizard/geometry";
@@ -178,7 +178,7 @@ const DienststellenEditor = ({
   return (
     <div className="flex flex-1 flex-col gap-2">
       {rows.length >= 2 && <AreaSummary parcelArea={parcel.area} rows={rows} />}
-      <AdminAreaTable
+      <EditableTable
         title={title}
         rows={rows}
         columns={columns}
