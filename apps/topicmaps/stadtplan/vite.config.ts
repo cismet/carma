@@ -1,34 +1,53 @@
 /// <reference types='vitest' />
-import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
-import { nxViteTsPaths } from '@nx/vite/plugins/nx-tsconfig-paths.plugin';
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import { nxViteTsPaths } from "@nx/vite/plugins/nx-tsconfig-paths.plugin";
+
+const base = process.env.BASE_URL || "/";
 
 export default defineConfig({
   root: __dirname,
-  cacheDir: '../../../node_modules/.vite/apps/topicmaps/stadtplan',
+  cacheDir: "../../../node_modules/.vite/apps/topicmaps/stadtplan",
 
   server: {
     port: 4200,
-    host: 'localhost',
+    host: true,
     fs: {
-      allow: ['../../..'],
+      allow: ["../../.."],
     },
   },
 
   preview: {
     port: 4300,
-    host: 'localhost',
+    host: "localhost",
   },
 
   plugins: [react(), nxViteTsPaths()],
+  base: base,
+  worker: {
+    plugins: () => [nxViteTsPaths()],
+  },
 
-  // Uncomment this if you are using workers.
-  // worker: {
-  //  plugins: [ nxViteTsPaths() ],
-  // },
+  optimizeDeps: {
+    include: ["maplibre-gl", "leaflet-snap"],
+    esbuildOptions: {
+      target: "es2022",
+      supported: {
+        "class-field": true,
+        "class-static-field": true,
+      },
+    },
+  },
+
+  esbuild: {
+    supported: {
+      "class-field": true,
+      "class-static-field": true,
+    },
+  },
 
   build: {
-    outDir: '../../../dist/apps/topicmaps/stadtplan',
+    outDir: "../../../dist/apps/topicmaps/stadtplan",
     reportCompressedSize: true,
     commonjsOptions: {
       transformMixedEsModules: true,
@@ -38,15 +57,15 @@ export default defineConfig({
   test: {
     globals: true,
     cache: {
-      dir: '../../../node_modules/.vitest',
+      dir: "../../../node_modules/.vitest",
     },
-    environment: 'jsdom',
-    include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+    environment: "jsdom",
+    include: ["src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}"],
 
-    reporters: ['default'],
+    reporters: ["default"],
     coverage: {
-      reportsDirectory: '../../../coverage/apps/topicmaps/stadtplan',
-      provider: 'v8',
+      reportsDirectory: "../../../coverage/apps/topicmaps/stadtplan",
+      provider: "v8",
     },
   },
 });

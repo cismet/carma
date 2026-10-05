@@ -1,12 +1,12 @@
-import { cogProtocol } from "@geomatico/maplibre-cog-protocol";
+import type { LayerSpecification, StyleSpecification } from "maplibre-gl";
 import maplibregl from "maplibre-gl";
-import type { StyleSpecification } from "maplibre-gl";
-
 import "maplibre-gl/dist/maplibre-gl.css";
+import { cogProtocol } from "@geomatico/maplibre-cog-protocol";
 import {
   RETRY_TILE_PROTOCOL,
   retryTileProtocol,
 } from "../utils/retryTileProtocol";
+
 // Register COG protocol once
 maplibregl.addProtocol("cog", cogProtocol as any);
 // Tiles that must not stay missing after a dropped transfer (terrain DEM)
@@ -31,6 +31,8 @@ import PhotoLightBox from "react-cismap/topicmaps/PhotoLightbox";
 import { TopicMapStylingContext } from "react-cismap/contexts/TopicMapStylingContextProvider";
 import "../styles/map.css";
 import {
+  applySymbolScalingToMap,
+  getGeoJsonSourceId,
   getVectorMapping,
   styleManipulation,
   vectorStylesToMapLibreStyle,
@@ -569,6 +571,7 @@ export const LibreMap = ({
     Array<{ sourceId: string; uniqueColors: string[] }>
   >([]);
   const isInitialGeoJsonLoad = useRef(true);
+  const baseStyleLayersRef = useRef<LayerSpecification[]>([]);
 
   // Both react-cismap contexts are optional: a playground mounts the map
   // without the topic-map providers of the portals.
@@ -577,6 +580,8 @@ export const LibreMap = ({
   const { markerSymbolSize: markerSymbolSizeFromContext } =
     useContext<typeof TopicMapStylingContext>(TopicMapStylingContext) ?? {};
   const markerSymbolSize = markerSymbolSizeProp ?? markerSymbolSizeFromContext;
+  const markerSymbolSizeRef = useRef(markerSymbolSize);
+  markerSymbolSizeRef.current = markerSymbolSize;
   const {
     setMapStyle,
     geoJsonMetadata,
@@ -1685,8 +1690,16 @@ export const LibreMap = ({
           // Bail out if effect was cleaned up during async work (StrictMode double-fire)
           if (aborted) return;
 
-          // Apply marker symbol size scaling
-          const style = styleManipulation(markerSymbolSize, baseStyle);
+          // Store unscaled layers for live symbol-size updates
+          baseStyleLayersRef.current = baseStyle.layers
+            ? JSON.parse(JSON.stringify(baseStyle.layers))
+            : [];
+
+          // Apply marker symbol size scaling (use ref for current value since this is async)
+          const style = styleManipulation(
+            markerSymbolSizeRef.current,
+            baseStyle
+          );
 
           // Store geojson metadata for pie chart rendering (local ref and context)
           geoJsonMetadataRef.current = geoJsonMetadata;
@@ -1989,10 +2002,7 @@ export const LibreMap = ({
             if (layer.infoboxMapping && layer.infoboxMapping.length > 0) {
               // Mirror the name-based source id produced by styleBuilder so the
               // by-source-id mapping key stays in sync (position-independent).
-              const sourceId = `geojson-source-${layer.name.replace(
-                /[^a-zA-Z0-9]/g,
-                "-"
-              )}`;
+              const sourceId = getGeoJsonSourceId(layer.name);
               mapping[layer.name] = layer.infoboxMapping;
               // Also map by source ID for easier lookup
               mapping[sourceId] = layer.infoboxMapping;
@@ -2021,28 +2031,37 @@ export const LibreMap = ({
             const loadedSources = new Set<string>();
 
             const handleStyleLoad = () => {
-              const handleData = (e: any) => {
-                const isRelevantSource = geoJsonMetadata.some(
-                  ({ sourceId }) => e.sourceId === sourceId
-                );
-                if (!isRelevantSource || !e.isSourceLoaded) return;
+              const trackSource = (sourceId: string) => {
+                if (loadedSources.has(sourceId)) return;
+                loadedSources.add(sourceId);
+                if (isInitialGeoJsonLoad.current) {
+                  onProgressUpdate({
+                    current: loadedSources.size,
+                    total: geoJsonMetadata.length,
+                  });
 
-                if (!loadedSources.has(e.sourceId)) {
-                  loadedSources.add(e.sourceId);
-                  if (isInitialGeoJsonLoad.current) {
-                    onProgressUpdate({
-                      current: loadedSources.size,
-                      total: geoJsonMetadata.length,
-                    });
-
-                    if (loadedSources.size === geoJsonMetadata.length) {
-                      isInitialGeoJsonLoad.current = false;
-                    }
+                  if (loadedSources.size === geoJsonMetadata.length) {
+                    isInitialGeoJsonLoad.current = false;
                   }
                 }
               };
 
+              const handleData = (e: any) => {
+                const meta = geoJsonMetadata.find(
+                  ({ sourceId }) => e.sourceId === sourceId
+                );
+                if (!meta || !e.isSourceLoaded) return;
+                trackSource(meta.sourceId);
+              };
+
               map.current!.on("data", handleData);
+
+              // Check sources that may have loaded before the listener was attached
+              for (const { sourceId } of geoJsonMetadata) {
+                if (map.current!.isSourceLoaded(sourceId)) {
+                  trackSource(sourceId);
+                }
+              }
             };
 
             if (map.current!.isStyleLoaded()) {
@@ -2080,18 +2099,32 @@ export const LibreMap = ({
       aborted = true;
       cancelTilesetRemoval?.();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- markerSymbolSize handled by dedicated effect below
   }, [
     backgroundStyle,
     vectorBackgroundLayers,
     mapStyleLayers,
     clusteringEnabled,
-    markerSymbolSize,
     filterFunction,
     layerMode,
     deferInitialStyle,
     deferredInitialStyle,
     setDeferredInitialStyle,
   ]);
+
+  useEffect(() => {
+    if (
+      !map.current ||
+      layerMode === "imperative" ||
+      baseStyleLayersRef.current.length === 0
+    )
+      return;
+    applySymbolScalingToMap(
+      map.current,
+      markerSymbolSize,
+      baseStyleLayersRef.current
+    );
+  }, [markerSymbolSize, layerMode]);
 
   const getLeafletMap = useCallback(() => {
     const m = map.current;
@@ -2260,6 +2293,36 @@ export const LibreMap = ({
     });
   };
 
+  // The gazetteer jump changes the zoom right before onComplete. Until the
+  // tiles of the new zoom are rendered, clustered geojson sources still show
+  // the overzoomed parent tile, so a query at the hit position finds the
+  // cluster (or nothing) instead of the feature. Waits for a rendered frame
+  // with all tiles loaded rather than "idle", which never fires while an
+  // animated layer repaints every frame.
+  const waitForRenderedTiles = (
+    mapInstance: maplibregl.Map,
+    timeoutMs = 3000
+  ): Promise<void> => {
+    return new Promise((resolve) => {
+      const done = () => {
+        window.clearTimeout(timeoutId);
+        mapInstance.off("render", check);
+        resolve();
+      };
+      const check = () => {
+        if (mapInstance.areTilesLoaded()) {
+          done();
+        }
+      };
+      const timeoutId = window.setTimeout(done, timeoutMs);
+      mapInstance.on("render", check);
+      mapInstance.triggerRepaint();
+    });
+  };
+
+  /** bumped per gazetteer completion, so a slower one never overrides a newer one */
+  const gazetteerRunRef = useRef(0);
+
   const onComplete = async (selection: SelectionItem) => {
     if (isAreaType(selection.type as ENDPOINT)) return;
 
@@ -2271,7 +2334,20 @@ export const LibreMap = ({
       selection.y,
     ]);
 
+    const run = ++gazetteerRunRef.current;
+    const startVersion = mapSelectionCtxRef.current.selectionVersion;
+
     const ready = await waitForVectorSources();
+    await waitForRenderedTiles(mapInstance);
+
+    // Something selected while the tiles loaded (a click, an app selecting
+    // the hit by id, a newer gazetteer hit): that selection wins.
+    if (
+      run !== gazetteerRunRef.current ||
+      mapSelectionCtxRef.current.selectionVersion !== startVersion
+    ) {
+      return;
+    }
 
     clearVisualSelection(mapInstance);
     setSelectedFeature(null);
