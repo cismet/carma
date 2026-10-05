@@ -170,6 +170,9 @@ export interface VectorStyle {
    *  during style construction. The original filter is preserved at
    *  metadata.originalFilter so consumers can still recover it. */
   userFilter?: unknown[] | null;
+  /** Restricts `userFilter` to style layers whose id contains this string
+   *  (the filterConfig's layerPattern). Omitted applies it to every layer. */
+  userFilterLayerPattern?: string;
   /** Optional pure transform applied to the freshly fetched/cloned stylesheet
    *  before it is merged into the composite style. Used to bake in features
    *  like dynamic styling selections so the merged map reflects them on the
