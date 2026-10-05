@@ -20,7 +20,7 @@ const InfoBlock = ({
       }}
     >
       <HeadBlock title={title} titleAction={titleAction}>
-        {isEdit && { controlBar }}
+        {isEdit && controlBar}
         {extraActions}
       </HeadBlock>
       {children}
