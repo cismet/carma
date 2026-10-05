@@ -117,7 +117,8 @@ export type FilterOption = {
   inactiveIcon?: string;
   color?: string;
   propertyName: string;
-  propertyValue: string;
+  /** A list matches if the property equals any of the values */
+  propertyValue: string | string[];
   grayscaleWhenInactive?: boolean;
 };
 
