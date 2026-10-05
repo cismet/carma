@@ -213,6 +213,7 @@ wizardQueries.adminDataBySchluesselId = `query AdminDataBySchluesselId($schluess
       verwaltungsbereichArrayRelationShip {
         flaeche
         verwaltende_dienststelle { id }
+        extended_geom { geo_field }
       }
     }
     zusatz_rolleArrayRelationShip {
@@ -236,6 +237,7 @@ wizardQueries.adminRowsBySchluesselId = `query AdminRowsBySchluesselId($schluess
       verwaltungsbereichArrayRelationShip {
         flaeche
         verwaltende_dienststelle { id }
+        extended_geom { geo_field }
       }
     }
     zusatz_rolleArrayRelationShip {
