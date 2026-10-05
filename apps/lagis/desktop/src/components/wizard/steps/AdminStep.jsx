@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { Alert, Spin } from "antd";
 import { verwaltung } from "@carma-collab/wuppertal/lagis-desktop";
 import DienststellenEditor from "../DienststellenEditor";
@@ -24,6 +24,7 @@ import {
   newRolleRow,
   newStrassenfrontRow,
 } from "../../../core/wizard/adminData";
+import { ensureAdminStammdaten } from "../../../store/slices/stammdaten";
 
 const LOADING = "Verwaltungsbereiche werden geladen...";
 
@@ -74,6 +75,7 @@ const SECTIONS = {
 };
 
 const AdminStep = ({ section, value, onChange, onProblem, onHideProblem }) => {
+  const dispatch = useDispatch();
   const jwt = useSelector((state) => state.auth.jwt);
   const [stammdaten, setStammdaten] = useState();
   const [loadError, setLoadError] = useState();
@@ -84,15 +86,15 @@ const AdminStep = ({ section, value, onChange, onProblem, onHideProblem }) => {
   useEffect(() => {
     let cancelled = false;
     onProblem(LOADING);
-    loadAdminData(value, jwt)
-      .then((loaded) => {
+    Promise.all([dispatch(ensureAdminStammdaten()), loadAdminData(value, jwt)])
+      .then(([loadedStammdaten, parcels]) => {
         if (cancelled) {
           return;
         }
-        if (Object.keys(loaded.parcels).length) {
-          onChange({ admin: { ...value.admin, ...loaded.parcels } });
+        if (Object.keys(parcels).length) {
+          onChange({ admin: { ...value.admin, ...parcels } });
         }
-        setStammdaten(loaded.stammdaten);
+        setStammdaten(loadedStammdaten);
       })
       .catch((e) => {
         if (!cancelled) {
