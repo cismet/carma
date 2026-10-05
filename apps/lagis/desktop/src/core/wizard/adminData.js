@@ -1,10 +1,5 @@
 import { nanoid } from "@reduxjs/toolkit";
-import {
-  fetchAdminData,
-  fetchDienststellen,
-  fetchStrassennamen,
-  fetchZusatzRolleArten,
-} from "./api";
+import { fetchAdminData } from "./api";
 import { FLURSTUECK_ART, WIZARD_ACTIONS } from "./constants";
 import { fetchGeometries, geometryForKey } from "./geometry";
 import { formatKey } from "./keys";
@@ -169,27 +164,12 @@ const EMPTY_SOURCE = {
   strassenfronten: [],
 };
 
-let stammdatenCache;
-
-const loadStammdaten = async (jwt) => {
-  if (!stammdatenCache) {
-    const [dienststellen, rolleArten, strassennamen] = await Promise.all([
-      fetchDienststellen(jwt),
-      fetchZusatzRolleArten(jwt),
-      fetchStrassennamen(),
-    ]);
-    stammdatenCache = { dienststellen, rolleArten, strassennamen };
-  }
-  return stammdatenCache;
-};
-
 export const loadAdminData = async (value, jwt) => {
-  const stammdaten = await loadStammdaten(jwt);
   const missing = adminTargets(value).filter(
     ({ key }) => !value.admin?.[formatKey(key)]
   );
   if (!missing.length) {
-    return { stammdaten, parcels: {} };
+    return {};
   }
 
   const outlines = knownOutlines(value);
@@ -220,7 +200,7 @@ export const loadAdminData = async (value, jwt) => {
       sperreBemerkung: source?.bemerkungSperre ?? "",
     };
   }
-  return { stammdaten, parcels };
+  return parcels;
 };
 
 const duplicates = (values) => new Set(values).size !== values.length;
