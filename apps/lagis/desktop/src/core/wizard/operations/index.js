@@ -1,6 +1,6 @@
 import { ACTION_TITLES, WIZARD_ACTIONS } from "../constants";
 import { ActionNotSuccessfulError } from "../api";
-import { createJournal, describeRollbackFailures } from "../journal";
+import { createJournal, describeRollbackFailures } from "../../editing/journal";
 import { createFlurstueck } from "./create";
 import { renameFlurstueck } from "./rename";
 import { setFlurstueckHistoric } from "./historic";

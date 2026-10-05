@@ -1,5 +1,5 @@
 import { formatKey } from "../keys";
-import { acquireLock, releaseLock } from "../locks";
+import { acquireLock, releaseLock } from "../../editing/locks";
 import { setHistoricForKey } from "./core";
 
 export const setFlurstueckHistoric = async ({ key, date, rebeMipa }, ctx) => {

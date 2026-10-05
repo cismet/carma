@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useSelector } from "react-redux";
 import { Alert, InputNumber, Select, Spin } from "antd";
 import { EuroOutlined, TagOutlined } from "@ant-design/icons";
-import AdminAreaTable from "../AdminAreaTable";
+import EditableTable from "../../editing/EditableTable";
 import ParcelSelector, { activeTarget } from "../ParcelSelector";
 import {
   adminTargets,
@@ -222,7 +222,7 @@ const UsageStep = ({ value, onChange, onProblem }) => {
           nutzungsart={nutzungsartById.get(activeRow?.nutzungsartId)}
           gesamtpreis={activeRow ? gesamtpreis(activeRow) : null}
         />
-        <AdminAreaTable
+        <EditableTable
           rows={rows}
           columns={tableColumns}
           newRow={() => newUsageRow(rows[rows.length - 1])}
