@@ -141,6 +141,7 @@ queries.getLagisLandparcelByFlurstueckSchluesselId = `query MyQuery($schluessel_
   flurstueck(where: {flurstueck_schluessel: {_and: {id: {_eq: $schluessel_id}}}}) {
     id
     flurstueck_schluessel {
+      id
       gemarkung {
         bezeichnung
       }
