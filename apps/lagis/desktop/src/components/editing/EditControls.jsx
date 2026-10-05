@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Button, Modal, Tooltip, message } from "antd";
+import { Modal, Tooltip, message } from "antd";
 import { EditOutlined, SaveOutlined } from "@ant-design/icons";
 import {
   getAlkisLandparcel,
@@ -22,6 +22,7 @@ import {
   startEditing,
   verifyEditLock,
 } from "../../core/editing/session";
+import UnsavedChangesDialog from "./UnsavedChangesDialog";
 
 export const urlParamsOf = (searchParams) => ({
   gem: searchParams.get("gem"),
@@ -29,13 +30,12 @@ export const urlParamsOf = (searchParams) => ({
   fstck: searchParams.get("fstck"),
 });
 
-const showSaveError = (error) =>
+export const showSaveError = (error) =>
   Modal.error({
     title: "Speichern fehlgeschlagen",
     content: (
       <span style={{ whiteSpace: "pre-line" }}>{errorMessage(error)}</span>
     ),
-    centered: true,
   });
 
 const EditControls = () => {
@@ -50,7 +50,6 @@ const EditControls = () => {
   const parcel = useSelector(getEditParcel);
   const lockHolder = useSelector(getEditLockHolder);
   const [endDialogOpen, setEndDialogOpen] = useState(false);
-  const [saveDialogOpen, setSaveDialogOpen] = useState(false);
 
   const schluesselId = landparcel?.flurstueck_schluessel?.id;
   const busy = status !== "idle";
@@ -115,11 +114,6 @@ const EditControls = () => {
     }
   };
 
-  const confirmSave = async () => {
-    setSaveDialogOpen(false);
-    await save();
-  };
-
   const discardAndEnd = async () => {
     await dispatch(discardEditing());
     setEndDialogOpen(false);
@@ -149,7 +143,7 @@ const EditControls = () => {
               paddingRight: "12px",
               color: canSave ? undefined : "#bfbfbf",
             }}
-            onClick={canSave ? () => setSaveDialogOpen(true) : undefined}
+            onClick={canSave ? () => setEndDialogOpen(true) : undefined}
             data-test-id="save-edit-mode"
           />
         </Tooltip>
@@ -176,41 +170,12 @@ const EditControls = () => {
           data-test-id="toggle-edit-mode"
         />
       </Tooltip>
-      <Modal
+      <UnsavedChangesDialog
         open={endDialogOpen}
-        title="Bearbeitungsmodus beenden"
-        centered
         onCancel={() => setEndDialogOpen(false)}
-        footer={[
-          <Button key="cancel" onClick={() => setEndDialogOpen(false)}>
-            Abbrechen
-          </Button>,
-          <Button key="discard" danger disabled={busy} onClick={discardAndEnd}>
-            Verwerfen
-          </Button>,
-          <Button
-            key="save"
-            type="primary"
-            disabled={Boolean(lockHolder) || busy}
-            onClick={saveAndEnd}
-          >
-            Speichern
-          </Button>,
-        ]}
-      >
-        Es gibt ungespeicherte Änderungen an {parcel?.label}. Sollen sie
-        gespeichert oder verworfen werden?
-      </Modal>
-      <Modal
-        open={saveDialogOpen}
-        title="Änderungen speichern"
-        okText="Speichern"
-        cancelText="Abbrechen"
-        onOk={confirmSave}
-        onCancel={() => setSaveDialogOpen(false)}
-      >
-        Sollen die Änderungen an {parcel?.label} gespeichert werden?
-      </Modal>
+        onDiscard={discardAndEnd}
+        onSave={saveAndEnd}
+      />
     </>
   );
 };
