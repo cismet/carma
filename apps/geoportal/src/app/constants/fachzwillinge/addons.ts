@@ -82,6 +82,14 @@ export const addonsFachzwilling: FachzwillingRoute = {
       },
     },
     { addon: "vectorHighlightControl" },
+    // Turns the style filter into a highlight: the same buttons and the same
+    // selection, but the features that do not match are dimmed instead of
+    // removed. Covers every filtered layer, e.g. wohnlagen2026; `layerIds:
+    // ["<layer id>"]` narrows it, `dimOpacity` sets how far the rest fades
+    // (0.25 by default, same as vectorHighlight). Nothing in the app is wired
+    // to it: it sets the libre map's filter presentation itself. MapLibre only,
+    // so the Leaflet map keeps filtering.
+    { addon: "highlightFromFilter" },
     // annotation layer over the map, pinned to the ground so it pans with the
     // camera. Geometry scales with the map, stroke width and font size do not.
     // The map is the only scale there is, so excalidraw's own zoom widget is
