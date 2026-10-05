@@ -20,8 +20,10 @@ const InfoBlock = ({
       }}
     >
       <HeadBlock title={title} titleAction={titleAction}>
-        {isEdit && controlBar}
-        {extraActions}
+        <div className="flex items-center gap-3">
+          {extraActions}
+          {isEdit && controlBar}
+        </div>
       </HeadBlock>
       {children}
     </div>

@@ -5,7 +5,7 @@ import useEditableRows from "./useEditableRows";
 
 // Wires one row list of a draft section to an EditableTable whose
 // + / − buttons sit in the block header (InfoBlock controlBar).
-const useDraftTable = ({ section, field, newRow }) => {
+const useDraftTable = ({ section, field, newRow, minusOffset }) => {
   const { editable, draft, patch } = useEditSection(section);
   const [selectedId, setSelectedId] = useState();
   const rows = draft?.[field] ?? [];
@@ -31,6 +31,7 @@ const useDraftTable = ({ section, field, newRow }) => {
         onAdd={addRow}
         onRemove={deleteRow}
         removeDisabled={removeDisabled}
+        minusOffset={minusOffset}
       />
     ) : null,
     tableProps,
