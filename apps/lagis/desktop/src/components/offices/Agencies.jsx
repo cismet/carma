@@ -1,14 +1,17 @@
 import PropTypes from "prop-types";
 import { useEffect, useState } from "react";
 import InfoBlock from "../ui/Blocks/InfoBlock";
-import ToggleModal from "../ui/control-board/ToggleModal";
 import TableCustom from "../ui/tables/TableCustom";
-import ModalForm from "../ui/forms/ModalForm";
-import { nanoid } from "@reduxjs/toolkit";
+import { Spin } from "antd";
 import { compare, defaultLinksColor } from "../../core/tools/helper";
 import { officesPageExtractor } from "../../core/extractors/officesPageExtractor";
 import { HistoryOutlined } from "@ant-design/icons";
 import AgenciesHistoryModal from "./AgenciesHistoryModal";
+import EditableTable from "../editing/EditableTable";
+import useDraftTable from "../editing/useDraftTable";
+import useStammdatenList from "../editing/useStammdatenList";
+import { dienststelleColumn, numberColumn } from "../editing/columns";
+import { newDienststelleRow } from "../../core/wizard/adminData";
 import { verwaltung } from "@carma-collab/wuppertal/lagis-desktop";
 const columns = [
   {
@@ -46,35 +49,12 @@ const Agencies = ({
   const [activeRow, setActiveRow] = useState();
   const [history, setHistory] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const addAgency = () => {
-    const newAgency = {
-      id: nanoid(),
-      agency: "",
-      area: "",
-    };
-    setAgency((prev) => [...prev, newAgency]);
-    setActiveRow(newAgency);
-  };
-  const deleteAgency = () => {
-    const updatedArray = agency.filter((row) => row.id !== activeRow.id);
-    setAgency(updatedArray);
-    if (activeRow.id === agency[0]?.id) {
-      setActiveRow(agency[1]);
-    } else {
-      setActiveRow(agency[0]);
-    }
-  };
-  const editHandle = (updatedObject) => {
-    const targetRow = agency.find((c) => c.id === updatedObject.id);
-    const copyRow = {
-      ...targetRow,
-      agency: updatedObject.agency,
-      area: updatedObject.area,
-    };
-
-    setActiveRow(copyRow);
-    setAgency(agency.map((obj) => (obj.id === copyRow.id ? copyRow : obj)));
-  };
+  const { editable, actions, tableProps } = useDraftTable({
+    section: "admin",
+    field: "dienststellen",
+    newRow: newDienststelleRow,
+  });
+  const dienststellen = useStammdatenList("dienststellen", editable);
   useEffect(() => {
     const data = extractor(dataIn);
     setAgency(data?.currentOffices);
@@ -118,43 +98,39 @@ const Agencies = ({
             <HistoryOutlined style={{ color: defaultLinksColor }} />
           )
         }
-        controlBar={
-          <ToggleModal
-            section="Verwaltungsbereiche"
-            name="Dienststellen"
-            addRow={addAgency}
-            deleteActiveRow={deleteAgency}
-          >
-            <ModalForm
-              updateHandle={editHandle}
-              customFields={[
-                {
-                  title: "Dienststelle",
-                  value: activeRow?.agency,
-                  id: nanoid(),
-                  name: "agency",
-                },
-                {
-                  title: "Fläche in m²",
-                  value: activeRow?.area,
-                  id: nanoid(),
-                  name: "area",
-                },
-              ]}
-              formName={activeRow?.id}
-            />
-          </ToggleModal>
-        }
+        controlBar={actions}
       >
         <div className="relative">
-          <TableCustom
-            columns={columns}
-            data={agency}
-            activeRow={activeRow}
-            setActiveRow={setActiveRow}
-            fixHeight={true}
-            selectedFeatureKey={"selectedGeom"}
-          />
+          {!editable ? (
+            <TableCustom
+              columns={columns}
+              data={agency}
+              activeRow={activeRow}
+              setActiveRow={setActiveRow}
+              fixHeight={true}
+              selectedFeatureKey={"selectedGeom"}
+            />
+          ) : dienststellen ? (
+            <EditableTable
+              {...tableProps}
+              columns={(update) => [
+                dienststelleColumn(
+                  verwaltung.dienststellen.dienststelleCol,
+                  dienststellen,
+                  update
+                ),
+                numberColumn(
+                  verwaltung.dienststellen.flacheCol,
+                  "flaeche",
+                  update
+                ),
+              ]}
+            />
+          ) : (
+            <div className="flex justify-center p-8">
+              <Spin />
+            </div>
+          )}
         </div>
       </InfoBlock>
       <AgenciesHistoryModal
