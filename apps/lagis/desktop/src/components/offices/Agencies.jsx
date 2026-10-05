@@ -8,8 +8,7 @@ import { nanoid } from "@reduxjs/toolkit";
 import { compare, defaultLinksColor } from "../../core/tools/helper";
 import { officesPageExtractor } from "../../core/extractors/officesPageExtractor";
 import { HistoryOutlined } from "@ant-design/icons";
-import { Modal, Table } from "antd";
-import "../../components/ui/control-board/toggle.css";
+import AgenciesHistoryModal from "./AgenciesHistoryModal";
 import { verwaltung } from "@carma-collab/wuppertal/lagis-desktop";
 const columns = [
   {
@@ -34,30 +33,6 @@ const columns = [
     title: verwaltung.dienststellen.flacheCol,
     dataIndex: "area",
     sorter: (a, b) => compare(a.area, b.area),
-  },
-];
-const historyColumns = [
-  {
-    title: "Dienststelle",
-    dataIndex: "title",
-    render: (title, record) => (
-      <div className="flex items-center">
-        <span
-          style={{
-            width: "9px",
-            height: "11px",
-            marginRight: "6px",
-            backgroundColor: record?.color || "transparent",
-          }}
-        ></span>
-        <span className="text-xs">{title}</span>
-      </div>
-    ),
-  },
-  {
-    title: "Fläche in m²",
-    dataIndex: "size",
-    render: (size) => <span className="text-xs">{size}</span>,
   },
 ];
 const Agencies = ({
@@ -99,12 +74,6 @@ const Agencies = ({
 
     setActiveRow(copyRow);
     setAgency(agency.map((obj) => (obj.id === copyRow.id ? copyRow : obj)));
-  };
-  const handleOk = () => {
-    setIsModalOpen(false);
-  };
-  const handleCancel = () => {
-    setIsModalOpen(false);
   };
   useEffect(() => {
     const data = extractor(dataIn);
@@ -188,46 +157,11 @@ const Agencies = ({
           />
         </div>
       </InfoBlock>
-      <Modal
-        title={verwaltung.dienststellen.modalTitle}
+      <AgenciesHistoryModal
         open={isModalOpen}
-        onOk={handleOk}
-        onCancel={handleCancel}
-        wrapClassName="history-modal-wrapper"
-        okButtonProps={{ style: { display: "none" } }}
-        bodyStyle={{ backgroundColor: "#f1f1f1" }}
-        cancelText="Schließen"
-        centered
-      >
-        <div style={{ border: "1px solid #CFD8DC" }}>
-          {history &&
-            history.map((h, idx) => {
-              return (
-                <div key={h.id}>
-                  <div
-                    className="flex gap-8 p-2"
-                    style={{
-                      borderBottom:
-                        idx !== history.length - 1 ? "1px solid #CFD8DC" : "0",
-                    }}
-                  >
-                    <div className="max-w-[190px] mt-2 grow">
-                      {h.changedDate && h.editorName
-                        ? `Änderung am ${h.changedDate} von ${h.editorName}`
-                        : "Benutzer und Datum der Änderung unbekannt"}
-                    </div>
-                    <Table
-                      columns={historyColumns}
-                      dataSource={h.agencyData}
-                      pagination={false}
-                      className="w-full max-w-[262px]"
-                    />
-                  </div>
-                </div>
-              );
-            })}
-        </div>
-      </Modal>
+        onClose={() => setIsModalOpen(false)}
+        history={history}
+      />
     </div>
   );
 };
