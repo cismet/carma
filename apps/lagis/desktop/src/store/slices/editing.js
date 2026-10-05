@@ -27,10 +27,6 @@ const slice = createSlice({
       state.draft = sections;
       state.lockHolder = undefined;
     },
-    draftReloaded(state, action) {
-      state.original = action.payload;
-      state.draft = action.payload;
-    },
     patchDraftSection(state, action) {
       const { section, changes } = action.payload;
       state.draft[section] = { ...state.draft[section], ...changes };
@@ -53,7 +49,6 @@ export default slice;
 export const {
   setEditStatus,
   editStarted,
-  draftReloaded,
   patchDraftSection,
   lockRenewed,
   lockLost,

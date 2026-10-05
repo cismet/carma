@@ -245,11 +245,23 @@ const UserBar = () => {
       />
       <div className="ml-auto flex gap-1 items-center">
         <EditControls />
-        <Tooltip title="Flurstücksassistent öffnen" placement="bottom">
+        <Tooltip
+          title={
+            isEdit
+              ? "Im Bearbeitungsmodus nicht verfügbar"
+              : "Flurstücksassistent öffnen"
+          }
+          placement="bottom"
+        >
           <PartitionOutlined
-            className="text-sm cursor-pointer"
-            style={{ paddingRight: "12px" }}
-            onClick={() => setWizardOpen(true)}
+            className={`text-sm ${
+              isEdit ? "cursor-not-allowed" : "cursor-pointer"
+            }`}
+            style={{
+              paddingRight: "12px",
+              color: isEdit ? "#bfbfbf" : undefined,
+            }}
+            onClick={isEdit ? undefined : () => setWizardOpen(true)}
             data-test-id="open-landparcel-wizard"
           />
         </Tooltip>
