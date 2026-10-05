@@ -1,5 +1,5 @@
 import UserName from "./UserName";
-import { Modal, Tooltip } from "antd";
+import { Tooltip, message } from "antd";
 import { LogoutOutlined, PartitionOutlined } from "@ant-design/icons";
 import { getLogin, storeJWT, storeLogin } from "../../store/slices/auth";
 import {
@@ -25,8 +25,12 @@ import {
   getEditDirty,
   getEditParcel,
 } from "../../store/slices/editing";
-import { discardEditing } from "../../core/editing/session";
-import EditControls, { urlParamsOf } from "../editing/EditControls";
+import { discardEditing, saveEditing } from "../../core/editing/session";
+import EditControls, {
+  showSaveError,
+  urlParamsOf,
+} from "../editing/EditControls";
+import UnsavedChangesDialog from "../editing/UnsavedChangesDialog";
 import {
   getSyncLandparcel,
   setFetchLandParcelError,
@@ -59,6 +63,8 @@ const UserBar = () => {
   const isEdit = useSelector(getEditActive);
   const isDirty = useSelector(getEditDirty);
   const editParcel = useSelector(getEditParcel);
+  // { kind: "parcel", params } or { kind: "logout" } while the dialog asks
+  const [leaveTarget, setLeaveTarget] = useState(undefined);
   // set while the URL is put back after a declined parcel switch
   const restoringUrlRef = useRef(false);
 
@@ -126,11 +132,6 @@ const UserBar = () => {
     }, 800);
   };
 
-  // "Barmen 1 147" — formatKey would show a Nenner of 0 as "/0"
-  const parcelName = (key) =>
-    `${key.gemarkung?.bezeichnung} ${key.flur} ${key.zaehler}` +
-    (key.nenner && Number(key.nenner) !== 0 ? `/${key.nenner}` : "");
-
   const isEditedParcel = (params) =>
     ["gem", "flur", "fstck"].every(
       (name) => params[name] === editParcel?.urlParams?.[name]
@@ -148,25 +149,11 @@ const UserBar = () => {
     if (!params.gem || !params.flur || !params.fstck) return;
 
     if (isEdit && editParcel && !isEditedParcel(params)) {
-      Modal.confirm({
-        title: "Flurstück wechseln?",
-        content: `Der Entwurf für das Flurstück ${parcelName(
-          editParcel.key
-        )} wird gelöscht.`,
-        okText: "Ja",
-        cancelText: "Nein",
-        centered: true,
-        onOk: async () => {
-          await dispatch(discardEditing());
-          loadParcel(params);
-        },
-        onCancel: () => {
-          restoringUrlRef.current = true;
-          setUrlParams(editParcel.urlParams);
-          // the history arrows already moved on; point them back
-          dispatch(setCurrentLP(navLabel(editParcel.urlParams)));
-        },
-      });
+      if (isDirty) {
+        setLeaveTarget({ kind: "parcel", params });
+      } else {
+        dispatch(discardEditing()).then(() => loadParcel(params));
+      }
       return;
     }
     loadParcel(params);
@@ -199,14 +186,42 @@ const UserBar = () => {
       endAndLogout();
       return;
     }
-    Modal.confirm({
-      title: "Abmelden?",
-      content: `Die ungespeicherten Änderungen an ${editParcel?.label} werden verworfen.`,
-      okText: "Ja",
-      cancelText: "Nein",
-      centered: true,
-      onOk: endAndLogout,
-    });
+    setLeaveTarget({ kind: "logout" });
+  };
+
+  const continueLeaving = () => {
+    if (leaveTarget.kind === "parcel") {
+      loadParcel(leaveTarget.params);
+    } else {
+      logout();
+    }
+    setLeaveTarget(undefined);
+  };
+
+  const cancelLeaving = () => {
+    if (leaveTarget.kind === "parcel") {
+      restoringUrlRef.current = true;
+      setUrlParams(editParcel.urlParams);
+      // the history arrows already moved on; point them back
+      dispatch(setCurrentLP(navLabel(editParcel.urlParams)));
+    }
+    setLeaveTarget(undefined);
+  };
+
+  const discardAndLeave = async () => {
+    await dispatch(discardEditing());
+    continueLeaving();
+  };
+
+  // saveEditing also ends edit mode and releases the lock
+  const saveAndLeave = async () => {
+    try {
+      await dispatch(saveEditing());
+      message.success("Änderungen gespeichert");
+      continueLeaving();
+    } catch (error) {
+      showSaveError(error);
+    }
   };
 
   const handleOpenLandparcelInJavaApp = (fstck) => {
@@ -279,6 +294,15 @@ const UserBar = () => {
       <LandParcelWizard
         open={wizardOpen}
         onClose={() => setWizardOpen(false)}
+      />
+      <UnsavedChangesDialog
+        open={Boolean(leaveTarget)}
+        title={
+          leaveTarget?.kind === "logout" ? "Abmelden" : "Flurstück wechseln"
+        }
+        onCancel={cancelLeaving}
+        onDiscard={discardAndLeave}
+        onSave={saveAndLeave}
       />
     </div>
   );
