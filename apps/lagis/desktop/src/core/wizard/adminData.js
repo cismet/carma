@@ -112,13 +112,18 @@ const rowId = () => nanoid();
 const round2 = (number) =>
   Number.isFinite(number) ? Math.round(number * 100) / 100 : undefined;
 
-const toParcelData = (source, area) => ({
+// withGeometry: editing an existing parcel keeps its drawn areas; the wizard
+// leaves them out because they don't fit a new parcel
+export const toParcelData = (source, area, { withGeometry = false } = {}) => ({
   area,
   dienststellen: source.bereiche.map((b, index, all) => ({
     id: rowId(),
     dienststelleId: b.verwaltende_dienststelle?.id,
     flaeche:
       all.length === 1 && area !== undefined ? area : round2(b.flaeche) ?? null,
+    ...(withGeometry && b.extended_geom?.geo_field
+      ? { geometry: b.extended_geom.geo_field }
+      : {}),
   })),
   rollen: source.rollen.map((r) => ({
     id: rowId(),
