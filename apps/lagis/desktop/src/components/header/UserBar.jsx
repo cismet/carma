@@ -1,6 +1,10 @@
 import UserName from "./UserName";
 import { Tooltip } from "antd";
-import { LogoutOutlined, PartitionOutlined } from "@ant-design/icons";
+import {
+  EditOutlined,
+  LogoutOutlined,
+  PartitionOutlined,
+} from "@ant-design/icons";
 import { getLogin, storeJWT, storeLogin } from "../../store/slices/auth";
 import {
   storeLandParcels,
@@ -20,6 +24,7 @@ import {
   switchToLandparcel,
 } from "../../store/slices/lagis";
 import { setHasFittedBounds } from "../../store/slices/mapping";
+import { getPermissionsEdit, storeEdit } from "../../store/slices/permissions";
 import {
   getSyncLandparcel,
   setFetchLandParcelError,
@@ -49,6 +54,7 @@ const UserBar = () => {
   );
   const currentLParcelNav = useSelector(getCurrentLParcelNav);
   const [wizardOpen, setWizardOpen] = useState(false);
+  const isEdit = useSelector(getPermissionsEdit);
 
   // Build display string from URL params for the search input
   const urlGem = urlParams.get("gem");
@@ -155,6 +161,22 @@ const UserBar = () => {
         showButton={false}
       />
       <div className="ml-auto flex gap-1 items-center">
+        <Tooltip
+          title={
+            isEdit ? "Bearbeitungsmodus beenden" : "Bearbeitungsmodus starten"
+          }
+          placement="bottom"
+        >
+          <EditOutlined
+            className="text-sm cursor-pointer"
+            style={{
+              paddingRight: "12px",
+              color: isEdit ? "#4ABC96" : undefined,
+            }}
+            onClick={() => dispatch(storeEdit(!isEdit))}
+            data-test-id="toggle-edit-mode"
+          />
+        </Tooltip>
         <Tooltip title="Flurstücksassistent öffnen" placement="bottom">
           <PartitionOutlined
             className="text-sm cursor-pointer"
