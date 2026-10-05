@@ -33,6 +33,7 @@ const Streetfronts = ({ dataIn, extractor = streetfrontsExtractor }) => {
     section: "admin",
     field: "strassenfronten",
     newRow: newStrassenfrontRow,
+    minusOffset: 1,
   });
   const strassennamen = useStammdatenList("strassennamen", editable);
 
