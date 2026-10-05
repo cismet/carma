@@ -179,6 +179,9 @@ export interface VectorStyle {
    *  the filter buttons as `filter:<layerPattern>:<key>`. Names the style
    *  does not declare are ignored. */
   userGlobalState?: Record<string, unknown>;
+  /** Restricts `userFilter` to style layers whose id contains this string
+   *  (the filterConfig's layerPattern). Omitted applies it to every layer. */
+  userFilterLayerPattern?: string;
   /** Optional pure transform applied to the freshly fetched/cloned stylesheet
    *  before it is merged into the composite style. Used to bake in features
    *  like dynamic styling selections so the merged map reflects them on the
