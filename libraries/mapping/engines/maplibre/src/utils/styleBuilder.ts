@@ -86,6 +86,8 @@ export interface VectorStyle {
   /** Values for global state the style declares in its root `state`. See
    *  LibreMap.VectorStyle.userGlobalState. */
   userGlobalState?: Record<string, unknown>;
+  /** Restricts `userFilter` to style layers whose id contains this string. */
+  userFilterLayerPattern?: string;
   /** Optional pure transform applied to the freshly fetched/cloned stylesheet
    *  before it is merged. See LibreMap.VectorStyle.userStyleTransform. */
   userStyleTransform?: (style: any) => any;
@@ -796,8 +798,10 @@ export const vectorStylesToMapLibreStyle = async ({
         // not the layer's, so the same input serves both readings: as a filter
         // it is ANDed into the layer's own filter, as a dim it becomes the
         // predicate the opacity below branches on while the filter stays put.
-        const selection = (layer as { userFilter?: unknown[] | null })
-          .userFilter;
+        const { userFilter: selection, userFilterLayerPattern } = layer as {
+          userFilter?: unknown[] | null;
+          userFilterLayerPattern?: string;
+        };
         const dimming =
           selection &&
           presentsFilterAsDim(
@@ -815,8 +819,14 @@ export const vectorStylesToMapLibreStyle = async ({
         // applyFilterToClusteredSources in @carma-mapping/components: as a
         // layer filter the clusters would keep counting hidden features, or
         // vanish because a cluster has none of the filtered properties
+        const matchesUserFilterLayer = (styleLayerId: string) =>
+          !userFilterLayerPattern ||
+          styleLayerId
+            .toLowerCase()
+            .includes(userFilterLayerPattern.toLowerCase());
         const clusteredFilterSources = new Set<string>(
           (additionalStyle.layers as LayerSpecification[])
+            .filter((styleLayer) => matchesUserFilterLayer(styleLayer.id))
             .map((styleLayer) => (styleLayer as { source?: string }).source)
             .filter((src): src is string => {
               const srcDef = src
@@ -851,22 +861,30 @@ export const vectorStylesToMapLibreStyle = async ({
             const src = (styleLayer as { source?: string }).source;
             const origFilter =
               (styleLayer as { filter?: unknown[] }).filter ?? null;
+            // only the layers the filter buttons are meant for, the other
+            // layers of the style may not even carry the filtered property
+            // (applies to the dim as well: a layer without the property would
+            // fail the predicate and be faded entirely)
+            const matchesUserFilter = matchesUserFilterLayer(styleLayer.id);
             const onClusteredFilterSource =
               !!src && clusteredFilterSources.has(src);
-            const layerUserFilter = onClusteredFilterSource ? null : userFilter;
+            const layerUserFilter =
+              matchesUserFilter && !onClusteredFilterSource ? userFilter : null;
             // a cluster cannot be told apart by the predicate, so it stays
             // undimmed and only the single features fade
             const layerUserDim =
-              userDim && onClusteredFilterSource
-                ? {
-                    ...userDim,
-                    predicate: [
-                      "any",
-                      ["has", "point_count"],
-                      userDim.predicate,
-                    ],
-                  }
-                : userDim;
+              !matchesUserFilter || !userDim
+                ? null
+                : onClusteredFilterSource
+                  ? {
+                      ...userDim,
+                      predicate: [
+                        "any",
+                        ["has", "point_count"],
+                        userDim.predicate,
+                      ],
+                    }
+                  : userDim;
             let bakedFilter: unknown[] | null = origFilter;
             if (layerUserFilter) {
               bakedFilter = origFilter
