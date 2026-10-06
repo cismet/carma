@@ -28,7 +28,6 @@ export function usageBlockExtractor(dataIn) {
             data.nutzungsart = u.nutzungsart?.bezeichnung || "";
             data.bezeichnung = u?.nutzungsart?.bezeichnung || "";
             data.fläche = u.flaeche;
-            data.quadratmeterpreis = u.quadratmeterpreis;
             data.preis = formatPrice(
               u.quadratmeterpreis,
               data.anlageklasse === "keine" ? false : true
