@@ -25,6 +25,8 @@ dayjs.extend(weekday);
 dayjs.extend(localeData);
 dayjs.extend(customParseFormat);
 const merkmalNames = (names) => names.join(", ");
+// the collab texts have no Nutzer title yet
+const NUTZER_TITLE = mipa.mipaTable.nutzerCol ?? "Nutzer";
 
 const columns = [
   {
@@ -50,6 +52,12 @@ const columns = [
     key: "nutzung",
     dataIndex: "nutzung",
     sorter: byText((row) => row.nutzung),
+  },
+  {
+    title: NUTZER_TITLE,
+    key: "nutzer",
+    dataIndex: "nutzer",
+    sorter: byText((row) => row.nutzer),
   },
   {
     title: mipa.mipaTable.vertragsbeginCol,
@@ -139,6 +147,7 @@ const editColumns = (stammdaten) => {
         />
       ),
     },
+    textColumn(NUTZER_TITLE, "nutzer", update),
     dateColumn(mipa.mipaTable.vertragsbeginCol, "vertragsbeginn", update),
     dateColumn(mipa.mipaTable.vertragsendeCol, "vertragsende", update),
     {
