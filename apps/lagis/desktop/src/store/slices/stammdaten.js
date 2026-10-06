@@ -1,6 +1,7 @@
 import { createSlice } from "@reduxjs/toolkit";
 import {
   fetchDienststellen,
+  fetchNutzungStammdaten,
   fetchStrassennamen,
   fetchZusatzRolleArten,
 } from "../../core/wizard/api";
@@ -9,12 +10,15 @@ const LOADERS = {
   dienststellen: (jwt) => fetchDienststellen(jwt),
   rolleArten: (jwt) => fetchZusatzRolleArten(jwt),
   strassennamen: () => fetchStrassennamen(),
+  // { anlageklassen, nutzungsarten }, one query for both
+  nutzung: (jwt) => fetchNutzungStammdaten(jwt),
 };
 
 const initialState = {
   dienststellen: undefined,
   rolleArten: undefined,
   strassennamen: undefined,
+  nutzung: undefined,
 };
 
 const slice = createSlice({
