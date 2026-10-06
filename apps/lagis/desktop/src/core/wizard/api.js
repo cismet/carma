@@ -282,6 +282,24 @@ export const fetchMipaByGeo = async (geo, jwt) => {
   return data.mipa ?? [];
 };
 
+export const fetchRebeForEdit = async (geo, jwt) => {
+  const data = await run(wizardQueries.rebeForEdit, { geo }, jwt);
+  return data.rebe ?? [];
+};
+
+export const insertRebe = (object, jwt) =>
+  saveAndGetId(CLASS.REBE, object, jwt);
+
+export const saveRebe = (id, changes, jwt) =>
+  saveObject(CLASS.REBE, { id, ...changes }, jwt);
+
+export const deleteRebe = (id, jwt) => deleteObject(CLASS.REBE, { id }, jwt);
+
+export const fetchRebeArten = async (jwt) => {
+  const data = await run(wizardQueries.rebeArten, {}, jwt);
+  return data.rebe_art ?? [];
+};
+
 export const fetchMipaForEdit = async (geo, jwt) => {
   const data = await run(wizardQueries.mipaForEdit, { geo }, jwt);
   return data.mipa ?? [];
