@@ -11,6 +11,7 @@ import {
 } from "../wizard/adminData";
 import { saveAdminData } from "../wizard/operations/admin";
 import { formatKey } from "../wizard/keys";
+import { loadUsageSection, saveUsageEdit } from "./usage";
 import { acquireLock, findLock, releaseLock } from "./locks";
 import { createJournal, describeRollbackFailures } from "./journal";
 import {
@@ -26,22 +27,25 @@ const context = (getState) => ({
   accountName: getState().auth.login,
 });
 
-// Verwaltungsbereiche exist only for städtische parcels
+// Verwaltungsbereiche and Nutzungen exist only for städtische parcels
 const loadSections = async (schluesselId, jwt) => {
   const key = await fetchSchluesselById(schluesselId, jwt);
   if (!key) {
     throw new ActionNotSuccessfulError("Das Flurstück wurde nicht gefunden.");
   }
-  const admin = isStaedtischKey(key)
-    ? {
-        ...toParcelData(await fetchAdminData(key.id, jwt), undefined, {
-          withGeometry: true,
-        }),
-        sperre: key.istGesperrt,
-        sperreBemerkung: key.bemerkungSperre,
-      }
-    : undefined;
-  return { key, sections: { admin } };
+  if (!isStaedtischKey(key)) {
+    return { key, sections: {} };
+  }
+  const [adminData, usage] = await Promise.all([
+    fetchAdminData(key.id, jwt),
+    loadUsageSection(key, jwt),
+  ]);
+  const admin = {
+    ...toParcelData(adminData, undefined, { withGeometry: true }),
+    sperre: key.istGesperrt,
+    sperreBemerkung: key.bemerkungSperre,
+  };
+  return { key, sections: { admin, usage } };
 };
 
 export const startEditing =
@@ -116,7 +120,7 @@ export const saveEditing = () => async (dispatch, getState) => {
   }
 
   const { jwt, accountName } = context(getState);
-  const { parcel, draft, lock } = editing;
+  const { parcel, draft, original, lock } = editing;
   const journal = createJournal();
   dispatch(setEditStatus("saving"));
   try {
@@ -126,6 +130,13 @@ export const saveEditing = () => async (dispatch, getState) => {
         { [parcel.label]: draft.admin },
         { jwt, accountName, journal }
       );
+    }
+    if (draft.usage) {
+      await saveUsageEdit(parcel, original.usage, draft.usage, {
+        jwt,
+        accountName,
+        journal,
+      });
     }
     journal.commit();
   } catch (error) {
