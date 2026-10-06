@@ -118,3 +118,20 @@ export const releaseLocks = async (locks, jwt) => {
     await releaseLock(lock, jwt);
   }
 };
+
+export const findOwnLocks = async (accountName, jwt) => {
+  const data = await run(
+    wizardQueries.locksByUser,
+    { userString: accountName },
+    jwt
+  );
+  return data.cs_locks ?? [];
+};
+
+// dev tool: frees every lock of this user, also ones left by broken sessions
+export const releaseOwnLocks = async (locks, jwt) => {
+  const results = await Promise.allSettled(
+    locks.map((lock) => deleteObject(CLASS.LOCK, { id: lock.id }, jwt))
+  );
+  return results.filter((result) => result.status === "rejected").length;
+};
