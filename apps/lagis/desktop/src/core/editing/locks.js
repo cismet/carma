@@ -85,6 +85,22 @@ export const acquireMipaLock = async (
   return { id, mipaId: mipa.mipaId };
 };
 
+export const acquireRebeLock = async (
+  rebe,
+  { jwt, accountName, contextKeyString }
+) => {
+  const name = `Nummer ${rebe.nummer}`;
+  const id = await acquireObjectLock(CLASS.REBE, rebe.rebeId, {
+    jwt,
+    accountName,
+    info: `${contextKeyString};Recht/Belastung: ${name}`,
+    lockedMessage: (holder) =>
+      `Das Recht/die Belastung ${name} wird von dem Benutzer ${holder} bearbeitet.`,
+    failedMessage: `Anlegen einer Sperre für das Recht/die Belastung ${name} nicht möglich.`,
+  });
+  return { id, rebeId: rebe.rebeId };
+};
+
 export const releaseLock = async (lock, jwt) => {
   if (!lock?.id) {
     return;
