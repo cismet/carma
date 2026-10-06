@@ -412,7 +412,7 @@ queries.getQuerverweiseByVertragId = `query MyQuery ($vertag_id: Int) {
 }`;
 
 queries.getMipaByGeo = `query MyQuery($geo: geometry) {
-  mipa(where: {geom: {geo_field: {_st_intersects: $geo}}}) {
+  mipa(where: {geom: {geo_field: {_st_intersects: $geo}}}, order_by: {id: asc}) {
     aktenzeichen
     bemerkung
     flaeche
