@@ -22,6 +22,7 @@ const newNutzung = (row, bookedAt) => ({
       quadratmeterpreis: Number.isFinite(row.quadratmeterpreis)
         ? row.quadratmeterpreis
         : null,
+      bemerkung: row.bemerkung || null,
       ...(row.anlageklasseId
         ? { anlageklasse: { id: row.anlageklasseId } }
         : {}),
