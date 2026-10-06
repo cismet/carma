@@ -97,6 +97,7 @@ export function NFKOverwieExtractor(dataIn) {
         let data = {};
         if (
           item.gueltig_bis === null &&
+          item.anlageklasse &&
           item.anlageklasse.bezeichnung !== "keine"
         ) {
           usageId = element.id;
