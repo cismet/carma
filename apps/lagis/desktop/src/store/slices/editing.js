@@ -64,6 +64,8 @@ export const getEditParcel = (state) => state.editing.parcel;
 export const getEditLockHolder = (state) => state.editing.lockHolder;
 export const getDraftSection = (section) => (state) =>
   state.editing.draft?.[section];
+export const getOriginalSection = (section) => (state) =>
+  state.editing.original?.[section];
 
 export const getEditDirty = createSelector(
   [(state) => state.editing.original, (state) => state.editing.draft],
