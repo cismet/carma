@@ -16,7 +16,7 @@ const useDraftTable = ({ section, field, newRow, minusOffset }) => {
   const tableProps = {
     rows,
     onChange: (next) => patch({ [field]: next }),
-    newRow: () => newRow(draft),
+    newRow: (selected) => newRow(draft, selected),
     activeId,
     onActiveChange: setSelectedId,
     showActions: false,

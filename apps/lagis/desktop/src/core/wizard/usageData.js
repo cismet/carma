@@ -6,7 +6,7 @@ import {
 import { adminTargets, inheritedSourceKeys } from "./adminData";
 import { formatKey } from "./keys";
 
-// prefilled from the previous row, so similar Nutzungen need fewer edits
+// prefilled from the selected (or last) row, so similar Nutzungen need fewer edits
 export const newUsageRow = (previous) => ({
   id: nanoid(),
   anlageklasseId: previous?.anlageklasseId,
