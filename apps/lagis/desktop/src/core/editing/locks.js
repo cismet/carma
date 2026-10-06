@@ -6,14 +6,14 @@ import {
   saveAndGetId,
 } from "../wizard/cidsActions";
 
-export const findLock = async (schluesselId, jwt) => {
-  if (!schluesselId) {
+const findObjectLock = async (className, objectId, jwt) => {
+  if (!objectId) {
     return undefined;
   }
-  const classId = await fetchClassId(CLASS.SCHLUESSEL, jwt);
+  const classId = await fetchClassId(className, jwt);
   const data = await run(
-    wizardQueries.lockForSchluessel,
-    { classId, objectId: schluesselId },
+    wizardQueries.lockForObject,
+    { classId, objectId },
     jwt
   );
   const row = (data.cs_locks ?? [])[0];
@@ -22,41 +22,67 @@ export const findLock = async (schluesselId, jwt) => {
     : undefined;
 };
 
-const formatInfo = (contextKeyString) => {
-  const stamp = new Date().toLocaleString("de-DE");
-  return `${contextKeyString ?? "-"};-;${stamp}`;
+export const findLock = (schluesselId, jwt) =>
+  findObjectLock(CLASS.SCHLUESSEL, schluesselId, jwt);
+
+const stamp = () => new Date().toLocaleString("de-DE");
+
+// info and messages follow the Java client
+const acquireObjectLock = async (
+  className,
+  objectId,
+  { jwt, accountName, info, lockedMessage, failedMessage }
+) => {
+  const existing = await findObjectLock(className, objectId, jwt);
+  if (existing) {
+    throw new ActionNotSuccessfulError(lockedMessage(existing.userString));
+  }
+  const classId = await fetchClassId(className, jwt);
+  try {
+    return await saveAndGetId(
+      CLASS.LOCK,
+      {
+        class_id: classId,
+        object_id: objectId,
+        user_string: accountName,
+        additional_info: `${info};${stamp()}`,
+      },
+      jwt
+    );
+  } catch (e) {
+    throw new ActionNotSuccessfulError(failedMessage, e);
+  }
 };
 
 export const acquireLock = async (
   schluesselId,
   { jwt, accountName, contextKeyString, keyString }
 ) => {
-  const existing = await findLock(schluesselId, jwt);
-  if (existing) {
-    throw new ActionNotSuccessfulError(
-      `Es existiert bereits eine Sperre für das Flurstück ${keyString} und wird von dem Benutzer ${existing.userString} gehalten.`
-    );
-  }
-  const classId = await fetchClassId(CLASS.SCHLUESSEL, jwt);
-  let id;
-  try {
-    id = await saveAndGetId(
-      CLASS.LOCK,
-      {
-        class_id: classId,
-        object_id: schluesselId,
-        user_string: accountName,
-        additional_info: formatInfo(contextKeyString),
-      },
-      jwt
-    );
-  } catch (e) {
-    throw new ActionNotSuccessfulError(
-      `Anlegen einer Sperre für das Flurstück ${keyString} nicht möglich.`,
-      e
-    );
-  }
+  const id = await acquireObjectLock(CLASS.SCHLUESSEL, schluesselId, {
+    jwt,
+    accountName,
+    info: `${contextKeyString ?? "-"};-`,
+    lockedMessage: (holder) =>
+      `Es existiert bereits eine Sperre für das Flurstück ${keyString} und wird von dem Benutzer ${holder} gehalten.`,
+    failedMessage: `Anlegen einer Sperre für das Flurstück ${keyString} nicht möglich.`,
+  });
   return { id, schluesselId };
+};
+
+export const acquireMipaLock = async (
+  mipa,
+  { jwt, accountName, contextKeyString }
+) => {
+  const name = `${mipa.lage} (${mipa.aktenzeichen})`;
+  const id = await acquireObjectLock(CLASS.MIPA, mipa.mipaId, {
+    jwt,
+    accountName,
+    info: `${contextKeyString};Vermietung/Verpachtung: ${name}`,
+    lockedMessage: (holder) =>
+      `Die Vermietung/Verpachtung ${name} wird von dem Benutzer ${holder} bearbeitet.`,
+    failedMessage: `Anlegen einer Sperre für die Vermietung/Verpachtung ${name} nicht möglich.`,
+  });
+  return { id, mipaId: mipa.mipaId };
 };
 
 export const releaseLock = async (lock, jwt) => {

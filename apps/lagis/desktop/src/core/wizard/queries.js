@@ -148,7 +148,7 @@ wizardQueries.successorEdges = `query SuccessorEdges($flurstueckId: Int!) {
 }`;
 
 // the `sperre` view stays empty, so locks are read from cs_locks directly
-wizardQueries.lockForSchluessel = `query LockForSchluessel($classId: Int!, $objectId: Int!) {
+wizardQueries.lockForObject = `query LockForObject($classId: Int!, $objectId: Int!) {
   cs_locks(where: {class_id: {_eq: $classId}, object_id: {_eq: $objectId}}) {
     id
     user_string
@@ -167,6 +167,39 @@ wizardQueries.mipaByGeo = `query MipaByGeo($geo: geometry) {
   mipa(where: {geom: {geo_field: {_st_intersects: $geo}}}) {
     id
     vertragsende
+  }
+}`;
+
+wizardQueries.mipaForEdit = `query MipaForEdit($geo: geometry) {
+  mipa(where: {geom: {geo_field: {_st_intersects: $geo}}}, order_by: {id: asc}) {
+    id
+    lage
+    aktenzeichen
+    flaeche
+    nutzer
+    vertragsbeginn
+    vertragsende
+    bemerkung
+    geom { geo_field }
+    mipa_nutzung {
+      id
+      ausgewaehlte_nummer
+      mipa_kategorie { id }
+    }
+    ar_mipa_merkmaleArray {
+      mipa_merkmal { id }
+    }
+  }
+}`;
+
+wizardQueries.mipaStammdaten = `query MipaStammdaten {
+  mipa_kategorie(order_by: {bezeichnung: asc}) {
+    id
+    bezeichnung
+  }
+  mipa_merkmal(order_by: {bezeichnung: asc}) {
+    id
+    bezeichnung
   }
 }`;
 
