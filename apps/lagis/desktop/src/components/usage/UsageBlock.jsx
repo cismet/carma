@@ -1,20 +1,33 @@
 import PropTypes from "prop-types";
 import InfoBlock from "../ui/Blocks/InfoBlock";
-import ToggleModal from "../ui/control-board/ToggleModal";
 import TableCustom from "../ui/tables/TableCustom";
-import ModalForm from "../ui/forms/ModalForm";
-import DocsIcons from "../ui/Blocks/DocsIcons";
-import { useState, useEffect } from "react";
-import { nanoid } from "@reduxjs/toolkit";
-import { compare } from "../../core/tools/helper";
-import {
-  CloseCircleOutlined,
-  IssuesCloseOutlined,
-  FlagOutlined,
-} from "@ant-design/icons";
+import EditableTable from "../editing/EditableTable";
+import useDraftTable from "../editing/useDraftTable";
+import useStammdatenList from "../editing/useStammdatenList";
+import { usageColumns } from "../editing/columns";
+import { useState, useEffect, useMemo } from "react";
+import { compare, formatPrice } from "../../core/tools/helper";
+import { gesamtpreis, newUsageRow } from "../../core/wizard/usageData";
+import { FlagOutlined } from "@ant-design/icons";
 import { nutzung } from "@carma-collab/wuppertal/lagis-desktop";
 import { Tooltip } from "antd";
-const columns = [
+// Both modes use a fixed layout with these widths and one-line cells, so
+// toggling edit mode moves neither columns nor rows.
+const WIDTH = {
+  nutzung: 110,
+  buchungs: 130,
+  anlageklasse: 260,
+  bezeichnung: 240,
+  fläche: 120,
+  preis: 120,
+  gesamtpreis: 130,
+  stille: 130,
+  buchwert: 100,
+  bemerkung: 200,
+};
+const SCROLL = { x: Object.values(WIDTH).reduce((sum, w) => sum + w, 0) };
+
+const viewColumns = [
   {
     title: nutzung.nutzungTable.nutzungCol,
     dataIndex: "nutzung",
@@ -28,13 +41,12 @@ const columns = [
   {
     title: nutzung.nutzungTable.anlageklasseCol,
     dataIndex: "anlageklasse",
-    render: (record, row) => {
-      return (
-        <div className="flex items-center justify-center">
-          <Tooltip title={row.anlageklasseKey}>{record}</Tooltip>
-        </div>
-      );
-    },
+    render: (record, row) => (
+      // the cell may cut a long name, so the tooltip shows it in full
+      <Tooltip title={record && `${record} (${row.anlageklasseKey})`}>
+        <span>{record}</span>
+      </Tooltip>
+    ),
     sorter: (a, b) => compare(a.anlageklasse, b.anlageklasse),
   },
   // {
@@ -86,6 +98,74 @@ const columns = [
     sorter: (a, b) => compare(a.bemerkung, b.bemerkung),
   },
 ];
+const columns = viewColumns.map((c) => ({
+  ...c,
+  width: WIDTH[c.dataIndex],
+  ellipsis: c.dataIndex !== "buchwert",
+}));
+const column = (dataIndex) => columns.find((c) => c.dataIndex === dataIndex);
+
+// All view columns stay visible; only Anlageklasse, Nutzungsart, Fläche and
+// m²-Preis are inputs. Read-only values come from the saved Nutzung.
+// sorts on what the cell shows, like the read mode table
+const editColumns = (stammdaten, savedById) => (update) => {
+  const [anlageklasse, nutzungsart, flaeche, preis] =
+    usageColumns(stammdaten)(update);
+  const anlageklasseName = new Map(
+    stammdaten.anlageklassen.map((k) => [k.id, k.bezeichnung])
+  );
+  const nutzungsartName = new Map(
+    stammdaten.nutzungsarten.map((a) => [a.id, a.bezeichnung])
+  );
+  const saved = (row) => savedById.get(row.id);
+  // a changed row gets a new Buchung, so the saved price no longer applies
+  const shownGesamtpreis = (row) =>
+    saved(row) &&
+    saved(row).fläche === row.flaeche &&
+    saved(row).quadratmeterpreis === row.quadratmeterpreis
+      ? saved(row).gesamtpreis
+      : formatPrice(gesamtpreis(row));
+  const shown = {
+    nutzung: (row) => saved(row)?.nutzung,
+    buchungs: (row) => saved(row)?.buchungs,
+    anlageklasse: (row) => anlageklasseName.get(row.anlageklasseId),
+    bezeichnung: (row) => nutzungsartName.get(row.nutzungsartId),
+    fläche: (row) => row.flaeche,
+    preis: (row) => row.quadratmeterpreis,
+    gesamtpreis: shownGesamtpreis,
+    stille: (row) => saved(row)?.stille,
+    // a new Nutzung starts with a Buchwert
+    buchwert: (row) => (saved(row) ? saved(row).buchwert : true),
+    bemerkung: (row) => saved(row)?.bemerkung,
+  };
+  const like = (dataIndex) => ({
+    title: column(dataIndex).title,
+    width: column(dataIndex).width,
+    ellipsis: column(dataIndex).ellipsis,
+    sorter: (a, b) => compare(shown[dataIndex](a), shown[dataIndex](b)),
+  });
+  const readOnly = (dataIndex) => ({
+    ...like(dataIndex),
+    dataIndex,
+    render: (_, row) => shown[dataIndex](row) ?? "",
+  });
+  return [
+    readOnly("nutzung"),
+    readOnly("buchungs"),
+    { ...anlageklasse, ...like("anlageklasse"), ellipsis: false },
+    { ...nutzungsart, ...like("bezeichnung"), ellipsis: false },
+    { ...flaeche, ...like("fläche"), ellipsis: false },
+    { ...preis, ...like("preis"), ellipsis: false },
+    readOnly("gesamtpreis"),
+    readOnly("stille"),
+    {
+      ...readOnly("buchwert"),
+      render: (_, row) => column("buchwert").render(shown.buchwert(row), row),
+    },
+    readOnly("bemerkung"),
+  ];
+};
+
 const mockExtractor = (input) => {
   return [
     {
@@ -159,35 +239,26 @@ const UsageBlock = ({
   const storyStyle = { width, height, ...style };
   const [usage, setUsage] = useState([]);
   const [activeRow, setActiveRow] = useState();
-  const addRow = () => {
-    const newRow = {
-      id: nanoid(),
-      nutzung: "",
-      buchungs: "",
-      anlageklasse: "",
-      nutzungsart: "",
-      bezeichnung: "",
-      fläche: "",
-      preis: "",
-      gesamtpreis: "",
-      stille: "",
-      buchwert: "",
-      bemerkung: "",
-    };
-    setUsage((prev) => [...prev, newRow]);
-    setActiveRow(newRow);
-  };
-  const deleteRow = () => {
-    const updatedArray = usage.filter((row) => row.id !== activeRow?.id);
-    setUsage(updatedArray);
-    if (activeRow?.id === usage[0].id) {
-      setActiveRow(usage[1]);
-    } else {
-      setActiveRow(usage[0]);
-    }
-  };
+  const { editable, actions, tableProps } = useDraftTable({
+    section: "usage",
+    field: "nutzungen",
+    newRow: (draft) => newUsageRow(draft.nutzungen[draft.nutzungen.length - 1]),
+  });
+  const stammdaten = useStammdatenList("nutzung", editable);
+  // draft row ids are the Nutzung ids as strings
+  const tableColumns = useMemo(
+    () =>
+      stammdaten
+        ? editColumns(
+            stammdaten,
+            new Map(usage.map((row) => [String(row.id), row]))
+          )
+        : undefined,
+    [stammdaten, usage]
+  );
   useEffect(() => {
-    const data = extractor(dataIn);
+    // same order as the edit rows (loadUsageSection)
+    const data = [...extractor(dataIn)].sort((a, b) => a.id - b.id);
     setUsage(data);
     setActiveRow(data[0]);
   }, [dataIn]);
@@ -204,103 +275,30 @@ const UsageBlock = ({
       }
       className="shadow-md overflow-auto"
     >
-      <InfoBlock
-        title={nutzung.nutzungTable.tableTitle}
-        controlBar={
-          <ToggleModal
-            section="Nutzung"
-            addRow={addRow}
-            deleteActiveRow={deleteRow}
-            content={<DocsIcons classnames="mr-4 flex gap-1" />}
-            modalWidth={900}
-          >
-            <ModalForm
-              formName={activeRow?.id}
-              customFields={[
-                {
-                  title: "Nutzung Nr",
-                  value: activeRow?.nutzung,
-                  id: nanoid(),
-                  name: "nutzung",
-                },
-                {
-                  title: "Buchungs-Nr",
-                  value: activeRow?.buchungs,
-                  id: nanoid(),
-                  name: "buchungs",
-                },
-                {
-                  title: "Anlageklasse",
-                  value: activeRow?.anlageklasse,
-                  id: nanoid(),
-                  name: "anlageklasse",
-                },
-                // {
-                //   title: "Nutzungsart",
-                //   value: activeRow?.nutzungsart,
-                //   id: nanoid(),
-                //   name: "nutzungsart",
-                // },
-                {
-                  title: "Nutzungsarten-Bezeichnung",
-                  value: activeRow?.bezeichnung,
-                  id: nanoid(),
-                  name: "bezeichnung",
-                },
-                {
-                  title: "Fläche/m2",
-                  value: activeRow?.fläche,
-                  id: nanoid(),
-                  name: "fläche",
-                },
-                {
-                  title: "m2 Preis",
-                  value: activeRow?.preis,
-                  id: nanoid(),
-                  name: "preis",
-                },
-                {
-                  title: "Gesamtpreis",
-                  value: activeRow?.gesamtpreis,
-                  id: nanoid(),
-                  name: "gesamtpreis",
-                },
-                {
-                  title: "Buchwert",
-                  value: activeRow?.buchwert,
-                  id: nanoid(),
-                  name: "buchwert",
-                },
-                {
-                  title: "Stille Reserve",
-                  value: activeRow?.stille,
-                  id: nanoid(),
-                  name: "stille",
-                },
-                {
-                  title: "Bemerkung",
-                  value: activeRow?.bemerkung,
-                  id: nanoid(),
-                  name: "bemerkung",
-                  type: "note",
-                },
-              ]}
-              size={8}
-              buttonPosition={{ justifyContent: "end" }}
-            />
-          </ToggleModal>
-        }
-      >
+      <InfoBlock title={nutzung.nutzungTable.tableTitle} controlBar={actions}>
         <div className="relative">
-          <TableCustom
-            columns={columns}
-            data={usage}
-            activerow={setActiveRow}
-            addClass="nfk-cover"
-            activeRow={activeRow}
-            setActiveRow={setActiveRow}
-            fixHeight={true}
-          />
+          {/* the view table stays until the Stammdaten are there, no spinner */}
+          {editable && tableColumns ? (
+            <EditableTable
+              {...tableProps}
+              columns={tableColumns}
+              scroll={SCROLL}
+              tableLayout="fixed"
+              className="nfk-cover nfk-editing"
+            />
+          ) : (
+            <TableCustom
+              columns={columns}
+              data={usage}
+              activerow={setActiveRow}
+              addClass="nfk-cover"
+              activeRow={activeRow}
+              setActiveRow={setActiveRow}
+              fixHeight={true}
+              scroll={SCROLL}
+              tableLayout="fixed"
+            />
+          )}
         </div>
       </InfoBlock>
     </div>
