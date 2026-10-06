@@ -3,6 +3,7 @@ import {
   fetchDienststellen,
   fetchMipaStammdaten,
   fetchNutzungStammdaten,
+  fetchRebeArten,
   fetchStrassennamen,
   fetchZusatzRolleArten,
 } from "../../core/wizard/api";
@@ -15,6 +16,7 @@ const LOADERS = {
   nutzung: (jwt) => fetchNutzungStammdaten(jwt),
   // { kategorien, merkmale }
   mipa: (jwt) => fetchMipaStammdaten(jwt),
+  rebeArten: (jwt) => fetchRebeArten(jwt),
 };
 
 const initialState = {
@@ -23,6 +25,7 @@ const initialState = {
   strassennamen: undefined,
   nutzung: undefined,
   mipa: undefined,
+  rebeArten: undefined,
 };
 
 const slice = createSlice({

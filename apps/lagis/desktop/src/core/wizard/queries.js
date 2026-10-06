@@ -192,6 +192,27 @@ wizardQueries.mipaForEdit = `query MipaForEdit($geo: geometry) {
   }
 }`;
 
+wizardQueries.rebeForEdit = `query RebeForEdit($geo: geometry) {
+  rebe(where: {geom: {geo_field: {_st_intersects: $geo}}}, order_by: {id: asc}) {
+    id
+    ist_recht
+    beschreibung
+    nummer
+    datum_eintragung
+    datum_loeschung
+    bemerkung
+    rebe_art { id }
+    geom { geo_field }
+  }
+}`;
+
+wizardQueries.rebeArten = `query RebeArten {
+  rebe_art(order_by: {bezeichnung: asc}) {
+    id
+    bezeichnung
+  }
+}`;
+
 wizardQueries.mipaStammdaten = `query MipaStammdaten {
   mipa_kategorie(order_by: {bezeichnung: asc}) {
     id
