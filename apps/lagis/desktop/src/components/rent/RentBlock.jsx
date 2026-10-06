@@ -1,14 +1,21 @@
 import PropTypes from "prop-types";
 import InfoBlock from "../ui/Blocks/InfoBlock";
 import TableCustom from "../ui/tables/TableCustom";
-import { DatePicker, Input, InputNumber, Select, Spin, Tag } from "antd";
+import { InputNumber, Select, Spin, Tag } from "antd";
 import CustomNotes from "../ui/notes/CustomNotes";
 import EditableTable from "../editing/EditableTable";
+import {
+  byDay,
+  byText,
+  dateColumn,
+  textColumn,
+  VIEW_DAY,
+  withSort,
+} from "../editing/columns";
 import useDraftTable from "../editing/useDraftTable";
 import useStammdatenList from "../editing/useStammdatenList";
 import { newMipaRow } from "../../core/editing/mipa";
 import { useEffect, useState } from "react";
-import { compare } from "../../core/tools/helper";
 import dayjs from "dayjs";
 import weekday from "dayjs/plugin/weekday";
 import localeData from "dayjs/plugin/localeData";
@@ -17,15 +24,6 @@ import { mipa } from "@carma-collab/wuppertal/lagis-desktop";
 dayjs.extend(weekday);
 dayjs.extend(localeData);
 dayjs.extend(customParseFormat);
-// Both modes sort on what the cell shows; dates by time, empty dates last.
-const byText = (value) => (a, b) => compare(value(a), value(b));
-const byDay = (value, format) => (a, b) => {
-  const x = value(a) ? dayjs(value(a), format).valueOf() : Infinity;
-  const y = value(b) ? dayjs(value(b), format).valueOf() : Infinity;
-  return x === y ? 0 : x < y ? -1 : 1;
-};
-const VIEW_DAY = "DD.MM.YYYY";
-const EDIT_DAY = "YYYY-MM-DD";
 const merkmalNames = (names) => names.join(", ");
 
 const columns = [
@@ -84,43 +82,6 @@ const columns = [
   },
 ];
 const popup = () => document.body;
-
-const textColumn = (title, dataIndex, update) => ({
-  key: dataIndex,
-  title,
-  dataIndex,
-  sorter: byText((row) => row[dataIndex]),
-  render: (value, record) => (
-    <Input
-      size="small"
-      value={value}
-      onChange={(event) =>
-        update(record.id, { [dataIndex]: event.target.value })
-      }
-    />
-  ),
-});
-
-const dateColumn = (title, dataIndex, update) => ({
-  key: dataIndex,
-  title,
-  dataIndex,
-  sorter: byDay((row) => row[dataIndex], EDIT_DAY),
-  render: (day, record) => (
-    <DatePicker
-      size="small"
-      format="DD.MM.YYYY"
-      className="w-full"
-      getPopupContainer={popup}
-      value={day ? dayjs(day) : null}
-      onChange={(next) =>
-        update(record.id, {
-          [dataIndex]: next ? next.format("YYYY-MM-DD") : null,
-        })
-      }
-    />
-  ),
-});
 
 // stammdaten: { kategorien, merkmale }
 const editColumns = (stammdaten) => {
@@ -206,13 +167,6 @@ const editColumns = (stammdaten) => {
     },
   ];
 };
-
-// one sort for both modes, so switching to edit keeps the order
-const withSort = (columns, sort) =>
-  columns.map((column) => ({
-    ...column,
-    sortOrder: sort.columnKey === column.key ? sort.order : null,
-  }));
 
 const mockExtractor = (input) => {
   return [
