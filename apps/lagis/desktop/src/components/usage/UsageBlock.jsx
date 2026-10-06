@@ -242,7 +242,8 @@ const UsageBlock = ({
   const { editable, actions, tableProps } = useDraftTable({
     section: "usage",
     field: "nutzungen",
-    newRow: (draft) => newUsageRow(draft.nutzungen[draft.nutzungen.length - 1]),
+    newRow: (draft, selected) =>
+      newUsageRow(selected ?? draft.nutzungen[draft.nutzungen.length - 1]),
   });
   const stammdaten = useStammdatenList("nutzung", editable);
   // draft row ids are the Nutzung ids as strings
