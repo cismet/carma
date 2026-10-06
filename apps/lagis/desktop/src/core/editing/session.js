@@ -20,6 +20,7 @@ import {
   acquireRebeLock,
   findLock,
   releaseLock,
+  releaseOwnLocks,
   releaseLocks,
 } from "./locks";
 import { createJournal, describeRollbackFailures } from "./journal";
@@ -254,6 +255,16 @@ export const discardEditing = () => async (dispatch, getState) => {
     await releaseSectionLocks(editing, jwt);
   }
   dispatch(editEnded());
+};
+
+// dev tool: also ends edit mode, since its locks are gone afterwards
+export const clearOwnLocks = (locks) => async (dispatch, getState) => {
+  const { jwt } = context(getState);
+  const failed = await releaseOwnLocks(locks, jwt);
+  if (getState().editing.active) {
+    dispatch(editEnded());
+  }
+  return failed;
 };
 
 // after a reload the persisted lock may be gone or taken over

@@ -156,6 +156,12 @@ wizardQueries.lockForObject = `query LockForObject($classId: Int!, $objectId: In
   }
 }`;
 
+wizardQueries.locksByUser = `query LocksByUser($userString: String!) {
+  cs_locks(where: {user_string: {_eq: $userString}}) {
+    id
+  }
+}`;
+
 wizardQueries.rebeByGeo = `query RebeByGeo($geo: geometry) {
   rebe(where: {geom: {geo_field: {_st_intersects: $geo}}}) {
     id
