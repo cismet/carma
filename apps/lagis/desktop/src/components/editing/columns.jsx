@@ -1,7 +1,64 @@
 import React from "react";
-import { InputNumber, Select } from "antd";
+import { DatePicker, Input, InputNumber, Select } from "antd";
+import dayjs from "dayjs";
+import customParseFormat from "dayjs/plugin/customParseFormat";
 import { compare, getColorFromCode } from "../../core/tools/helper";
 import { ColorMark, dienststelleLabel } from "./cells";
+dayjs.extend(customParseFormat);
+
+export const VIEW_DAY = "DD.MM.YYYY";
+export const EDIT_DAY = "YYYY-MM-DD";
+
+// Both modes sort on what the cell shows; dates by time, empty dates last.
+export const byText = (value) => (a, b) => compare(value(a), value(b));
+export const byDay = (value, format) => (a, b) => {
+  const x = value(a) ? dayjs(value(a), format).valueOf() : Infinity;
+  const y = value(b) ? dayjs(value(b), format).valueOf() : Infinity;
+  return x === y ? 0 : x < y ? -1 : 1;
+};
+
+// one sort for both modes, so switching to edit keeps the order
+export const withSort = (columns, sort) =>
+  columns.map((column) => ({
+    ...column,
+    sortOrder: sort.columnKey === column.key ? sort.order : null,
+  }));
+
+export const textColumn = (title, dataIndex, update) => ({
+  key: dataIndex,
+  title,
+  dataIndex,
+  sorter: byText((row) => row[dataIndex]),
+  render: (value, record) => (
+    <Input
+      size="small"
+      value={value}
+      onChange={(event) =>
+        update(record.id, { [dataIndex]: event.target.value })
+      }
+    />
+  ),
+});
+
+// draft rows keep days as EDIT_DAY
+export const dateColumn = (title, dataIndex, update) => ({
+  key: dataIndex,
+  title,
+  dataIndex,
+  sorter: byDay((row) => row[dataIndex], EDIT_DAY),
+  render: (day, record) => (
+    <DatePicker
+      size="small"
+      format={VIEW_DAY}
+      className="w-full"
+      getPopupContainer={() => document.body}
+      value={day ? dayjs(day) : null}
+      onChange={(next) =>
+        update(record.id, { [dataIndex]: next ? next.format(EDIT_DAY) : null })
+      }
+    />
+  ),
+});
 
 export const dienststelleColumn = (title, dienststellen, update) => {
   const byId = new Map(dienststellen.map((d) => [d.id, d]));
