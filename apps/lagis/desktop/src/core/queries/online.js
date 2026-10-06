@@ -381,7 +381,7 @@ queries.getLagisLandparcelByFlurstueckSchluesselId = `query MyQuery($schluessel_
 }`;
 
 queries.getRebeByGeo = `query MyQuery($geo: geometry) {
-  rebe(where: {geom: {geo_field: {_st_intersects: $geo}}}) {
+  rebe(where: {geom: {geo_field: {_st_intersects: $geo}}}, order_by: {id: asc}) {
     bemerkung
     beschreibung
     datum_eintragung
