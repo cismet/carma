@@ -1,5 +1,11 @@
-import { Vector3 } from "three";
-import { clamp } from "@carma-commons/math";
+import { Matrix4, Sphere, Vector3 } from "three";
+import { degToRadNumeric } from "@carma-units";
+import { projectObjectCoverageSphere } from "./object-coverage";
+import {
+  imageProjectionMatrix,
+  sceneToPhotoEnu,
+} from "../../runtime/utils/image-projection";
+import { clamp, shortestAngleDelta } from "@carma-commons/math";
 import { getProj4Converter } from "@carma-geo/proj";
 import type {
   NearestObliqueImageRecord,
@@ -222,6 +228,12 @@ export const rankImagesForView = (
     -Math.cos(query.pitchRad),
   ];
   const ranked: NearestObliqueImageRecord[] = [];
+  const resolutions = new Map<
+    string,
+    { pixelsPerMeter: number; heading: number; preferred: boolean }
+  >();
+  const physicalFrame = new Matrix4();
+  const targetSphere = new Sphere(new Vector3(), 0.0001);
   for (const record of candidates) {
     const dataset = data.datasets.get(record.seriesId);
     const xy = targets.get(record.seriesId);
@@ -303,6 +315,42 @@ export const rankImagesForView = (
       4 * angular +
       (coversTarget ? 0 : 4 + outsideX + outsideY) +
       distanceOnGround / Math.max(1, maxDistance);
+    if (query.selectionStrategy === "best-resolution") {
+      const heading =
+        query.cameraView === "nadir"
+          ? 0
+          : Math.abs(
+              shortestAngleDelta(
+                query.headingRad,
+                degToRadNumeric(pose.bearingDeg)
+              )
+            );
+      targetSphere.center.set(0, groundHeight, 0);
+      const coverage =
+        query.target.heightMeters !== undefined &&
+        dataset.heightDatum !== "unknown"
+          ? projectObjectCoverageSphere(
+              imageProjectionMatrix(
+                record,
+                camera,
+                pose,
+                sceneToPhotoEnu(
+                  [query.target.longitude, query.target.latitude],
+                  physicalFrame,
+                  pose,
+                  record.z
+                )
+              ),
+              targetSphere,
+              camera
+            )
+          : null;
+      resolutions.set(record.id, {
+        pixelsPerMeter: coverage?.pixelsPerMeter ?? 0,
+        heading,
+        preferred: !!coverage && coversTarget && heading <= Math.PI / 4,
+      });
+    }
     ranked.push({
       record,
       distanceOnGround,
@@ -322,10 +370,28 @@ export const rankImagesForView = (
         record.footprintApproximate,
     });
   }
-  ranked.sort(
-    (a, b) =>
-      (a.score ?? 0) - (b.score ?? 0) || a.record.id.localeCompare(b.record.id)
+  const hasNativeResolution = [...resolutions.values()].some(
+    (entry) => entry.pixelsPerMeter > 0
   );
+  ranked.sort((a, b) => {
+    if (query.selectionStrategy === "best-resolution" && hasNativeResolution) {
+      const first = resolutions.get(a.record.id)!;
+      const second = resolutions.get(b.record.id)!;
+      const eligibility = Number(second.preferred) - Number(first.preferred);
+      if (eligibility) return eligibility;
+      if (
+        !first.preferred &&
+        !second.preferred &&
+        Math.abs(first.heading - second.heading) > 1e-8
+      )
+        return first.heading - second.heading;
+      const density = second.pixelsPerMeter - first.pixelsPerMeter;
+      if (density) return density;
+    }
+    return (
+      (a.score ?? 0) - (b.score ?? 0) || a.record.id.localeCompare(b.record.id)
+    );
+  });
   return ranked.slice(0, query.numCandidates ?? 200);
 };
 

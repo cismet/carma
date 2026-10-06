@@ -124,6 +124,11 @@ import {
   type ObliqueViewerState,
 } from "../addons/ObliqueViewer";
 import {
+  ObliqueObjectViews,
+  type ObliqueObjectViewsConfig,
+  type ObliqueObjectViewsState,
+} from "../addons/ObliqueObjectViews";
+import {
   TrafficAnimation,
   type TrafficAnimationConfig,
   type TrafficAnimationState,
@@ -228,6 +233,7 @@ export type AddonConfigMap = {
    * Open, no cage involved.
    */
   obliqueViewer: ObliqueViewerConfig;
+  obliqueObjectViews: ObliqueObjectViewsConfig;
   /**
    * Cars, buses and trucks on a road network, by day and by night, launched
    * by a layer; see `TrafficAnimation`. The traffic values are invented.
@@ -324,6 +330,7 @@ export type AddonStateMap = {
    * the host's tree, and written back by them for the user's choices.
    */
   obliqueViewer: ObliqueViewerState;
+  obliqueObjectViews: ObliqueObjectViewsState;
   /**
    * the running traffic: the moment it shows as an offset from now, how dark
    * it is and how many vehicles are out; see `TrafficAnimation`. Written by
@@ -621,6 +628,11 @@ export const addonRegistry: {
   obliqueViewer: {
     Component: ObliqueViewer,
     provides: ["obliqueViewer"],
+  },
+  obliqueObjectViews: {
+    Component: ObliqueObjectViews,
+    requires: ["obliqueViewer"],
+    provides: ["obliqueObjectViews"],
   },
   trafficAnimation: {
     Component: TrafficAnimation,

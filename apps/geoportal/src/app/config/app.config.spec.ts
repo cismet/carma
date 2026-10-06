@@ -4,7 +4,10 @@ import type { AddonEntry } from "@carma-mapping/addons";
 const state = vi.hoisted(() => ({
   context: {
     deployment: "pr" as const,
-    featureFlags: { featureFlagMapStyle3d: false },
+    featureFlags: {
+      featureFlagMapStyle3d: false,
+      featureFlagObliqueNextUi: false,
+    },
   },
   workflows: ["flowField"] as AddonEntry[],
 }));
@@ -35,8 +38,10 @@ vi.mock("@carma-mapping/addons", () => ({
       if (typeof entry === "string" || !entry.availability?.featureFlag)
         return true;
       return (
-        entry.availability.featureFlag === "featureFlagMapStyle3d" &&
-        state.context.featureFlags.featureFlagMapStyle3d
+        state.context.featureFlags[
+          entry.availability
+            .featureFlag as keyof typeof state.context.featureFlags
+        ] === true
       );
     }),
 }));
@@ -67,9 +72,28 @@ const declarations: AddonEntry[] = [
 
 beforeEach(() => {
   state.context.featureFlags.featureFlagMapStyle3d = false;
+  state.context.featureFlags.featureFlagObliqueNextUi = false;
 });
 
 describe("Geoportal default addons", () => {
+  it("adds object views to the next UI only when the parent viewer is present", () => {
+    state.context.featureFlags.featureFlagObliqueNextUi = true;
+    const addons = withDefaultAddons(declarations, "/oblique").map(addonKind);
+    expect(addons).toContain("obliqueViewer");
+    expect(addons).toContain("obliqueObjectViews");
+    expect(withDefaultAddons([], "/addons").map(addonKind)).not.toContain(
+      "obliqueObjectViews"
+    );
+  });
+
+  it("drops a declared object-views addon when the next UI flag is off", () => {
+    expect(
+      withDefaultAddons(
+        [...declarations, "obliqueObjectViews"],
+        "/oblique"
+      ).map(addonKind)
+    ).not.toContain("obliqueObjectViews");
+  });
   it("limits Oblique to its viewer and required camera/terrain services", () => {
     const addons = withDefaultAddons(declarations, "/oblique");
     expect(addons.map(addonKind)).toEqual([

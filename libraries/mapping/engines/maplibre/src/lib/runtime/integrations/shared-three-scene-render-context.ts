@@ -43,11 +43,18 @@ export const clearMapStyleGroundBeforeThreeTerrain = (
   mapLibreDepthRange: DepthRange,
   clearColor = true
 ): void => {
-  const savedClearColor = gl.getParameter(gl.COLOR_CLEAR_VALUE) as Float32Array;
   gl.depthMask(true);
   gl.depthRange(0, 1);
   gl.clearDepth(1);
-  if (clearColor) {
+  if (clearColor && "clearBufferfv" in gl) {
+    // WebGL2 can clear the attachment without changing or reading clearColor.
+    const gl2 = gl as WebGL2RenderingContext;
+    gl2.clearBufferfv(gl2.COLOR, 0, new Float32Array(4));
+    gl.clear(gl.DEPTH_BUFFER_BIT);
+  } else if (clearColor) {
+    const savedClearColor = gl.getParameter(
+      gl.COLOR_CLEAR_VALUE
+    ) as Float32Array;
     gl.clearColor(0, 0, 0, 0);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     gl.clearColor(

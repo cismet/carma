@@ -267,7 +267,7 @@ describe("calibrated current highlights and bounded selection trails", () => {
     expect(map.addLayer).not.toHaveBeenCalled();
     expect(map.addImage).not.toHaveBeenCalled();
   });
-  it("draws center and pointer outlines in white without a crossfade", () => {
+  it("highlights only the pointer, with center as the no-pointer fallback", () => {
     const { handle, map, sources, layers } = setup(true);
     const nearby = Array.from({ length: 128 }, (_, i) =>
       candidate("candidate-" + i)
@@ -282,7 +282,7 @@ describe("calibrated current highlights and bounded selection trails", () => {
     expect(overlay.marks).toHaveLength(2);
     expect(
       overlay.marks.map((mark: { fillOpacity: number }) => mark.fillOpacity)
-    ).toEqual([0.08, 0]);
+    ).toEqual([0, 0.08]);
     expect(overlay.marks[0].color.getHexString()).toBe("ffffff");
     expect(overlay.marks[1].color.getHexString()).toBe("ffffff");
     handle.setHoveredImage(null);
@@ -303,7 +303,12 @@ describe("calibrated current highlights and bounded selection trails", () => {
     handle.setHoveredImage("pointer", candidate("pointer"));
     const initial = scene.projective.mock.calls.at(-1)?.[1];
     expect(
-      initial.marks.every((mark: { labelRect?: unknown }) => mark.labelRect)
+      initial.marks
+        .filter(
+          (mark: { trailStartedAt?: number }) =>
+            mark.trailStartedAt === undefined
+        )
+        .every((mark: { labelRect?: unknown }) => mark.labelRect)
     ).toBe(true);
     const dispose = vi.spyOn(initial.labelAtlas, "dispose");
     handle.setLabelsVisible(false);
@@ -325,10 +330,35 @@ describe("calibrated current highlights and bounded selection trails", () => {
     handle.setLabelsVisible(true);
     overlay = scene.projective.mock.calls.at(-1)?.[1];
     expect(
-      overlay.marks.every((mark: { labelRect?: unknown }) => mark.labelRect)
+      overlay.marks
+        .filter(
+          (mark: { trailStartedAt?: number }) =>
+            mark.trailStartedAt === undefined
+        )
+        .every((mark: { labelRect?: unknown }) => mark.labelRect)
     ).toBe(true);
     expect(overlay.marks[0].sceneToImage).toBe(initial.marks[0].sceneToImage);
     expect(overlay.marks[1].sceneToImage).toBe(initial.marks[1].sceneToImage);
+  });
+  it("does not highlight the center for a pointer miss or while waiting for a hit", () => {
+    const { handle } = setup(true);
+    const highlights = () =>
+      (scene.projective.mock.calls.at(-1)?.[1]?.marks ?? []).filter(
+        (mark: { trailStartedAt?: number }) => mark.trailStartedAt === undefined
+      );
+    handle.setRing(ring, annotation("center"));
+    expect(highlights()).toHaveLength(1);
+    handle.setHoveredImage(null, undefined, true);
+    expect(highlights()).toHaveLength(0);
+    handle.setHoveredImage("pointer", candidate("pointer"));
+    expect(highlights()).toHaveLength(1);
+    handle.setRing(ring, annotation("other-center"));
+    expect(highlights()).toHaveLength(1);
+    expect(highlights()[0].labelRect).toBeDefined();
+    handle.setHoveredImage(null, undefined, true);
+    expect(highlights()).toHaveLength(0);
+    handle.setHoveredImage(null);
+    expect(highlights()).toHaveLength(1);
   });
   it("retains at most 32 preceding center or pointer outlines, with no fill and unchanged width", () => {
     const { handle } = setup(true);
@@ -343,7 +373,7 @@ describe("calibrated current highlights and bounded selection trails", () => {
     expect(
       trails.every((mark: { fillOpacity: number }) => mark.fillOpacity === 0)
     ).toBe(true);
-    expect(overlay.marks).toHaveLength(34);
+    expect(overlay.marks).toHaveLength(33);
     expect(
       overlay.marks.every((mark: { width: number }) => mark.width === 5)
     ).toBe(true);
@@ -351,6 +381,51 @@ describe("calibrated current highlights and bounded selection trails", () => {
       trails.every((mark: { opacity: number }) => mark.opacity === 0.2)
     ).toBe(true);
   });
+  it("skips viewport unprojection and timers while there are no historical trails", () => {
+    vi.useFakeTimers();
+    const { handle, map, fire } = setup(true);
+    Object.assign(map, { transform: { width: 100, height: 100 } });
+    handle.setRing(ring, annotation("center"));
+    vi.advanceTimersByTime(0);
+    for (let index = 0; index < 32; index++) {
+      fire("move");
+      fire("resize");
+      fire("idle");
+      scene.beforeRender?.({ localFrame: scene.localFrame });
+    }
+    expect(map.unproject).not.toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBe(0);
+    expect(scene.projective.mock.lastCall?.[1].marks).toHaveLength(1);
+  });
+
+  it("reuses trail viewport bounds until move or resize and prunes with the refreshed bounds", () => {
+    vi.useFakeTimers();
+    vi.spyOn(performance, "now").mockImplementation(() => Date.now());
+    const { handle, map, fire } = setup(true);
+    Object.assign(map, { transform: { width: 100, height: 100 } });
+    handle.setRing(ring, annotation("first"));
+    handle.setRing(ring, annotation("second"));
+    expect(map.unproject).toHaveBeenCalledTimes(4);
+    expect(scene.projective.mock.lastCall?.[1].marks).toHaveLength(2);
+    for (let index = 0; index < 16; index++) {
+      fire("idle");
+      scene.beforeRender?.({ localFrame: scene.localFrame });
+    }
+    expect(map.unproject).toHaveBeenCalledTimes(4);
+    map.unproject.mockReturnValue({ lng: 10, lat: 10 });
+    fire("move");
+    fire("idle");
+    expect(map.unproject).toHaveBeenCalledTimes(8);
+    expect(scene.projective.mock.lastCall?.[1].marks).toHaveLength(1);
+    map.unproject.mockReturnValue({ lng: 0.001, lat: -0.001 });
+    fire("resize");
+    handle.setRing(ring, annotation("third"));
+    expect(map.unproject).toHaveBeenCalledTimes(12);
+    expect(scene.projective.mock.lastCall?.[1].marks).toHaveLength(2);
+    fire("idle");
+    expect(map.unproject).toHaveBeenCalledTimes(12);
+  });
+
   it("repaints GPU trail fades at ten Hz without rebuilding marks or label pixels", () => {
     vi.useFakeTimers();
     vi.spyOn(performance, "now").mockImplementation(() => Date.now());
@@ -370,25 +445,33 @@ describe("calibrated current highlights and bounded selection trails", () => {
     expect(scene.projective.mock.calls.at(-1)?.[1].marks).toHaveLength(1);
     expect(vi.getTimerCount()).toBe(0);
   });
-  it("preserves absolute trail deadlines through preview locks without hidden repaint loops", () => {
+  it("fades every contour before preview and stops all hidden repaint work", async () => {
     vi.useFakeTimers();
     vi.spyOn(performance, "now").mockImplementation(() => Date.now());
     const { handle, map } = setup(true);
     handle.setRing(ring, annotation("first"));
     handle.setRing(ring, annotation("second"));
     handle.setHoveredImage("pointer", candidate("pointer"));
-    handle.setLocked(true);
+    let hidden = false;
+    const done = handle.setLocked(true, { duration: 8000 }).then(() => {
+      hidden = true;
+    });
     const preview = scene.projective.mock.calls.at(-1)?.[1];
-    expect(preview.marks).toHaveLength(1);
+    expect(preview.marks).toHaveLength(3);
     expect(preview.opacity).toBe(1);
-    expect(preview.marks[0].opacity).toBe(1);
-    expect(preview.marks[0].fillOpacity).toBe(0);
-    expect(preview.marks[0].labelRect).toBeUndefined();
-    expect(preview.marks[0].showUpMarker).toBe(false);
+    vi.advanceTimersByTime(50);
+    scene.beforeRender?.({ localFrame: scene.localFrame });
+    expect(scene.projective.mock.calls.at(-1)?.[1].opacity).toBe(0.5);
+    expect(scene.projective.mock.calls.at(-1)?.[1].marks).toBe(preview.marks);
+    expect(hidden).toBe(false);
+    vi.advanceTimersByTime(50);
+    await done;
+    expect(hidden).toBe(true);
+    expect(scene.projective.mock.calls.at(-1)?.[1]).toBeNull();
     const repaints = map.triggerRepaint.mock.calls.length;
     vi.advanceTimersByTime(8000);
+    scene.beforeRender?.({ localFrame: scene.localFrame });
     expect(map.triggerRepaint).toHaveBeenCalledTimes(repaints);
-    expect(scene.projective.mock.calls.at(-1)?.[1].marks).toHaveLength(1);
     expect(vi.getTimerCount()).toBe(0);
     handle.setLocked(false);
     expect(scene.projective.mock.calls.at(-1)?.[1].marks).toHaveLength(1);
@@ -407,10 +490,10 @@ describe("calibrated current highlights and bounded selection trails", () => {
       overlay.marks.map(
         (mark: { trailStartedAt?: number }) => mark.trailStartedAt !== undefined
       )
-    ).toEqual([true, false, false]);
+    ).toEqual([true, true, false]);
     expect(
       overlay.marks.map((mark: { fillOpacity: number }) => mark.fillOpacity)
-    ).toEqual([0, 0.08, 0]);
+    ).toEqual([0, 0, 0.08]);
     expect(
       overlay.marks.every(
         (mark: { sceneToImage: Matrix4; sceneToImageTerrain: Matrix4 }) =>
@@ -448,30 +531,44 @@ describe("calibrated current highlights and bounded selection trails", () => {
         .marks[0].sceneToImage.equals(overlay.marks[0].sceneToImage)
     ).toBe(false);
   });
-  it("keeps center contours visible during preview and applies live styles without fill accumulation", () => {
+  it("does not revive hidden contours on style or tile changes and restores browsing highlights", async () => {
+    vi.useFakeTimers();
+    vi.spyOn(performance, "now").mockImplementation(() => Date.now());
     const { handle } = setup(true);
     handle.setRing(ring, annotation("center"));
     handle.setHoveredImage("pointer", candidate("pointer"));
-    handle.setLocked(true);
+    const done = handle.setLocked(true);
+    vi.advanceTimersByTime(100);
+    await done;
     handle.setStyle({
       color: "#00ffff",
       width: 3,
       opacity: 0.5,
       fillOpacity: 1,
     });
-    let overlay = scene.projective.mock.calls.at(-1)?.[1];
-    expect(overlay.opacity).toBe(0.5);
-    expect(overlay.marks).toHaveLength(1);
-    expect(overlay.marks[0].fillOpacity).toBe(0);
-    expect(overlay.marks[0].width).toBe(3);
-    expect(overlay.marks[0].showUpMarker).toBe(false);
-    expect(overlay.marks[0].labelRect).toBeUndefined();
-    expect(overlay.labelAtlas).toBeUndefined();
+    scene.beforeRender?.({ localFrame: { ...scene.localFrame!, revision: 2 } });
+    expect(scene.projective.mock.calls.at(-1)?.[1]).toBeNull();
     handle.setLocked(false);
-    overlay = scene.projective.mock.calls.at(-1)?.[1];
+    const overlay = scene.projective.mock.calls.at(-1)?.[1];
+    expect(overlay.marks[0].width).toBe(3);
     expect(overlay.marks[0].showUpMarker).toBe(true);
     expect(overlay.marks[0].fillOpacity).toBe(0.08);
     expect(overlay.opacity * overlay.marks[0].fillOpacity).toBe(0.04);
+  });
+  it("resolves a cancelled fade on unlock or destroy without leaving timers", async () => {
+    vi.useFakeTimers();
+    vi.spyOn(performance, "now").mockImplementation(() => Date.now());
+    const { handle } = setup(true);
+    handle.setRing(ring, annotation("center"));
+    const cancelled = handle.setLocked(true);
+    vi.advanceTimersByTime(25);
+    handle.setLocked(false);
+    await cancelled;
+    expect(scene.projective.mock.calls.at(-1)?.[1].opacity).toBe(1);
+    const destroyed = handle.setLocked(true);
+    handle.destroy();
+    await destroyed;
+    expect(vi.getTimerCount()).toBe(0);
   });
   it("removes expired or out-of-viewport trails and releases callbacks, textures and timers", () => {
     vi.useFakeTimers();
@@ -481,6 +578,7 @@ describe("calibrated current highlights and bounded selection trails", () => {
     handle.setRing(ring, annotation("second"));
     Object.assign(map, { transform: { width: 100, height: 100 } });
     map.unproject.mockReturnValue({ lng: 10, lat: 10 });
+    fire("resize");
     fire("idle");
     expect(scene.projective.mock.calls.at(-1)?.[1].marks).toHaveLength(1);
     const atlas = scene.projective.mock.calls.at(-1)?.[1].labelAtlas,

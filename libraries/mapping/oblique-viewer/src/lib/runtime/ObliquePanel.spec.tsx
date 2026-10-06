@@ -17,19 +17,27 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("antd", () => ({
+  Button: ({
+    children,
+    icon,
+    ...props
+  }: ButtonHTMLAttributes<HTMLButtonElement> & { icon?: ReactNode }) =>
+    createElement("button", props, icon, children),
   Tooltip: ({ children }: { children: ReactNode }) => children,
   Spin: () => null,
   message: { error: vi.fn() },
-  Slider: () => null,
+  Slider: () => createElement("input", { type: "range" }),
   Select: ({
     value,
+    mode,
     options,
     onChange,
     ...props
   }: {
-    value: string[];
+    value: string[] | string;
+    mode?: "multiple";
     options: { value: string; label: ReactNode }[];
-    onChange: (ids: string[]) => void;
+    onChange: (value: string[] | string) => void;
     "aria-label": string;
   }) =>
     createElement(
@@ -38,15 +46,17 @@ vi.mock("antd", () => ({
       createElement(
         "select",
         {
-          multiple: true,
+          multiple: mode === "multiple",
           "aria-label": props["aria-label"],
           value,
           onChange: (event: { currentTarget: HTMLSelectElement }) =>
             onChange(
-              Array.from(
-                event.currentTarget.selectedOptions,
-                (option) => option.value
-              )
+              mode === "multiple"
+                ? Array.from(
+                    event.currentTarget.selectedOptions,
+                    (option) => option.value
+                  )
+                : event.currentTarget.value
             ),
         },
         options.map((option) =>
@@ -145,6 +155,12 @@ const Harness = ({
   showPanel = true,
   objectCoverageActive = false,
   downloadOptions = null,
+  nextInterface = true,
+  objectViewsAvailable = true,
+  hoverAvailable = false,
+  previewVisible = false,
+  publish = vi.fn(),
+  initialSelectionStrategy = OBLIQUE_STATE_DEFAULT.selectionStrategy,
 }: {
   failure2026?: boolean;
   nadirActive?: boolean;
@@ -154,10 +170,19 @@ const Harness = ({
   showPanel?: boolean;
   objectCoverageActive?: boolean;
   downloadOptions?: ObliqueViewerActions["downloadOptions"];
+  nextInterface?: boolean;
+  objectViewsAvailable?: boolean;
+  hoverAvailable?: boolean;
+  previewVisible?: boolean;
+  publish?: ReturnType<typeof vi.fn>;
+  initialSelectionStrategy?: ObliqueViewerActions["selectionStrategy"];
 }) => {
   const [enabledSeriesIds, setEnabledSeriesIds] = useState(
     failure2026 ? [series[0].id, series[1].id] : [series[0].id]
   );
+  const [selectionStrategy, setSelectionStrategy] = useState<
+    ObliqueViewerActions["selectionStrategy"]
+  >(initialSelectionStrategy);
   const actions: ObliqueViewerActions = {
     ...OBLIQUE_STATE_DEFAULT,
     isOn: true,
@@ -170,6 +195,9 @@ const Harness = ({
       : "oblique",
     panelOpen: showPanel,
     canPan: true,
+    hoverAvailable,
+    previewVisible,
+    selectionStrategy,
     isAllDataReady: !failure2026,
     selectedImageId: "wuppertal-2024::001_001_170003373",
     selectedSourceImageId: "001_001_170003373",
@@ -188,14 +216,15 @@ const Harness = ({
           : null,
     })),
     label: "2024 · 001_001_170003373",
-    publish: vi.fn(),
+    publish: (patch) => {
+      publish(patch);
+      if (patch.selectionStrategy)
+        setSelectionStrategy(patch.selectionStrategy);
+    },
     setOn: vi.fn(),
     toggle: vi.fn(),
     setPanelOpen: vi.fn(),
     setEnabledSeriesIds,
-    setPreviewQuality: vi.fn(),
-    setBackdropLook: vi.fn(),
-    resetLook: vi.fn(),
     sendRequest,
     clearRequest: vi.fn(),
   };
@@ -204,13 +233,55 @@ const Harness = ({
     children: createElement(
       Fragment,
       null,
-      showPanel ? createElement(ObliquePanel) : null,
-      createElement(ObliqueNavigation)
+      showPanel
+        ? createElement(ObliquePanel, {
+            nextInterface,
+            extensions: objectViewsAvailable
+              ? [
+                  {
+                    mode: "objectCoverage",
+                    label: "Objektansichtenabfrage",
+                    Component: () => null,
+                  },
+                ]
+              : [],
+          })
+        : null,
+      createElement(ObliqueNavigation, { nextInterface })
     ),
   });
 };
 
 describe("oblique series controls", () => {
+  it("shows object views only when both the next UI and its addon are enabled", () => {
+    const { rerender } = render(
+      createElement(Harness, {
+        nextInterface: true,
+        objectViewsAvailable: false,
+      })
+    );
+    expect(
+      screen.queryByRole("button", { name: "Objektansichtenabfrage" })
+    ).toBeNull();
+    rerender(
+      createElement(Harness, {
+        nextInterface: true,
+        objectViewsAvailable: true,
+      })
+    );
+    expect(
+      screen.getByRole("button", { name: "Objektansichtenabfrage" })
+    ).toBeDefined();
+    rerender(
+      createElement(Harness, {
+        nextInterface: false,
+        objectViewsAvailable: true,
+      })
+    );
+    expect(
+      screen.queryByRole("button", { name: "Objektansichtenabfrage" })
+    ).toBeNull();
+  });
   it("lets users enable either series, both, or none independently", () => {
     render(createElement(Harness));
     const select = screen.getByRole("listbox", {
@@ -360,7 +431,7 @@ describe("independent map navigation", () => {
     ).toBeNull();
     expect(
       screen
-        .getByRole("button", { name: "Object Coverage" })
+        .getByRole("button", { name: "Objektansichtenabfrage" })
         .getAttribute("aria-pressed")
     ).toBe("true");
   });
@@ -370,7 +441,9 @@ describe("object coverage control", () => {
   it("requests object coverage and returns to oblique from an active toggle", () => {
     const sendRequest = vi.fn();
     const view = render(createElement(Harness, { sendRequest }));
-    fireEvent.click(screen.getByRole("button", { name: "Object Coverage" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Objektansichtenabfrage" })
+    );
     expect(sendRequest).toHaveBeenLastCalledWith({
       type: "setViewMode",
       mode: "objectCoverage",
@@ -378,7 +451,9 @@ describe("object coverage control", () => {
     view.rerender(
       createElement(Harness, { sendRequest, objectCoverageActive: true })
     );
-    const button = screen.getByRole("button", { name: "Object Coverage" });
+    const button = screen.getByRole("button", {
+      name: "Objektansichtenabfrage",
+    });
     expect(button.getAttribute("aria-pressed")).toBe("true");
     fireEvent.click(button);
     expect(sendRequest).toHaveBeenLastCalledWith({
@@ -389,6 +464,27 @@ describe("object coverage control", () => {
 });
 
 describe("image information, actions and acquisition precision", () => {
+  it("keeps image actions and series selection without display, quality or color controls", () => {
+    render(createElement(Harness));
+    expect(screen.getByRole("listbox", { name: "Bildserien" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Bild öffnen" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Rückmeldung" })).toBeTruthy();
+    expect(screen.queryByRole("slider")).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Weitere Einstellungen" })
+    ).toBeNull();
+    for (const label of [
+      "Darstellung",
+      "Qualität",
+      "Standard",
+      "HQ",
+      "Helligkeit",
+      "Kontrast",
+      "Sättigung",
+    ])
+      expect(screen.queryByText(label)).toBeNull();
+  });
+
   it("offers the current original and feedback in the information panel", async () => {
     const url = "https://images.example/2026/RI_29_3398.tif";
     const open = vi.spyOn(window, "open").mockReturnValue(null);
@@ -493,5 +589,104 @@ describe("image information, actions and acquisition precision", () => {
       expect(screen.queryByRole("button", { name: "Abbrechen" })).toBeNull()
     );
     expect(message.error).not.toHaveBeenCalled();
+  });
+});
+
+describe("classic and next interface capabilities", () => {
+  it("keeps the flight button in the classic interface even on a hover-capable device and hides experimental modes", () => {
+    const sendRequest = vi.fn();
+    render(
+      createElement(Harness, {
+        nextInterface: false,
+        hoverAvailable: true,
+        failure2026: true,
+        sendRequest,
+      })
+    );
+    expect(screen.queryByRole("button", { name: "Nadiransicht" })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Objektansichtenabfrage" })
+    ).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Flug zum Bild" }));
+    expect(sendRequest).toHaveBeenCalledWith({ type: "flyToImage" });
+    expect(
+      screen.queryByRole("combobox", { name: "Footprint-Auswahl" })
+    ).toBeNull();
+  });
+
+  it("offers next-interface modes while hover-capable devices replace the flight button with pointer picking", () => {
+    render(
+      createElement(Harness, {
+        nextInterface: true,
+        hoverAvailable: true,
+        failure2026: true,
+      })
+    );
+    expect(
+      screen.getByRole("button", { name: "Objektansichtenabfrage" })
+    ).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Nadiransicht" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Flug zum Bild" })).toBeNull();
+    expect(
+      screen.getByRole("button", { name: "Nächstes Bild nach vorn" })
+    ).toBeTruthy();
+  });
+
+  it("retains flight for touch and keeps the preview exit available with hover", () => {
+    const view = render(
+      createElement(Harness, { nextInterface: true, hoverAvailable: false })
+    );
+    expect(screen.getByRole("button", { name: "Flug zum Bild" })).toBeTruthy();
+    view.rerender(
+      createElement(Harness, {
+        nextInterface: true,
+        hoverAvailable: true,
+        previewVisible: true,
+      })
+    );
+    expect(
+      screen.getByRole("button", { name: "Vorschau beenden" })
+    ).toBeTruthy();
+  });
+
+  it("hides classic method selection despite a saved best-resolution preference and retains it for NG", () => {
+    const view = render(
+      createElement(Harness, {
+        nextInterface: false,
+        initialSelectionStrategy: "best-resolution",
+      })
+    );
+    expect(
+      screen.queryByRole("combobox", { name: "Footprint-Auswahl" })
+    ).toBeNull();
+    view.rerender(createElement(Harness, { nextInterface: true }));
+    const strategy = screen.getByRole("combobox", {
+      name: "Footprint-Auswahl",
+    }) as HTMLSelectElement;
+    expect(strategy.value).toBe("best-resolution");
+  });
+
+  it("publishes NG footprint strategies without changing the enabled-series selection", () => {
+    const publish = vi.fn();
+    render(createElement(Harness, { nextInterface: true, publish }));
+    const strategy = screen.getByRole("combobox", {
+      name: "Footprint-Auswahl",
+    }) as HTMLSelectElement;
+    expect(strategy.value).toBe("nearest-axis");
+    fireEvent.change(strategy, { target: { value: "best-resolution" } });
+    expect(publish).toHaveBeenLastCalledWith({
+      selectionStrategy: "best-resolution",
+    });
+    expect(strategy.value).toBe("best-resolution");
+    fireEvent.change(strategy, { target: { value: "nearest-axis" } });
+    expect(publish).toHaveBeenLastCalledWith({
+      selectionStrategy: "nearest-axis",
+    });
+    const seriesSelection = screen.getByRole("listbox", {
+      name: "Bildserien",
+    }) as HTMLSelectElement;
+    expect(
+      Array.from(seriesSelection.selectedOptions, (option) => option.value)
+    ).toEqual([series[0].id]);
   });
 });

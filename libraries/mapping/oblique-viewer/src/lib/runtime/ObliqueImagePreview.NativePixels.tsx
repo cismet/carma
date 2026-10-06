@@ -16,12 +16,14 @@ import {
   useScenePreviewImage,
   type ScenePreviewImageContent,
   type ScenePreviewImageGeometry,
+  type ScenePreviewPhoto,
 } from "./hooks/useScenePreviewImage";
 import { readCameraToCenterDistancePx } from "./utils/cameraMath";
 import {
   PREVIEW_HEIGHT_VAR,
   PREVIEW_WIDTH_VAR,
 } from "./hooks/usePreviewSizeSync";
+import type { PreviewQualityLevel } from "../core/constants";
 import type { ObliqueBackdropLook } from "../core/types";
 import type { PreviewBackdropTint } from "./utils/preview-backdrop";
 
@@ -32,6 +34,7 @@ let compositionGeneration = 0;
 /** Assemble the visible source window in a reusable, cancellable worker. */
 export const NativePixels = ({
   map,
+  photo,
   rootRef,
   path,
   imageId,
@@ -42,12 +45,16 @@ export const NativePixels = ({
   dimImage,
   sourceUrl,
   tiff = false,
+  avifPyramidUrl,
+  minimumQualityLevel = "0",
   onSourceLoaded,
+  onOutlineReady,
   onError,
   backdropLook,
   backdropTint,
 }: {
   map: MaplibreMap;
+  photo?: ScenePreviewPhoto;
   rootRef: RefObject<HTMLElement>;
   path?: string;
   imageId: string;
@@ -58,8 +65,11 @@ export const NativePixels = ({
   dimImage: boolean;
   sourceUrl: string;
   tiff?: boolean;
+  avifPyramidUrl?: string;
+  minimumQualityLevel?: PreviewQualityLevel;
   onSourceLoaded?: (url: string, width: number, height: number) => void;
   onError?: () => void;
+  onOutlineReady?: () => void;
   backdropLook?: ObliqueBackdropLook;
   backdropTint?: PreviewBackdropTint;
 }) => {
@@ -68,8 +78,8 @@ export const NativePixels = ({
   const scheduleRef = useRef<
     ((geometry: ScenePreviewImageGeometry) => void) | null
   >(null);
-  const callbacksRef = useRef({ onSourceLoaded, onError });
-  callbacksRef.current = { onSourceLoaded, onError };
+  const callbacksRef = useRef({ onSourceLoaded, onError, onOutlineReady });
+  callbacksRef.current = { onSourceLoaded, onError, onOutlineReady };
   const lastSourceRef = useRef<string | null>(null);
   const sourceUrlRef = useRef(sourceUrl);
   sourceUrlRef.current = sourceUrl;
@@ -79,8 +89,10 @@ export const NativePixels = ({
     useState<NativePreviewWindow | null>(null);
   const sceneImage = useScenePreviewImage({
     map,
+    photo,
     contentRef,
     shown: !dimImage,
+    onOutlineReady,
     halfFovTan,
     nativeSize,
     principal,
@@ -106,7 +118,7 @@ export const NativePixels = ({
       (navigator as Navigator & { deviceMemory?: number }).deviceMemory ?? 4;
     const retainedSourceByteLimit =
       (Math.min(1024, Math.max(256, memoryGb * 128)) * 1024 * 1024) / 4;
-    const workerKey = `${path}/${imageId}/${tiff}`;
+    const workerKey = `${path}/${imageId}/${tiff}/${avifPyramidUrl ?? ""}`;
     worker = parkedCompositions.get(workerKey) ?? null;
     parkedCompositions.delete(workerKey);
     let scheduledUrl: string | null = null;
@@ -237,6 +249,10 @@ export const NativePixels = ({
             nativeSize,
             flipForTexture: sceneImage,
             tiff,
+            avifPyramidUrl: avifPyramidUrl
+              ? new URL(avifPyramidUrl, globalThis.window.location.href).href
+              : undefined,
+            minimumQualityLevel,
             generation: epoch,
             retainedSourceByteLimit,
           });
@@ -334,6 +350,8 @@ export const NativePixels = ({
     rootRef,
     path,
     tiff,
+    avifPyramidUrl,
+    minimumQualityLevel,
     imageId,
     nativeSize.width,
     nativeSize.height,
@@ -347,6 +365,11 @@ export const NativePixels = ({
   useEffect(() => {
     map.triggerRepaint();
   }, [map, sourceUrl]);
+
+  useEffect(() => {
+    if (ready && !sceneImage && !dimImage)
+      callbacksRef.current.onOutlineReady?.();
+  }, [ready, sceneImage, dimImage]);
 
   const source = previewWindow?.source;
   return (

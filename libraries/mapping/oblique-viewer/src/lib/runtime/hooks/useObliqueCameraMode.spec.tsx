@@ -1,5 +1,6 @@
 import { act, renderHook } from "@testing-library/react";
 import type { Map as MaplibreMap } from "maplibre-gl";
+import type { Degrees } from "@carma-units";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ObliqueDataset } from "../../core/types";
 import { useObliqueCameraMode } from "./useObliqueCameraMode";
@@ -11,6 +12,7 @@ const camera = vi.hoisted(() => ({
   lock: vi.fn(),
   release: vi.fn(),
   ensureTerrain: vi.fn(() => true),
+  settle: vi.fn(),
 }));
 vi.mock("@carma-mapping/engines/maplibre", () => ({
   WUPPERTAL_TERRAIN_SOURCE_ID: "terrain",
@@ -25,6 +27,8 @@ vi.mock("../utils/obliqueCamera", () => ({
   ensureTerrain: camera.ensureTerrain,
 }));
 
+vi.mock("../utils/flyToImage", () => ({ settleToPitch: camera.settle }));
+
 const deferredFlight = () => {
   let resolve!: () => void;
   const done = new Promise<void>((finished) => {
@@ -33,7 +37,9 @@ const deferredFlight = () => {
   return { done, cancel: vi.fn(resolve), finish: resolve };
 };
 const dataset = { pitchDeg: 45 } as ObliqueDataset;
-const setup = () => {
+const setup = (
+  overrides: Partial<Parameters<typeof useObliqueCameraMode>[0]> = {}
+) => {
   let fov = 45;
   const map = {
     getVerticalFieldOfView: () => fov,
@@ -49,11 +55,20 @@ const setup = () => {
   camera.enter.mockReturnValue(enter);
   camera.leave.mockReturnValue(leave);
   const beforeLeave = vi.fn(() => preparation);
-  const props = { map, enabled: true, dataset, onBeforeLeave: beforeLeave };
+  const props: Parameters<typeof useObliqueCameraMode>[0] = {
+    map,
+    enabled: true,
+    dataset,
+    onBeforeLeave: beforeLeave,
+    ...overrides,
+  };
   const view = renderHook(useObliqueCameraMode, { initialProps: props });
   return { ...view, map, props, enter, preparation, leave, beforeLeave };
 };
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  camera.settle.mockReset().mockImplementation(() => deferredFlight());
+});
 
 const finishEntry = async (view: ReturnType<typeof setup>) => {
   await act(async () => {});
@@ -113,6 +128,96 @@ describe("oblique preview return lifecycle", () => {
     view.rerender({ ...view.props, enabled: false });
     await act(async () => {});
     expect(camera.leave).toHaveBeenCalledWith(view.map, dataset, 45, 250);
+    view.unmount();
+  });
+});
+
+describe("dataset browsing pitch updates", () => {
+  it("changes only pitch while retaining the existing mode, terrain, zoom/FOV baseline and wheel state", async () => {
+    const view = setup({ pitchDeg: 30 as Degrees });
+    await finishEntry(view);
+    expect(camera.enter).toHaveBeenCalledWith(
+      view.map,
+      expect.objectContaining({ pitchDeg: 30 })
+    );
+    view.map.setVerticalFieldOfView(2);
+    vi.mocked(view.map.setVerticalFieldOfView).mockClear();
+    const update = deferredFlight();
+    camera.settle.mockReturnValue(update);
+    view.rerender({ ...view.props, pitchDeg: 42 as Degrees });
+    expect(camera.settle).toHaveBeenCalledWith(view.map, 42, {
+      durationMs: 250,
+    });
+    expect(camera.enter).toHaveBeenCalledOnce();
+    expect(camera.ensureTerrain).toHaveBeenCalledOnce();
+    expect(view.map.scrollZoom.disable).toHaveBeenCalledOnce();
+    expect(view.map.getVerticalFieldOfView()).toBe(2);
+    expect(view.map.setVerticalFieldOfView).not.toHaveBeenCalled();
+    expect(camera.lock).toHaveBeenLastCalledWith(view.map, 30);
+    await act(async () => update.finish());
+    expect(camera.lock).toHaveBeenLastCalledWith(view.map, 42);
+    expect(view.result.current.phase).toBe("active");
+    view.unmount();
+  });
+
+  it("retains preview pitch while suspended or manually freed and locks to the latest default on return", async () => {
+    const view = setup();
+    await finishEntry(view);
+    const locks = camera.lock.mock.calls.length;
+    view.rerender({ ...view.props, pitchDeg: 50 as Degrees, suspended: true });
+    view.rerender({ ...view.props, pitchDeg: 55 as Degrees, suspended: true });
+    expect(camera.settle).not.toHaveBeenCalled();
+    expect(camera.lock).toHaveBeenCalledTimes(locks);
+    act(() => view.result.current.freeCamera());
+    view.rerender({ ...view.props, pitchDeg: 58 as Degrees, suspended: false });
+    expect(camera.settle).not.toHaveBeenCalled();
+    expect(camera.lock).toHaveBeenCalledTimes(locks);
+    act(() => view.result.current.lockCamera());
+    expect(camera.lock).toHaveBeenLastCalledWith(view.map, 58);
+    expect(camera.enter).toHaveBeenCalledOnce();
+    view.unmount();
+  });
+
+  it("cancels outdated pitch flights and suspended updates without relocking to a stale mean", async () => {
+    const view = setup();
+    await finishEntry(view);
+    const first = deferredFlight(),
+      second = deferredFlight(),
+      third = deferredFlight();
+    camera.settle
+      .mockReturnValueOnce(first)
+      .mockReturnValueOnce(second)
+      .mockReturnValueOnce(third);
+    view.rerender({ ...view.props, pitchDeg: 40 as Degrees });
+    view.rerender({ ...view.props, pitchDeg: 50 as Degrees });
+    expect(first.cancel).toHaveBeenCalledOnce();
+    await act(async () => {});
+    expect(camera.lock).toHaveBeenLastCalledWith(view.map, 45);
+    await act(async () => second.finish());
+    expect(camera.lock).toHaveBeenLastCalledWith(view.map, 50);
+    view.rerender({ ...view.props, pitchDeg: 60 as Degrees });
+    view.rerender({ ...view.props, pitchDeg: 60 as Degrees, suspended: true });
+    expect(third.cancel).toHaveBeenCalledOnce();
+    await act(async () => {});
+    expect(camera.lock).toHaveBeenLastCalledWith(view.map, 50);
+    expect(camera.enter).toHaveBeenCalledOnce();
+    view.unmount();
+  });
+
+  it("cancels an active pitch adjustment when the photo camera is freed and keeps later defaults for the final lock", async () => {
+    const view = setup();
+    await finishEntry(view);
+    const update = deferredFlight();
+    camera.settle.mockReturnValue(update);
+    view.rerender({ ...view.props, pitchDeg: 40 as Degrees });
+    act(() => view.result.current.freeCamera());
+    expect(update.cancel).toHaveBeenCalledOnce();
+    await act(async () => {});
+    expect(camera.lock).toHaveBeenLastCalledWith(view.map, 45);
+    view.rerender({ ...view.props, pitchDeg: 56 as Degrees });
+    expect(camera.settle).toHaveBeenCalledOnce();
+    act(() => view.result.current.lockCamera());
+    expect(camera.lock).toHaveBeenLastCalledWith(view.map, 56);
     view.unmount();
   });
 });

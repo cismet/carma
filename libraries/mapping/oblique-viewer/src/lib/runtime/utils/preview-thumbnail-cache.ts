@@ -5,6 +5,7 @@ type ThumbnailSource = Readonly<{
   previewPath: string;
   imageId: string;
   originalImageUrl?: string;
+  avifPyramidUrl?: string;
   nativeSize?: { width: number; height: number };
 }>;
 type Entry = {
@@ -28,6 +29,7 @@ let worker: Worker | null = null;
 let activeUrl: string | null = null;
 let activeTiff = false;
 let queuedSource: { url: string; source: ThumbnailSource } | null = null;
+const backgroundSources = new Map<string, ThumbnailSource>();
 let timeout: number | undefined;
 let epoch = 0;
 
@@ -35,9 +37,11 @@ const sourceUrl = ({
   previewPath,
   imageId,
   originalImageUrl,
+  avifPyramidUrl,
 }: ThumbnailSource) =>
   new URL(
-    originalImageUrl ??
+    avifPyramidUrl ??
+      originalImageUrl ??
       getPreviewImageUrl(previewPath, PREVIEW_QUALITY.LEVEL_6, imageId),
     globalThis.window.location.href
   ).href;
@@ -70,10 +74,26 @@ const trim = () => {
   }
 };
 
+const drainBackground = () => {
+  if (worker) return;
+  const next = queuedSource;
+  queuedSource = null;
+  if (next) {
+    start(next.url, next.source);
+    return;
+  }
+  const background = backgroundSources.entries().next().value;
+  if (background) {
+    backgroundSources.delete(background[0]);
+    start(background[0], background[1]);
+  }
+};
+
 const start = (url: string, source: ThumbnailSource) => {
   const cached = entries.get(url);
   if (cached?.bitmap) {
     touch(url, cached);
+    drainBackground();
     return;
   }
   const token = epoch;
@@ -88,7 +108,7 @@ const start = (url: string, source: ThumbnailSource) => {
   }
   worker = currentWorker;
   activeUrl = url;
-  activeTiff = !!source.originalImageUrl;
+  activeTiff = !!source.originalImageUrl || !!source.avifPyramidUrl;
   const finish = () => {
     currentWorker.terminate();
     if (worker !== currentWorker) return;
@@ -96,9 +116,7 @@ const start = (url: string, source: ThumbnailSource) => {
     worker = null;
     activeUrl = null;
     activeTiff = false;
-    const next = queuedSource;
-    queuedSource = null;
-    if (next && token === epoch) start(next.url, next.source);
+    if (token === epoch) drainBackground();
   };
   currentWorker.onmessage = (
     event: MessageEvent<{ bitmap?: ImageBitmap; blob?: Blob; error?: string }>
@@ -119,9 +137,9 @@ const start = (url: string, source: ThumbnailSource) => {
       retired: false,
     };
     touch(url, entry);
+    // Visible subscribers must acquire their lease before inactive entries are trimmed.
+    listeners.get(url)?.forEach((listener) => listener());
     trim();
-    if (entries.get(url)?.bitmap)
-      listeners.get(url)?.forEach((listener) => listener());
     finish();
   };
   currentWorker.onerror = finish;
@@ -129,7 +147,19 @@ const start = (url: string, source: ThumbnailSource) => {
   timeout = globalThis.window.setTimeout(finish, 10000);
   try {
     currentWorker.postMessage({
-      url,
+      url: new URL(
+        source.originalImageUrl ??
+          getPreviewImageUrl(
+            source.previewPath,
+            PREVIEW_QUALITY.LEVEL_6,
+            source.imageId
+          ),
+        globalThis.window.location.href
+      ).href,
+      avifPyramidUrl: source.avifPyramidUrl
+        ? new URL(source.avifPyramidUrl, globalThis.window.location.href).href
+        : undefined,
+      nativeSize: source.nativeSize,
       blob: cached?.blob,
       ...(source.originalImageUrl
         ? { tiff: true, nativeSize: source.nativeSize }
@@ -140,8 +170,11 @@ const start = (url: string, source: ThumbnailSource) => {
   }
 };
 
-/** One optimistic JPEG/TIFF thumbnail worker and one replaceable next hover. */
-export const prefetchPreviewThumbnail = (source: ThumbnailSource | null) => {
+/** Prioritize the latest hover ahead of a bounded carousel thumbnail queue. */
+export const prefetchPreviewThumbnail = (
+  source: ThumbnailSource | null,
+  options?: { enqueue?: boolean }
+) => {
   if (!source) {
     queuedSource = null;
     if (activeTiff) {
@@ -150,6 +183,7 @@ export const prefetchPreviewThumbnail = (source: ThumbnailSource | null) => {
       worker = null;
       activeUrl = null;
       activeTiff = false;
+      drainBackground();
     }
     return;
   }
@@ -157,10 +191,16 @@ export const prefetchPreviewThumbnail = (source: ThumbnailSource | null) => {
   const cached = entries.get(url);
   if (cached?.bitmap) {
     touch(url, cached);
-    queuedSource = null;
+    if (!options?.enqueue) queuedSource = null;
     return;
   }
   if (worker) {
+    if (options?.enqueue) {
+      if (url !== activeUrl) backgroundSources.set(url, source);
+      while (backgroundSources.size > 64)
+        backgroundSources.delete(backgroundSources.keys().next().value!);
+      return;
+    }
     queuedSource = url === activeUrl ? null : { url, source };
     return;
   }
@@ -208,6 +248,7 @@ export const subscribePreviewThumbnail = (
 /** Release the bounded optimistic cache when its viewer leaves the scene. */
 export const disposePreviewThumbnailPrefetch = () => {
   epoch++;
+  backgroundSources.clear();
   queuedSource = null;
   activeUrl = null;
   activeTiff = false;

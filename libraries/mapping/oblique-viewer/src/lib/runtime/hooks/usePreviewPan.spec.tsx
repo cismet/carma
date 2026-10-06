@@ -16,7 +16,7 @@ vi.mock("../utils/cameraMath", () => ({
   readCameraToCenterDistancePx: () => 500,
 }));
 
-const setup = (initialActive = true) => {
+const setup = (initialActive = true, initialPanEnabled = true) => {
   let padding: PaddingOptions = { top: 0, bottom: 10, left: 20, right: 0 };
   const original = { ...padding };
   const listeners = new Map<string, Set<() => void>>();
@@ -52,7 +52,11 @@ const setup = (initialActive = true) => {
   const busy = { current: false };
   let reset = () => {};
   let beginPreview = () => {};
-  const Harness = ({ show = true, active = true } = {}) => {
+  const Harness = ({
+    show = true,
+    active = true,
+    panEnabled = initialPanEnabled,
+  } = {}) => {
     const rootRef = useRef<HTMLDivElement>(null);
     const [root, setRoot] = useState<HTMLDivElement | null>(null);
     const attachRoot = useCallback((node: HTMLDivElement | null) => {
@@ -63,6 +67,7 @@ const setup = (initialActive = true) => {
       map: map as unknown as MaplibreMap,
       root,
       enabled: active,
+      panEnabled,
       imageId: "test",
       imageGeometry: {
         aspectRatio: 1.5 as Ratio,
@@ -129,6 +134,25 @@ const setup = (initialActive = true) => {
 };
 
 describe("image preview panning", () => {
+  it("keeps centered preview padding while allowing backdrop close when image panning is disabled", () => {
+    const view = setup(true, false);
+    view.map.setPadding({ left: 40, right: 0, top: 0, bottom: 20 });
+    const centered = view.map.getPadding();
+    view.pointer("pointerdown", 100, 100);
+    view.pointer("pointermove", 350, 250);
+    view.pointer("pointerup", 350, 250);
+    expect(view.map.getPadding()).toEqual(centered);
+    expect(view.root.setPointerCapture).not.toHaveBeenCalled();
+    expect(view.end).not.toHaveBeenCalled();
+    fireEvent.click(view.getByTestId("backdrop"));
+    expect(view.close).toHaveBeenCalledOnce();
+    view.hidePreview();
+    expect(view.map.getPadding()).toEqual(centered);
+    view.finishReturn();
+    expect(view.map.getPadding()).toEqual(view.original);
+    view.unmount();
+  });
+
   it("retains browsing padding when an entering flight prepares and offsets the projection before showing the image", () => {
     const view = setup(false);
     act(() => view.beginPreview());

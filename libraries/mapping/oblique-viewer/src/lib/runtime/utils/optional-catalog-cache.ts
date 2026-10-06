@@ -1,4 +1,5 @@
 import type { ObliqueDataset } from "../../core/types";
+import { summarizeObliquePitch } from "../../core/utils/imageRecord";
 import { loadObliqueSeriesData, type ObliqueData } from "./load-oblique-series";
 
 type CacheLoader = typeof loadObliqueSeriesData;
@@ -24,5 +25,7 @@ export const loadWithOptionalCatalogCache = async (
   } finally {
     clearTimeout(timer);
   }
-  return (cachedLoader ?? loadObliqueSeriesData)(dataset);
+  const data = await (cachedLoader ?? loadObliqueSeriesData)(dataset);
+  data.obliquePitchBySeries ??= summarizeObliquePitch(data);
+  return data;
 };

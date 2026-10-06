@@ -186,6 +186,48 @@ describe("object sphere image coverage", () => {
 });
 
 describe("object coverage grouping", () => {
+  it("excludes a fully covering nadir photograph from the four cardinal object-view groups", () => {
+    const nadirCalibration = { ...calibration, view: "nadir" as const };
+    // The delivered nadir photo has the same valid frustum as this covering fixture.
+    expect(
+      projectObjectCoverageSphere(
+        matrix(nadirCalibration),
+        new Sphere(new Vector3(0, 0, -100), 5),
+        nadirCalibration
+      )
+    ).not.toBeNull();
+    const nadir = {
+      ...record,
+      id: "test-legacy:nadir",
+      sourceId: "nadir",
+      cameraId: "nadir",
+    };
+    const series = {
+      ...TEST_LEGACY_SERIES,
+      cameras: { "170": calibration, nadir: nadirCalibration },
+    };
+    const data: ObliqueSelectionData = {
+      imageRecords: new Map([record, nadir].map((photo) => [photo.id, photo])),
+      datasets: new Map([[series.id, series]]),
+      centers: new Map(),
+    };
+    const groups = groupObjectCoverageImages(
+      data,
+      {
+        center: { longitude: 7.2, latitude: 51.27, heightMeters: 0 },
+        radiusMeters: 5,
+      },
+      new Map([
+        [record.id, 100],
+        [nadir.id, 100],
+      ])
+    );
+    expect(groups.get(0)?.map((image) => image.record.id)).toEqual([record.id]);
+    expect(
+      [...groups.values()].flat().map((image) => image.record.id)
+    ).not.toContain(nadir.id);
+  });
+
   it("uses calibrated bearing and native resolution, including a farther sharper camera", () => {
     const series = {
       ...TEST_LEGACY_SERIES,
@@ -238,6 +280,26 @@ describe("object coverage grouping", () => {
     expect(groups.get(1)?.map((image) => image.record.id)).toEqual([east.id]);
     expect(groups.get(2)).toEqual([]);
     expect(groups.get(3)).toEqual([]);
+    for (const image of groups.get(0)!) {
+      expect(image.projection).toBeInstanceOf(Matrix4);
+      expect(image.cameraAltitudeMeters).toBe(
+        image.record.id === sharper.id ? 200 : 100
+      );
+      // One shared point in the object-anchored east/up/south metre frame.
+      const point = new Vector4(10, 5, 0, 1).applyMatrix4(image.projection!);
+      const camera =
+        image.record.id === sharper.id ? series.cameras.high : calibration;
+      const height = image.cameraAltitudeMeters! - 5;
+      expect(point.x / point.w).toBeCloseTo(
+        camera.principalPointPx[0] / camera.widthPx + 10 / (2 * height),
+        9
+      );
+      expect(point.y / point.w).toBeCloseTo(
+        1 - camera.principalPointPx[1] / camera.heightPx,
+        9
+      );
+      expect(point.w).toBeCloseTo(height, 7);
+    }
     const batch = groupObjectCoverageImages(
       data,
       {

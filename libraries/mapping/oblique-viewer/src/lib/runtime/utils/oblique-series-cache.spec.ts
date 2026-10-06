@@ -264,4 +264,101 @@ describe("optional storage and cancellation", () => {
     marker.clear();
     expect(syncObliqueCatalogCacheVersion).not.toThrow();
   });
+  it("reuses a legitimate canonical parsed cache when only preferred compression is added", async () => {
+    const first = await loadCachedObliqueSeriesData(dataset);
+    const restored = await loadCachedObliqueSeriesData({
+      ...dataset,
+      compressedCatalogURI: "https://images.example/metadata.json.gz",
+    });
+    expect([...restored.imageRecords.keys()]).toEqual([
+      ...first.imageRecords.keys(),
+    ]);
+    expect(loadObliqueSeriesData).toHaveBeenCalledOnce();
+    expect(
+      network.mock.calls.map(([url, init]) => [url, init?.method ?? "GET"])
+    ).toEqual([
+      [dataset.exteriorOrientationsURI, "GET"],
+      [dataset.exteriorOrientationsURI, "HEAD"],
+    ]);
+  });
+  it("keeps the canonical parsed cache when a directional transport plan is added", async () => {
+    const first = await loadCachedObliqueSeriesData(dataset);
+    const restored = await loadCachedObliqueSeriesData({
+      ...dataset,
+      directionalCatalogs: [
+        {
+          id: "north",
+          sector: "N",
+          cameraIds: ["RI"],
+          meanHeadingRad: 0 as import("@carma-units").Radians,
+          imageCount: 1,
+          exteriorOrientationsURI: "https://images.example/north.json",
+        },
+      ],
+    });
+    expect([...restored.imageRecords]).toEqual([...first.imageRecords]);
+    expect(loadObliqueSeriesData).toHaveBeenCalledOnce();
+  });
+  it("stores and revalidates only the successful compressed primary validator", async () => {
+    const series = {
+      ...dataset,
+      compressedCatalogURI: "https://images.example/metadata.json.gz",
+    };
+    vi.mocked(loadObliqueSeriesData).mockImplementation(
+      async (input, signal, fetchSource = fetch) => {
+        const response = await fetchSource(input.compressedCatalogURI!, {
+          signal,
+        });
+        const body = (await response.json()) as { id: string };
+        return {
+          imageRecords: new Map([
+            [body.id, { id: body.id } as ObliqueImageRecord],
+          ]),
+          centers: new Map(),
+          datasets: new Map([[input.id, input]]),
+        };
+      }
+    );
+    await loadCachedObliqueSeriesData(series);
+    await loadCachedObliqueSeriesData(series);
+    expect(
+      network.mock.calls.map(([url, init]) => [url, init?.method ?? "GET"])
+    ).toEqual([
+      [series.compressedCatalogURI, "GET"],
+      [series.compressedCatalogURI, "HEAD"],
+    ]);
+    expect(loadObliqueSeriesData).toHaveBeenCalledOnce();
+  });
+  it("does not retain an invalid compressed validator when canonical fallback succeeds", async () => {
+    const series = {
+      ...dataset,
+      compressedCatalogURI: "https://images.example/metadata.json.gz",
+    };
+    vi.mocked(loadObliqueSeriesData).mockImplementation(
+      async (input, signal, fetchSource = fetch) => {
+        await fetchSource(input.compressedCatalogURI!, { signal });
+        const response = await fetchSource(input.exteriorOrientationsURI, {
+            signal,
+          }),
+          body = (await response.json()) as { id: string };
+        return {
+          imageRecords: new Map([
+            [body.id, { id: body.id } as ObliqueImageRecord],
+          ]),
+          centers: new Map(),
+          datasets: new Map([[input.id, input]]),
+        };
+      }
+    );
+    await loadCachedObliqueSeriesData(series);
+    await loadCachedObliqueSeriesData(series);
+    expect(
+      network.mock.calls.map(([url, init]) => [url, init?.method ?? "GET"])
+    ).toEqual([
+      [series.compressedCatalogURI, "GET"],
+      [series.exteriorOrientationsURI, "GET"],
+      [series.exteriorOrientationsURI, "HEAD"],
+    ]);
+    expect(loadObliqueSeriesData).toHaveBeenCalledOnce();
+  });
 });

@@ -9,6 +9,7 @@ import {
 
 type PreviewImageProps = {
   src: string | null;
+  onOutlineReady?: () => void;
   alt: string;
   /** fade in over 0.8 s rather than appear */
   fadeIn: boolean;
@@ -30,6 +31,7 @@ type PreviewImageProps = {
  */
 export const PreviewImage: FC<PreviewImageProps> = ({
   src,
+  onOutlineReady,
   alt,
   fadeIn,
   shown,
@@ -72,8 +74,10 @@ export const PreviewImage: FC<PreviewImageProps> = ({
           alt={alt}
           style={imageStyle}
           draggable={false}
+          onLoad={shown ? onOutlineReady : undefined}
         />
       )}
+      {!src && children && <div style={imageStyle} />}
       {children}
     </div>
   );

@@ -25,19 +25,31 @@ export const useVisibleFootprints = ({
   enabled,
   locked,
   viewMode,
+  refineAtGroundPoint,
+  selectionStrategy,
 }: {
   map: MaplibreMap | null;
   data: ObliqueSelectionData | null;
   enabled: boolean;
   locked: boolean;
   viewMode: ObliqueViewMode;
+  selectionStrategy?: FootprintPointQuery["selectionStrategy"];
+  refineAtGroundPoint?: (
+    records: ObliqueImageRecord[],
+    query: FootprintPointQuery,
+    headingFirst: boolean,
+    isCurrent: () => boolean
+  ) => Promise<ObliqueImageRecord | null | undefined>;
 }): {
   records: readonly ObliqueImageRecord[];
   findAtGroundPoint: (
     point: [number, number],
-    activeImageId?: string | null
+    activeImageId?: string | null,
+    heightMeters?: number
   ) => Promise<ObliqueImageRecord | null | undefined>;
 } => {
+  const refineRef = useRef(refineAtGroundPoint);
+  refineRef.current = refineAtGroundPoint;
   const [records, setRecords] = useState<ObliqueImageRecord[]>([]);
   const workerRef = useRef<Worker | null>(null);
   const requestIdRef = useRef(0);
@@ -65,20 +77,6 @@ export const useVisibleFootprints = ({
           requestId: request.requestId,
           query: request.query,
         });
-        // The pointer also controls whether the viewport keeps its sector filter.
-        if (request.query.viewportCorners) {
-          worker.postMessage({
-            type: "query",
-            requestId: ++requestIdRef.current,
-            query: {
-              corners: request.query.viewportCorners,
-              center: request.query.point,
-              point: request.query.point,
-              headingRad: request.query.headingRad,
-              viewMode: request.query.viewMode,
-            } satisfies FootprintViewportQuery,
-          });
-        }
       } catch {
         stopHover();
       }
@@ -86,12 +84,20 @@ export const useVisibleFootprints = ({
     [stopHover]
   );
   const lastQueryKeyRef = useRef("");
+  const viewportCornersRef = useRef<[number, number][] | undefined>();
   const lockedRef = useRef(locked);
   lockedRef.current = locked;
+  const selectionRef = useRef(selectionStrategy);
+  selectionRef.current = selectionStrategy;
+  useEffect(stopHover, [selectionStrategy, stopHover]);
   const modeRef = useRef(viewMode);
   modeRef.current = viewMode;
   const findAtGroundPoint = useCallback(
-    (point: [number, number], activeImageId?: string | null) =>
+    (
+      point: [number, number],
+      activeImageId?: string | null,
+      heightMeters?: number
+    ) =>
       new Promise<ObliqueImageRecord | null | undefined>((resolve) => {
         const worker = workerRef.current;
         if (!map || !worker || lockedRef.current) {
@@ -105,15 +111,19 @@ export const useVisibleFootprints = ({
             headingRad: degToRadNumeric(map.getBearing()),
             viewMode: modeRef.current,
             activeImageId,
-            viewportCorners: [
-              [0, 0],
-              [map.transform.width, 0],
-              [map.transform.width, map.transform.height],
-              [0, map.transform.height],
-            ].map(([x, y]) => {
-              const coordinate = map.unproject([x, y]);
-              return [coordinate.lng, coordinate.lat] as [number, number];
-            }),
+            heightMeters,
+            selectionStrategy: selectionRef.current,
+            viewportCorners:
+              viewportCornersRef.current ??
+              [
+                [0, 0],
+                [map.transform.width, 0],
+                [map.transform.width, map.transform.height],
+                [0, map.transform.height],
+              ].map(([x, y]) => {
+                const coordinate = map.unproject([x, y]);
+                return [coordinate.lng, coordinate.lat] as [number, number];
+              }),
           },
           resolve,
         };
@@ -155,6 +165,7 @@ export const useVisibleFootprints = ({
       const point = map.unproject([x, y]);
       return [point.lng, point.lat] as [number, number];
     });
+    viewportCornersRef.current = corners;
     const center = map.unproject([width / 2, height / 2]);
     const viewport: FootprintViewportQuery = {
       corners,
@@ -171,6 +182,7 @@ export const useVisibleFootprints = ({
   useEffect(() => {
     setRecords([]);
     lastQueryKeyRef.current = "";
+    viewportCornersRef.current = undefined;
     if (!map || !data || !enabled || typeof Worker === "undefined")
       return undefined;
     const worker = new Worker(
@@ -185,6 +197,7 @@ export const useVisibleFootprints = ({
         requestId?: number;
         ids?: string[];
         id?: string | null;
+        headingFirst?: boolean;
         requestType?: string;
       }>
     ) => {
@@ -197,20 +210,41 @@ export const useVisibleFootprints = ({
         const active = activeHoverRef.current;
         if (!active || response.requestId !== active.requestId) return;
         clearTimeout(hoverTimeoutRef.current);
-        active.resolve(
-          lockedRef.current || response.type === "error"
-            ? undefined
-            : response.id
-            ? data.imageRecords.get(response.id) ?? null
-            : null
-        );
-        activeHoverRef.current = null;
-        const queued = queuedHoverRef.current;
-        queuedHoverRef.current = null;
-        if (queued) {
-          if (lockedRef.current) queued.resolve(undefined);
-          else sendHover(worker, queued);
-        }
+        const finish = (record: ObliqueImageRecord | null | undefined) => {
+          if (disposed || activeHoverRef.current !== active) {
+            active.resolve(undefined);
+            return;
+          }
+          active.resolve(lockedRef.current ? undefined : record);
+          activeHoverRef.current = null;
+          const queued = queuedHoverRef.current;
+          queuedHoverRef.current = null;
+          if (queued) {
+            if (lockedRef.current) queued.resolve(undefined);
+            else sendHover(worker, queued);
+          }
+        };
+        if (lockedRef.current || response.type === "error") finish(undefined);
+        else if (refineRef.current && response.ids) {
+          const candidates = response.ids
+            .map((id) => data.imageRecords.get(id))
+            .filter((record): record is ObliqueImageRecord => !!record);
+          void refineRef
+            .current(
+              candidates,
+              active.query,
+              !!response.headingFirst,
+              () =>
+                !disposed &&
+                !lockedRef.current &&
+                activeHoverRef.current === active &&
+                !queuedHoverRef.current
+            )
+            .then(finish, () => finish(undefined));
+        } else
+          finish(
+            response.id ? data.imageRecords.get(response.id) ?? null : null
+          );
         return;
       }
       if (lockedRef.current) return;

@@ -98,13 +98,26 @@ export const downloadAsBlobAsync = async (
 };
 
 /** Confirm that the browser can decode the requested image before aligning a preview. */
-export const loadPreviewImage = (url: string): Promise<HTMLImageElement> =>
+export const loadPreviewImage = (
+  url: string,
+  signal?: AbortSignal
+): Promise<HTMLImageElement> =>
   new Promise((resolve, reject) => {
     const image = new Image();
     image.decoding = "async";
     image.crossOrigin = "anonymous";
     let retried = false;
+    let settled = false;
+    const abort = () => {
+      finish(
+        signal?.reason ?? new DOMException("Preview cancelled", "AbortError")
+      );
+      image.src = "";
+    };
     const finish = (error?: Error) => {
+      if (settled) return;
+      settled = true;
+      signal?.removeEventListener("abort", abort);
       window.clearTimeout(timeout);
       image.onload = null;
       image.onerror = null;
@@ -134,5 +147,7 @@ export const loadPreviewImage = (url: string): Promise<HTMLImageElement> =>
         )
       );
     };
-    image.src = url;
+    signal?.addEventListener("abort", abort, { once: true });
+    if (signal?.aborted) abort();
+    else image.src = url;
   });

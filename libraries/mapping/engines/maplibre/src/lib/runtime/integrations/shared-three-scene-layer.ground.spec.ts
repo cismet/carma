@@ -214,6 +214,60 @@ describe("shared three scene layer.ground", () => {
     expect(dispose).toHaveBeenCalledOnce();
   });
 
+  it("packs an analytic sphere contour with a white two-CSS-pixel outline and no label or fill", () => {
+    const fixture = createSurfaceOverlayFixture([]);
+    const scene = new THREE.Matrix4().makeTranslation(1, 2, 3);
+    const terrain = new THREE.Matrix4().makeScale(0.1, 0.2, 0.3);
+    const overlay = {
+      marks: [
+        {
+          shape: "sphere" as const,
+          sceneToImage: scene,
+          sceneToImageTerrain: terrain,
+          color: new THREE.Color("#ffffff"),
+          width: 2 as CssPixels,
+          opacity: 1,
+          showUpMarker: false,
+        },
+      ],
+      trailColor: new THREE.Color("#ffffff"),
+      trailDuration: 1,
+      opacity: 1,
+    };
+    fixture.host.layer.setMapStyleProjectiveOverlay!("sphere", overlay);
+    fixture.host.render();
+    const shader = {
+      uniforms: {} as Record<string, { value: unknown }>,
+      vertexShader: "#include <common>\n#include <project_vertex>",
+      fragmentShader:
+        "#include <common>\n#include <map_fragment>\n#include <opaque_fragment>",
+    };
+    fixture.material.onBeforeCompile(shader as never, {} as never);
+    const texture = shader.uniforms.carmaProjectiveData
+      .value as THREE.DataTexture;
+    expect(Array.from(texture.image.data.slice(0, 16))).toEqual(scene.elements);
+    expect(Array.from(texture.image.data.slice(16, 32))).toEqual(
+      terrain.elements.map(Math.fround)
+    );
+    expect(Array.from(texture.image.data.slice(32, 44))).toEqual([
+      1, 1, 1, 1, 2, 0, -1, 2, 0, 0, 0, 0,
+    ]);
+    expect(shader.fragmentShader).toContain("length(photo.xyz/photo.w)-1.0");
+    expect(shader.fragmentShader).toContain("fwidth(sphereDistance)");
+    expect(shader.fragmentShader).toContain(
+      "shapeStyle.x*carmaProjectivePixelRatio*0.5"
+    );
+    const version = texture.version;
+    const repaints = fixture.host.map.triggerRepaint.mock.calls.length;
+    fixture.host.layer.setMapStyleProjectiveOverlay!("sphere", overlay);
+    fixture.host.render();
+    expect(texture.version).toBe(version);
+    expect(fixture.host.map.triggerRepaint).toHaveBeenCalledTimes(repaints);
+    fixture.host.layer.setMapStyleProjectiveOverlay!("sphere", null);
+    expect(shader.uniforms.carmaProjectiveCount.value).toBe(0);
+    fixture.host.layer.dispose();
+  });
+
   it("changes only backdrop uniforms while keeping the screen image texture", () => {
     const fixture = createSurfaceOverlayFixture([
       {
@@ -640,7 +694,42 @@ describe("shared three scene layer.ground", () => {
     expect(gl.clear).toHaveBeenCalledWith(gl.DEPTH_BUFFER_BIT);
   });
 
-  it("clears MapLibre ground color and depth before Three replaces it", () => {
+  it("clears WebGL2 ground color without reading or changing the authored clear color", () => {
+    const gl = {
+      COLOR: 0x1800,
+      COLOR_BUFFER_BIT: 0x00004000,
+      DEPTH_BUFFER_BIT: 0x00000100,
+      COLOR_CLEAR_VALUE: 0x0c22,
+      clear: vi.fn(),
+      clearBufferfv: vi.fn(),
+      clearColor: vi.fn(),
+      clearDepth: vi.fn(),
+      depthMask: vi.fn(),
+      depthRange: vi.fn(),
+      getParameter: vi.fn(() => {
+        throw new Error("WebGL2 clear must not perform a synchronous readback");
+      }),
+    };
+    clearMapStyleGroundBeforeThreeTerrain(gl, [0, 0.985]);
+    expect(gl.clearBufferfv).toHaveBeenCalledOnce();
+    expect(gl.clearBufferfv).toHaveBeenCalledWith(
+      gl.COLOR,
+      0,
+      new Float32Array(4)
+    );
+    expect(gl.clear).toHaveBeenCalledOnce();
+    expect(gl.clear).toHaveBeenCalledWith(gl.DEPTH_BUFFER_BIT);
+    expect(gl.clearColor).not.toHaveBeenCalled();
+    expect(gl.getParameter).not.toHaveBeenCalled();
+    expect(gl.depthMask).toHaveBeenCalledWith(true);
+    expect(gl.clearDepth).toHaveBeenCalledWith(1);
+    expect(gl.depthRange.mock.calls).toEqual([
+      [0, 1],
+      [0, 0.985],
+    ]);
+  });
+
+  it("restores the authored WebGL1 clear color after replacing ground color and depth", () => {
     const previousClearColor = new Float32Array([0.2, 0.3, 0.4, 1]);
     const gl = {
       COLOR_BUFFER_BIT: 0x00004000,
@@ -656,6 +745,8 @@ describe("shared three scene layer.ground", () => {
 
     clearMapStyleGroundBeforeThreeTerrain(gl, [0, 0.985]);
 
+    expect(gl.getParameter).toHaveBeenCalledOnce();
+    expect(gl.getParameter).toHaveBeenCalledWith(gl.COLOR_CLEAR_VALUE);
     expect(gl.clear).toHaveBeenCalledWith(
       gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT
     );

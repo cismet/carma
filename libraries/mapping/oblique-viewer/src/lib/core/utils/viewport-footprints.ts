@@ -7,7 +7,7 @@ import {
 } from "@carma-commons/math";
 import { getWebMercatorFromWgs84Deg } from "@carma-geo/proj";
 import { PI_OVER_FOUR, type Degrees } from "@carma-units";
-import type { ObliqueViewMode } from "../types";
+import type { ObliqueViewQuery, ObliqueViewMode } from "../types";
 import { diagonalIntersection } from "./footprint-diagonal-intersection";
 
 export const MAX_VISIBLE_FOOTPRINTS = 128;
@@ -30,6 +30,9 @@ export type FootprintPointQuery = {
   headingRad: number;
   viewMode: ObliqueViewMode;
   activeImageId?: string | null;
+  /** DHHN2016 height from the live mesh/terrain pointer intersection. */
+  heightMeters?: number;
+  selectionStrategy?: ObliqueViewQuery["selectionStrategy"];
   viewportCorners?: [number, number][];
 };
 type IndexedFootprint = Omit<ViewportFootprint, "ring"> & {
@@ -187,19 +190,20 @@ export const selectViewportFootprints = (
 };
 
 /** Actual sector hits precede proximity; gaps rank every sector by heading, then distance. */
-export const selectFootprintAtPoint = (
+export const footprintPointCandidates = (
   index: readonly IndexedFootprint[],
   query: FootprintPointQuery
-): string | null => {
+): { ids: string[]; headingFirst: boolean } => {
   const point = project(query.point);
-  if (!Number.isFinite(point.x + point.y + query.headingRad)) return null;
+  if (!Number.isFinite(point.x + point.y + query.headingRad))
+    return { ids: [], headingFirst: false };
   const viewport = query.viewportCorners?.map(project);
   if (
     viewport &&
     (viewport.length < 3 ||
       viewport.some((point) => !Number.isFinite(point.x + point.y)))
   )
-    return null;
+    return { ids: [], headingFirst: false };
   const candidates = candidatesAtPoint(
     index,
     point,
@@ -220,5 +224,15 @@ export const selectFootprintAtPoint = (
         Number(a.item.id === query.activeImageId) ||
       a.item.id.localeCompare(b.item.id)
   );
-  return preferred[0]?.item.id ?? null;
+  return {
+    ids: preferred.map(({ item }) => item.id),
+    headingFirst: hits.length === 0,
+  };
+};
+
+export const selectFootprintAtPoint = (
+  index: readonly IndexedFootprint[],
+  query: FootprintPointQuery
+): string | null => {
+  return footprintPointCandidates(index, query).ids[0] ?? null;
 };

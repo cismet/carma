@@ -446,7 +446,7 @@ void main(){float photographAlpha;float decorationAlpha;vec4 image=carmaScreenIm
             Math.max(0, mark.width),
             Math.max(0, Math.min(0.08, mark.fillOpacity ?? 0)),
             mark.trailStartedAt ?? -1,
-            mark.showUpMarker === false ? 1 : 0,
+            mark.shape === "sphere" ? 2 : mark.showUpMarker === false ? 1 : 0,
             ...(mark.labelRect ?? [0, 0, 0, 0]),
           ],
           offset + 32

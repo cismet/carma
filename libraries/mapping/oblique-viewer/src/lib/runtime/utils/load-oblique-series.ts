@@ -4,7 +4,10 @@ import type {
   ObliqueSelectionData,
   PointWithSector,
 } from "../../core/types";
-import { buildImageRecords } from "../../core/utils/imageRecord";
+import {
+  buildImageRecords,
+  summarizeObliquePitch,
+} from "../../core/utils/imageRecord";
 import {
   estimateGroundCenter,
   estimateGroundFootprint,
@@ -15,6 +18,22 @@ import {
   type FootprintCollection,
 } from "./footprints";
 
+/** Gzip transport only: HTTP may already have decompressed the response body. */
+const readCompressedCatalog = async (
+  response: Response,
+  signal?: AbortSignal
+): Promise<unknown> => {
+  const bytes = new Uint8Array(await response.arrayBuffer());
+  signal?.throwIfAborted();
+  const body =
+    bytes[0] === 0x1f && bytes[1] === 0x8b
+      ? new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"))
+      : new Blob([bytes]).stream();
+  const document: unknown = await new Response(body).json();
+  signal?.throwIfAborted();
+  return document;
+};
+
 /** Footprints belong to image records; do not clone a second full GeoJSON catalog. */
 export type ObliqueData = ObliqueSelectionData;
 export const loadObliqueSeriesData = async (
@@ -22,12 +41,38 @@ export const loadObliqueSeriesData = async (
   signal?: AbortSignal,
   fetchSource: typeof fetch = fetch
 ): Promise<ObliqueData> => {
-  const response = await fetchSource(dataset.exteriorOrientationsURI, {
-    signal,
-  });
-  if (!response.ok) throw new Error(`Metadaten: HTTP ${response.status}`);
+  signal?.throwIfAborted();
   const converter = getProj4Converter(dataset.crs, "EPSG:4326");
-  const built = buildImageRecords(await response.json(), dataset, converter);
+  const load = async (url: string, compressed: boolean) => {
+    const response = await fetchSource(url, { signal });
+    if (!response.ok) throw new Error(`Metadaten: HTTP ${response.status}`);
+    const document: unknown = compressed
+      ? await readCompressedCatalog(response, signal)
+      : await response.json();
+    signal?.throwIfAborted();
+    const records = buildImageRecords(document, dataset, converter);
+    signal?.throwIfAborted();
+    return records;
+  };
+  let built: ReturnType<typeof buildImageRecords>;
+  if (
+    dataset.compressedCatalogURI &&
+    typeof DecompressionStream === "function"
+  ) {
+    try {
+      built = await load(dataset.compressedCatalogURI, true);
+    } catch (error) {
+      signal?.throwIfAborted();
+      if (
+        error &&
+        typeof error === "object" &&
+        "name" in error &&
+        error.name === "AbortError"
+      )
+        throw error;
+      built = await load(dataset.exteriorOrientationsURI, false);
+    }
+  } else built = await load(dataset.exteriorOrientationsURI, false);
   // Delivered footprints are optional. Unavailable ones do not hide valid image metadata.
   let delivered: FootprintCollection = {
     type: "FeatureCollection",
@@ -85,6 +130,10 @@ export const loadObliqueSeriesData = async (
     }
   }
   return {
+    obliquePitchBySeries: summarizeObliquePitch({
+      imageRecords: built.imageRecords,
+      datasets: new Map([[dataset.id, built.dataset]]),
+    }),
     imageRecords: built.imageRecords,
     datasets: new Map([[dataset.id, built.dataset]]),
     centers,

@@ -125,6 +125,32 @@ const finishLastAnimation = () => {
 };
 
 describe("off-centre image zoom", () => {
+  it("keeps the image centered with a wheel cursor away from the center in the normal interface", () => {
+    const { map, host } = setup();
+    const before = { ...map.transform.centerOffset };
+    const distance = physicalCameraDistance(map);
+    const view = renderHook(() =>
+      useFovWheelZoom({
+        map,
+        enabled: true,
+        minFovDeg: 10,
+        maxFovDeg: 110,
+        busyRef: { current: false },
+        previewRoot: host,
+        previewAnchorAtCursor: false,
+      })
+    );
+    fireEvent.wheel(host, { deltaY: -100, clientX: 640, clientY: 420 });
+    finishLastAnimation();
+    const scale =
+      Math.tan(degToRad(45 as Degrees) / 2) /
+      Math.tan(degToRad(map.getVerticalFieldOfView() as Degrees) / 2);
+    expect(map.transform.centerOffset.x).toBeCloseTo(before.x * scale);
+    expect(map.transform.centerOffset.y).toBeCloseTo(before.y * scale);
+    expect(physicalCameraDistance(map)).toBeCloseTo(distance, 12);
+    view.unmount();
+  });
+
   it("holds native pixel zoom after hiding the photo and releases its limit only after the return", () => {
     const { map, host } = setup({ maxZoom: 22 });
     const props = {

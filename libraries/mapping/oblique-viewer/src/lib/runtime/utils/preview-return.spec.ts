@@ -7,7 +7,15 @@ import {
 } from "maplibre-gl";
 import { MercatorTransform } from "maplibre-gl/src/geo/projection/mercator_transform";
 import { Matrix4, Plane, Ray, Vector3 } from "three";
-import type { Degrees, Radians, Ratio } from "@carma-units";
+import {
+  degToRadNumeric,
+  radToDegNumeric,
+  type Degrees,
+  type Radians,
+  type Ratio,
+} from "@carma-units";
+import { shortestAngleDelta } from "@carma-commons/math";
+import type { ObliquePreviewState } from "../../core/types";
 import type { PreviewImageGeometry } from "../../core/utils/preview-pan-bounds";
 
 import { flyToPose, settleToPitch } from "./flyToImage";
@@ -51,9 +59,16 @@ const advance = (time: number) => {
   pending.forEach((callback) => callback(time));
 };
 
-const setup = ({ zoom = 25.4, height = 0, pitch = 45, fov = 0.1 } = {}) => {
+const setup = ({
+  zoom = 25.4,
+  height = 0,
+  pitch = 45,
+  fov = 0.1,
+  viewportWidth = 800,
+  viewportHeight = 600,
+} = {}) => {
   const transform = new MercatorTransform({ maxZoom: 30, maxPitch: 85 });
-  transform.resize(800, 600);
+  transform.resize(viewportWidth, viewportHeight);
   transform.setCenter(new LngLat(7.2, 51.27));
   transform.setFov(fov);
   transform.setPitch(pitch);
@@ -130,6 +145,207 @@ const setup = ({ zoom = 25.4, height = 0, pitch = 45, fov = 0.1 } = {}) => {
 };
 
 describe("preview camera return", () => {
+  it.each([
+    {
+      fromBearing: 350,
+      toBearing: 10,
+      fromPitch: 15,
+      toPitch: 50,
+      fromFov: 8,
+      toFov: 34,
+      zoom: 21,
+      maxZoom: 30,
+      reduction: false,
+    },
+    {
+      fromBearing: 10,
+      toBearing: 350,
+      fromPitch: 70,
+      toPitch: 42,
+      fromFov: 30,
+      toFov: 65,
+      zoom: 18.5,
+      maxZoom: 30,
+      reduction: false,
+    },
+    {
+      fromBearing: 324,
+      toBearing: 54,
+      fromPitch: 60,
+      toPitch: 42,
+      fromFov: 0.1,
+      toFov: 34,
+      zoom: 30,
+      maxZoom: 18.5,
+      reduction: true,
+    },
+  ])(
+    "settles rotation $fromBearing→$toBearing and pitch $fromPitch→$toPitch on one anchored progress",
+    async ({
+      fromBearing,
+      toBearing,
+      fromPitch,
+      toPitch,
+      fromFov,
+      toFov,
+      zoom,
+      maxZoom,
+      reduction,
+    }) => {
+      const { map, transform, release } = setup({
+        fov: fromFov,
+        pitch: fromPitch,
+        zoom,
+        height: 250,
+      });
+      transform.setElevation(250);
+      transform.setBearing(fromBearing);
+      const target = MercatorCoordinate.fromLngLat(
+        map.unproject([400, 300]),
+        250
+      );
+      const unit = target.meterInMercatorCoordinateUnits();
+      const project = (offset = new Vector3()) => {
+        const clip = new Vector3(
+          (target.x + offset.x * unit) * transform.worldSize,
+          (target.y + offset.y * unit) * transform.worldSize,
+          250 + offset.z
+        ).applyMatrix4(
+          new Matrix4().fromArray(transform.modelViewProjectionMatrix)
+        );
+        return new Vector3((clip.x + 1) * 400, (1 - clip.y) * 300, 0);
+      };
+      const read = () => {
+        const point = project();
+        const bearing = transform.bearingInRadians,
+          pitch = transform.pitchInRadians;
+        return {
+          point,
+          pitch: transform.pitch,
+          bearing: transform.bearing,
+          fov: transform.fov,
+          scales: [
+            project(
+              new Vector3(Math.cos(bearing), Math.sin(bearing), 0)
+            ).distanceTo(point),
+            project(
+              new Vector3(
+                Math.sin(bearing) * Math.cos(pitch),
+                -Math.cos(bearing) * Math.cos(pitch),
+                Math.sin(pitch)
+              )
+            ).distanceTo(point),
+          ],
+        };
+      };
+      const initial = read();
+      const lockedPoint = reduction ? initial.point : new Vector3(400, 300, 0);
+      const bearingDelta = shortestAngleDelta(
+        degToRadNumeric(initial.bearing),
+        degToRadNumeric(toBearing)
+      );
+      const flight = settleToPitch(map, toPitch, {
+        bearingDeg: toBearing,
+        screenPoint: reduction ? initial.point : undefined,
+        fovDeg: toFov as Degrees,
+        maxZoom,
+        anchor: target,
+        padding: { left: 0, right: 0, top: 0, bottom: 0 },
+        durationMs: 500,
+        restoreGround: false,
+      });
+      const samples = [0, 50, 125, 250, 375, 450, 499, 500].map((time) => {
+        advance(time);
+        if (reduction) {
+          const eye = transform.getCameraLngLat();
+          expect(
+            Number.isFinite(eye.lng + eye.lat + transform.getCameraAltitude())
+          ).toBe(true);
+        }
+        return read();
+      });
+      await flight.done;
+      const final = samples.at(-1)!;
+      let lastProgress = 0;
+      for (const sample of samples) {
+        const pitchProgress =
+          (sample.pitch - initial.pitch) / (toPitch - initial.pitch);
+        const headingProgress =
+          shortestAngleDelta(
+            degToRadNumeric(initial.bearing),
+            degToRadNumeric(sample.bearing)
+          ) / bearingDelta;
+        expect(headingProgress).toBeCloseTo(pitchProgress, 9);
+        expect(pitchProgress).toBeGreaterThanOrEqual(lastProgress - 1e-9);
+        expect(pitchProgress).toBeLessThanOrEqual(1 + 1e-9);
+        if (reduction) {
+          expect(
+            sample.scales.every((scale) => Number.isFinite(scale) && scale > 0)
+          ).toBe(true);
+          expect(
+            Number.isFinite(sample.fov + sample.pitch + sample.bearing)
+          ).toBe(true);
+        }
+        expect(
+          sample.point.x,
+          `initialX=${initial.point.x}; progress=${pitchProgress}`
+        ).toBeCloseTo(lockedPoint.x, 2);
+        expect(sample.point.y).toBeCloseTo(lockedPoint.y, 2);
+        sample.scales.forEach((scale, index) =>
+          expect(scale / initial.scales[index]).toBeCloseTo(
+            Math.pow(
+              final.scales[index] / initial.scales[index],
+              pitchProgress
+            ),
+            4
+          )
+        );
+        lastProgress = pitchProgress;
+      }
+      const early = samples[1];
+      expect(Math.abs(early.pitch - initial.pitch)).toBeGreaterThan(0.01);
+      expect(
+        Math.abs(
+          radToDegNumeric(
+            shortestAngleDelta(
+              degToRadNumeric(initial.bearing),
+              degToRadNumeric(early.bearing)
+            )
+          )
+        )
+      ).toBeGreaterThan(0.01);
+      expect(early.pitch).not.toBe(toPitch);
+      expect(early.fov).not.toBeCloseTo(initial.fov, 8);
+      expect(final.pitch).toBe(toPitch);
+      expect(
+        shortestAngleDelta(
+          degToRadNumeric(final.bearing),
+          degToRadNumeric(toBearing)
+        )
+      ).toBeCloseTo(0, 10);
+      expect(final.fov).toBeCloseTo(toFov, 10);
+      expect(transform.zoom).toBeLessThanOrEqual(maxZoom);
+      expect(transform.padding).toEqual({
+        left: 0,
+        right: 0,
+        top: 0,
+        bottom: 0,
+      });
+      final.scales.forEach((scale, index) => {
+        if (reduction) expect(scale / initial.scales[index]).toBeLessThan(1);
+        else expect(scale / initial.scales[index]).toBeCloseTo(1, 4);
+      });
+      expect(final.point.distanceTo(samples.at(-2)!.point)).toBeLessThan(0.02);
+      expect(frames.size).toBe(0);
+      const writes = vi.mocked(map.jumpTo).mock.calls.length;
+      advance(750);
+      advance(1000);
+      expect(map.jumpTo).toHaveBeenCalledTimes(writes);
+      expect(read()).toEqual(final);
+      release();
+    }
+  );
+
   it.each([
     { fov: 30, endFov: 30, zoom: 18.5, height: 0, x: 400, y: 300 },
     { fov: 0.1, endFov: 10, zoom: 25.4, height: 250, x: 400, y: 300 },
@@ -614,62 +830,136 @@ describe("preview camera return", () => {
 
   it.each([
     {
-      name: "centers a small image on a single click",
+      name: "fits the whole classic 12736x19136 portrait in a 1280x900 viewport",
+      halfFovTan: 0.3,
+      aspectRatio: 12736 / 19136,
+      centerPreview: true,
+      fitWholeImage: true,
+      viewportWidth: 1280,
+      viewportHeight: 900,
+      roll: 0,
+    },
+    {
+      name: "fits the whole rolled classic landscape in a 1280x900 viewport",
+      halfFovTan: 0.3,
+      aspectRatio: 19136 / 12736,
+      centerPreview: true,
+      fitWholeImage: true,
+      viewportWidth: 1280,
+      viewportHeight: 900,
+    },
+    {
+      name: "fits a small landscape image on a single click",
       halfFovTan: 0.08,
-      centerPreview: false,
-      centered: true,
+      centerPreview: true,
     },
     {
-      name: "retains the viewport for a large image on a single click",
-      halfFovTan: 0.8,
-      centerPreview: false,
-      centered: false,
-    },
-    {
-      name: "centers a large image on a double click",
+      name: "fits a large landscape image on a single click",
       halfFovTan: 0.8,
       centerPreview: true,
-      centered: true,
     },
     {
-      name: "centers a small portrait image on a single click",
+      name: "preserves the viewport on a landscape double click",
+      halfFovTan: 0.8,
+      centerPreview: false,
+    },
+    {
+      name: "fits a portrait image on a single click",
       halfFovTan: 0.08,
       aspectRatio: 0.625,
-      centerPreview: false,
-      centered: true,
+      centerPreview: true,
     },
     {
-      name: "retains the viewport when the image short edge exactly matches the viewport",
-      halfFovTan: 0,
-      aspectRatio: 1,
-      boundary: true,
+      name: "preserves the viewport on a portrait double click",
+      halfFovTan: 0.8,
+      aspectRatio: 0.625,
       centerPreview: false,
-      centered: false,
+    },
+    {
+      name: "restores a panned and zoomed landscape image",
+      halfFovTan: 0.25,
+      centerPreview: false,
+      restored: { panX: 0.17, panY: -0.23, zoom: 2.5 },
+    },
+    {
+      name: "restores a panned and zoomed portrait image",
+      halfFovTan: 0.25,
+      aspectRatio: 0.625,
+      centerPreview: false,
+      restored: { panX: -0.31, panY: 0.22, zoom: 1.7 },
+    },
+    {
+      name: "restores a zoomed-out centered image",
+      halfFovTan: 0.25,
+      centerPreview: false,
+      restored: { panX: 0, panY: 0, zoom: 0.5 },
+    },
+    {
+      name: "restores the same finite window in a wide viewport",
+      halfFovTan: 0.25,
+      centerPreview: false,
+      viewportWidth: 1500,
+      viewportHeight: 650,
+      restored: { panX: 0.19, panY: -0.13, zoom: 1.13615176 },
+    },
+    {
+      name: "restores the same finite window in a tall viewport",
+      halfFovTan: 0.25,
+      centerPreview: false,
+      viewportWidth: 650,
+      viewportHeight: 1100,
+      restored: { panX: 0.19, panY: -0.13, zoom: 1.13615176 },
+    },
+    {
+      name: "restores the same finite window in a narrow viewport",
+      halfFovTan: 0.25,
+      centerPreview: false,
+      viewportWidth: 430,
+      viewportHeight: 800,
+      restored: { panX: 0.19, panY: -0.13, zoom: 1.13615176 },
+    },
+    {
+      name: "restores the original viewport when double click interrupts a running single-click fit",
+      halfFovTan: 0.8,
+      centerPreview: false,
+      interruptFit: true,
     },
   ])(
     "$name, including rolled principal-point offsets",
     async ({
       halfFovTan,
       aspectRatio = 1.6,
-      boundary = false,
       centerPreview,
-      centered,
+      fitWholeImage = false,
+      roll = 0.37,
+      restored,
+      interruptFit = false,
+      viewportWidth = 800,
+      viewportHeight = 600,
     }) => {
       const { map, transform, release } = setup({
         fov: 30,
         zoom: 18.5,
         height: 250,
+        viewportWidth,
+        viewportHeight,
       });
+      const centerX = viewportWidth / 2,
+        centerY = viewportHeight / 2;
       transform.setElevation(250);
       transform.setPadding({ left: 600, right: 0, top: 0, bottom: 300 });
       const target = MercatorCoordinate.fromLngLat(
-        map.unproject([400, 300]),
+        map.unproject([centerX, centerY]),
         250
       );
       const startEye = MercatorCoordinate.fromLngLat(
         transform.getCameraLngLat()
       );
-      const startAltitude = transform.getCameraAltitude();
+      const startAltitude =
+        MercatorCoordinate.fromLngLat(
+          transform.center,
+          transform.getCameraAltitude()
+        ).z / startEye.meterInMercatorCoordinateUnits();
       const unit = target.meterInMercatorCoordinateUnits();
       const destination = new MercatorCoordinate(
         startEye.x + 40 * unit,
@@ -691,7 +981,7 @@ describe("preview camera return", () => {
         aspectRatio: aspectRatio as Ratio,
         halfFovTan: halfFovTan as Ratio,
         principal: { xOffset: 0.18 as Ratio, yOffset: -0.11 as Ratio },
-        roll: 0.37 as Radians,
+        roll: roll as Radians,
       };
       const project = (offset = new Vector3()) => {
         const clip = new Vector3(
@@ -701,7 +991,7 @@ describe("preview camera return", () => {
         ).applyMatrix4(
           new Matrix4().fromArray(transform.modelViewProjectionMatrix)
         );
-        return new Vector3((clip.x + 1) * 400, (1 - clip.y) * 300, 0);
+        return new Vector3((clip.x + 1) * centerX, (1 - clip.y) * centerY, 0);
       };
       const read = () => {
         const bearing = transform.bearingInRadians,
@@ -710,7 +1000,14 @@ describe("preview camera return", () => {
         return {
           screen,
           eye: MercatorCoordinate.fromLngLat(transform.getCameraLngLat()),
-          altitude: transform.getCameraAltitude(),
+          altitude:
+            MercatorCoordinate.fromLngLat(
+              transform.center,
+              transform.getCameraAltitude()
+            ).z /
+            MercatorCoordinate.fromLngLat(
+              transform.getCameraLngLat()
+            ).meterInMercatorCoordinateUnits(),
           scales: [
             project(
               new Vector3(Math.cos(bearing), Math.sin(bearing), 0)
@@ -725,22 +1022,36 @@ describe("preview camera return", () => {
           ],
         };
       };
-      if (boundary) {
-        const initialFrame = transform.clone();
-        // Measure the uncentered landing with the real transform, then replay
-        // that same flight with an exactly viewport-sized intrinsic edge.
-        const probe = flyToPose(
+      const previewState: ObliquePreviewState | undefined = restored
+        ? {
+            seriesId: "2026",
+            imageId: "RI_29_3398",
+            panX: restored.panX as Ratio,
+            panY: restored.panY as Ratio,
+            zoom: restored.zoom as Ratio,
+          }
+        : undefined;
+      const original = read();
+      const previewReferenceFrame = interruptFit
+        ? transform.clone()
+        : undefined;
+      if (interruptFit) {
+        const fit = flyToPose(
           map,
           pose,
           startAltitude + 80,
-          { duration: 0 },
-          { dynamicDuration: false, anchor: target }
+          { duration: 500 },
+          {
+            dynamicDuration: false,
+            anchor: target,
+            preview,
+            centerPreview: true,
+          }
         );
-        advance(1);
-        await probe.done;
-        preview.halfFovTan = (Math.min(transform.width, transform.height) /
-          (2 * transform.cameraToCenterDistance)) as Ratio;
-        transform.apply(initialFrame, false);
+        advance(200);
+        expect(read().scales[0] / original.scales[0]).not.toBeCloseTo(1, 2);
+        fit.cancel();
+        await fit.done;
       }
       const initial = read();
       const flight = flyToPose(
@@ -748,7 +1059,15 @@ describe("preview camera return", () => {
         pose,
         startAltitude + 80,
         { duration: 500 },
-        { dynamicDuration: false, anchor: target, preview, centerPreview }
+        {
+          dynamicDuration: false,
+          anchor: target,
+          preview,
+          centerPreview,
+          fitWholeImage,
+          previewState,
+          previewReferenceFrame,
+        }
       );
       const samples = [0, 50, 125, 250, 375, 450, 499, 500].map((time) => {
         advance(time);
@@ -758,28 +1077,42 @@ describe("preview camera return", () => {
       const final = samples.at(-1)!;
       for (const sample of samples) {
         const progress =
-          (sample.eye.x - startEye.x) / (destination.x - startEye.x);
+          (sample.eye.x - initial.eye.x) / (destination.x - initial.eye.x);
         expect(progress).toBeGreaterThanOrEqual(-1e-6);
         expect(progress).toBeLessThanOrEqual(1 + 1e-6);
         expect(sample.eye.y).toBeCloseTo(
-          startEye.y + (destination.y - startEye.y) * progress,
+          initial.eye.y + (destination.y - initial.eye.y) * progress,
           9
         );
-        expect(sample.altitude).toBeCloseTo(startAltitude + 80 * progress, 3);
+        expect(sample.altitude).toBeCloseTo(
+          initial.altitude + (startAltitude + 80 - initial.altitude) * progress,
+          3
+        );
         const expected = initial.screen.clone().lerp(final.screen, progress);
         expect(sample.screen.distanceTo(expected)).toBeLessThan(0.02);
         sample.scales.forEach((scale, index) =>
-          expect(scale / initial.scales[index]).toBeCloseTo(1, 4)
+          expect(scale / initial.scales[index]).toBeCloseTo(
+            Math.pow(final.scales[index] / initial.scales[index], progress),
+            4
+          )
         );
       }
       const longEdge =
         2 * transform.cameraToCenterDistance * preview.halfFovTan;
       const width = longEdge * Math.min(1, preview.aspectRatio),
         height = longEdge / Math.max(1, preview.aspectRatio);
-      expect(
-        Math.min(width, height) < Math.min(transform.width, transform.height)
-      ).toBe(centered && !centerPreview);
-      if (boundary) expect(Math.min(width, height)).toBe(600);
+      const centered = centerPreview || !!previewState;
+      if (centered && !fitWholeImage) {
+        expect(Math.min(width, height)).toBeCloseTo(
+          Math.min(transform.width, transform.height) *
+            (previewState?.zoom ?? 0.9),
+          5
+        );
+      } else if (!centered) {
+        final.scales.forEach((scale, index) =>
+          expect(scale / original.scales[index]).toBeCloseTo(1, 4)
+        );
+      }
       const x = preview.principal.xOffset * width,
         y = preview.principal.yOffset * height;
       const imageCenter = new Vector3(
@@ -792,14 +1125,41 @@ describe("preview camera return", () => {
         0
       );
       if (centered) {
-        expect(imageCenter.x).toBeCloseTo(400, 5);
-        expect(imageCenter.y).toBeCloseTo(300, 5);
+        expect(imageCenter.x).toBeCloseTo(
+          centerX + (previewState?.panX ?? 0) * longEdge,
+          5
+        );
+        expect(imageCenter.y).toBeCloseTo(
+          centerY + (previewState?.panY ?? 0) * longEdge,
+          5
+        );
       } else {
-        expect(final.screen.x).toBeCloseTo(400, 3);
-        expect(final.screen.y).toBeCloseTo(300, 3);
+        expect(final.screen.x).toBeCloseTo(centerX, 3);
+        expect(final.screen.y).toBeCloseTo(centerY, 3);
         expect(
-          imageCenter.distanceTo(new Vector3(400, 300, 0))
+          imageCenter.distanceTo(new Vector3(centerX, centerY, 0))
         ).toBeGreaterThan(20);
+      }
+      if (fitWholeImage) {
+        const rotation = new Matrix4().makeRotationZ(preview.roll);
+        const corners = [
+          [-width / 2, -height / 2],
+          [width / 2, -height / 2],
+          [width / 2, height / 2],
+          [-width / 2, height / 2],
+        ].map(([x, y]) =>
+          new Vector3(x, y, 0).applyMatrix4(rotation).add(imageCenter)
+        );
+        for (const corner of corners) {
+          expect(corner.x).toBeGreaterThanOrEqual(0.05 * viewportWidth - 1e-5);
+          expect(corner.x).toBeLessThanOrEqual(0.95 * viewportWidth + 1e-5);
+          expect(corner.y).toBeGreaterThanOrEqual(0.05 * viewportHeight - 1e-5);
+          expect(corner.y).toBeLessThanOrEqual(0.95 * viewportHeight + 1e-5);
+        }
+        if (roll === 0) {
+          expect(width).toBeCloseTo(539.0969899665552, 5);
+          expect(height).toBeCloseTo(810, 5);
+        }
       }
       const preceding = samples.at(-2)!;
       expect(final.screen.distanceTo(preceding.screen)).toBeLessThan(0.02);
@@ -807,10 +1167,127 @@ describe("preview camera return", () => {
         expect(scale / preceding.scales[index]).toBeCloseTo(1, 4)
       );
       expect(final.altitude).toBeCloseTo(startAltitude + 80, 4);
+      expect(
+        Math.hypot(final.eye.x - destination.x, final.eye.y - destination.y) /
+          unit
+      ).toBeLessThan(0.00001);
+      const landedZ = MercatorCoordinate.fromLngLat(
+        transform.center,
+        transform.getCameraAltitude()
+      ).z;
+      const photoZ = MercatorCoordinate.fromLngLat(eye, startAltitude + 80).z;
+      expect(Math.abs(landedZ - photoZ) / unit).toBeLessThan(0.00001);
       const writes = vi.mocked(map.jumpTo).mock.calls.length;
       advance(750);
       expect(map.jumpTo).toHaveBeenCalledTimes(writes);
       release();
     }
   );
+  it("recenters a zoomed photo to its padded short edge before restoring the ordinary oblique camera", async () => {
+    const { map, transform, release } = setup({
+      height: 250,
+      pitch: 51,
+      fov: 2,
+      zoom: 22,
+    });
+    const originalPadding = { top: 0, bottom: 0, left: 0, right: 0 };
+    transform.setElevation(250);
+    transform.setPadding({ left: 600, right: 0, top: 0, bottom: 300 });
+    const eye = MercatorCoordinate.fromLngLat(transform.getCameraLngLat());
+    const altitude =
+      MercatorCoordinate.fromLngLat(
+        transform.center,
+        transform.getCameraAltitude()
+      ).z / eye.meterInMercatorCoordinateUnits();
+    const location = eye.toLngLat();
+    const pose = {
+      longitude: location.lng,
+      latitude: location.lat,
+      z: altitude,
+      bearingDeg: transform.bearing,
+      pitchDeg: transform.pitch,
+      rollDeg: radToDegNumeric(0.37 as Radians),
+      direction: [0, 0, -1] as [number, number, number],
+      up: [0, 1, 0] as [number, number, number],
+      utmConvergenceRad: 0,
+    };
+    const preview: PreviewImageGeometry = {
+      aspectRatio: 1.6 as Ratio,
+      halfFovTan: 0.3 as Ratio,
+      principal: { xOffset: 0.18 as Ratio, yOffset: -0.11 as Ratio },
+      roll: 0.37 as Radians,
+    };
+    const fit = flyToPose(
+      map,
+      pose,
+      altitude,
+      { duration: 500 },
+      {
+        anchor: MercatorCoordinate.fromLngLat(map.unproject([400, 300]), 250),
+        preview,
+        centerPreview: true,
+        fitWholeImage: true,
+        maxFovDeg: 110,
+        dynamicDuration: false,
+      }
+    );
+    for (const time of [0, 100, 250, 400, 500]) {
+      advance(time);
+      expect(transform.pitch).toBeCloseTo(51, 7);
+      const actualEye = MercatorCoordinate.fromLngLat(
+        transform.getCameraLngLat()
+      );
+      expect(actualEye.x).toBeCloseTo(eye.x, 10);
+      expect(actualEye.y).toBeCloseTo(eye.y, 10);
+    }
+    await fit.done;
+    const longEdge = 2 * transform.cameraToCenterDistance * preview.halfFovTan;
+    const width = longEdge;
+    const height = longEdge / preview.aspectRatio;
+    const rotation = new Matrix4().makeRotationZ(preview.roll);
+    for (const [x, y] of [
+      [-width / 2, -height / 2],
+      [width / 2, -height / 2],
+      [width / 2, height / 2],
+      [-width / 2, height / 2],
+    ]) {
+      const corner = new Vector3(x, y, 0).applyMatrix4(rotation);
+      expect(Math.abs(corner.x)).toBeLessThanOrEqual(
+        0.45 * transform.width + 1e-5
+      );
+      expect(Math.abs(corner.y)).toBeLessThanOrEqual(
+        0.45 * transform.height + 1e-5
+      );
+    }
+    const x = preview.principal.xOffset * width;
+    const y = preview.principal.yOffset * height;
+    expect(
+      transform.centerOffset.x +
+        Math.cos(preview.roll) * x -
+        Math.sin(preview.roll) * y
+    ).toBeCloseTo(0, 5);
+    expect(
+      transform.centerOffset.y +
+        Math.sin(preview.roll) * x +
+        Math.cos(preview.roll) * y
+    ).toBeCloseTo(0, 5);
+    vi.spyOn(performance, "now").mockReturnValue(500);
+    const returning = settleToPitch(map, 45, {
+      fovDeg: 34 as Degrees,
+      padding: originalPadding,
+      maxZoom: 22,
+      durationMs: 500,
+    });
+    advance(500);
+    expect(transform.pitch).toBeCloseTo(51, 7);
+    advance(750);
+    expect(transform.pitch).toBeLessThan(51);
+    expect(transform.pitch).toBeGreaterThan(45);
+    advance(1000);
+    await returning.done;
+    expect(transform.pitch).toBeCloseTo(45, 7);
+    expect(transform.padding).toEqual(originalPadding);
+    expect(transform.zoom).toBeLessThanOrEqual(22);
+    release();
+  });
 });

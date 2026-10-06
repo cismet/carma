@@ -101,6 +101,7 @@ export const useFovWheelZoom = ({
   previewSampling,
   onPreviewZoomEnd,
   previewCameraActive = previewRoot !== null,
+  previewAnchorAtCursor = true,
 }: {
   map: MaplibreMap | null;
   previewRoot: HTMLDivElement | null;
@@ -108,6 +109,8 @@ export const useFovWheelZoom = ({
   onPreviewZoomEnd?: () => void;
   /** Keep the projection and zoom lease until the return flight finishes. */
   previewCameraActive?: boolean;
+  /** The normal interface zooms around the centered image. */
+  previewAnchorAtCursor?: boolean;
   enabled: boolean;
   minFovDeg: number;
   maxFovDeg: number;
@@ -217,7 +220,7 @@ export const useFovWheelZoom = ({
         cursor.y >= 0 &&
         cursor.y <= height;
       const anchor = previewRoot
-        ? cursorInsideViewport
+        ? previewAnchorAtCursor && cursorInsideViewport
           ? cursor
           : { x: (width / 2) as CssPixels, y: (height / 2) as CssPixels }
         : undefined;
@@ -254,6 +257,7 @@ export const useFovWheelZoom = ({
     maxFovDeg,
     busyRef,
     previewRoot,
+    previewAnchorAtCursor,
     sourceLongEdgePixels,
     previewHalfFovTan,
   ]);

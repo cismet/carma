@@ -10,6 +10,7 @@ import type {
   ObliqueDataset,
   ObliqueGroundTarget,
   ObliqueViewMode,
+  ObliqueViewQuery,
 } from "../../core/types";
 import { getHeadingFromCardinalDirection } from "../../core/utils/orientation";
 import {
@@ -45,6 +46,7 @@ type UseNearestImageOptions = {
   selectedImageId: string | null;
   onSelect: (next: NearestObliqueImageRecord | null) => void;
   onCandidates?: (ranked: NearestObliqueImageRecord[]) => void;
+  selectionStrategy?: ObliqueViewQuery["selectionStrategy"];
   debounceMs?: number;
 };
 
@@ -58,6 +60,7 @@ export const useNearestImage = ({
   selectedImageId,
   onSelect,
   onCandidates,
+  selectionStrategy,
   debounceMs = 150,
 }: UseNearestImageOptions) => {
   const modeRef = useRef(viewMode);
@@ -89,7 +92,7 @@ export const useNearestImage = ({
   }, [data]);
   useEffect(() => {
     requestIdRef.current++;
-  }, [map, enabled, locked, viewMode]);
+  }, [map, enabled, locked, viewMode, selectionStrategy]);
   const lastSearchTimeRef = useRef(0);
   const convertedHeightsRef = useRef(new Map<string, number>());
   const convertingHeightsRef = useRef(
@@ -212,6 +215,7 @@ export const useNearestImage = ({
         pitchRad: pitch,
         cameraView:
           args?.cameraView ?? (mode === "nadir" ? "nadir" : undefined),
+        selectionStrategy,
         numCandidates: numNearestImages,
         maxDistanceMeters,
         perSeriesTargetHeightMeters,
@@ -242,6 +246,7 @@ export const useNearestImage = ({
       numNearestImages,
       maxDistanceMeters,
       debounceMs,
+      selectionStrategy,
     ]
   );
 
@@ -270,7 +275,7 @@ export const useNearestImage = ({
       map.off("move", onMove);
       map.off("moveend", onMoveEnd);
     };
-  }, [map, enabled, data, locked, debounceMs]);
+  }, [map, enabled, data, locked, debounceMs, selectionStrategy]);
 
   return refreshSearch;
 };

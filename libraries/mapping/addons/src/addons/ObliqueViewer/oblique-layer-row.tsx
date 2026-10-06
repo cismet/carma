@@ -57,10 +57,12 @@ const buildInteractionButtons = ({
   previewVisible,
   hasImage,
   onFlyToggle,
+  hoverAvailable,
 }: {
   label: string;
   previewVisible: boolean;
   hasImage: boolean;
+  hoverAvailable: boolean;
   onFlyToggle: () => void;
 }): InteractionButton[] => {
   const buttons: InteractionButton[] = [
@@ -76,7 +78,7 @@ const buildInteractionButtons = ({
       tooltip: strings.readoutTooltip,
     },
   ];
-  if (hasImage) {
+  if (hasImage && (!hoverAvailable || previewVisible)) {
     buttons.push({
       id: OBLIQUE_FLY_TOGGLE_ID,
       icon: <FontAwesomeIcon icon={previewVisible ? faXmark : faPlane} />,
@@ -127,6 +129,7 @@ export const useObliqueLayerRow = ({
     pitchDeg,
     previewVisible,
     selectedImageId,
+    hoverAvailable,
     setPanelOpen,
     sendRequest,
   } = useObliqueViewerActions();
@@ -162,10 +165,19 @@ export const useObliqueLayerRow = ({
         label,
         previewVisible,
         hasImage: selectedImageId !== null,
+        hoverAvailable,
         onFlyToggle: () => sendRequest({ type: "flyToImage" }),
       }),
     }),
-    [title, label, previewVisible, selectedImageId, panelOpen, sendRequest]
+    [
+      title,
+      label,
+      previewVisible,
+      selectedImageId,
+      hoverAvailable,
+      panelOpen,
+      sendRequest,
+    ]
   );
 
   const layerRef = useRef(layer);

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { FOOTPRINT_SELECTION_COLOR } from "../../core/constants";
 import type { Map as MaplibreMap } from "maplibre-gl";
 
@@ -18,6 +18,8 @@ import {
 /** Photo-camera projected markings; catalog picks remain independent of drawn marks. */
 
 export const OBLIQUE_FOOTPRINT_LAYER_ID = "carma-oblique-footprint-outline";
+
+const DOUBLE_CLICK_WINDOW_MS = 500;
 
 const DEFAULT_STYLE: Required<ObliqueFootprintsStyle> = {
   outlineColor: FOOTPRINT_SELECTION_COLOR,
@@ -39,8 +41,10 @@ type UseFootprintLayerOptions = {
   seriesLabels?: ReadonlyMap<string, string | undefined>;
   /** Labels only distinguish multiple successfully loaded, enabled catalogs. */
   showSeriesLabels?: boolean;
-  /** Disable further picks during flight/preview while retaining its center contour. */
+  /** Disable picks during camera travel and preview. */
   locked: boolean;
+  /** Hide contours only after the photograph border has reached the draw. */
+  hidden: boolean;
   style?: ObliqueFootprintsStyle;
   fadeOut?: AnimationConfig;
   onClick?: (imageId: string) => void;
@@ -64,13 +68,14 @@ export const useFootprintLayer = ({
   seriesLabels,
   showSeriesLabels = true,
   locked,
+  hidden,
   style,
   fadeOut,
   onClick,
   onDoubleClick,
   onHoveredRecord,
   findAtScreenPoint,
-}: UseFootprintLayerOptions): void => {
+}: UseFootprintLayerOptions): (() => Promise<void>) => {
   const {
     outlineColor,
     outlineWidth,
@@ -89,10 +94,12 @@ export const useFootprintLayer = ({
   const onDoubleClickRef = useRef(onDoubleClick);
   onDoubleClickRef.current = onDoubleClick;
   const lastClickRef = useRef<{
-    id: string;
+    id: string | null;
     x: number;
     y: number;
     time: number;
+    doubleClick: boolean;
+    activate: () => void;
   } | null>(null);
   const onHoveredRecordRef = useRef(onHoveredRecord);
   onHoveredRecordRef.current = onHoveredRecord;
@@ -103,6 +110,7 @@ export const useFootprintLayer = ({
   const seriesLabelsRef = useRef(seriesLabels);
   seriesLabelsRef.current = seriesLabels;
   const catalogHover = !!findAtScreenPoint;
+  const clickEnabled = !!onClick;
   const hasSelectedImage = !!selectedImageId;
   const nearbyRecordsRef = useRef(nearbyRecords);
   nearbyRecordsRef.current = nearbyRecords;
@@ -197,7 +205,7 @@ export const useFootprintLayer = ({
   // Claim the DOM click before the host starts feature-info selection.
   useEffect(() => {
     if (!map || !enabled) return;
-    // Keep this listener during the first flight and over the mounted preview.
+    // Keep double-click arbitration independent of asynchronous footprint picking.
     const container = map.getContainer?.() ?? map.getCanvasContainer();
     const host = container.parentElement ?? container;
     const onSecondClick = (event: MouseEvent) => {
@@ -205,13 +213,13 @@ export const useFootprintLayer = ({
       if (
         event.detail !== 2 ||
         !last ||
-        performance.now() - last.time > 1500 ||
+        performance.now() - last.time > DOUBLE_CLICK_WINDOW_MS ||
         Math.hypot(event.clientX - last.x, event.clientY - last.y) > 5 ||
         (event.target instanceof Element &&
           event.target.closest("button, input, select, a"))
       )
         return;
-      // Do not let the second click dismiss the preview before dblclick centers it.
+      // Claim the second click before host selection or preview dismissal.
       claimClick(event);
       event.preventDefault();
       event.stopPropagation();
@@ -222,17 +230,17 @@ export const useFootprintLayer = ({
         !last ||
         !onDoubleClickRef.current ||
         event.button !== 0 ||
-        performance.now() - last.time > 1500 ||
+        performance.now() - last.time > DOUBLE_CLICK_WINDOW_MS ||
         Math.hypot(event.clientX - last.x, event.clientY - last.y) > 5 ||
         (event.target instanceof Element &&
           event.target.closest("button, input, select, a"))
       )
         return;
-      lastClickRef.current = null;
       claimClick(event);
       event.preventDefault();
       event.stopPropagation();
-      onDoubleClickRef.current(last.id);
+      last.doubleClick = true;
+      last.activate();
     };
     host.addEventListener("dblclick", onDoubleClick, true);
     host.addEventListener("click", onSecondClick, true);
@@ -244,7 +252,13 @@ export const useFootprintLayer = ({
   }, [map, enabled]);
 
   useEffect(() => {
-    if (!map || !enabled || locked || (!hasSelectedImage && !catalogHover))
+    if (
+      !map ||
+      !enabled ||
+      locked ||
+      (!clickEnabled && !catalogHover) ||
+      (!hasSelectedImage && !catalogHover)
+    )
       return undefined;
     const container = map.getCanvasContainer();
     const canvas = map.getCanvas();
@@ -254,6 +268,15 @@ export const useFootprintLayer = ({
     let dragged = false;
     let disposed = false;
     let clickPending = false;
+    let clickTimer: ReturnType<typeof setTimeout> | undefined;
+    let pendingClick: typeof lastClickRef.current = null;
+    const cancelPendingClick = () => {
+      clearTimeout(clickTimer);
+      clickTimer = undefined;
+      clickPending = false;
+      if (lastClickRef.current === pendingClick) lastClickRef.current = null;
+      pendingClick = null;
+    };
     let hoverGeneration = 0;
     let hoverTimer: ReturnType<typeof setTimeout> | undefined;
     let pointerPoint: { x: number; y: number } | null = null;
@@ -288,7 +311,7 @@ export const useFootprintLayer = ({
       if (ownsCursor && canvas.style.cursor === "pointer")
         canvas.style.cursor = previousCursor;
       ownsCursor = false;
-      layerRef.current?.setHoveredImage(null);
+      layerRef.current?.setHoveredImage(null, undefined, pointerPoint !== null);
     };
     const restoreCursor = () => {
       hoverGeneration++;
@@ -338,6 +361,7 @@ export const useFootprintLayer = ({
       }, 50);
     };
     const onMapMove = () => {
+      cancelPendingClick();
       hoverGeneration++;
       clearTimeout(hoverTimer);
       hoverTimer = undefined;
@@ -347,6 +371,7 @@ export const useFootprintLayer = ({
       if (pointerPoint) requestHover();
     };
     const onPointerDown = (event: PointerEvent) => {
+      if (event.pointerType === "touch" && !clickPending) restoreCursor();
       pressedAt = { x: event.clientX, y: event.clientY };
       dragged = false;
     };
@@ -357,14 +382,20 @@ export const useFootprintLayer = ({
         Math.hypot(event.clientX - pressedAt.x, event.clientY - pressedAt.y) > 3
       )
         dragged = true;
-      if (event.buttons || event.target !== canvas) {
+      if (event.pointerType === "touch" || event.target !== canvas) {
         restoreCursor();
         return;
       }
+      if (!pointerPoint)
+        layerRef.current?.setHoveredImage(null, undefined, true);
+      pointerPoint = screenPoint(event);
+      if (event.buttons) {
+        clearHover();
+        return;
+      }
       if (findAtScreenPointRef.current) {
-        pointerPoint = screenPoint(event);
         requestHover();
-      } else if (!hit(event)) restoreCursor();
+      } else if (!hit(event)) clearHover();
       else {
         layerRef.current?.setHoveredImage(
           layerRef.current.imageAtScreenPoint(screenPoint(event))
@@ -400,18 +431,37 @@ export const useFootprintLayer = ({
       const point = screenPoint(event);
       restoreCursor();
       const clickGeneration = hoverGeneration;
+      let resolved = false;
+      let windowElapsed = !onDoubleClickRef.current;
+      const pending: NonNullable<typeof lastClickRef.current> = {
+        id: null,
+        x: event.clientX,
+        y: event.clientY,
+        time: performance.now(),
+        doubleClick: false,
+        activate: () => {
+          if (disposed || lastClickRef.current !== pending) return;
+          if (pending.doubleClick) clearTimeout(clickTimer);
+          if (!resolved || (!windowElapsed && !pending.doubleClick)) return;
+          const id = pending.id;
+          cancelPendingClick();
+          if (!id || clickGeneration !== hoverGeneration) return;
+          if (pending.doubleClick) onDoubleClickRef.current?.(id);
+          else onClickRef.current?.(id);
+        },
+      };
+      pendingClick = pending;
+      lastClickRef.current = pending;
+      if (!windowElapsed)
+        clickTimer = setTimeout(() => {
+          clickTimer = undefined;
+          windowElapsed = true;
+          pending.activate();
+        }, DOUBLE_CLICK_WINDOW_MS);
       const activate = (id: string | null | undefined) => {
-        if (disposed) return;
-        clickPending = false;
-        if (!id || clickGeneration !== hoverGeneration) return;
-        lastClickRef.current = {
-          id,
-          x: event.clientX,
-          y: event.clientY,
-          time: performance.now(),
-        };
-        layerRef.current?.setLocked(true, fadeOutRef.current);
-        onClickRef.current?.(id);
+        pending.id = id ?? null;
+        resolved = true;
+        pending.activate();
       };
       if (cached) activate(cached);
       else if (find) {
@@ -426,6 +476,7 @@ export const useFootprintLayer = ({
         );
     };
     const onPointerCancel = () => {
+      cancelPendingClick();
       pressedAt = null;
       dragged = false;
       restoreCursor();
@@ -441,6 +492,7 @@ export const useFootprintLayer = ({
     container.addEventListener("click", onClick, true);
     return () => {
       disposed = true;
+      cancelPendingClick();
       if (catalogHover) {
         map.off("move", onMapMove);
         map.off("moveend", onMapMoveEnd);
@@ -452,10 +504,53 @@ export const useFootprintLayer = ({
       container.removeEventListener("click", onClick, true);
       restoreCursor();
     };
-  }, [map, enabled, locked, hasSelectedImage, catalogHover]);
+  }, [map, enabled, locked, hasSelectedImage, catalogHover, clickEnabled]);
 
-  // the fade on lock
+  // Preview locks photo picks, but unused native terrain hover must stay off.
   useEffect(() => {
-    layerRef.current?.setLocked(locked, fadeOutRef.current);
-  }, [map, enabled, locked]);
+    if (!map || !enabled || !catalogHover) return undefined;
+    const container = map.getCanvasContainer();
+    const canvas = map.getCanvas();
+    let pressed = false;
+    const onPointerDown = (event: PointerEvent) => {
+      pressed = event.target === canvas;
+    };
+    const onPointerUp = () => {
+      pressed = false;
+    };
+    const onMouseMove = (event: MouseEvent) => {
+      // MapLibre unprojects MapMouseEvent even when no listener consumes it.
+      if (
+        event.target === canvas &&
+        !event.buttons &&
+        !pressed &&
+        !map.isMoving?.() &&
+        map.listens &&
+        !map.listens("mousemove")
+      )
+        event.stopPropagation();
+    };
+    container.addEventListener("mousemove", onMouseMove, true);
+    container.addEventListener("pointerdown", onPointerDown, true);
+    window.addEventListener("pointerup", onPointerUp, true);
+    window.addEventListener("pointercancel", onPointerUp, true);
+    return () => {
+      container.removeEventListener("mousemove", onMouseMove, true);
+      container.removeEventListener("pointerdown", onPointerDown, true);
+      window.removeEventListener("pointerup", onPointerUp, true);
+      window.removeEventListener("pointercancel", onPointerUp, true);
+    };
+  }, [map, enabled, catalogHover]);
+
+  // Interaction locks never remove the contour while the photograph is loading.
+  useEffect(() => {
+    void layerRef.current?.setLocked(hidden, fadeOutRef.current);
+  }, [map, enabled, hidden]);
+
+  return useCallback(
+    () =>
+      layerRef.current?.setLocked(true, fadeOutRef.current) ??
+      Promise.resolve(),
+    []
+  );
 };

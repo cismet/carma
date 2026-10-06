@@ -18,8 +18,5 @@ export type PreviewQualityLevel =
 
 export const PREVIEW_IMAGE_EXTENSION = "jpg";
 
-/** what the ribbon offers: the regular preview level and one step sharper */
-export type PreviewQualityChoice = "standard" | "hq";
-
 /** Match the legacy Cesium footprint and preview outline. */
 export const FOOTPRINT_SELECTION_COLOR = "#ffffff";

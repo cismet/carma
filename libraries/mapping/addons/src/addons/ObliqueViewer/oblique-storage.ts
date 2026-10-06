@@ -5,12 +5,11 @@ import {
 } from "../../lib/registry";
 import {
   OBLIQUE_STATE_DEFAULT,
-  resolveBackdropLook,
   type ObliqueViewerState,
 } from "@carma-mapping/oblique-viewer";
 
 /**
- * Persistence for the viewer: whether it is on, and how the preview looks.
+ * Persistence for the viewer: whether it is on, its title, enabled series and selection policy.
  *
  * The addon state map is session-only, so this channel is mirrored into
  * `localStorage` and seeded from there on the next load, the way the flood
@@ -57,17 +56,15 @@ export const loadObliqueState = (
             (id): id is string => typeof id === "string"
           )
         : null,
+      selectionStrategy:
+        parsed.selectionStrategy === "best-resolution"
+          ? "best-resolution"
+          : OBLIQUE_STATE_DEFAULT.selectionStrategy,
       isOn: parsed.isOn === true,
       title:
         typeof parsed.title === "string" && parsed.title
           ? parsed.title
           : OBLIQUE_STATE_DEFAULT.title,
-      previewQuality: parsed.previewQuality === "hq" ? "hq" : "standard",
-      backdropLook: resolveBackdropLook(
-        isRecord(parsed.backdropLook)
-          ? (parsed.backdropLook as Partial<ObliqueViewerState["backdropLook"]>)
-          : undefined
-      ),
     };
   } catch (error) {
     console.warn(
@@ -83,16 +80,14 @@ export const saveObliqueState = (
   state: ObliqueViewerState
 ): void => {
   try {
-    const { isOn, title, previewQuality, backdropLook, enabledSeriesIds } =
-      state;
+    const { isOn, title, enabledSeriesIds, selectionStrategy } = state;
     window.localStorage.setItem(
       storageKey,
       JSON.stringify({
         isOn,
         title,
-        previewQuality,
-        backdropLook,
         enabledSeriesIds,
+        selectionStrategy,
       })
     );
   } catch (error) {

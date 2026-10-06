@@ -8,6 +8,7 @@ import { Matrix3, Matrix4, Vector3, Vector4 } from "three";
 import {
   degToRadNumeric,
   radToDegNumeric,
+  type CssPixels,
   type Degrees,
   type Radians,
 } from "@carma-units";
@@ -26,6 +27,7 @@ import { ellipsoidalToDhhn2016Height } from "@carma-geo/proj";
 import type {
   AnimationConfig,
   ObliqueDataset,
+  ObliquePreviewState,
   ObliqueHeightDatum,
   ObliqueImageRecord,
   ObliquePose,
@@ -149,6 +151,9 @@ export const flyToPose = (
     maxFovDeg,
     preview,
     centerPreview = false,
+    fitWholeImage = false,
+    previewState,
+    previewReferenceFrame,
   }: {
     dynamicDuration?: boolean;
     anchor?: MercatorCoordinate;
@@ -156,6 +161,10 @@ export const flyToPose = (
     maxFovDeg?: number;
     preview?: PreviewImageGeometry;
     centerPreview?: boolean;
+    /** Fit both rotated image extents; NG keeps the short-axis fit. */
+    fitWholeImage?: boolean;
+    previewState?: ObliquePreviewState;
+    previewReferenceFrame?: MaplibreMap["transform"];
   } = {}
 ): CameraFlight => {
   // The roll has to be passed even though the map stays unrolled: MapLibre
@@ -199,6 +208,9 @@ export const flyToPose = (
       maxFovDeg,
       preview,
       centerPreview,
+      fitWholeImage,
+      previewState,
+      previewReferenceFrame,
       durationMs: duration,
       restoreGround: false,
     });
@@ -259,6 +271,7 @@ export const settleToPitch = (
     padding = map.getPadding(),
     maxZoom = map.getMaxZoom(),
     durationMs = 450,
+    bearingDeg,
     anchor,
     screenPoint,
     restoreGround = true,
@@ -266,11 +279,15 @@ export const settleToPitch = (
     maxFovDeg = 110,
     preview,
     centerPreview = false,
+    fitWholeImage = false,
+    previewState,
+    previewReferenceFrame,
   }: {
     fovDeg?: Degrees;
     padding?: PaddingOptions;
     maxZoom?: number;
     durationMs?: number;
+    bearingDeg?: number;
     anchor?: MercatorCoordinate;
     screenPoint?: { x: number; y: number };
     restoreGround?: boolean;
@@ -279,6 +296,10 @@ export const settleToPitch = (
     maxFovDeg?: number;
     preview?: PreviewImageGeometry;
     centerPreview?: boolean;
+    /** Fit both rotated image extents; NG keeps the short-axis fit. */
+    fitWholeImage?: boolean;
+    previewState?: ObliquePreviewState;
+    previewReferenceFrame?: MaplibreMap["transform"];
   } = {}
 ): CameraFlight => {
   map.stop();
@@ -335,15 +356,25 @@ export const settleToPitch = (
     lngLat: { lng: number; lat: number },
     altitude: number
   ): void => {
-    const reference = frame.calculateCenterFromCameraLngLatAlt(
-      lngLat,
-      altitude,
-      frame.bearing,
-      frame.pitch
-    );
-    frame.setCenter(reference.center);
-    frame.setElevation(reference.elevation);
-    frame.setZoom(reference.zoom);
+    const eye = MercatorCoordinate.fromLngLat(lngLat, altitude);
+    // MapLibre's camera altitude is measured at the map centre's latitude.
+    // Preserve the photo eye's Mercator Z while solving that moving centre.
+    for (let correction = 0; correction < 3; correction++) {
+      const reference = frame.calculateCenterFromCameraLngLatAlt(
+        lngLat,
+        camera
+          ? eye.z /
+              MercatorCoordinate.fromLngLat(
+                frame.center
+              ).meterInMercatorCoordinateUnits()
+          : altitude,
+        frame.bearing,
+        frame.pitch
+      );
+      frame.setCenter(reference.center);
+      frame.setElevation(reference.elevation);
+      frame.setZoom(reference.zoom);
+    }
   };
   const aim = (frame: typeof from, moveProjection = false): void => {
     for (let correction = 0; correction < 2; correction++) {
@@ -420,39 +451,109 @@ export const settleToPitch = (
   );
   const finalFrame = from.clone();
   const startViewportPoint = viewportPoint.clone();
+  if (previewReferenceFrame && anchor && !screenPoint) {
+    const clip = new Vector4(
+      target.x * from.worldSize,
+      target.y * from.worldSize,
+      targetHeight,
+      1
+    ).applyMatrix4(new Matrix4().fromArray(from.modelViewProjectionMatrix));
+    if (clip.w > 0) {
+      startViewportPoint.x = ((clip.x / clip.w + 1) * from.width) / 2;
+      startViewportPoint.y = ((1 - clip.y / clip.w) * from.height) / 2;
+    }
+  }
   let centeredPreview = false;
   finalFrame.setFov(fovDeg);
   finalFrame.setPitch(pitchDeg);
+  const targetBearing = camera?.pose.bearingDeg ?? bearingDeg ?? from.bearing;
+  finalFrame.setBearing(targetBearing);
   finalFrame.setElevation(targetHeight);
   finalFrame.setPadding(padding);
   if (camera) {
-    finalFrame.setBearing(camera.pose.bearingDeg);
     finalFrame.setRoll(0);
     const eye = { lng: camera.pose.longitude, lat: camera.pose.latitude };
     placeCamera(finalFrame, eye, camera.altitude);
     targetDepth = readDepth(finalFrame);
     if (!(targetDepth > 0))
       throw new Error("Das aktuelle Blickziel liegt hinter der Bildkamera.");
+    const referenceResolution = previewReferenceFrame
+      ? Number(
+          readMetersPerCssPixel({
+            rangeM: readDepth(previewReferenceFrame),
+            fovRad: readLongerEdgeFovFromIntrinsics(
+              { fov: degToRadNumeric(previewReferenceFrame.fov) as Radians },
+              viewport
+            )!,
+            ...viewport,
+          })
+        )
+      : startResolution;
     finalFrame.setFov(
-      clamp(fovForResolution(targetDepth, startResolution), 0.1, maxFovDeg)
+      clamp(fovForResolution(targetDepth, referenceResolution), 0.1, maxFovDeg)
     );
     placeCamera(finalFrame, eye, camera.altitude);
     if (preview) {
+      if (centerPreview || previewState) {
+        const shortFactor = Math.min(
+          preview.aspectRatio,
+          1 / preview.aspectRatio
+        );
+        const currentShortEdge =
+          2 *
+          finalFrame.cameraToCenterDistance *
+          preview.halfFovTan *
+          shortFactor;
+        const fitScale = (previewState?.zoom ?? 0.9) as Ratio;
+        let targetShortEdge = (Math.min(from.width, from.height) *
+          fitScale) as CssPixels;
+        if (fitWholeImage) {
+          const widthFactor = Math.min(1, preview.aspectRatio) as Ratio;
+          const heightFactor = (1 / Math.max(1, preview.aspectRatio)) as Ratio;
+          const cosine = Math.abs(Math.cos(preview.roll)) as Ratio;
+          const sine = Math.abs(Math.sin(preview.roll)) as Ratio;
+          const rotatedWidth = (cosine * widthFactor +
+            sine * heightFactor) as Ratio;
+          const rotatedHeight = (sine * widthFactor +
+            cosine * heightFactor) as Ratio;
+          targetShortEdge = (Math.min(
+            (from.width as CssPixels) / rotatedWidth,
+            (from.height as CssPixels) / rotatedHeight
+          ) *
+            fitScale *
+            shortFactor) as CssPixels;
+        }
+        finalFrame.setFov(
+          clamp(
+            radToDegNumeric(
+              2 *
+                Math.atan(
+                  (Math.tan(degToRadNumeric(finalFrame.fov) / 2) *
+                    currentShortEdge) /
+                    targetShortEdge
+                )
+            ),
+            0.1,
+            maxFovDeg
+          )
+        );
+        placeCamera(finalFrame, eye, camera.altitude);
+      }
       const longEdge =
         2 * finalFrame.cameraToCenterDistance * preview.halfFovTan;
       const width = longEdge * Math.min(1, preview.aspectRatio);
       const height = longEdge / Math.max(1, preview.aspectRatio);
-      centeredPreview =
-        centerPreview ||
-        Math.min(width, height) < Math.min(from.width, from.height);
+      centeredPreview = centerPreview || !!previewState;
       if (centeredPreview) {
         // Cancel projection pan, including the rotated principal-point offset.
         const x = preview.principal.xOffset * width;
         const y = preview.principal.yOffset * height;
         const dx =
-          -2 * (Math.cos(preview.roll) * x - Math.sin(preview.roll) * y);
+          -2 * (Math.cos(preview.roll) * x - Math.sin(preview.roll) * y) +
+          2 * (previewState?.panX ?? 0) * longEdge;
         const dy =
-          -2 * (Math.sin(preview.roll) * x + Math.cos(preview.roll) * y);
+          -2 * (Math.sin(preview.roll) * x + Math.cos(preview.roll) * y) +
+          2 * (previewState?.panY ?? 0) * longEdge;
         finalFrame.setPadding({
           left: Math.max(0, dx),
           right: Math.max(0, -dx),
@@ -504,16 +605,21 @@ export const settleToPitch = (
       ) / startResolution
     : Math.max(1, readDepth(finalFrame) / targetDepth);
   const startEye = MercatorCoordinate.fromLngLat(from.getCameraLngLat());
+  const startPhotoAltitude =
+    MercatorCoordinate.fromLngLat(from.center, from.getCameraAltitude()).z /
+    startEye.meterInMercatorCoordinateUnits();
   const endEye = camera
     ? MercatorCoordinate.fromLngLat([
         camera.pose.longitude,
         camera.pose.latitude,
       ])
     : undefined;
-  const bearingDelta = camera
-    ? ((camera.pose.bearingDeg - from.bearing + 540) % 360) - 180
-    : 0;
-  const endViewportPoint = startViewportPoint.clone();
+  const bearingDelta = ((targetBearing - from.bearing + 540) % 360) - 180;
+  const endViewportPoint = (
+    previewReferenceFrame && anchor && !screenPoint
+      ? viewportPoint
+      : startViewportPoint
+  ).clone();
   if (centeredPreview) {
     const clip = new Vector4(
       target.x * finalFrame.worldSize,
@@ -575,8 +681,8 @@ export const settleToPitch = (
           startEye.y + (endEye.y - startEye.y) * progress
         ).toLngLat();
         const altitude =
-          from.getCameraAltitude() +
-          (camera.altitude - from.getCameraAltitude()) * progress;
+          startPhotoAltitude +
+          (camera.altitude - startPhotoAltitude) * progress;
         placeCamera(frame, eye, altitude);
         const actualDepth = readDepth(frame);
         if (actualDepth > 0) {

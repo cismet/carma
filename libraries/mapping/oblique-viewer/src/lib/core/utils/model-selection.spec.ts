@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { Vector3 } from "three";
-import { degToRadNumeric } from "@carma-units";
+import { degToRadNumeric, type Radians } from "@carma-units";
 import { getProj4Converter } from "@carma-geo/proj";
 import {
   TEST_LEGACY_SERIES,
@@ -10,10 +10,15 @@ import {
 import { resolveSeries } from "../config";
 import type {
   ObliqueDataset,
+  ObliqueImageRecord,
   ObliqueMetadata,
   ObliqueSelectionData,
 } from "../types";
-import { buildImageRecords, qualifiedImageId } from "./imageRecord";
+import {
+  buildImageRecords,
+  qualifiedImageId,
+  summarizeObliquePitch,
+} from "./imageRecord";
 import {
   estimateGroundCenter,
   estimateGroundFootprint,
@@ -110,6 +115,79 @@ const queryTarget = (x = 370000, y = 5680900) => {
   };
 };
 
+describe("calibrated browsing pitch summaries", () => {
+  it("stores radian sums and image counts per series for an image-weighted mean", () => {
+    const data = selectionData([
+      [metadata("old", "one", 0, 20), dataset("old")],
+      [metadata("old", "two", 0, 30), dataset("old")],
+      [metadata("old", "three", 0, 40), dataset("old")],
+      [metadata("new", "one", 0, 60), dataset("new")],
+    ]);
+    const totals = summarizeObliquePitch(data);
+    expect(totals.get("old")?.imageCount).toBe(3);
+    expect(totals.get("old")?.pitchSumRad).toBeCloseTo(degToRadNumeric(90), 12);
+    expect(totals.get("new")?.imageCount).toBe(1);
+    expect(totals.get("new")?.pitchSumRad).toBeCloseTo(degToRadNumeric(60), 12);
+    const sum = [...totals.values()].reduce(
+      (value, total) => value + total.pitchSumRad,
+      0
+    );
+    const count = [...totals.values()].reduce(
+      (value, total) => value + total.imageCount,
+      0
+    );
+    expect(sum / count).toBeCloseTo(degToRadNumeric(37.5), 12);
+  });
+
+  it("excludes nadir cameras, missing datasets and absent, non-finite or non-oblique angles", () => {
+    const data = selectionData([
+      [metadata("series", "valid", 0, 40), dataset("series")],
+    ]);
+    const valid = [...data.imageRecords.values()][0];
+    data.datasets.get("series")!.cameras.nadir = {
+      ...data.datasets.get("series")!.cameras.camera,
+      view: "nadir",
+    };
+    data.imageRecords.set("nadir", {
+      ...valid,
+      id: "nadir",
+      cameraId: "nadir",
+    });
+    data.imageRecords.set("orphan", {
+      ...valid,
+      id: "orphan",
+      seriesId: "not-loaded",
+    });
+    data.imageRecords.set("no-pose", {
+      ...valid,
+      id: "no-pose",
+      pose: undefined,
+    } as unknown as ObliqueImageRecord);
+    for (const [index, pitchDeg] of [
+      undefined,
+      NaN,
+      Infinity,
+      -Infinity,
+      -1,
+      0,
+      90,
+      91,
+    ].entries())
+      data.imageRecords.set("invalid-" + index, {
+        ...valid,
+        id: "invalid-" + index,
+        pose: { ...valid.pose, pitchDeg },
+      } as ObliqueImageRecord);
+    const totals = summarizeObliquePitch(data);
+    expect([...totals.keys()]).toEqual(["series"]);
+    expect(totals.get("series")?.imageCount).toBe(1);
+    expect(totals.get("series")?.pitchSumRad).toBeCloseTo(
+      degToRadNumeric(40),
+      12
+    );
+  });
+});
+
 describe("normalized image series", () => {
   it("keeps identical opaque source IDs independently addressable across series", () => {
     const data = selectionData([
@@ -195,6 +273,95 @@ describe("normalized image series", () => {
 });
 
 describe("image series configuration", () => {
+  it("rejects malformed or colliding directional source definitions", () => {
+    const group = {
+      id: "north",
+      sector: "N" as const,
+      cameraIds: ["front"],
+      meanHeadingRad: 0 as Radians,
+      imageCount: 2,
+      exteriorOrientationsURI: "https://images.example/north.json",
+    };
+    const series = { ...TEST_INPHO_SERIES, directionalCatalogs: [group] };
+    expect(resolveSeries({ series: [series] })[0].directionalCatalogs).toEqual([
+      group,
+    ]);
+    for (const groups of [
+      [],
+      [group, group],
+      [{ ...group, id: "" }],
+      [{ ...group, meanHeadingRad: NaN as Radians }],
+      [{ ...group, imageCount: -1 }],
+      [{ ...group, exteriorOrientationsURI: "" }],
+      [{ ...group, sector: "invalid" }],
+      [{ ...group, cameraPrefixes: "RI" }],
+      [{ ...group, cameraPrefixes: [0] }],
+      [{ ...group, obliquePitch: null }],
+      [{ ...group, obliquePitch: { pitchSumRad: NaN, imageCount: 1 } }],
+      [{ ...group, obliquePitch: { pitchSumRad: 1, imageCount: -1 } }],
+      [{ ...group, obliquePitch: { pitchSumRad: 1, imageCount: 3 } }],
+    ]) {
+      expect(() =>
+        resolveSeries({
+          series: [
+            {
+              ...series,
+              directionalCatalogs: groups as typeof series.directionalCatalogs,
+            },
+          ],
+        })
+      ).toThrow(/Directional catalogs/);
+    }
+  });
+
+  it("validates exact priority routing without changing physical camera directions", () => {
+    const group = {
+      id: "north",
+      sector: "N" as const,
+      cameraIds: ["full-camera-RI"],
+      cameraPrefixes: ["RI"],
+      meanHeadingRad: 0 as Radians,
+      imageCount: 2,
+      obliquePitch: { pitchSumRad: 1 as Radians, imageCount: 2 },
+      exteriorOrientationsURI: "https://images.example/north.json",
+    };
+    const routing = {
+      cameraLineParity: { EVEN: { RI: "north" }, ODD: { RI: "north" } },
+      imageGroups: { RI_29_3403: "north" },
+    };
+    const series = {
+      ...TEST_INPHO_SERIES,
+      directionalCatalogs: [group],
+      directionalCatalogPriority: routing,
+    };
+    const resolved = resolveSeries({ series: [series] })[0];
+    expect(resolved.directionalCatalogPriority).toEqual(routing);
+    expect(resolved.cameraIdToDirection).toEqual(
+      TEST_INPHO_SERIES.cameraIdToDirection
+    );
+    for (const malformed of [
+      null,
+      {},
+      { ...routing, imageGroups: null },
+      { ...routing, imageGroups: { RI_29_3403: "unknown" } },
+      { ...routing, cameraLineParity: { EVEN: [], ODD: {} } },
+      { ...routing, cameraLineParity: { EVEN: {}, ODD: { RI: 1 } } },
+    ])
+      expect(() =>
+        resolveSeries({
+          series: [
+            {
+              ...series,
+              directionalCatalogPriority: malformed as typeof routing,
+            },
+          ],
+        })
+      ).toThrow(/Directional catalog priority/);
+    expect(() =>
+      resolveSeries({ series: [{ ...series, directionalCatalogs: undefined }] })
+    ).toThrow(/Directional catalog priority/);
+  });
+
   it("uses explicit preview and download URLs", () => {
     expect(TEST_LEGACY_SERIES.previewPath).toMatch(/2024$/);
     expect(TEST_LEGACY_SERIES.downloadPath).toBeUndefined();
@@ -227,6 +394,159 @@ describe("image series configuration", () => {
 });
 
 describe("geometric best fit", () => {
+  it("prefers higher native pixel density over a nearer image centre while keeping nearest-axis selectable", () => {
+    const low = metadata("near", "low");
+    const high = metadata("detail", "high");
+    high.cameras.camera = {
+      ...camera,
+      widthPx: 4000,
+      heightPx: 4000,
+      imageMmToPixelAffine: [
+        [400, 0, 1999.5],
+        [0, -400, 1999.5],
+      ],
+    };
+    high.images.high.positionM = [370100, 5680000, 900];
+    const data = selectionData([
+      [low, dataset("near")],
+      [high, dataset("detail")],
+    ]);
+    const query = {
+      target: queryTarget(),
+      headingRad: 0,
+      pitchRad: degToRadNumeric(45),
+    };
+    const nearest = rankImagesForView(data, {
+      ...query,
+      selectionStrategy: "nearest-axis",
+    });
+    expect(nearest[0].record.seriesId).toBe("near");
+    const detailed = rankImagesForView(data, {
+      ...query,
+      selectionStrategy: "best-resolution",
+    });
+    expect(detailed[0].record.seriesId).toBe("detail");
+    expect(detailed[0].coversTarget).toBe(true);
+    expect(detailed[0].coverageApproximate).toBeFalsy();
+    expect(detailed[0].distanceOnGround).toBeGreaterThan(
+      nearest[0].distanceOnGround
+    );
+  });
+
+  it.each(["outside-sensor", "outside-direction"])(
+    "does not promote a detailed image %s over a covered photograph in the requested sector",
+    (reason) => {
+      const low = metadata("fit", "low");
+      const high = metadata(
+        "detail",
+        "high",
+        reason === "outside-direction" ? 60 : 0
+      );
+      high.cameras.camera = {
+        ...camera,
+        widthPx: 4000,
+        heightPx: 4000,
+        focalLengthMm: reason === "outside-direction" ? 5 : 10,
+        imageMmToPixelAffine: [
+          [400, 0, 1999.5],
+          [0, -400, 1999.5],
+        ],
+      };
+      if (reason === "outside-sensor")
+        high.images.high.positionM = [371800, 5680000, 900];
+      const data = selectionData([
+        [low, dataset("fit")],
+        [high, dataset("detail")],
+      ]);
+      const ranked = rankImagesForView(data, {
+        target: queryTarget(),
+        headingRad: 0,
+        pitchRad: degToRadNumeric(45),
+        selectionStrategy: "best-resolution",
+      });
+      expect(ranked).toHaveLength(2);
+      expect(ranked[0].record.seriesId).toBe("fit");
+      expect(
+        ranked.find((item) => item.record.seriesId === "detail")!.coversTarget
+      ).toBe(reason === "outside-direction");
+    }
+  );
+
+  it.each(["missing-target-height", "unknown-camera-datum"])(
+    "uses the geometric fallback rather than claiming native density with %s",
+    (reason) => {
+      const low = metadata("near", "low");
+      const high = metadata("detail", "high");
+      high.cameras.camera = {
+        ...camera,
+        widthPx: 4000,
+        heightPx: 4000,
+        imageMmToPixelAffine: [
+          [400, 0, 1999.5],
+          [0, -400, 1999.5],
+        ],
+      };
+      high.images.high.positionM = [370100, 5680000, 900];
+      const data = selectionData([
+        [low, dataset("near")],
+        [high, dataset("detail")],
+      ]);
+      if (reason === "unknown-camera-datum")
+        for (const config of data.datasets.values())
+          config.heightDatum = "unknown";
+      const target = {
+        ...queryTarget(),
+        heightMeters: reason === "missing-target-height" ? undefined : 0,
+      };
+      const ranked = rankImagesForView(data, {
+        target,
+        headingRad: 0,
+        pitchRad: degToRadNumeric(45),
+        selectionStrategy: "best-resolution",
+      });
+      expect(ranked[0].record.seriesId).toBe("near");
+      expect(ranked.every((item) => item.coverageApproximate)).toBe(true);
+    }
+  );
+
+  it("waits for target datum conversion before comparing calibrated density across enabled series", () => {
+    const low = metadata("near", "low");
+    const high = metadata("detail", "high");
+    high.cameras.camera = {
+      ...camera,
+      widthPx: 4000,
+      heightPx: 4000,
+      imageMmToPixelAffine: [
+        [400, 0, 1999.5],
+        [0, -400, 1999.5],
+      ],
+    };
+    high.images.high.positionM = [370100, 5680000, 900];
+    const data = selectionData([
+      [low, dataset("near")],
+      [high, dataset("detail")],
+    ]);
+    for (const config of data.datasets.values())
+      config.heightDatum = "ellipsoidal";
+    const query = {
+      target: queryTarget(),
+      headingRad: 0,
+      pitchRad: degToRadNumeric(45),
+      selectionStrategy: "best-resolution" as const,
+    };
+    expect(rankImagesForView(data, query)).toEqual([]);
+    const converted = rankImagesForView(data, {
+      ...query,
+      perSeriesTargetHeightMeters: new Map([
+        ["near", 45],
+        ["detail", 45],
+      ]),
+    });
+    expect(converted).toHaveLength(2);
+    expect(converted[0].record.seriesId).toBe("detail");
+    expect(converted.every((item) => !item.coverageApproximate)).toBe(true);
+  });
+
   it("uses continuous heading across wrap and ignores a wrong cardinal label", () => {
     const data = selectionData([
       [metadata("near", "same", -1), dataset("near")],

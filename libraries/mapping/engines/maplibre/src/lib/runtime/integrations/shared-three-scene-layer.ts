@@ -486,7 +486,13 @@ export const buildSharedThreeSceneLayer = (
       zoomPrefetch.update(renderCamera, viewport);
       scene.updateMatrixWorld(true);
 
-      const currentDepthRange = gl.getParameter(gl.DEPTH_RANGE) as Float32Array;
+      // MapLibre sets this state immediately before invoking the custom layer.
+      // Reading GL synchronously here stalls until previous GPU work finishes.
+      const hostDepthRange = map.painter?.context?.depthRange;
+      const currentDepthRange =
+        hostDepthRange && !hostDepthRange.dirty
+          ? hostDepthRange.current
+          : (gl.getParameter(gl.DEPTH_RANGE) as Float32Array);
       const savedDepthRange: DepthRange = [
         currentDepthRange[0],
         currentDepthRange[1],

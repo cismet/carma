@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { ObliqueDataset } from "../../core/types";
+import type { ObliqueDataset, ObliqueImageRecord } from "../../core/types";
 import { loadObliqueSeriesData, type ObliqueData } from "./load-oblique-series";
 import { loadWithOptionalCatalogCache } from "./optional-catalog-cache";
 
@@ -26,6 +26,60 @@ describe("optional catalog cache startup", () => {
       loadWithOptionalCatalogCache(dataset, async () => cached)
     ).resolves.toBe(data);
     expect(cached).toHaveBeenCalledWith(dataset);
+    expect(loadObliqueSeriesData).not.toHaveBeenCalled();
+  });
+
+  it("adds a pitch summary to an older cached catalog without refetching or replacing its records", async () => {
+    const oldDataset = {
+      ...dataset,
+      cameras: { oblique: { view: "front" }, nadir: { view: "nadir" } },
+    } as unknown as ObliqueDataset;
+    const records = new Map([
+      [
+        "one",
+        {
+          id: "one",
+          seriesId: dataset.id,
+          cameraId: "oblique",
+          pose: { pitchDeg: 30 },
+        } as ObliqueImageRecord,
+      ],
+      [
+        "two",
+        {
+          id: "two",
+          seriesId: dataset.id,
+          cameraId: "oblique",
+          pose: { pitchDeg: 50 },
+        } as ObliqueImageRecord,
+      ],
+      [
+        "nadir",
+        {
+          id: "nadir",
+          seriesId: dataset.id,
+          cameraId: "nadir",
+          pose: { pitchDeg: 10 },
+        } as ObliqueImageRecord,
+      ],
+    ]);
+    const legacy: ObliqueData = {
+      imageRecords: records,
+      datasets: new Map([[dataset.id, oldDataset]]),
+      centers: new Map(),
+    };
+    const cached = vi.fn().mockResolvedValue(legacy);
+    const result = await loadWithOptionalCatalogCache(
+      dataset,
+      async () => cached
+    );
+    expect(result).toBe(legacy);
+    expect(result.imageRecords).toBe(records);
+    expect(result.obliquePitchBySeries?.get(dataset.id)?.imageCount).toBe(2);
+    expect(
+      result.obliquePitchBySeries?.get(dataset.id)?.pitchSumRad
+    ).toBeCloseTo((80 * Math.PI) / 180, 12);
+    expect(cached).toHaveBeenCalledOnce();
     expect(loadObliqueSeriesData).not.toHaveBeenCalled();
   });
 

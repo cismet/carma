@@ -94,6 +94,13 @@ export const DEFAULT_ADDONS: AddonEntry[] = [
       featureFlag: "featureFlagObliqueViewerAddon",
     },
   },
+  {
+    addon: "obliqueObjectViews",
+    availability: {
+      deployments: OBLIQUE_VIEWER_DEPLOYMENTS,
+      featureFlag: "featureFlagObliqueNextUi",
+    },
+  },
 ];
 
 /**
@@ -112,7 +119,7 @@ export const withDefaultAddons = (
   routePath?: string
 ): AddonEntry[] => {
   const declared = new Set((addons ?? []).map(getAddonKind));
-  return [
+  const resolved = [
     ...[
       ...filterAddonsByAvailability(DEFAULT_ADDONS, availabilityContext),
       ...defaultWorkflowAddons(),
@@ -129,12 +136,22 @@ export const withDefaultAddons = (
       routePath !== "/oblique" ||
       [
         "obliqueViewer",
+        "obliqueObjectViews",
         "cameraRestriction",
         "libreTerrain",
         "mapStyle3d",
       ].includes(kind)
     );
   });
+  const hasViewer = resolved.some(
+    (entry) => getAddonKind(entry) === "obliqueViewer"
+  );
+  return resolved.filter(
+    (entry) =>
+      getAddonKind(entry) !== "obliqueObjectViews" ||
+      (hasViewer &&
+        availabilityContext.featureFlags.featureFlagObliqueNextUi === true)
+  );
 };
 
 const CESIUM_PATHNAME = "__cesium__";

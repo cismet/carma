@@ -1,77 +1,87 @@
 import { useEffect, useRef, useState } from "react";
 
-import { PREVIEW_QUALITY } from "../../core/constants";
+import {
+  PREVIEW_QUALITY,
+  type PreviewQualityLevel,
+} from "../../core/constants";
 import { getPreviewImageUrl, loadPreviewImage } from "../utils/imageUrls";
 
 type ProgressivePreviewOptions = {
-  /** the url the preview is meant to end up showing */
   finalPreviewUrl: string | null;
-  /** base path the level-6 thumbnail is built from */
+  initialPreviewUrl?: string;
   previewPath?: string;
   imageId?: string;
   onError?: () => void;
 };
 
-/**
- * The preview's source, low quality first: the level-6 thumbnail at once,
- * the final url once the browser has it. Only the string is decided here;
- * the caller gates and fades.
- */
+/** DOM fallback: retain the decoded source and publish each finer JPEG level. */
 export const useProgressivePreviewSource = ({
   finalPreviewUrl,
+  initialPreviewUrl,
   previewPath,
   imageId,
   onError,
 }: ProgressivePreviewOptions): string | null => {
-  const initialLowQuality =
-    previewPath && imageId
+  const initial =
+    initialPreviewUrl ??
+    (previewPath && imageId
       ? getPreviewImageUrl(previewPath, PREVIEW_QUALITY.LEVEL_6, imageId)
-      : finalPreviewUrl;
-  const [progressiveSrc, setProgressiveSrc] = useState<string | null>(
-    initialLowQuality
-  );
-  const imageTokenRef = useRef<string | undefined>(imageId);
-  const sourceKeyRef = useRef(`${previewPath}/${imageId}`);
-  const hasFinalRef = useRef(false);
+      : finalPreviewUrl);
+  const [progressiveSrc, setProgressiveSrc] = useState<string | null>(initial);
+  const sourceKeyRef = useRef(previewPath + "/" + imageId);
+  const decodedRef = useRef<string | null>(null);
 
   useEffect(() => {
-    imageTokenRef.current = imageId;
     if (!previewPath || !imageId) {
       setProgressiveSrc(finalPreviewUrl);
       return undefined;
     }
-    const lowQuality = getPreviewImageUrl(
-      previewPath,
-      PREVIEW_QUALITY.LEVEL_6,
-      imageId
-    );
-    const key = `${previewPath}/${imageId}`;
+    const key = previewPath + "/" + imageId;
     if (sourceKeyRef.current !== key) {
       sourceKeyRef.current = key;
-      hasFinalRef.current = false;
-      setProgressiveSrc(lowQuality);
+      decodedRef.current = null;
+      setProgressiveSrc(initial);
     }
-    if (!finalPreviewUrl || finalPreviewUrl === lowQuality) return undefined;
-    let cancelled = false;
-    void loadPreviewImage(finalPreviewUrl)
-      .then(() => {
-        if (!cancelled && imageTokenRef.current === imageId) {
-          hasFinalRef.current = true;
-          setProgressiveSrc(finalPreviewUrl);
+    if (!finalPreviewUrl) return undefined;
+    const controller = new AbortController();
+    const startUrl = decodedRef.current ?? initial;
+    const levels = Object.values(PREVIEW_QUALITY);
+    const start = levels.find(
+      (level) => startUrl === getPreviewImageUrl(previewPath, level, imageId)
+    );
+    const end = levels.find(
+      (level) =>
+        finalPreviewUrl === getPreviewImageUrl(previewPath, level, imageId)
+    );
+    const urls =
+      start !== undefined && end !== undefined
+        ? Array.from(
+            { length: Math.max(0, Number(start) - Number(end) + 1) },
+            (_, step) =>
+              getPreviewImageUrl(
+                previewPath,
+                String(Number(start) - step) as PreviewQualityLevel,
+                imageId
+              )
+          )
+        : [finalPreviewUrl];
+    void (async () => {
+      for (const url of urls) {
+        if (controller.signal.aborted) return;
+        if (decodedRef.current === url) continue;
+        try {
+          await loadPreviewImage(url, controller.signal);
+          if (controller.signal.aborted) return;
+          decodedRef.current = url;
+          setProgressiveSrc(url);
+        } catch {
+          if (controller.signal.aborted) return;
         }
-      })
-      .catch(() => {
-        if (
-          !cancelled &&
-          imageTokenRef.current === imageId &&
-          !hasFinalRef.current
-        )
-          onError?.();
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [previewPath, imageId, finalPreviewUrl, onError]);
+      }
+      if (!controller.signal.aborted && !decodedRef.current) onError?.();
+    })();
+    return () => controller.abort();
+  }, [previewPath, imageId, finalPreviewUrl, initial, onError]);
 
   return progressiveSrc;
 };

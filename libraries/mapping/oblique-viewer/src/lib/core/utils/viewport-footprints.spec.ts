@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { degToRad, type Degrees } from "@carma-units";
 import {
+  footprintPointCandidates,
   indexViewportFootprints,
   selectFootprintAtPoint,
   selectViewportFootprints,
@@ -285,5 +286,54 @@ describe("catalog footprint hover", () => {
         activeImageId: "right-active",
       })
     ).toBe("right-active");
+  });
+});
+
+describe("full-catalog photo-axis candidates", () => {
+  it("returns every actual preferred-sector hit for surface ranking, beyond the display limit", () => {
+    const actualHits = Array.from({ length: 160 }, (_, i) =>
+      rectangle("hit-" + i, 7.2 + i * 0.000001)
+    );
+    const index = indexViewportFootprints([
+      ...actualHits,
+      rectangle("outside-polygon", 7.201),
+      rectangle("opposite-direction", 7.2, degToRad(144 as Degrees)),
+      rectangle("nadir", 7.2, headingRad, true),
+    ]);
+    const result = footprintPointCandidates(index, {
+      point: [7.2, 51.27],
+      headingRad,
+      viewMode: "oblique",
+    });
+    expect(result.headingFirst).toBe(false);
+    expect(result.ids).toHaveLength(160);
+    expect(new Set(result.ids)).toEqual(
+      new Set(actualHits.map((item) => item.id))
+    );
+    expect(result.ids[0]).toBe("hit-0");
+  });
+
+  it("returns all eligible viewport candidates across sectors in a gap with heading-first fallback", () => {
+    const index = indexViewportFootprints([
+      rectangle("closer-worse-heading", 7.201, degToRad(270 as Degrees)),
+      rectangle("farther-best-heading", 7.204, degToRad(310 as Degrees)),
+      rectangle("outside-viewport", 7.3, 0),
+      rectangle("nadir", 7.202, 0, true),
+    ]);
+    const result = footprintPointCandidates(index, {
+      point: [7.2, 51.27],
+      headingRad: 0,
+      viewMode: "oblique",
+      viewportCorners: [
+        [7.199, 51.269],
+        [7.205, 51.269],
+        [7.205, 51.271],
+        [7.199, 51.271],
+      ],
+    });
+    expect(result).toEqual({
+      ids: ["farther-best-heading", "closer-worse-heading"],
+      headingFirst: true,
+    });
   });
 });

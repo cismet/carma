@@ -11,6 +11,7 @@ type BackdropProps = {
   filterEnabled?: boolean;
   onClick?: () => void;
   interactive?: boolean;
+  panEnabled?: boolean;
 };
 
 /**
@@ -25,6 +26,7 @@ export const Backdrop = ({
   color,
   onClick,
   interactive = true,
+  panEnabled = true,
   filterEnabled = true,
 }: BackdropProps) => {
   const filterValue = filterEnabled
@@ -38,7 +40,10 @@ export const Backdrop = ({
     backdropFilter: filterValue,
     transition:
       "backdrop-filter 0.25s linear, -webkit-backdrop-filter 0.25s linear",
-    cursor: interactive ? "var(--oblique-preview-cursor, grab)" : "default",
+    cursor:
+      interactive && panEnabled
+        ? "var(--oblique-preview-cursor, grab)"
+        : "default",
     pointerEvents: interactive ? "auto" : "none",
     touchAction: "none",
     zIndex: 1,

@@ -32,49 +32,99 @@ availability are independent; errors remain attached to the affected series.
 Unknown height datum remains explicit. Source-Z inspection requires the existing
 development-only opt-in, without guessing a datum conversion.
 
-For JPEG series, `minimumPreviewQualityLevel` identifies the finest published
-level. Higher zoom retains available pixels instead of requesting an absent
+There are no user-facing display or quality settings. Previews always refine
+toward the best available source quality, with the fixed backdrop look. The first
+preview stage uses the coarsest available level whose source pixels occupy at
+most eight physical display pixels, accounting for device pixel ratio and zoom.
+Cached sharper sources can be shown immediately. Every finer published stage
+then follows automatically; a missing JPEG stage does not stop subsequent levels.
+For JPEG
+series, `minimumPreviewQualityLevel` identifies the finest published level and
+the automatic target. Higher zoom retains available pixels instead of requesting an absent
 level. Preview decode and resampling run in reusable workers, composing only the
 visible source-pixel window in OffscreenCanvas. Three parked workers plus the
 active worker retain four sources within a memory budget. Optional CacheStorage
 retains encoded sources without lossy recompression. Original TIFF range reads
 and progressive overview loading are described below.
 
+`OffscreenCanvasPool.acquire({ width, height })` leases an exact, device-pixel
+crop with its 2D context; `release()` returns it and `trim()` frees unused stores.
+Leased surfaces are never reused or resized by another job. Each worker refines
+one crop surface in place and reuses JPEG tile decode surfaces. Idle retention
+is capped at 8 MiB/two composition canvases and 4 MiB/one decode canvas; active
+crop surfaces, source bitmaps and decoder caches are separate allocations.
+Object views reuse their active worker during resize and keep source crop
+coordinates separate from canvas dimensions. They terminate it when the view
+becomes inactive; no full-sensor canvas is allocated for the contact sheet.
+
 ## Selection and navigation
 
-Best-fit selection evaluates the requested ground target and continuous camera bearing/pitch against the poses and camera field of view of enabled series. Direction names remain per-series hints rather than a shared north/east/south/west eligibility rule. Enabling a nadir-capable series offers a Nadir button. It locks browsing at zero pitch and selects calibrated nadir cameras only, including on subsequent pan requests; the compass or the same button returns to oblique browsing. Removing the last nadir-capable series returns to oblique mode. Orbit requests change the desired view direction; pan requests change the target in the current image-view frame. Both requests search enabled series and may choose a different year. No-enabled-series and no-candidate results are valid empty states.
+Object views are an optional extension supplied by the separate host addon
+`obliqueObjectViews`, available only in the next interface (`ff=olbng`). This
+replaces the former inline query hook and overlay in `ObliqueViewer`. The base
+viewer does not import the object-query runtime; it lazy-loads only when its
+registered mode opens. See `libraries/mapping/addons/src/addons/ObliqueObjectViews/README.md`.
+
+Geoportal defaults to the Cesium-style interface: the viewport-centre image is
+highlighted, and the persistent “Flug zum Bild” button fits the whole photograph,
+including roll and principal offset, with 5% padding. Classic preview drag is
+disabled and wheel zoom is centred. Closing first restores that full-photo frame
+and then returns to the ordinary oblique camera. The compact rotation/pan controls stay available when the
+secondary information panel closes. Image information and export/feedback actions
+remain in that panel. This uses the MapLibre/Three viewer, without switching engines.
+
+The opt-in feature flag `olbng` retains the current pointer-selection interface,
+Nadir and Objektansichtenabfrage controls. For example, `#/oblique?ff=oblique.olbng`
+enables that interface, whereas `#/oblique?ff=oblique` uses the default. The flag
+does not enable mapstyle3d. Classic browsing allocates no pointer-search worker or
+photo-axis picking cache.
+
+Only the `olbng` interface offers “Nächste Bildachse” and “Beste Pixelauflösung” as selection
+policies. The latter compares calibrated native pixels per metre at the requested
+ground point, along the least-resolved transverse direction; preview JPEG levels
+never affect the ranking. Current-sector coverage still takes precedence, with
+heading deviation first when falling back across sectors. Equal native density
+uses the ordinary proximity ranking. Missing or unknown ground/source heights
+retain proximity selection rather than claiming calibrated resolution. The policy
+is persisted with enabled series; changing it keeps workers and imagery caches.
+
+
+Browsing pitch follows the image-count-weighted mean of calibrated oblique poses in the currently enabled, loaded catalogs. Nadir and invalid poses are excluded. The metadata worker derives small per-series angle totals once, including for older cached catalogs; enabling or removing a series recombines only those totals. The configured pitch remains the fallback before usable metadata arrives. Entering browsing and leaving a preview use this same target. A changed target adjusts pitch without restarting the mode or resetting zoom/FOV, and an open preview retains its photo camera.
+
+Best-fit selection evaluates the requested ground target and continuous camera bearing/pitch against the poses and camera field of view of enabled series. Direction names remain per-series hints rather than a shared north/east/south/west eligibility rule. In the olbng interface, enabling a nadir-capable series offers a Nadir button. It locks browsing at zero pitch and selects calibrated nadir cameras only, including on subsequent pan requests; the compass or the same button returns to oblique browsing. Removing the last nadir-capable series returns to oblique mode. Orbit requests change the desired view direction; pan requests change the target in the current image-view frame. Both requests search enabled series and may choose a different year. No-enabled-series and no-candidate results are valid empty states.
 
 The map overlay owns a compact two-row navigation grid with rotation and pan
 controls and a separate “Flug zum Bild” / “Beenden” button. It remains usable when
 the secondary information panel is collapsed. The panel retains the current image
-information and “Bild öffnen”, “Herunterladen” and feedback actions. Object Coverage
+information and “Bild öffnen”, “Herunterladen” and feedback actions. Objektansichtenabfrage
 temporarily replaces the ordinary navigation overlay.
 
-Best-fit queries use a persistent Vite module worker with one catalog copy per data revision. A combined index holds record references in one-kilometre UTM cells, grouped by each series' own intrinsic sector. Circular means of the actual calibrated headings choose one oblique group independently per series; group spacing need not be 90 degrees and matching groups need not share a sector name. Spatial filtering retains only camera positions inside the configured search radius before exact coverage/orientation ranking. Nadir has its own spatial group and no bearing filter. The application neither loads tiled catalogs nor uses a database; the indexes contain references into the existing catalog. The UI sends only the target, direction, pitch and normalized per-series heights and receives a small ranked candidate list, preserving the original record identities. At most one query runs and one newer query waits; a subsequent request replaces the waiting query. Selection ignores results from earlier view requests, removed series, locked cameras and disposed workers. Heights are converted asynchronously before evaluating candidates, so a late datum conversion cannot change an already superseded selection.
+Best-fit queries use a persistent Vite module worker with one catalog copy per data revision. A combined index holds record references in one-kilometre UTM cells, grouped by each series' own intrinsic sector. Circular means of the actual calibrated headings choose one oblique group independently per series; group spacing need not be 90 degrees and matching groups need not share a sector name. Spatial filtering retains only camera positions inside the configured search radius before exact coverage/orientation ranking. Nadir has its own spatial group and no bearing filter. Optional directional catalog batches feed that same index; its entries retain references into the parsed catalog. The UI sends only the target, direction, pitch and normalized per-series heights and receives a small ranked candidate list, preserving the original record identities. At most one query runs and one newer query waits; a subsequent request replaces the waiting query. Selection ignores results from earlier view requests, removed series, locked cameras and disposed workers. Heights are converted asynchronously before evaluating candidates, so a late datum conversion cannot change an already superseded selection.
 
 A delivered footprint is optional. Core selection can use calibrated camera rays and a target/reference-height plane; an approximate center/coverage test is not a terrain-occlusion check or a surveyed footprint. Terrain-derived polygons can be added later without changing the authoritative pose source.
 
-The center image's footprint carries an open two-line caret with a 120-degree
+The highlighted image's footprint carries an open two-line caret with a 120-degree
 tip at the image-bottom boundary, pointing toward image up. Camera roll and the
 projected image-up axis determine orientation; polygon start corner and winding do
 not. Footprint outlines and carets use 2 CSS pixels, matching the preview frame. The
-center fill is capped at 8% of the configured outline opacity. Pointer candidates
-and selection trails have no fill, so layered fills remain below 33%.
+highlight fill is capped at 8% of the configured outline opacity. Selection trails
+have no fill; only one filled footprint is visible.
 
-Only the center image and one prospective pointer image are drawn. Selection and
-hover outlines use the same white Cesium-style colour. Without a valid pointer
-candidate, the center is the implicit hover.
-Identity labels are limited to the center and pointer image. The short year
+Only one current image is highlighted. In the olbng interface, pointer input takes precedence; a pointer
+miss or pending query has no center replacement. Without map pointer input,
+including touch, the center image is the implicit hover. Highlight outlines use
+the same white Cesium-style colour.
+Identity labels belong only to the single highlighted image. The short year
 uses the highlighted colour at 50% opacity, weight 1000, Arial Black with a system
 sans-serif fallback stack, and no stroke. Ordinary selection labels are gated by
 at least two successfully loaded, enabled series. The same rule applies to explicit
 and implicit hover; labels update when series loading or selection changes and are
 hidden with one usable series.
 
-Hover searches the full catalog of viewport-intersecting footprints. It resolves
+The olbng interface searches the full catalog on hover of viewport-intersecting footprints. It resolves
 the visible mesh point under the pointer, with MapLibre terrain as fallback. Actual
 polygon hits in the current +/-45-degree camera-heading sector take priority and
-are ranked by distance to the footprint-diagonal/image-axis intersection. If that
+are ranked by distance to the actual photo-camera axis intersection with the live surface. If that
 sector has no polygon hit, all oblique sectors become eligible: absolute wrapped
 heading deviation ranks first, then intersection distance. Nadir remains separate.
 The viewport candidate list uses the same sector fallback, capped at 128. This query is
@@ -83,21 +133,40 @@ limited to one active and one latest queued worker request, at most every 50ms;
 stale replies after movement, lock or teardown are ignored. Clicking opens the
 hovered record even before native GeoJSON tiling catches up.
 
+The index returns every eligible candidate, without the display cap. An async
+refinement casts each physical photo center ray against visible mesh/terrain
+receivers, with native DEM iteration as fallback. Hits are cached by image and
+receiver/LOD revision; pointer motion reuses them. Uncached work yields after
+eight rays or about three milliseconds and stops for superseded queries. The
+cache contains at most 2048 ground coordinates and no frustum geometry.
+
+The common `debug` feature flag enables a floating diagnostic panel using the
+tile manager's window chrome, for example `ff=oblique.olbng.debug`. It shows the live
+ground distance from the pointer to the chosen camera-axis surface intersection,
+along with source identity and mesh/DEM provenance. Values use a DOM subscription,
+keeping pointer updates out of the viewer's React tree; diagnostics load lazily.
+
 Previous center and pointer selections leave at most 32 outline trails. They retain
 the current line width and white colour at at most 20% outline opacity and fade
 over about 2.7 seconds. Expired trails and trails outside the current
 viewport are removed. Trails carry no fill, label, caret or click target. Absolute
-deadlines survive preview locks; one expiry timer cleans hidden trails and idle
-repaints run at at most ten Hz.
+deadlines remove expired trails while browsing; idle repaints run at at most ten Hz.
+Camera travel disables picks while retaining the footprint contour. Only when
+the shared scene draw has the photograph border at full opacity do markings and
+trails fade together within 100ms. Slow image loading cannot leave a borderless
+view; refinements do not repeat this handoff. Style or receiver updates cannot
+restore hidden markings.
 
 With a shared mesh or terrain receiver, markings are the intersections of the
 calibrated photo-camera frustum's four side planes with the actual rendered surface.
 They follow roofs and facades instead of extruding an approximate ground polygon.
 INPHO delivered-pixel affines, principal points, mounting orientation and UTM
 convergence use the same conventions as image selection. The shared engine stores
-two current markings and 32 trails in one small float-data texture. A small white
-alpha atlas contains only center/hover year labels, projected in photo UV together
-with the open caret. Highlight changes are immediate; no 180ms highlight crossfade,
+one current marking and up to 32 trails in one small float-data texture. Pointer
+input takes precedence; only when there is no pointer input on the map does the
+center image become highlighted. A pointer miss or pending query shows no current
+highlight. Touch input keeps the center fallback. A small white alpha atlas contains
+only the highlighted year label, projected in photo UV together with the open caret. Highlight changes are immediate; no 180ms highlight crossfade,
 large footprint canvas, extra geometry, photo-depth pass or second map is needed.
 
 Camera heights resolve outside render callbacks and are cached per record, datum
@@ -113,16 +182,34 @@ of the DEM-depth mask that keeps street labels occluded by buildings.
 Ground labels retain carma:map-style-placement "draped" metadata. There is
 no recurring footprint height polling.
 
-The center contour stays visible above the photograph during preview; pointer
-marks and trails are suspended there. The year label and up marker are hidden
-throughout preview. One
-click resolves enabled-series candidates at the clicked mesh or
+During preview, the photograph border replaces all footprint contours. The
+image and its border use the original physical photo projector used for mesh
+footprints, including delivered-pixel calibration. The map camera travels to the
+corresponding physical photo eye; its altitude accounts for the different Mercator
+scales at the map center and camera location. The screen transform projects
+homogeneous view directions instead of near-plane points, so centimetre-scale
+camera refits cannot shift image pixels during FOV zoom. It updates immediately
+before the shared scene draw, with photo matrices cached by record and local-frame
+revision. Native crops change sampling bounds only; the
+border follows the full sensor frame. The year label and up marker remain hidden.
+In the olbng interface, one click resolves enabled-series candidates at the clicked mesh or
 terrain point, even before hover completes. It requires no native rendered feature.
 The toolbar action independently refreshes best fit at the physical viewport
-center, so hover cannot change its target. Overlap ranking uses the nearest image
-diagonal intersection for actual sector hits, using the heading-first all-sector
-fallback when there is no hit, with active-image preference only for an exact tie.
-Drags, stale replies and preview/flight locks do not start another flight. Claimed
+center, so hover cannot change its target. In olbng the action is hidden on hover-capable
+devices while browsing; touch retains it, and preview close remains available.
+A footprint's single-click flight starts after a 500ms double-click window;
+catalog picking runs immediately in parallel. A double click cancels that pending
+flight and retains the current view-center anchor and pixel scale. Slow picks
+retain the double-click decision; movement, locking and teardown discard pending
+activation. Single click frames the full image's shorter axis at 90% of the shorter
+viewport axis, leaving 5% padding on each side. The
+four next-image arrows fit the destination image during the same camera/FOV
+transition. Browsing rotations retain their ground anchor and end directly at
+the dataset-average pitch. Heading, pitch, optical scale and projection pan use
+one eased interval, without a subsequent pitch settle. A Nadir-to-cardinal turn
+includes the mode pitch in that same interval. Overlap ranking uses the actual camera-axis surface intersection and
+the heading-first all-sector fallback, with active-image preference only for an
+exact tie. Drags and stale replies do not start another flight. Claimed
 clicks precede host feature-info handling. Camera travel begins concurrently with
 image loading; progressive and native pixels become visible when ready.
 
@@ -132,17 +219,47 @@ report after eight seconds with frame gaps, long tasks, camera timing, map event
 and visible mesh geometry counts. The sampler never requests map repaints and
 detaches itself after the capture.
 
-## Object Coverage
+## Preview URL state
 
-Select Object Coverage, then click the rendered mesh or terrain twice: the first
+The Geoportal adapter uses the existing `HashStateProvider` methods to persist
+the image window independently of normal map lat/lng/zoom/pitch state:
+
+| Hash key | Meaning |
+| --- | --- |
+| `obs` | Configured series ID |
+| `obi` | Source image ID, without a series prefix or asset URL |
+| `obx`, `oby` | Image-center displacement from viewport center, divided by the image's long screen edge |
+| `obz` | Image short screen edge divided by viewport short edge |
+
+Entry, settled image switches, pan end and wheel end replace these values using
+the common URL encoder. Camera animation frames do not update history. Closing
+the preview removes all five keys while retaining normal map and feature flags.
+On reload a known series is enabled if necessary, its catalog is awaited, and the
+source image's calibrated camera restores pan and zoom. Ratios retain the same
+image point at viewport center across different sizes/aspect ratios; FOV changes
+within camera limits. Missing ratios default to centered 90% fit. Nonfinite,
+out-of-bounds or unknown identities do not load arbitrary URLs. Standalone hosts
+can supply the optional `previewState` config channel without a routing provider.
+
+## Object views query
+
+This mode requires the `obliqueObjectViews` addon and the next interface.
+
+Select **Objektansichtenabfrage**, then click the rendered mesh or terrain twice: the first
 click sets the sphere centre, and the second sets its three-dimensional radius in
-metres. The shared scene displays the sphere while it is being drawn. Changing the
+metres. The shared scene displays a solid sphere with 30% opacity. A white, 2 CSS-pixel
+contour is evaluated on the live mesh/terrain fragments at the sphere intersection,
+including newly loaded tile LODs. Changing the
 enabled series resets the selection; reset and close controls remain available.
 
 Loaded, enabled series are scanned for cameras whose calibrated image frustum
-contains the entire sphere. Partial intersections are excluded. Each image gets a
-tight rectangular crop around the projected sphere and a native pixel-density
-score. Images are grouped by their actual camera bearing into four quadrants:
+contains the entire sphere. Nadir cameras are excluded from these four directional
+views. Partial intersections are excluded. Each image gets a
+rectangular crop around the projected sphere and a native pixel-density score.
+The crop expands to the actual cell aspect ratio, keeps the entire sphere in view
+and limits magnification to three physical display pixels per native source pixel.
+A virtual crop extending beyond the sensor leaves empty margins instead of
+stretching the photograph. Images are grouped by their actual camera bearing into four quadrants:
 
 | Top left | Top right |
 | --- | --- |
@@ -150,9 +267,23 @@ score. Images are grouped by their actual camera bearing into four quadrants:
 | West | South |
 
 Within each quadrant, the highest-resolution image appears first; the Ant Design
-carousel exposes the remaining images in descending pixels-per-metre order. Only
-the active image in each quadrant composes its crop, reusing the ordinary JPEG/TIFF
-preview workers and caches. Double-click a crop, or activate it with Enter/Space,
+carousel exposes the remaining images through small thumbnails in descending
+pixels-per-metre order. Active crops refine progressively to the best available
+quality in the ordinary JPEG/TIFF workers. Clicking a direction or changing its
+carousel starts sequential, low-priority preloading of every alternative at cell
+display resolution; it does not refine background alternatives to native resolution.
+Carousel thumbnails share one bounded worker queue. Leaving the query cancels
+active jobs and releases their canvases while preserving encoded/range caches.
+
+**Strecke messen** casts each clicked photograph ray onto the loaded live mesh or confirmed native DEM surface.
+One set of physical three-dimensional points and segment distances is projected
+into all four active photographs and follows carousel changes. Measurements are
+local to the current sphere; unavailable surface locations do not create points.
+This query supports distance paths, not area tools or saved measurement layers.
+Its grid clears the isolated Geoportal controls layer, with close/reset actions
+inside the grid.
+
+Double-click a crop, or activate it with Enter/Space,
 to synchronize the main camera and open that image as a centered full-viewport
 preview. The coverage grid closes after the camera transition succeeds.
 
@@ -249,9 +380,9 @@ source detail.
 When the catalog supplies `assets.original.href`, or a series configures
 `originalImageUrlTemplate`, the preview worker reads the
 original TIFF directly. The first image uses the coarsest internal overview
-that meets the visible window's physical pixel demand, including device pixel
-ratio, image roll and off-centre pan. After publishing that image it reads only
-the immediately finer overview for the same window. Native resolution is the
+that keeps each source pixel within eight physical display pixels in the visible
+window, including device pixel ratio, image roll and off-centre pan. After publishing that image it reads only
+successively finer overviews for the same window, ending at native resolution. Native resolution is the
 final step; there is no full-image idle download.
 
 Composition uses 1024-pixel output regions with a filter halo. Encoded TIFF
@@ -273,9 +404,13 @@ byte ranges for up to four images; it never stores decoded RGBA images.
 Cache keys use the exposed ETag or Last-Modified value. A first range request
 establishes that version before persisted ranges are reused. Hover thumbnails
 read one suitable TIFF overview in a separate worker and warm the same byte cache.
-JPEG-only series retain the published resolution pyramid. JPEG byte ranges
-do not provide independent pixel tiles, so their selected JPEG must be read
-in full before cropping it in the worker.
+JPEG-only series load the published resolution pyramid sequentially from the
+initial level to the finest configured level. Each completed worker composition
+replaces the preceding one without restarting the photo camera or animation.
+A sharper retained or persistently cached source skips redundant levels.
+JPEG byte ranges do not provide independent pixel tiles, so each requested
+JPEG must be read in full before cropping it in the worker. Leaving cancels its
+active fetch as well as composition.
 
 ## Original-image JPEG download
 
@@ -306,6 +441,42 @@ footprint belongs to its image record instead of a duplicate full GeoJSON catalo
 Runtime animation callbacks remain on the UI thread, and worker inputs use absolute
 metadata URLs. Loads are cached by series configuration, time out after 60 seconds,
 and terminate their worker on completion or failure.
+
+An optional `compressedCatalogURI` prefers the same JSON schema over gzip. Native
+worker decompression accepts both gzip bytes and an already HTTP-decoded body;
+missing, invalid or unsupported compression falls back to the canonical
+`exteriorOrientationsURI`. Aborted loads never start a fallback. Parsed cache keys
+retain canonical identity and validate the successful transport, so this option
+does not clear existing caches.
+
+The host can supply `prioritySeriesId`; Geoportal reads initial `obs` even without
+`obi`. Its catalog is published before other enabled series start loading.
+Equivalent configuration objects do not restart pending workers; status-only
+updates reuse the existing parsed Maps. Coordinates, matrices and camera metadata
+are not quantized or converted into a new catalog schema.
+
+Optional `directionalCatalogs` expose independent exact JSON documents for each
+measured direction, with their own gzip transport. An initial source image takes
+priority over the current heading; otherwise the group with the nearest measured
+mean azimuth loads first. The other three oblique segments load one at a time during idle periods.
+Rotation or a changed viewing direction promotes its missing group without
+aborting an active request. Nadir is a fifth, on-demand segment. Object views and
+a hover search that needs all oblique sectors await the four oblique segments
+before ranking. `awaitDirection(..., { retry: true })` and `awaitAll({ retry: true })`
+retry failed segments explicitly; ordinary hover does not retry them.
+
+`directionalCatalogPriority` provides validated source-ID routing only: a compact
+camera/line-parity route plus every exact exception. It never changes a record's
+orientation or geometric sector. File prefixes and aircraft-relative camera names
+are insufficient because the same camera looks in opposite directions on return
+flight strips. Directional datasets never request the whole-series catalog. A failed segment
+retains successful segments and surfaces a per-group error; its direction await
+returns unavailable. Explicit retry reloads only failed segments. The four
+oblique segments fill one in-memory series incrementally; nadir is requested
+separately when needed. Unsplit legacy series retain their one-file loader. Full-series pitch totals in the group manifest keep the browsing pitch
+stable while records arrive. Parsed caches remain separate per source group;
+existing whole-series caches are retained.
+
 
 The Geoportal registers the new viewer addon only when the URL feature flag
 `oblique` is enabled, including on the dedicated `#/oblique` route. Use
@@ -380,3 +551,38 @@ and flattening, so the combined camera action also stays within 500 ms. Image an
 backdrop fades take 250 ms; the first preview crop starts immediately once its
 camera geometry is available, while subsequent pan/zoom crops coalesce for 200 ms.
 Viewport-footprint queries stop during flights/previews and resume after settling.
+
+
+## Image fidelity stories
+
+One Storybook group contains the approved 2026 AVIF L1–L4 samples, the historical
+2024 chroma/bit-depth comparison, and the L2–L4 filter experiment. The completed
+blind-test UI is removed; private measured assets and votes are retained.
+See [comparison entrypoints and measurement scope](src/lib/runtime/quality-comparison/README.md).
+
+
+## Optional packed AVIF previews
+
+The existing RGB composition and thumbnail workers prefer
+`record.assets.pyramid.href` when supplied. Other providers can configure
+`avifPyramidTemplate` with an encoded `{imageId}` placeholder. Original image
+assets and downloads remain unchanged; an unavailable or unsupported pyramid
+uses the existing TIFF/JPEG source. A small 30-second negative cache also expires
+for an already composed TIFF viewport, so partial publication does not pin the
+fallback permanently. Series without pyramid assets retain their previous path.
+
+One file contains the native L1 AVIF primary and independent embedded lower
+levels. Its `pyridx01` locator resolves the calibrated sensor dimensions and
+absolute cell-range index. HEAD reads only file length; image/index bodies must
+be bounded HTTP 206 streams (8 MiB maximum per range). The worker selects a coarse
+initial page and refines only to the physical viewport need, reconstructs native
+AVIF grid cells and uses the existing viewport canvas pool, abort generations and
+bounded retained caches. Original sensor dimensions must match camera calibration;
+no full-photo AVIF bitmap or external decoder service is used.
+
+Native cell decoding currently enters the existing RGBA8 composition path;
+encoded ten-bit samples do not establish ten-bit scene/display output. Focused
+worker tests cover preference, TIFF fallback and the partial-publication retry.
+The isolated production-worker check used a small ROI from a publicly packed
+portrait photo and verified progressive AVIF output, bounded 206 reads and no
+TIFF, mesh or terrain requests; it did not load the complete viewer scene.

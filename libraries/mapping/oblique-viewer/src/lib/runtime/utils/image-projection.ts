@@ -1,4 +1,4 @@
-import { Matrix4, Vector3 } from "three";
+import { Matrix3, Matrix4, Vector3 } from "three";
 import { cartographicToEcef, ecefToEnuMatrix } from "@carma-geo/proj";
 import { degToRadNumeric } from "@carma-units";
 import type {
@@ -6,6 +6,39 @@ import type {
   ObliqueImageRecord,
   ObliquePose,
 } from "../../core/types";
+
+/** Project view rays through the footprint's calibrated image projector.
+ * Homogeneous directions keep camera translation and clip depth out of the UVs.
+ */
+export const viewportImageProjection = (
+  sceneToImage: Matrix4,
+  sceneToClip: Matrix4
+): Matrix3 => {
+  const clipToScene = sceneToClip.clone().invert().elements;
+  const clipToDirection = new Matrix4();
+  const directions = clipToDirection.elements;
+  for (let column = 0; column < 4; column += 1) {
+    const offset = column * 4;
+    const depth = clipToScene[offset + 3] / clipToScene[11];
+    for (let row = 0; row < 3; row += 1) {
+      directions[offset + row] =
+        clipToScene[offset + row] - clipToScene[8 + row] * depth;
+    }
+    directions[offset + 3] = 0;
+  }
+  const e = sceneToImage.clone().multiply(clipToDirection).elements;
+  return new Matrix3().set(
+    2 * e[0],
+    2 * e[4],
+    e[12] - e[0] - e[4],
+    2 * e[1],
+    2 * e[5],
+    e[13] - e[1] - e[5],
+    2 * e[3],
+    2 * e[7],
+    e[15] - e[3] - e[7]
+  );
+};
 
 // The shared physical scene uses east/up/south; camera orientations use ENU.
 const SCENE_TO_ENU = new Matrix4().set(
@@ -31,7 +64,7 @@ const SCENE_TO_ENU = new Matrix4().set(
 export const sceneToPhotoEnu = (
   origin: readonly [number, number],
   sceneFromLocal: Matrix4,
-  pose: ObliquePose,
+  pose: Pick<ObliquePose, "longitude" | "latitude">,
   altitude: number
 ): Matrix4 => {
   const ecef = ([longitude, latitude]: readonly [number, number]) =>

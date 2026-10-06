@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { MercatorCoordinate, type Map as MaplibreMap } from "maplibre-gl";
 import {
+  Color,
   Group,
   Matrix4,
   Mesh,
@@ -27,6 +28,9 @@ import {
 } from "../../core/utils/object-coverage";
 import { CARDINALS_CLOCKWISE } from "../../core/utils/orientation";
 import { resolveCameraAltitude } from "../utils/flyToImage";
+import { sceneToPhotoEnu } from "../utils/image-projection";
+import { FOOTPRINT_SELECTION_COLOR } from "../../core/constants";
+import type { CssPixels } from "@carma-units";
 
 const MIN_RADIUS_METERS = 0.1;
 const COVERAGE_BATCH_SIZE = 64;
@@ -263,20 +267,17 @@ export const useObjectCoverage = ({
     const geometry = new SphereGeometry(1, 32, 20);
     const fill = new MeshBasicMaterial({
       color: "#1677ff",
-      opacity: 0.12,
+      opacity: 0.3,
       transparent: true,
       depthWrite: false,
     });
-    const wire = new MeshBasicMaterial({
-      color: "#1677ff",
-      opacity: 0.85,
-      transparent: true,
-      wireframe: true,
-      depthWrite: false,
-    });
-    root.add(new Mesh(geometry, fill), new Mesh(geometry, wire));
+    root.add(new Mesh(geometry, fill));
+    const overlayId = "oblique-object-coverage-" + ++nextRuntimeId;
+    let previousSphere: ObjectCoverageSphere | null = null;
+    let previousFrame = "";
+    const contourColor = new Color(FOOTPRINT_SELECTION_COLOR);
     const runtime: SharedThreeSceneRuntime = {
-      id: `oblique-object-coverage-${++nextRuntimeId}`,
+      id: overlayId,
       originLngLat: [map.getCenter().lng, map.getCenter().lat],
       root,
       update: () => {
@@ -291,11 +292,56 @@ export const useObjectCoverage = ({
           root.matrix.copy(matrix);
           root.matrixWorldNeedsUpdate = true;
         }
+        const frame = lease.layer.getLocalFrame();
+        const origin = lease.layer.projectSceneToLngLat([0, 0, 0]);
+        const frameKey = origin?.join(",") + ":" + frame?.revision;
+        if (current === previousSphere && frameKey === previousFrame) return;
+        previousSphere = current;
+        previousFrame = frameKey;
+        if (
+          !current ||
+          !matrix ||
+          !frame ||
+          !origin ||
+          !(current.radiusMeters > 0)
+        ) {
+          lease.layer.setMapStyleProjectiveOverlay?.(overlayId, null);
+          return;
+        }
+        const sceneToSphere = sceneToPhotoEnu(
+          origin,
+          frame.sceneFromLocal,
+          current.center,
+          current.center.heightMeters
+        );
+        sceneToSphere.premultiply(
+          new Matrix4().makeScale(
+            1 / current.radiusMeters,
+            1 / current.radiusMeters,
+            1 / current.radiusMeters
+          )
+        );
+        lease.layer.setMapStyleProjectiveOverlay?.(overlayId, {
+          marks: [
+            {
+              shape: "sphere",
+              sceneToImage: sceneToSphere,
+              sceneToImageTerrain: matrix.clone().invert(),
+              color: contourColor,
+              width: 2 as CssPixels,
+              opacity: 1,
+              showUpMarker: false,
+            },
+          ],
+          trailColor: contourColor,
+          trailDuration: 1,
+          opacity: 1,
+        });
       },
       dispose: () => {
         geometry.dispose();
         fill.dispose();
-        wire.dispose();
+        lease.layer.setMapStyleProjectiveOverlay?.(overlayId, null);
       },
     };
     lease.layer.addRuntime(runtime);

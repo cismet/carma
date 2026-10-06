@@ -2,7 +2,7 @@
 import {
   indexViewportFootprints,
   selectViewportFootprints,
-  selectFootprintAtPoint,
+  footprintPointCandidates,
   type FootprintPointQuery,
   type FootprintViewportQuery,
   type ViewportFootprint,
@@ -22,10 +22,12 @@ self.onmessage = (
       index = indexViewportFootprints(message.catalog);
       self.postMessage({ type: "ready" });
     } else if (message.type === "hover") {
+      const candidates = footprintPointCandidates(index, message.query);
       self.postMessage({
         type: "hoverResult",
         requestId: message.requestId,
-        id: selectFootprintAtPoint(index, message.query),
+        id: candidates.ids[0] ?? null,
+        ...candidates,
       });
     } else {
       self.postMessage({

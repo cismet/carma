@@ -13,7 +13,7 @@ import {
   CARDINALS_CLOCKWISE,
   getCardinalDirectionFromHeading,
 } from "./orientation";
-import { poseOf } from "../../runtime/utils/flyToImage";
+import { computePose } from "./exteriorOrientation";
 import {
   imageProjectionMatrix,
   sceneToPhotoEnu,
@@ -40,6 +40,9 @@ export type ObjectCoverageImage = Readonly<{
   record: ObliqueImageRecord;
   dataset: ObliqueDataset;
   crop: ObjectCoverageCrop;
+  /** Object-anchored east/up/south metres to calibrated image coordinates. */
+  projection?: Matrix4;
+  cameraAltitudeMeters?: number;
   /** Native pixels per metre along the least-resolved transverse direction. */
   pixelsPerMeter: number;
 }>;
@@ -194,14 +197,23 @@ export const groupObjectCoverageImages = (
     if (!dataset || altitude === undefined || !Number.isFinite(altitude))
       continue;
     const calibration = getCameraCalibration(dataset, record.cameraId);
-    const pose = poseOf(record, dataset);
-    const geometry = projectObjectCoverageSphere(
-      imageProjectionMatrix(
+    if (calibration.view === "nadir") continue;
+    const pose =
+      record.pose ??
+      (record.pose = computePose(
         record,
-        calibration,
-        pose,
-        sceneToPhotoEnu([longitude, latitude], identity, pose, altitude)
-      ),
+        [record.centerWGS84[0], record.centerWGS84[1]],
+        calibration.upMapping,
+        calibration.imageUpInCamera
+      ));
+    const projection = imageProjectionMatrix(
+      record,
+      calibration,
+      pose,
+      sceneToPhotoEnu([longitude, latitude], identity, pose, altitude)
+    );
+    const geometry = projectObjectCoverageSphere(
+      projection,
       physicalSphere,
       calibration
     );
@@ -209,7 +221,13 @@ export const groupObjectCoverageImages = (
     const direction = getCardinalDirectionFromHeading(
       degToRadNumeric(pose.bearingDeg)
     );
-    groups.get(direction)!.push({ record, dataset, ...geometry });
+    groups.get(direction)!.push({
+      record,
+      dataset,
+      ...geometry,
+      projection,
+      cameraAltitudeMeters: altitude,
+    });
   }
   for (const images of groups.values())
     images.sort(

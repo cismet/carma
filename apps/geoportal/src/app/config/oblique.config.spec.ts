@@ -36,6 +36,28 @@ afterEach(() => {
 });
 
 describe("oblique deployment route", () => {
+  it("declares object views as a separate addon behind the next UI flag", () => {
+    const entry = obliqueFachzwilling.addons?.find(
+      (entry) =>
+        typeof entry !== "string" &&
+        "addon" in entry &&
+        entry.addon === "obliqueObjectViews"
+    );
+    if (!entry || typeof entry === "string")
+      throw new Error("Missing object views addon");
+    expect(
+      isAvailable(entry.availability, {
+        deployment: "pr",
+        featureFlags: resolveFlags("oblique"),
+      })
+    ).toBe(false);
+    expect(
+      isAvailable(entry.availability, {
+        deployment: "pr",
+        featureFlags: resolveFlags("oblique.olbng"),
+      })
+    ).toBe(true);
+  });
   it("opens on the PR deployment with only the oblique flag", () => {
     const context = {
       deployment: "pr" as const,

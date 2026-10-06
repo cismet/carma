@@ -27,5 +27,9 @@ export const obliqueFachzwilling: FachzwillingRoute = {
         startEnabled: true,
       },
     },
+    {
+      addon: "obliqueObjectViews",
+      availability: { featureFlag: "featureFlagObliqueNextUi" },
+    },
   ],
 };

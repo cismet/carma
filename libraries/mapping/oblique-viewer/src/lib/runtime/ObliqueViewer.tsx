@@ -1,11 +1,26 @@
-import type { Degrees, DevicePixels, Ratio } from "@carma-units";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type {
+  Degrees,
+  DevicePixels,
+  Meters,
+  Radians,
+  Ratio,
+} from "@carma-units";
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   prefetchPreviewThumbnail,
   disposePreviewThumbnailPrefetch,
 } from "./utils/preview-thumbnail-cache";
 import { MercatorCoordinate, type Map as MaplibreMap } from "maplibre-gl";
 import { Matrix4, Raycaster, Vector3 } from "three";
+import { sceneToPhotoEnu } from "./utils/image-projection";
 import {
   acquireSharedThreeScene,
   getSharedThreeSceneRuntimes,
@@ -13,6 +28,8 @@ import {
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faImages } from "@fortawesome/free-solid-svg-icons";
 import { Tooltip } from "antd";
+import { useFeatureFlags } from "@carma-providers/feature-flag";
+import { createPhotoAxisPicker } from "./utils/photo-axis-picker";
 import { clamp } from "@carma-commons/math";
 
 import {
@@ -27,6 +44,7 @@ import {
 } from "@carma-mapping/map-controls-layout";
 
 import {
+  BACKDROP_LOOK_DEFAULT,
   DEFAULT_CONTROL_ORDER,
   DEFAULT_CONTROL_POSITION,
   resolveSeries,
@@ -40,6 +58,7 @@ import type {
   ObliqueGroundTarget,
   ObliqueImageRecord,
   ObliqueViewMode,
+  ObliquePreviewState,
 } from "../core/types";
 import {
   calibrationImageOffset,
@@ -51,7 +70,11 @@ import { getHeadingFromCardinalDirection } from "../core/utils/orientation";
 import { useActiveDirection } from "./hooks/useActiveDirection";
 import { useFootprintLayer } from "./hooks/useFootprintLayer";
 import { useVisibleFootprints } from "./hooks/useVisibleFootprints";
-import { groundDistanceM } from "./utils/cameraMath";
+import {
+  groundDistanceM,
+  readCameraToCenterDistancePx,
+} from "./utils/cameraMath";
+import { qualifiedImageId } from "../core/utils/imageRecord";
 import { useFovWheelZoom } from "./hooks/useFovWheelZoom";
 import { usePreviewPan } from "./hooks/usePreviewPan";
 import { useNearestImage } from "./hooks/useNearestImage";
@@ -59,12 +82,18 @@ import { useObliqueCameraMode } from "./hooks/useObliqueCameraMode";
 import { useObliqueData } from "./hooks/useObliqueData";
 import { useBasemapStarted } from "./hooks/useBasemapStarted";
 import { useObliqueDirectionKeybindings } from "./hooks/useObliqueDirectionKeybindings";
-import { useObjectCoverage } from "./hooks/useObjectCoverage";
-import { useObliqueViewerActions } from "./oblique-actions";
+import {
+  OBLIQUE_STATE_DEFAULT,
+  useObliqueViewerActions,
+} from "./oblique-actions";
 import { ObliqueImagePreview } from "./ObliqueImagePreview";
 import { ObliqueOverlay } from "./ObliqueOverlay";
 import { ObliqueNavigation } from "./ObliqueNavigation";
-import { ObliqueObjectCoverage } from "./ObliqueObjectCoverage";
+import {
+  getObliqueViewerExtension,
+  type ObliqueViewerExtension,
+  type ObliqueViewerExtensionController,
+} from "./oblique-viewer-extensions";
 import { strings } from "./strings.de";
 import {
   flyToPose,
@@ -74,24 +103,29 @@ import {
 } from "./utils/flyToImage";
 import { getImageUrls } from "./utils/imageUrls";
 import type { ObliqueDownloadOptions } from "./utils/imageUrls";
-import type { CameraFlight } from "./utils/obliqueCamera";
+import { FREE_MAX_PITCH_DEG, type CameraFlight } from "./utils/obliqueCamera";
 import {
   beginInteractionProfile,
   interactionProfile,
 } from "./utils/interaction-profile";
 
+const ObliqueDebug = lazy(() => import("./ObliqueDebug"));
+
 const ON_COLOR = "#1677ff";
 const OFF_COLOR = "#000000";
 const PAN_DEBOUNCE_MS = 80;
 const EMPTY_CONFIG: ObliqueViewerConfig = {};
+const EMPTY_EXTENSIONS: readonly ObliqueViewerExtension[] = [];
 
 /** Metadata and renderer orchestration; the host supplies state through the actions context. */
 export const ObliqueViewer = ({
   config,
   libreMap,
+  extensions = EMPTY_EXTENSIONS,
 }: {
   config?: ObliqueViewerConfig;
   libreMap: MaplibreMap | null;
+  extensions?: readonly ObliqueViewerExtension[];
 }) => {
   const viewerConfig = config ?? EMPTY_CONFIG;
   const uri = viewerConfig.seriesConfigURI;
@@ -103,7 +137,7 @@ export const ObliqueViewer = ({
   } | null>(null);
   const inlineSeries = useMemo(
     () => resolveSeries(viewerConfig),
-    [viewerConfig]
+    [viewerConfig.series]
   );
   useEffect(() => {
     if (!uri || !basemapStarted) return undefined;
@@ -165,44 +199,55 @@ export const ObliqueViewer = ({
     [viewerConfig, series]
   );
   return resolved && series?.length ? (
-    <ObliqueViewerRuntime config={resolved} libreMap={libreMap} />
+    <ObliqueViewerRuntime
+      config={resolved}
+      libreMap={libreMap}
+      extensions={extensions}
+    />
   ) : null;
 };
 
 const ObliqueViewerRuntime = ({
   config,
   libreMap,
+  extensions,
 }: {
   config: ObliqueViewerConfig;
   libreMap: MaplibreMap | null;
+  extensions: readonly ObliqueViewerExtension[];
 }) => {
   const viewerConfig = config ?? EMPTY_CONFIG;
+  const { isDebugMode } = useFeatureFlags();
   const {
     showControl = true,
     controlPosition = DEFAULT_CONTROL_POSITION,
     controlOrder = DEFAULT_CONTROL_ORDER,
     heightOffset = 0,
+    nextInterface = false,
   } = viewerConfig;
   const configuredSeries = useMemo(
     () => resolveSeries(viewerConfig),
     [viewerConfig]
   );
-  // Camera browsing policy remains stable while the user toggles image series.
+  // Shared FOV/height policy stays stable; browsing pitch follows enabled catalogs.
   const browsingDataset = configuredSeries[0];
   const {
     isOn,
     panelOpen,
     previewVisible,
     isBusy,
-    previewQuality,
-    backdropLook,
     enabledSeriesIds,
+    bearingDeg: currentBearingDeg,
+    selectionStrategy: configuredSelectionStrategy,
     request,
     toggle,
     publish,
     clearRequest,
     setEnabledSeriesIds,
   } = useObliqueViewerActions();
+  const selectionStrategy = nextInterface
+    ? configuredSelectionStrategy
+    : OBLIQUE_STATE_DEFAULT.selectionStrategy;
   const enabledIds = useMemo(
     () =>
       enabledSeriesIds ??
@@ -217,6 +262,27 @@ const ObliqueViewerRuntime = ({
     () => configuredSeries.filter((series) => enabledSet.has(series.id)),
     [configuredSeries, enabledSet]
   );
+  const prioritySeriesId =
+    viewerConfig.prioritySeriesId ??
+    viewerConfig.previewState?.initial?.seriesId;
+  const initialSeriesEnabledRef = useRef(false);
+  useEffect(() => {
+    if (
+      initialSeriesEnabledRef.current ||
+      !prioritySeriesId ||
+      !configuredSeries.some((series) => series.id === prioritySeriesId)
+    )
+      return;
+    initialSeriesEnabledRef.current = true;
+    if (!enabledSet.has(prioritySeriesId))
+      setEnabledSeriesIds([...enabledIds, prioritySeriesId]);
+  }, [
+    prioritySeriesId,
+    configuredSeries,
+    enabledSet,
+    enabledIds,
+    setEnabledSeriesIds,
+  ]);
   const enabledSetRef = useRef(enabledSet);
   enabledSetRef.current = enabledSet;
   const running = isOn && libreMap !== null;
@@ -227,14 +293,68 @@ const ObliqueViewerRuntime = ({
   const runningRef = useRef(running);
   runningRef.current = running;
   const basemapStarted = useBasemapStarted(libreMap, running, true);
-  const { data, isLoading, isAllDataReady, error, perSeries } = useObliqueData(
-    enabledSeries,
-    running && basemapStarted
-  );
-  const [runtimeError, setRuntimeError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ObliqueViewMode>("oblique");
   const viewModeRef = useRef(viewMode);
   viewModeRef.current = viewMode;
+  const {
+    data,
+    isLoading,
+    isAllDataReady,
+    error,
+    perSeries,
+    awaitDirection,
+    awaitAll,
+  } = useObliqueData(
+    enabledSeries,
+    running &&
+      basemapStarted &&
+      !(
+        prioritySeriesId &&
+        !initialSeriesEnabledRef.current &&
+        configuredSeries.some((series) => series.id === prioritySeriesId) &&
+        !enabledSet.has(prioritySeriesId)
+      ),
+    {
+      prioritySeriesId,
+      priorityImageId: viewerConfig.previewState?.initial?.imageId,
+      priorityHeadingRad: degreesToRadians(
+        (libreMap?.getBearing() ?? currentBearingDeg) as Degrees
+      ),
+      priorityCameraView: viewMode === "nadir" ? "nadir" : undefined,
+    }
+  );
+  const currentDataRef = useRef(data);
+  currentDataRef.current = data;
+  const browsingPitchDeg = useMemo(() => {
+    let pitchSumRad = 0 as Radians;
+    let imageCount = 0;
+    for (const [id, total] of data?.obliquePitchBySeries ?? []) {
+      if (!enabledSet.has(id)) continue;
+      pitchSumRad = (pitchSumRad + total.pitchSumRad) as Radians;
+      imageCount += total.imageCount;
+    }
+    return clamp(
+      imageCount > 0
+        ? radToDeg(pitchSumRad / imageCount)
+        : enabledSeries[0]?.pitchDeg ?? browsingDataset.pitchDeg,
+      0,
+      FREE_MAX_PITCH_DEG
+    ) as Degrees;
+  }, [
+    data?.obliquePitchBySeries,
+    enabledSet,
+    enabledSeries,
+    browsingDataset.pitchDeg,
+  ]);
+  useEffect(() => {
+    if (typeof window.matchMedia !== "function") return;
+    const query = window.matchMedia("(any-hover: hover)");
+    const update = () => publish({ hoverAvailable: query.matches });
+    update();
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, [publish]);
+  const [runtimeError, setRuntimeError] = useState<string | null>(null);
   useEffect(() => {
     if (!running && viewMode !== "oblique") {
       viewModeRef.current = "oblique";
@@ -282,6 +402,9 @@ const ObliqueViewerRuntime = ({
     data,
   ]);
 
+  const initialPreviewRef = useRef(viewerConfig.previewState?.initial ?? null);
+  const initialPreviewRestoredRef = useRef(false);
+  const writePreviewHashRef = useRef(() => {});
   const [previewRoot, setPreviewRoot] = useState<HTMLDivElement | null>(null);
   const resetPreviewPanRef = useRef(() => {});
   const returnCameraRef = useRef<
@@ -289,15 +412,27 @@ const ObliqueViewerRuntime = ({
   >(() => undefined);
   const beforeLeave = useCallback(() => returnCameraRef.current(250), []);
   const [previewTransitionActive, setPreviewTransitionActive] = useState(false);
+  const [previewOutlineReadyImageId, setPreviewOutlineReadyImageId] = useState<
+    string | null
+  >(null);
   const previewCameraActive = previewVisible || previewTransitionActive;
   const { phase, freeCamera, lockCamera } = useObliqueCameraMode({
     map: libreMap,
     enabled: running,
     dataset: browsingDataset,
+    pitchDeg: browsingPitchDeg,
+    suspended: previewCameraActive || isBusy || viewMode !== "oblique",
     onBeforeLeave: beforeLeave,
   });
   const browsing = running && phase === "active";
+  const [previewAltitude, setPreviewAltitude] = useState<{
+    imageId: string;
+    altitude: number;
+  } | null>(null);
   const busyRef = useRef(false);
+  const hideFootprintsRef = useRef<() => Promise<void>>(() =>
+    Promise.resolve()
+  );
   const setBusy = useCallback(
     (next: boolean) => {
       busyRef.current = next;
@@ -321,14 +456,64 @@ const ObliqueViewerRuntime = ({
         : next
     );
   }, []);
-  const { records: visibleFootprints, findAtGroundPoint } =
-    useVisibleFootprints({
-      map: libreMap,
-      data,
-      enabled: running && viewMode !== "objectCoverage",
-      locked: previewVisible || isBusy,
-      viewMode,
-    });
+  const axisPicker = useMemo(
+    () =>
+      nextInterface && libreMap && data
+        ? createPhotoAxisPicker(libreMap, data, heightOffset)
+        : null,
+    [nextInterface, libreMap, data, heightOffset]
+  );
+  useEffect(() => {
+    axisPicker?.start();
+    return () => axisPicker?.dispose();
+  }, [axisPicker]);
+  const {
+    records: visibleFootprints,
+    findAtGroundPoint: findLoadedAtGroundPoint,
+  } = useVisibleFootprints({
+    map: libreMap,
+    data,
+    enabled: nextInterface && running && viewMode !== "objectCoverage",
+    locked: previewVisible || isBusy,
+    viewMode,
+    refineAtGroundPoint: axisPicker?.pick,
+    selectionStrategy,
+  });
+  const groundPickerRef = useRef(findLoadedAtGroundPoint);
+  groundPickerRef.current = findLoadedAtGroundPoint;
+  const findAtGroundPoint = useCallback(
+    async (
+      point: [number, number],
+      activeImageId?: string | null,
+      heightMeters?: number
+    ) => {
+      if (!libreMap || !runningRef.current) return undefined;
+      const epoch = selectionEpochRef.current;
+      const ready = await awaitDirection(
+        degreesToRadians(libreMap.getBearing() as Degrees),
+        {
+          cameraView: viewModeRef.current === "nadir" ? "nadir" : undefined,
+        }
+      );
+      if (!ready || !runningRef.current || epoch !== selectionEpochRef.current)
+        return undefined;
+      const result = await groundPickerRef.current(
+        point,
+        activeImageId,
+        heightMeters
+      );
+      if (result !== null) return result;
+      const allReady = await awaitAll();
+      if (
+        !allReady ||
+        !runningRef.current ||
+        epoch !== selectionEpochRef.current
+      )
+        return undefined;
+      return groundPickerRef.current(point, activeImageId, heightMeters);
+    },
+    [libreMap, awaitDirection, awaitAll]
+  );
   const selectedImageRef = useRef(selectedImage);
   selectedImageRef.current = selectedImage;
   const selectedRecord = selectedImage?.record ?? null;
@@ -348,12 +533,14 @@ const ObliqueViewerRuntime = ({
   const principalOffset = selectedCalibration
     ? calibrationImageOffset(selectedCalibration)
     : undefined;
-  const previewQualityLevel =
-    previewQuality === "hq"
-      ? selectedDataset.hqQualityLevel
-      : selectedDataset.previewQualityLevel;
+  const previewQualityLevel = selectedDataset.minimumPreviewQualityLevel ?? "0";
   const [dimImage, setDimImage] = useState(false);
   const activeFlightRef = useRef<CameraFlight | null>(null);
+  const previewCameraRef = useRef<{
+    imageId: string;
+    pose: ReturnType<typeof poseOf>;
+    altitude: Meters;
+  } | null>(null);
   // The desired ground point survives image-camera flights, which move the map centre.
   const targetRef = useRef<ObliqueGroundTarget | null>(null);
   const selectionEpochRef = useRef(0);
@@ -379,6 +566,7 @@ const ObliqueViewerRuntime = ({
     map: libreMap,
     root: previewRoot,
     enabled: previewCameraActive,
+    panEnabled: nextInterface,
     imageId: selectedImageId,
     imageGeometry:
       selectedCalibration && principalOffset
@@ -396,6 +584,7 @@ const ObliqueViewerRuntime = ({
     busyRef,
     onPanEnd: () => {
       targetRef.current = readTarget();
+      writePreviewHashRef.current();
     },
   });
   resetPreviewPanRef.current = resetPreviewPan;
@@ -417,7 +606,10 @@ const ObliqueViewerRuntime = ({
     selectedImageId,
     onSelect,
     onCandidates,
+    selectionStrategy,
   });
+  const refreshSearchRef = useRef(refreshSearch);
+  refreshSearchRef.current = refreshSearch;
   const { downloadUrl } = useMemo(
     () =>
       resolvedSelectedDataset
@@ -478,6 +670,7 @@ const ObliqueViewerRuntime = ({
     enabled: browsing,
     previewRoot,
     previewCameraActive,
+    previewAnchorAtCursor: nextInterface,
     previewSampling: selectedCalibration
       ? {
           longEdgePixels: Math.max(
@@ -489,6 +682,7 @@ const ObliqueViewerRuntime = ({
       : undefined,
     onPreviewZoomEnd: () => {
       if (previewVisibleRef.current) targetRef.current = readTarget();
+      writePreviewHashRef.current();
     },
     minFovDeg: browsingDataset.minFovDeg,
     maxFovDeg: browsingDataset.maxFovDeg,
@@ -503,7 +697,9 @@ const ObliqueViewerRuntime = ({
       if (!libreMap) return undefined;
       let anchor: MercatorCoordinate | undefined;
       const surfaces = getSharedThreeSceneRuntimes(libreMap).filter(
-        (runtime) => runtime.providesTerrain && runtime.root.visible
+        (runtime) =>
+          (runtime.providesTerrain || runtime.receivesMapStyleTexture) &&
+          runtime.root.visible
       );
       if (surfaces.length) {
         const scene = acquireSharedThreeScene(libreMap);
@@ -607,7 +803,8 @@ const ObliqueViewerRuntime = ({
       dynamicDuration: boolean,
       preserveView = false,
       viewAnchor?: MercatorCoordinate,
-      centerPreview?: boolean
+      centerPreview?: boolean,
+      previewState?: ObliquePreviewState
     ): Promise<boolean> => {
       if (
         !libreMap ||
@@ -615,12 +812,13 @@ const ObliqueViewerRuntime = ({
         !enabledSetRef.current.has(record.seriesId)
       )
         return false;
-      const dataset = data?.datasets.get(record.seriesId);
+      const dataset = currentDataRef.current?.datasets.get(record.seriesId);
       if (!dataset) return false;
       const epoch = selectionEpochRef.current;
       const anchor = preserveView ? viewAnchor ?? readViewAnchor() : undefined;
       setBusy(true);
       setRuntimeError(null);
+      setPreviewOutlineReadyImageId(null);
       if (preserveView) {
         beginPreview();
         setPreviewTransitionActive(true);
@@ -633,10 +831,44 @@ const ObliqueViewerRuntime = ({
           heightOffset,
           dataset.allowUnverifiedSourceHeight
         );
-        const quality =
-          previewQuality === "hq"
-            ? dataset.hqQualityLevel
-            : dataset.previewQualityLevel;
+        setPreviewAltitude({ imageId: record.id, altitude });
+        let viewPose = pose;
+        let viewAltitude = altitude;
+        const scene = acquireSharedThreeScene(libreMap);
+        try {
+          const localFrame = scene.layer.getLocalFrame();
+          const origin = scene.layer.projectSceneToLngLat([0, 0, 0]);
+          if (localFrame && origin) {
+            const photoToScene = sceneToPhotoEnu(
+              origin,
+              localFrame.sceneFromLocal,
+              pose,
+              altitude
+            ).invert();
+            const eye = new Vector3().applyMatrix4(photoToScene);
+            const direction = new Vector3(...pose.direction).transformDirection(
+              photoToScene
+            );
+            const location = scene.layer.projectSceneToLngLat(eye);
+            if (location) {
+              const ground = scene.layer.projectLngLatToScene(location, 0);
+              const unit = scene.layer.projectLngLatToScene(location, 1);
+              if (ground && unit && unit.y > ground.y) {
+                viewAltitude = (eye.y - ground.y) / (unit.y - ground.y);
+                viewPose = {
+                  ...pose,
+                  longitude: location[0],
+                  latitude: location[1],
+                  bearingDeg: radToDeg(Math.atan2(direction.x, -direction.z)),
+                  pitchDeg: radToDeg(Math.acos(clamp(-direction.y, -1, 1))),
+                };
+              }
+            }
+          }
+        } finally {
+          scene.release();
+        }
+        const quality = dataset.minimumPreviewQualityLevel ?? "0";
         const url = getImageUrls(
           record.sourceId,
           dataset.previewPath,
@@ -655,11 +887,18 @@ const ObliqueViewerRuntime = ({
         profile?.phase("flight");
         const calibration = getCameraCalibration(dataset, record.cameraId);
         const principal = calibrationImageOffset(calibration);
-        const flight = flyToPose(libreMap, pose, altitude, animation, {
+        previewCameraRef.current = {
+          imageId: record.id,
+          pose: viewPose,
+          altitude: viewAltitude as Meters,
+        };
+        const flight = flyToPose(libreMap, viewPose, viewAltitude, animation, {
           dynamicDuration,
           anchor,
           maxFovDeg: browsingDataset.maxFovDeg,
           centerPreview,
+          fitWholeImage: !nextInterface,
+          previewState,
           preview:
             centerPreview === undefined
               ? undefined
@@ -700,38 +939,99 @@ const ObliqueViewerRuntime = ({
       libreMap,
       data,
       heightOffset,
-      previewQuality,
       freeCamera,
       setBusy,
       beginPreview,
       readViewAnchor,
       browsingDataset.maxFovDeg,
+      nextInterface,
     ]
   );
 
   const returnCameraToBrowsing = useCallback(
-    (durationMs?: number): CameraFlight | undefined => {
+    (
+      durationMs?: number,
+      rotation?: { bearingDeg: number; anchor: MercatorCoordinate }
+    ): CameraFlight | undefined => {
       if (!libreMap) return undefined;
       activeFlightRef.current?.cancel();
       setBusy(true);
       setPreviewTransitionActive(true);
-      setDimImage(true);
       freeCamera();
-      const pitch =
-        viewModeRef.current === "nadir" ? 0 : browsingDataset.pitchDeg;
-      const anchor = readViewAnchor();
-      const flight = settleToPitch(libreMap, pitch, {
-        anchor,
-        fovDeg: clamp(
-          libreMap.getVerticalFieldOfView(),
-          browsingDataset.minFovDeg,
-          browsingDataset.maxFovDeg
-        ) as Degrees,
-        padding: getBrowsingPadding(),
-        maxZoom: getBrowsingMaxZoom(),
-        durationMs:
-          durationMs ?? browsingDataset.animations.leaveObliqueMode?.duration,
-      });
+      const pitch = viewModeRef.current === "nadir" ? 0 : browsingPitchDeg;
+      const record = selectedImageRef.current?.record;
+      const dataset = record && data?.datasets.get(record.seriesId);
+      const camera = previewCameraRef.current;
+      const recenterImage =
+        !nextInterface &&
+        previewVisibleRef.current &&
+        record &&
+        dataset &&
+        camera?.imageId === record.id;
+      setDimImage(!recenterImage);
+      const returnToBrowsing = () =>
+        settleToPitch(libreMap, pitch, {
+          bearingDeg: rotation?.bearingDeg,
+          anchor: rotation?.anchor ?? readViewAnchor(),
+          fovDeg: clamp(
+            libreMap.getVerticalFieldOfView(),
+            browsingDataset.minFovDeg,
+            browsingDataset.maxFovDeg
+          ) as Degrees,
+          padding: getBrowsingPadding(),
+          maxZoom: getBrowsingMaxZoom(),
+          durationMs:
+            durationMs ?? browsingDataset.animations.leaveObliqueMode?.duration,
+        });
+      let flight: CameraFlight;
+      if (recenterImage && camera && record && dataset) {
+        const calibration = getCameraCalibration(dataset, record.cameraId);
+        const principal = calibrationImageOffset(calibration);
+        let current = flyToPose(
+          libreMap,
+          camera.pose,
+          camera.altitude,
+          {
+            duration:
+              durationMs ??
+              dataset.animations.flyToExteriorOrientation?.duration,
+          },
+          {
+            anchor: readViewAnchor(),
+            dynamicDuration: false,
+            centerPreview: true,
+            fitWholeImage: true,
+            maxFovDeg: browsingDataset.maxFovDeg,
+            preview: {
+              aspectRatio: (calibration.widthPx /
+                calibration.heightPx) as Ratio,
+              halfFovTan: calibration.halfFovTan as Ratio,
+              principal: {
+                xOffset: principal.xOffset as Ratio,
+                yOffset: principal.yOffset as Ratio,
+              },
+              roll: degreesToRadians(camera.pose.rollDeg as Degrees),
+            },
+          }
+        );
+        let cancelled = false;
+        flight = {
+          done: (async () => {
+            await current.done;
+            if (cancelled) return;
+            publish({ previewVisible: false });
+            setDimImage(true);
+            current = returnToBrowsing();
+            await current.done;
+          })(),
+          cancel: () => {
+            cancelled = true;
+            current.cancel();
+          },
+        };
+      } else {
+        flight = returnToBrowsing();
+      }
       activeFlightRef.current = flight;
       flight.done.then(() => {
         if (activeFlightRef.current !== flight) return;
@@ -747,7 +1047,10 @@ const ObliqueViewerRuntime = ({
     },
     [
       libreMap,
+      data,
+      nextInterface,
       browsingDataset,
+      browsingPitchDeg,
       readViewAnchor,
       getBrowsingPadding,
       getBrowsingMaxZoom,
@@ -764,8 +1067,15 @@ const ObliqueViewerRuntime = ({
   }, [returnCameraToBrowsing]);
 
   const switchViewMode = useCallback(
-    async (mode: ObliqueViewMode) => {
+    async (mode: ObliqueViewMode, animate = true) => {
       if (!libreMap || !runningRef.current) return;
+      if (
+        mode !== "oblique" &&
+        (!nextInterface ||
+          (mode !== "nadir" &&
+            !getObliqueViewerExtension(extensions, nextInterface, mode)))
+      )
+        return;
       if (busyRef.current && viewModeRef.current !== "objectCoverage") return;
       if (
         mode === "nadir" &&
@@ -774,7 +1084,18 @@ const ObliqueViewerRuntime = ({
         )
       )
         return;
-      selectionEpochRef.current++;
+      const epoch = ++selectionEpochRef.current;
+      const ready =
+        mode === "objectCoverage"
+          ? await awaitAll()
+          : await awaitDirection(
+              degreesToRadians(libreMap.getBearing() as Degrees),
+              {
+                cameraView: mode === "nadir" ? "nadir" : undefined,
+              }
+            );
+      if (!ready || !runningRef.current || epoch !== selectionEpochRef.current)
+        return;
       activeFlightRef.current?.cancel();
       activeFlightRef.current = null;
       window.clearTimeout(panTimerRef.current);
@@ -783,35 +1104,60 @@ const ObliqueViewerRuntime = ({
       setViewMode(mode);
       setRuntimeError(null);
       setDimImage(false);
+      if (!animate) {
+        freeCamera();
+        setPreviewTransitionActive(true);
+      }
       publish({ viewMode: mode, previewVisible: false });
-      await settleToBrowsing();
+      if (animate) await settleToBrowsing();
     },
-    [libreMap, enabledSeries, publish, settleToBrowsing]
+    [
+      libreMap,
+      enabledSeries,
+      publish,
+      freeCamera,
+      settleToBrowsing,
+      nextInterface,
+      extensions,
+      awaitDirection,
+      awaitAll,
+    ]
   );
 
-  const cancelCoverage = useCallback(() => {
+  useEffect(() => {
+    if (
+      viewMode !== "oblique" &&
+      browsing &&
+      !isBusy &&
+      (!nextInterface ||
+        (viewMode !== "nadir" &&
+          !getObliqueViewerExtension(extensions, nextInterface, viewMode)))
+    )
+      void switchViewMode("oblique");
+  }, [extensions, nextInterface, viewMode, browsing, isBusy, switchViewMode]);
+
+  const cancelExtension = useCallback(() => {
     void switchViewMode("oblique");
   }, [switchViewMode]);
-  const coverage = useObjectCoverage({
-    map: libreMap,
-    enabled: running && viewMode === "objectCoverage",
-    suspended: isBusy,
-    data,
-    resetToken: enabledToken,
-    heightOffset,
-    readViewAnchor,
-    onCancel: cancelCoverage,
-  });
-  const resetCoverage = useCallback(() => {
+  const extensionController = useRef<ObliqueViewerExtensionController | null>(
+    null
+  );
+  const onExtensionControllerChange = useCallback(
+    (controller: ObliqueViewerExtensionController | null) => {
+      extensionController.current = controller;
+    },
+    []
+  );
+  const resetExtension = useCallback(() => {
     const interruptedFlight = busyRef.current;
     selectionEpochRef.current++;
     activeFlightRef.current?.cancel();
     activeFlightRef.current = null;
     setPreviewTransitionActive(false);
     setBusy(false);
-    coverage.reset();
+    extensionController.current?.reset();
     if (interruptedFlight) void settleToBrowsing();
-  }, [coverage.reset, setBusy, settleToBrowsing]);
+  }, [setBusy, settleToBrowsing]);
   useEffect(() => {
     if (!running || viewModeRef.current !== "objectCoverage") return;
     const interruptedFlight = busyRef.current;
@@ -837,16 +1183,22 @@ const ObliqueViewerRuntime = ({
   }, [viewMode, enabledSeries, browsing, isBusy, switchViewMode]);
   const closePreview = useCallback(() => {
     if (!previewVisibleRef.current) return;
-    publish({ previewVisible: false });
-    setDimImage(false);
+    if (nextInterface) {
+      publish({ previewVisible: false });
+      setDimImage(false);
+    }
     void settleToBrowsing();
-  }, [publish, settleToBrowsing]);
+  }, [nextInterface, publish, settleToBrowsing]);
   const openPreview = useCallback(
-    async (imageId?: string, centerPreview = true): Promise<boolean> => {
+    async (
+      imageId?: string,
+      centerPreview = true,
+      previewState?: ObliquePreviewState
+    ): Promise<boolean> => {
       if (!runningRef.current) return false;
       if (busyRef.current) {
-        if (!imageId || !centerPreview) return false;
-        // A double-click upgrades the immediate single-click flight to centering.
+        if (!imageId) return false;
+        // Explicit image navigation can replace an in-progress flight.
         selectionEpochRef.current++;
         activeFlightRef.current?.cancel();
         activeFlightRef.current = null;
@@ -914,7 +1266,8 @@ const ObliqueViewerRuntime = ({
         true,
         true,
         undefined,
-        centerPreview
+        nextInterface ? centerPreview : true,
+        nextInterface ? previewState : undefined
       );
       if (epoch !== selectionEpochRef.current || !runningRef.current)
         return false;
@@ -934,23 +1287,91 @@ const ObliqueViewerRuntime = ({
       publish,
       settleToBrowsing,
       nearbyImages,
+      nextInterface,
       refreshSearch,
       setBusy,
     ]
   );
 
-  const openCoverageImage = useCallback(
+  const openExtensionImage = useCallback(
     async (imageId: string) => {
       if (viewModeRef.current !== "objectCoverage") return;
       const succeeded = await openPreview(imageId, true);
       if (!succeeded || viewModeRef.current !== "objectCoverage") return;
-      coverage.reset();
+      extensionController.current?.reset();
       viewModeRef.current = "oblique";
       setViewMode("oblique");
       publish({ viewMode: "oblique" });
     },
-    [openPreview, coverage.reset, publish]
+    [openPreview, publish]
   );
+
+  writePreviewHashRef.current = () => {
+    if (!libreMap || busyRef.current || !previewVisibleRef.current) return;
+    const record = selectedImageRef.current?.record;
+    const dataset = record && data?.datasets.get(record.seriesId);
+    if (!record || !dataset) return;
+    const calibration = getCameraCalibration(dataset, record.cameraId);
+    const principal = calibrationImageOffset(calibration);
+    const longEdge =
+      2 * readCameraToCenterDistancePx(libreMap) * calibration.halfFovTan;
+    const width =
+      longEdge * Math.min(1, calibration.widthPx / calibration.heightPx);
+    const height =
+      longEdge / Math.max(1, calibration.widthPx / calibration.heightPx);
+    const roll = degToRad(record.pose?.rollDeg ?? 0);
+    const x = principal.xOffset * width,
+      y = principal.yOffset * height;
+    const offset = libreMap.transform.centerOffset;
+    viewerConfig.previewState?.onChange({
+      seriesId: record.seriesId,
+      imageId: record.sourceId,
+      panX: ((offset.x + Math.cos(roll) * x - Math.sin(roll) * y) /
+        longEdge) as Ratio,
+      panY: ((offset.y + Math.sin(roll) * x + Math.cos(roll) * y) /
+        longEdge) as Ratio,
+      zoom: (Math.min(width, height) /
+        Math.min(libreMap.transform.width, libreMap.transform.height)) as Ratio,
+    });
+  };
+  useEffect(() => {
+    const initial = initialPreviewRef.current;
+    if (
+      !initial ||
+      initialPreviewRestoredRef.current ||
+      !browsing ||
+      isBusy ||
+      !data
+    )
+      return;
+    const record = data.imageRecords.get(
+      qualifiedImageId(initial.seriesId, initial.imageId)
+    );
+    if (!record) {
+      // Another series may finish before the URL's series has even started loading.
+      const status = perSeries.find((series) => series.id === initial.seriesId);
+      if (status && !status.isLoading) initialPreviewRestoredRef.current = true;
+      return;
+    }
+    initialPreviewRestoredRef.current = true;
+    void openPreview(record.id, true, initial);
+  }, [browsing, isBusy, perSeries, data, openPreview]);
+  const hadPreviewRef = useRef(false);
+  useEffect(() => {
+    if (previewVisible) {
+      hadPreviewRef.current = true;
+      if (!isBusy) writePreviewHashRef.current();
+    } else if (hadPreviewRef.current && !previewTransitionActive) {
+      viewerConfig.previewState?.onChange(null);
+      hadPreviewRef.current = false;
+    }
+  }, [
+    previewVisible,
+    isBusy,
+    previewTransitionActive,
+    selectedImageId,
+    viewerConfig.previewState,
+  ]);
 
   const loadedEnabledSeriesCount = useMemo(
     () =>
@@ -974,7 +1395,33 @@ const ObliqueViewerRuntime = ({
     [configuredSeries, loadedEnabledSeriesCount]
   );
 
-  useFootprintLayer({
+  const previewPhoto = useMemo(
+    () =>
+      selectedRecord &&
+      selectedCalibration &&
+      previewAltitude?.imageId === selectedRecord.id
+        ? {
+            record: selectedRecord,
+            calibration: selectedCalibration,
+            pose: poseOf(selectedRecord, selectedDataset),
+            altitude: previewAltitude.altitude,
+          }
+        : undefined,
+    [selectedRecord, selectedCalibration, selectedDataset, previewAltitude]
+  );
+
+  const onPreviewOutlineReady = useCallback(() => {
+    if (
+      previewVisibleRef.current &&
+      selectedImageRef.current?.record.id === selectedImageId &&
+      selectedImageId
+    ) {
+      setPreviewOutlineReadyImageId(selectedImageId);
+      void hideFootprintsRef.current();
+    }
+  }, [selectedImageId]);
+
+  hideFootprintsRef.current = useFootprintLayer({
     map: libreMap,
     enabled: running && viewMode !== "objectCoverage",
     selectedImageId,
@@ -985,6 +1432,7 @@ const ObliqueViewerRuntime = ({
     seriesLabels: hoverSeriesLabels,
     showSeriesLabels: loadedEnabledSeriesCount > 1,
     onHoveredRecord: (record) => {
+      if (!record) axisPicker?.clearDebug();
       const dataset = record && data?.datasets.get(record.seriesId);
       const camera =
         record && dataset
@@ -996,6 +1444,12 @@ const ObliqueViewerRuntime = ({
               previewPath: dataset.previewPath,
               imageId: record.sourceId,
               originalImageUrl: record.assets?.original?.href,
+              avifPyramidUrl:
+                record.assets?.pyramid?.href ??
+                dataset.avifPyramidTemplate?.replace(
+                  /\{imageId\}/g,
+                  encodeURIComponent(record.sourceId)
+                ),
               nativeSize: camera
                 ? { width: camera.widthPx, height: camera.heightPx }
                 : undefined,
@@ -1003,28 +1457,40 @@ const ObliqueViewerRuntime = ({
           : null
       );
     },
-    findAtScreenPoint: async (point) => {
-      const ground = readViewAnchor(point)?.toLngLat();
-      return ground
-        ? findAtGroundPoint(
-            [ground.lng, ground.lat],
-            selectedImageRef.current?.record.id
-          )
-        : null;
-    },
+    findAtScreenPoint: nextInterface
+      ? async (point) => {
+          const anchor = readViewAnchor(point);
+          const ground = anchor?.toLngLat();
+          return ground
+            ? findAtGroundPoint(
+                [ground.lng, ground.lat],
+                selectedImageRef.current?.record.id,
+                anchor?.toAltitude()
+              )
+            : null;
+        }
+      : undefined,
     seriesLabel: footprintSeriesLabel(
       selectedDataset,
       loadedEnabledSeriesCount
     ),
     locked: previewVisible || isBusy,
+    hidden:
+      previewVisible &&
+      !dimImage &&
+      previewOutlineReadyImageId === selectedImageId,
     style: { ...selectedDataset.footprintsStyle, outlineWidth: 2 },
     fadeOut: selectedDataset.animations.outlineFadeOut,
-    onClick: (imageId) => {
-      void openPreview(imageId, false);
-    },
-    onDoubleClick: (imageId) => {
-      void openPreview(imageId, true);
-    },
+    onClick: nextInterface
+      ? (imageId) => {
+          void openPreview(imageId, true);
+        }
+      : undefined,
+    onDoubleClick: nextInterface
+      ? (imageId) => {
+          void openPreview(imageId, false);
+        }
+      : undefined,
   });
 
   const chooseRequestedView = useCallback(
@@ -1034,12 +1500,23 @@ const ObliqueViewerRuntime = ({
       animation: AnimationConfig | undefined,
       requestedPitchRad?: number,
       forceFlight = false,
-      viewAnchor?: MercatorCoordinate
+      viewAnchor?: MercatorCoordinate,
+      fitNextImage = false
     ) => {
       if (!libreMap || busyRef.current) return;
       targetRef.current = target;
-      const epoch = selectionEpochRef.current;
-      const candidates = await refreshSearch({
+      const epoch = ++selectionEpochRef.current;
+      const ready = await awaitDirection(headingRad as Radians, {
+        cameraView: viewModeRef.current === "nadir" ? "nadir" : undefined,
+      });
+      if (
+        !ready ||
+        !runningRef.current ||
+        busyRef.current ||
+        epoch !== selectionEpochRef.current
+      )
+        return;
+      const candidates = await refreshSearchRef.current({
         headingRad,
         pitchRad: requestedPitchRad ?? degToRad(libreMap.getPitch()),
         target,
@@ -1055,6 +1532,23 @@ const ObliqueViewerRuntime = ({
       const nearest = candidates?.find((candidate) =>
         enabledSetRef.current.has(candidate.record.seriesId)
       );
+      const withPreview = previewVisibleRef.current;
+      if (!withPreview && viewAnchor) {
+        const dataset =
+          nearest &&
+          currentDataRef.current?.datasets.get(nearest.record.seriesId);
+        if (nearest) setSelectedImage(nearest);
+        // Browsing ends at its regular pitch in the same tween as heading,
+        // pan and scale, without visiting the photo pitch first.
+        await returnCameraToBrowsing(animation?.duration, {
+          bearingDeg:
+            nearest && dataset
+              ? poseOf(nearest.record, dataset).bearingDeg
+              : radToDeg(headingRad),
+          anchor: viewAnchor,
+        })?.done;
+        return;
+      }
       if (
         !nearest ||
         (nearest.record.id === selectedImageRef.current?.record.id &&
@@ -1063,15 +1557,16 @@ const ObliqueViewerRuntime = ({
         setDimImage(false);
         return;
       }
-      const withPreview = previewVisibleRef.current;
       if (withPreview) setDimImage(true);
       setSelectedImage(nearest);
       const succeeded = await flyTo(
         nearest.record,
         animation,
         true,
-        viewAnchor !== undefined,
-        viewAnchor
+        viewAnchor !== undefined ||
+          (withPreview && (fitNextImage || !nextInterface)),
+        viewAnchor,
+        withPreview && (fitNextImage || !nextInterface) ? true : undefined
       );
       if (epoch !== selectionEpochRef.current || !runningRef.current) return;
       setDimImage(false);
@@ -1081,7 +1576,17 @@ const ObliqueViewerRuntime = ({
       } else if (!withPreview) await settleToBrowsing();
       else setPreviewTransitionActive(false);
     },
-    [libreMap, refreshSearch, flyTo, publish, settleToBrowsing]
+    [
+      libreMap,
+      data,
+      refreshSearch,
+      awaitDirection,
+      flyTo,
+      publish,
+      returnCameraToBrowsing,
+      settleToBrowsing,
+      nextInterface,
+    ]
   );
 
   const pan = useCallback(
@@ -1107,7 +1612,11 @@ const ObliqueViewerRuntime = ({
       await chooseRequestedView(
         degToRad(libreMap.getBearing()),
         nextTarget,
-        dataset.animations.flyToNextImage
+        dataset.animations.flyToNextImage,
+        undefined,
+        false,
+        undefined,
+        true
       );
     },
     [data, readTarget, libreMap, chooseRequestedView]
@@ -1192,7 +1701,7 @@ const ObliqueViewerRuntime = ({
       return;
     if (request.type === "leavePreviewForNavigation") {
       if (viewModeRef.current === "objectCoverage") {
-        coverage.reset();
+        extensionController.current?.reset();
         viewModeRef.current = "oblique";
         setViewMode("oblique");
         publish({ viewMode: "oblique" });
@@ -1224,7 +1733,8 @@ const ObliqueViewerRuntime = ({
         break;
       case "rotateTo":
         void (async () => {
-          if (viewModeRef.current === "nadir") await switchViewMode("oblique");
+          if (viewModeRef.current === "nadir")
+            await switchViewMode("oblique", false);
           await orbitToBearing(
             radToDeg(getHeadingFromCardinalDirection(request.direction))
           );
@@ -1253,7 +1763,6 @@ const ObliqueViewerRuntime = ({
     closePreview,
     openPreview,
     returnCameraToBrowsing,
-    coverage.reset,
   ]);
 
   // Disabling a series cancels its pending flights and cannot leave its image on screen.
@@ -1376,10 +1885,21 @@ const ObliqueViewerRuntime = ({
     if (!previewVisible) prefetchPreviewThumbnail(null);
   }, [previewVisible]);
   if (!libreMap) return null;
+  const extension = getObliqueViewerExtension(
+    extensions,
+    nextInterface,
+    viewMode
+  );
+  const Extension = extension?.Component;
   return (
     <>
       {running && (
         <ObliqueOverlay map={libreMap}>
+          {isDebugMode && axisPicker && (
+            <Suspense fallback={null}>
+              <ObliqueDebug picker={axisPicker} />
+            </Suspense>
+          )}
           {previewVisible &&
             selectedRecord &&
             enabledSet.has(selectedRecord.seriesId) &&
@@ -1387,12 +1907,21 @@ const ObliqueViewerRuntime = ({
               <ObliqueImagePreview
                 key={selectedRecord.id}
                 map={libreMap}
+                photo={previewPhoto}
                 onRootChange={setPreviewRoot}
+                onOutlineReady={onPreviewOutlineReady}
                 previewPath={selectedDataset.previewPath}
                 originalImageUrlTemplate={
                   selectedDataset.originalImageUrlTemplate
                 }
                 originalImageUrl={selectedRecord.assets?.original?.href}
+                avifPyramidUrl={
+                  selectedRecord.assets?.pyramid?.href ??
+                  selectedDataset.avifPyramidTemplate?.replace(
+                    /\{imageId\}/g,
+                    encodeURIComponent(selectedRecord.sourceId)
+                  )
+                }
                 nativePixelSize={{
                   width: selectedCalibration.widthPx as DevicePixels,
                   height: selectedCalibration.heightPx as DevicePixels,
@@ -1402,64 +1931,34 @@ const ObliqueViewerRuntime = ({
                 minimumQualityLevel={selectedDataset.minimumPreviewQualityLevel}
                 halfFovTan={selectedCalibration.halfFovTan}
                 dimImage={dimImage}
+                panEnabled={nextInterface}
                 rollDeg={rollDeg}
                 interiorOrientationOffsets={principalOffset}
                 style={selectedDataset.imagePreviewStyle}
-                backdropLook={backdropLook}
+                backdropLook={BACKDROP_LOOK_DEFAULT}
                 onClose={closePreview}
                 onError={onPreviewError}
               />
             )}
-          {viewMode === "objectCoverage" && coverage.sphere && (
-            <ObliqueObjectCoverage
-              sphere={coverage.sphere}
-              groups={coverage.groups}
-              loading={coverage.loading}
-              onOpen={(imageId) => void openCoverageImage(imageId)}
-              onReset={resetCoverage}
-              onCancel={cancelCoverage}
-            />
-          )}
-          {viewMode === "objectCoverage" &&
-            (!coverage.sphere || coverage.error) && (
-              <div
-                data-oblique-coverage-ui="true"
-                aria-live="polite"
-                style={{
-                  position: "absolute",
-                  top: 12,
-                  left: "50%",
-                  transform: "translateX(-50%)",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  maxWidth: "90%",
-                  padding: "8px 12px",
-                  borderRadius: 6,
-                  background: "white",
-                  boxShadow: "0 2px 8px #0004",
-                  pointerEvents: "auto",
-                  zIndex: 5,
-                }}
-              >
-                <span role="status">
-                  {coverage.error ??
-                    (coverage.center
-                      ? "Zweiten Punkt für den Kugelradius wählen."
-                      : "Objektmittelpunkt auf der Karte wählen.")}
-                </span>
-                {coverage.center && !coverage.sphere && (
-                  <button type="button" onClick={resetCoverage}>
-                    Neu wählen
-                  </button>
-                )}
-                <button type="button" onClick={cancelCoverage}>
-                  Schließen
-                </button>
-              </div>
-            )}
-          <ObliqueNavigation />
+          <ObliqueNavigation nextInterface={nextInterface} />
         </ObliqueOverlay>
+      )}
+      {running && Extension && (
+        <Suspense fallback={null}>
+          <Extension
+            map={libreMap}
+            data={data}
+            resetToken={enabledToken}
+            heightOffset={heightOffset as Meters}
+            suspended={isBusy}
+            surfacePicker={axisPicker}
+            readViewAnchor={readViewAnchor}
+            onControllerChange={onExtensionControllerChange}
+            onReset={resetExtension}
+            onCancel={cancelExtension}
+            onOpen={openExtensionImage}
+          />
+        </Suspense>
       )}
       {showControl && (
         <Control position={controlPosition} order={controlOrder}>

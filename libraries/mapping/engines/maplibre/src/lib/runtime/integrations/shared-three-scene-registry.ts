@@ -40,7 +40,7 @@ import {
 } from "./map-style-layer-suppression";
 
 const SHARED_SCENE_LAYER_ID = "carma-shared-three-scene";
-const SHARED_SCENE_ENTRY_VERSION = 19;
+const SHARED_SCENE_ENTRY_VERSION = 20;
 /** Keep a lifted place name inside the view at high zoom. */
 const MAX_LABEL_LIFT_VIEWPORT_FRACTION = 0.35;
 const TERRAIN_COVERAGE_MARGIN_METERS = 0.5;
@@ -554,7 +554,13 @@ const applyLocationLabelCoverageFilters = (
   for (const layer of layers) {
     const signature = getLayerSignature(layer);
     try {
-      const current = map.getFilter(layer.id);
+      // getFilter() clones the entire coverage polygon. The live style layer
+      // retains its filter identity until setFilter() or a style replacement.
+      const runtimeLayer = map.getLayer(layer.id);
+      const current =
+        runtimeLayer && "filter" in runtimeLayer
+          ? runtimeLayer.filter
+          : map.getFilter(layer.id);
       let saved = savedFilters.get(layer.id);
       if (
         saved &&
@@ -591,7 +597,10 @@ const applyLocationLabelCoverageFilters = (
         // The expression is assembled here from validated parts; skipping the
         // style-spec validation saves a full walk of the coverage polygon.
         map.setFilter(layer.id, applied as never, { validate: false });
-        saved.appliedFilter = map.getFilter(layer.id);
+        saved.appliedFilter =
+          runtimeLayer && "filter" in runtimeLayer
+            ? runtimeLayer.filter
+            : map.getFilter(layer.id);
       } else {
         saved.appliedFilter = current;
       }
@@ -1806,16 +1815,31 @@ export const acquireSharedThreeScene = (
       released = true;
       const current = entries.get(map);
       if (!current || current !== entry) return;
-      current.locationLabelColorRequests.delete(labelColorRequestId);
-      current.pointLabelOverlayVisibilityRequests.delete(
-        labelVisibilityRequestId
+      const colorChanged =
+        current.locationLabelColorRequests.delete(labelColorRequestId);
+      const visibilityChanged =
+        current.pointLabelOverlayVisibilityRequests.delete(
+          labelVisibilityRequestId
+        );
+      const meshStyleChanged = current.meshLabelStyleRequests.delete(
+        meshLabelStyleRequestId
       );
-      current.meshLabelStyleRequests.delete(meshLabelStyleRequestId);
-      current.mapStylePresentationRequests.delete(meshLabelStyleRequestId);
-      current.elevationVisibilityRequests.delete(meshLabelStyleRequestId);
+      const presentationChanged = current.mapStylePresentationRequests.delete(
+        meshLabelStyleRequestId
+      );
+      const elevationChanged = current.elevationVisibilityRequests.delete(
+        meshLabelStyleRequestId
+      );
       current.references -= 1;
       if (current.references > 0) {
-        current.ensureLayerNow();
+        if (
+          colorChanged ||
+          visibilityChanged ||
+          meshStyleChanged ||
+          presentationChanged ||
+          elevationChanged
+        )
+          current.ensureLayerNow();
         return;
       }
 

@@ -1,9 +1,48 @@
-import "./shared-three-scene-layer.test-support";
+import { createProgressiveHost } from "./shared-three-scene-layer.test-support";
 import * as THREE from "three";
 import { describe, expect, it, vi } from "vitest";
 import { installRenderTargetDepthRangeBridge } from "./shared-three-scene-render-context";
 
 describe("shared three scene layer.render context", () => {
+  it.each([
+    {
+      label: "clean cached depth",
+      cache: { dirty: false, current: [0, 0.75] },
+      expected: [0, 0.75],
+      reads: 0,
+    },
+    {
+      label: "dirty depth cache",
+      cache: { dirty: true, current: [0, 0.75] },
+      expected: [0, 0.985],
+      reads: 1,
+    },
+    {
+      label: "missing depth cache",
+      cache: undefined,
+      expected: [0, 0.985],
+      reads: 1,
+    },
+  ])("preserves host depth with $label", ({ cache, expected, reads }) => {
+    const host = createProgressiveHost();
+    Object.assign(host.map, { painter: { context: { depthRange: cache } } });
+    host.layer.setAccumulationController(null);
+    host.gl.getParameter.mockClear();
+    host.gl.depthRange.mockClear();
+    try {
+      host.render();
+      expect(
+        host.gl.getParameter.mock.calls.filter(
+          ([parameter]) => parameter === host.gl.DEPTH_RANGE
+        )
+      ).toHaveLength(reads);
+      expect(host.gl.depthRange.mock.calls[0]).toEqual(expected);
+      expect(host.gl.depthRange).toHaveBeenLastCalledWith(...expected);
+    } finally {
+      host.layer.dispose();
+    }
+  });
+
   it("uses canonical depth for offscreen targets and MapLibre depth on main", () => {
     const events: string[] = [];
     const hostFramebuffer = {} as WebGLFramebuffer;

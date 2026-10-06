@@ -29,8 +29,15 @@ const readValidator = (url: string, response?: Response): SourceValidator => ({
   modified: response?.ok ? response.headers.get("Last-Modified") : null,
   length: response?.ok ? response.headers.get("Content-Length") : null,
 });
-const catalogKey = (dataset: ObliqueDataset) =>
-  JSON.stringify({ ...dataset, animations: {} }, (_key, value) =>
+const catalogKey = (dataset: ObliqueDataset) => {
+  // Compression selects a transport, not a different parsed document or cache epoch.
+  const {
+    compressedCatalogURI: _compressedTransport,
+    directionalCatalogs: _directionalTransport,
+    directionalCatalogPriority: _directionalPriority,
+    ...definition
+  } = dataset;
+  return JSON.stringify({ ...definition, animations: {} }, (_key, value) =>
     value && typeof value === "object" && !Array.isArray(value)
       ? Object.fromEntries(
           Object.entries(value).sort(([left], [right]) =>
@@ -39,18 +46,32 @@ const catalogKey = (dataset: ObliqueDataset) =>
         )
       : value
   );
+};
 const isCatalog = (
   value: CachedCatalog | undefined,
-  urls: string[]
-): value is CachedCatalog =>
-  !!value &&
-  value.data?.imageRecords instanceof Map &&
-  value.data?.centers instanceof Map &&
-  value.data?.datasets instanceof Map &&
-  Number.isFinite(value.fetchedAt) &&
-  Array.isArray(value.sources) &&
-  value.sources.length === urls.length &&
-  urls.every((url) => value.sources.some((source) => source?.url === url));
+  primaryUrls: string[],
+  footprintUrl?: string
+): value is CachedCatalog => {
+  const allowed = new Set([
+    ...primaryUrls,
+    ...(footprintUrl ? [footprintUrl] : []),
+  ]);
+  const expectedCount =
+    footprintUrl && !primaryUrls.includes(footprintUrl) ? 2 : 1;
+  return (
+    !!value &&
+    value.data?.imageRecords instanceof Map &&
+    value.data?.centers instanceof Map &&
+    value.data?.datasets instanceof Map &&
+    Number.isFinite(value.fetchedAt) &&
+    Array.isArray(value.sources) &&
+    value.sources.length === expectedCount &&
+    value.sources.some((source) => primaryUrls.includes(source?.url)) &&
+    (!footprintUrl ||
+      value.sources.some((source) => source?.url === footprintUrl)) &&
+    value.sources.every((source) => allowed.has(source?.url))
+  );
+};
 
 const revalidate = async (
   catalog: CachedCatalog,
@@ -146,9 +167,14 @@ export const loadCachedObliqueSeriesData = async (
   };
   try {
     const key = catalogKey(dataset);
+    const primaryUrls = [
+      dataset.exteriorOrientationsURI,
+      dataset.compressedCatalogURI,
+    ].filter((url): url is string => !!url);
+    const successfulPrimary = new Set<string>();
     const urls = [
       ...new Set(
-        [dataset.exteriorOrientationsURI, dataset.footprintsURI].filter(
+        [...primaryUrls, dataset.footprintsURI].filter(
           (url): url is string => !!url
         )
       ),
@@ -159,7 +185,7 @@ export const loadCachedObliqueSeriesData = async (
     );
     signal?.throwIfAborted();
     if (
-      isCatalog(cached?.value, urls) &&
+      isCatalog(cached?.value, primaryUrls, dataset.footprintsURI) &&
       cached.value.data.datasets.has(dataset.id) &&
       (await revalidate(cached.value, signal))
     )
@@ -174,6 +200,7 @@ export const loadCachedObliqueSeriesData = async (
           ? input.href
           : input.url;
       if (observed.has(url)) observed.set(url, readValidator(url, response));
+      if (response.ok && primaryUrls.includes(url)) successfulPrimary.add(url);
       return response;
     };
     const data = await loadObliqueSeriesData(dataset, signal, fetchSource);
@@ -196,7 +223,14 @@ export const loadCachedObliqueSeriesData = async (
           ),
         },
         fetchedAt: Date.now(),
-        sources: [...observed.values()],
+        sources: [
+          ...new Set([
+            successfulPrimary.has(dataset.exteriorOrientationsURI)
+              ? dataset.exteriorOrientationsURI
+              : dataset.compressedCatalogURI ?? dataset.exteriorOrientationsURI,
+            ...(dataset.footprintsURI ? [dataset.footprintsURI] : []),
+          ]),
+        ].map((url) => observed.get(url) ?? readValidator(url)),
       };
       await optionalStorage(() => records.put(key, stored, { bytes }), false);
     }

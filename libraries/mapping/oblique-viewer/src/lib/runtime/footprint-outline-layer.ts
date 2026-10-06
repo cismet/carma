@@ -66,13 +66,15 @@ export type FootprintOutlineLayer = {
   setLabelsVisible: (visible: boolean) => void;
   setHoveredImage: (
     imageId: string | null,
-    candidate?: InactiveFootprint
+    candidate?: InactiveFootprint,
+    pointerActive?: boolean
   ) => void;
-  setLocked: (locked: boolean, fade?: AnimationConfig) => void;
+  setLocked: (locked: boolean, fade?: AnimationConfig) => Promise<void>;
   destroy: () => void;
 };
 const TRAIL_DURATION_MS = Math.round(8000 / 3);
 const TRAIL_REPAINT_INTERVAL_MS = 100;
+const PREVIEW_FADE_DURATION_MS = 100;
 const LABEL_FONT_WEIGHT = 1000;
 const LABEL_WIDTH = 512;
 const LABEL_HEIGHT = 256;
@@ -120,6 +122,7 @@ export const createFootprintOutlineLayer = (
     attaching = false;
   const labelCandidates = new Map<string, InactiveFootprint>();
   let hoveredImageId: string | null = null;
+  let pointerActive = false;
   let centerFootprint: InactiveFootprint | null = null;
   let centerAnnotation:
     | {
@@ -166,7 +169,25 @@ export const createFootprintOutlineLayer = (
   >();
   let surfaceDirty = true;
   let surfaceOpacity = initialStyle.opacity;
+  let lockFade: { start: number; from: number; duration: number } | null = null;
+  let lockFadeTimer: ReturnType<typeof setTimeout> | undefined;
+  let lockFadeDone = Promise.resolve();
+  let resolveLockFade: (() => void) | undefined;
+  const cancelLockFade = () => {
+    if (lockFadeTimer !== undefined) clearTimeout(lockFadeTimer);
+    lockFadeTimer = undefined;
+    lockFade = null;
+    resolveLockFade?.();
+    resolveLockFade = undefined;
+  };
+  let cachedViewportBounds: number[] | null = null;
+  let viewportBoundsDirty = true;
+  const invalidateViewportBounds = () => {
+    viewportBoundsDirty = true;
+  };
   const viewportBounds = () => {
+    if (!viewportBoundsDirty) return cachedViewportBounds;
+    viewportBoundsDirty = false;
     const { width, height } = map.transform ?? {};
     if (!width || !height) return null;
     const corners = [
@@ -175,12 +196,13 @@ export const createFootprintOutlineLayer = (
       [width, height],
       [0, height],
     ].map(([x, y]) => map.unproject([x, y]));
-    return [
+    cachedViewportBounds = [
       Math.min(...corners.map((p) => p.lng)),
       Math.min(...corners.map((p) => p.lat)),
       Math.max(...corners.map((p) => p.lng)),
       Math.max(...corners.map((p) => p.lat)),
     ];
+    return cachedViewportBounds;
   };
   const visibleTrail = (
     footprint: InactiveFootprint,
@@ -192,19 +214,24 @@ export const createFootprintOutlineLayer = (
       Math.max(...footprint.ring.map((p) => p[1])) >= bounds[1] &&
       Math.min(...footprint.ring.map((p) => p[1])) <= bounds[3]);
   const rememberTrail = (footprint: InactiveFootprint | undefined | null) => {
-    if (!footprint || !visibleTrail(footprint, viewportBounds())) return;
+    if (
+      !footprint ||
+      (locked && !lockFade) ||
+      !visibleTrail(footprint, viewportBounds())
+    )
+      return;
     trails.delete(footprint.id);
     trails.set(footprint.id, { footprint, start: performance.now() });
     while (trails.size > 32) trails.delete(trails.keys().next().value!);
   };
   const pruneTrails = () => {
+    if (!trails.size) return false;
     const bounds = viewportBounds(),
       now = performance.now();
     let changed = false;
     for (const [key, value] of trails)
       if (
         now - value.start >= TRAIL_DURATION_MS ||
-        key === centerFootprint?.id ||
         key === effectiveHoveredId() ||
         !visibleTrail(value.footprint, bounds)
       ) {
@@ -217,7 +244,7 @@ export const createFootprintOutlineLayer = (
   const scheduleTrailExpiry = () => {
     if (trailTimer !== undefined) clearTimeout(trailTimer);
     trailTimer = undefined;
-    if (!trails.size || destroyed) {
+    if (!trails.size || locked || destroyed) {
       clearTrailRepaint();
       return;
     }
@@ -260,7 +287,7 @@ export const createFootprintOutlineLayer = (
           ? externalHoverCandidate
           : undefined)
       : undefined;
-    return pointer ?? centerFootprint ?? undefined;
+    return pointerActive ? pointer : centerFootprint ?? undefined;
   };
   const effectiveHoveredId = () => hoverCandidate()?.id ?? "";
   const fillOpacity = () =>
@@ -359,18 +386,35 @@ export const createFootprintOutlineLayer = (
   };
   const updateProjective = (frame?: SharedThreeSceneFrame) => {
     if (!surfaceLease?.layer.setMapStyleProjectiveOverlay) return;
+    if (lockFade) {
+      const progress = Math.min(
+        1,
+        (performance.now() - lockFade.start) / lockFade.duration
+      );
+      surfaceOpacity = lockFade.from * (1 - progress);
+      if (progress < 1) map.triggerRepaint();
+    }
+    if (locked && surfaceOpacity <= 0) {
+      if (projectiveOverlay)
+        surfaceLease.layer.setMapStyleProjectiveOverlay(id, null);
+      projectiveOverlay = null;
+      return;
+    }
     const localFrame = frame?.localFrame ?? surfaceLease.layer.getLocalFrame();
     const origin = surfaceLease.layer.projectSceneToLngLat([0, 0, 0]);
     if (!localFrame || !origin) return;
     const key = origin.join("|") + "|" + localFrame.revision;
-    if (!surfaceDirty && localFrameKey === key) return;
+    if (!surfaceDirty && localFrameKey === key) {
+      if (projectiveOverlay && projectiveOverlay.opacity !== surfaceOpacity) {
+        projectiveOverlay = { ...projectiveOverlay, opacity: surfaceOpacity };
+        surfaceLease.layer.setMapStyleProjectiveOverlay(id, projectiveOverlay);
+      }
+      return;
+    }
     localFrameKey = key;
     surfaceDirty = false;
-    const hovered = locked ? centerFootprint ?? undefined : hoverCandidate();
-    const current = [
-      centerFootprint,
-      !locked && hovered?.id !== centerFootprint?.id ? hovered : null,
-    ].filter((value): value is InactiveFootprint => !!value);
+    const hovered = hoverCandidate();
+    const current = hovered ? [hovered] : [];
     const labelFor = (footprint: InactiveFootprint) =>
       locked || !labelsVisible
         ? undefined
@@ -382,9 +426,7 @@ export const createFootprintOutlineLayer = (
     );
     const marks: MapStyleProjectiveOverlay["marks"][number][] = [];
     for (const footprint of [
-      ...(locked
-        ? []
-        : Array.from(trails.values(), (value) => value.footprint)),
+      ...Array.from(trails.values(), (value) => value.footprint),
       ...current,
     ]) {
       const projection = projectionCache.get(projectionKey(footprint));
@@ -434,10 +476,7 @@ export const createFootprintOutlineLayer = (
         opacity: trail
           ? Math.max(0, Math.min(0.2, style.inactiveOpacity ?? 0.2))
           : 1,
-        fillOpacity:
-          !locked && !trail && footprint.id === centerFootprint?.id
-            ? fillOpacity()
-            : 0,
+        fillOpacity: !locked && !trail ? fillOpacity() : 0,
         showUpMarker: !locked,
         trailStartedAt: trail ? trail.start / 1000 : undefined,
         labelRect: label ? labelRects.get(label) : undefined,
@@ -468,7 +507,7 @@ export const createFootprintOutlineLayer = (
         surfaceLease = null;
       }
       projectiveOverlay = null;
-      surfaceOpacity = Math.max(0, Math.min(1, style.opacity));
+      if (!locked) surfaceOpacity = Math.max(0, Math.min(1, style.opacity));
       return;
     }
     if (!surfaceLease) {
@@ -501,6 +540,8 @@ export const createFootprintOutlineLayer = (
     attach();
     scheduleTrailRepaint();
   };
+  map.on("move", invalidateViewportBounds);
+  map.on("resize", invalidateViewportBounds);
   map.on("styledata", attach);
   map.on("idle", onIdle);
   // HMR can retain the old native layers. Remove them outside a draw callback
@@ -547,11 +588,11 @@ export const createFootprintOutlineLayer = (
         centerFootprint?.heightOffset === next?.heightOffset
       )
         return;
-      if (centerFootprint && next?.id !== centerFootprint.id)
+      if (!pointerActive && centerFootprint && next?.id !== centerFootprint.id)
         rememberTrail(centerFootprint);
       centerFootprint = next;
       centerAnnotation = annotation;
-      if (next) projectionFor(next);
+      if (next && !pointerActive) projectionFor(next);
       pruneTrails();
       surfaceDirty = true;
       attach();
@@ -565,9 +606,10 @@ export const createFootprintOutlineLayer = (
     imageAtScreenPoint() {
       return null;
     },
-    setHoveredImage(next, candidate) {
+    setHoveredImage(next, candidate, nextPointerActive = next !== null) {
       if (
         hoveredImageId === next &&
+        pointerActive === nextPointerActive &&
         externalHoverCandidate?.ring === candidate?.ring &&
         externalHoverCandidate?.seriesLabel === candidate?.seriesLabel &&
         externalHoverCandidate?.dataset === candidate?.dataset &&
@@ -575,15 +617,12 @@ export const createFootprintOutlineLayer = (
       )
         return;
       const previousHover = hoverCandidate();
-      if (
-        previousHover &&
-        previousHover.id !== centerFootprint?.id &&
-        previousHover.id !== next
-      )
-        rememberTrail(previousHover);
       hoveredImageId = next;
       externalHoverCandidate = candidate;
+      pointerActive = nextPointerActive;
       const currentHover = hoverCandidate();
+      if (previousHover && previousHover.id !== currentHover?.id)
+        rememberTrail(previousHover);
       if (currentHover) projectionFor(currentHover);
       pruneTrails();
       surfaceDirty = true;
@@ -605,7 +644,7 @@ export const createFootprintOutlineLayer = (
       if (style.opacity <= 0) clearTrailRepaint();
       else scheduleTrailRepaint();
       surfaceDirty = true;
-      surfaceOpacity = Math.max(0, Math.min(1, style.opacity));
+      if (!locked) surfaceOpacity = Math.max(0, Math.min(1, style.opacity));
       attach();
     },
     setLabelsVisible(next) {
@@ -615,29 +654,64 @@ export const createFootprintOutlineLayer = (
       updateSurface();
       map.triggerRepaint();
     },
-    setLocked(next) {
-      if (next === locked) return;
+    setLocked(next, fade) {
+      if (next === locked) return locked ? lockFadeDone : Promise.resolve();
+      cancelLockFade();
       locked = next;
-      if (locked) clearTrailRepaint();
-      if (next && hoveredImageId) {
-        hoveredImageId = null;
-        externalHoverCandidate = undefined;
-      }
-      surfaceOpacity = Math.max(0, Math.min(1, style.opacity));
-      surfaceDirty = true;
-      updateSurface();
-      map.triggerRepaint();
-      if (!locked) {
+      if (locked) {
+        clearTrailRepaint();
+        if (trailTimer !== undefined) clearTimeout(trailTimer);
+        trailTimer = undefined;
+        const duration = Math.min(
+          PREVIEW_FADE_DURATION_MS,
+          Math.max(0, fade?.duration ?? PREVIEW_FADE_DURATION_MS)
+        );
+        if (duration > 0 && surfaceOpacity > 0) {
+          lockFade = {
+            start: performance.now(),
+            from: surfaceOpacity,
+            duration,
+          };
+          lockFadeDone = new Promise<void>((resolve) => {
+            resolveLockFade = resolve;
+          });
+          lockFadeTimer = setTimeout(() => {
+            surfaceOpacity = 0;
+            cancelLockFade();
+            trails.clear();
+            hoveredImageId = null;
+            pointerActive = false;
+            externalHoverCandidate = undefined;
+            updateSurface();
+            map.triggerRepaint();
+          }, duration);
+        } else {
+          surfaceOpacity = 0;
+          trails.clear();
+          hoveredImageId = null;
+          pointerActive = false;
+          externalHoverCandidate = undefined;
+          lockFadeDone = Promise.resolve();
+        }
+      } else {
+        surfaceOpacity = Math.max(0, Math.min(1, style.opacity));
         pruneTrails();
         scheduleTrailExpiry();
         scheduleTrailRepaint();
       }
+      surfaceDirty = true;
+      updateSurface();
+      map.triggerRepaint();
+      return locked ? lockFadeDone : Promise.resolve();
     },
     destroy() {
       if (destroyed) return;
       destroyed = true;
+      cancelLockFade();
       map.off("styledata", attach);
       map.off("idle", onIdle);
+      map.off("move", invalidateViewportBounds);
+      map.off("resize", invalidateViewportBounds);
       clearTimeout(legacyCleanup);
       if (trailTimer !== undefined) clearTimeout(trailTimer);
       clearTrailRepaint();

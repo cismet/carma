@@ -13,6 +13,7 @@ export const usePreviewPan = ({
   map,
   root,
   enabled,
+  panEnabled = true,
   imageId,
   imageGeometry,
   busyRef,
@@ -21,6 +22,8 @@ export const usePreviewPan = ({
   map: MaplibreMap | null;
   root: HTMLDivElement | null;
   enabled: boolean;
+  /** Keep the preview projection lease while allowing centered-only interaction. */
+  panEnabled?: boolean;
   imageId: string | null;
   imageGeometry: PreviewImageGeometry | null;
   busyRef: MutableRefObject<boolean>;
@@ -69,7 +72,7 @@ export const usePreviewPan = ({
   }, [map, enabled, resetPan, beginPreview]);
 
   useEffect(() => {
-    if (!map || !root || !enabled) return undefined;
+    if (!map || !root || !enabled || !panEnabled) return undefined;
     // Entry may already be off-centre; dragging starts from that projection.
     const currentPadding = map.getPadding();
     const padding = {
@@ -206,6 +209,6 @@ export const usePreviewPan = ({
       pointer = null;
       root.style.removeProperty("--oblique-preview-cursor");
     };
-  }, [map, root, enabled, imageId, busyRef]);
+  }, [map, root, enabled, panEnabled, imageId, busyRef]);
   return { beginPreview, resetPan, getBrowsingPadding };
 };

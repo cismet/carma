@@ -4,6 +4,7 @@ import type { CardinalDirectionClockwise } from "@carma-geo/data-structures";
 import type { ObliqueDownloadWatermark } from "../runtime/utils/tiff-download-types";
 
 import type { PreviewQualityLevel } from "./constants";
+import type { Radians, Ratio } from "@carma-units";
 
 /** the four flight-strip sectors, clockwise from north */
 export type CardinalDirection = CardinalDirectionClockwise;
@@ -167,6 +168,21 @@ export type UpVectorMapping = { rowIndex: 0 | 1 | 2; negate: boolean };
  * One flight's worth of oblique images: where the metadata and the previews
  * are, how the cameras were mounted, and how the viewer should move.
  */
+export type ObliqueDirectionalCatalog = {
+  id: string;
+  sector: "N" | "E" | "S" | "W" | "nadir";
+  cameraIds: readonly string[];
+  /** Producer-validated source-ID aliases; never inferred from rig export folders. */
+  cameraPrefixes?: readonly string[];
+  /** Measured world optical-axis azimuth; camera labels do not define bearing. */
+  meanHeadingRad: Radians;
+  imageCount: number;
+  /** Exact oblique-only full-group totals, excluding nadir. */
+  obliquePitch?: { pitchSumRad: Radians; imageCount: number };
+  exteriorOrientationsURI: string;
+  compressedCatalogURI?: string;
+};
+
 export type ObliqueDataset = {
   id: string;
   label: string;
@@ -187,6 +203,18 @@ export type ObliqueDataset = {
   /** Height of the approximation plane when terrain/footprints are unavailable. */
   referenceGroundHeightMeters?: number;
   exteriorOrientationsURI: string;
+  /** Optional gzip JSON transport of the exact canonical catalog document. */
+  compressedCatalogURI?: string;
+  /** Independent, disjoint camera groups; canonical URI remains the fallback. */
+  directionalCatalogs?: readonly ObliqueDirectionalCatalog[];
+  /** Exact source routing only; never an input to physical pose or sector geometry. */
+  directionalCatalogPriority?: {
+    cameraLineParity: {
+      EVEN: Record<string, string>;
+      ODD: Record<string, string>;
+    };
+    imageGroups: Record<string, string>;
+  };
   footprintsURI?: string;
   /** the CRS of the exterior orientations' x, y */
   crs: "EPSG:25832";
@@ -195,6 +223,8 @@ export type ObliqueDataset = {
   downloadPath?: string;
   /** Range-readable original TIFF; {imageId} receives the encoded source ID. */
   originalImageUrlTemplate?: string;
+  /** Optional packed AVIF pyramid; per-record assets.pyramid.href takes precedence. */
+  avifPyramidTemplate?: string;
   /** Verified publisher artwork and placement for converting original TIFF downloads. */
   downloadWatermark?: ObliqueDownloadWatermark;
   /** Explicit development-only source-Z inspection; the source datum remains unknown. */
@@ -202,7 +232,7 @@ export type ObliqueDataset = {
   previewQualityLevel: PreviewQualityLevel;
   /** Finest published preview level; lower-numbered files are not requested. */
   minimumPreviewQualityLevel?: PreviewQualityLevel;
-  /** one step sharper than the preview, for the ribbon's "HQ" */
+  /** Published higher-quality JPEG preview level from series metadata. */
   hqQualityLevel: PreviewQualityLevel;
   downloadQualityLevel: PreviewQualityLevel;
   /** the tilt the map takes while browsing, degrees from nadir */
@@ -300,7 +330,22 @@ export type ObliqueMetadata = {
   images: Record<string, ObliqueMetadataImage>;
 };
 
+/** URL-restorable image window; pan is image-centre displacement in long-edge fractions. */
+export type ObliquePreviewState = {
+  seriesId: string;
+  imageId: string;
+  panX: Ratio;
+  panY: Ratio;
+  /** Image short edge divided by viewport short edge. */
+  zoom: Ratio;
+};
+
 export type ObliqueSelectionData = {
+  /** Worker-derived angle totals for enabled-series browsing; nadir is excluded. */
+  obliquePitchBySeries?: Map<
+    string,
+    { pitchSumRad: Radians; imageCount: number }
+  >;
   imageRecords: ObliqueImageRecordMap;
   datasets: Map<string, ObliqueDataset>;
   centers: Map<string, PointWithSector>;
@@ -325,6 +370,8 @@ export type ObliqueViewQuery = {
   /** Optional explicit camera capability; continuous bearing ranking is unchanged. */
   cameraView?: "nadir";
   enabledSeriesIds?: readonly string[];
+  /** Native resolution at the ground target can replace centre-distance ranking. */
+  selectionStrategy?: "nearest-axis" | "best-resolution";
   numCandidates?: number;
   maxDistanceMeters?: number;
   /** Exact caller-normalized ground heights for series with a different z datum. */

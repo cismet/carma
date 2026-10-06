@@ -282,6 +282,11 @@ export {
   type ObliqueViewerState,
   type UseObliqueLayerRowOptions,
 } from "./addons/ObliqueViewer";
+export {
+  ObliqueObjectViews,
+  type ObliqueObjectViewsConfig,
+  type ObliqueObjectViewsState,
+} from "./addons/ObliqueObjectViews";
 
 export { useHasAddonStateProducer } from "./lib/addon-channels";
 export {

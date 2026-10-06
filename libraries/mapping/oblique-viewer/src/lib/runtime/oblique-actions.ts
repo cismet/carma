@@ -7,11 +7,11 @@ import {
 import type { Degrees } from "@carma-units";
 
 import { BACKDROP_LOOK_BOUNDS, BACKDROP_LOOK_DEFAULT } from "../core/config";
-import type { PreviewQualityChoice } from "../core/constants";
 import type {
   CardinalDirection,
   ObliqueBackdropLook,
   ObliqueViewMode,
+  ObliqueViewQuery,
 } from "../core/types";
 import { cardinalLetter } from "../core/utils/orientation";
 import { strings } from "./strings.de";
@@ -51,6 +51,8 @@ export type ObliqueViewerState = {
   /** null uses each series default; [] deliberately disables every series. */
   enabledSeriesIds: string[] | null;
   series: ViewerSeriesStatus[];
+  /** Persisted selection policy; both interfaces share the same calibrated catalogs. */
+  selectionStrategy: NonNullable<ObliqueViewQuery["selectionStrategy"]>;
   viewMode: ObliqueViewMode;
   selectedSeriesId: string | null;
   selectedSourceImageId: string | null;
@@ -74,12 +76,12 @@ export type ObliqueViewerState = {
   pitchDeg: Degrees | null;
   /** the neighbours of the selected image, by the direction they lie in */
   canPan: boolean;
+  /** Capability, not current pointer presence; touch retains the flight button. */
+  hoverAvailable: boolean;
   /** the image is shown over the map, aligned with the camera */
   previewVisible: boolean;
   /** a flight or a turn is under way; the ribbon holds its buttons meanwhile */
   isBusy: boolean;
-  previewQuality: PreviewQualityChoice;
-  backdropLook: ObliqueBackdropLook;
   /** the selected image at download quality, for the ribbon's buttons */
   downloadUrl: string | null;
   /** Native geometry and publisher watermark for downloadable TIFF originals. */
@@ -93,6 +95,7 @@ export type ObliqueViewerState = {
 export const OBLIQUE_STATE_DEFAULT: ObliqueViewerState = {
   enabledSeriesIds: null,
   series: [],
+  selectionStrategy: "nearest-axis",
   viewMode: "oblique",
   selectedSeriesId: null,
   selectedSourceImageId: null,
@@ -109,10 +112,9 @@ export const OBLIQUE_STATE_DEFAULT: ObliqueViewerState = {
   bearingDeg: null,
   pitchDeg: null,
   canPan: false,
+  hoverAvailable: false,
   previewVisible: false,
   isBusy: false,
-  previewQuality: "standard",
-  backdropLook: BACKDROP_LOOK_DEFAULT,
   downloadUrl: null,
   downloadOptions: null,
   request: null,
@@ -165,9 +167,6 @@ export type ObliqueViewerActions = ObliqueViewerState & {
   toggle: () => void;
   setPanelOpen: (next: boolean) => void;
   setEnabledSeriesIds: (ids: string[]) => void;
-  setPreviewQuality: (next: PreviewQualityChoice) => void;
-  setBackdropLook: (patch: Partial<ObliqueBackdropLook>) => void;
-  resetLook: () => void;
   sendRequest: (command: ObliqueCommand) => void;
   clearRequest: (seq: number) => void;
 };

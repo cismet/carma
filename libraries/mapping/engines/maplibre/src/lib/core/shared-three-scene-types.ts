@@ -78,6 +78,8 @@ export type MapStyleProjectiveOverlay = Readonly<{
   marks: readonly Readonly<{
     /** World scene position to homogeneous photo UV; positive w is camera depth. */
     sceneToImage: THREE.Matrix4;
+    /** A sphere uses homogeneous unit-sphere coordinates instead of photo UVs. */
+    shape?: "photo" | "sphere";
     /** Mercator terrain receivers can use their own scene fit alongside ECEF tiles. */
     sceneToImageTerrain?: THREE.Matrix4;
     color: THREE.Color;

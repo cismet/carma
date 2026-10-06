@@ -361,3 +361,95 @@ describe("shared-frame preview image", () => {
     hook.unmount();
   });
 });
+
+describe("preview outline handoff", () => {
+  it("waits for an admitted texture and shared draw, then notifies once after publishing its visible border", () => {
+    const { options, source, frame } = setup();
+    const onOutlineReady = vi.fn(() => {
+      const overlay = shared.setOverlay.mock.lastCall?.[1];
+      expect(overlay).toMatchObject({
+        opacity: 1,
+        border: { width: 2, opacity: 0.9 },
+      });
+      expect(overlay.texture.image).toBe(source);
+    });
+    const initialProps: Parameters<typeof useScenePreviewImage>[0] = {
+      ...options,
+      source: null,
+      onOutlineReady,
+    };
+    const hook = renderHook(useScenePreviewImage, { initialProps });
+    expect(onOutlineReady).not.toHaveBeenCalled();
+    act(() => shared.callback?.(frame));
+    expect(onOutlineReady).not.toHaveBeenCalled();
+    hook.rerender({ ...initialProps, source });
+    expect(onOutlineReady).not.toHaveBeenCalled();
+    act(() => shared.callback?.(frame));
+    expect(onOutlineReady).toHaveBeenCalledOnce();
+    expect(onOutlineReady.mock.invocationCallOrder[0]).toBeGreaterThan(
+      shared.setOverlay.mock.invocationCallOrder.at(-1)!
+    );
+    const refinement = document.createElement("canvas");
+    refinement.width = 400;
+    refinement.height = 200;
+    hook.rerender({ ...initialProps, source: refinement });
+    act(() => shared.callback?.(frame));
+    expect(shared.setOverlay.mock.lastCall?.[1].texture.image).toBe(refinement);
+    expect(onOutlineReady).toHaveBeenCalledOnce();
+    const publications = shared.setOverlay.mock.calls.length;
+    act(() => shared.callback?.(frame));
+    expect(shared.setOverlay).toHaveBeenCalledTimes(publications);
+    expect(onOutlineReady).toHaveBeenCalledOnce();
+    hook.unmount();
+  });
+
+  it("waits for the entire priority-zero fade before handing off and ignores subsequent refinements and idle frames", () => {
+    const { map, options, frame } = setup();
+    let now = 0;
+    const clock = vi.spyOn(performance, "now").mockImplementation(() => now);
+    const onOutlineReady = vi.fn(() =>
+      expect(shared.setOverlay.mock.lastCall?.[1]).toMatchObject({
+        opacity: 1,
+        priority: 0,
+        border: { width: 2, opacity: 0.9 },
+      })
+    );
+    const initialProps = { ...options, priority: 0, onOutlineReady };
+    const hook = renderHook(useScenePreviewImage, { initialProps });
+    try {
+      expect(onOutlineReady).not.toHaveBeenCalled();
+      for (const time of [0, 125, 249]) {
+        now = time;
+        act(() => shared.callback?.(frame));
+        expect(shared.setOverlay.mock.lastCall?.[1].opacity).toBeCloseTo(
+          time / 250,
+          8
+        );
+        expect(onOutlineReady).not.toHaveBeenCalled();
+      }
+      now = 250;
+      act(() => shared.callback?.(frame));
+      expect(onOutlineReady).toHaveBeenCalledOnce();
+      expect(onOutlineReady.mock.invocationCallOrder[0]).toBeGreaterThan(
+        shared.setOverlay.mock.invocationCallOrder.at(-1)!
+      );
+      const texture = shared.setOverlay.mock.lastCall?.[1].texture;
+      const version = texture.version;
+      hook.rerender({ ...initialProps, revision: 1 });
+      act(() => shared.callback?.(frame));
+      expect(shared.setOverlay.mock.lastCall?.[1].texture).toBe(texture);
+      expect(texture.version).toBeGreaterThan(version);
+      expect(onOutlineReady).toHaveBeenCalledOnce();
+      const publications = shared.setOverlay.mock.calls.length;
+      vi.mocked(map.triggerRepaint).mockClear();
+      now = 1000;
+      act(() => shared.callback?.(frame));
+      expect(shared.setOverlay).toHaveBeenCalledTimes(publications);
+      expect(map.triggerRepaint).not.toHaveBeenCalled();
+      expect(onOutlineReady).toHaveBeenCalledOnce();
+    } finally {
+      hook.unmount();
+      clock.mockRestore();
+    }
+  });
+});

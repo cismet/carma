@@ -10,7 +10,7 @@ import type { DevicePixels } from "@carma-units";
 import type { Map as MaplibreMap } from "maplibre-gl";
 
 import { PREVIEW_QUALITY, type PreviewQualityLevel } from "../core/constants";
-import { usePreviewResolution } from "./hooks/usePreviewResolution";
+import { readCameraToCenterDistancePx } from "./utils/cameraMath";
 import { usePreviewSizeSync } from "./hooks/usePreviewSizeSync";
 import { useProgressivePreviewSource } from "./hooks/useProgressivePreviewSource";
 import type {
@@ -25,7 +25,10 @@ import {
 } from "./utils/imageUrls";
 import { Backdrop } from "./ObliqueImagePreview.Backdrop";
 import { NativePixels } from "./ObliqueImagePreview.NativePixels";
-import { useScenePreviewImage } from "./hooks/useScenePreviewImage";
+import {
+  useScenePreviewImage,
+  type ScenePreviewPhoto,
+} from "./hooks/useScenePreviewImage";
 import { usePrefetchedPreviewThumbnail } from "./hooks/usePrefetchedPreviewThumbnail";
 import { previewBackdropTint } from "./utils/preview-backdrop";
 import { PreviewImage } from "./ObliqueImagePreview.PreviewImage";
@@ -42,10 +45,13 @@ const CALM_CONTRAST = 50;
 const CALM_SATURATION = 50;
 
 type ObliqueImagePreviewProps = {
+  photo?: ScenePreviewPhoto;
   map: MaplibreMap;
   onRootChange?: (root: HTMLDivElement | null) => void;
+  onOutlineReady?: () => void;
   previewPath: string;
   originalImageUrlTemplate?: string;
+  avifPyramidUrl?: string;
   originalImageUrl?: string;
   nativePixelSize: { width: DevicePixels; height: DevicePixels };
   imageId: string;
@@ -54,6 +60,7 @@ type ObliqueImagePreviewProps = {
   halfFovTan: number;
   /** a flight to the next image is running: the image is hidden until it lands */
   dimImage: boolean;
+  panEnabled?: boolean;
   /** the image's roll against a level camera, degrees */
   rollDeg: number;
   interiorOrientationOffsets?: InteriorOrientationOffset;
@@ -76,15 +83,19 @@ type ObliqueImagePreviewProps = {
 export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
   map,
   onRootChange,
+  onOutlineReady,
   previewPath,
   originalImageUrlTemplate,
+  avifPyramidUrl,
   originalImageUrl,
   nativePixelSize,
   imageId,
   qualityLevel,
   minimumQualityLevel = "0",
+  photo,
   halfFovTan,
   dimImage,
+  panEnabled = true,
   rollDeg,
   interiorOrientationOffsets = { xOffset: 0, yOffset: 0 },
   style,
@@ -134,21 +145,47 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
     previewPath,
     imageId,
     !!loadedImage,
-    { originalImageUrl: originalUrl ?? undefined, nativeSize: nativePixelSize }
+    {
+      originalImageUrl: originalUrl ?? undefined,
+      avifPyramidUrl,
+      nativeSize: nativePixelSize,
+    }
   );
-  const requestedQuality = usePreviewResolution({
-    map,
-    rootRef,
-    previewPath,
-    imageId,
-    qualityLevel,
-    loadedImage: originalUrl ? null : loadedImage,
-    minimumLevel: minimumQualityLevel,
-  });
   const finalPreviewUrl = useMemo(
-    () => getPreviewImageUrl(previewPath, requestedQuality, imageId),
-    [previewPath, requestedQuality, imageId]
+    () => getPreviewImageUrl(previewPath, minimumQualityLevel, imageId),
+    [previewPath, minimumQualityLevel, imageId]
   );
+  const displayEdge =
+    2 *
+    readCameraToCenterDistancePx(map) *
+    halfFovTan *
+    (window.devicePixelRatio || 1);
+  const initialLevel = String(
+    Math.max(
+      Number(minimumQualityLevel),
+      Math.min(
+        6,
+        displayEdge > 0
+          ? Math.floor(
+              Math.log2(
+                (8 * Math.max(nativePixelSize.width, nativePixelSize.height)) /
+                  displayEdge
+              )
+            )
+          : 6
+      )
+    )
+  ) as PreviewQualityLevel;
+  const initialPreviewUrl = getPreviewImageUrl(
+    previewPath,
+    initialLevel,
+    imageId
+  );
+  const usableThumbnail =
+    thumbnail?.bitmap &&
+    displayEdge / Math.max(thumbnail.bitmap.width, thumbnail.bitmap.height) <= 8
+      ? thumbnail
+      : null;
   const loadingOptions = useRef({ finalPreviewUrl, onError });
   loadingOptions.current = { finalPreviewUrl, onError };
   const reportLoadingError = useCallback(
@@ -157,6 +194,7 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
   );
   const progressiveSrc = useProgressivePreviewSource({
     finalPreviewUrl: workerPreview ? null : finalPreviewUrl,
+    initialPreviewUrl: workerPreview ? undefined : initialPreviewUrl,
     previewPath: workerPreview ? undefined : previewPath,
     imageId: workerPreview ? undefined : imageId,
     onError: reportLoadingError,
@@ -230,8 +268,10 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
   const { xOffset, yOffset } = interiorOrientationOffsets;
   const sceneImage = useScenePreviewImage({
     map,
-    source: loadedImage?.element ?? thumbnail?.bitmap ?? null,
+    photo,
+    source: loadedImage?.element ?? usableThumbnail?.bitmap ?? null,
     shown: !dimImage,
+    onOutlineReady,
     halfFovTan,
     nativeSize: nativePixelSize,
     principal: interiorOrientationOffsets,
@@ -244,7 +284,7 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
   }%)`;
   const displaySrc =
     !sceneImage && !workerPreview
-      ? loadedSrc ?? thumbnail?.blobUrl ?? null
+      ? loadedSrc ?? usableThumbnail?.blobUrl ?? null
       : null;
   const onSourceLoaded = useCallback(
     (url: string, width: number, height: number) => {
@@ -274,6 +314,7 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
         brightness={sceneImage ? 100 : backdropLook.brightness}
         saturation={sceneImage ? 100 : saturation}
         interactive
+        panEnabled={panEnabled}
         filterEnabled={!sceneImage}
         onClick={onClose}
       />
@@ -281,6 +322,7 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
         <PreviewImage
           src={displaySrc}
           alt={imageId}
+          onOutlineReady={onOutlineReady}
           shown={!dimImage && !sceneImage}
           fadeIn={shouldFadeIn && !dimImage}
           borderStyle={style?.border}
@@ -291,11 +333,15 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
           {workerPreview && (
             <NativePixels
               map={map}
+              photo={photo}
               rootRef={rootRef}
               path={previewPath}
               sourceUrl={originalUrl ?? finalPreviewUrl}
               tiff={!!originalUrl}
+              avifPyramidUrl={avifPyramidUrl}
+              minimumQualityLevel={minimumQualityLevel}
               onSourceLoaded={onSourceLoaded}
+              onOutlineReady={onOutlineReady}
               onError={reportLoadingError}
               backdropLook={{
                 contrast,

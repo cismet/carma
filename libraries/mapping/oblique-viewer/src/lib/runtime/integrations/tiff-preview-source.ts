@@ -143,7 +143,8 @@ class RangeClient extends BaseClient {
       bytes: number;
       limit: number;
       version: string | null;
-    }
+    },
+    readonly priority?: "low" | "high" | "auto"
   ) {
     super(url);
   }
@@ -245,6 +246,7 @@ class RangeClient extends BaseClient {
         (await fetch(this.url, {
           headers: { Range: `bytes=${begin}-${end}` },
           signal,
+          priority: this.priority,
         }));
       const contentRange = response.headers.get("Content-Range");
       const actual = /^bytes (\d+)-(\d+)\/(\d+|\*)$/.exec(contentRange ?? "");
@@ -346,7 +348,11 @@ export class TiffPreviewSource {
   private file: Promise<GeoTIFF> | null = null;
   private pages = new Map<number, GeoTIFFImage>();
 
-  constructor(readonly url: string, budget = 64 * 1024 * 1024) {
+  constructor(
+    readonly url: string,
+    budget = 64 * 1024 * 1024,
+    readonly priority?: "low" | "high" | "auto"
+  ) {
     decodedByteLimit = Math.min(64 * 1024 * 1024, (budget * 2) / 3);
     this.ranges = {
       blocks: new Map(),
@@ -364,7 +370,7 @@ export class TiffPreviewSource {
     const cached = this.pages.get(index);
     if (cached) return cached;
     const pending = (this.file ??= fromCustomClient(
-      new RangeClient(this.url, signal, this.ranges),
+      new RangeClient(this.url, signal, this.ranges, this.priority),
       { allowFullFile: false, blockSize: 65536, cacheSize: 32, maxRanges: 0 },
       signal
     ));
@@ -419,13 +425,27 @@ export class TiffPreviewSource {
   async select(
     window: NativePreviewWindow,
     nativeSize: { width: DevicePixels; height: DevicePixels },
-    signal: AbortSignal
+    signal: AbortSignal,
+    maxDisplayPixelsPerSourcePixel = 1
   ) {
+    if (
+      !(maxDisplayPixelsPerSourcePixel > 0) ||
+      !Number.isFinite(maxDisplayPixelsPerSourcePixel)
+    )
+      throw new Error(
+        "TIFF preview requires a finite positive initial pixel size"
+      );
     const native = await this.native(nativeSize, signal);
     let index = 0,
       image = native;
-    const densityX = window.target.width / window.source.width;
-    const densityY = window.target.height / window.source.height;
+    const densityX =
+      window.target.width /
+      window.source.width /
+      maxDisplayPixelsPerSourcePixel;
+    const densityY =
+      window.target.height /
+      window.source.height /
+      maxDisplayPixelsPerSourcePixel;
     while (index < 32 && image.fileDirectory.nextIFDByteOffset !== 0) {
       const next = await this.page(index + 1, signal);
       if (
@@ -441,7 +461,13 @@ export class TiffPreviewSource {
       image = next;
       index++;
     }
-    return { image, finer: index > 0 ? this.pages.get(index - 1)! : null };
+    return {
+      image,
+      refinements: Array.from(
+        { length: index },
+        (_, step) => this.pages.get(index - step - 1)!
+      ),
+    };
   }
 
   async read(

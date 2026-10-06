@@ -1,5 +1,10 @@
 import { Matrix3 } from "three";
-import { degToRadNumeric } from "@carma-units";
+import {
+  degToRad,
+  degToRadNumeric,
+  type Degrees,
+  type Radians,
+} from "@carma-units";
 import type { Matrix3RowMajor } from "@carma-commons/math";
 import { getProj4Converter, type TypedConverter } from "@carma-geo/proj";
 import type {
@@ -10,6 +15,7 @@ import type {
   ObliqueImageRecord,
   ObliqueImageRecordMap,
   ObliqueMetadata,
+  ObliqueSelectionData,
 } from "../types";
 import {
   calibrationFromMetadata,
@@ -18,6 +24,35 @@ import {
 } from "./calibration";
 import { computePose } from "./exteriorOrientation";
 import { getCardinalDirectionFromHeading } from "./orientation";
+
+/** Summarize calibrated oblique poses once in the catalog worker, including cached catalogs. */
+export const summarizeObliquePitch = (
+  data: Pick<ObliqueSelectionData, "imageRecords" | "datasets">
+): NonNullable<ObliqueSelectionData["obliquePitchBySeries"]> => {
+  const totals: NonNullable<ObliqueSelectionData["obliquePitchBySeries"]> =
+    new Map();
+  for (const record of data.imageRecords.values()) {
+    const dataset = data.datasets.get(record.seriesId);
+    const pitchDeg = record.pose?.pitchDeg;
+    if (
+      !dataset ||
+      dataset.cameras[record.cameraId]?.view === "nadir" ||
+      pitchDeg === undefined ||
+      !Number.isFinite(pitchDeg) ||
+      pitchDeg <= 0 ||
+      pitchDeg >= 90
+    )
+      continue;
+    const pitchRad = degToRad(pitchDeg as Degrees);
+    const previous = totals.get(record.seriesId);
+    if (previous) {
+      previous.pitchSumRad = (previous.pitchSumRad + pitchRad) as Radians;
+      previous.imageCount++;
+    } else
+      totals.set(record.seriesId, { pitchSumRad: pitchRad, imageCount: 1 });
+  }
+  return totals;
+};
 
 export type DatasetConverter = TypedConverter<"EPSG:25832", "EPSG:4326">;
 

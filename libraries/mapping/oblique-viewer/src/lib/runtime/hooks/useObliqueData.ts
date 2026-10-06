@@ -1,5 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { Radians } from "@carma-units";
 import type { ObliqueDataset } from "../../core/types";
+import { type CatalogPriority } from "../../core/utils/directional-catalog";
+import { createDirectionalCatalogQueue } from "../utils/directional-catalog-queue";
 import {
   loadObliqueSeriesData,
   type ObliqueData,
@@ -24,6 +27,16 @@ export type ObliqueDataState = {
   isAllDataReady: boolean;
   error: string | null;
   perSeries: ObliqueSeriesDataState[];
+  /** Finish oblique segments; nadir and failed-segment retry are explicit. */
+  awaitAll: (options?: {
+    retry?: boolean;
+    includeNadir?: boolean;
+  }) => Promise<ObliqueData | null>;
+  /** Wait for the requested camera group before selecting from its records. */
+  awaitDirection: (
+    heading: Radians,
+    options?: { cameraView?: "nadir"; retry?: boolean }
+  ) => Promise<ObliqueData | null>;
 };
 
 const IDLE: ObliqueDataState = {
@@ -32,6 +45,8 @@ const IDLE: ObliqueDataState = {
   isAllDataReady: false,
   error: null,
   perSeries: [],
+  awaitDirection: async () => null,
+  awaitAll: async () => null,
 };
 type SeriesLoad = {
   promise: Promise<ObliqueData>;
@@ -114,6 +129,9 @@ const createSeriesLoad = (dataset: ObliqueDataset): SeriesLoad => {
             dataset.exteriorOrientationsURI,
             window.location.href
           ).href,
+          compressedCatalogURI: dataset.compressedCatalogURI
+            ? new URL(dataset.compressedCatalogURI, window.location.href).href
+            : undefined,
           footprintsURI: dataset.footprintsURI
             ? new URL(dataset.footprintsURI, window.location.href).href
             : undefined,
@@ -173,30 +191,158 @@ const mergeSeries = (loaded: Iterable<ObliqueData>): ObliqueData => {
     imageRecords: new Map(),
     datasets: new Map(),
     centers: new Map(),
+    obliquePitchBySeries: new Map(),
   };
   for (const data of loaded) {
+    for (const [id, total] of data.obliquePitchBySeries ?? []) {
+      const previous = result.obliquePitchBySeries!.get(id);
+      result.obliquePitchBySeries!.set(
+        id,
+        previous
+          ? {
+              pitchSumRad: (previous.pitchSumRad +
+                total.pitchSumRad) as Radians,
+              imageCount: previous.imageCount + total.imageCount,
+            }
+          : total
+      );
+    }
     for (const [id, record] of data.imageRecords)
       result.imageRecords.set(id, record);
-    for (const [id, dataset] of data.datasets) result.datasets.set(id, dataset);
+    for (const [id, dataset] of data.datasets) {
+      const previous = result.datasets.get(id);
+      result.datasets.set(
+        id,
+        previous
+          ? {
+              ...dataset,
+              cameras: { ...previous.cameras, ...dataset.cameras },
+              interiorOrientationOffsets: {
+                ...previous.interiorOrientationOffsets,
+                ...dataset.interiorOrientationOffsets,
+              },
+            }
+          : dataset
+      );
+    }
     for (const [id, center] of data.centers) result.centers.set(id, center);
+  }
+  for (const [id, dataset] of result.datasets) {
+    const groups = dataset.directionalCatalogs;
+    if (groups?.length && groups.every((group) => group.obliquePitch)) {
+      result.obliquePitchBySeries!.set(id, {
+        pitchSumRad: groups.reduce(
+          (sum, group) => sum + group.obliquePitch!.pitchSumRad,
+          0
+        ) as Radians,
+        imageCount: groups.reduce(
+          (sum, group) => sum + group.obliquePitch!.imageCount,
+          0
+        ),
+      });
+    }
   }
   return result;
 };
 
 export const useObliqueData = (
   enabledDatasets: readonly ObliqueDataset[],
-  enabled: boolean
+  enabled: boolean,
+  options?: CatalogPriority
 ): ObliqueDataState => {
   const [state, setState] = useState<ObliqueDataState>(IDLE);
+  const datasetsRef = useRef(enabledDatasets);
+  datasetsRef.current = enabledDatasets;
+  const sourceKey = useMemo(
+    () =>
+      JSON.stringify(
+        enabledDatasets.map(({ animations, ...source }) => source)
+      ),
+    [enabledDatasets]
+  );
+  const priorityRef = useRef(options);
+  priorityRef.current = options;
+  const directionRef = useRef<
+    (
+      priority: CatalogPriority & { retry?: boolean }
+    ) => Promise<ObliqueData | null>
+  >(async () => null);
+  const allRef = useRef<
+    (options?: {
+      retry?: boolean;
+      includeNadir?: boolean;
+    }) => Promise<ObliqueData | null>
+  >(async () => null);
+  const lifecycleRef = useRef(0);
+  const committedRef = useRef<ObliqueData | null>(null);
+  const publicationRevisions = useRef(new WeakMap<ObliqueData, number>());
+  const publicationRevision = useRef(0);
+  const committedRevision = useRef(0);
+  const commitWaiters = useRef<
+    Array<{ revision: number; resolve: (data: ObliqueData | null) => void }>
+  >([]);
+  const awaitCommitted = useCallback(
+    async (load: () => Promise<ObliqueData | null>) => {
+      const lifecycle = lifecycleRef.current;
+      const target = await load();
+      if (!target || lifecycle !== lifecycleRef.current) return null;
+      if (committedRef.current === target) return target;
+      const revision = publicationRevisions.current.get(target);
+      if (revision === undefined) return null;
+      if (committedRef.current && committedRevision.current >= revision)
+        return committedRef.current;
+      return new Promise<ObliqueData | null>((resolve) =>
+        commitWaiters.current.push({ revision, resolve })
+      );
+    },
+    []
+  );
+  const awaitDirection = useCallback(
+    (heading: Radians, request?: { cameraView?: "nadir"; retry?: boolean }) =>
+      awaitCommitted(() =>
+        directionRef.current({
+          priorityHeadingRad: heading,
+          priorityCameraView: request?.cameraView,
+          retry: request?.retry,
+        })
+      ),
+    [awaitCommitted]
+  );
+  const awaitAll = useCallback(
+    (request?: { retry?: boolean; includeNadir?: boolean }) =>
+      awaitCommitted(() => allRef.current(request)),
+    [awaitCommitted]
+  );
   useEffect(() => {
-    if (!enabled || enabledDatasets.length === 0) {
+    committedRef.current = enabled ? state.data : null;
+    committedRevision.current = state.data
+      ? publicationRevisions.current.get(state.data) ?? 0
+      : 0;
+    commitWaiters.current = commitWaiters.current.filter((waiter) => {
+      if (
+        !enabled ||
+        (committedRef.current && committedRevision.current >= waiter.revision)
+      ) {
+        waiter.resolve(committedRef.current);
+        return false;
+      }
+      return true;
+    });
+  }, [state.data, enabled]);
+  const lastHintRef = useRef("");
+  const hintKey = `${sourceKey}:${options?.priorityHeadingRad}:${options?.priorityCameraView}`;
+  const prioritySeriesId = options?.prioritySeriesId;
+  useEffect(() => {
+    const datasets = datasetsRef.current;
+    lastHintRef.current = hintKey;
+    if (!enabled || datasets.length === 0) {
       setState(IDLE);
       return undefined;
     }
     syncObliqueCatalogCacheVersion();
     let cancelled = false;
     const statuses = new Map(
-      enabledDatasets.map((dataset) => [
+      datasets.map((dataset) => [
         dataset.id,
         {
           id: dataset.id,
@@ -207,13 +353,26 @@ export const useObliqueData = (
       ])
     );
     const loaded = new Map<string, ObliqueData>();
+    let mergedCount = 0;
+    let merged: ObliqueData | null = null;
     const publish = () => {
       if (cancelled) return;
       const perSeries = [...statuses.values()];
-      const data = loaded.size > 0 ? mergeSeries(loaded.values()) : null;
+      if (loaded.size !== mergedCount) {
+        mergedCount = loaded.size;
+        merged =
+          loaded.size === 1
+            ? loaded.values().next().value ?? null
+            : mergeSeries(loaded.values());
+      }
+      const data = merged;
+      if (data && !publicationRevisions.current.has(data))
+        publicationRevisions.current.set(data, ++publicationRevision.current);
       setState({
         data,
         perSeries,
+        awaitDirection,
+        awaitAll,
         isLoading: perSeries.some((status) => status.isLoading),
         isAllDataReady: (data?.imageRecords.size ?? 0) > 0,
         error:
@@ -222,18 +381,61 @@ export const useObliqueData = (
             .map(
               (status) =>
                 `${
-                  enabledDatasets.find((dataset) => dataset.id === status.id)
-                    ?.label ?? status.id
+                  datasets.find((dataset) => dataset.id === status.id)?.label ??
+                  status.id
                 }: ${status.error}`
             )
             .join("; ") || null,
       });
     };
     publish();
+    if (datasets.some((dataset) => dataset.directionalCatalogs?.length)) {
+      const queue = createDirectionalCatalogQueue({
+        datasets,
+        priority: priorityRef.current ?? {},
+        acquire: acquireSeries,
+        publish: (parts, perSeries, data) => {
+          if (cancelled) return;
+          loaded.clear();
+          for (const [key, data] of parts) loaded.set(key, data);
+          mergedCount = loaded.size;
+          merged = data;
+          for (const status of perSeries) statuses.set(status.id, status);
+          publish();
+        },
+        merge: mergeSeries,
+      });
+      directionRef.current = queue.promote;
+      allRef.current = queue.all;
+      return () => {
+        cancelled = true;
+        lifecycleRef.current++;
+        directionRef.current = async () => null;
+        allRef.current = async () => null;
+        committedRef.current = null;
+        queue.cancel();
+        for (const waiter of commitWaiters.current) waiter.resolve(null);
+        commitWaiters.current = [];
+      };
+    }
+    directionRef.current = async () => merged;
     const releases: (() => void)[] = [];
-    for (const dataset of enabledDatasets) {
+    const pending: Promise<ObliqueData>[] = [];
+    allRef.current = async () => {
+      let observed = 0;
+      while (!cancelled && observed < pending.length) {
+        const batch = pending.slice(observed);
+        observed = pending.length;
+        await Promise.allSettled(batch);
+      }
+      return cancelled ? null : merged;
+    };
+    directionRef.current = () => allRef.current();
+    const load = (dataset: ObliqueDataset) => {
+      if (cancelled) return;
       const request = acquireSeries(dataset);
       releases.push(request.release);
+      pending.push(request.promise);
       request.promise
         .then((data) => {
           loaded.set(dataset.id, data);
@@ -260,12 +462,41 @@ export const useObliqueData = (
           });
           publish();
         });
-    }
+      return request.promise;
+    };
+    const priority = datasets.find(
+      (dataset) => dataset.id === prioritySeriesId
+    );
+    if (priority) {
+      const loadRemaining = () => {
+        if (!cancelled)
+          for (const dataset of datasets)
+            if (dataset.id !== priority.id) load(dataset);
+      };
+      void load(priority)?.then(loadRemaining, loadRemaining);
+    } else for (const dataset of datasets) load(dataset);
     return () => {
       cancelled = true;
+      lifecycleRef.current++;
+      directionRef.current = async () => null;
+      allRef.current = async () => null;
+      for (const waiter of commitWaiters.current) waiter.resolve(null);
+      commitWaiters.current = [];
       for (const release of releases) release();
     };
-  }, [enabledDatasets, enabled]);
+  }, [sourceKey, enabled, prioritySeriesId]);
+  useEffect(() => {
+    if (lastHintRef.current === hintKey) return;
+    lastHintRef.current = hintKey;
+    if (
+      enabled &&
+      enabledDatasets.some((dataset) => dataset.directionalCatalogs?.length)
+    )
+      void directionRef.current({
+        ...options,
+        priorityImageId: undefined,
+      });
+  }, [enabled, hintKey]);
   // Series changes take effect in this render, before the fetch effect can publish.
   const filtered = useMemo(() => {
     const enabledIds = new Set(enabledDatasets.map((dataset) => dataset.id));
@@ -276,6 +507,11 @@ export const useObliqueData = (
       return state.data;
     return state.data
       ? {
+          obliquePitchBySeries: new Map(
+            [...(state.data.obliquePitchBySeries ?? [])].filter(([id]) =>
+              enabledIds.has(id)
+            )
+          ),
           imageRecords: new Map(
             [...state.data.imageRecords].filter(([, record]) =>
               enabledIds.has(record.seriesId)
@@ -299,6 +535,8 @@ export const useObliqueData = (
   );
   return {
     ...state,
+    awaitDirection,
+    awaitAll,
     data: enabled ? filtered : null,
     isLoading: enabled && visibleStatuses.some((status) => status.isLoading),
     isAllDataReady: enabled && (filtered?.imageRecords.size ?? 0) > 0,

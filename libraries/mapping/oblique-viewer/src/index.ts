@@ -1,5 +1,12 @@
 export { ObliqueViewer } from "./lib/runtime/ObliqueViewer";
 export { ObliqueNavigation } from "./lib/runtime/ObliqueNavigation";
+export { OBLIQUE_OBJECT_VIEWS_EXTENSION } from "./lib/runtime/object-views/object-views-extension";
+export {
+  getObliqueViewerExtension,
+  type ObliqueViewerExtension,
+  type ObliqueViewerExtensionProps,
+  type ObliqueViewerExtensionController,
+} from "./lib/runtime/oblique-viewer-extensions";
 export {
   ObliquePanel,
   ObliqueInteractionPanel,
@@ -40,8 +47,8 @@ export type {
   ObliqueViewQuery,
   ObliqueViewMode,
   ObliqueSelectionData,
+  ObliquePreviewState,
 } from "./lib/core/types";
-export type { PreviewQualityChoice } from "./lib/core/constants";
 export { getCameraCalibration } from "./lib/core/utils/calibration";
 export {
   qualifiedImageId,

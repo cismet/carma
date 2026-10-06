@@ -1,18 +1,13 @@
 import { useCallback, useMemo } from "react";
 import {
-  BACKDROP_LOOK_DEFAULT,
   OBLIQUE_STATE_DEFAULT,
   formatImageLabel,
-  resolveBackdropLook,
-  sameBackdropLook,
   requestObliqueCommand,
   acknowledgeObliqueRequest,
   type ObliqueViewerState,
   type ObliqueViewerActions,
   type ObliqueStatePatch,
   type ObliqueCommand,
-  type ObliqueBackdropLook,
-  type PreviewQualityChoice,
 } from "@carma-mapping/oblique-viewer";
 import { useAddonState, useRouteAddons } from "../../lib/AddonStateContext";
 import {
@@ -36,13 +31,20 @@ const useStoredObliqueState = () => {
   const setState = useCallback(
     (updater: (previous: ObliqueViewerState) => ObliqueViewerState) =>
       setSessionState((previous) => {
-        const next = updater(
-          previous ?? loadObliqueState(storageKey) ?? OBLIQUE_STATE_DEFAULT
-        );
-        saveObliqueState(storageKey, next);
+        const current = previous ?? storedState ?? OBLIQUE_STATE_DEFAULT;
+        const next = updater(current);
+        if (
+          next !== current &&
+          (next.isOn !== current.isOn ||
+            next.title !== current.title ||
+            next.selectionStrategy !== current.selectionStrategy ||
+            (next.enabledSeriesIds !== current.enabledSeriesIds &&
+              !samePatch(current, { enabledSeriesIds: next.enabledSeriesIds })))
+        )
+          saveObliqueState(storageKey, next);
         return next;
       }),
-    [setSessionState, storageKey]
+    [setSessionState, storageKey, storedState]
   );
 
   return { state, setState };
@@ -54,12 +56,6 @@ const samePatch = (state: ObliqueViewerState, patch: Patch): boolean =>
   (Object.keys(patch) as (keyof Patch)[]).every((key) => {
     const next = patch[key];
     const previous = state[key];
-    if (key === "backdropLook") {
-      return sameBackdropLook(
-        previous as ObliqueBackdropLook,
-        next as ObliqueBackdropLook
-      );
-    }
     if (key === "enabledSeriesIds" || key === "series") {
       return JSON.stringify(previous) === JSON.stringify(next);
     }
@@ -112,34 +108,6 @@ export const useObliqueViewerActions = (): ObliqueViewerActions => {
     [publish]
   );
 
-  const setPreviewQuality = useCallback(
-    (next: PreviewQualityChoice) => publish({ previewQuality: next }),
-    [publish]
-  );
-
-  const setBackdropLook = useCallback(
-    (patch: Partial<ObliqueBackdropLook>) =>
-      setState((previous) => {
-        const backdropLook = resolveBackdropLook({
-          ...previous.backdropLook,
-          ...patch,
-        });
-        return sameBackdropLook(previous.backdropLook, backdropLook)
-          ? previous
-          : { ...previous, backdropLook };
-      }),
-    [setState]
-  );
-
-  const resetLook = useCallback(
-    () =>
-      publish({
-        backdropLook: BACKDROP_LOOK_DEFAULT,
-        previewQuality: "standard",
-      }),
-    [publish]
-  );
-
   /** the ribbon's commands; each gets a fresh sequence number */
   const sendRequest = useCallback(
     (command: ObliqueCommand) =>
@@ -170,9 +138,6 @@ export const useObliqueViewerActions = (): ObliqueViewerActions => {
     toggle,
     setPanelOpen,
     setEnabledSeriesIds,
-    setPreviewQuality,
-    setBackdropLook,
-    resetLook,
     sendRequest,
     clearRequest,
   };

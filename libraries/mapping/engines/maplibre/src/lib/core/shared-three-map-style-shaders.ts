@@ -13,7 +13,8 @@ uniform mat3 carmaScreenToBorderImage;
 uniform vec2 carmaScreenBorderImageSize;
 uniform vec4 carmaScreenBorderStyle;
 vec4 carmaScreenSample(sampler2D image, mat3 transform, float opacity, vec2 uv) {
-  vec2 imageUv = (transform * vec3(uv, 1.0)).xy;
+  vec3 projected = transform * vec3(uv, 1.0);
+  vec2 imageUv = projected.xy/projected.z;
   if (opacity <= 0.0 || any(lessThan(imageUv,vec2(0.0))) || any(greaterThan(imageUv,vec2(1.0)))) return vec4(0.0);
   vec4 pixel = texture2D(image, imageUv);
   pixel.a *= opacity;
@@ -29,7 +30,8 @@ vec2 carmaScreenGaussianIntegral(vec2 position, float sigma) {
 }
 float carmaScreenBorder(vec2 uv) {
   if (carmaScreenBorderStyle.y<=0.0 && carmaScreenBorderStyle.w<=0.0) return 0.0;
-  vec2 imageUv = (carmaScreenToBorderImage*vec3(uv,1.0)).xy;
+  vec3 projected = carmaScreenToBorderImage*vec3(uv,1.0);
+  vec2 imageUv = projected.xy/projected.z;
   vec2 position = (imageUv-0.5)*carmaScreenBorderImageSize;
   vec2 halfSize = carmaScreenBorderImageSize*0.5;
   vec2 delta = abs(position)-halfSize;
@@ -122,6 +124,19 @@ vec4 carmaProjectiveMarkings() {
                            carmaProjectiveEntry(row,matrixColumn+2.0),carmaProjectiveEntry(row,matrixColumn+3.0));
     vec4 photo = projection * vec4(vCarmaReceiverPosition,1.0);
     if (photo.w <= 0.0) continue;
+    vec4 shapeStyle = carmaProjectiveEntry(row,9.0);
+    if (shapeStyle.w > 1.5) {
+      // The unit-sphere zero contour is the exact sphere/receiver intersection.
+      float sphereDistance = length(photo.xyz/photo.w)-1.0;
+      float derivative = max(fwidth(sphereDistance),0.0000001);
+      float halfWidth = shapeStyle.x*carmaProjectivePixelRatio*0.5;
+      float line = 1.0-smoothstep(max(0.0,halfWidth-0.75),halfWidth+0.75,abs(sphereDistance)/derivative);
+      vec4 color = carmaProjectiveEntry(row,8.0);
+      float alpha = line*color.a*carmaProjectiveOpacity;
+      result.rgb = color.rgb*alpha+result.rgb*(1.0-alpha);
+      result.a = alpha+result.a*(1.0-alpha);
+      continue;
+    }
     vec2 uv = photo.xy/photo.w;
     vec2 derivative = max(fwidth(uv),vec2(0.0000001));
     vec4 style = carmaProjectiveEntry(row,9.0);

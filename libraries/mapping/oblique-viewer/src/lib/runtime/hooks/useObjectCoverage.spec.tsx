@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { MercatorCoordinate, type Map as MaplibreMap } from "maplibre-gl";
-import { Mesh, Vector3 } from "three";
+import { Matrix4, Mesh, MeshBasicMaterial, Vector3 } from "three";
 import type { SharedThreeSceneRuntime } from "@carma-mapping/engines/maplibre";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type {
@@ -28,6 +28,9 @@ const scene = vi.hoisted(() => ({
   removeRuntime: vi.fn(),
   release: vi.fn(),
   projectLngLatToScene: vi.fn(),
+  getLocalFrame: vi.fn(),
+  projectSceneToLngLat: vi.fn(),
+  setMapStyleProjectiveOverlay: vi.fn(),
 }));
 const coverage = vi.hoisted(() => ({ group: vi.fn(), altitude: vi.fn() }));
 vi.mock("@carma-mapping/engines/maplibre", async () => ({
@@ -73,6 +76,11 @@ beforeEach(() => {
     ([longitude, latitude]: [number, number], height: number) =>
       new Vector3(longitude, height, latitude)
   );
+  scene.getLocalFrame.mockReturnValue({
+    sceneFromLocal: new Matrix4(),
+    revision: 1,
+  });
+  scene.projectSceneToLngLat.mockReturnValue([7, 51]);
   scene.removeRuntime.mockImplementation((id: string) => {
     const runtime = scene.addRuntime.mock.calls
       .map(([runtime]) => runtime as SharedThreeSceneRuntime)
@@ -294,10 +302,50 @@ describe("object coverage picking lifecycle", () => {
     expect(runtime.root.visible).toBe(true);
     expect(view.result.current.sphere).toBeNull();
     expect(scene.projectLngLatToScene).toHaveBeenCalledTimes(4);
-    const geometry = (runtime.root.children[0] as Mesh).geometry;
+    const mesh = runtime.root.children[0] as Mesh;
+    const material = mesh.material as MeshBasicMaterial;
+    expect(material.opacity).toBe(0.3);
+    expect(material.transparent).toBe(true);
+    expect(material.wireframe).toBe(false);
+    expect(material.depthWrite).toBe(false);
+    const [overlayId, overlay] =
+      scene.setMapStyleProjectiveOverlay.mock.lastCall!;
+    expect(overlay.marks).toHaveLength(1);
+    expect(overlay.marks[0]).toMatchObject({
+      shape: "sphere",
+      width: 2,
+      opacity: 1,
+      showUpMarker: false,
+    });
+    expect(overlay.marks[0].color.getHexString()).toBe("ffffff");
+    const center = new Vector3().setFromMatrixPosition(runtime.root.matrix);
+    expect(
+      center.clone().applyMatrix4(overlay.marks[0].sceneToImageTerrain).length()
+    ).toBeCloseTo(0, 7);
+    const edge = new Vector3(1, 0, 0).applyMatrix4(runtime.root.matrix);
+    expect(
+      edge.applyMatrix4(overlay.marks[0].sceneToImageTerrain).length()
+    ).toBeCloseTo(1, 7);
+    runtime.update({} as Parameters<SharedThreeSceneRuntime["update"]>[0]);
+    expect(scene.setMapStyleProjectiveOverlay).toHaveBeenCalledOnce();
+    scene.getLocalFrame.mockReturnValue({
+      sceneFromLocal: new Matrix4().makeScale(2, 3, 4),
+      revision: 2,
+    });
+    runtime.update({} as Parameters<SharedThreeSceneRuntime["update"]>[0]);
+    expect(scene.setMapStyleProjectiveOverlay).toHaveBeenCalledTimes(2);
+    expect(
+      scene.setMapStyleProjectiveOverlay.mock.lastCall![1].marks[0].sceneToImage
+        .elements
+    ).not.toEqual(overlay.marks[0].sceneToImage.elements);
+    const geometry = mesh.geometry;
     const dispose = vi.spyOn(geometry, "dispose");
     view.rerender({ ...view.props, enabled: false });
     expect(dispose).toHaveBeenCalledOnce();
+    expect(scene.setMapStyleProjectiveOverlay).toHaveBeenLastCalledWith(
+      overlayId,
+      null
+    );
     expect(scene.release).toHaveBeenCalledOnce();
     view.unmount();
     view.container.remove();

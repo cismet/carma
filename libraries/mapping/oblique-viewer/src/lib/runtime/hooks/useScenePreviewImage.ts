@@ -5,6 +5,7 @@ import {
   Texture,
   LinearFilter,
   Matrix3,
+  Matrix4,
 } from "three";
 import type { Map as MaplibreMap } from "maplibre-gl";
 import { acquireSharedThreeScene } from "@carma-mapping/engines/maplibre";
@@ -19,8 +20,26 @@ import {
   nativePreviewTextureTransform,
   type NativePreviewWindow,
 } from "../../core/utils/native-preview-window";
-import type { ObliqueBackdropLook } from "../../core/types";
+import type {
+  ObliqueBackdropLook,
+  ObliqueCameraCalibration,
+  ObliqueImageRecord,
+  ObliquePose,
+} from "../../core/types";
+import {
+  imageProjectionMatrix,
+  sceneToPhotoEnu,
+  viewportImageProjection,
+} from "../utils/image-projection";
+
 import type { PreviewBackdropTint } from "../utils/preview-backdrop";
+
+export type ScenePreviewPhoto = Readonly<{
+  record: ObliqueImageRecord;
+  calibration: ObliqueCameraCalibration;
+  pose: ObliquePose;
+  altitude: number;
+}>;
 
 type PreviewTextureSource = HTMLImageElement | HTMLCanvasElement | ImageBitmap;
 export type ScenePreviewImageContent = Readonly<{
@@ -51,6 +70,8 @@ export const useScenePreviewImage = ({
   backdropLook,
   backdropTint,
   onBeforeRender,
+  onOutlineReady,
+  photo,
 }: {
   map: MaplibreMap;
   source?: PreviewTextureSource | null;
@@ -66,6 +87,8 @@ export const useScenePreviewImage = ({
   backdropLook?: ObliqueBackdropLook;
   backdropTint?: PreviewBackdropTint;
   onBeforeRender?: (geometry: ScenePreviewImageGeometry) => void;
+  onOutlineReady?: () => void;
+  photo?: ScenePreviewPhoto;
 }): boolean => {
   const id = useId();
   const current = useRef({
@@ -82,6 +105,8 @@ export const useScenePreviewImage = ({
     backdropLook,
     backdropTint,
     onBeforeRender,
+    onOutlineReady,
+    photo,
   });
   current.current = {
     source,
@@ -97,6 +122,8 @@ export const useScenePreviewImage = ({
     backdropLook,
     backdropTint,
     onBeforeRender,
+    onOutlineReady,
+    photo,
   };
   const [available, setAvailable] = useState(false);
 
@@ -108,6 +135,7 @@ export const useScenePreviewImage = ({
     setAvailable(supported);
     if (!supported) return () => lease.release();
 
+    let outlineReady = false;
     let texture: Texture | null = null;
     let textureSource: PreviewTextureSource | null = null;
     let textureRevision = -1;
@@ -121,6 +149,11 @@ export const useScenePreviewImage = ({
     let imageMatrix = matrix;
     let matrixGeometry: ScenePreviewImageGeometry | null = null;
     let matrixCrop: NativePreviewWindow["source"] | undefined;
+    let matrixPhoto: ScenePreviewPhoto | undefined;
+    let photoFrameKey = "";
+    let photoProjection: Matrix4 | null = null;
+    const sceneToClip = new Matrix4();
+    const previousClip = new Matrix4();
     let applied: {
       texture: Texture;
       version: number;
@@ -200,6 +233,7 @@ export const useScenePreviewImage = ({
         : options.revision;
       const nextCrop = options.contentRef ? content?.crop : options.crop;
       if (!options.shown || !nextSource) {
+        outlineReady = false;
         pendingReplacement = false;
         opacity = 0;
         fade = null;
@@ -262,7 +296,44 @@ export const useScenePreviewImage = ({
         if (progress < 1) map.triggerRepaint();
         else fade = null;
       }
-      if (matrixGeometry !== geometry || matrixCrop !== textureCrop) {
+      const photoOrigin = options.photo
+        ? layer.projectSceneToLngLat([0, 0, 0])
+        : null;
+      const frameKey =
+        photoOrigin && frame.localFrame
+          ? photoOrigin.join("|") + "|" + frame.localFrame.revision
+          : "";
+      const photoChanged =
+        matrixPhoto !== options.photo || photoFrameKey !== frameKey;
+      if (photoChanged) {
+        matrixPhoto = options.photo;
+        photoFrameKey = frameKey;
+        photoProjection =
+          options.photo && photoOrigin && frame.localFrame
+            ? imageProjectionMatrix(
+                options.photo.record,
+                options.photo.calibration,
+                options.photo.pose,
+                sceneToPhotoEnu(
+                  photoOrigin,
+                  frame.localFrame.sceneFromLocal,
+                  options.photo.pose,
+                  options.photo.altitude
+                )
+              )
+            : null;
+      }
+      sceneToClip
+        .copy(frame.renderCamera.projectionMatrix)
+        .multiply(frame.renderCamera.matrixWorldInverse);
+      const cameraChanged =
+        !!photoProjection && !previousClip.equals(sceneToClip);
+      if (
+        matrixGeometry !== geometry ||
+        matrixCrop !== textureCrop ||
+        photoChanged ||
+        cameraChanged
+      ) {
         matrix = nativePreviewTextureTransform(
           geometry.viewport,
           geometry.image,
@@ -283,6 +354,26 @@ export const useScenePreviewImage = ({
               degToRad(options.rollDeg as Degrees)
             )
           : matrix;
+        if (photoProjection) {
+          imageMatrix = viewportImageProjection(photoProjection, sceneToClip);
+          if (textureCrop) {
+            const imageToCrop = new Matrix3().set(
+              options.nativeSize.width / textureCrop.width,
+              0,
+              -textureCrop.x / textureCrop.width,
+              0,
+              options.nativeSize.height / textureCrop.height,
+              1 -
+                (options.nativeSize.height - textureCrop.y) /
+                  textureCrop.height,
+              0,
+              0,
+              1
+            );
+            matrix = imageToCrop.multiply(imageMatrix);
+          } else matrix = imageMatrix;
+          previousClip.copy(sceneToClip);
+        }
         matrixGeometry = geometry;
         matrixCrop = textureCrop;
       }
@@ -324,6 +415,12 @@ export const useScenePreviewImage = ({
           : undefined,
         backdropTint: options.backdropTint,
       });
+      // The shared draw now has a fully visible border; refinements do not
+      // repeat the handoff or put React into the camera render loop.
+      if (!outlineReady && opacity >= 1) {
+        outlineReady = true;
+        options.onOutlineReady?.();
+      }
       applied = {
         texture,
         version: texture.version,
@@ -368,6 +465,7 @@ export const useScenePreviewImage = ({
     principal.yOffset,
     rollDeg,
     crop,
+    photo,
     priority,
     backdropLook?.contrast,
     backdropLook?.brightness,

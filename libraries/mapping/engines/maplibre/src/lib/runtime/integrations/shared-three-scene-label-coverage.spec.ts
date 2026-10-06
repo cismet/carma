@@ -18,10 +18,12 @@ describe("shared Three.js scene registry", () => {
       type: "symbol",
       source: "basemap",
       "source-layer": "place",
+      filter: null as unknown,
     };
     const layers = [{ id: sharedLayer.id, type: "custom" }, placeLayer];
     const originalFilter = ["==", "class", "city"];
     let currentFilter: unknown = originalFilter;
+    placeLayer.filter = currentFilter;
     sharedLayer.getRuntimes.mockReturnValue([
       {
         id: "terrain",
@@ -44,9 +46,9 @@ describe("shared Three.js scene registry", () => {
           ? { implementation: sharedLayer }
           : layers.find((layer) => layer.id === id)
       ),
-      getFilter: vi.fn(() => currentFilter),
+      getFilter: vi.fn(() => structuredClone(currentFilter)),
       setFilter: vi.fn((_id: string, filter: unknown) => {
-        currentFilter = filter;
+        currentFilter = placeLayer.filter = structuredClone(filter);
       }),
       getLayoutProperty: vi.fn(),
       setLayoutProperty: vi.fn(),
@@ -95,6 +97,7 @@ describe("shared Three.js scene registry", () => {
       type: "symbol",
       source: "basemap",
       "source-layer": "place",
+      filter: null as unknown,
     };
     const layers = [{ id: sharedLayer.id, type: "custom" }, placeLayer];
     let currentFilter: unknown = null;
@@ -124,9 +127,9 @@ describe("shared Three.js scene registry", () => {
           ? { implementation: sharedLayer }
           : layers.find((layer) => layer.id === id)
       ),
-      getFilter: vi.fn(() => currentFilter),
+      getFilter: vi.fn(() => structuredClone(currentFilter)),
       setFilter: vi.fn((_id: string, filter: unknown) => {
-        currentFilter = filter;
+        currentFilter = placeLayer.filter = structuredClone(filter);
       }),
       getLayoutProperty: vi.fn(),
       setLayoutProperty: vi.fn(),
@@ -177,6 +180,7 @@ describe("shared Three.js scene registry", () => {
       type: "symbol",
       source: "basemap",
       "source-layer": "place",
+      filter: null as unknown,
     };
     const layers = [{ id: sharedLayer.id, type: "custom" }, placeLayer];
     let currentFilter: unknown = null;
@@ -204,9 +208,9 @@ describe("shared Three.js scene registry", () => {
           ? { implementation: sharedLayer }
           : layers.find((layer) => layer.id === id)
       ),
-      getFilter: vi.fn(() => currentFilter),
+      getFilter: vi.fn(() => structuredClone(currentFilter)),
       setFilter: vi.fn((_id: string, filter: unknown) => {
-        currentFilter = filter;
+        currentFilter = placeLayer.filter = structuredClone(filter);
       }),
       getLayoutProperty: vi.fn(),
       setLayoutProperty: vi.fn(),
@@ -227,6 +231,9 @@ describe("shared Three.js scene registry", () => {
 
     expect(getActiveTileVolumes).toHaveBeenCalledOnce();
     expect(sharedLayer.projectSceneToLngLat).toHaveBeenCalledTimes(4);
+    expect(map.setFilter).toHaveBeenCalledOnce();
+    expect(map.getFilter).not.toHaveBeenCalled();
+    const appliedFilter = placeLayer.filter;
 
     listeners.get("styledata")?.();
     listeners.get("idle")?.();
@@ -237,6 +244,21 @@ describe("shared Three.js scene registry", () => {
     vi.advanceTimersByTime(1000);
     expect(getActiveTileVolumes).toHaveBeenCalledTimes(2);
     expect(sharedLayer.projectSceneToLngLat).toHaveBeenCalledTimes(4);
+    expect(placeLayer.filter).toBe(appliedFilter);
+    expect(map.setFilter).toHaveBeenCalledOnce();
+    expect(map.getFilter).not.toHaveBeenCalled();
+
+    const externalFilter = ["==", "class", "town"];
+    currentFilter = placeLayer.filter = structuredClone(externalFilter);
+    listeners.get("styledata")?.();
+    vi.advanceTimersByTime(1000);
+    expect(map.setFilter).toHaveBeenCalledTimes(2);
+    expect(map.getFilter).not.toHaveBeenCalled();
+    expect(currentFilter).toEqual([
+      "all",
+      ["==", ["get", "class"], "town"],
+      appliedFilter,
+    ]);
 
     volumes = [
       {
@@ -249,9 +271,34 @@ describe("shared Three.js scene registry", () => {
     listeners.get("styledata")?.();
     vi.advanceTimersByTime(1000);
 
-    expect(getActiveTileVolumes).toHaveBeenCalledTimes(3);
+    expect(getActiveTileVolumes).toHaveBeenCalledTimes(4);
     expect(sharedLayer.projectSceneToLngLat).toHaveBeenCalledTimes(8);
+    expect(map.setFilter).toHaveBeenCalledTimes(3);
+    expect(map.getFilter).not.toHaveBeenCalled();
+    expect(currentFilter).toEqual([
+      "all",
+      ["==", ["get", "class"], "town"],
+      [
+        "within",
+        {
+          type: "MultiPolygon",
+          coordinates: [
+            [
+              [
+                [-20.5, -30.5],
+                [40.5, -30.5],
+                [40.5, 50.5],
+                [-20.5, 50.5],
+                [-20.5, -30.5],
+              ],
+            ],
+          ],
+        },
+      ],
+    ]);
     lease.release();
+    expect(currentFilter).toEqual(externalFilter);
+    expect(map.getFilter).toHaveBeenCalledOnce();
   });
 
   it("ignores caster-only terrain tiles for the label coverage", () => {
@@ -261,6 +308,7 @@ describe("shared Three.js scene registry", () => {
       type: "symbol",
       source: "basemap",
       "source-layer": "place",
+      filter: null as unknown,
     };
     const layers = [{ id: sharedLayer.id, type: "custom" }, placeLayer];
     let currentFilter: unknown = null;
@@ -293,9 +341,9 @@ describe("shared Three.js scene registry", () => {
           ? { implementation: sharedLayer }
           : layers.find((layer) => layer.id === id)
       ),
-      getFilter: vi.fn(() => currentFilter),
+      getFilter: vi.fn(() => structuredClone(currentFilter)),
       setFilter: vi.fn((_id: string, filter: unknown) => {
-        currentFilter = filter;
+        currentFilter = placeLayer.filter = structuredClone(filter);
       }),
       getLayoutProperty: vi.fn(),
       setLayoutProperty: vi.fn(),

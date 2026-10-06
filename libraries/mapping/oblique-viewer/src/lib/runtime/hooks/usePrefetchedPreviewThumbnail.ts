@@ -13,13 +13,18 @@ export const usePrefetchedPreviewThumbnail = (
   hasDecodedImage: boolean,
   options?: {
     originalImageUrl?: string;
+    avifPyramidUrl?: string;
+    enqueue?: boolean;
     nativeSize?: { width: number; height: number };
   }
 ): PreviewThumbnailLease | null => {
   const originalImageUrl = options?.originalImageUrl;
+  const avifPyramidUrl = options?.avifPyramidUrl;
+  const enqueue = options?.enqueue;
   const width = options?.nativeSize?.width;
   const height = options?.nativeSize?.height;
-  const sourceKey = originalImageUrl ?? `${previewPath}/${imageId}`;
+  const sourceKey =
+    avifPyramidUrl ?? originalImageUrl ?? `${previewPath}/${imageId}`;
   const [thumbnail, setThumbnail] = useState<{
     sourceKey: string;
     lease: PreviewThumbnailLease;
@@ -33,6 +38,7 @@ export const usePrefetchedPreviewThumbnail = (
       previewPath,
       imageId,
       originalImageUrl,
+      avifPyramidUrl,
       nativeSize: width && height ? { width, height } : undefined,
     };
     let lease: PreviewThumbnailLease | null = null;
@@ -43,7 +49,7 @@ export const usePrefetchedPreviewThumbnail = (
     };
     const unsubscribe = subscribePreviewThumbnail(source, receive);
     receive();
-    if (!lease) prefetchPreviewThumbnail(source);
+    if (!lease) prefetchPreviewThumbnail(source, { enqueue });
     return () => {
       unsubscribe();
       lease?.release();
@@ -54,6 +60,8 @@ export const usePrefetchedPreviewThumbnail = (
     sourceKey,
     hasDecodedImage,
     originalImageUrl,
+    avifPyramidUrl,
+    enqueue,
     width,
     height,
   ]);
