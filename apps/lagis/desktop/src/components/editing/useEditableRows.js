@@ -16,8 +16,9 @@ const useEditableRows = ({
   const update = (id, changes) =>
     onChange(rows.map((row) => (row.id === id ? { ...row, ...changes } : row)));
 
+  // newRow gets the selected row, e.g. to prefill from it
   const addRow = () => {
-    const row = newRow();
+    const row = newRow(rows.find((row) => row.id === activeId));
     onChange([...rows, row]);
     setActiveId(row.id);
   };
