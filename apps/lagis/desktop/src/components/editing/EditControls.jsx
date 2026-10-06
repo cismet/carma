@@ -53,6 +53,7 @@ const EditControls = () => {
 
   const schluesselId = landparcel?.flurstueck_schluessel?.id;
   const busy = status !== "idle";
+  const starting = status === "starting";
 
   useEffect(() => {
     dispatch(verifyEditLock()).catch((error) =>
@@ -150,7 +151,9 @@ const EditControls = () => {
       )}
       <Tooltip
         title={
-          !canStart
+          starting
+            ? "Bearbeitungsmodus wird gestartet…"
+            : !canStart
             ? "Kein Flurstück geladen"
             : isEdit
             ? "Bearbeitungsmodus beenden"
@@ -158,17 +161,32 @@ const EditControls = () => {
         }
         placement="bottom"
       >
-        <EditOutlined
-          className={`text-sm ${
-            canStart ? "cursor-pointer" : "cursor-not-allowed"
-          }`}
-          style={{
-            paddingRight: "12px",
-            color: canStart ? undefined : "#bfbfbf",
-          }}
-          onClick={canStart ? toggle : undefined}
-          data-test-id="toggle-edit-mode"
-        />
+        {starting ? (
+          <span
+            className="inline-block cursor-wait animate-spin rounded-full"
+            style={{
+              width: 14,
+              height: 14,
+              marginRight: "12px",
+              border: "2px solid #d9d9d9",
+              borderTopColor: "#1677ff",
+              verticalAlign: "middle",
+            }}
+            data-test-id="toggle-edit-mode-loading"
+          />
+        ) : (
+          <EditOutlined
+            className={`text-sm ${
+              canStart ? "cursor-pointer" : "cursor-not-allowed"
+            }`}
+            style={{
+              paddingRight: "12px",
+              color: canStart ? undefined : "#bfbfbf",
+            }}
+            onClick={canStart ? toggle : undefined}
+            data-test-id="toggle-edit-mode"
+          />
+        )}
       </Tooltip>
       <UnsavedChangesDialog
         open={endDialogOpen}

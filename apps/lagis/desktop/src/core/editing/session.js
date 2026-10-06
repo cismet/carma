@@ -34,14 +34,18 @@ const context = (getState) => ({
   accountName: getState().auth.login,
 });
 
-// Verwaltungsbereiche, Nutzungen and MiPa are editable only on städtische parcels
-const loadSections = async (schluesselId, parcelGeometry, jwt) => {
+const loadKey = async (schluesselId, jwt) => {
   const key = await fetchSchluesselById(schluesselId, jwt);
   if (!key) {
     throw new ActionNotSuccessfulError("Das Flurstück wurde nicht gefunden.");
   }
+  return key;
+};
+
+// Verwaltungsbereiche, Nutzungen and MiPa are editable only on städtische parcels
+const loadSections = async (key, parcelGeometry, jwt) => {
   if (!isStaedtischKey(key)) {
-    return { key, sections: {} };
+    return {};
   }
   const [adminData, usage, mipa] = await Promise.all([
     fetchAdminData(key.id, jwt),
@@ -53,8 +57,19 @@ const loadSections = async (schluesselId, parcelGeometry, jwt) => {
     sperre: key.istGesperrt,
     sperreBemerkung: key.bemerkungSperre,
   };
-  return { key, sections: { admin, usage, mipa } };
+  return { admin, usage, mipa };
 };
+
+// Toggling edit on again reuses the loaded data. It's only valid while the
+// view shows the same parcel load: a reload (e.g. after save) or another
+// parcel replaces lagisLandparcel and so drops it.
+let sectionCache;
+
+const cachedFor = (schluesselId, landparcel) =>
+  sectionCache?.schluesselId === schluesselId &&
+  sectionCache.landparcel === landparcel
+    ? sectionCache
+    : undefined;
 
 // Java locks every MiPa too: one MiPa can lie on several parcels
 const acquireMipaLocks = async (mipa, ctx) => {
@@ -80,20 +95,22 @@ export const startEditing =
     }
     const { jwt, accountName } = context(getState);
     dispatch(setEditStatus("starting"));
+    const { lagisLandparcel: landparcel, geometry } = getState().lagis;
+    const cached = cachedFor(schluesselId, landparcel);
     let lock;
     try {
-      const { key, sections } = await loadSections(
-        schluesselId,
-        getState().lagis.geometry,
-        jwt
-      );
+      const key = cached?.key ?? (await loadKey(schluesselId, jwt));
       const label = formatKey(key);
+      // lock before loading, so nobody can change the data in between
       lock = await acquireLock(schluesselId, {
         jwt,
         accountName,
         contextKeyString: label,
         keyString: label,
       });
+      const sections =
+        cached?.sections ?? (await loadSections(key, geometry, jwt));
+      sectionCache = { schluesselId, landparcel, key, sections };
       const mipaLocks = await acquireMipaLocks(sections.mipa, {
         jwt,
         accountName,
@@ -154,6 +171,7 @@ export const saveEditing = () => async (dispatch, getState) => {
   const { jwt, accountName } = context(getState);
   const { parcel, draft, original, lock, mipaLocks } = editing;
   const journal = createJournal();
+  sectionCache = undefined;
   dispatch(setEditStatus("saving"));
   try {
     if (draft.admin) {
