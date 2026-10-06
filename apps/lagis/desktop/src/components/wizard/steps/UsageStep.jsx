@@ -131,7 +131,7 @@ const UsageStep = ({ value, onChange, onProblem }) => {
         <EditableTable
           rows={rows}
           columns={tableColumns}
-          newRow={() => newUsageRow(rows[rows.length - 1])}
+          newRow={(selected) => newUsageRow(selected ?? rows[rows.length - 1])}
           scroll={{ x: "max-content" }}
           activeId={activeIds[label]}
           onActiveChange={(id) =>
