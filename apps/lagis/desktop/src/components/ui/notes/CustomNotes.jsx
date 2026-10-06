@@ -1,6 +1,12 @@
 import { Input } from "antd";
 const { TextArea } = Input;
-const CustomNotes = ({ styles, currentText, ifDisable = true }) => {
+const CustomNotes = ({
+  styles,
+  currentText,
+  ifDisable = true,
+  readOnly,
+  onChange,
+}) => {
   return (
     <div
       className={styles}
@@ -12,6 +18,7 @@ const CustomNotes = ({ styles, currentText, ifDisable = true }) => {
     >
       <TextArea
         disabled={ifDisable}
+        readOnly={readOnly}
         className="shadow-md"
         style={{
           resize: "none",
@@ -19,6 +26,7 @@ const CustomNotes = ({ styles, currentText, ifDisable = true }) => {
           flexGrow: 1,
         }}
         value={currentText}
+        onChange={onChange && ((event) => onChange(event.target.value))}
       />
     </div>
   );

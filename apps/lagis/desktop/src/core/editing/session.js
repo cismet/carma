@@ -12,7 +12,14 @@ import {
 import { saveAdminData } from "../wizard/operations/admin";
 import { formatKey } from "../wizard/keys";
 import { loadUsageSection, saveUsageEdit } from "./usage";
-import { acquireLock, findLock, releaseLock } from "./locks";
+import { loadMipaSection, saveMipaEdit } from "./mipa";
+import {
+  acquireLock,
+  acquireMipaLock,
+  findLock,
+  releaseLock,
+  releaseLocks,
+} from "./locks";
 import { createJournal, describeRollbackFailures } from "./journal";
 import {
   editEnded,
@@ -27,8 +34,8 @@ const context = (getState) => ({
   accountName: getState().auth.login,
 });
 
-// Verwaltungsbereiche and Nutzungen exist only for städtische parcels
-const loadSections = async (schluesselId, jwt) => {
+// Verwaltungsbereiche, Nutzungen and MiPa are editable only on städtische parcels
+const loadSections = async (schluesselId, parcelGeometry, jwt) => {
   const key = await fetchSchluesselById(schluesselId, jwt);
   if (!key) {
     throw new ActionNotSuccessfulError("Das Flurstück wurde nicht gefunden.");
@@ -36,16 +43,31 @@ const loadSections = async (schluesselId, jwt) => {
   if (!isStaedtischKey(key)) {
     return { key, sections: {} };
   }
-  const [adminData, usage] = await Promise.all([
+  const [adminData, usage, mipa] = await Promise.all([
     fetchAdminData(key.id, jwt),
     loadUsageSection(key, jwt),
+    loadMipaSection(parcelGeometry, jwt),
   ]);
   const admin = {
     ...toParcelData(adminData, undefined, { withGeometry: true }),
     sperre: key.istGesperrt,
     sperreBemerkung: key.bemerkungSperre,
   };
-  return { key, sections: { admin, usage } };
+  return { key, sections: { admin, usage, mipa } };
+};
+
+// Java locks every MiPa too: one MiPa can lie on several parcels
+const acquireMipaLocks = async (mipa, ctx) => {
+  const locks = [];
+  try {
+    for (const row of mipa?.mipas ?? []) {
+      locks.push(await acquireMipaLock(row, ctx));
+    }
+  } catch (error) {
+    await releaseLocks(locks, ctx.jwt);
+    throw error;
+  }
+  return locks;
 };
 
 export const startEditing =
@@ -60,7 +82,11 @@ export const startEditing =
     dispatch(setEditStatus("starting"));
     let lock;
     try {
-      const { key, sections } = await loadSections(schluesselId, jwt);
+      const { key, sections } = await loadSections(
+        schluesselId,
+        getState().lagis.geometry,
+        jwt
+      );
       const label = formatKey(key);
       lock = await acquireLock(schluesselId, {
         jwt,
@@ -68,10 +94,16 @@ export const startEditing =
         contextKeyString: label,
         keyString: label,
       });
+      const mipaLocks = await acquireMipaLocks(sections.mipa, {
+        jwt,
+        accountName,
+        contextKeyString: label,
+      });
       dispatch(
         editStarted({
           parcel: { schluesselId, label, key, urlParams },
           lock,
+          mipaLocks,
           sections,
         })
       );
@@ -120,7 +152,7 @@ export const saveEditing = () => async (dispatch, getState) => {
   }
 
   const { jwt, accountName } = context(getState);
-  const { parcel, draft, original, lock } = editing;
+  const { parcel, draft, original, lock, mipaLocks } = editing;
   const journal = createJournal();
   dispatch(setEditStatus("saving"));
   try {
@@ -137,6 +169,9 @@ export const saveEditing = () => async (dispatch, getState) => {
         accountName,
         journal,
       });
+    }
+    if (draft.mipa) {
+      await saveMipaEdit(original.mipa, draft.mipa, { jwt, journal });
     }
     journal.commit();
   } catch (error) {
@@ -156,21 +191,24 @@ export const saveEditing = () => async (dispatch, getState) => {
     dispatch(setEditStatus("idle"));
   }
   await releaseLock(lock, jwt);
+  await releaseLocks(mipaLocks, jwt);
   dispatch(editEnded());
 };
 
 export const discardEditing = () => async (dispatch, getState) => {
-  const { lock, lockHolder } = getState().editing;
+  const { lock, mipaLocks, lockHolder } = getState().editing;
   // a lock taken over by someone else is no longer ours to release
   if (!lockHolder) {
-    await releaseLock(lock, context(getState).jwt);
+    const { jwt } = context(getState);
+    await releaseLock(lock, jwt);
+    await releaseLocks(mipaLocks, jwt);
   }
   dispatch(editEnded());
 };
 
 // after a reload the persisted lock may be gone or taken over
 export const verifyEditLock = () => async (dispatch, getState) => {
-  const { active, parcel, lock } = getState().editing;
+  const { active, parcel, lock, original } = getState().editing;
   if (!active) {
     return;
   }
@@ -183,16 +221,24 @@ export const verifyEditLock = () => async (dispatch, getState) => {
     dispatch(lockLost(existing.userString));
     return;
   }
-  dispatch(
-    lockRenewed(
-      await acquireLock(parcel.schluesselId, {
-        jwt,
-        accountName,
-        contextKeyString: parcel.label,
-        keyString: parcel.label,
-      })
-    )
-  );
+  const renewed = await acquireLock(parcel.schluesselId, {
+    jwt,
+    accountName,
+    contextKeyString: parcel.label,
+    keyString: parcel.label,
+  });
+  let mipaLocks;
+  try {
+    mipaLocks = await acquireMipaLocks(original.mipa, {
+      jwt,
+      accountName,
+      contextKeyString: parcel.label,
+    });
+  } catch (error) {
+    await releaseLock(renewed, jwt);
+    throw error;
+  }
+  dispatch(lockRenewed({ lock: renewed, mipaLocks }));
 };
 
 export const errorMessage = (error) =>

@@ -1,10 +1,11 @@
 import { createSelector, createSlice } from "@reduxjs/toolkit";
 
-// parcel: { schluesselId, label, key, urlParams }; draft/original: { admin, usage }
+// parcel: { schluesselId, label, key, urlParams }; draft/original: { admin, usage, mipa }
 const initialState = {
   active: false,
   parcel: undefined,
   lock: undefined,
+  mipaLocks: undefined,
   original: undefined,
   draft: undefined,
   status: "idle",
@@ -19,10 +20,11 @@ const slice = createSlice({
       state.status = action.payload;
     },
     editStarted(state, action) {
-      const { parcel, lock, sections } = action.payload;
+      const { parcel, lock, mipaLocks, sections } = action.payload;
       state.active = true;
       state.parcel = parcel;
       state.lock = lock;
+      state.mipaLocks = mipaLocks;
       state.original = sections;
       state.draft = sections;
       state.lockHolder = undefined;
@@ -32,7 +34,8 @@ const slice = createSlice({
       state.draft[section] = { ...state.draft[section], ...changes };
     },
     lockRenewed(state, action) {
-      state.lock = action.payload;
+      state.lock = action.payload.lock;
+      state.mipaLocks = action.payload.mipaLocks;
       state.lockHolder = undefined;
     },
     lockLost(state, action) {
