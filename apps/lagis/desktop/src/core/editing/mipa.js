@@ -1,4 +1,3 @@
-import dayjs from "dayjs";
 import { nanoid } from "@reduxjs/toolkit";
 import {
   ActionNotSuccessfulError,
@@ -7,14 +6,12 @@ import {
   insertMipa,
   saveMipa,
   saveMipaNutzung,
-  toTimestamp,
 } from "../wizard/api";
+import { toCidsDate, toDay } from "./dates";
 import { planarArea } from "../wizard/geometry";
 import { getBuffer25832 } from "../tools/mappingTools";
 
 const toInt = (number) => (Number.isFinite(number) ? Math.round(number) : null);
-const toDay = (date) => (date ? dayjs(date).format("YYYY-MM-DD") : null);
-const toCidsDate = (day) => (day ? toTimestamp(dayjs(day).toDate()) : null);
 
 const toRow = (mipa) => ({
   id: String(mipa.id),

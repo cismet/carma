@@ -26,6 +26,7 @@ const useDraftTable = ({ section, field, newRow, minusOffset }) => {
 
   return {
     editable,
+    draft,
     actions: editable ? (
       <RowActionButtons
         onAdd={addRow}
