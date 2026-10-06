@@ -8,6 +8,14 @@ import { usageColumns } from "../editing/columns";
 import { useState, useEffect, useMemo } from "react";
 import { compare, formatPrice } from "../../core/tools/helper";
 import { gesamtpreis, newUsageRow } from "../../core/wizard/usageData";
+import {
+  buchungsNummer,
+  canToggleBuchwert,
+  isBuchwert,
+  stilleReserve,
+} from "../../core/editing/usage";
+import { useSelector } from "react-redux";
+import { getOriginalSection } from "../../store/slices/editing";
 import { FlagOutlined } from "@ant-design/icons";
 import { nutzung } from "@carma-collab/wuppertal/lagis-desktop";
 import { Tooltip } from "antd";
@@ -105,10 +113,11 @@ const columns = viewColumns.map((c) => ({
 }));
 const column = (dataIndex) => columns.find((c) => c.dataIndex === dataIndex);
 
-// All view columns stay visible; only Anlageklasse, Nutzungsart, Fläche and
-// m²-Preis are inputs. Read-only values come from the saved Nutzung.
-// sorts on what the cell shows, like the read mode table
-const editColumns = (stammdaten, savedById) => (update) => {
+// All view columns stay visible; Anlageklasse, Nutzungsart, Fläche and
+// m²-Preis are inputs and the Buchwert flag toggles on click. Buchungs-Nr,
+// Gesamtpreis and Stille Reserve follow the draft live, like in Java.
+// Sorting uses the shown values, like the read mode table.
+const editColumns = (stammdaten, originalById) => (update) => {
   const [anlageklasse, nutzungsart, flaeche, preis] =
     usageColumns(stammdaten)(update);
   const anlageklasseName = new Map(
@@ -117,26 +126,21 @@ const editColumns = (stammdaten, savedById) => (update) => {
   const nutzungsartName = new Map(
     stammdaten.nutzungsarten.map((a) => [a.id, a.bezeichnung])
   );
-  const saved = (row) => savedById.get(row.id);
-  // a changed row gets a new Buchung, so the saved price no longer applies
-  const shownGesamtpreis = (row) =>
-    saved(row) &&
-    saved(row).fläche === row.flaeche &&
-    saved(row).quadratmeterpreis === row.quadratmeterpreis
-      ? saved(row).gesamtpreis
-      : formatPrice(gesamtpreis(row));
+  const original = (row) => originalById.get(row.id);
+  const stille = (row) => stilleReserve(original(row), row);
   const shown = {
-    nutzung: (row) => saved(row)?.nutzung,
-    buchungs: (row) => saved(row)?.buchungs,
+    nutzung: (row) => row.nutzungId,
+    buchungs: (row) => buchungsNummer(original(row), row),
     anlageklasse: (row) => anlageklasseName.get(row.anlageklasseId),
     bezeichnung: (row) => nutzungsartName.get(row.nutzungsartId),
     fläche: (row) => row.flaeche,
     preis: (row) => row.quadratmeterpreis,
-    gesamtpreis: shownGesamtpreis,
-    stille: (row) => saved(row)?.stille,
-    // a new Nutzung starts with a Buchwert
-    buchwert: (row) => (saved(row) ? saved(row).buchwert : true),
-    bemerkung: (row) => saved(row)?.bemerkung,
+    // Java shows the value minus the Stille Reserve, i.e. the Buchwert
+    gesamtpreis: (row) =>
+      gesamtpreis(row) === null ? null : gesamtpreis(row) - stille(row),
+    stille,
+    buchwert: (row) => isBuchwert(original(row), row),
+    bemerkung: (row) => row.bemerkung,
   };
   const like = (dataIndex) => ({
     title: column(dataIndex).title,
@@ -144,11 +148,30 @@ const editColumns = (stammdaten, savedById) => (update) => {
     ellipsis: column(dataIndex).ellipsis,
     sorter: (a, b) => compare(shown[dataIndex](a), shown[dataIndex](b)),
   });
-  const readOnly = (dataIndex) => ({
+  const readOnly = (dataIndex, format = (value) => value) => ({
     ...like(dataIndex),
     dataIndex,
-    render: (_, row) => shown[dataIndex](row) ?? "",
+    render: (_, row) => {
+      const value = shown[dataIndex](row);
+      return value === null || value === undefined ? "" : format(value);
+    },
   });
+  const buchwertCell = (_, row) => {
+    const flag = column("buchwert").render(shown.buchwert(row), row);
+    if (!canToggleBuchwert(original(row), row)) {
+      return flag;
+    }
+    return (
+      <Tooltip title="Buchwert umschalten">
+        <div
+          className="cursor-pointer"
+          onClick={() => update(row.id, { istBuchwert: !shown.buchwert(row) })}
+        >
+          {flag}
+        </div>
+      </Tooltip>
+    );
+  };
   return [
     readOnly("nutzung"),
     readOnly("buchungs"),
@@ -156,12 +179,9 @@ const editColumns = (stammdaten, savedById) => (update) => {
     { ...nutzungsart, ...like("bezeichnung"), ellipsis: false },
     { ...flaeche, ...like("fläche"), ellipsis: false },
     { ...preis, ...like("preis"), ellipsis: false },
-    readOnly("gesamtpreis"),
-    readOnly("stille"),
-    {
-      ...readOnly("buchwert"),
-      render: (_, row) => column("buchwert").render(shown.buchwert(row), row),
-    },
+    readOnly("gesamtpreis", formatPrice),
+    readOnly("stille", formatPrice),
+    { ...readOnly("buchwert"), render: buchwertCell },
     readOnly("bemerkung"),
   ];
 };
@@ -246,16 +266,18 @@ const UsageBlock = ({
       newUsageRow(selected ?? draft.nutzungen[draft.nutzungen.length - 1]),
   });
   const stammdaten = useStammdatenList("nutzung", editable);
-  // draft row ids are the Nutzung ids as strings
+  const originalUsage = useSelector(getOriginalSection("usage"));
   const tableColumns = useMemo(
     () =>
       stammdaten
         ? editColumns(
             stammdaten,
-            new Map(usage.map((row) => [String(row.id), row]))
+            new Map(
+              (originalUsage?.nutzungen ?? []).map((row) => [row.id, row])
+            )
           )
         : undefined,
-    [stammdaten, usage]
+    [stammdaten, originalUsage]
   );
   useEffect(() => {
     // same order as the edit rows (loadUsageSection)
