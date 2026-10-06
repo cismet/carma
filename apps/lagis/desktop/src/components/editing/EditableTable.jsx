@@ -27,6 +27,8 @@ const EditableTable = ({
   onActiveChange,
   scroll,
   fixHeight,
+  className,
+  tableLayout,
   showActions = true,
 }) => {
   const editing = useEditableRows({
@@ -58,6 +60,8 @@ const EditableTable = ({
         setActiveRow={(row) => editing.setActiveId(row?.id)}
         scroll={scroll}
         fixHeight={fixHeight}
+        tableLayout={tableLayout}
+        {...(className ? { addClass: className } : {})}
       />
     </div>
   );
