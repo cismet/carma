@@ -1,6 +1,7 @@
 import { createSlice } from "@reduxjs/toolkit";
 import {
   fetchDienststellen,
+  fetchMipaStammdaten,
   fetchNutzungStammdaten,
   fetchStrassennamen,
   fetchZusatzRolleArten,
@@ -12,6 +13,8 @@ const LOADERS = {
   strassennamen: () => fetchStrassennamen(),
   // { anlageklassen, nutzungsarten }, one query for both
   nutzung: (jwt) => fetchNutzungStammdaten(jwt),
+  // { kategorien, merkmale }
+  mipa: (jwt) => fetchMipaStammdaten(jwt),
 };
 
 const initialState = {
@@ -19,6 +22,7 @@ const initialState = {
   rolleArten: undefined,
   strassennamen: undefined,
   nutzung: undefined,
+  mipa: undefined,
 };
 
 const slice = createSlice({

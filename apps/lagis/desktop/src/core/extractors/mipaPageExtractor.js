@@ -33,7 +33,7 @@ export function mipaPageExtractor(dataIn) {
           lage: m.lage,
           aktenzeichen: m.aktenzeichen,
           flaeche: m.flaeche,
-          nutzung: m.mipa_nutzung.mipa_kategorie.bezeichnung,
+          nutzung: m.mipa_nutzung?.mipa_kategorie?.bezeichnung,
           vertragsbegin: formattedVertragsbeginn,
           vertragsende: formattedVertragsende,
           merkmale: m.ar_mipa_merkmaleArray ? m.ar_mipa_merkmaleArray : [],
