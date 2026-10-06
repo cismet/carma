@@ -7,14 +7,18 @@ dayjs.extend(weekday);
 dayjs.extend(localeData);
 dayjs.extend(customParseFormat);
 const dateFormat = "DD.MM.YYYY";
+const rebeGreenColors = ["#009c1a", "#22b600", "#26cc00", "#7be382"];
+const rebeOrangeColors = ["#f0750f", "#f48020", "#f09537", "#f0a150"];
+export const rebeColor = (istRecht, idx) =>
+  istRecht
+    ? rebeGreenColors[idx % rebeGreenColors.length]
+    : rebeOrangeColors[idx % rebeOrangeColors.length];
 export function rebePageExtractor(dataIn) {
   if (dataIn === undefined) {
     return [];
   } else {
     const rebe = dataIn;
     if (rebe.length > 0) {
-      const rebeGreenColors = ["#009c1a", "#22b600", "#26cc00", "#7be382"];
-      const rebeOrangeColors = ["#f0750f", "#f48020", "#f09537", "#f0a150"];
       const data = rebe.map((r, idx) => {
         let formattedEintragung;
         if (r.datum_eintragung) {
@@ -40,9 +44,7 @@ export function rebePageExtractor(dataIn) {
           loschung: formattedLoschung,
           bemerkung: r.bemerkung ? r.bemerkung : "",
           extendedGeom: r.extended_geom,
-          color: r.ist_recht
-            ? rebeGreenColors[idx % rebeGreenColors.length]
-            : rebeOrangeColors[idx % rebeOrangeColors.length],
+          color: rebeColor(r.ist_recht, idx),
         };
       });
       return data;
