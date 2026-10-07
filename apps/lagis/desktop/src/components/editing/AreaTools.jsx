@@ -3,6 +3,7 @@ import { Tooltip } from "antd";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faArrowPointer,
+  faCirclePlus,
   faClone,
   faDrawPolygon,
   faLink,
@@ -60,6 +61,8 @@ const AreaTools = ({
   onToolChange,
   snapping,
   onSnappingChange,
+  insertPoints,
+  onInsertPointsChange,
   canTakeParcel,
   onTakeParcel,
   canUnassign,
@@ -85,8 +88,17 @@ const AreaTools = ({
             "select",
             AREA_TOOL.SELECT,
             faArrowPointer,
-            "Auswählen und Eckpunkte bearbeiten (ziehen: verschieben, Mittelpunkt ziehen: einfügen, Rechtsklick: löschen)"
+            "Auswählen und Eckpunkte bearbeiten (ziehen: verschieben, Rechtsklick: löschen)"
           ),
+          {
+            key: "insert-points",
+            icon: faCirclePlus,
+            tooltip: insertPoints
+              ? "Punkt einfügen aus"
+              : "Punkt einfügen: Kantenmitten anzeigen, zum Einfügen ziehen",
+            active: insertPoints,
+            onClick: () => onInsertPointsChange(!insertPoints),
+          },
           toolItem(
             "polygon",
             AREA_TOOL.POLYGON,

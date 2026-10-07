@@ -119,6 +119,8 @@ const useAreaDrawing = ({
   const pieces = piecesIn ?? [];
   const [tool, setTool] = useState(AREA_TOOL.SELECT);
   const [snapping, setSnapping] = useState(true);
+  // edge-midpoint handles only on demand, long ALKIS borders get too busy
+  const [insertPoints, setInsertPoints] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
   const [assignId, setAssignId] = useState(null);
   const hostRef = useRef(null);
@@ -426,11 +428,19 @@ const useAreaDrawing = ({
       onSelectionChange: handleSelectionChange,
       drawMode: DRAW_MODE[tool],
       snapping,
+      midpoints: insertPoints,
       tools: {
         tool,
         onToolChange: setTool,
         snapping,
         onSnappingChange: setSnapping,
+        insertPoints,
+        onInsertPointsChange: (next) => {
+          setInsertPoints(next);
+          if (next) {
+            setTool(AREA_TOOL.SELECT);
+          }
+        },
         canTakeParcel: Boolean(parcelGeometry),
         onTakeParcel: takeParcel,
         canUnassign: selectedIsRow,
