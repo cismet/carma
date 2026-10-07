@@ -20,6 +20,9 @@ import { mapOfficesExtractor } from "../core/extractors/officesPageExtractor";
 import { mapExtractor } from "../core/extractors/commonExtractors";
 import { setHasFittedBounds } from "../store/slices/mapping";
 import { getBoundsForFeatureArray } from "../core/tools/mappingTools";
+import AreaMap from "../components/editing/AreaMap";
+import AreaSummary from "../components/editing/AreaSummary";
+import useAgencyAreas from "../components/offices/useAgencyAreas";
 
 const Offices = ({ width = "100%", height = "100%", inStory = false }) => {
   let storyStyle = {};
@@ -38,6 +41,7 @@ const Offices = ({ width = "100%", height = "100%", inStory = false }) => {
   const geometry = useSelector(getGeometry);
   const [extraAgencyGeom, setExtraAgencyGeom] = useState(null);
   const [activeRowId, setActiveRow] = useState(null);
+  const agencyAreas = useAgencyAreas();
 
   const mapClickHandler = (feature) => {
     const { agencyTableId } = feature;
@@ -69,10 +73,25 @@ const Offices = ({ width = "100%", height = "100%", inStory = false }) => {
             setAgencyGeom={setExtraAgencyGeom}
             setActiveTableRow={setActiveRow}
             activeRowId={activeRowId}
+            draftTable={agencyAreas.draftTable}
+            dienststellen={agencyAreas.dienststellen}
           />
         </div>
         <div className="w-3/5">
-          {extraAgencyGeom ? (
+          {agencyAreas.editable ? (
+            <div className="flex h-full flex-col gap-2">
+              {agencyAreas.rows.length >= 2 && (
+                <AreaSummary
+                  parcelArea={agencyAreas.parcelArea}
+                  rows={agencyAreas.rows}
+                />
+              )}
+              <AreaMap
+                parcelGeometry={agencyAreas.parcelGeometry}
+                {...agencyAreas.mapProps}
+              />
+            </div>
+          ) : extraAgencyGeom ? (
             <Map
               width={width}
               height={height}

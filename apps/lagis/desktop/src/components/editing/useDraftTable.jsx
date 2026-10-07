@@ -5,17 +5,28 @@ import useEditableRows from "./useEditableRows";
 
 // Wires one row list of a draft section to an EditableTable whose
 // + / − buttons sit in the block header (InfoBlock controlBar).
-const useDraftTable = ({ section, field, newRow, minusOffset }) => {
+// selection ([id, setId]) and onRowsChange let a host share the selection
+// and intercept row changes, e.g. to sync drawn areas.
+export const activeRowId = (rows, selectedId) =>
+  rows.some((row) => row.id === selectedId) ? selectedId : rows[0]?.id;
+
+const useDraftTable = ({
+  section,
+  field,
+  newRow,
+  minusOffset,
+  selection,
+  onRowsChange,
+}) => {
   const { editable, draft, patch } = useEditSection(section);
-  const [selectedId, setSelectedId] = useState();
+  const ownSelection = useState();
+  const [selectedId, setSelectedId] = selection ?? ownSelection;
   const rows = draft?.[field] ?? [];
-  const activeId = rows.some((row) => row.id === selectedId)
-    ? selectedId
-    : rows[0]?.id;
+  const activeId = activeRowId(rows, selectedId);
 
   const tableProps = {
     rows,
-    onChange: (next) => patch({ [field]: next }),
+    onChange: onRowsChange ?? ((next) => patch({ [field]: next })),
     newRow: (selected) => newRow(draft, selected),
     activeId,
     onActiveChange: setSelectedId,

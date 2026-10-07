@@ -8,10 +8,7 @@ import { officesPageExtractor } from "../../core/extractors/officesPageExtractor
 import { HistoryOutlined } from "@ant-design/icons";
 import AgenciesHistoryModal from "./AgenciesHistoryModal";
 import EditableTable from "../editing/EditableTable";
-import useDraftTable from "../editing/useDraftTable";
-import useStammdatenList from "../editing/useStammdatenList";
 import { dienststelleColumn, numberColumn } from "../editing/columns";
-import { newDienststelleRow } from "../../core/wizard/adminData";
 import { verwaltung } from "@carma-collab/wuppertal/lagis-desktop";
 const columns = [
   {
@@ -44,17 +41,15 @@ const Agencies = ({
   setAgencyGeom,
   setActiveTableRow,
   activeRowId,
+  draftTable = {},
+  dienststellen,
 }) => {
   const [agency, setAgency] = useState([]);
   const [activeRow, setActiveRow] = useState();
   const [history, setHistory] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const { editable, actions, tableProps } = useDraftTable({
-    section: "admin",
-    field: "dienststellen",
-    newRow: newDienststelleRow,
-  });
-  const dienststellen = useStammdatenList("dienststellen", editable);
+  // owned by the Offices page, which shares it with the drawing map
+  const { editable, actions, tableProps } = draftTable;
   useEffect(() => {
     const data = extractor(dataIn);
     setAgency(data?.currentOffices);
@@ -148,4 +143,6 @@ Agencies.propTypes = {
   setAgencyGeom: PropTypes.func,
   setActiveTableRow: PropTypes.func,
   activeRowId: PropTypes.string,
+  draftTable: PropTypes.object,
+  dienststellen: PropTypes.array,
 };
