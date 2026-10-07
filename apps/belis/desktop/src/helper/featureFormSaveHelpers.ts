@@ -366,6 +366,11 @@ export const saveFeatureDraft = async (
       draft.values ?? {},
       strassenschluesselByPk
     );
+    // Owned by the Standort; a stale lamp draft must not overwrite them.
+    if (featureType === "leuchte" && formValues) {
+      delete formValues.lfd_nummer;
+      delete formValues.fk_strassenschluessel;
+    }
 
     // 4a. Geometry edit: the user switched this existing feature's shape to a
     // measurement. Update the same `geom` row in place (same geom id) so the
