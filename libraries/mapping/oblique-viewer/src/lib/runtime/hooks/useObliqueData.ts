@@ -9,6 +9,7 @@ import {
 } from "../utils/load-oblique-series";
 export type { ObliqueData } from "../utils/load-oblique-series";
 import {
+  OBLIQUE_CATALOG_CACHE_VERSION,
   OBLIQUE_CATALOG_FRESHNESS_MS,
   syncObliqueCatalogCacheVersion,
 } from "../utils/oblique-series-cache-version";
@@ -18,6 +19,8 @@ export type ObliqueSeriesDataState = {
   isLoading: boolean;
   error: string | null;
   imageCount: number;
+  /** All four oblique parts (or the canonical catalog) finished successfully. */
+  obliqueComplete: boolean;
 };
 
 export type ObliqueDataState = {
@@ -25,6 +28,8 @@ export type ObliqueDataState = {
   isLoading: boolean;
   /** At least one loaded series is usable; a second failed series does not block it. */
   isAllDataReady: boolean;
+  /** All enabled series have their complete oblique catalogs; lazy nadir is independent. */
+  isCatalogComplete: boolean;
   error: string | null;
   perSeries: ObliqueSeriesDataState[];
   /** Finish oblique segments; nadir and failed-segment retry are explicit. */
@@ -43,6 +48,7 @@ const IDLE: ObliqueDataState = {
   data: null,
   isLoading: false,
   isAllDataReady: false,
+  isCatalogComplete: false,
   error: null,
   perSeries: [],
   awaitDirection: async () => null,
@@ -146,7 +152,9 @@ const createSeriesLoad = (dataset: ObliqueDataset): SeriesLoad => {
     users: 0,
     isPending: () => !settled,
     isFresh: () =>
-      !settled || Date.now() - completedAt < OBLIQUE_CATALOG_FRESHNESS_MS,
+      !settled ||
+      !!dataset.catalogVersion?.trim() ||
+      Date.now() - completedAt < OBLIQUE_CATALOG_FRESHNESS_MS,
     cancel: () => cancel(),
   };
 };
@@ -154,7 +162,10 @@ const createSeriesLoad = (dataset: ObliqueDataset): SeriesLoad => {
 /** Share completed catalogs, but stop a pending request when its last viewer releases it. */
 const acquireSeries = (dataset: ObliqueDataset) => {
   // Configuration/calibration changes cannot reuse a differently interpreted catalog.
-  const key = JSON.stringify(dataset);
+  const key = JSON.stringify({
+    parserVersion: OBLIQUE_CATALOG_CACHE_VERSION,
+    dataset,
+  });
   let entry = cache.get(key);
   if (!entry?.isFresh()) {
     entry = createSeriesLoad(dataset);
@@ -251,12 +262,25 @@ export const useObliqueData = (
   options?: CatalogPriority
 ): ObliqueDataState => {
   const [state, setState] = useState<ObliqueDataState>(IDLE);
+  const publicationSources = useRef(
+    new WeakMap<ObliqueData, Map<string, string>>()
+  );
   const datasetsRef = useRef(enabledDatasets);
   datasetsRef.current = enabledDatasets;
   const sourceKey = useMemo(
     () =>
       JSON.stringify(
         enabledDatasets.map(({ animations, ...source }) => source)
+      ),
+    [enabledDatasets]
+  );
+  const catalogSources = useMemo(
+    () =>
+      new Map(
+        enabledDatasets.map(({ animations, ...source }) => [
+          source.id,
+          JSON.stringify(source),
+        ])
       ),
     [enabledDatasets]
   );
@@ -349,6 +373,7 @@ export const useObliqueData = (
           isLoading: true,
           error: null,
           imageCount: 0,
+          obliqueComplete: false,
         } as ObliqueSeriesDataState,
       ])
     );
@@ -366,6 +391,7 @@ export const useObliqueData = (
             : mergeSeries(loaded.values());
       }
       const data = merged;
+      if (data) publicationSources.current.set(data, catalogSources);
       if (data && !publicationRevisions.current.has(data))
         publicationRevisions.current.set(data, ++publicationRevision.current);
       setState({
@@ -375,6 +401,11 @@ export const useObliqueData = (
         awaitAll,
         isLoading: perSeries.some((status) => status.isLoading),
         isAllDataReady: (data?.imageRecords.size ?? 0) > 0,
+        isCatalogComplete:
+          datasets.length > 0 &&
+          perSeries.length === datasets.length &&
+          perSeries.every((status) => status.obliqueComplete) &&
+          (data?.imageRecords.size ?? 0) > 0,
         error:
           perSeries
             .filter((status) => status.error)
@@ -447,6 +478,7 @@ export const useObliqueData = (
                 ? null
                 : "Keine Bilder in den Metadaten.",
             imageCount: data.imageRecords.size,
+            obliqueComplete: data.imageRecords.size > 0,
           });
           publish();
         })
@@ -459,6 +491,7 @@ export const useObliqueData = (
                 ? error.message
                 : "Metadaten konnten nicht geladen werden.",
             imageCount: 0,
+            obliqueComplete: false,
           });
           publish();
         });
@@ -540,6 +573,18 @@ export const useObliqueData = (
     data: enabled ? filtered : null,
     isLoading: enabled && visibleStatuses.some((status) => status.isLoading),
     isAllDataReady: enabled && (filtered?.imageRecords.size ?? 0) > 0,
+    isCatalogComplete:
+      enabled &&
+      enabledDatasets.length > 0 &&
+      (filtered?.imageRecords.size ?? 0) > 0 &&
+      enabledDatasets.every(
+        (source) =>
+          visibleStatuses.find((status) => status.id === source.id)
+            ?.obliqueComplete === true &&
+          state.data &&
+          publicationSources.current.get(state.data)?.get(source.id) ===
+            catalogSources.get(source.id)
+      ),
     perSeries: visibleStatuses,
     error:
       visibleStatuses

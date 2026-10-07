@@ -523,6 +523,7 @@ export type MapStyleProjectionUniforms = Readonly<{
 export const MAP_STYLE_PROJECTION_BLEND = {
   REPLACE: "replace",
   OVERLAY: "overlay",
+  MARKINGS_ONLY: "markings-only",
 } as const;
 
 export type MapStyleProjectionBlend =

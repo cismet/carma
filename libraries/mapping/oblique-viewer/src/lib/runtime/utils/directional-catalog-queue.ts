@@ -13,7 +13,9 @@ type Status = {
   isLoading: boolean;
   error: string | null;
   imageCount: number;
+  obliqueComplete: boolean;
 };
+const OBLIQUE_CATALOG_SECTORS = ["N", "E", "S", "W"] as const;
 type Request = { promise: Promise<ObliqueData>; release: () => void };
 type Job = {
   key: string;
@@ -86,6 +88,19 @@ export const createDirectionalCatalogQueue = ({
       parts,
       datasets.map((dataset) => ({
         id: dataset.id,
+        obliqueComplete:
+          (!dataset.directionalCatalogs?.length ||
+            OBLIQUE_CATALOG_SECTORS.every((sector) =>
+              dataset.directionalCatalogs!.some(
+                (group) => group.sector === sector
+              )
+            )) &&
+          jobs
+            .filter(
+              (job) =>
+                job.dataset.id === dataset.id && job.group?.sector !== "nadir"
+            )
+            .every((job) => job.state === "done" && parts.has(job.key)),
         isLoading: jobs.some(
           (job) =>
             job.dataset.id === dataset.id &&

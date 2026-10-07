@@ -10,11 +10,18 @@ export type ObliqueDownloadWatermark = Readonly<{
   marginPx?: number;
 }>;
 
-export type TiffDownloadRequest = Readonly<{
-  url: string;
-  nativeSize: { width: number; height: number };
-  watermark: ObliqueDownloadWatermark;
-}>;
+export type TiffDownloadRequest =
+  | Readonly<{
+      format?: "tiff";
+      url: string;
+      nativeSize: { width: number; height: number };
+      watermark: ObliqueDownloadWatermark;
+    }>
+  | Readonly<{
+      format: "avif";
+      url: string;
+      nativeSize: { width: number; height: number };
+    }>;
 
 export type TiffDownloadResponse =
   | { blob: Blob; error?: never }

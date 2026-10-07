@@ -90,11 +90,13 @@ const coverageWindow = (
 };
 
 const originalOf = (image: ObjectCoverageImage) =>
-  image.record.assets?.original?.href ??
-  image.dataset.originalImageUrlTemplate?.replace(
-    /\{imageId\}/g,
-    encodeURIComponent(image.record.sourceId)
-  );
+  image.dataset.avifOnly
+    ? undefined
+    : image.record.assets?.original?.href ??
+      image.dataset.originalImageUrlTemplate?.replace(
+        /\{imageId\}/g,
+        encodeURIComponent(image.record.sourceId)
+      );
 
 const pyramidOf = (image: ObjectCoverageImage) =>
   image.record.assets?.pyramid?.href ??
@@ -128,6 +130,7 @@ const CoverageThumbnail = ({ image }: { image: ObjectCoverageImage }) => {
     image.record.sourceId,
     !visible,
     {
+      avifOnly: image.dataset.avifOnly,
       originalImageUrl: originalOf(image),
       avifPyramidUrl: pyramidOf(image)
         ? new URL(pyramidOf(image)!, globalThis.window.location.href).href
@@ -218,6 +221,7 @@ const CoveragePreload = ({
           width: calibration.widthPx,
           height: calibration.heightPx,
         },
+        avifOnly: image.dataset.avifOnly,
         tiff: !!original,
         avifPyramidUrl: pyramidOf(image)
           ? new URL(pyramidOf(image)!, globalThis.window.location.href).href
@@ -308,27 +312,33 @@ const CoveragePhoto = ({
       )
     )
   ) as PreviewQualityLevel;
-  const { previewUrl } = getImageUrls(
+  const legacyPreviewUrl = getImageUrls(
     record.sourceId,
     dataset.previewPath,
     dataset.minimumPreviewQualityLevel ?? "0"
-  );
+  ).previewUrl;
   const original = originalOf(image);
   const pyramid = pyramidOf(image);
+  const previewUrl = dataset.avifOnly ? pyramid ?? null : legacyPreviewUrl;
   const progressiveSource = useProgressivePreviewSource({
     finalPreviewUrl:
-      active && (!workerSupported || failed) && !original ? previewUrl : null,
-    initialPreviewUrl: getPreviewImageUrl(
-      dataset.previewPath,
-      level,
-      record.sourceId
-    ),
+      active && !dataset.avifOnly && (!workerSupported || failed) && !original
+        ? previewUrl
+        : null,
+    initialPreviewUrl: dataset.avifOnly
+      ? undefined
+      : getPreviewImageUrl(dataset.previewPath, level, record.sourceId),
     previewPath:
-      active && (!workerSupported || failed) ? dataset.previewPath : undefined,
+      active && !dataset.avifOnly && (!workerSupported || failed)
+        ? dataset.previewPath
+        : undefined,
     imageId:
-      active && (!workerSupported || failed) ? record.sourceId : undefined,
+      active && !dataset.avifOnly && (!workerSupported || failed)
+        ? record.sourceId
+        : undefined,
   });
   const currentSource =
+    !dataset.avifOnly &&
     active &&
     (!workerSupported || failed) &&
     progressiveSource &&
@@ -426,6 +436,7 @@ const CoveragePhoto = ({
         .href,
       window,
       nativeSize: { width: calibration.widthPx, height: calibration.heightPx },
+      avifOnly: dataset.avifOnly,
       tiff: !!original,
       avifPyramidUrl: pyramid
         ? new URL(pyramid, globalThis.window.location.href).href

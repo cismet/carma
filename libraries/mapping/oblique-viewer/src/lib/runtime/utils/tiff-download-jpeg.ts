@@ -11,6 +11,10 @@ export const createTiffDownloadJpeg = async (
   request: TiffDownloadRequest,
   signal: AbortSignal
 ): Promise<Blob> => {
+  if (request.format === "avif") {
+    const { createAvifDownloadJpeg } = await import("./avif-download-jpeg");
+    return createAvifDownloadJpeg(request, signal);
+  }
   const { width, height } = request.nativeSize;
   if (
     !Number.isSafeInteger(width) ||

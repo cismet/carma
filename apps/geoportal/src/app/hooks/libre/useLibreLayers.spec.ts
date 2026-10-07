@@ -13,12 +13,14 @@ type TerrainRuntime = {
   id: string;
   ready: Promise<boolean>;
   isBaseViewReady: ReturnType<typeof vi.fn>;
+  setGroundVisible: ReturnType<typeof vi.fn>;
   dispose: ReturnType<typeof vi.fn>;
 };
 type SceneLease = {
   options?: { mapStylePresentation?: boolean };
   release: ReturnType<typeof vi.fn>;
   setPointLabelOverlayVisible: ReturnType<typeof vi.fn>;
+  setMeshLabelStyle: ReturnType<typeof vi.fn>;
   layer: {
     addRuntime: ReturnType<typeof vi.fn>;
     removeRuntime: ReturnType<typeof vi.fn>;
@@ -113,6 +115,7 @@ vi.mock("../../config/oblique.config", () => ({
   },
   OBLIQUE_BASE_TILESET_URLS: [
     "https://example.test/mesh2024/tileset.json",
+    "https://example.test/meshx2024/tileset.json",
     "https://example.test/lod2/tileset.json",
   ],
 }));
@@ -126,6 +129,7 @@ vi.mock("@carma-mapping/engines/maplibre", () => ({
       options,
       release: vi.fn(),
       setPointLabelOverlayVisible: vi.fn(),
+      setMeshLabelStyle: vi.fn(),
       layer: {
         addRuntime: vi.fn((runtime: TerrainRuntime) => {
           attached = runtime;
@@ -168,6 +172,7 @@ vi.mock("@carma-mapping/engines/maplibre/terrain", () => ({
         state.pendingTerrain.push(resolve)
       ),
       isBaseViewReady: vi.fn(() => state.terrainUsable),
+      setGroundVisible: vi.fn(),
       dispose: vi.fn(),
     };
     state.runtimes.push(runtime);
@@ -473,7 +478,7 @@ describe("useLibreLayers with conditional layers", () => {
     expect(state.layers).toEqual([]);
     expect(state.setCurrentStyle).toHaveBeenCalledOnce();
     expect(state.setCurrentStyle).toHaveBeenCalledWith(MapStyleKeys.AERIAL);
-    expect(state.leases).toHaveLength(1);
+    expect(state.leases).toHaveLength(2);
     expect(state.leases[0].options).toEqual({ mapStylePresentation: true });
     expect(state.leases[0].setPointLabelOverlayVisible).toHaveBeenCalledWith(
       true
@@ -487,11 +492,13 @@ describe("useLibreLayers with conditional layers", () => {
     });
     view.rerender();
     expect(state.setCurrentStyle).toHaveBeenCalledTimes(1);
-    expect(state.leases).toHaveLength(1);
+    expect(state.leases).toHaveLength(2);
     state.obliqueEnabled = false;
     view.rerender();
     expect(view.result.current).toEqual([]);
     expect(state.leases[0].release).toHaveBeenCalledOnce();
+    expect(state.leases[1].release).toHaveBeenCalledOnce();
+    expect(state.runtimes[0].dispose).toHaveBeenCalledOnce();
     expect(lastBackgroundOptions()).toMatchObject({
       mapStyle3dActive: true,
       meshBaseActive: false,
@@ -501,7 +508,7 @@ describe("useLibreLayers with conditional layers", () => {
     expect(state.setCurrentStyle).toHaveBeenCalledTimes(2);
   });
 
-  it("keeps the mesh and Karte terrain without opting into map-style presentation", async () => {
+  it("keeps one DEM runtime while leasing raster presentation only in Karte without point labels", async () => {
     state.map = { getCenter: () => ({ lng: 7.2, lat: 51.27 }) };
     state.addons = ["obliqueViewer"];
     state.obliqueEnabled = true;
@@ -513,7 +520,9 @@ describe("useLibreLayers with conditional layers", () => {
       vectorBaseOverride: false,
       meshBaseActive: true,
     });
-    expect(state.leases).toEqual([]);
+    expect(state.buildTerrain).toHaveBeenCalledOnce();
+    expect(state.leases).toHaveLength(1);
+    const runtime = state.runtimes[0];
     state.currentStyle = MapStyleKeys.TOPO;
     view.rerender();
     expect(view.result.current[0]).toMatchObject({ name: "oblique-lod2" });
@@ -523,16 +532,29 @@ describe("useLibreLayers with conditional layers", () => {
       shadowTerrainActive: true,
     });
     expect(state.buildTerrain).toHaveBeenCalledOnce();
-    expect(state.leases).toHaveLength(1);
+    expect(state.runtimes[0]).toBe(runtime);
+    expect(runtime.dispose).not.toHaveBeenCalled();
+    expect(state.leases).toHaveLength(2);
+    const presentation = state.leases[1];
+    expect(presentation.options).toEqual({ mapStylePresentation: true });
+    expect(presentation.setMeshLabelStyle).toHaveBeenCalledWith(false);
+    expect(presentation.setPointLabelOverlayVisible).not.toHaveBeenCalled();
     expect(state.leases[0].options).toBeUndefined();
     expect(state.leases[0].setPointLabelOverlayVisible).not.toHaveBeenCalled();
     await act(async () => state.pendingTerrain[0](true));
-    expect(state.acquireComposition).toHaveBeenCalledOnce();
+    expect(state.acquireComposition).not.toHaveBeenCalled();
+    state.currentStyle = MapStyleKeys.AERIAL;
+    view.rerender();
+    expect(presentation.release).toHaveBeenCalledOnce();
+    expect(state.buildTerrain).toHaveBeenCalledOnce();
+    expect(state.runtimes[0]).toBe(runtime);
+    expect(runtime.dispose).not.toHaveBeenCalled();
     view.unmount();
+    expect(presentation.release).toHaveBeenCalledOnce();
     expect(state.leases[0].release).toHaveBeenCalledOnce();
   });
 
-  it("switches Luftbild to LoD2 and terrain on Karte, hides native paint only after readiness, and restores it on return", async () => {
+  it("reuses the DEM through Luftbild/Karte switches without suppressing native paint from readiness", async () => {
     state.map = { getCenter: () => ({ lng: 7.2, lat: 51.27 }) };
     state.addons = [
       "obliqueViewer",
@@ -541,7 +563,11 @@ describe("useLibreLayers with conditional layers", () => {
     state.obliqueEnabled = true;
     const view = renderHook(() => useLibreLayers());
     const presentation = state.leases[0];
-    expect(state.buildTerrain).not.toHaveBeenCalled();
+    expect(state.buildTerrain).toHaveBeenCalledOnce();
+    expect(state.buildTerrain.mock.calls[0][3]).toMatchObject({
+      groundVisible: false,
+    });
+    expect(state.runtimes[0].setGroundVisible).toHaveBeenLastCalledWith(false);
     state.currentStyle = MapStyleKeys.TOPO;
     view.rerender();
     expect(view.result.current).toEqual([
@@ -568,13 +594,16 @@ describe("useLibreLayers with conditional layers", () => {
     );
     const terrain = state.runtimes[0];
     const terrainLease = state.leases[1];
+    expect(terrain.setGroundVisible).toHaveBeenLastCalledWith(true);
     expect(terrainLease.layer.addRuntime).toHaveBeenCalledWith(terrain);
     expect(state.acquireComposition).not.toHaveBeenCalled();
     await act(async () => {
       state.pendingTerrain[0](true);
     });
-    expect(state.acquireComposition).toHaveBeenCalledOnce();
-    expect(state.acquireComposition).toHaveBeenCalledWith(state.map);
+    expect(state.acquireComposition).not.toHaveBeenCalled();
+    expect(state.leases).toHaveLength(3);
+    const rasterOverride = state.leases[2];
+    expect(rasterOverride.setMeshLabelStyle).toHaveBeenCalledWith(false);
     const options = state.buildTerrain.mock.calls[0][3] as {
       onContentChanged: (bounds: unknown) => void;
     };
@@ -589,14 +618,99 @@ describe("useLibreLayers with conditional layers", () => {
         style: expectedParityStyle,
       })
     );
+    expect(rasterOverride.release).toHaveBeenCalledOnce();
+    expect(state.buildTerrain).toHaveBeenCalledOnce();
+    expect(state.runtimes).toEqual([terrain]);
+    expect(terrain.setGroundVisible).toHaveBeenLastCalledWith(false);
+    expect(state.unregisters[0]).not.toHaveBeenCalled();
+    expect(terrainLease.layer.removeRuntime).not.toHaveBeenCalled();
+    expect(terrain.dispose).not.toHaveBeenCalled();
+    expect(state.restores).toHaveLength(0);
+    expect(terrainLease.release).not.toHaveBeenCalled();
+    expect(presentation.release).not.toHaveBeenCalled();
+    state.currentStyle = MapStyleKeys.TOPO;
+    view.rerender();
+    expect(state.buildTerrain).toHaveBeenCalledOnce();
+    expect(state.runtimes[0]).toBe(terrain);
+    expect(terrain.setGroundVisible.mock.calls).toEqual([
+      [false],
+      [true],
+      [false],
+      [true],
+    ]);
+    view.unmount();
     expect(state.unregisters[0]).toHaveBeenCalledOnce();
     expect(terrainLease.layer.removeRuntime).toHaveBeenCalledWith(terrain.id);
     expect(terrain.dispose).toHaveBeenCalledOnce();
-    expect(state.restores[0]).toHaveBeenCalledOnce();
+    expect(state.restores).toHaveLength(0);
     expect(terrainLease.release).toHaveBeenCalledOnce();
+    expect(presentation.release).toHaveBeenCalledOnce();
+  });
+
+  it("owns a Karte mesh-label override even when MapStyle3d already has presentation", () => {
+    state.map = { getCenter: () => ({ lng: 7.2, lat: 51.27 }) };
+    state.addons = [
+      "obliqueViewer",
+      { addon: "mapStyle3d", config: { vectorBaseMap: true } },
+    ];
+    state.obliqueEnabled = true;
+    state.currentStyle = MapStyleKeys.TOPO;
+    const view = renderHook(() => useLibreLayers());
+    expect(state.leases).toHaveLength(3);
+    expect(
+      state.leases.filter((lease) => lease.options?.mapStylePresentation)
+    ).toHaveLength(2);
+    const presentation = state.leases[0],
+      rasterOverride = state.leases[2],
+      terrain = state.runtimes[0];
+    expect(rasterOverride.setMeshLabelStyle).toHaveBeenCalledWith(false);
+    expect(rasterOverride.setPointLabelOverlayVisible).not.toHaveBeenCalled();
+    state.currentStyle = MapStyleKeys.AERIAL;
+    view.rerender();
+    expect(state.leases).toHaveLength(3);
+    expect(rasterOverride.release).toHaveBeenCalledOnce();
     expect(presentation.release).not.toHaveBeenCalled();
+    expect(state.runtimes[0]).toBe(terrain);
+    expect(state.buildTerrain).toHaveBeenCalledOnce();
+    expect(state.acquireComposition).not.toHaveBeenCalled();
     view.unmount();
     expect(presentation.release).toHaveBeenCalledOnce();
+    expect(rasterOverride.release).toHaveBeenCalledOnce();
+  });
+
+  it("starts Karte with visible DEM ground", () => {
+    state.map = { getCenter: () => ({ lng: 7.2, lat: 51.27 }) };
+    state.addons = ["obliqueViewer"];
+    state.obliqueEnabled = true;
+    state.currentStyle = MapStyleKeys.TOPO;
+    const view = renderHook(() => useLibreLayers());
+    expect(state.buildTerrain.mock.calls[0][3]).toMatchObject({
+      groundVisible: true,
+    });
+    expect(state.runtimes[0].setGroundVisible).toHaveBeenLastCalledWith(true);
+    view.unmount();
+    expect(state.runtimes[0].dispose).toHaveBeenCalledOnce();
+  });
+
+  it("accepts late DEM readiness in Luftbild after a Karte switch without rebuilding the runtime", async () => {
+    state.map = { getCenter: () => ({ lng: 7.2, lat: 51.27 }) };
+    state.addons = ["obliqueViewer"];
+    state.obliqueEnabled = true;
+    const view = renderHook(() => useLibreLayers());
+    const terrain = state.runtimes[0],
+      lease = state.leases[0];
+    state.currentStyle = MapStyleKeys.TOPO;
+    view.rerender();
+    state.currentStyle = MapStyleKeys.AERIAL;
+    view.rerender();
+    await act(async () => state.pendingTerrain[0](true));
+    expect(state.buildTerrain).toHaveBeenCalledOnce();
+    expect(state.runtimes[0]).toBe(terrain);
+    expect(terrain.dispose).not.toHaveBeenCalled();
+    expect(state.acquireComposition).not.toHaveBeenCalled();
+    view.unmount();
+    expect(terrain.dispose).toHaveBeenCalledOnce();
+    expect(lease.release).toHaveBeenCalledOnce();
   });
 
   it.each([
@@ -622,7 +736,7 @@ describe("useLibreLayers with conditional layers", () => {
     }
   );
 
-  it.each(["aerial", "off", "suspended", "unmount"])(
+  it.each(["map", "off", "suspended", "unmount"])(
     "ignores late terrain readiness after %s and releases the terrain runtime",
     async (exit) => {
       state.map = { getCenter: () => ({ lng: 7.2, lat: 51.27 }) };
@@ -633,7 +747,8 @@ describe("useLibreLayers with conditional layers", () => {
       view.rerender();
       if (exit === "unmount") view.unmount();
       else {
-        if (exit === "aerial") state.currentStyle = MapStyleKeys.AERIAL;
+        if (exit === "map")
+          state.map = { getCenter: () => ({ lng: 7.3, lat: 51.3 }) };
         if (exit === "off") state.obliqueEnabled = false;
         if (exit === "suspended")
           state.overrides = { suspended: ["obliqueViewer"], enabled: [] };
@@ -691,6 +806,43 @@ describe("useLibreLayers with conditional layers", () => {
       { id: "explicit-lod2" },
       { id: "different-mesh" },
     ]);
+  });
+
+  it("switches an explicitly selected MeshX basis to raster-draped terrain and LOD2 on Karte", async () => {
+    const meshX = {
+      id: "explicit-meshx",
+      visible: true,
+      conf: {
+        "3d": { tilesetUrl: "https://example.test/meshx2024/tileset.json" },
+      },
+    };
+    state.layers = [meshX];
+    state.addons = ["obliqueViewer"];
+    state.obliqueEnabled = true;
+    state.map = { getCenter: () => ({ lng: 7.2, lat: 51.27 }) };
+    const view = renderHook(() => useLibreLayers());
+    await waitFor(() => expect(view.result.current).toHaveLength(1));
+    expect(view.result.current[0]).toMatchObject({ name: "oblique-mesh2024" });
+    const terrain = state.runtimes[0];
+    state.currentStyle = MapStyleKeys.TOPO;
+    view.rerender();
+    expect(view.result.current).toEqual([
+      expect.objectContaining({ name: "oblique-lod2" }),
+    ]);
+    expect(terrain.setGroundVisible).toHaveBeenLastCalledWith(true);
+    expect(lastBackgroundOptions()).toMatchObject({
+      meshBaseActive: false,
+      shadowTerrainActive: true,
+      vectorBaseOverride: false,
+    });
+    expect(state.layers).toEqual([meshX]);
+    state.currentStyle = MapStyleKeys.AERIAL;
+    view.rerender();
+    expect(view.result.current).toEqual([
+      expect.objectContaining({ name: "oblique-mesh2024" }),
+    ]);
+    expect(terrain.setGroundVisible).toHaveBeenLastCalledWith(false);
+    expect(state.buildTerrain).toHaveBeenCalledOnce();
   });
 
   it("hides native ground paint once the aerial mesh is presented and restores it on exit", () => {

@@ -7,6 +7,9 @@ import { createImageSelectionIndex } from "../../core/utils/image-selection-inde
 import { rankImagesForView } from "../../core/utils/selection";
 import {
   IMAGE_SELECTION_MESSAGE,
+  MAX_IMAGE_SELECTION_BATCH_SIZE,
+  type ImageSelectionBatchResult,
+  type ImageSelectionCandidate,
   type ImageSelectionRequest,
   type ImageSelectionResponse,
 } from "./image-selection-messages";
@@ -15,16 +18,37 @@ export type ImageSelectionSearch = {
   query: (
     query: ObliqueViewQuery
   ) => Promise<NearestObliqueImageRecord[] | undefined>;
+  queryBatch: (
+    queries: ObliqueViewQuery[]
+  ) => Promise<ImageSelectionBatchResult>;
   dispose: () => void;
 };
-
 type PendingQuery = {
+  type: typeof IMAGE_SELECTION_MESSAGE.QUERY;
   requestId: number;
   query: ObliqueViewQuery;
   resolve: (result: NearestObliqueImageRecord[] | undefined) => void;
 };
+type PendingBatch = {
+  type: typeof IMAGE_SELECTION_MESSAGE.QUERY_BATCH;
+  requestId: number;
+  queries: ObliqueViewQuery[];
+  resolve: (result: ImageSelectionBatchResult) => void;
+};
+type Pending = PendingQuery | PendingBatch;
+const assertBatchBound = (queries: ObliqueViewQuery[]) => {
+  if (queries.length > MAX_IMAGE_SELECTION_BATCH_SIZE)
+    throw new RangeError("Image navigation batch exceeds twelve queries.");
+};
+const emptyBatch = (queries: ObliqueViewQuery[]): ImageSelectionBatchResult =>
+  queries.map(() => undefined);
+const cancel = (pending?: Pending) => {
+  if (pending?.type === IMAGE_SELECTION_MESSAGE.QUERY)
+    pending.resolve(undefined);
+  else if (pending) pending.resolve(emptyBatch(pending.queries));
+};
 
-/** One catalog copy per revision; one active query and only the latest queued request. */
+/** One catalog copy, one active RPC, and independent latest queued scalar/navigation lanes. */
 export const createImageSelectionSearch = (
   data: ObliqueSelectionData
 ): ImageSelectionSearch => {
@@ -36,6 +60,18 @@ export const createImageSelectionSearch = (
         disposed
           ? undefined
           : rankImagesForView(data, query, index.candidates(query)),
+      queryBatch: async (queries) => {
+        assertBatchBound(queries);
+        return disposed
+          ? emptyBatch(queries)
+          : queries.map((query) => {
+              try {
+                return rankImagesForView(data, query, index.candidates(query));
+              } catch {
+                return undefined;
+              }
+            });
+      },
       dispose: () => {
         disposed = true;
       },
@@ -48,11 +84,19 @@ export const createImageSelectionSearch = (
       { type: "module" }
     );
   } catch {
-    return { query: async () => undefined, dispose: () => {} };
+    return {
+      query: async () => undefined,
+      queryBatch: async (queries) => {
+        assertBatchBound(queries);
+        return emptyBatch(queries);
+      },
+      dispose: () => {},
+    };
   }
   let requestId = 0;
-  let active: PendingQuery | undefined;
-  let queued: PendingQuery | undefined;
+  let active: Pending | undefined;
+  let queuedQuery: PendingQuery | undefined;
+  let queuedBatch: PendingBatch | undefined;
   let timer: ReturnType<typeof setTimeout> | undefined;
   const dispose = () => {
     if (disposed) return;
@@ -62,41 +106,66 @@ export const createImageSelectionSearch = (
     worker.onerror = null;
     worker.onmessageerror = null;
     worker.terminate();
-    active?.resolve(undefined);
-    queued?.resolve(undefined);
-    active = queued = undefined;
+    cancel(active);
+    cancel(queuedQuery);
+    cancel(queuedBatch);
+    active = queuedQuery = queuedBatch = undefined;
   };
-  const start = (pending: PendingQuery) => {
+  const start = (pending: Pending) => {
     active = pending;
     timer = setTimeout(dispose, 10000);
     try {
-      worker.postMessage({
-        type: IMAGE_SELECTION_MESSAGE.QUERY,
-        requestId: pending.requestId,
-        query: pending.query,
-      } satisfies ImageSelectionRequest);
+      worker.postMessage(
+        pending.type === IMAGE_SELECTION_MESSAGE.QUERY
+          ? ({
+              type: pending.type,
+              requestId: pending.requestId,
+              query: pending.query,
+            } satisfies ImageSelectionRequest)
+          : ({
+              type: pending.type,
+              requestId: pending.requestId,
+              queries: pending.queries,
+            } satisfies ImageSelectionRequest)
+      );
     } catch {
       dispose();
     }
   };
+  const hydrate = (candidates: ImageSelectionCandidate[]) =>
+    candidates.flatMap(({ imageId, ...candidate }) => {
+      const record = data.imageRecords.get(imageId);
+      return record ? [{ ...candidate, record }] : [];
+    });
   worker.onmessage = (event: MessageEvent<ImageSelectionResponse>) => {
     const response = event.data;
     if (!active || response.requestId !== active.requestId || disposed) return;
     clearTimeout(timer);
-    const result =
-      response.type === IMAGE_SELECTION_MESSAGE.RESULT
-        ? response.candidates.flatMap(({ imageId, ...candidate }) => {
-            const record = data.imageRecords.get(imageId);
-            return record ? [{ ...candidate, record }] : [];
-          })
-        : undefined;
-    active.resolve(result);
+    if (active.type === IMAGE_SELECTION_MESSAGE.QUERY)
+      active.resolve(
+        response.type === IMAGE_SELECTION_MESSAGE.RESULT
+          ? hydrate(response.candidates)
+          : undefined
+      );
+    else
+      active.resolve(
+        response.type === IMAGE_SELECTION_MESSAGE.RESULT_BATCH
+          ? active.queries.map((_, i) =>
+              response.candidates[i]
+                ? hydrate(response.candidates[i]!)
+                : undefined
+            )
+          : emptyBatch(active.queries)
+      );
     active = undefined;
-    if (queued) {
-      const next = queued;
-      queued = undefined;
-      start(next);
-    }
+    const next =
+      queuedQuery &&
+      (!queuedBatch || queuedQuery.requestId < queuedBatch.requestId)
+        ? queuedQuery
+        : queuedBatch;
+    if (next?.type === IMAGE_SELECTION_MESSAGE.QUERY) queuedQuery = undefined;
+    else if (next) queuedBatch = undefined;
+    if (next) start(next);
   };
   worker.onerror = dispose;
   worker.onmessageerror = dispose;
@@ -116,20 +185,41 @@ export const createImageSelectionSearch = (
   } catch {
     dispose();
   }
+  const enqueue = (pending: Pending) => {
+    if (disposed) {
+      cancel(pending);
+      return;
+    }
+    if (!active) start(pending);
+    else if (pending.type === IMAGE_SELECTION_MESSAGE.QUERY) {
+      cancel(queuedQuery);
+      queuedQuery = pending;
+    } else {
+      cancel(queuedBatch);
+      queuedBatch = pending;
+    }
+  };
   return {
     query: (query) =>
-      new Promise<NearestObliqueImageRecord[] | undefined>((resolve) => {
-        if (disposed) {
-          resolve(undefined);
-          return;
-        }
-        const pending = { requestId: ++requestId, query, resolve };
-        if (!active) start(pending);
-        else {
-          queued?.resolve(undefined);
-          queued = pending;
-        }
-      }),
+      new Promise((resolve) =>
+        enqueue({
+          type: IMAGE_SELECTION_MESSAGE.QUERY,
+          requestId: ++requestId,
+          query,
+          resolve,
+        })
+      ),
+    queryBatch: (queries) => {
+      assertBatchBound(queries);
+      return new Promise((resolve) =>
+        enqueue({
+          type: IMAGE_SELECTION_MESSAGE.QUERY_BATCH,
+          requestId: ++requestId,
+          queries,
+          resolve,
+        })
+      );
+    },
     dispose,
   };
 };

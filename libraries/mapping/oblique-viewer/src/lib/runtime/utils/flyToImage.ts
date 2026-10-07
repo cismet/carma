@@ -85,7 +85,40 @@ export const poseOf = (
  * A dataset whose z is ellipsoidal is brought down by the geoid undulation
  * first; the offset is for fine tuning against a building edge.
  */
-export const resolveCameraAltitude = async (
+const cameraAltitudeCache = new WeakMap<
+  ObliqueImageRecord,
+  Map<string, Promise<number>>
+>();
+
+export const resolveCameraAltitude = (
+  record: ObliqueImageRecord,
+  heightDatum: ObliqueHeightDatum,
+  heightOffset: number,
+  allowUnverifiedSourceHeight = false
+): Promise<number> => {
+  const key = [heightDatum, heightOffset, allowUnverifiedSourceHeight].join("|");
+  let entries = cameraAltitudeCache.get(record);
+  if (!entries) {
+    entries = new Map();
+    cameraAltitudeCache.set(record, entries);
+  }
+  const existing = entries.get(key);
+  if (existing) return existing;
+  const result = computeCameraAltitude(
+    record,
+    heightDatum,
+    heightOffset,
+    allowUnverifiedSourceHeight
+  ).catch((error) => {
+    entries!.delete(key);
+    throw error;
+  });
+  if (entries.size >= 4) entries.clear();
+  entries.set(key, result);
+  return result;
+};
+
+const computeCameraAltitude = async (
   record: ObliqueImageRecord,
   heightDatum: ObliqueHeightDatum,
   heightOffset: number,

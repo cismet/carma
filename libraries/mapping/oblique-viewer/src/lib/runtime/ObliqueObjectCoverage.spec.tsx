@@ -273,6 +273,27 @@ afterEach(() => {
 });
 
 describe("object view crops and navigation", () => {
+  it("requests only the AVIF pyramid in strict mode despite a stale original TIFF asset", () => {
+    const image = imageOf("strict");
+    image.dataset = {
+      ...image.dataset,
+      avifOnly: true,
+      avifPyramidTemplate: "/2026/avif/{imageId}.avif",
+    };
+    image.record = {
+      ...image.record,
+      assets: {
+        original: { href: "/2026/tiff/strict.tif", type: "image/tiff" },
+      },
+    };
+    view(groupsOf([image]));
+    expect(request(Worker.instances[0])).toMatchObject({
+      avifOnly: true,
+      tiff: false,
+      avifPyramidUrl: "http://localhost:3000/2026/avif/strict.avif",
+    });
+    expect(JSON.stringify(request(Worker.instances[0]))).not.toContain(".tif");
+  });
   it("reuses the active crop worker on resize and rejects the previous generation", () => {
     const result = view(groupsOf([imageOf("first")]));
     const worker = Worker.instances[0];

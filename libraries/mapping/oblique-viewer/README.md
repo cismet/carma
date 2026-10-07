@@ -65,19 +65,58 @@ replaces the former inline query hook and overlay in `ObliqueViewer`. The base
 viewer does not import the object-query runtime; it lazy-loads only when its
 registered mode opens. See `libraries/mapping/addons/src/addons/ObliqueObjectViews/README.md`.
 
-Geoportal defaults to the Cesium-style interface: the viewport-centre image is
-highlighted, and the persistent “Flug zum Bild” button fits the whole photograph,
+Geoportal defaults to the Cesium-style interface. The hovered footprint is
+highlighted, with the viewport-centre image as fallback without pointer input.
+The persistent “Flug zum Bild” button fits the whole photograph,
 including roll and principal offset, with 5% padding. Classic preview drag is
 disabled and wheel zoom is centred. Closing first restores that full-photo frame
 and then returns to the ordinary oblique camera. The compact rotation/pan controls stay available when the
-secondary information panel closes. Image information and export/feedback actions
-remain in that panel. This uses the MapLibre/Three viewer, without switching engines.
+secondary information panel closes. The layer readout shows the selected photo’s
+month/year, positive compass bearing and image ID. Series selection and compact
+export/feedback actions remain in that panel. This uses the MapLibre/Three viewer,
+without switching engines.
 
-The opt-in feature flag `olbng` retains the current pointer-selection interface,
+The opt-in feature flag `olbng` adds off-centre preview positioning,
 Nadir and Objektansichtenabfrage controls. For example, `#/oblique?ff=oblique.olbng`
 enables that interface, whereas `#/oblique?ff=oblique` uses the default. The flag
-does not enable mapstyle3d. Classic browsing allocates no pointer-search worker or
-photo-axis picking cache.
+does not enable mapstyle3d. Both interfaces reuse the same worker-backed pointer
+search and photo-axis picking cache while the viewer is running.
+
+Both interfaces share the compact panel, photo metadata readout and prepared
+image-navigation targets. Buttons and keyboard use the same cached target for each
+step; image downloads never determine navigation availability.
+
+| Action in the current image orientation | Keys |
+| --- | --- |
+| Up / forward | W, Arrow Up, Num 8 |
+| Left | A, Arrow Left, Num 4 |
+| Down / back | S, Arrow Down, Num 2 |
+| Right | D, Arrow Right, Num 6 |
+| Rotate counterclockwise | Q, Num 7 |
+| Rotate clockwise | R, Num 9 |
+| Toggle nadir | Num 5, only in NG with an enabled nadir-capable series |
+
+Pan directions are available as soon as the current directional slice is usable.
+Rotation buttons, NG cardinal choices and Q/R/Num7/Num9 remain disabled until
+all four oblique catalog slices have loaded successfully for every enabled
+series (or its canonical catalog finished). A missing or failed oblique part
+keeps rotation disabled; disabled series do not count. The deferred Nadir catalog
+and Num5 mode action are independent. Slice startup and idle background loading
+retain their existing order; pan preparation does not promote other sectors.
+Disabled rotation keys never enter the FIFO, so current-slice pan stays usable.
+
+Numpad mappings use physical key codes and also work with Num Lock off. Num 5
+never navigates to another image. Text inputs, editable content, composition and
+Ctrl/Alt/Meta combinations retain their normal keyboard behavior. The viewer
+claims mapped arrows before MapLibre's native keyboard pan. Every mapped key press and repeat, including Num 5, enters the same FIFO as the
+buttons. Image steps await the preceding flight and stay at least 200 ms apart;
+the next target is resolved relative to the then-current photo. Missing catalog
+directions load before geometry lookup, and pending entries wait through cache
+revisions. Num 5 toggles dynamically when its entry executes. Explicit image
+open/close, external navigation, manual map gestures, disabled viewing, object
+coverage and unmount cancel the remaining queue. Only the next queued direction
+is prefetched; a valid cache with no neighbor records a no-op, with at most eight
+no-ops per task before yielding. No mapped event is replaced by a later key.
 
 Only the `olbng` interface offers “Nächste Bildachse” and “Beste Pixelauflösung” as selection
 policies. The latter compares calibrated native pixels per metre at the requested
@@ -110,7 +149,7 @@ not. Footprint outlines and carets use 2 CSS pixels, matching the preview frame.
 highlight fill is capped at 8% of the configured outline opacity. Selection trails
 have no fill; only one filled footprint is visible.
 
-Only one current image is highlighted. In the olbng interface, pointer input takes precedence; a pointer
+Only one current image is highlighted. Pointer input takes precedence; a pointer
 miss or pending query has no center replacement. Without map pointer input,
 including touch, the center image is the implicit hover. Highlight outlines use
 the same white Cesium-style colour.
@@ -121,7 +160,7 @@ at least two successfully loaded, enabled series. The same rule applies to expli
 and implicit hover; labels update when series loading or selection changes and are
 hidden with one usable series.
 
-The olbng interface searches the full catalog on hover of viewport-intersecting footprints. It resolves
+Both interfaces search the full catalog on hover of viewport-intersecting footprints. It resolves
 the visible mesh point under the pointer, with MapLibre terrain as fallback. Actual
 polygon hits in the current +/-45-degree camera-heading sector take priority and
 are ranked by distance to the actual photo-camera axis intersection with the live surface. If that
@@ -192,16 +231,17 @@ camera refits cannot shift image pixels during FOV zoom. It updates immediately
 before the shared scene draw, with photo matrices cached by record and local-frame
 revision. Native crops change sampling bounds only; the
 border follows the full sensor frame. The year label and up marker remain hidden.
-In the olbng interface, one click resolves enabled-series candidates at the clicked mesh or
+In both interfaces, one click resolves enabled-series candidates at the clicked mesh or
 terrain point, even before hover completes. It requires no native rendered feature.
-The toolbar action independently refreshes best fit at the physical viewport
-center, so hover cannot change its target. In olbng the action is hidden on hover-capable
+The toolbar action opens the current viewport-centre selection, so hover cannot
+change its target. In olbng the action is hidden on hover-capable
 devices while browsing; touch retains it, and preview close remains available.
 A footprint's single-click flight starts after a 500ms double-click window;
 catalog picking runs immediately in parallel. A double click cancels that pending
-flight and retains the current view-center anchor and pixel scale. Slow picks
+flight. Classic single and double clicks fit the whole photograph with 5% padding;
+`olbng` double click retains the current view-center anchor and pixel scale. Slow picks
 retain the double-click decision; movement, locking and teardown discard pending
-activation. Single click frames the full image's shorter axis at 90% of the shorter
+activation. In `olbng`, single click frames the full image's shorter axis at 90% of the shorter
 viewport axis, leaving 5% padding on each side. The
 four next-image arrows fit the destination image during the same camera/FOV
 transition. Browsing rotations retain their ground anchor and end directly at
@@ -397,9 +437,17 @@ The server must support HTTP 206. The client verifies exposed `Content-Range`
 when available, or a bounded `Content-Length` with the existing CORS settings.
 Ignored range responses are cancelled before buffering a whole TIFF. Reads
 use at most four simultaneous requests, each at most 1 MiB. Panning aborts
-obsolete TIFF work; leaving the preview aborts all active downloads. Three
-parked workers and the active worker retain bounded compressed-byte and
-decoded-block caches. Optional CacheStorage stores the original compressed
+obsolete TIFF work; leaving the preview aborts all active downloads. The ROI
+pool keeps four views on coarse-pointer/low-memory devices or eight on desktop,
+including the active view. LRU eviction bounds estimated CPU raster and encoded
+source retention to 128/256 MiB; active GPU textures and transient decoder heaps
+are outside this estimate. Reopening immediately replays the latest valid ROI,
+including a sharper partial stage, with its actual source crop and loaded-source
+notification. Effective rendered pixel density prevents a coarse replacement
+while allowing a sharper crop to refine a downsampled view. Parked TIFF workers
+are terminated while their display ROI survives; JPEG full-image decode/blob
+storage is released, and retained AVIF source storage is limited to 4/8 MiB per
+worker. Optional CacheStorage stores the original compressed
 byte ranges for up to four images; it never stores decoded RGBA images.
 Cache keys use the exposed ETag or Last-Modified value. A first range request
 establishes that version before persisted ranges are reused. Hover thumbnails
@@ -448,6 +496,22 @@ missing, invalid or unsupported compression falls back to the canonical
 `exteriorOrientationsURI`. Aborted loads never start a fallback. Parsed cache keys
 retain canonical identity and validate the successful transport, so this option
 does not clear existing caches.
+
+Static series can declare `catalogVersion` as an immutable revision/hash covering
+catalog, calibration and any consumed footprint metadata. Matching parsed entries
+are restored cache-first from IndexedDB with zero HEAD/GET, including offline;
+changing the revision misses without clearing the previous entries. Unversioned
+legacy sources retain bounded validator/TTL revalidation. The parser schema marker
+is separate and must change when normalized pose/calibration semantics change;
+app bundle filenames do not invalidate static catalog data. LocalStorage contains
+only the short parser-version hint, never catalogs.
+
+The current parsed store has a 192 MiB budget and twelve-entry limit for legacy
+series plus directional segments. Its v3 database is separate because the shared
+storage manager persists count/budget policy; the previous v2 database is left
+untouched. There is no aggregate capacity guarantee across old/new stores. Normal
+bounded-store eviction remains possible; no global or user-cache clear is called.
+Unavailable/quota-limited/deadline-exceeded storage falls back to network parsing.
 
 The host can supply `prioritySeriesId`; Geoportal reads initial `obs` even without
 `obi`. Its catalog is published before other enabled series start loading.

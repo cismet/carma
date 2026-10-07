@@ -233,10 +233,76 @@ describe("shared-frame preview image", () => {
     expect(
       new Vector3(0.5, 0.5, 1).applyMatrix3(admitted.viewportToTexture).x
     ).toBeCloseTo(0.125);
-    expect(dispose).toHaveBeenCalledOnce();
+    expect(admitted.texture).toBe(oldTexture);
+    expect(dispose).not.toHaveBeenCalled();
     vi.mocked(map.triggerRepaint).mockClear();
     act(() => moveend());
     expect(map.triggerRepaint).not.toHaveBeenCalled();
+    hook.unmount();
+  });
+
+  it("reuses one texture for new pixels and changes only matrices for crop or camera updates", () => {
+    const { options, frame, camera } = setup();
+    const contentRef: { current: ScenePreviewImageContent | null } = {
+      current: { source: options.source },
+    };
+    const hook = renderHook(() =>
+      useScenePreviewImage({ ...options, source: null, contentRef })
+    );
+    act(() => shared.callback?.(frame));
+    const texture = shared.setOverlay.mock.lastCall?.[1].texture;
+    const dispose = vi.spyOn(texture, "dispose");
+    const version = texture.version;
+    const next = document.createElement("canvas");
+    next.width = 200;
+    next.height = 100;
+    contentRef.current = { source: next };
+    act(() => shared.callback?.(frame));
+    expect(shared.setOverlay.mock.lastCall?.[1].texture).toBe(texture);
+    expect(texture.image).toBe(next);
+    expect(texture.version).toBe(version + 1);
+    expect(dispose).not.toHaveBeenCalled();
+    contentRef.current = {
+      source: next,
+      crop: {
+        x: 10 as DevicePixels,
+        y: 0 as DevicePixels,
+        width: 80 as DevicePixels,
+        height: 50 as DevicePixels,
+      },
+    };
+    act(() => shared.callback?.(frame));
+    camera.projectionMatrix.elements[8] = -0.6;
+    act(() => shared.callback?.(frame));
+    expect(texture.version).toBe(version + 1);
+    expect(dispose).not.toHaveBeenCalled();
+    hook.unmount();
+    expect(dispose).toHaveBeenCalledOnce();
+  });
+
+  it("admits a bounded full-image base during motion without waiting for a large foreground ROI", () => {
+    const { map, options, source, frame } = setup();
+    const contentRef: { current: ScenePreviewImageContent | null } = {
+      current: { source },
+    };
+    const hook = renderHook(() =>
+      useScenePreviewImage({
+        ...options,
+        priority: 0,
+        source: null,
+        contentRef,
+      })
+    );
+    act(() => shared.callback?.(frame));
+    const texture = shared.setOverlay.mock.lastCall?.[1].texture;
+    const next = document.createElement("canvas");
+    next.width = 1024;
+    next.height = 768;
+    vi.mocked(map.isMoving).mockReturnValue(true);
+    contentRef.current = { source: next };
+    act(() => shared.callback?.(frame));
+    expect(shared.setOverlay.mock.lastCall?.[1].texture).toBe(texture);
+    expect(texture.image).toBe(next);
     hook.unmount();
   });
 

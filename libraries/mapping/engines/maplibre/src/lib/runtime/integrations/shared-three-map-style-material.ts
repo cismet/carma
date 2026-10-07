@@ -18,8 +18,9 @@ type MapStyleProjectionMaterialState = {
 };
 
 const MAP_STYLE_PROJECTION_STATE = "carmaMapStyleProjectionState";
-const MAP_STYLE_PROJECTION_SHADER_KEY = "|carma-map-style-projection-v14";
+const MAP_STYLE_PROJECTION_SHADER_KEY = "|carma-map-style-projection-v15";
 const MAP_STYLE_PROJECTION_OVERLAY_DEFINE = "CARMA_MAP_STYLE_OVERLAY";
+const MAP_STYLE_PROJECTION_MARKINGS_DEFINE = "CARMA_MAP_STYLE_MARKINGS_ONLY";
 
 const applyMapStyleProjectionBlend = (
   material: THREE.Material,
@@ -30,6 +31,11 @@ const applyMapStyleProjectionBlend = (
     defines[MAP_STYLE_PROJECTION_OVERLAY_DEFINE] = "";
   } else {
     delete defines[MAP_STYLE_PROJECTION_OVERLAY_DEFINE];
+  }
+  if (blend === "markings-only") {
+    defines[MAP_STYLE_PROJECTION_MARKINGS_DEFINE] = "";
+  } else {
+    delete defines[MAP_STYLE_PROJECTION_MARKINGS_DEFINE];
   }
 };
 

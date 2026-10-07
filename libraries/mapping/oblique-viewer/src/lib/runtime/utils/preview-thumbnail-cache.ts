@@ -1,11 +1,12 @@
 import { PREVIEW_QUALITY } from "../../core/constants";
 import { getPreviewImageUrl } from "./imageUrls";
 
-type ThumbnailSource = Readonly<{
+export type ThumbnailSource = Readonly<{
   previewPath: string;
   imageId: string;
   originalImageUrl?: string;
   avifPyramidUrl?: string;
+  avifOnly?: boolean;
   nativeSize?: { width: number; height: number };
 }>;
 type Entry = {
@@ -27,24 +28,72 @@ const entries = new Map<string, Entry>();
 const listeners = new Map<string, Set<() => void>>();
 let worker: Worker | null = null;
 let activeUrl: string | null = null;
-let activeTiff = false;
+let activeBackground = false;
+let activeSource: ThumbnailSource | null = null;
 let queuedSource: { url: string; source: ThumbnailSource } | null = null;
+const missingUntil = new Map<string, number>();
+const MISSING_COOLDOWN_MS = 15000;
+const missingKey = (url: string) => url.replace(/#avif-only$/, "");
+const missingTimers = new Map<string, ReturnType<typeof setTimeout>>();
+const notifyAvailability = (key: string) => {
+  for (const [url, subscribers] of listeners)
+    if (missingKey(url) === key) for (const listener of subscribers) listener();
+};
+const clearMissing = (key: string, notify = true) => {
+  const removed = missingUntil.delete(key);
+  clearTimeout(missingTimers.get(key));
+  missingTimers.delete(key);
+  if (removed && notify) notifyAvailability(key);
+};
+const isCoolingDown = (url: string) => {
+  const key = missingKey(url),
+    until = missingUntil.get(key);
+  if (until !== undefined && until <= Date.now()) clearMissing(key);
+  return (missingUntil.get(key) ?? 0) > Date.now();
+};
+export const isPreviewSourceMissing = (source: ThumbnailSource) =>
+  isCoolingDown(sourceUrl(source));
+export const reportPreviewSourceAvailable = (source: ThumbnailSource) =>
+  clearMissing(missingKey(sourceUrl(source)));
+export const reportPreviewSourceMissing = (source: ThumbnailSource) => {
+  const key = missingKey(sourceUrl(source));
+  clearMissing(key, false);
+  missingUntil.set(key, Date.now() + MISSING_COOLDOWN_MS);
+  missingTimers.set(
+    key,
+    setTimeout(() => clearMissing(key), MISSING_COOLDOWN_MS)
+  );
+  while (missingUntil.size > 128)
+    clearMissing(missingUntil.keys().next().value!);
+  notifyAvailability(key);
+};
+const stopActive = () => {
+  globalThis.window.clearTimeout(timeout);
+  worker?.terminate();
+  worker = null;
+  activeUrl = null;
+  activeSource = null;
+  activeBackground = false;
+};
 const backgroundSources = new Map<string, ThumbnailSource>();
 let timeout: number | undefined;
 let epoch = 0;
 
-const sourceUrl = ({
-  previewPath,
-  imageId,
-  originalImageUrl,
-  avifPyramidUrl,
-}: ThumbnailSource) =>
-  new URL(
-    avifPyramidUrl ??
-      originalImageUrl ??
-      getPreviewImageUrl(previewPath, PREVIEW_QUALITY.LEVEL_6, imageId),
+const sourceUrl = (source: ThumbnailSource) => {
+  if (source.avifOnly && !source.avifPyramidUrl)
+    return `avif-only-missing:${source.previewPath}:${source.imageId}`;
+  const url = new URL(
+    source.avifPyramidUrl ??
+      source.originalImageUrl ??
+      getPreviewImageUrl(
+        source.previewPath,
+        PREVIEW_QUALITY.LEVEL_5,
+        source.imageId
+      ),
     globalThis.window.location.href
   ).href;
+  return source.avifOnly ? `${url}#avif-only` : url;
+};
 const close = (entry: Entry) => {
   entry.bitmap?.close();
   entry.bitmap = null;
@@ -79,17 +128,21 @@ const drainBackground = () => {
   const next = queuedSource;
   queuedSource = null;
   if (next) {
-    start(next.url, next.source);
+    start(next.url, next.source, false);
     return;
   }
-  const background = backgroundSources.entries().next().value;
+  const background = [...backgroundSources.entries()].at(-1);
   if (background) {
     backgroundSources.delete(background[0]);
-    start(background[0], background[1]);
+    start(background[0], background[1], true);
   }
 };
 
-const start = (url: string, source: ThumbnailSource) => {
+const start = (url: string, source: ThumbnailSource, background: boolean) => {
+  if (isCoolingDown(url)) {
+    drainBackground();
+    return;
+  }
   const cached = entries.get(url);
   if (cached?.bitmap) {
     touch(url, cached);
@@ -108,27 +161,43 @@ const start = (url: string, source: ThumbnailSource) => {
   }
   worker = currentWorker;
   activeUrl = url;
-  activeTiff = !!source.originalImageUrl || !!source.avifPyramidUrl;
+  activeBackground = background;
+  activeSource = source;
   const finish = () => {
     currentWorker.terminate();
     if (worker !== currentWorker) return;
     globalThis.window.clearTimeout(timeout);
     worker = null;
     activeUrl = null;
-    activeTiff = false;
+    activeBackground = false;
+    activeSource = null;
     if (token === epoch) drainBackground();
   };
   currentWorker.onmessage = (
-    event: MessageEvent<{ bitmap?: ImageBitmap; blob?: Blob; error?: string }>
+    event: MessageEvent<{
+      bitmap?: ImageBitmap;
+      blob?: Blob;
+      error?: string;
+      missing?: boolean;
+    }>
   ) => {
-    const { bitmap, blob, error } = event.data;
-    if (token !== epoch || error || !bitmap || !blob) {
+    const { bitmap, blob, error, missing } = event.data;
+    if (token === epoch && worker === currentWorker && missing)
+      reportPreviewSourceMissing(source);
+    if (
+      worker !== currentWorker ||
+      token !== epoch ||
+      error ||
+      !bitmap ||
+      !blob
+    ) {
       bitmap?.close();
       finish();
       return;
     }
     const previous = entries.get(url);
     if (previous && previous.leases === 0) close(previous);
+    clearMissing(missingKey(url), false);
     const entry: Entry = {
       blob,
       bitmap,
@@ -148,10 +217,10 @@ const start = (url: string, source: ThumbnailSource) => {
   try {
     currentWorker.postMessage({
       url: new URL(
-        source.originalImageUrl ??
+        (source.avifOnly ? source.avifPyramidUrl : source.originalImageUrl) ??
           getPreviewImageUrl(
             source.previewPath,
-            PREVIEW_QUALITY.LEVEL_6,
+            PREVIEW_QUALITY.LEVEL_5,
             source.imageId
           ),
         globalThis.window.location.href
@@ -160,8 +229,9 @@ const start = (url: string, source: ThumbnailSource) => {
         ? new URL(source.avifPyramidUrl, globalThis.window.location.href).href
         : undefined,
       nativeSize: source.nativeSize,
+      avifOnly: source.avifOnly,
       blob: cached?.blob,
-      ...(source.originalImageUrl
+      ...(source.originalImageUrl && !source.avifOnly
         ? { tiff: true, nativeSize: source.nativeSize }
         : {}),
     });
@@ -177,17 +247,15 @@ export const prefetchPreviewThumbnail = (
 ) => {
   if (!source) {
     queuedSource = null;
-    if (activeTiff) {
-      globalThis.window.clearTimeout(timeout);
-      worker?.terminate();
-      worker = null;
-      activeUrl = null;
-      activeTiff = false;
+    if (worker && !activeBackground) {
+      stopActive();
       drainBackground();
     }
     return;
   }
+  if (source.avifOnly && !source.avifPyramidUrl) return;
   const url = sourceUrl(source);
+  if (isCoolingDown(url)) return;
   const cached = entries.get(url);
   if (cached?.bitmap) {
     touch(url, cached);
@@ -196,15 +264,37 @@ export const prefetchPreviewThumbnail = (
   }
   if (worker) {
     if (options?.enqueue) {
-      if (url !== activeUrl) backgroundSources.set(url, source);
+      if (url === activeUrl) activeBackground = true;
+      if (url !== activeUrl) {
+        backgroundSources.delete(url);
+        backgroundSources.set(url, source);
+      }
       while (backgroundSources.size > 64)
         backgroundSources.delete(backgroundSources.keys().next().value!);
       return;
     }
-    queuedSource = url === activeUrl ? null : { url, source };
+    if (url === activeUrl) {
+      backgroundSources.delete(url);
+      queuedSource = null;
+      return;
+    }
+    queuedSource = { url, source };
+    backgroundSources.delete(url);
+    if (activeBackground && activeUrl && activeSource) {
+      if (!backgroundSources.has(activeUrl)) {
+        const pending = [...backgroundSources.entries()];
+        backgroundSources.clear();
+        backgroundSources.set(activeUrl, activeSource);
+        for (const [key, value] of pending) backgroundSources.set(key, value);
+        while (backgroundSources.size > 64)
+          backgroundSources.delete(backgroundSources.keys().next().value!);
+      }
+      stopActive();
+      drainBackground();
+    }
     return;
   }
-  start(url, source);
+  start(url, source, !!options?.enqueue);
 };
 
 /** Pin a decoded thumbnail until the progressive image replaces its texture. */
@@ -249,9 +339,13 @@ export const subscribePreviewThumbnail = (
 export const disposePreviewThumbnailPrefetch = () => {
   epoch++;
   backgroundSources.clear();
+  for (const timer of missingTimers.values()) clearTimeout(timer);
+  missingTimers.clear();
+  missingUntil.clear();
   queuedSource = null;
   activeUrl = null;
-  activeTiff = false;
+  activeBackground = false;
+  activeSource = null;
   globalThis.window.clearTimeout(timeout);
   worker?.terminate();
   worker = null;

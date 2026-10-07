@@ -15,6 +15,7 @@ import { ContactMailButton } from "@carma-mapping/components";
 import { useObliqueViewerActions } from "./oblique-actions";
 import { strings } from "./strings.de";
 import { downloadAsBlobAsync } from "./utils/imageUrls";
+import { reportPreviewSourceMissing } from "./utils/preview-thumbnail-cache";
 import type { ObliqueViewerExtension } from "./oblique-viewer-extensions";
 
 const EMPTY_EXTENSIONS: readonly ObliqueViewerExtension[] = [];
@@ -31,6 +32,8 @@ const ImageAction = ({
   onClick: () => void;
 }) => (
   <Button
+    size="small"
+    style={{ fontSize: 12 }}
     disabled={disabled}
     onClick={onClick}
     icon={<FontAwesomeIcon icon={icon} />}
@@ -40,8 +43,8 @@ const ImageAction = ({
 );
 
 /**
- * Series, image information and export actions belong in the secondary panel.
- * Navigation is mounted independently on the map by ObliqueNavigation.
+ * Series selection and export actions belong in the secondary panel.
+ * Image metadata stays in the layer row; navigation stays on the map.
  */
 export const ObliquePanel = ({
   nextInterface = false,
@@ -54,6 +57,7 @@ export const ObliquePanel = ({
     isLoading,
     error,
     selectedImageId,
+    missingPreviewImageId,
     viewMode,
     series,
     enabledSeriesIds,
@@ -61,7 +65,6 @@ export const ObliquePanel = ({
     publish,
     selectedSourceImageId,
     selectedSeriesId,
-    selectedImageBearingDeg,
     setEnabledSeriesIds,
     isBusy,
     downloadUrl,
@@ -87,28 +90,6 @@ export const ObliquePanel = ({
   const ready =
     selectedImageId !== null &&
     series.some((entry) => entry.enabled && entry.id === selectedSeriesId);
-  const activeSeries = ready
-    ? series.find((entry) => entry.id === selectedSeriesId)
-    : undefined;
-  const year = activeSeries?.acquisitionYear ?? Number.NaN;
-  const month = activeSeries?.acquisitionMonth ?? Number.NaN;
-  const hasYear = Number.isInteger(year) && year >= 1000 && year <= 9999;
-  const hasMonth = Number.isInteger(month) && month >= 1 && month <= 12;
-  const acquisitionDate = hasYear
-    ? hasMonth
-      ? String(year) + "-" + String(month).padStart(2, "0")
-      : String(year)
-    : null;
-  const acquisitionLabel = hasYear
-    ? hasMonth
-      ? new Intl.DateTimeFormat("de-DE", {
-          month: "long",
-          year: "numeric",
-          timeZone: "UTC",
-        }).format(new Date(Date.UTC(year, month - 1, 1)))
-      : String(year)
-    : null;
-
   const download = () => {
     if (!ready || !downloadUrl || downloadControllerRef.current) return;
     const controller = new AbortController();
@@ -119,12 +100,41 @@ export const ObliquePanel = ({
       signal: controller.signal,
     })
       .catch((failure: unknown) => {
-        if (!controller.signal.aborted)
-          void message.error(
-            failure instanceof Error
-              ? failure.message
-              : "Das Bild konnte nicht heruntergeladen werden."
+        if (
+          controller.signal.aborted ||
+          (failure instanceof Error && failure.name === "AbortError")
+        )
+          return;
+        const failureMessage =
+          failure instanceof Error
+            ? failure.message
+            : typeof failure === "string"
+            ? failure
+            : "Das Bild konnte nicht heruntergeladen werden.";
+        const status =
+          failure && typeof failure === "object" && "status" in failure
+            ? failure.status
+            : undefined;
+        // Only actual transport-status evidence can mark the captured source.
+        const missing =
+          status === 404 ||
+          status === 410 ||
+          /^AVIF requires HTTP 206; refusing (?:404|410) full-file response$/.test(
+            failureMessage
+          ) ||
+          /^Das Bild konnte nicht geladen werden \((?:404|410)\)\.$/.test(
+            failureMessage
           );
+        if (missing && downloadOptions?.avif)
+          reportPreviewSourceMissing({
+            previewPath: "",
+            imageId: selectedSourceImageId ?? selectedImageId ?? "",
+            avifPyramidUrl: downloadUrl,
+            avifOnly: true,
+          });
+        void message.error(
+          missing ? "Das Bild ist derzeit nicht verfügbar." : failureMessage
+        );
       })
       .finally(() => {
         if (downloadControllerRef.current === controller) {
@@ -227,6 +237,7 @@ export const ObliquePanel = ({
           showSearch={false}
           maxTagCount="responsive"
           className="min-w-0 flex-1"
+          style={{ fontSize: 12 }}
           placeholder="Bildserien"
           value={
             enabledSeriesIds ??
@@ -286,27 +297,15 @@ export const ObliquePanel = ({
       <span className="sr-only" role="status" aria-live="polite">
         {status}
       </span>
-      <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-gray-500">
-        {ready && selectedImageBearingDeg !== null && (
-          <span className="shrink-0 tabular-nums" title="Bildrichtung">
-            {Math.round(selectedImageBearingDeg)}°
-          </span>
-        )}
-        {ready && selectedSourceImageId && (
-          <span className="min-w-0 truncate" title={selectedSourceImageId}>
-            {selectedSourceImageId}
-          </span>
-        )}
-        {acquisitionDate && acquisitionLabel && (
-          <time
-            dateTime={acquisitionDate}
-            className="shrink-0 whitespace-nowrap"
-            title={hasMonth ? "Aufnahmemonat" : "Aufnahmejahr"}
-          >
-            {acquisitionLabel}
-          </time>
-        )}
-      </div>
+      {selectedImageId && missingPreviewImageId === selectedImageId && (
+        <div
+          role="status"
+          className="mt-1 flex items-center gap-1 text-xs text-amber-700"
+        >
+          <FontAwesomeIcon icon={faTriangleExclamation} aria-hidden="true" />
+          <span>Vorschaubild derzeit nicht verfügbar.</span>
+        </div>
+      )}
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
         <ImageAction
           label={strings.openImage}
@@ -324,7 +323,11 @@ export const ObliquePanel = ({
           onClick={download}
         />
         {downloading && (
-          <Button onClick={() => downloadControllerRef.current?.abort()}>
+          <Button
+            size="small"
+            style={{ fontSize: 12 }}
+            onClick={() => downloadControllerRef.current?.abort()}
+          >
             Abbrechen
           </Button>
         )}
@@ -332,6 +335,8 @@ export const ObliquePanel = ({
           <ContactMailButton
             renderTrigger={(onClick) => (
               <Button
+                size="small"
+                style={{ fontSize: 12 }}
                 onClick={onClick}
                 icon={<FontAwesomeIcon icon={faComment} />}
               >

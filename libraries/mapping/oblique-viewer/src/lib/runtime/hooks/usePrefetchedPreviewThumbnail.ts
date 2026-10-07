@@ -14,17 +14,20 @@ export const usePrefetchedPreviewThumbnail = (
   options?: {
     originalImageUrl?: string;
     avifPyramidUrl?: string;
+    avifOnly?: boolean;
     enqueue?: boolean;
     nativeSize?: { width: number; height: number };
   }
 ): PreviewThumbnailLease | null => {
   const originalImageUrl = options?.originalImageUrl;
   const avifPyramidUrl = options?.avifPyramidUrl;
+  const avifOnly = options?.avifOnly;
   const enqueue = options?.enqueue;
   const width = options?.nativeSize?.width;
   const height = options?.nativeSize?.height;
-  const sourceKey =
-    avifPyramidUrl ?? originalImageUrl ?? `${previewPath}/${imageId}`;
+  const sourceKey = `${avifOnly ? "avif-only:" : ""}${
+    avifPyramidUrl ?? originalImageUrl ?? `${previewPath}/${imageId}`
+  }`;
   const [thumbnail, setThumbnail] = useState<{
     sourceKey: string;
     lease: PreviewThumbnailLease;
@@ -39,6 +42,7 @@ export const usePrefetchedPreviewThumbnail = (
       imageId,
       originalImageUrl,
       avifPyramidUrl,
+      avifOnly,
       nativeSize: width && height ? { width, height } : undefined,
     };
     let lease: PreviewThumbnailLease | null = null;
@@ -61,6 +65,7 @@ export const usePrefetchedPreviewThumbnail = (
     hasDecodedImage,
     originalImageUrl,
     avifPyramidUrl,
+    avifOnly,
     enqueue,
     width,
     height,

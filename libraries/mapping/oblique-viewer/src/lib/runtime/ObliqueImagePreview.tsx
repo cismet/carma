@@ -28,6 +28,7 @@ import { NativePixels } from "./ObliqueImagePreview.NativePixels";
 import {
   useScenePreviewImage,
   type ScenePreviewPhoto,
+  type ScenePreviewImageContent,
 } from "./hooks/useScenePreviewImage";
 import { usePrefetchedPreviewThumbnail } from "./hooks/usePrefetchedPreviewThumbnail";
 import { previewBackdropTint } from "./utils/preview-backdrop";
@@ -52,6 +53,7 @@ type ObliqueImagePreviewProps = {
   previewPath: string;
   originalImageUrlTemplate?: string;
   avifPyramidUrl?: string;
+  avifOnly?: boolean;
   originalImageUrl?: string;
   nativePixelSize: { width: DevicePixels; height: DevicePixels };
   imageId: string;
@@ -67,7 +69,10 @@ type ObliqueImagePreviewProps = {
   style?: ObliqueImagePreviewStyle;
   backdropLook: ObliqueBackdropLook;
   onClose?: () => void;
-  onError?: () => void;
+  onError?: (
+    imageId: string,
+    details?: { message: string; missing: boolean }
+  ) => void;
 };
 
 /**
@@ -87,6 +92,7 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
   previewPath,
   originalImageUrlTemplate,
   avifPyramidUrl,
+  avifOnly = false,
   originalImageUrl,
   nativePixelSize,
   imageId,
@@ -132,20 +138,32 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
   const loadedImage =
     decodedImage?.sourceKey === sourceKey ? decodedImage : null;
   const loadedSrc = loadedImage?.url ?? null;
+  const fullWorkerImageRef = useRef<{
+    key: string;
+    bitmap: ImageBitmap;
+  } | null>(null);
+  const fullContentRef = useRef<ScenePreviewImageContent | null>(null);
+  const fullCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [fullWorkerImageKey, setFullWorkerImageKey] = useState<string | null>(
+    null
+  );
   const workerPreview =
     typeof Worker !== "undefined" && typeof OffscreenCanvas !== "undefined";
-  const originalUrl =
-    originalImageUrl ??
-    (originalImageUrlTemplate
-      ? getImageUrls(imageId, previewPath, qualityLevel, undefined, {
-          originalImageUrlTemplate,
-        }).downloadUrl
-      : undefined);
+  const originalUrl = avifOnly
+    ? undefined
+    : originalImageUrl ??
+      (originalImageUrlTemplate
+        ? getImageUrls(imageId, previewPath, qualityLevel, undefined, {
+            originalImageUrlTemplate,
+          }).downloadUrl
+        : undefined);
+  const fullImageKey = `${sourceKey}/${avifPyramidUrl ?? originalUrl ?? ""}`;
   const thumbnail = usePrefetchedPreviewThumbnail(
     previewPath,
     imageId,
-    !!loadedImage,
+    !!loadedImage?.element || fullWorkerImageKey === fullImageKey,
     {
+      avifOnly,
       originalImageUrl: originalUrl ?? undefined,
       avifPyramidUrl,
       nativeSize: nativePixelSize,
@@ -181,22 +199,43 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
     initialLevel,
     imageId
   );
-  const usableThumbnail =
-    thumbnail?.bitmap &&
-    displayEdge / Math.max(thumbnail.bitmap.width, thumbnail.bitmap.height) <= 8
-      ? thumbnail
+  // A coarse whole photograph fills newly exposed pixels until a full substitute exists.
+  const usableThumbnail = thumbnail?.bitmap ? thumbnail : null;
+  const fullWorkerImage =
+    fullWorkerImageRef.current?.key === fullImageKey
+      ? fullWorkerImageRef.current.bitmap
       : null;
+  const wholeSource =
+    fullWorkerImage ?? loadedImage?.element ?? usableThumbnail?.bitmap ?? null;
+  fullContentRef.current = wholeSource ? { source: wholeSource } : null;
+  useEffect(
+    () => () => {
+      const owned = fullWorkerImageRef.current;
+      if (owned?.key !== fullImageKey) return;
+      owned.bitmap.close();
+      fullWorkerImageRef.current = null;
+      if (fullCanvasRef.current)
+        fullCanvasRef.current.width = fullCanvasRef.current.height = 1;
+      if (fullContentRef.current?.source === owned.bitmap)
+        fullContentRef.current = null;
+    },
+    [fullImageKey]
+  );
   const loadingOptions = useRef({ finalPreviewUrl, onError });
   loadingOptions.current = { finalPreviewUrl, onError };
   const reportLoadingError = useCallback(
-    () => loadingOptions.current.onError?.(),
-    []
+    (
+      failedImageId = imageId,
+      details = { message: "Preview loading failed", missing: false }
+    ) => loadingOptions.current.onError?.(failedImageId, details),
+    [imageId]
   );
   const progressiveSrc = useProgressivePreviewSource({
-    finalPreviewUrl: workerPreview ? null : finalPreviewUrl,
-    initialPreviewUrl: workerPreview ? undefined : initialPreviewUrl,
-    previewPath: workerPreview ? undefined : previewPath,
-    imageId: workerPreview ? undefined : imageId,
+    finalPreviewUrl: workerPreview || avifOnly ? null : finalPreviewUrl,
+    initialPreviewUrl:
+      workerPreview || avifOnly ? undefined : initialPreviewUrl,
+    previewPath: workerPreview || avifOnly ? undefined : previewPath,
+    imageId: workerPreview || avifOnly ? undefined : imageId,
     onError: reportLoadingError,
   });
   // The progressive hook can expose its preceding key until its source-change effect runs.
@@ -229,7 +268,10 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
           !cancelled &&
           currentProgressiveSrc === loadingOptions.current.finalPreviewUrl
         )
-          loadingOptions.current.onError?.();
+          loadingOptions.current.onError?.(imageId, {
+            message: "Preview loading failed",
+            missing: false,
+          });
       });
     return () => {
       cancelled = true;
@@ -269,7 +311,7 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
   const sceneImage = useScenePreviewImage({
     map,
     photo,
-    source: loadedImage?.element ?? usableThumbnail?.bitmap ?? null,
+    contentRef: fullContentRef,
     shown: !dimImage,
     onOutlineReady,
     halfFovTan,
@@ -279,13 +321,33 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
     backdropLook: { contrast, brightness: backdropLook.brightness, saturation },
     backdropTint,
   });
+  const onFullImage = useCallback(
+    (bitmap: ImageBitmap) => {
+      const previous = fullWorkerImageRef.current;
+      fullWorkerImageRef.current = { key: fullImageKey, bitmap };
+      fullContentRef.current = { source: bitmap };
+      if (!sceneImage && fullCanvasRef.current) {
+        const canvas = fullCanvasRef.current;
+        canvas.width = bitmap.width;
+        canvas.height = bitmap.height;
+        canvas.getContext("2d")?.drawImage(bitmap, 0, 0);
+      }
+      if (previous?.bitmap !== bitmap) previous?.bitmap.close();
+      setFullWorkerImageKey((key) =>
+        key === fullImageKey ? key : fullImageKey
+      );
+      map.triggerRepaint();
+    },
+    [fullImageKey, map, sceneImage]
+  );
   const translate = `translate(${(xOffset - 0.5) * 100}%, ${
     (yOffset - 0.5) * 100
   }%)`;
-  const displaySrc =
-    !sceneImage && !workerPreview
-      ? loadedSrc ?? usableThumbnail?.blobUrl ?? null
-      : null;
+  const displaySrc = !sceneImage
+    ? (loadedImage?.element ? loadedSrc : null) ??
+      usableThumbnail?.blobUrl ??
+      null
+    : null;
   const onSourceLoaded = useCallback(
     (url: string, width: number, height: number) => {
       setDecodedImage((previous) =>
@@ -330,6 +392,18 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
           translate={translate}
           rollDeg={PREVIEW_ROLL_SIGN * rollDeg}
         >
+          {workerPreview && !sceneImage && (
+            <canvas
+              ref={fullCanvasRef}
+              style={{
+                position: "absolute",
+                inset: 0,
+                width: "100%",
+                height: "100%",
+                pointerEvents: "none",
+              }}
+            />
+          )}
           {workerPreview && (
             <NativePixels
               map={map}
@@ -339,8 +413,11 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
               sourceUrl={originalUrl ?? finalPreviewUrl}
               tiff={!!originalUrl}
               avifPyramidUrl={avifPyramidUrl}
+              avifOnly={avifOnly}
               minimumQualityLevel={minimumQualityLevel}
               onSourceLoaded={onSourceLoaded}
+              onFullImage={onFullImage}
+              retainWholeImage
               onOutlineReady={onOutlineReady}
               onError={reportLoadingError}
               backdropLook={{

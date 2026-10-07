@@ -1,12 +1,19 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   acquirePreviewThumbnail,
+  isPreviewSourceMissing,
+  reportPreviewSourceMissing,
   disposePreviewThumbnailPrefetch,
   prefetchPreviewThumbnail,
   subscribePreviewThumbnail,
 } from "./preview-thumbnail-cache";
 
-type Result = { bitmap?: ImageBitmap; blob?: Blob; error?: string };
+type Result = {
+  bitmap?: ImageBitmap;
+  blob?: Blob;
+  error?: string;
+  missing?: boolean;
+};
 class ThumbnailWorker {
   static instances: ThumbnailWorker[] = [];
   onmessage: ((event: MessageEvent<Result>) => void) | null = null;
@@ -51,26 +58,26 @@ afterEach(() => {
 });
 
 describe("bounded hover thumbnail prefetch", () => {
-  it("requests Level-6 JPEG only and retains only the latest queued hover", () => {
+  it("requests Level-5 JPEG only and retains only the latest queued hover", () => {
     prefetchPreviewThumbnail(source("first"));
     prefetchPreviewThumbnail(source("obsolete"));
     prefetchPreviewThumbnail(source("latest"));
     expect(ThumbnailWorker.instances).toHaveLength(1);
     expect(
       ThumbnailWorker.instances[0].postMessage.mock.lastCall?.[0].url
-    ).toMatch(/\/images\/6\/first\.jpg$/);
+    ).toMatch(/\/images\/5\/first\.jpg$/);
     complete();
     expect(ThumbnailWorker.instances).toHaveLength(2);
     expect(
       ThumbnailWorker.instances[1].postMessage.mock.lastCall?.[0].url
-    ).toMatch(/\/images\/6\/latest\.jpg$/);
+    ).toMatch(/\/images\/5\/latest\.jpg$/);
     complete();
     prefetchPreviewThumbnail(source("first"));
     expect(ThumbnailWorker.instances).toHaveLength(2);
   });
 
   it("keeps every enqueued carousel thumbnail while prioritizing only the latest hover", () => {
-    prefetchPreviewThumbnail(source("first"), { enqueue: true });
+    prefetchPreviewThumbnail(source("first"));
     prefetchPreviewThumbnail(source("second"), { enqueue: true });
     prefetchPreviewThumbnail(source("third"), { enqueue: true });
     prefetchPreviewThumbnail(source("second"), { enqueue: true });
@@ -117,18 +124,18 @@ describe("bounded hover thumbnail prefetch", () => {
     expect(ThumbnailWorker.instances).toHaveLength(2);
     expect(
       ThumbnailWorker.instances[1].postMessage.mock.lastCall![0].url
-    ).toMatch(/\/queued-6\.jpg$/);
+    ).toMatch(/\/queued-69\.jpg$/);
     const urls = [
       ThumbnailWorker.instances[1].postMessage.mock.lastCall![0].url,
     ];
-    for (let index = 6; index < 69; index++) {
+    for (let index = 69; index > 6; index--) {
       complete();
       urls.push(
         ThumbnailWorker.instances.at(-1)!.postMessage.mock.lastCall![0].url
       );
     }
     expect(urls).toHaveLength(64);
-    expect(urls.at(-1)).toMatch(/\/queued-69\.jpg$/);
+    expect(urls.at(-1)).toMatch(/\/queued-6\.jpg$/);
     prefetchPreviewThumbnail(source("never-started"), { enqueue: true });
     const active = ThumbnailWorker.instances.at(-1)!;
     disposePreviewThumbnailPrefetch();
@@ -226,5 +233,110 @@ describe("bounded hover thumbnail prefetch", () => {
       acquirePreviewThumbnail({ ...input, avifPyramidUrl: undefined })
     ).toBeNull();
     lease.release();
+  });
+  it("separates AVIF-only thumbnails from former TIFF fallbacks and sends only the AVIF URL", () => {
+    const input = {
+      ...source("only"),
+      originalImageUrl: "/original/only.tif",
+      avifPyramidUrl: "/2026/only.avif",
+      nativeSize: { width: 1024, height: 768 },
+    };
+    prefetchPreviewThumbnail(input);
+    complete();
+    expect(acquirePreviewThumbnail({ ...input, avifOnly: true })).toBeNull();
+    prefetchPreviewThumbnail({ ...input, avifOnly: true });
+    const sent =
+      ThumbnailWorker.instances.at(-1)!.postMessage.mock.lastCall![0];
+    expect(sent.url).toMatch(/\/2026\/only\.avif$/);
+    expect(sent.avifOnly).toBe(true);
+    expect(sent.tiff).toBeUndefined();
+    expect(sent.blob).toBeUndefined();
+    complete();
+  });
+  it("does not derive or fetch a legacy thumbnail for an absent AVIF-only source", () => {
+    prefetchPreviewThumbnail({
+      ...source("pending"),
+      avifOnly: true,
+      originalImageUrl: "/original/pending.tif",
+    });
+    expect(ThumbnailWorker.instances).toHaveLength(0);
+    expect(
+      acquirePreviewThumbnail({ ...source("pending"), avifOnly: true })
+    ).toBeNull();
+  });
+  it("keeps active and queued navigation backgrounds alive when hover clears", () => {
+    const first = { ...source("next"), avifPyramidUrl: "/next.avif" };
+    prefetchPreviewThumbnail(first, { enqueue: true });
+    prefetchPreviewThumbnail(source("later"), { enqueue: true });
+    prefetchPreviewThumbnail(null);
+    expect(ThumbnailWorker.instances[0].terminate).not.toHaveBeenCalled();
+    complete();
+    const lease = acquirePreviewThumbnail(first);
+    expect(lease).not.toBeNull();
+    lease!.release();
+    expect(
+      ThumbnailWorker.instances.at(-1)!.postMessage.mock.lastCall![0].url
+    ).toMatch(/later\.jpg$/);
+  });
+  it("preempts a background for foreground and rejects its late completion", () => {
+    prefetchPreviewThumbnail(source("background"), { enqueue: true });
+    const old = ThumbnailWorker.instances[0];
+    prefetchPreviewThumbnail(source("urgent"));
+    expect(old.terminate).toHaveBeenCalledOnce();
+    expect(
+      ThumbnailWorker.instances.at(-1)!.postMessage.mock.lastCall![0].url
+    ).toMatch(/urgent\.jpg$/);
+    const stale = bitmap();
+    old.reply({ bitmap: stale, blob: new Blob(["late"]) });
+    expect(stale.close).toHaveBeenCalledOnce();
+    expect(acquirePreviewThumbnail(source("background"))).toBeNull();
+    complete();
+    expect(
+      ThumbnailWorker.instances.at(-1)!.postMessage.mock.lastCall![0].url
+    ).toMatch(/background\.jpg$/);
+  });
+  it("backs off missing assets for15seconds without blocking other preloads", () => {
+    prefetchPreviewThumbnail(source("missing"), { enqueue: true });
+    ThumbnailWorker.instances[0].reply({
+      error: "Thumbnail preview:404",
+      missing: true,
+    });
+    prefetchPreviewThumbnail(source("missing"));
+    prefetchPreviewThumbnail(source("missing"), { enqueue: true });
+    expect(ThumbnailWorker.instances).toHaveLength(1);
+    prefetchPreviewThumbnail(source("available"), { enqueue: true });
+    complete();
+    const lease = acquirePreviewThumbnail(source("available"));
+    expect(lease).not.toBeNull();
+    lease!.release();
+    vi.advanceTimersByTime(15001);
+    prefetchPreviewThumbnail(source("missing"), { enqueue: true });
+    expect(ThumbnailWorker.instances).toHaveLength(3);
+  });
+});
+
+describe("shared missing source availability", () => {
+  it("notifies subscribers on missing and TTL expiry and permits retry", () => {
+    const item = source("published-later"),
+      listener = vi.fn();
+    const unsubscribe = subscribePreviewThumbnail(item, listener);
+    reportPreviewSourceMissing(item);
+    expect(isPreviewSourceMissing(item)).toBe(true);
+    prefetchPreviewThumbnail(item);
+    expect(ThumbnailWorker.instances).toHaveLength(0);
+    expect(listener).toHaveBeenCalledTimes(1);
+    vi.advanceTimersByTime(15000);
+    expect(listener).toHaveBeenCalledTimes(2);
+    expect(isPreviewSourceMissing(item)).toBe(false);
+    prefetchPreviewThumbnail(item);
+    complete();
+    expect(listener).toHaveBeenCalledTimes(3);
+    unsubscribe();
+  });
+  it("does not classify a generic error containing a pixel count as HTTP missing", () => {
+    const item = source("invalid");
+    prefetchPreviewThumbnail(item);
+    ThumbnailWorker.instances[0].reply({ error: "Unexpected image width 404" });
+    expect(isPreviewSourceMissing(item)).toBe(false);
   });
 });

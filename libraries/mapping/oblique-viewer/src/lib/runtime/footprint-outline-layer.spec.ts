@@ -52,6 +52,7 @@ const ring: Position[] = [
 ];
 const pose = { direction: [0, 0, -1], up: [0, 1, 0] } as ObliquePose;
 const drawSurfaceLabel = vi.fn();
+const drawLabelText = vi.fn();
 const readLabelPixels = vi.fn();
 const cleanupHandles: Array<ReturnType<typeof createFootprintOutlineLayer>> =
   [];
@@ -157,7 +158,7 @@ beforeEach(() => {
     stroke: vi.fn(),
     setTransform: vi.fn(),
     drawImage: drawSurfaceLabel,
-    fillText: vi.fn(),
+    fillText: drawLabelText,
     getImageData: readLabelPixels,
   } as unknown as CanvasRenderingContext2D);
 });
@@ -340,6 +341,42 @@ describe("calibrated current highlights and bounded selection trails", () => {
     expect(overlay.marks[0].sceneToImage).toBe(initial.marks[0].sceneToImage);
     expect(overlay.marks[1].sceneToImage).toBe(initial.marks[1].sceneToImage);
   });
+  it("projects a large central X for known missing photos in a single loaded catalog without changing geometry", () => {
+    const { handle } = setup(true);
+    handle.setRing(ring, annotation("2026::missing"));
+    handle.setLabelsVisible(false);
+    const before = scene.projective.mock.calls.at(-1)?.[1],
+      matrix = before.marks[0].sceneToImage;
+    expect(before.labelAtlas).toBeUndefined();
+    handle.setMissingImages(new Set(["2026::missing"]));
+    const marked = scene.projective.mock.calls.at(-1)?.[1];
+    expect(marked.marks[0].labelRect).toBeDefined();
+    expect(marked.marks[0].sceneToImage).toBe(matrix);
+    expect(marked.marks[0].showUpMarker).toBe(true);
+    expect(drawLabelText).toHaveBeenLastCalledWith("X", 256, 132);
+    const uploads = scene.projective.mock.calls.length;
+    handle.setMissingImages(new Set(["2026::missing"]));
+    expect(scene.projective).toHaveBeenCalledTimes(uploads);
+    handle.setMissingImages(new Set());
+    const cleared = scene.projective.mock.calls.at(-1)?.[1];
+    expect(cleared.labelAtlas).toBeUndefined();
+    expect(cleared.marks[0].labelRect).toBeUndefined();
+    expect(cleared.marks[0].sceneToImage).toBe(matrix);
+  });
+  it("keeps missing labels scoped to qualified center/hover IDs and leaves ordinary labels hidden", () => {
+    const { handle } = setup(true);
+    handle.setRing(ring, annotation("2024::same"));
+    handle.setLabelsVisible(false);
+    handle.setMissingImages(new Set(["2026::same"]));
+    expect(
+      scene.projective.mock.calls.at(-1)?.[1].marks[0].labelRect
+    ).toBeUndefined();
+    handle.setHoveredImage("2026::same", candidate("2026::same"));
+    const overlay = scene.projective.mock.calls.at(-1)?.[1];
+    expect(overlay.marks.at(-1).labelRect).toBeDefined();
+    expect(drawLabelText).toHaveBeenLastCalledWith("X", 256, 132);
+    expect(overlay.marks[0].labelRect).toBeUndefined();
+  });
   it("does not highlight the center for a pointer miss or while waiting for a hit", () => {
     const { handle } = setup(true);
     const highlights = () =>
@@ -413,13 +450,23 @@ describe("calibrated current highlights and bounded selection trails", () => {
     }
     expect(map.unproject).toHaveBeenCalledTimes(4);
     map.unproject.mockReturnValue({ lng: 10, lat: 10 });
-    fire("move");
+    for (let index = 0; index < 12; index++) {
+      fire("move");
+      fire("idle");
+      vi.advanceTimersByTime(16);
+    }
+    expect(map.unproject).toHaveBeenCalledTimes(4);
+    expect(scene.projective.mock.lastCall?.[1].marks).toHaveLength(2);
+    vi.advanceTimersByTime(120);
     fire("idle");
     expect(map.unproject).toHaveBeenCalledTimes(8);
     expect(scene.projective.mock.lastCall?.[1].marks).toHaveLength(1);
     map.unproject.mockReturnValue({ lng: 0.001, lat: -0.001 });
     fire("resize");
     handle.setRing(ring, annotation("third"));
+    expect(map.unproject).toHaveBeenCalledTimes(8);
+    vi.advanceTimersByTime(120);
+    fire("idle");
     expect(map.unproject).toHaveBeenCalledTimes(12);
     expect(scene.projective.mock.lastCall?.[1].marks).toHaveLength(2);
     fire("idle");
@@ -579,6 +626,7 @@ describe("calibrated current highlights and bounded selection trails", () => {
     Object.assign(map, { transform: { width: 100, height: 100 } });
     map.unproject.mockReturnValue({ lng: 10, lat: 10 });
     fire("resize");
+    vi.advanceTimersByTime(120);
     fire("idle");
     expect(scene.projective.mock.calls.at(-1)?.[1].marks).toHaveLength(1);
     const atlas = scene.projective.mock.calls.at(-1)?.[1].labelAtlas,

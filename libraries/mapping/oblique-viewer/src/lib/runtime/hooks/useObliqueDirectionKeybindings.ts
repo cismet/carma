@@ -1,43 +1,78 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+import { isManagedNavigationKeyboardEvent } from "@carma-mapping/engines-interop/navigation-controls";
+import {
+  OBLIQUE_NAVIGATION_KEYS,
+  type ObliqueNavigationKey,
+} from "../oblique-actions";
 
 type Params = {
   enabled?: boolean;
-  onPan: (horizontal: number, vertical: number) => void;
+  rotationEnabled?: boolean;
+  onNavigate: (key: ObliqueNavigationKey) => void;
+  onNadir?: () => void;
 };
 
-const isEditableTarget = (target: EventTarget | null): boolean => {
-  if (!(target instanceof HTMLElement)) return false;
-  return (
-    ["input", "textarea", "select"].includes(target.tagName.toLowerCase()) ||
-    target.isContentEditable
-  );
+const NUMPAD_NAVIGATION: Readonly<Record<string, ObliqueNavigationKey>> = {
+  Numpad8: OBLIQUE_NAVIGATION_KEYS.Up,
+  Numpad4: OBLIQUE_NAVIGATION_KEYS.Left,
+  Numpad2: OBLIQUE_NAVIGATION_KEYS.Down,
+  Numpad6: OBLIQUE_NAVIGATION_KEYS.Right,
+  Numpad7: OBLIQUE_NAVIGATION_KEYS.RotateLeft,
+  Numpad9: OBLIQUE_NAVIGATION_KEYS.RotateRight,
+};
+const KEY_NAVIGATION: Readonly<Record<string, ObliqueNavigationKey>> = {
+  w: OBLIQUE_NAVIGATION_KEYS.Up,
+  arrowup: OBLIQUE_NAVIGATION_KEYS.Up,
+  a: OBLIQUE_NAVIGATION_KEYS.Left,
+  arrowleft: OBLIQUE_NAVIGATION_KEYS.Left,
+  s: OBLIQUE_NAVIGATION_KEYS.Down,
+  arrowdown: OBLIQUE_NAVIGATION_KEYS.Down,
+  d: OBLIQUE_NAVIGATION_KEYS.Right,
+  arrowright: OBLIQUE_NAVIGATION_KEYS.Right,
+  q: OBLIQUE_NAVIGATION_KEYS.RotateLeft,
+  r: OBLIQUE_NAVIGATION_KEYS.RotateRight,
 };
 
-/** Keyboard requests move the ground target in the current camera frame. */
+/** Buttons and shortcuts navigate the same prepared image targets. */
 export const useObliqueDirectionKeybindings = ({
   enabled = true,
-  onPan,
+  rotationEnabled = true,
+  onNavigate,
+  onNadir,
 }: Params): void => {
+  const callbacks = useRef({ onNavigate, onNadir, rotationEnabled });
+  callbacks.current = { onNavigate, onNadir, rotationEnabled };
   useEffect(() => {
     if (!enabled) return undefined;
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (isEditableTarget(event.target)) return;
-      const key = event.key.toLowerCase();
-      const numpad = event.code.toLowerCase().startsWith("numpad");
-      let offset: [number, number] | null = null;
-      if (key === "w" || key === "arrowup" || (numpad && key === "8"))
-        offset = [0, 1];
-      else if (key === "a" || key === "arrowleft" || (numpad && key === "4"))
-        offset = [-1, 0];
-      else if (key === "s" || key === "arrowdown" || (numpad && key === "2"))
-        offset = [0, -1];
-      else if (key === "d" || key === "arrowright" || (numpad && key === "6"))
-        offset = [1, 0];
-      if (!offset) return;
+      if (
+        event.isComposing ||
+        !isManagedNavigationKeyboardEvent(event, { allowRepeat: true })
+      )
+        return;
+      if (event.code === "Numpad5") {
+        if (!callbacks.current.onNadir) return;
+        event.preventDefault();
+        event.stopPropagation();
+        callbacks.current.onNadir();
+        return;
+      }
+      const key =
+        NUMPAD_NAVIGATION[event.code] ??
+        KEY_NAVIGATION[event.key.toLowerCase()];
+      if (!key) return;
       event.preventDefault();
-      onPan(...offset);
+      event.stopPropagation();
+      if (
+        (key === OBLIQUE_NAVIGATION_KEYS.RotateLeft ||
+          key === OBLIQUE_NAVIGATION_KEYS.RotateRight) &&
+        !callbacks.current.rotationEnabled
+      )
+        return;
+      callbacks.current.onNavigate(key);
     };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [enabled, onPan]);
+    // Claim arrows before MapLibre also pans its camera for the same key.
+    window.addEventListener("keydown", handleKeyDown, true);
+    return () => window.removeEventListener("keydown", handleKeyDown, true);
+  }, [enabled]);
 };

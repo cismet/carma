@@ -226,6 +226,8 @@ export type RasterDemTerrainRuntimeOptions = Readonly<{
   /** Symmetric local-metre padding for bounds when shaders deform vertices. */
   boundsPaddingMeters?: readonly [x: number, y: number, z: number];
   material?: RasterDemTerrainMaterialOptions;
+  /** Keep terrain data resident while its visible ground is disabled. */
+  groundVisible?: boolean;
   /** Project MapLibre ground styling onto this terrain before lighting. */
   receivesMapStyleTexture?: boolean;
   /** Published old-union-new bounds, including stitched normals/topology changes. */
@@ -277,6 +279,7 @@ export interface RasterDemTerrainRuntime extends SharedThreeSceneRuntime {
   /** Move the previous visible cut into this runtime before disposing it. */
   adoptPresentation: (previous: RasterDemTerrainRuntime) => void;
   setShadowView: (view: SharedThreeSceneShadowView | null) => void;
+  setGroundVisible: (visible: boolean) => void;
   setMaterialColor: (color: ColorRepresentation) => void;
   getElevation: (longitude: number, latitude: number) => number | undefined;
   getViewElevationRange: (
@@ -599,8 +602,15 @@ export const buildRasterDemTerrainRuntime = (
   const contentRoot = ecefPresentation ? ecefPresentation.root : root;
   if (ecefPresentation) root.add(ecefPresentation.root);
   const terrainFrame = geodeticOrigin ? createTerrainRuntimeFrame() : null;
+  let groundVisible = options.groundVisible !== false;
   const material = new MeshLambertMaterial({
     color: options.material?.color ?? DEFAULT_TERRAIN_COLOR,
+    colorWrite: true,
+    depthTest: true,
+    depthWrite: groundVisible,
+    transparent: !groundVisible,
+    // No ground is visible before the projection shader has been installed.
+    opacity: groundVisible ? 1 : 0,
     side: FrontSide,
     // The terrain is an open upward-wound surface, unlike closed building
     // extrusions. Cast its visible top faces directly instead of Three.js's
@@ -1336,6 +1346,34 @@ export const buildRasterDemTerrainRuntime = (
     // A finer no-data tile must not reveal a coarser surface below its hole.
     return finest?.sampleHeight?.(longitude, latitude);
   };
+
+  Object.assign(getElevation, {
+    sampleHeights(coordinates: Float64Array, output?: Float64Array) {
+      if (
+        coordinates.length % 2 ||
+        (output && output.length !== coordinates.length / 2)
+      )
+        throw new RangeError("Terrain batch buffers have incompatible lengths");
+      const heights = output ?? new Float64Array(coordinates.length / 2);
+      if (source?.sampleHeights) source.sampleHeights(coordinates, heights);
+      else heights.fill(NaN);
+      for (let index = 0; index < heights.length; index++) {
+        const longitude = coordinates[2 * index],
+          latitude = coordinates[2 * index + 1];
+        if (!Number.isFinite(longitude) || !Number.isFinite(latitude))
+          heights[index] = NaN;
+        else if (Number.isFinite(heights[index])) {
+          if (
+            noDataHeightMeters !== undefined &&
+            Math.abs(heights[index] - noDataHeightMeters) <=
+              NO_DATA_EPSILON_METERS
+          )
+            heights[index] = NaN;
+        } else heights[index] = getElevation(longitude, latitude) ?? NaN;
+      }
+      return heights;
+    },
+  });
 
   let activeMeshKeys: ReadonlySet<string> = new Set();
   const { cancelIdleStitch, scheduleIdleStitch, abortPendingStitch } =
@@ -3069,6 +3107,9 @@ export const buildRasterDemTerrainRuntime = (
       options.receivesMapStyleTexture === true
         ? (candidate) => candidate === material
         : false,
+    get mapStyleProjectionBlend() {
+      return groundVisible ? "replace" : "markings-only";
+    },
     mapStyleProjectionVersion: () => mapStyleProjectionVersion,
     updatePriority: TERRAIN_UPDATE_PRIORITY,
     ready,
@@ -3351,6 +3392,17 @@ export const buildRasterDemTerrainRuntime = (
         shadowViewSignature = nextSignature;
         if (!terrainLoading) syncSelectionShadowView();
       }
+    },
+    setGroundVisible(visible) {
+      if (disposed || groundVisible === visible) return;
+      groundVisible = visible;
+      material.colorWrite = true;
+      material.depthWrite = visible;
+      material.transparent = !visible;
+      material.opacity = visible ? 1 : 0;
+      material.needsUpdate = true;
+      mapStyleProjectionVersion += 1;
+      map?.triggerRepaint();
     },
     setMaterialColor(color) {
       material.color.set(color);

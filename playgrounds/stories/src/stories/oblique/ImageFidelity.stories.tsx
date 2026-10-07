@@ -2,6 +2,7 @@ import { lazy, Suspense } from "react";
 import { useArgs } from "@storybook/preview-api";
 import type { Meta, StoryObj } from "@storybook/react";
 
+import type { QualitySettingsComparisonProps } from "../../../../../libraries/mapping/oblique-viewer/src/lib/runtime/quality-comparison/QualitySettingsComparison";
 import type { BestPracticeTilesProps } from "../../../../../libraries/mapping/oblique-viewer/src/lib/runtime/quality-comparison/BestPracticeTiles";
 import type { FilterDetailMatrixProps } from "../../../../../libraries/mapping/oblique-viewer/src/lib/runtime/quality-comparison/FilterDetailMatrix";
 import type { ObliqueImageQualityComparisonProps } from "../../../../../libraries/mapping/oblique-viewer/src/lib/runtime/quality-comparison/ObliqueImageQualityComparison";
@@ -22,6 +23,12 @@ const ObliqueImageQualityComparison = lazy(
   () =>
     import(
       "../../../../../libraries/mapping/oblique-viewer/src/lib/runtime/quality-comparison/ObliqueImageQualityComparison"
+    )
+);
+const QualitySettingsComparison = lazy(
+  () =>
+    import(
+      "../../../../../libraries/mapping/oblique-viewer/src/lib/runtime/quality-comparison/QualitySettingsComparison"
     )
 );
 const assetOrigin = `${window.location.protocol}//${window.location.hostname}:4318`;
@@ -155,6 +162,44 @@ export const ResamplingFilters: StoryObj<FilterDetailMatrixProps> = {
           {...args}
           onMotifChange={(motif) => updateArgs({ motif })}
           onLevelChange={(level) => updateArgs({ level })}
+        />
+      </Suspense>
+    );
+  },
+};
+
+export const QualitySettings: StoryObj<QualitySettingsComparisonProps> = {
+  name: "2026 · q96 versus neue Qualitätseinstellungen",
+  args: {
+    manifestUrl: new URL("/blind-l3-l4/quality-exploration.json", assetOrigin)
+      .href,
+    motif: "facade",
+    comparison: "q90",
+    magnification: 1,
+  },
+  argTypes: {
+    manifestUrl: { control: "text" },
+    motif: {
+      control: "select",
+      options: ["facade", "road", "ground", "trees", "roof"],
+    },
+    comparison: { control: "select", options: ["q90", "q80", "q88"] },
+    magnification: { control: "select", options: [1, 2, 4, 8] },
+    onMotifChange: { table: { disable: true } },
+    onComparisonChange: { table: { disable: true } },
+    onMagnificationChange: { table: { disable: true } },
+  },
+  render: function QualitySettingsStory() {
+    const [args, updateArgs] = useArgs<QualitySettingsComparisonProps>();
+    return (
+      <Suspense fallback={<p>Qualitätsvergleich wird geladen …</p>}>
+        <QualitySettingsComparison
+          {...args}
+          onMotifChange={(motif) => updateArgs({ motif })}
+          onComparisonChange={(comparison) => updateArgs({ comparison })}
+          onMagnificationChange={(magnification) =>
+            updateArgs({ magnification })
+          }
         />
       </Suspense>
     );

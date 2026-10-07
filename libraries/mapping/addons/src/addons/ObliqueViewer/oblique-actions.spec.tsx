@@ -24,6 +24,7 @@ const channel = vi.hoisted(() => ({
     isAllDataReady: false,
     error: null,
     selectedImageId: null,
+    missingPreviewImageId: null,
     selectedCameraId: null,
     selectedImageBearingDeg: null,
     activeDirection: null,
@@ -134,6 +135,7 @@ describe("oblique options storage", () => {
       });
       view.result.current.publish({ isBusy: true });
       view.result.current.publish({ previewVisible: true });
+      view.result.current.publish({ missingPreviewImageId: "2024:photo" });
       view.result.current.publish({
         downloadUrl: "https://imagery.test/photo.tif",
         downloadOptions: null,

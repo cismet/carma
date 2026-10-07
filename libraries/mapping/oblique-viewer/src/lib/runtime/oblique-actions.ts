@@ -47,6 +47,23 @@ export type ViewerSeriesStatus = {
   availableCameraViews?: readonly string[];
 };
 
+export const OBLIQUE_NAVIGATION_KEYS = {
+  Left: "left",
+  Right: "right",
+  Up: "up",
+  Down: "down",
+  RotateLeft: "rotateLeft",
+  RotateRight: "rotateRight",
+} as const;
+export type ObliqueNavigationKey =
+  (typeof OBLIQUE_NAVIGATION_KEYS)[keyof typeof OBLIQUE_NAVIGATION_KEYS];
+
+export type ObliqueNavigationTargets = {
+  imageId: string;
+  images: Record<ObliqueNavigationKey, string | null>;
+  cardinalImages?: Record<CardinalDirection, string | null>;
+};
+
 export type ObliqueViewerState = {
   /** null uses each series default; [] deliberately disables every series. */
   enabledSeriesIds: string[] | null;
@@ -67,6 +84,8 @@ export type ObliqueViewerState = {
   error: string | null;
   /** the image nearest the map centre in the current sector, or the one flown to */
   selectedImageId: string | null;
+  /** Qualified selected photo with an evidenced, currently cached missing preview. */
+  missingPreviewImageId: string | null;
   selectedCameraId: string | null;
   selectedImageBearingDeg: Degrees | null;
   /** the sector the camera looks into, null until the map is tilted */
@@ -76,11 +95,13 @@ export type ObliqueViewerState = {
   pitchDeg: Degrees | null;
   /** the neighbours of the selected image, by the direction they lie in */
   canPan: boolean;
+  /** Geometry-only targets; media readiness never controls these buttons. */
+  navigationTargets: ObliqueNavigationTargets | null;
   /** Capability, not current pointer presence; touch retains the flight button. */
   hoverAvailable: boolean;
   /** the image is shown over the map, aligned with the camera */
   previewVisible: boolean;
-  /** a flight or a turn is under way; the ribbon holds its buttons meanwhile */
+  /** Flight status; prepared geometric navigation remains interactive. */
   isBusy: boolean;
   /** the selected image at download quality, for the ribbon's buttons */
   downloadUrl: string | null;
@@ -106,12 +127,14 @@ export const OBLIQUE_STATE_DEFAULT: ObliqueViewerState = {
   isAllDataReady: false,
   error: null,
   selectedImageId: null,
+  missingPreviewImageId: null,
   selectedCameraId: null,
   selectedImageBearingDeg: null,
   activeDirection: null,
   bearingDeg: null,
   pitchDeg: null,
   canPan: false,
+  navigationTargets: null,
   hoverAvailable: false,
   previewVisible: false,
   isBusy: false,

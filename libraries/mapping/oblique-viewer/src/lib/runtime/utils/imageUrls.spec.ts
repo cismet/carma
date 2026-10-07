@@ -9,6 +9,29 @@ import { downloadTiffJpeg } from "./tiff-download";
 vi.mock("./tiff-download", () => ({ downloadTiffJpeg: vi.fn() }));
 
 describe("source image URLs", () => {
+  it("uses only the public AVIF pyramid despite legacy TIFF assets", () => {
+    expect(
+      getImageUrls("RI_29_3403", "/2026", 3, 1, {
+        avifOnly: true,
+        avifPyramidTemplate: "/2026/avif/{imageId}.avif",
+        originalImageUrl: "/2026/tiff/Nord/RI_29_3403.tif",
+        originalImageUrlTemplate: "/legacy/{imageId}.tif",
+      })
+    ).toEqual({ previewUrl: null, downloadUrl: "/2026/avif/RI_29_3403.avif" });
+    expect(
+      getImageUrls("RI_29_3403", "/2026", 3, 1, {
+        avifOnly: true,
+        avifPyramidUrl: "/2026/avif/Nord/RI_29_3403.avif",
+        originalImageUrl: "/2026/tiff/Nord/RI_29_3403.tif",
+      })
+    ).toEqual({
+      previewUrl: null,
+      downloadUrl: "/2026/avif/Nord/RI_29_3403.avif",
+    });
+    expect(
+      getImageUrls("id", "/2026", 3, 1, { avifOnly: true }).downloadUrl
+    ).toBeNull();
+  });
   it("preserves the served 2024 preview and level-1 download paths", () => {
     expect(
       getImageUrls(

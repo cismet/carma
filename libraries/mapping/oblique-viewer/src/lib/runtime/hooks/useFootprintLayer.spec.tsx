@@ -18,6 +18,7 @@ const footprint = vi.hoisted(() => ({
   setRing: vi.fn(),
   setStyle: vi.fn(),
   setLabelsVisible: vi.fn(),
+  setMissingImages: vi.fn(),
   setHoveredImage: vi.fn(),
   setLocked: vi.fn((locked: boolean) => {
     footprint.locked = locked;
@@ -75,6 +76,7 @@ const setup = (
     selectedRecord: null as ObliqueImageRecord | null,
     nearbyRecords: undefined as readonly ObliqueImageRecord[] | undefined,
     showSeriesLabels: true,
+    missingImageIds: undefined as ReadonlySet<string> | undefined,
     onClick: onClick as typeof onClick | undefined,
     onDoubleClick: onDoubleClick as typeof onDoubleClick | undefined,
     findAtScreenPoint,
@@ -856,6 +858,35 @@ describe("catalog footprint hover activation", () => {
       });
     }
     expect(footprint.setRing).toHaveBeenCalledTimes(commits);
+    view.unmount();
+  });
+});
+
+describe("missing photo labels", () => {
+  it("updates only the label status for a preview-locked selected photo even with year labels hidden", () => {
+    const view = setup();
+    const rings = footprint.setRing.mock.calls.length;
+    const missing = new Set(["2024:image"]);
+    view.rerender({
+      ...view.props,
+      locked: true,
+      hidden: true,
+      showSeriesLabels: false,
+      missingImageIds: missing,
+    });
+    expect(footprint.setMissingImages).toHaveBeenLastCalledWith(missing);
+    expect(footprint.setLabelsVisible).toHaveBeenLastCalledWith(false);
+    expect(footprint.setRing).toHaveBeenCalledTimes(rings);
+    expect(footprint.destroy).not.toHaveBeenCalled();
+    expect(footprint.setLocked).toHaveBeenLastCalledWith(false, undefined);
+    view.unmount();
+  });
+  it("does not block a known missing footprint from activating its existing click callback", async () => {
+    const view = setup();
+    view.rerender({ ...view.props, missingImageIds: new Set(["2024:image"]) });
+    act(() => view.dispatch("click"));
+    await advance(500);
+    expect(view.onClick).toHaveBeenCalledWith("2024:image");
     view.unmount();
   });
 });

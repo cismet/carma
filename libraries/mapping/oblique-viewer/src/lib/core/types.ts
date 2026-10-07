@@ -203,9 +203,11 @@ export type ObliqueDataset = {
   /** Height of the approximation plane when terrain/footprints are unavailable. */
   referenceGroundHeightMeters?: number;
   exteriorOrientationsURI: string;
+  /** Immutable source revision; the parsed-cache schema is versioned separately. */
+  catalogVersion?: string;
   /** Optional gzip JSON transport of the exact canonical catalog document. */
   compressedCatalogURI?: string;
-  /** Independent, disjoint camera groups; canonical URI remains the fallback. */
+  /** Independent, disjoint camera groups assembling one shared in-memory catalog. */
   directionalCatalogs?: readonly ObliqueDirectionalCatalog[];
   /** Exact source routing only; never an input to physical pose or sector geometry. */
   directionalCatalogPriority?: {
@@ -225,6 +227,8 @@ export type ObliqueDataset = {
   originalImageUrlTemplate?: string;
   /** Optional packed AVIF pyramid; per-record assets.pyramid.href takes precedence. */
   avifPyramidTemplate?: string;
+  /** Public assets are AVIF pyramids; never request legacy TIFF/JPEG originals. */
+  avifOnly?: boolean;
   /** Verified publisher artwork and placement for converting original TIFF downloads. */
   downloadWatermark?: ObliqueDownloadWatermark;
   /** Explicit development-only source-Z inspection; the source datum remains unknown. */
@@ -372,6 +376,10 @@ export type ObliqueViewQuery = {
   enabledSeriesIds?: readonly string[];
   /** Native resolution at the ground target can replace centre-distance ranking. */
   selectionStrategy?: "nearest-axis" | "best-resolution";
+  /** Navigation must select another photo rather than staying on the current one. */
+  excludeImageId?: string;
+  /** Arrow navigation advances from the excluded image along this origin-to-target direction. */
+  navigationOrigin?: ObliqueGroundTarget;
   numCandidates?: number;
   maxDistanceMeters?: number;
   /** Exact caller-normalized ground heights for series with a different z datum. */

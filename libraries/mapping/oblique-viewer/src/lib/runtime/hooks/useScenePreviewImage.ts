@@ -265,15 +265,20 @@ export const useScenePreviewImage = ({
       pendingReplacement =
         replacement &&
         Math.max(sourceWidth, sourceHeight) > 512 &&
+        !(
+          options.priority === 0 &&
+          sourceWidth * sourceHeight <= 4 * 1024 * 1024
+        ) &&
         !!map.isMoving?.();
       // Keep the admitted source/crop pair while moving, but still update its camera matrix below.
       if (!pendingReplacement && replacement) {
         if (nextSource !== textureSource) {
-          texture?.dispose();
-          texture =
-            nextSource instanceof HTMLCanvasElement
-              ? new CanvasTexture(nextSource)
-              : new Texture(nextSource);
+          if (texture) texture.image = nextSource;
+          else
+            texture =
+              nextSource instanceof HTMLCanvasElement
+                ? new CanvasTexture(nextSource)
+                : new Texture(nextSource);
           texture.colorSpace = SRGBColorSpace;
           texture.minFilter = LinearFilter;
           texture.generateMipmaps = false;

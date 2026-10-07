@@ -180,6 +180,73 @@ describe("catalog worker lifecycle", () => {
   });
 });
 
+describe("static in-memory catalog revisions", () => {
+  it("reuses a completed static catalog after the legacy freshness interval", async () => {
+    const series = { ...dataset(), catalogVersion: "immutable-sha" };
+    const view = mount(series);
+    act(() =>
+      CatalogWorker.instances[0].complete(series, {
+        imageRecords: new Map([
+          ["image", { id: "image", seriesId: series.id } as ObliqueImageRecord],
+        ]),
+      })
+    );
+    await flush();
+    view.rerender({ series: [series], enabled: false });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(120000);
+    });
+    view.rerender({ series: [series], enabled: true });
+    await flush();
+    expect(CatalogWorker.instances).toHaveLength(1);
+    expect(view.result.current.isAllDataReady).toBe(true);
+  });
+  it("creates a new worker for a new revision but preserves the previous in-memory entry", async () => {
+    const series = { ...dataset(), catalogVersion: "revision-one" };
+    const view = mount(series);
+    act(() =>
+      CatalogWorker.instances[0].complete(series, {
+        imageRecords: new Map([
+          ["image", { id: "image", seriesId: series.id } as ObliqueImageRecord],
+        ]),
+      })
+    );
+    await flush();
+    const newer = { ...series, catalogVersion: "revision-two" };
+    view.rerender({ series: [newer], enabled: true });
+    act(() =>
+      CatalogWorker.instances[1].complete(newer, {
+        imageRecords: new Map([
+          ["image", { id: "image", seriesId: newer.id } as ObliqueImageRecord],
+        ]),
+      })
+    );
+    await flush();
+    view.rerender({ series: [series], enabled: true });
+    await flush();
+    expect(CatalogWorker.instances).toHaveLength(2);
+    expect(view.result.current.isAllDataReady).toBe(true);
+  });
+  it("recreates a legacy unversioned worker after bounded freshness expires", async () => {
+    const series = dataset();
+    const view = mount(series);
+    act(() =>
+      CatalogWorker.instances[0].complete(series, {
+        imageRecords: new Map([
+          ["image", { id: "image", seriesId: series.id } as ObliqueImageRecord],
+        ]),
+      })
+    );
+    await flush();
+    view.rerender({ series: [series], enabled: false });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(60000);
+    });
+    view.rerender({ series: [series], enabled: true });
+    expect(CatalogWorker.instances).toHaveLength(2);
+  });
+});
+
 describe("catalog priority and stable configuration", () => {
   it("does not restart a pending catalog for an equivalent new config object", () => {
     const series = dataset();
@@ -327,6 +394,9 @@ describe("directional catalogs", () => {
     expect(view.result.current.data?.imageRecords.size).toBe(1);
     expect(view.result.current.data?.datasets.size).toBe(1);
     expect(view.result.current.perSeries[0].isLoading).toBe(true);
+    expect(view.result.current.isAllDataReady).toBe(true);
+    expect(view.result.current.isCatalogComplete).toBe(false);
+    expect(view.result.current.perSeries[0].obliqueComplete).toBe(false);
     expect(
       view.result.current.data?.obliquePitchBySeries?.get(series.id)
     ).toEqual({ pitchSumRad: 10, imageCount: 10 });
@@ -444,6 +514,8 @@ describe("directional catalogs", () => {
     ).toBe(series.exteriorOrientationsURI);
     expect(view.result.current.isLoading).toBe(false);
     expect(view.result.current.perSeries[0].imageCount).toBe(10);
+    expect(view.result.current.isCatalogComplete).toBe(true);
+    expect(view.result.current.perSeries[0].obliqueComplete).toBe(true);
     expect(CatalogWorker.instances).toHaveLength(4);
   });
   it("awaitAll urgently finishes every group and returns the committed full catalog", async () => {
@@ -512,6 +584,8 @@ describe("directional catalogs", () => {
     expect(view.result.current.isLoading).toBe(false);
     expect(view.result.current.data?.imageRecords.size).toBe(9);
     expect(view.result.current.isAllDataReady).toBe(true);
+    expect(view.result.current.isCatalogComplete).toBe(false);
+    expect(view.result.current.perSeries[0].obliqueComplete).toBe(false);
     for (const worker of CatalogWorker.instances)
       expect(
         worker.postMessage.mock.calls[0][0].dataset.exteriorOrientationsURI
@@ -554,6 +628,7 @@ describe("directional catalogs", () => {
     expect(view.result.current.isLoading).toBe(false);
     expect(view.result.current.data?.datasets.size).toBe(1);
     expect(view.result.current.data?.imageRecords.size).toBe(10);
+    expect(view.result.current.isCatalogComplete).toBe(true);
     await expect(view.result.current.awaitAll()).resolves.toBe(
       view.result.current.data
     );
@@ -564,6 +639,7 @@ describe("directional catalogs", () => {
       });
     });
     expect(CatalogWorker.instances).toHaveLength(5);
+    expect(view.result.current.isCatalogComplete).toBe(true);
     expect(
       CatalogWorker.instances[4].postMessage.mock.calls[0][0].dataset
         .exteriorOrientationsURI
@@ -587,5 +663,112 @@ describe("directional catalogs", () => {
     });
     expect(CatalogWorker.instances).toHaveLength(1);
     expect(CatalogWorker.instances[0].terminate).toHaveBeenCalledOnce();
+  });
+  it("never claims completeness when a required oblique sector is absent from the configured parts", async () => {
+    const series = grouped();
+    series.directionalCatalogs = series.directionalCatalogs!.filter(
+      (group) => group.sector !== "W"
+    );
+    const view = mount(series),
+      all = view.result.current.awaitAll();
+    for (let index = 0; index < 3; index++) {
+      act(() =>
+        completeGroup(
+          CatalogWorker.instances[index],
+          series,
+          ["N", "E", "S"][index]
+        )
+      );
+      await flush();
+    }
+    await all;
+    expect(view.result.current.isAllDataReady).toBe(true);
+    expect(view.result.current.isLoading).toBe(false);
+    expect(view.result.current.isCatalogComplete).toBe(false);
+    expect(view.result.current.perSeries[0].obliqueComplete).toBe(false);
+  });
+  it("does not let a failed on-demand nadir part undo complete oblique catalogs", async () => {
+    const series = grouped();
+    series.directionalCatalogs = [
+      ...series.directionalCatalogs!,
+      {
+        id: "NA",
+        sector: "nadir",
+        cameraIds: ["NA"],
+        meanHeadingRad: 0 as Radians,
+        imageCount: 1,
+        exteriorOrientationsURI: `/${series.id}-NA.json`,
+      },
+    ];
+    const view = mount(series),
+      all = view.result.current.awaitAll();
+    for (let index = 0; index < 4; index++) {
+      act(() =>
+        completeGroup(
+          CatalogWorker.instances[index],
+          series,
+          ["N", "E", "S", "W"][index]
+        )
+      );
+      await flush();
+    }
+    await all;
+    const nadir = view.result.current.awaitDirection(0 as Radians, {
+      cameraView: "nadir",
+    });
+    act(() => CatalogWorker.instances[4].onerror?.());
+    await flush();
+    await expect(nadir).resolves.toBeNull();
+    expect(view.result.current.error).toContain("NA:");
+    expect(view.result.current.isCatalogComplete).toBe(true);
+    expect(view.result.current.perSeries[0].obliqueComplete).toBe(true);
+  });
+});
+
+describe("complete enabled catalog aggregate", () => {
+  it("requires each enabled canonical success, ignores a disabled failed series and treats no enabled series as incomplete", async () => {
+    const first = dataset(),
+      second = dataset();
+    const view = renderHook(({ series }) => useObliqueData(series, true), {
+      initialProps: { series: [first, second] },
+    });
+    act(() =>
+      CatalogWorker.instances[0].complete(first, {
+        imageRecords: new Map([
+          ["photo", { id: "photo", seriesId: first.id } as ObliqueImageRecord],
+        ]),
+      })
+    );
+    await flush();
+    expect(view.result.current.isAllDataReady).toBe(true);
+    expect(view.result.current.isCatalogComplete).toBe(false);
+    act(() => CatalogWorker.instances[1].onerror?.());
+    await flush();
+    expect(view.result.current.isCatalogComplete).toBe(false);
+    view.rerender({ series: [first] });
+    await flush();
+    expect(view.result.current.isCatalogComplete).toBe(true);
+    expect(view.result.current.error).toBeNull();
+    view.rerender({ series: [] });
+    expect(view.result.current.isCatalogComplete).toBe(false);
+  });
+  it("does not reuse a complete flag for changed calibration/source configuration with the same series ID", async () => {
+    const series = dataset(),
+      view = mount(series);
+    act(() =>
+      CatalogWorker.instances[0].complete(series, {
+        imageRecords: new Map([
+          ["photo", { id: "photo", seriesId: series.id } as ObliqueImageRecord],
+        ]),
+      })
+    );
+    await flush();
+    expect(view.result.current.isCatalogComplete).toBe(true);
+    view.rerender({
+      series: [{ ...series, referenceGroundHeightMeters: 300 }],
+      enabled: true,
+    });
+    expect(view.result.current.isCatalogComplete).toBe(false);
+    expect(CatalogWorker.instances).toHaveLength(2);
   });
 });

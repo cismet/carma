@@ -7,11 +7,19 @@ self.onmessage = async (
     blob?: Blob;
     tiff?: boolean;
     avifPyramidUrl?: string;
+    avifOnly?: boolean;
     nativeSize?: { width: DevicePixels; height: DevicePixels };
   }>
 ) => {
   let bitmap: ImageBitmap | null = null;
   try {
+    if (
+      event.data.avifOnly &&
+      (!event.data.avifPyramidUrl || !event.data.nativeSize)
+    )
+      throw Error(
+        "AVIF-only thumbnail requires a published pyramid and camera dimensions"
+      );
     let blob = event.data.blob;
     if (!blob && event.data.avifPyramidUrl && event.data.nativeSize) {
       const native = event.data.nativeSize,
@@ -25,7 +33,6 @@ self.onmessage = async (
         "low"
       );
       try {
-        const edge = Math.max(native.width, native.height);
         const selected = await source.select(
           {
             source: {
@@ -35,13 +42,10 @@ self.onmessage = async (
               height: native.height,
             },
             target: {
-              width: Math.max(
-                1,
-                Math.round((native.width * 512) / edge)
-              ) as DevicePixels,
+              width: Math.max(1, Math.ceil(native.width / 32)) as DevicePixels,
               height: Math.max(
                 1,
-                Math.round((native.height * 512) / edge)
+                Math.ceil(native.height / 32)
               ) as DevicePixels,
             },
           },
@@ -65,12 +69,15 @@ self.onmessage = async (
           0
         );
         blob = await canvas.convertToBlob({ type: "image/png" });
-      } catch {
+      } catch (error) {
+        if (event.data.avifOnly) throw error;
         /* Partially published AVIF files retain the original thumbnail fallback. */
       } finally {
         source.close();
       }
     }
+    if (event.data.avifOnly && !blob)
+      throw Error("AVIF thumbnail is unavailable");
     if (!blob && event.data.tiff) {
       const native = event.data.nativeSize;
       if (!native) throw new Error("TIFF thumbnail requires camera dimensions");
@@ -79,7 +86,6 @@ self.onmessage = async (
       );
       const source = new TiffPreviewSource(event.data.url, 16 * 1024 * 1024);
       const signal = AbortSignal.timeout(9000);
-      const longEdge = Math.max(native.width, native.height);
       const { image } = await source.select(
         {
           source: {
@@ -89,19 +95,15 @@ self.onmessage = async (
             height: native.height,
           },
           target: {
-            width: Math.max(
-              1,
-              Math.round((native.width * 512) / longEdge)
-            ) as DevicePixels,
-            height: Math.max(
-              1,
-              Math.round((native.height * 512) / longEdge)
-            ) as DevicePixels,
+            width: Math.max(1, Math.ceil(native.width / 32)) as DevicePixels,
+            height: Math.max(1, Math.ceil(native.height / 32)) as DevicePixels,
           },
         },
         native,
         signal
       );
+      if (image.getWidth() * image.getHeight() > 2 * 1024 * 1024)
+        throw Error("TIFF thumbnail coarse page exceeds budget");
       const pixels = await source.read(
         image,
         [0, 0, image.getWidth(), image.getHeight()],
@@ -143,15 +145,24 @@ self.onmessage = async (
       premultiplyAlpha: "none",
     });
     const longEdge = Math.max(bitmap.width, bitmap.height);
-    if (longEdge > 512) {
+    const maxEdge = event.data.nativeSize
+      ? Math.max(
+          Math.ceil(event.data.nativeSize.width / 32),
+          Math.ceil(event.data.nativeSize.height / 32)
+        )
+      : 512;
+    if (longEdge > maxEdge) {
       const source = bitmap;
       bitmap = null;
       try {
         bitmap = await createImageBitmap(source, {
-          resizeWidth: Math.max(1, Math.round((source.width * 512) / longEdge)),
+          resizeWidth: Math.max(
+            1,
+            Math.round((source.width * maxEdge) / longEdge)
+          ),
           resizeHeight: Math.max(
             1,
-            Math.round((source.height * 512) / longEdge)
+            Math.round((source.height * maxEdge) / longEdge)
           ),
           resizeQuality: "high",
           premultiplyAlpha: "none",
@@ -165,6 +176,14 @@ self.onmessage = async (
     bitmap = null;
   } catch (error) {
     self.postMessage({
+      missing:
+        (error instanceof TypeError &&
+          /^(?:Failed to fetch|Load failed|NetworkError when attempting to fetch resource\.?)$/i.test(
+            error.message
+          )) ||
+        /(?:refusing (?:404|410) full-file response|metadata unavailable \((?:404|410)\)|Thumbnail preview:\s*(?:404|410))/.test(
+          error instanceof Error ? error.message : String(error)
+        ),
       error: error instanceof Error ? error.message : String(error),
     });
   } finally {

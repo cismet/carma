@@ -210,16 +210,41 @@ export const rankImagesForView = (
     ? new Set(query.enabledSeriesIds)
     : null;
   const targets = new Map<string, [number, number]>();
+  const navigation = new Map<
+    string,
+    {
+      origin: [number, number];
+      direction: [number, number];
+    }
+  >();
+  const previousCenter = query.excludeImageId
+    ? data.centers.get(query.excludeImageId)
+    : undefined;
+  if (query.navigationOrigin && !previousCenter) return [];
   for (const [id, dataset] of data.datasets) {
     if (enabled && !enabled.has(id)) continue;
-    targets.set(
-      id,
-      wgs84ToDatasetXY(
-        getProj4Converter(dataset.crs, "EPSG:4326"),
-        query.target.longitude,
-        query.target.latitude
-      )
+    const converter = getProj4Converter(dataset.crs, "EPSG:4326");
+    const target = wgs84ToDatasetXY(
+      converter,
+      query.target.longitude,
+      query.target.latitude
     );
+    targets.set(id, target);
+    if (query.navigationOrigin && previousCenter) {
+      const from = wgs84ToDatasetXY(
+        converter,
+        query.navigationOrigin.longitude,
+        query.navigationOrigin.latitude
+      );
+      navigation.set(id, {
+        origin: wgs84ToDatasetXY(
+          converter,
+          previousCenter.longitude,
+          previousCenter.latitude
+        ),
+        direction: [target[0] - from[0], target[1] - from[1]],
+      });
+    }
   }
   const sinPitch = Math.sin(query.pitchRad);
   const desired = [
@@ -235,9 +260,20 @@ export const rankImagesForView = (
   const physicalFrame = new Matrix4();
   const targetSphere = new Sphere(new Vector3(), 0.0001);
   for (const record of candidates) {
+    if (record.id === query.excludeImageId) continue;
     const dataset = data.datasets.get(record.seriesId);
     const xy = targets.get(record.seriesId);
     if (!dataset || !xy) continue;
+    const center = data.centers.get(record.id);
+    if (!center) continue;
+    const advance = navigation.get(record.seriesId);
+    if (
+      advance &&
+      (center.x - advance.origin[0]) * advance.direction[0] +
+        (center.y - advance.origin[1]) * advance.direction[1] <=
+        0
+    )
+      continue;
     if (
       query.cameraView &&
       getCameraCalibration(dataset, record.cameraId).view !== query.cameraView
@@ -308,8 +344,6 @@ export const rankImagesForView = (
       Math.max(0, -pixelY, pixelY - camera.heightPx) / camera.heightPx;
     const angular =
       1 - clamp(dx * desired[0] + dy * desired[1] + dz * desired[2], -1, 1);
-    const center = data.centers.get(record.id);
-    if (!center) continue;
     const distanceOnGround = Math.hypot(xy[0] - center.x, xy[1] - center.y);
     const score =
       4 * angular +

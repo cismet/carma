@@ -8,6 +8,7 @@ import type { ObliqueDownloadWatermark } from "./tiff-download-types";
 export type { ObliqueDownloadWatermark } from "./tiff-download-types";
 export type ObliqueDownloadOptions = Readonly<{
   tiff?: boolean;
+  avif?: boolean;
   nativeSize?: { width: number; height: number };
   watermark?: ObliqueDownloadWatermark;
   signal?: AbortSignal;
@@ -31,25 +32,34 @@ export const getImageUrls = (
     downloadPath?: string;
     originalImageUrlTemplate?: string;
     originalImageUrl?: string;
+    avifOnly?: boolean;
+    avifPyramidTemplate?: string;
+    avifPyramidUrl?: string;
   }
 ): { previewUrl: string | null; downloadUrl: string | null } => {
   if (!id || !path) {
     return { previewUrl: null, downloadUrl: null };
   }
   return {
-    previewUrl: getPreviewImageUrl(path, level, id),
-    downloadUrl:
-      options?.originalImageUrl ??
-      (options?.originalImageUrlTemplate
-        ? options.originalImageUrlTemplate.replace(
-            /\{imageId\}/g,
-            encodeURIComponent(id)
-          )
-        : options?.downloadPath
-        ? `${options.downloadPath.replace(/\/$/, "")}/${encodeURIComponent(
-            id
-          )}.${PREVIEW_IMAGE_EXTENSION}`
-        : getPreviewImageUrl(path, downloadLevel ?? level, id)),
+    previewUrl: options?.avifOnly ? null : getPreviewImageUrl(path, level, id),
+    downloadUrl: options?.avifOnly
+      ? options.avifPyramidUrl ??
+        options.avifPyramidTemplate?.replace(
+          /\{imageId\}/g,
+          encodeURIComponent(id)
+        ) ??
+        null
+      : options?.originalImageUrl ??
+        (options?.originalImageUrlTemplate
+          ? options.originalImageUrlTemplate.replace(
+              /\{imageId\}/g,
+              encodeURIComponent(id)
+            )
+          : options?.downloadPath
+          ? `${options.downloadPath.replace(/\/$/, "")}/${encodeURIComponent(
+              id
+            )}.${PREVIEW_IMAGE_EXTENSION}`
+          : getPreviewImageUrl(path, downloadLevel ?? level, id)),
   };
 };
 
@@ -58,11 +68,18 @@ export const downloadAsBlobAsync = async (
   options?: ObliqueDownloadOptions
 ): Promise<void> => {
   const tiff = options?.tiff;
+  if (options?.avif && !options.nativeSize)
+    throw new Error("Für den JPG-Download fehlen die AVIF-Bildmaße.");
   if (tiff && !options.nativeSize)
     throw new Error("Für den JPG-Download fehlen die Originalbildmaße.");
   if (tiff && !options.watermark)
     throw new Error("Für den JPG-Download fehlt die Wasserzeichen-Vorlage.");
-  const blob = tiff
+  const blob = options?.avif
+    ? await downloadTiffJpeg(
+        { format: "avif", url: downloadUrl, nativeSize: options.nativeSize! },
+        options.signal
+      )
+    : tiff
     ? await downloadTiffJpeg(
         {
           url: downloadUrl,
@@ -90,7 +107,11 @@ export const downloadAsBlobAsync = async (
       `oblique-image-${Date.now()}.jpg`;
     const link = document.createElement("a");
     link.href = blobUrl;
-    link.download = tiff ? filename.replace(/\.tiff?$/i, ".jpg") : filename;
+    link.download = options?.avif
+      ? filename.replace(/\.avif$/i, ".jpg")
+      : tiff
+      ? filename.replace(/\.tiff?$/i, ".jpg")
+      : filename;
     link.click();
   } finally {
     window.URL.revokeObjectURL(blobUrl);

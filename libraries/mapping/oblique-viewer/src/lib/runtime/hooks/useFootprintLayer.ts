@@ -41,6 +41,7 @@ type UseFootprintLayerOptions = {
   seriesLabels?: ReadonlyMap<string, string | undefined>;
   /** Labels only distinguish multiple successfully loaded, enabled catalogs. */
   showSeriesLabels?: boolean;
+  missingImageIds?: ReadonlySet<string>;
   /** Disable picks during camera travel and preview. */
   locked: boolean;
   /** Hide contours only after the photograph border has reached the draw. */
@@ -67,6 +68,7 @@ export const useFootprintLayer = ({
   seriesLabel,
   seriesLabels,
   showSeriesLabels = true,
+  missingImageIds,
   locked,
   hidden,
   style,
@@ -142,6 +144,10 @@ export const useFootprintLayer = ({
   useEffect(() => {
     layerRef.current?.setLabelsVisible(showSeriesLabels);
   }, [map, enabled, showSeriesLabels]);
+
+  useEffect(() => {
+    layerRef.current?.setMissingImages(missingImageIds ?? new Set());
+  }, [map, enabled, missingImageIds]);
 
   // the ring under the outline
   useEffect(() => {
@@ -543,9 +549,14 @@ export const useFootprintLayer = ({
   }, [map, enabled, catalogHover]);
 
   // Interaction locks never remove the contour while the photograph is loading.
+  const selectedMissing =
+    selectedImageId !== null && missingImageIds?.has(selectedImageId) === true;
   useEffect(() => {
-    void layerRef.current?.setLocked(hidden, fadeOutRef.current);
-  }, [map, enabled, hidden]);
+    void layerRef.current?.setLocked(
+      hidden && !selectedMissing,
+      fadeOutRef.current
+    );
+  }, [map, enabled, hidden, selectedMissing]);
 
   return useCallback(
     () =>

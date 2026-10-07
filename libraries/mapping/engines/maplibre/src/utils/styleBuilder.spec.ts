@@ -193,7 +193,9 @@ describe("vectorStylesToMapLibreStyle remote style deadline", () => {
       expect(result.failedLayerIds).toEqual(["stalled-layer"]);
       expect(result.style.layers).toHaveLength(2);
       expect(result.style.layers[0].id).toBe("background");
-      expect(result.style.layers[1].metadata?.["carma-layer-id"]).toBe("ready-layer");
+      expect(result.style.layers[1].metadata?.["carma-layer-id"]).toBe(
+        "ready-layer"
+      );
       expect(vi.getTimerCount()).toBe(0);
       const options = fetchMock.mock.calls[0][1] as RequestInit;
       expect(options.signal?.aborted).toBe(true);
@@ -287,4 +289,118 @@ describe("getVectorMapping WMS capabilities fetch", () => {
       signal: expect.any(AbortSignal),
     });
   });
+});
+
+describe("authored transparent paint survives style merging", () => {
+  it("keeps a transparent LoD2 metadata carrier over an existing raster background", async () => {
+    const tilesetUrl = "https://example.test/lod2/tileset.json";
+    const carrier = {
+      version: 8,
+      metadata: {
+        carmaConf: { layerInfo: { tags: ["Basis", "Gebäude", "LoD2"] } },
+      },
+      sources: {},
+      layers: [
+        {
+          id: "lod2-carrier",
+          type: "background",
+          metadata: {
+            carmaConf: {
+              "3d": {
+                renderMode: "tiles3d",
+                tilesetUrl,
+                providesTerrain: false,
+              },
+            },
+          },
+          paint: { "background-color": "#000000", "background-opacity": 0 },
+        },
+      ],
+    } as StyleSpecification;
+    const background = {
+      version: 8,
+      sources: {
+        amtlich: {
+          type: "raster",
+          tiles: ["https://example.test/raster/{z}/{x}/{y}.png"],
+          tileSize: 256,
+        },
+      },
+      layers: [
+        {
+          id: "background",
+          type: "background",
+          paint: { "background-color": "#ffffff" },
+        },
+        {
+          id: "amtlich",
+          type: "raster",
+          source: "amtlich",
+          paint: { "raster-opacity": 0.9 },
+        },
+      ],
+    } as StyleSpecification;
+    const { style } = await vectorStylesToMapLibreStyle({
+      layers: [{ type: "vector", name: "lod2", style: carrier, opacity: 0.7 }],
+      backgroundStyle: background,
+    });
+    const index = style.layers.findIndex(
+      (layer) => layer.metadata?.carmaConf?.["3d"]?.tilesetUrl === tilesetUrl
+    );
+    expect(index).toBeGreaterThan(
+      style.layers.findIndex((layer) => layer.id === "amtlich")
+    );
+    expect(style.layers[index].paint).toMatchObject({
+      "background-color": "#000000",
+      "background-opacity": 0,
+    });
+    expect(style.layers[index].metadata?.carmaConf?.["3d"]).toMatchObject({
+      renderMode: "tiles3d",
+      tilesetUrl,
+      providesTerrain: false,
+    });
+    expect(
+      style.layers.find((layer) => layer.id === "amtlich")?.paint
+    ).toMatchObject({ "raster-opacity": 0.9 });
+  });
+  it.each([
+    ["fill", "fill-opacity"],
+    ["line", "line-opacity"],
+    ["raster", "raster-opacity"],
+    ["circle", "circle-opacity"],
+    ["circle", "circle-stroke-opacity"],
+    ["symbol", "text-opacity"],
+    ["symbol", "icon-opacity"],
+  ])(
+    "preserves explicit zero %s/%s while applying a layer fade",
+    async (type, property) => {
+      const source =
+        type === "raster"
+          ? {
+              type: "raster",
+              tiles: ["https://example.test/{z}/{x}/{y}.png"],
+              tileSize: 256,
+            }
+          : {
+              type: "geojson",
+              data: { type: "FeatureCollection", features: [] },
+            };
+      const input = {
+        version: 8,
+        sources: { sample: source },
+        layers: [
+          { id: "sample", type, source: "sample", paint: { [property]: 0 } },
+        ],
+      } as StyleSpecification;
+      const { style } = await vectorStylesToMapLibreStyle({
+        layers: [
+          { type: "vector", name: "sample", style: input, opacity: 0.4 },
+        ],
+        backgroundStyle: { version: 8, sources: {}, layers: [] },
+      });
+      expect((style.layers[0].paint as Record<string, unknown>)[property]).toBe(
+        0
+      );
+    }
+  );
 });

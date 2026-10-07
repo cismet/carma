@@ -247,6 +247,44 @@ describe("normalized image series", () => {
       ).toThrow(/pose|camera/);
     }
   });
+  it("allows per-record AVIF pyramids without a dataset template", () => {
+    expect(
+      resolveSeries({
+        series: [
+          {
+            ...dataset("avif"),
+            avifOnly: true,
+            avifPyramidTemplate: "/avif/{imageId}.avif",
+          },
+        ],
+      })[0].avifOnly
+    ).toBe(true);
+    expect(
+      resolveSeries({
+        series: [{ ...dataset("per-record"), avifOnly: true }],
+      })[0].avifOnly
+    ).toBe(true);
+    expect(() =>
+      resolveSeries({
+        series: [{ ...dataset("bad"), avifOnly: "yes" as unknown as boolean }],
+      })
+    ).toThrow(/boolean/);
+  });
+  it("validates explicit immutable catalog versions", () => {
+    expect(
+      resolveSeries({
+        series: [{ ...dataset("versioned"), catalogVersion: "source-sha256" }],
+      })[0].catalogVersion
+    ).toBe("source-sha256");
+    for (const catalogVersion of ["", "  ", 42, null])
+      expect(() =>
+        resolveSeries({
+          series: [
+            { ...dataset("invalid"), catalogVersion: catalogVersion as string },
+          ],
+        })
+      ).toThrow(/catalog versions/);
+  });
   it("validates unique nonempty configured series IDs", () => {
     expect(() =>
       resolveSeries({ series: [dataset("same"), dataset("same")] })

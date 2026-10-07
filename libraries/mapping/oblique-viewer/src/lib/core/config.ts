@@ -94,6 +94,16 @@ export const resolveSeries = (
       throw new Error(
         "AVIF pyramid template requires an {imageId} placeholder."
       );
+    if (dataset.avifOnly !== undefined && typeof dataset.avifOnly !== "boolean")
+      throw new Error("Image series avifOnly must be boolean.");
+    if (
+      dataset.catalogVersion !== undefined &&
+      (typeof dataset.catalogVersion !== "string" ||
+        !dataset.catalogVersion.trim())
+    )
+      throw new Error(
+        "Image series catalog versions must be nonempty strings."
+      );
     if (dataset.directionalCatalogs !== undefined) {
       const groupIds = new Set<string>();
       if (

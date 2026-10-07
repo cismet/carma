@@ -126,7 +126,10 @@ describe("persistent parsed catalog freshness", () => {
       network.mock.calls.every(([, init]) => init?.cache === "no-cache")
     ).toBe(true);
     expect(storage.options).toHaveBeenCalledWith(
-      expect.objectContaining({ capacityBytes: 192 * 1024 ** 2, maxEntries: 6 })
+      expect.objectContaining({
+        capacityBytes: 192 * 1024 ** 2,
+        maxEntries: 12,
+      })
     );
   });
   it("reparses changed metadata using validators from the same GET body", async () => {
@@ -200,6 +203,116 @@ describe("persistent parsed catalog freshness", () => {
     );
     await loadCachedObliqueSeriesData(dataset);
     expect(loadObliqueSeriesData).toHaveBeenCalledTimes(2);
+  });
+});
+describe("immutable catalog revisions", () => {
+  it("loads cold once, then serves a versioned catalog offline without HEAD or GET", async () => {
+    const series = {
+      ...dataset,
+      catalogVersion: "sha256-first",
+      footprintsURI: "https://images.example/footprints.json",
+    };
+    const first = await loadCachedObliqueSeriesData(series);
+    now += 365 * 24 * 60 * 60 * 1000;
+    network.mockRejectedValue(new TypeError("Offline"));
+    const warm = await loadCachedObliqueSeriesData(series);
+    expect([...warm.imageRecords]).toEqual([...first.imageRecords]);
+    expect(loadObliqueSeriesData).toHaveBeenCalledOnce();
+    expect(network.mock.calls.map(([, init]) => init?.method ?? "GET")).toEqual(
+      ["GET", "GET"]
+    );
+    expect(storage.options).toHaveBeenCalledWith(
+      expect.objectContaining({
+        producerEpoch: OBLIQUE_CATALOG_CACHE_VERSION,
+        databaseName: "carma-oblique-catalog-cache-v3-192m-12",
+        maxEntries: 12,
+      })
+    );
+  });
+  it("keeps an immutable parsed entry when only the compressed transport URL changes", async () => {
+    const series = {
+      ...dataset,
+      catalogVersion: "sha256-first",
+      compressedCatalogURI: "https://images.example/old.json.gz",
+    };
+    vi.mocked(loadObliqueSeriesData).mockImplementation(
+      async (input, signal, fetchSource = fetch) => {
+        await fetchSource(input.compressedCatalogURI!, { signal });
+        return {
+          imageRecords: new Map([
+            ["first", { id: "first" } as ObliqueImageRecord],
+          ]),
+          centers: new Map(),
+          datasets: new Map([[input.id, input]]),
+        };
+      }
+    );
+    await loadCachedObliqueSeriesData(series);
+    network.mockRejectedValue(new TypeError("Offline"));
+    const warm = await loadCachedObliqueSeriesData({
+      ...series,
+      compressedCatalogURI: "https://images.example/new.json.gz",
+    });
+    expect([...warm.imageRecords.keys()]).toEqual(["first"]);
+    expect(loadObliqueSeriesData).toHaveBeenCalledOnce();
+    expect(network).toHaveBeenCalledOnce();
+  });
+  it("misses a new revision without deleting the previous revision", async () => {
+    const first = { ...dataset, catalogVersion: "sha256-first" };
+    await loadCachedObliqueSeriesData(first);
+    network.mockImplementation(async () => reply("second"));
+    const updated = await loadCachedObliqueSeriesData({
+      ...dataset,
+      catalogVersion: "sha256-second",
+    });
+    expect([...updated.imageRecords.keys()]).toEqual(["second"]);
+    expect(storage.values.size).toBe(2);
+    network.mockRejectedValue(new TypeError("Offline"));
+    const restored = await loadCachedObliqueSeriesData(first);
+    expect([...restored.imageRecords.keys()]).toEqual(["first"]);
+    expect(loadObliqueSeriesData).toHaveBeenCalledTimes(2);
+  });
+  it("does not reuse a value missing the explicit immutable revision", async () => {
+    const series = { ...dataset, catalogVersion: "sha256-first" };
+    await loadCachedObliqueSeriesData(series);
+    const stored = [...storage.values.values()][0] as {
+      catalogVersion?: string;
+    };
+    delete stored.catalogVersion;
+    network.mockImplementation(async () => reply("refreshed"));
+    expect([
+      ...(await loadCachedObliqueSeriesData(series)).imageRecords.keys(),
+    ]).toEqual(["refreshed"]);
+    expect(loadObliqueSeriesData).toHaveBeenCalledTimes(2);
+  });
+  it("isolates parser-schema entries and preserves an older parser entry", async () => {
+    const series = { ...dataset, catalogVersion: "sha256-first" };
+    await loadCachedObliqueSeriesData(series);
+    const [currentKey, value] = [...storage.values.entries()][0];
+    const olderKey = currentKey.replace(
+      OBLIQUE_CATALOG_CACHE_VERSION,
+      "oblique-catalog-v2"
+    );
+    storage.values.delete(currentKey);
+    storage.values.set(olderKey, value);
+    await loadCachedObliqueSeriesData(series);
+    expect(loadObliqueSeriesData).toHaveBeenCalledTimes(2);
+    expect(storage.values.has(olderKey)).toBe(true);
+    expect(storage.values.size).toBe(2);
+  });
+  it("restores current runtime animation callbacks on an immutable hit", async () => {
+    const easing = (value: number) => value;
+    const series = {
+      ...dataset,
+      catalogVersion: "sha256-first",
+      animations: { enterObliqueMode: { easingFunction: easing } },
+    };
+    await loadCachedObliqueSeriesData(series);
+    const warm = await loadCachedObliqueSeriesData(series);
+    expect(
+      warm.datasets.get(dataset.id)?.animations.enterObliqueMode?.easingFunction
+    ).toBe(easing);
+    expect(loadObliqueSeriesData).toHaveBeenCalledOnce();
   });
 });
 describe("optional storage and cancellation", () => {

@@ -22,7 +22,7 @@ vi.mock("../constants/default-workflows", () => ({
 vi.mock("@carma-commons/resources", () => ({
   BASEMAP_METROPOLE_RUHR_WMTS_GRAUBLAU_HQ: {},
   WUPP_LOD2_TILESET: {},
-  WUPP_MESH_2024: {},
+  WUPP_MESH_2024: { alternateUrls: [] },
   WUPP_TERRAIN_PROVIDER: {},
   WUPP_TERRAIN_PROVIDER_DSM_MESH_2024_1M: {},
 }));

@@ -1,9 +1,21 @@
 import type { Map as MaplibreMap } from "maplibre-gl";
-import { Matrix4, Sphere, Raycaster, Vector3, type Mesh } from "three";
+import {
+  Matrix4,
+  Sphere,
+  Raycaster,
+  Vector3,
+  type Box3,
+  type Intersection,
+  type Object3D,
+} from "three";
 import {
   acquireSharedThreeScene,
   getSharedThreeSceneRuntimes,
+  getSharedThreeTerrainElevation,
+  getSharedThreeTerrainElevations,
+  subscribeSharedThreeTerrain,
 } from "@carma-mapping/engines/maplibre";
+import type { RasterDemTerrainRuntime } from "@carma-mapping/engines/maplibre/terrain";
 import { degToRadNumeric, type Meters } from "@carma-units";
 import { shortestAngleDelta } from "@carma-commons/math";
 import type {
@@ -43,8 +55,22 @@ export const createPhotoAxisPicker = (
   let snapshot: PhotoAxisDebug = null;
   let revision = "";
   let nativeRevision = 0;
+  let unsubscribeTerrain: (() => void) | undefined;
+  const terrainChanged = () => {
+    nativeRevision++;
+    hits.clear();
+  };
   let disposed = false;
-  let meshes: Mesh[] = [];
+  let receiverRoots: Object3D[] = [];
+  let terrainBounds: readonly Box3[] = [];
+  let terrainRuntimes: Partial<RasterDemTerrainRuntime>[] = [];
+  let terrainBoundsFrame = "";
+  let terrainRayCovered = false;
+  const probeCoordinates = new Float64Array(128);
+  const probeHeights = new Float64Array(64);
+  const probePoint = new Vector3();
+  const intervalAxes = ["x", "y", "z"] as const;
+  const intersections: Intersection[] = [];
   const ray = new Raycaster();
   (ray as Raycaster & { firstHitOnly: boolean }).firstHitOnly = true;
   const emit = (value: PhotoAxisDebug) => {
@@ -82,23 +108,180 @@ export const createPhotoAxisPicker = (
     if (nextRevision !== revision) {
       revision = nextRevision;
       hits.clear();
-      meshes = [];
-      for (const receiver of receivers)
-        receiver.root.traverseVisible((object) => {
-          const mesh = object as Mesh;
-          if (mesh.isMesh && mesh.geometry) meshes.push(mesh);
-        });
+      terrainRuntimes = receivers.filter(
+        (runtime) =>
+          typeof (runtime as Partial<RasterDemTerrainRuntime>)
+            .getPublishedTerrainTiles === "function"
+      );
+      terrainBoundsFrame = "";
+      // Keep tile roots so their raycast can cull whole bounding-volume branches.
+      receiverRoots = receivers
+        // Raster DEMs already register a height sampler. Avoid tracing their
+        // dense grids; keep detailed mesh roots and their branch culling.
+        .filter(
+          ({ root }) =>
+            root.getObjectByProperty?.("isMesh", true)?.userData
+              .isShadowTerrainSurface !== true
+        )
+        .map((receiver) => receiver.root);
     }
+  };
+  const intersectCachedTerrain = (
+    photoRay: Raycaster,
+    cameraLngLat: [number, number],
+    layer: ReturnType<typeof acquireSharedThreeScene>["layer"],
+    maximumDistance: number
+  ): Vector3 | null => {
+    terrainRayCovered = false;
+    const origin = layer.projectSceneToLngLat([0, 0, 0]);
+    const frame = layer.getLocalFrame();
+    const frameKey = [frame?.revision ?? 0, ...(origin ?? [])].join("|");
+    if (frameKey !== terrainBoundsFrame) {
+      terrainBoundsFrame = frameKey;
+      terrainBounds = terrainRuntimes.flatMap(
+        (runtime) =>
+          runtime.getPublishedTerrainTiles?.().map((tile) => tile.bounds) ?? []
+      );
+    }
+    if (!terrainBounds.length || photoRay.ray.direction.y >= -1e-6) return null;
+    const base = layer.projectLngLatToScene(cameraLngLat, 0);
+    const metre = layer.projectLngLatToScene(cameraLngLat, 1);
+    if (!base || !metre) return null;
+    const step = metre.distanceTo(base);
+    if (!(step > 0) || !Number.isFinite(step)) return null;
+    const intervals: { near: number; far: number }[] = [];
+    for (const bounds of terrainBounds) {
+      let near = Math.max(0, photoRay.near),
+        far = Math.min(photoRay.far, maximumDistance);
+      for (const axis of intervalAxes) {
+        const origin = photoRay.ray.origin[axis],
+          direction = photoRay.ray.direction[axis];
+        const minimum = bounds.min[axis] - step,
+          maximum = bounds.max[axis] + step;
+        if (Math.abs(direction) < 1e-12) {
+          if (origin < minimum || origin > maximum) {
+            far = -1;
+            break;
+          }
+        } else {
+          const a = (minimum - origin) / direction,
+            b = (maximum - origin) / direction;
+          near = Math.max(near, Math.min(a, b));
+          far = Math.min(far, Math.max(a, b));
+          if (far < near) break;
+        }
+      }
+      if (far >= near && Number.isFinite(far)) intervals.push({ near, far });
+    }
+    intervals.sort((a, b) => a.near - b.near);
+    const merged: { near: number; far: number }[] = [];
+    for (const interval of intervals) {
+      const previous = merged.at(-1);
+      if (previous && interval.near <= previous.far)
+        previous.far = Math.max(previous.far, interval.far);
+      else merged.push({ ...interval });
+    }
+    terrainRayCovered = merged.length > 0;
+    let probes = 0;
+    for (const interval of merged) {
+      let distance = interval.near;
+      let previous: { distance: number; residual: number } | null = null;
+      while (distance <= interval.far && probes < 4096) {
+        const count = Math.min(
+          64,
+          4096 - probes,
+          Math.floor((interval.far - distance) / step) + 1
+        );
+        for (let index = 0; index < count; index++) {
+          photoRay.ray.at(distance + index * step, probePoint);
+          const location = layer.projectSceneToLngLat(probePoint);
+          probeCoordinates[2 * index] = location?.[0] ?? NaN;
+          probeCoordinates[2 * index + 1] = location?.[1] ?? NaN;
+        }
+        getSharedThreeTerrainElevations(
+          map,
+          probeCoordinates.subarray(0, 2 * count),
+          probeHeights.subarray(0, count)
+        );
+        for (let index = 0; index < count; index++) {
+          const at = distance + index * step,
+            height = probeHeights[index];
+          const ground = Number.isFinite(height)
+            ? layer.projectLngLatToScene(
+                [probeCoordinates[2 * index], probeCoordinates[2 * index + 1]],
+                height
+              )
+            : null;
+          if (!ground) {
+            previous = null;
+            continue;
+          }
+          photoRay.ray.at(at, probePoint);
+          const residual = probePoint.y - ground.y;
+          if (residual === 0) return probePoint.clone();
+          if (previous && previous.residual >= 0 && residual <= 0) {
+            const fraction = previous.residual / (previous.residual - residual);
+            return photoRay.ray.at(
+              previous.distance + fraction * (at - previous.distance),
+              new Vector3()
+            );
+          }
+          previous = { distance: at, residual };
+        }
+        probes += count;
+        distance += count * step;
+      }
+    }
+    return null;
   };
   const intersectSceneSurface = (
     photoRay: Raycaster,
     cameraLngLat: [number, number],
     layer: ReturnType<typeof acquireSharedThreeScene>["layer"]
   ): { point: Vector3; surface: "mesh" | "terrain" } | null => {
-    const surfaceHit = photoRay.intersectObjects(meshes, false)[0];
+    const visible = (hit: Intersection) => {
+      let object: Object3D | null = hit.object;
+      while (object) {
+        if (!object.visible) return false;
+        object = object.parent;
+      }
+      return true;
+    };
+    intersections.length = 0;
+    photoRay.intersectObjects(receiverRoots, true, intersections);
+    const acceleratedRay = photoRay as Raycaster & { firstHitOnly?: boolean };
+    if (
+      acceleratedRay.firstHitOnly &&
+      intersections.some((hit) => !visible(hit))
+    ) {
+      // Active LOD tiles can be hidden. Retry only that case to find the first visible hit.
+      acceleratedRay.firstHitOnly = false;
+      intersections.length = 0;
+      try {
+        photoRay.intersectObjects(receiverRoots, true, intersections);
+      } finally {
+        acceleratedRay.firstHitOnly = true;
+      }
+    }
+    const surfaceHit = intersections.find(visible);
+    const terrainHit = intersectCachedTerrain(
+      photoRay,
+      cameraLngLat,
+      layer,
+      surfaceHit?.distance ?? Infinity
+    );
+    if (
+      terrainHit &&
+      (!surfaceHit ||
+        terrainHit.distanceTo(photoRay.ray.origin) < surfaceHit.distance - 0.1)
+    )
+      return { point: terrainHit, surface: "terrain" };
     if (surfaceHit) return { point: surfaceHit.point, surface: "mesh" };
+    if (terrainRayCovered) return null;
     if (photoRay.ray.direction.y >= -1e-6) return null;
-    let terrainHeight = map.getCenterElevation();
+    let terrainHeight =
+      getSharedThreeTerrainElevation(map, ...cameraLngLat) ??
+      map.getCenterElevation();
     for (let i = 0; i < 5; i++) {
       const ground = layer.projectLngLatToScene(cameraLngLat, terrainHeight);
       if (!ground) break;
@@ -107,7 +290,9 @@ export const createPhotoAxisPicker = (
       const point = photoRay.ray.at(t, new Vector3());
       const location = layer.projectSceneToLngLat(point);
       if (!location) break;
-      const elevation = map.queryTerrainElevation(location);
+      const elevation =
+        getSharedThreeTerrainElevation(map, ...location) ??
+        map.queryTerrainElevation(location);
       if (elevation === null || !Number.isFinite(elevation)) break;
       if (Math.abs(elevation - terrainHeight) < 0.1)
         return { point, surface: "terrain" };
@@ -308,6 +493,8 @@ export const createPhotoAxisPicker = (
     start: () => {
       disposed = false;
       map.on("sourcedata", sourceDataChanged);
+      unsubscribeTerrain?.();
+      unsubscribeTerrain = subscribeSharedThreeTerrain(map, terrainChanged);
     },
     clearDebug: () => emit(null),
     subscribe: (listener: (value: PhotoAxisDebug) => void) => {
@@ -320,7 +507,15 @@ export const createPhotoAxisPicker = (
     dispose: () => {
       disposed = true;
       map.off("sourcedata", sourceDataChanged);
+      unsubscribeTerrain?.();
+      unsubscribeTerrain = undefined;
       hits.clear();
+      receiverRoots = [];
+      terrainBounds = [];
+      terrainRuntimes = [];
+      terrainBoundsFrame = "";
+      revision = "";
+      intersections.length = 0;
       altitudes.clear();
       projections.clear();
       observers.clear();

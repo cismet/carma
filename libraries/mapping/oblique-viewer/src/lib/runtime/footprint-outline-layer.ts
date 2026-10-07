@@ -64,6 +64,7 @@ export type FootprintOutlineLayer = {
   imageAtScreenPoint: (point: { x: number; y: number }) => string | null;
   setStyle: (style: FootprintOutlineStyle) => void;
   setLabelsVisible: (visible: boolean) => void;
+  setMissingImages: (imageIds: ReadonlySet<string>) => void;
   setHoveredImage: (
     imageId: string | null,
     candidate?: InactiveFootprint,
@@ -74,8 +75,10 @@ export type FootprintOutlineLayer = {
 };
 const TRAIL_DURATION_MS = Math.round(8000 / 3);
 const TRAIL_REPAINT_INTERVAL_MS = 100;
+const VIEWPORT_SETTLE_DELAY_MS = 120;
 const PREVIEW_FADE_DURATION_MS = 100;
 const LABEL_FONT_WEIGHT = 1000;
+const MISSING_IMAGE_LABEL = "X";
 const LABEL_WIDTH = 512;
 const LABEL_HEIGHT = 256;
 const LABEL_FONT_FAMILY =
@@ -90,12 +93,14 @@ const createLabelCanvas = (
   canvas.height = LABEL_HEIGHT;
   const context = canvas.getContext("2d");
   if (!context) return null;
-  context.font = LABEL_FONT_WEIGHT + " 172px " + LABEL_FONT_FAMILY;
+  const maximumFontSize = text === MISSING_IMAGE_LABEL ? 224 : 172;
+  context.font =
+    LABEL_FONT_WEIGHT + " " + maximumFontSize + "px " + LABEL_FONT_FAMILY;
   context.textAlign = "center";
   context.textBaseline = "middle";
   const fontSize = Math.min(
-    172,
-    (172 * 480) / Math.max(480, context.measureText(text).width)
+    maximumFontSize,
+    (maximumFontSize * 480) / Math.max(480, context.measureText(text).width)
   );
   context.font = LABEL_FONT_WEIGHT + " " + fontSize + "px " + LABEL_FONT_FAMILY;
   context.fillStyle = color;
@@ -120,6 +125,7 @@ export const createFootprintOutlineLayer = (
     labelsVisible = true,
     destroyed = false,
     attaching = false;
+  let missingImageIds: ReadonlySet<string> = new Set();
   const labelCandidates = new Map<string, InactiveFootprint>();
   let hoveredImageId: string | null = null;
   let pointerActive = false;
@@ -182,11 +188,17 @@ export const createFootprintOutlineLayer = (
   };
   let cachedViewportBounds: number[] | null = null;
   let viewportBoundsDirty = true;
+  let viewportChangedAt = -Infinity;
   const invalidateViewportBounds = () => {
     viewportBoundsDirty = true;
+    viewportChangedAt = performance.now();
   };
   const viewportBounds = () => {
     if (!viewportBoundsDirty) return cachedViewportBounds;
+    // Camera flights emit move/end for each frame. Terrain unprojection reads
+    // the GPU synchronously, so visibility waits for a quiet camera interval.
+    if (performance.now() - viewportChangedAt < VIEWPORT_SETTLE_DELAY_MS)
+      return null;
     viewportBoundsDirty = false;
     const { width, height } = map.transform ?? {};
     if (!width || !height) return null;
@@ -416,19 +428,28 @@ export const createFootprintOutlineLayer = (
     const hovered = hoverCandidate();
     const current = hovered ? [hovered] : [];
     const labelFor = (footprint: InactiveFootprint) =>
-      locked || !labelsVisible
+      locked
+        ? undefined
+        : missingImageIds.has(footprint.id)
+        ? MISSING_IMAGE_LABEL
+        : !labelsVisible
         ? undefined
         : footprint.id === hovered?.id
         ? footprint.seriesLabel
         : centerAnnotation?.seriesLabel;
-    const retired = updateLabelAtlas(
-      current.map((value) => labelFor(value) ?? "")
-    );
-    const marks: MapStyleProjectiveOverlay["marks"][number][] = [];
-    for (const footprint of [
+    const footprints = [
       ...Array.from(trails.values(), (value) => value.footprint),
       ...current,
-    ]) {
+    ];
+    const retired = updateLabelAtlas(
+      footprints.map((value) =>
+        missingImageIds.has(value.id) || !trails.has(value.id)
+          ? labelFor(value) ?? ""
+          : ""
+      )
+    );
+    const marks: MapStyleProjectiveOverlay["marks"][number][] = [];
+    for (const footprint of footprints) {
       const projection = projectionCache.get(projectionKey(footprint));
       if (
         projection?.altitude === undefined ||
@@ -467,7 +488,10 @@ export const createFootprintOutlineLayer = (
         projection.frameKey = key;
       }
       const trail = trails.get(footprint.id),
-        label = !trail ? labelFor(footprint) : undefined;
+        label =
+          !trail || missingImageIds.has(footprint.id)
+            ? labelFor(footprint)
+            : undefined;
       marks.push({
         sceneToImage: projection.matrix,
         sceneToImageTerrain: projection.terrainMatrix,
@@ -646,6 +670,17 @@ export const createFootprintOutlineLayer = (
       surfaceDirty = true;
       if (!locked) surfaceOpacity = Math.max(0, Math.min(1, style.opacity));
       attach();
+    },
+    setMissingImages(next) {
+      if (
+        next.size === missingImageIds.size &&
+        [...next].every((id) => missingImageIds.has(id))
+      )
+        return;
+      missingImageIds = new Set(next);
+      surfaceDirty = true;
+      updateSurface();
+      map.triggerRepaint();
     },
     setLabelsVisible(next) {
       if (labelsVisible === next) return;

@@ -7,9 +7,14 @@ import {
   CARDINAL_BEARING_FORM,
   formatCardinalBearing,
 } from "@carma-mapping/annotations/runtime";
-import { degToRadNumeric } from "@carma-units";
+import { degToRad, radToDeg, zeroToTwoPi } from "@carma-units";
 
 import { useObliqueViewerActions } from "./oblique-actions";
+const acquisitionMonth = new Intl.DateTimeFormat("de-DE", {
+  month: "long",
+  year: "numeric",
+  timeZone: "UTC",
+});
 const strings = {
   title: "Schrägluftbilder",
   flyToImageTooltip: "Unverzerrte Bildvorschau starten",
@@ -36,8 +41,8 @@ const READOUT_STYLE: CSSProperties = {
 };
 
 /**
- * The row the layer bar shows while the viewer is on: the title, active series
- * and viewport angles, and the flight to the selected image. Same shape as the
+ * The row the layer bar shows while the viewer is on: the title, selected photo
+ * metadata, and its flight action. Same shape as the
  * flood's and the time series' rows, so a route's tools read as one family.
  */
 export const OBLIQUE_LAYER: Layer = {
@@ -126,28 +131,62 @@ export const useObliqueLayerRow = ({
     title,
     series,
     bearingDeg,
-    pitchDeg,
     previewVisible,
     selectedImageId,
+    selectedSourceImageId,
+    selectedSeriesId,
+    selectedImageBearingDeg,
     hoverAvailable,
     setPanelOpen,
     sendRequest,
   } = useObliqueViewerActions();
 
-  const label = [
-    series
-      .filter((entry) => entry.enabled)
-      .map((entry) => entry.shortLabel ?? entry.id)
-      .join(", "),
-    bearingDeg !== null && pitchDeg !== null
-      ? `${formatCardinalBearing(degToRadNumeric(bearingDeg), {
-          form: CARDINAL_BEARING_FORM.SHORT,
-          points: 16,
-        })} (${bearingDeg}°) P ${pitchDeg}°`
-      : null,
-  ]
-    .filter(Boolean)
-    .join(" · ");
+  const imageSeries =
+    selectedImageId && selectedSourceImageId
+      ? series.find((entry) => entry.enabled && entry.id === selectedSeriesId)
+      : undefined;
+  const heading = imageSeries
+    ? selectedImageBearingDeg ?? bearingDeg
+    : bearingDeg;
+  const label = useMemo(() => {
+    const radians =
+      heading !== null && Number.isFinite(heading)
+        ? zeroToTwoPi(degToRad(heading))
+        : null;
+    const angle = radians !== null ? Math.round(radToDeg(radians)) % 360 : null;
+    const direction =
+      radians !== null
+        ? `${formatCardinalBearing(radians, {
+            form: CARDINAL_BEARING_FORM.SHORT,
+            points: 16,
+          })} (${angle}°)`
+        : null;
+    if (imageSeries) {
+      const year = imageSeries.acquisitionYear ?? Number.NaN;
+      const month = imageSeries.acquisitionMonth ?? Number.NaN;
+      const date =
+        Number.isInteger(year) && year >= 1000 && year <= 9999
+          ? Number.isInteger(month) && month >= 1 && month <= 12
+            ? acquisitionMonth.format(new Date(Date.UTC(year, month - 1, 1)))
+            : String(year)
+          : imageSeries.shortLabel ?? imageSeries.label;
+      return [
+        date,
+        [direction, selectedSourceImageId].filter(Boolean).join(" "),
+      ]
+        .filter(Boolean)
+        .join(" - ");
+    }
+    return [
+      series
+        .filter((entry) => entry.enabled)
+        .map((entry) => entry.shortLabel ?? entry.id)
+        .join(", "),
+      direction,
+    ]
+      .filter(Boolean)
+      .join(" · ");
+  }, [series, imageSeries, heading, selectedSourceImageId]);
 
   // the app owns the panel state; the row's icon colour reads it from here
   useEffect(() => {
@@ -190,7 +229,6 @@ export const useObliqueLayerRow = ({
   const onUpdateRef = useRef(onUpdate);
   onUpdateRef.current = onUpdate;
 
-  // the row carries the readout, so it goes stale on every move
   useEffect(() => {
     if (hasEngine && hasRow) {
       onUpdateRef.current?.(layer);

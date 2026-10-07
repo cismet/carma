@@ -297,6 +297,48 @@ vec3 carmaScreenBackdrop( vec3 linearColor ) {
 `;
 
 export const MAP_STYLE_PROJECTION_FRAGMENT_OUTPUT = /* glsl */ `
+#ifdef CARMA_MAP_STYLE_MARKINGS_ONLY
+// Accumulate premultiplied overlays without the receiver's ground or lighting.
+vec4 carmaMarkings = vec4(0.0);
+if (carmaSurfaceOpacity > 0.0) {
+  vec4 current = vec4(0.0);
+  vec4 previous = vec4(0.0);
+  if (all(greaterThanEqual(vCarmaSurfaceUv, vec2(0.0))) &&
+      all(lessThanEqual(vCarmaSurfaceUv, vec2(1.0))))
+    current = texture2D(carmaSurfaceTexture, vCarmaSurfaceUv);
+  if (carmaSurfacePreviousEnabled > 0.5 &&
+      all(greaterThanEqual(vCarmaSurfacePreviousUv, vec2(0.0))) &&
+      all(lessThanEqual(vCarmaSurfacePreviousUv, vec2(1.0))))
+    previous = texture2D(carmaSurfacePreviousTexture, vCarmaSurfacePreviousUv);
+  float alpha = mix(previous.a, current.a, carmaSurfaceTransition);
+  vec3 color = mix(carmaMapStyleSRGBToLinear(previous.rgb) * previous.a,
+                  carmaMapStyleSRGBToLinear(current.rgb) * current.a,
+                  carmaSurfaceTransition);
+  if (carmaSurfacePreviousOpacity >= 0.0) {
+    float trailAlpha = previous.a * carmaSurfacePreviousOpacity;
+    alpha = current.a + trailAlpha * (1.0-current.a);
+    color = carmaMapStyleSRGBToLinear(current.rgb) * current.a +
+            carmaMapStyleSRGBToLinear(previous.rgb) * trailAlpha * (1.0-current.a);
+  }
+  carmaMarkings = vec4(color * carmaSurfaceOpacity, alpha * carmaSurfaceOpacity);
+}
+if (carmaScreenOpacity0 > 0.0 || carmaScreenOpacity1 > 0.0) {
+  vec2 screenUv = vCarmaMapStyleClip.xy / vCarmaMapStyleClip.w * 0.5 + 0.5;
+  float photographAlpha;
+  float decorationAlpha;
+  // carmaScreenImages returns straight RGB and coverage, including the framing.
+  vec4 image = carmaScreenImages(screenUv,photographAlpha,decorationAlpha);
+  carmaMarkings = vec4(image.rgb * image.a, image.a) + carmaMarkings * (1.0-image.a);
+}
+// Projective footprints and their labels already carry premultiplied RGB.
+vec4 projectiveMarkings = carmaProjectiveMarkings();
+carmaMarkings = projectiveMarkings + carmaMarkings * (1.0-projectiveMarkings.a);
+if (carmaMarkings.a <= 0.0) discard;
+// Three's normal transparent blending expects straight RGB and coverage alpha.
+outgoingLight = carmaMarkings.rgb / max(carmaMarkings.a, 1e-5);
+diffuseColor.a = carmaMarkings.a;
+gl_FragColor = vec4(outgoingLight, diffuseColor.a);
+#else
 #ifdef CARMA_MAP_STYLE_OVERLAY
 // Retain the mesh's light/shadow factor before replacing its color with a photograph.
 const vec3 carmaLuma = vec3( 0.2126, 0.7152, 0.0722 );
@@ -353,9 +395,11 @@ if ( carmaMapStyleLabelCoverage > 0.0 ) {
 vec4 projectiveMarkings = carmaProjectiveMarkings();
 outgoingLight = outgoingLight * (1.0-projectiveMarkings.a) + projectiveMarkings.rgb;
 #include <opaque_fragment>
+#endif
 `;
 
 export const MAP_STYLE_PROJECTION_FRAGMENT_BODY = /* glsl */ `
+#ifndef CARMA_MAP_STYLE_MARKINGS_ONLY
 #include <map_fragment>
 if ( carmaMapStyleEnabled > 0.5 && vCarmaMapStyleClip.w > 0.0 ) {
   vec2 carmaMapStyleUv = vCarmaMapStyleClip.xy / vCarmaMapStyleClip.w * 0.5 + 0.5;
@@ -389,6 +433,7 @@ if ( carmaMapStyleEnabled > 0.5 && vCarmaMapStyleClip.w > 0.0 ) {
 #endif
   }
 }
+#endif
 `;
 
 /**

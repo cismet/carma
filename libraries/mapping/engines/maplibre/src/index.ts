@@ -366,6 +366,8 @@ export {
   claimStandaloneTerrain,
   hasStandaloneTerrain,
   subscribeSharedThreeTerrain,
+  getSharedThreeTerrainElevation,
+  getSharedThreeTerrainElevations,
 } from "./lib/runtime/integrations/shared-three-terrain-registry";
 export {
   acquireMapLibreTerrainMeshComposition,

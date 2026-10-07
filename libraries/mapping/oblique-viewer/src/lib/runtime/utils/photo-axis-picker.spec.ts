@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Map as MaplibreMap } from "maplibre-gl";
 import {
+  Box3,
   DoubleSide,
   Group,
   Matrix4,
@@ -22,10 +23,25 @@ const engine = vi.hoisted(() => ({
   runtimes: [] as unknown[],
   acquire: vi.fn(),
   altitude: vi.fn(),
+  terrain: vi.fn(),
+  terrainBatch: vi.fn(),
+  terrainSubscribers: new Set<() => void>(),
+  terrainSubscribe: vi.fn(),
+  terrainUnsubscribe: vi.fn(),
 }));
 vi.mock("@carma-mapping/engines/maplibre", () => ({
   getSharedThreeSceneRuntimes: () => engine.runtimes,
   acquireSharedThreeScene: engine.acquire,
+  getSharedThreeTerrainElevation: engine.terrain,
+  getSharedThreeTerrainElevations: engine.terrainBatch,
+  subscribeSharedThreeTerrain: (_map: unknown, listener: () => void) => {
+    engine.terrainSubscribe(listener);
+    engine.terrainSubscribers.add(listener);
+    return () => {
+      engine.terrainSubscribers.delete(listener);
+      engine.terrainUnsubscribe();
+    };
+  },
 }));
 vi.mock("./flyToImage", () => ({
   poseOf: (record: ObliqueImageRecord) => record.pose,
@@ -191,6 +207,35 @@ const setup = (records: ObliqueImageRecord[], native = false) => {
     },
   };
 };
+const addPublishedTerrain = (view: ReturnType<typeof setup>, bounds: Box3) => {
+  const terrainMesh = new Mesh(
+    view.surface.geometry.clone(),
+    new MeshBasicMaterial()
+  );
+  terrainMesh.userData.isShadowTerrainSurface = true;
+  const terrainRoot = new Group();
+  terrainRoot.add(terrainMesh);
+  terrainRoot.updateMatrixWorld(true);
+  const getPublishedTerrainTiles = vi.fn(() => [{ bounds, mesh: terrainMesh }]);
+  engine.runtimes.push({
+    id: "cached-raster-dem",
+    root: terrainRoot,
+    providesTerrain: true,
+    receivesMapStyleTexture: true,
+    mapStyleProjectionVersion: () => 1,
+    getPublishedTerrainTiles,
+  });
+  disposals.push(() => {
+    terrainMesh.geometry.dispose();
+    terrainMesh.material.dispose();
+  });
+  return {
+    getPublishedTerrainTiles,
+    rootRaycast: vi.spyOn(terrainRoot, "raycast"),
+    meshRaycast: vi.spyOn(terrainMesh, "raycast"),
+  };
+};
+
 const query = {
   point: [7.2, 51.27] as [number, number],
   headingRad: 0,
@@ -200,6 +245,19 @@ const query = {
 beforeEach(() => {
   engine.runtimes = [];
   engine.acquire.mockReset();
+  engine.terrain.mockReset().mockReturnValue(undefined);
+  engine.terrainBatch
+    .mockReset()
+    .mockImplementation(
+      (_map, coordinates: Float64Array, output?: Float64Array) => {
+        const heights = output ?? new Float64Array(coordinates.length / 2);
+        heights.fill(NaN);
+        return heights;
+      }
+    );
+  engine.terrainSubscribers.clear();
+  engine.terrainSubscribe.mockClear();
+  engine.terrainUnsubscribe.mockClear();
   vi.mocked(imageProjectionMatrix).mockClear();
   engine.altitude
     .mockReset()
@@ -211,9 +269,9 @@ afterEach(() => {
 });
 
 describe("arbitrary calibrated photo surface rays", () => {
-  it("intersects current real mesh receivers, reuses their traversal and follows a receiver LOD revision", () => {
+  it("intersects current real mesh receivers through their roots and follows a receiver LOD revision", () => {
     const view = setup([]);
-    const traverse = vi.spyOn(view.root, "traverseVisible");
+    const rootRaycast = vi.spyOn(view.root, "raycast");
     const ray = new Raycaster(new Vector3(50, 100, -20), new Vector3(0, -1, 0));
     const first = view.picker.intersectSurface(ray, [7.2005, 51.2702])!;
     expect(first.surface).toBe("mesh");
@@ -230,7 +288,7 @@ describe("arbitrary calibrated photo surface rays", () => {
         expect(value).toBeCloseTo([75, 10, -20][index], 9)
       );
     expect(first.point.x).toBe(50);
-    expect(traverse).toHaveBeenCalledOnce();
+    expect(rootRaycast).toHaveBeenCalledTimes(2);
     expect(view.map.queryTerrainElevation).not.toHaveBeenCalled();
     view.surface.position.y = 60;
     view.root.updateMatrixWorld(true);
@@ -238,11 +296,195 @@ describe("arbitrary calibrated photo surface rays", () => {
     expect(
       view.picker.intersectSurface(ray, [7.2005, 51.2702])!.point.y
     ).toBeCloseTo(60, 9);
-    expect(traverse).toHaveBeenCalledTimes(2);
+    expect(rootRaycast).toHaveBeenCalledTimes(3);
     expect(view.release).toHaveBeenCalledTimes(3);
     view.picker.dispose();
     expect(view.picker.intersectSurface(ray, [7.2005, 51.2702])).toBeNull();
     expect(engine.acquire).toHaveBeenCalledTimes(3);
+  });
+
+  it("restores unchanged receiver roots after a dispose and restart", () => {
+    const view = setup([]);
+    const ray = new Raycaster(new Vector3(0, 100, 0), new Vector3(0, -1, 0));
+    expect(view.picker.intersectSurface(ray, [7.2, 51.27])!.surface).toBe(
+      "mesh"
+    );
+    view.picker.dispose();
+    view.picker.start();
+    expect(view.picker.intersectSurface(ray, [7.2, 51.27])!.surface).toBe(
+      "mesh"
+    );
+  });
+
+  it("preserves receiver-specific bounding-volume raycasts instead of flattening tile meshes", () => {
+    const view = setup([]);
+    const meshRaycast = vi.spyOn(view.surface, "raycast");
+    const rootRaycast = vi
+      .spyOn(view.root, "raycast")
+      .mockImplementation((ray, hits) => {
+        hits.push({
+          distance: 80,
+          point: ray.ray.at(80, new Vector3()),
+          object: view.surface,
+        });
+        return false;
+      });
+    const ray = new Raycaster(new Vector3(0, 100, 0), new Vector3(0, -1, 0));
+    expect(view.picker.intersectSurface(ray, [7.2, 51.27])!.point.y).toBe(20);
+    expect(rootRaycast).toHaveBeenCalledOnce();
+    expect(meshRaycast).not.toHaveBeenCalled();
+  });
+
+  it("retries a hidden first tile hit without losing the farther visible surface", () => {
+    const view = setup([]);
+    const hidden = new Group();
+    hidden.visible = false;
+    view.root.add(hidden);
+    const ray = new Raycaster(
+      new Vector3(0, 100, 0),
+      new Vector3(0, -1, 0)
+    ) as Raycaster & { firstHitOnly: boolean };
+    ray.firstHitOnly = true;
+    const rootRaycast = vi
+      .spyOn(view.root, "raycast")
+      .mockImplementation((currentRay, hits) => {
+        hits.push({
+          distance: 20,
+          point: currentRay.ray.at(20, new Vector3()),
+          object: hidden,
+        });
+        if (!(currentRay as typeof ray).firstHitOnly)
+          hits.push({
+            distance: 90,
+            point: currentRay.ray.at(90, new Vector3()),
+            object: view.surface,
+          });
+        return false;
+      });
+    expect(view.picker.intersectSurface(ray, [7.2, 51.27])!.point.y).toBe(10);
+    expect(rootRaycast).toHaveBeenCalledTimes(2);
+    expect(ray.firstHitOnly).toBe(true);
+    expect(view.map.queryTerrainElevation).not.toHaveBeenCalled();
+  });
+
+  it("ignores hidden receiver descendants and falls back to native terrain", () => {
+    const view = setup([]);
+    view.surface.visible = false;
+    const ray = new Raycaster(new Vector3(0, 100, 0), new Vector3(0, -1, 0));
+    expect(view.picker.intersectSurface(ray, [7.2, 51.27])!.surface).toBe(
+      "terrain"
+    );
+  });
+
+  it("finds a slanted ray's first cached DEM crossing with shared batches and reusable buffers", () => {
+    const view = setup([]);
+    const dem = addPublishedTerrain(
+      view,
+      new Box3(new Vector3(600, 0, -10), new Vector3(900, 120, 10))
+    );
+    engine.terrain.mockReturnValue(999);
+    engine.terrainBatch.mockImplementation(
+      (_map, coordinates: Float64Array, output: Float64Array) => {
+        for (let index = 0; index < output.length; index++) {
+          const x = (coordinates[2 * index] - 7.2) * 100000;
+          output[index] = 42 + 0.2 * (x - 600);
+        }
+        return output;
+      }
+    );
+    const ray = new Raycaster(
+      new Vector3(600, 120, 0),
+      new Vector3(1, -1, 0).normalize()
+    );
+    const first = view.picker.intersectSurface(ray, [7.206, 51.27])!;
+    expect(first.surface).toBe("terrain");
+    // y = 120-(x-600), DEM y = 42+0.2*(x-600), so x=665 and y=55.
+    expect(first.point.distanceTo(new Vector3(665, 55, 0))).toBeLessThan(1);
+    const second = view.picker.intersectSurface(ray, [7.206, 51.27])!;
+    expect(second.point.distanceTo(first.point)).toBeLessThan(1e-8);
+    expect(dem.getPublishedTerrainTiles).toHaveBeenCalledOnce();
+    expect(engine.terrainBatch.mock.calls.length).toBeGreaterThanOrEqual(4);
+    const coordinateBuffer = engine.terrainBatch.mock.calls[0][1].buffer;
+    const heightBuffer = engine.terrainBatch.mock.calls[0][2].buffer;
+    for (const [map, coordinates, output] of engine.terrainBatch.mock.calls) {
+      expect(map).toBe(view.map);
+      expect(coordinates.buffer).toBe(coordinateBuffer);
+      expect(output.buffer).toBe(heightBuffer);
+      expect(coordinates.length).toBe(2 * output.length);
+      expect(output.length).toBeLessThanOrEqual(64);
+    }
+    view.bumpVersion();
+    expect(
+      view.picker
+        .intersectSurface(ray, [7.206, 51.27])!
+        .point.distanceTo(first.point)
+    ).toBeLessThan(1e-8);
+    expect(dem.getPublishedTerrainTiles).toHaveBeenCalledTimes(2);
+    expect(dem.rootRaycast).not.toHaveBeenCalled();
+    expect(dem.meshRaycast).not.toHaveBeenCalled();
+    expect(engine.terrain).not.toHaveBeenCalled();
+    expect(view.map.queryTerrainElevation).not.toHaveBeenCalled();
+  });
+
+  it("does not invent a cached DEM crossing through a partially missing height interval", () => {
+    const view = setup([]);
+    const dem = addPublishedTerrain(
+      view,
+      new Box3(new Vector3(600, 0, -10), new Vector3(900, 120, 10))
+    );
+    engine.terrain.mockReturnValue(42);
+    const samples: number[] = [];
+    engine.terrainBatch.mockImplementation(
+      (_map, coordinates: Float64Array, output: Float64Array) => {
+        for (let index = 0; index < output.length; index++) {
+          const x = (coordinates[2 * index] - 7.2) * 100000;
+          output[index] = x >= 650 && x <= 680 ? NaN : 42 + 0.2 * (x - 600);
+          samples.push(output[index]);
+        }
+        return output;
+      }
+    );
+    const ray = new Raycaster(
+      new Vector3(600, 120, 0),
+      new Vector3(1, -1, 0).normalize()
+    );
+    expect(view.picker.intersectSurface(ray, [7.206, 51.27])).toBeNull();
+    expect(samples.some(Number.isNaN)).toBe(true);
+    expect(samples.some(Number.isFinite)).toBe(true);
+    expect(samples.length).toBeLessThanOrEqual(4096);
+    expect(engine.terrain).not.toHaveBeenCalled();
+    expect(view.map.queryTerrainElevation).not.toHaveBeenCalled();
+    expect(dem.rootRaycast).not.toHaveBeenCalled();
+    expect(dem.meshRaycast).not.toHaveBeenCalled();
+  });
+
+  it("chooses a nearer cached DEM ridge before a distant real mesh intersection", () => {
+    const view = setup([]);
+    view.surface.scale.set(4, 4, 4);
+    view.root.updateMatrixWorld(true);
+    const meshRaycast = vi.spyOn(view.surface, "raycast");
+    const dem = addPublishedTerrain(
+      view,
+      new Box3(new Vector3(600, 0, -10), new Vector3(900, 120, 10))
+    );
+    engine.terrainBatch.mockImplementation(
+      (_map, _coordinates: Float64Array, output: Float64Array) => {
+        output.fill(80);
+        return output;
+      }
+    );
+    const ray = new Raycaster(
+      new Vector3(600, 120, 0),
+      new Vector3(1, -1, 0).normalize()
+    );
+    const hit = view.picker.intersectSurface(ray, [7.206, 51.27])!;
+    expect(hit.surface).toBe("terrain");
+    expect(hit.point.distanceTo(new Vector3(640, 80, 0))).toBeLessThan(1);
+    expect(meshRaycast).toHaveBeenCalledOnce();
+    expect(dem.rootRaycast).not.toHaveBeenCalled();
+    expect(dem.meshRaycast).not.toHaveBeenCalled();
+    expect(engine.terrain).not.toHaveBeenCalled();
+    expect(view.map.queryTerrainElevation).not.toHaveBeenCalled();
   });
 
   it("confirms a slanted native DEM intersection along the actual photo ray without catalog or altitude lookup", () => {
@@ -441,7 +683,7 @@ describe("physical photo-axis selection", () => {
     const photo = record("inclined", 0, 0, [0.5, 0, -1]);
     const view = setup([photo]);
     const intersect = vi.spyOn(Raycaster.prototype, "intersectObjects");
-    const traverse = vi.spyOn(view.root, "traverseVisible");
+    const rootRaycast = vi.spyOn(view.root, "raycast");
     const debug = vi.fn();
     view.picker.subscribe(debug);
     await view.picker.pick([photo], query, false, () => true);
@@ -453,13 +695,13 @@ describe("physical photo-axis selection", () => {
       () => true
     );
     expect(intersect).toHaveBeenCalledOnce();
-    expect(traverse).toHaveBeenCalledOnce();
+    expect(rootRaycast).toHaveBeenCalledOnce();
     view.surface.position.y = 60;
     view.root.updateMatrixWorld(true);
     view.bumpVersion();
     await view.picker.pick([photo], query, false, () => true);
     expect(intersect).toHaveBeenCalledTimes(2);
-    expect(traverse).toHaveBeenCalledTimes(2);
+    expect(rootRaycast).toHaveBeenCalledTimes(2);
     expect(debug.mock.lastCall![0].distance).toBeLessThan(firstDistance);
     expect(engine.altitude).toHaveBeenCalledOnce();
     expect(view.release).toHaveBeenCalledTimes(3);
@@ -518,4 +760,126 @@ describe("physical photo-axis selection", () => {
     ).resolves.toBeUndefined();
     expect(engine.acquire).toHaveBeenCalledOnce();
   });
+});
+
+describe("shared DEM photo surface fallback", () => {
+  it("uses the shared DEM outside mesh bounds without querying native DEM", () => {
+    const view = setup([]);
+    vi.mocked(view.map.queryTerrainElevation).mockReturnValue(null);
+    engine.terrain.mockReturnValue(42);
+    const ray = new Raycaster(new Vector3(600, 100, 0), new Vector3(0, -1, 0));
+    const hit = view.picker.intersectSurface(ray, [7.206, 51.27])!;
+    expect(hit.surface).toBe("terrain");
+    expect(hit.point.y).toBe(42);
+    expect(engine.terrain).toHaveBeenCalledTimes(2);
+    expect(view.map.queryTerrainElevation).not.toHaveBeenCalled();
+  });
+  it("keeps a real mesh hit ahead of the shared DEM sampler", () => {
+    const view = setup([]);
+    engine.terrain.mockReturnValue(99);
+    const ray = new Raycaster(new Vector3(0, 100, 0), new Vector3(0, -1, 0));
+    const hit = view.picker.intersectSurface(ray, [7.2, 51.27])!;
+    expect(hit.surface).toBe("mesh");
+    expect(hit.point.y).toBeCloseTo(10, 9);
+    expect(engine.terrain).not.toHaveBeenCalled();
+    expect(view.map.queryTerrainElevation).not.toHaveBeenCalled();
+  });
+  it("invalidates reused axis hits on shared DEM change without publishing React debug state", async () => {
+    const item = record("shared-axis", 600);
+    const view = setup([item]);
+    engine.terrain.mockReturnValue(42);
+    const listener = vi.fn();
+    view.picker.subscribe(listener);
+    expect(await view.picker.pick([item], query, false, () => true)).toBe(item);
+    const sampled = engine.terrain.mock.calls.length;
+    expect(sampled).toBeGreaterThan(0);
+    expect(await view.picker.pick([item], query, false, () => true)).toBe(item);
+    expect(engine.terrain).toHaveBeenCalledTimes(sampled);
+    const publications = listener.mock.calls.length;
+    engine.terrain.mockReturnValue(58);
+    for (const notify of engine.terrainSubscribers) notify();
+    expect(listener).toHaveBeenCalledTimes(publications);
+    expect(await view.picker.pick([item], query, false, () => true)).toBe(item);
+    expect(engine.terrain.mock.calls.length).toBeGreaterThan(sampled);
+    expect(view.map.queryTerrainElevation).not.toHaveBeenCalled();
+    const ray = new Raycaster(new Vector3(600, 100, 0), new Vector3(0, -1, 0));
+    expect(view.picker.intersectSurface(ray, [7.206, 51.27])!.point.y).toBe(58);
+  });
+  it("unsubscribes shared DEM changes on disposal and subscribes again on restart", () => {
+    const view = setup([]);
+    expect(engine.terrainSubscribe).toHaveBeenCalledOnce();
+    expect(engine.terrainSubscribers.size).toBe(1);
+    view.picker.dispose();
+    expect(engine.terrainUnsubscribe).toHaveBeenCalledOnce();
+    expect(engine.terrainSubscribers.size).toBe(0);
+    view.picker.start();
+    expect(engine.terrainSubscribe).toHaveBeenCalledTimes(2);
+    expect(engine.terrainSubscribers.size).toBe(1);
+    view.picker.dispose();
+    expect(engine.terrainUnsubscribe).toHaveBeenCalledTimes(2);
+    expect(engine.terrainSubscribers.size).toBe(0);
+  });
+});
+
+it("skips marked dense DEM triangles while retaining detailed mesh receiver roots", () => {
+  const view = setup([]);
+  view.surface.userData.isShadowTerrainSurface = true;
+  const terrainRaycast = vi.spyOn(view.surface, "raycast");
+  engine.terrain.mockReturnValue(42);
+  const ray = new Raycaster(new Vector3(0, 100, 0), new Vector3(0, -1, 0));
+  const terrain = view.picker.intersectSurface(ray, [7.2, 51.27])!;
+  expect(terrain.surface).toBe("terrain");
+  expect(terrain.point.y).toBe(42);
+  expect(terrainRaycast).not.toHaveBeenCalled();
+  expect(view.map.queryTerrainElevation).not.toHaveBeenCalled();
+  const detailedRoot = new Group();
+  const detailed = new Mesh(
+    new PlaneGeometry(1000, 1000),
+    new MeshBasicMaterial({ side: DoubleSide })
+  );
+  detailed.rotation.x = -Math.PI / 2;
+  detailed.position.y = 66;
+  detailedRoot.add(detailed);
+  detailedRoot.updateMatrixWorld(true);
+  disposals.push(() => {
+    detailed.geometry.dispose();
+    detailed.material.dispose();
+  });
+  const detailedRaycast = vi.spyOn(detailed, "raycast");
+  engine.runtimes.push({
+    id: "detailed-mesh",
+    root: detailedRoot,
+    receivesMapStyleTexture: true,
+    mapStyleProjectionVersion: () => 1,
+  });
+  engine.terrain.mockClear();
+  const mesh = view.picker.intersectSurface(ray, [7.2, 51.27])!;
+  expect(mesh.surface).toBe("mesh");
+  expect(mesh.point.y).toBeCloseTo(66, 9);
+  expect(detailedRaycast).toHaveBeenCalledOnce();
+  expect(terrainRaycast).not.toHaveBeenCalled();
+  expect(engine.terrain).not.toHaveBeenCalled();
+});
+
+it("intersects a slanted shared DEM along the actual nonvertical camera ray", () => {
+  const view = setup([]);
+  vi.mocked(view.map.queryTerrainElevation).mockReturnValue(null);
+  engine.terrain.mockImplementation((_map: unknown, longitude: number) => {
+    const sceneX = (longitude - 7.2) * 100000;
+    return 42 + 0.2 * (sceneX - 600);
+  });
+  const ray = new Raycaster(
+    new Vector3(600, 120, 0),
+    new Vector3(1, -1, 0).normalize()
+  );
+  const hit = view.picker.intersectSurface(ray, [7.206, 51.27])!;
+  expect(hit.surface).toBe("terrain");
+  expect(Math.abs(hit.point.x - 665)).toBeLessThan(0.05);
+  expect(Math.abs(hit.point.y - 55)).toBeLessThan(0.05);
+  expect(hit.point.z).toBe(0);
+  expect(hit.point.toArray().every(Number.isFinite)).toBe(true);
+  expect(ray.ray.distanceToPoint(hit.point)).toBeLessThan(1e-9);
+  expect(hit.point.x + hit.point.y).toBeCloseTo(720, 9);
+  expect(engine.terrain.mock.calls.length).toBeGreaterThan(2);
+  expect(view.map.queryTerrainElevation).not.toHaveBeenCalled();
 });

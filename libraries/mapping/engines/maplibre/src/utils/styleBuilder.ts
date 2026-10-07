@@ -806,7 +806,7 @@ export const vectorStylesToMapLibreStyle = async ({
                   const result: Record<string, unknown> = {};
                   for (const prop of props) {
                     const baseOpacity =
-                      (styleLayer.paint as Record<string, unknown>)?.[prop] ||
+                      (styleLayer.paint as Record<string, unknown>)?.[prop] ??
                       1;
                     result[prop] =
                       typeof baseOpacity === "number"

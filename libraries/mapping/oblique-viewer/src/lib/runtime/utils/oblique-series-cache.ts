@@ -1,7 +1,4 @@
-import {
-  createDerivedBufferCache,
-  resolveDerivedCacheAssetEpoch,
-} from "@carma-commons/utils";
+import { createDerivedBufferCache } from "@carma-commons/utils";
 import type { ObliqueDataset } from "../../core/types";
 import { loadObliqueSeriesData, type ObliqueData } from "./load-oblique-series";
 import {
@@ -22,6 +19,7 @@ type CachedCatalog = {
   data: ObliqueData;
   fetchedAt: number;
   sources: SourceValidator[];
+  catalogVersion?: string;
 };
 const readValidator = (url: string, response?: Response): SourceValidator => ({
   url,
@@ -50,7 +48,8 @@ const catalogKey = (dataset: ObliqueDataset) => {
 const isCatalog = (
   value: CachedCatalog | undefined,
   primaryUrls: string[],
-  footprintUrl?: string
+  footprintUrl?: string,
+  revision?: string
 ): value is CachedCatalog => {
   const allowed = new Set([
     ...primaryUrls,
@@ -66,10 +65,12 @@ const isCatalog = (
     Number.isFinite(value.fetchedAt) &&
     Array.isArray(value.sources) &&
     value.sources.length === expectedCount &&
-    value.sources.some((source) => primaryUrls.includes(source?.url)) &&
+    (revision
+      ? value.catalogVersion === revision
+      : value.sources.some((source) => primaryUrls.includes(source?.url))) &&
     (!footprintUrl ||
       value.sources.some((source) => source?.url === footprintUrl)) &&
-    value.sources.every((source) => allowed.has(source?.url))
+    (!!revision || value.sources.every((source) => allowed.has(source?.url)))
   );
 };
 
@@ -121,14 +122,12 @@ export const loadCachedObliqueSeriesData = async (
 ): Promise<ObliqueData> => {
   signal?.throwIfAborted();
   const manager = createDerivedBufferCache({
-    databaseName: "carma-oblique-catalog-cache-192m",
+    // Policy changed from six to twelve entries; preserve the old database.
+    databaseName: "carma-oblique-catalog-cache-v3-192m-12",
     capacityBytes: CAPACITY_BYTES,
-    maxEntries: 6,
-    producerEpoch:
-      resolveDerivedCacheAssetEpoch({
-        assetUrl: typeof self !== "undefined" ? self.location.href : "",
-        production: import.meta.env.PROD,
-      }) ?? OBLIQUE_CATALOG_CACHE_VERSION,
+    maxEntries: 12,
+    // Parser schema owns this epoch; app bundle URLs do not change static data.
+    producerEpoch: OBLIQUE_CATALOG_CACHE_VERSION,
   });
   const records = manager.register(
     "parsed-oblique-catalog",
@@ -167,6 +166,7 @@ export const loadCachedObliqueSeriesData = async (
   };
   try {
     const key = catalogKey(dataset);
+    const revision = dataset.catalogVersion?.trim();
     const primaryUrls = [
       dataset.exteriorOrientationsURI,
       dataset.compressedCatalogURI,
@@ -185,11 +185,23 @@ export const loadCachedObliqueSeriesData = async (
     );
     signal?.throwIfAborted();
     if (
-      isCatalog(cached?.value, primaryUrls, dataset.footprintsURI) &&
+      isCatalog(cached?.value, primaryUrls, dataset.footprintsURI, revision) &&
       cached.value.data.datasets.has(dataset.id) &&
-      (await revalidate(cached.value, signal))
+      (revision
+        ? cached.value.catalogVersion === revision
+        : await revalidate(cached.value, signal))
     )
-      return cached.value.data;
+      return {
+        ...cached.value.data,
+        datasets: new Map(
+          [...cached.value.data.datasets].map(([id, value]) => [
+            id,
+            id === dataset.id
+              ? { ...value, animations: dataset.animations }
+              : value,
+          ])
+        ),
+      };
     const observed = new Map(urls.map((url) => [url, readValidator(url)]));
     const fetchSource: typeof fetch = async (input, init) => {
       const response = await fetch(input, { ...init, cache: "no-cache" });
@@ -223,6 +235,7 @@ export const loadCachedObliqueSeriesData = async (
           ),
         },
         fetchedAt: Date.now(),
+        ...(revision ? { catalogVersion: revision } : {}),
         sources: [
           ...new Set([
             successfulPrimary.has(dataset.exteriorOrientationsURI)

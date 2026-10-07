@@ -20,7 +20,7 @@ export const downloadTiffJpeg = (
     );
   if (typeof Worker === "undefined" || typeof OffscreenCanvas === "undefined")
     return Promise.reject(
-      new Error("Dieser Browser unterstützt den TIFF-zu-JPG-Download nicht.")
+      new Error("Dieser Browser unterstützt den JPG-Download nicht.")
     );
 
   return new Promise((resolve, reject) => {

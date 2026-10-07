@@ -449,9 +449,78 @@ describe("shared three scene layer.ground", () => {
     expect(terrainDepthBranch).toContain("return true;");
     expect(terrainDepthBranch).not.toContain("fragmentDistance");
     expect(material.customProgramCacheKey()).toContain(
-      "carma-map-style-projection-v14"
+      "carma-map-style-projection-v15"
     );
     expect(material.defines?.CARMA_MAP_STYLE_OVERLAY).toBeUndefined();
+  });
+
+  it("switches a persistent receiver to markings-only without replacing its uniforms", () => {
+    const material = new THREE.MeshLambertMaterial({
+      transparent: true,
+      depthWrite: false,
+      opacity: 0,
+    });
+    const uniforms = {
+      texture: { value: new THREE.Texture() },
+      sceneToClip: { value: new THREE.Matrix4() },
+      enabled: { value: 1 },
+      depthTexture: { value: null },
+      depthEnabled: { value: 0 },
+      depthNearFar: { value: new THREE.Vector2(1, 1000) },
+      texelSize: { value: new THREE.Vector2(1 / 1280, 1 / 720) },
+    };
+    configureMapStyleProjectedMaterial(material, uniforms, "replace", true);
+    const compile = material.onBeforeCompile;
+    configureMapStyleProjectedMaterial(
+      material,
+      uniforms,
+      "markings-only",
+      true
+    );
+    expect(material.onBeforeCompile).toBe(compile);
+    expect(material.defines?.CARMA_MAP_STYLE_MARKINGS_ONLY).toBe("");
+    expect(material.defines?.CARMA_MAP_STYLE_OVERLAY).toBeUndefined();
+    expect(material.defines?.CARMA_PROJECTIVE_LOCAL_FRAME).toBe("");
+    expect(material.customProgramCacheKey()).toContain("|markings-only|local");
+    const version = material.version;
+    configureMapStyleProjectedMaterial(
+      material,
+      uniforms,
+      "markings-only",
+      true
+    );
+    expect(material.version).toBe(version);
+    const shader = {
+      uniforms: {},
+      vertexShader: "#include <common>\n#include <project_vertex>",
+      fragmentShader:
+        "#include <common>\n#include <map_fragment>\n#include <opaque_fragment>",
+    };
+    material.onBeforeCompile(shader as never, {} as never);
+    expect(shader.uniforms).toMatchObject({
+      carmaMapStyleTexture: uniforms.texture,
+      carmaMapStyleSceneToClip: uniforms.sceneToClip,
+    });
+    // The transparent branch has no Lambert/ground output or opaque alpha override.
+    const markings = shader.fragmentShader
+      .split("#ifdef CARMA_MAP_STYLE_MARKINGS_ONLY")[1]
+      .split("#else")[0];
+    expect(markings).toContain("carmaSurfaceTexture");
+    expect(markings).toContain("carmaScreenImages");
+    expect(markings).toContain("carmaProjectiveMarkings()");
+    expect(markings).toContain("if (carmaMarkings.a <= 0.0) discard;");
+    expect(markings).toContain(
+      "carmaMarkings.rgb / max(carmaMarkings.a, 1e-5)"
+    );
+    expect(markings).not.toContain("#include <opaque_fragment>");
+    expect(markings).not.toContain("outgoingLight *");
+    expect(shader.fragmentShader).toContain(
+      "#ifndef CARMA_MAP_STYLE_MARKINGS_ONLY\n#include <map_fragment>"
+    );
+    configureMapStyleProjectedMaterial(material, uniforms, "overlay", true);
+    expect(material.defines?.CARMA_MAP_STYLE_MARKINGS_ONLY).toBeUndefined();
+    expect(material.defines?.CARMA_MAP_STYLE_OVERLAY).toBe("");
+    expect(material.customProgramCacheKey()).toContain("|overlay|local");
   });
 
   it("composites the captured pass over a textured receiver in overlay mode", () => {

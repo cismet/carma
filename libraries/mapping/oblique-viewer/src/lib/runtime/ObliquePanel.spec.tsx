@@ -16,6 +16,9 @@ import {
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("./utils/preview-thumbnail-cache", () => ({
+  reportPreviewSourceMissing: vi.fn(),
+}));
 vi.mock("antd", () => ({
   Button: ({
     children,
@@ -107,6 +110,7 @@ import { ObliquePanel } from "./ObliquePanel";
 import { ObliqueNavigation } from "./ObliqueNavigation";
 import { message } from "antd";
 import { downloadAsBlobAsync } from "./utils/imageUrls";
+import { reportPreviewSourceMissing } from "./utils/preview-thumbnail-cache";
 import {
   OBLIQUE_STATE_DEFAULT,
   ObliqueViewerActionsProvider,
@@ -161,6 +165,8 @@ const Harness = ({
   previewVisible = false,
   publish = vi.fn(),
   initialSelectionStrategy = OBLIQUE_STATE_DEFAULT.selectionStrategy,
+  missingPreviewImageId = null,
+  previewError = null,
 }: {
   failure2026?: boolean;
   nadirActive?: boolean;
@@ -176,6 +182,8 @@ const Harness = ({
   previewVisible?: boolean;
   publish?: ReturnType<typeof vi.fn>;
   initialSelectionStrategy?: ObliqueViewerActions["selectionStrategy"];
+  missingPreviewImageId?: string | null;
+  previewError?: string | null;
 }) => {
   const [enabledSeriesIds, setEnabledSeriesIds] = useState(
     failure2026 ? [series[0].id, series[1].id] : [series[0].id]
@@ -185,6 +193,8 @@ const Harness = ({
   >(initialSelectionStrategy);
   const actions: ObliqueViewerActions = {
     ...OBLIQUE_STATE_DEFAULT,
+    missingPreviewImageId,
+    error: previewError,
     isOn: true,
     downloadUrl,
     downloadOptions,
@@ -195,6 +205,17 @@ const Harness = ({
       : "oblique",
     panelOpen: showPanel,
     canPan: true,
+    navigationTargets: {
+      imageId: "wuppertal-2024::001_001_170003373",
+      images: {
+        left: "left",
+        right: "right",
+        up: "up",
+        down: "down",
+        rotateLeft: "rotateLeft",
+        rotateRight: "rotateRight",
+      },
+    },
     hoverAvailable,
     previewVisible,
     selectionStrategy,
@@ -489,7 +510,8 @@ describe("image information, actions and acquisition precision", () => {
     const url = "https://images.example/2026/RI_29_3398.tif";
     const open = vi.spyOn(window, "open").mockReturnValue(null);
     render(createElement(Harness, { downloadUrl: url }));
-    expect(screen.getByTitle("Bildrichtung").textContent).toBe("324°");
+    expect(screen.queryByTitle("Bildrichtung")).toBeNull();
+    expect(screen.queryByTitle("001_001_170003373")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Bild öffnen" }));
     expect(open).toHaveBeenCalledWith(url, "_blank", "noopener,noreferrer");
     fireEvent.click(screen.getByRole("button", { name: "Herunterladen" }));
@@ -509,13 +531,14 @@ describe("image information, actions and acquisition precision", () => {
       ).toBe(false)
     );
   });
-  it("shows only the verified month and year without inventing a capture day", () => {
-    const view = render(createElement(Harness));
-    expect(screen.getByText("März 2024").getAttribute("datetime")).toBe(
-      "2024-03"
-    );
-    view.rerender(createElement(Harness, { hasAcquisitionDate: false }));
-    expect(screen.queryByText("März 2024")).toBeNull();
+  it("leaves image metadata to the layer title without a second information row", () => {
+    render(createElement(Harness));
+    const panel = document.querySelector(
+      '[data-test-id="oblique-viewer"]'
+    ) as HTMLElement;
+    expect(panel.querySelector("time")).toBeNull();
+    expect(within(panel).queryByText("März 2024")).toBeNull();
+    expect(within(panel).queryByText("001_001_170003373")).toBeNull();
   });
   it("disables downloads when the selected series is disabled", () => {
     render(
@@ -688,5 +711,137 @@ describe("classic and next interface capabilities", () => {
     expect(
       Array.from(seriesSelection.selectedOptions, (option) => option.value)
     ).toEqual([series[0].id]);
+  });
+});
+
+describe("known missing preview warning", () => {
+  it("shows a compact warning while every prepared map navigation/flight control stays enabled", () => {
+    render(
+      createElement(Harness, {
+        missingPreviewImageId: "wuppertal-2024::001_001_170003373",
+        downloadUrl: "https://images.example/photo.avif",
+      })
+    );
+    expect(
+      screen.getByText("Vorschaubild derzeit nicht verfügbar.")
+    ).toBeTruthy();
+    const navigation = screen.getByRole("group", {
+      name: "Schrägluftbild-Navigation",
+    });
+    for (const button of within(navigation).getAllByRole("button"))
+      expect((button as HTMLButtonElement).disabled).toBe(false);
+    expect(
+      (screen.getByRole("button", { name: "Bild öffnen" }) as HTMLButtonElement)
+        .disabled
+    ).toBe(false);
+    expect(
+      (
+        screen.getByRole("button", {
+          name: "Herunterladen",
+        }) as HTMLButtonElement
+      ).disabled
+    ).toBe(false);
+  });
+  it("does not warn for a stale qualified image or infer missing from a generic preview error", () => {
+    const view = render(
+      createElement(Harness, {
+        missingPreviewImageId: "wuppertal-2026::001_001_170003373",
+      })
+    );
+    expect(
+      screen.queryByText("Vorschaubild derzeit nicht verfügbar.")
+    ).toBeNull();
+    view.rerender(
+      createElement(Harness, {
+        previewError: "Das Bild konnte nicht dekodiert werden.",
+      })
+    );
+    expect(
+      screen.queryByText("Vorschaubild derzeit nicht verfügbar.")
+    ).toBeNull();
+    expect(
+      screen.getByText("Das Bild konnte nicht dekodiert werden.")
+    ).toBeTruthy();
+  });
+});
+
+describe("direct download transport failures", () => {
+  it("turns the actual AVIF404 into a friendly error, releases the button and reports only the captured old source without a probe", async () => {
+    let reject!: (error: Error) => void;
+    vi.mocked(downloadAsBlobAsync).mockImplementationOnce(
+      () =>
+        new Promise<void>((_resolve, fail) => {
+          reject = fail;
+        })
+    );
+    const oldUrl = "https://images.example/old-source.avif",
+      newUrl = "https://images.example/new-source.avif";
+    const view = render(
+      createElement(Harness, {
+        downloadUrl: oldUrl,
+        downloadOptions: { avif: true },
+      })
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Herunterladen" }));
+    expect(downloadAsBlobAsync).toHaveBeenCalledOnce();
+    expect(downloadAsBlobAsync).toHaveBeenCalledWith(
+      oldUrl,
+      expect.objectContaining({ avif: true, signal: expect.any(AbortSignal) })
+    );
+    expect(reportPreviewSourceMissing).not.toHaveBeenCalled();
+    view.rerender(
+      createElement(Harness, {
+        downloadUrl: newUrl,
+        downloadOptions: { avif: true },
+      })
+    );
+    reject(
+      new Error("AVIF requires HTTP 206; refusing 404 full-file response")
+    );
+    await waitFor(() =>
+      expect(message.error).toHaveBeenCalledWith(
+        "Das Bild ist derzeit nicht verfügbar."
+      )
+    );
+    expect(reportPreviewSourceMissing).toHaveBeenCalledOnce();
+    expect(reportPreviewSourceMissing).toHaveBeenCalledWith({
+      previewPath: "",
+      imageId: "001_001_170003373",
+      avifPyramidUrl: oldUrl,
+      avifOnly: true,
+    });
+    expect(downloadAsBlobAsync).toHaveBeenCalledOnce();
+    await waitFor(() =>
+      expect(
+        (
+          screen.getByRole("button", {
+            name: "Herunterladen",
+          }) as HTMLButtonElement
+        ).disabled
+      ).toBe(false)
+    );
+  });
+  it("keeps a friendly generic network error unchanged without marking a missing image and still releases the button", async () => {
+    const friendly = "Netzwerkverbindung unterbrochen.";
+    vi.mocked(downloadAsBlobAsync).mockRejectedValueOnce(new Error(friendly));
+    render(
+      createElement(Harness, {
+        downloadUrl: "https://images.example/current.avif",
+        downloadOptions: { avif: true },
+      })
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Herunterladen" }));
+    await waitFor(() => expect(message.error).toHaveBeenCalledWith(friendly));
+    expect(reportPreviewSourceMissing).not.toHaveBeenCalled();
+    expect(downloadAsBlobAsync).toHaveBeenCalledOnce();
+    await waitFor(() =>
+      expect(
+        (
+          screen.getByRole("button", {
+            name: "Herunterladen",
+          }) as HTMLButtonElement
+        ).disabled
+      ).toBe(false)
+    );
   });
 });

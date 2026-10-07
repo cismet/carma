@@ -52,5 +52,6 @@ export const OBLIQUE_LOD2_STYLE: StyleSpecification = {
 
 export const OBLIQUE_BASE_TILESET_URLS = [
   WUPP_MESH_2024.url,
+  ...WUPP_MESH_2024.alternateUrls,
   WUPP_LOD2_TILESET.url,
 ];

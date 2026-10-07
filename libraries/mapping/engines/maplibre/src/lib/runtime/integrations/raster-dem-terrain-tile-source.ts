@@ -54,6 +54,10 @@ export interface RasterDemTerrainTileSource {
   getLevelMaximumGeometricError: (level: number) => number;
   getTileDataAvailable: (id: TerrainTileId) => boolean;
   sampleHeight: (longitude: number, latitude: number) => number | undefined;
+  sampleHeights: (
+    coordinates: Float64Array,
+    out?: Float64Array
+  ) => Float64Array;
   trimCache: (retainedKeys?: ReadonlySet<string>) => void;
   release: () => void;
 }
@@ -139,6 +143,7 @@ const buildSource = (
     Math.floor(options.maxCacheBytes ?? DEFAULT_MAX_CACHE_BYTES)
   );
   const cache = new Map<string, CacheEntry>();
+  let coverageEntries: CacheEntry[] | null = null;
   const pending = new Map<string, PendingRequest>();
   const lifetime = new AbortController();
   let cachedBytes = 0;
@@ -154,6 +159,7 @@ const buildSource = (
       .filter(([, entry]) => !retainedKeys.has(terrainTileKey(entry.tile.id)))
       .sort(([, left], [, right]) => left.lastUsed - right.lastUsed);
     for (const [key, entry] of candidates) {
+      coverageEntries = null;
       cache.delete(key);
       cachedBytes -= entry.tile.byteLength + entry.raster.pixels.byteLength;
       if (cachedBytes <= maxCacheBytes) break;
@@ -255,6 +261,7 @@ const buildSource = (
         if (result.kind !== TERRAIN_WORKER_TASK_KIND.REMESH)
           throw new Error("Unexpected terrain remeshing result");
         loadSignal.throwIfAborted();
+        coverageEntries = null;
         cache.set(key, {
           tile: result.tile,
           raster: result.raster,
@@ -319,6 +326,7 @@ const buildSource = (
       // The decoded arrays are a fixed size for a given grid; only the fetched
       // payload says how much this tile actually cost to bring in.
       const tile = { ...result.tile, payloadByteLength: payload.size };
+      coverageEntries = null;
       cache.set(key, { tile, raster, lastUsed: ++useClock });
       cachedBytes += tile.byteLength + raster.pixels.byteLength;
       trimCache();
@@ -333,6 +341,33 @@ const buildSource = (
     return waitForPending(key, request, signal);
   };
 
+  const sampleEntry = (
+    entry: CacheEntry,
+    longitude: number,
+    latitude: number
+  ) => {
+    entry.lastUsed = ++useClock;
+    const { bounds } = entry.tile;
+    const x = Math.max(
+      0,
+      Math.min(
+        entry.raster.width - 1,
+        ((longitude - bounds.west) / (bounds.east - bounds.west)) *
+          entry.raster.width -
+          0.5
+      )
+    );
+    const y = Math.max(
+      0,
+      Math.min(
+        entry.raster.height - 1,
+        (latitudeToTileY(latitude, entry.tile.id.level) - entry.tile.id.y) *
+          entry.raster.height -
+          0.5
+      )
+    );
+    return sampleRaster(entry.raster, x, y);
+  };
   return {
     requestTile,
     getTileGridIdsForBounds(bounds, level) {
@@ -361,31 +396,48 @@ const buildSource = (
         }
       }
       if (!entry) return undefined;
-      entry.lastUsed = ++useClock;
-      const { bounds } = entry.tile;
-      const x = Math.max(
-        0,
-        Math.min(
-          entry.raster.width - 1,
-          ((longitude - bounds.west) / (bounds.east - bounds.west)) *
-            entry.raster.width -
-            0.5
-        )
+      return sampleEntry(entry, longitude, latitude);
+    },
+    sampleHeights(coordinates, out) {
+      if (coordinates.length % 2 !== 0)
+        throw new RangeError(
+          "Terrain coordinates must contain longitude/latitude pairs"
+        );
+      const count = coordinates.length / 2;
+      if (out && out.length !== count)
+        throw new RangeError(
+          "Terrain output length must match coordinate count"
+        );
+      const heights = out ?? new Float64Array(count);
+      heights.fill(NaN);
+      // Cache-derived coverage changes only on insert, eviction or release.
+      coverageEntries ??= [...cache.values()].sort(
+        (left, right) => right.tile.id.level - left.tile.id.level
       );
-      const y = Math.max(
-        0,
-        Math.min(
-          entry.raster.height - 1,
-          (latitudeToTileY(latitude, entry.tile.id.level) - entry.tile.id.y) *
-            entry.raster.height -
-            0.5
-        )
-      );
-      return sampleRaster(entry.raster, x, y);
+      for (let i = 0; i < count; i++) {
+        const longitude = coordinates[i * 2],
+          latitude = coordinates[i * 2 + 1];
+        if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) continue;
+        for (const entry of coverageEntries) {
+          const { bounds } = entry.tile;
+          if (
+            longitude >= bounds.west &&
+            longitude <= bounds.east &&
+            latitude >= bounds.south &&
+            latitude <= bounds.north
+          ) {
+            const height = sampleEntry(entry, longitude, latitude);
+            if (Number.isFinite(height)) heights[i] = height;
+            break;
+          }
+        }
+      }
+      return heights;
     },
     trimCache,
     release() {
       lifetime.abort();
+      coverageEntries = null;
       cache.clear();
       pending.clear();
       cachedBytes = 0;

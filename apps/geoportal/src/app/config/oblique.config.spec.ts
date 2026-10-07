@@ -2,7 +2,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@carma-commons/resources", () => ({
   WUPP_LOD2_TILESET: { url: "https://tiles.example/lod2/tileset.json" },
-  WUPP_MESH_2024: { url: "https://tiles.example/mesh2024/tileset.json" },
+  WUPP_MESH_2024: {
+    url: "https://tiles.example/mesh2024/tileset.json",
+    alternateUrls: ["https://tilesx.example/mesh2024/tileset.json"],
+  },
 }));
 vi.mock("@carma-commons/utils", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@carma-commons/utils")>()),
@@ -12,7 +15,10 @@ vi.mock("@carma-commons/utils", async (importOriginal) => ({
 import { isAvailable } from "@carma-commons/utils";
 import { resolveFeatureFlags } from "@carma-providers/feature-flag";
 import { obliqueFachzwilling } from "../constants/fachzwillinge/oblique";
-import { resolveObliqueViewerConfig } from "./oblique.config";
+import {
+  OBLIQUE_BASE_TILESET_URLS,
+  resolveObliqueViewerConfig,
+} from "./oblique.config";
 import { getFeatureFlagConfig } from "./featureFlags";
 
 const prBase = "/carma-pr-deployments/822/geoportal/";
@@ -125,6 +131,13 @@ describe("oblique deployment route", () => {
 });
 
 describe("oblique imagery configuration", () => {
+  it("manages both published mesh endpoints with the same background switch", () => {
+    expect(OBLIQUE_BASE_TILESET_URLS).toEqual([
+      "https://tiles.example/mesh2024/tileset.json",
+      "https://tilesx.example/mesh2024/tileset.json",
+      "https://tiles.example/lod2/tileset.json",
+    ]);
+  });
   it.each(["/", prBase])(
     "loads server-owned series for %s without bundling metadata",
     (baseUrl) => {

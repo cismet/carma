@@ -142,8 +142,13 @@ export const useLibreLayers = (): LibreLayer[] => {
     };
   }, [map, obliqueActive, currentStyle]);
 
+  const obliqueTerrainRef = useRef<ReturnType<
+    typeof buildRasterDemTerrainRuntime
+  > | null>(null);
+  // One shared DEM receiver fills mesh coverage gaps in either background mode.
+  // Style changes keep its worker, decoded tiles and geometry alive.
   useEffect(() => {
-    if (!map || !obliqueActive || currentStyle === MapStyleKeys.AERIAL) return;
+    if (!map || !obliqueActive) return;
     const lease = acquireSharedThreeScene(map);
     const origin = map.getCenter();
     const runtime = buildRasterDemTerrainRuntime(
@@ -152,27 +157,35 @@ export const useLibreLayers = (): LibreLayer[] => {
       [origin.lng, origin.lat],
       {
         receivesMapStyleTexture: true,
+        groundVisible: currentStyle !== MapStyleKeys.AERIAL,
         errorTargetPixels: 1,
         motionErrorTargetPixels: 4,
         onContentChanged: (bounds) =>
           notifySharedThreeSceneContentChanged(map, { bounds }),
       }
     );
+    obliqueTerrainRef.current = runtime;
     lease.layer.addRuntime(runtime);
     const unregister = registerSharedThreeSceneRuntime(map, runtime);
-    let disposed = false;
-    let restoreNativePaint: (() => void) | undefined;
-    void runtime.ready.then((ready) => {
-      if (!disposed && ready && runtime.isBaseViewReady?.())
-        restoreNativePaint = acquireMapLibreTerrainMeshComposition(map);
-    });
     return () => {
-      disposed = true;
+      if (obliqueTerrainRef.current === runtime)
+        obliqueTerrainRef.current = null;
       unregister();
       lease.layer.removeRuntime(runtime.id);
-      restoreNativePaint?.();
       lease.release();
     };
+  }, [map, obliqueActive]);
+  useEffect(() => {
+    obliqueTerrainRef.current?.setGroundVisible(
+      currentStyle !== MapStyleKeys.AERIAL
+    );
+  }, [map, obliqueActive, currentStyle]);
+  // Raster capture is needed on Karte even when the optional 3D-label addon is off.
+  useEffect(() => {
+    if (!map || !obliqueActive || currentStyle === MapStyleKeys.AERIAL) return;
+    const lease = acquireSharedThreeScene(map, { mapStylePresentation: true });
+    lease.setMeshLabelStyle(false);
+    return () => lease.release();
   }, [map, obliqueActive, currentStyle]);
   const { pathname, search } = useLocation();
 

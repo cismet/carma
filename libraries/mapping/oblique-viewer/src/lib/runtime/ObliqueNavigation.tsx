@@ -8,7 +8,11 @@ import {
 import { Spin, Tooltip } from "antd";
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
 
-import { useObliqueViewerActions } from "./oblique-actions";
+import {
+  OBLIQUE_NAVIGATION_KEYS,
+  type ObliqueNavigationKey,
+  useObliqueViewerActions,
+} from "./oblique-actions";
 import { strings } from "./strings.de";
 
 const BUTTON_SIZE = "40px";
@@ -22,12 +26,11 @@ export const ObliqueNavigation = ({
   const {
     isOn,
     isLoading,
-    isBusy,
     viewMode,
     selectedImageId,
     selectedSeriesId,
     series,
-    canPan,
+    navigationTargets,
     previewVisible,
     hoverAvailable,
     sendRequest,
@@ -36,19 +39,27 @@ export const ObliqueNavigation = ({
   const ready =
     selectedImageId !== null &&
     series.some((entry) => entry.enabled && entry.id === selectedSeriesId);
-  const held = isBusy || !ready;
+  const currentTargets =
+    ready && navigationTargets?.imageId === selectedImageId
+      ? navigationTargets
+      : null;
   const pan = (
     horizontal: number,
     vertical: number,
     label: string,
     arrow: string,
-    position: string
+    position: string,
+    key: ObliqueNavigationKey
   ) => (
-    <Tooltip title={label} placement="top">
+    <Tooltip
+      title={label}
+      placement="top"
+      overlayStyle={{ pointerEvents: "none" }}
+    >
       <ControlButtonStyler
         type="button"
         aria-label={label}
-        disabled={held || !canPan}
+        disabled={!currentTargets?.images[key]}
         onClick={() => sendRequest({ type: "pan", horizontal, vertical })}
         width={BUTTON_SIZE}
         height={BUTTON_SIZE}
@@ -61,11 +72,21 @@ export const ObliqueNavigation = ({
   const rotate = (clockwise: boolean, position: string) => {
     const label = clockwise ? strings.rotateRight : strings.rotateLeft;
     return (
-      <Tooltip title={label} placement="top">
+      <Tooltip
+        title={label}
+        placement="top"
+        overlayStyle={{ pointerEvents: "none" }}
+      >
         <ControlButtonStyler
           type="button"
           aria-label={label}
-          disabled={held}
+          disabled={
+            !currentTargets?.images[
+              clockwise
+                ? OBLIQUE_NAVIGATION_KEYS.RotateRight
+                : OBLIQUE_NAVIGATION_KEYS.RotateLeft
+            ]
+          }
           onClick={() => sendRequest({ type: "rotate", clockwise })}
           width={BUTTON_SIZE}
           height={BUTTON_SIZE}
@@ -105,10 +126,11 @@ export const ObliqueNavigation = ({
               : strings.flyToImageTooltip
           }
           placement="top"
+          overlayStyle={{ pointerEvents: "none" }}
         >
           <ControlButtonStyler
             type="button"
-            disabled={held && !previewVisible}
+            disabled={!ready && !previewVisible}
             onClick={() => sendRequest({ type: "flyToImage" })}
             width="160px"
             height={BUTTON_SIZE}
@@ -128,11 +150,39 @@ export const ObliqueNavigation = ({
           </div>
         )}
         {rotate(false, "col-start-1 row-start-1")}
-        {pan(0, 1, strings.siblingUp, "↑", "col-start-2 row-start-1")}
+        {pan(
+          0,
+          1,
+          strings.siblingUp,
+          "↑",
+          "col-start-2 row-start-1",
+          OBLIQUE_NAVIGATION_KEYS.Up
+        )}
         {rotate(true, "col-start-3 row-start-1")}
-        {pan(-1, 0, strings.siblingLeft, "←", "col-start-1 row-start-2")}
-        {pan(0, -1, strings.siblingDown, "↓", "col-start-2 row-start-2")}
-        {pan(1, 0, strings.siblingRight, "→", "col-start-3 row-start-2")}
+        {pan(
+          -1,
+          0,
+          strings.siblingLeft,
+          "←",
+          "col-start-1 row-start-2",
+          OBLIQUE_NAVIGATION_KEYS.Left
+        )}
+        {pan(
+          0,
+          -1,
+          strings.siblingDown,
+          "↓",
+          "col-start-2 row-start-2",
+          OBLIQUE_NAVIGATION_KEYS.Down
+        )}
+        {pan(
+          1,
+          0,
+          strings.siblingRight,
+          "→",
+          "col-start-3 row-start-2",
+          OBLIQUE_NAVIGATION_KEYS.Right
+        )}
       </div>
     </div>
   );

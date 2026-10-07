@@ -1,6 +1,7 @@
 import { shortestAngleDelta } from "@carma-commons/math";
 import { getProj4Converter } from "@carma-geo/proj";
 import {
+  PI_OVER_FOUR,
   degToRad,
   type Degrees,
   type Meters,
@@ -117,6 +118,8 @@ export const createImageSelectionIndex = (data: ObliqueSelectionData) => {
               group = candidate;
             }
           }
+          // A loaded sector must not substitute for a still-missing rotation sector.
+          if (query.excludeImageId && difference > PI_OVER_FOUR) continue;
         }
         if (!group) continue;
         const minX = Math.floor((x - radius) / CELL_SIZE_METERS);
