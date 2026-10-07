@@ -927,22 +927,39 @@ const FeatureInfoBox = ({
   // Simple photo images (single `foto` or a `fotos` array) as image slides, so
   // they sit alongside the panorama in one lightbox. The harvested-fotostrecke
   // path stays on the legacy react-image-lightbox flow (used when there is no
-  // panorama).
-  const photoSlides = useMemo<LightBoxImageSlide[]>(() => {
+  // panorama). An optional `fotoPreviews` array (index-aligned with `fotos`)
+  // holds downsized versions: the small preview in the InfoBox shows those,
+  // the fullscreen lightbox keeps the full-size `fotos`.
+  const photoSources = useMemo<{ src: string; preview: string }[]>(() => {
     const props = selectedFeature?.properties;
     if (!props) {
       return [];
     }
-    const urls: string[] = [];
+    const isUrl = (u: unknown): u is string =>
+      typeof u === "string" && u.length > 0;
+    const urls: unknown[] = [];
+    const previews: unknown[] = [];
     if (Array.isArray(props.fotos)) {
       urls.push(...props.fotos);
+      if (Array.isArray(props.fotoPreviews)) {
+        previews.push(...props.fotoPreviews);
+      }
     } else if (props.foto) {
       urls.push(props.foto);
     }
     return urls
-      .filter((u): u is string => typeof u === "string" && u.length > 0)
-      .map((u) => ({ type: "image", src: updateUrl(u) }));
+      .map((u, i) => ({ u, p: previews[i] }))
+      .filter((entry): entry is { u: string; p: unknown } => isUrl(entry.u))
+      .map(({ u, p }) => ({
+        src: updateUrl(u),
+        preview: updateUrl(isUrl(p) ? p : u),
+      }));
   }, [selectedFeature]);
+
+  const photoSlides = useMemo<LightBoxImageSlide[]>(
+    () => photoSources.map(({ src }) => ({ type: "image", src })),
+    [photoSources]
+  );
 
   const mediaSlides = useMemo<LightBoxSlide[]>(
     () => (panoramaSlide ? [panoramaSlide, ...photoSlides] : photoSlides),
@@ -1092,7 +1109,8 @@ const FeatureInfoBox = ({
           src={selectedFeature.properties.panorama}
           multiResConfigUrl={selectedFeature.properties.panoramaMultiResConfig}
           // the photos step through in the preview, in lightbox slide order
-          photos={photoSlides.map((slide) => slide.src)}
+          // (downsized `fotoPreviews` where available)
+          photos={photoSources.map(({ preview }) => preview)}
           onExpand={openPanoramaLightBox}
           // Only the active viewer drives the map arrow; yield to the
           // lightbox viewer while it is open.
