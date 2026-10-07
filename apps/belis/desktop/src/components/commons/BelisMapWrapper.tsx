@@ -5092,12 +5092,12 @@ const BelisMapLibWrapper = ({
         // geometry, so prefer it for the mini-map center when re-opening the
         // feature from the Entwürfe tab. An unsaved in-draft move
         // (previewWgs84) still wins over the saved brandnew geometry.
-        const brandnewGeom = brandnewFc.features.find(
+        const brandnewFeature = brandnewFc.features.find(
           (f) =>
             String(f.properties?.id ?? "") === dbPK &&
             String(f.properties?._sourceLayer ?? "") === sl
-        )?.geometry;
-        const effectiveGeometry = previewWgs84 ?? brandnewGeom;
+        );
+        const effectiveGeometry = previewWgs84 ?? brandnewFeature?.geometry;
 
         // Try to find the real MVT feature in loaded tiles.
         // This gives us: correct tile ID for visual selection,
@@ -5110,10 +5110,15 @@ const BelisMapLibWrapper = ({
             (f) => f.properties && String(f.properties.id) === dbPK
           );
           if (match) {
+            // Same-day saves leave the tile properties stale.
             selectFeature(
               { source: identifier.source, sourceLayer: sl, id: match.id },
               (effectiveGeometry
-                ? { ...match, geometry: effectiveGeometry }
+                ? {
+                    ...match,
+                    properties: brandnewFeature?.properties ?? match.properties,
+                    geometry: effectiveGeometry,
+                  }
                 : match) as any
             );
             return;
@@ -5133,6 +5138,12 @@ const BelisMapLibWrapper = ({
 
       // Normal flow for fachobjekte/highlights
       setActiveDraftRow(null);
+
+      // The tile copy of a brandnew feature is stale; select the row as is.
+      if (identifier.source === brandnewSource) {
+        selectFeature(identifier, feature as any);
+        return;
+      }
 
       // `identifier.id` is an MVT tile id in Fachobjekte mode (rows come from
       // queryRenderedFeatures) but a database primary key in Highlights mode
@@ -5169,6 +5180,7 @@ const BelisMapLibWrapper = ({
       store,
       openDraftDbKeys,
       brandnewFc,
+      brandnewSource,
     ]
   );
 
