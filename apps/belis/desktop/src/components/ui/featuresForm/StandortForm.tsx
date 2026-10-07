@@ -457,23 +457,28 @@ const StandortForm = ({
     { title: mastTypTitle, documents: mastTypDocuments },
   ];
 
-  // Extract subtitle - use rawFeature (vector tile) to match list display
-  const rawProps = rawFeature?.properties as
+  // The selected feature is a click-time snapshot; prefer the fetched record.
+  const snapshotProps = rawFeature?.properties as
     | Record<string, unknown>
     | undefined;
-  const strassenschluessel = rawProps?.fk_strassenschluessel as
-    | { strasse?: string }
-    | undefined;
+  const useFetched =
+    !isCreation && !!mast && String(mast.id) === String(snapshotProps?.id);
+  const rawProps = useFetched
+    ? { ...snapshotProps, lfd_nummer: mast.lfd_nummer }
+    : snapshotProps;
+  const strassenschluessel = (
+    useFetched ? mast.tkey_strassenschluessel : rawProps?.fk_strassenschluessel
+  ) as { strasse?: string } | undefined;
   const subtitle =
     toTitleCase(strassenschluessel?.strasse || "") ||
     toTitleCase((rawProps?.strasse as string) || "") ||
     toTitleCase((rawProps?.standortangabe as string) || "") ||
     "-ohne Straße-";
 
-  // Header title comes from the shared sidebar extractor, so the sticky header
-  // reads identically to the sidebar row — drafts included. The `standorte`
-  // extractor already yields "Standort <lfd>", so no prefix is added below.
-  const sidebarMain = extractListItem("standorte", rawFeature).main;
+  const sidebarMain = extractListItem("standorte", {
+    ...rawFeature,
+    properties: rawProps,
+  }).main;
 
   const handleSave = async () => {
     if (!jwt) {

@@ -912,16 +912,32 @@ const LeuchteForm = ({
     }
   }, [linkedMastId, mastData, draftValues, onDraftChange, dispatch]);
 
-  // Extract fabrikat for subtitle - use rawFeature (vector tile) to match list display
-  const rawProps = rawFeature?.properties;
+  // The selected feature is a click-time snapshot; prefer the fetched record.
+  const fetchedLeuchte = leuchtenArray?.[0];
+  const fetchedTyp = fetchedLeuchte?.tkey_leuchtentyp as
+    | { leuchtentyp?: string; fabrikat?: string }
+    | undefined;
+  const rawProps =
+    !isCreation &&
+    fetchedLeuchte &&
+    String(fetchedLeuchte.id) === String(rawFeature?.properties?.id)
+      ? {
+          ...rawFeature?.properties,
+          lfd_nummer: fetchedLeuchte.lfd_nummer,
+          leuchtennummer: fetchedLeuchte.leuchtennummer,
+          leuchtentyp: fetchedTyp?.leuchtentyp,
+          fabrikat: fetchedTyp?.fabrikat,
+        }
+      : rawFeature?.properties;
   const subtitle =
     (rawProps?.fabrikat as string) ||
     (rawProps?.leuchttyp_fabrikat as string) ||
     "-ohne Fabrikat-";
 
-  // Header identifier comes from the shared sidebar extractor, so the sticky
-  // header reads identically to the sidebar row — drafts included.
-  const sidebarMain = extractListItem("leuchten", rawFeature).main;
+  const sidebarMain = extractListItem("leuchten", {
+    ...rawFeature,
+    properties: rawProps,
+  }).main;
 
   if (!data) {
     return (
