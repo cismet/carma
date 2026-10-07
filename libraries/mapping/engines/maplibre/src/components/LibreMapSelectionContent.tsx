@@ -8,6 +8,8 @@ import { proj4crs3857def, proj4crs4326def } from "@carma-mapping/utils";
 // Import from portals - SelectionProvider is a shared concern
 import { useSelection } from "@carma-appframeworks/portals";
 
+import { createGazetteerMarker } from "../utils/gazetteerMarker";
+
 interface SelectionContentProps {
   map: maplibregl.Map | null;
 }
@@ -71,7 +73,9 @@ export const LibreMapSelectionContent = ({ map }: SelectionContentProps) => {
           selection.y,
         ]);
         setMarker(
-          new maplibregl.Marker().setLngLat([pos[0], pos[1]]).addTo(map)
+          createGazetteerMarker(selection.glyph)
+            .setLngLat([pos[0], pos[1]])
+            .addTo(map)
         );
       }
     }
