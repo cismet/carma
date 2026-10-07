@@ -1,6 +1,7 @@
 import React, { forwardRef, useEffect, useMemo, useState } from "react";
 import { useSelector } from "react-redux";
 import { LngLatBounds } from "maplibre-gl";
+import pointOnFeature from "@turf/point-on-feature";
 import { CarmaMap } from "@carma-mapping/core";
 import { LibreContextProvider } from "@carma-mapping/engines/maplibre";
 import {
@@ -17,7 +18,7 @@ import {
   applyFeatureCollectionLayers,
   buildFeatureCollectionGeoJSON,
 } from "../../core/tools/libreFeatures";
-import { toWgs84 } from "../../core/wizard/geometry";
+import { planarArea, toWgs84 } from "../../core/wizard/geometry";
 import AreaTools from "./AreaTools";
 import AssignAreaModal from "./AssignAreaModal";
 
@@ -36,6 +37,69 @@ const PIECE_STYLE = {
   opacity: 1,
   fillColor: "#fa8c16",
   fillOpacity: 0.35,
+};
+
+const LABEL_SOURCE_ID = "lagis-area-labels";
+const LABEL_LAYER_ID = "lagis-area-labels-symbols";
+
+const formatArea = (area) =>
+  `${Number(area).toLocaleString("de-DE", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })} m²`;
+
+// m² in the middle of each area, the same number as in the table
+const areaLabels = (areas, pieces) => ({
+  type: "FeatureCollection",
+  features: [
+    ...areas
+      .filter((area) => area.geometry && Number.isFinite(area.flaeche))
+      .map((area) => ({ geometry: area.geometry, area: area.flaeche })),
+    ...pieces.map((piece) => ({
+      geometry: piece.geometry,
+      area: Math.round(planarArea(piece.geometry) * 100) / 100,
+    })),
+  ].map(({ geometry, area }) => ({
+    type: "Feature",
+    geometry: pointOnFeature(toWgs84(geometry)).geometry,
+    properties: { label: formatArea(area) },
+  })),
+});
+
+// styledata fires far more often than the labels change
+const lastLabels = new WeakMap();
+
+const applyAreaLabels = (map, data) => {
+  if (!map?.style?._loaded) {
+    return;
+  }
+  const source = map.getSource(LABEL_SOURCE_ID);
+  if (source) {
+    if (lastLabels.get(map) !== data) {
+      source.setData(data);
+      lastLabels.set(map, data);
+    }
+    return;
+  }
+  map.addSource(LABEL_SOURCE_ID, { type: "geojson", data });
+  lastLabels.set(map, data);
+  map.addLayer({
+    id: LABEL_LAYER_ID,
+    type: "symbol",
+    source: LABEL_SOURCE_ID,
+    layout: {
+      "text-field": ["get", "label"],
+      // served by the cismet glyph server, like the measurement labels
+      "text-font": ["literal", ["Open Sans Bold"]],
+      "text-size": 13,
+      "text-allow-overlap": true,
+    },
+    paint: {
+      "text-color": "#111",
+      "text-halo-color": "#FFFFFF",
+      "text-halo-width": 2,
+    },
+  });
 };
 
 const boundsOf = (geometry) => {
@@ -109,18 +173,23 @@ const AreaMap = forwardRef(
       [areas, pieces, activeId, parcelGeometry]
     );
 
+    const labels = useMemo(() => areaLabels(areas, pieces), [areas, pieces]);
+
     // the source is imperative and has to come back after a style reload
     useEffect(() => {
       if (!libreMap) {
         return undefined;
       }
-      const apply = () => applyFeatureCollectionLayers(libreMap, geoJSON);
+      const apply = () => {
+        applyFeatureCollectionLayers(libreMap, geoJSON);
+        applyAreaLabels(libreMap, labels);
+      };
       apply();
       libreMap.on("styledata", apply);
       return () => {
         libreMap.off("styledata", apply);
       };
-    }, [libreMap, geoJSON]);
+    }, [libreMap, geoJSON, labels]);
 
     useEffect(() => {
       if (libreMap && parcelGeometry) {
@@ -163,6 +232,8 @@ const AreaMap = forwardRef(
               mode={drawMode}
               snapping={snapping}
               featureDraggable={false}
+              // own m² labels instead, see areaLabels
+              labelsVisible={false}
               styleVariant="carma"
               initialFeatures={initialFeatures}
               onChange={onFeaturesChange}

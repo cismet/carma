@@ -394,6 +394,7 @@ const useAreaDrawing = ({
   const areas = rows.map((row) => ({
     id: row.id,
     geometry: row.geometry,
+    flaeche: row.flaeche,
     color:
       row.dienststelleId &&
       getColorFromCode(
