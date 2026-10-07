@@ -124,6 +124,7 @@ const AreaMap = forwardRef(
       onSelectionChange,
       drawMode,
       snapping,
+      midpoints,
       tools,
       assignDialog,
     },
@@ -232,6 +233,7 @@ const AreaMap = forwardRef(
               mode={drawMode}
               snapping={snapping}
               featureDraggable={false}
+              midpoints={midpoints}
               // own m² labels instead, see areaLabels
               labelsVisible={false}
               styleVariant="carma"

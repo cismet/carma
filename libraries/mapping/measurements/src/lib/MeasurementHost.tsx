@@ -35,6 +35,11 @@ import {
   type MeasurementStyleVariant,
 } from "./measurementStyles";
 
+// terra-draw does not export the select-mode flags type
+type TerraDrawSelectModeFlags = NonNullable<
+  NonNullable<ConstructorParameters<typeof TerraDrawSelectMode>[0]>["flags"]
+>;
+
 const DEFAULT_SNAP_RADIUS_PX = 20;
 const SNAP_PREVIEW_SOURCE_ID = "carma-measurements-snap-preview";
 const SNAP_PREVIEW_LAYER_ID = "carma-measurements-snap-preview-circle";
@@ -198,6 +203,9 @@ export interface MeasurementHostProps {
    *  a whole line or polygon — for hosts whose geometries share exact edges.
    *  Defaults to `true`. Read at terra-draw construction time. */
   featureDraggable?: boolean;
+  /** Show the edge-midpoint handles of a selected line / polygon (drag one to
+   *  insert a vertex). Defaults to `true`. Applied live. */
+  midpoints?: boolean;
 }
 
 /** Imperative handle returned via ref. Lets the host invoke terra-draw
@@ -259,6 +267,7 @@ export const MeasurementHost = forwardRef<
     initialFeatures,
     styleVariant = "terra-draw",
     featureDraggable = true,
+    midpoints = true,
   },
   ref
 ) {
@@ -289,6 +298,11 @@ export const MeasurementHost = forwardRef<
   // the latest prop so a rebuild (basemap swap / remount) picks up changes.
   const featureDraggableRef = useRef(featureDraggable);
   featureDraggableRef.current = featureDraggable;
+  const midpointsRef = useRef(midpoints);
+  midpointsRef.current = midpoints;
+  // Built inside the map effect (needs its snap callback); kept so the
+  // midpoints effect can push updated flags into a running select mode.
+  const selectFlagsRef = useRef<(() => TerraDrawSelectModeFlags) | null>(null);
   const closePointerDistancePxRef = useRef(closePointerDistancePx);
   closePointerDistancePxRef.current = closePointerDistancePx;
   const snapModeRef = useRef(snapMode);
@@ -854,6 +868,46 @@ export const MeasurementHost = forwardRef<
     };
 
     const createDraw = () => {
+      const selectFlags = (): TerraDrawSelectModeFlags => ({
+        point: {
+          feature: {
+            draggable: true,
+            coordinates: {
+              // Routing the point's single coord through coord-drag
+              // (instead of feature-drag) is what gives us a snap
+              // hook — terra-draw's feature-drag has no snapping
+              // config, but coord-drag does. The drag start logic
+              // prefers coord-drag whenever coordinates.draggable is
+              // truthy and a coord is in pointer range.
+              snappable: { toCustom: snapToCustom },
+              draggable: true,
+            },
+          },
+        },
+        linestring: {
+          feature: {
+            draggable: featureDraggableRef.current,
+            coordinates: {
+              snappable: { toCustom: snapToCustom },
+              midpoints: midpointsRef.current ? { draggable: true } : false,
+              draggable: true,
+              deletable: true,
+            },
+          },
+        },
+        polygon: {
+          feature: {
+            draggable: featureDraggableRef.current,
+            coordinates: {
+              snappable: { toCustom: snapToCustom },
+              midpoints: midpointsRef.current ? { draggable: true } : false,
+              draggable: true,
+              deletable: true,
+            },
+          },
+        },
+      });
+      selectFlagsRef.current = selectFlags;
       const styles = stylesRef.current;
       const draw = new TerraDraw({
         adapter: new TerraDrawMapLibreGLAdapter({ map }),
@@ -895,45 +949,7 @@ export const MeasurementHost = forwardRef<
             // midpoints. `coordinates.snappable.toCustom` makes vertex
             // drags actually snap to host-map features (not just visually
             // — the released vertex lands on the snap target).
-            flags: {
-              point: {
-                feature: {
-                  draggable: true,
-                  coordinates: {
-                    // Routing the point's single coord through coord-drag
-                    // (instead of feature-drag) is what gives us a snap
-                    // hook — terra-draw's feature-drag has no snapping
-                    // config, but coord-drag does. The drag start logic
-                    // prefers coord-drag whenever coordinates.draggable is
-                    // truthy and a coord is in pointer range.
-                    snappable: { toCustom: snapToCustom },
-                    draggable: true,
-                  },
-                },
-              },
-              linestring: {
-                feature: {
-                  draggable: featureDraggableRef.current,
-                  coordinates: {
-                    snappable: { toCustom: snapToCustom },
-                    midpoints: { draggable: true },
-                    draggable: true,
-                    deletable: true,
-                  },
-                },
-              },
-              polygon: {
-                feature: {
-                  draggable: featureDraggableRef.current,
-                  coordinates: {
-                    snappable: { toCustom: snapToCustom },
-                    midpoints: { draggable: true },
-                    draggable: true,
-                    deletable: true,
-                  },
-                },
-              },
-            },
+            flags: selectFlags(),
             styles: styles.select,
           }),
         ],
@@ -1672,6 +1688,30 @@ export const MeasurementHost = forwardRef<
       if (src) src.setData(EMPTY_FC);
     }
   }, [map, snapping, radiusDebugVisible]);
+
+  useEffect(() => {
+    const draw = drawRef.current;
+    const selectFlags = selectFlagsRef.current;
+    if (!draw || !selectFlags) return;
+    try {
+      draw.updateModeOptions<typeof TerraDrawSelectMode>("select", {
+        flags: selectFlags(),
+      });
+      // The selected feature keeps its old handles until it is re-selected.
+      const selected = selectedIdRef.current;
+      if (selected) {
+        suppressSelectionCallbackRef.current = true;
+        try {
+          draw.deselectFeature(selected);
+          draw.selectFeature(selected);
+        } finally {
+          suppressSelectionCallbackRef.current = false;
+        }
+      }
+    } catch (e) {
+      console.warn("[carma-measurements] could not update midpoints", e);
+    }
+  }, [midpoints]);
 
   // React to any snap-target input flip (mode, per-libreLayer opt-ins,
   // background flag): mark the cached layer-id list dirty so the next
