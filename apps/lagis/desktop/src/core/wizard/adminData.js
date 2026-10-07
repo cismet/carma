@@ -225,6 +225,9 @@ export const findAdminProblem = (section, admin, targets) => {
       if (duplicates(rows.map((row) => row.dienststelleId))) {
         return `Eine Dienststelle ist bei "${label}" mehrfach eingetragen`;
       }
+      if (parcel.pieces?.length > 0) {
+        return `Bei "${label}" gibt es noch nicht zugeordnete Flächen. Bitte ordnen Sie sie einer Dienststelle zu oder entfernen Sie sie.`;
+      }
     }
     if (section === ADMIN_SECTION.ROLLEN) {
       const rows = parcel.rollen;

@@ -194,6 +194,10 @@ export interface MeasurementHostProps {
    *  Read at terra-draw construction time — a change applies on the next
    *  attach (basemap swap / remount), not live. */
   styleVariant?: MeasurementStyleVariant;
+  /** When false, select mode drags only vertices / midpoints and never moves
+   *  a whole line or polygon — for hosts whose geometries share exact edges.
+   *  Defaults to `true`. Read at terra-draw construction time. */
+  featureDraggable?: boolean;
 }
 
 /** Imperative handle returned via ref. Lets the host invoke terra-draw
@@ -254,6 +258,7 @@ export const MeasurementHost = forwardRef<
     onSelectionChange,
     initialFeatures,
     styleVariant = "terra-draw",
+    featureDraggable = true,
   },
   ref
 ) {
@@ -282,6 +287,8 @@ export const MeasurementHost = forwardRef<
   // Read at terra-draw construction time only — terra-draw bakes
   // `pointerDistance` into the mode and never re-reads it. The ref still tracks
   // the latest prop so a rebuild (basemap swap / remount) picks up changes.
+  const featureDraggableRef = useRef(featureDraggable);
+  featureDraggableRef.current = featureDraggable;
   const closePointerDistancePxRef = useRef(closePointerDistancePx);
   closePointerDistancePxRef.current = closePointerDistancePx;
   const snapModeRef = useRef(snapMode);
@@ -906,7 +913,7 @@ export const MeasurementHost = forwardRef<
               },
               linestring: {
                 feature: {
-                  draggable: true,
+                  draggable: featureDraggableRef.current,
                   coordinates: {
                     snappable: { toCustom: snapToCustom },
                     midpoints: { draggable: true },
@@ -917,7 +924,7 @@ export const MeasurementHost = forwardRef<
               },
               polygon: {
                 feature: {
-                  draggable: true,
+                  draggable: featureDraggableRef.current,
                   coordinates: {
                     snappable: { toCustom: snapToCustom },
                     midpoints: { draggable: true },

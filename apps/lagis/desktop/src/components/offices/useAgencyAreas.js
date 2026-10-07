@@ -22,8 +22,11 @@ const useAgencyAreas = () => {
 
   const drawing = useAreaDrawing({
     rows,
-    onChange: (next) => patch({ dienststellen: next }),
+    pieces: draft?.pieces,
+    onChange: patch,
     activeId: activeRowId(rows, selection[0]),
+    onActiveChange: selection[1],
+    parcelGeometry,
     parcelArea,
     dienststellen,
   });

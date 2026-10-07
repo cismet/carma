@@ -4,9 +4,7 @@ import { LngLatBounds } from "maplibre-gl";
 import { CarmaMap } from "@carma-mapping/core";
 import { LibreContextProvider } from "@carma-mapping/engines/maplibre";
 import {
-  DrawModeControls,
   MeasurementHost,
-  MeasurementInfoBox,
   MeasurementsProvider,
 } from "@carma-mapping/measurements";
 import { getBackgroundLibreLayers } from "../commons/BackgroundLayers";
@@ -20,13 +18,24 @@ import {
   buildFeatureCollectionGeoJSON,
 } from "../../core/tools/libreFeatures";
 import { toWgs84 } from "../../core/wizard/geometry";
+import AreaTools from "./AreaTools";
+import AssignAreaModal from "./AssignAreaModal";
 
 const PARCEL_STYLE = {
   color: "#005F6B",
   weight: 1,
   opacity: 0.6,
   fillColor: "#26ADE4",
-  fillOpacity: 0.6,
+  fillOpacity: 0.25,
+};
+
+// free pieces stand out until they are assigned
+const PIECE_STYLE = {
+  color: "#d46b08",
+  weight: 2,
+  opacity: 1,
+  fillColor: "#fa8c16",
+  fillOpacity: 0.35,
 };
 
 const boundsOf = (geometry) => {
@@ -44,11 +53,15 @@ const AreaMap = forwardRef(
     {
       parcelGeometry,
       areas,
+      pieces = [],
       activeId,
       initialFeatures,
       onFeaturesChange,
+      onSelectionChange,
       drawMode,
-      onDrawModeChange,
+      snapping,
+      tools,
+      assignDialog,
     },
     hostRef
   ) => {
@@ -86,10 +99,14 @@ const AreaMap = forwardRef(
                   fillOpacity: area.id === activeId ? 0.6 : 0.35,
                 },
               })),
+            ...pieces.map((piece) => ({
+              geometry: piece.geometry,
+              style: PIECE_STYLE,
+            })),
           ],
           (feature) => feature.style
         ),
-      [areas, activeId, parcelGeometry]
+      [areas, pieces, activeId, parcelGeometry]
     );
 
     // the source is imperative and has to come back after a style reload
@@ -139,29 +156,21 @@ const AreaMap = forwardRef(
               fullScreenControl={false}
               locatorControl={false}
               modalMenuControl={false}
-              extraControls={
-                <>
-                  <DrawModeControls
-                    modes={["select", "polygon"]}
-                    active={drawMode}
-                    onSelect={(next) =>
-                      onDrawModeChange(drawMode === next ? "none" : next)
-                    }
-                  />
-                  <MeasurementInfoBox />
-                </>
-              }
+              extraControls={<AreaTools {...tools} />}
             />
             <MeasurementHost
               ref={hostRef}
               mode={drawMode}
-              snapping
+              snapping={snapping}
+              featureDraggable={false}
               styleVariant="carma"
               initialFeatures={initialFeatures}
               onChange={onFeaturesChange}
+              onSelectionChange={onSelectionChange}
             />
           </MeasurementsProvider>
         </LibreContextProvider>
+        <AssignAreaModal dialog={assignDialog} />
       </div>
     );
   }
