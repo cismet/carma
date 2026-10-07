@@ -4,6 +4,18 @@ import { faBullseye, faInfoCircle } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import Panel from "react-cismap/commons/Panel";
 import { transformImageUrl, getThumbnail } from "./helper/imageHelper";
+import { treeTitle } from "./helper/treeHelper";
+import { ATTRIBUTESETS } from "../config/attributesets";
+
+// Action keys of the "confirm" workflow (wupp #4145). Their timeline entries
+// read "<Aktion> / <Status>" instead of "<Status> / <status_reason>", because
+// the confirm dialog stores the status name as status_reason when the user
+// left no remarks.
+const CONFIRM_ACTION_KEYS = new Set(
+  Object.values(ATTRIBUTESETS)
+    .filter((a) => a.workflow === "confirm")
+    .map((a) => a.actionKey)
+);
 
 interface Action {
   id: number;
@@ -186,6 +198,16 @@ const getTimelineForActions = (
                     (photo) => photo === actionImage || photo === actionThumbnail
                   ) ?? -1;
 
+                const isConfirmAction = CONFIRM_ACTION_KEYS.has(
+                  action.key ?? action.actionDefinition?.key ?? ""
+                );
+                const statusName = getStatusName(action.status);
+                const headline = isConfirmAction ? groupDescription : statusName;
+                const remarks =
+                  isConfirmAction && action.status_reason === statusName
+                    ? undefined
+                    : action.status_reason;
+
                 return (
                   <Timeline.Item
                     key={action.id}
@@ -212,8 +234,19 @@ const getTimelineForActions = (
                             marginBottom: "4px",
                           }}
                         >
-                          {getStatusName(action.status)}
+                          {headline}
                         </div>
+                        {isConfirmAction && (
+                          <div
+                            style={{
+                              fontSize: "12px",
+                              color: "#666",
+                              marginBottom: "2px",
+                            }}
+                          >
+                            {statusName}
+                          </div>
+                        )}
                         {action.payload?.user && (
                           <div
                             style={{
@@ -225,9 +258,9 @@ const getTimelineForActions = (
                             {action.payload.user}
                           </div>
                         )}
-                        {action.status_reason && (
+                        {remarks && (
                           <div style={{ fontSize: "12px", color: "#666" }}>
-                            {action.status_reason}
+                            {remarks}
                           </div>
                         )}
                       </div>
@@ -301,9 +334,7 @@ const SecondaryInfoModal = ({
   const p = feature.properties || {};
   const actions = parseActions(p.actions);
 
-  const title = `${p.baumart_botanisch || "Baum"} (${p.standort_nr || ""}.${
-    p.zusatz || ""
-  }.${p.lfd_nr_str || ""})`;
+  const title = treeTitle(p);
   const header = p.info?.header || "Baumbewirtschaftung";
   const latestStatus = p.latestActionStatus || "none";
   const statusEmoji = getStatusEmoji(latestStatus);
