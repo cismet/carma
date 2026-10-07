@@ -1,5 +1,12 @@
 import type { ExcalidrawElement } from "@excalidraw/excalidraw/types/element/types";
 
+import {
+  headSource,
+  headsRestored,
+  isHeadProxy,
+  parkedHeads,
+} from "./annotation-arrowhead";
+
 /**
  * Excalidraw draws every element into a canvas of its own that covers the
  * element's whole bounding box, and it caps that canvas:
@@ -27,11 +34,12 @@ import type { ExcalidrawElement } from "@excalidraw/excalidraw/types/element/typ
  * leaves the scene, see `unclipped`, and from the scene itself as soon as the
  * element fits again.
  *
- * A copy is geometry only. Three things do not survive it: a rounded corner is
+ * A copy is geometry only. Two things do not survive it: a rounded corner is
  * cut square, because the outline is sampled from the box rather than from
- * excalidraw's own path; a hand-drawn shape gets its wobble from rough.js over
- * the clipped points, so the wobble is not the same wobble; and an arrowhead
- * is kept only when the end it belongs to is on screen.
+ * excalidraw's own path; and a hand-drawn shape gets its wobble from rough.js
+ * over the clipped points, so the wobble is not the same wobble. An arrowhead
+ * is not the copy's to lose — it is drawn by a copy of its own, wherever the
+ * end it belongs to is, see `annotation-arrowhead`.
  */
 
 /** a box in scene units */
@@ -77,7 +85,7 @@ export const isClipProxy = (element: ExcalidrawElement) =>
   typeof dataOf(element).clipOf === "string";
 
 /** the opacity the element has when it is drawing itself */
-const visibleOpacity = (element: ExcalidrawElement) => {
+export const visibleOpacity = (element: ExcalidrawElement) => {
   const parked = dataOf(element).clipOpacity;
   return typeof parked === "number" ? parked : element.opacity;
 };
@@ -93,6 +101,14 @@ const withoutClipData = (element: ExcalidrawElement) => {
   return Object.keys(rest).length > 0 ? rest : undefined;
 };
 
+/** a copy of something else: a clipped outline, or an arrowhead */
+const isProxy = (element: ExcalidrawElement) =>
+  isClipProxy(element) || isHeadProxy(element);
+
+/** whether the element is a copy, or is being drawn by copies */
+const notItself = (element: ExcalidrawElement) =>
+  isProxy(element) || isClipped(element);
+
 /**
  * The scene as everything outside the renderer wants it: no copies, and every
  * element back at the opacity the user gave it. What storage saves, what the
@@ -101,11 +117,11 @@ const withoutClipData = (element: ExcalidrawElement) => {
 export const unclipped = (
   elements: readonly ExcalidrawElement[]
 ): readonly ExcalidrawElement[] => {
-  if (!elements.some((element) => isClipProxy(element) || isClipped(element))) {
+  if (!elements.some((element) => notItself(element) || parkedHeads(element))) {
     return elements;
   }
   return elements
-    .filter((element) => !isClipProxy(element))
+    .filter((element) => !isProxy(element))
     .map((element) =>
       isClipped(element)
         ? ({
@@ -114,7 +130,8 @@ export const unclipped = (
             customData: withoutClipData(element),
           } as ExcalidrawElement)
         : element
-    );
+    )
+    .map(headsRestored);
 };
 
 /** the element with its rendering taken over, or given back */
@@ -547,7 +564,9 @@ export const proxiesFor = (
       proxyElement(element, `${element.id}~clip${index}`, run, {
         strokeColor: element.strokeColor,
         backgroundColor: "transparent",
-        // an arrowhead belongs to an end, and only survives with it
+        // a head is parked before this runs, so there is normally none left
+        // to carry; one that is still on the element belongs to an end, and
+        // only survives with it
         startArrowhead: samePoint(run[0], first)
           ? shape.startArrowhead ?? null
           : null,
@@ -572,11 +591,17 @@ export const proxiesFor = (
 export const staleProxies = (elements: readonly ExcalidrawElement[]) => {
   const sources = new Map<string, ExcalidrawElement>();
   elements.forEach((element) => {
-    if (!isClipProxy(element)) {
+    if (!isProxy(element)) {
       sources.set(element.id, element);
     }
   });
   return elements.some((element) => {
+    if (isHeadProxy(element)) {
+      // a head copy stands for a property, not for a rendering: it is stale
+      // once its element is gone or is carrying its head itself again
+      const drawn = sources.get(headSource(element) ?? "");
+      return !drawn || !parkedHeads(drawn);
+    }
     const source = dataOf(element).clipOf;
     if (source === undefined) {
       return false;
@@ -597,11 +622,11 @@ export const staleProxies = (elements: readonly ExcalidrawElement[]) => {
 export const dropProxies = (
   elements: readonly ExcalidrawElement[]
 ): ExcalidrawElement[] | null => {
-  if (!elements.some((element) => isClipProxy(element) || isClipped(element))) {
+  if (!elements.some(notItself)) {
     return null;
   }
   return elements
-    .filter((element) => !isClipProxy(element))
+    .filter((element) => !isProxy(element))
     .map((element) =>
       isClipped(element)
         ? ({

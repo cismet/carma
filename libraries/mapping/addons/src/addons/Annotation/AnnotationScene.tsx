@@ -1,4 +1,11 @@
-import { Suspense, lazy, useEffect, useRef, useState } from "react";
+import {
+  Suspense,
+  lazy,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import type { CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import type { Map as MaplibreMap } from "maplibre-gl";
@@ -17,7 +24,8 @@ import { sceneHasElementAt } from "./annotation-hit-test";
 import { useDecorationScale } from "./annotation-normalize";
 import { useStyleMarks } from "./annotation-style-marks";
 import { usePlaneActive } from "./annotation-plane-active";
-import { useGroundPlane, usePlaneMargin } from "./annotation-plane";
+import { useGroundPlane, usePlaneFit } from "./annotation-plane";
+import type { PlaneContent } from "./annotation-plane";
 import { usePlanePointer } from "./annotation-plane-pointer";
 import { sceneToLngLat } from "./annotation-scene-space";
 import { useMapSceneSync } from "./map-scene-sync";
@@ -60,6 +68,14 @@ const ZOOM_PADDING = 80;
 /** how far zooming to a drawing goes in, however small the drawing is */
 const ZOOM_TO_MAX = 20;
 
+/**
+ * How far the drawing's box may move, in scene units, before the plane is
+ * measured against it again. The plane is what this is for, and the plane
+ * quantises its own margins to whole steps, so following every point of a
+ * drag would resize nothing and cost a pass each time.
+ */
+const CONTENT_STEP = 64;
+
 type SceneBox = { minX: number; minY: number; maxX: number; maxY: number };
 
 const sceneBounds = (
@@ -93,6 +109,26 @@ const sceneBounds = (
         }
       : box
     : null;
+};
+
+/** whether the plane would measure a different box for these two */
+const contentMoved = (
+  from: PlaneContent | null,
+  to: PlaneContent | null
+): boolean => {
+  if (!from || !to) {
+    return from !== to;
+  }
+  if (from.anchor !== to.anchor) {
+    return true;
+  }
+  const moved = (a: number, b: number) => Math.abs(a - b) > CONTENT_STEP;
+  return (
+    moved(from.bounds.minX, to.bounds.minX) ||
+    moved(from.bounds.minY, to.bounds.minY) ||
+    moved(from.bounds.maxX, to.bounds.maxX) ||
+    moved(from.bounds.maxY, to.bounds.maxY)
+  );
 };
 
 const referencedFiles = (
@@ -186,6 +222,35 @@ export const AnnotationScene = ({
   const [box, setBox] = useState<HTMLDivElement | null>(null);
   const [api, setApi] = useState<ExcalidrawImperativeAPI | null>(null);
   const plane = usePlaneActive(libreMap);
+
+  /**
+   * The drawing lies on the ground and is put on screen by one matrix a frame,
+   * so it follows bearing and pitch instead of being hidden by them. The plane
+   * hangs past the map area by as much ground as the camera is looking at —
+   * a rotation turns the corners out, a pitch pushes the far side a long way
+   * out; the box is clipped back to the map area in CSS. It is measured before
+   * the camera, because the camera is what puts the map area's middle in the
+   * middle of that box.
+   *
+   * What the box is sized to is the drawing, not the camera: empty ground
+   * costs canvas and holds nothing that could be cut. Only a drawing too big
+   * for the budget is painted at less than full size — the whole box, the map
+   * area with it, at `quality` box pixels per map pixel, magnified back by the
+   * matrix, with `shrink` taken off the box's layout size. See `fitFor` and
+   * `MIN_PLANE_QUALITY`.
+   */
+  const contentRef = useRef<PlaneContent | null>(null);
+  const getContent = useCallback(() => contentRef.current, []);
+  const [contentVersion, setContentVersion] = useState(0);
+  const fit = usePlaneFit(
+    libreMap,
+    host,
+    inset,
+    plane,
+    getContent,
+    contentVersion
+  );
+  const { margin, shrink } = fit;
   const {
     inSync,
     onSceneChange,
@@ -201,17 +266,10 @@ export const AnnotationScene = ({
     live,
     syncLimits,
     savedAnchor,
-    plane
+    plane,
+    fit
   );
   const drawing = editable && inSync;
-
-  /**
-   * The drawing lies on the ground and is put on screen by one matrix a frame,
-   * so it follows bearing and pitch instead of being hidden by them. The plane
-   * hangs past the map area on every side, which is what a rotation turns into
-   * the corners; the box is clipped back to the map area in CSS.
-   */
-  const margin = usePlaneMargin(host, plane);
   const ground = useGroundPlane({
     map: libreMap,
     box,
@@ -309,6 +367,15 @@ export const AnnotationScene = ({
     // there, and the elements they stand for are hidden while they exist:
     // neither belongs in what is saved, see `annotation-clip`
     const drawing = unclipped(elements);
+
+    // the plane is sized to the drawing, so it is told when the drawing grows
+    const bounds = sceneBounds(drawing);
+    const anchor = getAnchor();
+    const content = bounds && anchor ? { anchor, bounds } : null;
+    if (contentMoved(contentRef.current, content)) {
+      contentRef.current = content;
+      setContentVersion((version) => version + 1);
+    }
     const version = getSceneVersion?.(drawing) ?? -1;
     const used = referencedFiles(drawing, files);
     const fileCount = Object.keys(used).length;
@@ -386,10 +453,20 @@ export const AnnotationScene = ({
      * copies and all, written in whatever anchor the drawing stood in then.
      * The copies go, so the pass makes the ones this camera needs, and the
      * pass reads every element into the anchor in use — see the stamp in
-     * `annotation-normalize`. A frame later, because excalidraw applies the
-     * undo after this handler and updateScene is not ours to take until it has.
+     * `annotation-normalize`.
+     *
+     * Straight away, in this handler: excalidraw puts the elements back into
+     * the scene while it handles the shortcut, and paints them on the frame
+     * that follows. A pass put off to that frame is one paint too late, and
+     * what that paint shows is the drawing in the units of the anchor it was
+     * captured in — the whole ratio between the two anchors, four times its
+     * size or more, for as long as that frame lasts.
+     *
+     * The frame after as well, for what the scene does with the undo of its
+     * own after this: the second pass finds the drawing already in this
+     * anchor and stops at the first check.
      */
-    requestAnimationFrame(() => {
+    const pass = () => {
       if (!api) {
         return;
       }
@@ -398,7 +475,9 @@ export const AnnotationScene = ({
         api.updateScene({ elements: dropped, commitToHistory: false });
       }
       normalizeDecoration(true);
-    });
+    };
+    pass();
+    requestAnimationFrame(pass);
   }, [api, box, editable, normalizeDecoration, redoVersion, undoVersion]);
 
   /**
@@ -581,15 +660,21 @@ export const AnnotationScene = ({
       style={
         {
           position: "absolute",
-          top: inset.top - margin.y,
-          right: inset.right - margin.x,
-          bottom: inset.bottom - margin.y,
-          left: inset.left - margin.x,
+          top: inset.top - margin.top,
+          right: inset.right - margin.right + shrink.x,
+          bottom: inset.bottom - margin.bottom + shrink.y,
+          left: inset.left - margin.left,
           zIndex,
           pointerEvents: drawing ? "auto" : "none",
           visibility: inSync && shown ? "visible" : "hidden",
-          "--carma-plane-x": `${margin.x}px`,
-          "--carma-plane-y": `${margin.y}px`,
+          // where the map area sits inside the box, which is the margin on
+          // the near sides and the margin less the shrink on the far ones —
+          // negative once the box is painted small enough, hence the polygon
+          // clip in the stylesheet
+          "--carma-plane-top": `${margin.top}px`,
+          "--carma-plane-right": `${margin.right - shrink.x}px`,
+          "--carma-plane-bottom": `${margin.bottom - shrink.y}px`,
+          "--carma-plane-left": `${margin.left}px`,
         } as CSSProperties
       }
     >
