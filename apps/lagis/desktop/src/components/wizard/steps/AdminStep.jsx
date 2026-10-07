@@ -181,7 +181,8 @@ const AdminStep = ({ section, value, onChange, onProblem, onHideProblem }) => {
           dienststellen={stammdaten.dienststellen}
           columns={config.columns(stammdaten)}
           newRow={() => config.newRow(parcel)}
-          onChange={(rows) => patchParcel(label, { dienststellen: rows })}
+          // changes: { dienststellen, pieces }
+          onChange={(changes) => patchParcel(label, changes)}
         />
       );
     }

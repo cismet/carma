@@ -16,8 +16,11 @@ const DienststellenEditor = ({
   const [activeId, setActiveId] = useState(rows[0]?.id);
   const { onRowsChange, mapProps } = useAreaDrawing({
     rows,
+    pieces: parcel.pieces,
     onChange,
     activeId,
+    onActiveChange: setActiveId,
+    parcelGeometry: parcel.geometry,
     parcelArea: parcel.area,
     dienststellen,
   });
