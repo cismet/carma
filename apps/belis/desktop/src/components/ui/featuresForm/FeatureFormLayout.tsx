@@ -714,7 +714,7 @@ const FeatureFormLayout = ({
           >
             {showRaw || additionalTabs.length > 0 || onCreateRelatedDraft ? (
               <div
-                className="[&_.ant-tabs-nav]:sticky [&_.ant-tabs-nav]:top-0 [&_.ant-tabs-nav]:bg-white [&_.ant-tabs-nav]:z-10 [&_.ant-tabs-tab[data-node-key=addtabsentinel]]:!ml-4 [&_.ant-tabs-tab[data-node-key=addtabsentinel]+.ant-tabs-tab]:!ml-4 [&_.ant-tabs-tab[data-node-key=createdraftsentinel]]:!ml-3 [&_.ant-tabs-tab[data-node-key^=extra-]]:!ml-4 [&_.ant-tabs-tab+.ant-tabs-tab[data-node-key=general]]:!ml-4"
+                className="[&_.ant-tabs-nav]:sticky [&_.ant-tabs-nav]:top-0 [&_.ant-tabs-nav]:bg-white [&_.ant-tabs-nav]:z-10 [&>.ant-tabs>.ant-tabs-content-holder]:pt-4 [&_.ant-tabs-tab[data-node-key=addtabsentinel]]:!ml-4 [&_.ant-tabs-tab[data-node-key=addtabsentinel]+.ant-tabs-tab]:!ml-4 [&_.ant-tabs-tab[data-node-key=createdraftsentinel]]:!ml-3 [&_.ant-tabs-tab[data-node-key^=extra-]]:!ml-4 [&_.ant-tabs-tab+.ant-tabs-tab[data-node-key=general]]:!ml-4"
               >
                 <Tabs
                   key={tabsResetKey}
@@ -782,7 +782,7 @@ const FeatureFormLayout = ({
         {singleColumn && !showRaw && !onCreateRelatedDraft ? (
           <div className="pt-4">{formHeaderContent}{documentsContent}</div>
         ) : (
-          <div className="[&_.ant-tabs-nav]:sticky [&_.ant-tabs-nav]:top-0 [&_.ant-tabs-nav]:bg-white [&_.ant-tabs-nav]:z-10 [&_.ant-tabs-tab[data-node-key=addtabsentinel]]:!ml-4 [&_.ant-tabs-tab[data-node-key=addtabsentinel]+.ant-tabs-tab]:!ml-4 [&_.ant-tabs-tab[data-node-key=createdraftsentinel]]:!ml-3 [&_.ant-tabs-tab[data-node-key^=extra-]]:!ml-4 [&_.ant-tabs-tab+.ant-tabs-tab[data-node-key=general]]:!ml-4">
+          <div className="[&_.ant-tabs-nav]:sticky [&_.ant-tabs-nav]:top-0 [&_.ant-tabs-nav]:bg-white [&_.ant-tabs-nav]:z-10 [&>.ant-tabs>.ant-tabs-content-holder]:pt-4 [&_.ant-tabs-tab[data-node-key=addtabsentinel]]:!ml-4 [&_.ant-tabs-tab[data-node-key=addtabsentinel]+.ant-tabs-tab]:!ml-4 [&_.ant-tabs-tab[data-node-key=createdraftsentinel]]:!ml-3 [&_.ant-tabs-tab[data-node-key^=extra-]]:!ml-4 [&_.ant-tabs-tab+.ant-tabs-tab[data-node-key=general]]:!ml-4">
             {singleColumn && formHeaderContent}
             {(() => {
               const narrowGeneralTab = {
