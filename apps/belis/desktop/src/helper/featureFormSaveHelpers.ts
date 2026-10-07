@@ -418,6 +418,10 @@ export const saveFeatureDraft = async (
     );
     await updateDataByClassName(jwt, config.className, dataToSave);
 
+    if (featureType === "standort" && formValues) {
+      await syncStandortFieldsToLeuchten(jwt, draft, formValues);
+    }
+
     return { ...base, success: true };
   } catch (error) {
     return {
@@ -425,6 +429,61 @@ export const saveFeatureDraft = async (
       success: false,
       error: error instanceof Error ? error.message : "Unknown error",
     };
+  }
+};
+
+// Leuchten keep their own copy of these Standort fields.
+const syncStandortFieldsToLeuchten = async (
+  jwt: string,
+  draft: Draft,
+  formValues: Record<string, unknown>
+) => {
+  const mast = (
+    draft.fetchedData?.tdta_standort_mast as
+      | Array<Record<string, unknown>>
+      | undefined
+  )?.[0];
+  if (!mast) return;
+
+  const originalFk =
+    (mast.tkey_strassenschluessel as { id?: number } | null | undefined)?.id ??
+    null;
+  const changes: Record<string, unknown> = {};
+  if (
+    "fk_strassenschluessel" in formValues &&
+    (formValues.fk_strassenschluessel ?? null) !== originalFk
+  ) {
+    changes.fk_strassenschluessel = formValues.fk_strassenschluessel;
+  }
+  if (
+    "lfd_nummer" in formValues &&
+    String(formValues.lfd_nummer ?? "") !== String(mast.lfd_nummer ?? "")
+  ) {
+    changes.lfd_nummer = formValues.lfd_nummer;
+  }
+  if (Object.keys(changes).length === 0) return;
+
+  const leuchten = (
+    (mast.leuchtenArray ?? []) as Array<Record<string, unknown>>
+  ).filter((l) => l.is_deleted !== true && l.id != null);
+  const failed: unknown[] = [];
+  for (const leuchte of leuchten) {
+    try {
+      await updateDataByClassName(jwt, "tdta_leuchten", {
+        id: leuchte.id,
+        ...changes,
+      });
+    } catch (err) {
+      console.error("[SAVE] Leuchte sync failed", { id: leuchte.id, err });
+      failed.push(leuchte.id);
+    }
+  }
+  if (failed.length > 0) {
+    throw new Error(
+      `Standort gespeichert, aber Leuchte(n) #${failed.join(
+        ", #"
+      )} konnten nicht aktualisiert werden`
+    );
   }
 };
 
