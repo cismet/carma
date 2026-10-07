@@ -1928,6 +1928,17 @@ const BelisMapLibWrapper = ({
 
   const mapWidth = mapSizes.width - LIST_WIDTH;
 
+  // A re-saved brandnew feature keeps its id, so compare its content too.
+  const brandnewContentKey = useCallback(
+    (f: maplibregl.MapGeoJSONFeature) => {
+      if (f.source !== brandnewSource) return undefined;
+      const p = f.properties;
+      if (p._isCreation || p._isGeometryEditPreview) return undefined;
+      return JSON.stringify(p);
+    },
+    [brandnewSource]
+  );
+
   const { features, totalCount, countsByLayer, isLoading, isOverviewMode } =
     useVisibleMapFeatures({
       maplibreMap: map,
@@ -1946,6 +1957,7 @@ const BelisMapLibWrapper = ({
       ],
       highlightedOnly: highlightingActive,
       refreshTrigger: highlightVersion,
+      contentKey: brandnewContentKey,
       showDebugBounds: showRaw,
     });
 
