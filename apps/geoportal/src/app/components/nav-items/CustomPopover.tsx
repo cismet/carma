@@ -23,6 +23,8 @@ interface PopoverProps {
   disabled?: boolean;
   className?: string;
   shiftClickHandler?: () => void;
+  /** Called when the popover is opened, not when it is closed again. */
+  onOpen?: () => void;
 }
 
 const CustomPopover = ({
@@ -33,6 +35,7 @@ const CustomPopover = ({
   disabled,
   className,
   shiftClickHandler,
+  onOpen,
 }: PopoverProps) => {
   const [open, setOpen] = useState(false);
   const buttonRef = useRef(null);
@@ -108,6 +111,9 @@ const CustomPopover = ({
             if (isShiftClick && shiftClickHandler) {
               shiftClickHandler();
             } else {
+              if (!open) {
+                onOpen?.();
+              }
               setOpen(!open);
             }
           }}

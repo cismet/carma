@@ -47,6 +47,12 @@ import {
   type TimeSliderConfig,
   type VehicleAnimationConfig,
 } from "@carma-mapping/addons";
+import {
+  LayerAction,
+  TrackingCategory,
+  formatItemName,
+  trackEvent,
+} from "../../tracking";
 
 type MessageType = "success" | "error";
 
@@ -189,6 +195,11 @@ const applyCollectionLayer = async ({
 }) => {
   if (deleteItem) {
     dispatch(deleteSavedLayerConfig(layer.id));
+    trackEvent(
+      TrackingCategory.COLLECTION,
+      LayerAction.DELETE_SAVED,
+      formatItemName(layer.title, layer.id)
+    );
     return;
   }
 
@@ -260,6 +271,11 @@ const applyCollectionLayer = async ({
         `${layer.title} wurde erfolgreich geladen.`
       ),
     });
+    trackEvent(
+      TrackingCategory.COLLECTION,
+      LayerAction.ADD,
+      formatItemName(layer.title, layer.id)
+    );
   } catch {
     messageApi.open({
       type: "error",
@@ -490,6 +506,11 @@ const removeExistingLayer = ({
         `${layer.title} wurde erfolgreich entfernt.`
       ),
     });
+    trackEvent(
+      TrackingCategory.LAYER,
+      LayerAction.REMOVE,
+      formatItemName(layer.title, id)
+    );
   } catch {
     messageApi.open({
       type: "error",
@@ -543,6 +564,17 @@ const addOrUpdateLayer = ({
           ),
         });
       }
+      // tracked here rather than at the call site so that an add rejected by
+      // the maxLayers guard above is not counted as usage
+      trackEvent(
+        TrackingCategory.LAYER,
+        previewLayer
+          ? LayerAction.PREVIEW
+          : updateExisting
+          ? LayerAction.UPDATE
+          : LayerAction.ADD,
+        formatItemName(layer.title, id)
+      );
     }, 1);
   } catch {
     messageApi.open({
