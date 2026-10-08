@@ -362,10 +362,16 @@ export const NativePixels = ({
             size,
             { featherPx }
           );
-          setDomWindow({
-            source: rect,
-            target: size as NativePreviewWindow["target"],
-          });
+          // React renders only when the positioned crop actually changes.
+          setDomWindow((previous) =>
+            previous &&
+            previous.source.x === rect.x &&
+            previous.source.y === rect.y &&
+            previous.source.width === rect.width &&
+            previous.source.height === rect.height
+              ? previous
+              : { source: rect, target: size as NativePreviewWindow["target"] }
+          );
         }
       }
       checkReady(window.source);
