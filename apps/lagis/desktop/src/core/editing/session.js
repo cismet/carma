@@ -3,12 +3,7 @@ import {
   fetchAdminData,
   fetchSchluesselById,
 } from "../wizard/api";
-import {
-  ADMIN_SECTION,
-  findAdminProblem,
-  isStaedtischKey,
-  toParcelData,
-} from "../wizard/adminData";
+import { isStaedtischKey, toParcelData } from "../wizard/adminData";
 import { saveAdminData } from "../wizard/operations/admin";
 import { formatKey } from "../wizard/keys";
 import { loadUsageSection, saveUsageEdit } from "./usage";
@@ -24,6 +19,13 @@ import {
   releaseLocks,
 } from "./locks";
 import { createJournal, describeRollbackFailures } from "./journal";
+import {
+  DraftValidationError,
+  MIPA_RULES,
+  REBE_RULES,
+  findAdminProblems,
+  findUsageProblems,
+} from "./validation";
 import {
   editEnded,
   editStarted,
@@ -162,26 +164,45 @@ export const startEditing =
     }
   };
 
-const ADMIN_CHECKS = [
-  ADMIN_SECTION.DIENSTSTELLEN,
-  ADMIN_SECTION.ROLLEN,
-  ADMIN_SECTION.STRASSENFRONTEN,
-];
+const SECTION_LABELS = {
+  admin: "Verwaltungsbereiche",
+  usage: "Nutzungen",
+  mipa: "Vermietungen und Verpachtungen",
+  rebe: "Rechte und Belastungen",
+};
 
-export const findDraftProblem = (editing) => {
-  const { draft, parcel } = editing;
-  if (!draft?.admin) {
-    return null;
-  }
-  const admin = { [parcel.label]: draft.admin };
-  const targets = [{ key: parcel.key }];
-  for (const section of ADMIN_CHECKS) {
-    const problem = findAdminProblem(section, admin, targets);
-    if (problem) {
-      return problem;
+// all problems of all sections: [{ title, items: [{ name?, text }] }]
+export const findDraftProblems = (editing) => {
+  const { draft, original } = editing;
+  const checks = [
+    ["admin", () => findAdminProblems(draft.admin)],
+    ["usage", () => findUsageProblems(original.usage, draft.usage)],
+    ["mipa", () => MIPA_RULES.findProblems(original.mipa, draft.mipa)],
+    ["rebe", () => REBE_RULES.findProblems(original.rebe, draft.rebe)],
+  ];
+  return checks
+    .map(([section, check]) => ({
+      title: SECTION_LABELS[section],
+      items: draft?.[section] ? check() : [],
+    }))
+    .filter(({ items }) => items.length);
+};
+
+// names the section a server error came from
+const saveSection = async (section, save) => {
+  try {
+    await save();
+  } catch (error) {
+    if (!(error instanceof ActionNotSuccessfulError)) {
+      console.error(`Speichern der ${SECTION_LABELS[section]}`, error);
     }
+    throw new ActionNotSuccessfulError(
+      `Fehler beim Speichern der ${SECTION_LABELS[section]}: ${errorMessage(
+        error
+      )}`,
+      error
+    );
   }
-  return null;
 };
 
 // GraphQL writes aren't transactional: the journal undoes them on failure.
@@ -193,9 +214,9 @@ export const saveEditing = () => async (dispatch, getState) => {
       `Das Flurstück wird inzwischen von ${editing.lockHolder} bearbeitet.`
     );
   }
-  const problem = findDraftProblem(editing);
-  if (problem) {
-    throw new ActionNotSuccessfulError(problem);
+  const problems = findDraftProblems(editing);
+  if (problems.length) {
+    throw new DraftValidationError(problems);
   }
 
   const { jwt, accountName } = context(getState);
@@ -205,24 +226,32 @@ export const saveEditing = () => async (dispatch, getState) => {
   dispatch(setEditStatus("saving"));
   try {
     if (draft.admin) {
-      await saveAdminData(
-        [parcel.key],
-        { [parcel.label]: draft.admin },
-        { jwt, accountName, journal }
+      await saveSection("admin", () =>
+        saveAdminData(
+          [parcel.key],
+          { [parcel.label]: draft.admin },
+          { jwt, accountName, journal }
+        )
       );
     }
     if (draft.usage) {
-      await saveUsageEdit(parcel, original.usage, draft.usage, {
-        jwt,
-        accountName,
-        journal,
-      });
+      await saveSection("usage", () =>
+        saveUsageEdit(parcel, original.usage, draft.usage, {
+          jwt,
+          accountName,
+          journal,
+        })
+      );
     }
     if (draft.mipa) {
-      await saveMipaEdit(original.mipa, draft.mipa, { jwt, journal });
+      await saveSection("mipa", () =>
+        saveMipaEdit(original.mipa, draft.mipa, { jwt, journal })
+      );
     }
     if (draft.rebe) {
-      await saveRebeEdit(original.rebe, draft.rebe, { jwt, journal });
+      await saveSection("rebe", () =>
+        saveRebeEdit(original.rebe, draft.rebe, { jwt, journal })
+      );
     }
     journal.commit();
   } catch (error) {
@@ -230,12 +259,8 @@ export const saveEditing = () => async (dispatch, getState) => {
       throw error;
     }
     const failed = await journal.rollback();
-    const reason =
-      error instanceof ActionNotSuccessfulError
-        ? error.message
-        : "Unbekannter Fehler. Bitte wenden Sie sich an Ihren Systemadministrator.";
     throw new ActionNotSuccessfulError(
-      [reason, describeRollbackFailures(failed)].join("\n\n"),
+      [errorMessage(error), describeRollbackFailures(failed)].join("\n\n"),
       error
     );
   } finally {
