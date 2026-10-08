@@ -215,8 +215,8 @@ export const useObjectCoverage = ({
       epochRef.current++;
       computationRef.current?.abort();
     };
-  // Cardinal catalog slices may arrive while the user is drawing/querying.
-  // Data updates restart the derived search below; only semantic context changes reset the selection.
+    // Cardinal catalog slices may arrive while the user is drawing/querying.
+    // Data updates restart the derived search below; only semantic context changes reset the selection.
   }, [map, enabled, resetToken, heightOffset, reset]);
 
   useEffect(() => {
@@ -369,9 +369,13 @@ export const useObjectCoverage = ({
     const isQuerySurface = (event: MouseEvent) => {
       if (event.target === canvas) return true;
       const target = event.target;
-      return target instanceof Element &&
+      return (
+        target instanceof Element &&
         !!target.closest("[data-oblique-preview-surface]") &&
-        !target.closest("button,a,input,select,textarea,[data-oblique-coverage-ui]");
+        !target.closest(
+          "button,a,input,select,textarea,[data-oblique-coverage-ui]"
+        )
+      );
     };
     const pointOf = (event: MouseEvent): ScreenPoint => {
       const bounds = canvas.getBoundingClientRect();

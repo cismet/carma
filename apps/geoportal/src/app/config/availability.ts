@@ -46,7 +46,9 @@ const collectBackgroundAvailabilities = (
 ];
 
 /** every availability declared anywhere inside a route */
-const collectRouteAvailabilities = (route: FachzwillingRoute): Availability[] => [
+const collectRouteAvailabilities = (
+  route: FachzwillingRoute
+): Availability[] => [
   ...(route.availability ? [route.availability] : []),
   ...(route.perspectives ?? []).flatMap((perspective) => [
     ...(perspective.availability ? [perspective.availability] : []),

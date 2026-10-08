@@ -28,7 +28,9 @@ export type ObliqueViewerConfig = {
   /** Server-owned versioned JSON document containing {schemaVersion: 1, series}. */
   seriesConfigURI?: string;
   /** Deployment metadata corrections, keyed by the immutable series identity. */
-  seriesOverrides?: Readonly<Record<string, Partial<Omit<ObliqueDataset, "id">>>>;
+  seriesOverrides?: Readonly<
+    Record<string, Partial<Omit<ObliqueDataset, "id">>>
+  >;
   /** Host interaction timing overrides, independent of image-series metadata. */
   animations?: ObliqueAnimationsConfig;
   /** Compressed look-ahead traffic per image / navigation group (defaults 1 MiB / 5 MiB, five images). */
@@ -81,7 +83,9 @@ export const resolveSeries = (
   const ids = new Set<string>();
   return series.map((source: ObliqueDataset) => {
     const override = source && config?.seriesOverrides?.[source.id];
-    const dataset = override ? { ...source, ...override, id: source.id } : source;
+    const dataset = override
+      ? { ...source, ...override, id: source.id }
+      : source;
     if (
       !dataset ||
       typeof dataset.id !== "string" ||
@@ -119,7 +123,9 @@ export const resolveSeries = (
       dataset.captureNavigationTopology !== "flight-strip" &&
       dataset.captureNavigationTopology !== "spatial"
     )
-      throw new Error("Capture navigation topology must be flight-strip or spatial.");
+      throw new Error(
+        "Capture navigation topology must be flight-strip or spatial."
+      );
     if (dataset.directionalCatalogs !== undefined) {
       const groupIds = new Set<string>();
       if (
@@ -199,19 +205,21 @@ export const resolveSeries = (
         );
     }
     const animations = Object.fromEntries(
-      Object.entries({ ...dataset.animations, ...config?.animations }).map(([name, animation]) => {
-        const easing: unknown = animation?.easingFunction;
-        if (typeof easing !== "string") return [name, animation];
-        if (!Object.prototype.hasOwnProperty.call(Easing, easing))
-          throw new Error("Unknown image-series animation curve.");
-        return [
-          name,
-          {
-            ...animation,
-            easingFunction: Easing[easing as keyof typeof Easing],
-          },
-        ];
-      })
+      Object.entries({ ...dataset.animations, ...config?.animations }).map(
+        ([name, animation]) => {
+          const easing: unknown = animation?.easingFunction;
+          if (typeof easing !== "string") return [name, animation];
+          if (!Object.prototype.hasOwnProperty.call(Easing, easing))
+            throw new Error("Unknown image-series animation curve.");
+          return [
+            name,
+            {
+              ...animation,
+              easingFunction: Easing[easing as keyof typeof Easing],
+            },
+          ];
+        }
+      )
     );
     let avifPyramidTemplate = dataset.avifPyramidTemplate;
     if (avifPyramidTemplate?.includes("?")) {

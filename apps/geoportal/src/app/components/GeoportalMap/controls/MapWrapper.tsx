@@ -173,7 +173,9 @@ const MapWrapper = () => {
   } = useMapFrameworkSwitcherContext();
   const statusFooterText = isPreparingCesiumTransition
     ? preparingCesiumMessage ?? "3D Modelle werden geladen"
-    : showLibreMap ? formatObliqueLoadingStatus(obliqueViewer) : null;
+    : showLibreMap
+    ? formatObliqueLoadingStatus(obliqueViewer)
+    : null;
 
   const uiMode = useSelector(getUIMode);
   const isModeMeasurement = uiMode === UIMode.MEASUREMENT;

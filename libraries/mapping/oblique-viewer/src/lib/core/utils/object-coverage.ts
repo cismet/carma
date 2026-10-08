@@ -1,5 +1,10 @@
 import { Matrix4, Ray, Sphere, Vector3, Vector4 } from "three";
-import { degToRadNumeric, type CssPixels, type DevicePixels, type Ratio } from "@carma-units";
+import {
+  degToRadNumeric,
+  type CssPixels,
+  type DevicePixels,
+  type Ratio,
+} from "@carma-units";
 
 import type {
   CardinalDirection,
@@ -14,10 +19,7 @@ import {
   getCardinalDirectionFromHeading,
 } from "./orientation";
 import { getOrComputeObliquePose } from "./oblique-pose";
-import {
-  imageProjectionMatrix,
-  sceneToPhotoEnu,
-} from "./image-projection";
+import { imageProjectionMatrix, sceneToPhotoEnu } from "./image-projection";
 
 /** Heights use the same DHHN2016 convention as the aligned image camera. */
 export type ObjectCoverageSphere = Readonly<{
@@ -52,7 +54,10 @@ export type ObjectCoverageGroups = ReadonlyMap<
   readonly ObjectCoverageImage[]
 >;
 
-export type ObjectCoveragePixel = Readonly<{ x: DevicePixels; y: DevicePixels }>;
+export type ObjectCoveragePixel = Readonly<{
+  x: DevicePixels;
+  y: DevicePixels;
+}>;
 
 /** Virtual native-sensor crop matches the panel and caps display magnification of delivered pixels. */
 export const fitObjectCoverageCrop = (
@@ -62,14 +67,36 @@ export const fitObjectCoverageCrop = (
   finestSourceDensity: Ratio = 1 as Ratio,
   maximumMagnification: Ratio = 3 as Ratio
 ): ObjectCoverageCrop => {
-  if (![crop.x, crop.y, crop.width, crop.height, viewport.width, viewport.height,
-    pixelRatio, finestSourceDensity, maximumMagnification].every(Number.isFinite) ||
-    crop.width <= 0 || crop.height <= 0 || viewport.width <= 0 || viewport.height <= 0 ||
-    pixelRatio <= 0 || finestSourceDensity <= 0 || maximumMagnification <= 0)
-    throw new RangeError("Object crop requires finite positive dimensions and pixel density");
+  if (
+    ![
+      crop.x,
+      crop.y,
+      crop.width,
+      crop.height,
+      viewport.width,
+      viewport.height,
+      pixelRatio,
+      finestSourceDensity,
+      maximumMagnification,
+    ].every(Number.isFinite) ||
+    crop.width <= 0 ||
+    crop.height <= 0 ||
+    viewport.width <= 0 ||
+    viewport.height <= 0 ||
+    pixelRatio <= 0 ||
+    finestSourceDensity <= 0 ||
+    maximumMagnification <= 0
+  )
+    throw new RangeError(
+      "Object crop requires finite positive dimensions and pixel density"
+    );
   const aspect = viewport.width / viewport.height;
-  const height = Math.max(crop.height, crop.width / aspect,
-    viewport.height * pixelRatio / (maximumMagnification * finestSourceDensity));
+  const height = Math.max(
+    crop.height,
+    crop.width / aspect,
+    (viewport.height * pixelRatio) /
+      (maximumMagnification * finestSourceDensity)
+  );
   const width = height * aspect;
   const result = {
     x: crop.x + (crop.width - width) / 2,
@@ -88,13 +115,27 @@ export const projectObjectCoveragePoint = (
   point: Vector3,
   calibration: Pick<ObliqueCameraCalibration, "widthPx" | "heightPx">
 ): ObjectCoveragePixel | null => {
-  if (![calibration.widthPx, calibration.heightPx, ...point.toArray(),
-    ...projection.elements].every(Number.isFinite) || calibration.widthPx <= 0 || calibration.heightPx <= 0) return null;
-  const projected = new Vector4(point.x, point.y, point.z, 1).applyMatrix4(projection);
-  if (!(projected.w > 0) || !projected.toArray().every(Number.isFinite)) return null;
-  const x = projected.x / projected.w * calibration.widthPx + 0.5;
+  if (
+    ![
+      calibration.widthPx,
+      calibration.heightPx,
+      ...point.toArray(),
+      ...projection.elements,
+    ].every(Number.isFinite) ||
+    calibration.widthPx <= 0 ||
+    calibration.heightPx <= 0
+  )
+    return null;
+  const projected = new Vector4(point.x, point.y, point.z, 1).applyMatrix4(
+    projection
+  );
+  if (!(projected.w > 0) || !projected.toArray().every(Number.isFinite))
+    return null;
+  const x = (projected.x / projected.w) * calibration.widthPx + 0.5;
   const y = (1 - projected.y / projected.w) * calibration.heightPx + 0.5;
-  return Number.isFinite(x + y) ? { x: x as DevicePixels, y: y as DevicePixels } : null;
+  return Number.isFinite(x + y)
+    ? { x: x as DevicePixels, y: y as DevicePixels }
+    : null;
 };
 
 /** Calibrated native-pixel ray in the projector's physical scene frame, without any engine dependency. */
@@ -104,16 +145,35 @@ export const objectCoveragePixelRay = (
   pixel: ObjectCoveragePixel,
   calibration: Pick<ObliqueCameraCalibration, "widthPx" | "heightPx">
 ): Ray | null => {
-  if (![pixel.x, pixel.y, calibration.widthPx, calibration.heightPx,
-    ...cameraOrigin.toArray(), ...projection.elements].every(Number.isFinite) ||
-    calibration.widthPx <= 0 || calibration.heightPx <= 0) return null;
+  if (
+    ![
+      pixel.x,
+      pixel.y,
+      calibration.widthPx,
+      calibration.heightPx,
+      ...cameraOrigin.toArray(),
+      ...projection.elements,
+    ].every(Number.isFinite) ||
+    calibration.widthPx <= 0 ||
+    calibration.heightPx <= 0
+  )
+    return null;
   const e = projection.elements;
   const u = (pixel.x - 0.5) / calibration.widthPx;
   const v = 1 - (pixel.y - 0.5) / calibration.heightPx;
-  const horizontal = new Vector3(e[0] - u * e[3], e[4] - u * e[7], e[8] - u * e[11]);
-  const vertical = new Vector3(e[1] - v * e[3], e[5] - v * e[7], e[9] - v * e[11]);
+  const horizontal = new Vector3(
+    e[0] - u * e[3],
+    e[4] - u * e[7],
+    e[8] - u * e[11]
+  );
+  const vertical = new Vector3(
+    e[1] - v * e[3],
+    e[5] - v * e[7],
+    e[9] - v * e[11]
+  );
   const direction = horizontal.cross(vertical);
-  if (!(direction.lengthSq() > 0) || !Number.isFinite(direction.lengthSq())) return null;
+  if (!(direction.lengthSq() > 0) || !Number.isFinite(direction.lengthSq()))
+    return null;
   direction.normalize();
   const depthNormal = new Vector3(e[3], e[7], e[11]);
   if (direction.dot(depthNormal) < 0) direction.negate();

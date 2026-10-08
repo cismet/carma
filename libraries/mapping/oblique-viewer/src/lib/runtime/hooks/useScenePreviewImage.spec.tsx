@@ -92,80 +92,141 @@ const setup = () => {
 };
 
 describe("shared-frame preview image", () => {
-  it.each([false, true])("pairs the optional finite-depth projector with the requested sensor ROI (anchor=%s)", (anchored) => {
-    const { options, frame, camera } = setup();
-    const anchor = { longitude: 7.1, latitude: 51.2, heightMeters: 250 };
-    const sceneAnchor = new Vector3(10, 20, 30);
-    shared.projectLngLatToScene.mockReset().mockReturnValue(sceneAnchor);
-    const imageProjector = vi.spyOn(photoProjection, "imageProjectionMatrix").mockReturnValue(new Matrix4());
-    const localProjector = vi.spyOn(photoProjection, "sceneToPhotoEnu").mockReturnValue(new Matrix4());
-    const firstMatrix = new Matrix3().set(0.5, 0, 0.2, 0, 0.5, 0.1, 0, 0, 1);
-    const secondMatrix = new Matrix3().set(0.4, 0, 0.3, 0, 0.4, 0.2, 0, 0, 1);
-    const viewportProjector = vi.spyOn(photoProjection, "viewportImageProjection")
-      .mockReturnValueOnce(firstMatrix).mockReturnValue(secondMatrix);
-    const before = vi.fn();
-    const photo = {
-      record: {}, calibration: {}, pose: {}, altitude: 1000,
-      ...(anchored ? { projectionAnchor: anchor } : {}),
-    } as ScenePreviewPhoto;
-    const localFrame = {
-      ...frame,
-      localFrame: { revision: 1, sceneFromLocal: new Matrix4() },
-    } as SharedThreeSceneFrame;
-    const hook = renderHook(
-      (props) => useScenePreviewImage({ ...options, onBeforeRender: before, ...props }),
-      { initialProps: { photo: photo as ScenePreviewPhoto | undefined, shown: true, source: options.source as HTMLCanvasElement | null } }
-    );
-    try {
-      act(() => shared.callback?.(localFrame));
-      expect(viewportProjector.mock.calls[0][2]).toBe(anchored ? sceneAnchor : undefined);
-      if (anchored) {
-        expect(shared.projectLngLatToScene).toHaveBeenCalledWith([7.1, 51.2], 250, expect.any(Vector3));
-      } else {
-        expect(shared.projectLngLatToScene).not.toHaveBeenCalled();
-      }
-      expect(before.mock.lastCall?.[0].viewportToImage).toBe(anchored ? firstMatrix : undefined);
-      expect(shared.setOverlay.mock.lastCall?.[1].viewportToTexture).toBe(firstMatrix);
-      expect(viewportProjector.mock.invocationCallOrder[0]).toBeLessThan(before.mock.invocationCallOrder[0]);
+  it.each([false, true])(
+    "pairs the optional finite-depth projector with the requested sensor ROI (anchor=%s)",
+    (anchored) => {
+      const { options, frame, camera } = setup();
+      const anchor = { longitude: 7.1, latitude: 51.2, heightMeters: 250 };
+      const sceneAnchor = new Vector3(10, 20, 30);
+      shared.projectLngLatToScene.mockReset().mockReturnValue(sceneAnchor);
+      const imageProjector = vi
+        .spyOn(photoProjection, "imageProjectionMatrix")
+        .mockReturnValue(new Matrix4());
+      const localProjector = vi
+        .spyOn(photoProjection, "sceneToPhotoEnu")
+        .mockReturnValue(new Matrix4());
+      const firstMatrix = new Matrix3().set(0.5, 0, 0.2, 0, 0.5, 0.1, 0, 0, 1);
+      const secondMatrix = new Matrix3().set(0.4, 0, 0.3, 0, 0.4, 0.2, 0, 0, 1);
+      const viewportProjector = vi
+        .spyOn(photoProjection, "viewportImageProjection")
+        .mockReturnValueOnce(firstMatrix)
+        .mockReturnValue(secondMatrix);
+      const before = vi.fn();
+      const photo = {
+        record: {},
+        calibration: {},
+        pose: {},
+        altitude: 1000,
+        ...(anchored ? { projectionAnchor: anchor } : {}),
+      } as ScenePreviewPhoto;
+      const localFrame = {
+        ...frame,
+        localFrame: { revision: 1, sceneFromLocal: new Matrix4() },
+      } as SharedThreeSceneFrame;
+      const hook = renderHook(
+        (props) =>
+          useScenePreviewImage({
+            ...options,
+            onBeforeRender: before,
+            ...props,
+          }),
+        {
+          initialProps: {
+            photo: photo as ScenePreviewPhoto | undefined,
+            shown: true,
+            source: options.source as HTMLCanvasElement | null,
+          },
+        }
+      );
+      try {
+        act(() => shared.callback?.(localFrame));
+        expect(viewportProjector.mock.calls[0][2]).toBe(
+          anchored ? sceneAnchor : undefined
+        );
+        if (anchored) {
+          expect(shared.projectLngLatToScene).toHaveBeenCalledWith(
+            [7.1, 51.2],
+            250,
+            expect.any(Vector3)
+          );
+        } else {
+          expect(shared.projectLngLatToScene).not.toHaveBeenCalled();
+        }
+        expect(before.mock.lastCall?.[0].viewportToImage).toBe(
+          anchored ? firstMatrix : undefined
+        );
+        expect(shared.setOverlay.mock.lastCall?.[1].viewportToTexture).toBe(
+          firstMatrix
+        );
+        expect(viewportProjector.mock.invocationCallOrder[0]).toBeLessThan(
+          before.mock.invocationCallOrder[0]
+        );
 
-      camera.matrixWorldInverse.makeTranslation(5, 0, 0);
-      act(() => shared.callback?.(localFrame));
-      expect(before.mock.lastCall?.[0].viewportToImage).toBe(anchored ? secondMatrix : undefined);
-      expect(shared.setOverlay.mock.lastCall?.[1].viewportToTexture).toBe(secondMatrix);
-      // The anchor belongs to the shared local frame, not the current viewport camera.
-      expect(shared.projectLngLatToScene).toHaveBeenCalledTimes(anchored ? 1 : 0);
+        camera.matrixWorldInverse.makeTranslation(5, 0, 0);
+        act(() => shared.callback?.(localFrame));
+        expect(before.mock.lastCall?.[0].viewportToImage).toBe(
+          anchored ? secondMatrix : undefined
+        );
+        expect(shared.setOverlay.mock.lastCall?.[1].viewportToTexture).toBe(
+          secondMatrix
+        );
+        // The anchor belongs to the shared local frame, not the current viewport camera.
+        expect(shared.projectLngLatToScene).toHaveBeenCalledTimes(
+          anchored ? 1 : 0
+        );
 
-      for (const blocked of ["hidden", "missing-texture"] as const) {
-        const replacement = { ...photo, altitude: photo.altitude + 1 };
-        const replacementMatrix = secondMatrix.clone();
-        replacementMatrix.elements[6] += blocked === "hidden" ? 0.1 : 0.2;
-        viewportProjector.mockReturnValue(replacementMatrix);
-        hook.rerender({ photo: replacement, shown: blocked !== "hidden", source: blocked === "missing-texture" ? null : options.source });
+        for (const blocked of ["hidden", "missing-texture"] as const) {
+          const replacement = { ...photo, altitude: photo.altitude + 1 };
+          const replacementMatrix = secondMatrix.clone();
+          replacementMatrix.elements[6] += blocked === "hidden" ? 0.1 : 0.2;
+          viewportProjector.mockReturnValue(replacementMatrix);
+          hook.rerender({
+            photo: replacement,
+            shown: blocked !== "hidden",
+            source: blocked === "missing-texture" ? null : options.source,
+          });
+          act(() => shared.callback?.(localFrame));
+          expect(shared.setOverlay.mock.lastCall?.[1]).toBeNull();
+          const calculations = viewportProjector.mock.calls.length;
+          // An unchanged blocked frame reuses the computed projector without losing its pending application.
+          act(() => shared.callback?.(localFrame));
+          expect(viewportProjector).toHaveBeenCalledTimes(calculations);
+          hook.rerender({
+            photo: replacement,
+            shown: true,
+            source: options.source,
+          });
+          act(() => shared.callback?.(localFrame));
+          expect(viewportProjector).toHaveBeenCalledTimes(calculations);
+          expect(shared.setOverlay.mock.lastCall?.[1].viewportToTexture).toBe(
+            replacementMatrix
+          );
+        }
+        // Removing photo projection while hidden must also invalidate the applied matrix.
+        hook.rerender({
+          photo: undefined,
+          shown: false,
+          source: options.source,
+        });
         act(() => shared.callback?.(localFrame));
-        expect(shared.setOverlay.mock.lastCall?.[1]).toBeNull();
-        const calculations = viewportProjector.mock.calls.length;
-        // An unchanged blocked frame reuses the computed projector without losing its pending application.
+        hook.rerender({
+          photo: undefined,
+          shown: true,
+          source: options.source,
+        });
         act(() => shared.callback?.(localFrame));
-        expect(viewportProjector).toHaveBeenCalledTimes(calculations);
-        hook.rerender({ photo: replacement, shown: true, source: options.source });
-        act(() => shared.callback?.(localFrame));
-        expect(viewportProjector).toHaveBeenCalledTimes(calculations);
-        expect(shared.setOverlay.mock.lastCall?.[1].viewportToTexture).toBe(replacementMatrix);
+        expect(before.mock.lastCall?.[0].viewportToImage).toBeUndefined();
+        expect(shared.setOverlay.mock.lastCall?.[1].viewportToTexture).not.toBe(
+          viewportProjector.mock.results.at(-1)?.value
+        );
+      } finally {
+        hook.unmount();
+        viewportProjector.mockRestore();
+        imageProjector.mockRestore();
+        localProjector.mockRestore();
       }
-      // Removing photo projection while hidden must also invalidate the applied matrix.
-      hook.rerender({ photo: undefined, shown: false, source: options.source });
-      act(() => shared.callback?.(localFrame));
-      hook.rerender({ photo: undefined, shown: true, source: options.source });
-      act(() => shared.callback?.(localFrame));
-      expect(before.mock.lastCall?.[0].viewportToImage).toBeUndefined();
-      expect(shared.setOverlay.mock.lastCall?.[1].viewportToTexture).not.toBe(viewportProjector.mock.results.at(-1)?.value);
-    } finally {
-      hook.unmount();
-      viewportProjector.mockRestore();
-      imageProjector.mockRestore();
-      localProjector.mockRestore();
     }
-  });
+  );
 
   it("hides the 3D point labels with the draped labels while the photo is shown", () => {
     const { options } = setup();

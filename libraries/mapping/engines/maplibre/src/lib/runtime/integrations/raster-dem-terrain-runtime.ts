@@ -1308,7 +1308,9 @@ export const buildRasterDemTerrainRuntime = (
       noDataHeightMeters !== undefined &&
       !terrainHeightRangeExcludesNoData(tile, noDataHeightMeters);
     const decodedHeightRange =
-      !tileRangeIncludesNoData && Number.isFinite(tile.minimumHeightMeters) && Number.isFinite(tile.maximumHeightMeters)
+      !tileRangeIncludesNoData &&
+      Number.isFinite(tile.minimumHeightMeters) &&
+      Number.isFinite(tile.maximumHeightMeters)
         ? [tile.minimumHeightMeters, tile.maximumHeightMeters]
         : getFiniteHeightRange(tile.heightMeters, noDataHeightMeters) ?? [0, 0];
     const minimumHeightMeters =

@@ -98,7 +98,9 @@ const mount = (
     readRotationTarget?: Parameters<
       typeof useObliqueNavigationTargets
     >[0]["readRotationTarget"];
-    onLookAheadGroup?: Parameters<typeof useObliqueNavigationTargets>[0]["onLookAheadGroup"];
+    onLookAheadGroup?: Parameters<
+      typeof useObliqueNavigationTargets
+    >[0]["onLookAheadGroup"];
     busy?: boolean;
     previewCameraActive?: boolean;
   } = {}
@@ -169,38 +171,62 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 describe("prepared navigation target cache", () => {
-  it.each([false, true])("generates rotation headings from the actual %s UI convention", async (nextInterface) => {
-    const view = mount(nextInterface);
-    await flush();
-    const queries = view.computeNavigation.mock.calls[0][0];
-    const left = nextInterface ? 235 : 415;
-    const right = nextInterface ? 415 : 235;
-    expect(queries[4].headingRad).toBeCloseTo(degToRad(left as Degrees));
-    expect(queries[5].headingRad).toBeCloseTo(degToRad(right as Degrees));
-  });
+  it.each([false, true])(
+    "generates rotation headings from the actual %s UI convention",
+    async (nextInterface) => {
+      const view = mount(nextInterface);
+      await flush();
+      const queries = view.computeNavigation.mock.calls[0][0];
+      const left = nextInterface ? 235 : 415;
+      const right = nextInterface ? 415 : 235;
+      expect(queries[4].headingRad).toBeCloseTo(degToRad(left as Degrees));
+      expect(queries[5].headingRad).toBeCloseTo(degToRad(right as Degrees));
+    }
+  );
 
   it("uses the visible scene center and pure center order for classic rotation, capture topology for arrows", async () => {
     const view = mount(false);
     await flush();
     const queries = view.computeNavigation.mock.calls[0][0];
-    expect(queries.slice(0, 4).every((query) =>
-      query.navigationSelection === "capture-neighbor" && query.navigationArrow
-    )).toBe(true);
-    expect(queries.slice(4).every((query) =>
-      query.navigationSelection === "center-distance" &&
-      query.target.longitude === 7.2 && query.navigationArrow === undefined
-    )).toBe(true);
+    expect(
+      queries
+        .slice(0, 4)
+        .every(
+          (query) =>
+            query.navigationSelection === "capture-neighbor" &&
+            query.navigationArrow
+        )
+    ).toBe(true);
+    expect(
+      queries
+        .slice(4)
+        .every(
+          (query) =>
+            query.navigationSelection === "center-distance" &&
+            query.target.longitude === 7.2 &&
+            query.navigationArrow === undefined
+        )
+    ).toBe(true);
   });
 
   it("rejects previous screen-axis targets immediately after an orbit, before moveend", async () => {
     const view = mount(false, undefined, { previewCameraActive: false });
     await flush();
-    expect(view.result.current.getTarget(OBLIQUE_NAVIGATION_KEYS.Right)).toBeDefined();
+    expect(
+      view.result.current.getTarget(OBLIQUE_NAVIGATION_KEYS.Right)
+    ).toBeDefined();
     liveBearing += 90;
-    expect(view.result.current.getTarget(OBLIQUE_NAVIGATION_KEYS.Right)).toBeUndefined();
+    expect(
+      view.result.current.getTarget(OBLIQUE_NAVIGATION_KEYS.Right)
+    ).toBeUndefined();
     const activate = vi.fn(async (_target: { headingRad: number }) => {});
     let requested!: Promise<boolean>;
-    act(() => { requested = view.result.current.requestTarget(OBLIQUE_NAVIGATION_KEYS.Right, activate); });
+    act(() => {
+      requested = view.result.current.requestTarget(
+        OBLIQUE_NAVIGATION_KEYS.Right,
+        activate
+      );
+    });
     await flush();
     expect(await requested).toBe(true);
     expect(activate.mock.calls[0][0].headingRad).toBe(degToRad(201 as Degrees));
@@ -210,16 +236,19 @@ describe("prepared navigation target cache", () => {
     { previewCameraActive: true, busy: false, heading: 325 },
     { previewCameraActive: false, busy: false, heading: 111 },
     { previewCameraActive: false, busy: true, heading: 325 },
-  ])("uses the same view heading for arrow displacement and ranking: %j", async (state) => {
-    const view = mount(false, undefined, state);
-    await flush();
-    const queries = view.computeNavigation.mock.calls[0][0];
-    const headingRad = degToRad(state.heading as Degrees);
-    for (let i = 0; i < 4; i += 1) {
-      expect(mocks.pan.mock.calls[i][3].headingRad).toBe(headingRad);
-      expect(queries[i].headingRad).toBe(headingRad);
+  ])(
+    "uses the same view heading for arrow displacement and ranking: %j",
+    async (state) => {
+      const view = mount(false, undefined, state);
+      await flush();
+      const queries = view.computeNavigation.mock.calls[0][0];
+      const headingRad = degToRad(state.heading as Degrees);
+      for (let i = 0; i < 4; i += 1) {
+        expect(mocks.pan.mock.calls[i][3].headingRad).toBe(headingRad);
+        expect(queries[i].headingRad).toBe(headingRad);
+      }
     }
-  });
+  );
 
   it("publishes geometry targets without waiting for camera altitude or media", async () => {
     const view = mount();
@@ -278,26 +307,45 @@ describe("prepared navigation target cache", () => {
     "ignores an obsolete %s failure after a newer target batch has settled",
     async (stage) => {
       let reject!: (error: Error) => void;
-      const obsolete = new Promise<never>((_resolve, fail) => { reject = fail; });
-      let catalogCalls = 0, rankingCalls = 0;
+      const obsolete = new Promise<never>((_resolve, fail) => {
+        reject = fail;
+      });
+      let catalogCalls = 0,
+        rankingCalls = 0;
       const view = mount(false, undefined, {
-        ensureDirections: () => stage === "catalog" && ++catalogCalls === 1
-          ? obsolete : Promise.resolve(),
-        rank: (queries) => stage === "ranking" && ++rankingCalls === 1
-          ? obsolete : Promise.resolve(queries.map(() => [selected("new-target")])),
+        ensureDirections: () =>
+          stage === "catalog" && ++catalogCalls === 1
+            ? obsolete
+            : Promise.resolve(),
+        rank: (queries) =>
+          stage === "ranking" && ++rankingCalls === 1
+            ? obsolete
+            : Promise.resolve(queries.map(() => [selected("new-target")])),
       });
       await flush();
-      view.rerender({ image: selected("current"), data: { ...data, centers: new Map(data.centers) } });
+      view.rerender({
+        image: selected("current"),
+        data: { ...data, centers: new Map(data.centers) },
+      });
       await flush();
       const settled = view.publish.mock.calls.at(-1)?.[0];
       expect(settled.images.right).toBe("new-target");
-      await act(async () => { reject(new Error("obsolete generation failed")); });
+      await act(async () => {
+        reject(new Error("obsolete generation failed"));
+      });
       await flush();
       expect(view.publish.mock.calls.at(-1)?.[0]).toBe(settled);
-      expect(view.result.current.getTarget(OBLIQUE_NAVIGATION_KEYS.Right)?.candidate.record.id)
-        .toBe("new-target");
+      expect(
+        view.result.current.getTarget(OBLIQUE_NAVIGATION_KEYS.Right)?.candidate
+          .record.id
+      ).toBe("new-target");
       const activate = vi.fn(async () => {});
-      expect(await view.result.current.requestTarget(OBLIQUE_NAVIGATION_KEYS.Right, activate)).toBe(true);
+      expect(
+        await view.result.current.requestTarget(
+          OBLIQUE_NAVIGATION_KEYS.Right,
+          activate
+        )
+      ).toBe(true);
       expect(activate).toHaveBeenCalledOnce();
     }
   );
@@ -365,7 +413,9 @@ describe("prepared navigation target cache", () => {
     vi.useFakeTimers();
     const view = mount(false, undefined, { busy: true });
     await flush();
-    expect(view.result.current.getTarget(OBLIQUE_NAVIGATION_KEYS.Right)).toBeDefined();
+    expect(
+      view.result.current.getTarget(OBLIQUE_NAVIGATION_KEYS.Right)
+    ).toBeDefined();
     expect(view.publish).not.toHaveBeenCalled();
     view.busyRef.current = false;
     act(() => emit("moveend"));
@@ -385,9 +435,15 @@ describe("prepared navigation target cache", () => {
     const view = mount(true, undefined, { readRotationTarget });
     await flush();
     const queries = view.computeNavigation.mock.calls[0][0];
-    expect(queries.slice(4).every((query) => query.target === pivot)).toBe(true);
-    expect(view.result.current.getTarget(OBLIQUE_NAVIGATION_KEYS.RotateRight)?.target).toBe(pivot);
-    expect(view.result.current.getCardinal(CardinalDirectionEnum.North)?.target).toBe(pivot);
+    expect(queries.slice(4).every((query) => query.target === pivot)).toBe(
+      true
+    );
+    expect(
+      view.result.current.getTarget(OBLIQUE_NAVIGATION_KEYS.RotateRight)?.target
+    ).toBe(pivot);
+    expect(
+      view.result.current.getCardinal(CardinalDirectionEnum.North)?.target
+    ).toBe(pivot);
     expect(readRotationTarget).toHaveBeenCalledOnce();
   });
 });
@@ -509,22 +565,33 @@ describe("semantic navigation FIFO", () => {
   });
 
   it("prepares once after a silent invalidation and replays repeated queued keys without a moveend", async () => {
-    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date", "performance"] });
+    vi.useFakeTimers({
+      toFake: ["setTimeout", "clearTimeout", "Date", "performance"],
+    });
     const preparation = pending<ReturnType<typeof rank>>();
     let batches = 0;
     const view = mount(false, undefined, {
-      rank: (queries) => ++batches === 2 ? preparation.promise : Promise.resolve(rank(queries)),
+      rank: (queries) =>
+        ++batches === 2 ? preparation.promise : Promise.resolve(rank(queries)),
     });
     await flush();
     const settled = view.publish.mock.calls.at(-1)?.[0];
     act(() => view.result.current.invalidate(false));
-    const keys = [OBLIQUE_NAVIGATION_KEYS.Right, OBLIQUE_NAVIGATION_KEYS.Right, OBLIQUE_NAVIGATION_KEYS.Up];
-    const trace: string[] = [], results: Promise<boolean>[] = [];
+    const keys = [
+      OBLIQUE_NAVIGATION_KEYS.Right,
+      OBLIQUE_NAVIGATION_KEYS.Right,
+      OBLIQUE_NAVIGATION_KEYS.Up,
+    ];
+    const trace: string[] = [],
+      results: Promise<boolean>[] = [];
     act(() => {
-      for (const key of keys) results.push(view.result.current.requestTarget(key, async (target) => {
-        trace.push(key);
-        view.rerender({ image: target.candidate, data });
-      }));
+      for (const key of keys)
+        results.push(
+          view.result.current.requestTarget(key, async (target) => {
+            trace.push(key);
+            view.rerender({ image: target.candidate, data });
+          })
+        );
     });
     await flush();
     expect(view.computeNavigation).toHaveBeenCalledTimes(2);
@@ -900,96 +967,231 @@ describe("rotation waits for the complete oblique catalog", () => {
 describe("navigation prewarm intent", () => {
   it("requires pointer dwell, cancels crossing, and never queues navigation", async () => {
     vi.useFakeTimers();
-    const view = mount(); await flush();
+    const view = mount();
+    await flush();
     const initialQueries = view.computeNavigation.mock.calls.length;
-    act(() => view.result.current.warmNavigation(OBLIQUE_NAVIGATION_KEYS.Right, true, "pointer"));
-    await act(async () => { vi.advanceTimersByTime(79); });
+    act(() =>
+      view.result.current.warmNavigation(
+        OBLIQUE_NAVIGATION_KEYS.Right,
+        true,
+        "pointer"
+      )
+    );
+    await act(async () => {
+      vi.advanceTimersByTime(79);
+    });
     expect(view.lookAhead).not.toHaveBeenCalled();
-    act(() => view.result.current.warmNavigation(OBLIQUE_NAVIGATION_KEYS.Right, false, "pointer"));
-    await act(async () => { vi.advanceTimersByTime(100); });
+    act(() =>
+      view.result.current.warmNavigation(
+        OBLIQUE_NAVIGATION_KEYS.Right,
+        false,
+        "pointer"
+      )
+    );
+    await act(async () => {
+      vi.advanceTimersByTime(100);
+    });
     expect(view.lookAhead).not.toHaveBeenCalled();
-    act(() => view.result.current.warmNavigation(OBLIQUE_NAVIGATION_KEYS.Up, true, "pointer"));
-    await act(async () => { vi.advanceTimersByTime(80); });
-    expect(view.lookAhead.mock.calls.at(-1)?.[1].key).toBe(OBLIQUE_NAVIGATION_KEYS.Up);
+    act(() =>
+      view.result.current.warmNavigation(
+        OBLIQUE_NAVIGATION_KEYS.Up,
+        true,
+        "pointer"
+      )
+    );
+    await act(async () => {
+      vi.advanceTimersByTime(80);
+    });
+    expect(view.lookAhead.mock.calls.at(-1)?.[1].key).toBe(
+      OBLIQUE_NAVIGATION_KEYS.Up
+    );
     expect(view.computeNavigation).toHaveBeenCalledTimes(initialQueries);
     view.unmount();
   });
 
   it("ranks queued action over pointer over immediate focus over remembered direction", async () => {
     vi.useFakeTimers();
-    const view = mount(false, undefined, { busy: true }); await flush();
-    act(() => view.result.current.rememberDirection(OBLIQUE_NAVIGATION_KEYS.Down));
-    act(() => view.result.current.warmNavigation(OBLIQUE_NAVIGATION_KEYS.Left, true, "focus"));
-    expect(view.lookAhead.mock.calls.at(-1)?.[1].key).toBe(OBLIQUE_NAVIGATION_KEYS.Left);
-    act(() => view.result.current.warmNavigation(OBLIQUE_NAVIGATION_KEYS.Right, true, "pointer"));
-    await act(async () => { vi.advanceTimersByTime(80); });
-    expect(view.lookAhead.mock.calls.at(-1)?.[1].key).toBe(OBLIQUE_NAVIGATION_KEYS.Right);
+    const view = mount(false, undefined, { busy: true });
+    await flush();
+    act(() =>
+      view.result.current.rememberDirection(OBLIQUE_NAVIGATION_KEYS.Down)
+    );
+    act(() =>
+      view.result.current.warmNavigation(
+        OBLIQUE_NAVIGATION_KEYS.Left,
+        true,
+        "focus"
+      )
+    );
+    expect(view.lookAhead.mock.calls.at(-1)?.[1].key).toBe(
+      OBLIQUE_NAVIGATION_KEYS.Left
+    );
+    act(() =>
+      view.result.current.warmNavigation(
+        OBLIQUE_NAVIGATION_KEYS.Right,
+        true,
+        "pointer"
+      )
+    );
+    await act(async () => {
+      vi.advanceTimersByTime(80);
+    });
+    expect(view.lookAhead.mock.calls.at(-1)?.[1].key).toBe(
+      OBLIQUE_NAVIGATION_KEYS.Right
+    );
     const activate = vi.fn(async () => {});
     let queued!: Promise<boolean>;
-    act(() => { queued = view.result.current.requestTarget(OBLIQUE_NAVIGATION_KEYS.Up, activate); });
-    expect(view.lookAhead.mock.calls.at(-1)?.[1].key).toBe(OBLIQUE_NAVIGATION_KEYS.Up);
+    act(() => {
+      queued = view.result.current.requestTarget(
+        OBLIQUE_NAVIGATION_KEYS.Up,
+        activate
+      );
+    });
+    expect(view.lookAhead.mock.calls.at(-1)?.[1].key).toBe(
+      OBLIQUE_NAVIGATION_KEYS.Up
+    );
     expect(activate).not.toHaveBeenCalled();
     act(() => view.result.current.cancel());
     expect(await queued).toBe(false);
     // A fresh hover release restores focus, then remembered direction.
-    act(() => view.result.current.rememberDirection(OBLIQUE_NAVIGATION_KEYS.Down));
-    act(() => view.result.current.warmNavigation(OBLIQUE_NAVIGATION_KEYS.Left, true, "focus"));
-    act(() => view.result.current.warmNavigation(OBLIQUE_NAVIGATION_KEYS.Right, false, "pointer"));
-    expect(view.lookAhead.mock.calls.at(-1)?.[1].key).toBe(OBLIQUE_NAVIGATION_KEYS.Left);
-    act(() => view.result.current.warmNavigation(OBLIQUE_NAVIGATION_KEYS.Left, false, "focus"));
-    expect(view.lookAhead.mock.calls.at(-1)?.[1].key).toBe(OBLIQUE_NAVIGATION_KEYS.Down);
+    act(() =>
+      view.result.current.rememberDirection(OBLIQUE_NAVIGATION_KEYS.Down)
+    );
+    act(() =>
+      view.result.current.warmNavigation(
+        OBLIQUE_NAVIGATION_KEYS.Left,
+        true,
+        "focus"
+      )
+    );
+    act(() =>
+      view.result.current.warmNavigation(
+        OBLIQUE_NAVIGATION_KEYS.Right,
+        false,
+        "pointer"
+      )
+    );
+    expect(view.lookAhead.mock.calls.at(-1)?.[1].key).toBe(
+      OBLIQUE_NAVIGATION_KEYS.Left
+    );
+    act(() =>
+      view.result.current.warmNavigation(
+        OBLIQUE_NAVIGATION_KEYS.Left,
+        false,
+        "focus"
+      )
+    );
+    expect(view.lookAhead.mock.calls.at(-1)?.[1].key).toBe(
+      OBLIQUE_NAVIGATION_KEYS.Down
+    );
   });
 
   it("clears forecast on leaving without fallback and cancels pending dwell on unmount", async () => {
     vi.useFakeTimers();
-    const view = mount(); await flush();
-    act(() => view.result.current.warmNavigation(OBLIQUE_NAVIGATION_KEYS.Right, true, "focus"));
-    act(() => view.result.current.warmNavigation(OBLIQUE_NAVIGATION_KEYS.Right, false, "focus"));
+    const view = mount();
+    await flush();
+    act(() =>
+      view.result.current.warmNavigation(
+        OBLIQUE_NAVIGATION_KEYS.Right,
+        true,
+        "focus"
+      )
+    );
+    act(() =>
+      view.result.current.warmNavigation(
+        OBLIQUE_NAVIGATION_KEYS.Right,
+        false,
+        "focus"
+      )
+    );
     expect(view.lookAhead.mock.calls.at(-1)).toEqual([null]);
-    act(() => view.result.current.warmNavigation(OBLIQUE_NAVIGATION_KEYS.Up, true, "pointer"));
-    view.unmount(); const before = view.lookAhead.mock.calls.length;
-    await act(async () => { vi.advanceTimersByTime(100); });
+    act(() =>
+      view.result.current.warmNavigation(
+        OBLIQUE_NAVIGATION_KEYS.Up,
+        true,
+        "pointer"
+      )
+    );
+    view.unmount();
+    const before = view.lookAhead.mock.calls.length;
+    await act(async () => {
+      vi.advanceTimersByTime(100);
+    });
     expect(view.lookAhead).toHaveBeenCalledTimes(before);
   });
 
   it("does not warm disabled rotations on an incomplete catalog", async () => {
     vi.useFakeTimers();
-    const view = mount(); view.rerender({ image: selected("current"), data, rotationReady: false }); await flush();
-    act(() => view.result.current.warmNavigation(OBLIQUE_NAVIGATION_KEYS.RotateRight, true, "focus"));
-    act(() => view.result.current.warmNavigation(OBLIQUE_NAVIGATION_KEYS.RotateRight, true, "pointer"));
-    await act(async () => { vi.advanceTimersByTime(100); });
+    const view = mount();
+    view.rerender({ image: selected("current"), data, rotationReady: false });
+    await flush();
+    act(() =>
+      view.result.current.warmNavigation(
+        OBLIQUE_NAVIGATION_KEYS.RotateRight,
+        true,
+        "focus"
+      )
+    );
+    act(() =>
+      view.result.current.warmNavigation(
+        OBLIQUE_NAVIGATION_KEYS.RotateRight,
+        true,
+        "pointer"
+      )
+    );
+    await act(async () => {
+      vi.advanceTimersByTime(100);
+    });
     expect(view.lookAhead).not.toHaveBeenCalled();
   });
 });
-
 
 describe("bounded navigation forecast candidates", () => {
   it("uses already resolved pan targets and enables rotation candidates only after a rotation", async () => {
     const groups = vi.fn();
     const view = mount(true, undefined, {
       onLookAheadGroup: groups,
-      rank: async (queries) => queries.map((_q, i) => [selected(`candidate-${i}`)]),
+      rank: async (queries) =>
+        queries.map((_q, i) => [selected(`candidate-${i}`)]),
     });
     await flush();
     expect(groups).toHaveBeenCalled();
     const initial = groups.mock.calls.at(-1)![0];
     expect(initial).toHaveLength(4);
-    expect(initial.every((step: { fitNextImage: boolean }) => step.fitNextImage)).toBe(true);
+    expect(
+      initial.every((step: { fitNextImage: boolean }) => step.fitNextImage)
+    ).toBe(true);
     const searches = view.computeNavigation.mock.calls.length;
     act(() => {
-      view.result.current.rememberDirection(OBLIQUE_NAVIGATION_KEYS.RotateRight);
-      view.result.current.warmNavigation(OBLIQUE_NAVIGATION_KEYS.RotateRight, true, "focus");
+      view.result.current.rememberDirection(
+        OBLIQUE_NAVIGATION_KEYS.RotateRight
+      );
+      view.result.current.warmNavigation(
+        OBLIQUE_NAVIGATION_KEYS.RotateRight,
+        true,
+        "focus"
+      );
     });
     const [rotated, groupKey] = groups.mock.calls.at(-1)!;
     expect(rotated[0].candidate.record.id).toBe("candidate-5");
-    expect(rotated.some((step: { fitNextImage: boolean }) => !step.fitNextImage)).toBe(true);
+    expect(
+      rotated.some((step: { fitNextImage: boolean }) => !step.fitNextImage)
+    ).toBe(true);
     expect(groupKey).toContain("rotation:");
     expect(view.computeNavigation).toHaveBeenCalledTimes(searches);
     act(() => {
       view.result.current.rememberDirection(OBLIQUE_NAVIGATION_KEYS.Up);
-      view.result.current.warmNavigation(OBLIQUE_NAVIGATION_KEYS.Up, true, "focus");
+      view.result.current.warmNavigation(
+        OBLIQUE_NAVIGATION_KEYS.Up,
+        true,
+        "focus"
+      );
     });
-    expect(groups.mock.calls.at(-1)![0].every((step: { fitNextImage: boolean }) => step.fitNextImage)).toBe(true);
+    expect(
+      groups.mock.calls
+        .at(-1)![0]
+        .every((step: { fitNextImage: boolean }) => step.fitNextImage)
+    ).toBe(true);
     view.unmount();
   });
 });

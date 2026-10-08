@@ -45,8 +45,10 @@ export const ObliqueNavigation = ({
   // targets are ready. Keep the last settled states visible during transitions.
   const currentTargets = ready ? navigationTargets : null;
   const intentEvents = (key: ObliqueNavigationKey) => ({
-    onPointerEnter: () => warmNavigation?.(key, true, OBLIQUE_NAVIGATION_INTENT.Pointer),
-    onPointerLeave: () => warmNavigation?.(key, false, OBLIQUE_NAVIGATION_INTENT.Pointer),
+    onPointerEnter: () =>
+      warmNavigation?.(key, true, OBLIQUE_NAVIGATION_INTENT.Pointer),
+    onPointerLeave: () =>
+      warmNavigation?.(key, false, OBLIQUE_NAVIGATION_INTENT.Pointer),
     onFocus: () => warmNavigation?.(key, true, OBLIQUE_NAVIGATION_INTENT.Focus),
     onBlur: () => warmNavigation?.(key, false, OBLIQUE_NAVIGATION_INTENT.Focus),
   });
@@ -89,13 +91,18 @@ export const ObliqueNavigation = ({
           type="button"
           aria-label={label}
           disabled={
-            !isCatalogComplete || !currentTargets?.images[
+            !isCatalogComplete ||
+            !currentTargets?.images[
               clockwise
                 ? OBLIQUE_NAVIGATION_KEYS.RotateRight
                 : OBLIQUE_NAVIGATION_KEYS.RotateLeft
             ]
           }
-          {...intentEvents(clockwise ? OBLIQUE_NAVIGATION_KEYS.RotateRight : OBLIQUE_NAVIGATION_KEYS.RotateLeft)}
+          {...intentEvents(
+            clockwise
+              ? OBLIQUE_NAVIGATION_KEYS.RotateRight
+              : OBLIQUE_NAVIGATION_KEYS.RotateLeft
+          )}
           onClick={() => sendRequest({ type: "rotate", clockwise })}
           width={BUTTON_SIZE}
           height={BUTTON_SIZE}

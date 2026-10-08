@@ -73,17 +73,34 @@ const footprint = (record: ObliqueImageRecord): Derived | null => {
   return item;
 };
 const sameNumbers = (a: unknown, b: unknown): boolean =>
-  a === b || (Array.isArray(a) && Array.isArray(b) && a.length === b.length &&
+  a === b ||
+  (Array.isArray(a) &&
+    Array.isArray(b) &&
+    a.length === b.length &&
     a.every((value, index) => sameNumbers(value, b[index])));
-const sameFootprintGeometry = (a: ObliqueImageRecord | undefined, b: ObliqueImageRecord) =>
-  !!a && a.cameraId === b.cameraId && a.seriesId === b.seriesId && a.sector === b.sector &&
-  a.x === b.x && a.y === b.y && a.z === b.z &&
-  a.footprintApproximate === b.footprintApproximate && sameNumbers(a.m, b.m) && sameNumbers(a.footprint, b.footprint) &&
-  a.pose?.longitude === b.pose?.longitude && a.pose?.latitude === b.pose?.latitude &&
-  a.pose?.z === b.pose?.z && a.pose?.bearingDeg === b.pose?.bearingDeg &&
-  a.pose?.pitchDeg === b.pose?.pitchDeg && a.pose?.rollDeg === b.pose?.rollDeg &&
+const sameFootprintGeometry = (
+  a: ObliqueImageRecord | undefined,
+  b: ObliqueImageRecord
+) =>
+  !!a &&
+  a.cameraId === b.cameraId &&
+  a.seriesId === b.seriesId &&
+  a.sector === b.sector &&
+  a.x === b.x &&
+  a.y === b.y &&
+  a.z === b.z &&
+  a.footprintApproximate === b.footprintApproximate &&
+  sameNumbers(a.m, b.m) &&
+  sameNumbers(a.footprint, b.footprint) &&
+  a.pose?.longitude === b.pose?.longitude &&
+  a.pose?.latitude === b.pose?.latitude &&
+  a.pose?.z === b.pose?.z &&
+  a.pose?.bearingDeg === b.pose?.bearingDeg &&
+  a.pose?.pitchDeg === b.pose?.pitchDeg &&
+  a.pose?.rollDeg === b.pose?.rollDeg &&
   a.pose?.utmConvergenceRad === b.pose?.utmConvergenceRad &&
-  sameNumbers(a.pose?.direction, b.pose?.direction) && sameNumbers(a.pose?.up, b.pose?.up);
+  sameNumbers(a.pose?.direction, b.pose?.direction) &&
+  sameNumbers(a.pose?.up, b.pose?.up);
 
 self.onmessage = (
   event: MessageEvent<
@@ -111,14 +128,21 @@ self.onmessage = (
         derived.clear();
       }
       for (const [id, record] of message.data.imageRecords) {
-        if (!sameFootprintGeometry(data.imageRecords.get(id), record)) derived.delete(id);
+        if (!sameFootprintGeometry(data.imageRecords.get(id), record))
+          derived.delete(id);
         data.imageRecords.set(id, record);
       }
       for (const [id, center] of message.data.centers) {
         const previous = data.centers.get(id);
-        if (!previous || previous.x !== center.x || previous.y !== center.y ||
-          previous.longitude !== center.longitude || previous.latitude !== center.latitude ||
-          previous.cardinal !== center.cardinal) derived.delete(id);
+        if (
+          !previous ||
+          previous.x !== center.x ||
+          previous.y !== center.y ||
+          previous.longitude !== center.longitude ||
+          previous.latitude !== center.latitude ||
+          previous.cardinal !== center.cardinal
+        )
+          derived.delete(id);
         data.centers.set(id, center);
       }
       for (const [id, dataset] of message.data.datasets)

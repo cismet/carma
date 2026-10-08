@@ -111,9 +111,15 @@ describe("geometry-only cached navigation controls", () => {
   });
   it("keeps current-slice pan available but disables held rotation targets until the full catalog is loaded", () => {
     const view = mount({ isAllDataReady: true, isCatalogComplete: false });
-    const right = screen.getByRole("button", { name: "Nächstes Bild nach rechts" }) as HTMLButtonElement;
-    const leftRotation = screen.getByRole("button", { name: "Gegen den Uhrzeigersinn drehen" }) as HTMLButtonElement;
-    const rightRotation = screen.getByRole("button", { name: "Im Uhrzeigersinn drehen" }) as HTMLButtonElement;
+    const right = screen.getByRole("button", {
+      name: "Nächstes Bild nach rechts",
+    }) as HTMLButtonElement;
+    const leftRotation = screen.getByRole("button", {
+      name: "Gegen den Uhrzeigersinn drehen",
+    }) as HTMLButtonElement;
+    const rightRotation = screen.getByRole("button", {
+      name: "Im Uhrzeigersinn drehen",
+    }) as HTMLButtonElement;
     expect(right.disabled).toBe(false);
     expect(leftRotation.disabled).toBe(true);
     expect(rightRotation.disabled).toBe(true);
@@ -121,7 +127,11 @@ describe("geometry-only cached navigation controls", () => {
     fireEvent.click(right);
     fireEvent.click(rightRotation);
     expect(view.sendRequest).toHaveBeenCalledOnce();
-    expect(view.sendRequest).toHaveBeenCalledWith({ type: "pan", horizontal: 1, vertical: 0 });
+    expect(view.sendRequest).toHaveBeenCalledWith({
+      type: "pan",
+      horizontal: 1,
+      vertical: 0,
+    });
   });
 
   it("leaves initial catalog loading to the host statusbar", () => {
@@ -167,40 +177,60 @@ describe("geometry-only cached navigation controls", () => {
 });
 
 describe("host-owned loading status", () => {
-  it.each([true, false])("does not duplicate target-image loading above navigation (NG=%s)", (nextInterface) => {
-    mount({ isTargetImageLoading: true }, { nextInterface });
-    expect(screen.queryByText("Zielbild wird geladen …")).toBeNull();
-    expect(screen.queryByRole("status")).toBeNull();
-    expect((screen.getByRole("button", {
-      name: "Nächstes Bild nach rechts",
-    }) as HTMLButtonElement).disabled).toBe(false);
-  });
+  it.each([true, false])(
+    "does not duplicate target-image loading above navigation (NG=%s)",
+    (nextInterface) => {
+      mount({ isTargetImageLoading: true }, { nextInterface });
+      expect(screen.queryByText("Zielbild wird geladen …")).toBeNull();
+      expect(screen.queryByRole("status")).toBeNull();
+      expect(
+        (
+          screen.getByRole("button", {
+            name: "Nächstes Bild nach rechts",
+          }) as HTMLButtonElement
+        ).disabled
+      ).toBe(false);
+    }
+  );
 });
 
 describe("navigation preparation intent", () => {
   it("publishes pointer and focus independently without issuing a navigation command", () => {
     const warmNavigation = vi.fn();
     const { sendRequest } = mount({ warmNavigation });
-    const button = screen.getByRole("button", { name: "Nächstes Bild nach rechts" });
+    const button = screen.getByRole("button", {
+      name: "Nächstes Bild nach rechts",
+    });
     fireEvent.pointerEnter(button);
     fireEvent.focus(button);
     fireEvent.pointerLeave(button);
     fireEvent.blur(button);
     expect(warmNavigation.mock.calls).toEqual([
-      ["right", true, "pointer"], ["right", true, "focus"],
-      ["right", false, "pointer"], ["right", false, "focus"],
+      ["right", true, "pointer"],
+      ["right", true, "focus"],
+      ["right", false, "pointer"],
+      ["right", false, "focus"],
     ]);
     expect(sendRequest).not.toHaveBeenCalled();
     fireEvent.click(button);
-    expect(sendRequest).toHaveBeenCalledWith({ type: "pan", horizontal: 1, vertical: 0 });
+    expect(sendRequest).toHaveBeenCalledWith({
+      type: "pan",
+      horizontal: 1,
+      vertical: 0,
+    });
   });
   it("prepares the matching rotation key while leaving the click command unchanged", () => {
     const warmNavigation = vi.fn();
     const { sendRequest } = mount({ warmNavigation });
-    const button = screen.getByRole("button", { name: "Im Uhrzeigersinn drehen" });
+    const button = screen.getByRole("button", {
+      name: "Im Uhrzeigersinn drehen",
+    });
     fireEvent.focus(button);
     expect(warmNavigation).toHaveBeenCalledWith("rotateRight", true, "focus");
     fireEvent.click(button);
-    expect(sendRequest).toHaveBeenCalledWith({ type: "rotate", clockwise: true });
+    expect(sendRequest).toHaveBeenCalledWith({
+      type: "rotate",
+      clockwise: true,
+    });
   });
 });

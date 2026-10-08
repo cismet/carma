@@ -8,7 +8,10 @@ import {
 } from "../core/avif-grid-index";
 import type { ImageLevel } from "../core/image-level-plan";
 import { BoundedImageRangeCache } from "./bounded-image-range-cache";
-import { reserveImagePrefetchBytes, type ImagePrefetchBudget } from "./image-tile-source";
+import {
+  reserveImagePrefetchBytes,
+  type ImagePrefetchBudget,
+} from "./image-tile-source";
 import type {
   ImagePyramid,
   ImageTileRef,
@@ -194,17 +197,25 @@ export class AvifTileSource implements ImageTileSource {
     for (let count = 0; count < 64 && !indexBytes; count++) {
       // Read a remote box header and potential UUID payload together. The first
       // head often already contains the whole index; reuse it without refetching.
-      const bytes = offset + 32 + INDEX_BYTES <= head.length
-        ? head.subarray(offset)
-        : offset + 16 <= head.length && String.fromCharCode(...head.subarray(offset + 4, offset + 8)) !== "uuid"
-        ? head.subarray(offset)
-        : await this.read(offset, 32 + INDEX_BYTES, signal, { allowShort: true });
+      const bytes =
+        offset + 32 + INDEX_BYTES <= head.length
+          ? head.subarray(offset)
+          : offset + 16 <= head.length &&
+            String.fromCharCode(...head.subarray(offset + 4, offset + 8)) !==
+              "uuid"
+          ? head.subarray(offset)
+          : await this.read(offset, 32 + INDEX_BYTES, signal, {
+              allowShort: true,
+            });
       const box = boxHeader(bytes, 0);
-      if (count === 0 && box.type !== "ftyp") throw new Error("AVIF ftyp missing");
+      if (count === 0 && box.type !== "ftyp")
+        throw new Error("AVIF ftyp missing");
       if (box.type === "uuid") {
         const headerBytes = box.headerBytes + 16;
-        const id = Array.from(bytes.subarray(box.headerBytes, headerBytes),
-          (v) => v.toString(16).padStart(2, "0")).join("");
+        const id = Array.from(
+          bytes.subarray(box.headerBytes, headerBytes),
+          (v) => v.toString(16).padStart(2, "0")
+        ).join("");
         if (id === PYRAMID_UUID) {
           indexBytes = bytes.subarray(0, box.size);
           indexHeaderBytes = headerBytes;
@@ -217,7 +228,9 @@ export class AvifTileSource implements ImageTileSource {
       new TextDecoder()
         // UUID boxes may also own the following cell tables. Only the fixed
         // JSON reservation belongs to this document, even in a coalesced read.
-        .decode(indexBytes.subarray(indexHeaderBytes, indexHeaderBytes + INDEX_BYTES))
+        .decode(
+          indexBytes.subarray(indexHeaderBytes, indexHeaderBytes + INDEX_BYTES)
+        )
         .replace(/\0+$/, "")
     ) as PyramidIndex;
     if (

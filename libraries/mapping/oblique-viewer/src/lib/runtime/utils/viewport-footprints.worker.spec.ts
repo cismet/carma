@@ -137,20 +137,65 @@ describe("spatially shortlisted lazy footprint worker", () => {
   });
   it("invalidates only corrected row/center derivatives while retaining unchanged shard geometry", async () => {
     const { scope, send } = await setup();
-    const a = record("a"), b = record("b");
-    const center = (id: string, longitude: number) => ({ id, x: 0, y: 0, longitude, latitude: 51.27, cardinal: "N" as const });
-    send({ type: "init", data: data([a, b], new Map([[a.id, center(a.id, 7.2)], [b.id, center(b.id, 7.2)]])) });
+    const a = record("a"),
+      b = record("b");
+    const center = (id: string, longitude: number) => ({
+      id,
+      x: 0,
+      y: 0,
+      longitude,
+      latitude: 51.27,
+      cardinal: "N" as const,
+    });
+    send({
+      type: "init",
+      data: data(
+        [a, b],
+        new Map([
+          [a.id, center(a.id, 7.2)],
+          [b.id, center(b.id, 7.2)],
+        ])
+      ),
+    });
     send({ type: "query", requestId: 1, query });
     expect(mocks.estimate).toHaveBeenCalledTimes(2);
-    send({ type: "init", append: true, data: data([{ ...a, pose: { ...a.pose! } }, { ...b, pose: { ...b.pose! } }],
-      new Map([[a.id, { ...center(a.id, 7.2) }], [b.id, { ...center(b.id, 7.2) }]])) });
+    send({
+      type: "init",
+      append: true,
+      data: data(
+        [
+          { ...a, pose: { ...a.pose! } },
+          { ...b, pose: { ...b.pose! } },
+        ],
+        new Map([
+          [a.id, { ...center(a.id, 7.2) }],
+          [b.id, { ...center(b.id, 7.2) }],
+        ])
+      ),
+    });
     send({ type: "query", requestId: 2, query });
     expect(mocks.estimate).toHaveBeenCalledTimes(2);
-    send({ type: "init", append: true, data: { imageRecords: new Map(), datasets: new Map(), centers: new Map([[a.id, center(a.id, 7.2002)]]) } });
+    send({
+      type: "init",
+      append: true,
+      data: {
+        imageRecords: new Map(),
+        datasets: new Map(),
+        centers: new Map([[a.id, center(a.id, 7.2002)]]),
+      },
+    });
     send({ type: "query", requestId: 3, query });
     expect(mocks.estimate).toHaveBeenCalledTimes(3);
-    expect(scope.postMessage.mock.lastCall![0].footprints.find((value: { id: string }) => value.id === a.id).groundCenter).toEqual([7.2002, 51.27]);
-    send({ type: "init", append: true, data: data([{ ...b, pose: { ...b.pose!, bearingDeg: 10 } }]) });
+    expect(
+      scope.postMessage.mock.lastCall![0].footprints.find(
+        (value: { id: string }) => value.id === a.id
+      ).groundCenter
+    ).toEqual([7.2002, 51.27]);
+    send({
+      type: "init",
+      append: true,
+      data: data([{ ...b, pose: { ...b.pose!, bearingDeg: 10 } }]),
+    });
     send({ type: "query", requestId: 4, query });
     expect(mocks.estimate).toHaveBeenCalledTimes(4);
     expect(mocks.spatial).toHaveBeenCalledOnce();

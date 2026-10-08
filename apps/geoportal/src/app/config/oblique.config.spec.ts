@@ -2,7 +2,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { Easing } from "@carma-commons/math";
 
 vi.mock("@carma-commons/resources", () => ({
-  OBLIQUE_2024_FPRFC_GEOJSON_URI: "https://images.example/2024/metadata/fprfc.geojson",
+  OBLIQUE_2024_FPRFC_GEOJSON_URI:
+    "https://images.example/2024/metadata/fprfc.geojson",
   WUPP_LOD2_TILESET: { url: "https://tiles.example/lod2/tileset.json" },
   WUPP_MESH_2024: {
     url: "https://tiles.example/mesh2024/tileset.json",
@@ -20,7 +21,10 @@ import {
   OBLIQUE_BASE_TILESET_URLS,
   resolveObliqueViewerConfig,
 } from "./oblique.config";
-import { getFeatureFlagConfig, resolveGeoportalFeatureFlags } from "./featureFlags";
+import {
+  getFeatureFlagConfig,
+  resolveGeoportalFeatureFlags,
+} from "./featureFlags";
 
 const prBase = "/carma-pr-deployments/822/geoportal/";
 const flagConfig = getFeatureFlagConfig("pr");
@@ -85,25 +89,40 @@ describe("oblique deployment route", () => {
     ["oblique.obliqueng", true],
     ["-oblique.obliqueng", true],
     ["oblique.-obliqueng", false],
-  ])("activates the viewer through %s with the correct UI generation", (flags, nextInterface) => {
-    if (!viewerEntry || typeof viewerEntry === "string")
-      throw new Error("Missing viewer addon");
-    const context = { deployment: "pr" as const, featureFlags: resolveFlags(flags) };
-    expect(isAvailable(viewerEntry.availability, context)).toBe(true);
-    expect(context.featureFlags.featureFlagObliqueNextUi).toBe(nextInterface);
-    const objects = obliqueFachzwilling.addons?.find((entry) => typeof entry !== "string" && entry.addon === "obliqueObjectViews");
-    if (!objects || typeof objects === "string") throw new Error("Missing object views addon");
-    expect(isAvailable(objects.availability, context)).toBe(nextInterface);
-    expect(context.featureFlags.featureFlagLibreMap).toBe(false);
-  });
+  ])(
+    "activates the viewer through %s with the correct UI generation",
+    (flags, nextInterface) => {
+      if (!viewerEntry || typeof viewerEntry === "string")
+        throw new Error("Missing viewer addon");
+      const context = {
+        deployment: "pr" as const,
+        featureFlags: resolveFlags(flags),
+      };
+      expect(isAvailable(viewerEntry.availability, context)).toBe(true);
+      expect(context.featureFlags.featureFlagObliqueNextUi).toBe(nextInterface);
+      const objects = obliqueFachzwilling.addons?.find(
+        (entry) =>
+          typeof entry !== "string" && entry.addon === "obliqueObjectViews"
+      );
+      if (!objects || typeof objects === "string")
+        throw new Error("Missing object views addon");
+      expect(isAvailable(objects.availability, context)).toBe(nextInterface);
+      expect(context.featureFlags.featureFlagLibreMap).toBe(false);
+    }
+  );
 
   it("uses the canonical NG alias without retaining the obsolete short alias", () => {
-    expect(flagConfig.featureFlagObliqueNextUi).toEqual({ alias: "obliqueng", default: false });
+    expect(flagConfig.featureFlagObliqueNextUi).toEqual({
+      alias: "obliqueng",
+      default: false,
+    });
     expect(resolveFlags("olbng")).toMatchObject({
-      featureFlagObliqueViewerAddon: false, featureFlagObliqueNextUi: false,
+      featureFlagObliqueViewerAddon: false,
+      featureFlagObliqueNextUi: false,
     });
     expect(resolveFlags("oblique.olbng")).toMatchObject({
-      featureFlagObliqueViewerAddon: true, featureFlagObliqueNextUi: false,
+      featureFlagObliqueViewerAddon: true,
+      featureFlagObliqueNextUi: false,
     });
   });
 
@@ -126,10 +145,17 @@ describe("oblique deployment route", () => {
 
   it("leaves map-style gating to the shared route addon resolver", () => {
     const style = obliqueFachzwilling.addons?.find(
-      (entry) => typeof entry !== "string" && "addon" in entry && entry.addon === "mapStyle3d"
+      (entry) =>
+        typeof entry !== "string" &&
+        "addon" in entry &&
+        entry.addon === "mapStyle3d"
     );
-    if (!style || typeof style === "string") throw new Error("Missing style addon");
-    expect(flagConfig.featureFlagMapStyle3d).toEqual({ alias: "mapstyle3d", default: false });
+    if (!style || typeof style === "string")
+      throw new Error("Missing style addon");
+    expect(flagConfig.featureFlagMapStyle3d).toEqual({
+      alias: "mapstyle3d",
+      default: false,
+    });
     // withDefaultAddons applies the global opt-in or the next-interface capability;
     // app.config.spec.ts checks both resolved paths. The raw declaration has no gate.
     expect(style.availability).toBeUndefined();
@@ -147,7 +173,10 @@ describe("oblique deployment route", () => {
 describe("oblique imagery configuration", () => {
   it("restores the original delivered 2024 ground centers without overriding 2026", () => {
     expect(resolveObliqueViewerConfig().seriesOverrides).toEqual({
-      "wuppertal-2024": { footprintsURI: "https://images.example/2024/metadata/fprfc.geojson", captureNavigationTopology: "flight-strip" },
+      "wuppertal-2024": {
+        footprintsURI: "https://images.example/2024/metadata/fprfc.geojson",
+        captureNavigationTopology: "flight-strip",
+      },
     });
   });
   it("manages both published mesh endpoints with the same background switch", () => {
@@ -177,14 +206,26 @@ describe("oblique imagery configuration", () => {
   });
 });
 
-
 describe("legacy camera interaction profile", () => {
   it("retains Cesium timings and curves for entry, image flight, siblings, rotation and exit", () => {
     expect(resolveObliqueViewerConfig().animations).toEqual({
-      enterObliqueMode: { duration: 2000, easingFunction: Easing.EXPONENTIAL_IN_OUT },
-      flyToExteriorOrientation: { duration: 800, easingFunction: Easing.QUADRATIC_IN },
-      flyToNextImage: { delay: 0, duration: 100, easingFunction: Easing.LINEAR_NONE },
-      flyToRotatedImage: { duration: 1800, easingFunction: Easing.CUBIC_IN_OUT },
+      enterObliqueMode: {
+        duration: 2000,
+        easingFunction: Easing.EXPONENTIAL_IN_OUT,
+      },
+      flyToExteriorOrientation: {
+        duration: 800,
+        easingFunction: Easing.QUADRATIC_IN,
+      },
+      flyToNextImage: {
+        delay: 0,
+        duration: 100,
+        easingFunction: Easing.LINEAR_NONE,
+      },
+      flyToRotatedImage: {
+        duration: 1800,
+        easingFunction: Easing.CUBIC_IN_OUT,
+      },
       rotateCamera: { duration: 1800, easingFunction: Easing.CUBIC_IN_OUT },
       leaveObliqueMode: { duration: 1100, easingFunction: Easing.CUBIC_IN_OUT },
     });

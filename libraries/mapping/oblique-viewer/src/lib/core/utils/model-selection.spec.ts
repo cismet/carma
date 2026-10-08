@@ -807,7 +807,6 @@ describe("explicit nadir capability", () => {
   });
 });
 
-
 describe("host camera interaction timing", () => {
   it("overrides served animation metadata while retaining unrelated series animation settings", () => {
     const series = dataset("timed");
@@ -816,19 +815,31 @@ describe("host camera interaction timing", () => {
       outlineFadeOut: { duration: 300, delay: 500 },
     };
     const host = { duration: 100, easingFunction: Easing.LINEAR_NONE };
-    const resolved = resolveSeries({ series: [series], animations: { flyToNextImage: host } });
+    const resolved = resolveSeries({
+      series: [series],
+      animations: { flyToNextImage: host },
+    });
     expect(resolved[0].animations.flyToNextImage).toEqual(host);
-    expect(resolved[0].animations.outlineFadeOut).toEqual(series.animations.outlineFadeOut);
+    expect(resolved[0].animations.outlineFadeOut).toEqual(
+      series.animations.outlineFadeOut
+    );
     expect(series.animations.flyToNextImage?.duration).toBe(450);
   });
 });
 
-
 describe("host series corrections", () => {
   it("applies only the named series override and preserves source metadata", () => {
-    const first = dataset("first"), second = dataset("second");
-    const resolved = resolveSeries({ series: [first, second], seriesOverrides: { first: { footprintsURI: "https://images.example/footprints.geojson" } } });
-    expect(resolved[0].footprintsURI).toBe("https://images.example/footprints.geojson");
+    const first = dataset("first"),
+      second = dataset("second");
+    const resolved = resolveSeries({
+      series: [first, second],
+      seriesOverrides: {
+        first: { footprintsURI: "https://images.example/footprints.geojson" },
+      },
+    });
+    expect(resolved[0].footprintsURI).toBe(
+      "https://images.example/footprints.geojson"
+    );
     expect(resolved[1].footprintsURI).toBe(second.footprintsURI);
     expect(first.footprintsURI).not.toBe(resolved[0].footprintsURI);
     expect(resolved.map((series) => series.id)).toEqual(["first", "second"]);

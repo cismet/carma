@@ -116,7 +116,8 @@ export const createPhotoAxisPicker = (
       // CPU height bounds remain usable when terrain drawing is hidden by a mesh.
       // Hidden terrain roots never enter receiverRoots or any raycast/render list.
       terrainRuntimes = runtimes.filter(
-        (runtime) => runtime.providesTerrain &&
+        (runtime) =>
+          runtime.providesTerrain &&
           typeof (runtime as Partial<RasterDemTerrainRuntime>)
             .getPublishedTerrainTiles === "function"
       );

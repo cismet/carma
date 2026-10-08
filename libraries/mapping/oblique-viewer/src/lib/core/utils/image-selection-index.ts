@@ -49,18 +49,21 @@ export const createImageSelectionIndex = (
   options: { groundCenters?: boolean } = {}
 ) => {
   const centers = new Map<string, PointWithSector>();
-  const registrations = new Map<string, {
-    record: ObliqueImageRecord;
-    index: SeriesIndex;
-    group: DirectionGroup;
-    sector: CardinalDirection;
-    cell: string;
-    captureLine?: number;
-    x: number;
-    y: number;
-    headingX: number;
-    headingY: number;
-  }>();
+  const registrations = new Map<
+    string,
+    {
+      record: ObliqueImageRecord;
+      index: SeriesIndex;
+      group: DirectionGroup;
+      sector: CardinalDirection;
+      cell: string;
+      captureLine?: number;
+      x: number;
+      y: number;
+      headingX: number;
+      headingY: number;
+    }
+  >();
   const series = new Map<string, SeriesIndex>();
   const ensureSeries = (id: string, dataset: ObliqueDataset) => {
     let index = series.get(id);
@@ -77,17 +80,27 @@ export const createImageSelectionIndex = (
     }
     return index;
   };
-  const removeCapture = (index: SeriesIndex, line: number | undefined, id: string) => {
+  const removeCapture = (
+    index: SeriesIndex,
+    line: number | undefined,
+    id: string
+  ) => {
     if (line === undefined) return;
     const records = index.captureLines.get(line);
     records?.delete(id);
     if (!records?.size) index.captureLines.delete(line);
   };
   const addCapture = (index: SeriesIndex, record: ObliqueImageRecord) => {
-    if (!usesFlightStripTopology(index.dataset) || record.lineIndex === undefined)
+    if (
+      !usesFlightStripTopology(index.dataset) ||
+      record.lineIndex === undefined
+    )
       return undefined;
     let records = index.captureLines.get(record.lineIndex);
-    if (!records) { records = new Map(); index.captureLines.set(record.lineIndex, records); }
+    if (!records) {
+      records = new Map();
+      index.captureLines.set(record.lineIndex, records);
+    }
     records.set(record.id, record);
     return record.lineIndex;
   };
@@ -127,16 +140,37 @@ export const createImageSelectionIndex = (
     };
     for (const record of changed.values()) {
       const index = series.get(record.seriesId);
-      const point = (options.groundCenters ? centers.get(record.id) : undefined) ?? record;
-      if (!index || !Number.isFinite(point.x + point.y)) { remove(record.id); continue; }
-      const nadir = getCameraCalibration(index.dataset, record.cameraId).view === "nadir";
-      const heading = record.pose ? degToRad(record.pose.bearingDeg as Degrees) : (record.fallbackHeading as Radians);
-      if (!nadir && !Number.isFinite(heading)) { remove(record.id); continue; }
-      const headingX = nadir ? 0 : Math.sin(heading), headingY = nadir ? 0 : Math.cos(heading);
-      const cell = Math.floor(point.x / CELL_SIZE_METERS) + ":" + Math.floor(point.y / CELL_SIZE_METERS);
+      const point =
+        (options.groundCenters ? centers.get(record.id) : undefined) ?? record;
+      if (!index || !Number.isFinite(point.x + point.y)) {
+        remove(record.id);
+        continue;
+      }
+      const nadir =
+        getCameraCalibration(index.dataset, record.cameraId).view === "nadir";
+      const heading = record.pose
+        ? degToRad(record.pose.bearingDeg as Degrees)
+        : (record.fallbackHeading as Radians);
+      if (!nadir && !Number.isFinite(heading)) {
+        remove(record.id);
+        continue;
+      }
+      const headingX = nadir ? 0 : Math.sin(heading),
+        headingY = nadir ? 0 : Math.cos(heading);
+      const cell =
+        Math.floor(point.x / CELL_SIZE_METERS) +
+        ":" +
+        Math.floor(point.y / CELL_SIZE_METERS);
       const previous = registrations.get(record.id);
-      const existingGroup = nadir ? index.nadir : index.oblique.get(record.sector);
-      if (previous && previous.index === index && previous.group === existingGroup && previous.cell === cell) {
+      const existingGroup = nadir
+        ? index.nadir
+        : index.oblique.get(record.sector);
+      if (
+        previous &&
+        previous.index === index &&
+        previous.group === existingGroup &&
+        previous.cell === cell
+      ) {
         removeCapture(index, previous.captureLine, record.id);
         previous.captureLine = addCapture(index, record);
         if (previous.record !== record) {
@@ -150,18 +184,36 @@ export const createImageSelectionIndex = (
           previous.group.headingY += headingY - previous.headingY;
           changedGroups.add(previous.group);
         }
-        previous.x = point.x; previous.y = point.y;
-        previous.headingX = headingX; previous.headingY = headingY;
+        previous.x = point.x;
+        previous.y = point.y;
+        previous.headingX = headingX;
+        previous.headingY = headingY;
         continue;
       }
       remove(record.id);
       let group = nadir ? index.nadir : index.oblique.get(record.sector);
-      if (!group) { group = emptyGroup(); index.oblique.set(record.sector, group); }
-      group.headingX += headingX; group.headingY += headingY; changedGroups.add(group);
+      if (!group) {
+        group = emptyGroup();
+        index.oblique.set(record.sector, group);
+      }
+      group.headingX += headingX;
+      group.headingY += headingY;
+      changedGroups.add(group);
       const records = group.cells.get(cell);
-      if (records) records.push(record); else group.cells.set(cell, [record]);
-      registrations.set(record.id, { record, index, group, sector: record.sector, cell,
-        captureLine: addCapture(index, record), x: point.x, y: point.y, headingX, headingY });
+      if (records) records.push(record);
+      else group.cells.set(cell, [record]);
+      registrations.set(record.id, {
+        record,
+        index,
+        group,
+        sector: record.sector,
+        cell,
+        captureLine: addCapture(index, record),
+        x: point.x,
+        y: point.y,
+        headingX,
+        headingY,
+      });
     }
     for (const group of changedGroups)
       group.meanHeading = Math.atan2(group.headingX, group.headingY) as Radians;
@@ -185,10 +237,15 @@ export const createImageSelectionIndex = (
       const enabled = query.enabledSeriesIds
         ? new Set(query.enabledSeriesIds)
         : null;
-      const captureSource = query.navigationSelection === NAVIGATION_SELECTION.CAPTURE_NEIGHBOR &&
-        query.excludeImageId ? registrations.get(query.excludeImageId) : undefined;
-      const legacyCapture = captureSource && usesFlightStripTopology(captureSource.index.dataset)
-        ? captureSource : undefined;
+      const captureSource =
+        query.navigationSelection === NAVIGATION_SELECTION.CAPTURE_NEIGHBOR &&
+        query.excludeImageId
+          ? registrations.get(query.excludeImageId)
+          : undefined;
+      const legacyCapture =
+        captureSource && usesFlightStripTopology(captureSource.index.dataset)
+          ? captureSource
+          : undefined;
       for (const [id, index] of series) {
         if (enabled && !enabled.has(id)) continue;
         if (legacyCapture && legacyCapture.index !== index) continue;
@@ -196,12 +253,21 @@ export const createImageSelectionIndex = (
           const current = legacyCapture.record;
           // Camera-neighbor topology must not depend on where its footprint
           // lands. Opposing looks may be kilometers apart on the ground.
-          for (let line = legacyCapture.captureLine - 1; line <= legacyCapture.captureLine + 1; line++) {
+          for (
+            let line = legacyCapture.captureLine - 1;
+            line <= legacyCapture.captureLine + 1;
+            line++
+          ) {
             for (const record of index.captureLines.get(line)?.values() ?? []) {
-              const exactAdjacentCapture = line === legacyCapture.captureLine &&
-                current.waypointIndex !== undefined && record.waypointIndex !== undefined &&
+              const exactAdjacentCapture =
+                line === legacyCapture.captureLine &&
+                current.waypointIndex !== undefined &&
+                record.waypointIndex !== undefined &&
                 Math.abs(record.waypointIndex - current.waypointIndex) === 1;
-              if (exactAdjacentCapture || Math.hypot(record.x - current.x, record.y - current.y) <= 350)
+              if (
+                exactAdjacentCapture ||
+                Math.hypot(record.x - current.x, record.y - current.y) <= 350
+              )
                 yield record;
             }
           }

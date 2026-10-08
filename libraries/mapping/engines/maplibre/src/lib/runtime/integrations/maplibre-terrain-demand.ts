@@ -29,7 +29,9 @@ const currentTerrainManager = (
       map as unknown as {
         style?: { tileManagers?: Record<string, unknown> };
       }
-    ).style?.tileManagers?.[sourceId] as Partial<TerrainTileManager> | undefined;
+    ).style?.tileManagers?.[sourceId] as
+      | Partial<TerrainTileManager>
+      | undefined;
     if (
       !candidate ||
       typeof candidate.pause !== "function" ||
@@ -130,7 +132,11 @@ export const acquireMapLibreTerrainDemandPause = (
     if (bySource!.size === 0) pauses.delete(map);
     // Replaced/removed managers must not start loading into a stale style.
     const manager = currentTerrainManager(map, sourceId);
-    if (manager && held.ownedManagers.has(manager) && manager._paused === true) {
+    if (
+      manager &&
+      held.ownedManagers.has(manager) &&
+      manager._paused === true
+    ) {
       try {
         manager.resume();
       } catch {
@@ -192,8 +198,8 @@ const currentDemMapping = (
       !cache ||
       typeof cache !== "object" ||
       Array.isArray(cache) ||
-      Object.getOwnPropertyDescriptor(manager, "_sourceTileCache")
-        ?.writable !== true
+      Object.getOwnPropertyDescriptor(manager, "_sourceTileCache")?.writable !==
+        true
     )
       return undefined;
     return manager as TerrainDemMapping;

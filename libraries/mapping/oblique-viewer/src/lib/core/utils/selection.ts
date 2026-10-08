@@ -192,26 +192,47 @@ export const rankImagesForView = (
     ].every(Number.isFinite)
   )
     return [];
-  if (query.navigationSelection === NAVIGATION_SELECTION.CAPTURE_NEIGHBOR && query.navigationArrow && query.excludeImageId) {
+  if (
+    query.navigationSelection === NAVIGATION_SELECTION.CAPTURE_NEIGHBOR &&
+    query.navigationArrow &&
+    query.excludeImageId
+  ) {
     const current = data.imageRecords.get(query.excludeImageId);
     const dataset = current && data.datasets.get(current.seriesId);
     if (current && dataset) {
       const nearby = [...candidates];
-      const capture = captureNeighbor(current, dataset, nearby, query.navigationArrow, query.headingRad as Radians);
+      const capture = captureNeighbor(
+        current,
+        dataset,
+        nearby,
+        query.navigationArrow,
+        query.headingRad as Radians
+      );
       if (capture === null) return [];
       if (capture) {
         const center = data.centers.get(capture.id);
-        if (!center || (query.enabledSeriesIds && !query.enabledSeriesIds.includes(capture.seriesId))) return [];
+        if (
+          !center ||
+          (query.enabledSeriesIds &&
+            !query.enabledSeriesIds.includes(capture.seriesId))
+        )
+          return [];
         const converter = getProj4Converter(dataset.crs, "EPSG:4326");
-        const [x, y] = wgs84ToDatasetXY(converter, query.target.longitude, query.target.latitude);
+        const [x, y] = wgs84ToDatasetXY(
+          converter,
+          query.target.longitude,
+          query.target.latitude
+        );
         // Capture navigation flies to the neighbor's own view. Its footprint
         // need not cover the scene point from the previous, possibly opposite look.
-        return [{
-          record: capture,
-          imageCenter: { ...center },
-          distanceOnGround: Math.hypot(center.x - x, center.y - y),
-          distanceToCamera: Math.hypot(capture.x - x, capture.y - y),
-        }];
+        return [
+          {
+            record: capture,
+            imageCenter: { ...center },
+            distanceOnGround: Math.hypot(center.x - x, center.y - y),
+            distanceToCamera: Math.hypot(capture.x - x, capture.y - y),
+          },
+        ];
       }
       candidates = nearby;
     }
@@ -420,7 +441,10 @@ export const rankImagesForView = (
   );
   ranked.sort((a, b) => {
     if (query.navigationSelection === NAVIGATION_SELECTION.CENTER_DISTANCE)
-      return a.distanceOnGround - b.distanceOnGround || a.record.id.localeCompare(b.record.id);
+      return (
+        a.distanceOnGround - b.distanceOnGround ||
+        a.record.id.localeCompare(b.record.id)
+      );
     if (query.selectionStrategy === "best-resolution" && hasNativeResolution) {
       const first = resolutions.get(a.record.id)!;
       const second = resolutions.get(b.record.id)!;

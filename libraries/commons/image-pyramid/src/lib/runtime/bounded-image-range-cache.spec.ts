@@ -168,15 +168,22 @@ describe("persistent compressed image ranges", () => {
     const other = new BoundedImageRangeCache(imageUrl + "?edition=2");
     entries.set(keyOf(imageUrl, 100, 4), new Response(new Uint8Array(4)));
     await source.ensureKnownRanges(signal());
-    expect(source.knownRanges("etag-v1")?.ranges).toEqual([{ offset: 100, length: 4 }]);
+    expect(source.knownRanges("etag-v1")?.ranges).toEqual([
+      { offset: 100, length: 4 },
+    ]);
     expect(cache.keys).toHaveBeenCalledOnce();
     vi.setSystemTime(61_001);
     entries.clear();
     entries.set(keyOf(imageUrl, 200, 4), new Response(new Uint8Array(4)));
     expect(source.knownRanges("etag-v1")).toBeUndefined();
-    await Promise.all([source.ensureKnownRanges(signal()), other.ensureKnownRanges(signal())]);
+    await Promise.all([
+      source.ensureKnownRanges(signal()),
+      other.ensureKnownRanges(signal()),
+    ]);
     expect(cache.keys).toHaveBeenCalledTimes(2);
-    expect(source.knownRanges("etag-v1")?.ranges).toEqual([{ offset: 200, length: 4 }]);
+    expect(source.knownRanges("etag-v1")?.ranges).toEqual([
+      { offset: 200, length: 4 },
+    ]);
     await source.ensureKnownRanges(signal());
     expect(cache.keys).toHaveBeenCalledTimes(2);
     expect(cache.match).not.toHaveBeenCalled();
@@ -192,7 +199,9 @@ describe("persistent compressed image ranges", () => {
     cache.keys.mockImplementation(() => new Promise(() => undefined));
     const controller = new AbortController();
     const cancelled = source.ensureKnownRanges(controller.signal);
-    const rejected = expect(cancelled).rejects.toMatchObject({ name: "AbortError" });
+    const rejected = expect(cancelled).rejects.toMatchObject({
+      name: "AbortError",
+    });
     controller.abort();
     await rejected;
     const stalled = source.ensureKnownRanges(signal());

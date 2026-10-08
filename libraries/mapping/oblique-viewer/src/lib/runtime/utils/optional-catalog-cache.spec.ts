@@ -97,8 +97,14 @@ describe("optional catalog cache startup", () => {
     expect(
       result.obliquePitchBySeries?.get(dataset.id)?.pitchSumRad
     ).toBeCloseTo((80 * Math.PI) / 180, 12);
-    expect(result.obliquePitchByDirectionBySeries?.get(dataset.id)?.get(0)?.imageCount).toBe(1);
-    expect(result.obliquePitchByDirectionBySeries?.get(dataset.id)?.get(1)?.imageCount).toBe(1);
+    expect(
+      result.obliquePitchByDirectionBySeries?.get(dataset.id)?.get(0)
+        ?.imageCount
+    ).toBe(1);
+    expect(
+      result.obliquePitchByDirectionBySeries?.get(dataset.id)?.get(1)
+        ?.imageCount
+    ).toBe(1);
     expect(cached).toHaveBeenCalledOnce();
     expect(loadObliqueSeriesData).not.toHaveBeenCalled();
   });

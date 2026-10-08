@@ -1,6 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faChevronLeft, faChevronRight, faImage, faBan, faCrosshairs, faRotateLeft, faRuler, faTrashCan, faXmark } from "@fortawesome/free-solid-svg-icons";
+import {
+  faChevronLeft,
+  faChevronRight,
+  faImage,
+  faBan,
+  faCrosshairs,
+  faRotateLeft,
+  faRuler,
+  faTrashCan,
+  faXmark,
+} from "@fortawesome/free-solid-svg-icons";
 import { Button, Tooltip } from "antd";
 import type { Map as MaplibreMap } from "maplibre-gl";
 import { Raycaster, Vector3, type Mesh } from "three";
@@ -39,7 +49,10 @@ import {
   sceneToPhotoEnu,
 } from "../core/utils/image-projection";
 
-import type { createPhotoAxisPicker, PhotoAxisSurfaceMode } from "./utils/photo-axis-picker";
+import type {
+  createPhotoAxisPicker,
+  PhotoAxisSurfaceMode,
+} from "./utils/photo-axis-picker";
 import "./oblique-object-coverage.css";
 
 const DIRECTIONS: readonly { direction: CardinalDirection; label: string }[] = [
@@ -61,11 +74,17 @@ const coverageWindow = (
   );
   const pixelRatio = viewport.pixelRatio ?? (globalThis.devicePixelRatio || 1);
   // Calibration and measurement coordinates stay in the original sensor frame.
-  const finestSourceDensity = 2 ** -Number(image.dataset.minimumPreviewQualityLevel ?? "0");
-  const crop = fitObjectCoverageCrop(image.crop, {
-    width: Math.max(1, viewport.width) as CssPixels,
-    height: Math.max(1, viewport.height) as CssPixels,
-  }, pixelRatio as Ratio, finestSourceDensity as Ratio);
+  const finestSourceDensity =
+    2 ** -Number(image.dataset.minimumPreviewQualityLevel ?? "0");
+  const crop = fitObjectCoverageCrop(
+    image.crop,
+    {
+      width: Math.max(1, viewport.width) as CssPixels,
+      height: Math.max(1, viewport.height) as CssPixels,
+    },
+    pixelRatio as Ratio,
+    finestSourceDensity as Ratio
+  );
   // Virtual crop outside the sensor stays empty, rather than stretching or clipping the object.
   const x = Math.max(0, Math.floor(crop.x)),
     y = Math.max(0, Math.floor(crop.y));
@@ -96,8 +115,10 @@ const coverageWindow = (
   return { calibration, crop, window, pixelRatio };
 };
 
-
-const CoverageThumbnail = ({ image, pool }: {
+const CoverageThumbnail = ({
+  image,
+  pool,
+}: {
   image: ObjectCoverageImage;
   pool: ImageViewportPool;
 }) => {
@@ -122,10 +143,15 @@ const CoverageThumbnail = ({ image, pool }: {
     let observer: IntersectionObserver | undefined;
     const observe = () => {
       observer?.disconnect();
-      const owner = element.ownerDocument.defaultView as (Window & typeof globalThis) | null;
+      const owner = element.ownerDocument.defaultView as
+        | (Window & typeof globalThis)
+        | null;
       setPixelRatio(Math.min(2, owner?.devicePixelRatio || 1));
       const Observer = owner?.IntersectionObserver;
-      if (!Observer) { setVisible(true); return; }
+      if (!Observer) {
+        setVisible(true);
+        return;
+      }
       setVisible(false);
       observer = new Observer(([entry]) => setVisible(entry.isIntersecting));
       observer.observe(element);
@@ -139,9 +165,18 @@ const CoverageThumbnail = ({ image, pool }: {
   }, []);
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!visible || !canvas || typeof Worker === "undefined" ||
-        typeof OffscreenCanvas === "undefined") return;
-    const { window, crop } = coverageWindow(image, { width: 56, height: 40, pixelRatio });
+    if (
+      !visible ||
+      !canvas ||
+      typeof Worker === "undefined" ||
+      typeof OffscreenCanvas === "undefined"
+    )
+      return;
+    const { window, crop } = coverageWindow(image, {
+      width: 56,
+      height: 40,
+      pixelRatio,
+    });
     // A separate bounded pool shares the decoder and persistent cache, while
     // thumbnail ROIs can never replace an active photograph's viewport.
     const handle = pool.acquire(viewportSourceOf(image));
@@ -154,11 +189,13 @@ const CoverageThumbnail = ({ image, pool }: {
       canvas.width = Math.round(56 * pixelRatio);
       canvas.height = Math.round(40 * pixelRatio);
       context.clearRect(0, 0, canvas.width, canvas.height);
-      context.drawImage(bitmap,
-        (frame.source.x - crop.x) / crop.width * canvas.width,
-        (frame.source.y - crop.y) / crop.height * canvas.height,
-        frame.source.width / crop.width * canvas.width,
-        frame.source.height / crop.height * canvas.height);
+      context.drawImage(
+        bitmap,
+        ((frame.source.x - crop.x) / crop.width) * canvas.width,
+        ((frame.source.y - crop.y) / crop.height) * canvas.height,
+        (frame.source.width / crop.width) * canvas.width,
+        (frame.source.height / crop.height) * canvas.height
+      );
       setPaintedContent(contentKey);
     });
     handle.setViewport(window, undefined, { priority: "low" });
@@ -168,13 +205,37 @@ const CoverageThumbnail = ({ image, pool }: {
     };
   }, [image, pool, visible, pixelRatio, contentKey]);
   return (
-    <span ref={ref} style={{ display: "block", position: "relative", width: 56, height: 40, background: "#334155", overflow: "hidden" }}>
-      <canvas ref={canvasRef} role="img" aria-label={image.record.sourceId}
+    <span
+      ref={ref}
+      style={{
+        display: "block",
+        position: "relative",
+        width: 56,
+        height: 40,
+        background: "#334155",
+        overflow: "hidden",
+      }}
+    >
+      <canvas
+        ref={canvasRef}
+        role="img"
+        aria-label={image.record.sourceId}
         data-test-id="oblique-coverage-thumbnail"
-        style={{ display: ready ? "block" : "none", width: 56, height: 40 }} />
-      {!ready && <span aria-hidden="true" style={{ display: "grid", placeItems: "center", height: "100%", color: "#cbd5e1" }}>
-        <FontAwesomeIcon icon={faImage} />
-      </span>}
+        style={{ display: ready ? "block" : "none", width: 56, height: 40 }}
+      />
+      {!ready && (
+        <span
+          aria-hidden="true"
+          style={{
+            display: "grid",
+            placeItems: "center",
+            height: "100%",
+            color: "#cbd5e1",
+          }}
+        >
+          <FontAwesomeIcon icon={faImage} />
+        </span>
+      )}
     </span>
   );
 };
@@ -262,7 +323,14 @@ const CoveragePreload = ({
       clearTimeout(timer);
       release();
     };
-  }, [images, viewport.width, viewport.height, viewport.pixelRatio, enabled, pool]);
+  }, [
+    images,
+    viewport.width,
+    viewport.height,
+    viewport.pixelRatio,
+    enabled,
+    pool,
+  ]);
   return null;
 };
 
@@ -420,11 +488,17 @@ const CoveragePhoto = ({
     () =>
       points.map((point) => {
         if (!image.projection) return null;
-        const pixel = projectObjectCoveragePoint(image.projection, point, calibration);
-        return pixel ? {
-          x: (pixel.x - crop.x) / crop.width * viewport.width,
-          y: (pixel.y - crop.y) / crop.height * viewport.height,
-        } : null;
+        const pixel = projectObjectCoveragePoint(
+          image.projection,
+          point,
+          calibration
+        );
+        return pixel
+          ? {
+              x: ((pixel.x - crop.x) / crop.width) * viewport.width,
+              y: ((pixel.y - crop.y) / crop.height) * viewport.height,
+            }
+          : null;
       }),
     [
       points,
@@ -627,7 +701,11 @@ const CoverageQuadrant = ({
   thumbnailPool: ImageViewportPool;
 }) => {
   const viewportRef = useRef<HTMLDivElement>(null);
-  const [viewport, setViewport] = useState({ width: 1, height: 1, pixelRatio: 1 }),
+  const [viewport, setViewport] = useState({
+      width: 1,
+      height: 1,
+      pixelRatio: 1,
+    }),
     [activeIndex, setActiveIndex] = useState(0),
     [preload, setPreload] = useState(false);
   const token = useMemo(
@@ -646,7 +724,8 @@ const CoverageQuadrant = ({
         height = Math.max(1, Math.round(element.clientHeight)),
         pixelRatio = element.ownerDocument.defaultView?.devicePixelRatio || 1;
       setViewport((previous) =>
-        previous.width === width && previous.height === height &&
+        previous.width === width &&
+        previous.height === height &&
         previous.pixelRatio === pixelRatio
           ? previous
           : { width, height, pixelRatio }
@@ -658,7 +737,9 @@ const CoverageQuadrant = ({
     const observe = () => {
       observer?.disconnect();
       owner?.removeEventListener("resize", resize);
-      owner = element.ownerDocument.defaultView as (Window & typeof globalThis) | null;
+      owner = element.ownerDocument.defaultView as
+        | (Window & typeof globalThis)
+        | null;
       const Observer = owner?.ResizeObserver;
       observer = Observer ? new Observer(resize) : undefined;
       observer?.observe(element);
@@ -679,13 +760,17 @@ const CoverageQuadrant = ({
     setPreload(true);
   };
   const alternatives = useMemo(
-    () => [images[activeIndex + 1], images[activeIndex - 1]].filter(
-      (image): image is ObjectCoverageImage => Boolean(image)
-    ),
+    () =>
+      [images[activeIndex + 1], images[activeIndex - 1]].filter(
+        (image): image is ObjectCoverageImage => Boolean(image)
+      ),
     [images, activeIndex]
   );
   // Bound both thumbnail subscriptions and DOM work independently of catalog size.
-  const thumbnailStart = Math.max(0, Math.min(activeIndex - 1, images.length - 4));
+  const thumbnailStart = Math.max(
+    0,
+    Math.min(activeIndex - 1, images.length - 4)
+  );
   const thumbnails = images.slice(thumbnailStart, thumbnailStart + 4);
   const choose = (index: number) => {
     if (index < 0 || index >= images.length) return;
@@ -743,14 +828,22 @@ const CoverageQuadrant = ({
           </span>
         )}
         <Tooltip title="Vorheriges Bild">
-          <Button size="small" aria-label={`${label}: Vorheriges Bild`}
-            disabled={activeIndex <= 0} icon={<FontAwesomeIcon icon={faChevronLeft} />}
-            onClick={() => choose(activeIndex - 1)} />
+          <Button
+            size="small"
+            aria-label={`${label}: Vorheriges Bild`}
+            disabled={activeIndex <= 0}
+            icon={<FontAwesomeIcon icon={faChevronLeft} />}
+            onClick={() => choose(activeIndex - 1)}
+          />
         </Tooltip>
         <Tooltip title="Nächstes Bild">
-          <Button size="small" aria-label={`${label}: Nächstes Bild`}
-            disabled={activeIndex >= images.length - 1} icon={<FontAwesomeIcon icon={faChevronRight} />}
-            onClick={() => choose(activeIndex + 1)} />
+          <Button
+            size="small"
+            aria-label={`${label}: Nächstes Bild`}
+            disabled={activeIndex >= images.length - 1}
+            icon={<FontAwesomeIcon icon={faChevronRight} />}
+            onClick={() => choose(activeIndex + 1)}
+          />
         </Tooltip>
         <span style={{ marginLeft: "auto", whiteSpace: "nowrap" }}>
           {images.length
@@ -811,26 +904,28 @@ const CoverageQuadrant = ({
         >
           {thumbnails.map((image, offset) => {
             const index = thumbnailStart + offset;
-            return <button
-              key={image.record.id}
-              type="button"
-              aria-label={`${label} Bild ${index + 1}: ${
-                image.record.sourceId
-              }`}
-              aria-pressed={index === activeIndex}
-              title={image.record.sourceId}
-              onClick={() => choose(index)}
-              style={{
-                padding: 0,
-                border: `2px solid ${
-                  index === activeIndex ? "#1677ff" : "transparent"
-                }`,
-                flexShrink: 0,
-                cursor: "pointer",
-              }}
-            >
-              <CoverageThumbnail image={image} pool={thumbnailPool} />
-            </button>;
+            return (
+              <button
+                key={image.record.id}
+                type="button"
+                aria-label={`${label} Bild ${index + 1}: ${
+                  image.record.sourceId
+                }`}
+                aria-pressed={index === activeIndex}
+                title={image.record.sourceId}
+                onClick={() => choose(index)}
+                style={{
+                  padding: 0,
+                  border: `2px solid ${
+                    index === activeIndex ? "#1677ff" : "transparent"
+                  }`,
+                  flexShrink: 0,
+                  cursor: "pointer",
+                }}
+              >
+                <CoverageThumbnail image={image} pool={thumbnailPool} />
+              </button>
+            );
           })}
         </div>
       )}
@@ -881,11 +976,12 @@ export const ObliqueObjectCoverage = ({
       })
   );
   const [thumbnailPool] = useState(
-    () => new ImageViewportPool({
-      maxImages: 16,
-      maxBytes: 8 * 1024 * 1024,
-      retainedSourceBytes: 1024 * 1024,
-    })
+    () =>
+      new ImageViewportPool({
+        maxImages: 16,
+        maxBytes: 8 * 1024 * 1024,
+        retainedSourceBytes: 1024 * 1024,
+      })
   );
   const poolDisposeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
     undefined
@@ -946,9 +1042,12 @@ export const ObliqueObjectCoverage = ({
           pose,
           photoToScene.clone().invert()
         );
-        const photoRay = objectCoveragePixelRay(projection,
+        const photoRay = objectCoveragePixelRay(
+          projection,
           new Vector3().applyMatrix4(photoToScene),
-          { x: pixel.x as DevicePixels, y: pixel.y as DevicePixels }, calibration);
+          { x: pixel.x as DevicePixels, y: pixel.y as DevicePixels },
+          calibration
+        );
         if (!photoRay) {
           setMeasurementError("Bildgeometrie ist ungültig.");
           return;
@@ -967,7 +1066,8 @@ export const ObliqueObjectCoverage = ({
             if (
               !runtime.root.visible ||
               !(runtime.receivesMapStyleTexture || runtime.providesTerrain)
-            ) continue;
+            )
+              continue;
             // Detailed 3D tiles can also provide terrain heights. Match the
             // shared picker's raster-DEM markers, not that broader capability.
             const isDem =
@@ -978,7 +1078,8 @@ export const ObliqueObjectCoverage = ({
             if (
               (surfaceMode === "mesh" && isDem) ||
               (surfaceMode === "terrain" && !isDem)
-            ) continue;
+            )
+              continue;
             runtime.root.traverseVisible((object) => {
               const mesh = object as Mesh;
               if (mesh.isMesh && mesh.geometry) meshes.push(mesh);
@@ -1021,14 +1122,18 @@ export const ObliqueObjectCoverage = ({
       data-oblique-coverage-ui="true"
       className="oblique-object-coverage"
       role="region"
-      aria-label={`Objektansichtenabfrage, Radius ${sphere.radiusMeters.toFixed(1)} Meter`}
+      aria-label={`Objektansichtenabfrage, Radius ${sphere.radiusMeters.toFixed(
+        1
+      )} Meter`}
       onPointerDown={(event) => event.stopPropagation()}
       onMouseDown={(event) => event.stopPropagation()}
       onTouchStart={(event) => event.stopPropagation()}
       onClick={(event) => event.stopPropagation()}
       onDoubleClick={(event) => event.stopPropagation()}
       onWheel={(event) => event.stopPropagation()}
-      style={{ paddingTop: embedded ? 2 : "calc(4rem + env(safe-area-inset-top))" }}
+      style={{
+        paddingTop: embedded ? 2 : "calc(4rem + env(safe-area-inset-top))",
+      }}
     >
       <div className="oblique-object-coverage-grid">
         {DIRECTIONS.map(({ direction, label }) => (
@@ -1047,7 +1152,11 @@ export const ObliqueObjectCoverage = ({
           />
         ))}
       </div>
-      <div className="oblique-object-coverage-tools" role="toolbar" aria-label="Objektansichten-Werkzeuge">
+      <div
+        className="oblique-object-coverage-tools"
+        role="toolbar"
+        aria-label="Objektansichten-Werkzeuge"
+      >
         <Tooltip title={measuring ? "Messung beenden" : "Strecke messen"}>
           <Button
             size="small"
@@ -1091,16 +1200,28 @@ export const ObliqueObjectCoverage = ({
         <span style={{ flex: 1 }} />
         {onReset && (
           <Tooltip title="Kugel neu wählen">
-            <Button size="small" aria-label="Kugel neu wählen" icon={<FontAwesomeIcon icon={faCrosshairs} />} onClick={onReset} />
+            <Button
+              size="small"
+              aria-label="Kugel neu wählen"
+              icon={<FontAwesomeIcon icon={faCrosshairs} />}
+              onClick={onReset}
+            />
           </Tooltip>
         )}
         {onCancel && !embedded && (
           <Tooltip title="Schließen">
-            <Button size="small" aria-label="Schließen" icon={<FontAwesomeIcon icon={faXmark} />} onClick={onCancel} />
+            <Button
+              size="small"
+              aria-label="Schließen"
+              icon={<FontAwesomeIcon icon={faXmark} />}
+              onClick={onCancel}
+            />
           </Tooltip>
         )}
         {measurementError && (
-          <span role="status" className="oblique-object-coverage-error">{measurementError}</span>
+          <span role="status" className="oblique-object-coverage-error">
+            {measurementError}
+          </span>
         )}
       </div>
     </div>

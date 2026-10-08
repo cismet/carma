@@ -201,8 +201,11 @@ const CRITICAL_ROLES = new Set([
 
 /** Records priorities; fetches and decodes can be held back by the test. */
 class GatedSource extends FakeSource {
-  readonly calls: { tiles: ImageTileRef[]; priority?: string; done: boolean }[] =
-    [];
+  readonly calls: {
+    tiles: ImageTileRef[];
+    priority?: string;
+    done: boolean;
+  }[] = [];
   holdFetch = false;
   holdDecode = false;
   private readonly waiting: (() => void)[] = [];
@@ -213,7 +216,8 @@ class GatedSource extends FakeSource {
     this.fetch = async (tiles, _signal?: AbortSignal, priority?: string) => {
       const call = { tiles: [...tiles], priority, done: false };
       this.calls.push(call);
-      if (this.holdFetch) await new Promise<void>((go) => this.waiting.push(go));
+      if (this.holdFetch)
+        await new Promise<void>((go) => this.waiting.push(go));
       await fetchBytes(tiles);
       call.done = true;
     };

@@ -195,8 +195,7 @@ export function createThreeTilesRuntimeAttachment(
       });
       signal?.throwIfAborted();
     }
-    if (runtimeState.disposed)
-      throw new DOMException("Disposed", "AbortError");
+    if (runtimeState.disposed) throw new DOMException("Disposed", "AbortError");
   };
   const deferredMaterials = new TilesetDeferredMaterialsPlugin({
     inView: (tile) => {

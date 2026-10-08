@@ -209,11 +209,12 @@ export const flyToPose = (
     );
 
   const maxDuration = capObliqueAnimationDuration(animation?.duration ?? 800);
-  const duration = maxDuration === 0
-    ? 0
-    : dynamicDuration
-    ? dynamicDurationMs(cameraErrorM(map, pose, altitude), maxDuration)
-    : maxDuration;
+  const duration =
+    maxDuration === 0
+      ? 0
+      : dynamicDuration
+      ? dynamicDurationMs(cameraErrorM(map, pose, altitude), maxDuration)
+      : maxDuration;
   const easing = animation?.easingFunction ?? Easing.LINEAR_NONE;
 
   if (anchor)
@@ -360,7 +361,9 @@ export const settleToPitch = (
         )
       : undefined;
   const orbitEye =
-    initialOrbit && Number.isFinite(initialOrbit.radius) && initialOrbit.radius > 0
+    initialOrbit &&
+    Number.isFinite(initialOrbit.radius) &&
+    initialOrbit.radius > 0
       ? (progress: number) => {
           // Three's Y-up sphere matches the shared anchored ENU camera convention:
           // east=X, up=Y, south=Z. Preserve the actual panned starting eye and apply
@@ -368,7 +371,8 @@ export const settleToPitch = (
           const offset = new Vector3().setFromSpherical(
             new Spherical(
               initialOrbit.radius,
-              initialOrbit.phi + degToRadNumeric(pitchDeg - from.pitch) * progress,
+              initialOrbit.phi +
+                degToRadNumeric(pitchDeg - from.pitch) * progress,
               initialOrbit.theta - degToRadNumeric(bearingDelta) * progress
             )
           );
@@ -377,7 +381,10 @@ export const settleToPitch = (
             target.y + offset.z,
             target.z + offset.y
           );
-          return { lngLat: mercator.toLngLat(), altitude: mercator.toAltitude() };
+          return {
+            lngLat: mercator.toLngLat(),
+            altitude: mercator.toAltitude(),
+          };
         }
       : undefined;
   if (camera && orbitEye) {
@@ -676,18 +683,19 @@ export const settleToPitch = (
     finalFrame.setZoom(clamp(finalFrame.zoom, map.getMinZoom(), maxZoom));
     aim(finalFrame);
   }
-  const scaleReduction = camera || orbitEye
-    ? Number(
-        readMetersPerCssPixel({
-          rangeM: readDepth(finalFrame),
-          fovRad: readLongerEdgeFovFromIntrinsics(
-            { fov: degToRadNumeric(finalFrame.fov) as Radians },
-            viewport
-          )!,
-          ...viewport,
-        })
-      ) / startResolution
-    : Math.max(1, readDepth(finalFrame) / targetDepth);
+  const scaleReduction =
+    camera || orbitEye
+      ? Number(
+          readMetersPerCssPixel({
+            rangeM: readDepth(finalFrame),
+            fovRad: readLongerEdgeFovFromIntrinsics(
+              { fov: degToRadNumeric(finalFrame.fov) as Radians },
+              viewport
+            )!,
+            ...viewport,
+          })
+        ) / startResolution
+      : Math.max(1, readDepth(finalFrame) / targetDepth);
   const startEye = MercatorCoordinate.fromLngLat(from.getCameraLngLat());
   const startPhotoAltitude =
     MercatorCoordinate.fromLngLat(from.center, from.getCameraAltitude()).z /

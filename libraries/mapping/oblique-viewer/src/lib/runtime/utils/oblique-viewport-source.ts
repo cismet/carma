@@ -60,4 +60,3 @@ export const viewportSourceOf = (
     avifOnly: image.dataset.avifOnly,
   };
 };
-

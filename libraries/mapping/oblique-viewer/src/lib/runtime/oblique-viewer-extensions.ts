@@ -3,7 +3,10 @@ import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 import type { Map, MercatorCoordinate } from "maplibre-gl";
 import type { CssPixels, Meters } from "@carma-units";
 import type { ObliqueSelectionData, ObliqueViewMode } from "../core/types";
-import type { createPhotoAxisPicker, PhotoAxisSurfaceMode } from "./utils/photo-axis-picker";
+import type {
+  createPhotoAxisPicker,
+  PhotoAxisSurfaceMode,
+} from "./utils/photo-axis-picker";
 
 export type ObliqueViewerExtensionController = Readonly<{ reset: () => void }>;
 export type ObliqueViewerExtensionProps = {

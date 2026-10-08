@@ -63,12 +63,19 @@ type Options = {
   ) => Promise<ImageSelectionBatchResult>;
   ensureDirections?: (queries: RefreshSearchArgs[]) => Promise<unknown>;
   publish: (targets: ObliqueNavigationTargets | null) => void;
-  onLookAhead: (candidate: NearestObliqueImageRecord | null, target?: PreparedObliqueNavigationTarget) => void;
-  onLookAheadGroup?: (targets: readonly PreparedObliqueNavigationTarget[], groupKey: string) => void;
+  onLookAhead: (
+    candidate: NearestObliqueImageRecord | null,
+    target?: PreparedObliqueNavigationTarget
+  ) => void;
+  onLookAheadGroup?: (
+    targets: readonly PreparedObliqueNavigationTarget[],
+    groupKey: string
+  ) => void;
 };
 const navigationOrientation = (options: Options) => {
   const selected = options.selectedImage;
-  const dataset = selected && options.data?.datasets.get(selected.record.seriesId);
+  const dataset =
+    selected && options.data?.datasets.get(selected.record.seriesId);
   if (!selected || !dataset || !options.map) return null;
   const pose = poseOf(selected.record, dataset);
   const usePhotoPose = options.previewCameraActive || options.busyRef.current;
@@ -116,8 +123,14 @@ export const useObliqueNavigationTargets = (options: Options) => {
     generationRef = useRef(0),
     preparingGenerationRef = useRef<number | null>(null),
     lastDirectionRef = useRef<ObliqueNavigationKey | null>(null);
-  const intentRef = useRef<{ pointer: ObliqueNavigationKey | null; focus: ObliqueNavigationKey | null }>({ pointer: null, focus: null });
-  const hoverTimerRef = useRef<{ key: ObliqueNavigationKey; timer: ReturnType<typeof setTimeout> } | null>(null);
+  const intentRef = useRef<{
+    pointer: ObliqueNavigationKey | null;
+    focus: ObliqueNavigationKey | null;
+  }>({ pointer: null, focus: null });
+  const hoverTimerRef = useRef<{
+    key: ObliqueNavigationKey;
+    timer: ReturnType<typeof setTimeout>;
+  } | null>(null);
   const queueRef = useRef<NavigationEntry[]>([]),
     queueEpochRef = useRef(0),
     processingRef = useRef(false),
@@ -193,7 +206,8 @@ export const useObliqueNavigationTargets = (options: Options) => {
       return null;
     const target = effectiveTarget();
     const orientation = navigationOrientation(o);
-    return target && orientation &&
+    return target &&
+      orientation &&
       c.headingRad === orientation.headingRad &&
       c.pitchRad === orientation.pitchRad &&
       c.originTarget.longitude === target.longitude &&
@@ -229,28 +243,43 @@ export const useObliqueNavigationTargets = (options: Options) => {
   const prefetchNext = useCallback(() => {
     const cache = currentCache(),
       entry = queueRef.current[0];
-    const key = entry?.kind === QUEUE_ENTRY_KIND.IMAGE
-      ? entry.key
-      : entry ? null
-      : intentRef.current.pointer ?? intentRef.current.focus ?? lastDirectionRef.current;
+    const key =
+      entry?.kind === QUEUE_ENTRY_KIND.IMAGE
+        ? entry.key
+        : entry
+        ? null
+        : intentRef.current.pointer ??
+          intentRef.current.focus ??
+          lastDirectionRef.current;
     const target = key && cache?.targets.get(key);
     const o = optionsRef.current;
     if (cache && o.onLookAheadGroup) {
       // Reuse the resolved control targets: no extra geometry/catalog queries.
       const candidates = [
         ...(target ? [target] : []),
-        ...(rotationGroupRef.current ? [...cache.cardinals.values(),
-          ...[...cache.targets.values()].filter((step) => !step.fitNextImage)] : []),
+        ...(rotationGroupRef.current
+          ? [
+              ...cache.cardinals.values(),
+              ...[...cache.targets.values()].filter(
+                (step) => !step.fitNextImage
+              ),
+            ]
+          : []),
         ...[...cache.targets.values()].filter((step) => step.fitNextImage),
       ];
       const seen = new Set([cache.imageId]);
       const targets = candidates.filter((step) => {
         const id = step.candidate.record.id;
         if (seen.has(id)) return false;
-        seen.add(id); return true;
+        seen.add(id);
+        return true;
       });
-      const groupKey = `${o.selectedImage?.record.seriesId}:${rotationGroupRef.current ?? cache.imageId}`;
-      const identity = `${groupKey}:${targets.map((step) => step.candidate.record.id).join(",")}`;
+      const groupKey = `${o.selectedImage?.record.seriesId}:${
+        rotationGroupRef.current ?? cache.imageId
+      }`;
+      const identity = `${groupKey}:${targets
+        .map((step) => step.candidate.record.id)
+        .join(",")}`;
       if (lookAheadRef.current === identity) return;
       lookAheadRef.current = identity;
       o.onLookAheadGroup(targets, groupKey);
@@ -499,9 +528,12 @@ export const useObliqueNavigationTargets = (options: Options) => {
           navigationOrigin: plan.fitNextImage ? target : undefined,
           navigationSelection: plan.fitNextImage
             ? NAVIGATION_SELECTION.CAPTURE_NEIGHBOR
-            : !o.nextInterface ? NAVIGATION_SELECTION.CENTER_DISTANCE : undefined,
+            : !o.nextInterface
+            ? NAVIGATION_SELECTION.CENTER_DISTANCE
+            : undefined,
           navigationArrow: plan.fitNextImage
-            ? plan.key as RefreshSearchArgs["navigationArrow"] : undefined,
+            ? (plan.key as RefreshSearchArgs["navigationArrow"])
+            : undefined,
           numCandidates: 4,
         })
       );
@@ -536,11 +568,15 @@ export const useObliqueNavigationTargets = (options: Options) => {
           ObliqueNavigationKey,
           PreparedObliqueNavigationTarget
         >(),
-        cardinals = new Map<CardinalDirection, PreparedObliqueNavigationTarget>();
+        cardinals = new Map<
+          CardinalDirection,
+          PreparedObliqueNavigationTarget
+        >();
       for (const target of prepared) {
         if (!target) continue;
         if (target.key) targets.set(target.key, target);
-        if (target.cardinal !== undefined) cardinals.set(target.cardinal, target);
+        if (target.cardinal !== undefined)
+          cardinals.set(target.cardinal, target);
       }
       cacheRef.current = {
         headingRad: heading,
@@ -619,33 +655,54 @@ export const useObliqueNavigationTargets = (options: Options) => {
       map.off("moveend", onEnd);
     };
   }, [options.map, invalidate, refresh, cancel, currentCache]);
-  const warmNavigation = useCallback((key: ObliqueNavigationKey, active: boolean, channel: ObliqueNavigationIntent) => {
-    const options = optionsRef.current;
-    if (active && (!options.enabled || options.viewMode === "objectCoverage" ||
-      (ROTATION_KEYS.has(key) && !options.rotationReady))) return;
-    if (channel === OBLIQUE_NAVIGATION_INTENT.Pointer) {
-      if (active || hoverTimerRef.current?.key === key) {
-        clearTimeout(hoverTimerRef.current?.timer);
-        hoverTimerRef.current = null;
-      }
-      if (active) {
-        // A short pointer dwell avoids metadata churn while crossing buttons.
-        // Focus and queued navigation remain immediate.
-        hoverTimerRef.current = { key, timer: setTimeout(() => {
-          hoverTimerRef.current = null;
-          const current = optionsRef.current;
-          if (!mountedRef.current || !current.enabled || current.viewMode === "objectCoverage" ||
-            (ROTATION_KEYS.has(key) && !current.rotationReady)) return;
-          intentRef.current.pointer = key;
-          prefetchNext();
-        }, 80) };
+  const warmNavigation = useCallback(
+    (
+      key: ObliqueNavigationKey,
+      active: boolean,
+      channel: ObliqueNavigationIntent
+    ) => {
+      const options = optionsRef.current;
+      if (
+        active &&
+        (!options.enabled ||
+          options.viewMode === "objectCoverage" ||
+          (ROTATION_KEYS.has(key) && !options.rotationReady))
+      )
         return;
+      if (channel === OBLIQUE_NAVIGATION_INTENT.Pointer) {
+        if (active || hoverTimerRef.current?.key === key) {
+          clearTimeout(hoverTimerRef.current?.timer);
+          hoverTimerRef.current = null;
+        }
+        if (active) {
+          // A short pointer dwell avoids metadata churn while crossing buttons.
+          // Focus and queued navigation remain immediate.
+          hoverTimerRef.current = {
+            key,
+            timer: setTimeout(() => {
+              hoverTimerRef.current = null;
+              const current = optionsRef.current;
+              if (
+                !mountedRef.current ||
+                !current.enabled ||
+                current.viewMode === "objectCoverage" ||
+                (ROTATION_KEYS.has(key) && !current.rotationReady)
+              )
+                return;
+              intentRef.current.pointer = key;
+              prefetchNext();
+            }, 80),
+          };
+          return;
+        }
       }
-    }
-    if (active) intentRef.current[channel] = key;
-    else if (intentRef.current[channel] === key) intentRef.current[channel] = null;
-    prefetchNext();
-  }, [prefetchNext]);
+      if (active) intentRef.current[channel] = key;
+      else if (intentRef.current[channel] === key)
+        intentRef.current[channel] = null;
+      prefetchNext();
+    },
+    [prefetchNext]
+  );
   const getTarget = useCallback(
     (key: ObliqueNavigationKey) => currentCache()?.targets.get(key),
     [currentCache]
@@ -701,15 +758,20 @@ export const useObliqueNavigationTargets = (options: Options) => {
     [currentCache]
   );
   const rememberRotation = useCallback((target: ObliqueGroundTarget) => {
-    rotationGroupRef.current ??= `rotation:${target.longitude.toFixed(6)}:${target.latitude.toFixed(6)}`;
+    rotationGroupRef.current ??= `rotation:${target.longitude.toFixed(
+      6
+    )}:${target.latitude.toFixed(6)}`;
   }, []);
-  const rememberDirection = useCallback((key: ObliqueNavigationKey) => {
-    lastDirectionRef.current = key;
-    if (ROTATION_KEYS.has(key)) {
-      const target = currentCache()?.targets.get(key)?.target;
-      if (target) rememberRotation(target);
-    } else rotationGroupRef.current = null;
-  }, [currentCache, rememberRotation]);
+  const rememberDirection = useCallback(
+    (key: ObliqueNavigationKey) => {
+      lastDirectionRef.current = key;
+      if (ROTATION_KEYS.has(key)) {
+        const target = currentCache()?.targets.get(key)?.target;
+        if (target) rememberRotation(target);
+      } else rotationGroupRef.current = null;
+    },
+    [currentCache, rememberRotation]
+  );
   return {
     warmNavigation,
     getTarget,

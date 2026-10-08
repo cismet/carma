@@ -371,8 +371,7 @@ export function buildThreeTilesRuntime(
       setCacheBudget: loading.setCacheBudget,
       getRequestDemand: loading.getRequestDemand,
       setLoadingPaused: (paused) => {
-        if (pauseReasons.network !== paused)
-          setPauseReason("network", paused);
+        if (pauseReasons.network !== paused) setPauseReason("network", paused);
       },
       prefetchZoom: lifecycle.prefetchZoom,
       setPrefetchCameraView: lifecycle.setPrefetchCameraView,

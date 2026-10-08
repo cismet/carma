@@ -1,7 +1,11 @@
 import { Easing } from "@carma-commons/math";
 import type { StyleSpecification } from "maplibre-gl";
 import type { DeploymentTarget } from "@carma-commons/utils";
-import { OBLIQUE_2024_FPRFC_GEOJSON_URI, WUPP_LOD2_TILESET, WUPP_MESH_2024 } from "@carma-commons/resources";
+import {
+  OBLIQUE_2024_FPRFC_GEOJSON_URI,
+  WUPP_LOD2_TILESET,
+  WUPP_MESH_2024,
+} from "@carma-commons/resources";
 
 import type { ObliqueViewerConfig } from "@carma-mapping/oblique-viewer";
 
@@ -31,9 +35,19 @@ export const resolveObliqueViewerConfig = (
   },
   // Match the established Cesium interaction profile in oblique/config.ts.
   animations: {
-    enterObliqueMode: { duration: 2000, easingFunction: Easing.EXPONENTIAL_IN_OUT },
-    flyToExteriorOrientation: { duration: 800, easingFunction: Easing.QUADRATIC_IN },
-    flyToNextImage: { delay: 0, duration: 100, easingFunction: Easing.LINEAR_NONE },
+    enterObliqueMode: {
+      duration: 2000,
+      easingFunction: Easing.EXPONENTIAL_IN_OUT,
+    },
+    flyToExteriorOrientation: {
+      duration: 800,
+      easingFunction: Easing.QUADRATIC_IN,
+    },
+    flyToNextImage: {
+      delay: 0,
+      duration: 100,
+      easingFunction: Easing.LINEAR_NONE,
+    },
     flyToRotatedImage: { duration: 1800, easingFunction: Easing.CUBIC_IN_OUT },
     rotateCamera: { duration: 1800, easingFunction: Easing.CUBIC_IN_OUT },
     leaveObliqueMode: { duration: 1100, easingFunction: Easing.CUBIC_IN_OUT },

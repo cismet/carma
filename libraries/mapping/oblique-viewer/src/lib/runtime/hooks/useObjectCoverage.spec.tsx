@@ -388,7 +388,8 @@ describe("object coverage picking lifecycle", () => {
     const view = setup();
     // Preview and map origins differ; picking stays in the map's screen coordinate system.
     view.canvas.getBoundingClientRect = () => ({ left: 20, top: 0 } as DOMRect);
-    view.preview.getBoundingClientRect = () => ({ left: 200, top: 100 } as DOMRect);
+    view.preview.getBoundingClientRect = () =>
+      ({ left: 200, top: 100 } as DOMRect);
     const previewClose = vi.fn();
     view.preview.addEventListener("click", previewClose);
     view.preview.addEventListener("dblclick", previewClose);
@@ -398,11 +399,18 @@ describe("object coverage picking lifecycle", () => {
     expect(view.result.current.sphere).toBeNull();
     const second = view.click(40, view.previewImage);
     expect(second.defaultPrevented).toBe(true);
-    expect(view.props.readViewAnchor.mock.calls.map(([point]) => point)).toEqual([
-      { x: 10, y: 0 }, { x: 20, y: 0 },
+    expect(
+      view.props.readViewAnchor.mock.calls.map(([point]) => point)
+    ).toEqual([
+      { x: 10, y: 0 },
+      { x: 20, y: 0 },
     ]);
     expect(view.result.current.sphere?.radiusMeters).toBeCloseTo(10, 5);
-    const doubleClick = new MouseEvent("dblclick", { bubbles: true, cancelable: true, button: 0 });
+    const doubleClick = new MouseEvent("dblclick", {
+      bubbles: true,
+      cancelable: true,
+      button: 0,
+    });
     act(() => view.previewImage.dispatchEvent(doubleClick));
     expect(doubleClick.defaultPrevented).toBe(true);
     expect(previewClose).not.toHaveBeenCalled();
@@ -453,12 +461,19 @@ describe("object coverage picking lifecycle", () => {
     const view = setup();
     let resolveOld!: (height: number) => void;
     let resolveLatest!: (height: number) => void;
-    const oldHeight = new Promise<number>((resolve) => { resolveOld = resolve; });
-    const latestHeight = new Promise<number>((resolve) => { resolveLatest = resolve; });
+    const oldHeight = new Promise<number>((resolve) => {
+      resolveOld = resolve;
+    });
+    const latestHeight = new Promise<number>((resolve) => {
+      resolveLatest = resolve;
+    });
     const originalData = dataOf(2);
     const latestData = dataOf(3);
     coverage.altitude.mockImplementation((record: ObliqueImageRecord) =>
-      originalData.imageRecords.get(record.id) === record ? oldHeight : latestHeight);
+      originalData.imageRecords.get(record.id) === record
+        ? oldHeight
+        : latestHeight
+    );
     view.rerender({ ...view.props, data: originalData });
     view.click(0);
     view.click(10);
@@ -468,13 +483,21 @@ describe("object coverage picking lifecycle", () => {
     view.rerender({ ...view.props, data: latestData });
     expect(view.result.current.sphere).toBe(selectedSphere);
     expect(coverage.altitude).toHaveBeenCalledTimes(5);
-    await act(async () => { resolveOld(300); await oldHeight; });
+    await act(async () => {
+      resolveOld(300);
+      await oldHeight;
+    });
     expect(view.result.current.loading).toBe(true);
     expect(coverage.group).not.toHaveBeenCalled();
-    await act(async () => { resolveLatest(300); await latestHeight; });
+    await act(async () => {
+      resolveLatest(300);
+      await latestHeight;
+    });
     await waitFor(() => expect(view.result.current.loading).toBe(false));
     expect(view.result.current.sphere).toBe(selectedSphere);
-    expect(view.result.current.groups.get(0)?.map((image) => image.record.id)).toEqual(["2", "1", "0"]);
+    expect(
+      view.result.current.groups.get(0)?.map((image) => image.record.id)
+    ).toEqual(["2", "1", "0"]);
     expect(coverage.group).toHaveBeenCalledTimes(1);
     expect(coverage.group.mock.calls[0][0]).toBe(latestData);
     view.unmount();

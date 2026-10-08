@@ -96,8 +96,18 @@ describe("shared production image viewport pool", () => {
     const worker = workers[0];
     const generation = worker.requests.at(-1)!.generation;
     const detail = image();
-    const input = { width: 1000, height: 800, level: 1, backend: "avif-pyramid" };
-    const overviewInput = { width: 500, height: 400, level: 2, backend: "avif-pyramid" };
+    const input = {
+      width: 1000,
+      height: 800,
+      level: 1,
+      backend: "avif-pyramid",
+    };
+    const overviewInput = {
+      width: 500,
+      height: 400,
+      level: 2,
+      backend: "avif-pyramid",
+    };
     worker.reply({
       bitmap: detail,
       generation,
@@ -117,7 +127,12 @@ describe("shared production image viewport pool", () => {
       sourceLevel: overviewInput.level,
       sourceBackend: overviewInput.backend,
     });
-    expect(handle.snapshot()).toMatchObject({ bitmap: detail, input, overview, overviewInput });
+    expect(handle.snapshot()).toMatchObject({
+      bitmap: detail,
+      input,
+      overview,
+      overviewInput,
+    });
     worker.reply({
       kind: "source-memory",
       imageId: source().id,
@@ -127,22 +142,28 @@ describe("shared production image viewport pool", () => {
       sourceHeight: overviewInput.height,
       sourceLevel: overviewInput.level,
       sourceBackend: overviewInput.backend,
-      readiness: [{
-        level: 2,
-        width: 500,
-        height: 400,
-        cols: 1,
-        rows: 1,
-        tileWidth: 500,
-        tileHeight: 400,
-        states: new Uint8Array([3]),
-        wholeOverviewReady: true,
-        previouslyFetchedCells: new Uint8Array([1]),
-        persistentAvailabilityVerified: false,
-        persistentSnapshotExpiresAt: null,
-      }],
+      readiness: [
+        {
+          level: 2,
+          width: 500,
+          height: 400,
+          cols: 1,
+          rows: 1,
+          tileWidth: 500,
+          tileHeight: 400,
+          states: new Uint8Array([3]),
+          wholeOverviewReady: true,
+          previouslyFetchedCells: new Uint8Array([1]),
+          persistentAvailabilityVerified: false,
+          persistentSnapshotExpiresAt: null,
+        },
+      ],
     });
-    const blurry = { width: 250, height: 200, close: vi.fn() } as unknown as ImageBitmap;
+    const blurry = {
+      width: 250,
+      height: 200,
+      close: vi.fn(),
+    } as unknown as ImageBitmap;
     worker.reply({
       bitmap: blurry,
       generation,
@@ -154,7 +175,12 @@ describe("shared production image viewport pool", () => {
       sourceLevel: overviewInput.level,
       sourceBackend: overviewInput.backend,
     });
-    expect(handle.snapshot()).toMatchObject({ bitmap: detail, input, overview, overviewInput });
+    expect(handle.snapshot()).toMatchObject({
+      bitmap: detail,
+      input,
+      overview,
+      overviewInput,
+    });
     expect(blurry.close).toHaveBeenCalledOnce();
     expect(detail.close).not.toHaveBeenCalled();
   });
@@ -166,7 +192,12 @@ describe("shared production image viewport pool", () => {
     const worker = workers[0];
     const originalGeneration = worker.requests.at(-1)!.generation;
     const detail = image();
-    const input = { width: 1000, height: 800, level: 1, backend: "avif-pyramid" };
+    const input = {
+      width: 1000,
+      height: 800,
+      level: 1,
+      backend: "avif-pyramid",
+    };
     worker.reply({
       bitmap: detail,
       generation: originalGeneration,
@@ -481,14 +512,29 @@ describe("shared production image viewport pool", () => {
   it("rejects a one-pixel reply that falsely claims the accepted frame's quality", () => {
     const { pool, workers } = setup();
     const handle = pool.acquire(source());
-    handle.setViewport(windowAt()); flush();
-    const worker = workers[0], correct = finish(worker);
-    const collapsed = { width: 1, height: 1, close: vi.fn() } as unknown as ImageBitmap;
-    worker.reply({ bitmap: collapsed, crop: windowAt().source,
-      generation: worker.requests.at(-1)!.generation, sampleDensity: .5,
-      sourceWidth: 1000, sourceHeight: 800, complete: true });
+    handle.setViewport(windowAt());
+    flush();
+    const worker = workers[0],
+      correct = finish(worker);
+    const collapsed = {
+      width: 1,
+      height: 1,
+      close: vi.fn(),
+    } as unknown as ImageBitmap;
+    worker.reply({
+      bitmap: collapsed,
+      crop: windowAt().source,
+      generation: worker.requests.at(-1)!.generation,
+      sampleDensity: 0.5,
+      sourceWidth: 1000,
+      sourceHeight: 800,
+      complete: true,
+    });
     expect(handle.snapshot()).toMatchObject({
-      bitmap: correct, frame: windowAt(), requested: windowAt(), loading: false,
+      bitmap: correct,
+      frame: windowAt(),
+      requested: windowAt(),
+      loading: false,
     });
     expect(collapsed.close).toHaveBeenCalledOnce();
     expect(correct.close).not.toHaveBeenCalled();
@@ -552,7 +598,11 @@ describe("shared production image viewport pool", () => {
       sourceHeight: 400,
       sourceLevel: 2,
       complete: true,
-      workerMemory: { compositionBytes: 0, decodeCanvasBytes: 0, workingBytes: 0 },
+      workerMemory: {
+        compositionBytes: 0,
+        decodeCanvasBytes: 0,
+        workingBytes: 0,
+      },
     });
     expect(handle.snapshot().baseline).toMatchObject({
       bitmap: whole,
@@ -574,7 +624,11 @@ describe("shared production image viewport pool", () => {
       generation: workers[0].requests.at(-1)!.generation,
       sampleDensity: 0.5,
       complete: true,
-      workerMemory: { compositionBytes: 0, decodeCanvasBytes: 0, workingBytes: 0 },
+      workerMemory: {
+        compositionBytes: 0,
+        decodeCanvasBytes: 0,
+        workingBytes: 0,
+      },
     });
     expect(handle.snapshot().baseline?.bitmap).toBe(whole);
     expect(handle.snapshot().bitmap).toBe(detail);
@@ -585,10 +639,14 @@ describe("shared production image viewport pool", () => {
       budgetBytes: 128 * 1024 * 1024,
       renderBudgetBytes: 3200000,
     });
-    expect(workers[0].requests.at(-1)!.activeSourceByteLimit).toBeGreaterThan(3200000);
+    expect(workers[0].requests.at(-1)!.activeSourceByteLimit).toBeGreaterThan(
+      3200000
+    );
     expect(handle.snapshot().metrics.cacheBudgetBytes).toBeGreaterThan(3200000);
     const overview = {
-      width: 250, height: 200, close: vi.fn(),
+      width: 250,
+      height: 200,
+      close: vi.fn(),
     } as unknown as ImageBitmap;
     workers[0].reply({ kind: "full-image", bitmap: overview });
     expect(handle.snapshot().baseline?.bitmap).toBe(whole);
@@ -608,7 +666,9 @@ describe("shared production image viewport pool", () => {
     handle.setViewport(initial);
     flush();
     const coarse = {
-      width: 250, height: 200, close: vi.fn(),
+      width: 250,
+      height: 200,
+      close: vi.fn(),
     } as unknown as ImageBitmap;
     workers[0].reply({
       bitmap: coarse,
@@ -661,7 +721,9 @@ describe("shared production image viewport pool", () => {
     handle.setViewport(wholeWindow());
     flush();
     const coarse = {
-      width: 250, height: 200, close: vi.fn(),
+      width: 250,
+      height: 200,
+      close: vi.fn(),
     } as unknown as ImageBitmap;
     workers[0].reply({
       bitmap: coarse,
@@ -690,7 +752,9 @@ describe("shared production image viewport pool", () => {
     handle.setViewport(wholeWindow());
     flush();
     const blurry = {
-      width: 250, height: 200, close: vi.fn(),
+      width: 250,
+      height: 200,
+      close: vi.fn(),
     } as unknown as ImageBitmap;
     workers[0].reply({
       bitmap: blurry,
@@ -707,17 +771,31 @@ describe("shared production image viewport pool", () => {
   it("keeps both prepared zoom directions until the matching viewport consumes one", () => {
     const { workers, pool } = setup();
     const handle = pool.acquire(source());
-    handle.setViewport(windowAt()); flush(); finish(workers[0]);
-    const inward = { ...windowAt(), source: { ...windowAt().source, width: 500 as DevicePixels, height: 400 as DevicePixels } };
+    handle.setViewport(windowAt());
+    flush();
+    finish(workers[0]);
+    const inward = {
+      ...windowAt(),
+      source: {
+        ...windowAt().source,
+        width: 500 as DevicePixels,
+        height: 400 as DevicePixels,
+      },
+    };
     const outward = wholeWindow();
-    const fine = image(), wide = image();
+    const fine = image(),
+      wide = image();
     for (const [bitmap, crop, sampleDensity] of [
-      [fine, inward.source, 1], [wide, outward.source, .25],
-    ] as const) workers[0].reply({ kind: "prepared-frame", bitmap, crop, sampleDensity });
+      [fine, inward.source, 1],
+      [wide, outward.source, 0.25],
+    ] as const)
+      workers[0].reply({ kind: "prepared-frame", bitmap, crop, sampleDensity });
     expect(handle.snapshot().preparedFrames).toHaveLength(2);
     handle.setViewport(inward);
     expect(handle.snapshot().bitmap).toBe(fine);
-    expect(handle.snapshot().preparedFrames).toMatchObject([{ crop: outward.source }]);
+    expect(handle.snapshot().preparedFrames).toMatchObject([
+      { crop: outward.source },
+    ]);
     handle.setViewport(outward);
     expect(handle.snapshot().bitmap).toBe(wide);
     expect(handle.snapshot().preparedFrames).toHaveLength(0);
@@ -727,21 +805,34 @@ describe("shared production image viewport pool", () => {
   it("reuses the previous cropped level immediately instead of a distant whole-image overview", () => {
     const { workers, pool } = setup();
     const handle = pool.acquire(source());
-    handle.setViewport(windowAt()); flush();
+    handle.setViewport(windowAt());
+    flush();
     const prior = finish(workers[0]);
-    const closeup = { ...windowAt(), source: { ...windowAt().source, width: 500 as DevicePixels, height: 400 as DevicePixels } };
-    handle.setViewport(closeup); flush(); finish(workers[0]);
+    const closeup = {
+      ...windowAt(),
+      source: {
+        ...windowAt().source,
+        width: 500 as DevicePixels,
+        height: 400 as DevicePixels,
+      },
+    };
+    handle.setViewport(closeup);
+    flush();
+    finish(workers[0]);
     const requests = workers[0].requests.length;
     handle.setViewport(windowAt());
     expect(handle.snapshot().bitmap).toBe(prior);
     expect(handle.snapshot().loading).toBe(false);
-    flush(); expect(workers[0].requests).toHaveLength(requests);
+    flush();
+    expect(workers[0].requests).toHaveLength(requests);
     expect(prior.close).not.toHaveBeenCalled();
   });
   it("sends whole-byte AVIF cache budgets when three active readers divide the thumbnail pool", () => {
     const maxBytes = 8 * 1024 * 1024;
     const { pool, workers } = setup({ maxBytes });
-    const handles = ["north", "east", "south"].map((id) => pool.acquire(source(id)));
+    const handles = ["north", "east", "south"].map((id) =>
+      pool.acquire(source(id))
+    );
     for (const handle of handles) handle.setViewport(windowAt());
     flush();
     for (const handle of handles) {
@@ -751,35 +842,73 @@ describe("shared production image viewport pool", () => {
     }
     for (const worker of workers) {
       expect(worker.requests).toHaveLength(1);
-      expect(Number.isSafeInteger(worker.requests[0].activeSourceByteLimit)).toBe(true);
-      expect(worker.requests[0].activeSourceByteLimit).toBeGreaterThanOrEqual(0);
+      expect(
+        Number.isSafeInteger(worker.requests[0].activeSourceByteLimit)
+      ).toBe(true);
+      expect(worker.requests[0].activeSourceByteLimit).toBeGreaterThanOrEqual(
+        0
+      );
     }
   });
 
   it("rebudgets active readers fairly while retaining a separate display-surface allowance", () => {
     const { workers, pool } = setup({ maxBytes: 32 * 1024 * 1024 });
-    const first = pool.acquire(source("north")); first.setViewport(windowAt()); flush(); finish(workers[0]);
+    const first = pool.acquire(source("north"));
+    first.setViewport(windowAt());
+    flush();
+    finish(workers[0]);
     const singleBudget = first.snapshot().metrics.cacheBudgetBytes;
-    const second = pool.acquire(source("east")); second.setViewport(windowAt()); flush(); finish(workers[1]);
+    const second = pool.acquire(source("east"));
+    second.setViewport(windowAt());
+    flush();
+    finish(workers[1]);
     const snapshot = first.snapshot();
     expect(snapshot.metrics.renderBudgetBytes).toBe(3200000);
-    expect(snapshot.metrics.cacheBudgetBytes).toBeGreaterThan(snapshot.metrics.renderBudgetBytes);
+    expect(snapshot.metrics.cacheBudgetBytes).toBeGreaterThan(
+      snapshot.metrics.renderBudgetBytes
+    );
     expect(snapshot.metrics.cacheBudgetBytes).toBeLessThan(singleBudget);
-    expect(workers[0].postMessage).toHaveBeenCalledWith(expect.objectContaining({
-      budgetOnly: true, activeSourceByteLimit: snapshot.metrics.cacheBudgetBytes,
-    }));
+    expect(workers[0].postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        budgetOnly: true,
+        activeSourceByteLimit: snapshot.metrics.cacheBudgetBytes,
+      })
+    );
   });
   it("borrows a scene adapter's pre-zoom level without closing or transferring its bitmap", () => {
     const { pool } = setup();
-    const lease = pool.acquireProtocol(source()); lease.createWorker();
-    const wide = image(), closeup = image();
-    const publish = (bitmap: ImageBitmap, frame: NativePreviewWindow, density: number) => lease.publish({
-      bitmap, frame, density, complete: true, viewportPixels: 200000,
-      sourceResidentBytes: 0, workerCanvasBytes: 0, displayCopyBytes: 800000, externalBytes: 0,
-    });
-    lease.setTarget(windowAt()); publish(wide, windowAt(), .5);
-    const detailWindow = { ...windowAt(), source: { ...windowAt().source, width: 500 as DevicePixels, height: 400 as DevicePixels } };
-    lease.setTarget(detailWindow); publish(closeup, detailWindow, 1);
+    const lease = pool.acquireProtocol(source());
+    lease.createWorker();
+    const wide = image(),
+      closeup = image();
+    const publish = (
+      bitmap: ImageBitmap,
+      frame: NativePreviewWindow,
+      density: number
+    ) =>
+      lease.publish({
+        bitmap,
+        frame,
+        density,
+        complete: true,
+        viewportPixels: 200000,
+        sourceResidentBytes: 0,
+        workerCanvasBytes: 0,
+        displayCopyBytes: 800000,
+        externalBytes: 0,
+      });
+    lease.setTarget(windowAt());
+    publish(wide, windowAt(), 0.5);
+    const detailWindow = {
+      ...windowAt(),
+      source: {
+        ...windowAt().source,
+        width: 500 as DevicePixels,
+        height: 400 as DevicePixels,
+      },
+    };
+    lease.setTarget(detailWindow);
+    publish(closeup, detailWindow, 1);
     const borrowed = lease.borrowFrame(windowAt());
     expect(borrowed?.bitmap).toBe(wide);
     expect(wide.close).not.toHaveBeenCalled();
@@ -793,28 +922,50 @@ describe("shared production image viewport pool", () => {
   it("finishes one foreground decode during a wheel burst and then dispatches only the latest crop", () => {
     const { pool, workers } = setup();
     const handle = pool.acquire(source());
-    handle.setViewport(windowAt()); flush();
-    const worker = workers[0], initial = worker.requests[0];
-    for (const x of [50, 100, 150, 200]) { handle.setViewport(windowAt(x)); flush(); }
+    handle.setViewport(windowAt());
+    flush();
+    const worker = workers[0],
+      initial = worker.requests[0];
+    for (const x of [50, 100, 150, 200]) {
+      handle.setViewport(windowAt(x));
+      flush();
+    }
     expect(worker.requests).toHaveLength(1);
-    expect(worker.postMessage.mock.calls.some(([message]) => "cancel" in message)).toBe(false);
+    expect(
+      worker.postMessage.mock.calls.some(([message]) => "cancel" in message)
+    ).toBe(false);
     const partial = image();
-    worker.reply({ bitmap: partial, generation: initial.generation, complete: false });
+    worker.reply({
+      bitmap: partial,
+      generation: initial.generation,
+      complete: false,
+    });
     expect(handle.snapshot().frame?.source).toEqual(initial.window.source);
     expect(handle.snapshot().loading).toBe(true);
-    handle.setViewport(windowAt(300)); flush();
+    handle.setViewport(windowAt(300));
+    flush();
     expect(worker.requests).toHaveLength(1);
     const prior = image();
-    worker.reply({ bitmap: prior, generation: initial.generation, complete: true });
+    worker.reply({
+      bitmap: prior,
+      generation: initial.generation,
+      complete: true,
+    });
     expect(handle.snapshot().bufferedFrames?.[0].bitmap).toBe(prior);
-    expect(handle.snapshot().bufferedFrames?.[0].frame.source).toEqual(initial.window.source);
+    expect(handle.snapshot().bufferedFrames?.[0].frame.source).toEqual(
+      initial.window.source
+    );
     flush();
     expect(worker.requests).toHaveLength(2);
     expect(worker.requests[1].window.source.x).toBe(300);
     expect(worker.requests[1].generation).not.toBe(initial.generation);
     expect(handle.snapshot().loading).toBe(true);
     const stale = image();
-    worker.reply({ bitmap: stale, generation: initial.generation, complete: true });
+    worker.reply({
+      bitmap: stale,
+      generation: initial.generation,
+      complete: true,
+    });
     expect(stale.close).toHaveBeenCalledOnce();
     expect(handle.snapshot().loading).toBe(true);
     finish(worker);
@@ -823,10 +974,14 @@ describe("shared production image viewport pool", () => {
   it("does not start a second decode when a burst returns to its still-running crop", () => {
     const { pool, workers } = setup();
     const handle = pool.acquire(source());
-    handle.setViewport(windowAt()); flush();
-    handle.setViewport(windowAt(200)); flush();
-    handle.setViewport(windowAt()); flush();
-    const bitmap = finish(workers[0]); flush();
+    handle.setViewport(windowAt());
+    flush();
+    handle.setViewport(windowAt(200));
+    flush();
+    handle.setViewport(windowAt());
+    flush();
+    const bitmap = finish(workers[0]);
+    flush();
     expect(workers[0].requests).toHaveLength(1);
     expect(handle.snapshot().bitmap).toBe(bitmap);
     expect(handle.snapshot().loading).toBe(false);
@@ -835,19 +990,35 @@ describe("shared production image viewport pool", () => {
   it("restores a buffered return zoom immediately while another crop is still decoding", () => {
     const { pool, workers } = setup();
     const handle = pool.acquire(source());
-    handle.setViewport(windowAt()); flush(); finish(workers[0]);
-    const closeup = { ...windowAt(), source: { ...windowAt().source,
-      width: 500 as DevicePixels, height: 400 as DevicePixels } };
-    handle.setViewport(closeup); flush();
+    handle.setViewport(windowAt());
+    flush();
+    finish(workers[0]);
+    const closeup = {
+      ...windowAt(),
+      source: {
+        ...windowAt().source,
+        width: 500 as DevicePixels,
+        height: 400 as DevicePixels,
+      },
+    };
+    handle.setViewport(closeup);
+    flush();
     const fine = finish(workers[0]);
-    const beside = { ...closeup, source: { ...closeup.source, x: 400 as DevicePixels } };
-    handle.setViewport(beside); flush();
+    const beside = {
+      ...closeup,
+      source: { ...closeup.source, x: 400 as DevicePixels },
+    };
+    handle.setViewport(beside);
+    flush();
     expect(workers[0].requests).toHaveLength(3);
     handle.setViewport(closeup);
     expect(handle.snapshot().bitmap).toBe(fine);
     expect(handle.snapshot().loading).toBe(false);
-    expect(workers[0].postMessage.mock.calls.some(([message]) => "cancel" in message)).toBe(false);
-    finish(workers[0]); flush();
+    expect(
+      workers[0].postMessage.mock.calls.some(([message]) => "cancel" in message)
+    ).toBe(false);
+    finish(workers[0]);
+    flush();
     expect(handle.snapshot().bitmap).toBe(fine);
     expect(workers[0].requests).toHaveLength(3);
     expect(fine.close).not.toHaveBeenCalled();
@@ -856,18 +1027,37 @@ describe("shared production image viewport pool", () => {
   it("rebroadcasts released parked memory to a new active decoder before its first frame completes", () => {
     const { pool, workers } = setup({ maxBytes: 32 * 1024 * 1024 });
     const first = pool.acquire(source("north"));
-    first.setViewport(windowAt()); flush(); finish(workers[0]);
-    workers[0].reply({ kind: "source-memory", imageId: "north", sourceIdentity: source("north").url,
-      sourceResidentBytes: 10 * 1024 * 1024 });
+    first.setViewport(windowAt());
+    flush();
+    finish(workers[0]);
+    workers[0].reply({
+      kind: "source-memory",
+      imageId: "north",
+      sourceIdentity: source("north").url,
+      sourceResidentBytes: 10 * 1024 * 1024,
+    });
     first.release();
-    const second = pool.acquire(source("east")); second.setViewport(windowAt()); flush();
+    const second = pool.acquire(source("east"));
+    second.setViewport(windowAt());
+    flush();
     const before = workers[1].requests[0].activeSourceByteLimit;
     expect(second.snapshot().loading).toBe(true);
     expect(before).toBeGreaterThanOrEqual(12 * 1024 * 1024);
-    workers[0].reply({ kind: "source-memory", imageId: "north", sourceIdentity: source("north").url,
-      sourceResidentBytes: 0, workerMemory: { compositionBytes: 0, decodeCanvasBytes: 0, workingBytes: 0 } });
-    const latest = workers[1].postMessage.mock.calls.map(([message]) => message)
-      .filter((message) => "budgetOnly" in message).at(-1);
+    workers[0].reply({
+      kind: "source-memory",
+      imageId: "north",
+      sourceIdentity: source("north").url,
+      sourceResidentBytes: 0,
+      workerMemory: {
+        compositionBytes: 0,
+        decodeCanvasBytes: 0,
+        workingBytes: 0,
+      },
+    });
+    const latest = workers[1].postMessage.mock.calls
+      .map(([message]) => message)
+      .filter((message) => "budgetOnly" in message)
+      .at(-1);
     expect(latest.activeSourceByteLimit).toBeGreaterThan(before);
     expect(second.snapshot().loading).toBe(true);
     expect(workers[1].requests).toHaveLength(1);
@@ -876,18 +1066,26 @@ describe("shared production image viewport pool", () => {
   it("reserves the new image's working memory by shedding only an old parked decoder", () => {
     const { pool, workers } = setup({ maxBytes: 32 * 1024 * 1024 });
     const first = pool.acquire(source("north"));
-    first.setViewport(windowAt()); flush();
+    first.setViewport(windowAt());
+    flush();
     const north = finish(workers[0]);
-    workers[0].reply({ kind: "source-memory", imageId: "north", sourceIdentity: source("north").url,
-      sourceResidentBytes: 28 * 1024 * 1024 });
+    workers[0].reply({
+      kind: "source-memory",
+      imageId: "north",
+      sourceIdentity: source("north").url,
+      sourceResidentBytes: 28 * 1024 * 1024,
+    });
     first.release();
-    const second = pool.acquire(source("east")); second.setViewport(windowAt()); flush();
-    expect(workers[1].requests[0].activeSourceByteLimit).toBeGreaterThanOrEqual(12 * 1024 * 1024);
+    const second = pool.acquire(source("east"));
+    second.setViewport(windowAt());
+    flush();
+    expect(workers[1].requests[0].activeSourceByteLimit).toBeGreaterThanOrEqual(
+      12 * 1024 * 1024
+    );
     expect(workers[0].terminate).toHaveBeenCalledOnce();
     expect(north.close).not.toHaveBeenCalled();
     expect(pool.peek(source("north"))?.bitmap).toBe(north);
     expect(pool.metrics.images).toHaveLength(2);
     expect(pool.metrics.managedBytes).toBeLessThanOrEqual(32 * 1024 * 1024);
   });
-
 });

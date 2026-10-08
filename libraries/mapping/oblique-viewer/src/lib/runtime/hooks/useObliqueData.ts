@@ -272,7 +272,8 @@ const mergeSeries = (
           direction,
           previous
             ? {
-                pitchSumRad: (previous.pitchSumRad + total.pitchSumRad) as Radians,
+                pitchSumRad: (previous.pitchSumRad +
+                  total.pitchSumRad) as Radians,
                 imageCount: previous.imageCount + total.imageCount,
               }
             : total
@@ -636,8 +637,8 @@ export const useObliqueData = (
             )
           ),
           obliquePitchByDirectionBySeries: new Map(
-            [...(state.data.obliquePitchByDirectionBySeries ?? [])].filter(([id]) =>
-              enabledIds.has(id)
+            [...(state.data.obliquePitchByDirectionBySeries ?? [])].filter(
+              ([id]) => enabledIds.has(id)
             )
           ),
           imageRecords: new Map(

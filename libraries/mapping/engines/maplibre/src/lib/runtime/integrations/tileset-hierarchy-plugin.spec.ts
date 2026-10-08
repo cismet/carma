@@ -142,7 +142,9 @@ describe("native hierarchy worker adapter", () => {
   it("holds root and prefetched hierarchy dispatch until the network gate releases", async () => {
     const f = setup();
     let resume!: () => void;
-    const gate = new Promise<void>((resolve) => { resume = resolve; });
+    const gate = new Promise<void>((resolve) => {
+      resume = resolve;
+    });
     const beforeRequest = vi.fn(() => gate);
     const plugin = new TilesetHierarchyPlugin(rootUrl, { beforeRequest });
     const pending = plugin.fetchData(rootUrl, {})!;
@@ -158,5 +160,4 @@ describe("native hierarchy worker adapter", () => {
     plugin.dispose();
     f.plugin.dispose();
   });
-
 });

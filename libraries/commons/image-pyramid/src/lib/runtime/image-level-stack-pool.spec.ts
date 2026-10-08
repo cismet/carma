@@ -4,7 +4,10 @@ import {
   ImageLevelStackPool,
   type ImagePyramidSource,
 } from "./image-level-stack-pool";
-import { reserveImagePrefetchBytes, type ImagePrefetchBudget } from "./image-tile-source";
+import {
+  reserveImagePrefetchBytes,
+  type ImagePrefetchBudget,
+} from "./image-tile-source";
 import type {
   ImagePyramid,
   ImageTileRef,
@@ -386,7 +389,6 @@ describe("ImageLevelStackPool foreground-priority prewarming", () => {
   });
 });
 
-
 describe("forecast compressed transfer budgets", () => {
   it("shares a group allowance across hovers, caps image count and removes the cap on foreground promotion", async () => {
     const { pool, sources } = setup();
@@ -415,18 +417,28 @@ describe("forecast compressed transfer budgets", () => {
       pool.prewarm(descriptor("c"), view(), 512 ** 2);
       await settle();
       expect(sources.get("c")?.prefetchBudget?.group?.remainingBytes).toBe(150);
-    } finally { pool.dispose(); }
+    } finally {
+      pool.dispose();
+    }
   });
 });
-
 
 describe("serial forecast groups", () => {
   it("finishes one forecast before opening the next, deduplicates and cancels the tail", async () => {
     const { pool, sources } = setup((source) => source.hold.add("decode"));
     try {
       pool.setPrefetchGroup("route", { maxImages: 3 });
-      const forecast = (id: string) => ({ source: descriptor(id), view: view(), viewportPixels: 512 ** 2 });
-      const cancel = pool.prewarmGroup([forecast("a"), forecast("a"), forecast("b"), forecast("c")]);
+      const forecast = (id: string) => ({
+        source: descriptor(id),
+        view: view(),
+        viewportPixels: 512 ** 2,
+      });
+      const cancel = pool.prewarmGroup([
+        forecast("a"),
+        forecast("a"),
+        forecast("b"),
+        forecast("c"),
+      ]);
       await settle();
       expect([...sources.keys()]).toEqual(["a"]);
       sources.get("a")!.release("decode");
@@ -436,6 +448,8 @@ describe("serial forecast groups", () => {
       sources.get("b")!.release("decode");
       await settle();
       expect(sources.has("c")).toBe(false);
-    } finally { pool.dispose(); }
+    } finally {
+      pool.dispose();
+    }
   });
 });

@@ -25,8 +25,12 @@ export const viewportImageProjection = (
   // translation term, leaving a plane through the anchor normal to that axis.
   const photo = sceneToImage.elements;
   const plane = anchor
-    ? new Vector4(photo[3], photo[7], photo[11],
-        -(photo[3] * anchor.x + photo[7] * anchor.y + photo[11] * anchor.z))
+    ? new Vector4(
+        photo[3],
+        photo[7],
+        photo[11],
+        -(photo[3] * anchor.x + photo[7] * anchor.y + photo[11] * anchor.z)
+      )
     : new Vector4(0, 0, 0, 1);
   const planeAtColumn = (offset: number) =>
     plane.x * clipToScene[offset] +

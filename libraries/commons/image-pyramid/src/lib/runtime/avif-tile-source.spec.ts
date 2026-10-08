@@ -138,8 +138,12 @@ describe("abortable shared AVIF work", () => {
     controller.abort();
     const work = Promise.reject(new Error("underlying request also aborted"));
     const then = vi.spyOn(work, "then");
-    await expect(abortable(work, controller.signal)).rejects.toBe(controller.signal.reason);
-    const observed = then.mock.calls.some(([, rejection]) => typeof rejection === "function");
+    await expect(abortable(work, controller.signal)).rejects.toBe(
+      controller.signal.reason
+    );
+    const observed = then.mock.calls.some(
+      ([, rejection]) => typeof rejection === "function"
+    );
     // Always consume fixture rejection, so failure identifies the missing observer
     // rather than creating unrelated unhandled-rejection noise in the test runner.
     await work.catch(() => undefined);
@@ -147,17 +151,20 @@ describe("abortable shared AVIF work", () => {
   });
 
   it("lets one aborted consumer stop waiting while shared work still completes", async () => {
-    const first = new AbortController(), second = new AbortController();
+    const first = new AbortController(),
+      second = new AbortController();
     let resolve!: (value: number) => void;
-    const work = new Promise<number>((done) => { resolve = done; });
-    const a = abortable(work, first.signal), b = abortable(work, second.signal);
+    const work = new Promise<number>((done) => {
+      resolve = done;
+    });
+    const a = abortable(work, first.signal),
+      b = abortable(work, second.signal);
     first.abort();
     await expect(a).rejects.toBe(first.signal.reason);
     resolve(42);
     await expect(b).resolves.toBe(42);
   });
 });
-
 
 describe("AVIF speculative request allowance", () => {
   it("reserves metadata ranges before dispatch and never exceeds image or group limits", async () => {
@@ -166,7 +173,9 @@ describe("AVIF speculative request allowance", () => {
     const source = new AvifTileSource("https://images.test/budget.avif");
     const group = { remainingBytes: 18000 };
     source.prefetchBudget = { remainingBytes: 20000, group };
-    await expect(source.open(new AbortController().signal)).rejects.toBeInstanceOf(ImagePrefetchBudgetExceeded);
+    await expect(
+      source.open(new AbortController().signal)
+    ).rejects.toBeInstanceOf(ImagePrefetchBudgetExceeded);
     expect(ranges).toEqual(["bytes=0-16383"]);
     expect(group.remainingBytes).toBe(18000 - 16384);
     expect(source.prefetchBudget.remainingBytes).toBe(20000 - 16384);
@@ -174,18 +183,25 @@ describe("AVIF speculative request allowance", () => {
   });
 });
 
-
 describe("AVIF UUID payload bounds", () => {
-  it.each([2000, 20000])("does not parse cell-table bytes after the 4096-byte JSON reservation (index at %s)", async (indexAt) => {
-    const file = pyramidFile({ indexAt });
-    // The deployed container's UUID can own both the fixed JSON region and
-    // trailing cell tables. A coalesced 4128-byte read includes eight table bytes.
-    new DataView(file.bytes.buffer).setUint32(file.pyramidAt, file.bytes.length - file.pyramidAt);
-    serve(file.bytes);
-    const source = new AvifTileSource(`https://images.test/uuid-tables-${indexAt}.avif`);
-    const result = await source.open(new AbortController().signal);
-    expect(result.native).toEqual({ width: 1024, height: 1024 });
-    expect(result.levels).toHaveLength(1);
-    source.dispose();
-  });
+  it.each([2000, 20000])(
+    "does not parse cell-table bytes after the 4096-byte JSON reservation (index at %s)",
+    async (indexAt) => {
+      const file = pyramidFile({ indexAt });
+      // The deployed container's UUID can own both the fixed JSON region and
+      // trailing cell tables. A coalesced 4128-byte read includes eight table bytes.
+      new DataView(file.bytes.buffer).setUint32(
+        file.pyramidAt,
+        file.bytes.length - file.pyramidAt
+      );
+      serve(file.bytes);
+      const source = new AvifTileSource(
+        `https://images.test/uuid-tables-${indexAt}.avif`
+      );
+      const result = await source.open(new AbortController().signal);
+      expect(result.native).toEqual({ width: 1024, height: 1024 });
+      expect(result.levels).toHaveLength(1);
+      source.dispose();
+    }
+  );
 });

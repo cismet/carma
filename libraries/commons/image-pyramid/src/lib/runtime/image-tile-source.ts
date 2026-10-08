@@ -11,15 +11,32 @@ export type ImageTileRef = Readonly<{
 }>;
 
 /** A speculative transfer allowance shared by a forecast group. */
-export type ImagePrefetchBudget = { remainingBytes: number; group?: ImagePrefetchBudget };
+export type ImagePrefetchBudget = {
+  remainingBytes: number;
+  group?: ImagePrefetchBudget;
+};
 export class ImagePrefetchBudgetExceeded extends Error {
-  constructor() { super("Speculative image byte budget exhausted"); this.name = "ImagePrefetchBudgetExceeded"; }
+  constructor() {
+    super("Speculative image byte budget exhausted");
+    this.name = "ImagePrefetchBudgetExceeded";
+  }
 }
 /** Reserve before dispatch, including merged range gaps and metadata. */
-export const reserveImagePrefetchBytes = (budget: ImagePrefetchBudget | undefined, bytes: number) => {
+export const reserveImagePrefetchBytes = (
+  budget: ImagePrefetchBudget | undefined,
+  bytes: number
+) => {
   if (!budget) return;
-  if (!Number.isSafeInteger(bytes) || bytes < 0 || !Number.isFinite(budget.remainingBytes) || bytes > budget.remainingBytes ||
-      (budget.group && (!Number.isFinite(budget.group.remainingBytes) || bytes > budget.group.remainingBytes))) throw new ImagePrefetchBudgetExceeded();
+  if (
+    !Number.isSafeInteger(bytes) ||
+    bytes < 0 ||
+    !Number.isFinite(budget.remainingBytes) ||
+    bytes > budget.remainingBytes ||
+    (budget.group &&
+      (!Number.isFinite(budget.group.remainingBytes) ||
+        bytes > budget.group.remainingBytes))
+  )
+    throw new ImagePrefetchBudgetExceeded();
   budget.remainingBytes -= bytes;
   if (budget.group) budget.group.remainingBytes -= bytes;
 };

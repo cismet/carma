@@ -9,7 +9,11 @@ import type {
 } from "../types";
 import { TEST_INPHO_SERIES } from "./synthetic-series.test-fixture";
 import { buildImageRecords } from "./imageRecord";
-import { estimateGroundCenter, panViewTarget, rankImagesForView } from "./selection";
+import {
+  estimateGroundCenter,
+  panViewTarget,
+  rankImagesForView,
+} from "./selection";
 import { createImageSelectionIndex } from "./image-selection-index";
 const matrix = (bearing: Degrees) => {
   const heading = degToRad(bearing),
@@ -104,16 +108,29 @@ describe("indexed camera navigation geometry", () => {
     const current = records.get("navigation::current")!;
     records.set(current.id, {
       ...current,
-      footprint: [[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]],
+      footprint: [
+        [0, 0],
+        [1, 0],
+        [1, 1],
+        [0, 1],
+        [0, 0],
+      ],
       footprintApproximate: false,
     });
     const selection = { ...data, imageRecords: records };
     const index = createImageSelectionIndex(selection);
-    expect(rankImagesForView(selection, query, index.candidates(query))[0].record.sourceId)
-      .toBe("neighbor");
-    const classic = { ...query, navigationSelection: "center-distance" as const };
-    expect(rankImagesForView(selection, classic, index.candidates(classic))[0].record.sourceId)
-      .toBe("current");
+    expect(
+      rankImagesForView(selection, query, index.candidates(query))[0].record
+        .sourceId
+    ).toBe("neighbor");
+    const classic = {
+      ...query,
+      navigationSelection: "center-distance" as const,
+    };
+    expect(
+      rankImagesForView(selection, classic, index.candidates(classic))[0].record
+        .sourceId
+    ).toBe("current");
   });
 
   it("excludes the current photo while retaining a covered same-direction neighbor without image assets", () => {
@@ -215,7 +232,6 @@ describe("indexed camera navigation geometry", () => {
   });
 });
 
-
 describe("heading-relative arrow sectors", () => {
   const arrows = [
     { key: "left", right: -1, forward: 0 },
@@ -230,19 +246,27 @@ describe("heading-relative arrow sectors", () => {
     (bearing) => {
       const record = data.imageRecords.get("navigation::current")!;
       const headingRad = degToRad(bearing as Degrees);
-      const origin = converter.inverse([longitude, latitude]) as [number, number];
+      const origin = converter.inverse([longitude, latitude]) as [
+        number,
+        number
+      ];
       for (const arrow of arrows) {
         const moved = panViewTarget(record, built.dataset, query.target, {
           ...arrow,
           headingRad,
         });
-        const xy = converter.inverse([moved.longitude, moved.latitude]) as [number, number];
+        const xy = converter.inverse([moved.longitude, moved.latitude]) as [
+          number,
+          number
+        ];
         const delta = new Vector3(xy[0] - origin[0], xy[1] - origin[1], 0)
           .applyAxisAngle(new Vector3(0, 0, 1), -record.pose!.utmConvergenceRad)
           .normalize();
         const expected = new Vector3(
-          Math.sin(headingRad) * arrow.forward + Math.cos(headingRad) * arrow.right,
-          Math.cos(headingRad) * arrow.forward - Math.sin(headingRad) * arrow.right,
+          Math.sin(headingRad) * arrow.forward +
+            Math.cos(headingRad) * arrow.right,
+          Math.cos(headingRad) * arrow.forward -
+            Math.sin(headingRad) * arrow.right,
           0
         );
         expect(delta.dot(expected), arrow.key).toBeCloseTo(1, 6);
@@ -278,12 +302,19 @@ describe("heading-relative arrow sectors", () => {
             rotationMatrixRows: matrix(bearing as Degrees),
           };
         }
-        const records = buildImageRecords({ ...metadata, images }, built.dataset);
+        const records = buildImageRecords(
+          { ...metadata, images },
+          built.dataset
+        );
         const selection: ObliqueSelectionData = {
           imageRecords: records.imageRecords,
           datasets: new Map([[records.dataset.id, records.dataset]]),
-          centers: new Map([...records.imageRecords].map(([id, record]) =>
-            [id, estimateGroundCenter(record, records.dataset)])),
+          centers: new Map(
+            [...records.imageRecords].map(([id, record]) => [
+              id,
+              estimateGroundCenter(record, records.dataset),
+            ])
+          ),
         };
         const current = selection.imageRecords.get("navigation::current")!;
         const center = selection.centers.get(current.id)!;
@@ -295,12 +326,22 @@ describe("heading-relative arrow sectors", () => {
           ...query,
           headingRad: degToRad(current.pose!.bearingDeg as Degrees),
           excludeImageId: current.id,
-          navigationOrigin: { longitude: center.longitude, latitude: center.latitude },
+          navigationOrigin: {
+            longitude: center.longitude,
+            latitude: center.latitude,
+          },
           target: { ...query.target, longitude, latitude },
         };
         const index = createImageSelectionIndex(selection);
-        const ranked = rankImagesForView(selection, directional, index.candidates(directional));
-        expect(ranked.map((entry) => entry.record.sourceId), arrow.key).toEqual(["correct"]);
+        const ranked = rankImagesForView(
+          selection,
+          directional,
+          index.candidates(directional)
+        );
+        expect(
+          ranked.map((entry) => entry.record.sourceId),
+          arrow.key
+        ).toEqual(["correct"]);
       }
     }
   );
