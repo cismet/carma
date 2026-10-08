@@ -283,8 +283,8 @@ export const createPhotoRotationDrape = (
       avifPyramidUrl: pyramidOf(photo),
       avifOnly: photo.dataset.avifOnly,
       nativeSize: {
-        width: photo.calibration.widthPx,
-        height: photo.calibration.heightPx,
+        width: photo.calibration.widthPx as DevicePixels,
+        height: photo.calibration.heightPx as DevicePixels,
       },
       minimumQualityLevel: photo.dataset.minimumPreviewQualityLevel,
     });
@@ -425,8 +425,8 @@ export const createPhotoRotationDrape = (
               visible: {
                 x: 0 as DevicePixels,
                 y: 0 as DevicePixels,
-                width: to.calibration.widthPx,
-                height: to.calibration.heightPx,
+                width: to.calibration.widthPx as DevicePixels,
+                height: to.calibration.heightPx as DevicePixels,
               },
               density: (size.width / to.calibration.widthPx) as Ratio,
             },

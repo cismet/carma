@@ -54,26 +54,6 @@ vi.mock("antd", () => ({
   Tooltip: ({ children }: any) => children,
 }));
 
-type Response = {
-  generation?: number;
-  bitmap?: ImageBitmap;
-  complete?: boolean;
-  error?: string;
-};
-class Worker {
-  static instances: Worker[] = [];
-  onmessage: ((event: MessageEvent<Response>) => void) | null = null;
-  onerror: (() => void) | null = null;
-  onmessageerror: (() => void) | null = null;
-  postMessage = vi.fn();
-  terminate = vi.fn();
-  constructor(readonly url: URL) {
-    Worker.instances.push(this);
-  }
-  reply(value: Response) {
-    act(() => this.onmessage?.({ data: value } as MessageEvent<Response>));
-  }
-}
 const calibration: ObliqueCameraCalibration = {
   widthPx: 2000,
   heightPx: 1000,
@@ -168,7 +148,7 @@ const thumbnailObservers: Array<{
 const captureViewports = () => {
   const makeLease = (source: ImageViewportSource, pool: ImageViewportPool) => {
     let receive: Parameters<ImageViewportHandle["subscribe"]>[0] = () => undefined;
-    const unsubscribe = vi.fn();
+    const unsubscribe = vi.fn(() => { receive = () => undefined; });
     return {
       source, pool,
       setViewport: vi.fn(),
@@ -210,7 +190,6 @@ const photo = (id: string) =>
   document.querySelector(
     `[data-test-id="oblique-coverage-photo"][data-image-id="2024:${id}"]`
   )! as HTMLElement;
-const request = (worker: Worker) => worker.postMessage.mock.lastCall![0];
 const viewportCrop = (element: HTMLElement) =>
   element.dataset.sourceCrop!.split(",").map(Number);
 const setBounds = (element: HTMLElement) => {
@@ -221,11 +200,10 @@ const setBounds = (element: HTMLElement) => {
 beforeEach(() => {
   vi.useFakeTimers();
   vi.clearAllMocks();
-  Worker.instances = [];
   resizeCallbacks.length = 0;
   width = 400;
   height = 200;
-  vi.stubGlobal("Worker", Worker);
+  vi.stubGlobal("Worker", vi.fn());
   vi.stubGlobal("OffscreenCanvas", class {});
   vi.stubGlobal("devicePixelRatio", 1);
   thumbnailObservers.length = 0;
@@ -294,6 +272,7 @@ afterEach(() => {
 
 describe("object view crops and navigation", () => {
   it("requests only the AVIF pyramid in strict mode despite a stale original TIFF asset", () => {
+    const leases = captureViewports();
     const image = imageOf("strict");
     image.dataset = {
       ...image.dataset,
@@ -307,36 +286,39 @@ describe("object view crops and navigation", () => {
       },
     };
     view(groupsOf([image]));
-    expect(request(Worker.instances[0])).toMatchObject({
+    expect(leases).toHaveLength(1);
+    expect(leases[0].source).toMatchObject({
       avifOnly: true,
-      tiff: false,
+      kind: "avif",
+      url: "http://localhost:3000/2026/avif/strict.avif",
       avifPyramidUrl: "http://localhost:3000/2026/avif/strict.avif",
     });
-    expect(JSON.stringify(request(Worker.instances[0]))).not.toContain(".tif");
+    expect(JSON.stringify(leases[0].source)).not.toContain(".tif");
   });
-  it("reuses the active crop worker on resize and rejects the previous generation", () => {
+  it("renews the same pooled source on resize and unsubscribes the previous viewport", () => {
+    const leases = captureViewports();
     const result = view(groupsOf([imageOf("first")]));
-    const worker = Worker.instances[0];
-    const initial = request(worker);
+    const initial = leases[0];
+    const initialWindow = initial.setViewport.mock.lastCall![0];
     width = 600;
     height = 300;
     act(() => resizeCallbacks.forEach((callback) => callback()));
-    const updated = request(worker);
-    expect(Worker.instances).toHaveLength(1);
-    expect(worker.terminate).not.toHaveBeenCalled();
-    expect(updated.generation).toBe(initial.generation + 1);
-    expect(updated.window.target.width).toBeGreaterThan(
-      initial.window.target.width
-    );
-    const stale = bitmap();
-    worker.reply({ generation: initial.generation, bitmap: stale });
-    expect(stale.close).toHaveBeenCalledOnce();
+    expect(leases).toHaveLength(2);
+    const updated = leases[1];
+    const updatedWindow = updated.setViewport.mock.lastCall![0];
+    expect(updated.pool).toBe(initial.pool);
+    expect(updated.source).toEqual(initial.source);
+    expect(initial.unsubscribe).toHaveBeenCalledOnce();
+    expect(initial.release).toHaveBeenCalledOnce();
+    expect(updatedWindow.target.width).toBeGreaterThan(initialWindow.target.width);
+    act(() => initial.publish({ bitmap: bitmap(), frame: initialWindow }));
     expect(draw).not.toHaveBeenCalled();
     const current = bitmap();
-    worker.reply({ generation: updated.generation, bitmap: current });
+    act(() => updated.publish({ bitmap: current, frame: updatedWindow }));
     expect(draw).toHaveBeenCalledWith(current, 0, 0);
     result.unmount();
-    expect(worker.terminate).toHaveBeenCalledOnce();
+    expect(updated.unsubscribe).toHaveBeenCalledOnce();
+    expect(updated.release).toHaveBeenCalledOnce();
   });
   it.each([
     { width: 400, height: 200, dpr: 2 },
@@ -344,6 +326,7 @@ describe("object view crops and navigation", () => {
   ])(
     "matches a $width x $height container, preserves outside-sensor letterboxing and caps native magnification",
     ({ width: w, height: h, dpr }) => {
+      const leases = captureViewports();
       width = w;
       height = h;
       vi.stubGlobal("devicePixelRatio", dpr);
@@ -354,7 +337,7 @@ describe("object view crops and navigation", () => {
       expect(Number(element.dataset.pixelScale)).toBeLessThanOrEqual(3 + 1e-12);
       expect(x).toBeLessThan(0);
       expect(y).toBeLessThan(0);
-      const input = request(Worker.instances[0]);
+      const input = { window: leases[0].setViewport.mock.lastCall![0] };
       expect(input.window.source.x).toBe(0);
       expect(input.window.source.y).toBe(0);
       expect(input.window.source.width).toBeLessThan(calibration.widthPx);
@@ -365,6 +348,7 @@ describe("object view crops and navigation", () => {
       expect(
         input.window.target.height / input.window.source.height
       ).toBeLessThanOrEqual(3);
+      act(() => leases[0].publish({ bitmap: bitmap(), frame: input.window }));
       const canvas = within(element).getByLabelText("edge Objektausschnitt");
       expect(parseFloat(canvas.style.left)).toBeGreaterThan(0);
       expect(parseFloat(canvas.style.top)).toBeGreaterThan(0);
@@ -373,38 +357,25 @@ describe("object view crops and navigation", () => {
     }
   );
 
-  it("publishes progressive ROI bitmaps without DOM decoding and discards stale completions on unmount", () => {
+  it("publishes pooled ROI bitmaps without DOM decoding and unsubscribes on unmount", () => {
+    const leases = captureViewports();
     const result = view(groupsOf([imageOf("first")]));
-    const worker = Worker.instances[0],
-      input = request(worker);
-    expect(input).toMatchObject({
-      flipForTexture: false,
-      minimumQualityLevel: "1",
-    });
+    const handle = leases[0];
+    const frame = handle.setViewport.mock.lastCall![0];
+    expect(handle.source.minimumQualityLevel).toBe("1");
     expect(document.querySelector("img[alt='first']")).toBeNull();
     const first = bitmap();
-    worker.reply({ generation: input.generation, bitmap: first });
+    act(() => handle.publish({ bitmap: first, frame }));
     expect(draw).toHaveBeenCalledWith(first, 0, 0);
-    expect(first.close).toHaveBeenCalledOnce();
-    expect(
-      within(photo("first")).getByLabelText("first Objektausschnitt").style
-        .opacity
-    ).toBe("1");
-    const captured = worker.onmessage;
+    // The pool owns the bitmap lifetime, including warm reuse by another lease.
+    expect(first.close).not.toHaveBeenCalled();
+    expect(within(photo("first")).getByLabelText("first Objektausschnitt").style.opacity).toBe("1");
     result.unmount();
-    expect(worker.postMessage).toHaveBeenLastCalledWith({
-      cancel: true,
-      park: true,
-    });
-    expect(worker.terminate).toHaveBeenCalledOnce();
-    const stale = bitmap();
-    act(() =>
-      captured?.({
-        data: { generation: input.generation, bitmap: stale },
-      } as MessageEvent<Response>)
-    );
-    expect(stale.close).toHaveBeenCalledOnce();
+    expect(handle.unsubscribe).toHaveBeenCalledOnce();
+    expect(handle.release).toHaveBeenCalledOnce();
+    act(() => handle.publish({ bitmap: bitmap(), frame }));
     expect(draw).toHaveBeenCalledOnce();
+    expect(first.close).not.toHaveBeenCalled();
   });
 
   it("preloads only immediate neighbors sequentially at low priority", async () => {

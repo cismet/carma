@@ -1,3 +1,4 @@
+import type { DevicePixels } from "@carma-units";
 import type { ImageViewportSource } from "@carma-commons/image-pyramid";
 import type { ObliqueDataset, ObliqueImageRecord } from "../../core/types";
 import { getCameraCalibration } from "../../core/utils/calibration";
@@ -49,7 +50,10 @@ export const viewportSourceOf = (
             )
     ),
     kind: pyramid ? "avif" : original ? "tiff" : "jpeg",
-    nativeSize: { width: calibration.widthPx, height: calibration.heightPx },
+    nativeSize: {
+      width: calibration.widthPx as DevicePixels,
+      height: calibration.heightPx as DevicePixels,
+    },
     minimumQualityLevel: image.dataset.minimumPreviewQualityLevel,
     maxSourceDensity: pyramid ? 0.5 : undefined,
     avifPyramidUrl: pyramid ? absolute(pyramid) : undefined,
