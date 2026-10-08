@@ -24,6 +24,8 @@ import {
   WUPPERTAL_TERRAIN_SOURCE_ID,
   registerSharedThreeSceneRuntime,
   notifySharedThreeSceneContentChanged,
+  getSharedThreeSceneRuntimes,
+  subscribeSharedThreeSceneContent,
   hasSharedThreeShadedPresentation,
   subscribeSharedThreeShadedPresentation,
 } from "@carma-mapping/engines/maplibre";
@@ -122,32 +124,10 @@ export const useLibreLayers = (): LibreLayer[] => {
     return () => lease.release();
   }, [map, obliqueActive, mapStyle3dActive]);
 
-  useEffect(() => {
-    if (!map || !obliqueActive || currentStyle !== MapStyleKeys.AERIAL) return;
-    let restoreNativePaint: (() => void) | undefined;
-    const syncComposition = () => {
-      const visible = hasSharedThreeShadedPresentation(map);
-      if (visible && !restoreNativePaint)
-        restoreNativePaint = acquireMapLibreTerrainMeshComposition(map);
-      else if (!visible && restoreNativePaint) {
-        restoreNativePaint();
-        restoreNativePaint = undefined;
-      }
-    };
-    const unsubscribe = subscribeSharedThreeShadedPresentation(
-      map,
-      syncComposition
-    );
-    syncComposition();
-    return () => {
-      unsubscribe();
-      restoreNativePaint?.();
-    };
-  }, [map, obliqueActive, currentStyle]);
-
   const obliqueTerrainRef = useRef<ReturnType<
     typeof buildRasterDemTerrainRuntime
   > | null>(null);
+  const restoreNativePaintRef = useRef<(() => void) | null>(null);
   // Karte draws the DEM; Mesh keeps it only as a cached CPU height sampler.
   // Style changes preserve its worker, decoded tiles and geometry.
   useEffect(() => {
@@ -162,7 +142,7 @@ export const useLibreLayers = (): LibreLayer[] => {
         geometryProjection: "ecef",
         receivesMapStyleTexture: true,
         material: { unlit: true },
-        groundVisible: currentStyle !== MapStyleKeys.AERIAL,
+        groundVisible: false,
         errorTargetPixels: 1,
         motionErrorTargetPixels: 4,
         maximumMeshSegments: 128,
@@ -170,7 +150,7 @@ export const useLibreLayers = (): LibreLayer[] => {
           notifySharedThreeSceneContentChanged(map, { bounds }),
       }
     );
-    runtime.setTileDemandPaused(currentStyle === MapStyleKeys.AERIAL);
+    runtime.setTileDemandPaused(true);
     obliqueTerrainRef.current = runtime;
     lease.layer.addRuntime(runtime);
     const unregister = registerSharedThreeSceneRuntime(map, runtime);
@@ -183,17 +163,52 @@ export const useLibreLayers = (): LibreLayer[] => {
     };
   }, [map, obliqueActive]);
   useEffect(() => {
-    obliqueTerrainRef.current?.setGroundVisible(
-      currentStyle !== MapStyleKeys.AERIAL
+    if (!map || !obliqueActive) return;
+    let active = true;
+    const syncBasis = () => {
+      if (!active) return;
+      const aerial = currentStyle === MapStyleKeys.AERIAL;
+      const meshAttached = getSharedThreeSceneRuntimes(map).some(
+        (runtime) =>
+          runtime.id !== "carma-oblique-terrain" &&
+          runtime.providesTerrain === true &&
+          runtime.mapStyleProjectionBlend !== "replace"
+      );
+      // Layer reconciliation may lag behind the toggle. Do not expose either
+      // DEM renderer until the outgoing mesh has actually left the scene.
+      const showTerrain = !aerial && !meshAttached;
+      obliqueTerrainRef.current?.setGroundVisible(showTerrain);
+      obliqueTerrainRef.current?.setTileDemandPaused(!showTerrain);
+      const hideNativeGround = aerial
+        ? hasSharedThreeShadedPresentation(map)
+        : meshAttached;
+      if (hideNativeGround && !restoreNativePaintRef.current)
+        restoreNativePaintRef.current =
+          acquireMapLibreTerrainMeshComposition(map);
+      else if (!hideNativeGround && restoreNativePaintRef.current) {
+        restoreNativePaintRef.current();
+        restoreNativePaintRef.current = null;
+      }
+    };
+    const unsubscribeContent = subscribeSharedThreeSceneContent(map, syncBasis);
+    const unsubscribePresentation = subscribeSharedThreeShadedPresentation(
+      map,
+      syncBasis
     );
+    syncBasis();
+    return () => {
+      active = false;
+      unsubscribeContent();
+      unsubscribePresentation();
+    };
   }, [map, obliqueActive, currentStyle]);
-  useEffect(() => {
-    // Mesh uses MapLibre drape textures directly, without a Three DEM traversal.
-    // Karte still needs visible terrain around the retained image preview.
-    obliqueTerrainRef.current?.setTileDemandPaused(
-      currentStyle === MapStyleKeys.AERIAL
-    );
-  }, [map, obliqueActive, currentStyle]);
+  useEffect(
+    () => () => {
+      restoreNativePaintRef.current?.();
+      restoreNativePaintRef.current = null;
+    },
+    [map, obliqueActive]
+  );
   useEffect(() => {
     if (
       !map ||

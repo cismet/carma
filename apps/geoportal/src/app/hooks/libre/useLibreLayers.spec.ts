@@ -68,6 +68,12 @@ const state = vi.hoisted(() => ({
   notifyChanged: vi.fn(),
   shadedReady: false,
   presentationListeners: new Set<() => void>(),
+  contentListeners: new Set<() => void>(),
+  sceneRuntimes: [] as Array<{
+    id: string;
+    providesTerrain?: boolean;
+    mapStyleProjectionBlend?: string;
+  }>,
 }));
 
 vi.mock("react-redux", async (importOriginal) => ({
@@ -153,6 +159,11 @@ vi.mock("@carma-mapping/engines/maplibre", () => ({
     return unregister;
   },
   notifySharedThreeSceneContentChanged: state.notifyChanged,
+  getSharedThreeSceneRuntimes: () => state.sceneRuntimes,
+  subscribeSharedThreeSceneContent: (_map: unknown, listener: () => void) => {
+    state.contentListeners.add(listener);
+    return () => state.contentListeners.delete(listener);
+  },
   hasSharedThreeShadedPresentation: () => state.shadedReady,
   subscribeSharedThreeShadedPresentation: (
     _map: unknown,
@@ -401,6 +412,8 @@ describe("useLibreLayers with conditional layers", () => {
     state.terrainUsable = true;
     state.shadedReady = false;
     state.presentationListeners.clear();
+    state.contentListeners.clear();
+    state.sceneRuntimes = [];
     state.layers = [];
     state.pathname = "/";
     state.search = "";
@@ -767,18 +780,91 @@ describe("useLibreLayers with conditional layers", () => {
     expect(rasterOverride.release).toHaveBeenCalledOnce();
   });
 
-  it("starts Karte with visible DEM ground", () => {
+  it("starts Karte hidden until scene ownership is checked, then displays DEM ground", () => {
     state.map = { getCenter: () => ({ lng: 7.2, lat: 51.27 }) };
     state.addons = ["obliqueViewer"];
     state.obliqueEnabled = true;
     state.currentStyle = MapStyleKeys.TOPO;
     const view = renderHook(() => useLibreLayers());
     expect(state.buildTerrain.mock.calls[0][3]).toMatchObject({
-      groundVisible: true,
+      groundVisible: false,
     });
     expect(state.runtimes[0].setGroundVisible).toHaveBeenLastCalledWith(true);
     view.unmount();
     expect(state.runtimes[0].dispose).toHaveBeenCalledOnce();
+  });
+
+  it("keeps Karte terrain hidden until the old mesh has left the scene", () => {
+    state.map = { getCenter: () => ({ lng: 7.2, lat: 51.27 }) };
+    state.addons = ["obliqueViewer"];
+    state.obliqueEnabled = true;
+    state.shadedReady = true;
+    state.sceneRuntimes = [{ id: "mesh2024", providesTerrain: true }];
+    const view = renderHook(() => useLibreLayers());
+    const terrain = state.runtimes[0];
+    expect(state.acquireComposition).toHaveBeenCalledOnce();
+    const restore = state.restores[0];
+
+    state.currentStyle = MapStyleKeys.TOPO;
+    view.rerender();
+    expect(terrain.setGroundVisible).toHaveBeenLastCalledWith(false);
+    expect(terrain.setTileDemandPaused).toHaveBeenLastCalledWith(true);
+    expect(restore).not.toHaveBeenCalled();
+    act(() => {
+      state.shadedReady = false;
+      state.presentationListeners.forEach((listener) => listener());
+    });
+    expect(terrain.setGroundVisible).toHaveBeenLastCalledWith(false);
+    expect(restore).not.toHaveBeenCalled();
+
+    act(() => {
+      state.sceneRuntimes = [
+        { id: "carma-oblique-terrain", providesTerrain: true },
+        { id: "lod2", providesTerrain: false },
+        {
+          id: "map-drape",
+          providesTerrain: true,
+          mapStyleProjectionBlend: "replace",
+        },
+      ];
+      state.contentListeners.forEach((listener) => listener());
+    });
+    expect(terrain.setGroundVisible).toHaveBeenLastCalledWith(true);
+    expect(terrain.setTileDemandPaused).toHaveBeenLastCalledWith(false);
+    expect(restore).toHaveBeenCalledOnce();
+    expect(state.buildTerrain).toHaveBeenCalledOnce();
+    expect(terrain.dispose).not.toHaveBeenCalled();
+  });
+
+  it("does not release terrain after a delayed mesh-removal event when already back in Aerial", () => {
+    state.map = { getCenter: () => ({ lng: 7.2, lat: 51.27 }) };
+    state.addons = ["obliqueViewer"];
+    state.obliqueEnabled = true;
+    state.sceneRuntimes = [{ id: "mesh2024", providesTerrain: true }];
+    const view = renderHook(() => useLibreLayers());
+    const terrain = state.runtimes[0];
+    state.currentStyle = MapStyleKeys.TOPO;
+    view.rerender();
+    const oldListeners = [...state.contentListeners];
+    state.currentStyle = MapStyleKeys.AERIAL;
+    view.rerender();
+    terrain.setGroundVisible.mockClear();
+    terrain.setTileDemandPaused.mockClear();
+    act(() => {
+      state.sceneRuntimes = [];
+      state.shadedReady = false;
+      oldListeners.forEach((listener) => listener());
+      state.contentListeners.forEach((listener) => listener());
+      state.presentationListeners.forEach((listener) => listener());
+    });
+    expect(terrain.setGroundVisible).not.toHaveBeenCalledWith(true);
+    expect(terrain.setTileDemandPaused).not.toHaveBeenCalledWith(false);
+    expect(terrain.setGroundVisible).toHaveBeenLastCalledWith(false);
+    expect(terrain.setTileDemandPaused).toHaveBeenLastCalledWith(true);
+    expect(state.buildTerrain).toHaveBeenCalledOnce();
+    view.unmount();
+    expect(state.contentListeners.size).toBe(0);
+    expect(state.presentationListeners.size).toBe(0);
   });
 
   it("accepts late DEM readiness in Luftbild after a Karte switch without rebuilding the runtime", async () => {
