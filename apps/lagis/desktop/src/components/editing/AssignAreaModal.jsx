@@ -40,6 +40,8 @@ const AssignAreaModal = ({ dialog }) => {
           </p>
           <Select
             className="w-full"
+            showSearch
+            optionFilterProp="label"
             placeholder="Dienststelle wählen"
             value={rowId}
             onChange={setRowId}
