@@ -2,7 +2,7 @@ import type { Easing, Matrix3RowMajor, Vector3Arr } from "@carma-commons/math";
 import type { FeatureCollection, Polygon } from "geojson";
 import type { CardinalDirectionClockwise } from "@carma-geo/data-structures";
 
-import type { PreviewQualityLevel } from "./constants";
+import type { NavigationSelection, PreviewQualityLevel } from "./constants";
 import type { Radians, Ratio } from "@carma-units";
 
 /** the four flight-strip sectors, clockwise from north */
@@ -396,6 +396,9 @@ export type ObliqueViewQuery = {
   excludeImageId?: string;
   /** Arrow navigation advances from the excluded image along this origin-to-target direction. */
   navigationOrigin?: ObliqueGroundTarget;
+  /** Legacy capture topology for arrows, pure ground-centre order for classic rotation. */
+  navigationSelection?: NavigationSelection;
+  navigationArrow?: "left" | "right" | "up" | "down";
   numCandidates?: number;
   maxDistanceMeters?: number;
   /** Exact caller-normalized ground heights for series with a different z datum. */

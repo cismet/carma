@@ -38,6 +38,8 @@ export type RefreshSearchArgs = {
   computeOnly?: boolean;
   excludeImageId?: string;
   navigationOrigin?: ObliqueGroundTarget;
+  navigationSelection?: ObliqueViewQuery["navigationSelection"];
+  navigationArrow?: ObliqueViewQuery["navigationArrow"];
   numCandidates?: number;
 };
 
@@ -235,6 +237,8 @@ export const useNearestImage = ({
         perSeriesTargetHeightMeters,
         excludeImageId: args.excludeImageId,
         navigationOrigin: args.navigationOrigin,
+        navigationSelection: args.navigationSelection,
+        navigationArrow: args.navigationArrow,
       };
     },
     [
@@ -334,8 +338,12 @@ export const useNearestImage = ({
         dataRef.current !== data
       )
         return empty();
-      return ranked.map((candidates) =>
-        candidates?.filter((candidate) => candidate.coversTarget)
+      return ranked.map((candidates, index) =>
+        // Image-to-image navigation moves to the neighbor's own footprint.
+        // Only pivot-preserving searches require coverage of the old target.
+        queries[index]?.navigationOrigin || queries[index]?.navigationSelection
+          ? candidates
+          : candidates?.filter((candidate) => candidate.coversTarget)
       );
     },
     [map, data, buildQuery]

@@ -6,6 +6,7 @@ import type {
   ObliqueDataset,
   ObliqueImageRecord,
 } from "../../core/types";
+import { NAVIGATION_SELECTION } from "../../core/constants";
 import { TEST_LEGACY_SERIES } from "../../core/utils/synthetic-series.test-fixture";
 import { CardinalDirectionEnum } from "../../core/utils/orientation";
 import type { ObliqueData } from "./useObliqueData";
@@ -100,6 +101,32 @@ beforeEach(() => {
   mocks.inverse.mockResolvedValue(45);
 });
 describe("independent geometric navigation batches", () => {
+
+  it("keeps explicit image neighbors without old-target coverage while default pivot queries still require coverage", async () => {
+    const covered = candidate("covered"), outside = candidate("outside", false);
+    const untested = { ...candidate("untested"), coversTarget: undefined };
+    const results = [outside, untested, covered];
+    const search = {
+      query: vi.fn(),
+      queryBatch: vi.fn().mockResolvedValue([results, results, results, results]),
+      dispose: vi.fn(),
+    };
+    mocks.create.mockReturnValue(search);
+    const view = mount();
+    const navigation = await view.result.current.computeNavigation([
+      { target, navigationSelection: NAVIGATION_SELECTION.CAPTURE_NEIGHBOR, navigationArrow: "down", excludeImageId: "current" },
+      { target, navigationSelection: NAVIGATION_SELECTION.CENTER_DISTANCE, excludeImageId: "current" },
+      { target, navigationOrigin: target, excludeImageId: "current" },
+      { target, excludeImageId: "current" },
+    ]);
+    expect(navigation).toEqual([results, results, results, [covered]]);
+    expect(search.queryBatch.mock.calls[0][0].map((query: { navigationSelection?: string }) => query.navigationSelection))
+      .toEqual([NAVIGATION_SELECTION.CAPTURE_NEIGHBOR, NAVIGATION_SELECTION.CENTER_DISTANCE, undefined, undefined]);
+    expect(search.queryBatch.mock.calls[0][0][2].navigationOrigin).toEqual(target);
+    expect(view.onSelect).not.toHaveBeenCalled();
+  });
+
+
   it("searches before datum conversion and reuses its result for later queries", async () => {
     const conversion = deferred<number>();
     mocks.forward.mockReturnValue(conversion.promise);

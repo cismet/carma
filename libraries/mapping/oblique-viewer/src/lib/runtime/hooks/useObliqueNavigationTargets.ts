@@ -461,7 +461,8 @@ export const useObliqueNavigationTargets = (options: Options) => {
     const prepared = plans.map((plan, index) => {
       const candidate = ranked[index]?.find(
         (candidate) =>
-          candidate.coversTarget && data.datasets.has(candidate.record.seriesId)
+          (plan.fitNextImage || !o.nextInterface || candidate.coversTarget) &&
+          data.datasets.has(candidate.record.seriesId)
       );
       if (!candidate) return undefined;
       const source = data.datasets.get(candidate.record.seriesId)!;

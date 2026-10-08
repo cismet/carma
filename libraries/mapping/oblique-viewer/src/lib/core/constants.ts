@@ -20,3 +20,12 @@ export const PREVIEW_IMAGE_EXTENSION = "jpg";
 
 /** Match the legacy Cesium footprint and preview outline. */
 export const FOOTPRINT_SELECTION_COLOR = "#ffffff";
+
+/** Explicit navigation uses stable capture identities rather than hover ranking. */
+export const NAVIGATION_SELECTION = {
+  CAPTURE_NEIGHBOR: "capture-neighbor",
+  CENTER_DISTANCE: "center-distance",
+} as const;
+
+export type NavigationSelection =
+  (typeof NAVIGATION_SELECTION)[keyof typeof NAVIGATION_SELECTION];
