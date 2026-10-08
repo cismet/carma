@@ -1,4 +1,5 @@
 import { Vector3 } from "three";
+import type { Radians } from "@carma-units";
 import type {
   InteriorOrientationOffset,
   ObliqueCameraCalibration,
@@ -67,3 +68,35 @@ export const calibrationImageOffset = (
   xOffset: 0.5 - camera.principalPointPx[0] / camera.widthPx,
   yOffset: 0.5 - camera.principalPointPx[1] / camera.heightPx,
 });
+
+/**
+ * Pitch from the optical axis to the ray through the delivered image centre,
+ * for a level camera. Shifted sensors (2026 left/right) look about 4 degrees
+ * steeper at their image centre than along their axis; browsing must match
+ * the image centres, not the axes, or footprints appear visibly draped.
+ */
+export const imageCenterPitchOffsetRad = (
+  camera: ObliqueCameraCalibration
+): Radians => {
+  // Partial calibrations carry no offset information; keep their axis pitch.
+  if (!camera.principalPointPx || !(camera.widthPx > 0 && camera.heightPx > 0))
+    return 0 as Radians;
+  const [cx, cy] = camera.principalPointPx;
+  // Pixel-centre coordinates: the delivered image centre is ((w - 1) / 2, (h - 1) / 2).
+  const dx = (camera.widthPx - 1) / 2 - cx,
+    dy = (camera.heightPx - 1) / 2 - cy;
+  const affine = camera.imageMmToPixelAffine;
+  if (affine && camera.imageUpInCamera) {
+    const [[a, b], [d, e]] = affine;
+    const determinant = a * e - b * d;
+    const [upX, upY] = camera.imageUpInCamera;
+    const xMm = (e * dx - b * dy) / determinant,
+      yMm = (-d * dx + a * dy) / determinant;
+    return Math.atan2(xMm * upX + yMm * upY, camera.focalLengthMm) as Radians;
+  }
+  if (!(camera.halfFovTan > 0)) return 0 as Radians;
+  // Legacy calibrations: pixel rows grow downwards from the image top.
+  const focalPx =
+    Math.max(camera.widthPx, camera.heightPx) / (2 * camera.halfFovTan);
+  return Math.atan2(-dy, focalPx) as Radians;
+};

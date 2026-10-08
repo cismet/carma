@@ -23,11 +23,12 @@ import {
   calibrationFromMetadata,
   calibrationImageOffset,
   getCameraCalibration,
+  imageCenterPitchOffsetRad,
 } from "./calibration";
 import { computePose } from "./exteriorOrientation";
 import { getCardinalDirectionFromHeading } from "./orientation";
 
-/** Summarize calibrated poses once per catalog parse; nadir never affects browsing pitch. */
+/** Summarize image-centre pitch once per catalog parse; nadir never affects browsing pitch. */
 export const summarizeObliquePitchStatistics = (
   data: Pick<ObliqueSelectionData, "imageRecords" | "datasets">
 ): Required<
@@ -64,7 +65,10 @@ export const summarizeObliquePitchStatistics = (
       pitchDeg >= 90
     )
       continue;
-    const pitchRad = degToRad(pitchDeg as Degrees);
+    // Average where the image centres look, not the optical axes.
+    const camera = dataset.cameras?.[record.cameraId];
+    const pitchRad = (degToRad(pitchDeg as Degrees) +
+      (camera ? imageCenterPitchOffsetRad(camera) : 0)) as Radians;
     add(obliquePitchBySeries, record.seriesId, pitchRad);
     const bearingDeg = record.pose?.bearingDeg;
     if (bearingDeg === undefined || !Number.isFinite(bearingDeg)) continue;
@@ -87,7 +91,6 @@ export const summarizeObliquePitch = (
   data: Pick<ObliqueSelectionData, "imageRecords" | "datasets">
 ): NonNullable<ObliqueSelectionData["obliquePitchBySeries"]> =>
   summarizeObliquePitchStatistics(data).obliquePitchBySeries;
-
 
 export type DatasetConverter = TypedConverter<"EPSG:25832", "EPSG:4326">;
 

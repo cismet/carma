@@ -11,7 +11,25 @@ import type {
   ObliquePitchSummary,
   ObliqueSelectionData,
 } from "../types";
-import { CARDINALS_CLOCKWISE, getCardinalDirectionFromHeading } from "./orientation";
+import {
+  CARDINALS_CLOCKWISE,
+  getCardinalDirectionFromHeading,
+} from "./orientation";
+import { imageCenterPitchOffsetRad } from "./calibration";
+
+/** Producer totals measure optical axes; shift them to image centres like parsed records. */
+const groupCenterOffsetRad = (
+  dataset: ObliqueDataset,
+  cameraIds: readonly string[]
+): number => {
+  const offsets = (cameraIds ?? [])
+    .map((id) => dataset.cameras?.[id])
+    .filter((camera) => !!camera)
+    .map((camera) => imageCenterPitchOffsetRad(camera));
+  return offsets.length
+    ? offsets.reduce((sum, offset) => sum + offset, 0) / offsets.length
+    : 0;
+};
 
 type PitchData = Pick<
   ObliqueSelectionData,
@@ -25,7 +43,9 @@ export const getBrowsingPitchDeg = (
   bearingDeg: number,
   fallbackPitchDeg: number
 ): Degrees => {
-  const direction = getCardinalDirectionFromHeading(degToRadNumeric(bearingDeg));
+  const direction = getCardinalDirectionFromHeading(
+    degToRadNumeric(bearingDeg)
+  );
   let sum = 0;
   let count = 0;
   const add = (total?: { pitchSumRad: number; imageCount: number }) => {
@@ -51,8 +71,11 @@ export const getBrowsingPitchDeg = (
   if (count > 0) return radToDegNumeric(sum / count) as Degrees;
 
   // Legacy catalogs without directional summaries keep their measured series mean.
-  for (const series of enabledSeries) add(data?.obliquePitchBySeries?.get(series.id));
-  return (count > 0 ? radToDegNumeric(sum / count) : fallbackPitchDeg) as Degrees;
+  for (const series of enabledSeries)
+    add(data?.obliquePitchBySeries?.get(series.id));
+  return (
+    count > 0 ? radToDegNumeric(sum / count) : fallbackPitchDeg
+  ) as Degrees;
 };
 
 /** Full-group summaries replace matching partial slices, never add to them. */
@@ -88,11 +111,15 @@ export const summarizeDirectionalCatalogPitch = (
       complete = false;
       if (direction !== undefined) incompleteDirections.add(direction);
       // An unknown bearing could belong to any sector; no directional replacement is safe.
-      else for (const sector of CARDINALS_CLOCKWISE)
-        incompleteDirections.add(sector);
+      else
+        for (const sector of CARDINALS_CLOCKWISE)
+          incompleteDirections.add(sector);
       continue;
     }
-    pitchSumRad += total.pitchSumRad;
+    const centerSumRad =
+      total.pitchSumRad +
+      total.imageCount * groupCenterOffsetRad(dataset, group.cameraIds);
+    pitchSumRad += centerSumRad;
     imageCount += total.imageCount;
     if (direction === undefined) {
       for (const sector of CARDINALS_CLOCKWISE)
@@ -101,7 +128,7 @@ export const summarizeDirectionalCatalogPitch = (
     }
     const previous = byDirection.get(direction);
     byDirection.set(direction, {
-      pitchSumRad: ((previous?.pitchSumRad ?? 0) + total.pitchSumRad) as Radians,
+      pitchSumRad: ((previous?.pitchSumRad ?? 0) + centerSumRad) as Radians,
       imageCount: (previous?.imageCount ?? 0) + total.imageCount,
     });
   }
@@ -113,4 +140,3 @@ export const summarizeDirectionalCatalogPitch = (
     byDirection,
   };
 };
-
