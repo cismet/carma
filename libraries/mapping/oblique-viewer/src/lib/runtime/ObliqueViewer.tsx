@@ -99,6 +99,7 @@ import { useObliqueCameraMode } from "./hooks/useObliqueCameraMode";
 import { useObliqueData } from "./hooks/useObliqueData";
 import { useBasemapStarted } from "./hooks/useBasemapStarted";
 import { useObliqueDirectionKeybindings } from "./hooks/useObliqueDirectionKeybindings";
+import { useQueryCursor, useViewModeRequest } from "./hooks/useQueryCursor";
 import {
   OBLIQUE_STATE_DEFAULT,
   OBLIQUE_NAVIGATION_KEYS,
@@ -1344,6 +1345,27 @@ const ObliqueViewerRuntime = ({
   const cancelExtension = useCallback(() => {
     void switchViewMode("oblique");
   }, [switchViewMode]);
+  // The query cursor follows the request, not the mode's data wait.
+  const viewModeRequest = useViewModeRequest<ObliqueViewMode>();
+  const trackViewModeRequest = viewModeRequest.track;
+  useQueryCursor({
+    map: libreMap,
+    active:
+      running &&
+      (viewMode === "objectCoverage" ||
+        viewModeRequest.pendingMode === "objectCoverage"),
+    readViewAnchor,
+    onEscape: () => {
+      // Inside the mode useObjectCoverage owns Escape; a pending request is dropped.
+      if (
+        viewModeRef.current === "objectCoverage" ||
+        !viewModeRequest.pendingMode
+      )
+        return;
+      selectionEpochRef.current++;
+      viewModeRequest.cancel();
+    },
+  });
   const extensionController = useRef<ObliqueViewerExtensionController | null>(
     null
   );
@@ -2278,7 +2300,7 @@ const ObliqueViewerRuntime = ({
           viewModeRef.current === "objectCoverage"
         ) {
           cancelNavigationRef.current();
-          void switchViewMode(request.mode);
+          trackViewModeRequest(request.mode, switchViewMode(request.mode));
         } else void requestNavigationAction(() => switchViewMode(request.mode));
         break;
       case "orbit":
@@ -2329,6 +2351,7 @@ const ObliqueViewerRuntime = ({
     requestNavigationAction,
     getCardinalNavigationTarget,
     switchViewMode,
+    trackViewModeRequest,
     libreMap,
     requestPan,
     closePreview,

@@ -351,7 +351,9 @@ export const useObjectCoverage = ({
 
   useEffect(() => {
     if (!map || !enabled) return undefined;
-    const container = map.getContainer();
+    // The photo preview mounts beside the map container (see ObliqueOverlay),
+    // so photo clicks only pass the shared parent.
+    const container = map.getContainer().parentElement ?? map.getContainer();
     const canvas = map.getCanvas();
     const previousCursor = canvas.style.cursor;
     canvas.style.cursor = "crosshair";
