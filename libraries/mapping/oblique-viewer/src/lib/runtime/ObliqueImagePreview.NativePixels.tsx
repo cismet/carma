@@ -11,13 +11,11 @@ import {
 } from "@carma-units";
 import {
   drawImageLevels,
-  ImageLevelStackPool,
   nativePreviewWindow,
   ThreeImageLevels,
   tileRangeFor,
   type ImageLevelStack,
   type ImageRect,
-  type ImageStreamSource,
   type NativePreviewWindow,
 } from "@carma-commons/image-streaming";
 import type { PreviewQualityLevel } from "../core/constants";
@@ -34,6 +32,7 @@ import {
 } from "./hooks/usePreviewSizeSync";
 import { readCameraToCenterDistancePx } from "./utils/cameraMath";
 import { getPreviewImageUrl } from "./utils/imageUrls";
+import { nativePixelPool, nativePreviewSource, rememberNativePreviewView, lastNativePreviewView } from "./utils/native-preview-pool";
 import type { PreviewBackdropTint } from "./utils/preview-backdrop";
 import {
   isPreviewSourceMissing,
@@ -54,8 +53,6 @@ type PreviewMemorySnapshot = {
   poolBudgetBytes: number;
 };
 
-/** One stack per oblique image; switching back reuses its parked tiles. */
-const nativePixelPool = new ImageLevelStackPool({ maxImages: 8 });
 /** Slack around the pinhole crop so the calibrated homography never samples outside. */
 const CROP_MARGIN = 0.08;
 
@@ -221,8 +218,14 @@ export const NativePixels = ({
       ? getPreviewImageUrl(path ?? "", minimumQualityLevel, imageId)
       : sourceUrl;
 
+  const dimRef = useRef(dimImage);
+  dimRef.current = dimImage;
   useEffect(() => {
-    if (dimImage || !rootRef.current) return undefined;
+    map.triggerRepaint();
+  }, [map, dimImage]);
+
+  useEffect(() => {
+    if (!rootRef.current) return undefined;
     const availability = {
       previewPath: path ?? "",
       imageId,
@@ -238,25 +241,12 @@ export const NativePixels = ({
       });
       return undefined;
     }
-    const base = globalThis.window.location.href;
-    const source: ImageStreamSource =
-      avifPyramidUrl || avifOnly
-        ? {
-            id: imageId,
-            url: new URL(avifPyramidUrl ?? sourceUrl, base).href,
-            kind: "avif",
-            nativeSize,
-          }
-        : {
-            id: imageId,
-            url: new URL(jpegUrl, base).href,
-            kind: "jpeg",
-            nativeSize,
-            jpegLevels: [0, 1, 2, 3, 4, 5, 6].filter(
-              (level) => level >= Number(minimumQualityLevel)
-            ),
-          };
+    const source = nativePreviewSource({ imageId, path, sourceUrl: jpegUrl,
+      avifPyramidUrl, avifOnly, nativeSize, minimumQualityLevel });
     const { stack, release } = nativePixelPool.acquire(source);
+    const prepared = lastNativePreviewView(source);
+    if (dimRef.current && prepared) stack.setView(prepared.view, prepared.pixels);
+
     const composer = new ThreeImageLevels();
     composer.featherPx = featherPx;
     composer.attach(stack);
@@ -308,7 +298,8 @@ export const NativePixels = ({
       geometry: ScenePreviewImageGeometry,
       renderer: WebGLRenderer | null
     ) => {
-      if (disposed) return;
+      // A dimmed flight still decodes its prepared view; moving scene geometry is not its final crop.
+      if (disposed || dimRef.current) return;
       const window = nativePreviewWindow(
         geometry.viewport,
         geometry.image,
@@ -335,8 +326,10 @@ export const NativePixels = ({
       viewportPixels =
         Math.ceil(geometry.viewport.width * geometry.pixelRatio) *
         Math.ceil(geometry.viewport.height * geometry.pixelRatio);
+      const view = { visible: window.source, density: density as Ratio };
+      rememberNativePreviewView(source, view, viewportPixels);
       stack.setView(
-        { visible: window.source, density: density as Ratio },
+        view,
         viewportPixels,
         intent
       );
@@ -474,7 +467,6 @@ export const NativePixels = ({
     principal.xOffset,
     principal.yOffset,
     rollDeg,
-    dimImage,
     sceneImage,
     featherPx,
     path,

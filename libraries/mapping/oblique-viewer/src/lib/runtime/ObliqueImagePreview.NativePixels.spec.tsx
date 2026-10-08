@@ -266,3 +266,26 @@ describe("native preview pixels from the level stack", () => {
     getContext.mockRestore();
   });
 });
+
+describe("native preview flight preparation", () => {
+  it("acquires a hidden destination immediately and preserves its seeded crop during flight", async () => {
+    const adapter = await import("./utils/native-preview-pool");
+    const source = adapter.nativePreviewSource({ imageId: "photo", sourceUrl: "https://imagery.test/2026/photo.avif",
+      avifPyramidUrl: "https://imagery.test/2026/photo.avif", avifOnly: true,
+      nativeSize: { width: 10652 as DevicePixels, height: 14204 as DevicePixels } });
+    const forecast = adapter.fitNativePreviewView(source, 800, 600, 0, 2);
+    adapter.rememberNativePreviewView(source, forecast.view, forecast.pixels);
+    const view = setup({ dimImage: true }); await act(async () => {});
+    expect(streaming.sources).toHaveLength(1);
+    expect(streaming.views).toEqual([forecast.view]);
+    act(() => scene.options!.onBeforeRender?.(geometry(100), renderer));
+    expect(streaming.views).toEqual([forecast.view]);
+    expect(streaming.rendered).toHaveLength(0);
+    view.rerender(<NativePixels {...view.props} dimImage={false} />);
+    act(() => scene.options!.onBeforeRender?.(geometry(100), renderer));
+    expect(streaming.sources).toHaveLength(1);
+    expect(streaming.released).toBe(0);
+    expect(streaming.rendered).toHaveLength(1);
+    expect(streaming.views).toHaveLength(2);
+  });
+});

@@ -58,6 +58,9 @@ export const OBLIQUE_NAVIGATION_KEYS = {
 export type ObliqueNavigationKey =
   (typeof OBLIQUE_NAVIGATION_KEYS)[keyof typeof OBLIQUE_NAVIGATION_KEYS];
 
+export const OBLIQUE_NAVIGATION_INTENT = { Pointer: "pointer", Focus: "focus" } as const;
+export type ObliqueNavigationIntent = (typeof OBLIQUE_NAVIGATION_INTENT)[keyof typeof OBLIQUE_NAVIGATION_INTENT];
+
 export const OBLIQUE_ROTATION_SURFACES = {
   Mesh: "mesh",
   Dem: "terrain",
@@ -114,6 +117,8 @@ export type ObliqueViewerState = {
   navigationTargets: ObliqueNavigationTargets | null;
   /** Capability, not current pointer presence; touch retains the flight button. */
   hoverAvailable: boolean;
+  /** Speculative pointer/focus intent; separate from the ordered navigation command queue. */
+  warmNavigation?: (key: ObliqueNavigationKey, active: boolean, channel: ObliqueNavigationIntent) => void;
   /** the image is shown over the map, aligned with the camera */
   previewVisible: boolean;
   /** Flight status; prepared geometric navigation remains interactive. */

@@ -10,6 +10,7 @@ import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
 
 import {
   OBLIQUE_NAVIGATION_KEYS,
+  OBLIQUE_NAVIGATION_INTENT,
   type ObliqueNavigationKey,
   useObliqueViewerActions,
 } from "./oblique-actions";
@@ -35,6 +36,7 @@ export const ObliqueNavigation = ({
     previewVisible,
     hoverAvailable,
     sendRequest,
+    warmNavigation,
   } = useObliqueViewerActions();
   if (!isOn || viewMode === "objectCoverage") return null;
   const ready =
@@ -43,6 +45,12 @@ export const ObliqueNavigation = ({
   // Availability is replaced only after the camera settles and its next
   // targets are ready. Keep the last settled states visible during transitions.
   const currentTargets = ready ? navigationTargets : null;
+  const intentEvents = (key: ObliqueNavigationKey) => ({
+    onPointerEnter: () => warmNavigation?.(key, true, OBLIQUE_NAVIGATION_INTENT.Pointer),
+    onPointerLeave: () => warmNavigation?.(key, false, OBLIQUE_NAVIGATION_INTENT.Pointer),
+    onFocus: () => warmNavigation?.(key, true, OBLIQUE_NAVIGATION_INTENT.Focus),
+    onBlur: () => warmNavigation?.(key, false, OBLIQUE_NAVIGATION_INTENT.Focus),
+  });
   const pan = (
     horizontal: number,
     vertical: number,
@@ -60,6 +68,7 @@ export const ObliqueNavigation = ({
         type="button"
         aria-label={label}
         disabled={!currentTargets?.images[key]}
+        {...intentEvents(key)}
         onClick={() => sendRequest({ type: "pan", horizontal, vertical })}
         width={BUTTON_SIZE}
         height={BUTTON_SIZE}
@@ -87,6 +96,7 @@ export const ObliqueNavigation = ({
                 : OBLIQUE_NAVIGATION_KEYS.RotateLeft
             ]
           }
+          {...intentEvents(clockwise ? OBLIQUE_NAVIGATION_KEYS.RotateRight : OBLIQUE_NAVIGATION_KEYS.RotateLeft)}
           onClick={() => sendRequest({ type: "rotate", clockwise })}
           width={BUTTON_SIZE}
           height={BUTTON_SIZE}

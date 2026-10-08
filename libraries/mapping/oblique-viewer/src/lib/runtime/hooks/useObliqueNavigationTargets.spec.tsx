@@ -781,3 +781,68 @@ describe("rotation waits for the complete oblique catalog", () => {
     expect(await done).toBe(true);
   });
 });
+
+describe("navigation prewarm intent", () => {
+  it("requires pointer dwell, cancels crossing, and never queues navigation", async () => {
+    vi.useFakeTimers();
+    const view = mount(); await flush();
+    const initialQueries = view.computeNavigation.mock.calls.length;
+    act(() => view.result.current.warmNavigation(OBLIQUE_NAVIGATION_KEYS.Right, true, "pointer"));
+    await act(async () => { vi.advanceTimersByTime(79); });
+    expect(view.lookAhead).not.toHaveBeenCalled();
+    act(() => view.result.current.warmNavigation(OBLIQUE_NAVIGATION_KEYS.Right, false, "pointer"));
+    await act(async () => { vi.advanceTimersByTime(100); });
+    expect(view.lookAhead).not.toHaveBeenCalled();
+    act(() => view.result.current.warmNavigation(OBLIQUE_NAVIGATION_KEYS.Up, true, "pointer"));
+    await act(async () => { vi.advanceTimersByTime(80); });
+    expect(view.lookAhead.mock.calls.at(-1)?.[1].key).toBe(OBLIQUE_NAVIGATION_KEYS.Up);
+    expect(view.computeNavigation).toHaveBeenCalledTimes(initialQueries);
+    view.unmount();
+  });
+
+  it("ranks queued action over pointer over immediate focus over remembered direction", async () => {
+    vi.useFakeTimers();
+    const view = mount(false, undefined, { busy: true }); await flush();
+    act(() => view.result.current.rememberDirection(OBLIQUE_NAVIGATION_KEYS.Down));
+    act(() => view.result.current.warmNavigation(OBLIQUE_NAVIGATION_KEYS.Left, true, "focus"));
+    expect(view.lookAhead.mock.calls.at(-1)?.[1].key).toBe(OBLIQUE_NAVIGATION_KEYS.Left);
+    act(() => view.result.current.warmNavigation(OBLIQUE_NAVIGATION_KEYS.Right, true, "pointer"));
+    await act(async () => { vi.advanceTimersByTime(80); });
+    expect(view.lookAhead.mock.calls.at(-1)?.[1].key).toBe(OBLIQUE_NAVIGATION_KEYS.Right);
+    const activate = vi.fn(async () => {});
+    let queued!: Promise<boolean>;
+    act(() => { queued = view.result.current.requestTarget(OBLIQUE_NAVIGATION_KEYS.Up, activate); });
+    expect(view.lookAhead.mock.calls.at(-1)?.[1].key).toBe(OBLIQUE_NAVIGATION_KEYS.Up);
+    expect(activate).not.toHaveBeenCalled();
+    act(() => view.result.current.cancel());
+    expect(await queued).toBe(false);
+    // A fresh hover release restores focus, then remembered direction.
+    act(() => view.result.current.rememberDirection(OBLIQUE_NAVIGATION_KEYS.Down));
+    act(() => view.result.current.warmNavigation(OBLIQUE_NAVIGATION_KEYS.Left, true, "focus"));
+    act(() => view.result.current.warmNavigation(OBLIQUE_NAVIGATION_KEYS.Right, false, "pointer"));
+    expect(view.lookAhead.mock.calls.at(-1)?.[1].key).toBe(OBLIQUE_NAVIGATION_KEYS.Left);
+    act(() => view.result.current.warmNavigation(OBLIQUE_NAVIGATION_KEYS.Left, false, "focus"));
+    expect(view.lookAhead.mock.calls.at(-1)?.[1].key).toBe(OBLIQUE_NAVIGATION_KEYS.Down);
+  });
+
+  it("clears forecast on leaving without fallback and cancels pending dwell on unmount", async () => {
+    vi.useFakeTimers();
+    const view = mount(); await flush();
+    act(() => view.result.current.warmNavigation(OBLIQUE_NAVIGATION_KEYS.Right, true, "focus"));
+    act(() => view.result.current.warmNavigation(OBLIQUE_NAVIGATION_KEYS.Right, false, "focus"));
+    expect(view.lookAhead.mock.calls.at(-1)).toEqual([null]);
+    act(() => view.result.current.warmNavigation(OBLIQUE_NAVIGATION_KEYS.Up, true, "pointer"));
+    view.unmount(); const before = view.lookAhead.mock.calls.length;
+    await act(async () => { vi.advanceTimersByTime(100); });
+    expect(view.lookAhead).toHaveBeenCalledTimes(before);
+  });
+
+  it("does not warm disabled rotations on an incomplete catalog", async () => {
+    vi.useFakeTimers();
+    const view = mount(); view.rerender({ image: selected("current"), data, rotationReady: false }); await flush();
+    act(() => view.result.current.warmNavigation(OBLIQUE_NAVIGATION_KEYS.RotateRight, true, "focus"));
+    act(() => view.result.current.warmNavigation(OBLIQUE_NAVIGATION_KEYS.RotateRight, true, "pointer"));
+    await act(async () => { vi.advanceTimersByTime(100); });
+    expect(view.lookAhead).not.toHaveBeenCalled();
+  });
+});

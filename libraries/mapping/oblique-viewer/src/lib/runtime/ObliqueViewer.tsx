@@ -1,3 +1,4 @@
+import { nativePixelPool, nativePreviewSource, fitNativePreviewView, lastNativePreviewView, rememberNativePreviewView } from "./utils/native-preview-pool";
 import type {
   Degrees,
   DevicePixels,
@@ -1665,13 +1666,70 @@ const ObliqueViewerRuntime = ({
     });
   }, [running, selectedPreviewMissing, selectedImageId, publish]);
 
+  const navigationWarmRef = useRef<(() => void) | null>(null);
   const prefetchNavigationLookAhead = useCallback(
-    (candidate: NearestObliqueImageRecord) =>
-      prefetchPreviewThumbnail(previewThumbnailSource(candidate.record), {
-        enqueue: true,
-      }),
-    [previewThumbnailSource]
+    (candidate: NearestObliqueImageRecord | null, step?: PreparedObliqueNavigationTarget) => {
+      if (!candidate) {
+        navigationWarmRef.current?.(); navigationWarmRef.current = null;
+        return;
+      }
+      const record = candidate.record;
+      const dataset = currentDataRef.current?.datasets.get(record.seriesId);
+      const input = previewThumbnailSource(record);
+      if (!libreMap || !dataset || !input || isPreviewSourceMissing(input)) {
+        navigationWarmRef.current?.(); navigationWarmRef.current = null;
+        return;
+      }
+      const source = nativePreviewSource({
+        imageId: record.sourceId, path: dataset.previewPath,
+        sourceUrl: input.originalImageUrl ?? input.avifPyramidUrl ?? "",
+        avifPyramidUrl: input.avifPyramidUrl, avifOnly: dataset.avifOnly,
+        nativeSize: input.nativeSize,
+        minimumQualityLevel: dataset.minimumPreviewQualityLevel,
+      });
+      const { width, height } = libreMap.transform;
+      const forecast = fitNativePreviewView(source, width, height,
+        degToRad(poseOf(record, dataset).rollDeg as Degrees), window.devicePixelRatio || 1);
+      // NG on-the-spot rotation retains the current scale. Reuse a normalized
+      // crop as the bounded initial forecast; settled geometry then replaces it.
+      if (nextInterface && step && !step.fitNextImage && previewVisibleRef.current) {
+        const previous = selectedImageRef.current?.record;
+        const previousInput = previewThumbnailSource(previous ?? null);
+        const previousDataset = previous && currentDataRef.current?.datasets.get(previous.seriesId);
+        if (previous && previousInput && previousDataset) {
+          const oldSource = nativePreviewSource({ imageId: previous.sourceId,
+            path: previousDataset.previewPath,
+            sourceUrl: previousInput.originalImageUrl ?? previousInput.avifPyramidUrl ?? "",
+            avifPyramidUrl: previousInput.avifPyramidUrl, avifOnly: previousDataset.avifOnly,
+            nativeSize: previousInput.nativeSize,
+            minimumQualityLevel: previousDataset.minimumPreviewQualityLevel });
+          const old = lastNativePreviewView(oldSource);
+          if (old && oldSource.nativeSize) {
+            const scaleX = input.nativeSize.width / oldSource.nativeSize.width;
+            const scaleY = input.nativeSize.height / oldSource.nativeSize.height;
+            const crop = old.view.visible;
+            forecast.view = { visible: { x: (crop.x * scaleX) as DevicePixels,
+              y: (crop.y * scaleY) as DevicePixels, width: (crop.width * scaleX) as DevicePixels,
+              height: (crop.height * scaleY) as DevicePixels },
+              density: (old.view.density / Math.min(scaleX, scaleY)) as Ratio };
+          }
+        }
+      }
+      // Creating the new lease first protects a same-source warm stack from
+      // stale hover cleanup. The pool alone gates work against visible demand.
+      rememberNativePreviewView(source, forecast.view, forecast.pixels);
+      const previous = navigationWarmRef.current;
+      navigationWarmRef.current = nativePixelPool.prewarm(source, forecast.view, forecast.pixels);
+      previous?.();
+    },
+    [libreMap, nextInterface, previewThumbnailSource]
   );
+  useEffect(() => () => { navigationWarmRef.current?.(); navigationWarmRef.current = null; }, []);
+  useEffect(() => {
+    if (!running || viewMode === "objectCoverage") {
+      navigationWarmRef.current?.(); navigationWarmRef.current = null;
+    }
+  }, [running, viewMode]);
 
   hideFootprintsRef.current = useFootprintLayer({
     map: libreMap,
@@ -1871,6 +1929,7 @@ const ObliqueViewerRuntime = ({
     [publish]
   );
   const {
+    warmNavigation,
     requestTarget: requestNavigationTarget,
     requestAction: requestNavigationAction,
     cancel: cancelNavigation,
@@ -1895,9 +1954,15 @@ const ObliqueViewerRuntime = ({
     publish: publishNavigationTargets,
     onLookAhead: prefetchNavigationLookAhead,
   });
+  useEffect(() => {
+    publish({ warmNavigation });
+    return () => publish({ warmNavigation: undefined });
+  }, [publish, warmNavigation]);
   invalidateNavigationRef.current = invalidateNavigation;
   cancelNavigationRef.current = () => {
     cancelNavigation();
+    navigationWarmRef.current?.();
+    navigationWarmRef.current = null;
     selectionEpochRef.current++;
     cancelRotationDrape();
   };
@@ -1922,6 +1987,7 @@ const ObliqueViewerRuntime = ({
       );
       if (!dataset) return;
       const sourceRecord = selectedImageRef.current?.record;
+      prefetchNavigationLookAhead(step.candidate, step);
       cancelRotationDrape();
       if (key) rememberDirection(key);
       const epoch = ++selectionEpochRef.current;
@@ -1983,6 +2049,7 @@ const ObliqueViewerRuntime = ({
       libreMap,
       nextInterface,
       rememberDirection,
+      prefetchNavigationLookAhead,
       cancelRotationDrape,
       prepareRotationDrape,
       finishRotationDrape,

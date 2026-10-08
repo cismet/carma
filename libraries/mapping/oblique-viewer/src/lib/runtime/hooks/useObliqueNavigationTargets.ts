@@ -19,6 +19,8 @@ import type { RefreshSearchArgs } from "./useNearestImage";
 import type { ImageSelectionBatchResult } from "../utils/image-selection-messages";
 import {
   OBLIQUE_NAVIGATION_KEYS,
+  OBLIQUE_NAVIGATION_INTENT,
+  type ObliqueNavigationIntent,
   type ObliqueNavigationKey,
   type ObliqueNavigationTargets,
 } from "../oblique-actions";
@@ -60,7 +62,7 @@ type Options = {
   ) => Promise<ImageSelectionBatchResult>;
   ensureDirections?: (queries: RefreshSearchArgs[]) => Promise<unknown>;
   publish: (targets: ObliqueNavigationTargets | null) => void;
-  onLookAhead: (candidate: NearestObliqueImageRecord) => void;
+  onLookAhead: (candidate: NearestObliqueImageRecord | null, target?: PreparedObliqueNavigationTarget) => void;
 };
 type Cache = {
   data: ObliqueSelectionData;
@@ -94,6 +96,8 @@ export const useObliqueNavigationTargets = (options: Options) => {
   const cacheRef = useRef<Cache | null>(null),
     generationRef = useRef(0),
     lastDirectionRef = useRef<ObliqueNavigationKey | null>(null);
+  const intentRef = useRef<{ pointer: ObliqueNavigationKey | null; focus: ObliqueNavigationKey | null }>({ pointer: null, focus: null });
+  const hoverTimerRef = useRef<{ key: ObliqueNavigationKey; timer: ReturnType<typeof setTimeout> } | null>(null);
   const queueRef = useRef<NavigationEntry[]>([]),
     queueEpochRef = useRef(0),
     processingRef = useRef(false),
@@ -107,6 +111,8 @@ export const useObliqueNavigationTargets = (options: Options) => {
     missingThisTickRef = useRef(0),
     lookAheadRef = useRef<string | null>(null);
   const cancel = useCallback(() => {
+    clearTimeout(hoverTimerRef.current?.timer);
+    hoverTimerRef.current = null;
     queueEpochRef.current++;
     clearTimeout(navigationTimerRef.current);
     navigationTimerRef.current = undefined;
@@ -199,18 +205,22 @@ export const useObliqueNavigationTargets = (options: Options) => {
   const prefetchNext = useCallback(() => {
     const cache = currentCache(),
       entry = queueRef.current[0];
-    const key =
-      entry?.kind === QUEUE_ENTRY_KIND.IMAGE
-        ? entry.key
-        : entry
-        ? null
-        : lastDirectionRef.current;
+    const key = entry?.kind === QUEUE_ENTRY_KIND.IMAGE
+      ? entry.key
+      : entry ? null
+      : intentRef.current.pointer ?? intentRef.current.focus ?? lastDirectionRef.current;
     const target = key && cache?.targets.get(key);
-    if (!target) return;
+    if (!target) {
+      if (lookAheadRef.current !== null) {
+        lookAheadRef.current = null;
+        optionsRef.current.onLookAhead(null);
+      }
+      return;
+    }
     const identity = `${generationRef.current}:${key}:${target.candidate.record.id}`;
     if (lookAheadRef.current === identity) return;
     lookAheadRef.current = identity;
-    optionsRef.current.onLookAhead(target.candidate);
+    optionsRef.current.onLookAhead(target.candidate, target);
   }, [currentCache]);
   const schedulePump = useCallback((delay: number, resetMissing = false) => {
     if (navigationTimerRef.current !== undefined) return;
@@ -533,6 +543,33 @@ export const useObliqueNavigationTargets = (options: Options) => {
       map.off("moveend", onEnd);
     };
   }, [options.map, invalidate, refresh, cancel, currentCache]);
+  const warmNavigation = useCallback((key: ObliqueNavigationKey, active: boolean, channel: ObliqueNavigationIntent) => {
+    const options = optionsRef.current;
+    if (active && (!options.enabled || options.viewMode === "objectCoverage" ||
+      (ROTATION_KEYS.has(key) && !options.rotationReady))) return;
+    if (channel === OBLIQUE_NAVIGATION_INTENT.Pointer) {
+      if (active || hoverTimerRef.current?.key === key) {
+        clearTimeout(hoverTimerRef.current?.timer);
+        hoverTimerRef.current = null;
+      }
+      if (active) {
+        // A short pointer dwell avoids metadata churn while crossing buttons.
+        // Focus and queued navigation remain immediate.
+        hoverTimerRef.current = { key, timer: setTimeout(() => {
+          hoverTimerRef.current = null;
+          const current = optionsRef.current;
+          if (!mountedRef.current || !current.enabled || current.viewMode === "objectCoverage" ||
+            (ROTATION_KEYS.has(key) && !current.rotationReady)) return;
+          intentRef.current.pointer = key;
+          prefetchNext();
+        }, 80) };
+        return;
+      }
+    }
+    if (active) intentRef.current[channel] = key;
+    else if (intentRef.current[channel] === key) intentRef.current[channel] = null;
+    prefetchNext();
+  }, [prefetchNext]);
   const getTarget = useCallback(
     (key: ObliqueNavigationKey) => currentCache()?.targets.get(key),
     [currentCache]
@@ -591,6 +628,7 @@ export const useObliqueNavigationTargets = (options: Options) => {
     lastDirectionRef.current = key;
   }, []);
   return {
+    warmNavigation,
     getTarget,
     requestTarget,
     requestAction,

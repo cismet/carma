@@ -143,3 +143,31 @@ describe("geometry-only cached navigation controls", () => {
     ).toBeNull();
   });
 });
+
+describe("navigation preparation intent", () => {
+  it("publishes pointer and focus independently without issuing a navigation command", () => {
+    const warmNavigation = vi.fn();
+    const { sendRequest } = mount({ warmNavigation });
+    const button = screen.getByRole("button", { name: "Nächstes Bild nach rechts" });
+    fireEvent.pointerEnter(button);
+    fireEvent.focus(button);
+    fireEvent.pointerLeave(button);
+    fireEvent.blur(button);
+    expect(warmNavigation.mock.calls).toEqual([
+      ["right", true, "pointer"], ["right", true, "focus"],
+      ["right", false, "pointer"], ["right", false, "focus"],
+    ]);
+    expect(sendRequest).not.toHaveBeenCalled();
+    fireEvent.click(button);
+    expect(sendRequest).toHaveBeenCalledWith({ type: "pan", horizontal: 1, vertical: 0 });
+  });
+  it("prepares the matching rotation key while leaving the click command unchanged", () => {
+    const warmNavigation = vi.fn();
+    const { sendRequest } = mount({ warmNavigation });
+    const button = screen.getByRole("button", { name: "Im Uhrzeigersinn drehen" });
+    fireEvent.focus(button);
+    expect(warmNavigation).toHaveBeenCalledWith("rotateRight", true, "focus");
+    fireEvent.click(button);
+    expect(sendRequest).toHaveBeenCalledWith({ type: "rotate", clockwise: true });
+  });
+});
