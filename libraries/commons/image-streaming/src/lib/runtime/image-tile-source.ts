@@ -27,5 +27,7 @@ export interface ImageTileSource {
   decode(tile: ImageTileRef, signal: AbortSignal): Promise<ImageBitmap>;
   readonly compressedBytes: number;
   readonly requestCount: number;
+  /** Cancel in-flight tile downloads; local bytes stay and later fetches start anew. */
+  pause(): void;
   dispose(): void;
 }

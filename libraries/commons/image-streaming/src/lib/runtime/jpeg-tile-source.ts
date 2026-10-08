@@ -30,6 +30,8 @@ export class JpegTileSource implements ImageTileSource {
   private requests = 0;
   private bytes = 0;
   private readonly controller = new AbortController();
+  /** Level downloads only; replaced on pause so the size probe survives. */
+  private downloads = new AbortController();
 
   constructor(
     readonly url: string,
@@ -100,8 +102,14 @@ export class JpegTileSource implements ImageTileSource {
     );
   }
 
+  pause() {
+    this.downloads.abort();
+    this.downloads = new AbortController();
+  }
+
   dispose() {
     this.controller.abort();
+    this.downloads.abort();
     for (const entry of this.decoded.values()) {
       clearTimeout(entry.timer);
       void entry.bitmap.then(
@@ -159,7 +167,7 @@ export class JpegTileSource implements ImageTileSource {
       request = (async () => {
         this.requests++;
         const response = await fetch(this.levelUrl(level), {
-          signal: this.controller.signal,
+          signal: this.downloads.signal,
           priority,
         });
         if (!response.ok)

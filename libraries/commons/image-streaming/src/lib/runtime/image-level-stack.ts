@@ -246,6 +246,8 @@ export class ImageLevelStack {
     if (this.disposed || !this.active) return;
     this.active = false;
     this.controller.abort();
+    // Another image has the focus: stop this one's network traffic, keep its tiles.
+    this.source.pause();
     this.idleQueue = null;
     const budget = this.options.parkedBudgetBytes ?? 8 * 1024 * 1024;
     const rank = this.rankByPlan();

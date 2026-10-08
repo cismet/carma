@@ -86,6 +86,8 @@ export class AvifTileSource implements ImageTileSource {
   private requests = 0;
   private readonly persistent: BoundedImageRangeCache;
   private readonly controller = new AbortController();
+  /** Tile downloads only; replaced on pause so the pyramid index survives. */
+  private downloads = new AbortController();
 
   constructor(
     readonly url: string,
@@ -164,8 +166,14 @@ export class AvifTileSource implements ImageTileSource {
     );
   }
 
+  pause() {
+    this.downloads.abort();
+    this.downloads = new AbortController();
+  }
+
   dispose() {
     this.controller.abort();
+    this.downloads.abort();
     this.payloads.clear();
     this.payloadBytes = 0;
   }
@@ -369,7 +377,7 @@ export class AvifTileSource implements ImageTileSource {
         const bytes = await this.read(
           state.entry.offset,
           state.entry.length,
-          this.controller.signal,
+          this.downloads.signal,
           {
             priority,
           }
@@ -432,7 +440,7 @@ export class AvifTileSource implements ImageTileSource {
       const bytes = await this.read(
         span.offset,
         span.length,
-        this.controller.signal,
+        this.downloads.signal,
         { priority }
       );
       for (const piece of pieces)

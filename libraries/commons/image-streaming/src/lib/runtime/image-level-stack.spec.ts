@@ -53,6 +53,10 @@ class FakeSource implements ImageTileSource {
     this.bitmaps.push(bitmap);
     return bitmap as unknown as ImageBitmap;
   };
+  paused = 0;
+  pause = () => {
+    this.paused++;
+  };
   dispose = () => undefined;
 }
 
@@ -145,6 +149,7 @@ describe("ImageLevelStack", () => {
     await settle();
     expect(stack.plan!.floor).toBe(5);
     stack.park();
+    expect(source.paused).toBe(1);
     expect(stack.metrics.decodedBytes).toBeLessThanOrEqual(4 * MiB);
     expect(stack.isResident(5, 0, 0)).toBe(true);
     stack.setView(view(6000, 9000, 0.1), 1400 * 830);
