@@ -61,6 +61,7 @@ import LoginForm from "./components/LoginForm";
 import TopNavbar from "./components/TopNavbar";
 import { ObliqueProvider } from "./oblique/components/ObliqueProvider";
 import { MatomoTracker } from "./MatomoTracker";
+import { LayerUsageTracking, MapModeTracking } from "./tracking";
 
 import { useAppConfig } from "./hooks/useAppConfig";
 import { CatalogLayersLoader } from "./components/CatalogLayersLoader";
@@ -301,6 +302,8 @@ function App({
                   fallbackDirectionConfig={CAMERA_ID_TO_DIRECTION}
                 >
                   <GeoportalAppSearchParamsIntegration />
+                  <MapModeTracking />
+                  <LayerUsageTracking />
                   <MeasurementsWrapper
                     externalMode={mode}
                     setModeExternal={handleSetMode}

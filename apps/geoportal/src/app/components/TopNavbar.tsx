@@ -49,6 +49,12 @@ import {
 } from "../config/backgroundConfig";
 import { useMapStyle } from "../hooks/useGeoportalMapStyle";
 import { useOblique } from "../oblique/hooks/useOblique";
+import {
+  BackgroundAction,
+  TrackingCategory,
+  formatItemName,
+  trackEvent,
+} from "../tracking";
 
 import ActionButtons from "./nav-items/ActionButtons";
 
@@ -123,9 +129,21 @@ const TopNavbar = () => {
   const handleBackgroundLayerChange = useCallback(
     (e: RadioChangeEvent) => {
       e.stopPropagation();
+      const category = findBackgroundCategory(e.target.value);
       if (e.target.value === "openBaseLayerView") {
+        trackEvent(
+          TrackingCategory.BACKGROUND,
+          BackgroundAction.OPEN_SELECTION
+        );
         dispatch(setSelectedLayerIndex(-1));
-      } else if (findBackgroundCategory(e.target.value)) {
+      } else if (category) {
+        // the plain title, not getBackgroundCategoryTitle: the engine-specific
+        // one would file the same background under two names in the reports
+        trackEvent(
+          TrackingCategory.BACKGROUND,
+          BackgroundAction.SWITCH,
+          formatItemName(category.title, category.id)
+        );
         setCurrentStyle(e.target.value);
       }
     },

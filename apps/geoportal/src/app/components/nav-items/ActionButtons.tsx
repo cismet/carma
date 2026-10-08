@@ -45,6 +45,12 @@ import { ShareContent } from "../ShareContent";
 import Print from "../map-print/Print";
 import CustomPopover from "./CustomPopover";
 import { getSelectedFeature } from "../../store/slices/features";
+import {
+  ToolAction,
+  TrackingCategory,
+  formatMapMode,
+  trackEvent,
+} from "../../tracking";
 
 const disabledClass = "text-gray-300";
 const disabledImageOpacity = "opacity-20";
@@ -61,6 +67,11 @@ const ActionButtons = () => {
   const backgroundLayer = useSelector(getBackgroundLayer);
   const paleOpacityValue = useSelector(getPaleOpacityValue);
   const selectedFeature = useSelector(getSelectedFeature);
+
+  // every tool event carries the map context it was used from
+  const mapMode = formatMapMode(isCesium);
+  const trackTool = (action: string) =>
+    trackEvent(TrackingCategory.TOOL, action, mapMode);
 
   const menuTourRef = useOverlayHelper(
     getCollabedHelpElementsConfig("MENULEISTE", geoElements)
@@ -96,6 +107,7 @@ const ActionButtons = () => {
       <Tooltip title="Karteninhalte hinzufügen">
         <button
           onClick={() => {
+            trackTool(ToolAction.ADD_LAYERS);
             dispatch(setShowResourceModal(true));
           }}
           className="h-[24.5px] min-w-fit"
@@ -115,6 +127,11 @@ const ActionButtons = () => {
           className="h-[24.5px] min-w-fit"
           disabled={isCesium}
           onClick={() => {
+            trackTool(
+              focusMode
+                ? ToolAction.BACKGROUND_RESET
+                : ToolAction.BACKGROUND_PALE
+            );
             dispatch(setFocusMode(!focusMode));
             dispatch(
               changeBackgroundOpacity({
@@ -150,6 +167,7 @@ const ActionButtons = () => {
         <button
           className={`text-xl hover:text-gray-600`}
           onClick={() => {
+            trackTool(ToolAction.ZEN_MODE);
             dispatch(setZenMode(true));
             dispatch(setUIMode("default"));
           }}
@@ -172,6 +190,7 @@ const ActionButtons = () => {
         testId="speichern-btn"
         tooltip="Karte speichern"
         disabled={!isLeaflet}
+        onOpen={() => trackTool(ToolAction.SAVE)}
       />
       <CustomPopover
         content={<Print />}
@@ -180,13 +199,16 @@ const ActionButtons = () => {
         tooltip={printError ? printError : "Drucken"}
         disabled={!isLeaflet}
         className={printError ? "text-red-600" : ""}
+        onOpen={() => trackTool(ToolAction.PRINT)}
       />
       <CustomPopover
         content={<ShareContent />}
         icon={faShareNodes}
         testId="teilen-btn"
         tooltip="Teilen"
+        onOpen={() => trackTool(ToolAction.SHARE)}
         shiftClickHandler={() => {
+          trackTool(ToolAction.SHARE_COPY_URL);
           copyShareUrl({
             layerState,
             gazetteerSelection: selection,
