@@ -63,6 +63,7 @@ import { ObliqueProvider } from "./oblique/components/ObliqueProvider";
 import { MatomoTracker } from "./MatomoTracker";
 
 import { useAppConfig } from "./hooks/useAppConfig";
+import { CatalogLayersLoader } from "./components/CatalogLayersLoader";
 import { useDefaultLayers } from "./hooks/useDefaultLayers";
 import { useManageLayers } from "./hooks/useManageLayers";
 import { useSyncToken } from "./hooks/useSyncToken";
@@ -211,7 +212,11 @@ function App({
 }) {
   const dispatch = useDispatch();
   const showLoginModal = useSelector(getShowLoginModal);
-  const isLoadingConfig = useAppConfig(CONFIG_BASE_URL, layerMap);
+  const {
+    isLoadingConfig,
+    pendingCatalogLayerIds,
+    clearPendingCatalogLayerIds,
+  } = useAppConfig(CONFIG_BASE_URL, layerMap);
   useManageLayers();
   // the plain geoportal's own layers, see constants/default-layers
   useDefaultLayers(routePath);
@@ -306,6 +311,10 @@ function App({
                       <ShadowSimulationLayerSyncInner />
                       <ErrorBoundary FallbackComponent={AppErrorFallback}>
                         <AdhocFeatureRehydration />
+                        <CatalogLayersLoader
+                          ids={pendingCatalogLayerIds}
+                          onDone={clearPendingCatalogLayerIds}
+                        />
                         <div className={TAILWIND_CLASSNAMES_FULLSCREEN_FIXED}>
                           {isLoadingConfig && (
                             <div

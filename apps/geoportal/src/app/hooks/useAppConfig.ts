@@ -49,6 +49,8 @@ type Config = {
   view?: View;
   gazetteerSelection?: SelectionItem;
   selectedFeature?: SelectedObject;
+  /** catalog ids added on top of `layers` once the catalog has them */
+  catalogLayerIds?: string[];
 };
 
 const DEFAULT_CONFIG_KEY = "config";
@@ -70,9 +72,18 @@ const onLoadedConfig = (
     id: string,
     collectionId: string,
     layerId: string
-  ) => void
+  ) => void,
+  onCatalogLayerIds: (ids: string[]) => void
 ) => {
   dispatch(setLayers(config.layers));
+  // This hook runs above the catalog, so the ids are only handed on here and
+  // resolved by CatalogLayersLoader once the catalog has loaded them.
+  if (
+    Array.isArray(config.catalogLayerIds) &&
+    config.catalogLayerIds.length > 0
+  ) {
+    onCatalogLayerIds(config.catalogLayerIds);
+  }
 
   // A configuration may leave the base map out entirely, and then the current
   // one stays: this call sets what it names, it does not reset what it omits.
@@ -156,6 +167,14 @@ export const useAppConfig = (
   // a route may hold its config under a key of its own, see configHashKey
   const effectiveConfigKey = fachzwilling?.configHashKey ?? configKey;
   const [isLoadingConfig, setIsLoadingConfig] = useState<boolean | null>(null); // initially null to indicate undetermined state
+  /** catalog ids of the last applied config, waiting for CatalogLayersLoader */
+  const [pendingCatalogLayerIds, setPendingCatalogLayerIds] = useState<
+    string[]
+  >([]);
+  const clearPendingCatalogLayerIds = useCallback(
+    () => setPendingCatalogLayerIds([]),
+    []
+  );
   const [configId, setConfigId] = useState<string | undefined>(
     () => getHashParams()[effectiveConfigKey]
   );
@@ -222,7 +241,8 @@ export const useAppConfig = (
           incoming as unknown as Config,
           map,
           d,
-          setSelectedFeatureById
+          setSelectedFeatureById,
+          setPendingCatalogLayerIds
         );
       } catch (error) {
         console.error("[CONFIG] applying a configuration failed:", error);
@@ -306,7 +326,8 @@ export const useAppConfig = (
         newConfig,
         rest.layerMap,
         rest.dispatch,
-        rest.setSelectedFeatureById
+        rest.setSelectedFeatureById,
+        setPendingCatalogLayerIds
       );
       appliedConfigRef.current = id;
       initialLoadDoneRef.current = true;
@@ -438,5 +459,9 @@ export const useAppConfig = (
     // re-runs whenever the config key in the hash changes
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [configId]);
-  return isLoadingConfig;
+  return {
+    isLoadingConfig,
+    pendingCatalogLayerIds,
+    clearPendingCatalogLayerIds,
+  };
 };

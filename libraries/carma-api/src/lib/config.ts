@@ -54,6 +54,7 @@ export type MappingConfigBackgroundLayer = {
 export type MappingConfig = {
   layers: MappingConfigLayer[];
   backgroundLayer?: MappingConfigBackgroundLayer;
+  catalogLayerIds?: string[];
   [key: string]: unknown;
 };
 
