@@ -1,7 +1,5 @@
 import { ActionNotSuccessfulError } from "../wizard/errors";
 
-// Checks before saving, like the Java panels' getStatus(). Only new or
-// changed rows are checked, so old incomplete data never blocks a save.
 export const touchedRows = (originalRows, draftRows, idOf) => {
   const before = new Map((originalRows ?? []).map((row) => [idOf(row), row]));
   return (draftRows ?? []).filter((row) => {
@@ -16,7 +14,6 @@ const negative = (value) => Number.isFinite(value) && value < 0;
 const missingText = (labels) =>
   `Es ${labels.length === 1 ? "fehlt" : "fehlen"}: ${labels.join(", ")}`;
 
-// rule: [field to mark red, label or text, fails]
 const tableRules = ({ rows, idOf, nameOf, required, other = [] }) => {
   const invalidFields = (row) =>
     new Set(
@@ -51,7 +48,6 @@ const tableRules = ({ rows, idOf, nameOf, required, other = [] }) => {
   };
 };
 
-// Java NKFPanel.getStatus (without NKF admin rights)
 export const USAGE_RULES = tableRules({
   rows: "nutzungen",
   idOf: (row) => row.nutzungId,
@@ -81,8 +77,6 @@ export const findUsageProblems = (original, draft) => {
   return problems;
 };
 
-// same rules as findAdminProblem in the wizard, without the parcel name:
-// one line per table, naming the missing fields
 export const findAdminProblems = (admin) => {
   const tableProblems = (name, rows, fields, extra = []) => {
     const missing = fields
@@ -129,7 +123,6 @@ export const findAdminProblems = (admin) => {
   ];
 };
 
-// Java MiPaPanel.getStatus
 export const MIPA_RULES = tableRules({
   rows: "mipas",
   idOf: (row) => row.mipaId,
@@ -156,7 +149,6 @@ export const MIPA_RULES = tableRules({
   ],
 });
 
-// Java ReBePanel has no required fields; these catch data that can't be right
 export const REBE_RULES = tableRules({
   rows: "rebes",
   idOf: (row) => row.rebeId,
