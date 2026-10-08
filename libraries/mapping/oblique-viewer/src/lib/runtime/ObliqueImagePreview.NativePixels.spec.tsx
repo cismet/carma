@@ -1,9 +1,9 @@
 import { act, cleanup, render } from "@testing-library/react";
 import type { ComponentProps } from "react";
 import type { Map as MaplibreMap } from "maplibre-gl";
+import type { WebGLRenderer } from "three";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CssPixels, DevicePixels, Ratio } from "@carma-units";
-import type { NativePreviewWindow } from "@carma-commons/image-streaming";
 import type {
   ScenePreviewImageGeometry,
   useScenePreviewImage,
@@ -13,105 +13,93 @@ type SceneOptions = Parameters<typeof useScenePreviewImage>[0];
 const scene = vi.hoisted(() => ({
   options: null as SceneOptions | null,
   enabled: true,
-  renders: vi.fn(),
 }));
 vi.mock("./hooks/useScenePreviewImage", () => ({
   useScenePreviewImage: (options: SceneOptions) => {
     scene.options = options;
-    scene.renders(options);
     return scene.enabled;
   },
 }));
-const whole = vi.hoisted(() => ({
-  thumbnail: null as { bitmap: ImageBitmap; blobUrl: string } | null,
-  readThumbnail: vi.fn(),
-}));
-vi.mock("./hooks/usePrefetchedPreviewThumbnail", () => ({
-  usePrefetchedPreviewThumbnail: (...args: unknown[]) => {
-    whole.readThumbnail(...args);
-    return whole.thumbnail;
-  },
-}));
-vi.mock("./hooks/useProgressivePreviewSource", () => ({
-  useProgressivePreviewSource: () => null,
-}));
-vi.mock("./hooks/usePreviewSizeSync", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("./hooks/usePreviewSizeSync")>()),
-  usePreviewSizeSync: () => {},
-}));
-vi.mock("./ObliqueImagePreview.Backdrop", () => ({ Backdrop: () => null }));
-vi.mock("./ObliqueImagePreview.PreviewImage", () => ({
-  PreviewImage: ({ children }: { children?: import("react").ReactNode }) => (
-    <div>{children}</div>
-  ),
-}));
-
 vi.mock("./utils/cameraMath", () => ({
   readCameraToCenterDistancePx: () => 400,
 }));
+const availability = vi.hoisted(() => ({
+  missing: false,
+  reportMissing: vi.fn(),
+  reportAvailable: vi.fn(),
+}));
+vi.mock("./utils/preview-thumbnail-cache", () => ({
+  isPreviewSourceMissing: () => availability.missing,
+  reportPreviewSourceMissing: availability.reportMissing,
+  reportPreviewSourceAvailable: availability.reportAvailable,
+}));
 
-type Request = {
-  url: string;
-  generation: number;
-  tiff: boolean;
-  flipForTexture: boolean;
-  window: NativePreviewWindow;
-  imageId: string;
-  sourceIdentity: string;
-  retainWholeImage: boolean;
-  activeSourceByteLimit: number;
-  reusePublished: boolean;
-};
-type Control =
-  | { cancel: true; park?: true; retainedSourceByteLimit?: number }
-  | { activity: boolean; warmWindow?: NativePreviewWindow }
-  | { budgetOnly: true; activeSourceByteLimit: number };
-type Response = {
-  kind?: "full-image" | "source-memory";
-  imageId?: string;
-  sourceIdentity?: string;
-  sourceUrl?: string;
-  sourceResidentBytes?: number;
-  reusePublished?: boolean;
-  bitmap?: ImageBitmap;
-  error?: string;
-  missing?: boolean;
-  generation?: number;
-  sourceWidth?: number;
-  sourceHeight?: number;
-  crop?: NativePreviewWindow["source"];
-  sampleDensity?: number;
-  complete?: boolean;
-  sourceBackend?: string;
-  containsTiffDecoder?: boolean;
-  workerMemory?: {
-    compositionBytes: number;
-    decodeCanvasBytes: number;
-    workingBytes: number;
+type Rect = { x: number; y: number; width: number; height: number };
+const streaming = vi.hoisted(() => ({
+  sources: [] as {
+    id: string;
+    url: string;
+    kind: string;
+    jpegLevels?: readonly number[];
+  }[],
+  views: [] as { visible: Rect; density: number }[],
+  released: 0,
+  disposed: 0,
+  rendered: [] as { rect: Rect; size: { width: number; height: number } }[],
+  drawn: 0,
+  ready: Promise.resolve({}) as Promise<unknown>,
+  texture: { isTexture: true },
+}));
+vi.mock("@carma-commons/image-streaming", async (importOriginal) => {
+  const actual = await importOriginal<
+    typeof import("@carma-commons/image-streaming")
+  >();
+  const stack = {
+    get ready() {
+      return streaming.ready;
+    },
+    pyramid: null,
+    plan: null,
+    metrics: { decodedBytes: 0, budgetBytes: 1, compressedBytes: 0 },
+    setView: (view: (typeof streaming.views)[number]) =>
+      streaming.views.push(view),
+    onContentChange: () => () => undefined,
+    isResident: () => false,
   };
-};
-const workers: FakeWorker[] = [];
-class FakeWorker {
-  onmessage: ((event: MessageEvent<Response>) => void) | null = null;
-  onerror: (() => void) | null = null;
-  onmessageerror: (() => void) | null = null;
-  postMessage = vi.fn((_message: Request | Control) => {});
-  terminate = vi.fn();
-  constructor() {
-    workers.push(this);
-  }
-  get requests(): Request[] {
-    return this.postMessage.mock.calls
-      .map(([message]) => message)
-      .filter(
-        (message): message is Request =>
-          "url" in message && !("budgetOnly" in message)
-      );
-  }
-  reply(data: Response) {
-    this.onmessage?.({ data } as MessageEvent<Response>);
-  }
-}
+  return {
+    ...actual,
+    ImageLevelStackPool: class {
+      metrics = { images: [], decodedBytes: 0, maxImages: 8 };
+      acquire(source: (typeof streaming.sources)[number]) {
+        streaming.sources.push(source);
+        return { stack, release: () => streaming.released++ };
+      }
+    },
+    ThreeImageLevels: class {
+      featherPx = 0;
+      attach() {}
+      renderToTarget(
+        _renderer: unknown,
+        rect: Rect,
+        size: { width: number; height: number }
+      ) {
+        streaming.rendered.push({ rect, size });
+        return {
+          texture: streaming.texture,
+          rect,
+          revision: streaming.rendered.length,
+        };
+      }
+      dispose() {
+        streaming.disposed++;
+      }
+    },
+    drawImageLevels: () => {
+      streaming.drawn++;
+    },
+  };
+});
+
 let NativePixels: typeof import("./ObliqueImagePreview.NativePixels").NativePixels;
 const geometry = (x = 0): ScenePreviewImageGeometry => ({
   viewport: { width: 800 as CssPixels, height: 600 as CssPixels },
@@ -119,35 +107,15 @@ const geometry = (x = 0): ScenePreviewImageGeometry => ({
   offset: { x: x as CssPixels, y: 0 as CssPixels },
   pixelRatio: 2 as Ratio,
 });
-const bitmap = () =>
-  ({ width: 1600, height: 1200, close: vi.fn() } as unknown as ImageBitmap);
-const beforeRender = (frame = geometry()) =>
-  act(() => scene.options!.onBeforeRender?.(frame));
-const rest = () => act(() => vi.advanceTimersByTime(200));
-const content = () => scene.options!.contentRef!.current;
-const complete = (worker: FakeWorker, result?: ImageBitmap) => {
-  const request = worker.requests.at(-1)!;
-  result ??= {
-    width: request.window.target.width,
-    height: request.window.target.height,
-    close: vi.fn(),
-  } as unknown as ImageBitmap;
-  act(() =>
-    worker.reply({
-      bitmap: result,
-      generation: request.generation,
-      sourceWidth: 5326,
-      sourceHeight: 7102,
-    })
-  );
-  return result;
-};
+const renderer = {} as WebGLRenderer;
 const setup = (
-  imageId = "photo",
   overrides: Partial<ComponentProps<typeof NativePixels>> = {}
 ) => {
+  const handlers = new Map<string, () => void>();
   const map = {
-    on: vi.fn(),
+    on: vi.fn((type: string, handler: () => void) =>
+      handlers.set(type, handler)
+    ),
     off: vi.fn(),
     triggerRepaint: vi.fn(),
     isMoving: vi.fn(() => false),
@@ -157,993 +125,144 @@ const setup = (
     map,
     rootRef: { current: document.createElement("div") },
     path: "/images",
-    imageId,
+    imageId: "photo",
     nativeSize: { width: 10652 as DevicePixels, height: 14204 as DevicePixels },
     halfFovTan: 0.5,
     principal: { xOffset: 0, yOffset: 0 },
     rollDeg: 0,
     dimImage: false,
-    sourceUrl: "https://imagery.test/3/" + imageId + ".jpg",
+    sourceUrl: "https://imagery.test/2026/photo.avif",
+    avifPyramidUrl: "https://imagery.test/2026/photo.avif",
+    avifOnly: true,
     onSourceLoaded: vi.fn(),
+    onError: vi.fn(),
     ...overrides,
   };
   const view = render(<NativePixels {...props} />);
-  return { ...view, props, map };
+  return { ...view, props, map, handlers };
 };
+
 beforeEach(async () => {
-  vi.useFakeTimers();
   vi.clearAllMocks();
   vi.resetModules();
-  workers.length = 0;
+  Object.assign(streaming, {
+    sources: [],
+    views: [],
+    released: 0,
+    disposed: 0,
+    rendered: [],
+    drawn: 0,
+  });
+  streaming.ready = Promise.resolve({
+    native: { width: 10652, height: 14204 },
+    levels: [],
+  });
+  availability.missing = false;
   scene.options = null;
   scene.enabled = true;
-  whole.thumbnail = null;
-  vi.stubGlobal("Worker", FakeWorker);
-  vi.stubGlobal("OffscreenCanvas", class {});
   NativePixels = (await import("./ObliqueImagePreview.NativePixels"))
     .NativePixels;
 });
-afterEach(() => {
-  cleanup();
-  vi.useRealTimers();
-  vi.unstubAllGlobals();
-});
+afterEach(() => cleanup());
 
-describe("worker-composed preview pixels", () => {
-  it("coalesces geometry requests and reuses one worker and one metadata notification per source URL", async () => {
-    const view = setup();
-    beforeRender();
-    const worker = workers[0];
-    expect(worker.requests).toHaveLength(1);
-    act(() => vi.advanceTimersByTime(100));
-    beforeRender(geometry(80));
-    act(() => vi.advanceTimersByTime(100));
-    // A running download/decode keeps making progress while geometry is coalesced.
-    expect(worker.requests).toHaveLength(1);
-    act(() => vi.advanceTimersByTime(100));
-    expect(worker.requests).toHaveLength(1);
-    const renders = scene.renders.mock.calls.length;
-    complete(worker);
+describe("native preview pixels from the level stack", () => {
+  it("composes the camera's crop into a render target within the same frame", async () => {
+    setup();
     await act(async () => {});
-    expect(content()?.source).toBeDefined();
-    expect(scene.renders).toHaveBeenCalledTimes(renders);
-    expect(view.props.onSourceLoaded).toHaveBeenCalledOnce();
-    expect(view.props.onSourceLoaded).toHaveBeenCalledWith(
-      view.props.sourceUrl,
-      5326,
-      7102
-    );
-    beforeRender(geometry(140));
-    rest();
-    complete(worker);
-    await act(async () => {});
-    expect(workers).toHaveLength(1);
-    expect(worker.requests).toHaveLength(3);
-    expect(worker.terminate).not.toHaveBeenCalled();
-    expect(view.props.onSourceLoaded).toHaveBeenCalledOnce();
-    expect(scene.renders).toHaveBeenCalledTimes(renders);
-  });
-
-  it("coalesces moving geometry without cancelling a running foreground decode", async () => {
-    const view = setup();
-    beforeRender();
-    const worker = workers[0], initial = worker.requests[0];
-    const cancellations = () => worker.postMessage.mock.calls.filter(([message]) => "cancel" in message).length;
-    vi.mocked(view.map.isMoving).mockReturnValue(true);
-    for (let index = 1; index <= 120; index++) {
-      beforeRender(geometry(index)); act(() => vi.advanceTimersByTime(16));
-    }
-    expect(cancellations()).toBe(0);
-    expect(worker.requests).toHaveLength(1);
-    const partial = { width: initial.window.target.width, height: initial.window.target.height,
-      close: vi.fn() } as unknown as ImageBitmap;
-    act(() => worker.reply({ bitmap: partial, generation: initial.generation,
-      sourceWidth: 5326, sourceHeight: 7102, complete: false }));
-    for (let index = 180; index < 300; index++) {
-      beforeRender(geometry(index)); act(() => vi.advanceTimersByTime(16));
-    }
-    expect(cancellations()).toBe(0);
-    expect(worker.requests).toHaveLength(1);
-    vi.mocked(view.map.isMoving).mockReturnValue(false);
-    complete(worker);
-    await act(async () => {});
-    expect(worker.requests).toHaveLength(2);
-    expect(worker.requests[1].generation).not.toBe(initial.generation);
-    act(() => worker.reply({ generation: worker.requests[1].generation, reusePublished: true }));
-    await act(async () => {});
-    expect(worker.requests).toHaveLength(2);
-    expect(cancellations()).toBe(0);
-    expect(worker.terminate).not.toHaveBeenCalled();
-  });
-
-  it("keeps covered zooms uniform-only without a cancel, bitmap request or React update", () => {
-    setup("covered", { avifPyramidUrl: "https://imagery.test/covered.avif" });
-    const initialGeometry = {
-      ...geometry(),
-      image: {
-        width: 1000 as CssPixels,
-        height: ((1000 * 14204) / 10652) as CssPixels,
-      },
-      pixelRatio: 4 as Ratio,
-    };
-    beforeRender(initialGeometry);
-    const worker = workers[0],
-      request = worker.requests[0];
-    const pixels = {
-      width: request.window.target.width,
-      height: request.window.target.height,
-      close: vi.fn(),
-    } as unknown as ImageBitmap;
-    act(() =>
-      worker.reply({
-        bitmap: pixels,
-        generation: request.generation,
-        sourceWidth: 5326,
-        sourceHeight: 7102,
-        sourceBackend: "avif-pyramid",
-      })
-    );
-    const messages = worker.postMessage.mock.calls.length;
-    const renders = scene.renders.mock.calls.length;
-    const movementStart = vi
-      .mocked(scene.options!.map.on)
-      .mock.calls.find(([name]) => name === "movestart")![1] as () => void;
-    act(() => movementStart());
-    beforeRender(geometry());
-    beforeRender({
-      ...geometry(),
-      image: {
-        width: 1100 as CssPixels,
-        height: ((1100 * 14204) / 10652) as CssPixels,
-      },
-    });
-    rest();
-    expect(worker.postMessage.mock.calls.slice(messages)).toEqual([
-      [{ activity: true }],
+    act(() => scene.options!.onBeforeRender?.(geometry(), renderer));
+    expect(streaming.sources).toEqual([
+      expect.objectContaining({
+        kind: "avif",
+        url: "https://imagery.test/2026/photo.avif",
+      }),
     ]);
-    expect(
-      worker.postMessage.mock.calls.filter(([message]) => "cancel" in message)
-    ).toHaveLength(0);
-    expect(worker.requests).toHaveLength(1);
-    expect(content()?.source).toBe(pixels);
-    expect(pixels.close).not.toHaveBeenCalled();
-    expect(scene.renders).toHaveBeenCalledTimes(renders);
-    // Exposing pixels outside that admitted crop still queues a bounded refinement.
-    beforeRender({
-      ...geometry(),
-      image: {
-        width: 800 as CssPixels,
-        height: ((800 * 14204) / 10652) as CssPixels,
-      },
+    const [{ visible, density }] = streaming.views;
+    const [{ rect, size }] = streaming.rendered;
+    // The render target covers the requested crop plus a margin at the same density.
+    expect(rect.x).toBeLessThanOrEqual(visible.x);
+    expect(rect.y).toBeLessThanOrEqual(visible.y);
+    expect(rect.x + rect.width).toBeGreaterThanOrEqual(
+      visible.x + visible.width
+    );
+    expect(size.width / rect.width).toBeCloseTo(density, 2);
+    expect(scene.options!.contentRef!.current).toEqual({
+      texture: streaming.texture,
+      crop: rect,
+      revision: 1,
     });
-    expect(worker.requests).toHaveLength(2);
-    rest();
-    expect(worker.requests).toHaveLength(2);
   });
 
-  it("restores the previously decoded cropped level immediately after a return zoom", () => {
-    setup("return", { avifPyramidUrl: "https://imagery.test/return.avif" });
-    const initial = geometry();
-    beforeRender(initial);
-    const worker = workers[0], previous = complete(worker);
-    beforeRender({ ...initial, image: { width: 2400 as CssPixels, height: 3200 as CssPixels } });
-    const detail = complete(worker);
-    expect(content()?.source).toBe(detail);
-    expect(previous.close).not.toHaveBeenCalled();
-    const requests = worker.requests.length;
-    beforeRender(initial); rest();
-    expect(content()?.source).toBe(previous);
-    expect(worker.requests).toHaveLength(requests);
-    expect(detail.close).not.toHaveBeenCalled();
-  });
-
-  it("cancels an active old quality URL once and starts its replacement without waiting for a timeout", () => {
-    const view = setup("quality-url");
-    beforeRender();
-    const worker = workers[0], first = worker.requests[0], oldHandler = worker.onmessage!;
-    const url = "https://imagery.test/1/quality-url.jpg";
-    view.rerender(<NativePixels {...view.props} sourceUrl={url} />);
-    beforeRender(geometry(100));
-    expect(worker.requests).toHaveLength(2);
-    expect(worker.requests[1].url).toBe(url);
-    expect(worker.requests[1].generation).not.toBe(first.generation);
-    expect(worker.postMessage.mock.calls.filter(([message]) => "cancel" in message)).toHaveLength(1);
-    const stale = bitmap();
-    act(() => oldHandler({ data: { bitmap: stale, generation: first.generation, complete: true } } as MessageEvent<Response>));
-    expect(stale.close).toHaveBeenCalledOnce();
-    expect(content()).toBeNull();
-    const current = complete(worker);
-    expect(content()?.source).toBe(current);
-    expect(view.props.onSourceLoaded).toHaveBeenCalledOnce();
-  });
-
-  it("rejects a completed distant fallback when zoom-out needs only the neighboring pyramid level", () => {
-    setup("quality-floor", { avifPyramidUrl: "https://imagery.test/quality-floor.avif" });
-    const initial = { ...geometry(), image: { width: 2400 as CssPixels, height: 3200 as CssPixels } };
-    beforeRender(initial);
-    const worker = workers[0], sharp = complete(worker);
-    beforeRender({ ...initial, image: { width: 1800 as CssPixels, height: 2400 as CssPixels } });
-    const request = worker.requests.at(-1)!;
-    const coarse = { width: 160, height: 120, close: vi.fn() } as unknown as ImageBitmap;
-    act(() => worker.reply({ bitmap: coarse, crop: request.window.source, sampleDensity: .03,
-      generation: request.generation, complete: true, sourceWidth: 5326, sourceHeight: 7102 }));
-    expect(content()?.source).toBe(sharp);
-    expect(coarse.close).toHaveBeenCalledOnce();
-    expect(sharp.close).not.toHaveBeenCalled();
-  });
-
-  it("keeps the accepted image when a collapsed bitmap claims a falsely high pixel density", () => {
-    setup("collapsed", { avifPyramidUrl: "https://imagery.test/collapsed.avif" });
-    beforeRender();
-    const worker = workers[0], request = worker.requests[0], correct = complete(worker);
-    const acceptedCrop = content()?.crop;
-    const collapsed = { width: 1, height: 1, close: vi.fn() } as unknown as ImageBitmap;
-    act(() => worker.reply({ bitmap: collapsed, crop: request.window.source,
-      generation: request.generation, sampleDensity: .5, complete: true,
-      sourceWidth: 5326, sourceHeight: 7102, sourceBackend: "avif-pyramid" }));
-    expect(content()?.source).toBe(correct);
-    expect(content()?.crop).toEqual(acceptedCrop);
-    expect(collapsed.close).toHaveBeenCalledOnce();
-    expect(correct.close).not.toHaveBeenCalled();
-    expect(worker.requests).toHaveLength(1);
-  });
-
-  it("passes the current display crop to the worker when movement starts on a retained photo", () => {
-    setup("zoom-warm", {
-      retainWholeImage: true,
-      avifPyramidUrl: "https://imagery.test/zoom-warm.avif",
-    });
-    beforeRender(geometry());
-    rest();
-    const worker = workers[0];
-    const movementStart = vi
-      .mocked(scene.options!.map.on)
-      .mock.calls.find(([name]) => name === "movestart")![1] as () => void;
-    act(() => movementStart());
-    expect(worker.postMessage).toHaveBeenCalledWith(
-      expect.objectContaining({
-        activity: true,
-        warmWindow: expect.objectContaining({
-          source: expect.objectContaining({ width: expect.any(Number) }),
-          target: expect.objectContaining({ width: expect.any(Number) }),
-        }),
-      })
+  it("follows every camera frame without waiting for decoded pixels", async () => {
+    setup();
+    await act(async () => {});
+    act(() => scene.options!.onBeforeRender?.(geometry(0), renderer));
+    act(() => scene.options!.onBeforeRender?.(geometry(120), renderer));
+    expect(streaming.rendered).toHaveLength(2);
+    expect(streaming.rendered[1].rect.x).not.toBe(streaming.rendered[0].rect.x);
+    expect(scene.options!.contentRef!.current?.crop).toBe(
+      streaming.rendered[1].rect
     );
   });
 
-  it("accepts a bounded whole-image fallback across motion epochs and rejects foreign identities", () => {
-    const onFullImage = vi.fn();
-    setup("full", {
-      retainWholeImage: true,
-      onFullImage,
-      avifPyramidUrl: "https://imagery.test/full.avif",
-    });
-    beforeRender();
-    const worker = workers[0],
-      first = worker.requests[0];
-    const sharp = complete(worker);
-    beforeRender(geometry(40));
-    const full = {
-      width: 640,
-      height: 853,
-      close: vi.fn(),
-    } as unknown as ImageBitmap;
-    const response = {
-      kind: "full-image" as const,
-      bitmap: full,
-      imageId: first.imageId,
-      sourceIdentity: first.sourceIdentity,
-      sourceUrl: first.url,
-      generation: first.generation,
-      sourceBackend: "avif-pyramid",
-      crop: {
-        x: 0 as DevicePixels,
-        y: 0 as DevicePixels,
-        width: 10652 as DevicePixels,
-        height: 14204 as DevicePixels,
-      },
-      sampleDensity: 0.03125,
-    };
-    act(() => worker.reply(response));
-    expect(onFullImage).toHaveBeenCalledWith(full);
-    expect(content()?.source).toBe(sharp);
-    expect(full.close).not.toHaveBeenCalled();
-    const foreign = bitmap();
-    act(() =>
-      worker.reply({ ...response, bitmap: foreign, imageId: "another-photo" })
-    );
-    expect(foreign.close).toHaveBeenCalledOnce();
-    const oversized = {
-      width: 4096,
-      height: 4096,
-      close: vi.fn(),
-    } as unknown as ImageBitmap;
-    act(() => worker.reply({ ...response, bitmap: oversized }));
-    expect(oversized.close).toHaveBeenCalledOnce();
-    expect(onFullImage).toHaveBeenCalledOnce();
-  });
-
-  it("recomposes a covered whole-image crop after zooming below half its published density", () => {
-    setup("oversampled");
-    const fitted = {
-      ...geometry(),
-      image: { width: 360 as CssPixels, height: 480 as CssPixels },
-    };
-    beforeRender(fitted);
-    const worker = workers[0];
-    const first = complete(worker);
-    beforeRender({
-      ...fitted,
-      image: { width: 240 as CssPixels, height: 320 as CssPixels },
-    });
-    rest();
-    expect(worker.requests).toHaveLength(1);
-    beforeRender({
-      ...fitted,
-      image: { width: 120 as CssPixels, height: 160 as CssPixels },
-    });
-    rest();
-    expect(worker.requests).toHaveLength(2);
-    expect(content()?.source).toBe(first);
-    const replacement = complete(worker);
-    expect(replacement.width).toBeLessThan(first.width / 2);
-    expect(replacement.height).toBeLessThan(first.height / 2);
-    expect(first.close).not.toHaveBeenCalled(); // Keep the previous quality level for a return zoom.
-  });
-
-  it("budgets physical viewport pixels and sends a changed cache budget only once", () => {
-    const snapshots: { viewportPixels: number; imageBudgetBytes: number }[] =
-      [];
-    const readMemory = (event: Event) =>
-      snapshots.push((event as CustomEvent<(typeof snapshots)[number]>).detail);
-    window.addEventListener("carma-oblique-preview-memory", readMemory);
-    try {
-      setup("budget");
-      beforeRender({
-        ...geometry(),
-        image: { width: 240 as CssPixels, height: 320 as CssPixels },
-      });
-      const worker = workers[0];
-      expect(worker.requests[0].activeSourceByteLimit).toBeGreaterThan(800 * 600 * 4 * 16);
-      expect(worker.requests[0].activeSourceByteLimit).toBeLessThanOrEqual(256 * 1024 * 1024);
-      expect(snapshots.at(-1)).toMatchObject({
-        viewportPixels: 800 * 600 * 4,
-        imageBudgetBytes: 256 * 1024 * 1024,
-      });
-      complete(worker);
-      const smaller = {
-        ...geometry(),
-        viewport: { width: 400 as CssPixels, height: 300 as CssPixels },
-        pixelRatio: 1 as Ratio,
-      };
-      beforeRender(smaller);
-      const budgetMessages = () =>
-        worker.postMessage.mock.calls
-          .map(([message]) => message)
-          .filter((message) => "budgetOnly" in message);
-      const count = budgetMessages().length;
-      beforeRender({
-        ...smaller,
-        offset: { x: 10 as CssPixels, y: 0 as CssPixels },
-      });
-      expect(budgetMessages()).toHaveLength(count);
-      expect(snapshots.at(-1)).toMatchObject({
-        viewportPixels: 400 * 300,
-        imageBudgetBytes: 256 * 1024 * 1024,
-      });
-    } finally {
-      window.removeEventListener("carma-oblique-preview-memory", readMemory);
-    }
-  });
-
-  it("accounts actual source residency instead of the active cap and accepts no-bitmap reuse", () => {
-    const parked = setup("parked");
-    beforeRender();
-    complete(workers[0]);
-    parked.unmount();
-    const onError = vi.fn();
-    setup("active", {
-      retainWholeImage: true,
-      onError,
-      avifPyramidUrl: "https://imagery.test/active.avif",
-    });
-    beforeRender();
-    const worker = workers[1],
-      request = worker.requests[0];
-    expect(request).toMatchObject({
-      retainWholeImage: true,
-      activeSourceByteLimit: expect.any(Number),
-    });
-    expect(request.activeSourceByteLimit).toBeGreaterThan(800 * 600 * 2 * 2 * 16);
-    expect(request.activeSourceByteLimit).toBeLessThanOrEqual(256 * 1024 * 1024);
-    expect(workers[0].terminate).not.toHaveBeenCalled();
-    const sharp = complete(worker);
-    beforeRender(geometry(100));
-    rest();
-    const next = worker.requests.at(-1)!;
-    expect(next.reusePublished).toBe(true);
-    act(() =>
-      worker.reply({
-        generation: next.generation,
-        reusePublished: true,
-        sourceResidentBytes: 1024,
-      })
-    );
-    expect(content()?.source).toBe(sharp);
-    expect(onError).not.toHaveBeenCalled();
-    act(() =>
-      worker.reply({
-        kind: "source-memory",
-        imageId: request.imageId,
-        sourceIdentity: request.sourceIdentity,
-        sourceResidentBytes: 300 * 1024 * 1024,
-      })
-    );
-    expect(workers[0].terminate).toHaveBeenCalledOnce();
-    act(() => vi.advanceTimersByTime(90001));
-    expect(worker.terminate).not.toHaveBeenCalled();
-    expect(onError).not.toHaveBeenCalled();
-  });
-
-  it("keeps the old bitmap throughout a source-level change until its replacement arrives", () => {
-    const view = setup();
-    const frame = geometry();
-    beforeRender(frame);
-    rest();
-    const worker = workers[0],
-      previous = complete(worker);
-    const sourceUrl = "https://imagery.test/1/photo.jpg";
-    view.rerender(<NativePixels {...view.props} sourceUrl={sourceUrl} />);
-    expect(content()?.source).toBe(previous);
-    expect(previous.close).not.toHaveBeenCalled();
-    beforeRender(frame);
-    rest();
-    expect(worker.requests.at(-1)?.url).toBe(sourceUrl);
-    expect(content()?.source).toBe(previous);
-    const next = complete(worker);
-    expect(content()?.source).toBe(next);
-    expect(previous.close).toHaveBeenCalledOnce();
-    expect(view.props.onSourceLoaded).toHaveBeenCalledTimes(2);
-    beforeRender(geometry(30));
-    rest();
-    complete(worker);
-    expect(view.props.onSourceLoaded).toHaveBeenCalledTimes(2);
-    expect(workers).toHaveLength(1);
-  });
-
-  it("closes stale generation and old-URL replies without publishing content or metadata", () => {
-    const view = setup();
-    beforeRender();
-    rest();
-    const worker = workers[0],
-      first = worker.requests[0];
-    const oldHandler = worker.onmessage!;
-    beforeRender(geometry(40));
-    const stale = bitmap();
-    act(() =>
-      oldHandler({
-        data: {
-          bitmap: stale,
-          generation: first.generation - 1,
-          sourceWidth: 10,
-          sourceHeight: 10,
-        },
-      } as MessageEvent<Response>)
-    );
-    expect(stale.close).toHaveBeenCalledOnce();
-    expect(content()).toBeNull();
-    expect(view.props.onSourceLoaded).not.toHaveBeenCalled();
-    rest();
-    const wrongGeneration = bitmap();
-    act(() =>
-      worker.reply({
-        bitmap: wrongGeneration,
-        generation: first.generation - 1,
-        sourceWidth: 10,
-        sourceHeight: 10,
-      })
-    );
-    expect(wrongGeneration.close).toHaveBeenCalledOnce();
-    const accepted = complete(worker);
-    view.rerender(
-      <NativePixels
-        {...view.props}
-        sourceUrl="https://imagery.test/2/photo.jpg"
-      />
-    );
-    const renders = scene.renders.mock.calls.length,
-      staleUrl = bitmap();
-    act(() =>
-      worker.reply({
-        bitmap: staleUrl,
-        generation: worker.requests.at(-1)!.generation,
-        sourceWidth: 10,
-        sourceHeight: 10,
-      })
-    );
-    expect(staleUrl.close).toHaveBeenCalledOnce();
-    expect(content()?.source).toBe(accepted);
-    expect(view.props.onSourceLoaded).toHaveBeenCalledOnce();
-    expect(scene.renders).toHaveBeenCalledTimes(renders);
-  });
-
-  it("parks and cancels on unmount, closes late bitmaps and cancels deferred jobs", () => {
-    const view = setup();
-    beforeRender();
-    rest();
-    const worker = workers[0],
-      published = complete(worker);
-    beforeRender(geometry(60));
-    const requests = worker.requests.length;
-    view.unmount();
-    expect(worker.postMessage).toHaveBeenCalledWith(
-      expect.objectContaining({
-        cancel: true,
-        park: true,
-        retainedSourceByteLimit: expect.any(Number),
-      })
-    );
-    const parked = worker.postMessage.mock.calls
-      .map(([message]) => message)
-      .find(
-        (message): message is Control =>
-          "park" in message && message.park === true
-      )!;
-    expect(parked.retainedSourceByteLimit).toBeGreaterThan(0);
-    expect(parked.retainedSourceByteLimit).toBeLessThanOrEqual(
-      256 * 1024 * 1024
-    );
-    expect(worker.terminate).not.toHaveBeenCalled();
-    expect(published.close).not.toHaveBeenCalled();
-    const late = bitmap();
-    worker.reply({ bitmap: late });
-    expect(late.close).toHaveBeenCalledOnce();
-    act(() => vi.advanceTimersByTime(1000));
-    expect(worker.requests).toHaveLength(requests);
-    expect(content()).toBeNull();
-  });
-
-  it("keeps progressive decoder workers isolated while changing the photo in the same component", () => {
-    const northUrl = "https://imagery.test/north.avif";
-    const eastUrl = "https://imagery.test/east.avif";
-    const view = setup("north", { avifOnly: true, avifPyramidUrl: northUrl });
-    const frame = geometry();
-    beforeRender(frame);
-    const north = workers[0], northRequest = north.requests[0];
-    const partial = (request: Request) => ({ width: request.window.target.width,
-      height: request.window.target.height, close: vi.fn() } as unknown as ImageBitmap);
-    const northCoarse = partial(northRequest);
-    act(() => north.reply({ bitmap: northCoarse, crop: northRequest.window.source,
-      generation: northRequest.generation, sourceWidth: 666, sourceHeight: 888,
-      sampleDensity: 1 / 16, sourceBackend: "avif-pyramid", complete: false }));
-    expect(content()?.source).toBe(northCoarse);
-    view.rerender(<NativePixels {...view.props} imageId="east"
-      sourceUrl="https://imagery.test/3/east.jpg" avifPyramidUrl={eastUrl} />);
-    beforeRender(frame);
-    expect(workers).toHaveLength(2);
-    const east = workers[1], eastRequest = east.requests[0];
-    expect(eastRequest).toMatchObject({ imageId: "east", sourceIdentity: eastUrl });
-    expect(content()).toBeNull();
-    const eastCoarse = partial(eastRequest);
-    act(() => east.reply({ bitmap: eastCoarse, crop: eastRequest.window.source,
-      generation: eastRequest.generation, sourceWidth: 666, sourceHeight: 888,
-      sampleDensity: 1 / 16, sourceBackend: "avif-pyramid", complete: false }));
-    expect(content()?.source).toBe(eastCoarse);
-    const lateNorth = partial(northRequest);
-    act(() => north.reply({ bitmap: lateNorth, crop: northRequest.window.source,
-      generation: northRequest.generation, sourceWidth: 5326, sourceHeight: 7102,
-      sampleDensity: .5, sourceBackend: "avif-pyramid", complete: true }));
-    expect(lateNorth.close).toHaveBeenCalledOnce();
-    expect(content()?.source).toBe(eastCoarse);
-    const eastFine = partial(eastRequest);
-    act(() => east.reply({ bitmap: eastFine, crop: eastRequest.window.source,
-      generation: eastRequest.generation, sourceWidth: 5326, sourceHeight: 7102,
-      sampleDensity: .5, sourceBackend: "avif-pyramid", complete: true }));
-    expect(content()?.source).toBe(eastFine);
-    expect(eastFine.close).not.toHaveBeenCalled();
-    expect(eastCoarse.close).toHaveBeenCalledOnce();
-    expect(north.terminate).not.toHaveBeenCalled();
-    expect(east.terminate).not.toHaveBeenCalled();
-  });
-
-  it("reacquires a parked image worker after changing the visible photo", () => {
-    const first = setup("north");
-    beforeRender();
-    rest();
-    const north = workers[0];
-    complete(north);
-    first.unmount();
-    const second = setup("east");
-    beforeRender();
-    rest();
-    complete(workers[1]);
-    second.unmount();
-    const restored = setup("north");
-    beforeRender();
-    rest();
-    expect(workers).toHaveLength(2);
-    expect(north.requests).toHaveLength(1);
-    expect(north.terminate).not.toHaveBeenCalled();
-    const outdated = bitmap();
-    act(() =>
-      north.reply({
-        bitmap: outdated,
-        generation: north.requests[0].generation,
-        sourceWidth: 10,
-        sourceHeight: 10,
-      })
-    );
-    expect(outdated.close).toHaveBeenCalledOnce();
-    expect(content()?.source).toBeDefined();
-    expect(restored.props.onSourceLoaded).toHaveBeenCalledOnce();
-    complete(north);
-    expect(restored.props.onSourceLoaded).toHaveBeenCalledOnce();
-  });
-
-  it("keeps the incoming first photo through four directions and restores sharp pixels before any worker request", () => {
-    vi.stubGlobal(
-      "matchMedia",
-      vi.fn(() => ({ matches: true }))
-    );
-    const frames = new Map<string, ImageBitmap>();
-    for (const id of ["north", "east", "south", "west"]) {
-      const view = setup(id);
-      beforeRender();
-      rest();
-      frames.set(id, complete(workers.at(-1)!));
-      view.unmount();
-    }
-    expect(workers).toHaveLength(4);
-    expect(
-      workers.every((worker) => worker.terminate.mock.calls.length === 0)
-    ).toBe(true);
-    const restored = setup("north");
-    expect(content()?.source).toBe(frames.get("north"));
-    expect(restored.props.onSourceLoaded).toHaveBeenCalledOnce();
-    expect(workers[0].requests).toHaveLength(1);
-    expect(
-      frames.get("north")!.close as ReturnType<typeof vi.fn>
-    ).not.toHaveBeenCalled();
-    beforeRender();
-    rest();
-    expect(workers).toHaveLength(4);
-    expect(workers[0].requests).toHaveLength(1);
-    restored.unmount();
-  });
-  it("evicts by count and closes the owned bitmap after the small-device four-entry limit", () => {
-    vi.stubGlobal(
-      "matchMedia",
-      vi.fn(() => ({ matches: true }))
-    );
-    let first: ImageBitmap;
-    for (const id of ["north", "east", "south", "west", "extra"]) {
-      const view = setup(id);
-      beforeRender();
-      rest();
-      const image = complete(workers.at(-1)!);
-      if (id === "north") first = image;
-      view.unmount();
-    }
-    expect(workers[0].terminate).toHaveBeenCalledOnce();
-    expect(first!.close).toHaveBeenCalledOnce();
-    expect(
-      workers.slice(1).every((worker) => !worker.terminate.mock.calls.length)
-    ).toBe(true);
-  });
-  it("evicts raster-heavy entries by bytes before reaching the desktop count limit", () => {
-    const largeGeometry = {
-      ...geometry(),
-      viewport: { width: 2048 as CssPixels, height: 2048 as CssPixels },
-      image: {
-        width: 5000 as CssPixels,
-        height: ((5000 * 14204) / 10652) as CssPixels,
-      },
-    };
-    const first = setup("large-a");
-    beforeRender(largeGeometry);
-    rest();
-    const pixels = {
-      width: 4096,
-      height: 4096,
-      close: vi.fn(),
-    } as unknown as ImageBitmap;
-    complete(workers[0], pixels);
-    first.unmount();
-    const next = setup("large-b");
-    beforeRender(largeGeometry);
-    rest();
-    complete(workers[1], {
-      width: 4096,
-      height: 4096,
-      close: vi.fn(),
-    } as unknown as ImageBitmap);
-    expect(workers[0].terminate).toHaveBeenCalledOnce();
-    expect(pixels.close).toHaveBeenCalledOnce();
-    expect(workers).toHaveLength(2);
-    next.unmount();
-  });
-  it("retains a valid partial ROI and rejects a lower-resolution replacement without a late timeout", () => {
-    const first = setup("north");
-    beforeRender();
-    rest();
-    const sharp = bitmap(),
-      request = workers[0].requests.at(-1)!;
-    act(() =>
-      workers[0].reply({
-        bitmap: sharp,
-        generation: request.generation,
-        crop: request.window.source,
-        sampleDensity: 0.2,
-        complete: false,
-        sourceWidth: 5326,
-        sourceHeight: 7102,
-      })
-    );
-    first.unmount();
-    const restored = setup("north");
-    expect(content()?.source).toBe(sharp);
-    beforeRender(geometry(0.001));
-    rest();
-    const coarse = bitmap(),
-      next = workers[0].requests.at(-1)!;
-    act(() =>
-      workers[0].reply({
-        bitmap: coarse,
-        generation: next.generation,
-        crop: next.window.source,
-        sampleDensity: 0.05,
-        complete: false,
-      })
-    );
-    expect(coarse.close).toHaveBeenCalledOnce();
-    expect(content()?.source).toBe(sharp);
-    act(() => vi.advanceTimersByTime(90001));
-    expect(workers[0].terminate).not.toHaveBeenCalled();
-    expect(restored.props.onError).toBeUndefined();
-  });
-  it("uses the response's actual crop for retained pixels and guards different original URLs", () => {
-    const first = setup("same", { path: undefined });
-    beforeRender();
-    rest();
-    const frame = workers[0].requests.at(-1)!;
-    const crop = {
-      ...frame.window.source,
-      x: (frame.window.source.x + 1) as DevicePixels,
-    };
-    act(() =>
-      workers[0].reply({
-        bitmap: bitmap(),
-        generation: frame.generation,
-        crop,
-        complete: true,
-      })
-    );
-    expect(content()?.crop).toEqual(crop);
-    first.unmount();
-    const other = setup("same", {
-      path: undefined,
-      sourceUrl: "https://other.test/3/same.jpg",
-    });
-    expect(content()).toBeNull();
-    beforeRender();
-    rest();
-    expect(workers).toHaveLength(2);
-    other.unmount();
-  });
-  it("forwards AVIF-only and does not replay a previously cached legacy composition under that policy", () => {
-    const first = setup("policy", {
-      avifPyramidUrl: "https://imagery.test/policy.avif",
-    });
-    beforeRender();
-    rest();
-    complete(workers[0]);
-    first.unmount();
-    const strict = setup("policy", {
-      avifOnly: true,
-      avifPyramidUrl: "https://imagery.test/policy.avif",
-    });
-    expect(content()).toBeNull();
-    beforeRender();
-    rest();
-    expect(
-      workers[1].postMessage.mock.calls.some(
-        ([value]) =>
-          "url" in value &&
-          (value as Request & { avifOnly?: boolean }).avifOnly === true
-      )
-    ).toBe(true);
-    strict.unmount();
-  });
-  it("releases a possibly TIFF-backed pending worker before the first backend-confirming bitmap", () => {
-    const first = setup("pending", {
+  it("streams the JPEG family instead of a TIFF original", () => {
+    setup({
+      avifOnly: false,
+      avifPyramidUrl: undefined,
       tiff: true,
-      sourceUrl: "https://imagery.test/pending.tif",
-      avifPyramidUrl: "https://imagery.test/pending.avif",
+      sourceUrl: "https://imagery.test/originals/photo.tif",
+      minimumQualityLevel: "1",
     });
-    beforeRender();
-    rest();
-    const pending = workers[0];
-    first.unmount();
-    expect(pending.terminate).toHaveBeenCalledOnce();
-    const next = setup("pending", {
-      tiff: true,
-      sourceUrl: "https://imagery.test/pending.tif",
-      avifPyramidUrl: "https://imagery.test/pending.avif",
+    expect(streaming.sources[0]).toMatchObject({
+      kind: "jpeg",
+      url: expect.stringMatching(/\/images\/1\/photo\.jpg$/),
+      jpegLevels: [1, 2, 3, 4, 5, 6],
     });
-    beforeRender();
-    rest();
-    expect(workers).toHaveLength(2);
-    expect(workers[1]).not.toBe(pending);
-    next.unmount();
   });
-  it("retains the DOM fallback bitmap while releasing the parked TIFF decoder worker", () => {
+
+  it("skips a source known to be missing", () => {
+    availability.missing = true;
+    const { props } = setup();
+    expect(streaming.sources).toHaveLength(0);
+    expect(props.onError).toHaveBeenCalledWith(
+      "photo",
+      expect.objectContaining({ missing: true })
+    );
+  });
+
+  it("reports a 404 pyramid as missing", async () => {
+    streaming.ready = Promise.reject(
+      new Error("AVIF range request answered 404; refusing a full download")
+    );
+    const { props } = setup();
+    await act(async () => {});
+    expect(availability.reportMissing).toHaveBeenCalledOnce();
+    expect(props.onError).toHaveBeenCalledWith(
+      "photo",
+      expect.objectContaining({ missing: true })
+    );
+  });
+
+  it("releases the image and its GPU composer on unmount", async () => {
+    const { unmount } = setup();
+    await act(async () => {});
+    act(() => scene.options!.onBeforeRender?.(geometry(), renderer));
+    const contentRef = scene.options!.contentRef!;
+    unmount();
+    expect(streaming.released).toBe(1);
+    expect(streaming.disposed).toBe(1);
+    expect(contentRef.current).toBeNull();
+  });
+
+  it("draws the same tiles into the DOM canvas without a shared scene", async () => {
     scene.enabled = false;
-    const context = { drawImage: vi.fn() };
-    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(
-      context as unknown as CanvasRenderingContext2D
-    );
-    const first = setup("dom", {
-      tiff: true,
-      sourceUrl: "https://imagery.test/dom.tif",
-    });
-    beforeRender();
-    rest();
-    const image = complete(workers[0]);
-    first.unmount();
-    expect(workers[0].terminate).toHaveBeenCalledOnce();
-    expect(image.close).not.toHaveBeenCalled();
-    const count = context.drawImage.mock.calls.length;
-    setup("dom", { tiff: true, sourceUrl: "https://imagery.test/dom.tif" });
-    expect(context.drawImage).toHaveBeenCalledTimes(count + 1);
-    // The retained whole-window pixels already cover the remount, so no new worker is needed.
-    expect(workers).toHaveLength(1);
-  });
-  it("requests TIFF windows immediately and accepts one sharper replacement in the same worker", () => {
-    const view = setup("original", {
-      sourceUrl: "https://imagery.test/original.tif",
-      tiff: true,
-    });
-    beforeRender();
-    rest();
-    const worker = workers[0];
-    expect(worker.requests[0]).toMatchObject({
-      url: "https://imagery.test/original.tif",
-      tiff: true,
-      flipForTexture: true,
-    });
-    const pixels = complete(worker);
-    expect(content()?.source).toBe(pixels);
-    expect(worker.terminate).not.toHaveBeenCalled();
-    const sharper = complete(worker);
-    expect(content()?.source).toBe(sharper);
-    expect(pixels.close).toHaveBeenCalledOnce();
-    expect(view.props.onSourceLoaded).toHaveBeenCalledOnce();
-    view.unmount();
-    expect(worker.terminate).toHaveBeenCalledOnce();
-    expect(sharper.close).not.toHaveBeenCalled();
-  });
-});
-
-it("avoids a foreground worker after a known missing hover and resumes after expiry", async () => {
-  const cache = await import("./utils/preview-thumbnail-cache");
-  const source = {
-    previewPath: "/images",
-    imageId: "later",
-    avifPyramidUrl: "https://imagery.test/later.avif",
-    avifOnly: true,
-  };
-  cache.reportPreviewSourceMissing(source);
-  const onError = vi.fn();
-  const view = setup("later", { ...source, onError });
-  beforeRender();
-  rest();
-  expect(workers).toHaveLength(0);
-  expect(onError).toHaveBeenCalledWith(
-    "later",
-    expect.objectContaining({ missing: true })
-  );
-  act(() => vi.advanceTimersByTime(15000));
-  rest();
-  expect(workers).toHaveLength(1);
-  complete(workers[0]);
-  expect(view.props.onSourceLoaded).toHaveBeenCalledOnce();
-  expect(cache.isPreviewSourceMissing(source)).toBe(false);
-  act(() => vi.advanceTimersByTime(15000));
-  expect(workers[0].requests).toHaveLength(1);
-  view.unmount();
-  cache.disposePreviewThumbnailPrefetch();
-});
-
-it("retries a visible worker 404 once at cache expiry without requiring movement", async () => {
-  const cache = await import("./utils/preview-thumbnail-cache");
-  const source = {
-    previewPath: "/images",
-    imageId: "arriving",
-    avifPyramidUrl: "https://imagery.test/arriving.avif",
-    avifOnly: true,
-  };
-  const view = setup("arriving", { ...source, onError: vi.fn() });
-  beforeRender();
-  rest();
-  const first = workers[0];
-  act(() =>
-    first.reply({
-      generation: first.requests[0].generation,
-      error: "AVIF requires HTTP 206; refusing 404 full-file response",
-      missing: true,
-    })
-  );
-  expect(cache.isPreviewSourceMissing(source)).toBe(true);
-  act(() => vi.advanceTimersByTime(15000));
-  rest();
-  expect(workers).toHaveLength(2);
-  complete(workers[1]);
-  expect(view.props.onSourceLoaded).toHaveBeenCalledOnce();
-  view.unmount();
-  act(() => vi.advanceTimersByTime(30000));
-  expect(workers).toHaveLength(2);
-  cache.disposePreviewThumbnailPrefetch();
-});
-
-describe("whole-photo fallback under a native ROI", () => {
-  it("retains the complete thumbnail after ROI metadata and zoomout, then replaces it with an owned bounded full bitmap", async () => {
-    const { ObliqueImagePreview } = await import("./ObliqueImagePreview");
-    const thumbnail = {
-      width: 100,
-      height: 150,
-      close: vi.fn(),
-    } as unknown as ImageBitmap;
-    whole.thumbnail = { bitmap: thumbnail, blobUrl: "blob:thumbnail" };
-    const base = setup("unused");
-    base.unmount();
-    const props: ComponentProps<typeof ObliqueImagePreview> = {
-      map: base.map,
-      previewPath: "/images",
-      imageId: "fallback",
-      avifPyramidUrl: "https://imagery.test/fallback.avif",
-      avifOnly: true,
-      nativePixelSize: base.props.nativeSize,
-      halfFovTan: 30,
-      qualityLevel: "0",
-      dimImage: false,
-      rollDeg: 0,
-      backdropLook: { contrast: 100, brightness: 100, saturation: 100 },
-    };
-    const view = render(<ObliqueImagePreview {...props} />);
-    const baseOptions = () =>
-      scene.renders.mock.calls
-        .map(([options]) => options)
-        .filter((options) => options.priority === undefined)
-        .at(-1)!;
-    expect(baseOptions().contentRef?.current?.source).toBe(thumbnail);
-    expect(whole.readThumbnail.mock.lastCall?.[2]).toBe(false);
-    beforeRender();
-    const worker = workers.at(-1)!;
-    complete(worker);
-    expect(whole.readThumbnail.mock.lastCall?.[2]).toBe(false);
-    expect(baseOptions().contentRef?.current?.source).toBe(thumbnail);
-    expect(worker.requests[0].retainWholeImage).toBe(true);
-    const full = {
-      width: 640,
-      height: 853,
-      close: vi.fn(),
-    } as unknown as ImageBitmap;
-    const request = worker.requests[0];
-    act(() =>
-      worker.reply({
-        kind: "full-image",
-        bitmap: full,
-        imageId: request.imageId,
-        sourceIdentity: request.sourceIdentity,
-        sourceUrl: request.url,
-        generation: request.generation,
-      })
-    );
-    expect(baseOptions().contentRef?.current?.source).toBe(full);
-    expect(whole.readThumbnail.mock.lastCall?.[2]).toBe(true);
-    view.rerender(<ObliqueImagePreview {...props} halfFovTan={40} />);
-    expect(baseOptions().contentRef?.current?.source).toBe(full);
-    view.unmount();
-    expect(full.close).toHaveBeenCalledOnce();
+    const getContext = vi
+      .spyOn(HTMLCanvasElement.prototype, "getContext")
+      .mockReturnValue({} as never);
+    const { handlers } = setup();
+    await act(async () => {});
+    act(() => handlers.get("render")?.());
+    expect(streaming.drawn).toBe(1);
+    expect(streaming.rendered).toHaveLength(0);
+    getContext.mockRestore();
   });
 });

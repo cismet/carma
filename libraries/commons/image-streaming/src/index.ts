@@ -38,14 +38,6 @@ export {
   type ImagePreparedFrame,
 } from "./lib/runtime/image-viewport-pool";
 export {
-  ImageViewportViewer,
-  type ImageViewportViewerProps,
-} from "./lib/runtime/ImageViewportViewer";
-export {
-  ImageViewportCarousel,
-  type ImageViewportCarouselProps,
-} from "./lib/runtime/ImageViewportCarousel";
-export {
   planImageLevels,
   targetLevel,
   tileRangeFor,

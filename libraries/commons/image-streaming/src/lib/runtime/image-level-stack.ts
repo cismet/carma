@@ -76,6 +76,8 @@ export class ImageLevelStack {
   private decodedBytes = 0;
   private readonly fetching = new Set<string>();
   private readonly decoding = new Set<string>();
+  /** Decoded but refused for lack of budget; retried only after the next replan. */
+  private readonly skipped = new Set<string>();
   private fetches = 0;
   private decodes = 0;
   private idleQueue: ImageTileWant[] | null = null;
@@ -280,6 +282,7 @@ export class ImageLevelStack {
       zoomIntent: this.zoomIntent,
     });
     this.idleQueue = null;
+    this.skipped.clear();
     this.trim(this.budgetBytes);
     this.pump();
     this.emit();
@@ -295,12 +298,15 @@ export class ImageLevelStack {
   }
 
   /** Evict tiles outside the decoded plan first, least recently drawn first. */
-  private trim(budget: number) {
+  private trim(budget: number, outsidePlanOnly = false) {
     if (this.decodedBytes <= budget) return;
     const rank = this.rankByPlan();
     const floor = this.planValue?.floor;
     const candidates = [...this.resident.entries()]
-      .filter(([, entry]) => entry.level !== floor)
+      .filter(
+        ([key, entry]) =>
+          entry.level !== floor && (!outsidePlanOnly || rank(key) === Infinity)
+      )
       .sort((a, b) => rank(b[0]) - rank(a[0]) || a[1].used - b[1].used);
     for (const [key] of candidates) {
       if (this.decodedBytes <= budget) break;
@@ -328,7 +334,8 @@ export class ImageLevelStack {
       if (
         !want.decode ||
         this.resident.has(want.key) ||
-        this.decoding.has(want.key)
+        this.decoding.has(want.key) ||
+        this.skipped.has(want.key)
       )
         continue;
       if (this.source.hasBytes(want)) this.decode(want);
@@ -404,12 +411,12 @@ export class ImageLevelStack {
       return;
     }
     const bytes = bitmap.width * bitmap.height * 4;
-    this.trim(this.budgetBytes - bytes);
-    if (
-      this.decodedBytes + bytes > this.budgetBytes &&
-      this.rankByPlan()(want.key) === Infinity
-    ) {
+    // Room comes only from tiles outside the plan; planned tiles never evict
+    // each other, which would decode them in turn forever.
+    this.trim(this.budgetBytes - bytes, true);
+    if (this.decodedBytes + bytes > this.budgetBytes && want.role !== "floor") {
       bitmap.close();
+      this.skipped.add(want.key);
       return;
     }
     this.resident.set(want.key, {

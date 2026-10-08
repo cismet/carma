@@ -1,48 +1,51 @@
 # Large streaming image viewer
 
-Owns bounded image crops, progressive physical-resolution loading, compressed range persistence and pooled preview workers. Stories stay in `playgrounds/stories/src/stories/libraries/image-streaming/ImageViewport.stories.tsx`.
+Streams very large photographs from tiled pyramids and draws them as a transparent stack of sparse pyramid levels. Stories live in `playgrounds/stories/src/stories/libraries/image-streaming/ImageViewport.stories.tsx` (Libraries / Image streaming).
 
-## Replaces
+## Model
 
-The image streaming, AVIF grid parsing, viewport composition and canvas-pool implementation previously owned by `libraries/mapping/oblique-viewer`. The oblique feature remains responsible for camera geometry and scene placement, and consumes this library's image/viewport API.
+- **Levels.** For a view with `d` physical display pixels per native pixel, level `L` is shown at scale `s_L = d · native/level` (per axis, from the real level size; stored levels are rounded, so it is not `2^k`).
+- **Target.** The target is the coarsest level that is not upscaled (`s ≤ 1`). Past 1:1 of the finest stored level the finest level is used.
+- **Stack.** Each frame draws resident tiles bottom to top: a pinned whole-image floor (long edge ≤ 1024), coarser bridge levels, the parent underlay (`s ≤ 2`), then the target. Missing tiles stay transparent, so the next coarser level shows through. In steady state only the target and its parent are visible.
+- **Plan** (`core/image-level-plan.ts`, pure). One priority list per view, in this order:
+  1. floor
+  2. visible underlay
+  3. visible target, centre-out from the pointer
+  4. underlay and target rings for pans
+  5. underlay and coarser levels over a 2× zoom-out extent
+  6. next finer level (decoded from `s ≥ 0.75` or while zooming in, otherwise compressed only)
 
-## Dependencies
+  Decoded wants are cut to the budget from the lowest priority up. Optional foveation moves peripheral target tiles behind the rings. After the planned work is resident, any single zoom step up to 2× at the hovered anchor renders from the target or its parent, never coarser.
+- **Stack runtime** (`runtime/image-level-stack.ts`). Keeps decoded tiles per image and schedules work by plan priority:
+  - Fetches are merged per level and priority class; up to 3 fetches and 4 decodes run at once.
+  - Rendering reads resident tiles synchronously every frame.
+  - The budget defaults to ten physical viewports of RGBA, at least 96 MiB. Tiles outside the plan are evicted first, and planned tiles never evict each other.
+  - Idle time prefetches compressed bytes: the next finer level, then the rest of the pyramid. All work stops when an image is parked or disposed.
+- **Pool** (`ImageLevelStackPool`). Up to `maxImages` stacks. Released images park to a small budget, floor first, so flipping back is immediate.
 
-- Core math/types use `@carma-units` and browser APIs. There is no MapLibre, Three.js, Cesium, catalog or photogrammetry dependency.
-- React is used only by the optional DOM viewer and carousel adapters.
-- AVIF uses native browser decode. TIFF fallback loads `geotiff` and the JPEG WASM decoder lazily; AVIF/JPEG consumers do not initialize them.
-- No new npm dependency or root configuration is required. The existing `@carma-commons/*` alias resolves this Nx project.
+## Sources
 
-## Memory and prewarming
+- **AVIF** (`AvifTileSource`). Single-file independent pyramid: an AVIF per level, a UUID index box and absolute per-cell tables.
+  - Opening reads the head, the index and all cell tables, normally in three requests. Small levels (≤ 512 KiB) are fetched whole; other cells come from merged range requests (gap ≤ 64 KiB, ≤ 4 MiB).
+  - Ranges persist in `BoundedImageRangeCache`, keyed by `ETag`/`Last-Modified`. A full-file `200` is refused.
+- **JPEG** (`JpegTileSource`). Families with one file per level (`/{level}/{id}.jpg`). Exact level sizes come from each file's SOF header. A level is decoded once per burst and cut into virtual 512 tiles.
 
-The source AVIF/JPEG pyramid already contains the production downsampling and sharpening. Display composition uses native `drawImage` with linear smoothing; it performs no second Lanczos, gamma, sharpening or pixel-array readback. Three.js applies its existing linear texture filtering. Canvas2D can use the browser's accelerated path, but its hardware backend and native AVIF decoder allocation are browser-dependent.
+## Rendering
 
-The visible crop has first priority. Once it is ready, idle work decodes the actual overlapping children of the next finer level, the current level's nearby pan tiles and its direct parent. The plan follows tile offsets and viewport dimensions, with a one-source-pixel sampling guard. Both inward and outward zoom windows are prepared, following the observed step and inferred cursor anchor; pan movement also forecasts adjacent tiles. Only after these critical buffers are ready does the worker download the rest of the next finer level compressed, then continue the remaining pyramid on idle. A new image or interaction cancels background work.
+- `drawImageLevels` draws into a 2D canvas with shared rounded tile edges, so there are no seams.
+- `ThreeImageLevels` composes the same stack with three.js:
+  - into a ping-pong render target (`renderToTarget`), whose texture identity changes only when content changes;
+  - or into the bound framebuffer (`renderToScreen`).
+- Both can fade tile edges whose same-level neighbour is still missing (`featherPx`). Image edges are never faded, and the fade disappears as soon as the neighbour is resident.
+- The oblique viewer renders into the render target inside the shared scene's before-render callback, so the photo is always composed for the camera of the same frame.
 
-Two previous complete crops and two prepared zoom frames are retained by the shared pool. A fully covering resident frame is reused synchronously when returning to it. The standalone viewer draws one physical-viewport canvas from a uniform covering level, instead of laying a sharp center on a much coarser full-image canvas. When a new edge is not ready, its direct parent can cover the entire view temporarily; an arbitrary jump to a distant coarse overview is reserved for initial loading. If no suitable covering buffer exists, the last uniform presentation stays visible until the new crop arrives.
+## Components
 
-Render surfaces have a four-times-physical-viewport budget. Decoded source tiles have a separate bounded cache, sharing the default 128 MiB pool fairly with active images and retained crops; full native RGBA pyramids are never kept. A protected overview is at most 1024 pixels on its longest edge. A complete full-image frame fitting one viewport also establishes a sharper retained baseline. Diagnostics separately report render, source-cache and pooled allocations, tile residency, neighborhood plans and both prepared windows. These are estimates of owned RGBA surfaces, not a bound on total browser-process RAM.
+- `ImageStreamViewer`: pan/zoom viewer with Fit, 1:1 and step buttons, plus per-level tile state diagnostics.
+  - Tile states: missing, requested, compressed, decoded.
+  - Options: renderer `canvas | three`, `featherPx`, `foveaRadius`, `ringTiles`.
+- `ImageStreamCarousel`: groups of viewers over one shared pool.
 
-Versioned compressed ranges persist in CacheStorage or IndexedDB, independently of volatile decoded pixels, up to 256 MiB/eight image identities. Adjacent missing ranges are coalesced under the request ceiling, and version-matched local fragments are reused before a download. Cache inventories are refreshed locally without HEAD/probe requests; download history alone never proves residency. Legacy JPEG folder levels retain their compressed members and use native crop decoding, but still require whole-file transfer and can incur a transient native decode.
+## Legacy
 
-## Centralized stories
-
-- `libraries-image-streaming--large-image`: public 2026 AVIF with live per-level tile state.
-- `libraries-image-streaming--pool-carousel`: four views and four/eight retained image instances.
-- `libraries-image-streaming--full-resolution-photo`: full native 19136×12736 2026 forest/path photograph, added L0 q90 and byte-preserved production L1–L8, served exclusively from `2026/avif-fullres-samples`.
-- `libraries-image-streaming--legacy-jpeg-2024`: existing `/2024/{level}/{imageId}.jpg` families.
-- `libraries-image-streaming--synthetic-16-k`: generated 16384-square analytical resolution target, independent L0–L8 in one tiled AVIF.
-
-Generated AVIF/manifest assets live in the ignored `playgrounds/stories/public/streaming-samples` delivery folder. Canonical reproduction scripts live in shared `dev-local/scripts/oblique-viewer/streaming-samples`; sanitized samples are also delivered next to Amy's production AVIF directory, in `2026/avif-fullres-samples`.
-
-The viewer exposes Fit, physical-pixel 1:1 and zoom-step controls directly over the image, with a live zoom percentage relative to the finest available source level (including display pixel ratio). Externally supplied viewports remain read-only to these local controls. Diagnostics occupy one compact horizontal strip: each pyramid map carries an inset level label; source dimensions, tile state counts and extended memory details appear on hover. The main readout keeps loading/error state and managed memory visible without re-rendering React on image updates.
-
-Accepted compositions expose their actual input level, dimensions and backend separately from the protected overview in `ImageViewportSnapshot.input` / `overviewInput`. The live HUD distinguishes physical/CSS viewport size, canvas allocation/projected display size, full source-level dimensions and cropped source pixels. A cyan inset arrow marks the input to the displayed canvas; readiness colors still describe decoder/cache state. Final AVIF selection tolerates up to one outward-rounded output pixel per axis, preventing unnecessary promotion to a finer level solely due to crop/target integer rounding.
-
-Viewer stories live under **Libraries / Image streaming** and fill their Storybook iframe, including responsive one/four-pane carousel layouts. `fill` sizes the reusable viewer to its parent while reserving natural space for navigation and compact diagnostics; fixed `height` remains the default for other callers.
-
-Fast wheel input uses one non-resetting 16 ms composition deadline with the latest crop and one animation-frame draw. Accepted covering detail remains protected; a direct-parent replacement is admitted only when it is needed to cover newly exposed pixels. Both generic and scene adapters release the worker's duplicate composition surface after transferring the frame, while bitmap ownership stays in the shared pool.
-
-Foreground requests retain an immutable crop and physical target throughout progressive loading. Activity updates a separate warm window; idle work never releases an active composition lease. Cache ownership transfers only after the foreground pipeline has finished, and fresh canvas/bitmap dimensions are checked against its target. Reported sample density is bounded by actual bitmap and source pixels.
-
-Each image identity owns its worker, decoded tiles and retained frame history. The shared memory coordinator reserves active working sets before retaining parked decoders, and broadcasts recovered budgets to every active worker immediately. Parked display buffers can survive decoder eviction. Native stitching has a bounded tile-row working floor independent of retained-cache capacity, so a zero cache budget cannot degenerate into repeated single-row tile downloads. A refinement failure after the first frame completes the RPC with an error while preserving those pixels.
+`ImageViewportPool`, the preview worker and `AvifPyramidPreviewSource` still serve the oblique object-view thumbnails, the rotation drape and JPEG downloads until those move to the level stack.
