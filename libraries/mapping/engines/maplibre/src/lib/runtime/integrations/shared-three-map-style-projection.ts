@@ -181,39 +181,52 @@ void main(){float photographAlpha;float decorationAlpha;vec4 image=carmaScreenIm
   const mapStyleProjectionReceivers = new Map<string, boolean>();
   const mapStylePhotoReceiverStates = new Map<string, boolean>();
   let projectivePhotosActive = false;
+  let screenPhotosActive = false;
 
   const configureMapStyleProjection = (): boolean => {
     let receiversChanged = false;
     for (const runtime of runtimes.values()) {
       const receiver = runtime.receivesMapStyleTexture;
       const photoReceiver =
-        projectivePhotosActive &&
-        runtime.mountsOnLocalFrame === true &&
-        runtime.providesTerrain === true &&
-        // ECEF DEM tiles also mount locally, but remain replace receivers.
-        runtime.mapStyleProjectionBlend !== "replace";
+        (screenPhotosActive && runtime.receivesScreenImages === true) ||
+        (projectivePhotosActive &&
+          runtime.mountsOnLocalFrame === true &&
+          runtime.providesTerrain === true &&
+          // ECEF DEM tiles also mount locally, but remain replace receivers.
+          runtime.mapStyleProjectionBlend !== "replace");
       const previousPhotoReceiver = mapStylePhotoReceiverStates.get(runtime.id);
       if (!receiver && !photoReceiver && !previousPhotoReceiver) continue;
       const version = runtime.mapStyleProjectionVersion?.() ?? 0;
       if (
         mapStyleProjectionVersions.get(runtime.id) === version &&
         previousPhotoReceiver === photoReceiver
-      ) continue;
+      )
+        continue;
       let configuredMapReceiver = false;
       runtime.root.traverse((object) => {
-        if (!(object instanceof THREE.Mesh)) return;
+        if (
+          !(object instanceof THREE.Mesh) &&
+          !(object instanceof THREE.Line) &&
+          !(object instanceof THREE.Points)
+        )
+          return;
         const materials = Array.isArray(object.material)
           ? object.material
           : [object.material];
         for (const material of materials) {
-          const mapReceiver = typeof receiver === "function"
-            ? receiver(material)
-            : receiver === true;
-          if (!mapReceiver && !photoReceiver && !previousPhotoReceiver) continue;
+          const mapReceiver =
+            object instanceof THREE.Mesh &&
+            (typeof receiver === "function"
+              ? receiver(material)
+              : receiver === true);
+          if (!mapReceiver && !photoReceiver && !previousPhotoReceiver)
+            continue;
           configureMapStyleProjectedMaterial(
             material,
             mapStyleProjectionUniforms,
-            mapReceiver ? runtime.mapStyleProjectionBlend ?? "replace" : "photo-only",
+            mapReceiver
+              ? runtime.mapStyleProjectionBlend ?? "replace"
+              : "photo-only",
             runtime.mountsOnLocalFrame === true
           );
           configuredMapReceiver ||= mapReceiver;
@@ -320,6 +333,18 @@ void main(){float photographAlpha;float decorationAlpha;vec4 image=carmaScreenIm
     mapStyleProjectionUniforms.depthEnabled.value = 0;
   };
 
+  const detach = () => {
+    mapStyleFramebufferCache?.dispose();
+    mapStyleFramebufferCache = null;
+    releaseMapStyleDepth();
+    mapStyleFramebufferTexture?.dispose();
+    mapStyleFramebufferTexture = null;
+    mapStyleProjectionUniforms.texture.value = null;
+    mapStyleProjectionUniforms.enabled.value = 0;
+    map = null;
+    renderer = null;
+  };
+
   return {
     get epoch() {
       return mapStyleProjectionEpoch;
@@ -340,6 +365,7 @@ void main(){float photographAlpha;float decorationAlpha;vec4 image=carmaScreenIm
       };
     },
 
+    detach,
     screenOverlayMesh,
     setScreenOverlay(
       id: string,
@@ -358,7 +384,9 @@ void main(){float photographAlpha;float decorationAlpha;vec4 image=carmaScreenIm
         Boolean(previous.projective) === Boolean(overlay.projective) &&
         (!previous.projective ||
           !overlay.projective ||
-          previous.projective.sceneToTexture.equals(overlay.projective.sceneToTexture)) &&
+          previous.projective.sceneToTexture.equals(
+            overlay.projective.sceneToTexture
+          )) &&
         previous.backdropLook?.contrast === overlay.backdropLook?.contrast &&
         previous.backdropLook?.brightness ===
           overlay.backdropLook?.brightness &&
@@ -428,7 +456,8 @@ void main(){float photographAlpha;float decorationAlpha;vec4 image=carmaScreenIm
       mapStyleProjectionUniforms.screenBasemapLabels!.value =
         labelPolicy?.showBasemapLabels === false ? 0 : 1;
       const backdrop = ordered.find(
-        (entry) => !entry.projective && (entry.backdropLook || entry.backdropTint)
+        (entry) =>
+          !entry.projective && (entry.backdropLook || entry.backdropTint)
       );
       const backdropUniforms = mapStyleProjectionUniforms.screenBackdrop!;
       backdropUniforms.look.value.set(
@@ -458,9 +487,10 @@ void main(){float photographAlpha;float decorationAlpha;vec4 image=carmaScreenIm
         Math.max(0, border?.feather ?? 0),
         (border?.featherOpacity ?? 0) * (borderEntry?.opacity ?? 0)
       );
-      screenOverlayMesh.visible = ordered.some(
+      screenPhotosActive = ordered.some(
         (entry) => !entry.projective && entry.opacity > 0
       );
+      screenOverlayMesh.visible = screenPhotosActive;
       mapStyleProjectionEpoch++;
       if (requestRepaint) map?.triggerRepaint();
     },
@@ -697,13 +727,7 @@ void main(){float photographAlpha;float decorationAlpha;vec4 image=carmaScreenIm
       return true;
     },
     dispose() {
-      mapStyleFramebufferCache?.dispose();
-      mapStyleFramebufferCache = null;
-      releaseMapStyleDepth();
-      mapStyleFramebufferTexture?.dispose();
-      mapStyleFramebufferTexture = null;
-      mapStyleProjectionUniforms.texture.value = null;
-      mapStyleProjectionUniforms.enabled.value = 0;
+      detach();
       screenOverlays.clear();
       screenOverlayMesh.geometry.dispose();
       screenMaterial.dispose();
@@ -718,6 +742,7 @@ void main(){float photographAlpha;float decorationAlpha;vec4 image=carmaScreenIm
       mapStyleProjectionReceivers.clear();
       mapStylePhotoReceiverStates.clear();
       projectivePhotosActive = false;
+      screenPhotosActive = false;
 
       map = null;
       renderer = null;

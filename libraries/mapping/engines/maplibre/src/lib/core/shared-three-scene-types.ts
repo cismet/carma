@@ -190,6 +190,8 @@ export interface SharedThreeSceneRuntime {
    * this runtime exchanges with the shadow scene are in that reference space.
    */
   mountsOnLocalFrame?: boolean;
+  /** Keep streamed scene geometry beneath ordinary screen photographs. */
+  receivesScreenImages?: boolean;
   /** Project preceding MapLibre ground styling onto selected runtime materials. */
   receivesMapStyleTexture?: boolean | ((material: THREE.Material) => boolean);
   /**
@@ -539,7 +541,7 @@ export const MAP_STYLE_PROJECTION_BLEND = {
   REPLACE: "replace",
   OVERLAY: "overlay",
   MARKINGS_ONLY: "markings-only",
-  /** Retain normal material shading; admit only calibrated world-space photos. */
+  /** Retain normal material shading; admit photographs without basemap draping. */
   PHOTO_ONLY: "photo-only",
 } as const;
 

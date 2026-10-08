@@ -82,13 +82,7 @@ vec4 carmaScreenProjectiveSample(sampler2D image, mat4 transform, float weight, 
   return pixel;
 }
 vec4 carmaReceiverImages(vec2 uv, vec3 position, out float photographAlpha, out float decorationAlpha) {
-#ifdef CARMA_MAP_STYLE_PHOTO_ONLY
-  photographAlpha = 0.0;
-  decorationAlpha = 0.0;
-  vec4 screen = vec4(0.0);
-#else
   vec4 screen = carmaScreenImages(uv,photographAlpha,decorationAlpha);
-#endif
 #if defined(CARMA_PROJECTIVE_LOCAL_FRAME) && (defined(CARMA_MAP_STYLE_OVERLAY) || defined(CARMA_MAP_STYLE_PHOTO_ONLY))
   // These are the existing visible ECEF meshes. No receiver proxy or DEM is
   // introduced. Three's sRGB texture sampling supplies linear photo values.
@@ -114,6 +108,7 @@ vec4 carmaReceiverImages(vec2 uv, vec3 position, out float photographAlpha, out 
 export const MAP_STYLE_PROJECTION_VERTEX_HEADER = /* glsl */ `
 uniform mat4 carmaMapStyleSceneToClip;
 varying vec4 vCarmaMapStyleClip;
+varying vec4 vCarmaScreenClip;
 varying vec3 vCarmaReceiverPosition;
 uniform mat4 carmaSurfaceSceneToTexture;
 uniform mat4 carmaSurfacePreviousSceneToTexture;
@@ -123,6 +118,7 @@ varying vec2 vCarmaSurfacePreviousUv;
 
 export const MAP_STYLE_PROJECTION_VERTEX_BODY = /* glsl */ `
 #include <project_vertex>
+vCarmaScreenClip = gl_Position;
 vec4 carmaSurfacePosition = modelMatrix * vec4( transformed, 1.0 );
 vCarmaReceiverPosition = carmaSurfacePosition.xyz;
 vCarmaMapStyleClip = carmaMapStyleSceneToClip * carmaSurfacePosition;
@@ -219,6 +215,7 @@ uniform float carmaMapStyleDepthEnabled;
 uniform vec2 carmaMapStyleDepthNearFar;
 uniform vec2 carmaMapStyleTexelSize;
 varying vec4 vCarmaMapStyleClip;
+varying vec4 vCarmaScreenClip;
 varying vec2 vCarmaSurfaceUv;
 uniform sampler2D carmaSurfaceTexture;
 uniform float carmaSurfaceOpacity;
@@ -337,18 +334,27 @@ vec3 carmaScreenBackdrop( vec3 linearColor ) {
   value = mix(value,carmaScreenBackdropTint.rgb,carmaScreenBackdropTint.a);
   return carmaMapStyleSRGBToLinear(value);
 }
+vec3 carmaComposePhoto(vec3 base, vec4 image, float photographAlpha, float decorationAlpha) {
+  float outside = carmaScreenBackdropOpacity*(1.0-photographAlpha);
+  if (outside>0.0) base = mix(base,carmaScreenBackdrop(base),outside);
+  // Match the screen quad's white framing in display sRGB beneath the photo.
+  if (decorationAlpha>0.0) base = carmaMapStyleSRGBToLinear(
+    mix(carmaMapStyleLinearToSRGB(base),vec3(1.0),decorationAlpha));
+  vec3 photograph = max(image.rgb*image.a-vec3(decorationAlpha*(1.0-photographAlpha)),vec3(0.0));
+  return base*(1.0-photographAlpha)+photograph;
+}
 `;
 
 export const MAP_STYLE_PROJECTION_FRAGMENT_OUTPUT = /* glsl */ `
 #ifdef CARMA_MAP_STYLE_PHOTO_ONLY
-// Preserve roofs/facades that the basemap receiver filter excludes. Only the
-// two calibrated photographs participate; normal screen photos, labels and
-// footprint/surface markings keep their existing receiver admission policy.
+// Buildings and their outlines receive the same photograph as the ground,
+// without subscribing to basemap draping or changing scene depth.
 if (carmaScreenOpacity0 > 0.0 || carmaScreenOpacity1 > 0.0) {
   float photographAlpha;
   float decorationAlpha;
-  vec4 image = carmaReceiverImages(vec2(0.0),vCarmaReceiverPosition,photographAlpha,decorationAlpha);
-  outgoingLight = outgoingLight*(1.0-photographAlpha)+image.rgb*photographAlpha;
+  vec2 screenUv = vCarmaScreenClip.xy / vCarmaScreenClip.w * 0.5 + 0.5;
+  vec4 image = carmaReceiverImages(screenUv,vCarmaReceiverPosition,photographAlpha,decorationAlpha);
+  outgoingLight = carmaComposePhoto(outgoingLight,image,photographAlpha,decorationAlpha);
 }
 #include <opaque_fragment>
 #else
@@ -378,7 +384,7 @@ if (carmaSurfaceOpacity > 0.0) {
   carmaMarkings = vec4(color * carmaSurfaceOpacity, alpha * carmaSurfaceOpacity);
 }
 if (carmaScreenOpacity0 > 0.0 || carmaScreenOpacity1 > 0.0) {
-  vec2 screenUv = vCarmaMapStyleClip.xy / vCarmaMapStyleClip.w * 0.5 + 0.5;
+  vec2 screenUv = vCarmaScreenClip.xy / vCarmaScreenClip.w * 0.5 + 0.5;
   float photographAlpha;
   float decorationAlpha;
   // carmaScreenImages returns straight RGB and coverage, including the framing.
@@ -427,19 +433,11 @@ if ( carmaSurfaceOpacity > 0.0 ) {
   outgoingLight = outgoingLight * (1.0-alpha*carmaSurfaceOpacity) + color*carmaSurfaceOpacity;
 }
 if (carmaScreenOpacity0 > 0.0 || carmaScreenOpacity1 > 0.0) {
-  vec2 screenUv = vCarmaMapStyleClip.xy / vCarmaMapStyleClip.w * 0.5 + 0.5;
+  vec2 screenUv = vCarmaScreenClip.xy / vCarmaScreenClip.w * 0.5 + 0.5;
   float photographAlpha;
   float decorationAlpha;
   vec4 image = carmaReceiverImages(screenUv,vCarmaReceiverPosition,photographAlpha,decorationAlpha);
-  // Filter only the visible receiver beneath/outside the photo. Its source RGB stays untouched.
-  float outside = carmaScreenBackdropOpacity*(1.0-photographAlpha);
-  if (outside>0.0) outgoingLight = mix(outgoingLight,carmaScreenBackdrop(outgoingLight),outside);
-  // CSS white framing blends in display sRGB. Place it beneath the photograph
-  // so fading/antialiasing cannot attenuate the photograph's foreground color.
-  if (decorationAlpha>0.0) outgoingLight = carmaMapStyleSRGBToLinear(
-    mix(carmaMapStyleLinearToSRGB(outgoingLight),vec3(1.0),decorationAlpha));
-  vec3 photograph = max(image.rgb*image.a-vec3(decorationAlpha*(1.0-photographAlpha)),vec3(0.0));
-  outgoingLight = outgoingLight*(1.0-photographAlpha)+photograph;
+  outgoingLight = carmaComposePhoto(outgoingLight,image,photographAlpha,decorationAlpha);
   // Image coverage suppresses only labels over the photograph, never those
   // around it. Existing depth matching still makes roofs/facades occlude them.
 #ifdef CARMA_MAP_STYLE_OVERLAY

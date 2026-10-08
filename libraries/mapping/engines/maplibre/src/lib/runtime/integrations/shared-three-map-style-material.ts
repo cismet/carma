@@ -18,7 +18,7 @@ type MapStyleProjectionMaterialState = {
 };
 
 const MAP_STYLE_PROJECTION_STATE = "carmaMapStyleProjectionState";
-const MAP_STYLE_PROJECTION_SHADER_KEY = "|carma-map-style-projection-v19";
+const MAP_STYLE_PROJECTION_SHADER_KEY = "|carma-map-style-projection-v20";
 const MAP_STYLE_PROJECTION_OVERLAY_DEFINE = "CARMA_MAP_STYLE_OVERLAY";
 const MAP_STYLE_PROJECTION_MARKINGS_DEFINE = "CARMA_MAP_STYLE_MARKINGS_ONLY";
 
@@ -122,8 +122,8 @@ export const configureMapStyleProjectedMaterial = (
     shader.uniforms["carmaProjectiveTrailDuration"] = projective.trailDuration;
     shader.uniforms["carmaProjectiveOpacity"] = projective.opacity;
     shader.uniforms["carmaProjectivePixelRatio"] = projective.pixelRatio;
-    shader.uniforms["carmaScreenBasemapLabels"] =
-      state.uniforms.screenBasemapLabels ?? { value: 1 };
+    shader.uniforms["carmaScreenBasemapLabels"] = state.uniforms
+      .screenBasemapLabels ?? { value: 1 };
     shader.uniforms["carmaScreenBackdropLook"] = state.uniforms.screenBackdrop
       ?.look ?? { value: new THREE.Vector3(1, 1, 1) };
     shader.uniforms["carmaScreenBackdropTint"] = state.uniforms.screenBackdrop

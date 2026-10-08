@@ -355,12 +355,10 @@ export const buildSharedThreeSceneLayer = (
       map?.off?.(MAPLIBRE_EVENT.RENDER, renderScreenPasses);
       if (map)
         publishMapLoadingProgress(map, MAP_LOADING_PHASE.SHADOW, layerId, 1);
-      mapStyleProjection.dispose();
+      mapStyleProjection.detach();
       for (const runtime of runtimes.values()) runtime.root.removeFromParent();
       depthRangeBridge?.dispose();
       depthRangeBridge = null;
-      renderer?.dispose();
-      renderer = null;
       map = null;
       originMerc = null;
       meterScale = 0;
@@ -377,7 +375,13 @@ export const buildSharedThreeSceneLayer = (
       meterScale = originMerc.meterInMercatorCoordinateUnits();
       originLngLat = [center.lng, center.lat];
       localFrameState.refit(map, originLngLat, true);
-      renderer = new THREE.WebGLRenderer({
+      // MapLibre may reattach this layer after a style change on the same GL
+      // context. Keep photo render targets and their resident textures alive.
+      if (renderer && renderer.getContext() !== gl) {
+        renderer.dispose();
+        renderer = null;
+      }
+      renderer ??= new THREE.WebGLRenderer({
         canvas: mapInstance.getCanvas(),
         context: gl,
       });
@@ -540,12 +544,10 @@ export const buildSharedThreeSceneLayer = (
           1,
           false
         );
-      mapStyleProjection.dispose();
+      mapStyleProjection.detach();
       if (map) setSharedThreeShadedPresentation(map, false);
       depthRangeBridge?.dispose();
       depthRangeBridge = null;
-      renderer?.dispose();
-      renderer = null;
       map = null;
     },
 

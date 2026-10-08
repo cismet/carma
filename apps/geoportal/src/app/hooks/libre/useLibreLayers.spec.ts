@@ -62,6 +62,7 @@ const state = vi.hoisted(() => ({
   restores: [] as ReturnType<typeof vi.fn>[],
   acquireComposition: vi.fn(),
   acquireDemandPause: vi.fn(),
+  demandPauseReleases: [] as ReturnType<typeof vi.fn>[],
   acquireZoomLimit: vi.fn(),
   buildTerrain: vi.fn(),
   notifyChanged: vi.fn(),
@@ -167,7 +168,9 @@ vi.mock("@carma-mapping/engines/maplibre", () => ({
   },
   acquireMapLibreTerrainDemandPause: (...args: unknown[]) => {
     state.acquireDemandPause(...args);
-    return vi.fn();
+    const release = vi.fn();
+    state.demandPauseReleases.push(release);
+    return release;
   },
   acquireMapLibreTerrainMeshComposition: (...args: unknown[]) => {
     state.acquireComposition(...args);
@@ -315,7 +318,11 @@ describe("useLibreLayers with conditional layers", () => {
     state.previewVisible = true;
     const view = renderHook(() => useLibreLayers());
     const terrain = state.runtimes[0];
-    expect(state.acquireZoomLimit).toHaveBeenCalledWith(state.map, "test-dem-source", 13);
+    expect(state.acquireZoomLimit).toHaveBeenCalledWith(
+      state.map,
+      "test-dem-source",
+      13
+    );
     expect(terrain.setTileDemandPaused).toHaveBeenLastCalledWith(true);
     state.previewVisible = false;
     view.rerender();
@@ -326,7 +333,7 @@ describe("useLibreLayers with conditional layers", () => {
     expect(terrain.setGroundVisible).toHaveBeenLastCalledWith(true);
     expect(state.buildTerrain).toHaveBeenCalledOnce();
   });
-  it("freezes DEM demand in a preview without rebuilding or releasing cached terrain", () => {
+  it("keeps Karte DEM demand active through a preview without rebuilding or releasing terrain", () => {
     state.map = { getCenter: () => ({ lng: 7.2, lat: 51.27 }) };
     state.addons = ["obliqueViewer"];
     state.obliqueEnabled = true;
@@ -334,18 +341,38 @@ describe("useLibreLayers with conditional layers", () => {
     const view = renderHook(() => useLibreLayers());
     const terrain = state.runtimes[0];
     expect(terrain.setTileDemandPaused).toHaveBeenLastCalledWith(true);
-    expect(state.acquireDemandPause).toHaveBeenCalledWith(state.map, "test-dem-source");
+    expect(state.acquireDemandPause).toHaveBeenCalledWith(
+      state.map,
+      "test-dem-source"
+    );
+    expect(state.acquireDemandPause).toHaveBeenCalledOnce();
+    const releaseAerialPause = state.demandPauseReleases[0];
     state.currentStyle = MapStyleKeys.TOPO;
     view.rerender();
-    expect(terrain.setTileDemandPaused).toHaveBeenLastCalledWith(true);
+    expect(releaseAerialPause).toHaveBeenCalledOnce();
+    expect(state.acquireDemandPause).toHaveBeenCalledOnce();
+    expect(terrain.setTileDemandPaused).toHaveBeenLastCalledWith(false);
     expect(terrain.setGroundVisible).toHaveBeenLastCalledWith(true);
     state.previewVisible = false;
     view.rerender();
+    expect(state.acquireDemandPause).toHaveBeenCalledOnce();
     expect(terrain.setTileDemandPaused).toHaveBeenLastCalledWith(false);
     expect(state.buildTerrain).toHaveBeenCalledOnce();
     expect(state.runtimes[0]).toBe(terrain);
     expect(terrain.dispose).not.toHaveBeenCalled();
     expect(state.unregisters[0]).not.toHaveBeenCalled();
+    state.currentStyle = MapStyleKeys.AERIAL;
+    state.previewVisible = true;
+    view.rerender();
+    expect(state.acquireDemandPause).toHaveBeenCalledTimes(2);
+    expect(terrain.setTileDemandPaused).toHaveBeenLastCalledWith(true);
+    state.currentStyle = MapStyleKeys.TOPO;
+    view.rerender();
+    expect(state.demandPauseReleases[1]).toHaveBeenCalledOnce();
+    expect(state.acquireDemandPause).toHaveBeenCalledTimes(2);
+    expect(terrain.setTileDemandPaused).toHaveBeenLastCalledWith(false);
+    expect(state.buildTerrain).toHaveBeenCalledOnce();
+    expect(terrain.dispose).not.toHaveBeenCalled();
   });
 
   afterEach(() => {
@@ -370,6 +397,7 @@ describe("useLibreLayers with conditional layers", () => {
     state.pendingTerrain = [];
     state.unregisters = [];
     state.restores = [];
+    state.demandPauseReleases = [];
     state.terrainUsable = true;
     state.shadedReady = false;
     state.presentationListeners.clear();

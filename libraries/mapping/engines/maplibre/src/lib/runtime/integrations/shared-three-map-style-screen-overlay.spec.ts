@@ -1,6 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   BoxGeometry,
+  Group,
+  LineBasicMaterial,
+  LineSegments,
+  Points,
+  PointsMaterial,
   Matrix3,
   Matrix4,
   Mesh,
@@ -11,6 +16,127 @@ import {
 import { createSharedThreeMapStyleProjection } from "./shared-three-map-style-projection";
 
 describe("map-style screen image ownership", () => {
+  it("configures later building meshes, outlines and points as photo-only without a DEM capture", () => {
+    const runtimes = new Map();
+    const controller = createSharedThreeMapStyleProjection(
+      "scene",
+      runtimes,
+      new Vector2(800, 600)
+    );
+    const copy = vi.fn(),
+      terrain = vi.fn();
+    const map = {
+      on: vi.fn(),
+      off: vi.fn(),
+      triggerRepaint: vi.fn(),
+      getCanvas: () => ({ clientWidth: 800 }),
+      getTerrain: terrain,
+    };
+    controller.attach(
+      map as never,
+      { copyFramebufferToTexture: copy } as never
+    );
+    const photo = new Texture();
+    controller.setScreenOverlay("preview", {
+      texture: photo,
+      viewportToTexture: new Matrix3(),
+      opacity: 1,
+    });
+    controller.capture(new Matrix4(), false);
+    const root = new Group();
+    const materials = [
+      new MeshBasicMaterial(),
+      new LineBasicMaterial(),
+      new PointsMaterial(),
+    ];
+    const geometry = new BoxGeometry();
+    root.add(
+      new Mesh(geometry, materials[0]),
+      new LineSegments(geometry, materials[1]),
+      new Points(geometry, materials[2])
+    );
+    runtimes.set("late-building", {
+      id: "late-building",
+      root,
+      originLngLat: [0, 0],
+      receivesMapStyleTexture: false,
+      receivesScreenImages: true,
+      providesTerrain: false,
+      update: () => undefined,
+      dispose: () => undefined,
+    });
+    try {
+      controller.capture(new Matrix4(), false);
+      for (const material of materials) {
+        expect(material.defines.CARMA_MAP_STYLE_PHOTO_ONLY).toBe("");
+        const shader = {
+          uniforms: {},
+          vertexShader: "#include <common>\n#include <project_vertex>",
+          fragmentShader:
+            "#include <common>\n#include <map_fragment>\n#include <opaque_fragment>",
+        } as Parameters<typeof material.onBeforeCompile>[0];
+        material.onBeforeCompile(shader, {} as never);
+        expect(shader.vertexShader).toContain("vCarmaScreenClip = gl_Position");
+        expect(shader.uniforms.carmaScreenTexture0).toBe(
+          controller.screenOverlayMesh.material.uniforms.carmaScreenTexture0
+        );
+      }
+      expect(controller.getState(1).receivers["late-building"]).toBe(false);
+      expect(copy).not.toHaveBeenCalled();
+      expect(terrain).not.toHaveBeenCalled();
+    } finally {
+      controller.dispose();
+      materials.forEach((material) => material.dispose());
+      geometry.dispose();
+      photo.dispose();
+    }
+  });
+
+  it("preserves borrowed photo slots across projection detach and reattach", () => {
+    const controller = createSharedThreeMapStyleProjection(
+      "scene",
+      new Map(),
+      new Vector2(800, 600)
+    );
+    const photo = new Texture(),
+      crop = new Texture();
+    const photoDispose = vi.spyOn(photo, "dispose"),
+      cropDispose = vi.spyOn(crop, "dispose");
+    const map = {
+      on: vi.fn(),
+      off: vi.fn(),
+      triggerRepaint: vi.fn(),
+      getCanvas: () => ({ clientWidth: 800 }),
+    };
+    const renderer = { copyFramebufferToTexture: vi.fn() };
+    const mesh = controller.screenOverlayMesh;
+    controller.attach(map as never, renderer as never);
+    controller.setScreenOverlay("preview", {
+      texture: photo,
+      viewportToTexture: new Matrix3(),
+      opacity: 1,
+    });
+    controller.setScreenOverlay("crop", {
+      texture: crop,
+      viewportToTexture: new Matrix3(),
+      opacity: 1,
+      priority: 1,
+    });
+    controller.detach();
+    controller.attach(map as never, renderer as never);
+    expect(controller.screenOverlayMesh).toBe(mesh);
+    expect(mesh.material.uniforms.carmaScreenTexture0.value).toBe(photo);
+    expect(mesh.material.uniforms.carmaScreenTexture1.value).toBe(crop);
+    expect(mesh.visible).toBe(true);
+    controller.setScreenOverlay("crop", null);
+    expect(mesh.material.uniforms.carmaScreenTexture0.value).toBe(photo);
+    controller.dispose();
+    expect(photoDispose).not.toHaveBeenCalled();
+    expect(cropDispose).not.toHaveBeenCalled();
+    photo.dispose();
+    crop.dispose();
+  });
+
   it("does not turn an ECEF DEM replace receiver into a photo-only surface", () => {
     const material = new MeshBasicMaterial();
     const root = new Mesh(new BoxGeometry(), material);
@@ -18,17 +144,20 @@ describe("map-style screen image ownership", () => {
     const controller = createSharedThreeMapStyleProjection(
       "scene",
       new Map([
-        ["dem", {
-          id: "dem",
-          originLngLat: [0, 0] as [number, number],
-          root,
-          receivesMapStyleTexture: false,
-          mountsOnLocalFrame: true,
-          providesTerrain: true,
-          mapStyleProjectionBlend: "replace" as const,
-          update: () => undefined,
-          dispose: () => undefined,
-        }],
+        [
+          "dem",
+          {
+            id: "dem",
+            originLngLat: [0, 0] as [number, number],
+            root,
+            receivesMapStyleTexture: false,
+            mountsOnLocalFrame: true,
+            providesTerrain: true,
+            mapStyleProjectionBlend: "replace" as const,
+            update: () => undefined,
+            dispose: () => undefined,
+          },
+        ],
       ]),
       new Vector2(800, 600)
     );
@@ -56,17 +185,20 @@ describe("map-style screen image ownership", () => {
       const controller = createSharedThreeMapStyleProjection(
         "scene",
         new Map([
-          ["mesh", {
-            id: "mesh",
-            originLngLat: [0, 0] as [number, number],
-            root,
-            receivesMapStyleTexture,
-            mountsOnLocalFrame: true,
-            providesTerrain: true,
-            mapStyleProjectionBlend: "overlay" as const,
-            update: () => undefined,
-            dispose: () => undefined,
-          }],
+          [
+            "mesh",
+            {
+              id: "mesh",
+              originLngLat: [0, 0] as [number, number],
+              root,
+              receivesMapStyleTexture,
+              mountsOnLocalFrame: true,
+              providesTerrain: true,
+              mapStyleProjectionBlend: "overlay" as const,
+              update: () => undefined,
+              dispose: () => undefined,
+            },
+          ],
         ]),
         new Vector2(800, 600)
       );
@@ -92,10 +224,16 @@ describe("map-style screen image ownership", () => {
       expect(traversal.mock.calls.length).toBe(visits + 1);
       controller.capture(new Matrix4(), false);
       expect(traversal.mock.calls.length).toBe(visits + 1);
-      controller.setScreenOverlay("screen", { ...photo, projective: undefined });
-      expect(controller.screenOverlayMesh.material.uniforms.carmaScreenProjective0.value).toBe(0);
-      // The retained photo-only program samples no regular screen photo and
-      // retains the material's original shaded color outside projected photos.
+      controller.setScreenOverlay("screen", {
+        ...photo,
+        projective: undefined,
+      });
+      expect(
+        controller.screenOverlayMesh.material.uniforms.carmaScreenProjective0
+          .value
+      ).toBe(0);
+      // This runtime opts into projected photos only; a regular screen photo
+      // does not turn it into a map-style receiver.
       expect(material.defines.CARMA_MAP_STYLE_PHOTO_ONLY).toBe("");
       controller.dispose();
       traversal.mockRestore();
@@ -110,16 +248,19 @@ describe("map-style screen image ownership", () => {
     const controller = createSharedThreeMapStyleProjection(
       "scene",
       new Map([
-        ["mesh", {
-          id: "mesh",
-          originLngLat: [0, 0] as [number, number],
-          root,
-          receivesMapStyleTexture: true,
-          mapStyleProjectionBlend: "overlay" as const,
-          mountsOnLocalFrame: true,
-          update: () => undefined,
-          dispose: () => undefined,
-        }],
+        [
+          "mesh",
+          {
+            id: "mesh",
+            originLngLat: [0, 0] as [number, number],
+            root,
+            receivesMapStyleTexture: true,
+            mapStyleProjectionBlend: "overlay" as const,
+            mountsOnLocalFrame: true,
+            update: () => undefined,
+            dispose: () => undefined,
+          },
+        ],
       ]),
       new Vector2(800, 600)
     );
@@ -150,7 +291,9 @@ describe("map-style screen image ownership", () => {
     expect(uniforms.carmaScreenOpacity0.value).toBe(0.75);
     expect(uniforms.carmaScreenOpacity1.value).toBe(0.25);
     expect(uniforms.carmaScreenBackdropOpacity.value).toBe(0);
-    expect(uniforms.carmaScreenBorderStyle.value.toArray()).toEqual([0, 0, 0, 0]);
+    expect(uniforms.carmaScreenBorderStyle.value.toArray()).toEqual([
+      0, 0, 0, 0,
+    ]);
     const unchangedEpoch = controller.epoch;
     controller.setScreenOverlay("source", source);
     expect(controller.epoch).toBe(unchangedEpoch);
@@ -163,13 +306,21 @@ describe("map-style screen image ownership", () => {
     const shader = {
       uniforms: {},
       vertexShader: "#include <common>\n#include <project_vertex>",
-      fragmentShader: "#include <common>\n#include <map_fragment>\n#include <opaque_fragment>",
+      fragmentShader:
+        "#include <common>\n#include <map_fragment>\n#include <opaque_fragment>",
     } as Parameters<typeof material.onBeforeCompile>[0];
-    material.onBeforeCompile(shader, {} as Parameters<typeof material.onBeforeCompile>[1]);
+    material.onBeforeCompile(
+      shader,
+      {} as Parameters<typeof material.onBeforeCompile>[1]
+    );
     expect(material.defines.CARMA_PROJECTIVE_LOCAL_FRAME).toBe("");
     expect(material.defines.CARMA_MAP_STYLE_OVERLAY).toBe("");
-    expect(shader.uniforms.carmaScreenSceneToTexture0).toBe(uniforms.carmaScreenSceneToTexture0);
-    expect(shader.uniforms.carmaScreenProjective1).toBe(uniforms.carmaScreenProjective1);
+    expect(shader.uniforms.carmaScreenSceneToTexture0).toBe(
+      uniforms.carmaScreenSceneToTexture0
+    );
+    expect(shader.uniforms.carmaScreenProjective1).toBe(
+      uniforms.carmaScreenProjective1
+    );
     controller.setScreenOverlay("target", null);
     controller.setScreenOverlay("source", { ...source, projective: undefined });
     expect(controller.screenOverlayMesh.visible).toBe(true);
@@ -183,18 +334,31 @@ describe("map-style screen image ownership", () => {
   });
   it("changes preview labels without replacing the texture and restores the base policy after a crop", () => {
     const controller = createSharedThreeMapStyleProjection(
-      "scene", new Map(), new Vector2(800, 600)
+      "scene",
+      new Map(),
+      new Vector2(800, 600)
     );
-    const base = { texture: new Texture(), viewportToTexture: new Matrix3(), opacity: 1 };
+    const base = {
+      texture: new Texture(),
+      viewportToTexture: new Matrix3(),
+      opacity: 1,
+    };
     controller.setScreenOverlay("preview", base);
     const uniforms = controller.screenOverlayMesh.material.uniforms;
     expect(uniforms.carmaScreenBasemapLabels.value).toBe(1);
     const before = controller.epoch;
-    controller.setScreenOverlay("preview", { ...base, showBasemapLabels: false });
+    controller.setScreenOverlay("preview", {
+      ...base,
+      showBasemapLabels: false,
+    });
     expect(controller.epoch).toBeGreaterThan(before);
     expect(uniforms.carmaScreenTexture0.value).toBe(base.texture);
     expect(uniforms.carmaScreenBasemapLabels.value).toBe(0);
-    controller.setScreenOverlay("crop", { ...base, priority: 1, showBasemapLabels: true });
+    controller.setScreenOverlay("crop", {
+      ...base,
+      priority: 1,
+      showBasemapLabels: true,
+    });
     expect(uniforms.carmaScreenBasemapLabels.value).toBe(1);
     controller.setScreenOverlay("crop", null);
     expect(uniforms.carmaScreenBasemapLabels.value).toBe(0);

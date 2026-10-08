@@ -335,6 +335,7 @@ export function buildThreeTilesRuntime(
       root: state.orientationGroup,
       mountsOnLocalFrame: state.options.cameraLocalMount === true,
       providesTerrain: state.options.providesTerrain === true,
+      receivesScreenImages: true,
       receivesMapStyleTexture:
         state.options.providesTerrain === true &&
         state.options.mapStyleDrape !== TILES3D_BASEMAP.NONE

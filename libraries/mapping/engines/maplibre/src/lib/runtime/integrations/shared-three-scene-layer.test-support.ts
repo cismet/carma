@@ -21,6 +21,8 @@ vi.mock(
 vi.mock("three", async (importOriginal) => ({
   ...(await importOriginal<typeof import("three")>()),
   WebGLRenderer: class {
+    constructor(private readonly options: { context: unknown }) {}
+    getContext = () => this.options.context;
     shadowMap = {};
     setRenderTarget = vi.fn();
     setViewport = vi.fn();

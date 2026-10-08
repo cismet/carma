@@ -170,9 +170,7 @@ export const useLibreLayers = (): LibreLayer[] => {
           notifySharedThreeSceneContentChanged(map, { bounds }),
       }
     );
-    runtime.setTileDemandPaused(
-      currentStyle === MapStyleKeys.AERIAL || previewVisible === true
-    );
+    runtime.setTileDemandPaused(currentStyle === MapStyleKeys.AERIAL);
     obliqueTerrainRef.current = runtime;
     lease.layer.addRuntime(runtime);
     const unregister = registerSharedThreeSceneRuntime(map, runtime);
@@ -191,11 +189,11 @@ export const useLibreLayers = (): LibreLayer[] => {
   }, [map, obliqueActive, currentStyle]);
   useEffect(() => {
     // Mesh uses MapLibre drape textures directly, without a Three DEM traversal.
-    // Preview pan/FOV changes only the image plane, not the ground tile demand.
+    // Karte still needs visible terrain around the retained image preview.
     obliqueTerrainRef.current?.setTileDemandPaused(
-      currentStyle === MapStyleKeys.AERIAL || previewVisible === true
+      currentStyle === MapStyleKeys.AERIAL
     );
-  }, [map, obliqueActive, currentStyle, previewVisible]);
+  }, [map, obliqueActive, currentStyle]);
   useEffect(() => {
     if (
       !map ||
@@ -205,13 +203,18 @@ export const useLibreLayers = (): LibreLayer[] => {
     )
       return;
     // Label placement needs coarse ground height, never image-resolution DEMs.
-    return acquireMapLibreTerrainZoomLimit(map, WUPPERTAL_TERRAIN_SOURCE_ID, 13);
+    return acquireMapLibreTerrainZoomLimit(
+      map,
+      WUPPERTAL_TERRAIN_SOURCE_ID,
+      13
+    );
   }, [map, obliqueActive, currentStyle, mapStyle3dActive]);
   useEffect(() => {
     if (!map || !obliqueActive) return;
-    const meshWithoutDrape =
-      currentStyle === MapStyleKeys.AERIAL && !mapStyle3dActive;
-    if (!meshWithoutDrape && previewVisible !== true) return;
+    const pauseMeshTerrain =
+      currentStyle === MapStyleKeys.AERIAL &&
+      (!mapStyle3dActive || previewVisible === true);
+    if (!pauseMeshTerrain) return;
     // Retain native terrain/RTT and camera elevation; freeze only tile demand.
     return acquireMapLibreTerrainDemandPause(map, WUPPERTAL_TERRAIN_SOURCE_ID);
   }, [map, obliqueActive, currentStyle, mapStyle3dActive, previewVisible]);

@@ -241,7 +241,12 @@ quad shares these uniforms to cover pixels without receiver geometry; receiver
 fragments composite the same image before their existing depth-tested labels.
 Following native point labels retain their normal order. Removing an owner clears
 its slot; callers dispose their textures. Unchanged texture versions, transforms
-and opacities do not invalidate the map.
+and opacities do not invalidate the map. All 3D tiles runtimes opt into
+`receivesScreenImages`, including LOD2 buildings and their outlines; they stay
+beneath the photograph without requesting a basemap/depth capture. Screen photo
+UVs use the current camera projection, independently of retained basemap frames.
+Style detach/reattach preserves overlay ownership, textures and the renderer on
+the same GL context; only final scene disposal releases those resources.
 
 
 `MapStyleScreenOverlay.projective.sceneToTexture` instead maps scene-world

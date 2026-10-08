@@ -17,6 +17,54 @@ import {
 } from "./shared-three-scene-render-context";
 
 describe("shared three scene layer", () => {
+  it("retains the renderer, runtime and borrowed preview through removal and same-GL reattachment", () => {
+    const host = createProgressiveHost();
+    host.layer.setAccumulationController(null);
+    const root = new THREE.Group(),
+      dispose = vi.fn();
+    host.layer.addRuntime({
+      id: "retained",
+      root,
+      originLngLat: [7.15, 51.25],
+      update: vi.fn(),
+      dispose,
+    });
+    const renderer = host.layer.getRenderer()!;
+    const photo = new THREE.Texture(),
+      photoDispose = vi.spyOn(photo, "dispose");
+    host.layer.setMapStyleScreenOverlay("preview", {
+      texture: photo,
+      viewportToTexture: new THREE.Matrix3(),
+      opacity: 1,
+    });
+    const screen = host.layer
+      .getScene()
+      .children.find(
+        (object) =>
+          (object as THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial>)
+            .material?.uniforms?.carmaScreenTexture0
+      ) as THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial>;
+    expect(screen).toBeDefined();
+    try {
+      host.layer.onRemove!(host.map as never, host.gl as never);
+      expect(renderer.dispose).not.toHaveBeenCalled();
+      expect(photoDispose).not.toHaveBeenCalled();
+      expect(dispose).not.toHaveBeenCalled();
+      host.layer.onAdd!(host.map as never, host.gl as never);
+      expect(host.layer.getRenderer()).toBe(renderer);
+      expect(host.layer.getRuntimes()[0].root).toBe(root);
+      expect(screen.material.uniforms.carmaScreenTexture0.value).toBe(photo);
+      expect(screen.visible).toBe(true);
+      host.render();
+    } finally {
+      host.layer.dispose();
+      expect(renderer.dispose).toHaveBeenCalledOnce();
+      expect(dispose).toHaveBeenCalledOnce();
+      expect(photoDispose).not.toHaveBeenCalled();
+      photo.dispose();
+    }
+  });
+
   it("pauses drawing and updates without dropping resident runtimes", () => {
     const host = createProgressiveHost();
     host.layer.setAccumulationController(null);
