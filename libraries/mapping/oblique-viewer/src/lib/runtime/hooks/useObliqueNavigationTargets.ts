@@ -14,6 +14,7 @@ import {
 } from "../../core/utils/orientation";
 import { getCameraCalibration } from "../../core/utils/calibration";
 import { panViewTarget } from "../../core/utils/selection";
+import { NAVIGATION_SELECTION } from "../../core/constants";
 import { poseOf } from "../utils/flyToImage";
 import type { RefreshSearchArgs } from "./useNearestImage";
 import type { ImageSelectionBatchResult } from "../utils/image-selection-messages";
@@ -63,8 +64,26 @@ type Options = {
   ensureDirections?: (queries: RefreshSearchArgs[]) => Promise<unknown>;
   publish: (targets: ObliqueNavigationTargets | null) => void;
   onLookAhead: (candidate: NearestObliqueImageRecord | null, target?: PreparedObliqueNavigationTarget) => void;
+  onLookAheadGroup?: (targets: readonly PreparedObliqueNavigationTarget[], groupKey: string) => void;
+};
+const navigationOrientation = (options: Options) => {
+  const selected = options.selectedImage;
+  const dataset = selected && options.data?.datasets.get(selected.record.seriesId);
+  if (!selected || !dataset || !options.map) return null;
+  const pose = poseOf(selected.record, dataset);
+  const usePhotoPose = options.previewCameraActive || options.busyRef.current;
+  return {
+    headingRad: degToRad(
+      (usePhotoPose ? pose.bearingDeg : options.map.getBearing()) as Degrees
+    ),
+    pitchRad: degToRad(
+      (usePhotoPose ? pose.pitchDeg : options.map.getPitch()) as Degrees
+    ),
+  };
 };
 type Cache = {
+  headingRad: Radians;
+  pitchRad: Radians;
   data: ObliqueSelectionData;
   imageId: string;
   viewMode: ObliqueViewMode;
@@ -95,6 +114,7 @@ export const useObliqueNavigationTargets = (options: Options) => {
   optionsRef.current = options;
   const cacheRef = useRef<Cache | null>(null),
     generationRef = useRef(0),
+    preparingGenerationRef = useRef<number | null>(null),
     lastDirectionRef = useRef<ObliqueNavigationKey | null>(null);
   const intentRef = useRef<{ pointer: ObliqueNavigationKey | null; focus: ObliqueNavigationKey | null }>({ pointer: null, focus: null });
   const hoverTimerRef = useRef<{ key: ObliqueNavigationKey; timer: ReturnType<typeof setTimeout> } | null>(null);
@@ -110,6 +130,7 @@ export const useObliqueNavigationTargets = (options: Options) => {
     lastNavigationAtRef = useRef(-Infinity),
     missingThisTickRef = useRef(0),
     lookAheadRef = useRef<string | null>(null);
+  const rotationGroupRef = useRef<string | null>(null);
   const cancel = useCallback(() => {
     clearTimeout(hoverTimerRef.current?.timer);
     hoverTimerRef.current = null;
@@ -171,7 +192,10 @@ export const useObliqueNavigationTargets = (options: Options) => {
     )
       return null;
     const target = effectiveTarget();
-    return target &&
+    const orientation = navigationOrientation(o);
+    return target && orientation &&
+      c.headingRad === orientation.headingRad &&
+      c.pitchRad === orientation.pitchRad &&
       c.originTarget.longitude === target.longitude &&
       c.originTarget.latitude === target.latitude &&
       c.originTarget.heightMeters === target.heightMeters &&
@@ -210,6 +234,28 @@ export const useObliqueNavigationTargets = (options: Options) => {
       : entry ? null
       : intentRef.current.pointer ?? intentRef.current.focus ?? lastDirectionRef.current;
     const target = key && cache?.targets.get(key);
+    const o = optionsRef.current;
+    if (cache && o.onLookAheadGroup) {
+      // Reuse the resolved control targets: no extra geometry/catalog queries.
+      const candidates = [
+        ...(target ? [target] : []),
+        ...(rotationGroupRef.current ? [...cache.cardinals.values(),
+          ...[...cache.targets.values()].filter((step) => !step.fitNextImage)] : []),
+        ...[...cache.targets.values()].filter((step) => step.fitNextImage),
+      ];
+      const seen = new Set([cache.imageId]);
+      const targets = candidates.filter((step) => {
+        const id = step.candidate.record.id;
+        if (seen.has(id)) return false;
+        seen.add(id); return true;
+      });
+      const groupKey = `${o.selectedImage?.record.seriesId}:${rotationGroupRef.current ?? cache.imageId}`;
+      const identity = `${groupKey}:${targets.map((step) => step.candidate.record.id).join(",")}`;
+      if (lookAheadRef.current === identity) return;
+      lookAheadRef.current = identity;
+      o.onLookAheadGroup(targets, groupKey);
+      return;
+    }
     if (!target) {
       if (lookAheadRef.current !== null) {
         lookAheadRef.current = null;
@@ -260,8 +306,13 @@ export const useObliqueNavigationTargets = (options: Options) => {
         if (
           (entry.kind === QUEUE_ENTRY_KIND.IMAGE || entry.requiresTargets) &&
           !cache
-        )
+        ) {
+          // Invalidation may come from a changed anchor without a map moveend.
+          // Prepare once for this generation; repeated keys stay in the FIFO.
+          if (preparingGenerationRef.current !== generationRef.current)
+            void refreshRef.current().catch(() => invalidate());
           return;
+        }
         const target =
           entry.kind === QUEUE_ENTRY_KIND.IMAGE
             ? cache?.targets.get(entry.key)
@@ -360,140 +411,163 @@ export const useObliqueNavigationTargets = (options: Options) => {
       return;
     }
     const generation = ++generationRef.current,
-      pose = poseOf(selected.record, dataset),
+      orientation = navigationOrientation(o),
       target = effectiveTarget();
-    if (!target) {
+    if (!target || !orientation) {
       invalidate();
       return;
     }
-    // During a flight, prepare around its requested anchor. Once it settles,
-    // sample the chosen surface and use that same pivot for ranking and flight.
-    const rotationTarget =
-      o.nextInterface &&
-      o.rotationReady &&
-      !o.busyRef.current &&
-      o.readRotationTarget
-        ? o.readRotationTarget()
-        : target;
-    const heading = degToRad(
-      (o.previewCameraActive || o.busyRef.current
-        ? pose.bearingDeg
-        : map.getBearing()) as Degrees
-    );
-    const pitch = degToRad(
-      (o.previewCameraActive || o.busyRef.current
-        ? pose.pitchDeg
-        : map.getPitch()) as Degrees
-    );
-    const quarterTurn = degToRad(90 as Degrees);
-    const plans: {
-      key?: ObliqueNavigationKey;
-      cardinal?: CardinalDirection;
-      target: ObliqueGroundTarget;
-      headingRad: Radians;
-      fitNextImage: boolean;
-    }[] = [
-      ...PAN_STEPS.map((step) => ({
-        key: step.key,
-        target: panViewTarget(selected.record, dataset, target, {
-          right: step.right,
-          forward: step.forward,
-        }),
-        headingRad: heading,
-        fitNextImage: true,
-      })),
-      ...(o.rotationReady && rotationTarget
-        ? [
-            {
-              key: OBLIQUE_NAVIGATION_KEYS.RotateLeft,
+    preparingGenerationRef.current = generation;
+    let preparationFailed = false;
+    try {
+      // During a flight, prepare around its requested anchor. Once it settles,
+      // sample the chosen surface and use that same pivot for ranking and flight.
+      const rotationTarget = o.busyRef.current
+        ? target
+        : o.nextInterface
+        ? o.rotationReady && o.readRotationTarget
+          ? o.readRotationTarget()
+          : target
+        : o.readTarget() ?? target;
+      const { headingRad: heading, pitchRad: pitch } = orientation;
+      const quarterTurn = degToRad(90 as Degrees);
+      const rotateLeftDelta = o.nextInterface ? -quarterTurn : quarterTurn;
+      const plans: {
+        key?: ObliqueNavigationKey;
+        cardinal?: CardinalDirection;
+        target: ObliqueGroundTarget;
+        headingRad: Radians;
+        fitNextImage: boolean;
+      }[] = [
+        ...PAN_STEPS.map((step) => ({
+          key: step.key,
+          target: panViewTarget(selected.record, dataset, target, {
+            right: step.right,
+            forward: step.forward,
+            headingRad: heading,
+          }),
+          headingRad: heading,
+          fitNextImage: true,
+        })),
+        ...(o.rotationReady && rotationTarget
+          ? [
+              {
+                key: OBLIQUE_NAVIGATION_KEYS.RotateLeft,
+                target: rotationTarget,
+                headingRad: (heading + rotateLeftDelta) as Radians,
+                fitNextImage: false,
+              },
+              {
+                key: OBLIQUE_NAVIGATION_KEYS.RotateRight,
+                target: rotationTarget,
+                headingRad: (heading - rotateLeftDelta) as Radians,
+                fitNextImage: false,
+              },
+            ]
+          : []),
+        ...(o.rotationReady && o.nextInterface && rotationTarget
+          ? CARDINALS_CLOCKWISE.map((cardinal) => ({
+              cardinal,
               target: rotationTarget,
-              headingRad: (heading - quarterTurn) as Radians,
+              headingRad: getHeadingFromCardinalDirection(cardinal) as Radians,
               fitNextImage: false,
-            },
-            {
-              key: OBLIQUE_NAVIGATION_KEYS.RotateRight,
-              target: rotationTarget,
-              headingRad: (heading + quarterTurn) as Radians,
-              fitNextImage: false,
-            },
-          ]
-        : []),
-      ...(o.rotationReady && o.nextInterface && rotationTarget
-        ? CARDINALS_CLOCKWISE.map((cardinal) => ({
-            cardinal,
-            target: rotationTarget,
-            headingRad: getHeadingFromCardinalDirection(cardinal) as Radians,
-            fitNextImage: false,
-          }))
-        : []),
-    ];
-    const current = () =>
-      generation === generationRef.current &&
-      optionsRef.current.enabled &&
-      optionsRef.current.data === data &&
-      optionsRef.current.viewMode === o.viewMode &&
-      optionsRef.current.previewCameraActive === o.previewCameraActive &&
-      optionsRef.current.rotationReady === o.rotationReady &&
-      optionsRef.current.selectedImage?.record.id === selected.record.id;
-    const queries = plans.map(
-      (plan): RefreshSearchArgs => ({
-        target: plan.target,
-        headingRad: plan.headingRad,
-        pitchRad: pitch,
-        cameraView:
-          plan.cardinal !== undefined
-            ? "oblique"
-            : o.viewMode === "nadir"
-            ? "nadir"
-            : undefined,
-        excludeImageId: selected.record.id,
-        navigationOrigin: plan.fitNextImage ? target : undefined,
-        numCandidates: 4,
-      })
-    );
-    await o.ensureDirections?.(queries);
-    if (!current()) return;
-    const ranked = await o.computeNavigation(queries);
-    if (!current()) return;
-    // Keep controls geometry-only. Resolving camera altitude can fetch a geoid
-    // grid and must not delay or disable browsing navigation; a flight resolves
-    // that value only when the user actually requests the image.
-    const prepared = plans.map((plan, index) => {
-      const candidate = ranked[index]?.find(
-        (candidate) =>
-          (plan.fitNextImage || !o.nextInterface || candidate.coversTarget) &&
-          data.datasets.has(candidate.record.seriesId)
+            }))
+          : []),
+      ];
+      const current = () =>
+        navigationOrientation(optionsRef.current)?.headingRad === heading &&
+        navigationOrientation(optionsRef.current)?.pitchRad === pitch &&
+        generation === generationRef.current &&
+        optionsRef.current.enabled &&
+        optionsRef.current.data === data &&
+        optionsRef.current.viewMode === o.viewMode &&
+        optionsRef.current.previewCameraActive === o.previewCameraActive &&
+        optionsRef.current.rotationReady === o.rotationReady &&
+        optionsRef.current.selectedImage?.record.id === selected.record.id;
+      const queries = plans.map(
+        (plan): RefreshSearchArgs => ({
+          target: plan.target,
+          headingRad: plan.headingRad,
+          pitchRad: pitch,
+          cameraView:
+            plan.cardinal !== undefined
+              ? "oblique"
+              : o.viewMode === "nadir"
+              ? "nadir"
+              : undefined,
+          excludeImageId: selected.record.id,
+          navigationOrigin: plan.fitNextImage ? target : undefined,
+          navigationSelection: plan.fitNextImage
+            ? NAVIGATION_SELECTION.CAPTURE_NEIGHBOR
+            : !o.nextInterface ? NAVIGATION_SELECTION.CENTER_DISTANCE : undefined,
+          navigationArrow: plan.fitNextImage
+            ? plan.key as RefreshSearchArgs["navigationArrow"] : undefined,
+          numCandidates: 4,
+        })
       );
-      if (!candidate) return undefined;
-      const source = data.datasets.get(candidate.record.seriesId)!;
-      poseOf(candidate.record, source);
-      return { ...plan, candidate, originImageId: selected.record.id };
-    });
-    if (!current()) return;
-    const targets = new Map<
-        ObliqueNavigationKey,
-        PreparedObliqueNavigationTarget
-      >(),
-      cardinals = new Map<CardinalDirection, PreparedObliqueNavigationTarget>();
-    for (const target of prepared) {
-      if (!target) continue;
-      if (target.key) targets.set(target.key, target);
-      if (target.cardinal !== undefined) cardinals.set(target.cardinal, target);
+      let ranked: ImageSelectionBatchResult;
+      try {
+        await o.ensureDirections?.(queries);
+        if (!current()) return;
+        ranked = await o.computeNavigation(queries);
+      } catch (failure) {
+        // A superseded worker/catalog request must not invalidate newer settled
+        // targets or strand input already waiting for that newer generation.
+        if (!current()) return;
+        throw failure;
+      }
+      if (!current()) return;
+      // Keep controls geometry-only. Resolving camera altitude can fetch a geoid
+      // grid and must not delay or disable browsing navigation; a flight resolves
+      // that value only when the user actually requests the image.
+      const prepared = plans.map((plan, index) => {
+        const candidate = ranked[index]?.find(
+          (candidate) =>
+            (plan.fitNextImage || !o.nextInterface || candidate.coversTarget) &&
+            data.datasets.has(candidate.record.seriesId)
+        );
+        if (!candidate) return undefined;
+        const source = data.datasets.get(candidate.record.seriesId)!;
+        poseOf(candidate.record, source);
+        return { ...plan, candidate, originImageId: selected.record.id };
+      });
+      if (!current()) return;
+      const targets = new Map<
+          ObliqueNavigationKey,
+          PreparedObliqueNavigationTarget
+        >(),
+        cardinals = new Map<CardinalDirection, PreparedObliqueNavigationTarget>();
+      for (const target of prepared) {
+        if (!target) continue;
+        if (target.key) targets.set(target.key, target);
+        if (target.cardinal !== undefined) cardinals.set(target.cardinal, target);
+      }
+      cacheRef.current = {
+        headingRad: heading,
+        pitchRad: pitch,
+        data,
+        imageId: selected.record.id,
+        viewMode: o.viewMode,
+        originTarget: target,
+        previewCameraActive: o.previewCameraActive,
+        rotationReady: o.rotationReady,
+        targets,
+        cardinals,
+      };
+      publishSettled();
+      prefetchNext();
+      pumpRef.current();
+    } catch (failure) {
+      preparationFailed = true;
+      throw failure;
+    } finally {
+      if (preparingGenerationRef.current === generation) {
+        preparingGenerationRef.current = null;
+        if (!preparationFailed && queueRef.current.length && mountedRef.current)
+          schedulePump(0);
+      }
     }
-    cacheRef.current = {
-      data,
-      imageId: selected.record.id,
-      viewMode: o.viewMode,
-      originTarget: target,
-      previewCameraActive: o.previewCameraActive,
-      rotationReady: o.rotationReady,
-      targets,
-      cardinals,
-    };
-    publishSettled();
-    prefetchNext();
-    pumpRef.current();
-  }, [invalidate, effectiveTarget, prefetchNext, publishSettled]);
+  }, [invalidate, effectiveTarget, prefetchNext, publishSettled, schedulePump]);
   refreshRef.current = refresh;
   useEffect(() => {
     // Keep availability stable until the new camera position has been sampled.
@@ -524,6 +598,7 @@ export const useObliqueNavigationTargets = (options: Options) => {
     let timer: ReturnType<typeof setTimeout> | undefined;
     const onStart = (event: { originalEvent?: Event }) => {
       if (event.originalEvent) {
+        rotationGroupRef.current = null;
         cancel();
         invalidate(false);
       }
@@ -625,9 +700,16 @@ export const useObliqueNavigationTargets = (options: Options) => {
     (direction: CardinalDirection) => currentCache()?.cardinals.get(direction),
     [currentCache]
   );
+  const rememberRotation = useCallback((target: ObliqueGroundTarget) => {
+    rotationGroupRef.current ??= `rotation:${target.longitude.toFixed(6)}:${target.latitude.toFixed(6)}`;
+  }, []);
   const rememberDirection = useCallback((key: ObliqueNavigationKey) => {
     lastDirectionRef.current = key;
-  }, []);
+    if (ROTATION_KEYS.has(key)) {
+      const target = currentCache()?.targets.get(key)?.target;
+      if (target) rememberRotation(target);
+    } else rotationGroupRef.current = null;
+  }, [currentCache, rememberRotation]);
   return {
     warmNavigation,
     getTarget,
@@ -635,6 +717,7 @@ export const useObliqueNavigationTargets = (options: Options) => {
     requestAction,
     getCardinal,
     rememberDirection,
+    rememberRotation,
     invalidate,
     cancel,
   };

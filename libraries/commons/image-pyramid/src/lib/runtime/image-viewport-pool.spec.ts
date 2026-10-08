@@ -738,6 +738,24 @@ describe("shared production image viewport pool", () => {
     flush(); expect(workers[0].requests).toHaveLength(requests);
     expect(prior.close).not.toHaveBeenCalled();
   });
+  it("sends whole-byte AVIF cache budgets when three active readers divide the thumbnail pool", () => {
+    const maxBytes = 8 * 1024 * 1024;
+    const { pool, workers } = setup({ maxBytes });
+    const handles = ["north", "east", "south"].map((id) => pool.acquire(source(id)));
+    for (const handle of handles) handle.setViewport(windowAt());
+    flush();
+    for (const handle of handles) {
+      const metrics = handle.snapshot().metrics;
+      expect(metrics.budgetBytes).toBe(Math.floor(maxBytes / 3));
+      expect(Number.isSafeInteger(metrics.cacheBudgetBytes)).toBe(true);
+    }
+    for (const worker of workers) {
+      expect(worker.requests).toHaveLength(1);
+      expect(Number.isSafeInteger(worker.requests[0].activeSourceByteLimit)).toBe(true);
+      expect(worker.requests[0].activeSourceByteLimit).toBeGreaterThanOrEqual(0);
+    }
+  });
+
   it("rebudgets active readers fairly while retaining a separate display-surface allowance", () => {
     const { workers, pool } = setup({ maxBytes: 32 * 1024 * 1024 });
     const first = pool.acquire(source("north")); first.setViewport(windowAt()); flush(); finish(workers[0]);

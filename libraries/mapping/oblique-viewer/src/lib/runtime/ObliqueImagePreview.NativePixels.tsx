@@ -1,6 +1,7 @@
 /// <reference types="vite/client" />
 import { useEffect, useRef, useState, type RefObject } from "react";
 import type { Map as MaplibreMap } from "maplibre-gl";
+import { acquireForegroundNetwork } from "@carma-mapping/engines/maplibre";
 import type { WebGLRenderer } from "three";
 import {
   degToRad,
@@ -18,6 +19,7 @@ import {
   type ImageRect,
   type NativePreviewWindow,
 } from "@carma-commons/image-pyramid";
+import { projectedNativePreviewWindow } from "../core/utils/native-preview-window";
 import type { PreviewQualityLevel } from "../core/constants";
 import type { ObliqueBackdropLook } from "../core/types";
 import {
@@ -32,7 +34,12 @@ import {
 } from "./hooks/usePreviewSizeSync";
 import { readCameraToCenterDistancePx } from "./utils/cameraMath";
 import { getPreviewImageUrl } from "./utils/imageUrls";
-import { nativePixelPool, nativePreviewSource, rememberNativePreviewView, lastNativePreviewView } from "./utils/native-preview-pool";
+import {
+  nativePixelPool,
+  nativePreviewSource,
+  rememberNativePreviewView,
+  lastNativePreviewView,
+} from "./utils/native-preview-pool";
 import type { PreviewBackdropTint } from "./utils/preview-backdrop";
 import {
   isPreviewSourceMissing,
@@ -241,11 +248,23 @@ export const NativePixels = ({
       });
       return undefined;
     }
-    const source = nativePreviewSource({ imageId, path, sourceUrl: jpegUrl,
-      avifPyramidUrl, avifOnly, nativeSize, minimumQualityLevel });
+    const source = nativePreviewSource({
+      imageId,
+      path,
+      sourceUrl: jpegUrl,
+      avifPyramidUrl,
+      avifOnly,
+      nativeSize,
+      minimumQualityLevel,
+    });
     const { stack, release } = nativePixelPool.acquire(source);
+    const releaseNetwork = acquireForegroundNetwork(
+      map,
+      "oblique-visible-preview"
+    );
     const prepared = lastNativePreviewView(source);
-    if (dimRef.current && prepared) stack.setView(prepared.view, prepared.pixels);
+    if (dimRef.current && prepared)
+      stack.setView(prepared.view, prepared.pixels);
 
     const composer = new ThreeImageLevels();
     composer.featherPx = featherPx;
@@ -290,6 +309,7 @@ export const NativePixels = ({
       for (let row = range.row0; ready && row < range.row1; row++)
         for (let col = range.col0; ready && col < range.col1; col++)
           ready = stack.isResident(level.level, col, row);
+      if (ready) releaseNetwork();
       if (ready && !displayReady) callbacksRef.current.onDisplayReady?.();
       displayReady = ready;
     };
@@ -300,15 +320,22 @@ export const NativePixels = ({
     ) => {
       // A dimmed flight still decodes its prepared view; moving scene geometry is not its final crop.
       if (disposed || dimRef.current) return;
-      const window = nativePreviewWindow(
-        geometry.viewport,
-        geometry.image,
-        nativeSize,
-        geometry.offset,
-        principal,
-        degToRad(rollDeg as Degrees),
-        geometry.pixelRatio
-      );
+      const window = geometry.viewportToImage
+        ? projectedNativePreviewWindow(
+            geometry.viewportToImage,
+            geometry.viewport,
+            nativeSize,
+            geometry.pixelRatio
+          )
+        : nativePreviewWindow(
+            geometry.viewport,
+            geometry.image,
+            nativeSize,
+            geometry.offset,
+            principal,
+            degToRad(rollDeg as Degrees),
+            geometry.pixelRatio
+          );
       if (!window) {
         contentRef.current = null;
         return;
@@ -328,11 +355,7 @@ export const NativePixels = ({
         Math.ceil(geometry.viewport.height * geometry.pixelRatio);
       const view = { visible: window.source, density: density as Ratio };
       rememberNativePreviewView(source, view, viewportPixels);
-      stack.setView(
-        view,
-        viewportPixels,
-        intent
-      );
+      stack.setView(view, viewportPixels, intent);
       if (renderer) {
         const result = composer.renderToTarget(renderer, rect, size);
         contentRef.current = result
@@ -388,6 +411,7 @@ export const NativePixels = ({
         map.triggerRepaint();
       },
       (error) => {
+        releaseNetwork();
         if (disposed) return;
         const message = error instanceof Error ? error.message : String(error);
         const missing = /\b(404|410)\b/.test(message);
@@ -447,6 +471,7 @@ export const NativePixels = ({
         map.off("resize", scheduleFallback);
       }
       composer.dispose();
+      releaseNetwork();
       release();
       setDomWindow(null);
       map.triggerRepaint();

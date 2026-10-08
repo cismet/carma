@@ -33,13 +33,13 @@ import {
   sceneToPhotoEnu,
 } from "../core/utils/image-projection";
 import { ObliqueObjectCoverage } from "./ObliqueObjectCoverage";
+import { ImageViewportPool, type ImageViewportHandle, type ImageViewportSnapshot, type ImageViewportSource } from "@carma-commons/image-pyramid";
 
 const scene = vi.hoisted(() => ({
   acquire: vi.fn(),
   runtimes: vi.fn(),
   release: vi.fn(),
 }));
-const thumbnails = vi.hoisted(() => ({ receive: vi.fn() }));
 vi.mock("@carma-mapping/engines/maplibre", () => ({
   acquireSharedThreeScene: scene.acquire,
   getSharedThreeSceneRuntimes: scene.runtimes,
@@ -47,28 +47,12 @@ vi.mock("@carma-mapping/engines/maplibre", () => ({
 vi.mock("./hooks/useProgressivePreviewSource", () => ({
   useProgressivePreviewSource: () => null,
 }));
-vi.mock("./hooks/usePrefetchedPreviewThumbnail", () => ({
-  usePrefetchedPreviewThumbnail: thumbnails.receive,
+vi.mock("antd", () => ({
+  Button: ({ children, icon, size: _size, type: _type, ...props }: any) => (
+    <button {...props}>{icon}{children}</button>
+  ),
+  Tooltip: ({ children }: any) => children,
 }));
-vi.mock("antd", async () => {
-  const React = await import("react");
-  return {
-    Button: ({ children, size: _size, type: _type, ...props }: any) => (
-      <button {...props}>{children}</button>
-    ),
-    Tooltip: ({ children }: any) => children,
-    Carousel: React.forwardRef(({ children, beforeChange }: any, ref) => {
-      const active = React.useRef(0);
-      React.useImperativeHandle(ref, () => ({
-        goTo: (next: number) => {
-          beforeChange?.(active.current, next);
-          active.current = next;
-        },
-      }));
-      return <div data-test-id="mock-carousel">{children}</div>;
-    }),
-  };
-});
 
 type Response = {
   generation?: number;
@@ -176,6 +160,38 @@ const groupsOf = (
 const bitmap = () =>
   ({ width: 128, height: 64, close: vi.fn() } as unknown as ImageBitmap);
 const draw = vi.fn();
+const thumbnailObservers: Array<{
+  callback: IntersectionObserverCallback;
+  observe: ReturnType<typeof vi.fn>;
+  disconnect: ReturnType<typeof vi.fn>;
+}> = [];
+const captureViewports = () => {
+  const makeLease = (source: ImageViewportSource, pool: ImageViewportPool) => {
+    let receive: Parameters<ImageViewportHandle["subscribe"]>[0] = () => undefined;
+    const unsubscribe = vi.fn();
+    return {
+      source, pool,
+      setViewport: vi.fn(),
+      release: vi.fn(),
+      unsubscribe,
+      subscribe: vi.fn((listener: typeof receive) => {
+        receive = listener;
+        return unsubscribe;
+      }),
+      snapshot: vi.fn(),
+      publish: (snapshot: Partial<ImageViewportSnapshot>) => receive({
+        source, bitmap: null, frame: null, error: null, loading: true, ...snapshot,
+      } as ImageViewportSnapshot),
+    };
+  };
+  const leases: ReturnType<typeof makeLease>[] = [];
+  vi.spyOn(ImageViewportPool.prototype, "acquire").mockImplementation(function(this: ImageViewportPool, source: ImageViewportSource) {
+    const lease = makeLease(source, this);
+    leases.push(lease);
+    return lease as ImageViewportHandle;
+  });
+  return leases;
+};
 const resizeCallbacks: Array<() => void> = [];
 let width: number, height: number;
 let ground: Mesh, decorative: Mesh;
@@ -212,7 +228,14 @@ beforeEach(() => {
   vi.stubGlobal("Worker", Worker);
   vi.stubGlobal("OffscreenCanvas", class {});
   vi.stubGlobal("devicePixelRatio", 1);
-  vi.stubGlobal("IntersectionObserver", undefined);
+  thumbnailObservers.length = 0;
+  vi.stubGlobal("IntersectionObserver", class {
+    disconnect = vi.fn();
+    constructor(readonly callback: IntersectionObserverCallback) {
+      thumbnailObservers.push(this);
+    }
+    observe = vi.fn();
+  });
   vi.stubGlobal(
     "ResizeObserver",
     class {
@@ -233,9 +256,6 @@ beforeEach(() => {
     drawImage: draw,
     clearRect: vi.fn(),
   } as unknown as CanvasRenderingContext2D);
-  thumbnails.receive.mockImplementation((_path, id) => ({
-    blobUrl: "blob:thumb:" + id,
-  }));
   ground = new Mesh(
     new PlaneGeometry(1000, 1000),
     new MeshBasicMaterial({ side: DoubleSide })
@@ -387,89 +407,123 @@ describe("object view crops and navigation", () => {
     expect(draw).toHaveBeenCalledOnce();
   });
 
-  it("preloads direction alternatives sequentially, advances only on current completion and cancels on exit", async () => {
-    const result = view(
-      groupsOf([imageOf("first"), imageOf("second"), imageOf("third")])
-    );
-    expect(Worker.instances).toHaveLength(1);
-    fireEvent.click(
-      screen.getByRole("button", { name: "N: Alternativen vorladen" })
-    );
-    expect(Worker.instances).toHaveLength(2);
-    const preload = Worker.instances[1];
-    await act(async () => vi.advanceTimersByTimeAsync(0));
-    expect(preload.postMessage).toHaveBeenCalledOnce();
-    expect(request(preload)).toMatchObject({
-      priority: "low",
-      maxInitialDisplayPixelSize: 1,
-      refineToNative: false,
-      generation: 1,
-    });
-    expect(request(preload).url).toMatch(/\/1\/second\.jpg$/);
-    const partial = bitmap();
-    preload.reply({ generation: 1, bitmap: partial, complete: false });
-    const stale = bitmap();
-    preload.reply({ generation: 0, bitmap: stale, complete: true });
-    await act(async () => vi.advanceTimersByTimeAsync(0));
-    expect(preload.postMessage).toHaveBeenCalledOnce();
-    expect(partial.close).toHaveBeenCalledOnce();
-    expect(stale.close).toHaveBeenCalledOnce();
-    const complete = bitmap();
-    preload.reply({ generation: 1, bitmap: complete, complete: true });
-    await act(async () => vi.advanceTimersByTimeAsync(0));
-    expect(preload.postMessage).toHaveBeenCalledTimes(2);
-    expect(request(preload).url).toMatch(/\/1\/third\.jpg$/);
-    expect(request(preload).generation).toBe(2);
+  it("preloads only immediate neighbors sequentially at low priority", async () => {
+    const leases = captureViewports();
+    view(groupsOf(Array.from({ length: 8 }, (_, index) => imageOf(String(index)))));
+    expect(leases).toHaveLength(1);
+    fireEvent.click(screen.getByRole("button", { name: "N Bild 3: 2" }));
+    await act(async () => vi.advanceTimersByTimeAsync(175));
+    const next = leases.at(-1)!;
+    expect(next.source.id).toBe("2024:3");
+    expect(next.setViewport).toHaveBeenCalledWith(expect.anything(), undefined, { priority: "low" });
+    const window = next.setViewport.mock.calls[0][0];
+    act(() => next.publish({
+      bitmap: { ...bitmap(), width: window.target.width, height: window.target.height },
+      frame: window,
+      loading: false,
+    }));
+    await act(async () => vi.advanceTimersByTimeAsync(175));
+    const previous = leases.at(-1)!;
+    expect(previous.source.id).toBe("2024:1");
+    const previousWindow = previous.setViewport.mock.calls[0][0];
+    act(() => previous.publish({
+      bitmap: { ...bitmap(), width: previousWindow.target.width, height: previousWindow.target.height },
+      frame: previousWindow,
+      loading: false,
+    }));
+    await act(async () => vi.advanceTimersByTimeAsync(20000));
+    expect(leases.map(({ source }) => source.id)).toEqual([
+      "2024:0", "2024:2", "2024:3", "2024:1",
+    ]);
+  });
+
+  it("releases an obsolete preload before selecting that photograph and cancels on exit", async () => {
+    const leases = captureViewports();
+    const result = view(groupsOf([imageOf("first"), imageOf("second"), imageOf("third")]));
+    fireEvent.click(screen.getByRole("button", { name: "N: Alternativen vorladen" }));
+    await act(async () => vi.advanceTimersByTimeAsync(175));
+    const preload = leases.at(-1)!;
+    expect(preload.source.id).toBe("2024:second");
+    fireEvent.click(screen.getByRole("button", { name: "N Bild 2: second" }));
+    expect(preload.unsubscribe).toHaveBeenCalledOnce();
+    expect(preload.release).toHaveBeenCalledOnce();
+    const active = leases.at(-1)!;
+    expect(active.source.id).toBe("2024:second");
+    expect(active.setViewport).toHaveBeenCalledWith(expect.anything());
     result.unmount();
-    expect(preload.postMessage).toHaveBeenLastCalledWith({
-      cancel: true,
-      park: true,
-    });
-    expect(preload.terminate).toHaveBeenCalledOnce();
+    const count = leases.length;
+    act(() => preload.publish({ error: "late response" }));
     await act(async () => vi.advanceTimersByTimeAsync(20000));
-    expect(preload.postMessage).toHaveBeenCalledTimes(3);
+    expect(leases).toHaveLength(count);
+    expect(active.release).toHaveBeenCalledOnce();
   });
 
-  it("keeps one alternative preload queue across carousel switches and leaves its idle worker alive for cache writes", async () => {
-    const view = render(
-      <ObliqueObjectCoverage
-        map={map}
-        sphere={sphere}
-        groups={groupsOf([
-          imageOf("first"),
-          imageOf("second"),
-          imageOf("third"),
-        ])}
-        onOpen={vi.fn()}
-      />
-    );
-    fireEvent.click(
-      screen.getByRole("button", { name: "N: Alternativen vorladen" })
-    );
-    const preload = Worker.instances[1];
-    await act(async () => vi.advanceTimersByTimeAsync(0));
-    expect(request(preload).url).toMatch(/\/second\.jpg$/);
-    fireEvent.click(screen.getByRole("button", { name: "N Bild 3: third" }));
-    expect(preload.terminate).not.toHaveBeenCalled();
-    expect(preload.postMessage).toHaveBeenCalledOnce();
-    expect(Worker.instances).toHaveLength(3); // initial active, stable preloader, new active
-    preload.reply({ generation: 1, bitmap: bitmap(), complete: true });
-    await act(async () => vi.advanceTimersByTimeAsync(0));
-    expect(request(preload).url).toMatch(/\/third\.jpg$/);
-    expect(request(preload).generation).toBe(2);
-    preload.reply({ generation: 2, bitmap: bitmap(), complete: true });
-    await act(async () => vi.advanceTimersByTimeAsync(20000));
-    expect(preload.postMessage).toHaveBeenCalledTimes(2);
-    expect(preload.terminate).not.toHaveBeenCalled();
-    view.unmount();
-    expect(preload.postMessage).toHaveBeenLastCalledWith({
-      cancel: true,
-      park: true,
-    });
-    expect(preload.terminate).toHaveBeenCalledOnce();
+  it("bounds mounted photographs and thumbnail subscriptions independently of candidate count", () => {
+    captureViewports();
+    view(groupsOf(Array.from({ length: 100 }, (_, index) => imageOf(String(index)))));
+    expect(document.querySelectorAll('[data-test-id="oblique-coverage-photo"]')).toHaveLength(1);
+    expect(document.querySelectorAll('[data-test-id="oblique-coverage-thumbnail"]')).toHaveLength(4);
+    expect(thumbnailObservers).toHaveLength(4);
+    fireEvent.click(screen.getByRole("button", { name: "N: Nächstes Bild" }));
+    expect(photo("1")).toBeTruthy();
+    expect(document.querySelectorAll('[data-test-id="oblique-coverage-photo"]')).toHaveLength(1);
   });
 
-  it("uses carousel thumbnails to change the active source and opens only on double click or keyboard", () => {
+  it("requests a visible ROI thumbnail in its separate low-priority pool and redraws repeated bitmap emissions", () => {
+    const leases = captureViewports();
+    view(groupsOf([imageOf("first"), imageOf("second")]));
+    expect(leases).toHaveLength(1);
+    const observer = thumbnailObservers[0];
+    act(() => observer.callback([{ isIntersecting: true } as IntersectionObserverEntry], {} as IntersectionObserver));
+    expect(leases).toHaveLength(2);
+    const thumbnail = leases[1];
+    expect(thumbnail.pool).not.toBe(leases[0].pool);
+    const window = thumbnail.setViewport.mock.calls[0][0];
+    expect(window.target.width).toBeLessThanOrEqual(112);
+    expect(window.target.height).toBeLessThanOrEqual(80);
+    expect(window.source.width).toBeLessThan(calibration.widthPx);
+    expect(window.source.height).toBeLessThan(calibration.heightPx);
+    expect(thumbnail.setViewport).toHaveBeenCalledWith(window, undefined, { priority: "low" });
+    const pixels = bitmap();
+    act(() => thumbnail.publish({ bitmap: pixels, frame: window }));
+    const calls = draw.mock.calls.length;
+    act(() => thumbnail.publish({ bitmap: pixels, frame: window }));
+    expect(draw).toHaveBeenCalledTimes(calls + 1);
+    expect(pixels.close).not.toHaveBeenCalled();
+    expect(screen.getByRole("img", { name: "first" })).toBeTruthy();
+    act(() => observer.callback([{ isIntersecting: false } as IntersectionObserverEntry], {} as IntersectionObserver));
+    expect(thumbnail.release).toHaveBeenCalledOnce();
+  });
+
+  it("keeps painted thumbnails visible when the portal host renews observers and leases", () => {
+    const leases = captureViewports();
+    const groups = groupsOf([imageOf("first"), imageOf("second")]);
+    const { container } = render(
+      <div data-oblique-object-window="true">
+        <ObliqueObjectCoverage map={map} sphere={sphere} groups={groups} onOpen={vi.fn()} />
+      </div>
+    );
+    const observer = thumbnailObservers[0];
+    act(() => observer.callback([{ isIntersecting: true } as IntersectionObserverEntry], {} as IntersectionObserver));
+    const thumbnail = leases[1];
+    act(() => thumbnail.publish({ bitmap: bitmap(), frame: thumbnail.setViewport.mock.calls[0][0] }));
+    const canvas = screen.getByRole("img", { name: "first" });
+    expect(canvas.style.display).toBe("block");
+
+    const observerCount = thumbnailObservers.length;
+    act(() => container.querySelector("[data-oblique-object-window]")!.dispatchEvent(new Event("oblique-object-window-change")));
+    expect(thumbnail.release).toHaveBeenCalledOnce();
+    expect(canvas.style.display).toBe("block");
+    const rebound = thumbnailObservers[observerCount];
+    act(() => rebound.callback([{ isIntersecting: true } as IntersectionObserverEntry], {} as IntersectionObserver));
+    // The renewed lease has not delivered pixels; the existing canvas remains visible.
+    expect(leases).toHaveLength(3);
+    expect(screen.getByRole("img", { name: "first" })).toBe(canvas);
+    expect(canvas.style.display).toBe("block");
+    expect(canvas.nextElementSibling).toBeNull();
+  });
+
+  it("uses ROI thumbnails to change the active source and opens only on double click or keyboard", () => {
     const onOpen = vi.fn();
     render(
       <ObliqueObjectCoverage
@@ -481,9 +535,7 @@ describe("object view crops and navigation", () => {
     );
     const first = screen.getByRole("button", { name: "N Bild 1: first" }),
       second = screen.getByRole("button", { name: "N Bild 2: second" });
-    expect(
-      within(first).getByRole("img", { name: "first" }).getAttribute("src")
-    ).toBe("blob:thumb:first");
+    expect(first.querySelector('canvas[aria-label="first"]')).not.toBeNull();
     expect(first.getAttribute("aria-pressed")).toBe("true");
     fireEvent.click(second);
     expect(second.getAttribute("aria-pressed")).toBe("true");
@@ -498,7 +550,7 @@ describe("object view crops and navigation", () => {
 });
 
 describe("shared physical measurements in object photographs", () => {
-  it("uses the shared surface picker once per photo click and clones its physical hit for every photograph", () => {
+  it.each(["mesh", "terrain", "auto"] as const)("uses the shared %s surface picker once per photo click and clones its physical hit for every photograph", (surfaceMode) => {
     const sharedPoint = new Vector3(0, 0, 0);
     const surfacePicker = {
       intersectSurface: vi.fn(() => ({
@@ -513,6 +565,7 @@ describe("shared physical measurements in object photographs", () => {
         sphere={sphere}
         groups={groupsOf([imageOf("north")], [imageOf("east")])}
         surfacePicker={surfacePicker}
+        surfaceMode={surfaceMode}
         onOpen={vi.fn()}
       />
     );
@@ -521,8 +574,9 @@ describe("shared physical measurements in object photographs", () => {
     setBounds(north);
     fireEvent.click(north, { clientX: width / 2, clientY: height / 2 });
     expect(surfacePicker.intersectSurface).toHaveBeenCalledOnce();
-    const [ray, location] = surfacePicker.intersectSurface.mock
-      .lastCall! as unknown as [Raycaster, [number, number]];
+    const [ray, location, selectedSurface] = surfacePicker.intersectSurface.mock
+      .lastCall! as unknown as [Raycaster, [number, number], string];
+    expect(selectedSurface).toBe(surfaceMode);
     expect(ray).toBeInstanceOf(Raycaster);
     expect(location).toEqual([pose.longitude, pose.latitude]);
     expect(ray.ray.origin.y).toBeCloseTo(100, 7);
@@ -583,6 +637,50 @@ describe("shared physical measurements in object photographs", () => {
     expect(release).toHaveBeenCalledOnce();
   });
 
+  it.each([
+    ["mesh", "published-tiles"],
+    ["terrain", "published-tiles"],
+    ["auto", "published-tiles"],
+    ["mesh", "surface-marker"],
+    ["terrain", "surface-marker"],
+    ["auto", "surface-marker"],
+  ] as const)("filters fallback %s receivers using DEM %s identification", (surfaceMode, identification) => {
+    const nativeIntersect = vi.spyOn(Raycaster.prototype, "intersectObjects");
+    if (identification === "surface-marker")
+      decorative.userData.isShadowTerrainSurface = true;
+    scene.runtimes.mockReturnValue([
+      // Detailed mesh runtimes provide elevation too; that does not make them DEMs.
+      { root: ground, providesTerrain: true },
+      {
+        root: decorative,
+        providesTerrain: true,
+        ...(identification === "published-tiles"
+          ? { getPublishedTerrainTiles: () => [] }
+          : {}),
+      },
+    ]);
+    render(
+      <ObliqueObjectCoverage
+        map={map}
+        sphere={sphere}
+        groups={groupsOf([imageOf("north")])}
+        surfaceMode={surfaceMode}
+        onOpen={vi.fn()}
+      />
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Strecke messen" }));
+    setBounds(photo("north"));
+    fireEvent.click(photo("north"), {
+      clientX: width / 2,
+      clientY: height / 2,
+    });
+    expect(nativeIntersect).toHaveBeenCalledWith(
+      surfaceMode === "mesh" ? [ground]
+        : surfaceMode === "terrain" ? [decorative] : [ground, decorative],
+      false
+    );
+  });
+
   it("casts calibrated photo-camera rays on actual receivers and projects the same metre points into every active image", () => {
     const intersections = vi.spyOn(Raycaster.prototype, "intersectObjects");
     view(groupsOf([imageOf("north")], [imageOf("east")]));
@@ -600,7 +698,8 @@ describe("shared physical measurements in object photographs", () => {
     expect(intersections).toHaveBeenCalledTimes(2);
     expect(intersections.mock.calls[0][0]).toEqual([ground]);
     expect(release).toHaveBeenCalledTimes(2);
-    expect(screen.getAllByText("1,02 m")).toHaveLength(3);
+    // The L1 delivery cap expands this viewport to 266⅔ L0 pixels: 20 CSS px = 1⅓ m.
+    expect(screen.getAllByText("1,33 m")).toHaveLength(3);
     const markers = document.querySelectorAll(
       '[data-test-id="oblique-coverage-measurement"]'
     );

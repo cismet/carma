@@ -1,5 +1,5 @@
-import { Matrix4, Sphere, Vector3, Vector4 } from "three";
-import { degToRadNumeric } from "@carma-units";
+import { Matrix4, Ray, Sphere, Vector3, Vector4 } from "three";
+import { degToRadNumeric, type CssPixels, type DevicePixels, type Ratio } from "@carma-units";
 
 import type {
   CardinalDirection,
@@ -51,6 +51,75 @@ export type ObjectCoverageGroups = ReadonlyMap<
   CardinalDirection,
   readonly ObjectCoverageImage[]
 >;
+
+export type ObjectCoveragePixel = Readonly<{ x: DevicePixels; y: DevicePixels }>;
+
+/** Virtual native-sensor crop matches the panel and caps display magnification of delivered pixels. */
+export const fitObjectCoverageCrop = (
+  crop: ObjectCoverageCrop,
+  viewport: Readonly<{ width: CssPixels; height: CssPixels }>,
+  pixelRatio: Ratio,
+  finestSourceDensity: Ratio = 1 as Ratio,
+  maximumMagnification: Ratio = 3 as Ratio
+): ObjectCoverageCrop => {
+  if (![crop.x, crop.y, crop.width, crop.height, viewport.width, viewport.height,
+    pixelRatio, finestSourceDensity, maximumMagnification].every(Number.isFinite) ||
+    crop.width <= 0 || crop.height <= 0 || viewport.width <= 0 || viewport.height <= 0 ||
+    pixelRatio <= 0 || finestSourceDensity <= 0 || maximumMagnification <= 0)
+    throw new RangeError("Object crop requires finite positive dimensions and pixel density");
+  const aspect = viewport.width / viewport.height;
+  const height = Math.max(crop.height, crop.width / aspect,
+    viewport.height * pixelRatio / (maximumMagnification * finestSourceDensity));
+  const width = height * aspect;
+  const result = {
+    x: crop.x + (crop.width - width) / 2,
+    y: crop.y + (crop.height - height) / 2,
+    width,
+    height,
+  };
+  if (!Object.values(result).every(Number.isFinite))
+    throw new RangeError("Object crop exceeds finite sensor coordinates");
+  return result;
+};
+
+/** Native pixel coordinates, using the same delivered pixel-centre convention as coverage crops. */
+export const projectObjectCoveragePoint = (
+  projection: Matrix4,
+  point: Vector3,
+  calibration: Pick<ObliqueCameraCalibration, "widthPx" | "heightPx">
+): ObjectCoveragePixel | null => {
+  if (![calibration.widthPx, calibration.heightPx, ...point.toArray(),
+    ...projection.elements].every(Number.isFinite) || calibration.widthPx <= 0 || calibration.heightPx <= 0) return null;
+  const projected = new Vector4(point.x, point.y, point.z, 1).applyMatrix4(projection);
+  if (!(projected.w > 0) || !projected.toArray().every(Number.isFinite)) return null;
+  const x = projected.x / projected.w * calibration.widthPx + 0.5;
+  const y = (1 - projected.y / projected.w) * calibration.heightPx + 0.5;
+  return Number.isFinite(x + y) ? { x: x as DevicePixels, y: y as DevicePixels } : null;
+};
+
+/** Calibrated native-pixel ray in the projector's physical scene frame, without any engine dependency. */
+export const objectCoveragePixelRay = (
+  projection: Matrix4,
+  cameraOrigin: Vector3,
+  pixel: ObjectCoveragePixel,
+  calibration: Pick<ObliqueCameraCalibration, "widthPx" | "heightPx">
+): Ray | null => {
+  if (![pixel.x, pixel.y, calibration.widthPx, calibration.heightPx,
+    ...cameraOrigin.toArray(), ...projection.elements].every(Number.isFinite) ||
+    calibration.widthPx <= 0 || calibration.heightPx <= 0) return null;
+  const e = projection.elements;
+  const u = (pixel.x - 0.5) / calibration.widthPx;
+  const v = 1 - (pixel.y - 0.5) / calibration.heightPx;
+  const horizontal = new Vector3(e[0] - u * e[3], e[4] - u * e[7], e[8] - u * e[11]);
+  const vertical = new Vector3(e[1] - v * e[3], e[5] - v * e[7], e[9] - v * e[11]);
+  const direction = horizontal.cross(vertical);
+  if (!(direction.lengthSq() > 0) || !Number.isFinite(direction.lengthSq())) return null;
+  direction.normalize();
+  const depthNormal = new Vector3(e[3], e[7], e[11]);
+  if (direction.dot(depthNormal) < 0) direction.negate();
+  if (!(direction.dot(depthNormal) > 0)) return null;
+  return new Ray(cameraOrigin.clone(), direction);
+};
 
 const rowOf = (matrix: Matrix4, row: number): Vector4 => {
   const e = matrix.elements;

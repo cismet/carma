@@ -40,26 +40,32 @@ export const loadObliqueSeriesData = async (
 ): Promise<ObliqueData> => {
   signal?.throwIfAborted();
   const converter = getProj4Converter(dataset.crs, "EPSG:4326");
+  // Catalog and footprints download together; one controller cancels both.
+  const controller = new AbortController();
+  const abort = () => controller.abort(signal?.reason);
+  signal?.addEventListener("abort", abort, { once: true });
+  const requestSignal = controller.signal;
   const load = async (url: string, compressed: boolean) => {
-    const response = await fetchSource(url, { signal });
+    const response = await fetchSource(url, { signal: requestSignal });
     if (!response.ok) throw new Error(`Metadaten: HTTP ${response.status}`);
     const document: unknown = compressed
-      ? await readCompressedCatalog(response, signal)
+      ? await readCompressedCatalog(response, requestSignal)
       : await response.json();
-    signal?.throwIfAborted();
+    requestSignal.throwIfAborted();
     const records = buildImageRecords(document, dataset, converter);
-    signal?.throwIfAborted();
+    requestSignal.throwIfAborted();
     return records;
   };
-  let built: ReturnType<typeof buildImageRecords>;
-  if (
-    dataset.compressedCatalogURI &&
-    typeof DecompressionStream === "function"
-  ) {
+  const loadCatalog = async () => {
+    if (
+      !dataset.compressedCatalogURI ||
+      typeof DecompressionStream !== "function"
+    )
+      return load(dataset.exteriorOrientationsURI, false);
     try {
-      built = await load(dataset.compressedCatalogURI, true);
+      return await load(dataset.compressedCatalogURI, true);
     } catch (error) {
-      signal?.throwIfAborted();
+      requestSignal.throwIfAborted();
       if (
         error &&
         typeof error === "object" &&
@@ -67,25 +73,38 @@ export const loadObliqueSeriesData = async (
         error.name === "AbortError"
       )
         throw error;
-      built = await load(dataset.exteriorOrientationsURI, false);
+      return load(dataset.exteriorOrientationsURI, false);
     }
-  } else built = await load(dataset.exteriorOrientationsURI, false);
-  // Delivered footprints are optional. Unavailable ones do not hide valid image metadata.
-  let delivered: FootprintCollection = {
-    type: "FeatureCollection",
-    features: [],
   };
-  if (dataset.footprintsURI) {
+  // Delivered footprints are optional. Unavailable ones do not hide valid image metadata.
+  const loadFootprints = async (): Promise<FootprintCollection> => {
+    const none: FootprintCollection = {
+      type: "FeatureCollection",
+      features: [],
+    };
+    if (!dataset.footprintsURI) return none;
     try {
-      delivered = await fetchGeoJson(
+      return await fetchGeoJson(
         dataset.footprintsURI,
-        signal,
+        requestSignal,
         fetchSource
       );
     } catch (error) {
       if (signal?.aborted) throw error;
       /* Calibrated ground-plane approximations remain visibly marked below. */
+      return none;
     }
+  };
+  let built: ReturnType<typeof buildImageRecords>;
+  let delivered: FootprintCollection;
+  try {
+    [built, delivered] = await Promise.all([loadCatalog(), loadFootprints()]);
+  } catch (error) {
+    // A failed catalog makes the footprints useless; stop their download too.
+    controller.abort();
+    throw error;
+  } finally {
+    signal?.removeEventListener("abort", abort);
   }
   const deliveredCenters = new Map(
     getFootprintCenterpoints(delivered, converter).map((point) => [

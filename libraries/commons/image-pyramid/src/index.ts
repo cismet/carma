@@ -75,6 +75,7 @@ export {
   ImageLevelStackPool,
   createImageTileSource,
   type ImagePyramidSource,
+  type ImagePrefetchConfig,
   type ImageLevelStackLease,
   type ImageLevelStackPoolMetrics,
 } from "./lib/runtime/image-level-stack-pool";

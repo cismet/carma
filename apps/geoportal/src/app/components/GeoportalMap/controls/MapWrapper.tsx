@@ -46,6 +46,7 @@ import {
   AddonHost,
   useAddonState,
   useObliqueViewerActions,
+  formatObliqueLoadingStatus,
 } from "@carma-mapping/addons";
 import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
 import {
@@ -172,7 +173,7 @@ const MapWrapper = () => {
   } = useMapFrameworkSwitcherContext();
   const statusFooterText = isPreparingCesiumTransition
     ? preparingCesiumMessage ?? "3D Modelle werden geladen"
-    : null;
+    : showLibreMap ? formatObliqueLoadingStatus(obliqueViewer) : null;
 
   const uiMode = useSelector(getUIMode);
   const isModeMeasurement = uiMode === UIMode.MEASUREMENT;

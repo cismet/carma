@@ -17,6 +17,7 @@ type Status = {
 };
 const OBLIQUE_CATALOG_SECTORS = ["N", "E", "S", "W"] as const;
 type Request = { promise: Promise<ObliqueData>; release: () => void };
+export type CatalogRequestOptions = { fetchPriority?: RequestPriority };
 type Job = {
   key: string;
   dataset: ObliqueDataset;
@@ -26,7 +27,11 @@ type Job = {
   resolve: () => void;
 };
 
-/** One foreground group, then one idle request at a time; urgent requests reorder the queue. */
+/**
+ * One foreground group, then one idle request at a time; urgent requests reorder the queue.
+ * Idle work finishes the priority series before any other series starts, and `hold()`
+ * defers new idle (non-urgent) requests while a caller needs the network.
+ */
 export const createDirectionalCatalogQueue = ({
   datasets,
   priority,
@@ -36,7 +41,10 @@ export const createDirectionalCatalogQueue = ({
 }: {
   datasets: readonly ObliqueDataset[];
   priority: CatalogPriority;
-  acquire: (dataset: ObliqueDataset) => Request;
+  acquire: (
+    dataset: ObliqueDataset,
+    options?: CatalogRequestOptions
+  ) => Request;
   publish: (
     parts: ReadonlyMap<string, ObliqueData>,
     statuses: Status[],
@@ -46,6 +54,7 @@ export const createDirectionalCatalogQueue = ({
 }) => {
   let cancelled = false;
   let active = false;
+  let holds = 0;
   let idleCancel: (() => void) | undefined;
   const urgent = new Set<Job>();
   const releases: (() => void)[] = [];
@@ -73,7 +82,20 @@ export const createDirectionalCatalogQueue = ({
       ? dataset.directionalCatalogs.map((group) => makeJob(dataset, group))
       : [makeJob(dataset)]
   );
-  const queue = [...jobs];
+  // Only the preferred series/group may start before the first publication.
+  const initialDataset =
+    datasets.find((dataset) => dataset.id === priority.prioritySeriesId) ??
+    datasets[0];
+  const prioritySeriesId = initialDataset?.id;
+  // Idle order: every part of the priority series, then other series in config order.
+  // With one request at a time, other series start only once no priority part is pending.
+  const queue = [
+    ...jobs.filter((job) => job.dataset.id === prioritySeriesId),
+    ...jobs.filter((job) => job.dataset.id !== prioritySeriesId),
+  ];
+  const nextJob = () =>
+    queue.find((job) => job.state === "pending" && urgent.has(job)) ??
+    (holds > 0 ? undefined : queue.find((job) => job.state === "pending"));
   let partsRevision = 0;
   let publishedPartsRevision = -1;
   let currentSnapshot: ObliqueData | null = null;
@@ -126,13 +148,7 @@ export const createDirectionalCatalogQueue = ({
     );
   };
   const schedule = () => {
-    if (
-      cancelled ||
-      active ||
-      idleCancel ||
-      !queue.some((job) => job.state === "pending")
-    )
-      return;
+    if (cancelled || active || idleCancel || !nextJob()) return;
     if (typeof requestIdleCallback === "function") {
       const token = requestIdleCallback(
         () => {
@@ -152,7 +168,7 @@ export const createDirectionalCatalogQueue = ({
   };
   const start = () => {
     if (cancelled || active) return;
-    const job = queue.find((candidate) => candidate.state === "pending");
+    const job = nextJob();
     if (!job) return;
     job.state = "loading";
     active = true;
@@ -167,7 +183,12 @@ export const createDirectionalCatalogQueue = ({
           footprintsURI: undefined,
         }
       : job.dataset;
-    const request = acquire(source);
+    const request = acquire(
+      source,
+      job.dataset.id === prioritySeriesId || urgent.has(job)
+        ? undefined
+        : { fetchPriority: "low" }
+    );
     releases.push(request.release);
     void request.promise
       .then(
@@ -263,13 +284,20 @@ export const createDirectionalCatalogQueue = ({
       ? null
       : snapshot();
   };
-  // Only the preferred series/group may start before the first publication.
-  const initialDataset =
-    datasets.find((dataset) => dataset.id === priority.prioritySeriesId) ??
-    datasets[0];
-  void promote({ ...priority, prioritySeriesId: initialDataset?.id });
+  void promote({ ...priority, prioritySeriesId });
   return {
     promote,
+    /** Refcounted: no new idle request starts until every hold is released; urgent work continues. */
+    hold() {
+      holds++;
+      let released = false;
+      return () => {
+        if (released) return;
+        released = true;
+        holds--;
+        if (!holds) schedule();
+      };
+    },
     async all(options?: { retry?: boolean; includeNadir?: boolean }) {
       if (cancelled) return null;
       const targets = jobs.filter(

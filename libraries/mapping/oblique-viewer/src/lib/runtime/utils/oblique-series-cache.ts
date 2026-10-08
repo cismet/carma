@@ -76,7 +76,8 @@ const isCatalog = (
 
 const revalidate = async (
   catalog: CachedCatalog,
-  signal?: AbortSignal
+  signal: AbortSignal | undefined,
+  fetchSource: typeof fetch
 ): Promise<boolean> => {
   const age = Date.now() - catalog.fetchedAt;
   const withinTtl = age >= 0 && age < OBLIQUE_CATALOG_FRESHNESS_MS;
@@ -89,7 +90,7 @@ const revalidate = async (
       if (signal?.aborted) onAbort();
       const timer = setTimeout(() => controller.abort(), HEADER_DEADLINE_MS);
       try {
-        const response = await fetch(source.url, {
+        const response = await fetchSource(source.url, {
           method: "HEAD",
           cache: "no-cache",
           signal: controller.signal,
@@ -118,7 +119,8 @@ const revalidate = async (
 /** Restore structured-cloned Maps in the metadata worker; parsing remains the SSOT. */
 export const loadCachedObliqueSeriesData = async (
   dataset: ObliqueDataset,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  fetchSource: typeof fetch = fetch
 ): Promise<ObliqueData> => {
   signal?.throwIfAborted();
   const manager = createDerivedBufferCache({
@@ -189,7 +191,7 @@ export const loadCachedObliqueSeriesData = async (
       cached.value.data.datasets.has(dataset.id) &&
       (revision
         ? cached.value.catalogVersion === revision
-        : await revalidate(cached.value, signal))
+        : await revalidate(cached.value, signal, fetchSource))
     ) {
       // Old parsed catalogs remain usable; discard only optional approximation rings, never the cache itself.
       for (const record of cached.value.data.imageRecords.values())
@@ -207,8 +209,8 @@ export const loadCachedObliqueSeriesData = async (
       };
     }
     const observed = new Map(urls.map((url) => [url, readValidator(url)]));
-    const fetchSource: typeof fetch = async (input, init) => {
-      const response = await fetch(input, { ...init, cache: "no-cache" });
+    const observingFetch: typeof fetch = async (input, init) => {
+      const response = await fetchSource(input, { ...init, cache: "no-cache" });
       const url =
         typeof input === "string"
           ? input
@@ -219,7 +221,7 @@ export const loadCachedObliqueSeriesData = async (
       if (response.ok && primaryUrls.includes(url)) successfulPrimary.add(url);
       return response;
     };
-    const data = await loadObliqueSeriesData(dataset, signal, fetchSource);
+    const data = await loadObliqueSeriesData(dataset, signal, observingFetch);
     signal?.throwIfAborted();
     // Conservative caller-accounted clone size; the shared manager enforces both bounds.
     const bytes =

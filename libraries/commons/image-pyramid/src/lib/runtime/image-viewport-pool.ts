@@ -513,7 +513,7 @@ export class ImageViewportPool {
     const active = [...this.entries.values()].filter((item) => item.refs > 0);
     const parked = [...this.entries.values()].filter((item) => !item.refs)
       .reduce((sum, item) => sum + this.hostBytes(item) + item.sourceBytes + workerBytes(item), 0);
-    return Math.max(0, (this.limits.maxBytes - parked) / Math.max(1, active.length));
+    return Math.max(0, Math.floor((this.limits.maxBytes - parked) / Math.max(1, active.length)));
   }
   private metricsFor(entry: Entry): ImageViewportMetrics {
     const owned = new Set<ImageBitmap>();

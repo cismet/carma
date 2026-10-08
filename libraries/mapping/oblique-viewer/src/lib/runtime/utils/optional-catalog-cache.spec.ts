@@ -17,6 +17,7 @@ const data: ObliqueData = {
 afterEach(() => {
   vi.useRealTimers();
   vi.clearAllMocks();
+  vi.unstubAllGlobals();
 });
 
 describe("optional catalog cache startup", () => {
@@ -25,8 +26,25 @@ describe("optional catalog cache startup", () => {
     await expect(
       loadWithOptionalCatalogCache(dataset, async () => cached)
     ).resolves.toBe(data);
-    expect(cached).toHaveBeenCalledWith(dataset);
+    expect(cached).toHaveBeenCalledWith(dataset, undefined, undefined);
     expect(loadObliqueSeriesData).not.toHaveBeenCalled();
+  });
+
+  it("adds the requested fetch priority to every catalog request", async () => {
+    const network = vi.fn<typeof fetch>(async () => new Response("{}"));
+    vi.stubGlobal("fetch", network);
+    const cached = vi.fn().mockResolvedValue(data);
+    await loadWithOptionalCatalogCache(dataset, async () => cached, {
+      fetchPriority: "low",
+    });
+    const fetchSource = cached.mock.calls[0][2] as typeof fetch;
+    await fetchSource("https://images.example/catalog.json", {
+      cache: "no-cache",
+    });
+    expect(network).toHaveBeenCalledWith(
+      "https://images.example/catalog.json",
+      { cache: "no-cache", priority: "low" }
+    );
   });
 
   it("adds a pitch summary to an older cached catalog without refetching or replacing its records", async () => {

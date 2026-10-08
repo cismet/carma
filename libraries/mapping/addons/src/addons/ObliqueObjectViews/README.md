@@ -7,7 +7,7 @@ It replaces the query hook and overlay formerly mounted directly inside
 `ObliqueViewer`; the regular viewer no longer imports that runtime.
 
 Geoportal declares this addon on `/oblique` and with its default addons, gated by
-`featureFlagObliqueNextUi` (`olbng`). Resolution also requires a declared viewer.
+`featureFlagObliqueNextUi` (`obliqueng`). Resolution also requires a declared viewer.
 The component and viewer wrapper enforce the same UI gate when mounted manually.
 The Cesium-style default interface offers no object-view mode.
 

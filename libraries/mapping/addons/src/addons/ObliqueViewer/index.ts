@@ -8,6 +8,7 @@ export {
 export { useObliqueViewerActions } from "./oblique-actions";
 export {
   formatImageLabel,
+  formatObliqueLoadingStatus,
   resolveBackdropLook,
   OBLIQUE_STATE_DEFAULT,
   type ObliqueCommand,

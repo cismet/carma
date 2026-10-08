@@ -1,19 +1,24 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Button, Carousel, Tooltip } from "antd";
-import type { CarouselRef } from "antd/es/carousel";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faChevronLeft, faChevronRight, faImage, faBan, faCrosshairs, faRotateLeft, faRuler, faTrashCan, faXmark } from "@fortawesome/free-solid-svg-icons";
+import { Button, Tooltip } from "antd";
 import type { Map as MaplibreMap } from "maplibre-gl";
-import { Matrix4, Raycaster, Vector3, Vector4, type Mesh } from "three";
-import type { DevicePixels } from "@carma-units";
+import { Raycaster, Vector3, type Mesh } from "three";
+import type { CssPixels, DevicePixels, Ratio } from "@carma-units";
 import {
   acquireSharedThreeScene,
   getSharedThreeSceneRuntimes,
 } from "@carma-mapping/engines/maplibre";
 
+import type { RasterDemTerrainRuntime } from "@carma-mapping/engines/maplibre/terrain";
 import type { CardinalDirection } from "../core/types";
-import type {
-  ObjectCoverageGroups,
-  ObjectCoverageImage,
-  ObjectCoverageSphere,
+import {
+  fitObjectCoverageCrop,
+  objectCoveragePixelRay,
+  projectObjectCoveragePoint,
+  type ObjectCoverageGroups,
+  type ObjectCoverageImage,
+  type ObjectCoverageSphere,
 } from "../core/utils/object-coverage";
 import { getCameraCalibration } from "../core/utils/calibration";
 import {
@@ -23,7 +28,6 @@ import {
 } from "@carma-commons/image-pyramid";
 import { PREVIEW_QUALITY, type PreviewQualityLevel } from "../core/constants";
 import { useProgressivePreviewSource } from "./hooks/useProgressivePreviewSource";
-import { usePrefetchedPreviewThumbnail } from "./hooks/usePrefetchedPreviewThumbnail";
 import { getImageUrls, getPreviewImageUrl } from "./utils/imageUrls";
 import {
   originalOf,
@@ -35,7 +39,8 @@ import {
   sceneToPhotoEnu,
 } from "../core/utils/image-projection";
 
-import type { createPhotoAxisPicker } from "./utils/photo-axis-picker";
+import type { createPhotoAxisPicker, PhotoAxisSurfaceMode } from "./utils/photo-axis-picker";
+import "./oblique-object-coverage.css";
 
 const DIRECTIONS: readonly { direction: CardinalDirection; label: string }[] = [
   { direction: 0, label: "N" },
@@ -48,26 +53,19 @@ const EMPTY_IMAGES: readonly ObjectCoverageImage[] = [];
 /** Keep the sphere in view, expand to the cell aspect, and cap physical-pixel magnification at 3x. */
 const coverageWindow = (
   image: ObjectCoverageImage,
-  viewport: { width: number; height: number }
+  viewport: { width: number; height: number; pixelRatio?: number }
 ) => {
   const calibration = getCameraCalibration(
     image.dataset,
     image.record.cameraId
   );
-  const pixelRatio = globalThis.devicePixelRatio || 1;
-  const aspect = Math.max(1, viewport.width) / Math.max(1, viewport.height);
-  const height = Math.max(
-    image.crop.height,
-    image.crop.width / aspect,
-    (viewport.height * pixelRatio) / 3
-  );
-  const width = height * aspect;
-  const crop = {
-    x: image.crop.x + (image.crop.width - width) / 2,
-    y: image.crop.y + (image.crop.height - height) / 2,
-    width,
-    height,
-  };
+  const pixelRatio = viewport.pixelRatio ?? (globalThis.devicePixelRatio || 1);
+  // Calibration and measurement coordinates stay in the original sensor frame.
+  const finestSourceDensity = 2 ** -Number(image.dataset.minimumPreviewQualityLevel ?? "0");
+  const crop = fitObjectCoverageCrop(image.crop, {
+    width: Math.max(1, viewport.width) as CssPixels,
+    height: Math.max(1, viewport.height) as CssPixels,
+  }, pixelRatio as Ratio, finestSourceDensity as Ratio);
   // Virtual crop outside the sensor stays empty, rather than stretching or clipping the object.
   const x = Math.max(0, Math.floor(crop.x)),
     y = Math.max(0, Math.floor(crop.y));
@@ -87,11 +85,11 @@ const coverageWindow = (
     target: {
       width: Math.max(
         1,
-        Math.round((viewport.width * pixelRatio * source.width) / width)
+        Math.round((viewport.width * pixelRatio * source.width) / crop.width)
       ) as DevicePixels,
       height: Math.max(
         1,
-        Math.round((viewport.height * pixelRatio * source.height) / height)
+        Math.round((viewport.height * pixelRatio * source.height) / crop.height)
       ) as DevicePixels,
     },
   };
@@ -99,65 +97,84 @@ const coverageWindow = (
 };
 
 
-const CoverageThumbnail = ({ image }: { image: ObjectCoverageImage }) => {
+const CoverageThumbnail = ({ image, pool }: {
+  image: ObjectCoverageImage;
+  pool: ImageViewportPool;
+}) => {
   const ref = useRef<HTMLSpanElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const [visible, setVisible] = useState(false);
+  const contentKey = JSON.stringify([
+    image.record.id,
+    pyramidOf(image),
+    originalOf(image),
+    image.dataset.previewPath,
+    image.dataset.minimumPreviewQualityLevel,
+    image.crop,
+  ]);
+  const [paintedContent, setPaintedContent] = useState<string | null>(null);
+  const ready = paintedContent === contentKey;
+  const [pixelRatio, setPixelRatio] = useState(1);
   useEffect(() => {
     const element = ref.current;
     if (!element) return;
-    if (typeof IntersectionObserver === "undefined") {
-      setVisible(true);
-      return;
-    }
-    const observer = new IntersectionObserver(([entry]) =>
-      setVisible(entry.isIntersecting)
-    );
-    observer.observe(element);
-    return () => observer.disconnect();
+    const host = element.closest("[data-oblique-object-window]");
+    let observer: IntersectionObserver | undefined;
+    const observe = () => {
+      observer?.disconnect();
+      const owner = element.ownerDocument.defaultView as (Window & typeof globalThis) | null;
+      setPixelRatio(Math.min(2, owner?.devicePixelRatio || 1));
+      const Observer = owner?.IntersectionObserver;
+      if (!Observer) { setVisible(true); return; }
+      setVisible(false);
+      observer = new Observer(([entry]) => setVisible(entry.isIntersecting));
+      observer.observe(element);
+    };
+    observe();
+    host?.addEventListener("oblique-object-window-change", observe);
+    return () => {
+      observer?.disconnect();
+      host?.removeEventListener("oblique-object-window-change", observe);
+    };
   }, []);
-  const calibration = getCameraCalibration(
-    image.dataset,
-    image.record.cameraId
-  );
-  const thumbnail = usePrefetchedPreviewThumbnail(
-    image.dataset.previewPath,
-    image.record.sourceId,
-    !visible,
-    {
-      avifOnly: image.dataset.avifOnly,
-      originalImageUrl: originalOf(image),
-      avifPyramidUrl: pyramidOf(image)
-        ? new URL(pyramidOf(image)!, globalThis.window.location.href).href
-        : undefined,
-      nativeSize: { width: calibration.widthPx, height: calibration.heightPx },
-      enqueue: true,
-    }
-  );
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!visible || !canvas || typeof Worker === "undefined" ||
+        typeof OffscreenCanvas === "undefined") return;
+    const { window, crop } = coverageWindow(image, { width: 56, height: 40, pixelRatio });
+    // A separate bounded pool shares the decoder and persistent cache, while
+    // thumbnail ROIs can never replace an active photograph's viewport.
+    const handle = pool.acquire(viewportSourceOf(image));
+    // Canvas pixels survive portal adoption and lease renewal. Keep the same
+    // source/ROI visible while its new realm or density is being refreshed.
+    const unsubscribe = handle.subscribe(({ bitmap, frame }) => {
+      if (!bitmap || !frame) return;
+      const context = canvas.getContext("2d");
+      if (!context) return;
+      canvas.width = Math.round(56 * pixelRatio);
+      canvas.height = Math.round(40 * pixelRatio);
+      context.clearRect(0, 0, canvas.width, canvas.height);
+      context.drawImage(bitmap,
+        (frame.source.x - crop.x) / crop.width * canvas.width,
+        (frame.source.y - crop.y) / crop.height * canvas.height,
+        frame.source.width / crop.width * canvas.width,
+        frame.source.height / crop.height * canvas.height);
+      setPaintedContent(contentKey);
+    });
+    handle.setViewport(window, undefined, { priority: "low" });
+    return () => {
+      unsubscribe();
+      handle.release();
+    };
+  }, [image, pool, visible, pixelRatio, contentKey]);
   return (
-    <span
-      ref={ref}
-      style={{ display: "block", width: 56, height: 40, background: "#334155" }}
-    >
-      {thumbnail ? (
-        <img
-          src={thumbnail.blobUrl}
-          alt={image.record.sourceId}
-          draggable={false}
-          style={{ width: "100%", height: "100%", objectFit: "cover" }}
-        />
-      ) : (
-        <span
-          aria-hidden="true"
-          style={{
-            display: "grid",
-            placeItems: "center",
-            height: "100%",
-            color: "#cbd5e1",
-          }}
-        >
-          ▧
-        </span>
-      )}
+    <span ref={ref} style={{ display: "block", position: "relative", width: 56, height: 40, background: "#334155", overflow: "hidden" }}>
+      <canvas ref={canvasRef} role="img" aria-label={image.record.sourceId}
+        data-test-id="oblique-coverage-thumbnail"
+        style={{ display: ready ? "block" : "none", width: 56, height: 40 }} />
+      {!ready && <span aria-hidden="true" style={{ display: "grid", placeItems: "center", height: "100%", color: "#cbd5e1" }}>
+        <FontAwesomeIcon icon={faImage} />
+      </span>}
     </span>
   );
 };
@@ -170,7 +187,7 @@ const CoveragePreload = ({
   pool,
 }: {
   images: readonly ObjectCoverageImage[];
-  viewport: { width: number; height: number };
+  viewport: { width: number; height: number; pixelRatio?: number };
   enabled: boolean;
   pool: ImageViewportPool;
 }) => {
@@ -245,7 +262,7 @@ const CoveragePreload = ({
       clearTimeout(timer);
       release();
     };
-  }, [images, viewport.width, viewport.height, enabled, pool]);
+  }, [images, viewport.width, viewport.height, viewport.pixelRatio, enabled, pool]);
   return null;
 };
 
@@ -261,7 +278,7 @@ const CoveragePhoto = ({
   pool,
 }: {
   image: ObjectCoverageImage;
-  viewport: { width: number; height: number };
+  viewport: { width: number; height: number; pixelRatio?: number };
   active: boolean;
   measuring: boolean;
   points: readonly Vector3[];
@@ -403,21 +420,11 @@ const CoveragePhoto = ({
     () =>
       points.map((point) => {
         if (!image.projection) return null;
-        const p = new Vector4(point.x, point.y, point.z, 1).applyMatrix4(
-          image.projection
-        );
-        return p.w > 0
-          ? {
-              x:
-                (((p.x / p.w) * calibration.widthPx + 0.5 - crop.x) /
-                  crop.width) *
-                viewport.width,
-              y:
-                (((1 - p.y / p.w) * calibration.heightPx + 0.5 - crop.y) /
-                  crop.height) *
-                viewport.height,
-            }
-          : null;
+        const pixel = projectObjectCoveragePoint(image.projection, point, calibration);
+        return pixel ? {
+          x: (pixel.x - crop.x) / crop.width * viewport.width,
+          y: (pixel.y - crop.y) / crop.height * viewport.height,
+        } : null;
       }),
     [
       points,
@@ -603,6 +610,7 @@ const CoverageQuadrant = ({
   onFinish,
   onOpen,
   pool,
+  thumbnailPool,
 }: {
   label: string;
   images: readonly ObjectCoverageImage[];
@@ -616,10 +624,10 @@ const CoverageQuadrant = ({
   onFinish: () => void;
   onOpen: (imageId: string) => void;
   pool: ImageViewportPool;
+  thumbnailPool: ImageViewportPool;
 }) => {
-  const viewportRef = useRef<HTMLDivElement>(null),
-    carouselRef = useRef<CarouselRef>(null);
-  const [viewport, setViewport] = useState({ width: 1, height: 1 }),
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const [viewport, setViewport] = useState({ width: 1, height: 1, pixelRatio: 1 }),
     [activeIndex, setActiveIndex] = useState(0),
     [preload, setPreload] = useState(false);
   const token = useMemo(
@@ -635,17 +643,35 @@ const CoverageQuadrant = ({
     if (!element) return;
     const resize = () => {
       const width = Math.max(1, Math.round(element.clientWidth)),
-        height = Math.max(1, Math.round(element.clientHeight));
+        height = Math.max(1, Math.round(element.clientHeight)),
+        pixelRatio = element.ownerDocument.defaultView?.devicePixelRatio || 1;
       setViewport((previous) =>
-        previous.width === width && previous.height === height
+        previous.width === width && previous.height === height &&
+        previous.pixelRatio === pixelRatio
           ? previous
-          : { width, height }
+          : { width, height, pixelRatio }
       );
     };
-    resize();
-    const observer = new ResizeObserver(resize);
-    observer.observe(element);
-    return () => observer.disconnect();
+    const host = element.closest("[data-oblique-object-window]");
+    let owner: (Window & typeof globalThis) | null = null;
+    let observer: ResizeObserver | undefined;
+    const observe = () => {
+      observer?.disconnect();
+      owner?.removeEventListener("resize", resize);
+      owner = element.ownerDocument.defaultView as (Window & typeof globalThis) | null;
+      const Observer = owner?.ResizeObserver;
+      observer = Observer ? new Observer(resize) : undefined;
+      observer?.observe(element);
+      owner?.addEventListener("resize", resize);
+      resize();
+    };
+    observe();
+    host?.addEventListener("oblique-object-window-change", observe);
+    return () => {
+      observer?.disconnect();
+      owner?.removeEventListener("resize", resize);
+      host?.removeEventListener("oblique-object-window-change", observe);
+    };
   }, []);
   const active = images[activeIndex];
   const enablePreload = () => {
@@ -653,9 +679,19 @@ const CoverageQuadrant = ({
     setPreload(true);
   };
   const alternatives = useMemo(
-    () => images.filter((_, index) => index !== activeIndex),
+    () => [images[activeIndex + 1], images[activeIndex - 1]].filter(
+      (image): image is ObjectCoverageImage => Boolean(image)
+    ),
     [images, activeIndex]
   );
+  // Bound both thumbnail subscriptions and DOM work independently of catalog size.
+  const thumbnailStart = Math.max(0, Math.min(activeIndex - 1, images.length - 4));
+  const thumbnails = images.slice(thumbnailStart, thumbnailStart + 4);
+  const choose = (index: number) => {
+    if (index < 0 || index >= images.length) return;
+    enablePreload();
+    setActiveIndex(index);
+  };
   return (
     <section
       aria-label={`Objektansichtenabfrage ${label}`}
@@ -675,11 +711,14 @@ const CoverageQuadrant = ({
           gap: 8,
           minHeight: 30,
           padding: "2px 8px",
-          color: "white",
+          color: "#374151",
+          background: "white",
+          borderBottom: "1px solid #e5e7eb",
+          flexShrink: 0,
           fontSize: 12,
         }}
       >
-        <Tooltip title="Alternativen dieser Richtung im Hintergrund vorladen">
+        <Tooltip title="Benachbarte Bilder dieser Richtung im Hintergrund vorladen">
           <Button
             size="small"
             aria-label={`${label}: Alternativen vorladen`}
@@ -703,6 +742,16 @@ const CoverageQuadrant = ({
             {active.record.sourceId}
           </span>
         )}
+        <Tooltip title="Vorheriges Bild">
+          <Button size="small" aria-label={`${label}: Vorheriges Bild`}
+            disabled={activeIndex <= 0} icon={<FontAwesomeIcon icon={faChevronLeft} />}
+            onClick={() => choose(activeIndex - 1)} />
+        </Tooltip>
+        <Tooltip title="Nächstes Bild">
+          <Button size="small" aria-label={`${label}: Nächstes Bild`}
+            disabled={activeIndex >= images.length - 1} icon={<FontAwesomeIcon icon={faChevronRight} />}
+            onClick={() => choose(activeIndex + 1)} />
+        </Tooltip>
         <span style={{ marginLeft: "auto", whiteSpace: "nowrap" }}>
           {images.length
             ? `${activeIndex + 1}/${
@@ -715,35 +764,19 @@ const CoverageQuadrant = ({
         ref={viewportRef}
         style={{ flex: 1, minHeight: 0, minWidth: 0, position: "relative" }}
       >
-        {images.length ? (
-          <Carousel
-            key={token}
-            ref={carouselRef}
-            infinite={false}
-            lazyLoad="ondemand"
-            arrows={images.length > 1}
-            dots={false}
-            beforeChange={(_, next) => {
-              enablePreload();
-              setActiveIndex(next);
-            }}
-          >
-            {images.map((image, index) => (
-              <div key={image.record.id}>
-                <CoveragePhoto
-                  image={image}
-                  viewport={viewport}
-                  active={index === activeIndex}
-                  measuring={measuring}
-                  points={points}
-                  onMeasure={onMeasure}
-                  onFinish={onFinish}
-                  onOpen={onOpen}
-                  pool={pool}
-                />
-              </div>
-            ))}
-          </Carousel>
+        {active ? (
+          <CoveragePhoto
+            key={active.record.id}
+            image={active}
+            viewport={viewport}
+            active={true}
+            measuring={measuring}
+            points={points}
+            onMeasure={onMeasure}
+            onFinish={onFinish}
+            onOpen={onOpen}
+            pool={pool}
+          />
         ) : (
           <div
             role="status"
@@ -776,8 +809,9 @@ const CoverageQuadrant = ({
             height: 48,
           }}
         >
-          {images.map((image, index) => (
-            <button
+          {thumbnails.map((image, offset) => {
+            const index = thumbnailStart + offset;
+            return <button
               key={image.record.id}
               type="button"
               aria-label={`${label} Bild ${index + 1}: ${
@@ -785,10 +819,7 @@ const CoverageQuadrant = ({
               }`}
               aria-pressed={index === activeIndex}
               title={image.record.sourceId}
-              onClick={() => {
-                enablePreload();
-                carouselRef.current?.goTo(index);
-              }}
+              onClick={() => choose(index)}
               style={{
                 padding: 0,
                 border: `2px solid ${
@@ -798,9 +829,9 @@ const CoverageQuadrant = ({
                 cursor: "pointer",
               }}
             >
-              <CoverageThumbnail image={image} />
-            </button>
-          ))}
+              <CoverageThumbnail image={image} pool={thumbnailPool} />
+            </button>;
+          })}
         </div>
       )}
       <CoveragePreload
@@ -817,24 +848,29 @@ const CoverageQuadrant = ({
 export const ObliqueObjectCoverage = ({
   map,
   surfacePicker,
+  surfaceMode = "auto",
   sphere,
   groups,
   loading = false,
   onOpen,
   onReset,
   onCancel,
+  embedded = false,
 }: {
   map?: MaplibreMap | null;
   surfacePicker?: Pick<
     ReturnType<typeof createPhotoAxisPicker>,
     "intersectSurface"
   > | null;
+  surfaceMode?: PhotoAxisSurfaceMode;
   sphere: ObjectCoverageSphere;
   groups: ObjectCoverageGroups;
   loading?: boolean;
   onOpen: (imageId: string) => void;
   onReset?: () => void;
   onCancel?: () => void;
+  /** Dialog/window hosts already reserve their own title bar. */
+  embedded?: boolean;
 }) => {
   const [imagePool] = useState(
     () =>
@@ -844,6 +880,13 @@ export const ObliqueObjectCoverage = ({
         retainedSourceBytes: 4 * 1024 * 1024,
       })
   );
+  const [thumbnailPool] = useState(
+    () => new ImageViewportPool({
+      maxImages: 16,
+      maxBytes: 8 * 1024 * 1024,
+      retainedSourceBytes: 1024 * 1024,
+    })
+  );
   const poolDisposeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
     undefined
   );
@@ -851,9 +894,12 @@ export const ObliqueObjectCoverage = ({
     clearTimeout(poolDisposeTimer.current);
     return () => {
       // React StrictMode reuses the owner across its effect setup replay.
-      poolDisposeTimer.current = setTimeout(() => imagePool.dispose(), 0);
+      poolDisposeTimer.current = setTimeout(() => {
+        imagePool.dispose();
+        thumbnailPool.dispose();
+      }, 0);
     };
-  }, [imagePool]);
+  }, [imagePool, thumbnailPool]);
   const [measuring, setMeasuring] = useState(false),
     [points, setPoints] = useState<Vector3[]>([]),
     [measurementError, setMeasurementError] = useState<string | null>(null);
@@ -862,7 +908,7 @@ export const ObliqueObjectCoverage = ({
     setPoints([]);
     setMeasuring(false);
     setMeasurementError(null);
-  }, [sphereKey]);
+  }, [sphereKey, surfaceMode]);
   const onMeasure = useCallback(
     (image: ObjectCoverageImage, pixel: { x: number; y: number }) => {
       if (!map || !measuring) return;
@@ -900,43 +946,44 @@ export const ObliqueObjectCoverage = ({
           pose,
           photoToScene.clone().invert()
         );
-        const e = projection.elements,
-          u = (pixel.x - 0.5) / calibration.widthPx,
-          v = 1 - (pixel.y - 0.5) / calibration.heightPx;
-        const horizontal = new Vector3(
-          e[0] - u * e[3],
-          e[4] - u * e[7],
-          e[8] - u * e[11]
-        );
-        const vertical = new Vector3(
-          e[1] - v * e[3],
-          e[5] - v * e[7],
-          e[9] - v * e[11]
-        );
-        const direction = horizontal.cross(vertical).normalize();
-        if (direction.dot(new Vector3(e[3], e[7], e[11])) < 0)
-          direction.negate();
-        const ray = new Raycaster(
+        const photoRay = objectCoveragePixelRay(projection,
           new Vector3().applyMatrix4(photoToScene),
-          direction
-        );
+          { x: pixel.x as DevicePixels, y: pixel.y as DevicePixels }, calibration);
+        if (!photoRay) {
+          setMeasurementError("Bildgeometrie ist ungültig.");
+          return;
+        }
+        const ray = new Raycaster(photoRay.origin, photoRay.direction);
         (ray as Raycaster & { firstHitOnly: boolean }).firstHitOnly = true;
         let hit: { point: Vector3 } | null =
-          surfacePicker?.intersectSurface(ray, [
-            pose.longitude,
-            pose.latitude,
-          ]) ?? null;
+          surfacePicker?.intersectSurface(
+            ray,
+            [pose.longitude, pose.latitude],
+            surfaceMode
+          ) ?? null;
         if (!surfacePicker) {
           const meshes: Mesh[] = [];
-          for (const runtime of getSharedThreeSceneRuntimes(map))
+          for (const runtime of getSharedThreeSceneRuntimes(map)) {
             if (
-              runtime.root.visible &&
-              (runtime.receivesMapStyleTexture || runtime.providesTerrain)
-            )
-              runtime.root.traverseVisible((object) => {
-                const mesh = object as Mesh;
-                if (mesh.isMesh && mesh.geometry) meshes.push(mesh);
-              });
+              !runtime.root.visible ||
+              !(runtime.receivesMapStyleTexture || runtime.providesTerrain)
+            ) continue;
+            // Detailed 3D tiles can also provide terrain heights. Match the
+            // shared picker's raster-DEM markers, not that broader capability.
+            const isDem =
+              typeof (runtime as Partial<RasterDemTerrainRuntime>)
+                .getPublishedTerrainTiles === "function" ||
+              runtime.root.getObjectByProperty("isMesh", true)?.userData
+                .isShadowTerrainSurface === true;
+            if (
+              (surfaceMode === "mesh" && isDem) ||
+              (surfaceMode === "terrain" && !isDem)
+            ) continue;
+            runtime.root.traverseVisible((object) => {
+              const mesh = object as Mesh;
+              if (mesh.isMesh && mesh.geometry) meshes.push(mesh);
+            });
+          }
           hit = ray.intersectObjects(meshes, false)[0] ?? null;
         }
         if (!hit) {
@@ -957,7 +1004,7 @@ export const ObliqueObjectCoverage = ({
         lease.release();
       }
     },
-    [map, surfacePicker, measuring, sphere.center]
+    [map, surfacePicker, surfaceMode, measuring, sphere.center]
   );
   const distance = useMemo(
     () =>
@@ -972,111 +1019,88 @@ export const ObliqueObjectCoverage = ({
     <div
       data-test-id="oblique-object-coverage"
       data-oblique-coverage-ui="true"
+      className="oblique-object-coverage"
       role="region"
-      aria-label={`Objektansichtenabfrage, Radius ${sphere.radiusMeters.toFixed(
-        1
-      )} Meter`}
+      aria-label={`Objektansichtenabfrage, Radius ${sphere.radiusMeters.toFixed(1)} Meter`}
       onPointerDown={(event) => event.stopPropagation()}
       onMouseDown={(event) => event.stopPropagation()}
       onTouchStart={(event) => event.stopPropagation()}
       onClick={(event) => event.stopPropagation()}
       onDoubleClick={(event) => event.stopPropagation()}
       onWheel={(event) => event.stopPropagation()}
-      style={{
-        position: "absolute",
-        inset: 0,
-        zIndex: 4,
-        pointerEvents: "auto",
-        display: "grid",
-        gridTemplateColumns: "repeat(2,minmax(0,1fr))",
-        gridTemplateRows: "repeat(2,minmax(0,1fr))",
-        gap: 2,
-        padding: 2,
-        paddingTop: "calc(4rem + env(safe-area-inset-top))",
-        paddingBottom: 44,
-        background: "#e2e8f0",
-      }}
+      style={{ paddingTop: embedded ? 2 : "calc(4rem + env(safe-area-inset-top))" }}
     >
-      {DIRECTIONS.map(({ direction, label }) => (
-        <CoverageQuadrant
-          key={`${direction}:${sphereKey}`}
-          label={label}
-          images={groups.get(direction) ?? EMPTY_IMAGES}
-          loading={loading}
-          measuring={measuring}
-          points={points}
-          onMeasure={onMeasure}
-          onFinish={() => setMeasuring(false)}
-          onOpen={onOpen}
-          pool={imagePool}
-        />
-      ))}
-      <div
-        style={{
-          position: "absolute",
-          bottom: 4,
-          left: 4,
-          right: 4,
-          display: "flex",
-          gap: 6,
-          alignItems: "center",
-          overflowX: "auto",
-          whiteSpace: "nowrap",
-          flexWrap: "nowrap",
-          padding: 2,
-          background: "white",
-        }}
-      >
-        <strong style={{ fontSize: 12 }}>Objektansichtenabfrage</strong>
-        <Button
-          size="small"
-          aria-pressed={measuring}
-          type={measuring ? "primary" : "default"}
-          disabled={!map}
-          onClick={() => {
-            setMeasuring((value) => !value);
-            setMeasurementError(null);
-          }}
-        >
-          {measuring ? "Messung beenden" : "Strecke messen"}
-        </Button>
+      <div className="oblique-object-coverage-grid">
+        {DIRECTIONS.map(({ direction, label }) => (
+          <CoverageQuadrant
+            key={`${direction}:${sphereKey}`}
+            label={label}
+            images={groups.get(direction) ?? EMPTY_IMAGES}
+            loading={loading}
+            measuring={measuring}
+            points={points}
+            onMeasure={onMeasure}
+            onFinish={() => setMeasuring(false)}
+            onOpen={onOpen}
+            pool={imagePool}
+            thumbnailPool={thumbnailPool}
+          />
+        ))}
+      </div>
+      <div className="oblique-object-coverage-tools" role="toolbar" aria-label="Objektansichten-Werkzeuge">
+        <Tooltip title={measuring ? "Messung beenden" : "Strecke messen"}>
+          <Button
+            size="small"
+            aria-label={measuring ? "Messung beenden" : "Strecke messen"}
+            aria-pressed={measuring}
+            type={measuring ? "primary" : "default"}
+            disabled={!map}
+            icon={<FontAwesomeIcon icon={measuring ? faBan : faRuler} />}
+            onClick={() => {
+              setMeasuring((value) => !value);
+              setMeasurementError(null);
+            }}
+          />
+        </Tooltip>
         {points.length > 0 && (
           <>
-            <span style={{ fontSize: 12 }}>
+            <span className="oblique-object-coverage-distance">
               {distance.toLocaleString("de-DE", { maximumFractionDigits: 2 })} m
             </span>
-            <Button
-              size="small"
-              onClick={() => setPoints((value) => value.slice(0, -1))}
-            >
-              Letzten Punkt entfernen
-            </Button>
-            <Button
-              size="small"
-              onClick={() => {
-                setPoints([]);
-                setMeasurementError(null);
-              }}
-            >
-              Messung löschen
-            </Button>
+            <Tooltip title="Letzten Punkt entfernen">
+              <Button
+                size="small"
+                aria-label="Letzten Punkt entfernen"
+                icon={<FontAwesomeIcon icon={faRotateLeft} />}
+                onClick={() => setPoints((value) => value.slice(0, -1))}
+              />
+            </Tooltip>
+            <Tooltip title="Messung löschen">
+              <Button
+                size="small"
+                aria-label="Messung löschen"
+                icon={<FontAwesomeIcon icon={faTrashCan} />}
+                onClick={() => {
+                  setPoints([]);
+                  setMeasurementError(null);
+                }}
+              />
+            </Tooltip>
           </>
         )}
-        {measurementError && (
-          <span role="status" style={{ fontSize: 12, color: "#b45309" }}>
-            {measurementError}
-          </span>
-        )}
-        <span style={{ marginLeft: "auto" }} />
+        <span style={{ flex: 1 }} />
         {onReset && (
-          <Button size="small" onClick={onReset}>
-            Kugel neu wählen
-          </Button>
+          <Tooltip title="Kugel neu wählen">
+            <Button size="small" aria-label="Kugel neu wählen" icon={<FontAwesomeIcon icon={faCrosshairs} />} onClick={onReset} />
+          </Tooltip>
         )}
-        {onCancel && (
-          <Button size="small" onClick={onCancel}>
-            Schließen
-          </Button>
+        {onCancel && !embedded && (
+          <Tooltip title="Schließen">
+            <Button size="small" aria-label="Schließen" icon={<FontAwesomeIcon icon={faXmark} />} onClick={onCancel} />
+          </Tooltip>
+        )}
+        {measurementError && (
+          <span role="status" className="oblique-object-coverage-error">{measurementError}</span>
         )}
       </div>
     </div>

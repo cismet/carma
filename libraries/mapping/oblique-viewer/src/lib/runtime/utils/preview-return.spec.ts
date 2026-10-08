@@ -14,7 +14,8 @@ import {
   type Radians,
   type Ratio,
 } from "@carma-units";
-import { shortestAngleDelta } from "@carma-commons/math";
+import { Easing, shortestAngleDelta } from "@carma-commons/math";
+import { capObliqueAnimationDuration, dynamicDurationMs } from "./cameraMath";
 import type { ObliquePreviewState } from "../../core/types";
 import type { PreviewImageGeometry } from "../../core/utils/preview-pan-bounds";
 
@@ -500,7 +501,7 @@ describe("preview camera return", () => {
         durationMs: 1000,
         padding: { left: 0, right: 0, top: 0, bottom: 0 },
       });
-      advance(250);
+      advance(500);
       const middle = eye();
       advance(1000);
       await flight.done;
@@ -1058,7 +1059,7 @@ describe("preview camera return", () => {
         map,
         pose,
         startAltitude + 80,
-        { duration: 500 },
+        { duration: 500, easingFunction: Easing.CUBIC_IN_OUT },
         {
           dynamicDuration: false,
           anchor: target,
@@ -1288,6 +1289,156 @@ describe("preview camera return", () => {
     expect(transform.pitch).toBeCloseTo(45, 7);
     expect(transform.padding).toEqual(originalPadding);
     expect(transform.zoom).toBeLessThanOrEqual(22);
+    release();
+  });
+});
+
+
+describe("Cesium-compatible camera timing", () => {
+  it("uses 100 ms per square-root metre, preserves immediate moves and caps long flights at 2 seconds", () => {
+    expect(dynamicDurationMs(25)).toBe(500);
+    expect(dynamicDurationMs(100)).toBe(1000);
+    expect(dynamicDurationMs(10000)).toBe(2000);
+    expect(dynamicDurationMs(100, 800)).toBe(800);
+    expect(capObliqueAnimationDuration(0)).toBe(0);
+    expect(capObliqueAnimationDuration(1800)).toBe(1800);
+    expect(capObliqueAnimationDuration(3000)).toBe(2000);
+  });
+
+  it.each([0, 800])("honors configured easing for an anchored image flight lasting %i ms", async (duration) => {
+    const { map, transform, release } = setup({ fov: 34, height: 250, zoom: 18 });
+    const anchor = MercatorCoordinate.fromLngLat(map.unproject([400, 300]), 250);
+    const eye = transform.getCameraLngLat();
+    const progress = vi.fn();
+    const flight = flyToPose(map, {
+      longitude: eye.lng, latitude: eye.lat, z: 900,
+      bearingDeg: transform.bearing + 90, pitchDeg: 42, rollDeg: 0,
+      direction: [0, 0, -1], up: [0, 1, 0], utmConvergenceRad: 0,
+    }, 900, { duration, easingFunction: Easing.QUADRATIC_IN }, {
+      dynamicDuration: false, anchor, onProgress: progress,
+    });
+    if (duration) {
+      advance(duration / 2);
+      expect(progress).toHaveBeenLastCalledWith(0.25);
+      advance(duration);
+    } else {
+      advance(1);
+    }
+    await flight.done;
+    expect(progress).toHaveBeenLastCalledWith(1);
+    release();
+  });
+});
+
+describe("NG constant-distance anchored orbit", () => {
+  it("forwards the orbit through flyToPose without changing the calibrated photo pose", async () => {
+    const { map, transform, release } = setup({ fov: 34, height: 250, zoom: 18 });
+    const anchor = MercatorCoordinate.fromLngLat(map.unproject([400, 300]), 250);
+    const eye = MercatorCoordinate.fromLngLat(transform.getCameraLngLat());
+    eye.z = MercatorCoordinate.fromLngLat(transform.center, transform.getCameraAltitude()).z;
+    const distance = (point: MercatorCoordinate) => Math.hypot(point.x - anchor.x, point.y - anchor.y, point.z - anchor.z);
+    const radius = distance(eye);
+    const pose = {
+      longitude: eye.toLngLat().lng + 0.01, latitude: eye.toLngLat().lat + 0.01, z: 1400,
+      bearingDeg: transform.bearing + 90, pitchDeg: 55, rollDeg: 0,
+      direction: [0, 0, -1] as [number, number, number],
+      up: [0, 1, 0] as [number, number, number], utmConvergenceRad: 0,
+    };
+    const original = structuredClone(pose);
+    const flight = flyToPose(map, pose, 1400, { duration: 500, easingFunction: Easing.LINEAR_NONE }, {
+      anchor, orbitAroundAnchor: true, dynamicDuration: false, centerPreview: true,
+      preview: { aspectRatio: 1.5 as Ratio, halfFovTan: 0.3 as Ratio,
+        principal: { xOffset: 0.02 as Ratio, yOffset: -0.01 as Ratio }, roll: 0.1 as Radians },
+    });
+    let beforeCompletion: ReturnType<typeof transform.clone> | undefined;
+    for (const time of [0, 250, 499.9999, 500]) {
+      advance(time);
+      if (time === 499.9999) beforeCompletion = transform.clone();
+      const current = MercatorCoordinate.fromLngLat(transform.getCameraLngLat());
+      current.z = MercatorCoordinate.fromLngLat(transform.center, transform.getCameraAltitude()).z;
+      expect(distance(current)).toBeCloseTo(radius, 12);
+      expect(transform.fov).toBeCloseTo(34, 7);
+    }
+    await flight.done;
+    expect(beforeCompletion).toBeDefined();
+    for (const side of ["left", "right", "top", "bottom"] as const) {
+      expect(Math.abs(transform.padding[side] - beforeCompletion!.padding[side])).toBeLessThan(0.01);
+    }
+    expect(transform.center.lng).toBeCloseTo(beforeCompletion!.center.lng, 6);
+    expect(transform.center.lat).toBeCloseTo(beforeCompletion!.center.lat, 6);
+    expect(transform.zoom).toBeCloseTo(beforeCompletion!.zoom, 5);
+    const groundSample = MercatorCoordinate.fromLngLat([7.2018669, 51.2732064]);
+    const project = (frame: typeof transform) => new Vector3(groundSample.x * frame.worldSize, groundSample.y * frame.worldSize, 250)
+      .applyMatrix4(new Matrix4().fromArray(frame.modelViewProjectionMatrix));
+    expect(project(transform).distanceTo(project(beforeCompletion!))).toBeLessThan(0.00001);
+    expect(pose).toEqual(original);
+    release();
+  });
+
+  it.each([
+    { fromBearing: 20, toBearing: 110, fromPitch: 45, toPitch: 45, panned: false, photo: true },
+    { fromBearing: 350, toBearing: 10, fromPitch: 25, toPitch: 60, panned: false, photo: true },
+    { fromBearing: 10, toBearing: 350, fromPitch: 60, toPitch: 30, panned: true, photo: true },
+    { fromBearing: 325, toBearing: 55, fromPitch: 45, toPitch: 45, panned: true, photo: false },
+  ])("keeps radius for $fromBearing→$toBearing, pitch $fromPitch→$toPitch (panned=$panned, photo=$photo)", async ({ fromBearing, toBearing, fromPitch, toPitch, panned, photo }) => {
+    const { map, transform, release } = setup({ fov: 34, height: 250, zoom: 18, pitch: fromPitch });
+    if (!panned) transform.setPadding({ left: 0, right: 0, top: 0, bottom: 0 });
+    transform.setBearing(fromBearing);
+    transform.setElevation(250);
+    const anchor = MercatorCoordinate.fromLngLat(map.unproject([400, 300]), 250);
+    const readEyeOffset = () => {
+      const eye = MercatorCoordinate.fromLngLat(transform.getCameraLngLat());
+      eye.z = MercatorCoordinate.fromLngLat(transform.center, transform.getCameraAltitude()).z;
+      return new Vector3(eye.x - anchor.x, eye.z - anchor.z, eye.y - anchor.y)
+        .divideScalar(anchor.meterInMercatorCoordinateUnits());
+    };
+    const initial = readEyeOffset();
+    const radius = initial.length();
+    const initialPolar = Math.acos(initial.y / radius);
+    const initialAzimuth = Math.atan2(initial.x, initial.z);
+    const bearingDelta = ((toBearing - fromBearing + 540) % 360) - 180;
+    const physicalEye = transform.getCameraLngLat();
+    const flight = settleToPitch(map, toPitch, {
+      anchor,
+      orbitAroundAnchor: true,
+      restoreGround: !photo,
+      bearingDeg: toBearing,
+      fovDeg: 40 as Degrees,
+      durationMs: 500,
+      easing: Easing.LINEAR_NONE,
+      camera: photo ? {
+        pose: {
+          longitude: physicalEye.lng + 0.01, latitude: physicalEye.lat + 0.01, z: 1400,
+          bearingDeg: toBearing, pitchDeg: toPitch, rollDeg: 0,
+          direction: [0, 0, -1], up: [0, 1, 0], utmConvergenceRad: 0,
+        }, altitude: 1400,
+      } : undefined,
+    });
+    let penultimateFov = transform.fov;
+    for (const time of [0, 50, 125, 250, 375, 450, 499, 500]) {
+      advance(time);
+      expect(transform.fov).toBeCloseTo(34, 7);
+      if (time === 499) penultimateFov = transform.fov;
+      const progress = time / 500;
+      const offset = readEyeOffset();
+      expect(offset.length()).toBeCloseTo(radius, 4);
+      const polar = initialPolar + degToRadNumeric(toPitch - fromPitch) * progress;
+      const azimuth = initialAzimuth - degToRadNumeric(bearingDelta) * progress;
+      const expected = new Vector3(
+        radius * Math.sin(polar) * Math.sin(azimuth),
+        radius * Math.cos(polar),
+        radius * Math.sin(polar) * Math.cos(azimuth)
+      );
+      expect(offset.distanceTo(expected)).toBeLessThan(0.0001);
+      expect(transform.pitch).toBeCloseTo(fromPitch + (toPitch - fromPitch) * progress, 7);
+      expect(shortestAngleDelta(degToRadNumeric(fromBearing + bearingDelta * progress), degToRadNumeric(transform.bearing))).toBeCloseTo(0, 7);
+      const clip = new Vector3(anchor.x * transform.worldSize, anchor.y * transform.worldSize, 250)
+        .applyMatrix4(new Matrix4().fromArray(transform.modelViewProjectionMatrix));
+      expect((clip.x + 1) * 400).toBeCloseTo(400, 4);
+      expect((1 - clip.y) * 300).toBeCloseTo(300, 4);
+    }
+    await flight.done;
+    expect(Math.abs(transform.fov - penultimateFov)).toBeLessThan(0.1);
     release();
   });
 });

@@ -1,13 +1,26 @@
 import { act, cleanup, render } from "@testing-library/react";
 import type { ComponentProps } from "react";
 import type { Map as MaplibreMap } from "maplibre-gl";
-import type { WebGLRenderer } from "three";
+import { Matrix3, type WebGLRenderer } from "three";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CssPixels, DevicePixels, Ratio } from "@carma-units";
 import type {
   ScenePreviewImageGeometry,
   useScenePreviewImage,
 } from "./hooks/useScenePreviewImage";
+
+const network = vi.hoisted(() => ({ acquire: vi.fn(), release: vi.fn() }));
+vi.mock("@carma-mapping/engines/maplibre", () => ({
+  acquireForegroundNetwork: (...args: unknown[]) => {
+    network.acquire(...args);
+    let released = false;
+    return () => {
+      if (released) return;
+      released = true;
+      network.release();
+    };
+  },
+}));
 
 type SceneOptions = Parameters<typeof useScenePreviewImage>[0];
 const scene = vi.hoisted(() => ({
@@ -47,6 +60,8 @@ const streaming = vi.hoisted(() => ({
   disposed: 0,
   rendered: [] as { rect: Rect; size: { width: number; height: number } }[],
   drawn: 0,
+  resident: false,
+  hasPyramid: false,
   ready: Promise.resolve({}) as Promise<unknown>,
   texture: { isTexture: true },
 }));
@@ -58,13 +73,32 @@ vi.mock("@carma-commons/image-pyramid", async (importOriginal) => {
     get ready() {
       return streaming.ready;
     },
-    pyramid: null,
-    plan: null,
+    get pyramid() {
+      return streaming.hasPyramid
+        ? {
+            native: { width: 10652, height: 14204 },
+            levels: [
+              {
+                level: 0,
+                width: 10652,
+                height: 14204,
+                tileWidth: 10652,
+                tileHeight: 14204,
+                cols: 1,
+                rows: 1,
+              },
+            ],
+          }
+        : null;
+    },
+    get plan() {
+      return streaming.hasPyramid ? { target: 0, floor: 0 } : null;
+    },
     metrics: { decodedBytes: 0, budgetBytes: 1, compressedBytes: 0 },
     setView: (view: (typeof streaming.views)[number]) =>
       streaming.views.push(view),
     onContentChange: () => () => undefined,
-    isResident: () => false,
+    isResident: () => streaming.resident,
   };
   return {
     ...actual,
@@ -152,6 +186,8 @@ beforeEach(async () => {
     disposed: 0,
     rendered: [],
     drawn: 0,
+    resident: false,
+    hasPyramid: false,
   });
   streaming.ready = Promise.resolve({
     native: { width: 10652, height: 14204 },
@@ -204,6 +240,47 @@ describe("native preview pixels from the level stack", () => {
     );
   });
 
+  it("requests and composes the projected sensor crop independently of the old principal/offset window", async () => {
+    setup({ principal: { xOffset: 0.2, yOffset: -0.1 }, rollDeg: 20 });
+    await act(async () => {});
+    const viewportToImage = new Matrix3().set(
+      0.2,
+      0,
+      0.6,
+      0,
+      0.25,
+      0.1,
+      0,
+      0,
+      1
+    );
+    act(() =>
+      scene.options!.onBeforeRender?.(
+        { ...geometry(), viewportToImage },
+        renderer
+      )
+    );
+    act(() =>
+      scene.options!.onBeforeRender?.(
+        { ...geometry(500), viewportToImage },
+        renderer
+      )
+    );
+    const first = streaming.views[0];
+    expect(first.visible).toEqual({
+      x: 6391,
+      y: 9232,
+      width: 2131,
+      height: 3552,
+    });
+    expect(streaming.views[1]).toEqual(first);
+    expect(streaming.rendered[0].rect.x).toBeLessThanOrEqual(first.visible.x);
+    expect(streaming.rendered[0].rect.y).toBeLessThanOrEqual(first.visible.y);
+    expect(scene.options!.contentRef!.current?.crop).toEqual(
+      streaming.rendered[1].rect
+    );
+  });
+
   it("streams the JPEG family instead of a TIFF original", () => {
     setup({
       avifOnly: false,
@@ -223,6 +300,7 @@ describe("native preview pixels from the level stack", () => {
     availability.missing = true;
     const { props } = setup();
     expect(streaming.sources).toHaveLength(0);
+    expect(network.acquire).not.toHaveBeenCalled();
     expect(props.onError).toHaveBeenCalledWith(
       "photo",
       expect.objectContaining({ missing: true })
@@ -236,6 +314,7 @@ describe("native preview pixels from the level stack", () => {
     const { props } = setup();
     await act(async () => {});
     expect(availability.reportMissing).toHaveBeenCalledOnce();
+    expect(network.release).toHaveBeenCalledOnce();
     expect(props.onError).toHaveBeenCalledWith(
       "photo",
       expect.objectContaining({ missing: true })
@@ -250,7 +329,22 @@ describe("native preview pixels from the level stack", () => {
     unmount();
     expect(streaming.released).toBe(1);
     expect(streaming.disposed).toBe(1);
+    expect(network.release).toHaveBeenCalledOnce();
     expect(contentRef.current).toBeNull();
+  });
+
+  it("holds background downloads until visible physical-resolution tiles are resident", async () => {
+    streaming.hasPyramid = true;
+    const { unmount } = setup();
+    await act(async () => {});
+    expect(network.acquire).toHaveBeenCalledOnce();
+    act(() => scene.options!.onBeforeRender?.(geometry(), renderer));
+    expect(network.release).not.toHaveBeenCalled();
+    streaming.resident = true;
+    act(() => scene.options!.onBeforeRender?.(geometry(), renderer));
+    expect(network.release).toHaveBeenCalledOnce();
+    unmount();
+    expect(network.release).toHaveBeenCalledOnce();
   });
 
   it("draws the same tiles into the DOM canvas without a shared scene", async () => {
@@ -270,12 +364,20 @@ describe("native preview pixels from the level stack", () => {
 describe("native preview flight preparation", () => {
   it("acquires a hidden destination immediately and preserves its seeded crop during flight", async () => {
     const adapter = await import("./utils/native-preview-pool");
-    const source = adapter.nativePreviewSource({ imageId: "photo", sourceUrl: "https://imagery.test/2026/photo.avif",
-      avifPyramidUrl: "https://imagery.test/2026/photo.avif", avifOnly: true,
-      nativeSize: { width: 10652 as DevicePixels, height: 14204 as DevicePixels } });
+    const source = adapter.nativePreviewSource({
+      imageId: "photo",
+      sourceUrl: "https://imagery.test/2026/photo.avif",
+      avifPyramidUrl: "https://imagery.test/2026/photo.avif",
+      avifOnly: true,
+      nativeSize: {
+        width: 10652 as DevicePixels,
+        height: 14204 as DevicePixels,
+      },
+    });
     const forecast = adapter.fitNativePreviewView(source, 800, 600, 0, 2);
     adapter.rememberNativePreviewView(source, forecast.view, forecast.pixels);
-    const view = setup({ dimImage: true }); await act(async () => {});
+    const view = setup({ dimImage: true });
+    await act(async () => {});
     expect(streaming.sources).toHaveLength(1);
     expect(streaming.views).toEqual([forecast.view]);
     act(() => scene.options!.onBeforeRender?.(geometry(100), renderer));

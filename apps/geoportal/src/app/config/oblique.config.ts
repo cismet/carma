@@ -1,6 +1,7 @@
+import { Easing } from "@carma-commons/math";
 import type { StyleSpecification } from "maplibre-gl";
 import type { DeploymentTarget } from "@carma-commons/utils";
-import { WUPP_LOD2_TILESET, WUPP_MESH_2024 } from "@carma-commons/resources";
+import { OBLIQUE_2024_FPRFC_GEOJSON_URI, WUPP_LOD2_TILESET, WUPP_MESH_2024 } from "@carma-commons/resources";
 
 import type { ObliqueViewerConfig } from "@carma-mapping/oblique-viewer";
 
@@ -19,6 +20,24 @@ export const resolveObliqueViewerConfig = (
   _baseUrl: string = import.meta.env.BASE_URL
 ): ObliqueViewerConfig => ({
   seriesConfigURI: "https://wupp-oblique.cismet.de/series-config.json",
+  // The published 2024 manifest omits its delivered ground centers. Without
+  // these, rotations search around camera rays intersected with a 0 m plane.
+  // Reuse the original Cesium metadata and the worker's persistent catalog cache.
+  seriesOverrides: {
+    "wuppertal-2024": {
+      footprintsURI: OBLIQUE_2024_FPRFC_GEOJSON_URI,
+      captureNavigationTopology: "flight-strip",
+    },
+  },
+  // Match the established Cesium interaction profile in oblique/config.ts.
+  animations: {
+    enterObliqueMode: { duration: 2000, easingFunction: Easing.EXPONENTIAL_IN_OUT },
+    flyToExteriorOrientation: { duration: 800, easingFunction: Easing.QUADRATIC_IN },
+    flyToNextImage: { delay: 0, duration: 100, easingFunction: Easing.LINEAR_NONE },
+    flyToRotatedImage: { duration: 1800, easingFunction: Easing.CUBIC_IN_OUT },
+    rotateCamera: { duration: 1800, easingFunction: Easing.CUBIC_IN_OUT },
+    leaveObliqueMode: { duration: 1100, easingFunction: Easing.CUBIC_IN_OUT },
+  },
 });
 
 export const OBLIQUE_VIEWER_CONFIG = resolveObliqueViewerConfig();

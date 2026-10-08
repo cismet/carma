@@ -6,7 +6,7 @@ import {
   type ImageLevelStackOptions,
   type ImageLevelStackMetrics,
 } from "./image-level-stack";
-import type { ImageTileSource } from "./image-tile-source";
+import type { ImagePrefetchBudget, ImageTileSource } from "./image-tile-source";
 import { JpegTileSource } from "./jpeg-tile-source";
 
 export type ImagePyramidSource = Readonly<{
@@ -17,6 +17,12 @@ export type ImagePyramidSource = Readonly<{
   nativeSize?: ImageSize;
   /** JPEG family levels present on the server, finest first. */
   jpegLevels?: readonly number[];
+}>;
+export type ImagePrefetchConfig = Readonly<{
+  /** Compressed request bytes, including metadata and merged range gaps. */
+  imageBytes?: number;
+  groupBytes?: number;
+  maxImages?: number;
 }>;
 export type ImageLevelStackLease = Readonly<{
   stack: ImageLevelStack;
@@ -52,6 +58,32 @@ export class ImageLevelStackPool {
   private readonly entries = new Map<string, Entry>();
   private readonly listeners = new Set<() => void>();
   private disposed = false;
+  private prefetchGroup: string | null = null;
+  private prefetchConfig: ImagePrefetchConfig = {};
+  private groupBudget: ImagePrefetchBudget = { remainingBytes: 5 * 1024 * 1024 };
+  private readonly imageBudgets = new Map<string, ImagePrefetchBudget>();
+
+  /** Retain the group's allowance across hovers; only a new navigation origin resets it. */
+  setPrefetchGroup(key: string, config: ImagePrefetchConfig = {}) {
+    if (this.prefetchGroup === key && JSON.stringify(config) === JSON.stringify(this.prefetchConfig)) return;
+    this.prefetchGroup = key;
+    this.prefetchConfig = { ...config };
+    this.groupBudget = { remainingBytes: Math.max(0, Math.floor(config.groupBytes ?? 5 * 1024 * 1024)) };
+    this.imageBudgets.clear();
+    this.warming = null;
+    for (const entry of this.entries.values()) if (!entry.refs) entry.stack.park();
+    this.reconcile();
+  }
+
+  private budget(source: ImagePyramidSource) {
+    const key = this.key(source);
+    let budget = this.imageBudgets.get(key);
+    if (!budget && this.imageBudgets.size < (this.prefetchConfig.maxImages ?? 5)) {
+      budget = { remainingBytes: Math.max(0, Math.floor(this.prefetchConfig.imageBytes ?? 1024 * 1024)), group: this.groupBudget };
+      this.imageBudgets.set(key, budget);
+    }
+    return budget;
+  }
   private reconciling = false;
   private warming: { source: ImagePyramidSource; view: ImageView; pixels: number; applied?: Entry } | null = null;
 
@@ -75,6 +107,7 @@ export class ImageLevelStackPool {
     if (!entry) {
       const tileSource = (this.options.createSource ?? createImageTileSource)(source);
       tileSource.priority = prewarming ? "low" : "high";
+      tileSource.prefetchBudget = prewarming ? this.budget(source) : undefined;
       const stack = new ImageLevelStack(tileSource, {
         idlePrefetch: source.kind === "jpeg" ? "next-level" : "pyramid",
         ...this.options.stackOptions,
@@ -88,13 +121,25 @@ export class ImageLevelStackPool {
     return entry;
   }
 
+  /** Inspect cached pixels synchronously without opening, promoting or warming a source.
+   * The stack may be evicted after the caller returns; do not retain it asynchronously. */
+  peek(source: ImagePyramidSource): ImageLevelStack | undefined {
+    return this.disposed ? undefined : this.entries.get(this.key(source))?.stack;
+  }
+
   acquire(source: ImagePyramidSource): ImageLevelStackLease {
     if (this.disposed) throw new Error("Image level stack pool is disposed");
     // Stop speculative traffic before a new foreground source even opens.
     if (this.warming && this.key(this.warming.source) !== this.key(source))
       this.entries.get(this.key(this.warming.source))?.stack.setWork(IMAGE_STACK_WORK.Paused);
     if (this.warming && this.key(this.warming.source) === this.key(source)) this.warming = null;
+    const cached = this.entries.get(this.key(source));
+    if (cached && !cached.stack.pyramid && cached.stack.prefetchExhausted && !cached.refs) {
+      this.entries.delete(this.key(source));
+      cached.stack.dispose();
+    }
     const current = this.entry(source);
+    current.stack.source.prefetchBudget = undefined;
     current.refs++;
     current.used = performance.now();
     current.stack.configure({ decodedBudget: this.options.stackOptions?.decodedBudget });
@@ -127,6 +172,15 @@ export class ImageLevelStackPool {
    */
   prewarm(source: ImagePyramidSource, view: ImageView, viewportPixels: number): () => void {
     if (this.disposed) return () => undefined;
+    const budget = this.budget(source);
+    if (!budget || budget.remainingBytes <= 0 || this.groupBudget.remainingBytes <= 0) {
+      const previous = this.warming;
+      this.warming = null;
+      const parked = previous && this.entries.get(this.key(previous.source));
+      if (parked && !parked.refs) parked.stack.park();
+      this.reconcile();
+      return () => undefined;
+    }
     const previous = this.warming;
     const request = { source, view, pixels: viewportPixels };
     this.warming = request;
@@ -144,6 +198,52 @@ export class ImageLevelStackPool {
       if (entry && !entry.refs) entry.stack.park();
       this.reconcile();
       this.emit();
+    };
+  }
+
+  /** Serial forecasts share the current group's byte allowance; current pixels always win. */
+  prewarmGroup(requests: readonly { source: ImagePyramidSource; view: ImageView; viewportPixels: number }[]): () => void {
+    const seen = new Set<string>();
+    const queue = requests.filter(({ source }) => {
+      const key = this.key(source);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    }).slice(0, this.prefetchConfig.maxImages ?? 5);
+    let index = 0;
+    let current: (typeof queue)[number] | undefined;
+    let release: (() => void) | undefined;
+    let cancelled = false;
+    let advancing = false;
+    const advance = () => {
+      if (cancelled || advancing || this.disposed) return;
+      advancing = true;
+      try {
+        while (true) {
+          const entry = current && this.entries.get(this.key(current.source));
+          if (current && !entry) {
+            // Opening waits for foreground coverage; the pool will notify us.
+            if (this.warming?.source === current.source) return;
+          }
+          if (entry && !entry.refs && !entry.stack.metrics.visibleReady &&
+              !entry.stack.prefetchExhausted && !entry.stack.error) return;
+          release?.();
+          release = undefined;
+          current = queue[index++];
+          if (!current) return;
+          const resident = this.entries.get(this.key(current.source));
+          if (resident?.refs) { current = undefined; continue; }
+          release = this.prewarm(current.source, current.view, current.viewportPixels);
+        }
+      } finally { advancing = false; }
+    };
+    const unsubscribe = this.subscribe(advance);
+    advance();
+    return () => {
+      if (cancelled) return;
+      cancelled = true;
+      unsubscribe();
+      release?.();
     };
   }
 
@@ -168,13 +268,15 @@ export class ImageLevelStackPool {
       // A forecast takes precedence over an active image's speculative rings
       // and full-pyramid downloads, never over its visible target pixels.
       for (const entry of foreground)
-        entry.stack.setWork(!blocked && request && !warm?.refs && !(request.applied === warm && warm?.stack.metrics.visibleReady)
+        entry.stack.setWork(blocked || (request && !warm?.refs && !(request.applied === warm && (warm?.stack.metrics.visibleReady || warm?.stack.prefetchExhausted)))
           ? IMAGE_STACK_WORK.Visible : IMAGE_STACK_WORK.Full);
       if (request && !blocked) {
         warm ??= this.entry(request.source, true);
         if (!warm.refs) {
           if (request.applied !== warm) {
             warm.stack.setWork(IMAGE_STACK_WORK.Paused);
+            warm.stack.source.prefetchBudget = this.budget(request.source);
+            warm.stack.prefetchExhausted = false;
             warm.stack.configure({ decodedBudget: () => this.options.prewarmBudgetBytes ?? 96 * 1024 * 1024 });
             warm.stack.setView(request.view, request.pixels);
             request.applied = warm;

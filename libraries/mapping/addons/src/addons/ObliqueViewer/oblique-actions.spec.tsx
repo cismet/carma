@@ -24,6 +24,7 @@ const channel = vi.hoisted(() => ({
     title: "Schrägluftbilder",
     panelOpen: false,
     isLoading: false,
+    isTargetImageLoading: false,
     isAllDataReady: false,
     error: null,
     selectedImageId: null,
@@ -213,6 +214,18 @@ describe("oblique options storage", () => {
     });
     expect(channel.save).toHaveBeenCalledTimes(3);
     expect(channel.load).toHaveBeenCalledOnce();
+    view.unmount();
+  });
+
+  it("clears target-image loading on switch-off without persisting its runtime updates", () => {
+    const view = renderHook(useObliqueViewerActions);
+    act(() => view.result.current.setOn(true));
+    channel.save.mockClear();
+    act(() => view.result.current.publish({ isTargetImageLoading: true }));
+    expect(view.result.current.isTargetImageLoading).toBe(true);
+    expect(channel.save).not.toHaveBeenCalled();
+    act(() => view.result.current.setOn(false));
+    expect(view.result.current.isTargetImageLoading).toBe(false);
     view.unmount();
   });
 

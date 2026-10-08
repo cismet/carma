@@ -4,7 +4,7 @@ import {
   type Map as MaplibreMap,
   type PaddingOptions,
 } from "maplibre-gl";
-import { Matrix3, Matrix4, Vector3, Vector4 } from "three";
+import { Matrix3, Matrix4, Spherical, Vector3, Vector4 } from "three";
 import {
   degToRadNumeric,
   radToDegNumeric,
@@ -173,6 +173,7 @@ export const flyToPose = (
     preview,
     centerPreview = false,
     fitWholeImage = false,
+    orbitAroundAnchor = false,
     previewState,
     previewReferenceFrame,
     onProgress,
@@ -185,9 +186,11 @@ export const flyToPose = (
     centerPreview?: boolean;
     /** Fit both rotated image extents; NG keeps the short-axis fit. */
     fitWholeImage?: boolean;
+    /** Keep initial eye-to-anchor distance and FOV; the destination eye is virtual. */
+    orbitAroundAnchor?: boolean;
     previewState?: ObliquePreviewState;
     previewReferenceFrame?: MaplibreMap["transform"];
-    /** Shared eased camera progress, for photo reprojection during rotation. */
+    /** Notify photo projection after the camera frame is applied. */
     onProgress?: (progress: number) => void;
   } = {}
 ): CameraFlight => {
@@ -205,22 +208,11 @@ export const flyToPose = (
       0
     );
 
-  const maxDuration = capObliqueAnimationDuration(animation?.duration ?? 500);
-  const angularDuration =
-    120 +
-    3 *
-      Math.max(
-        angleDifferenceDeg(map.getBearing(), pose.bearingDeg),
-        Math.abs(map.getPitch() - pose.pitchDeg)
-      );
-  const duration = dynamicDuration
-    ? Math.min(
-        maxDuration,
-        Math.max(
-          angularDuration,
-          dynamicDurationMs(cameraErrorM(map, pose, altitude), maxDuration)
-        )
-      )
+  const maxDuration = capObliqueAnimationDuration(animation?.duration ?? 800);
+  const duration = maxDuration === 0
+    ? 0
+    : dynamicDuration
+    ? dynamicDurationMs(cameraErrorM(map, pose, altitude), maxDuration)
     : maxDuration;
   const easing = animation?.easingFunction ?? Easing.LINEAR_NONE;
 
@@ -233,10 +225,12 @@ export const flyToPose = (
       preview,
       centerPreview,
       fitWholeImage,
+      orbitAroundAnchor,
       previewState,
       previewReferenceFrame,
       onProgress,
       durationMs: duration,
+      easing,
       restoreGround: false,
     });
 
@@ -295,7 +289,7 @@ export const settleToPitch = (
     fovDeg = map.getVerticalFieldOfView() as Degrees,
     padding = map.getPadding(),
     maxZoom = map.getMaxZoom(),
-    durationMs = 450,
+    durationMs = 1100,
     easing = Easing.CUBIC_IN_OUT,
     bearingDeg,
     anchor,
@@ -306,6 +300,7 @@ export const settleToPitch = (
     preview,
     centerPreview = false,
     fitWholeImage = false,
+    orbitAroundAnchor = false,
     previewState,
     previewReferenceFrame,
     onProgress,
@@ -326,9 +321,11 @@ export const settleToPitch = (
     centerPreview?: boolean;
     /** Fit both rotated image extents; NG keeps the short-axis fit. */
     fitWholeImage?: boolean;
+    /** Keep initial eye-to-anchor distance and FOV; the destination eye is virtual. */
+    orbitAroundAnchor?: boolean;
     previewState?: ObliquePreviewState;
     previewReferenceFrame?: MaplibreMap["transform"];
-    /** Shared eased camera progress, for photo reprojection during rotation. */
+    /** Notify photo projection after the camera frame is applied. */
     onProgress?: (progress: number) => void;
   } = {}
 ): CameraFlight => {
@@ -344,6 +341,58 @@ export const settleToPitch = (
   const target =
     anchor ?? MercatorCoordinate.fromLngLat(groundTarget, groundHeight);
   const targetHeight = target.toAltitude();
+  const targetBearing = camera?.pose.bearingDeg ?? bearingDeg ?? from.bearing;
+  const bearingDelta = ((targetBearing - from.bearing + 540) % 360) - 180;
+  const initialEye = MercatorCoordinate.fromLngLat(from.getCameraLngLat());
+  // Transform altitude is expressed at the map centre's latitude, not the eye's.
+  initialEye.z = MercatorCoordinate.fromLngLat(
+    from.center,
+    from.getCameraAltitude()
+  ).z;
+  const initialOrbit =
+    orbitAroundAnchor && anchor
+      ? new Spherical().setFromVector3(
+          new Vector3(
+            initialEye.x - target.x,
+            initialEye.z - target.z,
+            initialEye.y - target.y
+          )
+        )
+      : undefined;
+  const orbitEye =
+    initialOrbit && Number.isFinite(initialOrbit.radius) && initialOrbit.radius > 0
+      ? (progress: number) => {
+          // Three's Y-up sphere matches the shared anchored ENU camera convention:
+          // east=X, up=Y, south=Z. Preserve the actual panned starting eye and apply
+          // the camera's pitch/heading deltas; never interpolate a Cartesian chord.
+          const offset = new Vector3().setFromSpherical(
+            new Spherical(
+              initialOrbit.radius,
+              initialOrbit.phi + degToRadNumeric(pitchDeg - from.pitch) * progress,
+              initialOrbit.theta - degToRadNumeric(bearingDelta) * progress
+            )
+          );
+          const mercator = new MercatorCoordinate(
+            target.x + offset.x,
+            target.y + offset.z,
+            target.z + offset.y
+          );
+          return { lngLat: mercator.toLngLat(), altitude: mercator.toAltitude() };
+        }
+      : undefined;
+  if (camera && orbitEye) {
+    const endpoint = orbitEye(1);
+    // A fixed-radius orbit cannot end at an arbitrary photo perspective centre.
+    // Build the final projection at this same virtual eye so completion cannot snap.
+    camera = {
+      pose: {
+        ...camera.pose,
+        longitude: endpoint.lngLat.lng,
+        latitude: endpoint.lngLat.lat,
+      },
+      altitude: endpoint.altitude,
+    };
+  }
   const startFovRad = degToRadNumeric(from.fov);
   const targetFovRad = degToRadNumeric(fovDeg);
   const viewport = {
@@ -392,7 +441,7 @@ export const settleToPitch = (
     for (let correction = 0; correction < 3; correction++) {
       const reference = frame.calculateCenterFromCameraLngLatAlt(
         lngLat,
-        camera
+        camera || orbitEye
           ? eye.z /
               MercatorCoordinate.fromLngLat(
                 frame.center
@@ -496,7 +545,6 @@ export const settleToPitch = (
   let centeredPreview = false;
   finalFrame.setFov(fovDeg);
   finalFrame.setPitch(pitchDeg);
-  const targetBearing = camera?.pose.bearingDeg ?? bearingDeg ?? from.bearing;
   finalFrame.setBearing(targetBearing);
   finalFrame.setElevation(targetHeight);
   finalFrame.setPadding(padding);
@@ -618,11 +666,17 @@ export const settleToPitch = (
       aim(finalFrame);
     }
   }
-  if (!camera) {
+  if (orbitEye) {
+    const endpoint = orbitEye(1);
+    finalFrame.setFov(from.fov);
+    placeCamera(finalFrame, endpoint.lngLat, endpoint.altitude);
+    aim(finalFrame, true);
+    targetDepth = readDepth(finalFrame);
+  } else if (!camera) {
     finalFrame.setZoom(clamp(finalFrame.zoom, map.getMinZoom(), maxZoom));
     aim(finalFrame);
   }
-  const scaleReduction = camera
+  const scaleReduction = camera || orbitEye
     ? Number(
         readMetersPerCssPixel({
           rangeM: readDepth(finalFrame),
@@ -644,7 +698,6 @@ export const settleToPitch = (
         camera.pose.latitude,
       ])
     : undefined;
-  const bearingDelta = ((targetBearing - from.bearing + 540) % 360) - 180;
   const endViewportPoint = (
     previewReferenceFrame && anchor && !screenPoint
       ? viewportPoint
@@ -729,7 +782,13 @@ export const settleToPitch = (
       frame.setBearing(from.bearing + bearingDelta * progress);
       if (progress > 0) frame.setElevation(targetHeight);
       frame.interpolatePadding(from.padding, padding, progress);
-      if (progress > 0 && camera && endEye) {
+      if (progress > 0 && orbitEye) {
+        const eye = orbitEye(progress);
+        frame.setRoll(from.roll * (1 - progress));
+        frame.setFov(from.fov);
+        placeCamera(frame, eye.lngLat, eye.altitude);
+        aim(frame, true);
+      } else if (progress > 0 && camera && endEye) {
         // Reverse the return by travelling to the physical image camera.
         // Its optical depth determines FOV; projection pan keeps the target fixed.
         frame.setRoll(from.roll * (1 - progress));
@@ -781,7 +840,10 @@ export const settleToPitch = (
         });
         compensate(frame, depth);
       }
-      if (progress === 1) {
+      // The orbit already evaluates its exact endpoint. The photo-fit frame can
+      // encode the same anchor with different opposing padding, which would
+      // jump when preview pan reads those individual edges after completion.
+      if (progress === 1 && !orbitEye) {
         frame.apply(finalFrame, false);
       }
       profile?.record("solveFrame", performance.now() - frameStarted);

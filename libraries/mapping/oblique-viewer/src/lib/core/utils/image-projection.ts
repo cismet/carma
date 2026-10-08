@@ -1,4 +1,4 @@
-import { Matrix3, Matrix4, Vector3 } from "three";
+import { Matrix3, Matrix4, Vector3, Vector4 } from "three";
 import { cartographicToEcef, ecefToEnuMatrix } from "@carma-geo/proj";
 import { degToRadNumeric } from "@carma-units";
 import type {
@@ -8,25 +8,42 @@ import type {
 } from "../types";
 
 /** Project view rays through the footprint's calibrated image projector.
- * Homogeneous directions keep camera translation and clip depth out of the UVs.
+ * Without an anchor, homogeneous directions omit camera translation. An anchor
+ * selects a finite plane at its photo-optical depth, preserving its UV and scale
+ * for a translated view camera. This plane does not reproduce mesh parallax.
  */
 export const viewportImageProjection = (
   sceneToImage: Matrix4,
-  sceneToClip: Matrix4
+  sceneToClip: Matrix4,
+  anchor?: Vector3
 ): Matrix3 => {
   const clipToScene = sceneToClip.clone().invert().elements;
-  const clipToDirection = new Matrix4();
-  const directions = clipToDirection.elements;
+  const clipToReceiver = new Matrix4();
+  const receivers = clipToReceiver.elements;
+  // Plane coefficients in homogeneous scene coordinates. The photo projector's
+  // w row measures optical depth; subtracting the anchor depth cancels its
+  // translation term, leaving a plane through the anchor normal to that axis.
+  const photo = sceneToImage.elements;
+  const plane = anchor
+    ? new Vector4(photo[3], photo[7], photo[11],
+        -(photo[3] * anchor.x + photo[7] * anchor.y + photo[11] * anchor.z))
+    : new Vector4(0, 0, 0, 1);
+  const planeAtColumn = (offset: number) =>
+    plane.x * clipToScene[offset] +
+    plane.y * clipToScene[offset + 1] +
+    plane.z * clipToScene[offset + 2] +
+    plane.w * clipToScene[offset + 3];
+  const planeDepth = planeAtColumn(8);
   for (let column = 0; column < 4; column += 1) {
     const offset = column * 4;
-    const depth = clipToScene[offset + 3] / clipToScene[11];
-    for (let row = 0; row < 3; row += 1) {
-      directions[offset + row] =
+    const depth = planeAtColumn(offset) / planeDepth;
+    for (let row = 0; row < 4; row += 1) {
+      receivers[offset + row] =
         clipToScene[offset + row] - clipToScene[8 + row] * depth;
     }
-    directions[offset + 3] = 0;
+    if (!anchor) receivers[offset + 3] = 0;
   }
-  const e = sceneToImage.clone().multiply(clipToDirection).elements;
+  const e = sceneToImage.clone().multiply(clipToReceiver).elements;
   return new Matrix3().set(
     2 * e[0],
     2 * e[4],

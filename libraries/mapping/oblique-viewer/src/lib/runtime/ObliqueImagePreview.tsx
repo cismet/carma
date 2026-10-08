@@ -374,6 +374,7 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
         touchAction: "none",
       }}
       data-test-id="oblique-image-preview"
+      data-oblique-preview-surface="true"
     >
       <Backdrop
         color={sceneImage ? undefined : style?.backdropColor}

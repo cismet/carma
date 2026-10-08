@@ -1,7 +1,11 @@
 import { act, cleanup, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { degToRad, type Degrees, type Radians } from "@carma-units";
-import type { ObliqueDataset, ObliqueImageRecord } from "../../core/types";
+import type {
+  ObliqueDataset,
+  ObliqueImageRecord,
+  PointWithSector,
+} from "../../core/types";
 import { useObliqueData, type ObliqueData } from "./useObliqueData";
 
 class CatalogWorker {
@@ -170,6 +174,46 @@ describe("catalog worker lifecycle", () => {
     view.unmount();
   });
 
+  it("reassembles a chunked worker answer in catalog order", async () => {
+    const series = dataset();
+    const view = mount(series);
+    const worker = CatalogWorker.instances[0];
+    const record = (id: string) =>
+      ({ id, seriesId: series.id } as ObliqueImageRecord);
+    const center = (id: string) => ({ id } as PointWithSector);
+    act(() => {
+      worker.onmessage?.({
+        data: {
+          chunk: {
+            imageRecords: new Map([
+              ["a", record("a")],
+              ["b", record("b")],
+            ]),
+            centers: new Map([
+              ["a", center("a")],
+              ["b", center("b")],
+            ]),
+          },
+        },
+      } as unknown as MessageEvent<{ data: ObliqueData }>);
+      worker.complete(series, {
+        imageRecords: new Map([["c", record("c")]]),
+        centers: new Map([["c", center("c")]]),
+      });
+    });
+    await flush();
+    expect([...view.result.current.data!.imageRecords.keys()]).toEqual([
+      "a",
+      "b",
+      "c",
+    ]);
+    expect([...view.result.current.data!.centers.keys()]).toEqual([
+      "a",
+      "b",
+      "c",
+    ]);
+    expect(view.result.current.error).toBeNull();
+  });
   it("terminates a timed-out worker and allows the next activation to retry", async () => {
     const series = dataset();
     const view = mount(series);
@@ -749,6 +793,74 @@ describe("directional catalogs", () => {
     expect(view.result.current.error).toContain("NA:");
     expect(view.result.current.isCatalogComplete).toBe(true);
     expect(view.result.current.perSeries[0].obliqueComplete).toBe(true);
+  });
+  it("finishes the priority series first and requests other series with low fetch priority", async () => {
+    const series = grouped(),
+      other = dataset();
+    renderHook(() =>
+      useObliqueData([other, series], true, { prioritySeriesId: series.id })
+    );
+    for (let index = 0; index < 4; index++) {
+      if (index)
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(32);
+        });
+      expect(
+        CatalogWorker.instances[index].postMessage.mock.calls[0][0].dataset.id
+      ).toBe(series.id);
+      act(() =>
+        completeGroup(
+          CatalogWorker.instances[index],
+          series,
+          ["N", "E", "S", "W"][index]
+        )
+      );
+      await flush();
+    }
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(32);
+    });
+    expect(CatalogWorker.instances).toHaveLength(5);
+    expect(
+      CatalogWorker.instances
+        .slice(0, 4)
+        .map((worker) => worker.postMessage.mock.calls[0][0].fetchPriority)
+    ).toEqual([undefined, undefined, undefined, undefined]);
+    expect(
+      CatalogWorker.instances[4].postMessage.mock.calls[0][0]
+    ).toMatchObject({ fetchPriority: "low", dataset: { id: other.id } });
+  });
+  it("holds idle parts until released, also across a queue restart", async () => {
+    const series = grouped();
+    const view = renderHook(
+      ({ enabled }) => useObliqueData([series], enabled),
+      { initialProps: { enabled: true } }
+    );
+    const release = view.result.current.holdIdleCatalogLoads();
+    act(() => completeGroup(CatalogWorker.instances[0], series, "N"));
+    await flush();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(64);
+    });
+    expect(CatalogWorker.instances).toHaveLength(1);
+    view.rerender({ enabled: false });
+    view.rerender({ enabled: true });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(64);
+    });
+    expect(CatalogWorker.instances).toHaveLength(1);
+    expect(view.result.current.data?.imageRecords.size).toBe(1);
+    act(() => {
+      release();
+      release();
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(64);
+    });
+    expect(CatalogWorker.instances).toHaveLength(2);
+    expect(
+      CatalogWorker.instances[1].postMessage.mock.calls[0][0].dataset.id
+    ).toBe(series.id);
   });
 });
 

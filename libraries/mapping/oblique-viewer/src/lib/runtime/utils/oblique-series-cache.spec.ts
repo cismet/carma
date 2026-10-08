@@ -506,3 +506,30 @@ describe("optional storage and cancellation", () => {
     expect(loadObliqueSeriesData).toHaveBeenCalledOnce();
   });
 });
+
+describe("caller fetch source", () => {
+  it("sends catalog GETs and validation HEADs only through the caller's fetch source", async () => {
+    const series = {
+      ...dataset,
+      footprintsURI: "https://images.example/footprints.json",
+    };
+    const prioritized = vi.fn<typeof fetch>(async () =>
+      reply("first", { ETag: '"first"' })
+    );
+    await loadCachedObliqueSeriesData(series, undefined, prioritized);
+    await loadCachedObliqueSeriesData(series, undefined, prioritized);
+    expect(network).not.toHaveBeenCalled();
+    expect(
+      prioritized.mock.calls.map(([, init]) => [
+        init?.method ?? "GET",
+        init?.cache,
+      ])
+    ).toEqual([
+      ["GET", "no-cache"],
+      ["GET", "no-cache"],
+      ["HEAD", "no-cache"],
+      ["HEAD", "no-cache"],
+    ]);
+    expect(loadObliqueSeriesData).toHaveBeenCalledOnce();
+  });
+});

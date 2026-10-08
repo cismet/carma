@@ -8,6 +8,7 @@ import {
 } from "../core/avif-grid-index";
 import type { ImageLevel } from "../core/image-level-plan";
 import { BoundedImageRangeCache } from "./bounded-image-range-cache";
+import { reserveImagePrefetchBytes, type ImagePrefetchBudget } from "./image-tile-source";
 import type {
   ImagePyramid,
   ImageTileRef,
@@ -77,6 +78,7 @@ const tileKey = ({ level, col, row }: ImageTileRef) => `${level}:${col}:${row}`;
 export class AvifTileSource implements ImageTileSource {
   readonly kind = "avif" as const;
   priority: "high" | "low" = "high";
+  prefetchBudget?: ImagePrefetchBudget;
   private version: string | null = null;
   private head: Uint8Array | null = null;
   private pyramid: Promise<ImagePyramid> | null = null;
@@ -187,37 +189,35 @@ export class AvifTileSource implements ImageTileSource {
     this.head = head;
     await this.persistent.ensureKnownRanges(signal).catch(() => undefined);
     let offset = 0;
-    let uuid: { at: number; size: number; headerBytes: number } | null = null;
-    for (let count = 0; count < 64 && !uuid; count++) {
-      const header =
-        offset + 16 <= head.length
-          ? head.subarray(offset, offset + 16)
-          : await this.read(offset, 16, signal);
-      const box = boxHeader(header, 0);
-      if (count === 0 && box.type !== "ftyp")
-        throw new Error("AVIF ftyp missing");
-      if (box.type === "uuid")
-        uuid = {
-          at: offset,
-          size: box.size,
-          headerBytes: box.headerBytes + 16,
-        };
-      else offset += box.size;
+    let indexBytes: Uint8Array | null = null;
+    let indexHeaderBytes = 0;
+    for (let count = 0; count < 64 && !indexBytes; count++) {
+      // Read a remote box header and potential UUID payload together. The first
+      // head often already contains the whole index; reuse it without refetching.
+      const bytes = offset + 32 + INDEX_BYTES <= head.length
+        ? head.subarray(offset)
+        : offset + 16 <= head.length && String.fromCharCode(...head.subarray(offset + 4, offset + 8)) !== "uuid"
+        ? head.subarray(offset)
+        : await this.read(offset, 32 + INDEX_BYTES, signal, { allowShort: true });
+      const box = boxHeader(bytes, 0);
+      if (count === 0 && box.type !== "ftyp") throw new Error("AVIF ftyp missing");
+      if (box.type === "uuid") {
+        const headerBytes = box.headerBytes + 16;
+        const id = Array.from(bytes.subarray(box.headerBytes, headerBytes),
+          (v) => v.toString(16).padStart(2, "0")).join("");
+        if (id === PYRAMID_UUID) {
+          indexBytes = bytes.subarray(0, box.size);
+          indexHeaderBytes = headerBytes;
+        }
+      }
+      offset += box.size;
     }
-    if (!uuid) throw new Error("AVIF pyramid index missing");
-    const indexBytes = await this.read(
-      uuid.at,
-      uuid.headerBytes + INDEX_BYTES,
-      signal
-    );
-    const id = Array.from(
-      indexBytes.subarray(uuid.headerBytes - 16, uuid.headerBytes),
-      (v) => v.toString(16).padStart(2, "0")
-    ).join("");
-    if (id !== PYRAMID_UUID) throw new Error("Unsupported AVIF pyramid UUID");
+    if (!indexBytes) throw new Error("AVIF pyramid index missing");
     const index = JSON.parse(
       new TextDecoder()
-        .decode(indexBytes.subarray(uuid.headerBytes))
+        // UUID boxes may also own the following cell tables. Only the fixed
+        // JSON reservation belongs to this document, even in a coalesced read.
+        .decode(indexBytes.subarray(indexHeaderBytes, indexHeaderBytes + INDEX_BYTES))
         .replace(/\0+$/, "")
     ) as PyramidIndex;
     if (
@@ -510,6 +510,7 @@ export class AvifTileSource implements ImageTileSource {
         .catch(() => undefined);
       if (stored?.byteLength === length) return stored;
     }
+    reserveImagePrefetchBytes(this.prefetchBudget, length);
     this.requests++;
     const response = await fetch(this.url, {
       headers: { Range: `bytes=${offset}-${offset + length - 1}` },

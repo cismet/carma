@@ -153,3 +153,81 @@ describe("exact JSON gzip metadata transport", () => {
     expect(network).not.toHaveBeenCalled();
   });
 });
+describe("concurrent footprint transport", () => {
+  const withFootprints = {
+    ...dataset,
+    compressedCatalogURI: undefined,
+    footprintsURI: "https://images.test/footprints.geojson",
+  } as ObliqueDataset;
+  const deferredNetwork = () => {
+    const signals: AbortSignal[] = [];
+    const replies = new Map<string, (response: Response) => void>();
+    const network = vi.fn<typeof fetch>(
+      (input, init) =>
+        new Promise<Response>((resolve, reject) => {
+          const signal = init?.signal;
+          if (signal) {
+            signals.push(signal);
+            signal.addEventListener("abort", () => reject(signal.reason), {
+              once: true,
+            });
+          }
+          replies.set(String(input), resolve);
+        })
+    );
+    return { network, signals, replies };
+  };
+  it("starts the footprint download together with the catalog", async () => {
+    const { network, replies } = deferredNetwork();
+    const result = loadObliqueSeriesData(withFootprints, undefined, network);
+    expect(network.mock.calls.map((call) => call[0])).toEqual([
+      withFootprints.exteriorOrientationsURI,
+      withFootprints.footprintsURI,
+    ]);
+    replies.get(withFootprints.footprintsURI!)!(
+      new Response('{"type":"FeatureCollection","features":[]}')
+    );
+    replies.get(withFootprints.exteriorOrientationsURI)!(new Response(text));
+    await expect(result).resolves.toMatchObject({
+      datasets: new Map([[withFootprints.id, withFootprints]]),
+    });
+    expect(parsing.build.mock.calls[0][0]).toStrictEqual(exact);
+  });
+  it("cancels both downloads when the caller aborts", async () => {
+    const { network, signals } = deferredNetwork();
+    const controller = new AbortController();
+    const result = loadObliqueSeriesData(
+      withFootprints,
+      controller.signal,
+      network
+    );
+    controller.abort();
+    await expect(result).rejects.toThrow();
+    expect(signals).toHaveLength(2);
+    expect(signals.every((signal) => signal.aborted)).toBe(true);
+    expect(parsing.build).not.toHaveBeenCalled();
+  });
+  it("stops the footprint download when the catalog fails", async () => {
+    const { network, signals, replies } = deferredNetwork();
+    const result = loadObliqueSeriesData(withFootprints, undefined, network);
+    replies.get(withFootprints.exteriorOrientationsURI)!(
+      new Response(null, { status: 503 })
+    );
+    await expect(result).rejects.toThrow("HTTP 503");
+    expect(signals[1].aborted).toBe(true);
+  });
+  it("keeps the catalog when only the footprints fail", async () => {
+    const network = vi.fn<typeof fetch>(async (input) =>
+      String(input).endsWith(".geojson")
+        ? new Response(null, { status: 404 })
+        : new Response(text)
+    );
+    const result = await loadObliqueSeriesData(
+      withFootprints,
+      undefined,
+      network
+    );
+    expect(result.datasets.has(withFootprints.id)).toBe(true);
+    expect(network).toHaveBeenCalledTimes(2);
+  });
+});

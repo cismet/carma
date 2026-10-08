@@ -5,7 +5,7 @@ import {
   faRotateRight,
   faXmark,
 } from "@fortawesome/free-solid-svg-icons";
-import { Spin, Tooltip } from "antd";
+import { Tooltip } from "antd";
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
 
 import {
@@ -26,8 +26,7 @@ export const ObliqueNavigation = ({
 }) => {
   const {
     isOn,
-    isLoading,
-    isAllDataReady,
+    isCatalogComplete,
     viewMode,
     selectedImageId,
     selectedSeriesId,
@@ -90,7 +89,7 @@ export const ObliqueNavigation = ({
           type="button"
           aria-label={label}
           disabled={
-            !currentTargets?.images[
+            !isCatalogComplete || !currentTargets?.images[
               clockwise
                 ? OBLIQUE_NAVIGATION_KEYS.RotateRight
                 : OBLIQUE_NAVIGATION_KEYS.RotateLeft
@@ -154,11 +153,6 @@ export const ObliqueNavigation = ({
         </Tooltip>
       )}
       <div className="relative grid grid-cols-3 grid-rows-2 gap-1 p-0">
-        {isLoading && !isAllDataReady && !ready && (
-          <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
-            <Spin size="small" />
-          </div>
-        )}
         {rotate(false, "col-start-1 row-start-1")}
         {pan(
           0,

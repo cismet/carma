@@ -6,6 +6,7 @@ import {
   LinearFilter,
   Matrix3,
   Matrix4,
+  Vector3,
   type WebGLRenderer,
 } from "three";
 import type { Map as MaplibreMap } from "maplibre-gl";
@@ -38,6 +39,11 @@ export type ScenePreviewPhoto = Readonly<{
   calibration: ObliqueCameraCalibration;
   pose: ObliquePose;
   altitude: number;
+  projectionAnchor?: Readonly<{
+    longitude: number;
+    latitude: number;
+    heightMeters: number;
+  }>;
 }>;
 
 type PreviewTextureSource = HTMLImageElement | HTMLCanvasElement | ImageBitmap;
@@ -56,6 +62,8 @@ export type ScenePreviewImageGeometry = Readonly<{
   image: { width: CssPixels; height: CssPixels };
   offset: { x: CssPixels; y: CssPixels };
   pixelRatio: Ratio;
+  /** Bottom-left viewport UV to full sensor UV; divide the transformed vector by z. */
+  viewportToImage?: Matrix3;
 }>;
 
 /** Sample the shared camera immediately before its mesh draw; content publication never waits for React. */
@@ -167,6 +175,9 @@ export const useScenePreviewImage = ({
     let matrixPhoto: ScenePreviewPhoto | undefined;
     let photoFrameKey = "";
     let photoProjection: Matrix4 | null = null;
+    let photoAnchor: Vector3 | undefined;
+    let photoViewportMatrix: Matrix3 | undefined;
+    let appliedPhotoViewportMatrix: Matrix3 | undefined;
     const sceneToClip = new Matrix4();
     const previousClip = new Matrix4();
     let applied: {
@@ -237,6 +248,56 @@ export const useScenePreviewImage = ({
           offset: { x: x as CssPixels, y: y as CssPixels },
           pixelRatio: pixelRatio as Ratio,
         };
+      }
+      const photoOrigin = options.photo
+        ? layer.projectSceneToLngLat([0, 0, 0])
+        : null;
+      const frameKey =
+        photoOrigin && frame.localFrame
+          ? photoOrigin.join("|") + "|" + frame.localFrame.revision
+          : "";
+      const photoChanged =
+        matrixPhoto !== options.photo || photoFrameKey !== frameKey;
+      if (photoChanged) {
+        matrixPhoto = options.photo;
+        photoFrameKey = frameKey;
+        photoProjection =
+          options.photo && photoOrigin && frame.localFrame
+            ? imageProjectionMatrix(
+                options.photo.record,
+                options.photo.calibration,
+                options.photo.pose,
+                sceneToPhotoEnu(
+                  photoOrigin,
+                  frame.localFrame.sceneFromLocal,
+                  options.photo.pose,
+                  options.photo.altitude
+                )
+              )
+            : null;
+        const anchor = options.photo?.projectionAnchor;
+        photoAnchor = anchor
+          ? layer.projectLngLatToScene(
+              [anchor.longitude, anchor.latitude],
+              anchor.heightMeters,
+              new Vector3()
+            ) ?? undefined
+          : undefined;
+      }
+      sceneToClip
+        .copy(frame.renderCamera.projectionMatrix)
+        .multiply(frame.renderCamera.matrixWorldInverse);
+      const cameraChanged =
+        !!photoProjection && !previousClip.equals(sceneToClip);
+      if (photoChanged || cameraChanged) {
+        photoViewportMatrix = photoProjection
+          ? viewportImageProjection(photoProjection, sceneToClip, photoAnchor)
+          : undefined;
+        previousClip.copy(sceneToClip);
+      }
+      const viewportToImage = photoAnchor ? photoViewportMatrix : undefined;
+      if (geometry.viewportToImage !== viewportToImage) {
+        geometry = { ...geometry, viewportToImage };
       }
       // Cancellation sees the final camera before a completed bitmap can be uploaded.
       options.onBeforeRender?.(geometry, layer.getRenderer?.() ?? null);
@@ -353,41 +414,10 @@ export const useScenePreviewImage = ({
         if (progress < 1) map.triggerRepaint();
         else fade = null;
       }
-      const photoOrigin = options.photo
-        ? layer.projectSceneToLngLat([0, 0, 0])
-        : null;
-      const frameKey =
-        photoOrigin && frame.localFrame
-          ? photoOrigin.join("|") + "|" + frame.localFrame.revision
-          : "";
-      const photoChanged =
-        matrixPhoto !== options.photo || photoFrameKey !== frameKey;
-      if (photoChanged) {
-        matrixPhoto = options.photo;
-        photoFrameKey = frameKey;
-        photoProjection =
-          options.photo && photoOrigin && frame.localFrame
-            ? imageProjectionMatrix(
-                options.photo.record,
-                options.photo.calibration,
-                options.photo.pose,
-                sceneToPhotoEnu(
-                  photoOrigin,
-                  frame.localFrame.sceneFromLocal,
-                  options.photo.pose,
-                  options.photo.altitude
-                )
-              )
-            : null;
-      }
-      sceneToClip
-        .copy(frame.renderCamera.projectionMatrix)
-        .multiply(frame.renderCamera.matrixWorldInverse);
-      const cameraChanged =
-        !!photoProjection && !previousClip.equals(sceneToClip);
       if (
         matrixGeometry !== geometry ||
         matrixCrop !== textureCrop ||
+        appliedPhotoViewportMatrix !== photoViewportMatrix ||
         photoChanged ||
         cameraChanged
       ) {
@@ -411,8 +441,8 @@ export const useScenePreviewImage = ({
               degToRad(options.rollDeg as Degrees)
             )
           : matrix;
-        if (photoProjection) {
-          imageMatrix = viewportImageProjection(photoProjection, sceneToClip);
+        if (photoProjection && photoViewportMatrix) {
+          imageMatrix = photoViewportMatrix;
           if (textureCrop) {
             const imageToCrop = new Matrix3().set(
               options.nativeSize.width / textureCrop.width,
@@ -429,8 +459,8 @@ export const useScenePreviewImage = ({
             );
             matrix = imageToCrop.multiply(imageMatrix);
           } else matrix = imageMatrix;
-          previousClip.copy(sceneToClip);
         }
+        appliedPhotoViewportMatrix = photoViewportMatrix;
         matrixGeometry = geometry;
         matrixCrop = textureCrop;
       }

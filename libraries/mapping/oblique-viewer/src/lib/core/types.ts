@@ -203,6 +203,8 @@ export type ObliqueDataset = {
   acquisitionYear?: number;
   enabledByDefault?: boolean;
   metadataFormat: "legacy-array-map" | "inpho-v1";
+  /** Capture neighbors follow delivered flight strips independently of serialization. */
+  captureNavigationTopology?: "flight-strip" | "spatial";
   /** Source z datum; unknown forbids an aligned camera flight. */
   heightDatum: ObliqueHeightDatum;
   sourceConventions: ObliqueMetadataConventions;

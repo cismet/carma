@@ -9,7 +9,7 @@ import {
   type ImageTileWant,
   type ImageView,
 } from "../core/image-level-plan";
-import type { ImagePyramid, ImageTileSource } from "./image-tile-source";
+import { ImagePrefetchBudgetExceeded, type ImagePyramid, type ImageTileSource } from "./image-tile-source";
 
 export const IMAGE_STACK_WORK = {
   Full: "full",
@@ -31,6 +31,8 @@ export type ImageLevelStackOptions = Omit<
   maxDecodes?: number;
   /** Compressed-only idle prefetch after all planned work is done. */
   idlePrefetch?: "none" | "next-level" | "pyramid";
+  idlePyramidDelayMs?: number;
+  prefetchGate?: { isOpen: () => boolean; subscribe: (listener: () => void) => () => void };
 };
 export type ImageTileState = 0 | 1 | 2 | 3;
 export type ImageLevelReadiness = Readonly<{
@@ -89,6 +91,10 @@ export class ImageLevelStack {
   /** Decoded but refused for lack of budget; retried only after the next replan. */
   private readonly skipped = new Set<string>();
   private fetches = 0;
+  private foregroundFetches = 0;
+  private idleTimer: ReturnType<typeof setTimeout> | undefined;
+  private lastViewAt = 0;
+  private unsubscribePrefetchGate: (() => void) | undefined;
   private decodes = 0;
   private idleQueue: ImageTileWant[] | null = null;
   private controller = new AbortController();
@@ -104,6 +110,7 @@ export class ImageLevelStack {
   private work: ImageStackWork = IMAGE_STACK_WORK.Full;
   private disposed = false;
   error: string | null = null;
+  prefetchExhausted = false;
 
   private options: ImageLevelStackOptions;
 
@@ -112,6 +119,7 @@ export class ImageLevelStack {
     options: ImageLevelStackOptions = {}
   ) {
     this.options = { ...options };
+    this.unsubscribePrefetchGate = options.prefetchGate?.subscribe(() => this.pump());
     this.ready = source.open(this.lifetime.signal);
     this.ready.then(
       (pyramid) => {
@@ -120,7 +128,8 @@ export class ImageLevelStack {
       },
       (error) => {
         if (this.disposed) return;
-        this.error = error instanceof Error ? error.message : String(error);
+        if (error instanceof ImagePrefetchBudgetExceeded) this.prefetchExhausted = true;
+        else this.error = error instanceof Error ? error.message : String(error);
         this.emit();
       }
     );
@@ -157,6 +166,9 @@ export class ImageLevelStack {
     // Hosts call this every frame; an unchanged view must not replan or notify.
     if (key === this.viewKey && this.active) return;
     this.viewKey = key;
+    this.lastViewAt = performance.now();
+    clearTimeout(this.idleTimer);
+    this.idleTimer = undefined;
     this.view = view;
     this.viewportPixels = viewportPixels;
     this.zoomIntent = zoomIntent;
@@ -172,6 +184,7 @@ export class ImageLevelStack {
     if (this.disposed || this.work === work) return;
     const previous = this.work;
     this.work = work;
+    if (work === IMAGE_STACK_WORK.Full || work === IMAGE_STACK_WORK.Visible) this.prefetchExhausted = false;
     if (work !== IMAGE_STACK_WORK.Paused)
       this.source.priority = work === IMAGE_STACK_WORK.Prewarm ? "low" : "high";
     // Restricting work interrupts speculative traffic. Promotion keeps its
@@ -251,6 +264,14 @@ export class ImageLevelStack {
     });
   }
 
+  get visibleReady() {
+    return !!this.planValue && this.allResident(this.planValue.visibleTarget);
+  }
+  get foregroundPending() {
+    return this.active && !this.disposed && !this.error &&
+      this.work !== IMAGE_STACK_WORK.Prewarm && this.work !== IMAGE_STACK_WORK.Paused && !this.visibleReady;
+  }
+
   get metrics(): ImageLevelStackMetrics {
     const plan = this.planValue;
     return {
@@ -304,6 +325,8 @@ export class ImageLevelStack {
     this.controller.abort();
     this.lifetime.abort();
     for (const key of [...this.resident.keys()]) this.evict(key);
+    clearTimeout(this.idleTimer);
+    this.unsubscribePrefetchGate?.();
     this.source.dispose();
     this.listeners.clear();
     this.contentListeners.clear();
@@ -376,14 +399,15 @@ export class ImageLevelStack {
       !plan ||
       !this.active ||
       this.disposed ||
-      this.work === IMAGE_STACK_WORK.Paused
+      this.work === IMAGE_STACK_WORK.Paused ||
+      (this.work === IMAGE_STACK_WORK.Prewarm && this.prefetchExhausted)
     )
       return;
     const warming = this.work === IMAGE_STACK_WORK.Prewarm;
     const maxDecodes = warming ? 1 : this.options.maxDecodes ?? 4;
     const maxFetches = warming ? 1 : this.options.maxFetches ?? 3;
     const wants =
-      this.work === IMAGE_STACK_WORK.Full
+      this.work === IMAGE_STACK_WORK.Full && !this.foregroundPending
         ? plan.wants
         : plan.wants.filter(
             (want) =>
@@ -406,10 +430,10 @@ export class ImageLevelStack {
     while (this.fetches < maxFetches) {
       const batch = this.nextBatch(wants);
       if (!batch.length) break;
-      this.fetch(
-        batch,
-        warming || batch[0].priority >= 7 * CATEGORY ? "low" : "high"
-      );
+      const critical = batch[0].role === "floor" || batch[0].role === "underlay" ||
+        batch[0].role === "target" || batch[0].role === "target-periphery";
+      if (!critical && this.foregroundFetches > 0) break;
+      this.fetch(batch, warming || !critical ? "low" : "high");
     }
     if (this.work === IMAGE_STACK_WORK.Full && !this.fetches && !this.decodes)
       this.idle();
@@ -441,6 +465,7 @@ export class ImageLevelStack {
   private fetch(batch: readonly ImageTileWant[], priority: "high" | "low") {
     const signal = this.controller.signal;
     this.fetches++;
+    if (priority === "high") this.foregroundFetches++;
     for (const want of batch) {
       this.fetching.add(want.key);
     }
@@ -449,6 +474,7 @@ export class ImageLevelStack {
       .catch((error) => this.fail(error, signal))
       .finally(() => {
         this.fetches--;
+        if (priority === "high") this.foregroundFetches--;
         for (const want of batch) this.fetching.delete(want.key);
         if (!this.disposed) {
           this.pump();
@@ -499,7 +525,8 @@ export class ImageLevelStack {
 
   private fail(error: unknown, signal: AbortSignal) {
     if (signal.aborted || this.disposed) return;
-    this.error = error instanceof Error ? error.message : String(error);
+    if (error instanceof ImagePrefetchBudgetExceeded) this.prefetchExhausted = true;
+    else this.error = error instanceof Error ? error.message : String(error);
   }
 
   /** Compressed prefetch while nothing planned is pending: next finer level, then the pyramid. */
@@ -507,13 +534,24 @@ export class ImageLevelStack {
     const mode = this.options.idlePrefetch ?? "pyramid";
     const plan = this.planValue,
       pyramid = this.pyramidValue;
-    if (mode === "none" || !plan || !pyramid) return;
+    if (mode === "none" || !plan || !pyramid ||
+        (this.options.prefetchGate && !this.options.prefetchGate.isOpen())) return;
+    const delay = this.options.idlePyramidDelayMs ?? 250;
+    const remaining = delay - (performance.now() - this.lastViewAt);
+    const wholePyramid = mode === "pyramid" && remaining <= 0;
+    if (mode === "pyramid" && !wholePyramid && this.idleTimer === undefined) {
+      this.idleTimer = setTimeout(() => {
+        this.idleTimer = undefined;
+        this.idleQueue = null;
+        this.pump();
+      }, Math.max(0, remaining));
+    }
     if (!this.idleQueue) {
       const levels = this.usedLevels();
       const order: ImageLevel[] = [];
       const finer = levels.find((level) => level.level === plan.finer);
       if (finer) order.push(finer);
-      if (mode === "pyramid")
+      if (wholePyramid)
         order.push(
           ...levels
             .filter((level) => level !== finer)

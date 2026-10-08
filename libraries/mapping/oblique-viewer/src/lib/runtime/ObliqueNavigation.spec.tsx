@@ -13,7 +13,6 @@ import {
 import { ObliqueNavigation } from "./ObliqueNavigation";
 vi.mock("antd", () => ({
   Tooltip: ({ children }: { children: ReactNode }) => children,
-  Spin: () => createElement("span", { role: "status" }, "loading"),
 }));
 vi.mock("@carma-mapping/map-controls-layout", () => ({
   ControlButtonStyler: ({
@@ -26,13 +25,17 @@ vi.mock("@carma-mapping/map-controls-layout", () => ({
     height?: string;
   }) => createElement("button", props, children),
 }));
-const mount = (patch: Partial<ObliqueViewerActions> = {}) => {
+const mount = (
+  patch: Partial<ObliqueViewerActions> = {},
+  navigationProps: Parameters<typeof ObliqueNavigation>[0] = {}
+) => {
   const sendRequest = vi.fn(),
     actions = {
       ...OBLIQUE_STATE_DEFAULT,
       isOn: true,
       isBusy: true,
       isLoading: true,
+      isCatalogComplete: true,
       error: "Preview404",
       selectedImageId: "current",
       selectedSeriesId: "series",
@@ -67,13 +70,17 @@ const mount = (patch: Partial<ObliqueViewerActions> = {}) => {
       clearRequest: vi.fn(),
       ...patch,
     } as ObliqueViewerActions;
-  render(
+  const navigation = (props: Parameters<typeof ObliqueNavigation>[0]) =>
     createElement(ObliqueViewerActionsProvider, {
       actions,
-      children: createElement(ObliqueNavigation, { nextInterface: false }),
-    })
-  );
-  return { sendRequest };
+      children: createElement(ObliqueNavigation, props),
+    });
+  const view = render(navigation(navigationProps));
+  return {
+    sendRequest,
+    rerenderNavigation: (props: Parameters<typeof ObliqueNavigation>[0]) =>
+      view.rerender(navigation(props)),
+  };
 };
 afterEach(cleanup);
 describe("geometry-only cached navigation controls", () => {
@@ -102,9 +109,24 @@ describe("geometry-only cached navigation controls", () => {
       ).disabled
     ).toBe(false);
   });
-  it("shows the loading indicator only while no selected image is ready", () => {
+  it("keeps current-slice pan available but disables held rotation targets until the full catalog is loaded", () => {
+    const view = mount({ isAllDataReady: true, isCatalogComplete: false });
+    const right = screen.getByRole("button", { name: "Nächstes Bild nach rechts" }) as HTMLButtonElement;
+    const leftRotation = screen.getByRole("button", { name: "Gegen den Uhrzeigersinn drehen" }) as HTMLButtonElement;
+    const rightRotation = screen.getByRole("button", { name: "Im Uhrzeigersinn drehen" }) as HTMLButtonElement;
+    expect(right.disabled).toBe(false);
+    expect(leftRotation.disabled).toBe(true);
+    expect(rightRotation.disabled).toBe(true);
+    expect(screen.queryByRole("status")).toBeNull();
+    fireEvent.click(right);
+    fireEvent.click(rightRotation);
+    expect(view.sendRequest).toHaveBeenCalledOnce();
+    expect(view.sendRequest).toHaveBeenCalledWith({ type: "pan", horizontal: 1, vertical: 0 });
+  });
+
+  it("leaves initial catalog loading to the host statusbar", () => {
     mount({ selectedImageId: null, selectedSeriesId: null });
-    expect(screen.getByRole("status")).toBeTruthy();
+    expect(screen.queryByRole("status")).toBeNull();
   });
   it("hides the global loading overlay as soon as the first catalog slice is usable", () => {
     mount({
@@ -141,6 +163,17 @@ describe("geometry-only cached navigation controls", () => {
     expect(
       screen.queryByRole("group", { name: "Schrägluftbild-Navigation" })
     ).toBeNull();
+  });
+});
+
+describe("host-owned loading status", () => {
+  it.each([true, false])("does not duplicate target-image loading above navigation (NG=%s)", (nextInterface) => {
+    mount({ isTargetImageLoading: true }, { nextInterface });
+    expect(screen.queryByText("Zielbild wird geladen …")).toBeNull();
+    expect(screen.queryByRole("status")).toBeNull();
+    expect((screen.getByRole("button", {
+      name: "Nächstes Bild nach rechts",
+    }) as HTMLButtonElement).disabled).toBe(false);
   });
 });
 

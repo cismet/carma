@@ -416,7 +416,6 @@ export function createThreeTilesLifecycle(
     };
 
   const attachment = createThreeTilesRuntimeAttachment(runtimeState, {
-    endCacheCeilingSession: () => dependencies.endCacheCeilingSession(),
     ...dependencies,
     clearTelemetry: () => frameState.telemetryTiles.clear(),
     getRetainedMeshAncestors: () => frameState.retainedMeshAncestors,
@@ -515,6 +514,7 @@ export function createThreeTilesLifecycle(
     handleViewEnd,
     handleUpdateAfter,
     onAdd: attachment.onAdd,
+    wakeNetworkRequests: attachment.wakeNetworkRequests,
     update,
     setVisible,
     setHeightOffset,

@@ -17,6 +17,7 @@ export {
   OBLIQUE_STATE_DEFAULT,
   OBLIQUE_ROTATION_SURFACES,
   formatImageLabel,
+  formatObliqueLoadingStatus,
   resolveBackdropLook,
   requestObliqueCommand,
   acknowledgeObliqueRequest,

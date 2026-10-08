@@ -381,6 +381,15 @@ export {
   acquireMapLibreTerrainZoomLimit,
 } from "./lib/runtime/integrations/maplibre-terrain-demand";
 
+export {
+  acquireForegroundNetwork,
+  isForegroundNetworkHeld,
+  getForegroundNetworkReasons,
+  subscribeForegroundNetwork,
+  FOREGROUND_NETWORK_MAX_HOLD_MS,
+  type ForegroundNetworkOptions,
+} from "./lib/runtime/integrations/foreground-network-lease";
+
 // Styles (CSS should be imported by consumers)
 // import '@carma-mapping/engines/maplibre/styles/map.css';
 

@@ -47,6 +47,22 @@ const currentTerrainManager = (
   }
 };
 
+/** Sources whose installed tile manager can take a native DEM demand pause. */
+export const getMapLibreRasterDemSourceIds = (map: MaplibreMap): string[] => {
+  try {
+    const managers = (
+      map as unknown as {
+        style?: { tileManagers?: Record<string, unknown> };
+      }
+    ).style?.tileManagers;
+    return Object.keys(managers ?? {}).filter(
+      (sourceId) => currentTerrainManager(map, sourceId) !== null
+    );
+  } catch {
+    return [];
+  }
+};
+
 /**
  * Hold native DEM tile demand during image-plane interaction. The terrain and
  * its cached heights keep rendering; camera altitude and draping are unchanged.
@@ -73,7 +89,7 @@ export const acquireMapLibreTerrainDemandPause = (
         if (!manager || manager._paused === true) return;
         try {
           manager.pause();
-          if (manager._paused === true) next.ownedManagers.add(manager);
+          if (Boolean(manager._paused)) next.ownedManagers.add(manager);
         } catch {
           // Optional optimisation must never interrupt the viewer.
         }

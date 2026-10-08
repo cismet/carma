@@ -4,6 +4,7 @@ import {
   ImageLevelStackPool,
   type ImagePyramidSource,
 } from "./image-level-stack-pool";
+import { reserveImagePrefetchBytes, type ImagePrefetchBudget } from "./image-tile-source";
 import type {
   ImagePyramid,
   ImageTileRef,
@@ -48,6 +49,7 @@ const settle = async () => {
 class ControlledSource implements ImageTileSource {
   readonly kind = "avif" as const;
   priority: "high" | "low" = "high";
+  prefetchBudget?: ImagePrefetchBudget;
   local = new Set<string>();
   fetches: {
     tiles: readonly ImageTileRef[];
@@ -381,5 +383,59 @@ describe("ImageLevelStackPool foreground-priority prewarming", () => {
     } finally {
       pool.dispose();
     }
+  });
+});
+
+
+describe("forecast compressed transfer budgets", () => {
+  it("shares a group allowance across hovers, caps image count and removes the cap on foreground promotion", async () => {
+    const { pool, sources } = setup();
+    try {
+      const config = { imageBytes: 100, groupBytes: 150, maxImages: 2 };
+      pool.setPrefetchGroup("origin", config);
+      pool.prewarm(descriptor("a"), view(), 512 ** 2);
+      await settle();
+      const a = sources.get("a")!;
+      reserveImagePrefetchBytes(a.prefetchBudget, 90);
+      pool.prewarm(descriptor("b"), view(), 512 ** 2);
+      await settle();
+      const b = sources.get("b")!;
+      expect(b.prefetchBudget?.remainingBytes).toBe(100);
+      expect(b.prefetchBudget?.group?.remainingBytes).toBe(60);
+      expect(() => reserveImagePrefetchBytes(b.prefetchBudget, 61)).toThrow();
+      pool.setPrefetchGroup("origin", config);
+      expect(b.prefetchBudget?.group?.remainingBytes).toBe(60);
+      pool.prewarm(descriptor("c"), view(), 512 ** 2);
+      expect(sources.has("c")).toBe(false);
+      const foreground = pool.acquire(descriptor("b"));
+      expect(b.prefetchBudget).toBeUndefined();
+      expect(b.priority).toBe("high");
+      foreground.release();
+      pool.setPrefetchGroup("new-origin", config);
+      pool.prewarm(descriptor("c"), view(), 512 ** 2);
+      await settle();
+      expect(sources.get("c")?.prefetchBudget?.group?.remainingBytes).toBe(150);
+    } finally { pool.dispose(); }
+  });
+});
+
+
+describe("serial forecast groups", () => {
+  it("finishes one forecast before opening the next, deduplicates and cancels the tail", async () => {
+    const { pool, sources } = setup((source) => source.hold.add("decode"));
+    try {
+      pool.setPrefetchGroup("route", { maxImages: 3 });
+      const forecast = (id: string) => ({ source: descriptor(id), view: view(), viewportPixels: 512 ** 2 });
+      const cancel = pool.prewarmGroup([forecast("a"), forecast("a"), forecast("b"), forecast("c")]);
+      await settle();
+      expect([...sources.keys()]).toEqual(["a"]);
+      sources.get("a")!.release("decode");
+      await settle();
+      expect([...sources.keys()]).toEqual(["a", "b"]);
+      cancel();
+      sources.get("b")!.release("decode");
+      await settle();
+      expect(sources.has("c")).toBe(false);
+    } finally { pool.dispose(); }
   });
 });

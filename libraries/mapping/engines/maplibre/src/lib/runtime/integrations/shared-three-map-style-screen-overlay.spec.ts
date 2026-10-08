@@ -321,6 +321,45 @@ describe("map-style screen image ownership", () => {
     expect(shader.uniforms.carmaScreenProjective1).toBe(
       uniforms.carmaScreenProjective1
     );
+    expect(shader.uniforms.carmaScreenSceneToTexture1).toBe(
+      uniforms.carmaScreenSceneToTexture1
+    );
+    expect(
+      uniforms.carmaScreenSceneToTexture1.value.equals(targetProjection)
+    ).toBe(true);
+    // Both borrowed samplers must stay live during a rotation and LOD refresh;
+    // replacing one slot must never retarget the other photograph's camera.
+    const refinedTarget = new Texture();
+    controller.setScreenOverlay("source", { ...source, opacity: 0.5 });
+    controller.setScreenOverlay("target", {
+      ...source,
+      texture: refinedTarget,
+      projective: { sceneToTexture: targetProjection },
+      opacity: 0.5,
+      priority: 1,
+    });
+    expect(shader.uniforms.carmaScreenTexture0.value).toBe(sourceTexture);
+    expect(shader.uniforms.carmaScreenTexture1.value).toBe(refinedTarget);
+    expect(shader.uniforms.carmaScreenOpacity0.value).toBe(0.5);
+    expect(shader.uniforms.carmaScreenOpacity1.value).toBe(0.5);
+    expect(
+      shader.uniforms.carmaScreenSceneToTexture0.value.equals(sourceProjection)
+    ).toBe(true);
+    expect(
+      shader.uniforms.carmaScreenSceneToTexture1.value.equals(targetProjection)
+    ).toBe(true);
+    const beforeRefinement = controller.epoch;
+    refinedTarget.needsUpdate = true;
+    controller.setScreenOverlay("target", {
+      ...source,
+      texture: refinedTarget,
+      projective: { sceneToTexture: targetProjection },
+      opacity: 0.5,
+      priority: 1,
+    });
+    expect(controller.epoch).toBeGreaterThan(beforeRefinement);
+    expect(shader.uniforms.carmaScreenTexture0.value).toBe(sourceTexture);
+    refinedTarget.dispose();
     controller.setScreenOverlay("target", null);
     controller.setScreenOverlay("source", { ...source, projective: undefined });
     expect(controller.screenOverlayMesh.visible).toBe(true);

@@ -96,7 +96,11 @@ export type ObliqueViewerState = {
   panelOpen: boolean;
   /** the dataset is being fetched or indexed */
   isLoading: boolean;
+  /** Target photo pixels are being prepared before a draped navigation step. */
+  isTargetImageLoading: boolean;
   isAllDataReady: boolean;
+  /** All enabled oblique sectors are available; lazy nadir is independent. */
+  isCatalogComplete: boolean;
   error: string | null;
   /** the image nearest the map centre in the current sector, or the one flown to */
   selectedImageId: string | null;
@@ -147,7 +151,9 @@ export const OBLIQUE_STATE_DEFAULT: ObliqueViewerState = {
   title: strings.title,
   panelOpen: false,
   isLoading: false,
+  isTargetImageLoading: false,
   isAllDataReady: false,
+  isCatalogComplete: false,
   error: null,
   selectedImageId: null,
   missingPreviewImageId: null,
@@ -166,6 +172,25 @@ export const OBLIQUE_STATE_DEFAULT: ObliqueViewerState = {
   downloadOptions: null,
   request: null,
   requestSequence: 0,
+};
+
+/** Presentation text for a host's existing status bar; counts are loaded records, never percentages. */
+export const formatObliqueLoadingStatus = (
+  state: Pick<ObliqueViewerState, "isOn" | "isLoading" | "isTargetImageLoading" | "series">
+): string | null => {
+  if (!state.isOn) return null;
+  if (state.isTargetImageLoading) return strings.loadingTargetImage;
+  const pending = state.series.filter((series) =>
+    series.enabled && series.isLoading && !series.error
+  );
+  if (!state.isLoading && !pending.length) return null;
+  if (!pending.length) return strings.loadingData;
+  return `${strings.loadingCatalogs} (${pending.map((series) => {
+    const label = series.shortLabel ?? series.label;
+    return series.imageCount > 0
+      ? `${label}: ${series.imageCount.toLocaleString("de-DE")} Bilder verfügbar`
+      : label;
+  }).join(" · ")})`;
 };
 
 /** defaults filled in and every knob clamped to its slider's bounds */

@@ -163,34 +163,32 @@ export const ObliquePanel = ({
 
   return (
     <div
-      className="relative w-fit max-w-[min(640px,calc(100vw-1rem))] shrink-0 rounded-[10px] bg-white px-2 py-1.5 shadow-lg"
+      className="relative w-fit min-w-[min(320px,calc(100vw-1rem))] max-w-[min(640px,calc(100vw-1rem))] shrink-0 rounded-[10px] bg-white px-2 py-1.5 shadow-lg"
       data-test-id="oblique-viewer"
     >
       <div className="flex flex-wrap items-center gap-1 text-sm text-gray-700">
         {nextInterface && (
           <>
             {extensions.map((extension) => (
-              <button
-                key={extension.mode}
-                type="button"
-                aria-label={extension.label}
-                aria-pressed={viewMode === extension.mode}
-                disabled={isBusy || isLoading || !hasEnabledSeries}
-                className={`h-8 rounded-md border-0 px-2 text-xs font-semibold disabled:text-gray-300 ${
-                  viewMode === extension.mode
-                    ? "bg-gray-100 text-blue-600"
-                    : "bg-transparent text-gray-500 hover:bg-gray-100"
-                }`}
-                onClick={() =>
-                  sendRequest({
-                    type: "setViewMode",
-                    mode:
-                      viewMode === extension.mode ? "oblique" : extension.mode,
-                  })
-                }
-              >
-                {extension.label}
-              </button>
+              <Tooltip key={extension.mode} title={extension.label}>
+                <Button
+                  aria-label={extension.label}
+                  aria-pressed={viewMode === extension.mode}
+                  disabled={isBusy || isLoading || !hasEnabledSeries}
+                  type={viewMode === extension.mode ? "primary" : "default"}
+                  size="small"
+                  icon={extension.icon && <FontAwesomeIcon icon={extension.icon} />}
+                  onClick={() =>
+                    sendRequest({
+                      type: "setViewMode",
+                      mode:
+                        viewMode === extension.mode ? "oblique" : extension.mode,
+                    })
+                  }
+                >
+                  {extension.icon ? null : extension.label}
+                </Button>
+              </Tooltip>
             ))}
             {hasNadir && (
               <button
@@ -245,7 +243,7 @@ export const ObliquePanel = ({
           </Tooltip>
         )}
         {nextInterface && (
-          <Tooltip title="Start- und Zielfoto während der Drehung auf das Mesh projizieren und überblenden">
+          <Tooltip title="Bereits geladene Fotos beim Bildwechsel auf die sichtbare 3D-Oberfläche projizieren und überblenden">
             <Checkbox
               data-test-id="oblique-preview-rotation-drape"
               checked={previewRotationDrape}
@@ -253,12 +251,12 @@ export const ObliquePanel = ({
                 publish({ previewRotationDrape: event.target.checked })
               }
             >
-              Fotos auf Mesh
+              Fotos projizieren
             </Checkbox>
           </Tooltip>
         )}
         {nextInterface && (
-          <Tooltip title="Drehungen am Mittelpunkt an Mesh oder DEM verankern">
+          <Tooltip title="Oberfläche für Drehungen, Objektabfragen und Messungen: Mesh oder DEM">
             <Select
               aria-label="Rotationsfläche"
               data-test-id="oblique-rotation-surface"
@@ -292,9 +290,9 @@ export const ObliquePanel = ({
           size="small"
           allowClear
           showSearch={false}
-          className="w-fit min-w-0 max-w-full"
+          className="w-full min-w-0 max-w-full"
           style={{ fontSize: 12, maxWidth: "100%" }}
-          placeholder="Bildserien"
+          placeholder="Bildserie auswählen"
           value={
             enabledSeriesIds ??
             series.filter((entry) => entry.enabled).map((entry) => entry.id)

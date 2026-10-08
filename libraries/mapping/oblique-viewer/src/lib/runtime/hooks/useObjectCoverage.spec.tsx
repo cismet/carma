@@ -223,7 +223,14 @@ const setup = () => {
   const container = document.createElement("div");
   const canvas = document.createElement("canvas");
   const button = document.createElement("button");
-  container.append(canvas, button);
+  const preview = document.createElement("div");
+  preview.setAttribute("data-oblique-preview-surface", "");
+  const previewImage = document.createElement("canvas");
+  const previewButton = document.createElement("button");
+  const previewButtonIcon = document.createElement("span");
+  previewButton.append(previewButtonIcon);
+  preview.append(previewImage, previewButton);
+  container.append(canvas, button, preview);
   document.body.append(container);
   canvas.style.cursor = "grab";
   canvas.getBoundingClientRect = () => ({ left: 0, top: 0 } as DOMRect);
@@ -273,6 +280,10 @@ const setup = () => {
     props,
     canvas,
     button,
+    preview,
+    previewImage,
+    previewButton,
+    previewButtonIcon,
     container,
     click,
     hostPick,
@@ -305,6 +316,9 @@ describe("object coverage picking lifecycle", () => {
     const mesh = runtime.root.children[0] as Mesh;
     const material = mesh.material as MeshBasicMaterial;
     expect(material.opacity).toBe(0.3);
+    expect(material.color.getHexString()).toBe("267bdc");
+    expect(runtime.providesTerrain).toBe(false);
+    expect(runtime.receivesMapStyleTexture).toBe(false);
     expect(material.transparent).toBe(true);
     expect(material.wireframe).toBe(false);
     expect(material.depthWrite).toBe(false);
@@ -313,7 +327,7 @@ describe("object coverage picking lifecycle", () => {
     expect(overlay.marks).toHaveLength(1);
     expect(overlay.marks[0]).toMatchObject({
       shape: "sphere",
-      width: 2,
+      width: 1,
       opacity: 1,
       showUpMarker: false,
     });
@@ -370,6 +384,54 @@ describe("object coverage picking lifecycle", () => {
     view.container.remove();
   });
 
+  it("sets center and radius on the semantic preview surface without closing the preview", () => {
+    const view = setup();
+    // Preview and map origins differ; picking stays in the map's screen coordinate system.
+    view.canvas.getBoundingClientRect = () => ({ left: 20, top: 0 } as DOMRect);
+    view.preview.getBoundingClientRect = () => ({ left: 200, top: 100 } as DOMRect);
+    const previewClose = vi.fn();
+    view.preview.addEventListener("click", previewClose);
+    view.preview.addEventListener("dblclick", previewClose);
+    const first = view.click(30, view.previewImage);
+    expect(first.defaultPrevented).toBe(true);
+    expect(view.result.current.center?.heightMeters).toBeCloseTo(100);
+    expect(view.result.current.sphere).toBeNull();
+    const second = view.click(40, view.previewImage);
+    expect(second.defaultPrevented).toBe(true);
+    expect(view.props.readViewAnchor.mock.calls.map(([point]) => point)).toEqual([
+      { x: 10, y: 0 }, { x: 20, y: 0 },
+    ]);
+    expect(view.result.current.sphere?.radiusMeters).toBeCloseTo(10, 5);
+    const doubleClick = new MouseEvent("dblclick", { bubbles: true, cancelable: true, button: 0 });
+    act(() => view.previewImage.dispatchEvent(doubleClick));
+    expect(doubleClick.defaultPrevented).toBe(true);
+    expect(previewClose).not.toHaveBeenCalled();
+    expect(view.hostPick).not.toHaveBeenCalled();
+    view.unmount();
+    view.container.remove();
+  });
+
+  it("leaves nested preview controls interactive and excludes them from the two picks", () => {
+    const view = setup();
+    const controlAction = vi.fn();
+    view.previewButton.addEventListener("click", controlAction);
+    const beforeCenter = view.click(0, view.previewButtonIcon);
+    expect(beforeCenter.defaultPrevented).toBe(false);
+    expect(view.props.readViewAnchor).not.toHaveBeenCalled();
+    expect(controlAction).toHaveBeenCalledTimes(1);
+    view.click(0, view.previewImage);
+    expect(view.result.current.center).not.toBeNull();
+    const beforeRadius = view.click(10, view.previewButtonIcon);
+    expect(beforeRadius.defaultPrevented).toBe(false);
+    expect(view.props.readViewAnchor).toHaveBeenCalledTimes(1);
+    expect(view.result.current.sphere).toBeNull();
+    expect(controlAction).toHaveBeenCalledTimes(2);
+    view.click(10, view.previewImage);
+    expect(view.result.current.sphere?.radiusMeters).toBeCloseTo(10, 5);
+    view.unmount();
+    view.container.remove();
+  });
+
   it("resets the sphere and results on series toggles and Escape", async () => {
     const view = setup();
     view.click(0);
@@ -387,28 +449,50 @@ describe("object coverage picking lifecycle", () => {
     view.container.remove();
   });
 
-  it("does not publish old catalog results after data changes during height resolution", async () => {
+  it("keeps the selected sphere across catalog updates and publishes only the latest height-resolution results", async () => {
     const view = setup();
-    let resolveHeight!: (height: number) => void;
-    const pendingHeight = new Promise<number>((resolve) => {
-      resolveHeight = resolve;
-    });
-    coverage.altitude.mockReturnValue(pendingHeight);
+    let resolveOld!: (height: number) => void;
+    let resolveLatest!: (height: number) => void;
+    const oldHeight = new Promise<number>((resolve) => { resolveOld = resolve; });
+    const latestHeight = new Promise<number>((resolve) => { resolveLatest = resolve; });
     const originalData = dataOf(2);
+    const latestData = dataOf(3);
+    coverage.altitude.mockImplementation((record: ObliqueImageRecord) =>
+      originalData.imageRecords.get(record.id) === record ? oldHeight : latestHeight);
     view.rerender({ ...view.props, data: originalData });
     view.click(0);
     view.click(10);
+    const selectedSphere = view.result.current.sphere;
     expect(view.result.current.loading).toBe(true);
     expect(coverage.altitude).toHaveBeenCalledTimes(2);
-    view.rerender({ ...view.props, data: dataOf(3) });
-    expect(view.result.current.sphere).toBeNull();
-    await act(async () => {
-      resolveHeight(300);
-      await pendingHeight;
-    });
-    await waitFor(() => expect(view.result.current.loading).toBe(false));
-    expect(view.result.current.groups.get(0)).toEqual([]);
+    view.rerender({ ...view.props, data: latestData });
+    expect(view.result.current.sphere).toBe(selectedSphere);
+    expect(coverage.altitude).toHaveBeenCalledTimes(5);
+    await act(async () => { resolveOld(300); await oldHeight; });
+    expect(view.result.current.loading).toBe(true);
     expect(coverage.group).not.toHaveBeenCalled();
+    await act(async () => { resolveLatest(300); await latestHeight; });
+    await waitFor(() => expect(view.result.current.loading).toBe(false));
+    expect(view.result.current.sphere).toBe(selectedSphere);
+    expect(view.result.current.groups.get(0)?.map((image) => image.record.id)).toEqual(["2", "1", "0"]);
+    expect(coverage.group).toHaveBeenCalledTimes(1);
+    expect(coverage.group.mock.calls[0][0]).toBe(latestData);
+    view.unmount();
+    view.container.remove();
+  });
+
+  it("keeps the first pick while a cardinal catalog segment arrives before the radius pick", async () => {
+    const view = setup();
+    view.rerender({ ...view.props, data: dataOf(1) });
+    view.click(0);
+    const center = view.result.current.center;
+    view.rerender({ ...view.props, data: dataOf(3) });
+    expect(view.result.current.center).toBe(center);
+    expect(view.result.current.sphere).toBeNull();
+    view.click(10);
+    expect(view.result.current.sphere?.radiusMeters).toBeCloseTo(10, 5);
+    await waitFor(() => expect(view.result.current.loading).toBe(false));
+    expect(view.result.current.groups.get(0)).toHaveLength(3);
     view.unmount();
     view.container.remove();
   });

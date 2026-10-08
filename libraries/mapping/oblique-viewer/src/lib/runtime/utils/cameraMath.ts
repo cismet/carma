@@ -79,7 +79,7 @@ export const cameraDistanceM = (map: MaplibreMap): number => {
   return distancePx * metersPerPx;
 };
 
-export const MAX_OBLIQUE_TRANSITION_MS = 500;
+export const MAX_OBLIQUE_TRANSITION_MS = 2000;
 /** Bound camera actions while preserving explicit immediate moves. */
 export const capObliqueAnimationDuration = (durationMs: number): number =>
   clamp(
@@ -89,7 +89,7 @@ export const capObliqueAnimationDuration = (durationMs: number): number =>
   );
 /** about a frame, so no code path ever sees a zero duration */
 const MIN_FLY_DURATION_MS = 50;
-const DYNAMIC_DISTANCE_TO_MS_FACTOR = 35;
+const DYNAMIC_DISTANCE_TO_MS_FACTOR = 100;
 
 /** a flight's duration from how far it goes: the square root of the metres */
 export const dynamicDurationMs = (

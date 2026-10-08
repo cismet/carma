@@ -215,7 +215,9 @@ export const useObjectCoverage = ({
       epochRef.current++;
       computationRef.current?.abort();
     };
-  }, [map, enabled, data, resetToken, heightOffset, reset]);
+  // Cardinal catalog slices may arrive while the user is drawing/querying.
+  // Data updates restart the derived search below; only semantic context changes reset the selection.
+  }, [map, enabled, resetToken, heightOffset, reset]);
 
   useEffect(() => {
     // The reset effect clears the ref before React commits the cleared state.
@@ -262,7 +264,8 @@ export const useObjectCoverage = ({
     root.visible = false;
     const geometry = new SphereGeometry(1, 32, 20);
     const fill = new MeshBasicMaterial({
-      color: "#1677ff",
+      // Match the Geoportal measurement selection fill.
+      color: "#267bdc",
       opacity: 0.3,
       transparent: true,
       depthWrite: false,
@@ -274,6 +277,8 @@ export const useObjectCoverage = ({
     const contourColor = new Color(FOOTPRINT_SELECTION_COLOR);
     const runtime: SharedThreeSceneRuntime = {
       id: overlayId,
+      providesTerrain: false,
+      receivesMapStyleTexture: false,
       originLngLat: [map.getCenter().lng, map.getCenter().lat],
       root,
       update: () => {
@@ -324,7 +329,7 @@ export const useObjectCoverage = ({
               sceneToImage: sceneToSphere,
               sceneToImageTerrain: matrix.clone().invert(),
               color: contourColor,
-              width: 2 as CssPixels,
+              width: 1 as CssPixels,
               opacity: 1,
               showUpMarker: false,
             },
@@ -361,6 +366,13 @@ export const useObjectCoverage = ({
     let dragged = false;
     let pointerFrame: number | null = null;
     let pointer: ScreenPoint | null = null;
+    const isQuerySurface = (event: MouseEvent) => {
+      if (event.target === canvas) return true;
+      const target = event.target;
+      return target instanceof Element &&
+        !!target.closest("[data-oblique-preview-surface]") &&
+        !target.closest("button,a,input,select,textarea,[data-oblique-coverage-ui]");
+    };
     const pointOf = (event: MouseEvent): ScreenPoint => {
       const bounds = canvas.getBoundingClientRect();
       return { x: event.clientX - bounds.left, y: event.clientY - bounds.top };
@@ -371,7 +383,7 @@ export const useObjectCoverage = ({
       event.stopPropagation();
     };
     const onDown = (event: PointerEvent) => {
-      if (event.target !== canvas || event.button !== 0) return;
+      if (!isQuerySurface(event) || event.button !== 0) return;
       pressedAt = pointOf(event);
       dragged = false;
     };
@@ -389,7 +401,7 @@ export const useObjectCoverage = ({
       map.triggerRepaint();
     };
     const onMove = (event: PointerEvent) => {
-      if (event.target !== canvas) return;
+      if (!isQuerySurface(event)) return;
       pointer = pointOf(event);
       if (
         pressedAt &&
@@ -400,7 +412,7 @@ export const useObjectCoverage = ({
         pointerFrame = window.requestAnimationFrame(updateDraft);
     };
     const onClick = (event: MouseEvent) => {
-      if (event.target !== canvas || event.button !== 0) return;
+      if (!isQuerySurface(event) || event.button !== 0) return;
       claim(event);
       pressedAt = null;
       if (dragged || suspendedRef.current || sphereRef.current) return;
@@ -430,7 +442,7 @@ export const useObjectCoverage = ({
       map.triggerRepaint();
     };
     const onDoubleClick = (event: MouseEvent) => {
-      if (event.target === canvas) claim(event);
+      if (isQuerySurface(event)) claim(event);
     };
     const onEscape = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;

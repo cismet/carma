@@ -338,7 +338,7 @@ describe("persistent compressed image ranges", () => {
 
   it("persists Blob ranges through IndexedDB on insecure LAN HTTP with source/version isolation", async () => {
     const { entries, factory } = fakeIndexedDb();
-    const url = "http://192.168.100.35:4201/images/photo.avif";
+    const url = "http://192.0.2.10:4201/images/photo.avif";
     const first = new BoundedImageRangeCache(url);
     await first.put(100, new Uint8Array([1, 2, 3, 4]), "v1");
     expect([...entries.values()][0]).toBeInstanceOf(Blob);

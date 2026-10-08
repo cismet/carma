@@ -1,5 +1,8 @@
 import { Deployment, type DeploymentTarget } from "@carma-commons/utils";
-import { FeatureFlagConfig } from "@carma-providers/feature-flag";
+import {
+  resolveFeatureFlags,
+  type FeatureFlagConfig,
+} from "@carma-providers/feature-flag";
 
 export const featureFlagConfig: FeatureFlagConfig = {
   isDeveloperMode: {
@@ -22,7 +25,7 @@ export const featureFlagConfig: FeatureFlagConfig = {
   },
   featureFlagObliqueNextUi: {
     default: false,
-    alias: "olbng",
+    alias: "obliqueng",
   },
   featureFlagMapStyle3d: {
     default: false,
@@ -103,4 +106,17 @@ export const getFeatureFlagConfig = (
     default:
       return featureFlagConfig;
   }
+};
+
+/** Either interface enables the viewer; the NG flag selects its interface directly. */
+export const resolveGeoportalFeatureFlags = (
+  config: FeatureFlagConfig
+): ReturnType<typeof resolveFeatureFlags> => {
+  const flags = resolveFeatureFlags(config);
+  return {
+    ...flags,
+    featureFlagObliqueViewerAddon:
+      flags.featureFlagObliqueViewerAddon === true ||
+      flags.featureFlagObliqueNextUi === true,
+  };
 };

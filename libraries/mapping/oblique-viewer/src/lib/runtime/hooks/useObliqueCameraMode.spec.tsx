@@ -195,6 +195,104 @@ describe("entry scheduling", () => {
   );
 });
 
+describe("saved photo entry", () => {
+  it("keeps the URL camera unchanged while a saved photo and its catalog resolve", async () => {
+    const view = setup({ skipEntryFlight: true });
+    view.map.setVerticalFieldOfView(12);
+    vi.mocked(view.map.setVerticalFieldOfView).mockClear();
+    expect(view.result.current.phase).toBe("entering");
+    await flushFrame();
+    expect(view.result.current.phase).toBe("active");
+    expect(camera.ensureTerrain).toHaveBeenCalledWith(view.map, "terrain");
+    expect(camera.ensureTerrain).toHaveBeenCalledOnce();
+    expect(view.map.scrollZoom.disable).toHaveBeenCalledOnce();
+
+    view.rerender({
+      ...view.props,
+      dataset: { ...dataset, pitchDeg: 38 },
+      pitchDeg: 38 as Degrees,
+    });
+    await flushFrame();
+    expect(camera.enter).not.toHaveBeenCalled();
+    expect(camera.settle).not.toHaveBeenCalled();
+    expect(camera.lock).not.toHaveBeenCalled();
+    expect(view.map.getVerticalFieldOfView()).toBe(12);
+    expect(view.map.setVerticalFieldOfView).not.toHaveBeenCalled();
+    view.unmount();
+    expect(camera.release).toHaveBeenCalledOnce();
+    expect(view.map.scrollZoom.enable).toHaveBeenCalledOnce();
+    expect(view.map.setTerrain).toHaveBeenCalledWith(null);
+  });
+
+  it("resumes browsing pitch synchronization when the saved photo guard is removed", async () => {
+    const view = setup({ skipEntryFlight: true });
+    await flushFrame();
+    expect(camera.settle).not.toHaveBeenCalled();
+    const update = deferredFlight();
+    camera.settle.mockReturnValue(update);
+    view.rerender({ ...view.props, skipEntryFlight: false });
+    expect(camera.enter).not.toHaveBeenCalled();
+    expect(camera.settle).toHaveBeenCalledOnce();
+    expect(camera.settle).toHaveBeenCalledWith(view.map, dataset.pitchDeg, {
+      durationMs: 250,
+    });
+    await act(async () => update.finish());
+    expect(camera.lock).toHaveBeenCalledWith(view.map, dataset.pitchDeg);
+    view.unmount();
+  });
+
+  it("retains the ordinary entry flight when skipping is disabled", async () => {
+    const view = setup({ skipEntryFlight: false });
+    await flushFrame();
+    expect(camera.enter).toHaveBeenCalledWith(view.map, dataset);
+    expect(camera.enter).toHaveBeenCalledOnce();
+    expect(view.result.current.phase).toBe("entering");
+    expect(camera.lock).not.toHaveBeenCalled();
+    await act(async () => view.enter.finish());
+    expect(view.result.current.phase).toBe("active");
+    expect(camera.lock).toHaveBeenCalledWith(view.map, dataset.pitchDeg);
+    expect(camera.settle).not.toHaveBeenCalled();
+    view.unmount();
+  });
+
+  it("uses the latest skip flag before the queued entry starts", async () => {
+    const view = setup({ skipEntryFlight: false });
+    await act(async () => {});
+    view.rerender({ ...view.props, skipEntryFlight: true });
+    expect(pendingFrames.size).toBe(1);
+    await flushFrame();
+    expect(view.result.current.phase).toBe("active");
+    expect(camera.enter).not.toHaveBeenCalled();
+    expect(camera.settle).not.toHaveBeenCalled();
+    view.unmount();
+  });
+
+  it("flies normally on a later activation after the saved photo entry", async () => {
+    const view = setup({ skipEntryFlight: true });
+    await flushFrame();
+    expect(camera.enter).not.toHaveBeenCalled();
+    view.rerender({ ...view.props, enabled: false });
+    await act(async () => view.preparation.finish());
+    await act(async () => view.leave.finish());
+    expect(view.result.current.phase).toBe("idle");
+
+    view.rerender({
+      ...view.props,
+      skipEntryFlight: false,
+      suspended: false,
+    });
+    await flushFrame();
+    expect(camera.enter).toHaveBeenCalledOnce();
+    expect(camera.enter).toHaveBeenCalledWith(view.map, dataset);
+    expect(view.result.current.phase).toBe("entering");
+    await act(async () => view.enter.finish());
+    expect(view.result.current.phase).toBe("active");
+    expect(camera.lock).toHaveBeenCalledWith(view.map, dataset.pitchDeg);
+    expect(camera.settle).not.toHaveBeenCalled();
+    view.unmount();
+  });
+});
+
 describe("dataset browsing pitch updates", () => {
   it("changes only pitch while retaining the existing mode, terrain, zoom/FOV baseline and wheel state", async () => {
     const view = setup({ pitchDeg: 30 as Degrees });

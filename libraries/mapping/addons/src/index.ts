@@ -262,6 +262,7 @@ export {
   useObliqueViewerActions,
   useObliqueLayerRow,
   formatImageLabel,
+  formatObliqueLoadingStatus,
   resolveBackdropLook,
   obliqueStateStorageKey,
   BACKDROP_LOOK_BOUNDS as OBLIQUE_BACKDROP_LOOK_BOUNDS,

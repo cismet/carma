@@ -1,5 +1,5 @@
 import { Matrix4, Sphere, Vector3 } from "three";
-import { degToRadNumeric } from "@carma-units";
+import { degToRadNumeric, type Radians } from "@carma-units";
 import { projectObjectCoverageSphere } from "./object-coverage";
 import { imageProjectionMatrix, sceneToPhotoEnu } from "./image-projection";
 import { clamp, shortestAngleDelta } from "@carma-commons/math";
@@ -15,6 +15,8 @@ import type {
   PointWithSector,
 } from "../types";
 import { getCameraCalibration } from "./calibration";
+import { captureNeighbor } from "./capture-neighbors";
+import { NAVIGATION_SELECTION } from "../constants";
 import { getOrComputeObliquePose } from "./oblique-pose";
 import { wgs84ToDatasetXY, type DatasetConverter } from "./imageRecord";
 
@@ -190,6 +192,30 @@ export const rankImagesForView = (
     ].every(Number.isFinite)
   )
     return [];
+  if (query.navigationSelection === NAVIGATION_SELECTION.CAPTURE_NEIGHBOR && query.navigationArrow && query.excludeImageId) {
+    const current = data.imageRecords.get(query.excludeImageId);
+    const dataset = current && data.datasets.get(current.seriesId);
+    if (current && dataset) {
+      const nearby = [...candidates];
+      const capture = captureNeighbor(current, dataset, nearby, query.navigationArrow, query.headingRad as Radians);
+      if (capture === null) return [];
+      if (capture) {
+        const center = data.centers.get(capture.id);
+        if (!center || (query.enabledSeriesIds && !query.enabledSeriesIds.includes(capture.seriesId))) return [];
+        const converter = getProj4Converter(dataset.crs, "EPSG:4326");
+        const [x, y] = wgs84ToDatasetXY(converter, query.target.longitude, query.target.latitude);
+        // Capture navigation flies to the neighbor's own view. Its footprint
+        // need not cover the scene point from the previous, possibly opposite look.
+        return [{
+          record: capture,
+          imageCenter: { ...center },
+          distanceOnGround: Math.hypot(center.x - x, center.y - y),
+          distanceToCamera: Math.hypot(capture.x - x, capture.y - y),
+        }];
+      }
+      candidates = nearby;
+    }
+  }
   const enabled = query.enabledSeriesIds
     ? new Set(query.enabledSeriesIds)
     : null;
@@ -251,13 +277,15 @@ export const rankImagesForView = (
     const center = data.centers.get(record.id);
     if (!center) continue;
     const advance = navigation.get(record.seriesId);
-    if (
-      advance &&
-      (center.x - advance.origin[0]) * advance.direction[0] +
-        (center.y - advance.origin[1]) * advance.direction[1] <=
-        0
-    )
-      continue;
+    if (advance) {
+      const dx = center.x - advance.origin[0];
+      const dy = center.y - advance.origin[1];
+      const along = dx * advance.direction[0] + dy * advance.direction[1];
+      const across = dx * advance.direction[1] - dy * advance.direction[0];
+      // Like the legacy four sibling slots, each arrow owns a 90° sector.
+      // A half-plane alone lets a nearer, almost perpendicular image win.
+      if (along <= 0 || along < Math.abs(across)) continue;
+    }
     if (
       query.cameraView &&
       getCameraCalibration(dataset, record.cameraId).view !== query.cameraView
@@ -391,6 +419,8 @@ export const rankImagesForView = (
     (entry) => entry.pixelsPerMeter > 0
   );
   ranked.sort((a, b) => {
+    if (query.navigationSelection === NAVIGATION_SELECTION.CENTER_DISTANCE)
+      return a.distanceOnGround - b.distanceOnGround || a.record.id.localeCompare(b.record.id);
     if (query.selectionStrategy === "best-resolution" && hasNativeResolution) {
       const first = resolutions.get(a.record.id)!;
       const second = resolutions.get(b.record.id)!;
@@ -424,6 +454,7 @@ export const rankImagesForViewWithDirectionalFallback = (
   const preferred = rankImagesForView(data, query, candidates(false, query));
   if (
     query.cameraView === "nadir" ||
+    query.navigationSelection !== undefined ||
     preferred.some(({ coversTarget }) => coversTarget)
   )
     return preferred;
@@ -461,13 +492,22 @@ export const panViewTarget = (
   record: ObliqueImageRecord,
   dataset: ObliqueDataset,
   target: ObliqueGroundTarget,
-  movement: { right: number; forward: number },
+  movement: { right: number; forward: number; headingRad?: Radians },
   fraction = 0.12
 ): ObliqueGroundTarget => {
   const pose = getOrComputeObliquePose(record, dataset);
   const converter = getProj4Converter(dataset.crs, "EPSG:4326");
   const xy = wgs84ToDatasetXY(converter, target.longitude, target.latitude);
-  const forward = new Vector3(pose.direction[0], pose.direction[1], 0);
+  // Use the same resolved view heading as candidate ranking. The selected
+  // photo may face a different direction while the map camera is freely turned.
+  const forward =
+    movement.headingRad === undefined
+      ? new Vector3(pose.direction[0], pose.direction[1], 0)
+      : new Vector3(
+          Math.sin(movement.headingRad),
+          Math.cos(movement.headingRad),
+          0
+        );
   if (forward.lengthSq() < 1e-12) forward.set(pose.up[0], pose.up[1], 0);
   if (forward.lengthSq() < 1e-12) forward.set(0, 1, 0);
   forward.normalize();

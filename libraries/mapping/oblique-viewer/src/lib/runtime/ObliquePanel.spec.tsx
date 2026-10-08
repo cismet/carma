@@ -17,6 +17,8 @@ import {
   within,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { faCrosshairs } from "@fortawesome/free-solid-svg-icons";
+import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 
 vi.mock("./utils/preview-thumbnail-cache", () => ({
   reportPreviewSourceMissing: vi.fn(),
@@ -46,6 +48,7 @@ vi.mock("antd", () => ({
     onChange,
     className,
     style,
+    placeholder,
     "data-test-id": dataTestId,
     ...props
   }: {
@@ -56,6 +59,7 @@ vi.mock("antd", () => ({
     "aria-label": string;
     className?: string;
     style?: CSSProperties;
+    placeholder?: string;
     "data-test-id"?: string;
   }) =>
     createElement(
@@ -69,6 +73,7 @@ vi.mock("antd", () => ({
           className,
           style,
           "data-test-id": dataTestId,
+          "data-placeholder": placeholder,
           value,
           onChange: (event: { currentTarget: HTMLSelectElement }) =>
             onChange(
@@ -179,6 +184,7 @@ const Harness = ({
   downloadOptions = null,
   nextInterface = true,
   objectViewsAvailable = true,
+  objectViewsIcon,
   hoverAvailable = false,
   previewVisible = false,
   publish = vi.fn(),
@@ -196,6 +202,7 @@ const Harness = ({
   downloadOptions?: ObliqueViewerActions["downloadOptions"];
   nextInterface?: boolean;
   objectViewsAvailable?: boolean;
+  objectViewsIcon?: IconDefinition;
   hoverAvailable?: boolean;
   previewVisible?: boolean;
   publish?: ReturnType<typeof vi.fn>;
@@ -246,6 +253,7 @@ const Harness = ({
     rotationSurface,
     previewRotationDrape,
     isAllDataReady: !failure2026,
+    isCatalogComplete: !failure2026,
     selectedImageId: "wuppertal-2024::001_001_170003373",
     selectedSourceImageId: "001_001_170003373",
     selectedImageBearingDeg:
@@ -291,6 +299,7 @@ const Harness = ({
                   {
                     mode: "objectCoverage",
                     label: "Objektansichtenabfrage",
+                    icon: objectViewsIcon,
                     Component: () => null,
                   },
                 ]
@@ -360,6 +369,15 @@ describe("oblique series controls", () => {
       ).disabled
     ).toBe(true);
     expect(screen.getByText("Keine Bildserie aktiviert")).toBeTruthy();
+    expect(select.getAttribute("data-placeholder")).toBe("Bildserie auswählen");
+    expect(select.className).toContain("w-full");
+    expect(document.querySelector('[data-test-id="oblique-viewer"]')?.className)
+      .toContain("min-w-[min(320px,calc(100vw-1rem))]");
+    expect(document.querySelector('[data-test-id="oblique-image-actions"]')).toBeNull();
+    // Clearing the last series keeps both manifest choices available for re-entry.
+    expect(select.options).toHaveLength(2);
+    choose([series[1].id]);
+    expect(selected()).toEqual([series[1].id]);
   });
 
   it("reports a failed 2026 series while a selected 2024 image remains usable", () => {
@@ -488,6 +506,47 @@ describe("independent map navigation", () => {
 });
 
 describe("object coverage control", () => {
+  it("keeps an icon-only extension toggle accessible by its label", () => {
+    const sendRequest = vi.fn();
+    const view = render(createElement(Harness, {
+      sendRequest,
+      objectViewsIcon: faCrosshairs,
+    }));
+    const button = screen.getByRole("button", {
+      name: "Objektansichtenabfrage",
+    });
+    expect(button.textContent).toBe("");
+    expect(button.querySelector('svg[data-icon="crosshairs"]')).not.toBeNull();
+    expect(button.getAttribute("aria-pressed")).toBe("false");
+    fireEvent.click(button);
+    expect(sendRequest).toHaveBeenLastCalledWith({
+      type: "setViewMode",
+      mode: "objectCoverage",
+    });
+    view.rerender(createElement(Harness, {
+      sendRequest,
+      objectViewsIcon: faCrosshairs,
+      objectCoverageActive: true,
+    }));
+    const active = screen.getByRole("button", {
+      name: "Objektansichtenabfrage",
+    });
+    expect(active.getAttribute("aria-pressed")).toBe("true");
+    expect(active.textContent).toBe("");
+    fireEvent.click(active);
+    expect(sendRequest).toHaveBeenLastCalledWith({
+      type: "setViewMode",
+      mode: "oblique",
+    });
+  });
+
+  it("retains the text label for extensions that do not supply an icon", () => {
+    render(createElement(Harness));
+    expect(screen.getByRole("button", {
+      name: "Objektansichtenabfrage",
+    }).textContent).toBe("Objektansichtenabfrage");
+  });
+
   it("requests object coverage and returns to oblique from an active toggle", () => {
     const sendRequest = vi.fn();
     const view = render(createElement(Harness, { sendRequest }));
@@ -539,7 +598,7 @@ describe("NG rotation photo projection option", () => {
     const publish = vi.fn();
     const view = render(createElement(Harness, { publish }));
     const option = screen.getByRole("checkbox", {
-      name: "Fotos auf Mesh",
+      name: "Fotos projizieren",
     }) as HTMLInputElement;
     expect(option.checked).toBe(false);
     fireEvent.click(option);
@@ -549,7 +608,7 @@ describe("NG rotation photo projection option", () => {
     expect(option.checked).toBe(false);
     expect(publish).toHaveBeenLastCalledWith({ previewRotationDrape: false });
     view.rerender(createElement(Harness, { publish, nextInterface: false }));
-    expect(screen.queryByRole("checkbox", { name: "Fotos auf Mesh" })).toBeNull();
+    expect(screen.queryByRole("checkbox", { name: "Fotos projizieren" })).toBeNull();
   });
 });
 
@@ -564,7 +623,7 @@ describe("image information, actions and acquisition precision", () => {
       name: "Bildserien",
     }) as HTMLSelectElement;
     expect(seriesSelect.style.maxWidth).toBe("100%");
-    expect(seriesSelect.className).toContain("w-fit");
+    expect(seriesSelect.className).toContain("w-full");
     expect(seriesSelect.className).not.toContain("flex-1");
     expect(screen.getByRole("button", { name: "Bild öffnen" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Rückmeldung" })).toBeTruthy();

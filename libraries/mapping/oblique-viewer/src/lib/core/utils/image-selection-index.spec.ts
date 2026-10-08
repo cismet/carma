@@ -109,6 +109,45 @@ describe("one-catalog directional and spatial selection", () => {
     ]).toEqual([remoteCamera, east]);
   });
 
+  it("rebuckets a late corrected ground center without rebuilding unrelated catalog rows", () => {
+    const moving = image("2026", "corrected", North, 0, 10000);
+    const distant = Array.from({ length: 10 }, (_, n) => image("2026", `distant-${n}`, North, 0, 15000 + n * 2000));
+    const data = catalog([moving, ...distant]);
+    const index = createImageSelectionIndex(data, { groundCenters: true });
+    expect([...index.candidates(query(0, { maxDistanceMeters: 25 }))]).toEqual([]);
+    index.append({ datasets: new Map(), imageRecords: new Map(), centers: new Map([[moving.id, {
+      id: moving.id, x, y, longitude: target.longitude, latitude: target.latitude, cardinal: North,
+    }]]) });
+    expect([...index.candidates(query(0, { maxDistanceMeters: 25 }))]).toEqual([moving]);
+    index.append({ datasets: new Map(), imageRecords: new Map(), centers: new Map([[moving.id, {
+      id: moving.id, x: x + 10000, y, longitude: target.longitude, latitude: target.latitude, cardinal: North,
+    }]]) });
+    expect([...index.candidates(query(0, { maxDistanceMeters: 25 }))]).toEqual([]);
+  });
+  it("replaces corrected record coordinates and pose headings in existing spatial/directional buckets", () => {
+    const original = image("2026", "corrected", North, 0, 5000);
+    const east = image("2026", "east", East, 90);
+    const data = catalog([original, east]);
+    const index = createImageSelectionIndex(data);
+    const corrected = { ...original, x, y, fallbackHeading: degToRad(180 as Degrees) };
+    index.append({ datasets: new Map(), imageRecords: new Map([[corrected.id, corrected]]), centers: new Map() });
+    expect([...index.candidates(query(170, { maxDistanceMeters: 25 }))]).toEqual([corrected]);
+    expect([...index.candidates(query(90, { maxDistanceMeters: 25 }))]).toEqual([east]);
+    const replacement = { ...corrected, z: corrected.z + 1 };
+    index.append({ datasets: new Map(), imageRecords: new Map([[replacement.id, replacement]]), centers: new Map() });
+    expect([...index.candidates(query(170, { maxDistanceMeters: 25 }))]).toEqual([replacement]);
+  });
+  it("removes an emptied old sector after a corrected camera changes direction", () => {
+    const original = image("2026", "corrected", North, 0);
+    const east = image("2026", "east", East, 90);
+    const index = createImageSelectionIndex(catalog([original, east]));
+    const corrected = { ...original, sector: South, fallbackHeading: degToRad(180 as Degrees) };
+    const part = { datasets: new Map<string, ObliqueDataset>(), imageRecords: new Map([[corrected.id, corrected]]), centers: new Map() };
+    index.append(part); index.append(part);
+    expect([...index.candidates(query(0, { maxDistanceMeters: 25 }))]).toEqual([east]);
+    expect([...index.candidates(query(180, { maxDistanceMeters: 25 }))]).toEqual([corrected]);
+    expect([...index.candidates(query(0), { allDirections: true })].filter((record) => record.id === corrected.id)).toEqual([corrected]);
+  });
   it("chooses different intrinsic sectors per series by their actual mean heading", () => {
     const oldNorth = image("2024", "north", North, 325);
     const newWest = image("2026", "west", West, 320);

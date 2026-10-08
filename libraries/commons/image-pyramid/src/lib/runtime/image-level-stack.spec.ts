@@ -191,3 +191,200 @@ describe("ImageLevelStack", () => {
     expect(source.bitmaps.every((bitmap) => bitmap.closed)).toBe(true);
   });
 });
+
+const CRITICAL_ROLES = new Set([
+  "floor",
+  "underlay",
+  "target",
+  "target-periphery",
+]);
+
+/** Records priorities; fetches and decodes can be held back by the test. */
+class GatedSource extends FakeSource {
+  readonly calls: { tiles: ImageTileRef[]; priority?: string; done: boolean }[] =
+    [];
+  holdFetch = false;
+  holdDecode = false;
+  private readonly waiting: (() => void)[] = [];
+  constructor() {
+    super();
+    const fetchBytes = this.fetch;
+    const decodeTile = this.decode;
+    this.fetch = async (tiles, _signal?: AbortSignal, priority?: string) => {
+      const call = { tiles: [...tiles], priority, done: false };
+      this.calls.push(call);
+      if (this.holdFetch) await new Promise<void>((go) => this.waiting.push(go));
+      await fetchBytes(tiles);
+      call.done = true;
+    };
+    this.decode = async (tile) => {
+      if (this.holdDecode)
+        await new Promise<void>((go) => this.waiting.push(go));
+      return decodeTile(tile);
+    };
+  }
+  releaseAll() {
+    this.holdFetch = this.holdDecode = false;
+    for (const go of this.waiting.splice(0)) go();
+  }
+}
+
+const createGate = (open = false) => {
+  const listeners = new Set<() => void>();
+  return {
+    open,
+    isOpen() {
+      return this.open;
+    },
+    subscribe(listener: () => void) {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    set(next: boolean) {
+      this.open = next;
+      for (const listener of listeners) listener();
+    },
+    listeners,
+  };
+};
+
+describe("ImageLevelStack foreground-first scheduling", () => {
+  it("is foreground-pending until the visible target is decoded, not when parked", async () => {
+    const source = new FakeSource();
+    const stack = new ImageLevelStack(source, { idlePrefetch: "none" });
+    expect(stack.foregroundPending).toBe(true);
+    await stack.ready;
+    stack.setView(view(6000, 9000, 0.2), 1400 * 830);
+    expect(stack.foregroundPending).toBe(true);
+    await settle();
+    expect(stack.visibleReady).toBe(true);
+    expect(stack.foregroundPending).toBe(false);
+    stack.setView(view(2000, 2000, 0.2), 1400 * 830);
+    expect(stack.foregroundPending).toBe(true);
+    stack.park();
+    expect(stack.foregroundPending).toBe(false);
+  });
+
+  it("fetches only visible-priority tiles, all at high priority, until the target is decoded", async () => {
+    const source = new GatedSource();
+    source.holdDecode = true;
+    const stack = new ImageLevelStack(source, { idlePrefetch: "pyramid" });
+    await stack.ready;
+    stack.setView(view(6000, 9000, 0.2), 1400 * 830);
+    await settle();
+    const roles = new Map(
+      stack.plan!.wants.map((want) => [want.key, want.role])
+    );
+    expect(stack.plan!.finer).not.toBeNull();
+    expect(stack.foregroundPending).toBe(true);
+    expect(source.calls.length).toBeGreaterThan(0);
+    for (const call of source.calls) {
+      expect(call.priority).toBe("high");
+      for (const tile of call.tiles)
+        expect(CRITICAL_ROLES.has(roles.get(key(tile))!)).toBe(true);
+    }
+    const before = source.calls.length;
+    source.releaseAll();
+    await settle();
+    expect(stack.visibleReady).toBe(true);
+    // Rings and the next finer level follow once the visible target is resident.
+    expect(
+      source.calls
+        .slice(before)
+        .some((call) =>
+          call.tiles.some((tile) => tile.level === stack.plan!.finer)
+        )
+    ).toBe(true);
+  });
+
+  it("starts no speculative batch while a visible-priority batch is in flight", async () => {
+    const source = new GatedSource();
+    const stack = new ImageLevelStack(source, { idlePrefetch: "none" });
+    await stack.ready;
+    stack.setView(view(6000, 9000, 0.2), 1400 * 830);
+    await settle();
+    expect(stack.visibleReady).toBe(true);
+    source.holdFetch = true;
+    const before = source.calls.length;
+    // Panning needs new target tiles (high) and new finer tiles (low).
+    stack.setView(view(3000, 14000, 0.2), 1400 * 830);
+    await settle();
+    const held = source.calls.slice(before);
+    expect(held.length).toBeGreaterThan(0);
+    expect(held.every((call) => call.priority === "high")).toBe(true);
+    source.releaseAll();
+    await settle();
+    const later = source.calls.slice(before + held.length);
+    const firstLow = source.calls.findIndex(
+      (call, index) => index >= before && call.priority === "low"
+    );
+    expect(firstLow).toBeGreaterThan(-1);
+    // Every high request issued before the first low one had completed.
+    expect(
+      source.calls
+        .slice(before, firstLow)
+        .every((call) => call.priority === "low" || call.done)
+    ).toBe(true);
+    expect(later.length).toBeGreaterThan(0);
+  });
+
+  it("holds idle prefetch behind a closed host gate and starts it when the gate opens", async () => {
+    const source = new GatedSource();
+    const gate = createGate(false);
+    const stack = new ImageLevelStack(source, {
+      idlePrefetch: "next-level",
+      ringTiles: 0,
+      prefetchGate: gate,
+    });
+    await stack.ready;
+    stack.setView(view(6000, 9000, 0.2), 1400 * 830);
+    await settle();
+    const finer = stack.plan!.finer!;
+    const finerTiles = () =>
+      new Set(
+        source.calls
+          .flatMap((call) => call.tiles)
+          .filter((tile) => tile.level === finer)
+          .map(key)
+      ).size;
+    const planned = stack.plan!.wants.filter(
+      (want) => want.level === finer
+    ).length;
+    expect(finerTiles()).toBe(planned);
+    gate.set(true);
+    await settle();
+    expect(finerTiles()).toBeGreaterThan(planned);
+    stack.dispose();
+    expect(gate.listeners.size).toBe(0);
+  });
+
+  it("starts the rest of the pyramid only after the view has rested", async () => {
+    const source = new GatedSource();
+    const stack = new ImageLevelStack(source, {
+      idlePrefetch: "pyramid",
+      idlePyramidDelayMs: 60,
+    });
+    await stack.ready;
+    stack.setView(view(6000, 9000, 0.2), 1400 * 830);
+    await settle();
+    const target = stack.plan!.target;
+    const targetTiles = () =>
+      new Set(
+        source.calls
+          .flatMap((call) => call.tiles)
+          .filter((tile) => tile.level === target)
+          .map(key)
+      ).size;
+    const planned = stack.plan!.wants.filter(
+      (want) => want.level === target
+    ).length;
+    const whole = levels.find((level) => level.level === target)!;
+    expect(planned).toBeLessThan(whole.cols * whole.rows);
+    // The next finer level is prefetched at once, the target level's remainder not.
+    expect(targetTiles()).toBe(planned);
+    await new Promise((resolve) => setTimeout(resolve, 90));
+    await settle();
+    expect(targetTiles()).toBe(whole.cols * whole.rows);
+    stack.dispose();
+  });
+});

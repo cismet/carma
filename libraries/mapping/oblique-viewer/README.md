@@ -10,8 +10,13 @@ The host supplies either an explicit `series` array or a `seriesConfigURI`.
 The latter points to a server-owned JSON document with `schemaVersion: 1` and
 a nonempty `series` array of `ObliqueDataset` entries. No production series,
 camera calibration or image metadata is bundled with this package. Geoportal
-stores only the server configuration URL; changing the available series does
-not require rebuilding the app.
+loads the available series from that URL. Host `animations` override interaction
+timings independently of the catalog. Optional `seriesOverrides`, keyed by immutable
+series ID, correct deployment metadata without mutating the served document.
+Geoportal restores the published 2024 `footprintsURI` this way: its diagonal
+intersection centers are required for Cesium rotation parity. The existing worker
+loads and persistently caches them; a missing URI otherwise gives approximate
+camera-axis intersections with the configured reference plane.
 
 The configuration loads asynchronously after the basemap starts, with a bounded
 timeout and cancellation on teardown. Named animation curves in JSON are
@@ -41,7 +46,7 @@ The oblique feature owns scene projection and photo/camera geometry. Its preview
 ## Selection and navigation
 
 Object views are an optional extension supplied by the separate host addon
-`obliqueObjectViews`, available only in the next interface (`ff=olbng`). This
+`obliqueObjectViews`, available only in the next interface (`ff=obliqueng`). This
 replaces the former inline query hook and overlay in `ObliqueViewer`. The base
 viewer does not import the object-query runtime; it lazy-loads only when its
 registered mode opens. See `libraries/mapping/addons/src/addons/ObliqueObjectViews/README.md`.
@@ -57,15 +62,28 @@ month/year, positive compass bearing and image ID. Series selection and compact
 export/feedback actions remain in that panel. This uses the MapLibre/Three viewer,
 without switching engines.
 
-The opt-in feature flag `olbng` adds off-centre preview positioning,
-Nadir and Objektansichtenabfrage controls. For example, `#/oblique?ff=oblique.olbng`
-enables that interface, whereas `#/oblique?ff=oblique` uses the default. The flag
-does not enable mapstyle3d. Both interfaces reuse the same worker-backed pointer
+The opt-in feature flag `obliqueng` adds off-centre preview positioning,
+Nadir and Objektansichtenabfrage controls. For example, `#/oblique?ff=obliqueng`
+enables NG directly, whereas `#/oblique?ff=oblique` uses Classic. When both
+flags are present (`ff=oblique.obliqueng`), NG takes precedence. Neither flag
+enables mapstyle3d. Both interfaces reuse the same worker-backed pointer
 search and photo-axis picking cache while the viewer is running.
 
 Both interfaces share the compact panel, photo metadata readout and prepared
 image-navigation targets. Buttons and keyboard use the same cached target for each
-step; image downloads never determine navigation availability.
+step; image downloads never determine navigation availability. Cached targets are
+bound to the settled heading and pitch, so turning the view cannot reuse another
+orientation's arrow targets. Legacy flight-strip catalogs use the same strip and
+waypoint neighbor rules as Cesium; other catalogs use camera-relative geometric
+neighbors. Classic rotations choose the nearest ground center in their target
+sector, around the visible scene center.
+
+Geoportal uses the Cesium timing profile in both interfaces: entry 2000 ms,
+photo flight up to 800 ms, neighbor flight up to 100 ms, rotation up to 1800 ms,
+and preview exit 1100 ms. Distance-derived flights use `100 * sqrt(distanceM)`
+with their action-specific cap. Classic's fit-and-return exit shares one total
+1100 ms interval. The anchored camera tween uses the action's easing for all
+position, pitch and projection changes.
 
 | Action in the current image orientation | Keys |
 | --- | --- |
@@ -99,7 +117,7 @@ coverage and unmount cancel the remaining queue. Only the next queued direction
 is prefetched; a valid cache with no neighbor records a no-op, with at most eight
 no-ops per task before yielding. No mapped event is replaced by a later key.
 
-Only the `olbng` interface offers “Nächste Bildachse” and “Beste Pixelauflösung” as selection
+Only the `obliqueng` interface offers “Nächste Bildachse” and “Beste Pixelauflösung” as selection
 policies. The latter compares calibrated native pixels per metre at the requested
 ground point, along the least-resolved transverse direction; preview JPEG levels
 never affect the ranking. Current-sector coverage still takes precedence, with
@@ -113,11 +131,11 @@ Classic and NG browsing pitch follows the image-count-weighted mean of calibrate
 
 The shared Classic/NG layer readout keeps the original source-image prefixes and components in normal-weight text, separated by thin spaces. The raw identifier remains available on hover and for accessibility; plane/arrow markers and camera-prefix stripping are no longer used for this display. Asset URLs and catalog identity are unchanged.
 
-NG (`ff=oblique.olbng`) offers the persisted **Fotos auf Mesh** option, off by default. Rotation prepares two full-photo streamed compositions bounded to the physical viewport and a shared 128 MiB two-entry pool; it does not decode native L1 into a full-resolution canvas. The calibrated start/end cameras project these textures onto existing visible ECEF mesh surfaces, including roofs and facades. The camera tween supplies the same eased progress to weights `1-t` and `t`, blended in linear space. Terrain and the fullscreen image backdrop do not receive these projective photos. The selected label option remains in effect. Preparation is bounded to two seconds; missing images or absent mesh keep normal geometric navigation. Aborting, switching mode/image/series, disabling the option or unmounting removes projections before releasing textures and borrowed bitmaps. A normal target preview takes over once its physical display pixels are ready, with a bounded fallback timeout. Classic does not initialize this path.
+NG (`ff=obliqueng`) offers the persisted **Fotos auf Mesh** option, off by default. Rotation prepares two full-photo streamed compositions bounded to the physical viewport and a shared 128 MiB two-entry pool; it does not decode native L1 into a full-resolution canvas. The calibrated start/end cameras project these textures onto existing visible ECEF mesh surfaces, including roofs and facades. The camera tween supplies the same eased progress to weights `1-t` and `t`, blended in linear space. Terrain and the fullscreen image backdrop do not receive these projective photos. The selected label option remains in effect. Preparation is bounded to two seconds; missing images or absent mesh keep normal geometric navigation. Aborting, switching mode/image/series, disabling the option or unmounting removes projections before releasing textures and borrowed bitmaps. A normal target preview takes over once its physical display pixels are ready, with a bounded fallback timeout. Classic does not initialize this path.
 
 The reusable photo source resolver is shared with object views. The engine's optional `MapStyleScreenOverlay.projective.sceneToTexture` is generic; photogrammetry and transition lifecycle remain in the oblique feature. No additional mesh geometry, terrain source, depth pass or render target is created for this option.
 
-Best-fit selection evaluates the requested ground target and continuous camera bearing/pitch against the poses and camera field of view of enabled series. Direction names remain per-series hints rather than a shared north/east/south/west eligibility rule. In the olbng interface, enabling a nadir-capable series offers a Nadir button. It locks browsing at zero pitch and selects calibrated nadir cameras only, including on subsequent pan requests; the compass or the same button returns to oblique browsing. Removing the last nadir-capable series returns to oblique mode. Orbit requests change the desired view direction; pan requests change the target in the current image-view frame. Both requests search enabled series and may choose a different year. No-enabled-series and no-candidate results are valid empty states.
+Best-fit selection evaluates the requested ground target and continuous camera bearing/pitch against the poses and camera field of view of enabled series. Direction names remain per-series hints rather than a shared north/east/south/west eligibility rule. In the obliqueng interface, enabling a nadir-capable series offers a Nadir button. It locks browsing at zero pitch and selects calibrated nadir cameras only, including on subsequent pan requests; the compass or the same button returns to oblique browsing. Removing the last nadir-capable series returns to oblique mode. Orbit requests change the desired view direction; pan requests change the target in the current image-view frame. Both requests search enabled series and may choose a different year. No-enabled-series and no-candidate results are valid empty states.
 
 The map overlay owns a compact two-row navigation grid with rotation and pan
 controls and a separate “Flug zum Bild” / “Beenden” button. It remains usable when
@@ -167,7 +185,7 @@ eight rays or about three milliseconds and stops for superseded queries. The
 cache contains at most 2048 ground coordinates and no frustum geometry.
 
 The common `debug` feature flag enables a floating diagnostic panel using the
-tile manager's window chrome, for example `ff=oblique.olbng.debug`. It shows the live
+tile manager's window chrome, for example `ff=obliqueng.debug`. It shows the live
 ground distance from the pointer to the chosen camera-axis surface intersection,
 along with source identity and mesh/DEM provenance. Values use a DOM subscription,
 keeping pointer updates out of the viewer's React tree; diagnostics load lazily.
@@ -221,14 +239,15 @@ border follows the full sensor frame. The year label and up marker remain hidden
 In both interfaces, one click resolves enabled-series candidates at the clicked mesh or
 terrain point, even before hover completes. It requires no native rendered feature.
 The toolbar action opens the current viewport-centre selection, so hover cannot
-change its target. In olbng the action is hidden on hover-capable
+change its target. In obliqueng the action is hidden on hover-capable
 devices while browsing; touch retains it, and preview close remains available.
 A footprint's single-click flight starts after a 500ms double-click window;
 catalog picking runs immediately in parallel. A double click cancels that pending
 flight. Classic single and double clicks fit the whole photograph with 5% padding;
-`olbng` double click retains the current view-center anchor and pixel scale. Slow picks
+`obliqueng` single click retains the current view-center anchor and pixel scale,
+while double click centers the preview on the photograph. Slow picks
 retain the double-click decision; movement, locking and teardown discard pending
-activation. In `olbng`, single click frames the full image's shorter axis at 90% of the shorter
+activation. In `obliqueng`, double click frames the full image's shorter axis at 90% of the shorter
 viewport axis, leaving 5% padding on each side. The
 four next-image arrows fit the destination image during the same camera/FOV
 transition. Browsing rotations retain their ground anchor and end directly at
@@ -272,12 +291,18 @@ can supply the optional `previewState` config channel without a routing provider
 
 This mode requires the `obliqueObjectViews` addon and the next interface.
 
-Select **Objektansichtenabfrage**, then click the rendered mesh or terrain twice: the first
+Select the **crosshairs button** (tooltip: Objektansichtenabfrage), then click the rendered mesh/terrain or its open photo preview twice: the first
 click sets the sphere centre, and the second sets its three-dimensional radius in
-metres. The shared scene displays a solid sphere with 30% opacity. A white, 2 CSS-pixel
+metres. Opening or cancelling the query preserves an existing preview and its camera; picks use the scene underneath the photograph. The shared scene displays a sphere in the Geoportal measurement selection blue (`#267bdc`) with 30% opacity, occluded by the visible mesh depth. A white, 1 CSS-pixel
 contour is evaluated on the live mesh/terrain fragments at the sphere intersection,
 including newly loaded tile LODs. Changing the
 enabled series resets the selection; reset and close controls remain available.
+
+Results open in a near-fullscreen Ant Design modal. Its external-window action
+moves the same live result tree into an owned browser window, retaining the image
+pool and measurement state. Closing that window returns the results to the modal;
+a blocked popup leaves the modal open with a warning. Opening a photograph returns
+to the main viewer. Query picks and photo measurements use the NG Mesh/DEM selector.
 
 Loaded, enabled series are scanned for cameras whose calibrated image frustum
 contains the entire sphere. Nadir cameras are excluded from these four directional
@@ -293,14 +318,16 @@ stretching the photograph. Images are grouped by their actual camera bearing int
 | North | East |
 | West | South |
 
-Within each quadrant, the highest-resolution image appears first; the Ant Design
-carousel exposes the remaining images through small thumbnails in descending
-pixels-per-metre order. Active crops refine progressively to the best available
-quality in the ordinary JPEG/TIFF workers. Clicking a direction or changing its
-carousel starts sequential, low-priority preloading of every alternative at cell
-display resolution; it does not refine background alternatives to native resolution.
-Carousel thumbnails share one bounded worker queue. Leaving the query cancels
-active jobs and releases their canvases while preserving encoded/range caches.
+Within each quadrant, the highest-resolution image appears first. Compact ROI
+thumbnails and previous/next buttons select alternatives in descending
+pixels-per-metre order. Only the active photograph mounts its full viewer.
+Active crops refine progressively; nearby alternatives prewarm at low priority,
+bounded to two neighbours per quadrant. ROI thumbnails use a separate 8 MiB pool
+so their small viewports cannot replace the active photograph's viewport.
+The result grid uses two columns on wide windows and one scrollable column below
+640 CSS pixels. Geoportal icon controls retain tooltip and accessible labels.
+Leaving the query cancels active jobs and releases canvases while preserving
+encoded/range caches.
 
 **Strecke messen** casts each clicked photograph ray onto the loaded live mesh or confirmed native DEM surface.
 One set of physical three-dimensional points and segment distances is projected

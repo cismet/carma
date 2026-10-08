@@ -149,7 +149,7 @@ const setup = (records: ObliqueImageRecord[], native = false) => {
   const root = new Group();
   root.add(surface);
   root.updateMatrixWorld(true);
-  let version = 1;
+  let version = 1, frameRevision = 1;
   engine.runtimes = native
     ? []
     : [
@@ -164,7 +164,7 @@ const setup = (records: ObliqueImageRecord[], native = false) => {
   engine.acquire.mockReturnValue({
     release,
     layer: {
-      getLocalFrame: () => ({ sceneFromLocal: new Matrix4() }),
+      getLocalFrame: () => ({ sceneFromLocal: new Matrix4(), revision: frameRevision }),
       projectSceneToLngLat: (position: Vector3 | number[]) => {
         const x = position instanceof Vector3 ? position.x : position[0];
         const z = position instanceof Vector3 ? position.z : position[2];
@@ -206,6 +206,7 @@ const setup = (records: ObliqueImageRecord[], native = false) => {
     bumpVersion: () => {
       version++;
     },
+    bumpFrameRevision: () => { frameRevision++; },
   };
 };
 const addPublishedTerrain = (view: ReturnType<typeof setup>, bounds: Box3) => {
@@ -231,6 +232,7 @@ const addPublishedTerrain = (view: ReturnType<typeof setup>, bounds: Box3) => {
     terrainMesh.material.dispose();
   });
   return {
+    root: terrainRoot,
     getPublishedTerrainTiles,
     rootRaycast: vi.spyOn(terrainRoot, "raycast"),
     meshRaycast: vi.spyOn(terrainMesh, "raycast"),
@@ -443,6 +445,30 @@ describe("arbitrary calibrated photo surface rays", () => {
     expect(view.map.queryTerrainElevation).not.toHaveBeenCalled();
   });
 
+  it("uses hidden DEM CPU bounds for batched angled sampling without adding its meshes to visible receivers", () => {
+    const view = setup([]);
+    const dem = addPublishedTerrain(view,
+      new Box3(new Vector3(600, 0, -10), new Vector3(900, 120, 10)));
+    dem.root.visible = false;
+    engine.terrainBatch.mockImplementation((_map, coordinates: Float64Array, output: Float64Array) => {
+      for (let i = 0; i < output.length; i++) {
+        const x = (coordinates[2 * i] - 7.2) * 100000;
+        output[i] = 42 + .2 * (x - 600);
+      }
+      return output;
+    });
+    const ray = new Raycaster(new Vector3(600, 120, 0), new Vector3(1, -1, 0).normalize());
+    const hit = view.picker.intersectSurface(ray, [7.206, 51.27])!;
+    expect(hit.surface).toBe("terrain");
+    expect(hit.point.distanceTo(new Vector3(665, 55, 0))).toBeLessThan(1);
+    expect(engine.terrainBatch).toHaveBeenCalled();
+    expect(dem.getPublishedTerrainTiles).toHaveBeenCalledOnce();
+    expect(dem.rootRaycast).not.toHaveBeenCalled(); expect(dem.meshRaycast).not.toHaveBeenCalled();
+    expect(dem.root.visible).toBe(false);
+    engine.terrainBatch.mockClear();
+    expect(view.picker.intersectSurface(ray, [7.206, 51.27], "mesh")).toBeNull();
+    expect(engine.terrainBatch).not.toHaveBeenCalled();
+  });
   it("does not invent a cached DEM crossing through a partially missing height interval", () => {
     const view = setup([]);
     const dem = addPublishedTerrain(
@@ -631,6 +657,20 @@ describe("physical photo-axis selection", () => {
     expect(engine.altitude).toHaveBeenCalledTimes(2);
   });
 
+  it("invalidates only camera projection derivatives when the local frame refits at the same origin", async () => {
+    const near = record("near-axis", 20);
+    const detailed = { ...record("native-detail", 35), cameraId: "highResolution" };
+    const view = setup([near, detailed]);
+    const intersect = vi.spyOn(Raycaster.prototype, "intersectObjects");
+    const densityQuery = { ...query, heightMeters: 10, selectionStrategy: "best-resolution" as const };
+    await view.picker.pick([near, detailed], densityQuery, false, () => true);
+    expect(imageProjectionMatrix).toHaveBeenCalledTimes(2);
+    view.bumpFrameRevision();
+    await view.picker.pick([near, detailed], densityQuery, false, () => true);
+    expect(imageProjectionMatrix).toHaveBeenCalledTimes(4);
+    expect(intersect).toHaveBeenCalledTimes(2); // geographic hits stay valid across a coordinate refit
+    expect(engine.altitude).toHaveBeenCalledTimes(2);
+  });
   it.each([undefined, NaN])(
     "uses axis distance without claiming calibrated density for an unavailable target height (%s)",
     async (heightMeters) => {

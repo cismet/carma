@@ -244,6 +244,11 @@ export interface SharedThreeSceneRuntime {
   setTileBoundsVisible?: (visible: boolean) => void;
   /** Outstanding work required before a fixed-state render can converge. */
   getRequestDemand?: () => number;
+  /**
+   * Foreground network reason, composed with the runtime's own pauses: stop
+   * starting downloads while true, never abort in-flight ones, resume on false.
+   */
+  setLoadingPaused?: (paused: boolean) => void;
   /** Optional zoom-ahead work: one shared pool, spare capacity only, abortable.
    * The camera is a cropped focus view; levels are relative to normal target LOD. */
   prefetchZoom?: (

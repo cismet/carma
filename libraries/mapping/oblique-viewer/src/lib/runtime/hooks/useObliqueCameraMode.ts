@@ -46,6 +46,8 @@ type UseObliqueCameraModeOptions = {
   pitchDeg?: Degrees;
   /** Preview/other camera flights retain their physical angle until browsing resumes. */
   suspended?: boolean;
+  /** A saved photo will place the camera directly after its catalog resolves. */
+  skipEntryFlight?: boolean;
   terrainSourceId?: string;
   onBeforeLeave?: () => CameraFlight | undefined;
 };
@@ -56,6 +58,7 @@ export const useObliqueCameraMode = ({
   dataset,
   pitchDeg,
   suspended = false,
+  skipEntryFlight = false,
   terrainSourceId = WUPPERTAL_TERRAIN_SOURCE_ID,
   onBeforeLeave,
 }: UseObliqueCameraModeOptions) => {
@@ -69,6 +72,8 @@ export const useObliqueCameraMode = ({
   pitchRef.current = requestedPitch;
   const manuallySuspendedRef = useRef(false);
   const lockedPitchRef = useRef<Degrees>();
+  const skipEntryFlightRef = useRef(skipEntryFlight);
+  skipEntryFlightRef.current = skipEntryFlight;
   const beforeLeaveRef = useRef(onBeforeLeave);
   beforeLeaveRef.current = onBeforeLeave;
 
@@ -105,6 +110,11 @@ export const useObliqueCameraMode = ({
         if (cancelled) return;
         session.terrainByUs =
           previous?.terrainByUs ?? ensureTerrain(map, terrainSourceId);
+        if (skipEntryFlightRef.current) {
+          // Keep the URL camera intact until the saved photo can be restored.
+          setPhase("active");
+          return;
+        }
         const dataset = datasetRef.current;
         const entryPitch = pitchRef.current;
         const flight = enterObliqueView(
@@ -174,6 +184,7 @@ export const useObliqueCameraMode = ({
       !enabled ||
       !session ||
       phase !== "active" ||
+      skipEntryFlight ||
       suspended ||
       manuallySuspendedRef.current ||
       lockedPitchRef.current === requestedPitch
@@ -201,7 +212,7 @@ export const useObliqueCameraMode = ({
         flight.cancel();
       }
     };
-  }, [map, enabled, phase, requestedPitch, suspended]);
+  }, [map, enabled, phase, requestedPitch, skipEntryFlight, suspended]);
 
   // the map going away, or the addon leaving the route while on
   useEffect(() => {

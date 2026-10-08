@@ -4,14 +4,14 @@ import {
   type Availability,
   type AvailabilityContext,
 } from "@carma-commons/utils";
-import {
-  resolveFeatureFlags,
-  type FeatureFlagConfig,
-} from "@carma-providers/feature-flag";
+import type { FeatureFlagConfig } from "@carma-providers/feature-flag";
 
 import { allFachzwillingRoutes } from "../constants/fachzwillinge/routes";
 import type { FachzwillingRoute } from "../constants/fachzwillinge";
-import { getFeatureFlagConfig } from "./featureFlags";
+import {
+  getFeatureFlagConfig,
+  resolveGeoportalFeatureFlags,
+} from "./featureFlags";
 import {
   geoportalBackgroundConfig,
   type BackgroundConfigOverride,
@@ -21,7 +21,7 @@ import {
  * The context every `availability` in the app is resolved against: routes,
  * their perspectives and workflows, and the addons of routes and of the app.
  * Built once at module load, like the routes themselves. Flags given in the
- * url hash are honoured because `resolveFeatureFlags` reads the hash at load;
+ * url hash are honoured because `resolveGeoportalFeatureFlags` reads the hash at load;
  * a flag toggled later needs a reload, the same as for routes today.
  */
 export const currentDeployment =
@@ -80,7 +80,7 @@ export const routeFeatureFlagConfig: FeatureFlagConfig = Object.fromEntries(
     .map((flagName) => [flagName, { alias: flagName, default: false }])
 );
 
-export const activeFeatureFlags = resolveFeatureFlags({
+export const activeFeatureFlags = resolveGeoportalFeatureFlags({
   ...baseFeatureFlagConfig,
   ...routeFeatureFlagConfig,
 });

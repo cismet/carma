@@ -3,6 +3,7 @@ import { Easing } from "@carma-commons/math";
 import type { Positions } from "@carma-mapping/map-controls-layout";
 
 import type {
+  ObliqueAnimationsConfig,
   ObliqueBackdropLook,
   ObliqueDataset,
   ObliqueDirectionalCatalog,
@@ -26,6 +27,12 @@ export type ObliqueViewerConfig = {
   series?: readonly ObliqueDataset[];
   /** Server-owned versioned JSON document containing {schemaVersion: 1, series}. */
   seriesConfigURI?: string;
+  /** Deployment metadata corrections, keyed by the immutable series identity. */
+  seriesOverrides?: Readonly<Record<string, Partial<Omit<ObliqueDataset, "id">>>>;
+  /** Host interaction timing overrides, independent of image-series metadata. */
+  animations?: ObliqueAnimationsConfig;
+  /** Compressed look-ahead traffic per image / navigation group (defaults 1 MiB / 5 MiB, five images). */
+  prefetch?: { imageBytes?: number; groupBytes?: number; maxImages?: number };
   /**
    * Whether the control column gets a button toggling the viewer. Default:
    * true; the row in the layer bar is the addon's face while it runs, the
@@ -72,7 +79,9 @@ export const resolveSeries = (
   const series = config?.series ?? [];
   if (!Array.isArray(series)) throw new Error("Image series must be an array.");
   const ids = new Set<string>();
-  return series.map((dataset: ObliqueDataset) => {
+  return series.map((source: ObliqueDataset) => {
+    const override = source && config?.seriesOverrides?.[source.id];
+    const dataset = override ? { ...source, ...override, id: source.id } : source;
     if (
       !dataset ||
       typeof dataset.id !== "string" ||
@@ -105,6 +114,12 @@ export const resolveSeries = (
       throw new Error(
         "Image series catalog versions must be nonempty strings."
       );
+    if (
+      dataset.captureNavigationTopology !== undefined &&
+      dataset.captureNavigationTopology !== "flight-strip" &&
+      dataset.captureNavigationTopology !== "spatial"
+    )
+      throw new Error("Capture navigation topology must be flight-strip or spatial.");
     if (dataset.directionalCatalogs !== undefined) {
       const groupIds = new Set<string>();
       if (
@@ -184,7 +199,7 @@ export const resolveSeries = (
         );
     }
     const animations = Object.fromEntries(
-      Object.entries(dataset.animations ?? {}).map(([name, animation]) => {
+      Object.entries({ ...dataset.animations, ...config?.animations }).map(([name, animation]) => {
         const easing: unknown = animation?.easingFunction;
         if (typeof easing !== "string") return [name, animation];
         if (!Object.prototype.hasOwnProperty.call(Easing, easing))

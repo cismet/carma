@@ -93,6 +93,7 @@ export const useObliqueViewerActions = (): ObliqueViewerActions => {
               isOn: false,
               previewVisible: false,
               isBusy: false,
+              isTargetImageLoading: false,
               request: null,
             }
       ),

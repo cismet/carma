@@ -609,6 +609,27 @@ export const buildRasterDemTerrainRuntime = (
   let groundVisible = options.groundVisible !== false;
   let tileDemandPaused = false;
   let tileDemandGeneration = 0;
+  // Foreground network lease: unlike tileDemandPaused it keeps the demand
+  // epoch. Admitted entries wait before their source request (zero new
+  // downloads) and continue the same selection on release.
+  let loadingPaused = false;
+  const loadingResumers = new Set<() => void>();
+  const whenLoadingResumed = (signal: AbortSignal): Promise<void> => {
+    if (!loadingPaused) return Promise.resolve();
+    if (signal.aborted) return Promise.reject(signal.reason);
+    return new Promise<void>((resolve, reject) => {
+      const resume = () => {
+        signal.removeEventListener("abort", abort);
+        resolve();
+      };
+      const abort = () => {
+        loadingResumers.delete(resume);
+        reject(signal.reason);
+      };
+      loadingResumers.add(resume);
+      signal.addEventListener("abort", abort, { once: true });
+    });
+  };
   const GroundMaterial = options.material?.unlit
     ? MeshBasicMaterial
     : MeshLambertMaterial;
@@ -962,6 +983,10 @@ export const buildRasterDemTerrainRuntime = (
         throw error;
       }
     }
+    do {
+      await whenLoadingResumed(signal);
+      signal.throwIfAborted();
+    } while (loadingPaused);
     const statsKey = terrainSelectionKey(entry);
     let tile: TerrainTile;
     markTileStage(statsKey, null);
@@ -3461,6 +3486,15 @@ export const buildRasterDemTerrainRuntime = (
       material.needsUpdate = true;
       applyMeshVisibility();
       mapStyleProjectionVersion += 1;
+      map?.triggerRepaint();
+    },
+    setLoadingPaused(paused) {
+      if (disposed || loadingPaused === paused) return;
+      loadingPaused = paused;
+      if (paused) return;
+      const resumers = [...loadingResumers];
+      loadingResumers.clear();
+      for (const resume of resumers) resume();
       map?.triggerRepaint();
     },
     setTileDemandPaused(paused) {

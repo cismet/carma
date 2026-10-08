@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { Matrix4, Sphere, Vector3, Vector4 } from "three";
+import type { CssPixels, DevicePixels, Ratio } from "@carma-units";
 import type {
   ObliqueCameraCalibration,
   ObliqueImageRecord,
@@ -9,7 +10,10 @@ import type {
 import { TEST_LEGACY_SERIES } from "./synthetic-series.test-fixture";
 import { imageProjectionMatrix } from "./image-projection";
 import {
+  fitObjectCoverageCrop,
   groupObjectCoverageImages,
+  objectCoveragePixelRay,
+  projectObjectCoveragePoint,
   projectObjectCoverageSphere,
 } from "./object-coverage";
 
@@ -182,6 +186,96 @@ describe("object sphere image coverage", () => {
     )!;
     expect(scaled.crop).toEqual(expected.crop);
     expect(scaled.pixelsPerMeter).toBeCloseTo(expected.pixelsPerMeter);
+  });
+});
+
+describe("object-view panel geometry", () => {
+  const viewport = (width: number, height: number) => ({ width: width as CssPixels, height: height as CssPixels });
+  const crop = { x: 290, y: 390, width: 20, height: 20 };
+
+  it.each([1, 0.5, 0.125])("caps display magnification against source density%s while retaining native sensor coordinates", (density) => {
+    const result = fitObjectCoverageCrop(crop, viewport(600, 300), 2 as Ratio, density as Ratio);
+    expect(result.width / result.height).toBe(2);
+    expect(result.x + result.width / 2).toBe(300);
+    expect(result.y + result.height / 2).toBe(400);
+    expect(600 * 2 / (result.width * density)).toBeCloseTo(3, 12);
+    expect(300 * 2 / (result.height * density)).toBeCloseTo(3, 12);
+    expect(result.x).toBeLessThanOrEqual(crop.x);
+    expect(result.y).toBeLessThanOrEqual(crop.y);
+    expect(result.x + result.width).toBeGreaterThanOrEqual(crop.x + crop.width);
+    expect(result.y + result.height).toBeGreaterThanOrEqual(crop.y + crop.height);
+  });
+
+  it("keeps full-source legacy defaults and expands a tight publicL1 crop twice as far", () => {
+    const legacy = fitObjectCoverageCrop(crop, viewport(600, 300), 2 as Ratio);
+    const publicL1 = fitObjectCoverageCrop(crop, viewport(600, 300), 2 as Ratio, 0.5 as Ratio);
+    expect(legacy).toEqual({ x: 100, y: 300, width: 400, height: 200 });
+    expect(publicL1).toEqual({ x: -100, y: 200, width: 800, height: 400 });
+  });
+
+  it("preserves a large silhouette and panel aspect without fabricating sensor clipping", () => {
+    const result = fitObjectCoverageCrop({ x: 0, y: 0, width: 600, height: 100 },
+      viewport(300, 600), 1 as Ratio, 0.5 as Ratio);
+    expect(result).toEqual({ x: 0, y: -550, width: 600, height: 1200 });
+    expect(result.width / result.height).toBe(0.5);
+    expect(() => fitObjectCoverageCrop(crop, viewport(0, 300), 1 as Ratio)).toThrow(RangeError);
+  });
+});
+
+describe("calibrated object-view measurement geometry", () => {
+  const pixel = (x: number, y: number) => ({ x: x as DevicePixels, y: y as DevicePixels });
+
+  it("uses delivered pixel centres and projects a native pixel ray back to exactly that pixel", () => {
+    const projection = matrix();
+    const centerRay = objectCoveragePixelRay(projection, new Vector3(), pixel(1000, 500), calibration)!;
+    expect(centerRay.direction.distanceTo(new Vector3(0, 0, -1))).toBeLessThan(1e-12);
+    const target = pixel(1600, 700);
+    const ray = objectCoveragePixelRay(projection, new Vector3(), target, calibration)!;
+    const point = ray.at(125, new Vector3());
+    const projected = projectObjectCoveragePoint(projection, point, calibration)!;
+    expect(projected.x).toBeCloseTo(target.x, 10);
+    expect(projected.y).toBeCloseTo(target.y, 10);
+  });
+
+  it("uses the mounted delivered affine rather than guessing axis flips from camera labels", () => {
+    const mounted = { ...calibration, imageMmToPixelAffine: [
+      [0, -10, 850], [-20, 0, 600],
+    ] as [[number, number, number], [number, number, number]] };
+    const projection = matrix(mounted);
+    const target = pixel(730, 540);
+    const ray = objectCoveragePixelRay(projection, new Vector3(), target, mounted)!;
+    const projected = projectObjectCoveragePoint(projection, ray.at(80, new Vector3()), mounted)!;
+    expect(projected.x).toBeCloseTo(target.x, 10);
+    expect(projected.y).toBeCloseTo(target.y, 10);
+  });
+
+  it("reconstructs the same physical ground point from north and east camera pixels", () => {
+    const groundPoint = new Vector3(3, 4, 0);
+    const views = [
+      { eye: new Vector3(0, -100, 100), direction: [0, 1, -1], up: [0, 1, 1] },
+      { eye: new Vector3(-100, 0, 100), direction: [1, 0, -1], up: [1, 0, 1] },
+    ];
+    const nativePixels = [];
+    for (const view of views) {
+      const cameraPose = { ...pose, direction: view.direction, up: view.up } as ObliquePose;
+      const projection = imageProjectionMatrix(record, calibration, cameraPose,
+        new Matrix4().makeTranslation(-view.eye.x, -view.eye.y, -view.eye.z));
+      const nativePixel = projectObjectCoveragePoint(projection, groundPoint, calibration)!;
+      nativePixels.push(nativePixel);
+      const ray = objectCoveragePixelRay(projection, view.eye, nativePixel, calibration)!;
+      const reconstructed = ray.at(-ray.origin.z / ray.direction.z, new Vector3());
+      expect(reconstructed.distanceTo(groundPoint)).toBeLessThan(1e-10);
+      expect(ray.origin.toArray()).toEqual(view.eye.toArray());
+      view.eye.set(0, 0, 0);
+      expect(ray.origin.length()).toBeGreaterThan(100); // Returned ray owns its physical origin.
+    }
+    expect(nativePixels[0]).not.toEqual(nativePixels[1]);
+  });
+
+  it("rejects behind-camera points and degenerate rays instead of inventing measurements", () => {
+    expect(projectObjectCoveragePoint(matrix(), new Vector3(0, 0, 100), calibration)).toBeNull();
+    expect(objectCoveragePixelRay(new Matrix4().multiplyScalar(0), new Vector3(), pixel(1000, 500), calibration)).toBeNull();
+    expect(objectCoveragePixelRay(matrix(), new Vector3(), pixel(Number.NaN, 500), calibration)).toBeNull();
   });
 });
 

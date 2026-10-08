@@ -309,6 +309,8 @@ export const upgradeB3dmGltf1 = (buffer: ArrayBuffer): ArrayBuffer | null => {
 };
 
 export interface Gltf1UpgradePluginOptions {
+  /** Optional admission gate; request timeouts start after it releases. */
+  beforeRequest?: (signal?: AbortSignal | null) => Promise<void>;
   /** Includes response-body transfer; caller cancellation remains authoritative. */
   requestTimeoutMs?: number;
   /** Observes every raw response before its body is consumed. */
@@ -322,14 +324,18 @@ export class Gltf1UpgradePlugin {
   private readonly onBody: Gltf1UpgradePluginOptions["onBody"];
   private readonly onResponse: Gltf1UpgradePluginOptions["onResponse"];
   private readonly requestTimeoutMs: number;
+  private readonly beforeRequest: Gltf1UpgradePluginOptions["beforeRequest"];
 
   constructor(options: Gltf1UpgradePluginOptions = {}) {
+    this.beforeRequest = options.beforeRequest;
     this.onResponse = options.onResponse;
     this.onBody = options.onBody;
     this.requestTimeoutMs = options.requestTimeoutMs ?? 30_000;
   }
 
   async fetchData(url: string | URL, options: RequestInit): Promise<Response> {
+    if (this.beforeRequest) await this.beforeRequest(options.signal);
+    options.signal?.throwIfAborted();
     const response = await fetchTileResponse(
       url,
       options,

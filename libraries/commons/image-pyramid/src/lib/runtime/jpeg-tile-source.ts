@@ -1,5 +1,6 @@
 import type { DevicePixels } from "@carma-units";
 import type { ImageLevel, ImageSize } from "../core/image-level-plan";
+import { ImagePrefetchBudgetExceeded, reserveImagePrefetchBytes, type ImagePrefetchBudget } from "./image-tile-source";
 import type {
   ImagePyramid,
   ImageTileRef,
@@ -21,6 +22,8 @@ const DECODE_WINDOW_MS = 400;
 export class JpegTileSource implements ImageTileSource {
   readonly kind = "jpeg" as const;
   priority: "high" | "low" = "high";
+  prefetchBudget?: ImagePrefetchBudget;
+  private readonly levelBytes = new Map<number, number>();
   private pyramid: Promise<ImagePyramid> | null = null;
   private readonly blobs = new Map<number, Blob>();
   private readonly loading = new Map<number, Promise<Blob>>();
@@ -127,6 +130,7 @@ export class JpegTileSource implements ImageTileSource {
     const sizes = await Promise.all(
       this.levelNumbers.map(async (level) => {
         try {
+          reserveImagePrefetchBytes(this.prefetchBudget, HEADER_BYTES);
           this.requests++;
           const response = await fetch(this.levelUrl(level), {
             headers: { Range: `bytes=0-${HEADER_BYTES - 1}` },
@@ -137,11 +141,18 @@ export class JpegTileSource implements ImageTileSource {
             await response.body?.cancel();
             return null;
           }
+          const total = Number(response.status === 206 ? response.headers.get("Content-Range")?.split("/")[1] : response.headers.get("Content-Length"));
+          if (Number.isSafeInteger(total) && total > 0) this.levelBytes.set(level, total);
+          if (this.prefetchBudget && response.status !== 206 && (!total || total > HEADER_BYTES)) {
+            await response.body?.cancel();
+            throw new ImagePrefetchBudgetExceeded();
+          }
           const blob = await response.blob();
-          if (response.status === 200) this.keep(level, blob);
+          if (response.status === 200 || (total > 0 && blob.size === total)) this.keep(level, blob);
           return { level, ...(await readJpegImageSize(blob, signal)) };
         } catch (error) {
           signal.throwIfAborted();
+          if (error instanceof ImagePrefetchBudgetExceeded) throw error;
           return null;
         }
       })
@@ -167,13 +178,25 @@ export class JpegTileSource implements ImageTileSource {
     let request = this.loading.get(level);
     if (!request) {
       request = (async () => {
+        const bytes = this.levelBytes.get(level);
+        // Unknown full-level lengths are never speculative downloads.
+        if (this.prefetchBudget && bytes === undefined) throw new ImagePrefetchBudgetExceeded();
+        reserveImagePrefetchBytes(this.prefetchBudget, bytes ?? 0);
         this.requests++;
         const response = await fetch(this.levelUrl(level), {
+          headers: this.prefetchBudget ? { Range: `bytes=0-${bytes! - 1}` } : undefined,
           signal: this.downloads.signal,
           priority,
         });
         if (!response.ok)
           throw new Error(`JPEG level ${level} answered ${response.status}`);
+        const length = Number(response.headers.get("Content-Length"));
+        const total = Number(response.headers.get("Content-Range")?.split("/")[1]);
+        if (this.prefetchBudget && (length > (bytes ?? 0) || total > (bytes ?? 0) ||
+            (response.status !== 206 && (!length || length > (bytes ?? 0))))) {
+          await response.body?.cancel();
+          throw new ImagePrefetchBudgetExceeded();
+        }
         const blob = await response.blob();
         this.keep(level, blob);
         return blob;

@@ -171,6 +171,33 @@ export function createThreeTilesRuntimeAttachment(
   dependencies: ThreeTilesRuntimeAttachmentDependencies
 ) {
   let baseCache: MeshBaseCachePlugin | null = null;
+  const networkResumers = new Set<() => void>();
+  const wakeNetworkRequests = () => {
+    for (const resume of [...networkResumers]) resume();
+  };
+  // Payload queues do not own root/hierarchy requests or base-cache fetches.
+  // Gate their actual dispatch too, while allowing in-flight transfers to finish.
+  const beforeNetworkRequest = async (signal?: AbortSignal | null) => {
+    signal?.throwIfAborted();
+    while (runtimeState.loadingPaused && !runtimeState.disposed) {
+      await new Promise<void>((resolve, reject) => {
+        const resume = () => {
+          networkResumers.delete(resume);
+          signal?.removeEventListener("abort", abort);
+          resolve();
+        };
+        const abort = () => {
+          networkResumers.delete(resume);
+          reject(signal?.reason);
+        };
+        networkResumers.add(resume);
+        signal?.addEventListener("abort", abort, { once: true });
+      });
+      signal?.throwIfAborted();
+    }
+    if (runtimeState.disposed)
+      throw new DOMException("Disposed", "AbortError");
+  };
   const deferredMaterials = new TilesetDeferredMaterialsPlugin({
     inView: (tile) => {
       // Existing receivers own their textures and geometry. A caster request
@@ -264,6 +291,7 @@ export function createThreeTilesRuntimeAttachment(
     if (runtimeState.options.providesTerrain)
       runtimeState.tiles.registerPlugin(deferredMaterials);
     const sourceFetch = new Gltf1UpgradePlugin({
+      beforeRequest: beforeNetworkRequest,
       onResponse: dependencies.handleWireBytes,
       onBody: (url, decodedBytes) => {
         if (runtimeState.options.diagnostics && runtimeState.tiles)
@@ -278,6 +306,7 @@ export function createThreeTilesRuntimeAttachment(
       typeof Worker !== "undefined"
     ) {
       const hierarchy = new TilesetHierarchyPlugin(runtimeState.tilesetUrl, {
+        beforeRequest: beforeNetworkRequest,
         entry: runtimeState.options.entry,
         onRootLoaded: baseCache
           ? (document) => baseCache!.initialize(document)
@@ -429,16 +458,19 @@ export function createThreeTilesRuntimeAttachment(
     window.addEventListener("pagehide", dependencies.endCacheCeilingSession);
   };
 
-  const dispose = () =>
+  const dispose = () => {
     disposeThreeTilesAttachment(
       runtimeState,
       dependencies,
       deferredMaterials,
       payloadQueues
     );
+    wakeNetworkRequests();
+  };
 
   return {
     dispose,
+    wakeNetworkRequests,
     getQueueTelemetry: payloadQueues.getTelemetry,
     getDownloadPreemptionEligibility:
       payloadQueues.getDownloadPreemptionEligibility,

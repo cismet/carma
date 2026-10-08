@@ -11,7 +11,8 @@ export const loadWithOptionalCatalogCache = async (
   importCache: () => Promise<CacheLoader> = () =>
     import("./oblique-series-cache").then(
       (module) => module.loadCachedObliqueSeriesData
-    )
+    ),
+  options?: { fetchPriority?: RequestPriority }
 ): Promise<ObliqueData> => {
   let timer: ReturnType<typeof setTimeout> | undefined;
   let cachedLoader: CacheLoader | null;
@@ -25,7 +26,16 @@ export const loadWithOptionalCatalogCache = async (
   } finally {
     clearTimeout(timer);
   }
-  const data = await (cachedLoader ?? loadObliqueSeriesData)(dataset);
+  const fetchPriority = options?.fetchPriority;
+  // Background catalogs yield to foreground requests the browser schedules alongside.
+  const fetchSource: typeof fetch | undefined = fetchPriority
+    ? (input, init) => fetch(input, { ...init, priority: fetchPriority })
+    : undefined;
+  const data = await (cachedLoader ?? loadObliqueSeriesData)(
+    dataset,
+    undefined,
+    fetchSource
+  );
   if (!data.obliquePitchBySeries || !data.obliquePitchByDirectionBySeries) {
     const totals = summarizeObliquePitchStatistics(data);
     data.obliquePitchBySeries ??= totals.obliquePitchBySeries;

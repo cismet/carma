@@ -113,8 +113,10 @@ export const createPhotoAxisPicker = (
     if (nextRevision !== revision) {
       revision = nextRevision;
       hits.clear();
-      terrainRuntimes = receivers.filter(
-        (runtime) =>
+      // CPU height bounds remain usable when terrain drawing is hidden by a mesh.
+      // Hidden terrain roots never enter receiverRoots or any raycast/render list.
+      terrainRuntimes = runtimes.filter(
+        (runtime) => runtime.providesTerrain &&
           typeof (runtime as Partial<RasterDemTerrainRuntime>)
             .getPublishedTerrainTiles === "function"
       );
@@ -351,7 +353,7 @@ export const createPhotoAxisPicker = (
       origin &&
       Number.isFinite(query.heightMeters)
     ) {
-      const key = origin.join("|");
+      const key = [frame.revision ?? 0, ...origin].join("|");
       if (projectionOrigin !== key) {
         projectionOrigin = key;
         projections.clear();

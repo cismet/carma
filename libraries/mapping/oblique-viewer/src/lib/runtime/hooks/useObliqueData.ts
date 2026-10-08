@@ -3,11 +3,15 @@ import type { Radians } from "@carma-units";
 import type { ObliqueDataset } from "../../core/types";
 import { summarizeDirectionalCatalogPitch } from "../../core/utils/browsing-pitch";
 import { type CatalogPriority } from "../../core/utils/directional-catalog";
-import { createDirectionalCatalogQueue } from "../utils/directional-catalog-queue";
+import {
+  createDirectionalCatalogQueue,
+  type CatalogRequestOptions,
+} from "../utils/directional-catalog-queue";
 import {
   loadObliqueSeriesData,
   type ObliqueData,
 } from "../utils/load-oblique-series";
+import type { ObliqueSeriesWorkerMessage } from "../utils/oblique-series.worker";
 export type { ObliqueData } from "../utils/load-oblique-series";
 import {
   OBLIQUE_CATALOG_CACHE_VERSION,
@@ -43,6 +47,12 @@ export type ObliqueDataState = {
     heading: Radians,
     options?: { cameraView?: "nadir"; retry?: boolean }
   ) => Promise<ObliqueData | null>;
+  /**
+   * Refcounted: defer starting new idle catalog parts until every returned release ran,
+   * e.g. while foreground imagery loads. Requested parts (`awaitDirection`/`awaitAll`)
+   * and parts already in flight continue.
+   */
+  holdIdleCatalogLoads: () => () => void;
 };
 
 const IDLE: ObliqueDataState = {
@@ -54,6 +64,7 @@ const IDLE: ObliqueDataState = {
   perSeries: [],
   awaitDirection: async () => null,
   awaitAll: async () => null,
+  holdIdleCatalogLoads: () => () => {},
 };
 type SeriesLoad = {
   promise: Promise<ObliqueData>;
@@ -64,13 +75,18 @@ type SeriesLoad = {
 };
 const cache = new Map<string, SeriesLoad>();
 
-const createSeriesLoad = (dataset: ObliqueDataset): SeriesLoad => {
+const createSeriesLoad = (
+  dataset: ObliqueDataset,
+  options?: CatalogRequestOptions
+): SeriesLoad => {
   let settled = false;
   let completedAt = 0;
   let cancel = () => {};
   const promise = new Promise<ObliqueData>((resolve, reject) => {
     let worker: Worker | undefined;
     let timer: ReturnType<typeof setTimeout> | undefined;
+    // Leading chunks of a large catalog; each arrives as its own short task.
+    let chunked: Pick<ObliqueData, "imageRecords" | "centers"> | undefined;
     const controller = new AbortController();
     const finish = (error?: Error, data?: ObliqueData) => {
       if (settled) return;
@@ -118,17 +134,36 @@ const createSeriesLoad = (dataset: ObliqueDataset): SeriesLoad => {
         new URL("../utils/oblique-series.worker.ts", import.meta.url),
         { type: "module" }
       );
-      worker.onmessage = (
-        event: MessageEvent<{ data?: ObliqueData; error?: string }>
-      ) =>
+      worker.onmessage = ({
+        data: message,
+      }: MessageEvent<ObliqueSeriesWorkerMessage>) => {
+        if (message.chunk) {
+          chunked ??= { imageRecords: new Map(), centers: new Map() };
+          for (const [id, record] of message.chunk.imageRecords)
+            chunked.imageRecords.set(id, record);
+          for (const [id, center] of message.chunk.centers)
+            chunked.centers.set(id, center);
+          return;
+        }
+        if (message.data && chunked) {
+          // Keep catalog order: leading chunks first, then the final remainder.
+          for (const [id, record] of message.data.imageRecords)
+            chunked.imageRecords.set(id, record);
+          for (const [id, center] of message.data.centers)
+            chunked.centers.set(id, center);
+          message.data.imageRecords = chunked.imageRecords;
+          message.data.centers = chunked.centers;
+        }
         finish(
-          event.data.error ? new Error(event.data.error) : undefined,
-          event.data.data
+          message.error ? new Error(message.error) : undefined,
+          message.data
         );
+      };
       worker.onerror = () =>
         finish(new Error("Metadaten-Worker konnte nicht geladen werden."));
       // Runtime easing callbacks stay in the UI; worker inputs contain only cloneable values.
       worker.postMessage({
+        fetchPriority: options?.fetchPriority,
         dataset: {
           ...dataset,
           animations: {},
@@ -161,7 +196,10 @@ const createSeriesLoad = (dataset: ObliqueDataset): SeriesLoad => {
 };
 
 /** Share completed catalogs, but stop a pending request when its last viewer releases it. */
-const acquireSeries = (dataset: ObliqueDataset) => {
+const acquireSeries = (
+  dataset: ObliqueDataset,
+  options?: CatalogRequestOptions
+) => {
   // Configuration/calibration changes cannot reuse a differently interpreted catalog.
   const key = JSON.stringify({
     parserVersion: OBLIQUE_CATALOG_CACHE_VERSION,
@@ -169,7 +207,7 @@ const acquireSeries = (dataset: ObliqueDataset) => {
   });
   let entry = cache.get(key);
   if (!entry?.isFresh()) {
-    entry = createSeriesLoad(dataset);
+    entry = createSeriesLoad(dataset, options);
     cache.set(key, entry);
     const created = entry;
     entry.promise.catch(() => {
@@ -359,6 +397,22 @@ export const useObliqueData = (
       awaitCommitted(() => allRef.current(request)),
     [awaitCommitted]
   );
+  // Holds outlive queue restarts (series or priority changes): a new queue starts held.
+  const idleHoldsRef = useRef(0);
+  const idleQueueRef = useRef<{ hold: () => () => void } | null>(null);
+  const releaseIdleQueueRef = useRef<(() => void) | null>(null);
+  const holdIdleCatalogLoads = useCallback(() => {
+    if (idleHoldsRef.current++ === 0)
+      releaseIdleQueueRef.current = idleQueueRef.current?.hold() ?? null;
+    let released = false;
+    return () => {
+      if (released) return;
+      released = true;
+      if (--idleHoldsRef.current > 0) return;
+      releaseIdleQueueRef.current?.();
+      releaseIdleQueueRef.current = null;
+    };
+  }, []);
   useEffect(() => {
     committedRef.current = enabled ? state.data : null;
     committedRevision.current = state.data
@@ -430,6 +484,7 @@ export const useObliqueData = (
         perSeries,
         awaitDirection,
         awaitAll,
+        holdIdleCatalogLoads,
         isLoading: perSeries.some((status) => status.isLoading),
         isAllDataReady: (data?.imageRecords.size ?? 0) > 0,
         isCatalogComplete:
@@ -469,12 +524,16 @@ export const useObliqueData = (
       });
       directionRef.current = queue.promote;
       allRef.current = queue.all;
+      idleQueueRef.current = queue;
+      if (idleHoldsRef.current > 0) releaseIdleQueueRef.current = queue.hold();
       return () => {
         cancelled = true;
         lifecycleRef.current++;
         directionRef.current = async () => null;
         allRef.current = async () => null;
         committedRef.current = null;
+        idleQueueRef.current = null;
+        releaseIdleQueueRef.current = null;
         queue.cancel();
         for (const waiter of commitWaiters.current) waiter.resolve(null);
         commitWaiters.current = [];
@@ -606,6 +665,7 @@ export const useObliqueData = (
     ...state,
     awaitDirection,
     awaitAll,
+    holdIdleCatalogLoads,
     data: enabled ? filtered : null,
     isLoading: enabled && visibleStatuses.some((status) => status.isLoading),
     isAllDataReady: enabled && (filtered?.imageRecords.size ?? 0) > 0,
