@@ -233,8 +233,8 @@ const AreaMap = forwardRef(
               mode={drawMode}
               snapping={snapping}
               featureDraggable={false}
+              closePointerDistancePx={8}
               midpoints={midpoints}
-              // own m² labels instead, see areaLabels
               labelsVisible={false}
               styleVariant="carma"
               initialFeatures={initialFeatures}
