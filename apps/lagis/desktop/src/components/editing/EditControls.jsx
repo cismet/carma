@@ -23,6 +23,7 @@ import {
   verifyEditLock,
 } from "../../core/editing/session";
 import UnsavedChangesDialog from "./UnsavedChangesDialog";
+import { DraftValidationError } from "../../core/editing/validation";
 
 export const urlParamsOf = (searchParams) => ({
   gem: searchParams.get("gem"),
@@ -30,13 +31,46 @@ export const urlParamsOf = (searchParams) => ({
   fstck: searchParams.get("fstck"),
 });
 
+const ValidationProblems = ({ sections }) => (
+  <div>
+    <p className="mb-3 text-gray-600">
+      Bitte vervollständigen Sie die rot markierten Angaben und speichern Sie
+      erneut.
+    </p>
+    {sections.map(({ title, items }) => (
+      <div key={title} className="mb-3 last:mb-0">
+        <div className="font-semibold mb-1">{title}</div>
+        <ul className="list-disc pl-5 m-0">
+          {items.map(({ name, text }, index) => (
+            <li key={index} className="mb-0.5">
+              {name && <span className="font-medium">{name}</span>}
+              {name && <span className="text-gray-400"> – </span>}
+              {text}
+            </li>
+          ))}
+        </ul>
+      </div>
+    ))}
+  </div>
+);
+
+// antd's default Modal width, as in UnsavedChangesDialog
+const DIALOG_WIDTH = 520;
+
 export const showSaveError = (error) =>
-  Modal.error({
-    title: "Speichern fehlgeschlagen",
-    content: (
-      <span style={{ whiteSpace: "pre-line" }}>{errorMessage(error)}</span>
-    ),
-  });
+  error instanceof DraftValidationError
+    ? Modal.warning({
+        title: "Speichern nicht möglich",
+        width: DIALOG_WIDTH,
+        content: <ValidationProblems sections={error.sections} />,
+      })
+    : Modal.error({
+        title: "Speichern fehlgeschlagen",
+        width: DIALOG_WIDTH,
+        content: (
+          <span style={{ whiteSpace: "pre-line" }}>{errorMessage(error)}</span>
+        ),
+      });
 
 const EditControls = () => {
   const dispatch = useDispatch();
