@@ -48,6 +48,7 @@ const setup = (initialActive = true, initialPanEnabled = true) => {
     off: (name: string, fn: () => void) => listeners.get(name)?.delete(fn),
   };
   const close = vi.fn(),
+    start = vi.fn(),
     end = vi.fn();
   const busy = { current: false };
   let reset = () => {};
@@ -76,6 +77,7 @@ const setup = (initialActive = true, initialPanEnabled = true) => {
         roll: 0 as Radians,
       },
       busyRef: busy,
+      onPanStart: start,
       onPanEnd: end,
     });
     reset = pan.resetPan;
@@ -122,6 +124,7 @@ const setup = (initialActive = true, initialPanEnabled = true) => {
     map,
     pointer,
     close,
+    start,
     end,
     busy,
     original,
@@ -181,6 +184,29 @@ describe("image preview panning", () => {
     expect(view.map.getPadding()).toEqual(view.original);
     view.unmount();
   });
+  it("reports pan start once before changing the projection, excluding clicks and busy gestures", () => {
+    const view = setup();
+    view.pointer("pointerdown", 100, 100);
+    view.pointer("pointermove", 101, 101);
+    expect(view.start).not.toHaveBeenCalled();
+    const writesBefore = view.map.setPadding.mock.calls.length;
+    view.start.mockImplementation(() =>
+      expect(view.map.setPadding).toHaveBeenCalledTimes(writesBefore)
+    );
+    view.pointer("pointermove", 110, 100);
+    expect(view.start).toHaveBeenCalledOnce();
+    view.pointer("pointermove", 120, 100);
+    view.pointer("pointerup", 120, 100);
+    expect(view.start).toHaveBeenCalledOnce();
+    expect(view.end).toHaveBeenCalledOnce();
+    view.busy.current = true;
+    view.pointer("pointerdown", 100, 100);
+    view.pointer("pointermove", 200, 100);
+    view.pointer("pointerup", 200, 100);
+    expect(view.start).toHaveBeenCalledOnce();
+    view.unmount();
+  });
+
   it("moves the image principal point with the map projection and consumes the drag click", () => {
     const view = setup();
     view.pointer("pointerdown", 100, 100);

@@ -65,6 +65,7 @@ export const ObliquePanel = ({
     rotationSurface,
     previewBasemapLabels,
     previewRotationDrape,
+    previewSeamless,
     publish,
     selectedSourceImageId,
     selectedSeriesId,
@@ -177,12 +178,16 @@ export const ObliquePanel = ({
                   disabled={isBusy || isLoading || !hasEnabledSeries}
                   type={viewMode === extension.mode ? "primary" : "default"}
                   size="small"
-                  icon={extension.icon && <FontAwesomeIcon icon={extension.icon} />}
+                  icon={
+                    extension.icon && <FontAwesomeIcon icon={extension.icon} />
+                  }
                   onClick={() =>
                     sendRequest({
                       type: "setViewMode",
                       mode:
-                        viewMode === extension.mode ? "oblique" : extension.mode,
+                        viewMode === extension.mode
+                          ? "oblique"
+                          : extension.mode,
                     })
                   }
                 >
@@ -252,6 +257,19 @@ export const ObliquePanel = ({
               }
             >
               Fotos projizieren
+            </Checkbox>
+          </Tooltip>
+        )}
+        {nextInterface && (
+          <Tooltip title="Nach dem Verschieben am Bildrand automatisch zu einem überlappenden Foto derselben Blickrichtung wechseln">
+            <Checkbox
+              data-test-id="oblique-preview-seamless"
+              checked={previewSeamless}
+              onChange={(event) =>
+                publish({ previewSeamless: event.target.checked })
+              }
+            >
+              Nahtlos
             </Checkbox>
           </Tooltip>
         )}

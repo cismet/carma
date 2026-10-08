@@ -1,5 +1,11 @@
 import { preparePreviewFlight } from "./utils/prepare-preview-flight";
-import { nativePixelPool, nativePreviewSource, fitNativePreviewView, lastNativePreviewView, rememberNativePreviewView } from "./utils/native-preview-pool";
+import {
+  nativePixelPool,
+  nativePreviewSource,
+  fitNativePreviewView,
+  lastNativePreviewView,
+  rememberNativePreviewView,
+} from "./utils/native-preview-pool";
 import type {
   Degrees,
   DevicePixels,
@@ -26,7 +32,11 @@ import {
 } from "./utils/preview-thumbnail-cache";
 import { MercatorCoordinate, type Map as MaplibreMap } from "maplibre-gl";
 import { Matrix4, Raycaster, Vector3 } from "three";
-import { sceneToPhotoEnu } from "../core/utils/image-projection";
+import {
+  imageProjectionMatrix,
+  sceneToPhotoEnu,
+} from "../core/utils/image-projection";
+import { projectObjectCoveragePoint } from "../core/utils/object-coverage";
 import { getBrowsingPitchDeg } from "../core/utils/browsing-pitch";
 import {
   createPhotoRotationDrape,
@@ -93,6 +103,10 @@ import {
 import { qualifiedImageId } from "../core/utils/imageRecord";
 import { useFovWheelZoom } from "./hooks/useFovWheelZoom";
 import { usePreviewPan } from "./hooks/usePreviewPan";
+import {
+  useSeamlessPreviewNavigation,
+  type SeamlessPreviewView,
+} from "./hooks/useSeamlessPreviewNavigation";
 import { useNearestImage } from "./hooks/useNearestImage";
 import {
   useObliqueNavigationTargets,
@@ -265,6 +279,7 @@ const ObliqueViewerRuntime = ({
     rotationSurface,
     previewBasemapLabels,
     previewRotationDrape,
+    previewSeamless,
     request,
     toggle,
     publish,
@@ -356,11 +371,17 @@ const ObliqueViewerRuntime = ({
     let release: (() => void) | undefined;
     const sync = () => {
       if (isForegroundNetworkHeld(libreMap)) release ??= holdIdleCatalogLoads();
-      else { release?.(); release = undefined; }
+      else {
+        release?.();
+        release = undefined;
+      }
     };
     const unsubscribe = subscribeForegroundNetwork(libreMap, sync);
     sync();
-    return () => { unsubscribe(); release?.(); };
+    return () => {
+      unsubscribe();
+      release?.();
+    };
   }, [libreMap, running, holdIdleCatalogLoads]);
   const currentDataRef = useRef(data);
   currentDataRef.current = data;
@@ -469,7 +490,11 @@ const ObliqueViewerRuntime = ({
   const [previewAltitude, setPreviewAltitude] = useState<{
     imageId: string;
     altitude: number;
-    projectionAnchor?: { longitude: number; latitude: number; heightMeters: number };
+    projectionAnchor?: {
+      longitude: number;
+      latitude: number;
+      heightMeters: number;
+    };
   } | null>(null);
   const busyRef = useRef(false);
   const hideFootprintsRef = useRef<() => Promise<void>>(() =>
@@ -741,8 +766,7 @@ const ObliqueViewerRuntime = ({
     };
   }, [libreMap, readViewAnchor]);
   const readObjectViewAnchor = useCallback(
-    (point: { x: number; y: number }) =>
-      readViewAnchor(point, rotationSurface),
+    (point: { x: number; y: number }) => readViewAnchor(point, rotationSurface),
     [readViewAnchor, rotationSurface]
   );
   const readRotationTarget = useCallback((): ObliqueGroundTarget | null => {
@@ -756,6 +780,11 @@ const ObliqueViewerRuntime = ({
       heightDatum: "dhhn2016",
     };
   }, [readViewAnchor, rotationSurface]);
+  const seamlessPanRef = useRef({
+    onPanStart: () => {},
+    onPanEnd: () => {},
+    cancel: () => {},
+  });
   const {
     beginPreview,
     resetPan: resetPreviewPan,
@@ -780,10 +809,12 @@ const ObliqueViewerRuntime = ({
           }
         : null,
     busyRef,
+    onPanStart: () => seamlessPanRef.current.onPanStart(),
     onPanEnd: () => {
       targetRef.current = readTarget();
       invalidateNavigationRef.current(false);
       writePreviewHashRef.current();
+      seamlessPanRef.current.onPanEnd();
     },
   });
   resetPreviewPanRef.current = resetPreviewPan;
@@ -937,7 +968,8 @@ const ObliqueViewerRuntime = ({
     rotationDrapeControllerRef.current?.cancel();
   }, [setDrapeTargetLoading]);
   useEffect(() => {
-    if (!libreMap || !nextInterface || !previewRotationDrape || !running) return;
+    if (!libreMap || !nextInterface || !previewRotationDrape || !running)
+      return;
     const controller = createPhotoRotationDrape(libreMap, {
       showBasemapLabels: () => rotationDrapeLabelsRef.current,
     });
@@ -950,15 +982,31 @@ const ObliqueViewerRuntime = ({
         rotationDrapeControllerRef.current = null;
       controller.dispose();
     };
-  }, [libreMap, nextInterface, previewRotationDrape, running, setDrapeTargetLoading]);
+  }, [
+    libreMap,
+    nextInterface,
+    previewRotationDrape,
+    running,
+    setDrapeTargetLoading,
+  ]);
   useEffect(() => {
     const pair = rotationDrapeTransitionRef.current;
-    if (pair?.seriesIds.some((id) => !enabledSet.has(id))) cancelRotationDrape();
+    if (pair?.seriesIds.some((id) => !enabledSet.has(id)))
+      cancelRotationDrape();
   }, [enabledSet, cancelRotationDrape]);
   const prepareRotationDrape = useCallback(
-    async (from: ObliqueImageRecord | undefined, to: ObliqueImageRecord, epoch: number) => {
+    async (
+      from: ObliqueImageRecord | undefined,
+      to: ObliqueImageRecord,
+      epoch: number
+    ) => {
       const controller = rotationDrapeControllerRef.current;
-      if (!controller || !from || from.id === to.id || viewModeRef.current !== "oblique")
+      if (
+        !controller ||
+        !from ||
+        from.id === to.id ||
+        viewModeRef.current !== "oblique"
+      )
         return undefined;
       const preparation = ++drapePreparationRef.current;
       setDrapeTargetLoading(true);
@@ -967,29 +1015,44 @@ const ObliqueViewerRuntime = ({
         const dataset = currentDataRef.current?.datasets.get(record.seriesId);
         if (!dataset) throw Error("Photo series unavailable");
         return {
-          record, dataset,
+          record,
+          dataset,
           calibration: getCameraCalibration(dataset, record.cameraId),
           pose: poseOf(record, dataset),
-          altitude: await resolveCameraAltitude(record, dataset.heightDatum, heightOffset, dataset.allowUnverifiedSourceHeight),
+          altitude: await resolveCameraAltitude(
+            record,
+            dataset.heightDatum,
+            heightOffset,
+            dataset.allowUnverifiedSourceHeight
+          ),
         };
       };
       try {
-        const [source, target] = await Promise.all([photoOf(from), photoOf(to)]);
+        const [source, target] = await Promise.all([
+          photoOf(from),
+          photoOf(to),
+        ]);
         if (
           preparation !== drapePreparationRef.current ||
-          epoch !== selectionEpochRef.current || !runningRef.current
-        ) return undefined;
+          epoch !== selectionEpochRef.current ||
+          !runningRef.current
+        )
+          return undefined;
         const transition = await controller.prepare(source, target);
         if (
           preparation !== drapePreparationRef.current ||
-          epoch !== selectionEpochRef.current || !runningRef.current
+          epoch !== selectionEpochRef.current ||
+          !runningRef.current
         ) {
           transition?.dispose();
           return undefined;
         }
-        if (transition) rotationDrapeTransitionRef.current = {
-          transition, settled: false, seriesIds: [from.seriesId, to.seriesId],
-        };
+        if (transition)
+          rotationDrapeTransitionRef.current = {
+            transition,
+            settled: false,
+            seriesIds: [from.seriesId, to.seriesId],
+          };
         return transition;
       } catch {
         // Missing photo pixels never block the ordinary geometric rotation.
@@ -998,18 +1061,29 @@ const ObliqueViewerRuntime = ({
         if (preparation === drapePreparationRef.current)
           setDrapeTargetLoading(false);
       }
-    }, [heightOffset, setBusy, setDrapeTargetLoading]
+    },
+    [heightOffset, setBusy, setDrapeTargetLoading]
   );
-  const finishRotationDrape = useCallback((transition?: PhotoRotationDrapeTransition) => {
-    if (!transition || rotationDrapeTransitionRef.current?.transition !== transition) return;
-    rotationDrapeTransitionRef.current.settled = true;
-    if (previewVisibleRef.current && previewDisplayReadyRef.current !== transition.targetImageId)
-      transition.finish();
-    else {
-      transition.dispose();
-      rotationDrapeTransitionRef.current = null;
-    }
-  }, []);
+  const finishRotationDrape = useCallback(
+    (transition?: PhotoRotationDrapeTransition) => {
+      if (
+        !transition ||
+        rotationDrapeTransitionRef.current?.transition !== transition
+      )
+        return;
+      rotationDrapeTransitionRef.current.settled = true;
+      if (
+        previewVisibleRef.current &&
+        previewDisplayReadyRef.current !== transition.targetImageId
+      )
+        transition.finish();
+      else {
+        transition.dispose();
+        rotationDrapeTransitionRef.current = null;
+      }
+    },
+    []
+  );
 
   const flyTo = useCallback(
     async (
@@ -1021,7 +1095,8 @@ const ObliqueViewerRuntime = ({
       centerPreview?: boolean,
       previewState?: ObliquePreviewState,
       onProgress?: (progress: number) => void,
-      orbitAroundAnchor = false
+      orbitAroundAnchor = false,
+      projectionAnchor?: MercatorCoordinate
     ): Promise<boolean> => {
       if (
         !libreMap ||
@@ -1050,18 +1125,21 @@ const ObliqueViewerRuntime = ({
           heightOffset,
           dataset.allowUnverifiedSourceHeight
         );
-        const projectionTarget = nextInterface && orbitAroundAnchor ? anchor : undefined;
+        const projectionTarget = nextInterface
+          ? projectionAnchor ?? (orbitAroundAnchor ? anchor : undefined)
+          : undefined;
         const projectionLocation = projectionTarget?.toLngLat();
         setPreviewAltitude({
           imageId: record.id,
           altitude,
-          projectionAnchor: projectionTarget && projectionLocation
-            ? {
-                longitude: projectionLocation.lng,
-                latitude: projectionLocation.lat,
-                heightMeters: projectionTarget.toAltitude(),
-              }
-            : undefined,
+          projectionAnchor:
+            projectionTarget && projectionLocation
+              ? {
+                  longitude: projectionLocation.lng,
+                  latitude: projectionLocation.lat,
+                  heightMeters: projectionTarget.toAltitude(),
+                }
+              : undefined,
         });
         let viewPose = pose;
         let viewAltitude = altitude;
@@ -1116,7 +1194,11 @@ const ObliqueViewerRuntime = ({
           altitude: viewAltitude as Meters,
         };
         // Fetch/decode the target while the camera moves, without waiting for it.
-        releasePreparedPixels = preparePreviewFlight(libreMap, { record, dataset }, pose.rollDeg as Degrees);
+        releasePreparedPixels = preparePreviewFlight(
+          libreMap,
+          { record, dataset },
+          pose.rollDeg as Degrees
+        );
         const flight = flyToPose(libreMap, viewPose, viewAltitude, animation, {
           dynamicDuration,
           anchor,
@@ -1188,7 +1270,13 @@ const ObliqueViewerRuntime = ({
   const returnCameraToBrowsing = useCallback(
     (
       durationMs?: number,
-      rotation?: { bearingDeg: number; anchor: MercatorCoordinate; orbitAroundAnchor?: boolean; easing?: AnimationConfig["easingFunction"]; onProgress?: (progress: number) => void }
+      rotation?: {
+        bearingDeg: number;
+        anchor: MercatorCoordinate;
+        orbitAroundAnchor?: boolean;
+        easing?: AnimationConfig["easingFunction"];
+        onProgress?: (progress: number) => void;
+      }
     ): CameraFlight | undefined => {
       if (!libreMap) return undefined;
       if (!rotation?.onProgress) cancelRotationDrape();
@@ -1368,7 +1456,8 @@ const ObliqueViewerRuntime = ({
             );
       if (!ready || !runningRef.current || epoch !== selectionEpochRef.current)
         return;
-      const keepPreview = previewVisibleRef.current &&
+      const keepPreview =
+        previewVisibleRef.current &&
         (mode === "objectCoverage" || viewModeRef.current === "objectCoverage");
       activeFlightRef.current?.cancel();
       activeFlightRef.current = null;
@@ -1566,7 +1655,9 @@ const ObliqueViewerRuntime = ({
       const dataset = data?.datasets.get(record.seriesId);
       const succeeded = await flyTo(
         record,
-        animate ? dataset?.animations.flyToExteriorOrientation : { duration: 0 },
+        animate
+          ? dataset?.animations.flyToExteriorOrientation
+          : { duration: 0 },
         true,
         true,
         undefined,
@@ -1854,44 +1945,79 @@ const ObliqueViewerRuntime = ({
 
   const navigationWarmRef = useRef<(() => void) | null>(null);
   const prepareNavigationForecast = useCallback(
-    (candidate: NearestObliqueImageRecord | null, step?: PreparedObliqueNavigationTarget) => {
+    (
+      candidate: NearestObliqueImageRecord | null,
+      step?: PreparedObliqueNavigationTarget
+    ) => {
       if (!candidate) return null;
       const record = candidate.record;
       const dataset = currentDataRef.current?.datasets.get(record.seriesId);
       const input = previewThumbnailSource(record);
-      if (!libreMap || !dataset || !input || isPreviewSourceMissing(input)) return null;
+      if (!libreMap || !dataset || !input || isPreviewSourceMissing(input))
+        return null;
       const source = nativePreviewSource({
-        imageId: record.sourceId, path: dataset.previewPath,
+        imageId: record.sourceId,
+        path: dataset.previewPath,
         sourceUrl: input.originalImageUrl ?? input.avifPyramidUrl ?? "",
-        avifPyramidUrl: input.avifPyramidUrl, avifOnly: dataset.avifOnly,
-        nativeSize: { width: input.nativeSize.width as DevicePixels, height: input.nativeSize.height as DevicePixels },
+        avifPyramidUrl: input.avifPyramidUrl,
+        avifOnly: dataset.avifOnly,
+        nativeSize: {
+          width: input.nativeSize.width as DevicePixels,
+          height: input.nativeSize.height as DevicePixels,
+        },
         minimumQualityLevel: dataset.minimumPreviewQualityLevel,
       });
       const { width, height } = libreMap.transform;
-      const forecast = fitNativePreviewView(source, width, height,
-        degToRad(poseOf(record, dataset).rollDeg as Degrees), window.devicePixelRatio || 1);
+      const forecast = fitNativePreviewView(
+        source,
+        width,
+        height,
+        degToRad(poseOf(record, dataset).rollDeg as Degrees),
+        window.devicePixelRatio || 1
+      );
       // NG on-the-spot rotation retains the current scale. Reuse a normalized
       // crop as the bounded initial forecast; settled geometry then replaces it.
-      if (nextInterface && step && !step.fitNextImage && previewVisibleRef.current) {
+      if (
+        nextInterface &&
+        step &&
+        !step.fitNextImage &&
+        previewVisibleRef.current
+      ) {
         const previous = selectedImageRef.current?.record;
         const previousInput = previewThumbnailSource(previous ?? null);
-        const previousDataset = previous && currentDataRef.current?.datasets.get(previous.seriesId);
+        const previousDataset =
+          previous && currentDataRef.current?.datasets.get(previous.seriesId);
         if (previous && previousInput && previousDataset) {
-          const oldSource = nativePreviewSource({ imageId: previous.sourceId,
+          const oldSource = nativePreviewSource({
+            imageId: previous.sourceId,
             path: previousDataset.previewPath,
-            sourceUrl: previousInput.originalImageUrl ?? previousInput.avifPyramidUrl ?? "",
-            avifPyramidUrl: previousInput.avifPyramidUrl, avifOnly: previousDataset.avifOnly,
-            nativeSize: { width: previousInput.nativeSize.width as DevicePixels, height: previousInput.nativeSize.height as DevicePixels },
-            minimumQualityLevel: previousDataset.minimumPreviewQualityLevel });
+            sourceUrl:
+              previousInput.originalImageUrl ??
+              previousInput.avifPyramidUrl ??
+              "",
+            avifPyramidUrl: previousInput.avifPyramidUrl,
+            avifOnly: previousDataset.avifOnly,
+            nativeSize: {
+              width: previousInput.nativeSize.width as DevicePixels,
+              height: previousInput.nativeSize.height as DevicePixels,
+            },
+            minimumQualityLevel: previousDataset.minimumPreviewQualityLevel,
+          });
           const old = lastNativePreviewView(oldSource);
           if (old && oldSource.nativeSize) {
             const scaleX = input.nativeSize.width / oldSource.nativeSize.width;
-            const scaleY = input.nativeSize.height / oldSource.nativeSize.height;
+            const scaleY =
+              input.nativeSize.height / oldSource.nativeSize.height;
             const crop = old.view.visible;
-            forecast.view = { visible: { x: (crop.x * scaleX) as DevicePixels,
-              y: (crop.y * scaleY) as DevicePixels, width: (crop.width * scaleX) as DevicePixels,
-              height: (crop.height * scaleY) as DevicePixels },
-              density: (old.view.density / Math.min(scaleX, scaleY)) as Ratio };
+            forecast.view = {
+              visible: {
+                x: (crop.x * scaleX) as DevicePixels,
+                y: (crop.y * scaleY) as DevicePixels,
+                width: (crop.width * scaleX) as DevicePixels,
+                height: (crop.height * scaleY) as DevicePixels,
+              },
+              density: (old.view.density / Math.min(scaleX, scaleY)) as Ratio,
+            };
           }
         }
       }
@@ -1902,25 +2028,48 @@ const ObliqueViewerRuntime = ({
     },
     [libreMap, nextInterface, previewThumbnailSource]
   );
-  const prefetchNavigationLookAhead = useCallback((candidate: NearestObliqueImageRecord | null, step?: PreparedObliqueNavigationTarget) => {
-    const forecast = prepareNavigationForecast(candidate, step);
-    const previous = navigationWarmRef.current;
-    navigationWarmRef.current = forecast
-      ? nativePixelPool.prewarm(forecast.source, forecast.view, forecast.viewportPixels)
-      : null;
-    previous?.();
-  }, [prepareNavigationForecast]);
-  const prefetchNavigationGroup = useCallback((targets: readonly PreparedObliqueNavigationTarget[], groupKey: string) => {
-    const forecasts = targets.map((step) => prepareNavigationForecast(step.candidate, step))
-      .filter((forecast): forecast is NonNullable<typeof forecast> => !!forecast);
-    navigationWarmRef.current?.();
-    nativePixelPool.setPrefetchGroup(groupKey, viewerConfig.prefetch);
-    navigationWarmRef.current = nativePixelPool.prewarmGroup(forecasts);
-  }, [prepareNavigationForecast, viewerConfig.prefetch]);
-  useEffect(() => () => { navigationWarmRef.current?.(); navigationWarmRef.current = null; }, []);
+  const prefetchNavigationLookAhead = useCallback(
+    (
+      candidate: NearestObliqueImageRecord | null,
+      step?: PreparedObliqueNavigationTarget
+    ) => {
+      const forecast = prepareNavigationForecast(candidate, step);
+      const previous = navigationWarmRef.current;
+      navigationWarmRef.current = forecast
+        ? nativePixelPool.prewarm(
+            forecast.source,
+            forecast.view,
+            forecast.viewportPixels
+          )
+        : null;
+      previous?.();
+    },
+    [prepareNavigationForecast]
+  );
+  const prefetchNavigationGroup = useCallback(
+    (targets: readonly PreparedObliqueNavigationTarget[], groupKey: string) => {
+      const forecasts = targets
+        .map((step) => prepareNavigationForecast(step.candidate, step))
+        .filter(
+          (forecast): forecast is NonNullable<typeof forecast> => !!forecast
+        );
+      navigationWarmRef.current?.();
+      nativePixelPool.setPrefetchGroup(groupKey, viewerConfig.prefetch);
+      navigationWarmRef.current = nativePixelPool.prewarmGroup(forecasts);
+    },
+    [prepareNavigationForecast, viewerConfig.prefetch]
+  );
+  useEffect(
+    () => () => {
+      navigationWarmRef.current?.();
+      navigationWarmRef.current = null;
+    },
+    []
+  );
   useEffect(() => {
     if (!running || viewMode === "objectCoverage") {
-      navigationWarmRef.current?.(); navigationWarmRef.current = null;
+      navigationWarmRef.current?.();
+      navigationWarmRef.current = null;
     }
   }, [running, viewMode]);
 
@@ -2023,10 +2172,14 @@ const ObliqueViewerRuntime = ({
         const dataset =
           nearest &&
           currentDataRef.current?.datasets.get(nearest.record.seriesId);
-        const drape = nearest && nextInterface
-          ? await prepareRotationDrape(sourceRecord, nearest.record, epoch)
-          : undefined;
-        if (epoch !== selectionEpochRef.current || !runningRef.current) { drape?.dispose(); return; }
+        const drape =
+          nearest && nextInterface
+            ? await prepareRotationDrape(sourceRecord, nearest.record, epoch)
+            : undefined;
+        if (epoch !== selectionEpochRef.current || !runningRef.current) {
+          drape?.dispose();
+          return;
+        }
         if (nearest) setSelectedImage(nearest);
         // Browsing ends at its regular pitch in the same tween as heading,
         // pan and scale, without visiting the photo pitch first.
@@ -2051,10 +2204,14 @@ const ObliqueViewerRuntime = ({
         setDimImage(false);
         return;
       }
-      const drape = nextInterface && withPreview && viewAnchor
-        ? await prepareRotationDrape(sourceRecord, nearest.record, epoch)
-        : undefined;
-      if (epoch !== selectionEpochRef.current || !runningRef.current) { drape?.dispose(); return; }
+      const drape =
+        nextInterface && withPreview && viewAnchor
+          ? await prepareRotationDrape(sourceRecord, nearest.record, epoch)
+          : undefined;
+      if (epoch !== selectionEpochRef.current || !runningRef.current) {
+        drape?.dispose();
+        return;
+      }
       if (withPreview) setDimImage(true);
       setSelectedImage(nearest);
       const succeeded = await flyTo(
@@ -2158,6 +2315,7 @@ const ObliqueViewerRuntime = ({
   }, [publish, warmNavigation]);
   invalidateNavigationRef.current = invalidateNavigation;
   cancelNavigationRef.current = () => {
+    seamlessPanRef.current.cancel();
     cancelNavigation();
     navigationWarmRef.current?.();
     navigationWarmRef.current = null;
@@ -2168,7 +2326,8 @@ const ObliqueViewerRuntime = ({
     async (
       step: PreparedObliqueNavigationTarget | undefined,
       key?: ObliqueNavigationKey,
-      allowModeChange = false
+      allowModeChange = false,
+      intent: "manual" | "seamless" = "manual"
     ) => {
       if (
         !step ||
@@ -2185,10 +2344,11 @@ const ObliqueViewerRuntime = ({
       );
       if (!dataset) return;
       const sourceRecord = selectedImageRef.current?.record;
+      const seamless = intent === "seamless";
       prefetchNavigationLookAhead(step.candidate, step);
       cancelRotationDrape();
       if (key) rememberDirection(key);
-      if (!step.fitNextImage) rememberRotation(step.target);
+      if (!step.fitNextImage && !seamless) rememberRotation(step.target);
       const epoch = ++selectionEpochRef.current;
       activeFlightRef.current?.cancel();
       activeFlightRef.current = null;
@@ -2204,13 +2364,17 @@ const ObliqueViewerRuntime = ({
       const rotation =
         key === OBLIQUE_NAVIGATION_KEYS.RotateLeft ||
         key === OBLIQUE_NAVIGATION_KEYS.RotateRight ||
-        key === undefined;
+        (key === undefined && !seamless);
       const drape = await prepareRotationDrape(
         sourceRecord,
         step.candidate.record,
         epoch
       );
-      if (epoch !== selectionEpochRef.current || !runningRef.current || !enabledSetRef.current.has(step.candidate.record.seriesId)) {
+      if (
+        epoch !== selectionEpochRef.current ||
+        !runningRef.current ||
+        !enabledSetRef.current.has(step.candidate.record.seriesId)
+      ) {
         drape?.dispose();
         if (epoch === selectionEpochRef.current) setBusy(false);
         return;
@@ -2221,14 +2385,16 @@ const ObliqueViewerRuntime = ({
         await returnCameraToBrowsing(
           (rotation
             ? dataset.animations.flyToRotatedImage
-            : dataset.animations.flyToNextImage)?.duration,
+            : dataset.animations.flyToNextImage
+          )?.duration,
           {
             bearingDeg: pose.bearingDeg,
             anchor,
             orbitAroundAnchor: rotation,
             easing: (rotation
               ? dataset.animations.flyToRotatedImage
-              : dataset.animations.flyToNextImage)?.easingFunction,
+              : dataset.animations.flyToNextImage
+            )?.easingFunction,
             onProgress: drape?.update,
           }
         )?.done;
@@ -2243,11 +2409,12 @@ const ObliqueViewerRuntime = ({
           : dataset.animations.flyToNextImage,
         true,
         true,
-        rotation && nextInterface ? anchor : undefined,
+        (rotation || seamless) && nextInterface ? anchor : undefined,
         step.fitNextImage || !nextInterface ? true : undefined,
         undefined,
         drape?.update,
-        rotation
+        rotation,
+        seamless ? anchor : undefined
       );
       if (epoch !== selectionEpochRef.current || !runningRef.current) return;
       setDimImage(false);
@@ -2274,6 +2441,181 @@ const ObliqueViewerRuntime = ({
       settleToBrowsing,
     ]
   );
+  const readSeamlessMargin = useCallback(
+    async (record: ObliqueImageRecord, target: ObliqueGroundTarget) => {
+      const dataset = currentDataRef.current?.datasets.get(record.seriesId);
+      if (
+        !dataset ||
+        target.heightMeters === undefined ||
+        !Number.isFinite(target.heightMeters)
+      )
+        return -Infinity;
+      const calibration = getCameraCalibration(dataset, record.cameraId);
+      const pose = poseOf(record, dataset);
+      const altitude = await resolveCameraAltitude(
+        record,
+        dataset.heightDatum,
+        heightOffset,
+        dataset.allowUnverifiedSourceHeight
+      );
+      const projector = imageProjectionMatrix(
+        record,
+        calibration,
+        pose,
+        sceneToPhotoEnu(
+          [target.longitude, target.latitude],
+          new Matrix4(),
+          pose,
+          altitude
+        )
+      );
+      const pixel = projectObjectCoveragePoint(
+        projector,
+        new Vector3(0, target.heightMeters, 0),
+        calibration
+      );
+      if (!pixel) return -Infinity;
+      const u = pixel.x / calibration.widthPx,
+        v = pixel.y / calibration.heightPx;
+      return Math.min(u, v, 1 - u, 1 - v);
+    },
+    [heightOffset]
+  );
+  const readSeamlessView =
+    useCallback(async (): Promise<SeamlessPreviewView | null> => {
+      const record = selectedImageRef.current?.record;
+      const dataset =
+        record && currentDataRef.current?.datasets.get(record.seriesId);
+      const input = record && previewThumbnailSource(record);
+      const target = readRotationTarget();
+      if (
+        !libreMap ||
+        libreMap.isMoving() ||
+        !record ||
+        !dataset ||
+        !input ||
+        !target
+      )
+        return null;
+      const epoch = selectionEpochRef.current;
+      const source = nativePreviewSource({
+        imageId: record.sourceId,
+        path: dataset.previewPath,
+        sourceUrl: input.originalImageUrl ?? input.avifPyramidUrl ?? "",
+        avifPyramidUrl: input.avifPyramidUrl,
+        avifOnly: dataset.avifOnly,
+        nativeSize: {
+          width: input.nativeSize.width as DevicePixels,
+          height: input.nativeSize.height as DevicePixels,
+        },
+        minimumQualityLevel: dataset.minimumPreviewQualityLevel,
+      });
+      const visible = lastNativePreviewView(source)?.view.visible;
+      if (!visible) return null;
+      const width = input.nativeSize.width,
+        height = input.nativeSize.height;
+      return {
+        imageId: record.id,
+        sector: record.sector,
+        target,
+        epoch,
+        centerMargin: await readSeamlessMargin(record, target),
+        viewportMargin: Math.min(
+          visible.x / width,
+          visible.y / height,
+          (width - visible.x - visible.width) / width,
+          (height - visible.y - visible.height) / height
+        ),
+      };
+    }, [
+      libreMap,
+      previewThumbnailSource,
+      readRotationTarget,
+      readSeamlessMargin,
+    ]);
+  const findSeamlessCandidates = useCallback(
+    async (view: SeamlessPreviewView) => {
+      const record = selectedImageRef.current?.record;
+      const dataset =
+        record && currentDataRef.current?.datasets.get(record.seriesId);
+      if (!record || !dataset || record.id !== view.imageId) return [];
+      const pose = poseOf(record, dataset);
+      const headingRad = degToRad(pose.bearingDeg) as Radians;
+      const [candidates] = await computeNavigation([
+        {
+          direction: view.sector,
+          headingRad,
+          pitchRad: degToRad(pose.pitchDeg),
+          cameraView: "oblique",
+          target: view.target,
+          excludeImageId: view.imageId,
+          numCandidates: 4,
+        },
+      ]);
+      return Promise.all(
+        (candidates ?? [])
+          .filter((candidate) => {
+            const source = previewThumbnailSource(candidate.record);
+            return (
+              candidate.record.sector === view.sector &&
+              candidate.record.id !== view.imageId &&
+              candidate.coversTarget &&
+              enabledSetRef.current.has(candidate.record.seriesId) &&
+              source &&
+              !isPreviewSourceMissing(source)
+            );
+          })
+          .map(async (candidate) => ({
+            step: {
+              candidate,
+              target: view.target,
+              headingRad,
+              originImageId: view.imageId,
+              fitNextImage: false,
+            },
+            centerMargin: await readSeamlessMargin(
+              candidate.record,
+              view.target
+            ),
+          }))
+      );
+    },
+    [computeNavigation, previewThumbnailSource, readSeamlessMargin]
+  );
+  const seamlessNavigation = useSeamlessPreviewNavigation({
+    enabled:
+      nextInterface &&
+      previewSeamless &&
+      running &&
+      previewCameraActive &&
+      viewMode === "oblique",
+    busyRef,
+    readTarget: readRotationTarget,
+    readView: readSeamlessView,
+    findCandidates: findSeamlessCandidates,
+    isCurrent: (view) => {
+      if (
+        !libreMap ||
+        libreMap.isMoving() ||
+        !runningRef.current ||
+        !previewVisibleRef.current ||
+        viewModeRef.current !== "oblique" ||
+        selectionEpochRef.current !== view.epoch ||
+        selectedImageRef.current?.record.id !== view.imageId
+      )
+        return false;
+      const target = readRotationTarget();
+      return (
+        !!target &&
+        groundDistanceM(
+          { lng: target.longitude, lat: target.latitude },
+          { lng: view.target.longitude, lat: view.target.latitude }
+        ) < 0.5
+      );
+    },
+    navigate: (step) => navigatePrepared(step, undefined, false, "seamless"),
+  });
+  seamlessPanRef.current = seamlessNavigation;
   const requestNavigation = useCallback(
     (key: ObliqueNavigationKey) => {
       void requestNavigationTarget(key, (target) =>

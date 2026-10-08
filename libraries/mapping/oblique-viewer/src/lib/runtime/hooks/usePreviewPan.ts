@@ -17,6 +17,7 @@ export const usePreviewPan = ({
   imageId,
   imageGeometry,
   busyRef,
+  onPanStart,
   onPanEnd,
 }: {
   map: MaplibreMap | null;
@@ -27,6 +28,7 @@ export const usePreviewPan = ({
   imageId: string | null;
   imageGeometry: PreviewImageGeometry | null;
   busyRef: MutableRefObject<boolean>;
+  onPanStart?: () => void;
   onPanEnd: () => void;
 }) => {
   const imageGeometryRef = useRef(imageGeometry);
@@ -38,6 +40,8 @@ export const usePreviewPan = ({
     savedPaddingRef.current = { ...map.getPadding() };
     releaseProjectionRef.current = acquirePreviewProjectionWindow(map);
   }, [map]);
+  const onPanStartRef = useRef(onPanStart);
+  onPanStartRef.current = onPanStart;
   const onPanEndRef = useRef(onPanEnd);
   onPanEndRef.current = onPanEnd;
   const resetPan = useCallback(() => {
@@ -120,7 +124,10 @@ export const usePreviewPan = ({
         ) < 3
       )
         return;
-      if (!pointer.dragged) root.setPointerCapture(event.pointerId);
+      if (!pointer.dragged) {
+        onPanStartRef.current?.();
+        root.setPointerCapture(event.pointerId);
+      }
       pointer.dragged = true;
       event.preventDefault();
       event.stopPropagation();

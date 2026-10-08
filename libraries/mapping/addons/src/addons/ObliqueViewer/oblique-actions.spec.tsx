@@ -17,6 +17,7 @@ const channel = vi.hoisted(() => ({
     rotationSurface: "mesh",
     previewBasemapLabels: false,
     previewRotationDrape: false,
+    previewSeamless: false,
     viewMode: "oblique",
     selectedSeriesId: null,
     selectedSourceImageId: null,
@@ -153,6 +154,22 @@ describe("oblique options storage", () => {
     expect(channel.save).toHaveBeenLastCalledWith(
       "route-a",
       expect.objectContaining({ previewRotationDrape: false })
+    );
+    act(() => view.result.current.publish({ isBusy: true }));
+    expect(channel.save).toHaveBeenCalledOnce();
+  });
+
+  it("restores seamless navigation and persists only changed opt-in values", () => {
+    channel.load.mockReturnValue({ ...storedState(), previewSeamless: true });
+    const view = renderHook(useObliqueViewerActions);
+    expect(view.result.current.previewSeamless).toBe(true);
+    act(() => view.result.current.publish({ previewSeamless: true }));
+    expect(channel.save).not.toHaveBeenCalled();
+    act(() => view.result.current.publish({ previewSeamless: false }));
+    expect(channel.save).toHaveBeenCalledOnce();
+    expect(channel.save).toHaveBeenLastCalledWith(
+      "route-a",
+      expect.objectContaining({ previewSeamless: false })
     );
     act(() => view.result.current.publish({ isBusy: true }));
     expect(channel.save).toHaveBeenCalledOnce();

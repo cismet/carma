@@ -222,6 +222,9 @@ const Harness = ({
   const [previewRotationDrape, setPreviewRotationDrape] = useState(
     OBLIQUE_STATE_DEFAULT.previewRotationDrape
   );
+  const [previewSeamless, setPreviewSeamless] = useState(
+    OBLIQUE_STATE_DEFAULT.previewSeamless
+  );
   const actions: ObliqueViewerActions = {
     ...OBLIQUE_STATE_DEFAULT,
     missingPreviewImageId,
@@ -252,6 +255,7 @@ const Harness = ({
     selectionStrategy,
     rotationSurface,
     previewRotationDrape,
+    previewSeamless,
     isAllDataReady: !failure2026,
     isCatalogComplete: !failure2026,
     selectedImageId: "wuppertal-2024::001_001_170003373",
@@ -278,6 +282,8 @@ const Harness = ({
       if (patch.rotationSurface) setRotationSurface(patch.rotationSurface);
       if (patch.previewRotationDrape !== undefined)
         setPreviewRotationDrape(patch.previewRotationDrape);
+      if (patch.previewSeamless !== undefined)
+        setPreviewSeamless(patch.previewSeamless);
     },
     setOn: vi.fn(),
     toggle: vi.fn(),
@@ -371,9 +377,12 @@ describe("oblique series controls", () => {
     expect(screen.getByText("Keine Bildserie aktiviert")).toBeTruthy();
     expect(select.getAttribute("data-placeholder")).toBe("Bildserie auswählen");
     expect(select.className).toContain("w-full");
-    expect(document.querySelector('[data-test-id="oblique-viewer"]')?.className)
-      .toContain("min-w-[min(320px,calc(100vw-1rem))]");
-    expect(document.querySelector('[data-test-id="oblique-image-actions"]')).toBeNull();
+    expect(
+      document.querySelector('[data-test-id="oblique-viewer"]')?.className
+    ).toContain("min-w-[min(320px,calc(100vw-1rem))]");
+    expect(
+      document.querySelector('[data-test-id="oblique-image-actions"]')
+    ).toBeNull();
     // Clearing the last series keeps both manifest choices available for re-entry.
     expect(select.options).toHaveLength(2);
     choose([series[1].id]);
@@ -508,10 +517,12 @@ describe("independent map navigation", () => {
 describe("object coverage control", () => {
   it("keeps an icon-only extension toggle accessible by its label", () => {
     const sendRequest = vi.fn();
-    const view = render(createElement(Harness, {
-      sendRequest,
-      objectViewsIcon: faCrosshairs,
-    }));
+    const view = render(
+      createElement(Harness, {
+        sendRequest,
+        objectViewsIcon: faCrosshairs,
+      })
+    );
     const button = screen.getByRole("button", {
       name: "Objektansichtenabfrage",
     });
@@ -523,11 +534,13 @@ describe("object coverage control", () => {
       type: "setViewMode",
       mode: "objectCoverage",
     });
-    view.rerender(createElement(Harness, {
-      sendRequest,
-      objectViewsIcon: faCrosshairs,
-      objectCoverageActive: true,
-    }));
+    view.rerender(
+      createElement(Harness, {
+        sendRequest,
+        objectViewsIcon: faCrosshairs,
+        objectCoverageActive: true,
+      })
+    );
     const active = screen.getByRole("button", {
       name: "Objektansichtenabfrage",
     });
@@ -542,9 +555,11 @@ describe("object coverage control", () => {
 
   it("retains the text label for extensions that do not supply an icon", () => {
     render(createElement(Harness));
-    expect(screen.getByRole("button", {
-      name: "Objektansichtenabfrage",
-    }).textContent).toBe("Objektansichtenabfrage");
+    expect(
+      screen.getByRole("button", {
+        name: "Objektansichtenabfrage",
+      }).textContent
+    ).toBe("Objektansichtenabfrage");
   });
 
   it("requests object coverage and returns to oblique from an active toggle", () => {
@@ -608,7 +623,28 @@ describe("NG rotation photo projection option", () => {
     expect(option.checked).toBe(false);
     expect(publish).toHaveBeenLastCalledWith({ previewRotationDrape: false });
     view.rerender(createElement(Harness, { publish, nextInterface: false }));
-    expect(screen.queryByRole("checkbox", { name: "Fotos projizieren" })).toBeNull();
+    expect(
+      screen.queryByRole("checkbox", { name: "Fotos projizieren" })
+    ).toBeNull();
+  });
+});
+
+describe("NG seamless navigation option", () => {
+  it("is opt-in, publishes both values and stays hidden in classic", () => {
+    const publish = vi.fn();
+    const view = render(createElement(Harness, { publish }));
+    const option = screen.getByRole("checkbox", {
+      name: "Nahtlos",
+    }) as HTMLInputElement;
+    expect(option.checked).toBe(false);
+    fireEvent.click(option);
+    expect(option.checked).toBe(true);
+    expect(publish).toHaveBeenLastCalledWith({ previewSeamless: true });
+    fireEvent.click(option);
+    expect(option.checked).toBe(false);
+    expect(publish).toHaveBeenLastCalledWith({ previewSeamless: false });
+    view.rerender(createElement(Harness, { publish, nextInterface: false }));
+    expect(screen.queryByRole("checkbox", { name: "Nahtlos" })).toBeNull();
   });
 });
 

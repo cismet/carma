@@ -58,8 +58,12 @@ export const OBLIQUE_NAVIGATION_KEYS = {
 export type ObliqueNavigationKey =
   (typeof OBLIQUE_NAVIGATION_KEYS)[keyof typeof OBLIQUE_NAVIGATION_KEYS];
 
-export const OBLIQUE_NAVIGATION_INTENT = { Pointer: "pointer", Focus: "focus" } as const;
-export type ObliqueNavigationIntent = (typeof OBLIQUE_NAVIGATION_INTENT)[keyof typeof OBLIQUE_NAVIGATION_INTENT];
+export const OBLIQUE_NAVIGATION_INTENT = {
+  Pointer: "pointer",
+  Focus: "focus",
+} as const;
+export type ObliqueNavigationIntent =
+  (typeof OBLIQUE_NAVIGATION_INTENT)[keyof typeof OBLIQUE_NAVIGATION_INTENT];
 
 export const OBLIQUE_ROTATION_SURFACES = {
   Mesh: "mesh",
@@ -86,6 +90,8 @@ export type ObliqueViewerState = {
   previewBasemapLabels: boolean;
   /** NG rotation projects the endpoint photos onto visible mesh geometry. */
   previewRotationDrape: boolean;
+  /** NG automatically continues a settled edge pan into an overlapping photo. */
+  previewSeamless: boolean;
   viewMode: ObliqueViewMode;
   selectedSeriesId: string | null;
   selectedSourceImageId: string | null;
@@ -122,7 +128,11 @@ export type ObliqueViewerState = {
   /** Capability, not current pointer presence; touch retains the flight button. */
   hoverAvailable: boolean;
   /** Speculative pointer/focus intent; separate from the ordered navigation command queue. */
-  warmNavigation?: (key: ObliqueNavigationKey, active: boolean, channel: ObliqueNavigationIntent) => void;
+  warmNavigation?: (
+    key: ObliqueNavigationKey,
+    active: boolean,
+    channel: ObliqueNavigationIntent
+  ) => void;
   /** the image is shown over the map, aligned with the camera */
   previewVisible: boolean;
   /** Flight status; prepared geometric navigation remains interactive. */
@@ -144,6 +154,7 @@ export const OBLIQUE_STATE_DEFAULT: ObliqueViewerState = {
   rotationSurface: OBLIQUE_ROTATION_SURFACES.Mesh,
   previewBasemapLabels: true,
   previewRotationDrape: false,
+  previewSeamless: false,
   viewMode: "oblique",
   selectedSeriesId: null,
   selectedSourceImageId: null,
@@ -176,21 +187,28 @@ export const OBLIQUE_STATE_DEFAULT: ObliqueViewerState = {
 
 /** Presentation text for a host's existing status bar; counts are loaded records, never percentages. */
 export const formatObliqueLoadingStatus = (
-  state: Pick<ObliqueViewerState, "isOn" | "isLoading" | "isTargetImageLoading" | "series">
+  state: Pick<
+    ObliqueViewerState,
+    "isOn" | "isLoading" | "isTargetImageLoading" | "series"
+  >
 ): string | null => {
   if (!state.isOn) return null;
   if (state.isTargetImageLoading) return strings.loadingTargetImage;
-  const pending = state.series.filter((series) =>
-    series.enabled && series.isLoading && !series.error
+  const pending = state.series.filter(
+    (series) => series.enabled && series.isLoading && !series.error
   );
   if (!state.isLoading && !pending.length) return null;
   if (!pending.length) return strings.loadingData;
-  return `${strings.loadingCatalogs} (${pending.map((series) => {
-    const label = series.shortLabel ?? series.label;
-    return series.imageCount > 0
-      ? `${label}: ${series.imageCount.toLocaleString("de-DE")} Bilder verfügbar`
-      : label;
-  }).join(" · ")})`;
+  return `${strings.loadingCatalogs} (${pending
+    .map((series) => {
+      const label = series.shortLabel ?? series.label;
+      return series.imageCount > 0
+        ? `${label}: ${series.imageCount.toLocaleString(
+            "de-DE"
+          )} Bilder verfügbar`
+        : label;
+    })
+    .join(" · ")})`;
 };
 
 /** defaults filled in and every knob clamped to its slider's bounds */

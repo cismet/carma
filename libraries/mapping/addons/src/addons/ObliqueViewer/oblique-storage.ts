@@ -68,6 +68,7 @@ export const loadObliqueState = (
       // Draped labels match the always visible 3D labels unless switched off.
       previewBasemapLabels: parsed.previewBasemapLabels !== false,
       previewRotationDrape: parsed.previewRotationDrape === true,
+      previewSeamless: parsed.previewSeamless === true,
       isOn: parsed.isOn === true,
       title:
         typeof parsed.title === "string" && parsed.title
@@ -96,6 +97,7 @@ export const saveObliqueState = (
       rotationSurface,
       previewBasemapLabels,
       previewRotationDrape,
+      previewSeamless,
     } = state;
     window.localStorage.setItem(
       storageKey,
@@ -107,6 +109,7 @@ export const saveObliqueState = (
         rotationSurface,
         previewBasemapLabels,
         previewRotationDrape,
+        previewSeamless,
       })
     );
   } catch (error) {
