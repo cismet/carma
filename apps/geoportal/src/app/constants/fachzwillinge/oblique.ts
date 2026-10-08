@@ -14,8 +14,8 @@ export const obliqueFachzwilling: FachzwillingRoute = {
   // Oblique owns its mesh/LoD2 basis while running; it is not a saved extra layer.
   addons: [
     {
+      // Gated in withDefaultAddons: the mapstyle3d flag or the next interface.
       addon: "mapStyle3d",
-      availability: { featureFlag: "featureFlagMapStyle3d" },
       config: { vectorBaseMap: true },
     },
     {

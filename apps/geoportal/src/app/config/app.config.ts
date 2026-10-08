@@ -114,6 +114,15 @@ export const DEFAULT_ADDONS: AddonEntry[] = [
  * They follow the same precedence rule, so a route that declares the same kind
  * takes the engine over and the default workflow does not run there.
  */
+/**
+ * The 3D map style stays opt-in, except that the next oblique interface brings
+ * it along: its draped basemap labels over the mesh and preview depend on it.
+ */
+const mapStyle3dEnabled = (routePath?: string): boolean =>
+  availabilityContext.featureFlags.featureFlagMapStyle3d === true ||
+  (routePath === "/oblique" &&
+    availabilityContext.featureFlags.featureFlagObliqueNextUi === true);
+
 export const withDefaultAddons = (
   addons?: AddonEntry[],
   routePath?: string
@@ -127,11 +136,7 @@ export const withDefaultAddons = (
     ...(addons ?? []),
   ].filter((entry) => {
     const kind = getAddonKind(entry);
-    if (
-      kind === "mapStyle3d" &&
-      availabilityContext.featureFlags.featureFlagMapStyle3d !== true
-    )
-      return false;
+    if (kind === "mapStyle3d" && !mapStyle3dEnabled(routePath)) return false;
     return (
       routePath !== "/oblique" ||
       [

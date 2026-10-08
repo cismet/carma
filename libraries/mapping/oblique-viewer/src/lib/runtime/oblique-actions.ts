@@ -133,7 +133,7 @@ export const OBLIQUE_STATE_DEFAULT: ObliqueViewerState = {
   series: [],
   selectionStrategy: "nearest-axis",
   rotationSurface: OBLIQUE_ROTATION_SURFACES.Mesh,
-  previewBasemapLabels: false,
+  previewBasemapLabels: true,
   previewRotationDrape: false,
   viewMode: "oblique",
   selectedSeriesId: null,

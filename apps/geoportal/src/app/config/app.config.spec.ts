@@ -114,6 +114,18 @@ describe("Geoportal default addons", () => {
     ]);
   });
 
+  it("brings the map style along with the next oblique interface", () => {
+    state.context.featureFlags.featureFlagObliqueNextUi = true;
+    const addons = withDefaultAddons(declarations, "/oblique");
+    expect(addons.map(addonKind)).toContain("mapStyle3d");
+    expect(addons.find((entry) => addonKind(entry) === "mapStyle3d")).toBe(
+      declarations[1]
+    );
+    expect(withDefaultAddons(declarations, "/").map(addonKind)).not.toContain(
+      "mapStyle3d"
+    );
+  });
+
   it.each([undefined, "/", "/addons", "/pm-show"])(
     "keeps unrelated addons on %s",
     (route) => {

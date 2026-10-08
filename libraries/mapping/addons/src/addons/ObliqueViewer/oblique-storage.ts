@@ -65,7 +65,8 @@ export const loadObliqueState = (
         parsed.rotationSurface === OBLIQUE_ROTATION_SURFACES.Dem
           ? OBLIQUE_ROTATION_SURFACES.Dem
           : OBLIQUE_ROTATION_SURFACES.Mesh,
-      previewBasemapLabels: parsed.previewBasemapLabels === true,
+      // Draped labels match the always visible 3D labels unless switched off.
+      previewBasemapLabels: parsed.previewBasemapLabels !== false,
       previewRotationDrape: parsed.previewRotationDrape === true,
       isOn: parsed.isOn === true,
       title:
