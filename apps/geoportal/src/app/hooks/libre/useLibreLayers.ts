@@ -107,15 +107,8 @@ export const useLibreLayers = (): LibreLayer[] => {
       });
     return () => controller.abort();
   }, [obliqueActive, obliqueMeshStyle]);
-  const { currentStyle, setCurrentStyle } = useMapStyle();
+  const { currentStyle } = useMapStyle();
   const { map } = useLibreContext();
-  const wasObliqueActive = useRef(false);
-  useEffect(() => {
-    if (obliqueActive && !wasObliqueActive.current)
-      setCurrentStyle(MapStyleKeys.AERIAL);
-    wasObliqueActive.current = obliqueActive;
-  }, [obliqueActive, setCurrentStyle]);
-
   // Three.js labels are opt-in independently of the viewer's mesh/terrain basis.
   useEffect(() => {
     if (!map || !obliqueActive || !mapStyle3dActive) return;

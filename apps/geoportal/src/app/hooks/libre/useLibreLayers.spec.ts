@@ -551,6 +551,28 @@ describe("useLibreLayers with conditional layers", () => {
     }
   );
 
+  it("preserves Karte through viewer entry, exit and reentry", () => {
+    state.map = { getCenter: () => ({ lng: 7.2, lat: 51.27 }) };
+    state.addons = ["obliqueViewer"];
+    state.currentStyle = MapStyleKeys.TOPO;
+    const view = renderHook(() => useLibreLayers());
+    state.obliqueEnabled = true;
+    view.rerender();
+    expect(view.result.current).toEqual([
+      expect.objectContaining({ name: "oblique-lod2" }),
+    ]);
+    expect(state.runtimes[0].setGroundVisible).toHaveBeenLastCalledWith(true);
+    expect(state.setCurrentStyle).not.toHaveBeenCalled();
+    state.obliqueEnabled = false;
+    view.rerender();
+    state.obliqueEnabled = true;
+    view.rerender();
+    expect(view.result.current).toEqual([
+      expect.objectContaining({ name: "oblique-lod2" }),
+    ]);
+    expect(state.setCurrentStyle).not.toHaveBeenCalled();
+  });
+
   it("loads the parity mesh and leases the explicitly enabled map style", async () => {
     state.map = { getCenter: () => ({ lng: 7.2, lat: 51.27 }) };
     state.addons = [
@@ -575,8 +597,7 @@ describe("useLibreLayers with conditional layers", () => {
       }),
     ]);
     expect(state.layers).toEqual([]);
-    expect(state.setCurrentStyle).toHaveBeenCalledOnce();
-    expect(state.setCurrentStyle).toHaveBeenCalledWith(MapStyleKeys.AERIAL);
+    expect(state.setCurrentStyle).not.toHaveBeenCalled();
     expect(state.leases).toHaveLength(2);
     expect(state.leases[0].options).toEqual({ mapStylePresentation: true });
     expect(state.leases[0].setPointLabelOverlayVisible).toHaveBeenCalledWith(
@@ -590,7 +611,7 @@ describe("useLibreLayers with conditional layers", () => {
       standaloneMeshOnly: false,
     });
     view.rerender();
-    expect(state.setCurrentStyle).toHaveBeenCalledTimes(1);
+    expect(state.setCurrentStyle).not.toHaveBeenCalled();
     expect(state.leases).toHaveLength(2);
     state.obliqueEnabled = false;
     view.rerender();
@@ -604,7 +625,7 @@ describe("useLibreLayers with conditional layers", () => {
     });
     state.obliqueEnabled = true;
     view.rerender();
-    expect(state.setCurrentStyle).toHaveBeenCalledTimes(2);
+    expect(state.setCurrentStyle).not.toHaveBeenCalled();
   });
 
   it("keeps one DEM runtime while leasing raster presentation only in Karte without point labels", async () => {
@@ -675,7 +696,7 @@ describe("useLibreLayers with conditional layers", () => {
         style: OBLIQUE_LOD2_STYLE,
       }),
     ]);
-    expect(state.setCurrentStyle).toHaveBeenCalledTimes(1);
+    expect(state.setCurrentStyle).not.toHaveBeenCalled();
     expect(lastBackgroundOptions()).toMatchObject({
       meshBaseActive: false,
       shadowTerrainActive: true,

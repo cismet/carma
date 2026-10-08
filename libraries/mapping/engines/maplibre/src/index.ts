@@ -314,6 +314,7 @@ export {
   type SharedThreeSceneCameraPreview,
 } from "./lib/runtime/integrations/shared-three-scene-camera-preview";
 export { acquireSharedThreeScene } from "./lib/runtime/integrations/shared-three-scene-registry";
+export { easeMapLibreCameraWithFov } from "./lib/runtime/integrations/ease-camera-with-fov";
 export { createMapViewSyncGroup } from "./lib/runtime/integrations/map-view-sync";
 export {
   TERRAIN_MAP_STYLE,

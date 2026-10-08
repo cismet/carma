@@ -62,6 +62,8 @@ export const useObliqueCameraMode = ({
   const [phase, setPhase] = useState<CameraPhase>("idle");
   const sessionRef = useRef<Session | null>(null);
   const pendingReturnRef = useRef<CameraFlight | null>(null);
+  const datasetRef = useRef(dataset);
+  datasetRef.current = dataset;
   const requestedPitch = pitchDeg ?? (dataset.pitchDeg as Degrees);
   const pitchRef = useRef(requestedPitch);
   pitchRef.current = requestedPitch;
@@ -77,8 +79,7 @@ export const useObliqueCameraMode = ({
       const previous = sessionRef.current;
       const session: Session = {
         savedFovDeg: previous?.savedFovDeg ?? map.getVerticalFieldOfView(),
-        terrainByUs:
-          previous?.terrainByUs ?? ensureTerrain(map, terrainSourceId),
+        terrainByUs: previous?.terrainByUs ?? false,
         flight: null,
       };
       sessionRef.current = session;
@@ -90,8 +91,21 @@ export const useObliqueCameraMode = ({
       setPhase("entering");
 
       let cancelled = false;
+      let entryFrame: number | undefined;
       (pendingReturnRef.current?.done ?? Promise.resolve()).then(async () => {
         if (cancelled) return;
+        // Let the host apply the selected Karte/Luftbild layers before moving
+        // its current camera. No catalog or full-resolution tile wait is needed.
+        await new Promise<void>((resolve) => {
+          entryFrame = requestAnimationFrame(() => {
+            entryFrame = undefined;
+            resolve();
+          });
+        });
+        if (cancelled) return;
+        session.terrainByUs =
+          previous?.terrainByUs ?? ensureTerrain(map, terrainSourceId);
+        const dataset = datasetRef.current;
         const entryPitch = pitchRef.current;
         const flight = enterObliqueView(
           map,
@@ -109,6 +123,7 @@ export const useObliqueCameraMode = ({
       });
       return () => {
         cancelled = true;
+        if (entryFrame !== undefined) cancelAnimationFrame(entryFrame);
         session.flight?.cancel();
       };
     }
@@ -128,9 +143,9 @@ export const useObliqueCameraMode = ({
       if (cancelled) return;
       flight = leaveObliqueView(
         map,
-        dataset,
+        datasetRef.current,
         session.savedFovDeg,
-        preparation ? 250 : 500
+        preparation ? 250 : 1100
       );
       session.flight = flight;
       await flight.done;
@@ -149,7 +164,7 @@ export const useObliqueCameraMode = ({
       // halfway and restoring its limits abruptly.
       if (flight !== preparation) flight?.cancel();
     };
-  }, [map, enabled, dataset, terrainSourceId]);
+  }, [map, enabled, terrainSourceId]);
 
   // A catalog/series update changes only pitch, never reenters the mode or resets zoom/FOV.
   useEffect(() => {

@@ -1,7 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import type { Map as MaplibreMap } from "maplibre-gl";
 import type { Degrees } from "@carma-units";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ObliqueDataset } from "../../core/types";
 import { useObliqueCameraMode } from "./useObliqueCameraMode";
 
@@ -65,13 +65,34 @@ const setup = (
   const view = renderHook(useObliqueCameraMode, { initialProps: props });
   return { ...view, map, props, enter, preparation, leave, beforeLeave };
 };
+const pendingFrames = new Map<number, FrameRequestCallback>();
+let frameId = 0;
+const flushFrame = async () => {
+  await act(async () => {});
+  const frames = [...pendingFrames.values()];
+  pendingFrames.clear();
+  await act(async () => frames.forEach((callback) => callback(16)));
+};
+afterEach(() => vi.unstubAllGlobals());
 beforeEach(() => {
+  pendingFrames.clear();
+  vi.stubGlobal(
+    "requestAnimationFrame",
+    vi.fn((callback: FrameRequestCallback) => {
+      pendingFrames.set(++frameId, callback);
+      return frameId;
+    })
+  );
+  vi.stubGlobal(
+    "cancelAnimationFrame",
+    vi.fn((id: number) => pendingFrames.delete(id))
+  );
   vi.clearAllMocks();
   camera.settle.mockReset().mockImplementation(() => deferredFlight());
 });
 
 const finishEntry = async (view: ReturnType<typeof setup>) => {
-  await act(async () => {});
+  await flushFrame();
   await act(async () => view.enter.finish());
   expect(view.result.current.phase).toBe("active");
 };
@@ -122,6 +143,8 @@ describe("oblique preview return lifecycle", () => {
     expect(camera.enter).toHaveBeenCalledOnce();
     expect(camera.ensureTerrain).toHaveBeenCalledOnce();
     await act(async () => view.preparation.finish());
+    expect(camera.enter).toHaveBeenCalledOnce();
+    await flushFrame();
     expect(camera.enter).toHaveBeenCalledTimes(2);
     expect(camera.leave).not.toHaveBeenCalled();
     await act(async () => nextEntry.finish());
@@ -130,6 +153,46 @@ describe("oblique preview return lifecycle", () => {
     expect(camera.leave).toHaveBeenCalledWith(view.map, dataset, 45, 250);
     view.unmount();
   });
+});
+
+describe("entry scheduling", () => {
+  it("waits one frame for layers and uses the latest dataset without restarting entry", async () => {
+    const view = setup();
+    await act(async () => {});
+    expect(camera.enter).not.toHaveBeenCalled();
+    expect(pendingFrames.size).toBe(1);
+    const latest = { ...dataset, pitchDeg: 41, id: "loaded" } as ObliqueDataset;
+    view.rerender({ ...view.props, dataset: latest });
+    expect(pendingFrames.size).toBe(1);
+    expect(camera.ensureTerrain).not.toHaveBeenCalled();
+    await flushFrame();
+    expect(camera.ensureTerrain).toHaveBeenCalledOnce();
+    expect(camera.enter).toHaveBeenCalledOnce();
+    expect(camera.enter).toHaveBeenCalledWith(view.map, latest);
+    await act(async () => view.enter.finish());
+    view.rerender({ ...view.props, dataset: { ...latest } });
+    expect(camera.enter).toHaveBeenCalledOnce();
+    expect(view.map.scrollZoom.disable).toHaveBeenCalledOnce();
+    expect(view.result.current.phase).toBe("active");
+    view.unmount();
+  });
+
+  it.each(["disable", "unmount"])(
+    "does not start a queued entry after %s",
+    async (action) => {
+      const view = setup();
+      await act(async () => {});
+      const stale = [...pendingFrames.values()];
+      expect(stale).toHaveLength(1);
+      if (action === "disable")
+        view.rerender({ ...view.props, enabled: false });
+      else view.unmount();
+      await act(async () => stale.forEach((callback) => callback(16)));
+      expect(camera.enter).not.toHaveBeenCalled();
+      expect(camera.ensureTerrain).not.toHaveBeenCalled();
+      if (action === "disable") view.unmount();
+    }
+  );
 });
 
 describe("dataset browsing pitch updates", () => {

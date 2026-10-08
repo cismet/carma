@@ -1,8 +1,11 @@
 import { degToRadNumeric as degToRad } from "@carma-units";
 import type { Map as MaplibreMap } from "maplibre-gl";
 
-import { Easing, shortestAngleDelta } from "@carma-commons/math";
-import { setCameraRestrictionOverride } from "@carma-mapping/engines/maplibre";
+import { Easing } from "@carma-commons/math";
+import {
+  easeMapLibreCameraWithFov,
+  setCameraRestrictionOverride,
+} from "@carma-mapping/engines/maplibre";
 
 import type { AnimationConfig, ObliqueDataset } from "../../core/types";
 import {
@@ -117,7 +120,11 @@ export const ensureTerrain = (map: MaplibreMap, sourceId: string): boolean => {
     );
     return false;
   }
+  const elevation = map.transform.elevation;
   map.setTerrain({ source: sourceId, exaggeration: 1 });
+  // setTerrain immediately snaps the target onto the DEM. Keep the current
+  // view here; the following native ease interpolates to the ground elevation.
+  map.transform.setElevation(elevation);
   return true;
 };
 
@@ -132,7 +139,7 @@ export const enterObliqueView = (
 ): CameraFlight => {
   const { duration, easing } = resolveAnimation(
     dataset.animations.enterObliqueMode,
-    1400
+    2000
   );
   const center = map.getCenter();
   const targetFov = dataset.enterFovDeg;
@@ -146,25 +153,18 @@ export const enterObliqueView = (
   );
   const bearing = map.getBearing();
 
-  const fovTween = tween({
-    from: map.getVerticalFieldOfView(),
-    to: targetFov,
-    durationMs: duration,
-    easing,
-    onUpdate: (value) => setFov(map, value),
-  });
-  map.easeTo({ pitch, zoom, bearing, duration, easing, essential: true });
-
-  return {
-    done: whenMoveEnds(map, duration).then(() => {
-      fovTween.cancel();
-      setFov(map, targetFov);
-    }),
-    cancel: () => {
-      fovTween.cancel();
-      map.stop();
+  return easeMapLibreCameraWithFov(
+    map,
+    {
+      pitch,
+      zoom,
+      bearing,
+      duration,
+      easing,
+      essential: true,
     },
-  };
+    targetFov
+  );
 };
 
 /** tilt out: back to flat and north-up, and the fov the map had before */
@@ -172,36 +172,29 @@ export const leaveObliqueView = (
   map: MaplibreMap,
   dataset: ObliqueDataset,
   restoreFovDeg: number,
-  maxDurationMs = 500
+  maxDurationMs = 1100
 ): CameraFlight => {
   const { duration, easing } = resolveAnimation(
     {
       ...dataset.animations.leaveObliqueMode,
       duration: Math.min(
-        dataset.animations.leaveObliqueMode?.duration ?? 450,
+        dataset.animations.leaveObliqueMode?.duration ?? 1100,
         maxDurationMs
       ),
     },
-    450
+    1100
   );
-  const fovTween = tween({
-    from: map.getVerticalFieldOfView(),
-    to: restoreFovDeg,
-    durationMs: duration,
-    easing,
-    onUpdate: (value) => setFov(map, value),
-  });
-  map.easeTo({ pitch: 0, bearing: 0, duration, easing, essential: true });
-  return {
-    done: whenMoveEnds(map, duration).then(() => {
-      fovTween.cancel();
-      setFov(map, restoreFovDeg);
-    }),
-    cancel: () => {
-      fovTween.cancel();
-      map.stop();
+  return easeMapLibreCameraWithFov(
+    map,
+    {
+      pitch: 0,
+      bearing: 0,
+      duration,
+      easing,
+      essential: true,
     },
-  };
+    restoreFovDeg
+  );
 };
 
 /** turn around the centre to a bearing */
@@ -210,15 +203,7 @@ export const turnTo = (
   bearingDeg: number,
   animation: AnimationConfig | undefined
 ): CameraFlight => {
-  const resolved = resolveAnimation(animation, 300);
-  const angle =
-    (Math.abs(
-      shortestAngleDelta(degToRad(map.getBearing()), degToRad(bearingDeg))
-    ) *
-      180) /
-    Math.PI;
-  const duration = Math.min(resolved.duration, 120 + 3 * angle);
-  const easing = resolved.easing;
+  const { duration, easing } = resolveAnimation(animation, 1800);
   map.easeTo({ bearing: bearingDeg, duration, easing, essential: true });
   return {
     done: whenMoveEnds(map, duration),
