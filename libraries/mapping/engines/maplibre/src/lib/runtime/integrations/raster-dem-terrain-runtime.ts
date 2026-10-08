@@ -3152,6 +3152,14 @@ export const buildRasterDemTerrainRuntime = (
     get providesTerrain() {
       return groundVisible;
     },
+    hasRenderableContent: () => {
+      if (disposed || !groundVisible || !root.visible) return false;
+      for (const key of activeMeshKeys) {
+        const record = meshes.get(key);
+        if (record?.node.visible && record.reliefMesh?.visible) return true;
+      }
+      return false;
+    },
     receivesMapStyleTexture:
       options.receivesMapStyleTexture === true
         ? (candidate) => groundVisible && candidate === material

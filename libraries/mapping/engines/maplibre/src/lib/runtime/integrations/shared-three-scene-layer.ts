@@ -513,14 +513,17 @@ export const buildSharedThreeSceneLayer = (
       if (
         runtimeUpdateOrder.some(
           (runtime) =>
-            runtime.providesTerrain === true ||
-            (runtime.providesTerrain !== false &&
-              Boolean(runtime.receivesMapStyleTexture))
+            runtime.root.visible &&
+            (runtime.providesTerrain === true ||
+              (runtime.providesTerrain !== false &&
+                Boolean(runtime.receivesMapStyleTexture))) &&
+            runtime.hasRenderableContent?.() !== false
         )
       ) {
-        // Explicit building-only receivers retain MapLibre's ground. Otherwise
-        // the visible ground belongs to Three. Keep MapLibre's color only
-        // in the captured texture; discard its competing fill, DEM and skirts.
+        // Keep the already drawn map until visible replacement geometry exists.
+        // Building-only receivers never take ownership of the ground. Once
+        // ready, keep MapLibre's color in the captured texture only; discard
+        // its competing fill, DEM and skirts.
         clearMapStyleGroundBeforeThreeTerrain(gl, savedDepthRange);
       }
 

@@ -29,6 +29,32 @@ import { buildRasterDemTerrainRuntime } from "./raster-dem-terrain-runtime";
 describe("buildRasterDemTerrainRuntime material and local frame", () => {
   installRasterDemTerrainRuntimeFixture();
 
+  it("reports renderable terrain only after publishing visible relief geometry", async () => {
+    const fixture = createIdlePrefetchFixture("ground-readiness", 10);
+    const runtime = fixture.runtime;
+    expect(runtime.hasRenderableContent?.()).toBe(false);
+    try {
+      await fixture.start();
+      await runtime.ready;
+      expect(runtime.hasRenderableContent?.()).toBe(true);
+      runtime.root.visible = false;
+      expect(runtime.hasRenderableContent?.()).toBe(false);
+      runtime.root.visible = true;
+      expect(runtime.hasRenderableContent?.()).toBe(true);
+      runtime.setGroundVisible(false);
+      expect(runtime.hasRenderableContent?.()).toBe(false);
+      runtime.setGroundVisible(true);
+      expect(runtime.hasRenderableContent?.()).toBe(true);
+      runtime.root.traverse((object) => {
+        if (object instanceof Mesh) object.visible = false;
+      });
+      expect(runtime.hasRenderableContent?.()).toBe(false);
+    } finally {
+      runtime.dispose();
+    }
+    expect(runtime.hasRenderableContent?.()).toBe(false);
+  });
+
   it("keeps trusted native height bounds while the coarse display cut contains only an intermediate height", async () => {
     const fixture = createIdlePrefetchFixture("trusted-native-range", 10);
     fixture.source.requestTile.mockImplementation(async (id) => ({
@@ -272,8 +298,9 @@ describe("buildRasterDemTerrainRuntime material and local frame", () => {
         customDepthMaterial?: unknown;
         geometry: { getAttribute: (name: string) => { count: number } };
       };
-      expect(mesh.castShadow).toBe(true);
-      expect(mesh.receiveShadow).toBe(true);
+      // Hidden DEM stays available for height queries without affecting mesh shadows.
+      expect(mesh.castShadow).toBe(groundVisible);
+      expect(mesh.receiveShadow).toBe(groundVisible);
       expect(mesh.material).toBeInstanceOf(MeshLambertMaterial);
       expect(mesh.material.side).toBe(FrontSide);
       expect(mesh.material.shadowSide).toBe(FrontSide);

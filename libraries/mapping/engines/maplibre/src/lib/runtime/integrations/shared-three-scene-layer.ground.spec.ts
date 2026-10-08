@@ -407,6 +407,58 @@ describe("shared three scene layer.ground", () => {
     }
   );
 
+  it.each([
+    { visible: true, providesTerrain: true, clearsWhenReady: true },
+    { visible: false, providesTerrain: true, clearsWhenReady: false },
+    { visible: true, providesTerrain: false, clearsWhenReady: false },
+  ])(
+    "keeps the existing framebuffer until visible terrain is renderable: %j",
+    ({ visible, providesTerrain, clearsWhenReady }) => {
+      const host = createProgressiveHost();
+      const clearColor = vi.fn();
+      Object.assign(host.gl, {
+        COLOR_BUFFER_BIT: 0x4000,
+        COLOR_CLEAR_VALUE: 0x0c22,
+        clearColor,
+      });
+      host.gl.getParameter.mockImplementation((parameter) =>
+        parameter === 0x0b70
+          ? [0, 0.985]
+          : parameter === 0x0c22
+          ? [0, 0, 0, 0]
+          : host.hostFramebuffer
+      );
+      host.layer.setAccumulationController(null);
+      host.layer.setMapStyleProjectionVisible(false);
+      const root = new THREE.Group();
+      root.visible = visible;
+      let ready = false;
+      host.layer.addRuntime({
+        id: "incoming-ground",
+        originLngLat: [7.15, 51.25],
+        root,
+        providesTerrain,
+        receivesMapStyleTexture: true,
+        hasRenderableContent: () => ready,
+        update: vi.fn(),
+        dispose: vi.fn(),
+      });
+      try {
+        host.render();
+        expect(clearColor).not.toHaveBeenCalled();
+        ready = true;
+        host.render();
+        expect(clearColor).toHaveBeenCalledTimes(clearsWhenReady ? 2 : 0);
+        clearColor.mockClear();
+        ready = false;
+        host.render();
+        expect(clearColor).not.toHaveBeenCalled();
+      } finally {
+        host.layer.dispose();
+      }
+    }
+  );
+
   it("projects the captured MapLibre ground pass before terrain lighting", () => {
     const material = new THREE.MeshLambertMaterial();
     const texture = new THREE.Texture();
