@@ -263,6 +263,25 @@ const mastFields = (includeLeuchten: boolean) =>
     }`
     : MAST_FIELDS;
 
+// Optionally includes each Leuchte's full Standort, aliased to keep it apart
+// from the slim `tdta_standort_mast` in LEUCHTEN_FIELDS.
+const leuchteFields = (includeMast: boolean) =>
+  includeMast
+    ? `${LEUCHTEN_FIELDS}
+    related_mast: tdta_standort_mast {
+      is_deleted
+      ${MAST_FIELDS}
+    }`
+    : LEUCHTEN_FIELDS;
+
+// Search types whose results can include their related objects.
+const RELATED_SEARCH: Partial<
+  Record<SearchType, { type: SearchType; label: string }>
+> = {
+  mast: { type: "leuchte", label: "Leuchten einbeziehen" },
+  leuchte: { type: "mast", label: "Standorte einbeziehen" },
+};
+
 const buildLeuchteWhereClause = (values: LeuchteSearchValues): string => {
   const conditions: string[] = [];
 
@@ -490,7 +509,7 @@ const generateQueryString = (
   whereOverride?: string | null,
   orderByOverride?: string,
   limitOverride?: string,
-  includeLeuchten = false
+  includeRelated = false
 ): string => {
   // Overrides come from the expert search; there an empty order means no order_by.
   const isExpert = orderByOverride !== undefined;
@@ -514,7 +533,7 @@ const generateQueryString = (
       whereOverride ?? buildLeuchteWhereClause(values as LeuchteSearchValues);
     return `query LeuchtenSearch {
   tdta_leuchten(${args(whereClause, "order_by: {einbaudatum: desc}")}) {
-    ${LEUCHTEN_FIELDS}
+    ${leuchteFields(includeRelated)}
   }
 }`;
   } else if (searchType === "mast") {
@@ -522,7 +541,7 @@ const generateQueryString = (
       whereOverride ?? buildMastWhereClause(values as MastSearchValues);
     return `query MastSearch {
   tdta_standort_mast(${args(whereClause, "order_by: {inbetriebnahme_mast: desc}")}) {
-    ${mastFields(includeLeuchten)}
+    ${mastFields(includeRelated)}
   }
 }`;
   } else if (searchType === "schaltstelle") {
@@ -697,7 +716,7 @@ const SearchModal = ({
   const [isSearching, setIsSearching] = useState(false);
   // Load and highlight results without fitting the map to them.
   const [keepMapPosition, setKeepMapPosition] = useState(false);
-  const [includeLeuchten, setIncludeLeuchten] = useState(false);
+  const [includeRelated, setIncludeRelated] = useState(false);
   const [queryPreview, setQueryPreview] = useState<string>("");
   const [noResults, setNoResults] = useState(false);
 
@@ -711,7 +730,8 @@ const SearchModal = ({
   const effectiveType: SearchType = isExpertSearch
     ? expertObjectType
     : searchType;
-  const withLeuchten = includeLeuchten && effectiveType === "mast";
+  const relatedSearch = RELATED_SEARCH[effectiveType];
+  const withRelated = includeRelated && relatedSearch != null;
 
   const expertHasIncompleteRule = useSelector(
     getExpertTypeHasIncompleteRule(expertObjectType)
@@ -748,11 +768,11 @@ const SearchModal = ({
           undefined,
           undefined,
           undefined,
-          withLeuchten
+          withRelated
         )
       );
     }
-  }, [searchType, showFinalQuery, withLeuchten]);
+  }, [searchType, showFinalQuery, withRelated]);
 
   // Criteria changes reset the no-results message.
   useEffect(() => {
@@ -771,12 +791,12 @@ const SearchModal = ({
             undefined,
             undefined,
             undefined,
-            withLeuchten
+            withRelated
           )
         );
       }
     },
-    [searchType, showFinalQuery, withLeuchten]
+    [searchType, showFinalQuery, withRelated]
   );
 
   const handleGraphQLSearch = useCallback(
@@ -792,10 +812,11 @@ const SearchModal = ({
         item: Record<string, unknown>
       ) => Array<[number, number]>;
       getHighlightIds?: (item: Record<string, unknown>) => string[];
-      // Nested Leuchten (e.g. leuchtenArray), shown alongside the result.
-      getNestedLeuchten?: (
-        item: Record<string, unknown>
-      ) => Record<string, unknown>[];
+      // Related objects of each result, shown alongside the results.
+      related?: {
+        type: SearchType;
+        get: (item: Record<string, unknown>) => Record<string, unknown>[];
+      };
       logPrefix?: string;
       // Passed to onSearchResults so the sidebar uses the same order.
       expertSort?: ExpertSortSpec;
@@ -808,7 +829,7 @@ const SearchModal = ({
         getGeometry,
         getAllGeometries,
         getHighlightIds,
-        getNestedLeuchten,
+        related,
         logPrefix = "[SEARCH]",
         expertSort = [],
       } = options;
@@ -867,12 +888,24 @@ const SearchModal = ({
               .filter(Boolean);
             highlightArray = ids.map((id: string) => `${featurePrefix}:${id}`);
           }
-          const nestedLeuchten = getNestedLeuchten
-            ? (results as Record<string, unknown>[]).flatMap(getNestedLeuchten)
+          // Deduped: several Leuchten can share one Standort.
+          const relatedItems = related
+            ? [
+                ...new Map(
+                  (results as Record<string, unknown>[])
+                    .flatMap(related.get)
+                    .map((r) => [r.id, r])
+                ).values(),
+              ]
             : [];
-          highlightArray.push(
-            ...nestedLeuchten.map((l) => `leuchten:${String(l.id)}`)
-          );
+          const relatedLayer = related
+            ? SEARCH_TYPE_SIDEBAR_META[related.type]?.sourceLayer
+            : undefined;
+          if (relatedLayer) {
+            highlightArray.push(
+              ...relatedItems.map((r) => `${relatedLayer}:${String(r.id)}`)
+            );
+          }
           clearHighlights();
           setHighlightingActive(true);
           highlightByIds(highlightArray);
@@ -913,13 +946,15 @@ const SearchModal = ({
               forSearchType,
               namespacedSource
             );
-            sidebarFeatures.push(
-              ...convertResultsToSidebarFeatures(
-                nestedLeuchten,
-                "leuchte",
-                namespacedSource
-              )
-            );
+            if (related) {
+              sidebarFeatures.push(
+                ...convertResultsToSidebarFeatures(
+                  relatedItems,
+                  related.type,
+                  namespacedSource
+                )
+              );
+            }
             onSearchResults(sidebarFeatures, { expertSort });
           }
 
@@ -1094,7 +1129,7 @@ const SearchModal = ({
           whereClause,
           "order_by: {einbaudatum: desc}"
         )}) {
-          ${LEUCHTEN_FIELDS}
+          ${leuchteFields(withRelated)}
         }
       }`;
 
@@ -1105,6 +1140,18 @@ const SearchModal = ({
         forSearchType: "leuchte",
         logPrefix: "[LEUCHTE_SEARCH]",
         expertSort,
+        related: withRelated
+          ? {
+              type: "mast",
+              get: (item) => {
+                const mast = item.related_mast as
+                  | Record<string, unknown>
+                  | null
+                  | undefined;
+                return mast && mast.is_deleted !== true ? [mast] : [];
+              },
+            }
+          : undefined,
         getGeometry: (item) => {
           const mast = item.tdta_standort_mast as
             | Record<string, unknown>
@@ -1122,7 +1169,7 @@ const SearchModal = ({
           whereClause,
           "order_by: {inbetriebnahme_mast: desc}"
         )}) {
-          ${mastFields(withLeuchten)}
+          ${mastFields(withRelated)}
         }
       }`;
 
@@ -1133,8 +1180,13 @@ const SearchModal = ({
         forSearchType: "mast",
         logPrefix: "[MAST_SEARCH]",
         expertSort,
-        getNestedLeuchten: withLeuchten
-          ? (item) => (item.leuchtenArray as Record<string, unknown>[]) ?? []
+        related: withRelated
+          ? {
+              type: "leuchte",
+              get: (item) =>
+                (item.leuchtenArray as Record<string, unknown>[] | undefined) ??
+                [],
+            }
           : undefined,
         getGeometry: (item) => {
           const geom = item.geom_84 as { x?: number; y?: number } | undefined;
@@ -1215,7 +1267,7 @@ const SearchModal = ({
     }
   }, [
     effectiveType,
-    withLeuchten,
+    withRelated,
     isExpertSearch,
     expertObjectType,
     expertTypeState,
@@ -1283,7 +1335,7 @@ const SearchModal = ({
                       REGISTRY[expertObjectType]
                     ),
                     buildExpertLimit(expertTypeState),
-                    withLeuchten
+                    withRelated
                   )
                 );
               }
@@ -1309,13 +1361,13 @@ const SearchModal = ({
               {noResults && <span>Keine Ergebnisse gefunden</span>}
             </div>
             <div className="flex items-center gap-3">
-              {effectiveType === "mast" && (
+              {relatedSearch && (
                 <Checkbox
-                  checked={includeLeuchten}
-                  onChange={(e) => setIncludeLeuchten(e.target.checked)}
+                  checked={includeRelated}
+                  onChange={(e) => setIncludeRelated(e.target.checked)}
                 >
                   <span className="text-sm text-gray-500">
-                    Leuchten einbeziehen
+                    {relatedSearch.label}
                   </span>
                 </Checkbox>
               )}
