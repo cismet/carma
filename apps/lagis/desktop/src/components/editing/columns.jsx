@@ -24,7 +24,16 @@ export const withSort = (columns, sort) =>
     sortOrder: sort.columnKey === column.key ? sort.order : null,
   }));
 
-export const textColumn = (title, dataIndex, update) => ({
+// a required column gets a red * in the header
+export const requiredTitle = (title) => (
+  <>
+    {title}
+    <span className="text-red-500 ml-0.5">*</span>
+  </>
+);
+
+// invalid(record) marks the cell red
+export const textColumn = (title, dataIndex, update, invalid) => ({
   key: dataIndex,
   title,
   dataIndex,
@@ -32,6 +41,7 @@ export const textColumn = (title, dataIndex, update) => ({
   render: (value, record) => (
     <Input
       size="small"
+      status={invalid?.(record) ? "error" : undefined}
       value={value}
       onChange={(event) =>
         update(record.id, { [dataIndex]: event.target.value })
@@ -41,7 +51,7 @@ export const textColumn = (title, dataIndex, update) => ({
 });
 
 // draft rows keep days as EDIT_DAY
-export const dateColumn = (title, dataIndex, update) => ({
+export const dateColumn = (title, dataIndex, update, invalid) => ({
   key: dataIndex,
   title,
   dataIndex,
@@ -49,6 +59,7 @@ export const dateColumn = (title, dataIndex, update) => ({
   render: (day, record) => (
     <DatePicker
       size="small"
+      status={invalid?.(record) ? "error" : undefined}
       format={VIEW_DAY}
       className="w-full"
       getPopupContainer={() => document.body}
@@ -153,8 +164,8 @@ const bySchluessel = (a, b) => {
   return x < y ? -1 : x > y ? 1 : 0;
 };
 
-// stammdaten: { anlageklassen, nutzungsarten }
-export const usageColumns = (stammdaten) => {
+// stammdaten: { anlageklassen, nutzungsarten }; invalid(record, field) marks a cell red
+export const usageColumns = (stammdaten, invalid = () => false) => {
   const anlageklassen = stammdaten.anlageklassen.map((klasse) => ({
     value: klasse.id,
     label: klasse.bezeichnung,
@@ -193,6 +204,7 @@ export const usageColumns = (stammdaten) => {
           optionFilterProp="label"
           placeholder="Nutzungsart"
           className="w-full"
+          status={invalid(record, "nutzungsartId") ? "error" : undefined}
           getPopupContainer={() => document.body}
           options={nutzungsarten}
           value={nutzungsartId}
@@ -211,6 +223,7 @@ export const usageColumns = (stammdaten) => {
           min={0}
           precision={0}
           className="w-full"
+          status={invalid(record, "flaeche") ? "error" : undefined}
           value={flaeche}
           onChange={(next) => update(record.id, { flaeche: next ?? null })}
         />
@@ -228,6 +241,7 @@ export const usageColumns = (stammdaten) => {
           precision={2}
           decimalSeparator=","
           className="w-full"
+          status={invalid(record, "quadratmeterpreis") ? "error" : undefined}
           value={preis}
           onChange={(next) =>
             update(record.id, { quadratmeterpreis: next ?? null })

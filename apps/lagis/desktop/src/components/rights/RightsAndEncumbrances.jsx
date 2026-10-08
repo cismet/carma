@@ -17,6 +17,8 @@ import {
 } from "../editing/columns";
 import { ColorMark } from "../editing/cells";
 import { artChanges, newRebeRow } from "../../core/editing/rebe";
+import { REBE_RULES } from "../../core/editing/validation";
+import useInvalidCells from "../editing/useInvalidCells";
 import { rebeColor } from "../../core/extractors/rebePageExtractor";
 import dayjs from "dayjs";
 import weekday from "dayjs/plugin/weekday";
@@ -106,7 +108,8 @@ const columns = [
 ];
 
 // kindSwitchAllowed: false on non-städtische parcels, they hold only Rechte
-const editColumns = (rebeArten, { rebes, kindSwitchAllowed }) => {
+// invalid(record, field) marks a cell red
+const editColumns = (rebeArten, { rebes, kindSwitchAllowed }, invalid) => {
   const artName = new Map(rebeArten.map((art) => [art.id, art.bezeichnung]));
   // colors follow the row's place in the list, as in the view
   const colorOf = (row) =>
@@ -164,7 +167,9 @@ const editColumns = (rebeArten, { rebes, kindSwitchAllowed }) => {
     textColumn(rebe.rebeTable.artrechtCol, "beschreibung", update),
     textColumn(rebe.rebeTable.nummerCol, "nummer", update),
     dateColumn(rebe.rebeTable.eintragungCol, "eintragung", update),
-    dateColumn(rebe.rebeTable.loschungCol, "loeschung", update),
+    dateColumn(rebe.rebeTable.loschungCol, "loeschung", update, (record) =>
+      invalid(record, "loeschung")
+    ),
     textColumn(rebe.rebeTable.bemerkungCol, "bemerkung", update),
   ];
 };
@@ -237,6 +242,7 @@ const RightsAndEncumbrances = ({
     newRow: newRebeRow,
   });
   const rebeArten = useStammdatenList("rebeArten", editable);
+  const invalid = useInvalidCells("rebe", tableProps.rows, REBE_RULES);
   // view ids are list positions; both lists are ordered by id
   useEffect(() => {
     if (editable && activeRow) {
@@ -292,7 +298,7 @@ const RightsAndEncumbrances = ({
               fixHeight={false}
               columns={(update) =>
                 withFixedWidths(
-                  withSort(editColumns(rebeArten, draft)(update), sort)
+                  withSort(editColumns(rebeArten, draft, invalid)(update), sort)
                 )
               }
               tableLayout="fixed"
