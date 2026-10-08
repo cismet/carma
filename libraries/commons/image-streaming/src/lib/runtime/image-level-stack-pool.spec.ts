@@ -292,6 +292,12 @@ describe("ImageLevelStackPool foreground-priority prewarming", () => {
       const foreground = sources.get("active")!;
       foreground.release("decode");
       await settle();
+      // Foreground work started before the forecast is allowed to finish normally.
+      // Evict its already-prefetched finer bytes so restoring Full must schedule
+      // a fresh speculative batch rather than succeeding from those cached bytes.
+      for (const tile of foreground.local) {
+        if (tile.startsWith("1:")) foreground.local.delete(tile);
+      }
       const before = foreground.fetches.length;
       expect(
         pool.metrics.images.find((image) => image.id === "warm")!.visibleReady
@@ -351,4 +357,23 @@ describe("ImageLevelStackPool foreground-priority prewarming", () => {
       pool.dispose();
     }
   });
+  it("does not abort an unfinished foreground fetch when a forecast is queued", async () => {
+    const { pool, sources } = setup((source, id) => { if (id === "active") source.hold.add("fetch"); });
+    try {
+      const active = pool.acquire(descriptor("active"));
+      active.stack.setView(view(), 512 ** 2); await settle();
+      const source = sources.get("active")!;
+      const ongoing = source.fetches.map((request) => request.signal);
+      expect(ongoing.length).toBeGreaterThan(0);
+      const pauses = source.pauses;
+      pool.prewarm(descriptor("warm"), view(), 512 ** 2); await settle();
+      expect(source.pauses).toBe(pauses);
+      expect(ongoing.every((signal) => !signal.aborted)).toBe(true);
+      expect(sources.has("warm")).toBe(false);
+      source.release("fetch"); await settle();
+      expect(active.stack.metrics.visibleReady).toBe(true);
+      expect(sources.has("warm")).toBe(true);
+    } finally { pool.dispose(); }
+  });
+
 });

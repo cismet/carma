@@ -168,7 +168,7 @@ export class ImageLevelStackPool {
       // A forecast takes precedence over an active image's speculative rings
       // and full-pyramid downloads, never over its visible target pixels.
       for (const entry of foreground)
-        entry.stack.setWork(request && !warm?.refs && !(request.applied === warm && warm?.stack.metrics.visibleReady)
+        entry.stack.setWork(!blocked && request && !warm?.refs && !(request.applied === warm && warm?.stack.metrics.visibleReady)
           ? IMAGE_STACK_WORK.Visible : IMAGE_STACK_WORK.Full);
       if (request && !blocked) {
         warm ??= this.entry(request.source, true);
