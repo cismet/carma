@@ -45,3 +45,61 @@ export {
   ImageViewportCarousel,
   type ImageViewportCarouselProps,
 } from "./lib/runtime/ImageViewportCarousel";
+export {
+  planImageLevels,
+  targetLevel,
+  tileRangeFor,
+  imageTileRect,
+  imageTileKey,
+  levelToNative,
+  missingNeighbors,
+  type ImageLevel,
+  type ImageLevelPlan,
+  type ImageLevelPlanOptions,
+  type ImageRect,
+  type ImageSize,
+  type ImageTileRange,
+  type ImageTileRole,
+  type ImageTileWant,
+  type ImageView,
+} from "./lib/core/image-level-plan";
+export type {
+  ImagePyramid,
+  ImageTileRef,
+  ImageTileSource,
+} from "./lib/runtime/image-tile-source";
+export {
+  AvifTileSource,
+  AvifAssetChangedError,
+} from "./lib/runtime/avif-tile-source";
+export { JpegTileSource } from "./lib/runtime/jpeg-tile-source";
+export {
+  ImageLevelStack,
+  type ImageLevelStackOptions,
+  type ImageLevelStackMetrics,
+  type ImageLevelReadiness,
+} from "./lib/runtime/image-level-stack";
+export {
+  ImageLevelStackPool,
+  createImageTileSource,
+  type ImageStreamSource,
+  type ImageLevelStackLease,
+  type ImageLevelStackPoolMetrics,
+} from "./lib/runtime/image-level-stack-pool";
+export {
+  drawImageLevels,
+  type ImageLevelsTransform,
+  type DrawImageLevelsOptions,
+} from "./lib/runtime/draw-image-levels";
+export {
+  ThreeImageLevels,
+  type ImageLevelsTexture,
+} from "./lib/runtime/three-image-levels";
+export {
+  ImageStreamViewer,
+  type ImageStreamViewerProps,
+} from "./lib/runtime/ImageStreamViewer";
+export {
+  ImageStreamCarousel,
+  type ImageStreamCarouselProps,
+} from "./lib/runtime/ImageStreamCarousel";

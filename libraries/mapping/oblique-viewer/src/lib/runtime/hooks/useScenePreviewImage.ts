@@ -6,6 +6,7 @@ import {
   LinearFilter,
   Matrix3,
   Matrix4,
+  type WebGLRenderer,
 } from "three";
 import type { Map as MaplibreMap } from "maplibre-gl";
 import { acquireSharedThreeScene } from "@carma-mapping/engines/maplibre";
@@ -40,11 +41,16 @@ export type ScenePreviewPhoto = Readonly<{
 }>;
 
 type PreviewTextureSource = HTMLImageElement | HTMLCanvasElement | ImageBitmap;
-export type ScenePreviewImageContent = Readonly<{
-  source: PreviewTextureSource;
-  revision?: number;
-  crop?: NativePreviewWindow["source"];
-}>;
+export type ScenePreviewImageContent = Readonly<
+  {
+    revision?: number;
+    crop?: NativePreviewWindow["source"];
+  } & (
+    | { source: PreviewTextureSource; texture?: never }
+    /** A caller-owned GPU texture, e.g. a render target composed this frame; never uploaded or disposed here. */
+    | { texture: Texture; source?: never }
+  )
+>;
 export type ScenePreviewImageGeometry = Readonly<{
   viewport: { width: CssPixels; height: CssPixels };
   image: { width: CssPixels; height: CssPixels };
@@ -86,7 +92,11 @@ export const useScenePreviewImage = ({
   backdropLook?: ObliqueBackdropLook;
   backdropTint?: PreviewBackdropTint;
   showBasemapLabels?: boolean;
-  onBeforeRender?: (geometry: ScenePreviewImageGeometry) => void;
+  /** Runs inside the shared frame before the overlay is sampled; the renderer allows same-frame composition. */
+  onBeforeRender?: (
+    geometry: ScenePreviewImageGeometry,
+    renderer: WebGLRenderer | null
+  ) => void;
   onOutlineReady?: () => void;
   photo?: ScenePreviewPhoto;
 }): boolean => {
@@ -139,6 +149,7 @@ export const useScenePreviewImage = ({
 
     let outlineReady = false;
     let texture: Texture | null = null;
+    let ownsTexture = false;
     let textureSource: PreviewTextureSource | null = null;
     let textureRevision = -1;
     let textureWidth = 0;
@@ -228,8 +239,9 @@ export const useScenePreviewImage = ({
         };
       }
       // Cancellation sees the final camera before a completed bitmap can be uploaded.
-      options.onBeforeRender?.(geometry);
+      options.onBeforeRender?.(geometry, layer.getRenderer?.() ?? null);
       const content = options.contentRef?.current;
+      const nextTexture = options.contentRef ? content?.texture ?? null : null;
       const nextSource = options.contentRef
         ? content?.source ?? null
         : options.source;
@@ -237,71 +249,99 @@ export const useScenePreviewImage = ({
         ? content?.revision ?? 0
         : options.revision;
       const nextCrop = options.contentRef ? content?.crop : options.crop;
-      if (!options.shown || !nextSource) {
+      if (!options.shown || (!nextSource && !nextTexture)) {
         outlineReady = false;
         pendingReplacement = false;
         opacity = 0;
         fade = null;
         clear();
-        if (!nextSource) {
-          texture?.dispose();
+        if (!nextSource && !nextTexture) {
+          if (ownsTexture) texture?.dispose();
           texture = null;
+          ownsTexture = false;
           textureSource = null;
           textureRevision = -1;
           textureCrop = undefined;
         }
         return;
       }
-      const sourceWidth =
-        "naturalWidth" in nextSource
-          ? nextSource.naturalWidth
-          : nextSource.width;
-      const sourceHeight =
-        "naturalHeight" in nextSource
-          ? nextSource.naturalHeight
-          : nextSource.height;
-      const resized =
-        sourceWidth !== textureWidth || sourceHeight !== textureHeight;
-      const replacement =
-        resized ||
-        nextSource !== textureSource ||
-        nextRevision !== textureRevision ||
-        nextCrop?.x !== textureCrop?.x ||
-        nextCrop?.y !== textureCrop?.y ||
-        nextCrop?.width !== textureCrop?.width ||
-        nextCrop?.height !== textureCrop?.height;
-      pendingReplacement =
-        replacement &&
-        Math.max(sourceWidth, sourceHeight) > 512 &&
-        sourceWidth * sourceHeight > width * height * pixelRatio * pixelRatio * 4 &&
-        !!map.isMoving?.();
-      // Keep the admitted source/crop pair while moving, but still update its camera matrix below.
-      if (!pendingReplacement && replacement) {
-        if (nextSource !== textureSource || resized) {
-          // WebGL2 storage is immutable: a differently sized crop needs a new allocation.
-          if (texture && resized) {
-            texture.dispose();
-            texture = null;
-          }
-          if (texture) texture.image = nextSource;
-          else
-            texture =
-              nextSource instanceof HTMLCanvasElement
-                ? new CanvasTexture(nextSource)
-                : new Texture(nextSource);
-          texture.colorSpace = SRGBColorSpace;
-          texture.minFilter = LinearFilter;
-          texture.generateMipmaps = false;
-          texture.needsUpdate = true;
-          textureSource = nextSource;
-          textureWidth = sourceWidth;
-          textureHeight = sourceHeight;
-          textureRevision = nextRevision;
-        } else if (texture && nextRevision !== textureRevision) {
-          texture.needsUpdate = true;
-          textureRevision = nextRevision;
+      if (nextTexture) {
+        // Composed in this frame for the current camera: no upload, no withheld replacement.
+        if (texture !== nextTexture) {
+          if (ownsTexture) texture?.dispose();
+          texture = nextTexture;
+          ownsTexture = false;
+          textureSource = null;
+          textureWidth = textureHeight = 0;
+          textureRevision = -1;
         }
-        textureCrop = nextCrop ? { ...nextCrop } : undefined;
+        pendingReplacement = false;
+        if (
+          nextCrop?.x !== textureCrop?.x ||
+          nextCrop?.y !== textureCrop?.y ||
+          nextCrop?.width !== textureCrop?.width ||
+          nextCrop?.height !== textureCrop?.height
+        )
+          textureCrop = nextCrop ? { ...nextCrop } : undefined;
+      } else if (nextSource) {
+        if (texture && !ownsTexture) {
+          texture = null;
+          textureSource = null;
+        }
+        const sourceWidth =
+          "naturalWidth" in nextSource
+            ? nextSource.naturalWidth
+            : nextSource.width;
+        const sourceHeight =
+          "naturalHeight" in nextSource
+            ? nextSource.naturalHeight
+            : nextSource.height;
+        const resized =
+          sourceWidth !== textureWidth || sourceHeight !== textureHeight;
+        const replacement =
+          resized ||
+          nextSource !== textureSource ||
+          nextRevision !== textureRevision ||
+          nextCrop?.x !== textureCrop?.x ||
+          nextCrop?.y !== textureCrop?.y ||
+          nextCrop?.width !== textureCrop?.width ||
+          nextCrop?.height !== textureCrop?.height;
+        pendingReplacement =
+          replacement &&
+          Math.max(sourceWidth, sourceHeight) > 512 &&
+          sourceWidth * sourceHeight >
+            width * height * pixelRatio * pixelRatio * 4 &&
+          !!map.isMoving?.();
+        // Keep the admitted source/crop pair while moving, but still update its camera matrix below.
+        if (!pendingReplacement && replacement) {
+          if (nextSource !== textureSource || resized) {
+            // WebGL2 storage is immutable: a differently sized crop needs a new allocation.
+            if (texture && resized) {
+              texture.dispose();
+              texture = null;
+            }
+            if (texture) texture.image = nextSource;
+            else {
+              texture =
+                nextSource instanceof HTMLCanvasElement
+                  ? new CanvasTexture(nextSource)
+                  : new Texture(nextSource);
+              ownsTexture = true;
+            }
+            texture.colorSpace = SRGBColorSpace;
+            texture.minFilter = LinearFilter;
+            texture.generateMipmaps = false;
+            texture.needsUpdate = true;
+            textureSource = nextSource;
+            textureWidth = sourceWidth;
+            textureHeight = sourceHeight;
+            textureRevision = nextRevision;
+          } else if (texture && nextRevision !== textureRevision) {
+            texture.needsUpdate = true;
+            textureRevision = nextRevision;
+          }
+          textureCrop = nextCrop ? { ...nextCrop } : undefined;
+        }
       }
       if (!texture) return;
       if (options.priority > 0) opacity = 1;
@@ -465,7 +505,7 @@ export const useScenePreviewImage = ({
       map.off("moveend", admitPendingSource);
       remove();
       clear();
-      texture?.dispose();
+      if (ownsTexture) texture?.dispose();
       lease.release();
     };
   }, [map, id]);
