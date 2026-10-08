@@ -43,6 +43,7 @@ import {
 } from "@carma-mapping/components";
 import CismapLayer from "react-cismap/CismapLayer";
 import Menu from "./components/Menu";
+import OpenInGeoportalControl from "./components/OpenInGeoportalControl";
 import { TopicMapStylingContext } from "react-cismap/contexts/TopicMapStylingContextProvider";
 import md5 from "md5";
 import { createVectorFeature } from "@carma-mapping/utils";
@@ -313,6 +314,16 @@ const Map = ({
             />
           </Control>
         )}
+        {config?.tm?.geoportalLink &&
+          config.tm.noFeatureCollection === true &&
+          vectorLayerCount > 0 && (
+            <Control position="topleft" order={70}>
+              <OpenInGeoportalControl
+                vectorLayers={config.tm.vectorLayers}
+                label={config.tm.geoportalLink.label}
+              />
+            </Control>
+          )}
         {config?.tm?.gazetteerSearchBox && (
           <Control position="bottomleft" order={10}>
             <div style={{ marginTop: "4px" }}>

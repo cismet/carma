@@ -32,7 +32,7 @@ const createShareKey = async ({
     center: [lat, lng],
     zoom: zoom,
   };
-  const newConfig = {
+  return storeMappingConfig({
     backgroundLayer: {
       ...backgroundLayer,
       selectedLayerId: selectedByCategory[backgroundLayer.id]?.id,
@@ -41,14 +41,20 @@ const createShareKey = async ({
     view,
     gazetteerSelection,
     selectedFeature,
-  };
+  });
+};
 
+/**
+ * Stores a geoportal configuration (`{ layers, backgroundLayer?, view?, ... }`)
+ * and returns the key a geoportal url loads it by (`config=<key>`).
+ */
+export const storeMappingConfig = async (config: object): Promise<string> => {
   const response = await fetch(SHORTENER_URL, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify(newConfig),
+    body: JSON.stringify(config),
   });
   const data = await response.json();
   return data.key;

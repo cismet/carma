@@ -154,7 +154,11 @@ export { ProgressIndicator } from "./lib/components/ProgressIndicator";
 export { useSelectionTopicMap } from "./lib/hooks/useSelectionTopicMap";
 export { useSelectionCesium } from "./lib/hooks/useSelectionCesium";
 export { useSelectionLibreMap } from "./lib/hooks/useSelectionLibreMap";
-export { useShareUrl, SHORTENER_URL } from "./lib/hooks/useShareUrl";
+export {
+  useShareUrl,
+  storeMappingConfig,
+  SHORTENER_URL,
+} from "./lib/hooks/useShareUrl";
 export { useProgress } from "./lib/hooks/useProgress";
 export {
   useAdhocCesiumFeatureDisplay,
