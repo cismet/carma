@@ -186,6 +186,7 @@ export const usageColumns = (stammdaten, invalid = () => false) => {
         <Select
           size="small"
           showSearch
+          allowClear
           optionFilterProp="label"
           placeholder="Anlageklasse"
           className="w-full"
@@ -205,6 +206,7 @@ export const usageColumns = (stammdaten, invalid = () => false) => {
         <Select
           size="small"
           showSearch
+          allowClear
           optionFilterProp="label"
           placeholder="Nutzungsart"
           className="w-full"
