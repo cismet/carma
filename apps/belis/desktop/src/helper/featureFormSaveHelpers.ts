@@ -10,10 +10,7 @@ import { uploadDraftFiles } from "./uploadDraftFiles";
 import { parseStandortIdFromKey } from "./geometryOptions";
 import { removeMeasurements } from "@carma-mapping/measurements";
 
-// ---------------------------------------------------------------------------
-// Dayjs serialization (independent copy — matches FeaturesFormsWrapper logic)
-// ---------------------------------------------------------------------------
-
+// Copy of the FeaturesFormsWrapper dayjs (de)serialization.
 const DAYJS_PREFIX = "__dayjs:";
 
 const deserializeValues = (
@@ -51,15 +48,7 @@ const transformDatesForBackend = (
   return result;
 };
 
-// ---------------------------------------------------------------------------
-// Strassenschluessel pk → id lookup
-// ---------------------------------------------------------------------------
-
-/**
- * Builds a `pk → id` map from the Strassenschluessel key table so the save
- * layer can backfill `fk_strassenschluessel` from the visible `pk` when the
- * hidden FK never made it into the draft (see `prepareSaveValues`).
- */
+/** pk → id map, used to backfill a missing `fk_strassenschluessel`. */
 export const buildStrassenschluesselByPk = (
   items: ReadonlyArray<{ id?: unknown; pk?: unknown }> | undefined
 ): Record<string, number> => {
@@ -71,10 +60,6 @@ export const buildStrassenschluesselByPk = (
   }
   return map;
 };
-
-// ---------------------------------------------------------------------------
-// Per-feature-type save configuration
-// ---------------------------------------------------------------------------
 
 interface FeatureSaveConfig {
   className: string;
@@ -103,9 +88,7 @@ const featureSaveConfigs: Record<string, FeatureSaveConfig> = {
   },
   standort: {
     className: "tdta_standort_mast",
-    // `leuchten` holds the "+ Leuchte" creation tabs (see saveCreationDraft);
-    // strip it here so it never reaches the Mast payload as a bogus field —
-    // the array is consumed separately to create the linked tdta_leuchten rows.
+    // "+ Leuchte" tabs, saved separately as tdta_leuchten rows.
     removedFields: [
       "strassenschluessel_pk",
       "strassenschluessel_strasse",
@@ -142,14 +125,7 @@ const featureSaveConfigs: Record<string, FeatureSaveConfig> = {
   },
 };
 
-// ---------------------------------------------------------------------------
-// Value preparation
-// ---------------------------------------------------------------------------
-
-/**
- * Transforms serialized draft values into a clean payload ready for the API.
- * Applies per-feature-type rules: field removal, renaming, date conversion.
- */
+/** Draft values → API payload (per-type removals, renames, dates). */
 export const prepareSaveValues = (
   featureType: string,
   serializedDraftValues: Record<string, unknown>,
@@ -158,7 +134,6 @@ export const prepareSaveValues = (
   const config = featureSaveConfigs[featureType];
   if (!config) return null;
 
-  // 1. Extract nested values if needed
   let raw: Record<string, unknown>;
   if (config.valuesPath) {
     const nested = serializedDraftValues[config.valuesPath];
@@ -168,17 +143,10 @@ export const prepareSaveValues = (
     raw = { ...serializedDraftValues };
   }
 
-  // 2. Deserialize dayjs strings
   const deserialized = deserializeValues(raw);
 
-  // 2b. Backfill fk_strassenschluessel from the visible pk.
-  // The street is persisted ONLY via fk_strassenschluessel — strassenschluessel_pk
-  // and strassenschluessel_strasse are display-only and stripped below. The FK is
-  // a hidden field that only reaches the draft through the picker's manual sync
-  // (AntD setFieldValue doesn't fire onValuesChange); a draft hydrated from server
-  // data or copied via the green "+" can therefore carry the visible pk/strasse
-  // while the FK is null, which would save the feature with no street. Resolve the
-  // FK from the pk against the key table so the display and the FK can't desync.
+  // The street is saved only via the hidden fk_strassenschluessel, which can be
+  // missing in hydrated or copied drafts. Resolve it from the visible pk.
   const currentFk = deserialized.fk_strassenschluessel;
   const pk = deserialized.strassenschluessel_pk;
   if (
@@ -193,7 +161,7 @@ export const prepareSaveValues = (
     }
   }
 
-  // 3. Handle explicitFields mode (leitung)
+  // Leitung: only explicitFields are sent.
   if (config.explicitFields) {
     const result: Record<string, unknown> = {};
     for (const field of config.explicitFields) {
@@ -204,17 +172,16 @@ export const prepareSaveValues = (
     return result;
   }
 
-  // 4. Remove display-only fields and collect renamed values
+  // Remove display-only fields, keeping values that get renamed.
   const renamed: Record<string, unknown> = {};
   for (const field of config.removedFields) {
     if (field in deserialized && config.fieldRenames[field]) {
-      // Capture value before removing (e.g. sonderturnus → wartungszyklus)
       renamed[config.fieldRenames[field]] = deserialized[field];
     }
     delete deserialized[field];
   }
 
-  // 5. Apply any remaining renames not tied to removed fields
+  // Renames of fields that are not removed
   for (const [from, to] of Object.entries(config.fieldRenames)) {
     if (from in deserialized) {
       renamed[to] = deserialized[from];
@@ -222,30 +189,24 @@ export const prepareSaveValues = (
     }
   }
 
-  // 6. Merge renamed values
   const merged = { ...deserialized, ...renamed };
 
-  // 6b. Convert undefined values to null (e.g. cleared Select fields)
+  // Cleared Selects arrive as undefined; the backend needs null.
   for (const key of Object.keys(merged)) {
     if (merged[key] === undefined) {
       merged[key] = null;
     }
   }
 
-  // 6c. An emptied Sensor-ID must go out as null, not ""
+  // An emptied Sensor-ID must go out as null, not ""
   const normalized = normalizeSensorValues(merged);
 
-  // 7. Transform dates if needed
   if (config.transformDates) {
     return transformDatesForBackend(normalized);
   }
 
   return normalized;
 };
-
-// ---------------------------------------------------------------------------
-// Document array builder
-// ---------------------------------------------------------------------------
 
 export const buildDokumenteArray = (
   existingDocs: DokumentItem[],
@@ -259,10 +220,6 @@ export const buildDokumenteArray = (
   return [...kept, ...uploadedDocs];
 };
 
-// ---------------------------------------------------------------------------
-// Single draft save
-// ---------------------------------------------------------------------------
-
 export interface SaveResult {
   success: boolean;
   featureId: string;
@@ -270,11 +227,7 @@ export interface SaveResult {
   error?: string;
 }
 
-/**
- * Saves a single feature draft: uploads files, builds payload, calls API.
- * Does NOT modify Redux state — the caller is responsible for removing
- * the draft on success.
- */
+/** Saves one draft. The caller removes it from Redux on success. */
 export const saveFeatureDraft = async (
   jwt: string,
   featureId: string,
@@ -293,10 +246,7 @@ export const saveFeatureDraft = async (
     };
   }
 
-  // Soft-delete draft: flip the row's `is_deleted` flag instead of saving any
-  // field values. Applies to EVERY feature type and to BOTH the single-save
-  // (handleServerSave) and bulk-save ("Alle speichern") paths — every deletion
-  // must send exactly { id, is_deleted: true }.
+  // Soft delete: send only { id, is_deleted: true }.
   if (draft.pendingDeletion) {
     if (featureDbId == null) {
       return {
@@ -318,7 +268,6 @@ export const saveFeatureDraft = async (
     }
   }
 
-  // Creation drafts: create new feature with id: -1
   if (draft.isCreation) {
     return saveCreationDraft(
       jwt,
@@ -338,14 +287,12 @@ export const saveFeatureDraft = async (
   }
 
   try {
-    // 1. Upload new files
     let uploadedDocuments: DokumentItem[] = [];
     const draftFiles: DraftFile[] = draft.files ?? [];
     if (draftFiles.length > 0) {
       uploadedDocuments = await uploadDraftFiles(jwt, draftFiles);
     }
 
-    // 2. Build dokumenteArray
     const removedKeys = draft.removedDocumentKeys ?? [];
     const existingDocs = draft.existingDocuments ?? [];
     const hasDocumentChanges =
@@ -360,7 +307,6 @@ export const saveFeatureDraft = async (
       );
     }
 
-    // 3. Prepare form values
     const formValues = prepareSaveValues(
       featureType,
       draft.values ?? {},
@@ -372,12 +318,8 @@ export const saveFeatureDraft = async (
       delete formValues.fk_strassenschluessel;
     }
 
-    // 4a. Geometry edit: the user switched this existing feature's shape to a
-    // measurement. Update the same `geom` row in place (same geom id) so the
-    // feature keeps its identity. Applies to both point features and Leitungen.
-    // A "current.*" key means the geometry was left untouched (or reverted),
-    // so no geom is sent. Falls back to id: -1 when the geom id wasn't
-    // captured at draft-open (backend then creates a fresh geom and re-links).
+    // Geometry edit: update the existing geom row in place (id -1 if unknown).
+    // "current.*" keys mean the geometry is unchanged.
     const geometryEdited =
       !!draft.geometry &&
       !!draft.geometryKey &&
@@ -386,9 +328,7 @@ export const saveFeatureDraft = async (
       ? { id: draft.featureGeomId ?? -1, geo_field: draft.geometry }
       : undefined;
 
-    // Diagnostic: a geometry change was selected (key is not "current.*") but no
-    // geom is going out — the draft lost its geometry before save. Logs only;
-    // the save still proceeds.
+    // Diagnostic only: a geometry change was selected but no geom is sent.
     const geometryChangeIntended =
       !!draft.geometryKey && !draft.geometryKey.startsWith("current.");
     if (geometryChangeIntended && !geomPayload) {
@@ -403,7 +343,6 @@ export const saveFeatureDraft = async (
       );
     }
 
-    // 4. Build final payload
     const dataToSave: Record<string, unknown> = {
       id: featureDbId,
       ...(formValues ?? {}),
@@ -413,14 +352,6 @@ export const saveFeatureDraft = async (
       ...(geomPayload ? { geom: geomPayload } : {}),
     };
 
-    // 5. Send to API
-    // Temporary while the sensor fields are being wired up with the server.
-    console.log(
-      `xxx [SAVE] ${config.className} (edit) payload`,
-      JSON.stringify(dataToSave, null, 2),
-      "\nxxx draft.values:",
-      JSON.stringify(draft.values ?? {}, null, 2)
-    );
     await updateDataByClassName(jwt, config.className, dataToSave);
 
     if (featureType === "standort" && formValues) {
@@ -513,26 +444,17 @@ const saveCreationDraft = async (
         strassenschluesselByPk
       ) ?? {};
     let payload: Record<string, unknown>;
-    // Hoisted out of the `featureType === "leuchte"` branch so the Scope-B
-    // extras loop below can reuse them when creating additional Leuchten that
-    // share Leuchte 1's Mast + Strassenschluessel.
+    // Also used by the extra-Leuchten loop below.
     let mastIdForLink: number | undefined;
     let leuchteStrassenschluesselId: number | null = null;
 
     if (featureType === "leuchte") {
       const linkedMastId = parseStandortIdFromKey(draft.geometryKey);
 
-      // Mirror the Mast's strassenschluessel onto the Leuchte so the joined
-      // Leuchte view (which reads leuchte.tkey_strassenschluessel) renders
-      // the street name. The Strassenschluessel field is hidden on the
-      // Leuchte tab during creation, so the only source is the Mast tab.
+      // The Leuchte gets the Mast's street (hidden on the Leuchte tab) so its
+      // joined view shows the street name.
       if (linkedMastId != null) {
-        // Existing Standort was selected — reuse it, no new Mast created.
-        // LeuchteForm hydrates `draft.values.mast.fk_strassenschluessel`
-        // from the linked Mast's tkey_strassenschluessel; pick it up so
-        // the same FK lands on each saved Leuchte (otherwise the new
-        // Leuchten persist with `fk_strassenschluessel = null` and the
-        // sidebar/tile view shows them with a blank street).
+        // Existing Standort: reuse it and its fk_strassenschluessel.
         mastIdForLink = linkedMastId;
         const mastSlice = (draft.values?.mast ?? {}) as Record<string, unknown>;
         const linkedFk = mastSlice.fk_strassenschluessel;
@@ -540,9 +462,7 @@ const saveCreationDraft = async (
           leuchteStrassenschluesselId = linkedFk;
         }
       } else {
-        // Build the Mast payload from the form's Mast tab values, falling
-        // back to the same defaults that used to be hardcoded so a Mast can
-        // still be created if the user leaves required fields blank.
+        // New Mast from the Standort tab values.
         const rawMastValues = (draft.values?.mast ?? {}) as Record<
           string,
           unknown
@@ -601,12 +521,8 @@ const saveCreationDraft = async (
       };
     }
 
-    // When creating a Leuchte bound to an existing Standort the payload has
-    // no `geom` (the Leuchte links to the Mast via tdta_standort_mast.id).
-    // The backend still wants the spatial location, so we send the picked
-    // Standort's 4326 point as a sibling `geometry` SaveObject parameter.
-    // Only fires for this specific branch — every other path keeps the
-    // historical two-parameter shape.
+    // A Leuchte on an existing Standort has no geom; the backend still needs
+    // its location, sent as a separate `geometry` parameter (EPSG:4326).
     const extraSaveParams =
       featureType === "leuchte" &&
       parseStandortIdFromKey(draft.geometryKey) != null &&
@@ -623,10 +539,7 @@ const saveCreationDraft = async (
           }
         : undefined;
 
-    // Diagnostic: the new feature is going out with neither a `geom` field nor a
-    // sibling `geometry` param — it will persist without a location. A Leuchte
-    // bound to an existing Standort legitimately uses neither (it locates via
-    // tdta_standort_mast), so it is exempt. Logs only; the save still proceeds.
+    // Diagnostic only: no geometry at all (Leuchten on a Standort are exempt).
     const payloadHasGeom = "geom" in payload || !!extraSaveParams;
     const leuchteBoundToStandort =
       featureType === "leuchte" &&
@@ -643,14 +556,6 @@ const saveCreationDraft = async (
       );
     }
 
-    // Temporary while the sensor fields are being wired up with the server.
-    console.log(
-      `xxx [SAVE] ${config.className} (creation) payload`,
-      JSON.stringify(payload, null, 2),
-      "\nxxx draft.values:",
-      JSON.stringify(draft.values ?? {}, null, 2)
-    );
-
     const result = await updateDataByClassName(
       jwt,
       config.className,
@@ -658,14 +563,12 @@ const saveCreationDraft = async (
       extraSaveParams
     );
 
-    // Id of the row just created — needed both for late document upload and
-    // (for a Standort) for linking its "+ Leuchte" tabs to the new Mast.
+    // Needed for the late document upload and for linking "+ Leuchte" tabs.
     const createdRes = result as { res?: string } | null;
     const createdId = createdRes?.res
       ? (JSON.parse(createdRes.res) as { id?: number }).id
       : undefined;
 
-    // Upload files if any
     const draftFiles: DraftFile[] = draft.files ?? [];
     if (draftFiles.length > 0 && createdId) {
       const uploadedDocs = await uploadDraftFiles(jwt, draftFiles);
@@ -677,11 +580,8 @@ const saveCreationDraft = async (
       }
     }
 
-    // Standort creation with "+ Leuchte" tabs: persist each lamp as a
-    // tdta_leuchten row linked to the freshly created Mast. Mirrors the
-    // new-Mast extras loop in the leuchte branch below — the Leuchten share
-    // the Mast's Strassenschluessel and locate via the tdta_standort_mast
-    // link (no own geom). `_tabId` is a UI-only key; strip it before save.
+    // New Standort: save its "+ Leuchte" tabs linked to it, with its street.
+    // `_tabId` is UI-only.
     if (featureType === "standort" && createdId != null) {
       const extras = (draft.values?.leuchten ?? []) as Array<
         Record<string, unknown>
@@ -709,11 +609,7 @@ const saveCreationDraft = async (
       }
     }
 
-    // Scope B: persist any extra "+"-added Leuchten tabs. They live in
-    // `draft.values.leuchten[]` and each entry shares the Mast with Leuchte 1
-    // (mastIdForLink). `_tabId` is a UI-only key — strip it before save.
-    // prepareSaveValues handles date deserialization, renames, and removing
-    // display-only fields just like Leuchte 1.
+    // Extra "+" Leuchten share Leuchte 1's Mast and street.
     if (featureType === "leuchte" && mastIdForLink != null) {
       const extras = (draft.values?.leuchten ?? []) as Array<
         Record<string, unknown>
@@ -750,19 +646,12 @@ const saveCreationDraft = async (
   }
 };
 
-// ---------------------------------------------------------------------------
-// Bulk save all drafts
-// ---------------------------------------------------------------------------
-
 export interface SaveAllResult {
   succeeded: string[];
   failed: { featureId: string; featureType: string; error: string }[];
 }
 
-/**
- * Saves all provided drafts sequentially.
- * Returns arrays of succeeded and failed feature IDs.
- */
+/** Saves drafts one after another. */
 export const saveAllFeatureDrafts = async (
   jwt: string,
   drafts: Record<string, Draft>,
@@ -792,10 +681,6 @@ export const saveAllFeatureDrafts = async (
   return { succeeded, failed };
 };
 
-// ---------------------------------------------------------------------------
-// Confirm & save all drafts (UI handler)
-// ---------------------------------------------------------------------------
-
 interface HandleSaveAllDeps {
   jwt: string | undefined;
   drafts: Record<string, Draft>;
@@ -803,30 +688,21 @@ interface HandleSaveAllDeps {
   setSaving: (saving: boolean) => void;
   dispatch: (action: any) => void;
   removeDraft: (featureId: string) => unknown;
-  /** Action creator for `promoteDraftHiddenToPermanent` from the
-   * featuresForms slice. Dispatched per successfully-saved draft *before*
-   * removeDraft so hiddenOriginalIds survive the draft's deletion. */
+  /** Dispatched before removeDraft so hiddenOriginalIds survive. */
   promoteDraftHiddenToPermanent: (featureId: string) => unknown;
-  /** Action creator for `markFeatureDeleted` from the featuresForms slice.
-   * Dispatched per successfully-saved *deletion* draft so the soft-deleted row
-   * stays hidden on both maps until the server-side tiles/brandnew FC drop it. */
+  /** Keeps soft-deleted rows hidden until the tiles drop them. */
   markFeatureDeleted: (payload: {
     featureId: string;
     sourceLayer?: string;
     featureDbId?: number;
   }) => unknown;
   incrementFeatureDataVersion: () => unknown;
-  /** Current measurement features (already namespaced as
-   * `measurement.<uuid>` in id) — used to find which ones to drop after
-   * successful creation saves and to derive their raw terra-draw ids. */
+  /** Namespaced `measurement.<uuid>`; used to drop consumed measurements. */
   measurements: Feature[];
   setMeasurements: (features: Feature[]) => unknown;
-  /** Fires once the batch finishes if at least one draft saved successfully.
-   * The caller wires this to `closeDatasheet` so the right pane returns to
-   * the map view — the form was bound to drafts that no longer exist. */
+  /** Called if at least one draft saved (closes the datasheet). */
   onSuccess?: () => void;
-  /** Strassenschluessel pk → id map, used to backfill a missing
-   * `fk_strassenschluessel` from the visible pk at save time. */
+  /** pk → id map to backfill a missing `fk_strassenschluessel`. */
   strassenschluesselByPk?: Record<string, number>;
 }
 
@@ -847,11 +723,8 @@ export const handleSaveAllDrafts = (deps: HandleSaveAllDeps) => {
     strassenschluesselByPk,
   } = deps;
 
-  // Brandnew creation drafts without a geometry would be POSTed with no geom
-  // field, producing NULL-geometry rows server-side that surface the next day
-  // as malformed features in brand.new.features.json. Filter them out of the
-  // save batch entirely and keep them in Redux as drafts — the user has to
-  // assign a geometry before they can be sent.
+  // Creation drafts without geometry would create NULL-geometry rows; keep
+  // them as drafts instead of saving.
   const skippedEmptyDraftIds: string[] = [];
   const draftsToSave: Record<string, Draft> = {};
   for (const [featureId, draft] of Object.entries(drafts)) {
@@ -896,9 +769,7 @@ export const handleSaveAllDrafts = (deps: HandleSaveAllDeps) => {
         } und bleibt als Entwurf erhalten.`
       : "";
 
-  // Silence unused-var when draftCount was the headline number before the
-  // partition. Kept as a dep field for backwards compatibility with callers
-  // that pass the redux count.
+  // Kept for caller compatibility; no longer used.
   void draftCount;
 
   Modal.confirm({
@@ -923,9 +794,7 @@ export const handleSaveAllDrafts = (deps: HandleSaveAllDeps) => {
         );
 
         for (const featureId of result.succeeded) {
-          // A committed soft-delete must stay hidden on both maps until the
-          // server-side tiles/brandnew FC drop the row; other saves promote
-          // their draft's hide to the (vector-only) permanent set as before.
+          // Soft deletes stay hidden until the tiles drop the row.
           if (draftsToSave[featureId]?.pendingDeletion) {
             dispatch(markFeatureDeleted({ featureId }));
           } else {
@@ -935,16 +804,8 @@ export const handleSaveAllDrafts = (deps: HandleSaveAllDeps) => {
         }
 
         if (result.succeeded.length > 0) {
-          // Drop measurements consumed by successful saves: from the dropdown
-          // source (Redux) and from the on-map terra-draw layer. Applies to
-          // creation drafts (measurement used as the new feature's geometry)
-          // AND geometry-edit drafts (an existing feature reshaped to a
-          // measurement) alike — once saved, that measurement is spent and
-          // must not linger on the map. (`handleServerSave` for the single-
-          // save button already treats both cases; this mirrors it.) Draft
-          // geometryKeys are built as `measurement.${f.id}` from the same
-          // Redux feature ids, so matching against that synthesis and then
-          // stripping one prefix recovers the raw terra-draw id.
+          // Remove measurements used as geometry by saved drafts (creation and
+          // geometry edit) from Redux and the map. Keys are `measurement.<id>`.
           const consumedKeys = new Set<string>();
           for (const featureId of result.succeeded) {
             const d = drafts[featureId];

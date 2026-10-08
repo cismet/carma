@@ -1,10 +1,6 @@
-// Shared GraphQL field selections for BELIS feature queries.
-// Used by both the search modal (SearchModal.tsx) and the CSV export
-// enrichment (fetchFeaturesForExport.ts) so the selected fields — and thus
-// the columns available downstream via flattenGqlRecord — stay in sync.
+// GraphQL field selections shared by the search modal and the CSV export,
+// so both produce the same flattenGqlRecord columns.
 
-// When true, queries include all display fields. When false, only id + geom.
-// Extended: ~527 KB / 341ms vs minimal: ~127 KB / 203ms (benchmarked).
 export const FETCH_EXTENDED_SEARCH_RESULTS = true;
 
 export const LEUCHTEN_FIELDS = FETCH_EXTENDED_SEARCH_RESULTS
@@ -76,17 +72,15 @@ export const MAUERLASCHE_FIELDS = FETCH_EXTENDED_SEARCH_RESULTS
   : `id
     geom_84 { x y }`;
 
-// Leitungen are export-only (not part of the search modal), so no geom and no
-// minimal/extended split — the export always wants the full attribute set.
+// Always the full set; geom gives search results a point to zoom to.
 export const LEITUNG_FIELDS = `id
     geom { geo_field }
     leitungstyp { bezeichnung }
     material_leitung { bezeichnung }
     querschnitt { groesse }`;
 
-// Maps a tile/sidebar sourceLayer to the GraphQL table + field selection used
-// to fetch full records by id for export. Layers absent here (e.g. abzweigdosen)
-// have no enrichment query and fall back to their tile props.
+// sourceLayer → table + fields for export enrichment. Missing layers (e.g.
+// abzweigdosen) keep their tile props.
 export const EXPORT_QUERY_BY_LAYER: Record<
   string,
   { table: string; fields: string }
