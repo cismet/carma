@@ -127,6 +127,8 @@ export const rolleArtColumn = (title, rolleArten, update) => ({
   render: (rolleArtId, record) => (
     <Select
       size="small"
+      showSearch
+      optionFilterProp="label"
       placeholder="Rolle wählen"
       className="w-full"
       options={rolleArten.map((art) => ({ value: art.id, label: art.name }))}
@@ -183,6 +185,8 @@ export const usageColumns = (stammdaten, invalid = () => false) => {
       render: (anlageklasseId, record) => (
         <Select
           size="small"
+          showSearch
+          optionFilterProp="label"
           placeholder="Anlageklasse"
           className="w-full"
           getPopupContainer={() => document.body}
