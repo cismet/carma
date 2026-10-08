@@ -19,7 +19,6 @@ export {
   type NativePreviewTile,
   type JpegPyramidLevel,
 } from "./lib/core/image-viewport-window";
-export { resamplePreviewRgb } from "./lib/core/resample-preview-rgb";
 export {
   parseAvifGridIndex,
   makeAvifTile,

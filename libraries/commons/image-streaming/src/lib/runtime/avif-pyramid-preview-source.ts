@@ -65,8 +65,19 @@ type PendingCell = {
   promise: Promise<{ bitmap: ImageBitmap; retained: boolean }>;
   consumers: number;
 };
+export type AvifNeighborhoodRole = "next-finer" | "current" | "parent";
+export type AvifNeighborhoodReadiness = Readonly<{
+  level: number;
+  role: AvifNeighborhoodRole;
+  nativeBounds: readonly [number, number, number, number];
+  totalTiles: number;
+  encoded: number;
+  decoded: number;
+  requiredBytes: number;
+}>;
 export type AvifWarmProgress = Readonly<{
   level: number;
+  role?: AvifNeighborhoodRole;
   fetchedRanges: number;
   totalRanges: number;
   residentBytes: number;
@@ -81,6 +92,7 @@ export type AvifSourceMemoryMetrics = Readonly<{
   largestDecodedTilePixels: number;
   decodeCanvasBytes: number;
   overviewBytes: number;
+  nativeCompositionCanvasBytes: number;
 }>;
 export type AvifLevelReadiness = Readonly<{
   level: number;
@@ -99,9 +111,11 @@ export type AvifLevelReadiness = Readonly<{
   /** Inventory freshness deadline; ordinary reads still handle cross-worker/browser eviction. */
   persistentSnapshotExpiresAt: number | null;
 }>;
-type AvifWarmOptions = {
+export type AvifWarmOptions = {
   onProgress?: (progress: AvifWarmProgress) => void;
   shouldYield?: () => boolean;
+  /** Encoded ranges are still warmed when decoded residency is disabled. */
+  decode?: boolean;
 };
 
 /** Existing preview worker backend: bounded native AVIF cell decode, no whole-photo bitmap. */
@@ -118,6 +132,7 @@ export class AvifPyramidPreviewSource {
   private ranges = new Map<string, Uint8Array>();
   private rangeBytes = 0;
   private grids = new Map<number, Grid>();
+  private neighborhood: { page: AvifPreviewPage; grid: Grid; role: AvifNeighborhoodRole; bounds: [number, number, number, number]; cells: AvifItem[] }[] = [];
   private bitmaps = new Map<string, ImageBitmap>();
   private protectedOverviewKey: string | null = null;
   private overviewRequest: { signal: AbortSignal; promise: Promise<AvifPreviewPage | null> } | null = null;
@@ -132,6 +147,15 @@ export class AvifPyramidPreviewSource {
     maxRetainedCanvases: 1,
     contextOptions: { willReadFrequently: true },
   });
+  private nativeCanvases = new OffscreenCanvasPool({
+    maxRetainedBytes: 32 * 1024 * 1024,
+    maxRetainedCanvases: 1,
+    contextOptions: { alpha: false },
+  });
+  private get canvasBytes() {
+    const decode = this.decodeCanvases.stats, native = this.nativeCanvases.stats;
+    return decode.activeBytes + decode.retainedBytes + native.activeBytes + native.retainedBytes;
+  }
   private cacheBudget: number;
   private rangeLimit: number;
   private bitmapLimit: number;
@@ -147,7 +171,7 @@ export class AvifPyramidPreviewSource {
     this.persistentRanges = new BoundedImageRangeCache(this.fetchUrl);
     this.cacheBudget = budget;
     this.rangeLimit = Math.min(8 * 1024 * 1024, Math.floor(budget / 3));
-    this.bitmapLimit = Math.min(32 * 1024 * 1024, (budget * 2) / 3);
+    this.bitmapLimit = Math.min(96 * 1024 * 1024, budget - this.rangeLimit);
   }
   /** Admission threshold only: allocate decoded cells on demand, never a full-photo canvas. */
   setActiveCacheBudget(bytes = 64 * 1024 * 1024) {
@@ -155,7 +179,7 @@ export class AvifPyramidPreviewSource {
       throw new RangeError("Invalid AVIF cache budget");
     this.cacheBudget = bytes;
     this.rangeLimit = Math.min(8 * 1024 * 1024, Math.floor(bytes / 3));
-    this.bitmapLimit = Math.min(32 * 1024 * 1024, (bytes * 2) / 3);
+    this.bitmapLimit = Math.min(96 * 1024 * 1024, bytes - this.rangeLimit);
     this.trimResidentCaches();
   }
   /** Estimates retained encoded bytes + RGBA cells, excluding decoder scratch and GPU copies. */
@@ -163,8 +187,7 @@ export class AvifPyramidPreviewSource {
     return (
       this.rangeBytes +
       this.bitmapBytes +
-      this.decodeCanvases.stats.activeBytes +
-      this.decodeCanvases.stats.retainedBytes
+      this.canvasBytes
     );
   }
   get maxSourceDensity() {
@@ -183,9 +206,8 @@ export class AvifPyramidPreviewSource {
       overviewBytes: this.overviewBytes,
       decodedBytes: this.bitmapBytes,
       residentBytes: this.residentBytes,
-      decodeCanvasBytes:
-        this.decodeCanvases.stats.activeBytes +
-        this.decodeCanvases.stats.retainedBytes,
+      decodeCanvasBytes: this.canvasBytes,
+      nativeCompositionCanvasBytes: this.nativeCanvases.stats.activeBytes + this.nativeCanvases.stats.retainedBytes,
       rangeCount: this.ranges.size,
       decodedTileCount: this.bitmaps.size,
       decodedPixels,
@@ -501,7 +523,89 @@ export class AvifPyramidPreviewSource {
       }
     }
   }
-  /** Prepare only visible decoded cells that fit without displacing already useful pixels. */
+  /** Keep just the immediately finer level encoded locally; never decode a whole photograph. */
+  async prewarmNextLevel(
+    window: NativePreviewWindow,
+    nativeSize: { width: DevicePixels; height: DevicePixels },
+    signal: AbortSignal,
+    options: AvifWarmOptions = {}
+  ): Promise<void> {
+    const epoch = this.epoch, { image: current } = await this.select(window, nativeSize, signal, 1);
+    const index = await this.metadata(signal);
+    const selected = Object.entries(index.levels).filter(([, entry]) => entry.scale > current.entry.scale)
+      .sort(([, a], [, b]) => a.scale - b.scale)[0];
+    if (!selected) return;
+    const [number, entry] = selected;
+    const page: AvifPreviewPage = { level: Number(number), entry, getWidth: () => entry.width, getHeight: () => entry.height };
+    await this.warmPause(signal, epoch, options);
+    const grid = await this.grid(page, signal);
+    const ranges = this.cellRanges(page, grid, grid.index.cells);
+    for (const [n, range] of ranges.entries()) {
+      await this.warmPause(signal, epoch, options);
+      await this.range(range.offset, range.length, signal, false, true);
+      options.onProgress?.({ level: page.level, role: "next-finer", fetchedRanges: n + 1,
+        totalRanges: ranges.length, residentBytes: this.residentBytes });
+    }
+  }
+  /** Current viewport children first, then a bounded guard and parent; never the rest of the image. */
+  async warmNeighborhood(
+    window: NativePreviewWindow,
+    nativeSize: { width: DevicePixels; height: DevicePixels },
+    signal: AbortSignal,
+    options: AvifWarmOptions = {}
+  ): Promise<void> {
+    const epoch = this.epoch;
+    const { image: current } = await this.select(window, nativeSize, signal, 1);
+    const index = await this.metadata(signal);
+    const pages = Object.entries(index.levels).map(([level, entry]): AvifPreviewPage => ({
+      level: Number(level), entry, getWidth: () => entry.width, getHeight: () => entry.height,
+    })).sort((a, b) => a.entry.scale - b.entry.scale);
+    const nextFiner = pages.find((page) => page.entry.scale > current.entry.scale);
+    const parent = [...pages].reverse().find((page) => page.entry.scale < current.entry.scale);
+    // A quarter viewport, capped at one physical composition tile, anticipates
+    // ordinary zoom-out/pan without an unconditional tile-grid neighbourhood.
+    const guardX = Math.min(512, window.target.width / 4) * window.source.width / window.target.width;
+    const guardY = Math.min(512, window.target.height / 4) * window.source.height / window.target.height;
+    const left = Math.max(0, Math.floor(window.source.x - guardX));
+    const top = Math.max(0, Math.floor(window.source.y - guardY));
+    const right = Math.min(nativeSize.width, Math.ceil(window.source.x + window.source.width + guardX));
+    const bottom = Math.min(nativeSize.height, Math.ceil(window.source.y + window.source.height + guardY));
+    const guard: NativePreviewWindow = { source: {
+      x: left as DevicePixels, y: top as DevicePixels,
+      width: (right - left) as DevicePixels, height: (bottom - top) as DevicePixels,
+    }, target: {
+      width: Math.ceil((right - left) * window.target.width / window.source.width) as DevicePixels,
+      height: Math.ceil((bottom - top) * window.target.height / window.source.height) as DevicePixels,
+    } };
+    const requested = [
+      ...(nextFiner ? [{ page: nextFiner, window, role: "next-finer" as const }] : []),
+      { page: current, window: guard, role: "current" as const },
+      ...(parent ? [{ page: parent, window: guard, role: "parent" as const }] : []),
+    ];
+    this.neighborhood = [];
+    for (const planned of requested) {
+      await this.warmPause(signal, epoch, options);
+      const selection = await this.windowCells(planned.page, planned.window, nativeSize, signal);
+      this.neighborhood.push({ page: planned.page, role: planned.role, ...selection });
+      await this.warmCells(planned.page, selection.grid, selection.cells, signal, options, planned.role);
+    }
+  }
+  /** Cheap live residency for the last local plan; fetch history is deliberately excluded. */
+  get neighborhoodReadiness(): AvifNeighborhoodReadiness[] {
+    const { ranges } = this.locallyAvailableRanges();
+    return this.neighborhood.map(({ page, grid, role, bounds, cells }) => {
+      const whole = this.bitmaps.has(`${page.level}:whole`);
+      const decoded = cells.filter((item) => whole || this.bitmaps.has(`${page.level}:${item.id}`)).length;
+      const encoded = cells.filter((item) => whole || this.bitmaps.has(`${page.level}:${item.id}`) ||
+        (grid.absolute.get(item.id) ?? item.ranges.map((r) => ({ offset: page.entry.offset + r.offset, length: r.length })))
+          .every((range) => this.intervalCovered(range, ranges))).length;
+      return { level: page.level, role,
+        nativeBounds: [bounds[0] * this.index!.sourceSensorDimensions[0] / page.entry.width, bounds[1] * this.index!.sourceSensorDimensions[1] / page.entry.height, bounds[2] * this.index!.sourceSensorDimensions[0] / page.entry.width, bounds[3] * this.index!.sourceSensorDimensions[1] / page.entry.height] as const,
+        totalTiles: cells.length, encoded, decoded,
+        requiredBytes: cells.length * grid.edgeX * grid.edgeY * 4 };
+    });
+  }
+  /** Prepare visible cells plus one source pixel for native linear interpolation. */
   async warmVisibleDecoded(
     window: NativePreviewWindow,
     nativeSize: { width: DevicePixels; height: DevicePixels },
@@ -511,38 +615,195 @@ export class AvifPyramidPreviewSource {
     const { image } = await this.select(window, nativeSize, signal, 1);
     await this.warmDecodedPage(image, window, nativeSize, signal, options);
   }
-  private async warmDecodedPage(
+  private async warmPause(signal: AbortSignal, epoch: number, options: AvifWarmOptions) {
+    signal.throwIfAborted(); this.assertEpoch(epoch);
+    while (options.shouldYield?.()) {
+      await new Promise<void>((resolve) => setTimeout(resolve, 4));
+      signal.throwIfAborted(); this.assertEpoch(epoch);
+    }
+  }
+  private windowBounds(
+    page: AvifPreviewPage, window: NativePreviewWindow,
+    nativeSize: { width: DevicePixels; height: DevicePixels }
+  ): [number, number, number, number] {
+    const sx = page.entry.width / nativeSize.width, sy = page.entry.height / nativeSize.height;
+    return [
+      Math.max(0, Math.floor(window.source.x * sx) - 1),
+      Math.max(0, Math.floor(window.source.y * sy) - 1),
+      Math.min(page.entry.width, Math.ceil((window.source.x + window.source.width) * sx) + 1),
+      Math.min(page.entry.height, Math.ceil((window.source.y + window.source.height) * sy) + 1),
+    ];
+  }
+  /** Return one uniformly decoded viewport at target/finer (<=2x display) or its immediate parent. */
+  availablePage(
+    window: NativePreviewWindow,
+    nativeSize: { width: DevicePixels; height: DevicePixels },
+    target: AvifPreviewPage
+  ): AvifPreviewPage | null {
+    if (!this.index || nativeSize.width !== this.index.sourceSensorDimensions[0] ||
+      nativeSize.height !== this.index.sourceSensorDimensions[1]) return null;
+    const density = Math.max(window.target.width / window.source.width, window.target.height / window.source.height);
+    const tolerance = Math.max(1 / nativeSize.width, 1 / nativeSize.height);
+    const pages = Object.entries(this.index.levels).map(([level, entry]): AvifPreviewPage => ({
+      level: Number(level), entry, getWidth: () => entry.width, getHeight: () => entry.height,
+    })).filter((page) => page.entry.scale >= target.entry.scale / 2 &&
+      page.entry.scale <= density * 2 + tolerance).sort((a, b) => b.entry.scale - a.entry.scale);
+    return pages.find((page) => this.hasCached(page, this.windowBounds(page, window, nativeSize))) ?? null;
+  }
+  /** Native linear bitmap drawing with a bounded seam-free ROI stitch, never RGBA readback. */
+  async drawBBoxTo(
+    page: AvifPreviewPage,
+    bounds: [number, number, number, number],
+    context: OffscreenCanvasRenderingContext2D,
+    destination: { x: number; y: number; width: number; height: number },
+    signal: AbortSignal
+  ): Promise<void> {
+    return this.withFreshAsset(signal, async () => {
+      const index = await this.metadata(signal), entry = index.levels[page.level];
+      if (!entry || entry.width !== page.getWidth() || entry.height !== page.getHeight())
+        throw Error("Replacement AVIF level differs from calibrated extent");
+      const current = entry === page.entry ? page : { level: page.level, entry,
+        getWidth: () => entry.width, getHeight: () => entry.height };
+      await this.drawBBoxOnce(current, bounds, context, destination, signal);
+    });
+  }
+  private async drawBBoxOnce(
+    page: AvifPreviewPage, bounds: [number, number, number, number],
+    context: OffscreenCanvasRenderingContext2D,
+    destination: { x: number; y: number; width: number; height: number }, signal: AbortSignal
+  ): Promise<void> {
+    signal.throwIfAborted();
+    const [left, top, right, bottom] = bounds;
+    if (!bounds.every(Number.isFinite) || left < 0 || top < 0 || right > page.entry.width ||
+      bottom > page.entry.height || right <= left || bottom <= top ||
+      !Object.values(destination).every(Number.isFinite) || destination.width <= 0 || destination.height <= 0)
+      throw Error("Invalid AVIF bitmap viewport");
+    const epoch = this.epoch, index = await this.metadata(signal);
+    if (index.levels[page.level] !== page.entry) throw new AssetChanged();
+    const sx = destination.width / (right - left), sy = destination.height / (bottom - top);
+    context.save();
+    context.beginPath();
+    context.rect(destination.x, destination.y, destination.width, destination.height);
+    context.clip();
+    context.imageSmoothingEnabled = true;
+    context.imageSmoothingQuality = "low";
+    try {
+      const whole = this.bitmaps.get(`${page.level}:whole`);
+      if (whole) {
+        context.drawImage(whole, left, top, right - left, bottom - top,
+          destination.x, destination.y, destination.width, destination.height);
+        return;
+      }
+      const grid = await this.grid(page, signal);
+      const nativeLeft = Math.max(0, Math.floor(left) - 1);
+      const nativeRight = Math.min(page.entry.width, Math.ceil(right) + 1);
+      const stitchWidth = nativeRight - nativeLeft;
+      // Fractional scaled edges of separate opaque tiles can leave dark seams.
+      // Join integer native pixels first, then interpolate once across tile edges.
+      // Tall crops are split on integral output rows so this never creates a full-photo canvas.
+      const tileRowWorkingBytes = Math.min(16 * 1024 * 1024, stitchWidth * (grid.edgeY + 3) * 4);
+      // A zero retained-cache budget still needs a practical streaming working set.
+      // One native tile row avoids decoding the same 512px cells once per output row.
+      const stitchByteLimit = Math.min(32 * 1024 * 1024, Math.max(tileRowWorkingBytes, this.cacheBudget / 2));
+      const sourceRows = Math.max(1, Math.floor(stitchByteLimit / (stitchWidth * 4)) - 3);
+      const outputRows = Math.max(1, Math.floor(sourceRows * sy));
+      for (let outputY = 0; outputY < destination.height; outputY += outputRows) {
+        signal.throwIfAborted(); this.assertEpoch(epoch);
+        const outputHeight = Math.min(outputRows, destination.height - outputY);
+        const bandTop = top + outputY / sy, bandBottom = top + (outputY + outputHeight) / sy;
+        const nativeTop = Math.max(0, Math.floor(bandTop) - 1);
+        const nativeBottom = Math.min(page.entry.height, Math.ceil(bandBottom) + 1);
+        const lease = this.nativeCanvases.acquire({ width: stitchWidth as DevicePixels,
+          height: (nativeBottom - nativeTop) as DevicePixels });
+        this.trimResidentCaches();
+        try {
+          const cells: { item: AvifItem; x: number; y: number }[] = [];
+          for (let y = Math.floor(nativeTop / grid.edgeY); y < Math.ceil(nativeBottom / grid.edgeY); y++)
+            for (let x = Math.floor(nativeLeft / grid.edgeX); x < Math.ceil(nativeRight / grid.edgeX); x++) {
+              const item = grid.index.cells[y * grid.cols + x];
+              if (!item) throw Error("Missing AVIF viewport cell");
+              cells.push({ item, x: x * grid.edgeX, y: y * grid.edgeY });
+            }
+          const missing = cells.filter(({ item }) => !this.bitmaps.has(`${page.level}:${item.id}`));
+          for (const range of this.cellRanges(page, grid, missing.map(({ item }) => item))) {
+            signal.throwIfAborted(); this.assertEpoch(epoch);
+            await this.range(range.offset, range.length, signal);
+          }
+          lease.context.imageSmoothingEnabled = false;
+          for (const { item, x, y } of cells) {
+            signal.throwIfAborted(); this.assertEpoch(epoch);
+            const decoded = await this.cell(page, grid, item, signal);
+            try {
+              signal.throwIfAborted(); this.assertEpoch(epoch);
+              const width = Math.min(decoded.bitmap.width, page.entry.width - x);
+              const height = Math.min(decoded.bitmap.height, page.entry.height - y);
+              lease.context.drawImage(decoded.bitmap, 0, 0, width, height,
+                x - nativeLeft, y - nativeTop, width, height);
+            } finally { if (!decoded.retained) decoded.bitmap.close(); }
+          }
+          context.drawImage(lease.canvas, left - nativeLeft, bandTop - nativeTop,
+            right - left, bandBottom - bandTop,
+            destination.x, destination.y + outputY, destination.width, outputHeight);
+        } finally { lease.release(); this.trimResidentCaches(); }
+        await new Promise<void>((resolve) => setTimeout(resolve, 0));
+      }
+    } finally { context.restore(); }
+  }
+  private async windowCells(
     page: AvifPreviewPage,
     window: NativePreviewWindow,
     nativeSize: { width: DevicePixels; height: DevicePixels },
-    signal: AbortSignal,
-    options: AvifWarmOptions
+    signal: AbortSignal
+  ) {
+    const grid = await this.grid(page, signal);
+    const bounds = this.windowBounds(page, window, nativeSize);
+    const [left, top, right, bottom] = bounds;
+    const centerX = (left + right) / 2, centerY = (top + bottom) / 2;
+    const cells: { item: AvifItem; distance: number }[] = [];
+    for (let y = Math.floor(top / grid.edgeY); y < Math.ceil(bottom / grid.edgeY); y++)
+      for (let x = Math.floor(left / grid.edgeX); x < Math.ceil(right / grid.edgeX); x++) {
+        const item = grid.index.cells[y * grid.cols + x];
+        if (item) cells.push({ item, distance: ((x + .5) * grid.edgeX - centerX) ** 2 + ((y + .5) * grid.edgeY - centerY) ** 2 });
+      }
+    return { grid, bounds, cells: cells.sort((a, b) => a.distance - b.distance).map(({ item }) => item) };
+  }
+  private async warmCells(
+    page: AvifPreviewPage, grid: Grid, cells: AvifItem[], signal: AbortSignal,
+    options: AvifWarmOptions, role?: AvifNeighborhoodRole
   ) {
     const epoch = this.epoch;
     if (this.bitmaps.has(`${page.level}:whole`)) return;
-    const grid = await this.grid(page, signal),
-      sx = page.entry.width / nativeSize.width, sy = page.entry.height / nativeSize.height,
-      left = window.source.x * sx, top = window.source.y * sy,
-      right = (window.source.x + window.source.width) * sx,
-      bottom = (window.source.y + window.source.height) * sy,
-      centerX = (left + right) / 2, centerY = (top + bottom) / 2;
-    const cells = grid.index.cells.map((item, n) => ({ item, x: n % grid.cols, y: Math.floor(n / grid.cols) }))
-      .filter(({ x, y }) => x * grid.edgeX < right && (x + 1) * grid.edgeX > left && y * grid.edgeY < bottom && (y + 1) * grid.edgeY > top)
-      .sort((a, b) => ((a.x + .5) * grid.edgeX - centerX) ** 2 + ((a.y + .5) * grid.edgeY - centerY) ** 2 - (((b.x + .5) * grid.edgeX - centerX) ** 2 + ((b.y + .5) * grid.edgeY - centerY) ** 2));
-    for (const { item } of cells) {
-      signal.throwIfAborted(); this.assertEpoch(epoch);
-      while (options.shouldYield?.()) {
-        await new Promise<void>((resolve) => setTimeout(resolve, 4));
-        signal.throwIfAborted(); this.assertEpoch(epoch);
-      }
+    // Coalesce adjacent payloads before any decode. Persistence keeps batches
+    // useful even when their compressed RAM entries exceed the active budget.
+    const missing = cells.filter((item) => !this.bitmaps.has(`${page.level}:${item.id}`));
+    const ranges = this.cellRanges(page, grid, missing);
+    for (const [n, range] of ranges.entries()) {
+      await this.warmPause(signal, epoch, options);
+      await this.range(range.offset, range.length, signal, false, true);
+      options.onProgress?.({ level: page.level, role, fetchedRanges: n + 1, totalRanges: ranges.length, residentBytes: this.residentBytes });
+    }
+    if (options.decode === false) return;
+    for (const item of cells) {
+      await this.warmPause(signal, epoch, options);
       if (this.bitmaps.has(`${page.level}:${item.id}`)) continue;
       const available = this.unprotectedDecodedLimit() - (this.bitmapBytes - this.overviewBytes);
       if (grid.edgeX * grid.edgeY * 4 > available) break;
       const decoded = await this.cell(page, grid, item, signal);
       if (!decoded.retained) { decoded.bitmap.close(); break; }
-      options.onProgress?.({ level: page.level, fetchedRanges: 0, totalRanges: cells.length, residentBytes: this.residentBytes });
+      options.onProgress?.({ level: page.level, role, fetchedRanges: ranges.length, totalRanges: ranges.length, residentBytes: this.residentBytes });
       await new Promise<void>((resolve) => setTimeout(resolve, 0));
     }
+  }
+  private async warmDecodedPage(
+    page: AvifPreviewPage, window: NativePreviewWindow,
+    nativeSize: { width: DevicePixels; height: DevicePixels }, signal: AbortSignal,
+    options: AvifWarmOptions
+  ) {
+    if (this.bitmaps.has(`${page.level}:whole`)) return;
+    const { grid, cells } = await this.windowCells(page, window, nativeSize, signal);
+    if (options.decode !== false && grid.edgeX * grid.edgeY * 4 >
+      this.unprotectedDecodedLimit() - (this.bitmapBytes - this.overviewBytes)) return;
+    await this.warmCells(page, grid, cells, signal, options);
   }
   /** Merge adjacent payloads without downloading gaps, bounded to one MiB per request. */
   private cellRanges(
@@ -588,12 +849,10 @@ export class AvifPyramidPreviewSource {
   }
   private trimResidentCaches() {
     // Idle scratch surfaces share the source budget; native decoder-internal memory is not observable.
-    const scratch = this.decodeCanvases.stats;
     if (
-      scratch.activeBytes + scratch.retainedBytes >
+      this.canvasBytes >
       Math.max(this.cacheBudget, this.overviewBytes) - this.rangeBytes - this.bitmapBytes
-    )
-      this.decodeCanvases.trim();
+    ) { this.decodeCanvases.trim(); this.nativeCanvases.trim(); }
     while (this.rangeBytes > this.rangeLimit && this.ranges.size) {
       const key = this.ranges.keys().next().value!;
       this.rangeBytes -= this.ranges.get(key)!.length;
@@ -613,7 +872,7 @@ export class AvifPyramidPreviewSource {
     }
   }
   private unprotectedDecodedLimit() {
-    return Math.min(this.bitmapLimit, Math.max(0, this.cacheBudget - this.overviewBytes - this.rangeBytes - this.decodeCanvases.stats.activeBytes - this.decodeCanvases.stats.retainedBytes));
+    return Math.min(this.bitmapLimit, Math.max(0, this.cacheBudget - this.overviewBytes - this.rangeBytes - this.canvasBytes));
   }
   park(budget: number) {
     if (budget < this.overviewBytes) this.protectedOverviewKey = null;
@@ -625,6 +884,7 @@ export class AvifPyramidPreviewSource {
     );
     this.trimResidentCaches();
     this.decodeCanvases.trim();
+    this.nativeCanvases.trim();
   }
   private assertEpoch(epoch: number) {
     if (epoch !== this.epoch) throw new AssetChanged();
@@ -668,7 +928,9 @@ export class AvifPyramidPreviewSource {
     this.ranges.clear();
     this.rangeBytes = 0;
     this.grids.clear();
+    this.neighborhood = [];
     this.decodeCanvases.trim();
+    this.nativeCanvases.trim();
   }
   private async range(
     offset: number,

@@ -19,12 +19,17 @@ export type NativePreviewTile = {
 export const forecastPreviewWindow = (
   window: NativePreviewWindow,
   nativeSize: Size<DevicePixels>,
-  factor: number
+  factor: number,
+  anchor?: { x: DevicePixels; y: DevicePixels }
 ): NativePreviewWindow => {
   if (!(factor > 0) || !Number.isFinite(factor))
     throw new RangeError("Preview forecast factor must be finite and positive");
   if (factor === 1) return window;
   const { source, target } = window;
+  const center = anchor ?? {
+    x: (source.x + source.width / 2) as DevicePixels,
+    y: (source.y + source.height / 2) as DevicePixels,
+  };
   if (factor > 1 && factor <= 1.42)
     return { source: { ...source }, target: {
       width: Math.ceil(target.width * factor) as DevicePixels,
@@ -32,15 +37,15 @@ export const forecastPreviewWindow = (
     } };
   if (factor > 1)
     return { source: {
-      x: Math.floor(source.x + source.width * (1 - 1 / factor) / 2) as DevicePixels,
-      y: Math.floor(source.y + source.height * (1 - 1 / factor) / 2) as DevicePixels,
+      x: Math.floor(center.x + (source.x - center.x) / factor) as DevicePixels,
+      y: Math.floor(center.y + (source.y - center.y) / factor) as DevicePixels,
       width: Math.max(1, Math.floor(source.width / factor)) as DevicePixels,
       height: Math.max(1, Math.floor(source.height / factor)) as DevicePixels,
     }, target: { ...target } };
-  const left = Math.max(0, Math.floor(source.x + source.width * (1 - 1 / factor) / 2)),
-    top = Math.max(0, Math.floor(source.y + source.height * (1 - 1 / factor) / 2)),
-    right = Math.min(nativeSize.width, Math.ceil(source.x + source.width * (1 + 1 / factor) / 2)),
-    bottom = Math.min(nativeSize.height, Math.ceil(source.y + source.height * (1 + 1 / factor) / 2)),
+  const left = Math.max(0, Math.floor(center.x + (source.x - center.x) / factor)),
+    top = Math.max(0, Math.floor(center.y + (source.y - center.y) / factor)),
+    right = Math.min(nativeSize.width, Math.ceil(center.x + (source.x + source.width - center.x) / factor)),
+    bottom = Math.min(nativeSize.height, Math.ceil(center.y + (source.y + source.height - center.y) / factor)),
     width = Math.max(1, right - left), height = Math.max(1, bottom - top);
   return { source: { x: left as DevicePixels, y: top as DevicePixels, width: width as DevicePixels, height: height as DevicePixels },
     target: {
@@ -110,7 +115,7 @@ export const nativePreviewWindow = (
   };
 };
 
-/** Bound each request and include a Lanczos halo, keeping tile seams on one device-pixel grid. */
+/** Bound requests on one device-pixel grid, with a single-pixel linear-sampling guard. */
 export const nativePreviewTiles = (
   window: NativePreviewWindow,
   sourceSize: Size<DevicePixels>,
@@ -122,7 +127,7 @@ export const nativePreviewTiles = (
   const { source, target } = window;
   const stepX = source.width / target.width,
     stepY = source.height / target.height;
-  const halo = Math.max(3, Math.ceil(6 * Math.max(stepX, stepY)));
+  const halo = Math.max(1, Math.ceil(Math.max(stepX, stepY)));
   for (let y = 0; y < target.height; y += targetTileEdge) {
     for (let x = 0; x < target.width; x += targetTileEdge) {
       const w = Math.min(targetTileEdge, target.width - x),

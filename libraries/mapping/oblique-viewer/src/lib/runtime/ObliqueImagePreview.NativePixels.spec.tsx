@@ -190,7 +190,7 @@ afterEach(() => {
 });
 
 describe("worker-composed preview pixels", () => {
-  it("coalesces geometry requests and reuses one worker and one metadata notification per source URL", () => {
+  it("coalesces geometry requests and reuses one worker and one metadata notification per source URL", async () => {
     const view = setup();
     beforeRender();
     const worker = workers[0];
@@ -198,11 +198,13 @@ describe("worker-composed preview pixels", () => {
     act(() => vi.advanceTimersByTime(100));
     beforeRender(geometry(80));
     act(() => vi.advanceTimersByTime(100));
+    // A running download/decode keeps making progress while geometry is coalesced.
     expect(worker.requests).toHaveLength(1);
     act(() => vi.advanceTimersByTime(100));
-    expect(worker.requests).toHaveLength(2);
+    expect(worker.requests).toHaveLength(1);
     const renders = scene.renders.mock.calls.length;
     complete(worker);
+    await act(async () => {});
     expect(content()?.source).toBeDefined();
     expect(scene.renders).toHaveBeenCalledTimes(renders);
     expect(view.props.onSourceLoaded).toHaveBeenCalledOnce();
@@ -214,6 +216,7 @@ describe("worker-composed preview pixels", () => {
     beforeRender(geometry(140));
     rest();
     complete(worker);
+    await act(async () => {});
     expect(workers).toHaveLength(1);
     expect(worker.requests).toHaveLength(3);
     expect(worker.terminate).not.toHaveBeenCalled();
@@ -221,64 +224,35 @@ describe("worker-composed preview pixels", () => {
     expect(scene.renders).toHaveBeenCalledTimes(renders);
   });
 
-  it("sends at most one cancel per outstanding RPC during sustained moving frames", () => {
-    const view = setup("cancel-storm");
+  it("coalesces moving geometry without cancelling a running foreground decode", async () => {
+    const view = setup();
     beforeRender();
-    const worker = workers[0];
-    const cancellations = () =>
-      worker.postMessage.mock.calls.filter(
-        ([message]) => "cancel" in message && message.cancel && !message.park
-      ).length;
-    expect(worker.requests).toHaveLength(1);
+    const worker = workers[0], initial = worker.requests[0];
+    const cancellations = () => worker.postMessage.mock.calls.filter(([message]) => "cancel" in message).length;
     vi.mocked(view.map.isMoving).mockReturnValue(true);
     for (let index = 1; index <= 120; index++) {
-      beforeRender(geometry(index));
-      act(() => vi.advanceTimersByTime(16));
+      beforeRender(geometry(index)); act(() => vi.advanceTimersByTime(16));
     }
-    expect(cancellations()).toBe(1);
+    expect(cancellations()).toBe(0);
     expect(worker.requests).toHaveLength(1);
-    rest();
-    expect(cancellations()).toBe(1);
-    expect(worker.requests).toHaveLength(1);
-    vi.mocked(view.map.isMoving).mockReturnValue(false);
-    rest();
-    expect(worker.requests).toHaveLength(2);
-    const request = worker.requests.at(-1)!;
-    const partial = {
-      width: request.window.target.width,
-      height: request.window.target.height,
-      close: vi.fn(),
-    } as unknown as ImageBitmap;
-    act(() =>
-      worker.reply({
-        bitmap: partial,
-        generation: request.generation,
-        sourceWidth: 5326,
-        sourceHeight: 7102,
-        complete: false,
-      })
-    );
-    // A progressive first stage keeps its foreground request outstanding.
-    vi.mocked(view.map.isMoving).mockReturnValue(true);
+    const partial = { width: initial.window.target.width, height: initial.window.target.height,
+      close: vi.fn() } as unknown as ImageBitmap;
+    act(() => worker.reply({ bitmap: partial, generation: initial.generation,
+      sourceWidth: 5326, sourceHeight: 7102, complete: false }));
     for (let index = 180; index < 300; index++) {
-      beforeRender(geometry(index));
-      act(() => vi.advanceTimersByTime(16));
+      beforeRender(geometry(index)); act(() => vi.advanceTimersByTime(16));
     }
-    expect(cancellations()).toBe(2);
-    expect(worker.requests).toHaveLength(2);
+    expect(cancellations()).toBe(0);
+    expect(worker.requests).toHaveLength(1);
     vi.mocked(view.map.isMoving).mockReturnValue(false);
-    rest();
-    expect(worker.requests).toHaveLength(3);
-    act(() =>
-      worker.reply({
-        generation: worker.requests.at(-1)!.generation,
-        reusePublished: true,
-      })
-    );
-    // Reuse is terminal: later geometry/timer changes need no cancel message.
-    beforeRender(geometry(350));
-    beforeRender(geometry(360));
-    expect(cancellations()).toBe(2);
+    complete(worker);
+    await act(async () => {});
+    expect(worker.requests).toHaveLength(2);
+    expect(worker.requests[1].generation).not.toBe(initial.generation);
+    act(() => worker.reply({ generation: worker.requests[1].generation, reusePublished: true }));
+    await act(async () => {});
+    expect(worker.requests).toHaveLength(2);
+    expect(cancellations()).toBe(0);
     expect(worker.terminate).not.toHaveBeenCalled();
   });
 
@@ -326,7 +300,6 @@ describe("worker-composed preview pixels", () => {
     rest();
     expect(worker.postMessage.mock.calls.slice(messages)).toEqual([
       [{ activity: true }],
-      [{ budgetOnly: true, activeSourceByteLimit: 0 }],
     ]);
     expect(
       worker.postMessage.mock.calls.filter(([message]) => "cancel" in message)
@@ -343,9 +316,76 @@ describe("worker-composed preview pixels", () => {
         height: ((800 * 14204) / 10652) as CssPixels,
       },
     });
-    expect(worker.requests).toHaveLength(1);
+    expect(worker.requests).toHaveLength(2);
     rest();
     expect(worker.requests).toHaveLength(2);
+  });
+
+  it("restores the previously decoded cropped level immediately after a return zoom", () => {
+    setup("return", { avifPyramidUrl: "https://imagery.test/return.avif" });
+    const initial = geometry();
+    beforeRender(initial);
+    const worker = workers[0], previous = complete(worker);
+    beforeRender({ ...initial, image: { width: 2400 as CssPixels, height: 3200 as CssPixels } });
+    const detail = complete(worker);
+    expect(content()?.source).toBe(detail);
+    expect(previous.close).not.toHaveBeenCalled();
+    const requests = worker.requests.length;
+    beforeRender(initial); rest();
+    expect(content()?.source).toBe(previous);
+    expect(worker.requests).toHaveLength(requests);
+    expect(detail.close).not.toHaveBeenCalled();
+  });
+
+  it("cancels an active old quality URL once and starts its replacement without waiting for a timeout", () => {
+    const view = setup("quality-url");
+    beforeRender();
+    const worker = workers[0], first = worker.requests[0], oldHandler = worker.onmessage!;
+    const url = "https://imagery.test/1/quality-url.jpg";
+    view.rerender(<NativePixels {...view.props} sourceUrl={url} />);
+    beforeRender(geometry(100));
+    expect(worker.requests).toHaveLength(2);
+    expect(worker.requests[1].url).toBe(url);
+    expect(worker.requests[1].generation).not.toBe(first.generation);
+    expect(worker.postMessage.mock.calls.filter(([message]) => "cancel" in message)).toHaveLength(1);
+    const stale = bitmap();
+    act(() => oldHandler({ data: { bitmap: stale, generation: first.generation, complete: true } } as MessageEvent<Response>));
+    expect(stale.close).toHaveBeenCalledOnce();
+    expect(content()).toBeNull();
+    const current = complete(worker);
+    expect(content()?.source).toBe(current);
+    expect(view.props.onSourceLoaded).toHaveBeenCalledOnce();
+  });
+
+  it("rejects a completed distant fallback when zoom-out needs only the neighboring pyramid level", () => {
+    setup("quality-floor", { avifPyramidUrl: "https://imagery.test/quality-floor.avif" });
+    const initial = { ...geometry(), image: { width: 2400 as CssPixels, height: 3200 as CssPixels } };
+    beforeRender(initial);
+    const worker = workers[0], sharp = complete(worker);
+    beforeRender({ ...initial, image: { width: 1800 as CssPixels, height: 2400 as CssPixels } });
+    const request = worker.requests.at(-1)!;
+    const coarse = { width: 160, height: 120, close: vi.fn() } as unknown as ImageBitmap;
+    act(() => worker.reply({ bitmap: coarse, crop: request.window.source, sampleDensity: .03,
+      generation: request.generation, complete: true, sourceWidth: 5326, sourceHeight: 7102 }));
+    expect(content()?.source).toBe(sharp);
+    expect(coarse.close).toHaveBeenCalledOnce();
+    expect(sharp.close).not.toHaveBeenCalled();
+  });
+
+  it("keeps the accepted image when a collapsed bitmap claims a falsely high pixel density", () => {
+    setup("collapsed", { avifPyramidUrl: "https://imagery.test/collapsed.avif" });
+    beforeRender();
+    const worker = workers[0], request = worker.requests[0], correct = complete(worker);
+    const acceptedCrop = content()?.crop;
+    const collapsed = { width: 1, height: 1, close: vi.fn() } as unknown as ImageBitmap;
+    act(() => worker.reply({ bitmap: collapsed, crop: request.window.source,
+      generation: request.generation, sampleDensity: .5, complete: true,
+      sourceWidth: 5326, sourceHeight: 7102, sourceBackend: "avif-pyramid" }));
+    expect(content()?.source).toBe(correct);
+    expect(content()?.crop).toEqual(acceptedCrop);
+    expect(collapsed.close).toHaveBeenCalledOnce();
+    expect(correct.close).not.toHaveBeenCalled();
+    expect(worker.requests).toHaveLength(1);
   });
 
   it("passes the current display crop to the worker when movement starts on a retained photo", () => {
@@ -448,7 +488,7 @@ describe("worker-composed preview pixels", () => {
     const replacement = complete(worker);
     expect(replacement.width).toBeLessThan(first.width / 2);
     expect(replacement.height).toBeLessThan(first.height / 2);
-    expect(first.close).toHaveBeenCalledOnce();
+    expect(first.close).not.toHaveBeenCalled(); // Keep the previous quality level for a return zoom.
   });
 
   it("budgets physical viewport pixels and sends a changed cache budget only once", () => {
@@ -464,10 +504,11 @@ describe("worker-composed preview pixels", () => {
         image: { width: 240 as CssPixels, height: 320 as CssPixels },
       });
       const worker = workers[0];
-      expect(worker.requests[0].activeSourceByteLimit).toBe(800 * 600 * 4 * 4);
+      expect(worker.requests[0].activeSourceByteLimit).toBeGreaterThan(800 * 600 * 4 * 16);
+      expect(worker.requests[0].activeSourceByteLimit).toBeLessThanOrEqual(256 * 1024 * 1024);
       expect(snapshots.at(-1)).toMatchObject({
         viewportPixels: 800 * 600 * 4,
-        imageBudgetBytes: 800 * 600 * 4 * 16,
+        imageBudgetBytes: 256 * 1024 * 1024,
       });
       complete(worker);
       const smaller = {
@@ -488,7 +529,7 @@ describe("worker-composed preview pixels", () => {
       expect(budgetMessages()).toHaveLength(count);
       expect(snapshots.at(-1)).toMatchObject({
         viewportPixels: 400 * 300,
-        imageBudgetBytes: 400 * 300 * 16,
+        imageBudgetBytes: 256 * 1024 * 1024,
       });
     } finally {
       window.removeEventListener("carma-oblique-preview-memory", readMemory);
@@ -511,8 +552,10 @@ describe("worker-composed preview pixels", () => {
       request = worker.requests[0];
     expect(request).toMatchObject({
       retainWholeImage: true,
-      activeSourceByteLimit: 800 * 600 * 2 * 2 * 4,
+      activeSourceByteLimit: expect.any(Number),
     });
+    expect(request.activeSourceByteLimit).toBeGreaterThan(800 * 600 * 2 * 2 * 16);
+    expect(request.activeSourceByteLimit).toBeLessThanOrEqual(256 * 1024 * 1024);
     expect(workers[0].terminate).not.toHaveBeenCalled();
     const sharp = complete(worker);
     beforeRender(geometry(100));
@@ -581,7 +624,7 @@ describe("worker-composed preview pixels", () => {
       oldHandler({
         data: {
           bitmap: stale,
-          generation: first.generation,
+          generation: first.generation - 1,
           sourceWidth: 10,
           sourceHeight: 10,
         },
@@ -595,7 +638,7 @@ describe("worker-composed preview pixels", () => {
     act(() =>
       worker.reply({
         bitmap: wrongGeneration,
-        generation: first.generation,
+        generation: first.generation - 1,
         sourceWidth: 10,
         sourceHeight: 10,
       })
@@ -658,6 +701,49 @@ describe("worker-composed preview pixels", () => {
     act(() => vi.advanceTimersByTime(1000));
     expect(worker.requests).toHaveLength(requests);
     expect(content()).toBeNull();
+  });
+
+  it("keeps progressive decoder workers isolated while changing the photo in the same component", () => {
+    const northUrl = "https://imagery.test/north.avif";
+    const eastUrl = "https://imagery.test/east.avif";
+    const view = setup("north", { avifOnly: true, avifPyramidUrl: northUrl });
+    const frame = geometry();
+    beforeRender(frame);
+    const north = workers[0], northRequest = north.requests[0];
+    const partial = (request: Request) => ({ width: request.window.target.width,
+      height: request.window.target.height, close: vi.fn() } as unknown as ImageBitmap);
+    const northCoarse = partial(northRequest);
+    act(() => north.reply({ bitmap: northCoarse, crop: northRequest.window.source,
+      generation: northRequest.generation, sourceWidth: 666, sourceHeight: 888,
+      sampleDensity: 1 / 16, sourceBackend: "avif-pyramid", complete: false }));
+    expect(content()?.source).toBe(northCoarse);
+    view.rerender(<NativePixels {...view.props} imageId="east"
+      sourceUrl="https://imagery.test/3/east.jpg" avifPyramidUrl={eastUrl} />);
+    beforeRender(frame);
+    expect(workers).toHaveLength(2);
+    const east = workers[1], eastRequest = east.requests[0];
+    expect(eastRequest).toMatchObject({ imageId: "east", sourceIdentity: eastUrl });
+    expect(content()).toBeNull();
+    const eastCoarse = partial(eastRequest);
+    act(() => east.reply({ bitmap: eastCoarse, crop: eastRequest.window.source,
+      generation: eastRequest.generation, sourceWidth: 666, sourceHeight: 888,
+      sampleDensity: 1 / 16, sourceBackend: "avif-pyramid", complete: false }));
+    expect(content()?.source).toBe(eastCoarse);
+    const lateNorth = partial(northRequest);
+    act(() => north.reply({ bitmap: lateNorth, crop: northRequest.window.source,
+      generation: northRequest.generation, sourceWidth: 5326, sourceHeight: 7102,
+      sampleDensity: .5, sourceBackend: "avif-pyramid", complete: true }));
+    expect(lateNorth.close).toHaveBeenCalledOnce();
+    expect(content()?.source).toBe(eastCoarse);
+    const eastFine = partial(eastRequest);
+    act(() => east.reply({ bitmap: eastFine, crop: eastRequest.window.source,
+      generation: eastRequest.generation, sourceWidth: 5326, sourceHeight: 7102,
+      sampleDensity: .5, sourceBackend: "avif-pyramid", complete: true }));
+    expect(content()?.source).toBe(eastFine);
+    expect(eastFine.close).not.toHaveBeenCalled();
+    expect(eastCoarse.close).toHaveBeenCalledOnce();
+    expect(north.terminate).not.toHaveBeenCalled();
+    expect(east.terminate).not.toHaveBeenCalled();
   });
 
   it("reacquires a parked image worker after changing the visible photo", () => {
@@ -909,7 +995,8 @@ describe("worker-composed preview pixels", () => {
     const count = context.drawImage.mock.calls.length;
     setup("dom", { tiff: true, sourceUrl: "https://imagery.test/dom.tif" });
     expect(context.drawImage).toHaveBeenCalledTimes(count + 1);
-    expect(workers).toHaveLength(2);
+    // The retained whole-window pixels already cover the remount, so no new worker is needed.
+    expect(workers).toHaveLength(1);
   });
   it("requests TIFF windows immediately and accepts one sharper replacement in the same worker", () => {
     const view = setup("original", {

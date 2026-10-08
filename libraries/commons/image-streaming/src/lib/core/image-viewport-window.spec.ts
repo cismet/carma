@@ -50,6 +50,13 @@ describe("bounded preview zoom forecasting", () => {
     expect(forecastPreviewWindow(window, device(1200, 800), 2)).toEqual({ source: { x: 500, y: 350, width: 200, height: 100 }, target: window.target });
     expect(forecastPreviewWindow(window, device(1200, 800), 1)).toBe(window);
   });
+  it("forecasts around the mouse pixel rather than shifting an off-center zoom", () => {
+    const anchor = { x: 450 as DevicePixels, y: 350 as DevicePixels };
+    const next = forecastPreviewWindow(window, device(1200, 800), 0.5, anchor);
+    expect(next.source).toEqual({ x: 350, y: 250, width: 800, height: 400 });
+    expect((anchor.x - next.source.x) * next.target.width / next.source.width).toBe(25);
+    expect((anchor.y - next.source.y) * next.target.height / next.source.height).toBe(25);
+  });
   it.each([0, -1, Infinity, NaN])("rejects an invalid forecast factor %s", (factor) => {
     expect(() => forecastPreviewWindow(window, device(1200, 800), factor)).toThrow(RangeError);
   });

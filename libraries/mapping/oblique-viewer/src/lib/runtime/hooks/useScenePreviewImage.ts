@@ -273,10 +273,7 @@ export const useScenePreviewImage = ({
       pendingReplacement =
         replacement &&
         Math.max(sourceWidth, sourceHeight) > 512 &&
-        !(
-          options.priority === 0 &&
-          sourceWidth * sourceHeight <= 4 * 1024 * 1024
-        ) &&
+        sourceWidth * sourceHeight > width * height * pixelRatio * pixelRatio * 4 &&
         !!map.isMoving?.();
       // Keep the admitted source/crop pair while moving, but still update its camera matrix below.
       if (!pendingReplacement && replacement) {

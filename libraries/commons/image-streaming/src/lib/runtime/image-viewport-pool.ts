@@ -3,7 +3,7 @@ import type {
   NativePreviewWindow,
   JpegPyramidLevel,
 } from "../core/image-viewport-window";
-import type { AvifLevelReadiness } from "./avif-pyramid-preview-source";
+import type { AvifLevelReadiness, AvifPyramidPreviewSource } from "./avif-pyramid-preview-source";
 import { createPreviewRgbWorker } from "./create-preview-rgb-worker";
 
 export type ImageViewportSource = {
@@ -60,6 +60,8 @@ export type ImageViewportProtocolLease = {
   setTarget: (window: NativePreviewWindow) => void;
   storePrepared: (reply: ImagePreparedFrame) => void;
   takePrepared: (window: NativePreviewWindow) => ImagePreparedFrame | null;
+  /** Borrowed buffer; the lease owns it and callers must not close or transfer it. */
+  borrowFrame: (window: NativePreviewWindow) => ImageViewportBaseline | null;
   release: () => void;
 };
 export type ImagePreparedFrame = {
@@ -92,6 +94,11 @@ export type ImageViewportMetrics = {
   active: boolean;
   viewportPixels: number;
   budgetBytes: number;
+  /** Display, transfer and composition surfaces are bounded separately from decode caches. */
+  renderBudgetBytes: number;
+  cacheBudgetBytes: number;
+  bufferedBytes: number;
+  preparedBytes: number;
   bitmapBytes: number;
   /** Baseline bytes additional to the current bitmap; aliases are counted once. */
   baselineBytes: number;
@@ -110,10 +117,14 @@ export type ImageViewportSnapshot = {
   overview: ImageBitmap | null;
   /** Borrowed, protected full-image quality floor learned from accepted frames. */
   baseline?: ImageViewportBaseline;
+  /** Borrowed recent level buffers; preserve the pre-zoom quality on return. */
+  bufferedFrames?: readonly ImageViewportBaseline[];
   input?: ImageViewportInput | null;
   overviewInput?: ImageViewportInput | null;
   readiness?: AvifLevelReadiness[];
+  neighborhoodReadiness?: AvifPyramidPreviewSource["neighborhoodReadiness"];
   prepared?: { crop: NativePreviewWindow["source"]; density: number; width: number; height: number };
+  preparedFrames?: readonly { crop: NativePreviewWindow["source"]; density: number; width: number; height: number }[];
   loading: boolean;
   error: string | null;
   metrics: ImageViewportMetrics;
@@ -140,6 +151,7 @@ type Entry = {
   density: number;
   generation: number;
   loading: boolean;
+  complete: boolean;
   error: string | null;
   workerMemory?: WorkerMemory;
   sourceMemory?: SourceMemory;
@@ -148,6 +160,7 @@ type Entry = {
   lastRequestKey: string;
   interacting: boolean;
   parked: boolean;
+  inFlight?: { generation: number; window: NativePreviewWindow; key: string };
   timer?: ReturnType<typeof setTimeout>;
   settleTimer?: ReturnType<typeof setTimeout>;
   listeners: Set<(snapshot: ImageViewportSnapshot) => void>;
@@ -156,14 +169,17 @@ type Entry = {
   baseline?: ImageViewportBaseline;
   input?: ImageViewportInput;
   overviewInput?: ImageViewportInput;
-  preparedFrame?: ImagePreparedFrame;
+  preparedFrames: ImagePreparedFrame[];
+  bufferedFrames: ImageViewportBaseline[];
   readiness?: AvifLevelReadiness[];
+  neighborhoodReadiness?: AvifPyramidPreviewSource["neighborhoodReadiness"];
   priority?: "low" | "high";
 
 };
 type WorkerReply = {
   kind?: string;
   readiness?: AvifLevelReadiness[];
+  neighborhoodReadiness?: AvifPyramidPreviewSource["neighborhoodReadiness"];
   imageId?: string;
   sourceIdentity?: string;
   generation?: number;
@@ -248,6 +264,7 @@ export class ImageViewportPool {
         density: 0,
         generation: 0,
         loading: false,
+        complete: false,
         error: null,
         sourceBytes: 0,
         lastBudget: -1,
@@ -255,6 +272,8 @@ export class ImageViewportPool {
         interacting: false,
         parked: false,
         listeners: new Set(),
+        preparedFrames: [],
+        bufferedFrames: [],
       };
     }
     this.entries.delete(key);
@@ -265,6 +284,7 @@ export class ImageViewportPool {
     const ownedListeners = new Set<(snapshot: ImageViewportSnapshot) => void>();
     let released = false;
     this.trim();
+    this.rebalance();
     return {
       setViewport: (
         window,
@@ -278,9 +298,8 @@ export class ImageViewportPool {
         current.requested = window;
         current.priority = options.priority ?? "high";
         current.viewportPixels = viewportPixels;
-        current.generation++;
+        if (!current.inFlight) current.generation++;
         current.error = null;
-        if (current.loading) current.worker?.postMessage({ cancel: true });
         if (!current.interacting) {
           current.interacting = true;
           current.worker?.postMessage({ activity: true, warmWindow: window });
@@ -293,13 +312,22 @@ export class ImageViewportPool {
             warmWindow: current.requested,
           });
         }, 50);
-        this.updateBudget(current);
+        this.rebalance();
+        // Preserve downloads and native decodes already making progress. The
+        // newest requested crop is dispatched when this foreground RPC finishes.
+        if (current.inFlight) {
+          // An unrelated foreground request must not delay a cached return zoom.
+          // Borrowing does not complete, cancel or replace that request's RPC.
+          this.reuseBuffered(current, window);
+          this.emit(current);
+          return;
+        }
         const prepared = this.takePrepared(current, window);
         if (prepared) {
           clearTimeout(current.timer);
           current.timer = undefined;
           this.receive(current, {...prepared, kind:undefined, generation: current.generation, complete: true});
-        } else if (this.reuseBaseline(current, window)) {
+        } else if (this.reuseBuffered(current, window)) {
           clearTimeout(current.timer);
           current.timer = undefined;
         } else if (current.timer === undefined) {
@@ -331,6 +359,7 @@ export class ImageViewportPool {
           current.timer = undefined;
           clearTimeout(current.settleTimer);
           current.generation++;
+          current.inFlight = undefined;
           current.loading = false;
           current.interacting = false;
           current.parked = true;
@@ -344,6 +373,7 @@ export class ImageViewportPool {
           });
         }
         this.trim();
+        this.rebalance();
         this.emit(current);
       },
     };
@@ -380,6 +410,10 @@ export class ImageViewportPool {
         }
       },
       publish: (state) => {
+        const previous = entry.bitmap;
+        if (state.bitmap !== previous && (!state.frame || !entry.frame ||
+            !cropCovers(state.frame.source, entry.frame.source) || state.density < entry.density))
+          this.rememberFrame(entry);
         entry.protocolState = state;
         entry.bitmap = state.bitmap;
         entry.frame = state.frame;
@@ -390,16 +424,20 @@ export class ImageViewportPool {
           sourceBackend: state.backend,
         }) : undefined;
         entry.density = state.density;
+        entry.complete = state.complete;
         entry.viewportPixels = state.viewportPixels;
         entry.sourceBytes = entry.worker ? state.sourceResidentBytes : 0;
         entry.sourceMemory = state.sourceMemory;
         entry.workerMemory = state.workerMemory;
-        this.trim();
+        const previousBaseline = this.learnBaseline(entry);
+        this.closeUnowned(entry, [previous, previousBaseline]);
+        this.rebalance();
         this.emit(entry);
       },
       setTarget: (window) => { entry.requested = window; },
       storePrepared: (reply) => this.storePrepared(entry, reply),
       takePrepared: (window) => this.takePrepared(entry, window),
+      borrowFrame: (window) => this.borrowFrame(entry, window),
       sourceBudget: () => this.sourceBudget(entry),
       retainedSourceBudget: () =>
         Math.min(this.limits.retainedSourceBytes, this.sourceBudget(entry)),
@@ -456,34 +494,59 @@ export class ImageViewportPool {
     this.entries.clear();
     this.listeners.clear();
   }
+  private frameBitmaps(entry: Entry) {
+    return new Set([
+      entry.bitmap, entry.baseline?.bitmap, entry.overview,
+      ...entry.bufferedFrames.map((frame) => frame.bitmap),
+      ...entry.preparedFrames.map((frame) => frame.bitmap),
+    ].filter((bitmap): bitmap is ImageBitmap => !!bitmap));
+  }
+  private hostBytes(entry: Entry) {
+    const decoded = [...this.frameBitmaps(entry)].reduce((sum, bitmap) => sum + bitmapBytes(bitmap), 0);
+    const canvas = entry.refs
+      ? entry.protocolState?.displayCopyBytes ?? entry.viewportPixels * 4
+      : 0;
+    return decoded + canvas + (entry.refs ? entry.protocolState?.externalBytes ?? 0 : 0);
+  }
+  private allocation(entry: Entry) {
+    if (!entry.refs) return this.limits.retainedSourceBytes + this.hostBytes(entry);
+    const active = [...this.entries.values()].filter((item) => item.refs > 0);
+    const parked = [...this.entries.values()].filter((item) => !item.refs)
+      .reduce((sum, item) => sum + this.hostBytes(item) + item.sourceBytes + workerBytes(item), 0);
+    return Math.max(0, (this.limits.maxBytes - parked) / Math.max(1, active.length));
+  }
   private metricsFor(entry: Entry): ImageViewportMetrics {
-    const prepared = bitmapBytes(entry.preparedFrame?.bitmap ?? null), overview = bitmapBytes(entry.overview ?? null);
-    const baseline = entry.baseline?.bitmap;
-    const baselineBytes = baseline && baseline !== entry.bitmap ? bitmapBytes(baseline) : 0;
-    const bytes = bitmapBytes(entry.bitmap),
-      fallbackCanvas = entry.refs && !entry.protocolState
-        ? baseline
-          ? Math.min(bitmapBytes(baseline), entry.viewportPixels * 4)
-          : Math.min(overview, entry.viewportPixels * 4, 4 * 1024 * 1024)
-        : 0,
-      canvas = (entry.refs ? entry.protocolState?.displayCopyBytes ?? bytes : 0) + fallbackCanvas,
-      worker = entry.worker
-        ? entry.workerMemory
-          ? workerBytes(entry)
-          : entry.protocolState?.workerCanvasBytes ?? workerBytes(entry)
-        : 0,
-      external = entry.refs ? entry.protocolState?.externalBytes ?? 0 : 0;
+    const owned = new Set<ImageBitmap>();
+    const count = (bitmap: ImageBitmap | null | undefined) => {
+      if (!bitmap || owned.has(bitmap)) return 0;
+      owned.add(bitmap); return bitmapBytes(bitmap);
+    };
+    const bytes = count(entry.bitmap);
+    const baselineBytes = count(entry.baseline?.bitmap);
+    const bufferedBytes = entry.bufferedFrames.reduce((sum, frame) => sum + count(frame.bitmap), 0);
+    const preparedBytes = entry.preparedFrames.reduce((sum, frame) => sum + count(frame.bitmap), 0);
+    const overview = count(entry.overview);
+    const canvas = entry.refs ? entry.protocolState?.displayCopyBytes ?? entry.viewportPixels * 4 : 0;
+    const worker = entry.worker
+      ? entry.workerMemory ? workerBytes(entry) : entry.protocolState?.workerCanvasBytes ?? workerBytes(entry)
+      : 0;
+    const external = entry.refs ? entry.protocolState?.externalBytes ?? 0 : 0;
+    const budgetBytes = this.allocation(entry);
     return {
       id: entry.source.id,
       active: entry.refs > 0,
       viewportPixels: entry.viewportPixels,
-      budgetBytes: Math.max(entry.viewportPixels * 16, Math.max(overview,entry.sourceMemory?.overviewBytes??0) * 2 + bytes * 2),
+      budgetBytes,
+      renderBudgetBytes: entry.viewportPixels * 16,
+      cacheBudgetBytes: this.sourceBudget(entry),
+      bufferedBytes,
+      preparedBytes,
       bitmapBytes: bytes,
       baselineBytes,
       canvasBytes: canvas,
       workerBytes: worker,
       sourceBytes: entry.sourceBytes,
-      managedBytes: bytes + baselineBytes + canvas + worker + entry.sourceBytes + external + prepared + overview,
+      managedBytes: bytes + baselineBytes + bufferedBytes + preparedBytes + overview + canvas + worker + entry.sourceBytes + external,
       peakWorkerWorkingBytes: entry.workerMemory?.peakWorkingBytes ?? 0,
       sourceMemory: entry.sourceMemory,
     };
@@ -527,43 +590,47 @@ export class ImageViewportPool {
       requested: entry.requested,
       overview: entry.overview ?? null,
       baseline: entry.baseline,
+      bufferedFrames: entry.bufferedFrames,
       input: entry.bitmap ? entry.input ?? null : null,
       overviewInput: entry.overview ? entry.overviewInput ?? null : null,
       readiness: entry.readiness,
-      prepared: entry.preparedFrame ? {crop: entry.preparedFrame.crop, density: entry.preparedFrame.sampleDensity,
-        width: entry.preparedFrame.bitmap.width, height: entry.preparedFrame.bitmap.height} : undefined,
+      neighborhoodReadiness: entry.neighborhoodReadiness,
+      prepared: this.preparedSummaries(entry)[0],
+      preparedFrames: this.preparedSummaries(entry),
       loading: entry.loading,
       error: entry.error,
       metrics: this.metricsFor(entry),
     };
   }
   private sourceBudget(entry: Entry) {
-    const metrics = this.metricsFor(entry);
-    const target = entry.requested?.target ?? entry.frame?.target;
+    const target = entry.inFlight?.window.target ?? entry.requested?.target ?? entry.frame?.target;
     const targetBytes = target ? target.width * target.height * 4 : entry.viewportPixels * 4;
-    const display = metrics.bitmapBytes + metrics.baselineBytes + metrics.canvasBytes + (entry.protocolState?.externalBytes ?? 0)
-      + bitmapBytes(entry.overview ?? null) + bitmapBytes(entry.preparedFrame?.bitmap ?? null);
-    // Reserve the actual crop surfaces, not three full viewports for a narrow image.
-    const future = targetBytes + (entry.loading ? targetBytes : 0);
-    return Math.max(0, metrics.budgetBytes - display - Math.max(metrics.workerBytes, future));
+    // The active tile pyramid has its own share of the pool. Do not starve it by
+    // subtracting all retained levels from a four-viewport rendering allowance.
+    const future = targetBytes + (entry.inFlight ? targetBytes : 0);
+    return Math.max(0, this.allocation(entry) - this.hostBytes(entry) - Math.max(workerBytes(entry), future));
+  }
+  private preparedSummaries(entry: Entry) {
+    return entry.preparedFrames.map((frame) => ({ crop: frame.crop,
+      density: frame.sampleDensity, width: frame.bitmap.width, height: frame.bitmap.height }));
   }
   private storePrepared(entry: Entry, reply: ImagePreparedFrame) {
-    const old = entry.preparedFrame;
-    entry.preparedFrame = undefined;
-    if (old?.bitmap !== reply.bitmap) this.closeUnowned(entry, [old?.bitmap]);
-    if (this.metricsFor(entry).managedBytes + bitmapBytes(reply.bitmap) > this.metricsFor(entry).budgetBytes) {
-      this.closeUnowned(entry, [reply.bitmap]); return;
-    }
-    entry.preparedFrame = reply;
+    const removed = entry.preparedFrames.filter((frame) =>
+      frame.bitmap === reply.bitmap || (frame.sampleDensity === reply.sampleDensity &&
+        JSON.stringify(frame.crop) === JSON.stringify(reply.crop)));
+    entry.preparedFrames = [reply, ...entry.preparedFrames.filter((frame) => !removed.includes(frame))];
+    removed.push(...entry.preparedFrames.splice(2));
+    this.closeUnowned(entry, removed.map((frame) => frame.bitmap));
+    this.rebalance();
     this.emit(entry);
   }
   private takePrepared(entry: Entry, window: NativePreviewWindow): ImagePreparedFrame | null {
-    const ready = entry.preparedFrame;
+    const needed = this.density(entry, window);
+    const ready = entry.preparedFrames.filter((frame) => cropCovers(frame.crop, window.source) &&
+      frame.sampleDensity >= needed && frame.sampleDensity <= needed * 2)
+      .sort((a, b) => a.sampleDensity - b.sampleDensity)[0];
     if (!ready) return null;
-    const a = ready.crop, b = window.source, needed = this.density(entry, window);
-    if (!cropCovers(a, b) ||
-      ready.sampleDensity < needed || ready.sampleDensity > needed * 2) return null;
-    entry.preparedFrame = undefined;
+    entry.preparedFrames = entry.preparedFrames.filter((frame) => frame !== ready);
     return ready;
   }
   private updateBudget(entry: Entry) {
@@ -603,11 +670,15 @@ export class ImageViewportPool {
         entry.worker.onerror = () => {
           entry.error = "Image worker failed";
           entry.loading = false;
+          entry.inFlight = undefined;
           this.emit(entry);
         };
       }
       entry.loading = true;
+      entry.error = null;
       entry.parked = false;
+      entry.generation++;
+      entry.inFlight = { generation: entry.generation, window, key: entry.lastRequestKey };
       const activeSourceByteLimit = this.sourceBudget(entry);
       entry.lastBudget = activeSourceByteLimit;
       entry.worker.postMessage({
@@ -637,6 +708,7 @@ export class ImageViewportPool {
       });
     } catch (error) {
       entry.loading = false;
+      entry.inFlight = undefined;
       entry.error = error instanceof Error ? error.message : String(error);
     }
     this.emit(entry);
@@ -656,6 +728,7 @@ export class ImageViewportPool {
       return;
     }
     if (reply.readiness) entry.readiness = reply.readiness;
+    if (reply.neighborhoodReadiness) entry.neighborhoodReadiness = reply.neighborhoodReadiness;
     if (reply.kind === "prepared-frame" || reply.kind === "full-image") {
       if (reply.sourceResidentBytes !== undefined) entry.sourceBytes = reply.sourceResidentBytes;
       if (reply.workerMemory) entry.workerMemory = reply.workerMemory;
@@ -674,8 +747,8 @@ export class ImageViewportPool {
       this.closeUnowned(entry, [previous]);
       entry.overviewInput = this.inputFor(entry, reply);
       if (reply.sourceResidentBytes !== undefined) entry.sourceBytes = reply.sourceResidentBytes;
-      this.trimOptionalSurfaces(entry);
-      this.trim(); this.emit(entry); return;
+      this.rebalance();
+      this.emit(entry); return;
     }
     if (reply.kind === "source-memory") {
       if (
@@ -701,18 +774,29 @@ export class ImageViewportPool {
       if (entry.bitmap && !entry.input) entry.input = this.inputFor(entry, reply);
     }
     if (reply.bitmap && entry.requested) {
-      const crop = reply.crop ?? entry.requested.source;
-      const density =
-        reply.sampleDensity ??
-        Math.min(
-          reply.bitmap.width / crop.width,
-          reply.bitmap.height / crop.height,
-          (reply.sourceWidth ?? entry.source.nativeSize.width) /
-            entry.source.nativeSize.width,
-          (reply.sourceHeight ?? entry.source.nativeSize.height) /
-            entry.source.nativeSize.height
-        );
+      const crop = reply.crop ?? entry.inFlight?.window.source ?? entry.requested.source;
+      // Claimed source quality cannot exceed pixels actually carried by this
+      // bitmap; an invalid/released surface must never replace a sharp view.
+      const density = Math.min(
+        reply.sampleDensity ?? Infinity,
+        reply.bitmap.width / crop.width,
+        reply.bitmap.height / crop.height,
+        (reply.sourceWidth ?? entry.source.nativeSize.width) / entry.source.nativeSize.width,
+        (reply.sourceHeight ?? entry.source.nativeSize.height) / entry.source.nativeSize.height
+      );
       const needed = this.density(entry, entry.requested);
+      const belongsToPriorWindow = !!entry.inFlight && entry.inFlight.key !== entry.lastRequestKey &&
+        !cropCovers(crop, entry.requested.source);
+      if (belongsToPriorWindow && reply.complete !== false) {
+        const buffered: ImageViewportBaseline = {
+          bitmap: reply.bitmap,
+          frame: { source: crop, target: {
+            width: reply.bitmap.width as DevicePixels, height: reply.bitmap.height as DevicePixels,
+          } },
+          density, input: this.inputFor(entry, reply),
+        };
+        this.rememberFrame(entry, buffered, true);
+      } else {
       const quality = (value: number) => Math.min(1, value / needed);
       const priorQuality = Math.max(
         entry.bitmap && entry.frame && cropsOverlap(entry.frame.source, crop)
@@ -720,10 +804,16 @@ export class ImageViewportPool {
         entry.baseline && cropsOverlap(entry.baseline.frame.source, crop)
           ? quality(entry.baseline.density) : 0
       );
-      if (quality(density) < priorQuality)
+      const previouslyCovered = !!entry.bitmap && !!entry.frame &&
+        cropCovers(entry.frame.source, entry.requested.source);
+      const uniformParent = !previouslyCovered && cropCovers(crop, entry.requested.source) &&
+        density >= needed / 2 && reply.complete !== false;
+      if (quality(density) < priorQuality && !uniformParent)
         this.closeUnowned(entry, [reply.bitmap]);
       else {
         const old = entry.bitmap;
+        if (!entry.frame || !cropCovers(crop, entry.frame.source) || density < entry.density)
+          this.rememberFrame(entry);
         entry.bitmap = reply.bitmap;
         entry.frame = {
           source: crop,
@@ -733,16 +823,27 @@ export class ImageViewportPool {
           },
         };
         entry.density = density;
+        entry.complete = reply.complete !== false;
         entry.input = this.inputFor(entry, reply);
         const previousBaseline = this.learnBaseline(entry);
         this.emit(entry);
         this.closeUnowned(entry, [old, previousBaseline]);
       }
+      }
       entry.loading = reply.complete === false;
     }
-    this.trimOptionalSurfaces(entry);
-    this.updateBudget(entry);
-    this.trim();
+    const finished = entry.inFlight && reply.generation === entry.inFlight.generation &&
+      (reply.error || reply.reusePublished || (reply.bitmap && reply.complete !== false));
+    if (finished) {
+      const oldKey = entry.inFlight!.key;
+      entry.inFlight = undefined;
+      entry.loading = false;
+      if (entry.refs && oldKey !== entry.lastRequestKey && entry.timer === undefined)
+        entry.timer = setTimeout(() => this.compose(entry), 16);
+    }
+    // A parked decoder's memory acknowledgement changes every active reader's
+    // fair share, even when no camera movement or foreground reply occurs.
+    this.rebalance();
     this.emit(entry);
   }
   private emit(entry: Entry) {
@@ -752,7 +853,7 @@ export class ImageViewportPool {
   }
   private learnBaseline(entry: Entry): ImageBitmap | undefined {
     const bitmap = entry.bitmap, frame = entry.frame;
-    if (!bitmap || !frame || bitmap.width * bitmap.height > entry.viewportPixels ||
+    if (!bitmap || !frame || !entry.complete || bitmap.width * bitmap.height > entry.viewportPixels ||
         entry.density < this.density(entry, entry.requested ?? frame) ||
         !cropCovers(frame.source, {
           x: 0 as DevicePixels, y: 0 as DevicePixels,
@@ -763,40 +864,74 @@ export class ImageViewportPool {
     entry.baseline = { bitmap, frame, input: entry.input, density: entry.density };
     return previous;
   }
-  private reuseBaseline(entry: Entry, window: NativePreviewWindow): boolean {
-    const baseline = entry.baseline;
+  private rememberFrame(entry: Entry, previous?: ImageViewportBaseline, complete = entry.complete) {
+    if (!complete) return;
+    const frame = previous ?? (entry.bitmap && entry.frame ? {
+      bitmap: entry.bitmap, frame: entry.frame, input: entry.input, density: entry.density,
+    } : undefined);
+    if (!frame || frame.bitmap === entry.baseline?.bitmap) return;
+    const obsolete = entry.bufferedFrames.filter((buffer) => buffer.bitmap === frame.bitmap ||
+      (cropCovers(frame.frame.source, buffer.frame.source) && frame.density >= buffer.density));
+    entry.bufferedFrames = [frame, ...entry.bufferedFrames.filter((buffer) => !obsolete.includes(buffer))];
+    obsolete.push(...entry.bufferedFrames.splice(2));
+    this.closeUnowned(entry, obsolete.map((buffer) => buffer.bitmap));
+  }
+  private borrowFrame(entry: Entry, window: NativePreviewWindow): ImageViewportBaseline | null {
     const needed = this.density(entry, window);
-    if (entry.parked || !baseline || !cropCovers(baseline.frame.source, window.source) ||
-        baseline.density < needed || baseline.density > needed * 2)
-      return false;
+    const current = entry.bitmap && entry.frame ? {
+      bitmap: entry.bitmap, frame: entry.frame, input: entry.input, density: entry.density,
+    } : undefined;
+    return [current, entry.baseline, ...entry.bufferedFrames].filter((buffer): buffer is ImageViewportBaseline =>
+      !!buffer && cropCovers(buffer.frame.source, window.source) &&
+      buffer.density >= needed / 2 && buffer.density <= needed * 2)
+      .sort((a, b) => b.density - a.density)[0] ?? null;
+  }
+  private reuseBuffered(entry: Entry, window: NativePreviewWindow): boolean {
+    if (entry.parked) return false;
+    const needed = this.density(entry, window);
+    const ready = this.borrowFrame(entry, window);
+    if (!ready) return false;
+    if (ready.bitmap === entry.bitmap) {
+      entry.loading = ready.density < needed;
+      return !entry.loading;
+    }
+    const previouslyCovered = !!entry.bitmap && !!entry.frame && cropCovers(entry.frame.source, window.source);
+    if (previouslyCovered && ready.density < entry.density) return false;
     const previous = entry.bitmap;
-    entry.bitmap = baseline.bitmap;
-    entry.frame = baseline.frame;
-    entry.input = baseline.input;
-    entry.density = baseline.density;
-    entry.loading = false;
+    const previousFrame = entry.bitmap && entry.frame ? {
+      bitmap: entry.bitmap, frame: entry.frame, input: entry.input, density: entry.density,
+    } : undefined;
+    // Protect the chosen buffer before retaining the old view can evict history.
+    entry.bitmap = ready.bitmap;
+    entry.frame = ready.frame;
+    entry.input = ready.input;
+    entry.density = ready.density;
+    entry.bufferedFrames = entry.bufferedFrames.filter((buffer) => buffer.bitmap !== ready.bitmap);
+    this.rememberFrame(entry, previousFrame);
+    entry.complete = true;
+    entry.loading = ready.density < needed;
     this.updateBudget(entry);
     this.emit(entry);
     this.closeUnowned(entry, [previous]);
-    return true;
+    return !entry.loading;
   }
   private closeUnowned(entry: Entry, bitmaps: Iterable<ImageBitmap | null | undefined>) {
-    for (const bitmap of new Set(bitmaps)) {
-      if (bitmap && bitmap !== entry.bitmap && bitmap !== entry.baseline?.bitmap &&
-          bitmap !== entry.overview && bitmap !== entry.preparedFrame?.bitmap)
-        bitmap.close();
-    }
+    const owned = this.frameBitmaps(entry);
+    for (const bitmap of new Set(bitmaps)) if (bitmap && !owned.has(bitmap)) bitmap.close();
   }
   private trimOptionalSurfaces(entry: Entry) {
-    if (!entry.refs || !entry.baseline) return;
-    if (this.metricsFor(entry).managedBytes > this.metricsFor(entry).budgetBytes &&
-        entry.preparedFrame) {
-      const previous = entry.preparedFrame.bitmap;
-      entry.preparedFrame = undefined;
-      this.closeUnowned(entry, [previous]);
+    if (!entry.refs) return;
+    // Oldest speculation yields first; keep the last neighboring level before
+    // surrendering the active decoded cache to a full-image overview.
+    while (this.hostBytes(entry) + workerBytes(entry) > this.allocation(entry) && entry.preparedFrames.length) {
+      const frame = entry.preparedFrames.pop()!;
+      this.closeUnowned(entry, [frame.bitmap]);
     }
-    if (this.metricsFor(entry).managedBytes > this.metricsFor(entry).budgetBytes &&
-        entry.overview) {
+    while (this.hostBytes(entry) + workerBytes(entry) > this.allocation(entry) && entry.bufferedFrames.length) {
+      const frame = entry.bufferedFrames.pop()!;
+      this.closeUnowned(entry, [frame.bitmap]);
+    }
+    if (entry.baseline && entry.overview) {
       const previous = entry.overview;
       entry.overview = undefined;
       entry.overviewInput = undefined;
@@ -807,19 +942,61 @@ export class ImageViewportPool {
     clearTimeout(entry.timer);
     clearTimeout(entry.settleTimer);
     entry.worker?.terminate();
-    for (const bitmap of new Set([
-      entry.bitmap, entry.baseline?.bitmap, entry.preparedFrame?.bitmap, entry.overview,
-    ])) bitmap?.close();
+    for (const bitmap of this.frameBitmaps(entry)) bitmap.close();
     entry.listeners.clear();
+  }
+  private activeReservation(entry: Entry, fairBytes: number) {
+    const target = entry.inFlight?.window.target ?? entry.requested?.target ?? entry.frame?.target;
+    const pixels = entry.viewportPixels || (target ? target.width * target.height : 0);
+    const targetBytes = target ? target.width * target.height * 4 : pixels * 4;
+    const sourceFloor = Math.min(32 * 1024 * 1024,
+      Math.max(12 * 1024 * 1024, pixels * 16));
+    const surfaces = Math.max(pixels * 16,
+      this.hostBytes(entry) + Math.max(workerBytes(entry), targetBytes * 2));
+    return Math.max(this.metricsFor(entry).managedBytes,
+      Math.min(fairBytes, surfaces + sourceFloor));
+  }
+  private reservedBytes() {
+    const active = [...this.entries.values()].filter((entry) => entry.refs);
+    const fairBytes = this.limits.maxBytes / Math.max(1, active.length);
+    return [...this.entries.values()].reduce((sum, entry) => sum + (
+      entry.refs ? this.activeReservation(entry, fairBytes) : this.metricsFor(entry).managedBytes
+    ), 0);
+  }
+  private shedParkedDecoder(entry: Entry) {
+    const worker = entry.worker;
+    if (!worker || entry.refs) return;
+    worker.onmessage = null;
+    worker.onerror = null;
+    worker.onmessageerror = null;
+    worker.terminate();
+    entry.worker = null;
+    entry.sourceBytes = 0;
+    entry.sourceMemory = undefined;
+    entry.workerMemory = undefined;
+    entry.lastBudget = -1;
+    if (entry.protocolState) entry.protocolState = { ...entry.protocolState,
+      sourceResidentBytes: 0, sourceMemory: undefined, workerMemory: undefined,
+      workerCanvasBytes: 0 };
+  }
+  private rebalance() {
+    this.trim();
+    for (const entry of this.entries.values()) if (entry.refs) {
+      this.trimOptionalSurfaces(entry);
+      this.updateBudget(entry);
+    }
   }
   private trim() {
     for (const entry of this.entries.values()) {
-      if (
-        this.entries.size <= this.limits.maxImages &&
-        this.metrics.managedBytes <= this.limits.maxBytes
-      )
-        break;
+      if (this.entries.size <= this.limits.maxImages &&
+          this.reservedBytes() <= this.limits.maxBytes) break;
       if (entry.refs) continue;
+      if (this.entries.size <= this.limits.maxImages) {
+        // Preserve each photo's decoded display/history buffers. Reclaim its
+        // parked decoder first when the next active image needs working space.
+        this.shedParkedDecoder(entry);
+        if (this.reservedBytes() <= this.limits.maxBytes) continue;
+      }
       this.retire(entry);
       this.entries.delete(entry.key);
     }

@@ -55,6 +55,8 @@ type PreviewMemorySnapshot = {
   viewportPixels: number;
   imageBytes: number;
   imageBudgetBytes: number;
+  renderBudgetBytes?: number;
+  sourceCacheBudgetBytes?: number;
   sourceResidentBytes: number;
   sourceMemory?: AvifSourceMemorySnapshot;
   workerResidentBytes: number;
@@ -127,6 +129,8 @@ const publishMemoryMetrics = (
     viewportPixels: current?.viewportPixels ?? 0,
     imageBytes: activeImage?.managedBytes ?? current?.imageBytes ?? 0,
     imageBudgetBytes: activeImage?.budgetBytes ?? current?.imageBudgetBytes ?? 0,
+    renderBudgetBytes: activeImage?.renderBudgetBytes ?? current?.renderBudgetBytes,
+    sourceCacheBudgetBytes: activeImage?.cacheBudgetBytes ?? current?.sourceCacheBudgetBytes,
     sourceResidentBytes: current?.sourceResidentBytes ?? 0,
     sourceMemory: current?.sourceMemory,
     workerResidentBytes: current?.workerResidentBytes ?? 0,
@@ -291,7 +295,8 @@ export const NativePixels = ({
     const lease = nativePixelPool.acquireProtocol({
       id: imageId,
       url: new URL(sourceIdentity, globalThis.window.location.href).href,
-      kind: tiff ? "tiff" : "jpeg",
+      kind: avifOnly ? "avif" : tiff ? "tiff" : "jpeg",
+      maxSourceDensity: avifOnly ? 0.5 : undefined,
       nativeSize,
       minimumQualityLevel,
       flipForTexture: sceneImage,
@@ -412,6 +417,7 @@ export const NativePixels = ({
     accountActive();
     let scheduledUrl: string | null = null;
     let latestGeometry: ScenePreviewImageGeometry | null = null;
+    let geometryQueued = false;
     let awaitingAvailability = false;
     const availabilitySource = {
       previewPath: path ?? "",
@@ -422,6 +428,7 @@ export const NativePixels = ({
       nativeSize,
     };
     const cancel = () => {
+      geometryQueued = false;
       pendingPrepared?.bitmap.close(); pendingPrepared=null;
       generation = ++compositionGeneration;
       globalThis.window.clearTimeout(timer);
@@ -435,6 +442,13 @@ export const NativePixels = ({
       latestGeometry = geometry;
       const requestedUrl = sourceUrlRef.current;
       const url = new URL(requestedUrl, globalThis.window.location.href).href;
+      if (foregroundInFlight && url !== scheduledUrl) cancel();
+      if (foregroundInFlight) {
+        // Let an admitted tile/decode request finish; restarting it on every
+        // camera frame starves the preview while the same ranges are in flight.
+        geometryQueued = true;
+        return;
+      }
       if (disposed || (geometry === previousGeometry && url === scheduledUrl))
         return;
       scheduledUrl = url;
@@ -467,6 +481,28 @@ export const NativePixels = ({
             ? 1
             : 2 ** -Number(minimumQualityLevel)
         );
+      // The pool protects the previous zoom level; reuse a fully covering
+      // local buffer before asking the worker to reconstruct it from tiles.
+      const buffered = frame && url === lastSourceRef.current ? lease.borrowFrame(frame) : null;
+      if (buffered && buffered.bitmap !== published) {
+        published = buffered.bitmap;
+        publishedFrame = buffered.frame;
+        publishedDensity = buffered.density;
+        publishedBackend = buffered.input?.backend;
+        publishedComplete = publishedDensity >= neededDensity!;
+        publishedSourceSize = { width: buffered.input?.width, height: buffered.input?.height };
+        if (sceneImage) {
+          contentRef.current = { source: published, crop: publishedFrame.source };
+          map.triggerRepaint();
+        } else {
+          canvas.width = published.width;
+          canvas.height = published.height;
+          canvas.getContext("2d")?.drawImage(published, 0, 0);
+          setPreviewWindow(publishedFrame);
+          setReady(true);
+        }
+        accountActive();
+      }
       if (
         frame &&
         published &&
@@ -530,6 +566,15 @@ export const NativePixels = ({
         const finish = (error?: string, missing = false, completed = false) => {
           globalThis.window.clearTimeout(jobTimeout);
           if (error || completed) foregroundInFlight = false;
+          if (completed && geometryQueued && !disposed && epoch === generation) {
+            geometryQueued = false;
+            queueMicrotask(() => {
+              if (!disposed && epoch === generation && latestGeometry) {
+                previousGeometry = null;
+                schedule(latestGeometry);
+              }
+            });
+          }
           if (error) {
             currentWorker.terminate();
             if (worker === currentWorker) worker = null;
@@ -661,15 +706,13 @@ export const NativePixels = ({
           awaitingAvailability = false;
           reportPreviewSourceAvailable(availabilitySource);
           const crop = event.data.crop ?? frame.source;
-          const density =
-            event.data.sampleDensity ??
-            Math.min(
-              (event.data.sourceWidth ?? nativeSize.width) / nativeSize.width,
-              (event.data.sourceHeight ?? nativeSize.height) /
-                nativeSize.height,
-              bitmap.width / crop.width,
-              bitmap.height / crop.height
-            );
+          const density = Math.min(
+            event.data.sampleDensity ?? Infinity,
+            (event.data.sourceWidth ?? nativeSize.width) / nativeSize.width,
+            (event.data.sourceHeight ?? nativeSize.height) / nativeSize.height,
+            bitmap.width / crop.width,
+            bitmap.height / crop.height
+          );
           if (
             published &&
             publishedFrame &&
@@ -679,7 +722,7 @@ export const NativePixels = ({
               (cropCovers(publishedFrame.source, frame.source, publishedFrame.target) &&
                 !(publishedDensity > neededDensity! * 2 && density >= neededDensity!)) ||
               // Keep the sharp center until an uncached expansion is sufficiently detailed.
-              (density < neededDensity! && event.data.complete === false)
+              (density < neededDensity! / 2)
             )
           ) {
             bitmap.close();
@@ -704,7 +747,6 @@ export const NativePixels = ({
             height: event.data.sourceHeight,
           };
           workerCanvasBytes = rasterBytes(bitmap);
-          const previous = published;
           published = bitmap;
           if (sceneImage) {
             contentRef.current = { source: bitmap, crop };
@@ -719,7 +761,7 @@ export const NativePixels = ({
               setReady(true);
             }
           }
-          previous?.close();
+          // Bitmap ownership and the previous zoom buffers belong to the shared pool.
           updateSourceBudget();
           accountActive();
           if (
@@ -771,6 +813,7 @@ export const NativePixels = ({
             retainedSourceByteLimit,
             activeSourceByteLimit,
             retainWholeImage,
+            releaseCanvasAfterPublish: true,
             imageId,
             sourceIdentity: photoSourceIdentity,
             reusePublished: !!published,

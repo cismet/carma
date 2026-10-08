@@ -2,7 +2,6 @@
 import { readJpegImageSize } from "./jpeg-image-size";
 import { composeImageViewport } from "./compose-image-viewport";
 import {
-  nativePreviewTiles,
   forecastPreviewWindow,
   type NativePreviewWindow,
 } from "../core/image-viewport-window";
@@ -25,7 +24,6 @@ const compositionCanvases = new OffscreenCanvasPool({
 const decodeCanvases = new OffscreenCanvasPool({
   maxRetainedBytes: 0,
   maxRetainedCanvases: 0,
-  contextOptions: { willReadFrequently: true },
 });
 
 let generation = 0;
@@ -58,6 +56,15 @@ const recordWorkingAllocation = (epoch: number, bytes: number) => {
     [...workingAllocations.values()].reduce((sum, value) => sum + value, 0)
   );
 };
+const assertPreviewExtent = (
+  surface: { width: number; height: number },
+  expected: NativePreviewWindow["target"],
+  kind: "canvas" | "bitmap"
+) => {
+  if (surface.width !== expected.width || surface.height !== expected.height)
+    throw new Error(`Preview ${kind} extent ${surface.width}x${surface.height} differs from target ${expected.width}x${expected.height}`);
+};
+
 const workerMemory = () => {
   const composition = compositionCanvases.stats,
     decode = decodeCanvases.stats;
@@ -115,6 +122,8 @@ type BudgetOnlyRequest = {
 type PhotoSession = {
   key: string;
   request: PreviewRgbRequest;
+  /** Idle motion must not mutate the geometry of an in-flight foreground request. */
+  warmWindow: NativePreviewWindow;
   controller: AbortController;
   started: boolean;
   idleTimer?: ReturnType<typeof setTimeout>;
@@ -122,84 +131,41 @@ type PhotoSession = {
   overviewPublished?: boolean;
   lastForegroundWindow?: NativePreviewWindow;
   zoomFactor?: number;
+  zoomAnchor?: { x: DevicePixels; y: DevicePixels };
+  panDelta?: { x: number; y: number };
   jpegFetched?: Set<number>;
   jpegStored?: Set<number>;
   jpegPending?: number;
 };
 let photoSession: PhotoSession | null = null;
 let interactionActive = false;
-let lastInteractionAt = Date.now();
 const foregroundCompositions = new Set<number>();
 const compositionTileEdge = 512;
-const compositionScratchBudget = (window: NativePreviewWindow) => {
-  const width = Math.min(compositionTileEdge, window.target.width),
-    height = Math.min(compositionTileEdge, window.target.height);
-  // A matching dyadic source can be just under 2x denser; include the filter halo and output pixels.
-  return ((width * 2 + 24) * (height * 2 + 24) + width * height) * 4;
-};
-type AvifScratchRequest = Pick<
+type AvifCacheRequest = Pick<
   PreviewRgbRequest,
-  "window" | "activeSourceByteLimit" | "retainedSourceByteLimit"
-> &
-  Partial<Pick<PreviewRgbRequest, "nativeSize" | "avifPyramidUrl">>;
-const avifScratchKey = (request: AvifScratchRequest) =>
-  JSON.stringify([
-    request.avifPyramidUrl,
-    request.nativeSize,
-    request.window.source,
-    request.window.target,
-  ]);
-let selectedAvifScratch: { key: string; bytes: number } | null = null;
-const selectedScratchBudget = (
+  "activeSourceByteLimit" | "retainedSourceByteLimit"
+>;
+const avifCacheBudget = (request: AvifCacheRequest) =>
+  Math.max(0, request.activeSourceByteLimit ?? request.retainedSourceByteLimit ?? 0);
+const pageViewportBounds = (
   page: AvifPreviewPage,
-  tiles: ReturnType<typeof nativePreviewTiles>,
+  window: NativePreviewWindow,
   nativeSize: PreviewRgbRequest["nativeSize"]
-) => {
-  const sx = page.getWidth() / nativeSize.width,
-    sy = page.getHeight() / nativeSize.height;
-  return Math.max(
-    0,
-    ...tiles.map(({ source, target }) => {
-      const left = Math.floor(source.x * sx),
-        top = Math.floor(source.y * sy),
-        right = Math.min(
-          page.getWidth(),
-          Math.ceil((source.x + source.width) * sx)
-        ),
-        bottom = Math.min(
-          page.getHeight(),
-          Math.ceil((source.y + source.height) * sy)
-        );
-      return (
-        ((right - left) * (bottom - top) + target.width * target.height) * 4
-      );
-    })
-  );
+): [number, number, number, number] => {
+  const sx = page.getWidth() / nativeSize.width;
+  const sy = page.getHeight() / nativeSize.height;
+  return [
+    Math.max(0, Math.floor(window.source.x * sx) - 1),
+    Math.max(0, Math.floor(window.source.y * sy) - 1),
+    Math.min(page.getWidth(), Math.ceil((window.source.x + window.source.width) * sx) + 1),
+    Math.min(page.getHeight(), Math.ceil((window.source.y + window.source.height) * sy) + 1),
+  ];
 };
-const avifCacheBudget = (request: AvifScratchRequest) =>
-  Math.max(
-    0,
-    (request.activeSourceByteLimit ?? request.retainedSourceByteLimit ?? 0) -
-      (selectedAvifScratch?.key === avifScratchKey(request)
-        ? selectedAvifScratch.bytes
-        : compositionScratchBudget(request.window))
-  );
 const sourcePageLocallyAvailable = (
   source: AvifPyramidPreviewSource,
   page: AvifPreviewPage,
-  request: PreviewRgbRequest,
-  tiles: ReturnType<typeof nativePreviewTiles>
-) => {
-  const sx = page.getWidth() / request.nativeSize.width;
-  const sy = page.getHeight() / request.nativeSize.height;
-  // Include exactly the resampler's tile halos, not just the visible crop.
-  return tiles.length > 0 && source.hasLocallyAvailable(page, [
-    Math.floor(Math.min(...tiles.map((tile) => tile.source.x)) * sx),
-    Math.floor(Math.min(...tiles.map((tile) => tile.source.y)) * sy),
-    Math.min(page.getWidth(), Math.ceil(Math.max(...tiles.map((tile) => tile.source.x + tile.source.width)) * sx)),
-    Math.min(page.getHeight(), Math.ceil(Math.max(...tiles.map((tile) => tile.source.y + tile.source.height)) * sy)),
-  ]);
-};
+  request: PreviewRgbRequest
+) => source.hasLocallyAvailable(page, pageViewportBounds(page, request.window, request.nativeSize));
 const photoIdentity = (request: PreviewRgbRequest) =>
   JSON.stringify([
     request.sourceIdentity ??
@@ -209,6 +175,10 @@ const photoIdentity = (request: PreviewRgbRequest) =>
     request.imageId,
     request.flipForTexture,
   ]);
+const effectiveWarmRequest = (session: PhotoSession): PreviewRgbRequest => ({
+  ...session.request,
+  window: session.warmWindow,
+});
 const reportSourceMemory = (
   session: PhotoSession,
   source: AvifPyramidPreviewSource,
@@ -224,6 +194,7 @@ const reportSourceMemory = (
     sourceUrl: request.url,
     sourceResidentBytes: source.residentBytes,
     sourceMemory: source.memoryMetrics,
+    neighborhoodReadiness: source.neighborhoodReadiness,
     readiness: source.levelReadiness,
     workerMemory: workerMemory(),
   });
@@ -239,8 +210,8 @@ const warmCurrentPhoto = (
   session: PhotoSession,
   source: AvifPyramidPreviewSource
 ) => {
-  if (session.started || session.idleTimer !== undefined || interactionActive)
-    return;
+  if (source.url !== session.request.avifPyramidUrl || photoSession !== session ||
+      session.started || session.idleTimer !== undefined || interactionActive) return;
   const start = () => {
     session.idleTimer = undefined;
     if (photoSession !== session || session.controller.signal.aborted) return;
@@ -251,7 +222,7 @@ const warmCurrentPhoto = (
     }
     const controller = session.controller,
       signal = controller.signal,
-      request = session.request,
+      request = effectiveWarmRequest(session),
       viewportKey = JSON.stringify([
         request.window.source,
         request.window.target,
@@ -265,26 +236,50 @@ const warmCurrentPhoto = (
       const overview = await source.ensureOverview(signal);
       signal.throwIfAborted();
       if (overview && !session.overviewPublished) {
-        const pixels = await source.read(overview, [0,0,overview.getWidth(),overview.getHeight()], signal);
-        const canvas = decodeCanvases.acquire({width:overview.getWidth() as DevicePixels,height:overview.getHeight() as DevicePixels});
+        const canvas = compositionCanvases.acquire({
+          width: overview.getWidth() as DevicePixels,
+          height: overview.getHeight() as DevicePixels,
+        });
         let bitmap: ImageBitmap;
         try {
-          canvas.context.putImageData(new ImageData(pixels, overview.getWidth(), overview.getHeight()),0,0);
-          bitmap = await createImageBitmap(canvas.canvas,{imageOrientation:request.flipForTexture?"flipY":"none",premultiplyAlpha:"none"});
-        } finally { canvas.release(); decodeCanvases.trim(); }
+          await source.drawBBoxTo(overview, [0, 0, overview.getWidth(), overview.getHeight()],
+            canvas.context, { x: 0, y: 0, width: overview.getWidth(), height: overview.getHeight() }, signal);
+          bitmap = await createImageBitmap(canvas.canvas, {
+            imageOrientation: request.flipForTexture ? "flipY" : "none", premultiplyAlpha: "none",
+          });
+        } finally { canvas.release(); compositionCanvases.trim(); }
         if (signal.aborted || photoSession !== session) { bitmap.close(); return; }
         session.overviewPublished = true;
-        self.postMessage({kind:"full-image",bitmap,imageId:request.imageId,
-          sourceIdentity:request.sourceIdentity??request.avifPyramidUrl??request.url,
-          crop:{x:0,y:0,...request.nativeSize},sourceBackend:"avif-pyramid",
-          sourceLevel:overview.level,sourceWidth:overview.getWidth(),sourceHeight:overview.getHeight(),
-          sourceResidentBytes:source.residentBytes,sourceMemory:source.memoryMetrics,
-          readiness:source.levelReadiness,workerMemory:workerMemory()},[bitmap]);
+        self.postMessage({ kind: "full-image", bitmap, imageId: request.imageId,
+          sourceIdentity: request.sourceIdentity ?? request.avifPyramidUrl ?? request.url,
+          crop: { x: 0, y: 0, ...request.nativeSize }, sourceBackend: "avif-pyramid",
+          sourceLevel: overview.level, sourceWidth: overview.getWidth(), sourceHeight: overview.getHeight(),
+          sourceResidentBytes: source.residentBytes, sourceMemory: source.memoryMetrics,
+          readiness: source.levelReadiness, neighborhoodReadiness: source.neighborhoodReadiness,
+      workerMemory: workerMemory() }, [bitmap]);
       }
       } catch { signal.throwIfAborted(); }
-      try { await prepareZoomFrame(session, source, signal); }
-      catch { signal.throwIfAborted(); }
-      // Optional native decode cannot disable warming encoded ranges.
+      const warmOptions = {
+        shouldYield: () => Boolean(foregroundCompositions.size || interactionActive),
+        onProgress: () => {
+          if (performance.now() - reportedAt >= 200) {
+            reportedAt = performance.now(); reportSourceMemory(session, source, signal);
+          }
+        },
+      };
+      try {
+        // Children covering the real crop and offset are second priority after displayed pixels.
+        await source.warmNeighborhood(request.window, request.nativeSize, signal, warmOptions);
+        const pan = predictedPanWindow(session);
+        if (pan) await source.warmVisibleDecoded(pan, request.nativeSize, signal, warmOptions);
+      } catch { signal.throwIfAborted(); }
+      for (const predicted of predictedZoomWindows(session)) {
+        try { await prepareZoomFrame(session, source, predicted, signal); }
+        catch { signal.throwIfAborted(); }
+      }
+      // The whole next finer level stays compressed; critical viewport tiles were decoded above.
+      await source.prewarmNextLevel(request.window, request.nativeSize, signal, warmOptions);
+      // Remaining pyramid ranges are strictly idle work after the one-step neighborhood.
       await source.prewarm(request.window, request.nativeSize, signal, {
         shouldYield: () => Boolean(foregroundCompositions.size || interactionActive),
         onProgress: () => {
@@ -305,43 +300,93 @@ const warmCurrentPhoto = (
           session.started = false;
       });
   };
-  session.idleTimer = setTimeout(
-    start,
-    Math.max(0, 175 - (Date.now() - lastInteractionAt))
-  );
+  session.idleTimer = setTimeout(start, 0);
 };
 
-const predictedZoomWindow = (session: PhotoSession): NativePreviewWindow =>
-  forecastPreviewWindow(
-    session.request.window,
-    session.request.nativeSize,
-    session.zoomFactor ?? 1.2
-  );
-
-const prepareZoomFrame = async (session: PhotoSession, source: AvifPyramidPreviewSource, signal: AbortSignal) => {
-  const request = session.request, current = request.window, zoomed = predictedZoomWindow(session);
-  const bytes = zoomed.target.width*zoomed.target.height*4;
-  if (bytes > (request.activeSourceByteLimit??0)+current.target.width*current.target.height*4) return;
-  const {image:page} = await source.select(zoomed,request.nativeSize,signal,1);
-  // Leave the current display owned by the host; the old worker copy need not occupy the warming slot.
-  if (cachedCanvas) { cachedCanvas.release(); cachedCanvas=null; }
-  source.setActiveCacheBudget(Math.max(0,(request.activeSourceByteLimit??0)+current.target.width*current.target.height*4-bytes));
+type PredictedZoom = { direction: "in" | "out"; window: NativePreviewWindow };
+const rememberViewportMotion = (session: PhotoSession, next: NativePreviewWindow) => {
+  const previous = session.lastForegroundWindow ?? session.request.window;
+  const before = previous.target.width / previous.source.width;
+  const after = next.target.width / next.source.width;
+  const factor = after / before;
+  if (factor >= 0.25 && factor <= 4 && Math.abs(factor - 1) > 0.01) {
+    session.zoomFactor = factor;
+    const rx = previous.source.width / next.source.width;
+    const ry = previous.source.height / next.source.height;
+    if (Math.abs(rx - 1) > 0.01 && Math.abs(ry - 1) > 0.01) {
+      session.zoomAnchor = {
+        x: Math.max(0, Math.min(session.request.nativeSize.width,
+          (next.source.x * rx - previous.source.x) / (rx - 1))) as DevicePixels,
+        y: Math.max(0, Math.min(session.request.nativeSize.height,
+          (next.source.y * ry - previous.source.y) / (ry - 1))) as DevicePixels,
+      };
+    }
+    session.panDelta = undefined;
+  } else {
+    const dx = next.source.x + next.source.width / 2 - previous.source.x - previous.source.width / 2;
+    const dy = next.source.y + next.source.height / 2 - previous.source.y - previous.source.height / 2;
+    if (Math.abs(dx) + Math.abs(dy) > 0.5) session.panDelta = { x: dx, y: dy };
+  }
+};
+const predictedZoomWindows = (session: PhotoSession): PredictedZoom[] => {
+  const request = effectiveWarmRequest(session);
+  const step = Math.max(1.2, Math.min(2, Math.max(session.zoomFactor ?? 1.2, 1 / (session.zoomFactor ?? 1.2))));
+  const inward: PredictedZoom = { direction: "in", window: forecastPreviewWindow(
+    request.window, request.nativeSize, step, session.zoomAnchor,
+  ) };
+  const outward: PredictedZoom = { direction: "out", window: forecastPreviewWindow(
+    request.window, request.nativeSize, 1 / step, session.zoomAnchor,
+  ) };
+  return (session.zoomFactor ?? 1.2) < 1 ? [outward, inward] : [inward, outward];
+};
+const predictedPanWindow = (session: PhotoSession): NativePreviewWindow | null => {
+  const delta = session.panDelta;
+  if (!delta) return null;
+  const { source, target } = session.warmWindow;
+  const x = Math.max(0, Math.min(session.request.nativeSize.width - source.width,
+    source.x + Math.max(-source.width / 2, Math.min(source.width / 2, delta.x))));
+  const y = Math.max(0, Math.min(session.request.nativeSize.height - source.height,
+    source.y + Math.max(-source.height / 2, Math.min(source.height / 2, delta.y))));
+  if (x === source.x && y === source.y) return null;
+  return { source: { ...source, x: x as DevicePixels, y: y as DevicePixels }, target };
+};
+const prepareZoomFrame = async (
+  session: PhotoSession, source: AvifPyramidPreviewSource,
+  predicted: PredictedZoom, signal: AbortSignal
+) => {
+  const request = effectiveWarmRequest(session);
+  const zoomed = predicted.window;
+  const bytes = zoomed.target.width * zoomed.target.height * 4;
+  if (bytes > (request.activeSourceByteLimit ?? 0)) return;
+  const { image: page } = await source.select(zoomed, request.nativeSize, signal, 1);
+  // An idle selection can resolve just after a new foreground request aborts it.
+  signal.throwIfAborted();
+  if (photoSession !== session || session.controller.signal !== signal) return;
+  while (foregroundCompositions.size || interactionActive) {
+    await new Promise<void>((resolve) => setTimeout(resolve, 4));
+    signal.throwIfAborted();
+    if (photoSession !== session || session.controller.signal !== signal) return;
+  }
+  // Idle owns only this lease; it must never retire a foreground composition.
   const canvas = compositionCanvases.acquire(zoomed.target);
   try {
     await composeImageViewport(canvas.context, zoomed, request.nativeSize,
-      {width:page.getWidth(),height:page.getHeight()}, bounds=>source.read(page,bounds,signal),
-      {signal, shouldYield:()=>Boolean(foregroundCompositions.size||interactionActive)});
-    const bitmap = await createImageBitmap(canvas.canvas,{imageOrientation:request.flipForTexture?"flipY":"none",premultiplyAlpha:"none"});
-    if (signal.aborted || photoSession!==session) { bitmap.close(); return; }
+      { width: page.getWidth(), height: page.getHeight() },
+      (bounds, destination) => source.drawBBoxTo(page, bounds, canvas.context, destination, signal),
+      { signal, shouldYield: () => Boolean(foregroundCompositions.size || interactionActive) });
+    const bitmap = await createImageBitmap(canvas.canvas, {
+      imageOrientation: request.flipForTexture ? "flipY" : "none", premultiplyAlpha: "none",
+    });
+    if (signal.aborted || photoSession !== session) { bitmap.close(); return; }
     canvas.release(); compositionCanvases.trim();
-    self.postMessage({kind:"prepared-frame",bitmap,imageId:request.imageId,
-      sourceIdentity:request.sourceIdentity??request.avifPyramidUrl??request.url,
-      crop:zoomed.source,sampleDensity:Math.min(zoomed.target.width/zoomed.source.width,
-        zoomed.target.height/zoomed.source.height, source.maxSourceDensity??1),
-      sourceWidth:page.getWidth(),sourceHeight:page.getHeight(),sourceBackend:"avif-pyramid",
-      sourceLevel:page.level,
-      sourceResidentBytes:source.residentBytes,sourceMemory:source.memoryMetrics,
-      readiness:source.levelReadiness,workerMemory:workerMemory()},[bitmap]);
+    self.postMessage({ kind: "prepared-frame", preparedDirection: predicted.direction, bitmap,
+      imageId: request.imageId, sourceIdentity: request.sourceIdentity ?? request.avifPyramidUrl ?? request.url,
+      crop: zoomed.source, sampleDensity: Math.min(zoomed.target.width / zoomed.source.width,
+        zoomed.target.height / zoomed.source.height, source.maxSourceDensity ?? 1),
+      sourceWidth: page.getWidth(), sourceHeight: page.getHeight(), sourceBackend: "avif-pyramid",
+      sourceLevel: page.level, sourceResidentBytes: source.residentBytes, sourceMemory: source.memoryMetrics,
+      readiness: source.levelReadiness, neighborhoodReadiness: source.neighborhoodReadiness,
+      workerMemory: workerMemory() }, [bitmap]);
   } finally { canvas.release(); compositionCanvases.trim(); }
 };
 
@@ -365,7 +410,7 @@ const retainCurrentJpeg = async (session: PhotoSession, source: ImageBitmap) => 
   const width=Math.max(1,Math.round(source.width*scale)),height=Math.max(1,Math.round(source.height*scale));
   const density=Math.min(width/request.nativeSize.width,height/request.nativeSize.height);
   if(jpegOverview && density<=jpegOverviewDensity) return;
-  const bitmap=await createImageBitmap(source,{resizeWidth:width,resizeHeight:height,resizeQuality:"high",premultiplyAlpha:"none"});
+  const bitmap=await createImageBitmap(source,{resizeWidth:width,resizeHeight:height,resizeQuality:"low",premultiplyAlpha:"none"});
   if(signal.aborted || photoSession!==session){bitmap.close();return;}
   jpegOverview?.close();jpegOverview=bitmap;jpegOverviewDensity=density;
   const display=await createImageBitmap(bitmap,{imageOrientation:request.flipForTexture?"flipY":"none",premultiplyAlpha:"none"});
@@ -376,60 +421,95 @@ const retainCurrentJpeg = async (session: PhotoSession, source: ImageBitmap) => 
 };
 
 const warmCurrentJpeg = (session: PhotoSession) => {
-  if(session.started || session.idleTimer!==undefined || interactionActive) return;
+  // An early idle message may arrive before dynamic AVIF source initialization.
+  // Such a session must never enter the unbounded whole-JPEG download path.
+  if (session.request.avifOnly || session.request.avifPyramidUrl ||
+      /\.avif$/i.test(new URL(session.request.url).pathname)) return;
+  if (session.started || session.idleTimer !== undefined || interactionActive) return;
   const start = () => {
-    session.idleTimer=undefined;
-    if(photoSession!==session || interactionActive || session.controller.signal.aborted) return;
-    if(foregroundCompositions.size){session.idleTimer=setTimeout(start,30);return;}
-    const request=session.request,controller=session.controller,signal=controller.signal;
-    const key=JSON.stringify(request.window);
-    if(session.warmedViewportKey===key) return;
-    session.started=true;
-    void (async()=>{
-      const zoomed=predictedZoomWindow(session),bytes=zoomed.target.width*zoomed.target.height*4;
-      const canPrepare=bytes<=(request.activeSourceByteLimit??0)+request.window.target.width*request.window.target.height*4;
-      const density=Math.max(zoomed.target.width/zoomed.source.width,zoomed.target.height/zoomed.source.height);
-      const minimum=Number(request.minimumQualityLevel??"0"),level=Math.max(minimum,Math.min(6,Math.floor(Math.log2(1/density))));
-      const url=new URL(request.url);
-      const family=/\/[0-6]\/[^/]+$/.test(url.pathname);
-      if(family) url.pathname=url.pathname.replace(/\/[0-6]\/(?=[^/]+$)/,`/${level}/`);
-      session.jpegPending=level;
-      const cache=await Promise.race([sourceCache,new Promise<null>(resolve=>setTimeout(()=>resolve(null),100))]);
-      let response=cache ? await Promise.race([cache.match(url.href).catch(()=>undefined),new Promise<undefined>(resolve=>setTimeout(()=>resolve(undefined),100))]) : undefined;
-      signal.throwIfAborted();
-      response??=await fetch(url.href,{cache:"force-cache",priority:"low",signal});
-      if(!response.ok) throw Error("JPEG prewarm unavailable");
-      const blob=await response.blob();signal.throwIfAborted();
-      session.jpegFetched??=new Set();session.jpegFetched.add(level);session.jpegPending=undefined;
-      if(cache) void cache.put(url.href,new Response(blob,{headers:{"Content-Type":blob.type}})).then(()=>{session.jpegStored??=new Set();session.jpegStored.add(level);}).catch(()=>{});
-      if(!canPrepare) return;
-      const size=await readJpegImageSize(blob,signal),sx=size.width/request.nativeSize.width,sy=size.height/request.nativeSize.height;
-      const tiles=nativePreviewTiles(zoomed,request.nativeSize,512);
-      const x=Math.max(0,Math.floor(Math.min(...tiles.map(t=>t.source.x))*sx)),
-        y=Math.max(0,Math.floor(Math.min(...tiles.map(t=>t.source.y))*sy)),
-        right=Math.min(size.width,Math.ceil(Math.max(...tiles.map(t=>t.source.x+t.source.width))*sx)),
-        bottom=Math.min(size.height,Math.ceil(Math.max(...tiles.map(t=>t.source.y+t.source.height))*sy));
-      const image=await createImageBitmap(blob,x,y,right-x,bottom-y,{premultiplyAlpha:"none"});
-      const canvas=compositionCanvases.acquire(zoomed.target);
-      try {
-        await composeImageViewport(canvas.context,zoomed,request.nativeSize,size,async([a,b,c,d])=>{
-          const lease=decodeCanvases.acquire({width:(c-a) as DevicePixels,height:(d-b) as DevicePixels});
-          try {lease.context.drawImage(image,a-x,b-y,c-a,d-b,0,0,c-a,d-b);return lease.context.getImageData(0,0,c-a,d-b).data;}
-          finally{lease.release();}
-        },{signal,shouldYield:()=>Boolean(foregroundCompositions.size||interactionActive)});
-        const bitmap=await createImageBitmap(canvas.canvas,{imageOrientation:request.flipForTexture?"flipY":"none",premultiplyAlpha:"none"});
-        canvas.release();compositionCanvases.trim();decodeCanvases.trim();
-        if(signal.aborted||photoSession!==session){bitmap.close();return;}
-        self.postMessage({kind:"prepared-frame",bitmap,imageId:request.imageId,sourceIdentity:request.sourceIdentity??request.url,
-          crop:zoomed.source,sampleDensity:Math.min(zoomed.target.width/zoomed.source.width,zoomed.target.height/zoomed.source.height,sx,sy),
-          sourceWidth:size.width,sourceHeight:size.height,sourceBackend:"jpeg",
-          sourceResidentBytes:jpegOverview?jpegOverview.width*jpegOverview.height*4:0,readiness:jpegReadiness(session),workerMemory:workerMemory()},[bitmap]);
-        session.warmedViewportKey=key;
-      } finally {image.close();canvas.release();compositionCanvases.trim();decodeCanvases.trim();}
-    })().catch(()=>{/* Visible pixels and encoded JPEG family survive optional prewarming failure. */})
-      .finally(()=>{if(photoSession===session&&session.controller===controller){session.started=false;session.jpegPending=undefined;}});
+    session.idleTimer = undefined;
+    if (photoSession !== session || interactionActive || session.controller.signal.aborted) return;
+    if (foregroundCompositions.size) { session.idleTimer = setTimeout(start, 30); return; }
+    const request = effectiveWarmRequest(session);
+    const controller = session.controller;
+    const signal = controller.signal;
+    const key = JSON.stringify(request.window);
+    if (session.warmedViewportKey === key) return;
+    session.started = true;
+    void (async () => {
+      const cache = await Promise.race([sourceCache,
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), 100))]);
+      const blobs = new Map<string, Blob>();
+      for (const predicted of predictedZoomWindows(session)) {
+        signal.throwIfAborted();
+        const zoomed = predicted.window;
+        const bytes = zoomed.target.width * zoomed.target.height * 4;
+        const canPrepare = bytes <= (request.activeSourceByteLimit ?? 0);
+        const density = Math.max(zoomed.target.width / zoomed.source.width,
+          zoomed.target.height / zoomed.source.height);
+        const minimum = Number(request.minimumQualityLevel ?? "0");
+        const level = Math.max(minimum, Math.min(6, Math.floor(Math.log2(1 / density))));
+        const url = new URL(request.url);
+        if (/\/[0-6]\/[^/]+$/.test(url.pathname))
+          url.pathname = url.pathname.replace(/\/[0-6]\/(?=[^/]+$)/, `/${level}/`);
+        session.jpegPending = level;
+        let blob = blobs.get(url.href);
+        if (!blob) {
+          let response = cache ? await Promise.race([
+            cache.match(url.href).catch(() => undefined),
+            new Promise<undefined>((resolve) => setTimeout(() => resolve(undefined), 100)),
+          ]) : undefined;
+          signal.throwIfAborted();
+          response ??= await fetch(url.href, { cache: "force-cache", priority: "low", signal });
+          if (!response.ok) throw Error("JPEG prewarm unavailable");
+          blob = await response.blob();
+          signal.throwIfAborted();
+          blobs.set(url.href, blob);
+          session.jpegFetched ??= new Set(); session.jpegFetched.add(level);
+          if (cache) void cache.put(url.href, new Response(blob, { headers: { "Content-Type": blob.type } }))
+            .then(() => { session.jpegStored ??= new Set(); session.jpegStored.add(level); }).catch(() => {});
+        }
+        session.jpegPending = undefined;
+        if (!canPrepare) continue;
+        const size = await readJpegImageSize(blob, signal);
+        const sx = size.width / request.nativeSize.width;
+        const sy = size.height / request.nativeSize.height;
+        const x = Math.max(0, Math.floor(zoomed.source.x * sx) - 1);
+        const y = Math.max(0, Math.floor(zoomed.source.y * sy) - 1);
+        const right = Math.min(size.width, Math.ceil((zoomed.source.x + zoomed.source.width) * sx) + 1);
+        const bottom = Math.min(size.height, Math.ceil((zoomed.source.y + zoomed.source.height) * sy) + 1);
+        if ((right - x) * (bottom - y) * 4 > (request.activeSourceByteLimit ?? 0)) continue;
+        const image = await createImageBitmap(blob, x, y, right - x, bottom - y, { premultiplyAlpha: "none" });
+        const canvas = compositionCanvases.acquire(zoomed.target);
+        try {
+          await composeImageViewport(canvas.context, zoomed, request.nativeSize, size,
+            ([left, top, r, b], destination) => canvas.context.drawImage(image,
+              left - x, top - y, r - left, b - top,
+              destination.x, destination.y, destination.width, destination.height),
+            { signal, shouldYield: () => Boolean(foregroundCompositions.size || interactionActive) });
+          const bitmap = await createImageBitmap(canvas.canvas, {
+            imageOrientation: request.flipForTexture ? "flipY" : "none", premultiplyAlpha: "none",
+          });
+          canvas.release(); compositionCanvases.trim();
+          if (signal.aborted || photoSession !== session) { bitmap.close(); return; }
+          self.postMessage({ kind: "prepared-frame", preparedDirection: predicted.direction, bitmap,
+            imageId: request.imageId, sourceIdentity: request.sourceIdentity ?? request.url,
+            crop: zoomed.source, sampleDensity: Math.min(zoomed.target.width / zoomed.source.width,
+              zoomed.target.height / zoomed.source.height, sx, sy),
+            sourceWidth: size.width, sourceHeight: size.height, sourceBackend: "jpeg",
+            sourceResidentBytes: jpegOverview ? jpegOverview.width * jpegOverview.height * 4 : 0,
+            readiness: jpegReadiness(session), workerMemory: workerMemory() }, [bitmap]);
+        } finally { image.close(); canvas.release(); compositionCanvases.trim(); }
+      }
+      session.warmedViewportKey = key;
+    })().catch(() => { /* Optional preparation cannot replace or invalidate visible pixels. */ })
+      .finally(() => {
+        if (photoSession === session && session.controller === controller) {
+          session.started = false; session.jpegPending = undefined;
+        }
+      });
   };
-  session.idleTimer=setTimeout(start,Math.max(0,175-(Date.now()-lastInteractionAt)));
+  session.idleTimer = setTimeout(start, 0);
 };
 
 self.onmessage = async (
@@ -438,37 +518,25 @@ self.onmessage = async (
   const request = event.data;
   if (request.budgetOnly) {
     if(photoSession)photoSession.request.activeSourceByteLimit=request.activeSourceByteLimit;
-    const window = request.window ?? photoSession?.request.window;
-    avifSource?.setActiveCacheBudget(
-      window
-        ? avifCacheBudget({
-            window,
-            nativeSize: photoSession?.request.nativeSize,
-            avifPyramidUrl: photoSession?.request.avifPyramidUrl,
-            activeSourceByteLimit: request.activeSourceByteLimit,
-          })
-        : 0
-    );
-    if (photoSession && avifSource)
+    avifSource?.setActiveCacheBudget(avifCacheBudget(request));
+    if (photoSession && avifSource && avifSource.url === photoSession.request.avifPyramidUrl)
       reportSourceMemory(photoSession, avifSource);
     return;
   }
-  lastInteractionAt = Date.now();
   const parkedPhoto = request.park ? photoSession : null;
   if (photoSession) cancelPhotoPrewarm(photoSession);
   if (request.activity !== undefined) {
     interactionActive = request.activity;
     if (request.warmWindow && photoSession) {
-      const previous=photoSession.request.window;
-      const factor=(request.warmWindow.target.width/request.warmWindow.source.width)/(previous.target.width/previous.source.width);
-      if (factor >= 0.25 && factor <= 4 && Math.abs(factor - 1) > 0.01)
-        photoSession.zoomFactor = factor;
-      photoSession.request.window=request.warmWindow;
+      rememberViewportMotion(photoSession, request.warmWindow);
+      photoSession.warmWindow = request.warmWindow;
       photoSession.lastForegroundWindow=request.warmWindow;
     }
     if (!interactionActive && photoSession) {
-      if(avifSource) warmCurrentPhoto(photoSession,avifSource);
-      else if(!photoSession.request.tiff) warmCurrentJpeg(photoSession);
+      if (avifSource && avifSource.url === photoSession.request.avifPyramidUrl)
+        warmCurrentPhoto(photoSession, avifSource);
+      else if (!photoSession.request.tiff && !photoSession.request.avifOnly &&
+        !photoSession.request.avifPyramidUrl) warmCurrentJpeg(photoSession);
     }
     return;
   }
@@ -485,19 +553,14 @@ self.onmessage = async (
       photoSession = {
         key,
         request,
+        warmWindow: request.window,
         controller: new AbortController(),
         started: false,
       };
     } else {
-      const previous = photoSession.lastForegroundWindow;
-      if (previous) {
-        const before = previous.target.width / previous.source.width;
-        const after = request.window.target.width / request.window.source.width;
-        const factor = after / before;
-        if (factor >= 0.25 && factor <= 4 && Math.abs(factor - 1) > 0.01)
-          photoSession.zoomFactor = factor;
-      }
+      rememberViewportMotion(photoSession, request.window);
       photoSession.request = request;
+      photoSession.warmWindow = request.window;
     }
     photoSession.lastForegroundWindow = request.window;
   }
@@ -555,6 +618,7 @@ self.onmessage = async (
   let output: OffscreenCanvasLease | null = null;
   let bitmap: ImageBitmap | null = null;
   let published = false;
+  let outputReady = false;
   try {
     if (request.avifOnly && !request.avifPyramidUrl)
       throw Error("AVIF-only preview requires a published pyramid URL");
@@ -722,7 +786,6 @@ self.onmessage = async (
       | string
     )[] = [];
     let usingAvif = false;
-    let plannedAvifTiles: ReturnType<typeof nativePreviewTiles> | undefined;
     const activeSourceLimit =
       request.activeSourceByteLimit ??
       request.retainedSourceByteLimit ??
@@ -852,7 +915,6 @@ self.onmessage = async (
       try {
         if (avifSource?.url !== request.avifPyramidUrl) {
           avifSource?.close();
-          selectedAvifScratch = null;
           const { AvifPyramidPreviewSource } = await import(
             "./avif-pyramid-preview-source"
           );
@@ -872,29 +934,29 @@ self.onmessage = async (
         // Locally encoded data can go straight to display density too; replaying
         // coarse compositions delays zoom-out even though no download is needed.
         const final = selected.refinements.at(-1) ?? selected.image;
-        plannedAvifTiles = nativePreviewTiles(
-          request.window,
-          request.nativeSize,
-          compositionTileEdge
-        );
-        const finest =
-          request.refineToNative === false
-            ? selected.image
-            : selected.refinements.at(-1) ?? selected.image;
-        selectedAvifScratch = {
-          key: avifScratchKey(request),
-          bytes: selectedScratchBudget(
-            finest,
-            plannedAvifTiles,
-            request.nativeSize
-          ),
-        };
         avifSource.setActiveCacheBudget(avifCacheBudget(request));
-        await avifSource.ensureLocalAvailability(controller.signal);
-        // Decide after budget trimming, so a just-evicted RAM range is not a hit.
-        pages = request.refineToNative === false ? [selected.image] :
-          (sourcePageLocallyAvailable(avifSource, final, request, plannedAvifTiles)
-            ? [final] : [selected.image, ...selected.refinements]);
+        const targetPage = request.refineToNative === false ? selected.image : final;
+        const available = avifSource.availablePage(request.window, request.nativeSize, targetPage);
+        if (available) {
+          // Decoded uniform pixels publish before inventory or target fetch latency.
+          pages = available.entry.scale >= targetPage.entry.scale
+            ? [available] : [available, targetPage];
+        } else {
+          await avifSource.ensureLocalAvailability(controller.signal);
+          // Prefer a uniformly available direct parent over replaying distant coarse levels.
+          const scaleOf = (page: AvifPreviewPage) => page.entry?.scale ??
+            Math.min(page.getWidth() / request.nativeSize.width, page.getHeight() / request.nativeSize.height);
+          const targetScale = scaleOf(targetPage);
+          const tolerance = Number.EPSILON * Math.max(1, targetScale) * 4;
+          const parent = [selected.image, ...selected.refinements]
+            .filter((page) => scaleOf(page) < targetScale - tolerance &&
+              scaleOf(page) >= targetScale / 2 - tolerance)
+            .sort((a, b) => scaleOf(b) - scaleOf(a))[0];
+          pages = request.refineToNative === false ? [selected.image] :
+            sourcePageLocallyAvailable(avifSource, final, request) ? [final] :
+              parent && sourcePageLocallyAvailable(avifSource, parent, request)
+                ? [parent, final] : [selected.image, ...selected.refinements];
+        }
         usingAvif = true;
         unavailableAvifSources.delete(request.avifPyramidUrl);
         unavailableAvifErrors.delete(request.avifPyramidUrl);
@@ -977,35 +1039,11 @@ self.onmessage = async (
           )
         : [request.url];
     }
-    const tiles =
-      plannedAvifTiles ??
-      nativePreviewTiles(
-        request.window,
-        request.nativeSize,
-        compositionTileEdge
-      );
     if (usingAvif && avifSource) {
-      // Admit the sharpest resident ROI immediately; do not replay blurry cached stages.
+      // Each display uses one uniform level, including all newly revealed pixels.
       for (let stage = pages.length - 1; stage > 0; stage--) {
         const page = pages[stage] as AvifPreviewPage;
-        const sx = page.getWidth() / request.nativeSize.width;
-        const sy = page.getHeight() / request.nativeSize.height;
-        if (
-          tiles.every(({ source }) =>
-            avifSource!.hasCached(page, [
-              Math.floor(source.x * sx),
-              Math.floor(source.y * sy),
-              Math.min(
-                page.getWidth(),
-                Math.ceil((source.x + source.width) * sx)
-              ),
-              Math.min(
-                page.getHeight(),
-                Math.ceil((source.y + source.height) * sy)
-              ),
-            ])
-          )
-        ) {
+        if (avifSource.hasCached(page, pageViewportBounds(page, request.window, request.nativeSize))) {
           pages = pages.slice(stage);
           break;
         }
@@ -1059,19 +1097,41 @@ self.onmessage = async (
       }
       output ??= compositionCanvases.acquire(request.window.target);
       const target = output.context;
-      await composeImageViewport(target, request.window, request.nativeSize, {width, height},
-        async ([x, y, right, bottom]) => {
-          if (page) return usingAvif
-            ? avifSource!.read(page as AvifPreviewPage, [x,y,right,bottom], controller.signal)
-            : tiffSource!.read(page as Awaited<ReturnType<TiffPreviewSource["select"]>>["image"], [x,y,right,bottom], controller.signal);
-          const cropBitmap = await createImageBitmap(source!, x, y, right - x, bottom - y);
-          const decode = decodeCanvases.acquire({width: cropBitmap.width as DevicePixels, height: cropBitmap.height as DevicePixels});
+      assertPreviewExtent(output.canvas, request.window.target, "canvas");
+      outputReady = false;
+      await composeImageViewport(target, request.window, request.nativeSize, { width, height },
+        async (bounds, destination) => {
+          if (page && usingAvif) {
+            await avifSource!.drawBBoxTo(page as AvifPreviewPage, bounds, target, destination, controller.signal);
+            return;
+          }
+          const [left, top, right, bottom] = bounds;
+          if (!page) {
+            target.drawImage(source!, left, top, right - left, bottom - top,
+              destination.x, destination.y, destination.width, destination.height);
+            return;
+          }
+          // TIFF alone supplies raw pixels; stage a bounded crop and let Canvas2D scale it.
+          const x = Math.max(0, Math.floor(left) - 1);
+          const y = Math.max(0, Math.floor(top) - 1);
+          const r = Math.min(width, Math.ceil(right) + 1);
+          const b = Math.min(height, Math.ceil(bottom) + 1);
+          const pixels = await tiffSource!.read(page as Awaited<ReturnType<TiffPreviewSource["select"]>>["image"],
+            [x, y, r, b], controller.signal);
+          controller.signal.throwIfAborted();
+          const decode = decodeCanvases.acquire({ width: (r - x) as DevicePixels, height: (b - y) as DevicePixels });
+          recordWorkingAllocation(epoch, pixels.byteLength);
           try {
-            decode.context.drawImage(cropBitmap, 0, 0);
-            return decode.context.getImageData(0, 0, cropBitmap.width, cropBitmap.height).data;
-          } finally { cropBitmap.close(); decode.release(); }
-        }, {signal: controller.signal, onWorkingBytes: (bytes) => recordWorkingAllocation(epoch, bytes)});
+            decode.context.putImageData(new ImageData(pixels, r - x, b - y), 0, 0);
+            target.drawImage(decode.canvas, left - x, top - y, right - left, bottom - top,
+              destination.x, destination.y, destination.width, destination.height);
+          } finally {
+            decode.release();
+            recordWorkingAllocation(epoch, 0);
+          }
+        }, { signal: controller.signal, tileEdge: page && !usingAvif ? compositionTileEdge : undefined });
       if (epoch !== generation) return;
+      assertPreviewExtent(output.canvas, request.window.target, "canvas");
       // ImageBitmap WebGL uploads ignore Texture.flipY; orient the pixels before transfer.
       const completed = await createImageBitmap(output.canvas, {
         imageOrientation: request.flipForTexture ? "flipY" : "none",
@@ -1081,6 +1141,13 @@ self.onmessage = async (
         completed.close();
         return;
       }
+      try {
+        assertPreviewExtent(completed, request.window.target, "bitmap");
+      } catch (error) {
+        completed.close();
+        throw error;
+      }
+      outputReady = true;
       const jpegMatchesDisplay =
         !page &&
         width / request.nativeSize.width >= displayDensity &&
@@ -1091,10 +1158,6 @@ self.onmessage = async (
         source.close();
       }
       {
-        if (cachedCanvas && cachedCanvas !== output) {
-          cachedCanvas.release();
-        }
-        cachedCanvas = output;
         cachedWindowKey = windowKey;
         cachedFrame = request.window;
         cachedPhotoKey = photoKey;
@@ -1125,6 +1188,7 @@ self.onmessage = async (
             ? (decodedSource ? 1 : 0) * source.width * source.height * 4 + (jpegOverview ? jpegOverview.width*jpegOverview.height*4 : 0)
             : 0,
           sourceMemory: usingAvif ? avifSource!.memoryMetrics : undefined,
+          neighborhoodReadiness: usingAvif ? avifSource!.neighborhoodReadiness : undefined,
           readiness: usingAvif ? avifSource!.levelReadiness : currentPhoto && !request.tiff ? jpegReadiness(currentPhoto) : undefined,
           workerMemory: workerMemory(),
           sourceBackend: usingAvif
@@ -1148,25 +1212,32 @@ self.onmessage = async (
       warmCurrentPhoto(currentPhoto, avifSource);
     else if(published && !request.tiff && !usingAvif && currentPhoto) warmCurrentJpeg(currentPhoto);
   } catch (error) {
-    if (epoch === generation && !published && !controller.signal.aborted)
+    if (epoch === generation && !controller.signal.aborted)
       self.postMessage({
         generation: request.generation,
+        // A valid coarse frame must survive failure of a finer stage, but its RPC must settle.
+        refinementFailed: published,
         error: error instanceof Error ? error.message : String(error),
-        missing:
+        missing: !published && (
           (error instanceof TypeError &&
             /^(?:Failed to fetch|Load failed|NetworkError when attempting to fetch resource\.?)$/i.test(
               error.message
             )) ||
           /(?:refusing (?:404|410) full-file response|metadata unavailable \((?:404|410)\)|(?:Thumbnail preview|Preview image):\s*(?:404|410))/.test(
             error instanceof Error ? error.message : String(error)
-          ),
+          )),
       });
   } finally {
     workingAllocations.delete(epoch);
     foregroundCompositions.delete(epoch);
-    if (request.releaseCanvasAfterPublish && published && epoch === generation &&
-        cachedCanvas === output && output) {
-      cachedCanvas = null;
+    if (output && outputReady && epoch === generation && !controller.signal.aborted &&
+        !request.releaseCanvasAfterPublish) {
+      // Only a finished foreground pipeline may hand its surface to the cache.
+      // Published intermediate stages still mutate this lease during refinement.
+      if (cachedCanvas && cachedCanvas !== output) cachedCanvas.release();
+      cachedCanvas = output;
+    }
+    if (request.releaseCanvasAfterPublish && published && epoch === generation && output) {
       output.release();
       output = null;
       compositionCanvases.trim();

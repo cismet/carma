@@ -8,6 +8,7 @@ import {
   ImageViewportPool,
   type ImageViewportSource,
   type ImageViewportSnapshot,
+  type ImageViewportBaseline,
 } from "./image-viewport-pool";
 
 const ZOOM_BUTTON_STYLE: CSSProperties = {
@@ -51,7 +52,6 @@ export const ImageViewportViewer = ({
 }: ImageViewportViewerProps) => {
   const stage = useRef<HTMLDivElement>(null),
     canvas = useRef<HTMLCanvasElement>(null),
-    fallbackCanvas = useRef<HTMLCanvasElement>(null),
     overview = useRef<HTMLCanvasElement>(null),
     levelsOverview = useRef<HTMLDivElement>(null),
     diagnostic = useRef<HTMLOutputElement>(null),
@@ -86,8 +86,7 @@ export const ImageViewportViewer = ({
   }, [activePool]);
   useEffect(() => {
     const root = stage.current!,
-      display = canvas.current!,
-      fallback = fallbackCanvas.current!;
+      display = canvas.current!;
     if (overview.current) {
       const scale = 56 / Math.max(source.nativeSize.width, source.nativeSize.height);
       overview.current.width = Math.max(1, Math.round(source.nativeSize.width * scale));
@@ -95,9 +94,9 @@ export const ImageViewportViewer = ({
     }
     zoomRef.current = zoom;
     const handle = activePool.acquire(source);
-    let snapshot = handle.snapshot(),
-      shown: ImageBitmap | null = null,
-      fallbackShown: ImageBitmap | null = null;
+    let snapshot = handle.snapshot();
+    let presented: ImageViewportBaseline | null = null;
+    let painted: { bitmap: ImageBitmap; left: number; top: number; scaleX: number; scaleY: number } | null = null;
     let pan = { x: 0, y: 0 },
       width = 1,
       height = 1,
@@ -159,8 +158,8 @@ export const ImageViewportViewer = ({
           context.drawImage(snapshot.overview, 0, 0, w, h);
         if (snapshot.frame)
           drawCrop(context, snapshot.frame.source, "#71e390", w, h);
-        if (snapshot.prepared)
-          drawCrop(context, snapshot.prepared.crop, "#bca0ff", w, h);
+        for (const prepared of snapshot.preparedFrames ?? [])
+          drawCrop(context, prepared.crop, "#bca0ff", w, h);
         if (currentWindow)
           drawCrop(context, currentWindow.source, "white", w, h);
       }
@@ -226,14 +225,17 @@ export const ImageViewportViewer = ({
             Math.max(0, (h / level.height) * canvas.height - 0.4)
           );
         }
-        if (snapshot.prepared)
-          drawCrop(
-            ctx,
-            snapshot.prepared.crop,
-            "#bca0ff",
-            canvas.width,
-            canvas.height
-          );
+        for (const prepared of snapshot.preparedFrames ?? [])
+          drawCrop(ctx, prepared.crop, "#bca0ff", canvas.width, canvas.height);
+        const warmPlans = (snapshot.neighborhoodReadiness ?? []).filter((plan) => plan.level === level.level);
+        for (const plan of warmPlans) {
+          const [left, top, right, bottom] = plan.nativeBounds;
+          ctx.strokeStyle = plan.role === "next-finer" ? "#60caff" : plan.role === "parent" ? "#f5cd66" : "#71e390";
+          ctx.strokeRect(left / source.nativeSize.width * canvas.width,
+            top / source.nativeSize.height * canvas.height,
+            (right - left) / source.nativeSize.width * canvas.width,
+            (bottom - top) / source.nativeSize.height * canvas.height);
+        }
         if (currentWindow)
           drawCrop(
             ctx,
@@ -257,6 +259,7 @@ export const ImageViewportViewer = ({
           `L${level.level} · ${level.width}×${level.height}`,
           `${level.cols}×${level.rows}: ${counts[1]} lädt, ${counts[2]} lokal, ${counts[3]} decodiert`,
           `${previouslyFetched} zuvor geladen · Übersicht ${level.wholeOverviewReady ? "bereit" : "offen"}`,
+          ...warmPlans.map((plan) => `${plan.role}: ${plan.encoded}/${plan.totalTiles} lokal, ${plan.decoded}/${plan.totalTiles} decodiert · ${(plan.requiredBytes / 1048576).toFixed(1)} MiB`),
         ].join("\n");
         view.figure.title = detail;
         view.figure.setAttribute("aria-label", detail);
@@ -270,96 +273,79 @@ export const ImageViewportViewer = ({
       );
     };
     const render = () => {
-      const image = snapshot.bitmap,
-        frame = snapshot.frame;
       if (currentWindow) {
         const external = callbacks.current.viewport;
-        const scaleX = external
-          ? width / external.source.width
-          : fitScale() * zoomRef.current;
+        const scaleX = external ? width / external.source.width : fitScale() * zoomRef.current;
         const scaleY = external ? height / external.source.height : scaleX;
-        const sourceLeft = external
-          ? -external.source.x * scaleX
-          : width / 2 +
-            pan.x +
-            (-source.nativeSize.width / 2) * scaleX;
-        const sourceTop = external
-          ? -external.source.y * scaleY
-          : height / 2 +
-            pan.y +
-            (-source.nativeSize.height / 2) * scaleY;
-        const learnedBaseline = snapshot.baseline;
-        const overviewImage = learnedBaseline?.bitmap ?? snapshot.overview;
-        if (overviewImage) {
-          // The complete photograph stays behind the ROI at one viewport's
-          // pixel budget; magnification only changes its scene placement.
-          const viewportPixels = Math.max(
-            1,
-            Math.ceil(width * ratio) * Math.ceil(height * ratio)
-          );
-          const sample = Math.min(
-            1,
-            learnedBaseline ? Infinity : 1024 / Math.max(overviewImage.width, overviewImage.height),
-            // A learned baseline stays crisp at the original display scale;
-            // zooming farther out downsamples its GPU copy instead of discarding it.
-            source.nativeSize.width * scaleX * ratio / overviewImage.width,
-            source.nativeSize.height * scaleY * ratio / overviewImage.height,
-            Math.sqrt(viewportPixels / (overviewImage.width * overviewImage.height))
-          );
-          const fallbackWidth = Math.max(
-            1,
-            Math.floor(overviewImage.width * sample)
-          );
-          const fallbackHeight = Math.max(
-            1,
-            Math.floor(overviewImage.height * sample)
-          );
-          if (
-            fallbackShown !== overviewImage ||
-            fallback.width !== fallbackWidth ||
-            fallback.height !== fallbackHeight
-          ) {
-            fallback.width = fallbackWidth;
-            fallback.height = fallbackHeight;
-            fallback.getContext("2d")?.drawImage(
-              overviewImage,
-              0,
-              0,
-              fallback.width,
-              fallback.height
-            );
-            fallbackShown = overviewImage;
-          }
-          Object.assign(fallback.style, {
-            left: `${sourceLeft}px`,
-            top: `${sourceTop}px`,
-            width: `${source.nativeSize.width * scaleX}px`,
-            height: `${source.nativeSize.height * scaleY}px`,
-          });
+        const sourceLeft = external ? -external.source.x * scaleX : width / 2 + pan.x - source.nativeSize.width * scaleX / 2;
+        const sourceTop = external ? -external.source.y * scaleY : height / 2 + pan.y - source.nativeSize.height * scaleY / 2;
+        const needed = Math.min(scaleX * ratio, scaleY * ratio, finestDensity());
+        const covers = (candidate: ImageViewportBaseline) => {
+          const a = candidate.frame.source, b = currentWindow!.source;
+          return a.x <= b.x && a.y <= b.y &&
+            a.x + a.width >= b.x + b.width && a.y + a.height >= b.y + b.height;
+        };
+        const main = snapshot.bitmap && snapshot.frame ? {
+          bitmap: snapshot.bitmap, frame: snapshot.frame, input: snapshot.input ?? undefined,
+          density: Math.min(snapshot.bitmap.width / snapshot.frame.source.width,
+            snapshot.bitmap.height / snapshot.frame.source.height,
+            (snapshot.input?.width ?? source.nativeSize.width) / source.nativeSize.width,
+            (snapshot.input?.height ?? source.nativeSize.height) / source.nativeSize.height),
+        } : null;
+        const candidates = [main, ...(snapshot.bufferedFrames ?? []), snapshot.baseline]
+          .filter((candidate): candidate is ImageViewportBaseline => !!candidate && covers(candidate))
+          .sort((a, b) => b.density - a.density);
+        // Use one fully covering resolution. Mixing an old sharp ROI with a coarse
+        // full photograph exposes a rectangular quality boundary on every zoom-out.
+        let ready = candidates.find((candidate) => candidate.density >= needed / 2);
+        if (!ready && !presented) {
+          ready = candidates[0];
+          if (!ready && snapshot.overview) ready = {
+            bitmap: snapshot.overview,
+            frame: { source: { x: 0, y: 0, ...source.nativeSize } as NativePreviewWindow["source"],
+              target: { width: snapshot.overview.width, height: snapshot.overview.height } as NativePreviewWindow["target"] },
+            input: snapshot.overviewInput ?? undefined,
+            density: Math.min(snapshot.overview.width / source.nativeSize.width, snapshot.overview.height / source.nativeSize.height),
+          };
         }
-        if (image && frame) {
-          if (shown !== image) {
-            display.width = image.width;
-            display.height = image.height;
-            display.getContext("2d")?.drawImage(image, 0, 0);
-            shown = image;
+        if (ready) {
+          const physicalWidth = Math.max(1, Math.ceil(width * ratio));
+          const physicalHeight = Math.max(1, Math.ceil(height * ratio));
+          const changed = !painted || painted.bitmap !== ready.bitmap || painted.left !== sourceLeft ||
+            painted.top !== sourceTop || painted.scaleX !== scaleX || painted.scaleY !== scaleY ||
+            display.width !== physicalWidth || display.height !== physicalHeight;
+          if (changed) {
+            if (display.width !== physicalWidth) display.width = physicalWidth;
+            if (display.height !== physicalHeight) display.height = physicalHeight;
+            const context = display.getContext("2d");
+            if (context) {
+              context.clearRect(0, 0, display.width, display.height);
+              context.imageSmoothingEnabled = true;
+              context.imageSmoothingQuality = "low";
+              context.drawImage(ready.bitmap,
+                (sourceLeft + ready.frame.source.x * scaleX) * ratio,
+                (sourceTop + ready.frame.source.y * scaleY) * ratio,
+                ready.frame.source.width * scaleX * ratio,
+                ready.frame.source.height * scaleY * ratio);
+              presented = ready;
+              painted = { bitmap: ready.bitmap, left: sourceLeft, top: sourceTop, scaleX, scaleY };
+            }
           }
-          Object.assign(display.style, {
-            left: `${sourceLeft + frame.source.x * scaleX}px`,
-            top: `${sourceTop + frame.source.y * scaleY}px`,
-            width: `${frame.source.width * scaleX}px`,
-            height: `${frame.source.height * scaleY}px`,
-          });
+          Object.assign(display.style, { left: "0", top: "0", width: `${width}px`, height: `${height}px` });
         }
+        // If an interaction exposes an unprepared edge, retain the last uniform
+        // display until the worker supplies its nearest fully covering level.
       }
+      const image = presented?.bitmap ?? null;
+      const frame = presented?.frame ?? null;
       const metrics = snapshot.metrics,
         pooled = activePool.metrics;
       if (liveResolution.current) {
         const physical = { width: Math.ceil(width * ratio), height: Math.ceil(height * ratio) };
         const external = callbacks.current.viewport;
-        const scaleX = external ? width / external.source.width : fitScale() * zoomRef.current;
-        const scaleY = external ? height / external.source.height : scaleX;
-        const input = snapshot.input;
+        const scaleX = painted?.scaleX ?? (external ? width / external.source.width : fitScale() * zoomRef.current);
+        const scaleY = painted?.scaleY ?? (external ? height / external.source.height : scaleX);
+        const input = presented?.input;
         const basis = snapshot.baseline?.input ?? snapshot.overviewInput;
         const basisImage = snapshot.baseline?.bitmap ?? snapshot.overview;
         const level = input?.level !== undefined ? `L${input.level}` : input?.backend.toUpperCase();
@@ -385,7 +371,7 @@ export const ImageViewportViewer = ({
           "Quelle: tatsächliche Eingabestufe des zuletzt angenommenen Canvas, unabhängig vom Decoder-Cache.",
           "Quell-px/Display-px: 1,00 = direkte Pixeldichte; unter 1,00 = Hochskalierung; über 1,00 = Herunterskalierung.",
           ...(frame ? [`L0-Ausschnitt: x ${frame.source.x}, y ${frame.source.y}, ${frame.source.width}×${frame.source.height}`] : []),
-          ...(input && frame ? [`Quell-Ausschnitt: ${(frame.source.width * input.width / source.nativeSize.width).toFixed(2)}×${(frame.source.height * input.height / source.nativeSize.height).toFixed(2)} px, vor Filterrand.`] : []),
+          ...(input && frame ? [`Quell-Ausschnitt: ${(frame.source.width * input.width / source.nativeSize.width).toFixed(2)}×${(frame.source.height * input.height / source.nativeSize.height).toFixed(2)} px, linear skaliert.`] : []),
           "Basis ist ausschließlich die separate Übersicht, nicht die Quelle des Haupt-Canvas.",
         ].join("\n");
       }
@@ -420,9 +406,7 @@ export const ImageViewportViewer = ({
           `${source.id} · Canvas ${display.width}×${display.height} · ${
             snapshot.loading ? "lädt" : "bereit"
           }`,
-          `Geschützte Übersicht ${fallback.width}×${fallback.height} · ${(
-            (fallback.width * fallback.height * 4) / 1048576
-          ).toFixed(2)} MiB`,
+          `Renderfläche ${(display.width * display.height * 4 / 1048576).toFixed(2)} MiB · einheitliche Bildstufe`,
           `Bild ${(metrics.managedBytes / 1048576).toFixed(1)} / ${(
             metrics.budgetBytes / 1048576
           ).toFixed(1)} MiB · Pool ${pooled.images.length}/${
@@ -436,9 +420,8 @@ export const ImageViewportViewer = ({
           `Worker-Arbeitspuffer-Peak mindestens ${(
             metrics.peakWorkerWorkingBytes / 1048576
           ).toFixed(1)} MiB (zusätzlicher Decoder-Speicher unbekannt)`,
-          snapshot.prepared
-            ? `Vorbereiteter Ausschnitt ${snapshot.prepared.width}×${snapshot.prepared.height} · ${snapshot.prepared.density.toFixed(3)} px/L0-Pixel`
-            : "Noch kein feinerer Ausschnitt vorbereitet.",
+          `Renderlimit ${(metrics.renderBudgetBytes / 1048576).toFixed(1)} MiB · Sourcecache ${(metrics.cacheBudgetBytes / 1048576).toFixed(1)} MiB`,
+          `${snapshot.preparedFrames?.length ?? 0} Zoomausschnitte vorbereitet · ${snapshot.bufferedFrames?.length ?? 0} vorherige Ausschnitte gehalten`,
           snapshot.error ??
             "RGBA-Schätzung; zusätzliche Browser-/Decoder-Allokationen unbekannt.",
         ].join("\n");
@@ -574,7 +557,6 @@ export const ImageViewportViewer = ({
       }
       handle.release();
       display.width = display.height = 1;
-      fallback.width = fallback.height = 1;
     };
   }, [
     activePool,
@@ -658,13 +640,6 @@ export const ImageViewportViewer = ({
             font: "11px monospace", whiteSpace: "pre-line", padding: "5px 7px",
             maxWidth: "calc(100% - 16px)",
           }}
-        />
-        <canvas
-          ref={fallbackCanvas}
-          width={1}
-          height={1}
-          aria-label="Vollständige Bildübersicht hinter dem geladenen Ausschnitt"
-          style={{ position: "absolute", pointerEvents: "none" }}
         />
         <canvas
           ref={canvas}

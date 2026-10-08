@@ -330,8 +330,9 @@ describe("shared-frame preview image", () => {
     act(() => shared.callback?.(frame));
     const texture = shared.setOverlay.mock.lastCall?.[1].texture;
     const next = document.createElement("canvas");
-    next.width = 1024;
-    next.height = 768;
+    // The motion upload limit follows the physical viewport, not a fixed image size.
+    next.width = 200;
+    next.height = 100;
     vi.mocked(map.isMoving).mockReturnValue(true);
     contentRef.current = { source: next };
     act(() => shared.callback?.(frame));

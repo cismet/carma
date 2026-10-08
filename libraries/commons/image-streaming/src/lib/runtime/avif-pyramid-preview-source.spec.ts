@@ -584,7 +584,7 @@ const warmFixture = () => {
     return makeBitmap(id > 3 ? 1 : id, id > 3 ? id : undefined);
   });
   vi.stubGlobal("createImageBitmap", decode);
-  const canvas = vi.fn();
+  const canvas = vi.fn(), canvasOptions = vi.fn();
   vi.stubGlobal(
     "OffscreenCanvas",
     class {
@@ -595,7 +595,8 @@ const warmFixture = () => {
         this.height = height;
         canvas(width, height);
       }
-      getContext() {
+      getContext(_kind: string, options: unknown) {
+        canvasOptions(options);
         return {
           drawImage: vi.fn(),
           getImageData: (
@@ -618,8 +619,251 @@ const warmFixture = () => {
     "https://images.test/warm.avif",
     8 * 1024 * 1024
   );
-  return { source, decode, decoded, canvas, network, makeBitmap, file };
+  return { source, decode, decoded, canvas, canvasOptions, network, makeBitmap, file };
 };
+const neighborhoodFixture = () => {
+  const view = warmFixture();
+  const edge = 64;
+  for (const [number, entry] of Object.entries(view.file.index.levels)) {
+    const level = Number(number), cols = Math.ceil(entry.width / edge);
+    view.file.bytes[entry.offset + 75] = cols - 1;
+  }
+  cellDecoder.parse.mockImplementation((header: Uint8Array) => {
+    const level = header[16], entry = view.file.index.levels[level as 1 | 2 | 3];
+    const cols = Math.ceil(entry.width / edge), rows = Math.ceil(entry.height / edge);
+    const ispe = new Uint8Array(20), dimensions = new DataView(ispe.buffer);
+    dimensions.setUint32(12, edge); dimensions.setUint32(16, edge);
+    return { dimensions: { width: entry.width, height: entry.height },
+      primary: { id: level, ranges: [{ offset: 72, length: 4 }] },
+      cells: Array.from({ length: cols * rows }, (_, n) => ({
+        id: level * 50 + 20 + n,
+        properties: [{ type: "ispe", bytes: Array.from(ispe) }],
+        ranges: [{ offset: level === 1 ? 18000 + n * 4 : 160 + n * 4, length: 4 }],
+      })),
+    };
+  });
+  view.decode.mockImplementation(async () => ({ width: edge, height: edge, close: vi.fn() } as unknown as ImageBitmap));
+  return view;
+};
+const detailWindow = (): ReturnType<typeof windowOf> => ({
+  source: { x: 256 as DevicePixels, y: 192 as DevicePixels, width: 256 as DevicePixels, height: 192 as DevicePixels },
+  target: { width: 64 as DevicePixels, height: 48 as DevicePixels },
+});
+describe("bounded local AVIF pyramid neighbourhood", () => {
+  it("prewarms only the entire immediate finer level as encoded ranges before the rest", async () => {
+    const view = neighborhoodFixture(), signal = new AbortController().signal;
+    const progress = vi.fn();
+    await view.source.prewarmNextLevel(detailWindow(), native, signal, { onProgress: progress });
+    expect(view.decode).not.toHaveBeenCalled();
+    expect(progress.mock.calls.map(([entry]) => entry.level)).toEqual([1]);
+    const states = view.source.levelReadiness.find((entry) => entry.level === 1)!.states;
+    expect(states).toHaveLength(48); expect([...states].every((state) => state === 2)).toBe(true);
+    expect(view.source.levelReadiness.find((entry) => entry.level === 2)!.states).toHaveLength(0);
+    const requests = view.network.mock.calls.length;
+    expect(view.network.mock.calls.map(([, options]) => new Headers(options?.headers).get("Range")))
+      .toContain("bytes=18000-18191");
+    await view.source.prewarmNextLevel(detailWindow(), native, signal);
+    expect(view.network).toHaveBeenCalledTimes(requests);
+    view.source.close();
+  });
+  it("warms only visible next-finer children, bounded current guard and parent in that order", async () => {
+    const view = neighborhoodFixture(), signal = new AbortController().signal;
+    const progress = vi.fn();
+    await view.source.warmNeighborhood(detailWindow(), native, signal, { decode: false, onProgress: progress });
+    const plans = view.source.neighborhoodReadiness;
+    expect(plans.map(({ level, role }) => [level, role])).toEqual([[1, "next-finer"], [2, "current"], [3, "parent"]]);
+    expect(plans[0].totalTiles).toBe(12);
+    expect(plans[0].totalTiles).toBeLessThan(8 * 6);
+    expect(plans[0].encoded).toBe(plans[0].totalTiles);
+    expect(plans.every((plan) => plan.decoded === 0)).toBe(true);
+    expect(plans[0].nativeBounds[0]).toBeLessThan(detailWindow().source.x);
+    expect(plans[0].nativeBounds[2]).toBeGreaterThan(detailWindow().source.x + detailWindow().source.width);
+    expect(progress.mock.calls[0][0].role).toBe("next-finer");
+    expect(view.decode).not.toHaveBeenCalled();
+    const ranges = view.network.mock.calls.map(([, options]) => new Headers(options?.headers).get("Range"));
+    expect(ranges).toContain("bytes=18036-18051");
+    expect(ranges).not.toContain("bytes=18036-18039");
+    expect(ranges.every((range) => range !== null)).toBe(true);
+    expect(ranges).not.toContain("bytes=0-27999");
+    view.source.close();
+  });
+  it("batches before centre-first decoding, keeps prepared cells resident and reuses them", async () => {
+    const view = neighborhoodFixture(), signal = new AbortController().signal;
+    let firstDecodeRequests = 0;
+    const decode = view.decode.getMockImplementation()!;
+    view.decode.mockImplementation(async (blob: Blob) => {
+      if (!firstDecodeRequests) firstDecodeRequests = view.network.mock.calls.length;
+      return decode(blob);
+    });
+    await view.source.warmNeighborhood(detailWindow(), native, signal);
+    const plans = view.source.neighborhoodReadiness;
+    expect(plans[0].decoded).toBe(plans[0].totalTiles);
+    const fineRanges = view.network.mock.calls.filter(([, options]) => new Headers(options?.headers).get("Range")?.startsWith("bytes=18"));
+    expect(fineRanges).toHaveLength(3);
+    expect(firstDecodeRequests).toBeGreaterThanOrEqual(3);
+    const first = new Uint8Array(await (view.decode.mock.calls[0][0] as Blob).arrayBuffer())[0];
+    expect(first).toBe(88); // L1 row 2 / col 2 is closest to the crop centre.
+    const requests = view.network.mock.calls.length, decodes = view.decode.mock.calls.length;
+    await view.source.warmNeighborhood(detailWindow(), native, signal);
+    expect(view.network).toHaveBeenCalledTimes(requests);
+    expect(view.decode).toHaveBeenCalledTimes(decodes);
+    view.source.close();
+  });
+  it("keeps encoded readiness useful when cells cannot fit the decoded budget", async () => {
+    const view = neighborhoodFixture(), signal = new AbortController().signal;
+    view.source.setActiveCacheBudget(16 * 1024);
+    await view.source.warmNeighborhood(detailWindow(), native, signal);
+    expect(view.decode).not.toHaveBeenCalled();
+    expect(view.source.neighborhoodReadiness[0].encoded).toBeGreaterThan(0);
+    expect(view.source.neighborhoodReadiness[0].requiredBytes).toBe(12 * 64 * 64 * 4);
+    expect(view.source.residentBytes).toBeLessThanOrEqual(16 * 1024);
+    view.source.close();
+    expect(view.source.neighborhoodReadiness).toEqual([]);
+  });
+  it("stops the local plan promptly and does not warm outside cells after cancellation", async () => {
+    const view = neighborhoodFixture(), controller = new AbortController();
+    const progress = vi.fn(() => controller.abort());
+    await expect(view.source.warmNeighborhood(detailWindow(), native, controller.signal,
+      { onProgress: progress })).rejects.toMatchObject({ name: "AbortError" });
+    expect(progress).toHaveBeenCalledOnce();
+    expect(view.decode).not.toHaveBeenCalled();
+    view.source.close();
+  });
+  it("includes exact composition halos in foreground decoded preparation", async () => {
+    const view = neighborhoodFixture(), signal = new AbortController().signal;
+    const window = { source: { x: 256 as DevicePixels, y: 256 as DevicePixels,
+      width: 128 as DevicePixels, height: 128 as DevicePixels },
+      target: { width: 64 as DevicePixels, height: 64 as DevicePixels } };
+    await view.source.warmVisibleDecoded(window, native, signal);
+    // The aligned one-cell visible crop also needs adjacent cells touched by the one-pixel linear guard.
+    expect(view.decode).toHaveBeenCalledTimes(9);
+    view.source.close();
+  });
+});
+const drawingContext = () => ({
+  save: vi.fn(), restore: vi.fn(), beginPath: vi.fn(), rect: vi.fn(), clip: vi.fn(),
+  drawImage: vi.fn(), getImageData: vi.fn(), imageSmoothingEnabled: false,
+  imageSmoothingQuality: "high",
+});
+describe("native AVIF bitmap viewport drawing", () => {
+  it("joins integer tile pixels before one fractional native scale without RGBA readback", async () => {
+    const view = neighborhoodFixture(), signal = new AbortController().signal;
+    const page = (await view.source.select({ ...detailWindow(), target: { width: 256 as DevicePixels, height: 192 as DevicePixels } }, native, signal)).image;
+    const context = drawingContext(), destination = { x: 10, y: 20, width: 129, height: 97.25 };
+    await view.source.drawBBoxTo(page, [127.5, 95.25, 256.5, 192.5], context as unknown as OffscreenCanvasRenderingContext2D, destination, signal);
+    expect(context.drawImage).toHaveBeenCalledOnce();
+    const [canvas, sx, sy, sw, sh, dx, dy, dw, dh] = context.drawImage.mock.calls[0];
+    expect(canvas).toMatchObject({ width: 132, height: 100 });
+    expect([sx, sy, sw, sh]).toEqual([1.5, 1.25, 129, 97.25]);
+    expect([dx, dy, dw, dh]).toEqual([10, 20, 129, 97.25]);
+    expect(view.decode).toHaveBeenCalledTimes(12);
+    expect(context.rect).toHaveBeenCalledWith(10, 20, 129, 97.25);
+    expect(context.save).toHaveBeenCalledOnce(); expect(context.restore).toHaveBeenCalledOnce();
+    expect(context.imageSmoothingEnabled).toBe(true); expect(context.imageSmoothingQuality).toBe("low");
+    expect(context.getImageData).not.toHaveBeenCalled();
+    expect(view.canvas).toHaveBeenCalledWith(132, 100);
+    expect(view.canvasOptions).toHaveBeenCalledWith({ alpha: false });
+    expect(view.source.memoryMetrics.nativeCompositionCanvasBytes).toBe(132 * 100 * 4);
+    view.source.close();
+    expect(view.source.memoryMetrics.nativeCompositionCanvasBytes).toBe(0);
+  });
+  it("bounds large native stitches in contiguous integral output bands", async () => {
+    const view = neighborhoodFixture(), signal = new AbortController().signal;
+    const page = (await view.source.select(windowOf(512, 384), native, signal)).image;
+    view.source.setActiveCacheBudget(64 * 1024);
+    const context = drawingContext();
+    await view.source.drawBBoxTo(page, [0, 0, 512, 384], context as unknown as OffscreenCanvasRenderingContext2D,
+      { x: 0, y: 0, width: 256, height: 192 }, signal);
+    expect(context.drawImage.mock.calls.length).toBeGreaterThan(1);
+    let bottom = 0;
+    for (const args of context.drawImage.mock.calls) {
+      expect(args[6]).toBe(bottom);
+      expect(Number.isInteger(args[6])).toBe(true);
+      bottom += args[8];
+    }
+    expect(bottom).toBe(192);
+    expect(view.source.memoryMetrics.nativeCompositionCanvasBytes).toBeLessThanOrEqual(512 * 67 * 4);
+    expect(context.getImageData).not.toHaveBeenCalled();
+    expect(view.canvasOptions.mock.calls.every(([options]) => !(options as { willReadFrequently?: boolean }).willReadFrequently)).toBe(true);
+    view.source.close();
+  });
+  it("streams a zero-cache-budget viewport in whole tile-row bands instead of repeated one-pixel decodes", async () => {
+    const view = neighborhoodFixture(), signal = new AbortController().signal;
+    const portraitNative = { width: 1024 as DevicePixels, height: 1536 as DevicePixels };
+    view.file.index.sourceSensorDimensions[1] = 1536;
+    for (const entry of Object.values(view.file.index.levels)) entry.height *= 2;
+    view.file.bytes.fill(0, 20024, 24120);
+    view.file.bytes.set(new TextEncoder().encode(JSON.stringify(view.file.index)), 20024);
+    view.file.bytes[75] = 0;
+    const ispe = new Uint8Array(20), dimensions = new DataView(ispe.buffer);
+    dimensions.setUint32(12, 512); dimensions.setUint32(16, 512);
+    cellDecoder.parse.mockImplementation(() => ({ dimensions: { width: 512, height: 768 },
+      primary: { id: 1, ranges: [{ offset: 72, length: 4 }] },
+      cells: [10, 11].map((id, n) => ({ id,
+        properties: [{ type: "ispe", bytes: Array.from(ispe) }],
+        ranges: [{ offset: 18000 + n * 4, length: 4 }],
+      })),
+    }));
+    view.decode.mockImplementation(async () => ({ width: 512, height: 512, close: vi.fn() } as unknown as ImageBitmap));
+    view.source.setActiveCacheBudget(0);
+    const window = { source: { x: 0 as DevicePixels, y: 0 as DevicePixels, ...portraitNative },
+      target: { width: 512 as DevicePixels, height: 768 as DevicePixels } };
+    const page = (await view.source.select(window, portraitNative, signal)).image;
+    const context = drawingContext();
+    await view.source.drawBBoxTo(page, [0, 0, 512, 768], context as unknown as OffscreenCanvasRenderingContext2D,
+      { x: 0, y: 0, width: 512, height: 768 }, signal);
+    expect(context.drawImage).toHaveBeenCalledTimes(2);
+    expect(view.decode).toHaveBeenCalledTimes(4); // each tile is touched at most twice by the one-pixel band overlap
+    for (const result of view.decode.mock.results) expect((await result.value).close).toHaveBeenCalledOnce();
+    expect(context.getImageData).not.toHaveBeenCalled();
+    expect(view.source.memoryMetrics.decodedBytes).toBe(0);
+    expect(view.source.memoryMetrics.nativeCompositionCanvasBytes).toBe(0);
+    expect(view.canvas.mock.calls.every(([width, height]) => width * height * 4 <= 16 * 1024 * 1024)).toBe(true);
+    view.source.close();
+  });
+  it("draws a ready whole sublevel directly as one borrowed bitmap", async () => {
+    const view = warmFixture(), signal = new AbortController().signal;
+    await view.source.ensureOverview(signal);
+    const page = (await view.source.select(windowOf(512, 384), native, signal)).image;
+    const context = drawingContext(), requests = view.network.mock.calls.length;
+    await view.source.drawBBoxTo(page, [10.25, 20.5, 110.75, 120.25], context as unknown as OffscreenCanvasRenderingContext2D,
+      { x: 0, y: 0, width: 200, height: 190 }, signal);
+    expect(context.drawImage).toHaveBeenCalledOnce();
+    expect(context.drawImage.mock.calls[0].slice(1)).toEqual([10.25, 20.5, 100.5, 99.75, 0, 0, 200, 190]);
+    expect(view.network).toHaveBeenCalledTimes(requests); expect(view.canvas).not.toHaveBeenCalled();
+    expect(view.decoded[0].bitmap.close).not.toHaveBeenCalled();
+    view.source.close();
+    expect(view.decoded[0].bitmap.close).toHaveBeenCalledOnce();
+  });
+  it("closes a temporary cell once and restores the drawing context on cancellation", async () => {
+    const view = neighborhoodFixture(), controller = new AbortController();
+    const page = (await view.source.select(windowOf(512, 384), native, controller.signal)).image;
+    view.source.setActiveCacheBudget(0);
+    const context = drawingContext();
+    context.drawImage.mockImplementationOnce(() => controller.abort());
+    await expect(view.source.drawBBoxTo(page, [127, 127, 193, 193], context as unknown as OffscreenCanvasRenderingContext2D,
+      { x: 0, y: 0, width: 66, height: 66 }, controller.signal)).rejects.toMatchObject({ name: "AbortError" });
+    expect(context.restore).toHaveBeenCalledOnce();
+    const bitmap = await view.decode.mock.results[0].value;
+    expect(bitmap.close).toHaveBeenCalledOnce();
+    expect(context.getImageData).not.toHaveBeenCalled();
+    view.source.close();
+  });
+  it("uses a uniform immediate parent rather than a distant overview or a partial sharper rectangle", async () => {
+    const view = neighborhoodFixture(), signal = new AbortController().signal;
+    const full = windowOf(512, 384), target = (await view.source.select(full, native, signal)).image;
+    await view.source.warmVisibleDecoded(windowOf(128, 96), native, signal);
+    expect(view.source.availablePage(full, native, target)).toBeNull(); // L3 is two levels too coarse.
+    await view.source.warmVisibleDecoded(windowOf(256, 192), native, signal);
+    expect(view.source.availablePage(full, native, target)?.level).toBe(2);
+    await view.source.warmVisibleDecoded({ source: { x: 256 as DevicePixels, y: 256 as DevicePixels,
+      width: 128 as DevicePixels, height: 128 as DevicePixels }, target: { width: 64 as DevicePixels, height: 64 as DevicePixels } }, native, signal);
+    expect(view.source.availablePage(full, native, target)?.level).toBe(2);
+    await view.source.warmVisibleDecoded(full, native, signal);
+    expect(view.source.availablePage(full, native, target)?.level).toBe(1);
+    view.source.close();
+  });
+});
 describe("bounded AVIF display and encoded prewarming", () => {
   it("recognizes RAM payload coverage synchronously without treating it as decoded", async () => {
     const view = warmFixture();
