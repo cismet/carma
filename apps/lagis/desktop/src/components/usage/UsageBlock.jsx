@@ -4,8 +4,10 @@ import TableCustom from "../ui/tables/TableCustom";
 import EditableTable from "../editing/EditableTable";
 import useDraftTable from "../editing/useDraftTable";
 import useStammdatenList from "../editing/useStammdatenList";
-import { usageColumns } from "../editing/columns";
-import { useState, useEffect, useMemo } from "react";
+import { requiredTitle, usageColumns } from "../editing/columns";
+import useInvalidCells from "../editing/useInvalidCells";
+import { USAGE_RULES } from "../../core/editing/validation";
+import { useState, useEffect } from "react";
 import { compare, formatPrice } from "../../core/tools/helper";
 import { gesamtpreis, newUsageRow } from "../../core/wizard/usageData";
 import {
@@ -117,9 +119,11 @@ const column = (dataIndex) => columns.find((c) => c.dataIndex === dataIndex);
 // m²-Preis are inputs and the Buchwert flag toggles on click. Buchungs-Nr,
 // Gesamtpreis and Stille Reserve follow the draft live, like in Java.
 // Sorting uses the shown values, like the read mode table.
-const editColumns = (stammdaten, originalById) => (update) => {
-  const [anlageklasse, nutzungsart, flaeche, preis] =
-    usageColumns(stammdaten)(update);
+const editColumns = (stammdaten, originalById, invalid) => (update) => {
+  const [anlageklasse, nutzungsart, flaeche, preis] = usageColumns(
+    stammdaten,
+    invalid
+  )(update);
   const anlageklasseName = new Map(
     stammdaten.anlageklassen.map((k) => [k.id, k.bezeichnung])
   );
@@ -176,7 +180,12 @@ const editColumns = (stammdaten, originalById) => (update) => {
     readOnly("nutzung"),
     readOnly("buchungs"),
     { ...anlageklasse, ...like("anlageklasse"), ellipsis: false },
-    { ...nutzungsart, ...like("bezeichnung"), ellipsis: false },
+    {
+      ...nutzungsart,
+      ...like("bezeichnung"),
+      title: requiredTitle(column("bezeichnung").title),
+      ellipsis: false,
+    },
     { ...flaeche, ...like("fläche"), ellipsis: false },
     { ...preis, ...like("preis"), ellipsis: false },
     readOnly("gesamtpreis", formatPrice),
@@ -267,18 +276,15 @@ const UsageBlock = ({
   });
   const stammdaten = useStammdatenList("nutzung", editable);
   const originalUsage = useSelector(getOriginalSection("usage"));
-  const tableColumns = useMemo(
-    () =>
-      stammdaten
-        ? editColumns(
-            stammdaten,
-            new Map(
-              (originalUsage?.nutzungen ?? []).map((row) => [row.id, row])
-            )
-          )
-        : undefined,
-    [stammdaten, originalUsage]
-  );
+  const invalid = useInvalidCells("usage", tableProps.rows, USAGE_RULES);
+  // not memoized: the red cells follow every edit
+  const tableColumns = stammdaten
+    ? editColumns(
+        stammdaten,
+        new Map((originalUsage?.nutzungen ?? []).map((row) => [row.id, row])),
+        invalid
+      )
+    : undefined;
   useEffect(() => {
     // same order as the edit rows (loadUsageSection)
     const data = [...extractor(dataIn)].sort((a, b) => a.id - b.id);

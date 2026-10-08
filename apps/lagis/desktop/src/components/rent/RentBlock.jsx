@@ -8,6 +8,7 @@ import {
   byDay,
   byText,
   dateColumn,
+  requiredTitle,
   textColumn,
   VIEW_DAY,
   withSort,
@@ -15,6 +16,8 @@ import {
 import useDraftTable from "../editing/useDraftTable";
 import useStammdatenList from "../editing/useStammdatenList";
 import { newMipaRow } from "../../core/editing/mipa";
+import { MIPA_RULES } from "../../core/editing/validation";
+import useInvalidCells from "../editing/useInvalidCells";
 import { useEffect, useState } from "react";
 import dayjs from "dayjs";
 import weekday from "dayjs/plugin/weekday";
@@ -91,17 +94,24 @@ const columns = [
 ];
 const popup = () => document.body;
 
-// stammdaten: { kategorien, merkmale }
-const editColumns = (stammdaten) => {
+const titleOf = (title, field) =>
+  MIPA_RULES.required.includes(field) ? requiredTitle(title) : title;
+
+// stammdaten: { kategorien, merkmale }; invalid(record, field) marks a cell red
+const editColumns = (stammdaten, invalid) => {
   const kategorieName = new Map(
     stammdaten.kategorien.map((k) => [k.id, k.bezeichnung])
   );
   const merkmalName = new Map(
     stammdaten.merkmale.map((m) => [m.id, m.bezeichnung])
   );
+  const column = (build, title, field, update) =>
+    build(titleOf(title, field), field, update, (record) =>
+      invalid(record, field)
+    );
   return (update) => [
-    textColumn(mipa.mipaTable.lageCol, "lage", update),
-    textColumn(mipa.mipaTable.aktenzeichenCol, "aktenzeichen", update),
+    column(textColumn, mipa.mipaTable.lageCol, "lage", update),
+    column(textColumn, mipa.mipaTable.aktenzeichenCol, "aktenzeichen", update),
     {
       title: mipa.mipaTable.flaecheCol,
       key: "flaeche",
@@ -119,13 +129,14 @@ const editColumns = (stammdaten) => {
       ),
     },
     {
-      title: mipa.mipaTable.nutzungCol,
+      title: titleOf(mipa.mipaTable.nutzungCol, "kategorieId"),
       key: "nutzung",
       dataIndex: "kategorieId",
       sorter: byText((row) => kategorieName.get(row.kategorieId)),
       render: (kategorieId, record) => (
         <Select
           size="small"
+          status={invalid(record, "kategorieId") ? "error" : undefined}
           showSearch
           allowClear
           optionFilterProp="label"
@@ -147,9 +158,14 @@ const editColumns = (stammdaten) => {
         />
       ),
     },
-    textColumn(NUTZER_TITLE, "nutzer", update),
-    dateColumn(mipa.mipaTable.vertragsbeginCol, "vertragsbeginn", update),
-    dateColumn(mipa.mipaTable.vertragsendeCol, "vertragsende", update),
+    column(textColumn, NUTZER_TITLE, "nutzer", update),
+    column(
+      dateColumn,
+      mipa.mipaTable.vertragsbeginCol,
+      "vertragsbeginn",
+      update
+    ),
+    column(dateColumn, mipa.mipaTable.vertragsendeCol, "vertragsende", update),
     {
       title: mipa.mipaTable.merkmaleCol,
       key: "merkmale",
@@ -257,6 +273,7 @@ const RentBlock = ({
     newRow: (draft) => newMipaRow(draft.parcelGeometry),
   });
   const stammdaten = useStammdatenList("mipa", editable);
+  const invalid = useInvalidCells("mipa", tableProps.rows, MIPA_RULES);
   const activeDraftRow = tableProps.rows.find(
     (row) => row.id === tableProps.activeId
   );
@@ -315,7 +332,7 @@ const RentBlock = ({
                 {...tableProps}
                 fixHeight={false}
                 columns={(update) =>
-                  withSort(editColumns(stammdaten)(update), sort)
+                  withSort(editColumns(stammdaten, invalid)(update), sort)
                 }
                 onSortChange={setSort}
               />
