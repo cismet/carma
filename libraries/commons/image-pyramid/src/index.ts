@@ -74,7 +74,7 @@ export {
 export {
   ImageLevelStackPool,
   createImageTileSource,
-  type ImageStreamSource,
+  type ImagePyramidSource,
   type ImageLevelStackLease,
   type ImageLevelStackPoolMetrics,
 } from "./lib/runtime/image-level-stack-pool";
@@ -88,10 +88,10 @@ export {
   type ImageLevelsTexture,
 } from "./lib/runtime/three-image-levels";
 export {
-  ImageStreamViewer,
-  type ImageStreamViewerProps,
-} from "./lib/runtime/ImageStreamViewer";
+  ImagePyramidViewer,
+  type ImagePyramidViewerProps,
+} from "./lib/runtime/ImagePyramidViewer";
 export {
-  ImageStreamCarousel,
-  type ImageStreamCarouselProps,
-} from "./lib/runtime/ImageStreamCarousel";
+  ImagePyramidCarousel,
+  type ImagePyramidCarouselProps,
+} from "./lib/runtime/ImagePyramidCarousel";

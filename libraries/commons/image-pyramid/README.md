@@ -1,12 +1,13 @@
-# Large streaming image viewer
+# Image pyramid
 
-Streams very large photographs from tiled pyramids and draws them as a transparent stack of sparse pyramid levels. Stories live in `playgrounds/stories/src/stories/libraries/image-streaming/ImageViewport.stories.tsx` (Libraries / Image streaming).
+`@carma-commons/image-pyramid` streams very large photographs from tiled pyramids and draws them as a transparent stack of sparse pyramid levels. Stories live in `playgrounds/stories/src/stories/libraries/image-pyramid/ImagePyramid.stories.tsx` (Libraries / Image pyramid).
 
 ## Model
 
 - **Levels.** For a view with `d` physical display pixels per native pixel, level `L` is shown at scale `s_L = d · native/level` (per axis, from the real level size; stored levels are rounded, so it is not `2^k`).
 - **Target.** The target is the coarsest level that is not upscaled (`s ≤ 1`). Past 1:1 of the finest stored level the finest level is used.
-- **Stack.** Each frame draws resident tiles bottom to top: a pinned whole-image floor (long edge ≤ 1024), coarser bridge levels, the parent underlay (`s ≤ 2`), then the target. Missing tiles stay transparent, so the next coarser level shows through. In steady state only the target and its parent are visible.
+- **Used levels.** Levels whose long edge is shorter than `minLevelEdge` (default 512, one tile) are never loaded or drawn; a 2026 pyramid uses L1–L5, not L6–L8. The coarsest used level is the floor.
+- **Stack.** Each frame draws resident tiles bottom to top: the pinned whole-image floor, coarser bridge levels, the parent underlay (`s ≤ 2`), then the target. The floor may itself be the underlay or, in thumbnails, the downscaled target. Missing tiles stay transparent, so the next coarser level shows through. In steady state only the target and its parent are visible.
 - **Plan** (`core/image-level-plan.ts`, pure). One priority list per view, in this order:
   1. floor
   2. visible underlay
@@ -62,10 +63,10 @@ can render together during a blend; any missing active target blocks the forecas
 
 ## Components
 
-- `ImageStreamViewer`: pan/zoom viewer with Fit, 1:1 and step buttons, plus per-level tile state diagnostics.
+- `ImagePyramidViewer`: pan/zoom viewer with Fit, 1:1 and step buttons, plus per-level tile state diagnostics.
   - Tile states: missing, requested, compressed, decoded.
-  - Options: renderer `canvas | three`, `featherPx`, `foveaRadius`, `ringTiles`.
-- `ImageStreamCarousel`: groups of viewers over one shared pool.
+  - Options: renderer `canvas | three`, `featherPx`, `foveaRadius`, `ringTiles`, `minLevelEdge`.
+- `ImagePyramidCarousel`: groups of viewers over one shared pool.
 
 ## Legacy
 

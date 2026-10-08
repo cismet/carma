@@ -1,6 +1,7 @@
 import {
   imageTileKey,
   planImageLevels,
+  usedImageLevels,
   type ImageLevel,
   type ImageLevelPlan,
   type ImageLevelPlanOptions,
@@ -174,8 +175,10 @@ export class ImageLevelStack {
       this.source.priority = work === IMAGE_STACK_WORK.Prewarm ? "low" : "high";
     // Restricting work interrupts speculative traffic. Promotion keeps its
     // in-flight target requests and already decoded tiles intact.
-    if (work === IMAGE_STACK_WORK.Paused ||
-        (previous === IMAGE_STACK_WORK.Full && work !== IMAGE_STACK_WORK.Full)) {
+    if (
+      work === IMAGE_STACK_WORK.Paused ||
+      (previous === IMAGE_STACK_WORK.Full && work !== IMAGE_STACK_WORK.Full)
+    ) {
       this.controller.abort();
       this.source.pause();
       this.controller = new AbortController();
@@ -221,8 +224,9 @@ export class ImageLevelStack {
     };
   }
 
+  /** Diagnostics for the levels this stack uses, finest first. */
   readiness(): ImageLevelReadiness[] {
-    return (this.pyramidValue?.levels ?? []).map((level) => {
+    return this.usedLevels().map((level) => {
       const states = new Uint8Array(level.cols * level.rows);
       for (let row = 0; row < level.rows; row++)
         for (let col = 0; col < level.cols; col++) {
@@ -301,6 +305,13 @@ export class ImageLevelStack {
     this.evictListeners.clear();
   }
 
+  private usedLevels() {
+    const pyramid = this.pyramidValue;
+    return pyramid
+      ? usedImageLevels(pyramid.levels, this.options.minLevelEdge)
+      : [];
+  }
+
   private replan() {
     const pyramid = this.pyramidValue,
       view = this.view;
@@ -356,14 +367,26 @@ export class ImageLevelStack {
 
   private pump() {
     const plan = this.planValue;
-    if (!plan || !this.active || this.disposed || this.work === IMAGE_STACK_WORK.Paused) return;
+    if (
+      !plan ||
+      !this.active ||
+      this.disposed ||
+      this.work === IMAGE_STACK_WORK.Paused
+    )
+      return;
     const warming = this.work === IMAGE_STACK_WORK.Prewarm;
     const maxDecodes = warming ? 1 : this.options.maxDecodes ?? 4;
     const maxFetches = warming ? 1 : this.options.maxFetches ?? 3;
-    const wants = this.work === IMAGE_STACK_WORK.Full ? plan.wants : plan.wants.filter(
-      (want) => want.role === "floor" || want.role === "underlay" ||
-        want.role === "target" || want.role === "target-periphery"
-    );
+    const wants =
+      this.work === IMAGE_STACK_WORK.Full
+        ? plan.wants
+        : plan.wants.filter(
+            (want) =>
+              want.role === "floor" ||
+              want.role === "underlay" ||
+              want.role === "target" ||
+              want.role === "target-periphery"
+          );
     for (const want of wants) {
       if (this.decodes >= maxDecodes) break;
       if (
@@ -378,9 +401,13 @@ export class ImageLevelStack {
     while (this.fetches < maxFetches) {
       const batch = this.nextBatch(wants);
       if (!batch.length) break;
-      this.fetch(batch, warming || batch[0].priority >= 7 * CATEGORY ? "low" : "high");
+      this.fetch(
+        batch,
+        warming || batch[0].priority >= 7 * CATEGORY ? "low" : "high"
+      );
     }
-    if (this.work === IMAGE_STACK_WORK.Full && !this.fetches && !this.decodes) this.idle();
+    if (this.work === IMAGE_STACK_WORK.Full && !this.fetches && !this.decodes)
+      this.idle();
   }
 
   private needsBytes(want: ImageTileWant) {
@@ -477,12 +504,13 @@ export class ImageLevelStack {
       pyramid = this.pyramidValue;
     if (mode === "none" || !plan || !pyramid) return;
     if (!this.idleQueue) {
+      const levels = this.usedLevels();
       const order: ImageLevel[] = [];
-      const finer = pyramid.levels.find((level) => level.level === plan.finer);
+      const finer = levels.find((level) => level.level === plan.finer);
       if (finer) order.push(finer);
       if (mode === "pyramid")
         order.push(
-          ...[...pyramid.levels]
+          ...levels
             .filter((level) => level !== finer)
             .sort((a, b) => b.level - a.level)
         );

@@ -25,7 +25,7 @@ self.onmessage = async (
       const native = event.data.nativeSize,
         signal = AbortSignal.timeout(8000);
       const { AvifPyramidPreviewSource } = await import(
-        "@carma-commons/image-streaming"
+        "@carma-commons/image-pyramid"
       );
       const source = new AvifPyramidPreviewSource(
         event.data.avifPyramidUrl,
@@ -81,7 +81,7 @@ self.onmessage = async (
     if (!blob && event.data.tiff) {
       const native = event.data.nativeSize;
       if (!native) throw new Error("TIFF thumbnail requires camera dimensions");
-      const { createTiffPreviewSource } = await import("@carma-commons/image-streaming");
+      const { createTiffPreviewSource } = await import("@carma-commons/image-pyramid");
       const source = await createTiffPreviewSource(event.data.url, 16 * 1024 * 1024);
       const signal = AbortSignal.timeout(9000);
       const { image } = await source.select(

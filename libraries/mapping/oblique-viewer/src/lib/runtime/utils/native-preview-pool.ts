@@ -1,4 +1,4 @@
-import { ImageLevelStackPool, type ImageStreamSource, type ImageView } from "@carma-commons/image-streaming";
+import { ImageLevelStackPool, type ImagePyramidSource, type ImageView } from "@carma-commons/image-pyramid";
 import type { DevicePixels, Ratio } from "@carma-units";
 import type { PreviewQualityLevel } from "../../core/constants";
 import { getPreviewImageUrl } from "./imageUrls";
@@ -14,7 +14,7 @@ export type NativePreviewSource = {
   nativeSize: { width: DevicePixels; height: DevicePixels };
   minimumQualityLevel?: PreviewQualityLevel;
 };
-export const nativePreviewSource = (input: NativePreviewSource): ImageStreamSource => {
+export const nativePreviewSource = (input: NativePreviewSource): ImagePyramidSource => {
   const { imageId, nativeSize, minimumQualityLevel = "0" } = input;
   const avif = !!(input.avifPyramidUrl || input.avifOnly);
   const url = avif ? input.avifPyramidUrl ?? input.sourceUrl : input.path
@@ -28,16 +28,16 @@ export const nativePreviewSource = (input: NativePreviewSource): ImageStreamSour
 
 type PreviewView = { view: ImageView; pixels: number };
 const visibleViews = new Map<string, PreviewView>();
-export const rememberNativePreviewView = (source: ImageStreamSource, view: ImageView, pixels: number) => {
+export const rememberNativePreviewView = (source: ImagePyramidSource, view: ImageView, pixels: number) => {
   visibleViews.delete(source.url);
   visibleViews.set(source.url, { view, pixels });
   if (visibleViews.size > 8) visibleViews.delete(visibleViews.keys().next().value!);
 };
-export const lastNativePreviewView = (source: ImageStreamSource) => visibleViews.get(source.url);
+export const lastNativePreviewView = (source: ImagePyramidSource) => visibleViews.get(source.url);
 
 /** Same rotated whole-photo fit as flyToImage; density is physical pixels per native pixel. */
 export const fitNativePreviewView = (
-  source: ImageStreamSource, width: number, height: number, roll: number, pixelRatio: number
+  source: ImagePyramidSource, width: number, height: number, roll: number, pixelRatio: number
 ): PreviewView => {
   const native = source.nativeSize!;
   const c = Math.abs(Math.cos(roll)), s = Math.abs(Math.sin(roll));

@@ -9,7 +9,7 @@ import {
 import type { ImageTileSource } from "./image-tile-source";
 import { JpegTileSource } from "./jpeg-tile-source";
 
-export type ImageStreamSource = Readonly<{
+export type ImagePyramidSource = Readonly<{
   id: string;
   url: string;
   kind: "avif" | "jpeg";
@@ -28,14 +28,14 @@ export type ImageLevelStackPoolMetrics = Readonly<{
   maxImages: number;
 }>;
 type Entry = {
-  source: ImageStreamSource;
+  source: ImagePyramidSource;
   stack: ImageLevelStack;
   refs: number;
   used: number;
 };
 
 export const createImageTileSource = (
-  source: ImageStreamSource
+  source: ImagePyramidSource
 ): ImageTileSource => {
   if (source.kind === "avif") return new AvifTileSource(source.url);
   if (!source.nativeSize)
@@ -53,7 +53,7 @@ export class ImageLevelStackPool {
   private readonly listeners = new Set<() => void>();
   private disposed = false;
   private reconciling = false;
-  private warming: { source: ImageStreamSource; view: ImageView; pixels: number; applied?: Entry } | null = null;
+  private warming: { source: ImagePyramidSource; view: ImageView; pixels: number; applied?: Entry } | null = null;
 
   constructor(
     private readonly options: {
@@ -61,15 +61,15 @@ export class ImageLevelStackPool {
       /** One forecast image may retain this much decoded data until promotion. */
       prewarmBudgetBytes?: number;
       stackOptions?: ImageLevelStackOptions;
-      createSource?: (source: ImageStreamSource) => ImageTileSource;
+      createSource?: (source: ImagePyramidSource) => ImageTileSource;
     } = {}
   ) {}
 
-  private key(source: ImageStreamSource) {
+  private key(source: ImagePyramidSource) {
     return `${source.kind}:${source.url}`;
   }
 
-  private entry(source: ImageStreamSource, prewarming = false) {
+  private entry(source: ImagePyramidSource, prewarming = false) {
     const key = this.key(source);
     let entry = this.entries.get(key);
     if (!entry) {
@@ -88,7 +88,7 @@ export class ImageLevelStackPool {
     return entry;
   }
 
-  acquire(source: ImageStreamSource): ImageLevelStackLease {
+  acquire(source: ImagePyramidSource): ImageLevelStackLease {
     if (this.disposed) throw new Error("Image level stack pool is disposed");
     // Stop speculative traffic before a new foreground source even opens.
     if (this.warming && this.key(this.warming.source) !== this.key(source))
@@ -125,7 +125,7 @@ export class ImageLevelStackPool {
    * cancellation lease is generation-safe, so old hover cleanup cannot cancel
    * a newer prediction or an image already promoted with acquire().
    */
-  prewarm(source: ImageStreamSource, view: ImageView, viewportPixels: number): () => void {
+  prewarm(source: ImagePyramidSource, view: ImageView, viewportPixels: number): () => void {
     if (this.disposed) return () => undefined;
     const previous = this.warming;
     const request = { source, view, pixels: viewportPixels };

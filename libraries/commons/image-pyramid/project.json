@@ -1,7 +1,7 @@
 {
-  "name": "image-streaming",
-  "root": "libraries/commons/image-streaming",
-  "sourceRoot": "libraries/commons/image-streaming/src",
+  "name": "image-pyramid",
+  "root": "libraries/commons/image-pyramid",
+  "sourceRoot": "libraries/commons/image-pyramid/src",
   "projectType": "library",
   "tags": [
     "scope:commons",
@@ -14,7 +14,7 @@
         "{options.reportsDirectory}"
       ],
       "options": {
-        "reportsDirectory": "../../../coverage/libraries/commons/image-streaming"
+        "reportsDirectory": "../../../coverage/libraries/commons/image-pyramid"
       }
     }
   },

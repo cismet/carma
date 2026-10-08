@@ -17,7 +17,7 @@ import {
   type ImageLevelStack,
   type ImageRect,
   type NativePreviewWindow,
-} from "@carma-commons/image-streaming";
+} from "@carma-commons/image-pyramid";
 import type { PreviewQualityLevel } from "../core/constants";
 import type { ObliqueBackdropLook } from "../core/types";
 import {

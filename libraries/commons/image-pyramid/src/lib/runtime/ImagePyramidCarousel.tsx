@@ -7,18 +7,23 @@ import {
 } from "react";
 import {
   ImageLevelStackPool,
-  type ImageStreamSource,
+  type ImagePyramidSource,
 } from "./image-level-stack-pool";
 import {
-  ImageStreamViewer,
-  type ImageStreamViewerProps,
-} from "./ImageStreamViewer";
+  ImagePyramidViewer,
+  type ImagePyramidViewerProps,
+} from "./ImagePyramidViewer";
 
-export type ImageStreamCarouselProps = Pick<
-  ImageStreamViewerProps,
-  "renderer" | "featherPx" | "foveaRadius" | "ringTiles" | "diagnostics"
+export type ImagePyramidCarouselProps = Pick<
+  ImagePyramidViewerProps,
+  | "renderer"
+  | "featherPx"
+  | "foveaRadius"
+  | "ringTiles"
+  | "minLevelEdge"
+  | "diagnostics"
 > & {
-  sources: readonly ImageStreamSource[];
+  sources: readonly ImagePyramidSource[];
   /** Images kept in the pool, including parked groups. */
   poolSize?: number;
   visibleCount?: number;
@@ -38,14 +43,14 @@ const BUTTON: CSSProperties = {
 const MiB = 1024 * 1024;
 
 /** Flip between groups of images; parked images keep a small decoded budget in the shared pool. */
-export const ImageStreamCarousel = ({
+export const ImagePyramidCarousel = ({
   sources,
   poolSize = 8,
   visibleCount = 4,
   height = 360,
   fill = false,
   ...viewer
-}: ImageStreamCarouselProps) => {
+}: ImagePyramidCarouselProps) => {
   const [group, setGroup] = useState(0);
   const pool = useMemo(
     () => new ImageLevelStackPool({ maxImages: poolSize }),
@@ -114,12 +119,13 @@ export const ImageStreamCarousel = ({
           minHeight: 0,
           display: "grid",
           gap: 4,
-          gridTemplateColumns: `repeat(${columns}, 1fr)`,
-          gridAutoRows: "1fr",
+          // minmax(0, …) keeps wide diagnostics from widening a column.
+          gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
+          gridAutoRows: "minmax(0, 1fr)",
         }}
       >
         {shown.map((source) => (
-          <ImageStreamViewer
+          <ImagePyramidViewer
             key={source.id}
             source={source}
             pool={pool}

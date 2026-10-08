@@ -10,12 +10,12 @@ import type { ImageLevelReadiness, ImageLevelStack } from "./image-level-stack";
 import {
   ImageLevelStackPool,
   type ImageLevelStackPoolMetrics,
-  type ImageStreamSource,
+  type ImagePyramidSource,
 } from "./image-level-stack-pool";
 import { ThreeImageLevels } from "./three-image-levels";
 
-export type ImageStreamViewerProps = {
-  source: ImageStreamSource;
+export type ImagePyramidViewerProps = {
+  source: ImagePyramidSource;
   pool?: ImageLevelStackPool;
   /** "three" draws with the same GPU compositor the oblique scene uses. */
   renderer?: "canvas" | "three";
@@ -24,6 +24,8 @@ export type ImageStreamViewerProps = {
   /** Fovea radius as fraction of the visible half diagonal; null loads the target uniformly. */
   foveaRadius?: number | null;
   ringTiles?: number;
+  /** Levels with a shorter long edge are neither loaded nor shown; 0 uses all. */
+  minLevelEdge?: DevicePixels;
   diagnostics?: boolean;
   height?: number;
   /** Fill a height-constrained parent instead of using `height`. */
@@ -50,19 +52,20 @@ const MiB = 1024 * 1024;
  * physical display density, its parent underneath, rings for pans and the
  * next finer level ahead of zoom-in.
  */
-export const ImageStreamViewer = ({
+export const ImagePyramidViewer = ({
   source,
   pool,
   renderer = "canvas",
   featherPx = 0,
   foveaRadius = null,
   ringTiles = 1,
+  minLevelEdge,
   diagnostics = true,
   height = 600,
   fill = false,
   dataTestId,
   onMetrics,
-}: ImageStreamViewerProps) => {
+}: ImagePyramidViewerProps) => {
   const stage = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
   const readout = useRef<HTMLOutputElement>(null);
@@ -75,6 +78,7 @@ export const ImageStreamViewer = ({
   const planOptions = useRef<Partial<ImageLevelPlanOptions>>({
     foveaRadius,
     ringTiles,
+    minLevelEdge,
   });
   const redraw = useRef<(() => void) | null>(null);
   const settings = useRef({ featherPx, onMetrics });
@@ -256,7 +260,13 @@ export const ImageStreamViewer = ({
       const plan = stack.plan;
       const area = visible();
       const size = native();
-      for (const level of stack.readiness())
+      const used = stack.readiness();
+      for (const [level, view] of levelCanvases)
+        if (!used.some((entry) => entry.level === level)) {
+          view.remove();
+          levelCanvases.delete(level);
+        }
+      for (const level of used)
         drawLevel(host, levelCanvases, level, plan, area, size);
     };
     redraw.current = schedule;
@@ -271,7 +281,7 @@ export const ImageStreamViewer = ({
       });
     };
     const down = (event: PointerEvent) => {
-      if ((event.target as Element).closest?.("[data-image-stream-controls]"))
+      if ((event.target as Element).closest?.("[data-image-pyramid-controls]"))
         return;
       dragging = { x: event.clientX, y: event.clientY };
       root.setPointerCapture(event.pointerId);
@@ -327,9 +337,9 @@ export const ImageStreamViewer = ({
     };
   }, [activePool, source, renderer, diagnostics]);
   useEffect(() => {
-    planOptions.current = { foveaRadius, ringTiles };
+    planOptions.current = { foveaRadius, ringTiles, minLevelEdge };
     stackRef.current?.configure(planOptions.current);
-  }, [foveaRadius, ringTiles]);
+  }, [foveaRadius, ringTiles, minLevelEdge]);
   useEffect(() => {
     redraw.current?.();
   }, [featherPx]);
@@ -342,6 +352,7 @@ export const ImageStreamViewer = ({
         flexDirection: "column",
         height: fill ? "100%" : height,
         minHeight: 0,
+        minWidth: 0,
         color: "#e8edf4",
         font: "12px system-ui, sans-serif",
         background: "#141a23",
@@ -368,7 +379,7 @@ export const ImageStreamViewer = ({
           }}
         />
         <div
-          data-image-stream-controls
+          data-image-pyramid-controls
           style={{
             position: "absolute",
             right: 8,
@@ -444,7 +455,7 @@ const drawLevel = (
       border: "1px solid #5a6678",
       borderRadius: "3px",
     });
-    view.dataset.testId = `image-stream-level-${level.level}`;
+    view.dataset.testId = `image-pyramid-level-${level.level}`;
     canvases.set(level.level, view);
     const ordered = [...canvases.entries()]
       .sort((a, b) => b[0] - a[0])

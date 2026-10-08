@@ -32,11 +32,11 @@ availability are independent; errors remain attached to the affected series.
 Unknown height datum remains explicit. Source-Z inspection requires the existing
 development-only opt-in, without guessing a datum conversion.
 
-## Image streaming ownership
+## Image pyramid ownership
 
-Image grid parsing, physical-resolution refinement, compressed range persistence and canvas/worker pooling have moved to the standalone Nx project `libraries/commons/image-streaming` (`@carma-commons/image-streaming`). That library replaces the former feature-local image decoder and pool modules; there are no forwarding copies here. Stories remain central in `playgrounds/stories`.
+Image grid parsing, physical-resolution refinement, compressed range persistence and canvas/worker pooling have moved to the standalone Nx project `libraries/commons/image-pyramid` (`@carma-commons/image-pyramid`). That library replaces the former feature-local image decoder and pool modules; there are no forwarding copies here. Stories remain central in `playgrounds/stories`.
 
-The oblique feature owns scene projection and photo/camera geometry. Its preview adapter supplies source-pixel crops and physical target sizes to the shared image API. AVIF and JPEG refine only as far as the physical viewport requires; finer compressed data can be prewarmed on idle without allocating a full-photo canvas. See the streaming library README for cache limits, optional TIFF codecs and memory-measurement scope.
+The oblique feature owns scene projection and photo/camera geometry. Its preview adapter supplies source-pixel crops and physical target sizes to the shared image API. AVIF and JPEG refine only as far as the physical viewport requires; finer compressed data can be prewarmed on idle without allocating a full-photo canvas. See the image pyramid library README for cache limits, optional TIFF codecs and memory-measurement scope.
 
 ## Selection and navigation
 

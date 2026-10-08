@@ -1,5 +1,5 @@
 import type { Map as MaplibreMap } from "maplibre-gl";
-import { ImageViewportPool, type ImageViewportHandle, type ImageViewportSnapshot } from "@carma-commons/image-streaming";
+import { ImageViewportPool, type ImageViewportHandle, type ImageViewportSnapshot } from "@carma-commons/image-pyramid";
 import { acquireSharedThreeScene, getSharedThreeSceneRuntimes } from "@carma-mapping/engines/maplibre";
 import { LinearFilter, Matrix3, Matrix4, SRGBColorSpace, Texture } from "three";
 import type { DevicePixels } from "@carma-units";

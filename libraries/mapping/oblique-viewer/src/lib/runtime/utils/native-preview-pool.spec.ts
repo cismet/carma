@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { DevicePixels, Ratio } from "@carma-units";
-vi.mock("@carma-commons/image-streaming", () => ({ ImageLevelStackPool: class {} }));
+vi.mock("@carma-commons/image-pyramid", () => ({ ImageLevelStackPool: class {} }));
 vi.mock("./tiff-download", () => ({ downloadTiffJpeg: vi.fn() }));
 import { fitNativePreviewView, lastNativePreviewView, nativePreviewSource, rememberNativePreviewView } from "./native-preview-pool";
 

@@ -18,7 +18,7 @@ import {
   type Ratio,
 } from "@carma-units";
 import { nativePreviewTextureTransform } from "../../core/utils/native-preview-window";
-import type { NativePreviewWindow } from "@carma-commons/image-streaming";
+import type { NativePreviewWindow } from "@carma-commons/image-pyramid";
 import type {
   ObliqueBackdropLook,
   ObliqueCameraCalibration,

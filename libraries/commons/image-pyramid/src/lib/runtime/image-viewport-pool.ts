@@ -222,7 +222,7 @@ const workerBytes = (entry: Entry) =>
 
 /** Shares the production decoder, latest ROI and bounded parked workers across images.
  * Decoded pixels stay owned here; callers must neither transfer nor close snapshot bitmaps.
- * See Libraries/Image streaming stories for direct AVIF and legacy JPEG examples.
+ * See Libraries/Image pyramid stories for direct AVIF and legacy JPEG examples.
  */
 export class ImageViewportPool {
   private readonly entries = new Map<string, Entry>();

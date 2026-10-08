@@ -50,9 +50,9 @@ const streaming = vi.hoisted(() => ({
   ready: Promise.resolve({}) as Promise<unknown>,
   texture: { isTexture: true },
 }));
-vi.mock("@carma-commons/image-streaming", async (importOriginal) => {
+vi.mock("@carma-commons/image-pyramid", async (importOriginal) => {
   const actual = await importOriginal<
-    typeof import("@carma-commons/image-streaming")
+    typeof import("@carma-commons/image-pyramid")
   >();
   const stack = {
     get ready() {

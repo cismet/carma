@@ -5,7 +5,7 @@ const mock = vi.hoisted(() => ({
   read: vi.fn(),
   close: vi.fn(),
 }));
-vi.mock("@carma-commons/image-streaming", () => ({
+vi.mock("@carma-commons/image-pyramid", () => ({
   AvifPyramidPreviewSource: class {
     select = mock.select;
     read = mock.read;

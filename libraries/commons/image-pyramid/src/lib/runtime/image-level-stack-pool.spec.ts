@@ -2,7 +2,7 @@ import type { DevicePixels, Ratio } from "@carma-units";
 import type { ImageView } from "../core/image-level-plan";
 import {
   ImageLevelStackPool,
-  type ImageStreamSource,
+  type ImagePyramidSource,
 } from "./image-level-stack-pool";
 import type {
   ImagePyramid,
@@ -35,7 +35,7 @@ const view = (x = 0): ImageView => ({
   },
   density: 0.5 as Ratio,
 });
-const descriptor = (id: string): ImageStreamSource => ({
+const descriptor = (id: string): ImagePyramidSource => ({
   id,
   kind: "avif",
   url: `https://example.invalid/${id}.avif`,
@@ -131,7 +131,7 @@ const setup = (
       idlePrefetch: "none",
       ringTiles: 0,
       decodeFinerAt: Infinity,
-      floorEdge: 256,
+      minLevelEdge: 256 as DevicePixels,
       zoomOutFactor: 1,
       foveaRadius: null,
       decodedBudget,
@@ -358,22 +358,28 @@ describe("ImageLevelStackPool foreground-priority prewarming", () => {
     }
   });
   it("does not abort an unfinished foreground fetch when a forecast is queued", async () => {
-    const { pool, sources } = setup((source, id) => { if (id === "active") source.hold.add("fetch"); });
+    const { pool, sources } = setup((source, id) => {
+      if (id === "active") source.hold.add("fetch");
+    });
     try {
       const active = pool.acquire(descriptor("active"));
-      active.stack.setView(view(), 512 ** 2); await settle();
+      active.stack.setView(view(), 512 ** 2);
+      await settle();
       const source = sources.get("active")!;
       const ongoing = source.fetches.map((request) => request.signal);
       expect(ongoing.length).toBeGreaterThan(0);
       const pauses = source.pauses;
-      pool.prewarm(descriptor("warm"), view(), 512 ** 2); await settle();
+      pool.prewarm(descriptor("warm"), view(), 512 ** 2);
+      await settle();
       expect(source.pauses).toBe(pauses);
       expect(ongoing.every((signal) => !signal.aborted)).toBe(true);
       expect(sources.has("warm")).toBe(false);
-      source.release("fetch"); await settle();
+      source.release("fetch");
+      await settle();
       expect(active.stack.metrics.visibleReady).toBe(true);
       expect(sources.has("warm")).toBe(true);
-    } finally { pool.dispose(); }
+    } finally {
+      pool.dispose();
+    }
   });
-
 });

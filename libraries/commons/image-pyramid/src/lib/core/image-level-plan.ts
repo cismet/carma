@@ -59,7 +59,8 @@ export type ImageTileWant = Readonly<{
 export type ImageLevelPlan = Readonly<{
   target: number;
   underlay: number | null;
-  floor: number | null;
+  /** Coarsest used level, pinned whole. */
+  floor: number;
   finer: number | null;
   /** Bottom-to-top draw order; only resident tiles are drawn. */
   layers: readonly number[];
@@ -73,8 +74,11 @@ export type ImageLevelPlanOptions = Readonly<{
   ringTiles?: number;
   /** Upscale tolerated on the target before switching to the next finer level. */
   maxUpscale?: number;
-  /** The finest level whose long edge fits this becomes the pinned floor. */
-  floorEdge?: number;
+  /**
+   * Levels with a shorter long edge are not used; the coarsest remaining level is
+   * the pinned floor. Default one tile (512): smaller levels add nothing over it.
+   */
+  minLevelEdge?: DevicePixels;
   /**
    * Decode next-finer tiles once the target is displayed at this scale or larger.
    * Default 0: always, as the lowest decoded priority within the budget.
@@ -150,6 +154,20 @@ export const missingNeighbors = (
   (row > 0 && !resident(col, row - 1) ? 4 : 0) |
   (row + 1 < level.rows && !resident(col, row + 1) ? 8 : 0);
 
+const DEFAULT_MIN_LEVEL_EDGE = 512 as DevicePixels;
+
+/** Levels the stack uses, finest first; the finest level always stays. */
+export const usedImageLevels = (
+  levels: readonly ImageLevel[],
+  minLevelEdge: DevicePixels = DEFAULT_MIN_LEVEL_EDGE
+): ImageLevel[] => {
+  const ordered = [...levels].sort((a, b) => a.level - b.level);
+  const used = ordered.filter(
+    (level) => Math.max(level.width, level.height) >= minLevelEdge
+  );
+  return used.length ? used : ordered.slice(0, 1);
+};
+
 /** Coarsest level that is not upscaled; the finest level once zoomed past it. */
 export const targetLevel = (
   levels: readonly ImageLevel[],
@@ -192,7 +210,7 @@ const expand = (
 /**
  * Plan which tiles of which pyramid levels must be local or decoded for one view.
  * The target is never upscaled, its parent underlays holes, coarser levels are
- * cheap zoom-out cover, and the floor is a whole small level pinned for the image.
+ * cheap zoom-out cover, and the coarsest used level is the floor, pinned whole.
  */
 export const planImageLevels = (
   levels: readonly ImageLevel[],
@@ -202,8 +220,8 @@ export const planImageLevels = (
 ): ImageLevelPlan => {
   if (!levels.length) throw new RangeError("Image pyramid has no levels");
   const ring = options.ringTiles ?? 1;
-  const byIndex = new Map(levels.map((level) => [level.level, level]));
-  const ordered = [...levels].sort((a, b) => a.level - b.level);
+  const ordered = usedImageLevels(levels, options.minLevelEdge);
+  const byIndex = new Map(ordered.map((level) => [level.level, level]));
   const coarser = (level: number) =>
     ordered.find((candidate) => candidate.level > level) ?? null;
   const finerOf = (level: number) =>
@@ -212,16 +230,9 @@ export const planImageLevels = (
     const entry = byIndex.get(level);
     return entry ? view.density * levelToNative(entry, native).x : NaN;
   };
-  const target = targetLevel(levels, native, view.density, options.maxUpscale);
+  const target = targetLevel(ordered, native, view.density, options.maxUpscale);
   const underlay = coarser(target.level);
-  const floorEdge = options.floorEdge ?? 1024;
-  const floorCandidate =
-    ordered.find((level) => Math.max(level.width, level.height) <= floorEdge) ??
-    ordered[ordered.length - 1];
-  const floor =
-    floorCandidate.level > (underlay?.level ?? target.level)
-      ? floorCandidate
-      : null;
+  const floor = ordered[ordered.length - 1];
   const finer = finerOf(target.level);
   const focus = view.focus ?? {
     x: view.visible.x + view.visible.width / 2,
@@ -281,7 +292,7 @@ export const planImageLevels = (
     row0: 0,
     row1: level.rows,
   });
-  if (floor) add(floor, all(floor), "floor", 0, true);
+  add(floor, all(floor), "floor", 0, true);
   if (visible) {
     if (underlay)
       add(
@@ -314,7 +325,7 @@ export const planImageLevels = (
     // The underlay and every coarser bridge level cover a zoom-out by zoomOutFactor.
     for (
       let level: ImageLevel | null = underlay;
-      level && zoomOut && (!floor || level.level < floor.level);
+      level && zoomOut && level.level < floor.level;
       level = coarser(level.level)
     )
       add(level, tileRangeFor(level, native, zoomOut), "zoom-out", 6, true);
@@ -342,23 +353,26 @@ export const planImageLevels = (
     decodedBytes += want.bytes;
     return want;
   });
+  // The floor may be the underlay or the target itself; draw each level once.
   const layers = [
-    ...(floor ? [floor.level] : []),
-    ...ordered
-      .filter(
-        (level) =>
-          level.level > (underlay?.level ?? target.level) &&
-          (!floor || level.level < floor.level)
-      )
-      .map((level) => level.level)
-      .reverse(),
-    ...(underlay ? [underlay.level] : []),
-    target.level,
+    ...new Set([
+      floor.level,
+      ...ordered
+        .filter(
+          (level) =>
+            level.level > (underlay?.level ?? target.level) &&
+            level.level < floor.level
+        )
+        .map((level) => level.level)
+        .reverse(),
+      ...(underlay ? [underlay.level] : []),
+      target.level,
+    ]),
   ];
   return {
     target: target.level,
     underlay: underlay?.level ?? null,
-    floor: floor?.level ?? null,
+    floor: floor.level,
     finer: finer?.level ?? null,
     layers,
     scale,

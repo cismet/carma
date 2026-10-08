@@ -1,4 +1,4 @@
-import type { ImageViewportSource } from "@carma-commons/image-streaming";
+import type { ImageViewportSource } from "@carma-commons/image-pyramid";
 import type { ObliqueDataset, ObliqueImageRecord } from "../../core/types";
 import { getCameraCalibration } from "../../core/utils/calibration";
 import { getPreviewImageUrl } from "./imageUrls";

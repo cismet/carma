@@ -6,7 +6,7 @@ import type {
   ImageViewportSnapshot,
   ImageViewportSource,
   NativePreviewWindow,
-} from "@carma-commons/image-streaming";
+} from "@carma-commons/image-pyramid";
 import {
   createPhotoRotationDrape,
   type PhotoRotationDrape,
@@ -27,7 +27,7 @@ const fixtures = vi.hoisted(() => ({
   releaseOrder: [] as string[],
   poolDispose: vi.fn(),
 }));
-vi.mock("@carma-commons/image-streaming", () => ({
+vi.mock("@carma-commons/image-pyramid", () => ({
   ImageViewportPool: class {
     acquire(source: ImageViewportSource) {
       return fixtures.acquire(source);

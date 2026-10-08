@@ -73,6 +73,29 @@ describe("image level plan", () => {
     expect(plan.wants[0].role).toBe("floor");
   });
 
+  it("skips levels shorter than one tile and pins the coarsest used level", () => {
+    // Fit view: L4 is the target, so L5 is both underlay and floor.
+    const fit = planImageLevels(levels, native, viewAt(6368, 9568, 0.0434));
+    expect([fit.target, fit.underlay, fit.floor]).toEqual([4, 5, 5]);
+    expect(fit.layers).toEqual([5, 4]);
+    expect(fit.wants.some((want) => want.level > 5)).toBe(false);
+    expect(
+      fit.wants.filter((want) => want.level === 5).map((want) => want.role)
+    ).toEqual(["floor", "floor"]);
+    // A thumbnail would target L6; the floor is shown downscaled instead.
+    const thumbnail = planImageLevels(levels, native, viewAt(6368, 9568, 0.01));
+    expect([thumbnail.target, thumbnail.underlay]).toEqual([5, null]);
+    expect(thumbnail.layers).toEqual([5]);
+  });
+
+  it("uses every level with a zero minimum edge", () => {
+    const plan = planImageLevels(levels, native, viewAt(6368, 9568, 0.01), {
+      minLevelEdge: 0 as DevicePixels,
+    });
+    expect([plan.target, plan.underlay, plan.floor]).toEqual([6, 7, 8]);
+    expect(plan.layers).toEqual([8, 7, 6]);
+  });
+
   it("orders underlay before target and target center-out before rings", () => {
     const plan = planImageLevels(levels, native, viewAt(6000, 9000, 0.3));
     const roles = plan.wants.map((want) => want.role);

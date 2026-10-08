@@ -20,7 +20,7 @@ import {
   ImageViewportPool,
   type ImageViewportHandle,
   type NativePreviewWindow,
-} from "@carma-commons/image-streaming";
+} from "@carma-commons/image-pyramid";
 import { PREVIEW_QUALITY, type PreviewQualityLevel } from "../core/constants";
 import { useProgressivePreviewSource } from "./hooks/useProgressivePreviewSource";
 import { usePrefetchedPreviewThumbnail } from "./hooks/usePrefetchedPreviewThumbnail";
