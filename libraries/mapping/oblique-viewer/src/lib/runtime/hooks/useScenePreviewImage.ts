@@ -510,6 +510,15 @@ export const useScenePreviewImage = ({
     };
   }, [map, id]);
 
+  // MapLibre draws point labels above the shared scene and over the photograph.
+  // The labels option hides them together with the draped labels it masks.
+  useEffect(() => {
+    if (!shown || showBasemapLabels) return undefined;
+    const lease = acquireSharedThreeScene(map);
+    lease.setPointLabelOverlayVisible(false);
+    return () => lease.release();
+  }, [map, shown, showBasemapLabels]);
+
   // Prop changes invalidate content, while camera changes are sampled by the same-frame callback.
   useEffect(() => {
     map.triggerRepaint();

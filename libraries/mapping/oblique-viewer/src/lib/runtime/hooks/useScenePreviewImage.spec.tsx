@@ -13,10 +13,12 @@ const shared = vi.hoisted(() => ({
   callback: null as ((frame: SharedThreeSceneFrame) => void) | null,
   setOverlay: vi.fn(),
   release: vi.fn(),
+  setPointLabels: vi.fn(),
 }));
 vi.mock("@carma-mapping/engines/maplibre", () => ({
   acquireSharedThreeScene: () => ({
     release: shared.release,
+    setPointLabelOverlayVisible: shared.setPointLabels,
     layer: {
       setMapStyleScreenOverlay: shared.setOverlay,
       addBeforeRenderCallback: (
@@ -83,6 +85,21 @@ const setup = () => {
 };
 
 describe("shared-frame preview image", () => {
+  it("hides the 3D point labels with the draped labels while the photo is shown", () => {
+    const { options } = setup();
+    shared.setPointLabels.mockClear();
+    const hook = renderHook((props) => useScenePreviewImage(props), {
+      initialProps: { ...options, showBasemapLabels: true },
+    });
+    expect(shared.setPointLabels).not.toHaveBeenCalled();
+    const releases = shared.release.mock.calls.length;
+    hook.rerender({ ...options, showBasemapLabels: false });
+    expect(shared.setPointLabels).toHaveBeenCalledWith(false);
+    hook.rerender({ ...options, showBasemapLabels: true });
+    expect(shared.release.mock.calls.length).toBe(releases + 1);
+    hook.unmount();
+  });
+
   it("uses the final normalized render camera and physical viewport before drawing", () => {
     const { map, options, camera, frame } = setup();
     const geometry = vi.fn();
