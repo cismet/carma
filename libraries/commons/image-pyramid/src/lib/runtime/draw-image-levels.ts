@@ -1,6 +1,7 @@
 import type { DevicePixels } from "@carma-units";
 import {
   imageTileRect,
+  levelToNative,
   missingNeighbors,
   tileRangeFor,
   type ImageRect,
@@ -89,10 +90,14 @@ export const drawImageLevels = (
   };
   const feather = options.featherPx ?? 0;
   context.imageSmoothingEnabled = true;
-  context.imageSmoothingQuality = "low";
   plan.layers.forEach((index, layer) => {
     const level = pyramid.levels.find((candidate) => candidate.level === index);
     if (!level) return;
+    // Below half size bilinear sampling skips pixels and aliases; the higher
+    // quality filters through mipmaps. Only a thumbnail's floor gets there.
+    const quality: ImageSmoothingQuality =
+      transform.scale * levelToNative(level, native).x < 0.5 ? "high" : "low";
+    context.imageSmoothingQuality = quality;
     const range = tileRangeFor(level, native, visible);
     const resident = (col: number, row: number) =>
       stack.isResident(index, col, row);
@@ -129,7 +134,7 @@ export const drawImageLevels = (
         const staging = scratchContext(width, height);
         staging.globalCompositeOperation = "copy";
         staging.imageSmoothingEnabled = true;
-        staging.imageSmoothingQuality = "low";
+        staging.imageSmoothingQuality = quality;
         staging.drawImage(bitmap, 0, 0, sw, sh, 0, 0, width, height);
         fadeEdges(staging, mask, width, height, feather);
         context.drawImage(

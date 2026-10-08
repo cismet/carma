@@ -88,6 +88,44 @@ describe("image level plan", () => {
     expect(thumbnail.layers).toEqual([5]);
   });
 
+  it("keeps the visible target tiles of a thumbnail whose target is the floor", () => {
+    const thumbnail = planImageLevels(levels, native, viewAt(6368, 9568, 0.01));
+    expect(thumbnail.target).toBe(thumbnail.floor);
+    // The floor pass planned them first, so no want carries a target role.
+    expect(
+      thumbnail.wants
+        .filter((want) => want.level === thumbnail.target)
+        .map((want) => want.role)
+    ).toEqual(["floor", "floor"]);
+    expect(thumbnail.visibleTarget).toEqual({
+      level: 5,
+      col0: 0,
+      col1: 1,
+      row0: 0,
+      row1: 2,
+    });
+  });
+
+  it("spans exactly the target wants with the visible target range", () => {
+    const plan = planImageLevels(levels, native, viewAt(6000, 9000, 0.3), {
+      foveaRadius: 0.3,
+    });
+    const range = plan.visibleTarget!;
+    const keys: string[] = [];
+    for (let row = range.row0; row < range.row1; row++)
+      for (let col = range.col0; col < range.col1; col++)
+        keys.push(imageTileKey(range.level, col, row));
+    expect(range.level).toBe(plan.target);
+    expect(keys.sort()).toEqual(
+      plan.wants
+        .filter(
+          (want) => want.role === "target" || want.role === "target-periphery"
+        )
+        .map((want) => want.key)
+        .sort()
+    );
+  });
+
   it("uses every level with a zero minimum edge", () => {
     const plan = planImageLevels(levels, native, viewAt(6368, 9568, 0.01), {
       minLevelEdge: 0 as DevicePixels,

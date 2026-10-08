@@ -62,6 +62,11 @@ export type ImageLevelPlan = Readonly<{
   /** Coarsest used level, pinned whole. */
   floor: number;
   finer: number | null;
+  /**
+   * Target-level tiles inside the visible rectangle, whatever role planned them:
+   * when the target is the floor they are floor wants. Null when nothing is visible.
+   */
+  visibleTarget: ImageTileRange | null;
   /** Bottom-to-top draw order; only resident tiles are drawn. */
   layers: readonly number[];
   /** Physical display pixels per level pixel. */
@@ -293,7 +298,8 @@ export const planImageLevels = (
     row1: level.rows,
   });
   add(floor, all(floor), "floor", 0, true);
-  if (visible) {
+  const visibleTarget = visible ? tileRangeFor(target, native, visible) : null;
+  if (visible && visibleTarget) {
     if (underlay)
       add(
         underlay,
@@ -302,7 +308,8 @@ export const planImageLevels = (
         1,
         true
       );
-    add(target, tileRangeFor(target, native, visible), "target", 2, true);
+    // Skipped when the target is the floor: its tiles keep the floor role.
+    add(target, visibleTarget, "target", 2, true);
     if (underlay)
       add(
         underlay,
@@ -374,6 +381,7 @@ export const planImageLevels = (
     underlay: underlay?.level ?? null,
     floor: floor.level,
     finer: finer?.level ?? null,
+    visibleTarget,
     layers,
     scale,
     wants: planned,

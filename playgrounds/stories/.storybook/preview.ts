@@ -171,7 +171,7 @@ const preview: Preview = {
             ],
           ],
           "Libraries",
-          ["Image streaming", "*"],
+          ["Image pyramid", "*"],
           "*",
         ],
       },

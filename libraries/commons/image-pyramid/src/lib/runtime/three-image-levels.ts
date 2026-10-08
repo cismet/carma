@@ -3,6 +3,7 @@ import type { DevicePixels } from "@carma-units";
 import {
   imageTileKey,
   imageTileRect,
+  levelToNative,
   missingNeighbors,
   tileRangeFor,
   type ImageRect,
@@ -41,6 +42,20 @@ void main() {
   #include <colorspace_fragment>
 }`;
 const CAPACITY_STEP = 256;
+
+/** Mipmaps only where minification aliases; they would soften levels drawn at 0.5..1. */
+const tileTexture = (bitmap: ImageBitmap, mipmaps: boolean) => {
+  const texture = new THREE.Texture(bitmap);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.minFilter = mipmaps
+    ? THREE.LinearMipmapLinearFilter
+    : THREE.LinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.generateMipmaps = mipmaps;
+  texture.flipY = false;
+  texture.needsUpdate = true;
+  return texture;
+};
 
 /**
  * Same-frame GPU composition of resident pyramid tiles into a render target or
@@ -234,6 +249,10 @@ export class ThreeImageLevels {
         (candidate) => candidate.level === index
       );
       if (!level) return;
+      // Below half size bilinear sampling skips texels and aliases. Only a
+      // thumbnail's floor gets there, so re-uploading its few tiles is cheap.
+      const mipmaps =
+        pixelsPerNative * levelToNative(level, pyramid.native).x < 0.5;
       const range = tileRangeFor(level, pyramid.native, rect);
       const resident = (col: number, row: number) =>
         stack.isResident(index, col, row);
@@ -243,14 +262,9 @@ export class ThreeImageLevels {
           if (!bitmap) continue;
           const key = imageTileKey(index, col, row);
           let texture = this.textures.get(key);
-          if (!texture) {
-            texture = new THREE.Texture(bitmap);
-            texture.colorSpace = THREE.SRGBColorSpace;
-            texture.minFilter = THREE.LinearFilter;
-            texture.magFilter = THREE.LinearFilter;
-            texture.generateMipmaps = false;
-            texture.flipY = false;
-            texture.needsUpdate = true;
+          if (!texture || texture.generateMipmaps !== mipmaps) {
+            texture?.dispose();
+            texture = tileTexture(bitmap, mipmaps);
             this.textures.set(key, texture);
           }
           const tileRect = imageTileRect(level, pyramid.native, col, row);

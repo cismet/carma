@@ -157,6 +157,30 @@ describe("ImageLevelStack", () => {
     expect(stack.metrics.visibleReady).toBe(true);
   });
 
+  it("is not visible-ready before a thumbnail's floor target is resident", async () => {
+    const source = new FakeSource();
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const fetch = source.fetch;
+    source.fetch = async (tiles) => {
+      await held;
+      await fetch(tiles);
+    };
+    const stack = new ImageLevelStack(source, { idlePrefetch: "none" });
+    await stack.ready;
+    stack.setView(view(6368, 9568, 0.01), 1400 * 830);
+    await settle();
+    expect(stack.plan!.target).toBe(stack.plan!.floor);
+    expect(stack.metrics.decodedTiles).toBe(0);
+    expect(stack.metrics.visibleReady).toBe(false);
+    release();
+    await settle();
+    expect(stack.isResident(5, 0, 0) && stack.isResident(5, 0, 1)).toBe(true);
+    expect(stack.metrics.visibleReady).toBe(true);
+  });
+
   it("closes every bitmap on dispose", async () => {
     const source = new FakeSource();
     const stack = new ImageLevelStack(source, { idlePrefetch: "none" });

@@ -5,6 +5,7 @@ import {
   type ImageLevel,
   type ImageLevelPlan,
   type ImageLevelPlanOptions,
+  type ImageTileRange,
   type ImageTileWant,
   type ImageView,
 } from "../core/image-level-plan";
@@ -51,7 +52,7 @@ export type ImageLevelStackMetrics = Readonly<{
   decoding: number;
   target: number | null;
   targetScale: number | null;
-  /** Every visible target tile, or its parent underneath, is decoded. */
+  /** Every visible target tile is decoded, also when the target is the floor. */
   visibleReady: boolean;
 }>;
 type Resident = {
@@ -262,14 +263,18 @@ export class ImageLevelStack {
       decoding: this.decodes,
       target: plan?.target ?? null,
       targetScale: plan ? plan.scale(plan.target) : null,
-      visibleReady:
-        !!plan &&
-        plan.wants.every(
-          (want) =>
-            (want.role !== "target" && want.role !== "target-periphery") ||
-            this.resident.has(want.key)
-        ),
+      visibleReady: !!plan && this.allResident(plan.visibleTarget),
     };
+  }
+
+  /** By tile range, not want role: a thumbnail's target tiles are floor wants. */
+  private allResident(range: ImageTileRange | null) {
+    if (!range) return true;
+    for (let row = range.row0; row < range.row1; row++)
+      for (let col = range.col0; col < range.col1; col++)
+        if (!this.resident.has(imageTileKey(range.level, col, row)))
+          return false;
+    return true;
   }
 
   /** Stop scheduling and shrink to the parked budget, keeping the most useful tiles. */

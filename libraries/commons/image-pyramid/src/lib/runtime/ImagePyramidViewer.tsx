@@ -234,7 +234,7 @@ export const ImagePyramidViewer = ({
       settings.current.onMetrics?.(activePool.metrics);
       if (readout.current) {
         const scale = metrics.targetScale;
-        readout.current.textContent = [
+        const text = [
           stack.error
             ? `Fehler: ${stack.error}`
             : metrics.visibleReady
@@ -254,6 +254,11 @@ export const ImagePyramidViewer = ({
         ]
           .filter(Boolean)
           .join(" · ");
+        // Clipped with an ellipsis in narrow cells; the title keeps the full text.
+        if (readout.current.textContent !== text) {
+          readout.current.textContent = text;
+          readout.current.title = text;
+        }
       }
       const host = levelsHost.current;
       if (!host || !diagnostics) return;
@@ -429,8 +434,20 @@ export const ImagePyramidViewer = ({
             overflowX: "auto",
           }}
         >
-          <div ref={levelsHost} style={{ display: "flex", gap: 4 }} />
-          <output ref={readout} style={{ whiteSpace: "nowrap" }} />
+          <div
+            ref={levelsHost}
+            style={{ display: "flex", gap: 4, flex: "0 0 auto" }}
+          />
+          <output
+            ref={readout}
+            style={{
+              flex: "1 1 auto",
+              minWidth: 0,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          />
         </div>
       )}
     </div>
