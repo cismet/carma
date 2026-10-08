@@ -7,7 +7,7 @@ const mocks = vi.hoisted(() => ({
   read: vi.fn(),
   source: vi.fn(),
 }));
-vi.mock("@carma-commons/image-pyramid", () => ({
+vi.mock("@carma-commons/image-pyramid/decoders", () => ({
   createTiffPreviewSource: async (url: string) => {
     mocks.source(url);
     return { native: mocks.native, read: mocks.read };

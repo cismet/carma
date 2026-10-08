@@ -80,7 +80,7 @@ export const createTiffDownloadJpeg = async (
         "Die Wasserzeichen-Vorlage passt nicht in das Originalbild."
       );
 
-    const { createTiffPreviewSource } = await import("@carma-commons/image-pyramid");
+    const { createTiffPreviewSource } = await import("@carma-commons/image-pyramid/decoders");
     signal.throwIfAborted();
     // Reuse verified bounded ranges, JPEG decoder and compressed-byte cache.
     const source = await createTiffPreviewSource(request.url);
