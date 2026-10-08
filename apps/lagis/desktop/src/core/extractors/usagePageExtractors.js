@@ -25,7 +25,7 @@ export function usageBlockExtractor(dataIn) {
             data.buchungs = buchungs;
             data.anlageklasse = u.anlageklasse?.bezeichnung || "";
             data.anlageklasseKey = u.anlageklasse?.schluessel || "";
-            data.nutzungsart = u.nutzungsart?.bezeichnung || "";
+            data.nutzungsart = u.nutzungsart?.schluessel || "";
             data.bezeichnung = u?.nutzungsart?.bezeichnung || "";
             data.fläche = u.flaeche;
             data.preis = formatPrice(
