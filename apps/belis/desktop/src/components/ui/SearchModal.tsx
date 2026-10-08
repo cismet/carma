@@ -255,6 +255,17 @@ const SearchModalHeader = ({
   </div>
 );
 
+const NOT_DELETED = `_or: [{is_deleted: {_eq: false}}, {is_deleted: {_is_null: true}}]`;
+
+// Standorte optionally carry their (non-deleted) Leuchten so both can be shown.
+const mastFields = (includeLeuchten: boolean) =>
+  includeLeuchten
+    ? `${MAST_FIELDS}
+    leuchtenArray(where: {${NOT_DELETED}}) {
+      ${LEUCHTEN_FIELDS}
+    }`
+    : MAST_FIELDS;
+
 // Build GraphQL where clause from search values
 const buildLeuchteWhereClause = (values: LeuchteSearchValues): string => {
   const conditions: string[] = [];
@@ -495,7 +506,8 @@ const generateQueryString = (
   values: SearchValues,
   whereOverride?: string | null,
   orderByOverride?: string,
-  limitOverride?: string
+  limitOverride?: string,
+  includeLeuchten = false
 ): string => {
   // Assemble the parenthesised query args (where / order_by / limit), dropping
   // empty parts. The overrides come from the expert search — when it is active
@@ -530,7 +542,7 @@ const generateQueryString = (
       whereOverride ?? buildMastWhereClause(values as MastSearchValues);
     return `query MastSearch {
   tdta_standort_mast(${args(whereClause, "order_by: {inbetriebnahme_mast: desc}")}) {
-    ${MAST_FIELDS}
+    ${mastFields(includeLeuchten)}
   }
 }`;
   } else if (searchType === "schaltstelle") {
@@ -716,6 +728,7 @@ const SearchModal = ({
   // When set, a search only loads/highlights its results — the map view is
   // left untouched instead of being fitted to the result bounds.
   const [keepMapPosition, setKeepMapPosition] = useState(false);
+  const [includeLeuchten, setIncludeLeuchten] = useState(false);
   const [queryPreview, setQueryPreview] = useState<string>("");
   const [noResults, setNoResults] = useState(false);
 
@@ -726,6 +739,10 @@ const SearchModal = ({
   // arbeitsauftrag has no scalar filter surface in expert mode; fall back to leuchte.
   const expertObjectType: ObjectType =
     searchType === "arbeitsauftrag" ? "leuchte" : searchType;
+  const effectiveType: SearchType = isExpertSearch
+    ? expertObjectType
+    : searchType;
+  const withLeuchten = includeLeuchten && effectiveType === "mast";
 
   // In expert mode, block the search while any rule is missing its value.
   const expertHasIncompleteRule = useSelector(
@@ -760,9 +777,18 @@ const SearchModal = ({
   // Update query preview when search type changes
   useEffect(() => {
     if (showFinalQuery) {
-      setQueryPreview(generateQueryString(searchType, searchValuesRef.current));
+      setQueryPreview(
+        generateQueryString(
+          searchType,
+          searchValuesRef.current,
+          undefined,
+          undefined,
+          undefined,
+          withLeuchten
+        )
+      );
     }
-  }, [searchType, showFinalQuery]);
+  }, [searchType, showFinalQuery, withLeuchten]);
 
   // Any edit to the criteria invalidates the "Keine Ergebnisse gefunden"
   // message, which frees the footer slot for the checkbox again.
@@ -775,10 +801,19 @@ const SearchModal = ({
       searchValuesRef.current = values;
       setNoResults(false);
       if (showFinalQuery) {
-        setQueryPreview(generateQueryString(searchType, values));
+        setQueryPreview(
+          generateQueryString(
+            searchType,
+            values,
+            undefined,
+            undefined,
+            undefined,
+            withLeuchten
+          )
+        );
       }
     },
-    [searchType, showFinalQuery]
+    [searchType, showFinalQuery, withLeuchten]
   );
 
   // Generic GraphQL search handler
@@ -795,6 +830,11 @@ const SearchModal = ({
         item: Record<string, unknown>
       ) => Array<[number, number]>;
       getHighlightIds?: (item: Record<string, unknown>) => string[];
+      // Leuchten nested in a result (e.g. a Standort's leuchtenArray), added
+      // to the highlights and the sidebar alongside the result itself.
+      getNestedLeuchten?: (
+        item: Record<string, unknown>
+      ) => Record<string, unknown>[];
       logPrefix?: string;
       // Sort spec the query used (empty for classic searches). Passed through
       // in the `onSearchResults` meta so the sidebar can order its rows the
@@ -809,6 +849,7 @@ const SearchModal = ({
         getGeometry,
         getAllGeometries,
         getHighlightIds,
+        getNestedLeuchten,
         logPrefix = "[SEARCH]",
         expertSort = [],
       } = options;
@@ -870,6 +911,12 @@ const SearchModal = ({
               .filter(Boolean);
             highlightArray = ids.map((id: string) => `${featurePrefix}:${id}`);
           }
+          const nestedLeuchten = getNestedLeuchten
+            ? (results as Record<string, unknown>[]).flatMap(getNestedLeuchten)
+            : [];
+          highlightArray.push(
+            ...nestedLeuchten.map((l) => `leuchten:${String(l.id)}`)
+          );
           clearHighlights();
           setHighlightingActive(true);
           highlightByIds(highlightArray);
@@ -913,6 +960,13 @@ const SearchModal = ({
               forSearchType,
               namespacedSource
             );
+            sidebarFeatures.push(
+              ...convertResultsToSidebarFeatures(
+                nestedLeuchten,
+                "leuchte",
+                namespacedSource
+              )
+            );
             onSearchResults(sidebarFeatures, { expertSort });
           }
 
@@ -943,9 +997,6 @@ const SearchModal = ({
     // In expert mode the where clause comes from the query builder (redux),
     // and the query targets the object type behind the tab (arbeitsauftrag →
     // leuchte, which has no scalar filter surface of its own).
-    const effectiveType: SearchType = isExpertSearch
-      ? expertObjectType
-      : searchType;
     const expertWhere = isExpertSearch
       ? buildExpertWhereClause(expertTypeState, REGISTRY[expertObjectType])
       : null;
@@ -1126,7 +1177,7 @@ const SearchModal = ({
           whereClause,
           "order_by: {inbetriebnahme_mast: desc}"
         )}) {
-          ${MAST_FIELDS}
+          ${mastFields(withLeuchten)}
         }
       }`;
 
@@ -1137,6 +1188,9 @@ const SearchModal = ({
         forSearchType: "mast",
         logPrefix: "[MAST_SEARCH]",
         expertSort,
+        getNestedLeuchten: withLeuchten
+          ? (item) => (item.leuchtenArray as Record<string, unknown>[]) ?? []
+          : undefined,
         getGeometry: (item) => {
           const geom = item.geom_84 as { x?: number; y?: number } | undefined;
           if (geom?.x == null || geom?.y == null) return undefined;
@@ -1220,7 +1274,8 @@ const SearchModal = ({
       });
     }
   }, [
-    searchType,
+    effectiveType,
+    withLeuchten,
     isExpertSearch,
     expertObjectType,
     expertTypeState,
@@ -1288,7 +1343,8 @@ const SearchModal = ({
                       expertTypeState,
                       REGISTRY[expertObjectType]
                     ),
-                    buildExpertLimit(expertTypeState)
+                    buildExpertLimit(expertTypeState),
+                    withLeuchten
                   )
                 );
               }
@@ -1314,6 +1370,16 @@ const SearchModal = ({
               {noResults && <span>Keine Ergebnisse gefunden</span>}
             </div>
             <div className="flex items-center gap-3">
+              {effectiveType === "mast" && (
+                <Checkbox
+                  checked={includeLeuchten}
+                  onChange={(e) => setIncludeLeuchten(e.target.checked)}
+                >
+                  <span className="text-sm text-gray-500">
+                    Leuchten einbeziehen
+                  </span>
+                </Checkbox>
+              )}
               <Checkbox
                 checked={keepMapPosition}
                 onChange={(e) => setKeepMapPosition(e.target.checked)}
