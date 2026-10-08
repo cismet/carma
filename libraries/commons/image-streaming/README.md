@@ -23,6 +23,27 @@ Streams very large photographs from tiled pyramids and draws them as a transpare
   - Idle time prefetches compressed bytes: the next finer level, then the rest of the pyramid. All work stops when an image is parked or disposed.
 - **Pool** (`ImageLevelStackPool`). Up to `maxImages` stacks. Released images park to a small budget, floor first, so flipping back is immediate.
 
+## Navigation prewarming
+
+`pool.prewarm(source, view, physicalViewportPixels)` reserves one predicted image
+in the display pool and returns a generation-safe cancellation lease. It waits
+until every active stack has its visible target tiles before opening the source.
+The forecast fetches only its floor, underlay and visible target, at low priority,
+with one fetch batch and one decode at a time. It does not scan the next image's
+whole pyramid. Metadata requests use the same low priority.
+
+Changing an active view suspends forecast scheduling and aborts its downloads;
+decoded tiles remain resident. An already executing native decode may finish,
+but its cancelled result is discarded and no further forecast decode is started.
+An unopened forecast is disposed to cancel metadata traffic too. After it is
+ready, the active image resumes its own rings and idle prefetch.
+
+`acquire` promotes the same forecast stack without parking or discarding its
+tiles. The one forecast has a separate bounded decoded budget (96 MiB by default),
+so the ordinary 8 MiB parked budget cannot immediately erase the work. Cancelling
+or replacing the prediction restores ordinary parking. Multiple acquired stacks
+can render together during a blend; any missing active target blocks the forecast.
+
 ## Sources
 
 - **AVIF** (`AvifTileSource`). Single-file independent pyramid: an AVIF per level, a UUID index box and absolute per-cell tables.

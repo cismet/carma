@@ -9,6 +9,14 @@ import {
 } from "../core/image-level-plan";
 import type { ImagePyramid, ImageTileSource } from "./image-tile-source";
 
+export const IMAGE_STACK_WORK = {
+  Full: "full",
+  Visible: "visible",
+  Prewarm: "prewarm",
+  Paused: "paused",
+} as const;
+type ImageStackWork = (typeof IMAGE_STACK_WORK)[keyof typeof IMAGE_STACK_WORK];
+
 export type ImageLevelStackOptions = Omit<
   ImageLevelPlanOptions,
   "decodedByteBudget" | "zoomIntent"
@@ -91,6 +99,7 @@ export class ImageLevelStack {
     (key: string, bitmap: ImageBitmap) => void
   >();
   private active = true;
+  private work: ImageStackWork = IMAGE_STACK_WORK.Full;
   private disposed = false;
   error: string | null = null;
 
@@ -154,6 +163,24 @@ export class ImageLevelStack {
       this.controller = new AbortController();
     }
     this.replan();
+  }
+
+  /** Pool admission, independent of visibility and decoded residency. */
+  setWork(work: ImageStackWork) {
+    if (this.disposed || this.work === work) return;
+    const previous = this.work;
+    this.work = work;
+    if (work !== IMAGE_STACK_WORK.Paused)
+      this.source.priority = work === IMAGE_STACK_WORK.Prewarm ? "low" : "high";
+    // Restricting work interrupts speculative traffic. Promotion keeps its
+    // in-flight target requests and already decoded tiles intact.
+    if (work === IMAGE_STACK_WORK.Paused ||
+        (previous === IMAGE_STACK_WORK.Full && work !== IMAGE_STACK_WORK.Full)) {
+      this.controller.abort();
+      this.source.pause();
+      this.controller = new AbortController();
+    }
+    this.pump();
   }
 
   /** Change planning options, e.g. foveation, for the next and current view. */
@@ -286,8 +313,9 @@ export class ImageLevelStack {
     this.idleQueue = null;
     this.skipped.clear();
     this.trim(this.budgetBytes);
-    this.pump();
+    // Let the pool suspend background work before admitting this view's demand.
     this.emit();
+    this.pump();
   }
 
   private rankByPlan() {
@@ -328,10 +356,15 @@ export class ImageLevelStack {
 
   private pump() {
     const plan = this.planValue;
-    if (!plan || !this.active || this.disposed) return;
-    const maxDecodes = this.options.maxDecodes ?? 4;
-    const maxFetches = this.options.maxFetches ?? 3;
-    for (const want of plan.wants) {
+    if (!plan || !this.active || this.disposed || this.work === IMAGE_STACK_WORK.Paused) return;
+    const warming = this.work === IMAGE_STACK_WORK.Prewarm;
+    const maxDecodes = warming ? 1 : this.options.maxDecodes ?? 4;
+    const maxFetches = warming ? 1 : this.options.maxFetches ?? 3;
+    const wants = this.work === IMAGE_STACK_WORK.Full ? plan.wants : plan.wants.filter(
+      (want) => want.role === "floor" || want.role === "underlay" ||
+        want.role === "target" || want.role === "target-periphery"
+    );
+    for (const want of wants) {
       if (this.decodes >= maxDecodes) break;
       if (
         !want.decode ||
@@ -343,11 +376,11 @@ export class ImageLevelStack {
       if (this.source.hasBytes(want)) this.decode(want);
     }
     while (this.fetches < maxFetches) {
-      const batch = this.nextBatch(plan.wants);
+      const batch = this.nextBatch(wants);
       if (!batch.length) break;
-      this.fetch(batch, batch[0].priority >= 7 * CATEGORY ? "low" : "high");
+      this.fetch(batch, warming || batch[0].priority >= 7 * CATEGORY ? "low" : "high");
     }
-    if (!this.fetches && !this.decodes) this.idle();
+    if (this.work === IMAGE_STACK_WORK.Full && !this.fetches && !this.decodes) this.idle();
   }
 
   private needsBytes(want: ImageTileWant) {

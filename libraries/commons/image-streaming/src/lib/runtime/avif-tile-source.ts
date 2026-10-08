@@ -76,6 +76,7 @@ const tileKey = ({ level, col, row }: ImageTileRef) => `${level}:${col}:${row}`;
  */
 export class AvifTileSource implements ImageTileSource {
   readonly kind = "avif" as const;
+  priority: "high" | "low" = "high";
   private version: string | null = null;
   private head: Uint8Array | null = null;
   private pyramid: Promise<ImagePyramid> | null = null;
@@ -514,7 +515,7 @@ export class AvifTileSource implements ImageTileSource {
       headers: { Range: `bytes=${offset}-${offset + length - 1}` },
       cache: options.revalidate ? "no-cache" : "default",
       signal,
-      priority: options.priority ?? "high",
+      priority: options.priority ?? this.priority,
     });
     if (response.status !== 206) {
       await response.body?.cancel();

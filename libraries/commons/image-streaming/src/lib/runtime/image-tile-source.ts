@@ -14,6 +14,8 @@ export type ImageTileRef = Readonly<{
 export interface ImageTileSource {
   readonly kind: "avif" | "jpeg";
   readonly url: string;
+  /** Pool priority also applies to metadata/header requests. */
+  priority?: "high" | "low";
   open(signal: AbortSignal): Promise<ImagePyramid>;
   /** Compressed bytes are in RAM; decoding needs no request. */
   hasBytes(tile: ImageTileRef): boolean;

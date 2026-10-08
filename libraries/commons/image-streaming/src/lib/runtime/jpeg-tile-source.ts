@@ -20,6 +20,7 @@ const DECODE_WINDOW_MS = 400;
  */
 export class JpegTileSource implements ImageTileSource {
   readonly kind = "jpeg" as const;
+  priority: "high" | "low" = "high";
   private pyramid: Promise<ImagePyramid> | null = null;
   private readonly blobs = new Map<number, Blob>();
   private readonly loading = new Map<number, Promise<Blob>>();
@@ -129,6 +130,7 @@ export class JpegTileSource implements ImageTileSource {
           this.requests++;
           const response = await fetch(this.levelUrl(level), {
             headers: { Range: `bytes=0-${HEADER_BYTES - 1}` },
+            priority: this.priority,
             signal,
           });
           if (!response.ok) {
