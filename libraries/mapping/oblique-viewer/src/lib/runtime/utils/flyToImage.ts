@@ -296,6 +296,7 @@ export const settleToPitch = (
     padding = map.getPadding(),
     maxZoom = map.getMaxZoom(),
     durationMs = 450,
+    easing = Easing.CUBIC_IN_OUT,
     bearingDeg,
     anchor,
     screenPoint,
@@ -313,6 +314,7 @@ export const settleToPitch = (
     padding?: PaddingOptions;
     maxZoom?: number;
     durationMs?: number;
+    easing?: AnimationConfig["easingFunction"];
     bearingDeg?: number;
     anchor?: MercatorCoordinate;
     screenPoint?: { x: number; y: number };
@@ -660,6 +662,25 @@ export const settleToPitch = (
     endViewportPoint.x = ((clip.x / clip.w + 1) * finalFrame.width) / 2;
     endViewportPoint.y = ((1 - clip.y / clip.w) * finalFrame.height) / 2;
   }
+  // Holding the eye, a fit is a pure zoom: one screen point stays fixed and
+  // every other point moves on a straight line through it. Interpolating the
+  // anchor linearly while the scale changes geometrically makes the image drift.
+  const eyeTravel = endEye
+    ? Math.hypot(endEye.x - startEye.x, endEye.y - startEye.y) /
+      startEye.meterInMercatorCoordinateUnits()
+    : Infinity;
+  const endScale = 1 / scaleReduction;
+  const fixedPoint =
+    camera && eyeTravel < startDepth * 0.02 && Math.abs(endScale - 1) > 1e-3
+      ? {
+          x:
+            (endViewportPoint.x - endScale * startViewportPoint.x) /
+            (1 - endScale),
+          y:
+            (endViewportPoint.y - endScale * startViewportPoint.y) /
+            (1 - endScale),
+        }
+      : null;
   map.setCenterClampedToGround(false);
   let resolveDone!: () => void;
   const done = new Promise<void>((resolve) => {
@@ -669,21 +690,29 @@ export const settleToPitch = (
     from: 0,
     to: 1,
     durationMs: capObliqueAnimationDuration(durationMs),
-    easing: Easing.CUBIC_IN_OUT,
+    easing,
     onUpdate: (progress) => {
       const profile = interactionProfile(map);
       const frameStarted = performance.now();
       const frame = from.clone();
-      viewportPoint.x =
-        startViewportPoint.x +
-        (endViewportPoint.x - startViewportPoint.x) * progress;
-      viewportPoint.y =
-        startViewportPoint.y +
-        (endViewportPoint.y - startViewportPoint.y) * progress;
       // Travel and projection move on the same eased progress. Interpolate
       // optical depth, then derive FOV, rather than giving FOV a different
       // speed curve that makes the camera's path appear to reverse.
       const resolutionRatio = Math.pow(scaleReduction, progress);
+      if (fixedPoint) {
+        const scale = 1 / resolutionRatio;
+        viewportPoint.x =
+          fixedPoint.x + (startViewportPoint.x - fixedPoint.x) * scale;
+        viewportPoint.y =
+          fixedPoint.y + (startViewportPoint.y - fixedPoint.y) * scale;
+      } else {
+        viewportPoint.x =
+          startViewportPoint.x +
+          (endViewportPoint.x - startViewportPoint.x) * progress;
+        viewportPoint.y =
+          startViewportPoint.y +
+          (endViewportPoint.y - startViewportPoint.y) * progress;
+      }
       const depth =
         startDepth + (targetDepth * scaleReduction - startDepth) * progress;
       const fovRad =

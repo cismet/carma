@@ -1127,29 +1127,86 @@ const ObliqueViewerRuntime = ({
           : browsingPitchForBearingRef.current(
               rotation?.bearingDeg ?? libreMap.getBearing()
             );
-      // Classic and NG leave the preview in one flight: the zoom-out, the
-      // removal of the projection-centre shift and the pitch to the
-      // image-centre browsing pitch run together, with no fit-then-tilt phase.
-      setDimImage(true);
-      const flight = settleToPitch(libreMap, pitch, {
-        bearingDeg: rotation?.bearingDeg,
-        anchor: rotation?.anchor ?? readViewAnchor(),
-        onProgress: rotation?.onProgress,
-        fovDeg: clamp(
-          libreMap.getVerticalFieldOfView(),
-          browsingDataset.minFovDeg,
-          browsingDataset.maxFovDeg
-        ) as Degrees,
-        padding: getBrowsingPadding(),
-        maxZoom: getBrowsingMaxZoom(),
-        durationMs:
-          durationMs ??
-          browsingDataset.animations.leaveObliqueMode?.duration ??
-          1100,
-        easing:
-          rotation?.easing ??
-          browsingDataset.animations.leaveObliqueMode?.easingFunction,
-      });
+      const record = selectedImageRef.current?.record;
+      const dataset = record && data?.datasets.get(record.seriesId);
+      const camera = previewCameraRef.current;
+      // Classic first zooms out to the whole photo, then leaves the preview.
+      // The fit is a pure zoom from the photo eye; leaving keeps that FOV and
+      // turns to the image-centre browsing pitch, so it barely moves the view
+      // and re-entering the preview from there is nearly still.
+      const fitImage =
+        !nextInterface &&
+        previewVisibleRef.current &&
+        record &&
+        dataset &&
+        camera?.imageId === record.id;
+      setDimImage(!fitImage);
+      const exitDuration =
+        durationMs ??
+        browsingDataset.animations.leaveObliqueMode?.duration ??
+        1100;
+      const fitDuration = fitImage ? exitDuration * 0.6 : 0;
+      const easing =
+        rotation?.easing ??
+        browsingDataset.animations.leaveObliqueMode?.easingFunction;
+      const leavePreview = () =>
+        settleToPitch(libreMap, pitch, {
+          bearingDeg: rotation?.bearingDeg,
+          anchor: rotation?.anchor ?? readViewAnchor(),
+          onProgress: rotation?.onProgress,
+          fovDeg: clamp(
+            libreMap.getVerticalFieldOfView(),
+            browsingDataset.minFovDeg,
+            browsingDataset.maxFovDeg
+          ) as Degrees,
+          padding: getBrowsingPadding(),
+          maxZoom: getBrowsingMaxZoom(),
+          durationMs: exitDuration - fitDuration,
+          easing,
+        });
+      let flight: CameraFlight;
+      if (fitImage && camera && record && dataset) {
+        const calibration = getCameraCalibration(dataset, record.cameraId);
+        const principal = calibrationImageOffset(calibration);
+        let current = flyToPose(
+          libreMap,
+          camera.pose,
+          camera.altitude,
+          { duration: fitDuration, easingFunction: easing },
+          {
+            anchor: readViewAnchor(),
+            dynamicDuration: false,
+            centerPreview: true,
+            fitWholeImage: true,
+            maxFovDeg: browsingDataset.maxFovDeg,
+            preview: {
+              aspectRatio: (calibration.widthPx /
+                calibration.heightPx) as Ratio,
+              halfFovTan: calibration.halfFovTan as Ratio,
+              principal: {
+                xOffset: principal.xOffset as Ratio,
+                yOffset: principal.yOffset as Ratio,
+              },
+              roll: degreesToRadians(camera.pose.rollDeg as Degrees),
+            },
+          }
+        );
+        let cancelled = false;
+        flight = {
+          done: (async () => {
+            await current.done;
+            if (cancelled) return;
+            publish({ previewVisible: false });
+            setDimImage(true);
+            current = leavePreview();
+            await current.done;
+          })(),
+          cancel: () => {
+            cancelled = true;
+            current.cancel();
+          },
+        };
+      } else flight = leavePreview();
       activeFlightRef.current = flight;
       flight.done.then(() => {
         if (activeFlightRef.current !== flight) return;
@@ -1165,6 +1222,8 @@ const ObliqueViewerRuntime = ({
     },
     [
       libreMap,
+      data,
+      nextInterface,
       browsingDataset,
       readViewAnchor,
       getBrowsingPadding,
