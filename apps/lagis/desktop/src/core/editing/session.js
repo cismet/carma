@@ -206,7 +206,6 @@ const saveSection = async (section, save) => {
 };
 
 // GraphQL writes aren't transactional: the journal undoes them on failure.
-// Like the Java client, a successful save ends edit mode and frees the lock.
 export const saveEditing = () => async (dispatch, getState) => {
   const editing = getState().editing;
   if (editing.lockHolder) {
@@ -282,6 +281,7 @@ export const discardEditing = () => async (dispatch, getState) => {
   dispatch(editEnded());
 };
 
+// TODO: remove with ClearLocksButton once stale locks no longer happen
 // dev tool: also ends edit mode, since its locks are gone afterwards
 export const clearOwnLocks = (locks) => async (dispatch, getState) => {
   const { jwt } = context(getState);
