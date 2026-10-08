@@ -27,13 +27,13 @@ const WIDTH = {
   nutzung: 110,
   buchungs: 130,
   anlageklasse: 260,
+  nutzungsart: 120,
   bezeichnung: 240,
   fläche: 120,
   preis: 120,
   gesamtpreis: 130,
   stille: 130,
   buchwert: 100,
-  bemerkung: 200,
 };
 const SCROLL = { x: Object.values(WIDTH).reduce((sum, w) => sum + w, 0) };
 
@@ -59,10 +59,12 @@ const viewColumns = [
     ),
     sorter: (a, b) => compare(a.anlageklasse, b.anlageklasse),
   },
-  // {
-  //   title: "Nutzungsart",
-  //   dataIndex: "nutzungsart",
-  // },
+  // like Java: the Schlüssel of the Nutzungsart, read-only
+  {
+    title: "Nutzungsart",
+    dataIndex: "nutzungsart",
+    sorter: (a, b) => compare(a.nutzungsart, b.nutzungsart),
+  },
   {
     title: nutzung.nutzungTable.bezeichnungCol,
     dataIndex: "bezeichnung",
@@ -102,11 +104,6 @@ const viewColumns = [
     ),
     sorter: (a, b) => compare(a.buchwert, b.buchwert),
   },
-  {
-    title: nutzung.nutzungTable.bemerkungCol,
-    dataIndex: "bemerkung",
-    sorter: (a, b) => compare(a.bemerkung, b.bemerkung),
-  },
 ];
 const columns = viewColumns.map((c) => ({
   ...c,
@@ -130,12 +127,16 @@ const editColumns = (stammdaten, originalById, invalid) => (update) => {
   const nutzungsartName = new Map(
     stammdaten.nutzungsarten.map((a) => [a.id, a.bezeichnung])
   );
+  const nutzungsartKey = new Map(
+    stammdaten.nutzungsarten.map((a) => [a.id, a.schluessel])
+  );
   const original = (row) => originalById.get(row.id);
   const stille = (row) => stilleReserve(original(row), row);
   const shown = {
     nutzung: (row) => row.nutzungId,
     buchungs: (row) => buchungsNummer(original(row), row),
     anlageklasse: (row) => anlageklasseName.get(row.anlageklasseId),
+    nutzungsart: (row) => nutzungsartKey.get(row.nutzungsartId),
     bezeichnung: (row) => nutzungsartName.get(row.nutzungsartId),
     fläche: (row) => row.flaeche,
     preis: (row) => row.quadratmeterpreis,
@@ -144,7 +145,6 @@ const editColumns = (stammdaten, originalById, invalid) => (update) => {
       gesamtpreis(row) === null ? null : gesamtpreis(row) - stille(row),
     stille,
     buchwert: (row) => isBuchwert(original(row), row),
-    bemerkung: (row) => row.bemerkung,
   };
   const like = (dataIndex) => ({
     title: column(dataIndex).title,
@@ -180,6 +180,7 @@ const editColumns = (stammdaten, originalById, invalid) => (update) => {
     readOnly("nutzung"),
     readOnly("buchungs"),
     { ...anlageklasse, ...like("anlageklasse"), ellipsis: false },
+    readOnly("nutzungsart"),
     {
       ...nutzungsart,
       ...like("bezeichnung"),
@@ -191,7 +192,6 @@ const editColumns = (stammdaten, originalById, invalid) => (update) => {
     readOnly("gesamtpreis", formatPrice),
     readOnly("stille", formatPrice),
     { ...readOnly("buchwert"), render: buchwertCell },
-    readOnly("bemerkung"),
   ];
 };
 
@@ -271,8 +271,7 @@ const UsageBlock = ({
   const { editable, actions, tableProps } = useDraftTable({
     section: "usage",
     field: "nutzungen",
-    newRow: (draft, selected) =>
-      newUsageRow(selected ?? draft.nutzungen[draft.nutzungen.length - 1]),
+    newRow: () => newUsageRow(),
   });
   const stammdaten = useStammdatenList("nutzung", editable);
   const originalUsage = useSelector(getOriginalSection("usage"));
