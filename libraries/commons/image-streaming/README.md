@@ -13,7 +13,7 @@ Streams very large photographs from tiled pyramids and draws them as a transpare
   3. visible target, centre-out from the pointer
   4. underlay and target rings for pans
   5. underlay and coarser levels over a 2× zoom-out extent
-  6. next finer level (decoded from `s ≥ 0.75` or while zooming in, otherwise compressed only)
+  6. next finer level, decoded as the lowest priority within the budget (`decodeFinerAt` can restrict it to larger target scales)
 
   Decoded wants are cut to the budget from the lowest priority up. Optional foveation moves peripheral target tiles behind the rings. After the planned work is resident, any single zoom step up to 2× at the hovered anchor renders from the target or its parent, never coarser.
 - **Stack runtime** (`runtime/image-level-stack.ts`). Keeps decoded tiles per image and schedules work by plan priority:

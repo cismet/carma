@@ -75,7 +75,10 @@ export type ImageLevelPlanOptions = Readonly<{
   maxUpscale?: number;
   /** The finest level whose long edge fits this becomes the pinned floor. */
   floorEdge?: number;
-  /** Decode next-finer tiles once the target is displayed at this scale or larger. */
+  /**
+   * Decode next-finer tiles once the target is displayed at this scale or larger.
+   * Default 0: always, as the lowest decoded priority within the budget.
+   */
   decodeFinerAt?: number;
   /** Coarser levels cover this multiple of the visible extent for zoom-out. */
   zoomOutFactor?: number;
@@ -318,7 +321,7 @@ export const planImageLevels = (
     if (finer) {
       const decodeFiner =
         options.zoomIntent === "in" ||
-        scale(target.level) >= (options.decodeFinerAt ?? 0.75);
+        scale(target.level) >= (options.decodeFinerAt ?? 0);
       add(finer, tileRangeFor(finer, native, visible), "finer", 7, decodeFiner);
       add(
         finer,
