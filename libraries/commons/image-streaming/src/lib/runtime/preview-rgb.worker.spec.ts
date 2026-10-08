@@ -1,8 +1,8 @@
 // @vitest-environment node
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DevicePixels } from "@carma-units";
-import type { PreviewQualityLevel } from "../../core/constants";
-import type { NativePreviewWindow } from "../../core/utils/native-preview-window";
+import type { JpegPyramidLevel } from "../core/image-viewport-window";
+import type { NativePreviewWindow } from "../core/image-viewport-window";
 
 const pipeline = vi.hoisted(() => ({
   construct: vi.fn(),
@@ -17,12 +17,14 @@ const avifPipeline = vi.hoisted(() => ({
   park: vi.fn(),
   construct: vi.fn(),
   setActiveCacheBudget: vi.fn(),
-  warmAllLevels: vi.fn(),
+  prewarm: vi.fn(),
   hasCached: vi.fn(),
+  hasLocallyAvailable: vi.fn(),
+  ensureLocalAvailability: vi.fn(),
   residentBytes: 0,
-  fullyDecoded: false,
+  maxSourceDensity: 0.5,
 }));
-vi.mock("../integrations/avif-pyramid-preview-source", () => ({
+vi.mock("./avif-pyramid-preview-source", () => ({
   AvifPyramidPreviewSource: class {
     constructor(readonly url: string, budget?: number) {
       avifPipeline.construct(url, budget);
@@ -30,19 +32,28 @@ vi.mock("../integrations/avif-pyramid-preview-source", () => ({
     get residentBytes() {
       return avifPipeline.residentBytes;
     }
-    get isFullyDecoded() {
-      return avifPipeline.fullyDecoded;
+    get maxSourceDensity() {
+      return avifPipeline.maxSourceDensity;
+    }
+    get memoryMetrics() {
+      return {
+        rangeBytes: avifPipeline.residentBytes,
+        decodedBytes: 0,
+        residentBytes: avifPipeline.residentBytes,
+      };
     }
     setActiveCacheBudget = avifPipeline.setActiveCacheBudget;
-    warmAllLevels = avifPipeline.warmAllLevels;
+    prewarm = avifPipeline.prewarm;
     hasCached = avifPipeline.hasCached;
+    hasLocallyAvailable = avifPipeline.hasLocallyAvailable;
+    ensureLocalAvailability = avifPipeline.ensureLocalAvailability;
     select = avifPipeline.select;
     read = avifPipeline.read;
     close = avifPipeline.close;
     park = avifPipeline.park;
   },
 }));
-vi.mock("../integrations/tiff-preview-source", () => ({
+vi.mock("./tiff-preview-source", () => ({
   TiffPreviewSource: class {
     constructor(readonly url: string, budget?: number, priority?: string) {
       pipeline.construct(url, budget, priority);
@@ -51,7 +62,7 @@ vi.mock("../integrations/tiff-preview-source", () => ({
     read = pipeline.read;
   },
 }));
-vi.mock("../../core/utils/resample-preview-rgb", () => ({
+vi.mock("../core/resample-preview-rgb", () => ({
   resamplePreviewRgb: pipeline.resample,
 }));
 
@@ -60,8 +71,9 @@ type Request = {
   window: NativePreviewWindow;
   nativeSize: { width: DevicePixels; height: DevicePixels };
   flipForTexture: boolean;
-  minimumQualityLevel?: PreviewQualityLevel;
+  minimumQualityLevel?: JpegPyramidLevel;
   maxInitialDisplayPixelSize?: number;
+  maxSourceDensity?: number;
   refineToNative?: boolean;
   priority?: "low" | "high" | "auto";
   generation: number;
@@ -76,20 +88,29 @@ type Request = {
   sourceIdentity?: string;
   retainWholeImage?: boolean;
   reusePublished?: boolean;
+  releaseCanvasAfterPublish?: boolean;
+  activity?: boolean;
+  warmWindow?: NativePreviewWindow;
+  budgetOnly?: boolean;
 };
 type Published = {
   bitmap?: ImageBitmap;
   generation?: number;
-  kind?: "full-image" | "source-memory";
+  kind?: "full-image" | "source-memory" | "prepared-frame";
   imageId?: string;
   sourceIdentity?: string;
   sourceUrl?: string;
   sourceResidentBytes?: number;
-  allLevelsDecoded?: boolean;
+  workerMemory?: {
+    compositionBytes: number;
+    decodeCanvasBytes: number;
+    workingBytes: number;
+  };
   reusePublished?: boolean;
   missing?: boolean;
   sourceWidth?: number;
   sourceHeight?: number;
+  sourceLevel?: number;
   complete?: boolean;
   error?: string;
   sourceBackend?: string;
@@ -141,8 +162,8 @@ const cache = {
   keys: vi.fn(async () =>
     [...storage.keys()].map((key) => new globalThis.Request(key))
   ),
-  match: vi.fn(async (key: globalThis.Request) =>
-    storage.get(key.url)?.clone()
+  match: vi.fn(async (key: string | globalThis.Request | URL) =>
+    storage.get(typeof key === "string" ? key : key instanceof URL ? key.href : key.url)?.clone()
   ),
   put: vi.fn(async (key: string, response: Response) => {
     storage.set(key, response.clone());
@@ -157,30 +178,35 @@ let decode: ReturnType<typeof vi.fn>;
 let network: ReturnType<typeof vi.fn>;
 const published = (): Published[] =>
   worker.postMessage.mock.calls.map(([value]) => value);
-const send = (value: Request) =>
-  worker.onmessage!({ data: value } as MessageEvent<Request>);
+const foreground = () =>
+  published().filter((message) => message.kind === undefined);
+const send = (
+  value: Request | { budgetOnly: true; activeSourceByteLimit?: number }
+) => worker.onmessage!({ data: value } as MessageEvent<Request>);
 const finish = async (pending: Promise<void>) => {
   let settled = false;
   void pending.finally(() => {
     settled = true;
   });
-  for (let step = 0; step < 40 && !settled; step++) {
+  // Advance foreground yields/deadlines in small steps. Running every timer
+  // also starts idle forecasts after the foreground has already completed.
+  for (let step = 0; step < 1000 && !settled; step++) {
     await Promise.resolve();
-    await vi.runAllTimersAsync();
+    await vi.advanceTimersByTimeAsync(1);
   }
   expect(settled).toBe(true);
   await pending;
 };
 const levelOf = (value: string) =>
   Number(new URL(value).pathname.match(/\/([0-6])\/[^/]+$/)![1]);
-const seed = (level: PreviewQualityLevel) => {
+const seed = (level: JpegPyramidLevel) => {
   const value = new URL(url);
   value.pathname = value.pathname.replace("/3/", "/" + level + "/");
   storage.set(value.href, new Response(new Blob([value.href])));
 };
 
 beforeEach(async () => {
-  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
   vi.resetModules();
   vi.clearAllMocks();
   storage.clear();
@@ -229,6 +255,7 @@ beforeEach(async () => {
         };
         return makeBitmap(options.resizeWidth, options.resizeHeight);
       }
+      if (args.length <= 1) return makeBitmap(input.width, input.height);
       return makeBitmap(args[2] as number, args[3] as number);
     }
   );
@@ -241,12 +268,12 @@ beforeEach(async () => {
   pipeline.select.mockReset();
   avifPipeline.select.mockReset();
   avifPipeline.residentBytes = 0;
-  avifPipeline.fullyDecoded = false;
-  avifPipeline.warmAllLevels.mockReset().mockImplementation(async () => {
-    avifPipeline.fullyDecoded = true;
-  });
+  avifPipeline.maxSourceDensity = 0.5;
+  avifPipeline.prewarm.mockReset().mockResolvedValue(undefined);
   avifPipeline.setActiveCacheBudget.mockReset();
   avifPipeline.hasCached.mockReset().mockReturnValue(false);
+  avifPipeline.hasLocallyAvailable.mockReset().mockReturnValue(false);
+  avifPipeline.ensureLocalAvailability.mockReset().mockResolvedValue(undefined);
   avifPipeline.read.mockResolvedValue(new Uint8ClampedArray([32, 64, 96, 255]));
   await import("./preview-rgb.worker");
 });
@@ -257,10 +284,53 @@ afterEach(() => {
 });
 
 describe("worker-owned progressive image pyramid", () => {
-  it("publishes every JPEG refinement from the exact eight-display-pixel cap through the configured minimum", async () => {
+  it("stops a JPEG family at the first physically sufficient level instead of fetching full native detail", async () => {
+    await finish(send(request({ window: windowAt(40, 30) })));
+    expect(network.mock.calls.map(([asset]) => levelOf(asset))).toEqual([
+      5, 4, 3, 2,
+    ]);
+    expect(published().at(-1)).toMatchObject({
+      sourceWidth: 128,
+      sourceHeight: 96,
+      complete: true,
+    });
+    expect(published().at(-1)?.sourceResidentBytes).toBe(128 * 96 * 4);
+  });
+
+  it("releases an oversized decoded JPEG while preserving encoded bytes and the completed crop", async () => {
+    seed("1");
+    await finish(send(request({ activeSourceByteLimit: 4096 })));
+    const fullSource = bitmaps.find(
+      (bitmap) => bitmap.width === 256 && bitmap.height === 192
+    )!;
+    expect(fullSource.close).toHaveBeenCalledOnce();
+    expect(published().at(-1)).toMatchObject({
+      sourceWidth: 256,
+      sourceResidentBytes: 0,
+      complete: true,
+    });
+    const decodes = decode.mock.calls.length;
+    await finish(
+      send(
+        request({
+          generation: 2,
+          activeSourceByteLimit: 4096,
+          reusePublished: true,
+        })
+      )
+    );
+    expect(decode).toHaveBeenCalledTimes(decodes);
+    expect(published().at(-1)).toMatchObject({
+      reusePublished: true,
+      sourceResidentBytes: 0,
+    });
+    expect(storage.size).toBe(1);
+    expect(network).not.toHaveBeenCalled();
+  });
+  it("publishes JPEG refinements from the eight-pixel cap only through physical display density", async () => {
     await finish(send(request()));
     expect(network.mock.calls.map(([asset]) => levelOf(asset))).toEqual([
-      6, 5, 4, 3, 2, 1,
+      6, 5, 4, 3,
     ]);
     expect(
       network.mock.calls.every(
@@ -268,14 +338,12 @@ describe("worker-owned progressive image pyramid", () => {
       )
     ).toBe(true);
     expect(published().map((value) => value.sourceWidth)).toEqual([
-      8, 16, 32, 64, 128, 256,
+      8, 16, 32, 64,
     ]);
     expect(published().map((value) => value.sourceHeight)).toEqual([
-      6, 12, 24, 48, 96, 192,
+      6, 12, 24, 48,
     ]);
     expect(published().map((value) => value.complete)).toEqual([
-      false,
-      false,
       false,
       false,
       false,
@@ -291,10 +359,10 @@ describe("worker-owned progressive image pyramid", () => {
         (value) => value.generation === 1 && value.bitmap && !value.error
       )
     ).toBe(true);
-    expect(pipeline.resample).toHaveBeenCalledTimes(6);
+    expect(pipeline.resample).toHaveBeenCalledTimes(4);
     expect(globalThis.Image).not.toHaveBeenCalled();
     expect(typeof document).toBe("undefined");
-    expect(Canvas.instances).toHaveLength(2); // one crop plus one reusable decode surface
+    expect(Canvas.instances).toHaveLength(5); // active crop + four released scratch surfaces
     const outputs = decode.mock.calls
       .map(([input]) => input)
       .filter((input) => input instanceof Canvas);
@@ -344,7 +412,9 @@ describe("worker-owned progressive image pyramid", () => {
     expect(
       decode.mock.calls.filter(([input]) => input instanceof Blob)
     ).toHaveLength(1);
-    expect(cache.match).toHaveBeenCalledOnce();
+    // The requested coarse address misses, then the nearest stored finer
+    // member is decoded directly. Neither lookup requests image data online.
+    expect(cache.match).toHaveBeenCalledTimes(2);
   });
 
   it("keeps the retained fine source across a changed crop and reuses an identical completed viewport", async () => {
@@ -357,7 +427,7 @@ describe("worker-owned progressive image pyramid", () => {
     await finish(
       send(request({ generation: 2, window: windowAt(32, 24, 128) }))
     );
-    expect(published().map((value) => value.sourceWidth)).toEqual([256]);
+    expect(published().map((value) => value.sourceWidth)).toEqual([64]);
     expect(network).toHaveBeenCalledTimes(downloads);
     expect(
       decode.mock.calls.filter(([input]) => input instanceof Blob)
@@ -368,7 +438,7 @@ describe("worker-owned progressive image pyramid", () => {
       send(request({ generation: 3, window: windowAt(32, 24, 128) }))
     );
     expect(published()).toHaveLength(1);
-    expect(published()[0]).toMatchObject({ generation: 3, sourceWidth: 256 });
+    expect(published()[0]).toMatchObject({ generation: 3, sourceWidth: 64 });
     expect(pipeline.resample).toHaveBeenCalledTimes(compositions);
   });
 
@@ -430,6 +500,22 @@ describe("worker-owned progressive image pyramid", () => {
     expect(network).toHaveBeenCalledTimes(downloads);
     expect(pipeline.resample).toHaveBeenCalledTimes(compositions);
   });
+  it("recomposes a smaller covered crop after zooming out past2x instead of reusing its oversized canvas", async () => {
+    await finish(send(request()));
+    const before = pipeline.resample.mock.calls.length;
+    worker.postMessage.mockClear();
+    await finish(
+      send(
+        request({ generation: 2, reusePublished: true, window: windowAt(8, 6) })
+      )
+    );
+    expect(pipeline.resample.mock.calls.length).toBeGreaterThan(before);
+    expect(published().at(-1)).toMatchObject({ generation: 2, complete: true });
+    expect(published().at(-1)?.reusePublished).toBeUndefined();
+    expect(published().at(-1)?.bitmap?.width).toBe(8);
+    expect(published().at(-1)?.bitmap?.height).toBe(6);
+    expect(published().at(-1)?.workerMemory?.compositionBytes).toBe(8 * 6 * 4);
+  });
   it("refines a downsampled retained L1 viewport with a physically sufficient L2 crop", async () => {
     const avifUrl = "https://imagery.test/photo.avif";
     const l1 = { level: 1, getWidth: () => 256, getHeight: () => 192 };
@@ -441,7 +527,7 @@ describe("worker-owned progressive image pyramid", () => {
     };
     avifPipeline.select.mockResolvedValueOnce({ image: l1, refinements: [] });
     await finish(send(request({ avifPyramidUrl: avifUrl, window: full })));
-    expect(published().at(-1)?.sampleDensity).toBe(40 / 512);
+    expect(foreground().at(-1)?.sampleDensity).toBe(40 / 512);
     worker.postMessage.mockClear();
     avifPipeline.read.mockClear();
     avifPipeline.select.mockResolvedValueOnce({
@@ -457,7 +543,7 @@ describe("worker-owned progressive image pyramid", () => {
         })
       )
     );
-    expect(published().at(-1)).toMatchObject({
+    expect(foreground().at(-1)).toMatchObject({
       sourceWidth: 128,
       complete: true,
       sampleDensity: 40 / 256,
@@ -516,13 +602,13 @@ describe("worker-owned progressive image pyramid", () => {
     expect(published()[0].complete).toBe(true);
     network.mockClear();
     worker.postMessage.mockClear();
-    await finish(send(request({ generation: 2 })));
+    await finish(send(request({ generation: 2, window: windowAt(64, 48) })));
     expect(published().at(-1)).toMatchObject({
       generation: 2,
-      sourceWidth: 256,
+      sourceWidth: 128,
       complete: true,
     });
-    expect(network.mock.calls.map(([asset]) => levelOf(asset))).toEqual([2, 1]);
+    expect(network.mock.calls.map(([asset]) => levelOf(asset))).toEqual([2]);
     expect(published().every((value) => value.sourceWidth! >= 64)).toBe(true);
   });
 
@@ -618,14 +704,103 @@ describe("worker-owned progressive image pyramid", () => {
         })
       )
     );
-    expect(published().map((value) => value.sourceBackend)).toEqual([
+    expect(foreground().map((value) => value.sourceBackend)).toEqual([
       "avif-pyramid",
       "avif-pyramid",
     ]);
-    expect(published().map((value) => value.complete)).toEqual([false, true]);
+    expect(foreground().map((value) => value.complete)).toEqual([false, true]);
     expect(pipeline.select).not.toHaveBeenCalled();
     expect(network).not.toHaveBeenCalled();
-    expect(avifPipeline.read).toHaveBeenCalledTimes(3); // one required-cell native probe, then the two ROI stages
+    expect(avifPipeline.read.mock.calls.map(([page]) => page)).toEqual([
+      initial,
+      fine,
+    ]);
+    expect(avifPipeline.select).toHaveBeenCalledWith(
+      windowAt(),
+      nativeSize,
+      expect.any(AbortSignal),
+      8
+    );
+  });
+  it("bounds composition tiles to512 pixels and reserves resampling scratch before admitting AVIF cache", async () => {
+    const image = { level: 1, getWidth: () => 256, getHeight: () => 192 };
+    avifPipeline.select.mockResolvedValue({ image, refinements: [] });
+    const budget = 8 * 1024 * 1024;
+    await finish(
+      send(
+        request({
+          avifPyramidUrl: "https://imagery.test/bounded.avif",
+          window: windowAt(1200, 900),
+          activeSourceByteLimit: budget,
+        })
+      )
+    );
+    expect(pipeline.resample.mock.calls).toHaveLength(6);
+    expect(
+      pipeline.resample.mock.calls.every(
+        ([, , , width, height]) => width <= 512 && height <= 512
+      )
+    ).toBe(true);
+    const admission = avifPipeline.construct.mock.calls[0][1] as number;
+    expect(admission).toBeGreaterThan(0);
+    expect(admission).toBeLessThan(budget);
+    expect(admission).toBe(budget - ((512 * 2 + 24) ** 2 + 512 ** 2) * 4);
+    const actualScratch = Math.max(
+      ...avifPipeline.read.mock.calls.map(([, bounds], index) => {
+        const [, , , width, height] = pipeline.resample.mock.calls[index];
+        return (
+          ((bounds[2] - bounds[0]) * (bounds[3] - bounds[1]) + width * height) *
+          4
+        );
+      })
+    );
+    const selectedAdmission =
+      avifPipeline.setActiveCacheBudget.mock.calls.at(-1)![0];
+    expect(selectedAdmission).toBe(budget - actualScratch);
+    expect(selectedAdmission).toBeGreaterThan(admission);
+    expect(avifPipeline.setActiveCacheBudget).toHaveBeenCalledOnce();
+    await send({ budgetOnly: true, activeSourceByteLimit: budget / 2 });
+    expect(avifPipeline.setActiveCacheBudget.mock.calls.at(-1)![0]).toBe(
+      budget / 2 - actualScratch
+    );
+    await send(
+      request({
+        budgetOnly: true,
+        activeSourceByteLimit: budget / 2,
+        window: windowAt(),
+      })
+    );
+    expect(avifPipeline.setActiveCacheBudget.mock.calls.at(-1)![0]).toBe(
+      budget / 2 - ((32 * 2 + 24) * (24 * 2 + 24) + 32 * 24) * 4
+    );
+  });
+  it("refines a generic full-resolution AVIF source beyond the public oblique L1 density cap", async () => {
+    avifPipeline.maxSourceDensity = 1;
+    const half = { level: 2, getWidth: () => 256, getHeight: () => 192 },
+      full = { level: 1, getWidth: () => 512, getHeight: () => 384 };
+    avifPipeline.select.mockResolvedValueOnce({ image: half, refinements: [] });
+    const input = request({
+      avifPyramidUrl: "https://imagery.test/fullres.avif",
+      maxSourceDensity: 1,
+      window: windowAt(128, 96),
+    });
+    await finish(send(input));
+    avifPipeline.select.mockResolvedValueOnce({ image: full, refinements: [] });
+    worker.postMessage.mockClear();
+    await finish(
+      send({
+        ...input,
+        generation: 2,
+        reusePublished: true,
+        window: windowAt(192, 144),
+      })
+    );
+    expect(foreground().at(-1)).toMatchObject({
+      sourceWidth: 512,
+      sampleDensity: 0.75,
+      complete: true,
+    });
+    expect(foreground().at(-1)?.reusePublished).toBeUndefined();
   });
   it("keeps original TIFF fallback when a partially published AVIF photo is unavailable", async () => {
     avifPipeline.select.mockRejectedValue(
@@ -705,7 +880,7 @@ describe("worker-owned progressive image pyramid", () => {
         refinements: [],
       });
       await finish(send({ ...input, generation: 2 }));
-      expect(published().at(-1)?.sourceBackend).toBe("avif-pyramid");
+      expect(foreground().at(-1)?.sourceBackend).toBe("avif-pyramid");
       expect(avifPipeline.select).toHaveBeenCalledTimes(2);
       expect(pipeline.select).toHaveBeenCalledOnce();
     } finally {
@@ -778,88 +953,162 @@ const configureWholeSource = () => {
   );
   return image;
 };
-describe("current photo whole-image retention session", () => {
-  it("publishes the foreground ROI before a small full-photo fallback and decoded-source memory", async () => {
+describe("current photo encoded prewarming session", () => {
+  it("releases its published composition without closing transferred pixels and recomposes an identical request", async () => {
+    configureWholeSource();
+    const flags = {
+      retainWholeImage: false,
+      releaseCanvasAfterPublish: true,
+      activeSourceByteLimit: 1024 * 1024,
+    };
+    await finish(send(wholeRequest(flags)));
+    const first = foreground().filter((message) => message.bitmap && message.complete).at(-1);
+    expect(first).toMatchObject({
+      generation: 1,
+      sourceBackend: "avif-pyramid",
+      sourceWidth: 256,
+      sourceHeight: 192,
+      bitmap: { width: 32, height: 24 },
+    });
+    expect(published().filter((message) => message.kind === "source-memory").at(-1)).toMatchObject({
+      imageId: "whole-photo",
+      sourceIdentity: "https://imagery.test/whole.avif",
+      workerMemory: { compositionBytes: 0, decodeCanvasBytes: 0, workingBytes: 0 },
+    });
+    expect(first!.bitmap!.close).not.toHaveBeenCalled();
+    const reads = avifPipeline.read.mock.calls.length;
+    worker.postMessage.mockClear();
+    await finish(send(wholeRequest({ ...flags, generation: 2, reusePublished: true })));
+    const second = foreground().filter((message) => message.bitmap && message.complete).at(-1);
+    expect(second).toMatchObject({
+      generation: 2,
+      complete: true,
+      sourceBackend: "avif-pyramid",
+      sourceWidth: 256,
+      sourceHeight: 192,
+      bitmap: { width: 32, height: 24 },
+    });
+    expect(second?.reusePublished).toBeUndefined();
+    expect(second!.bitmap).not.toBe(first!.bitmap);
+    expect(avifPipeline.read.mock.calls.length).toBeGreaterThan(reads);
+    expect(published().filter((message) => message.kind === "source-memory").at(-1)?.workerMemory).toMatchObject({
+      compositionBytes: 0, decodeCanvasBytes: 0, workingBytes: 0,
+    });
+    expect(first!.bitmap!.close).not.toHaveBeenCalled();
+    expect(second!.bitmap!.close).not.toHaveBeenCalled();
+    expect(network).not.toHaveBeenCalled();
+  });
+  it("publishes physical-density foreground pixels before idle prewarming, without a full-image copy", async () => {
     configureWholeSource();
     const order: string[] = [];
     worker.postMessage.mockImplementation((message: Published) => {
       if (message.bitmap) order.push(message.kind ?? "roi");
     });
-    avifPipeline.residentBytes = 123456;
-    avifPipeline.warmAllLevels.mockImplementation(
-      async (
-        _size: unknown,
-        _signal: AbortSignal,
-        options: { onProgress: () => void }
-      ) => {
-        order.push("warm");
-        avifPipeline.residentBytes = 987654;
-        options.onProgress();
-        avifPipeline.fullyDecoded = true;
-      }
-    );
+    avifPipeline.prewarm.mockImplementation(async () => {
+      order.push("encoded-prewarm");
+      avifPipeline.residentBytes = 123456;
+    });
     await finish(
-      send(wholeRequest({ activeSourceByteLimit: 64 * 1024 * 1024 }))
+      send(
+        wholeRequest({
+          retainWholeImage: false,
+          activeSourceByteLimit: 1024 * 1024,
+        })
+      )
     );
     await drainPhotoBackground();
-    expect(order).toEqual(["roi", "full-image", "warm"]);
-    const full = published().find((message) => message.kind === "full-image")!;
-    expect(full.crop).toEqual({ x: 0, y: 0, width: 512, height: 384 });
-    expect(full.imageId).toBe("whole-photo");
-    expect(full.sourceIdentity).toBe("https://imagery.test/whole.avif");
-    expect(
-      Math.max(full.bitmap!.width, full.bitmap!.height)
-    ).toBeLessThanOrEqual(1024);
-    expect(avifPipeline.construct).toHaveBeenCalledWith(
-      "https://imagery.test/whole.avif",
-      64 * 1024 * 1024
+    expect(order).toEqual(["roi", "prepared-frame", "encoded-prewarm"]);
+    expect(published().some((message) => message.kind === "full-image")).toBe(
+      false
     );
-    expect(avifPipeline.setActiveCacheBudget).toHaveBeenCalledWith(
-      64 * 1024 * 1024
+    expect(avifPipeline.prewarm).toHaveBeenCalledWith(
+      windowAt(),
+      nativeSize,
+      expect.any(AbortSignal),
+      expect.objectContaining({
+        shouldYield: expect.any(Function),
+        onProgress: expect.any(Function),
+      })
     );
     expect(published().at(-1)).toMatchObject({
       kind: "source-memory",
-      sourceResidentBytes: 987654,
-      allLevelsDecoded: true,
+      sourceResidentBytes: 123456,
+      workerMemory: {
+        compositionBytes: 0,
+        decodeCanvasBytes: 0,
+        workingBytes: 0,
+      },
     });
-    expect(full.sourceResidentBytes).toBe(123456);
     expect(network).not.toHaveBeenCalled();
   });
-  it("keeps whole-level warming alive through ROI cancel and a same-photo crop update", async () => {
+
+  it("waits for settled interaction, aborts active idle work, and resumes with the latest crop", async () => {
     configureWholeSource();
-    let resolveWarm: () => void = () => {};
-    avifPipeline.warmAllLevels.mockImplementation(
-      (_size: unknown, _signal: AbortSignal) =>
-        new Promise<void>((resolve) => {
-          resolveWarm = resolve;
-        })
+    avifPipeline.prewarm.mockImplementation(
+      (_window: unknown, _size: unknown, signal: AbortSignal) =>
+        new Promise<void>((_resolve, reject) =>
+          signal.addEventListener("abort", () => reject(signal.reason), {
+            once: true,
+          })
+        )
+    );
+    await send(wholeRequest({ activity: true }));
+    await finish(send(wholeRequest()));
+    expect(avifPipeline.prewarm).not.toHaveBeenCalled();
+    await send(wholeRequest({ activity: false }));
+    await vi.advanceTimersByTimeAsync(174);
+    expect(avifPipeline.prewarm).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(avifPipeline.prewarm).toHaveBeenCalledOnce();
+    const [, , firstSignal, firstOptions] = avifPipeline.prewarm.mock.calls[0];
+    expect(firstOptions.shouldYield()).toBe(false);
+    const warmWindow = windowAt(40, 30, 80);
+    await send(wholeRequest({ activity: true, warmWindow }));
+    expect(firstSignal.aborted).toBe(true);
+    expect(firstOptions.shouldYield()).toBe(true);
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(avifPipeline.prewarm).toHaveBeenCalledOnce();
+    await send(wholeRequest({ activity: false }));
+    await vi.advanceTimersByTimeAsync(600);
+    expect(avifPipeline.prewarm).toHaveBeenCalledTimes(2);
+    expect(avifPipeline.prewarm.mock.calls[1][0]).toEqual(warmWindow);
+  });
+
+  it("does not let an aborted old task complete or reset a newer warm task", async () => {
+    configureWholeSource();
+    const resolutions: Array<() => void> = [];
+    avifPipeline.prewarm.mockImplementation(
+      () => new Promise<void>((resolve) => resolutions.push(resolve))
     );
     await finish(send(wholeRequest()));
     await drainPhotoBackground();
-    expect(avifPipeline.warmAllLevels).toHaveBeenCalledOnce();
-    const signal = avifPipeline.warmAllLevels.mock.calls[0][1] as AbortSignal;
-    await send(wholeRequest({ cancel: true, generation: 2 }));
-    expect(signal.aborted).toBe(false);
+    const signal = avifPipeline.prewarm.mock.calls[0][2] as AbortSignal;
     await finish(
-      send(wholeRequest({ window: windowAt(32, 24, 128), generation: 3 }))
+      send(wholeRequest({ window: windowAt(32, 24, 128), generation: 2 }))
     );
     await drainPhotoBackground();
-    expect(signal.aborted).toBe(false);
-    expect(avifPipeline.warmAllLevels).toHaveBeenCalledOnce();
-    avifPipeline.fullyDecoded = true;
-    resolveWarm();
+    expect(signal.aborted).toBe(true);
+    expect(avifPipeline.prewarm).toHaveBeenCalledTimes(2);
+    const before = published().length;
+    resolutions[0]();
     await drainPhotoBackground();
-    expect(published().at(-1)).toMatchObject({
-      kind: "source-memory",
-      allLevelsDecoded: true,
-    });
+    expect(published()).toHaveLength(before);
+    await send({ budgetOnly: true, activeSourceByteLimit: 4096 });
+    expect(avifPipeline.prewarm).toHaveBeenCalledTimes(2);
+    expect((avifPipeline.prewarm.mock.calls[1][2] as AbortSignal).aborted).toBe(
+      false
+    );
+    resolutions[1]();
+    await drainPhotoBackground();
+    expect(published().at(-1)?.kind).toBe("source-memory");
   });
+
   it.each(["park", "source change"])(
-    "aborts the photo-owned warm task on %s without a stale completion",
+    "cancels idle reads on %s",
     async (mode) => {
       configureWholeSource();
-      avifPipeline.warmAllLevels.mockImplementation(
-        (_size: unknown, signal: AbortSignal) =>
+      avifPipeline.prewarm.mockImplementation(
+        (_window: unknown, _size: unknown, signal: AbortSignal) =>
           new Promise<void>((_resolve, reject) =>
             signal.addEventListener("abort", () => reject(signal.reason), {
               once: true,
@@ -868,17 +1117,26 @@ describe("current photo whole-image retention session", () => {
       );
       await finish(send(wholeRequest()));
       await drainPhotoBackground();
-      const signal = avifPipeline.warmAllLevels.mock.calls[0][1] as AbortSignal;
-      if (mode === "park")
+      const signal = avifPipeline.prewarm.mock.calls[0][2] as AbortSignal;
+      if (mode === "park") {
         await send(
           wholeRequest({
-            cancel: true,
             park: true,
             generation: 2,
-            retainedSourceByteLimit: 8 * 1024 * 1024,
+            retainedSourceByteLimit: 8192,
           })
         );
-      else
+        expect(avifPipeline.park).toHaveBeenCalledWith(8192);
+        expect(published().at(-1)).toMatchObject({
+          kind: "source-memory",
+          imageId: "whole-photo",
+          workerMemory: {
+            compositionBytes: 32 * 24 * 4,
+            decodeCanvasBytes: 0,
+            workingBytes: 0,
+          },
+        });
+      } else {
         await finish(
           send(
             wholeRequest({
@@ -886,29 +1144,18 @@ describe("current photo whole-image retention session", () => {
               avifPyramidUrl: "https://imagery.test/next.avif",
               imageId: "next-photo",
               sourceIdentity: "https://imagery.test/next.avif",
-              retainWholeImage: false,
               generation: 2,
             })
           )
         );
-      await drainPhotoBackground();
+        expect(avifPipeline.close).toHaveBeenCalledOnce();
+      }
       expect(signal.aborted).toBe(true);
-      expect(
-        published().some(
-          (message) =>
-            message.kind === "source-memory" &&
-            message.allLevelsDecoded === true &&
-            message.imageId === "whole-photo"
-        )
-      ).toBe(false);
-      if (mode === "park")
-        expect(avifPipeline.park).toHaveBeenCalledWith(8 * 1024 * 1024);
-      else expect(avifPipeline.close).toHaveBeenCalledOnce();
     }
   );
-  it("acknowledges reusePublished without allocating another bitmap or rewarming the photo", async () => {
+
+  it("reuses foreground pixels and completed warming without another bitmap or tile decode", async () => {
     configureWholeSource();
-    avifPipeline.residentBytes = 55555;
     await finish(send(wholeRequest()));
     await drainPhotoBackground();
     const decodes = decode.mock.calls.length,
@@ -917,13 +1164,25 @@ describe("current photo whole-image retention session", () => {
     await drainPhotoBackground();
     expect(decode).toHaveBeenCalledTimes(decodes);
     expect(avifPipeline.read).toHaveBeenCalledTimes(reads);
-    expect(avifPipeline.warmAllLevels).toHaveBeenCalledOnce();
+    expect(avifPipeline.prewarm).toHaveBeenCalledOnce();
     expect(published().at(-1)).toMatchObject({
       generation: 2,
       reusePublished: true,
-      sourceResidentBytes: 55555,
     });
-    expect(published().at(-1)?.bitmap).toBeUndefined();
+  });
+
+  it("retries failed idle warming on the next settled interaction", async () => {
+    configureWholeSource();
+    avifPipeline.prewarm.mockRejectedValueOnce(
+      new Error("temporary range failure")
+    );
+    await finish(send(wholeRequest()));
+    await drainPhotoBackground();
+    expect(avifPipeline.prewarm).toHaveBeenCalledOnce();
+    await send(wholeRequest({ activity: false }));
+    await drainPhotoBackground();
+    expect(avifPipeline.prewarm).toHaveBeenCalledTimes(2);
+    expect(published().filter((message) => message.error)).toEqual([]);
   });
 });
 
@@ -952,39 +1211,135 @@ it("reuses decoded JPEG source for a bounded whole fallback with accurate identi
       })
     )
   );
-  await drainPhotoBackground();
-  const full = published().find((message) => message.kind === "full-image")!;
+  const overviews = published().filter((message) => message.kind === "full-image");
+  const full = overviews.at(-1)!;
+  expect(overviews.map((message) => message.bitmap!.width)).toEqual([64, 128, 256, 512]);
+  expect(overviews.every((message) => Math.max(message.bitmap!.width, message.bitmap!.height) <= 1024)).toBe(true);
   expect(full).toMatchObject({
     imageId: "jpeg-photo",
     sourceIdentity: "https://imagery.test/photo.jpg",
     sourceBackend: "jpeg",
-    sourceWidth: 2048,
-    sourceHeight: 1536,
-    sourceResidentBytes: 2048 * 1536 * 4,
+    sourceWidth: 512,
+    sourceHeight: 384,
+    // The decoded JPEG and its protected overview are separate owned bitmaps.
+    sourceResidentBytes: 2 * 512 * 384 * 4,
     crop: { x: 0, y: 0, width: 4096, height: 3072 },
   });
-  expect(full.bitmap!.width).toBe(1024);
-  expect(full.bitmap!.height).toBe(768);
-  const foreground = published().filter(
+  expect(full.bitmap!.width).toBe(512);
+  expect(full.bitmap!.height).toBe(384);
+  const foregroundFrames = published().filter(
     (message) => message.kind === undefined && message.bitmap
   );
-  expect(foreground.at(-1)).toMatchObject({
+  expect(foregroundFrames.at(-1)).toMatchObject({
     complete: true,
-    sourceResidentBytes: 2048 * 1536 * 4,
+    sourceResidentBytes: 2 * 512 * 384 * 4,
   });
-  expect(published().indexOf(foreground.at(-1)!)).toBeLessThan(
-    published().indexOf(full)
+  // Overview publication precedes the matching ROI and improves with it.
+  expect(published().indexOf(full)).toBeLessThan(
+    published().indexOf(foregroundFrames.at(-1)!)
   );
   expect(network.mock.calls.map(([asset]) => levelOf(asset))).toEqual([
-    6, 5, 4, 3, 2, 1,
+    6, 5, 4, 3,
   ]);
+  await drainPhotoBackground();
+  expect(network.mock.calls.map(([asset]) => levelOf(asset))).toEqual([6, 5, 4, 3, 2]);
   expect(
     decode.mock.calls.filter(([input]) => input instanceof Blob)
-  ).toHaveLength(6);
-  expect(avifPipeline.warmAllLevels).not.toHaveBeenCalled();
+  ).toHaveLength(4);
+  expect(avifPipeline.prewarm).not.toHaveBeenCalled();
 });
 
 describe("sharp resident preview admission", () => {
+  it("refreshes expired local inventory before deciding to replay coarse frames", async () => {
+    const initial = { level: 3, getWidth: () => 64, getHeight: () => 48 },
+      fine = { level: 1, getWidth: () => 256, getHeight: () => 192 };
+    avifPipeline.select.mockResolvedValue({ image: initial, refinements: [fine] });
+    let fresh = false;
+    avifPipeline.ensureLocalAvailability.mockImplementation(async () => { fresh = true; });
+    avifPipeline.hasLocallyAvailable.mockImplementation((page: unknown) => fresh && page === fine);
+    await finish(send(wholeRequest({ retainWholeImage: false })));
+    expect(avifPipeline.ensureLocalAvailability).toHaveBeenCalledOnce();
+    expect(avifPipeline.read.mock.calls.map(([page]) => page)).toEqual([fine]);
+    expect(foreground().map((message) => message.sourceLevel)).toEqual([1]);
+    expect(network).not.toHaveBeenCalled();
+  });
+  it("composes directly at final display density when its encoded ROI is local but not decoded", async () => {
+    const initial = { level: 3, getWidth: () => 64, getHeight: () => 48 },
+      fine = { level: 1, getWidth: () => 256, getHeight: () => 192 };
+    avifPipeline.select.mockResolvedValue({
+      image: initial,
+      refinements: [fine],
+    });
+    avifPipeline.hasCached.mockReturnValue(false);
+    avifPipeline.hasLocallyAvailable.mockImplementation(
+      (page: unknown, bounds: number[]) =>
+        page === fine &&
+        bounds[2] - bounds[0] > 1 &&
+        bounds[3] - bounds[1] > 1
+    );
+    await finish(send(wholeRequest({ retainWholeImage: false })));
+    expect(avifPipeline.hasLocallyAvailable).toHaveBeenCalledWith(
+      fine,
+      [8, 0, 184, 136]
+    );
+    expect(avifPipeline.read.mock.calls.map(([page]) => page)).toEqual([fine]);
+    expect(foreground().map((message) => message.sourceWidth)).toEqual([256]);
+    expect(foreground().map((message) => message.complete)).toEqual([true]);
+    expect(foreground()[0]).toMatchObject({
+      sourceBackend: "avif-pyramid",
+      sourceLevel: 1,
+      sourceWidth: 256,
+      sourceHeight: 192,
+    });
+    expect(network).not.toHaveBeenCalled();
+    const reads = avifPipeline.read.mock.calls.length;
+    await finish(
+      send(
+        wholeRequest({
+          retainWholeImage: false,
+          generation: 2,
+          reusePublished: true,
+        })
+      )
+    );
+    expect(foreground().at(-1)).toMatchObject({
+      reusePublished: true,
+      sourceBackend: "avif-pyramid",
+      sourceLevel: 1,
+      sourceWidth: 256,
+      sourceHeight: 192,
+    });
+    expect(avifPipeline.read).toHaveBeenCalledTimes(reads);
+  });
+  it("preserves coarse stages when only the visible encoded crop is local and its resampling halo is missing", async () => {
+    const initial = { level: 3, getWidth: () => 64, getHeight: () => 48 },
+      fine = { level: 1, getWidth: () => 256, getHeight: () => 192 };
+    avifPipeline.select.mockResolvedValue({
+      image: initial,
+      refinements: [fine],
+    });
+    avifPipeline.hasLocallyAvailable.mockImplementation(
+      (page: unknown, bounds: number[]) =>
+        page === fine &&
+        bounds[0] >= 32 &&
+        bounds[1] >= 16 &&
+        bounds[2] <= 160 &&
+        bounds[3] <= 112
+    );
+    await finish(send(wholeRequest({ retainWholeImage: false })));
+    expect(avifPipeline.hasLocallyAvailable).toHaveBeenCalledWith(
+      fine,
+      [8, 0, 184, 136]
+    );
+    expect(avifPipeline.read.mock.calls.map(([page]) => page)).toEqual([
+      initial,
+      fine,
+    ]);
+    expect(foreground().map((message) => message.complete)).toEqual([
+      false,
+      true,
+    ]);
+  });
   it("starts directly at the sharpest fully cached AVIF halo ROI without a native probe", async () => {
     const initial = { level: 3, getWidth: () => 64, getHeight: () => 48 },
       fine = { level: 1, getWidth: () => 256, getHeight: () => 192 };
@@ -995,8 +1350,8 @@ describe("sharp resident preview admission", () => {
     avifPipeline.hasCached.mockReturnValue(true);
     await finish(send(wholeRequest({ retainWholeImage: false })));
     expect(avifPipeline.read.mock.calls.map(([page]) => page)).toEqual([fine]);
-    expect(published().map((message) => message.sourceWidth)).toEqual([256]);
-    expect(published()[0]).toMatchObject({
+    expect(foreground().map((message) => message.sourceWidth)).toEqual([256]);
+    expect(foreground()[0]).toMatchObject({
       complete: true,
       sourceBackend: "avif-pyramid",
     });
@@ -1025,10 +1380,10 @@ describe("sharp resident preview admission", () => {
       initial,
       fine,
     ]);
-    expect(published().map((message) => message.sourceWidth)).toEqual([
+    expect(foreground().map((message) => message.sourceWidth)).toEqual([
       64, 256,
     ]);
-    expect(published().map((message) => message.complete)).toEqual([
+    expect(foreground().map((message) => message.complete)).toEqual([
       false,
       true,
     ]);
@@ -1041,7 +1396,7 @@ describe("sharp resident preview admission", () => {
     expect(published().at(-1)).toMatchObject({
       generation: 2,
       reusePublished: true,
-      sourceResidentBytes: 256 * 192 * 4,
+      sourceResidentBytes: 64 * 48 * 4,
     });
     expect(published().at(-1)?.bitmap).toBeUndefined();
     expect(decode).toHaveBeenCalledTimes(decodes);

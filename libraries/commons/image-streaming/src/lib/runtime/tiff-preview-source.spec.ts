@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DevicePixels } from "@carma-units";
-import type { NativePreviewWindow } from "../../core/utils/native-preview-window";
+import type { NativePreviewWindow } from "../core/image-viewport-window";
 import { TiffPreviewSource } from "./tiff-preview-source";
 
 const transport = vi.hoisted(() => ({

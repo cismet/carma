@@ -16,15 +16,24 @@ import type {
   ObjectCoverageSphere,
 } from "../core/utils/object-coverage";
 import { getCameraCalibration } from "../core/utils/calibration";
-import type { NativePreviewWindow } from "../core/utils/native-preview-window";
+import {
+  ImageViewportPool,
+  type ImageViewportHandle,
+  type NativePreviewWindow,
+} from "@carma-commons/image-streaming";
 import { PREVIEW_QUALITY, type PreviewQualityLevel } from "../core/constants";
 import { useProgressivePreviewSource } from "./hooks/useProgressivePreviewSource";
 import { usePrefetchedPreviewThumbnail } from "./hooks/usePrefetchedPreviewThumbnail";
 import { getImageUrls, getPreviewImageUrl } from "./utils/imageUrls";
 import {
+  originalOf,
+  pyramidOf,
+  viewportSourceOf,
+} from "./utils/oblique-viewport-source";
+import {
   imageProjectionMatrix,
   sceneToPhotoEnu,
-} from "./utils/image-projection";
+} from "../core/utils/image-projection";
 
 import type { createPhotoAxisPicker } from "./utils/photo-axis-picker";
 
@@ -89,21 +98,6 @@ const coverageWindow = (
   return { calibration, crop, window, pixelRatio };
 };
 
-const originalOf = (image: ObjectCoverageImage) =>
-  image.dataset.avifOnly
-    ? undefined
-    : image.record.assets?.original?.href ??
-      image.dataset.originalImageUrlTemplate?.replace(
-        /\{imageId\}/g,
-        encodeURIComponent(image.record.sourceId)
-      );
-
-const pyramidOf = (image: ObjectCoverageImage) =>
-  image.record.assets?.pyramid?.href ??
-  image.dataset.avifPyramidTemplate?.replace(
-    /\{imageId\}/g,
-    encodeURIComponent(image.record.sourceId)
-  );
 
 const CoverageThumbnail = ({ image }: { image: ObjectCoverageImage }) => {
   const ref = useRef<HTMLSpanElement>(null);
@@ -173,10 +167,12 @@ const CoveragePreload = ({
   images,
   viewport,
   enabled,
+  pool,
 }: {
   images: readonly ObjectCoverageImage[];
   viewport: { width: number; height: number };
   enabled: boolean;
+  pool: ImageViewportPool;
 }) => {
   useEffect(() => {
     if (
@@ -187,85 +183,69 @@ const CoveragePreload = ({
       typeof OffscreenCanvas === "undefined"
     )
       return;
-    let worker: Worker;
-    try {
-      worker = new Worker(
-        new URL("./utils/preview-rgb.worker.ts", import.meta.url),
-        { type: "module" }
-      );
-    } catch {
-      return;
-    }
     let disposed = false,
-      index = 0,
-      generation = 0;
+      index = 0;
     let timer: ReturnType<typeof setTimeout> | undefined;
+    let handle: ImageViewportHandle | null = null;
+    let unsubscribe: (() => void) | undefined;
+    const release = () => {
+      unsubscribe?.();
+      unsubscribe = undefined;
+      handle?.release();
+      handle = null;
+    };
     const next = () => {
       clearTimeout(timer);
-      // Keep the idle bounded worker alive so outstanding cache writes can finish.
+      release();
       if (disposed || index >= images.length) return;
       const image = images[index++];
-      const { calibration, window } = coverageWindow(image, viewport);
-      const original = originalOf(image);
-      const url =
-        original ??
-        getPreviewImageUrl(
-          image.dataset.previewPath,
-          image.dataset.minimumPreviewQualityLevel ?? "0",
-          image.record.sourceId
-        );
-      worker.postMessage({
-        url: new URL(url, globalThis.window.location.href).href,
-        window,
-        nativeSize: {
-          width: calibration.widthPx,
-          height: calibration.heightPx,
-        },
-        avifOnly: image.dataset.avifOnly,
-        tiff: !!original,
-        avifPyramidUrl: pyramidOf(image)
-          ? new URL(pyramidOf(image)!, globalThis.window.location.href).href
-          : undefined,
-        flipForTexture: false,
-        generation: ++generation,
-        minimumQualityLevel: image.dataset.minimumPreviewQualityLevel,
-        maxInitialDisplayPixelSize: 1,
-        refineToNative: false,
-        retainedSourceByteLimit: 32 * 1024 * 1024,
-        priority: "low",
-      });
+      const { window } = coverageWindow(image, viewport);
+      const current = pool.acquire(viewportSourceOf(image));
+      handle = current;
+      current.setViewport(window, undefined, { priority: "low" });
+      let finished = false;
       timer = setTimeout(next, 20000);
+      unsubscribe = current.subscribe((snapshot) => {
+        if (disposed || finished) return;
+        const frame = snapshot.frame;
+        const bitmap = snapshot.bitmap;
+        const density =
+          bitmap && frame
+            ? Math.min(
+                bitmap.width / frame.source.width,
+                bitmap.height / frame.source.height
+              )
+            : 0;
+        const needed = Math.min(
+          window.target.width / window.source.width,
+          window.target.height / window.source.height,
+          snapshot.source.maxSourceDensity ?? 1
+        );
+        const covers =
+          frame &&
+          frame.source.x <= window.source.x &&
+          frame.source.y <= window.source.y &&
+          frame.source.x + frame.source.width >=
+            window.source.x + window.source.width &&
+          frame.source.y + frame.source.height >=
+            window.source.y + window.source.height;
+        if (
+          snapshot.error ||
+          (!snapshot.loading && covers && density >= needed)
+        ) {
+          finished = true;
+          clearTimeout(timer);
+          timer = setTimeout(next, 175);
+        }
+      });
     };
-    worker.onmessage = (
-      event: MessageEvent<{
-        bitmap?: ImageBitmap;
-        generation?: number;
-        complete?: boolean;
-        error?: string;
-      }>
-    ) => {
-      event.data.bitmap?.close();
-      if (
-        !disposed &&
-        event.data.generation === generation &&
-        (event.data.complete || event.data.error)
-      ) {
-        clearTimeout(timer);
-        timer = setTimeout(next, 0);
-      }
-    };
-    worker.onerror = () => {
-      clearTimeout(timer);
-      worker.terminate();
-    };
-    timer = setTimeout(next, 0);
+    timer = setTimeout(next, 175);
     return () => {
       disposed = true;
       clearTimeout(timer);
-      worker.postMessage({ cancel: true, park: true });
-      worker.terminate();
+      release();
     };
-  }, [images, viewport.width, viewport.height, enabled]);
+  }, [images, viewport.width, viewport.height, enabled, pool]);
   return null;
 };
 
@@ -278,6 +258,7 @@ const CoveragePhoto = ({
   onMeasure,
   onFinish,
   onOpen,
+  pool,
 }: {
   image: ObjectCoverageImage;
   viewport: { width: number; height: number };
@@ -290,6 +271,7 @@ const CoveragePhoto = ({
   ) => void;
   onFinish: () => void;
   onOpen: (imageId: string) => void;
+  pool: ImageViewportPool;
 }) => {
   const { record, dataset } = image;
   const { calibration, crop, window, pixelRatio } = coverageWindow(
@@ -297,8 +279,6 @@ const CoveragePhoto = ({
     viewport
   );
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const compositionWorker = useRef<Worker | null>(null);
-  const compositionGeneration = useRef(0);
   const [ready, setReady] = useState(false),
     [failed, setFailed] = useState(false);
   const workerSupported =
@@ -349,13 +329,6 @@ const CoveragePhoto = ({
     )
       ? progressiveSource
       : null;
-  useEffect(
-    () => () => {
-      compositionWorker.current?.terminate();
-      compositionWorker.current = null;
-    },
-    [active]
-  );
   useEffect(() => {
     if (
       !active ||
@@ -367,92 +340,43 @@ const CoveragePhoto = ({
     )
       return;
     const canvas = canvasRef.current;
-    let worker: Worker;
-    try {
-      worker =
-        compositionWorker.current ??
-        new Worker(new URL("./utils/preview-rgb.worker.ts", import.meta.url), {
-          type: "module",
-        });
-      compositionWorker.current = worker;
-    } catch {
-      setFailed(true);
-      return;
-    }
-    let disposed = false;
-    const generation = ++compositionGeneration.current;
-    setReady(false);
+    const handle = pool.acquire(viewportSourceOf(image));
     setFailed(false);
-    const fail = () => {
-      if (!disposed) {
-        setFailed(true);
-        worker.terminate();
-        if (compositionWorker.current === worker)
-          compositionWorker.current = null;
-      }
-    };
-    let timer: ReturnType<typeof setTimeout> | undefined = setTimeout(
-      fail,
-      90000
-    );
-    worker.onmessage = (
-      event: MessageEvent<{
-        bitmap?: ImageBitmap;
-        generation?: number;
-        error?: string;
-      }>
-    ) => {
-      const bitmap = event.data.bitmap;
-      if (disposed || event.data.generation !== generation) {
-        bitmap?.close();
-        return;
-      }
-      if (!bitmap || event.data.error) {
-        bitmap?.close();
-        fail();
-        return;
-      }
-      clearTimeout(timer);
-      timer = undefined;
-      try {
+    let shown: ImageBitmap | null = null;
+    const unsubscribe = handle.subscribe((snapshot) => {
+      const bitmap = snapshot.bitmap;
+      const frame = snapshot.frame;
+      setFailed(Boolean(snapshot.error));
+      setReady(Boolean(bitmap));
+      if (bitmap && frame && shown !== bitmap) {
         const context = canvas.getContext("2d");
         if (!context) {
-          fail();
+          setFailed(true);
           return;
         }
         if (canvas.width !== bitmap.width) canvas.width = bitmap.width;
         if (canvas.height !== bitmap.height) canvas.height = bitmap.height;
         context.clearRect(0, 0, canvas.width, canvas.height);
         context.drawImage(bitmap, 0, 0);
-        setReady(true);
-      } finally {
-        bitmap.close();
+        shown = bitmap;
+        Object.assign(canvas.style, {
+          left: `${(100 * (frame.source.x - crop.x)) / crop.width}%`,
+          top: `${(100 * (frame.source.y - crop.y)) / crop.height}%`,
+          width: `${(100 * frame.source.width) / crop.width}%`,
+          height: `${(100 * frame.source.height) / crop.height}%`,
+        });
       }
-    };
-    worker.onerror = fail;
-    worker.onmessageerror = fail;
-    worker.postMessage({
-      url: new URL(original ?? previewUrl, globalThis.window.location.href)
-        .href,
-      window,
-      nativeSize: { width: calibration.widthPx, height: calibration.heightPx },
-      avifOnly: dataset.avifOnly,
-      tiff: !!original,
-      avifPyramidUrl: pyramid
-        ? new URL(pyramid, globalThis.window.location.href).href
-        : undefined,
-      flipForTexture: false,
-      generation,
-      minimumQualityLevel: dataset.minimumPreviewQualityLevel,
-      retainedSourceByteLimit: 64 * 1024 * 1024,
     });
+    handle.setViewport(window);
     return () => {
-      disposed = true;
-      clearTimeout(timer);
-      worker.onmessage = null;
-      worker.postMessage({ cancel: true, park: true });
+      unsubscribe();
+      handle.release();
+      // The pooled bitmap stays warm; inactive DOM slides hold no pixel copy.
+      canvas.width = canvas.height = 1;
     };
   }, [
+    pool,
+    image,
     active,
     workerSupported,
     previewUrl,
@@ -468,6 +392,10 @@ const CoveragePhoto = ({
     window.target.height,
     viewport.width,
     viewport.height,
+    crop.x,
+    crop.y,
+    crop.width,
+    crop.height,
     dataset.minimumPreviewQualityLevel,
   ]);
 
@@ -674,6 +602,7 @@ const CoverageQuadrant = ({
   onMeasure,
   onFinish,
   onOpen,
+  pool,
 }: {
   label: string;
   images: readonly ObjectCoverageImage[];
@@ -686,6 +615,7 @@ const CoverageQuadrant = ({
   ) => void;
   onFinish: () => void;
   onOpen: (imageId: string) => void;
+  pool: ImageViewportPool;
 }) => {
   const viewportRef = useRef<HTMLDivElement>(null),
     carouselRef = useRef<CarouselRef>(null);
@@ -718,15 +648,13 @@ const CoverageQuadrant = ({
     return () => observer.disconnect();
   }, []);
   const active = images[activeIndex];
-  const preloadStartIndex = useRef(0);
   const enablePreload = () => {
     if (preload) return;
-    preloadStartIndex.current = activeIndex;
     setPreload(true);
   };
   const alternatives = useMemo(
-    () => images.filter((_, index) => index !== preloadStartIndex.current),
-    [images, preload]
+    () => images.filter((_, index) => index !== activeIndex),
+    [images, activeIndex]
   );
   return (
     <section
@@ -811,6 +739,7 @@ const CoverageQuadrant = ({
                   onMeasure={onMeasure}
                   onFinish={onFinish}
                   onOpen={onOpen}
+                  pool={pool}
                 />
               </div>
             ))}
@@ -878,6 +807,7 @@ const CoverageQuadrant = ({
         images={alternatives}
         viewport={viewport}
         enabled={preload}
+        pool={pool}
       />
     </section>
   );
@@ -906,6 +836,24 @@ export const ObliqueObjectCoverage = ({
   onReset?: () => void;
   onCancel?: () => void;
 }) => {
+  const [imagePool] = useState(
+    () =>
+      new ImageViewportPool({
+        maxImages: 8,
+        maxBytes: 128 * 1024 * 1024,
+        retainedSourceBytes: 4 * 1024 * 1024,
+      })
+  );
+  const poolDisposeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined
+  );
+  useEffect(() => {
+    clearTimeout(poolDisposeTimer.current);
+    return () => {
+      // React StrictMode reuses the owner across its effect setup replay.
+      poolDisposeTimer.current = setTimeout(() => imagePool.dispose(), 0);
+    };
+  }, [imagePool]);
   const [measuring, setMeasuring] = useState(false),
     [points, setPoints] = useState<Vector3[]>([]),
     [measurementError, setMeasurementError] = useState<string | null>(null);
@@ -1060,6 +1008,7 @@ export const ObliqueObjectCoverage = ({
           onMeasure={onMeasure}
           onFinish={() => setMeasuring(false)}
           onOpen={onOpen}
+          pool={imagePool}
         />
       ))}
       <div

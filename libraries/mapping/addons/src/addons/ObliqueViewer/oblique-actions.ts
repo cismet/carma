@@ -38,6 +38,9 @@ const useStoredObliqueState = () => {
           (next.isOn !== current.isOn ||
             next.title !== current.title ||
             next.selectionStrategy !== current.selectionStrategy ||
+            next.rotationSurface !== current.rotationSurface ||
+            next.previewBasemapLabels !== current.previewBasemapLabels ||
+            next.previewRotationDrape !== current.previewRotationDrape ||
             (next.enabledSeriesIds !== current.enabledSeriesIds &&
               !samePatch(current, { enabledSeriesIds: next.enabledSeriesIds })))
         )

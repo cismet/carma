@@ -10,12 +10,15 @@ import { PI_OVER_FOUR, type Degrees } from "@carma-units";
 import type { ObliqueViewQuery, ObliqueViewMode } from "../types";
 import { diagonalIntersection } from "./footprint-diagonal-intersection";
 
-export const MAX_VISIBLE_FOOTPRINTS = 128;
+export const MAX_VISIBLE_FOOTPRINTS = 64;
 export type ViewportFootprint = {
   id: string;
   ring: readonly [number, number][];
+  /** Catalog centre: delivered footprint centre or a reference-height ray estimate. */
+  groundCenter?: readonly [number, number];
   headingRad: number;
   nadir: boolean;
+  approximate?: boolean;
 };
 export type FootprintViewportQuery = {
   corners: [number, number][];
@@ -30,6 +33,7 @@ export type FootprintPointQuery = {
   headingRad: number;
   viewMode: ObliqueViewMode;
   activeImageId?: string | null;
+  pitchRad?: number;
   /** DHHN2016 height from the live mesh/terrain pointer intersection. */
   heightMeters?: number;
   selectionStrategy?: ObliqueViewQuery["selectionStrategy"];
@@ -38,6 +42,7 @@ export type FootprintPointQuery = {
 type IndexedFootprint = Omit<ViewportFootprint, "ring"> & {
   polygon: Point2[];
   center: Point2;
+  groundCenterPoint: Point2;
   axisIntersection: Point2;
   bounds: [number, number, number, number];
 };
@@ -81,12 +86,19 @@ export const indexViewportFootprints = (
             ])
           )
         : null;
+    const groundCenterPoint = item.groundCenter
+      ? project(item.groundCenter)
+      : intersection
+        ? { x: intersection[0], y: intersection[1] }
+        : center;
+    if (!Number.isFinite(groundCenterPoint.x + groundCenterPoint.y)) continue;
     result.push({
       id: item.id,
       headingRad: item.headingRad,
       nadir: item.nadir,
       polygon,
       center,
+      groundCenterPoint,
       axisIntersection: intersection
         ? { x: intersection[0], y: intersection[1] }
         : center,
@@ -138,8 +150,8 @@ const candidatesAtPoint = (
           ? 0
           : Math.abs(shortestAngleDelta(headingRad, item.headingRad)),
       distance:
-        (item.axisIntersection.x - point.x) ** 2 +
-        (item.axisIntersection.y - point.y) ** 2,
+        (item.groundCenterPoint.x - point.x) ** 2 +
+        (item.groundCenterPoint.y - point.y) ** 2,
       coversPoint:
         point.x >= item.bounds[0] &&
         point.x <= item.bounds[2] &&

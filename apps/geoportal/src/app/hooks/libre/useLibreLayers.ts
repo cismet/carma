@@ -19,6 +19,9 @@ import { NRW_DGM1_DHHN2016_TERRARIUM_TERRAIN } from "@carma-commons/resources";
 import {
   acquireSharedThreeScene,
   acquireMapLibreTerrainMeshComposition,
+  acquireMapLibreTerrainDemandPause,
+  acquireMapLibreTerrainZoomLimit,
+  WUPPERTAL_TERRAIN_SOURCE_ID,
   registerSharedThreeSceneRuntime,
   notifySharedThreeSceneContentChanged,
   hasSharedThreeShadedPresentation,
@@ -58,7 +61,7 @@ export const useLibreLayers = (): LibreLayer[] => {
     () => applyAddonOverrides(resolveAddonEntries(routeAddons), addonOverrides),
     [routeAddons, addonOverrides]
   );
-  const { isOn: obliqueOn } = useObliqueViewerActions();
+  const { isOn: obliqueOn, previewVisible } = useObliqueViewerActions();
   const obliqueActive =
     obliqueOn === true &&
     effectiveAddons.some((entry) => entry.kind === "obliqueViewer");
@@ -145,8 +148,8 @@ export const useLibreLayers = (): LibreLayer[] => {
   const obliqueTerrainRef = useRef<ReturnType<
     typeof buildRasterDemTerrainRuntime
   > | null>(null);
-  // One shared DEM receiver fills mesh coverage gaps in either background mode.
-  // Style changes keep its worker, decoded tiles and geometry alive.
+  // Karte draws the DEM; Mesh keeps it only as a cached CPU height sampler.
+  // Style changes preserve its worker, decoded tiles and geometry.
   useEffect(() => {
     if (!map || !obliqueActive) return;
     const lease = acquireSharedThreeScene(map);
@@ -156,13 +159,19 @@ export const useLibreLayers = (): LibreLayer[] => {
       NRW_DGM1_DHHN2016_TERRARIUM_TERRAIN,
       [origin.lng, origin.lat],
       {
+        geometryProjection: "ecef",
         receivesMapStyleTexture: true,
+        material: { unlit: true },
         groundVisible: currentStyle !== MapStyleKeys.AERIAL,
         errorTargetPixels: 1,
         motionErrorTargetPixels: 4,
+        maximumMeshSegments: 128,
         onContentChanged: (bounds) =>
           notifySharedThreeSceneContentChanged(map, { bounds }),
       }
+    );
+    runtime.setTileDemandPaused(
+      currentStyle === MapStyleKeys.AERIAL || previewVisible === true
     );
     obliqueTerrainRef.current = runtime;
     lease.layer.addRuntime(runtime);
@@ -180,6 +189,32 @@ export const useLibreLayers = (): LibreLayer[] => {
       currentStyle !== MapStyleKeys.AERIAL
     );
   }, [map, obliqueActive, currentStyle]);
+  useEffect(() => {
+    // Mesh uses MapLibre drape textures directly, without a Three DEM traversal.
+    // Preview pan/FOV changes only the image plane, not the ground tile demand.
+    obliqueTerrainRef.current?.setTileDemandPaused(
+      currentStyle === MapStyleKeys.AERIAL || previewVisible === true
+    );
+  }, [map, obliqueActive, currentStyle, previewVisible]);
+  useEffect(() => {
+    if (
+      !map ||
+      !obliqueActive ||
+      currentStyle !== MapStyleKeys.AERIAL ||
+      !mapStyle3dActive
+    )
+      return;
+    // Label placement needs coarse ground height, never image-resolution DEMs.
+    return acquireMapLibreTerrainZoomLimit(map, WUPPERTAL_TERRAIN_SOURCE_ID, 13);
+  }, [map, obliqueActive, currentStyle, mapStyle3dActive]);
+  useEffect(() => {
+    if (!map || !obliqueActive) return;
+    const meshWithoutDrape =
+      currentStyle === MapStyleKeys.AERIAL && !mapStyle3dActive;
+    if (!meshWithoutDrape && previewVisible !== true) return;
+    // Retain native terrain/RTT and camera elevation; freeze only tile demand.
+    return acquireMapLibreTerrainDemandPause(map, WUPPERTAL_TERRAIN_SOURCE_ID);
+  }, [map, obliqueActive, currentStyle, mapStyle3dActive, previewVisible]);
   // Raster capture is needed on Karte even when the optional 3D-label addon is off.
   useEffect(() => {
     if (!map || !obliqueActive || currentStyle === MapStyleKeys.AERIAL) return;

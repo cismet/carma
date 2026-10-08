@@ -448,8 +448,8 @@ describe("shared three scene layer.ground", () => {
       .split("#else")[0];
     expect(terrainDepthBranch).toContain("return true;");
     expect(terrainDepthBranch).not.toContain("fragmentDistance");
-    expect(material.customProgramCacheKey()).toContain(
-      "carma-map-style-projection-v15"
+    expect(material.customProgramCacheKey()).toMatch(
+      /\|carma-map-style-projection-v\d+\|replace\|mercator$/
     );
     expect(material.defines?.CARMA_MAP_STYLE_OVERLAY).toBeUndefined();
   });
@@ -548,8 +548,11 @@ describe("shared three scene layer.ground", () => {
     expect(shader.fragmentShader).toContain("#ifdef CARMA_MAP_STYLE_OVERLAY");
     expect(shader.fragmentShader).toContain("carmaMapStyleOccludedByMesh");
     expect(shader.fragmentShader).toContain("carmaMapStyleLabelCoverage");
-    expect(shader.fragmentShader.indexOf("carmaShade")).toBeLessThan(
-      shader.fragmentShader.indexOf("#include <opaque_fragment>")
+    const shadedOutput = shader.fragmentShader.slice(
+      shader.fragmentShader.indexOf("float carmaShade =")
+    );
+    expect(shadedOutput.indexOf("carmaShade")).toBeLessThan(
+      shadedOutput.indexOf("#include <opaque_fragment>")
     );
     expect(shader.uniforms).toMatchObject({
       carmaMapStyleDepthTexture: uniforms.depthTexture,

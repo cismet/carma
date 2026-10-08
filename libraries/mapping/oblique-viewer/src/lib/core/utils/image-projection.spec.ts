@@ -10,7 +10,7 @@ import type {
   ObliqueCameraCalibration,
   ObliqueImageRecord,
   ObliquePose,
-} from "../../core/types";
+} from "../types";
 import {
   imageProjectionMatrix,
   sceneToMercatorPhotoEnu,

@@ -1,5 +1,5 @@
 import type { ObliqueDataset } from "../../core/types";
-import { summarizeObliquePitch } from "../../core/utils/imageRecord";
+import { summarizeObliquePitchStatistics } from "../../core/utils/imageRecord";
 import { loadObliqueSeriesData, type ObliqueData } from "./load-oblique-series";
 
 type CacheLoader = typeof loadObliqueSeriesData;
@@ -26,6 +26,11 @@ export const loadWithOptionalCatalogCache = async (
     clearTimeout(timer);
   }
   const data = await (cachedLoader ?? loadObliqueSeriesData)(dataset);
-  data.obliquePitchBySeries ??= summarizeObliquePitch(data);
+  if (!data.obliquePitchBySeries || !data.obliquePitchByDirectionBySeries) {
+    const totals = summarizeObliquePitchStatistics(data);
+    data.obliquePitchBySeries ??= totals.obliquePitchBySeries;
+    data.obliquePitchByDirectionBySeries ??=
+      totals.obliquePitchByDirectionBySeries;
+  }
   return data;
 };

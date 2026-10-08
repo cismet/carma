@@ -25,7 +25,13 @@ export type ImageSelectionCandidate = Omit<
   imageId: string;
 };
 export type ImageSelectionRequest =
-  | { type: typeof IMAGE_SELECTION_MESSAGE.INIT; data: ObliqueSelectionData }
+  | {
+      type: typeof IMAGE_SELECTION_MESSAGE.INIT;
+      data: ObliqueSelectionData;
+      append?: boolean;
+      complete?: boolean;
+      revision?: number;
+    }
   | {
       type: typeof IMAGE_SELECTION_MESSAGE.QUERY;
       requestId: number;

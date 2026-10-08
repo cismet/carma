@@ -7,7 +7,7 @@ import type {
   ObliqueSelectionData,
 } from "../types";
 import { TEST_LEGACY_SERIES } from "./synthetic-series.test-fixture";
-import { imageProjectionMatrix } from "../../runtime/utils/image-projection";
+import { imageProjectionMatrix } from "./image-projection";
 import {
   groupObjectCoverageImages,
   projectObjectCoverageSphere,

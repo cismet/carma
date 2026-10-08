@@ -9,6 +9,16 @@ import { downloadTiffJpeg } from "./tiff-download";
 vi.mock("./tiff-download", () => ({ downloadTiffJpeg: vi.fn() }));
 
 describe("source image URLs", () => {
+  it("removes the obsolete AVIF cache query from per-record download addresses", () => {
+    expect(
+      getImageUrls("id", "/2026", 3, 1, {
+        avifOnly: true,
+        avifPyramidUrl:
+          "/2026/avif/id.avif?pyramid=2024-attribution-v2&token=public#image",
+      }).downloadUrl
+    ).toBe("/2026/avif/id.avif?token=public#image");
+  });
+
   it("uses only the public AVIF pyramid despite legacy TIFF assets", () => {
     expect(
       getImageUrls("RI_29_3403", "/2026", 3, 1, {

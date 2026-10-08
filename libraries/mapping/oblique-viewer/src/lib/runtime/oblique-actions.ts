@@ -58,6 +58,13 @@ export const OBLIQUE_NAVIGATION_KEYS = {
 export type ObliqueNavigationKey =
   (typeof OBLIQUE_NAVIGATION_KEYS)[keyof typeof OBLIQUE_NAVIGATION_KEYS];
 
+export const OBLIQUE_ROTATION_SURFACES = {
+  Mesh: "mesh",
+  Dem: "terrain",
+} as const;
+export type ObliqueRotationSurface =
+  (typeof OBLIQUE_ROTATION_SURFACES)[keyof typeof OBLIQUE_ROTATION_SURFACES];
+
 export type ObliqueNavigationTargets = {
   imageId: string;
   images: Record<ObliqueNavigationKey, string | null>;
@@ -70,6 +77,12 @@ export type ObliqueViewerState = {
   series: ViewerSeriesStatus[];
   /** Persisted selection policy; both interfaces share the same calibrated catalogs. */
   selectionStrategy: NonNullable<ObliqueViewQuery["selectionStrategy"]>;
+  /** Surface that anchors NG rotation steps to the current view centre. */
+  rotationSurface: ObliqueRotationSurface;
+  /** NG photo overlay can retain mesh-occluded basemap street/water labels. */
+  previewBasemapLabels: boolean;
+  /** NG rotation projects the endpoint photos onto visible mesh geometry. */
+  previewRotationDrape: boolean;
   viewMode: ObliqueViewMode;
   selectedSeriesId: string | null;
   selectedSourceImageId: string | null;
@@ -87,6 +100,8 @@ export type ObliqueViewerState = {
   /** Qualified selected photo with an evidenced, currently cached missing preview. */
   missingPreviewImageId: string | null;
   selectedCameraId: string | null;
+  /** Calibrated camera view from the selected series catalog, never parsed from its filename. */
+  selectedCameraView: string | null;
   selectedImageBearingDeg: Degrees | null;
   /** the sector the camera looks into, null until the map is tilted */
   activeDirection: CardinalDirection | null;
@@ -117,6 +132,9 @@ export const OBLIQUE_STATE_DEFAULT: ObliqueViewerState = {
   enabledSeriesIds: null,
   series: [],
   selectionStrategy: "nearest-axis",
+  rotationSurface: OBLIQUE_ROTATION_SURFACES.Mesh,
+  previewBasemapLabels: false,
+  previewRotationDrape: false,
   viewMode: "oblique",
   selectedSeriesId: null,
   selectedSourceImageId: null,
@@ -129,6 +147,7 @@ export const OBLIQUE_STATE_DEFAULT: ObliqueViewerState = {
   selectedImageId: null,
   missingPreviewImageId: null,
   selectedCameraId: null,
+  selectedCameraView: null,
   selectedImageBearingDeg: null,
   activeDirection: null,
   bearingDeg: null,

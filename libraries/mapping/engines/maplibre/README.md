@@ -243,6 +243,20 @@ Following native point labels retain their normal order. Removing an owner clear
 its slot; callers dispose their textures. Unchanged texture versions, transforms
 and opacities do not invalidate the map.
 
+
+`MapStyleScreenOverlay.projective.sceneToTexture` instead maps scene-world
+positions to homogeneous photo UV (positive w is camera depth). Such entries
+use the same two texture slots but render only on ECEF mesh receivers; terrain
+and the fullscreen backdrop are excluded. Two projector opacities are combined
+as a premultiplied weighted sum in linear space, so complementary `1-t`/`t`
+weights do not darken overlapping photos. The caller supplies fixed photo
+projectors, owns textures and schedules the transition. No extra geometry,
+render target or camera-depth capture is allocated. Photo-only mesh materials
+receive the image independently of the basemap-label material filter, preserving
+their authored lighting and texture outside the photo. Receiver traversal is
+invalidated at projector activation/deactivation and LOD changes, not per
+animation step.
+
 Layer opacity multiplies authored material opacity after any full-opacity shadow styling. Below full opacity, materials enable transparency and disable depth writing; restoring full opacity restores the appropriate source render flags. Updating opacity or colour-correction uniforms does not replace the loaded tile pool.
 
 The Mesh 2024 resource may supply gamma, black/white point and saturation through `colorCorrection`; catalog-authored settings override that fallback. The correction adjusts texture or vertex RGB before physical lighting. It is a display correction, not recovered physical albedo. `shadowBuildingStyle` gates shadow UI colour, saturation and opacity overrides, but every activated textured mesh still receives the lit material adapter and can receive simulated shadows. Opted-out styles keep their declared appearance; outlines follow their own `outline` setting. Source materials are restored when shadows stop.

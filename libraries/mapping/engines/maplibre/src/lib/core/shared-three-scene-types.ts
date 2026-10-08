@@ -5,13 +5,22 @@ import type { SceneAccumulationOptions } from "@carma-mapping/engines/three/prim
 import type { TileCameraSnapshot, TileCameraView } from "./tile-camera-demand";
 import type { TileVolumeLoadReason, TileVolumeState } from "./tile-volume";
 
-/** Screen photograph and optional full-image framing, shared by receivers and backdrop. */
+/** Photograph on screen or optional calibrated mesh receivers, borrowing the caller texture. */
 export type MapStyleScreenOverlay = Readonly<{
   texture: THREE.Texture;
   /** Normalized viewport UV (bottom left) to texture UV (bottom left). */
   viewportToTexture: THREE.Matrix3;
+  /**
+   * Project onto visible ECEF mesh receivers instead of the screen/backdrop.
+   * Scene-world position to homogeneous texture UV; positive w is photo camera
+   * depth. Two projective slots use additive opacity weights for crossfading.
+   * Terrain receivers and the fullscreen backdrop never receive this photo.
+   */
+  projective?: { sceneToTexture: THREE.Matrix4 };
   opacity: number;
   priority?: number;
+  /** Preserve normal map labels outside the photo; defaults to true. */
+  showBasemapLabels?: boolean;
   /** CSS filter factors applied only to the mesh outside this image. */
   backdropLook?: {
     contrast: number;
@@ -477,14 +486,20 @@ export type MapStyleProjectionUniforms = Readonly<{
     {
       texture: { value: THREE.Texture | null };
       viewportToTexture: { value: THREE.Matrix3 };
+      sceneToTexture: { value: THREE.Matrix4 };
+      projective: { value: number };
       opacity: { value: number };
     },
     {
       texture: { value: THREE.Texture | null };
       viewportToTexture: { value: THREE.Matrix3 };
+      sceneToTexture: { value: THREE.Matrix4 };
+      projective: { value: number };
       opacity: { value: number };
     }
   ];
+  /** Whether captured ground labels are composited over the current photograph. */
+  screenBasemapLabels?: { value: number };
   screenBackdrop?: {
     look: { value: THREE.Vector3 };
     tint: { value: THREE.Vector4 };
@@ -524,6 +539,8 @@ export const MAP_STYLE_PROJECTION_BLEND = {
   REPLACE: "replace",
   OVERLAY: "overlay",
   MARKINGS_ONLY: "markings-only",
+  /** Retain normal material shading; admit only calibrated world-space photos. */
+  PHOTO_ONLY: "photo-only",
 } as const;
 
 export type MapStyleProjectionBlend =

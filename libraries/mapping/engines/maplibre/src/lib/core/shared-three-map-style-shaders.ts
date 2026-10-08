@@ -3,9 +3,14 @@ export const MAP_STYLE_SCREEN_OVERLAY_FRAGMENT_HEADER = /* glsl */ `
 uniform sampler2D carmaScreenTexture0;
 uniform mat3 carmaScreenToTexture0;
 uniform float carmaScreenOpacity0;
+uniform mat4 carmaScreenSceneToTexture0;
+uniform float carmaScreenProjective0;
 uniform sampler2D carmaScreenTexture1;
 uniform mat3 carmaScreenToTexture1;
 uniform float carmaScreenOpacity1;
+uniform mat4 carmaScreenSceneToTexture1;
+uniform float carmaScreenProjective1;
+uniform float carmaScreenBasemapLabels;
 uniform vec3 carmaScreenBackdropLook;
 uniform vec4 carmaScreenBackdropTint;
 uniform float carmaScreenBackdropOpacity;
@@ -58,13 +63,51 @@ float carmaScreenBorder(vec2 uv) {
   return borderAlpha+shadowAlpha*(1.0-borderAlpha);
 }
 vec4 carmaScreenImages(vec2 uv, out float photographAlpha, out float decorationAlpha) {
-  vec4 base = carmaScreenSample(carmaScreenTexture0,carmaScreenToTexture0,carmaScreenOpacity0,uv);
-  vec4 crop = carmaScreenSample(carmaScreenTexture1,carmaScreenToTexture1,carmaScreenOpacity1,uv);
+  vec4 base = carmaScreenSample(carmaScreenTexture0,carmaScreenToTexture0,carmaScreenOpacity0*(1.0-carmaScreenProjective0),uv);
+  vec4 crop = carmaScreenSample(carmaScreenTexture1,carmaScreenToTexture1,carmaScreenOpacity1*(1.0-carmaScreenProjective1),uv);
   photographAlpha = crop.a + base.a * (1.0-crop.a);
   decorationAlpha = carmaScreenBorder(uv);
   float borderAlpha = decorationAlpha*(1.0-photographAlpha);
   float alpha = photographAlpha+borderAlpha;
   return vec4((crop.rgb*crop.a + base.rgb*base.a*(1.0-crop.a)+vec3(borderAlpha))/max(alpha,0.00001),alpha);
+}
+vec4 carmaScreenProjectiveSample(sampler2D image, mat4 transform, float weight, vec3 position) {
+  if (weight <= 0.0) return vec4(0.0);
+  vec4 photo = transform * vec4(position,1.0);
+  if (photo.w <= 0.0) return vec4(0.0);
+  vec2 uv = photo.xy/photo.w;
+  if (any(lessThan(uv,vec2(0.0))) || any(greaterThan(uv,vec2(1.0)))) return vec4(0.0);
+  vec4 pixel = texture2D(image,uv);
+  pixel.a *= weight;
+  return pixel;
+}
+vec4 carmaReceiverImages(vec2 uv, vec3 position, out float photographAlpha, out float decorationAlpha) {
+#ifdef CARMA_MAP_STYLE_PHOTO_ONLY
+  photographAlpha = 0.0;
+  decorationAlpha = 0.0;
+  vec4 screen = vec4(0.0);
+#else
+  vec4 screen = carmaScreenImages(uv,photographAlpha,decorationAlpha);
+#endif
+#if defined(CARMA_PROJECTIVE_LOCAL_FRAME) && (defined(CARMA_MAP_STYLE_OVERLAY) || defined(CARMA_MAP_STYLE_PHOTO_ONLY))
+  // These are the existing visible ECEF meshes. No receiver proxy or DEM is
+  // introduced. Three's sRGB texture sampling supplies linear photo values.
+  vec4 source = carmaScreenProjectiveSample(carmaScreenTexture0,carmaScreenSceneToTexture0,
+    carmaScreenOpacity0*carmaScreenProjective0,position);
+  vec4 target = carmaScreenProjectiveSample(carmaScreenTexture1,carmaScreenSceneToTexture1,
+    carmaScreenOpacity1*carmaScreenProjective1,position);
+  float weight = source.a+target.a;
+  float alpha = min(1.0,weight);
+  // A weighted sum keeps source*(1-t)+target*t at full coverage where both
+  // cameras see the receiver. Serial alpha-over would dim the mesh at t=0.5.
+  vec3 color = (source.rgb*source.a+target.rgb*target.a)/max(weight,0.00001);
+  photographAlpha = alpha+photographAlpha*(1.0-alpha);
+  decorationAlpha *= 1.0-alpha;
+  float combinedAlpha = alpha+screen.a*(1.0-alpha);
+  return vec4((color*alpha+screen.rgb*screen.a*(1.0-alpha))/max(combinedAlpha,0.00001),combinedAlpha);
+#else
+  return screen;
+#endif
 }
 `;
 
@@ -297,6 +340,18 @@ vec3 carmaScreenBackdrop( vec3 linearColor ) {
 `;
 
 export const MAP_STYLE_PROJECTION_FRAGMENT_OUTPUT = /* glsl */ `
+#ifdef CARMA_MAP_STYLE_PHOTO_ONLY
+// Preserve roofs/facades that the basemap receiver filter excludes. Only the
+// two calibrated photographs participate; normal screen photos, labels and
+// footprint/surface markings keep their existing receiver admission policy.
+if (carmaScreenOpacity0 > 0.0 || carmaScreenOpacity1 > 0.0) {
+  float photographAlpha;
+  float decorationAlpha;
+  vec4 image = carmaReceiverImages(vec2(0.0),vCarmaReceiverPosition,photographAlpha,decorationAlpha);
+  outgoingLight = outgoingLight*(1.0-photographAlpha)+image.rgb*photographAlpha;
+}
+#include <opaque_fragment>
+#else
 #ifdef CARMA_MAP_STYLE_MARKINGS_ONLY
 // Accumulate premultiplied overlays without the receiver's ground or lighting.
 vec4 carmaMarkings = vec4(0.0);
@@ -327,7 +382,7 @@ if (carmaScreenOpacity0 > 0.0 || carmaScreenOpacity1 > 0.0) {
   float photographAlpha;
   float decorationAlpha;
   // carmaScreenImages returns straight RGB and coverage, including the framing.
-  vec4 image = carmaScreenImages(screenUv,photographAlpha,decorationAlpha);
+  vec4 image = carmaReceiverImages(screenUv,vCarmaReceiverPosition,photographAlpha,decorationAlpha);
   carmaMarkings = vec4(image.rgb * image.a, image.a) + carmaMarkings * (1.0-image.a);
 }
 // Projective footprints and their labels already carry premultiplied RGB.
@@ -375,7 +430,7 @@ if (carmaScreenOpacity0 > 0.0 || carmaScreenOpacity1 > 0.0) {
   vec2 screenUv = vCarmaMapStyleClip.xy / vCarmaMapStyleClip.w * 0.5 + 0.5;
   float photographAlpha;
   float decorationAlpha;
-  vec4 image = carmaScreenImages(screenUv,photographAlpha,decorationAlpha);
+  vec4 image = carmaReceiverImages(screenUv,vCarmaReceiverPosition,photographAlpha,decorationAlpha);
   // Filter only the visible receiver beneath/outside the photo. Its source RGB stays untouched.
   float outside = carmaScreenBackdropOpacity*(1.0-photographAlpha);
   if (outside>0.0) outgoingLight = mix(outgoingLight,carmaScreenBackdrop(outgoingLight),outside);
@@ -385,6 +440,12 @@ if (carmaScreenOpacity0 > 0.0 || carmaScreenOpacity1 > 0.0) {
     mix(carmaMapStyleLinearToSRGB(outgoingLight),vec3(1.0),decorationAlpha));
   vec3 photograph = max(image.rgb*image.a-vec3(decorationAlpha*(1.0-photographAlpha)),vec3(0.0));
   outgoingLight = outgoingLight*(1.0-photographAlpha)+photograph;
+  // Image coverage suppresses only labels over the photograph, never those
+  // around it. Existing depth matching still makes roofs/facades occlude them.
+#ifdef CARMA_MAP_STYLE_OVERLAY
+  if (carmaScreenBasemapLabels < 0.5)
+    carmaMapStyleLabelCoverage *= 1.0-photographAlpha;
+#endif
 }
 #ifdef CARMA_MAP_STYLE_OVERLAY
 if ( carmaMapStyleLabelCoverage > 0.0 ) {
@@ -396,11 +457,13 @@ vec4 projectiveMarkings = carmaProjectiveMarkings();
 outgoingLight = outgoingLight * (1.0-projectiveMarkings.a) + projectiveMarkings.rgb;
 #include <opaque_fragment>
 #endif
+#endif
 `;
 
 export const MAP_STYLE_PROJECTION_FRAGMENT_BODY = /* glsl */ `
 #ifndef CARMA_MAP_STYLE_MARKINGS_ONLY
 #include <map_fragment>
+#ifndef CARMA_MAP_STYLE_PHOTO_ONLY
 if ( carmaMapStyleEnabled > 0.5 && vCarmaMapStyleClip.w > 0.0 ) {
   vec2 carmaMapStyleUv = vCarmaMapStyleClip.xy / vCarmaMapStyleClip.w * 0.5 + 0.5;
   if (
@@ -426,13 +489,14 @@ if ( carmaMapStyleEnabled > 0.5 && vCarmaMapStyleClip.w > 0.0 ) {
 #else
     if ( carmaMapStyleSample.a > 0.0 ) {
       diffuseColor.rgb = carmaMapStyleSRGBToLinear(
-        carmaMapStyleSample.rgb
+        clamp( carmaMapStyleSample.rgb / carmaMapStyleSample.a, 0.0, 1.0 )
       );
       diffuseColor.a = 1.0;
     }
 #endif
   }
 }
+#endif
 #endif
 `;
 

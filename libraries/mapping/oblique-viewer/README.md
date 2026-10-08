@@ -32,30 +32,11 @@ availability are independent; errors remain attached to the affected series.
 Unknown height datum remains explicit. Source-Z inspection requires the existing
 development-only opt-in, without guessing a datum conversion.
 
-There are no user-facing display or quality settings. Previews always refine
-toward the best available source quality, with the fixed backdrop look. The first
-preview stage uses the coarsest available level whose source pixels occupy at
-most eight physical display pixels, accounting for device pixel ratio and zoom.
-Cached sharper sources can be shown immediately. Every finer published stage
-then follows automatically; a missing JPEG stage does not stop subsequent levels.
-For JPEG
-series, `minimumPreviewQualityLevel` identifies the finest published level and
-the automatic target. Higher zoom retains available pixels instead of requesting an absent
-level. Preview decode and resampling run in reusable workers, composing only the
-visible source-pixel window in OffscreenCanvas. Three parked workers plus the
-active worker retain four sources within a memory budget. Optional CacheStorage
-retains encoded sources without lossy recompression. Original TIFF range reads
-and progressive overview loading are described below.
+## Image streaming ownership
 
-`OffscreenCanvasPool.acquire({ width, height })` leases an exact, device-pixel
-crop with its 2D context; `release()` returns it and `trim()` frees unused stores.
-Leased surfaces are never reused or resized by another job. Each worker refines
-one crop surface in place and reuses JPEG tile decode surfaces. Idle retention
-is capped at 8 MiB/two composition canvases and 4 MiB/one decode canvas; active
-crop surfaces, source bitmaps and decoder caches are separate allocations.
-Object views reuse their active worker during resize and keep source crop
-coordinates separate from canvas dimensions. They terminate it when the view
-becomes inactive; no full-sensor canvas is allocated for the contact sheet.
+Image grid parsing, physical-resolution refinement, compressed range persistence and canvas/worker pooling have moved to the standalone Nx project `libraries/commons/image-streaming` (`@carma-commons/image-streaming`). That library replaces the former feature-local image decoder and pool modules; there are no forwarding copies here. Stories remain central in `playgrounds/stories`.
+
+The oblique feature owns scene projection and photo/camera geometry. Its preview adapter supplies source-pixel crops and physical target sizes to the shared image API. AVIF and JPEG refine only as far as the physical viewport requires; finer compressed data can be prewarmed on idle without allocating a full-photo canvas. See the streaming library README for cache limits, optional TIFF codecs and memory-measurement scope.
 
 ## Selection and navigation
 
@@ -128,7 +109,13 @@ retain proximity selection rather than claiming calibrated resolution. The polic
 is persisted with enabled series; changing it keeps workers and imagery caches.
 
 
-Browsing pitch follows the image-count-weighted mean of calibrated oblique poses in the currently enabled, loaded catalogs. Nadir and invalid poses are excluded. The metadata worker derives small per-series angle totals once, including for older cached catalogs; enabling or removing a series recombines only those totals. The configured pitch remains the fallback before usable metadata arrives. Entering browsing and leaving a preview use this same target. A changed target adjusts pitch without restarting the mode or resetting zoom/FOV, and an open preview retains its photo camera.
+Classic and NG browsing pitch follows the image-count-weighted mean of calibrated oblique poses in the requested world bearing sector across enabled, loaded catalogs. Nadir and invalid poses are excluded. The metadata worker derives small per-series and per-direction totals together once, including for older cached catalogs; enabling or removing a series recombines only those totals. Complete directional manifest summaries supply the calibrated startup pitch before image slices arrive and replace matching partial sums rather than adding to them. Legacy series means and then the configured pitch are fallbacks without directional evidence. Entering browsing and leaving a preview use this same target. A rotation return resolves its destination bearing and latest catalog statistics, changing pitch throughout the same tween as heading. A changed default adjusts only pitch without restarting the mode or resetting zoom/FOV, and an open preview retains its photo camera.
+
+The shared Classic/NG layer readout keeps the original source-image prefixes and components in normal-weight text, separated by thin spaces. The raw identifier remains available on hover and for accessibility; plane/arrow markers and camera-prefix stripping are no longer used for this display. Asset URLs and catalog identity are unchanged.
+
+NG (`ff=oblique.olbng`) offers the persisted **Fotos auf Mesh** option, off by default. Rotation prepares two full-photo streamed compositions bounded to the physical viewport and a shared 128 MiB two-entry pool; it does not decode native L1 into a full-resolution canvas. The calibrated start/end cameras project these textures onto existing visible ECEF mesh surfaces, including roofs and facades. The camera tween supplies the same eased progress to weights `1-t` and `t`, blended in linear space. Terrain and the fullscreen image backdrop do not receive these projective photos. The selected label option remains in effect. Preparation is bounded to two seconds; missing images or absent mesh keep normal geometric navigation. Aborting, switching mode/image/series, disabling the option or unmounting removes projections before releasing textures and borrowed bitmaps. A normal target preview takes over once its physical display pixels are ready, with a bounded fallback timeout. Classic does not initialize this path.
+
+The reusable photo source resolver is shared with object views. The engine's optional `MapStyleScreenOverlay.projective.sceneToTexture` is generic; photogrammetry and transition lifecycle remain in the oblique feature. No additional mesh geometry, terrain source, depth pass or render target is created for this option.
 
 Best-fit selection evaluates the requested ground target and continuous camera bearing/pitch against the poses and camera field of view of enabled series. Direction names remain per-series hints rather than a shared north/east/south/west eligibility rule. In the olbng interface, enabling a nadir-capable series offers a Nadir button. It locks browsing at zero pitch and selects calibrated nadir cameras only, including on subsequent pan requests; the compass or the same button returns to oblique browsing. Removing the last nadir-capable series returns to oblique mode. Orbit requests change the desired view direction; pan requests change the target in the current image-view frame. Both requests search enabled series and may choose a different year. No-enabled-series and no-candidate results are valid empty states.
 
@@ -537,7 +524,7 @@ flight strips. Directional datasets never request the whole-series catalog. A fa
 retains successful segments and surfaces a per-group error; its direction await
 returns unavailable. Explicit retry reloads only failed segments. The four
 oblique segments fill one in-memory series incrementally; nadir is requested
-separately when needed. Unsplit legacy series retain their one-file loader. Full-series pitch totals in the group manifest keep the browsing pitch
+separately when needed. Unsplit legacy series retain their one-file loader. Full-group pitch totals in the manifest keep each bearing sector's browsing pitch
 stable while records arrive. Parsed caches remain separate per source group;
 existing whole-series caches are retained.
 

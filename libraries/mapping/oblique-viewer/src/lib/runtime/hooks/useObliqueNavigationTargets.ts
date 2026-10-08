@@ -14,7 +14,7 @@ import {
 } from "../../core/utils/orientation";
 import { getCameraCalibration } from "../../core/utils/calibration";
 import { panViewTarget } from "../../core/utils/selection";
-import { poseOf, resolveCameraAltitude } from "../utils/flyToImage";
+import { poseOf } from "../utils/flyToImage";
 import type { RefreshSearchArgs } from "./useNearestImage";
 import type { ImageSelectionBatchResult } from "../utils/image-selection-messages";
 import {
@@ -50,10 +50,11 @@ type Options = {
   viewMode: ObliqueViewMode;
   previewCameraActive: boolean;
   nextInterface: boolean;
-  heightOffset: number;
   targetRef: MutableRefObject<ObliqueGroundTarget | null>;
   busyRef: MutableRefObject<boolean>;
   readTarget: () => ObliqueGroundTarget | null;
+  /** Sample the configured NG rotation surface once, before selecting its camera. */
+  readRotationTarget?: () => ObliqueGroundTarget | null;
   computeNavigation: (
     queries: RefreshSearchArgs[]
   ) => Promise<ImageSelectionBatchResult>;
@@ -100,6 +101,7 @@ export const useObliqueNavigationTargets = (options: Options) => {
     mountedRef = useRef(false),
     pumpRef = useRef<() => void>(() => {}),
     refreshRef = useRef<() => Promise<void>>(async () => {}),
+    publishedTargetsRef = useRef<string | null>(null),
     navigationTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(),
     lastNavigationAtRef = useRef(-Infinity),
     missingThisTickRef = useRef(0),
@@ -124,10 +126,13 @@ export const useObliqueNavigationTargets = (options: Options) => {
   useEffect(() => {
     if (!options.enabled || options.viewMode === "objectCoverage") cancel();
   }, [options.enabled, options.viewMode, cancel]);
-  const invalidate = useCallback(() => {
+  const invalidate = useCallback((clearPublished = true) => {
     generationRef.current++;
     cacheRef.current = null;
-    optionsRef.current.publish(null);
+    if (clearPublished) {
+      publishedTargetsRef.current = null;
+      optionsRef.current.publish(null);
+    }
   }, []);
   const effectiveTarget = useCallback((): ObliqueGroundTarget | null => {
     const o = optionsRef.current,
@@ -168,6 +173,28 @@ export const useObliqueNavigationTargets = (options: Options) => {
       ? c
       : null;
   }, [effectiveTarget]);
+
+  const publishSettled = useCallback(() => {
+    const o = optionsRef.current,
+      cache = currentCache();
+    if (!cache || o.busyRef.current || o.map?.isMoving?.()) return;
+    const images = Object.fromEntries(
+      Object.values(OBLIQUE_NAVIGATION_KEYS).map((key) => [
+        key,
+        cache.targets.get(key)?.candidate.record.id ?? null,
+      ])
+    ) as ObliqueNavigationTargets["images"];
+    const cardinalImages = Object.fromEntries(
+      CARDINALS_CLOCKWISE.map((cardinal) => [
+        cardinal,
+        cache.cardinals.get(cardinal)?.candidate.record.id ?? null,
+      ])
+    ) as Record<CardinalDirection, string | null>;
+    const identity = JSON.stringify([cache.imageId, images, cardinalImages]);
+    if (publishedTargetsRef.current === identity) return;
+    publishedTargetsRef.current = identity;
+    o.publish({ imageId: cache.imageId, images, cardinalImages });
+  }, [currentCache]);
 
   const prefetchNext = useCallback(() => {
     const cache = currentCache(),
@@ -260,7 +287,8 @@ export const useObliqueNavigationTargets = (options: Options) => {
             entry.kind === QUEUE_ENTRY_KIND.IMAGE
               ? entry.activate(target!)
               : entry.activate();
-          invalidate();
+          // Keep the last settled button state visible while the camera flies.
+          invalidate(false);
           await activation;
           entry.settle(epoch === queueEpochRef.current);
         } catch {
@@ -270,8 +298,9 @@ export const useObliqueNavigationTargets = (options: Options) => {
         }
         // The completed flight may have published another photo/mode/data revision.
         // A new cache is required before the next image entry can resolve its target.
-        if (!currentCache() && epoch === queueEpochRef.current)
-          void refreshRef.current().catch(() => invalidate());
+        if (epoch === queueEpochRef.current)
+          await refreshRef.current().catch(() => invalidate());
+        publishSettled();
         prefetchNext();
       }
     } finally {
@@ -283,7 +312,14 @@ export const useObliqueNavigationTargets = (options: Options) => {
       )
         schedulePump(0);
     }
-  }, [cancel, currentCache, prefetchNext, schedulePump, invalidate]);
+  }, [
+    cancel,
+    currentCache,
+    prefetchNext,
+    schedulePump,
+    invalidate,
+    publishSettled,
+  ]);
   pumpRef.current = () => {
     void pump();
   };
@@ -320,6 +356,15 @@ export const useObliqueNavigationTargets = (options: Options) => {
       invalidate();
       return;
     }
+    // During a flight, prepare around its requested anchor. Once it settles,
+    // sample the chosen surface and use that same pivot for ranking and flight.
+    const rotationTarget =
+      o.nextInterface &&
+      o.rotationReady &&
+      !o.busyRef.current &&
+      o.readRotationTarget
+        ? o.readRotationTarget()
+        : target;
     const heading = degToRad(
       (o.previewCameraActive || o.busyRef.current
         ? pose.bearingDeg
@@ -347,26 +392,26 @@ export const useObliqueNavigationTargets = (options: Options) => {
         headingRad: heading,
         fitNextImage: true,
       })),
-      ...(o.rotationReady
+      ...(o.rotationReady && rotationTarget
         ? [
             {
               key: OBLIQUE_NAVIGATION_KEYS.RotateLeft,
-              target,
+              target: rotationTarget,
               headingRad: (heading - quarterTurn) as Radians,
               fitNextImage: false,
             },
             {
               key: OBLIQUE_NAVIGATION_KEYS.RotateRight,
-              target,
+              target: rotationTarget,
               headingRad: (heading + quarterTurn) as Radians,
               fitNextImage: false,
             },
           ]
         : []),
-      ...(o.rotationReady && o.nextInterface
+      ...(o.rotationReady && o.nextInterface && rotationTarget
         ? CARDINALS_CLOCKWISE.map((cardinal) => ({
             cardinal,
-            target,
+            target: rotationTarget,
             headingRad: getHeadingFromCardinalDirection(cardinal) as Radians,
             fitNextImage: false,
           }))
@@ -400,35 +445,19 @@ export const useObliqueNavigationTargets = (options: Options) => {
     if (!current()) return;
     const ranked = await o.computeNavigation(queries);
     if (!current()) return;
-    const preparing = new Map<string, Promise<boolean>>();
-    const prepared = await Promise.all(
-      plans.map(async (plan, index) => {
-        const candidate = ranked[index]?.find(
-          (candidate) =>
-            candidate.coversTarget &&
-            data.datasets.has(candidate.record.seriesId)
-        );
-        if (!candidate) return undefined;
-        let ready = preparing.get(candidate.record.id);
-        if (!ready) {
-          const source = data.datasets.get(candidate.record.seriesId)!;
-          poseOf(candidate.record, source);
-          ready = resolveCameraAltitude(
-            candidate.record,
-            source.heightDatum,
-            o.heightOffset,
-            source.allowUnverifiedSourceHeight
-          ).then(
-            () => true,
-            () => false
-          );
-          preparing.set(candidate.record.id, ready);
-        }
-        return (await ready)
-          ? { ...plan, candidate, originImageId: selected.record.id }
-          : undefined;
-      })
-    );
+    // Keep controls geometry-only. Resolving camera altitude can fetch a geoid
+    // grid and must not delay or disable browsing navigation; a flight resolves
+    // that value only when the user actually requests the image.
+    const prepared = plans.map((plan, index) => {
+      const candidate = ranked[index]?.find(
+        (candidate) =>
+          candidate.coversTarget && data.datasets.has(candidate.record.seriesId)
+      );
+      if (!candidate) return undefined;
+      const source = data.datasets.get(candidate.record.seriesId)!;
+      poseOf(candidate.record, source);
+      return { ...plan, candidate, originImageId: selected.record.id };
+    });
     if (!current()) return;
     const targets = new Map<
         ObliqueNavigationKey,
@@ -450,27 +479,14 @@ export const useObliqueNavigationTargets = (options: Options) => {
       targets,
       cardinals,
     };
-    o.publish({
-      imageId: selected.record.id,
-      images: Object.fromEntries(
-        Object.values(OBLIQUE_NAVIGATION_KEYS).map((key) => [
-          key,
-          targets.get(key)?.candidate.record.id ?? null,
-        ])
-      ) as ObliqueNavigationTargets["images"],
-      cardinalImages: Object.fromEntries(
-        CARDINALS_CLOCKWISE.map((cardinal) => [
-          cardinal,
-          cardinals.get(cardinal)?.candidate.record.id ?? null,
-        ])
-      ) as Record<CardinalDirection, string | null>,
-    });
+    publishSettled();
     prefetchNext();
     pumpRef.current();
-  }, [invalidate, effectiveTarget, prefetchNext]);
+  }, [invalidate, effectiveTarget, prefetchNext, publishSettled]);
   refreshRef.current = refresh;
   useEffect(() => {
-    invalidate();
+    // Keep availability stable until the new camera position has been sampled.
+    invalidate(false);
     void refresh().catch(() => invalidate());
     return () => {
       generationRef.current++;
@@ -485,9 +501,9 @@ export const useObliqueNavigationTargets = (options: Options) => {
     options.viewMode,
     options.previewCameraActive,
     options.nextInterface,
-    options.heightOffset,
     options.computeNavigation,
     options.ensureDirections,
+    options.readRotationTarget,
     invalidate,
     refresh,
   ]);
@@ -498,11 +514,11 @@ export const useObliqueNavigationTargets = (options: Options) => {
     const onStart = (event: { originalEvent?: Event }) => {
       if (event.originalEvent) {
         cancel();
-        invalidate();
+        invalidate(false);
       }
     };
     const onEnd = () => {
-      if (cacheRef.current && !currentCache()) invalidate();
+      if (cacheRef.current && !currentCache()) invalidate(false);
       clearTimeout(timer);
       timer = setTimeout(
         () => void refresh().catch(() => invalidate()),

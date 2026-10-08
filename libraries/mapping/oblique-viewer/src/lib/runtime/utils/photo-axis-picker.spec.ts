@@ -17,7 +17,7 @@ import type {
 } from "../../core/types";
 import { createPhotoAxisPicker } from "./photo-axis-picker";
 import { calibrationFromMetadata } from "../../core/utils/calibration";
-import { imageProjectionMatrix } from "./image-projection";
+import { imageProjectionMatrix } from "../../core/utils/image-projection";
 
 const engine = vi.hoisted(() => ({
   runtimes: [] as unknown[],
@@ -44,13 +44,14 @@ vi.mock("@carma-mapping/engines/maplibre", () => ({
   },
 }));
 vi.mock("./flyToImage", () => ({
-  poseOf: (record: ObliqueImageRecord) => record.pose,
   resolveCameraAltitude: engine.altitude,
 }));
-vi.mock("./image-projection", async () => {
+vi.mock("../../core/utils/image-projection", async () => {
   const { Matrix4 } = await import("three");
-  const actual = await vi.importActual<typeof import("./image-projection")>(
-    "./image-projection"
+  const actual = await vi.importActual<
+    typeof import("../../core/utils/image-projection")
+  >(
+    "../../core/utils/image-projection"
   );
   return {
     ...actual,
@@ -269,6 +270,22 @@ afterEach(() => {
 });
 
 describe("arbitrary calibrated photo surface rays", () => {
+  it("uses only the explicitly selected mesh or terrain sampler", () => {
+    const view = setup([]);
+    const rootRaycast = vi.spyOn(view.root, "raycast");
+    engine.terrain.mockReturnValue(42);
+    const ray = new Raycaster(new Vector3(0, 100, 0), new Vector3(0, -1, 0));
+
+    const terrain = view.picker.intersectSurface(ray, [7.2, 51.27], "terrain");
+    expect(terrain?.surface).toBe("terrain");
+    expect(rootRaycast).not.toHaveBeenCalled();
+
+    engine.terrain.mockClear();
+    const mesh = view.picker.intersectSurface(ray, [7.2, 51.27], "mesh");
+    expect(mesh?.surface).toBe("mesh");
+    expect(engine.terrain).not.toHaveBeenCalled();
+  });
+
   it("intersects current real mesh receivers through their roots and follows a receiver LOD revision", () => {
     const view = setup([]);
     const rootRaycast = vi.spyOn(view.root, "raycast");

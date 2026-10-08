@@ -190,7 +190,10 @@ export const loadCachedObliqueSeriesData = async (
       (revision
         ? cached.value.catalogVersion === revision
         : await revalidate(cached.value, signal))
-    )
+    ) {
+      // Old parsed catalogs remain usable; discard only optional approximation rings, never the cache itself.
+      for (const record of cached.value.data.imageRecords.values())
+        if (record.footprintApproximate) delete record.footprint;
       return {
         ...cached.value.data,
         datasets: new Map(
@@ -202,6 +205,7 @@ export const loadCachedObliqueSeriesData = async (
           ])
         ),
       };
+    }
     const observed = new Map(urls.map((url) => [url, readValidator(url)]));
     const fetchSource: typeof fetch = async (input, init) => {
       const response = await fetch(input, { ...init, cache: "no-cache" });

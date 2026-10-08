@@ -1,0 +1,22 @@
+{
+  "name": "image-streaming",
+  "root": "libraries/commons/image-streaming",
+  "sourceRoot": "libraries/commons/image-streaming/src",
+  "projectType": "library",
+  "tags": [
+    "scope:commons",
+    "type:feature"
+  ],
+  "targets": {
+    "test": {
+      "executor": "@nx/vite:test",
+      "outputs": [
+        "{options.reportsDirectory}"
+      ],
+      "options": {
+        "reportsDirectory": "../../../coverage/libraries/commons/image-streaming"
+      }
+    }
+  },
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json"
+}

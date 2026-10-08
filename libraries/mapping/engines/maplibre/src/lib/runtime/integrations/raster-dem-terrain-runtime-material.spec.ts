@@ -9,6 +9,7 @@ import {
   PerspectiveCamera,
   FrontSide,
   MeshLambertMaterial,
+  MeshBasicMaterial,
   Vector2,
   Vector3,
 } from "three";
@@ -27,6 +28,72 @@ import { buildRasterDemTerrainRuntime } from "./raster-dem-terrain-runtime";
 
 describe("buildRasterDemTerrainRuntime material and local frame", () => {
   installRasterDemTerrainRuntimeFixture();
+
+  it("keeps trusted native height bounds while the coarse display cut contains only an intermediate height", async () => {
+    const fixture = createIdlePrefetchFixture("trusted-native-range", 10);
+    fixture.source.requestTile.mockImplementation(async (id) => ({
+      ...fixture.makeTile(id),
+      minimumHeightMeters: 25,
+      maximumHeightMeters: 650,
+    }));
+    await fixture.start();
+    await expect(fixture.runtime.ready).resolves.toBe(true);
+    const camera = new OrthographicCamera(
+      -100000000,
+      100000000,
+      100000000,
+      -100000000,
+      -100000000,
+      100000000
+    );
+    expect(fixture.runtime.getViewSourceHeightRange(camera)).toEqual([25, 650]);
+    expect(fixture.runtime.getElevation(7.1, 51.2)).toBe(100);
+    fixture.runtime.dispose();
+  });
+
+  it("keeps the oblique raster unlit while preserving terrain queries and ground visibility", async () => {
+    const fixture = createIdlePrefetchFixture("unlit-raster", 10, {
+      material: { unlit: true },
+      receivesMapStyleTexture: true,
+    });
+    await fixture.start();
+    await expect(fixture.runtime.ready).resolves.toBe(true);
+    const materials: unknown[] = [];
+    fixture.runtime.root.traverse((object) => {
+      if (object instanceof Mesh) materials.push(object.material);
+    });
+    expect(
+      materials.some((material) => material instanceof MeshBasicMaterial)
+    ).toBe(true);
+    expect(
+      materials.some((material) => material instanceof MeshLambertMaterial)
+    ).toBe(false);
+    fixture.runtime.setGroundVisible(false);
+    expect(fixture.runtime.providesTerrain).toBe(false);
+    fixture.runtime.root.traverse((object) => {
+      if (!(object instanceof Mesh)) return;
+      expect(object.visible).toBe(false);
+      expect(object.castShadow).toBe(false);
+      expect(object.receiveShadow).toBe(false);
+      const receivesStyle = fixture.runtime.receivesMapStyleTexture;
+      const objectMaterials = Array.isArray(object.material)
+        ? object.material
+        : [object.material];
+      for (const objectMaterial of objectMaterials)
+        expect(
+          typeof receivesStyle === "function" && receivesStyle(objectMaterial)
+        ).toBe(false);
+    });
+    expect(fixture.runtime.getElevation(7.1, 51.2)).toBe(100);
+    expect(registerSharedThreeTerrainSampler).toHaveBeenCalled();
+    fixture.runtime.setGroundVisible(true);
+    expect(fixture.runtime.providesTerrain).toBe(true);
+    fixture.runtime.root.traverse((object) => {
+      if (object instanceof Mesh) expect(object.visible).toBe(true);
+    });
+    expect(fixture.runtime.mapStyleProjectionBlend).toBe("replace");
+    fixture.runtime.dispose();
+  });
 
   it("dispatches registered height batches to the source and retains no-data masking and persistent fallback", async () => {
     const fixture = createIdlePrefetchFixture("registered-height-batch", 10, {
@@ -86,7 +153,7 @@ describe("buildRasterDemTerrainRuntime material and local frame", () => {
     expect(registered.sampleHeights(coordinates, output)).toBe(output);
     expect([...output]).toEqual([100, 100, NaN, 100]);
     expect(sourceBatch).toHaveBeenCalledOnce();
-    expect(fixture.runtime.mapStyleProjectionBlend).toBe("markings-only");
+    expect(fixture.runtime.providesTerrain).toBe(false);
     fixture.runtime.dispose();
   });
 
@@ -271,15 +338,16 @@ describe("buildRasterDemTerrainRuntime material and local frame", () => {
       runtime.update({ ...frame, renderCamera: receiverCamera });
       const receiverMaterial = mesh.material as MeshLambertMaterial;
       expect(receiverMaterial).toMatchObject({
-        colorWrite: true,
+        colorWrite: groundVisible,
         depthTest: true,
         depthWrite: groundVisible,
         transparent: !groundVisible,
         opacity: groundVisible ? 1 : 0,
       });
-      expect(runtime.mapStyleProjectionBlend).toBe(
-        groundVisible ? "replace" : "markings-only"
-      );
+      expect(runtime.mapStyleProjectionBlend).toBe("replace");
+      expect(mesh.visible).toBe(groundVisible);
+      expect(mesh.castShadow).toBe(groundVisible);
+      expect(runtime.providesTerrain).toBe(groundVisible);
       const geometryBeforeStyleChange = mesh.geometry;
       const requestsBeforeStyleChange = source.requestTile.mock.calls.length;
       const changesBeforeStyleChange = onContentChanged.mock.calls.length;
@@ -294,13 +362,16 @@ describe("buildRasterDemTerrainRuntime material and local frame", () => {
       );
       runtime.setGroundVisible(false);
       expect(receiverMaterial).toMatchObject({
-        colorWrite: true,
+        colorWrite: false,
         depthTest: true,
         depthWrite: false,
         transparent: true,
         opacity: 0,
       });
-      expect(runtime.mapStyleProjectionBlend).toBe("markings-only");
+      expect(mesh.visible).toBe(false);
+      expect(mesh.castShadow).toBe(false);
+      expect(mesh.receiveShadow).toBe(false);
+      expect(runtime.providesTerrain).toBe(false);
       expect(runtime.getElevation(7.1, 51.2)).toBe(150);
       expect(runtime.getPublishedTerrainTiles()[0].mesh).toBe(mesh);
       expect(mesh.geometry).toBe(geometryBeforeStyleChange);
@@ -318,6 +389,9 @@ describe("buildRasterDemTerrainRuntime material and local frame", () => {
         opacity: 1,
       });
       expect(runtime.mapStyleProjectionBlend).toBe("replace");
+      expect(mesh.visible).toBe(true);
+      expect(mesh.castShadow).toBe(true);
+      expect(runtime.providesTerrain).toBe(true);
 
       expect(mesh.receiveShadow).toBe(true);
       const receivesStyle = runtime.receivesMapStyleTexture;

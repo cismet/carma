@@ -24,17 +24,22 @@ import type {
 } from "../../core/types";
 import type { FootprintPointQuery } from "../../core/utils/viewport-footprints";
 import { getCameraCalibration } from "../../core/utils/calibration";
+import { getOrComputeObliquePose } from "../../core/utils/oblique-pose";
 import { projectObjectCoverageSphere } from "../../core/utils/object-coverage";
-import { imageProjectionMatrix, sceneToPhotoEnu } from "./image-projection";
-import { poseOf, resolveCameraAltitude } from "./flyToImage";
+import {
+  imageProjectionMatrix,
+  sceneToPhotoEnu,
+} from "../../core/utils/image-projection";
+import { resolveCameraAltitude } from "./flyToImage";
 import { groundDistanceM } from "./cameraMath";
 
 export type PhotoAxisDebug = {
   imageId: string;
   seriesId: string;
   distance: Meters;
-  surface: "mesh" | "terrain";
+  surface: "mesh" | "terrain" | "catalog-reference";
 } | null;
+export type PhotoAxisSurfaceMode = "auto" | "mesh" | "terrain";
 type AxisHit = { point: [number, number]; surface: "mesh" | "terrain" };
 
 /** The worker filters the full catalog; only eligible photo axes touch live receivers.
@@ -237,7 +242,8 @@ export const createPhotoAxisPicker = (
   const intersectSceneSurface = (
     photoRay: Raycaster,
     cameraLngLat: [number, number],
-    layer: ReturnType<typeof acquireSharedThreeScene>["layer"]
+    layer: ReturnType<typeof acquireSharedThreeScene>["layer"],
+    surfaceMode: PhotoAxisSurfaceMode = "auto"
   ): { point: Vector3; surface: "mesh" | "terrain" } | null => {
     const visible = (hit: Intersection) => {
       let object: Object3D | null = hit.object;
@@ -247,29 +253,35 @@ export const createPhotoAxisPicker = (
       }
       return true;
     };
-    intersections.length = 0;
-    photoRay.intersectObjects(receiverRoots, true, intersections);
-    const acceleratedRay = photoRay as Raycaster & { firstHitOnly?: boolean };
-    if (
-      acceleratedRay.firstHitOnly &&
-      intersections.some((hit) => !visible(hit))
-    ) {
-      // Active LOD tiles can be hidden. Retry only that case to find the first visible hit.
-      acceleratedRay.firstHitOnly = false;
+    let surfaceHit: Intersection | undefined;
+    if (surfaceMode !== "terrain") {
       intersections.length = 0;
-      try {
-        photoRay.intersectObjects(receiverRoots, true, intersections);
-      } finally {
-        acceleratedRay.firstHitOnly = true;
+      photoRay.intersectObjects(receiverRoots, true, intersections);
+      const acceleratedRay = photoRay as Raycaster & { firstHitOnly?: boolean };
+      if (
+        acceleratedRay.firstHitOnly &&
+        intersections.some((hit) => !visible(hit))
+      ) {
+        // Active LOD tiles can be hidden. Retry only that case to find the first visible hit.
+        acceleratedRay.firstHitOnly = false;
+        intersections.length = 0;
+        try {
+          photoRay.intersectObjects(receiverRoots, true, intersections);
+        } finally {
+          acceleratedRay.firstHitOnly = true;
+        }
       }
+      surfaceHit = intersections.find(visible);
     }
-    const surfaceHit = intersections.find(visible);
-    const terrainHit = intersectCachedTerrain(
-      photoRay,
-      cameraLngLat,
-      layer,
-      surfaceHit?.distance ?? Infinity
-    );
+    const terrainHit =
+      surfaceMode === "mesh"
+        ? null
+        : intersectCachedTerrain(
+            photoRay,
+            cameraLngLat,
+            layer,
+            surfaceHit?.distance ?? Infinity
+          );
     if (
       terrainHit &&
       (!surfaceHit ||
@@ -277,6 +289,7 @@ export const createPhotoAxisPicker = (
     )
       return { point: terrainHit, surface: "terrain" };
     if (surfaceHit) return { point: surfaceHit.point, surface: "mesh" };
+    if (surfaceMode === "mesh") return null;
     if (terrainRayCovered) return null;
     if (photoRay.ray.direction.y >= -1e-6) return null;
     let terrainHeight =
@@ -302,13 +315,19 @@ export const createPhotoAxisPicker = (
   };
   const intersectSurface = (
     photoRay: Raycaster,
-    cameraLngLat: [number, number]
+    cameraLngLat: [number, number],
+    surfaceMode: PhotoAxisSurfaceMode = "auto"
   ) => {
     if (disposed) return null;
     refreshReceivers();
     const scene = acquireSharedThreeScene(map);
     try {
-      return intersectSceneSurface(photoRay, cameraLngLat, scene.layer);
+      return intersectSceneSurface(
+        photoRay,
+        cameraLngLat,
+        scene.layer,
+        surfaceMode
+      );
     } finally {
       scene.release();
     }
@@ -355,7 +374,7 @@ export const createPhotoAxisPicker = (
         if (disposed || !isCurrent()) return undefined;
         const dataset = data.datasets.get(record.seriesId);
         if (!dataset) continue;
-        const pose = poseOf(record, dataset);
+        const pose = getOrComputeObliquePose(record, dataset);
         const heading =
           query.viewMode === "nadir"
             ? 0
@@ -490,6 +509,39 @@ export const createPhotoAxisPicker = (
   return {
     pick,
     intersectSurface,
+    updateData: (nextData: ObliqueSelectionData | null) => {
+      if (!nextData || nextData === data) return;
+      if (
+        nextData.imageRecords !== data.imageRecords ||
+        nextData.centers !== data.centers ||
+        nextData.datasets !== data.datasets
+      ) {
+        hits.clear();
+        altitudes.clear();
+        projections.clear();
+      }
+      data = nextData;
+    },
+    /** Reuse the pointer's sampled ground point; catalog centres are plane estimates. */
+    reportPointer: (
+      record: ObliqueImageRecord | null | undefined,
+      point: [number, number]
+    ) => {
+      const center = record && data.centers.get(record.id);
+      emit(
+        record && center
+          ? {
+              imageId: record.sourceId,
+              seriesId: record.seriesId,
+              distance: groundDistanceM(
+                { lng: point[0], lat: point[1] },
+                { lng: center.longitude, lat: center.latitude }
+              ) as Meters,
+              surface: "catalog-reference",
+            }
+          : null
+      );
+    },
     start: () => {
       disposed = false;
       map.on("sourcedata", sourceDataChanged);

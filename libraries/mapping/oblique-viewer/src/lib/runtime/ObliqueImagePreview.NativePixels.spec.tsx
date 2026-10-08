@@ -3,7 +3,7 @@ import type { ComponentProps } from "react";
 import type { Map as MaplibreMap } from "maplibre-gl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CssPixels, DevicePixels, Ratio } from "@carma-units";
-import type { NativePreviewWindow } from "../core/utils/native-preview-window";
+import type { NativePreviewWindow } from "@carma-commons/image-streaming";
 import type {
   ScenePreviewImageGeometry,
   useScenePreviewImage,
@@ -62,7 +62,10 @@ type Request = {
   activeSourceByteLimit: number;
   reusePublished: boolean;
 };
-type Control = { cancel: true; park?: true; retainedSourceByteLimit?: number };
+type Control =
+  | { cancel: true; park?: true; retainedSourceByteLimit?: number }
+  | { activity: boolean; warmWindow?: NativePreviewWindow }
+  | { budgetOnly: true; activeSourceByteLimit: number };
 type Response = {
   kind?: "full-image" | "source-memory";
   imageId?: string;
@@ -81,6 +84,11 @@ type Response = {
   complete?: boolean;
   sourceBackend?: string;
   containsTiffDecoder?: boolean;
+  workerMemory?: {
+    compositionBytes: number;
+    decodeCanvasBytes: number;
+    workingBytes: number;
+  };
 };
 const workers: FakeWorker[] = [];
 class FakeWorker {
@@ -95,7 +103,10 @@ class FakeWorker {
   get requests(): Request[] {
     return this.postMessage.mock.calls
       .map(([message]) => message)
-      .filter((message): message is Request => "url" in message);
+      .filter(
+        (message): message is Request =>
+          "url" in message && !("budgetOnly" in message)
+      );
   }
   reply(data: Response) {
     this.onmessage?.({ data } as MessageEvent<Response>);
@@ -313,7 +324,13 @@ describe("worker-composed preview pixels", () => {
       },
     });
     rest();
-    expect(worker.postMessage).toHaveBeenCalledTimes(messages);
+    expect(worker.postMessage.mock.calls.slice(messages)).toEqual([
+      [{ activity: true }],
+      [{ budgetOnly: true, activeSourceByteLimit: 0 }],
+    ]);
+    expect(
+      worker.postMessage.mock.calls.filter(([message]) => "cancel" in message)
+    ).toHaveLength(0);
     expect(worker.requests).toHaveLength(1);
     expect(content()?.source).toBe(pixels);
     expect(pixels.close).not.toHaveBeenCalled();
@@ -329,6 +346,29 @@ describe("worker-composed preview pixels", () => {
     expect(worker.requests).toHaveLength(1);
     rest();
     expect(worker.requests).toHaveLength(2);
+  });
+
+  it("passes the current display crop to the worker when movement starts on a retained photo", () => {
+    setup("zoom-warm", {
+      retainWholeImage: true,
+      avifPyramidUrl: "https://imagery.test/zoom-warm.avif",
+    });
+    beforeRender(geometry());
+    rest();
+    const worker = workers[0];
+    const movementStart = vi
+      .mocked(scene.options!.map.on)
+      .mock.calls.find(([name]) => name === "movestart")![1] as () => void;
+    act(() => movementStart());
+    expect(worker.postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        activity: true,
+        warmWindow: expect.objectContaining({
+          source: expect.objectContaining({ width: expect.any(Number) }),
+          target: expect.objectContaining({ width: expect.any(Number) }),
+        }),
+      })
+    );
   });
 
   it("accepts a bounded whole-image fallback across motion epochs and rejects foreign identities", () => {
@@ -383,6 +423,78 @@ describe("worker-composed preview pixels", () => {
     expect(onFullImage).toHaveBeenCalledOnce();
   });
 
+  it("recomposes a covered whole-image crop after zooming below half its published density", () => {
+    setup("oversampled");
+    const fitted = {
+      ...geometry(),
+      image: { width: 360 as CssPixels, height: 480 as CssPixels },
+    };
+    beforeRender(fitted);
+    const worker = workers[0];
+    const first = complete(worker);
+    beforeRender({
+      ...fitted,
+      image: { width: 240 as CssPixels, height: 320 as CssPixels },
+    });
+    rest();
+    expect(worker.requests).toHaveLength(1);
+    beforeRender({
+      ...fitted,
+      image: { width: 120 as CssPixels, height: 160 as CssPixels },
+    });
+    rest();
+    expect(worker.requests).toHaveLength(2);
+    expect(content()?.source).toBe(first);
+    const replacement = complete(worker);
+    expect(replacement.width).toBeLessThan(first.width / 2);
+    expect(replacement.height).toBeLessThan(first.height / 2);
+    expect(first.close).toHaveBeenCalledOnce();
+  });
+
+  it("budgets physical viewport pixels and sends a changed cache budget only once", () => {
+    const snapshots: { viewportPixels: number; imageBudgetBytes: number }[] =
+      [];
+    const readMemory = (event: Event) =>
+      snapshots.push((event as CustomEvent<(typeof snapshots)[number]>).detail);
+    window.addEventListener("carma-oblique-preview-memory", readMemory);
+    try {
+      setup("budget");
+      beforeRender({
+        ...geometry(),
+        image: { width: 240 as CssPixels, height: 320 as CssPixels },
+      });
+      const worker = workers[0];
+      expect(worker.requests[0].activeSourceByteLimit).toBe(800 * 600 * 4 * 4);
+      expect(snapshots.at(-1)).toMatchObject({
+        viewportPixels: 800 * 600 * 4,
+        imageBudgetBytes: 800 * 600 * 4 * 16,
+      });
+      complete(worker);
+      const smaller = {
+        ...geometry(),
+        viewport: { width: 400 as CssPixels, height: 300 as CssPixels },
+        pixelRatio: 1 as Ratio,
+      };
+      beforeRender(smaller);
+      const budgetMessages = () =>
+        worker.postMessage.mock.calls
+          .map(([message]) => message)
+          .filter((message) => "budgetOnly" in message);
+      const count = budgetMessages().length;
+      beforeRender({
+        ...smaller,
+        offset: { x: 10 as CssPixels, y: 0 as CssPixels },
+      });
+      expect(budgetMessages()).toHaveLength(count);
+      expect(snapshots.at(-1)).toMatchObject({
+        viewportPixels: 400 * 300,
+        imageBudgetBytes: 400 * 300 * 16,
+      });
+    } finally {
+      window.removeEventListener("carma-oblique-preview-memory", readMemory);
+    }
+  });
+
   it("accounts actual source residency instead of the active cap and accepts no-bitmap reuse", () => {
     const parked = setup("parked");
     beforeRender();
@@ -399,7 +511,7 @@ describe("worker-composed preview pixels", () => {
       request = worker.requests[0];
     expect(request).toMatchObject({
       retainWholeImage: true,
-      activeSourceByteLimit: 768 * 1024 * 1024,
+      activeSourceByteLimit: 800 * 600 * 2 * 2 * 4,
     });
     expect(workers[0].terminate).not.toHaveBeenCalled();
     const sharp = complete(worker);

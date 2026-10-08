@@ -9,9 +9,11 @@ import {
   type Ratio,
 } from "@carma-units";
 import {
+  ImageViewportPool,
   nativePreviewWindow,
   type NativePreviewWindow,
-} from "../core/utils/native-preview-window";
+  type ImagePreparedFrame,
+} from "@carma-commons/image-streaming";
 import {
   useScenePreviewImage,
   type ScenePreviewImageContent,
@@ -34,30 +36,37 @@ import {
   subscribePreviewThumbnail,
 } from "./utils/preview-thumbnail-cache";
 
-type ParkedComposition = {
-  worker: Worker | null;
-  bitmap: ImageBitmap | null;
-  frame: NativePreviewWindow | null;
-  density: number;
-  complete: boolean;
-  sourceWidth?: number;
-  sourceHeight?: number;
-  backend?: string;
-  bytes: number;
-  sourceResidentBytes?: number;
+type WorkerMemorySnapshot = {
+  compositionBytes: number;
+  decodeCanvasBytes: number;
+  workingBytes: number;
 };
-const parkedCompositions = new Map<string, ParkedComposition>();
-const activeCompositionBytes = new Map<symbol, number>();
-let poolDisposed = false;
-import.meta.hot?.dispose(() => {
-  poolDisposed = true;
-  for (const entry of parkedCompositions.values()) {
-    entry.worker?.terminate();
-    entry.bitmap?.close();
-  }
-  parkedCompositions.clear();
-  activeCompositionBytes.clear();
-});
+type AvifSourceMemorySnapshot = {
+  rangeBytes: number;
+  decodedBytes: number;
+  residentBytes: number;
+  rangeCount: number;
+  decodedTileCount: number;
+  decodedPixels: number;
+  largestDecodedTilePixels: number;
+};
+type PreviewMemorySnapshot = {
+  imageId: string;
+  viewportPixels: number;
+  imageBytes: number;
+  imageBudgetBytes: number;
+  sourceResidentBytes: number;
+  sourceMemory?: AvifSourceMemorySnapshot;
+  workerResidentBytes: number;
+  estimatedGpuBytes: number;
+  poolInstances: number;
+  poolBytes: number;
+  poolBudgetBytes: number;
+};
+let lastMemorySignature = "";
+let lastMemoryContext: PreviewMemorySnapshot | undefined;
+let lastMemoryImageId = "";
+let publishingNativeState = false;
 const rasterBytes = (image: { width: number; height: number } | null) =>
   image ? image.width * image.height * 4 : 0;
 const retentionPolicy = () => {
@@ -72,27 +81,17 @@ const retentionPolicy = () => {
     sourceBytes: (small ? 4 : 8) * 1024 * 1024,
   };
 };
-const trimParkedCompositions = () => {
-  const policy = retentionPolicy();
-  let bytes =
-    [...activeCompositionBytes.values()].reduce((sum, size) => sum + size, 0) +
-    [...parkedCompositions.values()].reduce(
-      (sum, entry) => sum + entry.bytes,
-      0
-    );
-  while (
-    (parkedCompositions.size + activeCompositionBytes.size > policy.maxCount ||
-      bytes > policy.byteLimit) &&
-    parkedCompositions.size
-  ) {
-    const key = parkedCompositions.keys().next().value!;
-    const entry = parkedCompositions.get(key)!;
-    entry.worker?.terminate();
-    entry.bitmap?.close();
-    bytes -= entry.bytes;
-    parkedCompositions.delete(key);
-  }
-};
+const nativePixelPool = new ImageViewportPool({
+  limits: () => {
+    const policy = retentionPolicy();
+    return {
+      maxImages: policy.maxCount,
+      maxBytes: policy.byteLimit,
+      retainedSourceBytes: policy.sourceBytes,
+    };
+  },
+});
+import.meta.hot?.dispose(() => nativePixelPool.dispose());
 const cropCovers = (
   outer: NativePreviewWindow["source"],
   inner: NativePreviewWindow["source"],
@@ -107,9 +106,49 @@ const cropCovers = (
     outer.y + outer.height + marginY >= inner.y + inner.height
   );
 };
-const ACTIVE_SOURCE_BYTE_LIMIT = 768 * 1024 * 1024;
 const MAX_FULL_IMAGE_PIXELS = 4 * 1024 * 1024;
 let compositionGeneration = 0;
+
+const publishMemoryMetrics = (
+  imageId: string,
+  current?: PreviewMemorySnapshot
+) => {
+  lastMemoryImageId = imageId;
+  lastMemoryContext = current;
+  const pool = nativePixelPool.metrics;
+  const poolBytes = pool.managedBytes;
+  const poolBudgetBytes = pool.images.reduce(
+    (sum, entry) => sum + entry.budgetBytes,
+    0
+  );
+  const activeImage=pool.images.find(entry=>entry.active&&entry.id===imageId);
+  const snapshot: PreviewMemorySnapshot = {
+    imageId,
+    viewportPixels: current?.viewportPixels ?? 0,
+    imageBytes: activeImage?.managedBytes ?? current?.imageBytes ?? 0,
+    imageBudgetBytes: activeImage?.budgetBytes ?? current?.imageBudgetBytes ?? 0,
+    sourceResidentBytes: current?.sourceResidentBytes ?? 0,
+    sourceMemory: current?.sourceMemory,
+    workerResidentBytes: current?.workerResidentBytes ?? 0,
+    estimatedGpuBytes: current?.estimatedGpuBytes ?? 0,
+    poolInstances: pool.images.length,
+    poolBytes,
+    poolBudgetBytes: Math.min(poolBudgetBytes, retentionPolicy().byteLimit),
+  };
+  const signature = JSON.stringify(snapshot);
+  if (signature === lastMemorySignature) return;
+  lastMemorySignature = signature;
+  globalThis.window.dispatchEvent(
+    new CustomEvent<PreviewMemorySnapshot>("carma-oblique-preview-memory", {
+      detail: snapshot,
+    })
+  );
+};
+
+nativePixelPool.subscribe(() => {
+  if (!publishingNativeState)
+    publishMemoryMetrics(lastMemoryImageId, lastMemoryContext);
+});
 
 /** Assemble the visible source window in a reusable, cancellable worker. */
 export const NativePixels = ({
@@ -132,9 +171,11 @@ export const NativePixels = ({
   onFullImage,
   retainWholeImage = false,
   onOutlineReady,
+  onDisplayReady,
   onError,
   backdropLook,
   backdropTint,
+  showBasemapLabels = true,
 }: {
   map: MaplibreMap;
   photo?: ScenePreviewPhoto;
@@ -161,8 +202,11 @@ export const NativePixels = ({
     details?: { message: string; missing: boolean }
   ) => void;
   onOutlineReady?: () => void;
+  /** Accepted pixels meet the current physical display requirement. */
+  onDisplayReady?: () => void;
   backdropLook?: ObliqueBackdropLook;
   backdropTint?: PreviewBackdropTint;
+  showBasemapLabels?: boolean;
 }) => {
   const sourceIdentity = tiff
     ? sourceUrl
@@ -177,12 +221,14 @@ export const NativePixels = ({
     onFullImage,
     onError,
     onOutlineReady,
+    onDisplayReady,
   });
   callbacksRef.current = {
     onSourceLoaded,
     onFullImage,
     onError,
     onOutlineReady,
+    onDisplayReady,
   };
   const lastSourceRef = useRef<string | null>(null);
   const sourceUrlRef = useRef(sourceUrl);
@@ -204,6 +250,7 @@ export const NativePixels = ({
     priority: 1,
     backdropLook,
     backdropTint,
+    showBasemapLabels,
     onBeforeRender: (geometry) => scheduleRef.current?.(geometry),
   });
 
@@ -215,6 +262,7 @@ export const NativePixels = ({
     let worker: Worker | null = null;
     let foregroundInFlight = false;
     let published: ImageBitmap | null = null;
+    let pendingPrepared: ImagePreparedFrame | null = null;
     let publishedFrame: NativePreviewWindow | null = null;
     let publishedComplete = false;
     let publishedDensity = 0;
@@ -223,40 +271,108 @@ export const NativePixels = ({
     let currentRequestConfirmedAvif = false;
     let publishedSourceSize: { width?: number; height?: number } = {};
     let workerCanvasBytes = 0;
-    const activeToken = Symbol(imageId);
+    let workerMemory: WorkerMemorySnapshot | undefined;
+    let lastSentSourceByteLimit = -1;
     let previousGeometry: ScenePreviewImageGeometry | null = null;
     let started = false;
     let disposed = false;
     let generation = ++compositionGeneration;
-    const retainedSourceByteLimit = retentionPolicy().sourceBytes;
-    const activeSourceByteLimit = retainWholeImage
-      ? ACTIVE_SOURCE_BYTE_LIMIT
-      : retainedSourceByteLimit;
+    const retainedSourceByteLimitCap = retentionPolicy().sourceBytes;
+    let retainedSourceByteLimit = retainedSourceByteLimitCap;
+    let activeSourceByteLimit = 0;
+    let viewportPixels = 0;
+    let sourceMemory: AvifSourceMemorySnapshot | undefined;
     const photoSourceIdentity = new URL(
       avifPyramidUrl ?? sourceIdentity,
       globalThis.window.location.href
     ).href;
-    let sourceResidentBytes = retainedSourceByteLimit;
+    let sourceResidentBytes = 0;
     let fullImageBytes = 0;
-    const workerKey = `${path ?? ""}/${
-      new URL(sourceIdentity, globalThis.window.location.href).href
-    }/${imageId}/${tiff}/${avifPyramidUrl ?? ""}/${nativeSize.width}x${
-      nativeSize.height
-    }/${sceneImage}/${avifOnly}`;
-    const retained = parkedCompositions.get(workerKey);
-    worker = retained?.worker ?? null;
-    sourceResidentBytes =
-      retained?.sourceResidentBytes ?? retainedSourceByteLimit;
-    parkedCompositions.delete(workerKey);
+    const lease = nativePixelPool.acquireProtocol({
+      id: imageId,
+      url: new URL(sourceIdentity, globalThis.window.location.href).href,
+      kind: tiff ? "tiff" : "jpeg",
+      nativeSize,
+      minimumQualityLevel,
+      flipForTexture: sceneImage,
+      sourceIdentity: photoSourceIdentity,
+      avifPyramidUrl,
+      avifOnly,
+    });
+    const retained = lease.retained;
+    worker = lease.worker;
+    sourceResidentBytes = retained?.sourceResidentBytes ?? 0;
+    sourceMemory = retained?.sourceMemory as
+      | AvifSourceMemorySnapshot
+      | undefined;
+    workerMemory = retained?.workerMemory;
+    viewportPixels = retained?.viewportPixels ?? 0;
+    const workerRasterBytes = () =>
+      worker
+        ? workerMemory
+          ? workerMemory.compositionBytes +
+            workerMemory.decodeCanvasBytes +
+            workerMemory.workingBytes
+          : workerCanvasBytes
+        : 0;
+    const rasterResidentBytes = () =>
+      rasterBytes(published) +
+      fullImageBytes +
+      (sceneImage ? rasterBytes(published) : rasterBytes(canvas)) +
+      workerRasterBytes();
+    const publishPoolState = () => {
+      publishingNativeState = true;
+      try {
+        lease.bindWorker(worker);
+        lease.publish({
+          bitmap: published,
+          frame: publishedFrame,
+          density: publishedDensity,
+          complete: publishedComplete,
+          sourceWidth: publishedSourceSize.width,
+          sourceHeight: publishedSourceSize.height,
+          backend: publishedBackend,
+          viewportPixels,
+          sourceResidentBytes,
+          sourceMemory,
+          workerMemory,
+          workerCanvasBytes,
+          displayCopyBytes: sceneImage
+            ? rasterBytes(published)
+            : rasterBytes(canvas),
+          externalBytes: fullImageBytes,
+        });
+      } finally {
+        publishingNativeState = false;
+      }
+    };
+    const updateSourceBudget = () => {
+      publishPoolState();
+      activeSourceByteLimit = lease.sourceBudget();
+      retainedSourceByteLimit = lease.retainedSourceBudget();
+      if (worker && activeSourceByteLimit !== lastSentSourceByteLimit) {
+        lastSentSourceByteLimit = activeSourceByteLimit;
+        worker.postMessage({ budgetOnly: true, activeSourceByteLimit });
+      }
+    };
     const accountActive = () => {
-      activeCompositionBytes.set(
-        activeToken,
-        rasterBytes(published) +
-          fullImageBytes +
-          (!sceneImage && published ? rasterBytes(canvas) : 0) +
-          (worker ? workerCanvasBytes + sourceResidentBytes : 0)
-      );
-      trimParkedCompositions();
+      const imageBytes =
+        rasterResidentBytes() + (worker ? sourceResidentBytes : 0);
+      publishPoolState();
+      const metrics: PreviewMemorySnapshot = {
+        imageId,
+        viewportPixels,
+        imageBytes,
+        imageBudgetBytes: viewportPixels * 4 * 4,
+        sourceResidentBytes,
+        sourceMemory,
+        workerResidentBytes: workerRasterBytes(),
+        estimatedGpuBytes: sceneImage ? rasterBytes(published) : 0,
+        poolInstances: 0,
+        poolBytes: 0,
+        poolBudgetBytes: 0,
+      };
+      publishMemoryMetrics(imageId, metrics);
     };
     if (retained?.bitmap && retained.frame) {
       published = retained.bitmap;
@@ -306,6 +422,7 @@ export const NativePixels = ({
       nativeSize,
     };
     const cancel = () => {
+      pendingPrepared?.bitmap.close(); pendingPrepared=null;
       generation = ++compositionGeneration;
       globalThis.window.clearTimeout(timer);
       globalThis.window.clearTimeout(timeout);
@@ -331,6 +448,14 @@ export const NativePixels = ({
         degToRad(rollDeg as Degrees),
         geometry.pixelRatio
       );
+      if (frame) {
+        lease.setTarget(frame);
+        viewportPixels =
+          Math.ceil(geometry.viewport.width * geometry.pixelRatio) *
+          Math.ceil(geometry.viewport.height * geometry.pixelRatio);
+        updateSourceBudget();
+        accountActive();
+      }
       const neededDensity =
         frame &&
         Math.min(
@@ -353,24 +478,35 @@ export const NativePixels = ({
           publishedFrame.target
         ) &&
         publishedDensity >= neededDensity! &&
+        publishedDensity <= neededDensity! * 2 &&
         (!retainWholeImage || started)
       ) {
         // Existing pixels stay aligned by the shared-frame matrix; no RPC or upload.
         globalThis.window.clearTimeout(timer);
         timer = undefined;
+        callbacksRef.current.onDisplayReady?.();
         return;
       }
+      let prepared = frame ? lease.takePrepared(frame) : null;
       cancel();
+      pendingPrepared=prepared;
       if (!frame) return;
+      const releasePrepared = () => {
+        if(pendingPrepared===prepared){prepared?.bitmap.close();pendingPrepared=null;}
+        prepared=null;
+      };
       const epoch = generation;
       const start = () => {
-        if (disposed || epoch !== generation) return;
-        if (map.isMoving?.()) {
-          timer = globalThis.window.setTimeout(start, 200);
+        if (disposed || epoch !== generation) { releasePrepared(); return; }
+        const samePublishedSource = published && publishedFrame &&
+          url === lastSourceRef.current;
+        if (map.isMoving?.() && !prepared && !samePublishedSource) {
+          timer = globalThis.window.setTimeout(start, 16);
           return;
         }
         const missingSource = availabilitySource;
         if (isPreviewSourceMissing(missingSource)) {
+          releasePrepared();
           awaitingAvailability = true;
           callbacksRef.current.onError?.(imageId, {
             message: "Preview source unavailable (cached 404/410)",
@@ -380,16 +516,13 @@ export const NativePixels = ({
         }
         let currentWorker: Worker;
         try {
-          currentWorker =
-            worker ??
-            new Worker(
-              new URL("./utils/preview-rgb.worker.ts", import.meta.url),
-              { type: "module" }
-            );
+          currentWorker = worker ?? lease.createWorker();
         } catch {
+          releasePrepared();
           return;
         }
         worker = currentWorker;
+        lastSentSourceByteLimit = activeSourceByteLimit;
         currentRequestConfirmedAvif = false;
         started = true;
         accountActive();
@@ -400,6 +533,10 @@ export const NativePixels = ({
           if (error) {
             currentWorker.terminate();
             if (worker === currentWorker) worker = null;
+            sourceResidentBytes = 0;
+            sourceMemory = undefined;
+            workerMemory = undefined;
+            workerCanvasBytes = 0;
             accountActive();
           }
           if (error && !disposed && epoch === generation) {
@@ -428,22 +565,39 @@ export const NativePixels = ({
             sampleDensity?: number;
             sourceBackend?: string;
             containsTiffDecoder?: boolean;
-            kind?: "full-image" | "source-memory";
+            kind?: "full-image" | "source-memory" | "prepared-frame";
             imageId?: string;
             sourceIdentity?: string;
             sourceUrl?: string;
             sourceResidentBytes?: number;
+            sourceMemory?: AvifSourceMemorySnapshot;
+            workerMemory?: WorkerMemorySnapshot;
             reusePublished?: boolean;
           }>
         ) => {
           const bitmap = event.data.bitmap;
           const updateResidentBytes = () => {
             const bytes = event.data.sourceResidentBytes;
+            if (event.data.sourceMemory) sourceMemory = event.data.sourceMemory;
+            if (event.data.workerMemory) workerMemory = event.data.workerMemory;
             if (bytes !== undefined && Number.isFinite(bytes) && bytes >= 0) {
               sourceResidentBytes = bytes;
+              updateSourceBudget();
+              accountActive();
+            } else if (event.data.sourceMemory || event.data.workerMemory) {
+              updateSourceBudget();
               accountActive();
             }
           };
+          if (event.data.kind === "prepared-frame") {
+            if (disposed || worker !== currentWorker || event.data.imageId !== imageId ||
+              event.data.sourceIdentity !== photoSourceIdentity || !bitmap || !event.data.crop || event.data.sampleDensity===undefined) {
+              bitmap?.close(); return;
+            }
+            updateResidentBytes();
+            lease.storePrepared(event.data as ImagePreparedFrame);
+            return;
+          }
           if (
             event.data.kind === "full-image" ||
             event.data.kind === "source-memory"
@@ -476,6 +630,7 @@ export const NativePixels = ({
             }
             fullImageBytes = rasterBytes(bitmap);
             callbacksRef.current.onFullImage(bitmap);
+            updateSourceBudget();
             accountActive();
             return;
           }
@@ -518,12 +673,14 @@ export const NativePixels = ({
           if (
             published &&
             publishedFrame &&
-            cropCovers(
-              publishedFrame.source,
-              frame.source,
-              publishedFrame.target
-            ) &&
-            density < publishedDensity
+            density < publishedDensity &&
+            (
+              // A sharper old crop protects only the area it actually covers.
+              (cropCovers(publishedFrame.source, frame.source, publishedFrame.target) &&
+                !(publishedDensity > neededDensity! * 2 && density >= neededDensity!)) ||
+              // Keep the sharp center until an uncached expansion is sufficiently detailed.
+              (density < neededDensity! && event.data.complete === false)
+            )
           ) {
             bitmap.close();
             finish(undefined, false, event.data.complete !== false);
@@ -563,6 +720,7 @@ export const NativePixels = ({
             }
           }
           previous?.close();
+          updateSourceBudget();
           accountActive();
           if (
             lastSourceRef.current !== url &&
@@ -576,11 +734,21 @@ export const NativePixels = ({
               event.data.sourceHeight
             );
           }
+          if (event.data.complete !== false && density >= neededDensity!)
+            callbacksRef.current.onDisplayReady?.();
           finish(undefined, false, event.data.complete !== false);
         };
         currentWorker.onerror = () => finish("RGB worker failed");
         currentWorker.onmessageerror = () =>
           finish("RGB bitmap transfer failed");
+        if (prepared) {
+          const ready = prepared; pendingPrepared=null; prepared = null;
+          currentWorker.onmessage?.call(currentWorker, new MessageEvent("message", {
+            data: {...ready, kind:undefined, generation: epoch, complete: true},
+          }));
+          currentWorker.postMessage({activity:false,warmWindow:frame});
+          return;
+        }
         jobTimeout = globalThis.window.setTimeout(
           () => finish("RGB worker timed out"),
           90000
@@ -611,8 +779,8 @@ export const NativePixels = ({
           finish("RGB request transfer failed");
         }
       };
-      if (!started && !map.isMoving?.()) start();
-      else timer = globalThis.window.setTimeout(start, 200);
+      if (prepared || !map.isMoving?.()) start();
+      else timer = globalThis.window.setTimeout(start, 16);
     };
     const unsubscribeAvailability = subscribePreviewThumbnail(
       availabilitySource,
@@ -629,13 +797,43 @@ export const NativePixels = ({
         schedule(latestGeometry);
       }
     );
+    let backgroundPaused = false;
+    let idleTimer: number | undefined;
+    const currentWarmWindow = () => {
+      if (!retainWholeImage || !latestGeometry) return undefined;
+      return nativePreviewWindow(
+        latestGeometry.viewport,
+        latestGeometry.image,
+        nativeSize,
+        latestGeometry.offset,
+        principal,
+        degToRad(rollDeg as Degrees),
+        latestGeometry.pixelRatio
+      );
+    };
     const movementStarted = () => {
+      globalThis.window.clearTimeout(idleTimer);
+      backgroundPaused = true;
+      const warmWindow = currentWarmWindow();
+      worker?.postMessage({
+        activity: true,
+        ...(warmWindow ? { warmWindow } : {}),
+      });
       // The next shared frame cancels only a crop that actually needs new pixels.
       previousGeometry = null;
       previousFallback = [];
     };
+    const movementEnded = () => {
+      globalThis.window.clearTimeout(idleTimer);
+      idleTimer = globalThis.window.setTimeout(() => {
+        if (!backgroundPaused || disposed) return;
+        backgroundPaused = false;
+        worker?.postMessage({ activity: false });
+      }, 50);
+    };
     scheduleRef.current = schedule;
     map.on("movestart", movementStarted);
+    map.on("moveend", movementEnded);
     // Hosts without the shared callback retain the existing DOM projection path.
     let previousFallback: number[] = [];
     const scheduleFallback = () => {
@@ -677,10 +875,9 @@ export const NativePixels = ({
     map.triggerRepaint();
     return () => {
       disposed = true;
+      globalThis.window.clearTimeout(idleTimer);
       unsubscribeAvailability();
       cancel();
-      const keepBitmap = published;
-      if (!keepBitmap) published?.close();
       // TIFF decoders retain their own block/WASM heaps; keep the display ROI, not that worker.
       if (
         worker &&
@@ -692,52 +889,15 @@ export const NativePixels = ({
         worker = null;
         workerCanvasBytes = 0;
       }
-      if (worker) {
-        worker.onmessage = (event: MessageEvent<{ bitmap?: ImageBitmap }>) =>
-          event.data.bitmap?.close();
-        worker.onerror = null;
-        worker.onmessageerror = null;
-        worker.postMessage({
-          cancel: true,
-          park: true,
-          retainedSourceByteLimit,
-        });
-      }
-      const old = parkedCompositions.get(workerKey);
-      old?.worker?.terminate();
-      old?.bitmap?.close();
-      parkedCompositions.delete(workerKey);
-      activeCompositionBytes.delete(activeToken);
-      if (!poolDisposed && (worker || keepBitmap))
-        parkedCompositions.set(workerKey, {
-          worker,
-          bitmap: keepBitmap,
-          frame: keepBitmap ? publishedFrame : null,
-          density: publishedDensity,
-          complete: publishedComplete,
-          sourceWidth: publishedSourceSize.width,
-          sourceHeight: publishedSourceSize.height,
-          backend: publishedBackend,
-          sourceResidentBytes: Math.min(
-            sourceResidentBytes,
-            retainedSourceByteLimit
-          ),
-          bytes:
-            rasterBytes(keepBitmap) +
-            (worker
-              ? workerCanvasBytes +
-                Math.min(sourceResidentBytes, retainedSourceByteLimit)
-              : 0),
-        });
-      if (poolDisposed) {
-        worker?.terminate();
-        keepBitmap?.close();
-      }
-      trimParkedCompositions();
+      lease.bindWorker(worker);
+      publishPoolState();
+      lease.release();
+      publishMemoryMetrics(imageId);
       worker = null;
       scheduleRef.current = null;
       contentRef.current = null;
       map.off("movestart", movementStarted);
+      map.off("moveend", movementEnded);
       if (!sceneImage) {
         map.off("render", scheduleFallback);
         map.off("resize", scheduleFallback);

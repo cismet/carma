@@ -1,6 +1,6 @@
 import { act, cleanup, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { Radians } from "@carma-units";
+import { degToRad, type Degrees, type Radians } from "@carma-units";
 import type { ObliqueDataset, ObliqueImageRecord } from "../../core/types";
 import { useObliqueData, type ObliqueData } from "./useObliqueData";
 
@@ -137,10 +137,12 @@ describe("catalog worker lifecycle", () => {
       CatalogWorker.instances[0].complete(first, {
         imageRecords: records(first, 3),
         obliquePitchBySeries: new Map([[first.id, firstTotal]]),
+        obliquePitchByDirectionBySeries: new Map([[first.id, new Map([[0, firstTotal]])]]),
       });
       CatalogWorker.instances[1].complete(second, {
         imageRecords: records(second, 1),
         obliquePitchBySeries: new Map([[second.id, secondTotal]]),
+        obliquePitchByDirectionBySeries: new Map([[second.id, new Map([[0, secondTotal]])]]),
       });
     });
     await flush();
@@ -153,6 +155,8 @@ describe("catalog worker lifecycle", () => {
     const immediate = renders[nextRender]!;
     expect([...immediate.obliquePitchBySeries!.keys()]).toEqual([second.id]);
     expect(immediate.obliquePitchBySeries!.get(second.id)).toBe(secondTotal);
+    expect([...immediate.obliquePitchByDirectionBySeries!.keys()]).toEqual([second.id]);
+    expect(immediate.obliquePitchByDirectionBySeries!.get(second.id)!.get(0)).toBe(secondTotal);
     expect(
       [...immediate.imageRecords.values()].every(
         (record) => record.seriesId === second.id
@@ -410,6 +414,29 @@ describe("directional catalogs", () => {
     expect(
       view.result.current.data?.obliquePitchBySeries?.get(series.id)
     ).toEqual({ pitchSumRad: 10, imageCount: 10 });
+  });
+  it("uses full world-sector pitch summaries from the first part without double counting later slices", async () => {
+    const series = grouped();
+    series.directionalCatalogs = series.directionalCatalogs!.map((group, index) => ({
+      ...group,
+      meanHeadingRad: degToRad([325, 54, 145, 235][index] as Degrees),
+      obliquePitch: {
+        pitchSumRad: degToRad(((40 + index * 2) * (index + 1)) as Degrees),
+        imageCount: index + 1,
+      },
+    }));
+    const view = renderHook(() => useObliqueData([series], true, { priorityImageId: "E_01_12" }));
+    act(() => completeGroup(CatalogWorker.instances[0], series, "E"));
+    await flush();
+    const first = view.result.current.data!.obliquePitchByDirectionBySeries!.get(series.id)!;
+    expect([...first.values()].map((total) => total.imageCount)).toEqual([1, 2, 3, 4]);
+    expect(first.get(0)!.pitchSumRad).toBe(degToRad(40 as Degrees));
+    await act(async () => { await vi.advanceTimersByTimeAsync(32); });
+    act(() => completeGroup(CatalogWorker.instances[1], series, "N"));
+    await flush();
+    const second = view.result.current.data!.obliquePitchByDirectionBySeries!.get(series.id)!;
+    expect([...second.values()].map((total) => total.imageCount)).toEqual([1, 2, 3, 4]);
+    expect(second.get(0)!.pitchSumRad).toBe(degToRad(40 as Degrees));
   });
   it("promotes an urgent bearing without terminating the active worker and resolves after visible publication", async () => {
     const series = grouped();

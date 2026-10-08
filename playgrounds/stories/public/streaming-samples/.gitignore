@@ -1,0 +1,4 @@
+# Generated local diagnostics; reproduce through the shared dev-local tooling.
+*.avif
+*.json
+*.ppm

@@ -23,10 +23,12 @@ import {
   estimateGroundCenter,
   estimateGroundFootprint,
   rankImagesForView,
+  rankImagesForViewWithDirectionalFallback,
 } from "./selection";
 import { calibrationFromMetadata } from "./calibration";
 import { CardinalDirectionEnum } from "./orientation";
 import { getImageUrls } from "../../runtime/utils/imageUrls";
+import { createImageSelectionIndex } from "./image-selection-index";
 
 const converter = getProj4Converter("EPSG:25832", "EPSG:4326");
 const camera = {
@@ -247,6 +249,29 @@ describe("normalized image series", () => {
       ).toThrow(/pose|camera/);
     }
   });
+  it("removes the obsolete AVIF query while preserving placeholders and other URL fields", () => {
+    const source = {
+      ...dataset("avif-clean"),
+      avifPyramidTemplate:
+        "/avif/{imageId}.avif?pyramid=2024-attribution-v2&token=public#image",
+    };
+    expect(resolveSeries({ series: [source] })[0].avifPyramidTemplate).toBe(
+      "/avif/{imageId}.avif?token=public#image"
+    );
+    expect(source.avifPyramidTemplate).toContain("pyramid=");
+    const signed = "/avif/{imageId}.avif?token=a%20b#fragment?detail";
+    expect(
+      resolveSeries({ series: [{ ...source, avifPyramidTemplate: signed }] })[0]
+        .avifPyramidTemplate
+    ).toBe(signed);
+    const fragmentOnly = "/avif/{imageId}.avif#fragment?detail";
+    expect(
+      resolveSeries({
+        series: [{ ...source, avifPyramidTemplate: fragmentOnly }],
+      })[0].avifPyramidTemplate
+    ).toBe(fragmentOnly);
+  });
+
   it("allows per-record AVIF pyramids without a dataset template", () => {
     expect(
       resolveSeries({
@@ -432,6 +457,52 @@ describe("image series configuration", () => {
 });
 
 describe("geometric best fit", () => {
+  it("filters by the precomputed image ground centre, not the distant camera position", () => {
+    const data = selectionData([
+      [metadata("series", "photo"), dataset("series")],
+    ]);
+    const [record] = data.imageRecords.values();
+    const center = data.centers.get(record.id)!;
+    const ranked = rankImagesForView(data, {
+      target: queryTarget(center.x, center.y),
+      headingRad: 0,
+      pitchRad: degToRadNumeric(45),
+      maxDistanceMeters: 25,
+    });
+
+    expect(ranked).toHaveLength(1);
+    expect(ranked[0].distanceOnGround).toBeLessThan(25);
+    expect(ranked[0].distanceToCamera).toBeGreaterThan(500);
+  });
+
+  it("widens the indexed search only when the image center is distant but its footprint covers the target", () => {
+    const data = selectionData([
+      [metadata("series", "photo"), dataset("series")],
+    ]);
+    const [record] = data.imageRecords.values();
+    const center = data.centers.get(record.id)!;
+    const index = createImageSelectionIndex(data, { groundCenters: true });
+    const query = {
+      target: queryTarget(center.x + 200, center.y),
+      headingRad: degToRadNumeric(0),
+      pitchRad: degToRadNumeric(45),
+      maxDistanceMeters: 50,
+    };
+    const ranked = rankImagesForViewWithDirectionalFallback(
+      data,
+      query,
+      (allDirections, candidateQuery) =>
+        index.candidates(candidateQuery, {
+          allDirections,
+          limitPerDirection: 256,
+        })
+    );
+
+    expect(ranked).toHaveLength(1);
+    expect(ranked[0].coversTarget).toBe(true);
+    expect(ranked[0].distanceOnGround).toBeGreaterThan(50);
+  });
+
   it("prefers higher native pixel density over a nearer image centre while keeping nearest-axis selectable", () => {
     const low = metadata("near", "low");
     const high = metadata("detail", "high");
@@ -547,7 +618,7 @@ describe("geometric best fit", () => {
     }
   );
 
-  it("waits for target datum conversion before comparing calibrated density across enabled series", () => {
+  it("uses an approximate target plane until datum conversion is available", () => {
     const low = metadata("near", "low");
     const high = metadata("detail", "high");
     high.cameras.camera = {
@@ -572,7 +643,9 @@ describe("geometric best fit", () => {
       pitchRad: degToRadNumeric(45),
       selectionStrategy: "best-resolution" as const,
     };
-    expect(rankImagesForView(data, query)).toEqual([]);
+    const approximate = rankImagesForView(data, query);
+    expect(approximate).toHaveLength(2);
+    expect(approximate.every((item) => item.coverageApproximate)).toBe(true);
     const converted = rankImagesForView(data, {
       ...query,
       perSeriesTargetHeightMeters: new Map([
@@ -599,6 +672,29 @@ describe("geometric best fit", () => {
     });
     expect(ranked[0].record.seriesId).toBe("near");
     expect(ranked[0].coversTarget).toBe(true);
+  });
+  it("falls back to already-loaded directions when the preferred sector misses the target", () => {
+    const wrong = metadata("wrong", "wrong", 180);
+    const fitting = metadata("fitting", "fitting", 0);
+    const data = selectionData([
+      [wrong, dataset("wrong")],
+      [fitting, dataset("fitting")],
+    ]);
+    const query = {
+      target: queryTarget(370000, 5680900),
+      headingRad: degToRadNumeric(0),
+      pitchRad: degToRadNumeric(45),
+    };
+    const candidates = rankImagesForViewWithDirectionalFallback(
+      data,
+      query,
+      (allDirections) =>
+        allDirections
+          ? data.imageRecords.values()
+          : [data.imageRecords.get(qualifiedImageId("wrong", "wrong"))!]
+    );
+    expect(candidates[0].record.seriesId).toBe("fitting");
+    expect(candidates[0].coversTarget).toBe(true);
   });
   it("does not return a disabled series even when it would fit best", () => {
     const data = selectionData([
@@ -628,7 +724,7 @@ describe("geometric best fit", () => {
       })[0].record.seriesId
     ).toBe("fit");
   });
-  it("waits for exact datum conversion instead of comparing terrain to ellipsoidal camera z", () => {
+  it("uses the series reference plane until exact datum conversion is available", () => {
     const data = selectionData([[metadata("series"), dataset("series")]]);
     const config = data.datasets.get("series")!;
     config.heightDatum = "ellipsoidal";
@@ -637,13 +733,15 @@ describe("geometric best fit", () => {
       headingRad: 0,
       pitchRad: degToRadNumeric(45),
     };
-    expect(rankImagesForView(data, query)).toEqual([]);
-    expect(
-      rankImagesForView(data, {
-        ...query,
-        perSeriesTargetHeightMeters: new Map([["series", 45]]),
-      })
-    ).toHaveLength(1);
+    const approximate = rankImagesForView(data, query);
+    expect(approximate).toHaveLength(1);
+    expect(approximate[0].coverageApproximate).toBe(true);
+    const converted = rankImagesForView(data, {
+      ...query,
+      perSeriesTargetHeightMeters: new Map([["series", 45]]),
+    });
+    expect(converted).toHaveLength(1);
+    expect(converted[0].coverageApproximate).toBeFalsy();
   });
   it("can derive a center and footprint without delivered shapefiles", () => {
     const input = metadata("series");

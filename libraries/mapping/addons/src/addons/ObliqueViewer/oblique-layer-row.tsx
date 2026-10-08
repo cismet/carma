@@ -1,4 +1,10 @@
-import { useEffect, useMemo, useRef, type CSSProperties } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faPlane, faXmark } from "@fortawesome/free-solid-svg-icons";
 
@@ -10,17 +16,51 @@ import {
 import { degToRad, radToDeg, zeroToTwoPi } from "@carma-units";
 
 import { useObliqueViewerActions } from "./oblique-actions";
-const acquisitionMonth = new Intl.DateTimeFormat("de-DE", {
-  month: "long",
-  year: "numeric",
-  timeZone: "UTC",
-});
 const strings = {
   title: "Schrägluftbilder",
   flyToImageTooltip: "Unverzerrte Bildvorschau starten",
   closePreviewTooltip: "Bildvorschau beenden",
   readoutTooltip: "Schrägluftbild-Werkzeuge öffnen",
 };
+
+const acquisitionPeriod = (series: {
+  acquisitionYear?: number;
+  acquisitionMonth?: number;
+  shortLabel?: string;
+  label: string;
+  id: string;
+}) => {
+  const year = series.acquisitionYear;
+  const month = series.acquisitionMonth;
+  if (
+    typeof year === "number" &&
+    Number.isInteger(year) &&
+    year >= 1000 &&
+    year <= 9999
+  ) {
+    if (
+      typeof month === "number" &&
+      Number.isInteger(month) &&
+      month >= 1 &&
+      month <= 12
+    ) {
+      return `${String(month).padStart(2, "0")}/${year}`;
+    }
+    return String(year);
+  }
+  return series.shortLabel ?? series.label ?? series.id;
+};
+
+const PhotoIdentifier = ({ imageId }: { imageId: string }) => (
+  <span
+    className="whitespace-nowrap font-normal tabular-nums"
+    title={imageId}
+    aria-label={imageId}
+    data-test-id="oblique-photo-identifier"
+  >
+    {imageId.split("_").join("\u2009")}
+  </span>
+);
 
 export const OBLIQUE_LAYER_ID = "__obliqueViewer__";
 
@@ -59,12 +99,14 @@ export const OBLIQUE_LAYER: Layer = {
 
 const buildInteractionButtons = ({
   label,
+  sourceImageId,
   previewVisible,
   hasImage,
   onFlyToggle,
   hoverAvailable,
 }: {
-  label: string;
+  label: ReactNode;
+  sourceImageId: string | null;
   previewVisible: boolean;
   hasImage: boolean;
   hoverAvailable: boolean;
@@ -80,7 +122,9 @@ const buildInteractionButtons = ({
           {label}
         </span>
       ),
-      tooltip: strings.readoutTooltip,
+      tooltip: sourceImageId
+        ? `${strings.readoutTooltip}: ${sourceImageId}`
+        : strings.readoutTooltip,
     },
   ];
   if (hasImage && (!hoverAvailable || previewVisible)) {
@@ -155,38 +199,41 @@ export const useObliqueLayerRow = ({
         : null;
     const angle = radians !== null ? Math.round(radToDeg(radians)) % 360 : null;
     const direction =
-      radians !== null
+      radians !== null && angle !== null
         ? `${formatCardinalBearing(radians, {
             form: CARDINAL_BEARING_FORM.SHORT,
             points: 16,
-          })} (${angle}°)`
+          })} ${angle}°`
         : null;
     if (imageSeries) {
-      const year = imageSeries.acquisitionYear ?? Number.NaN;
-      const month = imageSeries.acquisitionMonth ?? Number.NaN;
-      const date =
-        Number.isInteger(year) && year >= 1000 && year <= 9999
-          ? Number.isInteger(month) && month >= 1 && month <= 12
-            ? acquisitionMonth.format(new Date(Date.UTC(year, month - 1, 1)))
-            : String(year)
-          : imageSeries.shortLabel ?? imageSeries.label;
-      return [
-        date,
-        [direction, selectedSourceImageId].filter(Boolean).join(" "),
-      ]
-        .filter(Boolean)
-        .join(" - ");
+      const date = acquisitionPeriod(imageSeries);
+      return (
+        <span className="inline-flex items-center gap-1">
+          <span>{date}</span>
+          {direction && <span aria-hidden="true">·</span>}
+          {direction && <span>{direction}</span>}
+          {selectedSourceImageId && <span aria-hidden="true">·</span>}
+          {selectedSourceImageId && (
+            <PhotoIdentifier imageId={selectedSourceImageId} />
+          )}
+        </span>
+      );
     }
-    return [
-      series
-        .filter((entry) => entry.enabled)
-        .map((entry) => entry.shortLabel ?? entry.id)
-        .join(", "),
-      direction,
-    ]
-      .filter(Boolean)
-      .join(" · ");
-  }, [series, imageSeries, heading, selectedSourceImageId]);
+    const loadedSeries = series.filter((entry) => entry.enabled);
+    const loadedPeriods = loadedSeries.map(acquisitionPeriod).join(", ");
+    return (
+      <span className="inline-flex items-center gap-1">
+        {loadedPeriods && <span>{loadedPeriods}</span>}
+        {loadedPeriods && direction && <span aria-hidden="true">·</span>}
+        {direction && <span>{direction}</span>}
+      </span>
+    );
+  }, [
+    series,
+    imageSeries,
+    heading,
+    selectedSourceImageId,
+  ]);
 
   // the app owns the panel state; the row's icon colour reads it from here
   useEffect(() => {
@@ -202,6 +249,7 @@ export const useObliqueLayerRow = ({
         : OBLIQUE_ICON_COLOR.closed,
       interactionButtons: buildInteractionButtons({
         label,
+        sourceImageId: selectedSourceImageId,
         previewVisible,
         hasImage: selectedImageId !== null,
         hoverAvailable,
@@ -213,6 +261,7 @@ export const useObliqueLayerRow = ({
       label,
       previewVisible,
       selectedImageId,
+      selectedSourceImageId,
       hoverAvailable,
       panelOpen,
       sendRequest,

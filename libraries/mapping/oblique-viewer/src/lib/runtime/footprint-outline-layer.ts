@@ -16,12 +16,13 @@ import type {
   ObliquePose,
 } from "../core/types";
 import { getCameraCalibration } from "../core/utils/calibration";
-import { poseOf, resolveCameraAltitude } from "./utils/flyToImage";
+import { getOrComputeObliquePose } from "../core/utils/oblique-pose";
+import { resolveCameraAltitude } from "./utils/flyToImage";
 import {
   imageProjectionMatrix,
   sceneToPhotoEnu,
   sceneToMercatorPhotoEnu,
-} from "./utils/image-projection";
+} from "../core/utils/image-projection";
 import type { CssPixels } from "@carma-units";
 
 /**
@@ -458,7 +459,10 @@ export const createFootprintOutlineLayer = (
       )
         continue;
       if (projection.frameKey !== key || !projection.matrix) {
-        const pose = poseOf(footprint.record, footprint.dataset);
+        const pose = getOrComputeObliquePose(
+          footprint.record,
+          footprint.dataset
+        );
         const position = surfaceLease.layer.projectLngLatToScene(
           [pose.longitude, pose.latitude],
           projection.altitude

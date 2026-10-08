@@ -18,14 +18,13 @@ type HoverRequest = {
   resolve: (record: ObliqueImageRecord | null | undefined) => void;
 };
 
-/** Viewport display and full-catalog hover share one worker-backed footprint index. */
+/** Spatial metadata is indexed once; only nearby cameras receive derived rings. */
 export const useVisibleFootprints = ({
   map,
   data,
   enabled,
   locked,
   viewMode,
-  refineAtGroundPoint,
   selectionStrategy,
 }: {
   map: MaplibreMap | null;
@@ -34,12 +33,6 @@ export const useVisibleFootprints = ({
   locked: boolean;
   viewMode: ObliqueViewMode;
   selectionStrategy?: FootprintPointQuery["selectionStrategy"];
-  refineAtGroundPoint?: (
-    records: ObliqueImageRecord[],
-    query: FootprintPointQuery,
-    headingFirst: boolean,
-    isCurrent: () => boolean
-  ) => Promise<ObliqueImageRecord | null | undefined>;
 }): {
   records: readonly ObliqueImageRecord[];
   findAtGroundPoint: (
@@ -48,10 +41,15 @@ export const useVisibleFootprints = ({
     heightMeters?: number
   ) => Promise<ObliqueImageRecord | null | undefined>;
 } => {
-  const refineRef = useRef(refineAtGroundPoint);
-  refineRef.current = refineAtGroundPoint;
   const [records, setRecords] = useState<ObliqueImageRecord[]>([]);
   const workerRef = useRef<Worker | null>(null);
+  const dataRef = useRef(data);
+  dataRef.current = data;
+  const catalogSenderRef = useRef<(data: ObliqueSelectionData | null) => void>(
+    () => undefined
+  );
+  const catalogReadyRef = useRef(false);
+  const hydratedRef = useRef(new Map<string, ObliqueImageRecord>());
   const requestIdRef = useRef(0);
   const hoverRequestIdRef = useRef(0);
   const activeHoverRef = useRef<HoverRequest | null>(null);
@@ -100,7 +98,7 @@ export const useVisibleFootprints = ({
     ) =>
       new Promise<ObliqueImageRecord | null | undefined>((resolve) => {
         const worker = workerRef.current;
-        if (!map || !worker || lockedRef.current) {
+        if (!map || !worker || !catalogReadyRef.current || lockedRef.current) {
           resolve(undefined);
           return;
         }
@@ -109,6 +107,7 @@ export const useVisibleFootprints = ({
           query: {
             point,
             headingRad: degToRadNumeric(map.getBearing()),
+            pitchRad: degToRadNumeric(map.getPitch()),
             viewMode: modeRef.current,
             activeImageId,
             heightMeters,
@@ -137,7 +136,7 @@ export const useVisibleFootprints = ({
   );
   const query = useCallback(() => {
     const worker = workerRef.current;
-    if (!map || !worker || lockedRef.current) return;
+    if (!map || !worker || !catalogReadyRef.current || lockedRef.current) return;
     const { width, height, centerOffset } = map.transform;
     if (width <= 0 || height <= 0) return;
     const mapCenter = map.getCenter();
@@ -183,7 +182,9 @@ export const useVisibleFootprints = ({
     setRecords([]);
     lastQueryKeyRef.current = "";
     viewportCornersRef.current = undefined;
-    if (!map || !data || !enabled || typeof Worker === "undefined")
+    catalogReadyRef.current = false;
+    catalogSenderRef.current = () => undefined;
+    if (!map || !enabled || typeof Worker === "undefined")
       return undefined;
     const worker = new Worker(
       new URL("../utils/viewport-footprints.worker.ts", import.meta.url),
@@ -191,18 +192,74 @@ export const useVisibleFootprints = ({
     );
     workerRef.current = worker;
     let disposed = false;
+    let catalogTimer: ReturnType<typeof setTimeout> | undefined;
+    let latestData = dataRef.current;
+    let indexedRecordCount = 0;
+    let firstChunk = true;
+    let pumpingCatalog = false;
+    let catalogRevision = 0;
+    let catalogRecordCount = 0;
+    let catalogEntries: ReturnType<ObliqueSelectionData["imageRecords"]["values"]>;
+    let nextCatalogRecord: ReturnType<typeof catalogEntries.next>;
+    let datasetKey = latestData
+      ? [...latestData.datasets.keys()].sort().join("|")
+      : "";
+    const hydrated = hydratedRef.current;
+    const pruneHydrated = (nextData: ObliqueSelectionData) => {
+      for (const [id, record] of hydrated) {
+        if (nextData.imageRecords.get(id) === record) continue;
+        if (record.footprintApproximate) delete record.footprint;
+        hydrated.delete(id);
+      }
+    };
+    const hydrate = (footprints: ViewportFootprint[] = []) => {
+      const currentData = dataRef.current;
+      for (const footprint of [...footprints].reverse()) {
+        const record = currentData?.imageRecords.get(footprint.id);
+        if (!record) continue;
+        if (
+          !record.footprint ||
+          record.footprint.length !== footprint.ring.length ||
+          record.footprint.some(
+            (point, i) =>
+              point[0] !== footprint.ring[i][0] ||
+              point[1] !== footprint.ring[i][1]
+          )
+        )
+          record.footprint = footprint.ring.map((point) => [
+            point[0],
+            point[1],
+          ]);
+        record.footprintApproximate = footprint.approximate !== false;
+        hydrated.delete(record.id);
+        hydrated.set(record.id, record);
+      }
+      while (hydrated.size > 512) {
+        const [id, record] = hydrated.entries().next().value!;
+        hydrated.delete(id);
+        if (record.footprintApproximate) delete record.footprint;
+      }
+    };
     worker.onmessage = (
       event: MessageEvent<{
         type: string;
         requestId?: number;
+        revision?: number;
         ids?: string[];
         id?: string | null;
         headingFirst?: boolean;
+        footprints?: ViewportFootprint[];
         requestType?: string;
       }>
     ) => {
       if (disposed) return;
       const response = event.data;
+      if (response.type === "ready") {
+        if (response.revision !== catalogRevision) return;
+        catalogReadyRef.current = true;
+        query();
+        return;
+      }
       if (
         response.type === "hoverResult" ||
         (response.type === "error" && response.requestType === "hover")
@@ -210,6 +267,7 @@ export const useVisibleFootprints = ({
         const active = activeHoverRef.current;
         if (!active || response.requestId !== active.requestId) return;
         clearTimeout(hoverTimeoutRef.current);
+        hydrate(response.footprints);
         const finish = (record: ObliqueImageRecord | null | undefined) => {
           if (disposed || activeHoverRef.current !== active) {
             active.resolve(undefined);
@@ -225,36 +283,20 @@ export const useVisibleFootprints = ({
           }
         };
         if (lockedRef.current || response.type === "error") finish(undefined);
-        else if (refineRef.current && response.ids) {
-          const candidates = response.ids
-            .map((id) => data.imageRecords.get(id))
-            .filter((record): record is ObliqueImageRecord => !!record);
-          void refineRef
-            .current(
-              candidates,
-              active.query,
-              !!response.headingFirst,
-              () =>
-                !disposed &&
-                !lockedRef.current &&
-                activeHoverRef.current === active &&
-                !queuedHoverRef.current
-            )
-            .then(finish, () => finish(undefined));
-        } else
+        else
           finish(
-            response.id ? data.imageRecords.get(response.id) ?? null : null
+            response.id ? dataRef.current?.imageRecords.get(response.id) ?? null : null
           );
         return;
       }
       if (lockedRef.current) return;
-      if (event.data.type === "ready") query();
-      else if (
+      if (
         event.data.type === "result" &&
         event.data.requestId === requestIdRef.current
       ) {
+        hydrate(response.footprints);
         const next = (event.data.ids ?? [])
-          .map((id) => data.imageRecords.get(id))
+          .map((id) => dataRef.current?.imageRecords.get(id))
           .filter((record): record is ObliqueImageRecord => !!record);
         setRecords((previous) =>
           previous.length === next.length &&
@@ -265,31 +307,124 @@ export const useVisibleFootprints = ({
       }
     };
     worker.onerror = worker.onmessageerror = () => {
+      disposed = true;
+      clearTimeout(catalogTimer);
       stopHover();
       if (workerRef.current === worker) workerRef.current = null;
+      catalogReadyRef.current = false;
+      catalogSenderRef.current = () => undefined;
       worker.terminate();
     };
-    const catalog: ViewportFootprint[] = [];
-    for (const record of data.imageRecords.values()) {
-      if (!record.footprint || !record.pose) continue;
-      catalog.push({
-        id: record.id,
-        ring: record.footprint,
-        headingRad: degToRadNumeric(record.pose.bearingDeg),
-        nadir:
-          data.datasets.get(record.seriesId)?.cameras[record.cameraId]?.view ===
-          "nadir",
-      });
-    }
-    worker.postMessage({ type: "init", catalog });
+    const sendCatalog = () => {
+      if (disposed || pumpingCatalog || !latestData) return;
+      pumpingCatalog = true;
+      const imageRecords: ObliqueSelectionData["imageRecords"] = new Map();
+      const centers: ObliqueSelectionData["centers"] = new Map();
+      const sourceData = latestData;
+      for (let i = 0; i < 512 && !nextCatalogRecord.done; i++) {
+        const record = nextCatalogRecord.value;
+        nextCatalogRecord = catalogEntries.next();
+        if (record.footprintApproximate && record.footprint) {
+          const { footprint: _ring, ...metadata } = record;
+          imageRecords.set(record.id, metadata);
+        } else imageRecords.set(record.id, record);
+        const center = sourceData.centers.get(record.id);
+        if (center) centers.set(record.id, center);
+      }
+      const done = nextCatalogRecord.done;
+      const sentCount = imageRecords.size;
+      const revision = catalogRevision;
+      try {
+        worker.postMessage({
+          type: "init",
+          data: {
+            imageRecords,
+            centers,
+            datasets: sentCount > 0 || firstChunk
+              ? new Map(
+                  [...sourceData.datasets].map(([id, dataset]) => [
+                    id,
+                    { ...dataset, animations: {} },
+                  ])
+                )
+              : new Map(),
+          },
+          append: !firstChunk,
+          complete: done,
+          revision: done ? revision : undefined,
+        });
+        indexedRecordCount += sentCount;
+        firstChunk = false;
+        if (done) {
+          pumpingCatalog = false;
+          if (latestData.imageRecords.size > indexedRecordCount)
+            catalogTimer = setTimeout(sendCatalog, 0);
+        } else {
+          pumpingCatalog = false;
+          catalogTimer = setTimeout(sendCatalog, 0);
+        }
+      } catch {
+        pumpingCatalog = false;
+        disposed = true;
+        catalogReadyRef.current = false;
+        catalogSenderRef.current = () => undefined;
+        if (workerRef.current === worker) workerRef.current = null;
+        stopHover();
+        worker.terminate();
+      }
+    };
+    catalogSenderRef.current = (nextData) => {
+      if (disposed || !nextData) return;
+      const nextKey = [...nextData.datasets.keys()].sort().join("|");
+      const catalogChanged =
+        firstChunk ||
+        nextKey !== datasetKey ||
+        nextData.imageRecords.size !== catalogRecordCount;
+      latestData = nextData;
+      // Metadata-only publications must not invalidate an in-flight ready reply.
+      if (!catalogChanged) return;
+      if (
+        nextKey !== datasetKey ||
+        nextData.imageRecords.size < indexedRecordCount
+      ) {
+        datasetKey = nextKey;
+        indexedRecordCount = 0;
+        firstChunk = true;
+        catalogReadyRef.current = false;
+        setRecords([]);
+        pruneHydrated(nextData);
+      }
+      requestIdRef.current++;
+      lastQueryKeyRef.current = "";
+      catalogRecordCount = nextData.imageRecords.size;
+      catalogRevision++;
+      // Retain the cursor across chunks; revisit the existing prefix only when a
+      // newly published map appends another cardinal catalog segment.
+      catalogEntries = nextData.imageRecords.values();
+      nextCatalogRecord = catalogEntries.next();
+      for (let i = 0; i < indexedRecordCount && !nextCatalogRecord.done; i++)
+        nextCatalogRecord = catalogEntries.next();
+      if (nextData.imageRecords.size > indexedRecordCount || firstChunk) {
+        catalogReadyRef.current = false;
+        clearTimeout(catalogTimer);
+        catalogTimer = setTimeout(sendCatalog, 0);
+      }
+    };
+    if (latestData) catalogSenderRef.current(latestData);
     return () => {
       disposed = true;
+      clearTimeout(catalogTimer);
       requestIdRef.current++;
       workerRef.current = null;
+      catalogReadyRef.current = false;
+      catalogSenderRef.current = () => undefined;
       stopHover();
       worker.terminate();
     };
-  }, [map, data, enabled, query, sendHover, stopHover]);
+  }, [map, enabled, query, sendHover, stopHover]);
+  useEffect(() => {
+    catalogSenderRef.current(data);
+  }, [data]);
   useEffect(() => {
     requestIdRef.current++;
     stopHover();

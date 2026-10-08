@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Radians } from "@carma-units";
 import type { ObliqueDataset } from "../../core/types";
+import { summarizeDirectionalCatalogPitch } from "../../core/utils/browsing-pitch";
 import { type CatalogPriority } from "../../core/utils/directional-catalog";
 import { createDirectionalCatalogQueue } from "../utils/directional-catalog-queue";
 import {
@@ -197,13 +198,16 @@ import.meta.hot?.dispose(() => {
   cache.clear();
 });
 
-const mergeSeries = (loaded: Iterable<ObliqueData>): ObliqueData => {
-  const result: ObliqueData = {
+const mergeSeries = (
+  loaded: Iterable<ObliqueData>,
+  result: ObliqueData = {
     imageRecords: new Map(),
     datasets: new Map(),
     centers: new Map(),
     obliquePitchBySeries: new Map(),
-  };
+    obliquePitchByDirectionBySeries: new Map(),
+  }
+): ObliqueData => {
   for (const data of loaded) {
     for (const [id, total] of data.obliquePitchBySeries ?? []) {
       const previous = result.obliquePitchBySeries!.get(id);
@@ -217,6 +221,25 @@ const mergeSeries = (loaded: Iterable<ObliqueData>): ObliqueData => {
             }
           : total
       );
+    }
+    for (const [id, directions] of data.obliquePitchByDirectionBySeries ?? []) {
+      let target = result.obliquePitchByDirectionBySeries!.get(id);
+      if (!target) {
+        target = new Map();
+        result.obliquePitchByDirectionBySeries!.set(id, target);
+      }
+      for (const [direction, total] of directions) {
+        const previous = target.get(direction);
+        target.set(
+          direction,
+          previous
+            ? {
+                pitchSumRad: (previous.pitchSumRad + total.pitchSumRad) as Radians,
+                imageCount: previous.imageCount + total.imageCount,
+              }
+            : total
+        );
+      }
     }
     for (const [id, record] of data.imageRecords)
       result.imageRecords.set(id, record);
@@ -239,21 +262,20 @@ const mergeSeries = (loaded: Iterable<ObliqueData>): ObliqueData => {
     for (const [id, center] of data.centers) result.centers.set(id, center);
   }
   for (const [id, dataset] of result.datasets) {
-    const groups = dataset.directionalCatalogs;
-    if (groups?.length && groups.every((group) => group.obliquePitch)) {
-      result.obliquePitchBySeries!.set(id, {
-        pitchSumRad: groups.reduce(
-          (sum, group) => sum + group.obliquePitch!.pitchSumRad,
-          0
-        ) as Radians,
-        imageCount: groups.reduce(
-          (sum, group) => sum + group.obliquePitch!.imageCount,
-          0
-        ),
-      });
+    const summaries = summarizeDirectionalCatalogPitch(dataset);
+    if (summaries.total) result.obliquePitchBySeries!.set(id, summaries.total);
+    if (summaries.byDirection.size) {
+      let target = result.obliquePitchByDirectionBySeries!.get(id);
+      if (!target) {
+        target = new Map();
+        result.obliquePitchByDirectionBySeries!.set(id, target);
+      }
+      for (const [direction, total] of summaries.byDirection)
+        target.set(direction, total);
     }
   }
-  return result;
+  // Publish a new snapshot identity for React, retaining the provisioned maps.
+  return { ...result };
 };
 
 export const useObliqueData = (
@@ -378,6 +400,18 @@ export const useObliqueData = (
       ])
     );
     const loaded = new Map<string, ObliqueData>();
+    const assembledParts = new Set<ObliqueData>();
+    let assembled: ObliqueData | undefined;
+    const appendParts = (parts: Iterable<ObliqueData>) => {
+      const additions: ObliqueData[] = [];
+      for (const part of parts) {
+        if (assembledParts.has(part)) continue;
+        assembledParts.add(part);
+        additions.push(part);
+      }
+      assembled = mergeSeries(additions, assembled);
+      return assembled;
+    };
     let mergedCount = 0;
     let merged: ObliqueData | null = null;
     const publish = () => {
@@ -385,10 +419,7 @@ export const useObliqueData = (
       const perSeries = [...statuses.values()];
       if (loaded.size !== mergedCount) {
         mergedCount = loaded.size;
-        merged =
-          loaded.size === 1
-            ? loaded.values().next().value ?? null
-            : mergeSeries(loaded.values());
+        merged = loaded.size ? appendParts(loaded.values()) : null;
       }
       const data = merged;
       if (data) publicationSources.current.set(data, catalogSources);
@@ -434,7 +465,7 @@ export const useObliqueData = (
           for (const status of perSeries) statuses.set(status.id, status);
           publish();
         },
-        merge: mergeSeries,
+        merge: appendParts,
       });
       directionRef.current = queue.promote;
       allRef.current = queue.all;
@@ -542,6 +573,11 @@ export const useObliqueData = (
       ? {
           obliquePitchBySeries: new Map(
             [...(state.data.obliquePitchBySeries ?? [])].filter(([id]) =>
+              enabledIds.has(id)
+            )
+          ),
+          obliquePitchByDirectionBySeries: new Map(
+            [...(state.data.obliquePitchByDirectionBySeries ?? [])].filter(([id]) =>
               enabledIds.has(id)
             )
           ),

@@ -44,9 +44,6 @@ const data: ObliqueSelectionData = {
   centers: new Map(),
 };
 const setup = (
-  refineAtGroundPoint?: Parameters<
-    typeof useVisibleFootprints
-  >[0]["refineAtGroundPoint"]
 ) => {
   const listeners = new Map<string, () => void>();
   const renders = vi.fn();
@@ -72,7 +69,6 @@ const setup = (
     enabled: true,
     locked: false,
     viewMode: "oblique" as const,
-    refineAtGroundPoint,
   };
   return {
     ...renderHook(
@@ -88,19 +84,118 @@ const setup = (
   };
 };
 
+const flushCatalog = async () => {
+  await act(async () => {
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+  });
+  const worker = WorkerStub.instances[0];
+  const completed = worker?.postMessage.mock.calls
+    .map(([message]) => message)
+    .reverse()
+    .find((message) => message.type === "init" && message.complete);
+  if (completed)
+    act(() => worker.reply({ type: "ready", revision: completed.revision }));
+};
+
 beforeEach(() => {
   WorkerStub.instances = [];
   vi.stubGlobal("Worker", WorkerStub);
 });
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+});
 
 describe("pointer-driven footprint viewport queries", () => {
+  it("transfers center-only metadata and hydrates only matching response records before resolving hover", async () => {
+    const view = setup();
+    const camera = {
+      ...record,
+      footprint: undefined,
+      footprintApproximate: true,
+    };
+    const metadata = { ...data, imageRecords: new Map([[camera.id, camera]]) };
+    view.rerender({ ...view.props, data: metadata });
+    const worker = WorkerStub.instances[0];
+    await flushCatalog();
+    expect(
+      worker.postMessage.mock.calls[0][0].data.imageRecords.get(camera.id)
+        .footprint
+    ).toBeUndefined();
+    const viewport = worker.postMessage.mock.calls.find(
+      ([message]) => message.type === "query"
+    )![0];
+    act(() =>
+      worker.reply({
+        type: "result",
+        requestId: viewport.requestId,
+        ids: [camera.id],
+        footprints: [
+          { id: camera.id, ring: record.footprint, approximate: true },
+          { id: "foreign", ring: record.footprint },
+        ],
+      })
+    );
+    expect(view.result.current.records[0]).toBe(camera);
+    expect(camera.footprint).toEqual(record.footprint);
+    let pending: Promise<ObliqueImageRecord | null | undefined>;
+    act(() => {
+      pending = view.result.current.findAtGroundPoint([7.006, 51.004]);
+    });
+    const hover = worker.postMessage.mock.lastCall![0];
+    const changed = record.footprint!.map(([x, y]) => [x + 0.0001, y]);
+    await act(async () => {
+      worker.reply({
+        type: "hoverResult",
+        requestId: hover.requestId,
+        id: camera.id,
+        ids: [camera.id],
+        footprints: [{ id: camera.id, ring: changed, approximate: true }],
+      });
+      await expect(pending!).resolves.toBe(camera);
+    });
+    expect(camera.footprint).toEqual(changed);
+    view.unmount();
+  });
+
+  it("yields bounded footprint batches and reuses the worker as catalog shards arrive", async () => {
+    vi.useFakeTimers();
+    const view = setup();
+    const catalog = new Map(
+      Array.from({ length: 1300 }, (_, i) => [
+        String(i),
+        { ...record, id: String(i) },
+      ])
+    );
+    view.rerender({ ...view.props, data: { ...data, imageRecords: catalog } });
+    const worker = WorkerStub.instances[0];
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(20);
+    });
+    const parts = worker.postMessage.mock.calls
+      .map(([message]) => message)
+      .filter((message) => message.type === "init");
+    expect(parts.map((message) => message.data.imageRecords.size)).toEqual([
+      512, 512, 276,
+    ]);
+    expect(parts[2]).toMatchObject({ append: true, complete: true });
+    expect(parts[0]).toMatchObject({ append: false, complete: false });
+    expect(parts[2]).toMatchObject({ append: true, complete: true });
+    view.rerender({ ...view.props, data: { ...data, imageRecords: catalog } });
+    expect(WorkerStub.instances).toHaveLength(1);
+    view.unmount();
+    await vi.advanceTimersByTimeAsync(10000);
+    expect(worker.terminate).toHaveBeenCalledOnce();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
   it("queries hover without another viewport query, unprojection or records render", async () => {
     const view = setup();
     const worker = WorkerStub.instances[0];
+    await flushCatalog();
     expect(worker.postMessage.mock.calls[0][0]).toMatchObject({
       type: "init",
-      catalog: [{ id: record.id, headingRad: 0, nadir: false }],
+      data: { imageRecords: new Map([[record.id, record]]) },
     });
     const viewport = worker.postMessage.mock.calls.find(
       ([message]) => message.type === "query"
@@ -153,6 +248,7 @@ describe("pointer-driven footprint viewport queries", () => {
   it("refreshes viewport records and cached hover corners after camera movement", async () => {
     const view = setup();
     const worker = WorkerStub.instances[0];
+    await flushCatalog();
     const first = worker.postMessage.mock.calls.find(
       ([message]) => message.type === "query"
     )![0];
@@ -197,9 +293,10 @@ describe("pointer-driven footprint viewport queries", () => {
     view.unmount();
   });
 
-  it("discards pending hover and viewport replies when the loaded catalog changes", async () => {
+  it("keeps the worker alive and discards stale hover and viewport replies when the catalog changes", async () => {
     const view = setup();
     const worker = WorkerStub.instances[0];
+    await flushCatalog();
     let pending: Promise<ObliqueImageRecord | null | undefined>;
     act(() => {
       pending = view.result.current.findAtGroundPoint([7.006, 51.004]);
@@ -217,7 +314,7 @@ describe("pointer-driven footprint viewport queries", () => {
       },
     });
     await expect(pending!).resolves.toBeUndefined();
-    expect(worker.terminate).toHaveBeenCalledOnce();
+    expect(worker.terminate).not.toHaveBeenCalled();
     act(() => {
       worker.reply({
         type: "hoverResult",
@@ -229,175 +326,6 @@ describe("pointer-driven footprint viewport queries", () => {
         requestId: viewport.requestId,
         ids: [record.id],
       });
-    });
-    expect(view.result.current.records).toEqual([]);
-    view.unmount();
-  });
-});
-
-describe("physical photo-axis refinement", () => {
-  it("passes every loaded worker candidate and heading policy without rendering new records", async () => {
-    const other = { ...record, id: "loaded:other" };
-    let resolve!: (value: ObliqueImageRecord | null | undefined) => void;
-    const refine = vi.fn<
-      NonNullable<
-        Parameters<typeof useVisibleFootprints>[0]["refineAtGroundPoint"]
-      >
-    >(
-      () =>
-        new Promise<ObliqueImageRecord | null | undefined>((done) => {
-          resolve = done;
-        })
-    );
-    const view = setup(refine);
-    view.rerender({
-      ...view.props,
-      data: {
-        ...data,
-        imageRecords: new Map([
-          [record.id, record],
-          [other.id, other],
-        ]),
-      },
-    });
-    const worker = WorkerStub.instances.at(-1)!;
-    const renders = view.renders.mock.calls.length;
-    const currentRecords = view.result.current.records;
-    let pending!: Promise<ObliqueImageRecord | null | undefined>;
-    act(() => {
-      pending = view.result.current.findAtGroundPoint(
-        [7.006, 51.004],
-        record.id
-      );
-    });
-    const request = worker.postMessage.mock.lastCall![0];
-    act(() =>
-      worker.reply({
-        type: "hoverResult",
-        requestId: request.requestId,
-        ids: [record.id, other.id, "not-loaded"],
-        headingFirst: true,
-      })
-    );
-    expect(refine).toHaveBeenCalledOnce();
-    expect(refine.mock.calls[0][0]).toEqual([record, other]);
-    expect(refine.mock.calls[0][1]).toBe(request.query);
-    expect(refine.mock.calls[0][2]).toBe(true);
-    expect(refine.mock.calls[0][3]()).toBe(true);
-    await act(async () => {
-      resolve(other);
-      await expect(pending).resolves.toBe(other);
-    });
-    expect(view.result.current.records).toBe(currentRecords);
-    expect(view.renders).toHaveBeenCalledTimes(renders);
-    view.unmount();
-  });
-
-  it("marks in-flight refinement obsolete and starts only the latest queued pointer query", async () => {
-    let resolveFirst!: (value: ObliqueImageRecord | null | undefined) => void;
-    const refine = vi
-      .fn<
-        NonNullable<
-          Parameters<typeof useVisibleFootprints>[0]["refineAtGroundPoint"]
-        >
-      >()
-      .mockImplementationOnce(
-        () =>
-          new Promise((done) => {
-            resolveFirst = done;
-          })
-      )
-      .mockResolvedValue(record);
-    const view = setup(refine);
-    const worker = WorkerStub.instances[0];
-    let first!: Promise<ObliqueImageRecord | null | undefined>;
-    act(() => {
-      first = view.result.current.findAtGroundPoint([7.002, 51.003]);
-    });
-    const firstRequest = worker.postMessage.mock.lastCall![0];
-    act(() =>
-      worker.reply({
-        type: "hoverResult",
-        requestId: firstRequest.requestId,
-        ids: [record.id],
-        headingFirst: false,
-      })
-    );
-    const isCurrent = refine.mock.calls[0][3];
-    expect(isCurrent()).toBe(true);
-    let superseded!: Promise<ObliqueImageRecord | null | undefined>;
-    let latest!: Promise<ObliqueImageRecord | null | undefined>;
-    act(() => {
-      superseded = view.result.current.findAtGroundPoint([7.003, 51.004]);
-      latest = view.result.current.findAtGroundPoint([7.004, 51.005]);
-    });
-    await expect(superseded).resolves.toBeUndefined();
-    expect(isCurrent()).toBe(false);
-    await act(async () => {
-      resolveFirst(undefined);
-      await expect(first).resolves.toBeUndefined();
-    });
-    const latestRequest = worker.postMessage.mock.lastCall![0];
-    expect(latestRequest.query.point).toEqual([7.004, 51.005]);
-    expect(
-      worker.postMessage.mock.calls.filter(
-        ([message]) => message.type === "hover"
-      )
-    ).toHaveLength(2);
-    act(() =>
-      worker.reply({
-        type: "hoverResult",
-        requestId: firstRequest.requestId,
-        ids: [record.id],
-      })
-    );
-    expect(refine).toHaveBeenCalledTimes(1);
-    await act(async () => {
-      worker.reply({
-        type: "hoverResult",
-        requestId: latestRequest.requestId,
-        ids: [record.id],
-        headingFirst: false,
-      });
-      await expect(latest).resolves.toBe(record);
-    });
-    expect(refine).toHaveBeenCalledTimes(2);
-    view.unmount();
-  });
-
-  it("cancels asynchronous refinement when preview locks the view", async () => {
-    let resolve!: (value: ObliqueImageRecord | null | undefined) => void;
-    const refine = vi.fn<
-      NonNullable<
-        Parameters<typeof useVisibleFootprints>[0]["refineAtGroundPoint"]
-      >
-    >(
-      () =>
-        new Promise((done) => {
-          resolve = done;
-        })
-    );
-    const view = setup(refine);
-    const worker = WorkerStub.instances[0];
-    let pending!: Promise<ObliqueImageRecord | null | undefined>;
-    act(() => {
-      pending = view.result.current.findAtGroundPoint([7.002, 51.003]);
-    });
-    const request = worker.postMessage.mock.lastCall![0];
-    act(() =>
-      worker.reply({
-        type: "hoverResult",
-        requestId: request.requestId,
-        ids: [record.id],
-      })
-    );
-    const isCurrent = refine.mock.calls[0][3];
-    view.rerender({ ...view.props, locked: true });
-    expect(isCurrent()).toBe(false);
-    await expect(pending).resolves.toBeUndefined();
-    await act(async () => {
-      resolve(record);
-      await Promise.resolve();
     });
     expect(view.result.current.records).toEqual([]);
     view.unmount();

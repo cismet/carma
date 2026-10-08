@@ -9,6 +9,8 @@ import type { Matrix3RowMajor } from "@carma-commons/math";
 import { getProj4Converter, type TypedConverter } from "@carma-geo/proj";
 import type {
   BasicObliqueImageRecord,
+  CardinalDirection,
+  ObliquePitchSummary,
   ExteriorOrientationDataArray,
   ObliqueDataset,
   ObliqueImageIdInfo,
@@ -25,18 +27,37 @@ import {
 import { computePose } from "./exteriorOrientation";
 import { getCardinalDirectionFromHeading } from "./orientation";
 
-/** Summarize calibrated oblique poses once in the catalog worker, including cached catalogs. */
-export const summarizeObliquePitch = (
+/** Summarize calibrated poses once per catalog parse; nadir never affects browsing pitch. */
+export const summarizeObliquePitchStatistics = (
   data: Pick<ObliqueSelectionData, "imageRecords" | "datasets">
-): NonNullable<ObliqueSelectionData["obliquePitchBySeries"]> => {
-  const totals: NonNullable<ObliqueSelectionData["obliquePitchBySeries"]> =
-    new Map();
+): Required<
+  Pick<
+    ObliqueSelectionData,
+    "obliquePitchBySeries" | "obliquePitchByDirectionBySeries"
+  >
+> => {
+  const obliquePitchBySeries = new Map<string, ObliquePitchSummary>();
+  const obliquePitchByDirectionBySeries = new Map<
+    string,
+    Map<CardinalDirection, ObliquePitchSummary>
+  >();
+  const add = <Key>(
+    totals: Map<Key, ObliquePitchSummary>,
+    key: Key,
+    pitchRad: Radians
+  ) => {
+    const previous = totals.get(key);
+    if (previous) {
+      previous.pitchSumRad = (previous.pitchSumRad + pitchRad) as Radians;
+      previous.imageCount++;
+    } else totals.set(key, { pitchSumRad: pitchRad, imageCount: 1 });
+  };
   for (const record of data.imageRecords.values()) {
     const dataset = data.datasets.get(record.seriesId);
     const pitchDeg = record.pose?.pitchDeg;
     if (
       !dataset ||
-      dataset.cameras[record.cameraId]?.view === "nadir" ||
+      dataset.cameras?.[record.cameraId]?.view === "nadir" ||
       pitchDeg === undefined ||
       !Number.isFinite(pitchDeg) ||
       pitchDeg <= 0 ||
@@ -44,15 +65,29 @@ export const summarizeObliquePitch = (
     )
       continue;
     const pitchRad = degToRad(pitchDeg as Degrees);
-    const previous = totals.get(record.seriesId);
-    if (previous) {
-      previous.pitchSumRad = (previous.pitchSumRad + pitchRad) as Radians;
-      previous.imageCount++;
-    } else
-      totals.set(record.seriesId, { pitchSumRad: pitchRad, imageCount: 1 });
+    add(obliquePitchBySeries, record.seriesId, pitchRad);
+    const bearingDeg = record.pose?.bearingDeg;
+    if (bearingDeg === undefined || !Number.isFinite(bearingDeg)) continue;
+    let directions = obliquePitchByDirectionBySeries.get(record.seriesId);
+    if (!directions) {
+      directions = new Map();
+      obliquePitchByDirectionBySeries.set(record.seriesId, directions);
+    }
+    add(
+      directions,
+      getCardinalDirectionFromHeading(degToRad(bearingDeg as Degrees)),
+      pitchRad
+    );
   }
-  return totals;
+  return { obliquePitchBySeries, obliquePitchByDirectionBySeries };
 };
+
+/** Backwards-compatible series totals for callers that do not need bearing sectors. */
+export const summarizeObliquePitch = (
+  data: Pick<ObliqueSelectionData, "imageRecords" | "datasets">
+): NonNullable<ObliqueSelectionData["obliquePitchBySeries"]> =>
+  summarizeObliquePitchStatistics(data).obliquePitchBySeries;
+
 
 export type DatasetConverter = TypedConverter<"EPSG:25832", "EPSG:4326">;
 

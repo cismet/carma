@@ -375,6 +375,10 @@ export {
   MAPLIBRE_TERRAIN_MESH_BASE_OPACITY,
   suppressMapLibreRegularStyleLayers,
 } from "./lib/runtime/integrations/map-style-layer-suppression";
+export {
+  acquireMapLibreTerrainDemandPause,
+  acquireMapLibreTerrainZoomLimit,
+} from "./lib/runtime/integrations/maplibre-terrain-demand";
 
 // Styles (CSS should be imported by consumers)
 // import '@carma-mapping/engines/maplibre/styles/map.css';

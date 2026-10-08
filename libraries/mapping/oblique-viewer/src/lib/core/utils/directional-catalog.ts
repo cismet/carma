@@ -68,6 +68,7 @@ export const resolveDirectionalCatalog = (
       )
     : [];
   const sector = identity
+    && identity.lineIndex !== undefined
     ? dataset.cameraIdToDirection?.[
         identity.lineIndex % 2 === 0 ? "EVEN" : "ODD"
       ]?.[identity.cameraId]

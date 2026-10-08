@@ -13,7 +13,7 @@ import {
 import { ObliqueNavigation } from "./ObliqueNavigation";
 vi.mock("antd", () => ({
   Tooltip: ({ children }: { children: ReactNode }) => children,
-  Spin: () => null,
+  Spin: () => createElement("span", { role: "status" }, "loading"),
 }));
 vi.mock("@carma-mapping/map-controls-layout", () => ({
   ControlButtonStyler: ({
@@ -85,6 +85,7 @@ describe("geometry-only cached navigation controls", () => {
       left = screen.getByRole("button", {
         name: "Nächstes Bild nach links",
       }) as HTMLButtonElement;
+    expect(screen.queryByRole("status")).toBeNull();
     expect(right.disabled).toBe(false);
     expect(left.disabled).toBe(true);
     fireEvent.click(right);
@@ -101,7 +102,20 @@ describe("geometry-only cached navigation controls", () => {
       ).disabled
     ).toBe(false);
   });
-  it("disables a stale origin and removes the group in object mode", () => {
+  it("shows the loading indicator only while no selected image is ready", () => {
+    mount({ selectedImageId: null, selectedSeriesId: null });
+    expect(screen.getByRole("status")).toBeTruthy();
+  });
+  it("hides the global loading overlay as soon as the first catalog slice is usable", () => {
+    mount({
+      selectedImageId: null,
+      selectedSeriesId: null,
+      isLoading: true,
+      isAllDataReady: true,
+    });
+    expect(screen.queryByRole("status")).toBeNull();
+  });
+  it("keeps settled availability while a new origin is being prepared and hides in object mode", () => {
     mount({
       navigationTargets: {
         imageId: "previous",
@@ -121,7 +135,7 @@ describe("geometry-only cached navigation controls", () => {
           name: "Nächstes Bild nach rechts",
         }) as HTMLButtonElement
       ).disabled
-    ).toBe(true);
+    ).toBe(false);
     cleanup();
     mount({ viewMode: "objectCoverage" });
     expect(

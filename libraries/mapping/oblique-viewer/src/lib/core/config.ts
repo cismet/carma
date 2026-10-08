@@ -5,6 +5,7 @@ import type { Positions } from "@carma-mapping/map-controls-layout";
 import type {
   ObliqueBackdropLook,
   ObliqueDataset,
+  ObliqueDirectionalCatalog,
   ObliquePreviewState,
 } from "./types";
 
@@ -109,7 +110,7 @@ export const resolveSeries = (
       if (
         !Array.isArray(dataset.directionalCatalogs) ||
         dataset.directionalCatalogs.length === 0 ||
-        dataset.directionalCatalogs.some((group) => {
+        dataset.directionalCatalogs.some((group: ObliqueDirectionalCatalog) => {
           if (
             !group ||
             typeof group.id !== "string" ||
@@ -126,11 +127,11 @@ export const resolveSeries = (
               )
             ) ||
             !Array.isArray(group.cameraIds) ||
-            !group.cameraIds.every((id) => typeof id === "string") ||
+            !group.cameraIds.every((id: string) => typeof id === "string") ||
             (group.cameraPrefixes !== undefined &&
               (!Array.isArray(group.cameraPrefixes) ||
                 !group.cameraPrefixes.every(
-                  (prefix) => typeof prefix === "string" && !!prefix
+                  (prefix: string) => typeof prefix === "string" && !!prefix
                 ))) ||
             (group.obliquePitch !== undefined &&
               (!group.obliquePitch ||
@@ -197,6 +198,19 @@ export const resolveSeries = (
         ];
       })
     );
-    return { ...dataset, animations };
+    let avifPyramidTemplate = dataset.avifPyramidTemplate;
+    if (avifPyramidTemplate?.includes("?")) {
+      const [asset, fragment] = avifPyramidTemplate.split("#", 2);
+      const queryAt = asset.indexOf("?");
+      const query = new URLSearchParams(asset.slice(queryAt + 1));
+      if (queryAt >= 0 && query.has("pyramid")) {
+        query.delete("pyramid");
+        avifPyramidTemplate =
+          asset.slice(0, queryAt) +
+          (query.size ? "?" + query : "") +
+          (fragment === undefined ? "" : "#" + fragment);
+      }
+    }
+    return { ...dataset, avifPyramidTemplate, animations };
   });
 };

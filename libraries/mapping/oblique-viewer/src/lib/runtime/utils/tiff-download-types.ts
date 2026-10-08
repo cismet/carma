@@ -1,14 +1,6 @@
-/** Exact watermark artwork and placement, supplied by the imagery publisher. */
-export type ObliqueDownloadWatermark = Readonly<{
-  imageUrl: string;
-  position: "center" | "top-left" | "bottom-right";
-  /** Match the publisher's ImageMagick composition; omitted uses ordinary alpha blending. */
-  blend?: "source-over" | "screen";
-  opacity: number;
-  /** Width relative to the native photograph; omitted preserves artwork pixels. */
-  widthFraction?: number;
-  marginPx?: number;
-}>;
+import type { ObliqueDownloadWatermark } from "../../core/types";
+
+export type { ObliqueDownloadWatermark } from "../../core/types";
 
 export type TiffDownloadRequest =
   | Readonly<{

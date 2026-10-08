@@ -26,6 +26,7 @@ export const ObliqueNavigation = ({
   const {
     isOn,
     isLoading,
+    isAllDataReady,
     viewMode,
     selectedImageId,
     selectedSeriesId,
@@ -39,10 +40,9 @@ export const ObliqueNavigation = ({
   const ready =
     selectedImageId !== null &&
     series.some((entry) => entry.enabled && entry.id === selectedSeriesId);
-  const currentTargets =
-    ready && navigationTargets?.imageId === selectedImageId
-      ? navigationTargets
-      : null;
+  // Availability is replaced only after the camera settles and its next
+  // targets are ready. Keep the last settled states visible during transitions.
+  const currentTargets = ready ? navigationTargets : null;
   const pan = (
     horizontal: number,
     vertical: number,
@@ -144,7 +144,7 @@ export const ObliqueNavigation = ({
         </Tooltip>
       )}
       <div className="relative grid grid-cols-3 grid-rows-2 gap-1 p-0">
-        {isLoading && (
+        {isLoading && !isAllDataReady && !ready && (
           <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
             <Spin size="small" />
           </div>

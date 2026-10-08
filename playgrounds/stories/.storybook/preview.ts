@@ -170,6 +170,8 @@ const preview: Preview = {
               "*",
             ],
           ],
+          "Libraries",
+          ["Image streaming", "*"],
           "*",
         ],
       },

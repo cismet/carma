@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { degToRad, type Degrees } from "@carma-units";
 import {
+  MAX_VISIBLE_FOOTPRINTS,
   footprintPointCandidates,
   indexViewportFootprints,
   selectFootprintAtPoint,
@@ -63,6 +64,23 @@ describe("catalog footprint hover", () => {
         viewMode: "oblique",
       })
     ).toBe("nearer-sector-hit");
+  });
+
+  it("ranks covered images by their precomputed camera ground centres", () => {
+    const farCameraCenter = rectangle("a-far-center", 7.2);
+    const nearCameraCenter = rectangle("z-near-center", 7.2);
+    farCameraCenter.groundCenter = [7.202, 51.27];
+    nearCameraCenter.groundCenter = [7.2001, 51.27];
+    expect(
+      selectFootprintAtPoint(
+        indexViewportFootprints([farCameraCenter, nearCameraCenter]),
+        {
+          point: [7.2, 51.27],
+          headingRad,
+          viewMode: "oblique",
+        }
+      )
+    ).toBe("z-near-center");
   });
 
   it("falls back to every sector and ranks the shortest heading deviation before proximity", () => {
@@ -146,7 +164,7 @@ describe("catalog footprint hover", () => {
     ).toEqual(["nadir"]);
   });
 
-  it("finds the nearest diagonal center outside the 128 displayed nearest footprints", () => {
+  it("finds the nearest diagonal center outside the displayed nearest footprints", () => {
     const index = indexViewportFootprints(
       Array.from({ length: 160 }, (_, i) =>
         rectangle("image-" + i, 7.2 + i * 0.001)
@@ -163,7 +181,7 @@ describe("catalog footprint hover", () => {
       headingRad,
       viewMode: "oblique",
     });
-    expect(displayed).toHaveLength(128);
+    expect(displayed).toHaveLength(MAX_VISIBLE_FOOTPRINTS);
     expect(displayed).not.toContain("image-159");
     expect(
       selectFootprintAtPoint(index, {

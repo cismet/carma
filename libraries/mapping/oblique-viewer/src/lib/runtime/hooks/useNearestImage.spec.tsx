@@ -100,7 +100,9 @@ beforeEach(() => {
   mocks.inverse.mockResolvedValue(45);
 });
 describe("independent geometric navigation batches", () => {
-  it("shares per-series height conversion and returns covered neighbors without selection callbacks", async () => {
+  it("searches before datum conversion and reuses its result for later queries", async () => {
+    const conversion = deferred<number>();
+    mocks.forward.mockReturnValue(conversion.promise);
     const search = {
       query: vi.fn(),
       queryBatch: vi
@@ -123,14 +125,69 @@ describe("independent geometric navigation batches", () => {
       numCandidates: 4,
       target,
     });
-    expect([...query.perSeriesTargetHeightMeters]).toEqual([
+    expect([...query.perSeriesTargetHeightMeters]).toEqual([]);
+    expect(view.onSelect).not.toHaveBeenCalled();
+    expect(view.onCandidates).not.toHaveBeenCalled();
+
+    await act(async () => {
+      conversion.resolve(123);
+      await conversion.promise;
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    await view.result.current.computeNavigation([{ target }]);
+    expect(mocks.forward).toHaveBeenCalledTimes(1);
+    expect([
+      ...search.queryBatch.mock.calls[1][0][0].perSeriesTargetHeightMeters,
+    ]).toEqual([
       [series.id, 123],
       ["second-series", 123],
     ]);
-    expect(view.onSelect).not.toHaveBeenCalled();
-    expect(view.onCandidates).not.toHaveBeenCalled();
-    await view.result.current.computeNavigation([{ target }]);
-    expect(mocks.forward).toHaveBeenCalledTimes(1);
+  });
+  it("allows initial image selection while the datum grid is still loading", async () => {
+    const conversion = deferred<number>();
+    mocks.forward.mockReturnValue(conversion.promise);
+    const search = {
+      query: vi.fn().mockResolvedValue([candidate("selected")]),
+      queryBatch: vi.fn(),
+      dispose: vi.fn(),
+    };
+    mocks.create.mockReturnValue(search);
+    const data = catalog();
+    const onSelect = vi.fn();
+    renderHook(() =>
+      useNearestImage({
+        map,
+        enabled: true,
+        dataset: series,
+        data,
+        locked: false,
+        selectedImageId: null,
+        onSelect,
+      })
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(search.query).toHaveBeenCalledOnce();
+    expect([
+      ...search.query.mock.calls[0][0].perSeriesTargetHeightMeters,
+    ]).toEqual([]);
+    expect(onSelect).toHaveBeenCalledOnce();
+
+    await act(async () => {
+      conversion.resolve(123);
+      await conversion.promise;
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(search.query).toHaveBeenCalledTimes(2);
+    expect([
+      ...search.query.mock.calls[1][0].perSeriesTargetHeightMeters,
+    ]).toEqual([
+      [series.id, 123],
+      ["second-series", 123],
+    ]);
   });
   it("does not invalidate navigation when locked changes or scalar work starts", async () => {
     const pending = deferred<(NearestObliqueImageRecord[] | undefined)[]>();
@@ -192,14 +249,20 @@ describe("independent geometric navigation batches", () => {
       })
     ).resolves.toEqual([candidate("scalar")]);
   });
-  it("drops results from a replaced catalog and limits the batch to twelve", async () => {
+  it("drops results from an updated catalog and limits the batch to twelve", async () => {
     const pending = deferred<(NearestObliqueImageRecord[] | undefined)[]>(),
       oldSearch = {
         query: vi.fn(),
         queryBatch: vi.fn().mockReturnValue(pending.promise),
+        update: vi.fn(),
         dispose: vi.fn(),
       },
-      nextSearch = { query: vi.fn(), queryBatch: vi.fn(), dispose: vi.fn() };
+      nextSearch = {
+        query: vi.fn(),
+        queryBatch: vi.fn(),
+        update: vi.fn(),
+        dispose: vi.fn(),
+      };
     mocks.create.mockReturnValueOnce(oldSearch).mockReturnValue(nextSearch);
     const view = mount();
     const old = view.result.current.computeNavigation([{ target }]);
@@ -210,7 +273,8 @@ describe("independent geometric navigation batches", () => {
     view.rerender({ data: catalog(), locked: true });
     pending.resolve([[candidate("stale")]]);
     await expect(old).resolves.toEqual([undefined]);
-    expect(oldSearch.dispose).toHaveBeenCalledOnce();
+    expect(oldSearch.update).toHaveBeenCalledOnce();
+    expect(oldSearch.dispose).not.toHaveBeenCalled();
     await expect(
       view.result.current.computeNavigation(Array(13).fill({ target }))
     ).rejects.toThrow(/twelve/);

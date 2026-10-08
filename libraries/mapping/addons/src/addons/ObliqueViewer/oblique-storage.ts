@@ -4,6 +4,7 @@ import {
   type AddonKind,
 } from "../../lib/registry";
 import {
+  OBLIQUE_ROTATION_SURFACES,
   OBLIQUE_STATE_DEFAULT,
   type ObliqueViewerState,
 } from "@carma-mapping/oblique-viewer";
@@ -60,6 +61,12 @@ export const loadObliqueState = (
         parsed.selectionStrategy === "best-resolution"
           ? "best-resolution"
           : OBLIQUE_STATE_DEFAULT.selectionStrategy,
+      rotationSurface:
+        parsed.rotationSurface === OBLIQUE_ROTATION_SURFACES.Dem
+          ? OBLIQUE_ROTATION_SURFACES.Dem
+          : OBLIQUE_ROTATION_SURFACES.Mesh,
+      previewBasemapLabels: parsed.previewBasemapLabels === true,
+      previewRotationDrape: parsed.previewRotationDrape === true,
       isOn: parsed.isOn === true,
       title:
         typeof parsed.title === "string" && parsed.title
@@ -80,7 +87,15 @@ export const saveObliqueState = (
   state: ObliqueViewerState
 ): void => {
   try {
-    const { isOn, title, enabledSeriesIds, selectionStrategy } = state;
+    const {
+      isOn,
+      title,
+      enabledSeriesIds,
+      selectionStrategy,
+      rotationSurface,
+      previewBasemapLabels,
+      previewRotationDrape,
+    } = state;
     window.localStorage.setItem(
       storageKey,
       JSON.stringify({
@@ -88,6 +103,9 @@ export const saveObliqueState = (
         title,
         enabledSeriesIds,
         selectionStrategy,
+        rotationSurface,
+        previewBasemapLabels,
+        previewRotationDrape,
       })
     );
   } catch (error) {

@@ -11,7 +11,7 @@ import {
 import decodeJpeg, { init } from "@jsquash/jpeg/decode.js";
 import wasmUrl from "@jsquash/jpeg/codec/dec/mozjpeg_dec.wasm?url";
 import type { DevicePixels } from "@carma-units";
-import type { NativePreviewWindow } from "../../core/utils/native-preview-window";
+import type { NativePreviewWindow } from "../core/image-viewport-window";
 
 type DecoderParameters = Awaited<
   ReturnType<typeof getDecoder>
@@ -314,7 +314,7 @@ class RangeClient extends BaseClient {
             ];
             const retained = new Set(sources.slice(-4));
             const perSource = new Map<string, number>();
-            for (const entry of keys.reverse()) {
+            for (const entry of [...keys].reverse()) {
               const url = new URL(entry.url);
               url.searchParams.delete("obliqueRange");
               url.searchParams.delete("obliqueVersion");
@@ -371,7 +371,7 @@ export class TiffPreviewSource {
     if (cached) return cached;
     const pending = (this.file ??= fromCustomClient(
       new RangeClient(this.url, signal, this.ranges, this.priority),
-      { allowFullFile: false, blockSize: 65536, cacheSize: 32, maxRanges: 0 },
+      { allowFullFile: false, maxRanges: 0 },
       signal
     ));
     try {
@@ -380,13 +380,14 @@ export class TiffPreviewSource {
       const image = await file.getImage(index);
       signal.throwIfAborted();
       const directory = image.fileDirectory;
+      const optionalTags = directory as unknown as Record<string, unknown>;
       const bits = await directory.loadValue("BitsPerSample");
       if (
-        (directory.getValue("Orientation") ?? 1) !== 1 ||
+        (optionalTags.Orientation ?? 1) !== 1 ||
         image.getSamplesPerPixel() !== 3 ||
         Number(directory.getValue("Compression")) !== 7 ||
         !(bits && Array.from(bits).every((bit) => bit === 8)) ||
-        (directory.getValue("Predictor") ?? 1) !== 1 ||
+        (optionalTags.Predictor ?? 1) !== 1 ||
         (directory.getValue("PlanarConfiguration") ?? 1) !== 1 ||
         ![2, 6].includes(
           Number(directory.getValue("PhotometricInterpretation"))

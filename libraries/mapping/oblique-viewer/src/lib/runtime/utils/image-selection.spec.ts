@@ -45,17 +45,72 @@ describe("image selection worker lifecycle", () => {
   beforeEach(() => {
     WorkerStub.instances = [];
     vi.stubGlobal("Worker", WorkerStub);
+    vi.useFakeTimers();
   });
   afterEach(() => {
     vi.useRealTimers();
     vi.unstubAllGlobals();
   });
+  it("yields bounded catalog messages, then preserves queued selection and cancels unfinished transfers", async () => {
+    vi.useFakeTimers();
+    const records = new Map(
+      Array.from({ length: 1300 }, (_, i) => [
+        String(i),
+        { id: String(i) } as ObliqueImageRecord,
+      ])
+    );
+    const search = createImageSelectionSearch({
+      ...data,
+      imageRecords: records,
+    });
+    const worker = WorkerStub.instances[0];
+    const superseded = search.query(query),
+      pending = search.query(query);
+    await expect(superseded).resolves.toBeUndefined();
+    expect(worker.postMessage).not.toHaveBeenCalled();
+    await vi.advanceTimersToNextTimerAsync();
+    expect(worker.postMessage.mock.calls).toHaveLength(1);
+    expect(worker.postMessage.mock.calls[0][0]).toMatchObject({
+      type: "init",
+      append: false,
+      complete: false,
+    });
+    await vi.advanceTimersByTimeAsync(20);
+    const messages = worker.postMessage.mock.calls.map(([message]) => message);
+    const parts = messages.filter((message) => message.type === "init");
+    expect(parts.map((message) => message.data.imageRecords.size)).toEqual([
+      512, 512, 276,
+    ]);
+    expect(parts[2]).toMatchObject({ append: true, complete: true });
+    expect(messages[3]).toMatchObject({ type: "query", requestId: 2 });
+    worker.reply({
+      type: IMAGE_SELECTION_MESSAGE.RESULT,
+      requestId: 2,
+      candidates: [],
+    });
+    await expect(pending).resolves.toEqual([]);
+    search.dispose();
+    const abandoned = createImageSelectionSearch({
+      ...data,
+      imageRecords: records,
+    });
+    const second = WorkerStub.instances[1];
+    const waiting = abandoned.query(query);
+    abandoned.dispose();
+    await expect(waiting).resolves.toBeUndefined();
+    await vi.advanceTimersByTimeAsync(10000);
+    expect(second.postMessage).not.toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
   it("keeps one active query and only the latest queued query", async () => {
     const search = createImageSelectionSearch(data);
     const worker = WorkerStub.instances[0];
+    await vi.advanceTimersByTimeAsync(0);
     const first = search.query(query),
       superseded = search.query(query),
       latest = search.query(query);
+    await vi.advanceTimersByTimeAsync(0);
     expect(
       worker.postMessage.mock.calls.map(([message]) => message.type)
     ).toEqual(["init", "query"]);
@@ -99,11 +154,11 @@ describe("image selection worker lifecycle", () => {
     expect(worker.onerror).toBeNull();
   });
   it("terminates a stalled worker after the bounded timeout", async () => {
-    vi.useFakeTimers();
     const search = createImageSelectionSearch(data),
       worker = WorkerStub.instances[0];
     const first = search.query(query),
       queued = search.query(query);
+    await vi.advanceTimersByTimeAsync(0);
     await vi.advanceTimersByTimeAsync(10000);
     await expect(first).resolves.toBeUndefined();
     await expect(queued).resolves.toBeUndefined();
@@ -118,22 +173,20 @@ describe("image selection worker lifecycle", () => {
     worker.postMessage.mockImplementationOnce(() => {
       throw new Error("worker stopped");
     });
-    worker.reply({
-      type: IMAGE_SELECTION_MESSAGE.RESULT,
-      requestId: 1,
-      candidates: [],
-    });
-    await expect(first).resolves.toEqual([]);
+    await vi.advanceTimersByTimeAsync(0);
+    await expect(first).resolves.toBeUndefined();
     await expect(queued).resolves.toBeUndefined();
     expect(worker.terminate).toHaveBeenCalledTimes(1);
   });
   it("keeps scalar and navigation latest queues independent with one catalog INIT", async () => {
     const search = createImageSelectionSearch(data),
       worker = WorkerStub.instances[0];
+    await vi.advanceTimersByTimeAsync(0);
     const active = search.query(query),
       oldBatch = search.queryBatch([query, query]),
       latestBatch = search.queryBatch([query]),
       scalar = search.query(query);
+    await vi.advanceTimersByTimeAsync(0);
     await expect(oldBatch).resolves.toEqual([undefined, undefined]);
     worker.reply({
       type: IMAGE_SELECTION_MESSAGE.RESULT,
@@ -172,9 +225,11 @@ describe("image selection worker lifecycle", () => {
   it("disposes scalar and both navigation slots without posting twelve individual queries", async () => {
     const search = createImageSelectionSearch(data),
       worker = WorkerStub.instances[0];
+    await vi.advanceTimersByTimeAsync(0);
     const active = search.queryBatch(Array(12).fill(query)),
       scalar = search.query(query),
       queued = search.queryBatch([query]);
+    await vi.advanceTimersByTimeAsync(0);
     expect(worker.postMessage.mock.calls.map(([m]) => m.type)).toEqual([
       IMAGE_SELECTION_MESSAGE.INIT,
       IMAGE_SELECTION_MESSAGE.QUERY_BATCH,
@@ -194,6 +249,7 @@ describe("image selection worker lifecycle", () => {
       }),
       worker = WorkerStub.instances[0];
     const result = search.queryBatch([query]);
+    await vi.advanceTimersByTimeAsync(0);
     worker.reply({
       type: IMAGE_SELECTION_MESSAGE.RESULT_BATCH,
       requestId: 1,

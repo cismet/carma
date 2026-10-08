@@ -41,7 +41,7 @@ describe("optional catalog cache startup", () => {
           id: "one",
           seriesId: dataset.id,
           cameraId: "oblique",
-          pose: { pitchDeg: 30 },
+          pose: { pitchDeg: 30, bearingDeg: 325 },
         } as ObliqueImageRecord,
       ],
       [
@@ -50,7 +50,7 @@ describe("optional catalog cache startup", () => {
           id: "two",
           seriesId: dataset.id,
           cameraId: "oblique",
-          pose: { pitchDeg: 50 },
+          pose: { pitchDeg: 50, bearingDeg: 54 },
         } as ObliqueImageRecord,
       ],
       [
@@ -59,7 +59,7 @@ describe("optional catalog cache startup", () => {
           id: "nadir",
           seriesId: dataset.id,
           cameraId: "nadir",
-          pose: { pitchDeg: 10 },
+          pose: { pitchDeg: 10, bearingDeg: 325 },
         } as ObliqueImageRecord,
       ],
     ]);
@@ -79,6 +79,8 @@ describe("optional catalog cache startup", () => {
     expect(
       result.obliquePitchBySeries?.get(dataset.id)?.pitchSumRad
     ).toBeCloseTo((80 * Math.PI) / 180, 12);
+    expect(result.obliquePitchByDirectionBySeries?.get(dataset.id)?.get(0)?.imageCount).toBe(1);
+    expect(result.obliquePitchByDirectionBySeries?.get(dataset.id)?.get(1)?.imageCount).toBe(1);
     expect(cached).toHaveBeenCalledOnce();
     expect(loadObliqueSeriesData).not.toHaveBeenCalled();
   });

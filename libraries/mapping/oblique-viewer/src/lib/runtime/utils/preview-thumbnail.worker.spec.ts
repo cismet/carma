@@ -7,19 +7,13 @@ const source = vi.hoisted(() => ({
   close: vi.fn(),
   tiff: vi.fn(),
 }));
-vi.mock("../integrations/avif-pyramid-preview-source", () => ({
+vi.mock("@carma-commons/image-streaming", () => ({
   AvifPyramidPreviewSource: class {
     select = source.select;
     read = source.read;
     close = source.close;
   },
-}));
-vi.mock("../integrations/tiff-preview-source", () => ({
-  TiffPreviewSource: class {
-    constructor() {
-      source.tiff();
-    }
-  },
+  createTiffPreviewSource: async () => { source.tiff(); return {}; },
 }));
 let worker: {
   onmessage: ((event: MessageEvent<unknown>) => Promise<void>) | null;

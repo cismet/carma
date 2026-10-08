@@ -10,6 +10,7 @@ import {
   radToDegNumeric,
   type CssPixels,
   type Degrees,
+  type Ratio,
   type Radians,
 } from "@carma-units";
 import {
@@ -38,9 +39,8 @@ import {
   groundDistanceM,
   tween,
 } from "./cameraMath";
-import { getCameraCalibration } from "../../core/utils/calibration";
 import type { PreviewImageGeometry } from "../../core/utils/preview-pan-bounds";
-import { computePose } from "../../core/utils/exteriorOrientation";
+import { getOrComputeObliquePose } from "../../core/utils/oblique-pose";
 import { setFov, whenMoveEnds, type CameraFlight } from "./obliqueCamera";
 
 /**
@@ -63,22 +63,8 @@ const CAMERA_TOLERANCE_M = 0.5;
 const ANGLE_TOLERANCE_DEG = 0.05;
 const MAX_CORRECTIONS = 3;
 
-/** the pose of a record, computed on first use and kept on the record */
-export const poseOf = (
-  record: ObliqueImageRecord,
-  dataset: ObliqueDataset
-): ObliquePose => {
-  if (!record.pose) {
-    const calibration = getCameraCalibration(dataset, record.cameraId);
-    record.pose = computePose(
-      record,
-      [record.centerWGS84[0], record.centerWGS84[1]],
-      calibration.upMapping,
-      calibration.imageUpInCamera
-    );
-  }
-  return record.pose;
-};
+/** Keep the runtime API while sharing the core's idempotent pose calculation. */
+export const poseOf = getOrComputeObliquePose;
 
 /**
  * The altitude the camera flies to: the served z, in the terrain's frame.
@@ -96,7 +82,9 @@ export const resolveCameraAltitude = (
   heightOffset: number,
   allowUnverifiedSourceHeight = false
 ): Promise<number> => {
-  const key = [heightDatum, heightOffset, allowUnverifiedSourceHeight].join("|");
+  const key = [heightDatum, heightOffset, allowUnverifiedSourceHeight].join(
+    "|"
+  );
   let entries = cameraAltitudeCache.get(record);
   if (!entries) {
     entries = new Map();
@@ -187,6 +175,7 @@ export const flyToPose = (
     fitWholeImage = false,
     previewState,
     previewReferenceFrame,
+    onProgress,
   }: {
     dynamicDuration?: boolean;
     anchor?: MercatorCoordinate;
@@ -198,6 +187,8 @@ export const flyToPose = (
     fitWholeImage?: boolean;
     previewState?: ObliquePreviewState;
     previewReferenceFrame?: MaplibreMap["transform"];
+    /** Shared eased camera progress, for photo reprojection during rotation. */
+    onProgress?: (progress: number) => void;
   } = {}
 ): CameraFlight => {
   // The roll has to be passed even though the map stays unrolled: MapLibre
@@ -244,6 +235,7 @@ export const flyToPose = (
       fitWholeImage,
       previewState,
       previewReferenceFrame,
+      onProgress,
       durationMs: duration,
       restoreGround: false,
     });
@@ -315,6 +307,7 @@ export const settleToPitch = (
     fitWholeImage = false,
     previewState,
     previewReferenceFrame,
+    onProgress,
   }: {
     fovDeg?: Degrees;
     padding?: PaddingOptions;
@@ -333,6 +326,8 @@ export const settleToPitch = (
     fitWholeImage?: boolean;
     previewState?: ObliquePreviewState;
     previewReferenceFrame?: MaplibreMap["transform"];
+    /** Shared eased camera progress, for photo reprojection during rotation. */
+    onProgress?: (progress: number) => void;
   } = {}
 ): CameraFlight => {
   map.stop();
@@ -778,6 +773,7 @@ export const settleToPitch = (
         { obliqueFov: true }
       );
       profile?.record("writeCamera", performance.now() - jumpStarted);
+      onProgress?.(progress);
     },
     onComplete: () => {
       if (restoreGround) restoreCenterOnGround(map);

@@ -6,12 +6,9 @@ import type {
 } from "../../core/types";
 import {
   buildImageRecords,
-  summarizeObliquePitch,
+  summarizeObliquePitchStatistics,
 } from "../../core/utils/imageRecord";
-import {
-  estimateGroundCenter,
-  estimateGroundFootprint,
-} from "../../core/utils/selection";
+import { estimateGroundCenter } from "../../core/utils/selection";
 import {
   fetchGeoJson,
   getFootprintCenterpoints,
@@ -120,17 +117,10 @@ export const loadObliqueSeriesData = async (
         position[1],
       ]);
       record.footprintApproximate = false;
-    } else {
-      record.footprint = estimateGroundFootprint(
-        record,
-        built.dataset,
-        converter
-      );
-      record.footprintApproximate = true;
-    }
+    } else record.footprintApproximate = true;
   }
   return {
-    obliquePitchBySeries: summarizeObliquePitch({
+    ...summarizeObliquePitchStatistics({
       imageRecords: built.imageRecords,
       datasets: new Map([[dataset.id, built.dataset]]),
     }),

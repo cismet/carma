@@ -5,7 +5,7 @@ import type {
   ObliqueCameraCalibration,
   ObliqueImageRecord,
   ObliquePose,
-} from "../../core/types";
+} from "../types";
 
 /** Project view rays through the footprint's calibrated image projector.
  * Homogeneous directions keep camera translation and clip depth out of the UVs.

@@ -1,10 +1,7 @@
 import { Matrix4, Sphere, Vector3 } from "three";
 import { degToRadNumeric } from "@carma-units";
 import { projectObjectCoverageSphere } from "./object-coverage";
-import {
-  imageProjectionMatrix,
-  sceneToPhotoEnu,
-} from "../../runtime/utils/image-projection";
+import { imageProjectionMatrix, sceneToPhotoEnu } from "./image-projection";
 import { clamp, shortestAngleDelta } from "@carma-commons/math";
 import { getProj4Converter } from "@carma-geo/proj";
 import type {
@@ -18,21 +15,8 @@ import type {
   PointWithSector,
 } from "../types";
 import { getCameraCalibration } from "./calibration";
-import { computePose } from "./exteriorOrientation";
+import { getOrComputeObliquePose } from "./oblique-pose";
 import { wgs84ToDatasetXY, type DatasetConverter } from "./imageRecord";
-
-const poseFor = (record: ObliqueImageRecord, dataset: ObliqueDataset) => {
-  if (!record.pose) {
-    const calibration = getCameraCalibration(dataset, record.cameraId);
-    record.pose = computePose(
-      record,
-      [record.centerWGS84[0], record.centerWGS84[1]],
-      calibration.upMapping,
-      calibration.imageUpInCamera
-    );
-  }
-  return record.pose;
-};
 
 const gridIntersection = (
   record: ObliqueImageRecord,
@@ -51,7 +35,7 @@ const gridIntersection = (
   ];
 };
 
-const sourcePixelRay = (
+export const sourcePixelRay = (
   record: ObliqueImageRecord,
   dataset: ObliqueDataset,
   pixelX: number,
@@ -71,7 +55,7 @@ const sourcePixelRay = (
       .addScaledVector(new Vector3(...record.m[1]), mmY / camera.focalLengthMm)
       .sub(new Vector3(...record.m[2]));
   }
-  const pose = poseFor(record, dataset);
+  const pose = getOrComputeObliquePose(record, dataset);
   const direction = new Vector3(...pose.direction);
   const up = new Vector3(...pose.up);
   const right = new Vector3().crossVectors(direction, up).normalize();
@@ -281,8 +265,9 @@ export const rankImagesForView = (
       continue;
     const distanceToCamera = Math.hypot(xy[0] - record.x, xy[1] - record.y);
     const maxDistance = query.maxDistanceMeters ?? dataset.maxDistanceMeters;
-    if (distanceToCamera > maxDistance) continue;
-    const pose = poseFor(record, dataset);
+    const distanceOnGround = Math.hypot(xy[0] - center.x, xy[1] - center.y);
+    if (distanceOnGround > maxDistance) continue;
+    const pose = getOrComputeObliquePose(record, dataset);
     const [dx, dy, dz] = pose.direction;
     const [ux, uy, uz] = pose.up;
     // Grid-native target offset rotates to true ENU, once per candidate; pose is cached.
@@ -296,14 +281,12 @@ export const rankImagesForView = (
     const sameDatum =
       query.target.heightDatum === dataset.heightDatum &&
       dataset.heightDatum !== "unknown";
-    // Unknown source heights use an explicitly approximate plane; known mismatches wait for conversion.
-    if (
+    const unresolvedHeightDatum =
       query.target.heightMeters !== undefined &&
       dataset.heightDatum !== "unknown" &&
       !sameDatum &&
-      normalizedHeight === undefined
-    )
-      continue;
+      normalizedHeight === undefined;
+    // Use the series reference plane until a vertical datum conversion is ready.
     const groundHeight =
       normalizedHeight ??
       (sameDatum ? query.target.heightMeters : undefined) ??
@@ -344,7 +327,6 @@ export const rankImagesForView = (
       Math.max(0, -pixelY, pixelY - camera.heightPx) / camera.heightPx;
     const angular =
       1 - clamp(dx * desired[0] + dy * desired[1] + dz * desired[2], -1, 1);
-    const distanceOnGround = Math.hypot(xy[0] - center.x, xy[1] - center.y);
     const score =
       4 * angular +
       (coversTarget ? 0 : 4 + outsideX + outsideY) +
@@ -401,6 +383,7 @@ export const rankImagesForView = (
       coverageApproximate:
         dataset.heightDatum === "unknown" ||
         query.target.heightMeters === undefined ||
+        unresolvedHeightDatum ||
         record.footprintApproximate,
     });
   }
@@ -429,6 +412,50 @@ export const rankImagesForView = (
   return ranked.slice(0, query.numCandidates ?? 200);
 };
 
+/** Retry across loaded directions only when the preferred sector misses coverage. */
+export const rankImagesForViewWithDirectionalFallback = (
+  data: ObliqueSelectionData,
+  query: ObliqueViewQuery,
+  candidates: (
+    allDirections: boolean,
+    query: ObliqueViewQuery
+  ) => Iterable<ObliqueImageRecord>
+): NearestObliqueImageRecord[] => {
+  const preferred = rankImagesForView(data, query, candidates(false, query));
+  if (
+    query.cameraView === "nadir" ||
+    preferred.some(({ coversTarget }) => coversTarget)
+  )
+    return preferred;
+  const fallback = rankImagesForView(data, query, candidates(true, query));
+  if (fallback.some(({ coversTarget }) => coversTarget)) return fallback;
+
+  // The image center can be outside the usual local radius while the large
+  // oblique footprint still covers the view center. Retry that rare miss in the
+  // worker with a broader spatial radius, and promote it only on actual coverage.
+  const configuredRadius = Math.max(
+    query.maxDistanceMeters ?? 0,
+    ...[...data.datasets.values()].map((dataset) => dataset.maxDistanceMeters)
+  );
+  const expandedRadius = Math.min(
+    25_000,
+    Math.max(10_000, configuredRadius * 4)
+  );
+  if (expandedRadius > configuredRadius) {
+    const expandedQuery = {
+      ...query,
+      maxDistanceMeters: expandedRadius,
+    };
+    const expanded = rankImagesForView(
+      data,
+      expandedQuery,
+      candidates(true, expandedQuery)
+    );
+    if (expanded.some(({ coversTarget }) => coversTarget)) return expanded;
+  }
+  return fallback.length ? fallback : preferred;
+};
+
 /** A navigation arrow moves a ground target; the best matching image is then selected anew. */
 export const panViewTarget = (
   record: ObliqueImageRecord,
@@ -437,7 +464,7 @@ export const panViewTarget = (
   movement: { right: number; forward: number },
   fraction = 0.12
 ): ObliqueGroundTarget => {
-  const pose = poseFor(record, dataset);
+  const pose = getOrComputeObliquePose(record, dataset);
   const converter = getProj4Converter(dataset.crs, "EPSG:4326");
   const xy = wgs84ToDatasetXY(converter, target.longitude, target.latitude);
   const forward = new Vector3(pose.direction[0], pose.direction[1], 0);

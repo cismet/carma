@@ -14,6 +14,9 @@ const channel = vi.hoisted(() => ({
     enabledSeriesIds: null,
     series: [],
     selectionStrategy: "nearest-axis",
+    rotationSurface: "mesh",
+    previewBasemapLabels: false,
+    previewRotationDrape: false,
     viewMode: "oblique",
     selectedSeriesId: null,
     selectedSourceImageId: null,
@@ -26,6 +29,7 @@ const channel = vi.hoisted(() => ({
     selectedImageId: null,
     missingPreviewImageId: null,
     selectedCameraId: null,
+    selectedCameraView: null,
     selectedImageBearingDeg: null,
     activeDirection: null,
     bearingDeg: null,
@@ -120,6 +124,37 @@ describe("oblique options storage", () => {
     expect(channel.save).toHaveBeenCalledOnce();
     expect(channel.load).toHaveBeenCalledOnce();
     view.unmount();
+  });
+
+  it("persists a changed NG rotation surface without saving other runtime state", () => {
+    const view = renderHook(useObliqueViewerActions);
+    act(() => view.result.current.publish({ rotationSurface: "terrain" }));
+    expect(channel.save).toHaveBeenCalledOnce();
+    expect(channel.save).toHaveBeenLastCalledWith(
+      "route-a",
+      expect.objectContaining({ rotationSurface: "terrain" })
+    );
+    act(() => view.result.current.publish({ isBusy: true }));
+    expect(channel.save).toHaveBeenCalledOnce();
+  });
+
+  it("restores and persists only actual changes to the NG photo projection option", () => {
+    channel.load.mockReturnValue({
+      ...storedState(),
+      previewRotationDrape: true,
+    });
+    const view = renderHook(useObliqueViewerActions);
+    expect(view.result.current.previewRotationDrape).toBe(true);
+    act(() => view.result.current.publish({ previewRotationDrape: true }));
+    expect(channel.save).not.toHaveBeenCalled();
+    act(() => view.result.current.publish({ previewRotationDrape: false }));
+    expect(channel.save).toHaveBeenCalledOnce();
+    expect(channel.save).toHaveBeenLastCalledWith(
+      "route-a",
+      expect.objectContaining({ previewRotationDrape: false })
+    );
+    act(() => view.result.current.publish({ isBusy: true }));
+    expect(channel.save).toHaveBeenCalledOnce();
   });
 
   it("loads a route once and keeps camera, busy, preview and download updates out of persistence", () => {

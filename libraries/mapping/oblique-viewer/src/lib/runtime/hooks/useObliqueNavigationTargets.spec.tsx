@@ -14,12 +14,10 @@ import { CardinalDirectionEnum } from "../../core/utils/orientation";
 import { OBLIQUE_NAVIGATION_KEYS } from "../oblique-actions";
 import { useObliqueNavigationTargets } from "./useObliqueNavigationTargets";
 const mocks = vi.hoisted(() => ({
-  altitude: vi.fn(),
   pose: vi.fn(),
   pan: vi.fn(),
 }));
 vi.mock("../utils/flyToImage", () => ({
-  resolveCameraAltitude: mocks.altitude,
   poseOf: mocks.pose,
 }));
 vi.mock("../../core/utils/selection", () => ({ panViewTarget: mocks.pan }));
@@ -96,6 +94,10 @@ const mount = (
     ensureDirections?: Parameters<
       typeof useObliqueNavigationTargets
     >[0]["ensureDirections"];
+    readRotationTarget?: Parameters<
+      typeof useObliqueNavigationTargets
+    >[0]["readRotationTarget"];
+    busy?: boolean;
   } = {}
 ) => {
   const publish = vi.fn(),
@@ -110,7 +112,7 @@ const mount = (
   const targetRef: { current: ObliqueGroundTarget | null } = {
       current: initialTarget,
     },
-    busyRef = { current: true };
+    busyRef = { current: config.busy ?? false };
   const view = renderHook(
     ({
       image,
@@ -134,10 +136,10 @@ const mount = (
         viewMode: mode,
         previewCameraActive: true,
         nextInterface,
-        heightOffset: 0,
         targetRef,
         busyRef,
         readTarget: () => targetRef.current,
+        readRotationTarget: config.readRotationTarget,
         computeNavigation,
         ensureDirections: config.ensureDirections,
         publish,
@@ -150,7 +152,6 @@ const mount = (
 beforeEach(() => {
   listeners = new Map();
   mocks.pose.mockReturnValue({ bearingDeg: 325, pitchDeg: 45 });
-  mocks.altitude.mockResolvedValue(900);
   mocks.pan.mockImplementation((_r, _d, target, movement) => ({
     ...target,
     longitude: target.longitude + movement.right * 0.01,
@@ -163,39 +164,32 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 describe("prepared navigation target cache", () => {
-  it("prepares all six geometry targets before publishing while busy and without media URLs", async () => {
-    const altitude = pending<number>();
-    mocks.altitude.mockReturnValue(altitude.promise);
+  it("publishes geometry targets without waiting for camera altitude or media", async () => {
     const view = mount();
     await flush();
     expect(view.computeNavigation.mock.calls[0][0]).toHaveLength(6);
     expect(view.computeNavigation.mock.calls[0][0][0]).toMatchObject({
       excludeImageId: "current",
-      navigationOrigin: { longitude: 7.25, latitude: 51.28 },
       numCandidates: 4,
       headingRad: degToRad(325 as Degrees),
     });
     expect(
+      view.computeNavigation.mock.calls[0][0]
+        .slice(0, 4)
+        .every((query) => query.navigationOrigin?.longitude === 7.25)
+    ).toBe(true);
+    expect(
       view.computeNavigation.mock.calls[0][0][0].target.longitude
     ).toBeCloseTo(7.24);
     expect(
-      view.result.current.getTarget(OBLIQUE_NAVIGATION_KEYS.Left)
-    ).toBeUndefined();
-    expect(view.publish.mock.calls.every(([targets]) => targets === null)).toBe(
-      true
-    );
+      view.result.current.getTarget(OBLIQUE_NAVIGATION_KEYS.Left)?.candidate
+        .record.id
+    ).toBe("next");
     expect(
       view.computeNavigation.mock.calls[0][0]
         .slice(4)
         .every((query) => query.navigationOrigin === undefined)
     ).toBe(true);
-    expect(mocks.altitude).toHaveBeenCalledTimes(1);
-    altitude.resolve(900);
-    await flush();
-    expect(
-      view.result.current.getTarget(OBLIQUE_NAVIGATION_KEYS.Left)?.candidate
-        .record.id
-    ).toBe("next");
     expect(view.publish.mock.calls.at(-1)?.[0].images.left).toBe("next");
     expect(view.lookAhead).not.toHaveBeenCalled();
   });
@@ -208,6 +202,7 @@ describe("prepared navigation target cache", () => {
       view.computeNavigation.mock.calls[0][0][0].target.longitude
     ).toBeCloseTo(7.19);
     view.targetRef.current = { ...view.targetRef.current!, longitude: 7.4 };
+    const settledTargets = view.publish.mock.calls.at(-1)?.[0];
     act(() => {
       emit("moveend");
       emit("moveend");
@@ -215,7 +210,7 @@ describe("prepared navigation target cache", () => {
     expect(
       view.result.current.getTarget(OBLIQUE_NAVIGATION_KEYS.Left)
     ).toBeUndefined();
-    expect(view.publish.mock.calls.at(-1)?.[0]).toBeNull();
+    expect(view.publish.mock.calls.at(-1)?.[0]).toBe(settledTargets);
     expect(view.computeNavigation).toHaveBeenCalledTimes(1);
     await act(async () => vi.advanceTimersByTimeAsync(79));
     expect(view.computeNavigation).toHaveBeenCalledTimes(1);
@@ -255,9 +250,11 @@ describe("prepared navigation target cache", () => {
     );
     expect(view.computeNavigation).toHaveBeenCalledOnce();
   });
-  it("rejects an explicit changed Classic ground height and clears published buttons on moveend", async () => {
+  it("keeps settled buttons stable and replaces them after the camera settles", async () => {
+    vi.useFakeTimers();
     const view = mount(false, { longitude: 7.2, latitude: 51.27 });
     await flush();
+    const settledTargets = view.publish.mock.calls.at(-1)?.[0];
     expect(
       view.result.current.getTarget(OBLIQUE_NAVIGATION_KEYS.Right)?.candidate
         .record.id
@@ -272,7 +269,41 @@ describe("prepared navigation target cache", () => {
       view.result.current.getTarget(OBLIQUE_NAVIGATION_KEYS.Right)
     ).toBeUndefined();
     act(() => emit("moveend"));
-    expect(view.publish.mock.calls.at(-1)?.[0]).toBeNull();
+    expect(view.publish.mock.calls.at(-1)?.[0]).toBe(settledTargets);
+    await act(async () => vi.advanceTimersByTimeAsync(80));
+    await flush();
+    expect(view.computeNavigation).toHaveBeenCalledTimes(2);
+    // A fresh height sample with the same neighbors must not rerender the buttons.
+    expect(view.publish.mock.calls.at(-1)?.[0]).toBe(settledTargets);
+  });
+  it("prepares targets during a flight but publishes only once the position settles", async () => {
+    vi.useFakeTimers();
+    const view = mount(false, undefined, { busy: true });
+    await flush();
+    expect(view.result.current.getTarget(OBLIQUE_NAVIGATION_KEYS.Right)).toBeDefined();
+    expect(view.publish).not.toHaveBeenCalled();
+    view.busyRef.current = false;
+    act(() => emit("moveend"));
+    await act(async () => vi.advanceTimersByTimeAsync(80));
+    await flush();
+    expect(view.publish).toHaveBeenCalledOnce();
+    expect(view.publish.mock.calls[0][0].images.right).toBe("next");
+  });
+  it("ranks and prepares NG rotations against the configured surface pivot", async () => {
+    const pivot: ObliqueGroundTarget = {
+      longitude: 7.3,
+      latitude: 51.3,
+      heightMeters: 180,
+      heightDatum: "dhhn2016",
+    };
+    const readRotationTarget = vi.fn(() => pivot);
+    const view = mount(true, undefined, { readRotationTarget });
+    await flush();
+    const queries = view.computeNavigation.mock.calls[0][0];
+    expect(queries.slice(4).every((query) => query.target === pivot)).toBe(true);
+    expect(view.result.current.getTarget(OBLIQUE_NAVIGATION_KEYS.RotateRight)?.target).toBe(pivot);
+    expect(view.result.current.getCardinal(CardinalDirectionEnum.North)?.target).toBe(pivot);
+    expect(readRotationTarget).toHaveBeenCalledOnce();
   });
 });
 

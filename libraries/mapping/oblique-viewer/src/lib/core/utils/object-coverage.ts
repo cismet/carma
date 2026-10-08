@@ -13,11 +13,11 @@ import {
   CARDINALS_CLOCKWISE,
   getCardinalDirectionFromHeading,
 } from "./orientation";
-import { computePose } from "./exteriorOrientation";
+import { getOrComputeObliquePose } from "./oblique-pose";
 import {
   imageProjectionMatrix,
   sceneToPhotoEnu,
-} from "../../runtime/utils/image-projection";
+} from "./image-projection";
 
 /** Heights use the same DHHN2016 convention as the aligned image camera. */
 export type ObjectCoverageSphere = Readonly<{
@@ -198,14 +198,7 @@ export const groupObjectCoverageImages = (
       continue;
     const calibration = getCameraCalibration(dataset, record.cameraId);
     if (calibration.view === "nadir") continue;
-    const pose =
-      record.pose ??
-      (record.pose = computePose(
-        record,
-        [record.centerWGS84[0], record.centerWGS84[1]],
-        calibration.upMapping,
-        calibration.imageUpInCamera
-      ));
+    const pose = getOrComputeObliquePose(record, dataset);
     const projection = imageProjectionMatrix(
       record,
       calibration,

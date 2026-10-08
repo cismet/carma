@@ -50,6 +50,7 @@ type ObliqueImagePreviewProps = {
   map: MaplibreMap;
   onRootChange?: (root: HTMLDivElement | null) => void;
   onOutlineReady?: () => void;
+  onDisplayReady?: () => void;
   previewPath: string;
   originalImageUrlTemplate?: string;
   avifPyramidUrl?: string;
@@ -63,6 +64,7 @@ type ObliqueImagePreviewProps = {
   /** a flight to the next image is running: the image is hidden until it lands */
   dimImage: boolean;
   panEnabled?: boolean;
+  showBasemapLabels?: boolean;
   /** the image's roll against a level camera, degrees */
   rollDeg: number;
   interiorOrientationOffsets?: InteriorOrientationOffset;
@@ -89,6 +91,7 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
   map,
   onRootChange,
   onOutlineReady,
+  onDisplayReady,
   previewPath,
   originalImageUrlTemplate,
   avifPyramidUrl,
@@ -102,6 +105,7 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
   halfFovTan,
   dimImage,
   panEnabled = true,
+  showBasemapLabels = true,
   rollDeg,
   interiorOrientationOffsets = { xOffset: 0, yOffset: 0 },
   style,
@@ -320,6 +324,7 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
     rollDeg: PREVIEW_ROLL_SIGN * rollDeg,
     backdropLook: { contrast, brightness: backdropLook.brightness, saturation },
     backdropTint,
+    showBasemapLabels,
   });
   const onFullImage = useCallback(
     (bitmap: ImageBitmap) => {
@@ -419,6 +424,7 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
               onFullImage={onFullImage}
               retainWholeImage
               onOutlineReady={onOutlineReady}
+              onDisplayReady={onDisplayReady}
               onError={reportLoadingError}
               backdropLook={{
                 contrast,
@@ -426,6 +432,7 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
                 saturation,
               }}
               backdropTint={backdropTint}
+              showBasemapLabels={showBasemapLabels}
               imageId={imageId}
               nativeSize={nativePixelSize}
               halfFovTan={halfFovTan}

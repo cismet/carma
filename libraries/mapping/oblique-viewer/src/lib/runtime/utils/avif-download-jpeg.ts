@@ -1,5 +1,5 @@
 import type { DevicePixels } from "@carma-units";
-import { AvifPyramidPreviewSource } from "../integrations/avif-pyramid-preview-source";
+import { AvifPyramidPreviewSource } from "@carma-commons/image-streaming";
 import type { TiffDownloadRequest } from "./tiff-download-types";
 
 /** Export the published L1 pixels, including their baked publisher attribution. */

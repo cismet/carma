@@ -8,11 +8,14 @@ import {
   faTriangleExclamation,
 } from "@fortawesome/free-solid-svg-icons";
 import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
-import { Button, message, Select, Tooltip } from "antd";
+import { Button, Checkbox, message, Select, Tooltip } from "antd";
 
 import { ContactMailButton } from "@carma-mapping/components";
 
-import { useObliqueViewerActions } from "./oblique-actions";
+import {
+  OBLIQUE_ROTATION_SURFACES,
+  useObliqueViewerActions,
+} from "./oblique-actions";
 import { strings } from "./strings.de";
 import { downloadAsBlobAsync } from "./utils/imageUrls";
 import { reportPreviewSourceMissing } from "./utils/preview-thumbnail-cache";
@@ -23,18 +26,15 @@ const EMPTY_EXTENSIONS: readonly ObliqueViewerExtension[] = [];
 const ImageAction = ({
   label,
   icon,
-  disabled,
   onClick,
 }: {
   label: string;
   icon: IconDefinition;
-  disabled?: boolean;
   onClick: () => void;
 }) => (
   <Button
     size="small"
     style={{ fontSize: 12 }}
-    disabled={disabled}
     onClick={onClick}
     icon={<FontAwesomeIcon icon={icon} />}
   >
@@ -62,6 +62,9 @@ export const ObliquePanel = ({
     series,
     enabledSeriesIds,
     selectionStrategy,
+    rotationSurface,
+    previewBasemapLabels,
+    previewRotationDrape,
     publish,
     selectedSourceImageId,
     selectedSeriesId,
@@ -90,6 +93,10 @@ export const ObliquePanel = ({
   const ready =
     selectedImageId !== null &&
     series.some((entry) => entry.enabled && entry.id === selectedSeriesId);
+  const canOpenOrDownload = ready && Boolean(downloadUrl);
+  const canRequestFeedback = ready && selectedImageId !== null;
+  const showImageActions =
+    canOpenOrDownload || canRequestFeedback || downloading;
   const download = () => {
     if (!ready || !downloadUrl || downloadControllerRef.current) return;
     const controller = new AbortController();
@@ -224,6 +231,56 @@ export const ObliquePanel = ({
             />
           </Tooltip>
         )}
+        {nextInterface && (
+          <Tooltip title="Straßen- und Gewässernamen über dem Vorschaubild anzeigen; das sichtbare Mesh verdeckt sie hinter Gebäuden">
+            <Checkbox
+              data-test-id="oblique-preview-basemap-labels"
+              checked={previewBasemapLabels}
+              onChange={(event) =>
+                publish({ previewBasemapLabels: event.target.checked })
+              }
+            >
+              Beschriftung
+            </Checkbox>
+          </Tooltip>
+        )}
+        {nextInterface && (
+          <Tooltip title="Start- und Zielfoto während der Drehung auf das Mesh projizieren und überblenden">
+            <Checkbox
+              data-test-id="oblique-preview-rotation-drape"
+              checked={previewRotationDrape}
+              onChange={(event) =>
+                publish({ previewRotationDrape: event.target.checked })
+              }
+            >
+              Fotos auf Mesh
+            </Checkbox>
+          </Tooltip>
+        )}
+        {nextInterface && (
+          <Tooltip title="Drehungen am Mittelpunkt an Mesh oder DEM verankern">
+            <Select
+              aria-label="Rotationsfläche"
+              data-test-id="oblique-rotation-surface"
+              size="small"
+              showSearch={false}
+              value={rotationSurface}
+              options={[
+                {
+                  value: OBLIQUE_ROTATION_SURFACES.Mesh,
+                  label: "Mesh",
+                },
+                {
+                  value: OBLIQUE_ROTATION_SURFACES.Dem,
+                  label: "DEM",
+                },
+              ]}
+              onChange={(value) =>
+                publish({ rotationSurface: value as typeof rotationSurface })
+              }
+            />
+          </Tooltip>
+        )}
       </div>
 
       <div className="mt-1 flex min-w-0 items-center gap-2">
@@ -235,9 +292,8 @@ export const ObliquePanel = ({
           size="small"
           allowClear
           showSearch={false}
-          maxTagCount="responsive"
-          className="min-w-0 flex-1"
-          style={{ fontSize: 12 }}
+          className="w-fit min-w-0 max-w-full"
+          style={{ fontSize: 12, maxWidth: "100%" }}
           placeholder="Bildserien"
           value={
             enabledSeriesIds ??
@@ -306,53 +362,65 @@ export const ObliquePanel = ({
           <span>Vorschaubild derzeit nicht verfügbar.</span>
         </div>
       )}
-      <div className="mt-2 flex flex-wrap items-center gap-1.5">
-        <ImageAction
-          label={strings.openImage}
-          icon={faExternalLink}
-          disabled={!ready || !downloadUrl}
-          onClick={() => {
-            if (downloadUrl)
-              window.open(downloadUrl, "_blank", "noopener,noreferrer");
-          }}
-        />
-        <ImageAction
-          label={downloading ? "Wird heruntergeladen …" : strings.downloadImage}
-          icon={faFileArrowDown}
-          disabled={!ready || !downloadUrl || downloading}
-          onClick={download}
-        />
-        {downloading && (
-          <Button
-            size="small"
-            style={{ fontSize: 12 }}
-            onClick={() => downloadControllerRef.current?.abort()}
-          >
-            Abbrechen
-          </Button>
-        )}
-        {ready && selectedImageId && (
-          <ContactMailButton
-            renderTrigger={(onClick) => (
+      {showImageActions && (
+        <div
+          className="mt-2 flex flex-wrap items-center gap-1.5"
+          data-test-id="oblique-image-actions"
+        >
+          {canOpenOrDownload && (
+            <ImageAction
+              label={strings.openImage}
+              icon={faExternalLink}
+              onClick={() => {
+                if (downloadUrl)
+                  window.open(downloadUrl, "_blank", "noopener,noreferrer");
+              }}
+            />
+          )}
+          {canOpenOrDownload && !downloading && (
+            <ImageAction
+              label={strings.downloadImage}
+              icon={faFileArrowDown}
+              onClick={download}
+            />
+          )}
+          {downloading && (
+            <>
+              <span role="status" aria-live="polite" className="text-xs">
+                Wird heruntergeladen …
+              </span>
               <Button
                 size="small"
                 style={{ fontSize: 12 }}
-                onClick={onClick}
-                icon={<FontAwesomeIcon icon={faComment} />}
+                onClick={() => downloadControllerRef.current?.abort()}
               >
-                Rückmeldung
+                Abbrechen
               </Button>
-            )}
-            emailAddress="geodatenzentrum@stadt.wuppertal.de"
-            subjectPrefix="Datenschutzprüfung Luftbildschrägaufnahme"
-            productName="Luftbildschrägaufnahmen"
-            portalName="Wuppertaler Geodatenportal"
-            imageId={selectedSourceImageId ?? selectedImageId}
-            imageUri={downloadUrl ?? undefined}
-            tooltip={{ title: strings.requestReview, placement: "top" }}
-          />
-        )}
-      </div>
+            </>
+          )}
+          {canRequestFeedback && selectedImageId && (
+            <ContactMailButton
+              renderTrigger={(onClick) => (
+                <Button
+                  size="small"
+                  style={{ fontSize: 12 }}
+                  onClick={onClick}
+                  icon={<FontAwesomeIcon icon={faComment} />}
+                >
+                  Rückmeldung
+                </Button>
+              )}
+              emailAddress="geodatenzentrum@stadt.wuppertal.de"
+              subjectPrefix="Datenschutzprüfung Luftbildschrägaufnahme"
+              productName="Luftbildschrägaufnahmen"
+              portalName="Wuppertaler Geodatenportal"
+              imageId={selectedSourceImageId ?? selectedImageId}
+              imageUri={downloadUrl ?? undefined}
+              tooltip={{ title: strings.requestReview, placement: "top" }}
+            />
+          )}
+        </div>
+      )}
     </div>
   );
 };

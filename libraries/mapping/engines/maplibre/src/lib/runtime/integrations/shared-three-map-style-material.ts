@@ -18,7 +18,7 @@ type MapStyleProjectionMaterialState = {
 };
 
 const MAP_STYLE_PROJECTION_STATE = "carmaMapStyleProjectionState";
-const MAP_STYLE_PROJECTION_SHADER_KEY = "|carma-map-style-projection-v15";
+const MAP_STYLE_PROJECTION_SHADER_KEY = "|carma-map-style-projection-v19";
 const MAP_STYLE_PROJECTION_OVERLAY_DEFINE = "CARMA_MAP_STYLE_OVERLAY";
 const MAP_STYLE_PROJECTION_MARKINGS_DEFINE = "CARMA_MAP_STYLE_MARKINGS_ONLY";
 
@@ -36,6 +36,11 @@ const applyMapStyleProjectionBlend = (
     defines[MAP_STYLE_PROJECTION_MARKINGS_DEFINE] = "";
   } else {
     delete defines[MAP_STYLE_PROJECTION_MARKINGS_DEFINE];
+  }
+  if (blend === "photo-only") {
+    defines.CARMA_MAP_STYLE_PHOTO_ONLY = "";
+  } else {
+    delete defines.CARMA_MAP_STYLE_PHOTO_ONLY;
   }
 };
 
@@ -117,6 +122,8 @@ export const configureMapStyleProjectedMaterial = (
     shader.uniforms["carmaProjectiveTrailDuration"] = projective.trailDuration;
     shader.uniforms["carmaProjectiveOpacity"] = projective.opacity;
     shader.uniforms["carmaProjectivePixelRatio"] = projective.pixelRatio;
+    shader.uniforms["carmaScreenBasemapLabels"] =
+      state.uniforms.screenBasemapLabels ?? { value: 1 };
     shader.uniforms["carmaScreenBackdropLook"] = state.uniforms.screenBackdrop
       ?.look ?? { value: new THREE.Vector3(1, 1, 1) };
     shader.uniforms["carmaScreenBackdropTint"] = state.uniforms.screenBackdrop
@@ -137,6 +144,11 @@ export const configureMapStyleProjectedMaterial = (
       };
       shader.uniforms[`carmaScreenToTexture${index}`] =
         screen?.viewportToTexture ?? { value: new THREE.Matrix3() };
+      shader.uniforms[`carmaScreenSceneToTexture${index}`] =
+        screen?.sceneToTexture ?? { value: new THREE.Matrix4() };
+      shader.uniforms[`carmaScreenProjective${index}`] = screen?.projective ?? {
+        value: 0,
+      };
       shader.uniforms[`carmaScreenOpacity${index}`] = screen?.opacity ?? {
         value: 0,
       };

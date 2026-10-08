@@ -1,3 +1,4 @@
+import { estimateGroundFootprint } from "../../core/utils/selection";
 import { useCallback, useEffect, useRef } from "react";
 import { FOOTPRINT_SELECTION_COLOR } from "../../core/constants";
 import type { Map as MaplibreMap } from "maplibre-gl";
@@ -149,8 +150,13 @@ export const useFootprintLayer = ({
     layerRef.current?.setMissingImages(missingImageIds ?? new Set());
   }, [map, enabled, missingImageIds]);
 
-  // the ring under the outline
+  // The selected outline is derived only when it becomes visible.
   useEffect(() => {
+    const dataset = selectedRecord && datasets?.get(selectedRecord.seriesId);
+    if (selectedRecord && dataset && !selectedRecord.footprint) {
+      selectedRecord.footprint = estimateGroundFootprint(selectedRecord, dataset);
+      selectedRecord.footprintApproximate = true;
+    }
     layerRef.current?.setRing(
       selectedRecord?.footprint ?? null,
       {

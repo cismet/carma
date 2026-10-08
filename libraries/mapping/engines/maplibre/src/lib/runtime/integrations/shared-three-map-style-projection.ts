@@ -45,14 +45,19 @@ export const createSharedThreeMapStyleProjection = (
       {
         texture: { value: null },
         viewportToTexture: { value: new THREE.Matrix3() },
+        sceneToTexture: { value: new THREE.Matrix4() },
+        projective: { value: 0 },
         opacity: { value: 0 },
       },
       {
         texture: { value: null },
         viewportToTexture: { value: new THREE.Matrix3() },
+        sceneToTexture: { value: new THREE.Matrix4() },
+        projective: { value: 0 },
         opacity: { value: 0 },
       },
     ],
+    screenBasemapLabels: { value: 1 },
     screenBackdrop: {
       look: { value: new THREE.Vector3(1, 1, 1) },
       tint: { value: new THREE.Vector4(0, 0, 0, 0) },
@@ -122,6 +127,7 @@ export const createSharedThreeMapStyleProjection = (
     MapStyleScreenOverlay & { version: number }
   >();
   const screenUniforms: Record<string, THREE.IUniform> = {
+    carmaScreenBasemapLabels: mapStyleProjectionUniforms.screenBasemapLabels!,
     carmaScreenBackdropLook: mapStyleProjectionUniforms.screenBackdrop!.look,
     carmaScreenBackdropTint: mapStyleProjectionUniforms.screenBackdrop!.tint,
     carmaScreenBackdropOpacity:
@@ -135,6 +141,8 @@ export const createSharedThreeMapStyleProjection = (
   mapStyleProjectionUniforms.screenOverlays!.forEach((screen, index) => {
     screenUniforms[`carmaScreenTexture${index}`] = screen.texture;
     screenUniforms[`carmaScreenToTexture${index}`] = screen.viewportToTexture;
+    screenUniforms[`carmaScreenSceneToTexture${index}`] = screen.sceneToTexture;
+    screenUniforms[`carmaScreenProjective${index}`] = screen.projective;
     screenUniforms[`carmaScreenOpacity${index}`] = screen.opacity;
   });
   const screenMaterial = new THREE.ShaderMaterial({
@@ -171,33 +179,50 @@ void main(){float photographAlpha;float decorationAlpha;vec4 image=carmaScreenIm
   let mapStyleDepthGlTexture: WebGLTexture | null = null;
   const mapStyleProjectionVersions = new Map<string, number>();
   const mapStyleProjectionReceivers = new Map<string, boolean>();
+  const mapStylePhotoReceiverStates = new Map<string, boolean>();
+  let projectivePhotosActive = false;
 
   const configureMapStyleProjection = (): boolean => {
     let receiversChanged = false;
     for (const runtime of runtimes.values()) {
       const receiver = runtime.receivesMapStyleTexture;
-      if (!receiver) continue;
+      const photoReceiver =
+        projectivePhotosActive &&
+        runtime.mountsOnLocalFrame === true &&
+        runtime.providesTerrain === true &&
+        // ECEF DEM tiles also mount locally, but remain replace receivers.
+        runtime.mapStyleProjectionBlend !== "replace";
+      const previousPhotoReceiver = mapStylePhotoReceiverStates.get(runtime.id);
+      if (!receiver && !photoReceiver && !previousPhotoReceiver) continue;
       const version = runtime.mapStyleProjectionVersion?.() ?? 0;
-      if (mapStyleProjectionVersions.get(runtime.id) === version) continue;
-      let configured = false;
+      if (
+        mapStyleProjectionVersions.get(runtime.id) === version &&
+        previousPhotoReceiver === photoReceiver
+      ) continue;
+      let configuredMapReceiver = false;
       runtime.root.traverse((object) => {
         if (!(object instanceof THREE.Mesh)) return;
         const materials = Array.isArray(object.material)
           ? object.material
           : [object.material];
         for (const material of materials) {
-          if (typeof receiver === "function" && !receiver(material)) continue;
+          const mapReceiver = typeof receiver === "function"
+            ? receiver(material)
+            : receiver === true;
+          if (!mapReceiver && !photoReceiver && !previousPhotoReceiver) continue;
           configureMapStyleProjectedMaterial(
             material,
             mapStyleProjectionUniforms,
-            runtime.mapStyleProjectionBlend ?? "replace",
+            mapReceiver ? runtime.mapStyleProjectionBlend ?? "replace" : "photo-only",
             runtime.mountsOnLocalFrame === true
           );
-          configured = true;
+          configuredMapReceiver ||= mapReceiver;
         }
       });
       mapStyleProjectionVersions.set(runtime.id, version);
-      mapStyleProjectionReceivers.set(runtime.id, configured);
+      mapStylePhotoReceiverStates.set(runtime.id, photoReceiver);
+      // Photo-only receivers do not request a captured basemap/DEM depth pass.
+      mapStyleProjectionReceivers.set(runtime.id, configuredMapReceiver);
       receiversChanged = true;
     }
     // A new LOD needs the current markings even while lighting reuses a settled
@@ -329,6 +354,11 @@ void main(){float photographAlpha;float decorationAlpha;vec4 image=carmaScreenIm
         previous.version === overlay.texture.version &&
         previous.opacity === overlay.opacity &&
         previous.priority === overlay.priority &&
+        previous.showBasemapLabels === overlay.showBasemapLabels &&
+        Boolean(previous.projective) === Boolean(overlay.projective) &&
+        (!previous.projective ||
+          !overlay.projective ||
+          previous.projective.sceneToTexture.equals(overlay.projective.sceneToTexture)) &&
         previous.backdropLook?.contrast === overlay.backdropLook?.contrast &&
         previous.backdropLook?.brightness ===
           overlay.backdropLook?.brightness &&
@@ -370,6 +400,9 @@ void main(){float photographAlpha;float decorationAlpha;vec4 image=carmaScreenIm
                 viewportToImage: overlay.border.viewportToImage.clone(),
               }
             : undefined,
+          projective: overlay.projective
+            ? { sceneToTexture: overlay.projective.sceneToTexture.clone() }
+            : undefined,
           viewportToTexture: overlay.viewportToTexture.clone(),
           version: overlay.texture.version,
         });
@@ -377,14 +410,25 @@ void main(){float photographAlpha;float decorationAlpha;vec4 image=carmaScreenIm
       const ordered = [...screenOverlays.values()]
         .sort((a, b) => (a.priority ?? 0) - (b.priority ?? 0))
         .slice(-2);
+      projectivePhotosActive = ordered.some(
+        (entry) => entry.projective && entry.opacity > 0
+      );
       mapStyleProjectionUniforms.screenOverlays!.forEach((screen, index) => {
         const entry = ordered[index];
         screen.texture.value = entry?.texture ?? null;
         screen.opacity.value = entry?.opacity ?? 0;
+        screen.projective.value = entry?.projective ? 1 : 0;
+        if (entry?.projective)
+          screen.sceneToTexture.value.copy(entry.projective.sceneToTexture);
         if (entry) screen.viewportToTexture.value.copy(entry.viewportToTexture);
       });
+      const labelPolicy = [...ordered]
+        .reverse()
+        .find((entry) => entry.opacity > 0);
+      mapStyleProjectionUniforms.screenBasemapLabels!.value =
+        labelPolicy?.showBasemapLabels === false ? 0 : 1;
       const backdrop = ordered.find(
-        (entry) => entry.backdropLook || entry.backdropTint
+        (entry) => !entry.projective && (entry.backdropLook || entry.backdropTint)
       );
       const backdropUniforms = mapStyleProjectionUniforms.screenBackdrop!;
       backdropUniforms.look.value.set(
@@ -397,7 +441,7 @@ void main(){float photographAlpha;float decorationAlpha;vec4 image=carmaScreenIm
       );
       backdropUniforms.opacity.value = backdrop?.opacity ?? 0;
       const borderEntry = ordered.find(
-        (entry) => entry.border && entry.opacity > 0
+        (entry) => !entry.projective && entry.border && entry.opacity > 0
       );
       const border = borderEntry?.border;
       const borderUniforms = mapStyleProjectionUniforms.screenBorder!;
@@ -414,7 +458,9 @@ void main(){float photographAlpha;float decorationAlpha;vec4 image=carmaScreenIm
         Math.max(0, border?.feather ?? 0),
         (border?.featherOpacity ?? 0) * (borderEntry?.opacity ?? 0)
       );
-      screenOverlayMesh.visible = ordered.some((entry) => entry.opacity > 0);
+      screenOverlayMesh.visible = ordered.some(
+        (entry) => !entry.projective && entry.opacity > 0
+      );
       mapStyleProjectionEpoch++;
       if (requestRepaint) map?.triggerRepaint();
     },
@@ -670,6 +716,8 @@ void main(){float photographAlpha;float decorationAlpha;vec4 image=carmaScreenIm
       mapStyleProjectionUniforms.surfaceOverlay!.opacity.value = 0;
       mapStyleProjectionVersions.clear();
       mapStyleProjectionReceivers.clear();
+      mapStylePhotoReceiverStates.clear();
+      projectivePhotosActive = false;
 
       map = null;
       renderer = null;

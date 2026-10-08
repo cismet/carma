@@ -107,6 +107,37 @@ afterEach(() => {
 });
 
 describe("persistent parsed catalog freshness", () => {
+  it("discards only cached approximation rings without clearing storage or reloading metadata", async () => {
+    const series = { ...dataset, catalogVersion: "static-v1" };
+    const first = await loadCachedObliqueSeriesData(series);
+    const approximate = first.imageRecords.values().next().value!;
+    approximate.footprint = [
+      [7, 51],
+      [8, 51],
+      [8, 52],
+      [7, 52],
+      [7, 51],
+    ];
+    approximate.footprintApproximate = true;
+    const delivered = {
+      ...approximate,
+      id: "delivered",
+      footprintApproximate: false,
+    };
+    first.imageRecords.set(delivered.id, delivered);
+    network.mockClear();
+    const restored = await loadCachedObliqueSeriesData(series);
+    expect(
+      restored.imageRecords.get(approximate.id)?.footprint
+    ).toBeUndefined();
+    expect(restored.imageRecords.get(delivered.id)?.footprint).toEqual(
+      delivered.footprint
+    );
+    expect(loadObliqueSeriesData).toHaveBeenCalledOnce();
+    expect(network).not.toHaveBeenCalled();
+    expect(storage.values.size).toBe(1);
+  });
+
   it("restores Maps after validating metadata and footprint headers without parsing again", async () => {
     const series = {
       ...dataset,

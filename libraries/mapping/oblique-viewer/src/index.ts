@@ -15,6 +15,7 @@ export {
   ObliqueViewerActionsProvider,
   useObliqueViewerActions,
   OBLIQUE_STATE_DEFAULT,
+  OBLIQUE_ROTATION_SURFACES,
   formatImageLabel,
   resolveBackdropLook,
   requestObliqueCommand,
@@ -26,6 +27,7 @@ export {
   type ObliqueViewerActions,
   type ViewerSeriesStatus,
   type ObliqueStatePatch,
+  type ObliqueRotationSurface,
 } from "./lib/runtime/oblique-actions";
 export {
   resolveSeries,

@@ -4,6 +4,8 @@ import {
   Fragment,
   useState,
   type ButtonHTMLAttributes,
+  type CSSProperties,
+  type InputHTMLAttributes,
   type ReactNode,
 } from "react";
 import {
@@ -27,6 +29,13 @@ vi.mock("antd", () => ({
   }: ButtonHTMLAttributes<HTMLButtonElement> & { icon?: ReactNode }) =>
     createElement("button", props, icon, children),
   Tooltip: ({ children }: { children: ReactNode }) => children,
+  Checkbox: ({ children, ...props }: InputHTMLAttributes<HTMLInputElement>) =>
+    createElement(
+      "label",
+      null,
+      createElement("input", { ...props, type: "checkbox" }),
+      children
+    ),
   Spin: () => null,
   message: { error: vi.fn() },
   Slider: () => createElement("input", { type: "range" }),
@@ -35,6 +44,9 @@ vi.mock("antd", () => ({
     mode,
     options,
     onChange,
+    className,
+    style,
+    "data-test-id": dataTestId,
     ...props
   }: {
     value: string[] | string;
@@ -42,6 +54,9 @@ vi.mock("antd", () => ({
     options: { value: string; label: ReactNode }[];
     onChange: (value: string[] | string) => void;
     "aria-label": string;
+    className?: string;
+    style?: CSSProperties;
+    "data-test-id"?: string;
   }) =>
     createElement(
       Fragment,
@@ -51,6 +66,9 @@ vi.mock("antd", () => ({
         {
           multiple: mode === "multiple",
           "aria-label": props["aria-label"],
+          className,
+          style,
+          "data-test-id": dataTestId,
           value,
           onChange: (event: { currentTarget: HTMLSelectElement }) =>
             onChange(
@@ -191,6 +209,12 @@ const Harness = ({
   const [selectionStrategy, setSelectionStrategy] = useState<
     ObliqueViewerActions["selectionStrategy"]
   >(initialSelectionStrategy);
+  const [rotationSurface, setRotationSurface] = useState<
+    ObliqueViewerActions["rotationSurface"]
+  >(OBLIQUE_STATE_DEFAULT.rotationSurface);
+  const [previewRotationDrape, setPreviewRotationDrape] = useState(
+    OBLIQUE_STATE_DEFAULT.previewRotationDrape
+  );
   const actions: ObliqueViewerActions = {
     ...OBLIQUE_STATE_DEFAULT,
     missingPreviewImageId,
@@ -219,6 +243,8 @@ const Harness = ({
     hoverAvailable,
     previewVisible,
     selectionStrategy,
+    rotationSurface,
+    previewRotationDrape,
     isAllDataReady: !failure2026,
     selectedImageId: "wuppertal-2024::001_001_170003373",
     selectedSourceImageId: "001_001_170003373",
@@ -241,6 +267,9 @@ const Harness = ({
       publish(patch);
       if (patch.selectionStrategy)
         setSelectionStrategy(patch.selectionStrategy);
+      if (patch.rotationSurface) setRotationSurface(patch.rotationSurface);
+      if (patch.previewRotationDrape !== undefined)
+        setPreviewRotationDrape(patch.previewRotationDrape);
     },
     setOn: vi.fn(),
     toggle: vi.fn(),
@@ -441,8 +470,8 @@ describe("independent map navigation", () => {
       within(panel).queryByRole("button", { name: "Flug zum Bild" })
     ).toBeNull();
     expect(
-      within(panel).getByRole("button", { name: "Bild öffnen" })
-    ).toBeTruthy();
+      within(panel).queryByRole("button", { name: "Bild öffnen" })
+    ).toBeNull();
   });
 
   it("defers to the object coverage controls while camera commands are suspended", () => {
@@ -484,10 +513,59 @@ describe("object coverage control", () => {
   });
 });
 
+describe("NG rotation anchor option", () => {
+  it("offers Mesh and DEM pivots only in the next interface", () => {
+    const publish = vi.fn();
+    const view = render(createElement(Harness, { publish }));
+    const surface = screen.getByRole("combobox", {
+      name: "Rotationsfläche",
+    }) as HTMLSelectElement;
+    expect(Array.from(surface.options, (option) => option.value)).toEqual([
+      "mesh",
+      "terrain",
+    ]);
+    fireEvent.change(surface, { target: { value: "terrain" } });
+    expect(publish).toHaveBeenCalledWith({ rotationSurface: "terrain" });
+    expect(surface.value).toBe("terrain");
+    view.rerender(createElement(Harness, { publish, nextInterface: false }));
+    expect(
+      screen.queryByRole("combobox", { name: "Rotationsfläche" })
+    ).toBeNull();
+  });
+});
+
+describe("NG rotation photo projection option", () => {
+  it("defaults off, publishes both toggle values and stays hidden in classic", () => {
+    const publish = vi.fn();
+    const view = render(createElement(Harness, { publish }));
+    const option = screen.getByRole("checkbox", {
+      name: "Fotos auf Mesh",
+    }) as HTMLInputElement;
+    expect(option.checked).toBe(false);
+    fireEvent.click(option);
+    expect(option.checked).toBe(true);
+    expect(publish).toHaveBeenLastCalledWith({ previewRotationDrape: true });
+    fireEvent.click(option);
+    expect(option.checked).toBe(false);
+    expect(publish).toHaveBeenLastCalledWith({ previewRotationDrape: false });
+    view.rerender(createElement(Harness, { publish, nextInterface: false }));
+    expect(screen.queryByRole("checkbox", { name: "Fotos auf Mesh" })).toBeNull();
+  });
+});
+
 describe("image information, actions and acquisition precision", () => {
   it("keeps image actions and series selection without display, quality or color controls", () => {
-    render(createElement(Harness));
-    expect(screen.getByRole("listbox", { name: "Bildserien" })).toBeTruthy();
+    render(
+      createElement(Harness, {
+        downloadUrl: "https://images.example/photo.jpg",
+      })
+    );
+    const seriesSelect = screen.getByRole("listbox", {
+      name: "Bildserien",
+    }) as HTMLSelectElement;
+    expect(seriesSelect.style.maxWidth).toBe("100%");
+    expect(seriesSelect.className).toContain("w-fit");
+    expect(seriesSelect.className).not.toContain("flex-1");
     expect(screen.getByRole("button", { name: "Bild öffnen" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Rückmeldung" })).toBeTruthy();
     expect(screen.queryByRole("slider")).toBeNull();
@@ -504,6 +582,13 @@ describe("image information, actions and acquisition precision", () => {
       "Sättigung",
     ])
       expect(screen.queryByText(label)).toBeNull();
+  });
+
+  it("hides unavailable open/download buttons instead of showing them disabled", () => {
+    render(createElement(Harness));
+    expect(screen.queryByRole("button", { name: "Bild öffnen" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Herunterladen" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Rückmeldung" })).toBeTruthy();
   });
 
   it("offers the current original and feedback in the information panel", async () => {
@@ -540,7 +625,7 @@ describe("image information, actions and acquisition precision", () => {
     expect(within(panel).queryByText("März 2024")).toBeNull();
     expect(within(panel).queryByText("001_001_170003373")).toBeNull();
   });
-  it("disables downloads when the selected series is disabled", () => {
+  it("hides image actions when the selected series is disabled", () => {
     render(
       createElement(Harness, {
         downloadUrl: "https://images.example/photo.jpg",
@@ -553,17 +638,12 @@ describe("image information, actions and acquisition precision", () => {
       option.selected = false;
     });
     fireEvent.change(select);
+    expect(screen.queryByRole("button", { name: "Bild öffnen" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Herunterladen" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Rückmeldung" })).toBeNull();
     expect(
-      (screen.getByRole("button", { name: "Bild öffnen" }) as HTMLButtonElement)
-        .disabled
-    ).toBe(true);
-    expect(
-      (
-        screen.getByRole("button", {
-          name: "Herunterladen",
-        }) as HTMLButtonElement
-      ).disabled
-    ).toBe(true);
+      document.querySelector('[data-test-id="oblique-image-actions"]')
+    ).toBeNull();
     expect(screen.queryByText(/Aufnahme:/)).toBeNull();
   });
 

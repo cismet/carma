@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { Map as MaplibreMap } from "maplibre-gl";
 
 import { getGcg2016Wgs84VerticalTransformer } from "@carma-geo/proj";
@@ -73,10 +73,18 @@ export const useNearestImage = ({
   const modeRef = useRef(viewMode);
   modeRef.current = viewMode;
   const activeRef = useRef(true);
+  const heightRefreshTimerRef = useRef<number | undefined>(undefined);
+  const refreshRef = useRef<
+    (
+      args?: RefreshSearchArgs
+    ) => Promise<NearestObliqueImageRecord[] | undefined>
+  >(() => Promise.resolve(undefined));
+  const [heightResolutionRevision, setHeightResolutionRevision] = useState(0);
   useEffect(() => {
     activeRef.current = true;
     return () => {
       activeRef.current = false;
+      window.clearTimeout(heightRefreshTimerRef.current);
     };
   }, []);
   const searchRef = useRef<{
@@ -90,16 +98,29 @@ export const useNearestImage = ({
   useEffect(() => {
     requestIdRef.current++;
     navigationGenerationRef.current++;
-    if (!data) return undefined;
-    const search = createImageSelectionSearch(data);
-    searchRef.current = { data, search };
-    return () => {
+    if (!data) {
+      searchRef.current?.search.dispose();
+      searchRef.current = null;
+      return;
+    }
+    if (searchRef.current) {
+      searchRef.current.data = data;
+      searchRef.current.search.update?.(data);
+    } else
+      searchRef.current = {
+        data,
+        search: createImageSelectionSearch(data),
+      };
+  }, [data]);
+  useEffect(
+    () => () => {
       requestIdRef.current++;
       navigationGenerationRef.current++;
+      searchRef.current?.search.dispose();
       searchRef.current = null;
-      search.dispose();
-    };
-  }, [data]);
+    },
+    []
+  );
   useEffect(() => {
     requestIdRef.current++;
   }, [map, enabled, locked, viewMode, selectionStrategy]);
@@ -142,7 +163,6 @@ export const useNearestImage = ({
       };
       const heightKey = `${target.longitude}|${target.latitude}|${target.heightMeters}|${target.heightDatum}`;
       const perSeriesTargetHeightMeters = new Map<string, number>();
-      const conversions: Promise<void>[] = [];
       for (const [id, series] of data.datasets) {
         if (
           target.heightMeters === undefined ||
@@ -177,9 +197,21 @@ export const useNearestImage = ({
                 );
           conversion = height
             .then((value) => {
-              if (convertedHeightsRef.current.size > 32)
-                convertedHeightsRef.current.clear();
-              convertedHeightsRef.current.set(key, value);
+              if (value !== undefined) {
+                if (convertedHeightsRef.current.size > 32)
+                  convertedHeightsRef.current.clear();
+                convertedHeightsRef.current.set(key, value);
+                if (heightRefreshTimerRef.current === undefined)
+                  heightRefreshTimerRef.current = window.setTimeout(() => {
+                    heightRefreshTimerRef.current = undefined;
+                    if (!activeRef.current) return;
+                    setHeightResolutionRevision((revision) => revision + 1);
+                    if (!lockedRef.current)
+                      void refreshRef
+                        .current({ immediate: true })
+                        .catch(() => undefined);
+                  }, 0);
+              }
               return value;
             })
             .catch(() => undefined)
@@ -188,14 +220,7 @@ export const useNearestImage = ({
             });
           convertingHeightsRef.current.set(key, conversion);
         }
-        conversions.push(
-          conversion.then((height) => {
-            if (height !== undefined)
-              perSeriesTargetHeightMeters.set(id, height);
-          })
-        );
       }
-      if (conversions.length) await Promise.all(conversions);
       return {
         target,
         headingRad: heading,
@@ -219,6 +244,7 @@ export const useNearestImage = ({
       numNearestImages,
       maxDistanceMeters,
       selectionStrategy,
+      heightResolutionRevision,
     ]
   );
 
@@ -315,7 +341,6 @@ export const useNearestImage = ({
     [map, data, buildQuery]
   );
 
-  const refreshRef = useRef(refreshSearch);
   refreshRef.current = refreshSearch;
 
   useEffect(() => {

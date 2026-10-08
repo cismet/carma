@@ -233,11 +233,45 @@ describe("shared-frame preview image", () => {
     expect(
       new Vector3(0.5, 0.5, 1).applyMatrix3(admitted.viewportToTexture).x
     ).toBeCloseTo(0.125);
-    expect(admitted.texture).toBe(oldTexture);
-    expect(dispose).not.toHaveBeenCalled();
+    expect(admitted.texture).not.toBe(oldTexture);
+    expect(dispose).toHaveBeenCalledOnce();
     vi.mocked(map.triggerRepaint).mockClear();
     act(() => moveend());
     expect(map.triggerRepaint).not.toHaveBeenCalled();
+    hook.unmount();
+  });
+
+  it("reallocates resized crops, including an in-place canvas resize, and keeps their sampling bounds paired", () => {
+    const { options, source, frame } = setup();
+    const contentRef: { current: ScenePreviewImageContent | null } = {
+      current: { source },
+    };
+    const hook = renderHook(() =>
+      useScenePreviewImage({ ...options, source: null, contentRef })
+    );
+    act(() => shared.callback?.(frame));
+    const first = shared.setOverlay.mock.lastCall?.[1].texture;
+    const dispose = vi.spyOn(first, "dispose");
+    source.width = 240;
+    source.height = 80;
+    contentRef.current = {
+      source,
+      crop: {
+        x: 10 as DevicePixels,
+        y: 0 as DevicePixels,
+        width: 90 as DevicePixels,
+        height: 30 as DevicePixels,
+      },
+    };
+    act(() => shared.callback?.(frame));
+    const next = shared.setOverlay.mock.lastCall?.[1].texture;
+    expect(next).not.toBe(first);
+    expect(dispose).toHaveBeenCalledOnce();
+    expect(next.image).toBe(source);
+    const version = next.version;
+    act(() => shared.callback?.(frame));
+    expect(shared.setOverlay.mock.lastCall?.[1].texture).toBe(next);
+    expect(next.version).toBe(version);
     hook.unmount();
   });
 
@@ -254,8 +288,8 @@ describe("shared-frame preview image", () => {
     const dispose = vi.spyOn(texture, "dispose");
     const version = texture.version;
     const next = document.createElement("canvas");
-    next.width = 200;
-    next.height = 100;
+    next.width = 100;
+    next.height = 50;
     contentRef.current = { source: next };
     act(() => shared.callback?.(frame));
     expect(shared.setOverlay.mock.lastCall?.[1].texture).toBe(texture);
@@ -301,8 +335,8 @@ describe("shared-frame preview image", () => {
     vi.mocked(map.isMoving).mockReturnValue(true);
     contentRef.current = { source: next };
     act(() => shared.callback?.(frame));
-    expect(shared.setOverlay.mock.lastCall?.[1].texture).toBe(texture);
-    expect(texture.image).toBe(next);
+    expect(shared.setOverlay.mock.lastCall?.[1].texture).not.toBe(texture);
+    expect(shared.setOverlay.mock.lastCall?.[1].texture.image).toBe(next);
     hook.unmount();
   });
 

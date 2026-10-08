@@ -1,7 +1,6 @@
 import type { Easing, Matrix3RowMajor, Vector3Arr } from "@carma-commons/math";
 import type { FeatureCollection, Polygon } from "geojson";
 import type { CardinalDirectionClockwise } from "@carma-geo/data-structures";
-import type { ObliqueDownloadWatermark } from "../runtime/utils/tiff-download-types";
 
 import type { PreviewQualityLevel } from "./constants";
 import type { Radians, Ratio } from "@carma-units";
@@ -113,6 +112,16 @@ export type AnimationConfig = {
   easingFunction?: Easing;
 };
 
+/** Publisher artwork and placement applied when the client exports a TIFF. */
+export type ObliqueDownloadWatermark = Readonly<{
+  imageUrl: string;
+  position: "center" | "top-left" | "bottom-right";
+  blend?: "source-over" | "screen";
+  opacity: number;
+  widthFraction?: number;
+  marginPx?: number;
+}>;
+
 export type ObliqueAnimationsConfig = {
   /** tilting into the oblique view */
   enterObliqueMode?: AnimationConfig;
@@ -178,7 +187,7 @@ export type ObliqueDirectionalCatalog = {
   meanHeadingRad: Radians;
   imageCount: number;
   /** Exact oblique-only full-group totals, excluding nadir. */
-  obliquePitch?: { pitchSumRad: Radians; imageCount: number };
+  obliquePitch?: ObliquePitchSummary;
   exteriorOrientationsURI: string;
   compressedCatalogURI?: string;
 };
@@ -344,11 +353,18 @@ export type ObliquePreviewState = {
   zoom: Ratio;
 };
 
+export type ObliquePitchSummary = {
+  pitchSumRad: Radians;
+  imageCount: number;
+};
+
 export type ObliqueSelectionData = {
   /** Worker-derived angle totals for enabled-series browsing; nadir is excluded. */
-  obliquePitchBySeries?: Map<
+  obliquePitchBySeries?: Map<string, ObliquePitchSummary>;
+  /** World bearing sectors from calibrated poses, independent of camera/export labels. */
+  obliquePitchByDirectionBySeries?: Map<
     string,
-    { pitchSumRad: Radians; imageCount: number }
+    Map<CardinalDirection, ObliquePitchSummary>
   >;
   imageRecords: ObliqueImageRecordMap;
   datasets: Map<string, ObliqueDataset>;

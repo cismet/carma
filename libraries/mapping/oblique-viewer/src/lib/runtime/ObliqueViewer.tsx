@@ -24,7 +24,13 @@ import {
 } from "./utils/preview-thumbnail-cache";
 import { MercatorCoordinate, type Map as MaplibreMap } from "maplibre-gl";
 import { Matrix4, Raycaster, Vector3 } from "three";
-import { sceneToPhotoEnu } from "./utils/image-projection";
+import { sceneToPhotoEnu } from "../core/utils/image-projection";
+import { getBrowsingPitchDeg } from "../core/utils/browsing-pitch";
+import {
+  createPhotoRotationDrape,
+  type PhotoRotationDrape,
+  type PhotoRotationDrapeTransition,
+} from "./utils/photo-rotation-drape";
 import {
   acquireSharedThreeScene,
   getSharedThreeSceneRuntimes,
@@ -34,7 +40,10 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faImages } from "@fortawesome/free-solid-svg-icons";
 import { Tooltip } from "antd";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
-import { createPhotoAxisPicker } from "./utils/photo-axis-picker";
+import {
+  createPhotoAxisPicker,
+  type PhotoAxisSurfaceMode,
+} from "./utils/photo-axis-picker";
 import { clamp } from "@carma-commons/math";
 
 import {
@@ -248,6 +257,9 @@ const ObliqueViewerRuntime = ({
     enabledSeriesIds,
     bearingDeg: currentBearingDeg,
     selectionStrategy: configuredSelectionStrategy,
+    rotationSurface,
+    previewBasemapLabels,
+    previewRotationDrape,
     request,
     toggle,
     publish,
@@ -335,27 +347,25 @@ const ObliqueViewerRuntime = ({
   );
   const currentDataRef = useRef(data);
   currentDataRef.current = data;
-  const browsingPitchDeg = useMemo(() => {
-    let pitchSumRad = 0 as Radians;
-    let imageCount = 0;
-    for (const [id, total] of data?.obliquePitchBySeries ?? []) {
-      if (!enabledSet.has(id)) continue;
-      pitchSumRad = (pitchSumRad + total.pitchSumRad) as Radians;
-      imageCount += total.imageCount;
-    }
-    return clamp(
-      imageCount > 0
-        ? radToDeg(pitchSumRad / imageCount)
-        : enabledSeries[0]?.pitchDeg ?? browsingDataset.pitchDeg,
-      0,
-      FREE_MAX_PITCH_DEG
-    ) as Degrees;
-  }, [
-    data?.obliquePitchBySeries,
-    enabledSet,
-    enabledSeries,
-    browsingDataset.pitchDeg,
-  ]);
+  const browsingPitchForBearing = useCallback(
+    (bearingDeg: number) =>
+      clamp(
+        getBrowsingPitchDeg(
+          data,
+          enabledSeries,
+          bearingDeg,
+          enabledSeries[0]?.pitchDeg ?? browsingDataset.pitchDeg
+        ),
+        0,
+        FREE_MAX_PITCH_DEG
+      ) as Degrees,
+    [data, enabledSeries, browsingDataset.pitchDeg]
+  );
+  const browsingPitchForBearingRef = useRef(browsingPitchForBearing);
+  browsingPitchForBearingRef.current = browsingPitchForBearing;
+  const browsingPitchDeg = browsingPitchForBearing(
+    libreMap?.getBearing() ?? currentBearingDeg
+  );
   useEffect(() => {
     if (typeof window.matchMedia !== "function") return;
     const query = window.matchMedia("(any-hover: hover)");
@@ -466,13 +476,18 @@ const ObliqueViewerRuntime = ({
         : next
     );
   }, []);
-  const axisPicker = useMemo(
-    () =>
-      running && libreMap && data
-        ? createPhotoAxisPicker(libreMap, data, heightOffset)
-        : null,
-    [running, libreMap, data, heightOffset]
-  );
+  const [pointIntersectionSurface, setPointIntersectionSurface] =
+    useState<PhotoAxisSurfaceMode>("auto");
+  const hasSelectionData = data !== null;
+  const axisPicker = useMemo(() => {
+    const currentData = currentDataRef.current;
+    return running && libreMap && currentData
+      ? createPhotoAxisPicker(libreMap, currentData, heightOffset)
+      : null;
+  }, [running, libreMap, hasSelectionData, heightOffset]);
+  useEffect(() => {
+    if (data) axisPicker?.updateData(data);
+  }, [axisPicker, data]);
   useEffect(() => {
     axisPicker?.start();
     return () => axisPicker?.dispose();
@@ -486,7 +501,6 @@ const ObliqueViewerRuntime = ({
     enabled: running && viewMode !== "objectCoverage",
     locked: previewVisible || isBusy,
     viewMode,
-    refineAtGroundPoint: axisPicker?.pick,
     selectionStrategy,
   });
   const groundPickerRef = useRef(findLoadedAtGroundPoint);
@@ -555,7 +569,9 @@ const ObliqueViewerRuntime = ({
   const targetRef = useRef<ObliqueGroundTarget | null>(null);
   const selectionEpochRef = useRef(0);
   const navigationSelectionHeldRef = useRef(false);
-  const invalidateNavigationRef = useRef<() => void>(() => {});
+  const invalidateNavigationRef = useRef<(clearPublished?: boolean) => void>(
+    () => {}
+  );
   const cancelNavigationRef = useRef<() => void>(() => {});
   const [missingImages, setMissingImages] = useState<ReadonlySet<string>>(
     () => new Set()
@@ -570,10 +586,10 @@ const ObliqueViewerRuntime = ({
     >()
   );
   const readViewAnchor = useCallback(
-    (screenPoint?: {
-      x: number;
-      y: number;
-    }): MercatorCoordinate | undefined => {
+    (
+      screenPoint?: { x: number; y: number },
+      surfaceMode: PhotoAxisSurfaceMode = pointIntersectionSurface
+    ): MercatorCoordinate | undefined => {
       if (!libreMap) return undefined;
       let anchor: MercatorCoordinate | undefined;
       const surfaces = getSharedThreeSceneRuntimes(libreMap).filter(
@@ -629,8 +645,9 @@ const ObliqueViewerRuntime = ({
             const cameraLngLat = scene.layer.projectSceneToLngLat(near);
             const hit =
               axisPicker && cameraLngLat
-                ? axisPicker.intersectSurface(ray, cameraLngLat)
-                : ray
+                ? axisPicker.intersectSurface(ray, cameraLngLat, surfaceMode)
+                : surfaceMode !== "terrain"
+                ? ray
                     .intersectObjects(
                       surfaces.map(({ root }) => root),
                       true
@@ -644,7 +661,8 @@ const ObliqueViewerRuntime = ({
                         if (!parent.visible) return false;
                       }
                       return true;
-                    });
+                    })
+                : undefined;
             profile?.record(
               "anchorRaycast",
               performance.now() - raycastStarted
@@ -669,7 +687,7 @@ const ObliqueViewerRuntime = ({
           scene.release();
         }
       }
-      if (!anchor) {
+      if (!anchor && surfaceMode !== "mesh") {
         const point = libreMap.unproject([
           screenPoint?.x ?? libreMap.transform.width / 2,
           screenPoint?.y ?? libreMap.transform.height / 2,
@@ -683,7 +701,7 @@ const ObliqueViewerRuntime = ({
       }
       return anchor;
     },
-    [libreMap, axisPicker]
+    [libreMap, axisPicker, pointIntersectionSurface]
   );
 
   const readTarget = useCallback((): ObliqueGroundTarget | null => {
@@ -698,6 +716,17 @@ const ObliqueViewerRuntime = ({
       heightDatum: "dhhn2016",
     };
   }, [libreMap, readViewAnchor]);
+  const readRotationTarget = useCallback((): ObliqueGroundTarget | null => {
+    const anchor = readViewAnchor(undefined, rotationSurface);
+    if (!anchor) return null;
+    const point = anchor.toLngLat();
+    return {
+      longitude: point.lng,
+      latitude: point.lat,
+      heightMeters: anchor.toAltitude(),
+      heightDatum: "dhhn2016",
+    };
+  }, [readViewAnchor, rotationSurface]);
   const {
     beginPreview,
     resetPan: resetPreviewPan,
@@ -724,7 +753,7 @@ const ObliqueViewerRuntime = ({
     busyRef,
     onPanEnd: () => {
       targetRef.current = readTarget();
-      invalidateNavigationRef.current();
+      invalidateNavigationRef.current(false);
       writePreviewHashRef.current();
     },
   });
@@ -802,12 +831,20 @@ const ObliqueViewerRuntime = ({
       selectedSourceImageId: selectedRecord?.sourceId ?? null,
       selectedSeriesId: selectedRecord?.seriesId ?? null,
       selectedCameraId: selectedRecord?.cameraId ?? null,
+      selectedCameraView: selectedCalibration?.view ?? null,
       selectedImageBearingDeg:
         (selectedRecord?.pose?.bearingDeg as Degrees) ?? null,
       downloadUrl,
       downloadOptions,
     });
-  }, [publish, selectedImageId, selectedRecord, downloadUrl, downloadOptions]);
+  }, [
+    publish,
+    selectedImageId,
+    selectedRecord,
+    selectedCalibration,
+    downloadUrl,
+    downloadOptions,
+  ]);
   const onDirectionChange = useCallback(
     (direction: CardinalDirection | null) =>
       publish({ activeDirection: direction }),
@@ -823,7 +860,8 @@ const ObliqueViewerRuntime = ({
   });
   const { getBrowsingMaxZoom } = useFovWheelZoom({
     map: libreMap,
-    enabled: browsing,
+    enabled:
+      browsing || (nextInterface && viewMode === "oblique" && previewVisible),
     previewRoot,
     previewCameraActive,
     previewAnchorAtCursor: nextInterface,
@@ -839,7 +877,7 @@ const ObliqueViewerRuntime = ({
     onPreviewZoomEnd: () => {
       if (previewVisibleRef.current) {
         targetRef.current = readTarget();
-        invalidateNavigationRef.current();
+        invalidateNavigationRef.current(false);
       }
       writePreviewHashRef.current();
     },
@@ -847,6 +885,82 @@ const ObliqueViewerRuntime = ({
     maxFovDeg: browsingDataset.maxFovDeg,
     busyRef,
   });
+
+  const previewDisplayReadyRef = useRef<string | null>(null);
+  const rotationDrapeLabelsRef = useRef(previewBasemapLabels);
+  rotationDrapeLabelsRef.current = previewBasemapLabels;
+  const rotationDrapeControllerRef = useRef<PhotoRotationDrape | null>(null);
+  const rotationDrapeTransitionRef = useRef<{
+    transition: PhotoRotationDrapeTransition;
+    settled: boolean;
+    seriesIds: readonly string[];
+  } | null>(null);
+  const cancelRotationDrape = useCallback(() => {
+    rotationDrapeTransitionRef.current?.transition.dispose();
+    rotationDrapeTransitionRef.current = null;
+    rotationDrapeControllerRef.current?.cancel();
+  }, []);
+  useEffect(() => {
+    if (!libreMap || !nextInterface || !previewRotationDrape || !running) return;
+    const controller = createPhotoRotationDrape(libreMap, {
+      showBasemapLabels: () => rotationDrapeLabelsRef.current,
+    });
+    rotationDrapeControllerRef.current = controller;
+    return () => {
+      rotationDrapeTransitionRef.current = null;
+      if (rotationDrapeControllerRef.current === controller)
+        rotationDrapeControllerRef.current = null;
+      controller.dispose();
+    };
+  }, [libreMap, nextInterface, previewRotationDrape, running]);
+  useEffect(() => {
+    const pair = rotationDrapeTransitionRef.current;
+    if (pair?.seriesIds.some((id) => !enabledSet.has(id))) cancelRotationDrape();
+  }, [enabledSet, cancelRotationDrape]);
+  const prepareRotationDrape = useCallback(
+    async (from: ObliqueImageRecord | undefined, to: ObliqueImageRecord, epoch: number) => {
+      const controller = rotationDrapeControllerRef.current;
+      if (!controller || !from || from.id === to.id || viewModeRef.current !== "oblique")
+        return undefined;
+      setBusy(true);
+      const photoOf = async (record: ObliqueImageRecord) => {
+        const dataset = currentDataRef.current?.datasets.get(record.seriesId);
+        if (!dataset) throw Error("Photo series unavailable");
+        return {
+          record, dataset,
+          calibration: getCameraCalibration(dataset, record.cameraId),
+          pose: poseOf(record, dataset),
+          altitude: await resolveCameraAltitude(record, dataset.heightDatum, heightOffset, dataset.allowUnverifiedSourceHeight),
+        };
+      };
+      try {
+        const [source, target] = await Promise.all([photoOf(from), photoOf(to)]);
+        if (epoch !== selectionEpochRef.current || !runningRef.current) return undefined;
+        const transition = await controller.prepare(source, target);
+        if (epoch !== selectionEpochRef.current || !runningRef.current) {
+          transition?.dispose();
+          return undefined;
+        }
+        if (transition) rotationDrapeTransitionRef.current = {
+          transition, settled: false, seriesIds: [from.seriesId, to.seriesId],
+        };
+        return transition;
+      } catch {
+        // Missing photo pixels never block the ordinary geometric rotation.
+        return undefined;
+      }
+    }, [heightOffset, setBusy]
+  );
+  const finishRotationDrape = useCallback((transition?: PhotoRotationDrapeTransition) => {
+    if (!transition || rotationDrapeTransitionRef.current?.transition !== transition) return;
+    rotationDrapeTransitionRef.current.settled = true;
+    if (previewVisibleRef.current && previewDisplayReadyRef.current !== transition.targetImageId)
+      transition.finish();
+    else {
+      transition.dispose();
+      rotationDrapeTransitionRef.current = null;
+    }
+  }, []);
 
   const flyTo = useCallback(
     async (
@@ -856,7 +970,8 @@ const ObliqueViewerRuntime = ({
       preserveView = false,
       viewAnchor?: MercatorCoordinate,
       centerPreview?: boolean,
-      previewState?: ObliquePreviewState
+      previewState?: ObliquePreviewState,
+      onProgress?: (progress: number) => void
     ): Promise<boolean> => {
       if (
         !libreMap ||
@@ -871,6 +986,7 @@ const ObliqueViewerRuntime = ({
       setBusy(true);
       setRuntimeError(null);
       setPreviewOutlineReadyImageId(null);
+      previewDisplayReadyRef.current = null;
       if (preserveView) {
         beginPreview();
         setPreviewTransitionActive(true);
@@ -943,6 +1059,7 @@ const ObliqueViewerRuntime = ({
           centerPreview,
           fitWholeImage: !nextInterface,
           previewState,
+          onProgress,
           preview:
             centerPreview === undefined
               ? undefined
@@ -995,14 +1112,20 @@ const ObliqueViewerRuntime = ({
   const returnCameraToBrowsing = useCallback(
     (
       durationMs?: number,
-      rotation?: { bearingDeg: number; anchor: MercatorCoordinate }
+      rotation?: { bearingDeg: number; anchor: MercatorCoordinate; onProgress?: (progress: number) => void }
     ): CameraFlight | undefined => {
       if (!libreMap) return undefined;
+      if (!rotation?.onProgress) cancelRotationDrape();
       activeFlightRef.current?.cancel();
       setBusy(true);
       setPreviewTransitionActive(true);
       freeCamera();
-      const pitch = viewModeRef.current === "nadir" ? 0 : browsingPitchDeg;
+      const pitch =
+        viewModeRef.current === "nadir"
+          ? 0
+          : browsingPitchForBearingRef.current(
+              rotation?.bearingDeg ?? libreMap.getBearing()
+            );
       const record = selectedImageRef.current?.record;
       const dataset = record && data?.datasets.get(record.seriesId);
       const camera = previewCameraRef.current;
@@ -1017,6 +1140,7 @@ const ObliqueViewerRuntime = ({
         settleToPitch(libreMap, pitch, {
           bearingDeg: rotation?.bearingDeg,
           anchor: rotation?.anchor ?? readViewAnchor(),
+          onProgress: rotation?.onProgress,
           fovDeg: clamp(
             libreMap.getVerticalFieldOfView(),
             browsingDataset.minFovDeg,
@@ -1094,12 +1218,12 @@ const ObliqueViewerRuntime = ({
       data,
       nextInterface,
       browsingDataset,
-      browsingPitchDeg,
       readViewAnchor,
       getBrowsingPadding,
       getBrowsingMaxZoom,
       freeCamera,
       lockCamera,
+      cancelRotationDrape,
       setBusy,
       publish,
       refreshSearch,
@@ -1457,6 +1581,16 @@ const ObliqueViewerRuntime = ({
     [selectedRecord, selectedCalibration, selectedDataset, previewAltitude]
   );
 
+  const onPreviewDisplayReady = useCallback((imageId: string) => {
+    if (imageId !== selectedImageRef.current?.record.id) return;
+    previewDisplayReadyRef.current = imageId;
+    const drape = rotationDrapeTransitionRef.current;
+    if (drape?.settled && drape.transition.targetImageId === imageId) {
+      drape.transition.dispose();
+      rotationDrapeTransitionRef.current = null;
+    }
+  }, []);
+
   const onPreviewOutlineReady = useCallback(() => {
     if (
       previewVisibleRef.current &&
@@ -1612,13 +1746,18 @@ const ObliqueViewerRuntime = ({
       if (!axisPicker) return null;
       const anchor = readViewAnchor(point);
       const ground = anchor?.toLngLat();
-      return ground
-        ? findAtGroundPoint(
-            [ground.lng, ground.lat],
-            selectedImageRef.current?.record.id,
-            anchor?.toAltitude()
-          )
-        : null;
+      if (!ground) {
+        axisPicker.clearDebug();
+        return null;
+      }
+      const groundPoint: [number, number] = [ground.lng, ground.lat];
+      const record = await findAtGroundPoint(
+        groundPoint,
+        selectedImageRef.current?.record.id,
+        anchor?.toAltitude()
+      );
+      axisPicker.reportPointer(record, groundPoint);
+      return record;
     },
     seriesLabel: footprintSeriesLabel(
       selectedDataset,
@@ -1651,6 +1790,8 @@ const ObliqueViewerRuntime = ({
       fitNextImage = false
     ) => {
       if (!libreMap || busyRef.current) return;
+      const sourceRecord = selectedImageRef.current?.record;
+      cancelRotationDrape();
       targetRef.current = target;
       const epoch = ++selectionEpochRef.current;
       const ready = await awaitDirection(headingRad as Radians, {
@@ -1684,6 +1825,10 @@ const ObliqueViewerRuntime = ({
         const dataset =
           nearest &&
           currentDataRef.current?.datasets.get(nearest.record.seriesId);
+        const drape = nearest && nextInterface
+          ? await prepareRotationDrape(sourceRecord, nearest.record, epoch)
+          : undefined;
+        if (epoch !== selectionEpochRef.current || !runningRef.current) { drape?.dispose(); return; }
         if (nearest) setSelectedImage(nearest);
         // Browsing ends at its regular pitch in the same tween as heading,
         // pan and scale, without visiting the photo pitch first.
@@ -1693,7 +1838,9 @@ const ObliqueViewerRuntime = ({
               ? poseOf(nearest.record, dataset).bearingDeg
               : radToDeg(headingRad),
           anchor: viewAnchor,
+          onProgress: drape?.update,
         })?.done;
+        finishRotationDrape(drape);
         return;
       }
       if (
@@ -1704,6 +1851,10 @@ const ObliqueViewerRuntime = ({
         setDimImage(false);
         return;
       }
+      const drape = nextInterface && withPreview && viewAnchor
+        ? await prepareRotationDrape(sourceRecord, nearest.record, epoch)
+        : undefined;
+      if (epoch !== selectionEpochRef.current || !runningRef.current) { drape?.dispose(); return; }
       if (withPreview) setDimImage(true);
       setSelectedImage(nearest);
       const succeeded = await flyTo(
@@ -1713,10 +1864,13 @@ const ObliqueViewerRuntime = ({
         viewAnchor !== undefined ||
           (withPreview && (fitNextImage || !nextInterface)),
         viewAnchor,
-        withPreview && (fitNextImage || !nextInterface) ? true : undefined
+        withPreview && (fitNextImage || !nextInterface) ? true : undefined,
+        undefined,
+        drape?.update
       );
       if (epoch !== selectionEpochRef.current || !runningRef.current) return;
       setDimImage(false);
+      finishRotationDrape(drape);
       if (!succeeded) {
         publish({ previewVisible: false });
         if (runningRef.current) void settleToBrowsing();
@@ -1733,6 +1887,9 @@ const ObliqueViewerRuntime = ({
       returnCameraToBrowsing,
       settleToBrowsing,
       nextInterface,
+      cancelRotationDrape,
+      prepareRotationDrape,
+      finishRotationDrape,
     ]
   );
 
@@ -1782,10 +1939,10 @@ const ObliqueViewerRuntime = ({
     viewMode,
     previewCameraActive,
     nextInterface,
-    heightOffset,
     targetRef,
     busyRef,
     readTarget,
+    readRotationTarget,
     computeNavigation,
     ensureDirections: ensureNavigationDirections,
     publish: publishNavigationTargets,
@@ -1795,6 +1952,7 @@ const ObliqueViewerRuntime = ({
   cancelNavigationRef.current = () => {
     cancelNavigation();
     selectionEpochRef.current++;
+    cancelRotationDrape();
   };
   const navigatePrepared = useCallback(
     async (
@@ -1816,6 +1974,8 @@ const ObliqueViewerRuntime = ({
         step.candidate.record.seriesId
       );
       if (!dataset) return;
+      const sourceRecord = selectedImageRef.current?.record;
+      cancelRotationDrape();
       if (key) rememberDirection(key);
       const epoch = ++selectionEpochRef.current;
       activeFlightRef.current?.cancel();
@@ -1824,25 +1984,33 @@ const ObliqueViewerRuntime = ({
       setRuntimeError(null);
       const withPreview = previewVisibleRef.current;
       navigationSelectionHeldRef.current = !withPreview;
-      selectedImageRef.current = step.candidate;
-      setSelectedImage(step.candidate);
       const pose = poseOf(step.candidate.record, dataset);
       const anchor = MercatorCoordinate.fromLngLat(
         { lng: step.target.longitude, lat: step.target.latitude },
         step.target.heightMeters ?? libreMap.getCenterElevation()
       );
-      if (!withPreview) {
-        await returnCameraToBrowsing(
-          dataset.animations.flyToNextImage?.duration,
-          { bearingDeg: pose.bearingDeg, anchor }
-        )?.done;
-        return;
-      }
-      setDimImage(true);
       const rotation =
         key === OBLIQUE_NAVIGATION_KEYS.RotateLeft ||
         key === OBLIQUE_NAVIGATION_KEYS.RotateRight ||
         key === undefined;
+      if (rotation && rotationDrapeControllerRef.current) setBusy(true);
+      const drape = rotation ? await prepareRotationDrape(sourceRecord, step.candidate.record, epoch) : undefined;
+      if (epoch !== selectionEpochRef.current || !runningRef.current || !enabledSetRef.current.has(step.candidate.record.seriesId)) {
+        drape?.dispose();
+        if (epoch === selectionEpochRef.current) setBusy(false);
+        return;
+      }
+      selectedImageRef.current = step.candidate;
+      setSelectedImage(step.candidate);
+      if (!withPreview) {
+        await returnCameraToBrowsing(
+          dataset.animations.flyToNextImage?.duration,
+          { bearingDeg: pose.bearingDeg, anchor, onProgress: drape?.update }
+        )?.done;
+        finishRotationDrape(drape);
+        return;
+      }
+      setDimImage(true);
       const succeeded = await flyTo(
         step.candidate.record,
         rotation
@@ -1851,10 +2019,13 @@ const ObliqueViewerRuntime = ({
         true,
         true,
         rotation && nextInterface ? anchor : undefined,
-        step.fitNextImage || !nextInterface ? true : undefined
+        step.fitNextImage || !nextInterface ? true : undefined,
+        undefined,
+        drape?.update
       );
       if (epoch !== selectionEpochRef.current || !runningRef.current) return;
       setDimImage(false);
+      finishRotationDrape(drape);
       if (succeeded) setPreviewTransitionActive(false);
       else {
         publish({ previewVisible: false });
@@ -1865,6 +2036,10 @@ const ObliqueViewerRuntime = ({
       libreMap,
       nextInterface,
       rememberDirection,
+      cancelRotationDrape,
+      prepareRotationDrape,
+      finishRotationDrape,
+      setBusy,
       flyTo,
       returnCameraToBrowsing,
       publish,
@@ -2215,7 +2390,11 @@ const ObliqueViewerRuntime = ({
         <ObliqueOverlay map={libreMap}>
           {isDebugMode && axisPicker && (
             <Suspense fallback={null}>
-              <ObliqueDebug picker={axisPicker} />
+              <ObliqueDebug
+                picker={axisPicker}
+                surfaceMode={pointIntersectionSurface}
+                onSurfaceModeChange={setPointIntersectionSurface}
+              />
             </Suspense>
           )}
           {previewVisible &&
@@ -2228,6 +2407,7 @@ const ObliqueViewerRuntime = ({
                 photo={previewPhoto}
                 onRootChange={setPreviewRoot}
                 onOutlineReady={onPreviewOutlineReady}
+                onDisplayReady={() => onPreviewDisplayReady(selectedRecord.id)}
                 previewPath={selectedDataset.previewPath}
                 avifOnly={selectedDataset.avifOnly}
                 originalImageUrlTemplate={
@@ -2251,6 +2431,7 @@ const ObliqueViewerRuntime = ({
                 halfFovTan={selectedCalibration.halfFovTan}
                 dimImage={dimImage}
                 panEnabled={nextInterface}
+                showBasemapLabels={!nextInterface || previewBasemapLabels}
                 rollDeg={rollDeg}
                 interiorOrientationOffsets={principalOffset}
                 style={selectedDataset.imagePreviewStyle}

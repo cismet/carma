@@ -73,6 +73,42 @@ const query = (
 const { North, East, South, West } = CardinalDirectionEnum;
 
 describe("one-catalog directional and spatial selection", () => {
+  it("optionally indexes center-ray ground points and bounds candidates per direction while leaving default camera indexing unchanged", () => {
+    const remoteCamera = image("2026", "remote-camera", North, 0, 10000);
+    const nearbyCamera = image("2026", "near-camera", North, 0);
+    const east = image("2026", "east", East, 90);
+    const data = catalog([remoteCamera, nearbyCamera, east]);
+    data.centers.set(remoteCamera.id, {
+      id: remoteCamera.id,
+      x,
+      y,
+      longitude: target.longitude,
+      latitude: target.latitude,
+      cardinal: North,
+    });
+    data.centers.set(nearbyCamera.id, {
+      id: nearbyCamera.id,
+      x: x + 100,
+      y,
+      longitude: target.longitude,
+      latitude: target.latitude,
+      cardinal: North,
+    });
+    expect([...createImageSelectionIndex(data).candidates(query(0))]).toEqual([
+      nearbyCamera,
+    ]);
+    const index = createImageSelectionIndex(data, { groundCenters: true });
+    expect([...index.candidates(query(0), { limitPerDirection: 1 })]).toEqual([
+      remoteCamera,
+    ]);
+    expect([
+      ...index.candidates(query(0), {
+        allDirections: true,
+        limitPerDirection: 1,
+      }),
+    ]).toEqual([remoteCamera, east]);
+  });
+
   it("chooses different intrinsic sectors per series by their actual mean heading", () => {
     const oldNorth = image("2024", "north", North, 325);
     const newWest = image("2026", "west", West, 320);
@@ -99,6 +135,31 @@ describe("one-catalog directional and spatial selection", () => {
       catalog([left, right, image("2026", "south", South, 180)])
     );
     expect([...index.candidates(query(0))]).toEqual([left, right]);
+  });
+
+  it("fills cardinal indexes incrementally without losing earlier sectors", () => {
+    const north = image("2026", "north", North, 0);
+    const east = image("2026", "east", East, 90);
+    const index = createImageSelectionIndex(catalog([north]));
+    index.append(catalog([east]));
+    expect([...index.candidates(query(0))]).toEqual([north]);
+    expect([...index.candidates(query(90))]).toEqual([east]);
+  });
+
+  it("allows the all-direction fallback to cross the preferred 45 degree sector", () => {
+    const preferredButFar = image("2026", "north-far", North, 0, 1500);
+    const alternate = image("2026", "east-near", East, 90);
+    const index = createImageSelectionIndex(
+      catalog([preferredButFar, alternate])
+    );
+    const queryWithOrigin = query(0, {
+      excludeImageId: "current",
+      maxDistanceMeters: 1000,
+    });
+    expect([...index.candidates(queryWithOrigin)]).toEqual([]);
+    expect([
+      ...index.candidates(queryWithOrigin, { allDirections: true }),
+    ]).toEqual([alternate]);
   });
 
   it("keeps nearby candidates across cell boundaries and excludes corners outside the radius", () => {

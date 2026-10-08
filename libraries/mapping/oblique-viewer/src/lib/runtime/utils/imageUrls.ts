@@ -40,7 +40,7 @@ export const getImageUrls = (
   if (!id || !path) {
     return { previewUrl: null, downloadUrl: null };
   }
-  return {
+  const urls = {
     previewUrl: options?.avifOnly ? null : getPreviewImageUrl(path, level, id),
     downloadUrl: options?.avifOnly
       ? options.avifPyramidUrl ??
@@ -61,6 +61,19 @@ export const getImageUrls = (
             )}.${PREVIEW_IMAGE_EXTENSION}`
           : getPreviewImageUrl(path, downloadLevel ?? level, id)),
   };
+  if (options?.avifOnly && urls.downloadUrl?.includes("?")) {
+    const [asset, fragment] = urls.downloadUrl.split("#", 2);
+    const queryAt = asset.indexOf("?");
+    const query = new URLSearchParams(asset.slice(queryAt + 1));
+    if (queryAt >= 0 && query.has("pyramid")) {
+      query.delete("pyramid");
+      urls.downloadUrl =
+        asset.slice(0, queryAt) +
+        (query.size ? "?" + query : "") +
+        (fragment === undefined ? "" : "#" + fragment);
+    }
+  }
+  return urls;
 };
 
 export const downloadAsBlobAsync = async (

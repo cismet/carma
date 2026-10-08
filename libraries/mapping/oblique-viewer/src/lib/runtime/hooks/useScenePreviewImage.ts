@@ -16,10 +16,8 @@ import {
   type Degrees,
   type Ratio,
 } from "@carma-units";
-import {
-  nativePreviewTextureTransform,
-  type NativePreviewWindow,
-} from "../../core/utils/native-preview-window";
+import { nativePreviewTextureTransform } from "../../core/utils/native-preview-window";
+import type { NativePreviewWindow } from "@carma-commons/image-streaming";
 import type {
   ObliqueBackdropLook,
   ObliqueCameraCalibration,
@@ -30,7 +28,7 @@ import {
   imageProjectionMatrix,
   sceneToPhotoEnu,
   viewportImageProjection,
-} from "../utils/image-projection";
+} from "../../core/utils/image-projection";
 
 import type { PreviewBackdropTint } from "../utils/preview-backdrop";
 
@@ -69,6 +67,7 @@ export const useScenePreviewImage = ({
   priority = 0,
   backdropLook,
   backdropTint,
+  showBasemapLabels = true,
   onBeforeRender,
   onOutlineReady,
   photo,
@@ -86,6 +85,7 @@ export const useScenePreviewImage = ({
   priority?: number;
   backdropLook?: ObliqueBackdropLook;
   backdropTint?: PreviewBackdropTint;
+  showBasemapLabels?: boolean;
   onBeforeRender?: (geometry: ScenePreviewImageGeometry) => void;
   onOutlineReady?: () => void;
   photo?: ScenePreviewPhoto;
@@ -104,6 +104,7 @@ export const useScenePreviewImage = ({
     priority,
     backdropLook,
     backdropTint,
+    showBasemapLabels,
     onBeforeRender,
     onOutlineReady,
     photo,
@@ -121,6 +122,7 @@ export const useScenePreviewImage = ({
     priority,
     backdropLook,
     backdropTint,
+    showBasemapLabels,
     onBeforeRender,
     onOutlineReady,
     photo,
@@ -139,6 +141,8 @@ export const useScenePreviewImage = ({
     let texture: Texture | null = null;
     let textureSource: PreviewTextureSource | null = null;
     let textureRevision = -1;
+    let textureWidth = 0;
+    let textureHeight = 0;
     let textureCrop: NativePreviewWindow["source"] | undefined;
     let pendingReplacement = false;
     let opacity = 0;
@@ -163,6 +167,7 @@ export const useScenePreviewImage = ({
       priority: number;
       backdropLook?: ObliqueBackdropLook;
       backdropTint?: PreviewBackdropTint;
+      showBasemapLabels: boolean;
     } | null = null;
     const clear = () => {
       if (applied) layer.setMapStyleScreenOverlay?.(id, null);
@@ -255,7 +260,10 @@ export const useScenePreviewImage = ({
         "naturalHeight" in nextSource
           ? nextSource.naturalHeight
           : nextSource.height;
+      const resized =
+        sourceWidth !== textureWidth || sourceHeight !== textureHeight;
       const replacement =
+        resized ||
         nextSource !== textureSource ||
         nextRevision !== textureRevision ||
         nextCrop?.x !== textureCrop?.x ||
@@ -272,7 +280,12 @@ export const useScenePreviewImage = ({
         !!map.isMoving?.();
       // Keep the admitted source/crop pair while moving, but still update its camera matrix below.
       if (!pendingReplacement && replacement) {
-        if (nextSource !== textureSource) {
+        if (nextSource !== textureSource || resized) {
+          // WebGL2 storage is immutable: a differently sized crop needs a new allocation.
+          if (texture && resized) {
+            texture.dispose();
+            texture = null;
+          }
           if (texture) texture.image = nextSource;
           else
             texture =
@@ -284,6 +297,8 @@ export const useScenePreviewImage = ({
           texture.generateMipmaps = false;
           texture.needsUpdate = true;
           textureSource = nextSource;
+          textureWidth = sourceWidth;
+          textureHeight = sourceHeight;
           textureRevision = nextRevision;
         } else if (texture && nextRevision !== textureRevision) {
           texture.needsUpdate = true;
@@ -389,6 +404,7 @@ export const useScenePreviewImage = ({
         applied.imageMatrix === imageMatrix &&
         applied.opacity === opacity &&
         applied.priority === options.priority &&
+        applied.showBasemapLabels === options.showBasemapLabels &&
         applied.backdropLook?.contrast === options.backdropLook?.contrast &&
         applied.backdropLook?.brightness === options.backdropLook?.brightness &&
         applied.backdropLook?.saturation === options.backdropLook?.saturation &&
@@ -403,6 +419,7 @@ export const useScenePreviewImage = ({
         viewportToTexture: matrix,
         opacity,
         priority: options.priority,
+        showBasemapLabels: options.showBasemapLabels,
         border: {
           viewportToImage: imageMatrix,
           imageSize: geometry.image,
@@ -433,6 +450,7 @@ export const useScenePreviewImage = ({
         imageMatrix,
         opacity,
         priority: options.priority,
+        showBasemapLabels: options.showBasemapLabels,
         backdropLook: options.backdropLook
           ? { ...options.backdropLook }
           : undefined,
@@ -473,6 +491,7 @@ export const useScenePreviewImage = ({
     photo,
     priority,
     backdropLook?.contrast,
+    showBasemapLabels,
     backdropLook?.brightness,
     backdropLook?.saturation,
     backdropTint?.[0],

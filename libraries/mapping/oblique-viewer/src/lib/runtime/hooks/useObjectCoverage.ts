@@ -28,7 +28,7 @@ import {
 } from "../../core/utils/object-coverage";
 import { CARDINALS_CLOCKWISE } from "../../core/utils/orientation";
 import { resolveCameraAltitude } from "../utils/flyToImage";
-import { sceneToPhotoEnu } from "../utils/image-projection";
+import { sceneToPhotoEnu } from "../../core/utils/image-projection";
 import { FOOTPRINT_SELECTION_COLOR } from "../../core/constants";
 import type { CssPixels } from "@carma-units";
 
@@ -177,9 +177,6 @@ export const useObjectCoverage = ({
     null
   );
   const [sphere, setSphere] = useState<ObjectCoverageSphere | null>(null);
-  const [draftSphere, setDraftSphere] = useState<ObjectCoverageSphere | null>(
-    null
-  );
   const [groups, setGroups] = useState<ObjectCoverageGroups>(emptyGroups);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -187,8 +184,8 @@ export const useObjectCoverage = ({
   centerRef.current = center;
   const sphereRef = useRef(sphere);
   sphereRef.current = sphere;
-  const displaySphereRef = useRef(draftSphere ?? sphere);
-  displaySphereRef.current = draftSphere ?? sphere;
+  // Draft radius belongs to the scene; only committed selections enter React.
+  const displaySphereRef = useRef<ObjectCoverageSphere | null>(null);
   const suspendedRef = useRef(suspended);
   suspendedRef.current = suspended;
   const readAnchorRef = useRef(readViewAnchor);
@@ -206,7 +203,6 @@ export const useObjectCoverage = ({
     displaySphereRef.current = null;
     setCenter(null);
     setSphere(null);
-    setDraftSphere(null);
     setGroups(emptyGroups());
     setLoading(false);
     setError(null);
@@ -282,6 +278,12 @@ export const useObjectCoverage = ({
       root,
       update: () => {
         const current = displaySphereRef.current;
+        const frame = lease.layer.getLocalFrame();
+        const origin = lease.layer.projectSceneToLngLat([0, 0, 0]);
+        const frameKey = origin?.join(",") + ":" + frame?.revision;
+        if (current === previousSphere && frameKey === previousFrame) return;
+        previousSphere = current;
+        previousFrame = frameKey;
         const matrix =
           current &&
           objectCoverageSphereMatrix(current, (lngLat, height) =>
@@ -292,12 +294,6 @@ export const useObjectCoverage = ({
           root.matrix.copy(matrix);
           root.matrixWorldNeedsUpdate = true;
         }
-        const frame = lease.layer.getLocalFrame();
-        const origin = lease.layer.projectSceneToLngLat([0, 0, 0]);
-        const frameKey = origin?.join(",") + ":" + frame?.revision;
-        if (current === previousSphere && frameKey === previousFrame) return;
-        previousSphere = current;
-        previousFrame = frameKey;
         if (
           !current ||
           !matrix ||
@@ -388,7 +384,6 @@ export const useObjectCoverage = ({
       if (!Number.isFinite(radiusMeters)) return;
       const next = { center: current, radiusMeters };
       displaySphereRef.current = next;
-      setDraftSphere(next);
       map.triggerRepaint();
     };
     const onMove = (event: PointerEvent) => {
@@ -429,7 +424,6 @@ export const useObjectCoverage = ({
       const next = { center: centerRef.current, radiusMeters };
       sphereRef.current = next;
       displaySphereRef.current = next;
-      setDraftSphere(null);
       setSphere(next);
       map.triggerRepaint();
     };

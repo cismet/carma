@@ -31,7 +31,7 @@ import type {
 import {
   imageProjectionMatrix,
   sceneToPhotoEnu,
-} from "./utils/image-projection";
+} from "../core/utils/image-projection";
 import { ObliqueObjectCoverage } from "./ObliqueObjectCoverage";
 
 const scene = vi.hoisted(() => ({

@@ -3,11 +3,22 @@ import { gzipSync } from "node:zlib";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ObliqueDataset } from "../../core/types";
 import { loadObliqueSeriesData } from "./load-oblique-series";
-const parsing = vi.hoisted(() => ({ build: vi.fn() }));
+const parsing = vi.hoisted(() => ({
+  build: vi.fn(),
+  center: vi.fn(),
+  ring: vi.fn(),
+}));
+vi.mock("../../core/utils/selection", () => ({
+  estimateGroundCenter: parsing.center,
+  estimateGroundFootprint: parsing.ring,
+}));
 vi.mock("@carma-geo/proj", () => ({ getProj4Converter: () => ({}) }));
 vi.mock("../../core/utils/imageRecord", () => ({
   buildImageRecords: parsing.build,
-  summarizeObliquePitch: () => new Map(),
+  summarizeObliquePitchStatistics: () => ({
+    obliquePitchBySeries: new Map(),
+    obliquePitchByDirectionBySeries: new Map(),
+  }),
   wgs84ToDatasetXY: vi.fn(),
 }));
 const dataset = {
@@ -33,6 +44,33 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 describe("exact JSON gzip metadata transport", () => {
+  it("precomputes ground centers without deriving approximation footprints", async () => {
+    const records = Array.from({ length: 1300 }, (_, i) => ({
+      id: String(i),
+      sourceId: String(i),
+      sector: "N",
+    }));
+    parsing.build.mockReturnValueOnce({
+      imageRecords: new Map(records.map((record) => [record.id, record])),
+      dataset,
+    });
+    parsing.center.mockImplementation((record) => ({ id: record.id }));
+    const result = await loadObliqueSeriesData(
+      dataset,
+      undefined,
+      vi.fn<typeof fetch>().mockResolvedValueOnce(compressed())
+    );
+    expect(result.centers.size).toBe(1300);
+    expect(parsing.center).toHaveBeenCalledTimes(1300);
+    expect(parsing.ring).not.toHaveBeenCalled();
+    expect(
+      [...result.imageRecords.values()].every(
+        (record) =>
+          record.footprint === undefined && record.footprintApproximate
+      )
+    ).toBe(true);
+  });
+
   it("decompresses native gzip and passes every document value unchanged to the existing builder", async () => {
     const network = vi.fn<typeof fetch>().mockResolvedValueOnce(compressed());
     await loadObliqueSeriesData(dataset, undefined, network);
@@ -44,16 +82,14 @@ describe("exact JSON gzip metadata transport", () => {
     expect(network.mock.calls[0][0]).toBe(dataset.compressedCatalogURI);
   });
   it("accepts a body already decompressed by HTTP without a second gzip pass", async () => {
-    const network = vi
-      .fn<typeof fetch>()
-      .mockResolvedValueOnce(
-        new Response(text, {
-          headers: {
-            "Content-Encoding": "gzip",
-            "Content-Type": "application/json",
-          },
-        })
-      );
+    const network = vi.fn<typeof fetch>().mockResolvedValueOnce(
+      new Response(text, {
+        headers: {
+          "Content-Encoding": "gzip",
+          "Content-Type": "application/json",
+        },
+      })
+    );
     await loadObliqueSeriesData(dataset, undefined, network);
     expect(parsing.build.mock.calls[0][0]).toStrictEqual(exact);
     expect(network).toHaveBeenCalledOnce();

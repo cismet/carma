@@ -14,6 +14,7 @@ type TerrainRuntime = {
   ready: Promise<boolean>;
   isBaseViewReady: ReturnType<typeof vi.fn>;
   setGroundVisible: ReturnType<typeof vi.fn>;
+  setTileDemandPaused: ReturnType<typeof vi.fn>;
   dispose: ReturnType<typeof vi.fn>;
 };
 type SceneLease = {
@@ -51,6 +52,7 @@ const state = vi.hoisted(() => ({
   currentStyle: "luftbild",
   setCurrentStyle: vi.fn(),
   obliqueEnabled: false,
+  previewVisible: false,
   map: null as { getCenter: () => { lng: number; lat: number } } | null,
   leases: [] as SceneLease[],
   runtimes: [] as TerrainRuntime[],
@@ -59,6 +61,8 @@ const state = vi.hoisted(() => ({
   unregisters: [] as ReturnType<typeof vi.fn>[],
   restores: [] as ReturnType<typeof vi.fn>[],
   acquireComposition: vi.fn(),
+  acquireDemandPause: vi.fn(),
+  acquireZoomLimit: vi.fn(),
   buildTerrain: vi.fn(),
   notifyChanged: vi.fn(),
   shadedReady: false,
@@ -156,6 +160,15 @@ vi.mock("@carma-mapping/engines/maplibre", () => ({
     state.presentationListeners.add(listener);
     return () => state.presentationListeners.delete(listener);
   },
+  WUPPERTAL_TERRAIN_SOURCE_ID: "test-dem-source",
+  acquireMapLibreTerrainZoomLimit: (...args: unknown[]) => {
+    state.acquireZoomLimit(...args);
+    return vi.fn();
+  },
+  acquireMapLibreTerrainDemandPause: (...args: unknown[]) => {
+    state.acquireDemandPause(...args);
+    return vi.fn();
+  },
   acquireMapLibreTerrainMeshComposition: (...args: unknown[]) => {
     state.acquireComposition(...args);
     const restore = vi.fn();
@@ -173,6 +186,7 @@ vi.mock("@carma-mapping/engines/maplibre/terrain", () => ({
       ),
       isBaseViewReady: vi.fn(() => state.terrainUsable),
       setGroundVisible: vi.fn(),
+      setTileDemandPaused: vi.fn(),
       dispose: vi.fn(),
     };
     state.runtimes.push(runtime);
@@ -190,7 +204,10 @@ vi.mock("@carma-mapping/addons", async () => {
     useAddonState: () => [state.shadow],
     useRouteAddons: () => state.addons,
     usePersistedAddonOverrides: () => [state.overrides],
-    useObliqueViewerActions: () => ({ isOn: state.obliqueEnabled }),
+    useObliqueViewerActions: () => ({
+      isOn: state.obliqueEnabled,
+      previewVisible: state.previewVisible,
+    }),
     // Registry and persistence have their own tests; exercise this hook without
     // initializing unrelated addon components and mapping-engine barrels.
     resolveAddonEntries: (entries: AddonEntry[]) =>
@@ -291,6 +308,46 @@ const lastBackgroundOptions = () =>
   state.backgroundOptions[state.backgroundOptions.length - 1];
 
 describe("useLibreLayers with conditional layers", () => {
+  it("caps native label DEM in Mesh and does not admit Three DEM demand on preview close", () => {
+    state.map = { getCenter: () => ({ lng: 7.2, lat: 51.27 }) };
+    state.addons = ["obliqueViewer", "mapStyle3d"];
+    state.obliqueEnabled = true;
+    state.previewVisible = true;
+    const view = renderHook(() => useLibreLayers());
+    const terrain = state.runtimes[0];
+    expect(state.acquireZoomLimit).toHaveBeenCalledWith(state.map, "test-dem-source", 13);
+    expect(terrain.setTileDemandPaused).toHaveBeenLastCalledWith(true);
+    state.previewVisible = false;
+    view.rerender();
+    expect(terrain.setTileDemandPaused).toHaveBeenLastCalledWith(true);
+    state.currentStyle = MapStyleKeys.TOPO;
+    view.rerender();
+    expect(terrain.setTileDemandPaused).toHaveBeenLastCalledWith(false);
+    expect(terrain.setGroundVisible).toHaveBeenLastCalledWith(true);
+    expect(state.buildTerrain).toHaveBeenCalledOnce();
+  });
+  it("freezes DEM demand in a preview without rebuilding or releasing cached terrain", () => {
+    state.map = { getCenter: () => ({ lng: 7.2, lat: 51.27 }) };
+    state.addons = ["obliqueViewer"];
+    state.obliqueEnabled = true;
+    state.previewVisible = true;
+    const view = renderHook(() => useLibreLayers());
+    const terrain = state.runtimes[0];
+    expect(terrain.setTileDemandPaused).toHaveBeenLastCalledWith(true);
+    expect(state.acquireDemandPause).toHaveBeenCalledWith(state.map, "test-dem-source");
+    state.currentStyle = MapStyleKeys.TOPO;
+    view.rerender();
+    expect(terrain.setTileDemandPaused).toHaveBeenLastCalledWith(true);
+    expect(terrain.setGroundVisible).toHaveBeenLastCalledWith(true);
+    state.previewVisible = false;
+    view.rerender();
+    expect(terrain.setTileDemandPaused).toHaveBeenLastCalledWith(false);
+    expect(state.buildTerrain).toHaveBeenCalledOnce();
+    expect(state.runtimes[0]).toBe(terrain);
+    expect(terrain.dispose).not.toHaveBeenCalled();
+    expect(state.unregisters[0]).not.toHaveBeenCalled();
+  });
+
   afterEach(() => {
     cleanup();
     vi.unstubAllGlobals();
@@ -306,6 +363,7 @@ describe("useLibreLayers with conditional layers", () => {
     );
     state.currentStyle = MapStyleKeys.AERIAL;
     state.obliqueEnabled = false;
+    state.previewVisible = false;
     state.map = null;
     state.leases = [];
     state.runtimes = [];
@@ -587,9 +645,12 @@ describe("useLibreLayers with conditional layers", () => {
       { id: "test-terrain" },
       [7.2, 51.27],
       expect.objectContaining({
+        geometryProjection: "ecef",
         receivesMapStyleTexture: true,
+        material: { unlit: true },
         errorTargetPixels: 1,
         motionErrorTargetPixels: 4,
+        maximumMeshSegments: 128,
       })
     );
     const terrain = state.runtimes[0];
