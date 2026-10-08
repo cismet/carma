@@ -565,6 +565,8 @@ const ObliqueViewerRuntime = ({
     imageId: string;
     pose: ReturnType<typeof poseOf>;
     altitude: Meters;
+    /** Vertical FOV once a Classic entry has fitted the whole photo. */
+    fitFovDeg?: number;
   } | null>(null);
   // The desired ground point survives image-camera flights, which move the map centre.
   const targetRef = useRef<ObliqueGroundTarget | null>(null);
@@ -1078,7 +1080,16 @@ const ObliqueViewerRuntime = ({
         activeFlightRef.current = flight;
         await flight.done;
         profile?.phase("afterFlight");
-        if (activeFlightRef.current === flight) activeFlightRef.current = null;
+        const completed = activeFlightRef.current === flight;
+        if (completed) activeFlightRef.current = null;
+        if (
+          completed &&
+          !nextInterface &&
+          !previewState &&
+          previewCameraRef.current?.imageId === record.id
+        )
+          previewCameraRef.current.fitFovDeg =
+            libreMap.getVerticalFieldOfView();
         return (
           epoch === selectionEpochRef.current &&
           runningRef.current &&
@@ -1134,18 +1145,35 @@ const ObliqueViewerRuntime = ({
       // The fit is a pure zoom from the photo eye; leaving keeps that FOV and
       // turns to the image-centre browsing pitch, so it barely moves the view
       // and re-entering the preview from there is nearly still.
-      const fitImage =
+      const leavingImage =
         !nextInterface &&
         previewVisibleRef.current &&
-        record &&
-        dataset &&
+        !!record &&
+        !!dataset &&
         camera?.imageId === record.id;
+      // Zoom octaves back to the whole photo; an unzoomed preview skips the fit.
+      const fitOctaves =
+        leavingImage && camera?.fitFovDeg !== undefined
+          ? Math.abs(
+              Math.log2(
+                Math.tan(degreesToRadians((camera.fitFovDeg / 2) as Degrees)) /
+                  Math.tan(
+                    degreesToRadians(
+                      (libreMap.getVerticalFieldOfView() / 2) as Degrees
+                    )
+                  )
+              )
+            )
+          : 1;
+      const fitImage = leavingImage && fitOctaves > 0.03;
       setDimImage(!fitImage);
       const exitDuration =
         durationMs ??
         browsingDataset.animations.leaveObliqueMode?.duration ??
         1100;
-      const fitDuration = fitImage ? exitDuration * 0.6 : 0;
+      const fitDuration = fitImage
+        ? exitDuration * Math.min(0.6, 0.25 + 0.35 * fitOctaves)
+        : 0;
       const easing =
         rotation?.easing ??
         browsingDataset.animations.leaveObliqueMode?.easingFunction;
@@ -1216,6 +1244,9 @@ const ObliqueViewerRuntime = ({
         setDimImage(false);
         if (runningRef.current) lockCamera(pitch);
         setBusy(false);
+        // Keep the photo just left selected until a map gesture, so
+        // "Flug zum Bild" returns to it instead of a nearby neighbour.
+        if (leavingImage) navigationSelectionHeldRef.current = true;
         if (runningRef.current) void refreshSearch({ immediate: true });
       });
       return flight;
