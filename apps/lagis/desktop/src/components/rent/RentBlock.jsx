@@ -177,6 +177,7 @@ const editColumns = (stammdaten, invalid) => {
         <Select
           size="small"
           mode="multiple"
+          optionFilterProp="label"
           maxTagCount="responsive"
           placeholder="Merkmale"
           className="w-full"
