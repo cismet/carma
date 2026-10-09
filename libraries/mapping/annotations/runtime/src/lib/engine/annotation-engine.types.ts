@@ -111,6 +111,12 @@ export type AnnotationSceneLineStyle = {
   width: number;
   /** Draw the depth-occluded part of the line as a dashed trace on top. */
   occludedDashed?: boolean;
+  /**
+   * Dash the line in world metres at the engine's grid pitch (the 1-2-5
+   * series of the area fills), counted from the first vertex, so distances
+   * can be read along the line like on a ruler.
+   */
+  metricDashed?: boolean;
 };
 
 export type AnnotationSceneLineOptions = AnnotationSceneLineStyle & {

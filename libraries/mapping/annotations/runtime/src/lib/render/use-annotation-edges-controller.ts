@@ -103,6 +103,8 @@ type EdgeSceneLine = {
   // The engine draws the depth-occluded part of this line itself (dashed, on
   // top) instead of the SVG overlay trace.
   occludedDashed: boolean;
+  // World-scale dashes at the engine's grid pitch, counting metres along the line.
+  metricDashed: boolean;
   // Node ids of the endpoints, when this line maps directly to a node-to-node
   // segment. Lets the preRender patch override endpoints from live drag anchors
   // so the polyline tracks the gizmo in the same frame.
@@ -128,6 +130,7 @@ type EdgeSegment = {
   strokeWidth: number;
   overlayDashPattern: string;
   overlayDashed?: true;
+  metricDashed?: true;
   showSegmentLengthLabels?: true;
   distanceTriangleOverlay?: RuntimeDistanceTriangleOverlayRenderModel;
 };
@@ -299,6 +302,7 @@ const buildSceneLineSignature = (line: EdgeSceneLine) =>
     line.stroke,
     line.strokeWidth,
     line.occludedDashed,
+    line.metricDashed,
   ].join(":");
 
 const createSceneLineCollections = (
@@ -338,6 +342,7 @@ const createSceneLineHandle = (
     color: line.stroke,
     width: line.strokeWidth,
     occludedDashed: line.occludedDashed,
+    metricDashed: line.metricDashed,
     visible: true,
   });
 
@@ -1097,6 +1102,7 @@ export const useAnnotationEdgesController = (
             strokeWidth,
             overlayDashPattern,
             ...(edge.overlayDashed ? { overlayDashed: true as const } : {}),
+            ...(edge.metricDashed ? { metricDashed: true as const } : {}),
             ...(edge.showSegmentLengthLabels
               ? { showSegmentLengthLabels: true as const }
               : {}),
@@ -1138,6 +1144,7 @@ export const useAnnotationEdgesController = (
           stroke: edge.stroke,
           strokeWidth: edge.strokeWidth,
           occludedDashed: occludedLinesInScene && edge.overlayDashed === true,
+          metricDashed: edge.metricDashed === true,
           startNodeId: edge.startNodeId,
           endNodeId: edge.endNodeId,
         };
@@ -1170,6 +1177,7 @@ export const useAnnotationEdgesController = (
             stroke: annotationOverlayDefaults.verticalLineColor,
             strokeWidth: edge.strokeWidth,
             occludedDashed: occludedLinesInScene,
+            metricDashed: edge.metricDashed === true,
             recompute: (currentLiveAnchors) => {
               if (!edgeSegmentHasLiveAnchor(edge, currentLiveAnchors)) {
                 return null;
@@ -1196,6 +1204,7 @@ export const useAnnotationEdgesController = (
             stroke: annotationOverlayDefaults.horizontalLineColor,
             strokeWidth: edge.strokeWidth,
             occludedDashed: occludedLinesInScene,
+            metricDashed: edge.metricDashed === true,
             recompute: (currentLiveAnchors) => {
               if (!edgeSegmentHasLiveAnchor(edge, currentLiveAnchors)) {
                 return null;

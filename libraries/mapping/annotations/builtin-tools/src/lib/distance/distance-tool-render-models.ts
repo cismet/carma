@@ -254,6 +254,8 @@ export const buildDistanceToolRenderModels = ({
             annotation.distanceTriangleAnchorCoordinateRole ??
             resolveDistanceTriangleAnchorCoordinateRole(coordinates),
         },
+        // A ruler along the measured line and its horizontal and vertical legs.
+        metricDashed: true as const,
         ...(selectedAnnotationIdSet.has(annotation.id)
           ? applySelectedEdgeVisualStyle(visuals.edge)
           : visuals.edge),

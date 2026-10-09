@@ -33,3 +33,46 @@ export const getAnnotationAreaCssColor = (
   type: PolygonType,
   alpha: number
 ): string => formatRgbaCss(getAnnotationAreaRgb255(type), alpha);
+
+/**
+ * Host overrides of the area palette: other colours per area type, other
+ * fill alphas. Everything else of the area style (the engine's fill
+ * pattern, the occlusion traces) is set beside it in the host's tool
+ * settings; this part is what the tools themselves colour with.
+ */
+export type AnnotationAreaPaletteOptions = {
+  fillAlpha?: number;
+  selectedFillAlpha?: number;
+  rgb255ByType?: Partial<Record<PolygonType, Rgb255>>;
+};
+
+export type AnnotationAreaPalette = {
+  rgb255: (type: PolygonType) => Rgb255;
+  fillCssColor: (type: PolygonType, selected: boolean) => string;
+  cssColor: (type: PolygonType, alpha: number) => string;
+};
+
+const isUnitAlpha = (value: unknown): value is number =>
+  typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 1;
+
+export const createAnnotationAreaPalette = (
+  options: AnnotationAreaPaletteOptions = {}
+): AnnotationAreaPalette => {
+  const fillAlpha = isUnitAlpha(options.fillAlpha)
+    ? options.fillAlpha
+    : annotationAreaPalette.fillAlpha;
+  const selectedFillAlpha = isUnitAlpha(options.selectedFillAlpha)
+    ? options.selectedFillAlpha
+    : annotationAreaPalette.selectedFillAlpha;
+  const rgb255 = (type: PolygonType): Rgb255 =>
+    options.rgb255ByType?.[type] ?? annotationAreaPalette.rgb255ByType[type];
+  return {
+    rgb255,
+    fillCssColor: (type, selected) =>
+      formatRgbaCss(rgb255(type), selected ? selectedFillAlpha : fillAlpha),
+    cssColor: (type, alpha) => formatRgbaCss(rgb255(type), alpha),
+  };
+};
+
+export const defaultAnnotationAreaPalette: AnnotationAreaPalette =
+  createAnnotationAreaPalette();
