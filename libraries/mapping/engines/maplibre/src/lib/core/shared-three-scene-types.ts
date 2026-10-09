@@ -136,6 +136,13 @@ export interface SharedThreeSceneRuntime {
   mapStyleProjectionVersion?: () => number;
   /** Whether terrain-supplying content is ready to replace fallback terrain. */
   hasRenderableContent?: () => boolean;
+  /**
+   * The object whose local space is WGS84 ECEF, for content that must sit
+   * exactly on this runtime's geometry: apply its world matrix to an ECEF
+   * position and the result is where this runtime draws that point, ground
+   * reference, local-frame fit and refits included. Null until mounted.
+   */
+  getEcefFrame?: () => THREE.Object3D | null;
   updatePriority?: number;
   onAdd?: (map: MaplibreMap) => void;
   update: (frame: SharedThreeSceneFrame) => void;

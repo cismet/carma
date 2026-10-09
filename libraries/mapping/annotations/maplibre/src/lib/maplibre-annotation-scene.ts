@@ -1,5 +1,6 @@
 import type { Map as MaplibreMap } from "maplibre-gl";
-import { Group, Matrix4, Vector3, Vector4 } from "three";
+import { getSharedThreeSceneRuntimes } from "@carma-mapping/engines/maplibre";
+import { Group, Matrix4, type Object3D, Vector3, Vector4 } from "three";
 import {
   acquireSharedThreeScene,
   type SharedThreeSceneFrame,
@@ -108,6 +109,37 @@ export const createMapLibreAnnotationScene = (
   const project = (lngLat: [number, number], altitude: number, out?: Vector3) =>
     lease.layer.projectLngLatToScene(lngLat, altitude, out);
 
+  // Where a mesh or tileset is drawn, positions follow its own ECEF frame:
+  // the tiles runtime shifts its content to a sampled ground reference and
+  // mounts it on the layer's local-frame fit, and only that matrix puts a
+  // measured point back onto the surface it was measured on, after a reload
+  // or a refit as well. Without such a runtime the Mercator projection of
+  // the layer places content (terrain-only maps).
+  const ecefToScene = new Matrix4();
+  const sceneToEcef = new Matrix4();
+  let ecefFrameKey = -1;
+  let ecefFrame: Object3D | null = null;
+  const resolveEcefFrame = (): Object3D | null => {
+    if (ecefFrameKey === frameKey) return ecefFrame;
+    ecefFrameKey = frameKey;
+    const frame =
+      getSharedThreeSceneRuntimes(map)
+        .map((runtime) =>
+          runtime.root.visible && runtime.getEcefFrame
+            ? runtime.getEcefFrame()
+            : null
+        )
+        .find((candidate) => candidate !== null && candidate.parent !== null) ??
+      null;
+    ecefFrame = frame;
+    if (frame) {
+      frame.updateWorldMatrix(true, false);
+      ecefToScene.copy(frame.matrixWorld);
+      sceneToEcef.copy(ecefToScene).invert();
+    }
+    return frame;
+  };
+
   /** A primitive parked at the ECEF origin or anywhere off the ellipsoid has no place in the scene. */
   const MIN_ECEF_RADIUS_SQUARED = 1e6;
   const sceneFromEcef = (positionECEF: Vector3, out?: Vector3) => {
@@ -118,6 +150,9 @@ export const createMapLibreAnnotationScene = (
       positionECEF.lengthSq() < MIN_ECEF_RADIUS_SQUARED
     ) {
       return null;
+    }
+    if (resolveEcefFrame()) {
+      return (out ?? new Vector3()).copy(positionECEF).applyMatrix4(ecefToScene);
     }
     const geographic = geographicCoordinateFromEcef(positionECEF);
     if (
@@ -143,6 +178,9 @@ export const createMapLibreAnnotationScene = (
       !Number.isFinite(scenePosition.z)
     ) {
       return null;
+    }
+    if (resolveEcefFrame()) {
+      return (out ?? new Vector3()).copy(scenePosition).applyMatrix4(sceneToEcef);
     }
     const lngLat = lease.layer.projectSceneToLngLat(scenePosition);
     if (!lngLat || !Number.isFinite(lngLat[0]) || !Number.isFinite(lngLat[1])) {
