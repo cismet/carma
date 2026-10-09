@@ -13,6 +13,8 @@ import {
 type PendingSharedAnnotations = {
   token: number;
   state: AnnotationsRuntimePersistenceEnvelope;
+  /** The stored sets (by storage key) that took this one already. */
+  takenBy: Set<string>;
 };
 
 let pending: PendingSharedAnnotations | null = null;
@@ -24,7 +26,10 @@ export const publishSharedAnnotations = (collection: unknown): boolean => {
     resolveAnnotationsRuntimePersistenceFromGeoJson(collection) ??
     parseAnnotationsRuntimePersistenceEnvelope(collection);
   if (!state || state.tables.annotationEntries.length === 0) return false;
-  pending = { token: nextToken++, state };
+  pending = { token: nextToken++, state, takenBy: new Set() };
+  console.info(
+    `[ANNOTATIONS] shared set of ${state.tables.annotationEntries.length} measurements pending, ${listeners.size} listener(s)`
+  );
   for (const listener of listeners) listener(pending);
   return true;
 };
@@ -39,9 +44,19 @@ export const subscribeSharedAnnotations = (
   };
 };
 
-/** Marks the pending set as imported; true when it was still the one given. */
-export const consumeSharedAnnotations = (token: number): boolean => {
-  if (!pending || pending.token !== token) return false;
-  pending = null;
+/**
+ * Marks the pending set as imported into the stored set named by the
+ * consumer key; true once per key and set. The set stays for providers that
+ * mount later on another key (the Cesium and the MapLibre view keep their
+ * own stored sets under a shared-url app key).
+ */
+export const consumeSharedAnnotations = (
+  token: number,
+  consumerKey: string
+): boolean => {
+  if (!pending || pending.token !== token || pending.takenBy.has(consumerKey)) {
+    return false;
+  }
+  pending.takenBy.add(consumerKey);
   return true;
 };

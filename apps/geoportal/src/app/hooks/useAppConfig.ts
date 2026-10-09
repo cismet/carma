@@ -145,7 +145,10 @@ const onLoadedConfig = (
   if (config.measurements3d) {
     // The annotation providers mount after the configuration; they take the
     // set from the pending slot and settle conflicts with the user.
-    publishSharedAnnotations(config.measurements3d);
+    const published = publishSharedAnnotations(config.measurements3d);
+    console.info(
+      `[CONFIG] shared measurements ${published ? "pending for the annotation provider" : "ignored: not a measurement set"}`
+    );
   }
   if (config.selectedFeature) {
     if (

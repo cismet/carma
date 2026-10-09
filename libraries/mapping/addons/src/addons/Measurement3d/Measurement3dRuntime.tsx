@@ -301,7 +301,10 @@ export const Measurement3dRuntime = ({
     >
       <Measurement3dCountSync />
       {engine !== null ? (
-        <SharedAnnotationsImport confirmConflicts={confirmSharedMeasurementsConflicts} />
+        <SharedAnnotationsImport
+          consumerKey={config?.storageKey ?? MEASUREMENT3D_DEFAULTS.storageKey}
+          confirmConflicts={confirmSharedMeasurementsConflicts}
+        />
       ) : null}
       {active ? <Measurement3dToolbarPortal plugins={visiblePlugins} /> : null}
       {active ? <Measurement3dShortcutBindings /> : null}

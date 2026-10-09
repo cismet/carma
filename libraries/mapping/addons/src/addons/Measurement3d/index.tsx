@@ -65,7 +65,10 @@ export const Measurement3d = ({
   useEffect(() => {
     const stored = loadMeasurement3dState();
     if (stored?.isOn) setOn(true);
-    return subscribeSharedAnnotations(() => setOn(true));
+    return subscribeSharedAnnotations(() => {
+      console.info("[MEASUREMENT3D] shared measurements pending, switching the tool on");
+      setOn(true);
+    });
   }, [setOn]);
   useEffect(() => {
     saveMeasurement3dState({ isOn });
