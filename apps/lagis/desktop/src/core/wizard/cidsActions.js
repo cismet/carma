@@ -16,7 +16,7 @@ const buildTaskParams = (parameters) => {
   return formData;
 };
 
-const post = async (endpoint, parameters, jwt, logMeta) => {
+const post = async (endpoint, parameters, jwt, logMeta, { keepalive } = {}) => {
   const callId = startCall(
     `POST ${endpoint}\n\n${JSON.stringify({ parameters }, null, 2)}`,
     parameters,
@@ -40,6 +40,7 @@ const post = async (endpoint, parameters, jwt, logMeta) => {
       method: "POST",
       headers: { Authorization: `Bearer ${jwt}` },
       body: buildTaskParams(parameters),
+      keepalive,
     });
   } catch (e) {
     throw fail("Die Verbindung zum Server ist fehlgeschlagen.", String(e));
@@ -98,11 +99,14 @@ export const saveObject = (className, data, jwt) =>
     operation: className,
   });
 
-export const deleteObject = (className, data, jwt) =>
-  post(LAGIS_DELETE_ENDPOINT, { className, data: JSON.stringify(data) }, jwt, {
-    kind: "DeleteObject",
-    operation: className,
-  });
+export const deleteObject = (className, data, jwt, options) =>
+  post(
+    LAGIS_DELETE_ENDPOINT,
+    { className, data: JSON.stringify(data) },
+    jwt,
+    { kind: "DeleteObject", operation: className },
+    options
+  );
 
 export const idFromSaveResult = (result, className) => {
   const candidates = [

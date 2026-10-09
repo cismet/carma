@@ -39,19 +39,5 @@ export const notifyStartFailed = (error) =>
     errorMessage(error)
   );
 
-export const notifyLockCheckFailed = (error) =>
-  show(
-    typeOf(error),
-    "lock-check",
-    "Sperre nicht geprüft",
-    errorMessage(error)
-  );
-
-export const notifyLockLost = (text) =>
-  show("warning", "lock-lost", "Sperre verloren", text);
-
-export const notifySaveBlocked = (error) =>
-  show("error", "lock-save", "Speichern nicht möglich", errorMessage(error));
-
 export const notifyLocksCleared = (type, text) =>
   show(type, "lock-clear", "Meine Sperren", text);

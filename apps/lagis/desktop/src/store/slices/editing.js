@@ -10,9 +10,6 @@ const initialState = {
   original: undefined,
   draft: undefined,
   status: "idle",
-  lockHolder: undefined,
-  // additional_info of the holder's lock, for the "seit" in messages
-  lockHolderInfo: undefined,
 };
 
 const slice = createSlice({
@@ -31,23 +28,10 @@ const slice = createSlice({
       state.rebeLocks = rebeLocks;
       state.original = sections;
       state.draft = sections;
-      state.lockHolder = undefined;
-      state.lockHolderInfo = undefined;
     },
     patchDraftSection(state, action) {
       const { section, changes } = action.payload;
       state.draft[section] = { ...state.draft[section], ...changes };
-    },
-    lockRenewed(state, action) {
-      state.lock = action.payload.lock;
-      state.mipaLocks = action.payload.mipaLocks;
-      state.rebeLocks = action.payload.rebeLocks;
-      state.lockHolder = undefined;
-      state.lockHolderInfo = undefined;
-    },
-    lockLost(state, action) {
-      state.lockHolder = action.payload.holder;
-      state.lockHolderInfo = action.payload.info;
     },
     editEnded() {
       return initialState;
@@ -57,20 +41,12 @@ const slice = createSlice({
 
 export default slice;
 
-export const {
-  setEditStatus,
-  editStarted,
-  patchDraftSection,
-  lockRenewed,
-  lockLost,
-  editEnded,
-} = slice.actions;
+export const { setEditStatus, editStarted, patchDraftSection, editEnded } =
+  slice.actions;
 
 export const getEditActive = (state) => state.editing.active;
 export const getEditStatus = (state) => state.editing.status;
 export const getEditParcel = (state) => state.editing.parcel;
-export const getEditLockHolder = (state) => state.editing.lockHolder;
-export const getEditLockHolderInfo = (state) => state.editing.lockHolderInfo;
 export const getDraftSection = (section) => (state) =>
   state.editing.draft?.[section];
 export const getOriginalSection = (section) => (state) =>
