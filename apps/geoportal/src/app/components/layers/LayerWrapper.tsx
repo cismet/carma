@@ -62,6 +62,7 @@ import { shouldShowAdhocLayerInLayerList } from "../../helper/adhoc-feature-util
 import { useDynamicStylingSync } from "../../hooks/useDynamicStylingSync";
 import { useHighlightLayerButton } from "../../hooks/useHighlightLayerButton";
 import { useAnnotationLayerButton } from "../../hooks/useAnnotationLayerButton";
+import { useMeasurement3dLayerButton } from "../../hooks/useMeasurement3dLayerButton";
 import { useComparingLayerButton } from "../../hooks/useComparingLayerButton";
 import { useTimeSliderLayerButton } from "../../hooks/useTimeSliderLayerButton";
 import { useFlowFieldLayerButton } from "../../hooks/useFlowFieldLayerButton";
@@ -84,6 +85,7 @@ const LayerWrapper = () => {
   useDynamicStylingSync();
   useHighlightLayerButton();
   useAnnotationLayerButton();
+  useMeasurement3dLayerButton();
   useComparingLayerButton();
   useTimeSliderLayerButton();
   useFlowFieldLayerButton();

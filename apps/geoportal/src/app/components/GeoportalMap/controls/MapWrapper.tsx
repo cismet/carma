@@ -65,6 +65,7 @@ import { useDispatchSachdatenInfoText } from "../../../hooks/useDispatchSachdate
 import { useFeatureInfoModeCursorStyle } from "../../../hooks/useFeatureInfoModeCursorStyle.ts";
 import { useHighlightModeSync } from "../../../hooks/useHighlightModeSync.ts";
 import { useAnnotationModeSync } from "../../../hooks/useAnnotationModeSync";
+import { useMeasurement3dModeSync } from "../../../hooks/useMeasurement3dModeSync";
 import {
   useClearFeatureSelection,
   useClearSelectionOnEscape,
@@ -267,6 +268,7 @@ const MapWrapper = () => {
   useMapStyleReduxSync();
   useHighlightModeSync();
   useAnnotationModeSync();
+  useMeasurement3dModeSync();
   useClearSelectionOnEscape();
   const { hasSelection, clearFeatureSelection } = useClearFeatureSelection();
 
