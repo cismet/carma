@@ -9,6 +9,7 @@ import {
 import { isStaedtischKey } from "../wizard/adminData";
 import { toCidsDate, toDay } from "./dates";
 import { getBuffer25832 } from "../tools/mappingTools";
+import { hasId } from "./ids";
 
 const toRow = (rebe) => ({
   id: String(rebe.id),
@@ -63,7 +64,7 @@ export const artChanges = (row, artId, artName) => ({
 
 const fields = (row) => ({
   ist_recht: row.istRecht,
-  rebe_art: row.artId ? { id: row.artId } : null,
+  rebe_art: hasId(row.artId) ? { id: row.artId } : null,
   beschreibung: row.beschreibung || null,
   nummer: row.nummer || null,
   datum_eintragung: toCidsDate(row.eintragung),

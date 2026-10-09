@@ -10,6 +10,7 @@ import {
 import { toCidsDate, toDay } from "./dates";
 import { planarArea } from "../wizard/geometry";
 import { getBuffer25832 } from "../tools/mappingTools";
+import { hasId } from "./ids";
 
 const toInt = (number) => (Number.isFinite(number) ? Math.round(number) : null);
 
@@ -28,7 +29,7 @@ const toRow = (mipa) => ({
   ausgewaehlteNummer: mipa.mipa_nutzung?.ausgewaehlte_nummer ?? null,
   merkmalIds: (mipa.ar_mipa_merkmaleArray ?? [])
     .map((entry) => entry.mipa_merkmal?.id)
-    .filter(Boolean),
+    .filter(hasId),
   geometry: mipa.geom?.geo_field,
 });
 
@@ -90,7 +91,7 @@ const newNutzung = (row) => ({
 const asNewMipa = (row) => ({
   ...plainFields(row),
   geom: { geo_field: row.geometry },
-  ...(row.kategorieId ? { mipa_nutzung: newNutzung(row) } : {}),
+  ...(hasId(row.kategorieId) ? { mipa_nutzung: newNutzung(row) } : {}),
   ar_mipa_merkmaleArray: merkmaleArray(row),
 });
 
@@ -111,7 +112,7 @@ const updateRow = async (before, row, { jwt, journal }) => {
     undo.ar_mipa_merkmaleArray = merkmaleArray(before);
   }
   // Java keeps one Nutzung per MiPa and only switches its Kategorie
-  if (row.kategorieId && !before.nutzungId) {
+  if (hasId(row.kategorieId) && !before.nutzungId) {
     changes.mipa_nutzung = newNutzung(row);
   }
   if (Object.keys(changes).length) {
@@ -128,7 +129,9 @@ const updateRow = async (before, row, { jwt, journal }) => {
   ) {
     const nutzungOf = (source) => ({
       ausgewaehlte_nummer: source.ausgewaehlteNummer,
-      mipa_kategorie: source.kategorieId ? { id: source.kategorieId } : null,
+      mipa_kategorie: hasId(source.kategorieId)
+        ? { id: source.kategorieId }
+        : null,
     });
     await saveMipaNutzung(before.nutzungId, nutzungOf(row), jwt);
     journal.record(`Nutzung der Vermietung/Verpachtung ${label}`, () =>
