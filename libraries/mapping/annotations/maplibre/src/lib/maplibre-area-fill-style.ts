@@ -39,6 +39,12 @@ export type MapLibreAreaFillStyleOptions = {
   rulerMajorDotWidthFactor?: number;
   /** The dots are the line colour scaled by this (below 1: darker) so they read on the line. */
   rulerDotTintFactor?: number;
+  /** CSS colour of the dots; null takes the line colour scaled by the tint factor. */
+  rulerDotFill?: string | null;
+  /** CSS colour of a ring around each dot; null draws none. */
+  rulerDotStroke?: string | null;
+  /** Width of that ring as a share of the line width (1: as wide as the line). */
+  rulerDotStrokeWidthFactor?: number;
   rulerMarkerClearanceCssPx?: number;
 };
 
@@ -58,9 +64,14 @@ export const MAPLIBRE_AREA_FILL_STYLE_DEFAULTS: ResolvedMapLibreAreaFillStyle =
     crosshairWidthCssPx: 1,
     crosshairOpacity: 0.9,
     rulerMinSegmentCssPx: 32,
-    rulerMinorDotWidthFactor: 2,
-    rulerMajorDotWidthFactor: 3,
+    // black dots in a white ring as wide as the line: they read on light
+    // and dark surfaces alike (the 2x/3x tinted dots of before did not)
+    rulerMinorDotWidthFactor: 5,
+    rulerMajorDotWidthFactor: 8,
     rulerDotTintFactor: 0.6,
+    rulerDotFill: "#111111",
+    rulerDotStroke: "#ffffff",
+    rulerDotStrokeWidthFactor: 1,
     rulerMarkerClearanceCssPx: 16,
   });
 
@@ -112,6 +123,19 @@ export const resolveMapLibreAreaFillStyle = (
     rulerDotTintFactor: isFinitePositive(options.rulerDotTintFactor)
       ? options.rulerDotTintFactor
       : defaults.rulerDotTintFactor,
+    rulerDotFill:
+      options.rulerDotFill === undefined
+        ? defaults.rulerDotFill
+        : options.rulerDotFill,
+    rulerDotStroke:
+      options.rulerDotStroke === undefined
+        ? defaults.rulerDotStroke
+        : options.rulerDotStroke,
+    rulerDotStrokeWidthFactor: isFinitePositive(
+      options.rulerDotStrokeWidthFactor
+    )
+      ? options.rulerDotStrokeWidthFactor
+      : defaults.rulerDotStrokeWidthFactor,
     rulerMarkerClearanceCssPx:
       typeof options.rulerMarkerClearanceCssPx === "number" &&
       Number.isFinite(options.rulerMarkerClearanceCssPx) &&
