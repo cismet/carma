@@ -75,6 +75,14 @@ export interface LocateContextType {
    * first fix lands.
    */
   setTravelHeading: (heading: number | null) => void;
+  /**
+   * Draw the marker at `lngLat` instead of at the fix, for as long as
+   * something knows better where the user is: a navigation puts it on the
+   * route (a fix wanders a few meters off the road) and gives it back with
+   * null when the user leaves the route or the navigation ends. The accuracy
+   * circle stays at the fix, which is what the device actually said.
+   */
+  setDisplayPosition: (lngLat: [number, number] | null) => void;
 }
 
 const INERT: LocateContextType = {
@@ -87,6 +95,7 @@ const INERT: LocateContextType = {
   deactivate: () => {},
   toggle: () => {},
   setTravelHeading: () => {},
+  setDisplayPosition: () => {},
 };
 
 export const LocateContext = createContext<LocateContextType>(INERT);
@@ -147,6 +156,10 @@ export const LocateProvider = ({ map, children }: LocateProviderProps) => {
   const unsubscribeHeadingRef = useRef<(() => void) | null>(null);
   /** where the user is going, set by a navigation; null shows the dot */
   const travelHeadingRef = useRef<number | null>(null);
+  /** where the marker is drawn instead of the fix; null draws it at the fix */
+  const displayPositionRef = useRef<[number, number] | null>(null);
+  /** the last fix, for giving the marker back to it */
+  const fixLngLatRef = useRef<[number, number] | null>(null);
 
   const applyHeading = useCallback(() => {
     const element = markerElementRef.current;
@@ -157,6 +170,16 @@ export const LocateProvider = ({ map, children }: LocateProviderProps) => {
   const setTravelHeading = useCallback((heading: number | null) => {
     travelHeadingRef.current = heading;
     markerElementRef.current?.setTravelHeading(heading, markerRef.current);
+  }, []);
+
+  const setDisplayPosition = useCallback((lngLat: [number, number] | null) => {
+    displayPositionRef.current = lngLat;
+    const shown = lngLat ?? fixLngLatRef.current;
+    if (!shown) {
+      return;
+    }
+    markerLngLatRef.current = shown;
+    markerRef.current?.setLngLat(shown);
   }, []);
 
   const stopHeading = useCallback(() => {
@@ -176,6 +199,7 @@ export const LocateProvider = ({ map, children }: LocateProviderProps) => {
 
   const clearLocationMarker = useCallback(() => {
     markerLngLatRef.current = null;
+    fixLngLatRef.current = null;
     markerElementRef.current = null;
     if (markerRef.current) {
       markerRef.current.remove();
@@ -200,11 +224,14 @@ export const LocateProvider = ({ map, children }: LocateProviderProps) => {
       if (!map || !isActiveRef.current) return;
 
       const { latitude, longitude, accuracy } = position.coords;
-      markerLngLatRef.current = [longitude, latitude];
+      fixLngLatRef.current = [longitude, latitude];
+      // a navigation may draw the marker on its route instead of at the fix
+      const shown = displayPositionRef.current ?? fixLngLatRef.current;
+      markerLngLatRef.current = shown;
 
       // Create or update marker
       if (markerRef.current) {
-        markerRef.current.setLngLat([longitude, latitude]);
+        markerRef.current.setLngLat(shown);
       } else if (!markerPendingRef.current) {
         markerPendingRef.current = true;
 
@@ -295,8 +322,8 @@ export const LocateProvider = ({ map, children }: LocateProviderProps) => {
           error.code === error.PERMISSION_DENIED
             ? "denied"
             : error.code === error.TIMEOUT
-              ? "timeout"
-              : "unavailable"
+            ? "timeout"
+            : "unavailable"
         );
         setIsLoading(false);
         setIsLocationActive(false);
@@ -424,6 +451,7 @@ export const LocateProvider = ({ map, children }: LocateProviderProps) => {
         deactivate,
         toggle,
         setTravelHeading,
+        setDisplayPosition,
       }}
     >
       {children}

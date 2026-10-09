@@ -1216,6 +1216,51 @@ ahead" is the turn's "now" stage in `turnStages.ts`, per mode: 40 m by car,
 20 m by bike, 10 m on foot. The same table has the "prepare" distances the
 voice guidance will use. Each turn buzzes once; a reroute's turns are new ones.
 
+**The arrow on the route.** The locate context draws its marker where
+`setDisplayPosition` says while that is set, and at the fix otherwise; the
+accuracy circle always stays at the fix. The addon sets it to the snapped
+place on the route for every fix on it and glides it there over
+`followDuration` with the same linear easing as the camera (`arrowGlide.ts`),
+so arrow and camera move as one instead of the arrow hopping beside the road.
+Off the route it gives the marker back to the fix: the user really is off.
+
+**Zoom by speed** (`speedZoom.ts`, car and bike; on foot the zoom stays):
+
+| Mode | Bands                                   |
+| ---- | --------------------------------------- |
+| car  | below 30 km/h 18, below 60 km/h 17, 16 |
+| bike | below 20 km/h 18, 17                    |
+
+The speed is the fix's own, or the meters along the route between two fixes
+over the time between them, smoothed over a few fixes. A band changes only
+5 km/h past its edge, and within 150 m of a turn the view goes back to the
+closest band. `speedZoom: false` keeps `zoom`; an object overrides the bands
+per mode.
+
+**A weak or lost signal.** No fix for `gpsLossMs` (5000) puts "GPS-Signal
+schwach" on the card above the turn, and the arrow and the camera go on along
+the route at the last pace for up to `coastMs` (20000), then stop and wait.
+The countdown holds meanwhile; it only follows real fixes. A fix less accurate
+than `poorAccuracyMeters` (50) shows the same hint and moves nothing, and a run
+of them ends in the same coast. The first good fix takes over; off the route,
+the reroute rules apply as usual.
+
+**Resume after a reload.** The route being driven and when the navigation
+started are kept in the tab's `sessionStorage` (`resumeStorage.ts`), written on
+the start and on every reroute, cleared when the navigation ends. On mount a
+saved navigation younger than `resumeMaxAgeMs` (2 h) brings up a card at the
+bottom (`ResumePrompt`, on the shared `BottomCard`): "Navigation fortsetzen?",
+"Verwerfen", "Fortsetzen". Resumed, the saved route is driven directly; with
+no route in focus the "focused route changed" rule has nothing to react to,
+and another route coming into focus still ends it. `resume: false` switches it
+off.
+
+**Detours that come back.** Off the route but closer to it with each of the
+last `approachFixes` (3) fixes, the off count is held: a corner cut or a square
+crossed is no reason for a new route. After a reroute the route before it is
+kept, and fixes on it that are off the new one make it the driven route again,
+with no request and no "Route wird neu berechnet".
+
 Left for good, the route is asked for again. A fix counts as off when it is
 further from the route than the mode's `meters`, than `snapToleranceMeters`
 and than its own accuracy. After `afterFixes` of those in a row (one fix on
@@ -1331,6 +1376,10 @@ addon with a map-only moment asks the same way.
 | `Routing/routeCamera.ts`  | a position snapped onto the route, its look-ahead bearing, meters behind and ahead |
 | `Routing/turnStages.ts`   | how close a turn is: "prepare" and "now" distances per mode |
 | `Routing/useTurnVibration.ts` | the buzz at a turn's "now" stage and on arrival |
+| `Routing/arrowGlide.ts`   | the arrow along the route: glide per fix, coast without one |
+| `Routing/speedZoom.ts`    | the zoom bands per mode, with hysteresis |
+| `Routing/resumeStorage.ts` | the navigation in `sessionStorage`, for a resume after a reload |
+| `Routing/ResumePrompt.tsx` | "Navigation fortsetzen?" after a reload |
 | `Routing/useWakeLock.ts`  | keeps the screen on while navigating |
 | `Routing/config.ts`       | `RoutingConfig` and its defaults |
 
@@ -1372,6 +1421,15 @@ To test rerouting the pretend user can leave the route:
   there; during a drive they stand there at once and the navigation reroutes
   from it. The click is caught on the map container while it goes down, so it
   does not also pick a feature.
+
+- **Signal** in the ribbon (`setSignal`): "gut" as configured, "ungenau"
+  scatters every fix by up to 25 m and reports 80 m accuracy, "aus" sends no
+  fixes at all while the drive goes on, like a tunnel. For the weak-signal
+  handling above.
+
+A new route being driven (a reroute, or a switch back onto the route before
+it) is picked up at the point nearest to the pretend user when that is within
+100 m, and from its start otherwise.
 
 The navigation's row follows it: its ribbon holds the simulator's controls and
 nothing else, so while no simulation is published (`useLocationSimulation()`

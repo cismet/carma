@@ -124,9 +124,10 @@ export const useRoutingLayerRow = ({
   onUpdate,
 }: UseRoutingLayerRowOptions) => {
   const navigation = useRouteNavigation();
-  // the route being navigated; its mode is the row's icon
+  // the route being navigated; its mode is the row's icon. The driven route
+  // first: a navigation resumed after a reload has no route in focus
   const [route] = useActiveRoute();
-  const routeMode = route?.mode;
+  const routeMode = navigation?.route?.mode ?? route?.mode;
   const isOn = navigation?.navigating ?? false;
   const progress = navigation?.progress ?? null;
   const rerouting = navigation?.rerouting ?? false;

@@ -2,6 +2,7 @@ import type { Positions } from "@carma-mapping/map-controls-layout";
 import { ROUTE_BLUE, ROUTE_GRAY } from "@carma-mapping/routing";
 
 import type { RouteMode } from "./routeMode";
+import type { SpeedZoomConfig } from "./speedZoom";
 
 export type RoutingConfig = {
   /**
@@ -72,6 +73,38 @@ export type RoutingConfig = {
    * true. Android only: iOS has no `navigator.vibrate`
    */
   vibrate?: boolean;
+  /**
+   * the zoom follows the speed, per mode, as bands of km/h (see
+   * `speedZoom.ts`); default car and bike, on foot the zoom stays. `false`
+   * keeps `zoom` at every speed
+   */
+  speedZoom?: SpeedZoomConfig;
+  /**
+   * how long without a fix counts as a lost signal, in ms; default 5000. The
+   * card says "GPS-Signal schwach", and the arrow and the camera go on along
+   * the route at the last speed
+   */
+  gpsLossMs?: number;
+  /** how long they go on like that before they stop and wait, in ms; default 20000 */
+  coastMs?: number;
+  /**
+   * a fix less accurate than this, in meters, is not used to move the camera
+   * or the arrow, and the card says the signal is weak; default 50
+   */
+  poorAccuracyMeters?: number;
+  /**
+   * offer to resume a navigation after a reload (the route is kept in the
+   * tab's `sessionStorage`); default true
+   */
+  resume?: boolean;
+  /** how old a saved navigation may be and still be offered, in ms; default 2 h */
+  resumeMaxAgeMs?: number;
+  /**
+   * off the route but getting closer to it over this many fixes in a row: the
+   * user is on their way back (a corner cut, a square crossed), and no new
+   * route is asked for meanwhile; default 3
+   */
+  approachFixes?: number;
   /** the stretch still ahead of the user; default the shared route blue */
   aheadColor?: string;
   /** the stretch already driven; default the shared route gray */
@@ -163,6 +196,15 @@ export const DEFAULT_ARRIVAL_METERS = 15;
 export const DEFAULT_ARRIVAL_CARD_MS = 4000;
 export const DEFAULT_WAKE_LOCK = true;
 export const DEFAULT_VIBRATE = true;
+export const DEFAULT_GPS_LOSS_MS = 5000;
+export const DEFAULT_COAST_MS = 20000;
+export const DEFAULT_POOR_ACCURACY_METERS = 50;
+export const DEFAULT_RESUME = true;
+export const DEFAULT_RESUME_MAX_AGE_MS = 2 * 60 * 60 * 1000;
+export const DEFAULT_APPROACH_FIXES = 3;
+
+/** what the card says above the turn while the signal is weak or gone */
+export const WEAK_SIGNAL_LABEL = "GPS-Signal schwach";
 
 /** what the card says on arrival, above the destination's name */
 export const ARRIVAL_LABEL = "Ziel erreicht";

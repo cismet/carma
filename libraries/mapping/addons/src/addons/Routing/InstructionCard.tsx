@@ -1,6 +1,9 @@
 import type { CSSProperties, ReactNode } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faArrowsRotate } from "@fortawesome/free-solid-svg-icons";
+import {
+  faArrowsRotate,
+  faSatelliteDish,
+} from "@fortawesome/free-solid-svg-icons";
 
 import { Control, type Positions } from "@carma-mapping/map-controls-layout";
 import {
@@ -9,7 +12,7 @@ import {
   type RouteStep,
 } from "@carma-mapping/routing";
 
-import { ARRIVAL_LABEL, REROUTING_LABEL } from "./config";
+import { ARRIVAL_LABEL, REROUTING_LABEL, WEAK_SIGNAL_LABEL } from "./config";
 import { DESTINATION_ICON, directionIcon } from "./directionIcon";
 import type { RouteInstruction } from "./routeChannel";
 
@@ -60,6 +63,11 @@ type InstructionCardProps = {
    * navigation ends, with the destination's name when the route has one
    */
   arrived?: { label?: string } | null;
+  /**
+   * no fix for a while, or only inaccurate ones: a line above the turn says
+   * so, since the distance on the card holds or is a guess meanwhile
+   */
+  weakSignal?: boolean;
   position: Positions;
   order: number;
   /** the "dann" line shows when the stretch after the next turn is shorter */
@@ -85,6 +93,7 @@ export const InstructionCard = ({
   instruction,
   rerouting = false,
   arrived = null,
+  weakSignal = false,
   position,
   order,
   thenWithinMeters,
@@ -158,6 +167,15 @@ export const InstructionCard = ({
 
   return shell(
     <>
+      {weakSignal && (
+        <div
+          className="flex h-8 items-center gap-2 border-b border-gray-200 text-sm text-amber-700"
+          data-test-id="routing-instruction-weak-signal"
+        >
+          <FontAwesomeIcon icon={faSatelliteDish} className="shrink-0" />
+          <span>{WEAK_SIGNAL_LABEL}</span>
+        </div>
+      )}
       <div className="flex h-16 items-center gap-4">
         <FontAwesomeIcon
           icon={icon}

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useRef, type CSSProperties } from "react";
 import type { Map as MaplibreMap } from "maplibre-gl";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -7,7 +7,7 @@ import {
   faXmark,
 } from "@fortawesome/free-solid-svg-icons";
 
-import { Control, type Positions } from "@carma-mapping/map-controls-layout";
+import type { Positions } from "@carma-mapping/map-controls-layout";
 import {
   ROUTE_BLUE,
   formatArrivalTime,
@@ -18,6 +18,8 @@ import {
 import { useActiveRoute, useRouteNavigation } from "../Routing/routeChannel";
 import { DEFAULT_ROUTE_MODE } from "../Routing/routeModeChannel";
 import { useMinuteTick } from "../Routing/useMinuteTick";
+import { BottomCard } from "./BottomCard";
+import { useNarrow } from "./useNarrow";
 import {
   clearPreviewLine,
   drawPreviewLine,
@@ -38,44 +40,6 @@ import {
  * takes the bottom. After arrival the route is still in focus, so the card
  * comes back with it for the next run.
  */
-
-/** centred on the map like the instruction card, see `InstructionCard` */
-const BOTTOM_CENTER_STYLE: CSSProperties = {
-  position: "absolute",
-  left: "50%",
-  bottom: 0,
-  transform: "translateX(-50%)",
-  pointerEvents: "auto",
-};
-const UNANCHORED_STYLE: CSSProperties = { pointerEvents: "auto" };
-
-/**
- * On a phone the bottom-left column (the search, the origin input, the mode
- * picker) spans the map's width, and a card floating at the bottom centre
- * lands on top of it. There the card is a row of that column instead, its
- * last one, under the picker, as wide as the inputs: a zero width with a full
- * minimum, the same trick the picker uses, because the column shrink-wraps
- * its items. Order 40 keeps it after the picker (30); an item put in front of
- * the search would remount it.
- */
-const NARROW_QUERY = "(max-width: 639px)";
-const NARROW_POSITION: Positions = "bottomleft";
-const NARROW_ORDER = 40;
-const NARROW_ROW_CLASS_NAME = "mt-1.5 w-0 min-w-full";
-
-/** below Tailwind's `sm`, where the picker turns into a row as well */
-const useNarrow = () => {
-  const [narrow, setNarrow] = useState(
-    () => window.matchMedia(NARROW_QUERY).matches
-  );
-  useEffect(() => {
-    const query = window.matchMedia(NARROW_QUERY);
-    const onChange = () => setNarrow(query.matches);
-    query.addEventListener("change", onChange);
-    return () => query.removeEventListener("change", onChange);
-  }, []);
-  return narrow;
-};
 
 const START_BUTTON_STYLE: CSSProperties = {
   backgroundColor: ROUTE_BLUE,
@@ -112,14 +76,10 @@ export const RoutePreview = ({
   source,
   onClose,
   status = null,
-  position: configuredPosition,
-  order: configuredOrder,
+  position,
+  order,
 }: RoutePreviewProps) => {
   const narrow = useNarrow();
-  const position =
-    configuredPosition ?? (narrow ? NARROW_POSITION : "bottomcenter");
-  const order = configuredOrder ?? (narrow ? NARROW_ORDER : 11);
-  const inColumn = position === NARROW_POSITION && narrow;
   const [focused] = useActiveRoute();
   const route = focused?.source === source ? focused : null;
   const coordinates = route?.coordinates ?? null;
@@ -191,74 +151,58 @@ export const RoutePreview = ({
       : null;
 
   return (
-    <Control position={position} order={order}>
-      <div
-        style={
-          position === "bottomcenter" ? BOTTOM_CENTER_STYLE : UNANCHORED_STYLE
-        }
-        className={inColumn ? NARROW_ROW_CLASS_NAME : undefined}
-      >
-        <div
-          className={`flex ${
-            inColumn ? "w-full" : "min-w-[260px]"
-          } max-w-[calc(100vw-32px)] items-center gap-3 rounded-[10px] bg-white py-2 pl-4 pr-2 text-gray-800 button-shadow`}
-          data-test-id="route-preview"
-        >
-          {route ? (
-            <>
-              <FontAwesomeIcon
-                icon={getModeIcon(route.mode ?? DEFAULT_ROUTE_MODE)}
-                className="shrink-0 text-xl text-gray-600"
-              />
-              <div className="flex min-w-0 flex-1 flex-col leading-tight">
-                {route.label && (
-                  <span className="truncate text-base font-medium">
-                    {route.label}
-                  </span>
-                )}
-                {summary && (
-                  <span className="truncate text-sm tabular-nums text-gray-600">
-                    {summary}
-                  </span>
-                )}
-              </div>
-              <button
-                type="button"
-                className="h-8 shrink-0 cursor-pointer rounded-[8px] border-0 px-3 text-sm font-medium"
-                style={START_BUTTON_STYLE}
-                onClick={() => navigation?.start()}
-                disabled={!navigation}
-                data-test-id="route-preview-start"
-              >
-                Starten
-              </button>
-            </>
-          ) : (
-            <div className="flex min-w-0 flex-1 items-center gap-3">
-              <FontAwesomeIcon
-                icon={status?.error ? faTriangleExclamation : faCircleNotch}
-                spin={!status?.error}
-                className={`shrink-0 text-xl ${
-                  status?.error ? "text-red-600" : "text-gray-600"
-                }`}
-              />
-              <span className="truncate text-sm text-gray-600">
-                {status?.text}
+    <BottomCard testId="route-preview" position={position} order={order}>
+      {route ? (
+        <>
+          <FontAwesomeIcon
+            icon={getModeIcon(route.mode ?? DEFAULT_ROUTE_MODE)}
+            className="shrink-0 text-xl text-gray-600"
+          />
+          <div className="flex min-w-0 flex-1 flex-col leading-tight">
+            {route.label && (
+              <span className="truncate text-base font-medium">
+                {route.label}
               </span>
-            </div>
-          )}
+            )}
+            {summary && (
+              <span className="truncate text-sm tabular-nums text-gray-600">
+                {summary}
+              </span>
+            )}
+          </div>
           <button
             type="button"
-            className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent text-gray-500 hover:bg-black/5"
-            onClick={onClose}
-            aria-label="Route verwerfen"
-            title="Route verwerfen"
-            data-test-id="route-preview-close"
+            className="h-8 shrink-0 cursor-pointer rounded-[8px] border-0 px-3 text-sm font-medium"
+            style={START_BUTTON_STYLE}
+            onClick={() => navigation?.start()}
+            disabled={!navigation}
+            data-test-id="route-preview-start"
           >
-            <FontAwesomeIcon icon={faXmark} />
+            Starten
           </button>
+        </>
+      ) : (
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          <FontAwesomeIcon
+            icon={status?.error ? faTriangleExclamation : faCircleNotch}
+            spin={!status?.error}
+            className={`shrink-0 text-xl ${
+              status?.error ? "text-red-600" : "text-gray-600"
+            }`}
+          />
+          <span className="truncate text-sm text-gray-600">{status?.text}</span>
         </div>
-      </div>
-    </Control>
+      )}
+      <button
+        type="button"
+        className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent text-gray-500 hover:bg-black/5"
+        onClick={onClose}
+        aria-label="Route verwerfen"
+        title="Route verwerfen"
+        data-test-id="route-preview-close"
+      >
+        <FontAwesomeIcon icon={faXmark} />
+      </button>
+    </BottomCard>
   );
 };
