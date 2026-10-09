@@ -12,6 +12,11 @@ import type {
 
 import { parseCssColor } from "./css-color";
 import type { MapLibreAnnotationScene } from "./maplibre-annotation-scene";
+import {
+  MAPLIBRE_AREA_FILL_STYLE_DEFAULTS,
+  resolveAreaFillGridPitchMeters,
+  type ResolvedMapLibreAreaFillStyle,
+} from "./maplibre-area-fill-style";
 
 /**
  * Annotation lines in the shared Three.js scene: `Line2` with CSS-pixel widths
@@ -62,7 +67,7 @@ const createLineMaterial = (
       : opacity,
     depthWrite: false,
     depthTest: true,
-    dashed: occluded,
+    dashed: occluded || style.metricDashed === true,
   });
   if (occluded) {
     material.depthFunc = GreaterDepth;
@@ -90,7 +95,9 @@ type SceneLineEntry = {
 
 export const createMapLibreSceneLineCollection = (
   scene: MapLibreAnnotationScene,
-  _options: AnnotationSceneLineCollectionOptions = {}
+  _options: AnnotationSceneLineCollectionOptions = {},
+  /** The ruler of metric lines shares the grid pitch of the area fills. */
+  style: ResolvedMapLibreAreaFillStyle = MAPLIBRE_AREA_FILL_STYLE_DEFAULTS
 ): AnnotationSceneLineCollection => {
   const entries = new Set<SceneLineEntry>();
   let destroyed = false;
@@ -124,19 +131,30 @@ export const createMapLibreSceneLineCollection = (
     // width the runtime asks for by the pixel ratio, and the line looks the
     // same as the Cesium polyline of that width while staying crisp.
     const pixelRatio = scene.getPixelRatio();
-    (entry.line.material as LineMaterial).linewidth =
-      entry.style.width * pixelRatio;
+    const visibleMaterial = entry.line.material as LineMaterial;
+    visibleMaterial.linewidth = entry.style.width * pixelRatio;
+    midpoint.set(
+      (flat[0]! + flat[flat.length - 3]!) / 2,
+      (flat[1]! + flat[flat.length - 2]!) / 2,
+      (flat[2]! + flat[flat.length - 1]!) / 2
+    );
+    const pixelsPerMeter = scene.getPixelsPerMeterAtScene(midpoint);
+    // The ruler: half the grid pitch drawn, half left out, in world metres.
+    const metricDash = entry.style.metricDashed
+      ? resolveAreaFillGridPitchMeters(pixelsPerMeter, style) / 2
+      : null;
+    if (metricDash !== null) {
+      visibleMaterial.dashSize = metricDash;
+      visibleMaterial.gapSize = metricDash;
+    }
     if (entry.occludedLine) {
       const material = entry.occludedLine.material as LineMaterial;
       material.linewidth = entry.style.width * pixelRatio;
-      // Dash lengths are world units; scale them to CSS pixels at the line.
-      midpoint.set(
-        (flat[0]! + flat[flat.length - 3]!) / 2,
-        (flat[1]! + flat[flat.length - 2]!) / 2,
-        (flat[2]! + flat[flat.length - 1]!) / 2
-      );
-      const pixelsPerMeter = scene.getPixelsPerMeterAtScene(midpoint);
-      if (pixelsPerMeter > 0) {
+      if (metricDash !== null) {
+        material.dashSize = metricDash;
+        material.gapSize = metricDash;
+      } else if (pixelsPerMeter > 0) {
+        // Dash lengths are world units; scale them to CSS pixels at the line.
         material.dashSize =
           MAPLIBRE_SCENE_LINE_DEFAULTS.occludedDashPx / pixelsPerMeter;
         material.gapSize =
@@ -182,6 +200,7 @@ export const createMapLibreSceneLineCollection = (
         color: options.color,
         width: options.width,
         occludedDashed: options.occludedDashed,
+        metricDashed: options.metricDashed,
       };
       const entry: SceneLineEntry = {
         id: options.id,

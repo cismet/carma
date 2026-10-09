@@ -65,8 +65,12 @@ export type { LinearSegmentLineMode } from "./lib/types/linear-segment";
 export { fromAlphabeticSequence } from "./lib/utils/alphabetic-sequence";
 export {
   annotationAreaPalette,
+  createAnnotationAreaPalette,
+  defaultAnnotationAreaPalette,
   getAnnotationAreaCssColor,
   getAnnotationAreaFillCssColor,
+  type AnnotationAreaPalette,
+  type AnnotationAreaPaletteOptions,
   getAnnotationAreaRgb255,
 } from "./lib/utils/annotation-area-palette";
 export {

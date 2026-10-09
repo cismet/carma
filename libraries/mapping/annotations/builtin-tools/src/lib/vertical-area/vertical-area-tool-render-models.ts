@@ -5,7 +5,8 @@ import {
 } from "@carma-providers/label-overlay";
 import {
   ANNOTATION_TYPES,
-  getAnnotationAreaFillCssColor,
+  defaultAnnotationAreaPalette,
+  type AnnotationAreaPalette,
   ecefFromGeographicCoordinate,
   geographicCoordinateFromEcef,
   getEllipsoidalAltitudeOrZero,
@@ -55,6 +56,7 @@ type BuildVerticalAreaToolRenderModelsArgs = {
   onSelect?: (annotationId: string) => void;
   onNodeLongPress?: (nodeId: string, annotationId: string) => void;
   occlusionStyleOptions?: AreaOcclusionStyleOptions;
+  areaPalette?: AnnotationAreaPalette;
 };
 
 const { AREA_VERTICAL: ANNOTATION_TYPE_AREA_VERTICAL } = ANNOTATION_TYPES;
@@ -96,6 +98,7 @@ export const buildVerticalAreaToolRenderModels = (
     onSelect,
     onNodeLongPress,
     occlusionStyleOptions,
+    areaPalette = defaultAnnotationAreaPalette,
   }: BuildVerticalAreaToolRenderModelsArgs
 ): {
   points: readonly RuntimePointMarkerRenderModel[];
@@ -157,7 +160,7 @@ export const buildVerticalAreaToolRenderModels = (
       if (coordinates.length < 3) {
         return [];
       }
-      const fill = getAnnotationAreaFillCssColor(
+      const fill = areaPalette.fillCssColor(
         ANNOTATION_TYPE_AREA_VERTICAL,
         selectedAnnotationIdSet.has(annotation.id)
       );
