@@ -13,6 +13,13 @@ const initialState = {
   lockHolder: undefined,
 };
 
+export const activeLockIds = (editing) =>
+  editing.active
+    ? [editing.lock, ...(editing.mipaLocks ?? []), ...(editing.rebeLocks ?? [])]
+        .filter(Boolean)
+        .map((lock) => lock.id)
+    : [];
+
 const slice = createSlice({
   name: "editing",
   initialState,

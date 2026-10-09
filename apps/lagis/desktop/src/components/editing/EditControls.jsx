@@ -18,6 +18,7 @@ import {
 import {
   discardEditing,
   errorMessage,
+  releaseStaleLocks,
   saveEditing,
   startEditing,
   verifyEditLock,
@@ -90,9 +91,10 @@ const EditControls = () => {
   const starting = status === "starting";
 
   useEffect(() => {
-    dispatch(verifyEditLock()).catch((error) =>
-      message.error(errorMessage(error))
-    );
+    dispatch(verifyEditLock())
+      .catch((error) => message.error(errorMessage(error)))
+      // after verify, so it can't delete locks the restored session reuses
+      .finally(() => dispatch(releaseStaleLocks()));
     // only once, for an edit session restored after a reload
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

@@ -13,11 +13,19 @@ import {
   acquireLock,
   acquireMipaLock,
   acquireRebeLock,
+  deleteLockById,
   findLock,
-  releaseLock,
+  findOwnLocks,
   releaseOwnLocks,
-  releaseLocks,
 } from "./locks";
+import {
+  forget,
+  matchesRow,
+  noteCreated,
+  noteIds,
+  notePending,
+  sweepableEntries,
+} from "./lockRegistry";
 import { createJournal, describeRollbackFailures } from "./journal";
 import {
   DraftValidationError,
@@ -27,6 +35,7 @@ import {
   findUsageProblems,
 } from "./validation";
 import {
+  activeLockIds,
   editEnded,
   editStarted,
   lockLost,
@@ -78,43 +87,91 @@ const cachedFor = (schluesselId, landparcel) =>
     ? sectionCache
     : undefined;
 
+const track = {
+  pending: (row) =>
+    notePending({
+      user: row.user_string,
+      classId: row.class_id,
+      objectId: row.object_id,
+      info: row.additional_info,
+    }),
+  created: noteCreated,
+};
+
 // Java locks every MiPa and ReBe too: one can lie on several parcels
 const acquireRowLocks = async (rows, acquire, ctx) => {
   const locks = [];
-  try {
-    for (const row of rows ?? []) {
-      locks.push(await acquire(row, ctx));
-    }
-  } catch (error) {
-    await releaseLocks(locks, ctx.jwt);
-    throw error;
+  for (const row of rows ?? []) {
+    locks.push(await acquire(row, ctx));
   }
   return locks;
 };
 
-// returns { mipaLocks, rebeLocks }, or holds none of them on failure
-const acquireSectionLocks = async (sections, ctx) => {
-  const mipaLocks = await acquireRowLocks(
-    sections?.mipa?.mipas,
-    acquireMipaLock,
-    ctx
-  );
+const acquireSectionLocks = async (sections, ctx) => ({
+  mipaLocks: await acquireRowLocks(sections?.mipa?.mipas, acquireMipaLock, ctx),
+  rebeLocks: await acquireRowLocks(sections?.rebe?.rebes, acquireRebeLock, ctx),
+});
+
+// Deletes every registered lock the active session doesn't use. What can't
+// be deleted (no JWT, network, server) stays registered for the next run.
+const sweep = async (getState) => {
+  const { jwt, accountName } = context(getState);
+  if (!jwt) {
+    return;
+  }
+  const inUse = new Set(activeLockIds(getState().editing));
   try {
-    const rebeLocks = await acquireRowLocks(
-      sections?.rebe?.rebes,
-      acquireRebeLock,
-      ctx
+    const entries = (await sweepableEntries(accountName)).filter(
+      (entry) => !inUse.has(entry.id)
     );
-    return { mipaLocks, rebeLocks };
+    if (!entries.length) {
+      return;
+    }
+    const rows = await findOwnLocks(accountName, jwt);
+    const results = await Promise.allSettled(
+      entries.map(async (entry) => {
+        const row = rows.find((candidate) => matchesRow(entry, candidate));
+        // no row: already gone, or the create never reached the server
+        if (row && !inUse.has(row.id)) {
+          await deleteLockById(row.id, jwt);
+        }
+      })
+    );
+    results
+      .filter((result) => result.status === "rejected")
+      .forEach((result) =>
+        console.error("Sperre konnte nicht gelöst werden", result.reason)
+      );
+    forget(
+      entries
+        .filter((_, i) => results[i].status === "fulfilled")
+        .map((entry) => entry.key)
+    );
   } catch (error) {
-    await releaseLocks(mipaLocks, ctx.jwt);
-    throw error;
+    console.error("Sperren konnten nicht geprüft werden", error);
   }
 };
 
-const releaseSectionLocks = async ({ mipaLocks, rebeLocks }, jwt) => {
-  await releaseLocks(mipaLocks, jwt);
-  await releaseLocks(rebeLocks, jwt);
+// one at a time, so a sweep never runs while this tab creates locks
+let sweeping = Promise.resolve();
+const sweepStaleLocks = (getState) => {
+  sweeping = sweeping.then(() => sweep(getState));
+  return sweeping;
+};
+
+// sessions persisted before the registry existed know their locks only in redux
+const endSession = async (dispatch, getState) => {
+  noteIds(activeLockIds(getState().editing), context(getState).accountName);
+  dispatch(editEnded());
+  await sweepStaleLocks(getState);
+};
+
+// a running start or save owns its locks, so the sweep waits for idle
+export const releaseStaleLocks = () => async (dispatch, getState) => {
+  if (getState().editing.status !== "idle") {
+    return;
+  }
+  await sweepStaleLocks(getState);
 };
 
 export const startEditing =
@@ -129,25 +186,21 @@ export const startEditing =
     dispatch(setEditStatus("starting"));
     const { lagisLandparcel: landparcel, geometry } = getState().lagis;
     const cached = cachedFor(schluesselId, landparcel);
-    let lock;
     try {
+      // leftovers of earlier sessions would block our own objects
+      await sweepStaleLocks(getState);
       const key = cached?.key ?? (await loadKey(schluesselId, jwt));
       const label = formatKey(key);
+      const ctx = { jwt, accountName, track, contextKeyString: label };
       // lock before loading, so nobody can change the data in between
-      lock = await acquireLock(schluesselId, {
-        jwt,
-        accountName,
-        contextKeyString: label,
+      const lock = await acquireLock(schluesselId, {
+        ...ctx,
         keyString: label,
       });
       const sections =
         cached?.sections ?? (await loadSections(key, geometry, jwt));
       sectionCache = { schluesselId, landparcel, key, sections };
-      const sectionLocks = await acquireSectionLocks(sections, {
-        jwt,
-        accountName,
-        contextKeyString: label,
-      });
+      const sectionLocks = await acquireSectionLocks(sections, ctx);
       dispatch(
         editStarted({
           parcel: { schluesselId, label, key, urlParams },
@@ -157,7 +210,8 @@ export const startEditing =
         })
       );
     } catch (error) {
-      await releaseLock(lock, jwt);
+      // not active yet, so this frees every lock taken above
+      await sweepStaleLocks(getState);
       throw error;
     } finally {
       dispatch(setEditStatus("idle"));
@@ -219,7 +273,7 @@ export const saveEditing = () => async (dispatch, getState) => {
   }
 
   const { jwt, accountName } = context(getState);
-  const { parcel, draft, original, lock } = editing;
+  const { parcel, draft, original } = editing;
   const journal = createJournal();
   sectionCache = undefined;
   dispatch(setEditStatus("saving"));
@@ -265,20 +319,12 @@ export const saveEditing = () => async (dispatch, getState) => {
   } finally {
     dispatch(setEditStatus("idle"));
   }
-  await releaseLock(lock, jwt);
-  await releaseSectionLocks(editing, jwt);
-  dispatch(editEnded());
+  await endSession(dispatch, getState);
 };
 
+// releases by id only, so a lock taken over by someone else stays untouched
 export const discardEditing = () => async (dispatch, getState) => {
-  const editing = getState().editing;
-  // a lock taken over by someone else is no longer ours to release
-  if (!editing.lockHolder) {
-    const { jwt } = context(getState);
-    await releaseLock(editing.lock, jwt);
-    await releaseSectionLocks(editing, jwt);
-  }
-  dispatch(editEnded());
+  await endSession(dispatch, getState);
 };
 
 // TODO: remove with ClearLocksButton once stale locks no longer happen
@@ -289,12 +335,15 @@ export const clearOwnLocks = (locks) => async (dispatch, getState) => {
   if (getState().editing.active) {
     dispatch(editEnded());
   }
+  // forgets the locks deleted above
+  await sweepStaleLocks(getState);
   return failed;
 };
 
 // after a reload the persisted lock may be gone or taken over
 export const verifyEditLock = () => async (dispatch, getState) => {
-  const { active, parcel, lock, original } = getState().editing;
+  const editing = getState().editing;
+  const { active, parcel, lock, original } = editing;
   if (!active) {
     return;
   }
@@ -307,23 +356,20 @@ export const verifyEditLock = () => async (dispatch, getState) => {
     dispatch(lockLost(existing.userString));
     return;
   }
-  const renewed = await acquireLock(parcel.schluesselId, {
+  // the session's MiPa and ReBe locks may still exist and are reused; on
+  // failure the next releaseStaleLocks frees what was taken here
+  const ctx = {
     jwt,
     accountName,
+    ownIds: activeLockIds(editing),
+    track,
     contextKeyString: parcel.label,
+  };
+  const renewed = await acquireLock(parcel.schluesselId, {
+    ...ctx,
     keyString: parcel.label,
   });
-  let sectionLocks;
-  try {
-    sectionLocks = await acquireSectionLocks(original, {
-      jwt,
-      accountName,
-      contextKeyString: parcel.label,
-    });
-  } catch (error) {
-    await releaseLock(renewed, jwt);
-    throw error;
-  }
+  const sectionLocks = await acquireSectionLocks(original, ctx);
   dispatch(lockRenewed({ lock: renewed, ...sectionLocks }));
 };
 

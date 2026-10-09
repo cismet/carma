@@ -27,28 +27,33 @@ export const findLock = (schluesselId, jwt) =>
 
 const stamp = () => new Date().toLocaleString("de-DE");
 
-// info and messages follow the Java client
+// info and messages follow the Java client. `track` ({ pending, created })
+// lets the edit session note the lock before the server creates it.
 const acquireObjectLock = async (
   className,
   objectId,
-  { jwt, accountName, info, lockedMessage, failedMessage }
+  { jwt, accountName, ownIds, track, info, lockedMessage, failedMessage }
 ) => {
   const existing = await findObjectLock(className, objectId, jwt);
+  // a lock of the restored edit session is still ours
+  if (existing && ownIds?.includes(existing.id)) {
+    return existing.id;
+  }
   if (existing) {
     throw new ActionNotSuccessfulError(lockedMessage(existing.userString));
   }
   const classId = await fetchClassId(className, jwt);
+  const row = {
+    class_id: classId,
+    object_id: objectId,
+    user_string: accountName,
+    additional_info: `${info};${stamp()}`,
+  };
+  const trackKey = track?.pending(row);
   try {
-    return await saveAndGetId(
-      CLASS.LOCK,
-      {
-        class_id: classId,
-        object_id: objectId,
-        user_string: accountName,
-        additional_info: `${info};${stamp()}`,
-      },
-      jwt
-    );
+    const id = await saveAndGetId(CLASS.LOCK, row, jwt);
+    track?.created(trackKey, id);
+    return id;
   } catch (e) {
     throw new ActionNotSuccessfulError(failedMessage, e);
   }
@@ -56,11 +61,13 @@ const acquireObjectLock = async (
 
 export const acquireLock = async (
   schluesselId,
-  { jwt, accountName, contextKeyString, keyString }
+  { jwt, accountName, ownIds, track, contextKeyString, keyString }
 ) => {
   const id = await acquireObjectLock(CLASS.SCHLUESSEL, schluesselId, {
     jwt,
     accountName,
+    ownIds,
+    track,
     info: `${contextKeyString ?? "-"};-`,
     lockedMessage: (holder) =>
       `Es existiert bereits eine Sperre für das Flurstück ${keyString} und wird von dem Benutzer ${holder} gehalten.`,
@@ -71,12 +78,14 @@ export const acquireLock = async (
 
 export const acquireMipaLock = async (
   mipa,
-  { jwt, accountName, contextKeyString }
+  { jwt, accountName, ownIds, track, contextKeyString }
 ) => {
   const name = `${mipa.lage} (${mipa.aktenzeichen})`;
   const id = await acquireObjectLock(CLASS.MIPA, mipa.mipaId, {
     jwt,
     accountName,
+    ownIds,
+    track,
     info: `${contextKeyString};Vermietung/Verpachtung: ${name}`,
     lockedMessage: (holder) =>
       `Die Vermietung/Verpachtung ${name} wird von dem Benutzer ${holder} bearbeitet.`,
@@ -87,12 +96,14 @@ export const acquireMipaLock = async (
 
 export const acquireRebeLock = async (
   rebe,
-  { jwt, accountName, contextKeyString }
+  { jwt, accountName, ownIds, track, contextKeyString }
 ) => {
   const name = `Nummer ${rebe.nummer}`;
   const id = await acquireObjectLock(CLASS.REBE, rebe.rebeId, {
     jwt,
     accountName,
+    ownIds,
+    track,
     info: `${contextKeyString};Recht/Belastung: ${name}`,
     lockedMessage: (holder) =>
       `Das Recht/die Belastung ${name} wird von dem Benutzer ${holder} bearbeitet.`,
@@ -119,6 +130,9 @@ export const releaseLocks = async (locks, jwt) => {
   }
 };
 
+export const deleteLockById = (id, jwt) =>
+  deleteObject(CLASS.LOCK, { id }, jwt);
+
 export const findOwnLocks = async (accountName, jwt) => {
   const data = await run(
     wizardQueries.locksByUser,
@@ -131,7 +145,7 @@ export const findOwnLocks = async (accountName, jwt) => {
 // dev tool: frees every lock of this user, also ones left by broken sessions
 export const releaseOwnLocks = async (locks, jwt) => {
   const results = await Promise.allSettled(
-    locks.map((lock) => deleteObject(CLASS.LOCK, { id: lock.id }, jwt))
+    locks.map((lock) => deleteLockById(lock.id, jwt))
   );
   return results.filter((result) => result.status === "rejected").length;
 };
