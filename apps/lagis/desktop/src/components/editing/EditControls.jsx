@@ -12,18 +12,26 @@ import {
   getEditActive,
   getEditDirty,
   getEditLockHolder,
+  getEditLockHolderInfo,
   getEditParcel,
   getEditStatus,
 } from "../../store/slices/editing";
 import {
+  LockLostError,
   discardEditing,
   errorMessage,
-  releaseStaleLocks,
   saveEditing,
   startEditing,
   verifyEditLock,
 } from "../../core/editing/session";
 import UnsavedChangesDialog from "./UnsavedChangesDialog";
+import { lockLostTexts } from "../../core/editing/locks";
+import {
+  notifyLockCheckFailed,
+  notifyLockLost,
+  notifySaveBlocked,
+  notifyStartFailed,
+} from "./lockNotices";
 import { DraftValidationError } from "../../core/editing/validation";
 
 export const urlParamsOf = (searchParams) => ({
@@ -59,7 +67,9 @@ const ValidationProblems = ({ sections }) => (
 const DIALOG_WIDTH = 520;
 
 export const showSaveError = (error) =>
-  error instanceof DraftValidationError
+  error instanceof LockLostError
+    ? notifySaveBlocked(error)
+    : error instanceof DraftValidationError
     ? Modal.warning({
         title: "Speichern nicht möglich",
         width: DIALOG_WIDTH,
@@ -84,6 +94,7 @@ const EditControls = () => {
   const status = useSelector(getEditStatus);
   const parcel = useSelector(getEditParcel);
   const lockHolder = useSelector(getEditLockHolder);
+  const lockHolderInfo = useSelector(getEditLockHolderInfo);
   const [endDialogOpen, setEndDialogOpen] = useState(false);
 
   const schluesselId = landparcel?.flurstueck_schluessel?.id;
@@ -91,21 +102,21 @@ const EditControls = () => {
   const starting = status === "starting";
 
   useEffect(() => {
-    dispatch(verifyEditLock())
-      .catch((error) => message.error(errorMessage(error)))
-      // after verify, so it can't delete locks the restored session reuses
-      .finally(() => dispatch(releaseStaleLocks()));
+    dispatch(verifyEditLock()).catch(notifyLockCheckFailed);
     // only once, for an edit session restored after a reload
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     if (lockHolder) {
-      message.warning(
-        `${parcel?.label} wird inzwischen von ${lockHolder} bearbeitet. Ihre Änderungen können nicht gespeichert werden.`
+      notifyLockLost(
+        lockLostTexts(parcel?.label, {
+          userString: lockHolder,
+          info: lockHolderInfo,
+        }).warning
       );
     }
-  }, [lockHolder, parcel?.label]);
+  }, [lockHolder, lockHolderInfo, parcel?.label]);
 
   const reloadParcel = () =>
     dispatch(
@@ -137,7 +148,7 @@ const EditControls = () => {
     if (!isEdit) {
       dispatch(
         startEditing({ schluesselId, urlParams: urlParamsOf(searchParams) })
-      ).catch((error) => message.error(errorMessage(error)));
+      ).catch(notifyStartFailed);
     } else if (isDirty) {
       setEndDialogOpen(true);
     } else {
