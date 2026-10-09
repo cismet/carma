@@ -256,6 +256,10 @@ export type { ThreeLayerManagerProps } from "./components/ThreeLayerManager";
 
 export { buildSharedThreeSceneLayer } from "./lib/runtime/integrations/shared-three-scene-layer";
 export {
+  readMapLibreLayerDepthRange,
+  type MapLibreLayerDepthRange,
+} from "./lib/runtime/integrations/maplibre-depth-range";
+export {
   createCameraFlightPlayer,
   createCameraLensClip,
   type CameraFlightPath,

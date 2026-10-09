@@ -28,10 +28,14 @@ import {
   type RenderTargetDepthRangeBridge,
 } from "./shared-three-scene-render-context";
 import { runMapLibreIdleRender } from "./maplibre-idle-render";
+import { readMapLibreLayerDepthRange } from "./maplibre-depth-range";
 import { setSharedThreeShadedPresentation } from "./shared-three-scene-content-registry";
 import { MAP_LOADING_PHASE } from "../../core/map-loading-progress";
 import { publishMapLoadingProgress } from "./map-loading-progress";
 import { MAPLIBRE_EVENT } from "../../../constants/mapEvents";
+
+/** `renderer.resetState()` leaves this clear colour behind (three's WebGLState.reset). */
+const THREE_RESET_CLEAR_COLOR = [0, 0, 0, 0] as const;
 
 const rotationX = new THREE.Matrix4().makeRotationAxis(
   new THREE.Vector3(1, 0, 0),
@@ -398,11 +402,7 @@ export const buildSharedThreeSceneLayer = (
       zoomPrefetch.update(renderCamera, viewport);
       scene.updateMatrixWorld(true);
 
-      const currentDepthRange = gl.getParameter(gl.DEPTH_RANGE) as Float32Array;
-      const savedDepthRange: DepthRange = [
-        currentDepthRange[0],
-        currentDepthRange[1],
-      ];
+      const savedDepthRange: DepthRange = readMapLibreLayerDepthRange(map, gl);
       renderer.resetState();
       gl.depthRange(savedDepthRange[0], savedDepthRange[1]);
       if (
@@ -423,7 +423,12 @@ export const buildSharedThreeSceneLayer = (
         // Explicit building-only receivers retain MapLibre's ground. Otherwise
         // the visible ground belongs to Three. Keep MapLibre's color only
         // in the captured texture; discard its competing fill, DEM and skirts.
-        clearMapStyleGroundBeforeThreeTerrain(gl, savedDepthRange);
+        clearMapStyleGroundBeforeThreeTerrain(
+          gl,
+          savedDepthRange,
+          true,
+          THREE_RESET_CLEAR_COLOR
+        );
       }
 
       accumulationRuntime.render(renderer, scene, frame, {

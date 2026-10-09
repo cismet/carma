@@ -38,12 +38,21 @@ const clearSharedDepthBuffer = (
  * framebuffer texture, but MapLibre's flat fill, DEM surface and skirts must
  * not survive as a second visible ground surface.
  */
+export type ClearColorValue = readonly [r: number, g: number, b: number, a: number];
+
 export const clearMapStyleGroundBeforeThreeTerrain = (
   gl: GroundClearContext,
   mapLibreDepthRange: DepthRange,
-  clearColor = true
+  clearColor = true,
+  /**
+   * The clear colour to put back, when the caller knows it; reading it with
+   * `getParameter` waits for the GPU to finish the frame so far.
+   */
+  knownClearColor?: ClearColorValue
 ): void => {
-  const savedClearColor = gl.getParameter(gl.COLOR_CLEAR_VALUE) as Float32Array;
+  const savedClearColor =
+    knownClearColor ??
+    (gl.getParameter(gl.COLOR_CLEAR_VALUE) as Float32Array);
   gl.depthMask(true);
   gl.depthRange(0, 1);
   gl.clearDepth(1);
