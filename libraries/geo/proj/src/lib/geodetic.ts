@@ -195,8 +195,10 @@ export const cartographicToEcef = (
 // ECEF → Cartographic (radians)
 // ---------------------------------------------------------------------------
 
-const ECEF_TO_CARTOGRAPHIC_ITERATIONS = 5;
-const ECEF_TO_CARTOGRAPHIC_EPSILON = 1e-12;
+const ECEF_TO_CARTOGRAPHIC_ITERATIONS = 6;
+// Radians; 1e-12 left a 2e-5 m round-trip error, enough to fail metre-level
+// equality in the annotation specs. 1e-15 brings it to the 5e-9 m Cesium had.
+const ECEF_TO_CARTOGRAPHIC_EPSILON = 1e-15;
 
 export type CartographicRad = {
   readonly longitude: Radians;
@@ -234,6 +236,9 @@ export const ecefToCartographic = (ecef: Vector3): CartographicRad => {
     }
     latitude = newLatitude;
   }
+  // The loop's altitude belongs to the previous latitude; refresh it for the
+  // converged one so the ECEF round trip closes.
+  altitude = p / Math.cos(latitude) - primeVerticalRadius(Math.sin(latitude));
 
   return {
     longitude: longitude as Radians,
