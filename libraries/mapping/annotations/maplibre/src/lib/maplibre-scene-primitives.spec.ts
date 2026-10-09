@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { Group, Matrix4, Vector3, type Mesh } from "three";
+import { GreaterDepth, Group, Matrix4, Vector3, type Mesh } from "three";
 import { ANNOTATION_SCENE_POLYGON_FILL_PLACEMENT } from "@carma-mapping/annotations/runtime";
 import {
   createMapLibreScenePolygonFills,
@@ -95,7 +95,7 @@ describe("createMapLibreScenePolygonFills", () => {
     expect(root.children).toHaveLength(0);
   });
 
-  it("draws the part behind the surface fainter on top", () => {
+  it("draws the part behind the surface as a depth-fail pass on top", () => {
     const { scene, root } = createPrimitiveScene();
     const fills = createMapLibreScenePolygonFills(scene);
     fills.setPolygonFills([
@@ -108,10 +108,23 @@ describe("createMapLibreScenePolygonFills", () => {
     ]);
     const [visible, occluded] = root.children as Mesh[];
     expect(visible!.renderOrder).toBeLessThan(occluded!.renderOrder);
-    const visibleMaterial = visible!.material as { opacity: number };
-    const occludedMaterial = occluded!.material as { opacity: number };
-    expect(occludedMaterial.opacity).toBeLessThan(visibleMaterial.opacity);
-    expect(occludedMaterial.opacity).toBeGreaterThan(0);
+    const visibleMaterial = visible!.material as {
+      opacity: number;
+      depthFunc: number;
+    };
+    const occludedMaterial = occluded!.material as {
+      opacity: number;
+      depthFunc: number;
+    };
+    expect(occludedMaterial.depthFunc).toBe(GreaterDepth);
+    expect(visibleMaterial.depthFunc).not.toBe(GreaterDepth);
+    expect(visibleMaterial.opacity).toBeGreaterThan(0.4);
+    expect(visibleMaterial.opacity).toBeLessThanOrEqual(1);
+    // The dot screen of the occluded pass is mapped in plane metres: 10 m
+    // along the first edge is 20 tiles at the 0.5 m pitch.
+    const uv = occluded!.geometry.getAttribute("uv");
+    expect(uv.count).toBe(positionsECEF.length);
+    expect(Math.abs(uv.getX(1) - uv.getX(0))).toBeCloseTo(20, 6);
     fills.destroy();
   });
 });

@@ -1,15 +1,19 @@
 import {
   BufferGeometry,
+  CanvasTexture,
   DoubleSide,
   Float32BufferAttribute,
   GreaterDepth,
   Matrix4,
   Mesh,
   MeshBasicMaterial,
+  RepeatWrapping,
   RingGeometry,
   ShapeUtils,
+  SRGBColorSpace,
   Vector2,
   Vector3,
+  type Texture,
 } from "three";
 import {
   createPlaneBasis,
@@ -40,8 +44,17 @@ export const MAPLIBRE_SCENE_PRIMITIVE_DEFAULTS = Object.freeze({
   ringRenderOrder: 10_000,
   fillRenderOrder: 900,
   occludedFillRenderOrder: 901,
-  /** The part of a fill behind the surface, as a share of the fill alpha. */
-  occludedFillOpacity: 0.6,
+  /**
+   * The runtime palette is tuned for Cesium's translucent appearance on
+   * flat LOD2 walls; on the textured mesh the same alpha reads too faint.
+   */
+  visibleFillOpacityFactor: 1.8,
+  /** The part of a fill behind the surface: a dot screen in the fill colour. */
+  occludedFillOpacityFactor: 2.4,
+  /** Dot pitch of that screen in metres of the polygon plane, so it foreshortens with the surface. */
+  occludedFillDotPitchMeters: 0.5,
+  occludedFillDotRadiusRatio: 0.22,
+  occludedFillTextureSize: 64,
   ringSegments: 64,
   /** Fills sit on the surface they measure; pull them a hair toward the camera. */
   polygonOffsetFactor: -2,
@@ -228,8 +241,58 @@ const buildPolygonGeometry = (
       3
     )
   );
+  // Plane coordinates in metres as texture coordinates: the dot screen of
+  // the occluded pass then sits on the surface and foreshortens with it.
+  const pitch = MAPLIBRE_SCENE_PRIMITIVE_DEFAULTS.occludedFillDotPitchMeters;
+  geometry.setAttribute(
+    "uv",
+    new Float32BufferAttribute(
+      points2d.flatMap((point) => [point.x / pitch, point.y / pitch]),
+      2
+    )
+  );
   geometry.setIndex(triangles.flat());
   return geometry;
+};
+
+let occludedFillTexture: Texture | null | undefined;
+
+/** One white dot per tile, repeated across the polygon plane; null without a 2D canvas. */
+const resolveOccludedFillTexture = (): Texture | null => {
+  if (occludedFillTexture !== undefined) return occludedFillTexture;
+  const size = MAPLIBRE_SCENE_PRIMITIVE_DEFAULTS.occludedFillTextureSize;
+  const canvas =
+    typeof document === "undefined" ? null : document.createElement("canvas");
+  let context: CanvasRenderingContext2D | null = null;
+  try {
+    context = canvas?.getContext("2d") ?? null;
+  } catch {
+    context = null;
+  }
+  if (!canvas || !context) {
+    occludedFillTexture = null;
+    return null;
+  }
+  canvas.width = size;
+  canvas.height = size;
+  context.clearRect(0, 0, size, size);
+  context.fillStyle = "#ffffff";
+  context.beginPath();
+  context.arc(
+    size / 2,
+    size / 2,
+    size * MAPLIBRE_SCENE_PRIMITIVE_DEFAULTS.occludedFillDotRadiusRatio,
+    0,
+    Math.PI * 2
+  );
+  context.fill();
+  const texture = new CanvasTexture(canvas);
+  texture.wrapS = RepeatWrapping;
+  texture.wrapT = RepeatWrapping;
+  texture.colorSpace = SRGBColorSpace;
+  texture.anisotropy = 4;
+  occludedFillTexture = texture;
+  return texture;
 };
 
 type PolygonFillMesh = {
@@ -248,15 +311,21 @@ const createFillMaterial = (
 ) => {
   const material = new MeshBasicMaterial({
     color,
-    opacity: occluded
-      ? opacity * MAPLIBRE_SCENE_PRIMITIVE_DEFAULTS.occludedFillOpacity
-      : opacity,
+    opacity: Math.min(
+      1,
+      opacity *
+        (occluded
+          ? MAPLIBRE_SCENE_PRIMITIVE_DEFAULTS.occludedFillOpacityFactor
+          : MAPLIBRE_SCENE_PRIMITIVE_DEFAULTS.visibleFillOpacityFactor)
+    ),
     transparent: true,
     depthWrite: false,
     side: DoubleSide,
   });
   if (occluded) {
     material.depthFunc = GreaterDepth;
+    material.map = resolveOccludedFillTexture();
+    material.alphaTest = 0.5;
   } else {
     material.polygonOffset = true;
     material.polygonOffsetFactor =
