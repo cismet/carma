@@ -83,8 +83,9 @@ const buildInteractionButtons = (
         {label}
       </span>
     ),
+    // no tooltip: on a phone it opens on the tap and covers the ribbon
     ...(hasRibbon
-      ? { tooltip: "Navigation einstellen" }
+      ? {}
       : {
           onClick: () => {
             /* a readout, not a switch */

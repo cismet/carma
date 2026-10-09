@@ -5,8 +5,9 @@ import {
   faPause,
   faPlay,
 } from "@fortawesome/free-solid-svg-icons";
-import { Slider, Tooltip } from "antd";
+import { ConfigProvider, Slider } from "antd";
 
+import type { SimulatedSignal } from "../LocationSimulator/fakeDevice";
 import { useLocationSimulation } from "../LocationSimulator/simulationChannel";
 import { useRouteNavigation } from "./routeChannel";
 
@@ -15,6 +16,40 @@ const SEEK_STEP = 0.001;
 
 /** the paces the drive can be set to, as multiples of the configured speed */
 const SPEED_FACTORS = [0.5, 1, 2, 4];
+
+/** the receptions the pretend device can have, for testing a weak or lost signal */
+const SIGNALS: { value: SimulatedSignal; label: string }[] = [
+  { value: "good", label: "gut" },
+  { value: "poor", label: "ungenau" },
+  { value: "off", label: "aus" },
+];
+
+/**
+ * Sized for a thumb: the ribbon is used on a phone held in one hand, so every
+ * target is at least 36 px and the slider has a row of its own. No tooltips:
+ * on a touch screen they open on the tap and stay over the controls.
+ */
+const ICON_BUTTON_CLASS_NAME =
+  "flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent text-lg text-gray-600 hover:bg-black/5";
+
+/** a bigger knob and rail than ant's default, so the slider can be dragged with a finger */
+const SLIDER_THEME = {
+  components: {
+    Slider: {
+      handleSize: 18,
+      handleSizeHover: 20,
+      railSize: 6,
+      controlSize: 24,
+    },
+  },
+};
+
+const SEGMENT_CLASS_NAME = (active: boolean) =>
+  `h-9 cursor-pointer rounded-full border-0 px-3 text-sm tabular-nums ${
+    active
+      ? "bg-black/10 font-semibold text-gray-800"
+      : "bg-transparent text-gray-500 hover:bg-black/5"
+  }`;
 
 /**
  * The ribbon under the layer bar while a navigation runs.
@@ -42,27 +77,22 @@ export const RoutingPanel = () => {
 
   return (
     <div
-      className="w-[100vw] sm:w-[86vw] sm:max-w-[680px] shrink-0 bg-white rounded-[10px] px-4 py-2 shadow-lg"
+      className="w-[100vw] sm:w-[86vw] sm:max-w-[680px] shrink-0 bg-white rounded-[10px] px-4 py-3 shadow-lg"
       data-test-id="routing-tools"
     >
       {simulation?.driving ? (
-        <>
-          <div className="flex items-center gap-3 text-sm text-gray-700">
-            <Tooltip
-              title={simulation.paused ? "Weiterfahren" : "Anhalten"}
-              placement="top"
+        <div className="flex flex-col gap-2 text-sm text-gray-700">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              aria-label={simulation.paused ? "Weiterfahren" : "Anhalten"}
+              onClick={() => simulation.setPaused(!simulation.paused)}
+              className={ICON_BUTTON_CLASS_NAME}
             >
-              <button
-                type="button"
-                aria-label={simulation.paused ? "Weiterfahren" : "Anhalten"}
-                onClick={() => simulation.setPaused(!simulation.paused)}
-                className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent text-gray-600 hover:bg-black/5"
-              >
-                <FontAwesomeIcon icon={simulation.paused ? faPlay : faPause} />
-              </button>
-            </Tooltip>
+              <FontAwesomeIcon icon={simulation.paused ? faPlay : faPause} />
+            </button>
             <div
-              className="flex shrink-0 items-center gap-0.5"
+              className="flex items-center gap-1"
               role="group"
               aria-label="Geschwindigkeit"
             >
@@ -74,58 +104,74 @@ export const RoutingPanel = () => {
                     type="button"
                     aria-pressed={active}
                     onClick={() => simulation.setSpeedFactor(factor)}
-                    className={`h-7 cursor-pointer rounded-full border-0 px-2 text-xs tabular-nums ${
-                      active
-                        ? "bg-black/10 font-semibold text-gray-800"
-                        : "bg-transparent text-gray-500 hover:bg-black/5"
-                    }`}
+                    className={SEGMENT_CLASS_NAME(active)}
                   >
                     {factor}×
                   </button>
                 );
               })}
             </div>
-            <Tooltip
-              title="Rechts abbiegen und die Route verlassen, um die Neuberechnung zu testen"
-              placement="top"
+            <button
+              type="button"
+              aria-label="Abweichen"
+              onClick={simulation.detour}
+              className={`${ICON_BUTTON_CLASS_NAME} ml-auto`}
+              data-test-id="routing-detour"
             >
-              <button
-                type="button"
-                aria-label="Abweichen"
-                onClick={simulation.detour}
-                className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent text-gray-600 hover:bg-black/5"
-                data-test-id="routing-detour"
-              >
-                <FontAwesomeIcon icon={faDiamondTurnRight} />
-              </button>
-            </Tooltip>
-            <span className="shrink-0 whitespace-nowrap">
-              Position auf der Route
-            </span>
-            <Slider
-              className="grow"
-              min={0}
-              max={1}
-              step={SEEK_STEP}
-              value={draft ?? fraction}
-              onChange={(value) => {
-                setDraft(value);
-                simulation.seek(value);
-              }}
-              onChangeComplete={() => setDraft(null)}
-              tooltip={{
-                formatter: (value) => `${Math.round((value ?? 0) * 100)} %`,
-              }}
-              style={{ margin: 0 }}
-            />
-            <span className="w-10 shrink-0 text-right tabular-nums">
+              <FontAwesomeIcon icon={faDiamondTurnRight} />
+            </button>
+          </div>
+          <div className="flex items-center gap-3">
+            <ConfigProvider theme={SLIDER_THEME}>
+              <Slider
+                className="grow"
+                min={0}
+                max={1}
+                step={SEEK_STEP}
+                value={draft ?? fraction}
+                onChange={(value) => {
+                  setDraft(value);
+                  simulation.seek(value);
+                }}
+                onChangeComplete={() => setDraft(null)}
+                tooltip={{ open: false }}
+                style={{ margin: "0 8px" }}
+                aria-label="Position auf der Route"
+              />
+            </ConfigProvider>
+            <span className="w-12 shrink-0 text-right tabular-nums">
               {Math.round((draft ?? fraction) * 100)} %
             </span>
           </div>
-          <p className="m-0 text-xs text-gray-500">
-            Alt + Klick in die Karte: Position setzen
-          </p>
-        </>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <div
+              className="flex items-center gap-1"
+              role="group"
+              aria-label="GPS-Signal"
+            >
+              <span className="mr-1 text-gray-500">Signal</span>
+              {SIGNALS.map(({ value, label }) => {
+                const active = value === simulation.signal;
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => simulation.setSignal(value)}
+                    className={SEGMENT_CLASS_NAME(active)}
+                    data-test-id={`routing-signal-${value}`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+            {/* there is no Alt key on a phone */}
+            <span className="text-xs text-gray-500 max-sm:hidden">
+              Alt + Klick in die Karte: Position setzen
+            </span>
+          </div>
+        </div>
       ) : (
         <p className="m-0 text-sm text-gray-500">
           Die Position kommt vom Gerät und lässt sich hier nicht verschieben.
