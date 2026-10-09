@@ -22,6 +22,8 @@ export type MapLibreAreaFillStyleOptions = {
   crosshairArmCssPx?: number;
   /** Line width of those crosshairs, in CSS pixels. */
   crosshairWidthCssPx?: number;
+  /** Opacity of the crosshairs; hairlines need more than the cells to read on a textured mesh. */
+  crosshairOpacity?: number;
   /**
    * The ruler of a metric line: every other grid cell keeps this share of
    * the line's opacity (the minor beat), and every other major cell is
@@ -51,6 +53,7 @@ export const MAPLIBRE_AREA_FILL_STYLE_DEFAULTS: ResolvedMapLibreAreaFillStyle =
     gridMinPitchCssPx: 10,
     crosshairArmCssPx: 3,
     crosshairWidthCssPx: 1,
+    crosshairOpacity: 0.9,
     rulerMinorOpacityShare: 0.7,
     rulerMajorMinRatio: 5,
     rulerMajorWidthFactor: 2.2,
@@ -91,6 +94,9 @@ export const resolveMapLibreAreaFillStyle = (
     crosshairWidthCssPx: isFinitePositive(options.crosshairWidthCssPx)
       ? options.crosshairWidthCssPx
       : defaults.crosshairWidthCssPx,
+    crosshairOpacity: isUnitShare(options.crosshairOpacity)
+      ? options.crosshairOpacity
+      : defaults.crosshairOpacity,
     rulerMinorOpacityShare: isUnitShare(options.rulerMinorOpacityShare)
       ? options.rulerMinorOpacityShare
       : defaults.rulerMinorOpacityShare,

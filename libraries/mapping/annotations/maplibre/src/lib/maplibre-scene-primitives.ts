@@ -4,6 +4,7 @@ import {
   DoubleSide,
   Float32BufferAttribute,
   GreaterDepth,
+  LinearFilter,
   Matrix4,
   Mesh,
   MeshBasicMaterial,
@@ -371,7 +372,8 @@ const fillTextureCache = new Map<string, Texture | null>();
 
 const createPatternTexture = (
   key: string,
-  draw: (context: CanvasRenderingContext2D, size: number) => void
+  draw: (context: CanvasRenderingContext2D, size: number) => void,
+  options: { mipmaps?: boolean } = {}
 ): Texture | null => {
   const cached = fillTextureCache.get(key);
   if (cached !== undefined) return cached;
@@ -397,6 +399,10 @@ const createPatternTexture = (
   texture.wrapT = RepeatWrapping;
   texture.colorSpace = SRGBColorSpace;
   texture.anisotropy = 4;
+  if (options.mipmaps === false) {
+    texture.generateMipmaps = false;
+    texture.minFilter = LinearFilter;
+  }
   fillTextureCache.set(key, texture);
   return texture;
 };
@@ -431,7 +437,10 @@ const resolveCrosshairTexture = (
       context.fillStyle = "#ffffff";
       context.fillRect(centre - arm, centre - width / 2, arm * 2, width);
       context.fillRect(centre - width / 2, centre - arm, width, arm * 2);
-    }
+    },
+    // The tile is redrawn per screen cell size, so it is viewed near its own
+    // scale; mipmaps would only average the hairlines away on foreshortened walls.
+    { mipmaps: false }
   );
 };
 
@@ -472,8 +481,10 @@ const createFillMaterial = (
     side: DoubleSide,
   });
   if (occluded) {
+    // Hairlines blend; an alpha test would drop them wherever filtering
+    // thins a one pixel arm below the threshold.
     material.depthFunc = GreaterDepth;
-    material.alphaTest = 0.5;
+    material.opacity = style.crosshairOpacity;
   } else {
     const checker = resolveCheckerTexture(style);
     if (checker) material.map = checker.clone();
