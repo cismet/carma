@@ -131,7 +131,15 @@ const persistPrintConfig = {
 const persistEditingConfig = {
   key: "@lagis-desktop.1.app.editing",
   storage: localForage,
-  whitelist: ["active", "parcel", "lock", "mipaLocks", "original", "draft"],
+  whitelist: [
+    "active",
+    "parcel",
+    "lock",
+    "mipaLocks",
+    "rebeLocks",
+    "original",
+    "draft",
+  ],
 };
 
 // const persis
