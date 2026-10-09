@@ -266,10 +266,9 @@ export const releaseLock = async (lock, jwt) => {
   }
 };
 
+// all at once: one by one takes seconds on parcels with many MiPa
 export const releaseLocks = async (locks, jwt) => {
-  for (const lock of locks ?? []) {
-    await releaseLock(lock, jwt);
-  }
+  await Promise.all((locks ?? []).map((lock) => releaseLock(lock, jwt)));
 };
 
 // For pagehide: the page may be gone before an answer arrives, so the
