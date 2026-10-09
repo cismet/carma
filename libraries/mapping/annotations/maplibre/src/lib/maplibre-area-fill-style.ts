@@ -25,19 +25,18 @@ export type MapLibreAreaFillStyleOptions = {
   /** Opacity of the crosshairs; hairlines need more than the cells to read on a textured mesh. */
   crosshairOpacity?: number;
   /**
-   * The ruler of a drafted or selected line: a tick across the line at
-   * every beat of the metric pitch, a longer tick and a knot at the major
-   * beats. The major pitch is the first of the series at least
-   * `rulerMajorMinRatio` times the beat: 5 m over 1 m, 10 m over 2 m, 50 m
-   * over 5 m. Beats closer than the clearance to a node or to a segment
-   * midpoint are left out so the handles stay free.
+   * The ruler of a drafted or selected line: a dot on the line at every
+   * beat of the metric pitch, a larger dot at the decades, both sized
+   * relative to the line width. The beat is the first of the 1-2-5 series
+   * that spans the minimum segment; the primary dots sit at 1, 10, 100 m,
+   * the secondary ones at the 2 and 5 beats between them. Beats closer than
+   * the clearance to a node or to a segment midpoint are left out so the
+   * node handles and the insert ticks stay free.
    */
-  rulerMajorMinRatio?: number;
   /** Each beat of the ruler spans at least this many CSS pixels. */
   rulerMinSegmentCssPx?: number;
-  rulerMinorTickCssPx?: number;
-  rulerMajorTickCssPx?: number;
-  rulerKnotCssPx?: number;
+  rulerMinorDotWidthFactor?: number;
+  rulerMajorDotWidthFactor?: number;
   rulerMarkerClearanceCssPx?: number;
 };
 
@@ -56,11 +55,9 @@ export const MAPLIBRE_AREA_FILL_STYLE_DEFAULTS: ResolvedMapLibreAreaFillStyle =
     crosshairArmCssPx: 3,
     crosshairWidthCssPx: 1,
     crosshairOpacity: 0.9,
-    rulerMajorMinRatio: 5,
     rulerMinSegmentCssPx: 32,
-    rulerMinorTickCssPx: 6,
-    rulerMajorTickCssPx: 12,
-    rulerKnotCssPx: 7,
+    rulerMinorDotWidthFactor: 1.33,
+    rulerMajorDotWidthFactor: 1.66,
     rulerMarkerClearanceCssPx: 16,
   });
 
@@ -100,23 +97,15 @@ export const resolveMapLibreAreaFillStyle = (
     crosshairOpacity: isUnitShare(options.crosshairOpacity)
       ? options.crosshairOpacity
       : defaults.crosshairOpacity,
-    rulerMajorMinRatio:
-      isFinitePositive(options.rulerMajorMinRatio) &&
-      options.rulerMajorMinRatio >= 2
-        ? options.rulerMajorMinRatio
-        : defaults.rulerMajorMinRatio,
     rulerMinSegmentCssPx: isFinitePositive(options.rulerMinSegmentCssPx)
       ? options.rulerMinSegmentCssPx
       : defaults.rulerMinSegmentCssPx,
-    rulerMinorTickCssPx: isFinitePositive(options.rulerMinorTickCssPx)
-      ? options.rulerMinorTickCssPx
-      : defaults.rulerMinorTickCssPx,
-    rulerMajorTickCssPx: isFinitePositive(options.rulerMajorTickCssPx)
-      ? options.rulerMajorTickCssPx
-      : defaults.rulerMajorTickCssPx,
-    rulerKnotCssPx: isFinitePositive(options.rulerKnotCssPx)
-      ? options.rulerKnotCssPx
-      : defaults.rulerKnotCssPx,
+    rulerMinorDotWidthFactor: isFinitePositive(options.rulerMinorDotWidthFactor)
+      ? options.rulerMinorDotWidthFactor
+      : defaults.rulerMinorDotWidthFactor,
+    rulerMajorDotWidthFactor: isFinitePositive(options.rulerMajorDotWidthFactor)
+      ? options.rulerMajorDotWidthFactor
+      : defaults.rulerMajorDotWidthFactor,
     rulerMarkerClearanceCssPx:
       typeof options.rulerMarkerClearanceCssPx === "number" &&
       Number.isFinite(options.rulerMarkerClearanceCssPx) &&
@@ -141,19 +130,14 @@ export const resolveRulerPitchMeters = (
 };
 
 /**
- * The major beat of the ruler: the first pitch of the series at least
- * `rulerMajorMinRatio` times the beat, or the beat times that ratio past
- * the end of the series.
+ * The primary beat of the ruler: the decade the beat belongs to. A beat of
+ * 1, 10 or 100 m is its own decade; 2 and 5 m count up to 10 m, 20 and
+ * 50 m up to 100 m.
  */
-export const resolveRulerMajorPitchMeters = (
-  minorPitchMeters: number,
-  style: ResolvedMapLibreAreaFillStyle = MAPLIBRE_AREA_FILL_STYLE_DEFAULTS
-): number => {
-  const threshold = minorPitchMeters * style.rulerMajorMinRatio;
-  for (const pitch of style.gridPitchSeriesMeters) {
-    if (pitch >= threshold) return pitch;
-  }
-  return threshold;
+export const resolveRulerMajorPitchMeters = (minorPitchMeters: number): number => {
+  if (!(minorPitchMeters > 0)) return 1;
+  const exponent = Math.ceil(Math.log10(minorPitchMeters) - 1e-9);
+  return 10 ** exponent;
 };
 
 /** The first pitch of the series that spans at least the minimum pixels at this scale. */
