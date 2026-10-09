@@ -4,6 +4,7 @@ import dayjs from "dayjs";
 import customParseFormat from "dayjs/plugin/customParseFormat";
 import { compare, getColorFromCode } from "../../core/tools/helper";
 import { ColorMark, dienststelleLabel } from "./cells";
+import { hasId } from "../../core/editing/ids";
 dayjs.extend(customParseFormat);
 
 export const VIEW_DAY = "DD.MM.YYYY";
@@ -83,7 +84,7 @@ export const dienststelleColumn = (title, dienststellen, update) => {
       <div className="flex items-center">
         <ColorMark
           color={
-            dienststelleId &&
+            hasId(dienststelleId) &&
             getColorFromCode(
               byId.get(dienststelleId)?.farbeArrayRelationShip?.[0]
                 ?.rgb_farbwert
