@@ -43,8 +43,6 @@ export type AnnotationVisualDefaults = {
     edgeStrokeWidth: number;
     pointPixelSize: number;
     pointOutlineWidth: number;
-    selectedPointPixelSize: number;
-    selectedPointOutlineWidth: number;
   };
   patterns: {
     edgeDashPattern: string;
@@ -64,8 +62,6 @@ export type AnnotationVisualSelectionStyleOverrides = {
 const annotationVisualColorDefaults = Object.freeze({
   previewAlpha: 0.9,
   surfaceAlpha: 0.92,
-  /** The translucent disc that marks the nodes of a selected measurement as drag handles. */
-  selectedNodeFillAlpha: 0.3,
 });
 
 export const annotationVisualDefaults: AnnotationVisualDefaults = {
@@ -106,9 +102,6 @@ export const annotationVisualDefaults: AnnotationVisualDefaults = {
     edgeStrokeWidth: ANNOTATION_LINE_STYLE_DEFAULTS.strokeWidthPx,
     pointPixelSize: 10,
     pointOutlineWidth: 1,
-    /** Nodes of a selected measurement grow into visible edit handles. */
-    selectedPointPixelSize: 14,
-    selectedPointOutlineWidth: 2,
   },
   patterns: {
     edgeDashPattern: ANNOTATION_LINE_STYLE_DEFAULTS.overlayDashPattern,
@@ -135,12 +128,7 @@ export const annotationVisualSelectionStyleOverrides: AnnotationVisualSelectionS
       stroke: annotationVisualDefaults.colors.neutral,
     } satisfies Partial<EdgeVisualStyle>),
     point: Object.freeze({
-      pixelSize: annotationVisualDefaults.sizes.selectedPointPixelSize,
-      outlineWidth: annotationVisualDefaults.sizes.selectedPointOutlineWidth,
       outline: annotationVisualDefaults.colors.neutral,
-      fill: resolveDisplayP3WhiteCssColor(
-        annotationVisualColorDefaults.selectedNodeFillAlpha
-      ),
     } satisfies Partial<PointMarkerVisualStyle>),
   });
 
