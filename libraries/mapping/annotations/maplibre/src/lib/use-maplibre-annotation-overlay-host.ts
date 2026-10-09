@@ -1,19 +1,21 @@
 import { useEffect, useRef, useState } from "react";
 import type { Map as MaplibreMap } from "maplibre-gl";
-import { useMapLibreLabelOverlayHost } from "@carma-mapping/annotations/maplibre";
 import {
   ANNOTATION_OVERLAY_GROUP,
   resolveAnnotationOverlayMountConfig,
 } from "@carma-mapping/annotations/runtime";
 import type { LabelOverlayHostBinding } from "@carma-providers/label-overlay";
 
+import { useMapLibreLabelOverlayHost } from "./use-maplibre-label-overlay-host";
+
 /**
  * Where the runtime's DOM overlays mount on a MapLibre map (its container)
  * and the label-overlay host bound to the label root the runtime renders in
  * there, retried per animation frame until it exists. The MapLibre counterpart
- * of the geoportal's `useGeoportalCesiumAnnotationOverlayHost`.
+ * of the geoportal's `useGeoportalCesiumAnnotationOverlayHost`; hosts hand
+ * `overlayContainer` and `overlayHost` to the `AnnotationsProvider`.
  */
-export const useMeasurement3dOverlayHost = (
+export const useMapLibreAnnotationOverlayHost = (
   map: MaplibreMap | null
 ): {
   overlayContainer: HTMLElement | null;
