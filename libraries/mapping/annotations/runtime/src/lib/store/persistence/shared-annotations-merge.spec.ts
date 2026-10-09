@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  ANNOTATIONS_RUNTIME_PERSISTENCE_VERSION,
+  buildAnnotationsRuntimeGeoJsonFeatureCollection,
+  parseAnnotationsRuntimePersistenceEnvelope,
+  resolveAnnotationsRuntimePersistenceFromGeoJson,
   resolveSharedAnnotationsMerge,
   stampAnnotationIdentity,
   type AnnotationsRuntimePersistenceEnvelope,
@@ -91,5 +95,59 @@ describe("resolveSharedAnnotationsMerge", () => {
     const merge = resolveSharedAnnotationsMerge(incoming, local);
     expect(merge.unchangedCount).toBe(1);
     expect(merge.additions.tables.annotationEntries).toHaveLength(0);
+  });
+});
+
+describe("persistence versions", () => {
+  const legacy = {
+    formatId: "annotations-runtime-persistence",
+    version: 1,
+    tables: {
+      annotationEntries: [entry("distance-1", ["n1", "n2"])],
+      nodes: [node("n1", 160), node("n2", 162)],
+      linkedNodeGroups: [],
+      edges: [],
+    },
+    settings: {
+      lastActiveToolType: null,
+      elevationReferenceAnnotationId: null,
+      nextShortLabelCounterByToolType: {},
+    },
+  };
+
+  it("upgrades a version 1 envelope to the current version with identity stamps", () => {
+    const upgraded = parseAnnotationsRuntimePersistenceEnvelope(legacy);
+    expect(upgraded?.version).toBe(ANNOTATIONS_RUNTIME_PERSISTENCE_VERSION);
+    const [first] = upgraded!.tables.annotationEntries;
+    expect(first!.uuid).toBeTruthy();
+    expect(first!.updatedAt).toBeTruthy();
+    expect(upgraded!.tables.nodes[0]!.coordinate.altitude).toBe(160);
+  });
+
+  it("accepts the version 1 GeoJSON wrapper of the Cesium measurement", () => {
+    const wrapper = {
+      type: "FeatureCollection",
+      features: [],
+      metadata: {
+        carmaConf: {
+          formatId: "carma-3d-annotations-geojson",
+          formatVersion: 1,
+          source: "geoportal-cesium-annotations",
+          annotationsRuntimePersistence: legacy,
+        },
+      },
+    };
+    const resolved = resolveAnnotationsRuntimePersistenceFromGeoJson(wrapper);
+    expect(resolved?.version).toBe(ANNOTATIONS_RUNTIME_PERSISTENCE_VERSION);
+    expect(resolved?.tables.annotationEntries[0]?.uuid).toBeTruthy();
+  });
+
+  it("rejects an unknown future version and writes the current one", () => {
+    expect(parseAnnotationsRuntimePersistenceEnvelope({ ...legacy, version: 99 })).toBeNull();
+    const written = buildAnnotationsRuntimeGeoJsonFeatureCollection(
+      parseAnnotationsRuntimePersistenceEnvelope(legacy)!
+    );
+    expect(written.metadata.carmaConf.formatVersion).toBe(2);
+    expect(written.metadata.carmaConf.annotationsRuntimePersistence.version).toBe(2);
   });
 });
