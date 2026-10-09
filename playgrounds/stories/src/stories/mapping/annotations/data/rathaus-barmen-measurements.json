@@ -1,0 +1,1513 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "id": "point-14",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          7.1996744872946286,
+          51.27260960303602,
+          24.499400687403977
+        ]
+      },
+      "properties": {
+        "exportVersion": 1,
+        "annotationId": "point-14",
+        "annotationKind": "point",
+        "annotation": {
+          "id": "point-14",
+          "toolType": "point",
+          "shortLabel": "2",
+          "shortLabelSource": "default",
+          "shortLabelCounter": 2,
+          "nodeIds": [
+            "node-36"
+          ],
+          "edgeIds": []
+        },
+        "nodes": [
+          {
+            "order": 0,
+            "coordinate": {
+              "longitude": 7.1996744872946286,
+              "latitude": 51.27260960303602,
+              "altitude": 24.499400687403977
+            }
+          }
+        ],
+        "carmaConf": {
+          "annotationRuntime": {
+            "formatId": "carma-3d-annotation-runtime-feature",
+            "formatVersion": 1,
+            "annotation": {
+              "id": "point-14",
+              "toolType": "point",
+              "shortLabel": "2",
+              "shortLabelSource": "default",
+              "shortLabelCounter": 2,
+              "nodeIds": [
+                "node-36"
+              ],
+              "edgeIds": []
+            },
+            "nodes": [
+              {
+                "id": "node-36",
+                "coordinate": {
+                  "longitude": 7.1996744872946286,
+                  "latitude": 51.27260960303602,
+                  "altitude": 24.499400687403977
+                }
+              }
+            ],
+            "linkedNodeGroups": [
+              {
+                "id": "node-36",
+                "nodeIds": [
+                  "node-36"
+                ]
+              }
+            ],
+            "edges": []
+          }
+        }
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "distance-15",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            7.199984726380847,
+            51.272427247123964,
+            6.307271676138043
+          ],
+          [
+            7.199531473531579,
+            51.27225222185578,
+            0.0375064704567194
+          ]
+        ]
+      },
+      "properties": {
+        "exportVersion": 1,
+        "annotationId": "distance-15",
+        "annotationKind": "distance",
+        "annotation": {
+          "id": "distance-15",
+          "toolType": "distance",
+          "distanceAnchorCoordinateSelection": "leftmost-screen-space",
+          "shortLabel": "I",
+          "shortLabelSource": "default",
+          "shortLabelCounter": 9,
+          "nodeIds": [
+            "node-37",
+            "node-38"
+          ],
+          "edgeIds": [
+            "edge-28"
+          ]
+        },
+        "nodes": [
+          {
+            "order": 0,
+            "coordinate": {
+              "longitude": 7.199984726380847,
+              "latitude": 51.272427247123964,
+              "altitude": 6.307271676138043
+            }
+          },
+          {
+            "order": 1,
+            "coordinate": {
+              "longitude": 7.199531473531579,
+              "latitude": 51.27225222185578,
+              "altitude": 0.0375064704567194
+            }
+          }
+        ],
+        "carmaConf": {
+          "annotationRuntime": {
+            "formatId": "carma-3d-annotation-runtime-feature",
+            "formatVersion": 1,
+            "annotation": {
+              "id": "distance-15",
+              "toolType": "distance",
+              "distanceAnchorCoordinateSelection": "leftmost-screen-space",
+              "shortLabel": "I",
+              "shortLabelSource": "default",
+              "shortLabelCounter": 9,
+              "nodeIds": [
+                "node-37",
+                "node-38"
+              ],
+              "edgeIds": [
+                "edge-28"
+              ]
+            },
+            "nodes": [
+              {
+                "id": "node-37",
+                "coordinate": {
+                  "longitude": 7.199984726380847,
+                  "latitude": 51.272427247123964,
+                  "altitude": 6.307271676138043
+                }
+              },
+              {
+                "id": "node-38",
+                "coordinate": {
+                  "longitude": 7.199531473531579,
+                  "latitude": 51.27225222185578,
+                  "altitude": 0.0375064704567194
+                }
+              }
+            ],
+            "linkedNodeGroups": [
+              {
+                "id": "node-37",
+                "nodeIds": [
+                  "node-37"
+                ]
+              },
+              {
+                "id": "node-38",
+                "nodeIds": [
+                  "node-38"
+                ]
+              }
+            ],
+            "edges": [
+              {
+                "id": "edge-28",
+                "startNodeId": "node-37",
+                "endNodeId": "node-38"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "polyline-16",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            7.200009295522704,
+            51.27243177459635,
+            20.08168783225119
+          ],
+          [
+            7.199905779700373,
+            51.27235910685218,
+            20.903215487487614
+          ],
+          [
+            7.19973588535774,
+            51.27233917179543,
+            20.27233833540231
+          ]
+        ]
+      },
+      "properties": {
+        "exportVersion": 1,
+        "annotationId": "polyline-16",
+        "annotationKind": "polyline",
+        "annotation": {
+          "id": "polyline-16",
+          "toolType": "polyline",
+          "shortLabel": "L1",
+          "shortLabelSource": "default",
+          "shortLabelCounter": 1,
+          "nodeIds": [
+            "node-39",
+            "node-40",
+            "node-41"
+          ],
+          "edgeIds": [
+            "edge-29",
+            "edge-30"
+          ]
+        },
+        "nodes": [
+          {
+            "order": 0,
+            "coordinate": {
+              "longitude": 7.200009295522704,
+              "latitude": 51.27243177459635,
+              "altitude": 20.08168783225119
+            }
+          },
+          {
+            "order": 1,
+            "coordinate": {
+              "longitude": 7.199905779700373,
+              "latitude": 51.27235910685218,
+              "altitude": 20.903215487487614
+            }
+          },
+          {
+            "order": 2,
+            "coordinate": {
+              "longitude": 7.19973588535774,
+              "latitude": 51.27233917179543,
+              "altitude": 20.27233833540231
+            }
+          }
+        ],
+        "carmaConf": {
+          "annotationRuntime": {
+            "formatId": "carma-3d-annotation-runtime-feature",
+            "formatVersion": 1,
+            "annotation": {
+              "id": "polyline-16",
+              "toolType": "polyline",
+              "shortLabel": "L1",
+              "shortLabelSource": "default",
+              "shortLabelCounter": 1,
+              "nodeIds": [
+                "node-39",
+                "node-40",
+                "node-41"
+              ],
+              "edgeIds": [
+                "edge-29",
+                "edge-30"
+              ]
+            },
+            "nodes": [
+              {
+                "id": "node-39",
+                "coordinate": {
+                  "longitude": 7.200009295522704,
+                  "latitude": 51.27243177459635,
+                  "altitude": 20.08168783225119
+                }
+              },
+              {
+                "id": "node-40",
+                "coordinate": {
+                  "longitude": 7.199905779700373,
+                  "latitude": 51.27235910685218,
+                  "altitude": 20.903215487487614
+                }
+              },
+              {
+                "id": "node-41",
+                "coordinate": {
+                  "longitude": 7.19973588535774,
+                  "latitude": 51.27233917179543,
+                  "altitude": 20.27233833540231
+                }
+              }
+            ],
+            "linkedNodeGroups": [
+              {
+                "id": "node-39",
+                "nodeIds": [
+                  "node-39"
+                ]
+              },
+              {
+                "id": "node-40",
+                "nodeIds": [
+                  "node-40"
+                ]
+              },
+              {
+                "id": "node-41",
+                "nodeIds": [
+                  "node-41"
+                ]
+              }
+            ],
+            "edges": [
+              {
+                "id": "edge-29",
+                "startNodeId": "node-39",
+                "endNodeId": "node-40"
+              },
+              {
+                "id": "edge-30",
+                "startNodeId": "node-40",
+                "endNodeId": "node-41"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "area-17",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              7.19985470488615,
+              51.272415432135126,
+              9.340882054530084
+            ],
+            [
+              7.199576360520298,
+              51.27219041614483,
+              0.01983219012618065
+            ],
+            [
+              7.199421934506489,
+              51.272571667304284,
+              24.481934376060963
+            ],
+            [
+              7.19985470488615,
+              51.272415432135126,
+              9.340882054530084
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "exportVersion": 1,
+        "annotationId": "area-17",
+        "annotationKind": "area",
+        "annotation": {
+          "id": "area-17",
+          "toolType": "area",
+          "closed": true,
+          "preferredNormalBearingRad": 2.7810555216742214,
+          "shortLabel": "A1",
+          "shortLabelSource": "default",
+          "shortLabelCounter": 1,
+          "nodeIds": [
+            "node-42",
+            "node-43",
+            "node-44"
+          ],
+          "edgeIds": [
+            "edge-31",
+            "edge-32",
+            "edge-33"
+          ]
+        },
+        "nodes": [
+          {
+            "order": 0,
+            "coordinate": {
+              "longitude": 7.19985470488615,
+              "latitude": 51.272415432135126,
+              "altitude": 9.340882054530084
+            }
+          },
+          {
+            "order": 1,
+            "coordinate": {
+              "longitude": 7.199576360520298,
+              "latitude": 51.27219041614483,
+              "altitude": 0.01983219012618065
+            }
+          },
+          {
+            "order": 2,
+            "coordinate": {
+              "longitude": 7.199421934506489,
+              "latitude": 51.272571667304284,
+              "altitude": 24.481934376060963
+            }
+          }
+        ],
+        "carmaConf": {
+          "annotationRuntime": {
+            "formatId": "carma-3d-annotation-runtime-feature",
+            "formatVersion": 1,
+            "annotation": {
+              "id": "area-17",
+              "toolType": "area",
+              "closed": true,
+              "preferredNormalBearingRad": 2.7810555216742214,
+              "shortLabel": "A1",
+              "shortLabelSource": "default",
+              "shortLabelCounter": 1,
+              "nodeIds": [
+                "node-42",
+                "node-43",
+                "node-44"
+              ],
+              "edgeIds": [
+                "edge-31",
+                "edge-32",
+                "edge-33"
+              ]
+            },
+            "nodes": [
+              {
+                "id": "node-42",
+                "coordinate": {
+                  "longitude": 7.19985470488615,
+                  "latitude": 51.272415432135126,
+                  "altitude": 9.340882054530084
+                }
+              },
+              {
+                "id": "node-43",
+                "coordinate": {
+                  "longitude": 7.199576360520298,
+                  "latitude": 51.27219041614483,
+                  "altitude": 0.01983219012618065
+                }
+              },
+              {
+                "id": "node-44",
+                "coordinate": {
+                  "longitude": 7.199421934506489,
+                  "latitude": 51.272571667304284,
+                  "altitude": 24.481934376060963
+                }
+              }
+            ],
+            "linkedNodeGroups": [
+              {
+                "id": "node-42",
+                "nodeIds": [
+                  "node-42"
+                ]
+              },
+              {
+                "id": "node-43",
+                "nodeIds": [
+                  "node-43"
+                ]
+              },
+              {
+                "id": "node-44",
+                "nodeIds": [
+                  "node-44"
+                ]
+              }
+            ],
+            "edges": [
+              {
+                "id": "edge-31",
+                "startNodeId": "node-42",
+                "endNodeId": "node-43"
+              },
+              {
+                "id": "edge-32",
+                "startNodeId": "node-43",
+                "endNodeId": "node-44"
+              },
+              {
+                "id": "edge-33",
+                "startNodeId": "node-44",
+                "endNodeId": "node-42"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "planar-18",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              7.19996879903988,
+              51.2724175584612,
+              20.501493477262557
+            ],
+            [
+              7.199856576231981,
+              51.27239399019501,
+              20.284213794395328
+            ],
+            [
+              7.199922880836141,
+              51.272313877007385,
+              20.29340314026922
+            ],
+            [
+              7.200052394317033,
+              51.2723414714702,
+              20.544664260931313
+            ],
+            [
+              7.19996879903988,
+              51.2724175584612,
+              20.501493477262557
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "exportVersion": 1,
+        "annotationId": "planar-18",
+        "annotationKind": "planar",
+        "annotation": {
+          "id": "planar-18",
+          "toolType": "planar",
+          "closed": true,
+          "preferredNormalBearingRad": 4.268049057069981,
+          "shortLabel": "D1",
+          "shortLabelSource": "default",
+          "shortLabelCounter": 1,
+          "nodeIds": [
+            "node-45",
+            "node-46",
+            "node-47",
+            "node-48"
+          ],
+          "edgeIds": [
+            "edge-34",
+            "edge-35",
+            "edge-36",
+            "edge-37"
+          ]
+        },
+        "nodes": [
+          {
+            "order": 0,
+            "coordinate": {
+              "longitude": 7.19996879903988,
+              "latitude": 51.2724175584612,
+              "altitude": 20.501493477262557
+            }
+          },
+          {
+            "order": 1,
+            "coordinate": {
+              "longitude": 7.199856576231981,
+              "latitude": 51.27239399019501,
+              "altitude": 20.284213794395328
+            }
+          },
+          {
+            "order": 2,
+            "coordinate": {
+              "longitude": 7.199922880836141,
+              "latitude": 51.272313877007385,
+              "altitude": 20.29340314026922
+            }
+          },
+          {
+            "order": 3,
+            "coordinate": {
+              "longitude": 7.200052394317033,
+              "latitude": 51.2723414714702,
+              "altitude": 20.544664260931313
+            }
+          }
+        ],
+        "carmaConf": {
+          "annotationRuntime": {
+            "formatId": "carma-3d-annotation-runtime-feature",
+            "formatVersion": 1,
+            "annotation": {
+              "id": "planar-18",
+              "toolType": "planar",
+              "closed": true,
+              "preferredNormalBearingRad": 4.268049057069981,
+              "shortLabel": "D1",
+              "shortLabelSource": "default",
+              "shortLabelCounter": 1,
+              "nodeIds": [
+                "node-45",
+                "node-46",
+                "node-47",
+                "node-48"
+              ],
+              "edgeIds": [
+                "edge-34",
+                "edge-35",
+                "edge-36",
+                "edge-37"
+              ]
+            },
+            "nodes": [
+              {
+                "id": "node-45",
+                "coordinate": {
+                  "longitude": 7.19996879903988,
+                  "latitude": 51.2724175584612,
+                  "altitude": 20.501493477262557
+                }
+              },
+              {
+                "id": "node-46",
+                "coordinate": {
+                  "longitude": 7.199856576231981,
+                  "latitude": 51.27239399019501,
+                  "altitude": 20.284213794395328
+                }
+              },
+              {
+                "id": "node-47",
+                "coordinate": {
+                  "longitude": 7.199922880836141,
+                  "latitude": 51.272313877007385,
+                  "altitude": 20.29340314026922
+                }
+              },
+              {
+                "id": "node-48",
+                "coordinate": {
+                  "longitude": 7.200052394317033,
+                  "latitude": 51.2723414714702,
+                  "altitude": 20.544664260931313
+                }
+              }
+            ],
+            "linkedNodeGroups": [
+              {
+                "id": "node-45",
+                "nodeIds": [
+                  "node-45"
+                ]
+              },
+              {
+                "id": "node-46",
+                "nodeIds": [
+                  "node-46"
+                ]
+              },
+              {
+                "id": "node-47",
+                "nodeIds": [
+                  "node-47"
+                ]
+              },
+              {
+                "id": "node-48",
+                "nodeIds": [
+                  "node-48"
+                ]
+              }
+            ],
+            "edges": [
+              {
+                "id": "edge-34",
+                "startNodeId": "node-45",
+                "endNodeId": "node-46"
+              },
+              {
+                "id": "edge-35",
+                "startNodeId": "node-46",
+                "endNodeId": "node-47"
+              },
+              {
+                "id": "edge-36",
+                "startNodeId": "node-47",
+                "endNodeId": "node-48"
+              },
+              {
+                "id": "edge-37",
+                "startNodeId": "node-48",
+                "endNodeId": "node-45"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "planar-19",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              7.199841288085114,
+              51.27232446433593,
+              20.773379060439765
+            ],
+            [
+              7.199717264073823,
+              51.272312804319114,
+              20.4074041871354
+            ],
+            [
+              7.19982989976063,
+              51.27221829784276,
+              20.274489163421094
+            ],
+            [
+              7.199841288085114,
+              51.27232446433593,
+              20.773379060439765
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "exportVersion": 1,
+        "annotationId": "planar-19",
+        "annotationKind": "planar",
+        "annotation": {
+          "id": "planar-19",
+          "toolType": "planar",
+          "closed": true,
+          "preferredNormalBearingRad": 3.881372744259317,
+          "shortLabel": "D2",
+          "shortLabelSource": "default",
+          "shortLabelCounter": 2,
+          "nodeIds": [
+            "node-49",
+            "node-50",
+            "node-51"
+          ],
+          "edgeIds": [
+            "edge-38",
+            "edge-39",
+            "edge-40"
+          ]
+        },
+        "nodes": [
+          {
+            "order": 0,
+            "coordinate": {
+              "longitude": 7.199841288085114,
+              "latitude": 51.27232446433593,
+              "altitude": 20.773379060439765
+            }
+          },
+          {
+            "order": 1,
+            "coordinate": {
+              "longitude": 7.199717264073823,
+              "latitude": 51.272312804319114,
+              "altitude": 20.4074041871354
+            }
+          },
+          {
+            "order": 2,
+            "coordinate": {
+              "longitude": 7.19982989976063,
+              "latitude": 51.27221829784276,
+              "altitude": 20.274489163421094
+            }
+          }
+        ],
+        "carmaConf": {
+          "annotationRuntime": {
+            "formatId": "carma-3d-annotation-runtime-feature",
+            "formatVersion": 1,
+            "annotation": {
+              "id": "planar-19",
+              "toolType": "planar",
+              "closed": true,
+              "preferredNormalBearingRad": 3.881372744259317,
+              "shortLabel": "D2",
+              "shortLabelSource": "default",
+              "shortLabelCounter": 2,
+              "nodeIds": [
+                "node-49",
+                "node-50",
+                "node-51"
+              ],
+              "edgeIds": [
+                "edge-38",
+                "edge-39",
+                "edge-40"
+              ]
+            },
+            "nodes": [
+              {
+                "id": "node-49",
+                "coordinate": {
+                  "longitude": 7.199841288085114,
+                  "latitude": 51.27232446433593,
+                  "altitude": 20.773379060439765
+                }
+              },
+              {
+                "id": "node-50",
+                "coordinate": {
+                  "longitude": 7.199717264073823,
+                  "latitude": 51.272312804319114,
+                  "altitude": 20.4074041871354
+                }
+              },
+              {
+                "id": "node-51",
+                "coordinate": {
+                  "longitude": 7.19982989976063,
+                  "latitude": 51.27221829784276,
+                  "altitude": 20.274489163421094
+                }
+              }
+            ],
+            "linkedNodeGroups": [
+              {
+                "id": "node-49",
+                "nodeIds": [
+                  "node-49"
+                ]
+              },
+              {
+                "id": "node-50",
+                "nodeIds": [
+                  "node-50"
+                ]
+              },
+              {
+                "id": "node-51",
+                "nodeIds": [
+                  "node-51"
+                ]
+              }
+            ],
+            "edges": [
+              {
+                "id": "edge-38",
+                "startNodeId": "node-49",
+                "endNodeId": "node-50"
+              },
+              {
+                "id": "edge-39",
+                "startNodeId": "node-50",
+                "endNodeId": "node-51"
+              },
+              {
+                "id": "edge-40",
+                "startNodeId": "node-51",
+                "endNodeId": "node-49"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "planar-20",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              7.199941796793493,
+              51.272246596956705,
+              20.187079159542918
+            ],
+            [
+              7.1998556145164105,
+              51.27218530038089,
+              20.394160913303494
+            ],
+            [
+              7.19974773661847,
+              51.27223296662227,
+              20.52555720321834
+            ],
+            [
+              7.199829593390814,
+              51.272289543718315,
+              20.33055530767888
+            ],
+            [
+              7.199941796793493,
+              51.272246596956705,
+              20.187079159542918
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "exportVersion": 1,
+        "annotationId": "planar-20",
+        "annotationKind": "planar",
+        "annotation": {
+          "id": "planar-20",
+          "toolType": "planar",
+          "closed": true,
+          "preferredNormalBearingRad": 1.2028558456443161,
+          "shortLabel": "D3",
+          "shortLabelSource": "default",
+          "shortLabelCounter": 3,
+          "nodeIds": [
+            "node-52",
+            "node-53",
+            "node-54",
+            "node-55"
+          ],
+          "edgeIds": [
+            "edge-41",
+            "edge-42",
+            "edge-43",
+            "edge-44"
+          ]
+        },
+        "nodes": [
+          {
+            "order": 0,
+            "coordinate": {
+              "longitude": 7.199941796793493,
+              "latitude": 51.272246596956705,
+              "altitude": 20.187079159542918
+            }
+          },
+          {
+            "order": 1,
+            "coordinate": {
+              "longitude": 7.1998556145164105,
+              "latitude": 51.27218530038089,
+              "altitude": 20.394160913303494
+            }
+          },
+          {
+            "order": 2,
+            "coordinate": {
+              "longitude": 7.19974773661847,
+              "latitude": 51.27223296662227,
+              "altitude": 20.52555720321834
+            }
+          },
+          {
+            "order": 3,
+            "coordinate": {
+              "longitude": 7.199829593390814,
+              "latitude": 51.272289543718315,
+              "altitude": 20.33055530767888
+            }
+          }
+        ],
+        "carmaConf": {
+          "annotationRuntime": {
+            "formatId": "carma-3d-annotation-runtime-feature",
+            "formatVersion": 1,
+            "annotation": {
+              "id": "planar-20",
+              "toolType": "planar",
+              "closed": true,
+              "preferredNormalBearingRad": 1.2028558456443161,
+              "shortLabel": "D3",
+              "shortLabelSource": "default",
+              "shortLabelCounter": 3,
+              "nodeIds": [
+                "node-52",
+                "node-53",
+                "node-54",
+                "node-55"
+              ],
+              "edgeIds": [
+                "edge-41",
+                "edge-42",
+                "edge-43",
+                "edge-44"
+              ]
+            },
+            "nodes": [
+              {
+                "id": "node-52",
+                "coordinate": {
+                  "longitude": 7.199941796793493,
+                  "latitude": 51.272246596956705,
+                  "altitude": 20.187079159542918
+                }
+              },
+              {
+                "id": "node-53",
+                "coordinate": {
+                  "longitude": 7.1998556145164105,
+                  "latitude": 51.27218530038089,
+                  "altitude": 20.394160913303494
+                }
+              },
+              {
+                "id": "node-54",
+                "coordinate": {
+                  "longitude": 7.19974773661847,
+                  "latitude": 51.27223296662227,
+                  "altitude": 20.52555720321834
+                }
+              },
+              {
+                "id": "node-55",
+                "coordinate": {
+                  "longitude": 7.199829593390814,
+                  "latitude": 51.272289543718315,
+                  "altitude": 20.33055530767888
+                }
+              }
+            ],
+            "linkedNodeGroups": [
+              {
+                "id": "node-52",
+                "nodeIds": [
+                  "node-52"
+                ]
+              },
+              {
+                "id": "node-53",
+                "nodeIds": [
+                  "node-53"
+                ]
+              },
+              {
+                "id": "node-54",
+                "nodeIds": [
+                  "node-54"
+                ]
+              },
+              {
+                "id": "node-55",
+                "nodeIds": [
+                  "node-55"
+                ]
+              }
+            ],
+            "edges": [
+              {
+                "id": "edge-41",
+                "startNodeId": "node-52",
+                "endNodeId": "node-53"
+              },
+              {
+                "id": "edge-42",
+                "startNodeId": "node-53",
+                "endNodeId": "node-54"
+              },
+              {
+                "id": "edge-43",
+                "startNodeId": "node-54",
+                "endNodeId": "node-55"
+              },
+              {
+                "id": "edge-44",
+                "startNodeId": "node-55",
+                "endNodeId": "node-52"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "vertical-21",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              7.199669873906031,
+              51.27232955018394,
+              17.27180225867778
+            ],
+            [
+              7.199617013641393,
+              51.272065270565164,
+              17.271871133707464
+            ],
+            [
+              7.1996170134982265,
+              51.2720652698475,
+              -0.03799320571124554
+            ],
+            [
+              7.1996698739060445,
+              51.27232955018394,
+              -0.0380620788782835
+            ],
+            [
+              7.199669873906031,
+              51.27232955018394,
+              17.27180225867778
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "exportVersion": 1,
+        "annotationId": "vertical-21",
+        "annotationKind": "vertical",
+        "annotation": {
+          "id": "vertical-21",
+          "toolType": "vertical",
+          "closed": true,
+          "preferredNormalBearingRad": 4.8372017790207265,
+          "shortLabel": "F7",
+          "shortLabelSource": "default",
+          "shortLabelCounter": 7,
+          "nodeIds": [
+            "node-56",
+            "node-57",
+            "node-58",
+            "node-59"
+          ],
+          "edgeIds": [
+            "edge-45",
+            "edge-46",
+            "edge-47",
+            "edge-48"
+          ]
+        },
+        "nodes": [
+          {
+            "order": 0,
+            "coordinate": {
+              "longitude": 7.199669873906031,
+              "latitude": 51.27232955018394,
+              "altitude": 17.27180225867778
+            }
+          },
+          {
+            "order": 1,
+            "coordinate": {
+              "longitude": 7.199617013641393,
+              "latitude": 51.272065270565164,
+              "altitude": 17.271871133707464
+            }
+          },
+          {
+            "order": 2,
+            "coordinate": {
+              "longitude": 7.1996170134982265,
+              "latitude": 51.2720652698475,
+              "altitude": -0.03799320571124554
+            }
+          },
+          {
+            "order": 3,
+            "coordinate": {
+              "longitude": 7.1996698739060445,
+              "latitude": 51.27232955018394,
+              "altitude": -0.0380620788782835
+            }
+          }
+        ],
+        "carmaConf": {
+          "annotationRuntime": {
+            "formatId": "carma-3d-annotation-runtime-feature",
+            "formatVersion": 1,
+            "annotation": {
+              "id": "vertical-21",
+              "toolType": "vertical",
+              "closed": true,
+              "preferredNormalBearingRad": 4.8372017790207265,
+              "shortLabel": "F7",
+              "shortLabelSource": "default",
+              "shortLabelCounter": 7,
+              "nodeIds": [
+                "node-56",
+                "node-57",
+                "node-58",
+                "node-59"
+              ],
+              "edgeIds": [
+                "edge-45",
+                "edge-46",
+                "edge-47",
+                "edge-48"
+              ]
+            },
+            "nodes": [
+              {
+                "id": "node-56",
+                "coordinate": {
+                  "longitude": 7.199669873906031,
+                  "latitude": 51.27232955018394,
+                  "altitude": 17.27180225867778
+                }
+              },
+              {
+                "id": "node-57",
+                "coordinate": {
+                  "longitude": 7.199617013641393,
+                  "latitude": 51.272065270565164,
+                  "altitude": 17.271871133707464
+                }
+              },
+              {
+                "id": "node-58",
+                "coordinate": {
+                  "longitude": 7.1996170134982265,
+                  "latitude": 51.2720652698475,
+                  "altitude": -0.03799320571124554
+                }
+              },
+              {
+                "id": "node-59",
+                "coordinate": {
+                  "longitude": 7.1996698739060445,
+                  "latitude": 51.27232955018394,
+                  "altitude": -0.0380620788782835
+                }
+              }
+            ],
+            "linkedNodeGroups": [
+              {
+                "id": "node-29",
+                "nodeIds": [
+                  "node-29",
+                  "node-56"
+                ]
+              },
+              {
+                "id": "node-57",
+                "nodeIds": [
+                  "node-57"
+                ]
+              },
+              {
+                "id": "node-58",
+                "nodeIds": [
+                  "node-58"
+                ]
+              },
+              {
+                "id": "node-59",
+                "nodeIds": [
+                  "node-59"
+                ]
+              }
+            ],
+            "edges": [
+              {
+                "id": "edge-45",
+                "startNodeId": "node-56",
+                "endNodeId": "node-57"
+              },
+              {
+                "id": "edge-46",
+                "startNodeId": "node-57",
+                "endNodeId": "node-58"
+              },
+              {
+                "id": "edge-47",
+                "startNodeId": "node-58",
+                "endNodeId": "node-59"
+              },
+              {
+                "id": "edge-48",
+                "startNodeId": "node-59",
+                "endNodeId": "node-56"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "vertical-22",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              7.199551660801606,
+              51.27219752648072,
+              0.021254723891615868
+            ],
+            [
+              7.19971899507765,
+              51.272236061742134,
+              0.021266834810376167
+            ],
+            [
+              7.199718995079024,
+              51.272236061742454,
+              -0.031194730661809444
+            ],
+            [
+              7.199551660801608,
+              51.27219752648072,
+              -0.03120684064924717
+            ],
+            [
+              7.199551660801606,
+              51.27219752648072,
+              0.021254723891615868
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "exportVersion": 1,
+        "annotationId": "vertical-22",
+        "annotationKind": "vertical",
+        "annotation": {
+          "id": "vertical-22",
+          "toolType": "vertical",
+          "closed": true,
+          "preferredNormalBearingRad": 5.931332428510334,
+          "shortLabel": "F8",
+          "shortLabelSource": "default",
+          "shortLabelCounter": 8,
+          "nodeIds": [
+            "node-60",
+            "node-61",
+            "node-62",
+            "node-63"
+          ],
+          "edgeIds": [
+            "edge-49",
+            "edge-50",
+            "edge-51",
+            "edge-52"
+          ]
+        },
+        "nodes": [
+          {
+            "order": 0,
+            "coordinate": {
+              "longitude": 7.199551660801606,
+              "latitude": 51.27219752648072,
+              "altitude": 0.021254723891615868
+            }
+          },
+          {
+            "order": 1,
+            "coordinate": {
+              "longitude": 7.19971899507765,
+              "latitude": 51.272236061742134,
+              "altitude": 0.021266834810376167
+            }
+          },
+          {
+            "order": 2,
+            "coordinate": {
+              "longitude": 7.199718995079024,
+              "latitude": 51.272236061742454,
+              "altitude": -0.031194730661809444
+            }
+          },
+          {
+            "order": 3,
+            "coordinate": {
+              "longitude": 7.199551660801608,
+              "latitude": 51.27219752648072,
+              "altitude": -0.03120684064924717
+            }
+          }
+        ],
+        "carmaConf": {
+          "annotationRuntime": {
+            "formatId": "carma-3d-annotation-runtime-feature",
+            "formatVersion": 1,
+            "annotation": {
+              "id": "vertical-22",
+              "toolType": "vertical",
+              "closed": true,
+              "preferredNormalBearingRad": 5.931332428510334,
+              "shortLabel": "F8",
+              "shortLabelSource": "default",
+              "shortLabelCounter": 8,
+              "nodeIds": [
+                "node-60",
+                "node-61",
+                "node-62",
+                "node-63"
+              ],
+              "edgeIds": [
+                "edge-49",
+                "edge-50",
+                "edge-51",
+                "edge-52"
+              ]
+            },
+            "nodes": [
+              {
+                "id": "node-60",
+                "coordinate": {
+                  "longitude": 7.199551660801606,
+                  "latitude": 51.27219752648072,
+                  "altitude": 0.021254723891615868
+                }
+              },
+              {
+                "id": "node-61",
+                "coordinate": {
+                  "longitude": 7.19971899507765,
+                  "latitude": 51.272236061742134,
+                  "altitude": 0.021266834810376167
+                }
+              },
+              {
+                "id": "node-62",
+                "coordinate": {
+                  "longitude": 7.199718995079024,
+                  "latitude": 51.272236061742454,
+                  "altitude": -0.031194730661809444
+                }
+              },
+              {
+                "id": "node-63",
+                "coordinate": {
+                  "longitude": 7.199551660801608,
+                  "latitude": 51.27219752648072,
+                  "altitude": -0.03120684064924717
+                }
+              }
+            ],
+            "linkedNodeGroups": [
+              {
+                "id": "node-60",
+                "nodeIds": [
+                  "node-60"
+                ]
+              },
+              {
+                "id": "node-61",
+                "nodeIds": [
+                  "node-61"
+                ]
+              },
+              {
+                "id": "node-62",
+                "nodeIds": [
+                  "node-62"
+                ]
+              },
+              {
+                "id": "node-63",
+                "nodeIds": [
+                  "node-63"
+                ]
+              }
+            ],
+            "edges": [
+              {
+                "id": "edge-49",
+                "startNodeId": "node-60",
+                "endNodeId": "node-61"
+              },
+              {
+                "id": "edge-50",
+                "startNodeId": "node-61",
+                "endNodeId": "node-62"
+              },
+              {
+                "id": "edge-51",
+                "startNodeId": "node-62",
+                "endNodeId": "node-63"
+              },
+              {
+                "id": "edge-52",
+                "startNodeId": "node-63",
+                "endNodeId": "node-60"
+              }
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "metadata": {
+    "carmaConf": {
+      "formatId": "carma-3d-annotations-geojson",
+      "formatVersion": 1,
+      "source": "measurement3d-test-scene"
+    }
+  }
+}
