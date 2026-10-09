@@ -9,7 +9,7 @@ import {
   type RouteStep,
 } from "@carma-mapping/routing";
 
-import { REROUTING_LABEL } from "./config";
+import { ARRIVAL_LABEL, REROUTING_LABEL } from "./config";
 import { DESTINATION_ICON, directionIcon } from "./directionIcon";
 import type { RouteInstruction } from "./routeChannel";
 
@@ -55,6 +55,11 @@ type InstructionCardProps = {
    * would belong to the route the user just left
    */
   rerouting?: boolean;
+  /**
+   * the user is there: the card says so for a few seconds before the
+   * navigation ends, with the destination's name when the route has one
+   */
+  arrived?: { label?: string } | null;
   position: Positions;
   order: number;
   /** the "dann" line shows when the stretch after the next turn is shorter */
@@ -79,6 +84,7 @@ const describe = (step: RouteStep | undefined) =>
 export const InstructionCard = ({
   instruction,
   rerouting = false,
+  arrived = null,
   position,
   order,
   thenWithinMeters,
@@ -100,6 +106,28 @@ export const InstructionCard = ({
       </div>
     </Control>
   );
+
+  if (arrived) {
+    return shell(
+      <div
+        className="flex h-16 items-center gap-4"
+        data-test-id="routing-instruction-arrived"
+      >
+        <FontAwesomeIcon
+          icon={DESTINATION_ICON.icon}
+          className="shrink-0 text-3xl"
+        />
+        <div className="flex min-w-0 flex-col leading-tight">
+          <span className="text-2xl font-semibold">{ARRIVAL_LABEL}</span>
+          {arrived.label && (
+            <span className="truncate text-base text-gray-600">
+              {arrived.label}
+            </span>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   if (rerouting || !instruction) {
     return shell(

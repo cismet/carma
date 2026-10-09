@@ -15,6 +15,7 @@ import { useAddonState } from "../../lib/AddonStateContext";
 import type { AddonComponentProps } from "../../lib/registry";
 import {
   DEFAULT_AHEAD_COLOR,
+  DEFAULT_ARRIVAL_CARD_MS,
   DEFAULT_ARRIVAL_METERS,
   DEFAULT_DURATION,
   DEFAULT_FOLLOW_DURATION,
@@ -31,6 +32,8 @@ import {
   DEFAULT_THEN_ANNOUNCE_METERS,
   DEFAULT_THEN_WITHIN_METERS,
   DEFAULT_TRAVELLED_COLOR,
+  DEFAULT_VIBRATE,
+  DEFAULT_WAKE_LOCK,
   DEFAULT_ZOOM,
   MIN_REROUTING_MS,
   REMAINING_PREFIX,
@@ -57,6 +60,8 @@ import {
 import { travelModeOf, type RouteMode } from "./routeMode";
 import { stepAt } from "./routeSteps";
 import { useMinuteTick } from "./useMinuteTick";
+import { useTurnVibration, vibrateArrival } from "./useTurnVibration";
+import { useWakeLock } from "./useWakeLock";
 
 /**
  * Puts the user on the route and keeps them there: the map eases to where
@@ -162,6 +167,9 @@ export const Routing = ({
     followDuration = DEFAULT_FOLLOW_DURATION,
     snapToleranceMeters = DEFAULT_SNAP_TOLERANCE_METERS,
     arrivalMeters = DEFAULT_ARRIVAL_METERS,
+    arrivalCardMs = DEFAULT_ARRIVAL_CARD_MS,
+    wakeLock = DEFAULT_WAKE_LOCK,
+    vibrate = DEFAULT_VIBRATE,
     recenterPosition = DEFAULT_RECENTER_POSITION,
     recenterOrder = DEFAULT_RECENTER_ORDER,
     recenterLabel = DEFAULT_RECENTER_LABEL,
@@ -248,6 +256,31 @@ export const Routing = ({
   const [progress, setProgress] = useState<RouteProgress | null>(null);
 
   /**
+   * The user is there: the card says "Ziel erreicht" until the timer ends the
+   * navigation. The ref is set at once, so the fixes that keep coming in
+   * meanwhile are not read as anything.
+   */
+  const [arrived, setArrived] = useState(false);
+  const arrivedRef = useRef(false);
+  const arrivalTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const clearArrival = useCallback(() => {
+    if (arrivalTimerRef.current !== null) {
+      clearTimeout(arrivalTimerRef.current);
+      arrivalTimerRef.current = null;
+    }
+    arrivedRef.current = false;
+    setArrived(false);
+  }, []);
+  useEffect(
+    () => () => {
+      if (arrivalTimerRef.current !== null) {
+        clearTimeout(arrivalTimerRef.current);
+      }
+    },
+    []
+  );
+
+  /**
    * Reads what is left off a target the user is on. Not called for a target
    * further off the route than the tolerance: the place on the line is a guess
    * then, and so is everything read from it, so the last honest value stands.
@@ -324,6 +357,12 @@ export const Routing = ({
     (animate: boolean) => {
       const map = mapRef.current;
       const flight = ++flightRef.current;
+      // a leave during the arrival card is the leave the card was waiting
+      // for; its timer must not start a second one
+      if (arrivalTimerRef.current !== null) {
+        clearTimeout(arrivalTimerRef.current);
+        arrivalTimerRef.current = null;
+      }
       setFollowing(false);
       setProgress(null);
       resetReroute();
@@ -331,9 +370,13 @@ export const Routing = ({
       setTravelHeading(null);
       // the driven line goes with the navigation, not before: it stays drawn
       // while the camera flattens, rather than swapping back to the focused one
+      // the arrival card stays up while the camera flattens, and goes with
+      // the navigation
       const finish = () => {
         setNavigating(false);
         drive(null);
+        arrivedRef.current = false;
+        setArrived(false);
       };
       if (!map || !animate) {
         map?.jumpTo({ pitch: 0, bearing: 0 });
@@ -418,17 +461,44 @@ export const Routing = ({
     // to them on its own, which is our job from here on
     activate({ fly: false });
     resetReroute();
+    clearArrival();
     drive(focusedRef.current);
     // the restriction reads `navigating` and unlocks the camera on it; that
     // write lands before the ease starts moving, so the bearing sticks
     setNavigating(true);
     setFollowing(true);
     flyOntoRoute();
-  }, [activate, flyOntoRoute, resetReroute, drive]);
+  }, [activate, flyOntoRoute, resetReroute, clearArrival, drive]);
 
   const stop = useCallback(() => {
     leave(true);
   }, [leave]);
+
+  /**
+   * There: the card says so, one long buzz, and after `arrivalCardMs` the
+   * same eased leave as the button. The camera stays where it is meanwhile,
+   * on the destination.
+   */
+  const vibrateRef = useRef(vibrate);
+  vibrateRef.current = vibrate;
+  const arrive = useCallback(() => {
+    if (arrivedRef.current) {
+      return;
+    }
+    arrivedRef.current = true;
+    setArrived(true);
+    if (vibrateRef.current) {
+      vibrateArrival();
+    }
+    if (arrivalCardMs <= 0) {
+      leave(true);
+      return;
+    }
+    arrivalTimerRef.current = setTimeout(() => {
+      arrivalTimerRef.current = null;
+      leave(true);
+    }, arrivalCardMs);
+  }, [arrivalCardMs, leave]);
 
   const recenter = useCallback(() => {
     if (!navigatingRef.current) {
@@ -605,7 +675,14 @@ export const Routing = ({
   useEffect(() => {
     const map = mapRef.current;
     const current = coordinatesRef.current;
-    if (!map || !current || !position || !currentPosition || !navigating) {
+    if (
+      !map ||
+      !current ||
+      !position ||
+      !currentPosition ||
+      !navigating ||
+      arrivedRef.current
+    ) {
       return;
     }
     const target = routeCameraTarget(current, lookAheadMeters, position);
@@ -616,7 +693,7 @@ export const Routing = ({
     if (onRoute) {
       trackProgress(target);
       if (target.remaining <= arrivalMeters) {
-        leave(true);
+        arrive();
         return;
       }
       // the arrow turns with the road whether or not the camera follows
@@ -673,7 +750,7 @@ export const Routing = ({
     followDuration,
     snapToleranceMeters,
     arrivalMeters,
-    leave,
+    arrive,
     trackProgress,
     setTravelHeading,
     requestReroute,
@@ -835,6 +912,16 @@ export const Routing = ({
     });
   }, [carma, navigating, mapOnly]);
 
+  // the screen stays on, and a turn right ahead buzzes, while a navigation runs
+  useWakeLock(wakeLock && navigating);
+  useTurnVibration(
+    vibrate && navigating && !arrived,
+    progress?.instruction,
+    drivenRoute?.mode,
+    drivenRoute,
+    currentPosition?.coords.speed ?? null
+  );
+
   const [, publishNavigation] = useAddonState("routeNavigation");
   useEffect(() => {
     publishNavigation({
@@ -874,10 +961,11 @@ export const Routing = ({
     <>
       {/* the next turn, for as long as the route has instructions to give,
           and the word that a new route is coming while it is */}
-      {(instruction || rerouting) && (
+      {(instruction || rerouting || arrived) && (
         <InstructionCard
           instruction={instruction}
           rerouting={rerouting}
+          arrived={arrived ? { label: drivenRoute?.label } : null}
           position={instructionPosition}
           order={instructionOrder}
           thenWithinMeters={thenWithinMeters}

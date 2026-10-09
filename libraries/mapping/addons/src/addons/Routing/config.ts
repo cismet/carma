@@ -57,6 +57,21 @@ export type RoutingConfig = {
   snapToleranceMeters?: number;
   /** how close to the end counts as arrived, in meters; default 15 */
   arrivalMeters?: number;
+  /**
+   * how long the "Ziel erreicht" card stays before the camera flattens and
+   * the navigation ends, in ms; default 4000. 0 ends it at once
+   */
+  arrivalCardMs?: number;
+  /**
+   * keep the screen on while a navigation runs (the Screen Wake Lock API);
+   * default true. Nothing happens where the browser has no wake lock
+   */
+  wakeLock?: boolean;
+  /**
+   * a short buzz when a turn is right ahead, a long one on arrival; default
+   * true. Android only: iOS has no `navigator.vibrate`
+   */
+  vibrate?: boolean;
   /** the stretch still ahead of the user; default the shared route blue */
   aheadColor?: string;
   /** the stretch already driven; default the shared route gray */
@@ -145,6 +160,12 @@ export const DEFAULT_DURATION = 1200;
 export const DEFAULT_FOLLOW_DURATION = 1000;
 export const DEFAULT_SNAP_TOLERANCE_METERS = 30;
 export const DEFAULT_ARRIVAL_METERS = 15;
+export const DEFAULT_ARRIVAL_CARD_MS = 4000;
+export const DEFAULT_WAKE_LOCK = true;
+export const DEFAULT_VIBRATE = true;
+
+/** what the card says on arrival, above the destination's name */
+export const ARRIVAL_LABEL = "Ziel erreicht";
 export const DEFAULT_AHEAD_COLOR = ROUTE_BLUE;
 export const DEFAULT_TRAVELLED_COLOR = ROUTE_GRAY;
 export const DEFAULT_MAP_ONLY: MapOnlyMode = "mobile";

@@ -1202,8 +1202,19 @@ so one move runs into the next and the motion reads as one rather than a hop
 per second. A fix further than `snapToleranceMeters` (30 m) off the route is
 followed as it is, with the last bearing on the route kept: the user has
 left the route, and pulling them back onto it would lie. Once fewer than
-`arrivalMeters` (15 m) of route are left the navigation ends on its own,
-with the same eased leave as the button.
+`arrivalMeters` (15 m) of route are left the user is there: the instruction
+card turns into "Ziel erreicht" with the flag and the route's label, the phone
+buzzes once long, and after `arrivalCardMs` (4000 ms; 0 ends at once) the
+navigation ends with the same eased leave as the button. Fixes coming in
+meanwhile are ignored; the button or ✕ during the card end it right away.
+
+While a navigation runs the screen stays on (`wakeLock`, default true;
+`useWakeLock` asks again when the tab is visible again, since the browser drops
+the lock with it, and does nothing where there is no wake lock), and a turn
+right ahead buzzes twice short (`vibrate`, default true; Android only). "Right
+ahead" is the turn's "now" stage in `turnStages.ts`, per mode: 40 m by car,
+20 m by bike, 10 m on foot. The same table has the "prepare" distances the
+voice guidance will use. Each turn buzzes once; a reroute's turns are new ones.
 
 Left for good, the route is asked for again. A fix counts as off when it is
 further from the route than the mode's `meters`, than `snapToleranceMeters`
@@ -1318,6 +1329,9 @@ addon with a map-only moment asks the same way.
 | `Routing/routeChannel.ts` | both channels, their types and hooks |
 | `Routing/routeLine.ts`    | the driven route on the map, gray behind the user and blue ahead |
 | `Routing/routeCamera.ts`  | a position snapped onto the route, its look-ahead bearing, meters behind and ahead |
+| `Routing/turnStages.ts`   | how close a turn is: "prepare" and "now" distances per mode |
+| `Routing/useTurnVibration.ts` | the buzz at a turn's "now" stage and on arrival |
+| `Routing/useWakeLock.ts`  | keeps the screen on while navigating |
 | `Routing/config.ts`       | `RoutingConfig` and its defaults |
 
 ### Faking the device: `locationSimulator`
