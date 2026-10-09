@@ -446,7 +446,8 @@ export {
   MEASUREMENT3D_TEXT,
   useMeasurement3dActions,
   useMeasurement3dLayerRow,
-  useMeasurement3dRowActions,
+  MEASUREMENT3D_SAVE_INTERACTION_ID,
+  useMeasurement3dRuntimeServices,
 } from "./addons/Measurement3d";
 export type {
   Measurement3dConfig,
