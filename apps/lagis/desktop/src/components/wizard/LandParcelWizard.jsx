@@ -21,7 +21,8 @@ import WizardFooter from "./WizardFooter";
 
 import { STEP, getSteps } from "../../core/wizard/flow";
 import { ACTION_TITLES, WIZARD_ACTIONS } from "../../core/wizard/constants";
-import { findLock } from "../../core/editing/locks";
+import { findLock, parcelLockedError } from "../../core/editing/locks";
+import { notifyStartFailed } from "../editing/lockNotices";
 import { ADMIN_SECTION } from "../../core/wizard/adminData";
 import { explain } from "../../core/wizard/errors";
 import { findRebeAndMipa } from "../../core/wizard/areaCheck";
@@ -128,9 +129,7 @@ const LandParcelWizard = ({
       }
       const lock = await findLock(key.id, jwt);
       if (lock) {
-        setProblem(
-          `Ausgewähltes Flurstück ist gesperrt von Benutzer: ${lock.userString}`
-        );
+        notifyStartFailed(parcelLockedError(lock, formatKey(key)));
         return false;
       }
     }
