@@ -112,11 +112,12 @@ export type AnnotationSceneLineStyle = {
   /** Draw the depth-occluded part of the line as a dashed trace on top. */
   occludedDashed?: boolean;
   /**
-   * Dash the line in world metres at the engine's grid pitch (the 1-2-5
-   * series of the area fills), counted from the first vertex, so distances
-   * can be read along the line like on a ruler.
+   * Mark the line like a ruler: ticks at the engine's metric pitch (the
+   * 1-2-5 series of the area fills) counted from the first vertex, longer
+   * ticks and knots at the major beats, clear of the node and midpoint
+   * handles. Tools set it while a measurement is drafted or selected.
    */
-  metricDashed?: boolean;
+  ruler?: boolean;
 };
 
 export type AnnotationSceneLineOptions = AnnotationSceneLineStyle & {

@@ -25,18 +25,20 @@ export type MapLibreAreaFillStyleOptions = {
   /** Opacity of the crosshairs; hairlines need more than the cells to read on a textured mesh. */
   crosshairOpacity?: number;
   /**
-   * The ruler of a metric line: every other grid cell keeps this share of
-   * the line's opacity (the minor beat), and every other major cell is
-   * drawn wider underneath. The major pitch is the first of the series at
-   * least `rulerMajorMinRatio` times the grid pitch: 5 m over 1 m, 10 m
-   * over 2 m, 50 m over 5 m.
+   * The ruler of a drafted or selected line: a tick across the line at
+   * every beat of the metric pitch, a longer tick and a knot at the major
+   * beats. The major pitch is the first of the series at least
+   * `rulerMajorMinRatio` times the beat: 5 m over 1 m, 10 m over 2 m, 50 m
+   * over 5 m. Beats closer than the clearance to a node or to a segment
+   * midpoint are left out so the handles stay free.
    */
-  rulerMinorOpacityShare?: number;
   rulerMajorMinRatio?: number;
-  rulerMajorWidthFactor?: number;
-  rulerMajorOpacityShare?: number;
-  /** Each beat of the ruler (half a pitch) spans at least this many CSS pixels. */
+  /** Each beat of the ruler spans at least this many CSS pixels. */
   rulerMinSegmentCssPx?: number;
+  rulerMinorTickCssPx?: number;
+  rulerMajorTickCssPx?: number;
+  rulerKnotCssPx?: number;
+  rulerMarkerClearanceCssPx?: number;
 };
 
 export type ResolvedMapLibreAreaFillStyle = Readonly<
@@ -54,11 +56,12 @@ export const MAPLIBRE_AREA_FILL_STYLE_DEFAULTS: ResolvedMapLibreAreaFillStyle =
     crosshairArmCssPx: 3,
     crosshairWidthCssPx: 1,
     crosshairOpacity: 0.9,
-    rulerMinorOpacityShare: 0.7,
     rulerMajorMinRatio: 5,
-    rulerMajorWidthFactor: 2.2,
-    rulerMajorOpacityShare: 0.3,
     rulerMinSegmentCssPx: 32,
+    rulerMinorTickCssPx: 6,
+    rulerMajorTickCssPx: 12,
+    rulerKnotCssPx: 7,
+    rulerMarkerClearanceCssPx: 16,
   });
 
 const isFinitePositive = (value: unknown): value is number =>
@@ -97,29 +100,33 @@ export const resolveMapLibreAreaFillStyle = (
     crosshairOpacity: isUnitShare(options.crosshairOpacity)
       ? options.crosshairOpacity
       : defaults.crosshairOpacity,
-    rulerMinorOpacityShare: isUnitShare(options.rulerMinorOpacityShare)
-      ? options.rulerMinorOpacityShare
-      : defaults.rulerMinorOpacityShare,
     rulerMajorMinRatio:
       isFinitePositive(options.rulerMajorMinRatio) &&
       options.rulerMajorMinRatio >= 2
         ? options.rulerMajorMinRatio
         : defaults.rulerMajorMinRatio,
-    rulerMajorWidthFactor:
-      isFinitePositive(options.rulerMajorWidthFactor) &&
-      options.rulerMajorWidthFactor >= 1
-        ? options.rulerMajorWidthFactor
-        : defaults.rulerMajorWidthFactor,
-    rulerMajorOpacityShare: isUnitShare(options.rulerMajorOpacityShare)
-      ? options.rulerMajorOpacityShare
-      : defaults.rulerMajorOpacityShare,
     rulerMinSegmentCssPx: isFinitePositive(options.rulerMinSegmentCssPx)
       ? options.rulerMinSegmentCssPx
       : defaults.rulerMinSegmentCssPx,
+    rulerMinorTickCssPx: isFinitePositive(options.rulerMinorTickCssPx)
+      ? options.rulerMinorTickCssPx
+      : defaults.rulerMinorTickCssPx,
+    rulerMajorTickCssPx: isFinitePositive(options.rulerMajorTickCssPx)
+      ? options.rulerMajorTickCssPx
+      : defaults.rulerMajorTickCssPx,
+    rulerKnotCssPx: isFinitePositive(options.rulerKnotCssPx)
+      ? options.rulerKnotCssPx
+      : defaults.rulerKnotCssPx,
+    rulerMarkerClearanceCssPx:
+      typeof options.rulerMarkerClearanceCssPx === "number" &&
+      Number.isFinite(options.rulerMarkerClearanceCssPx) &&
+      options.rulerMarkerClearanceCssPx >= 0
+        ? options.rulerMarkerClearanceCssPx
+        : defaults.rulerMarkerClearanceCssPx,
   });
 };
 
-/** The fine pitch of a ruler: the first of the series whose half spans the minimum segment. */
+/** The beat of a ruler: the first pitch of the series that spans the minimum segment. */
 export const resolveRulerPitchMeters = (
   pixelsPerMeter: number,
   style: ResolvedMapLibreAreaFillStyle = MAPLIBRE_AREA_FILL_STYLE_DEFAULTS
@@ -128,15 +135,15 @@ export const resolveRulerPitchMeters = (
   const coarsest = series[series.length - 1]!;
   if (!(pixelsPerMeter > 0)) return coarsest;
   for (const pitch of series) {
-    if ((pitch / 2) * pixelsPerMeter >= style.rulerMinSegmentCssPx) return pitch;
+    if (pitch * pixelsPerMeter >= style.rulerMinSegmentCssPx) return pitch;
   }
   return coarsest;
 };
 
 /**
- * The coarse beat of the ruler: the first pitch of the series at least
- * `rulerMajorMinRatio` times the fine pitch, or the fine pitch times that
- * ratio past the end of the series.
+ * The major beat of the ruler: the first pitch of the series at least
+ * `rulerMajorMinRatio` times the beat, or the beat times that ratio past
+ * the end of the series.
  */
 export const resolveRulerMajorPitchMeters = (
   minorPitchMeters: number,
