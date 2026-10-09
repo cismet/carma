@@ -1,4 +1,5 @@
 import { ActionNotSuccessfulError } from "../wizard/errors";
+import { hasId } from "./ids";
 
 export const touchedRows = (originalRows, draftRows, idOf) => {
   const before = new Map((originalRows ?? []).map((row) => [idOf(row), row]));
@@ -52,7 +53,9 @@ export const USAGE_RULES = tableRules({
   rows: "nutzungen",
   idOf: (row) => row.nutzungId,
   nameOf: (row) => (row.nutzungId ? `Nutzung ${row.nutzungId}` : "Neue Zeile"),
-  required: [["nutzungsartId", "Nutzungsart", (row) => !row.nutzungsartId]],
+  required: [
+    ["nutzungsartId", "Nutzungsart", (row) => !hasId(row.nutzungsartId)],
+  ],
   other: [
     ["flaeche", "Die Fläche ist negativ", (row) => negative(row.flaeche)],
     [
@@ -132,7 +135,7 @@ export const MIPA_RULES = tableRules({
   required: [
     ["lage", "Lage", (row) => blank(row.lage)],
     ["aktenzeichen", "Aktenzeichen", (row) => blank(row.aktenzeichen)],
-    ["kategorieId", "Nutzung", (row) => !row.kategorieId],
+    ["kategorieId", "Nutzung", (row) => !hasId(row.kategorieId)],
     ["nutzer", "Nutzer", (row) => blank(row.nutzer)],
     ["vertragsbeginn", "Vertragsbeginn", (row) => !row.vertragsbeginn],
   ],

@@ -5,6 +5,7 @@ import { getColorFromCode } from "../../core/tools/helper";
 import { planarArea, toUtm, toWgs84 } from "../../core/wizard/geometry";
 import { splitPolygon } from "../../core/editing/splitPolygon";
 import { dienststelleLabel } from "./cells";
+import { hasId } from "../../core/editing/ids";
 
 // Java-like tools: copy the parcel, split, edit vertices, assign pieces to
 // Dienststellen. Unassigned pieces live next to the rows (`pieces`), so they
@@ -398,7 +399,7 @@ const useAreaDrawing = ({
     geometry: row.geometry,
     flaeche: row.flaeche,
     color:
-      row.dienststelleId &&
+      hasId(row.dienststelleId) &&
       getColorFromCode(
         byId.get(row.dienststelleId)?.farbeArrayRelationShip?.[0]?.rgb_farbwert
       ),
