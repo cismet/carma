@@ -13,6 +13,7 @@ import {
 } from "@carma-mapping/components";
 
 import { cacheableWms } from "../../helper/cacheable-wms";
+import { is3dAnnotationAdhocLayer } from "../../helper/adhoc-feature-utils";
 
 type ThreeTilesLibreLayer = Extract<LibreLayer, { type: "three-tiles" }>;
 
@@ -193,6 +194,11 @@ export const geoportalLayersToLibreLayers = (layers: Layer[]): LibreLayer[] => {
         ...(layer.layerType === "wmts-nt" ? { nonTiled: true } : {}),
       });
     } else if (layer.layerType === "vector") {
+      // A saved 3D measurement set renders in the scene through the 3D
+      // measurement addon; its style would draw the same set flat on the map.
+      if (is3dAnnotationAdhocLayer(layer)) {
+        continue;
+      }
       const { style } = layer.props as {
         style?: string | StyleSpecification;
       };
