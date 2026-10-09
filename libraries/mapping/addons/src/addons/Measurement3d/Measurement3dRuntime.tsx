@@ -74,14 +74,18 @@ export type Measurement3dConfig = {
 export const MEASUREMENT3D_DEFAULTS = Object.freeze({
   storageKey: "carma::measurement3d::annotations",
   infoBox: { pixelWidth: 350, controlOrder: 12 },
-  /** The point query disc scales in the scene, as in the Cesium measurement. */
+  /**
+   * The point query disc keeps a world size and only steps it (1, 2, 5, 10,
+   * 20 m diameters) when the view changes enough: within a factor of two of
+   * the screen target it stays, so a static camera never resizes it.
+   */
   referenceObjectSizing: {
     scalingMode: REFERENCE_OBJECT_SCALING_MODES.WORLD,
     worldRadiusMeters: 3,
     targetScreenRadiusCssPx: 48,
     resizeWorldRadiusToScreenTarget: true,
-    resizeStepFactor: 4,
-    quantizeWorldRadius: false,
+    resizeStepFactor: 2,
+    quantizeWorldRadius: true,
   } satisfies AnnotationReferenceObjectSizingOptions,
   /**
    * The geoportal Cesium measurement style, except that area fills stay in

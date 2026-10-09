@@ -1,7 +1,8 @@
 import { Matrix4, Vector3 } from "three";
 import { color as parseCssColor } from "d3-color";
 import {
-  createSteppedScreenScaler,
+  shouldRestepScreenScale,
+  snapToNiceStep,
   REFERENCE_OBJECT_SCALING_MODES,
   type ReferenceObjectScalingMode,
 } from "@carma-commons/math";
@@ -182,19 +183,45 @@ export const createPointQueryIndicatorController = (
   let removePreviewRingFrameListener: (() => void) | null = null;
   let previewRingSmoothingRenderPending = false;
   let previewPoint: Vector3 | null = null;
-  // Optional world-radius resizing holds a captured radius across authoring and
-  // only recalculates it after a meaningful zoom change.
-  const steppedScaler = createSteppedScreenScaler();
+  // Optional world-radius resizing: the disc keeps a world size, picked so it
+  // comes out near the screen target, and changes it only when the view does.
+  // The restep test reads the scale at the point the current size was picked
+  // at, not at the pointer: a pointer wandering between a near roof and the
+  // far ground does not change that scale, a zoom or a camera move does.
+  // Steps land on a 1, 2, 5, 10, 20 m diameter series.
+  let steppedRadiusMeters: number | null = null;
+  let steppedReferenceScale = 0;
+  const steppedReferencePoint = new Vector3();
+  const DISC_MIN_STEPPED_RADIUS_METERS = 0.1;
 
-  const resolveSteppedRadiusMeters = (center: Vector3): number =>
-    steppedScaler.resolve({
-      currentScale: activeEngine.getScreenPixelsPerMeterAt(center),
-      targetScreenPx: targetScreenRadiusCssPx,
-      fallback: previewRingRadius,
-      stepFactor: discResizeStepFactor,
-      quantize: quantizeStepWorldRadius,
-      minWorldSize: 0.1,
-    });
+  const resolveSteppedRadiusMeters = (center: Vector3): number => {
+    const scaleAtReference =
+      steppedRadiusMeters === null
+        ? 0
+        : activeEngine.getScreenPixelsPerMeterAt(steppedReferencePoint);
+    if (
+      steppedRadiusMeters !== null &&
+      !shouldRestepScreenScale(
+        steppedReferenceScale,
+        scaleAtReference,
+        discResizeStepFactor
+      )
+    ) {
+      return steppedRadiusMeters;
+    }
+    const scaleHere = activeEngine.getScreenPixelsPerMeterAt(center);
+    if (!Number.isFinite(scaleHere) || scaleHere <= 0) {
+      return steppedRadiusMeters ?? previewRingRadius;
+    }
+    const continuousRadius = targetScreenRadiusCssPx / scaleHere;
+    const radius = quantizeStepWorldRadius
+      ? snapToNiceStep(continuousRadius * 2) / 2
+      : continuousRadius;
+    steppedRadiusMeters = Math.max(radius, DISC_MIN_STEPPED_RADIUS_METERS);
+    steppedReferenceScale = scaleHere;
+    steppedReferencePoint.copy(center);
+    return steppedRadiusMeters;
+  };
   let previewSurfaceNormal: Vector3 | null = null;
   let latestTruePreviewPoint: Vector3 | null = null;
   let latestTrueSurfaceNormal: Vector3 | null = null;
@@ -214,8 +241,8 @@ export const createPointQueryIndicatorController = (
     previewRingSamples = [];
     previewRingLastQueuedInput = null;
     previewRingSmoothingRenderPending = false;
-    // Re-capture the stepped size at the next authoring session.
-    steppedScaler.reset();
+    // The stepped size survives a cleared preview: the next one under the
+    // same view must not come back in another size.
   };
 
   const ensurePreviewRingNormalLine = () => {
