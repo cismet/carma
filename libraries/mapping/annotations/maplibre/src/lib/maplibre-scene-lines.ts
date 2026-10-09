@@ -1,7 +1,19 @@
-import { GreaterDepth, Vector3 } from "three";
+import {
+  CanvasTexture,
+  Float32BufferAttribute,
+  BufferGeometry,
+  GreaterDepth,
+  Points,
+  PointsMaterial,
+  SRGBColorSpace,
+  Vector2,
+  Vector3,
+} from "three";
 import { Line2 } from "three/examples/jsm/lines/Line2.js";
 import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
+import { LineSegments2 } from "three/examples/jsm/lines/LineSegments2.js";
+import { LineSegmentsGeometry } from "three/examples/jsm/lines/LineSegmentsGeometry.js";
 import type {
   AnnotationSceneLineCollection,
   AnnotationSceneLineCollectionOptions,
@@ -25,7 +37,10 @@ import {
  * like any other content. The occluded part of a line is a second draw of the
  * same geometry that only passes where the scene is nearer (`GreaterDepth`),
  * dashed and faint, on top: the Cesium `depthFailMaterial` idea, replacing
- * the SVG overlay trace the Cesium runtime drew for hidden edges.
+ * the SVG overlay trace the Cesium runtime drew for hidden edges. A line
+ * with the ruler flag carries ticks across it at the metric beat and knots
+ * at the major beats, rebuilt per frame so they face the camera and keep
+ * their screen size.
  */
 
 export const MAPLIBRE_SCENE_LINE_DEFAULTS = Object.freeze({
@@ -55,41 +70,30 @@ const resolveScenePositions = (
 };
 
 const LINE_PASS = {
-  /** Depth-tested, continuous; at reduced opacity under a ruler pass. */
+  /** Depth-tested, continuous. */
   VISIBLE: "visible",
   /** Depth-fail, dashed in CSS pixels, faint, on top. */
   OCCLUDED: "occluded",
-  /** Depth-tested, dashed in world metres at full opacity over the visible pass. */
-  RULER: "ruler",
-  /** Depth-tested, dashed at the major pitch, wider and faint under the visible pass. */
-  MAJOR: "major",
 } as const;
 
 type LinePass = (typeof LINE_PASS)[keyof typeof LINE_PASS];
 
 const createLineMaterial = (
   style: AnnotationSceneLineStyle,
-  pass: LinePass,
-  ruler: ResolvedMapLibreAreaFillStyle
+  pass: LinePass
 ): LineMaterial => {
   const { color, opacity } = parseCssColor(style.color);
   const occluded = pass === LINE_PASS.OCCLUDED;
-  const passOpacity =
-    pass === LINE_PASS.OCCLUDED
-      ? opacity * MAPLIBRE_SCENE_LINE_DEFAULTS.occludedOpacity
-      : pass === LINE_PASS.VISIBLE && style.metricDashed === true
-      ? opacity * ruler.rulerMinorOpacityShare
-      : pass === LINE_PASS.MAJOR
-      ? opacity * ruler.rulerMajorOpacityShare
-      : opacity;
   const material = new LineMaterial({
     color: color.getHex(),
     linewidth: style.width,
     transparent: true,
-    opacity: passOpacity,
+    opacity: occluded
+      ? opacity * MAPLIBRE_SCENE_LINE_DEFAULTS.occludedOpacity
+      : opacity,
     depthWrite: false,
     depthTest: true,
-    dashed: pass !== LINE_PASS.VISIBLE,
+    dashed: occluded,
   });
   if (occluded) {
     material.depthFunc = GreaterDepth;
@@ -105,6 +109,100 @@ const createLineMaterial = (
   return material;
 };
 
+/** A white disc for the knots; the material tints it. Null without a 2D canvas (tests). */
+let knotTexture: CanvasTexture | null | undefined;
+const resolveKnotTexture = () => {
+  if (knotTexture !== undefined) return knotTexture;
+  const size = 32;
+  const canvas =
+    typeof document === "undefined" ? null : document.createElement("canvas");
+  let context: CanvasRenderingContext2D | null = null;
+  try {
+    context = canvas?.getContext("2d") ?? null;
+  } catch {
+    context = null;
+  }
+  if (!canvas || !context) {
+    knotTexture = null;
+    return knotTexture;
+  }
+  canvas.width = size;
+  canvas.height = size;
+  context.fillStyle = "#ffffff";
+  context.beginPath();
+  context.arc(size / 2, size / 2, size / 2 - 1, 0, Math.PI * 2);
+  context.fill();
+  knotTexture = new CanvasTexture(canvas);
+  knotTexture.colorSpace = SRGBColorSpace;
+  return knotTexture;
+};
+
+/** The ticks and knots of a ruler line. */
+type SceneRuler = {
+  ticks: LineSegments2;
+  knots: Points<BufferGeometry, PointsMaterial>;
+  tickCount: number;
+};
+
+const createRuler = (
+  scene: MapLibreAnnotationScene,
+  id: string,
+  style: AnnotationSceneLineStyle
+): SceneRuler => {
+  const { color, opacity } = parseCssColor(style.color);
+  const ticks = new LineSegments2(
+    new LineSegmentsGeometry(),
+    new LineMaterial({
+      color: color.getHex(),
+      linewidth: style.width,
+      transparent: true,
+      opacity,
+      depthWrite: false,
+      depthTest: true,
+    })
+  );
+  ticks.material.polygonOffset = true;
+  ticks.material.polygonOffsetFactor =
+    MAPLIBRE_SCENE_LINE_DEFAULTS.polygonOffsetFactor;
+  ticks.material.polygonOffsetUnits =
+    MAPLIBRE_SCENE_LINE_DEFAULTS.polygonOffsetUnits;
+  ticks.frustumCulled = false;
+  ticks.renderOrder = MAPLIBRE_SCENE_LINE_DEFAULTS.renderOrder;
+  ticks.userData.annotationPickId = id;
+  ticks.visible = false;
+  scene.root.add(ticks);
+  const knotMaterial = new PointsMaterial({
+    color: color.getHex(),
+    transparent: true,
+    opacity,
+    depthWrite: false,
+    depthTest: true,
+    sizeAttenuation: false,
+  });
+  const texture = resolveKnotTexture();
+  if (texture) {
+    knotMaterial.map = texture;
+    knotMaterial.alphaTest = 0.5;
+  }
+  const knots = new Points(new BufferGeometry(), knotMaterial);
+  knots.frustumCulled = false;
+  knots.renderOrder = MAPLIBRE_SCENE_LINE_DEFAULTS.renderOrder + 1;
+  knots.userData.annotationPickId = id;
+  knots.visible = false;
+  scene.root.add(knots);
+  return { ticks, knots, tickCount: 0 };
+};
+
+const disposeRuler = (scene: MapLibreAnnotationScene, ruler: SceneRuler | null) => {
+  if (!ruler) return;
+  scene.root.remove(ruler.ticks);
+  scene.root.remove(ruler.knots);
+  ruler.ticks.geometry.dispose();
+  ruler.ticks.material.dispose();
+  ruler.knots.geometry.dispose();
+  ruler.knots.material.dispose();
+};
+
 type SceneLineEntry = {
   id: string;
   positionsECEF: Vector3[];
@@ -112,8 +210,7 @@ type SceneLineEntry = {
   visible: boolean;
   line: Line2;
   occludedLine: Line2 | null;
-  rulerLine: Line2 | null;
-  majorLine: Line2 | null;
+  ruler: SceneRuler | null;
   vertexCount: number;
 };
 
@@ -126,22 +223,140 @@ export const createMapLibreSceneLineCollection = (
   const entries = new Set<SceneLineEntry>();
   let destroyed = false;
   const midpoint = new Vector3();
+  const cameraScene = new Vector3();
+  const beatECEF = new Vector3();
+  const beatScene = new Vector3();
+  const segmentStart = new Vector3();
+  const segmentEnd = new Vector3();
+  const lineDirection = new Vector3();
+  const viewDirection = new Vector3();
+  const across = new Vector3();
+  const screenScratch = { x: 0, y: 0 };
+
+  /**
+   * Ticks across the line at every beat from the first vertex, longer ones
+   * and knots at the major beats, each facing the camera at its screen
+   * size. Beats near a vertex or a segment midpoint are left out: the node
+   * markers and the insert handles of a selected measurement sit there.
+   */
+  const applyRuler = (
+    entry: SceneLineEntry,
+    ruler: SceneRuler,
+    flat: number[],
+    pixelsPerMeter: number,
+    pixelRatio: number
+  ) => {
+    const camera = scene.getCameraScenePosition(cameraScene);
+    if (!camera || !(pixelsPerMeter > 0)) {
+      ruler.ticks.visible = false;
+      ruler.knots.visible = false;
+      return;
+    }
+    const beat = resolveRulerPitchMeters(pixelsPerMeter, rulerStyle);
+    const major = resolveRulerMajorPitchMeters(beat, rulerStyle);
+    const clearance = rulerStyle.rulerMarkerClearanceCssPx;
+    const keepClear: Vector2[] = [];
+    const positions = entry.positionsECEF;
+    for (let index = 0; index < positions.length; index += 1) {
+      const vertex = scene.worldToScreen(positions[index]!, screenScratch);
+      if (vertex) keepClear.push(new Vector2(vertex.x, vertex.y));
+      if (index + 1 < positions.length) {
+        beatECEF.addVectors(positions[index]!, positions[index + 1]!).multiplyScalar(0.5);
+        const handle = scene.worldToScreen(beatECEF, screenScratch);
+        if (handle) keepClear.push(new Vector2(handle.x, handle.y));
+      }
+    }
+    const tickPositions: number[] = [];
+    const knotPositions: number[] = [];
+    let travelled = 0;
+    let nextBeat = beat;
+    for (let index = 0; index + 1 < positions.length; index += 1) {
+      const start = positions[index]!;
+      const end = positions[index + 1]!;
+      const length = start.distanceTo(end);
+      if (!(length > 0)) continue;
+      segmentStart.set(flat[index * 3]!, flat[index * 3 + 1]!, flat[index * 3 + 2]!);
+      segmentEnd.set(
+        flat[index * 3 + 3]!,
+        flat[index * 3 + 4]!,
+        flat[index * 3 + 5]!
+      );
+      lineDirection.subVectors(segmentEnd, segmentStart).normalize();
+      while (nextBeat <= travelled + length) {
+        const t = (nextBeat - travelled) / length;
+        beatECEF.lerpVectors(start, end, t);
+        const isMajor = Math.abs(nextBeat / major - Math.round(nextBeat / major)) < 1e-6;
+        nextBeat += beat;
+        const screen = scene.worldToScreen(beatECEF, screenScratch);
+        if (!screen) continue;
+        if (
+          keepClear.some(
+            (point) => Math.hypot(point.x - screen.x, point.y - screen.y) < clearance
+          )
+        ) {
+          continue;
+        }
+        if (!scene.sceneFromEcef(beatECEF, beatScene)) continue;
+        viewDirection.subVectors(beatScene, camera).normalize();
+        across.crossVectors(lineDirection, viewDirection);
+        if (across.lengthSq() < 1e-8) continue;
+        across.normalize();
+        const localPixelsPerMeter = scene.getPixelsPerMeterAtScene(beatScene);
+        if (!(localPixelsPerMeter > 0)) continue;
+        const half =
+          (isMajor ? rulerStyle.rulerMajorTickCssPx : rulerStyle.rulerMinorTickCssPx) /
+          2 /
+          localPixelsPerMeter;
+        tickPositions.push(
+          beatScene.x - across.x * half,
+          beatScene.y - across.y * half,
+          beatScene.z - across.z * half,
+          beatScene.x + across.x * half,
+          beatScene.y + across.y * half,
+          beatScene.z + across.z * half
+        );
+        if (isMajor) knotPositions.push(beatScene.x, beatScene.y, beatScene.z);
+      }
+      travelled += length;
+    }
+    const tickCount = tickPositions.length / 6;
+    ruler.ticks.visible = tickCount > 0;
+    if (tickCount > 0) {
+      if (tickCount !== ruler.tickCount) {
+        ruler.ticks.geometry.dispose();
+        ruler.ticks.geometry = new LineSegmentsGeometry();
+        ruler.tickCount = tickCount;
+      }
+      ruler.ticks.geometry.setPositions(tickPositions);
+      ruler.ticks.material.linewidth = entry.style.width * pixelRatio;
+    }
+    ruler.knots.visible = knotPositions.length > 0;
+    if (knotPositions.length > 0) {
+      ruler.knots.geometry.setAttribute(
+        "position",
+        new Float32BufferAttribute(knotPositions, 3)
+      );
+      ruler.knots.geometry.computeBoundingSphere();
+      ruler.knots.material.size = rulerStyle.rulerKnotCssPx * pixelRatio;
+    }
+  };
 
   const applyGeometry = (entry: SceneLineEntry) => {
     const flat = resolveScenePositions(scene, entry.positionsECEF);
     const drawable = entry.visible && flat !== null && flat.length >= 6;
     entry.line.visible = drawable;
     if (entry.occludedLine) entry.occludedLine.visible = drawable;
-    if (entry.rulerLine) entry.rulerLine.visible = drawable;
-    if (entry.majorLine) entry.majorLine.visible = drawable;
-    if (!drawable || !flat) return;
+    if (!drawable || !flat) {
+      if (entry.ruler) {
+        entry.ruler.ticks.visible = false;
+        entry.ruler.knots.visible = false;
+      }
+      return;
+    }
     const vertexCount = flat.length / 3;
-    const targets = [
-      entry.line,
-      entry.occludedLine,
-      entry.rulerLine,
-      entry.majorLine,
-    ].filter((line): line is Line2 => line !== null);
+    const targets = [entry.line, entry.occludedLine].filter(
+      (line): line is Line2 => line !== null
+    );
     if (vertexCount !== entry.vertexCount) {
       // `LineGeometry.setPositions` keeps the instance count; a new vertex
       // count needs a fresh geometry.
@@ -168,23 +383,8 @@ export const createMapLibreSceneLineCollection = (
       (flat[2]! + flat[flat.length - 1]!) / 2
     );
     const pixelsPerMeter = scene.getPixelsPerMeterAtScene(midpoint);
-    if (entry.rulerLine) {
-      // The fine beat: half the grid pitch at full opacity, half at the
-      // dimmed opacity of the pass underneath, in world metres.
-      const minorPitch = resolveRulerPitchMeters(pixelsPerMeter, rulerStyle);
-      const material = entry.rulerLine.material as LineMaterial;
-      material.linewidth = entry.style.width * pixelRatio;
-      material.dashSize = minorPitch / 2;
-      material.gapSize = minorPitch / 2;
-      if (entry.majorLine) {
-        // The coarse beat: every other major cell wider and faint underneath.
-        const majorPitch = resolveRulerMajorPitchMeters(minorPitch, rulerStyle);
-        const major = entry.majorLine.material as LineMaterial;
-        major.linewidth =
-          entry.style.width * rulerStyle.rulerMajorWidthFactor * pixelRatio;
-        major.dashSize = majorPitch;
-        major.gapSize = majorPitch;
-      }
+    if (entry.ruler) {
+      applyRuler(entry, entry.ruler, flat, pixelsPerMeter, pixelRatio);
     }
     if (entry.occludedLine) {
       const material = entry.occludedLine.material as LineMaterial;
@@ -209,14 +409,12 @@ export const createMapLibreSceneLineCollection = (
   ) => {
     const line = new Line2(
       new LineGeometry(),
-      createLineMaterial(entry.style, pass, rulerStyle)
+      createLineMaterial(entry.style, pass)
     );
     line.frustumCulled = false;
     line.renderOrder =
       pass === LINE_PASS.OCCLUDED
         ? MAPLIBRE_SCENE_LINE_DEFAULTS.occludedRenderOrder
-        : pass === LINE_PASS.MAJOR
-        ? MAPLIBRE_SCENE_LINE_DEFAULTS.renderOrder - 1
         : MAPLIBRE_SCENE_LINE_DEFAULTS.renderOrder;
     line.userData.annotationPickId = entry.id;
     line.visible = false;
@@ -239,7 +437,7 @@ export const createMapLibreSceneLineCollection = (
         color: options.color,
         width: options.width,
         occludedDashed: options.occludedDashed,
-        metricDashed: options.metricDashed,
+        ruler: options.ruler,
       };
       const entry: SceneLineEntry = {
         id: options.id,
@@ -252,12 +450,7 @@ export const createMapLibreSceneLineCollection = (
         occludedLine: options.occludedDashed
           ? createLine({ id: options.id, style }, LINE_PASS.OCCLUDED)
           : null,
-        rulerLine: options.metricDashed
-          ? createLine({ id: options.id, style }, LINE_PASS.RULER)
-          : null,
-        majorLine: options.metricDashed
-          ? createLine({ id: options.id, style }, LINE_PASS.MAJOR)
-          : null,
+        ruler: options.ruler ? createRuler(scene, options.id, style) : null,
         vertexCount: 0,
       };
       entries.add(entry);
@@ -293,26 +486,18 @@ export const createMapLibreSceneLineCollection = (
             disposeLine(entry.occludedLine);
             entry.occludedLine = null;
           }
-          const needsRuler = Boolean(nextStyle.metricDashed);
-          if (needsRuler && !entry.rulerLine) {
-            entry.rulerLine = createLine(entry, LINE_PASS.RULER);
-            entry.majorLine = createLine(entry, LINE_PASS.MAJOR);
-            entry.vertexCount = 0;
-          } else if (!needsRuler && entry.rulerLine) {
-            disposeLine(entry.rulerLine);
-            disposeLine(entry.majorLine);
-            entry.rulerLine = null;
-            entry.majorLine = null;
-          }
+          // The ruler carries the colour in its materials: rebuild it.
+          disposeRuler(scene, entry.ruler);
+          entry.ruler = nextStyle.ruler
+            ? createRuler(scene, entry.id, nextStyle)
+            : null;
           for (const [line, pass] of [
             [entry.line, LINE_PASS.VISIBLE],
             [entry.occludedLine, LINE_PASS.OCCLUDED],
-            [entry.rulerLine, LINE_PASS.RULER],
-            [entry.majorLine, LINE_PASS.MAJOR],
           ] as const) {
             if (!line) continue;
             const previous = line.material as LineMaterial;
-            line.material = createLineMaterial(nextStyle, pass, rulerStyle);
+            line.material = createLineMaterial(nextStyle, pass);
             previous.dispose();
           }
           applyGeometry(entry);
@@ -330,8 +515,7 @@ export const createMapLibreSceneLineCollection = (
           entries.delete(entry);
           disposeLine(entry.line);
           disposeLine(entry.occludedLine);
-          disposeLine(entry.rulerLine);
-          disposeLine(entry.majorLine);
+          disposeRuler(scene, entry.ruler);
           scene.requestRender();
         },
       };
@@ -343,8 +527,7 @@ export const createMapLibreSceneLineCollection = (
       for (const entry of entries) {
         disposeLine(entry.line);
         disposeLine(entry.occludedLine);
-        disposeLine(entry.rulerLine);
-        disposeLine(entry.majorLine);
+        disposeRuler(scene, entry.ruler);
       }
       entries.clear();
       scene.requestRender();
