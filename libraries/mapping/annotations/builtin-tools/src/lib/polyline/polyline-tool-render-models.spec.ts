@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import type {
-  AnnotationNode,
-  StoredAnnotation,
+import {
+  ANNOTATION_DEFAULT_LABEL_THEME,
+  RUNTIME_POINT_LABEL_COORDINATE_SELECTION,
+  type AnnotationNode,
+  type StoredAnnotation,
 } from "@carma-mapping/annotations/runtime";
 import { buildPolylineToolRenderModels } from "./polyline-tool-render-models";
 
@@ -39,10 +41,7 @@ const visuals = {
   },
 };
 
-const badgeStyle = {
-  backgroundColor: "rgba(75, 85, 99, 1)",
-  textColor: "rgba(248, 250, 252, 0.98)",
-};
+const labelTheme = ANNOTATION_DEFAULT_LABEL_THEME;
 
 const nodes: readonly AnnotationNode[] = [
   {
@@ -79,54 +78,62 @@ const annotation: StoredAnnotation = {
   shortLabel: "P1",
 };
 
+const build = (selectedAnnotationIds: readonly string[] = []) =>
+  buildPolylineToolRenderModels({
+    toolType: "polyline",
+    visuals,
+    formatOptions: {
+      lengthMeters: {},
+    },
+    labelTheme,
+    getLabel: () => "P1",
+    nodes,
+    annotations: [annotation],
+    selectedAnnotationIds,
+  });
+
 describe("buildPolylineToolRenderModels", () => {
-  it("renders a single label anchored on the last node of the polyline", () => {
-    const renderModels = buildPolylineToolRenderModels({
-      toolType: "polyline",
-      visuals,
-      formatOptions: {
-        lengthMeters: {},
-      },
-      badgeStyle,
-      getLabel: () => "P1",
-      nodes,
-      annotations: [annotation],
-      selectedAnnotationIds: [],
-    });
+  it("renders one badge that picks the screen-left end of the chain", () => {
+    const renderModels = build();
 
     expect(renderModels.pointLabels).toHaveLength(1);
     expect(renderModels.pointLabels[0]).toMatchObject({
       id: "polyline-1-label",
-      nodeId: "node-c",
-      pointMarkerId: "polyline-1-node-2",
+      nodeId: "node-a",
+      coordinateSelection:
+        RUNTIME_POINT_LABEL_COORDINATE_SELECTION.LEFTMOST_SCREEN_SPACE,
+      preferredAttach: "right",
       badgeContent: "P1",
+      hideMarker: true,
+      textBackgroundColor: labelTheme.scheme.colorPrimaryReduced,
+      selectedGlowColor: labelTheme.selection.glowColor,
     });
-    expect(renderModels.pointLabels[0]?.content).toMatch(/^P1\s+/);
+    expect(
+      renderModels.pointLabels[0]?.coordinateCandidates?.map(
+        (candidate) => candidate.nodeId
+      )
+    ).toEqual(["node-a", "node-c"]);
     expect(renderModels.edges[0]).toMatchObject({
       id: "polyline-1",
       overlayDashed: true,
       showSegmentLengthLabels: true,
     });
     expect(renderModels.edges[0]).not.toHaveProperty("dashed");
+    expect(renderModels.edges[0]).not.toHaveProperty("ruler");
   });
 
-  it("adds the total length to the extended end label while keeping the badge token", () => {
-    const renderModels = buildPolylineToolRenderModels({
-      toolType: "polyline",
-      visuals,
-      formatOptions: {
-        lengthMeters: {},
-      },
-      badgeStyle,
-      getLabel: () => "P1",
-      nodes,
-      annotations: [annotation],
-      selectedAnnotationIds: [],
-    });
+  it("shows the total length next to the badge without repeating the badge token", () => {
+    const content = build().pointLabels[0]?.content;
 
-    expect(renderModels.pointLabels[0]).toMatchObject({
-      badgeContent: "P1",
-    });
-    expect(renderModels.pointLabels[0]?.content).not.toBe("P1");
+    expect(typeof content).toBe("string");
+    expect(content).not.toMatch(/P1/);
+    expect(content).toMatch(/m$/);
+  });
+
+  it("carries the ruler and the selection highlight while selected", () => {
+    const renderModels = build(["polyline-1"]);
+
+    expect(renderModels.edges[0]).toMatchObject({ ruler: true });
+    expect(renderModels.pointLabels[0]).toMatchObject({ selected: true });
   });
 });
