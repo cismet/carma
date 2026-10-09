@@ -13,6 +13,7 @@ import {
 } from "../../utils/short-label-sequence";
 import type { FeatureCollection, Geometry } from "geojson";
 import { buildStoredAnnotationsGeoJsonFeatureCollection } from "../../utils/annotation-geo-json-export";
+import { createAnnotationUuid } from "../../utils/annotation-uuid";
 import { selectAuthoringAnnotationEntries } from "../../utils/annotation-tool-collections";
 
 const currentPersistenceFormatId = "annotations-runtime-persistence" as const;
@@ -87,7 +88,7 @@ const cloneNodeLink = (nodeLink: AnnotationNodeLink): AnnotationNodeLink => ({
   nodeIds: [...nodeLink.nodeIds],
 });
 
-const parseAnnotationsRuntimePersistenceEnvelope = (
+export const parseAnnotationsRuntimePersistenceEnvelope = (
   parsed: unknown
 ): AnnotationsRuntimePersistenceEnvelope | null => {
   const candidate = parsed as {
@@ -521,14 +522,175 @@ export const resolvePersistedAnnotationsStoreState = ({
   };
 };
 
+/**
+ * What makes a measurement the same measurement: its entry without the
+ * identity stamps, its node coordinates and its edges in order.
+ */
+export const buildAnnotationContentSignature = (
+  state: AnnotationsRuntimePersistenceEnvelope,
+  annotationEntry: StoredAnnotation
+): string => {
+  const nodesById = new Map(state.tables.nodes.map((node) => [node.id, node]));
+  const edgesById = new Map(state.tables.edges.map((edge) => [edge.id, edge]));
+  const { uuid: _uuid, updatedAt: _updatedAt, id: _id, nodeIds, edgeIds, ...rest } =
+    annotationEntry;
+  return JSON.stringify({
+    entry: rest,
+    nodes: nodeIds.map((nodeId) => {
+      const node = nodesById.get(nodeId);
+      return node ? [node.coordinate.longitude, node.coordinate.latitude, node.coordinate.altitude] : null;
+    }),
+    edges: edgeIds.map((edgeId) => {
+      const edge = edgesById.get(edgeId);
+      return edge ? [nodeIds.indexOf(edge.startNodeId), nodeIds.indexOf(edge.endNodeId)] : null;
+    }),
+  });
+};
+
+/**
+ * Give every entry a uuid and an updatedAt: the uuid stays with the entry
+ * (or is inherited from the previously stored entry of the same id), the
+ * time moves only when the content signature changed since the last save.
+ */
+export const stampAnnotationIdentity = (
+  state: AnnotationsRuntimePersistenceEnvelope,
+  previous: AnnotationsRuntimePersistenceEnvelope | null,
+  now: string = new Date().toISOString()
+): AnnotationsRuntimePersistenceEnvelope => {
+  const previousById = new Map(
+    (previous?.tables.annotationEntries ?? []).map((entry) => [entry.id, entry])
+  );
+  const previousByUuid = new Map(
+    (previous?.tables.annotationEntries ?? [])
+      .filter((entry) => entry.uuid)
+      .map((entry) => [entry.uuid as string, entry])
+  );
+  const annotationEntries = state.tables.annotationEntries.map((entry) => {
+    const uuid = entry.uuid ?? previousById.get(entry.id)?.uuid ?? createAnnotationUuid();
+    const before = previousByUuid.get(uuid) ?? previousById.get(entry.id);
+    const unchanged =
+      before !== undefined &&
+      previous !== null &&
+      buildAnnotationContentSignature(previous, before) ===
+        buildAnnotationContentSignature(state, entry);
+    return {
+      ...entry,
+      uuid,
+      updatedAt: unchanged ? before?.updatedAt ?? entry.updatedAt ?? now : now,
+    };
+  });
+  return { ...state, tables: { ...state.tables, annotationEntries } };
+};
+
+/** The envelope reduced to the entries the predicate keeps, with their nodes, edges and links. */
+export const filterAnnotationsRuntimePersistenceState = (
+  state: AnnotationsRuntimePersistenceEnvelope,
+  keep: (annotationEntry: StoredAnnotation) => boolean
+): AnnotationsRuntimePersistenceEnvelope => {
+  const annotationEntries = state.tables.annotationEntries.filter(keep);
+  const nodeIds = new Set(annotationEntries.flatMap((entry) => entry.nodeIds));
+  const edgeIds = new Set(annotationEntries.flatMap((entry) => entry.edgeIds));
+  return {
+    ...state,
+    tables: {
+      annotationEntries,
+      nodes: state.tables.nodes.filter((node) => nodeIds.has(node.id)),
+      edges: state.tables.edges.filter((edge) => edgeIds.has(edge.id)),
+      linkedNodeGroups: state.tables.linkedNodeGroups.filter((nodeLink) =>
+        nodeLink.nodeIds.some((nodeId) => nodeIds.has(nodeId))
+      ),
+    },
+  };
+};
+
+export type SharedAnnotationsConflict = {
+  uuid: string;
+  incoming: StoredAnnotation;
+  local: StoredAnnotation;
+};
+
+export type SharedAnnotationsMerge = {
+  /** Entries the local set does not know: by uuid, or by id while a side has none. */
+  additions: AnnotationsRuntimePersistenceEnvelope;
+  /** Entries both sides know under one uuid but with different content. */
+  conflicts: AnnotationsRuntimePersistenceEnvelope;
+  conflictPairs: SharedAnnotationsConflict[];
+  unchangedCount: number;
+};
+
+/**
+ * Sort a shared set against the local one: same uuid and same content is
+ * nothing new, same uuid and other content is a conflict for the user to
+ * settle, everything else joins.
+ */
+export const resolveSharedAnnotationsMerge = (
+  incoming: AnnotationsRuntimePersistenceEnvelope,
+  local: AnnotationsRuntimePersistenceEnvelope | null
+): SharedAnnotationsMerge => {
+  const localEntries = local?.tables.annotationEntries ?? [];
+  const localByUuid = new Map(
+    localEntries.filter((entry) => entry.uuid).map((entry) => [entry.uuid as string, entry])
+  );
+  const localById = new Map(localEntries.map((entry) => [entry.id, entry]));
+  const additionIds = new Set<string>();
+  const conflictIds = new Set<string>();
+  const conflictPairs: SharedAnnotationsConflict[] = [];
+  let unchangedCount = 0;
+  for (const entry of incoming.tables.annotationEntries) {
+    const counterpart = entry.uuid
+      ? localByUuid.get(entry.uuid)
+      : localById.get(entry.id);
+    if (!counterpart) {
+      additionIds.add(entry.id);
+      continue;
+    }
+    const same =
+      local !== null &&
+      buildAnnotationContentSignature(incoming, entry) ===
+        buildAnnotationContentSignature(local, counterpart);
+    if (same) {
+      unchangedCount += 1;
+      continue;
+    }
+    conflictIds.add(entry.id);
+    conflictPairs.push({
+      uuid: entry.uuid ?? entry.id,
+      incoming: entry,
+      local: counterpart,
+    });
+  }
+  return {
+    additions: filterAnnotationsRuntimePersistenceState(incoming, (entry) =>
+      additionIds.has(entry.id)
+    ),
+    conflicts: filterAnnotationsRuntimePersistenceState(incoming, (entry) =>
+      conflictIds.has(entry.id)
+    ),
+    conflictPairs,
+    unchangedCount,
+  };
+};
+
+/** The stored GeoJSON collection as the host last saved it, for sharing it on. */
+export const loadAnnotationsRuntimeGeoJsonFeatureCollection = (
+  storageKey: string
+): AnnotationsRuntimeGeoJsonFeatureCollection | null => {
+  const state = loadAnnotationsRuntimePersistenceState(storageKey);
+  return state ? buildAnnotationsRuntimeGeoJsonFeatureCollection(state) : null;
+};
+
 export const saveAnnotationsRuntimePersistenceState = (
   storageKey: string,
   state: AnnotationsRuntimePersistenceEnvelope
 ): void => {
   try {
+    const stamped = stampAnnotationIdentity(
+      state,
+      loadAnnotationsRuntimePersistenceState(storageKey)
+    );
     localStorage.setItem(
       storageKey,
-      JSON.stringify(buildAnnotationsRuntimeGeoJsonFeatureCollection(state))
+      JSON.stringify(buildAnnotationsRuntimeGeoJsonFeatureCollection(stamped))
     );
   } catch (error) {
     console.warn(

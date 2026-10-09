@@ -34,6 +34,9 @@ import { Rectangle } from "cesium";
 import { availabilityContext } from "./availability";
 import { defaultWorkflowAddons } from "../constants/default-workflows";
 
+/** One stored measurement set for the Cesium and the MapLibre view. */
+export const GEOPORTAL_ANNOTATIONS_STORAGE_KEY = "@geoportal.app.cesium-annotations";
+
 export const APP_BASE_PATH = import.meta.env.BASE_URL;
 export const ICON_PREFIX =
   "https://www.wuppertal.de/geoportal/geoportal_icon_legends/";
@@ -81,7 +84,7 @@ export const DEFAULT_ADDONS: AddonEntry[] = [
     // 3D measurements on the MapLibre view while a mesh or tileset is drawn
     // through the Three.js layer; the same persisted set as the Cesium view
     addon: "measurement3d",
-    config: { storageKey: "@geoportal.app.cesium-annotations" },
+    config: { storageKey: GEOPORTAL_ANNOTATIONS_STORAGE_KEY },
   },
 ];
 
