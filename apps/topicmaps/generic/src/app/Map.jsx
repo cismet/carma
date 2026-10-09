@@ -291,6 +291,13 @@ const Map = ({
     getSymbolSVG = undefined;
   }
 
+  // The carma FeatureInfobox dispatches to the CarmaLightBox viewer, while the
+  // react-cismap GenericInfoBoxFromFeature relies on TopicMapComponent's
+  // built-in lightbox. Drive photoLightBox off the same condition that picks
+  // the infobox so exactly one viewer is active.
+  const useCarmaInfobox =
+    config.tm.vectorLayers && config.tm.noFeatureCollection === true;
+
   return (
     <div className={TAILWIND_CLASSNAMES_FULLSCREEN_FIXED}>
       <ControlLayout ifStorybook={false}>
@@ -364,8 +371,9 @@ const Map = ({
           fullScreenControl={false}
           zoomControls={false}
           gazetteerSearchComponent={EmptySearchComponent}
+          photoLightBox={!useCarmaInfobox}
           infoBox={
-            config.tm.vectorLayers && config.tm.noFeatureCollection === true ? (
+            useCarmaInfobox ? (
               <FeatureInfobox
                 selectedFeature={feature}
                 versionData={versionData}

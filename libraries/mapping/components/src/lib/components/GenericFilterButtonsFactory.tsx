@@ -10,8 +10,8 @@ export interface FilterOption {
   inactiveIcon?: string;
   /** Property name in the feature to check */
   propertyName: string;
-  /** Value that the property should have when filter is active */
-  propertyValue: string;
+  /** Value that the property should have when filter is active (a list matches any of its values) */
+  propertyValue: string | string[];
   /** Whether to show icon in grayscale when not selected (ignored if inactiveIcon is set) */
   grayscaleWhenInactive?: boolean;
   color?: string;
@@ -76,6 +76,20 @@ export const captureOriginalFilters = (
   return captured;
 };
 
+const buildOptionExpression = (filterOption: FilterOption): any[] =>
+  Array.isArray(filterOption.propertyValue)
+    ? [
+        "in",
+        ["get", filterOption.propertyName],
+        ["literal", filterOption.propertyValue],
+      ]
+    : ["==", ["get", filterOption.propertyName], filterOption.propertyValue];
+
+const matchesOptionValue = (value: unknown, filterOption: FilterOption) =>
+  Array.isArray(filterOption.propertyValue)
+    ? filterOption.propertyValue.includes(value as string)
+    : value === filterOption.propertyValue;
+
 // Function to build filter expression from selected filters
 export const buildFilterExpression = (
   config: FilterConfig,
@@ -88,11 +102,7 @@ export const buildFilterExpression = (
 
     config.filters.forEach((filterOption) => {
       if (filters[filterOption.key]) {
-        conditions.push([
-          "==",
-          ["get", filterOption.propertyName],
-          filterOption.propertyValue,
-        ]);
+        conditions.push(buildOptionExpression(filterOption));
       }
     });
 
@@ -114,11 +124,7 @@ export const buildFilterExpression = (
 
     config.filters.forEach((filterOption) => {
       if (filters[filterOption.key]) {
-        conditions.push([
-          "==",
-          ["get", filterOption.propertyName],
-          filterOption.propertyValue,
-        ]);
+        conditions.push(buildOptionExpression(filterOption));
       }
     });
 
@@ -191,7 +197,7 @@ export const createFilterButtons = (config: FilterConfig) => {
         // Check if feature matches any selected filter
         return selectedFilterOptions.some(
           (filterOption) =>
-            props[filterOption.propertyName] === filterOption.propertyValue
+            matchesOptionValue(props[filterOption.propertyName], filterOption)
         );
       } else {
         // AND mode: feature matches if it matches ALL selected filters
@@ -200,7 +206,7 @@ export const createFilterButtons = (config: FilterConfig) => {
         for (const filterOption of config.filters) {
           if (
             filters[filterOption.key] &&
-            props[filterOption.propertyName] !== filterOption.propertyValue
+            !matchesOptionValue(props[filterOption.propertyName], filterOption)
           ) {
             return false;
           }

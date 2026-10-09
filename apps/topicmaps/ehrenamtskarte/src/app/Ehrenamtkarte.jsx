@@ -4,7 +4,6 @@ import {
   FeatureCollectionContext,
   FeatureCollectionDispatchContext,
 } from "react-cismap/contexts/FeatureCollectionContextProvider";
-import { LightBoxContext } from "react-cismap/contexts/LightBoxContextProvider";
 import { TopicMapStylingContext } from "react-cismap/contexts/TopicMapStylingContextProvider";
 import FeatureCollection from "react-cismap/FeatureCollection";
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
@@ -88,6 +87,7 @@ const Ehrenamtkarte = ({ bookmarks, setBookmarks }) => {
       <TopicMapComponent
         modalMenu={<Menu bookmarks={bookmarks} setBookmarks={setBookmarks} />}
         locatorControl={true}
+        photoLightBox={false}
         applicationMenuTooltipString={<MenuTooltip />}
         infoBox={
           <div className="leaflet-bottom leaflet-right">

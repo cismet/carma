@@ -5,11 +5,13 @@ import { isEqual } from "lodash";
 import envelope from "@turf/envelope";
 
 // import InfoBox from "react-cismap/topicmaps/InfoBox";
-import InfoBoxFotoPreview from "react-cismap/topicmaps/InfoBoxFotoPreview";
+import {
+  InfoBoxFotoPreview,
+  LightBoxDispatchContext,
+} from "@carma-mapping/lightbox";
 import { getActionLinksForFeature } from "react-cismap/tools/uiHelper";
 import InfoBoxHeader from "react-cismap/topicmaps/InfoBoxHeader";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
-import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextProvider";
 
 import { additionalInfoFactory } from "@carma-collab/wuppertal/geoportal";
 

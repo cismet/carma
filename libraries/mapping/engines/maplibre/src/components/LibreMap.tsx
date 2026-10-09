@@ -27,7 +27,6 @@ import type {
   ThreePerfData,
 } from "@carma-mapping/engines/threejs";
 import { FeatureCollectionContext } from "react-cismap/contexts/FeatureCollectionContextProvider";
-import PhotoLightBox from "react-cismap/topicmaps/PhotoLightbox";
 import { TopicMapStylingContext } from "react-cismap/contexts/TopicMapStylingContextProvider";
 import "../styles/map.css";
 import {
@@ -41,6 +40,7 @@ import {
   createNonTiledImageSource,
   createNonTiledMetadata,
 } from "../utils/nonTiledWms";
+import { attachTerrainZoomBoundaryRefresh } from "../lib/runtime/integrations/terrain-zoom-boundary-rtt";
 import {
   DEFAULT_MAX_PITCH,
   setCameraRestrictionBase,
@@ -56,6 +56,7 @@ import {
   getCarmaConf,
   getCarmaConfFromStyle,
   isNonSelectable,
+  isHiddenByOpacity,
   resolvePropertyTarget,
 } from "../lib/SelectionManager";
 import type { FeatureIdentifier } from "../lib/selectionTypes";
@@ -103,6 +104,12 @@ import {
   withTilesetColorCorrection,
 } from "./Tiles3dLayerManager";
 import type { Tiles3dConfig } from "./Tiles3dLayerManager";
+import { PointCloudLayerManager } from "./PointCloudLayerManager";
+import {
+  POINTCLOUD_RENDER_MODE,
+  readPointCloudLayerConfig,
+  type PointCloudLayerConfig,
+} from "../lib/core/pointcloud-style-config";
 import { SharedThreeTilesLayerManager } from "./SharedThreeTilesLayerManager";
 import {
   THREE_TILES_LAYER_TYPE,
@@ -163,6 +170,9 @@ export interface VectorStyle {
    *  during style construction. The original filter is preserved at
    *  metadata.originalFilter so consumers can still recover it. */
   userFilter?: unknown[] | null;
+  /** Restricts `userFilter` to style layers whose id contains this string
+   *  (the filterConfig's layerPattern). Omitted applies it to every layer. */
+  userFilterLayerPattern?: string;
   /** Optional pure transform applied to the freshly fetched/cloned stylesheet
    *  before it is merged into the composite style. Used to bake in features
    *  like dynamic styling selections so the merged map reflects them on the
@@ -520,6 +530,7 @@ export const LibreMap = ({
   );
   const hidingManagerRef = useRef<HidingForwardingManager | null>(null);
   const detachNonTiledRef = useRef<(() => void) | null>(null);
+  const detachTerrainZoomRef = useRef<(() => void) | null>(null);
   const selectedFeaturesRef = useRef<
     Set<{
       source: string;
@@ -552,6 +563,9 @@ export const LibreMap = ({
   const [mountedMap, setMountedMap] = useState<maplibregl.Map | null>(null);
   const [detectedTiles3dConfigs, setDetectedTiles3dConfigs] = useState<
     Array<Tiles3dConfig & { layerOpacity: number }>
+  >([]);
+  const [detectedPointCloudConfigs, setDetectedPointCloudConfigs] = useState<
+    PointCloudLayerConfig[]
   >([]);
   const renderedTiles3dConfigs = useMemo(
     () =>
@@ -1097,6 +1111,11 @@ export const LibreMap = ({
         }
       });
 
+      mapInstance.on(MAPLIBRE_EVENT.TERRAIN, () => {
+        delete (mapInstance as unknown as { _requestedCameraState?: unknown })
+          ._requestedCameraState;
+      });
+
       mapInstance.on("click", async (e) => {
         // Selection fully disabled (e.g. host app is in a custom interaction
         // mode like terra-draw measurement). Skip everything: 3D raycast,
@@ -1343,7 +1362,8 @@ export const LibreMap = ({
             !hit.layer.id.includes("selection") &&
             !hit.layer.id.includes("cluster") &&
             !SELECTION_OVERLAY_LAYER_IDS.includes(hit.layer.id) &&
-            !isNonSelectable(hit)
+            !isNonSelectable(hit) &&
+            !isHiddenByOpacity(hit)
           );
         });
 
@@ -1576,6 +1596,9 @@ export const LibreMap = ({
       hidingManagerRef.current = new HidingForwardingManager(mapInstance);
 
       detachNonTiledRef.current = attachNonTiledWmsUpdater(mapInstance);
+      // zoom bands (minzoom/maxzoom, zoom steps) would stay stale on terrain
+      detachTerrainZoomRef.current =
+        attachTerrainZoomBoundaryRefresh(mapInstance);
 
       mapInstance.on("move", () => {
         if (layers?.find((layer) => layer.type === "vector")) {
@@ -1592,6 +1615,8 @@ export const LibreMap = ({
       hidingManagerRef.current = null;
       detachNonTiledRef.current?.();
       detachNonTiledRef.current = null;
+      detachTerrainZoomRef.current?.();
+      detachTerrainZoomRef.current = null;
       if (map.current) {
         map.current.remove();
         map.current = null;
@@ -1764,6 +1789,9 @@ export const LibreMap = ({
             const tiles3dConfigs: Array<
               Tiles3dConfig & { layerOpacity: number }
             > = [];
+            // Point clouds hang on a carrier layer the same way, see
+            // readPointCloudLayerConfig.
+            const pointCloudConfigs: PointCloudLayerConfig[] = [];
 
             // What opacity the host asked of each source's layer. A three.js
             // layer has no paint properties, so the layer bar's slider cannot
@@ -1790,6 +1818,20 @@ export const LibreMap = ({
             for (const layer of style.layers ?? []) {
               const meta = (layer as any).metadata?.carmaConf?.["3d"];
               if (!meta) continue;
+
+              if (meta.renderMode === POINTCLOUD_RENDER_MODE) {
+                const pointCloud = readPointCloudLayerConfig(layer);
+                if (
+                  pointCloud &&
+                  !pointCloudConfigs.some(
+                    (existing) =>
+                      existing.pointcloud.url === pointCloud.pointcloud.url
+                  )
+                ) {
+                  pointCloudConfigs.push(pointCloud);
+                }
+                continue;
+              }
 
               if (meta.renderMode === "tiles3d") {
                 if (
@@ -1875,6 +1917,16 @@ export const LibreMap = ({
               );
               return [...tiles3dConfigs, ...leaving];
             });
+            // Point clouds leave the same way, after the restored style.
+            setDetectedPointCloudConfigs((previous) => {
+              const leaving = previous.filter(
+                (config) =>
+                  !pointCloudConfigs.some(
+                    (next) => next.pointcloud.url === config.pointcloud.url
+                  )
+              );
+              return [...pointCloudConfigs, ...leaving];
+            });
             // Register once per composition, never from a React state updater.
             cancelTilesetRemoval?.();
             if (map.current) {
@@ -1884,6 +1936,13 @@ export const LibreMap = ({
                   current.filter((config) =>
                     tiles3dConfigs.some(
                       (next) => next.tilesetUrl === config.tilesetUrl
+                    )
+                  )
+                );
+                setDetectedPointCloudConfigs((current) =>
+                  current.filter((config) =>
+                    pointCloudConfigs.some(
+                      (next) => next.pointcloud.url === config.pointcloud.url
                     )
                   )
                 );
@@ -2291,7 +2350,8 @@ export const LibreMap = ({
           !hit.layer.id.includes("selection") &&
           !hit.layer.id.includes("cluster") &&
           !SELECTION_OVERLAY_LAYER_IDS.includes(hit.layer.id) &&
-          !isNonSelectable(hit)
+          !isNonSelectable(hit) &&
+          !isHiddenByOpacity(hit)
       );
 
       // Stamp effective sourceLayer on geojson hits (same convention as
@@ -2407,7 +2467,6 @@ export const LibreMap = ({
               version: "0.1.0",
             }}
           />
-          <PhotoLightBox />
           <LibreMapSelectionContent map={map.current} />
         </>
       )}
@@ -2433,6 +2492,10 @@ export const LibreMap = ({
           config={config}
           layerOpacity={config.layerOpacity}
         />
+      ))}
+      {/* Point clouds named by a style's own metadata, see PointCloudLayerManager */}
+      {detectedPointCloudConfigs.map((config) => (
+        <PointCloudLayerManager key={config.pointcloud.url} config={config} />
       ))}
       <SharedThreeTilesLayerManager layers={threeTilesLayers} />
     </>

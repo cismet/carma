@@ -213,6 +213,7 @@ export {
   getCarmaConf,
   getCarmaConfFromStyle,
   isNonSelectable,
+  isHiddenByOpacity,
   applySelectionForwarding,
   resolvePropertyTarget,
   enrichHitsWithCarmaInfo,
@@ -345,6 +346,18 @@ export {
   THREE_TILES_SHADER_KIND,
 } from "./lib/runtime/integrations/three-tiles-layer";
 export { buildThreeTilesRuntime } from "./lib/runtime/integrations/three-tiles-runtime";
+export {
+  createPointTilesetRuntime,
+  type PointTilesetRuntime,
+  type PointTilesetRuntimeOptions,
+} from "./lib/runtime/integrations/point-tileset-runtime";
+export {
+  POINTCLOUD_RENDER_MODE,
+  isPointCloudZoomInRange,
+  readPointCloudLayerConfig,
+  type PointCloudLayerConfig,
+  type PointCloudStylePayload,
+} from "./lib/core/pointcloud-style-config";
 export {
   TILES_ERROR_TARGET_DEFAULT_PIXELS,
   TILES_MESH_ERROR_TARGET_DEFAULT_PIXELS,
