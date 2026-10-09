@@ -1,6 +1,5 @@
 import { VectorPolylineIcon } from "@carma-commons/ui/components";
 import {
-  DEFAULT_ANNOTATION_SHORT_LABEL_CONFIG,
   ANNOTATION_COMMON_SHORTCUT_ACTIONS,
   formatMeasurementShortLabelToken,
   isKeyboardTargetEditable,
@@ -34,11 +33,6 @@ const { POLYLINE: ANNOTATION_TYPE_POLYLINE } = ANNOTATION_TYPES;
 
 const toolType = ANNOTATION_TYPE_POLYLINE;
 const labelTheme = ANNOTATION_DEFAULT_LABEL_THEME;
-const badgeStyle = {
-  ...DEFAULT_ANNOTATION_SHORT_LABEL_CONFIG[toolType],
-  backgroundColor: labelTheme.scheme.colorPrimary,
-  textColor: labelTheme.scheme.textColor,
-};
 
 export type PolylineToolPluginOptions = {
   annotationLineStyleOptions?: AnnotationLineStyleOptions;
@@ -180,20 +174,18 @@ export const createPolylineToolPlugin = ({
         selectedAnnotationIds,
         setSelectedAnnotationId,
         formatOptions,
-        onNodeLongPress,
       }) => {
         const { points, edges, pointLabels } = buildPolylineToolRenderModels({
           toolType,
           visuals: polylineToolVisuals,
           formatOptions,
-          badgeStyle,
+          labelTheme,
           getLabel: (counter) =>
             formatMeasurementShortLabelToken(toolType, counter),
           nodes,
           annotations: annotationEntries,
           selectedAnnotationIds: selectedAnnotationIds,
           onSelect: setSelectedAnnotationId,
-          onNodeLongPress,
         });
 
         return {
