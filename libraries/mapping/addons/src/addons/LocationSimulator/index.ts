@@ -1,10 +1,18 @@
 export { LocationSimulator } from "./LocationSimulator";
 export type { LocationSimulatorConfig } from "./config";
+export { createFakeDevice, type FakeDevice } from "./fakeDevice";
 export {
-  createFakeDevice,
-  type FakeDevice,
+  DEFAULT_SIGNAL_PRESETS,
+  SIGNAL_LABELS,
+  type SignalPreset,
   type SimulatedSignal,
-} from "./fakeDevice";
+} from "./signalPresets";
+export {
+  parseTrack,
+  trackToGeoJSON,
+  type GpsTrack,
+  type RecordedFix,
+} from "./gpsTrack";
 export {
   useLocationSimulation,
   type LocationSimulation,

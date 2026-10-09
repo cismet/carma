@@ -1,5 +1,5 @@
 import { useAddonState } from "../../lib/AddonStateContext";
-import type { SimulatedSignal } from "./fakeDevice";
+import type { SimulatedSignal } from "./signalPresets";
 
 /**
  * The handle on the pretend device, published by the `locationSimulator`
@@ -34,12 +34,35 @@ export type LocationSimulation = {
    */
   place: (position: [number, number]) => void;
   /**
-   * the reception: "good" as configured, "poor" scattered by 25 m with an
-   * accuracy of 80 m, "off" no fixes at all (a tunnel); for testing how the
-   * navigation copes with a weak or lost signal
+   * the reception, one of the presets of `signalPresets.ts`: "good",
+   * "medium", "bad" or "tunnel"; for testing how the navigation copes with a
+   * weak or lost signal. "tunnel" goes back to "good" once its outage is over
    */
   signal: SimulatedSignal;
   setSignal: (signal: SimulatedSignal) => void;
+  /**
+   * what the device does: "simulate" drives the route, "record" hands the
+   * real device through and keeps its fixes, "replay" plays a loaded track
+   * back along the navigation
+   */
+  mode: "simulate" | "record" | "replay";
+  /** how many fixes the running recording holds; null while none runs */
+  recording: { fixes: number } | null;
+  /** start recording the real device's fixes */
+  startRecording: () => void;
+  /** end the recording; `save` downloads it as GeoJSON */
+  stopRecording: (save: boolean) => void;
+  /** the loaded track, replayed during a navigation; null while there is none */
+  track: {
+    name: string;
+    fixes: number;
+    durationMs: number;
+    start: [number, number];
+    end: [number, number];
+  } | null;
+  /** load a track from a file; false when it holds none */
+  loadTrackFile: (file: File) => Promise<boolean>;
+  clearTrack: () => void;
   /** how much faster than the configured speed the drive goes; 1 is as configured */
   speedFactor: number;
   setSpeedFactor: (factor: number) => void;

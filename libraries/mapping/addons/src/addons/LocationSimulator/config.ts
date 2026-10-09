@@ -1,3 +1,5 @@
+import type { SignalPreset, SimulatedSignal } from "./signalPresets";
+
 export type LocationSimulatorConfig = {
   /**
    * where the pretend user stands while no navigation runs, `[lng, lat]`;
@@ -12,6 +14,21 @@ export type LocationSimulatorConfig = {
   jitterMeters?: number;
   /** the accuracy the fixes report, in meters; default 5 */
   accuracyMeters?: number;
+  /**
+   * the signal preset the device starts with; default "good". The tester
+   * switches it in the navigation's ribbon
+   */
+  signal?: SimulatedSignal;
+  /**
+   * overrides for the presets, value by value (see `signalPresets.ts`);
+   * "good" takes `jitterMeters` and `accuracyMeters` unless given here
+   */
+  signalPresets?: Partial<Record<SimulatedSignal, Partial<SignalPreset>>>;
+  /**
+   * a recorded track (GeoJSON, see `gpsTrack.ts`) loaded on mount, for a
+   * fixture kept with the app; a file picked in the ribbon replaces it
+   */
+  replayTrackUrl?: string;
 };
 
 export const DEFAULT_POSITION: [number, number] = [7.1494, 51.2547];

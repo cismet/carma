@@ -1422,10 +1422,40 @@ To test rerouting the pretend user can leave the route:
   from it. The click is caught on the map container while it goes down, so it
   does not also pick a feature.
 
-- **Signal** in the ribbon (`setSignal`): "gut" as configured, "ungenau"
-  scatters every fix by up to 25 m and reports 80 m accuracy, "aus" sends no
-  fixes at all while the drive goes on, like a tunnel. For the weak-signal
-  handling above.
+- **Signal** in the ribbon (`setSignal`), four presets
+  (`signalPresets.ts`), for the weak-signal handling, the hold while
+  approaching and the reroute thresholds:
+
+  | Preset   | Scatter | Accuracy | Extras                                   |
+  | -------- | ------- | -------- | ---------------------------------------- |
+  | gut      | 2 m     | 5 m      | (`jitterMeters`, `accuracyMeters`)        |
+  | mittel   | 8 m     | 15 m     | now and then a fix at 60 m accuracy       |
+  | schlecht | 20 m    | 30 m     | jumps, a sideways drift of 25 m for ~10 s |
+  | Tunnel   | 2 m     | 5 m      | no fixes for 20 s, then back to "gut"     |
+
+  `signal` in the config is the preset to start with, `signalPresets`
+  overrides values per preset.
+
+Real tracks can be recorded and replayed (`gpsTrack.ts`):
+
+- **Record**: "Aufnehmen" in the ribbon's track row hands the real device
+  through (the simulator stays the source; the locate context does not have
+  to start over) and keeps every fix: place, accuracy, speed, heading, time.
+  While it runs the drive controls give way to "Aufnahme · n Punkte" with
+  "Speichern", which downloads the track as GeoJSON (a LineString with the fix
+  data in `properties.fixes`), and "Verwerfen". A navigation that ends while
+  recording saves it, since the ribbon goes with it. Recording on a phone
+  needs the dev server over HTTPS (`DEV_HTTPS=1`).
+- **Replay**: a loaded track is played back in place of the drive while a
+  navigation runs: each fix as recorded, at its own time from the start, no
+  added scatter and no signal preset. Pause and the speed factor apply; the
+  slider seeks in the track's time; a reroute does not restart it. Between
+  navigations the pretend user stands at the track's start.
+- **Load**: "Laden" in the ribbon, "Track laden…" in the test routes
+  dropdown (which then routes from the track's first fix to its last by the
+  current mode, so the replay runs along a matching route), or
+  `replayTrackUrl` in the config for a fixture kept with the app. A plain
+  LineString without fix data replays at one fix a second.
 
 A new route being driven (a reroute, or a switch back onto the route before
 it) is picked up at the point nearest to the pretend user when that is within
@@ -1441,6 +1471,8 @@ readout and opens no ribbon.
 | `LocationSimulator/LocationSimulator.tsx` | the addon: owns the slot, stands or drives on the navigation channel |
 | `LocationSimulator/fakeDevice.ts`       | the pretend receiver: `stand`, `drive`, `detour`, and the three `Geolocation` calls |
 | `LocationSimulator/config.ts`           | `LocationSimulatorConfig` and its defaults |
+| `LocationSimulator/signalPresets.ts`    | the signal presets and the receiver that applies them |
+| `LocationSimulator/gpsTrack.ts`         | recorded tracks: the format, reading, writing, downloading |
 
 ### Fixed test routes: `routeScenarios`
 
